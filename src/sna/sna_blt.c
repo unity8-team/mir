@@ -2140,10 +2140,10 @@ Bool sna_blt_copy_boxes(struct sna *sna, uint8_t alu,
 	    !kgem_check_bo_fenced(kgem, dst_bo, src_bo, NULL)) {
 		_kgem_submit(kgem);
 		if (!kgem_check_bo_fenced(kgem, dst_bo, src_bo, NULL))
-			return sna_tiling_copy_boxes(sna, alu,
-						     src_bo, src_dx, src_dy,
-						     dst_bo, dst_dx, dst_dy,
-						     bpp, box, nbox);
+			return sna_tiling_blt_copy_boxes(sna, alu,
+							 src_bo, src_dx, src_dy,
+							 dst_bo, dst_dx, dst_dy,
+							 bpp, box, nbox);
 		_kgem_set_mode(kgem, KGEM_BLT);
 	}
 
@@ -2244,7 +2244,8 @@ Bool sna_blt_copy_boxes_fallback(struct sna *sna, uint8_t alu,
 	if (src_bo == dst_bo) {
 		DBG(("%s: dst == src\n", __FUNCTION__));
 
-		if (src_bo->tiling == I915_TILING_Y) {
+		if (src_bo->tiling == I915_TILING_Y &&
+		    kgem_bo_blt_pitch_is_ok(&sna->kgem, src_bo)) {
 			struct kgem_bo *bo;
 
 			DBG(("%s: src is Y-tiled\n", __FUNCTION__));
@@ -2287,7 +2288,8 @@ Bool sna_blt_copy_boxes_fallback(struct sna *sna, uint8_t alu,
 				dst_bo = src_bo = bo;
 		}
 	} else {
-		if (src_bo->tiling == I915_TILING_Y) {
+		if (src_bo->tiling == I915_TILING_Y &&
+		    kgem_bo_blt_pitch_is_ok(&sna->kgem, src_bo)) {
 			DBG(("%s: src is y-tiled\n", __FUNCTION__));
 			assert(src_bo == sna_pixmap(src)->gpu_bo);
 			src_bo = sna_pixmap_change_tiling(src, I915_TILING_X);
@@ -2298,7 +2300,8 @@ Bool sna_blt_copy_boxes_fallback(struct sna *sna, uint8_t alu,
 			}
 		}
 
-		if (dst_bo->tiling == I915_TILING_Y) {
+		if (dst_bo->tiling == I915_TILING_Y &&
+		    kgem_bo_blt_pitch_is_ok(&sna->kgem, dst_bo)) {
 			DBG(("%s: dst is y-tiled\n", __FUNCTION__));
 			assert(dst_bo == sna_pixmap(dst)->gpu_bo);
 			dst_bo = sna_pixmap_change_tiling(dst, I915_TILING_X);

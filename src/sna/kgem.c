@@ -678,9 +678,9 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 		 * disable dual-stream mode */
 		kgem->min_alignment = 64;
 
-	kgem->max_object_size = kgem->aperture_total / 2;
-	kgem->max_cpu_size = kgem->aperture_total / 2;
-	kgem->max_gpu_size = kgem->aperture_total / 2;
+	kgem->max_object_size = 2 * kgem->aperture_total / 3;
+	kgem->max_cpu_size = kgem->max_object_size;
+	kgem->max_gpu_size = kgem->max_object_size;
 	if (!kgem->has_llc)
 		kgem->max_gpu_size = MAX_CACHE_SIZE;
 	if (gen < 40) {

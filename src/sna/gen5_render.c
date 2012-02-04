@@ -1378,6 +1378,9 @@ gen5_emit_drawing_rectangle(struct sna *sna, const struct sna_composite_op *op)
 	uint32_t limit = (op->dst.height - 1) << 16 | (op->dst.width - 1);
 	uint32_t offset = (uint16_t)op->dst.y << 16 | (uint16_t)op->dst.x;
 
+	assert(!too_large(op->dst.x, op->dst.y));
+	assert(!too_large(op->dst.width, op->dst.height));
+
 	if (!DBG_NO_STATE_CACHE &&
 	    sna->render_state.gen5.drawrect_limit == limit &&
 	    sna->render_state.gen5.drawrect_offset == offset)
@@ -2731,20 +2734,6 @@ gen5_copy_bind_surfaces(struct sna *sna,
 	gen5_emit_state(sna, op, offset);
 }
 
-static inline bool untiled_tlb_miss(struct kgem_bo *bo)
-{
-	return bo->tiling == I915_TILING_NONE && bo->pitch >= 4096;
-}
-
-static inline bool prefer_blt_copy(struct sna *sna,
-				   struct kgem_bo *src_bo,
-				   struct kgem_bo *dst_bo)
-{
-	return (sna->kgem.ring != KGEM_RENDER ||
-		untiled_tlb_miss(src_bo) ||
-		untiled_tlb_miss(dst_bo));
-}
-
 static Bool
 gen5_render_copy_boxes(struct sna *sna, uint8_t alu,
 		       PixmapPtr src, struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
@@ -2753,8 +2742,7 @@ gen5_render_copy_boxes(struct sna *sna, uint8_t alu,
 {
 	struct sna_composite_op tmp;
 
-	if (prefer_blt_copy(sna, src_bo, dst_bo) &&
-	    sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
+	if (sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
 	    sna_blt_copy_boxes(sna, alu,
 			       src_bo, src_dx, src_dy,
 			       dst_bo, dst_dx, dst_dy,
@@ -2762,12 +2750,10 @@ gen5_render_copy_boxes(struct sna *sna, uint8_t alu,
 			       box, n))
 		return TRUE;
 
-	if (!(alu == GXcopy || alu == GXclear) || src_bo == dst_bo ||
-	    too_large(src->drawable.width, src->drawable.height) ||
-	    too_large(dst->drawable.width, dst->drawable.height)) {
-fallback:
-	    if (!sna_blt_compare_depth(&src->drawable, &dst->drawable))
-		    return FALSE;
+	if (!(alu == GXcopy || alu == GXclear) || src_bo == dst_bo) {
+fallback_blt:
+		if (!sna_blt_compare_depth(&src->drawable, &dst->drawable))
+			return FALSE;
 
 		return sna_blt_copy_boxes_fallback(sna, alu,
 						   src, src_bo, src_dx, src_dy,
@@ -2787,7 +2773,7 @@ fallback:
 	if (!gen5_check_format(tmp.src.pict_format)) {
 		DBG(("%s: unsupported source format, %x, use BLT\n",
 		     __FUNCTION__, tmp.src.pict_format));
-		goto fallback;
+		goto fallback_blt;
 	}
 
 	DBG(("%s (%d, %d)->(%d, %d) x %d\n",
@@ -2798,17 +2784,66 @@ fallback:
 	tmp.dst.pixmap = dst;
 	tmp.dst.width  = dst->drawable.width;
 	tmp.dst.height = dst->drawable.height;
+	tmp.dst.x = tmp.dst.y = 0;
 	tmp.dst.bo = dst_bo;
-	tmp.dst.x = dst_dx;
-	tmp.dst.y = dst_dy;
 
-	tmp.src.bo = src_bo;
+	sna_render_composite_redirect_init(&tmp);
+	if (too_large(tmp.dst.width, tmp.dst.height)) {
+		BoxRec extents = box[0];
+		int i;
+
+		for (i = 1; i < n; i++) {
+			if (extents.x1 < box[i].x1)
+				extents.x1 = box[i].x1;
+			if (extents.y1 < box[i].y1)
+				extents.y1 = box[i].y1;
+
+			if (extents.x2 > box[i].x2)
+				extents.x2 = box[i].x2;
+			if (extents.y2 > box[i].y2)
+				extents.y2 = box[i].y2;
+		}
+
+		if (!sna_render_composite_redirect(sna, &tmp,
+						   extents.x1, extents.y1,
+						   extents.x2 - extents.x1,
+						   extents.y2 - extents.y1))
+			goto fallback_tiled;
+	}
+
 	tmp.src.filter = SAMPLER_FILTER_NEAREST;
 	tmp.src.repeat = SAMPLER_EXTEND_NONE;
-	tmp.src.card_format =
-		gen5_get_card_format(tmp.src.pict_format);
-	tmp.src.width  = src->drawable.width;
-	tmp.src.height = src->drawable.height;
+	tmp.src.card_format = gen5_get_card_format(tmp.src.pict_format);
+	if (too_large(src->drawable.width, src->drawable.height)) {
+		BoxRec extents = box[0];
+		int i;
+
+		for (i = 1; i < n; i++) {
+			if (extents.x1 < box[i].x1)
+				extents.x1 = box[i].x1;
+			if (extents.y1 < box[i].y1)
+				extents.y1 = box[i].y1;
+
+			if (extents.x2 > box[i].x2)
+				extents.x2 = box[i].x2;
+			if (extents.y2 > box[i].y2)
+				extents.y2 = box[i].y2;
+		}
+
+		if (!sna_render_pixmap_partial(sna, src, src_bo, &tmp.src,
+					       extents.x1 + src_dx,
+					       extents.y1 + src_dy,
+					       extents.x2 - extents.x1,
+					       extents.y2 - extents.y1))
+			goto fallback_tiled_dst;
+	} else {
+		tmp.src.bo = kgem_bo_reference(src_bo);
+		tmp.src.width  = src->drawable.width;
+		tmp.src.height = src->drawable.height;
+		tmp.src.offset[0] = tmp.src.offset[1] = 0;
+		tmp.src.scale[0] = 1.f/src->drawable.width;
+		tmp.src.scale[1] = 1.f/src->drawable.height;
+	}
 
 	tmp.is_affine = TRUE;
 	tmp.floats_per_vertex = 3;
@@ -2819,24 +2854,19 @@ fallback:
 	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL)) {
 		kgem_submit(&sna->kgem);
 		if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
-			goto fallback;
+			goto fallback_tiled_src;
 	}
 
-	if (kgem_bo_is_dirty(src_bo)) {
-		if (sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
-		    sna_blt_copy_boxes(sna, alu,
-				       src_bo, src_dx, src_dy,
-				       dst_bo, dst_dx, dst_dy,
-				       dst->drawable.bitsPerPixel,
-				       box, n))
-			return TRUE;
-	}
+	dst_dx += tmp.dst.x;
+	dst_dy += tmp.dst.y;
+	tmp.dst.x = tmp.dst.y = 0;
+
+	src_dx += tmp.src.offset[0];
+	src_dy += tmp.src.offset[1];
 
 	gen5_copy_bind_surfaces(sna, &tmp);
 	gen5_align_vertex(sna, &tmp);
 
-	tmp.src.scale[0] = 1.f/src->drawable.width;
-	tmp.src.scale[1] = 1.f/src->drawable.height;
 	do {
 		int n_this_time = gen5_get_rectangles(sna, &tmp, n);
 		if (n_this_time == 0) {
@@ -2850,15 +2880,15 @@ fallback:
 			     box->x1 + src_dx, box->y1 + src_dy,
 			     box->x1 + dst_dx, box->y1 + dst_dy,
 			     box->x2 - box->x1, box->y2 - box->y1));
-			OUT_VERTEX(box->x2, box->y2);
+			OUT_VERTEX(box->x2 + dst_dx, box->y2 + dst_dy);
 			OUT_VERTEX_F((box->x2 + src_dx) * tmp.src.scale[0]);
 			OUT_VERTEX_F((box->y2 + src_dy) * tmp.src.scale[1]);
 
-			OUT_VERTEX(box->x1, box->y2);
+			OUT_VERTEX(box->x1 + dst_dx, box->y2 + dst_dy);
 			OUT_VERTEX_F((box->x1 + src_dx) * tmp.src.scale[0]);
 			OUT_VERTEX_F((box->y2 + src_dy) * tmp.src.scale[1]);
 
-			OUT_VERTEX(box->x1, box->y1);
+			OUT_VERTEX(box->x1 + dst_dx, box->y1 + dst_dy);
 			OUT_VERTEX_F((box->x1 + src_dx) * tmp.src.scale[0]);
 			OUT_VERTEX_F((box->y1 + src_dy) * tmp.src.scale[1]);
 
@@ -2867,7 +2897,20 @@ fallback:
 	} while (n);
 
 	gen5_vertex_flush(sna);
+	sna_render_composite_redirect_done(sna, &tmp);
+	kgem_bo_destroy(&sna->kgem, tmp.src.bo);
 	return TRUE;
+
+fallback_tiled_src:
+	kgem_bo_destroy(&sna->kgem, tmp.src.bo);
+fallback_tiled_dst:
+	if (tmp.redirect.real_bo)
+		kgem_bo_destroy(&sna->kgem, tmp.dst.bo);
+fallback_tiled:
+	return sna_tiling_copy_boxes(sna, alu,
+				     src, src_bo, src_dx, src_dy,
+				     dst, dst_bo, dst_dx, dst_dy,
+				     box, n);
 }
 
 static void
@@ -2916,8 +2959,7 @@ gen5_render_copy(struct sna *sna, uint8_t alu,
 {
 	DBG(("%s (alu=%d)\n", __FUNCTION__, alu));
 
-	if (prefer_blt_copy(sna, src_bo, dst_bo) &&
-	    sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
+	if (sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
 	    sna_blt_copy(sna, alu,
 			 src_bo, dst_bo,
 			 dst->drawable.bitsPerPixel,

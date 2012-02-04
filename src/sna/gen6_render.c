@@ -229,6 +229,11 @@ static const struct formatinfo {
 #define OUT_VERTEX(x,y) vertex_emit_2s(sna, x,y)
 #define OUT_VERTEX_F(v) vertex_emit(sna, v)
 
+static inline bool too_large(int width, int height)
+{
+	return width > GEN6_MAX_SIZE || height > GEN6_MAX_SIZE;
+}
+
 static uint32_t gen6_get_blend(int op,
 			       bool has_component_alpha,
 			       uint32_t dst_format)
@@ -707,6 +712,9 @@ gen6_emit_drawing_rectangle(struct sna *sna,
 {
 	uint32_t limit = (op->dst.height - 1) << 16 | (op->dst.width - 1);
 	uint32_t offset = (uint16_t)op->dst.y << 16 | (uint16_t)op->dst.x;
+
+	assert(!too_large(op->dst.x, op->dst.y));
+	assert(!too_large(op->dst.width, op->dst.height));
 
 	if  (sna->render_state.gen6.drawrect_limit  == limit &&
 	     sna->render_state.gen6.drawrect_offset == offset)
@@ -2061,11 +2069,6 @@ gen6_composite_solid_init(struct sna *sna,
 	return channel->bo != NULL;
 }
 
-static inline bool too_large(int width, int height)
-{
-	return width > GEN6_MAX_SIZE || height > GEN6_MAX_SIZE;
-}
-
 static int
 gen6_composite_picture(struct sna *sna,
 		       PicturePtr picture,
@@ -3082,13 +3085,22 @@ static inline bool untiled_tlb_miss(struct kgem_bo *bo)
 	return bo->tiling == I915_TILING_NONE && bo->pitch >= 4096;
 }
 
-static inline bool prefer_blt_copy(struct sna *sna,
-				   struct kgem_bo *src_bo,
-				   struct kgem_bo *dst_bo)
+static bool prefer_blt_bo(struct sna *sna,
+			  PixmapPtr pixmap,
+			  struct kgem_bo *bo)
 {
-	return (prefer_blt_ring(sna) ||
-		untiled_tlb_miss(src_bo) ||
-		untiled_tlb_miss(dst_bo));
+	return (too_large(pixmap->drawable.width, pixmap->drawable.height) ||
+		untiled_tlb_miss(bo)) &&
+		kgem_bo_can_blt(&sna->kgem, bo);
+}
+
+static inline bool prefer_blt_copy(struct sna *sna,
+				   PixmapPtr src, struct kgem_bo *src_bo,
+				   PixmapPtr dst, struct kgem_bo *dst_bo)
+{
+	return (sna->kgem.ring != KGEM_RENDER ||
+		prefer_blt_bo(sna, src, src_bo) ||
+		prefer_blt_bo(sna, dst, dst_bo));
 }
 
 static inline bool
@@ -3148,7 +3160,7 @@ gen6_render_copy_boxes(struct sna *sna, uint8_t alu,
 		      dst_bo, dst_dx, dst_dy,
 		      box, n)));
 
-	if (prefer_blt_copy(sna, src_bo, dst_bo) &&
+	if (prefer_blt_copy(sna, src, src_bo, dst, dst_bo) &&
 	    sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
 	    sna_blt_copy_boxes(sna, alu,
 			       src_bo, src_dx, src_dy,
@@ -3160,26 +3172,15 @@ gen6_render_copy_boxes(struct sna *sna, uint8_t alu,
 	if (!(alu == GXcopy || alu == GXclear) ||
 	    overlaps(src_bo, src_dx, src_dy,
 		     dst_bo, dst_dx, dst_dy,
-		     box, n) ||
-	    too_large(src->drawable.width, src->drawable.height) ||
-	    too_large(dst->drawable.width, dst->drawable.height)) {
-fallback:
+		     box, n)) {
+fallback_blt:
 		if (!sna_blt_compare_depth(&src->drawable, &dst->drawable))
 			return false;
 
-		if (sna_blt_copy_boxes_fallback(sna, alu,
+		return sna_blt_copy_boxes_fallback(sna, alu,
 						 src, src_bo, src_dx, src_dy,
 						 dst, dst_bo, dst_dx, dst_dy,
-						 box, n))
-			return true;
-
-		return false;
-#if 0
-		return sna_tiling_copy_boxes(sna,
-					     src, src_bo, src_dx, src_dy,
-					     dst, dst_bo, dst_dx, dst_dy,
-					     box, n);
-#endif
+						 box, n);
 	}
 
 	if (dst->drawable.depth == src->drawable.depth) {
@@ -3190,25 +3191,73 @@ fallback:
 		tmp.src.pict_format = sna_format_for_depth(src->drawable.depth);
 	}
 	if (!gen6_check_format(tmp.src.pict_format))
-		goto fallback;
+		goto fallback_blt;
 
 	tmp.op = alu == GXcopy ? PictOpSrc : PictOpClear;
 
 	tmp.dst.pixmap = dst;
-	tmp.dst.x = tmp.dst.y = 0;
 	tmp.dst.width  = dst->drawable.width;
 	tmp.dst.height = dst->drawable.height;
 	tmp.dst.bo = dst_bo;
-	tmp.dst.x = dst_dx;
-	tmp.dst.y = dst_dy;
+	tmp.dst.x = tmp.dst.y = 0;
 
-	tmp.src.bo = src_bo;
+	sna_render_composite_redirect_init(&tmp);
+	if (too_large(tmp.dst.width, tmp.dst.height)) {
+		BoxRec extents = box[0];
+		int i;
+
+		for (i = 1; i < n; i++) {
+			if (extents.x1 < box[i].x1)
+				extents.x1 = box[i].x1;
+			if (extents.y1 < box[i].y1)
+				extents.y1 = box[i].y1;
+
+			if (extents.x2 > box[i].x2)
+				extents.x2 = box[i].x2;
+			if (extents.y2 > box[i].y2)
+				extents.y2 = box[i].y2;
+		}
+		if (!sna_render_composite_redirect(sna, &tmp,
+						   extents.x1, extents.y1,
+						   extents.x2 - extents.x1,
+						   extents.y2 - extents.y1))
+			goto fallback_tiled;
+	}
+
 	tmp.src.filter = SAMPLER_FILTER_NEAREST;
 	tmp.src.repeat = SAMPLER_EXTEND_NONE;
 	tmp.src.card_format =
 		gen6_get_card_format(tmp.src.pict_format);
-	tmp.src.width  = src->drawable.width;
-	tmp.src.height = src->drawable.height;
+	if (too_large(src->drawable.width, src->drawable.height)) {
+		BoxRec extents = box[0];
+		int i;
+
+		for (i = 1; i < n; i++) {
+			if (extents.x1 < box[i].x1)
+				extents.x1 = box[i].x1;
+			if (extents.y1 < box[i].y1)
+				extents.y1 = box[i].y1;
+
+			if (extents.x2 > box[i].x2)
+				extents.x2 = box[i].x2;
+			if (extents.y2 > box[i].y2)
+				extents.y2 = box[i].y2;
+		}
+
+		if (!sna_render_pixmap_partial(sna, src, src_bo, &tmp.src,
+					       extents.x1 + src_dx,
+					       extents.y1 + src_dy,
+					       extents.x2 - extents.x1,
+					       extents.y2 - extents.y1))
+			goto fallback_tiled_dst;
+	} else {
+		tmp.src.bo = kgem_bo_reference(src_bo);
+		tmp.src.width  = src->drawable.width;
+		tmp.src.height = src->drawable.height;
+		tmp.src.offset[0] = tmp.src.offset[1] = 0;
+		tmp.src.scale[0] = 1.f/src->drawable.width;
+		tmp.src.scale[1] = 1.f/src->drawable.height;
+	}
 
 	tmp.mask.bo = NULL;
 	tmp.mask.filter = SAMPLER_FILTER_NEAREST;
@@ -3229,9 +3278,16 @@ fallback:
 	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL)) {
 		kgem_submit(&sna->kgem);
 		if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
-			goto fallback;
+			goto fallback_tiled_src;
 		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	}
+
+	dst_dx += tmp.dst.x;
+	dst_dy += tmp.dst.y;
+	tmp.dst.x = tmp.dst.y = 0;
+
+	src_dx += tmp.src.offset[0];
+	src_dy += tmp.src.offset[1];
 
 	gen6_emit_copy_state(sna, &tmp);
 	gen6_align_vertex(sna, &tmp);
@@ -3256,9 +3312,9 @@ fallback:
 			     box->x1 + src_dx, box->y1 + src_dy,
 			     box->x1 + dst_dx, box->y1 + dst_dy,
 			     box->x2 - box->x1, box->y2 - box->y1));
-			v[0] = pack_2s(box->x2, box->y2);
-			v[3] = pack_2s(box->x1, box->y2);
-			v[6] = pack_2s(box->x1, box->y1);
+			v[0] = pack_2s(box->x2 + dst_dx, box->y2 + dst_dy);
+			v[3] = pack_2s(box->x1 + dst_dx, box->y2 + dst_dy);
+			v[6] = pack_2s(box->x1 + dst_dx, box->y1 + dst_dy);
 
 			v[1] = (box->x2 + src_dx) * tmp.src.scale[0];
 			v[7] = v[4] = (box->x1 + src_dx) * tmp.src.scale[0];
@@ -3272,7 +3328,20 @@ fallback:
 	} while (n);
 
 	gen6_vertex_flush(sna);
+	sna_render_composite_redirect_done(sna, &tmp);
+	kgem_bo_destroy(&sna->kgem, tmp.src.bo);
 	return TRUE;
+
+fallback_tiled_src:
+	kgem_bo_destroy(&sna->kgem, tmp.src.bo);
+fallback_tiled_dst:
+	if (tmp.redirect.real_bo)
+		kgem_bo_destroy(&sna->kgem, tmp.dst.bo);
+fallback_tiled:
+	return sna_tiling_copy_boxes(sna, alu,
+				     src, src_bo, src_dx, src_dy,
+				     dst, dst_bo, dst_dx, dst_dy,
+				     box, n);
 }
 
 static void
@@ -3329,7 +3398,7 @@ gen6_render_copy(struct sna *sna, uint8_t alu,
 	     src->drawable.width, src->drawable.height,
 	     dst->drawable.width, dst->drawable.height));
 
-	if (prefer_blt_copy(sna, src_bo, dst_bo) &&
+	if (prefer_blt_copy(sna, src, src_bo, dst, dst_bo) &&
 	    sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
 	    sna_blt_copy(sna, alu,
 			 src_bo, dst_bo,

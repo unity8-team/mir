@@ -421,10 +421,10 @@ done:
 	return ret;
 }
 
-Bool sna_tiling_copy_boxes(struct sna *sna, uint8_t alu,
-			   struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
-			   struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
-			   int bpp, const BoxRec *box, int nbox)
+Bool sna_tiling_blt_copy_boxes(struct sna *sna, uint8_t alu,
+			       struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
+			       struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
+			       int bpp, const BoxRec *box, int nbox)
 {
 	RegionRec region, tile, this;
 	struct kgem_bo *bo;
@@ -514,5 +514,127 @@ err:
 	RegionUninit(&this);
 done:
 	pixman_region_fini(&region);
+	return ret;
+}
+
+static Bool
+box_intersect(BoxPtr a, const BoxRec *b)
+{
+	if (a->x1 < b->x1)
+		a->x1 = b->x1;
+	if (a->x2 > b->x2)
+		a->x2 = b->x2;
+	if (a->y1 < b->y1)
+		a->y1 = b->y1;
+	if (a->y2 > b->y2)
+		a->y2 = b->y2;
+
+	return a->x1 < a->x2 && a->y1 < a->y2;
+}
+
+Bool
+sna_tiling_copy_boxes(struct sna *sna, uint8_t alu,
+		      PixmapPtr src, struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
+		      PixmapPtr dst, struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
+		      const BoxRec *box, int n)
+{
+	BoxRec extents, tile, stack[64], *clipped, *c;
+	PixmapRec p;
+	int i, step;
+	Bool ret = FALSE;
+
+	extents = box[0];
+	for (i = 1; i < n; i++) {
+		if (extents.x1 < box[i].x1)
+			extents.x1 = box[i].x1;
+		if (extents.y1 < box[i].y1)
+			extents.y1 = box[i].y1;
+
+		if (extents.x2 > box[i].x2)
+			extents.x2 = box[i].x2;
+		if (extents.y2 > box[i].y2)
+			extents.y2 = box[i].y2;
+	}
+
+	step = sna->render.max_3d_size - 4096 / dst->drawable.bitsPerPixel;
+	while (step * step * 4 > sna->kgem.max_upload_tile_size)
+		step /= 2;
+
+	DBG(("%s: tiling copy, using %dx%d tiles\n",
+	     __FUNCTION__, step, step));
+
+	if (n > ARRAY_SIZE(stack)) {
+		clipped = malloc(sizeof(BoxRec) * n);
+		if (clipped == NULL)
+			goto tiled_error;
+	} else
+		clipped = stack;
+
+	p.drawable.depth = src->drawable.depth;
+	p.drawable.bitsPerPixel = src->drawable.bitsPerPixel;
+	p.devPrivate.ptr = NULL;
+
+	for (tile.y1 = extents.y1; tile.y1 < extents.y2; tile.y1 = tile.y2) {
+		tile.y2 = tile.y1 + step;
+		if (tile.y2 > extents.y2)
+			tile.y2 = extents.y2;
+
+		for (tile.x1 = extents.x1; tile.x1 < extents.x2; tile.x1 = tile.x2) {
+			struct kgem_bo *tmp_bo;
+
+			tile.x2 = tile.x1 + step;
+			if (tile.x2 > extents.x2)
+				tile.x2 = extents.x2;
+
+			p.drawable.width  = tile.x2 - tile.x1;
+			p.drawable.height = tile.y2 - tile.y1;
+
+			tmp_bo = kgem_create_2d(&sna->kgem,
+						p.drawable.width,
+						p.drawable.height,
+						p.drawable.bitsPerPixel,
+						I915_TILING_X, 0);
+			if (!tmp_bo)
+				goto tiled_error;
+
+			c = clipped;
+			for (i = 0; i < n; i++) {
+				*c = box[i];
+				if (!box_intersect(c, &tile))
+					continue;
+
+				DBG(("%s: box(%d, %d), (%d, %d), src=(%d, %d), dst=(%d, %d)\n",
+				     __FUNCTION__,
+				     c->x1, c->y1,
+				     c->x2, c->y2,
+				     src_dx, src_dy,
+				     c->x1 - tile.x1,
+				     c->y1 - tile.y1));
+				c++;
+			}
+
+			if (c == clipped ||
+			    (sna->render.copy_boxes(sna, GXcopy,
+						    src, src_bo, src_dx, src_dy,
+						    &p, tmp_bo, -tile.x1, -tile.y1,
+						    clipped, c - clipped) &&
+			     sna->render.copy_boxes(sna, alu,
+						    &p, tmp_bo, -tile.x1, -tile.y1,
+						    dst, dst_bo, dst_dx, dst_dy,
+						    clipped, c - clipped)))
+				i = 1;
+
+			kgem_bo_destroy(&sna->kgem, tmp_bo);
+
+			if (!i)
+				goto tiled_error;
+		}
+	}
+
+	ret = TRUE;
+tiled_error:
+	if (clipped != stack)
+		free(clipped);
+
 	return ret;
 }

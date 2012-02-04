@@ -3841,10 +3841,8 @@ gen3_render_copy_boxes(struct sna *sna, uint8_t alu,
 	if (!(alu == GXcopy || alu == GXclear) ||
 	    src_bo == dst_bo || /* XXX handle overlap using 3D ? */
 	    src_bo->pitch > MAX_3D_PITCH ||
-	    too_large(src->drawable.width, src->drawable.height) ||
-	    dst_bo->pitch > MAX_3D_PITCH ||
-	    too_large(dst->drawable.width, dst->drawable.height)) {
-fallback:
+	    too_large(src->drawable.width, src->drawable.height)) {
+fallback_blt:
 		return sna_blt_copy_boxes_fallback(sna, alu,
 						   src, src_bo, src_dx, src_dy,
 						   dst, dst_bo, dst_dx, dst_dy,
@@ -3854,7 +3852,7 @@ fallback:
 	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL)) {
 		kgem_submit(&sna->kgem);
 		if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
-			goto fallback;
+			goto fallback_blt;
 	}
 
 	memset(&tmp, 0, sizeof(tmp));
@@ -3865,6 +3863,31 @@ fallback:
 	tmp.dst.height = dst->drawable.height;
 	tmp.dst.format = sna_format_for_depth(dst->drawable.depth);
 	tmp.dst.bo = dst_bo;
+	tmp.dst.x = tmp.dst.y = 0;
+
+	sna_render_composite_redirect_init(&tmp);
+	if (too_large(tmp.dst.width, tmp.dst.height) ||
+	    dst_bo->pitch > MAX_3D_PITCH) {
+		BoxRec extents = box[0];
+		int i;
+
+		for (i = 1; i < n; i++) {
+			if (extents.x1 < box[i].x1)
+				extents.x1 = box[i].x1;
+			if (extents.y1 < box[i].y1)
+				extents.y1 = box[i].y1;
+
+			if (extents.x2 > box[i].x2)
+				extents.x2 = box[i].x2;
+			if (extents.y2 > box[i].y2)
+				extents.y2 = box[i].y2;
+		}
+		if (!sna_render_composite_redirect(sna, &tmp,
+						   extents.x1, extents.y1,
+						   extents.x2 - extents.x1,
+						   extents.y2 - extents.y1))
+			goto fallback_tiled;
+	}
 
 	gen3_render_copy_setup_source(&tmp.src, src, src_bo);
 
@@ -3872,6 +3895,10 @@ fallback:
 	tmp.floats_per_rect = 12;
 	tmp.mask.bo = NULL;
 	tmp.mask.u.gen3.type = SHADER_NONE;
+
+	dst_dx += tmp.dst.x;
+	dst_dy += tmp.dst.y;
+	tmp.dst.x = tmp.dst.y = 0;
 
 	gen3_emit_composite_state(sna, &tmp);
 	gen3_align_vertex(sna, &tmp);
@@ -3911,7 +3938,14 @@ fallback:
 	} while (n);
 
 	gen3_vertex_flush(sna);
+	sna_render_composite_redirect_done(sna, &tmp);
 	return TRUE;
+
+fallback_tiled:
+	return sna_tiling_copy_boxes(sna, alu,
+				     src, src_bo, src_dx, src_dy,
+				     dst, dst_bo, dst_dx, dst_dy,
+				     box, n);
 }
 
 static void
