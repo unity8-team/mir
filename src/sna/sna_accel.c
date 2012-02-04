@@ -416,6 +416,8 @@ static inline uint32_t default_tiling(PixmapPtr pixmap)
 	if (sna_damage_is_all(&priv->cpu_damage,
 			      pixmap->drawable.width,
 			      pixmap->drawable.height)) {
+		DBG(("%s: entire source is damaged, using Y-tiling\n",
+		     __FUNCTION__));
 		sna_damage_destroy(&priv->gpu_damage);
 		priv->undamaged = false;
 		return I915_TILING_Y;
@@ -1221,7 +1223,9 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 		return true;
 	}
 
-	if (DAMAGE_IS_ALL(priv->cpu_damage))
+	if (sna_damage_is_all(&priv->cpu_damage,
+			      pixmap->drawable.width,
+			      pixmap->drawable.height))
 		goto out;
 
 	if (priv->clear)
@@ -1245,6 +1249,8 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 	}
 
 	if ((flags & MOVE_READ) == 0) {
+		DBG(("%s: no read, checking to see if we can stream the write into the GPU bo\n",
+		     __FUNCTION__));
 		assert(flags & MOVE_WRITE);
 
 		if (priv->stride && priv->gpu_bo &&
@@ -1611,7 +1617,9 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box, unsigned int flags)
 
 	assert_pixmap_contains_box(pixmap, box);
 
-	if (DAMAGE_IS_ALL(priv->gpu_damage))
+	if (sna_damage_is_all(&priv->gpu_damage,
+			      pixmap->drawable.width,
+			      pixmap->drawable.height))
 		goto done;
 
 	if (priv->gpu_bo == NULL) {
@@ -2081,7 +2089,9 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 		return NULL;
 	}
 
-	if (DAMAGE_IS_ALL(priv->gpu_damage)) {
+	if (sna_damage_is_all(&priv->gpu_damage,
+			      pixmap->drawable.width,
+			      pixmap->drawable.height)) {
 		DBG(("%s: already all-damaged\n", __FUNCTION__));
 		goto active;
 	}
