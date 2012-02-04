@@ -274,6 +274,7 @@ struct sna {
 	void *WakeupData;
 	CloseScreenProcPtr CloseScreen;
 
+	PicturePtr clear;
 	struct {
 		uint32_t fill_bo;
 		uint32_t fill_pixel;
