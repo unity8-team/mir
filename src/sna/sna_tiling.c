@@ -142,7 +142,8 @@ sna_tiling_composite_done(struct sna *sna,
 
 	/* Use a small step to accommodate enlargement through tile alignment */
 	step = sna->render.max_3d_size;
-	if (tile->dst_x & (8*512 / tile->dst->pDrawable->bitsPerPixel - 1))
+	if (tile->dst_x & (8*512 / tile->dst->pDrawable->bitsPerPixel - 1) ||
+	    tile->dst_y & 63)
 		step /= 2;
 	while (step * step * 4 > sna->kgem.max_copy_tile_size)
 		step /= 2;
@@ -330,7 +331,11 @@ sna_tiling_fill_boxes(struct sna *sna,
 
 	pixman_region_init_rects(&region, box, n);
 
+	/* Use a small step to accommodate enlargement through tile alignment */
 	step = sna->render.max_3d_size;
+	if (region.extents.x1 & (8*512 / dst->drawable.bitsPerPixel - 1) ||
+	    region.extents.y1 & 63)
+		step /= 2;
 	while (step * step * 4 > sna->kgem.max_copy_tile_size)
 		step /= 2;
 
@@ -443,7 +448,10 @@ Bool sna_tiling_blt_copy_boxes(struct sna *sna, uint8_t alu,
 
 	pixman_region_init_rects(&region, box, nbox);
 
+	/* Use a small step to accommodate enlargement through tile alignment */
 	step = sna->render.max_3d_size;
+	if (region.extents.x1 & (8*512 / bpp - 1) || region.extents.y1 & 63)
+		step /= 2;
 	while (step * step * 4 > sna->kgem.max_copy_tile_size)
 		step /= 2;
 

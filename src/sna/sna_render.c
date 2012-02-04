@@ -622,7 +622,7 @@ static int sna_render_picture_downsample(struct sna *sna,
 	struct sna_pixmap *priv;
 	pixman_transform_t t;
 	PixmapPtr tmp;
-	int width, height;
+	int width, height, size;
 	int sx, sy, ox, oy, ow, oh;
 	int error, ret = 0;
 	BoxRec box, b;
@@ -743,8 +743,13 @@ static int sna_render_picture_downsample(struct sna *sna,
 	ValidatePicture(tmp_dst);
 	ValidatePicture(tmp_src);
 
-	w = sna->render.max_3d_size / sx - 2 * sx;
-	h = sna->render.max_3d_size / sy - 2 * sy;
+	/* Use a small size to accommodate enlargement through tile alignment */
+	size = sna->render.max_3d_size - 4096 / pixmap->drawable.bitsPerPixel;
+	while (size * size * 4 > sna->kgem.max_copy_tile_size)
+		size /= 2;
+
+	w = size / sx - 2 * sx;
+	h = size / sy - 2 * sy;
 	DBG(("%s %d:%d downsampling using %dx%d GPU tiles\n",
 	     __FUNCTION__, (width + w-1)/w, (height + h-1)/h, w, h));
 
