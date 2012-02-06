@@ -2339,6 +2339,9 @@ need_upload(PicturePtr p)
 static bool
 source_fallback(PicturePtr p)
 {
+	if (is_solid(p))
+		return false;
+
 	return (has_alphamap(p) ||
 		is_gradient(p) ||
 		!gen6_check_filter(p) ||
@@ -2391,7 +2394,7 @@ gen6_composite_fallback(struct sna *sna,
 		return FALSE;
 	}
 
-	if (src_pixmap && !is_solid(src) && !source_fallback(src)) {
+	if (src_pixmap && !source_fallback(src)) {
 		priv = sna_pixmap(src_pixmap);
 		if (priv && priv->gpu_damage && !priv->cpu_damage) {
 			DBG(("%s: src is already on the GPU, try to use GPU\n",
@@ -2399,7 +2402,7 @@ gen6_composite_fallback(struct sna *sna,
 			return FALSE;
 		}
 	}
-	if (mask_pixmap && !is_solid(mask) && !source_fallback(mask)) {
+	if (mask_pixmap && !source_fallback(mask)) {
 		priv = sna_pixmap(mask_pixmap);
 		if (priv && priv->gpu_damage && !priv->cpu_damage) {
 			DBG(("%s: mask is already on the GPU, try to use GPU\n",
