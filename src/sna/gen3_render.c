@@ -2413,14 +2413,6 @@ static inline bool is_constant_ps(uint32_t type)
 }
 
 static bool
-is_solid(PicturePtr picture)
-{
-	return  picture->pDrawable->width == 1 &&
-		picture->pDrawable->height == 1 &&
-		picture->repeat;
-}
-
-static bool
 has_alphamap(PicturePtr p)
 {
 	return p->alphaMap != NULL;
@@ -2435,7 +2427,7 @@ need_upload(PicturePtr p)
 static bool
 source_fallback(PicturePtr p)
 {
-	if (is_solid(p))
+	if (sna_picture_is_solid(p, NULL))
 		return false;
 
 	return (has_alphamap(p) ||

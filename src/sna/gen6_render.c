@@ -2270,12 +2270,6 @@ static bool can_switch_rings(struct sna *sna)
 	return sna->kgem.has_semaphores && !NO_RING_SWITCH;
 }
 
-static bool
-is_solid(PicturePtr picture)
-{
-	return sna_picture_is_solid(picture, NULL);
-}
-
 static Bool
 try_blt(struct sna *sna,
 	PicturePtr dst, PicturePtr src,
@@ -2308,7 +2302,7 @@ try_blt(struct sna *sna,
 	}
 
 	if (can_switch_rings(sna)) {
-		if (is_solid(src))
+		if (sna_picture_is_solid(src, NULL))
 			return TRUE;
 	}
 
@@ -2339,7 +2333,7 @@ need_upload(PicturePtr p)
 static bool
 source_fallback(PicturePtr p)
 {
-	if (is_solid(p))
+	if (sna_picture_is_solid(p, NULL))
 		return false;
 
 	return (has_alphamap(p) ||

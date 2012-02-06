@@ -1486,14 +1486,6 @@ try_blt(struct sna *sna,
 }
 
 static bool
-is_solid(PicturePtr picture)
-{
-	return  picture->pDrawable->width == 1 &&
-		picture->pDrawable->height == 1 &&
-		picture->repeat;
-}
-
-static bool
 is_unhandled_gradient(PicturePtr picture)
 {
 	if (picture->pDrawable)
@@ -1523,7 +1515,7 @@ need_upload(PicturePtr p)
 static bool
 source_fallback(PicturePtr p)
 {
-	if (is_solid(p))
+	if (sna_picture_is_solid(p, NULL))
 		return false;
 
 	return (has_alphamap(p) ||
