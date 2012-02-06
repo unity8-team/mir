@@ -1146,7 +1146,7 @@ sna_render_picture_extract(struct sna *sna,
 				    kgem_choose_tiling(&sna->kgem,
 						       I915_TILING_X, w, h,
 						       pixmap->drawable.bitsPerPixel),
-				    0);
+				    CREATE_TEMPORARY);
 		if (bo) {
 			PixmapRec tmp;
 
@@ -1725,7 +1725,7 @@ sna_render_composite_redirect(struct sna *sna,
 			    width, height, bpp,
 			    kgem_choose_tiling(&sna->kgem, I915_TILING_X,
 					       width, height, bpp),
-			    CREATE_SCANOUT);
+			    CREATE_SCANOUT | CREATE_TEMPORARY);
 	if (!bo)
 		return FALSE;
 

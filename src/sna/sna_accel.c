@@ -700,7 +700,7 @@ sna_pixmap_create_scratch(ScreenPtr screen,
 
 	priv->gpu_bo = kgem_create_2d(&sna->kgem,
 				      width, height, bpp, tiling,
-				      0);
+				      CREATE_TEMPORARY);
 	if (priv->gpu_bo == NULL) {
 		free(priv);
 		fbDestroyPixmap(pixmap);
@@ -5522,7 +5522,7 @@ sna_poly_zero_line_blt(DrawablePtr drawable,
 				       adx, ady, sdx, sdy,
 				       1, 1, octant);
 
-			DBG(("%s: adx=(%d, %d), sdx=(%d, %d), oc1=%d, oc2\n",
+			DBG(("%s: adx=(%d, %d), sdx=(%d, %d), oc1=%d, oc2=%d\n",
 			     __FUNCTION__, adx, ady, sdx, sdy, oc1, oc2));
 			if (adx == 0 || ady == 0) {
 				if (x1 <= x2) {

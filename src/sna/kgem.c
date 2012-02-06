@@ -2291,13 +2291,14 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 	if (tiling < 0)
 		tiling = -tiling, flags |= CREATE_EXACT;
 
-	DBG(("%s(%dx%d, bpp=%d, tiling=%d, exact=%d, inactive=%d, cpu-mapping=%d, gtt-mapping=%d, scanout?=%d)\n", __FUNCTION__,
+	DBG(("%s(%dx%d, bpp=%d, tiling=%d, exact=%d, inactive=%d, cpu-mapping=%d, gtt-mapping=%d, scanout?=%d, temp?=%d)\n", __FUNCTION__,
 	     width, height, bpp, tiling,
 	     !!(flags & CREATE_EXACT),
 	     !!(flags & CREATE_INACTIVE),
 	     !!(flags & CREATE_CPU_MAP),
 	     !!(flags & CREATE_GTT_MAP),
-	     !!(flags & CREATE_SCANOUT)));
+	     !!(flags & CREATE_SCANOUT),
+	     !!(flags & CREATE_TEMPORARY)));
 
 	size = kgem_surface_size(kgem,
 				 kgem->has_relaxed_fencing,
@@ -2404,7 +2405,7 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 
 	/* Best active match */
 	retry = NUM_CACHE_BUCKETS - bucket;
-	if (retry > 3)
+	if (retry > 3 && (flags & CREATE_TEMPORARY) == 0)
 		retry = 3;
 search_again:
 	assert(bucket < NUM_CACHE_BUCKETS);
