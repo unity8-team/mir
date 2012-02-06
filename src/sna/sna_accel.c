@@ -5476,9 +5476,6 @@ sna_poly_zero_line_blt(DrawablePtr drawable,
 		xstart = pt->x + drawable->x;
 		ystart = pt->y + drawable->y;
 
-		/* x2, y2, oc2 copied to x1, y1, oc1 at top of loop to simplify
-		 * iteration logic
-		 */
 		x2 = xstart;
 		y2 = ystart;
 		oc2 = 0;
@@ -5525,8 +5522,8 @@ sna_poly_zero_line_blt(DrawablePtr drawable,
 				       adx, ady, sdx, sdy,
 				       1, 1, octant);
 
-			DBG(("%s: adx=(%d, %d), sdx=(%d, %d)\n",
-			     __FUNCTION__, adx, ady, sdx, sdy));
+			DBG(("%s: adx=(%d, %d), sdx=(%d, %d), oc1=%d, oc2\n",
+			     __FUNCTION__, adx, ady, sdx, sdy, oc1, oc2));
 			if (adx == 0 || ady == 0) {
 				if (x1 <= x2) {
 					b->x1 = x1;
@@ -5658,7 +5655,7 @@ X_continue2:
 							   octant, bias, oc1, oc2) == -1)
 						continue;
 
-					length = abs(y2 - y);
+					length = abs(y2_clipped - y);
 
 					/* if we've clipped the endpoint, always draw the full length
 					 * of the segment, because then the capstyle doesn't matter
