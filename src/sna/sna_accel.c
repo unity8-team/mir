@@ -2143,7 +2143,6 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 		pixmap->devKind = priv->stride;
 		priv->mapped = false;
 	}
-	assert(pixmap->devPrivate.ptr != NULL);
 
 	n = sna_damage_get_boxes(priv->cpu_damage, &box);
 	if (n) {
@@ -2158,6 +2157,7 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 						    pixmap, priv->gpu_bo, 0, 0,
 						    box, n);
 		if (!ok) {
+			assert(pixmap->devPrivate.ptr != NULL);
 			if (n == 1 && !priv->pinned &&
 			    (box->x2 - box->x1) >= pixmap->drawable.width &&
 			    (box->y2 - box->y1) >= pixmap->drawable.height) {
