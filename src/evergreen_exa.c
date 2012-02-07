@@ -78,9 +78,6 @@ EVERGREENPrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     dst.bo = radeon_get_pixmap_bo(pPix);
     dst.tiling_flags = radeon_get_pixmap_tiling(pPix);
     dst.surface = radeon_get_pixmap_surface(pPix);
-    if (dst.surface->npix_x != pPix->drawable.width) {
-	dst.surface = NULL;
-    }
 
     dst.pitch = exaGetPixmapPitch(pPix) / (pPix->drawable.bitsPerPixel / 8);
     dst.width = pPix->drawable.width;
@@ -478,14 +475,6 @@ EVERGREENPrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
     src_obj.surface = radeon_get_pixmap_surface(pSrc);
     dst_obj.tiling_flags = radeon_get_pixmap_tiling(pDst);
     src_obj.tiling_flags = radeon_get_pixmap_tiling(pSrc);
-    if (dst_obj.surface->npix_x != pDst->drawable.width) {
-        dst_obj.surface = NULL;
-	dst_obj.tiling_flags = 0;
-    }
-    if (src_obj.surface->npix_x != pSrc->drawable.width) {
-        src_obj.surface = NULL;
-	src_obj.tiling_flags = 0;
-    }
     if (radeon_get_pixmap_bo(pSrc) == radeon_get_pixmap_bo(pDst))
 	accel_state->same_surface = TRUE;
 
@@ -1164,15 +1153,6 @@ static Bool EVERGREENPrepareComposite(int op, PicturePtr pSrcPicture,
     src_obj.surface = radeon_get_pixmap_surface(pSrc);
     dst_obj.tiling_flags = radeon_get_pixmap_tiling(pDst);
     src_obj.tiling_flags = radeon_get_pixmap_tiling(pSrc);
-    if (dst_obj.surface->npix_x != pDst->drawable.width) {
-        dst_obj.surface = NULL;
-	dst_obj.tiling_flags = 0;
-    }
-    if (src_obj.surface->npix_x != pSrc->drawable.width) {
-        src_obj.surface = NULL;
-	src_obj.tiling_flags = 0;
-    }
-
     src_obj.pitch = exaGetPixmapPitch(pSrc) / (pSrc->drawable.bitsPerPixel / 8);
     dst_obj.pitch = exaGetPixmapPitch(pDst) / (pDst->drawable.bitsPerPixel / 8);
 
@@ -1192,10 +1172,6 @@ static Bool EVERGREENPrepareComposite(int op, PicturePtr pSrcPicture,
 	mask_obj.tiling_flags = radeon_get_pixmap_tiling(pMask);
 	mask_obj.pitch = exaGetPixmapPitch(pMask) / (pMask->drawable.bitsPerPixel / 8);
 	mask_obj.surface = radeon_get_pixmap_surface(pMask);
-	if (mask_obj.surface->npix_x != pMask->drawable.width) {
-		mask_obj.surface = NULL;
-	}
-
 	mask_obj.width = pMask->drawable.width;
 	mask_obj.height = pMask->drawable.height;
 	mask_obj.bpp = pMask->drawable.bitsPerPixel;
@@ -1553,10 +1529,6 @@ EVERGREENUploadToScreen(PixmapPtr pDst, int x, int y, int w, int h,
     dst_obj.bo = radeon_get_pixmap_bo(pDst);
     dst_obj.tiling_flags = radeon_get_pixmap_tiling(pDst);
     dst_obj.surface = radeon_get_pixmap_surface(pDst);
-    if (dst_obj.surface->npix_x != pDst->drawable.width) {
-	dst_obj.surface = NULL;
-	dst_obj.tiling_flags = 0;
-    }
 
     if (!R600SetAccelState(pScrn,
 			   &src_obj,
@@ -1688,9 +1660,6 @@ EVERGREENDownloadFromScreen(PixmapPtr pSrc, int x, int y, int w,
     src_obj.bo = radeon_get_pixmap_bo(pSrc);
     src_obj.tiling_flags = radeon_get_pixmap_tiling(pSrc);
     src_obj.surface = radeon_get_pixmap_surface(pSrc);
-    if (src_obj.surface->npix_x != pSrc->drawable.width) {
-	    src_obj.surface = NULL;
-    }
 
     dst_obj.pitch = scratch_pitch;
     dst_obj.width = w;

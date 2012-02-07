@@ -159,9 +159,6 @@ EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     dst_obj.bo = radeon_get_pixmap_bo(pPixmap);
     dst_obj.tiling_flags = radeon_get_pixmap_tiling(pPixmap);
     dst_obj.surface = radeon_get_pixmap_surface(pPixmap);
-    if (dst_obj.surface->npix_x != pPixmap->drawable.width) {
-	    dst_obj.surface = NULL;
-    }
 
     dst_obj.pitch = exaGetPixmapPitch(pPixmap) / (pPixmap->drawable.bitsPerPixel / 8);
 
