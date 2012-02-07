@@ -174,7 +174,7 @@ static PixmapPtr fixup_glamor(DrawablePtr drawable, PixmapPtr pixmap)
 		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 			   "Failed to get DRI drawable for glamor pixmap.\n");
 
-	screen->ModifyPixmapHeader(pixmap,
+	screen->ModifyPixmapHeader(old,
 				   drawable->width,
 				   drawable->height,
 				   0, 0,
