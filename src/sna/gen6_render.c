@@ -3285,8 +3285,7 @@ fallback_blt:
 
 	tmp.src.filter = SAMPLER_FILTER_NEAREST;
 	tmp.src.repeat = SAMPLER_EXTEND_NONE;
-	tmp.src.card_format =
-		gen6_get_card_format(tmp.src.pict_format);
+	tmp.src.card_format = gen6_get_card_format(tmp.src.pict_format);
 	if (too_large(src->drawable.width, src->drawable.height)) {
 		BoxRec extents = box[0];
 		int i;
@@ -3307,8 +3306,10 @@ fallback_blt:
 					       extents.x1 + src_dx,
 					       extents.y1 + src_dy,
 					       extents.x2 - extents.x1,
-					       extents.y2 - extents.y1))
+					       extents.y2 - extents.y1)) {
+			DBG(("%s: unable to extract partial pixmap\n", __FUNCTION__));
 			goto fallback_tiled_dst;
+		}
 	} else {
 		tmp.src.bo = kgem_bo_reference(src_bo);
 		tmp.src.width  = src->drawable.width;
@@ -3336,8 +3337,11 @@ fallback_blt:
 	kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL)) {
 		kgem_submit(&sna->kgem);
-		if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
+		if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL)) {
+			DBG(("%s: too large for a single operation\n",
+			     __FUNCTION__));
 			goto fallback_tiled_src;
+		}
 		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	}
 
