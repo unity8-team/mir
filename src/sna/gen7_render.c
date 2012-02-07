@@ -3262,7 +3262,8 @@ fallback_blt:
 				extents.y2 = box[i].y2;
 		}
 		if (!sna_render_composite_redirect(sna, &tmp,
-						   extents.x1, extents.y1,
+						   extents.x1 + dst_dx,
+						   extents.y1 + dst_dy,
 						   extents.x2 - extents.x1,
 						   extents.y2 - extents.y1))
 			goto fallback_tiled;

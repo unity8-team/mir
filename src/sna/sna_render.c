@@ -836,10 +836,6 @@ sna_render_pixmap_partial(struct sna *sna,
 		box.x1 = 0;
 	if (box.y1 < 0)
 		box.y1 = 0;
-	if (box.x2 > pixmap->drawable.width)
-		box.x2 = pixmap->drawable.width;
-	if (box.y2 > pixmap->drawable.height)
-		box.y2 = pixmap->drawable.height;
 	DBG(("%s: unaligned box (%d, %d), (%d, %d)\n",
 	     __FUNCTION__, box.x1, box.y1, box.x2, box.y2));
 
@@ -854,18 +850,19 @@ sna_render_pixmap_partial(struct sna *sna,
 		/* Ensure we align to an even tile row */
 		box.y1 = box.y1 & ~(2*tile_height - 1);
 		box.y2 = ALIGN(box.y2, 2*tile_height);
-		if (box.y2 > pixmap->drawable.height)
-			box.y2 = pixmap->drawable.height;
 
 		assert(tile_width * 8 >= pixmap->drawable.bitsPerPixel);
 		box.x1 = box.x1 & ~(tile_width * 8 / pixmap->drawable.bitsPerPixel - 1);
 		box.x2 = ALIGN(box.x2, tile_width * 8 / pixmap->drawable.bitsPerPixel);
-		if (box.x2 > pixmap->drawable.width)
-			box.x2 = pixmap->drawable.width;
 
 		offset = box.x1 * pixmap->drawable.bitsPerPixel / 8 / tile_width * tile_size;
 	} else
 		offset = box.x1 * pixmap->drawable.bitsPerPixel / 8;
+
+	if (box.x2 > pixmap->drawable.width)
+		box.x2 = pixmap->drawable.width;
+	if (box.y2 > pixmap->drawable.height)
+		box.y2 = pixmap->drawable.height;
 
 	w = box.x2 - box.x1;
 	h = box.y2 - box.y1;
@@ -889,8 +886,8 @@ sna_render_pixmap_partial(struct sna *sna,
 
 	channel->bo->pitch = bo->pitch;
 
-	channel->offset[0] = x - box.x1;
-	channel->offset[1] = y - box.y1;
+	channel->offset[0] = -box.x1;
+	channel->offset[1] = -box.y1;
 	channel->scale[0] = 1.f/w;
 	channel->scale[1] = 1.f/h;
 	channel->width  = w;
