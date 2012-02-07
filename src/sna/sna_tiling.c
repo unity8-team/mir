@@ -384,7 +384,7 @@ sna_tiling_fill_boxes(struct sna *sna,
 							       tmp.drawable.width,
 							       tmp.drawable.height,
 							       dst->drawable.bitsPerPixel),
-					    CREATE_SCANOUT);
+					    CREATE_SCANOUT | CREATE_TEMPORARY);
 			if (bo) {
 				int16_t dx = this.extents.x1;
 				int16_t dy = this.extents.y1;
@@ -489,7 +489,7 @@ Bool sna_tiling_blt_copy_boxes(struct sna *sna, uint8_t alu,
 					    kgem_choose_tiling(&sna->kgem,
 							       I915_TILING_X,
 							       w, h, bpp),
-					    0);
+					    CREATE_TEMPORARY);
 			if (bo) {
 				int16_t dx = this.extents.x1;
 				int16_t dy = this.extents.y1;
@@ -601,7 +601,8 @@ sna_tiling_copy_boxes(struct sna *sna, uint8_t alu,
 						p.drawable.width,
 						p.drawable.height,
 						p.drawable.bitsPerPixel,
-						I915_TILING_X, 0);
+						I915_TILING_X,
+					       	CREATE_TEMPORARY);
 			if (!tmp_bo)
 				goto tiled_error;
 
