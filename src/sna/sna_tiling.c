@@ -548,7 +548,7 @@ sna_tiling_copy_boxes(struct sna *sna, uint8_t alu,
 {
 	BoxRec extents, tile, stack[64], *clipped, *c;
 	PixmapRec p;
-	int i, step;
+	int i, step, tiling;
 	Bool ret = FALSE;
 
 	extents = box[0];
@@ -568,8 +568,13 @@ sna_tiling_copy_boxes(struct sna *sna, uint8_t alu,
 	while (step * step * 4 > sna->kgem.max_upload_tile_size)
 		step /= 2;
 
-	DBG(("%s: tiling copy, using %dx%d tiles\n",
-	     __FUNCTION__, step, step));
+	tiling = I915_TILING_X;
+	if (!kgem_bo_can_blt(&sna->kgem, src_bo) ||
+	    !kgem_bo_can_blt(&sna->kgem, dst_bo))
+		tiling = I915_TILING_Y;
+
+	DBG(("%s: tiling copy, using %dx%d %c tiles\n",
+	     __FUNCTION__, step, step, tiling == I915_TILING_X ? 'X' : 'Y'));
 
 	if (n > ARRAY_SIZE(stack)) {
 		clipped = malloc(sizeof(BoxRec) * n);
@@ -597,12 +602,14 @@ sna_tiling_copy_boxes(struct sna *sna, uint8_t alu,
 			p.drawable.width  = tile.x2 - tile.x1;
 			p.drawable.height = tile.y2 - tile.y1;
 
+			DBG(("%s: tile (%d, %d), (%d, %d)\n",
+			     __FUNCTION__, tile.x1, tile.y1, tile.x2, tile.y2));
+
 			tmp_bo = kgem_create_2d(&sna->kgem,
 						p.drawable.width,
 						p.drawable.height,
 						p.drawable.bitsPerPixel,
-						I915_TILING_X,
-					       	CREATE_TEMPORARY);
+						tiling, CREATE_TEMPORARY);
 			if (!tmp_bo)
 				goto tiled_error;
 
