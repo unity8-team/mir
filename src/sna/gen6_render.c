@@ -3253,7 +3253,7 @@ fallback_blt:
 	if (!gen6_check_format(tmp.src.pict_format))
 		goto fallback_blt;
 
-	tmp.op = PictOpSrc;
+	tmp.op = alu == GXcopy ? PictOpSrc : PictOpClear;
 	tmp.dst.pixmap = dst;
 	tmp.dst.width  = dst->drawable.width;
 	tmp.dst.height = dst->drawable.height;
@@ -3357,8 +3357,6 @@ fallback_blt:
 	gen6_emit_copy_state(sna, &tmp);
 	gen6_align_vertex(sna, &tmp);
 
-	tmp.src.scale[0] = 1.f / src->drawable.width;
-	tmp.src.scale[1] = 1.f / src->drawable.height;
 	do {
 		float *v;
 		int n_this_time = gen6_get_rectangles(sna, &tmp, n);

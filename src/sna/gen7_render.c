@@ -3271,8 +3271,7 @@ fallback_blt:
 
 	tmp.src.filter = SAMPLER_FILTER_NEAREST;
 	tmp.src.repeat = SAMPLER_EXTEND_NONE;
-	tmp.src.card_format =
-		gen7_get_card_format(tmp.src.pict_format);
+	tmp.src.card_format = gen7_get_card_format(tmp.src.pict_format);
 	if (too_large(src->drawable.width, src->drawable.height)) {
 		BoxRec extents = box[0];
 		int i;
@@ -3337,8 +3336,6 @@ fallback_blt:
 	gen7_emit_copy_state(sna, &tmp);
 	gen7_align_vertex(sna, &tmp);
 
-	tmp.src.scale[0] = 1.f / src->drawable.width;
-	tmp.src.scale[1] = 1.f / src->drawable.height;
 	do {
 		float *v;
 		int n_this_time = gen7_get_rectangles(sna, &tmp, n);

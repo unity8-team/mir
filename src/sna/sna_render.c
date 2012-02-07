@@ -831,13 +831,13 @@ sna_render_pixmap_partial(struct sna *sna,
 	box.y1 = y;
 	box.x2 = x + w;
 	box.y2 = y + h;
+	DBG(("%s: unaligned box (%d, %d), (%d, %d)\n",
+	     __FUNCTION__, box.x1, box.y1, box.x2, box.y2));
 
 	if (box.x1 < 0)
 		box.x1 = 0;
 	if (box.y1 < 0)
 		box.y1 = 0;
-	DBG(("%s: unaligned box (%d, %d), (%d, %d)\n",
-	     __FUNCTION__, box.x1, box.y1, box.x2, box.y2));
 
 	if (bo->tiling) {
 		int tile_width, tile_height, tile_size;

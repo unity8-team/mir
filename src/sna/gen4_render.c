@@ -2550,8 +2550,6 @@ fallback_blt:
 	gen4_copy_bind_surfaces(sna, &tmp);
 	gen4_align_vertex(sna, &tmp);
 
-	tmp.src.scale[0] = 1.f/src->drawable.width;
-	tmp.src.scale[1] = 1.f/src->drawable.height;
 	do {
 		gen4_render_copy_one(sna, &tmp,
 				     box->x1 + src_dx, box->y1 + src_dy,

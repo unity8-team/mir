@@ -599,20 +599,6 @@ sna_tiling_copy_boxes(struct sna *sna, uint8_t alu,
 			if (tile.x2 > extents.x2)
 				tile.x2 = extents.x2;
 
-			p.drawable.width  = tile.x2 - tile.x1;
-			p.drawable.height = tile.y2 - tile.y1;
-
-			DBG(("%s: tile (%d, %d), (%d, %d)\n",
-			     __FUNCTION__, tile.x1, tile.y1, tile.x2, tile.y2));
-
-			tmp_bo = kgem_create_2d(&sna->kgem,
-						p.drawable.width,
-						p.drawable.height,
-						p.drawable.bitsPerPixel,
-						tiling, CREATE_TEMPORARY);
-			if (!tmp_bo)
-				goto tiled_error;
-
 			c = clipped;
 			for (i = 0; i < n; i++) {
 				*c = box[i];
@@ -628,17 +614,31 @@ sna_tiling_copy_boxes(struct sna *sna, uint8_t alu,
 				     c->y1 - tile.y1));
 				c++;
 			}
+			if (c == clipped)
+				continue;
 
-			if (c == clipped ||
-			    (sna->render.copy_boxes(sna, GXcopy,
+			p.drawable.width  = tile.x2 - tile.x1;
+			p.drawable.height = tile.y2 - tile.y1;
+
+			DBG(("%s: tile (%d, %d), (%d, %d)\n",
+			     __FUNCTION__, tile.x1, tile.y1, tile.x2, tile.y2));
+
+			tmp_bo = kgem_create_2d(&sna->kgem,
+						p.drawable.width,
+						p.drawable.height,
+						p.drawable.bitsPerPixel,
+						tiling, CREATE_TEMPORARY);
+			if (!tmp_bo)
+				goto tiled_error;
+
+			i = (sna->render.copy_boxes(sna, GXcopy,
 						    src, src_bo, src_dx, src_dy,
 						    &p, tmp_bo, -tile.x1, -tile.y1,
 						    clipped, c - clipped) &&
 			     sna->render.copy_boxes(sna, alu,
 						    &p, tmp_bo, -tile.x1, -tile.y1,
 						    dst, dst_bo, dst_dx, dst_dy,
-						    clipped, c - clipped)))
-				i = 1;
+						    clipped, c - clipped));
 
 			kgem_bo_destroy(&sna->kgem, tmp_bo);
 
