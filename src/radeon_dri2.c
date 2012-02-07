@@ -244,10 +244,10 @@ radeon_dri2_create_buffer(DrawablePtr drawable,
     struct dri2_buffer_priv *privates;
     PixmapPtr pixmap, depth_pixmap;
     struct radeon_exa_pixmap_priv *driver_priv;
-    int need_enlarge = 0;
     int flags;
     unsigned front_width;
     uint32_t tiling = 0;
+    unsigned aligned_width = drawable->width;
 
     pixmap = pScreen->GetScreenPixmap(pScreen);
     front_width = pixmap->drawable.width;
@@ -271,9 +271,15 @@ radeon_dri2_create_buffer(DrawablePtr drawable,
 	    /* macro is the preferred setting, but the 2D detiling for software
 	     * fallbacks in mesa still has issues on some configurations
 	     */
-	    if (info->ChipFamily >= CHIP_FAMILY_R600)
-		flags = RADEON_CREATE_PIXMAP_TILING_MICRO;
-	    else
+	    if (info->ChipFamily >= CHIP_FAMILY_R600) {
+		if (info->allowColorTiling2D) {
+			flags = RADEON_CREATE_PIXMAP_TILING_MACRO;
+		} else {
+			flags = RADEON_CREATE_PIXMAP_TILING_MICRO;
+		}
+		if (info->ChipFamily >= CHIP_FAMILY_CEDAR)
+		    flags |= RADEON_CREATE_PIXMAP_SZBUFFER;
+	    } else
 		flags = RADEON_CREATE_PIXMAP_TILING_MACRO | RADEON_CREATE_PIXMAP_TILING_MICRO;
 	    if (IS_R200_3D || info->ChipFamily == CHIP_FAMILY_RV200 || info->ChipFamily == CHIP_FAMILY_RADEON)
 		flags |= RADEON_CREATE_PIXMAP_DEPTH;
@@ -283,24 +289,30 @@ radeon_dri2_create_buffer(DrawablePtr drawable,
 	     * fallbacks in mesa still has issues on some configurations
 	     */
 	    if (info->ChipFamily >= CHIP_FAMILY_R600) {
-		flags = RADEON_CREATE_PIXMAP_TILING_MICRO;
+		if (info->allowColorTiling2D) {
+			flags = RADEON_CREATE_PIXMAP_TILING_MACRO;
+		} else {
+			flags = RADEON_CREATE_PIXMAP_TILING_MICRO;
+		}
 		if (info->ChipFamily >= CHIP_FAMILY_CEDAR)
-		    need_enlarge = 1;
+		    flags |= RADEON_CREATE_PIXMAP_SZBUFFER;
 	    } else
 		flags = RADEON_CREATE_PIXMAP_TILING_MACRO | RADEON_CREATE_PIXMAP_TILING_MICRO;
 	    if (IS_R200_3D || info->ChipFamily == CHIP_FAMILY_RV200 || info->ChipFamily == CHIP_FAMILY_RADEON)
 		flags |= RADEON_CREATE_PIXMAP_DEPTH;
+		
 	    break;
 	case DRI2BufferBackLeft:
 	case DRI2BufferBackRight:
 	case DRI2BufferFakeFrontLeft:
 	case DRI2BufferFakeFrontRight:
-	    if (info->ChipFamily >= CHIP_FAMILY_R600)
-		/* macro is the preferred setting, but the 2D detiling for software
-		 * fallbacks in mesa still has issues on some configurations
-		 */
-		flags = RADEON_CREATE_PIXMAP_TILING_MICRO;
-	    else
+	    if (info->ChipFamily >= CHIP_FAMILY_R600) {
+		if (info->allowColorTiling2D) {
+			flags = RADEON_CREATE_PIXMAP_TILING_MACRO;
+		} else {
+			flags = RADEON_CREATE_PIXMAP_TILING_MICRO;
+		}
+	    } else
 		flags = RADEON_CREATE_PIXMAP_TILING_MACRO;
 	    break;
 	default:
@@ -312,39 +324,6 @@ radeon_dri2_create_buffer(DrawablePtr drawable,
 	if (flags & RADEON_CREATE_PIXMAP_TILING_MACRO)
 	    tiling |= RADEON_TILING_MACRO;
 
-	if (need_enlarge) {
-	    /* evergreen uses separate allocations for depth and stencil
-	     * so we make an extra large depth buffer to cover stencil
-	     * as well.
-	     */
-	    int depth = (format != 0) ? format : drawable->depth;
-	    unsigned aligned_width = drawable->width;
-	    unsigned width_align = drmmode_get_pitch_align(pScrn, drawable->depth / 8, tiling);
-	    unsigned aligned_height;
-	    unsigned height_align = drmmode_get_height_align(pScrn, tiling);
-	    unsigned base_align = drmmode_get_base_align(pScrn, drawable->depth / 8, tiling);
-	    unsigned pitch_bytes;
-	    unsigned size;
-
-	    if (aligned_width == front_width)
-		aligned_width = pScrn->virtualX;
-	    aligned_width = RADEON_ALIGN(aligned_width, width_align);
-	    pitch_bytes = aligned_width * (depth / 8);
-	    aligned_height = RADEON_ALIGN(drawable->height, height_align);
-	    size = pitch_bytes * aligned_height;
-	    size = RADEON_ALIGN(size, base_align);
-	    /* add additional size for stencil */
-	    size += aligned_width * aligned_height;
-	    aligned_height = RADEON_ALIGN(size / pitch_bytes, height_align);
-
-	    pixmap = (*pScreen->CreatePixmap)(pScreen,
-					      aligned_width,
-					      aligned_height,
-					      (format != 0)?format:drawable->depth,
-					      flags);
-
-	} else {
-	    unsigned aligned_width = drawable->width;
 
 	    if (aligned_width == front_width)
 		aligned_width = pScrn->virtualX;
@@ -354,7 +333,6 @@ radeon_dri2_create_buffer(DrawablePtr drawable,
 					      drawable->height,
 					      (format != 0)?format:drawable->depth,
 					      flags);
-	}
     }
 
     if (!pixmap)

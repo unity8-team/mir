@@ -62,15 +62,14 @@ R600SetAccelState(ScrnInfoPtr pScrn,
 	memcpy(&accel_state->src_obj[0], src0, sizeof(struct r600_accel_object));
 	accel_state->src_size[0] = src0->pitch * src0->height * (src0->bpp/8);
 #if defined(XF86DRM_MODE)
-	if (info->cs) {
-	    pitch_align = drmmode_get_pitch_align(pScrn,
-						  accel_state->src_obj[0].bpp / 8,
-						  accel_state->src_obj[0].tiling_flags) - 1;
-	    base_align = drmmode_get_base_align(pScrn,
-						accel_state->src_obj[0].bpp / 8,
-						accel_state->src_obj[0].tiling_flags) - 1;
-	}
+	if (info->cs && src0->surface) {
+		accel_state->src_size[0] = src0->surface->bo_size;
+	} else
 #endif
+	{
+		accel_state->src_obj[0].surface = NULL;
+	}
+
 	/* bad pitch */
 	if (accel_state->src_obj[0].pitch & pitch_align)
 	    RADEON_FALLBACK(("Bad src pitch 0x%08x\n", accel_state->src_obj[0].pitch));
@@ -88,15 +87,14 @@ R600SetAccelState(ScrnInfoPtr pScrn,
 	memcpy(&accel_state->src_obj[1], src1, sizeof(struct r600_accel_object));
 	accel_state->src_size[1] = src1->pitch * src1->height * (src1->bpp/8);
 #if defined(XF86DRM_MODE)
-	if (info->cs) {
-	    pitch_align = drmmode_get_pitch_align(pScrn,
-						  accel_state->src_obj[1].bpp / 8,
-						  accel_state->src_obj[1].tiling_flags) - 1;
-	    base_align = drmmode_get_base_align(pScrn,
-						accel_state->src_obj[1].bpp / 8,
-						accel_state->src_obj[1].tiling_flags) - 1;
-	}
+	if (info->cs && src1->surface) {
+		accel_state->src_size[1] = src1->surface->bo_size;
+	} else
 #endif
+	{
+		accel_state->src_obj[1].surface = NULL;
+	}
+
 	/* bad pitch */
 	if (accel_state->src_obj[1].pitch & pitch_align)
 	    RADEON_FALLBACK(("Bad src pitch 0x%08x\n", accel_state->src_obj[1].pitch));
@@ -113,15 +111,14 @@ R600SetAccelState(ScrnInfoPtr pScrn,
 	memcpy(&accel_state->dst_obj, dst, sizeof(struct r600_accel_object));
 	accel_state->dst_size = dst->pitch * dst->height * (dst->bpp/8);
 #if defined(XF86DRM_MODE)
-	if (info->cs) {
-	    pitch_align = drmmode_get_pitch_align(pScrn,
-						  accel_state->dst_obj.bpp / 8,
-						  accel_state->dst_obj.tiling_flags) - 1;
-	    base_align = drmmode_get_base_align(pScrn,
-						accel_state->dst_obj.bpp / 8,
-						accel_state->dst_obj.tiling_flags) - 1;
-	}
+	if (info->cs && dst->surface) {
+		accel_state->dst_size = dst->surface->bo_size;
+	} else
 #endif
+	{
+		accel_state->dst_obj.surface = NULL;
+		accel_state->dst_obj.tiling_flags = 0;
+	}
 	if (accel_state->dst_obj.pitch & pitch_align)
 	    RADEON_FALLBACK(("Bad dst pitch 0x%08x\n", accel_state->dst_obj.pitch));
 
@@ -197,6 +194,10 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
 	dst.offset = 0;
 	dst.bo = radeon_get_pixmap_bo(pPix);
 	dst.tiling_flags = radeon_get_pixmap_tiling(pPix);
+	dst.surface = radeon_get_pixmap_surface(pPix);
+	if (dst.surface->npix_x != pPix->drawable.width) {
+		dst.surface = NULL;
+	}
     } else
 #endif
     {
@@ -254,6 +255,7 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     cb_conf.h = accel_state->dst_obj.height;
     cb_conf.base = accel_state->dst_obj.offset;
     cb_conf.bo = accel_state->dst_obj.bo;
+    cb_conf.surface = accel_state->dst_obj.surface;
 
     if (accel_state->dst_obj.bpp == 8) {
 	cb_conf.format = COLOR_8;
@@ -433,6 +435,7 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn)
     tex_res.size                = accel_state->src_size[0];
     tex_res.bo                  = accel_state->src_obj[0].bo;
     tex_res.mip_bo              = accel_state->src_obj[0].bo;
+    tex_res.surface             = accel_state->src_obj[0].surface;
     if (accel_state->src_obj[0].bpp == 8) {
 	tex_res.format              = FMT_8;
 	tex_res.dst_sel_x           = SQ_SEL_1; /* R */
@@ -477,6 +480,7 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn)
     cb_conf.h = accel_state->dst_obj.height;
     cb_conf.base = accel_state->dst_obj.offset;
     cb_conf.bo = accel_state->dst_obj.bo;
+    cb_conf.surface = accel_state->dst_obj.surface;
     if (accel_state->dst_obj.bpp == 8) {
 	cb_conf.format = COLOR_8;
 	cb_conf.comp_swap = 3; /* A */
@@ -591,6 +595,16 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
 	dst_obj.bo = radeon_get_pixmap_bo(pDst);
 	dst_obj.tiling_flags = radeon_get_pixmap_tiling(pDst);
 	src_obj.tiling_flags = radeon_get_pixmap_tiling(pSrc);
+	src_obj.surface = radeon_get_pixmap_surface(pSrc);
+	dst_obj.surface = radeon_get_pixmap_surface(pDst);
+	if (dst_obj.surface->npix_x != pDst->drawable.width) {
+		dst_obj.surface = NULL;
+		dst_obj.tiling_flags = 0;
+	}
+	if (src_obj.surface->npix_x != pSrc->drawable.width) {
+		src_obj.surface = NULL;
+		src_obj.tiling_flags = 0;
+	}
 	if (radeon_get_pixmap_bo(pSrc) == radeon_get_pixmap_bo(pDst))
 	    accel_state->same_surface = TRUE;
     } else
@@ -626,10 +640,13 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
 #if defined(XF86DRM_MODE)
 	unsigned height = RADEON_ALIGN(pDst->drawable.height,
 				       drmmode_get_height_align(pScrn, accel_state->dst_obj.tiling_flags));
+	unsigned long size = accel_state->dst_obj.surface->bo_size;
+	unsigned long align = accel_state->dst_obj.surface->bo_alignment;
 #else
 	unsigned height = pDst->drawable.height;
-#endif
 	unsigned long size = height * accel_state->dst_obj.pitch * pDst->drawable.bitsPerPixel/8;
+	unsigned long align = 0;
+#endif
 
 #if defined(XF86DRM_MODE)
 	if (info->cs) {
@@ -637,7 +654,7 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
 		radeon_bo_unref(accel_state->copy_area_bo);
 		accel_state->copy_area_bo = NULL;
 	    }
-	    accel_state->copy_area_bo = radeon_bo_open(info->bufmgr, 0, size, 0,
+	    accel_state->copy_area_bo = radeon_bo_open(info->bufmgr, 0, size, align,
 						       RADEON_GEM_DOMAIN_VRAM,
 						       0);
 	    if (accel_state->copy_area_bo == NULL)
@@ -979,6 +996,7 @@ static Bool R600TextureSetup(PicturePtr pPict, PixmapPtr pPix,
     tex_res.format              = R600TexFormats[i].card_fmt;
     tex_res.bo                  = accel_state->src_obj[unit].bo;
     tex_res.mip_bo              = accel_state->src_obj[unit].bo;
+    tex_res.surface             = accel_state->src_obj[unit].surface;
     tex_res.request_size        = 1;
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
@@ -1294,6 +1312,16 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
 	dst_obj.bo = radeon_get_pixmap_bo(pDst);
 	dst_obj.tiling_flags = radeon_get_pixmap_tiling(pDst);
 	src_obj.tiling_flags = radeon_get_pixmap_tiling(pSrc);
+	dst_obj.surface = radeon_get_pixmap_surface(pDst);
+	src_obj.surface = radeon_get_pixmap_surface(pSrc);
+	if (dst_obj.surface->npix_x != pDst->drawable.width) {
+		dst_obj.surface = NULL;
+		dst_obj.tiling_flags = 0;
+	}
+	if (src_obj.surface->npix_x != pSrc->drawable.width) {
+		src_obj.surface = NULL;
+		src_obj.tiling_flags = 0;
+	}
     } else
 #endif
     {
@@ -1321,6 +1349,10 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
 	    mask_obj.offset = 0;
 	    mask_obj.bo = radeon_get_pixmap_bo(pMask);
 	    mask_obj.tiling_flags = radeon_get_pixmap_tiling(pMask);
+	    mask_obj.surface = radeon_get_pixmap_surface(pMask);
+	    if (mask_obj.surface->npix_x != pMask->drawable.width) {
+		mask_obj.surface = NULL;
+	    }
 	} else
 #endif
 	{
@@ -1432,6 +1464,7 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     cb_conf.base = accel_state->dst_obj.offset;
     cb_conf.format = dst_format;
     cb_conf.bo = accel_state->dst_obj.bo;
+    cb_conf.surface = accel_state->dst_obj.surface;
 
     switch (pDstPicture->format) {
     case PICT_a8r8g8b8:
@@ -1868,6 +1901,7 @@ R600UploadToScreenCS(PixmapPtr pDst, int x, int y, int w, int h,
     src_obj.domain = RADEON_GEM_DOMAIN_GTT;
     src_obj.bo = scratch;
     src_obj.tiling_flags = 0;
+    src_obj.surface = NULL;
 
     dst_obj.pitch = dst_pitch_hw;
     dst_obj.width = pDst->drawable.width;
@@ -1877,6 +1911,11 @@ R600UploadToScreenCS(PixmapPtr pDst, int x, int y, int w, int h,
     dst_obj.domain = RADEON_GEM_DOMAIN_VRAM;
     dst_obj.bo = radeon_get_pixmap_bo(pDst);
     dst_obj.tiling_flags = radeon_get_pixmap_tiling(pDst);
+    dst_obj.surface = radeon_get_pixmap_surface(pDst);
+    if (dst_obj.surface->npix_x != pDst->drawable.width) {
+	dst_obj.surface = NULL;
+	dst_obj.tiling_flags = 0;
+    }
 
     if (!R600SetAccelState(pScrn,
 			   &src_obj,
@@ -2003,6 +2042,10 @@ R600DownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
     src_obj.domain = RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT;
     src_obj.bo = radeon_get_pixmap_bo(pSrc);
     src_obj.tiling_flags = radeon_get_pixmap_tiling(pSrc);
+    src_obj.surface = radeon_get_pixmap_surface(pSrc);
+    if (src_obj.surface->npix_x != pSrc->drawable.width) {
+	src_obj.surface = NULL;
+    }
 
     dst_obj.pitch = scratch_pitch;
     dst_obj.width = w;
@@ -2012,6 +2055,7 @@ R600DownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
     dst_obj.bpp = bpp;
     dst_obj.domain = RADEON_GEM_DOMAIN_GTT;
     dst_obj.tiling_flags = 0;
+    dst_obj.surface = NULL;
 
     if (!R600SetAccelState(pScrn,
 			   &src_obj,

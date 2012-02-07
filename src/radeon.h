@@ -91,6 +91,7 @@
 #include "radeon_cs.h"
 #include "radeon_dri2.h"
 #include "drmmode_display.h"
+#include "radeon_surface.h"
 #else
 #include "radeon_dummy_bufmgr.h"
 #endif
@@ -183,6 +184,7 @@ typedef enum {
     OPTION_PANEL_SIZE,
     OPTION_MIN_DOTCLOCK,
     OPTION_COLOR_TILING,
+    OPTION_COLOR_TILING_2D,
 #ifdef XvExtension
     OPTION_VIDEO_KEY,
     OPTION_RAGE_THEATRE_CRYSTAL,
@@ -442,6 +444,9 @@ typedef struct _atomBiosHandle *atomBiosHandlePtr;
 struct radeon_exa_pixmap_priv {
     struct radeon_bo *bo;
     uint32_t tiling_flags;
+#ifdef XF86DRM_MODE
+    struct radeon_surface surface;
+#endif
     Bool bo_mapped;
 };
 
@@ -621,6 +626,9 @@ struct r600_accel_object {
     uint32_t domain;
     struct radeon_bo *bo;
     uint32_t tiling_flags;
+#if defined(XF86DRM_MODE)
+    struct radeon_surface *surface;
+#endif
 };
 
 struct radeon_vbo_object {
@@ -889,6 +897,7 @@ typedef struct {
     /* accel */
     Bool              RenderAccel; /* Render */
     Bool              allowColorTiling;
+    Bool              allowColorTiling2D;
     Bool              tilingEnabled; /* mirror of sarea->tiling_enabled */
     struct radeon_accel_state *accel_state;
     Bool              accelOn;
@@ -1014,6 +1023,8 @@ typedef struct {
     int num_channels;
     int num_banks;
     int r7xx_bank_op;
+    struct radeon_surface_manager *surf_man;
+    struct radeon_surface front_surface;
 #else
     /* fake bool */
     Bool cs;
@@ -1231,6 +1242,7 @@ extern void RADEONPMFini(ScrnInfoPtr pScrn);
 
 #ifdef USE_EXA
 /* radeon_exa.c */
+extern unsigned eg_tile_split(unsigned tile_split);
 extern Bool RADEONSetupMemEXA(ScreenPtr pScreen);
 extern Bool radeon_transform_is_affine_or_scaled(PictTransformPtr t);
 
@@ -1322,6 +1334,7 @@ extern void radeon_ddx_cs_start(ScrnInfoPtr pScrn,
 				int num, const char *file,
 				const char *func, int line);
 void radeon_kms_update_vram_limit(ScrnInfoPtr pScrn, int new_fb_size);
+struct radeon_surface *radeon_get_pixmap_surface(PixmapPtr pPix);
 #endif
 struct radeon_bo *radeon_get_pixmap_bo(PixmapPtr pPix);
 void radeon_set_pixmap_bo(PixmapPtr pPix, struct radeon_bo *bo);
@@ -1670,6 +1683,7 @@ enum {
     RADEON_CREATE_PIXMAP_TILING_MACRO = 0x10000000,
     RADEON_CREATE_PIXMAP_TILING_MICRO = 0x20000000,
     RADEON_CREATE_PIXMAP_DEPTH = 0x40000000, /* for r200 */
+    RADEON_CREATE_PIXMAP_SZBUFFER = 0x80000000, /* for eg */
 };
 
 #endif /* _RADEON_H_ */

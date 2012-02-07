@@ -158,6 +158,10 @@ EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     src_obj.offset = 0;
     dst_obj.bo = radeon_get_pixmap_bo(pPixmap);
     dst_obj.tiling_flags = radeon_get_pixmap_tiling(pPixmap);
+    dst_obj.surface = radeon_get_pixmap_surface(pPixmap);
+    if (dst_obj.surface->npix_x != pPixmap->drawable.width) {
+	    dst_obj.surface = NULL;
+    }
 
     dst_obj.pitch = exaGetPixmapPitch(pPixmap) / (pPixmap->drawable.bitsPerPixel / 8);
 
@@ -248,6 +252,7 @@ EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	tex_res.size                = accel_state->src_size[0];
 	tex_res.bo                  = accel_state->src_obj[0].bo;
 	tex_res.mip_bo              = accel_state->src_obj[0].bo;
+	tex_res.surface             = NULL;
 
 	tex_res.format              = FMT_8;
 	tex_res.dst_sel_x           = SQ_SEL_X; /* Y */
@@ -340,6 +345,7 @@ EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	tex_res.size                = accel_state->src_size[0];
 	tex_res.bo                  = accel_state->src_obj[0].bo;
 	tex_res.mip_bo              = accel_state->src_obj[0].bo;
+	tex_res.surface             = NULL;
 
 	tex_res.format              = FMT_8_8;
 	if (pPriv->id == FOURCC_UYVY)
@@ -406,6 +412,7 @@ EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     cb_conf.h = accel_state->dst_obj.height;
     cb_conf.base = accel_state->dst_obj.offset;
     cb_conf.bo = accel_state->dst_obj.bo;
+    cb_conf.surface = accel_state->dst_obj.surface;
 
     switch (accel_state->dst_obj.bpp) {
     case 16:
