@@ -627,8 +627,6 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
 
     if (accel_state->same_surface == TRUE) {
 #if defined(XF86DRM_MODE)
-	unsigned height = RADEON_ALIGN(pDst->drawable.height,
-				       drmmode_get_height_align(pScrn, accel_state->dst_obj.tiling_flags));
 	unsigned long size = accel_state->dst_obj.surface->bo_size;
 	unsigned long align = accel_state->dst_obj.surface->bo_alignment;
 #else
