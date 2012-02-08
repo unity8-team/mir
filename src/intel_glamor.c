@@ -68,7 +68,7 @@ intel_glamor_pre_init(ScrnInfoPtr scrn)
 	CARD32 version;
 
 	/* Load glamor module */
-	if ((glamor_module = xf86LoadSubModule(scrn, "glamor_egl"))) {
+	if ((glamor_module = xf86LoadSubModule(scrn, GLAMOR_EGL_MODULE_NAME))) {
 		version = xf86GetModuleVersion(glamor_module);
 		if (version < MODULE_VERSION_NUMERIC(0,3,0)) {
 			xf86DrvMsg(scrn->scrnIndex, X_ERROR,
