@@ -575,6 +575,7 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 {
 	struct drm_i915_gem_get_aperture aperture;
 	size_t totalram;
+	unsigned half_gpu_max;
 	unsigned int i, j;
 
 	memset(kgem, 0, sizeof(*kgem));
@@ -679,7 +680,6 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 		kgem->min_alignment = 64;
 
 	kgem->max_object_size = 2 * kgem->aperture_total / 3;
-	kgem->max_cpu_size = kgem->max_object_size;
 	kgem->max_gpu_size = kgem->max_object_size;
 	if (!kgem->has_llc)
 		kgem->max_gpu_size = MAX_CACHE_SIZE;
@@ -691,16 +691,6 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 		if (kgem->max_gpu_size > kgem->aperture_low)
 			kgem->max_gpu_size = kgem->aperture_low;
 	}
-	if (kgem->max_gpu_size > kgem->max_cpu_size)
-		kgem->max_gpu_size = kgem->max_cpu_size;
-
-	kgem->max_upload_tile_size = kgem->aperture_mappable / 2;
-	if (kgem->max_upload_tile_size > kgem->max_gpu_size / 2)
-		kgem->max_upload_tile_size = kgem->max_gpu_size / 2;
-
-	kgem->max_copy_tile_size = (MAX_CACHE_SIZE + 1)/2;
-	if (kgem->max_copy_tile_size > kgem->max_gpu_size / 2)
-		kgem->max_copy_tile_size = kgem->max_gpu_size / 2;
 
 	totalram = total_ram_size();
 	if (totalram == 0) {
@@ -708,14 +698,32 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 		     __FUNCTION__));
 		totalram = kgem->aperture_total;
 	}
+	DBG(("%s: total ram=%ld\n", __FUNCTION__, (long)totalram));
 	if (kgem->max_object_size > totalram / 2)
 		kgem->max_object_size = totalram / 2;
-	if (kgem->max_cpu_size > totalram / 2)
-		kgem->max_cpu_size = totalram / 2;
 	if (kgem->max_gpu_size > totalram / 4)
 		kgem->max_gpu_size = totalram / 4;
 
+	half_gpu_max = kgem->max_gpu_size / 2;
+	if (kgem->gen >= 40)
+		kgem->max_cpu_size = half_gpu_max;
+	else
+		kgem->max_cpu_size = kgem->max_object_size;
+
+	kgem->max_copy_tile_size = (MAX_CACHE_SIZE + 1)/2;
+	if (kgem->max_copy_tile_size > half_gpu_max)
+		kgem->max_copy_tile_size = half_gpu_max;
+
+	if (kgem->has_llc)
+		kgem->max_upload_tile_size = kgem->max_copy_tile_size;
+	else
+		kgem->max_upload_tile_size = kgem->aperture_mappable / 4;
+	if (kgem->max_upload_tile_size > half_gpu_max)
+		kgem->max_upload_tile_size = half_gpu_max;
+
 	kgem->large_object_size = MAX_CACHE_SIZE;
+	if (kgem->large_object_size > kgem->max_cpu_size)
+		kgem->large_object_size = kgem->max_cpu_size;
 	if (kgem->large_object_size > kgem->max_gpu_size)
 		kgem->large_object_size = kgem->max_gpu_size;
 
