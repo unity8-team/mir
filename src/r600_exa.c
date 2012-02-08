@@ -646,7 +646,7 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
 		RADEON_FALLBACK(("temp copy surface alloc failed\n"));
 
 	    radeon_cs_space_add_persistent_bo(info->cs, accel_state->copy_area_bo,
-					      RADEON_GEM_DOMAIN_VRAM, RADEON_GEM_DOMAIN_VRAM);
+					      0, RADEON_GEM_DOMAIN_VRAM);
 	    if (radeon_cs_space_check(info->cs)) {
 		radeon_bo_unref(accel_state->copy_area_bo);
 		accel_state->copy_area_bo = NULL;
