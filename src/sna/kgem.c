@@ -799,6 +799,9 @@ static uint32_t kgem_surface_size(struct kgem *kgem,
 	uint32_t tile_width, tile_height;
 	uint32_t size;
 
+	assert(width <= MAXSHORT);
+	assert(height <= MAXSHORT);
+
 	if (kgem->gen < 30) {
 		if (tiling) {
 			tile_width = 512;
@@ -823,32 +826,26 @@ static uint32_t kgem_surface_size(struct kgem *kgem,
 		break;
 	}
 
-	/* If it is too wide for the blitter, don't even bother.  */
 	*pitch = ALIGN(width * bpp / 8, tile_width);
-	if (kgem->gen < 40) {
-		if (tiling != I915_TILING_NONE) {
-			if (*pitch > 8192)
-				return 0;
-			for (size = tile_width; size < *pitch; size <<= 1)
-				;
-			*pitch = size;
-		} else {
-			if (*pitch >= 32768)
-				return 0;
-		}
+	height = ALIGN(height, tile_height);
+	if (kgem->gen >= 40)
+		return PAGE_ALIGN(*pitch * height);
+
+	/* If it is too wide for the blitter, don't even bother.  */
+	if (tiling != I915_TILING_NONE) {
+		if (*pitch > 8192)
+			return 0;
+
+		for (size = tile_width; size < *pitch; size <<= 1)
+			;
+		*pitch = size;
 	} else {
-		int limit = 32768;
-		if (tiling)
-			limit *= 4;
-		if (*pitch >= limit)
+		if (*pitch >= 32768)
 			return 0;
 	}
-	height = ALIGN(height, tile_height);
-	if (height >= 65536)
-		return 0;
 
 	size = *pitch * height;
-	if (relaxed_fencing || tiling == I915_TILING_NONE || kgem->gen >= 40)
+	if (relaxed_fencing || tiling == I915_TILING_NONE)
 		return PAGE_ALIGN(size);
 
 	/*  We need to allocate a pot fence region for a tiled buffer. */
@@ -2231,6 +2228,9 @@ unsigned kgem_can_create_2d(struct kgem *kgem,
 	unsigned flags = 0;
 
 	if (depth < 8 || kgem->wedged)
+		return 0;
+
+	if (width > MAXSHORT || height > MAXSHORT)
 		return 0;
 
 	size = kgem_surface_size(kgem, false, false,
