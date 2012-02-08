@@ -64,11 +64,8 @@ R600SetAccelState(ScrnInfoPtr pScrn,
 #if defined(XF86DRM_MODE)
 	if (info->cs && src0->surface) {
 		accel_state->src_size[0] = src0->surface->bo_size;
-	} else
-#endif
-	{
-		accel_state->src_obj[0].surface = NULL;
 	}
+#endif
 
 	/* bad pitch */
 	if (accel_state->src_obj[0].pitch & pitch_align)
@@ -89,11 +86,8 @@ R600SetAccelState(ScrnInfoPtr pScrn,
 #if defined(XF86DRM_MODE)
 	if (info->cs && src1->surface) {
 		accel_state->src_size[1] = src1->surface->bo_size;
-	} else
-#endif
-	{
-		accel_state->src_obj[1].surface = NULL;
 	}
+#endif
 
 	/* bad pitch */
 	if (accel_state->src_obj[1].pitch & pitch_align)
@@ -116,7 +110,6 @@ R600SetAccelState(ScrnInfoPtr pScrn,
 	} else
 #endif
 	{
-		accel_state->dst_obj.surface = NULL;
 		accel_state->dst_obj.tiling_flags = 0;
 	}
 	if (accel_state->dst_obj.pitch & pitch_align)
@@ -252,7 +245,9 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     cb_conf.h = accel_state->dst_obj.height;
     cb_conf.base = accel_state->dst_obj.offset;
     cb_conf.bo = accel_state->dst_obj.bo;
+#ifdef XF86DRM_MODE
     cb_conf.surface = accel_state->dst_obj.surface;
+#endif
 
     if (accel_state->dst_obj.bpp == 8) {
 	cb_conf.format = COLOR_8;
@@ -432,7 +427,9 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn)
     tex_res.size                = accel_state->src_size[0];
     tex_res.bo                  = accel_state->src_obj[0].bo;
     tex_res.mip_bo              = accel_state->src_obj[0].bo;
+#ifdef XF86DRM_MODE
     tex_res.surface             = accel_state->src_obj[0].surface;
+#endif
     if (accel_state->src_obj[0].bpp == 8) {
 	tex_res.format              = FMT_8;
 	tex_res.dst_sel_x           = SQ_SEL_1; /* R */
@@ -477,7 +474,9 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn)
     cb_conf.h = accel_state->dst_obj.height;
     cb_conf.base = accel_state->dst_obj.offset;
     cb_conf.bo = accel_state->dst_obj.bo;
+#ifdef XF86DRM_MODE
     cb_conf.surface = accel_state->dst_obj.surface;
+#endif
     if (accel_state->dst_obj.bpp == 8) {
 	cb_conf.format = COLOR_8;
 	cb_conf.comp_swap = 3; /* A */
@@ -632,7 +631,6 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
 #else
 	unsigned height = pDst->drawable.height;
 	unsigned long size = height * accel_state->dst_obj.pitch * pDst->drawable.bitsPerPixel/8;
-	unsigned long align = 0;
 #endif
 
 #if defined(XF86DRM_MODE)
@@ -983,7 +981,9 @@ static Bool R600TextureSetup(PicturePtr pPict, PixmapPtr pPix,
     tex_res.format              = R600TexFormats[i].card_fmt;
     tex_res.bo                  = accel_state->src_obj[unit].bo;
     tex_res.mip_bo              = accel_state->src_obj[unit].bo;
+#ifdef XF86DRM_MODE
     tex_res.surface             = accel_state->src_obj[unit].surface;
+#endif
     tex_res.request_size        = 1;
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
@@ -1440,7 +1440,9 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     cb_conf.base = accel_state->dst_obj.offset;
     cb_conf.format = dst_format;
     cb_conf.bo = accel_state->dst_obj.bo;
+#ifdef XF86DRM_MODE
     cb_conf.surface = accel_state->dst_obj.surface;
+#endif
 
     switch (pDstPicture->format) {
     case PICT_a8r8g8b8:
@@ -1877,7 +1879,9 @@ R600UploadToScreenCS(PixmapPtr pDst, int x, int y, int w, int h,
     src_obj.domain = RADEON_GEM_DOMAIN_GTT;
     src_obj.bo = scratch;
     src_obj.tiling_flags = 0;
+#ifdef XF86DRM_MODE
     src_obj.surface = NULL;
+#endif
 
     dst_obj.pitch = dst_pitch_hw;
     dst_obj.width = pDst->drawable.width;
@@ -1887,7 +1891,9 @@ R600UploadToScreenCS(PixmapPtr pDst, int x, int y, int w, int h,
     dst_obj.domain = RADEON_GEM_DOMAIN_VRAM;
     dst_obj.bo = radeon_get_pixmap_bo(pDst);
     dst_obj.tiling_flags = radeon_get_pixmap_tiling(pDst);
+#ifdef XF86DRM_MODE
     dst_obj.surface = radeon_get_pixmap_surface(pDst);
+#endif
 
     if (!R600SetAccelState(pScrn,
 			   &src_obj,
@@ -2014,7 +2020,9 @@ R600DownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
     src_obj.domain = RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT;
     src_obj.bo = radeon_get_pixmap_bo(pSrc);
     src_obj.tiling_flags = radeon_get_pixmap_tiling(pSrc);
+#ifdef XF86DRM_MODE
     src_obj.surface = radeon_get_pixmap_surface(pSrc);
+#endif
 
     dst_obj.pitch = scratch_pitch;
     dst_obj.width = w;
@@ -2024,7 +2032,9 @@ R600DownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
     dst_obj.bpp = bpp;
     dst_obj.domain = RADEON_GEM_DOMAIN_GTT;
     dst_obj.tiling_flags = 0;
+#ifdef XF86DRM_MODE
     dst_obj.surface = NULL;
+#endif
 
     if (!R600SetAccelState(pScrn,
 			   &src_obj,

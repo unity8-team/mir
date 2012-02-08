@@ -121,6 +121,8 @@ FUNC_NAME(RADEONPrepareTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	    return FALSE;
 	}
     }
+#else
+    (void)src_bo;
 #endif
 
     pixel_shift = pPixmap->drawable.bitsPerPixel >> 4;
@@ -588,6 +590,8 @@ FUNC_NAME(R200PrepareTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	    return FALSE;
 	}
     }
+#else
+    (void)src_bo;
 #endif
 
     pixel_shift = pPixmap->drawable.bitsPerPixel >> 4;
@@ -1205,6 +1209,8 @@ FUNC_NAME(R300PrepareTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	    return FALSE;
 	}
     }
+#else
+    (void)src_bo;
 #endif
 
     pixel_shift = pPixmap->drawable.bitsPerPixel >> 4;
@@ -2687,6 +2693,8 @@ FUNC_NAME(R500PrepareTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	    return FALSE;
 	}
     }
+#else
+    (void)src_bo;
 #endif
 
     pixel_shift = pPixmap->drawable.bitsPerPixel >> 4;
