@@ -1945,11 +1945,16 @@ search_linear_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags)
 	if (num_pages >= MAX_CACHE_SIZE / PAGE_SIZE)
 		return NULL;
 
-	if (!use_active &&
-	    list_is_empty(inactive(kgem, num_pages)) &&
-	    !list_is_empty(active(kgem, num_pages, I915_TILING_NONE)) &&
-	    !kgem_retire(kgem))
-		return NULL;
+	if (!use_active && list_is_empty(inactive(kgem, num_pages))) {
+		if (list_is_empty(active(kgem, num_pages, I915_TILING_NONE)))
+			return NULL;
+
+		if (!kgem_retire(kgem))
+			return NULL;
+
+		if (list_is_empty(inactive(kgem, num_pages)))
+			return NULL;
+	}
 
 	if (!use_active && flags & (CREATE_CPU_MAP | CREATE_GTT_MAP)) {
 		int for_cpu = !!(flags & CREATE_CPU_MAP);
