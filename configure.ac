@@ -158,7 +158,7 @@ AC_ARG_ENABLE(glamor,
 AC_MSG_RESULT([$GLAMOR])
 AM_CONDITIONAL(GLAMOR, test x$GLAMOR != xno)
 if test "x$GLAMOR" != "xno"; then
-	PKG_CHECK_MODULES(LIBGLAMOR, [glamor])
+	PKG_CHECK_MODULES(LIBGLAMOR, [glamor >= 0.3.0])
 	PKG_CHECK_MODULES(LIBGLAMOR_EGL, [glamor-egl])
 	AC_DEFINE(USE_GLAMOR, 1, [Enable glamor acceleration])
 fi

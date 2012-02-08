@@ -1051,6 +1051,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 	intel->CreateScreenResources = screen->CreateScreenResources;
 	screen->CreateScreenResources = i830CreateScreenResources;
 
+	intel_glamor_init(screen);
 	if (!xf86CrtcScreenInit(screen))
 		return FALSE;
 
@@ -1123,8 +1124,6 @@ static void I830FreeScreen(int scrnIndex, int flags)
 {
 	ScrnInfoPtr scrn = xf86Screens[scrnIndex];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-
-	intel_glamor_free_screen(scrnIndex, flags);
 
 	if (intel) {
 		intel_mode_fini(intel);

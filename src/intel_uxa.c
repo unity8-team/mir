@@ -1391,7 +1391,5 @@ Bool intel_uxa_init(ScreenPtr screen)
 	uxa_set_fallback_debug(screen, intel->fallback_debug);
 	uxa_set_force_fallback(screen, intel->force_fallback);
 
-	intel_glamor_init(screen);
-
 	return TRUE;
 }

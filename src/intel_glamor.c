@@ -51,30 +51,40 @@ intel_glamor_create_screen_resources(ScreenPtr screen)
 
 	if (!glamor_glyphs_init(screen))
 		return FALSE;
+
 	if (!glamor_egl_create_textured_screen(screen,
 					       intel->front_buffer->handle,
 					       intel->front_pitch))
 		return FALSE;
+
 	return TRUE;
 }
 
 Bool
 intel_glamor_pre_init(ScrnInfoPtr scrn)
 {
-	intel_screen_private *intel;
-	intel = intel_get_screen_private(scrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+	pointer glamor_module;
+	CARD32 version;
 
 	/* Load glamor module */
-	if (xf86LoadSubModule(scrn, "glamor_egl") &&
-	    glamor_egl_init(scrn, intel->drmSubFD)) {
-		xf86DrvMsg(scrn->scrnIndex, X_INFO,
-			   "glamor detected, initialising\n");
-		intel->uxa_flags |= UXA_USE_GLAMOR;
-	} else {
+	if ((glamor_module = xf86LoadSubModule(scrn, "glamor_egl"))) {
+		version = xf86GetModuleVersion(glamor_module);
+		if (version < MODULE_VERSION_NUMERIC(0,3,0)) {
+			xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+			"Incompatible glamor version, required >= 0.3.0.\n");
+		} else {
+			if (glamor_egl_init(scrn, intel->drmSubFD)) {
+				xf86DrvMsg(scrn->scrnIndex, X_INFO,
+					   "glamor detected, initialising egl layer.\n");
+				intel->uxa_flags = UXA_GLAMOR_EGL_INITIALIZED;
+			} else
+				xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+					   "glamor detected, failed to initialize egl.\n");
+		}
+	} else
 		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 			   "glamor not available\n");
-		intel->uxa_flags &= ~UXA_USE_GLAMOR;
-	}
 
 	return TRUE;
 }
@@ -83,7 +93,13 @@ PixmapPtr
 intel_glamor_create_pixmap(ScreenPtr screen, int w, int h,
 			   int depth, unsigned int usage)
 {
-	return glamor_create_pixmap(screen, w, h, depth, usage);
+	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+
+	if (intel->uxa_flags & UXA_USE_GLAMOR)
+		return glamor_create_pixmap(screen, w, h, depth, usage);
+	else
+		return NULL;
 }
 
 Bool
@@ -145,30 +161,29 @@ intel_glamor_finish_access(PixmapPtr pixmap, uxa_access_t access)
 	return;
 }
 
-
 Bool
 intel_glamor_init(ScreenPtr screen)
 {
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
-	if ((intel->uxa_flags & UXA_USE_GLAMOR) == 0)
-		return TRUE;
+	if ((intel->uxa_flags & UXA_GLAMOR_EGL_INITIALIZED) == 0)
+		goto fail;
 
-	if (!glamor_init(screen, GLAMOR_INVERTED_Y_AXIS)) {
+	if (!glamor_init(screen, GLAMOR_INVERTED_Y_AXIS | GLAMOR_USE_EGL_SCREEN)) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-			   "Failed to initialize glamor\n");
+			   "Failed to initialize glamor.\n");
 		goto fail;
 	}
 
 	if (!glamor_egl_init_textured_pixmap(screen)) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-			   "Failed to initialize textured pixmap.\n");
+			   "Failed to initialize textured pixmap of screen for glamor.\n");
 		goto fail;
 	}
 
 	intel->uxa_driver->flags |= UXA_USE_GLAMOR;
-	intel->uxa_flags = intel->uxa_driver->flags;
+	intel->uxa_flags |= intel->uxa_driver->flags;
 
 	intel->uxa_driver->finish_access = intel_glamor_finish_access;
 
@@ -177,8 +192,8 @@ intel_glamor_init(ScreenPtr screen)
 	return TRUE;
 
   fail:
-	xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-		   "Use standard UXA acceleration.");
+	xf86DrvMsg(scrn->scrnIndex, X_INFO,
+		   "Use standard UXA acceleration.\n");
 	return FALSE;
 }
 
@@ -196,21 +211,10 @@ Bool
 intel_glamor_close_screen(ScreenPtr screen)
 {
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
-	intel_screen_private * intel;
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 
-	intel = intel_get_screen_private(scrn);
-	if (intel && (intel->uxa_flags & UXA_USE_GLAMOR))
-		return glamor_egl_close_screen(screen);
+	if (intel->uxa_flags & UXA_USE_GLAMOR)
+		intel->uxa_flags &= ~UXA_USE_GLAMOR;
+
 	return TRUE;
-}
-
-void
-intel_glamor_free_screen(int scrnIndex, int flags)
-{
-	ScrnInfoPtr scrn = xf86Screens[scrnIndex];
-	intel_screen_private * intel;
-
-	intel = intel_get_screen_private(scrn);
-	if (intel && (intel->uxa_flags & UXA_USE_GLAMOR))
-		glamor_egl_free_screen(scrnIndex, GLAMOR_EGL_EXTERNAL_BUFFER);
 }
