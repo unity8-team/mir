@@ -169,6 +169,7 @@ EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     src_obj.domain = RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT;
     src_obj.bo = pPriv->src_bo[pPriv->currentBuffer];
     src_obj.tiling_flags = 0;
+    src_obj.surface = NULL;
 
     dst_obj.width = pPixmap->drawable.width;
     dst_obj.height = pPixmap->drawable.height;
