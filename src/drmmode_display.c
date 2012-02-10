@@ -71,35 +71,37 @@ static PixmapPtr drmmode_create_bo_pixmap(ScrnInfoPtr pScrn,
 
 	exaMoveInPixmap(pixmap);
 	radeon_set_pixmap_bo(pixmap, bo);
-	surface = radeon_get_pixmap_surface(pixmap);
-	if (surface) {
-		memset(surface, 0, sizeof(struct radeon_surface));
-		surface->npix_x = width;
-		surface->npix_y = height;
-		surface->npix_z = 1;
-		surface->blk_w = 1;
-		surface->blk_h = 1;
-		surface->blk_d = 1;
-		surface->array_size = 1;
-		surface->last_level = 0;
-		surface->bpe = bpp / 8;
-		surface->nsamples = 1;
-		surface->flags = RADEON_SURF_SCANOUT;
-		surface->flags |= RADEON_SURF_SET(RADEON_SURF_TYPE_2D, TYPE);
-		surface->flags |= RADEON_SURF_SET(RADEON_SURF_MODE_LINEAR, MODE);
-		if (tiling & RADEON_TILING_MICRO) {
-			surface->flags = RADEON_SURF_CLR(surface->flags, MODE);
-			surface->flags |= RADEON_SURF_SET(RADEON_SURF_MODE_1D, MODE);
-		}
-		if (tiling & RADEON_TILING_MACRO) {
-			surface->flags = RADEON_SURF_CLR(surface->flags, MODE);
-			surface->flags |= RADEON_SURF_SET(RADEON_SURF_MODE_2D, MODE);
-		}
-		if (radeon_surface_best(info->surf_man, surface)) {
-			return FALSE;
-		}
-		if (radeon_surface_init(info->surf_man, surface)) {
-			return FALSE;
+	if (info->ChipFamily >= CHIP_FAMILY_R600) {
+		surface = radeon_get_pixmap_surface(pixmap);
+		if (surface) {
+			memset(surface, 0, sizeof(struct radeon_surface));
+			surface->npix_x = width;
+			surface->npix_y = height;
+			surface->npix_z = 1;
+			surface->blk_w = 1;
+			surface->blk_h = 1;
+			surface->blk_d = 1;
+			surface->array_size = 1;
+			surface->last_level = 0;
+			surface->bpe = bpp / 8;
+			surface->nsamples = 1;
+			surface->flags = RADEON_SURF_SCANOUT;
+			surface->flags |= RADEON_SURF_SET(RADEON_SURF_TYPE_2D, TYPE);
+			surface->flags |= RADEON_SURF_SET(RADEON_SURF_MODE_LINEAR, MODE);
+			if (tiling & RADEON_TILING_MICRO) {
+				surface->flags = RADEON_SURF_CLR(surface->flags, MODE);
+				surface->flags |= RADEON_SURF_SET(RADEON_SURF_MODE_1D, MODE);
+			}
+			if (tiling & RADEON_TILING_MACRO) {
+				surface->flags = RADEON_SURF_CLR(surface->flags, MODE);
+				surface->flags |= RADEON_SURF_SET(RADEON_SURF_MODE_2D, MODE);
+			}
+			if (radeon_surface_best(info->surf_man, surface)) {
+				return NULL;
+			}
+			if (radeon_surface_init(info->surf_man, surface)) {
+				return NULL;
+			}
 		}
 	}
 
