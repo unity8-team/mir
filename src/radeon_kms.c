@@ -435,7 +435,7 @@ static Bool radeon_open_drm_master(ScrnInfoPtr pScrn)
     int err;
 
     if (pRADEONEnt->fd) {
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   " reusing fd for second head\n");
 
 	info->dri2.drm_fd = pRADEONEnt->fd;
