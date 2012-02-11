@@ -718,11 +718,13 @@ gen6_emit_drawing_rectangle(struct sna *sna,
 	 * BEFORE the pipe-control with a post-sync op and no write-cache
 	 * flushes.
 	 */
-	OUT_BATCH(GEN6_PIPE_CONTROL | (4 - 2));
-	OUT_BATCH(GEN6_PIPE_CONTROL_CS_STALL |
-		  GEN6_PIPE_CONTROL_STALL_AT_SCOREBOARD);
-	OUT_BATCH(0);
-	OUT_BATCH(0);
+	if (!sna->render_state.gen6.first_state_packet) {
+		OUT_BATCH(GEN6_PIPE_CONTROL | (4 - 2));
+		OUT_BATCH(GEN6_PIPE_CONTROL_CS_STALL |
+			  GEN6_PIPE_CONTROL_STALL_AT_SCOREBOARD);
+		OUT_BATCH(0);
+		OUT_BATCH(0);
+	}
 
 	OUT_BATCH(GEN6_PIPE_CONTROL | (4 - 2));
 	OUT_BATCH(GEN6_PIPE_CONTROL_WRITE_TIME);
@@ -868,6 +870,7 @@ gen6_emit_state(struct sna *sna,
 		OUT_BATCH(0);
 		OUT_BATCH(0);
 	}
+	sna->render_state.gen6.first_state_packet = false;
 }
 
 static void gen6_magic_ca_pass(struct sna *sna,
@@ -4140,6 +4143,7 @@ gen6_render_retire(struct kgem *kgem)
 static void gen6_render_reset(struct sna *sna)
 {
 	sna->render_state.gen6.needs_invariant = TRUE;
+	sna->render_state.gen6.first_state_packet = true;
 	sna->render_state.gen6.vb_id = 0;
 	sna->render_state.gen6.ve_id = -1;
 	sna->render_state.gen6.last_primitive = -1;

@@ -405,6 +405,7 @@ struct gen6_render_state {
 	uint16_t surface_table;
 
 	Bool needs_invariant;
+	Bool first_state_packet;
 };
 
 enum {
