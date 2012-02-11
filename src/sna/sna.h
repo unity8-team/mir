@@ -44,6 +44,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <stdint.h>
 
 #include "compiler.h"
+
 #include <xf86_OSproc.h>
 #include <xf86Pci.h>
 #include <xf86Cursor.h>
@@ -109,14 +110,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define TEST_RENDER (TEST_ALL || 0)
 
 #include "intel_driver.h"
+#include "intel_list.h"
 #include "kgem.h"
 #include "sna_damage.h"
 #include "sna_render.h"
-
-static inline void list_add_tail(struct list *new, struct list *head)
-{
-	__list_add(new, head->prev, head);
-}
 
 #ifndef CREATE_PIXMAP_USAGE_SCRATCH_HEADER
 #define FAKE_CREATE_PIXMAP_USAGE_SCRATCH_HEADER 1

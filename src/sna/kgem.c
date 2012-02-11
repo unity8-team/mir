@@ -51,40 +51,6 @@
 static struct kgem_bo *
 search_linear_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags);
 
-static inline void _list_del(struct list *list)
-{
-	assert(list->prev->next == list);
-	assert(list->next->prev == list);
-	__list_del(list->prev, list->next);
-}
-
-static inline void list_move(struct list *list, struct list *head)
-{
-	_list_del(list);
-	list_add(list, head);
-}
-
-static inline void list_move_tail(struct list *list, struct list *head)
-{
-	_list_del(list);
-	list_add_tail(list, head);
-}
-
-static inline void list_replace(struct list *old,
-				struct list *new)
-{
-	new->next = old->next;
-	new->next->prev = new;
-	new->prev = old->prev;
-	new->prev->next = new;
-}
-
-#define list_last_entry(ptr, type, member) \
-    list_entry((ptr)->prev, type, member)
-
-#define list_for_each(pos, head)				\
-    for (pos = (head)->next; pos != (head); pos = pos->next)
-
 
 #define DBG_NO_HW 0
 #define DBG_NO_TILING 0

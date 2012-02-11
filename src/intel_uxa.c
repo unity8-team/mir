@@ -1092,9 +1092,7 @@ intel_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 			else
 				aligned_h = ALIGN(h, 2);
 
-			list_foreach_entry(priv, struct intel_pixmap,
-					   &intel->in_flight,
-					   in_flight) {
+			list_for_each_entry(priv, &intel->in_flight, in_flight) {
 				if (priv->tiling != tiling)
 					continue;
 

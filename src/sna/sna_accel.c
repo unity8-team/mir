@@ -815,14 +815,6 @@ static Bool sna_destroy_pixmap(PixmapPtr pixmap)
 	return fbDestroyPixmap(pixmap);
 }
 
-static inline void list_move(struct list *list, struct list *head)
-{
-	if (list->prev != head) {
-		__list_del(list->prev, list->next);
-		list_add(list, head);
-	}
-}
-
 static inline bool pixmap_inplace(struct sna *sna,
 				  PixmapPtr pixmap,
 				  struct sna_pixmap *priv)
