@@ -476,6 +476,15 @@ gen7_emit_state_base_address(struct sna *sna)
 static void
 gen7_disable_vs(struct sna *sna)
 {
+	/* For future reference:
+	 * A PIPE_CONTROL with post-sync op set to 1 and a depth stall needs
+	 * to be emitted just prior to change VS state, i.e. 3DSTATE_VS,
+	 * 3DSTATE_URB_VS, 3DSTATE_CONSTANT_VS,
+	 * 3DSTATE_BINDING_TABLE_POINTER_VS, 3DSTATE_SAMPLER_STATE_POINTER_VS.
+	 *
+	 * Here we saved by the full-flush incurred when emitting
+	 * the batchbuffer.
+	 */
 	OUT_BATCH(GEN7_3DSTATE_VS | (6 - 2));
 	OUT_BATCH(0); /* no VS kernel */
 	OUT_BATCH(0);
