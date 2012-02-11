@@ -3167,7 +3167,7 @@ static inline bool prefer_blt_copy(struct sna *sna,
 				   PixmapPtr src, struct kgem_bo *src_bo,
 				   PixmapPtr dst, struct kgem_bo *dst_bo)
 {
-	return (sna->kgem.ring != KGEM_RENDER ||
+	return (sna->kgem.ring == KGEM_BLT ||
 		prefer_blt_bo(sna, src, src_bo) ||
 		prefer_blt_bo(sna, dst, dst_bo));
 }
