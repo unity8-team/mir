@@ -401,6 +401,9 @@ static inline void list_move_tail(struct list *list, struct list *head)
 #define container_of(ptr, type, member) \
 	((type *)((char *)(ptr) - (char *) &((type *)0)->member))
 
+#define list_last_entry(ptr, type, member) \
+    list_entry((ptr)->prev, type, member)
+
 #endif
 
 #endif /* _INTEL_LIST_H_ */
