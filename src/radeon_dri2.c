@@ -40,6 +40,13 @@
 
 #if HAVE_LIST_H
 #include "list.h"
+#if !HAVE_XORG_LIST
+#define xorg_list			list
+#define xorg_list_init			list_init
+#define xorg_list_add			list_add
+#define xorg_list_del			list_del
+#define xorg_list_for_each_entry	list_for_each_entry
+#endif
 #endif
 
 #ifdef RADEON_DRI2
@@ -515,11 +522,11 @@ typedef struct _DRI2FrameEvent {
 
     Bool valid;
 
-    struct list link;
+    struct xorg_list link;
 } DRI2FrameEventRec, *DRI2FrameEventPtr;
 
 typedef struct _DRI2ClientEvents {
-    struct list   reference_list;
+    struct xorg_list   reference_list;
 } DRI2ClientEventsRec, *DRI2ClientEventsPtr;
 
 #if HAS_DEVPRIVATEKEYREC
@@ -538,7 +545,7 @@ DevPrivateKey DRI2ClientEventsPrivateKey = &DRI2ClientEventsPrivateKeyIndex;
     dixLookupPrivate(&(pClient)->devPrivates, DRI2ClientEventsPrivateKey))
 
 static int
-ListAddDRI2ClientEvents(ClientPtr client, struct list *entry)
+ListAddDRI2ClientEvents(ClientPtr client, struct xorg_list *entry)
 {
     DRI2ClientEventsPtr pClientPriv;
     pClientPriv = GetDRI2ClientEvents(client);
@@ -547,12 +554,12 @@ ListAddDRI2ClientEvents(ClientPtr client, struct list *entry)
         return BadAlloc;
     }
 
-    list_add(entry, &pClientPriv->reference_list);
+    xorg_list_add(entry, &pClientPriv->reference_list);
     return 0;
 }
 
 static void
-ListDelDRI2ClientEvents(ClientPtr client, struct list *entry)
+ListDelDRI2ClientEvents(ClientPtr client, struct xorg_list *entry)
 {
     DRI2ClientEventsPtr pClientPriv;
     pClientPriv = GetDRI2ClientEvents(client);
@@ -560,7 +567,7 @@ ListDelDRI2ClientEvents(ClientPtr client, struct list *entry)
     if (!pClientPriv) {
         return;
     }
-    list_del(entry);
+    xorg_list_del(entry);
 }
 
 static void
@@ -574,7 +581,7 @@ radeon_dri2_client_state_changed(CallbackListPtr *ClientStateCallback, pointer d
 
     switch (pClient->clientState) {
     case ClientStateInitial:
-        list_init(&pClientEventsPriv->reference_list);
+        xorg_list_init(&pClientEventsPriv->reference_list);
         break;
     case ClientStateRunning:
         break;
@@ -582,7 +589,7 @@ radeon_dri2_client_state_changed(CallbackListPtr *ClientStateCallback, pointer d
     case ClientStateRetained:
     case ClientStateGone:
         if (pClientEventsPriv) {
-            list_for_each_entry(ref, &pClientEventsPriv->reference_list, link) {
+            xorg_list_for_each_entry(ref, &pClientEventsPriv->reference_list, link) {
                 ref->valid = FALSE;
             }
         }

@@ -234,9 +234,17 @@ AC_CHECK_DECL(XSERVER_LIBPCIACCESS,
 	      [#include "xorg-server.h"])
 
 AC_CHECK_HEADERS([list.h],
-		 [], [],
+		 [have_list_h="yes"], [have_list_h="no"],
 		 [#include <X11/Xdefs.h>
 		  #include "xorg-server.h"])
+
+if test "x$have_list_h" = xyes; then
+    AC_CHECK_DECL(xorg_list_init,
+		  [AC_DEFINE(HAVE_XORG_LIST, 1, [Have xorg_list API])], [],
+		  [#include <X11/Xdefs.h>
+		   #include "xorg-server.h"
+		   #include "list.h"])
+fi
 
 CPPFLAGS="$SAVE_CPPFLAGS"
 
