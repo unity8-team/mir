@@ -161,7 +161,7 @@ EVERGREENPrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
 	cb_conf.pmask |= 8; /* A */
     cb_conf.rop = accel_state->rop;
     if (accel_state->dst_obj.tiling_flags == 0) {
-	cb_conf.array_mode = 1;
+	cb_conf.array_mode = 0;
 	cb_conf.non_disp_tiling = 1;
     }
     evergreen_set_render_target(pScrn, &cb_conf, accel_state->dst_obj.domain);
@@ -340,7 +340,7 @@ EVERGREENDoPrepareCopy(ScrnInfoPtr pScrn)
     tex_res.last_level          = 0;
     tex_res.perf_modulation     = 0;
     if (accel_state->src_obj[0].tiling_flags == 0)
-	tex_res.array_mode          = 1;
+	tex_res.array_mode          = 0;
     evergreen_set_tex_resource(pScrn, &tex_res, accel_state->src_obj[0].domain);
 
     tex_samp.id                 = 0;
@@ -383,7 +383,7 @@ EVERGREENDoPrepareCopy(ScrnInfoPtr pScrn)
 	cb_conf.pmask |= 8; /* A */
     cb_conf.rop = accel_state->rop;
     if (accel_state->dst_obj.tiling_flags == 0) {
-	cb_conf.array_mode = 1;
+	cb_conf.array_mode = 0;
 	cb_conf.non_disp_tiling = 1;
     }
     evergreen_set_render_target(pScrn, &cb_conf, accel_state->dst_obj.domain);
@@ -999,7 +999,7 @@ static Bool EVERGREENTextureSetup(PicturePtr pPict, PixmapPtr pPix,
     tex_res.last_level          = 0;
     tex_res.perf_modulation     = 0;
     if (accel_state->src_obj[unit].tiling_flags == 0)
-	tex_res.array_mode          = 1;
+	tex_res.array_mode          = 0;
     evergreen_set_tex_resource  (pScrn, &tex_res, accel_state->src_obj[unit].domain);
 
     tex_samp.id                 = unit;
@@ -1313,7 +1313,7 @@ static Bool EVERGREENPrepareComposite(int op, PicturePtr pSrcPicture,
     cb_conf.rop = 3;
     cb_conf.pmask = 0xf;
     if (accel_state->dst_obj.tiling_flags == 0) {
-	cb_conf.array_mode = 1;
+	cb_conf.array_mode = 0;
 	cb_conf.non_disp_tiling = 1;
     }
 #if X_BYTE_ORDER == X_BIG_ENDIAN

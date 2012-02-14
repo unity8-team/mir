@@ -278,7 +278,7 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
 	cb_conf.pmask |= 8; /* A */
     cb_conf.rop = accel_state->rop;
     if (accel_state->dst_obj.tiling_flags == 0)
-	cb_conf.array_mode = 1;
+	cb_conf.array_mode = 0;
     r600_set_render_target(pScrn, accel_state->ib, &cb_conf, accel_state->dst_obj.domain);
 
     r600_set_spi(pScrn, accel_state->ib, 0, 0);
@@ -501,7 +501,7 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn)
 	cb_conf.pmask |= 8; /* A */
     cb_conf.rop = accel_state->rop;
     if (accel_state->dst_obj.tiling_flags == 0)
-	cb_conf.array_mode = 1;
+	cb_conf.array_mode = 0;
     r600_set_render_target(pScrn, accel_state->ib, &cb_conf, accel_state->dst_obj.domain);
 
     r600_set_spi(pScrn, accel_state->ib, (1 - 1), 1);
@@ -1476,7 +1476,7 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     cb_conf.pmask = 0xf;
     cb_conf.rop = 3;
     if (accel_state->dst_obj.tiling_flags == 0)
-	cb_conf.array_mode = 1;
+	cb_conf.array_mode = 0;
 #if X_BYTE_ORDER == X_BIG_ENDIAN
     switch (dst_obj.bpp) {
     case 16:

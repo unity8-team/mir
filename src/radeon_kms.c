@@ -1262,7 +1262,7 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
 		surface.nsamples = 1;
 		surface.flags = RADEON_SURF_SCANOUT;
 		surface.flags |= RADEON_SURF_SET(RADEON_SURF_TYPE_2D, TYPE);
-		surface.flags |= RADEON_SURF_SET(RADEON_SURF_MODE_LINEAR, MODE);
+		surface.flags |= RADEON_SURF_SET(RADEON_SURF_MODE_LINEAR_ALIGNED, MODE);
 		if (tiling_flags & RADEON_TILING_MICRO) {
 			surface.flags = RADEON_SURF_CLR(surface.flags, MODE);
 			surface.flags |= RADEON_SURF_SET(RADEON_SURF_MODE_1D, MODE);

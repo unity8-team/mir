@@ -87,7 +87,7 @@ static PixmapPtr drmmode_create_bo_pixmap(ScrnInfoPtr pScrn,
 			surface->nsamples = 1;
 			surface->flags = RADEON_SURF_SCANOUT;
 			surface->flags |= RADEON_SURF_SET(RADEON_SURF_TYPE_2D, TYPE);
-			surface->flags |= RADEON_SURF_SET(RADEON_SURF_MODE_LINEAR, MODE);
+			surface->flags |= RADEON_SURF_SET(RADEON_SURF_MODE_LINEAR_ALIGNED, MODE);
 			if (tiling & RADEON_TILING_MICRO) {
 				surface->flags = RADEON_SURF_CLR(surface->flags, MODE);
 				surface->flags |= RADEON_SURF_SET(RADEON_SURF_MODE_1D, MODE);
@@ -1293,7 +1293,7 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 		surface.nsamples = 1;
 		surface.flags = RADEON_SURF_SCANOUT;
 		surface.flags |= RADEON_SURF_SET(RADEON_SURF_TYPE_2D, TYPE);
-		surface.flags |= RADEON_SURF_SET(RADEON_SURF_MODE_LINEAR, MODE);
+		surface.flags |= RADEON_SURF_SET(RADEON_SURF_MODE_LINEAR_ALIGNED, MODE);
 		if (tiling_flags & RADEON_TILING_MICRO) {
 			surface.flags = RADEON_SURF_CLR(surface.flags, MODE);
 			surface.flags |= RADEON_SURF_SET(RADEON_SURF_MODE_1D, MODE);
