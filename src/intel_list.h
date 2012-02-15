@@ -267,24 +267,6 @@ list_is_empty(struct list *head)
 }
 
 /**
- * Returns a pointer to the container of this list element.
- *
- * Example:
- * struct foo* f;
- * f = container_of(&foo->entry, struct foo, entry);
- * assert(f == foo);
- *
- * @param ptr Pointer to the struct list.
- * @param type Data type of the list element.
- * @param member Member name of the struct list field in the list element.
- * @return A pointer to the data struct containing the list head.
- */
-#ifndef container_of
-#define container_of(ptr, type, member) \
-	((type *)((char *)(ptr) - (char *) &((type *)0)->member))
-#endif
-
-/**
  * Alias of container_of
  */
 #define list_entry(ptr, type, member) \
@@ -397,14 +379,14 @@ static inline void list_move_tail(struct list *list, struct list *head)
 	list_add_tail(list, head);
 }
 
-#undef container_of
-#define container_of(ptr, type, member) \
-	((type *)((char *)(ptr) - (char *) &((type *)0)->member))
-
 #define list_last_entry(ptr, type, member) \
     list_entry((ptr)->prev, type, member)
 
 #endif
+
+#undef container_of
+#define container_of(ptr, type, member) \
+	((type *)((char *)(ptr) - (char *) &((type *)0)->member))
 
 #endif /* _INTEL_LIST_H_ */
 
