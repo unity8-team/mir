@@ -280,10 +280,8 @@ static Bool has_kernel_mode_setting(struct pci_device *dev)
 		 dev->domain, dev->bus, dev->dev, dev->func);
 
 	ret = drmCheckModesettingSupported(id);
-	if (ret) {
-		if (xf86LoadKernelModule("i915"))
-			ret = drmCheckModesettingSupported(id);
-	}
+	if (ret && xf86LoadKernelModule("i915"))
+		ret = drmCheckModesettingSupported(id);
 	/* Be nice to the user and load fbcon too */
 	if (!ret)
 		(void)xf86LoadKernelModule("fbcon");

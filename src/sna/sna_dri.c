@@ -157,7 +157,7 @@ static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 					  PixmapPtr pixmap)
 {
 	struct sna_pixmap *priv;
-	uint32_t tiling;
+	int tiling;
 
 	priv = sna_pixmap_force_to_gpu(pixmap, MOVE_READ | MOVE_WRITE);
 	if (priv == NULL)
@@ -167,6 +167,8 @@ static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 		return ref(priv->gpu_bo);
 
 	tiling = color_tiling(sna, &pixmap->drawable);
+	if (tiling < 0)
+		tiling = -tiling;
 	if (priv->gpu_bo->tiling != tiling)
 		sna_pixmap_change_tiling(pixmap, tiling);
 
