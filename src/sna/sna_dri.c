@@ -721,12 +721,18 @@ sna_dri_frame_event_info_free(struct sna_dri_frame_event *info)
 	_sna_dri_destroy_buffer(info->sna, info->front);
 	_sna_dri_destroy_buffer(info->sna, info->back);
 
-	if (info->old_front.bo)
+	if (info->old_front.bo) {
+		info->old_front.bo->reusable = true;
 		kgem_bo_destroy(&info->sna->kgem, info->old_front.bo);
-	if (info->next_front.bo)
+	}
+	if (info->next_front.bo) {
+		info->next_front.bo->reusable = true;
 		kgem_bo_destroy(&info->sna->kgem, info->next_front.bo);
-	if (info->cache.bo)
+	}
+	if (info->cache.bo) {
+		info->cache.bo->reusable = true;
 		kgem_bo_destroy(&info->sna->kgem, info->cache.bo);
+	}
 
 	free(info);
 }
