@@ -1,3 +1,12 @@
+xserver-xorg-video-intel (2:2.17.0-1ubuntu4) precise; urgency=low
+
+  * Add 104_uxa_fix_gtt_mapping_limits.patch: Fix SIGBUS errors
+    encountered with loading/manipulating large pixmap images.
+    Backport of three upstream commits.
+    (LP: #889068)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Wed, 15 Feb 2012 17:16:19 -0800
+
 xserver-xorg-video-intel (2:2.17.0-1ubuntu3) precise; urgency=low
 
   * Readd 103_fix_uxa_fill_spans.patch from 2:2.15.901-1ubuntu4, it

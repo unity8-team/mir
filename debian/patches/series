@@ -3,3 +3,4 @@
 # Ubuntu patches
 101_copy-fb.patch
 103_fix_uxa_fill_spans.patch
+104_uxa_fix_gtt_mapping_limits.patch
