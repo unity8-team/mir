@@ -3007,7 +3007,7 @@ trapezoid_mask_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	if (NO_SCAN_CONVERTER)
 		return false;
 
-	if (dst->polyMode == PolyModePrecise) {
+	if (dst->polyMode == PolyModePrecise && !is_mono(dst, maskFormat)) {
 		DBG(("%s: fallback -- precise rasterisation requested\n",
 		     __FUNCTION__));
 		return false;
@@ -3351,7 +3351,7 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 	if (NO_SCAN_CONVERTER)
 		return false;
 
-	if (dst->polyMode == PolyModePrecise) {
+	if (dst->polyMode == PolyModePrecise && !is_mono(dst, maskFormat)) {
 		DBG(("%s: fallback -- precise rasterisation requested\n",
 		     __FUNCTION__));
 		return false;
@@ -3519,7 +3519,7 @@ trapezoid_span_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 	if (NO_SCAN_CONVERTER)
 		return false;
 
-	if (dst->polyMode == PolyModePrecise) {
+	if (dst->polyMode == PolyModePrecise && !is_mono(dst, maskFormat)) {
 		DBG(("%s: fallback -- precise rasterisation requested\n",
 		     __FUNCTION__));
 		return false;
@@ -4008,7 +4008,8 @@ trap_mask_converter(PicturePtr picture,
 		return false;
 
 	/* XXX strict adherence to the Render specification */
-	if (picture->polyMode == PolyModePrecise) {
+	if (picture->polyMode == PolyModePrecise &&
+	    picture->polyEdge != PolyEdgeSharp) {
 		DBG(("%s: fallback -- precise rasterisation requested\n",
 		     __FUNCTION__));
 		return false;
@@ -4515,7 +4516,7 @@ triangles_mask_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	if (NO_SCAN_CONVERTER)
 		return false;
 
-	if (dst->polyMode == PolyModePrecise) {
+	if (dst->polyMode == PolyModePrecise && !is_mono(dst, maskFormat)) {
 		DBG(("%s: fallback -- precise rasterisation requested\n",
 		     __FUNCTION__));
 		return false;
@@ -4748,7 +4749,7 @@ tristrip_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 		return false;
 
 	/* XXX strict adherence to the Render specification */
-	if (dst->polyMode == PolyModePrecise) {
+	if (dst->polyMode == PolyModePrecise && !is_mono(dst, maskFormat)) {
 		DBG(("%s: fallback -- precise rasterisation requested\n",
 		     __FUNCTION__));
 		return false;
