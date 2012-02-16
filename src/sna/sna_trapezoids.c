@@ -2009,20 +2009,41 @@ trapezoids_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 		DBG(("%s: mask (%dx%d) depth=%d, format=%08x\n",
 		     __FUNCTION__, width, height, depth, format));
 		scratch = sna_pixmap_create_upload(screen,
-						   width, height, depth,
+						   width, height, 8,
 						   KGEM_BUFFER_WRITE);
 		if (!scratch)
 			return;
 
-		memset(scratch->devPrivate.ptr, 0, scratch->devKind*height);
-		image = pixman_image_create_bits(format, width, height,
-						 scratch->devPrivate.ptr,
-						 scratch->devKind);
+		if (depth < 8) {
+			image = pixman_image_create_bits(format, width, height,
+							 NULL, 0);
+		} else {
+			memset(scratch->devPrivate.ptr, 0, scratch->devKind*height);
+			image = pixman_image_create_bits(format, width, height,
+							 scratch->devPrivate.ptr,
+							 scratch->devKind);
+		}
 		if (image) {
 			for (; ntrap; ntrap--, traps++)
 				pixman_rasterize_trapezoid(image,
 							   (pixman_trapezoid_t *)traps,
 							   -bounds.x1, -bounds.y1);
+			if (depth < 8) {
+				pixman_image_t *a8;
+
+				a8 = pixman_image_create_bits(PIXMAN_a8, width, height,
+							      scratch->devPrivate.ptr,
+							      scratch->devKind);
+				if (a8) {
+					pixman_image_composite(PIXMAN_OP_SRC,
+							       image, NULL, a8,
+							       0, 0,
+							       0, 0,
+							       0, 0,
+							       width, height);
+					pixman_image_unref (a8);
+				}
+			}
 
 			pixman_image_unref(image);
 		}
