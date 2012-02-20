@@ -710,6 +710,14 @@ sna_dri_add_frame_event(struct sna_dri_frame_event *info)
 }
 
 static void
+sna_dri_frame_event_release_bo(struct kgem *kgem, struct kgem_bo *bo)
+{
+	bo->needs_flush = true; /* has been used externally, reset domains */
+	bo->reusable = true; /* No longer in use by an external client */
+	kgem_bo_destroy(kgem, bo);
+}
+
+static void
 sna_dri_frame_event_info_free(struct sna_dri_frame_event *info)
 {
 	DBG(("%s: del[%p] (%p, %ld)\n", __FUNCTION__,
@@ -721,18 +729,17 @@ sna_dri_frame_event_info_free(struct sna_dri_frame_event *info)
 	_sna_dri_destroy_buffer(info->sna, info->front);
 	_sna_dri_destroy_buffer(info->sna, info->back);
 
-	if (info->old_front.bo) {
-		info->old_front.bo->reusable = true;
-		kgem_bo_destroy(&info->sna->kgem, info->old_front.bo);
-	}
-	if (info->next_front.bo) {
-		info->next_front.bo->reusable = true;
-		kgem_bo_destroy(&info->sna->kgem, info->next_front.bo);
-	}
-	if (info->cache.bo) {
-		info->cache.bo->reusable = true;
-		kgem_bo_destroy(&info->sna->kgem, info->cache.bo);
-	}
+	if (info->old_front.bo)
+		sna_dri_frame_event_release_bo(&info->sna->kgem,
+					       info->old_front.bo);
+
+	if (info->next_front.bo)
+		sna_dri_frame_event_release_bo(&info->sna->kgem,
+					       info->next_front.bo);
+
+	if (info->cache.bo)
+		sna_dri_frame_event_release_bo(&info->sna->kgem,
+					       info->cache.bo);
 
 	free(info);
 }
