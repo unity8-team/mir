@@ -5425,8 +5425,7 @@ sna_poly_zero_line_blt(DrawablePtr drawable,
 
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
 	struct sna *sna = to_sna_from_pixmap(pixmap);
-	int x2, y2, xstart, ystart;
-	int oc2, pt2_clipped = 0;
+	int x2, y2, xstart, ystart, oc2;
 	unsigned int bias = miGetZeroLineBias(drawable->pScreen);
 	bool degenerate = true;
 	struct sna_fill_op fill;
@@ -5471,9 +5470,7 @@ sna_poly_zero_line_blt(DrawablePtr drawable,
 		x2 = xstart;
 		y2 = ystart;
 		oc2 = 0;
-		MIOUTCODES(oc2, x2, y2,
-			   extents->x1, extents->y1,
-			   extents->x2, extents->y2);
+		OUTCODES(oc2, x2, y2, extents);
 
 		while (--n) {
 			int16_t sdx, sdy;
@@ -5504,9 +5501,7 @@ sna_poly_zero_line_blt(DrawablePtr drawable,
 			degenerate = false;
 
 			oc2 = 0;
-			MIOUTCODES(oc2, x2, y2,
-				   extents->x1, extents->y1,
-				   extents->x2, extents->y2);
+			OUTCODES(oc2, x2, y2, extents);
 			if (oc1 & oc2)
 				continue;
 
@@ -5554,13 +5549,12 @@ rectangle_continue:
 
 				x = x1;
 				y = y1;
-				pt2_clipped = 0;
 
 				if (oc1 | oc2) {
-					int pt1_clipped;
+					int pt1_clipped, pt2_clipped;
 
 					if (miZeroClipLine(extents->x1, extents->y1,
-							   extents->x2, extents->y2,
+							   extents->x2-1, extents->y2-1,
 							   &x, &y, &x2_clipped, &y2_clipped,
 							   adx, ady,
 							   &pt1_clipped, &pt2_clipped,
@@ -5568,12 +5562,6 @@ rectangle_continue:
 						continue;
 
 					length = abs(x2_clipped - x);
-
-					/* if we've clipped the endpoint, always draw the full length
-					 * of the segment, because then the capstyle doesn't matter
-					 */
-					if (pt2_clipped)
-						length++;
 					if (length == 0)
 						continue;
 
@@ -5636,13 +5624,12 @@ X_continue2:
 
 				x = x1;
 				y = y1;
-				pt2_clipped = 0;
 
 				if (oc1 | oc2) {
-					int pt1_clipped;
+					int pt1_clipped, pt2_clipped;
 
 					if (miZeroClipLine(extents->x1, extents->y1,
-							   extents->x2, extents->y2,
+							   extents->x2-1, extents->y2-1,
 							   &x, &y, &x2_clipped, &y2_clipped,
 							   adx, ady,
 							   &pt1_clipped, &pt2_clipped,
@@ -5650,12 +5637,6 @@ X_continue2:
 						continue;
 
 					length = abs(y2_clipped - y);
-
-					/* if we've clipped the endpoint, always draw the full length
-					 * of the segment, because then the capstyle doesn't matter
-					 */
-					if (pt2_clipped)
-						length++;
 					if (length == 0)
 						continue;
 
@@ -6807,17 +6788,9 @@ sna_poly_zero_segment_blt(DrawablePtr drawable,
 				continue;
 
 			oc1 = 0;
-			MIOUTCODES(oc1, x1, y1,
-				   extents->x1,
-				   extents->y1,
-				   extents->x2,
-				   extents->y2);
+			OUTCODES(oc1, x1, y1, extents);
 			oc2 = 0;
-			MIOUTCODES(oc2, x2, y2,
-				   extents->x1,
-				   extents->y1,
-				   extents->x2,
-				   extents->y2);
+			OUTCODES(oc2, x2, y2, extents);
 			if (oc1 & oc2)
 				continue;
 
@@ -6865,10 +6838,8 @@ rectangle_continue:
 					int pt1_clipped, pt2_clipped;
 					int x = x1, y = y1;
 
-					if (miZeroClipLine(extents->x1,
-							   extents->y1,
-							   extents->x2,
-							   extents->y2,
+					if (miZeroClipLine(extents->x1, extents->y1,
+							   extents->x2-1, extents->y2-1,
 							   &x1, &y1, &x2, &y2,
 							   adx, ady,
 							   &pt1_clipped, &pt2_clipped,
@@ -6937,10 +6908,8 @@ X_continue2:
 					int pt1_clipped, pt2_clipped;
 					int x = x1, y = y1;
 
-					if (miZeroClipLine(extents->x1,
-							   extents->y1,
-							   extents->x2,
-							   extents->y2,
+					if (miZeroClipLine(extents->x1, extents->y1,
+							   extents->x2-1, extents->y2-1,
 							   &x1, &y1, &x2, &y2,
 							   adx, ady,
 							   &pt1_clipped, &pt2_clipped,
