@@ -5451,11 +5451,11 @@ sna_poly_zero_line_blt(DrawablePtr drawable,
 	}
 
 	jump = _jump[(damage != NULL) | !!(dx|dy) << 1];
-	DBG(("%s: [clipped] extents=(%d, %d), (%d, %d), delta=(%d, %d)\n",
-	     __FUNCTION__,
+	DBG(("%s: [clipped=%x] extents=(%d, %d), (%d, %d), delta=(%d, %d), damage=%p\n",
+	     __FUNCTION__, clipped,
 	     clip.extents.x1, clip.extents.y1,
 	     clip.extents.x2, clip.extents.y2,
-	     dx, dy));
+	     dx, dy, damage));
 
 	extents = REGION_RECTS(&clip);
 	last_extents = extents + REGION_NUM_RECTS(&clip);
@@ -5514,7 +5514,7 @@ sna_poly_zero_line_blt(DrawablePtr drawable,
 				       adx, ady, sdx, sdy,
 				       1, 1, octant);
 
-			DBG(("%s: adx=(%d, %d), sdx=(%d, %d), oc1=%d, oc2=%d\n",
+			DBG(("%s: adx=(%d, %d), sdx=(%d, %d), oc1=%x, oc2=%x\n",
 			     __FUNCTION__, adx, ady, sdx, sdy, oc1, oc2));
 			if (adx == 0 || ady == 0) {
 				if (x1 <= x2) {
@@ -5542,11 +5542,13 @@ rectangle_continue:
 					b = box;
 				}
 			} else if (adx >= ady) {
+				int x2_clipped = x2, y2_clipped = y2;
+
 				/* X-major segment */
 				e1 = ady << 1;
 				e2 = e1 - (adx << 1);
 				e  = e1 - adx;
-				length = adx;	/* don't draw endpoint in main loop */
+				length = adx;
 
 				FIXUP_ERROR(e, octant, bias);
 
@@ -5555,7 +5557,6 @@ rectangle_continue:
 				pt2_clipped = 0;
 
 				if (oc1 | oc2) {
-					int x2_clipped = x2, y2_clipped = y2;
 					int pt1_clipped;
 
 					if (miZeroClipLine(extents->x1, extents->y1,
@@ -5587,8 +5588,8 @@ rectangle_continue:
 				e  = e - e1;
 
 				if (sdx < 0) {
-					x = x2;
-					y = y2;
+					x = x2_clipped;
+					y = y2_clipped;
 					sdy = -sdy;
 				}
 
@@ -5622,11 +5623,13 @@ X_continue2:
 					b = box;
 				}
 			} else {
+				int x2_clipped = x2, y2_clipped = y2;
+
 				/* Y-major segment */
 				e1 = adx << 1;
 				e2 = e1 - (ady << 1);
 				e  = e1 - ady;
-				length  = ady;	/* don't draw endpoint in main loop */
+				length  = ady;
 
 				SetYMajorOctant(octant);
 				FIXUP_ERROR(e, octant, bias);
@@ -5636,7 +5639,6 @@ X_continue2:
 				pt2_clipped = 0;
 
 				if (oc1 | oc2) {
-					int x2_clipped = x2, y2_clipped = y2;
 					int pt1_clipped;
 
 					if (miZeroClipLine(extents->x1, extents->y1,
@@ -5668,8 +5670,8 @@ X_continue2:
 				e  = e - e1;
 
 				if (sdx < 0) {
-					x = x2;
-					y = y2;
+					x = x2_clipped;
+					y = y2_clipped;
 					sdy = -sdy;
 				}
 
