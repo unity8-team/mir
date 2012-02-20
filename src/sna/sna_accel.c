@@ -321,10 +321,8 @@ sna_pixmap_alloc_cpu(struct sna *sna,
 			if (priv->ptr == NULL) {
 				kgem_bo_destroy(&sna->kgem, priv->cpu_bo);
 				priv->cpu_bo = NULL;
-			} else {
-				kgem_bo_sync__cpu(&sna->kgem, priv->cpu_bo);
+			} else
 				priv->stride = priv->cpu_bo->pitch;
-			}
 		}
 	}
 
@@ -2598,6 +2596,11 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	if (priv->clear) {
 		DBG(("%s: applying clear [%08x]\n",
 		     __FUNCTION__, priv->clear_color));
+
+		if (priv->cpu_bo) {
+			DBG(("%s: syncing CPU bo\n", __FUNCTION__));
+			kgem_bo_sync__cpu(&sna->kgem, priv->cpu_bo);
+		}
 
 		pixman_fill(pixmap->devPrivate.ptr,
 			    pixmap->devKind/sizeof(uint32_t),
