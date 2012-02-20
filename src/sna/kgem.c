@@ -2403,15 +2403,28 @@ search_again:
 			assert(bo->reusable);
 			assert(bo->tiling == tiling);
 
-			if (bo->pitch < pitch) {
-				DBG(("tiled and pitch too small: tiling=%d, (want %d), pitch=%d, need %d\n",
-				     bo->tiling, tiling,
-				     bo->pitch, pitch));
-				continue;
-			}
+			if (kgem->gen < 40) {
+				if (bo->pitch < pitch) {
+					DBG(("tiled and pitch too small: tiling=%d, (want %d), pitch=%d, need %d\n",
+					     bo->tiling, tiling,
+					     bo->pitch, pitch));
+					continue;
+				}
 
-			if (bo->pitch * tiled_height > bytes(bo))
-				continue;
+				if (bo->pitch * tiled_height > bytes(bo))
+					continue;
+			} else {
+				if (num_pages(bo) < size)
+					continue;
+
+				if (bo->pitch != pitch) {
+					gem_set_tiling(kgem->fd,
+						       bo->handle,
+						       tiling, pitch);
+
+					bo->pitch = pitch;
+				}
+			}
 
 			kgem_bo_remove_from_active(kgem, bo);
 
@@ -2444,6 +2457,38 @@ search_again:
 	}
 
 	if (--retry && flags & CREATE_EXACT) {
+		if (kgem->gen >= 40) {
+			for (i = I915_TILING_NONE; i <= I915_TILING_Y; i++) {
+				if (i == tiling)
+					continue;
+
+				cache = &kgem->active[bucket][i];
+				list_for_each_entry(bo, cache, list) {
+					assert(!bo->purged);
+					assert(bo->refcnt == 0);
+					assert(bo->reusable);
+
+					if (num_pages(bo) < size)
+						continue;
+
+					if (tiling != gem_set_tiling(kgem->fd,
+								     bo->handle,
+								     tiling, pitch))
+						continue;
+
+					kgem_bo_remove_from_active(kgem, bo);
+
+					bo->unique_id = kgem_get_unique_id(kgem);
+					bo->pitch = pitch;
+					bo->tiling = tiling;
+					bo->delta = 0;
+					DBG(("  1:from active: pitch=%d, tiling=%d, handle=%d, id=%d\n",
+					     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
+					return kgem_bo_reference(bo);
+				}
+			}
+		}
+
 		bucket++;
 		goto search_again;
 	}
