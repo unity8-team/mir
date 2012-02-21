@@ -1636,6 +1636,7 @@ blit:
 		}
 		info->front->name = info->back->name;
 		get_private(info->front)->bo = get_private(info->back)->bo;
+		__kgem_flush(&sna->kgem, get_private(info->back)->bo);
 	}
 
 	if (bo == NULL) {
