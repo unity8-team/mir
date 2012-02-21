@@ -164,7 +164,7 @@ static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 		return NULL;
 
 	if (priv->flush)
-		return ref(priv->gpu_bo);
+		return priv->gpu_bo;
 
 	tiling = color_tiling(sna, &pixmap->drawable);
 	if (tiling < 0)
@@ -182,7 +182,7 @@ static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 	/* Don't allow this named buffer to be replaced */
 	priv->pinned = 1;
 
-	return ref(priv->gpu_bo);
+	return priv->gpu_bo;
 }
 
 static DRI2Buffer2Ptr
@@ -201,16 +201,15 @@ sna_dri_create_buffer(DrawablePtr drawable,
 	     __FUNCTION__, attachment, format,
 	     drawable->width, drawable->height));
 
-	buffer = calloc(1, sizeof *buffer + sizeof *private);
-	if (buffer == NULL)
-		return NULL;
-
 	pixmap = NULL;
-	bo = NULL;
 	switch (attachment) {
 	case DRI2BufferFrontLeft:
 		pixmap = get_drawable_pixmap(drawable);
 		bo = sna_pixmap_set_dri(sna, pixmap);
+		if (bo == NULL)
+			return NULL;
+
+		bo = ref(bo);
 		bpp = pixmap->drawable.bitsPerPixel;
 		DBG(("%s: attaching to front buffer %dx%d [%p:%d]\n",
 		     __FUNCTION__,
@@ -276,9 +275,13 @@ sna_dri_create_buffer(DrawablePtr drawable,
 		break;
 
 	default:
-		break;
+		return NULL;
 	}
 	if (bo == NULL)
+		return NULL;
+
+	buffer = calloc(1, sizeof *buffer + sizeof *private);
+	if (buffer == NULL)
 		goto err;
 
 	private = get_private(buffer);
@@ -293,10 +296,8 @@ sna_dri_create_buffer(DrawablePtr drawable,
 	private->pixmap = pixmap;
 	private->bo = bo;
 
-	if (buffer->name == 0) {
-		kgem_bo_destroy(&sna->kgem, bo);
+	if (buffer->name == 0)
 		goto err;
-	}
 
 	if (pixmap)
 		pixmap->refcnt++;
@@ -304,6 +305,7 @@ sna_dri_create_buffer(DrawablePtr drawable,
 	return buffer;
 
 err:
+	kgem_bo_destroy(&sna->kgem, bo);
 	free(buffer);
 	return NULL;
 }
@@ -505,22 +507,27 @@ sna_dri_copy_region(DrawablePtr draw,
 		    DRI2BufferPtr dst_buffer,
 		    DRI2BufferPtr src_buffer)
 {
+	PixmapPtr pixmap = get_drawable_pixmap(draw);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
 	struct kgem_bo *src, *dst;
 
 	if (dst_buffer->attachment == DRI2BufferFrontLeft)
-		dst = sna_pixmap_get_bo(get_drawable_pixmap(draw));
+		dst = sna_pixmap_set_dri(sna, pixmap);
 	else
 		dst = get_private(dst_buffer)->bo;
 
 	if (src_buffer->attachment == DRI2BufferFrontLeft)
-		src = sna_pixmap_get_bo(get_drawable_pixmap(draw));
+		src = sna_pixmap_set_dri(sna, pixmap);
 	else
 		src = get_private(src_buffer)->bo;
+
+	assert(dst != NULL);
+	assert(src != NULL);
 
 	DBG(("%s: dst -- attachment=%d, name=%d, handle=%d [screen=%d]\n",
 	     __FUNCTION__,
 	     dst_buffer->attachment, dst_buffer->name, dst->handle,
-	     sna_pixmap_get_bo(to_sna_from_drawable(draw)->front)->handle));
+	     sna_pixmap_get_bo(sna->front)->handle));
 	DBG(("%s: src -- attachment=%d, name=%d, handle=%d\n",
 	     __FUNCTION__,
 	     src_buffer->attachment, src_buffer->name, src->handle));
@@ -529,10 +536,8 @@ sna_dri_copy_region(DrawablePtr draw,
 	     region->extents.x1, region->extents.y1,
 	     region->extents.x2, region->extents.y2,
 	     REGION_NUM_RECTS(region)));
-	assert(dst != NULL);
-	assert(src != NULL);
 
-	sna_dri_copy(to_sna_from_drawable(draw), draw, region, dst, src, false);
+	sna_dri_copy(sna, draw, region, dst, src, false);
 }
 
 #if DRI2INFOREC_VERSION >= 4
