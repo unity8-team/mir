@@ -1927,6 +1927,7 @@ sna_mode_fini(struct sna *sna)
 #endif
 
 	sna_mode_remove_fb(sna);
+	kgem_bo_clear_scanout(&sna->kgem, sna_pixmap_get_bo(sna->front));
 
 	/* mode->shadow_fb_id should have been destroyed already */
 }

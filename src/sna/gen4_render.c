@@ -364,7 +364,8 @@ static void gen4_vertex_flush(struct sna *sna,
 	gen4_magic_ca_pass(sna, op);
 }
 
-static int gen4_vertex_finish(struct sna *sna)
+static int gen4_vertex_finish(struct sna *sna,
+			      const struct sna_composite_op *op)
 {
 	struct kgem_bo *bo;
 	unsigned int i;
@@ -375,6 +376,8 @@ static int gen4_vertex_finish(struct sna *sna)
 
 	bo = sna->render.vbo;
 	if (bo) {
+		gen4_vertex_flush(sna, op);
+
 		for (i = 0; i < ARRAY_SIZE(sna->render.vertex_reloc); i++) {
 			if (sna->render.vertex_reloc[i]) {
 				DBG(("%s: reloc[%d] = %d\n", __FUNCTION__,
@@ -1144,8 +1147,6 @@ static bool gen4_rectangle_begin(struct sna *sna,
 static int gen4_get_rectangles__flush(struct sna *sna,
 				      const struct sna_composite_op *op)
 {
-	gen4_vertex_flush(sna, op);
-
 	if (!kgem_check_batch(&sna->kgem, 25))
 		return 0;
 	if (sna->kgem.nexec > KGEM_EXEC_SIZE(&sna->kgem) - 1)
@@ -1153,7 +1154,7 @@ static int gen4_get_rectangles__flush(struct sna *sna,
 	if (sna->kgem.nreloc > KGEM_RELOC_SIZE(&sna->kgem) - 1)
 		return 0;
 
-	return gen4_vertex_finish(sna);
+	return gen4_vertex_finish(sna, op);
 }
 
 inline static int gen4_get_rectangles(struct sna *sna,
@@ -1166,8 +1167,10 @@ inline static int gen4_get_rectangles(struct sna *sna,
 		DBG(("flushing vbo for %s: %d < %d\n",
 		     __FUNCTION__, rem, 3*op->floats_per_vertex));
 		rem = gen4_get_rectangles__flush(sna, op);
-		if (rem == 0)
+		if (rem == 0) {
+			gen4_vertex_flush(sna, op);
 			return 0;
+		}
 	}
 
 	if (!gen4_rectangle_begin(sna, op))
@@ -1303,7 +1306,7 @@ gen4_align_vertex(struct sna *sna, const struct sna_composite_op *op)
 {
 	if (op->floats_per_vertex != sna->render_state.gen4.floats_per_vertex) {
 		if (sna->render.vertex_size - sna->render.vertex_used < 6*op->floats_per_vertex)
-			gen4_vertex_finish(sna);
+			gen4_vertex_finish(sna, op);
 
 		DBG(("aligning vertex: was %d, now %d floats per vertex, %d->%d\n",
 		     sna->render_state.gen4.floats_per_vertex,

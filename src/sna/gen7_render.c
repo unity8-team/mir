@@ -1022,7 +1022,8 @@ static void gen7_vertex_flush(struct sna *sna)
 	sna->render_state.gen7.vertex_offset = 0;
 }
 
-static int gen7_vertex_finish(struct sna *sna)
+static int gen7_vertex_finish(struct sna *sna,
+			      const struct sna_composite_op *op)
 {
 	struct kgem_bo *bo;
 	unsigned int i;
@@ -1033,6 +1034,11 @@ static int gen7_vertex_finish(struct sna *sna)
 
 	bo = sna->render.vbo;
 	if (bo) {
+		if (sna->render_state.gen7.vertex_offset) {
+			gen7_vertex_flush(sna);
+			gen7_magic_ca_pass(sna, op);
+		}
+
 		for (i = 0; i < ARRAY_SIZE(sna->render.vertex_reloc); i++) {
 			if (sna->render.vertex_reloc[i]) {
 				DBG(("%s: reloc[%d] = %d\n", __FUNCTION__,
@@ -1646,11 +1652,6 @@ static bool gen7_rectangle_begin(struct sna *sna,
 static int gen7_get_rectangles__flush(struct sna *sna,
 				      const struct sna_composite_op *op)
 {
-	if (sna->render_state.gen7.vertex_offset) {
-		gen7_vertex_flush(sna);
-		gen7_magic_ca_pass(sna, op);
-	}
-
 	if (!kgem_check_batch(&sna->kgem, op->need_magic_ca_pass ? 65 : 6))
 		return 0;
 	if (sna->kgem.nexec > KGEM_EXEC_SIZE(&sna->kgem) - 1)
@@ -1658,7 +1659,7 @@ static int gen7_get_rectangles__flush(struct sna *sna,
 	if (sna->kgem.nreloc > KGEM_RELOC_SIZE(&sna->kgem) - 2)
 		return 0;
 
-	return gen7_vertex_finish(sna);
+	return gen7_vertex_finish(sna, op);
 }
 
 inline static int gen7_get_rectangles(struct sna *sna,
@@ -1671,8 +1672,13 @@ inline static int gen7_get_rectangles(struct sna *sna,
 		DBG(("flushing vbo for %s: %d < %d\n",
 		     __FUNCTION__, rem, op->floats_per_rect));
 		rem = gen7_get_rectangles__flush(sna, op);
-		if (rem == 0)
+		if (rem == 0) {
+			if (sna->render_state.gen7.vertex_offset) {
+				gen7_vertex_flush(sna);
+				gen7_magic_ca_pass(sna, op);
+			}
 			return 0;
+		}
 	}
 
 	if (sna->render_state.gen7.vertex_offset == 0 &&
@@ -1774,7 +1780,7 @@ gen7_align_vertex(struct sna *sna, const struct sna_composite_op *op)
 {
 	if (op->floats_per_vertex != sna->render_state.gen7.floats_per_vertex) {
 		if (sna->render.vertex_size - sna->render.vertex_used < 2*op->floats_per_rect)
-			gen7_vertex_finish(sna);
+			gen7_vertex_finish(sna, op);
 
 		DBG(("aligning vertex: was %d, now %d floats per vertex, %d->%d\n",
 		     sna->render_state.gen7.floats_per_vertex,

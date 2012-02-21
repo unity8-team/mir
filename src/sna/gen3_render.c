@@ -1566,7 +1566,8 @@ static void gen3_vertex_flush(struct sna *sna)
 	sna->render_state.gen3.vertex_offset = 0;
 }
 
-static int gen3_vertex_finish(struct sna *sna)
+static int gen3_vertex_finish(struct sna *sna,
+			      const struct sna_composite_op *op)
 {
 	struct kgem_bo *bo;
 
@@ -1574,6 +1575,11 @@ static int gen3_vertex_finish(struct sna *sna)
 
 	bo = sna->render.vbo;
 	if (bo) {
+		if (sna->render_state.gen3.vertex_offset) {
+			gen3_vertex_flush(sna);
+			gen3_magic_ca_pass(sna, op);
+		}
+
 		DBG(("%s: reloc = %d\n", __FUNCTION__,
 		     sna->render.vertex_reloc[0]));
 
@@ -1709,11 +1715,6 @@ static bool gen3_rectangle_begin(struct sna *sna,
 static int gen3_get_rectangles__flush(struct sna *sna,
 				      const struct sna_composite_op *op)
 {
-	if (sna->render_state.gen3.vertex_offset) {
-		gen3_vertex_flush(sna);
-		gen3_magic_ca_pass(sna, op);
-	}
-
 	if (!kgem_check_batch(&sna->kgem, op->need_magic_ca_pass ? 105: 5))
 		return 0;
 	if (sna->kgem.nexec > KGEM_EXEC_SIZE(&sna->kgem) - 2)
@@ -1721,7 +1722,7 @@ static int gen3_get_rectangles__flush(struct sna *sna,
 	if (sna->kgem.nreloc > KGEM_RELOC_SIZE(&sna->kgem) - 1)
 		return 0;
 
-	return gen3_vertex_finish(sna);
+	return gen3_vertex_finish(sna, op);
 }
 
 inline static int gen3_get_rectangles(struct sna *sna,
@@ -1738,8 +1739,13 @@ inline static int gen3_get_rectangles(struct sna *sna,
 		DBG(("flushing vbo for %s: %d < %d\n",
 		     __FUNCTION__, rem, op->floats_per_rect));
 		rem = gen3_get_rectangles__flush(sna, op);
-		if (rem == 0)
+		if (rem == 0) {
+			if (sna->render_state.gen3.vertex_offset) {
+				gen3_vertex_flush(sna);
+				gen3_magic_ca_pass(sna, op);
+			}
 			return 0;
+		}
 	}
 
 	if (sna->render_state.gen3.vertex_offset == 0 &&
@@ -2312,7 +2318,7 @@ gen3_align_vertex(struct sna *sna,
 {
 	if (op->floats_per_vertex != sna->render_state.gen3.last_floats_per_vertex) {
 		if (sna->render.vertex_size - sna->render.vertex_used < 2*op->floats_per_rect)
-			gen3_vertex_finish(sna);
+			gen3_vertex_finish(sna, op);
 
 		DBG(("aligning vertex: was %d, now %d floats per vertex, %d->%d\n",
 		     sna->render_state.gen3.last_floats_per_vertex,
