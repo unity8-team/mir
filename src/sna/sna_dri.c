@@ -1537,7 +1537,7 @@ blit_fallback:
 }
 
 #if DRI2INFOREC_VERSION >= 7
-static void
+static Bool
 sna_dri_async_swap(ClientPtr client, DrawablePtr draw,
 		   DRI2BufferPtr front, DRI2BufferPtr back,
 		   DRI2SwapEventPtr func, void *data)
@@ -1553,6 +1553,8 @@ sna_dri_async_swap(ClientPtr client, DrawablePtr draw,
 	if (pipe == -1) {
 		PixmapPtr pixmap = get_drawable_pixmap(draw);
 
+		DBG(("%s: unattached, exchange pixmaps\n", __FUNCTION__));
+
 		set_bo(pixmap, get_private(back)->bo);
 		sna_dri_exchange_attachment(front, back);
 		get_private(back)->pixmap = pixmap;
@@ -1560,18 +1562,20 @@ sna_dri_async_swap(ClientPtr client, DrawablePtr draw,
 
 		DRI2SwapComplete(client, draw, 0, 0, 0,
 				 DRI2_EXCHANGE_COMPLETE, func, data);
-		return;
+		return TRUE;
 	}
 
 	if (!can_flip(sna, draw, front, back)) {
 blit:
+		DBG(("%s: unable to flip, so blit\n", __FUNCTION__));
+
 		sna_dri_copy(sna, draw, NULL,
 			     get_private(front)->bo,
 			     get_private(back)->bo,
 			     false);
 		DRI2SwapComplete(client, draw, 0, 0, 0,
 				 DRI2_BLIT_COMPLETE, func, data);
-		return;
+		return FALSE;
 	}
 
 	bo = NULL;
@@ -1611,13 +1615,13 @@ blit:
 
 		sna_dri_reference_buffer(front);
 		sna_dri_reference_buffer(back);
-
 	} else if (info->type != DRI2_ASYNC_FLIP) {
 		/* A normal vsync'ed client is finishing, wait for it
 		 * to unpin the old framebuffer before taking over.
 		 */
 		goto blit;
 	} else {
+		DBG(("%s: pending flip, chaining next\n", __FUNCTION__));
 		if (info->next_front.name == info->front->name) {
 			name = info->cache.name;
 			bo = info->cache.bo;
@@ -1629,16 +1633,16 @@ blit:
 		get_private(info->front)->bo = get_private(info->back)->bo;
 	}
 
-	if (bo == NULL)
+	if (bo == NULL) {
+		DBG(("%s: creating new back buffer\n", __FUNCTION__));
 		bo = kgem_create_2d(&sna->kgem,
 				    draw->width,
 				    draw->height,
 				    draw->bitsPerPixel,
 				    I915_TILING_X, CREATE_EXACT);
-	get_private(info->back)->bo = bo;
-
-	if (name == 0)
 		name = kgem_bo_flink(&sna->kgem, bo);
+	}
+	get_private(info->back)->bo = bo;
 	info->back->name = name;
 
 	set_bo(sna->front, get_private(info->front)->bo);
@@ -1646,6 +1650,7 @@ blit:
 
 	DRI2SwapComplete(client, draw, 0, 0, 0,
 			 DRI2_EXCHANGE_COMPLETE, func, data);
+	return TRUE;
 }
 #endif
 
