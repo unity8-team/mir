@@ -717,9 +717,15 @@ sna_dri_add_frame_event(struct sna_dri_frame_event *info)
 static void
 sna_dri_frame_event_release_bo(struct kgem *kgem, struct kgem_bo *bo)
 {
-	bo->needs_flush = true; /* has been used externally, reset domains */
-	bo->reusable = true; /* No longer in use by an external client */
+	kgem_bo_clear_scanout(kgem, bo);
 	kgem_bo_destroy(kgem, bo);
+}
+
+static void
+sna_dri_frame_event_finish(struct sna_dri_frame_event *info)
+{
+	sna_mode_delete_fb(info->sna, info->old_fb);
+	kgem_bo_clear_scanout(&info->sna->kgem, info->old_front.bo);
 }
 
 static void
@@ -1028,12 +1034,12 @@ static void sna_dri_flip_event(struct sna *sna,
 					 flip->event_data);
 		}
 
-		sna_mode_delete_fb(flip->sna, flip->old_fb);
+		sna_dri_frame_event_finish(flip);
 		sna_dri_frame_event_info_free(flip);
 		break;
 
 	case DRI2_FLIP_THROTTLE:
-		sna_mode_delete_fb(sna, flip->old_fb);
+		sna_dri_frame_event_finish(flip);
 
 		assert(sna->dri.flip_pending[flip->pipe] == flip);
 		sna->dri.flip_pending[flip->pipe] = NULL;
@@ -1071,7 +1077,7 @@ static void sna_dri_flip_event(struct sna *sna,
 		     flip->front->name != flip->old_front.name));
 		assert(sna->dri.flip_pending[flip->pipe] == flip);
 
-		sna_mode_delete_fb(flip->sna, flip->old_fb);
+		sna_dri_frame_event_finish(flip);
 
 		if (flip->front->name != flip->next_front.name) {
 			DBG(("%s: async flip continuing\n", __FUNCTION__));

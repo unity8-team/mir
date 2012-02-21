@@ -1067,8 +1067,9 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 	assert(list_is_empty(&bo->list));
 	assert(bo->vmap == false && bo->sync == false);
 	assert(bo->io == false);
+	assert(bo->scanout == false);
+	assert(bo->flush == false);
 
-	bo->scanout = bo->flush = false;
 	if (bo->rq) {
 		struct list *cache;
 
@@ -3658,6 +3659,17 @@ void kgem_bo_set_binding(struct kgem_bo *bo, uint32_t format, uint16_t offset)
 		b->offset = offset;
 		bo->binding.next = b;
 	}
+}
+
+void kgem_bo_clear_scanout(struct kgem *kgem, struct kgem_bo *bo)
+{
+	bo->needs_flush = true;
+	bo->reusable = true;
+
+	if (!bo->scanout)
+		return;
+
+	bo->scanout = false;
 }
 
 struct kgem_bo *
