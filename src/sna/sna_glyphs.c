@@ -1026,7 +1026,7 @@ glyphs_fallback(CARD8 op,
 	DBG(("%s: (%d, %d), (%d, %d)\n",
 	     __FUNCTION__, box.x1, box.y1, box.x2, box.y2));
 
-	RegionInit(&region, &box, 1);
+	RegionInit(&region, &box, 0);
 	RegionTranslate(&region, dst->pDrawable->x, dst->pDrawable->y);
 	if (dst->pCompositeClip)
 		RegionIntersect(&region, &region, dst->pCompositeClip);

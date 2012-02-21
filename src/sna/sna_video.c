@@ -157,7 +157,7 @@ sna_video_clip_helper(ScrnInfoPtr scrn,
 
 	/* For textured video, we don't actually want to clip at all. */
 	if (crtc && !video->textured) {
-		RegionInit(&crtc_region_local, &crtc_box, 1);
+		RegionInit(&crtc_region_local, &crtc_box, 0);
 		crtc_region = &crtc_region_local;
 		RegionIntersect(crtc_region, crtc_region, reg);
 	}
