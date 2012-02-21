@@ -605,7 +605,7 @@ intel_emit_reloc(drm_intel_bo * bo, uint32_t offset,
 static inline drm_intel_bo *intel_bo_alloc_for_data(intel_screen_private *intel,
 						    const void *data,
 						    unsigned int size,
-						    char *name)
+						    const char *name)
 {
 	drm_intel_bo *bo;
 
