@@ -32,6 +32,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 
 #include <xf86.h>
+#include <xf86drm.h>
 #include <xaarop.h>
 #include <string.h>
 #include <errno.h>
@@ -1001,6 +1002,11 @@ static void intel_flush_rendering(intel_screen_private *intel)
 	intel->needs_flush = 0;
 }
 
+static void intel_throttle(intel_screen_private *intel)
+{
+	drmCommandNone(intel->drmSubFD, DRM_I915_GEM_THROTTLE);
+}
+
 void intel_uxa_block_handler(intel_screen_private *intel)
 {
 	if (intel->shadow_damage &&
@@ -1015,6 +1021,7 @@ void intel_uxa_block_handler(intel_screen_private *intel)
 	 */
 	intel_glamor_flush(intel);
 	intel_flush_rendering(intel);
+	intel_throttle(intel);
 }
 
 static PixmapPtr
