@@ -2013,6 +2013,11 @@ sna_pixmap_force_to_gpu(PixmapPtr pixmap, unsigned flags)
 	if (priv == NULL)
 		return NULL;
 
+	if (DAMAGE_IS_ALL(priv->gpu_damage)) {
+		DBG(("%s: GPU all-damaged\n", __FUNCTION__));
+		return priv;
+	}
+
 	/* Unlike move-to-gpu, we ignore wedged and always create the GPU bo */
 	if (priv->gpu_bo == NULL) {
 		struct sna *sna = to_sna_from_pixmap(pixmap);
