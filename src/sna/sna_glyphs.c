@@ -1248,10 +1248,6 @@ sna_glyphs(CARD8 op,
 	_mask = mask;
 	/* XXX discard the mask for non-overlapping glyphs? */
 
-	/* XXX more shader breakage?: CA to dst is fubar on ilk */
-	if (sna->kgem.gen == 50 && !_mask)
-		_mask = list[0].format;
-
 	if (!_mask ||
 	    (((nlist == 1 && list->len == 1) || op == PictOpAdd) &&
 	     dst->format == (_mask->depth << 24 | _mask->format))) {
