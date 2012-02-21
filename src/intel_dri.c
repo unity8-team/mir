@@ -280,14 +280,18 @@ I830DRI2CreateBuffers(DrawablePtr drawable, unsigned int *attachments,
 		pixmap = NULL;
 		if (attachments[i] == DRI2BufferFrontLeft) {
 			pixmap = get_front_buffer(drawable);
+
+			if (pixmap && intel_get_pixmap_private(pixmap) == NULL) {
+				is_glamor_pixmap = TRUE;
+				drawable = &pixmap->drawable;
+				pixmap = NULL;
+			}
 		} else if (attachments[i] == DRI2BufferStencil && pDepthPixmap) {
 			pixmap = pDepthPixmap;
 			pixmap->refcnt++;
 		}
 
-		is_glamor_pixmap = pixmap && (intel_get_pixmap_private(pixmap) == NULL);
-
-		if (pixmap == NULL || is_glamor_pixmap) {
+		if (pixmap == NULL) {
 			unsigned int hint = INTEL_CREATE_PIXMAP_DRI2;
 
 			if (intel->tiling & INTEL_TILING_3D) {
@@ -398,11 +402,17 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 	}
 
 	pixmap = NULL;
-	if (attachment == DRI2BufferFrontLeft)
+	if (attachment == DRI2BufferFrontLeft) {
 		pixmap = get_front_buffer(drawable);
 
-	is_glamor_pixmap = pixmap && (intel_get_pixmap_private(pixmap) == NULL);
-	if (pixmap == NULL || is_glamor_pixmap) {
+		if (pixmap && intel_get_pixmap_private(pixmap) == NULL) {
+			is_glamor_pixmap = TRUE;
+			drawable = &pixmap->drawable;
+			pixmap = NULL;
+		}
+	}
+
+	if (pixmap == NULL) {
 		unsigned int hint = INTEL_CREATE_PIXMAP_DRI2;
 		int pixmap_width = drawable->width;
 		int pixmap_height = drawable->height;
