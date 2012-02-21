@@ -835,14 +835,27 @@ i830_dri2_del_frame_event(DrawablePtr drawable, DRI2FrameEventPtr info)
 	free(info);
 }
 
+static struct intel_pixmap *
+intel_exchange_pixmap_buffers(PixmapPtr front, PixmapPtr back)
+{
+	struct intel_pixmap *new_front, *new_back;
+
+	new_front = intel_get_pixmap_private(back);
+	new_back = intel_get_pixmap_private(front);
+	intel_set_pixmap_private(front, new_front);
+	intel_set_pixmap_private(back, new_back);
+	new_front->busy = 1;
+	new_back->busy = -1;
+
+	return new_front;
+}
+
 static void
-I830DRI2ExchangeBuffers(DrawablePtr draw, DRI2BufferPtr front, DRI2BufferPtr back)
+I830DRI2ExchangeBuffers(struct intel_screen_private *intel, DRI2BufferPtr front, DRI2BufferPtr back)
 {
 	I830DRI2BufferPrivatePtr front_priv, back_priv;
-	struct intel_pixmap *front_intel, *back_intel;
-	ScreenPtr screen;
-	intel_screen_private *intel;
 	int tmp;
+	struct intel_pixmap *new_front;
 
 	front_priv = front->driverPrivate;
 	back_priv = back->driverPrivate;
@@ -853,21 +866,11 @@ I830DRI2ExchangeBuffers(DrawablePtr draw, DRI2BufferPtr front, DRI2BufferPtr bac
 	back->name = tmp;
 
 	/* Swap pixmap bos */
-	front_intel = intel_get_pixmap_private(front_priv->pixmap);
-	back_intel = intel_get_pixmap_private(back_priv->pixmap);
-	intel_set_pixmap_private(front_priv->pixmap, back_intel);
-	intel_set_pixmap_private(back_priv->pixmap, front_intel);
-
-	screen = draw->pScreen;
-	intel = intel_get_screen_private(xf86Screens[screen->myNum]);
-
+	new_front = intel_exchange_pixmap_buffers(front_priv->pixmap,
+						  back_priv->pixmap);
 	dri_bo_unreference (intel->front_buffer);
-	intel->front_buffer = back_intel->bo;
+	intel->front_buffer = new_front->bo;
 	dri_bo_reference (intel->front_buffer);
-
-	intel_set_pixmap_private(screen->GetScreenPixmap(screen), back_intel);
-	back_intel->busy = 1;
-	front_intel->busy = -1;
 }
 
 /*
@@ -881,6 +884,7 @@ I830DRI2ScheduleFlip(struct intel_screen_private *intel,
 {
 	I830DRI2BufferPrivatePtr priv = info->back->driverPrivate;
 	drm_intel_bo *new_back, *old_back;
+	int tmp_name;
 
 	if (!intel->use_triple_buffer) {
 		if (!intel_do_pageflip(intel,
@@ -889,7 +893,7 @@ I830DRI2ScheduleFlip(struct intel_screen_private *intel,
 			return FALSE;
 
 		info->type = DRI2_SWAP;
-		I830DRI2ExchangeBuffers(draw, info->front, info->back);
+		I830DRI2ExchangeBuffers(intel, info->front, info->back);
 		return TRUE;
 	}
 
@@ -915,6 +919,7 @@ I830DRI2ScheduleFlip(struct intel_screen_private *intel,
 		}
 
 		drm_intel_bo_disable_reuse(new_back);
+		dri_bo_flink(new_back, &intel->back_name);
 	} else {
 		new_back = intel->back_buffer;
 		intel->back_buffer = NULL;
@@ -934,10 +939,13 @@ I830DRI2ScheduleFlip(struct intel_screen_private *intel,
 
 	priv = info->front->driverPrivate;
 	intel_set_pixmap_bo(priv->pixmap, new_back);
-	dri_bo_flink(new_back, &info->front->name);
+
+	tmp_name = info->front->name;
+	info->front->name = intel->back_name;
+	intel->back_name = tmp_name;
 
 	/* Then flip DRI2 pointers and update the screen pixmap */
-	I830DRI2ExchangeBuffers(draw, info->front, info->back);
+	I830DRI2ExchangeBuffers(intel, info->front, info->back);
 	DRI2SwapComplete(info->client, draw, 0, 0, 0,
 			 DRI2_EXCHANGE_COMPLETE,
 			 info->event_complete,

@@ -166,6 +166,7 @@ typedef struct intel_screen_private {
 
 	void *modes;
 	drm_intel_bo *front_buffer, *back_buffer;
+	unsigned int back_name;
 	long front_pitch, front_tiling;
 	void *shadow_buffer;
 	int shadow_stride;
