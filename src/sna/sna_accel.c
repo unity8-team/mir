@@ -2002,6 +2002,15 @@ sna_pixmap_create_upload(ScreenPtr screen,
 	return pixmap;
 }
 
+static inline struct sna_pixmap *
+sna_pixmap_mark_active(struct sna *sna, struct sna_pixmap *priv)
+{
+	if (!priv->pinned && (priv->create & KGEM_CAN_CREATE_LARGE) == 0)
+		list_move(&priv->inactive, &sna->active_pixmaps);
+	priv->clear = false;
+	return priv;
+}
+
 struct sna_pixmap *
 sna_pixmap_force_to_gpu(PixmapPtr pixmap, unsigned flags)
 {
@@ -2015,7 +2024,7 @@ sna_pixmap_force_to_gpu(PixmapPtr pixmap, unsigned flags)
 
 	if (DAMAGE_IS_ALL(priv->gpu_damage)) {
 		DBG(("%s: GPU all-damaged\n", __FUNCTION__));
-		return priv;
+		return sna_pixmap_mark_active(to_sna_from_pixmap(pixmap), priv);
 	}
 
 	/* Unlike move-to-gpu, we ignore wedged and always create the GPU bo */
@@ -2197,10 +2206,7 @@ done:
 			sna_pixmap_free_cpu(sna, priv);
 	}
 active:
-	if (!priv->pinned && (priv->create & KGEM_CAN_CREATE_LARGE) == 0)
-		list_move(&priv->inactive, &sna->active_pixmaps);
-	priv->clear = false;
-	return priv;
+	return sna_pixmap_mark_active(to_sna_from_pixmap(pixmap), priv);
 }
 
 static bool must_check sna_validate_pixmap(DrawablePtr draw, PixmapPtr pixmap)
