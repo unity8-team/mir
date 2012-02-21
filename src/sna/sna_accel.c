@@ -1058,7 +1058,7 @@ skip_inplace_map:
 	}
 
 done:
-	if (priv->cpu_bo) {
+	if ((flags & MOVE_ASYNC_HINT) == 0 && priv->cpu_bo) {
 		DBG(("%s: syncing CPU bo\n", __FUNCTION__));
 		kgem_bo_sync__cpu(&sna->kgem, priv->cpu_bo);
 	}
@@ -11763,7 +11763,7 @@ static void sna_accel_inactive(struct sna *sna)
 			DBG(("%s: discarding inactive GPU bo handle=%d\n",
 			     __FUNCTION__, priv->gpu_bo->handle));
 			if (!sna_pixmap_move_to_cpu(priv->pixmap,
-						    MOVE_READ | MOVE_WRITE))
+						    MOVE_READ | MOVE_WRITE | MOVE_ASYNC_HINT))
 				list_add(&priv->inactive, &preserve);
 		}
 	}
