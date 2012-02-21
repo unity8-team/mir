@@ -1369,6 +1369,7 @@ intel_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	int	    i, old_width, old_height, old_pitch;
 	unsigned long pitch;
 	uint32_t tiling;
+	ScreenPtr screen;
 
 	if (scrn->virtualX == width && scrn->virtualY == height)
 		return TRUE;
@@ -1381,6 +1382,12 @@ intel_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	old_pitch = scrn->displayWidth;
 	old_fb_id = mode->fb_id;
 	old_front = intel->front_buffer;
+
+	if (intel->back_pixmap) {
+		screen = intel->back_pixmap->drawable.pScreen;
+		screen->DestroyPixmap(intel->back_pixmap);
+		intel->back_pixmap = NULL;
+	}
 
 	if (intel->back_buffer) {
 		drm_intel_bo_unreference(intel->back_buffer);

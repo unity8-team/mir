@@ -40,6 +40,16 @@
 #include "intel_glamor.h"
 #include "uxa.h"
 
+void
+intel_glamor_exchange_buffers(struct intel_screen_private *intel,
+			      PixmapPtr src,
+			      PixmapPtr dst)
+{
+	if (!(intel->uxa_flags & UXA_USE_GLAMOR))
+		return;
+	glamor_egl_exchange_buffers(src, dst);
+}
+
 Bool
 intel_glamor_create_screen_resources(ScreenPtr screen)
 {
@@ -52,9 +62,10 @@ intel_glamor_create_screen_resources(ScreenPtr screen)
 	if (!glamor_glyphs_init(screen))
 		return FALSE;
 
-	if (!glamor_egl_create_textured_screen(screen,
-					       intel->front_buffer->handle,
-					       intel->front_pitch))
+	if (!glamor_egl_create_textured_screen_ext(screen,
+						   intel->front_buffer->handle,
+						   intel->front_pitch,
+						   &intel->back_pixmap))
 		return FALSE;
 
 	return TRUE;
@@ -70,7 +81,7 @@ intel_glamor_pre_init(ScrnInfoPtr scrn)
 	/* Load glamor module */
 	if ((glamor_module = xf86LoadSubModule(scrn, GLAMOR_EGL_MODULE_NAME))) {
 		version = xf86GetModuleVersion(glamor_module);
-		if (version < MODULE_VERSION_NUMERIC(0,3,0)) {
+		if (version < MODULE_VERSION_NUMERIC(0,3,1)) {
 			xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			"Incompatible glamor version, required >= 0.3.0.\n");
 		} else {
