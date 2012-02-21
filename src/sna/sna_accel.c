@@ -5669,35 +5669,48 @@ X_continue2:
 				}
 
 				b->x2 = b->x1 = x;
-				b->y1 = y;
-				while (length--) {
-					e += e1;
-					y += sdy;
-					if (e >= 0) {
-						b->y2 = y;
-						if (b->y2 < b->y1) {
-							int16_t t = b->y1;
-							b->y1 = b->y2;
-							b->y2 = t;
+				if (sdy < 0) {
+					b->y2 = y + 1;
+					while (length--) {
+						e += e1;
+						y--;
+						if (e >= 0) {
+							b->y1 = y;
+							b->x2++;
+							if (++b == last_box) {
+								ret = &&Y_up_continue;
+								goto *jump;
+Y_up_continue:
+								b = box;
+							}
+							e += e3;
+							b->x2 = b->x1 = ++x;
+							b->y2 = y;
 						}
-						b->x2++;
-						if (++b == last_box) {
-							ret = &&Y_continue;
-							goto *jump;
-Y_continue:
-							b = box;
-						}
-						e += e3;
-						b->x2 = b->x1 = ++x;
-						b->y1 = y;
 					}
-				}
 
-				b->y2 = y + sdy;
-				if (b->y2 < b->y1) {
-					int16_t t = b->y1;
-					b->y1 = b->y2;
-					b->y2 = t;
+					b->y1 = y;
+				} else {
+					b->y1 = y;
+					while (length--) {
+						e += e1;
+						y++;
+						if (e >= 0) {
+							b->y2 = y;
+							b->x2++;
+							if (++b == last_box) {
+								ret = &&Y_down_continue;
+								goto *jump;
+Y_down_continue:
+								b = box;
+							}
+							e += e3;
+							b->x2 = b->x1 = ++x;
+							b->y1 = y;
+						}
+					}
+
+					b->y2 = ++y;
 				}
 				b->x2++;
 				if (++b == last_box) {
@@ -6949,35 +6962,48 @@ X_continue2:
 				}
 
 				b->x2 = b->x1 = x1;
-				b->y1 = y1;
-				while (--length) {
-					e += e1;
-					y1 += sdy;
-					if (e >= 0) {
-						b->y2 = y1;
-						if (b->y2 < b->y1) {
-							int16_t t = b->y1;
-							b->y1 = b->y2;
-							b->y2 = t;
+				if (sdy < 0) {
+					b->y2 = y1 + 1;
+					while (--length) {
+						e += e1;
+						y1--;
+						if (e >= 0) {
+							b->y1 = y1;
+							b->x2++;
+							if (++b == last_box) {
+								ret = &&Y_up_continue;
+								goto *jump;
+Y_up_continue:
+								b = box;
+							}
+							e += e3;
+							b->x2 = b->x1 = ++x1;
+							b->y2 = y1;
 						}
-						b->x2++;
-						if (++b == last_box) {
-							ret = &&Y_continue;
-							goto *jump;
-Y_continue:
-							b = box;
-						}
-						e += e3;
-						b->x2 = b->x1 = ++x1;
-						b->y1 = y1;
 					}
-				}
 
-				b->y2 = y1 + sdy;
-				if (b->y2 < b->y1) {
-					int16_t t = b->y1;
-					b->y1 = b->y2;
-					b->y2 = t;
+					b->y1 = y1;
+				} else {
+					b->y1 = y1;
+					while (--length) {
+						e += e1;
+						y1++;
+						if (e >= 0) {
+							b->y2 = y1;
+							b->x2++;
+							if (++b == last_box) {
+								ret = &&Y_down_continue;
+								goto *jump;
+Y_down_continue:
+								b = box;
+							}
+							e += e3;
+							b->x2 = b->x1 = ++x1;
+							b->y1 = y1;
+						}
+					}
+
+					b->y2 = ++y1;
 				}
 				b->x2++;
 				if (++b == last_box) {
