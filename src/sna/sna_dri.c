@@ -210,7 +210,6 @@ sna_dri_create_buffer(DrawablePtr drawable,
 	switch (attachment) {
 	case DRI2BufferFrontLeft:
 		pixmap = get_drawable_pixmap(drawable);
-		pixmap->refcnt++;
 		bo = sna_pixmap_set_dri(sna, pixmap);
 		bpp = pixmap->drawable.bitsPerPixel;
 		DBG(("%s: attaching to front buffer %dx%d [%p:%d]\n",
@@ -295,13 +294,12 @@ sna_dri_create_buffer(DrawablePtr drawable,
 	private->bo = bo;
 
 	if (buffer->name == 0) {
-		/* failed to name buffer */
-		if (pixmap)
-			pixmap->drawable.pScreen->DestroyPixmap(pixmap);
-		else
-			kgem_bo_destroy(&sna->kgem, bo);
+		kgem_bo_destroy(&sna->kgem, bo);
 		goto err;
 	}
+
+	if (pixmap)
+		pixmap->refcnt++;
 
 	return buffer;
 
@@ -531,6 +529,8 @@ sna_dri_copy_region(DrawablePtr draw,
 	     region->extents.x1, region->extents.y1,
 	     region->extents.x2, region->extents.y2,
 	     REGION_NUM_RECTS(region)));
+	assert(dst != NULL);
+	assert(src != NULL);
 
 	sna_dri_copy(to_sna_from_drawable(draw), draw, region, dst, src, false);
 }
