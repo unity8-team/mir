@@ -3665,6 +3665,7 @@ void kgem_bo_clear_scanout(struct kgem *kgem, struct kgem_bo *bo)
 {
 	bo->needs_flush = true;
 	bo->reusable = true;
+	bo->flush = false;
 
 	if (!bo->scanout)
 		return;
