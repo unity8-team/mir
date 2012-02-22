@@ -1549,7 +1549,6 @@ static void gen5_bind_surfaces(struct sna *sna,
 	gen5_emit_state(sna, op, offset);
 }
 
-
 fastcall static void
 gen5_render_composite_blt(struct sna *sna,
 			  const struct sna_composite_op *op,
@@ -2273,11 +2272,10 @@ gen5_render_composite(struct sna *sna,
 
 	sna_render_reduce_damage(tmp, dst_x, dst_y, width, height);
 
-	if (too_large(tmp->dst.width, tmp->dst.height)) {
-		if (!sna_render_composite_redirect(sna, tmp,
-						   dst_x, dst_y, width, height))
-			return FALSE;
-	}
+	if (too_large(tmp->dst.width, tmp->dst.height) &&
+	    !sna_render_composite_redirect(sna, tmp,
+					   dst_x, dst_y, width, height))
+		return FALSE;
 
 	DBG(("%s: preparing source\n", __FUNCTION__));
 	switch (gen5_composite_picture(sna, src, &tmp->src,

@@ -351,8 +351,7 @@ static void gen4_magic_ca_pass(struct sna *sna,
 
 static void gen4_vertex_flush(struct sna *sna)
 {
-	if (sna->render_state.gen4.vertex_offset == 0)
-		return;
+	assert(sna->render_state.gen4.vertex_offset);
 
 	DBG(("%s[%x] = %d\n", __FUNCTION__,
 	     4*sna->render_state.gen4.vertex_offset,
@@ -1182,8 +1181,10 @@ inline static int gen4_get_rectangles(struct sna *sna,
 	return want;
 
 flush:
-	gen4_vertex_flush(sna);
-	gen4_magic_ca_pass(sna, op);
+	if (sna->render_state.gen4.vertex_offset) {
+		gen4_vertex_flush(sna);
+		gen4_magic_ca_pass(sna, op);
+	}
 	return 0;
 }
 
@@ -1199,14 +1200,6 @@ static uint32_t *gen4_composite_get_binding_table(struct sna *sna,
 	*offset = sna->kgem.surface;
 	return memset(sna->kgem.batch + sna->kgem.surface,
 		      0, sizeof(struct gen4_surface_state_padded));
-}
-
-static void
-gen4_emit_sip(struct sna *sna)
-{
-	/* Set system instruction pointer */
-	OUT_BATCH(GEN4_STATE_SIP | 0);
-	OUT_BATCH(0);
 }
 
 static void
@@ -1282,7 +1275,6 @@ gen4_emit_invariant(struct sna *sna)
 	else
 		OUT_BATCH(GEN4_PIPELINE_SELECT | PIPELINE_SELECT_3D);
 
-	gen4_emit_sip(sna);
 	gen4_emit_state_base_address(sna);
 
 	sna->render_state.gen4.needs_invariant = FALSE;
@@ -1803,7 +1795,8 @@ gen4_render_video(struct sna *sna,
 	}
 	priv->clear = false;
 
-	gen4_vertex_flush(sna);
+	if (sna->render_state.gen4.vertex_offset)
+		gen4_vertex_flush(sna);
 	return TRUE;
 }
 
@@ -1920,8 +1913,10 @@ gen4_render_composite_done(struct sna *sna,
 {
 	DBG(("%s()\n", __FUNCTION__));
 
-	gen4_vertex_flush(sna);
-	gen4_magic_ca_pass(sna, op);
+	if (sna->render_state.gen4.vertex_offset) {
+		gen4_vertex_flush(sna);
+		gen4_magic_ca_pass(sna, op);
+	}
 
 	if (op->mask.bo)
 		kgem_bo_destroy(&sna->kgem, op->mask.bo);
@@ -2240,7 +2235,7 @@ gen4_render_composite(struct sna *sna,
 	if (too_large(tmp->dst.width, tmp->dst.height) &&
 	    !sna_render_composite_redirect(sna, tmp,
 					   dst_x, dst_y, width, height))
-			return FALSE;
+		return FALSE;
 
 	switch (gen4_composite_picture(sna, src, &tmp->src,
 				       src_x, src_y,
@@ -2600,7 +2595,8 @@ gen4_render_copy_blt(struct sna *sna,
 static void
 gen4_render_copy_done(struct sna *sna, const struct sna_copy_op *op)
 {
-	gen4_vertex_flush(sna);
+	if (sna->render_state.gen4.vertex_offset)
+		gen4_vertex_flush(sna);
 }
 
 static Bool
@@ -2765,7 +2761,9 @@ gen4_render_fill_boxes(struct sna *sna,
 		return FALSE;
 	}
 
-	if (prefer_blt(sna) || too_large(dst->drawable.width, dst->drawable.height)) {
+	if (prefer_blt(sna) ||
+	    too_large(dst->drawable.width, dst->drawable.height) ||
+	    !gen4_check_dst_format(format)) {
 		uint8_t alu = -1;
 
 		if (op == PictOpClear || (op == PictOpOutReverse && color->alpha >= 0xff00))
@@ -2806,11 +2804,11 @@ gen4_render_fill_boxes(struct sna *sna,
 	if (op == PictOpClear)
 		pixel = 0;
 	else if (!sna_get_pixel_from_rgba(&pixel,
-				     color->red,
-				     color->green,
-				     color->blue,
-				     color->alpha,
-				     PICT_a8r8g8b8))
+					  color->red,
+					  color->green,
+					  color->blue,
+					  color->alpha,
+					  PICT_a8r8g8b8))
 		return FALSE;
 
 	DBG(("%s(%08x x %d)\n", __FUNCTION__, pixel, n));
@@ -2888,7 +2886,8 @@ gen4_render_fill_op_boxes(struct sna *sna,
 static void
 gen4_render_fill_op_done(struct sna *sna, const struct sna_fill_op *op)
 {
-	gen4_vertex_flush(sna);
+	if (sna->render_state.gen4.vertex_offset)
+		gen4_vertex_flush(sna);
 	kgem_bo_destroy(&sna->kgem, op->base.src.bo);
 }
 
@@ -2949,7 +2948,7 @@ gen4_render_fill(struct sna *sna, uint8_t alu,
 	op->base.u.gen4.wm_kernel = WM_KERNEL;
 	op->base.u.gen4.ve_id = 1;
 
-	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL))  {
+	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL)) {
 		kgem_submit(&sna->kgem);
 		assert(kgem_check_bo(&sna->kgem, dst_bo, NULL));
 	}
@@ -3048,7 +3047,8 @@ gen4_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 
 	gen4_render_fill_rectangle(sna, &tmp, x1, y1, x2 - x1, y2 - y1);
 
-	gen4_vertex_flush(sna);
+	if (sna->render_state.gen4.vertex_offset)
+		gen4_vertex_flush(sna);
 	kgem_bo_destroy(&sna->kgem, tmp.src.bo);
 
 	return TRUE;
@@ -3113,7 +3113,6 @@ static uint32_t gen4_create_sf_state(struct sna_static_stream *stream,
 	sf_state->thread4.max_threads = SF_MAX_THREADS - 1;
 	sf_state->thread4.urb_entry_allocation_size = URB_SF_ENTRY_SIZE - 1;
 	sf_state->thread4.nr_urb_entries = URB_SF_ENTRIES;
-	sf_state->thread4.stats_enable = 1;
 	sf_state->sf5.viewport_transform = FALSE;	/* skip viewport */
 	sf_state->sf6.cull_mode = GEN4_CULLMODE_NONE;
 	sf_state->sf6.scissor = 0;
