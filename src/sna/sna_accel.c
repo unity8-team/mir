@@ -1618,8 +1618,12 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box, unsigned int flags)
 
 	if (sna_damage_is_all(&priv->gpu_damage,
 			      pixmap->drawable.width,
-			      pixmap->drawable.height))
+			      pixmap->drawable.height)) {
+		sna_damage_destroy(&priv->cpu_damage);
+		priv->undamaged = false;
+		list_del(&priv->list);
 		goto done;
+	}
 
 	if (priv->gpu_bo == NULL) {
 		unsigned flags;
@@ -1659,10 +1663,13 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box, unsigned int flags)
 	}
 
 	if (priv->mapped) {
+		pixmap->devPrivate.ptr = NULL;
+		priv->mapped = false;
+	}
+	if (pixmap->devPrivate.ptr == NULL) {
 		assert(priv->stride);
 		pixmap->devPrivate.ptr = priv->ptr;
 		pixmap->devKind = priv->stride;
-		priv->mapped = false;
 	}
 	assert(pixmap->devPrivate.ptr != NULL);
 
