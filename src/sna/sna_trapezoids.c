@@ -3494,7 +3494,7 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 	inplace.opacity = color >> 24;
 
 	tor_render(NULL, &tor, (void*)&inplace,
-		   dst->pCompositeClip, span, true);
+		   dst->pCompositeClip, span, op == PictOpIn);
 
 	tor_fini(&tor);
 
