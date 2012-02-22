@@ -1552,8 +1552,8 @@ sna_blt_composite(struct sna *sna,
 		  int16_t width, int16_t height,
 		  struct sna_composite_op *tmp)
 {
-	struct sna_blt_state *blt = &tmp->u.blt;
 	PictFormat src_format = src->format;
+	PixmapPtr src_pixmap;
 	struct sna_pixmap *priv;
 	int16_t tx, ty;
 	uint32_t alpha_fixup;
@@ -1688,30 +1688,31 @@ sna_blt_composite(struct sna *sna,
 		return FALSE;
 	}
 
-	blt->src_pixmap = get_drawable_pixmap(src->pDrawable);
-	get_drawable_deltas(src->pDrawable, blt->src_pixmap, &tx, &ty);
+	src_pixmap = get_drawable_pixmap(src->pDrawable);
+	get_drawable_deltas(src->pDrawable, src_pixmap, &tx, &ty);
 	x += tx + src->pDrawable->x;
 	y += ty + src->pDrawable->y;
 	if (x < 0 || y < 0 ||
-	    x + width > blt->src_pixmap->drawable.width ||
-	    y + height > blt->src_pixmap->drawable.height) {
+	    x + width  > src_pixmap->drawable.width ||
+	    y + height > src_pixmap->drawable.height) {
 		DBG(("%s: source extends outside (%d, %d), (%d, %d) of valid pixmap %dx%d\n",
 		     __FUNCTION__,
-		     x, y, x+width, y+width, blt->src_pixmap->drawable.width, blt->src_pixmap->drawable.height));
+		     x, y, x+width, y+width, src_pixmap->drawable.width, src_pixmap->drawable.height));
 		return FALSE;
 	}
 
+	tmp->u.blt.src_pixmap = src_pixmap;
 	tmp->u.blt.sx = x - dst_x;
 	tmp->u.blt.sy = y - dst_y;
 	DBG(("%s: blt dst offset (%d, %d), source offset (%d, %d), with alpha fixup? %x\n",
 	     __FUNCTION__,
 	     tmp->dst.x, tmp->dst.y, tmp->u.blt.sx, tmp->u.blt.sy, alpha_fixup));
 
-	if (has_gpu_area(blt->src_pixmap, x, y, width, height))
+	if (has_gpu_area(src_pixmap, x, y, width, height))
 		ret = prepare_blt_copy(sna, tmp, alpha_fixup);
-	else if (has_cpu_area(blt->src_pixmap, x, y, width, height))
+	else if (has_cpu_area(src_pixmap, x, y, width, height))
 		ret = prepare_blt_put(sna, tmp, alpha_fixup);
-	else if (sna_pixmap_move_to_gpu(blt->src_pixmap, MOVE_READ))
+	else if (sna_pixmap_move_to_gpu(src_pixmap, MOVE_READ))
 		ret = prepare_blt_copy(sna, tmp, alpha_fixup);
 	else
 		ret = prepare_blt_put(sna, tmp, alpha_fixup);

@@ -89,6 +89,13 @@ is_cpu(DrawablePtr drawable)
 }
 
 static inline Bool
+is_dirty(DrawablePtr drawable)
+{
+	struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
+	return priv == NULL || kgem_bo_is_dirty(priv->gpu_bo);
+}
+
+static inline Bool
 too_small(DrawablePtr drawable)
 {
 	struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);

@@ -2282,7 +2282,7 @@ source_use_blt(struct sna *sna, PicturePtr picture)
 	if (sna->kgem.has_vmap)
 		return false;
 
-	return is_cpu(picture->pDrawable);
+	return is_cpu(picture->pDrawable) || is_dirty(picture->pDrawable);
 }
 
 static Bool

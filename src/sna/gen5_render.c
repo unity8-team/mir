@@ -2012,7 +2012,7 @@ picture_is_cpu(PicturePtr picture)
 	if (too_large(picture->pDrawable->width, picture->pDrawable->height))
 		return TRUE;
 
-	return is_cpu(picture->pDrawable);
+	return is_cpu(picture->pDrawable) || is_dirty(picture->pDrawable);
 }
 
 static Bool
@@ -2375,19 +2375,6 @@ gen5_render_composite(struct sna *sna,
 		if (!kgem_check_bo(&sna->kgem,
 				   tmp->dst.bo, tmp->src.bo, tmp->mask.bo, NULL))
 			goto cleanup_mask;
-	}
-
-	if (kgem_bo_is_dirty(tmp->src.bo) || kgem_bo_is_dirty(tmp->mask.bo)) {
-		if (mask == NULL &&
-		    tmp->redirect.real_bo == NULL &&
-		    sna_blt_composite(sna, op,
-				      src, dst,
-				      src_x, src_y,
-				      dst_x, dst_y,
-				      width, height, tmp)) {
-			kgem_bo_destroy(&sna->kgem, tmp->src.bo);
-			return TRUE;
-		}
 	}
 
 	gen5_bind_surfaces(sna, tmp);
