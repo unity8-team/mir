@@ -66,8 +66,8 @@
 #define URB_CS_ENTRY_SIZE     1
 #define URB_CS_ENTRIES	      0
 
-#define URB_VS_ENTRY_SIZE     1	// each 512-bit row
-#define URB_VS_ENTRIES	      8	// we needs at least 8 entries
+#define URB_VS_ENTRY_SIZE     1
+#define URB_VS_ENTRIES	      128 /* minimum of 8 */
 
 #define URB_GS_ENTRY_SIZE     0
 #define URB_GS_ENTRIES	      0
@@ -76,7 +76,7 @@
 #define URB_CLIP_ENTRIES      0
 
 #define URB_SF_ENTRY_SIZE     2
-#define URB_SF_ENTRIES	      1
+#define URB_SF_ENTRIES	      32
 
 /*
  * this program computes dA/dx and dA/dy for the texture coordinates along
@@ -358,6 +358,9 @@ static int gen5_vertex_finish(struct sna *sna)
 
 	bo = sna->render.vbo;
 	if (bo) {
+		if (sna->render_state.gen5.vertex_offset)
+			gen5_vertex_flush(sna);
+
 		for (i = 0; i < ARRAY_SIZE(sna->render.vertex_reloc); i++) {
 			if (sna->render.vertex_reloc[i]) {
 				DBG(("%s: reloc[%d] = %d\n", __FUNCTION__,
@@ -410,6 +413,8 @@ static void gen5_vertex_close(struct sna *sna)
 	struct kgem_bo *bo;
 	unsigned int i, delta = 0;
 
+	assert(sna->render_state.gen5.vertex_offset == 0);
+
 	if (!sna->render.vertex_used) {
 		assert(sna->render.vbo == NULL);
 		assert(sna->render.vertices == sna->render.vertex_data);
@@ -421,7 +426,6 @@ static void gen5_vertex_close(struct sna *sna)
 
 	bo = sna->render.vbo;
 	if (bo == NULL) {
-
 		if (sna->kgem.nbatch + sna->render.vertex_used <= sna->kgem.surface) {
 			DBG(("%s: copy to batch: %d @ %d\n", __FUNCTION__,
 			     sna->render.vertex_used, sna->kgem.nbatch));
@@ -1082,6 +1086,8 @@ static void gen5_emit_vertex_buffer(struct sna *sna,
 {
 	int id = op->u.gen5.ve_id;
 
+	assert((unsigned)id <= 3);
+
 	OUT_BATCH(GEN5_3DSTATE_VERTEX_BUFFERS | 3);
 	OUT_BATCH((id << VB0_BUFFER_INDEX_SHIFT) | VB0_VERTEXDATA |
 		  (4*op->floats_per_vertex << VB0_BUFFER_PITCH_SHIFT));
@@ -1121,6 +1127,8 @@ static bool gen5_rectangle_begin(struct sna *sna,
 {
 	int id = op->u.gen5.ve_id;
 	int ndwords;
+
+	assert((unsigned)id <= 3);
 
 	ndwords = 0;
 	if ((sna->render_state.gen5.vb_id & (1 << id)) == 0)
@@ -1167,23 +1175,25 @@ inline static int gen5_get_rectangles(struct sna *sna,
 		DBG(("flushing vbo for %s: %d < %d\n",
 		     __FUNCTION__, rem, op->floats_per_rect));
 		rem = gen5_get_rectangles__flush(sna, op);
-		if (rem == 0) {
-			if (sna->render_state.gen5.vertex_offset) {
-				gen5_vertex_flush(sna);
-				gen5_magic_ca_pass(sna, op);
-			}
-			return 0;
-		}
+		if (rem == 0)
+			goto flush;
 	}
 
 	if (!gen5_rectangle_begin(sna, op))
-		return 0;
+		goto flush;
 
 	if (want * op->floats_per_rect > rem)
 		want = rem / op->floats_per_rect;
 
 	sna->render.vertex_index += 3*want;
 	return want;
+
+flush:
+	if (sna->render_state.gen5.vertex_offset) {
+		gen5_vertex_flush(sna);
+		gen5_magic_ca_pass(sna, op);
+	}
+	return 0;
 }
 
 static uint32_t *
@@ -1414,8 +1424,9 @@ gen5_emit_vertex_elements(struct sna *sna,
 	int selem = is_affine ? 2 : 3;
 	uint32_t w_component;
 	uint32_t src_format;
-	int id = op->u.gen5.ve_id;;
+	int id = op->u.gen5.ve_id;
 
+	assert((unsigned)id <= 3);
 	if (!DBG_NO_STATE_CACHE && render->ve_id == id)
 		return;
 
@@ -3554,7 +3565,6 @@ static uint32_t gen5_create_sf_state(struct sna_static_stream *stream,
 	sf_state->thread4.max_threads = SF_MAX_THREADS - 1;
 	sf_state->thread4.urb_entry_allocation_size = URB_SF_ENTRY_SIZE - 1;
 	sf_state->thread4.nr_urb_entries = URB_SF_ENTRIES;
-	sf_state->thread4.stats_enable = 1;
 	sf_state->sf5.viewport_transform = FALSE;	/* skip viewport */
 	sf_state->sf6.cull_mode = GEN5_CULLMODE_NONE;
 	sf_state->sf6.scissor = 0;

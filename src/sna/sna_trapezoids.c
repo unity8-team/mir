@@ -2216,18 +2216,23 @@ composite_unaligned_box(struct sna *sna,
 			float opacity,
 			pixman_region16_t *clip)
 {
-	pixman_region16_t region;
+	if (clip) {
+		pixman_region16_t region;
 
-	pixman_region_init_rects(&region, box, 1);
-	RegionIntersect(&region, &region, clip);
-	if (REGION_NUM_RECTS(&region)) {
-		tmp->boxes(sna, tmp,
-			  REGION_RECTS(&region),
-			  REGION_NUM_RECTS(&region),
-			  opacity);
-		apply_damage(&tmp->base, &region);
+		pixman_region_init_rects(&region, box, 1);
+		RegionIntersect(&region, &region, clip);
+		if (REGION_NUM_RECTS(&region)) {
+			tmp->boxes(sna, tmp,
+				   REGION_RECTS(&region),
+				   REGION_NUM_RECTS(&region),
+				   opacity);
+			apply_damage(&tmp->base, &region);
+		}
+		pixman_region_fini(&region);
+	} else {
+		tmp->box(sna, tmp, box, opacity);
+		apply_damage_box(&tmp->base, box);
 	}
-	pixman_region_fini(&region);
 }
 
 static void
@@ -2244,17 +2249,19 @@ composite_unaligned_trap_row(struct sna *sna,
 	if (covered == 0)
 		return;
 
-	if (y2 > clip->extents.y2)
-		y2 = clip->extents.y2;
-	if (y1 < clip->extents.y1)
-		y1 = clip->extents.y1;
-	if (y1 >= y2)
-		return;
-
 	x1 = dx + pixman_fixed_to_int(trap->left.p1.x);
 	x2 = dx + pixman_fixed_to_int(trap->right.p1.x);
-	if (x2 < clip->extents.x1 || x1 > clip->extents.x2)
-		return;
+	if (clip) {
+		if (y2 > clip->extents.y2)
+			y2 = clip->extents.y2;
+		if (y1 < clip->extents.y1)
+			y1 = clip->extents.y1;
+		if (y1 >= y2)
+			return;
+
+		if (x2 < clip->extents.x1 || x1 > clip->extents.x2)
+			return;
+	}
 
 	box.y1 = y1;
 	box.y2 = y2;
@@ -2528,7 +2535,7 @@ composite_unaligned_boxes(struct sna *sna,
 {
 	BoxRec extents;
 	struct sna_composite_spans_op tmp;
-	pixman_region16_t clip;
+	pixman_region16_t clip, *c;
 	int dst_x, dst_y;
 	int dx, dy, n;
 
@@ -2584,6 +2591,11 @@ composite_unaligned_boxes(struct sna *sna,
 		return true;
 	}
 
+	c = NULL;
+	if (extents.x2 - extents.x1 > clip.extents.x2 - clip.extents.x1 ||
+	    extents.y2 - extents.y1 > clip.extents.y2 - clip.extents.y1)
+		c = &clip;
+
 	extents = *RegionExtents(&clip);
 	dx = dst->pDrawable->x;
 	dy = dst->pDrawable->y;
@@ -2611,7 +2623,7 @@ composite_unaligned_boxes(struct sna *sna,
 	}
 
 	for (n = 0; n < ntrap; n++)
-		composite_unaligned_trap(sna, &tmp, &traps[n], dx, dy, &clip);
+		composite_unaligned_trap(sna, &tmp, &traps[n], dx, dy, c);
 	tmp.done(sna, &tmp);
 
 	REGION_UNINIT(NULL, &clip);

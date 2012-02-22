@@ -1574,6 +1574,9 @@ static int gen3_vertex_finish(struct sna *sna)
 
 	bo = sna->render.vbo;
 	if (bo) {
+		if (sna->render_state.gen3.vertex_offset)
+			gen3_vertex_flush(sna);
+
 		DBG(("%s: reloc = %d\n", __FUNCTION__,
 		     sna->render.vertex_reloc[0]));
 
@@ -1736,20 +1739,13 @@ inline static int gen3_get_rectangles(struct sna *sna,
 		DBG(("flushing vbo for %s: %d < %d\n",
 		     __FUNCTION__, rem, op->floats_per_rect));
 		rem = gen3_get_rectangles__flush(sna, op);
-		if (rem == 0) {
-			if (sna->render_state.gen3.vertex_offset) {
-				gen3_vertex_flush(sna);
-				gen3_magic_ca_pass(sna, op);
-			}
-			return 0;
-		}
+		if (rem == 0)
+			goto flush;
 	}
 
 	if (sna->render_state.gen3.vertex_offset == 0 &&
-	    !gen3_rectangle_begin(sna, op)) {
-		DBG(("%s: flushing batch\n", __FUNCTION__));
-		return 0;
-	}
+	    !gen3_rectangle_begin(sna, op))
+		goto flush;
 
 	if (want > 1 && want * op->floats_per_rect > rem)
 		want = rem / op->floats_per_rect;
@@ -1758,6 +1754,14 @@ inline static int gen3_get_rectangles(struct sna *sna,
 	assert(want);
 	assert(sna->render.vertex_index * op->floats_per_vertex <= sna->render.vertex_size);
 	return want;
+
+flush:
+	DBG(("%s: flushing batch\n", __FUNCTION__));
+	if (sna->render_state.gen3.vertex_offset) {
+		gen3_vertex_flush(sna);
+		gen3_magic_ca_pass(sna, op);
+	}
+	return 0;
 }
 
 fastcall static void

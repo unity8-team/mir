@@ -64,7 +64,8 @@
 
 #if FLUSH_EVERY_VERTEX
 #define FLUSH(OP) do { \
-	gen4_vertex_flush(sna, OP); \
+	gen4_vertex_flush(sna); \
+	gen4_magic_ca_pass(sna, OP); \
 	OUT_BATCH(MI_FLUSH | MI_INHIBIT_RENDER_CACHE_FLUSH); \
 } while (0)
 #else
@@ -348,8 +349,7 @@ static void gen4_magic_ca_pass(struct sna *sna,
 	state->last_primitive = sna->kgem.nbatch;
 }
 
-static void gen4_vertex_flush(struct sna *sna,
-			      const struct sna_composite_op *op)
+static void gen4_vertex_flush(struct sna *sna)
 {
 	if (sna->render_state.gen4.vertex_offset == 0)
 		return;
@@ -360,8 +360,6 @@ static void gen4_vertex_flush(struct sna *sna,
 	sna->kgem.batch[sna->render_state.gen4.vertex_offset] =
 		sna->render.vertex_index - sna->render.vertex_start;
 	sna->render_state.gen4.vertex_offset = 0;
-
-	gen4_magic_ca_pass(sna, op);
 }
 
 static int gen4_vertex_finish(struct sna *sna)
@@ -375,6 +373,9 @@ static int gen4_vertex_finish(struct sna *sna)
 
 	bo = sna->render.vbo;
 	if (bo) {
+		if (sna->render_state.gen4.vertex_offset)
+			gen4_vertex_flush(sna);
+
 		for (i = 0; i < ARRAY_SIZE(sna->render.vertex_reloc); i++) {
 			if (sna->render.vertex_reloc[i]) {
 				DBG(("%s: reloc[%d] = %d\n", __FUNCTION__,
@@ -1167,20 +1168,23 @@ inline static int gen4_get_rectangles(struct sna *sna,
 		DBG(("flushing vbo for %s: %d < %d\n",
 		     __FUNCTION__, rem, 3*op->floats_per_vertex));
 		rem = gen4_get_rectangles__flush(sna, op);
-		if (rem == 0) {
-			gen4_vertex_flush(sna, op);
-			return 0;
-		}
+		if (rem == 0)
+			goto flush;
 	}
 
 	if (!gen4_rectangle_begin(sna, op))
-		return 0;
+		goto flush;
 
 	if (want > 1 && want * op->floats_per_vertex*3 > rem)
 		want = rem / (3*op->floats_per_vertex);
 
 	sna->render.vertex_index += 3*want;
 	return want;
+
+flush:
+	gen4_vertex_flush(sna);
+	gen4_magic_ca_pass(sna, op);
+	return 0;
 }
 
 static uint32_t *gen4_composite_get_binding_table(struct sna *sna,
@@ -1799,7 +1803,7 @@ gen4_render_video(struct sna *sna,
 	}
 	priv->clear = false;
 
-	gen4_vertex_flush(sna, &tmp);
+	gen4_vertex_flush(sna);
 	return TRUE;
 }
 
@@ -1916,7 +1920,8 @@ gen4_render_composite_done(struct sna *sna,
 {
 	DBG(("%s()\n", __FUNCTION__));
 
-	gen4_vertex_flush(sna, op);
+	gen4_vertex_flush(sna);
+	gen4_magic_ca_pass(sna, op);
 
 	if (op->mask.bo)
 		kgem_bo_destroy(&sna->kgem, op->mask.bo);
@@ -2595,7 +2600,7 @@ gen4_render_copy_blt(struct sna *sna,
 static void
 gen4_render_copy_done(struct sna *sna, const struct sna_copy_op *op)
 {
-	gen4_vertex_flush(sna, &op->base);
+	gen4_vertex_flush(sna);
 }
 
 static Bool
@@ -2883,7 +2888,7 @@ gen4_render_fill_op_boxes(struct sna *sna,
 static void
 gen4_render_fill_op_done(struct sna *sna, const struct sna_fill_op *op)
 {
-	gen4_vertex_flush(sna, &op->base);
+	gen4_vertex_flush(sna);
 	kgem_bo_destroy(&sna->kgem, op->base.src.bo);
 }
 
@@ -3043,7 +3048,7 @@ gen4_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 
 	gen4_render_fill_rectangle(sna, &tmp, x1, y1, x2 - x1, y2 - y1);
 
-	gen4_vertex_flush(sna, &tmp);
+	gen4_vertex_flush(sna);
 	kgem_bo_destroy(&sna->kgem, tmp.src.bo);
 
 	return TRUE;

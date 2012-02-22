@@ -932,6 +932,9 @@ static int gen6_vertex_finish(struct sna *sna)
 
 	bo = sna->render.vbo;
 	if (bo) {
+		if (sna->render_state.gen6.vertex_offset)
+			gen6_vertex_flush(sna);
+
 		for (i = 0; i < ARRAY_SIZE(sna->render.vertex_reloc); i++) {
 			if (sna->render.vertex_reloc[i]) {
 				DBG(("%s: reloc[%d] = %d\n", __FUNCTION__,
@@ -1635,18 +1638,13 @@ inline static int gen6_get_rectangles(struct sna *sna,
 		DBG(("flushing vbo for %s: %d < %d\n",
 		     __FUNCTION__, rem, op->floats_per_rect));
 		rem = gen6_get_rectangles__flush(sna, op);
-		if (rem == 0) {
-			if (sna->render_state.gen6.vertex_offset) {
-				gen6_vertex_flush(sna);
-				gen6_magic_ca_pass(sna, op);
-			}
-			return 0;
-		}
+		if (rem == 0)
+			goto flush;
 	}
 
 	if (sna->render_state.gen6.vertex_offset == 0 &&
 	    !gen6_rectangle_begin(sna, op))
-		return 0;
+		goto flush;
 
 	if (want > 1 && want * op->floats_per_rect > rem)
 		want = rem / op->floats_per_rect;
@@ -1654,6 +1652,13 @@ inline static int gen6_get_rectangles(struct sna *sna,
 	assert(want > 0);
 	sna->render.vertex_index += 3*want;
 	return want;
+
+flush:
+	if (sna->render_state.gen6.vertex_offset) {
+		gen6_vertex_flush(sna);
+		gen6_magic_ca_pass(sna, op);
+	}
+	return 0;
 }
 
 inline static uint32_t *gen6_composite_get_binding_table(struct sna *sna,
