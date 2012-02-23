@@ -89,7 +89,7 @@ sna_tiling_composite_blt(struct sna *sna,
 			 const struct sna_composite_op *op,
 			 const struct sna_composite_rectangles *r)
 {
-	sna_tiling_composite_add_rect(op->u.priv, r);
+	sna_tiling_composite_add_rect(op->priv, r);
 	(void)sna;
 }
 
@@ -107,7 +107,7 @@ sna_tiling_composite_box(struct sna *sna,
 	r.width  = box->x2 - box->x1;
 	r.height = box->y2 - box->y1;
 
-	sna_tiling_composite_add_rect(op->u.priv, &r);
+	sna_tiling_composite_add_rect(op->priv, &r);
 	(void)sna;
 }
 
@@ -126,7 +126,7 @@ sna_tiling_composite_boxes(struct sna *sna,
 		r.width  = box->x2 - box->x1;
 		r.height = box->y2 - box->y1;
 
-		sna_tiling_composite_add_rect(op->u.priv, &r);
+		sna_tiling_composite_add_rect(op->priv, &r);
 		box++;
 	}
 	(void)sna;
@@ -136,7 +136,7 @@ static void
 sna_tiling_composite_done(struct sna *sna,
 			  const struct sna_composite_op *op)
 {
-	struct sna_tile_state *tile = op->u.priv;
+	struct sna_tile_state *tile = op->priv;
 	struct sna_composite_op tmp;
 	int x, y, n, step;
 
@@ -312,7 +312,7 @@ sna_tiling_composite(uint32_t op,
 	tmp->boxes = sna_tiling_composite_boxes;
 	tmp->done  = sna_tiling_composite_done;
 
-	tmp->u.priv = tile;
+	tmp->priv = tile;
 	return TRUE;
 }
 

@@ -134,9 +134,9 @@ struct sna_composite_op {
 			int nr_inputs;
 			int ve_id;
 		} gen7;
-
-		void *priv;
 	} u;
+
+	void *priv;
 };
 
 struct sna_composite_spans_op {
