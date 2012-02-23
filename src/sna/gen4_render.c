@@ -1116,19 +1116,12 @@ static bool gen4_rectangle_begin(struct sna *sna,
 	int id = op->u.gen4.ve_id;
 	int ndwords;
 
-	ndwords = 0;
+	/* 7xpipelined pointers + 6xprimitive + 1xflush */
+	ndwords = op->need_magic_ca_pass? 20 : 6;
 	if (FLUSH_EVERY_VERTEX)
 		ndwords += 1;
 	if ((sna->render_state.gen4.vb_id & (1 << id)) == 0)
 		ndwords += 5;
-	if (sna->render_state.gen4.vertex_offset == 0)
-		ndwords += 6;
-	if (ndwords == 0)
-		return true;
-
-	if (op->need_magic_ca_pass)
-		/* 7xpipelined pointers + 6xprimitive + 1xflush */
-		ndwords += 14;
 
 	if (!kgem_check_batch(&sna->kgem, ndwords))
 		return false;
@@ -1159,19 +1152,23 @@ static int gen4_get_rectangles__flush(struct sna *sna,
 
 inline static int gen4_get_rectangles(struct sna *sna,
 				      const struct sna_composite_op *op,
-				      int want)
+				      int want,
+				      void (*emit_state)(struct sna *sna, const struct sna_composite_op *op))
 {
-	int rem = vertex_space(sna);
+	int rem;
 
+start:
+	rem = vertex_space(sna);
 	if (rem < 3*op->floats_per_vertex) {
 		DBG(("flushing vbo for %s: %d < %d\n",
 		     __FUNCTION__, rem, 3*op->floats_per_vertex));
 		rem = gen4_get_rectangles__flush(sna, op);
-		if (rem == 0)
+		if (unlikely(rem == 0))
 			goto flush;
 	}
 
-	if (!gen4_rectangle_begin(sna, op))
+	if (unlikely(sna->render_state.gen4.vertex_offset == 0 &&
+		     !gen4_rectangle_begin(sna, op)))
 		goto flush;
 
 	if (want > 1 && want * op->floats_per_vertex*3 > rem)
@@ -1186,7 +1183,8 @@ flush:
 		gen4_magic_ca_pass(sna, op);
 	}
 	_kgem_submit(&sna->kgem);
-	return 0;
+	emit_state(sna, op);
+	goto start;
 }
 
 static uint32_t *gen4_composite_get_binding_table(struct sna *sna,
@@ -1541,11 +1539,7 @@ gen4_render_composite_blt(struct sna *sna,
 			gen4_bind_surfaces(sna, op);
 	}
 
-	if (!gen4_get_rectangles(sna, op, 1)) {
-		gen4_bind_surfaces(sna, op);
-		gen4_get_rectangles(sna, op, 1);
-	}
-
+	gen4_get_rectangles(sna, op, 1, gen4_bind_surfaces);
 	op->prim_emit(sna, op, r);
 
 	/* XXX are the shaders fubar? */
@@ -1629,9 +1623,9 @@ static uint32_t gen4_bind_video_source(struct sna *sna,
 }
 
 static void gen4_video_bind_surfaces(struct sna *sna,
-				     const struct sna_composite_op *op,
-				     struct sna_video_frame *frame)
+				     const struct sna_composite_op *op)
 {
+	struct sna_video_frame *frame = op->priv;
 	uint32_t src_surf_format;
 	uint32_t src_surf_base[6];
 	int src_width[6];
@@ -1732,13 +1726,14 @@ gen4_render_video(struct sna *sna,
 	tmp.is_affine = TRUE;
 	tmp.floats_per_vertex = 3;
 	tmp.u.gen4.ve_id = 1;
+	tmp.priv = frame;
 
 	if (!kgem_check_bo(&sna->kgem, tmp.dst.bo, frame->bo, NULL)) {
 		kgem_submit(&sna->kgem);
 		assert(kgem_check_bo(&sna->kgem, tmp.dst.bo, frame->bo, NULL));
 	}
 
-	gen4_video_bind_surfaces(sna, &tmp, frame);
+	gen4_video_bind_surfaces(sna, &tmp);
 	gen4_align_vertex(sna, &tmp);
 
 	/* Set up the offset for translating from the given region (in screen
@@ -1769,10 +1764,7 @@ gen4_render_video(struct sna *sna,
 		r.y1 = box->y1 + pix_yoff;
 		r.y2 = box->y2 + pix_yoff;
 
-		if (!gen4_get_rectangles(sna, &tmp, 1)) {
-			gen4_video_bind_surfaces(sna, &tmp, frame);
-			gen4_get_rectangles(sna, &tmp, 1);
-		}
+		gen4_get_rectangles(sna, &tmp, 1, gen4_video_bind_surfaces);
 
 		OUT_VERTEX(r.x2, r.y2);
 		OUT_VERTEX_F((box->x2 - dxo) * src_scale_x);
@@ -2393,10 +2385,7 @@ gen4_render_copy_one(struct sna *sna,
 		     int w, int h,
 		     int dx, int dy)
 {
-	if (!gen4_get_rectangles(sna, op, 1)) {
-		gen4_copy_bind_surfaces(sna, op);
-		gen4_get_rectangles(sna, op, 1);
-	}
+	gen4_get_rectangles(sna, op, 1, gen4_copy_bind_surfaces);
 
 	OUT_VERTEX(dx+w, dy+h);
 	OUT_VERTEX_F((sx+w)*op->src.scale[0]);
@@ -2725,10 +2714,7 @@ gen4_render_fill_rectangle(struct sna *sna,
 			   const struct sna_composite_op *op,
 			   int x, int y, int w, int h)
 {
-	if (!gen4_get_rectangles(sna, op, 1)) {
-		gen4_fill_bind_surfaces(sna, op);
-		gen4_get_rectangles(sna, op, 1);
-	}
+	gen4_get_rectangles(sna, op, 1, gen4_fill_bind_surfaces);
 
 	OUT_VERTEX(x+w, y+h);
 	OUT_VERTEX_F(1);
