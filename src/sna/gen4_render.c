@@ -1185,6 +1185,7 @@ flush:
 		gen4_vertex_flush(sna);
 		gen4_magic_ca_pass(sna, op);
 	}
+	_kgem_submit(&sna->kgem);
 	return 0;
 }
 

@@ -1761,6 +1761,7 @@ flush:
 		gen3_vertex_flush(sna);
 		gen3_magic_ca_pass(sna, op);
 	}
+	_kgem_submit(&sna->kgem);
 	return 0;
 }
 
@@ -3109,7 +3110,7 @@ gen3_render_composite_spans_box(struct sna *sna,
 	     box->x2 - box->x1,
 	     box->y2 - box->y1));
 
-	if (gen3_get_rectangles(sna, &op->base, 1) == 0) {
+	if (!gen3_get_rectangles(sna, &op->base, 1)) {
 		gen3_emit_composite_state(sna, &op->base);
 		gen3_get_rectangles(sna, &op->base, 1);
 	}

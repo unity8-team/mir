@@ -1193,6 +1193,7 @@ flush:
 		gen5_vertex_flush(sna);
 		gen5_magic_ca_pass(sna, op);
 	}
+	_kgem_submit(&sna->kgem);
 	return 0;
 }
 
