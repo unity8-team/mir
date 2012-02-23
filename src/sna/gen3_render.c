@@ -1729,12 +1729,15 @@ inline static int gen3_get_rectangles(struct sna *sna,
 				      const struct sna_composite_op *op,
 				      int want)
 {
-	int rem = vertex_space(sna);
+	int rem;
 
 	DBG(("%s: want=%d, rem=%d\n",
 	     __FUNCTION__, want*op->floats_per_rect, rem));
 
 	assert(sna->render.vertex_index * op->floats_per_vertex == sna->render.vertex_used);
+
+start:
+	rem = vertex_space(sna);
 	if (op->floats_per_rect > rem) {
 		DBG(("flushing vbo for %s: %d < %d\n",
 		     __FUNCTION__, rem, op->floats_per_rect));
@@ -1762,7 +1765,8 @@ flush:
 		gen3_magic_ca_pass(sna, op);
 	}
 	_kgem_submit(&sna->kgem);
-	return 0;
+	gen3_emit_composite_state(sna, op);
+	goto start;
 }
 
 fastcall static void
@@ -1776,10 +1780,7 @@ gen3_render_composite_blt(struct sna *sna,
 	     r->dst.x, r->dst.y, op->dst.x, op->dst.y,
 	     r->width, r->height));
 
-	if (!gen3_get_rectangles(sna, op, 1)) {
-		gen3_emit_composite_state(sna, op);
-		gen3_get_rectangles(sna, op, 1);
-	}
+	gen3_get_rectangles(sna, op, 1);
 
 	op->prim_emit(sna, op, r);
 }
@@ -1797,10 +1798,7 @@ gen3_render_composite_box(struct sna *sna,
 	     op->mask.offset[0], op->mask.offset[1],
 	     op->dst.x, op->dst.y));
 
-	if (!gen3_get_rectangles(sna, op, 1)) {
-		gen3_emit_composite_state(sna, op);
-		gen3_get_rectangles(sna, op, 1);
-	}
+	gen3_get_rectangles(sna, op, 1);
 
 	r.dst.x  = box->x1;
 	r.dst.y  = box->y1;
@@ -1826,10 +1824,6 @@ gen3_render_composite_boxes(struct sna *sna,
 		int nbox_this_time;
 
 		nbox_this_time = gen3_get_rectangles(sna, op, nbox);
-		if (nbox_this_time == 0) {
-			gen3_emit_composite_state(sna, op);
-			nbox_this_time = gen3_get_rectangles(sna, op, nbox);
-		}
 		nbox -= nbox_this_time;
 
 		do {
@@ -3110,11 +3104,7 @@ gen3_render_composite_spans_box(struct sna *sna,
 	     box->x2 - box->x1,
 	     box->y2 - box->y1));
 
-	if (!gen3_get_rectangles(sna, &op->base, 1)) {
-		gen3_emit_composite_state(sna, &op->base);
-		gen3_get_rectangles(sna, &op->base, 1);
-	}
-
+	gen3_get_rectangles(sna, &op->base, 1);
 	op->prim_emit(sna, op, box, opacity);
 }
 
@@ -3134,10 +3124,6 @@ gen3_render_composite_spans_boxes(struct sna *sna,
 		int nbox_this_time;
 
 		nbox_this_time = gen3_get_rectangles(sna, &op->base, nbox);
-		if (nbox_this_time == 0) {
-			gen3_emit_composite_state(sna, &op->base);
-			nbox_this_time = gen3_get_rectangles(sna, &op->base, nbox);
-		}
 		nbox -= nbox_this_time;
 
 		do {
@@ -3918,10 +3904,6 @@ fallback_blt:
 		int n_this_time;
 
 		n_this_time = gen3_get_rectangles(sna, &tmp, n);
-		if (n_this_time == 0) {
-			gen3_emit_composite_state(sna, &tmp);
-			n_this_time = gen3_get_rectangles(sna, &tmp, n);
-		}
 		n -= n_this_time;
 
 		do {
@@ -3966,10 +3948,7 @@ gen3_render_copy_blt(struct sna *sna,
 		     int16_t w, int16_t h,
 		     int16_t dx, int16_t dy)
 {
-	if (!gen3_get_rectangles(sna, &op->base, 1)) {
-		gen3_emit_composite_state(sna, &op->base);
-		gen3_get_rectangles(sna, &op->base, 1);
-	}
+	gen3_get_rectangles(sna, &op->base, 1);
 
 	OUT_VERTEX(dx+w);
 	OUT_VERTEX(dy+h);
@@ -4215,11 +4194,9 @@ gen3_render_fill_boxes(struct sna *sna,
 	gen3_align_vertex(sna, &tmp);
 
 	do {
-		int n_this_time = gen3_get_rectangles(sna, &tmp, n);
-		if (n_this_time == 0) {
-			gen3_emit_composite_state(sna, &tmp);
-			n_this_time = gen3_get_rectangles(sna, &tmp, n);
-		}
+		int n_this_time;
+
+		n_this_time = gen3_get_rectangles(sna, &tmp, n);
 		n -= n_this_time;
 
 		do {
@@ -4244,10 +4221,7 @@ gen3_render_fill_op_blt(struct sna *sna,
 			const struct sna_fill_op *op,
 			int16_t x, int16_t y, int16_t w, int16_t h)
 {
-	if (!gen3_get_rectangles(sna, &op->base, 1)) {
-		gen3_emit_composite_state(sna, &op->base);
-		gen3_get_rectangles(sna, &op->base, 1);
-	}
+	gen3_get_rectangles(sna, &op->base, 1);
 
 	OUT_VERTEX(x+w);
 	OUT_VERTEX(y+h);
@@ -4262,10 +4236,7 @@ gen3_render_fill_op_box(struct sna *sna,
 			const struct sna_fill_op *op,
 			const BoxRec *box)
 {
-	if (!gen3_get_rectangles(sna, &op->base, 1)) {
-		gen3_emit_composite_state(sna, &op->base);
-		gen3_get_rectangles(sna, &op->base, 1);
-	}
+	gen3_get_rectangles(sna, &op->base, 1);
 
 	OUT_VERTEX(box->x2);
 	OUT_VERTEX(box->y2);
@@ -4285,11 +4256,9 @@ gen3_render_fill_op_boxes(struct sna *sna,
 	     box->x1, box->y1, box->x2, box->y2, nbox));
 
 	do {
-		int nbox_this_time = gen3_get_rectangles(sna, &op->base, nbox);
-		if (nbox_this_time == 0) {
-			gen3_emit_composite_state(sna, &op->base);
-			nbox_this_time = gen3_get_rectangles(sna, &op->base, nbox);
-		}
+		int nbox_this_time;
+
+		nbox_this_time = gen3_get_rectangles(sna, &op->base, nbox);
 		nbox -= nbox_this_time;
 
 		do {
