@@ -1664,20 +1664,23 @@ static int gen7_get_rectangles__flush(struct sna *sna,
 
 inline static int gen7_get_rectangles(struct sna *sna,
 				      const struct sna_composite_op *op,
-				      int want)
+				      int want,
+				      void (*emit_state)(struct sna *sna, const struct sna_composite_op *op))
 {
 	int rem = vertex_space(sna);
 
+start:
+	rem = vertex_space(sna);
 	if (rem < op->floats_per_rect) {
 		DBG(("flushing vbo for %s: %d < %d\n",
 		     __FUNCTION__, rem, op->floats_per_rect));
 		rem = gen7_get_rectangles__flush(sna, op);
-		if (rem == 0)
+		if (unlikely(rem == 0))
 			goto flush;
 	}
 
-	if (sna->render_state.gen7.vertex_offset == 0 &&
-	    !gen7_rectangle_begin(sna, op))
+	if (unlikely(sna->render_state.gen7.vertex_offset == 0 &&
+		     !gen7_rectangle_begin(sna, op)))
 		goto flush;
 
 	if (want > 1 && want * op->floats_per_rect > rem)
@@ -1692,7 +1695,8 @@ flush:
 		gen7_magic_ca_pass(sna, op);
 	}
 	_kgem_submit(&sna->kgem);
-	return 0;
+	emit_state(sna, op);
+	goto start;
 }
 
 inline static uint32_t *gen7_composite_get_binding_table(struct sna *sna,
@@ -1801,11 +1805,7 @@ gen7_render_composite_blt(struct sna *sna,
 			  const struct sna_composite_op *op,
 			  const struct sna_composite_rectangles *r)
 {
-	if (unlikely(!gen7_get_rectangles(sna, op, 1))) {
-		gen7_emit_composite_state(sna, op);
-		gen7_get_rectangles(sna, op, 1);
-	}
-
+	gen7_get_rectangles(sna, op, 1, gen7_emit_composite_state);
 	op->prim_emit(sna, op, r);
 }
 
@@ -1816,10 +1816,7 @@ gen7_render_composite_box(struct sna *sna,
 {
 	struct sna_composite_rectangles r;
 
-	if (unlikely(!gen7_get_rectangles(sna, op, 1))) {
-		gen7_emit_composite_state(sna, op);
-		gen7_get_rectangles(sna, op, 1);
-	}
+	gen7_get_rectangles(sna, op, 1, gen7_emit_composite_state);
 
 	DBG(("  %s: (%d, %d), (%d, %d)\n",
 	     __FUNCTION__,
@@ -1842,12 +1839,12 @@ gen7_render_composite_boxes(struct sna *sna,
 	DBG(("composite_boxes(%d)\n", nbox));
 
 	do {
-		int nbox_this_time = gen7_get_rectangles(sna, op, nbox);
-		if (unlikely(nbox_this_time == 0)) {
-			gen7_emit_composite_state(sna, op);
-			nbox_this_time = gen7_get_rectangles(sna, op, nbox);
-		}
+		int nbox_this_time;
+
+		nbox_this_time = gen7_get_rectangles(sna, op, nbox,
+						     gen7_emit_composite_state);
 		nbox -= nbox_this_time;
+
 		do {
 			struct sna_composite_rectangles r;
 
@@ -1934,9 +1931,9 @@ static uint32_t gen7_bind_video_source(struct sna *sna,
 }
 
 static void gen7_emit_video_state(struct sna *sna,
-				  struct sna_composite_op *op,
-				  struct sna_video_frame *frame)
+				  const struct sna_composite_op *op)
 {
+	struct sna_video_frame *frame = op->priv;
 	uint32_t src_surf_format;
 	uint32_t src_surf_base[6];
 	int src_width[6];
@@ -2055,6 +2052,7 @@ gen7_render_video(struct sna *sna,
 	}
 	tmp.u.gen7.nr_inputs = 1;
 	tmp.u.gen7.ve_id = 1;
+	tmp.priv = frame;
 
 	kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	if (!kgem_check_bo(&sna->kgem, tmp.dst.bo, frame->bo, NULL)) {
@@ -2063,7 +2061,7 @@ gen7_render_video(struct sna *sna,
 		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	}
 
-	gen7_emit_video_state(sna, &tmp, frame);
+	gen7_emit_video_state(sna, &tmp);
 	gen7_align_vertex(sna, &tmp);
 
 	/* Set up the offset for translating from the given region (in screen
@@ -2094,10 +2092,7 @@ gen7_render_video(struct sna *sna,
 		r.y1 = box->y1 + pix_yoff;
 		r.y2 = box->y2 + pix_yoff;
 
-		if (unlikely(!gen7_get_rectangles(sna, &tmp, 1))) {
-			gen7_emit_video_state(sna, &tmp, frame);
-			gen7_get_rectangles(sna, &tmp, 1);
-		}
+		gen7_get_rectangles(sna, &tmp, 1, gen7_emit_video_state);
 
 		OUT_VERTEX(r.x2, r.y2);
 		OUT_VERTEX_F((box->x2 - dxo) * src_scale_x);
@@ -2941,11 +2936,7 @@ gen7_render_composite_spans_box(struct sna *sna,
 	     box->x2 - box->x1,
 	     box->y2 - box->y1));
 
-	if (unlikely(gen7_get_rectangles(sna, &op->base, 1) == 0)) {
-		gen7_emit_composite_state(sna, &op->base);
-		gen7_get_rectangles(sna, &op->base, 1);
-	}
-
+	gen7_get_rectangles(sna, &op->base, 1, gen7_emit_composite_state);
 	op->prim_emit(sna, op, box, opacity);
 }
 
@@ -2964,11 +2955,8 @@ gen7_render_composite_spans_boxes(struct sna *sna,
 	do {
 		int nbox_this_time;
 
-		nbox_this_time = gen7_get_rectangles(sna, &op->base, nbox);
-		if (unlikely(nbox_this_time == 0)) {
-			gen7_emit_composite_state(sna, &op->base);
-			nbox_this_time = gen7_get_rectangles(sna, &op->base, nbox);
-		}
+		nbox_this_time = gen7_get_rectangles(sna, &op->base, nbox,
+						     gen7_emit_composite_state);
 		nbox -= nbox_this_time;
 
 		do {
@@ -3356,11 +3344,10 @@ fallback_blt:
 
 	do {
 		float *v;
-		int n_this_time = gen7_get_rectangles(sna, &tmp, n);
-		if (unlikely(n_this_time == 0)) {
-			gen7_emit_copy_state(sna, &tmp);
-			n_this_time = gen7_get_rectangles(sna, &tmp, n);
-		}
+		int n_this_time;
+
+		n_this_time = gen7_get_rectangles(sna, &tmp, n,
+						  gen7_emit_copy_state);
 		n -= n_this_time;
 
 		v = sna->render.vertices + sna->render.vertex_used;
@@ -3410,10 +3397,7 @@ gen7_render_copy_blt(struct sna *sna,
 		     int16_t w,  int16_t h,
 		     int16_t dx, int16_t dy)
 {
-	if (unlikely(!gen7_get_rectangles(sna, &op->base, 1))) {
-		gen7_emit_copy_state(sna, &op->base);
-		gen7_get_rectangles(sna, &op->base, 1);
-	}
+	gen7_get_rectangles(sna, &op->base, 1, gen7_emit_copy_state);
 
 	OUT_VERTEX(dx+w, dy+h);
 	OUT_VERTEX_F((sx+w)*op->base.src.scale[0]);
@@ -3680,12 +3664,12 @@ gen7_render_fill_boxes(struct sna *sna,
 	gen7_align_vertex(sna, &tmp);
 
 	do {
-		int n_this_time = gen7_get_rectangles(sna, &tmp, n);
-		if (unlikely(n_this_time == 0)) {
-			gen7_emit_fill_state(sna, &tmp);
-			n_this_time = gen7_get_rectangles(sna, &tmp, n);
-		}
+		int n_this_time;
+
+		n_this_time = gen7_get_rectangles(sna, &tmp, n,
+						  gen7_emit_fill_state);
 		n -= n_this_time;
+
 		do {
 			DBG(("	(%d, %d), (%d, %d)\n",
 			     box->x1, box->y1, box->x2, box->y2));
@@ -3717,10 +3701,7 @@ gen7_render_fill_op_blt(struct sna *sna,
 {
 	DBG(("%s: (%d, %d)x(%d, %d)\n", __FUNCTION__, x, y, w, h));
 
-	if (unlikely(!gen7_get_rectangles(sna, &op->base, 1))) {
-		gen7_emit_fill_state(sna, &op->base);
-		gen7_get_rectangles(sna, &op->base, 1);
-	}
+	gen7_get_rectangles(sna, &op->base, 1, gen7_emit_fill_state);
 
 	OUT_VERTEX(x+w, y+h);
 	OUT_VERTEX_F(1);
@@ -3743,10 +3724,7 @@ gen7_render_fill_op_box(struct sna *sna,
 	DBG(("%s: (%d, %d),(%d, %d)\n", __FUNCTION__,
 	     box->x1, box->y1, box->x2, box->y2));
 
-	if (unlikely(!gen7_get_rectangles(sna, &op->base, 1))) {
-		gen7_emit_fill_state(sna, &op->base);
-		gen7_get_rectangles(sna, &op->base, 1);
-	}
+	gen7_get_rectangles(sna, &op->base, 1, gen7_emit_fill_state);
 
 	OUT_VERTEX(box->x2, box->y2);
 	OUT_VERTEX_F(1);
@@ -3771,11 +3749,10 @@ gen7_render_fill_op_boxes(struct sna *sna,
 	     box->x1, box->y1, box->x2, box->y2, nbox));
 
 	do {
-		int nbox_this_time = gen7_get_rectangles(sna, &op->base, nbox);
-		if (unlikely(nbox_this_time == 0)) {
-			gen7_emit_fill_state(sna, &op->base);
-			nbox_this_time = gen7_get_rectangles(sna, &op->base, nbox);
-		}
+		int nbox_this_time;
+
+		nbox_this_time = gen7_get_rectangles(sna, &op->base, nbox,
+						     gen7_emit_fill_state);
 		nbox -= nbox_this_time;
 
 		do {
@@ -3967,10 +3944,7 @@ gen7_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 	gen7_emit_fill_state(sna, &tmp);
 	gen7_align_vertex(sna, &tmp);
 
-	if (unlikely(!gen7_get_rectangles(sna, &tmp, 1))) {
-		gen7_emit_fill_state(sna, &tmp);
-		gen7_get_rectangles(sna, &tmp, 1);
-	}
+	gen7_get_rectangles(sna, &tmp, 1, gen7_emit_fill_state);
 
 	DBG(("	(%d, %d), (%d, %d)\n", x1, y1, x2, y2));
 	OUT_VERTEX(x2, y2);
@@ -4065,10 +4039,7 @@ gen7_render_clear(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo)
 	gen7_emit_fill_state(sna, &tmp);
 	gen7_align_vertex(sna, &tmp);
 
-	if (unlikely(!gen7_get_rectangles(sna, &tmp, 1))) {
-		gen7_emit_fill_state(sna, &tmp);
-		gen7_get_rectangles(sna, &tmp, 1);
-	}
+	gen7_get_rectangles(sna, &tmp, 1, gen7_emit_fill_state);
 
 	OUT_VERTEX(dst->drawable.width, dst->drawable.height);
 	OUT_VERTEX_F(1);
