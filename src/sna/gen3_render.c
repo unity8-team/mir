@@ -1732,7 +1732,7 @@ inline static int gen3_get_rectangles(struct sna *sna,
 	int rem;
 
 	DBG(("%s: want=%d, rem=%d\n",
-	     __FUNCTION__, want*op->floats_per_rect, rem));
+	     __FUNCTION__, want*op->floats_per_rect, vertex_space(sna)));
 
 	assert(sna->render.vertex_index * op->floats_per_vertex == sna->render.vertex_used);
 
@@ -1742,12 +1742,12 @@ start:
 		DBG(("flushing vbo for %s: %d < %d\n",
 		     __FUNCTION__, rem, op->floats_per_rect));
 		rem = gen3_get_rectangles__flush(sna, op);
-		if (rem == 0)
+		if (unlikely(rem == 0))
 			goto flush;
 	}
 
-	if (sna->render_state.gen3.vertex_offset == 0 &&
-	    !gen3_rectangle_begin(sna, op))
+	if (unlikely(sna->render_state.gen3.vertex_offset == 0 &&
+		     !gen3_rectangle_begin(sna, op)))
 		goto flush;
 
 	if (want > 1 && want * op->floats_per_rect > rem)
