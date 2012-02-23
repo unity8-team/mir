@@ -2893,7 +2893,7 @@ void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo)
 	assert(list_is_empty(&bo->list));
 
 	if (bo->tiling == I915_TILING_NONE &&
-	    (kgem->has_llc || bo->domain == bo->presumed_offset)) {
+	    (kgem->has_llc || bo->domain == DOMAIN_CPU)) {
 		DBG(("%s: converting request for GTT map into CPU map\n",
 		     __FUNCTION__));
 		ptr = kgem_bo_map__cpu(kgem, bo);
