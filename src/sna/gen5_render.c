@@ -1130,13 +1130,9 @@ static bool gen5_rectangle_begin(struct sna *sna,
 
 	assert((unsigned)id <= 3);
 
-	ndwords = 0;
+	ndwords = op->need_magic_ca_pass ? 20 : 6;
 	if ((sna->render_state.gen5.vb_id & (1 << id)) == 0)
 		ndwords += 5;
-	if (sna->render_state.gen5.vertex_offset == 0)
-		ndwords += op->need_magic_ca_pass ? 20 : 6;
-	if (ndwords == 0)
-		return true;
 
 	if (!kgem_check_batch(&sna->kgem, ndwords))
 		return false;
@@ -1167,19 +1163,24 @@ static int gen5_get_rectangles__flush(struct sna *sna,
 
 inline static int gen5_get_rectangles(struct sna *sna,
 				      const struct sna_composite_op *op,
-				      int want)
+				      int want,
+				      void (*emit_state)(struct sna *sna,
+							 const struct sna_composite_op *op))
 {
-	int rem = vertex_space(sna);
+	int rem;
 
+start:
+	rem = vertex_space(sna);
 	if (rem < op->floats_per_rect) {
 		DBG(("flushing vbo for %s: %d < %d\n",
 		     __FUNCTION__, rem, op->floats_per_rect));
 		rem = gen5_get_rectangles__flush(sna, op);
-		if (rem == 0)
+		if (unlikely (rem == 0))
 			goto flush;
 	}
 
-	if (!gen5_rectangle_begin(sna, op))
+	if (unlikely(sna->render_state.gen5.vertex_offset == 0 &&
+		     !gen5_rectangle_begin(sna, op)))
 		goto flush;
 
 	if (want * op->floats_per_rect > rem)
@@ -1194,7 +1195,8 @@ flush:
 		gen5_magic_ca_pass(sna, op);
 	}
 	_kgem_submit(&sna->kgem);
-	return 0;
+	emit_state(sna, op);
+	goto start;
 }
 
 static uint32_t *
@@ -1562,11 +1564,7 @@ gen5_render_composite_blt(struct sna *sna,
 	     r->dst.x, r->dst.y, op->dst.x, op->dst.y,
 	     r->width, r->height));
 
-	if (!gen5_get_rectangles(sna, op, 1)) {
-		gen5_bind_surfaces(sna, op);
-		gen5_get_rectangles(sna, op, 1);
-	}
-
+	gen5_get_rectangles(sna, op, 1, gen5_bind_surfaces);
 	op->prim_emit(sna, op, r);
 }
 
@@ -1581,10 +1579,7 @@ gen5_render_composite_box(struct sna *sna,
 	     __FUNCTION__,
 	     box->x1, box->y1, box->x2, box->y2));
 
-	if (!gen5_get_rectangles(sna, op, 1)) {
-		gen5_bind_surfaces(sna, op);
-		gen5_get_rectangles(sna, op, 1);
-	}
+	gen5_get_rectangles(sna, op, 1, gen5_bind_surfaces);
 
 	r.dst.x = box->x1;
 	r.dst.y = box->y1;
@@ -1608,11 +1603,10 @@ gen5_render_composite_boxes(struct sna *sna,
 	     op->mask.width, op->mask.height));
 
 	do {
-		int nbox_this_time = gen5_get_rectangles(sna, op, nbox);
-		if (nbox_this_time == 0) {
-			gen5_bind_surfaces(sna, op);
-			nbox_this_time = gen5_get_rectangles(sna, op, nbox);
-		}
+		int nbox_this_time;
+
+		nbox_this_time = gen5_get_rectangles(sna, op, nbox,
+						     gen5_bind_surfaces);
 		nbox -= nbox_this_time;
 
 		do {
@@ -1669,9 +1663,9 @@ static uint32_t gen5_bind_video_source(struct sna *sna,
 }
 
 static void gen5_video_bind_surfaces(struct sna *sna,
-				     struct sna_composite_op *op,
-				     struct sna_video_frame *frame)
+				     const struct sna_composite_op *op)
 {
+	struct sna_video_frame *frame = op->priv;
 	uint32_t src_surf_format;
 	uint32_t src_surf_base[6];
 	int src_width[6];
@@ -1775,13 +1769,14 @@ gen5_render_video(struct sna *sna,
 	tmp.is_affine = TRUE;
 	tmp.floats_per_vertex = 3;
 	tmp.floats_per_rect = 9;
+	tmp.priv = frame;
 
 	if (!kgem_check_bo(&sna->kgem, tmp.dst.bo, frame->bo, NULL)) {
 		kgem_submit(&sna->kgem);
 		assert(kgem_check_bo(&sna->kgem, tmp.dst.bo, frame->bo, NULL));
 	}
 
-	gen5_video_bind_surfaces(sna, &tmp, frame);
+	gen5_video_bind_surfaces(sna, &tmp);
 	gen5_align_vertex(sna, &tmp);
 
 	/* Set up the offset for translating from the given region (in screen
@@ -1812,10 +1807,7 @@ gen5_render_video(struct sna *sna,
 		r.y1 = box->y1 + pix_yoff;
 		r.y2 = box->y2 + pix_yoff;
 
-		if (!gen5_get_rectangles(sna, &tmp, 1)) {
-			gen5_video_bind_surfaces(sna, &tmp, frame);
-			gen5_get_rectangles(sna, &tmp, 1);
-		}
+		gen5_get_rectangles(sna, &tmp, 1, gen5_video_bind_surfaces);
 
 		OUT_VERTEX(r.x2, r.y2);
 		OUT_VERTEX_F((box->x2 - dxo) * src_scale_x);
@@ -2549,11 +2541,7 @@ gen5_render_composite_spans_box(struct sna *sna,
 	     box->x2 - box->x1,
 	     box->y2 - box->y1));
 
-	if (gen5_get_rectangles(sna, &op->base, 1) == 0) {
-		gen5_bind_surfaces(sna, &op->base);
-		gen5_get_rectangles(sna, &op->base, 1);
-	}
-
+	gen5_get_rectangles(sna, &op->base, 1, gen5_bind_surfaces);
 	op->prim_emit(sna, op, box, opacity);
 }
 
@@ -2572,11 +2560,8 @@ gen5_render_composite_spans_boxes(struct sna *sna,
 	do {
 		int nbox_this_time;
 
-		nbox_this_time = gen5_get_rectangles(sna, &op->base, nbox);
-		if (nbox_this_time == 0) {
-			gen5_bind_surfaces(sna, &op->base);
-			nbox_this_time = gen5_get_rectangles(sna, &op->base, nbox);
-		}
+		nbox_this_time = gen5_get_rectangles(sna, &op->base, nbox,
+						     gen5_bind_surfaces);
 		nbox -= nbox_this_time;
 
 		do {
@@ -2871,11 +2856,10 @@ fallback_blt:
 	gen5_align_vertex(sna, &tmp);
 
 	do {
-		int n_this_time = gen5_get_rectangles(sna, &tmp, n);
-		if (n_this_time == 0) {
-			gen5_copy_bind_surfaces(sna, &tmp);
-			n_this_time = gen5_get_rectangles(sna, &tmp, n);
-		}
+		int n_this_time;
+
+		n_this_time = gen5_get_rectangles(sna, &tmp, n,
+						  gen5_copy_bind_surfaces);
 		n -= n_this_time;
 
 		do {
@@ -2926,10 +2910,7 @@ gen5_render_copy_blt(struct sna *sna,
 	DBG(("%s: src=(%d, %d), dst=(%d, %d), size=(%d, %d)\n", __FUNCTION__,
 	     sx, sy, dx, dy, w, h));
 
-	if (!gen5_get_rectangles(sna, &op->base, 1)) {
-		gen5_copy_bind_surfaces(sna, &op->base);
-		gen5_get_rectangles(sna, &op->base, 1);
-	}
+	gen5_get_rectangles(sna, &op->base, 1, gen5_copy_bind_surfaces);
 
 	OUT_VERTEX(dx+w, dy+h);
 	OUT_VERTEX_F((sx+w)*op->base.src.scale[0]);
@@ -3173,12 +3154,12 @@ gen5_render_fill_boxes(struct sna *sna,
 	gen5_align_vertex(sna, &tmp);
 
 	do {
-		int n_this_time = gen5_get_rectangles(sna, &tmp, n);
-		if (n_this_time == 0) {
-			gen5_fill_bind_surfaces(sna, &tmp);
-			n_this_time = gen5_get_rectangles(sna, &tmp, n);
-		}
+		int n_this_time;
+
+		n_this_time = gen5_get_rectangles(sna, &tmp, n,
+						  gen5_fill_bind_surfaces);
 		n -= n_this_time;
+
 		do {
 			DBG(("	(%d, %d), (%d, %d)\n",
 			     box->x1, box->y1, box->x2, box->y2));
@@ -3210,10 +3191,7 @@ gen5_render_fill_op_blt(struct sna *sna,
 {
 	DBG(("%s (%d, %d)x(%d, %d)\n", __FUNCTION__, x,y,w,h));
 
-	if (!gen5_get_rectangles(sna, &op->base, 1)) {
-		gen5_fill_bind_surfaces(sna, &op->base);
-		gen5_get_rectangles(sna, &op->base, 1);
-	}
+	gen5_get_rectangles(sna, &op->base, 1, gen5_fill_bind_surfaces);
 
 	OUT_VERTEX(x+w, y+h);
 	OUT_VERTEX_F(1);
@@ -3236,10 +3214,7 @@ gen5_render_fill_op_box(struct sna *sna,
 	DBG(("%s: (%d, %d),(%d, %d)\n", __FUNCTION__,
 	     box->x1, box->y1, box->x2, box->y2));
 
-	if (!gen5_get_rectangles(sna, &op->base, 1)) {
-		gen5_fill_bind_surfaces(sna, &op->base);
-		gen5_get_rectangles(sna, &op->base, 1);
-	}
+	gen5_get_rectangles(sna, &op->base, 1, gen5_fill_bind_surfaces);
 
 	OUT_VERTEX(box->x2, box->y2);
 	OUT_VERTEX_F(1);
@@ -3264,11 +3239,10 @@ gen5_render_fill_op_boxes(struct sna *sna,
 	     box->x1, box->y1, box->x2, box->y2, nbox));
 
 	do {
-		int nbox_this_time = gen5_get_rectangles(sna, &op->base, nbox);
-		if (nbox_this_time == 0) {
-			gen5_fill_bind_surfaces(sna, &op->base);
-			nbox_this_time = gen5_get_rectangles(sna, &op->base, nbox);
-		}
+		int nbox_this_time;
+
+		nbox_this_time = gen5_get_rectangles(sna, &op->base, nbox,
+						     gen5_fill_bind_surfaces);
 		nbox -= nbox_this_time;
 
 		do {
@@ -3452,10 +3426,7 @@ gen5_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 	gen5_fill_bind_surfaces(sna, &tmp);
 	gen5_align_vertex(sna, &tmp);
 
-	if (!gen5_get_rectangles(sna, &tmp, 1)) {
-		gen5_fill_bind_surfaces(sna, &tmp);
-		gen5_get_rectangles(sna, &tmp, 1);
-	}
+	gen5_get_rectangles(sna, &tmp, 1, gen5_fill_bind_surfaces);
 
 	DBG(("	(%d, %d), (%d, %d)\n", x1, y1, x2, y2));
 	OUT_VERTEX(x2, y2);
