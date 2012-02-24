@@ -105,6 +105,7 @@ typedef enum {
    OPTION_DEBUG_WAIT,
    OPTION_HOTPLUG,
    OPTION_RELAXED_FENCING,
+   OPTION_BUFFER_CACHE,
 } I830Opts;
 
 static OptionInfoRec I830Options[] = {
@@ -126,6 +127,7 @@ static OptionInfoRec I830Options[] = {
    {OPTION_DEBUG_WAIT, "DebugWait", OPTV_BOOLEAN, {0}, FALSE},
    {OPTION_HOTPLUG,	"HotPlug",	OPTV_BOOLEAN,	{0},	TRUE},
    {OPTION_RELAXED_FENCING,	"RelaxedFencing",	OPTV_BOOLEAN,	{0},	TRUE},
+   {OPTION_BUFFER_CACHE,	"BufferCache",	OPTV_BOOLEAN,	{0},	TRUE},
    {-1,			NULL,		OPTV_NONE,	{0},	FALSE}
 };
 /* *INDENT-ON* */
@@ -394,7 +396,8 @@ static int intel_init_bufmgr(intel_screen_private *intel)
 	if (!intel->bufmgr)
 		return FALSE;
 
-	drm_intel_bufmgr_gem_enable_reuse(intel->bufmgr);
+	if (xf86ReturnOptValBool(intel->Options, OPTION_BUFFER_CACHE, TRUE))
+		drm_intel_bufmgr_gem_enable_reuse(intel->bufmgr);
 	drm_intel_bufmgr_gem_set_vma_cache_size(intel->bufmgr, 512);
 	drm_intel_bufmgr_gem_enable_fenced_relocs(intel->bufmgr);
 
