@@ -53,7 +53,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "xf86_OSproc.h"
 #include "compiler.h"
-#include "xf86PciInfo.h"
 #include "xf86Pci.h"
 #include "xf86Cursor.h"
 #include "xf86xv.h"
@@ -63,105 +62,16 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xorg-server.h"
 #include <pciaccess.h>
 
-#include "xf86drm.h"
 #define _XF86DRI_SERVER_
 #include "dri2.h"
 #include "intel_bufmgr.h"
 #include "i915_drm.h"
 
 #include "intel_driver.h"
+#include "intel_list.h"
 
 #if HAVE_UDEV
 #include <libudev.h>
-#endif
-
-/* XXX
- * The X server gained an *almost* identical implementation in 1.9.
- *
- * Remove this duplicate code either in 2.16 (when we can depend upon 1.9)
- * or the drivers are merged back into the xserver tree, whichever happens
- * earlier.
- */
-
-#ifndef _LIST_H_
-/* classic doubly-link circular list */
-struct list {
-	struct list *next, *prev;
-};
-
-static void
-list_init(struct list *list)
-{
-	list->next = list->prev = list;
-}
-
-static inline void
-__list_add(struct list *entry,
-	    struct list *prev,
-	    struct list *next)
-{
-	next->prev = entry;
-	entry->next = next;
-	entry->prev = prev;
-	prev->next = entry;
-}
-
-static inline void
-list_add(struct list *entry, struct list *head)
-{
-	__list_add(entry, head, head->next);
-}
-
-static inline void
-__list_del(struct list *prev, struct list *next)
-{
-	next->prev = prev;
-	prev->next = next;
-}
-
-static inline void
-list_del(struct list *entry)
-{
-	__list_del(entry->prev, entry->next);
-	list_init(entry);
-}
-
-static inline Bool
-list_is_empty(struct list *head)
-{
-	return head->next == head;
-}
-#endif
-
-/* XXX work around a broken define in list.h currently [ickle 20100713] */
-#undef container_of
-
-#ifndef container_of
-#define container_of(ptr, type, member) \
-	((type *)((char *)(ptr) - (char *) &((type *)0)->member))
-#endif
-
-#ifndef list_entry
-#define list_entry(ptr, type, member) \
-	container_of(ptr, type, member)
-#endif
-
-#ifndef list_first_entry
-#define list_first_entry(ptr, type, member) \
-	list_entry((ptr)->next, type, member)
-#endif
-
-#ifndef list_foreach
-#define list_foreach(pos, head)			\
-	for (pos = (head)->next; pos != (head);	pos = pos->next)
-#endif
-
-/* XXX list.h from xserver-1.9 uses a GCC-ism to avoid having to pass type */
-#ifndef list_foreach_entry
-#define list_foreach_entry(pos, type, head, member)		\
-	for (pos = list_entry((head)->next, type, member);\
-	     &pos->member != (head);					\
-	     pos = list_entry(pos->member.next, type, member))
 #endif
 
 /* remain compatible to xorg-server 1.6 */
@@ -256,6 +166,8 @@ typedef struct intel_screen_private {
 
 	void *modes;
 	drm_intel_bo *front_buffer, *back_buffer;
+	PixmapPtr back_pixmap;
+	unsigned int back_name;
 	long front_pitch, front_tiling;
 	void *shadow_buffer;
 	int shadow_stride;
@@ -279,6 +191,7 @@ typedef struct intel_screen_private {
 	struct list flush_pixmaps;
 	struct list in_flight;
 	drm_intel_bo *wa_scratch_bo;
+	OsTimerPtr cache_expire;
 
 	/* For Xvideo */
 	Bool use_overlay;
@@ -316,6 +229,7 @@ typedef struct intel_screen_private {
 	void (*batch_commit_notify) (struct intel_screen_private *intel);
 
 	struct _UxaDriver *uxa_driver;
+	int uxa_flags;
 	Bool need_sync;
 	int accel_pixmap_offset_alignment;
 	int accel_max_x;
@@ -541,7 +455,6 @@ int intel_crtc_to_pipe(xf86CrtcPtr crtc);
 unsigned long intel_get_fence_size(intel_screen_private *intel, unsigned long size);
 unsigned long intel_get_fence_pitch(intel_screen_private *intel, unsigned long pitch,
 				   uint32_t tiling_mode);
-void intel_set_gem_max_sizes(ScrnInfoPtr scrn);
 
 drm_intel_bo *intel_allocate_framebuffer(ScrnInfoPtr scrn,
 					int w, int h, int cpp,
@@ -692,7 +605,7 @@ intel_emit_reloc(drm_intel_bo * bo, uint32_t offset,
 static inline drm_intel_bo *intel_bo_alloc_for_data(intel_screen_private *intel,
 						    const void *data,
 						    unsigned int size,
-						    char *name)
+						    const char *name)
 {
 	drm_intel_bo *bo;
 
@@ -720,8 +633,6 @@ static inline Bool pixmap_is_scanout(PixmapPtr pixmap)
 
 	return pixmap == screen->GetScreenPixmap(screen);
 }
-
-const OptionInfoRec *intel_uxa_available_options(int chipid, int busid);
 
 Bool intel_uxa_init(ScreenPtr pScreen);
 Bool intel_uxa_create_screen_resources(ScreenPtr pScreen);

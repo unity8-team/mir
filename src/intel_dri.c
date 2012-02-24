@@ -51,12 +51,11 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xf86.h"
 #include "xf86_OSproc.h"
 
-#include "xf86PciInfo.h"
 #include "xf86Pci.h"
+#include "xf86drm.h"
 
 #include "windowstr.h"
 #include "shadow.h"
-#include "xaarop.h"
 #include "fb.h"
 
 #include "intel.h"
@@ -65,6 +64,9 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i915_drm.h"
 
 #include "dri2.h"
+
+#include "intel_glamor.h"
+#include "uxa.h"
 
 typedef struct {
 	int refcnt;
@@ -123,6 +125,65 @@ static PixmapPtr get_front_buffer(DrawablePtr drawable)
 	} else
 		pixmap = NULL;
 	return pixmap;
+}
+
+static PixmapPtr fixup_glamor(DrawablePtr drawable, PixmapPtr pixmap)
+{
+	ScreenPtr screen = drawable->pScreen;
+	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	PixmapPtr old = get_drawable_pixmap(drawable);
+	struct intel_pixmap *priv = intel_get_pixmap_private(pixmap);
+	GCPtr gc;
+
+	/* With a glamor pixmap, 2D pixmaps are created in texture
+	 * and without a static BO attached to it. To support DRI,
+	 * we need to create a new textured-drm pixmap and
+	 * need to copy the original content to this new textured-drm
+	 * pixmap, and then convert the old pixmap to a coherent
+	 * textured-drm pixmap which has a valid BO attached to it
+	 * and also has a valid texture, thus both glamor and DRI2
+	 * can access it.
+	 *
+	 */
+
+	/* Copy the current contents of the pixmap to the bo. */
+	gc = GetScratchGC(drawable->depth, screen);
+	if (gc) {
+		ValidateGC(&pixmap->drawable, gc);
+		gc->ops->CopyArea(drawable, &pixmap->drawable,
+				  gc,
+				  0, 0,
+				  drawable->width,
+				  drawable->height,
+				  0, 0);
+		FreeScratchGC(gc);
+	}
+
+	intel_set_pixmap_private(pixmap, NULL);
+	screen->DestroyPixmap(pixmap);
+
+	/* And redirect the pixmap to the new bo (for 3D). */
+	intel_set_pixmap_private(old, priv);
+	old->refcnt++;
+
+	/* This creating should not fail, as we already created its
+	 * successfully. But if it happens, we put a warning indicator
+	 * here, and the old pixmap will still be a glamor pixmap, and
+	 * latter the pixmap_flink will get a 0 name, then the X server
+	 * will pass a BadAlloc to the client.*/
+	if (!intel_glamor_create_textured_pixmap(old))
+		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+			   "Failed to get DRI drawable for glamor pixmap.\n");
+
+	screen->ModifyPixmapHeader(old,
+				   drawable->width,
+				   drawable->height,
+				   0, 0,
+				   priv->stride,
+				   NULL);
+
+	intel_get_screen_private(xf86Screens[screen->myNum])->needs_flush = TRUE;
+	return old;
 }
 
 static PixmapPtr fixup_shadow(DrawablePtr drawable, PixmapPtr pixmap)
@@ -203,6 +264,7 @@ I830DRI2CreateBuffers(DrawablePtr drawable, unsigned int *attachments,
 	I830DRI2BufferPrivatePtr privates;
 	PixmapPtr pixmap, pDepthPixmap;
 	int i;
+	int is_glamor_pixmap;
 
 	buffers = calloc(count, sizeof *buffers);
 	if (buffers == NULL)
@@ -218,10 +280,17 @@ I830DRI2CreateBuffers(DrawablePtr drawable, unsigned int *attachments,
 		pixmap = NULL;
 		if (attachments[i] == DRI2BufferFrontLeft) {
 			pixmap = get_front_buffer(drawable);
+
+			if (pixmap && intel_get_pixmap_private(pixmap) == NULL) {
+				is_glamor_pixmap = TRUE;
+				drawable = &pixmap->drawable;
+				pixmap = NULL;
+			}
 		} else if (attachments[i] == DRI2BufferStencil && pDepthPixmap) {
 			pixmap = pDepthPixmap;
 			pixmap->refcnt++;
 		}
+
 		if (pixmap == NULL) {
 			unsigned int hint = INTEL_CREATE_PIXMAP_DRI2;
 
@@ -255,8 +324,12 @@ I830DRI2CreateBuffers(DrawablePtr drawable, unsigned int *attachments,
 				goto unwind;
 			}
 
-			if (attachment == DRI2BufferFrontLeft)
-				pixmap = fixup_shadow(drawable, pixmap);
+			if (attachment == DRI2BufferFrontLeft) {
+				if (!is_glamor_pixmap)
+					pixmap = fixup_shadow(drawable, pixmap);
+				else
+					pixmap = fixup_glamor(drawable, pixmap);
+			}
 		}
 
 		if (attachments[i] == DRI2BufferDepth)
@@ -317,6 +390,7 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 	DRI2Buffer2Ptr buffer;
 	I830DRI2BufferPrivatePtr privates;
 	PixmapPtr pixmap;
+	int is_glamor_pixmap;
 
 	buffer = calloc(1, sizeof *buffer);
 	if (buffer == NULL)
@@ -328,8 +402,16 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 	}
 
 	pixmap = NULL;
-	if (attachment == DRI2BufferFrontLeft)
+	if (attachment == DRI2BufferFrontLeft) {
 		pixmap = get_front_buffer(drawable);
+
+		if (pixmap && intel_get_pixmap_private(pixmap) == NULL) {
+			is_glamor_pixmap = TRUE;
+			drawable = &pixmap->drawable;
+			pixmap = NULL;
+		}
+	}
+
 	if (pixmap == NULL) {
 		unsigned int hint = INTEL_CREATE_PIXMAP_DRI2;
 		int pixmap_width = drawable->width;
@@ -400,9 +482,12 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 			free(buffer);
 			return NULL;
 		}
-
-		if (attachment == DRI2BufferFrontLeft)
-			pixmap = fixup_shadow(drawable, pixmap);
+		if (attachment == DRI2BufferFrontLeft) {
+			if (!is_glamor_pixmap)
+				pixmap = fixup_shadow(drawable, pixmap);
+			else
+				pixmap = fixup_glamor(drawable, pixmap);
+		}
 	}
 
 	buffer->attachment = attachment;
@@ -761,14 +846,28 @@ i830_dri2_del_frame_event(DrawablePtr drawable, DRI2FrameEventPtr info)
 	free(info);
 }
 
+static struct intel_pixmap *
+intel_exchange_pixmap_buffers(struct intel_screen_private *intel, PixmapPtr front, PixmapPtr back)
+{
+	struct intel_pixmap *new_front, *new_back;
+
+	new_front = intel_get_pixmap_private(back);
+	new_back = intel_get_pixmap_private(front);
+	intel_set_pixmap_private(front, new_front);
+	intel_set_pixmap_private(back, new_back);
+	new_front->busy = 1;
+	new_back->busy = -1;
+
+	intel_glamor_exchange_buffers(intel, front, back);
+	return new_front;
+}
+
 static void
-I830DRI2ExchangeBuffers(DrawablePtr draw, DRI2BufferPtr front, DRI2BufferPtr back)
+I830DRI2ExchangeBuffers(struct intel_screen_private *intel, DRI2BufferPtr front, DRI2BufferPtr back)
 {
 	I830DRI2BufferPrivatePtr front_priv, back_priv;
-	struct intel_pixmap *front_intel, *back_intel;
-	ScreenPtr screen;
-	intel_screen_private *intel;
 	int tmp;
+	struct intel_pixmap *new_front;
 
 	front_priv = front->driverPrivate;
 	back_priv = back->driverPrivate;
@@ -779,21 +878,44 @@ I830DRI2ExchangeBuffers(DrawablePtr draw, DRI2BufferPtr front, DRI2BufferPtr bac
 	back->name = tmp;
 
 	/* Swap pixmap bos */
-	front_intel = intel_get_pixmap_private(front_priv->pixmap);
-	back_intel = intel_get_pixmap_private(back_priv->pixmap);
-	intel_set_pixmap_private(front_priv->pixmap, back_intel);
-	intel_set_pixmap_private(back_priv->pixmap, front_intel);
-
-	screen = draw->pScreen;
-	intel = intel_get_screen_private(xf86Screens[screen->myNum]);
-
+	new_front = intel_exchange_pixmap_buffers(intel,
+						  front_priv->pixmap,
+						  back_priv->pixmap);
 	dri_bo_unreference (intel->front_buffer);
-	intel->front_buffer = back_intel->bo;
+	intel->front_buffer = new_front->bo;
 	dri_bo_reference (intel->front_buffer);
+}
 
-	intel_set_pixmap_private(screen->GetScreenPixmap(screen), back_intel);
-	back_intel->busy = 1;
-	front_intel->busy = -1;
+static PixmapPtr
+intel_glamor_create_back_pixmap(ScreenPtr screen,
+				PixmapPtr front_pixmap,
+				drm_intel_bo *back_bo)
+{
+	PixmapPtr back_pixmap;
+
+	back_pixmap = screen->CreatePixmap(screen,
+					   0,
+					   0,
+				           front_pixmap->drawable.depth,
+				           0);
+	if (back_pixmap == NULL)
+		return NULL;
+
+	screen->ModifyPixmapHeader(back_pixmap,
+				   front_pixmap->drawable.width,
+				   front_pixmap->drawable.height,
+				   0, 0,
+				   front_pixmap->devKind,
+				   0);
+	intel_set_pixmap_bo(back_pixmap, back_bo);
+	if (!intel_glamor_create_textured_pixmap(back_pixmap)) {
+		ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+			   "Failed to create textured back pixmap.\n");
+		screen->DestroyPixmap(back_pixmap);
+		return NULL;
+	}
+	return back_pixmap;
 }
 
 /*
@@ -807,6 +929,7 @@ I830DRI2ScheduleFlip(struct intel_screen_private *intel,
 {
 	I830DRI2BufferPrivatePtr priv = info->back->driverPrivate;
 	drm_intel_bo *new_back, *old_back;
+	int tmp_name;
 
 	if (!intel->use_triple_buffer) {
 		if (!intel_do_pageflip(intel,
@@ -815,7 +938,7 @@ I830DRI2ScheduleFlip(struct intel_screen_private *intel,
 			return FALSE;
 
 		info->type = DRI2_SWAP;
-		I830DRI2ExchangeBuffers(draw, info->front, info->back);
+		I830DRI2ExchangeBuffers(intel, info->front, info->back);
 		return TRUE;
 	}
 
@@ -826,6 +949,10 @@ I830DRI2ScheduleFlip(struct intel_screen_private *intel,
 	}
 
 	if (intel->back_buffer == NULL) {
+		I830DRI2BufferPrivatePtr priv;
+		PixmapPtr front_pixmap, back_pixmap;
+		ScreenPtr screen;
+
 		new_back = drm_intel_bo_alloc(intel->bufmgr, "front buffer",
 					      intel->front_buffer->size, 0);
 		if (new_back == NULL)
@@ -841,6 +968,22 @@ I830DRI2ScheduleFlip(struct intel_screen_private *intel,
 		}
 
 		drm_intel_bo_disable_reuse(new_back);
+		dri_bo_flink(new_back, &intel->back_name);
+
+		if ((intel->uxa_flags & UXA_USE_GLAMOR)) {
+			screen = draw->pScreen;
+			priv = info->front->driverPrivate;
+			front_pixmap = priv->pixmap;
+
+			back_pixmap = intel_glamor_create_back_pixmap(screen,
+								      front_pixmap,
+								      new_back);
+			if (back_pixmap == NULL) {
+				drm_intel_bo_unreference(new_back);
+				return FALSE;
+			}
+			intel->back_pixmap = back_pixmap;
+		}
 	} else {
 		new_back = intel->back_buffer;
 		intel->back_buffer = NULL;
@@ -854,16 +997,24 @@ I830DRI2ScheduleFlip(struct intel_screen_private *intel,
 	info->type = DRI2_SWAP_CHAIN;
 	intel->pending_flip[info->pipe] = info;
 
-	/* Exchange the current front-buffer with the fresh bo */
-	intel->back_buffer = intel->front_buffer;
-	drm_intel_bo_reference(intel->back_buffer);
-
 	priv = info->front->driverPrivate;
-	intel_set_pixmap_bo(priv->pixmap, new_back);
-	dri_bo_flink(new_back, &info->front->name);
+
+	/* Exchange the current front-buffer with the fresh bo */
+	if (!(intel->uxa_flags & UXA_USE_GLAMOR)) {
+		intel->back_buffer = intel->front_buffer;
+		drm_intel_bo_reference(intel->back_buffer);
+		intel_set_pixmap_bo(priv->pixmap, new_back);
+	}
+	else
+		intel_exchange_pixmap_buffers(intel, priv->pixmap,
+					      intel->back_pixmap);
+
+	tmp_name = info->front->name;
+	info->front->name = intel->back_name;
+	intel->back_name = tmp_name;
 
 	/* Then flip DRI2 pointers and update the screen pixmap */
-	I830DRI2ExchangeBuffers(draw, info->front, info->back);
+	I830DRI2ExchangeBuffers(intel, info->front, info->back);
 	DRI2SwapComplete(info->client, draw, 0, 0, 0,
 			 DRI2_EXCHANGE_COMPLETE,
 			 info->event_complete,

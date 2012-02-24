@@ -33,19 +33,25 @@
 #define unlikely(expr) (__builtin_expect (!!(expr), 0))
 #define noinline __attribute__((noinline))
 #define fastcall __attribute__((regparm(3)))
+#define must_check __attribute__((warn_unused_result))
+#define constant __attribute__((const))
 #else
 #define likely(expr) (expr)
 #define unlikely(expr) (expr)
 #define noinline
 #define fastcall
+#define must_check
+#define constant
 #endif
 
-#ifdef HAVE_VALGRIND_H
+#ifdef HAVE_VALGRIND
 #define VG(x) x
 #else
 #define VG(x)
 #endif
 
 #define VG_CLEAR(s) VG(memset(&s, 0, sizeof(s)))
+
+#define COMPILE_TIME_ASSERT(E) ((void)sizeof(char[1 - 2*!(E)]))
 
 #endif /* _SNA_COMPILER_H_ */

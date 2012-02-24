@@ -40,10 +40,13 @@
 
 #include "intel.h"
 #include "intel_bufmgr.h"
+#include "xf86drm.h"
 #include "xf86drmMode.h"
 #include "X11/Xatom.h"
 #include "X11/extensions/dpmsconst.h"
 #include "xf86DDC.h"
+
+#include "intel_glamor.h"
 
 struct intel_mode {
 	int fd;
@@ -407,8 +410,6 @@ intel_crtc_apply(xf86CrtcPtr crtc)
 		}
 	}
 
-	intel_set_gem_max_sizes(scrn);
-
 	if (scrn->pScreen)
 		xf86_reload_cursors(scrn->pScreen);
 
@@ -453,6 +454,7 @@ intel_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	crtc->y = y;
 	crtc->rotation = rotation;
 
+	intel_glamor_flush(intel);
 	intel_batch_submit(crtc->scrn);
 
 	mode_to_kmode(crtc->scrn, &intel_crtc->kmode, mode);
@@ -695,13 +697,8 @@ intel_crtc_init(ScrnInfoPtr scrn, struct intel_mode *mode, int num)
 static Bool
 is_panel(int type)
 {
-#if 0
-	/* XXX https://bugs.freedesktop.org/show_bug.cgi?id=38012 */
 	return (type == DRM_MODE_CONNECTOR_LVDS ||
 		type == DRM_MODE_CONNECTOR_eDP);
-#else
-	return type == DRM_MODE_CONNECTOR_LVDS;
-#endif
 }
 
 static xf86OutputStatus
@@ -948,13 +945,19 @@ intel_output_dpms(xf86OutputPtr output, int dpms)
 			continue;
 
 		if (!strcmp(props->name, "DPMS")) {
+			/* Make sure to reverse the order between on and off. */
+			if (dpms == DPMSModeOff)
+				intel_output_dpms_backlight(output,
+							    intel_output->dpms_mode,
+							    dpms);
 			drmModeConnectorSetProperty(mode->fd,
 						    intel_output->output_id,
 						    props->prop_id,
 						    dpms);
-			intel_output_dpms_backlight(output,
-						      intel_output->dpms_mode,
-						      dpms);
+			if (dpms != DPMSModeOff)
+				intel_output_dpms_backlight(output,
+							    intel_output->dpms_mode,
+							    dpms);
 			intel_output->dpms_mode = dpms;
 			drmModeFreeProperty(props);
 			return;
@@ -1366,10 +1369,12 @@ intel_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	int	    i, old_width, old_height, old_pitch;
 	unsigned long pitch;
 	uint32_t tiling;
+	ScreenPtr screen;
 
 	if (scrn->virtualX == width && scrn->virtualY == height)
 		return TRUE;
 
+	intel_glamor_flush(intel);
 	intel_batch_submit(scrn);
 
 	old_width = scrn->virtualX;
@@ -1377,6 +1382,12 @@ intel_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	old_pitch = scrn->displayWidth;
 	old_fb_id = mode->fb_id;
 	old_front = intel->front_buffer;
+
+	if (intel->back_pixmap) {
+		screen = intel->back_pixmap->drawable.pScreen;
+		screen->DestroyPixmap(intel->back_pixmap);
+		intel->back_pixmap = NULL;
+	}
 
 	if (intel->back_buffer) {
 		drm_intel_bo_unreference(intel->back_buffer);
@@ -1459,6 +1470,7 @@ intel_do_pageflip(intel_screen_private *intel,
 			 new_front->handle, &mode->fb_id))
 		goto error_out;
 
+	intel_glamor_flush(intel);
 	intel_batch_submit(scrn);
 
 	/*

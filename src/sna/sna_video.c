@@ -100,7 +100,7 @@ sna_video_buffer(struct sna *sna,
 		 struct sna_video_frame *frame)
 {
 	/* Free the current buffer if we're going to have to reallocate */
-	if (video->buf && video->buf->size < frame->size)
+	if (video->buf && kgem_bo_size(video->buf) < frame->size)
 		sna_video_free_buffers(sna, video);
 
 	if (video->buf == NULL)
@@ -157,7 +157,7 @@ sna_video_clip_helper(ScrnInfoPtr scrn,
 
 	/* For textured video, we don't actually want to clip at all. */
 	if (crtc && !video->textured) {
-		RegionInit(&crtc_region_local, &crtc_box, 1);
+		RegionInit(&crtc_region_local, &crtc_box, 0);
 		crtc_region = &crtc_region_local;
 		RegionIntersect(crtc_region, crtc_region, reg);
 	}
@@ -472,7 +472,7 @@ sna_video_copy_data(struct sna *sna,
 	}
 
 	/* copy data */
-	dst = kgem_bo_map(&sna->kgem, frame->bo, PROT_READ | PROT_WRITE);
+	dst = kgem_bo_map(&sna->kgem, frame->bo);
 	if (dst == NULL)
 		return FALSE;
 
@@ -481,7 +481,6 @@ sna_video_copy_data(struct sna *sna,
 	else
 		sna_copy_packed_data(video, frame, buf, dst);
 
-	munmap(dst, frame->bo->size);
 	return TRUE;
 }
 
@@ -492,6 +491,9 @@ void sna_video_init(struct sna *sna, ScreenPtr screen)
 	int num_adaptors;
 	int prefer_overlay =
 	    xf86ReturnOptValBool(sna->Options, OPTION_PREFER_OVERLAY, FALSE);
+
+	if (!xf86LoaderCheckSymbol("xf86XVListGenericAdaptors"))
+		return;
 
 	num_adaptors = xf86XVListGenericAdaptors(sna->scrn, &adaptors);
 	newAdaptors =

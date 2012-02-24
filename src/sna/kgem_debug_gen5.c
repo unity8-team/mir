@@ -78,14 +78,12 @@ static void gen5_update_vertex_buffer(struct kgem *kgem, const uint32_t *data)
 		size = kgem->nbatch * sizeof(uint32_t);
 	} else {
 		bo = kgem_debug_get_bo_for_reloc_entry(kgem, reloc);
-		base = kgem_bo_map(kgem, bo, PROT_READ);
-		size = bo->size;
+		base = kgem_bo_map__debug(kgem, bo);
+		size = kgem_bo_size(bo);
 	}
 	ptr = (char *)base + reloc->delta;
 
 	i = data[0] >> 27;
-	if (state.vb[i].current)
-		munmap(state.vb[i].base, state.vb[i].current->size);
 
 	state.vb[i].handle = reloc->target_handle;
 	state.vb[i].current = bo;
@@ -389,13 +387,6 @@ get_reloc(struct kgem *kgem,
 
 	return (char *)base + delta;
 }
-
-static void
-put_reloc(struct kgem *kgem, struct reloc *r)
-{
-	if (r->bo != NULL)
-		munmap(r->base, r->bo->size);
-}
 #endif
 
 int kgem_gen5_decode_3d(struct kgem *kgem, uint32_t offset)
@@ -667,21 +658,7 @@ int kgem_gen5_decode_3d(struct kgem *kgem, uint32_t offset)
 	return len;
 }
 
-static void finish_vertex_buffers(struct kgem *kgem)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(state.vb); i++)
-		if (state.vb[i].current)
-			munmap(state.vb[i].base, state.vb[i].current->size);
-}
-
 void kgem_gen5_finish_state(struct kgem *kgem)
 {
-	finish_vertex_buffers(kgem);
-
-	if (state.dynamic_state.current)
-		munmap(state.dynamic_state.base, state.dynamic_state.current->size);
-
 	memset(&state, 0, sizeof(state));
 }

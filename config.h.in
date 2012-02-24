@@ -50,6 +50,9 @@
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #undef HAVE_SYS_STAT_H
 
+/* Define to 1 if you have the <sys/sysinfo.h> header file. */
+#undef HAVE_SYS_SYSINFO_H
+
 /* Define to 1 if you have the <sys/timerfd.h> header file. */
 #undef HAVE_SYS_TIMERFD_H
 
@@ -61,6 +64,9 @@
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
+
+/* Use valgrind intrinsics to suppress false warings */
+#undef HAVE_VALGRIND
 
 /* Assume KMS support */
 #undef KMS_ONLY
@@ -110,6 +116,9 @@
 
 /* Use automagic builder description */
 #undef USE_GIT_DESCRIBE
+
+/* Enable glamor acceleration */
+#undef USE_GLAMOR
 
 /* Enable SNA support */
 #undef USE_SNA

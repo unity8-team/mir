@@ -79,6 +79,7 @@
 #define NO_GLYPH_CACHE 0
 #define NO_GLYPHS_TO_DST 0
 #define NO_GLYPHS_VIA_MASK 0
+#define NO_SMALL_MASK 0
 #define NO_GLYPHS_SLOW 0
 
 #define CACHE_PICTURE_SIZE 1024
@@ -151,14 +152,20 @@ static Bool realize_glyph_caches(struct sna *sna)
 
 	DBG(("%s\n", __FUNCTION__));
 
+	if (sna->kgem.wedged || !sna->have_render)
+		return TRUE;
+
 	for (i = 0; i < ARRAY_SIZE(formats); i++) {
 		struct sna_glyph_cache *cache = &sna->render.glyph[i];
+		struct sna_pixmap *priv;
 		PixmapPtr pixmap;
-		PicturePtr picture;
+		PicturePtr picture = NULL;
+		PictFormatPtr pPictFormat;
 		CARD32 component_alpha;
 		int depth = PIXMAN_FORMAT_DEPTH(formats[i]);
 		int error;
-		PictFormatPtr pPictFormat = PictureMatchFormat(screen, depth, formats[i]);
+
+		pPictFormat = PictureMatchFormat(screen, depth, formats[i]);
 		if (!pPictFormat)
 			goto bail;
 
@@ -171,13 +178,18 @@ static Bool realize_glyph_caches(struct sna *sna)
 		if (!pixmap)
 			goto bail;
 
-		component_alpha = NeedsComponent(pPictFormat->format);
-		picture = CreatePicture(0, &pixmap->drawable, pPictFormat,
-					CPComponentAlpha, &component_alpha,
-					serverClient, &error);
+		priv = sna_pixmap(pixmap);
+		if (priv != NULL) {
+			/* Prevent the cache from ever being paged out */
+			priv->pinned = true;
+
+			component_alpha = NeedsComponent(pPictFormat->format);
+			picture = CreatePicture(0, &pixmap->drawable, pPictFormat,
+						CPComponentAlpha, &component_alpha,
+						serverClient, &error);
+		}
 
 		screen->DestroyPixmap(pixmap);
-
 		if (!picture)
 			goto bail;
 
@@ -300,7 +312,12 @@ glyph_cache(ScreenPtr screen,
 
 	if (glyph->info.width > GLYPH_MAX_SIZE ||
 	    glyph->info.height > GLYPH_MAX_SIZE) {
-		((PixmapPtr)glyph_picture->pDrawable)->usage_hint = 0;
+		PixmapPtr pixmap = (PixmapPtr)glyph_picture->pDrawable;
+		assert(glyph_picture->pDrawable->type == DRAWABLE_PIXMAP);
+		if (pixmap->drawable.depth >= 8) {
+			pixmap->usage_hint = SNA_CREATE_GLYPH;
+			sna_pixmap_force_to_gpu(pixmap, MOVE_READ);
+		}
 		return FALSE;
 	}
 
@@ -642,12 +659,7 @@ static bool
 clear_pixmap(struct sna *sna, PixmapPtr pixmap)
 {
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
-	assert(priv->gpu_only);
-	return sna->render.fill_one(sna, pixmap, priv->gpu_bo, 0,
-				    0, 0,
-				    pixmap->drawable.width,
-				    pixmap->drawable.height,
-				    GXclear);
+	return sna->render.clear(sna, pixmap, priv->gpu_bo);
 }
 
 static Bool
@@ -711,7 +723,8 @@ glyphs_via_mask(struct sna *sna,
 	}
 
 	component_alpha = NeedsComponent(format->format);
-	if ((uint32_t)width * height * format->depth < 8 * 4096) {
+	if (!NO_SMALL_MASK &&
+	    (uint32_t)width * height * format->depth < 8 * 4096) {
 		pixman_image_t *mask_image;
 		int s;
 
@@ -722,7 +735,8 @@ glyphs_via_mask(struct sna *sna,
 upload:
 		pixmap = sna_pixmap_create_upload(screen,
 						  width, height,
-						  format->depth);
+						  format->depth,
+						  KGEM_BUFFER_WRITE);
 		if (!pixmap)
 			return FALSE;
 
@@ -1012,7 +1026,7 @@ glyphs_fallback(CARD8 op,
 	DBG(("%s: (%d, %d), (%d, %d)\n",
 	     __FUNCTION__, box.x1, box.y1, box.x2, box.y2));
 
-	RegionInit(&region, &box, 1);
+	RegionInit(&region, &box, 0);
 	RegionTranslate(&region, dst->pDrawable->x, dst->pDrawable->y);
 	if (dst->pCompositeClip)
 		RegionIntersect(&region, &region, dst->pCompositeClip);
@@ -1023,13 +1037,23 @@ glyphs_fallback(CARD8 op,
 	if (!RegionNotEmpty(&region))
 		return;
 
-	sna_drawable_move_region_to_cpu(dst->pDrawable, &region, true);
-	if (dst->alphaMap)
-		sna_drawable_move_to_cpu(dst->alphaMap->pDrawable, true);
+	if (!sna_drawable_move_region_to_cpu(dst->pDrawable, &region,
+					     MOVE_READ | MOVE_WRITE))
+		return;
+	if (dst->alphaMap &&
+	    !sna_drawable_move_to_cpu(dst->alphaMap->pDrawable,
+				      MOVE_READ | MOVE_WRITE))
+		return;
+
 	if (src->pDrawable) {
-		sna_drawable_move_to_cpu(src->pDrawable, false);
-		if (src->alphaMap)
-			sna_drawable_move_to_cpu(src->alphaMap->pDrawable, false);
+		if (!sna_drawable_move_to_cpu(src->pDrawable,
+					      MOVE_READ))
+			return;
+
+		if (src->alphaMap &&
+		    !sna_drawable_move_to_cpu(src->alphaMap->pDrawable,
+					      MOVE_READ))
+			return;
 	}
 	RegionTranslate(&region, -dst->pDrawable->x, -dst->pDrawable->y);
 
@@ -1087,25 +1111,34 @@ glyphs_fallback(CARD8 op,
 		y += list->yOff;
 		while (n--) {
 			GlyphPtr g = *glyphs++;
-			PicturePtr picture;
 			pixman_image_t *glyph_image;
-			int dx, dy;
 
 			if (g->info.width == 0 || g->info.height == 0)
 				goto next_glyph;
 
-			picture = GlyphPicture(g)[screen];
-			if (picture == NULL)
-				goto next_glyph;
+			glyph_image = sna_glyph(g)->image;
+			if (glyph_image == NULL) {
+				PicturePtr picture;
+				int dx, dy;
 
-			glyph_image = image_from_pict(picture, FALSE, &dx, &dy);
-			if (!glyph_image)
-				goto next_glyph;
+				picture = GlyphPicture(g)[screen];
+				if (picture == NULL)
+					goto next_glyph;
+
+				glyph_image = image_from_pict(picture,
+							      FALSE,
+							      &dx, &dy);
+				if (!glyph_image)
+					goto next_glyph;
+
+				assert(dx == 0 && dy == 0);
+				sna_glyph(g)->image = glyph_image;
+			}
 
 			if (mask_format) {
 				DBG(("%s: glyph+(%d,%d) to mask (%d, %d)x(%d, %d)\n",
 				     __FUNCTION__,
-				     dx,dy,
+				     dx, dy,
 				     x - g->info.x,
 				     y - g->info.y,
 				     g->info.width,
@@ -1145,8 +1178,6 @@ glyphs_fallback(CARD8 op,
 						       g->info.width,
 						       g->info.height);
 			}
-			free_pixman_pict(picture, glyph_image);
-
 next_glyph:
 			x += g->info.xOff;
 			y += g->info.yOff;
@@ -1198,14 +1229,8 @@ sna_glyphs(CARD8 op,
 	if (FALLBACK || DEBUG_NO_RENDER)
 		goto fallback;
 
-	if (sna->kgem.wedged || !sna->have_render) {
-		DBG(("%s: no render (wedged=%d)\n",
-		     __FUNCTION__, sna->kgem.wedged));
-		goto fallback;
-	}
-
-	if (!is_gpu(dst->pDrawable)) {
-		DBG(("%s: fallback -- no destination bo\n", __FUNCTION__));
+	if (wedged(sna)) {
+		DBG(("%s: wedged\n", __FUNCTION__));
 		goto fallback;
 	}
 
@@ -1215,16 +1240,17 @@ sna_glyphs(CARD8 op,
 		goto fallback;
 	}
 
-	if (dst->alphaMap || src->alphaMap) {
-		DBG(("%s: fallback -- alpha maps\n", __FUNCTION__));
+	if (dst->alphaMap) {
+		DBG(("%s: fallback -- dst alpha map\n", __FUNCTION__));
 		goto fallback;
 	}
 
+	_mask = mask;
 	/* XXX discard the mask for non-overlapping glyphs? */
 
-	if (!mask ||
+	if (!_mask ||
 	    (((nlist == 1 && list->len == 1) || op == PictOpAdd) &&
-	     dst->format == (mask->depth << 24 | mask->format))) {
+	     dst->format == (_mask->depth << 24 | _mask->format))) {
 		if (glyphs_to_dst(sna, op,
 				  src, dst,
 				  src_x, src_y,
@@ -1232,7 +1258,6 @@ sna_glyphs(CARD8 op,
 			return;
 	}
 
-	_mask = mask;
 	if (!_mask)
 		_mask = glyphs_format(nlist, list, glyphs);
 	if (_mask) {

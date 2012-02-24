@@ -48,6 +48,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xf86.h"
 #include "xf86_OSproc.h"
 #include "xf86cmap.h"
+#include "xf86drm.h"
 #include "compiler.h"
 #include "mibstore.h"
 #include "mipointer.h"
@@ -76,6 +77,8 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i915_drm.h"
 #include <xf86drmMode.h>
 
+#include "intel_glamor.h"
+
 /* *INDENT-OFF* */
 /*
  * Note: "ColorKey" is provided for compatibility with the i810 driver.
@@ -102,6 +105,7 @@ typedef enum {
    OPTION_DEBUG_WAIT,
    OPTION_HOTPLUG,
    OPTION_RELAXED_FENCING,
+   OPTION_BUFFER_CACHE,
 } I830Opts;
 
 static OptionInfoRec I830Options[] = {
@@ -123,6 +127,7 @@ static OptionInfoRec I830Options[] = {
    {OPTION_DEBUG_WAIT, "DebugWait", OPTV_BOOLEAN, {0}, FALSE},
    {OPTION_HOTPLUG,	"HotPlug",	OPTV_BOOLEAN,	{0},	TRUE},
    {OPTION_RELAXED_FENCING,	"RelaxedFencing",	OPTV_BOOLEAN,	{0},	TRUE},
+   {OPTION_BUFFER_CACHE,	"BufferCache",	OPTV_BOOLEAN,	{0},	TRUE},
    {-1,			NULL,		OPTV_NONE,	{0},	FALSE}
 };
 /* *INDENT-ON* */
@@ -133,23 +138,6 @@ static Bool I830EnterVT(int scrnIndex, int flags);
 
 /* temporary */
 extern void xf86SetCursor(ScreenPtr screen, CursorPtr pCurs, int x, int y);
-
-#ifdef I830DEBUG
-void
-I830DPRINTF(const char *filename, int line, const char *function,
-	    const char *fmt, ...)
-{
-	va_list ap;
-
-	ErrorF("\n##############################################\n"
-	       "*** In function %s, on line %d, in file %s ***\n",
-	       function, line, filename);
-	va_start(ap, fmt);
-	VErrorF(fmt, ap);
-	va_end(ap);
-	ErrorF("##############################################\n\n");
-}
-#endif /* #ifdef I830DEBUG */
 
 /* Export I830 options to i830 driver where necessary */
 const OptionInfoRec *intel_uxa_available_options(int chipid, int busid)
@@ -165,8 +153,6 @@ I830LoadPalette(ScrnInfoPtr scrn, int numColors, int *indices,
 	int i, j, index;
 	int p;
 	uint16_t lut_r[256], lut_g[256], lut_b[256];
-
-	DPRINTF(PFX, "I830LoadPalette: numColors: %d\n", numColors);
 
 	for (p = 0; p < xf86_config->num_crtc; p++) {
 		xf86CrtcPtr crtc = xf86_config->crtc[p];
@@ -410,7 +396,9 @@ static int intel_init_bufmgr(intel_screen_private *intel)
 	if (!intel->bufmgr)
 		return FALSE;
 
-	drm_intel_bufmgr_gem_enable_reuse(intel->bufmgr);
+	if (xf86ReturnOptValBool(intel->Options, OPTION_BUFFER_CACHE, TRUE))
+		drm_intel_bufmgr_gem_enable_reuse(intel->bufmgr);
+	drm_intel_bufmgr_gem_set_vma_cache_size(intel->bufmgr, 512);
 	drm_intel_bufmgr_gem_enable_fenced_relocs(intel->bufmgr);
 
 	list_init(&intel->batch_pixmaps);
@@ -713,6 +701,13 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 		return FALSE;
 	}
 
+	if (!intel_glamor_pre_init(scrn)) {
+		PreInitCleanup(scrn);
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+			"Failed to pre init glamor display.\n");
+		return FALSE;
+	}
+
 	/* Load the dri2 module if requested. */
 	if (intel->directRenderingType != DRI_DISABLED)
 		xf86LoadSubModule(scrn, "dri2");
@@ -814,8 +809,10 @@ intel_flush_callback(CallbackListPtr *list,
 		     pointer user_data, pointer call_data)
 {
 	ScrnInfoPtr scrn = user_data;
-	if (scrn->vtSema)
+	if (scrn->vtSema) {
 		intel_batch_submit(scrn);
+		intel_glamor_flush(intel_get_screen_private(scrn));
+	}
 }
 
 #if HAVE_UDEV
@@ -966,9 +963,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 	if (!miSetPixmapDepths())
 		return FALSE;
 
-	DPRINTF(PFX, "assert( if(!I830EnterVT(scrnIndex, 0)) )\n");
-
-	DPRINTF(PFX, "assert( if(!fbScreenInit(screen, ...) )\n");
 	if (!fbScreenInit(screen, NULL,
 			  scrn->virtualX, scrn->virtualY,
 			  scrn->xDpi, scrn->yDpi,
@@ -1038,14 +1032,13 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 	intel->CreateScreenResources = screen->CreateScreenResources;
 	screen->CreateScreenResources = i830CreateScreenResources;
 
+	intel_glamor_init(screen);
 	if (!xf86CrtcScreenInit(screen))
 		return FALSE;
 
-	DPRINTF(PFX, "assert( if(!miCreateDefColormap(screen)) )\n");
 	if (!miCreateDefColormap(screen))
 		return FALSE;
 
-	DPRINTF(PFX, "assert( if(!xf86HandleColormaps(screen, ...)) )\n");
 	if (!xf86HandleColormaps(screen, 256, 8, I830LoadPalette, NULL,
 				 CMAP_RELOAD_ON_MODE_SWITCH |
 				 CMAP_PALETTED_TRUECOLOR)) {
@@ -1127,8 +1120,6 @@ static void I830LeaveVT(int scrnIndex, int flags)
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	int ret;
 
-	DPRINTF(PFX, "Leave VT\n");
-
 	xf86RotateFreeShadow(scrn);
 
 	xf86_hide_cursors(scrn);
@@ -1148,16 +1139,12 @@ static Bool I830EnterVT(int scrnIndex, int flags)
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	int ret;
 
-	DPRINTF(PFX, "Enter VT\n");
-
 	ret = drmSetMaster(intel->drmSubFD);
 	if (ret) {
 		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 			   "drmSetMaster failed: %s\n",
 			   strerror(errno));
 	}
-
-	intel_set_gem_max_sizes(scrn);
 
 	if (!xf86SetDesiredModes(scrn))
 		return FALSE;
@@ -1187,10 +1174,20 @@ static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen)
 
 	DeleteCallback(&FlushCallback, intel_flush_callback, scrn);
 
+	intel_glamor_close_screen(screen);
+
+	TimerFree(intel->cache_expire);
+	intel->cache_expire = NULL;
+
 	if (intel->uxa_driver) {
 		uxa_driver_fini(screen);
 		free(intel->uxa_driver);
 		intel->uxa_driver = NULL;
+	}
+
+	if (intel->back_pixmap) {
+		screen->DestroyPixmap(intel->back_pixmap);
+		intel->back_pixmap = NULL;
 	}
 
 	if (intel->back_buffer) {
@@ -1273,9 +1270,6 @@ static Bool I830PMEvent(int scrnIndex, pmEvent event, Bool undo)
 {
 	ScrnInfoPtr scrn = xf86Screens[scrnIndex];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-
-	DPRINTF(PFX, "Enter VT, event %d, undo: %s\n", event,
-		BOOLTOSTRING(undo));
 
 	switch (event) {
 	case XF86_APM_SYS_SUSPEND:

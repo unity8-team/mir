@@ -428,6 +428,7 @@ sna_crtc_restore(struct sna *sna)
 		return;
 
 	assert(bo->tiling != I915_TILING_Y);
+	bo->scanout = true;
 
 	DBG(("%s: create fb %dx%d@%d/%d\n",
 	     __FUNCTION__,
@@ -577,7 +578,8 @@ void sna_copy_fbcon(struct sna *sna)
 				    scratch, bo, sx, sy,
 				    sna->front, priv->gpu_bo, dx, dy,
 				    &box, 1);
-	sna_damage_add_box(&priv->gpu_damage, &box);
+	if (!DAMAGE_IS_ALL(priv->gpu_damage))
+		sna_damage_add_box(&priv->gpu_damage, &box);
 
 	kgem_bo_destroy(&sna->kgem, bo);
 
@@ -661,6 +663,7 @@ sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 
 		DBG(("%s: handle %d attached to fb %d\n",
 		     __FUNCTION__, bo->handle, sna_mode->fb_id));
+		bo->scanout = true;
 		sna_mode->fb_pixmap = sna->front->drawable.serialNumber;
 	}
 
@@ -749,7 +752,9 @@ sna_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 
 	DBG(("%s(%d, %d)\n", __FUNCTION__, width, height));
 
-	shadow = scrn->pScreen->CreatePixmap(scrn->pScreen, width, height, scrn->depth, 0);
+	shadow = scrn->pScreen->CreatePixmap(scrn->pScreen,
+					     width, height, scrn->depth,
+					     SNA_CREATE_FB);
 	if (!shadow)
 		return NULL;
 
@@ -774,6 +779,7 @@ sna_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 
 	DBG(("%s: attached handle %d to fb %d\n",
 	     __FUNCTION__, bo->handle, sna_crtc->shadow_fb_id));
+	bo->scanout = true;
 	return sna_crtc->shadow = shadow;
 }
 
@@ -800,6 +806,7 @@ sna_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr pixmap, void *data)
 	drmModeRmFB(sna->kgem.fd, sna_crtc->shadow_fb_id);
 	sna_crtc->shadow_fb_id = 0;
 
+	kgem_bo_clear_scanout(&sna->kgem, sna_pixmap_get_bo(pixmap));
 	pixmap->drawable.pScreen->DestroyPixmap(pixmap);
 	sna_crtc->shadow = NULL;
 }
@@ -1142,13 +1149,28 @@ sna_output_dpms(xf86OutputPtr output, int dpms)
 			continue;
 
 		if (!strcmp(props->name, "DPMS")) {
+			/* Record thevalue of the backlight before turning
+			 * off the display, and reset if after turnging it on.
+			 * Order is important as the kernel may record and also
+			 * reset the backlight across DPMS. Hence we need to
+			 * record the value before the kernel modifies it
+			 * and reapply it afterwards.
+			 */
+			if (dpms == DPMSModeOff)
+				sna_output_dpms_backlight(output,
+							  sna_output->dpms_mode,
+							  dpms);
+
 			drmModeConnectorSetProperty(sna->kgem.fd,
 						    sna_output->output_id,
 						    props->prop_id,
 						    dpms);
-			sna_output_dpms_backlight(output,
-						      sna_output->dpms_mode,
-						      dpms);
+
+			if (dpms != DPMSModeOff)
+				sna_output_dpms_backlight(output,
+							  sna_output->dpms_mode,
+							  dpms);
+
 			sna_output->dpms_mode = dpms;
 			drmModeFreeProperty(props);
 			return;
@@ -1668,6 +1690,7 @@ sna_crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	     __FUNCTION__, bo->handle,
 	     sna->front->drawable.serialNumber, mode->fb_id));
 
+	bo->scanout = true;
 	for (i = 0; i < xf86_config->num_crtc; i++) {
 		xf86CrtcPtr crtc = xf86_config->crtc[i];
 
@@ -1689,6 +1712,7 @@ sna_crtc_resize(ScrnInfoPtr scrn, int width, int height)
 
 	if (old_fb_id)
 		drmModeRmFB(sna->kgem.fd, old_fb_id);
+	kgem_bo_clear_scanout(&sna->kgem, sna_pixmap_get_bo(old_front));
 	scrn->pScreen->DestroyPixmap(old_front);
 
 	return TRUE;
@@ -1819,16 +1843,7 @@ sna_page_flip(struct sna *sna,
 	count = do_page_flip(sna, data, ref_crtc_hw_id);
 	DBG(("%s: page flipped %d crtcs\n", __FUNCTION__, count));
 	if (count) {
-		bo->cpu_read = bo->cpu_write = false;
-		bo->gpu = true;
-
-		/* Although the kernel performs an implicit flush upon
-		 * page-flipping, marking the bo as requiring a flush
-		 * here ensures that the buffer goes into the active cache
-		 * upon release.
-		 */
-		bo->needs_flush = true;
-		bo->reusable = true;
+		bo->scanout = true;
 	} else {
 		drmModeRmFB(sna->kgem.fd, mode->fb_id);
 		mode->fb_id = *old_fb;
@@ -1912,6 +1927,7 @@ sna_mode_fini(struct sna *sna)
 #endif
 
 	sna_mode_remove_fb(sna);
+	kgem_bo_clear_scanout(&sna->kgem, sna_pixmap_get_bo(sna->front));
 
 	/* mode->shadow_fb_id should have been destroyed already */
 }
