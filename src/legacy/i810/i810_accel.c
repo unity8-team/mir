@@ -213,7 +213,7 @@ I810WaitLpRing(ScrnInfoPtr pScrn, int n, int timeout_millis)
 		start);
 	 I810PrintErrorState(pScrn);
 	 ErrorF("space: %d wanted %d\n", ring->space, n);
-#ifdef XF86DRI
+#ifdef HAVE_DRI1
 	 if (pI810->directRenderingEnabled) {
 	    DRIUnlock(screenInfo.screens[pScrn->scrnIndex]);
 	    DRICloseScreen(screenInfo.screens[pScrn->scrnIndex]);
@@ -245,7 +245,7 @@ I810Sync(ScrnInfoPtr pScrn)
    if (I810_DEBUG & (DEBUG_VERBOSE_ACCEL | DEBUG_VERBOSE_SYNC))
       ErrorF("I810Sync\n");
 
-#ifdef XF86DRI
+#ifdef HAVE_DRI1
    /* VT switching tries to do this.  
     */
    if (!pI810->LockHeld && pI810->directRenderingEnabled) {
