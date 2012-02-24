@@ -44,8 +44,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <stdint.h>
 
 #include "compiler.h"
+
 #include <xf86_OSproc.h>
-#include <xf86PciInfo.h>
 #include <xf86Pci.h>
 #include <xf86Cursor.h>
 #include <xf86xv.h>
@@ -93,9 +93,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define DEBUG_NO_RENDER 0
 #define DEBUG_NO_BLT 0
-#define DEBUG_NO_IO 0
 
-#define DEBUG_FLUSH_CACHE 0
 #define DEBUG_FLUSH_BATCH 0
 #define DEBUG_FLUSH_SYNC 0
 
@@ -112,14 +110,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define TEST_RENDER (TEST_ALL || 0)
 
 #include "intel_driver.h"
+#include "intel_list.h"
 #include "kgem.h"
 #include "sna_damage.h"
 #include "sna_render.h"
-
-static inline void list_add_tail(struct list *new, struct list *head)
-{
-	__list_add(new, head->prev, head);
-}
 
 #ifndef CREATE_PIXMAP_USAGE_SCRATCH_HEADER
 #define FAKE_CREATE_PIXMAP_USAGE_SCRATCH_HEADER 1
@@ -133,16 +127,23 @@ struct sna_pixmap {
 	PixmapPtr pixmap;
 	struct kgem_bo *gpu_bo, *cpu_bo;
 	struct sna_damage *gpu_damage, *cpu_damage;
+	void *ptr;
 
 	struct list list;
+	struct list inactive;
+
+	uint32_t stride;
+	uint32_t clear_color;
 
 #define SOURCE_BIAS 4
 	uint16_t source_count;
-	uint8_t mapped :1;
 	uint8_t pinned :1;
-	uint8_t gpu_only :1;
+	uint8_t mapped :1;
 	uint8_t flush :1;
-	uint8_t gpu :1;
+	uint8_t clear :1;
+	uint8_t undamaged :1;
+	uint8_t create :3;
+	uint8_t header :1;
 };
 
 struct sna_glyph {
@@ -174,7 +175,7 @@ static inline PixmapPtr get_drawable_pixmap(DrawablePtr drawable)
 		return get_window_pixmap((WindowPtr)drawable);
 }
 
-static inline struct sna_pixmap *sna_pixmap(PixmapPtr pixmap)
+constant static inline struct sna_pixmap *sna_pixmap(PixmapPtr pixmap)
 {
 	return ((void **)pixmap->devPrivates)[1];
 }
@@ -187,6 +188,7 @@ static inline struct sna_pixmap *sna_pixmap_from_drawable(DrawablePtr drawable)
 struct sna_gc {
 	long changes;
 	long serial;
+	void *priv;
 };
 
 static inline struct sna_gc *sna_gc(GCPtr gc)
@@ -212,8 +214,10 @@ enum {
 enum {
 	FLUSH_TIMER = 0,
 	EXPIRE_TIMER,
+	INACTIVE_TIMER,
 	NUM_TIMERS
 };
+#define NUM_FINE_TIMERS 1
 
 struct sna {
 	ScrnInfoPtr scrn;
@@ -223,12 +227,15 @@ struct sna {
 #define SNA_NO_DELAYED_FLUSH	0x2
 
 	int timer[NUM_TIMERS];
-	int timer_active;
+	uint16_t timer_active;
+	uint16_t timer_ready;
 
 	int vblank_interval;
 
 	struct list deferred_free;
 	struct list dirty_pixmaps;
+	struct list active_pixmaps;
+	struct list inactive_clock[2];
 
 	PixmapPtr front, shadow;
 	PixmapPtr freed_pixmap;
@@ -264,6 +271,7 @@ struct sna {
 	void *WakeupData;
 	CloseScreenProcPtr CloseScreen;
 
+	PicturePtr clear;
 	struct {
 		uint32_t fill_bo;
 		uint32_t fill_pixel;
@@ -278,6 +286,7 @@ struct sna {
 		struct gen7_render_state gen7;
 	} render_state;
 	uint32_t have_render;
+	uint32_t default_tiling;
 
 	Bool directRenderingOpen;
 	char *deviceName;
@@ -314,25 +323,25 @@ extern PixmapPtr sna_set_screen_pixmap(struct sna *sna, PixmapPtr pixmap);
 
 void sna_mode_delete_fb(struct sna *sna, uint32_t fb);
 
-static inline struct sna *
+constant static inline struct sna *
 to_sna(ScrnInfoPtr scrn)
 {
 	return (struct sna *)(scrn->driverPrivate);
 }
 
-static inline struct sna *
+constant static inline struct sna *
 to_sna_from_screen(ScreenPtr screen)
 {
 	return to_sna(xf86Screens[screen->myNum]);
 }
 
-static inline struct sna *
+constant static inline struct sna *
 to_sna_from_pixmap(PixmapPtr pixmap)
 {
 	return *(void **)pixmap->devPrivates;
 }
 
-static inline struct sna *
+constant static inline struct sna *
 to_sna_from_drawable(DrawablePtr drawable)
 {
 	return to_sna_from_screen(drawable->pScreen);
@@ -348,7 +357,8 @@ to_sna_from_kgem(struct kgem *kgem)
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
 #endif
 #define ALIGN(i,m)	(((i) + (m) - 1) & ~((m) - 1))
-#define MIN(a,b)	((a) < (b) ? (a) : (b))
+#define MIN(a,b)	((a) <= (b) ? (a) : (b))
+#define MAX(a,b)	((a) >= (b) ? (a) : (b))
 
 extern xf86CrtcPtr sna_covering_crtc(ScrnInfoPtr scrn,
 				     const BoxRec *box,
@@ -365,12 +375,8 @@ void sna_dri_close(struct sna *sna, ScreenPtr pScreen);
 extern Bool sna_crtc_on(xf86CrtcPtr crtc);
 int sna_crtc_to_pipe(xf86CrtcPtr crtc);
 
-/* sna_render.c */
-void sna_kgem_reset(struct kgem *kgem);
-void sna_kgem_flush(struct kgem *kgem);
-void sna_kgem_context_switch(struct kgem *kgem, int new_mode);
-
 CARD32 sna_format_for_depth(int depth);
+CARD32 sna_render_format_for_depth(int depth);
 
 void sna_debug_flush(struct sna *sna);
 
@@ -413,41 +419,60 @@ static inline Bool pixmap_is_scanout(PixmapPtr pixmap)
 	return pixmap == screen->GetScreenPixmap(screen);
 }
 
-struct sna_pixmap *sna_pixmap_attach(PixmapPtr pixmap);
+struct sna_pixmap *_sna_pixmap_attach(PixmapPtr pixmap);
+inline static struct sna_pixmap *sna_pixmap_attach(PixmapPtr pixmap)
+{
+	struct sna_pixmap *priv;
+
+	priv = sna_pixmap(pixmap);
+	if (priv)
+		return priv;
+
+	return _sna_pixmap_attach(pixmap);
+}
 
 PixmapPtr sna_pixmap_create_upload(ScreenPtr screen,
-				   int width, int height, int depth);
+				   int width, int height, int depth,
+				   unsigned flags);
 
-void sna_pixmap_move_to_cpu(PixmapPtr pixmap, bool write);
-struct sna_pixmap *sna_pixmap_move_to_gpu(PixmapPtr pixmap);
-struct sna_pixmap *sna_pixmap_force_to_gpu(PixmapPtr pixmap);
+struct sna_pixmap *sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags);
+struct sna_pixmap *sna_pixmap_force_to_gpu(PixmapPtr pixmap, unsigned flags);
+struct kgem_bo *sna_pixmap_change_tiling(PixmapPtr pixmap, uint32_t tiling);
 
-void
-sna_drawable_move_region_to_cpu(DrawablePtr drawable,
-				RegionPtr region,
-				Bool write);
+#define MOVE_WRITE 0x1
+#define MOVE_READ 0x2
+#define MOVE_INPLACE_HINT 0x4
+#define MOVE_ASYNC_HINT 0x8
+bool must_check _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned flags);
+static inline bool must_check sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned flags)
+{
+	if (flags == MOVE_READ) {
+		struct sna_pixmap *priv = sna_pixmap(pixmap);
+		if (priv == NULL || priv->gpu_damage == NULL)
+			return true;
+	}
 
-static inline void
-sna_drawable_move_to_cpu(DrawablePtr drawable, bool write)
+	return _sna_pixmap_move_to_cpu(pixmap, flags);
+}
+bool must_check sna_drawable_move_region_to_cpu(DrawablePtr drawable,
+						RegionPtr region,
+						unsigned flags);
+
+static inline bool must_check
+sna_drawable_move_to_cpu(DrawablePtr drawable, unsigned flags)
 {
 	RegionRec region;
 
 	pixman_region_init_rect(&region,
-				0, 0, drawable->width, drawable->height);
-	sna_drawable_move_region_to_cpu(drawable, &region, write);
+				drawable->x, drawable->y,
+				drawable->width, drawable->height);
+	return sna_drawable_move_region_to_cpu(drawable, &region, flags);
 }
 
-static inline Bool
-sna_drawable_move_to_gpu(DrawablePtr drawable)
+static inline bool must_check
+sna_drawable_move_to_gpu(DrawablePtr drawable, unsigned flags)
 {
-	return sna_pixmap_move_to_gpu(get_drawable_pixmap(drawable)) != NULL;
-}
-
-static inline Bool
-sna_pixmap_is_gpu(PixmapPtr pixmap)
-{
-	struct sna_pixmap *priv = sna_pixmap(pixmap);
-	return priv && priv->gpu_bo;
+	return sna_pixmap_move_to_gpu(get_drawable_pixmap(drawable), flags) != NULL;
 }
 
 static inline struct kgem_bo *sna_pixmap_get_bo(PixmapPtr pixmap)
@@ -459,7 +484,7 @@ static inline struct kgem_bo *sna_pixmap_pin(PixmapPtr pixmap)
 {
 	struct sna_pixmap *priv;
 
-	priv = sna_pixmap_force_to_gpu(pixmap);
+	priv = sna_pixmap_force_to_gpu(pixmap, MOVE_READ | MOVE_WRITE);
 	if (!priv)
 		return NULL;
 
@@ -497,7 +522,7 @@ _sna_get_transformed_coordinates(int x, int y,
 
 void
 sna_get_transformed_coordinates(int x, int y,
-			       	const PictTransform *transform,
+				const PictTransform *transform,
 				float *x_out, float *y_out);
 
 Bool
@@ -511,6 +536,31 @@ Bool sna_transform_is_integer_translation(const PictTransform *t,
 Bool sna_transform_is_translation(const PictTransform *t,
 				  pixman_fixed_t *tx, pixman_fixed_t *ty);
 
+static inline bool
+sna_transform_equal(const PictTransform *a, const PictTransform *b)
+{
+	if (a == b)
+		return true;
+
+	if (a == NULL || b == NULL)
+		return false;
+
+	return memcmp(a, b, sizeof(*a)) == 0;
+}
+
+static inline bool
+sna_picture_alphamap_equal(PicturePtr a, PicturePtr b)
+{
+	if (a->alphaMap != b->alphaMap)
+		return false;
+
+	if (a->alphaMap)
+		return false;
+
+	return (a->alphaOrigin.x == b->alphaOrigin.x &&
+		a->alphaOrigin.y == b->alphaOrigin.y);
+}
+
 static inline bool wedged(struct sna *sna)
 {
 	return unlikely(sna->kgem.wedged);
@@ -522,41 +572,18 @@ static inline uint32_t pixmap_size(PixmapPtr pixmap)
 		pixmap->drawable.width * pixmap->drawable.bitsPerPixel/8;
 }
 
-static inline struct kgem_bo *pixmap_vmap(struct kgem *kgem, PixmapPtr pixmap)
-{
-	struct sna_pixmap *priv;
-
-	if (unlikely(kgem->wedged))
-		return NULL;
-
-	priv = sna_pixmap_attach(pixmap);
-	if (priv == NULL)
-		return NULL;
-
-	if (priv->cpu_bo == NULL) {
-		priv->cpu_bo = kgem_create_map(kgem,
-					       pixmap->devPrivate.ptr,
-					       pixmap_size(pixmap),
-					       0);
-		if (priv->cpu_bo) {
-			priv->cpu_bo->pitch = pixmap->devKind;
-			if (pixmap->usage_hint == CREATE_PIXMAP_USAGE_SCRATCH_HEADER)
-				priv->cpu_bo->sync = true;
-		}
-	}
-
-	return priv->cpu_bo;
-}
-
 Bool sna_accel_pre_init(struct sna *sna);
 Bool sna_accel_init(ScreenPtr sreen, struct sna *sna);
 void sna_accel_block_handler(struct sna *sna);
-void sna_accel_wakeup_handler(struct sna *sna);
+void sna_accel_wakeup_handler(struct sna *sna, fd_set *ready);
 void sna_accel_close(struct sna *sna);
 void sna_accel_free(struct sna *sna);
 
 Bool sna_accel_create(struct sna *sna);
 void sna_copy_fbcon(struct sna *sna);
+
+Bool sna_composite_create(struct sna *sna);
+void sna_composite_close(struct sna *sna);
 
 void sna_composite(CARD8 op,
 		   PicturePtr src,
@@ -619,15 +646,25 @@ void sna_read_boxes(struct sna *sna,
 		    struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
 		    PixmapPtr dst, int16_t dst_dx, int16_t dst_dy,
 		    const BoxRec *box, int n);
-void sna_write_boxes(struct sna *sna,
+bool sna_write_boxes(struct sna *sna, PixmapPtr dst,
 		     struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
-		     const void *src, int stride, int bpp, int16_t src_dx, int16_t src_dy,
+		     const void *src, int stride, int16_t src_dx, int16_t src_dy,
 		     const BoxRec *box, int n);
+void sna_write_boxes__xor(struct sna *sna, PixmapPtr dst,
+			  struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
+			  const void *src, int stride, int16_t src_dx, int16_t src_dy,
+			  const BoxRec *box, int nbox,
+			  uint32_t and, uint32_t or);
 
-struct kgem_bo *sna_replace(struct sna *sna,
-			    struct kgem_bo *bo,
-			    int width, int height, int bpp,
-			    const void *src, int stride);
+bool sna_replace(struct sna *sna,
+		 PixmapPtr pixmap,
+		 struct kgem_bo **bo,
+		 const void *src, int stride);
+struct kgem_bo *sna_replace__xor(struct sna *sna,
+				 PixmapPtr pixmap,
+				 struct kgem_bo *bo,
+				 const void *src, int stride,
+				 uint32_t and, uint32_t or);
 
 Bool
 sna_compute_composite_extents(BoxPtr extents,
@@ -651,7 +688,21 @@ memcpy_blt(const void *src, void *dst, int bpp,
 	   int16_t dst_x, int16_t dst_y,
 	   uint16_t width, uint16_t height);
 
+void
+memcpy_xor(const void *src, void *dst, int bpp,
+	   int32_t src_stride, int32_t dst_stride,
+	   int16_t src_x, int16_t src_y,
+	   int16_t dst_x, int16_t dst_y,
+	   uint16_t width, uint16_t height,
+	   uint32_t and, uint32_t or);
+
 #define SNA_CREATE_FB 0x10
 #define SNA_CREATE_SCRATCH 0x11
+#define SNA_CREATE_GLYPH 0x12
+
+inline static bool is_power_of_two(unsigned x)
+{
+	return (x & (x-1)) == 0;
+}
 
 #endif /* _SNA_H */

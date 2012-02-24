@@ -29,10 +29,23 @@
 #include <stdlib.h>
 
 #include "uxa-priv.h"
+#include "uxa-glamor.h"
 #include <xorgVersion.h>
 
 #ifdef RENDER
 #include "mipict.h"
+
+/* Note: when using glamor we can not fail through to the ordinary UXA
+ * code paths, as glamor keeps an internal texture which will become
+ * inconsistent with the original bo. (The texture is replaced whenever
+ * the format changes, e.g. switching between xRGB and ARGB, for which mesa
+ * will allocate its own bo.)
+ *
+ * Ergo it is unsafe to fall through to the original backend operations if
+ * glamor is enabled.
+ *
+ * XXX This has some serious implications for mixing Render, DRI, scanout...
+ */
 
 static void uxa_composite_fallback_pict_desc(PicturePtr pict, char *string,
 					     int n)
@@ -183,10 +196,8 @@ uxa_print_composite_fallback(const char *func, CARD8 op,
 	       "  op   %s, \n"
 	       "  src  %s, \n"
 	       "  mask %s, \n"
-	       "  dst  %s, \n"
-	       "  screen %s\n",
-	       func, op_to_string (op), srcdesc, maskdesc, dstdesc,
-	       uxa_screen->swappedOut ? "swapped out" : "normal");
+	       "  dst  %s, \n",
+	       func, op_to_string (op), srcdesc, maskdesc, dstdesc);
 }
 
 Bool uxa_op_reads_destination(CARD8 op)
@@ -571,7 +582,7 @@ uxa_picture_from_pixman_image(ScreenPtr screen,
 		if (uxa_picture_prepare_access(picture, UXA_ACCESS_RW)) {
 			fbComposite(PictOpSrc, src, NULL, picture,
 				    0, 0, 0, 0, 0, 0, width, height);
-			uxa_picture_finish_access(picture);
+			uxa_picture_finish_access(picture, UXA_ACCESS_RW);
 		}
 
 		FreePicture(src, 0);
@@ -599,7 +610,7 @@ uxa_create_solid(ScreenPtr screen, uint32_t color)
 		return 0;
 	}
 	*((uint32_t *)pixmap->devPrivate.ptr) = color;
-	uxa_finish_access((DrawablePtr)pixmap);
+	uxa_finish_access((DrawablePtr)pixmap, UXA_ACCESS_RW);
 
 	picture = CreatePicture(0, &pixmap->drawable,
 				PictureMatchFormat(screen, 32, PICT_a8r8g8b8),
@@ -702,7 +713,7 @@ uxa_acquire_pattern(ScreenPtr pScreen,
 	if (uxa_picture_prepare_access(pDst, UXA_ACCESS_RW)) {
 		fbComposite(PictOpSrc, pSrc, NULL, pDst,
 			    x, y, 0, 0, 0, 0, width, height);
-		uxa_picture_finish_access(pDst);
+		uxa_picture_finish_access(pDst, UXA_ACCESS_RW);
 		return pDst;
 	} else {
 		FreePicture(pDst, 0);
@@ -761,9 +772,9 @@ uxa_render_picture(ScreenPtr screen,
 			ret = 1;
 			fbComposite(PictOpSrc, src, NULL, picture,
 				    x, y, 0, 0, 0, 0, width, height);
-			uxa_picture_finish_access(src);
+			uxa_picture_finish_access(src, UXA_ACCESS_RO);
 		}
-		uxa_picture_finish_access(picture);
+		uxa_picture_finish_access(picture, UXA_ACCESS_RW);
 	}
 
 	if (!ret) {
@@ -985,6 +996,20 @@ uxa_solid_rects (CARD8		op,
 
 	if (!pixman_region_not_empty(dst->pCompositeClip))
 		return;
+
+	if (uxa_screen->info->flags & UXA_USE_GLAMOR) {
+		int ok;
+
+		uxa_picture_prepare_access(dst, UXA_GLAMOR_ACCESS_RW);
+		ok = glamor_composite_rects_nf(op, dst, color,
+					       num_rects, rects);
+		uxa_picture_finish_access(dst, UXA_GLAMOR_ACCESS_RW);
+
+		if (!ok)
+			goto fallback;
+
+		return;
+	}
 
 	if (dst->alphaMap)
 		goto fallback;
@@ -1530,7 +1555,31 @@ uxa_composite(CARD8 op,
 	RegionRec region;
 	int tx, ty;
 
-	if (uxa_screen->swappedOut || uxa_screen->force_fallback)
+	if (uxa_screen->info->flags & UXA_USE_GLAMOR) {
+		int ok;
+
+		uxa_picture_prepare_access(pDst, UXA_GLAMOR_ACCESS_RW);
+		uxa_picture_prepare_access(pSrc, UXA_GLAMOR_ACCESS_RO);
+		if (pMask)
+			uxa_picture_prepare_access(pMask, UXA_GLAMOR_ACCESS_RO);
+
+		ok = glamor_composite_nf(op,
+					 pSrc, pMask, pDst, xSrc, ySrc,
+					 xMask, yMask, xDst, yDst,
+					 width, height);
+
+		if (pMask)
+			uxa_picture_finish_access(pMask, UXA_GLAMOR_ACCESS_RO);
+		uxa_picture_finish_access(pSrc, UXA_GLAMOR_ACCESS_RO);
+		uxa_picture_finish_access(pDst, UXA_GLAMOR_ACCESS_RW);
+
+		if (!ok)
+			goto fallback;
+
+		return;
+	}
+
+	if (uxa_screen->force_fallback)
 		goto fallback;
 
 	if (!uxa_drawable_is_offscreen(pDst->pDrawable))
@@ -1766,8 +1815,8 @@ uxa_create_alpha_picture(ScreenPtr pScreen,
 
 static void
 uxa_check_trapezoids(CARD8 op, PicturePtr src, PicturePtr dst,
-	       PictFormatPtr maskFormat, INT16 xSrc, INT16 ySrc,
-	       int ntrap, xTrapezoid * traps)
+		     PictFormatPtr maskFormat, INT16 xSrc, INT16 ySrc,
+		     int ntrap, xTrapezoid * traps)
 {
 	ScreenPtr screen = dst->pDrawable->pScreen;
 
@@ -1871,7 +1920,25 @@ uxa_trapezoids(CARD8 op, PicturePtr src, PicturePtr dst,
 	BoxRec bounds;
 	Bool direct;
 
-	if (uxa_screen->swappedOut || uxa_screen->force_fallback) {
+	if (uxa_screen->info->flags & UXA_USE_GLAMOR) {
+		int ok;
+
+		uxa_picture_prepare_access(dst, UXA_GLAMOR_ACCESS_RW);
+		uxa_picture_prepare_access(src, UXA_GLAMOR_ACCESS_RO);
+		ok = glamor_trapezoids_nf(op,
+					  src, dst, maskFormat, xSrc,
+					  ySrc, ntrap, traps);
+		uxa_picture_finish_access(src, UXA_GLAMOR_ACCESS_RO);
+		uxa_picture_finish_access(dst, UXA_GLAMOR_ACCESS_RW);
+
+		if (!ok)
+			goto fallback;
+
+		return;
+	}
+
+	if (uxa_screen->force_fallback) {
+fallback:
 		uxa_check_trapezoids(op, src, dst, maskFormat, xSrc, ySrc, ntrap, traps);
 		return;
 	}
@@ -1902,7 +1969,7 @@ uxa_trapezoids(CARD8 op, PicturePtr src, PicturePtr dst,
 
 			for (; ntrap; ntrap--, traps++)
 				(*ps->RasterizeTrapezoid) (dst, traps, 0, 0);
-			uxa_finish_access(pDraw);
+			uxa_finish_access(pDraw, UXA_ACCESS_RW);
 		}
 	} else if (maskFormat) {
 		PixmapPtr scratch = NULL;
@@ -1976,6 +2043,88 @@ uxa_trapezoids(CARD8 op, PicturePtr src, PicturePtr dst,
 	}
 }
 
+static void
+uxa_check_triangles(CARD8 op, PicturePtr src, PicturePtr dst,
+		    PictFormatPtr maskFormat, INT16 xSrc, INT16 ySrc,
+		    int ntri, xTriangle *tri)
+{
+	ScreenPtr screen = dst->pDrawable->pScreen;
+
+	if (maskFormat) {
+		PixmapPtr scratch = NULL;
+		PicturePtr mask;
+		INT16 xDst, yDst;
+		INT16 xRel, yRel;
+		BoxRec bounds;
+		int width, height;
+		pixman_image_t *image;
+		pixman_format_code_t format;
+		int error;
+
+		xDst = pixman_fixed_to_int(tri[0].p1.x);
+		yDst = pixman_fixed_to_int(tri[0].p1.y);
+
+		miTriangleBounds (ntri, tri, &bounds);
+		if (bounds.y1 >= bounds.y2 || bounds.x1 >= bounds.x2)
+			return;
+
+		width  = bounds.x2 - bounds.x1;
+		height = bounds.y2 - bounds.y1;
+
+		format = maskFormat->format |
+			(BitsPerPixel(maskFormat->depth) << 24);
+		image =
+		    pixman_image_create_bits(format, width, height, NULL, 0);
+		if (!image)
+			return;
+
+		pixman_add_triangles(image,
+				     -bounds.x1, -bounds.y1,
+				     ntri, (pixman_triangle_t *)tri);
+
+		scratch = GetScratchPixmapHeader(screen, width, height,
+						 PIXMAN_FORMAT_DEPTH(format),
+						 PIXMAN_FORMAT_BPP(format),
+						 pixman_image_get_stride(image),
+						 pixman_image_get_data(image));
+		if (!scratch) {
+			pixman_image_unref(image);
+			return;
+		}
+
+		mask = CreatePicture(0, &scratch->drawable,
+				     PictureMatchFormat(screen,
+							PIXMAN_FORMAT_DEPTH(format),
+							format),
+				     0, 0, serverClient, &error);
+		if (!mask) {
+			FreeScratchPixmapHeader(scratch);
+			pixman_image_unref(image);
+			return;
+		}
+
+		xRel = bounds.x1 + xSrc - xDst;
+		yRel = bounds.y1 + ySrc - yDst;
+		CompositePicture(op, src, mask, dst,
+				 xRel, yRel,
+				 0, 0,
+				 bounds.x1, bounds.y1,
+				 width, height);
+		FreePicture(mask, 0);
+
+		FreeScratchPixmapHeader(scratch);
+		pixman_image_unref(image);
+	} else {
+		if (dst->polyEdge == PolyEdgeSharp)
+			maskFormat = PictureMatchFormat(screen, 1, PICT_a1);
+		else
+			maskFormat = PictureMatchFormat(screen, 8, PICT_a8);
+
+		for (; ntri; ntri--, tri++)
+			uxa_check_triangles(op, src, dst, maskFormat, xSrc, ySrc, 1, tri);
+	}
+}
+
 /**
  * uxa_triangles is essentially a copy of miTriangles that uses
  * uxa_create_alpha_picture instead of miCreateAlphaPicture.
@@ -1995,10 +2144,36 @@ uxa_triangles(CARD8 op, PicturePtr pSrc, PicturePtr pDst,
 	      int ntri, xTriangle * tris)
 {
 	ScreenPtr pScreen = pDst->pDrawable->pScreen;
+	uxa_screen_t *uxa_screen = uxa_get_screen(pScreen);
 	PictureScreenPtr ps = GetPictureScreen(pScreen);
 	BoxRec bounds;
-	Bool direct = op == PictOpAdd && miIsSolidAlpha(pSrc);
+	Bool direct;
 
+	if (uxa_screen->info->flags & UXA_USE_GLAMOR) {
+		int ok;
+
+		uxa_picture_prepare_access(pDst, UXA_GLAMOR_ACCESS_RW);
+		uxa_picture_prepare_access(pSrc, UXA_GLAMOR_ACCESS_RO);
+		ok = glamor_triangles_nf(op,
+				        pSrc, pDst, maskFormat, xSrc,
+					ySrc, ntri, tris);
+		uxa_picture_finish_access(pSrc, UXA_GLAMOR_ACCESS_RO);
+		uxa_picture_finish_access(pDst, UXA_GLAMOR_ACCESS_RW);
+
+		if (!ok)
+			goto fallback;
+
+		return;
+	}
+
+	if (uxa_screen->force_fallback) {
+fallback:
+		uxa_check_triangles(op, pSrc, pDst, maskFormat,
+				    xSrc, ySrc, ntri, tris);
+		return;
+	}
+
+	direct = op == PictOpAdd && miIsSolidAlpha(pSrc);
 	if (maskFormat || direct) {
 		miTriangleBounds(ntri, tris, &bounds);
 
@@ -2013,7 +2188,7 @@ uxa_triangles(CARD8 op, PicturePtr pSrc, PicturePtr pDst,
 		DrawablePtr pDraw = pDst->pDrawable;
 		if (uxa_prepare_access(pDraw, UXA_ACCESS_RW)) {
 			(*ps->AddTriangles) (pDst, 0, 0, ntri, tris);
-			uxa_finish_access(pDraw);
+			uxa_finish_access(pDraw, UXA_ACCESS_RW);
 		}
 	} else if (maskFormat) {
 		PicturePtr pPicture;
@@ -2049,7 +2224,7 @@ uxa_triangles(CARD8 op, PicturePtr pSrc, PicturePtr pDst,
 		if (uxa_prepare_access(pPicture->pDrawable, UXA_ACCESS_RW)) {
 			(*ps->AddTriangles) (pPicture, -bounds.x1, -bounds.y1,
 					     ntri, tris);
-			uxa_finish_access(pPicture->pDrawable);
+			uxa_finish_access(pPicture->pDrawable, UXA_ACCESS_RW);
 		}
 
 		xRel = bounds.x1 + xSrc - xDst;
@@ -2068,4 +2243,29 @@ uxa_triangles(CARD8 op, PicturePtr pSrc, PicturePtr pDst,
 			uxa_triangles(op, pSrc, pDst, maskFormat, xSrc, ySrc, 1,
 				      tris);
 	}
+}
+
+void
+uxa_add_traps(PicturePtr pPicture,
+	      INT16 x_off, INT16 y_off, int ntrap, xTrap * traps)
+{
+	ScreenPtr pScreen = pPicture->pDrawable->pScreen;
+	uxa_screen_t *uxa_screen = uxa_get_screen(pScreen);
+
+	if (uxa_screen->info->flags & UXA_USE_GLAMOR) {
+		int ok;
+
+		uxa_picture_prepare_access(pPicture, UXA_GLAMOR_ACCESS_RW);
+		ok = glamor_add_traps_nf(pPicture,
+					 x_off, y_off, ntrap, traps);
+		uxa_picture_finish_access(pPicture, UXA_GLAMOR_ACCESS_RW);
+
+		if (!ok)
+			goto fallback;
+
+		return;
+	}
+
+fallback:
+	uxa_check_add_traps(pPicture, x_off, y_off, ntrap, traps);
 }

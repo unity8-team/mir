@@ -50,15 +50,21 @@ struct sna_composite_op {
 		uint32_t repeat;
 		uint32_t is_affine : 1;
 		uint32_t is_solid : 1;
+		uint32_t is_linear : 1;
 		uint32_t is_opaque : 1;
 		uint32_t alpha_fixup : 1;
 		uint32_t rb_reversed : 1;
 		int16_t offset[2];
 		float scale[2];
 
+		pixman_transform_t embedded_transform;
+
 		union {
 			struct {
 				uint32_t pixel;
+				float linear_dx;
+				float linear_dy;
+				float linear_offset;
 			} gen2;
 			struct gen3_shader_channel {
 				int type;
@@ -80,6 +86,7 @@ struct sna_composite_op {
 
 	struct sna_composite_redirect {
 		struct kgem_bo *real_bo;
+		struct sna_damage **real_damage, *damage;
 		BoxRec box;
 	} redirect;
 
@@ -127,9 +134,9 @@ struct sna_composite_op {
 			int nr_inputs;
 			int ve_id;
 		} gen7;
-
-		void *priv;
 	} u;
+
+	void *priv;
 };
 
 struct sna_composite_spans_op {
@@ -179,6 +186,7 @@ struct sna_copy_op {
 
 struct sna_render {
 	int max_3d_size;
+	int max_3d_pitch;
 
 	Bool (*composite)(struct sna *sna, uint8_t op,
 			  PicturePtr dst, PicturePtr src, PicturePtr mask,
@@ -219,6 +227,7 @@ struct sna_render {
 			 uint32_t color,
 			 int16_t x1, int16_t y1, int16_t x2, int16_t y2,
 			 uint8_t alu);
+	Bool (*clear)(struct sna *sna, PixmapPtr dst, struct kgem_bo *dst_bo);
 
 	Bool (*copy_boxes)(struct sna *sna, uint8_t alu,
 			   PixmapPtr src, struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
@@ -266,16 +275,19 @@ struct sna_render {
 	uint16_t vertex_start;
 	uint16_t vertex_index;
 	uint16_t vertex_used;
+	uint16_t vertex_size;
 	uint16_t vertex_reloc[8];
 
-	float vertex_data[16*1024];
-	const struct sna_composite_op *op;
+	struct kgem_bo *vbo;
+	float *vertices;
+
+	float vertex_data[1024];
 };
 
 struct gen2_render_state {
 	uint32_t target;
 	Bool need_invariant;
-	Bool logic_op_enabled;
+	uint32_t logic_op_enabled;
 	uint32_t ls1, ls2, vft;
 	uint32_t diffuse;
 	uint32_t specular;
@@ -393,6 +405,7 @@ struct gen6_render_state {
 	uint16_t surface_table;
 
 	Bool needs_invariant;
+	Bool first_state_packet;
 };
 
 enum {
@@ -489,6 +502,22 @@ Bool sna_tiling_composite(uint32_t op,
 			  int16_t dst_x, int16_t dst_y,
 			  int16_t width, int16_t height,
 			  struct sna_composite_op *tmp);
+Bool sna_tiling_fill_boxes(struct sna *sna,
+			   CARD8 op,
+			   PictFormat format,
+			   const xRenderColor *color,
+			   PixmapPtr dst, struct kgem_bo *dst_bo,
+			   const BoxRec *box, int n);
+
+Bool sna_tiling_copy_boxes(struct sna *sna, uint8_t alu,
+			   PixmapPtr src, struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
+			   PixmapPtr dst, struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
+			   const BoxRec *box, int n);
+
+Bool sna_tiling_blt_copy_boxes(struct sna *sna, uint8_t alu,
+			       struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
+			       struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
+			       int bpp, const BoxRec *box, int nbox);
 
 Bool sna_blt_composite(struct sna *sna,
 		       uint32_t op,
@@ -522,13 +551,42 @@ Bool sna_blt_copy_boxes(struct sna *sna, uint8_t alu,
 			struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
 			int bpp,
 			const BoxRec *box, int n);
+Bool sna_blt_copy_boxes_fallback(struct sna *sna, uint8_t alu,
+				 PixmapPtr src, struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
+				 PixmapPtr dst, struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
+				 const BoxRec *box, int nbox);
 
-Bool sna_get_pixel_from_rgba(uint32_t *pixel,
+Bool _sna_get_pixel_from_rgba(uint32_t *pixel,
 			     uint16_t red,
 			     uint16_t green,
 			     uint16_t blue,
 			     uint16_t alpha,
 			     uint32_t format);
+
+static inline Bool
+sna_get_pixel_from_rgba(uint32_t * pixel,
+			uint16_t red,
+			uint16_t green,
+			uint16_t blue,
+			uint16_t alpha,
+			uint32_t format)
+{
+	switch (format) {
+	case PICT_x8r8g8b8:
+		alpha = 0xffff;
+	case PICT_a8r8g8b8:
+		*pixel = ((alpha >> 8 << 24) |
+			  (red >> 8 << 16) |
+			  (green & 0xff00) |
+			  (blue >> 8));
+		return TRUE;
+	case PICT_a8:
+		*pixel = alpha >> 8;
+		return TRUE;
+	}
+
+	return _sna_get_pixel_from_rgba(pixel, red, green, blue, alpha, format);
+}
 
 int
 sna_render_pixmap_bo(struct sna *sna,
@@ -537,6 +595,14 @@ sna_render_pixmap_bo(struct sna *sna,
 		     int16_t x, int16_t y,
 		     int16_t w, int16_t h,
 		     int16_t dst_x, int16_t dst_y);
+
+bool
+sna_render_pixmap_partial(struct sna *sna,
+			  PixmapPtr pixmap,
+			  struct kgem_bo *bo,
+			  struct sna_composite_channel *channel,
+			  int16_t x, int16_t y,
+			  int16_t w, int16_t h);
 
 int
 sna_render_picture_extract(struct sna *sna,
@@ -562,6 +628,13 @@ sna_render_picture_convert(struct sna *sna,
 			   int16_t x, int16_t y,
 			   int16_t w, int16_t h,
 			   int16_t dst_x, int16_t dst_y);
+
+inline static void sna_render_composite_redirect_init(struct sna_composite_op *op)
+{
+	struct sna_composite_redirect *t = &op->redirect;
+	t->real_bo = NULL;
+	t->damage = NULL;
+}
 
 Bool
 sna_render_composite_redirect(struct sna *sna,

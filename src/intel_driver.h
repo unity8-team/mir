@@ -246,4 +246,7 @@ void intel_detect_chipset(ScrnInfoPtr scrn,
 			  struct pci_device *pci,
 			  struct intel_chipset *chipset);
 
+const OptionInfoRec *intel_uxa_available_options(int chipid, int busid);
+
+
 #endif /* INTEL_DRIVER_H */

@@ -35,12 +35,19 @@
 #include "sna_render.h"
 #include "sna_render_inline.h"
 
+#include <fb.h>
 #include <mipict.h>
 #include <fbpict.h>
 
 #if DEBUG_TRAPEZOIDS
 #undef DBG
 #define DBG(x) ErrorF x
+#endif
+
+#if 0
+#define __DBG(x) ErrorF x
+#else
+#define __DBG(x)
 #endif
 
 #define NO_ACCEL 0
@@ -570,8 +577,8 @@ cell_list_add_subspan(struct cell_list *cells,
 	FAST_SAMPLES_X_TO_INT_FRAC(x1, ix1, fx1);
 	FAST_SAMPLES_X_TO_INT_FRAC(x2, ix2, fx2);
 
-	DBG(("%s: x1=%d (%d+%d), x2=%d (%d+%d)\n", __FUNCTION__,
-	     x1, ix1, fx1, x2, ix2, fx2));
+	__DBG(("%s: x1=%d (%d+%d), x2=%d (%d+%d)\n", __FUNCTION__,
+	       x1, ix1, fx1, x2, ix2, fx2));
 
 	cell = cell_list_find(cells, ix1);
 	if (ix1 != ix2) {
@@ -676,15 +683,15 @@ polygon_add_edge(struct polygon *polygon,
 	grid_scaled_y_t ymin = polygon->ymin;
 	grid_scaled_y_t ymax = polygon->ymax;
 
-	DBG(("%s: edge=(%d [%d.%d], %d [%d.%d]), (%d [%d.%d], %d [%d.%d]), top=%d [%d.%d], bottom=%d [%d.%d], dir=%d\n",
-	     __FUNCTION__,
-	     x1, FAST_SAMPLES_INT(x1), FAST_SAMPLES_FRAC(x1),
-	     y1, FAST_SAMPLES_INT(y1), FAST_SAMPLES_FRAC(y1),
-	     x2, FAST_SAMPLES_INT(x2), FAST_SAMPLES_FRAC(x2),
-	     y2, FAST_SAMPLES_INT(y2), FAST_SAMPLES_FRAC(y2),
-	     top, FAST_SAMPLES_INT(top), FAST_SAMPLES_FRAC(top),
-	     bottom, FAST_SAMPLES_INT(bottom), FAST_SAMPLES_FRAC(bottom),
-	     dir));
+	__DBG(("%s: edge=(%d [%d.%d], %d [%d.%d]), (%d [%d.%d], %d [%d.%d]), top=%d [%d.%d], bottom=%d [%d.%d], dir=%d\n",
+	       __FUNCTION__,
+	       x1, FAST_SAMPLES_INT(x1), FAST_SAMPLES_FRAC(x1),
+	       y1, FAST_SAMPLES_INT(y1), FAST_SAMPLES_FRAC(y1),
+	       x2, FAST_SAMPLES_INT(x2), FAST_SAMPLES_FRAC(x2),
+	       y2, FAST_SAMPLES_INT(y2), FAST_SAMPLES_FRAC(y2),
+	       top, FAST_SAMPLES_INT(top), FAST_SAMPLES_FRAC(top),
+	       bottom, FAST_SAMPLES_INT(bottom), FAST_SAMPLES_FRAC(bottom),
+	       dir));
 	assert (dy > 0);
 
 	e->dy = dy;
@@ -731,8 +738,8 @@ polygon_add_line(struct polygon *polygon,
 	if (dy == 0)
 		return;
 
-	DBG(("%s: line=(%d, %d), (%d, %d)\n",
-	     __FUNCTION__, (int)p1->x, (int)p1->y, (int)p2->x, (int)p2->y));
+	__DBG(("%s: line=(%d, %d), (%d, %d)\n",
+	       __FUNCTION__, (int)p1->x, (int)p1->y, (int)p2->x, (int)p2->y));
 
 	e->dir = 1;
 	if (dy < 0) {
@@ -1065,11 +1072,11 @@ tor_fini(struct tor *converter)
 static int
 tor_init(struct tor *converter, const BoxRec *box, int num_edges)
 {
-	DBG(("%s: (%d, %d),(%d, %d) x (%d, %d), num_edges=%d\n",
-	     __FUNCTION__,
-	     box->x1, box->y1, box->x2, box->y2,
-	     FAST_SAMPLES_X, FAST_SAMPLES_Y,
-	     num_edges));
+	__DBG(("%s: (%d, %d),(%d, %d) x (%d, %d), num_edges=%d\n",
+	       __FUNCTION__,
+	       box->x1, box->y1, box->x2, box->y2,
+	       FAST_SAMPLES_X, FAST_SAMPLES_Y,
+	       num_edges));
 
 	converter->xmin = box->x1;
 	converter->ymin = box->y1;
@@ -1119,7 +1126,7 @@ tor_blt_span(struct sna *sna,
 	     const BoxRec *box,
 	     int coverage)
 {
-	DBG(("%s: %d -> %d @ %d\n", __FUNCTION__, box->x1, box->x2, coverage));
+	__DBG(("%s: %d -> %d @ %d\n", __FUNCTION__, box->x1, box->x2, coverage));
 
 	op->box(sna, op, box, AREA_TO_ALPHA(coverage));
 	apply_damage_box(&op->base, box);
@@ -1136,7 +1143,7 @@ tor_blt_span_clipped(struct sna *sna,
 	float opacity;
 
 	opacity = AREA_TO_ALPHA(coverage);
-	DBG(("%s: %d -> %d @ %f\n", __FUNCTION__, box->x1, box->x2, opacity));
+	__DBG(("%s: %d -> %d @ %f\n", __FUNCTION__, box->x1, box->x2, opacity));
 
 	pixman_region_init_rects(&region, box, 1);
 	RegionIntersect(&region, &region, clip);
@@ -1218,9 +1225,9 @@ tor_blt(struct sna *sna,
 
 	/* Skip cells to the left of the clip region. */
 	while (cell->x < xmin) {
-		DBG(("%s: skipping cell (%d, %d, %d)\n",
-		     __FUNCTION__,
-		     cell->x, cell->covered_height, cell->uncovered_area));
+		__DBG(("%s: skipping cell (%d, %d, %d)\n",
+		       __FUNCTION__,
+		       cell->x, cell->covered_height, cell->uncovered_area));
 
 		cover += cell->covered_height;
 		cell = cell->next;
@@ -1238,17 +1245,17 @@ tor_blt(struct sna *sna,
 		if (x >= xmax)
 			break;
 
-		DBG(("%s: cell=(%d, %d, %d), cover=%d, max=%d\n", __FUNCTION__,
-		     cell->x, cell->covered_height, cell->uncovered_area,
-		     cover, xmax));
+		__DBG(("%s: cell=(%d, %d, %d), cover=%d, max=%d\n", __FUNCTION__,
+		       cell->x, cell->covered_height, cell->uncovered_area,
+		       cover, xmax));
 
 		box.x2 = x;
 		if (box.x2 > box.x1 && (unbounded || cover)) {
-			DBG(("%s: span (%d, %d)x(%d, %d) @ %d\n", __FUNCTION__,
-			     box.x1, box.y1,
-			     box.x2 - box.x1,
-			     box.y2 - box.y1,
-			     cover));
+			__DBG(("%s: span (%d, %d)x(%d, %d) @ %d\n", __FUNCTION__,
+			       box.x1, box.y1,
+			       box.x2 - box.x1,
+			       box.y2 - box.y1,
+			       cover));
 			span(sna, op, clip, &box, cover);
 		}
 		box.x1 = box.x2;
@@ -1259,11 +1266,11 @@ tor_blt(struct sna *sna,
 			int area = cover - cell->uncovered_area;
 			box.x2 = x + 1;
 			if (unbounded || area) {
-				DBG(("%s: span (%d, %d)x(%d, %d) @ %d\n", __FUNCTION__,
-				     box.x1, box.y1,
-				     box.x2 - box.x1,
-				     box.y2 - box.y1,
-				     area));
+				__DBG(("%s: span (%d, %d)x(%d, %d) @ %d\n", __FUNCTION__,
+				       box.x1, box.y1,
+				       box.x2 - box.x1,
+				       box.y2 - box.y1,
+				       area));
 				span(sna, op, clip, &box, area);
 			}
 			box.x1 = box.x2;
@@ -1272,11 +1279,11 @@ tor_blt(struct sna *sna,
 
 	box.x2 = xmax;
 	if (box.x2 > box.x1 && (unbounded || cover)) {
-		DBG(("%s: span (%d, %d)x(%d, %d) @ %d\n", __FUNCTION__,
-		     box.x1, box.y1,
-		     box.x2 - box.x1,
-		     box.y2 - box.y1,
-		     cover));
+		__DBG(("%s: span (%d, %d)x(%d, %d) @ %d\n", __FUNCTION__,
+		       box.x1, box.y1,
+		       box.x2 - box.x1,
+		       box.y2 - box.y1,
+		       cover));
 		span(sna, op, clip, &box, cover);
 	}
 }
@@ -1324,7 +1331,7 @@ tor_render(struct sna *sna,
 	struct active_list *active = converter->active;
 	struct edge *buckets[FAST_SAMPLES_Y] = { 0 };
 
-	DBG(("%s: unbounded=%d\n", __FUNCTION__, unbounded));
+	__DBG(("%s: unbounded=%d\n", __FUNCTION__, unbounded));
 
 	/* Render each pixel row. */
 	for (i = 0; i < h; i = j) {
@@ -1340,8 +1347,8 @@ tor_render(struct sna *sna,
 				active->is_vertical = 1;
 				for (; j < h && !polygon->y_buckets[j]; j++)
 					;
-				DBG(("%s: no new edges and no exisiting edges, skipping, %d -> %d\n",
-				     __FUNCTION__, i, j));
+				__DBG(("%s: no new edges and no exisiting edges, skipping, %d -> %d\n",
+				       __FUNCTION__, i, j));
 
 				if (unbounded)
 					tor_blt_empty(sna, op, clip, span, i+ymin, j-i, xmin, xmax);
@@ -1351,12 +1358,12 @@ tor_render(struct sna *sna,
 			do_full_step = can_full_step(active);
 		}
 
-		DBG(("%s: y=%d [%d], do_full_step=%d, new edges=%d, min_height=%d, vertical=%d\n",
-		     __FUNCTION__,
-		     i, i+ymin, do_full_step,
-		     polygon->y_buckets[i] != NULL,
-		     active->min_height,
-		     active->is_vertical));
+		__DBG(("%s: y=%d [%d], do_full_step=%d, new edges=%d, min_height=%d, vertical=%d\n",
+		       __FUNCTION__,
+		       i, i+ymin, do_full_step,
+		       polygon->y_buckets[i] != NULL,
+		       active->min_height,
+		       active->is_vertical));
 		if (do_full_step) {
 			nonzero_row(active, coverages);
 
@@ -1371,8 +1378,8 @@ tor_render(struct sna *sna,
 				if (j != i + 1)
 					step_edges(active, j - (i + 1));
 
-				DBG(("%s: vertical edges, full step (%d, %d)\n",
-				    __FUNCTION__,  i, j));
+				__DBG(("%s: vertical edges, full step (%d, %d)\n",
+				       __FUNCTION__,  i, j));
 			}
 		} else {
 			grid_scaled_y_t suby;
@@ -1487,12 +1494,12 @@ mono_add_line(struct mono *mono,
 	pixman_fixed_t dy;
 	int y, ytop, ybot;
 
-	DBG(("%s: top=%d, bottom=%d, line=(%d, %d), (%d, %d) delta=%dx%d, dir=%d\n",
-	     __FUNCTION__,
-	     (int)top, (int)bottom,
-	     (int)p1->x, (int)p1->y, (int)p2->x, (int)p2->y,
-	     dst_x, dst_y,
-	     dir));
+	__DBG(("%s: top=%d, bottom=%d, line=(%d, %d), (%d, %d) delta=%dx%d, dir=%d\n",
+	       __FUNCTION__,
+	       (int)top, (int)bottom,
+	       (int)p1->x, (int)p1->y, (int)p2->x, (int)p2->y,
+	       dst_x, dst_y,
+	       dir));
 
 	if (top > bottom) {
 		xPointFixed *t;
@@ -1515,7 +1522,7 @@ mono_add_line(struct mono *mono,
 	ybot = MIN(y, mono->clip.extents.y2);
 
 	if (ybot <= ytop) {
-		DBG(("discard clipped line\n"));
+		__DBG(("discard clipped line\n"));
 		return;
 	}
 
@@ -1696,7 +1703,7 @@ mono_span(struct mono *c, int x1, int x2, BoxPtr box)
 	if (x2 <= x1)
 		return;
 
-	DBG(("%s [%d, %d]\n", __FUNCTION__, x1, x2));
+	__DBG(("%s [%d, %d]\n", __FUNCTION__, x1, x2));
 
 	box->x1 = x1;
 	box->x2 = x2;
@@ -1871,6 +1878,88 @@ static int operator_is_bounded(uint8_t op)
 	}
 }
 
+inline static xFixed
+line_x_for_y(const xLineFixed *l, xFixed y, bool ceil)
+{
+	xFixed_32_32 ex = (xFixed_32_32)(y - l->p1.y) * (l->p2.x - l->p1.x);
+	xFixed d = l->p2.y - l->p1.y;
+
+	if (ceil)
+		ex += (d - 1);
+
+	return l->p1.x + (xFixed) (ex / d);
+}
+
+#define pixman_fixed_integer_floor(V) pixman_fixed_to_int(V)
+#define pixman_fixed_integer_ceil(V) pixman_fixed_to_int(pixman_fixed_ceil(V))
+
+static void
+trapezoids_bounds(int n, const xTrapezoid *t, BoxPtr box)
+{
+	xFixed x1, y1, x2, y2;
+
+	/* XXX need 33 bits... */
+	x1 = y1 = INT_MAX / 2;
+	x2 = y2 = INT_MIN / 2;
+
+	do {
+		xFixed fx1, fx2, v;
+
+		if (!xTrapezoidValid(t))
+			continue;
+
+		if (t->top < y1)
+			y1 = t->top;
+		if (t->bottom > y2)
+			y2 = t->bottom;
+
+		if (((t->left.p1.x - x1) | (t->left.p2.x - x1)) < 0) {
+			if (pixman_fixed_floor(t->left.p1.x) == pixman_fixed_floor(t->left.p2.x)) {
+				x1 = pixman_fixed_floor(t->left.p1.x);
+			} else {
+				if (t->left.p1.y == t->top)
+					fx1 = t->left.p1.x;
+				else
+					fx1 = line_x_for_y(&t->left, t->top, false);
+
+				if (t->left.p2.y == t->bottom)
+					fx2 = t->left.p2.x;
+				else
+					fx2 = line_x_for_y(&t->left, t->bottom, false);
+
+				v = min(fx1, fx2);
+				if (v < x1)
+					x1 = pixman_fixed_floor(v);
+			}
+		}
+
+		if (((x2 - t->right.p1.x) | (x2 - t->right.p2.x)) < 0) {
+			if (pixman_fixed_floor(t->right.p1.x) == pixman_fixed_floor(t->right.p2.x)) {
+				x2 = pixman_fixed_ceil(t->right.p1.x);
+			} else  {
+				if (t->right.p1.y == t->top)
+					fx1 = t->right.p1.x;
+				else
+					fx1 = line_x_for_y(&t->right, t->top, true);
+
+				if (t->right.p2.y == t->bottom)
+					fx2 = t->right.p2.x;
+				else
+					fx2 = line_x_for_y(&t->right, t->bottom, true);
+
+				v = max(fx1, fx2);
+				if (v > x2)
+					x2 = pixman_fixed_ceil(v);
+			}
+		}
+	} while (t++, --n);
+
+	box->x1 = pixman_fixed_to_int(x1);
+	box->x2 = pixman_fixed_to_int(x2);
+	box->y1 = pixman_fixed_integer_floor(y1);
+	box->y2 = pixman_fixed_integer_ceil(y2);
+}
+
 static void
 trapezoids_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 		    PictFormatPtr maskFormat, INT16 xSrc, INT16 ySrc,
@@ -1891,12 +1980,12 @@ trapezoids_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 		dst_x = pixman_fixed_to_int(traps[0].left.p1.x);
 		dst_y = pixman_fixed_to_int(traps[0].left.p1.y);
 
-		miTrapezoidBounds(ntrap, traps, &bounds);
+		trapezoids_bounds(ntrap, traps, &bounds);
 		if (bounds.y1 >= bounds.y2 || bounds.x1 >= bounds.x2)
 			return;
 
-		DBG(("%s: bounds (%d, %d), (%d, %d)\n",
-		     __FUNCTION__, bounds.x1, bounds.y1, bounds.x2, bounds.y2));
+		DBG(("%s: bounds (%d, %d), (%d, %d)\n", __FUNCTION__,
+		     bounds.x1, bounds.y1, bounds.x2, bounds.y2));
 
 		if (!sna_compute_composite_extents(&bounds,
 						   src, NULL, dst,
@@ -1907,8 +1996,8 @@ trapezoids_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 						   bounds.y2 - bounds.y1))
 			return;
 
-		DBG(("%s: extents (%d, %d), (%d, %d)\n",
-		     __FUNCTION__, bounds.x1, bounds.y1, bounds.x2, bounds.y2));
+		DBG(("%s: extents (%d, %d), (%d, %d)\n", __FUNCTION__,
+		     bounds.x1, bounds.y1, bounds.x2, bounds.y2));
 
 		width  = bounds.x2 - bounds.x1;
 		height = bounds.y2 - bounds.y1;
@@ -1920,19 +2009,41 @@ trapezoids_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 		DBG(("%s: mask (%dx%d) depth=%d, format=%08x\n",
 		     __FUNCTION__, width, height, depth, format));
 		scratch = sna_pixmap_create_upload(screen,
-						   width, height, depth);
+						   width, height, 8,
+						   KGEM_BUFFER_WRITE);
 		if (!scratch)
 			return;
 
-		memset(scratch->devPrivate.ptr, 0, scratch->devKind*height);
-		image = pixman_image_create_bits(format, width, height,
-						 scratch->devPrivate.ptr,
-						 scratch->devKind);
+		if (depth < 8) {
+			image = pixman_image_create_bits(format, width, height,
+							 NULL, 0);
+		} else {
+			memset(scratch->devPrivate.ptr, 0, scratch->devKind*height);
+			image = pixman_image_create_bits(format, width, height,
+							 scratch->devPrivate.ptr,
+							 scratch->devKind);
+		}
 		if (image) {
 			for (; ntrap; ntrap--, traps++)
 				pixman_rasterize_trapezoid(image,
 							   (pixman_trapezoid_t *)traps,
 							   -bounds.x1, -bounds.y1);
+			if (depth < 8) {
+				pixman_image_t *a8;
+
+				a8 = pixman_image_create_bits(PIXMAN_a8, width, height,
+							      scratch->devPrivate.ptr,
+							      scratch->devKind);
+				if (a8) {
+					pixman_image_composite(PIXMAN_OP_SRC,
+							       image, NULL, a8,
+							       0, 0,
+							       0, 0,
+							       0, 0,
+							       width, height);
+					pixman_image_unref (a8);
+				}
+			}
 
 			pixman_image_unref(image);
 		}
@@ -1965,7 +2076,8 @@ trapezoids_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 }
 
 static Bool
-composite_aligned_boxes(CARD8 op,
+composite_aligned_boxes(struct sna *sna,
+			CARD8 op,
 			PicturePtr src,
 			PicturePtr dst,
 			PictFormatPtr maskFormat,
@@ -1974,7 +2086,6 @@ composite_aligned_boxes(CARD8 op,
 {
 	BoxRec stack_boxes[64], *boxes, extents;
 	pixman_region16_t region, clip;
-	struct sna *sna;
 	struct sna_composite_op tmp;
 	Bool ret = true;
 	int dx, dy, n, num_boxes;
@@ -2044,7 +2155,6 @@ composite_aligned_boxes(CARD8 op,
 	}
 
 	memset(&tmp, 0, sizeof(tmp));
-	sna = to_sna_from_drawable(dst->pDrawable);
 	if (!sna->render.composite(sna, op, src, NULL, dst,
 				   src_x,  src_y,
 				   0, 0,
@@ -2094,7 +2204,7 @@ free_boxes:
 	return ret;
 }
 
-static inline int coverage(int samples, pixman_fixed_t f)
+static inline int grid_coverage(int samples, pixman_fixed_t f)
 {
 	return (samples * pixman_fixed_frac(f) + pixman_fixed_1/2) / pixman_fixed_1;
 }
@@ -2106,18 +2216,23 @@ composite_unaligned_box(struct sna *sna,
 			float opacity,
 			pixman_region16_t *clip)
 {
-	pixman_region16_t region;
+	if (clip) {
+		pixman_region16_t region;
 
-	pixman_region_init_rects(&region, box, 1);
-	RegionIntersect(&region, &region, clip);
-	if (REGION_NUM_RECTS(&region)) {
-		tmp->boxes(sna, tmp,
-			  REGION_RECTS(&region),
-			  REGION_NUM_RECTS(&region),
-			  opacity);
-		apply_damage(&tmp->base, &region);
+		pixman_region_init_rects(&region, box, 1);
+		RegionIntersect(&region, &region, clip);
+		if (REGION_NUM_RECTS(&region)) {
+			tmp->boxes(sna, tmp,
+				   REGION_RECTS(&region),
+				   REGION_NUM_RECTS(&region),
+				   opacity);
+			apply_damage(&tmp->base, &region);
+		}
+		pixman_region_fini(&region);
+	} else {
+		tmp->box(sna, tmp, box, opacity);
+		apply_damage_box(&tmp->base, box);
 	}
-	pixman_region_fini(&region);
 }
 
 static void
@@ -2134,17 +2249,19 @@ composite_unaligned_trap_row(struct sna *sna,
 	if (covered == 0)
 		return;
 
-	if (y2 > clip->extents.y2)
-		y2 = clip->extents.y2;
-	if (y1 < clip->extents.y1)
-		y1 = clip->extents.y1;
-	if (y1 >= y2)
-		return;
-
 	x1 = dx + pixman_fixed_to_int(trap->left.p1.x);
 	x2 = dx + pixman_fixed_to_int(trap->right.p1.x);
-	if (x2 < clip->extents.x1 || x1 > clip->extents.x2)
-		return;
+	if (clip) {
+		if (y2 > clip->extents.y2)
+			y2 = clip->extents.y2;
+		if (y1 < clip->extents.y1)
+			y1 = clip->extents.y1;
+		if (y1 >= y2)
+			return;
+
+		if (x2 < clip->extents.x1 || x1 > clip->extents.x2)
+			return;
+	}
 
 	box.y1 = y1;
 	box.y2 = y2;
@@ -2154,7 +2271,7 @@ composite_unaligned_trap_row(struct sna *sna,
 		box.x2 = x2 + 1;
 
 		opacity = covered;
-		opacity *= coverage(SAMPLES_X, trap->right.p1.x) - coverage(SAMPLES_X, trap->left.p1.x);
+		opacity *= grid_coverage(SAMPLES_X, trap->right.p1.x) - grid_coverage(SAMPLES_X, trap->left.p1.x);
 
 		if (opacity)
 			composite_unaligned_box(sna, tmp, &box,
@@ -2165,7 +2282,7 @@ composite_unaligned_trap_row(struct sna *sna,
 			box.x2 = x1++;
 
 			opacity = covered;
-			opacity *= SAMPLES_X - coverage(SAMPLES_X, trap->left.p1.x);
+			opacity *= SAMPLES_X - grid_coverage(SAMPLES_X, trap->left.p1.x);
 
 			if (opacity)
 				composite_unaligned_box(sna, tmp, &box,
@@ -2185,7 +2302,7 @@ composite_unaligned_trap_row(struct sna *sna,
 			box.x2 = x2 + 1;
 
 			opacity = covered;
-			opacity *= coverage(SAMPLES_X, trap->right.p1.x);
+			opacity *= grid_coverage(SAMPLES_X, trap->right.p1.x);
 
 			if (opacity)
 				composite_unaligned_box(sna, tmp, &box,
@@ -2209,13 +2326,13 @@ composite_unaligned_trap(struct sna *sna,
 	if (y1 == y2) {
 		composite_unaligned_trap_row(sna, tmp, trap, dx,
 					     y1, y1 + 1,
-					     coverage(SAMPLES_Y, trap->bottom) - coverage(SAMPLES_Y, trap->top),
+					     grid_coverage(SAMPLES_Y, trap->bottom) - grid_coverage(SAMPLES_Y, trap->top),
 					     clip);
 	} else {
 		if (pixman_fixed_frac(trap->top)) {
 			composite_unaligned_trap_row(sna, tmp, trap, dx,
 						     y1, y1 + 1,
-						     SAMPLES_Y - coverage(SAMPLES_Y, trap->top),
+						     SAMPLES_Y - grid_coverage(SAMPLES_Y, trap->top),
 						     clip);
 			y1++;
 		}
@@ -2229,7 +2346,7 @@ composite_unaligned_trap(struct sna *sna,
 		if (pixman_fixed_frac(trap->bottom))
 			composite_unaligned_trap_row(sna, tmp, trap, dx,
 						     y2, y2 + 1,
-						     coverage(SAMPLES_Y, trap->bottom),
+						     grid_coverage(SAMPLES_Y, trap->bottom),
 						     clip);
 	}
 }
@@ -2294,13 +2411,13 @@ blt_unaligned_box_row(PixmapPtr scratch,
 		blt_opacity(scratch,
 			    x1, x1+1,
 			    y1, y2,
-			    covered * (coverage(SAMPLES_X, trap->right.p1.x) - coverage(SAMPLES_X, trap->left.p1.x)));
+			    covered * (grid_coverage(SAMPLES_X, trap->right.p1.x) - grid_coverage(SAMPLES_X, trap->left.p1.x)));
 	} else {
 		if (pixman_fixed_frac(trap->left.p1.x))
 			blt_opacity(scratch,
 				    x1, x1+1,
 				    y1, y2,
-				    covered * (SAMPLES_X - coverage(SAMPLES_X, trap->left.p1.x)));
+				    covered * (SAMPLES_X - grid_coverage(SAMPLES_X, trap->left.p1.x)));
 
 		if (x2 > x1 + 1) {
 			blt_opacity(scratch,
@@ -2313,7 +2430,7 @@ blt_unaligned_box_row(PixmapPtr scratch,
 			blt_opacity(scratch,
 				    x2, x2 + 1,
 				    y1, y2,
-				    covered * coverage(SAMPLES_X, trap->right.p1.x));
+				    covered * grid_coverage(SAMPLES_X, trap->right.p1.x));
 	}
 }
 
@@ -2356,7 +2473,7 @@ composite_unaligned_boxes_fallback(CARD8 op,
 		scratch = sna_pixmap_create_upload(screen,
 						   extents.x2 - extents.x1,
 						   extents.y2 - extents.y1,
-						   8);
+						   8, KGEM_BUFFER_WRITE);
 		if (!scratch)
 			continue;
 
@@ -2373,11 +2490,11 @@ composite_unaligned_boxes_fallback(CARD8 op,
 
 		if (y1 == y2) {
 			blt_unaligned_box_row(scratch, &extents, t, y1, y1 + 1,
-					      coverage(SAMPLES_Y, t->bottom) - coverage(SAMPLES_Y, t->top));
+					      grid_coverage(SAMPLES_Y, t->bottom) - grid_coverage(SAMPLES_Y, t->top));
 		} else {
 			if (pixman_fixed_frac(t->top))
 				blt_unaligned_box_row(scratch, &extents, t, y1, y1 + 1,
-						      SAMPLES_Y - coverage(SAMPLES_Y, t->top));
+						      SAMPLES_Y - grid_coverage(SAMPLES_Y, t->top));
 
 			if (y2 > y1 + 1)
 				blt_unaligned_box_row(scratch, &extents, t, y1+1, y2,
@@ -2385,7 +2502,7 @@ composite_unaligned_boxes_fallback(CARD8 op,
 
 			if (pixman_fixed_frac(t->bottom))
 				blt_unaligned_box_row(scratch, &extents, t, y2, y2+1,
-						      coverage(SAMPLES_Y, t->bottom));
+						      grid_coverage(SAMPLES_Y, t->bottom));
 		}
 
 		mask = CreatePicture(0, &scratch->drawable,
@@ -2408,17 +2525,17 @@ composite_unaligned_boxes_fallback(CARD8 op,
 }
 
 static Bool
-composite_unaligned_boxes(CARD8 op,
+composite_unaligned_boxes(struct sna *sna,
+			  CARD8 op,
 			  PicturePtr src,
 			  PicturePtr dst,
 			  PictFormatPtr maskFormat,
 			  INT16 src_x, INT16 src_y,
 			  int ntrap, xTrapezoid *traps)
 {
-	struct sna *sna;
 	BoxRec extents;
 	struct sna_composite_spans_op tmp;
-	pixman_region16_t clip;
+	pixman_region16_t clip, *c;
 	int dst_x, dst_y;
 	int dx, dy, n;
 
@@ -2431,7 +2548,6 @@ composite_unaligned_boxes(CARD8 op,
 	if (ntrap > 1 && maskFormat)
 		return false;
 
-	sna = to_sna_from_drawable(dst->pDrawable);
 	if (!sna->render.composite_spans)
 		return composite_unaligned_boxes_fallback(op, src, dst, src_x, src_y, ntrap, traps);
 
@@ -2475,6 +2591,11 @@ composite_unaligned_boxes(CARD8 op,
 		return true;
 	}
 
+	c = NULL;
+	if (extents.x2 - extents.x1 > clip.extents.x2 - clip.extents.x1 ||
+	    extents.y2 - extents.y1 > clip.extents.y2 - clip.extents.y1)
+		c = &clip;
+
 	extents = *RegionExtents(&clip);
 	dx = dst->pDrawable->x;
 	dy = dst->pDrawable->y;
@@ -2502,7 +2623,7 @@ composite_unaligned_boxes(CARD8 op,
 	}
 
 	for (n = 0; n < ntrap; n++)
-		composite_unaligned_trap(sna, &tmp, &traps[n], dx, dy, &clip);
+		composite_unaligned_trap(sna, &tmp, &traps[n], dx, dy, c);
 	tmp.done(sna, &tmp);
 
 	REGION_UNINIT(NULL, &clip);
@@ -2570,6 +2691,13 @@ choose_span(PicturePtr dst,
 }
 
 static bool
+sna_drawable_is_clear(DrawablePtr d)
+{
+	struct sna_pixmap *priv = sna_pixmap(get_drawable_pixmap(d));
+	return priv && priv->clear && priv->clear_color == 0;
+}
+
+static bool
 mono_trapezoids_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 			       INT16 src_x, INT16 src_y,
 			       int ntrap, xTrapezoid *traps)
@@ -2578,6 +2706,7 @@ mono_trapezoids_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	BoxRec extents;
 	int16_t dst_x, dst_y;
 	int16_t dx, dy;
+	bool was_clear;
 	int n;
 
 	if (NO_SCAN_CONVERTER)
@@ -2586,7 +2715,7 @@ mono_trapezoids_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	dst_x = pixman_fixed_to_int(traps[0].left.p1.x);
 	dst_y = pixman_fixed_to_int(traps[0].left.p1.y);
 
-	miTrapezoidBounds(ntrap, traps, &extents);
+	trapezoids_bounds(ntrap, traps, &extents);
 	if (extents.y1 >= extents.y2 || extents.x1 >= extents.x2)
 		return true;
 
@@ -2621,6 +2750,8 @@ mono_trapezoids_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	if (!mono_init(&mono, 2*ntrap))
 		return false;
 
+	was_clear = sna_drawable_is_clear(dst->pDrawable);
+
 	for (n = 0; n < ntrap; n++) {
 		if (!xTrapezoidValid(&traps[n]))
 			continue;
@@ -2653,7 +2784,7 @@ mono_trapezoids_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	mono.op.done(mono.sna, &mono.op);
 	mono_fini(&mono);
 
-	if (!operator_is_bounded(op)) {
+	if (!was_clear && !operator_is_bounded(op)) {
 		xPointFixed p1, p2;
 
 		if (!mono_init(&mono, 2+2*ntrap))
@@ -2688,7 +2819,7 @@ mono_trapezoids_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 		memset(&mono.op, 0, sizeof(mono.op));
 		if (mono.sna->render.composite(mono.sna,
 					       PictOpClear,
-					       src, NULL, dst,
+					       mono.sna->clear, NULL, dst,
 					       0, 0,
 					       0, 0,
 					       mono.clip.extents.x1,  mono.clip.extents.y1,
@@ -2743,7 +2874,7 @@ trapezoid_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	dst_x = pixman_fixed_to_int(traps[0].left.p1.x);
 	dst_y = pixman_fixed_to_int(traps[0].left.p1.y);
 
-	miTrapezoidBounds(ntrap, traps, &extents);
+	trapezoids_bounds(ntrap, traps, &extents);
 	if (extents.y1 >= extents.y2 || extents.x1 >= extents.x2)
 		return true;
 
@@ -2846,17 +2977,17 @@ tor_blt_mask(struct sna *sna,
 
 	h = box->y2 - box->y1;
 	w = box->x2 - box->x1;
-	if (w == 1) {
+	if ((w | h) == 1) {
+		*ptr = coverage;
+	} else if (w == 1) {
 		do {
 			*ptr = coverage;
 			ptr += stride;
 		} while (--h);
-	} else {
-		do {
-			memset(ptr, coverage, w);
-			ptr += stride;
-		} while (--h);
-	}
+	} else do {
+		memset(ptr, coverage, w);
+		ptr += stride;
+	} while (--h);
 }
 
 static void
@@ -2888,7 +3019,7 @@ trapezoid_mask_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	if (NO_SCAN_CONVERTER)
 		return false;
 
-	if (dst->polyMode == PolyModePrecise) {
+	if (dst->polyMode == PolyModePrecise && !is_mono(dst, maskFormat)) {
 		DBG(("%s: fallback -- precise rasterisation requested\n",
 		     __FUNCTION__));
 		return false;
@@ -2906,7 +3037,7 @@ trapezoid_mask_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 		return true;
 	}
 
-	miTrapezoidBounds(ntrap, traps, &extents);
+	trapezoids_bounds(ntrap, traps, &extents);
 	if (extents.y1 >= extents.y2 || extents.x1 >= extents.x2)
 		return true;
 
@@ -2937,7 +3068,9 @@ trapezoid_mask_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 
 	DBG(("%s: mask (%dx%d), dx=(%d, %d)\n",
 	     __FUNCTION__, extents.x2, extents.y2, dx, dy));
-	scratch = sna_pixmap_create_upload(screen, extents.x2, extents.y2, 8);
+	scratch = sna_pixmap_create_upload(screen,
+					   extents.x2, extents.y2, 8,
+					   KGEM_BUFFER_WRITE_INPLACE);
 	if (!scratch)
 		return true;
 
@@ -2991,6 +3124,546 @@ trapezoid_mask_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	return true;
 }
 
+struct inplace {
+	uint32_t stride;
+	uint8_t *ptr;
+	uint8_t opacity;
+};
+
+static void
+tor_blt_src(struct sna *sna,
+	    struct sna_composite_spans_op *op,
+	    pixman_region16_t *clip,
+	    const BoxRec *box,
+	    int coverage)
+{
+	struct inplace *in = (struct inplace *)op;
+	uint8_t *ptr = in->ptr;
+	int h, w;
+
+	coverage = coverage * in->opacity / FAST_SAMPLES_XY;
+
+	ptr += box->y1 * in->stride + box->x1;
+
+	h = box->y2 - box->y1;
+	w = box->x2 - box->x1;
+	if ((w | h) == 1) {
+		*ptr = coverage;
+	} else if (w == 1) {
+		do {
+			*ptr = coverage;
+			ptr += in->stride;
+		} while (--h);
+	} else do {
+		memset(ptr, coverage, w);
+		ptr += in->stride;
+	} while (--h);
+}
+
+static void
+tor_blt_src_clipped(struct sna *sna,
+		    struct sna_composite_spans_op *op,
+		    pixman_region16_t *clip,
+		    const BoxRec *box,
+		    int coverage)
+{
+	pixman_region16_t region;
+	int n;
+
+	pixman_region_init_rects(&region, box, 1);
+	RegionIntersect(&region, &region, clip);
+	n = REGION_NUM_RECTS(&region);
+	box = REGION_RECTS(&region);
+	while (n--)
+		tor_blt_src(sna, op, NULL, box++, coverage);
+	pixman_region_fini(&region);
+}
+
+static void
+tor_blt_src_mono(struct sna *sna,
+		 struct sna_composite_spans_op *op,
+		 pixman_region16_t *clip,
+		 const BoxRec *box,
+		 int coverage)
+{
+	tor_blt_src(sna, op, clip, box,
+		    coverage < FAST_SAMPLES_XY/2 ? 0 : FAST_SAMPLES_XY);
+}
+
+static void
+tor_blt_src_clipped_mono(struct sna *sna,
+			 struct sna_composite_spans_op *op,
+			 pixman_region16_t *clip,
+			 const BoxRec *box,
+			 int coverage)
+{
+	tor_blt_src_clipped(sna, op, clip, box,
+			    coverage < FAST_SAMPLES_XY/2 ? 0 : FAST_SAMPLES_XY);
+}
+
+static void
+tor_blt_in(struct sna *sna,
+	   struct sna_composite_spans_op *op,
+	   pixman_region16_t *clip,
+	   const BoxRec *box,
+	   int coverage)
+{
+	struct inplace *in = (struct inplace *)op;
+	uint8_t *ptr = in->ptr;
+	int h, w, i;
+
+	coverage = coverage * in->opacity / FAST_SAMPLES_XY;
+	if (coverage == 0) {
+		tor_blt_src(sna, op, clip, box, 0);
+		return;
+	}
+
+	ptr += box->y1 * in->stride + box->x1;
+
+	h = box->y2 - box->y1;
+	w = box->x2 - box->x1;
+	do {
+		for (i = 0; i < w; i++)
+			ptr[i] = (ptr[i] * coverage) >> 8;
+		ptr += in->stride;
+	} while (--h);
+}
+
+static void
+tor_blt_in_clipped(struct sna *sna,
+		   struct sna_composite_spans_op *op,
+		   pixman_region16_t *clip,
+		   const BoxRec *box,
+		   int coverage)
+{
+	pixman_region16_t region;
+	int n;
+
+	pixman_region_init_rects(&region, box, 1);
+	RegionIntersect(&region, &region, clip);
+	n = REGION_NUM_RECTS(&region);
+	box = REGION_RECTS(&region);
+	while (n--)
+		tor_blt_in(sna, op, NULL, box++, coverage);
+	pixman_region_fini(&region);
+}
+
+static void
+tor_blt_in_mono(struct sna *sna,
+		struct sna_composite_spans_op *op,
+		pixman_region16_t *clip,
+		const BoxRec *box,
+		int coverage)
+{
+	tor_blt_in(sna, op, clip, box,
+		   coverage < FAST_SAMPLES_XY/2 ? 0 : FAST_SAMPLES_XY);
+}
+
+static void
+tor_blt_in_clipped_mono(struct sna *sna,
+			struct sna_composite_spans_op *op,
+			pixman_region16_t *clip,
+			const BoxRec *box,
+			int coverage)
+{
+	tor_blt_in_clipped(sna, op, clip, box,
+			   coverage < FAST_SAMPLES_XY/2 ? 0 : FAST_SAMPLES_XY);
+}
+
+static void
+tor_blt_add(struct sna *sna,
+	    struct sna_composite_spans_op *op,
+	    pixman_region16_t *clip,
+	    const BoxRec *box,
+	    int coverage)
+{
+	struct inplace *in = (struct inplace *)op;
+	uint8_t *ptr = in->ptr;
+	int h, w, v, i;
+
+	coverage = coverage * in->opacity / FAST_SAMPLES_XY;
+	if (coverage == 0)
+		return;
+
+	ptr += box->y1 * in->stride + box->x1;
+
+	h = box->y2 - box->y1;
+	w = box->x2 - box->x1;
+	if ((w | h) == 1) {
+		v = coverage + *ptr;
+		*ptr = v >= 255 ? 255 : v;
+	} else {
+		do {
+			for (i = 0; i < w; i++) {
+				v = coverage + ptr[i];
+				ptr[i] = v >= 255 ? 255 : v;
+			}
+			ptr += in->stride;
+		} while (--h);
+	}
+}
+
+static void
+tor_blt_add_clipped(struct sna *sna,
+		    struct sna_composite_spans_op *op,
+		    pixman_region16_t *clip,
+		    const BoxRec *box,
+		    int coverage)
+{
+	pixman_region16_t region;
+	int n;
+
+	pixman_region_init_rects(&region, box, 1);
+	RegionIntersect(&region, &region, clip);
+	n = REGION_NUM_RECTS(&region);
+	box = REGION_RECTS(&region);
+	while (n--)
+		tor_blt_add(sna, op, NULL, box++, coverage);
+	pixman_region_fini(&region);
+}
+
+static void
+tor_blt_add_mono(struct sna *sna,
+		 struct sna_composite_spans_op *op,
+		 pixman_region16_t *clip,
+		 const BoxRec *box,
+		 int coverage)
+{
+	if (coverage >= FAST_SAMPLES_XY/2)
+		tor_blt_add(sna, op, clip, box, FAST_SAMPLES_XY);
+}
+
+static void
+tor_blt_add_clipped_mono(struct sna *sna,
+			 struct sna_composite_spans_op *op,
+			 pixman_region16_t *clip,
+			 const BoxRec *box,
+			 int coverage)
+{
+	if (coverage >= FAST_SAMPLES_XY/2)
+		tor_blt_add_clipped(sna, op, clip, box, FAST_SAMPLES_XY);
+}
+
+static bool
+trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
+		       PictFormatPtr maskFormat, INT16 src_x, INT16 src_y,
+		       int ntrap, xTrapezoid *traps,
+		       bool fallback)
+{
+	struct tor tor;
+	struct inplace inplace;
+	span_func_t span;
+	PixmapPtr pixmap;
+	RegionRec region;
+	uint32_t color;
+	int16_t dst_x, dst_y;
+	int dx, dy;
+	int n;
+
+	if (NO_SCAN_CONVERTER)
+		return false;
+
+	if (dst->polyMode == PolyModePrecise && !is_mono(dst, maskFormat)) {
+		DBG(("%s: fallback -- precise rasterisation requested\n",
+		     __FUNCTION__));
+		return false;
+	}
+	if (dst->alphaMap) {
+		DBG(("%s: fallback -- dst alphamap\n",
+		     __FUNCTION__));
+		return false;
+	}
+
+	if (dst->format != PICT_a8 || !sna_picture_is_solid(src, &color)) {
+		DBG(("%s: fallback -- can not perform operation in place, format=%x\n",
+		     __FUNCTION__, dst->format));
+		return false;
+	}
+
+	switch (op) {
+	case PictOpIn:
+	case PictOpAdd:
+	case PictOpSrc:
+		if (!fallback && is_gpu(dst->pDrawable))
+			return false;
+		break;
+	default:
+		DBG(("%s: fallback -- can not perform op [%d] in place\n",
+		     __FUNCTION__, op));
+		return false;
+	}
+
+	DBG(("%s: format=%x, op=%d, color=%x\n",
+	     __FUNCTION__, dst->format, op, color));
+
+	if (maskFormat == NULL && ntrap > 1) {
+		DBG(("%s: individual rasterisation requested\n",
+		     __FUNCTION__));
+		do {
+			/* XXX unwind errors? */
+			if (!trapezoid_span_inplace(op, src, dst, NULL,
+						    src_x, src_y, 1, traps++,
+						    fallback))
+				return false;
+		} while (--ntrap);
+		return true;
+	}
+
+	trapezoids_bounds(ntrap, traps, &region.extents);
+	if (region.extents.y1 >= region.extents.y2 ||
+	    region.extents.x1 >= region.extents.x2)
+		return true;
+
+	DBG(("%s: extents (%d, %d), (%d, %d)\n",
+	     __FUNCTION__,
+	     region.extents.x1, region.extents.y1,
+	     region.extents.x2, region.extents.y2));
+
+	if (!sna_compute_composite_extents(&region.extents,
+					   src, NULL, dst,
+					   src_x, src_y,
+					   0, 0,
+					   region.extents.x1, region.extents.y1,
+					   region.extents.x2 - region.extents.x1,
+					   region.extents.y2 - region.extents.y1))
+		return true;
+
+	DBG(("%s: clipped extents (%d, %d), (%d, %d)\n",
+	     __FUNCTION__,
+	     region.extents.x1, region.extents.y1,
+	     region.extents.x2, region.extents.y2));
+
+	if (tor_init(&tor, &region.extents, 2*ntrap))
+		return true;
+
+	dx = dst->pDrawable->x * FAST_SAMPLES_X;
+	dy = dst->pDrawable->y * FAST_SAMPLES_Y;
+
+	for (n = 0; n < ntrap; n++) {
+		xTrapezoid t;
+
+		if (!project_trapezoid_onto_grid(&traps[n], dx, dy, &t))
+			continue;
+
+		if (pixman_fixed_to_int(traps[n].top) >= region.extents.y2 - dst->pDrawable->y ||
+		    pixman_fixed_to_int(traps[n].bottom) < region.extents.y1 - dst->pDrawable->y)
+			continue;
+
+		tor_add_edge(&tor, &t, &t.left, 1);
+		tor_add_edge(&tor, &t, &t.right, -1);
+	}
+
+	if (op == PictOpSrc) {
+		if (dst->pCompositeClip->data) {
+			if (maskFormat ? maskFormat->depth < 8 : dst->polyEdge == PolyEdgeSharp)
+				span = tor_blt_src_clipped_mono;
+			else
+				span = tor_blt_src_clipped;
+		} else {
+			if (maskFormat ? maskFormat->depth < 8 : dst->polyEdge == PolyEdgeSharp)
+				span = tor_blt_src_mono;
+			else
+				span = tor_blt_src;
+		}
+	} else if (op == PictOpIn) {
+		if (dst->pCompositeClip->data) {
+			if (maskFormat ? maskFormat->depth < 8 : dst->polyEdge == PolyEdgeSharp)
+				span = tor_blt_in_clipped_mono;
+			else
+				span = tor_blt_in_clipped;
+		} else {
+			if (maskFormat ? maskFormat->depth < 8 : dst->polyEdge == PolyEdgeSharp)
+				span = tor_blt_in_mono;
+			else
+				span = tor_blt_in;
+		}
+	} else {
+		if (dst->pCompositeClip->data) {
+			if (maskFormat ? maskFormat->depth < 8 : dst->polyEdge == PolyEdgeSharp)
+				span = tor_blt_add_clipped_mono;
+			else
+				span = tor_blt_add_clipped;
+		} else {
+			if (maskFormat ? maskFormat->depth < 8 : dst->polyEdge == PolyEdgeSharp)
+				span = tor_blt_add_mono;
+			else
+				span = tor_blt_add;
+		}
+	}
+
+	DBG(("%s: move-to-cpu\n", __FUNCTION__));
+	region.data = NULL;
+	if (!sna_drawable_move_region_to_cpu(dst->pDrawable, &region,
+					     op == PictOpSrc ? MOVE_WRITE : MOVE_WRITE | MOVE_READ))
+		return true;
+
+	pixmap = get_drawable_pixmap(dst->pDrawable);
+	get_drawable_deltas(dst->pDrawable, pixmap, &dst_x, &dst_y);
+
+	inplace.ptr = pixmap->devPrivate.ptr;
+	inplace.ptr += dst_y * pixmap->devKind + dst_x;
+	inplace.stride = pixmap->devKind;
+	inplace.opacity = color >> 24;
+
+	tor_render(NULL, &tor, (void*)&inplace,
+		   dst->pCompositeClip, span, op == PictOpIn);
+
+	tor_fini(&tor);
+
+	return true;
+}
+
+static bool
+trapezoid_span_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
+			PictFormatPtr maskFormat, INT16 src_x, INT16 src_y,
+			int ntrap, xTrapezoid *traps)
+{
+	struct tor tor;
+	span_func_t span;
+	ScreenPtr screen = dst->pDrawable->pScreen;
+	PixmapPtr scratch;
+	PicturePtr mask;
+	BoxRec extents;
+	int16_t dst_x, dst_y;
+	int dx, dy;
+	int error, n;
+
+	if (NO_SCAN_CONVERTER)
+		return false;
+
+	if (dst->polyMode == PolyModePrecise && !is_mono(dst, maskFormat)) {
+		DBG(("%s: fallback -- precise rasterisation requested\n",
+		     __FUNCTION__));
+		return false;
+	}
+
+	if (maskFormat == NULL && ntrap > 1) {
+		DBG(("%s: individual rasterisation requested\n",
+		     __FUNCTION__));
+		do {
+			/* XXX unwind errors? */
+			if (!trapezoid_span_fallback(op, src, dst, NULL,
+						     src_x, src_y, 1, traps++))
+				return false;
+		} while (--ntrap);
+		return true;
+	}
+
+	trapezoids_bounds(ntrap, traps, &extents);
+	if (extents.y1 >= extents.y2 || extents.x1 >= extents.x2)
+		return true;
+
+	DBG(("%s: extents (%d, %d), (%d, %d)\n",
+	     __FUNCTION__, extents.x1, extents.y1, extents.x2, extents.y2));
+
+	if (!sna_compute_composite_extents(&extents,
+					   src, NULL, dst,
+					   src_x, src_y,
+					   0, 0,
+					   extents.x1, extents.y1,
+					   extents.x2 - extents.x1,
+					   extents.y2 - extents.y1))
+		return true;
+
+	DBG(("%s: extents (%d, %d), (%d, %d)\n",
+	     __FUNCTION__, extents.x1, extents.y1, extents.x2, extents.y2));
+
+	extents.y2 -= extents.y1;
+	extents.x2 -= extents.x1;
+	extents.x1 -= dst->pDrawable->x;
+	extents.y1 -= dst->pDrawable->y;
+	dst_x = extents.x1;
+	dst_y = extents.y1;
+	dx = -extents.x1 * FAST_SAMPLES_X;
+	dy = -extents.y1 * FAST_SAMPLES_Y;
+	extents.x1 = extents.y1 = 0;
+
+	DBG(("%s: mask (%dx%d), dx=(%d, %d)\n",
+	     __FUNCTION__, extents.x2, extents.y2, dx, dy));
+	scratch = fbCreatePixmap(screen,
+				 extents.x2, extents.y2, 8,
+				 CREATE_PIXMAP_USAGE_SCRATCH);
+	if (!scratch)
+		return true;
+
+	DBG(("%s: created buffer %p, stride %d\n",
+	     __FUNCTION__, scratch->devPrivate.ptr, scratch->devKind));
+
+	if (tor_init(&tor, &extents, 2*ntrap)) {
+		screen->DestroyPixmap(scratch);
+		return true;
+	}
+
+	for (n = 0; n < ntrap; n++) {
+		xTrapezoid t;
+
+		if (!project_trapezoid_onto_grid(&traps[n], dx, dy, &t))
+			continue;
+
+		if (pixman_fixed_to_int(traps[n].top) - dst_y >= extents.y2 ||
+		    pixman_fixed_to_int(traps[n].bottom) - dst_y < 0)
+			continue;
+
+		tor_add_edge(&tor, &t, &t.left, 1);
+		tor_add_edge(&tor, &t, &t.right, -1);
+	}
+
+	if (maskFormat ? maskFormat->depth < 8 : dst->polyEdge == PolyEdgeSharp)
+		span = tor_blt_mask_mono;
+	else
+		span = tor_blt_mask;
+
+	tor_render(NULL, &tor,
+		   scratch->devPrivate.ptr,
+		   (void *)(intptr_t)scratch->devKind,
+		   span, true);
+
+	mask = CreatePicture(0, &scratch->drawable,
+			     PictureMatchFormat(screen, 8, PICT_a8),
+			     0, 0, serverClient, &error);
+	screen->DestroyPixmap(scratch);
+	if (mask) {
+		RegionRec region;
+
+		region.extents.x1 = dst_x;
+		region.extents.y1 = dst_y;
+		region.extents.x2 = dst_x + extents.x2;
+		region.extents.y2 = dst_y + extents.y2;
+		region.data = NULL;
+
+		DBG(("%s: move-to-cpu\n", __FUNCTION__));
+		if (!sna_drawable_move_region_to_cpu(dst->pDrawable, &region,
+						     MOVE_READ | MOVE_WRITE))
+			goto done;
+		if (dst->alphaMap  &&
+		    !sna_drawable_move_to_cpu(dst->alphaMap->pDrawable,
+					      MOVE_READ | MOVE_WRITE))
+			goto done;
+		if (src->pDrawable) {
+			if (!sna_drawable_move_to_cpu(src->pDrawable,
+						      MOVE_READ))
+				goto done;
+			if (src->alphaMap &&
+			    !sna_drawable_move_to_cpu(src->alphaMap->pDrawable,
+						      MOVE_READ))
+				goto done;
+		}
+
+		DBG(("%s: fbComposite()\n", __FUNCTION__));
+		fbComposite(op, src, mask, dst,
+			    src_x + dst_x - pixman_fixed_to_int(traps[0].left.p1.x),
+			    src_y + dst_y - pixman_fixed_to_int(traps[0].left.p1.y),
+			    0, 0,
+			    dst_x, dst_y,
+			    extents.x2, extents.y2);
+done:
+		FreePicture(mask, 0);
+	}
+	tor_fini(&tor);
+
+	return true;
+}
+
 void
 sna_composite_trapezoids(CARD8 op,
 			 PicturePtr src,
@@ -3014,15 +3687,13 @@ sna_composite_trapezoids(CARD8 op,
 	if (NO_ACCEL)
 		goto fallback;
 
-	if (wedged(sna) || !sna->have_render) {
-		DBG(("%s: fallback -- wedged=%d, have_render=%d\n",
-		     __FUNCTION__, sna->kgem.wedged, sna->have_render));
+	if (wedged(sna)) {
+		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
 		goto fallback;
 	}
 
-	if (dst->alphaMap || src->alphaMap) {
-		DBG(("%s: fallback -- alpha maps=(dst=%p, src=%p)\n",
-		     __FUNCTION__, dst->alphaMap, src->alphaMap));
+	if (dst->alphaMap) {
+		DBG(("%s: fallback -- dst alpha map\n", __FUNCTION__));
 		goto fallback;
 	}
 
@@ -3040,15 +3711,15 @@ sna_composite_trapezoids(CARD8 op,
 		for (n = 0; n < ntrap && rectilinear; n++) {
 			int lx1 = pixman_fixed_to_int(traps[n].left.p1.x + pixman_fixed_1_minus_e/2);
 			int lx2 = pixman_fixed_to_int(traps[n].left.p2.x + pixman_fixed_1_minus_e/2);
-			int rx1 = pixman_fixed_to_int(traps[n].left.p1.x + pixman_fixed_1_minus_e/2);
-			int rx2 = pixman_fixed_to_int(traps[n].left.p2.x + pixman_fixed_1_minus_e/2);
+			int rx1 = pixman_fixed_to_int(traps[n].right.p1.x + pixman_fixed_1_minus_e/2);
+			int rx2 = pixman_fixed_to_int(traps[n].right.p2.x + pixman_fixed_1_minus_e/2);
 			rectilinear &= lx1 == lx2 && rx1 == rx2;
 		}
 	} else if (dst->polyMode != PolyModePrecise) {
 		for (n = 0; n < ntrap && rectilinear; n++) {
 			int lx1 = pixman_fixed_to_grid(traps[n].left.p1.x);
-			int lx2 = pixman_fixed_to_grid(traps[n].right.p2.x);
-			int rx1 = pixman_fixed_to_grid(traps[n].left.p1.x);
+			int lx2 = pixman_fixed_to_grid(traps[n].left.p2.x);
+			int rx1 = pixman_fixed_to_grid(traps[n].right.p1.x);
 			int rx2 = pixman_fixed_to_grid(traps[n].right.p2.x);
 			int top = pixman_fixed_to_grid(traps[n].top);
 			int bot = pixman_fixed_to_grid(traps[n].bottom);
@@ -3073,13 +3744,13 @@ sna_composite_trapezoids(CARD8 op,
 	     __FUNCTION__, rectilinear, pixel_aligned));
 	if (rectilinear) {
 		if (pixel_aligned) {
-			if (composite_aligned_boxes(op, src, dst,
+			if (composite_aligned_boxes(sna, op, src, dst,
 						    maskFormat,
 						    xSrc, ySrc,
 						    ntrap, traps))
 			    return;
 		} else {
-			if (composite_unaligned_boxes(op, src, dst,
+			if (composite_unaligned_boxes(sna, op, src, dst,
 						      maskFormat,
 						      xSrc, ySrc,
 						      ntrap, traps))
@@ -3091,11 +3762,25 @@ sna_composite_trapezoids(CARD8 op,
 				     xSrc, ySrc, ntrap, traps))
 		return;
 
+	if (trapezoid_span_inplace(op, src, dst, maskFormat,
+				   xSrc, ySrc, ntrap, traps,
+				   false))
+		return;
+
 	if (trapezoid_mask_converter(op, src, dst, maskFormat,
 				     xSrc, ySrc, ntrap, traps))
 		return;
 
 fallback:
+	if (trapezoid_span_inplace(op, src, dst, maskFormat,
+				   xSrc, ySrc, ntrap, traps,
+				   true))
+		return;
+
+	if (trapezoid_span_fallback(op, src, dst, maskFormat,
+				    xSrc, ySrc, ntrap, traps))
+		return;
+
 	DBG(("%s: fallback mask=%08x, ntrap=%d\n", __FUNCTION__,
 	     maskFormat ? (unsigned)maskFormat->format : 0, ntrap));
 	trapezoids_fallback(op, src, dst, maskFormat,
@@ -3292,26 +3977,23 @@ skip:
 	return true;
 }
 
-#define pixman_fixed_integer_floor(V) pixman_fixed_to_int(pixman_fixed_floor(V))
-#define pixman_fixed_integer_ceil(V) pixman_fixed_to_int(pixman_fixed_ceil(V))
-
 static void mark_damaged(PixmapPtr pixmap, struct sna_pixmap *priv,
 			 BoxPtr box, int16_t x, int16_t y)
 {
-	if (!priv->gpu_only) {
-		box->x1 += x; box->x2 += x;
-		box->y1 += y; box->y2 += y;
-		if (box->x1 <= 0 && box->y1 <= 0 &&
-		    box->x2 >= pixmap->drawable.width &&
-		    box->y2 >= pixmap->drawable.height) {
-			sna_damage_destroy(&priv->cpu_damage);
-			sna_damage_all(&priv->gpu_damage,
-				       pixmap->drawable.width,
-				       pixmap->drawable.height);
-		} else {
-			sna_damage_add_box(&priv->gpu_damage, box);
-			sna_damage_subtract_box(&priv->cpu_damage, box);
-		}
+	box->x1 += x; box->x2 += x;
+	box->y1 += y; box->y2 += y;
+	if (box->x1 <= 0 && box->y1 <= 0 &&
+	    box->x2 >= pixmap->drawable.width &&
+	    box->y2 >= pixmap->drawable.height) {
+		sna_damage_destroy(&priv->cpu_damage);
+		sna_damage_all(&priv->gpu_damage,
+			       pixmap->drawable.width,
+			       pixmap->drawable.height);
+		list_del(&priv->list);
+		priv->undamaged = false;
+	} else {
+		sna_damage_add_box(&priv->gpu_damage, box);
+		sna_damage_subtract_box(&priv->cpu_damage, box);
 	}
 }
 
@@ -3333,10 +4015,13 @@ trap_mask_converter(PicturePtr picture,
 		return false;
 
 	pixmap = get_drawable_pixmap(picture->pDrawable);
-	priv = sna_pixmap_move_to_gpu(pixmap);
+	priv = sna_pixmap_move_to_gpu(pixmap, MOVE_READ | MOVE_WRITE);
+	if (priv == NULL)
+		return false;
 
 	/* XXX strict adherence to the Render specification */
-	if (picture->polyMode == PolyModePrecise) {
+	if (picture->polyMode == PolyModePrecise &&
+	    picture->polyEdge != PolyEdgeSharp) {
 		DBG(("%s: fallback -- precise rasterisation requested\n",
 		     __FUNCTION__));
 		return false;
@@ -3369,7 +4054,7 @@ trap_mask_converter(PicturePtr picture,
 	scratch = sna_pixmap_create_upload(screen,
 					   extents.x2-extents.x1,
 					   extents.y2-extents.y1,
-					   8);
+					   8, KGEM_BUFFER_WRITE_INPLACE);
 	if (!scratch)
 		return true;
 
@@ -3446,7 +4131,7 @@ trap_upload(PicturePtr picture,
 	int width, height, depth;
 	int n;
 
-	priv = sna_pixmap_move_to_gpu(pixmap);
+	priv = sna_pixmap_move_to_gpu(pixmap, MOVE_READ | MOVE_WRITE);
 	if (priv == NULL)
 		return false;
 
@@ -3480,7 +4165,9 @@ trap_upload(PicturePtr picture,
 
 	DBG(("%s: tmp (%dx%d) depth=%d\n",
 	     __FUNCTION__, width, height, depth));
-	scratch = sna_pixmap_create_upload(screen, width, height, depth);
+	scratch = sna_pixmap_create_upload(screen,
+					   width, height, depth,
+					   KGEM_BUFFER_WRITE);
 	if (!scratch)
 		return true;
 
@@ -3512,7 +4199,7 @@ sna_add_traps(PicturePtr picture, INT16 x, INT16 y, int n, xTrap *t)
 {
 	DBG(("%s (%d, %d) x %d\n", __FUNCTION__, x, y, n));
 
-	if (picture_is_gpu (picture)) {
+	if (is_gpu(picture->pDrawable)) {
 		if (trap_span_converter(picture, x, y, n, t))
 			return;
 
@@ -3524,8 +4211,9 @@ sna_add_traps(PicturePtr picture, INT16 x, INT16 y, int n, xTrap *t)
 	}
 
 	DBG(("%s -- fallback\n", __FUNCTION__));
-	sna_drawable_move_to_cpu(picture->pDrawable, true);
-	fbAddTraps(picture, x, y, n, t);
+	if (sna_drawable_move_to_cpu(picture->pDrawable,
+				     MOVE_READ | MOVE_WRITE))
+		fbAddTraps(picture, x, y, n, t);
 }
 
 static inline void
@@ -3579,6 +4267,7 @@ mono_triangles_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	BoxRec extents;
 	int16_t dst_x, dst_y;
 	int16_t dx, dy;
+	bool was_clear;
 	int n;
 
 	mono.sna = to_sna_from_drawable(dst->pDrawable);
@@ -3617,6 +4306,8 @@ mono_triangles_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	     src_x + mono.clip.extents.x1 - dst_x - dx,
 	     src_y + mono.clip.extents.y1 - dst_y - dy));
 
+	was_clear = sna_drawable_is_clear(dst->pDrawable);
+
 	if (mono_init(&mono, 3*count))
 		return false;
 
@@ -3645,7 +4336,7 @@ mono_triangles_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 		mono.op.done(mono.sna, &mono.op);
 	}
 
-	if (!operator_is_bounded(op)) {
+	if (!was_clear && !operator_is_bounded(op)) {
 		xPointFixed p1, p2;
 
 		if (!mono_init(&mono, 2+3*count))
@@ -3677,7 +4368,7 @@ mono_triangles_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 		memset(&mono.op, 0, sizeof(mono.op));
 		if (mono.sna->render.composite(mono.sna,
 					       PictOpClear,
-					       src, NULL, dst,
+					       mono.sna->clear, NULL, dst,
 					       0, 0,
 					       0, 0,
 					       mono.clip.extents.x1,  mono.clip.extents.y1,
@@ -3837,7 +4528,7 @@ triangles_mask_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	if (NO_SCAN_CONVERTER)
 		return false;
 
-	if (dst->polyMode == PolyModePrecise) {
+	if (dst->polyMode == PolyModePrecise && !is_mono(dst, maskFormat)) {
 		DBG(("%s: fallback -- precise rasterisation requested\n",
 		     __FUNCTION__));
 		return false;
@@ -3880,7 +4571,9 @@ triangles_mask_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 
 	DBG(("%s: mask (%dx%d)\n",
 	     __FUNCTION__, extents.x2, extents.y2));
-	scratch = sna_pixmap_create_upload(screen, extents.x2, extents.y2, 8);
+	scratch = sna_pixmap_create_upload(screen,
+					   extents.x2, extents.y2, 8,
+					   KGEM_BUFFER_WRITE_INPLACE);
 	if (!scratch)
 		return true;
 
@@ -3985,7 +4678,8 @@ triangles_fallback(CARD8 op,
 		DBG(("%s: mask (%dx%d) depth=%d, format=%08x\n",
 		     __FUNCTION__, width, height, depth, format));
 		scratch = sna_pixmap_create_upload(screen,
-						   width, height, depth);
+						   width, height, depth,
+						   KGEM_BUFFER_WRITE);
 		if (!scratch)
 			return;
 
@@ -4067,7 +4761,7 @@ tristrip_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 		return false;
 
 	/* XXX strict adherence to the Render specification */
-	if (dst->polyMode == PolyModePrecise) {
+	if (dst->polyMode == PolyModePrecise && !is_mono(dst, maskFormat)) {
 		DBG(("%s: fallback -- precise rasterisation requested\n",
 		     __FUNCTION__));
 		return false;
@@ -4227,7 +4921,8 @@ tristrip_fallback(CARD8 op,
 		DBG(("%s: mask (%dx%d) depth=%d, format=%08x\n",
 		     __FUNCTION__, width, height, depth, format));
 		scratch = sna_pixmap_create_upload(screen,
-						   width, height, depth);
+						   width, height, depth,
+						   KGEM_BUFFER_WRITE);
 		if (!scratch)
 			return;
 
@@ -4361,7 +5056,8 @@ trifan_fallback(CARD8 op,
 		DBG(("%s: mask (%dx%d) depth=%d, format=%08x\n",
 		     __FUNCTION__, width, height, depth, format));
 		scratch = sna_pixmap_create_upload(screen,
-						   width, height, depth);
+						   width, height, depth,
+						   KGEM_BUFFER_WRITE);
 		if (!scratch)
 			return;
 

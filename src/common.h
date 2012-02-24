@@ -51,20 +51,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PFX __FILE__,__LINE__,__FUNCTION__
 #define FUNCTION_NAME __FUNCTION__
 
-#ifdef I830DEBUG
-#define MARKER() ErrorF("\n### %s:%d: >>> %s <<< ###\n\n", \
-			 __FILE__, __LINE__,__FUNCTION__)
-#define DPRINTF I830DPRINTF
-#else /* #ifdef I830DEBUG */
-#define MARKER()
-#define DPRINTF I830DPRINTF_stub
-static inline void
-I830DPRINTF_stub(const char *filename, int line, const char *function,
-		 const char *fmt, ...)
-{
-}
-#endif /* #ifdef I830DEBUG */
-
 #define KB(x) ((x) * 1024)
 #define MB(x) ((x) * KB(1024))
 
@@ -81,9 +67,6 @@ extern void intel_init_scrn(ScrnInfoPtr scrn);
 
 /* Symbol lists shared by the i810 and i830 parts. */
 extern int I830EntityIndex;
-
-extern void I830DPRINTF_stub(const char *filename, int line,
-			     const char *function, const char *fmt, ...);
 
 #ifdef _I830_H_
 #define PrintErrorState i830_dump_error_state
