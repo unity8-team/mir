@@ -218,7 +218,6 @@ AC_MSG_RESULT([${DRI-yes}])
 AM_CONDITIONAL(DRI, test x$DRI != xno)
 if test "x$DRI" != "xno"; then
         AC_DEFINE(XF86DRI,1,[Enable DRI driver support])
-        AC_DEFINE(XF86DRI_DEVEL,1,[Enable developmental DRI driver support])
 else
         DRI_CFLAGS=""
         DRI_LIBS=""
