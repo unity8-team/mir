@@ -221,6 +221,7 @@ enum {
 	CREATE_CPU_MAP = 0x4,
 	CREATE_GTT_MAP = 0x8,
 	CREATE_SCANOUT = 0x10,
+	CREATE_TEMPORARY = 0x20,
 };
 struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 			       int width,
@@ -379,18 +380,10 @@ static inline int kgem_buffer_size(struct kgem_bo *bo)
 	return bo->size.bytes;
 }
 
-static inline bool kgem_bo_can_blt(struct kgem *kgem,
-				   struct kgem_bo *bo)
+static inline bool kgem_bo_blt_pitch_is_ok(struct kgem *kgem,
+					   struct kgem_bo *bo)
 {
-	int pitch;
-
-	if (bo->tiling == I915_TILING_Y) {
-		DBG(("%s: can not blt to handle=%d, tiling=Y\n",
-		     __FUNCTION__, bo->handle));
-		return false;
-	}
-
-	pitch = bo->pitch;
+	int pitch = bo->pitch;
 	if (kgem->gen >= 40 && bo->tiling)
 		pitch /= 4;
 	if (pitch > MAXSHORT) {
@@ -400,6 +393,18 @@ static inline bool kgem_bo_can_blt(struct kgem *kgem,
 	}
 
 	return true;
+}
+
+static inline bool kgem_bo_can_blt(struct kgem *kgem,
+				   struct kgem_bo *bo)
+{
+	if (bo->tiling == I915_TILING_Y) {
+		DBG(("%s: can not blt to handle=%d, tiling=Y\n",
+		     __FUNCTION__, bo->handle));
+		return false;
+	}
+
+	return kgem_bo_blt_pitch_is_ok(kgem, bo);
 }
 
 static inline bool kgem_bo_is_mappable(struct kgem *kgem,
@@ -493,6 +498,8 @@ struct kgem_bo *kgem_create_buffer_2d(struct kgem *kgem,
 				      uint32_t flags,
 				      void **ret);
 void kgem_buffer_read_sync(struct kgem *kgem, struct kgem_bo *bo);
+
+void kgem_bo_clear_scanout(struct kgem *kgem, struct kgem_bo *bo);
 
 void kgem_throttle(struct kgem *kgem);
 #define MAX_INACTIVE_TIME 10

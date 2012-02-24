@@ -199,6 +199,10 @@ Bool sna_video_xvmc_setup(struct sna *sna,
 	if (sna->kgem.gen < 31)
 		return FALSE;
 
+	/* Not implemented */
+	if (sna->kgem.gen >= 60)
+		return FALSE;
+
 	pAdapt = calloc(1, sizeof(XF86MCAdaptorRec));
 	if (!pAdapt)
 		return FALSE;

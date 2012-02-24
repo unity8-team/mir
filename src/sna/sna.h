@@ -44,6 +44,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <stdint.h>
 
 #include "compiler.h"
+
 #include <xf86_OSproc.h>
 #include <xf86Pci.h>
 #include <xf86Cursor.h>
@@ -109,14 +110,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define TEST_RENDER (TEST_ALL || 0)
 
 #include "intel_driver.h"
+#include "intel_list.h"
 #include "kgem.h"
 #include "sna_damage.h"
 #include "sna_render.h"
-
-static inline void list_add_tail(struct list *new, struct list *head)
-{
-	__list_add(new, head->prev, head);
-}
 
 #ifndef CREATE_PIXMAP_USAGE_SCRATCH_HEADER
 #define FAKE_CREATE_PIXMAP_USAGE_SCRATCH_HEADER 1
@@ -274,6 +271,7 @@ struct sna {
 	void *WakeupData;
 	CloseScreenProcPtr CloseScreen;
 
+	PicturePtr clear;
 	struct {
 		uint32_t fill_bo;
 		uint32_t fill_pixel;
@@ -444,6 +442,7 @@ struct kgem_bo *sna_pixmap_change_tiling(PixmapPtr pixmap, uint32_t tiling);
 #define MOVE_WRITE 0x1
 #define MOVE_READ 0x2
 #define MOVE_INPLACE_HINT 0x4
+#define MOVE_ASYNC_HINT 0x8
 bool must_check _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned flags);
 static inline bool must_check sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned flags)
 {

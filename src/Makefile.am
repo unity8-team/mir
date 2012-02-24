@@ -41,6 +41,7 @@ endif
 NULL:=#
 
 intel_drv_la_SOURCES = \
+	intel_list.h \
 	intel_module.c \
 	$(NULL)
 

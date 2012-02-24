@@ -648,7 +648,6 @@ sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		     scrn->depth, scrn->bitsPerPixel));
 
 		assert(bo->tiling != I915_TILING_Y);
-		bo->scanout = true;
 		ret = drmModeAddFB(sna->kgem.fd,
 				   scrn->virtualX, scrn->virtualY,
 				   scrn->depth, scrn->bitsPerPixel,
@@ -664,6 +663,7 @@ sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 
 		DBG(("%s: handle %d attached to fb %d\n",
 		     __FUNCTION__, bo->handle, sna_mode->fb_id));
+		bo->scanout = true;
 		sna_mode->fb_pixmap = sna->front->drawable.serialNumber;
 	}
 
@@ -765,7 +765,6 @@ sna_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 	}
 
 	assert(bo->tiling != I915_TILING_Y);
-	bo->scanout = true;
 	if (drmModeAddFB(sna->kgem.fd,
 			 width, height, scrn->depth, scrn->bitsPerPixel,
 			 bo->pitch, bo->handle,
@@ -780,6 +779,7 @@ sna_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 
 	DBG(("%s: attached handle %d to fb %d\n",
 	     __FUNCTION__, bo->handle, sna_crtc->shadow_fb_id));
+	bo->scanout = true;
 	return sna_crtc->shadow = shadow;
 }
 
@@ -806,6 +806,7 @@ sna_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr pixmap, void *data)
 	drmModeRmFB(sna->kgem.fd, sna_crtc->shadow_fb_id);
 	sna_crtc->shadow_fb_id = 0;
 
+	kgem_bo_clear_scanout(&sna->kgem, sna_pixmap_get_bo(pixmap));
 	pixmap->drawable.pScreen->DestroyPixmap(pixmap);
 	sna_crtc->shadow = NULL;
 }
@@ -1674,7 +1675,6 @@ sna_crtc_resize(ScrnInfoPtr scrn, int width, int height)
 		goto fail;
 
 	assert(bo->tiling != I915_TILING_Y);
-	bo->scanout = true;
 	if (drmModeAddFB(sna->kgem.fd, width, height,
 			 scrn->depth, scrn->bitsPerPixel,
 			 bo->pitch, bo->handle,
@@ -1690,6 +1690,7 @@ sna_crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	     __FUNCTION__, bo->handle,
 	     sna->front->drawable.serialNumber, mode->fb_id));
 
+	bo->scanout = true;
 	for (i = 0; i < xf86_config->num_crtc; i++) {
 		xf86CrtcPtr crtc = xf86_config->crtc[i];
 
@@ -1711,7 +1712,7 @@ sna_crtc_resize(ScrnInfoPtr scrn, int width, int height)
 
 	if (old_fb_id)
 		drmModeRmFB(sna->kgem.fd, old_fb_id);
-	sna_pixmap_get_bo(old_front)->needs_flush = true;
+	kgem_bo_clear_scanout(&sna->kgem, sna_pixmap_get_bo(old_front));
 	scrn->pScreen->DestroyPixmap(old_front);
 
 	return TRUE;
@@ -1842,13 +1843,7 @@ sna_page_flip(struct sna *sna,
 	count = do_page_flip(sna, data, ref_crtc_hw_id);
 	DBG(("%s: page flipped %d crtcs\n", __FUNCTION__, count));
 	if (count) {
-		/* Although the kernel performs an implicit flush upon
-		 * page-flipping, marking the bo as requiring a flush
-		 * here ensures that the buffer goes into the active cache
-		 * upon release.
-		 */
-		bo->needs_flush = true;
-		bo->reusable = true;
+		bo->scanout = true;
 	} else {
 		drmModeRmFB(sna->kgem.fd, mode->fb_id);
 		mode->fb_id = *old_fb;
@@ -1932,6 +1927,7 @@ sna_mode_fini(struct sna *sna)
 #endif
 
 	sna_mode_remove_fb(sna);
+	kgem_bo_clear_scanout(&sna->kgem, sna_pixmap_get_bo(sna->front));
 
 	/* mode->shadow_fb_id should have been destroyed already */
 }

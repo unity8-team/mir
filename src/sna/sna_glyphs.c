@@ -1026,7 +1026,7 @@ glyphs_fallback(CARD8 op,
 	DBG(("%s: (%d, %d), (%d, %d)\n",
 	     __FUNCTION__, box.x1, box.y1, box.x2, box.y2));
 
-	RegionInit(&region, &box, 1);
+	RegionInit(&region, &box, 0);
 	RegionTranslate(&region, dst->pDrawable->x, dst->pDrawable->y);
 	if (dst->pCompositeClip)
 		RegionIntersect(&region, &region, dst->pCompositeClip);
@@ -1247,10 +1247,6 @@ sna_glyphs(CARD8 op,
 
 	_mask = mask;
 	/* XXX discard the mask for non-overlapping glyphs? */
-
-	/* XXX more shader breakage?: CA to dst is fubar on ilk */
-	if (sna->kgem.gen == 50 && !_mask)
-		_mask = list[0].format;
 
 	if (!_mask ||
 	    (((nlist == 1 && list->len == 1) || op == PictOpAdd) &&

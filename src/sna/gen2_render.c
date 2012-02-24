@@ -1486,14 +1486,6 @@ try_blt(struct sna *sna,
 }
 
 static bool
-is_solid(PicturePtr picture)
-{
-	return  picture->pDrawable->width == 1 &&
-		picture->pDrawable->height == 1 &&
-		picture->repeat;
-}
-
-static bool
 is_unhandled_gradient(PicturePtr picture)
 {
 	if (picture->pDrawable)
@@ -1515,14 +1507,23 @@ has_alphamap(PicturePtr p)
 }
 
 static bool
+untransformed(PicturePtr p)
+{
+	return !p->transform || pixman_transform_is_int_translate(p->transform);
+}
+
+static bool
 need_upload(PicturePtr p)
 {
-	return p->pDrawable && unattached(p->pDrawable);
+	return p->pDrawable && unattached(p->pDrawable) && untransformed(p);
 }
 
 static bool
 source_fallback(PicturePtr p)
 {
+	if (sna_picture_is_solid(p, NULL))
+		return false;
+
 	return (has_alphamap(p) ||
 		is_unhandled_gradient(p) ||
 		!gen2_check_filter(p) ||
@@ -1572,7 +1573,7 @@ gen2_composite_fallback(struct sna *sna,
 		return FALSE;
 	}
 
-	if (src_pixmap && !is_solid(src) && !source_fallback(src)) {
+	if (src_pixmap && !source_fallback(src)) {
 		priv = sna_pixmap(src_pixmap);
 		if (priv && priv->gpu_damage && !priv->cpu_damage) {
 			DBG(("%s: src is already on the GPU, try to use GPU\n",
@@ -1580,7 +1581,7 @@ gen2_composite_fallback(struct sna *sna,
 			return FALSE;
 		}
 	}
-	if (mask_pixmap && !is_solid(mask) && !source_fallback(mask)) {
+	if (mask_pixmap && !source_fallback(mask)) {
 		priv = sna_pixmap(mask_pixmap);
 		if (priv && priv->gpu_damage && !priv->cpu_damage) {
 			DBG(("%s: mask is already on the GPU, try to use GPU\n",
@@ -2852,9 +2853,7 @@ gen2_render_copy_boxes(struct sna *sna, uint8_t alu,
 
 	if (src_bo == dst_bo || /* XXX handle overlap using 3D ? */
 	    too_large(src->drawable.width, src->drawable.height) ||
-	    src_bo->pitch > MAX_3D_PITCH ||
-	    too_large(dst->drawable.width, dst->drawable.height) ||
-	    dst_bo->pitch < 8 || dst_bo->pitch > MAX_3D_PITCH) {
+	    src_bo->pitch > MAX_3D_PITCH || dst_bo->pitch < 8) {
 fallback:
 		return sna_blt_copy_boxes_fallback(sna, alu,
 						   src, src_bo, src_dx, src_dy,
@@ -2876,9 +2875,40 @@ fallback:
 	tmp.dst.height = dst->drawable.height;
 	tmp.dst.format = sna_format_for_depth(dst->drawable.depth);
 	tmp.dst.bo = dst_bo;
+	tmp.dst.x = tmp.dst.y = 0;
+	tmp.damage = NULL;
+
+	sna_render_composite_redirect_init(&tmp);
+	if (too_large(tmp.dst.width, tmp.dst.height) ||
+	    dst_bo->pitch > MAX_3D_PITCH) {
+		BoxRec extents = box[0];
+		int i;
+
+		for (i = 1; i < n; i++) {
+			if (extents.x1 < box[i].x1)
+				extents.x1 = box[i].x1;
+			if (extents.y1 < box[i].y1)
+				extents.y1 = box[i].y1;
+
+			if (extents.x2 > box[i].x2)
+				extents.x2 = box[i].x2;
+			if (extents.y2 > box[i].y2)
+				extents.y2 = box[i].y2;
+		}
+		if (!sna_render_composite_redirect(sna, &tmp,
+						   extents.x1 + dst_dx,
+						   extents.y1 + dst_dy,
+						   extents.x2 - extents.x1,
+						   extents.y2 - extents.y1))
+			goto fallback_tiled;
+	}
 
 	tmp.floats_per_vertex = 4;
 	tmp.floats_per_rect = 12;
+
+	dst_dx += tmp.dst.x;
+	dst_dy += tmp.dst.y;
+	tmp.dst.x = tmp.dst.y = 0;
 
 	gen2_render_copy_setup_source(&tmp.src, src, src_bo);
 	gen2_emit_copy_state(sna, &tmp);
@@ -2917,7 +2947,14 @@ fallback:
 	} while (n);
 
 	gen2_vertex_flush(sna, &tmp);
+	sna_render_composite_redirect_done(sna, &tmp);
 	return TRUE;
+
+fallback_tiled:
+	return sna_tiling_copy_boxes(sna, alu,
+				     src, src_bo, src_dx, src_dy,
+				     dst, dst_bo, dst_dx, dst_dy,
+				     box, n);
 }
 
 static void

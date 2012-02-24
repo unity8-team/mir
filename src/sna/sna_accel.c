@@ -321,10 +321,8 @@ sna_pixmap_alloc_cpu(struct sna *sna,
 			if (priv->ptr == NULL) {
 				kgem_bo_destroy(&sna->kgem, priv->cpu_bo);
 				priv->cpu_bo = NULL;
-			} else {
-				kgem_bo_sync__cpu(&sna->kgem, priv->cpu_bo);
+			} else
 				priv->stride = priv->cpu_bo->pitch;
-			}
 		}
 	}
 
@@ -416,6 +414,8 @@ static inline uint32_t default_tiling(PixmapPtr pixmap)
 	if (sna_damage_is_all(&priv->cpu_damage,
 			      pixmap->drawable.width,
 			      pixmap->drawable.height)) {
+		DBG(("%s: entire source is damaged, using Y-tiling\n",
+		     __FUNCTION__));
 		sna_damage_destroy(&priv->gpu_damage);
 		priv->undamaged = false;
 		return I915_TILING_Y;
@@ -698,7 +698,7 @@ sna_pixmap_create_scratch(ScreenPtr screen,
 
 	priv->gpu_bo = kgem_create_2d(&sna->kgem,
 				      width, height, bpp, tiling,
-				      0);
+				      CREATE_TEMPORARY);
 	if (priv->gpu_bo == NULL) {
 		free(priv);
 		fbDestroyPixmap(pixmap);
@@ -811,14 +811,6 @@ static Bool sna_destroy_pixmap(PixmapPtr pixmap)
 	}
 
 	return fbDestroyPixmap(pixmap);
-}
-
-static inline void list_move(struct list *list, struct list *head)
-{
-	if (list->prev != head) {
-		__list_del(list->prev, list->next);
-		list_add(list, head);
-	}
 }
 
 static inline bool pixmap_inplace(struct sna *sna,
@@ -1066,7 +1058,7 @@ skip_inplace_map:
 	}
 
 done:
-	if (priv->cpu_bo) {
+	if ((flags & MOVE_ASYNC_HINT) == 0 && priv->cpu_bo) {
 		DBG(("%s: syncing CPU bo\n", __FUNCTION__));
 		kgem_bo_sync__cpu(&sna->kgem, priv->cpu_bo);
 	}
@@ -1221,8 +1213,19 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 		return true;
 	}
 
-	if (DAMAGE_IS_ALL(priv->cpu_damage))
+	if (sna_damage_is_all(&priv->cpu_damage,
+			      pixmap->drawable.width,
+			      pixmap->drawable.height)) {
+		sna_damage_destroy(&priv->gpu_damage);
+		sna_pixmap_free_gpu(sna, priv);
+		priv->undamaged = false;
+
+		if (pixmap->devPrivate.ptr == NULL &&
+		    !sna_pixmap_alloc_cpu(sna, pixmap, priv, false))
+			return false;
+
 		goto out;
+	}
 
 	if (priv->clear)
 		return _sna_pixmap_move_to_cpu(pixmap, flags);
@@ -1245,6 +1248,8 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 	}
 
 	if ((flags & MOVE_READ) == 0) {
+		DBG(("%s: no read, checking to see if we can stream the write into the GPU bo\n",
+		     __FUNCTION__));
 		assert(flags & MOVE_WRITE);
 
 		if (priv->stride && priv->gpu_bo &&
@@ -1611,8 +1616,14 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box, unsigned int flags)
 
 	assert_pixmap_contains_box(pixmap, box);
 
-	if (DAMAGE_IS_ALL(priv->gpu_damage))
+	if (sna_damage_is_all(&priv->gpu_damage,
+			      pixmap->drawable.width,
+			      pixmap->drawable.height)) {
+		sna_damage_destroy(&priv->cpu_damage);
+		priv->undamaged = false;
+		list_del(&priv->list);
 		goto done;
+	}
 
 	if (priv->gpu_bo == NULL) {
 		unsigned flags;
@@ -1652,10 +1663,13 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box, unsigned int flags)
 	}
 
 	if (priv->mapped) {
+		pixmap->devPrivate.ptr = NULL;
+		priv->mapped = false;
+	}
+	if (pixmap->devPrivate.ptr == NULL) {
 		assert(priv->stride);
 		pixmap->devPrivate.ptr = priv->ptr;
 		pixmap->devKind = priv->stride;
-		priv->mapped = false;
 	}
 	assert(pixmap->devPrivate.ptr != NULL);
 
@@ -1995,6 +2009,15 @@ sna_pixmap_create_upload(ScreenPtr screen,
 	return pixmap;
 }
 
+static inline struct sna_pixmap *
+sna_pixmap_mark_active(struct sna *sna, struct sna_pixmap *priv)
+{
+	if (!priv->pinned && (priv->create & KGEM_CAN_CREATE_LARGE) == 0)
+		list_move(&priv->inactive, &sna->active_pixmaps);
+	priv->clear = false;
+	return priv;
+}
+
 struct sna_pixmap *
 sna_pixmap_force_to_gpu(PixmapPtr pixmap, unsigned flags)
 {
@@ -2005,6 +2028,11 @@ sna_pixmap_force_to_gpu(PixmapPtr pixmap, unsigned flags)
 	priv = sna_pixmap_attach(pixmap);
 	if (priv == NULL)
 		return NULL;
+
+	if (DAMAGE_IS_ALL(priv->gpu_damage)) {
+		DBG(("%s: GPU all-damaged\n", __FUNCTION__));
+		return sna_pixmap_mark_active(to_sna_from_pixmap(pixmap), priv);
+	}
 
 	/* Unlike move-to-gpu, we ignore wedged and always create the GPU bo */
 	if (priv->gpu_bo == NULL) {
@@ -2081,7 +2109,9 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 		return NULL;
 	}
 
-	if (DAMAGE_IS_ALL(priv->gpu_damage)) {
+	if (sna_damage_is_all(&priv->gpu_damage,
+			      pixmap->drawable.width,
+			      pixmap->drawable.height)) {
 		DBG(("%s: already all-damaged\n", __FUNCTION__));
 		goto active;
 	}
@@ -2133,7 +2163,6 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 		pixmap->devKind = priv->stride;
 		priv->mapped = false;
 	}
-	assert(pixmap->devPrivate.ptr != NULL);
 
 	n = sna_damage_get_boxes(priv->cpu_damage, &box);
 	if (n) {
@@ -2148,6 +2177,7 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 						    pixmap, priv->gpu_bo, 0, 0,
 						    box, n);
 		if (!ok) {
+			assert(pixmap->devPrivate.ptr != NULL);
 			if (n == 1 && !priv->pinned &&
 			    (box->x2 - box->x1) >= pixmap->drawable.width &&
 			    (box->y2 - box->y1) >= pixmap->drawable.height) {
@@ -2183,10 +2213,7 @@ done:
 			sna_pixmap_free_cpu(sna, priv);
 	}
 active:
-	if (!priv->pinned && (priv->create & KGEM_CAN_CREATE_LARGE) == 0)
-		list_move(&priv->inactive, &sna->active_pixmaps);
-	priv->clear = false;
-	return priv;
+	return sna_pixmap_mark_active(to_sna_from_pixmap(pixmap), priv);
 }
 
 static bool must_check sna_validate_pixmap(DrawablePtr draw, PixmapPtr pixmap)
@@ -2596,6 +2623,11 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	if (priv->clear) {
 		DBG(("%s: applying clear [%08x]\n",
 		     __FUNCTION__, priv->clear_color));
+
+		if (priv->cpu_bo) {
+			DBG(("%s: syncing CPU bo\n", __FUNCTION__));
+			kgem_bo_sync__cpu(&sna->kgem, priv->cpu_bo);
+		}
 
 		pixman_fill(pixmap->devPrivate.ptr,
 			    pixmap->devKind/sizeof(uint32_t),
@@ -5423,8 +5455,7 @@ sna_poly_zero_line_blt(DrawablePtr drawable,
 
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
 	struct sna *sna = to_sna_from_pixmap(pixmap);
-	int x2, y2, xstart, ystart;
-	int oc2, pt2_clipped = 0;
+	int x2, y2, xstart, ystart, oc2;
 	unsigned int bias = miGetZeroLineBias(drawable->pScreen);
 	bool degenerate = true;
 	struct sna_fill_op fill;
@@ -5449,11 +5480,11 @@ sna_poly_zero_line_blt(DrawablePtr drawable,
 	}
 
 	jump = _jump[(damage != NULL) | !!(dx|dy) << 1];
-	DBG(("%s: [clipped] extents=(%d, %d), (%d, %d), delta=(%d, %d)\n",
-	     __FUNCTION__,
+	DBG(("%s: [clipped=%x] extents=(%d, %d), (%d, %d), delta=(%d, %d), damage=%p\n",
+	     __FUNCTION__, clipped,
 	     clip.extents.x1, clip.extents.y1,
 	     clip.extents.x2, clip.extents.y2,
-	     dx, dy));
+	     dx, dy, damage));
 
 	extents = REGION_RECTS(&clip);
 	last_extents = extents + REGION_NUM_RECTS(&clip);
@@ -5466,15 +5497,10 @@ sna_poly_zero_line_blt(DrawablePtr drawable,
 		xstart = pt->x + drawable->x;
 		ystart = pt->y + drawable->y;
 
-		/* x2, y2, oc2 copied to x1, y1, oc1 at top of loop to simplify
-		 * iteration logic
-		 */
 		x2 = xstart;
 		y2 = ystart;
 		oc2 = 0;
-		MIOUTCODES(oc2, x2, y2,
-			   extents->x1, extents->y1,
-			   extents->x2, extents->y2);
+		OUTCODES(oc2, x2, y2, extents);
 
 		while (--n) {
 			int16_t sdx, sdy;
@@ -5505,9 +5531,7 @@ sna_poly_zero_line_blt(DrawablePtr drawable,
 			degenerate = false;
 
 			oc2 = 0;
-			MIOUTCODES(oc2, x2, y2,
-				   extents->x1, extents->y1,
-				   extents->x2, extents->y2);
+			OUTCODES(oc2, x2, y2, extents);
 			if (oc1 & oc2)
 				continue;
 
@@ -5515,8 +5539,8 @@ sna_poly_zero_line_blt(DrawablePtr drawable,
 				       adx, ady, sdx, sdy,
 				       1, 1, octant);
 
-			DBG(("%s: adx=(%d, %d), sdx=(%d, %d)\n",
-			     __FUNCTION__, adx, ady, sdx, sdy));
+			DBG(("%s: adx=(%d, %d), sdx=(%d, %d), oc1=%x, oc2=%x\n",
+			     __FUNCTION__, adx, ady, sdx, sdy, oc1, oc2));
 			if (adx == 0 || ady == 0) {
 				if (x1 <= x2) {
 					b->x1 = x1;
@@ -5543,24 +5567,24 @@ rectangle_continue:
 					b = box;
 				}
 			} else if (adx >= ady) {
+				int x2_clipped = x2, y2_clipped = y2;
+
 				/* X-major segment */
 				e1 = ady << 1;
 				e2 = e1 - (adx << 1);
 				e  = e1 - adx;
-				length = adx;	/* don't draw endpoint in main loop */
+				length = adx;
 
 				FIXUP_ERROR(e, octant, bias);
 
 				x = x1;
 				y = y1;
-				pt2_clipped = 0;
 
 				if (oc1 | oc2) {
-					int x2_clipped = x2, y2_clipped = y2;
-					int pt1_clipped;
+					int pt1_clipped, pt2_clipped;
 
 					if (miZeroClipLine(extents->x1, extents->y1,
-							   extents->x2, extents->y2,
+							   extents->x2-1, extents->y2-1,
 							   &x, &y, &x2_clipped, &y2_clipped,
 							   adx, ady,
 							   &pt1_clipped, &pt2_clipped,
@@ -5568,12 +5592,6 @@ rectangle_continue:
 						continue;
 
 					length = abs(x2_clipped - x);
-
-					/* if we've clipped the endpoint, always draw the full length
-					 * of the segment, because then the capstyle doesn't matter
-					 */
-					if (pt2_clipped)
-						length++;
 					if (length == 0)
 						continue;
 
@@ -5588,8 +5606,8 @@ rectangle_continue:
 				e  = e - e1;
 
 				if (sdx < 0) {
-					x = x2;
-					y = y2;
+					x = x2_clipped;
+					y = y2_clipped;
 					sdy = -sdy;
 				}
 
@@ -5623,38 +5641,32 @@ X_continue2:
 					b = box;
 				}
 			} else {
+				int x2_clipped = x2, y2_clipped = y2;
+
 				/* Y-major segment */
 				e1 = adx << 1;
 				e2 = e1 - (ady << 1);
 				e  = e1 - ady;
-				length  = ady;	/* don't draw endpoint in main loop */
+				length  = ady;
 
 				SetYMajorOctant(octant);
 				FIXUP_ERROR(e, octant, bias);
 
 				x = x1;
 				y = y1;
-				pt2_clipped = 0;
 
 				if (oc1 | oc2) {
-					int x2_clipped = x2, y2_clipped = y2;
-					int pt1_clipped;
+					int pt1_clipped, pt2_clipped;
 
 					if (miZeroClipLine(extents->x1, extents->y1,
-							   extents->x2, extents->y2,
+							   extents->x2-1, extents->y2-1,
 							   &x, &y, &x2_clipped, &y2_clipped,
 							   adx, ady,
 							   &pt1_clipped, &pt2_clipped,
 							   octant, bias, oc1, oc2) == -1)
 						continue;
 
-					length = abs(y2 - y);
-
-					/* if we've clipped the endpoint, always draw the full length
-					 * of the segment, because then the capstyle doesn't matter
-					 */
-					if (pt2_clipped)
-						length++;
+					length = abs(y2_clipped - y);
 					if (length == 0)
 						continue;
 
@@ -5669,41 +5681,54 @@ X_continue2:
 				e  = e - e1;
 
 				if (sdx < 0) {
-					x = x2;
-					y = y2;
+					x = x2_clipped;
+					y = y2_clipped;
 					sdy = -sdy;
 				}
 
 				b->x2 = b->x1 = x;
-				b->y1 = y;
-				while (length--) {
-					e += e1;
-					y += sdy;
-					if (e >= 0) {
-						b->y2 = y;
-						if (b->y2 < b->y1) {
-							int16_t t = b->y1;
-							b->y1 = b->y2;
-							b->y2 = t;
+				if (sdy < 0) {
+					b->y2 = y + 1;
+					while (length--) {
+						e += e1;
+						y--;
+						if (e >= 0) {
+							b->y1 = y;
+							b->x2++;
+							if (++b == last_box) {
+								ret = &&Y_up_continue;
+								goto *jump;
+Y_up_continue:
+								b = box;
+							}
+							e += e3;
+							b->x2 = b->x1 = ++x;
+							b->y2 = y;
 						}
-						b->x2++;
-						if (++b == last_box) {
-							ret = &&Y_continue;
-							goto *jump;
-Y_continue:
-							b = box;
-						}
-						e += e3;
-						b->x2 = b->x1 = ++x;
-						b->y1 = y;
 					}
-				}
 
-				b->y2 = y + sdy;
-				if (b->y2 < b->y1) {
-					int16_t t = b->y1;
-					b->y1 = b->y2;
-					b->y2 = t;
+					b->y1 = y;
+				} else {
+					b->y1 = y;
+					while (length--) {
+						e += e1;
+						y++;
+						if (e >= 0) {
+							b->y2 = y;
+							b->x2++;
+							if (++b == last_box) {
+								ret = &&Y_down_continue;
+								goto *jump;
+Y_down_continue:
+								b = box;
+							}
+							e += e3;
+							b->x2 = b->x1 = ++x;
+							b->y1 = y;
+						}
+					}
+
+					b->y2 = ++y;
 				}
 				b->x2++;
 				if (++b == last_box) {
@@ -6806,17 +6831,9 @@ sna_poly_zero_segment_blt(DrawablePtr drawable,
 				continue;
 
 			oc1 = 0;
-			MIOUTCODES(oc1, x1, y1,
-				   extents->x1,
-				   extents->y1,
-				   extents->x2,
-				   extents->y2);
+			OUTCODES(oc1, x1, y1, extents);
 			oc2 = 0;
-			MIOUTCODES(oc2, x2, y2,
-				   extents->x1,
-				   extents->y1,
-				   extents->x2,
-				   extents->y2);
+			OUTCODES(oc2, x2, y2, extents);
 			if (oc1 & oc2)
 				continue;
 
@@ -6864,10 +6881,8 @@ rectangle_continue:
 					int pt1_clipped, pt2_clipped;
 					int x = x1, y = y1;
 
-					if (miZeroClipLine(extents->x1,
-							   extents->y1,
-							   extents->x2,
-							   extents->y2,
+					if (miZeroClipLine(extents->x1, extents->y1,
+							   extents->x2-1, extents->y2-1,
 							   &x1, &y1, &x2, &y2,
 							   adx, ady,
 							   &pt1_clipped, &pt2_clipped,
@@ -6936,10 +6951,8 @@ X_continue2:
 					int pt1_clipped, pt2_clipped;
 					int x = x1, y = y1;
 
-					if (miZeroClipLine(extents->x1,
-							   extents->y1,
-							   extents->x2,
-							   extents->y2,
+					if (miZeroClipLine(extents->x1, extents->y1,
+							   extents->x2-1, extents->y2-1,
 							   &x1, &y1, &x2, &y2,
 							   adx, ady,
 							   &pt1_clipped, &pt2_clipped,
@@ -6967,35 +6980,48 @@ X_continue2:
 				}
 
 				b->x2 = b->x1 = x1;
-				b->y1 = y1;
-				while (--length) {
-					e += e1;
-					y1 += sdy;
-					if (e >= 0) {
-						b->y2 = y1;
-						if (b->y2 < b->y1) {
-							int16_t t = b->y1;
-							b->y1 = b->y2;
-							b->y2 = t;
+				if (sdy < 0) {
+					b->y2 = y1 + 1;
+					while (--length) {
+						e += e1;
+						y1--;
+						if (e >= 0) {
+							b->y1 = y1;
+							b->x2++;
+							if (++b == last_box) {
+								ret = &&Y_up_continue;
+								goto *jump;
+Y_up_continue:
+								b = box;
+							}
+							e += e3;
+							b->x2 = b->x1 = ++x1;
+							b->y2 = y1;
 						}
-						b->x2++;
-						if (++b == last_box) {
-							ret = &&Y_continue;
-							goto *jump;
-Y_continue:
-							b = box;
-						}
-						e += e3;
-						b->x2 = b->x1 = ++x1;
-						b->y1 = y1;
 					}
-				}
 
-				b->y2 = y1 + sdy;
-				if (b->y2 < b->y1) {
-					int16_t t = b->y1;
-					b->y1 = b->y2;
-					b->y2 = t;
+					b->y1 = y1;
+				} else {
+					b->y1 = y1;
+					while (--length) {
+						e += e1;
+						y1++;
+						if (e >= 0) {
+							b->y2 = y1;
+							b->x2++;
+							if (++b == last_box) {
+								ret = &&Y_down_continue;
+								goto *jump;
+Y_down_continue:
+								b = box;
+							}
+							e += e3;
+							b->x2 = b->x1 = ++x1;
+							b->y1 = y1;
+						}
+					}
+
+					b->y2 = ++y1;
 				}
 				b->x2++;
 				if (++b == last_box) {
@@ -11750,7 +11776,7 @@ static void sna_accel_inactive(struct sna *sna)
 			DBG(("%s: discarding inactive GPU bo handle=%d\n",
 			     __FUNCTION__, priv->gpu_bo->handle));
 			if (!sna_pixmap_move_to_cpu(priv->pixmap,
-						    MOVE_READ | MOVE_WRITE))
+						    MOVE_READ | MOVE_WRITE | MOVE_ASYNC_HINT))
 				list_add(&priv->inactive, &preserve);
 		}
 	}

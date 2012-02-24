@@ -593,7 +593,7 @@ fallback:
 			int step;
 
 tile:
-			step = MIN(sna->render.max_3d_size,
+			step = MIN(sna->render.max_3d_size - 4096 / dst->drawable.bitsPerPixel,
 				   8*(MAXSHORT&~63) / dst->drawable.bitsPerPixel);
 			while (step * step * 4 > sna->kgem.max_upload_tile_size)
 				step /= 2;

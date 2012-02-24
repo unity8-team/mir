@@ -51,40 +51,6 @@
 static struct kgem_bo *
 search_linear_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags);
 
-static inline void _list_del(struct list *list)
-{
-	assert(list->prev->next == list);
-	assert(list->next->prev == list);
-	__list_del(list->prev, list->next);
-}
-
-static inline void list_move(struct list *list, struct list *head)
-{
-	_list_del(list);
-	list_add(list, head);
-}
-
-static inline void list_move_tail(struct list *list, struct list *head)
-{
-	_list_del(list);
-	list_add_tail(list, head);
-}
-
-static inline void list_replace(struct list *old,
-				struct list *new)
-{
-	new->next = old->next;
-	new->next->prev = new;
-	new->prev = old->prev;
-	new->prev->next = new;
-}
-
-#define list_last_entry(ptr, type, member) \
-    list_entry((ptr)->prev, type, member)
-
-#define list_for_each(pos, head)				\
-    for (pos = (head)->next; pos != (head); pos = pos->next)
-
 
 #define DBG_NO_HW 0
 #define DBG_NO_TILING 0
@@ -306,7 +272,7 @@ static void kgem_bo_retire(struct kgem *kgem, struct kgem_bo *bo)
 	     __FUNCTION__, bo->handle, bo->domain));
 	assert(!kgem_busy(kgem, bo->handle));
 
-	if (bo->domain == DOMAIN_GPU)
+	if (bo->rq)
 		kgem_retire(kgem);
 
 	if (bo->exec == NULL) {
@@ -575,6 +541,7 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 {
 	struct drm_i915_gem_get_aperture aperture;
 	size_t totalram;
+	unsigned half_gpu_max;
 	unsigned int i, j;
 
 	memset(kgem, 0, sizeof(*kgem));
@@ -678,9 +645,8 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 		 * disable dual-stream mode */
 		kgem->min_alignment = 64;
 
-	kgem->max_object_size = kgem->aperture_total / 2;
-	kgem->max_cpu_size = kgem->aperture_total / 2;
-	kgem->max_gpu_size = kgem->aperture_total / 2;
+	kgem->max_object_size = 2 * kgem->aperture_total / 3;
+	kgem->max_gpu_size = kgem->max_object_size;
 	if (!kgem->has_llc)
 		kgem->max_gpu_size = MAX_CACHE_SIZE;
 	if (gen < 40) {
@@ -691,16 +657,6 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 		if (kgem->max_gpu_size > kgem->aperture_low)
 			kgem->max_gpu_size = kgem->aperture_low;
 	}
-	if (kgem->max_gpu_size > kgem->max_cpu_size)
-		kgem->max_gpu_size = kgem->max_cpu_size;
-
-	kgem->max_upload_tile_size = kgem->aperture_mappable / 2;
-	if (kgem->max_upload_tile_size > kgem->max_gpu_size / 2)
-		kgem->max_upload_tile_size = kgem->max_gpu_size / 2;
-
-	kgem->max_copy_tile_size = (MAX_CACHE_SIZE + 1)/2;
-	if (kgem->max_copy_tile_size > kgem->max_gpu_size / 2)
-		kgem->max_copy_tile_size = kgem->max_gpu_size / 2;
 
 	totalram = total_ram_size();
 	if (totalram == 0) {
@@ -708,14 +664,32 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 		     __FUNCTION__));
 		totalram = kgem->aperture_total;
 	}
+	DBG(("%s: total ram=%ld\n", __FUNCTION__, (long)totalram));
 	if (kgem->max_object_size > totalram / 2)
 		kgem->max_object_size = totalram / 2;
-	if (kgem->max_cpu_size > totalram / 2)
-		kgem->max_cpu_size = totalram / 2;
 	if (kgem->max_gpu_size > totalram / 4)
 		kgem->max_gpu_size = totalram / 4;
 
+	half_gpu_max = kgem->max_gpu_size / 2;
+	if (kgem->gen >= 40)
+		kgem->max_cpu_size = half_gpu_max;
+	else
+		kgem->max_cpu_size = kgem->max_object_size;
+
+	kgem->max_copy_tile_size = (MAX_CACHE_SIZE + 1)/2;
+	if (kgem->max_copy_tile_size > half_gpu_max)
+		kgem->max_copy_tile_size = half_gpu_max;
+
+	if (kgem->has_llc)
+		kgem->max_upload_tile_size = kgem->max_copy_tile_size;
+	else
+		kgem->max_upload_tile_size = kgem->aperture_mappable / 4;
+	if (kgem->max_upload_tile_size > half_gpu_max)
+		kgem->max_upload_tile_size = half_gpu_max;
+
 	kgem->large_object_size = MAX_CACHE_SIZE;
+	if (kgem->large_object_size > kgem->max_cpu_size)
+		kgem->large_object_size = kgem->max_cpu_size;
 	if (kgem->large_object_size > kgem->max_gpu_size)
 		kgem->large_object_size = kgem->max_gpu_size;
 
@@ -757,11 +731,16 @@ static uint32_t kgem_untiled_pitch(struct kgem *kgem,
 void kgem_get_tile_size(struct kgem *kgem, int tiling,
 			int *tile_width, int *tile_height, int *tile_size)
 {
-	if (kgem->gen < 30) {
+	if (kgem->gen <= 30) {
 		if (tiling) {
 			*tile_width = 512;
-			*tile_height = 16;
-			*tile_size = 2048;
+			if (kgem->gen < 30) {
+				*tile_height = 16;
+				*tile_size = 2048;
+			} else {
+				*tile_height = 8;
+				*tile_size = 4096;
+			}
 		} else {
 			*tile_width = 1;
 			*tile_height = 1;
@@ -780,7 +759,7 @@ void kgem_get_tile_size(struct kgem *kgem, int tiling,
 		*tile_size = 4096;
 		break;
 	case I915_TILING_Y:
-		*tile_width = kgem->gen <= 30 ? 512 : 128;
+		*tile_width = 128;
 		*tile_height = 32;
 		*tile_size = 4096;
 		break;
@@ -799,10 +778,13 @@ static uint32_t kgem_surface_size(struct kgem *kgem,
 	uint32_t tile_width, tile_height;
 	uint32_t size;
 
-	if (kgem->gen < 30) {
+	assert(width <= MAXSHORT);
+	assert(height <= MAXSHORT);
+
+	if (kgem->gen <= 30) {
 		if (tiling) {
 			tile_width = 512;
-			tile_height = 16;
+			tile_height = kgem->gen < 30 ? 16 : 8;
 		} else {
 			tile_width = scanout ? 64 : kgem->min_alignment;
 			tile_height = 2;
@@ -818,37 +800,31 @@ static uint32_t kgem_surface_size(struct kgem *kgem,
 		tile_height = 8;
 		break;
 	case I915_TILING_Y:
-		tile_width = kgem->gen <= 30 ? 512 : 128;
+		tile_width = 128;
 		tile_height = 32;
 		break;
 	}
 
-	/* If it is too wide for the blitter, don't even bother.  */
 	*pitch = ALIGN(width * bpp / 8, tile_width);
-	if (kgem->gen < 40) {
-		if (tiling != I915_TILING_NONE) {
-			if (*pitch > 8192)
-				return 0;
-			for (size = tile_width; size < *pitch; size <<= 1)
-				;
-			*pitch = size;
-		} else {
-			if (*pitch >= 32768)
-				return 0;
-		}
+	height = ALIGN(height, tile_height);
+	if (kgem->gen >= 40)
+		return PAGE_ALIGN(*pitch * height);
+
+	/* If it is too wide for the blitter, don't even bother.  */
+	if (tiling != I915_TILING_NONE) {
+		if (*pitch > 8192)
+			return 0;
+
+		for (size = tile_width; size < *pitch; size <<= 1)
+			;
+		*pitch = size;
 	} else {
-		int limit = 32768;
-		if (tiling)
-			limit *= 4;
-		if (*pitch >= limit)
+		if (*pitch >= 32768)
 			return 0;
 	}
-	height = ALIGN(height, tile_height);
-	if (height >= 65536)
-		return 0;
 
 	size = *pitch * height;
-	if (relaxed_fencing || tiling == I915_TILING_NONE || kgem->gen >= 40)
+	if (relaxed_fencing || tiling == I915_TILING_NONE)
 		return PAGE_ALIGN(size);
 
 	/*  We need to allocate a pot fence region for a tiled buffer. */
@@ -866,8 +842,8 @@ static uint32_t kgem_aligned_height(struct kgem *kgem,
 {
 	uint32_t tile_height;
 
-	if (kgem->gen < 30) {
-		tile_height = tiling ? 16 : 2;
+	if (kgem->gen <= 30) {
+		tile_height = tiling ? kgem->gen < 30 ? 16 : 8 : 1;
 	} else switch (tiling) {
 	default:
 	case I915_TILING_NONE:
@@ -1091,8 +1067,9 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 	assert(list_is_empty(&bo->list));
 	assert(bo->vmap == false && bo->sync == false);
 	assert(bo->io == false);
+	assert(bo->scanout == false);
+	assert(bo->flush == false);
 
-	bo->scanout = bo->flush = false;
 	if (bo->rq) {
 		struct list *cache;
 
@@ -1948,11 +1925,16 @@ search_linear_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags)
 	if (num_pages >= MAX_CACHE_SIZE / PAGE_SIZE)
 		return NULL;
 
-	if (!use_active &&
-	    list_is_empty(inactive(kgem, num_pages)) &&
-	    !list_is_empty(active(kgem, num_pages, I915_TILING_NONE)) &&
-	    !kgem_retire(kgem))
-		return NULL;
+	if (!use_active && list_is_empty(inactive(kgem, num_pages))) {
+		if (list_is_empty(active(kgem, num_pages, I915_TILING_NONE)))
+			return NULL;
+
+		if (!kgem_retire(kgem))
+			return NULL;
+
+		if (list_is_empty(inactive(kgem, num_pages)))
+			return NULL;
+	}
 
 	if (!use_active && flags & (CREATE_CPU_MAP | CREATE_GTT_MAP)) {
 		int for_cpu = !!(flags & CREATE_CPU_MAP);
@@ -2233,6 +2215,9 @@ unsigned kgem_can_create_2d(struct kgem *kgem,
 	if (depth < 8 || kgem->wedged)
 		return 0;
 
+	if (width > MAXSHORT || height > MAXSHORT)
+		return 0;
+
 	size = kgem_surface_size(kgem, false, false,
 				 width, height, bpp,
 				 I915_TILING_NONE, &pitch);
@@ -2291,13 +2276,14 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 	if (tiling < 0)
 		tiling = -tiling, flags |= CREATE_EXACT;
 
-	DBG(("%s(%dx%d, bpp=%d, tiling=%d, exact=%d, inactive=%d, cpu-mapping=%d, gtt-mapping=%d, scanout?=%d)\n", __FUNCTION__,
+	DBG(("%s(%dx%d, bpp=%d, tiling=%d, exact=%d, inactive=%d, cpu-mapping=%d, gtt-mapping=%d, scanout?=%d, temp?=%d)\n", __FUNCTION__,
 	     width, height, bpp, tiling,
 	     !!(flags & CREATE_EXACT),
 	     !!(flags & CREATE_INACTIVE),
 	     !!(flags & CREATE_CPU_MAP),
 	     !!(flags & CREATE_GTT_MAP),
-	     !!(flags & CREATE_SCANOUT)));
+	     !!(flags & CREATE_SCANOUT),
+	     !!(flags & CREATE_TEMPORARY)));
 
 	size = kgem_surface_size(kgem,
 				 kgem->has_relaxed_fencing,
@@ -2404,7 +2390,7 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 
 	/* Best active match */
 	retry = NUM_CACHE_BUCKETS - bucket;
-	if (retry > 3)
+	if (retry > 3 && (flags & CREATE_TEMPORARY) == 0)
 		retry = 3;
 search_again:
 	assert(bucket < NUM_CACHE_BUCKETS);
@@ -2418,15 +2404,28 @@ search_again:
 			assert(bo->reusable);
 			assert(bo->tiling == tiling);
 
-			if (bo->pitch < pitch) {
-				DBG(("tiled and pitch too small: tiling=%d, (want %d), pitch=%d, need %d\n",
-				     bo->tiling, tiling,
-				     bo->pitch, pitch));
-				continue;
-			}
+			if (kgem->gen < 40) {
+				if (bo->pitch < pitch) {
+					DBG(("tiled and pitch too small: tiling=%d, (want %d), pitch=%d, need %d\n",
+					     bo->tiling, tiling,
+					     bo->pitch, pitch));
+					continue;
+				}
 
-			if (bo->pitch * tiled_height > bytes(bo))
-				continue;
+				if (bo->pitch * tiled_height > bytes(bo))
+					continue;
+			} else {
+				if (num_pages(bo) < size)
+					continue;
+
+				if (bo->pitch != pitch) {
+					gem_set_tiling(kgem->fd,
+						       bo->handle,
+						       tiling, pitch);
+
+					bo->pitch = pitch;
+				}
+			}
 
 			kgem_bo_remove_from_active(kgem, bo);
 
@@ -2459,6 +2458,38 @@ search_again:
 	}
 
 	if (--retry && flags & CREATE_EXACT) {
+		if (kgem->gen >= 40) {
+			for (i = I915_TILING_NONE; i <= I915_TILING_Y; i++) {
+				if (i == tiling)
+					continue;
+
+				cache = &kgem->active[bucket][i];
+				list_for_each_entry(bo, cache, list) {
+					assert(!bo->purged);
+					assert(bo->refcnt == 0);
+					assert(bo->reusable);
+
+					if (num_pages(bo) < size)
+						continue;
+
+					if (tiling != gem_set_tiling(kgem->fd,
+								     bo->handle,
+								     tiling, pitch))
+						continue;
+
+					kgem_bo_remove_from_active(kgem, bo);
+
+					bo->unique_id = kgem_get_unique_id(kgem);
+					bo->pitch = pitch;
+					bo->tiling = tiling;
+					bo->delta = 0;
+					DBG(("  1:from active: pitch=%d, tiling=%d, handle=%d, id=%d\n",
+					     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
+					return kgem_bo_reference(bo);
+				}
+			}
+		}
+
 		bucket++;
 		goto search_again;
 	}
@@ -2862,7 +2893,7 @@ void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo)
 	assert(list_is_empty(&bo->list));
 
 	if (bo->tiling == I915_TILING_NONE &&
-	    (kgem->has_llc || bo->domain == bo->presumed_offset)) {
+	    (kgem->has_llc || bo->domain == DOMAIN_CPU)) {
 		DBG(("%s: converting request for GTT map into CPU map\n",
 		     __FUNCTION__));
 		ptr = kgem_bo_map__cpu(kgem, bo);
@@ -2917,7 +2948,7 @@ void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo)
 void *kgem_bo_map__debug(struct kgem *kgem, struct kgem_bo *bo)
 {
 	if (bo->map)
-		return bo->map;
+		return CPU_MAP(bo->map);
 
 	kgem_trim_vma_cache(kgem, MAP_GTT, bucket(bo));
 	return bo->map = gem_mmap(kgem->fd, bo->handle, bytes(bo),
@@ -3547,6 +3578,7 @@ void kgem_buffer_read_sync(struct kgem *kgem, struct kgem_bo *_bo)
 {
 	struct kgem_partial_bo *bo;
 	uint32_t offset = _bo->delta, length = _bo->size.bytes;
+	int domain;
 
 	assert(_bo->io);
 	assert(_bo->exec == NULL);
@@ -3573,11 +3605,11 @@ void kgem_buffer_read_sync(struct kgem *kgem, struct kgem_bo *_bo)
 		if (IS_CPU_MAP(bo->base.map)) {
 			set_domain.read_domains = I915_GEM_DOMAIN_CPU;
 			set_domain.write_domain = I915_GEM_DOMAIN_CPU;
-			bo->base.domain = DOMAIN_CPU;
+			domain = DOMAIN_CPU;
 		} else {
 			set_domain.read_domains = I915_GEM_DOMAIN_GTT;
 			set_domain.write_domain = I915_GEM_DOMAIN_GTT;
-			bo->base.domain = DOMAIN_GTT;
+			domain = DOMAIN_GTT;
 		}
 
 		drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_SET_DOMAIN, &set_domain);
@@ -3586,9 +3618,10 @@ void kgem_buffer_read_sync(struct kgem *kgem, struct kgem_bo *_bo)
 			 bo->base.handle, (char *)bo->mem+offset,
 			 offset, length);
 		kgem_bo_map__cpu(kgem, &bo->base);
-		bo->base.domain = DOMAIN_NONE;
+		domain = DOMAIN_NONE;
 	}
 	kgem_bo_retire(kgem, &bo->base);
+	bo->base.domain = domain;
 }
 
 uint32_t kgem_bo_get_binding(struct kgem_bo *bo, uint32_t format)
@@ -3626,6 +3659,18 @@ void kgem_bo_set_binding(struct kgem_bo *bo, uint32_t format, uint16_t offset)
 		b->offset = offset;
 		bo->binding.next = b;
 	}
+}
+
+void kgem_bo_clear_scanout(struct kgem *kgem, struct kgem_bo *bo)
+{
+	bo->needs_flush = true;
+	bo->reusable = true;
+	bo->flush = false;
+
+	if (!bo->scanout)
+		return;
+
+	bo->scanout = false;
 }
 
 struct kgem_bo *

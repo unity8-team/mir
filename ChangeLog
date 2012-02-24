@@ -1,3 +1,967 @@
+commit b870a3e5cd922ce37050ece73e2469802dd21da2
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Feb 24 11:21:49 2012 +0000
+
+    configure, NEWS: Bump version to 2.18.0 for release
+    
+    Another quarter, a bit late as I was debugging a few regressions,
+    another release.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5b5cd6780ef7cae8f49d71d7c8532597291402d8
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Feb 24 11:14:26 2012 +0000
+
+    uxa: Add a option to disable the bo cache
+    
+    If you are suffering from regular X crashes and rendering corruption
+    with a flood of ENOSPC or even EFILE reported in the Xorg.log, try
+    adding this snippet to your xorg.conf:
+    
+    Section "Driver"
+      Option "BufferCache" "False"
+    EndSection
+    
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=39552
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f8ca50818cd4f82e0ad8eeb245e8ee838b083056
+Author: Gaetan Nadon <memsize@videotron.ca>
+Date:   Sat Feb 18 13:49:02 2012 -0500
+
+    Revert "Update autotools configuration"
+    
+    This reverts commit 9184af921bc2f332fcb6c9b47001414378eab8e2.
+    
+    All X.Org modules must be able to be configured with autoconf 2.60.
+    In addition, version 2.63 has GPL licensing issues which prevents
+    some vendor to release software based on it.
+    
+    The AM_SILENT_RULES are already handled by XORG_DEFAULT_OPTIONS.
+    
+    All X.Org modules must be able to be configured with libtool 1.5.
+    
+    AM_MAINTAINER_MODE default value is "enabled" already.
+    
+    We use the same autogen script for all x.org modules.
+    There are proposals for changes which should be reviewed and eventually
+    applied to all modules together.
+    
+    The lt*.m4 patterns are already included in the root .gitignore file.
+    This can be proposed as a change to all modules, but it invloves
+    changing the topvel .gitignore, the m4/.gitignore, the ACLOCAL_AMFLAGS
+    and the AC_CONFIG_MACRO_DIR together.
+    
+    For more information on project wide configuration guidelines,
+    consult http://www.x.org/wiki/ModularDevelopersGuide
+    and http://www.x.org/wiki/NewModuleGuidelines.
+    
+    Acked-by: Matthieu Herrb <matthieu.herrb@laas.fr>
+    Signed-off-by: Gaetan Nadon <memsize@videotron.ca>
+
+commit a647aff5124674b638ef52152a5c16c27466eed7
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Feb 23 12:04:09 2012 +0000
+
+    sna/gen3: Silence the compiler complaining with DBG enabled
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit cd3a618f583a546bafbe0c171a267774adc4d72b
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Feb 23 10:40:57 2012 +0000
+
+    sna/gen4 Refactor get_rectangles() to re-emit state after a flush
+    
+    Condense the work performed by each caller into the callee.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 6a3fa4d1b6849b666a9232b017ce82329494621b
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Feb 23 10:40:57 2012 +0000
+
+    sna/gen7 Refactor get_rectangles() to re-emit state after a flush
+    
+    Condense the work performed by each caller into the callee.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit fe914eaca4b9178ab3d14053a703772f93295895
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Feb 23 10:40:57 2012 +0000
+
+    sna/gen5 Refactor get_rectangles() to re-emit state after a flush
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4ecf882c838c1f044b4ed3add486b6579ea2c431
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Feb 23 10:40:57 2012 +0000
+
+    sna/gen6: Refactor get_rectangles() to re-emit state after a flush
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit dfa21713c27eb9135cb5e1745807324e49422fde
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Feb 23 10:29:38 2012 +0000
+
+    sna/gen3: Refactor get_rectangles() to emit composite state and retry
+    
+    As gen3 only uses the single state emission block, and uniformly calls
+    get_rectangles(), we can move that caller protocol into the callee.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a48e6e0db970ad07cd7452ba24c362d0c2fcf1bf
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Feb 23 10:17:34 2012 +0000
+
+    sna/gen3+: Force a batch flush when run out of CA vbo
+    
+    As we prematurely end the batch if we bail on extending the vbo for CA
+    glyphs, we need to force the flush.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 57c19b10db2b512c52a593fad98b5ac5db4f1497
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Feb 23 00:33:16 2012 +0000
+
+    sna: Use a CPU mapping if the bo is already in the CPU domain
+    
+    The heuristic of using the mapping only before the first use in an
+    execbuffer was suboptimal and broken by the change in bo initialisation.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 510767e213c2f44563f5c438ad1234113567be90
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Feb 22 18:33:09 2012 +0000
+
+    sna/gen4: Fix vertex flushing across batch flushing
+    
+    Due to the w/a for its buggy shaders, gen4 is significantly different
+    that backporting the simple patch from gen5 was prone to failure. We
+    need to check that the vertices have not already been flushed prior to
+    flushing again.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f6392048e3e761b35644268ef161045524cfa369
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Feb 22 17:00:38 2012 +0000
+
+    sna/blt: Avoid clobbering the composite state if we fail to setup the BLT
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4e86da64be947fe4b8b5f285d26d200827847a8c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Feb 22 14:36:35 2012 +0000
+
+    sna/gen3+: Flush the vertices during vertex-finish
+    
+    But only when finishing the vbo, which is the tricky part of the recent
+    CA glyph bugs.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 71512b2438e06b2bd256aff3657797152fbef38e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Feb 22 13:44:24 2012 +0000
+
+    sna: Clear the flush flag on release of scanout/dri
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=46445
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 025d3d46dc28e967b4f42e5748d13c7fb3ad283b
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Feb 22 13:17:01 2012 +0000
+
+    sna/trapezoids: Only the inplace PictOpIn is unbounded
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit b02f866d67d60538368619849f2acda4c1706476
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Feb 22 09:15:25 2012 +0000
+
+    sna: Ensure we restore the shadow pixels before uploading CPU data
+    
+    Reported-by: Joe Nahmias <joe@nahmias.net>
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=46425
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit be5df7b5ab487a1282c96dda92f3799e35cd19af
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Feb 21 23:27:33 2012 +0000
+
+    sna/gen5: Remove CA glyph workaround
+    
+    The root cause has been found and destroyed, so the w/a is now
+    redundant.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 6038cede83e7f360428b4625d288411794f9d052
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Feb 21 21:26:29 2012 +0000
+
+    sna/gen3+: Re-emit composite state after flushing CA vertices
+    
+    Reported-by: Clemens Eisserer <linuxhippy@gmail.com>
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=42891
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit fe6602cbbc4eed1b88ac731a30b46cc970ea444f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Feb 21 21:26:29 2012 +0000
+
+    sna/gen3+: Only flush the vertices after checking for end-of-batch
+    
+    Or upon actually closing the vertex buffer.
+    
+    However, the underlying issue remains. That is we are failing to re-emit
+    the first-pass for CA text after flushing the vertex buffer (and so
+    emitting the second-pass for the flushed vertices).
+    
+    Reported-by: lemens Eisserer <linuxhippy@gmail.com>
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=42891
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 168c87a340119e65b1d7ccbbf59da820044ca936
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Feb 21 13:16:43 2012 +0000
+
+    sna: Clear the scanout flag after releasing the scanout pixmap
+    
+    In the future, this will be a good place to restore the cache level of
+    the bo as well.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d7415742a5f78958489216f450411603b1eff9a7
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Feb 21 16:33:26 2012 +0000
+
+    sna/dri: Queue a flush on the back DRI2 when enqueing a flip
+    
+    As we may wait upon the bo having finished rendering before we can
+    execute the flip, flushing the render cache as early as possible is
+    beneficial
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2715a455f7bfbecd7a6977184dc6180a09d06e1f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Feb 21 14:49:30 2012 +0000
+
+    uxa: Prevent laggy applications by throttling after rendering
+    
+    Before blocking and waiting for further input, we need to make sure that
+    we have not developed too large a queue of outstanding rendering. As we
+    rendering to the front-buffer with no natural throttling and allow X
+    clients to render as fast as they wish, it is entirely possible for a
+    large queue of outstanding rendering to develop. For such an example,
+    watch firefox rendering the fishietank demo and notice the delay that
+    can build up before the tooltips appear.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 26721893cb41cef66db7ef626881d1eba8a5bdea
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Feb 21 13:31:16 2012 +0000
+
+    sna: Mark the pixmap as active for the force-to-gpu short-circuit
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 1541f1afca028453379083e564bc82debf0ba39a
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Feb 21 13:17:35 2012 +0000
+
+    sna: Skip the CPU synchronization when marking a pixmap as inactive
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 74fd55a96bd6c63e9c49a4b7fee7ef91f6b00a2c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Feb 21 13:11:32 2012 +0000
+
+    sna/dri: Ensure that we reattach to the DRI2 front buffer after modeswitch
+    
+    If we change the Screen pixmap due to a change of mode, we lose the
+    flag that we've attached a DRI2 buffer to it. So the next time we try to
+    copy from/to it, reassert its DRI2 status.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d051793b9194060f5408503b1fac56958c6e58e4
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Feb 21 11:42:31 2012 +0000
+
+    sna/dri: Improve error handling of failing to create a DRI2 pixmap
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 580ae520cad749fb86a1bddd0fa2bcadfd60abb6
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Feb 21 10:55:46 2012 +0000
+
+    sna: Short-circuit repeated calls to force-to-gpu
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f2aafb98026b5c476b7f84aa2dc4c1f9ba2e573d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Feb 21 10:43:11 2012 +0000
+
+    uxa: Silence compiler warning for const arguments
+    
+    i965_video.c: In function 'gen6_create_cc_state':
+    i965_video.c:1374:12: warning: passing argument 4 of
+    'intel_bo_alloc_for_data' discards 'const' qualifier from pointer target
+    type [enabled by default]
+    
+    Repeated ad nauseam.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 507f72d6d44963cae5d8d4b9da68165f73c6fd36
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Feb 21 10:39:48 2012 +0000
+
+    uxa: Remove DPRINTF stubs
+    
+    It wasn't being used for anything non-trivial and was throwing compiler
+    warnings, so remove it.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit c72a67390ea243bf43e2ee4efe237ab88a4615b7
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Feb 21 10:21:56 2012 +0000
+
+    sna/dri: Update for AsyncSwap interface changes
+    
+    We now need to return TRUE/FALSE depending on whether we need to
+    invalidate the drawable.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 27bc2acf0e6a0e5e071e0d187bdf71577e821af8
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Feb 21 09:29:41 2012 +0000
+
+    sna: Fix use of RegionInit() for singular regions
+    
+    For a singular region, we want to use a value for nboxes of 0 not 1,
+    fortunately if you pass in a box, it ignores the value of nboxes.
+    RegionInit() is a most peculiar API!
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d98b41ce4323b43d2359349a04a4a56559e341a2
+Author: Zhigang Gong <zhigang.gong@linux.intel.com>
+Date:   Fri Feb 17 19:50:52 2012 +0800
+
+    uxa/glamor/dri: Should fixup the drawable pixmap.
+    
+    Two fixes in this commit, first we only need to check the
+    front left buffer, for other attachment we don't need to
+    check them. The second is, we should fixup the pixmap's
+    drawable not the original drawable.
+    
+    Signed-off-by: Zhigang Gong <zhigang.gong@linux.intel.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 1e0d702c3a77f6db3dfd55b8cafc5fca4d778751
+Author: Zhigang Gong <zhigang.gong@linux.intel.com>
+Date:   Fri Feb 17 19:50:51 2012 +0800
+
+    uxa/glamor/dri: Enable the pageflip support on glamor.
+    
+    To support easy buffer exchange at glamor layer, glamor
+    added a new API glamor_egl_exchange_buffers() to exchange
+    two pixmaps' EGL image and fbos and textures without
+    recreating any of them. But this simple method's requirement
+    is that there are two pixmaps. A exceptional case is:
+    If we are using triple buffer when do page flipping, we
+    will have an extra back_buffer which doesn't have a pixmap
+    attached to it. Then each time we set that buffer to a
+    pixmap, we will have to call the create_egl_textured_pixmap
+    to create the corresponding EGL image and fbo and texture
+    for it. This is not efficient.
+    
+    To fix this issue, this commit introduces a new back_pixmap
+    to intel structure to hold the back buffer and corresponding
+    glamor resources. Then we will just need to do the light
+    weight buffer exchanging at both DDX and glamor layer.
+    
+    As the new back pixmap is similar to the screen pixmap
+    and need to be handled carefully when close screen. As the
+    glamor data structure is a per screen data, and will be
+    released at its close screen method. The glamor's close
+    screen method must cleanup the screen pixmap and back
+    pixmap's glamor resources. screen pixmap is easy to get,
+    but there is no good way to store the back pixmap.
+    
+    So the glamor add a new API glamor_egl_create_textured_screen_ext
+    function to pass the back pixmap's pointer to glamor layer.
+    
+    This commit make us depend on glamor commit: 4e58c4f.
+    And we increased the required glamor version from 0.3.0 to 0.3.1
+    
+    Signed-off-by: Zhigang Gong <zhigang.gong@linux.intel.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit ce7a57994d662f340b9457a2750e4385e7d669cd
+Author: Zhigang Gong <zhigang.gong@linux.intel.com>
+Date:   Fri Feb 17 19:50:50 2012 +0800
+
+    uxa/dri: Refine the pageflip processing.
+    
+    Add a new element back_name to intel structure to track
+    the back bo's name then avoid flink every time.
+    And at function I830DRI2ExchangeBuffers, after finish
+    the BO exchange between info's front and back pixmap,
+    it set the new front bo to the screen pixmap. But the
+    screen pixmap should be the same as front's pixmap,
+    so this is a duplicate operation and can be removed.
+    
+    Signed-off-by: Zhigang Gong <zhigang.gong@linux.intel.com>
+
+commit 1a65e2b8a2ebfb4d736efb7631515babad75faf2
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Feb 21 08:09:52 2012 +0000
+
+    sna: Split up/down edge walking in order to handle endpoint clipping
+    
+    In order to prevent walking upwards off the top of the pixmap when
+    rendering a clipped vertical edge, we need to tweak the boundary
+    conditions for the vertical edge walker.
+    
+    Reported-by: Clemens Eisserer <linuxhippy@gmail.com>
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=46261
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 7ea44997553ffdf57b346dc9d83742c511c9e5a4
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Feb 20 23:50:42 2012 +0000
+
+    sna: Restore the shadow pixels when reducing CPU damage to all
+    
+    Reported-by: Joe Nahmias <joe@nahmias.net>
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=46346
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit dbe0580e207ad85cb6a659f86c5746a7ecbcd036
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Feb 20 16:30:53 2012 +0000
+
+    sna: gen4+ suffer no penalty for changing tiling
+    
+    On gen4, the tiling/fence constraints are fairly lax, only requiring
+    page alignment of the object and its size, and so we can switch
+    tiling modes without incurring a GPU stall on active bo.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit b68b76cf54a322e80685f1ec93538cd6c5813ea4
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Feb 20 13:38:11 2012 +0000
+
+    sna: Move sync'ing of CPU bo after allocation to first write
+    
+    The idea was that we could afford to allocate an active CPU bo for
+    copying to from using the GPU and later sync just before we need to
+    write to the shadow pixels. Having the sync inside the allocation
+    function potentially causes an unwanted stall.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit bbb6794a3b97b1fcf72c8712ab0ec591683b128b
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Feb 20 12:25:31 2012 +0000
+
+    sna: Trim clipped lines to end within bounds
+    
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=46261
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=45673
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 805bc3310cd0a13eab8e48e7615bdd42638cfa33
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Feb 20 12:09:19 2012 +0000
+
+    sna: When reversing line-drawing direction, use the clipped endpoint
+    
+    Make sure we take the clipping into account if we choose to reverse the
+    draw direction (to maintain left-to-right inside the box emission).
+    
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=46261
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=45673
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 7f0a4a5f7224003a0cd226137de5a068949a41b4
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Feb 20 09:52:37 2012 +0000
+
+    sna/dri: Ensure the domain tracking is reset when releasing bo used for swaps
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 7d147c7462ba183f5316e7e8dafeca62add6f97c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Feb 19 17:50:56 2012 +0000
+
+    sna: Correct tile sizes for Y-tiling on i915g
+    
+    128-byte Y-tiling wasn't introduced until the 945.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 95391b7312147760d8da01fce68b8398aa8e4e2f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Feb 16 22:01:41 2012 +0000
+
+    sna/trapezoids: Presume that Precise mono rasterisation adheres to the spec
+    
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=46156
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 52b11f63d7922032caef0f0a5979b080dbddcbfc
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Feb 16 11:22:23 2012 +0000
+
+    sna: Upconvert fallback trapezoids to a8
+    
+    Since the hardware only handles a8 without tricky emulation and pixman
+    insists on using a1 for sharp trapezoids we need to ensure that we
+    convert the a1 to a8 for our trapezoidal mask.
+    
+    More worryingly, this path should never be hit...
+    
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=46156
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8050ced6204f5aca12e6c57f86308b6ad1b98209
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Feb 15 17:01:18 2012 +0000
+
+    sna/dri: Mark bo as reusable after completion of a flip-event
+    
+    After the flip chain is completed, any residual buffers are no longer in
+    use and so available for reuse.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit fc046aabde76142fce130773d78d797d7d750ab7
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Feb 15 16:08:23 2012 +0000
+
+    sna/dri: Don't attempt to change tiling if it is a no-op
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 66cc9c69657ac2703f2c7fc3c2c50f06bf5daa99
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Feb 15 11:58:42 2012 +0000
+
+    Be paranoid about the definition of container_of
+    
+    Replace any existing definition with a correct version, since there are
+    broken container_of macros floating around the xorg includes.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit c0376b7f7b083ab2e87edc36e56fd8eb99c3cd05
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Feb 13 00:48:15 2012 +0000
+
+    Add a missing macro for old xorg/list.h
+    
+    list_last_entry() needs to be defined if we are including the xorg
+    list.h as opposed to our standalone variant.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 87bed52180cd2abd80ef6b58384f9fd9c9968f7b
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Feb 11 20:54:18 2012 +0000
+
+    Include a local copy of list.h
+    
+    In 1.11.903, the list.h was renamed to xorg-list.h with a corresponding
+    change to all structures. As we carried local fixes to list.h and
+    extended functionality, just create our own list.h with a bit of
+    handwaving to protect us for the brief existence of xorg/include/list.h.
+    
+    Reported-by: Armin K <krejzi@email.com>
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=45938
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit c64ebee5fdccf313cbd3c73850e02e6fa7dd2a65
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Feb 11 13:31:12 2012 +0000
+
+    sna/gen6: Prefer the render ring for copies
+    
+    Slower for fills, but on the current stack faster for copies, both large
+    and small. Hopefully, when we write some good shaders for SNB, we will
+    not only improve performance for copies but also make fills faster on
+    the render ring than the blt?
+    
+    As the BLT copy routine is GPU bound for copywinpix10, and the RENDER
+    copy routine is CPU bound and faster, I believe that we have reached the
+    potential of the BLT ring and not yet saturated the GPU using the render
+    copy.
+    
+    Note that we still do not casually switch rings, so the actual routine
+    chosen will still be selected by the preceeding operations, so is
+    unlikely to have any effect in practice during, for example, cairo-traces.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 6a9b50177408c919ed5c6c2463f687476af2c698
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Feb 11 11:02:53 2012 +0000
+
+    sna/gen6: Suppress the CS stall for the first command in the batch
+    
+    The batch emission serves as a full stall, so we do not need to incur a
+    second before our first rendering.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit cbe8bed83f0b4097958c4541ad7809a05e6c6f43
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Feb 11 10:58:05 2012 +0000
+
+    sna/gen7: Mention the depth-stall required before changing VS state
+    
+    Because one day we may actually start using VS! Copied from the addition
+    of the w/a to Mesa by Kenneth Graunke.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 6193f2f00fa7205f9d736340318c66d116dca53e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Feb 9 14:16:17 2012 +0000
+
+    sna: Fix retire after readback
+    
+    Upon reading, we encounter a serialisation point and so can retire all
+    requests. However, kgem_bo_retire() wasn't correctly detecting that
+    barrier and so we continued to using GPU detiling thinking the target
+    was still busy.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4d8369f8e60fd4f5a0ef49f3e9866ea5ecb21927
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Feb 8 13:15:46 2012 +0000
+
+    sna/gen2+: Force upload rather than perform source transformations on the CPU
+    
+    If both the source and destination is on the CPU, then the thinking was
+    it would be quicker to operate on those on the CPU rather than copy both
+    to the GPU and then perform the operation. This turns out to be a false
+    assumption if transformation is involved -- something to be reconsidered
+    if pixman should ever be improved.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8634d461bd9e5a3d3f75b0efc11db87b8d3e1245
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Feb 8 09:13:27 2012 +0000
+
+    sna: Limit max CPU bo size to prevent aperture thrashing on upload
+    
+    Copying between two objects that consume more than the available GATT
+    space is a painful experience due to the forced use of an intermediatory
+    and eviction on every batch. The tiled upload paths are in comparison
+    remarkably efficient, so favour their use when handling extremely large
+    buffers.
+    
+    This reverses the previous idea in that we now prefer large GPU bo
+    rather than large CPU bo, as the render pipeline is far more flexible
+    for handling those than the blitter is for handling the CPU bo (at least
+    for gen4+).
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5b16972d7850b2347efc084311d664e14263cba1
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Feb 7 23:45:37 2012 +0000
+
+    sna: Check that we successfully retired an active linear buffer
+    
+    If we go to the trouble of running retire before searching, we may as
+    well check that we retired something before proceeding to check all the
+    inactive lists.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 207b4d4482a6af4a39472ec20ff04fa0c9322d73
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Feb 7 21:56:29 2012 +0000
+
+    sna: Relax must-be-blittable rules for gen4+
+    
+    The render pipeline is actually more flexible than the blitter for
+    dealing with large surfaces and so the BLT is no longer the limiting
+    factor on gen4+.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 13c960db9ef876ee99991d97dfc34fef184c0341
+Author: Zhigang Gong <zhigang.gong@linux.intel.com>
+Date:   Thu Feb 2 11:30:57 2012 +0800
+
+    uxa/glamor: Use a macro to specify module name.
+    
+    This depends upon glamor commit b5f8d, just after the 0.3.0 tag.
+    
+    Signed-off-by: Zhigang Gong <zhigang.gong@linux.intel.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 70092bfbc51ddc5a51c9cae21c6b2852c216a6fc
+Author: Zhigang Gong <zhigang.gong@linux.intel.com>
+Date:   Wed Feb 1 19:47:28 2012 +0800
+
+    uxa/glamor: Refine CloseScreen and InitScreen process.
+    
+    The previous version calls glamor_egl_close_screen and
+    glamor_egl_free_screen manually which is not align with
+    standard process. Now glamor change the way to follow
+    standard method:
+    
+    glamor layer and glamor egl layer both have their internal
+    CloseScreens. The correct sequence is after the I830CloseScreen
+    is registered, then register glamor_egl_close_screen and
+    the last one is glamor_close_screen. So we move out the
+    intel_glamor_init from the intel_uxa_init to I830ScreenInit
+    and just after the registration of I830CloseScreen.
+    
+    As the glamor interfaces changed, we need to check the
+    glamor version when load the glamor egl module to make
+    sure we are loading the right glamor module. If
+    failed, it will switch back to UXA path.
+    
+    This depends upon glamor commit 1bc8bf tagged with version 0.3.0.
+    
+    Signed-off-by: Zhigang Gong <zhigang.gong@linux.intel.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 798aad6c95a1a95fd587430dc7a6d59497a10ce1
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Feb 7 20:16:48 2012 +0000
+
+    sna/gen[4-7]: Fix erroneous scale factor for partial large bo render copies
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit ea6588726107f1ab0ef5a8f69d420b5bff819a76
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Feb 7 15:26:50 2012 +0000
+
+    sna: Apply offsets correctly for partial src/dst in large copy boxes
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 14c91e108464a305fb23b3313b842bfaeb9420fc
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Feb 7 15:25:48 2012 +0000
+
+    sna/tiling: Request Y-tiles if we know we cannot BLT to either the src or dst
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 3131217e3ecbdf6cd40b044bd31e8228ff5c6bff
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Feb 7 14:35:59 2012 +0000
+
+    sna: Mark up the temporary allocations
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit ec1ccb6bf6a984cbe3317e636d7ff73887348a46
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Feb 7 13:37:52 2012 +0000
+
+    sna: Set the damage for render->copy_boxes to NULL before use
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 58f634b792c6d109c5f2374a3e24d759e744abb4
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Feb 7 13:32:20 2012 +0000
+
+    sna: Handle tile alignment for untiled large bo more carefully
+    
+    We ended up trying to align the upper bound to zero as the integer
+    divsion of the tile width by pixel was zero.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit bf3518ea910a2a3c5b4500dcba7c829576fbfd47
+Author: Zhigang Gong <zhigang.gong@linux.intel.com>
+Date:   Tue Feb 7 09:40:54 2012 +0800
+
+    uxa/glamor/dri: Fix a typo bug when fixup glamor pixmap.
+    
+    Should modify the old pixmap's header not the new one which
+    was already destroyed.
+    
+    Signed-off-by: Zhigang Gong <zhigang.gong@linux.intel.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 1467a4ba1a327877026cc76b3eabeb51d1415509
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Feb 6 20:41:53 2012 +0000
+
+    sna: Use the proper sna_picture_is_solid() test
+    
+    Rather than the specialised routines that assumed pDrawable was
+    non-NULL, which was no longer true after f30be6f743.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit ef335a65a9d9f7eb96873201b546c25fd03d090c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Feb 6 20:37:54 2012 +0000
+
+    sna: Search all active buckets for a temporary allocation
+    
+    Reduce the need for creating a new object if we only need the allocation
+    for a single operation.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit b7e3aaf773f05ce82405e135c0f99b40b3c2f434
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Feb 6 18:08:19 2012 +0000
+
+    sna: Use the clipped end-point for recomputing segment length after clipping
+    
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=45673
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f30be6f74392f5687ffe8bc9dd2c6dc024ae06c8
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Feb 6 15:59:21 2012 +0000
+
+    sna/gen2+: Exclude solids from being classed as requiring an upload
+    
+    We treat any pixmap that is not attached to either a CPU or GPU bo as
+    requiring the pixel data to be uploaded to the GPU before we can
+    composite. Normally this is true, except for the solid cache.
+    
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=45672
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f009386de87acccadb1803567e4c494e5e80a2a9
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Feb 6 09:50:03 2012 +0000
+
+    sna: If we have a CPU bo, do not assert we have shadow pixels
+    
+    When transferring damage to the GPU, on SNB it is not necessarily true
+    that we have a shadow pixmap, we may instead have drawn onto an unmapped
+    CPU bo and now simply need to copy from that bo onto the GPU. Move the
+    assertion onto the path where it truly matters.
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=45672
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 22e452ebe01c32a08599411743cf18f9ad0545a7
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Feb 6 09:19:56 2012 +0000
+
+    sna: Disable use of xvmc for SNB+
+    
+    Not yet implemented, so don't bother setting it to fail.
+    
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=44874
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a8ed1a02ada1f8d2f910dfefb150d26c840bf9ea
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Feb 4 20:13:07 2012 +0000
+
+    sna: Discard the redundant clear of the unbounded area if already clear
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit b899a4b69696141ca8b897a7abf52649b09f7b3b
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Feb 4 20:07:49 2012 +0000
+
+    sna: Always pass the clear colour for PictOpClear
+    
+    Having made that optimisation for Composite, and then made the
+    assumption that it is always true in the backends, we failed to clear
+    the unbounded area outside of a trapezoid since we passed in the
+    original colour and the operation was optimised as a continuation.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit c107b90a44abb45c837ff8924939872be5b490eb
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Feb 4 16:33:34 2012 +0000
+
+    sna/gen6: Reduce PictOpClear to PictOpSrc (with blending disabled)
+    
+    The advantage of PictOpSrc is that it writes its results directly to
+    memory bypassing the blend unit.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4baa2806bc0f51e7576b769ca6750deb3821c4d3
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Feb 4 12:06:22 2012 +0000
+
+    sna: Check if the damage reduces to all before performing the migration
+    
+    An assert exposed a situation where we had accumulated an unreduced
+    damage-all and so we were taking the slow path only to discover later
+    that it was a damage-all and that we had performed needless checks.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2653524dffc1fe0dbff7d74bfc9be535d9ececb1
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Feb 3 20:06:43 2012 +0000
+
+    sna: Reduce the downsample tile size to accommodate alignment
+    
+    If we need to enlarge the sampled tile due to tiling alignments, the
+    resulting sample can become larger than we can accommodate through the 3D
+    pipeline, resulting in FAIL.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 93a0b10f163ee79b6a6a7ea46b0a33b622b1f86e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Feb 3 19:30:24 2012 +0000
+
+    sna: Apply redirection for the render copy into large pixmaps
+    
+    If the pixmap is larger than the pipeline, but the operation extents fit
+    within the pipeline, we may be able to create a proxy target to
+    transform the operation into one that fits within the constraints of the
+    render pipeline.
+    
+    This fixes the infinite recursion hit with partially displayed extremely
+    large images.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
 commit 4774c6b8331831e0c9f3b24f5f6e1b6ea399f628
 Author: Chris Wilson <chris@chris-wilson.co.uk>
 Date:   Thu Feb 2 15:23:03 2012 +0000

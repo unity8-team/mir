@@ -21,24 +21,18 @@
 # Process this file with autoconf to produce a configure script
 
 # Initialize Autoconf
-AC_PREREQ([2.63])
+AC_PREREQ([2.60])
 AC_INIT([xf86-video-intel],
-        [2.17.0],
+        [2.18.0],
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
         [xf86-video-intel])
 AC_CONFIG_SRCDIR([Makefile.am])
 AC_CONFIG_HEADERS([config.h])
-AC_CONFIG_AUX_DIR([build-aux])
-AC_CONFIG_MACRO_DIR([m4])
+AC_CONFIG_AUX_DIR(.)
 
 # Initialize Automake
-AM_INIT_AUTOMAKE([1.10 foreign dist-bzip2])
-AM_MAINTAINER_MODE([enable])
-
-# Support silent build rules, requires at least automake-1.11. Disable
-# by either passing --disable-silent-rules to configure or passing V=1
-# to make
-m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
+AM_INIT_AUTOMAKE([foreign dist-bzip2])
+AM_MAINTAINER_MODE
 
 # Require X.Org macros 1.8 or later for MAN_SUBSTS set by XORG_MANPAGE_SECTIONS
 m4_ifndef([XORG_MACROS_VERSION],
@@ -56,8 +50,8 @@ m4_ifndef([XORG_DRIVER_CHECK_EXT],
   depending on your distribution, try package 'xserver-xorg-dev' or 'xorg-x11-server-devel'])])
 
 # Initialize libtool
-LT_PREREQ([2.2])
-LT_INIT([disable-static])
+AC_DISABLE_STATIC
+AC_PROG_LIBTOOL
 
 # Are we in a git checkout?
 dot_git=no
@@ -158,7 +152,7 @@ AC_ARG_ENABLE(glamor,
 AC_MSG_RESULT([$GLAMOR])
 AM_CONDITIONAL(GLAMOR, test x$GLAMOR != xno)
 if test "x$GLAMOR" != "xno"; then
-	PKG_CHECK_MODULES(LIBGLAMOR, [glamor])
+	PKG_CHECK_MODULES(LIBGLAMOR, [glamor >= 0.3.1])
 	PKG_CHECK_MODULES(LIBGLAMOR_EGL, [glamor-egl])
 	AC_DEFINE(USE_GLAMOR, 1, [Enable glamor acceleration])
 fi

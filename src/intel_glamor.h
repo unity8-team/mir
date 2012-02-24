@@ -44,7 +44,7 @@ Bool intel_glamor_create_textured_pixmap(PixmapPtr pixmap);
 void intel_glamor_destroy_pixmap(PixmapPtr pixmap);
 PixmapPtr intel_glamor_create_pixmap(ScreenPtr screen, int w, int h,
 				     int depth, unsigned int usage);
-
+void intel_glamor_exchange_buffers(struct intel_screen_private *intel, PixmapPtr src, PixmapPtr dst);
 #else
 
 static inline Bool intel_glamor_pre_init(ScrnInfoPtr scrn) { return TRUE; }
@@ -61,6 +61,7 @@ static inline void intel_glamor_destroy_pixmap(PixmapPtr pixmap) { }
 static inline PixmapPtr intel_glamor_create_pixmap(ScreenPtr screen, int w, int h,
 						   int depth, unsigned int usage) { return NULL; }
 
+static inline void intel_glamor_exchange_buffers(struct intel_screen_private *intel, PixmapPtr src, PixmapPtr dst) {}
 #endif
 
 #endif /* INTEL_GLAMOR_H */

@@ -43,20 +43,18 @@
 
 #define BOUND(v)	(INT16) ((v) < MINSHORT ? MINSHORT : (v) > MAXSHORT ? MAXSHORT : (v))
 
-static PicturePtr clear;
-
 Bool sna_composite_create(struct sna *sna)
 {
 	xRenderColor color ={ 0 };
 	int error;
 
-	clear = CreateSolidPicture(0, &color, &error);
-	return clear != NULL;
+	sna->clear = CreateSolidPicture(0, &color, &error);
+	return sna->clear != NULL;
 }
 
 void sna_composite_close(struct sna *sna)
 {
-	FreePicture(clear, 0);
+	FreePicture(sna->clear, 0);
 }
 
 static inline bool
@@ -436,7 +434,7 @@ sna_composite(CARD8 op,
 	if (op == PictOpClear) {
 		DBG(("%s: discarding source and mask for clear\n", __FUNCTION__));
 		mask = NULL;
-		src = clear;
+		src = sna->clear;
 	}
 
 	if (mask && sna_composite_mask_is_opaque(mask)) {
@@ -792,6 +790,21 @@ sna_composite_rectangles(CARD8		 op,
 			}
 		} else
 			sna_damage_add(&priv->gpu_damage, &region);
+	} else if (op <= PictOpSrc &&
+		   region.data == NULL &&
+		   region.extents.x2 - region.extents.x1 == pixmap->drawable.width &&
+		   region.extents.y2 - region.extents.y1 == pixmap->drawable.height) {
+		priv->clear = true;
+		priv->clear_color = 0;
+		if (op == PictOpSrc)
+			sna_get_pixel_from_rgba(&priv->clear_color,
+						color->red,
+						color->green,
+						color->blue,
+						color->alpha,
+						dst->format);
+		DBG(("%s: marking clear [%08x]\n",
+		     __FUNCTION__, priv->clear_color));
 	}
 
 	goto done;

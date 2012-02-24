@@ -134,9 +134,9 @@ struct sna_composite_op {
 			int nr_inputs;
 			int ve_id;
 		} gen7;
-
-		void *priv;
 	} u;
+
+	void *priv;
 };
 
 struct sna_composite_spans_op {
@@ -405,6 +405,7 @@ struct gen6_render_state {
 	uint16_t surface_table;
 
 	Bool needs_invariant;
+	Bool first_state_packet;
 };
 
 enum {
@@ -507,10 +508,16 @@ Bool sna_tiling_fill_boxes(struct sna *sna,
 			   const xRenderColor *color,
 			   PixmapPtr dst, struct kgem_bo *dst_bo,
 			   const BoxRec *box, int n);
+
 Bool sna_tiling_copy_boxes(struct sna *sna, uint8_t alu,
-			   struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
-			   struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
-			   int bpp, const BoxRec *box, int nbox);
+			   PixmapPtr src, struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
+			   PixmapPtr dst, struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
+			   const BoxRec *box, int n);
+
+Bool sna_tiling_blt_copy_boxes(struct sna *sna, uint8_t alu,
+			       struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
+			       struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
+			       int bpp, const BoxRec *box, int nbox);
 
 Bool sna_blt_composite(struct sna *sna,
 		       uint32_t op,
@@ -589,6 +596,14 @@ sna_render_pixmap_bo(struct sna *sna,
 		     int16_t w, int16_t h,
 		     int16_t dst_x, int16_t dst_y);
 
+bool
+sna_render_pixmap_partial(struct sna *sna,
+			  PixmapPtr pixmap,
+			  struct kgem_bo *bo,
+			  struct sna_composite_channel *channel,
+			  int16_t x, int16_t y,
+			  int16_t w, int16_t h);
+
 int
 sna_render_picture_extract(struct sna *sna,
 			   PicturePtr picture,
@@ -613,6 +628,13 @@ sna_render_picture_convert(struct sna *sna,
 			   int16_t x, int16_t y,
 			   int16_t w, int16_t h,
 			   int16_t dst_x, int16_t dst_y);
+
+inline static void sna_render_composite_redirect_init(struct sna_composite_op *op)
+{
+	struct sna_composite_redirect *t = &op->redirect;
+	t->real_bo = NULL;
+	t->damage = NULL;
+}
 
 Bool
 sna_render_composite_redirect(struct sna *sna,

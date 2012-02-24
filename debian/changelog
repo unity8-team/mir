@@ -1,3 +1,18 @@
+xserver-xorg-video-intel (2:2.18.0-1+exp1) experimental; urgency=low
+
+  * Enable SNA again, in experimental.
+
+ -- Cyril Brulebois <kibi@debian.org>  Fri, 24 Feb 2012 14:19:00 +0100
+
+xserver-xorg-video-intel (2:2.18.0-1) unstable; urgency=low
+
+  * New upstream release.
+  * No SNA for unstable, it's too fast of a moving target for now.
+  * Since we're building for unstable, let's go back to the previous
+    xorg-server build-dep.
+
+ -- Cyril Brulebois <kibi@debian.org>  Fri, 24 Feb 2012 14:16:47 +0100
+
 xserver-xorg-video-intel (2:2.17.0+git20120204-1) experimental; urgency=low
 
   * New upstream snapshot:
