@@ -1131,6 +1131,56 @@ static void kgem_bo_unref(struct kgem *kgem, struct kgem_bo *bo)
 		__kgem_bo_destroy(kgem, bo);
 }
 
+static void bubble_sort_partial(struct kgem *kgem, struct kgem_partial_bo *bo)
+{
+	int remain = bytes(&bo->base) - bo->used;
+
+	while (bo->base.list.prev != &kgem->partial) {
+		struct kgem_partial_bo *p;
+
+		p = list_entry(bo->base.list.prev,
+			       struct kgem_partial_bo,
+			       base.list);
+		if (remain <= bytes(&p->base) - p->used)
+			break;
+
+		assert(p->base.list.next == &bo->base.list);
+		bo->base.list.prev = p->base.list.prev;
+		p->base.list.prev->next = &bo->base.list;
+		p->base.list.prev = &bo->base.list;
+
+		p->base.list.next = bo->base.list.next;
+		bo->base.list.next->prev = &p->base.list;
+		bo->base.list.next = &p->base.list;
+
+		assert(p->base.list.next->prev == &p->base.list);
+		assert(bo->base.list.prev->next == &bo->base.list);
+	}
+}
+
+static void kgem_retire_partials(struct kgem *kgem)
+{
+	struct kgem_partial_bo *bo, *next;
+
+	list_for_each_entry_safe(bo, next, &kgem->partial, base.list) {
+		if (bo->used == 0 || !bo->mmapped)
+			continue;
+		if (bo->base.refcnt != 1 || bo->base.rq)
+			continue;
+
+		DBG(("%s: handle=%d, used %d/%d\n", __FUNCTION__,
+		     bo->base.handle, bo->used, bytes(&bo->base)));
+
+		assert(bo->write & KGEM_BUFFER_WRITE_INPLACE);
+		assert(kgem->has_llc || !IS_CPU_MAP(bo->base.map));
+		bo->base.dirty = false;
+		bo->base.needs_flush = false;
+		bo->used = 0;
+
+		bubble_sort_partial(kgem, bo);
+	}
+}
+
 bool kgem_retire(struct kgem *kgem)
 {
 	struct kgem_bo *bo, *next;
@@ -1233,6 +1283,8 @@ bool kgem_retire(struct kgem *kgem)
 		free(rq);
 	}
 
+	kgem_retire_partials(kgem);
+
 	kgem->need_retire = !list_is_empty(&kgem->requests);
 	DBG(("%s -- need_retire=%d\n", __FUNCTION__, kgem->need_retire));
 
@@ -1311,33 +1363,6 @@ static void kgem_close_inactive(struct kgem *kgem)
 		kgem_close_list(kgem, &kgem->inactive[i]);
 }
 
-static void bubble_sort_partial(struct kgem *kgem, struct kgem_partial_bo *bo)
-{
-	int remain = bytes(&bo->base) - bo->used;
-
-	while (bo->base.list.prev != &kgem->partial) {
-		struct kgem_partial_bo *p;
-
-		p = list_entry(bo->base.list.prev,
-			       struct kgem_partial_bo,
-			       base.list);
-		if (remain <= bytes(&p->base) - p->used)
-			break;
-
-		assert(p->base.list.next == &bo->base.list);
-		bo->base.list.prev = p->base.list.prev;
-		p->base.list.prev->next = &bo->base.list;
-		p->base.list.prev = &bo->base.list;
-
-		p->base.list.next = bo->base.list.next;
-		bo->base.list.next->prev = &p->base.list;
-		bo->base.list.next = &p->base.list;
-
-		assert(p->base.list.next->prev == &p->base.list);
-		assert(bo->base.list.prev->next == &bo->base.list);
-	}
-}
-
 static void kgem_finish_partials(struct kgem *kgem)
 {
 	struct kgem_partial_bo *bo, *next;
@@ -1348,9 +1373,17 @@ static void kgem_finish_partials(struct kgem *kgem)
 			goto decouple;
 		}
 
-		assert(bo->base.domain != DOMAIN_GPU);
 		if (!bo->base.exec)
 			continue;
+
+		if (bo->mmapped) {
+			assert(bo->write & KGEM_BUFFER_WRITE_INPLACE);
+			if (kgem->has_llc || !IS_CPU_MAP(bo->base.map)) {
+				DBG(("%s: retaining partial upload buffer (%d/%d)\n",
+				     __FUNCTION__, bo->used, bytes(&bo->base)));
+				continue;
+			}
+		}
 
 		if (!bo->used) {
 			/* Unless we replace the handle in the execbuffer,
@@ -1363,6 +1396,8 @@ static void kgem_finish_partials(struct kgem *kgem)
 
 		assert(bo->base.rq == kgem->next_request);
 		if (bo->used && bo->need_io) {
+			assert(bo->base.domain != DOMAIN_GPU);
+
 			if (bo->base.refcnt == 1 &&
 			    bo->used < bytes(&bo->base) / 2) {
 				struct kgem_bo *shrink;
@@ -1768,7 +1803,7 @@ static void kgem_expire_partial(struct kgem *kgem)
 	struct kgem_partial_bo *bo, *next;
 
 	list_for_each_entry_safe(bo, next, &kgem->partial, base.list) {
-		if (bo->base.refcnt > 1 || bo->base.exec)
+		if (bo->base.refcnt > 1 || bo->base.rq)
 			continue;
 
 		DBG(("%s: discarding unused partial buffer: %d/%d, write? %d\n",
@@ -3214,11 +3249,19 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 				if (bo->base.refcnt == 1 && bo->base.exec) {
 					DBG(("%s: reusing write buffer for read of %d bytes? used=%d, total=%d\n",
 					     __FUNCTION__, size, bo->used, bytes(&bo->base)));
+					gem_write(kgem->fd, bo->base.handle,
+						  0, bo->used, bo->mem);
+					bo->need_io = 0;
+					bo->write = 0;
 					offset = 0;
 					goto done;
 				} else if (bo->used + size <= bytes(&bo->base)) {
 					DBG(("%s: reusing unfinished write buffer for read of %d bytes? used=%d, total=%d\n",
 					     __FUNCTION__, size, bo->used, bytes(&bo->base)));
+					gem_write(kgem->fd, bo->base.handle,
+						  0, bo->used, bo->mem);
+					bo->need_io = 0;
+					bo->write = 0;
 					offset = bo->used;
 					goto done;
 				}
