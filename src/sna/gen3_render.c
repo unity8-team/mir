@@ -1612,20 +1612,33 @@ static int gen3_vertex_finish(struct sna *sna)
 
 static void gen3_vertex_close(struct sna *sna)
 {
-	struct kgem_bo *bo;
-	int delta = 0;
+	struct kgem_bo *bo, *free_bo = NULL;
+	unsigned int delta = 0;
 
-	if (!sna->render.vertex_used) {
+	assert(sna->render_state.gen3.vertex_offset == 0);
+
+	DBG(("%s: used=%d, vbo active? %d\n",
+	     __FUNCTION__, sna->render.vertex_used, sna->render.vbo != NULL));
+
+	if (sna->render.vertex_used == 0) {
 		assert(sna->render.vbo == NULL);
 		assert(sna->render.vertices == sna->render.vertex_data);
 		assert(sna->render.vertex_size == ARRAY_SIZE(sna->render.vertex_data));
 		return;
 	}
 
-	DBG(("%s: used=%d\n", __FUNCTION__, sna->render.vertex_used));
-
 	bo = sna->render.vbo;
-	if (bo == NULL) {
+	if (bo) {
+		if (IS_CPU_MAP(bo->map) ||
+		    sna->render.vertex_size - sna->render.vertex_used < 64) {
+			DBG(("%s: discarding vbo (was CPU mapped)\n",
+			     __FUNCTION__));
+			sna->render.vbo = NULL;
+			sna->render.vertices = sna->render.vertex_data;
+			sna->render.vertex_size = ARRAY_SIZE(sna->render.vertex_data);
+			free_bo = bo;
+		}
+	} else {
 		if (sna->kgem.nbatch + sna->render.vertex_used <= sna->kgem.surface) {
 			DBG(("%s: copy to batch: %d @ %d\n", __FUNCTION__,
 			     sna->render.vertex_used, sna->kgem.nbatch));
@@ -1636,36 +1649,37 @@ static void gen3_vertex_close(struct sna *sna)
 			bo = NULL;
 			sna->kgem.nbatch += sna->render.vertex_used;
 		} else {
-			bo = kgem_create_linear(&sna->kgem,
-						4*sna->render.vertex_used);
-			if (bo && !kgem_bo_write(&sna->kgem, bo,
-						 sna->render.vertex_data,
-						 4*sna->render.vertex_used)) {
-				kgem_bo_destroy(&sna->kgem, bo);
-				goto reset;
-			}
 			DBG(("%s: new vbo: %d\n", __FUNCTION__,
 			     sna->render.vertex_used));
+			bo = kgem_create_linear(&sna->kgem,
+						4*sna->render.vertex_used);
+			if (bo)
+				kgem_bo_write(&sna->kgem, bo,
+					      sna->render.vertex_data,
+					      4*sna->render.vertex_used);
+			free_bo = bo;
 		}
 	}
 
 	DBG(("%s: reloc = %d\n", __FUNCTION__,
 	     sna->render.vertex_reloc[0]));
 
-	sna->kgem.batch[sna->render.vertex_reloc[0]] =
-		kgem_add_reloc(&sna->kgem, sna->render.vertex_reloc[0],
-			       bo, I915_GEM_DOMAIN_VERTEX << 16, delta);
-	if (bo)
-		kgem_bo_destroy(&sna->kgem, bo);
+	if (sna->render.vertex_reloc[0]) {
+		sna->kgem.batch[sna->render.vertex_reloc[0]] =
+			kgem_add_reloc(&sna->kgem, sna->render.vertex_reloc[0],
+				       bo, I915_GEM_DOMAIN_VERTEX << 16, delta);
+		sna->render.vertex_reloc[0] = 0;
+	}
 
-reset:
-	sna->render.vertex_reloc[0] = 0;
-	sna->render.vertex_used = 0;
-	sna->render.vertex_index = 0;
+	if (sna->render.vbo == NULL) {
+		sna->render.vertex_used = 0;
+		sna->render.vertex_index = 0;
+		assert(sna->render.vertices == sna->render.vertex_data);
+		assert(sna->render.vertex_size == ARRAY_SIZE(sna->render.vertex_data));
+	}
 
-	sna->render.vbo = NULL;
-	sna->render.vertices = sna->render.vertex_data;
-	sna->render.vertex_size = ARRAY_SIZE(sna->render.vertex_data);
+	if (free_bo)
+		kgem_bo_destroy(&sna->kgem, free_bo);
 }
 
 static bool gen3_rectangle_begin(struct sna *sna,
@@ -1885,10 +1899,23 @@ gen3_render_reset(struct sna *sna)
 	state->last_floats_per_vertex = 0;
 	state->last_vertex_offset = 0;
 	state->vertex_offset = 0;
+}
 
-	assert(sna->render.vertex_used == 0);
-	assert(sna->render.vertex_index == 0);
-	assert(sna->render.vertex_reloc[0] == 0);
+static void
+gen3_render_retire(struct kgem *kgem)
+{
+	struct sna *sna;
+
+	sna = container_of(kgem, struct sna, kgem);
+	if (!kgem->need_retire && kgem->nbatch == 0 && sna->render.vbo) {
+		DBG(("%s: discarding vbo\n", __FUNCTION__));
+		kgem_bo_destroy(kgem, sna->render.vbo);
+		sna->render.vbo = NULL;
+		sna->render.vertices = sna->render.vertex_data;
+		sna->render.vertex_size = ARRAY_SIZE(sna->render.vertex_data);
+		sna->render.vertex_used = 0;
+		sna->render.vertex_index = 0;
+	}
 }
 
 static Bool gen3_composite_channel_set_format(struct sna_composite_channel *channel,
@@ -4466,5 +4493,7 @@ Bool gen3_render_init(struct sna *sna)
 
 	render->max_3d_size = MAX_3D_SIZE;
 	render->max_3d_pitch = MAX_3D_PITCH;
+
+	sna->kgem.retire = gen3_render_retire;
 	return TRUE;
 }

@@ -410,10 +410,13 @@ static int gen5_vertex_finish(struct sna *sna)
 
 static void gen5_vertex_close(struct sna *sna)
 {
-	struct kgem_bo *bo;
+	struct kgem_bo *bo, *free_bo = NULL;
 	unsigned int i, delta = 0;
 
 	assert(sna->render_state.gen5.vertex_offset == 0);
+
+	DBG(("%s: used=%d, vbo active? %d\n",
+	     __FUNCTION__, sna->render.vertex_used, sna->render.vbo != NULL));
 
 	if (!sna->render.vertex_used) {
 		assert(sna->render.vbo == NULL);
@@ -422,10 +425,18 @@ static void gen5_vertex_close(struct sna *sna)
 		return;
 	}
 
-	DBG(("%s: used=%d\n", __FUNCTION__, sna->render.vertex_used));
-
 	bo = sna->render.vbo;
-	if (bo == NULL) {
+	if (bo) {
+		if (IS_CPU_MAP(bo->map) ||
+		    sna->render.vertex_size - sna->render.vertex_used < 64) {
+			DBG(("%s: discarding vbo (was CPU mapped)\n",
+			     __FUNCTION__));
+			sna->render.vbo = NULL;
+			sna->render.vertices = sna->render.vertex_data;
+			sna->render.vertex_size = ARRAY_SIZE(sna->render.vertex_data);
+			free_bo = bo;
+		}
+	} else {
 		if (sna->kgem.nbatch + sna->render.vertex_used <= sna->kgem.surface) {
 			DBG(("%s: copy to batch: %d @ %d\n", __FUNCTION__,
 			     sna->render.vertex_used, sna->kgem.nbatch));
@@ -441,10 +452,11 @@ static void gen5_vertex_close(struct sna *sna)
 						 sna->render.vertex_data,
 						 4*sna->render.vertex_used)) {
 				kgem_bo_destroy(&sna->kgem, bo);
-				goto reset;
+				bo = NULL;
 			}
 			DBG(("%s: new vbo: %d\n", __FUNCTION__,
 			     sna->render.vertex_used));
+			free_bo = bo;
 		}
 	}
 
@@ -469,17 +481,13 @@ static void gen5_vertex_close(struct sna *sna)
 		}
 	}
 
-	if (bo)
-		kgem_bo_destroy(&sna->kgem, bo);
+	if (sna->render.vbo == NULL) {
+		sna->render.vertex_used = 0;
+		sna->render.vertex_index = 0;
+	}
 
-reset:
-	sna->render.vertex_used = 0;
-	sna->render.vertex_index = 0;
-	sna->render_state.gen5.vb_id = 0;
-
-	sna->render.vbo = NULL;
-	sna->render.vertices = sna->render.vertex_data;
-	sna->render.vertex_size = ARRAY_SIZE(sna->render.vertex_data);
+	if (free_bo)
+		kgem_bo_destroy(&sna->kgem, free_bo);
 }
 
 static uint32_t gen5_get_blend(int op,
@@ -3470,6 +3478,23 @@ gen5_render_context_switch(struct kgem *kgem,
 	}
 }
 
+static void
+gen5_render_retire(struct kgem *kgem)
+{
+	struct sna *sna;
+
+	sna = container_of(kgem, struct sna, kgem);
+	if (!kgem->need_retire && kgem->nbatch == 0 && sna->render.vbo) {
+		DBG(("%s: discarding vbo\n", __FUNCTION__));
+		kgem_bo_destroy(kgem, sna->render.vbo);
+		sna->render.vbo = NULL;
+		sna->render.vertices = sna->render.vertex_data;
+		sna->render.vertex_size = ARRAY_SIZE(sna->render.vertex_data);
+		sna->render.vertex_used = 0;
+		sna->render.vertex_index = 0;
+	}
+}
+
 static void gen5_render_reset(struct sna *sna)
 {
 	sna->render_state.gen5.needs_invariant = TRUE;
@@ -3730,6 +3755,7 @@ Bool gen5_render_init(struct sna *sna)
 		return FALSE;
 
 	sna->kgem.context_switch = gen5_render_context_switch;
+	sna->kgem.retire = gen5_render_retire;
 
 	sna->render.composite = gen5_render_composite;
 #if !NO_COMPOSITE_SPANS
