@@ -1982,7 +1982,9 @@ search_linear_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags)
 		if (num_pages > num_pages(bo))
 			continue;
 
-		if (use_active && bo->tiling != I915_TILING_NONE)
+		if (use_active &&
+		    kgem->gen <= 40 &&
+		    bo->tiling != I915_TILING_NONE)
 			continue;
 
 		if (bo->purged && !kgem_bo_clear_purgeable(kgem, bo)) {
@@ -1991,7 +1993,10 @@ search_linear_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags)
 		}
 
 		if (I915_TILING_NONE != bo->tiling) {
-			if (use_active)
+			if (flags & (CREATE_CPU_MAP | CREATE_GTT_MAP))
+				continue;
+
+			if (first)
 				continue;
 
 			if (gem_set_tiling(kgem->fd, bo->handle,
