@@ -1922,22 +1922,32 @@ search_linear_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags)
 	bool use_active = (flags & CREATE_INACTIVE) == 0;
 	struct list *cache;
 
+	DBG(("%s: num_pages=%d, flags=%x, use_active? %d\n",
+	     __FUNCTION__, num_pages, flags, use_active));
+
 	if (num_pages >= MAX_CACHE_SIZE / PAGE_SIZE)
 		return NULL;
 
 	if (!use_active && list_is_empty(inactive(kgem, num_pages))) {
-		if (list_is_empty(active(kgem, num_pages, I915_TILING_NONE)))
-			return NULL;
+		DBG(("%s: inactive and cache bucket empty\n",
+		     __FUNCTION__));
 
-		if (!kgem_retire(kgem))
+		if (!kgem->need_retire || !kgem_retire(kgem)) {
+			DBG(("%s: nothing retired\n", __FUNCTION__));
 			return NULL;
+		}
 
-		if (list_is_empty(inactive(kgem, num_pages)))
+		if (list_is_empty(inactive(kgem, num_pages))) {
+			DBG(("%s: active cache bucket still empty after retire\n",
+			     __FUNCTION__));
 			return NULL;
+		}
 	}
 
 	if (!use_active && flags & (CREATE_CPU_MAP | CREATE_GTT_MAP)) {
 		int for_cpu = !!(flags & CREATE_CPU_MAP);
+		DBG(("%s: searching for inactive %s map\n",
+		     __FUNCTION__, for_cpu ? "cpu" : "gtt"));
 		cache = &kgem->vma[for_cpu].inactive[cache_bucket(num_pages)];
 		list_for_each_entry(bo, cache, vma) {
 			assert(IS_CPU_MAP(bo->map) == for_cpu);
@@ -2111,7 +2121,7 @@ struct kgem_bo *kgem_create_linear(struct kgem *kgem, int size)
 	if (handle == 0)
 		return NULL;
 
-	DBG(("%s: new handle=%d\n", __FUNCTION__, handle));
+	DBG(("%s: new handle=%d, num_pages=%d\n", __FUNCTION__, handle, size));
 	bo = __kgem_bo_alloc(handle, size);
 	if (bo == NULL) {
 		gem_close(kgem->fd, handle);
