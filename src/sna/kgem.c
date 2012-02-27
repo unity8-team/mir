@@ -1376,15 +1376,10 @@ static void kgem_finish_partials(struct kgem *kgem)
 		if (!bo->base.exec)
 			continue;
 
-		if (bo->mmapped) {
-			assert(bo->write & KGEM_BUFFER_WRITE_INPLACE);
-			assert(!bo->need_io);
-			if (kgem->has_llc || !IS_CPU_MAP(bo->base.map)) {
-				DBG(("%s: retaining partial upload buffer (%d/%d)\n",
-				     __FUNCTION__, bo->used, bytes(&bo->base)));
-				continue;
-			}
-			goto decouple;
+		if (bo->write & KGEM_BUFFER_WRITE_INPLACE) {
+			DBG(("%s: retaining partial upload buffer (%d/%d)\n",
+			     __FUNCTION__, bo->used, bytes(&bo->base)));
+			continue;
 		}
 
 		if (!bo->used) {
@@ -3471,8 +3466,6 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			}
 			DBG(("%s: created handle=%d for buffer\n",
 			     __FUNCTION__, bo->base.handle));
-
-			bo->base.domain = DOMAIN_CPU;
 		}
 
 		bo->mem = kgem_bo_map__cpu(kgem, &bo->base);
