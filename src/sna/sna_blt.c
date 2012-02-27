@@ -667,7 +667,7 @@ is_solid(PicturePtr picture)
 	}
 
 	if (picture->pDrawable) {
-		if (picture->pDrawable->width == 1 &&
+		if (picture->pDrawable->width  == 1 &&
 		    picture->pDrawable->height == 1 &&
 		    picture->repeat)
 			return TRUE;

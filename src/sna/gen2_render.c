@@ -1116,10 +1116,7 @@ gen2_composite_solid_init(struct sna *sna,
 {
 	channel->filter = PictFilterNearest;
 	channel->repeat = RepeatNormal;
-	channel->is_affine = TRUE;
 	channel->is_solid  = TRUE;
-	channel->is_linear = FALSE;
-	channel->transform = NULL;
 	channel->width  = 1;
 	channel->height = 1;
 	channel->pict_format = PICT_a8r8g8b8;
@@ -1169,11 +1166,7 @@ gen2_composite_linear_init(struct sna *sna,
 
 	channel->filter = PictFilterNearest;
 	channel->repeat = picture->repeat ? picture->repeatType : RepeatNone;
-	channel->is_affine = TRUE;
-	channel->is_opaque = FALSE;
-	channel->is_solid  = FALSE;
 	channel->is_linear = TRUE;
-	channel->transform = NULL;
 	channel->width  = channel->bo->pitch / 4;
 	channel->height = 1;
 	channel->pict_format = PICT_a8r8g8b8;
@@ -1331,6 +1324,9 @@ gen2_composite_picture(struct sna *sna,
 
 	channel->is_solid = FALSE;
 	channel->is_linear = FALSE;
+	channel->is_opaque = FALSE;
+	channel->is_affine = TRUE;
+	channel->transform = NULL;
 
 	if (sna_picture_is_solid(picture, &color))
 		return gen2_composite_solid_init(sna, channel, color);
@@ -1726,7 +1722,7 @@ gen2_render_composite(struct sna *sna,
 		return FALSE;
 	}
 
-	if (mask == NULL && sna->kgem.mode == KGEM_BLT  &&
+	if (mask == NULL && sna->kgem.mode == KGEM_BLT &&
 	    sna_blt_composite(sna, op,
 			      src, dst,
 			      src_x, src_y,
