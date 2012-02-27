@@ -1393,6 +1393,7 @@ static void kgem_finish_partials(struct kgem *kgem)
 
 		assert(bo->base.rq == kgem->next_request);
 		assert(bo->base.domain != DOMAIN_GPU);
+		assert(bo->need_io);
 
 		if (bo->base.refcnt == 1 && bo->used < bytes(&bo->base) / 2) {
 			struct kgem_bo *shrink;
@@ -1439,15 +1440,15 @@ static void kgem_finish_partials(struct kgem *kgem)
 				bubble_sort_partial(kgem, bo);
 				continue;
 			}
-
-			DBG(("%s: handle=%d, uploading %d/%d\n",
-			     __FUNCTION__, bo->base.handle, bo->used, bytes(&bo->base)));
-			assert(!kgem_busy(kgem, bo->base.handle));
-			assert(bo->used <= bytes(&bo->base));
-			gem_write(kgem->fd, bo->base.handle,
-				  0, bo->used, bo->mem);
-			bo->need_io = 0;
 		}
+
+		DBG(("%s: handle=%d, uploading %d/%d\n",
+		     __FUNCTION__, bo->base.handle, bo->used, bytes(&bo->base)));
+		assert(!kgem_busy(kgem, bo->base.handle));
+		assert(bo->used <= bytes(&bo->base));
+		gem_write(kgem->fd, bo->base.handle,
+			  0, bo->used, bo->mem);
+		bo->need_io = 0;
 
 decouple:
 		list_del(&bo->base.list);
