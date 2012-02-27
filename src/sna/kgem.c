@@ -1378,11 +1378,13 @@ static void kgem_finish_partials(struct kgem *kgem)
 
 		if (bo->mmapped) {
 			assert(bo->write & KGEM_BUFFER_WRITE_INPLACE);
+			assert(!bo->need_io);
 			if (kgem->has_llc || !IS_CPU_MAP(bo->base.map)) {
 				DBG(("%s: retaining partial upload buffer (%d/%d)\n",
 				     __FUNCTION__, bo->used, bytes(&bo->base)));
 				continue;
 			}
+			goto decouple;
 		}
 
 		if (!bo->used) {
@@ -1395,55 +1397,52 @@ static void kgem_finish_partials(struct kgem *kgem)
 		}
 
 		assert(bo->base.rq == kgem->next_request);
-		if (bo->used && bo->need_io) {
-			assert(bo->base.domain != DOMAIN_GPU);
+		assert(bo->base.domain != DOMAIN_GPU);
 
-			if (bo->base.refcnt == 1 &&
-			    bo->used < bytes(&bo->base) / 2) {
-				struct kgem_bo *shrink;
+		if (bo->base.refcnt == 1 && bo->used < bytes(&bo->base) / 2) {
+			struct kgem_bo *shrink;
 
-				shrink = search_linear_cache(kgem,
-							     PAGE_ALIGN(bo->used),
-							     CREATE_INACTIVE);
-				if (shrink) {
-					int n;
+			shrink = search_linear_cache(kgem,
+						     PAGE_ALIGN(bo->used),
+						     CREATE_INACTIVE);
+			if (shrink) {
+				int n;
 
-					DBG(("%s: used=%d, shrinking %d to %d, handle %d to %d\n",
-					     __FUNCTION__,
-					     bo->used, bytes(&bo->base), bytes(shrink),
-					     bo->base.handle, shrink->handle));
+				DBG(("%s: used=%d, shrinking %d to %d, handle %d to %d\n",
+				     __FUNCTION__,
+				     bo->used, bytes(&bo->base), bytes(shrink),
+				     bo->base.handle, shrink->handle));
 
-					assert(bo->used <= bytes(shrink));
-					gem_write(kgem->fd, shrink->handle,
-						  0, bo->used, bo->mem);
+				assert(bo->used <= bytes(shrink));
+				gem_write(kgem->fd, shrink->handle,
+					  0, bo->used, bo->mem);
 
-					for (n = 0; n < kgem->nreloc; n++) {
-						if (kgem->reloc[n].target_handle == bo->base.handle) {
-							kgem->reloc[n].target_handle = shrink->handle;
-							kgem->reloc[n].presumed_offset = shrink->presumed_offset;
-							kgem->batch[kgem->reloc[n].offset/sizeof(kgem->batch[0])] =
-								kgem->reloc[n].delta + shrink->presumed_offset;
-						}
+				for (n = 0; n < kgem->nreloc; n++) {
+					if (kgem->reloc[n].target_handle == bo->base.handle) {
+						kgem->reloc[n].target_handle = shrink->handle;
+						kgem->reloc[n].presumed_offset = shrink->presumed_offset;
+						kgem->batch[kgem->reloc[n].offset/sizeof(kgem->batch[0])] =
+							kgem->reloc[n].delta + shrink->presumed_offset;
 					}
-
-					bo->base.exec->handle = shrink->handle;
-					bo->base.exec->offset = shrink->presumed_offset;
-					shrink->exec = bo->base.exec;
-					shrink->rq = bo->base.rq;
-					list_replace(&bo->base.request,
-						     &shrink->request);
-					list_init(&bo->base.request);
-					shrink->needs_flush = bo->base.dirty;
-
-					bo->base.exec = NULL;
-					bo->base.rq = NULL;
-					bo->base.dirty = false;
-					bo->base.needs_flush = false;
-					bo->used = 0;
-
-					bubble_sort_partial(kgem, bo);
-					continue;
 				}
+
+				bo->base.exec->handle = shrink->handle;
+				bo->base.exec->offset = shrink->presumed_offset;
+				shrink->exec = bo->base.exec;
+				shrink->rq = bo->base.rq;
+				list_replace(&bo->base.request,
+					     &shrink->request);
+				list_init(&bo->base.request);
+				shrink->needs_flush = bo->base.dirty;
+
+				bo->base.exec = NULL;
+				bo->base.rq = NULL;
+				bo->base.dirty = false;
+				bo->base.needs_flush = false;
+				bo->used = 0;
+
+				bubble_sort_partial(kgem, bo);
+				continue;
 			}
 
 			DBG(("%s: handle=%d, uploading %d/%d\n",
@@ -3243,29 +3242,19 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 	assert(size <= kgem->max_cpu_size);
 
 	list_for_each_entry(bo, &kgem->partial, base.list) {
-		if (flags == KGEM_BUFFER_LAST && bo->write) {
-			/* We can reuse any write buffer which we can fit */
-			if (size <= bytes(&bo->base)) {
-				if (bo->base.refcnt == 1 && bo->base.exec) {
-					DBG(("%s: reusing write buffer for read of %d bytes? used=%d, total=%d\n",
-					     __FUNCTION__, size, bo->used, bytes(&bo->base)));
-					gem_write(kgem->fd, bo->base.handle,
-						  0, bo->used, bo->mem);
-					bo->need_io = 0;
-					bo->write = 0;
-					offset = 0;
-					goto done;
-				} else if (bo->used + size <= bytes(&bo->base)) {
-					DBG(("%s: reusing unfinished write buffer for read of %d bytes? used=%d, total=%d\n",
-					     __FUNCTION__, size, bo->used, bytes(&bo->base)));
-					gem_write(kgem->fd, bo->base.handle,
-						  0, bo->used, bo->mem);
-					bo->need_io = 0;
-					bo->write = 0;
-					offset = bo->used;
-					goto done;
-				}
-			}
+		/* We can reuse any write buffer which we can fit */
+		if (flags == KGEM_BUFFER_LAST &&
+		    bo->write == KGEM_BUFFER_WRITE && bo->base.exec &&
+		    size <= bytes(&bo->base)) {
+			assert(bo->base.refcnt == 1);
+			DBG(("%s: reusing write buffer for read of %d bytes? used=%d, total=%d\n",
+			     __FUNCTION__, size, bo->used, bytes(&bo->base)));
+			gem_write(kgem->fd, bo->base.handle,
+				  0, bo->used, bo->mem);
+			bo->need_io = 0;
+			bo->write = 0;
+			offset = bo->used = 0;
+			goto done;
 		}
 
 		if ((bo->write & KGEM_BUFFER_WRITE) != (flags & KGEM_BUFFER_WRITE) ||
