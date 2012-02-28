@@ -524,6 +524,31 @@ gen3_emit_composite_primitive_identity_source(struct sna *sna,
 }
 
 fastcall static void
+gen3_emit_composite_primitive_identity_source_no_offset(struct sna *sna,
+							const struct sna_composite_op *op,
+							const struct sna_composite_rectangles *r)
+{
+	float w = r->width;
+	float h = r->height;
+	float *v;
+
+	v = sna->render.vertices + sna->render.vertex_used;
+	sna->render.vertex_used += 12;
+
+	v[8] = v[4] = r->dst.x;
+	v[9] = r->dst.y;
+
+	v[0] = v[4] + w;
+	v[5] = v[1] = v[9] + h;
+
+	v[10] = v[6] = r->src.x * op->src.scale[0];
+	v[11] = r->src.y * op->src.scale[1];
+
+	v[2] = v[6] + w * op->src.scale[0];
+	v[7] = v[3] = v[11] + h * op->src.scale[1];
+}
+
+fastcall static void
 gen3_emit_composite_primitive_affine_source(struct sna *sna,
 					    const struct sna_composite_op *op,
 					    const struct sna_composite_rectangles *r)
@@ -580,6 +605,31 @@ gen3_emit_composite_primitive_constant_identity_mask(struct sna *sna,
 	v[2] = v[6] + w * op->mask.scale[0];
 
 	v[11] = (r->mask.y + op->mask.offset[1]) * op->mask.scale[1];
+	v[7] = v[3] = v[11] + h * op->mask.scale[1];
+}
+
+fastcall static void
+gen3_emit_composite_primitive_constant_identity_mask_no_offset(struct sna *sna,
+							       const struct sna_composite_op *op,
+							       const struct sna_composite_rectangles *r)
+{
+	float w = r->width;
+	float h = r->height;
+	float *v;
+
+	v = sna->render.vertices + sna->render.vertex_used;
+	sna->render.vertex_used += 12;
+
+	v[8] = v[4] = r->dst.x;
+	v[9] = r->dst.y;
+
+	v[0] = v[4] + w;
+	v[5] = v[1] = v[9] + h;
+
+	v[10] = v[6] = r->mask.x * op->mask.scale[0];
+	v[11] = r->mask.y * op->mask.scale[1];
+
+	v[2] = v[6] + w * op->mask.scale[0];
 	v[7] = v[3] = v[11] + h * op->mask.scale[1];
 }
 
@@ -2831,17 +2881,23 @@ gen3_render_composite(struct sna *sna,
 				tmp->prim_emit = gen3_emit_composite_primitive_affine_gradient;
 			break;
 		case SHADER_TEXTURE:
-			if (tmp->src.transform == NULL)
-				tmp->prim_emit = gen3_emit_composite_primitive_identity_source;
-			else if (tmp->src.is_affine)
+			if (tmp->src.transform == NULL) {
+				if ((tmp->src.offset[0]|tmp->src.offset[1]|tmp->dst.x|tmp->dst.y) == 0)
+					tmp->prim_emit = gen3_emit_composite_primitive_identity_source_no_offset;
+				else
+					tmp->prim_emit = gen3_emit_composite_primitive_identity_source;
+			} else if (tmp->src.is_affine)
 				tmp->prim_emit = gen3_emit_composite_primitive_affine_source;
 			break;
 		}
 	} else if (tmp->mask.u.gen3.type == SHADER_TEXTURE) {
 		if (tmp->mask.transform == NULL) {
-			if (is_constant_ps(tmp->src.u.gen3.type))
-				tmp->prim_emit = gen3_emit_composite_primitive_constant_identity_mask;
-			else if (tmp->src.transform == NULL)
+			if (is_constant_ps(tmp->src.u.gen3.type)) {
+				if ((tmp->mask.offset[0]|tmp->mask.offset[1]|tmp->dst.x|tmp->dst.y) == 0)
+					tmp->prim_emit = gen3_emit_composite_primitive_constant_identity_mask_no_offset;
+				else
+					tmp->prim_emit = gen3_emit_composite_primitive_constant_identity_mask;
+			} else if (tmp->src.transform == NULL)
 				tmp->prim_emit = gen3_emit_composite_primitive_identity_source_mask;
 			else if (tmp->src.is_affine)
 				tmp->prim_emit = gen3_emit_composite_primitive_affine_source_mask;
