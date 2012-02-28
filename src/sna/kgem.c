@@ -3254,7 +3254,9 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 				  0, bo->used, bo->mem);
 			bo->need_io = 0;
 			bo->write = 0;
-			offset = bo->used = 0;
+			offset = 0;
+			bo->used = size;
+			bubble_sort_partial(kgem, bo);
 			goto done;
 		}
 
