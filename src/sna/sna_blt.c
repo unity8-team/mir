@@ -907,7 +907,7 @@ prepare_blt_clear(struct sna *sna,
 {
 	DBG(("%s\n", __FUNCTION__));
 
-	op->blt   = blt_composite_fill;
+	op->blt = blt_composite_fill;
 	if (op->dst.x|op->dst.y) {
 		op->box   = blt_composite_fill_box;
 		op->boxes = blt_composite_fill_boxes;
@@ -915,7 +915,7 @@ prepare_blt_clear(struct sna *sna,
 		op->box   = blt_composite_fill_box_no_offset;
 		op->boxes = blt_composite_fill_boxes_no_offset;
 	}
-	op->done  = nop_done;
+	op->done = nop_done;
 
 	return sna_blt_fill_init(sna, &op->u.blt,
 				 op->dst.bo,
@@ -930,7 +930,7 @@ prepare_blt_fill(struct sna *sna,
 {
 	DBG(("%s\n", __FUNCTION__));
 
-	op->blt   = blt_composite_fill;
+	op->blt = blt_composite_fill;
 	if (op->dst.x|op->dst.y) {
 		op->box   = blt_composite_fill_box;
 		op->boxes = blt_composite_fill_boxes;
@@ -938,7 +938,7 @@ prepare_blt_fill(struct sna *sna,
 		op->box   = blt_composite_fill_box_no_offset;
 		op->boxes = blt_composite_fill_boxes_no_offset;
 	}
-	op->done  = nop_done;
+	op->done = nop_done;
 
 	return sna_blt_fill_init(sna, &op->u.blt, op->dst.bo,
 				 op->dst.pixmap->drawable.bitsPerPixel,
@@ -1126,9 +1126,9 @@ prepare_blt_copy(struct sna *sna,
 	DBG(("%s\n", __FUNCTION__));
 
 	if (sna->kgem.gen >= 60)
-		op->done  = gen6_blt_copy_done;
+		op->done = gen6_blt_copy_done;
 	else
-		op->done  = nop_done;
+		op->done = nop_done;
 
 	if (alpha_fixup) {
 		op->blt   = blt_composite_copy_with_alpha;
@@ -1151,14 +1151,6 @@ prepare_blt_copy(struct sna *sna,
 					 src->drawable.bitsPerPixel,
 					 GXcopy);
 	}
-}
-
-static void blt_vmap_done(struct sna *sna, const struct sna_composite_op *op)
-{
-	struct kgem_bo *bo = (struct kgem_bo *)op->u.blt.src_pixmap;
-
-	if (bo)
-		kgem_bo_destroy(&sna->kgem, bo);
 }
 
 fastcall static void
@@ -1395,26 +1387,18 @@ prepare_blt_put(struct sna *sna,
 		uint32_t alpha_fixup)
 {
 	PixmapPtr src = op->u.blt.src_pixmap;
-	struct sna_pixmap *priv = sna_pixmap_attach(src);
-	struct kgem_bo *src_bo = NULL;
-	struct kgem_bo *free_bo = NULL;
+	struct sna_pixmap *priv;
+	struct kgem_bo *src_bo;
 
 	DBG(("%s\n", __FUNCTION__));
 
-	if (priv) {
-		src_bo = priv->cpu_bo;
-	} else {
-		src_bo = kgem_create_map(&sna->kgem,
-					 src->devPrivate.ptr,
-					 pixmap_size(src),
-					 0);
-		free_bo = src_bo;
-	}
-	if (src_bo) {
-		op->u.blt.src_pixmap = (void *)free_bo;
-		op->done = blt_vmap_done;
+	op->done = nop_done;
 
-		src_bo->pitch = src->devKind;
+	src_bo = NULL;
+	priv = _sna_pixmap_attach(src);
+	if (priv)
+		src_bo = priv->cpu_bo;
+	if (src_bo) {
 		if (alpha_fixup) {
 			op->blt   = blt_composite_copy_with_alpha;
 			op->box   = blt_composite_copy_box_with_alpha;
@@ -1435,11 +1419,14 @@ prepare_blt_put(struct sna *sna,
 						 GXcopy);
 		}
 	} else {
-		if (alpha_fixup)
-			return FALSE; /* XXX */
-
 		if (!sna_pixmap_move_to_cpu(src, MOVE_READ))
 			return FALSE;
+
+		assert(src->devKind);
+		assert(src->devPrivate.ptr);
+
+		if (alpha_fixup)
+			return FALSE; /* XXX */
 
 		if (alpha_fixup) {
 			op->u.blt.pixel = alpha_fixup;
@@ -1451,7 +1438,6 @@ prepare_blt_put(struct sna *sna,
 			op->box   = blt_put_composite_box;
 			op->boxes = blt_put_composite_boxes;
 		}
-		op->done  = nop_done;
 	}
 
 	return TRUE;

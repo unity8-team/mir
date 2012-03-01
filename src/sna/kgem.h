@@ -127,7 +127,9 @@ struct kgem {
 	struct list inactive[NUM_CACHE_BUCKETS];
 	struct list partial;
 	struct list requests;
+	struct list sync_list;
 	struct kgem_request *next_request;
+	struct kgem_request *sync;
 
 	struct {
 		struct list inactive[NUM_CACHE_BUCKETS];
@@ -142,7 +144,6 @@ struct kgem {
 	uint16_t max_batch_size;
 
 	uint32_t flush:1;
-	uint32_t sync:1;
 	uint32_t need_expire:1;
 	uint32_t need_purge:1;
 	uint32_t need_retire:1;
@@ -154,7 +155,6 @@ struct kgem {
 	uint32_t has_relaxed_fencing :1;
 	uint32_t has_semaphores :1;
 	uint32_t has_llc :1;
-	uint32_t has_cpu_bo :1;
 
 	uint16_t fence_max;
 	uint16_t half_cpu_cache_pages;
@@ -229,6 +229,11 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 			       int bpp,
 			       int tiling,
 			       uint32_t flags);
+struct kgem_bo *kgem_create_cpu_2d(struct kgem *kgem,
+				   int width,
+				   int height,
+				   int bpp,
+				   uint32_t flags);
 
 uint32_t kgem_bo_get_binding(struct kgem_bo *bo, uint32_t format);
 void kgem_bo_set_binding(struct kgem_bo *bo, uint32_t format, uint16_t offset);
@@ -359,6 +364,7 @@ void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo);
 void *kgem_bo_map__debug(struct kgem *kgem, struct kgem_bo *bo);
 void *kgem_bo_map__cpu(struct kgem *kgem, struct kgem_bo *bo);
 void kgem_bo_sync__cpu(struct kgem *kgem, struct kgem_bo *bo);
+void kgem_bo_set_sync(struct kgem *kgem, struct kgem_bo *bo);
 uint32_t kgem_bo_flink(struct kgem *kgem, struct kgem_bo *bo);
 
 Bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,

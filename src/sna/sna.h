@@ -115,11 +115,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "sna_damage.h"
 #include "sna_render.h"
 
-#ifndef CREATE_PIXMAP_USAGE_SCRATCH_HEADER
-#define FAKE_CREATE_PIXMAP_USAGE_SCRATCH_HEADER 1
-#define CREATE_PIXMAP_USAGE_SCRATCH_HEADER (unsigned)-1
-#endif
-
 #define SNA_CURSOR_X			64
 #define SNA_CURSOR_Y			SNA_CURSOR_X
 
@@ -226,13 +221,14 @@ struct sna {
 #define SNA_NO_THROTTLE		0x1
 #define SNA_NO_DELAYED_FLUSH	0x2
 
+	unsigned flush;
+
 	int timer[NUM_TIMERS];
 	uint16_t timer_active;
 	uint16_t timer_ready;
 
 	int vblank_interval;
 
-	struct list deferred_free;
 	struct list dirty_pixmaps;
 	struct list active_pixmaps;
 	struct list inactive_clock[2];
