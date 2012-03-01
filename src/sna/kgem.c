@@ -1171,7 +1171,6 @@ static void kgem_retire_partials(struct kgem *kgem)
 		DBG(("%s: handle=%d, used %d/%d\n", __FUNCTION__,
 		     bo->base.handle, bo->used, bytes(&bo->base)));
 
-		assert(bo->write & KGEM_BUFFER_WRITE_INPLACE);
 		assert(kgem->has_llc || !IS_CPU_MAP(bo->base.map));
 		bo->base.dirty = false;
 		bo->base.needs_flush = false;
@@ -1377,7 +1376,6 @@ static void kgem_finish_partials(struct kgem *kgem)
 			continue;
 
 		if (bo->mmapped) {
-			assert(bo->write & KGEM_BUFFER_WRITE_INPLACE);
 			assert(!bo->need_io);
 			if (kgem->has_llc || !IS_CPU_MAP(bo->base.map)) {
 				DBG(("%s: retaining partial upload buffer (%d/%d)\n",
@@ -3242,10 +3240,14 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 	/* we should never be asked to create anything TOO large */
 	assert(size <= kgem->max_cpu_size);
 
+	if (kgem->has_llc)
+		flags &= ~KGEM_BUFFER_WRITE_INPLACE;
+
 	list_for_each_entry(bo, &kgem->partial, base.list) {
 		/* We can reuse any write buffer which we can fit */
 		if (flags == KGEM_BUFFER_LAST &&
-		    bo->write == KGEM_BUFFER_WRITE && bo->base.exec &&
+		    bo->write == KGEM_BUFFER_WRITE &&
+		    bo->base.exec && !bo->mmapped &&
 		    size <= bytes(&bo->base)) {
 			assert(bo->base.refcnt == 1);
 			DBG(("%s: reusing write buffer for read of %d bytes? used=%d, total=%d\n",
