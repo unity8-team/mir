@@ -849,16 +849,14 @@ gen5_emit_composite_primitive_identity_source(struct sna *sna,
 	dst.p.y = r->dst.y + r->height;
 	v[0] = dst.f;
 	v[1] = (sx + r->width) * sf[0];
-	v[2] = (sy + r->height) * sf[1];
+	v[5] = v[2] = (sy + r->height) * sf[1];
 
 	dst.p.x = r->dst.x;
 	v[3] = dst.f;
-	v[4] = sx * sf[0];
-	v[5] = v[2];
+	v[7] = v[4] = sx * sf[0];
 
 	dst.p.y = r->dst.y;
 	v[6] = dst.f;
-	v[7] = v[4];
 	v[8] = sy * sf[1];
 }
 
