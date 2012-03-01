@@ -125,7 +125,7 @@ struct kgem {
 	struct list large;
 	struct list active[NUM_CACHE_BUCKETS][3];
 	struct list inactive[NUM_CACHE_BUCKETS];
-	struct list partial;
+	struct list active_partials, inactive_partials;
 	struct list requests;
 	struct list sync_list;
 	struct kgem_request *next_request;

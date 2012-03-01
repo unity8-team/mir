@@ -119,8 +119,10 @@ static bool validate_partials(struct kgem *kgem)
 {
 	struct kgem_partial_bo *bo, *next;
 
-	list_for_each_entry_safe(bo, next, &kgem->partial, base.list) {
-		if (bo->base.list.next == &kgem->partial)
+	list_for_each_entry_safe(bo, next, &kgem->active_partials, base.list) {
+		assert(next->base.list.prev == &bo->base.list);
+		assert(bo->base.io);
+		if (bo->base.list.next == &kgem->active_partials)
 			return true;
 		if (bytes(&bo->base) - bo->used < bytes(&next->base) - next->used) {
 			ErrorF("this rem: %d, next rem: %d\n",
@@ -132,7 +134,7 @@ static bool validate_partials(struct kgem *kgem)
 	return true;
 
 err:
-	list_for_each_entry(bo, &kgem->partial, base.list)
+	list_for_each_entry(bo, &kgem->active_partials, base.list)
 		ErrorF("bo: used=%d / %d, rem=%d\n",
 		       bo->used, bytes(&bo->base), bytes(&bo->base) - bo->used);
 	return false;
@@ -573,7 +575,8 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 
 	kgem->half_cpu_cache_pages = cpu_cache_size() >> 13;
 
-	list_init(&kgem->partial);
+	list_init(&kgem->active_partials);
+	list_init(&kgem->inactive_partials);
 	list_init(&kgem->requests);
 	list_init(&kgem->flushing);
 	list_init(&kgem->sync_list);
@@ -1173,11 +1176,11 @@ static void kgem_bo_unref(struct kgem *kgem, struct kgem_bo *bo)
 		__kgem_bo_destroy(kgem, bo);
 }
 
-static void bubble_sort_partial(struct kgem *kgem, struct kgem_partial_bo *bo)
+static void bubble_sort_partial(struct list *head, struct kgem_partial_bo *bo)
 {
 	int remain = bytes(&bo->base) - bo->used;
 
-	while (bo->base.list.prev != &kgem->partial) {
+	while (bo->base.list.prev != head) {
 		struct kgem_partial_bo *p;
 
 		p = list_entry(bo->base.list.prev,
@@ -1204,21 +1207,25 @@ static void kgem_retire_partials(struct kgem *kgem)
 {
 	struct kgem_partial_bo *bo, *next;
 
-	list_for_each_entry_safe(bo, next, &kgem->partial, base.list) {
-		if (bo->used == 0 || !bo->mmapped)
-			continue;
+	list_for_each_entry_safe(bo, next, &kgem->active_partials, base.list) {
+		assert(next->base.list.prev == &bo->base.list);
+		assert(bo->base.io);
+
 		if (bo->base.refcnt != 1 || bo->base.rq)
 			continue;
 
 		DBG(("%s: handle=%d, used %d/%d\n", __FUNCTION__,
 		     bo->base.handle, bo->used, bytes(&bo->base)));
 
+		assert(bo->base.refcnt == 1);
+		assert(bo->mmapped);
 		assert(kgem->has_llc || !IS_CPU_MAP(bo->base.map));
 		bo->base.dirty = false;
 		bo->base.needs_flush = false;
 		bo->used = 0;
 
-		bubble_sort_partial(kgem, bo);
+		list_move_tail(&bo->base.list, &kgem->inactive_partials);
+		bubble_sort_partial(&kgem->inactive_partials, bo);
 	}
 }
 
@@ -1343,6 +1350,8 @@ static void kgem_commit(struct kgem *kgem)
 	struct kgem_bo *bo, *next;
 
 	list_for_each_entry_safe(bo, next, &rq->buffers, request) {
+		assert(next->request.prev == &bo->request);
+
 		DBG(("%s: release handle=%d (proxy? %d), dirty? %d flush? %d -> offset=%x\n",
 		     __FUNCTION__, bo->handle, bo->proxy != NULL,
 		     bo->dirty, bo->needs_flush, (unsigned)bo->exec->offset));
@@ -1411,14 +1420,17 @@ static void kgem_finish_partials(struct kgem *kgem)
 {
 	struct kgem_partial_bo *bo, *next;
 
-	list_for_each_entry_safe(bo, next, &kgem->partial, base.list) {
+	list_for_each_entry_safe(bo, next, &kgem->active_partials, base.list) {
+		assert(next->base.list.prev == &bo->base.list);
+		assert(bo->base.io);
+
+		if (!bo->base.exec)
+			continue;
+
 		if (!bo->write) {
 			assert(bo->base.exec || bo->base.refcnt > 1);
 			goto decouple;
 		}
-
-		if (!bo->base.exec)
-			continue;
 
 		if (bo->mmapped) {
 			assert(!bo->need_io);
@@ -1439,9 +1451,9 @@ static void kgem_finish_partials(struct kgem *kgem)
 			goto decouple;
 		}
 
+		assert(bo->need_io);
 		assert(bo->base.rq == kgem->next_request);
 		assert(bo->base.domain != DOMAIN_GPU);
-		assert(bo->need_io);
 
 		if (bo->base.refcnt == 1 && bo->used < bytes(&bo->base) / 2) {
 			struct kgem_bo *shrink;
@@ -1485,8 +1497,7 @@ static void kgem_finish_partials(struct kgem *kgem)
 				bo->base.needs_flush = false;
 				bo->used = 0;
 
-				bubble_sort_partial(kgem, bo);
-				continue;
+				goto decouple;
 			}
 		}
 
@@ -1508,16 +1519,6 @@ decouple:
 
 static void kgem_cleanup(struct kgem *kgem)
 {
-	while (!list_is_empty(&kgem->partial)) {
-		struct kgem_bo *bo;
-
-		bo = list_first_entry(&kgem->partial,
-				      struct kgem_bo,
-				      list);
-		list_del(&bo->list);
-		kgem_bo_unref(kgem, bo);
-	}
-
 	while (!list_is_empty(&kgem->requests)) {
 		struct kgem_request *rq;
 
@@ -1844,14 +1845,17 @@ void kgem_throttle(struct kgem *kgem)
 
 static void kgem_expire_partial(struct kgem *kgem)
 {
-	struct kgem_partial_bo *bo, *next;
+	while (!list_is_empty(&kgem->inactive_partials)) {
+		struct kgem_partial_bo *bo =
+			list_first_entry(&kgem->inactive_partials,
+					 struct kgem_partial_bo,
+					 base.list);
 
-	list_for_each_entry_safe(bo, next, &kgem->partial, base.list) {
-		if (bo->base.refcnt > 1 || bo->base.rq)
-			continue;
-
-		DBG(("%s: discarding unused partial buffer: %d/%d, write? %d\n",
-		     __FUNCTION__, bo->used, bytes(&bo->base), bo->write));
+		DBG(("%s: discarding unused partial buffer: %d, last write? %d\n",
+		     __FUNCTION__, bytes(&bo->base), bo->write));
+		assert(bo->base.list.prev == &kgem->inactive_partials);
+		assert(bo->base.io);
+		assert(bo->base.refcnt == 1);
 		list_del(&bo->base.list);
 		kgem_bo_unref(kgem, &bo->base);
 	}
@@ -2785,7 +2789,7 @@ static void _kgem_bo_delete_partial(struct kgem *kgem, struct kgem_bo *bo)
 
 	if (bo->delta + bo->size.bytes == io->used) {
 		io->used = bo->delta;
-		bubble_sort_partial(kgem, io);
+		bubble_sort_partial(&kgem->active_partials, io);
 	}
 }
 
@@ -3210,10 +3214,16 @@ struct kgem_bo *kgem_create_map(struct kgem *kgem,
 	return bo;
 }
 #else
+static uint32_t gem_vmap(int fd, void *ptr, int size, int read_only)
+{
+	assert(0);
+	return 0;
+}
 struct kgem_bo *kgem_create_map(struct kgem *kgem,
 				void *ptr, uint32_t size,
 				bool read_only)
 {
+	assert(0);
 	return 0;
 }
 #endif
@@ -3243,6 +3253,7 @@ void kgem_bo_sync__cpu(struct kgem *kgem, struct kgem_bo *bo)
 void kgem_bo_set_sync(struct kgem *kgem, struct kgem_bo *bo)
 {
 	assert(!bo->reusable);
+	assert(list_is_empty(&bo->list));
 	list_add(&bo->list, &kgem->sync_list);
 	bo->sync = true;
 }
@@ -3342,17 +3353,16 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 	     !!(flags & KGEM_BUFFER_LAST)));
 	assert(size);
 	/* we should never be asked to create anything TOO large */
-	assert(size <= kgem->max_cpu_size);
+	assert(size <= kgem->max_object_size);
 
 	if (kgem->has_llc)
 		flags &= ~KGEM_BUFFER_WRITE_INPLACE;
 
-	list_for_each_entry(bo, &kgem->partial, base.list) {
+	list_for_each_entry(bo, &kgem->active_partials, base.list) {
 		/* We can reuse any write buffer which we can fit */
 		if (flags == KGEM_BUFFER_LAST &&
 		    bo->write == KGEM_BUFFER_WRITE &&
-		    bo->base.exec && !bo->mmapped &&
-		    size <= bytes(&bo->base)) {
+		    !bo->mmapped && size <= bytes(&bo->base)) {
 			assert(bo->base.refcnt == 1);
 			DBG(("%s: reusing write buffer for read of %d bytes? used=%d, total=%d\n",
 			     __FUNCTION__, size, bo->used, bytes(&bo->base)));
@@ -3362,7 +3372,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			bo->write = 0;
 			offset = 0;
 			bo->used = size;
-			bubble_sort_partial(kgem, bo);
+			bubble_sort_partial(&kgem->active_partials, bo);
 			goto done;
 		}
 
@@ -3393,6 +3403,27 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 		DBG(("%s: too small (%d < %d)\n",
 		     __FUNCTION__, bytes(&bo->base) - bo->used, size));
 		break;
+	}
+
+	if (flags & KGEM_BUFFER_WRITE) {
+		list_for_each_entry_reverse(bo, &kgem->inactive_partials, base.list) {
+			if (size > bytes(&bo->base))
+				continue;
+
+			if (((bo->write & ~flags) & KGEM_BUFFER_INPLACE) &&
+			    !bo->base.vmap) {
+				DBG(("%s: skip write %x buffer, need %x\n",
+				     __FUNCTION__, bo->write, flags));
+				continue;
+			}
+
+			DBG(("%s: reusing inactive partial buffer? size=%d, total=%d\n",
+			     __FUNCTION__, size, bytes(&bo->base)));
+			offset = 0;
+			bo->used = size;
+			list_move(&bo->base.list, &kgem->active_partials);
+			goto done;
+		}
 	}
 
 #if !DBG_NO_MAP_UPLOAD
@@ -3656,7 +3687,8 @@ init:
 	bo->write = flags & KGEM_BUFFER_WRITE_INPLACE;
 	offset = 0;
 
-	list_add(&bo->base.list, &kgem->partial);
+	assert(list_is_empty(&bo->base.list));
+	list_add(&bo->base.list, &kgem->active_partials);
 	DBG(("%s(pages=%d) new handle=%d\n",
 	     __FUNCTION__, alloc, bo->base.handle));
 
@@ -3669,7 +3701,7 @@ done:
 		first = p = list_first_entry(&bo->base.list,
 					     struct kgem_partial_bo,
 					     base.list);
-		while (&p->base.list != &kgem->partial &&
+		while (&p->base.list != &kgem->active_partials &&
 		       alloc < bytes(&p->base) - p->used) {
 			DBG(("%s: this=%d, right=%d\n",
 			     __FUNCTION__, alloc, bytes(&p->base) -p->used));
@@ -3720,7 +3752,7 @@ struct kgem_bo *kgem_create_buffer_2d(struct kgem *kgem,
 		if (io->used)
 			io->used -= stride;
 		bo->size.bytes -= stride;
-		bubble_sort_partial(kgem, io);
+		bubble_sort_partial(&kgem->active_partials, io);
 	}
 
 	bo->pitch = stride;
