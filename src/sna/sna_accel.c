@@ -523,8 +523,7 @@ _sna_pixmap_reset(PixmapPtr pixmap)
 	return _sna_pixmap_init(priv, pixmap);
 }
 
-static struct sna_pixmap *__sna_pixmap_attach(struct sna *sna,
-					      PixmapPtr pixmap)
+static struct sna_pixmap *sna_pixmap_attach(struct sna *sna, PixmapPtr pixmap)
 {
 	struct sna_pixmap *priv;
 
@@ -534,50 +533,6 @@ static struct sna_pixmap *__sna_pixmap_attach(struct sna *sna,
 
 	sna_set_pixmap(pixmap, priv);
 	return _sna_pixmap_init(priv, pixmap);
-}
-
-struct sna_pixmap *_sna_pixmap_attach(PixmapPtr pixmap)
-{
-	struct sna *sna = to_sna_from_pixmap(pixmap);
-	struct sna_pixmap *priv;
-
-	DBG(("%s: serial=%ld, %dx%d, usage=%d\n",
-	     __FUNCTION__,
-	     pixmap->drawable.serialNumber,
-	     pixmap->drawable.width,
-	     pixmap->drawable.height,
-	     pixmap->usage_hint));
-
-	switch (pixmap->usage_hint) {
-	case CREATE_PIXMAP_USAGE_GLYPH_PICTURE:
-		DBG(("%s: not attaching due to crazy usage: %d\n",
-		     __FUNCTION__, pixmap->usage_hint));
-		return NULL;
-
-	case SNA_CREATE_FB:
-		/* We assume that the Screen pixmap will be pre-validated */
-		break;
-
-	default:
-		if (!kgem_can_create_2d(&sna->kgem,
-					pixmap->drawable.width,
-					pixmap->drawable.height,
-					pixmap->drawable.depth))
-			return NULL;
-		break;
-	}
-
-	priv = __sna_pixmap_attach(sna, pixmap);
-	if (priv == NULL)
-		return NULL;
-
-	DBG(("%s: created priv and marking all cpu damaged\n", __FUNCTION__));
-
-	sna_damage_all(&priv->cpu_damage,
-		       pixmap->drawable.width,
-		       pixmap->drawable.height);
-
-	return priv;
 }
 
 static inline PixmapPtr
@@ -647,7 +602,7 @@ sna_pixmap_create_shm(ScreenPtr screen,
 		pixmap->drawable.depth = depth;
 		pixmap->drawable.bitsPerPixel = bpp;
 
-		priv = __sna_pixmap_attach(sna, pixmap);
+		priv = sna_pixmap_attach(sna, pixmap);
 		if (!priv) {
 			fbDestroyPixmap(pixmap);
 			return NullPixmap;
@@ -729,7 +684,7 @@ sna_pixmap_create_scratch(ScreenPtr screen,
 		pixmap->drawable.depth = depth;
 		pixmap->drawable.bitsPerPixel = bpp;
 
-		priv = __sna_pixmap_attach(sna, pixmap);
+		priv = sna_pixmap_attach(sna, pixmap);
 		if (!priv) {
 			fbDestroyPixmap(pixmap);
 			return NullPixmap;
@@ -770,9 +725,7 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 		usage = -1;
 		goto fallback;
 	}
-
-	if (!sna->have_render)
-		goto fallback;
+	assert(width && height);
 
 	flags = kgem_can_create_2d(&sna->kgem, width, height, depth);
 	if (flags == 0) {
@@ -811,7 +764,7 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 		if (pixmap == NullPixmap)
 			return NullPixmap;
 
-		__sna_pixmap_attach(sna, pixmap);
+		sna_pixmap_attach(sna, pixmap);
 	} else {
 		struct sna_pixmap *priv;
 
@@ -827,7 +780,7 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 		pixmap->devKind = pad;
 		pixmap->devPrivate.ptr = NULL;
 
-		priv = __sna_pixmap_attach(sna, pixmap);
+		priv = sna_pixmap_attach(sna, pixmap);
 		if (priv == NULL) {
 			free(pixmap);
 			goto fallback;
@@ -2080,7 +2033,7 @@ sna_pixmap_force_to_gpu(PixmapPtr pixmap, unsigned flags)
 
 	DBG(("%s(pixmap=%p)\n", __FUNCTION__, pixmap));
 
-	priv = sna_pixmap_attach(pixmap);
+	priv = sna_pixmap(pixmap);
 	if (priv == NULL)
 		return NULL;
 

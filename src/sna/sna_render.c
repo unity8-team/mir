@@ -375,7 +375,7 @@ move_to_gpu(PixmapPtr pixmap, const BoxRec *box)
 	if (w == pixmap->drawable.width && h == pixmap->drawable.height) {
 		bool upload;
 
-		priv = sna_pixmap_attach(pixmap);
+		priv = sna_pixmap(pixmap);
 		if (!priv)
 			return false;
 
@@ -400,7 +400,7 @@ move_to_gpu(PixmapPtr pixmap, const BoxRec *box)
 	if (64*w*h < pixmap->drawable.width * pixmap->drawable.height)
 		return FALSE;
 
-	priv = sna_pixmap_attach(pixmap);
+	priv = sna_pixmap(pixmap);
 	if (!priv)
 		return FALSE;
 

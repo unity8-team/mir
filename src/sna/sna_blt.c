@@ -1395,7 +1395,7 @@ prepare_blt_put(struct sna *sna,
 	op->done = nop_done;
 
 	src_bo = NULL;
-	priv = _sna_pixmap_attach(src);
+	priv = sna_pixmap(src);
 	if (priv)
 		src_bo = priv->cpu_bo;
 	if (src_bo) {
