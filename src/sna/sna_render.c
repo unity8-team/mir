@@ -323,7 +323,7 @@ use_cpu_bo(struct sna *sna, PixmapPtr pixmap, const BoxRec *box)
 		}
 
 		if (priv->gpu_bo->tiling != I915_TILING_NONE &&
-		    priv->cpu_bo->pitch >= 4096) {
+		    (priv->cpu_bo->vmap || priv->cpu_bo->pitch >= 4096)) {
 			DBG(("%s: GPU bo exists and is tiled [%d], upload\n",
 			     __FUNCTION__, priv->gpu_bo->tiling));
 			return NULL;
@@ -332,21 +332,23 @@ use_cpu_bo(struct sna *sna, PixmapPtr pixmap, const BoxRec *box)
 		int w = box->x2 - box->x1;
 		int h = box->y2 - box->y1;
 
-		if ((priv->create & KGEM_CAN_CREATE_GPU) == 0)
-			goto done;
+		if (priv->cpu_bo->vmap && priv->source_count > SOURCE_BIAS) {
+			DBG(("%s: promoting snooped CPU bo due to reuse\n",
+			     __FUNCTION__));
+			return NULL;
+		}
 
-		if (priv->source_count*w*h >= pixmap->drawable.width * pixmap->drawable.height &&
-		    I915_TILING_NONE != kgem_choose_tiling(&sna->kgem, I915_TILING_X,
-							   pixmap->drawable.width,
-							   pixmap->drawable.height,
-							   pixmap->drawable.bitsPerPixel)) {
+		if (priv->source_count++*w*h >= (int)pixmap->drawable.width * pixmap->drawable.height &&
+		     I915_TILING_NONE != kgem_choose_tiling(&sna->kgem, I915_TILING_X,
+							    pixmap->drawable.width,
+							    pixmap->drawable.height,
+							    pixmap->drawable.bitsPerPixel)) {
 			DBG(("%s: pitch (%d) requires tiling\n",
 			     __FUNCTION__, priv->cpu_bo->pitch));
 			return NULL;
 		}
 	}
 
-done:
 	DBG(("%s for box=(%d, %d), (%d, %d)\n",
 	     __FUNCTION__, box->x1, box->y1, box->x2, box->y2));
 	return priv->cpu_bo;
@@ -528,7 +530,7 @@ sna_render_pixmap_bo(struct sna *sna,
 
 		if (priv->cpu_bo &&
 		    (DAMAGE_IS_ALL(priv->cpu_damage) || !priv->gpu_damage) &&
-		    priv->cpu_bo->pitch < 4096) {
+		    !priv->cpu_bo->vmap && priv->cpu_bo->pitch < 4096) {
 			channel->bo = kgem_bo_reference(priv->cpu_bo);
 			return 1;
 		}
