@@ -740,15 +740,18 @@ sna_composite_rectangles(CARD8		 op,
 		goto fallback;
 	}
 
+	priv = sna_pixmap(pixmap);
+	if (priv == NULL) {
+		DBG(("%s: fallback, not attached\n", __FUNCTION__));
+		goto fallback;
+	}
+
 	/* If we going to be overwriting any CPU damage with a subsequent
 	 * operation, then we may as well delete it without moving it
 	 * first to the GPU.
 	 */
-	if (op <= PictOpSrc) {
-		priv = sna_pixmap_attach(pixmap);
-		if (priv)
-			sna_damage_subtract(&priv->cpu_damage, &region);
-	}
+	if (op <= PictOpSrc)
+		sna_damage_subtract(&priv->cpu_damage, &region);
 
 	priv = sna_pixmap_move_to_gpu(pixmap, MOVE_READ | MOVE_WRITE);
 	if (priv == NULL) {
