@@ -922,6 +922,8 @@ _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 
 	if ((flags & MOVE_READ) == 0) {
 		assert(flags & MOVE_WRITE);
+		DBG(("%s: no readbck, discarding gpu damage [%d], pending clear[%d]\n",
+		     __FUNCTION__, priv->gpu_damage != NULL, priv->clear));
 		sna_damage_destroy(&priv->gpu_damage);
 		priv->clear = false;
 
@@ -1273,9 +1275,6 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 		goto out;
 	}
 
-	if (priv->clear)
-		return _sna_pixmap_move_to_cpu(pixmap, flags);
-
 	if (priv->gpu_bo == NULL &&
 	    (priv->create & KGEM_CAN_CREATE_GPU) == 0 &&
 	    flags & MOVE_WRITE)
@@ -1291,6 +1290,13 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 		if (dx | dy)
 			RegionTranslate(region, -dx, -dy);
 		return _sna_pixmap_move_to_cpu(pixmap, flags);
+	}
+
+	if (priv->clear) {
+		DBG(("%s: pending clear, moving whole pixmap\n", __FUNCTION__));
+		if (dx | dy)
+			RegionTranslate(region, -dx, -dy);
+		return _sna_pixmap_move_to_cpu(pixmap, flags | MOVE_READ);
 	}
 
 	if ((flags & MOVE_READ) == 0) {
