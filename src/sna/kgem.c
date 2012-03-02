@@ -599,6 +599,8 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 #if defined(USE_VMAP)
 	if (!DBG_NO_VMAP)
 		kgem->has_vmap = gem_param(kgem, I915_PARAM_HAS_VMAP) > 0;
+	if (gen == 40)
+		kgem->has_vmap = false; /* sampler dies with snoopable memory */
 #endif
 	DBG(("%s: using vmap=%d\n", __FUNCTION__, kgem->has_vmap));
 
