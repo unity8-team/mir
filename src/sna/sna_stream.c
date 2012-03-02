@@ -87,7 +87,7 @@ struct kgem_bo *sna_static_stream_fini(struct sna *sna,
 
 	DBG(("uploaded %d bytes of static state\n", stream->used));
 
-	bo = kgem_create_linear(&sna->kgem, stream->used);
+	bo = kgem_create_linear(&sna->kgem, stream->used, 0);
 	if (bo && !kgem_bo_write(&sna->kgem, bo, stream->data, stream->used)) {
 		kgem_bo_destroy(&sna->kgem, bo);
 		return NULL;

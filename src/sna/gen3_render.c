@@ -1642,7 +1642,8 @@ static int gen3_vertex_finish(struct sna *sna)
 	}
 
 	sna->render.vertices = NULL;
-	sna->render.vbo = kgem_create_linear(&sna->kgem, 256*1024);
+	sna->render.vbo = kgem_create_linear(&sna->kgem,
+					     256*1024, CREATE_GTT_MAP);
 	if (sna->render.vbo)
 		sna->render.vertices = kgem_bo_map(&sna->kgem, sna->render.vbo);
 	if (sna->render.vertices == NULL) {
@@ -1702,7 +1703,7 @@ static void gen3_vertex_close(struct sna *sna)
 			DBG(("%s: new vbo: %d\n", __FUNCTION__,
 			     sna->render.vertex_used));
 			bo = kgem_create_linear(&sna->kgem,
-						4*sna->render.vertex_used);
+						4*sna->render.vertex_used, 0);
 			if (bo)
 				kgem_bo_write(&sna->kgem, bo,
 					      sna->render.vertex_data,

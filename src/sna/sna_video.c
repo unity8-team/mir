@@ -104,7 +104,8 @@ sna_video_buffer(struct sna *sna,
 		sna_video_free_buffers(sna, video);
 
 	if (video->buf == NULL)
-		video->buf = kgem_create_linear(&sna->kgem, frame->size);
+		video->buf = kgem_create_linear(&sna->kgem, frame->size,
+						CREATE_GTT_MAP);
 
 	return video->buf;
 }

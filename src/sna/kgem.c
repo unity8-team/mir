@@ -1687,7 +1687,7 @@ void _kgem_submit(struct kgem *kgem)
 		size = compact_batch_surface(kgem);
 	else
 		size = kgem->nbatch * sizeof(kgem->batch[0]);
-	rq->bo = kgem_create_linear(kgem, size);
+	rq->bo = kgem_create_linear(kgem, size, 0);
 	if (rq->bo) {
 		uint32_t handle = rq->bo->handle;
 		int i;
@@ -2188,15 +2188,20 @@ struct kgem_bo *kgem_create_for_name(struct kgem *kgem, uint32_t name)
 	return bo;
 }
 
-struct kgem_bo *kgem_create_linear(struct kgem *kgem, int size)
+struct kgem_bo *kgem_create_linear(struct kgem *kgem, int size, unsigned flags)
 {
 	struct kgem_bo *bo;
 	uint32_t handle;
 
 	DBG(("%s(%d)\n", __FUNCTION__, size));
 
+	if (flags & CREATE_GTT_MAP && kgem->has_llc) {
+		flags &= ~CREATE_GTT_MAP;
+		flags |= CREATE_CPU_MAP;
+	}
+
 	size = (size + PAGE_SIZE - 1) / PAGE_SIZE;
-	bo = search_linear_cache(kgem, size, CREATE_INACTIVE);
+	bo = search_linear_cache(kgem, size, CREATE_INACTIVE | flags);
 	if (bo)
 		return kgem_bo_reference(bo);
 

@@ -273,7 +273,8 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 
 		assert(kgem_bo_size(frame.bo) >= frame.size);
 	} else {
-		frame.bo = kgem_create_linear(&sna->kgem, frame.size);
+		frame.bo = kgem_create_linear(&sna->kgem, frame.size,
+					      CREATE_GTT_MAP);
 		if (frame.bo == NULL) {
 			DBG(("%s: failed to allocate bo\n", __FUNCTION__));
 			return BadAlloc;
