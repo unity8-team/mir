@@ -3356,7 +3356,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 	assert(size <= kgem->max_object_size);
 
 	if (kgem->has_llc)
-		flags &= ~KGEM_BUFFER_WRITE_INPLACE;
+		flags &= ~KGEM_BUFFER_INPLACE;
 
 	list_for_each_entry(bo, &kgem->active_partials, base.list) {
 		/* We can reuse any write buffer which we can fit */
