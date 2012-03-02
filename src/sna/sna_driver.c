@@ -784,6 +784,9 @@ static Bool sna_close_screen(int scrnIndex, ScreenPtr screen)
 
 	sna_mode_remove_fb(sna);
 	if (sna->front) {
+		struct kgem_bo *bo = sna_pixmap_get_bo(sna->front);
+		if (bo)
+			kgem_bo_clear_scanout(&sna->kgem, bo); /* valgrind */
 		screen->DestroyPixmap(sna->front);
 		sna->front = NULL;
 	}
