@@ -3391,6 +3391,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 				     __FUNCTION__, bo->write, flags));
 				continue;
 			}
+			assert(bo->mmapped || bo->need_io);
 		} else {
 			if (bo->write & KGEM_BUFFER_WRITE) {
 				DBG(("%s: skip write %x buffer, need %x\n",
@@ -3548,6 +3549,9 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			list_init(&bo->base.list);
 			free(old);
 
+			assert(bo->base.tiling == I915_TILING_NONE);
+			assert(num_pages(&bo->base) >= NUM_PAGES(size));
+
 			bo->mem = kgem_bo_map(kgem, &bo->base);
 			if (bo->mem) {
 				bo->need_io = false;
@@ -3564,11 +3568,11 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 		}
 	}
 #else
-	alloc = ALIGN(size, 64*1024) / PAGE_SIZE;
+	flags &= ~KGEM_BUFFER_INPLACE;
 #endif
 	/* Be more parsimonious with pwrite/pread buffers */
 	if ((flags & KGEM_BUFFER_INPLACE) == 0)
-		alloc = PAGE_ALIGN(size) / PAGE_SIZE;
+		alloc = NUM_PAGES(size);
 	flags &= ~KGEM_BUFFER_INPLACE;
 
 	if (kgem->has_vmap) {
@@ -3700,6 +3704,7 @@ init:
 	     __FUNCTION__, alloc, bo->base.handle));
 
 done:
+	bo->used = ALIGN(bo->used, 64);
 	/* adjust the position within the list to maintain decreasing order */
 	alloc = bytes(&bo->base) - bo->used;
 	{
