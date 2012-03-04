@@ -1425,6 +1425,7 @@ static void kgem_finish_partials(struct kgem *kgem)
 	list_for_each_entry_safe(bo, next, &kgem->active_partials, base.list) {
 		assert(next->base.list.prev == &bo->base.list);
 		assert(bo->base.io);
+		assert(bo->base.refcnt >= 1);
 
 		if (!bo->base.exec)
 			continue;
@@ -3366,6 +3367,9 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 		flags &= ~KGEM_BUFFER_INPLACE;
 
 	list_for_each_entry(bo, &kgem->active_partials, base.list) {
+		assert(bo->base.io);
+		assert(bo->base.refcnt >= 1);
+
 		/* We can reuse any write buffer which we can fit */
 		if (flags == KGEM_BUFFER_LAST &&
 		    bo->write == KGEM_BUFFER_WRITE &&
@@ -3415,6 +3419,9 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 
 	if (flags & KGEM_BUFFER_WRITE) {
 		list_for_each_entry_reverse(bo, &kgem->inactive_partials, base.list) {
+			assert(bo->base.io);
+			assert(bo->base.refcnt == 1);
+
 			if (size > bytes(&bo->base))
 				continue;
 
@@ -3691,6 +3698,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 init:
 	bo->base.reusable = false;
 	assert(num_pages(&bo->base) == alloc);
+	assert(bo->base.io);
 	assert(!bo->need_io || !bo->base.needs_flush);
 	assert(!bo->need_io || bo->base.domain != DOMAIN_GPU);
 
