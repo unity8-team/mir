@@ -11766,7 +11766,7 @@ static void sna_accel_inactive(struct sna *sna)
 			sna_damage_destroy(&priv->cpu_damage);
 			list_del(&priv->list);
 
-			assert(!priv->cpu_bo->sync);
+			assert(priv->cpu_bo == NULL || !priv->cpu_bo->sync);
 			sna_pixmap_free_cpu(sna, priv);
 			priv->undamaged = false;
 
