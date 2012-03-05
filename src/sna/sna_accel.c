@@ -11460,11 +11460,14 @@ sna_accel_reply_callback(CallbackListPtr *list,
 			 pointer user_data, pointer call_data)
 {
 	struct sna *sna = user_data;
-	ReplyInfoRec *info = call_data;
 
-	if (sna->flush || !info->startOfReply)
+	if (sna->flush)
 		return;
 
+	/* Assume each callback corresponds to a new request. The use
+	 * of continuation WriteToClients in the server is relatively rare,
+	 * and we err on the side of safety.
+	 */
 	sna->flush = (sna->kgem.flush || sna->kgem.sync ||
 		      !list_is_empty(&sna->dirty_pixmaps));
 }
