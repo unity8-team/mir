@@ -563,7 +563,7 @@ _pixman_region_init_clipped_rectangles(pixman_region16_t *region,
 				       unsigned int num_rects,
 				       xRectangle *rects,
 				       int tx, int ty,
-				       int maxx, int maxy)
+				       BoxPtr extents)
 {
 	pixman_box16_t stack_boxes[64], *boxes = stack_boxes;
 	pixman_bool_t ret;
@@ -576,25 +576,21 @@ _pixman_region_init_clipped_rectangles(pixman_region16_t *region,
 	}
 
 	for (i = j = 0; i < num_rects; i++) {
-		boxes[j].x1 = rects[i].x;
-		if (boxes[j].x1 < 0)
-			boxes[j].x1 = 0;
-		boxes[j].x1 += tx;
+		boxes[j].x1 = rects[i].x + tx;
+		if (boxes[j].x1 < extents->x1)
+			boxes[j].x1 = extents->x1;
 
-		boxes[j].y1 = rects[i].y;
-		if (boxes[j].y1 < 0)
-			boxes[j].y1 = 0;
-		boxes[j].y1 += ty;
+		boxes[j].y1 = rects[i].y + ty;
+		if (boxes[j].y1 < extents->y1)
+			boxes[j].y1 = extents->y1;
 
-		boxes[j].x2 = bound(rects[i].x, rects[i].width);
-		if (boxes[j].x2 > maxx)
-			boxes[j].x2 = maxx;
-		boxes[j].x2 += tx;
+		boxes[j].x2 = bound(rects[i].x + tx, rects[i].width);
+		if (boxes[j].x2 > extents->x2)
+			boxes[j].x2 = extents->x2;
 
-		boxes[j].y2 = bound(rects[i].y, rects[i].height);
-		if (boxes[j].y2 > maxy)
-			boxes[j].y2 = maxy;
-		boxes[j].y2 += ty;
+		boxes[j].y2 = bound(rects[i].y + ty, rects[i].height);
+		if (boxes[j].y2 > extents->y2)
+			boxes[j].y2 = extents->y2;
 
 		if (boxes[j].x2 > boxes[j].x1 && boxes[j].y2 > boxes[j].y1)
 			j++;
@@ -689,8 +685,9 @@ sna_composite_rectangles(CARD8		 op,
 
 	if (!_pixman_region_init_clipped_rectangles(&region,
 						    num_rects, rects,
-						    dst->pDrawable->x, dst->pDrawable->y,
-						    dst->pDrawable->width, dst->pDrawable->height))
+						    dst->pDrawable->x,
+						    dst->pDrawable->y,
+						    &dst->pCompositeClip->extents))
 	{
 		DBG(("%s: allocation failed for region\n", __FUNCTION__));
 		return;
@@ -702,8 +699,9 @@ sna_composite_rectangles(CARD8		 op,
 	     RegionExtents(&region)->x2, RegionExtents(&region)->y2,
 	     RegionNumRects(&region)));
 
-	if (!pixman_region_intersect(&region, &region, dst->pCompositeClip) ||
-	    region_is_empty(&region)) {
+	if (dst->pCompositeClip->data &&
+	    (!pixman_region_intersect(&region, &region, dst->pCompositeClip) ||
+	     region_is_empty(&region))) {
 		DBG(("%s: zero-intersection between rectangles and clip\n",
 		     __FUNCTION__));
 		pixman_region_fini(&region);
