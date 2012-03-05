@@ -11465,7 +11465,8 @@ sna_accel_reply_callback(CallbackListPtr *list,
 	if (sna->flush || !info->startOfReply)
 		return;
 
-	sna->flush = sna->kgem.flush || sna->kgem.sync;
+	sna->flush = (sna->kgem.flush || sna->kgem.sync ||
+		      !list_is_empty(&sna->dirty_pixmaps));
 }
 
 static void
