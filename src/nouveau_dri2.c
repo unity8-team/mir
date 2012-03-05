@@ -149,6 +149,35 @@ struct nouveau_dri2_vblank_state {
 };
 
 static Bool
+update_front(DrawablePtr draw, DRI2BufferPtr front)
+{
+	int r;
+	PixmapPtr pixmap;
+	struct nouveau_dri2_buffer *nvbuf = nouveau_dri2_buffer(front);
+
+	if (draw->type == DRAWABLE_PIXMAP)
+		pixmap = (PixmapPtr)draw;
+	else
+		pixmap = (*draw->pScreen->GetWindowPixmap)((WindowPtr)draw);
+
+	pixmap->refcnt++;
+
+	exaMoveInPixmap(pixmap);
+	r = nouveau_bo_handle_get(nouveau_pixmap_bo(pixmap), &front->name);
+	if (r) {
+		(*draw->pScreen->DestroyPixmap)(pixmap);
+		return FALSE;
+	}
+
+	(*draw->pScreen->DestroyPixmap)(nvbuf->ppix);
+	front->pitch = pixmap->devKind;
+	front->cpp = pixmap->drawable.bitsPerPixel / 8;
+	nvbuf->ppix = pixmap;
+
+	return TRUE;
+}
+
+static Bool
 can_exchange(DrawablePtr draw, PixmapPtr dst_pix, PixmapPtr src_pix)
 {
 	ScrnInfoPtr scrn = xf86Screens[draw->pScreen->myNum];
@@ -234,13 +263,14 @@ nouveau_dri2_finish_swap(DrawablePtr draw, unsigned int frame,
 {
 	ScrnInfoPtr scrn = xf86Screens[draw->pScreen->myNum];
 	NVPtr pNv = NVPTR(scrn);
-	PixmapPtr dst_pix = nouveau_dri2_buffer(s->dst)->ppix;
+	PixmapPtr dst_pix;
 	PixmapPtr src_pix = nouveau_dri2_buffer(s->src)->ppix;
-	struct nouveau_bo *dst_bo = nouveau_pixmap_bo(dst_pix);
+	struct nouveau_bo *dst_bo;
 	struct nouveau_bo *src_bo = nouveau_pixmap_bo(src_pix);
 	struct nouveau_channel *chan = pNv->chan;
 	RegionRec reg;
 	int type, ret;
+	Bool front_updated;
 
 	REGION_INIT(0, &reg, (&(BoxRec){ 0, 0, draw->width, draw->height }), 0);
 	REGION_TRANSLATE(0, &reg, draw->x, draw->y);
@@ -256,6 +286,15 @@ nouveau_dri2_finish_swap(DrawablePtr draw, unsigned int frame,
 	 */
 	if (ref_crtc_hw_id & 1)
 		ref_crtc_hw_id = 1;
+
+	/* Update frontbuffer pixmap and name: Could have changed due to
+	 * window (un)redirection as part of compositing.
+	 */
+	front_updated = update_front(draw, s->dst);
+
+	/* Assign frontbuffer pixmap, after update in update_front() */
+	dst_pix = nouveau_dri2_buffer(s->dst)->ppix;
+	dst_bo = nouveau_pixmap_bo(dst_pix);
 
 	/* Throttle on the previous frame before swapping */
 	nouveau_bo_map(dst_bo, NOUVEAU_BO_RD);
@@ -275,7 +314,7 @@ nouveau_dri2_finish_swap(DrawablePtr draw, unsigned int frame,
 		FIRE_RING(chan);
 	}
 
-	if (can_exchange(draw, dst_pix, src_pix)) {
+	if (front_updated && can_exchange(draw, dst_pix, src_pix)) {
 		type = DRI2_EXCHANGE_COMPLETE;
 		DamageRegionAppend(draw, &reg);
 
