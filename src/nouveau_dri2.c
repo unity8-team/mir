@@ -204,10 +204,8 @@ can_sync_to_vblank(DrawablePtr draw)
 {
 	ScrnInfoPtr scrn = xf86Screens[draw->pScreen->myNum];
 	NVPtr pNv = NVPTR(scrn);
-	PixmapPtr pix = NVGetDrawablePixmap(draw);
 
 	return pNv->glx_vblank &&
-		nouveau_exa_pixmap_is_onscreen(pix) &&
 		nv_window_belongs_to_crtc(scrn, draw->x, draw->y,
 					  draw->width, draw->height);
 }
