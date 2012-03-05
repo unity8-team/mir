@@ -15,6 +15,7 @@ typedef enum {
     OPTION_GLX_VBLANK,
     OPTION_ZAPHOD_HEADS,
     OPTION_PAGE_FLIP,
+    OPTION_SWAP_LIMIT,
 } NVOpts;
 
 
@@ -28,6 +29,7 @@ static const OptionInfoRec NVOptions[] = {
     { OPTION_GLX_VBLANK,	"GLXVBlank",	OPTV_BOOLEAN,	{0}, FALSE },
     { OPTION_ZAPHOD_HEADS,	"ZaphodHeads",	OPTV_STRING,	{0}, FALSE },
     { OPTION_PAGE_FLIP,		"PageFlip",	OPTV_BOOLEAN,	{0}, FALSE },
+    { OPTION_SWAP_LIMIT,	"SwapLimit",	OPTV_INTEGER,	{0}, FALSE },
     { -1,                       NULL,           OPTV_NONE,      {0}, FALSE }
 };
 

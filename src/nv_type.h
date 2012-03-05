@@ -53,6 +53,9 @@ typedef struct _NVRec {
     Bool		tiled_scanout;
     Bool		glx_vblank;
     Bool		has_pageflip;
+    int 		swap_limit;
+    int 		max_swap_limit;
+
     ScreenBlockHandlerProcPtr BlockHandler;
     CreateScreenResourcesProcPtr CreateScreenResources;
     CloseScreenProcPtr  CloseScreen;

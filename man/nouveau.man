@@ -93,6 +93,17 @@ will assign xrandr outputs LVDS and VGA-0 to this instance of the driver.
 .TP
 .BI "Option \*qPageFlip\*q \*q" boolean \*q
 Enable DRI2 page flipping. Default: on.
+.TP
+.BI "Option \*qSwapLimit\*q \*q" integer \*q
+Set maximum allowed number of pending OpenGL double-buffer swaps for
+a drawable before a client is blocked.
+.br
+A value of 1 corresponds to double-buffering. A value of 2 corresponds
+to triple-buffering. Higher values may allow higher framerate, but also
+increase lag for interactive applications, e.g., games. Nouveau currently
+supports a maximum value of 2 on XOrg 1.12+ and a maximum of 1 on older servers.
+.br
+Default: 2 for XOrg 1.12+, 1 for older servers.
 .SH "SEE ALSO"
 __xservername__(__appmansuffix__), __xconfigfile__(__filemansuffix__), Xserver(__appmansuffix__), X(__miscmansuffix__)
 .SH AUTHORS

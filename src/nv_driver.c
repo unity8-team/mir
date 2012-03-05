@@ -31,6 +31,9 @@
 #include "xf86drm.h"
 #include "xf86drmMode.h"
 #include "nouveau_drm.h"
+#ifdef DRI2
+#include "dri2.h"
+#endif
 
 /*
  * Forward definitions for the functions that make up the driver.
@@ -846,6 +849,37 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 					(1 << pScrn->offset.green) |
 		(((pScrn->mask.blue >> pScrn->offset.blue) - 1) << pScrn->offset.blue);
 	}
+
+	/* Limit to max 2 pending swaps - we can't handle more than triple-buffering: */
+	pNv->max_swap_limit = 2;
+
+	if(xf86GetOptValInteger(pNv->Options, OPTION_SWAP_LIMIT, &(pNv->swap_limit))) {
+		if (pNv->swap_limit < 1)
+			pNv->swap_limit = 1;
+
+		if (pNv->swap_limit > pNv->max_swap_limit)
+			pNv->swap_limit = pNv->max_swap_limit;
+
+		reason = "";
+		from = X_CONFIG;
+
+		if (DRI2INFOREC_VERSION < 6) {
+			/* No swap limit api in server. Stick to server default of 1. */
+			pNv->swap_limit = 1;
+			from = X_DEFAULT;
+			reason = ": This X-Server only supports a swap limit of 1.";
+		}
+	} else {
+		/* Driver default: Double buffering on old servers, triple-buffering
+		 * on Xorg 1.12+.
+		 */
+		pNv->swap_limit = (DRI2INFOREC_VERSION < 6) ? 1 : 2;
+		reason = "";
+		from = X_DEFAULT;
+	}
+
+	xf86DrvMsg(pScrn->scrnIndex, from, "Swap limit set to %d [Max allowed %d]%s\n",
+		   pNv->swap_limit, pNv->max_swap_limit, reason);
 
 	ret = drmmode_pre_init(pScrn, nouveau_device(pNv->dev)->fd,
 			       pScrn->bitsPerPixel >> 3);

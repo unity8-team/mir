@@ -42,6 +42,11 @@ nouveau_dri2_create_buffer(DrawablePtr pDraw, unsigned int attachment,
 		} else {
 			WindowPtr pwin = (WindowPtr)pDraw;
 			ppix = pScreen->GetWindowPixmap(pwin);
+
+#if DRI2INFOREC_VERSION >= 6
+			/* Set initial swap limit on drawable. */
+			DRI2SwapLimit(pDraw, pNv->swap_limit);
+#endif
 		}
 
 		ppix->refcnt++;
@@ -208,6 +213,20 @@ nouveau_wait_vblank(DrawablePtr draw, int type, CARD64 msc,
 	return 0;
 }
 
+#if DRI2INFOREC_VERSION >= 6
+static Bool
+nouveau_dri2_swap_limit_validate(DrawablePtr draw, int swap_limit)
+{
+	ScrnInfoPtr scrn = xf86Screens[draw->pScreen->myNum];
+	NVPtr pNv = NVPTR(scrn);
+
+	if ((swap_limit < 1 ) || (swap_limit > pNv->max_swap_limit))
+		return FALSE;
+
+	return TRUE;
+}
+#endif
+
 static void
 nouveau_dri2_finish_swap(DrawablePtr draw, unsigned int frame,
 			 unsigned int tv_sec, unsigned int tv_usec,
@@ -293,8 +312,10 @@ nouveau_dri2_finish_swap(DrawablePtr draw, unsigned int frame,
 	 * not, to prevent it from blocking the client on the next
 	 * GetBuffers request (and let the client do triple-buffering).
 	 *
-	 * XXX - The DRI2SwapLimit() API will allow us to move this to
-	 *	 the flip handler with no FPS hit.
+	 * XXX - The DRI2SwapLimit() API allowed us to move this to
+	 *	 the flip handler with no FPS hit for page flipped swaps.
+	 *       It is still needed for copy swaps as we lack a method
+	 *       to detect true swap completion for DRI2_BLIT_COMPLETE.
 	 */
 	DRI2SwapComplete(s->client, draw, frame, tv_sec, tv_usec,
 			 type, s->func, s->data);
@@ -533,6 +554,10 @@ nouveau_dri2_init(ScreenPtr pScreen)
 	dri2.ScheduleSwap = nouveau_dri2_schedule_swap;
 	dri2.ScheduleWaitMSC = nouveau_dri2_schedule_wait;
 	dri2.GetMSC = nouveau_dri2_get_msc;
+
+#if DRI2INFOREC_VERSION >= 6
+	dri2.SwapLimitValidate = nouveau_dri2_swap_limit_validate;
+#endif
 
 	return DRI2ScreenInit(pScreen, &dri2);
 }
