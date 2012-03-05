@@ -160,7 +160,7 @@ can_exchange(DrawablePtr draw, PixmapPtr dst_pix, PixmapPtr src_pix)
 	return ((DRI2CanFlip(draw) && pNv->has_pageflip)) &&
 		dst_pix->drawable.width == src_pix->drawable.width &&
 		dst_pix->drawable.height == src_pix->drawable.height &&
-		dst_pix->drawable.depth == src_pix->drawable.depth &&
+		dst_pix->drawable.bitsPerPixel == src_pix->drawable.bitsPerPixel &&
 		dst_pix->devKind == src_pix->devKind;
 }
 
