@@ -135,6 +135,7 @@ nouveau_dri2_copy_region(DrawablePtr pDraw, RegionPtr pRegion,
 struct nouveau_dri2_vblank_state {
 	enum {
 		SWAP,
+		BLIT,
 		WAIT
 	} action;
 
@@ -342,6 +343,22 @@ nouveau_dri2_finish_swap(DrawablePtr draw, unsigned int frame,
 
 		REGION_TRANSLATE(0, &reg, -draw->x, -draw->y);
 		nouveau_dri2_copy_region(draw, &reg, s->dst, s->src);
+
+		if (can_sync_to_vblank(draw)) {
+			/* Request a vblank event one vblank from now, the most
+			 * likely (optimistic?) time a direct framebuffer blit
+			 * will complete or a desktop compositor will update its
+			 * screen. This defers DRI2SwapComplete() to the earliest
+			 * likely time of real swap completion.
+			 */
+			s->action = BLIT;
+			ret = nouveau_wait_vblank(draw, DRM_VBLANK_EVENT |
+						  DRM_VBLANK_RELATIVE, 1,
+						  NULL, NULL, s);
+			/* Done, if success. Otherwise use fallback below. */
+			if (!ret)
+				return;
+		}
 	}
 
 	/*
@@ -351,8 +368,9 @@ nouveau_dri2_finish_swap(DrawablePtr draw, unsigned int frame,
 	 *
 	 * XXX - The DRI2SwapLimit() API allowed us to move this to
 	 *	 the flip handler with no FPS hit for page flipped swaps.
-	 *       It is still needed for copy swaps as we lack a method
-	 *       to detect true swap completion for DRI2_BLIT_COMPLETE.
+	 *       It is still needed as a fallback for some copy swaps as
+	 *       we lack a method to detect true swap completion for
+	 *       DRI2_BLIT_COMPLETE.
 	 */
 	DRI2SwapComplete(s->client, draw, frame, tv_sec, tv_usec,
 			 type, s->func, s->data);
@@ -505,8 +523,10 @@ nouveau_dri2_vblank_handler(int fd, unsigned int frame,
 
 	ret = dixLookupDrawable(&draw, s->draw, serverClient,
 				M_ANY, DixWriteAccess);
-	if (ret)
+	if (ret) {
+		free(s);
 		return;
+	}
 
 	switch (s->action) {
 	case SWAP:
@@ -515,6 +535,12 @@ nouveau_dri2_vblank_handler(int fd, unsigned int frame,
 
 	case WAIT:
 		DRI2WaitMSCComplete(s->client, draw, frame, tv_sec, tv_usec);
+		free(s);
+		break;
+
+	case BLIT:
+		DRI2SwapComplete(s->client, draw, frame, tv_sec, tv_usec,
+				 DRI2_BLIT_COMPLETE, s->func, s->data);
 		free(s);
 		break;
 	}
