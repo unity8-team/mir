@@ -1249,18 +1249,19 @@ tor_blt(struct sna *sna,
 		       cell->x, cell->covered_height, cell->uncovered_area,
 		       cover, xmax));
 
-		box.x2 = x;
-		if (box.x2 > box.x1 && (unbounded || cover)) {
-			__DBG(("%s: span (%d, %d)x(%d, %d) @ %d\n", __FUNCTION__,
-			       box.x1, box.y1,
-			       box.x2 - box.x1,
-			       box.y2 - box.y1,
-			       cover));
-			span(sna, op, clip, &box, cover);
+		if (cell->covered_height || cell->uncovered_area) {
+			box.x2 = x;
+			if (box.x2 > box.x1 && (unbounded || cover)) {
+				__DBG(("%s: span (%d, %d)x(%d, %d) @ %d\n", __FUNCTION__,
+				       box.x1, box.y1,
+				       box.x2 - box.x1,
+				       box.y2 - box.y1,
+				       cover));
+				span(sna, op, clip, &box, cover);
+			}
+			box.x1 = box.x2;
+			cover += cell->covered_height*FAST_SAMPLES_X*2;
 		}
-		box.x1 = box.x2;
-
-		cover += cell->covered_height*FAST_SAMPLES_X*2;
 
 		if (cell->uncovered_area) {
 			int area = cover - cell->uncovered_area;
