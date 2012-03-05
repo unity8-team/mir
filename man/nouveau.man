@@ -101,7 +101,11 @@ a drawable before a client is blocked.
 A value of 1 corresponds to double-buffering. A value of 2 corresponds
 to triple-buffering. Higher values may allow higher framerate, but also
 increase lag for interactive applications, e.g., games. Nouveau currently
-supports a maximum value of 2 on XOrg 1.12+ and a maximum of 1 on older servers.
+reliably supports a maximum value of 2 on XOrg 1.12+. A maximum setting of 2
+on older x-servers is allowed, but it will break conformance with the
+OpenML OML_sync_control specification and will cause failure of software
+that relies on correct presentation timing behaviour as defined in that
+specification.
 .br
 Default: 2 for XOrg 1.12+, 1 for older servers.
 .SH "SEE ALSO"

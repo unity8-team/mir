@@ -863,11 +863,12 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 		reason = "";
 		from = X_CONFIG;
 
-		if (DRI2INFOREC_VERSION < 6) {
-			/* No swap limit api in server. Stick to server default of 1. */
-			pNv->swap_limit = 1;
-			from = X_DEFAULT;
-			reason = ": This X-Server only supports a swap limit of 1.";
+		if ((DRI2INFOREC_VERSION < 6) && (pNv->swap_limit > 1)) {
+			/* No swap limit api in server. A value > 1 requires use
+			 * of problematic hacks.
+			 */
+			from = X_WARNING;
+			reason = ": Caution: Use of this swap limit > 1 violates OML_sync_control spec on this X-Server!\n";
 		}
 	} else {
 		/* Driver default: Double buffering on old servers, triple-buffering

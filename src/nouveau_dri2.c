@@ -255,6 +255,18 @@ nouveau_dri2_swap_limit_validate(DrawablePtr draw, int swap_limit)
 }
 #endif
 
+/* Shall we intentionally violate the OML_sync_control spec to
+ * get some sort of triple-buffering behaviour on a pre 1.12.0
+ * x-server?
+ */
+static Bool violate_oml(DrawablePtr draw)
+{
+	ScrnInfoPtr scrn = xf86Screens[draw->pScreen->myNum];
+	NVPtr pNv = NVPTR(scrn);
+
+	return (DRI2INFOREC_VERSION < 6) && (pNv->swap_limit > 1);
+}
+
 static void
 nouveau_dri2_finish_swap(DrawablePtr draw, unsigned int frame,
 			 unsigned int tv_sec, unsigned int tv_usec,
@@ -319,7 +331,9 @@ nouveau_dri2_finish_swap(DrawablePtr draw, unsigned int frame,
 
 		if (DRI2CanFlip(draw)) {
 			type = DRI2_FLIP_COMPLETE;
-			ret = drmmode_page_flip(draw, src_pix, s, ref_crtc_hw_id);
+			ret = drmmode_page_flip(draw, src_pix,
+						violate_oml(draw) ? NULL : s,
+						ref_crtc_hw_id);
 			if (!ret)
 				goto out;
 		}
@@ -330,7 +344,7 @@ nouveau_dri2_finish_swap(DrawablePtr draw, unsigned int frame,
 		DamageRegionProcessPending(draw);
 
 		/* If it is a page flip, finish it in the flip event handler. */
-		if (type == DRI2_FLIP_COMPLETE)
+		if ((type == DRI2_FLIP_COMPLETE) && !violate_oml(draw))
 			return;
 	} else {
 		type = DRI2_BLIT_COMPLETE;
@@ -344,7 +358,7 @@ nouveau_dri2_finish_swap(DrawablePtr draw, unsigned int frame,
 		REGION_TRANSLATE(0, &reg, -draw->x, -draw->y);
 		nouveau_dri2_copy_region(draw, &reg, s->dst, s->src);
 
-		if (can_sync_to_vblank(draw)) {
+		if (can_sync_to_vblank(draw) && !violate_oml(draw)) {
 			/* Request a vblank event one vblank from now, the most
 			 * likely (optimistic?) time a direct framebuffer blit
 			 * will complete or a desktop compositor will update its
@@ -361,6 +375,14 @@ nouveau_dri2_finish_swap(DrawablePtr draw, unsigned int frame,
 		}
 	}
 
+	/* Special triple-buffering hack for old pre 1.12.0 x-servers used? */
+	if (violate_oml(draw)) {
+		/* Signal to client that swap completion timestamps and counts
+		 * are invalid - they violate the specification.
+		 */
+		frame = tv_sec = tv_usec = 0;
+	}
+
 	/*
 	 * Tell the X server buffers are already swapped even if they're
 	 * not, to prevent it from blocking the client on the next
@@ -371,6 +393,10 @@ nouveau_dri2_finish_swap(DrawablePtr draw, unsigned int frame,
 	 *       It is still needed as a fallback for some copy swaps as
 	 *       we lack a method to detect true swap completion for
 	 *       DRI2_BLIT_COMPLETE.
+	 *
+	 *       It is also used if triple-buffering is requested on
+	 *       old x-servers which don't support the DRI2SwapLimit()
+	 *       function.
 	 */
 	DRI2SwapComplete(s->client, draw, frame, tv_sec, tv_usec,
 			 type, s->func, s->data);
