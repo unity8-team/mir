@@ -140,6 +140,7 @@ struct nouveau_dri2_vblank_state {
 	DRI2BufferPtr src;
 	DRI2SwapEventPtr func;
 	void *data;
+	unsigned int frame;
 };
 
 static Bool
@@ -225,6 +226,18 @@ nouveau_dri2_finish_swap(DrawablePtr draw, unsigned int frame,
 	REGION_INIT(0, &reg, (&(BoxRec){ 0, 0, draw->width, draw->height }), 0);
 	REGION_TRANSLATE(0, &reg, draw->x, draw->y);
 
+	/* Main crtc for this drawable shall finally deliver pageflip event. */
+	unsigned int ref_crtc_hw_id = nv_window_belongs_to_crtc(scrn, draw->x,
+								draw->y,
+								draw->width,
+								draw->height);
+
+	/* Whenever first crtc is involved, choose it as reference, as
+	 * its vblank event triggered this swap.
+	 */
+	if (ref_crtc_hw_id & 1)
+		ref_crtc_hw_id = 1;
+
 	/* Throttle on the previous frame before swapping */
 	nouveau_bo_map(dst_bo, NOUVEAU_BO_RD);
 	nouveau_bo_unmap(dst_bo);
@@ -249,7 +262,7 @@ nouveau_dri2_finish_swap(DrawablePtr draw, unsigned int frame,
 
 		if (DRI2CanFlip(draw)) {
 			type = DRI2_FLIP_COMPLETE;
-			ret = drmmode_page_flip(draw, src_pix, s);
+			ret = drmmode_page_flip(draw, src_pix, s, ref_crtc_hw_id);
 			if (!ret)
 				goto out;
 		}
@@ -258,6 +271,10 @@ nouveau_dri2_finish_swap(DrawablePtr draw, unsigned int frame,
 		SWAP(nouveau_pixmap(dst_pix)->bo, nouveau_pixmap(src_pix)->bo);
 
 		DamageRegionProcessPending(draw);
+
+		/* If it is a page flip, finish it in the flip event handler. */
+		if (type == DRI2_FLIP_COMPLETE)
+			return;
 	} else {
 		type = DRI2_BLIT_COMPLETE;
 
@@ -292,7 +309,7 @@ nouveau_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
 			   DRI2SwapEventPtr func, void *data)
 {
 	struct nouveau_dri2_vblank_state *s;
-	CARD64 current_msc;
+	CARD64 current_msc, expect_msc;
 	int ret;
 
 	/* Initialize a swap structure */
@@ -301,7 +318,7 @@ nouveau_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
 		return FALSE;
 
 	*s = (struct nouveau_dri2_vblank_state)
-		{ SWAP, client, draw->id, dst, src, func, data };
+		{ SWAP, client, draw->id, dst, src, func, data, 0 };
 
 	if (can_sync_to_vblank(draw)) {
 		/* Get current sequence */
@@ -319,10 +336,10 @@ nouveau_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
 		ret = nouveau_wait_vblank(draw, DRM_VBLANK_ABSOLUTE |
 					  DRM_VBLANK_EVENT,
 					  max(current_msc, *target_msc - 1),
-					  NULL, NULL, s);
+					  &expect_msc, NULL, s);
 		if (ret)
 			goto fail;
-
+		s->frame = (unsigned int) expect_msc & 0xffffffff;
 	} else {
 		/* We can't/don't want to sync to vblank, just swap. */
 		nouveau_dri2_finish_swap(draw, 0, 0, 0, s);
@@ -424,6 +441,68 @@ nouveau_dri2_vblank_handler(int fd, unsigned int frame,
 		free(s);
 		break;
 	}
+}
+
+void
+nouveau_dri2_flip_event_handler(unsigned int frame, unsigned int tv_sec,
+				unsigned int tv_usec, void *event_data)
+{
+	struct nouveau_dri2_vblank_state *flip = event_data;
+	DrawablePtr draw;
+	ScreenPtr screen;
+	ScrnInfoPtr scrn;
+	int status;
+	PixmapPtr pixmap;
+
+	status = dixLookupDrawable(&draw, flip->draw, serverClient,
+				   M_ANY, DixWriteAccess);
+	if (status != Success) {
+		free(flip);
+		return;
+	}
+
+	screen = draw->pScreen;
+	scrn = xf86Screens[screen->myNum];
+
+	pixmap = screen->GetScreenPixmap(screen);
+	xf86DrvMsgVerb(scrn->scrnIndex, X_INFO, 4,
+		       "%s: flipevent : width %d x height %d : msc %d : ust = %d.%06d\n",
+		       __func__, pixmap->drawable.width, pixmap->drawable.height,
+		       frame, tv_sec, tv_usec);
+
+	/* We assume our flips arrive in order, so we don't check the frame */
+	switch (flip->action) {
+	case SWAP:
+		/* Check for too small vblank count of pageflip completion,
+		 * taking wraparound into account. This usually means some
+		 * defective kms pageflip completion, causing wrong (msc, ust)
+		 * return values and possible visual corruption.
+		 * Skip test for frame == 0, as this is a valid constant value
+		 * reported by all Linux kernels at least up to Linux 3.0.
+		 */
+		if ((frame != 0) &&
+		    (frame < flip->frame) && (flip->frame - frame < 5)) {
+			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+				   "%s: Pageflip has impossible msc %d < target_msc %d\n",
+				   __func__, frame, flip->frame);
+			/* All-Zero values signal failure of (msc, ust)
+			 * timestamping to client.
+			 */
+			frame = tv_sec = tv_usec = 0;
+		}
+
+		DRI2SwapComplete(flip->client, draw, frame, tv_sec, tv_usec,
+				 DRI2_FLIP_COMPLETE, flip->func,
+				 flip->data);
+		break;
+	default:
+		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+			   "%s: unknown vblank event received\n", __func__);
+		/* Unknown type */
+		break;
+	}
+
+	free(flip);
 }
 
 Bool
