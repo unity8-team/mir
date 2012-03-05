@@ -445,6 +445,26 @@ nouveau_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
 		if (*target_msc == 0)
 			*target_msc = 1;
 
+#if DRI2INFOREC_VERSION >= 6
+		/* Is this a swap in the future, ie. the vblank event will
+		 * not be immediately dispatched, but only at a future vblank?
+		 * If so, we need to temporarily lower the swaplimit to 1, so
+		 * that DRI2GetBuffersWithFormat() requests from the client get
+		 * deferred in the x-server until the vblank event has been
+		 * dispatched to us and nouveau_dri2_finish_swap() is done. If
+		 * we wouldn't do this, DRI2GetBuffersWithFormat() would operate
+		 * on wrong (pre-swap) buffers, and cause a segfault later on in
+		 * nouveau_dri2_finish_swap(). Our vblank event handler restores
+		 * the old swaplimit immediately after nouveau_dri2_finish_swap()
+		 * is done, so we still get 1 video refresh cycle worth of
+		 * triple-buffering. For a swap at next vblank, dispatch of the
+		 * vblank event happens immediately, so there isn't any need
+		 * for this lowered swaplimit.
+		 */
+		if (current_msc < *target_msc - 1)
+			DRI2SwapLimit(draw, 1);
+#endif
+
 		/* Request a vblank event one frame before the target */
 		ret = nouveau_wait_vblank(draw, DRM_VBLANK_ABSOLUTE |
 					  DRM_VBLANK_EVENT,
@@ -557,6 +577,12 @@ nouveau_dri2_vblank_handler(int fd, unsigned int frame,
 	switch (s->action) {
 	case SWAP:
 		nouveau_dri2_finish_swap(draw, frame, tv_sec, tv_usec, s);
+#if DRI2INFOREC_VERSION >= 6
+		/* Restore real swap limit on drawable, now that it is safe. */
+		ScrnInfoPtr scrn = xf86Screens[draw->pScreen->myNum];
+		DRI2SwapLimit(draw, NVPTR(scrn)->swap_limit);
+#endif
+
 		break;
 
 	case WAIT:
