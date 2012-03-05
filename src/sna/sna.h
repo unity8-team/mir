@@ -221,6 +221,7 @@ struct sna {
 #define SNA_NO_THROTTLE		0x1
 #define SNA_NO_DELAYED_FLUSH	0x2
 
+	unsigned watch_flush;
 	unsigned flush;
 
 	int timer[NUM_TIMERS];
@@ -560,6 +561,7 @@ Bool sna_accel_pre_init(struct sna *sna);
 Bool sna_accel_init(ScreenPtr sreen, struct sna *sna);
 void sna_accel_block_handler(struct sna *sna);
 void sna_accel_wakeup_handler(struct sna *sna, fd_set *ready);
+void sna_accel_watch_flush(struct sna *sna, int enable);
 void sna_accel_close(struct sna *sna);
 void sna_accel_free(struct sna *sna);
 

@@ -345,8 +345,10 @@ static void sna_pixmap_free_cpu(struct sna *sna, struct sna_pixmap *priv)
 	if (priv->cpu_bo) {
 		DBG(("%s: discarding CPU buffer, handle=%d, size=%d\n",
 		     __FUNCTION__, priv->cpu_bo->handle, kgem_bo_size(priv->cpu_bo)));
-		if (priv->cpu_bo->sync)
+		if (priv->cpu_bo->sync) {
 			kgem_bo_sync__cpu(&sna->kgem, priv->cpu_bo);
+			sna_accel_watch_flush(sna, -1);
+		}
 		kgem_bo_destroy(&sna->kgem, priv->cpu_bo);
 		priv->cpu_bo = NULL;
 	} else
@@ -617,6 +619,7 @@ sna_pixmap_create_shm(ScreenPtr screen,
 					      bpp, pitch, addr);
 	}
 	kgem_bo_set_sync(&sna->kgem, priv->cpu_bo);
+	sna_accel_watch_flush(sna, 1);
 	priv->cpu_bo->pitch = pitch;
 
 	priv->header = true;
@@ -11479,6 +11482,7 @@ sna_accel_flush_callback(CallbackListPtr *list,
 	struct sna *sna = user_data;
 	struct list preserve;
 
+	assert(sna->watch_flush);
 	if (!sna->flush)
 		return;
 
@@ -11828,11 +11832,6 @@ Bool sna_accel_init(ScreenPtr screen, struct sna *sna)
 {
 	const char *backend;
 
-	if (!AddCallback(&ReplyCallback, sna_accel_reply_callback, sna))
-		return FALSE;
-	if (!AddCallback(&FlushCallback, sna_accel_flush_callback, sna))
-		return FALSE;
-
 	sna_font_key = AllocateFontPrivateIndex();
 	screen->RealizeFont = sna_realize_font;
 	screen->UnrealizeFont = sna_unrealize_font;
@@ -11926,6 +11925,26 @@ Bool sna_accel_create(struct sna *sna)
 		return FALSE;
 
 	return TRUE;
+}
+
+void sna_accel_watch_flush(struct sna *sna, int enable)
+{
+	if (sna->watch_flush == 0) {
+		assert(enable > 0);
+		if (!AddCallback(&ReplyCallback, sna_accel_reply_callback, sna) ||
+		    AddCallback(&FlushCallback, sna_accel_flush_callback, sna)) {
+			xf86DrvMsg(sna->scrn->scrnIndex, X_Error,
+				   "Failed to attach ourselves to the flush callbacks, expect missing synchronisation with DRI clients (e.g a compositor)\n");
+		}
+	}
+
+	sna->watch_flush += enable;
+
+	if (sna->watch_flush == 0) {
+		assert(enable < 0);
+		DeleteCallback(&ReplyCallback, sna_accel_reply_callback, sna);
+		DeleteCallback(&FlushCallback, sna_accel_flush_callback, sna);
+	}
 }
 
 void sna_accel_close(struct sna *sna)
