@@ -11482,7 +11482,6 @@ sna_accel_flush_callback(CallbackListPtr *list,
 	struct sna *sna = user_data;
 	struct list preserve;
 
-	assert(sna->watch_flush);
 	if (!sna->flush)
 		return;
 
@@ -11929,22 +11928,21 @@ Bool sna_accel_create(struct sna *sna)
 
 void sna_accel_watch_flush(struct sna *sna, int enable)
 {
+	DBG(("%s: enable=%d\n", __FUNCTION__, enable));
+	assert(enable);
+
 	if (sna->watch_flush == 0) {
+		DBG(("%s: installing watchers\n", __FUNCTION__));
 		assert(enable > 0);
 		if (!AddCallback(&ReplyCallback, sna_accel_reply_callback, sna) ||
-		    AddCallback(&FlushCallback, sna_accel_flush_callback, sna)) {
+		    !AddCallback(&FlushCallback, sna_accel_flush_callback, sna)) {
 			xf86DrvMsg(sna->scrn->scrnIndex, X_Error,
 				   "Failed to attach ourselves to the flush callbacks, expect missing synchronisation with DRI clients (e.g a compositor)\n");
 		}
+		sna->watch_flush++;
 	}
 
 	sna->watch_flush += enable;
-
-	if (sna->watch_flush == 0) {
-		assert(enable < 0);
-		DeleteCallback(&ReplyCallback, sna_accel_reply_callback, sna);
-		DeleteCallback(&FlushCallback, sna_accel_flush_callback, sna);
-	}
 }
 
 void sna_accel_close(struct sna *sna)
@@ -11988,6 +11986,13 @@ void sna_accel_block_handler(struct sna *sna)
 
 	if (sna_accel_do_inactive(sna))
 		sna_accel_inactive(sna);
+
+	if (sna->flush == 0 && sna->watch_flush == 1) {
+		DBG(("%s: removing watchers\n", __FUNCTION__));
+		DeleteCallback(&ReplyCallback, sna_accel_reply_callback, sna);
+		DeleteCallback(&FlushCallback, sna_accel_flush_callback, sna);
+		sna->watch_flush = 0;
+	}
 
 	sna->timer_ready = 0;
 }
