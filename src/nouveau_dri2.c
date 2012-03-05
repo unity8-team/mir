@@ -387,10 +387,21 @@ nouveau_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
 		if (ret)
 			goto fail;
 
+		/* Truncate to match kernel interfaces; means occasional overflow
+		 * misses, but that's generally not a big deal.
+		 */
+		*target_msc &= 0xffffffff;
+		divisor &= 0xffffffff;
+		remainder &= 0xffffffff;
+
 		/* Calculate a swap target if we don't have one */
 		if (current_msc >= *target_msc && divisor)
 			*target_msc = current_msc + divisor
 				- (current_msc - remainder) % divisor;
+
+		/* Avoid underflow of unsigned value below */
+		if (*target_msc == 0)
+			*target_msc = 1;
 
 		/* Request a vblank event one frame before the target */
 		ret = nouveau_wait_vblank(draw, DRM_VBLANK_ABSOLUTE |
@@ -399,7 +410,8 @@ nouveau_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
 					  &expect_msc, NULL, s);
 		if (ret)
 			goto fail;
-		s->frame = (unsigned int) expect_msc & 0xffffffff;
+		s->frame = 1 + ((unsigned int) expect_msc & 0xffffffff);
+		*target_msc = 1 + expect_msc;
 	} else {
 		/* We can't/don't want to sync to vblank, just swap. */
 		nouveau_dri2_finish_swap(draw, 0, 0, 0, s);
@@ -420,6 +432,13 @@ nouveau_dri2_schedule_wait(ClientPtr client, DrawablePtr draw,
 	CARD64 current_msc;
 	int ret;
 
+	/* Truncate to match kernel interfaces; means occasional overflow
+	 * misses, but that's generally not a big deal.
+	 */
+	target_msc &= 0xffffffff;
+	divisor &= 0xffffffff;
+	remainder &= 0xffffffff;
+
 	if (!can_sync_to_vblank(draw)) {
 		DRI2WaitMSCComplete(client, draw, target_msc, 0, 0);
 		return TRUE;
@@ -439,7 +458,7 @@ nouveau_dri2_schedule_wait(ClientPtr client, DrawablePtr draw,
 		goto fail;
 
 	/* Calculate a wait target if we don't have one */
-	if (current_msc > target_msc && divisor)
+	if (current_msc >= target_msc && divisor)
 		target_msc = current_msc + divisor
 			- (current_msc - remainder) % divisor;
 
