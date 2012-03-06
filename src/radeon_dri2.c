@@ -571,6 +571,22 @@ ListDelDRI2ClientEvents(ClientPtr client, struct xorg_list *entry)
 }
 
 static void
+radeon_dri2_ref_buffer(BufferPtr buffer)
+{
+    struct dri2_buffer_priv *private = buffer->driverPrivate;
+    private->refcnt++;
+}
+
+static void
+radeon_dri2_unref_buffer(BufferPtr buffer)
+{
+    if (buffer) {
+        struct dri2_buffer_priv *private = buffer->driverPrivate;
+        radeon_dri2_destroy_buffer(&(private->pixmap->drawable), buffer);
+    }
+}
+
+static void
 radeon_dri2_client_state_changed(CallbackListPtr *ClientStateCallback, pointer data, pointer calldata)
 {
     DRI2ClientEventsPtr pClientEventsPriv;
@@ -591,27 +607,13 @@ radeon_dri2_client_state_changed(CallbackListPtr *ClientStateCallback, pointer d
         if (pClientEventsPriv) {
             xorg_list_for_each_entry(ref, &pClientEventsPriv->reference_list, link) {
                 ref->valid = FALSE;
+                radeon_dri2_unref_buffer(ref->front);
+                radeon_dri2_unref_buffer(ref->back);
             }
         }
         break;
     default:
         break;
-    }
-}
-
-static void
-radeon_dri2_ref_buffer(BufferPtr buffer)
-{
-    struct dri2_buffer_priv *private = buffer->driverPrivate;
-    private->refcnt++;
-}
-
-static void
-radeon_dri2_unref_buffer(BufferPtr buffer)
-{
-    if (buffer) {
-        struct dri2_buffer_priv *private = buffer->driverPrivate;
-        radeon_dri2_destroy_buffer(&(private->pixmap->drawable), buffer);
     }
 }
 
@@ -849,10 +851,11 @@ void radeon_dri2_frame_event_handler(unsigned int frame, unsigned int tv_sec,
     }
 
 cleanup:
-    radeon_dri2_unref_buffer(event->front);
-    radeon_dri2_unref_buffer(event->back);
-    if (event->valid)
+    if (event->valid) {
+        radeon_dri2_unref_buffer(event->front);
+        radeon_dri2_unref_buffer(event->back);
         ListDelDRI2ClientEvents(event->client, &event->link);
+    }
     free(event);
 }
 
