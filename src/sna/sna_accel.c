@@ -11459,31 +11459,20 @@ static Bool sna_change_window_attributes(WindowPtr win, unsigned long mask)
 }
 
 static void
-sna_accel_reply_callback(CallbackListPtr *list,
-			 pointer user_data, pointer call_data)
-{
-	struct sna *sna = user_data;
-
-	if (sna->flush)
-		return;
-
-	/* Assume each callback corresponds to a new request. The use
-	 * of continuation WriteToClients in the server is relatively rare,
-	 * and we err on the side of safety.
-	 */
-	sna->flush = (sna->kgem.flush || sna->kgem.sync ||
-		      !list_is_empty(&sna->dirty_pixmaps));
-}
-
-static void
 sna_accel_flush_callback(CallbackListPtr *list,
 			 pointer user_data, pointer call_data)
 {
 	struct sna *sna = user_data;
 	struct list preserve;
 
-	if (!sna->flush)
-		return;
+	/* XXX we should be able to reduce the frequency of flushes further
+	 * by checking for outgoing damage events or sync replies. Tricky,
+	 * and doesn't appear to mitigate the performance loss.
+	 */
+	if (!(sna->kgem.flush ||
+	      sna->kgem.sync ||
+	      !list_is_empty(&sna->dirty_pixmaps)))
+	    return;
 
 	DBG(("%s: need_sync=%d, need_flush=%d, dirty? %d\n", __FUNCTION__,
 	     sna->kgem.sync!=NULL, sna->kgem.flush, !list_is_empty(&sna->dirty_pixmaps)));
@@ -11934,8 +11923,7 @@ void sna_accel_watch_flush(struct sna *sna, int enable)
 	if (sna->watch_flush == 0) {
 		DBG(("%s: installing watchers\n", __FUNCTION__));
 		assert(enable > 0);
-		if (!AddCallback(&ReplyCallback, sna_accel_reply_callback, sna) ||
-		    !AddCallback(&FlushCallback, sna_accel_flush_callback, sna)) {
+		if (!AddCallback(&FlushCallback, sna_accel_flush_callback, sna)) {
 			xf86DrvMsg(sna->scrn->scrnIndex, X_Error,
 				   "Failed to attach ourselves to the flush callbacks, expect missing synchronisation with DRI clients (e.g a compositor)\n");
 		}
@@ -11959,7 +11947,6 @@ void sna_accel_close(struct sna *sna)
 	sna_glyphs_close(sna);
 
 	DeleteCallback(&FlushCallback, sna_accel_flush_callback, sna);
-	DeleteCallback(&ReplyCallback, sna_accel_reply_callback, sna);
 
 	kgem_cleanup_cache(&sna->kgem);
 }
@@ -11989,7 +11976,6 @@ void sna_accel_block_handler(struct sna *sna)
 
 	if (sna->flush == 0 && sna->watch_flush == 1) {
 		DBG(("%s: removing watchers\n", __FUNCTION__));
-		DeleteCallback(&ReplyCallback, sna_accel_reply_callback, sna);
 		DeleteCallback(&FlushCallback, sna_accel_flush_callback, sna);
 		sna->watch_flush = 0;
 	}
