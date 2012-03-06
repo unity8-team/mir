@@ -1479,9 +1479,7 @@ drm_wakeup_handler(pointer data, int err, pointer p)
 
 Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int cpp)
 {
-	RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
 	xf86CrtcConfigPtr xf86_config;
-	RADEONInfoPtr info = RADEONPTR(pScrn);
 	int i, num_dvi = 0, num_hdmi = 0;
 
 	xf86CrtcConfigInit(pScrn, &drmmode_xf86crtc_config_funcs);
@@ -1509,14 +1507,22 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int cpp)
 	drmmode->event_context.version = DRM_EVENT_CONTEXT_VERSION;
 	drmmode->event_context.vblank_handler = drmmode_vblank_handler;
 	drmmode->event_context.page_flip_handler = drmmode_flip_handler;
-	if (!pRADEONEnt->fd_wakeup_registered && info->dri->pKernelDRMVersion->version_minor >= 4) {
+
+	return TRUE;
+}
+
+void drmmode_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
+{
+	RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+	RADEONInfoPtr info = RADEONPTR(pScrn);
+
+	if (pRADEONEnt->fd_wakeup_registered != serverGeneration &&
+	    info->dri->pKernelDRMVersion->version_minor >= 4) {
 		AddGeneralSocket(drmmode->fd);
 		RegisterBlockAndWakeupHandlers((BlockHandlerProcPtr)NoopDDA,
 				drm_wakeup_handler, drmmode);
-		pRADEONEnt->fd_wakeup_registered = TRUE;
+		pRADEONEnt->fd_wakeup_registered = serverGeneration;
 	}
-
-	return TRUE;
 }
 
 Bool drmmode_set_bufmgr(ScrnInfoPtr pScrn, drmmode_ptr drmmode, struct radeon_bo_manager *bufmgr)

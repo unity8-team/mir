@@ -1136,6 +1136,8 @@ Bool RADEONScreenInit_KMS(int scrnIndex, ScreenPtr pScreen,
     if (serverGeneration == 1)
 	xf86ShowUnusedOptions(pScrn->scrnIndex, pScrn->options);
 
+    drmmode_init(pScrn, &info->drmmode);
+
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "RADEONScreenInit finished\n");
 
