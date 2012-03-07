@@ -596,11 +596,9 @@ _pixman_region_init_clipped_rectangles(pixman_region16_t *region,
 			j++;
 	}
 
-	ret = TRUE;
+	ret = FALSE;
 	if (j)
 	    ret = pixman_region_init_rects(region, boxes, j);
-	else
-	    pixman_region_init(region);
 
 	if (boxes != stack_boxes)
 		free(boxes);
@@ -609,7 +607,7 @@ _pixman_region_init_clipped_rectangles(pixman_region16_t *region,
 	     __FUNCTION__, num_rects,
 	     region->extents.x1, region->extents.y1,
 	     region->extents.x2, region->extents.y2,
-	     pixman_region_n_rects(region)));
+	     j));
 	return ret;
 }
 
