@@ -1161,7 +1161,7 @@ r600_set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
     r600_fs_setup(pScrn, ib, &fs_conf, RADEON_GEM_DOMAIN_VRAM);
 
     // VGT
-    BEGIN_BATCH(43);
+    BEGIN_BATCH(46);
     PACK0(ib, VGT_MAX_VTX_INDX, 4);
     E32(ib, 0xffffff); // VGT_MAX_VTX_INDX
     E32(ib, 0); // VGT_MIN_VTX_INDX
@@ -1200,6 +1200,7 @@ r600_set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
     E32(ib, 0); // VGT_VTX_CNT_EN
 
     EREG(ib, VGT_STRMOUT_BUFFER_EN,               0);
+    EREG(ib, SX_MISC,                             0);
     END_BATCH();
 }
 
