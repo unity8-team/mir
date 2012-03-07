@@ -121,22 +121,47 @@ static bool validate_partials(struct kgem *kgem)
 
 	list_for_each_entry_safe(bo, next, &kgem->active_partials, base.list) {
 		assert(next->base.list.prev == &bo->base.list);
+		assert(bo->base.refcnt >= 1);
 		assert(bo->base.io);
-		if (bo->base.list.next == &kgem->active_partials)
-			return true;
+
+		if (&next->base.list == &kgem->active_partials)
+			break;
+
 		if (bytes(&bo->base) - bo->used < bytes(&next->base) - next->used) {
-			ErrorF("this rem: %d, next rem: %d\n",
+			ErrorF("active error: this rem: %d, next rem: %d\n",
 			       bytes(&bo->base) - bo->used,
 			       bytes(&next->base) - next->used);
 			goto err;
 		}
 	}
+
+	list_for_each_entry_safe(bo, next, &kgem->inactive_partials, base.list) {
+		assert(next->base.list.prev == &bo->base.list);
+		assert(bo->base.io);
+		assert(bo->base.refcnt == 1);
+
+		if (&next->base.list == &kgem->inactive_partials)
+			break;
+
+		if (bytes(&bo->base) - bo->used < bytes(&next->base) - next->used) {
+			ErrorF("inactive error: this rem: %d, next rem: %d\n",
+			       bytes(&bo->base) - bo->used,
+			       bytes(&next->base) - next->used);
+			goto err;
+		}
+	}
+
 	return true;
 
 err:
+	ErrorF("active partials:\n");
 	list_for_each_entry(bo, &kgem->active_partials, base.list)
-		ErrorF("bo: used=%d / %d, rem=%d\n",
-		       bo->used, bytes(&bo->base), bytes(&bo->base) - bo->used);
+		ErrorF("bo handle=%d: used=%d / %d, rem=%d\n",
+		       bo->base.handle, bo->used, bytes(&bo->base), bytes(&bo->base) - bo->used);
+	ErrorF("inactive partials:\n");
+	list_for_each_entry(bo, &kgem->inactive_partials, base.list)
+		ErrorF("bo handle=%d: used=%d / %d, rem=%d\n",
+		       bo->base.handle, bo->used, bytes(&bo->base), bytes(&bo->base) - bo->used);
 	return false;
 }
 #else
@@ -1220,7 +1245,13 @@ static void kgem_retire_partials(struct kgem *kgem)
 		     bo->base.handle, bo->used, bytes(&bo->base)));
 
 		assert(bo->base.refcnt == 1);
-		assert(bo->mmapped);
+		assert(bo->base.exec == NULL);
+		if (!bo->mmapped) {
+			list_del(&bo->base.list);
+			kgem_bo_unref(kgem, &bo->base);
+			continue;
+		}
+
 		assert(kgem->has_llc || !IS_CPU_MAP(bo->base.map));
 		bo->base.dirty = false;
 		bo->base.needs_flush = false;
@@ -1229,6 +1260,7 @@ static void kgem_retire_partials(struct kgem *kgem)
 		list_move_tail(&bo->base.list, &kgem->inactive_partials);
 		bubble_sort_partial(&kgem->inactive_partials, bo);
 	}
+	assert(validate_partials(kgem));
 }
 
 bool kgem_retire(struct kgem *kgem)
@@ -1423,12 +1455,23 @@ static void kgem_finish_partials(struct kgem *kgem)
 	struct kgem_partial_bo *bo, *next;
 
 	list_for_each_entry_safe(bo, next, &kgem->active_partials, base.list) {
+		DBG(("%s: partial handle=%d, used=%d, exec?=%d, write=%d, mmapped=%d\n",
+		     __FUNCTION__, bo->base.handle, bo->used, bo->base.exec!=NULL,
+		     bo->write, bo->mmapped));
+
 		assert(next->base.list.prev == &bo->base.list);
 		assert(bo->base.io);
 		assert(bo->base.refcnt >= 1);
 
-		if (!bo->base.exec)
+		if (!bo->base.exec) {
+			if (bo->base.refcnt == 1 && bo->used) {
+				bo->used = 0;
+				bubble_sort_partial(&kgem->active_partials, bo);
+			}
+			DBG(("%s: skipping unattached handle=%d, used=%d\n",
+			     __FUNCTION__, bo->base.handle, bo->used));
 			continue;
+		}
 
 		if (!bo->write) {
 			assert(bo->base.exec || bo->base.refcnt > 1);
@@ -1458,12 +1501,14 @@ static void kgem_finish_partials(struct kgem *kgem)
 		assert(bo->base.rq == kgem->next_request);
 		assert(bo->base.domain != DOMAIN_GPU);
 
-		if (bo->base.refcnt == 1 && bo->used < bytes(&bo->base) / 2) {
+		if (bo->base.refcnt == 1 &&
+		    bo->base.size.pages.count > 1 &&
+		    bo->used < bytes(&bo->base) / 2) {
 			struct kgem_bo *shrink;
 
 			shrink = search_linear_cache(kgem,
 						     PAGE_ALIGN(bo->used),
-						     CREATE_INACTIVE);
+						     CREATE_INACTIVE | CREATE_NO_RETIRE);
 			if (shrink) {
 				int n;
 
@@ -1513,6 +1558,8 @@ static void kgem_finish_partials(struct kgem *kgem)
 		bo->need_io = 0;
 
 decouple:
+		DBG(("%s: releasing handle=%d\n",
+		     __FUNCTION__, bo->base.handle));
 		list_del(&bo->base.list);
 		kgem_bo_unref(kgem, &bo->base);
 	}
@@ -2017,6 +2064,11 @@ search_linear_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags)
 	if (!use_active && list_is_empty(inactive(kgem, num_pages))) {
 		DBG(("%s: inactive and cache bucket empty\n",
 		     __FUNCTION__));
+
+		if ((flags & CREATE_NO_RETIRE) == 0) {
+			DBG(("%s: can not retire\n"));
+			return NULL;
+		}
 
 		if (!kgem->need_retire || !kgem_retire(kgem)) {
 			DBG(("%s: nothing retired\n", __FUNCTION__));
