@@ -1189,32 +1189,29 @@ gen2_composite_linear_init(struct sna *sna,
 		struct pixman_f_vector p1, p2;
 		struct pixman_f_transform m, inv;
 
+		pixman_f_transform_from_pixman_transform(&m, picture->transform);
 		DBG(("%s: transform = [%f %f %f, %f %f %f, %f %f %f]\n",
 		     __FUNCTION__,
-		     pixman_fixed_to_double(picture->transform->matrix[0][0]),
-		     pixman_fixed_to_double(picture->transform->matrix[0][1]),
-		     pixman_fixed_to_double(picture->transform->matrix[0][2]),
-		     pixman_fixed_to_double(picture->transform->matrix[1][0]),
-		     pixman_fixed_to_double(picture->transform->matrix[1][1]),
-		     pixman_fixed_to_double(picture->transform->matrix[1][2]),
-		     pixman_fixed_to_double(picture->transform->matrix[2][0]),
-		     pixman_fixed_to_double(picture->transform->matrix[2][1]),
-		     pixman_fixed_to_double(picture->transform->matrix[2][2])));
-
-		pixman_f_transform_from_pixman_transform(&m,
-							 picture->transform);
+		     m.m[0][0], m.m[0][1], m.m[0][2],
+		     m.m[1][0], m.m[1][1], m.m[1][2],
+		     m.m[2][0], m.m[2][1], m.m[2][2]));
 		if (!pixman_f_transform_invert(&inv, &m))
 			return 0;
 
-		p1.v[0] = linear->p1.x;
-		p1.v[1] = linear->p1.y;
-		p1.v[2] = pixman_fixed_1;
+		p1.v[0] = pixman_fixed_to_double(linear->p1.x);
+		p1.v[1] = pixman_fixed_to_double(linear->p1.y);
+		p1.v[2] = 1.;
 		pixman_f_transform_point(&inv, &p1);
 
-		p2.v[0] = linear->p2.x;
-		p2.v[1] = linear->p2.y;
-		p2.v[2] = pixman_fixed_1;
+		p2.v[0] = pixman_fixed_to_double(linear->p2.x);
+		p2.v[1] = pixman_fixed_to_double(linear->p2.y);
+		p2.v[2] = 1.;
 		pixman_f_transform_point(&inv, &p2);
+
+		DBG(("%s: untransformed: p1=(%f, %f, %f), p2=(%f, %f, %f)\n",
+		     __FUNCTION__,
+		     p1.v[0], p1.v[1], p1.v[2],
+		     p2.v[0], p2.v[1], p2.v[2]));
 
 		dx = p2.v[0] - p1.v[0];
 		dy = p2.v[1] - p1.v[1];
@@ -1229,7 +1226,7 @@ gen2_composite_linear_init(struct sna *sna,
 
 	channel->u.gen2.linear_dx = dx;
 	channel->u.gen2.linear_dy = dy;
-	channel->u.gen2.linear_offset = -dx*(x0+x-dst_x) + -dy*(y0+y-dst_y);
+	channel->u.gen2.linear_offset = -dx*(x0+dst_x-x) + -dy*(y0+dst_y-y);
 
 	DBG(("%s: dx=%f, dy=%f, offset=%f\n",
 	     __FUNCTION__, dx, dy, channel->u.gen2.linear_offset));
