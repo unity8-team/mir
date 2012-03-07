@@ -681,7 +681,10 @@ static uint32_t gen4_check_filter(PicturePtr picture)
 	case PictFilterBilinear:
 		return TRUE;
 	default:
-		DBG(("%s: unknown filter: %d\n", __FUNCTION__, picture->filter));
+		DBG(("%s: unknown filter: %s [%d]\n",
+		     __FUNCTION__,
+		     PictureGetFilterName(picture->filter),
+		     picture->filter));
 		return FALSE;
 	}
 }

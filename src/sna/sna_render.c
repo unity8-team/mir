@@ -1234,15 +1234,18 @@ sna_render_picture_convolve(struct sna *sna,
 	PixmapPtr pixmap;
 	PicturePtr tmp;
 	pixman_fixed_t *params = picture->filter_params;
-	int x_off = (params[0] - pixman_fixed_1) >> 1;
-	int y_off = (params[1] - pixman_fixed_1) >> 1;
+	int x_off = -pixman_fixed_to_int((params[0] - pixman_fixed_1) >> 1);
+	int y_off = -pixman_fixed_to_int((params[1] - pixman_fixed_1) >> 1);
 	int cw = pixman_fixed_to_int(params[0]);
 	int ch = pixman_fixed_to_int(params[1]);
 	int i, j, error, depth;
+	struct kgem_bo *bo;
 
 	/* Lame multi-pass accumulation implementation of a general convolution
 	 * that works everywhere.
 	 */
+	DBG(("%s: origin=(%d,%d) kernel=%dx%d, size=%dx%d\n",
+	     __FUNCTION__, x_off, y_off, cw, ch, w, h));
 
 	assert(picture->pDrawable);
 	assert(picture->filter == PictFilterConvolution);
@@ -1267,8 +1270,10 @@ sna_render_picture_convolve(struct sna *sna,
 	if (tmp == NULL)
 		return 0;
 
-	if (!sna->render.fill_one(sna, pixmap, sna_pixmap_get_bo(pixmap), 0,
-				  0, 0, w, h, GXclear)) {
+	ValidatePicture(tmp);
+
+	bo = sna_pixmap_get_bo(pixmap);
+	if (!sna->render.clear(sna, pixmap, bo)) {
 		FreePicture(tmp, 0);
 		return 0;
 	}
@@ -1282,6 +1287,8 @@ sna_render_picture_convolve(struct sna *sna,
 
 			color.alpha = *params++;
 			color.red = color.green = color.blue = 0;
+			DBG(("%s: (%d, %d), alpha=%x\n",
+			     __FUNCTION__, i,j, color.alpha));
 
 			if (color.alpha <= 0x00ff)
 				continue;
@@ -1291,7 +1298,7 @@ sna_render_picture_convolve(struct sna *sna,
 				sna_composite(PictOpAdd, picture, alpha, tmp,
 					      x, y,
 					      0, 0,
-					      x_off-i, y_off-j,
+					      x_off+i, y_off+j,
 					      w, h);
 				FreePicture(alpha, 0);
 			}
@@ -1309,7 +1316,7 @@ sna_render_picture_convolve(struct sna *sna,
 	channel->scale[1] = 1.f / h;
 	channel->offset[0] = -dst_x;
 	channel->offset[1] = -dst_y;
-	channel->bo = kgem_bo_reference(sna_pixmap_get_bo(pixmap));
+	channel->bo = kgem_bo_reference(bo); /* transfer ownership */
 	FreePicture(tmp, 0);
 
 	return 1;
@@ -1423,7 +1430,7 @@ sna_render_picture_fixup(struct sna *sna,
 		DBG(("%s: convolution\n", __FUNCTION__));
 		if (picture->pDrawable && is_gpu(picture->pDrawable)) {
 			return sna_render_picture_convolve(sna, picture, channel,
-							   x, y, w, y, dst_x, dst_y);
+							   x, y, w, h, dst_x, dst_y);
 		}
 
 		goto do_fixup;
