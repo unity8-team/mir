@@ -776,7 +776,7 @@ polygon_add_line(struct polygon *polygon,
 	if (dx == 0) {
 		e->vertical = true;
 		e->x.quo = p1->x;
-		e->x.rem = 0;
+		e->x.rem = -dy;
 		e->dxdy.quo = 0;
 		e->dxdy.rem = 0;
 	} else {
