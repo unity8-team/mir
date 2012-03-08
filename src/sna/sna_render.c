@@ -378,8 +378,11 @@ move_to_gpu(PixmapPtr pixmap, const BoxRec *box)
 		bool upload;
 
 		priv = sna_pixmap(pixmap);
-		if (!priv)
+		if (!priv) {
+			DBG(("%s: not migrating unattached pixmap\n",
+			     __FUNCTION__));
 			return false;
+		}
 
 		upload = true;
 		if ((priv->create & KGEM_CAN_CREATE_GPU) == 0 ||

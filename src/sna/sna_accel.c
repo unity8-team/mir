@@ -764,7 +764,7 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 	}
 
 	if (usage == CREATE_PIXMAP_USAGE_GLYPH_PICTURE)
-		goto fallback;
+		flags &= ~KGEM_CAN_CREATE_GPU;
 
 force_create:
 	pad = PixmapBytePad(width, depth);

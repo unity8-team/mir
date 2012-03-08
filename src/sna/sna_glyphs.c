@@ -315,7 +315,7 @@ glyph_cache(ScreenPtr screen,
 		PixmapPtr pixmap = (PixmapPtr)glyph_picture->pDrawable;
 		assert(glyph_picture->pDrawable->type == DRAWABLE_PIXMAP);
 		if (pixmap->drawable.depth >= 8) {
-			pixmap->usage_hint = SNA_CREATE_GLYPH;
+			pixmap->usage_hint = 0;
 			sna_pixmap_force_to_gpu(pixmap, MOVE_READ);
 		}
 		return FALSE;
