@@ -3705,8 +3705,6 @@ gen6_render_fill_boxes(struct sna *sna,
 	     __FUNCTION__, pixel, n,
 	     box[0].x1, box[0].y1, box[0].x2, box[0].y2));
 
-	memset(&tmp, 0, sizeof(tmp));
-
 	tmp.op = op;
 
 	tmp.dst.pixmap = dst;
@@ -3714,16 +3712,21 @@ gen6_render_fill_boxes(struct sna *sna,
 	tmp.dst.height = dst->drawable.height;
 	tmp.dst.format = format;
 	tmp.dst.bo = dst_bo;
+	tmp.dst.x = tmp.dst.y = 0;
 
 	tmp.src.bo = sna_render_get_solid(sna, pixel);
 	tmp.src.filter = SAMPLER_FILTER_NEAREST;
 	tmp.src.repeat = SAMPLER_EXTEND_REPEAT;
 
 	tmp.mask.bo = NULL;
+	tmp.mask.filter = SAMPLER_FILTER_NEAREST;
+	tmp.mask.repeat = SAMPLER_EXTEND_NONE;
 
 	tmp.is_affine = TRUE;
 	tmp.floats_per_vertex = 3;
 	tmp.floats_per_rect = 9;
+	tmp.has_component_alpha = FALSE;
+	tmp.need_magic_ca_pass = FALSE;
 
 	tmp.u.gen6.wm_kernel = GEN6_WM_KERNEL_NOMASK;
 	tmp.u.gen6.nr_surfaces = 2;
