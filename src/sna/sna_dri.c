@@ -163,7 +163,7 @@ static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 	if (priv == NULL)
 		return NULL;
 
-	if (priv->flush)
+	if (priv->flush++)
 		return priv->gpu_bo;
 
 	tiling = color_tiling(sna, &pixmap->drawable);
@@ -177,7 +177,6 @@ static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 	 *
 	 * As we don't track which Client, we flush for all.
 	 */
-	priv->flush = 1;
 	sna_accel_watch_flush(sna, 1);
 
 	/* Don't allow this named buffer to be replaced */
@@ -324,10 +323,12 @@ static void _sna_dri_destroy_buffer(struct sna *sna, DRI2Buffer2Ptr buffer)
 			struct sna_pixmap *priv = sna_pixmap(private->pixmap);
 
 			/* Undo the DRI markings on this pixmap */
-			list_del(&priv->list);
-			sna_accel_watch_flush(sna, -1);
-			priv->pinned = private->pixmap == sna->front;
-			priv->flush = 0;
+			assert(priv->flush > 0);
+			if (--priv->flush == 0) {
+				list_del(&priv->list);
+				sna_accel_watch_flush(sna, -1);
+				priv->pinned = private->pixmap == sna->front;
+			}
 
 			screen->DestroyPixmap(private->pixmap);
 		}

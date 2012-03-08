@@ -129,12 +129,12 @@ struct sna_pixmap {
 
 	uint32_t stride;
 	uint32_t clear_color;
+	unsigned flush;
 
 #define SOURCE_BIAS 4
 	uint16_t source_count;
 	uint8_t pinned :1;
 	uint8_t mapped :1;
-	uint8_t flush :1;
 	uint8_t clear :1;
 	uint8_t undamaged :1;
 	uint8_t create :3;
