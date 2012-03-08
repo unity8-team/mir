@@ -1246,13 +1246,12 @@ static void kgem_retire_partials(struct kgem *kgem)
 
 		assert(bo->base.refcnt == 1);
 		assert(bo->base.exec == NULL);
-		if (!bo->mmapped) {
+		if (!bo->mmapped || bo->base.presumed_offset == 0) {
 			list_del(&bo->base.list);
 			kgem_bo_unref(kgem, &bo->base);
 			continue;
 		}
 
-		assert(kgem->has_llc || !IS_CPU_MAP(bo->base.map));
 		bo->base.dirty = false;
 		bo->base.needs_flush = false;
 		bo->used = 0;
