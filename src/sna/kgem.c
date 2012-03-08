@@ -2062,7 +2062,7 @@ search_linear_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags)
 		     __FUNCTION__));
 
 		if ((flags & CREATE_NO_RETIRE) == 0) {
-			DBG(("%s: can not retire\n"));
+			DBG(("%s: can not retire\n", __FUNCTION__));
 			return NULL;
 		}
 
@@ -3340,7 +3340,7 @@ void kgem_sync(struct kgem *kgem)
 	list_for_each_entry(bo, &kgem->sync_list, list)
 		kgem_bo_sync__cpu(kgem, bo);
 
-	assert (kgem->sync == NULL);
+	assert(kgem->sync == NULL);
 }
 
 void kgem_clear_dirty(struct kgem *kgem)
@@ -3812,15 +3812,23 @@ struct kgem_bo *kgem_create_buffer_2d(struct kgem *kgem,
 
 	if (height & 1) {
 		struct kgem_partial_bo *io = (struct kgem_partial_bo *)bo->proxy;
+		int min;
+
+		assert(io->used);
 
 		/* Having padded this surface to ensure that accesses to
 		 * the last pair of rows is valid, remove the padding so
 		 * that it can be allocated to other pixmaps.
 		 */
-		if (io->used)
-			io->used -= stride;
+		min = bo->delta + height * stride;
+		min = ALIGN(min, 64);
+		if (io->used != min) {
+			DBG(("%s: trimming partial buffer from %d to %d\n",
+			     __FUNCTION__, io->used, min));
+			io->used = min;
+			bubble_sort_partial(&kgem->active_partials, io);
+		}
 		bo->size.bytes -= stride;
-		bubble_sort_partial(&kgem->active_partials, io);
 	}
 
 	bo->pitch = stride;
