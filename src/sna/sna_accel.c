@@ -2023,6 +2023,7 @@ sna_pixmap_create_upload(ScreenPtr screen,
 static inline struct sna_pixmap *
 sna_pixmap_mark_active(struct sna *sna, struct sna_pixmap *priv)
 {
+	assert(priv->gpu_bo);
 	if (!priv->pinned && (priv->create & KGEM_CAN_CREATE_LARGE) == 0)
 		list_move(&priv->inactive, &sna->active_pixmaps);
 	priv->clear = false;
@@ -2051,7 +2052,7 @@ sna_pixmap_force_to_gpu(PixmapPtr pixmap, unsigned flags)
 		unsigned mode;
 
 		mode = 0;
-		if (priv->cpu_damage)
+		if (priv->cpu_damage && !priv->cpu_bo)
 			mode |= CREATE_INACTIVE;
 		if (pixmap->usage_hint == SNA_CREATE_FB)
 			mode |= CREATE_EXACT | CREATE_SCANOUT;
@@ -2132,14 +2133,25 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 	sna_damage_reduce(&priv->cpu_damage);
 	DBG(("%s: CPU damage? %d\n", __FUNCTION__, priv->cpu_damage != NULL));
 	if (priv->gpu_bo == NULL) {
-		if (!wedged(sna) && priv->create & KGEM_CAN_CREATE_GPU)
+		DBG(("%s: creating GPU bo (%dx%d@%d), create=%x\n",
+		     __FUNCTION__,
+		     pixmap->drawable.width,
+		     pixmap->drawable.height,
+		     pixmap->drawable.bitsPerPixel,
+		     priv->create));
+		assert(!priv->mapped);
+		if (!wedged(sna) && priv->create & KGEM_CAN_CREATE_GPU) {
+			assert(pixmap->drawable.width > 0);
+			assert(pixmap->drawable.height > 0);
+			assert(pixmap->drawable.bitsPerPixel >= 8);
 			priv->gpu_bo =
 				kgem_create_2d(&sna->kgem,
 					       pixmap->drawable.width,
 					       pixmap->drawable.height,
 					       pixmap->drawable.bitsPerPixel,
 					       sna_pixmap_choose_tiling(pixmap),
-					       priv->cpu_damage ? CREATE_GTT_MAP | CREATE_INACTIVE : 0);
+					       (priv->cpu_damage && priv->cpu_bo == NULL) ? CREATE_GTT_MAP | CREATE_INACTIVE : 0);
+		}
 		if (priv->gpu_bo == NULL) {
 			DBG(("%s: not creating GPU bo\n", __FUNCTION__));
 			assert(list_is_empty(&priv->list));
@@ -2179,6 +2191,7 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 		Bool ok;
 
 		assert(pixmap_contains_damage(pixmap, priv->cpu_damage));
+		DBG(("%s: uploading %d damage boxes\n", __FUNCTION__, n));
 
 		ok = FALSE;
 		if (priv->cpu_bo)
@@ -2225,7 +2238,7 @@ done:
 		}
 	}
 active:
-	return sna_pixmap_mark_active(to_sna_from_pixmap(pixmap), priv);
+	return sna_pixmap_mark_active(sna, priv);
 }
 
 static bool must_check sna_validate_pixmap(DrawablePtr draw, PixmapPtr pixmap)
