@@ -1464,10 +1464,6 @@ static void kgem_finish_partials(struct kgem *kgem)
 		assert(bo->base.refcnt >= 1);
 
 		if (!bo->base.exec) {
-			if (bo->base.refcnt == 1 && bo->used) {
-				bo->used = 0;
-				bubble_sort_partial(&kgem->active_partials, bo);
-			}
 			DBG(("%s: skipping unattached handle=%d, used=%d\n",
 			     __FUNCTION__, bo->base.handle, bo->used));
 			continue;
