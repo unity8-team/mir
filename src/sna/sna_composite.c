@@ -644,7 +644,7 @@ sna_composite_rectangles(CARD8		 op,
 		return;
 	}
 
-	if (color->alpha <= 0x00ff) {
+	if ((color->red|color->green|color->blue|color->alpha) <= 0x00ff) {
 		switch (op) {
 		case PictOpOver:
 		case PictOpOutReverse:
@@ -652,6 +652,22 @@ sna_composite_rectangles(CARD8		 op,
 			return;
 		case  PictOpInReverse:
 		case  PictOpSrc:
+			op = PictOpClear;
+			break;
+		case  PictOpAtopReverse:
+			op = PictOpOut;
+			break;
+		case  PictOpXor:
+			op = PictOpOverReverse;
+			break;
+		}
+	}
+	if (color->alpha <= 0x00ff) {
+		switch (op) {
+		case PictOpOver:
+		case PictOpOutReverse:
+			return;
+		case  PictOpInReverse:
 			op = PictOpClear;
 			break;
 		case  PictOpAtopReverse:
