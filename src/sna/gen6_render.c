@@ -3655,29 +3655,24 @@ gen6_render_fill_boxes(struct sna *sna,
 		return FALSE;
 	}
 
-	if (prefer_blt_fill(sna, dst_bo) ||
-	    too_large(dst->drawable.width, dst->drawable.height) ||
-	    !gen6_check_dst_format(format)) {
+	if (op <= PictOpSrc &&
+	    (prefer_blt_fill(sna, dst_bo) ||
+	     too_large(dst->drawable.width, dst->drawable.height) ||
+	     !gen6_check_dst_format(format))) {
 		uint8_t alu = -1;
 
-		if (op == PictOpClear || (op == PictOpOutReverse && color->alpha >= 0xff00))
-			alu = GXclear;
-
-		if (op == PictOpSrc || (op == PictOpOver && color->alpha >= 0xff00)) {
-			alu = GXcopy;
-			if (color->alpha <= 0x00ff)
-				alu = GXclear;
-		}
-
 		pixel = 0;
-		if ((alu == GXclear ||
-		     (alu == GXcopy &&
-		      sna_get_pixel_from_rgba(&pixel,
-					      color->red,
-					      color->green,
-					      color->blue,
-					      color->alpha,
-					      format))) &&
+		if (op == PictOpClear)
+			alu = GXclear;
+		else if (sna_get_pixel_from_rgba(&pixel,
+						 color->red,
+						 color->green,
+						 color->blue,
+						 color->alpha,
+						 format))
+			alu = GXcopy;
+
+		if (alu != -1 &&
 		    sna_blt_fill_boxes(sna, alu,
 				       dst_bo, dst->drawable.bitsPerPixel,
 				       pixel, box, n))

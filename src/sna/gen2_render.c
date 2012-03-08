@@ -2348,30 +2348,24 @@ gen2_render_fill_boxes_try_blt(struct sna *sna,
 			       PixmapPtr dst, struct kgem_bo *dst_bo,
 			       const BoxRec *box, int n)
 {
-	uint8_t alu = GXcopy;
+	uint8_t alu;
 	uint32_t pixel;
 
-	if (!sna_get_pixel_from_rgba(&pixel,
-				     color->red,
-				     color->green,
-				     color->blue,
-				     color->alpha,
-				     format))
+	if (op > PictOpSrc)
 		return FALSE;
 
 	if (op == PictOpClear) {
 		alu = GXclear;
 		pixel = 0;
-		op = PictOpSrc;
-	}
-
-	if (op == PictOpOver) {
-		if ((pixel & 0xff000000) == 0xff000000)
-			op = PictOpSrc;
-	}
-
-	if (op != PictOpSrc)
+	} else if (!sna_get_pixel_from_rgba(&pixel,
+					    color->red,
+					    color->green,
+					    color->blue,
+					    color->alpha,
+					    format))
 		return FALSE;
+	else
+		alu = GXcopy;
 
 	return sna_blt_fill_boxes(sna, alu,
 				  dst_bo, dst->drawable.bitsPerPixel,

@@ -4153,7 +4153,7 @@ gen3_render_fill_boxes_try_blt(struct sna *sna,
 			       PixmapPtr dst, struct kgem_bo *dst_bo,
 			       const BoxRec *box, int n)
 {
-	uint8_t alu = GXcopy;
+	uint8_t alu;
 	uint32_t pixel;
 
 	if (dst_bo->tiling == I915_TILING_Y) {
@@ -4162,36 +4162,21 @@ gen3_render_fill_boxes_try_blt(struct sna *sna,
 		return FALSE;
 	}
 
-	if (color->alpha >= 0xff00) {
-		if (op == PictOpOver)
-			op = PictOpSrc;
-		else if (op == PictOpOutReverse)
-			op = PictOpClear;
-		else if (op == PictOpAdd &&
-			 (color->red & color->green & color->blue) >= 0xff00)
-			op = PictOpSrc;
-	}
+	if (op > PictOpSrc)
+		return FALSE;
 
-	pixel = 0;
 	if (op == PictOpClear) {
 		alu = GXclear;
-	} else if (op == PictOpSrc) {
-		if (color->alpha <= 0x00ff)
-			alu = GXclear;
-		else if (!sna_get_pixel_from_rgba(&pixel,
-						  color->red,
-						  color->green,
-						  color->blue,
-						  color->alpha,
-						  format)) {
-			DBG(("%s: unknown format %x\n", __FUNCTION__,
-			     (uint32_t)format));
-			return FALSE;
-		}
-	} else {
-		DBG(("%s: unhandle op %d\n", __FUNCTION__, alu));
+		pixel = 0;
+	} else if (!sna_get_pixel_from_rgba(&pixel,
+					    color->red,
+					    color->green,
+					    color->blue,
+					    color->alpha,
+					    format))
 		return FALSE;
-	}
+	else
+		alu = GXcopy;
 
 	return sna_blt_fill_boxes(sna, alu,
 				  dst_bo, dst->drawable.bitsPerPixel,
