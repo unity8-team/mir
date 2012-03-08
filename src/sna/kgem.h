@@ -450,7 +450,6 @@ static inline bool kgem_bo_is_busy(struct kgem_bo *bo)
 {
 	DBG_HDR(("%s: domain: %d exec? %d, rq? %d\n",
 		 __FUNCTION__, bo->domain, bo->exec != NULL, bo->rq != NULL));
-	assert(bo->proxy == NULL);
 	return bo->rq;
 }
 

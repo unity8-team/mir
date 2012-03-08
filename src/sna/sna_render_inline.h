@@ -72,10 +72,10 @@ is_gpu(DrawablePtr drawable)
 {
 	struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
 
-	if (priv == NULL)
+	if (priv == NULL || priv->clear)
 		return false;
 
-	if (priv->gpu_damage)
+	if (priv->gpu_damage || (priv->gpu_bo && kgem_bo_is_busy(priv->gpu_bo)))
 		return true;
 
 	return priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo);

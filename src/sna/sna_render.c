@@ -1418,7 +1418,7 @@ sna_render_picture_fixup(struct sna *sna,
 
 	if (picture->alphaMap) {
 		DBG(("%s: alphamap\n", __FUNCTION__));
-		if ((is_gpu(picture->pDrawable) || is_gpu(picture->alphaMap->pDrawable))) {
+		if (is_gpu(picture->pDrawable) || is_gpu(picture->alphaMap->pDrawable)) {
 			return sna_render_picture_flatten(sna, picture, channel,
 							  x, y, w, y, dst_x, dst_y);
 		}
@@ -1428,7 +1428,7 @@ sna_render_picture_fixup(struct sna *sna,
 
 	if (picture->filter == PictFilterConvolution) {
 		DBG(("%s: convolution\n", __FUNCTION__));
-		if (picture->pDrawable && is_gpu(picture->pDrawable)) {
+		if (is_gpu(picture->pDrawable)) {
 			return sna_render_picture_convolve(sna, picture, channel,
 							   x, y, w, h, dst_x, dst_y);
 		}

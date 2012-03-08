@@ -871,10 +871,10 @@ _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 		return true;
 	}
 
-	DBG(("%s: gpu_bo=%d, gpu_damage=%p\n",
+	DBG(("%s: gpu_bo=%d, gpu_damage=%p, cpu_damage=%p, is-clear?=%d\n",
 	     __FUNCTION__,
 	     priv->gpu_bo ? priv->gpu_bo->handle : 0,
-	     priv->gpu_damage));
+	     priv->gpu_damage, priv->cpu_damage, priv->clear));
 
 	if ((flags & MOVE_READ) == 0) {
 		assert(flags & MOVE_WRITE);
