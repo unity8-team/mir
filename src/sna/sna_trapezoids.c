@@ -556,6 +556,14 @@ cell_list_find(struct cell_list *cells, int x)
 			break;
 
 		tail = tail->next;
+		if (tail->next->x > x)
+			break;
+
+		tail = tail->next;
+		if (tail->next->x > x)
+			break;
+
+		tail = tail->next;
 	} while (1);
 
 	if (tail->x != x)
