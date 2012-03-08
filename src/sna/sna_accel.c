@@ -2051,6 +2051,13 @@ sna_pixmap_force_to_gpu(PixmapPtr pixmap, unsigned flags)
 		struct sna *sna = to_sna_from_pixmap(pixmap);
 		unsigned mode;
 
+		DBG(("%s: forcing creation of  gpu bo (%dx%d@%d, flags=%x)\n",
+		     __FUNCTION__,
+		     pixmap->drawable.width,
+		     pixmap->drawable.height,
+		     pixmap->drawable.bitsPerPixel,
+		     priv->create));
+
 		mode = 0;
 		if (priv->cpu_damage && !priv->cpu_bo)
 			mode |= CREATE_INACTIVE;
