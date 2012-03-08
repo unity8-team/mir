@@ -207,7 +207,7 @@ list_append(struct list *entry, struct list *head)
 static inline void
 __list_del(struct list *prev, struct list *next)
 {
-	asert(next->prev == prev->next);
+	assert(next->prev == prev->next);
 	next->prev = prev;
 	prev->next = next;
 }
