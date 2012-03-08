@@ -2365,7 +2365,7 @@ unsigned kgem_can_create_2d(struct kgem *kgem,
 	uint32_t pitch, size;
 	unsigned flags = 0;
 
-	if (depth < 8 || kgem->wedged)
+	if (depth < 8)
 		return 0;
 
 	if (width > MAXSHORT || height > MAXSHORT)
