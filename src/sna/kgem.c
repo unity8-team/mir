@@ -2060,7 +2060,7 @@ search_linear_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags)
 		DBG(("%s: inactive and cache bucket empty\n",
 		     __FUNCTION__));
 
-		if ((flags & CREATE_NO_RETIRE) == 0) {
+		if (flags & CREATE_NO_RETIRE) {
 			DBG(("%s: can not retire\n", __FUNCTION__));
 			return NULL;
 		}
