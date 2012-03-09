@@ -2007,17 +2007,10 @@ sna_pixmap_create_upload(ScreenPtr screen,
 		pixmap = sna->freed_pixmap;
 		sna->freed_pixmap = NULL;
 
-		pixmap->usage_hint = CREATE_PIXMAP_USAGE_SCRATCH;
 		pixmap->drawable.serialNumber = NEXT_SERIAL_NUMBER;
 		pixmap->refcnt = 1;
-
-		DBG(("%s: serial=%ld, usage=%d\n",
-		     __FUNCTION__,
-		     pixmap->drawable.serialNumber,
-		     pixmap->usage_hint));
 	} else {
-		pixmap = create_pixmap(sna, screen, 0, 0, depth,
-				       CREATE_PIXMAP_USAGE_SCRATCH);
+		pixmap = create_pixmap(sna, screen, 0, 0, depth, 0);
 		if (!pixmap)
 			return NullPixmap;
 
@@ -2035,8 +2028,7 @@ sna_pixmap_create_upload(ScreenPtr screen,
 
 	priv->gpu_bo = kgem_create_buffer_2d(&sna->kgem,
 					     width, height, bpp,
-					     flags,
-					     &ptr);
+					     flags, &ptr);
 	if (!priv->gpu_bo) {
 		free(priv);
 		fbDestroyPixmap(pixmap);
@@ -2057,6 +2049,15 @@ sna_pixmap_create_upload(ScreenPtr screen,
 	pixmap->drawable.serialNumber = NEXT_SERIAL_NUMBER;
 	pixmap->devKind = priv->gpu_bo->pitch;
 	pixmap->devPrivate.ptr = ptr;
+
+	pixmap->usage_hint = 0;
+	if (!kgem_buffer_is_inplace(priv->gpu_bo))
+		pixmap->usage_hint = 1;
+
+	DBG(("%s: serial=%ld, usage=%d\n",
+	     __FUNCTION__,
+	     pixmap->drawable.serialNumber,
+	     pixmap->usage_hint));
 
 	return pixmap;
 }

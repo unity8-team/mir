@@ -3785,6 +3785,12 @@ done:
 	return kgem_create_proxy(&bo->base, offset, size);
 }
 
+bool kgem_buffer_is_inplace(struct kgem_bo *_bo)
+{
+	struct kgem_partial_bo *bo = (struct kgem_partial_bo *)_bo->proxy;
+	return bo->write & KGEM_BUFFER_WRITE_INPLACE;
+}
+
 struct kgem_bo *kgem_create_buffer_2d(struct kgem *kgem,
 				      int width, int height, int bpp,
 				      uint32_t flags,

@@ -1409,6 +1409,342 @@ tor_render(struct sna *sna,
 	}
 }
 
+static void
+inplace_row(struct active_list *active, uint8_t *row, int width)
+{
+	struct edge *left = active->head.next;
+
+	assert(active->is_vertical);
+
+	while (&active->tail != left) {
+		struct edge *right;
+		int winding = left->dir;
+		grid_scaled_x_t lfx, rfx;
+		int lix, rix;
+
+		left->height_left -= FAST_SAMPLES_Y;
+		if (!left->height_left) {
+			left->prev->next = left->next;
+			left->next->prev = left->prev;
+		}
+
+		right = left->next;
+		do {
+			right->height_left -= FAST_SAMPLES_Y;
+			if (!right->height_left) {
+				right->prev->next = right->next;
+				right->next->prev = right->prev;
+			}
+
+			winding += right->dir;
+			if (0 == winding)
+				break;
+
+			right = right->next;
+		} while (1);
+
+		if (left->x.quo < 0) {
+			lix = lfx = 0;
+		} else if (left->x.quo > width * FAST_SAMPLES_X) {
+			lix = width;
+			lfx = 0;
+		} else
+			FAST_SAMPLES_X_TO_INT_FRAC(left->x.quo, lix, lfx);
+
+		if (right->x.quo < 0) {
+			rix = rfx = 0;
+		} else if (right->x.quo > width * FAST_SAMPLES_X) {
+			rix = width;
+			rfx = 0;
+		} else
+			FAST_SAMPLES_X_TO_INT_FRAC(right->x.quo, rix, rfx);
+		if (lix == rix) {
+			if (rfx != lfx)
+				row[lix] += (rfx-lfx) * 256 / FAST_SAMPLES_X;
+		} else {
+			if (lfx == 0)
+				row[lix] = 0xff;
+			else
+				row[lix] += 256 - lfx * 256 / FAST_SAMPLES_X;
+
+			if (rfx)
+				row[rix] += rfx * 256 / FAST_SAMPLES_X;
+
+			if (rix > ++lix) {
+				rix -= lix;
+#if 0
+				if (rix == 1)
+					row[lix] = 0xff;
+				else
+					memset(row+lix, 0xff, rix);
+#else
+				while (rix && lix & 3)
+					row[lix++] = 0xff, rix--;
+				while (rix > 4) {
+					*(uint32_t *)(row+lix) = 0xffffffff;
+					lix += 4;
+					rix -= 4;
+				}
+				if (rix & 2) {
+					*(uint16_t *)(row+lix) = 0xffff;
+					lix += 2;
+				}
+				if (rix & 1)
+					row[lix] = 0xff;
+#endif
+			}
+		}
+
+		left = right->next;
+	}
+}
+
+static inline uint8_t clip255(int x)
+{
+	if (x > 255)
+		return 255;
+
+	return x;
+}
+
+inline static void
+inplace_subrow(struct active_list *active, int8_t *row,
+	       int width, int *min, int *max)
+{
+	struct edge *edge = active->head.next;
+	grid_scaled_x_t prev_x = INT_MIN;
+	int winding = 0, xstart = INT_MIN;
+
+	while (&active->tail != edge) {
+		struct edge *next = edge->next;
+
+		winding += edge->dir;
+		if (0 == winding) {
+			if (edge->x.quo >= FAST_SAMPLES_X * width) {
+				*max = width;
+			} else if (edge->next->x.quo != edge->x.quo) {
+				grid_scaled_x_t fx;
+				int ix;
+
+				xstart = edge->x.quo;
+				FAST_SAMPLES_X_TO_INT_FRAC(xstart, ix, fx);
+				row[ix++] -= FAST_SAMPLES_X - fx;
+				if (ix < width)
+					row[ix] -= fx;
+
+				if (ix > *max)
+					*max = ix;
+
+				xstart = INT_MIN;
+			}
+		} else if (xstart < 0) {
+			grid_scaled_x_t fx;
+			int ix;
+
+			xstart = MAX(edge->x.quo, 0);
+			FAST_SAMPLES_X_TO_INT_FRAC(xstart, ix, fx);
+			if (ix < *min)
+				*min = ix;
+
+			row[ix++] += FAST_SAMPLES_X - fx;
+			row[ix] += fx;
+		}
+
+		if (--edge->height_left) {
+			if (!edge->vertical) {
+				edge->x.quo += edge->dxdy.quo;
+				edge->x.rem += edge->dxdy.rem;
+				if (edge->x.rem >= 0) {
+					++edge->x.quo;
+					edge->x.rem -= edge->dy;
+				}
+			}
+
+			if (edge->x.quo < prev_x) {
+				struct edge *pos = edge->prev;
+				pos->next = next;
+				next->prev = pos;
+				do {
+					pos = pos->prev;
+				} while (edge->x.quo < pos->x.quo);
+				pos->next->prev = edge;
+				edge->next = pos->next;
+				edge->prev = pos;
+				pos->next = edge;
+			} else
+				prev_x = edge->x.quo;
+		} else {
+			edge->prev->next = next;
+			next->prev = edge->prev;
+		}
+
+		edge = next;
+	}
+}
+
+inline static void
+inplace_end_subrows(struct active_list *active, uint8_t *row,
+		    int8_t *buf, int width)
+{
+	int cover = 0;
+
+	while (width > 4) {
+		uint32_t dw;
+		int v;
+
+		dw = *(uint32_t *)buf;
+		buf += 4;
+
+		if (dw == 0){
+			v = cover * 256 / (FAST_SAMPLES_X * FAST_SAMPLES_Y);
+			v -= v >> 8;
+			v |= v << 8;
+			dw = v | v << 16;
+		} else if (dw) {
+			cover += (int8_t)(dw & 0xff);
+			assert(cover >= 0);
+			v = cover * 256 / (FAST_SAMPLES_X * FAST_SAMPLES_Y);
+			v -= v >> 8;
+			dw >>= 8;
+			dw |= v << 24;
+
+			cover += (int8_t)(dw & 0xff);
+			assert(cover >= 0);
+			v = cover * 256 / (FAST_SAMPLES_X * FAST_SAMPLES_Y);
+			v -= v >> 8;
+			dw >>= 8;
+			dw |= v << 24;
+
+			cover += (int8_t)(dw & 0xff);
+			assert(cover >= 0);
+			v = cover * 256 / (FAST_SAMPLES_X * FAST_SAMPLES_Y);
+			v -= v >> 8;
+			dw >>= 8;
+			dw |= v << 24;
+
+			cover += (int8_t)(dw & 0xff);
+			assert(cover >= 0);
+			v = cover * 256 / (FAST_SAMPLES_X * FAST_SAMPLES_Y);
+			v -= v >> 8;
+			dw >>= 8;
+			dw |= v << 24;
+		}
+
+		*(uint32_t *)row = dw;
+		row += 4;
+
+		width -= 4;
+	}
+
+	while (width--) {
+		int v;
+
+		cover += *buf++;
+		assert(cover >= 0);
+
+		v = cover * 256 / (FAST_SAMPLES_X * FAST_SAMPLES_Y);
+		v -= v >> 8;
+		*row++ = v;
+	}
+}
+
+#define TOR_INPLACE_SIZE 128
+static void
+tor_inplace(struct tor *converter, PixmapPtr scratch, int mono, uint8_t *buf)
+{
+	int i, j, h = converter->ymax;
+	struct polygon *polygon = converter->polygon;
+	struct active_list *active = converter->active;
+	struct edge *buckets[FAST_SAMPLES_Y] = { 0 };
+	uint8_t *row = scratch->devPrivate.ptr;
+	int stride = scratch->devKind;
+	int width = scratch->drawable.width;
+
+	__DBG(("%s: mono=%d, buf=%d\n", __FUNCTION__, mono, buf));
+	assert(!mono);
+
+	/* Render each pixel row. */
+	for (i = 0; i < h; i = j) {
+		int do_full_step = 0;
+		void *ptr = buf ?: row;
+
+		j = i + 1;
+
+		/* Determine if we can ignore this row or use the full pixel
+		 * stepper. */
+		if (!polygon->y_buckets[i]) {
+			if (active->head.next == &active->tail) {
+				active->min_height = INT_MAX;
+				active->is_vertical = 1;
+				for (; j < h && !polygon->y_buckets[j]; j++)
+					;
+				__DBG(("%s: no new edges and no exisiting edges, skipping, %d -> %d\n",
+				       __FUNCTION__, i, j));
+
+				memset(row, 0, stride*(j-i));
+				row += stride*(j-i);
+				continue;
+			}
+
+			do_full_step = can_full_step(active);
+		}
+
+		__DBG(("%s: y=%d [%d], do_full_step=%d, new edges=%d, min_height=%d, vertical=%d\n",
+		       __FUNCTION__,
+		       i, i+ymin, do_full_step,
+		       polygon->y_buckets[i] != NULL,
+		       active->min_height,
+		       active->is_vertical));
+		if (do_full_step) {
+			memset(ptr, 0, width);
+			inplace_row(active, ptr, width);
+			if (row != ptr)
+				memcpy(row, ptr, width);
+
+			if (active->is_vertical) {
+				while (j < h &&
+				       polygon->y_buckets[j] == NULL &&
+				       active->min_height >= 2*FAST_SAMPLES_Y)
+				{
+					active->min_height -= FAST_SAMPLES_Y;
+					row += stride;
+					memcpy(row, ptr, width);
+					j++;
+				}
+				if (j != i + 1)
+					step_edges(active, j - (i + 1));
+
+				__DBG(("%s: vertical edges, full step (%d, %d)\n",
+				       __FUNCTION__,  i, j));
+			}
+		} else {
+			grid_scaled_y_t suby;
+			int min = width, max = 0;
+
+			fill_buckets(active, polygon->y_buckets[i], buckets);
+
+			/* Subsample this row. */
+			memset(ptr, 0, width);
+			for (suby = 0; suby < FAST_SAMPLES_Y; suby++) {
+				if (buckets[suby]) {
+					merge_edges(active, buckets[suby]);
+					buckets[suby] = NULL;
+				}
+
+				inplace_subrow(active, ptr, width, &min, &max);
+			}
+			memset(row, 0, min);
+			if (max > min)
+				inplace_end_subrows(active, row+min, (int8_t*)ptr+min, max-min);
+			if (max < width)
+				memset(row+max, 0, width-max);
+		}
+
+		active->min_height -= FAST_SAMPLES_Y;
+		row += stride;
+	}
+}
+
 struct mono_edge {
 	struct mono_edge *next, *prev;
 
@@ -1936,7 +2272,7 @@ trapezoids_bounds(int n, const xTrapezoid *t, BoxPtr box)
 		if (((x2 - t->right.p1.x) | (x2 - t->right.p2.x)) < 0) {
 			if (pixman_fixed_floor(t->right.p1.x) == pixman_fixed_floor(t->right.p2.x)) {
 				x2 = pixman_fixed_ceil(t->right.p1.x);
-			} else  {
+			} else {
 				if (t->right.p1.y == t->top)
 					fx1 = t->right.p1.x;
 				else
@@ -3007,7 +3343,6 @@ trapezoid_mask_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 			 int ntrap, xTrapezoid *traps)
 {
 	struct tor tor;
-	span_func_t span;
 	ScreenPtr screen = dst->pDrawable->pScreen;
 	PixmapPtr scratch;
 	PicturePtr mask;
@@ -3041,8 +3376,8 @@ trapezoid_mask_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	if (extents.y1 >= extents.y2 || extents.x1 >= extents.x2)
 		return true;
 
-	DBG(("%s: extents (%d, %d), (%d, %d)\n",
-	     __FUNCTION__, extents.x1, extents.y1, extents.x2, extents.y2));
+	DBG(("%s: ntraps=%d, extents (%d, %d), (%d, %d)\n",
+	     __FUNCTION__, ntrap, extents.x1, extents.y1, extents.x2, extents.y2));
 
 	if (!sna_compute_composite_extents(&extents,
 					   src, NULL, dst,
@@ -3096,15 +3431,18 @@ trapezoid_mask_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 		tor_add_edge(&tor, &t, &t.right, -1);
 	}
 
-	if (maskFormat ? maskFormat->depth < 8 : dst->polyEdge == PolyEdgeSharp)
-		span = tor_blt_mask_mono;
-	else
-		span = tor_blt_mask;
-
-	tor_render(NULL, &tor,
-		   scratch->devPrivate.ptr,
-		   (void *)(intptr_t)scratch->devKind,
-		   span, true);
+	if (extents.x2 <= TOR_INPLACE_SIZE) {
+		uint8_t buf[TOR_INPLACE_SIZE];
+		tor_inplace(&tor, scratch, is_mono(dst, maskFormat),
+			    scratch->usage_hint ? NULL : buf);
+	} else {
+		tor_render(NULL, &tor,
+			   scratch->devPrivate.ptr,
+			   (void *)(intptr_t)scratch->devKind,
+			   is_mono(dst, maskFormat) ? tor_blt_mask_mono : tor_blt_mask,
+			   true);
+	}
+	tor_fini(&tor);
 
 	mask = CreatePicture(0, &scratch->drawable,
 			     PictureMatchFormat(screen, 8, PICT_a8),
@@ -3119,7 +3457,6 @@ trapezoid_mask_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 				 extents.x2, extents.y2);
 		FreePicture(mask, 0);
 	}
-	tor_fini(&tor);
 
 	return true;
 }
@@ -3535,7 +3872,6 @@ trapezoid_span_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 			int ntrap, xTrapezoid *traps)
 {
 	struct tor tor;
-	span_func_t span;
 	ScreenPtr screen = dst->pDrawable->pScreen;
 	PixmapPtr scratch;
 	PicturePtr mask;
@@ -3569,8 +3905,8 @@ trapezoid_span_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 	if (extents.y1 >= extents.y2 || extents.x1 >= extents.x2)
 		return true;
 
-	DBG(("%s: extents (%d, %d), (%d, %d)\n",
-	     __FUNCTION__, extents.x1, extents.y1, extents.x2, extents.y2));
+	DBG(("%s: ntraps=%d, extents (%d, %d), (%d, %d)\n",
+	     __FUNCTION__, ntrap, extents.x1, extents.y1, extents.x2, extents.y2));
 
 	if (!sna_compute_composite_extents(&extents,
 					   src, NULL, dst,
@@ -3624,15 +3960,16 @@ trapezoid_span_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 		tor_add_edge(&tor, &t, &t.right, -1);
 	}
 
-	if (maskFormat ? maskFormat->depth < 8 : dst->polyEdge == PolyEdgeSharp)
-		span = tor_blt_mask_mono;
-	else
-		span = tor_blt_mask;
-
-	tor_render(NULL, &tor,
-		   scratch->devPrivate.ptr,
-		   (void *)(intptr_t)scratch->devKind,
-		   span, true);
+	if (extents.x2 <= TOR_INPLACE_SIZE) {
+		tor_inplace(&tor, scratch, is_mono(dst, maskFormat), NULL);
+	} else {
+		tor_render(NULL, &tor,
+			   scratch->devPrivate.ptr,
+			   (void *)(intptr_t)scratch->devKind,
+			   is_mono(dst, maskFormat) ? tor_blt_mask_mono : tor_blt_mask,
+			   true);
+	}
+	tor_fini(&tor);
 
 	mask = CreatePicture(0, &scratch->drawable,
 			     PictureMatchFormat(screen, 8, PICT_a8),
@@ -3675,7 +4012,6 @@ trapezoid_span_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 done:
 		FreePicture(mask, 0);
 	}
-	tor_fini(&tor);
 
 	return true;
 }

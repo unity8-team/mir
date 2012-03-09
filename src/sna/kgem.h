@@ -503,6 +503,7 @@ struct kgem_bo *kgem_create_buffer_2d(struct kgem *kgem,
 				      int width, int height, int bpp,
 				      uint32_t flags,
 				      void **ret);
+bool kgem_buffer_is_inplace(struct kgem_bo *bo);
 void kgem_buffer_read_sync(struct kgem *kgem, struct kgem_bo *bo);
 
 void kgem_bo_clear_scanout(struct kgem *kgem, struct kgem_bo *bo);
