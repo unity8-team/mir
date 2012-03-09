@@ -1074,6 +1074,10 @@ void sna_init_scrn(ScrnInfoPtr scrn, int entity_num)
 	xf86DrvMsg(scrn->scrnIndex, X_INFO,
 		   "SNA compiled: %s\n", BUILDER_DESCRIPTION);
 #endif
+#if HAVE_EXTRA_DEBUG
+	xf86DrvMsg(scrn->scrnIndex, X_INFO,
+		   "SNA compiled with debugging enabled\n");
+#endif
 
 	DBG(("%s\n", __FUNCTION__));
 	DBG(("pixman version: %s\n", pixman_version_string()));
