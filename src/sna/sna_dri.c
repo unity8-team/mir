@@ -1053,7 +1053,8 @@ static void sna_dri_flip_event(struct sna *sna,
 				      flip->drawable_id,
 				      serverClient,
 				      M_ANY, DixWriteAccess) == Success) {
-			if (!sna_dri_flip_continue(sna, drawable, flip)) {
+			if (can_flip(sna, drawable, flip->front, flip->back) &&
+			    !sna_dri_flip_continue(sna, drawable, flip)) {
 				DRI2SwapComplete(flip->client, drawable,
 						 0, 0, 0,
 						 DRI2_BLIT_COMPLETE,
