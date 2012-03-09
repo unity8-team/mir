@@ -483,15 +483,6 @@ cell_list_rewind(struct cell_list *cells)
 	cells->cursor = &cells->head;
 }
 
-/* Rewind the cell list if its cursor has been advanced past x. */
-inline static void
-cell_list_maybe_rewind(struct cell_list *cells, int x)
-{
-	struct cell *tail = cells->cursor;
-	if (tail->x > x)
-		cell_list_rewind (cells);
-}
-
 static void
 cell_list_init(struct cell_list *cells)
 {
