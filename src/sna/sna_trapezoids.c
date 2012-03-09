@@ -3354,8 +3354,10 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 	struct inplace inplace;
 	span_func_t span;
 	PixmapPtr pixmap;
+	struct sna_pixmap *priv;
 	RegionRec region;
 	uint32_t color;
+	bool unbounded;
 	int16_t dst_x, dst_y;
 	int dx, dy;
 	int n;
@@ -3380,18 +3382,33 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 		return false;
 	}
 
+	pixmap = get_drawable_pixmap(dst->pDrawable);
+	priv = sna_pixmap(pixmap);
+	if (priv == NULL) {
+		DBG(("%s: fallback -- unattached\n", __FUNCTION__));
+		return false;
+	}
+
+	unbounded = false;
 	switch (op) {
 	case PictOpIn:
+		unbounded = true;
+		if (priv->clear && priv->clear_color == 0xff)
+			op = PictOpSrc;
+		break;
 	case PictOpAdd:
+		if (priv->clear && priv->clear_color == 0)
+			op = PictOpSrc;
+		break;
 	case PictOpSrc:
-		if (!fallback && is_gpu(dst->pDrawable))
-			return false;
 		break;
 	default:
 		DBG(("%s: fallback -- can not perform op [%d] in place\n",
 		     __FUNCTION__, op));
 		return false;
 	}
+	if (!fallback && is_gpu(dst->pDrawable))
+		return false;
 
 	DBG(("%s: format=%x, op=%d, color=%x\n",
 	     __FUNCTION__, dst->format, op, color));
@@ -3497,7 +3514,6 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 					     op == PictOpSrc ? MOVE_WRITE : MOVE_WRITE | MOVE_READ))
 		return true;
 
-	pixmap = get_drawable_pixmap(dst->pDrawable);
 	get_drawable_deltas(dst->pDrawable, pixmap, &dst_x, &dst_y);
 
 	inplace.ptr = pixmap->devPrivate.ptr;
@@ -3506,7 +3522,7 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 	inplace.opacity = color >> 24;
 
 	tor_render(NULL, &tor, (void*)&inplace,
-		   dst->pCompositeClip, span, op == PictOpIn);
+		   dst->pCompositeClip, span, unbounded);
 
 	tor_fini(&tor);
 
