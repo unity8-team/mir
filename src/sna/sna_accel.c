@@ -1257,13 +1257,6 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 		return _sna_pixmap_move_to_cpu(pixmap, flags);
 	}
 
-	if (priv->clear) {
-		DBG(("%s: pending clear, moving whole pixmap\n", __FUNCTION__));
-		if (dx | dy)
-			RegionTranslate(region, -dx, -dy);
-		return _sna_pixmap_move_to_cpu(pixmap, flags | MOVE_READ);
-	}
-
 	if ((flags & MOVE_READ) == 0) {
 		DBG(("%s: no read, checking to see if we can stream the write into the GPU bo\n",
 		     __FUNCTION__));
@@ -1295,6 +1288,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 					sna_damage_add(&priv->gpu_damage,
 						       region);
 
+				priv->clear = false;
 				return true;
 			}
 		}
@@ -1333,6 +1327,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 			} else
 				sna_damage_add(&priv->gpu_damage, region);
 
+			priv->clear = false;
 			return true;
 		}
 	}
@@ -1354,10 +1349,18 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 			pixmap->devKind = priv->gpu_bo->pitch;
 			if (!DAMAGE_IS_ALL(priv->gpu_damage))
 				sna_damage_add(&priv->gpu_damage, region);
+			priv->clear = false;
 			return true;
 		}
 
 		priv->mapped = false;
+	}
+
+	if (priv->clear && flags & MOVE_WRITE) {
+		DBG(("%s: pending clear, moving whole pixmap for partial write\n", __FUNCTION__));
+		if (dx | dy)
+			RegionTranslate(region, -dx, -dy);
+		return _sna_pixmap_move_to_cpu(pixmap, flags | MOVE_READ);
 	}
 
 	if (priv->mapped) {
@@ -1371,6 +1374,35 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 
 	if (priv->gpu_bo == NULL)
 		goto done;
+
+	if (priv->clear) {
+		int n = REGION_NUM_RECTS(region);
+		BoxPtr box = REGION_RECTS(region);
+
+		DBG(("%s: pending clear, doing partial fill\n", __FUNCTION__));
+		if (priv->cpu_bo) {
+			DBG(("%s: syncing CPU bo\n", __FUNCTION__));
+			kgem_bo_sync__cpu(&sna->kgem, priv->cpu_bo);
+		}
+
+		do {
+			pixman_fill(pixmap->devPrivate.ptr,
+				    pixmap->devKind/sizeof(uint32_t),
+				    pixmap->drawable.bitsPerPixel,
+				    box->x1, box->y1,
+				    box->x2 - box->x1,
+				    box->y2 - box->y1,
+				    priv->clear_color);
+			box++;
+		} while (--n);
+
+		if (region->extents.x2 - region->extents.x1 > 1 ||
+		    region->extents.y2 - region->extents.y1 > 1) {
+			sna_damage_subtract(&priv->gpu_damage, region);
+			priv->clear = false;
+		}
+		goto done;
+	}
 
 	if ((flags & MOVE_READ) == 0) {
 		assert(flags & MOVE_WRITE);
