@@ -3681,6 +3681,262 @@ tor_blt_add_clipped_mono(struct sna *sna,
 		tor_blt_add_clipped(sna, op, clip, box, FAST_SAMPLES_XY);
 }
 
+struct mono_inplace_composite {
+	pixman_image_t *src, *dst;
+	int dx, dy;
+	int sx, sy;
+	int op;
+};
+struct mono_inplace_fill {
+	uint32_t *data, stride;
+	uint32_t color;
+	int bpp;
+};
+
+fastcall static void
+mono_inplace_fill_box(struct sna *sna,
+		      const struct sna_composite_op *op,
+		      const BoxRec *box)
+{
+	struct mono_inplace_fill *fill = op->priv;
+
+	DBG(("(%s: (%d, %d)x(%d, %d):%08x\n",
+	     __FUNCTION__,
+	     box->x1, box->y1,
+	     box->x2 - box->x1,
+	     box->y2 - box->y1,
+	     fill->color));
+	pixman_fill(fill->data, fill->stride, fill->bpp,
+		    box->x1, box->y1,
+		    box->x2 - box->x1,
+		    box->y2 - box->y1,
+		    fill->color);
+}
+
+static void
+mono_inplace_fill_boxes(struct sna *sna,
+			const struct sna_composite_op *op,
+			const BoxRec *box, int nbox)
+{
+	struct mono_inplace_fill *fill = op->priv;
+
+	do {
+		DBG(("(%s: (%d, %d)x(%d, %d):%08x\n",
+		     __FUNCTION__,
+		     box->x1, box->y1,
+		     box->x2 - box->x1,
+		     box->y2 - box->y1,
+		     fill->color));
+		pixman_fill(fill->data, fill->stride, fill->bpp,
+			    box->x1, box->y1,
+			    box->x2 - box->x1,
+			    box->y2 - box->y1,
+			    fill->color);
+		box++;
+	} while (--nbox);
+}
+
+fastcall static void
+mono_inplace_composite_box(struct sna *sna,
+			   const struct sna_composite_op *op,
+			   const BoxRec *box)
+{
+	struct mono_inplace_composite *c = op->priv;
+
+	pixman_image_composite(c->op, c->src, NULL, c->dst,
+			       box->x1 + c->sx, box->y1 + c->sy,
+			       0, 0,
+			       box->x1 + c->dx, box->y1 + c->dy,
+			       box->x2 - box->x1,
+			       box->y2 - box->y1);
+}
+
+static void
+mono_inplace_composite_boxes(struct sna *sna,
+			     const struct sna_composite_op *op,
+			     const BoxRec *box, int nbox)
+{
+	struct mono_inplace_composite *c = op->priv;
+
+	do {
+		pixman_image_composite(c->op, c->src, NULL, c->dst,
+				       box->x1 + c->sx, box->y1 + c->sy,
+				       0, 0,
+				       box->x1 + c->dx, box->y1 + c->dy,
+				       box->x2 - box->x1,
+				       box->y2 - box->y1);
+		box++;
+	} while (--nbox);
+}
+
+static bool
+trapezoid_span_mono_inplace(CARD8 op,
+			    PicturePtr src,
+			    PicturePtr dst,
+			    INT16 src_x, INT16 src_y,
+			    int ntrap, xTrapezoid *traps)
+{
+	struct mono mono;
+	union {
+		struct mono_inplace_fill fill;
+		struct mono_inplace_composite composite;
+	} inplace;
+	int was_clear;
+	int x, y, n;
+
+	trapezoids_bounds(ntrap, traps, &mono.clip.extents);
+	if (mono.clip.extents.y1 >= mono.clip.extents.y2 ||
+	    mono.clip.extents.x1 >= mono.clip.extents.x2)
+		return true;
+
+	DBG(("%s: extents (%d, %d), (%d, %d)\n",
+	     __FUNCTION__,
+	     mono.clip.extents.x1, mono.clip.extents.y1,
+	     mono.clip.extents.x2, mono.clip.extents.y2));
+
+	if (!sna_compute_composite_region(&mono.clip,
+					  src, NULL, dst,
+					  src_x, src_y,
+					  0, 0,
+					  mono.clip.extents.x1, mono.clip.extents.y1,
+					  mono.clip.extents.x2 - mono.clip.extents.x1,
+					  mono.clip.extents.y2 - mono.clip.extents.y1)) {
+		DBG(("%s: trapezoids do not intersect drawable clips\n",
+		     __FUNCTION__)) ;
+		return true;
+	}
+
+	DBG(("%s: clipped extents (%d, %d), (%d, %d)\n",
+	     __FUNCTION__,
+	     mono.clip.extents.x1, mono.clip.extents.y1,
+	     mono.clip.extents.x2, mono.clip.extents.y2));
+
+	was_clear = sna_drawable_is_clear(dst->pDrawable);
+	if (!sna_drawable_move_region_to_cpu(dst->pDrawable, &mono.clip,
+					     MOVE_WRITE | MOVE_READ))
+		return true;
+
+	mono.sna = to_sna_from_drawable(dst->pDrawable);
+	if (!mono_init(&mono, 2*ntrap))
+		return false;
+
+	mono.op.damage = NULL;
+
+	x = dst->pDrawable->x;
+	y = dst->pDrawable->y;
+
+	for (n = 0; n < ntrap; n++) {
+		if (!xTrapezoidValid(&traps[n]))
+			continue;
+
+		if (pixman_fixed_to_int(traps[n].top) + y >= mono.clip.extents.y2 ||
+		    pixman_fixed_to_int(traps[n].bottom) + y < mono.clip.extents.y1)
+			continue;
+
+		mono_add_line(&mono, x, y,
+			      traps[n].top, traps[n].bottom,
+			      &traps[n].left.p1, &traps[n].left.p2, 1);
+		mono_add_line(&mono, x, y,
+			      traps[n].top, traps[n].bottom,
+			      &traps[n].right.p1, &traps[n].right.p2, -1);
+	}
+
+	if (sna_picture_is_solid(src, &inplace.fill.color) &&
+	    (op == PictOpSrc || op == PictOpClear ||
+	     (op == PictOpOver && inplace.fill.color >> 24 == 0xff))) {
+		PixmapPtr pixmap;
+		int16_t dx, dy;
+		uint8_t *ptr;
+
+unbounded_pass:
+		pixmap = get_drawable_pixmap(dst->pDrawable);
+		get_drawable_deltas(dst->pDrawable, pixmap, &dx, &dy);
+
+		ptr = pixmap->devPrivate.ptr;
+		ptr += dy * pixmap->devKind + dx * pixmap->drawable.bitsPerPixel / 8;
+		inplace.fill.data = (uint32_t *)ptr;
+		inplace.fill.stride = pixmap->devKind / sizeof(uint32_t);
+		inplace.fill.bpp = pixmap->drawable.bitsPerPixel;
+
+		if (op == PictOpClear)
+			inplace.fill.color = 0;
+		else if (dst->format != PICT_a8r8g8b8)
+			inplace.fill.color = sna_rgba_to_color(inplace.fill.color, dst->format);
+
+		DBG(("%s: fill %x\n", __FUNCTION__, inplace.fill.color));
+
+		mono.op.priv = &inplace.fill;
+		mono.op.box = mono_inplace_fill_box;
+		mono.op.boxes = mono_inplace_fill_boxes;
+
+		op = 0;
+	} else {
+		inplace.composite.dst = image_from_pict(dst, FALSE,
+							&inplace.composite.dx,
+							&inplace.composite.dy);
+		inplace.composite.src = image_from_pict(src, FALSE,
+							&inplace.composite.sx,
+							&inplace.composite.sy);
+		inplace.composite.sx +=
+			src_x - pixman_fixed_to_int(traps[0].left.p1.x),
+		inplace.composite.sy +=
+			src_y - pixman_fixed_to_int(traps[0].left.p1.y),
+		inplace.composite.op = op;
+
+		mono.op.priv = &inplace.composite;
+		mono.op.box = mono_inplace_composite_box;
+		mono.op.boxes = mono_inplace_composite_boxes;
+	}
+	mono_render(&mono);
+	mono_fini(&mono);
+
+	if (op) {
+		free_pixman_pict(src, inplace.composite.src);
+		free_pixman_pict(dst, inplace.composite.dst);
+
+		if (!was_clear && !operator_is_bounded(op)) {
+			xPointFixed p1, p2;
+
+			DBG(("%s: unbounded fixup\n", __FUNCTION__));
+
+			if (!mono_init(&mono, 2+2*ntrap))
+				return false;
+
+			p1.y = mono.clip.extents.y1 * pixman_fixed_1;
+			p2.y = mono.clip.extents.y2 * pixman_fixed_1;
+
+			p1.x = mono.clip.extents.x1 * pixman_fixed_1;
+			p2.x = mono.clip.extents.x1 * pixman_fixed_1;
+			mono_add_line(&mono, 0, 0, p1.y, p2.y, &p1, &p2, -1);
+
+			p1.x = mono.clip.extents.x2 * pixman_fixed_1;
+			p2.x = mono.clip.extents.x2 * pixman_fixed_1;
+			mono_add_line(&mono, 0, 0, p1.y, p2.y, &p1, &p2, 1);
+
+			for (n = 0; n < ntrap; n++) {
+				if (!xTrapezoidValid(&traps[n]))
+					continue;
+
+				if (pixman_fixed_to_int(traps[n].top) + x >= mono.clip.extents.y2 ||
+				    pixman_fixed_to_int(traps[n].bottom) + y < mono.clip.extents.y1)
+					continue;
+
+				mono_add_line(&mono, x, y,
+					      traps[n].top, traps[n].bottom,
+					      &traps[n].left.p1, &traps[n].left.p2, 1);
+				mono_add_line(&mono, x, y,
+					      traps[n].top, traps[n].bottom,
+					      &traps[n].right.p1, &traps[n].right.p2, -1);
+			}
+
+			op = PictOpClear;
+			goto unbounded_pass;
+		}
+	}
+
+	return true;
+}
+
 static bool
 trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 		       PictFormatPtr maskFormat, INT16 src_x, INT16 src_y,
@@ -3713,7 +3969,24 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 		return false;
 	}
 
-	if (dst->format != PICT_a8 || !sna_picture_is_solid(src, &color)) {
+	if (!fallback && is_gpu(dst->pDrawable)) {
+		DBG(("%s: fallback -- can not perform operation in place, destination busy\n",
+		     __FUNCTION__));
+
+		return false;
+	}
+
+	if (is_mono(dst, maskFormat))
+		return trapezoid_span_mono_inplace(op, src, dst,
+						   src_x, src_y, ntrap, traps);
+
+	if (!sna_picture_is_solid(src, &color)) {
+		DBG(("%s: fallback -- can not perform operation in place, requires solid source\n",
+		     __FUNCTION__));
+		return false;
+	}
+
+	if (dst->format != PICT_a8) {
 		DBG(("%s: fallback -- can not perform operation in place, format=%x\n",
 		     __FUNCTION__, dst->format));
 		return false;
@@ -3744,8 +4017,6 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 		     __FUNCTION__, op));
 		return false;
 	}
-	if (!fallback && is_gpu(dst->pDrawable))
-		return false;
 
 	DBG(("%s: format=%x, op=%d, color=%x\n",
 	     __FUNCTION__, dst->format, op, color));

@@ -631,6 +631,12 @@ sna_rgba_for_color(uint32_t color, int depth)
 	return color_convert(color, sna_format_for_depth(depth), PICT_a8r8g8b8);
 }
 
+uint32_t
+sna_rgba_to_color(uint32_t rgba, uint32_t format)
+{
+	return color_convert(rgba, PICT_a8r8g8b8, format);
+}
+
 static uint32_t
 get_pixel(PicturePtr picture)
 {
