@@ -118,6 +118,7 @@ static bool sna_blt_fill_init(struct sna *sna,
 {
 	struct kgem *kgem = &sna->kgem;
 
+	assert(kgem_bo_can_blt (kgem, bo));
 	assert(bo->tiling != I915_TILING_Y);
 	blt->bo[0] = bo;
 
@@ -127,7 +128,7 @@ static bool sna_blt_fill_init(struct sna *sna,
 		blt->cmd |= BLT_DST_TILED;
 		blt->br13 >>= 2;
 	}
-	assert(blt->br13 < MAXSHORT);
+	assert(blt->br13 <= MAXSHORT);
 
 	if (alu == GXclear)
 		pixel = 0;
@@ -258,6 +259,9 @@ static Bool sna_blt_copy_init(struct sna *sna,
 {
 	struct kgem *kgem = &sna->kgem;
 
+	assert(kgem_bo_can_blt (kgem, src));
+	assert(kgem_bo_can_blt (kgem, dst));
+
 	blt->bo[0] = src;
 	blt->bo[1] = dst;
 
@@ -270,14 +274,14 @@ static Bool sna_blt_copy_init(struct sna *sna,
 		blt->cmd |= BLT_SRC_TILED;
 		blt->pitch[0] >>= 2;
 	}
-	assert(blt->pitch[0] < MAXSHORT);
+	assert(blt->pitch[0] <= MAXSHORT);
 
 	blt->pitch[1] = dst->pitch;
 	if (kgem->gen >= 40 && dst->tiling) {
 		blt->cmd |= BLT_DST_TILED;
 		blt->pitch[1] >>= 2;
 	}
-	assert(blt->pitch[1] < MAXSHORT);
+	assert(blt->pitch[1] <= MAXSHORT);
 
 	blt->overwrites = alu == GXcopy || alu == GXclear || alu == GXset;
 	blt->br13 = (copy_ROP[alu] << 16) | blt->pitch[1];
@@ -308,6 +312,9 @@ static Bool sna_blt_alpha_fixup_init(struct sna *sna,
 {
 	struct kgem *kgem = &sna->kgem;
 
+	assert(kgem_bo_can_blt (kgem, src));
+	assert(kgem_bo_can_blt (kgem, dst));
+
 	blt->bo[0] = src;
 	blt->bo[1] = dst;
 
@@ -317,14 +324,14 @@ static Bool sna_blt_alpha_fixup_init(struct sna *sna,
 		blt->cmd |= BLT_SRC_TILED;
 		blt->pitch[0] >>= 2;
 	}
-	assert(blt->pitch[0] < MAXSHORT);
+	assert(blt->pitch[0] <= MAXSHORT);
 
 	blt->pitch[1] = dst->pitch;
 	if (kgem->gen >= 40 && dst->tiling) {
 		blt->cmd |= BLT_DST_TILED;
 		blt->pitch[1] >>= 2;
 	}
-	assert(blt->pitch[1] < MAXSHORT);
+	assert(blt->pitch[1] <= MAXSHORT);
 
 	blt->overwrites = 1;
 	blt->br13 = (0xfc << 16) | blt->pitch[1];
@@ -1829,6 +1836,8 @@ static bool sna_blt_fill_box(struct sna *sna, uint8_t alu,
 	uint32_t br13, cmd, *b;
 	bool overwrites;
 
+	assert(kgem_bo_can_blt (kgem, bo));
+
 	DBG(("%s: box=((%d, %d), (%d, %d))\n", __FUNCTION__,
 	     box->x1, box->y1, box->x2, box->y2));
 
@@ -1841,7 +1850,7 @@ static bool sna_blt_fill_box(struct sna *sna, uint8_t alu,
 		cmd |= BLT_DST_TILED;
 		br13 >>= 2;
 	}
-	assert(br13 < MAXSHORT);
+	assert(br13 <= MAXSHORT);
 
 	br13 |= fill_ROP[alu] << 16;
 	switch (bpp) {
@@ -1954,7 +1963,7 @@ Bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
 		cmd |= 1 << 11;
 		br13 >>= 2;
 	}
-	assert(br13 < MAXSHORT);
+	assert(br13 <= MAXSHORT);
 
 	br13 |= 1<<31 | fill_ROP[alu] << 16;
 	switch (bpp) {
@@ -2105,7 +2114,7 @@ Bool sna_blt_copy_boxes(struct sna *sna, uint8_t alu,
 		cmd |= BLT_DST_TILED;
 		br13 >>= 2;
 	}
-	assert(br13 < MAXSHORT);
+	assert(br13 <= MAXSHORT);
 
 	br13 |= copy_ROP[alu] << 16;
 	switch (bpp) {
