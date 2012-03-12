@@ -591,21 +591,15 @@ sna_render_pixmap_bo(struct sna *sna,
 	if (bo) {
 		bo = kgem_bo_reference(bo);
 	} else {
-		if (texture_is_cpu(pixmap, &box) && !move_to_gpu(pixmap, &box)) {
+		if (!texture_is_cpu(pixmap, &box) || move_to_gpu(pixmap, &box)) {
+			priv = sna_pixmap_force_to_gpu(pixmap, MOVE_READ);
+			if (priv)
+				bo = kgem_bo_reference(priv->gpu_bo);
+		}
+		if (bo == NULL) {
 			DBG(("%s: uploading CPU box (%d, %d), (%d, %d)\n",
 			     __FUNCTION__, box.x1, box.y1, box.x2, box.y2));
 			bo = upload(sna, channel, pixmap, &box);
-		}
-
-		if (bo == NULL) {
-			priv = sna_pixmap_move_to_gpu(pixmap, MOVE_READ);
-			if (priv) {
-				bo = kgem_bo_reference(priv->gpu_bo);
-			} else {
-				DBG(("%s: failed to upload pixmap to gpu, uploading CPU box (%d, %d), (%d, %d) instead\n",
-				     __FUNCTION__, box.x1, box.y1, box.x2, box.y2));
-				bo = upload(sna, channel, pixmap, &box);
-			}
 		}
 	}
 
@@ -1148,7 +1142,7 @@ sna_render_picture_extract(struct sna *sna,
 		    move_to_gpu(pixmap, &box)) {
 			struct sna_pixmap *priv;
 
-			priv = sna_pixmap_move_to_gpu(pixmap, MOVE_READ);
+			priv = sna_pixmap_force_to_gpu(pixmap, MOVE_READ);
 			if (priv) {
 				src_bo = priv->gpu_bo;
 				upload = false;
