@@ -1520,37 +1520,40 @@ inplace_subrow(struct active_list *active, int8_t *row,
 
 		winding += edge->dir;
 		if (0 == winding) {
-			if (edge->x.quo >= FAST_SAMPLES_X * width) {
-				*max = width;
-			} else if (edge->next->x.quo != edge->x.quo) {
-				grid_scaled_x_t fx;
-				int ix;
+			if (edge->next->x.quo != edge->x.quo) {
+				if (edge->x.quo <= xstart) {
+					xstart = INT_MIN;
+				} else  {
+					grid_scaled_x_t fx;
+					int ix;
 
-				xstart = edge->x.quo;
-				FAST_SAMPLES_X_TO_INT_FRAC(xstart, ix, fx);
-				row[ix++] -= FAST_SAMPLES_X - fx;
-				if (ix < width)
-					row[ix] -= fx;
+					if (xstart < FAST_SAMPLES_X * width) {
+						FAST_SAMPLES_X_TO_INT_FRAC(xstart, ix, fx);
+						if (ix < *min)
+							*min = ix;
 
-				if (ix > *max)
-					*max = ix;
+						row[ix++] += FAST_SAMPLES_X - fx;
+						if (ix < width)
+							row[ix] += fx;
+					}
 
-				xstart = INT_MIN;
+					xstart = edge->x.quo;
+					if (xstart < FAST_SAMPLES_X * width) {
+						FAST_SAMPLES_X_TO_INT_FRAC(xstart, ix, fx);
+						row[ix++] -= FAST_SAMPLES_X - fx;
+						if (ix < width)
+							row[ix] -= fx;
+
+						if (ix > *max)
+							*max = ix;
+
+						xstart = INT_MIN;
+					} else
+						*max = width;
+				}
 			}
 		} else if (xstart < 0) {
 			xstart = MAX(edge->x.quo, 0);
-			if (xstart < FAST_SAMPLES_X * width) {
-				grid_scaled_x_t fx;
-				int ix;
-
-				FAST_SAMPLES_X_TO_INT_FRAC(xstart, ix, fx);
-				if (ix < *min)
-					*min = ix;
-
-				row[ix++] += FAST_SAMPLES_X - fx;
-				if (ix < width)
-					row[ix] += fx;
-			}
 		}
 
 		if (--edge->height_left) {
