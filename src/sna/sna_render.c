@@ -393,10 +393,10 @@ move_to_gpu(PixmapPtr pixmap, const BoxRec *box)
 				       pixmap->drawable.bitsPerPixel) == I915_TILING_NONE)
 			upload = priv->source_count++ > SOURCE_BIAS;
 
-		DBG(("%s: migrating whole pixmap (%dx%d) for source (%d,%d),(%d,%d)? %d\n",
+		DBG(("%s: migrating whole pixmap (%dx%d) for source (%d,%d),(%d,%d), count %d? %d\n",
 		     __FUNCTION__,
 		     pixmap->drawable.width, pixmap->drawable.height,
-		     box->x1, box->y1, box->x2, box->y2,
+		     box->x1, box->y1, box->x2, box->y2, priv->source_count,
 		     upload));
 		return upload;
 	}

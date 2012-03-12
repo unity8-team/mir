@@ -1061,11 +1061,12 @@ skip_inplace_map:
 
 		if (priv->flush)
 			list_move(&priv->list, &sna->dirty_pixmaps);
-
-		priv->source_count = SOURCE_BIAS;
 	}
 
 done:
+	if (flags & MOVE_WRITE)
+		priv->source_count = SOURCE_BIAS;
+
 	if ((flags & MOVE_ASYNC_HINT) == 0 && priv->cpu_bo) {
 		DBG(("%s: syncing CPU bo\n", __FUNCTION__));
 		kgem_bo_sync__cpu(&sna->kgem, priv->cpu_bo);
@@ -1580,6 +1581,8 @@ done:
 		RegionTranslate(region, -dx, -dy);
 
 out:
+	if (flags & MOVE_WRITE)
+		priv->source_count = SOURCE_BIAS;
 	if (priv->cpu_bo) {
 		DBG(("%s: syncing cpu bo\n", __FUNCTION__));
 		kgem_bo_sync__cpu(&sna->kgem, priv->cpu_bo);
