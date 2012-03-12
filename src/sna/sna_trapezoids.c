@@ -3849,6 +3849,7 @@ trapezoid_span_mono_inplace(CARD8 op,
 
 	if (sna_picture_is_solid(src, &inplace.fill.color) &&
 	    (op == PictOpSrc || op == PictOpClear ||
+	     (was_clear && (op == PictOpOver || op == PictOpAdd)) ||
 	     (op == PictOpOver && inplace.fill.color >> 24 == 0xff))) {
 		PixmapPtr pixmap;
 		int16_t dx, dy;
