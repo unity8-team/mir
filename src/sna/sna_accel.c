@@ -395,13 +395,6 @@ static inline uint32_t default_tiling(PixmapPtr pixmap)
 	if (sna->kgem.gen == 21)
 		return I915_TILING_X;
 
-	if (pixmap->usage_hint == CREATE_PIXMAP_USAGE_BACKING_PIXMAP) {
-		/* Treat this like a window, and require accelerated
-		 * scrolling i.e. overlapped blits.
-		 */
-		return I915_TILING_X;
-	}
-
 	if (sna_damage_is_all(&priv->cpu_damage,
 			      pixmap->drawable.width,
 			      pixmap->drawable.height)) {
@@ -765,6 +758,8 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 
 	if (usage == CREATE_PIXMAP_USAGE_GLYPH_PICTURE)
 		flags &= ~KGEM_CAN_CREATE_GPU;
+	if (usage == CREATE_PIXMAP_USAGE_BACKING_PIXMAP)
+		usage = 0;
 
 force_create:
 	pad = PixmapBytePad(width, depth);
