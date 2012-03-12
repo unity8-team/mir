@@ -634,8 +634,10 @@ sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	     sna_mode->fb_pixmap,
 	     sna->front->drawable.serialNumber));
 
-	if (sna_mode->fb_pixmap != sna->front->drawable.serialNumber)
+	if (sna_mode->fb_pixmap != sna->front->drawable.serialNumber) {
+		kgem_submit(&sna->kgem);
 		sna_mode_remove_fb(sna);
+	}
 
 	if (sna_mode->fb_id == 0) {
 		struct kgem_bo *bo = sna_pixmap_pin(sna->front);
@@ -676,8 +678,6 @@ sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	crtc->x = x;
 	crtc->y = y;
 	crtc->rotation = rotation;
-
-	kgem_submit(&sna->kgem);
 
 	mode_to_kmode(&sna_crtc->kmode, mode);
 	if (!sna_crtc_apply(crtc)) {
