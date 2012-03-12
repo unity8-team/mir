@@ -1538,16 +1538,19 @@ inplace_subrow(struct active_list *active, int8_t *row,
 				xstart = INT_MIN;
 			}
 		} else if (xstart < 0) {
-			grid_scaled_x_t fx;
-			int ix;
-
 			xstart = MAX(edge->x.quo, 0);
-			FAST_SAMPLES_X_TO_INT_FRAC(xstart, ix, fx);
-			if (ix < *min)
-				*min = ix;
+			if (xstart < FAST_SAMPLES_X * width) {
+				grid_scaled_x_t fx;
+				int ix;
 
-			row[ix++] += FAST_SAMPLES_X - fx;
-			row[ix] += fx;
+				FAST_SAMPLES_X_TO_INT_FRAC(xstart, ix, fx);
+				if (ix < *min)
+					*min = ix;
+
+				row[ix++] += FAST_SAMPLES_X - fx;
+				if (ix < width)
+					row[ix] += fx;
+			}
 		}
 
 		if (--edge->height_left) {
