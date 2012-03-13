@@ -354,122 +354,88 @@ use_cpu_bo(struct sna *sna, PixmapPtr pixmap, const BoxRec *box)
 	return priv->cpu_bo;
 }
 
-static Bool
+static struct kgem_bo *
 move_to_gpu(PixmapPtr pixmap, const BoxRec *box)
 {
 	struct sna_pixmap *priv;
 	int count, w, h;
+	bool migrate = false;
 
 	if (DBG_FORCE_UPLOAD > 0)
-		return FALSE;
+		return NULL;
+
+	priv = sna_pixmap(pixmap);
+	if (priv == NULL) {
+		DBG(("%s: not migrating unattached pixmap\n",
+		     __FUNCTION__));
+		return NULL;
+	}
+
+	if (priv->gpu_bo) {
+		if (priv->cpu_damage &&
+		    sna_damage_contains_box(priv->cpu_damage,
+					    box) != PIXMAN_REGION_OUT) {
+			if (!sna_pixmap_move_to_gpu(pixmap, MOVE_READ))
+				return NULL;
+		}
+
+		return priv->gpu_bo;
+	}
 
 	if (pixmap->usage_hint) {
 		DBG(("%s: not migrating pixmap due to usage_hint=%d\n",
 		     __FUNCTION__, pixmap->usage_hint));
-		return FALSE;
+		return NULL;
 	}
 
 	if (DBG_FORCE_UPLOAD < 0)
-		return TRUE;
+		migrate = true;
 
 	w = box->x2 - box->x1;
 	h = box->y2 - box->y1;
 	if (w == pixmap->drawable.width && h == pixmap->drawable.height) {
-		bool upload;
-
-		priv = sna_pixmap(pixmap);
-		if (!priv) {
-			DBG(("%s: not migrating unattached pixmap\n",
-			     __FUNCTION__));
-			return false;
-		}
-
-		upload = true;
+		migrate = true;
 		if ((priv->create & KGEM_CAN_CREATE_GPU) == 0 ||
 		    kgem_choose_tiling(&to_sna_from_pixmap(pixmap)->kgem,
 				       I915_TILING_X,
 				       pixmap->drawable.width,
 				       pixmap->drawable.height,
 				       pixmap->drawable.bitsPerPixel) == I915_TILING_NONE)
-			upload = priv->source_count++ > SOURCE_BIAS;
+			migrate = priv->source_count++ > SOURCE_BIAS;
 
 		DBG(("%s: migrating whole pixmap (%dx%d) for source (%d,%d),(%d,%d), count %d? %d\n",
 		     __FUNCTION__,
 		     pixmap->drawable.width, pixmap->drawable.height,
 		     box->x1, box->y1, box->x2, box->y2, priv->source_count,
-		     upload));
-		return upload;
+		     migrate));
+	} else {
+		/* ignore tiny fractions */
+		if (64*w*h > pixmap->drawable.width * pixmap->drawable.height) {
+			count = priv->source_count++;
+			if ((priv->create & KGEM_CAN_CREATE_GPU) == 0 ||
+			    kgem_choose_tiling(&to_sna_from_pixmap(pixmap)->kgem,
+					       I915_TILING_X,
+					       pixmap->drawable.width,
+					       pixmap->drawable.height,
+					       pixmap->drawable.bitsPerPixel) == I915_TILING_NONE)
+				count -= SOURCE_BIAS;
+
+			DBG(("%s: migrate box (%d, %d), (%d, %d)? source count=%d, fraction=%d/%d [%d]\n",
+			     __FUNCTION__,
+			     box->x1, box->y1, box->x2, box->y2,
+			     count, w*h,
+			     pixmap->drawable.width * pixmap->drawable.height,
+			     pixmap->drawable.width * pixmap->drawable.height / (w*h)));
+
+			migrate =  count*w*h > pixmap->drawable.width * pixmap->drawable.height;
+		}
 	}
 
-	/* ignore tiny fractions */
-	if (64*w*h < pixmap->drawable.width * pixmap->drawable.height)
-		return FALSE;
+	if (migrate && !sna_pixmap_force_to_gpu(pixmap, MOVE_READ))
+		return NULL;
 
-	priv = sna_pixmap(pixmap);
-	if (!priv)
-		return FALSE;
-
-	count = priv->source_count++;
-	if ((priv->create & KGEM_CAN_CREATE_GPU) == 0 ||
-	    kgem_choose_tiling(&to_sna_from_pixmap(pixmap)->kgem,
-			       I915_TILING_X,
-			       pixmap->drawable.width,
-			       pixmap->drawable.height,
-			       pixmap->drawable.bitsPerPixel) == I915_TILING_NONE)
-		count -= SOURCE_BIAS;
-
-	DBG(("%s: migrate box (%d, %d), (%d, %d)? source count=%d, fraction=%d/%d [%d]\n",
-	     __FUNCTION__,
-	     box->x1, box->y1, box->x2, box->y2,
-	     count, w*h,
-	     pixmap->drawable.width * pixmap->drawable.height,
-	     pixmap->drawable.width * pixmap->drawable.height / (w*h)));
-
-	return count*w*h > pixmap->drawable.width * pixmap->drawable.height;
+	return priv->gpu_bo;
 }
-
-static Bool
-_texture_is_cpu(PixmapPtr pixmap, const BoxRec *box)
-{
-	struct sna_pixmap *priv = sna_pixmap(pixmap);
-
-	if (priv == NULL)
-		return TRUE;
-
-	if (priv->gpu_bo == NULL)
-		return TRUE;
-
-	if (!priv->cpu_damage)
-		return FALSE;
-
-	if (DAMAGE_IS_ALL(priv->cpu_damage))
-		return TRUE;
-
-	if (sna_damage_contains_box__no_reduce(priv->cpu_damage, box))
-		return TRUE;
-
-	if (sna_damage_contains_box(priv->gpu_damage, box) != PIXMAN_REGION_OUT)
-		return FALSE;
-
-	return sna_damage_contains_box(priv->cpu_damage, box) != PIXMAN_REGION_OUT;
-}
-
-#if DEBUG_RENDER
-static Bool
-texture_is_cpu(PixmapPtr pixmap, const BoxRec *box)
-{
-	Bool ret = _texture_is_cpu(pixmap, box);
-	ErrorF("%s(pixmap=%p, box=((%d, %d), (%d, %d)) = %d\n",
-	       __FUNCTION__, pixmap, box->x1, box->y1, box->x2, box->y2, ret);
-	return ret;
-}
-#else
-static Bool
-texture_is_cpu(PixmapPtr pixmap, const BoxRec *box)
-{
-	return _texture_is_cpu(pixmap, box);
-}
-#endif
 
 static struct kgem_bo *upload(struct sna *sna,
 			      struct sna_composite_channel *channel,
@@ -600,16 +566,13 @@ sna_render_pixmap_bo(struct sna *sna,
 	if (bo) {
 		bo = kgem_bo_reference(bo);
 	} else {
-		if (!texture_is_cpu(pixmap, &box) || move_to_gpu(pixmap, &box)) {
-			priv = sna_pixmap_force_to_gpu(pixmap, MOVE_READ);
-			if (priv)
-				bo = kgem_bo_reference(priv->gpu_bo);
-		}
+		bo = move_to_gpu(pixmap, &box);
 		if (bo == NULL) {
 			DBG(("%s: uploading CPU box (%d, %d), (%d, %d)\n",
 			     __FUNCTION__, box.x1, box.y1, box.x2, box.y2));
 			bo = upload(sna, channel, pixmap, &box);
-		}
+		} else
+			bo = kgem_bo_reference(bo);
 	}
 
 	channel->bo = bo;
@@ -1146,18 +1109,8 @@ sna_render_picture_extract(struct sna *sna,
 		if (!sna_pixmap_move_to_cpu(pixmap, MOVE_READ))
 			return 0;
 	} else {
-		bool upload = true;
-		if (!texture_is_cpu(pixmap, &box) ||
-		    move_to_gpu(pixmap, &box)) {
-			struct sna_pixmap *priv;
-
-			priv = sna_pixmap_force_to_gpu(pixmap, MOVE_READ);
-			if (priv) {
-				src_bo = priv->gpu_bo;
-				upload = false;
-			}
-		}
-		if (upload) {
+		src_bo = move_to_gpu(pixmap, &box);
+		if (src_bo == NULL) {
 			bo = kgem_upload_source_image(&sna->kgem,
 						      pixmap->devPrivate.ptr,
 						      &box,
