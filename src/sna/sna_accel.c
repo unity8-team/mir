@@ -3402,7 +3402,10 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 		dst_priv->clear = false;
 	}
 
-	assert(dst_priv->gpu_bo == NULL || dst_priv->gpu_bo->proxy == NULL);
+	if (dst_priv->gpu_bo && dst_priv->gpu_bo->proxy) {
+		kgem_bo_destroy(&sna->kgem, dst_priv->gpu_bo);
+		dst_priv->gpu_bo = NULL;
+	}
 
 	/* Try to maintain the data on the GPU */
 	if (dst_priv->gpu_bo == NULL &&
