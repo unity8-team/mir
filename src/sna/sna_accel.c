@@ -2236,6 +2236,11 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 	if (priv->cpu_damage == NULL)
 		goto done;
 
+	if (priv->gpu_bo->proxy) {
+		assert((flags & MOVE_WRITE) ==0);
+		goto done;
+	}
+
 	if (priv->mapped) {
 		assert(priv->stride);
 		pixmap->devPrivate.ptr = priv->ptr;
