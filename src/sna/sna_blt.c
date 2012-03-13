@@ -1556,6 +1556,7 @@ sna_blt_composite(struct sna *sna,
 	struct sna_pixmap *priv;
 	int16_t tx, ty;
 	uint32_t alpha_fixup;
+	bool was_clear;
 	Bool ret;
 
 #if DEBUG_NO_BLT || NO_BLT_COMPOSITE
@@ -1576,6 +1577,7 @@ sna_blt_composite(struct sna *sna,
 		return FALSE;
 	}
 
+	was_clear = sna_drawable_is_clear(dst->pDrawable);
 	tmp->dst.pixmap = get_drawable_pixmap(dst->pDrawable);
 	priv = sna_pixmap_move_to_gpu(tmp->dst.pixmap, MOVE_WRITE | MOVE_READ);
 	if (priv == NULL) {
@@ -1606,16 +1608,22 @@ sna_blt_composite(struct sna *sna,
 		_kgem_set_mode(&sna->kgem, KGEM_BLT);
 	}
 
-	if (op == PictOpClear)
+	if (op == PictOpClear) {
+clear:
+		if (was_clear)
+			return TRUE;
 		return prepare_blt_clear(sna, tmp);
+	}
 
 	if (is_solid(src)) {
 		if (op == PictOpOver && is_opaque_solid(src))
 			op = PictOpSrc;
 		if (op == PictOpAdd && is_white(src))
 			op = PictOpSrc;
+		if (was_clear && (op == PictOpAdd || op == PictOpOver))
+			op = PictOpSrc;
 		if (op == PictOpOutReverse && is_opaque_solid(src))
-			return prepare_blt_clear(sna, tmp);
+			goto clear;
 
 		if (op != PictOpSrc) {
 			DBG(("%s: unsuported op [%d] for blitting\n",

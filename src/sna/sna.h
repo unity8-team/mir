@@ -460,6 +460,13 @@ sna_drawable_move_to_gpu(DrawablePtr drawable, unsigned flags)
 	return sna_pixmap_move_to_gpu(get_drawable_pixmap(drawable), flags) != NULL;
 }
 
+static inline bool
+sna_drawable_is_clear(DrawablePtr d)
+{
+	struct sna_pixmap *priv = sna_pixmap(get_drawable_pixmap(d));
+	return priv && priv->clear && priv->clear_color == 0;
+}
+
 static inline struct kgem_bo *sna_pixmap_get_bo(PixmapPtr pixmap)
 {
 	return sna_pixmap(pixmap)->gpu_bo;

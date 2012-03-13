@@ -3033,13 +3033,6 @@ choose_span(PicturePtr dst,
 }
 
 static bool
-sna_drawable_is_clear(DrawablePtr d)
-{
-	struct sna_pixmap *priv = sna_pixmap(get_drawable_pixmap(d));
-	return priv && priv->clear && priv->clear_color == 0;
-}
-
-static bool
 mono_trapezoids_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 			       INT16 src_x, INT16 src_y,
 			       int ntrap, xTrapezoid *traps)
