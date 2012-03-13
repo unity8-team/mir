@@ -1466,26 +1466,17 @@ gen6_emit_composite_primitive(struct sna *sna,
 			      const struct sna_composite_rectangles *r)
 {
 	gen6_emit_composite_vertex(sna, op,
-				   r->src.x + r->width,
-				   r->src.y + r->height,
-				   r->mask.x + r->width,
-				   r->mask.y + r->height,
-				   op->dst.x + r->dst.x + r->width,
-				   op->dst.y + r->dst.y + r->height);
+				   r->src.x + r->width,  r->src.y + r->height,
+				   r->mask.x + r->width, r->mask.y + r->height,
+				   r->dst.x + r->width, r->dst.y + r->height);
 	gen6_emit_composite_vertex(sna, op,
-				   r->src.x,
-				   r->src.y + r->height,
-				   r->mask.x,
-				   r->mask.y + r->height,
-				   op->dst.x + r->dst.x,
-				   op->dst.y + r->dst.y + r->height);
+				   r->src.x,  r->src.y + r->height,
+				   r->mask.x, r->mask.y + r->height,
+				   r->dst.x,  r->dst.y + r->height);
 	gen6_emit_composite_vertex(sna, op,
-				   r->src.x,
-				   r->src.y,
-				   r->mask.x,
-				   r->mask.y,
-				   op->dst.x + r->dst.x,
-				   op->dst.y + r->dst.y);
+				   r->src.x,  r->src.y,
+				   r->mask.x, r->mask.y,
+				   r->dst.x,  r->dst.y);
 }
 
 static void gen6_emit_vertex_buffer(struct sna *sna,
