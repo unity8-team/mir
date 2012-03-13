@@ -857,6 +857,14 @@ sna_pixmap_create_mappable_gpu(PixmapPtr pixmap)
 	return priv->gpu_bo && kgem_bo_is_mappable(&sna->kgem, priv->gpu_bo);
 }
 
+static bool use_cpu_bo_for_xfer(struct sna_pixmap *priv)
+{
+	if (priv->cpu_bo == NULL)
+		return FALSE;
+
+	return kgem_bo_is_busy(priv->gpu_bo) || kgem_bo_is_busy(priv->cpu_bo);
+}
+
 bool
 _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 {
@@ -1028,16 +1036,12 @@ skip_inplace_map:
 
 		n = sna_damage_get_boxes(priv->gpu_damage, &box);
 		if (n) {
-			struct kgem_bo *dst_bo;
 			Bool ok = FALSE;
 
-			dst_bo = NULL;
-			if (sna->kgem.gen >= 30)
-				dst_bo = priv->cpu_bo;
-			if (dst_bo)
+			if (sna->kgem.gen >= 30 && use_cpu_bo_for_xfer(priv))
 				ok = sna->render.copy_boxes(sna, GXcopy,
 							    pixmap, priv->gpu_bo, 0, 0,
-							    pixmap, dst_bo, 0, 0,
+							    pixmap, priv->cpu_bo, 0, 0,
 							    box, n);
 			if (!ok)
 				sna_read_boxes(sna,
@@ -1421,7 +1425,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 			assert(pixmap_contains_damage(pixmap, priv->gpu_damage));
 
 			ok = FALSE;
-			if (priv->cpu_bo && sna->kgem.gen >= 30)
+			if (sna->kgem.gen >= 30 && use_cpu_bo_for_xfer(priv))
 				ok = sna->render.copy_boxes(sna, GXcopy,
 							    pixmap, priv->gpu_bo, 0, 0,
 							    pixmap, priv->cpu_bo, 0, 0,
@@ -1496,7 +1500,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 				if (n) {
 					Bool ok = FALSE;
 
-					if (priv->cpu_bo && sna->kgem.gen >= 30)
+					if (sna->kgem.gen >= 30 && use_cpu_bo_for_xfer(priv))
 						ok = sna->render.copy_boxes(sna, GXcopy,
 									    pixmap, priv->gpu_bo, 0, 0,
 									    pixmap, priv->cpu_bo, 0, 0,
@@ -1516,10 +1520,9 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 								      &r->extents)) {
 				BoxPtr box = REGION_RECTS(r);
 				int n = REGION_NUM_RECTS(r);
-				Bool ok;
+				Bool ok = FALSE;
 
-				ok = FALSE;
-				if (priv->cpu_bo && sna->kgem.gen >= 30)
+				if (sna->kgem.gen >= 30 && use_cpu_bo_for_xfer(priv))
 					ok = sna->render.copy_boxes(sna, GXcopy,
 								    pixmap, priv->gpu_bo, 0, 0,
 								    pixmap, priv->cpu_bo, 0, 0,
@@ -1539,10 +1542,9 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 				if (sna_damage_intersect(priv->gpu_damage, r, &need)) {
 					BoxPtr box = REGION_RECTS(&need);
 					int n = REGION_NUM_RECTS(&need);
-					Bool ok;
+					Bool ok = FALSE;
 
-					ok = FALSE;
-					if (priv->cpu_bo && sna->kgem.gen >= 30)
+					if (sna->kgem.gen >= 30 && use_cpu_bo_for_xfer(priv))
 						ok = sna->render.copy_boxes(sna, GXcopy,
 									    pixmap, priv->gpu_bo, 0, 0,
 									    pixmap, priv->cpu_bo, 0, 0,
@@ -1732,10 +1734,9 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box, unsigned int flags)
 
 		n = sna_damage_get_boxes(priv->cpu_damage, &box);
 		if (n) {
-			Bool ok;
+			Bool ok = FALSE;
 
-			ok = FALSE;
-			if (priv->cpu_bo)
+			if (use_cpu_bo_for_xfer(priv))
 				ok = sna->render.copy_boxes(sna, GXcopy,
 							    pixmap, priv->cpu_bo, 0, 0,
 							    pixmap, priv->gpu_bo, 0, 0,
@@ -1768,7 +1769,7 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box, unsigned int flags)
 	} else if (DAMAGE_IS_ALL(priv->cpu_damage) ||
 		   sna_damage_contains_box__no_reduce(priv->cpu_damage, box)) {
 		Bool ok = FALSE;
-		if (priv->cpu_bo)
+		if (use_cpu_bo_for_xfer(priv))
 			ok = sna->render.copy_boxes(sna, GXcopy,
 						    pixmap, priv->cpu_bo, 0, 0,
 						    pixmap, priv->gpu_bo, 0, 0,
@@ -1791,7 +1792,7 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box, unsigned int flags)
 
 		box = REGION_RECTS(&i);
 		ok = FALSE;
-		if (priv->cpu_bo)
+		if (use_cpu_bo_for_xfer(priv))
 			ok = sna->render.copy_boxes(sna, GXcopy,
 						    pixmap, priv->cpu_bo, 0, 0,
 						    pixmap, priv->gpu_bo, 0, 0,
@@ -2250,7 +2251,7 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 		DBG(("%s: uploading %d damage boxes\n", __FUNCTION__, n));
 
 		ok = FALSE;
-		if (priv->cpu_bo)
+		if (use_cpu_bo_for_xfer(priv))
 			ok = sna->render.copy_boxes(sna, GXcopy,
 						    pixmap, priv->cpu_bo, 0, 0,
 						    pixmap, priv->gpu_bo, 0, 0,
