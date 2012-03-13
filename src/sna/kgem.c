@@ -1238,7 +1238,26 @@ static void kgem_retire_partials(struct kgem *kgem)
 		assert(next->base.list.prev == &bo->base.list);
 		assert(bo->base.io);
 
-		if (bo->base.refcnt != 1 || bo->base.rq)
+		if (bo->base.rq)
+			continue;
+
+		DBG(("%s: releasing upload cache for handle=%d? %d\n",
+		     __FUNCTION__, bo->base.handle, !list_is_empty(&bo->base.vma)));
+		while (!list_is_empty(&bo->base.vma)) {
+			struct kgem_bo *cached;
+
+			cached = list_first_entry(&bo->base.vma, struct kgem_bo, vma);
+			assert(cached->proxy == &bo->base);
+			list_del(&cached->vma);
+
+			assert(*(struct kgem_bo **)cached->map == cached);
+			*(struct kgem_bo **)cached->map = NULL;
+			cached->map = NULL;
+
+			kgem_bo_destroy(kgem, cached);
+		}
+
+		if (bo->base.refcnt != 1)
 			continue;
 
 		DBG(("%s: handle=%d, used %d/%d\n", __FUNCTION__,
@@ -1256,6 +1275,8 @@ static void kgem_retire_partials(struct kgem *kgem)
 		bo->base.needs_flush = false;
 		bo->used = 0;
 
+		DBG(("%s: transferring partial handle=%d to inactive\n",
+		     __FUNCTION__, bo->base.handle));
 		list_move_tail(&bo->base.list, &kgem->inactive_partials);
 		bubble_sort_partial(&kgem->inactive_partials, bo);
 	}
@@ -1381,9 +1402,7 @@ static void kgem_commit(struct kgem *kgem)
 {
 	struct kgem_request *rq = kgem->next_request;
 	struct kgem_bo *bo, *next;
-	struct list release;
 
-	list_init(&release);
 	list_for_each_entry_safe(bo, next, &rq->buffers, request) {
 		assert(next->request.prev == &bo->request);
 
@@ -1392,7 +1411,7 @@ static void kgem_commit(struct kgem *kgem)
 		     bo->dirty, bo->needs_flush, (unsigned)bo->exec->offset));
 
 		assert(!bo->purged);
-		assert(bo->proxy || bo->rq == rq);
+		assert(bo->rq == rq || (bo->proxy->rq == rq));
 
 		bo->presumed_offset = bo->exec->offset;
 		bo->exec = NULL;
@@ -1411,19 +1430,7 @@ static void kgem_commit(struct kgem *kgem)
 			list_del(&bo->request);
 			bo->rq = NULL;
 			bo->exec = &_kgem_dummy_exec;
-			if (bo->map)
-				list_add_tail(&bo->request, &release);
 		}
-	}
-	while (!list_is_empty(&release)) {
-		bo = list_first_entry(&release, struct kgem_bo, request);
-		DBG(("%s: releasing upload cache, handle=%d\n",
-		     __FUNCTION__, bo->handle));
-		list_del(&bo->request);
-		assert(*(struct kgem_bo **)bo->map == bo);
-		*(struct kgem_bo **)bo->map = NULL;
-		bo->map = NULL;
-		kgem_bo_destroy(kgem, bo);
 	}
 
 	if (rq == &_kgem_static_request) {
@@ -2869,11 +2876,12 @@ void _kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 	     __FUNCTION__, bo->handle, bo->proxy != NULL));
 
 	if (bo->proxy) {
+		_list_del(&bo->vma);
+		_list_del(&bo->request);
 		if (bo->io && (bo->exec == NULL || bo->proxy->rq == NULL))
 			_kgem_bo_delete_partial(kgem, bo);
 		kgem_bo_unref(kgem, bo->proxy);
 		kgem_bo_binding_free(kgem, bo);
-		_list_del(&bo->request);
 		free(bo);
 		return;
 	}
@@ -3468,6 +3476,11 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			}
 		}
 
+		if (bo->used && bo->base.rq == NULL && bo->base.refcnt == 1) {
+			bo->used = 0;
+			bubble_sort_partial(&kgem->active_partials, bo);
+		}
+
 		if (bo->used + size <= bytes(&bo->base)) {
 			DBG(("%s: reusing partial buffer? used=%d + size=%d, total=%d\n",
 			     __FUNCTION__, bo->used, size, bytes(&bo->base)));
@@ -3895,6 +3908,8 @@ void kgem_proxy_bo_attach(struct kgem_bo *bo,
 {
 	DBG(("%s: handle=%d\n", __FUNCTION__, bo->handle));
 	assert(bo->map == NULL);
+	assert(bo->proxy);
+	list_add(&bo->vma, &bo->proxy->vma);
 	bo->map = ptr;
 	*ptr = kgem_bo_reference(bo);
 }

@@ -11822,6 +11822,7 @@ static void sna_accel_inactive(struct sna *sna)
 					inactive);
 		assert((priv->create & KGEM_CAN_CREATE_LARGE) == 0);
 		assert(priv->gpu_bo);
+		assert(!priv->gpu_bo->proxy);
 
 		/* XXX Rather than discarding the GPU buffer here, we
 		 * could mark it purgeable and allow the shrinker to
