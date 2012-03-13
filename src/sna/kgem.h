@@ -200,6 +200,7 @@ struct kgem_bo *kgem_upload_source_image(struct kgem *kgem,
 					 const void *data,
 					 BoxPtr box,
 					 int stride, int bpp);
+void kgem_proxy_bo_attach(struct kgem_bo *bo, struct kgem_bo **ptr);
 
 int kgem_choose_tiling(struct kgem *kgem,
 		       int tiling, int width, int height, int bpp);

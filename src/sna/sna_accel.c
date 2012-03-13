@@ -1064,8 +1064,10 @@ skip_inplace_map:
 	}
 
 done:
-	if (flags & MOVE_WRITE)
+	if (flags & MOVE_WRITE) {
 		priv->source_count = SOURCE_BIAS;
+		assert(priv->gpu_bo == NULL || priv->gpu_bo->proxy == NULL);
+	}
 
 	if ((flags & MOVE_ASYNC_HINT) == 0 && priv->cpu_bo) {
 		DBG(("%s: syncing CPU bo\n", __FUNCTION__));
@@ -1260,6 +1262,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 
 		if (priv->stride && priv->gpu_bo &&
 		    region_inplace(sna, pixmap, region, priv)) {
+			assert(priv->gpu_bo->proxy == NULL);
 			if (sync_will_stall(priv->gpu_bo) &&
 			    priv->gpu_bo->exec == NULL)
 				kgem_retire(&sna->kgem);
@@ -1371,6 +1374,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 	if (priv->gpu_bo == NULL)
 		goto done;
 
+	assert(priv->gpu_bo->proxy == NULL);
 	if (priv->clear) {
 		int n = REGION_NUM_RECTS(region);
 		BoxPtr box = REGION_RECTS(region);
@@ -1581,8 +1585,10 @@ done:
 		RegionTranslate(region, -dx, -dy);
 
 out:
-	if (flags & MOVE_WRITE)
+	if (flags & MOVE_WRITE) {
 		priv->source_count = SOURCE_BIAS;
+		assert(priv->gpu_bo == NULL || priv->gpu_bo->proxy == NULL);
+	}
 	if (priv->cpu_bo) {
 		DBG(("%s: syncing cpu bo\n", __FUNCTION__));
 		kgem_bo_sync__cpu(&sna->kgem, priv->cpu_bo);
@@ -1942,6 +1948,7 @@ done:
 
 	DBG(("%s: using GPU bo with damage? %d\n",
 	     __FUNCTION__, *damage != NULL));
+	assert(priv->gpu_bo->proxy == NULL);
 	return priv->gpu_bo;
 
 use_gpu_bo:
@@ -1951,6 +1958,7 @@ use_gpu_bo:
 			  &to_sna_from_pixmap(pixmap)->active_pixmaps);
 	*damage = NULL;
 	DBG(("%s: using whole GPU bo\n", __FUNCTION__));
+	assert(priv->gpu_bo->proxy == NULL);
 	return priv->gpu_bo;
 
 use_cpu_bo:
@@ -2083,6 +2091,7 @@ sna_pixmap_force_to_gpu(PixmapPtr pixmap, unsigned flags)
 
 	if (DAMAGE_IS_ALL(priv->gpu_damage)) {
 		DBG(("%s: GPU all-damaged\n", __FUNCTION__));
+		assert(!priv->gpu_bo->proxy || (flags & MOVE_WRITE) == 0);
 		return sna_pixmap_mark_active(to_sna_from_pixmap(pixmap), priv);
 	}
 
@@ -2285,6 +2294,7 @@ done:
 		}
 	}
 active:
+	assert(!priv->gpu_bo->proxy || (flags & MOVE_WRITE) == 0);
 	return sna_pixmap_mark_active(sna, priv);
 }
 
@@ -2532,6 +2542,8 @@ static bool upload_inplace(struct sna *sna,
 		return false;
 
 	if (priv->gpu_bo) {
+		assert(priv->gpu_bo->proxy == NULL);
+
 		if (!kgem_bo_map_will_stall(&sna->kgem, priv->gpu_bo))
 			return true;
 
@@ -3388,6 +3400,8 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 		dst_priv->undamaged = true;
 		dst_priv->clear = false;
 	}
+
+	assert(dst_priv->gpu_bo == NULL || dst_priv->gpu_bo->proxy == NULL);
 
 	/* Try to maintain the data on the GPU */
 	if (dst_priv->gpu_bo == NULL &&

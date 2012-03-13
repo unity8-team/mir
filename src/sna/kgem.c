@@ -1381,7 +1381,9 @@ static void kgem_commit(struct kgem *kgem)
 {
 	struct kgem_request *rq = kgem->next_request;
 	struct kgem_bo *bo, *next;
+	struct list release;
 
+	list_init(&release);
 	list_for_each_entry_safe(bo, next, &rq->buffers, request) {
 		assert(next->request.prev == &bo->request);
 
@@ -1408,7 +1410,20 @@ static void kgem_commit(struct kgem *kgem)
 			/* proxies are not used for domain tracking */
 			list_del(&bo->request);
 			bo->rq = NULL;
+			bo->exec = &_kgem_dummy_exec;
+			if (bo->map)
+				list_add_tail(&bo->request, &release);
 		}
+	}
+	while (!list_is_empty(&release)) {
+		bo = list_first_entry(&release, struct kgem_bo, request);
+		DBG(("%s: releasing upload cache, handle=%d\n",
+		     __FUNCTION__, bo->handle));
+		list_del(&bo->request);
+		assert(*(struct kgem_bo **)bo->map == bo);
+		*(struct kgem_bo **)bo->map = NULL;
+		bo->map = NULL;
+		kgem_bo_destroy(kgem, bo);
 	}
 
 	if (rq == &_kgem_static_request) {
@@ -2842,7 +2857,7 @@ static void _kgem_bo_delete_partial(struct kgem *kgem, struct kgem_bo *bo)
 	DBG(("%s: size=%d, offset=%d, parent used=%d\n",
 	     __FUNCTION__, bo->size.bytes, bo->delta, io->used));
 
-	if (bo->delta + bo->size.bytes == io->used) {
+	if (ALIGN(bo->delta + bo->size.bytes, 64) == io->used) {
 		io->used = bo->delta;
 		bubble_sort_partial(&kgem->active_partials, io);
 	}
@@ -2850,9 +2865,11 @@ static void _kgem_bo_delete_partial(struct kgem *kgem, struct kgem_bo *bo)
 
 void _kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 {
+	DBG(("%s: handle=%d, proxy? %d\n",
+	     __FUNCTION__, bo->handle, bo->proxy != NULL));
+
 	if (bo->proxy) {
-		assert(bo->map == NULL);
-		if (bo->io && bo->exec == NULL)
+		if (bo->io && (bo->exec == NULL || bo->proxy->rq == NULL))
 			_kgem_bo_delete_partial(kgem, bo);
 		kgem_bo_unref(kgem, bo->proxy);
 		kgem_bo_binding_free(kgem, bo);
@@ -3873,6 +3890,15 @@ struct kgem_bo *kgem_upload_source_image(struct kgem *kgem,
 	return bo;
 }
 
+void kgem_proxy_bo_attach(struct kgem_bo *bo,
+			  struct kgem_bo **ptr)
+{
+	DBG(("%s: handle=%d\n", __FUNCTION__, bo->handle));
+	assert(bo->map == NULL);
+	bo->map = ptr;
+	*ptr = kgem_bo_reference(bo);
+}
+
 void kgem_buffer_read_sync(struct kgem *kgem, struct kgem_bo *_bo)
 {
 	struct kgem_partial_bo *bo;
@@ -3880,7 +3906,8 @@ void kgem_buffer_read_sync(struct kgem *kgem, struct kgem_bo *_bo)
 	int domain;
 
 	assert(_bo->io);
-	assert(_bo->exec == NULL);
+	assert(_bo->exec == &_kgem_dummy_exec);
+	assert(_bo->rq == NULL);
 	if (_bo->proxy)
 		_bo = _bo->proxy;
 	assert(_bo->exec == NULL);

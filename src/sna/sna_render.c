@@ -496,6 +496,14 @@ static struct kgem_bo *upload(struct sna *sna,
 		channel->offset[1] -= box->y1;
 		channel->scale[0] = 1.f/channel->width;
 		channel->scale[1] = 1.f/channel->height;
+
+		if (pixmap->usage_hint == 0 &&
+		    channel->width  == pixmap->drawable.width &&
+		    channel->height == pixmap->drawable.height) {
+			struct sna_pixmap *priv = sna_pixmap(pixmap);
+			if (priv)
+				kgem_proxy_bo_attach(bo, &priv->gpu_bo);
+		}
 	}
 
 	return bo;
@@ -526,7 +534,8 @@ sna_render_pixmap_bo(struct sna *sna,
 	priv = sna_pixmap(pixmap);
 	if (priv) {
 		if (priv->gpu_bo &&
-		    (DAMAGE_IS_ALL(priv->gpu_damage) || !priv->cpu_damage)) {
+		    (DAMAGE_IS_ALL(priv->gpu_damage) || !priv->cpu_damage ||
+		     priv->gpu_bo->proxy)) {
 			channel->bo = kgem_bo_reference(priv->gpu_bo);
 			return 1;
 		}
@@ -1148,12 +1157,20 @@ sna_render_picture_extract(struct sna *sna,
 				upload = false;
 			}
 		}
-		if (upload)
+		if (upload) {
 			bo = kgem_upload_source_image(&sna->kgem,
 						      pixmap->devPrivate.ptr,
 						      &box,
 						      pixmap->devKind,
 						      pixmap->drawable.bitsPerPixel);
+			if (pixmap->usage_hint == 0 &&
+			    box.x2 - box.x1 == pixmap->drawable.width &&
+			    box.y2 - box.y1 == pixmap->drawable.height) {
+				struct sna_pixmap *priv = sna_pixmap(pixmap);
+				if (priv)
+					kgem_proxy_bo_attach(bo, &priv->gpu_bo);
+			}
+		}
 	}
 	if (src_bo) {
 		bo = kgem_create_2d(&sna->kgem, w, h,
