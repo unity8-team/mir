@@ -3180,7 +3180,8 @@ mono_trapezoids_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 
 static bool
 trapezoid_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
-			 PictFormatPtr maskFormat, INT16 src_x, INT16 src_y,
+			 PictFormatPtr maskFormat, unsigned int flags,
+			 INT16 src_x, INT16 src_y,
 			 int ntrap, xTrapezoid *traps)
 {
 	struct sna *sna;
@@ -3263,8 +3264,7 @@ trapezoid_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 					 extents.x1,  extents.y1,
 					 extents.x2 - extents.x1,
 					 extents.y2 - extents.y1,
-					 0,
-					 &tmp)) {
+					 flags, &tmp)) {
 		DBG(("%s: fallback -- composite spans render op not supported\n",
 		     __FUNCTION__));
 		return false;
@@ -3773,6 +3773,40 @@ mono_inplace_composite_boxes(struct sna *sna,
 				       box->y2 - box->y1);
 		box++;
 	} while (--nbox);
+}
+
+static bool
+trapezoid_spans_maybe_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
+			      PictFormatPtr maskFormat)
+{
+	if (NO_SCAN_CONVERTER)
+		return false;
+
+	if (dst->polyMode == PolyModePrecise && !is_mono(dst, maskFormat))
+		return false;
+	if (dst->alphaMap)
+		return false;
+
+	if (is_mono(dst, maskFormat))
+		goto out;
+
+	if (!sna_picture_is_solid(src, NULL))
+		return false;
+
+	if (dst->format != PICT_a8)
+		return false;
+
+	switch (op) {
+	case PictOpIn:
+	case PictOpAdd:
+	case PictOpSrc:
+		break;
+	default:
+		return false;
+	}
+
+out:
+	return is_cpu(dst->pDrawable) ? true : dst->pDrawable->width <= TOR_INPLACE_SIZE;
 }
 
 static bool
@@ -4304,6 +4338,7 @@ sna_composite_trapezoids(CARD8 op,
 {
 	struct sna *sna = to_sna_from_drawable(dst->pDrawable);
 	bool rectilinear, pixel_aligned;
+	unsigned flags;
 	int n;
 
 	DBG(("%s(op=%d, src=(%d, %d), mask=%08x, ntrap=%d)\n", __FUNCTION__,
@@ -4370,8 +4405,9 @@ sna_composite_trapezoids(CARD8 op,
 		}
 	}
 
-	DBG(("%s: rectlinear? %d, pixel-aligned? %d\n",
+	DBG(("%s: rectilinear? %d, pixel-aligned? %d\n",
 	     __FUNCTION__, rectilinear, pixel_aligned));
+	flags = 0;
 	if (rectilinear) {
 		if (pixel_aligned) {
 			if (composite_aligned_boxes(sna, op, src, dst,
@@ -4386,9 +4422,17 @@ sna_composite_trapezoids(CARD8 op,
 						      ntrap, traps))
 				return;
 		}
+		flags |= COMPOSITE_SPANS_RECTILINEAR;
+	}
+	if (trapezoid_spans_maybe_inplace(op, src, dst, maskFormat)) {
+		flags |= COMPOSITE_SPANS_INPLACE_HINT;
+		if (trapezoid_span_inplace(op, src, dst, maskFormat,
+					   xSrc, ySrc, ntrap, traps,
+					   false))
+			return;
 	}
 
-	if (trapezoid_span_converter(op, src, dst, maskFormat,
+	if (trapezoid_span_converter(op, src, dst, maskFormat, flags,
 				     xSrc, ySrc, ntrap, traps))
 		return;
 

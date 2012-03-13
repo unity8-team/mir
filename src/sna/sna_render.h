@@ -204,6 +204,7 @@ struct sna_render {
 				unsigned flags,
 				struct sna_composite_spans_op *tmp);
 #define COMPOSITE_SPANS_RECTILINEAR 0x1
+#define COMPOSITE_SPANS_INPLACE_HINT 0x2
 
 	Bool (*video)(struct sna *sna,
 		      struct sna_video *video,

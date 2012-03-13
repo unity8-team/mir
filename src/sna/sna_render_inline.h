@@ -85,7 +85,13 @@ static inline Bool
 is_cpu(DrawablePtr drawable)
 {
 	struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
-	return !priv || priv->cpu_damage != NULL;
+	if (priv == NULL || priv->clear || DAMAGE_IS_ALL(priv->cpu_damage))
+		return true;
+
+	if (priv->gpu_damage || (priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo)))
+		return false;
+
+	return true;
 }
 
 static inline Bool
