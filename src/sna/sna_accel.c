@@ -2073,7 +2073,8 @@ static inline struct sna_pixmap *
 sna_pixmap_mark_active(struct sna *sna, struct sna_pixmap *priv)
 {
 	assert(priv->gpu_bo);
-	if (!priv->pinned && (priv->create & KGEM_CAN_CREATE_LARGE) == 0)
+	if (!priv->pinned && priv->gpu_bo->proxy == NULL &&
+	    (priv->create & KGEM_CAN_CREATE_LARGE) == 0)
 		list_move(&priv->inactive, &sna->active_pixmaps);
 	priv->clear = false;
 	return priv;
