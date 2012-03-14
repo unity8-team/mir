@@ -2302,6 +2302,79 @@ trapezoids_bounds(int n, const xTrapezoid *t, BoxPtr box)
 	box->y2 = pixman_fixed_integer_ceil(y2);
 }
 
+static bool
+is_mono(PicturePtr dst, PictFormatPtr mask)
+{
+	return mask ? mask->depth < 8 : dst->polyEdge==PolyEdgeSharp;
+}
+
+static bool
+trapezoids_inplace_fallback(CARD8 op,
+			    PicturePtr src, PicturePtr dst, PictFormatPtr mask,
+			    int ntrap, xTrapezoid *traps)
+{
+	pixman_image_t *image;
+	BoxRec box;
+	uint32_t color;
+	int dx, dy;
+
+	if (op != PictOpAdd)
+		return false;
+
+	if (is_mono(dst, mask)) {
+		if (dst->format != PICT_a1)
+			return false;
+	} else {
+		if (dst->format != PICT_a8)
+			return false;
+	}
+
+	if (!sna_picture_is_solid(src, &color) || (color >> 24) != 0xff) {
+		DBG(("%s: not an opaque solid source\n", __FUNCTION__));
+		return false;
+	}
+
+	box.x1 = dst->pDrawable->x;
+	box.y1 = dst->pDrawable->y;
+	box.x2 = dst->pDrawable->width;
+	box.y2 = dst->pDrawable->height;
+	if (pixman_region_contains_rectangle(dst->pCompositeClip,
+					     &box) != PIXMAN_REGION_IN) {
+		DBG(("%s: requires clipping, drawable (%d,%d), (%d, %d), clip (%d, %d), (%d, %d)\n", __FUNCTION__,
+		     box.x1, box.y1, box.x2, box.y2,
+		     dst->pCompositeClip->extents.x1,
+		     dst->pCompositeClip->extents.y1,
+		     dst->pCompositeClip->extents.x2,
+		     dst->pCompositeClip->extents.y2));
+		return false;
+	}
+
+	if (is_gpu(dst->pDrawable)) {
+		DBG(("%s: not performing inplace as dst is already on the GPU\n",
+		     __FUNCTION__));
+		return false;
+	}
+
+	DBG(("%s\n", __FUNCTION__));
+
+	image = NULL;
+	if (sna_drawable_move_to_cpu(dst->pDrawable, MOVE_READ | MOVE_WRITE))
+		image = image_from_pict(dst, FALSE, &dx, &dy);
+	if (image) {
+		dx += dst->pDrawable->x;
+		dy += dst->pDrawable->y;
+
+		for (; ntrap; ntrap--, traps++)
+			pixman_rasterize_trapezoid(image,
+						   (pixman_trapezoid_t *)traps,
+						   dx, dy);
+
+		pixman_image_unref(image);
+	}
+
+	return true;
+}
+
 static void
 trapezoids_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 		    PictFormatPtr maskFormat, INT16 xSrc, INT16 ySrc,
@@ -2996,12 +3069,6 @@ project_trapezoid_onto_grid(const xTrapezoid *in,
 	out->bottom = dy + pixman_fixed_to_grid(in->bottom);
 
 	return xTrapezoidValid(out);
-}
-
-static bool
-is_mono(PicturePtr dst, PictFormatPtr mask)
-{
-	return mask ? mask->depth < 8 : dst->polyEdge==PolyEdgeSharp;
 }
 
 static span_func_t
@@ -4446,6 +4513,9 @@ fallback:
 
 	if (trapezoid_span_fallback(op, src, dst, maskFormat,
 				    xSrc, ySrc, ntrap, traps))
+		return;
+
+	if (trapezoids_inplace_fallback(op, src, dst, maskFormat, ntrap, traps))
 		return;
 
 	DBG(("%s: fallback mask=%08x, ntrap=%d\n", __FUNCTION__,
