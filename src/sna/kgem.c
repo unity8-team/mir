@@ -1257,6 +1257,7 @@ static void kgem_retire_partials(struct kgem *kgem)
 			kgem_bo_destroy(kgem, cached);
 		}
 
+		assert(bo->base.refcnt > 0);
 		if (bo->base.refcnt != 1)
 			continue;
 

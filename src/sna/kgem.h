@@ -270,6 +270,7 @@ static inline void kgem_bo_flush(struct kgem *kgem, struct kgem_bo *bo)
 
 static inline struct kgem_bo *kgem_bo_reference(struct kgem_bo *bo)
 {
+	assert(bo->refcnt);
 	bo->refcnt++;
 	return bo;
 }
