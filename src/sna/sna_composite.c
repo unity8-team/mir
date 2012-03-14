@@ -479,6 +479,11 @@ sna_composite(CARD8 op,
 	     get_drawable_dx(dst->pDrawable),
 	     get_drawable_dy(dst->pDrawable)));
 
+	if (op <= PictOpSrc) {
+		struct sna_pixmap *priv = sna_pixmap_from_drawable(dst->pDrawable);
+		sna_damage_subtract(&priv->cpu_damage, &region);
+	}
+
 	memset(&tmp, 0, sizeof(tmp));
 	if (!sna->render.composite(sna,
 				   op, src, mask, dst,
