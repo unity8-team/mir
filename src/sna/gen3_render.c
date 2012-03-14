@@ -2744,15 +2744,13 @@ gen3_render_composite(struct sna *sna,
 					    width,  height,
 					    tmp);
 
-	memset(&tmp->u.gen3, 0, sizeof(tmp->u.gen3));
-
 	if (!gen3_composite_set_target(sna, tmp, dst)) {
 		DBG(("%s: unable to set render target\n",
 		     __FUNCTION__));
 		return FALSE;
 	}
 
-	if (mask == NULL && sna->kgem.mode == KGEM_BLT  &&
+	if (mask == NULL && sna->kgem.mode != KGEM_RENDER &&
 	    sna_blt_composite(sna, op,
 			      src, dst,
 			      src_x, src_y,
