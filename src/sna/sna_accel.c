@@ -10163,7 +10163,8 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 	      int _x, int _y, unsigned int _n,
 	      CharInfoPtr *_info,
 	      RegionRec *clip,
-	      uint32_t fg, uint32_t bg)
+	      uint32_t fg, uint32_t bg,
+	      bool transparent)
 {
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
 	struct sna *sna = to_sna_from_pixmap(pixmap);
@@ -10174,7 +10175,7 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 	int16_t dx, dy;
 	uint32_t br00;
 
-	uint8_t rop = bg == -1 ? copy_ROP[gc->alu] : ROP_S;
+	uint8_t rop = transparent ? copy_ROP[gc->alu] : ROP_S;
 
 	DBG(("%s (%d, %d) x %d, fg=%08x, bg=%08x alu=%02x\n",
 	     __FUNCTION__, _x, _y, _n, fg, bg, rop));
@@ -10206,7 +10207,7 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 	extents = REGION_RECTS(clip);
 	last_extents = extents + REGION_NUM_RECTS(clip);
 
-	if (bg != -1) /* emulate miImageGlyphBlt */
+	if (!transparent) /* emulate miImageGlyphBlt */
 		sna_blt_fill_boxes(sna, GXcopy,
 				   bo, drawable->bitsPerPixel,
 				   bg, extents, REGION_NUM_RECTS(clip));
@@ -10225,7 +10226,7 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 		b[0] |= BLT_DST_TILED;
 		b[1] >>= 2;
 	}
-	b[1] |= 1 << 30 | (bg == -1) << 29 | blt_depth(drawable->depth) << 24 | rop << 16;
+	b[1] |= 1 << 30 | transparent << 29 | blt_depth(drawable->depth) << 24 | rop << 16;
 	b[2] = extents->y1 << 16 | extents->x1;
 	b[3] = extents->y2 << 16 | extents->x2;
 	b[4] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 4, bo,
@@ -10256,6 +10257,9 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 			if (c->bits == (void *)1)
 				goto skip;
 
+			if (!transparent && c->bits == (void *)2)
+				goto skip;
+
 			len = (w8 * h + 7) >> 3 << 1;
 			DBG(("%s glyph: (%d, %d) x (%d[%d], %d), len=%d\n" ,__FUNCTION__,
 			     x,y, w, w8, h, len));
@@ -10268,6 +10272,7 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 			if (x1 + w <= extents->x1 || y1 + h <= extents->y1)
 				goto skip;
 
+
 			if (!kgem_check_batch(&sna->kgem, 3+len)) {
 				_kgem_submit(&sna->kgem);
 				_kgem_set_mode(&sna->kgem, KGEM_BLT);
@@ -10279,7 +10284,7 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 					b[0] |= BLT_DST_TILED;
 					b[1] >>= 2;
 				}
-				b[1] |= 1 << 30 | (bg == -1) << 29 | blt_depth(drawable->depth) << 24 | rop << 16;
+				b[1] |= 1 << 30 | transparent << 29 | blt_depth(drawable->depth) << 24 | rop << 16;
 				b[2] = extents->y1 << 16 | extents->x1;
 				b[3] = extents->y2 << 16 | extents->x2;
 				b[4] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 4, bo,
@@ -10299,7 +10304,9 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 			b[0] = br00 | (1 + len);
 			b[1] = (uint16_t)y1 << 16 | (uint16_t)x1;
 			b[2] = (uint16_t)(y1+h) << 16 | (uint16_t)(x1+w);
-			 {
+			if (c->bits == (void *)2) {
+				memset(b+3, 0, len*4);
+			} else {
 				uint64_t *src = (uint64_t *)c->bits;
 				uint64_t *dst = (uint64_t *)(b + 3);
 				do  {
@@ -10384,6 +10391,7 @@ static bool sna_set_glyph(CharInfoPtr in, CharInfoPtr out)
 	int h = GLYPHHEIGHTPIXELS(in);
 	int stride = GLYPHWIDTHBYTESPADDED(in);
 	uint8_t *dst, *src;
+	int clear = 1;
 
 	out->metrics = in->metrics;
 
@@ -10405,10 +10413,16 @@ static bool sna_set_glyph(CharInfoPtr in, CharInfoPtr out)
 	do {
 		int i = w;
 		do {
+			clear &= *src == 0;
 			*dst++ = byte_reverse(*src++);
 		} while (--i);
 		src += stride;
 	} while (--h);
+
+	if (clear) {
+		free(out->bits);
+		out->bits = (void *)2;
+	}
 
 	return true;
 }
@@ -10511,7 +10525,7 @@ sna_poly_text8(DrawablePtr drawable, GCPtr gc,
 	if (!gc_is_solid(gc, &fg))
 		goto force_fallback;
 
-	if (!sna_glyph_blt(drawable, gc, x, y, n, info, &region, fg, -1)) {
+	if (!sna_glyph_blt(drawable, gc, x, y, n, info, &region, fg, -1, true)) {
 force_fallback:
 		DBG(("%s: fallback\n", __FUNCTION__));
 		gc->font->get_glyphs(gc->font, count, (unsigned char *)chars,
@@ -10600,7 +10614,7 @@ sna_poly_text16(DrawablePtr drawable, GCPtr gc,
 	if (!gc_is_solid(gc, &fg))
 		goto force_fallback;
 
-	if (!sna_glyph_blt(drawable, gc, x, y, n, info, &region, fg, -1)) {
+	if (!sna_glyph_blt(drawable, gc, x, y, n, info, &region, fg, -1, true)) {
 force_fallback:
 		DBG(("%s: fallback\n", __FUNCTION__));
 		gc->font->get_glyphs(gc->font, count, (unsigned char *)chars,
@@ -10698,7 +10712,8 @@ sna_image_text8(DrawablePtr drawable, GCPtr gc,
 	if (!PM_IS_SOLID(drawable, gc->planemask))
 		goto force_fallback;
 
-	if (!sna_glyph_blt(drawable, gc, x, y, n, info, &region, gc->fgPixel, gc->bgPixel)) {
+	if (!sna_glyph_blt(drawable, gc, x, y, n, info, &region,
+			   gc->fgPixel, gc->bgPixel, false)) {
 force_fallback:
 		DBG(("%s: fallback\n", __FUNCTION__));
 		gc->font->get_glyphs(gc->font, count, (unsigned char *)chars,
@@ -10788,7 +10803,8 @@ sna_image_text16(DrawablePtr drawable, GCPtr gc,
 	if (!PM_IS_SOLID(drawable, gc->planemask))
 		goto force_fallback;
 
-	if (!sna_glyph_blt(drawable, gc, x, y, n, info, &region, gc->fgPixel, gc->bgPixel)) {
+	if (!sna_glyph_blt(drawable, gc, x, y, n, info, &region,
+			   gc->fgPixel, gc->bgPixel, false)) {
 force_fallback:
 		DBG(("%s: fallback\n", __FUNCTION__));
 		gc->font->get_glyphs(gc->font, count, (unsigned char *)chars,
@@ -10830,14 +10846,15 @@ sna_reversed_glyph_blt(DrawablePtr drawable, GCPtr gc,
 		       struct kgem_bo *bo,
 		       struct sna_damage **damage,
 		       RegionPtr clip,
-		       uint32_t fg, uint32_t bg)
+		       uint32_t fg, uint32_t bg,
+		       bool transparent)
 {
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
 	struct sna *sna = to_sna_from_pixmap(pixmap);
 	const BoxRec *extents, *last_extents;
 	uint32_t *b;
 	int16_t dx, dy;
-	uint8_t rop = bg == -1 ? copy_ROP[gc->alu] : ROP_S;
+	uint8_t rop = transparent ? copy_ROP[gc->alu] : ROP_S;
 
 	if (bo->tiling == I915_TILING_Y) {
 		DBG(("%s: converting bo from Y-tiling\n", __FUNCTION__));
@@ -10855,7 +10872,7 @@ sna_reversed_glyph_blt(DrawablePtr drawable, GCPtr gc,
 	extents = REGION_RECTS(clip);
 	last_extents = extents + REGION_NUM_RECTS(clip);
 
-	if (bg != -1) /* emulate miImageGlyphBlt */
+	if (!transparent) /* emulate miImageGlyphBlt */
 		sna_blt_fill_boxes(sna, GXcopy,
 				   bo, drawable->bitsPerPixel,
 				   bg, extents, REGION_NUM_RECTS(clip));
@@ -10874,7 +10891,7 @@ sna_reversed_glyph_blt(DrawablePtr drawable, GCPtr gc,
 		b[0] |= BLT_DST_TILED;
 		b[1] >>= 2;
 	}
-	b[1] |= 1 << 30 | (bg == -1) << 29 | blt_depth(drawable->depth) << 24 | rop << 16;
+	b[1] |= 1 << 30 | transparent << 29 | blt_depth(drawable->depth) << 24 | rop << 16;
 	b[2] = extents->y1 << 16 | extents->x1;
 	b[3] = extents->y2 << 16 | extents->x2;
 	b[4] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 4, bo,
@@ -10916,6 +10933,21 @@ sna_reversed_glyph_blt(DrawablePtr drawable, GCPtr gc,
 			if (x1 + w <= extents->x1 || y1 + h <= extents->y1)
 				goto skip;
 
+			if (!transparent) {
+				int clear = 1, j = h;
+				uint8_t *g = glyph;
+
+				do {
+					i = w8;
+					do {
+						clear = *g == 0;
+					} while (clear && --i);
+					g += stride - w8;
+				} while (clear && --j);
+				if (clear)
+					goto skip;
+			}
+
 			if (!kgem_check_batch(&sna->kgem, 3+len)) {
 				_kgem_submit(&sna->kgem);
 				_kgem_set_mode(&sna->kgem, KGEM_BLT);
@@ -10927,7 +10959,7 @@ sna_reversed_glyph_blt(DrawablePtr drawable, GCPtr gc,
 					b[0] |= BLT_DST_TILED;
 					b[1] >>= 2;
 				}
-				b[1] |= 1 << 30 | (bg == -1) << 29 | blt_depth(drawable->depth) << 24 | rop << 16;
+				b[1] |= 1 << 30 | transparent << 29 | blt_depth(drawable->depth) << 24 | rop << 16;
 				b[2] = extents->y1 << 16 | extents->x1;
 				b[3] = extents->y2 << 16 | extents->x2;
 				b[4] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 4,
@@ -11054,7 +11086,7 @@ sna_image_glyph(DrawablePtr drawable, GCPtr gc,
 	if ((bo = sna_drawable_use_bo(drawable, &region.extents, &damage)) &&
 	    sna_reversed_glyph_blt(drawable, gc, x, y, n, info, base,
 				   bo, damage, &region,
-				   gc->fgPixel, gc->bgPixel))
+				   gc->fgPixel, gc->bgPixel, false))
 		goto out;
 
 fallback:
@@ -11129,7 +11161,7 @@ sna_poly_glyph(DrawablePtr drawable, GCPtr gc,
 
 	if ((bo = sna_drawable_use_bo(drawable, &region.extents, &damage)) &&
 	    sna_reversed_glyph_blt(drawable, gc, x, y, n, info, base,
-				   bo, damage, &region, fg, -1))
+				   bo, damage, &region, fg, -1, true))
 		goto out;
 
 fallback:
