@@ -443,7 +443,7 @@ static inline bool kgem_bo_mapped(struct kgem_bo *bo)
 	DBG_HDR(("%s: map=%p, tiling=%d\n", __FUNCTION__, bo->map, bo->tiling));
 
 	if (bo->map == NULL)
-		return false;
+		return bo->tiling == I915_TILING_NONE && bo->domain == DOMAIN_CPU;
 
 	return IS_CPU_MAP(bo->map) == !bo->tiling;
 }
