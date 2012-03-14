@@ -419,6 +419,8 @@ static inline Bool pixmap_is_scanout(PixmapPtr pixmap)
 PixmapPtr sna_pixmap_create_upload(ScreenPtr screen,
 				   int width, int height, int depth,
 				   unsigned flags);
+PixmapPtr sna_pixmap_create_unattached(ScreenPtr screen,
+				       int width, int height, int depth);
 
 struct sna_pixmap *sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags);
 struct sna_pixmap *sna_pixmap_force_to_gpu(PixmapPtr pixmap, unsigned flags);

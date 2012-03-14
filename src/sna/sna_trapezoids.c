@@ -2464,9 +2464,8 @@ trapezoids_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 				pixman_image_unref(image);
 			}
 		} else {
-			scratch = screen->CreatePixmap(screen,
-						       width, height, depth,
-						       CREATE_PIXMAP_USAGE_SCRATCH);
+			scratch = sna_pixmap_create_unattached(screen,
+							       width, height, depth);
 			if (!scratch)
 				return;
 
