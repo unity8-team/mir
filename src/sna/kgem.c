@@ -2275,8 +2275,10 @@ struct kgem_bo *kgem_create_linear(struct kgem *kgem, int size, unsigned flags)
 
 	size = (size + PAGE_SIZE - 1) / PAGE_SIZE;
 	bo = search_linear_cache(kgem, size, CREATE_INACTIVE | flags);
-	if (bo)
-		return kgem_bo_reference(bo);
+	if (bo) {
+		bo->refcnt = 1;
+		return bo;
+	}
 
 	handle = gem_create(kgem->fd, size);
 	if (handle == 0)
@@ -2505,7 +2507,8 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 			bo->delta = 0;
 			DBG(("  1:from active: pitch=%d, tiling=%d, handle=%d, id=%d\n",
 			     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
-			return kgem_bo_reference(bo);
+			bo->refcnt = 1;
+			return bo;
 		}
 
 		goto create;
@@ -2556,7 +2559,8 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 				     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
 				assert(bo->reusable);
 				assert(bo->domain != DOMAIN_GPU && !kgem_busy(kgem, bo->handle));
-				return kgem_bo_reference(bo);
+				bo->refcnt = 1;
+				return bo;
 			}
 		} while (!list_is_empty(cache) && kgem_retire(kgem));
 	}
@@ -2609,7 +2613,8 @@ search_again:
 			bo->delta = 0;
 			DBG(("  1:from active: pitch=%d, tiling=%d, handle=%d, id=%d\n",
 			     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
-			return kgem_bo_reference(bo);
+			bo->refcnt = 1;
+			return bo;
 		}
 	} else {
 		list_for_each_entry(bo, cache, list) {
@@ -2629,7 +2634,8 @@ search_again:
 			bo->delta = 0;
 			DBG(("  1:from active: pitch=%d, tiling=%d, handle=%d, id=%d\n",
 			     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
-			return kgem_bo_reference(bo);
+			bo->refcnt = 1;
+			return bo;
 		}
 	}
 
@@ -2661,7 +2667,8 @@ search_again:
 					bo->delta = 0;
 					DBG(("  1:from active: pitch=%d, tiling=%d, handle=%d, id=%d\n",
 					     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
-					return kgem_bo_reference(bo);
+					bo->refcnt = 1;
+					return bo;
 				}
 			}
 		}
@@ -2706,7 +2713,8 @@ search_again:
 				bo->delta = 0;
 				DBG(("  1:from active: pitch=%d, tiling=%d, handle=%d, id=%d\n",
 				     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
-				return kgem_bo_reference(bo);
+				bo->refcnt = 1;
+				return bo;
 			}
 		}
 	}
@@ -2763,7 +2771,8 @@ search_inactive:
 		assert((flags & CREATE_INACTIVE) == 0 || bo->domain != DOMAIN_GPU);
 		assert((flags & CREATE_INACTIVE) == 0 ||
 		       !kgem_busy(kgem, bo->handle));
-		return kgem_bo_reference(bo);
+		bo->refcnt = 1;
+		return bo;
 	}
 
 	if (flags & CREATE_INACTIVE && !list_is_empty(&kgem->requests)) {
