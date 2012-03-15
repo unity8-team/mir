@@ -1437,7 +1437,7 @@ inplace_row(struct active_list *active, uint8_t *row, int width)
 			}
 
 			winding += right->dir;
-			if (0 == winding)
+			if (0 == winding && right->x.quo != right->next->x.quo)
 				break;
 
 			right = right->next;
@@ -1445,7 +1445,7 @@ inplace_row(struct active_list *active, uint8_t *row, int width)
 
 		if (left->x.quo < 0) {
 			lix = lfx = 0;
-		} else if (left->x.quo > width * FAST_SAMPLES_X) {
+		} else if (left->x.quo >= width * FAST_SAMPLES_X) {
 			lix = width;
 			lfx = 0;
 		} else
@@ -1453,7 +1453,7 @@ inplace_row(struct active_list *active, uint8_t *row, int width)
 
 		if (right->x.quo < 0) {
 			rix = rfx = 0;
-		} else if (right->x.quo > width * FAST_SAMPLES_X) {
+		} else if (right->x.quo >= width * FAST_SAMPLES_X) {
 			rix = width;
 			rfx = 0;
 		} else
@@ -1478,12 +1478,14 @@ inplace_row(struct active_list *active, uint8_t *row, int width)
 				else
 					memset(row+lix, 0xff, rix);
 #else
-				while (rix && lix & 3)
-					row[lix++] = 0xff, rix--;
-				while (rix > 4) {
+				while (rix >= 8) {
+					*(uint64_t *)(row+lix) = 0xffffffffffffffff;
+					lix += 8;
+					rix -= 8;
+				}
+				if (rix & 4) {
 					*(uint32_t *)(row+lix) = 0xffffffff;
 					lix += 4;
-					rix -= 4;
 				}
 				if (rix & 2) {
 					*(uint16_t *)(row+lix) = 0xffff;
@@ -1533,16 +1535,16 @@ inplace_subrow(struct active_list *active, int8_t *row,
 							*min = ix;
 
 						row[ix++] += FAST_SAMPLES_X - fx;
-						if (ix < width)
+						if (fx && ix < width)
 							row[ix] += fx;
 					}
 
 					xstart = edge->x.quo;
 					if (xstart < FAST_SAMPLES_X * width) {
 						FAST_SAMPLES_X_TO_INT_FRAC(xstart, ix, fx);
-						row[ix++] -= FAST_SAMPLES_X - fx;
-						if (ix < width)
-							row[ix] -= fx;
+						row[ix] -= FAST_SAMPLES_X - fx;
+						if (fx && ix + 1< width)
+							row[++ix] -= fx;
 
 						if (ix > *max)
 							*max = ix;
