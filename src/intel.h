@@ -82,12 +82,12 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 struct intel_pixmap {
 	dri_bo *bo;
 
-	struct list flush, batch;
+	struct list batch;
 
 	uint16_t stride;
 	uint8_t tiling;
 	int8_t busy :2;
-	int8_t batch_write :1;
+	int8_t dirty :1;
 	int8_t offscreen :1;
 	int8_t pinned :1;
 };
@@ -121,7 +121,7 @@ static inline void intel_set_pixmap_private(PixmapPtr pixmap, struct intel_pixma
 
 static inline Bool intel_pixmap_is_dirty(PixmapPtr pixmap)
 {
-	return !list_is_empty(&intel_get_pixmap_private(pixmap)->flush);
+	return pixmap && intel_get_pixmap_private(pixmap)->dirty;
 }
 
 static inline Bool intel_pixmap_tiled(PixmapPtr pixmap)
@@ -188,7 +188,6 @@ typedef struct intel_screen_private {
 	/** Ending batch_used that was verified by intel_start_batch_atomic() */
 	int batch_atomic_limit;
 	struct list batch_pixmaps;
-	struct list flush_pixmaps;
 	drm_intel_bo *wa_scratch_bo;
 	OsTimerPtr cache_expire;
 

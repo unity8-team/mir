@@ -743,11 +743,7 @@ i915_prepare_composite(int op, PicturePtr source_picture,
 
 	intel->i915_render_state.op = op;
 
-	/* BUF_INFO is an implicit flush */
-	if (dest != intel->render_current_dest)
-		intel_batch_do_flush(scrn);
-	else if((source && intel_pixmap_is_dirty(source)) ||
-		(mask && intel_pixmap_is_dirty(mask)))
+	if (intel_pixmap_is_dirty(source) || intel_pixmap_is_dirty(mask))
 		intel_batch_emit_flush(scrn);
 
 	intel->needs_render_state_emit = TRUE;
@@ -905,8 +901,6 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 	 */
 	if (1 || dest != intel->render_current_dest) {
 		uint32_t tiling_bits;
-
-		intel_batch_do_flush(scrn);
 
 		if (intel_pixmap_tiled(dest)) {
 			tiling_bits = BUF_3D_TILED_SURFACE;

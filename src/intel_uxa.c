@@ -643,7 +643,6 @@ void intel_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo)
 
 		dri_bo_unreference(priv->bo);
 		list_del(&priv->batch);
-		list_del(&priv->flush);
 
 		if (intel->render_current_dest == pixmap)
 		    intel->render_current_dest = NULL;
@@ -660,7 +659,6 @@ void intel_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo)
 				goto BAIL;
 
 			list_init(&priv->batch);
-			list_init(&priv->flush);
 		}
 
 		dri_bo_reference(bo);
@@ -710,8 +708,7 @@ static Bool intel_uxa_prepare_access(PixmapPtr pixmap, uxa_access_t access)
 
 	/* When falling back to swrast, flush all pending operations */
 	intel_glamor_flush(intel);
-	if (!list_is_empty(&priv->batch) &&
-	    (access == UXA_ACCESS_RW || priv->batch_write))
+	if (access == UXA_ACCESS_RW || priv->dirty)
 		intel_batch_submit(scrn);
 
 	assert(bo->size <= intel->max_gtt_map_size);
@@ -1105,7 +1102,6 @@ intel_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 		priv->offscreen = 1;
 
 		list_init(&priv->batch);
-		list_init(&priv->flush);
 		intel_set_pixmap_private(pixmap, priv);
 
 		screen->ModifyPixmapHeader(pixmap, w, h, 0, 0, stride, NULL);

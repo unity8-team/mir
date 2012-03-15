@@ -114,17 +114,15 @@ void intel_batch_teardown(ScrnInfoPtr scrn)
 
 	while (!list_is_empty(&intel->batch_pixmaps))
 		list_del(intel->batch_pixmaps.next);
-
-	while (!list_is_empty(&intel->flush_pixmaps))
-		list_del(intel->flush_pixmaps.next);
 }
 
-void intel_batch_do_flush(ScrnInfoPtr scrn)
+static void intel_batch_do_flush(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
+	struct intel_pixmap *priv;
 
-	while (!list_is_empty(&intel->flush_pixmaps))
-		list_del(intel->flush_pixmaps.next);
+	list_for_each_entry(priv, &intel->batch_pixmaps, batch)
+		priv->dirty = 0;
 }
 
 static void intel_emit_post_sync_nonzero_flush(ScrnInfoPtr scrn)
@@ -268,12 +266,9 @@ void intel_batch_submit(ScrnInfoPtr scrn)
 					 batch);
 
 		entry->busy = -1;
-		entry->batch_write = 0;
+		entry->dirty = 0;
 		list_del(&entry->batch);
 	}
-
-	while (!list_is_empty(&intel->flush_pixmaps))
-		list_del(intel->flush_pixmaps.next);
 
 	if (intel->debug_flush & DEBUG_FLUSH_WAIT)
 		drm_intel_bo_wait_rendering(intel->batch_bo);
