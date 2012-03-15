@@ -1745,7 +1745,7 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box, unsigned int flags)
 		if (n) {
 			Bool ok = FALSE;
 
-			if (use_cpu_bo_for_xfer(priv))
+			if (pixmap->devPrivate.ptr == NULL || use_cpu_bo_for_xfer(priv))
 				ok = sna->render.copy_boxes(sna, GXcopy,
 							    pixmap, priv->cpu_bo, 0, 0,
 							    pixmap, priv->gpu_bo, 0, 0,
@@ -1783,7 +1783,7 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box, unsigned int flags)
 	} else if (DAMAGE_IS_ALL(priv->cpu_damage) ||
 		   sna_damage_contains_box__no_reduce(priv->cpu_damage, box)) {
 		Bool ok = FALSE;
-		if (use_cpu_bo_for_xfer(priv))
+		if (pixmap->devPrivate.ptr == NULL || use_cpu_bo_for_xfer(priv))
 			ok = sna->render.copy_boxes(sna, GXcopy,
 						    pixmap, priv->cpu_bo, 0, 0,
 						    pixmap, priv->gpu_bo, 0, 0,
@@ -1812,7 +1812,7 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box, unsigned int flags)
 
 		box = REGION_RECTS(&i);
 		ok = FALSE;
-		if (use_cpu_bo_for_xfer(priv))
+		if (pixmap->devPrivate.ptr == NULL || use_cpu_bo_for_xfer(priv))
 			ok = sna->render.copy_boxes(sna, GXcopy,
 						    pixmap, priv->cpu_bo, 0, 0,
 						    pixmap, priv->gpu_bo, 0, 0,
@@ -2283,7 +2283,7 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 		DBG(("%s: uploading %d damage boxes\n", __FUNCTION__, n));
 
 		ok = FALSE;
-		if (use_cpu_bo_for_xfer(priv))
+		if (pixmap->devPrivate.ptr == NULL || use_cpu_bo_for_xfer(priv))
 			ok = sna->render.copy_boxes(sna, GXcopy,
 						    pixmap, priv->cpu_bo, 0, 0,
 						    pixmap, priv->gpu_bo, 0, 0,
