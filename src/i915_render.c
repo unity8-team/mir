@@ -694,7 +694,6 @@ i915_prepare_composite(int op, PicturePtr source_picture,
 	if (!intel_get_aperture_space(scrn, bo_table, ARRAY_SIZE(bo_table)))
 		return FALSE;
 
-	intel->needs_render_ca_pass = FALSE;
 	if (mask_picture != NULL && mask_picture->componentAlpha &&
 	    PICT_FORMAT_RGB(mask_picture->format)) {
 		/* Check if it's component alpha that relies on a source alpha
@@ -702,12 +701,8 @@ i915_prepare_composite(int op, PicturePtr source_picture,
 		 * into the single source value that we get to blend with.
 		 */
 		if (i915_blend_op[op].src_alpha &&
-		    (i915_blend_op[op].src_blend != BLENDFACT_ZERO)) {
-			if (op != PictOpOver)
-				return FALSE;
-
-			intel->needs_render_ca_pass = TRUE;
-		}
+		    (i915_blend_op[op].src_blend != BLENDFACT_ZERO))
+			return FALSE;
 	}
 
 	intel->transform[0] = NULL;
@@ -944,18 +939,12 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 					   TEXCOORDFMT_2D : TEXCOORDFMT_4D);
 		}
 
-		if (intel->needs_render_ca_pass) {
-			OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(2) | 0);
-			OUT_BATCH(ss2);
-		} else {
-			OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(2) | I1_LOAD_S(6) | 1);
-			OUT_BATCH(ss2);
-			OUT_BATCH(i915_get_blend_cntl(op, mask_picture, dest_picture->format));
-		}
+		OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(2) | I1_LOAD_S(6) | 1);
+		OUT_BATCH(ss2);
+		OUT_BATCH(i915_get_blend_cntl(op, mask_picture, dest_picture->format));
 	}
 
-	if (! intel->needs_render_ca_pass)
-		i915_composite_emit_shader(intel, op);
+	i915_composite_emit_shader(intel, op);
 }
 
 void
@@ -1000,14 +989,6 @@ i915_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 	}
 
 	if (intel->prim_offset == 0) {
-		if (intel->needs_render_ca_pass) {
-			OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(6) | 0);
-			OUT_BATCH(i915_get_blend_cntl(PictOpOutReverse,
-						      intel->render_mask_picture,
-						      intel->render_dest_picture->format));
-			i915_composite_emit_shader(intel, PictOpOutReverse);
-		}
-
 		intel->prim_offset = intel->batch_used;
 		OUT_BATCH(PRIM3D_RECTLIST | PRIM3D_INDIRECT_SEQUENTIAL);
 		OUT_BATCH(intel->vertex_index);
@@ -1031,16 +1012,6 @@ i915_vertex_flush(intel_screen_private *intel)
 
 	intel->batch_ptr[intel->prim_offset] |= intel->vertex_count;
 	intel->prim_offset = 0;
-
-	if (intel->needs_render_ca_pass) {
-		OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(6) | 0);
-		OUT_BATCH(i915_get_blend_cntl(PictOpAdd,
-					      intel->render_mask_picture,
-					      intel->render_dest_picture->format));
-		i915_composite_emit_shader(intel, PictOpAdd);
-		OUT_BATCH(PRIM3D_RECTLIST | PRIM3D_INDIRECT_SEQUENTIAL | intel->vertex_count);
-		OUT_BATCH(intel->vertex_index);
-	}
 
 	intel->vertex_index += intel->vertex_count;
 	intel->vertex_count = 0;
