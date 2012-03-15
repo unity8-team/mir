@@ -628,12 +628,9 @@ dri_bo *intel_get_pixmap_bo(PixmapPtr pixmap)
 
 void intel_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo)
 {
-	ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
-	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct intel_pixmap *priv;
 
 	priv = intel_get_pixmap_private(pixmap);
-
 	if (priv == NULL && bo == NULL)
 	    return;
 
@@ -643,9 +640,6 @@ void intel_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo)
 
 		dri_bo_unreference(priv->bo);
 		list_del(&priv->batch);
-
-		if (intel->render_current_dest == pixmap)
-		    intel->render_current_dest = NULL;
 	}
 
 	if (bo != NULL) {
@@ -1261,7 +1255,6 @@ Bool intel_uxa_init(ScreenPtr screen)
 	intel->uxa_driver->uxa_major = 1;
 	intel->uxa_driver->uxa_minor = 0;
 
-	intel->render_current_dest = NULL;
 	intel->prim_offset = 0;
 	intel->vertex_count = 0;
 	intel->vertex_offset = 0;

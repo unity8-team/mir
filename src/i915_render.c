@@ -899,7 +899,7 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 	 * XXX However for reasons unfathomed, correct rendering in KDE requires
 	 * at least a MI_FLUSH | INHIBIT_RENDER_CACHE_FLUSH here.
 	 */
-	if (1 || dest != intel->render_current_dest) {
+	if (1) {
 		uint32_t tiling_bits;
 
 		if (intel_pixmap_tiled(dest)) {
@@ -927,8 +927,6 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 			  DRAW_XMAX(dest->drawable.width - 1));
 		/* yorig, xorig (relate to color buffer?) */
 		OUT_BATCH(0x00000000);
-
-		intel->render_current_dest = dest;
 	}
 
 	{
@@ -1052,6 +1050,5 @@ void
 i915_batch_commit_notify(intel_screen_private *intel)
 {
 	intel->needs_render_state_emit = TRUE;
-	intel->render_current_dest = NULL;
 	intel->last_floats_per_vertex = 0;
 }
