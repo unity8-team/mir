@@ -640,6 +640,9 @@ void intel_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo)
 
 		dri_bo_unreference(priv->bo);
 		list_del(&priv->batch);
+
+		free(priv);
+		priv = NULL;
 	}
 
 	if (bo != NULL) {
@@ -647,13 +650,11 @@ void intel_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo)
 		uint32_t swizzle_mode;
 		int ret;
 
-		if (priv == NULL) {
-			priv = calloc(1, sizeof (struct intel_pixmap));
-			if (priv == NULL)
-				goto BAIL;
+		priv = calloc(1, sizeof (struct intel_pixmap));
+		if (priv == NULL)
+			goto BAIL;
 
-			list_init(&priv->batch);
-		}
+		list_init(&priv->batch);
 
 		dri_bo_reference(bo);
 		priv->bo = bo;
@@ -668,11 +669,6 @@ void intel_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo)
 		priv->tiling = tiling;
 		priv->busy = -1;
 		priv->offscreen = 1;
-	} else {
-		if (priv != NULL) {
-			free(priv);
-			priv = NULL;
-		}
 	}
 
   BAIL:
