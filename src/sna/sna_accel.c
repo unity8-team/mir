@@ -1751,6 +1751,11 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box, unsigned int flags)
 							    pixmap, priv->gpu_bo, 0, 0,
 							    box, n);
 			if (!ok) {
+				if (pixmap->devPrivate.ptr == NULL) {
+					assert(priv->stride && priv->ptr);
+					pixmap->devPrivate.ptr = priv->ptr;
+					pixmap->devKind = priv->stride;
+				}
 				if (n == 1 && !priv->pinned &&
 				    box->x1 <= 0 && box->y1 <= 0 &&
 				    box->x2 >= pixmap->drawable.width &&
@@ -1783,13 +1788,19 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box, unsigned int flags)
 						    pixmap, priv->cpu_bo, 0, 0,
 						    pixmap, priv->gpu_bo, 0, 0,
 						    box, 1);
-		if (!ok)
+		if (!ok) {
+			if (pixmap->devPrivate.ptr == NULL) {
+				assert(priv->stride && priv->ptr);
+				pixmap->devPrivate.ptr = priv->ptr;
+				pixmap->devKind = priv->stride;
+			}
 			ok = sna_write_boxes(sna, pixmap,
 					     priv->gpu_bo, 0, 0,
 					     pixmap->devPrivate.ptr,
 					     pixmap->devKind,
 					     0, 0,
 					     box, 1);
+		}
 		if (!ok)
 			return false;
 
@@ -1806,13 +1817,19 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box, unsigned int flags)
 						    pixmap, priv->cpu_bo, 0, 0,
 						    pixmap, priv->gpu_bo, 0, 0,
 						    box, n);
-		if (!ok)
+		if (!ok) {
+			if (pixmap->devPrivate.ptr == NULL) {
+				assert(priv->stride && priv->ptr);
+				pixmap->devPrivate.ptr = priv->ptr;
+				pixmap->devKind = priv->stride;
+			}
 			ok = sna_write_boxes(sna, pixmap,
 					     priv->gpu_bo, 0, 0,
 					     pixmap->devPrivate.ptr,
 					     pixmap->devKind,
 					     0, 0,
 					     box, n);
+		}
 		if (!ok)
 			return false;
 
@@ -2272,7 +2289,11 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 						    pixmap, priv->gpu_bo, 0, 0,
 						    box, n);
 		if (!ok) {
-			assert(pixmap->devPrivate.ptr != NULL);
+			if (pixmap->devPrivate.ptr == NULL) {
+				assert(priv->stride && priv->ptr);
+				pixmap->devPrivate.ptr = priv->ptr;
+				pixmap->devKind = priv->stride;
+			}
 			if (n == 1 && !priv->pinned &&
 			    (box->x2 - box->x1) >= pixmap->drawable.width &&
 			    (box->y2 - box->y1) >= pixmap->drawable.height) {
