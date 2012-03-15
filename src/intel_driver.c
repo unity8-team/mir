@@ -402,8 +402,6 @@ static int intel_init_bufmgr(intel_screen_private *intel)
 	drm_intel_bufmgr_gem_enable_fenced_relocs(intel->bufmgr);
 
 	list_init(&intel->batch_pixmaps);
-	list_init(&intel->flush_pixmaps);
-	list_init(&intel->in_flight);
 
 	if ((INTEL_INFO(intel)->gen == 60)) {
 		intel->wa_scratch_bo =
