@@ -192,8 +192,8 @@ sdkdir=`$PKG_CONFIG --variable=sdkdir xorg-server`
 if test "x$enable_dri" != "xno"; then
         save_CFLAGS="$CFLAGS"
         save_CPPFLAGS="$CPPFLAGS"
-        CFLAGS="$XORG_CFLAGS $DRI_CFLAGS $DRM_CFLAGS"
-        CPPFLAGS="$XORG_CFLAGS $DRI_CFLAGS $DRM_CFLAGS"
+        CFLAGS="$CFLAGS $XORG_CFLAGS $DRI_CFLAGS $DRM_CFLAGS"
+        CPPFLAGS="$CPPFLAGS $XORG_CFLAGS $DRI_CFLAGS $DRM_CFLAGS"
         AC_CHECK_HEADERS([dri.h sarea.h dristruct.h],, [DRI=no],
                 [/* for dri.h */
                  #include <xf86str.h>
