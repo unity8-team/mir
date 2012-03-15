@@ -12082,16 +12082,16 @@ void sna_accel_watch_flush(struct sna *sna, int enable)
 
 void sna_accel_close(struct sna *sna)
 {
+	sna_composite_close(sna);
+	sna_gradients_close(sna);
+	sna_glyphs_close(sna);
+
 	if (sna->freed_pixmap) {
 		assert(sna->freed_pixmap->refcnt == 1);
 		free(sna_pixmap(sna->freed_pixmap));
 		fbDestroyPixmap(sna->freed_pixmap);
 		sna->freed_pixmap = NULL;
 	}
-
-	sna_composite_close(sna);
-	sna_gradients_close(sna);
-	sna_glyphs_close(sna);
 
 	DeleteCallback(&FlushCallback, sna_accel_flush_callback, sna);
 
