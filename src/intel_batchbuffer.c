@@ -117,18 +117,6 @@ void intel_batch_teardown(ScrnInfoPtr scrn)
 
 	while (!list_is_empty(&intel->flush_pixmaps))
 		list_del(intel->flush_pixmaps.next);
-
-	while (!list_is_empty(&intel->in_flight)) {
-		struct intel_pixmap *entry;
-
-		entry = list_first_entry(&intel->in_flight,
-					 struct intel_pixmap,
-					 in_flight);
-
-		dri_bo_unreference(entry->bo);
-		list_del(&entry->in_flight);
-		free(entry);
-	}
 }
 
 void intel_batch_do_flush(ScrnInfoPtr scrn)
@@ -286,18 +274,6 @@ void intel_batch_submit(ScrnInfoPtr scrn)
 
 	while (!list_is_empty(&intel->flush_pixmaps))
 		list_del(intel->flush_pixmaps.next);
-
-	while (!list_is_empty(&intel->in_flight)) {
-		struct intel_pixmap *entry;
-
-		entry = list_first_entry(&intel->in_flight,
-					 struct intel_pixmap,
-					 in_flight);
-
-		dri_bo_unreference(entry->bo);
-		list_del(&entry->in_flight);
-		free(entry);
-	}
 
 	if (intel->debug_flush & DEBUG_FLUSH_WAIT)
 		drm_intel_bo_wait_rendering(intel->batch_bo);

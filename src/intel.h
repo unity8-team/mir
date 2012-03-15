@@ -82,7 +82,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 struct intel_pixmap {
 	dri_bo *bo;
 
-	struct list flush, batch, in_flight;
+	struct list flush, batch;
 
 	uint16_t stride;
 	uint8_t tiling;
@@ -189,7 +189,6 @@ typedef struct intel_screen_private {
 	int batch_atomic_limit;
 	struct list batch_pixmaps;
 	struct list flush_pixmaps;
-	struct list in_flight;
 	drm_intel_bo *wa_scratch_bo;
 	OsTimerPtr cache_expire;
 
