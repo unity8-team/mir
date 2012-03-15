@@ -4071,7 +4071,6 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 	struct sna_pixmap *priv;
 	RegionRec region;
 	uint32_t color;
-	bool unbounded;
 	int16_t dst_x, dst_y;
 	int dx, dy;
 	int n;
@@ -4120,17 +4119,14 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 		return false;
 	}
 
-	unbounded = false;
 	switch (op) {
-	case PictOpIn:
-		unbounded = true;
-		if (priv->clear && priv->clear_color == 0xff)
-			op = PictOpSrc;
-		break;
 	case PictOpAdd:
 		if (priv->clear && priv->clear_color == 0)
 			op = PictOpSrc;
 		break;
+	case PictOpIn:
+		if (priv->clear && priv->clear_color == 0)
+			return true;
 	case PictOpSrc:
 		break;
 	default:
@@ -4251,7 +4247,7 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 	inplace.opacity = color >> 24;
 
 	tor_render(NULL, &tor, (void*)&inplace,
-		   dst->pCompositeClip, span, unbounded);
+		   dst->pCompositeClip, span, op == PictOpIn);
 
 	tor_fini(&tor);
 
