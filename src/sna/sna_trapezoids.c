@@ -591,20 +591,31 @@ cell_list_add_subspan(struct cell_list *cells,
 		cell->uncovered_area += 2*(fx1-fx2);
 }
 
-static void
-cell_list_render_edge(struct cell_list *cells, struct edge *edge, int sign)
+inline static void
+cell_list_add_span(struct cell_list *cells,
+		   grid_scaled_x_t x1,
+		   grid_scaled_x_t x2)
 {
 	struct cell *cell;
-	grid_scaled_x_t fx;
-	int ix;
+	int ix1, fx1;
+	int ix2, fx2;
 
-	FAST_SAMPLES_X_TO_INT_FRAC(edge->x.quo, ix, fx);
+	FAST_SAMPLES_X_TO_INT_FRAC(x1, ix1, fx1);
+	FAST_SAMPLES_X_TO_INT_FRAC(x2, ix2, fx2);
 
-	/* We always know that ix1 is >= the cell list cursor in this
-	 * case due to the no-intersections precondition.  */
-	cell = cell_list_find(cells, ix);
-	cell->covered_height += sign*FAST_SAMPLES_Y;
-	cell->uncovered_area += sign*2*fx*FAST_SAMPLES_Y;
+	__DBG(("%s: x1=%d (%d+%d), x2=%d (%d+%d)\n", __FUNCTION__,
+	       x1, ix1, fx1, x2, ix2, fx2));
+
+	cell = cell_list_find(cells, ix1);
+	if (ix1 != ix2) {
+		cell->uncovered_area += 2*fx1;
+		cell->covered_height += FAST_SAMPLES_Y;
+
+		cell = cell_list_find(cells, ix2);
+		cell->uncovered_area -= 2*fx2;
+		cell->covered_height -= FAST_SAMPLES_Y;
+	} else
+		cell->uncovered_area += 2*(fx1-fx2);
 }
 
 static void
@@ -1054,9 +1065,7 @@ nonzero_row(struct active_list *active, struct cell_list *coverages)
 			right = right->next;
 		} while (1);
 
-		cell_list_render_edge(coverages, left, +1);
-		cell_list_render_edge(coverages, right, -1);
-
+		cell_list_add_span(coverages, left->x.quo, right->x.quo);
 		left = right->next;
 	}
 }
