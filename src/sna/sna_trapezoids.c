@@ -3603,28 +3603,6 @@ tor_blt_src_clipped(struct sna *sna,
 }
 
 static void
-tor_blt_src_mono(struct sna *sna,
-		 struct sna_composite_spans_op *op,
-		 pixman_region16_t *clip,
-		 const BoxRec *box,
-		 int coverage)
-{
-	tor_blt_src(sna, op, clip, box,
-		    coverage < FAST_SAMPLES_XY/2 ? 0 : FAST_SAMPLES_XY);
-}
-
-static void
-tor_blt_src_clipped_mono(struct sna *sna,
-			 struct sna_composite_spans_op *op,
-			 pixman_region16_t *clip,
-			 const BoxRec *box,
-			 int coverage)
-{
-	tor_blt_src_clipped(sna, op, clip, box,
-			    coverage < FAST_SAMPLES_XY/2 ? 0 : FAST_SAMPLES_XY);
-}
-
-static void
 tor_blt_in(struct sna *sna,
 	   struct sna_composite_spans_op *op,
 	   pixman_region16_t *clip,
@@ -3669,28 +3647,6 @@ tor_blt_in_clipped(struct sna *sna,
 	while (n--)
 		tor_blt_in(sna, op, NULL, box++, coverage);
 	pixman_region_fini(&region);
-}
-
-static void
-tor_blt_in_mono(struct sna *sna,
-		struct sna_composite_spans_op *op,
-		pixman_region16_t *clip,
-		const BoxRec *box,
-		int coverage)
-{
-	tor_blt_in(sna, op, clip, box,
-		   coverage < FAST_SAMPLES_XY/2 ? 0 : FAST_SAMPLES_XY);
-}
-
-static void
-tor_blt_in_clipped_mono(struct sna *sna,
-			struct sna_composite_spans_op *op,
-			pixman_region16_t *clip,
-			const BoxRec *box,
-			int coverage)
-{
-	tor_blt_in_clipped(sna, op, clip, box,
-			   coverage < FAST_SAMPLES_XY/2 ? 0 : FAST_SAMPLES_XY);
 }
 
 static void
@@ -3743,28 +3699,6 @@ tor_blt_add_clipped(struct sna *sna,
 	while (n--)
 		tor_blt_add(sna, op, NULL, box++, coverage);
 	pixman_region_fini(&region);
-}
-
-static void
-tor_blt_add_mono(struct sna *sna,
-		 struct sna_composite_spans_op *op,
-		 pixman_region16_t *clip,
-		 const BoxRec *box,
-		 int coverage)
-{
-	if (coverage >= FAST_SAMPLES_XY/2)
-		tor_blt_add(sna, op, clip, box, FAST_SAMPLES_XY);
-}
-
-static void
-tor_blt_add_clipped_mono(struct sna *sna,
-			 struct sna_composite_spans_op *op,
-			 pixman_region16_t *clip,
-			 const BoxRec *box,
-			 int coverage)
-{
-	if (coverage >= FAST_SAMPLES_XY/2)
-		tor_blt_add_clipped(sna, op, clip, box, FAST_SAMPLES_XY);
 }
 
 struct mono_inplace_composite {
@@ -4196,41 +4130,21 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 	}
 
 	if (op == PictOpSrc) {
-		if (dst->pCompositeClip->data) {
-			if (maskFormat ? maskFormat->depth < 8 : dst->polyEdge == PolyEdgeSharp)
-				span = tor_blt_src_clipped_mono;
-			else
-				span = tor_blt_src_clipped;
-		} else {
-			if (maskFormat ? maskFormat->depth < 8 : dst->polyEdge == PolyEdgeSharp)
-				span = tor_blt_src_mono;
-			else
-				span = tor_blt_src;
-		}
+		if (dst->pCompositeClip->data)
+			span = tor_blt_src_clipped;
+		else
+			span = tor_blt_src;
 	} else if (op == PictOpIn) {
-		if (dst->pCompositeClip->data) {
-			if (maskFormat ? maskFormat->depth < 8 : dst->polyEdge == PolyEdgeSharp)
-				span = tor_blt_in_clipped_mono;
-			else
-				span = tor_blt_in_clipped;
-		} else {
-			if (maskFormat ? maskFormat->depth < 8 : dst->polyEdge == PolyEdgeSharp)
-				span = tor_blt_in_mono;
-			else
-				span = tor_blt_in;
-		}
+		if (dst->pCompositeClip->data)
+			span = tor_blt_in_clipped;
+		else
+			span = tor_blt_in;
 	} else {
-		if (dst->pCompositeClip->data) {
-			if (maskFormat ? maskFormat->depth < 8 : dst->polyEdge == PolyEdgeSharp)
-				span = tor_blt_add_clipped_mono;
-			else
-				span = tor_blt_add_clipped;
-		} else {
-			if (maskFormat ? maskFormat->depth < 8 : dst->polyEdge == PolyEdgeSharp)
-				span = tor_blt_add_mono;
-			else
-				span = tor_blt_add;
-		}
+		assert(op == PictOpAdd);
+		if (dst->pCompositeClip->data)
+			span = tor_blt_add_clipped;
+		else
+			span = tor_blt_add;
 	}
 
 	DBG(("%s: move-to-cpu\n", __FUNCTION__));
