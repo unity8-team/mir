@@ -255,12 +255,11 @@ sna_dri_create_buffer(DrawablePtr drawable,
 		 * W fencing.
 		 */
 		bpp = format ? format : drawable->bitsPerPixel;
+		bpp *= 2;
 		bo = kgem_create_2d(&sna->kgem,
 				    ALIGN(drawable->width, 64),
 				    ALIGN((drawable->height + 1) / 2, 64),
-				    2*bpp,
-				    I915_TILING_NONE,
-				    CREATE_EXACT);
+				    bpp, I915_TILING_NONE, CREATE_EXACT);
 		break;
 
 	case DRI2BufferDepth:
