@@ -1803,7 +1803,7 @@ inline static int gen3_get_rectangles(struct sna *sna,
 
 start:
 	rem = vertex_space(sna);
-	if (op->floats_per_rect > rem) {
+	if (unlikely(op->floats_per_rect > rem)) {
 		DBG(("flushing vbo for %s: %d < %d\n",
 		     __FUNCTION__, rem, op->floats_per_rect));
 		rem = gen3_get_rectangles__flush(sna, op);
@@ -3194,6 +3194,33 @@ gen3_emit_composite_spans_primitive(struct sna *sna,
 }
 
 fastcall static void
+gen3_render_composite_spans_constant_box(struct sna *sna,
+					 const struct sna_composite_spans_op *op,
+					 const BoxRec *box, float opacity)
+{
+	float *v;
+	DBG(("%s: src=+(%d, %d), opacity=%f, dst=+(%d, %d), box=(%d, %d) x (%d, %d)\n",
+	     __FUNCTION__,
+	     op->base.src.offset[0], op->base.src.offset[1],
+	     opacity,
+	     op->base.dst.x, op->base.dst.y,
+	     box->x1, box->y1,
+	     box->x2 - box->x1,
+	     box->y2 - box->y1));
+
+	gen3_get_rectangles(sna, &op->base, 1);
+
+	v = sna->render.vertices + sna->render.vertex_used;
+	sna->render.vertex_used += 9;
+
+	v[0] = box->x2;
+	v[6] = v[3] = box->x1;
+	v[4] = v[1] = box->y2;
+	v[7] = box->y1;
+	v[8] = v[5] = v[2] = opacity;
+}
+
+fastcall static void
 gen3_render_composite_spans_box(struct sna *sna,
 				const struct sna_composite_spans_op *op,
 				const BoxRec *box, float opacity)
@@ -3328,6 +3355,9 @@ gen3_render_composite_spans(struct sna *sna,
 		tmp->base.mask.u.gen3.type = SHADER_OPACITY;
 
 	no_offset = tmp->base.dst.x == 0 && tmp->base.dst.y == 0;
+	tmp->box   = gen3_render_composite_spans_box;
+	tmp->boxes = gen3_render_composite_spans_boxes;
+	tmp->done  = gen3_render_composite_spans_done;
 	tmp->prim_emit = gen3_emit_composite_spans_primitive;
 	switch (tmp->base.src.u.gen3.type) {
 	case SHADER_NONE:
@@ -3338,7 +3368,11 @@ gen3_render_composite_spans(struct sna *sna,
 	case SHADER_BLACK:
 	case SHADER_WHITE:
 	case SHADER_CONSTANT:
-		tmp->prim_emit = no_offset ? gen3_emit_composite_spans_primitive_constant_no_offset : gen3_emit_composite_spans_primitive_constant;
+		if (no_offset) {
+			tmp->box = gen3_render_composite_spans_constant_box;
+			tmp->prim_emit = gen3_emit_composite_spans_primitive_constant_no_offset;
+		} else
+			tmp->prim_emit = gen3_emit_composite_spans_primitive_constant;
 		break;
 	case SHADER_LINEAR:
 	case SHADER_RADIAL:
@@ -3363,10 +3397,6 @@ gen3_render_composite_spans(struct sna *sna,
 	tmp->base.floats_per_vertex +=
 		tmp->base.mask.u.gen3.type == SHADER_OPACITY;
 	tmp->base.floats_per_rect = 3 * tmp->base.floats_per_vertex;
-
-	tmp->box   = gen3_render_composite_spans_box;
-	tmp->boxes = gen3_render_composite_spans_boxes;
-	tmp->done  = gen3_render_composite_spans_done;
 
 	if (!kgem_check_bo(&sna->kgem,
 			   tmp->base.dst.bo, tmp->base.src.bo,
