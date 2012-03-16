@@ -1141,6 +1141,18 @@ tor_blt_span(struct sna *sna,
 }
 
 static void
+tor_blt_span__no_damage(struct sna *sna,
+			struct sna_composite_spans_op *op,
+			pixman_region16_t *clip,
+			const BoxRec *box,
+			int coverage)
+{
+	__DBG(("%s: %d -> %d @ %d\n", __FUNCTION__, box->x1, box->x2, coverage));
+
+	op->box(sna, op, box, AREA_TO_ALPHA(coverage));
+}
+
+static void
 tor_blt_span_clipped(struct sna *sna,
 		     struct sna_composite_spans_op *op,
 		     pixman_region16_t *clip,
@@ -3101,7 +3113,8 @@ project_trapezoid_onto_grid(const xTrapezoid *in,
 }
 
 static span_func_t
-choose_span(PicturePtr dst,
+choose_span(struct sna_composite_spans_op *tmp,
+	    PicturePtr dst,
 	    PictFormatPtr maskFormat,
 	    uint8_t op,
 	    RegionPtr clip)
@@ -3120,9 +3133,12 @@ choose_span(PicturePtr dst,
 				span = tor_blt_span_mono_clipped;
 		}
 	} else {
-		span = tor_blt_span;
 		if (REGION_NUM_RECTS(clip) > 1)
 			span = tor_blt_span_clipped;
+		else if (tmp->base.damage == NULL)
+			span = tor_blt_span__no_damage;
+		else
+			span = tor_blt_span;
 	}
 
 	return span;
@@ -3379,7 +3395,7 @@ trapezoid_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	}
 
 	tor_render(sna, &tor, &tmp, &clip,
-		   choose_span(dst, maskFormat, op, &clip),
+		   choose_span(&tmp, dst, maskFormat, op, &clip),
 		   maskFormat && !operator_is_bounded(op));
 
 skip:
@@ -4669,7 +4685,7 @@ trap_span_converter(PicturePtr dst,
 	}
 
 	tor_render(sna, &tor, &tmp, clip,
-		   choose_span(dst, NULL, PictOpAdd, clip), false);
+		   choose_span(&tmp, dst, NULL, PictOpAdd, clip), false);
 
 skip:
 	tor_fini(&tor);
@@ -5196,7 +5212,7 @@ triangles_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	}
 
 	tor_render(sna, &tor, &tmp, &clip,
-		   choose_span(dst, maskFormat, op, &clip),
+		   choose_span(&tmp, dst, maskFormat, op, &clip),
 		   maskFormat && !operator_is_bounded(op));
 
 skip:
@@ -5559,7 +5575,7 @@ tristrip_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	assert(tor.polygon->num_edges <= 2*count);
 
 	tor_render(sna, &tor, &tmp, &clip,
-		   choose_span(dst, maskFormat, op, &clip),
+		   choose_span(&tmp, dst, maskFormat, op, &clip),
 		   maskFormat && !operator_is_bounded(op));
 
 skip:
