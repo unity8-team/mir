@@ -3553,6 +3553,19 @@ struct inplace {
 	uint8_t opacity;
 };
 
+static inline uint8_t
+mul_8_8(uint8_t a, uint8_t b)
+{
+    uint16_t t = a * (uint16_t)b + 0x7f;
+    return ((t >> 8) + t) >> 8;
+}
+
+static uint8_t coverage_opacity(int coverage, uint8_t opacity)
+{
+	coverage = coverage * 256 / FAST_SAMPLES_XY;
+	return mul_8_8(coverage - (coverage >> 8), opacity);
+}
+
 static void
 tor_blt_src(struct sna *sna,
 	    struct sna_composite_spans_op *op,
@@ -3564,7 +3577,7 @@ tor_blt_src(struct sna *sna,
 	uint8_t *ptr = in->ptr;
 	int h, w;
 
-	coverage = coverage * in->opacity / FAST_SAMPLES_XY;
+	coverage = coverage_opacity(coverage, in->opacity);
 
 	ptr += box->y1 * in->stride + box->x1;
 
@@ -3613,11 +3626,14 @@ tor_blt_in(struct sna *sna,
 	uint8_t *ptr = in->ptr;
 	int h, w, i;
 
-	coverage = coverage * in->opacity / FAST_SAMPLES_XY;
 	if (coverage == 0) {
 		tor_blt_src(sna, op, clip, box, 0);
 		return;
 	}
+
+	coverage = coverage_opacity(coverage, in->opacity);
+	if (coverage == 0xff)
+		return;
 
 	ptr += box->y1 * in->stride + box->x1;
 
@@ -3625,7 +3641,7 @@ tor_blt_in(struct sna *sna,
 	w = box->x2 - box->x1;
 	do {
 		for (i = 0; i < w; i++)
-			ptr[i] = (ptr[i] * coverage) >> 8;
+			ptr[i] = mul_8_8(ptr[i], coverage);
 		ptr += in->stride;
 	} while (--h);
 }
@@ -3660,9 +3676,14 @@ tor_blt_add(struct sna *sna,
 	uint8_t *ptr = in->ptr;
 	int h, w, v, i;
 
-	coverage = coverage * in->opacity / FAST_SAMPLES_XY;
 	if (coverage == 0)
 		return;
+
+	coverage = coverage_opacity(coverage, in->opacity);
+	if (coverage == 0xff) {
+		tor_blt_src(sna, op, clip, box, 0xff);
+		return;
+	}
 
 	ptr += box->y1 * in->stride + box->x1;
 
@@ -4057,9 +4078,13 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 	case PictOpAdd:
 		if (priv->clear && priv->clear_color == 0)
 			op = PictOpSrc;
+		if ((color >> 24) == 0)
+			return true;
 		break;
 	case PictOpIn:
 		if (priv->clear && priv->clear_color == 0)
+			return true;
+		if ((color >> 24) == 0)
 			return true;
 	case PictOpSrc:
 		break;
