@@ -394,9 +394,9 @@ static void set_bo(PixmapPtr pixmap, struct kgem_bo *bo)
 }
 
 static void
-sna_dri_copy(struct sna *sna, DrawablePtr draw, RegionPtr region,
-	     struct kgem_bo *dst_bo,struct kgem_bo *src_bo,
-	     bool sync)
+sna_dri_copy_to_front(struct sna *sna, DrawablePtr draw, RegionPtr region,
+		      struct kgem_bo *dst_bo, struct kgem_bo *src_bo,
+		      bool sync)
 {
 	PixmapPtr pixmap = get_drawable_pixmap(draw);
 	pixman_region16_t clip;
@@ -477,18 +477,8 @@ sna_dri_copy(struct sna *sna, DrawablePtr draw, RegionPtr region,
 		boxes = &box;
 		n = 1;
 	}
-	/* It's important that this copy gets submitted before the
-	 * direct rendering client submits rendering for the next
-	 * frame, but we don't actually need to submit right now.  The
-	 * client will wait for the DRI2CopyRegion reply or the swap
-	 * buffer event before rendering, and we'll hit the flush
-	 * callback chain before those messages are sent.  We submit
-	 * our batch buffers from the flush callback chain so we know
-	 * that will happen before the client tries to render
-	 * again.
-	 */
 	sna->render.copy_boxes(sna, GXcopy,
-			       pixmap, src_bo, -draw->x, -draw->y,
+			       (PixmapPtr)draw, src_bo, -draw->x, -draw->y,
 			       pixmap, dst_bo, dx, dy,
 			       boxes, n);
 
@@ -505,6 +495,137 @@ sna_dri_copy(struct sna *sna, DrawablePtr draw, RegionPtr region,
 }
 
 static void
+sna_dri_copy_from_front(struct sna *sna, DrawablePtr draw, RegionPtr region,
+			struct kgem_bo *dst_bo, struct kgem_bo *src_bo,
+			bool sync)
+{
+	PixmapPtr pixmap = get_drawable_pixmap(draw);
+	pixman_region16_t clip;
+	BoxRec box, *boxes;
+	int16_t dx, dy;
+	int n;
+
+	box.x1 = draw->x;
+	box.y1 = draw->y;
+	box.x2 = draw->x + draw->width;
+	box.y2 = draw->y + draw->height;
+
+	if (region) {
+		pixman_region_translate(region, draw->x, draw->y);
+		pixman_region_init_rects(&clip, &box, 1);
+		pixman_region_intersect(&clip, &clip, region);
+		region = &clip;
+
+		if (!pixman_region_not_empty(region)) {
+			DBG(("%s: all clipped\n", __FUNCTION__));
+			return;
+		}
+	}
+
+	dx = dy = 0;
+	if (draw->type != DRAWABLE_PIXMAP) {
+		WindowPtr win = (WindowPtr)draw;
+
+		DBG(("%s: draw=(%d, %d), delta=(%d, %d), clip.extents=(%d, %d), (%d, %d)\n",
+		     __FUNCTION__, draw->x, draw->y,
+		     get_drawable_dx(draw), get_drawable_dy(draw),
+		     win->clipList.extents.x1, win->clipList.extents.y1,
+		     win->clipList.extents.x2, win->clipList.extents.y2));
+
+		if (region == NULL) {
+			pixman_region_init_rects(&clip, &box, 1);
+			region = &clip;
+		}
+
+		pixman_region_intersect(region, &win->clipList, region);
+		if (!pixman_region_not_empty(region)) {
+			DBG(("%s: all clipped\n", __FUNCTION__));
+			return;
+		}
+
+		get_drawable_deltas(draw, pixmap, &dx, &dy);
+	}
+
+	if (sna->kgem.gen >= 60)
+		kgem_set_mode(&sna->kgem, KGEM_RENDER);
+
+	if (region) {
+		boxes = REGION_RECTS(region);
+		n = REGION_NUM_RECTS(region);
+		assert(n);
+	} else {
+		pixman_region_init_rects(&clip, &box, 1);
+		region = &clip;
+		boxes = &box;
+		n = 1;
+	}
+	sna->render.copy_boxes(sna, GXcopy,
+			       pixmap, src_bo, dx, dy,
+			       (PixmapPtr)draw, dst_bo, -draw->x, -draw->y,
+			       boxes, n);
+
+	if (region == &clip)
+		pixman_region_fini(&clip);
+}
+
+static void
+sna_dri_copy(struct sna *sna, DrawablePtr draw, RegionPtr region,
+	     struct kgem_bo *dst_bo, struct kgem_bo *src_bo,
+	     bool sync)
+{
+	pixman_region16_t clip;
+	BoxRec box, *boxes;
+	int n;
+
+	box.x1 = 0;
+	box.y1 = 0;
+	box.x2 = draw->width;
+	box.y2 = draw->height;
+
+	if (region) {
+		pixman_region_init_rects(&clip, &box, 1);
+		pixman_region_intersect(&clip, &clip, region);
+		region = &clip;
+
+		if (!pixman_region_not_empty(region)) {
+			DBG(("%s: all clipped\n", __FUNCTION__));
+			return;
+		}
+
+		boxes = REGION_RECTS(region);
+		n = REGION_NUM_RECTS(region);
+		assert(n);
+	} else {
+		boxes = &box;
+		n = 1;
+	}
+
+	if (sna->kgem.gen >= 60) {
+		/* Sandybridge introduced a separate ring which it uses to
+		 * perform blits. Switching rendering between rings incurs
+		 * a stall as we wait upon the old ring to finish and
+		 * flush its render cache before we can proceed on with
+		 * the operation on the new ring.
+		 *
+		 * As this buffer, we presume, has just been written to by
+		 * the DRI client using the RENDER ring, we want to perform
+		 * our operation on the same ring, and ideally on the same
+		 * ring as we will flip from (which should be the RENDER ring
+		 * as well).
+		 */
+		kgem_set_mode(&sna->kgem, KGEM_RENDER);
+	}
+
+	sna->render.copy_boxes(sna, GXcopy,
+			       (PixmapPtr)draw, src_bo, 0, 0,
+			       (PixmapPtr)draw, dst_bo, 0, 0,
+			       boxes, n);
+
+	if (region == &clip)
+		pixman_region_fini(&clip);
+}
+
+static void
 sna_dri_copy_region(DrawablePtr draw,
 		    RegionPtr region,
 		    DRI2BufferPtr dst_buffer,
@@ -513,15 +634,20 @@ sna_dri_copy_region(DrawablePtr draw,
 	PixmapPtr pixmap = get_drawable_pixmap(draw);
 	struct sna *sna = to_sna_from_pixmap(pixmap);
 	struct kgem_bo *src, *dst;
+	void (*copy)(struct sna *, DrawablePtr, RegionPtr,
+		     struct kgem_bo *, struct kgem_bo *, bool) = sna_dri_copy;
 
-	if (dst_buffer->attachment == DRI2BufferFrontLeft)
+	if (dst_buffer->attachment == DRI2BufferFrontLeft) {
 		dst = sna_pixmap_set_dri(sna, pixmap);
-	else
+		copy = sna_dri_copy_to_front;
+	} else
 		dst = get_private(dst_buffer)->bo;
 
-	if (src_buffer->attachment == DRI2BufferFrontLeft)
+	if (src_buffer->attachment == DRI2BufferFrontLeft) {
 		src = sna_pixmap_set_dri(sna, pixmap);
-	else
+		assert(copy == sna_dri_copy);
+		copy = sna_dri_copy_from_front;
+	} else
 		src = get_private(src_buffer)->bo;
 
 	assert(dst != NULL);
@@ -534,13 +660,13 @@ sna_dri_copy_region(DrawablePtr draw,
 	DBG(("%s: src -- attachment=%d, name=%d, handle=%d\n",
 	     __FUNCTION__,
 	     src_buffer->attachment, src_buffer->name, src->handle));
-	DBG(("%s: clip (%d, %d), (%d, %d) x %d\n",
+	DBG(("%s: region (%d, %d), (%d, %d) x %d\n",
 	     __FUNCTION__,
 	     region->extents.x1, region->extents.y1,
 	     region->extents.x2, region->extents.y2,
 	     REGION_NUM_RECTS(region)));
 
-	sna_dri_copy(sna, draw, region, dst, src, false);
+	copy(sna, draw, region, dst, src, false);
 }
 
 #if DRI2INFOREC_VERSION >= 4
@@ -916,12 +1042,12 @@ static void sna_dri_vblank_handle(int fd,
 			info->old_front.bo = NULL;
 			return;
 		}
-		/* else fall through to exchange/blit */
+		/* else fall through to blit */
 	case DRI2_SWAP:
-		sna_dri_copy(sna, draw, NULL,
-			     get_private(info->front)->bo,
-			     get_private(info->back)->bo,
-			     true);
+		sna_dri_copy_to_front(sna, draw, NULL,
+				      get_private(info->front)->bo,
+				      get_private(info->back)->bo,
+				      true);
 	case DRI2_SWAP_THROTTLE:
 		DBG(("%s: %d complete, frame=%d tv=%d.%06d\n",
 		     __FUNCTION__, info->type, frame, tv_sec, tv_usec));
@@ -1451,10 +1577,10 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 			 DRI2SwapComplete(client, draw, 0, 0, 0, DRI2_BLIT_COMPLETE, func, data);
 		 }
 
-		 sna_dri_copy(sna, draw, NULL,
-			      get_private(front)->bo,
-			      get_private(back)->bo,
-			      true);
+		 sna_dri_copy_to_front(sna, draw, NULL,
+				       get_private(front)->bo,
+				       get_private(back)->bo,
+				       true);
 		 return TRUE;
 	}
 
@@ -1540,10 +1666,10 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 
 blit_fallback:
 	DBG(("%s -- blit\n", __FUNCTION__));
-	sna_dri_copy(sna, draw, NULL,
-		     get_private(front)->bo,
-		     get_private(back)->bo,
-		     true);
+	sna_dri_copy_to_front(sna, draw, NULL,
+			      get_private(front)->bo,
+			      get_private(back)->bo,
+			      false);
 	if (info)
 		sna_dri_frame_event_info_free(info);
 	DRI2SwapComplete(client, draw, 0, 0, 0, DRI2_BLIT_COMPLETE, func, data);
@@ -1584,10 +1710,10 @@ sna_dri_async_swap(ClientPtr client, DrawablePtr draw,
 blit:
 		DBG(("%s: unable to flip, so blit\n", __FUNCTION__));
 
-		sna_dri_copy(sna, draw, NULL,
-			     get_private(front)->bo,
-			     get_private(back)->bo,
-			     false);
+		sna_dri_copy_to_front(sna, draw, NULL,
+				      get_private(front)->bo,
+				      get_private(back)->bo,
+				      false);
 		DRI2SwapComplete(client, draw, 0, 0, 0,
 				 DRI2_BLIT_COMPLETE, func, data);
 		return FALSE;
