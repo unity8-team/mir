@@ -1617,51 +1617,62 @@ inplace_end_subrows(struct active_list *active, uint8_t *row,
 {
 	int cover = 0;
 
-	while (width > 4) {
+	while (width >= 4) {
 		uint32_t dw;
 		int v;
 
 		dw = *(uint32_t *)buf;
 		buf += 4;
 
-		if (dw == 0){
+		if (dw == 0) {
 			v = cover * 256 / (FAST_SAMPLES_X * FAST_SAMPLES_Y);
 			v -= v >> 8;
 			v |= v << 8;
 			dw = v | v << 16;
-		} else if (dw) {
+		} else {
 			cover += (int8_t)(dw & 0xff);
-			assert(cover >= 0);
-			v = cover * 256 / (FAST_SAMPLES_X * FAST_SAMPLES_Y);
-			v -= v >> 8;
-			dw >>= 8;
-			dw |= v << 24;
+			if (cover) {
+				assert(cover > 0);
+				v = cover * 256 / (FAST_SAMPLES_X * FAST_SAMPLES_Y);
+				v -= v >> 8;
+				dw >>= 8;
+				dw |= v << 24;
+			} else
+				dw >>= 8;
 
 			cover += (int8_t)(dw & 0xff);
-			assert(cover >= 0);
-			v = cover * 256 / (FAST_SAMPLES_X * FAST_SAMPLES_Y);
-			v -= v >> 8;
-			dw >>= 8;
-			dw |= v << 24;
+			if (cover) {
+				assert(cover > 0);
+				v = cover * 256 / (FAST_SAMPLES_X * FAST_SAMPLES_Y);
+				v -= v >> 8;
+				dw >>= 8;
+				dw |= v << 24;
+			} else
+				dw >>= 8;
 
 			cover += (int8_t)(dw & 0xff);
-			assert(cover >= 0);
-			v = cover * 256 / (FAST_SAMPLES_X * FAST_SAMPLES_Y);
-			v -= v >> 8;
-			dw >>= 8;
-			dw |= v << 24;
+			if (cover) {
+				assert(cover > 0);
+				v = cover * 256 / (FAST_SAMPLES_X * FAST_SAMPLES_Y);
+				v -= v >> 8;
+				dw >>= 8;
+				dw |= v << 24;
+			} else
+				dw >>= 8;
 
 			cover += (int8_t)(dw & 0xff);
-			assert(cover >= 0);
-			v = cover * 256 / (FAST_SAMPLES_X * FAST_SAMPLES_Y);
-			v -= v >> 8;
-			dw >>= 8;
-			dw |= v << 24;
+			if (cover) {
+				assert(cover > 0);
+				v = cover * 256 / (FAST_SAMPLES_X * FAST_SAMPLES_Y);
+				v -= v >> 8;
+				dw >>= 8;
+				dw |= v << 24;
+			} else
+				dw >>= 8;
 		}
 
 		*(uint32_t *)row = dw;
 		row += 4;
-
 		width -= 4;
 	}
 
