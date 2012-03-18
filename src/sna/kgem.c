@@ -2300,17 +2300,11 @@ int kgem_choose_tiling(struct kgem *kgem, int tiling, int width, int height, int
 		return tiling < 0 ? tiling : I915_TILING_NONE;
 
 	if (kgem->gen < 40) {
-		if (tiling) {
-			if (width * bpp > 8192 * 8) {
-				DBG(("%s: pitch too large for tliing [%d]\n",
-				     __FUNCTION__, width*bpp/8));
-				tiling = I915_TILING_NONE;
-				goto done;
-			} else if ((width|height) > 2048) {
-				DBG(("%s: large buffer (%dx%d), forcing TILING_X\n",
-				     __FUNCTION__, width, height));
-				tiling = -I915_TILING_X;
-			}
+		if (tiling && width * bpp > 8192 * 8) {
+			DBG(("%s: pitch too large for tliing [%d]\n",
+			     __FUNCTION__, width*bpp/8));
+			tiling = I915_TILING_NONE;
+			goto done;
 		}
 	} else {
 		if (width*bpp > (MAXSHORT-512) * 8) {
