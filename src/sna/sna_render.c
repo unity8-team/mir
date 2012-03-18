@@ -442,6 +442,7 @@ static struct kgem_bo *upload(struct sna *sna,
 			      PixmapPtr pixmap,
 			      BoxPtr box)
 {
+	struct sna_pixmap *priv;
 	struct kgem_bo *bo;
 
 	DBG(("%s: box=(%d, %d), (%d, %d), pixmap=%dx%d\n",
@@ -450,6 +451,19 @@ static struct kgem_bo *upload(struct sna *sna,
 	assert(box->y1 >= 0);
 	assert(box->x2 <= pixmap->drawable.width);
 	assert(box->y2 <= pixmap->drawable.height);
+
+	priv = sna_pixmap(pixmap);
+	if (priv) {
+		/* As we know this box is on the CPU just fixup the shadow */
+		if (priv->mapped) {
+			pixmap->devPrivate.ptr = NULL;
+			priv->mapped = false;
+		}
+		if (pixmap->devPrivate.ptr == NULL) {
+			pixmap->devPrivate.ptr = priv->ptr;
+			pixmap->devKind = priv->stride;
+		}
+	}
 
 	bo = kgem_upload_source_image(&sna->kgem,
 				      pixmap->devPrivate.ptr, box,
@@ -463,13 +477,11 @@ static struct kgem_bo *upload(struct sna *sna,
 		channel->scale[0] = 1.f/channel->width;
 		channel->scale[1] = 1.f/channel->height;
 
-		if (pixmap->usage_hint == 0 &&
+		if (priv &&
+		    pixmap->usage_hint == 0 &&
 		    channel->width  == pixmap->drawable.width &&
-		    channel->height == pixmap->drawable.height) {
-			struct sna_pixmap *priv = sna_pixmap(pixmap);
-			if (priv)
-				kgem_proxy_bo_attach(bo, &priv->gpu_bo);
-		}
+		    channel->height == pixmap->drawable.height)
+			kgem_proxy_bo_attach(bo, &priv->gpu_bo);
 	}
 
 	return bo;
