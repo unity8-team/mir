@@ -190,7 +190,6 @@ struct edge {
 	struct edge *next, *prev;
 
 	int dir;
-	int vertical;
 
 	grid_scaled_y_t height_left;
 
@@ -713,13 +712,12 @@ polygon_add_edge(struct polygon *polygon,
 	e->height_left = ybot - ytop;
 
 	if (dx == 0) {
-		e->vertical = true;
 		e->x.quo = x1;
 		e->x.rem = 0;
+		e->dy = 0;
 		e->dxdy.quo = 0;
 		e->dxdy.rem = 0;
 	} else {
-		e->vertical = false;
 		e->dxdy = floored_divrem(dx, dy);
 		if (ytop == y1) {
 			e->x.quo = x1;
@@ -776,13 +774,12 @@ polygon_add_line(struct polygon *polygon,
 	e->height_left = bot - top;
 
 	if (dx == 0) {
-		e->vertical = true;
 		e->x.quo = p1->x;
 		e->x.rem = -dy;
 		e->dxdy.quo = 0;
 		e->dxdy.rem = 0;
+		e->dy = 0;
 	} else {
-		e->vertical = false;
 		e->dxdy = floored_divrem(dx, dy);
 		if (top == p1->y) {
 			e->x.quo = p1->x;
@@ -819,16 +816,16 @@ polygon_add_line(struct polygon *polygon,
 static void
 active_list_reset(struct active_list *active)
 {
-	active->head.vertical = 1;
 	active->head.height_left = INT_MAX;
 	active->head.x.quo = INT_MIN;
+	active->head.dy = 0;
 	active->head.prev = NULL;
 	active->head.next = &active->tail;
 	active->tail.prev = &active->head;
 	active->tail.next = NULL;
 	active->tail.x.quo = INT_MAX;
 	active->tail.height_left = INT_MAX;
-	active->tail.vertical = 1;
+	active->tail.dy = 0;
 	active->min_height = INT_MAX;
 	active->is_vertical = 1;
 }
@@ -934,7 +931,7 @@ can_full_step(struct active_list *active)
 		for (e = active->head.next; &active->tail != e; e = e->next) {
 			if (e->height_left < min_height)
 				min_height = e->height_left;
-			is_vertical &= e->vertical;
+			is_vertical &= e->dy == 0;
 		}
 
 		active->is_vertical = is_vertical;
@@ -971,7 +968,7 @@ fill_buckets(struct active_list *active,
 		*b = edge;
 		if (edge->height_left < min_height)
 			min_height = edge->height_left;
-		is_vertical &= edge->vertical;
+		is_vertical &= edge->dy == 0;
 		edge = next;
 	}
 
@@ -1002,7 +999,7 @@ nonzero_subrow(struct active_list *active, struct cell_list *coverages)
 			xstart = edge->x.quo;
 
 		if (--edge->height_left) {
-			if (!edge->vertical) {
+			if (edge->dy) {
 				edge->x.quo += edge->dxdy.quo;
 				edge->x.rem += edge->dxdy.rem;
 				if (edge->x.rem >= 0) {
@@ -1595,7 +1592,7 @@ inplace_subrow(struct active_list *active, int8_t *row,
 		}
 
 		if (--edge->height_left) {
-			if (!edge->vertical) {
+			if (edge->dy) {
 				edge->x.quo += edge->dxdy.quo;
 				edge->x.rem += edge->dxdy.rem;
 				if (edge->x.rem >= 0) {
@@ -1805,7 +1802,6 @@ struct mono_edge {
 
 	int32_t height_left;
 	int32_t dir;
-	int32_t vertical;
 
 	int32_t dy;
 	struct quorem x;
@@ -1925,14 +1921,12 @@ mono_add_line(struct mono *mono,
 	dy = p2->y - p1->y;
 
 	if (dx == 0) {
-		e->vertical = TRUE;
 		e->x.quo = p1->x;
 		e->x.rem = 0;
 		e->dxdy.quo = 0;
 		e->dxdy.rem = 0;
 		e->dy = 0;
 	} else {
-		e->vertical = FALSE;
 		e->dxdy = floored_muldivrem (dx, pixman_fixed_1, dy);
 		e->dy = dy;
 
@@ -2079,7 +2073,7 @@ mono_merge_edges(struct mono *c, struct mono_edge *edges)
 	DBG_MONO_EDGES(edges);
 
 	for (e = edges; c->is_vertical && e; e = e->next)
-		c->is_vertical = e->vertical;
+		c->is_vertical = e->dy == 0;
 
 	c->head.next = mono_merge_unsorted_edges(c->head.next, edges);
 }
@@ -2137,11 +2131,13 @@ mono_row(struct mono *c, int16_t y, int16_t h)
 		int16_t xend = I(edge->x.quo);
 
 		if (--edge->height_left) {
-			edge->x.quo += edge->dxdy.quo;
-			edge->x.rem += edge->dxdy.rem;
-			if (edge->x.rem >= 0) {
-				++edge->x.quo;
-				edge->x.rem -= edge->dy;
+			if (edge->dy) {
+				edge->x.quo += edge->dxdy.quo;
+				edge->x.rem += edge->dxdy.rem;
+				if (edge->x.rem >= 0) {
+					++edge->x.quo;
+					edge->x.rem -= edge->dy;
+				}
 			}
 
 			if (edge->x.quo < prev_x) {
@@ -2185,7 +2181,7 @@ mono_init(struct mono *c, int num_edges)
 	if (!mono_polygon_init(&c->polygon, &c->clip.extents, num_edges))
 		return false;
 
-	c->head.vertical = 1;
+	c->head.dy = 0;
 	c->head.height_left = INT_MAX;
 	c->head.x.quo = INT16_MIN << 16;
 	c->head.prev = NULL;
@@ -2194,7 +2190,7 @@ mono_init(struct mono *c, int num_edges)
 	c->tail.next = NULL;
 	c->tail.x.quo = INT16_MAX << 16;
 	c->tail.height_left = INT_MAX;
-	c->tail.vertical = 1;
+	c->tail.dy = 0;
 
 	c->is_vertical = 1;
 
