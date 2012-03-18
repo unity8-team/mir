@@ -2698,6 +2698,8 @@ composite_unaligned_box(struct sna *sna,
 			float opacity,
 			pixman_region16_t *clip)
 {
+	assert(opacity != 0.);
+
 	if (clip) {
 		pixman_region16_t region;
 
@@ -3017,6 +3019,7 @@ composite_unaligned_boxes(struct sna *sna,
 {
 	BoxRec extents;
 	struct sna_composite_spans_op tmp;
+	struct sna_pixmap *priv;
 	pixman_region16_t clip, *c;
 	int dst_x, dst_y;
 	int dx, dy, n;
@@ -3030,7 +3033,8 @@ composite_unaligned_boxes(struct sna *sna,
 	if (ntrap > 1 && maskFormat)
 		return false;
 
-	if (!sna->render.composite_spans)
+	priv = sna_pixmap(get_drawable_pixmap(dst->pDrawable));
+	if (priv == NULL || !sna->render.composite_spans)
 		return composite_unaligned_boxes_fallback(op, src, dst, src_x, src_y, ntrap, traps);
 
 	dst_x = extents.x1 = pixman_fixed_to_int(traps[0].left.p1.x);
@@ -3089,6 +3093,17 @@ composite_unaligned_boxes(struct sna *sna,
 	     dx, dy,
 	     src_x + extents.x1 - dst_x - dx,
 	     src_y + extents.y1 - dst_y - dy));
+
+	switch (op) {
+	case PictOpAdd:
+		if (priv->clear && priv->clear_color == 0)
+			op = PictOpSrc;
+		break;
+	case PictOpIn:
+		if (priv->clear && priv->clear_color == 0)
+			return true;
+	}
+	assert((priv->clear && priv->clear_color == 0) || operator_is_bounded(op));
 
 	memset(&tmp, 0, sizeof(tmp));
 	if (!sna->render.composite_spans(sna, op, src, dst,
@@ -3321,6 +3336,7 @@ trapezoid_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	BoxRec extents;
 	pixman_region16_t clip;
 	int16_t dst_x, dst_y;
+	bool was_clear;
 	int dx, dy, n;
 
 	if (NO_SCAN_CONVERTER)
@@ -3388,6 +3404,19 @@ trapezoid_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	     src_x + extents.x1 - dst_x - dx,
 	     src_y + extents.y1 - dst_y - dy));
 
+	was_clear = sna_drawable_is_clear(dst->pDrawable);
+	switch (op) {
+	case PictOpAdd:
+	case PictOpOver:
+		if (was_clear)
+			op = PictOpSrc;
+		break;
+	case PictOpIn:
+		if (was_clear)
+			return true;
+		break;
+	}
+
 	memset(&tmp, 0, sizeof(tmp));
 	if (!sna->render.composite_spans(sna, op, src, dst,
 					 src_x + extents.x1 - dst_x - dx,
@@ -3422,7 +3451,7 @@ trapezoid_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 
 	tor_render(sna, &tor, &tmp, &clip,
 		   choose_span(&tmp, dst, maskFormat, op, &clip),
-		   maskFormat && !operator_is_bounded(op));
+		   !was_clear && maskFormat && !operator_is_bounded(op));
 
 skip:
 	tor_fini(&tor);
@@ -5150,6 +5179,7 @@ triangles_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	pixman_region16_t clip;
 	int16_t dst_x, dst_y;
 	int dx, dy, n;
+	bool was_clear;
 
 	if (NO_SCAN_CONVERTER)
 		return false;
@@ -5216,6 +5246,8 @@ triangles_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	     src_x + extents.x1 - dst_x - dx,
 	     src_y + extents.y1 - dst_y - dy));
 
+	was_clear = sna_drawable_is_clear(dst->pDrawable);
+
 	memset(&tmp, 0, sizeof(tmp));
 	if (!sna->render.composite_spans(sna, op, src, dst,
 					 src_x + extents.x1 - dst_x - dx,
@@ -5248,7 +5280,7 @@ triangles_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 
 	tor_render(sna, &tor, &tmp, &clip,
 		   choose_span(&tmp, dst, maskFormat, op, &clip),
-		   maskFormat && !operator_is_bounded(op));
+		   !was_clear && maskFormat && !operator_is_bounded(op));
 
 skip:
 	tor_fini(&tor);
@@ -5508,6 +5540,7 @@ tristrip_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	int16_t dst_x, dst_y;
 	int dx, dy;
 	int cw, ccw, n;
+	bool was_clear;
 
 	if (NO_SCAN_CONVERTER)
 		return false;
@@ -5569,6 +5602,8 @@ tristrip_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	     src_x + extents.x1 - dst_x - dx,
 	     src_y + extents.y1 - dst_y - dy));
 
+	was_clear = sna_drawable_is_clear(dst->pDrawable);
+
 	memset(&tmp, 0, sizeof(tmp));
 	if (!sna->render.composite_spans(sna, op, src, dst,
 					 src_x + extents.x1 - dst_x - dx,
@@ -5611,7 +5646,7 @@ tristrip_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 
 	tor_render(sna, &tor, &tmp, &clip,
 		   choose_span(&tmp, dst, maskFormat, op, &clip),
-		   maskFormat && !operator_is_bounded(op));
+		   !was_clear && maskFormat && !operator_is_bounded(op));
 
 skip:
 	tor_fini(&tor);
