@@ -1680,14 +1680,21 @@ static void gen3_vertex_close(struct sna *sna)
 
 	bo = sna->render.vbo;
 	if (bo) {
-		if (IS_CPU_MAP(bo->map) ||
-		    sna->render.vertex_size - sna->render.vertex_used < 64) {
-			DBG(("%s: discarding vbo (was CPU mapped)\n",
-			     __FUNCTION__));
+		if (sna->render.vertex_size - sna->render.vertex_used < 64) {
+			DBG(("%s: discarding full vbo\n", __FUNCTION__));
 			sna->render.vbo = NULL;
 			sna->render.vertices = sna->render.vertex_data;
 			sna->render.vertex_size = ARRAY_SIZE(sna->render.vertex_data);
 			free_bo = bo;
+		} else if (IS_CPU_MAP(bo->map)) {
+			DBG(("%s: converting CPU map to GTT\n", __FUNCTION__));
+			sna->render.vertices = kgem_bo_map__gtt(&sna->kgem, bo);
+			if (sna->render.vertices == NULL) {
+				sna->render.vbo = NULL;
+				sna->render.vertices = sna->render.vertex_data;
+				sna->render.vertex_size = ARRAY_SIZE(sna->render.vertex_data);
+				free_bo = bo;
+			}
 		}
 	} else {
 		if (sna->kgem.nbatch + sna->render.vertex_used <= sna->kgem.surface) {
@@ -1950,6 +1957,15 @@ gen3_render_reset(struct sna *sna)
 	state->last_floats_per_vertex = 0;
 	state->last_vertex_offset = 0;
 	state->vertex_offset = 0;
+
+	if (sna->render.vbo &&
+	    !kgem_bo_is_mappable(&sna->kgem, sna->render.vbo)) {
+		DBG(("%s: discarding unmappable vbo\n", __FUNCTION__));
+		kgem_bo_destroy(&sna->kgem, sna->render.vbo);
+		sna->render.vbo = NULL;
+		sna->render.vertices = sna->render.vertex_data;
+		sna->render.vertex_size = ARRAY_SIZE(sna->render.vertex_data);
+	}
 }
 
 static void

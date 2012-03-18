@@ -364,6 +364,7 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 			uint32_t delta);
 
 void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo);
+void *kgem_bo_map__gtt(struct kgem *kgem, struct kgem_bo *bo);
 void *kgem_bo_map__debug(struct kgem *kgem, struct kgem_bo *bo);
 void *kgem_bo_map__cpu(struct kgem *kgem, struct kgem_bo *bo);
 void kgem_bo_sync__cpu(struct kgem *kgem, struct kgem_bo *bo);
@@ -423,9 +424,6 @@ static inline bool kgem_bo_is_mappable(struct kgem *kgem,
 		 __FUNCTION__, bo->domain, bo->presumed_offset, kgem_bo_size(bo)));
 
 	if (bo->domain == DOMAIN_GTT)
-		return true;
-
-	if (IS_GTT_MAP(bo->map))
 		return true;
 
 	if (kgem->gen < 40 && bo->tiling &&

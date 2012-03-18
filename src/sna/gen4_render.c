@@ -419,8 +419,13 @@ static int gen4_vertex_finish(struct sna *sna)
 
 static void gen4_vertex_close(struct sna *sna)
 {
-	struct kgem_bo *bo;
+	struct kgem_bo *bo, *free_bo = NULL;
 	unsigned int i, delta = 0;
+
+	assert(sna->render_state.gen4.vertex_offset == 0);
+
+	DBG(("%s: used=%d, vbo active? %d\n",
+	     __FUNCTION__, sna->render.vertex_used, sna->render.vbo != NULL));
 
 	if (!sna->render.vertex_used) {
 		assert(sna->render.vbo == NULL);
@@ -429,10 +434,26 @@ static void gen4_vertex_close(struct sna *sna)
 		return;
 	}
 
-	DBG(("%s: used=%d\n", __FUNCTION__, sna->render.vertex_used));
-
 	bo = sna->render.vbo;
-	if (bo == NULL) {
+	if (bo) {
+		if (sna->render.vertex_size - sna->render.vertex_used < 64) {
+			DBG(("%s: discarding full vbo\n", __FUNCTION__));
+			sna->render.vbo = NULL;
+			sna->render.vertices = sna->render.vertex_data;
+			sna->render.vertex_size = ARRAY_SIZE(sna->render.vertex_data);
+			free_bo = bo;
+		} else if (IS_CPU_MAP(bo->map)) {
+			DBG(("%s: converting CPU map to GTT\n", __FUNCTION__));
+			sna->render.vertices =
+				kgem_bo_map__gtt(&sna->kgem, sna->render.vbo);
+			if (sna->render.vertices == NULL) {
+				sna->render.vbo = NULL;
+				sna->render.vertices = sna->render.vertex_data;
+				sna->render.vertex_size = ARRAY_SIZE(sna->render.vertex_data);
+				free_bo = bo;
+			}
+		}
+	} else {
 		if (sna->kgem.nbatch + sna->render.vertex_used <= sna->kgem.surface) {
 			DBG(("%s: copy to batch: %d @ %d\n", __FUNCTION__,
 			     sna->render.vertex_used, sna->kgem.nbatch));
@@ -449,10 +470,11 @@ static void gen4_vertex_close(struct sna *sna)
 						 sna->render.vertex_data,
 						 4*sna->render.vertex_used)) {
 				kgem_bo_destroy(&sna->kgem, bo);
-				goto reset;
+				bo = NULL;
 			}
 			DBG(("%s: new vbo: %d\n", __FUNCTION__,
 			     sna->render.vertex_used));
+			free_bo = bo;
 		}
 	}
 
@@ -471,17 +493,13 @@ static void gen4_vertex_close(struct sna *sna)
 		}
 	}
 
-	if (bo)
-		kgem_bo_destroy(&sna->kgem, bo);
+	if (sna->render.vbo == NULL) {
+		sna->render.vertex_used = 0;
+		sna->render.vertex_index = 0;
+	}
 
-reset:
-	sna->render.vertex_used = 0;
-	sna->render.vertex_index = 0;
-	sna->render_state.gen4.vb_id = 0;
-
-	sna->render.vbo = NULL;
-	sna->render.vertices = sna->render.vertex_data;
-	sna->render.vertex_size = ARRAY_SIZE(sna->render.vertex_data);
+	if (free_bo)
+		kgem_bo_destroy(&sna->kgem, free_bo);
 }
 
 
@@ -3207,6 +3225,15 @@ static void gen4_render_reset(struct sna *sna)
 	sna->render_state.gen4.drawrect_offset = -1;
 	sna->render_state.gen4.drawrect_limit = -1;
 	sna->render_state.gen4.surface_table = -1;
+
+	if (sna->render.vbo &&
+	    !kgem_bo_is_mappable(&sna->kgem, sna->render.vbo)) {
+		DBG(("%s: discarding unmappable vbo\n", __FUNCTION__));
+		kgem_bo_destroy(&sna->kgem, sna->render.vbo);
+		sna->render.vbo = NULL;
+		sna->render.vertices = sna->render.vertex_data;
+		sna->render.vertex_size = ARRAY_SIZE(sna->render.vertex_data);
+	}
 }
 
 static void gen4_render_fini(struct sna *sna)
