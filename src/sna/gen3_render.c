@@ -3987,6 +3987,10 @@ gen3_render_copy_boxes(struct sna *sna, uint8_t alu,
 	    src_bo->pitch > MAX_3D_PITCH ||
 	    too_large(src->drawable.width, src->drawable.height)) {
 fallback_blt:
+		if (!kgem_bo_can_blt(&sna->kgem, src_bo) ||
+		    !kgem_bo_can_blt(&sna->kgem, dst_bo))
+			return FALSE;
+
 		return sna_blt_copy_boxes_fallback(sna, alu,
 						   src, src_bo, src_dx, src_dy,
 						   dst, dst_bo, dst_dx, dst_dy,
