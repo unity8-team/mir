@@ -2258,6 +2258,27 @@ gen3_init_radial(struct sna *sna,
 }
 
 static Bool
+sna_picture_is_clear(PicturePtr picture,
+		     int x, int y, int w, int h,
+		     uint32_t *color)
+{
+	struct sna_pixmap *priv;
+
+	if (!picture->pDrawable)
+		return FALSE;
+
+	priv = sna_pixmap(get_drawable_pixmap(picture->pDrawable));
+	if (priv == NULL || !priv->clear)
+		return FALSE;
+
+	if (!source_is_covered(picture, x, y, w, h))
+		return FALSE;
+
+	*color = priv->clear_color;
+	return TRUE;
+}
+
+static Bool
 gen3_composite_picture(struct sna *sna,
 		       PicturePtr picture,
 		       struct sna_composite_op *op,
@@ -2308,6 +2329,9 @@ gen3_composite_picture(struct sna *sna,
 	}
 
 	if (sna_picture_is_solid(picture, &color))
+		return gen3_init_solid(channel, color);
+
+	if (sna_picture_is_clear(picture, x, y, w, h, &color))
 		return gen3_init_solid(channel, color);
 
 	if (!gen3_check_repeat(picture))
