@@ -1294,12 +1294,24 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	/* Drawable not displayed... just complete the swap */
 	pipe = sna_dri_get_pipe(draw);
 	if (pipe == -1) {
+		RegionRec region;
+
 		DBG(("%s: off-screen, immediate update\n", __FUNCTION__));
 
 		sna_dri_exchange_attachment(front, back);
 		get_private(back)->pixmap = get_private(front)->pixmap;
 		get_private(front)->pixmap = NULL;
 		set_bo(get_private(back)->pixmap, get_private(back)->bo);
+
+		/* XXX can we query whether we need to process damage? */
+		region.extents.x1 = draw->x;
+		region.extents.y1 = draw->y;
+		region.extents.x2 = draw->x + draw->width;
+		region.extents.y2 = draw->y + draw->height;
+		region.data = NULL;
+		DamageRegionAppend(draw, &region);
+		DamageRegionProcessPending(draw);
+
 		DRI2SwapComplete(client, draw, 0, 0, 0,
 				 DRI2_EXCHANGE_COMPLETE, func, data);
 		return TRUE;
