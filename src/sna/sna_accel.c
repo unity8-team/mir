@@ -10183,6 +10183,7 @@ sna_unrealize_font(ScreenPtr screen, FontPtr font)
 		for (n = 0; n < 256; n++)
 			free(priv->glyphs16[n]);
 		free(priv);
+		FontSetPrivate(font, sna_font_key, NULL);
 	}
 
 	return TRUE;
