@@ -3099,7 +3099,6 @@ composite_unaligned_boxes(struct sna *sna,
 		if (priv->clear && priv->clear_color == 0)
 			return true;
 	}
-	assert((priv->clear && priv->clear_color == 0) || operator_is_bounded(op));
 
 	memset(&tmp, 0, sizeof(tmp));
 	if (!sna->render.composite_spans(sna, op, src, dst,
