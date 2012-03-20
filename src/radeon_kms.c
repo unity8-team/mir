@@ -688,7 +688,7 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 	Bool colorTilingDefault =
 	    xorgGetVersion() >= XORG_VERSION_NUMERIC(1,9,4,901,0) &&
 	    info->ChipFamily >= CHIP_FAMILY_R300 &&
-	    info->ChipFamily <= CHIP_FAMILY_CAYMAN;
+	    info->ChipFamily <= CHIP_FAMILY_ARUBA;
 
 	/* 2D color tiling */
 	if (info->ChipFamily >= CHIP_FAMILY_R600) {

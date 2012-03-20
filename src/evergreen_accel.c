@@ -661,7 +661,8 @@ evergreen_set_vtx_resource(ScrnInfoPtr pScrn, vtx_resource_t *res, uint32_t doma
 	(info->ChipFamily == CHIP_FAMILY_SUMO) ||
 	(info->ChipFamily == CHIP_FAMILY_SUMO2) ||
 	(info->ChipFamily == CHIP_FAMILY_CAICOS) ||
-	(info->ChipFamily == CHIP_FAMILY_CAYMAN))
+	(info->ChipFamily == CHIP_FAMILY_CAYMAN) ||
+	(info->ChipFamily == CHIP_FAMILY_ARUBA))
 	evergreen_cp_set_surface_sync(pScrn, TC_ACTION_ENA_bit,
 				      accel_state->vbo.vb_offset, accel_state->vbo.vb_mc_addr,
 				      res->bo,
@@ -864,8 +865,8 @@ evergreen_fix_scissor_coordinates(ScrnInfoPtr pScrn, int *x1, int *y1, int *x2, 
     if (*y2 == 0)
 	*y1 = 1;
 
-    /* cayman only */
-    if (info->ChipFamily == CHIP_FAMILY_CAYMAN) {
+    /* cayman/tn only */
+    if (info->ChipFamily >= CHIP_FAMILY_CAYMAN) {
 	/* cliprects aren't affected so we can use them to clip if we need
 	 * a true 1x1 clip region
 	 */
@@ -970,7 +971,7 @@ evergreen_set_default_state(ScrnInfoPtr pScrn)
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_accel_state *accel_state = info->accel_state;
 
-    if (info->ChipFamily == CHIP_FAMILY_CAYMAN) {
+    if (info->ChipFamily >= CHIP_FAMILY_CAYMAN) {
 	cayman_set_default_state(pScrn);
 	return;
     }

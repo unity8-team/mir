@@ -1958,7 +1958,7 @@ EVERGREENDrawInit(ScreenPtr pScreen)
     if (!EVERGREENAllocShaders(pScrn, pScreen))
 	return FALSE;
 
-    if (info->ChipFamily == CHIP_FAMILY_CAYMAN) {
+    if (info->ChipFamily >= CHIP_FAMILY_CAYMAN) {
 	if (!CAYMANLoadShaders(pScrn))
 	    return FALSE;
     } else {
