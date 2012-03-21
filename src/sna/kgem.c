@@ -1095,6 +1095,8 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 		goto destroy;
 
 	if (bo->vmap) {
+		DBG(("%s: handle=%d is vmapped, tracking until free\n",
+		     __FUNCTION__, bo->handle));
 		if (bo->rq == NULL) {
 			if (bo->needs_flush && kgem_busy(kgem, bo->handle)) {
 				list_add(&bo->request, &kgem->flushing);
