@@ -435,7 +435,7 @@ static inline bool must_check sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned 
 {
 	if (flags == MOVE_READ) {
 		struct sna_pixmap *priv = sna_pixmap(pixmap);
-		if (priv == NULL || priv->gpu_damage == NULL)
+		if (priv == NULL)
 			return true;
 	}
 
