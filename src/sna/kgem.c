@@ -2509,6 +2509,7 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 			bo->delta = 0;
 			DBG(("  1:from active: pitch=%d, tiling=%d, handle=%d, id=%d\n",
 			     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
+			assert(bo->pitch*kgem_aligned_height(kgem, height, bo->tiling) <= kgem_bo_size(bo));
 			bo->refcnt = 1;
 			return bo;
 		}
@@ -2561,6 +2562,7 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 				     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
 				assert(bo->reusable);
 				assert(bo->domain != DOMAIN_GPU && !kgem_busy(kgem, bo->handle));
+				assert(bo->pitch*kgem_aligned_height(kgem, height, bo->tiling) <= kgem_bo_size(bo));
 				bo->refcnt = 1;
 				return bo;
 			}
@@ -2615,6 +2617,7 @@ search_again:
 			bo->delta = 0;
 			DBG(("  1:from active: pitch=%d, tiling=%d, handle=%d, id=%d\n",
 			     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
+			assert(bo->pitch*kgem_aligned_height(kgem, height, bo->tiling) <= kgem_bo_size(bo));
 			bo->refcnt = 1;
 			return bo;
 		}
@@ -2636,6 +2639,7 @@ search_again:
 			bo->delta = 0;
 			DBG(("  1:from active: pitch=%d, tiling=%d, handle=%d, id=%d\n",
 			     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
+			assert(bo->pitch*kgem_aligned_height(kgem, height, bo->tiling) <= kgem_bo_size(bo));
 			bo->refcnt = 1;
 			return bo;
 		}
@@ -2669,6 +2673,7 @@ search_again:
 					bo->delta = 0;
 					DBG(("  1:from active: pitch=%d, tiling=%d, handle=%d, id=%d\n",
 					     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
+					assert(bo->pitch*kgem_aligned_height(kgem, height, bo->tiling) <= kgem_bo_size(bo));
 					bo->refcnt = 1;
 					return bo;
 				}
@@ -2715,6 +2720,7 @@ search_again:
 				bo->delta = 0;
 				DBG(("  1:from active: pitch=%d, tiling=%d, handle=%d, id=%d\n",
 				     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
+				assert(bo->pitch*kgem_aligned_height(kgem, height, bo->tiling) <= kgem_bo_size(bo));
 				bo->refcnt = 1;
 				return bo;
 			}
@@ -2773,6 +2779,7 @@ search_inactive:
 		assert((flags & CREATE_INACTIVE) == 0 || bo->domain != DOMAIN_GPU);
 		assert((flags & CREATE_INACTIVE) == 0 ||
 		       !kgem_busy(kgem, bo->handle));
+		assert(bo->pitch*kgem_aligned_height(kgem, height, bo->tiling) <= kgem_bo_size(bo));
 		bo->refcnt = 1;
 		return bo;
 	}
