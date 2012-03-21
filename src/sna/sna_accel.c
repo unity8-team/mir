@@ -8697,6 +8697,11 @@ sna_poly_fill_rect_tiled_blt(DrawablePtr drawable,
 			if (tile_y < 0)
 				tile_y += tile_height;
 
+			assert(r.x + dx >= 0);
+			assert(r.y + dy >= 0);
+			assert(r.x + dx + r.width  <= pixmap->drawable.width);
+			assert(r.y + dy + r.height <= pixmap->drawable.height);
+
 			r.y += dy;
 			do {
 				int16_t width = r.width;
