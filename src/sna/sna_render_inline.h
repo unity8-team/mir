@@ -101,13 +101,10 @@ is_dirty(DrawablePtr drawable)
 	return priv == NULL || kgem_bo_is_dirty(priv->gpu_bo);
 }
 
-static inline Bool
-too_small(DrawablePtr drawable)
+static inline bool
+too_small(struct sna_pixmap *priv)
 {
-	struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
-
-	if (priv == NULL)
-		return true;
+	assert(priv);
 
 	if (priv->gpu_damage)
 		return false;

@@ -413,7 +413,9 @@ sna_composite(CARD8 op,
 	      INT16 dst_x,  INT16 dst_y,
 	      CARD16 width, CARD16 height)
 {
-	struct sna *sna = to_sna_from_drawable(dst->pDrawable);
+	PixmapPtr pixmap = get_drawable_pixmap(dst->pDrawable);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
+	struct sna_pixmap *priv;
 	struct sna_composite_op tmp;
 	unsigned flags;
 	RegionRec region;
@@ -462,8 +464,14 @@ sna_composite(CARD8 op,
 		goto fallback;
 	}
 
-	if (too_small(dst->pDrawable) &&
-	    !picture_is_gpu(src) && !picture_is_gpu(mask)) {
+	priv = sna_pixmap(pixmap);
+	if (priv == NULL) {
+		DBG(("%s: fallback as destination is unattached\n",
+		     __FUNCTION__));
+		goto fallback;
+	}
+
+	if (too_small(priv) && !picture_is_gpu(src) && !picture_is_gpu(mask)) {
 		DBG(("%s: fallback due to too small\n", __FUNCTION__));
 		goto fallback;
 	}
@@ -479,10 +487,8 @@ sna_composite(CARD8 op,
 	     get_drawable_dx(dst->pDrawable),
 	     get_drawable_dy(dst->pDrawable)));
 
-	if (op <= PictOpSrc) {
-		struct sna_pixmap *priv = sna_pixmap_from_drawable(dst->pDrawable);
+	if (op <= PictOpSrc)
 		sna_damage_subtract(&priv->cpu_damage, &region);
-	}
 
 	memset(&tmp, 0, sizeof(tmp));
 	if (!sna->render.composite(sna,
@@ -752,14 +758,14 @@ sna_composite_rectangles(CARD8		 op,
 
 	boxes = pixman_region_rectangles(&region, &num_boxes);
 
-	if (too_small(dst->pDrawable)) {
-		DBG(("%s: fallback, dst is too small\n", __FUNCTION__));
-		goto fallback;
-	}
-
 	priv = sna_pixmap(pixmap);
 	if (priv == NULL) {
 		DBG(("%s: fallback, not attached\n", __FUNCTION__));
+		goto fallback;
+	}
+
+	if (too_small(priv)) {
+		DBG(("%s: fallback, dst is too small\n", __FUNCTION__));
 		goto fallback;
 	}
 

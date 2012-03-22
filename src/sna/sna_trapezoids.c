@@ -4435,7 +4435,9 @@ sna_composite_trapezoids(CARD8 op,
 			 INT16 xSrc, INT16 ySrc,
 			 int ntrap, xTrapezoid *traps)
 {
-	struct sna *sna = to_sna_from_drawable(dst->pDrawable);
+	PixmapPtr pixmap = get_drawable_pixmap(dst->pDrawable);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
+	struct sna_pixmap *priv;
 	bool rectilinear, pixel_aligned;
 	unsigned flags;
 	int n;
@@ -4461,7 +4463,13 @@ sna_composite_trapezoids(CARD8 op,
 		goto fallback;
 	}
 
-	if (too_small(dst->pDrawable) && !picture_is_gpu(src)) {
+	priv = sna_pixmap(pixmap);
+	if (priv == NULL) {
+		DBG(("%s: fallback -- dst is unattached\n", __FUNCTION__));
+		goto fallback;
+	}
+
+	if (too_small(priv) && !picture_is_gpu(src)) {
 		DBG(("%s: fallback -- dst is too small, %dx%d\n",
 		     __FUNCTION__,
 		     dst->pDrawable->width,

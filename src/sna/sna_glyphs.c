@@ -1217,7 +1217,9 @@ sna_glyphs(CARD8 op,
 	   INT16 src_x, INT16 src_y,
 	   int nlist, GlyphListPtr list, GlyphPtr *glyphs)
 {
-	struct sna *sna = to_sna_from_drawable(dst->pDrawable);
+	PixmapPtr pixmap = get_drawable_pixmap(dst->pDrawable);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
+	struct sna_pixmap *priv;
 	PictFormatPtr _mask;
 
 	DBG(("%s(op=%d, nlist=%d, src=(%d, %d))\n",
@@ -1234,14 +1236,20 @@ sna_glyphs(CARD8 op,
 		goto fallback;
 	}
 
-	if (too_small(dst->pDrawable) && !picture_is_gpu(src)) {
-		DBG(("%s: fallback -- too small (%dx%d)\n",
-		     __FUNCTION__, dst->pDrawable->width, dst->pDrawable->height));
+	if (dst->alphaMap) {
+		DBG(("%s: fallback -- dst alpha map\n", __FUNCTION__));
 		goto fallback;
 	}
 
-	if (dst->alphaMap) {
-		DBG(("%s: fallback -- dst alpha map\n", __FUNCTION__));
+	priv = sna_pixmap(pixmap);
+	if (priv == NULL) {
+		DBG(("%s: fallback -- destination unattached\n", __FUNCTION__));
+		goto fallback;
+	}
+
+	if (too_small(priv) && !picture_is_gpu(src)) {
+		DBG(("%s: fallback -- too small (%dx%d)\n",
+		     __FUNCTION__, dst->pDrawable->width, dst->pDrawable->height));
 		goto fallback;
 	}
 
