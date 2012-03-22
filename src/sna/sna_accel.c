@@ -147,22 +147,22 @@ static void __sna_fallback_flush(DrawablePtr d)
 static int sna_font_key;
 
 static const uint8_t copy_ROP[] = {
-	ROP_0,                  /* GXclear */
-	ROP_DSa,                /* GXand */
-	ROP_SDna,               /* GXandReverse */
-	ROP_S,                  /* GXcopy */
-	ROP_DSna,               /* GXandInverted */
-	ROP_D,                  /* GXnoop */
-	ROP_DSx,                /* GXxor */
-	ROP_DSo,                /* GXor */
-	ROP_DSon,               /* GXnor */
-	ROP_DSxn,               /* GXequiv */
-	ROP_Dn,                 /* GXinvert */
-	ROP_SDno,               /* GXorReverse */
-	ROP_Sn,                 /* GXcopyInverted */
-	ROP_DSno,               /* GXorInverted */
-	ROP_DSan,               /* GXnand */
-	ROP_1                   /* GXset */
+	ROP_0,		/* GXclear */
+	ROP_DSa,	/* GXand */
+	ROP_SDna,	/* GXandReverse */
+	ROP_S,		/* GXcopy */
+	ROP_DSna,	/* GXandInverted */
+	ROP_D,		/* GXnoop */
+	ROP_DSx,	/* GXxor */
+	ROP_DSo,	/* GXor */
+	ROP_DSon,	/* GXnor */
+	ROP_DSxn,	/* GXequiv */
+	ROP_Dn,		/* GXinvert */
+	ROP_SDno,	/* GXorReverse */
+	ROP_Sn,		/* GXcopyInverted */
+	ROP_DSno,	/* GXorInverted */
+	ROP_DSan,	/* GXnand */
+	ROP_1		/* GXset */
 };
 static const uint8_t fill_ROP[] = {
 	ROP_0,
@@ -2850,8 +2850,11 @@ sna_put_xybitmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 		DBG(("%s: converting bo from Y-tiling\n", __FUNCTION__));
 		assert(bo == sna_pixmap_get_bo(pixmap));
 		bo = sna_pixmap_change_tiling(pixmap, I915_TILING_X);
-		if (bo == NULL)
+		if (bo == NULL) {
+			DBG(("%s: fallback -- unable to change tiling\n",
+			     __FUNCTION__));
 			return false;
+		}
 	}
 
 	assert_pixmap_contains_box(pixmap, RegionExtents(region));
@@ -2969,8 +2972,11 @@ sna_put_xypixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 		DBG(("%s: converting bo from Y-tiling\n", __FUNCTION__));
 		assert(bo == sna_pixmap_get_bo(pixmap));
 		bo = sna_pixmap_change_tiling(pixmap, I915_TILING_X);
-		if (bo == NULL)
+		if (bo == NULL) {
+			DBG(("%s: fallback -- unable to change tiling\n",
+			     __FUNCTION__));
 			return false;
+		}
 	}
 
 	assert_pixmap_contains_box(pixmap, RegionExtents(region));
@@ -3857,7 +3863,7 @@ sna_copy_area(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	    !PM_IS_SOLID(dst, gc->planemask)) {
 		RegionRec region, *ret;
 
-		DBG(("%s: -- fallback, wedged=%d, solid=%d [%x]\n",
+		DBG(("%s: fallback -- wedged=%d, solid=%d [%x]\n",
 		     __FUNCTION__, sna->kgem.wedged,
 		     PM_IS_SOLID(dst, gc->planemask),
 		     (unsigned)gc->planemask));
@@ -5338,8 +5344,11 @@ sna_copy_plane(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 		if (arg.bo->tiling == I915_TILING_Y) {
 			assert(arg.bo == sna_pixmap_get_bo(pixmap));
 			arg.bo = sna_pixmap_change_tiling(pixmap, I915_TILING_X);
-			if (arg.bo == NULL)
+			if (arg.bo == NULL) {
+				DBG(("%s: fallback -- unable to change tiling\n",
+				     __FUNCTION__));
 				goto fallback;
+			}
 		}
 		RegionUninit(&region);
 		return miDoCopy(src, dst, gc,
@@ -9784,10 +9793,13 @@ sna_poly_fill_rect_stippled_blt(DrawablePtr drawable,
 
 		DBG(("%s: converting bo from Y-tiling\n", __FUNCTION__));
 		/* This is cheating, but only the gpu_bo can be tiled */
-		assert(bo == sna_pixmap(pixmap)->gpu_bo);
+		assert(bo == sna_pixmap_get_bo(pixmap));
 		bo = sna_pixmap_change_tiling(pixmap, I915_TILING_X);
-		if (bo == NULL)
+		if (bo == NULL) {
+			DBG(("%s: fallback -- unable to change tiling\n",
+			     __FUNCTION__));
 			return false;
+		}
 	}
 
 	if (!sna_drawable_move_to_cpu(&stipple->drawable, MOVE_READ))
@@ -10217,7 +10229,7 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 	     __FUNCTION__, _x, _y, _n, fg, bg, rop));
 
 	if (wedged(sna)) {
-		DBG(("%s -- fallback, wedged\n", __FUNCTION__));
+		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
 		return false;
 	}
 
@@ -10230,7 +10242,8 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 		assert(bo == sna_pixmap_get_bo(pixmap));
 		bo = sna_pixmap_change_tiling(pixmap, I915_TILING_X);
 		if (bo == NULL) {
-			DBG(("%s -- fallback, dst uses Y-tiling\n", __FUNCTION__));
+			DBG(("%s: fallback -- unable to change tiling\n",
+			     __FUNCTION__));
 			return false;
 		}
 	}
@@ -10897,7 +10910,7 @@ sna_reversed_glyph_blt(DrawablePtr drawable, GCPtr gc,
 		assert(bo == sna_pixmap_get_bo(pixmap));
 		bo = sna_pixmap_change_tiling(pixmap, I915_TILING_X);
 		if (bo == NULL) {
-			DBG(("%s -- fallback, unable to change tiling\n",
+			DBG(("%s: fallback -- unable to change tiling\n",
 			     __FUNCTION__));
 			return false;
 		}
@@ -11251,8 +11264,11 @@ sna_push_pixels_solid_blt(GCPtr gc,
 		DBG(("%s: converting bo from Y-tiling\n", __FUNCTION__));
 		assert(bo == sna_pixmap_get_bo(pixmap));
 		bo = sna_pixmap_change_tiling(pixmap, I915_TILING_X);
-		if (bo == NULL)
+		if (bo == NULL) {
+			DBG(("%s: fallback -- unable to change tiling\n",
+			     __FUNCTION__));
 			return false;
+		}
 	}
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
