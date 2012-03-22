@@ -10964,10 +10964,15 @@ sna_reversed_glyph_blt(DrawablePtr drawable, GCPtr gc,
 			x1 = x + c->metrics.leftSideBearing;
 			y1 = y - c->metrics.ascent;
 
-			if (x1 >= extents->x2 || y1 >= extents->y2)
+			if (x1 >= extents->x2 || y1 >= extents->y2 ||
+			    x1 + w <= extents->x1 || y1 + h <= extents->y1) {
+				DBG(("%s: glyph is clipped (%d, %d)x(%d,%d) against extents (%d, %d), (%d, %d)\n",
+				     __FUNCTION__,
+				     x1, y1, w, h,
+				     extents->x1, extents->y1,
+				     extents->x2, extents->y2));
 				goto skip;
-			if (x1 + w <= extents->x1 || y1 + h <= extents->y1)
-				goto skip;
+			}
 
 			if (!transparent) {
 				int clear = 1, j = h;
@@ -10976,12 +10981,15 @@ sna_reversed_glyph_blt(DrawablePtr drawable, GCPtr gc,
 				do {
 					i = w8;
 					do {
-						clear = *g == 0;
+						clear = *g++ == 0;
 					} while (clear && --i);
 					g += stride - w8;
 				} while (clear && --j);
-				if (clear)
+				if (clear) {
+					DBG(("%s: skipping clear glyph for ImageGlyph\n",
+					     __FUNCTION__));
 					goto skip;
+				}
 			}
 
 			if (!kgem_check_batch(&sna->kgem, 3+len)) {
