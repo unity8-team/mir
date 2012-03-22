@@ -487,8 +487,18 @@ sna_composite(CARD8 op,
 	     get_drawable_dx(dst->pDrawable),
 	     get_drawable_dy(dst->pDrawable)));
 
-	if (op <= PictOpSrc)
+	if (op <= PictOpSrc) {
+		int16_t x, y;
+
+		get_drawable_deltas(dst->pDrawable, pixmap, &x, &y);
+		if (x|y)
+			pixman_region_translate(&region, x, y);
+
 		sna_damage_subtract(&priv->cpu_damage, &region);
+
+		if (x|y)
+			pixman_region_translate(&region, -x, -y);
+	}
 
 	memset(&tmp, 0, sizeof(tmp));
 	if (!sna->render.composite(sna,
