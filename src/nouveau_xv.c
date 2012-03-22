@@ -2022,6 +2022,28 @@ NV50SetupTexturedVideo (ScreenPtr pScreen)
 	return adapt;
 }
 
+void
+NVSetupTexturedVideo (ScreenPtr pScreen, XF86VideoAdaptorPtr *textureAdaptor)
+{
+	ScrnInfoPtr          pScrn = xf86Screens[pScreen->myNum];
+	NVPtr                pNv = NVPTR(pScrn);
+
+	if (!pNv->Nv3D)
+		return;
+
+	if (pNv->Architecture == NV_ARCH_30) {
+		textureAdaptor[0] = NV30SetupTexturedVideo(pScreen, FALSE);
+		textureAdaptor[1] = NV30SetupTexturedVideo(pScreen, TRUE);
+	} else
+	if (pNv->Architecture == NV_ARCH_40) {
+		textureAdaptor[0] = NV40SetupTexturedVideo(pScreen, FALSE);
+		textureAdaptor[1] = NV40SetupTexturedVideo(pScreen, TRUE);
+	} else
+	if (pNv->Architecture >= NV_ARCH_50) {
+		textureAdaptor[0] = NV50SetupTexturedVideo(pScreen);
+	}
+}
+
 /**
  * NVInitVideo
  * tries to initialize the various supported adapters
@@ -2056,17 +2078,7 @@ NVInitVideo(ScreenPtr pScreen)
 			blitAdaptor    = NVSetupBlitVideo(pScreen);
 		}
 
-		if (pNv->Architecture == NV_ARCH_30) {
-			textureAdaptor[0] = NV30SetupTexturedVideo(pScreen, FALSE);
-			textureAdaptor[1] = NV30SetupTexturedVideo(pScreen, TRUE);
-		} else
-		if (pNv->Architecture == NV_ARCH_40) {
-			textureAdaptor[0] = NV40SetupTexturedVideo(pScreen, FALSE);
-			textureAdaptor[1] = NV40SetupTexturedVideo(pScreen, TRUE);
-		} else
-		if (pNv->Architecture >= NV_ARCH_50) {
-			textureAdaptor[0] = NV50SetupTexturedVideo(pScreen);
-		}
+		NVSetupTexturedVideo(pScreen, textureAdaptor);
 	}
 
 	num_adaptors = xf86XVListGenericAdaptors(pScrn, &adaptors);
