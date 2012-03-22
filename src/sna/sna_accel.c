@@ -10894,8 +10894,11 @@ sna_reversed_glyph_blt(DrawablePtr drawable, GCPtr gc,
 
 	if (bo->tiling == I915_TILING_Y) {
 		DBG(("%s: converting bo from Y-tiling\n", __FUNCTION__));
-		if (!sna_pixmap_change_tiling(pixmap, I915_TILING_X)) {
-			DBG(("%s -- fallback, dst uses Y-tiling\n", __FUNCTION__));
+		assert(bo == sna_pixmap_get_bo(pixmap));
+		bo = sna_pixmap_change_tiling(pixmap, I915_TILING_X);
+		if (bo == NULL) {
+			DBG(("%s -- fallback, unable to change tiling\n",
+			     __FUNCTION__));
 			return false;
 		}
 	}
