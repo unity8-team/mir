@@ -254,8 +254,10 @@ if test "x$DEBUG" = xno; then
 fi
 if test "x$DEBUG" != xno; then
 	AC_DEFINE(HAS_EXTRA_DEBUG,1,[Enable additional debugging])
-	PKG_CHECK_MODULES(VALGRIND, [valgrind],
-			  AC_DEFINE([HAVE_VALGRIND], 1, [Use valgrind intrinsics to suppress false warings]),)
+	PKG_CHECK_MODULES(VALGRIND, [valgrind], have_valgrind=yes, have_valgrind=no)
+	if test x$have_valgrind = xyes; then
+		AC_DEFINE([HAVE_VALGRIND], 1, [Use valgrind intrinsics to suppress false warnings])
+	fi
 fi
 if test "x$DEBUG" = xfull; then
 	AC_DEFINE(HAS_DEBUG_FULL,1,[Enable all debugging])
