@@ -1310,7 +1310,8 @@ gen2_composite_picture(struct sna *sna,
 		       struct sna_composite_channel *channel,
 		       int x, int y,
 		       int w, int h,
-		       int dst_x, int dst_y)
+		       int dst_x, int dst_y,
+		       bool precise)
 {
 	PixmapPtr pixmap;
 	uint32_t color;
@@ -1343,6 +1344,8 @@ gen2_composite_picture(struct sna *sna,
 	}
 
 	if (picture->pDrawable == NULL) {
+		int ret;
+
 		if (picture->pSourcePict->type == SourcePictTypeLinear)
 			return gen2_composite_linear_init(sna, picture, channel,
 							  x, y,
@@ -1351,8 +1354,14 @@ gen2_composite_picture(struct sna *sna,
 
 		DBG(("%s -- fallback, unhandled source %d\n",
 		     __FUNCTION__, picture->pSourcePict->type));
-		return sna_render_picture_fixup(sna, picture, channel,
-						x, y, w, h, dst_x, dst_y);
+		ret = -1;
+		if (!precise)
+			ret = sna_render_picture_approximate_gradient(sna, picture, channel,
+								      x, y, w, h, dst_x, dst_y);
+		if (ret == -1)
+			ret = sna_render_picture_fixup(sna, picture, channel,
+						       x, y, w, h, dst_x, dst_y);
+		return ret;
 	}
 
 	if (picture->alphaMap) {
@@ -1765,7 +1774,8 @@ gen2_render_composite(struct sna *sna,
 	switch (gen2_composite_picture(sna, src, &tmp->src,
 				       src_x, src_y,
 				       width, height,
-				       dst_x, dst_y)) {
+				       dst_x, dst_y,
+				       dst->polyMode == PolyModePrecise)) {
 	case -1:
 		goto cleanup_dst;
 	case 0:
@@ -1781,7 +1791,8 @@ gen2_render_composite(struct sna *sna,
 			switch (gen2_composite_picture(sna, mask, &tmp->mask,
 						       mask_x, mask_y,
 						       width,  height,
-						       dst_x,  dst_y)) {
+						       dst_x,  dst_y,
+						       dst->polyMode == PolyModePrecise)) {
 			case -1:
 				goto cleanup_src;
 			case 0:
@@ -2229,7 +2240,8 @@ gen2_render_composite_spans(struct sna *sna,
 	switch (gen2_composite_picture(sna, src, &tmp->base.src,
 				       src_x, src_y,
 				       width, height,
-				       dst_x, dst_y)) {
+				       dst_x, dst_y,
+				       dst->polyMode == PolyModePrecise)) {
 	case -1:
 		goto cleanup_dst;
 	case 0:

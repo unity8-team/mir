@@ -2194,7 +2194,7 @@ gen3_init_linear(struct sna *sna,
 	op->u.gen3.constants[n++] = 0;
 
 	if (!gen3_gradient_setup(sna, picture, channel, ox, oy))
-		return 0;
+		return -1;
 
 	channel->u.gen3.type = SHADER_LINEAR;
 	op->u.gen3.num_constants = n;
@@ -2250,7 +2250,7 @@ gen3_init_radial(struct sna *sna,
 	}
 
 	if (!gen3_gradient_setup(sna, picture, channel, ox, oy))
-		return 0;
+		return -1;
 
 	channel->u.gen3.type = SHADER_RADIAL;
 	op->u.gen3.num_constants = n;
@@ -2285,7 +2285,8 @@ gen3_composite_picture(struct sna *sna,
 		       struct sna_composite_channel *channel,
 		       int16_t x, int16_t y,
 		       int16_t w, int16_t h,
-		       int16_t dst_x, int16_t dst_y)
+		       int16_t dst_x, int16_t dst_y,
+		       bool precise)
 {
 	PixmapPtr pixmap;
 	uint32_t color;
@@ -2298,7 +2299,7 @@ gen3_composite_picture(struct sna *sna,
 
 	if (picture->pDrawable == NULL) {
 		SourcePict *source = picture->pSourcePict;
-		int ret = 0;
+		int ret = -1;
 
 		switch (source->type) {
 		case SourcePictTypeSolidFill:
@@ -2316,9 +2317,14 @@ gen3_composite_picture(struct sna *sna,
 			break;
 		}
 
-		if (ret == 0)
-			ret = sna_render_picture_fixup(sna, picture, channel,
-						       x, y, w, h, dst_x, dst_y);
+		if (ret == -1) {
+			if (!precise)
+				ret = sna_render_picture_approximate_gradient(sna, picture, channel,
+									      x, y, w, h, dst_x, dst_y);
+			if (ret == -1)
+				ret = sna_render_picture_fixup(sna, picture, channel,
+							       x, y, w, h, dst_x, dst_y);
+		}
 		return ret;
 	}
 
@@ -2815,7 +2821,8 @@ gen3_render_composite(struct sna *sna,
 	switch (gen3_composite_picture(sna, src, tmp, &tmp->src,
 				       src_x, src_y,
 				       width, height,
-				       dst_x, dst_y)) {
+				       dst_x, dst_y,
+				       dst->polyMode == PolyModePrecise)) {
 	case -1:
 		goto cleanup_dst;
 	case 0:
@@ -2840,7 +2847,8 @@ gen3_render_composite(struct sna *sna,
 			switch (gen3_composite_picture(sna, mask, tmp, &tmp->mask,
 						       mask_x, mask_y,
 						       width,  height,
-						       dst_x,  dst_y)) {
+						       dst_x,  dst_y,
+						       dst->polyMode == PolyModePrecise)) {
 			case -1:
 				goto cleanup_src;
 			case 0:
@@ -3379,7 +3387,8 @@ gen3_render_composite_spans(struct sna *sna,
 	switch (gen3_composite_picture(sna, src, &tmp->base, &tmp->base.src,
 				       src_x, src_y,
 				       width, height,
-				       dst_x, dst_y)) {
+				       dst_x, dst_y,
+				       dst->polyMode == PolyModePrecise)) {
 	case -1:
 		goto cleanup_dst;
 	case 0:

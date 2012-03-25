@@ -2165,7 +2165,8 @@ gen6_composite_picture(struct sna *sna,
 		       struct sna_composite_channel *channel,
 		       int x, int y,
 		       int w, int h,
-		       int dst_x, int dst_y)
+		       int dst_x, int dst_y,
+		       bool precise)
 {
 	PixmapPtr pixmap;
 	uint32_t color;
@@ -2181,6 +2182,8 @@ gen6_composite_picture(struct sna *sna,
 		return gen6_composite_solid_init(sna, channel, color);
 
 	if (picture->pDrawable == NULL) {
+		int ret;
+
 		if (picture->pSourcePict->type == SourcePictTypeLinear)
 			return gen6_composite_linear_init(sna, picture, channel,
 							  x, y,
@@ -2188,8 +2191,14 @@ gen6_composite_picture(struct sna *sna,
 							  dst_x, dst_y);
 
 		DBG(("%s -- fixup, gradient\n", __FUNCTION__));
-		return sna_render_picture_fixup(sna, picture, channel,
-						x, y, w, h, dst_x, dst_y);
+		ret = -1;
+		if (!precise)
+			ret = sna_render_picture_approximate_gradient(sna, picture, channel,
+								      x, y, w, h, dst_x, dst_y);
+		if (ret == -1)
+			ret = sna_render_picture_fixup(sna, picture, channel,
+						       x, y, w, h, dst_x, dst_y);
+		return ret;
 	}
 
 	if (picture->alphaMap) {
@@ -2646,7 +2655,8 @@ gen6_render_composite(struct sna *sna,
 	switch (gen6_composite_picture(sna, src, &tmp->src,
 				       src_x, src_y,
 				       width, height,
-				       dst_x, dst_y)) {
+				       dst_x, dst_y,
+				       dst->polyMode == PolyModePrecise)) {
 	case -1:
 		goto cleanup_dst;
 	case 0:
@@ -2702,7 +2712,8 @@ gen6_render_composite(struct sna *sna,
 			switch (gen6_composite_picture(sna, mask, &tmp->mask,
 						       msk_x, msk_y,
 						       width, height,
-						       dst_x, dst_y)) {
+						       dst_x, dst_y,
+						       dst->polyMode == PolyModePrecise)) {
 			case -1:
 				goto cleanup_src;
 			case 0:
@@ -3089,7 +3100,8 @@ gen6_render_composite_spans(struct sna *sna,
 	switch (gen6_composite_picture(sna, src, &tmp->base.src,
 				       src_x, src_y,
 				       width, height,
-				       dst_x, dst_y)) {
+				       dst_x, dst_y,
+				       dst->polyMode == PolyModePrecise)) {
 	case -1:
 		goto cleanup_dst;
 	case 0:

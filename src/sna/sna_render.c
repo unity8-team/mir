@@ -1369,6 +1369,92 @@ sna_render_picture_flatten(struct sna *sna,
 }
 
 int
+sna_render_picture_approximate_gradient(struct sna *sna,
+					PicturePtr picture,
+					struct sna_composite_channel *channel,
+					int16_t x, int16_t y,
+					int16_t w, int16_t h,
+					int16_t dst_x, int16_t dst_y)
+{
+	pixman_image_t *dst, *src;
+	pixman_transform_t t;
+	int w2 = w/2, h2 = h/2;
+	int dx, dy;
+	void *ptr;
+
+#if NO_FIXUP
+	return -1;
+#endif
+
+	DBG(("%s: (%d, %d)x(%d, %d)\n", __FUNCTION__, x, y, w, h));
+
+	if (w2 == 0 || h2 == 0) {
+		DBG(("%s: fallback - unknown bounds\n", __FUNCTION__));
+		return -1;
+	}
+	if (w2 > sna->render.max_3d_size || h2 > sna->render.max_3d_size) {
+		DBG(("%s: fallback - too large (%dx%d)\n", __FUNCTION__, w, h));
+		return -1;
+	}
+
+	channel->pict_format = PIXMAN_a8r8g8b8;
+	channel->bo = kgem_create_buffer_2d(&sna->kgem,
+					    w2, h2, 32,
+					    KGEM_BUFFER_WRITE_INPLACE,
+					    &ptr);
+	if (!channel->bo) {
+		DBG(("%s: failed to create upload buffer, using clear\n",
+		     __FUNCTION__));
+		return 0;
+	}
+
+	dst = pixman_image_create_bits(PIXMAN_a8r8g8b8,
+				       w2, h2, ptr, channel->bo->pitch);
+	if (!dst) {
+		kgem_bo_destroy(&sna->kgem, channel->bo);
+		return 0;
+	}
+
+	src = image_from_pict(picture, FALSE, &dx, &dy);
+	if (src == NULL) {
+		pixman_image_unref(dst);
+		kgem_bo_destroy(&sna->kgem, channel->bo);
+		return 0;
+	}
+
+	memset(&t, 0, sizeof(t));
+	t.matrix[0][0] = (w << 16) / w2;
+	t.matrix[1][1] = (h << 16) / h2;
+	t.matrix[2][2] = 1 << 16;
+	if (picture->transform)
+		pixman_transform_multiply(&t, picture->transform, &t);
+	pixman_image_set_transform(src, &t);
+
+	pixman_image_composite(PictOpSrc, src, NULL, dst,
+			       x + dx, y + dy,
+			       0, 0,
+			       0, 0,
+			       w2, h2);
+	free_pixman_pict(picture, src);
+	pixman_image_unref(dst);
+
+	channel->width  = w2;
+	channel->height = h2;
+
+	channel->filter = PictFilterNearest;
+	channel->repeat = RepeatNone;
+	channel->is_affine = TRUE;
+
+	channel->scale[0] = 1.f/w;
+	channel->scale[1] = 1.f/h;
+	channel->offset[0] = -dst_x;
+	channel->offset[1] = -dst_y;
+	channel->transform = NULL;
+
+	return 1;
+}
+
+int
 sna_render_picture_fixup(struct sna *sna,
 			 PicturePtr picture,
 			 struct sna_composite_channel *channel,

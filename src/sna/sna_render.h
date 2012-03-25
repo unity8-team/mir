@@ -615,6 +615,14 @@ sna_render_picture_extract(struct sna *sna,
 			   int16_t dst_x, int16_t dst_y);
 
 int
+sna_render_picture_approximate_gradient(struct sna *sna,
+					PicturePtr picture,
+					struct sna_composite_channel *channel,
+					int16_t x, int16_t y,
+					int16_t w, int16_t h,
+					int16_t dst_x, int16_t dst_y);
+
+int
 sna_render_picture_fixup(struct sna *sna,
 			 PicturePtr picture,
 			 struct sna_composite_channel *channel,
