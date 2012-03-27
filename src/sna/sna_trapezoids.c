@@ -3092,12 +3092,14 @@ composite_unaligned_boxes(struct sna *sna,
 
 	switch (op) {
 	case PictOpAdd:
+	case PictOpOver:
 		if (priv->clear && priv->clear_color == 0)
 			op = PictOpSrc;
 		break;
 	case PictOpIn:
 		if (priv->clear && priv->clear_color == 0)
 			return true;
+		break;
 	}
 
 	memset(&tmp, 0, sizeof(tmp));
@@ -4479,7 +4481,7 @@ sna_composite_trapezoids(CARD8 op,
 
 	/* scan through for fast rectangles */
 	rectilinear = pixel_aligned = true;
-	if (maskFormat ? maskFormat->depth == 1 : dst->polyEdge == PolyEdgeSharp) {
+	if (is_mono(dst, maskFormat)) {
 		for (n = 0; n < ntrap && rectilinear; n++) {
 			int lx1 = pixman_fixed_to_int(traps[n].left.p1.x + pixman_fixed_1_minus_e/2);
 			int lx2 = pixman_fixed_to_int(traps[n].left.p2.x + pixman_fixed_1_minus_e/2);
@@ -4531,6 +4533,13 @@ sna_composite_trapezoids(CARD8 op,
 		}
 		flags |= COMPOSITE_SPANS_RECTILINEAR;
 	}
+
+	if (is_mono(dst, maskFormat) &&
+	    mono_trapezoids_span_converter(op, src, dst,
+					   xSrc, ySrc,
+					   ntrap, traps))
+		return;
+
 	if (trapezoid_spans_maybe_inplace(op, src, dst, maskFormat)) {
 		flags |= COMPOSITE_SPANS_INPLACE_HINT;
 		if (trapezoid_span_inplace(op, src, dst, maskFormat,
