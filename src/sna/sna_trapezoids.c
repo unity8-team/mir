@@ -2759,7 +2759,7 @@ composite_unaligned_trap_row(struct sna *sna,
 	} else {
 		if (pixman_fixed_frac(trap->left.p1.x)) {
 			box.x1 = x1;
-			box.x2 = x1++;
+			box.x2 = ++x1;
 
 			opacity = covered;
 			opacity *= SAMPLES_X - grid_coverage(SAMPLES_X, trap->left.p1.x);
