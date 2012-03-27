@@ -2033,6 +2033,7 @@ gen6_composite_solid_init(struct sna *sna,
 	channel->repeat = RepeatNormal;
 	channel->is_affine = TRUE;
 	channel->is_solid  = TRUE;
+	channel->is_opaque = (color >> 24) == 0xff;
 	channel->transform = NULL;
 	channel->width  = 1;
 	channel->height = 1;
@@ -2251,7 +2252,7 @@ gen6_composite_picture(struct sna *sna,
 				    x, y, w, h, dst_x, dst_y);
 }
 
-static void gen6_composite_channel_convert(struct sna_composite_channel *channel)
+inline static void gen6_composite_channel_convert(struct sna_composite_channel *channel)
 {
 	channel->repeat = gen6_repeat(channel->repeat);
 	channel->filter = gen6_filter(channel->filter);
@@ -2735,6 +2736,8 @@ gen6_render_composite(struct sna *sna,
 			DBG(("%s: choosing gen6_emit_composite_primitive_solid\n",
 			     __FUNCTION__));
 			tmp->prim_emit = gen6_emit_composite_primitive_solid;
+			if (tmp->src.is_opaque && op == PictOpOver)
+				tmp->op = PictOpSrc;
 		} else if (tmp->src.transform == NULL) {
 			DBG(("%s: choosing gen6_emit_composite_primitive_identity_source\n",
 			     __FUNCTION__));
