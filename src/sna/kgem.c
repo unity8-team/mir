@@ -84,7 +84,7 @@ search_linear_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags);
 #if defined(USE_VMAP) && !defined(I915_PARAM_HAS_VMAP)
 #define DRM_I915_GEM_VMAP       0x2c
 #define DRM_IOCTL_I915_GEM_VMAP DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_GEM_VMAP, struct drm_i915_gem_vmap)
-#define I915_PARAM_HAS_VMAP              18
+#define I915_PARAM_HAS_VMAP              19
 struct drm_i915_gem_vmap {
 	uint64_t user_ptr;
 	uint32_t user_size;
@@ -690,7 +690,7 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 		 * disable dual-stream mode */
 		kgem->min_alignment = 64;
 
-	kgem->max_object_size = 2 * kgem->aperture_total / 3;
+	kgem->max_object_size = 2 * aperture.aper_size / 3;
 	kgem->max_gpu_size = kgem->max_object_size;
 	if (!kgem->has_llc)
 		kgem->max_gpu_size = MAX_CACHE_SIZE;
@@ -741,9 +741,11 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	} else
 		kgem->max_cpu_size = 0;
 
+	DBG(("%s: maximum object size=%d\n",
+	     __FUNCTION__, kgem->max_object_size));
 	DBG(("%s: large object thresold=%d\n",
 	     __FUNCTION__, kgem->large_object_size));
-	DBG(("%s: max object size (gpu=%d, cpu=%d, tile upload=%d, copy=%d)\n",
+	DBG(("%s: max object sizes (gpu=%d, cpu=%d, tile upload=%d, copy=%d)\n",
 	     __FUNCTION__,
 	     kgem->max_gpu_size, kgem->max_cpu_size,
 	     kgem->max_upload_tile_size, kgem->max_copy_tile_size));
@@ -2392,11 +2394,16 @@ unsigned kgem_can_create_2d(struct kgem *kgem,
 	uint32_t pitch, size;
 	unsigned flags = 0;
 
-	if (depth < 8)
+	if (depth < 8) {
+		DBG(("%s: unhandled depth %d\n", __FUNCTION__, depth));
 		return 0;
+	}
 
-	if (width > MAXSHORT || height > MAXSHORT)
+	if (width > MAXSHORT || height > MAXSHORT) {
+		DBG(("%s: unhandled size %dx%d\n",
+		     __FUNCTION__, width, height));
 		return 0;
+	}
 
 	size = kgem_surface_size(kgem, false, false,
 				 width, height, bpp,
@@ -2405,8 +2412,11 @@ unsigned kgem_can_create_2d(struct kgem *kgem,
 		flags |= KGEM_CAN_CREATE_CPU | KGEM_CAN_CREATE_GPU;
 	if (size > kgem->large_object_size)
 		flags |= KGEM_CAN_CREATE_LARGE;
-	if (size > kgem->max_object_size)
+	if (size > kgem->max_object_size) {
+		DBG(("%s: too large (untiled) %d > %d\n",
+		     __FUNCTION__, size, kgem->max_object_size));
 		return 0;
+	}
 
 	size = kgem_surface_size(kgem, false, false,
 				 width, height, bpp,
@@ -2417,8 +2427,11 @@ unsigned kgem_can_create_2d(struct kgem *kgem,
 		flags |= KGEM_CAN_CREATE_GPU;
 	if (size > kgem->large_object_size)
 		flags |= KGEM_CAN_CREATE_LARGE;
-	if (size > kgem->max_object_size)
+	if (size > kgem->max_object_size) {
+		DBG(("%s: too large (tiled) %d > %d\n",
+		     __FUNCTION__, size, kgem->max_object_size));
 		return 0;
+	}
 
 	return flags;
 }
