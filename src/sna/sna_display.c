@@ -60,6 +60,7 @@ struct sna_crtc {
 	int num;
 	int id;
 	int pipe;
+	int plane;
 	int active;
 	struct list link;
 };
@@ -142,6 +143,12 @@ int sna_crtc_to_pipe(xf86CrtcPtr crtc)
 {
 	struct sna_crtc *sna_crtc = crtc->driver_private;
 	return sna_crtc->pipe;
+}
+
+int sna_crtc_to_plane(xf86CrtcPtr crtc)
+{
+	struct sna_crtc *sna_crtc = crtc->driver_private;
+	return sna_crtc->plane;
 }
 
 static uint32_t gem_create(int fd, int size)
@@ -852,6 +859,37 @@ static const xf86CrtcFuncsRec sna_crtc_funcs = {
 	.destroy = sna_crtc_destroy,
 };
 
+static uint32_t
+sna_crtc_find_plane(struct sna *sna, int pipe)
+{
+	drmModePlaneRes *resources;
+	uint32_t id = 0;
+	int i;
+
+	resources = drmModeGetPlaneResources(sna->kgem.fd);
+	if (!resources) {
+		xf86DrvMsg(sna->scrn->scrnIndex, X_ERROR,
+			   "failed to get plane resources: %s\n",
+			   strerror(errno));
+		return 0;
+	}
+
+	for (i = 0; id == 0 && i < resources->count_planes; i++) {
+		drmModePlane *p;
+
+		p = drmModeGetPlane(sna->kgem.fd, resources->planes[i]);
+		if (p) {
+			if (p->possible_crtcs & (1 << pipe))
+				id = p->plane_id;
+
+			drmModeFreePlane(p);
+		}
+	}
+
+	free(resources);
+	return id;
+}
+
 static void
 sna_crtc_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 {
@@ -878,6 +916,7 @@ sna_crtc_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 		 DRM_IOCTL_I915_GET_PIPE_FROM_CRTC_ID,
 		 &get_pipe);
 	sna_crtc->pipe = get_pipe.pipe;
+	sna_crtc->plane = sna_crtc_find_plane(sna, sna_crtc->pipe);
 
 	if (xf86IsEntityShared(scrn->entityList[0]) &&
 	    scrn->confScreen->device->screen != sna_crtc->pipe) {
