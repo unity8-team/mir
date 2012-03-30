@@ -363,6 +363,7 @@ extern xf86CrtcPtr sna_covering_crtc(ScrnInfoPtr scrn,
 
 extern bool sna_wait_for_scanline(struct sna *sna, PixmapPtr pixmap,
 				  xf86CrtcPtr crtc, const BoxRec *clip);
+extern bool sna_crtc_is_bound(struct sna *sna, xf86CrtcPtr crtc);
 
 Bool sna_dri_open(struct sna *sna, ScreenPtr pScreen);
 void sna_dri_wakeup(struct sna *sna);

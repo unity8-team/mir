@@ -400,6 +400,7 @@ sna_dri_copy_to_front(struct sna *sna, DrawablePtr draw, RegionPtr region,
 	PixmapPtr pixmap = get_drawable_pixmap(draw);
 	pixman_region16_t clip;
 	bool flush = false;
+	xf86CrtcPtr crtc;
 	BoxRec box, *boxes;
 	int16_t dx, dy;
 	int n;
@@ -442,9 +443,15 @@ sna_dri_copy_to_front(struct sna *sna, DrawablePtr draw, RegionPtr region,
 			return;
 		}
 
-		if (pixmap == sna->front && sync)
-			flush = sna_wait_for_scanline(sna, pixmap, NULL,
-						      &region->extents);
+		if (pixmap == sna->front && sync) {
+			BoxRec crtc_box;
+
+			crtc = sna_covering_crtc(sna->scrn, &region->extents,
+						 NULL, &crtc_box);
+			if (crtc)
+				flush = sna_wait_for_scanline(sna, pixmap, crtc,
+							      &region->extents);
+		}
 
 		get_drawable_deltas(draw, pixmap, &dx, &dy);
 	}
@@ -482,8 +489,11 @@ sna_dri_copy_to_front(struct sna *sna, DrawablePtr draw, RegionPtr region,
 			       boxes, n);
 
 	DBG(("%s: flushing? %d\n", __FUNCTION__, flush));
-	if (flush) /* STAT! */
+	if (flush) { /* STAT! */
+		if (!sna_crtc_is_bound(sna, crtc))
+			sna->kgem.batch[sna->kgem.wait] = 0;
 		kgem_submit(&sna->kgem);
+	}
 
 	pixman_region_translate(region, dx, dy);
 	DamageRegionAppend(&pixmap->drawable, region);
