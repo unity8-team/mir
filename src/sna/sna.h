@@ -257,7 +257,6 @@ struct sna {
 #define SNA_TILING_3D		0x4
 #define SNA_TILING_ALL (~0)
 
-	int Chipset;
 	EntityInfoPtr pEnt;
 	struct pci_device *PciInfo;
 	struct intel_chipset chipset;

@@ -67,6 +67,31 @@
 
 #define is_aligned(x, y) (((x) & ((y) - 1)) == 0)
 
+struct gt_info {
+	int max_vs_threads;
+	int max_gs_threads;
+	int max_wm_threads;
+	struct {
+		int size;
+		int max_vs_entries;
+		int max_gs_entries;
+	} urb;
+};
+
+static const struct gt_info gt1_info = {
+	.max_vs_threads = 36,
+	.max_gs_threads = 36,
+	.max_wm_threads = 86,
+	.urb = { 128, 512, 192 },
+};
+
+static const struct gt_info gt2_info = {
+	.max_vs_threads = 128,
+	.max_gs_threads = 128,
+	.max_wm_threads = 86,
+	.urb = { 256, 704, 320 },
+};
+
 static const uint32_t ps_kernel_nomask_affine[][4] = {
 #include "exa_wm_src_affine.g7b"
 #include "exa_wm_src_sample_argb.g7b"
@@ -427,7 +452,7 @@ gen7_emit_urb(struct sna *sna)
 
 	/* num of VS entries must be divisible by 8 if size < 9 */
 	OUT_BATCH(GEN7_3DSTATE_URB_VS | (2 - 2));
-	OUT_BATCH((32 << GEN7_URB_ENTRY_NUMBER_SHIFT) | /* at least 32 */
+	OUT_BATCH((sna->render_state.gen7.info->urb.max_vs_entries << GEN7_URB_ENTRY_NUMBER_SHIFT) |
 		  (2 - 1) << GEN7_URB_ENTRY_SIZE_SHIFT |
 		  (1 << GEN7_URB_STARTING_ADDRESS_SHIFT));
 
@@ -802,7 +827,7 @@ gen7_emit_wm(struct sna *sna, unsigned int kernel, int nr_surfaces, int nr_input
 	OUT_BATCH(1 << GEN7_PS_SAMPLER_COUNT_SHIFT |
 		  nr_surfaces << GEN7_PS_BINDING_TABLE_ENTRY_COUNT_SHIFT);
 	OUT_BATCH(0); /* scratch address */
-	OUT_BATCH((86 - 1) << GEN7_PS_MAX_THREADS_SHIFT |
+	OUT_BATCH((sna->render_state.gen7.info->max_wm_threads - 1) << GEN7_PS_MAX_THREADS_SHIFT |
 		  GEN7_PS_ATTRIBUTE_ENABLE |
 		  GEN7_PS_16_DISPATCH_ENABLE);
 	OUT_BATCH(6 << GEN7_PS_DISPATCH_START_GRF_SHIFT_0);
@@ -4291,6 +4316,10 @@ static Bool gen7_render_setup(struct sna *sna)
 	struct sna_static_stream general;
 	struct gen7_sampler_state *ss;
 	int i, j, k, l, m;
+
+	state->info = &gt1_info;
+	if (DEVICE_ID(sna->PciInfo) & 0x20)
+		state->info = &gt2_info;
 
 	sna_static_stream_init(&general);
 
