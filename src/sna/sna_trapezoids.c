@@ -1496,17 +1496,17 @@ inplace_row(struct active_list *active, uint8_t *row, int width)
 				else
 					memset(row+lix, 0xff, rix);
 #else
-				if (lix & 1 && rix) {
+				if ((uintptr_t)row & 1 && rix) {
 					row[lix] = 0xff;
 					lix++;
 					rix--;
 				}
-				if (lix & 2 && rix >= 2) {
+				if ((uintptr_t)row & 2 && rix >= 2) {
 					*(uint16_t *)(row+lix) = 0xffff;
 					lix += 2;
 					rix -= 2;
 				}
-				if (lix & 4 && rix >= 4) {
+				if ((uintptr_t)row & 4 && rix >= 4) {
 					*(uint32_t *)(row+lix) = 0xffffffff;
 					lix += 4;
 					rix -= 4;
