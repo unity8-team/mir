@@ -1490,42 +1490,42 @@ inplace_row(struct active_list *active, uint8_t *row, int width)
 
 			if (rix > ++lix) {
 				rix -= lix;
+				row += lix;
 #if 0
 				if (rix == 1)
-					row[lix] = 0xff;
+					*row = 0xff;
 				else
-					memset(row+lix, 0xff, rix);
+					memset(row, 0xff, rix);
 #else
 				if ((uintptr_t)row & 1 && rix) {
-					row[lix] = 0xff;
-					lix++;
+					*row++ = 0xff;
 					rix--;
 				}
 				if ((uintptr_t)row & 2 && rix >= 2) {
-					*(uint16_t *)(row+lix) = 0xffff;
-					lix += 2;
+					*(uint16_t *)row = 0xffff;
+					row += 2;
 					rix -= 2;
 				}
 				if ((uintptr_t)row & 4 && rix >= 4) {
-					*(uint32_t *)(row+lix) = 0xffffffff;
-					lix += 4;
+					*(uint32_t *)row = 0xffffffff;
+					row += 4;
 					rix -= 4;
 				}
 				while (rix >= 8) {
-					*(uint64_t *)(row+lix) = 0xffffffffffffffff;
-					lix += 8;
+					*(uint64_t *)row = 0xffffffffffffffff;
+					row += 8;
 					rix -= 8;
 				}
 				if (rix & 4) {
-					*(uint32_t *)(row+lix) = 0xffffffff;
-					lix += 4;
+					*(uint32_t *)row = 0xffffffff;
+					row += 4;
 				}
 				if (rix & 2) {
-					*(uint16_t *)(row+lix) = 0xffff;
-					lix += 2;
+					*(uint16_t *)row = 0xffff;
+					row += 2;
 				}
 				if (rix & 1)
-					row[lix] = 0xff;
+					*row = 0xff;
 #endif
 			}
 		}
