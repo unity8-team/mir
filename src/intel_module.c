@@ -142,6 +142,7 @@ static const SymTabRec _intel_chipsets[] = {
 	{PCI_CHIP_IVYBRIDGE_D_GT1,		"Ivybridge Desktop (GT1)" },
 	{PCI_CHIP_IVYBRIDGE_D_GT2,		"Ivybridge Desktop (GT2)" },
 	{PCI_CHIP_IVYBRIDGE_S_GT1,		"Ivybridge Server" },
+	{PCI_CHIP_IVYBRIDGE_S_GT2,		"Ivybridge Server (GT2)" },
 	{-1,					NULL}
 };
 #define NUM_CHIPSETS (sizeof(_intel_chipsets) / sizeof(_intel_chipsets[0]))
@@ -210,6 +211,7 @@ static const struct pci_id_match intel_device_match[] = {
 	INTEL_DEVICE_MATCH (PCI_CHIP_IVYBRIDGE_D_GT1, &intel_ivybridge_info ),
 	INTEL_DEVICE_MATCH (PCI_CHIP_IVYBRIDGE_D_GT2, &intel_ivybridge_info ),
 	INTEL_DEVICE_MATCH (PCI_CHIP_IVYBRIDGE_S_GT1, &intel_ivybridge_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_IVYBRIDGE_S_GT2, &intel_ivybridge_info ),
 
 	{ 0, 0, 0 },
 };
