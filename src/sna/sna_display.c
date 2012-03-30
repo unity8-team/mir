@@ -2105,11 +2105,39 @@ static void sna_emit_wait_for_scanline_gen6(struct sna *sna,
 	kgem_advance_batch(&sna->kgem, 4);
 }
 
-static void sna_emit_wait_for_scanline_gen2(struct sna *sna,
+static void sna_emit_wait_for_scanline_gen4(struct sna *sna,
 					    int pipe, int y1, int y2,
 					    bool full_height)
 {
 	uint32_t event;
+	uint32_t *b;
+
+	if (pipe == 0) {
+		if (full_height)
+			event = MI_WAIT_FOR_PIPEA_SVBLANK;
+		else
+			event = MI_WAIT_FOR_PIPEA_SCAN_LINE_WINDOW;
+	} else {
+		if (full_height)
+			event = MI_WAIT_FOR_PIPEB_SVBLANK;
+		else
+			event = MI_WAIT_FOR_PIPEB_SCAN_LINE_WINDOW;
+	}
+
+	kgem_set_mode(&sna->kgem, KGEM_BLT);
+	b = kgem_get_batch(&sna->kgem, 5);
+	/* The documentation says that the LOAD_SCAN_LINES command
+	 * always comes in pairs. Don't ask me why. */
+	b[2] = b[0] = MI_LOAD_SCAN_LINES_INCL | pipe << 20;
+	b[3] = b[1] = (y1 << 16) | (y2-1);
+	b[4] = MI_WAIT_FOR_EVENT | event;
+	kgem_advance_batch(&sna->kgem, 5);
+}
+
+static void sna_emit_wait_for_scanline_gen2(struct sna *sna,
+					    int pipe, int y1, int y2,
+					    bool full_height)
+{
 	uint32_t *b;
 
 	/*
@@ -2117,29 +2145,19 @@ static void sna_emit_wait_for_scanline_gen2(struct sna *sna,
 	 * of extra time for the blitter to start up and
 	 * do its job for a full height blit
 	 */
-	if (pipe == 0) {
-		pipe = MI_LOAD_SCAN_LINES_DISPLAY_PIPEA;
-		event = MI_WAIT_FOR_PIPEA_SCAN_LINE_WINDOW;
-		if (full_height)
-			event = MI_WAIT_FOR_PIPEA_SVBLANK;
-	} else {
-		pipe = MI_LOAD_SCAN_LINES_DISPLAY_PIPEB;
-		event = MI_WAIT_FOR_PIPEB_SCAN_LINE_WINDOW;
-		if (full_height)
-			event = MI_WAIT_FOR_PIPEB_SVBLANK;
-	}
+	if (full_height)
+		y2 -= 2;
 
-	if (sna->kgem.mode == KGEM_NONE)
-		kgem_set_mode(&sna->kgem, KGEM_BLT);
-
+	kgem_set_mode(&sna->kgem, KGEM_BLT);
 	b = kgem_get_batch(&sna->kgem, 5);
 	/* The documentation says that the LOAD_SCAN_LINES command
 	 * always comes in pairs. Don't ask me why. */
-	b[0] = MI_LOAD_SCAN_LINES_INCL | pipe;
-	b[1] = (y1 << 16) | (y2-1);
-	b[2] = MI_LOAD_SCAN_LINES_INCL | pipe;
-	b[3] = (y1 << 16) | (y2-1);
-	b[4] = MI_WAIT_FOR_EVENT | event;
+	b[2] = b[0] = MI_LOAD_SCAN_LINES_INCL | pipe << 20;
+	b[3] = b[1] = (y1 << 16) | (y2-1);
+	if (pipe == 0)
+		b[4] = MI_WAIT_FOR_EVENT | MI_WAIT_FOR_PIPEA_SCAN_LINE_WINDOW;
+	else
+		b[4] = MI_WAIT_FOR_EVENT | MI_WAIT_FOR_PIPEB_SCAN_LINE_WINDOW;
 	kgem_advance_batch(&sna->kgem, 5);
 }
 
@@ -2202,6 +2220,8 @@ sna_wait_for_scanline(struct sna *sna,
 
 	if (sna->kgem.gen >= 60)
 		sna_emit_wait_for_scanline_gen6(sna, pipe, y1, y2, full_height);
+	else if (sna->kgem.gen >= 40)
+		sna_emit_wait_for_scanline_gen4(sna, pipe, y1, y2, full_height);
 	else
 		sna_emit_wait_for_scanline_gen2(sna, pipe, y1, y2, full_height);
 
