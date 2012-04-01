@@ -233,6 +233,8 @@ static void _assert_pixmap_contains_boxes(PixmapPtr pixmap, BoxPtr box, int n, i
 
 	extents = *box;
 	while (--n) {
+		++box;
+
 		if (box->x1 < extents.x1)
 			extents.x1 = box->x1;
 		if (box->x2 > extents.x2)
@@ -258,6 +260,8 @@ static void _assert_pixmap_contains_points(PixmapPtr pixmap, DDXPointRec *pt, in
 	extents.x2 = extents.x1 = pt->x;
 	extents.y2 = extents.y1 = pt->y;
 	while (--n) {
+		++pt;
+
 		if (pt->x < extents.x1)
 			extents.x1 = pt->x;
 		else if (pt->x > extents.x2)
