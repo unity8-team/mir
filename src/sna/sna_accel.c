@@ -6665,8 +6665,12 @@ spans_fallback:
 
 		gc->ops = (GCOps *)&sna_gc_ops;
 		assert_pixmap_contains_box(data.pixmap, &data.region.extents);
-		if (data.damage)
+		if (data.damage) {
+			if (data.dx | data.dy)
+				pixman_region_translate(&data.region, data.dx, data.dy);
+			assert_pixmap_contains_box(data.pixmap, &data.region.extents);
 			sna_damage_add(data.damage, &data.region);
+		}
 		RegionUninit(&data.region);
 		return;
 	}
@@ -7579,8 +7583,12 @@ spans_fallback:
 		}
 
 		gc->ops = (GCOps *)&sna_gc_ops;
-		if (data.damage)
+		if (data.damage) {
+			if (data.dx | data.dy)
+				pixman_region_translate(&data.region, data.dx, data.dy);
+			assert_pixmap_contains_box(data.pixmap, &data.region.extents);
 			sna_damage_add(data.damage, &data.region);
+		}
 		RegionUninit(&data.region);
 		return;
 	}
@@ -8299,8 +8307,12 @@ sna_poly_arc(DrawablePtr drawable, GCPtr gc, int n, xArc *arc)
 			gc->ops = (GCOps *)&sna_gc_ops;
 
 			fill.done(data.sna, &fill);
-			if (data.damage)
+			if (data.damage) {
+				if (data.dx | data.dy)
+					pixman_region_translate(&data.region, data.dx, data.dy);
+				assert_pixmap_contains_box(data.pixmap, &data.region.extents);
 				sna_damage_add(data.damage, &data.region);
+			}
 			RegionUninit(&data.region);
 			return;
 		}
@@ -8645,8 +8657,12 @@ sna_poly_fill_polygon(DrawablePtr draw, GCPtr gc,
 		}
 
 		gc->ops = (GCOps *)&sna_gc_ops;
-		if (data.damage)
+		if (data.damage) {
+			if (data.dx | data.dy)
+				pixman_region_translate(&data.region, data.dx, data.dy);
+			assert_pixmap_contains_box(data.pixmap, &data.region.extents);
 			sna_damage_add(data.damage, &data.region);
+		}
 		RegionUninit(&data.region);
 		return;
 	}
@@ -10207,8 +10223,12 @@ sna_poly_fill_arc(DrawablePtr draw, GCPtr gc, int n, xArc *arc)
 		}
 
 		gc->ops = (GCOps *)&sna_gc_ops;
-		if (data.damage)
+		if (data.damage) {
+			if (data.dx | data.dy)
+				pixman_region_translate(&data.region, data.dx, data.dy);
+			assert_pixmap_contains_box(data.pixmap, &data.region.extents);
 			sna_damage_add(data.damage, &data.region);
+		}
 		RegionUninit(&data.region);
 		return;
 	}
