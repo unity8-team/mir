@@ -227,6 +227,54 @@ static void _assert_pixmap_contains_box(PixmapPtr pixmap, BoxPtr box, const char
 	}
 }
 
+static void _assert_pixmap_contains_boxes(PixmapPtr pixmap, BoxPtr box, int n, int dx, int dy, const char *function)
+{
+	BoxRec extents;
+
+	extents = *box;
+	while (--n) {
+		if (box->x1 < extents.x1)
+			extents.x1 = box->x1;
+		if (box->x2 > extents.x2)
+			extents.x2 = box->x2;
+
+		if (box->y1 < extents.y1)
+			extents.y1 = box->y1;
+		if (box->y2 > extents.y2)
+			extents.y2 = box->y2;
+	}
+	extents.x1 += dx;
+	extents.x2 += dx;
+	extents.y1 += dy;
+	extents.y2 += dy;
+	_assert_pixmap_contains_box(pixmap, &extents, function);
+}
+
+
+static void _assert_pixmap_contains_points(PixmapPtr pixmap, DDXPointRec *pt, int n, int dx, int dy, const char *function)
+{
+	BoxRec extents;
+
+	extents.x2 = extents.x1 = pt->x;
+	extents.y2 = extents.y1 = pt->y;
+	while (--n) {
+		if (pt->x < extents.x1)
+			extents.x1 = pt->x;
+		else if (pt->x > extents.x2)
+			extents.x2 = pt->x;
+
+		if (pt->y < extents.y1)
+			extents.y1 = pt->y;
+		else if (pt->y > extents.y2)
+			extents.y2 = pt->y;
+	}
+	extents.x1 += dx;
+	extents.x2 += dx + 1;
+	extents.y1 += dy;
+	extents.y2 += dy + 1;
+	_assert_pixmap_contains_box(pixmap, &extents, function);
+}
+
 static void _assert_drawable_contains_box(DrawablePtr drawable, const BoxRec *box, const char *function)
 {
 	if (box->x1 < drawable->x ||
@@ -244,8 +292,12 @@ static void _assert_drawable_contains_box(DrawablePtr drawable, const BoxRec *bo
 }
 #define assert_pixmap_contains_box(p, b) _assert_pixmap_contains_box(p, b, __FUNCTION__)
 #define assert_drawable_contains_box(d, b) _assert_drawable_contains_box(d, b, __FUNCTION__)
+#define assert_pixmap_contains_boxes(p, b, n, x, y) _assert_pixmap_contains_boxes(p, b, n, x, y, __FUNCTION__)
+#define assert_pixmap_contains_points(p, pt, n, x, y) _assert_pixmap_contains_points(p, pt, n, x, y, __FUNCTION__)
 #else
 #define assert_pixmap_contains_box(p, b)
+#define assert_pixmap_contains_boxes(p, b, n, x, y)
+#define assert_pixmap_contains_points(p, pt, n, x, y)
 #define assert_drawable_contains_box(d, b)
 #endif
 
@@ -4403,12 +4455,14 @@ damage:
 		b->y2 = b->y1 + 1;
 
 		if (++b == last_box) {
+			assert_pixmap_contains_boxes(pixmap, box, last_box-box, 0, 0);
 			fill.boxes(sna, &fill, box, last_box - box);
 			sna_damage_add_boxes(damage, box, last_box - box, 0, 0);
 			b = box;
 		}
 	} while (--n);
 	if (b != box) {
+		assert_pixmap_contains_boxes(pixmap, box, b-box, 0, 0);
 		fill.boxes(sna, &fill, box, b - box);
 		sna_damage_add_boxes(damage, box, b - box, 0, 0);
 	}
@@ -4549,6 +4603,7 @@ damage_clipped:
 					b->y1 += dy;
 					b->y2 += dy;
 					if (++b == last_box) {
+						assert_pixmap_contains_boxes(pixmap, box, b-box, 0, 0);
 						fill.boxes(sna, &fill, box, last_box - box);
 						sna_damage_add_boxes(damage, box, b - box, 0, 0);
 						b = box;
@@ -4609,6 +4664,7 @@ damage_clipped:
 					b->y1 = y + dy;
 					b->y2 = b->y1 + 1;
 					if (++b == last_box) {
+						assert_pixmap_contains_boxes(pixmap, box, last_box-box, 0, 0);
 						fill.boxes(sna, &fill, box, last_box - box);
 						sna_damage_add_boxes(damage, box, last_box - box, 0, 0);
 						b = box;
@@ -4618,6 +4674,7 @@ damage_clipped:
 			RegionUninit(&clip);
 		}
 		if (b != box) {
+			assert_pixmap_contains_boxes(pixmap, box, b-box, 0, 0);
 			fill.boxes(sna, &fill, box, b - box);
 			sna_damage_add_boxes(damage, box, b - box, 0, 0);
 		}
@@ -4922,6 +4979,7 @@ sna_copy_bitmap_blt(DrawablePtr _bitmap, DrawablePtr drawable, GCPtr gc,
 		return;
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
+	assert_pixmap_contains_boxes(pixmap, box, n, dx, dy);
 	if (arg->damage)
 		sna_damage_add_boxes(arg->damage, box, n, dx, dy);
 
@@ -5082,6 +5140,7 @@ sna_copy_plane_blt(DrawablePtr source, DrawablePtr drawable, GCPtr gc,
 	sy += dy;
 
 	get_drawable_deltas(drawable, dst_pixmap, &dx, &dy);
+	assert_pixmap_contains_boxes(dst_pixmap, box, n, dx, dy);
 	if (arg->damage)
 		sna_damage_add_boxes(arg->damage, box, n, dx, dy);
 
@@ -5411,6 +5470,7 @@ sna_poly_point_blt(DrawablePtr drawable,
 		last.x += dx;
 		last.y += dy;
 
+		assert_pixmap_contains_points(pixmap, pt, n, last.x, last.y);
 		sna_damage_add_points(damage, pt, n, last.x, last.y);
 		do {
 			unsigned nbox = n;
@@ -5457,6 +5517,7 @@ sna_poly_point_blt(DrawablePtr drawable,
 				b->x2 = b->x1 + 1;
 				b->y2 = b->y1 + 1;
 				if (++b == last_box){
+					assert_pixmap_contains_boxes(pixmap, box, last_box-box, 0, 0);
 					fill.boxes(sna, &fill, box, last_box - box);
 					if (damage)
 						sna_damage_add_boxes(damage, box, last_box-box, 0, 0);
@@ -5465,6 +5526,7 @@ sna_poly_point_blt(DrawablePtr drawable,
 			}
 		}
 		if (b != box){
+			assert_pixmap_contains_boxes(pixmap, box, b-box, 0, 0);
 			fill.boxes(sna, &fill, box, b - box);
 			if (damage)
 				sna_damage_add_boxes(damage, box, b-box, 0, 0);
@@ -5916,6 +5978,7 @@ done:
 	return true;
 
 damage:
+	assert_pixmap_contains_boxes(pixmap, box, b-box, 0, 0);
 	sna_damage_add_boxes(damage, box, b-box, 0, 0);
 no_damage:
 	fill.boxes(sna, &fill, box, b-box);
@@ -5930,6 +5993,7 @@ no_damage_offset:
 			bb->y1 += dy;
 			bb->y2 += dy;
 		} while (++bb != b);
+		assert_pixmap_contains_boxes(pixmap, box, b-box, 0, 0);
 		fill.boxes(sna, &fill, box, b - box);
 	}
 	goto *ret;
@@ -5943,6 +6007,7 @@ damage_offset:
 			bb->y1 += dy;
 			bb->y2 += dy;
 		} while (++bb != b);
+		assert_pixmap_contains_boxes(pixmap, box, b-box, 0, 0);
 		fill.boxes(sna, &fill, box, b - box);
 		sna_damage_add_boxes(damage, box, b - box, 0, 0);
 	}
@@ -6014,6 +6079,7 @@ sna_poly_line_blt(DrawablePtr drawable,
 			     __FUNCTION__,
 			     b->x1, b->y1, b->x2, b->y2));
 			if (++b == last_box) {
+				assert_pixmap_contains_boxes(pixmap, boxes, last_box-boxes, 0, 0);
 				fill.boxes(sna, &fill, boxes, last_box - boxes);
 				if (damage)
 					sna_damage_add_boxes(damage, boxes, last_box - boxes, 0, 0);
@@ -6075,6 +6141,7 @@ sna_poly_line_blt(DrawablePtr drawable,
 					b->y1 += dy;
 					b->y2 += dy;
 					if (++b == last_box) {
+						assert_pixmap_contains_boxes(pixmap, boxes, last_box-boxes, 0, 0);
 						fill.boxes(sna, &fill, boxes, last_box - boxes);
 						if (damage)
 							sna_damage_add_boxes(damage, boxes, last_box - boxes, 0, 0);
@@ -6139,6 +6206,7 @@ sna_poly_line_blt(DrawablePtr drawable,
 						b->y1 += dy;
 						b->y2 += dy;
 						if (++b == last_box) {
+							assert_pixmap_contains_boxes(pixmap, boxes, last_box-boxes, 0, 0);
 							fill.boxes(sna, &fill, boxes, last_box-boxes);
 							if (damage)
 								sna_damage_add_boxes(damage, boxes, last_box-boxes, 0, 0);
@@ -6153,6 +6221,7 @@ sna_poly_line_blt(DrawablePtr drawable,
 		RegionUninit(&clip);
 	}
 	if (b != boxes) {
+		assert_pixmap_contains_boxes(pixmap, boxes, b-boxes, 0, 0);
 		fill.boxes(sna, &fill, boxes, b - boxes);
 		if (damage)
 			sna_damage_add_boxes(damage, boxes, b - boxes, 0, 0);
@@ -6591,6 +6660,7 @@ spans_fallback:
 		}
 
 		gc->ops = (GCOps *)&sna_gc_ops;
+		assert_pixmap_contains_box(data.pixmap, &data.region.extents);
 		if (data.damage)
 			sna_damage_add(data.damage, &data.region);
 		RegionUninit(&data.region);
