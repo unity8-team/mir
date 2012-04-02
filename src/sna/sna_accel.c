@@ -4499,10 +4499,10 @@ no_damage_clipped:
 				b->y2 = b->y1 + 1;
 
 				if (box_intersect(b, &clip.extents)) {
-					b->x1 += dx;
-					b->x2 += dx;
-					b->y1 += dy;
-					b->y2 += dy;
+					if (dx|dy) {
+						b->x1 += dx; b->x2 += dx;
+						b->y1 += dy; b->y2 += dy;
+					}
 					if (++b == last_box) {
 						fill.boxes(sna, &fill, box, last_box - box);
 						b = box;
@@ -6598,7 +6598,6 @@ spans_fallback:
 		sna_gc(gc)->priv = &data;
 
 		if (gc->lineWidth == 0 &&
-		    gc->lineStyle == LineSolid &&
 		    gc_is_solid(gc, &color)) {
 			struct sna_fill_op fill;
 
@@ -6628,12 +6627,19 @@ spans_fallback:
 			assert(gc->miTranslate);
 
 			gc->ops = &sna_gc_ops__tmp;
-			miZeroLine(drawable, gc, mode, n, pt);
+			if (gc->lineStyle == LineSolid) {
+				DBG(("%s: miZeroLine (solid fill)\n", __FUNCTION__));
+				miZeroLine(drawable, gc, mode, n, pt);
+			} else {
+				DBG(("%s: miZeroDashLine (solid fill)\n", __FUNCTION__));
+				miZeroDashLine(drawable, gc, mode, n, pt);
+			}
 			fill.done(data.sna, &fill);
 		} else {
-			/* Note that the WideDash functions alternate between filling
-			 * using fgPixel and bgPixel so we need to reset state between
-			 * FillSpans.
+			/* Note that the WideDash functions alternate
+			 * between filling using fgPixel and bgPixel
+			 * so we need to reset state between FillSpans and
+			 * cannot use the fill fast paths.
 			 */
 			sna_gc_ops__tmp.FillSpans = sna_fill_spans__gpu;
 			gc->ops = &sna_gc_ops__tmp;
