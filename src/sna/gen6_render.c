@@ -2080,7 +2080,7 @@ gen6_composite_linear_init(struct sna *sna,
 	if (!channel->bo)
 		return 0;
 
-	channel->filter = PictFilterBilinear;
+	channel->filter = PictFilterNearest;
 	channel->repeat = picture->repeat ? picture->repeatType : RepeatNone;
 	channel->width  = channel->bo->pitch / 4;
 	channel->height = 1;

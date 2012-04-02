@@ -2137,7 +2137,7 @@ static Bool gen3_gradient_setup(struct sna *sna,
 
 	channel->pict_format = PICT_a8r8g8b8;
 	channel->card_format = MAPSURF_32BIT | MT_32BIT_ARGB8888;
-	channel->filter = PictFilterBilinear;
+	channel->filter = PictFilterNearest;
 	channel->is_affine = sna_transform_is_affine(picture->transform);
 	if (sna_transform_is_integer_translation(picture->transform, &dx, &dy)) {
 		DBG(("%s: integer translation (%d, %d), removing\n",

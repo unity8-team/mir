@@ -1871,7 +1871,7 @@ gen4_composite_linear_init(struct sna *sna,
 	if (!channel->bo)
 		return 0;
 
-	channel->filter = PictFilterBilinear;
+	channel->filter = PictFilterNearest;
 	channel->repeat = picture->repeat ? picture->repeatType : RepeatNone;
 	channel->width  = channel->bo->pitch / 4;
 	channel->height = 1;
@@ -1932,7 +1932,7 @@ gen4_composite_linear_init(struct sna *sna,
 
 	channel->embedded_transform.matrix[0][0] = pixman_double_to_fixed(dx);
 	channel->embedded_transform.matrix[0][1] = pixman_double_to_fixed(dy);
-	channel->embedded_transform.matrix[0][2] = -pixman_double_to_fixed(dx*(x0+dst_x-x) + dy*(y0+dst_y-y));
+	channel->embedded_transform.matrix[0][2] = -pixman_double_to_fixed(dx*(x0+dst_x-x) + dy*(y0+dst_y-y) - .5/sf);
 
 	channel->embedded_transform.matrix[1][0] = 0;
 	channel->embedded_transform.matrix[1][1] = 0;
