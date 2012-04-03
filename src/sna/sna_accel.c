@@ -4291,14 +4291,18 @@ sna_fill_spans__fill_clip_extents(DrawablePtr drawable,
 	     extents->x2, extents->y2));
 
 	while (n--) {
+		DBG(("%s: [%d] pt=(%d, %d), width=%d\n",
+		     __FUNCTION__, n, pt->x, pt->y, *width));
 		*(DDXPointRec *)b = *pt++;
 		b->x2 = b->x1 + (int)*width++;
 		b->y2 = b->y1 + 1;
 		if (box_intersect(b, extents)) {
-			b->x1 += data->dx;
-			b->x2 += data->dx;
-			b->y1 += data->dy;
-			b->y2 += data->dy;
+			DBG(("%s: [%d] clipped=(%d, %d), (%d, %d)\n",
+			     __FUNCTION__, n, b->x1, b->y1, b->x2, b->y2));
+			if (data->dx|data->dy) {
+				b->x1 += data->dx; b->x2 += data->dx;
+				b->y1 += data->dy; b->y2 += data->dy;
+			}
 			if (++b == last_box) {
 				op->boxes(data->sna, op, box, last_box - box);
 				b = box;
@@ -8578,6 +8582,9 @@ sna_poly_fill_polygon(DrawablePtr draw, GCPtr gc,
 	      (gc->fillStyle == FillTiled && gc->tileIsPixel)),
 	     gc->fillStyle, gc->tileIsPixel,
 	     gc->alu));
+	DBG(("%s: draw=%d, offset=(%d, %d), size=%dx%d\n",
+	     __FUNCTION__, draw->serialNumber,
+	     draw->x, draw->y, draw->width, draw->height));
 
 	data.flags = sna_poly_point_extents(draw, gc, mode, n, pt,
 					    &data.region.extents);
