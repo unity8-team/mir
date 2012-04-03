@@ -2080,7 +2080,7 @@ gen3_init_solid(struct sna_composite_channel *channel, uint32_t color)
 		channel->u.gen3.type = SHADER_WHITE;
 
 	channel->bo = NULL;
-	channel->is_opaque = (color & 0xff000000) == 0xff000000;
+	channel->is_opaque = (color >> 24) == 0xff;
 	channel->is_affine = 1;
 	channel->alpha_fixup = 0;
 	channel->rb_reversed = 0;
@@ -2303,6 +2303,8 @@ gen3_composite_picture(struct sna *sna,
 
 		switch (source->type) {
 		case SourcePictTypeSolidFill:
+			DBG(("%s: solid fill [%08x], format %x\n",
+			     __FUNCTION__, source->solidFill.color, picture->format));
 			ret = gen3_init_solid(channel, source->solidFill.color);
 			break;
 
@@ -2334,11 +2336,15 @@ gen3_composite_picture(struct sna *sna,
 						x, y, w, h, dst_x, dst_y);
 	}
 
-	if (sna_picture_is_solid(picture, &color))
+	if (sna_picture_is_solid(picture, &color)) {
+		DBG(("%s: solid drawable [%08x]\n", __FUNCTION__, color));
 		return gen3_init_solid(channel, color);
+	}
 
-	if (sna_picture_is_clear(picture, x, y, w, h, &color))
-		return gen3_init_solid(channel, color);
+	if (sna_picture_is_clear(picture, x, y, w, h, &color)) {
+		DBG(("%s: clear drawable [%08x]\n", __FUNCTION__, color));
+		return gen3_init_solid(channel, color_convert(color, picture->format, PICT_a8r8g8b8));
+	}
 
 	if (!gen3_check_repeat(picture))
 		return sna_render_picture_fixup(sna, picture, channel,
@@ -2517,11 +2523,16 @@ gen3_composite_set_target(struct sna *sna,
 	return TRUE;
 }
 
+static inline uint8_t
+mul_8_8(uint8_t a, uint8_t b)
+{
+    uint16_t t = a * (uint16_t)b + 0x7f;
+    return ((t >> 8) + t) >> 8;
+}
+
 static inline uint8_t multa(uint32_t s, uint32_t m, int shift)
 {
-	s = (s >> shift) & 0xff;
-	m >>= 24;
-	return (s * m) >> 8;
+	return mul_8_8((s >> shift) & 0xff, m >> 24) << shift;
 }
 
 static inline bool is_constant_ps(uint32_t type)
@@ -2894,33 +2905,31 @@ gen3_render_composite(struct sna *sna,
 			} else {
 				if (tmp->mask.is_opaque) {
 					tmp->mask.u.gen3.type = SHADER_NONE;
-					tmp->has_component_alpha = FALSE;
 				} else if (is_constant_ps(tmp->src.u.gen3.type) &&
 					   is_constant_ps(tmp->mask.u.gen3.type)) {
-					uint32_t a,r,g,b;
+					uint32_t v;
 
-					a = multa(tmp->src.u.gen3.mode,
+					v = multa(tmp->src.u.gen3.mode,
 						  tmp->mask.u.gen3.mode,
 						  24);
-					r = multa(tmp->src.u.gen3.mode,
-						  tmp->mask.u.gen3.mode,
-						  16);
-					g = multa(tmp->src.u.gen3.mode,
-						  tmp->mask.u.gen3.mode,
-						  8);
-					b = multa(tmp->src.u.gen3.mode,
-						  tmp->mask.u.gen3.mode,
-						  0);
+					v != multa(tmp->src.u.gen3.mode,
+						   tmp->mask.u.gen3.mode,
+						   16);
+					v != multa(tmp->src.u.gen3.mode,
+						   tmp->mask.u.gen3.mode,
+						   8);
+					v != multa(tmp->src.u.gen3.mode,
+						   tmp->mask.u.gen3.mode,
+						   0);
 
 					DBG(("%s: combining constant source/mask: %x x %x -> %x\n",
 					     __FUNCTION__,
 					     tmp->src.u.gen3.mode,
 					     tmp->mask.u.gen3.mode,
-					     a << 24 | r << 16 | g << 8 | b));
+					     v));
 
 					tmp->src.u.gen3.type = SHADER_CONSTANT;
-					tmp->src.u.gen3.mode =
-						a << 24 | r << 16 | g << 8 | b;
+					tmp->src.u.gen3.mode = v;
 
 					tmp->mask.u.gen3.type = SHADER_NONE;
 				}

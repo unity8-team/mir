@@ -476,13 +476,13 @@ static void sna_blt_copy_one(struct sna *sna,
 	kgem->nbatch += 8;
 }
 
-static Bool
-get_rgba_from_pixel(uint32_t pixel,
-		    uint16_t *red,
-		    uint16_t *green,
-		    uint16_t *blue,
-		    uint16_t *alpha,
-		    uint32_t format)
+Bool
+sna_get_rgba_from_pixel(uint32_t pixel,
+			uint16_t *red,
+			uint16_t *green,
+			uint16_t *blue,
+			uint16_t *alpha,
+			uint32_t format)
 {
 	int rbits, bbits, gbits, abits;
 	int rshift, bshift, gshift, ashift;
@@ -605,31 +605,6 @@ _sna_get_pixel_from_rgba(uint32_t * pixel,
 	*pixel |= (alpha >> (16 - abits)) << ashift;
 
 	return TRUE;
-}
-
-static uint32_t
-color_convert(uint32_t pixel,
-	      uint32_t src_format,
-	      uint32_t dst_format)
-{
-	DBG(("%s: src=%08x [%08x]\n", __FUNCTION__, pixel, src_format));
-
-	if (src_format != dst_format) {
-		uint16_t red, green, blue, alpha;
-
-		if (!get_rgba_from_pixel(pixel,
-					 &red, &green, &blue, &alpha,
-					 src_format))
-			return 0;
-
-		if (!sna_get_pixel_from_rgba(&pixel,
-					     red, green, blue, alpha,
-					     dst_format))
-			return 0;
-	}
-
-	DBG(("%s: dst=%08x [%08x]\n", __FUNCTION__, pixel, dst_format));
-	return pixel;
 }
 
 uint32_t

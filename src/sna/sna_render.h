@@ -485,6 +485,12 @@ sna_render_get_gradient(struct sna *sna,
 
 uint32_t sna_rgba_for_color(uint32_t color, int depth);
 uint32_t sna_rgba_to_color(uint32_t rgba, uint32_t format);
+Bool sna_get_rgba_from_pixel(uint32_t pixel,
+			     uint16_t *red,
+			     uint16_t *green,
+			     uint16_t *blue,
+			     uint16_t *alpha,
+			     uint32_t format);
 Bool sna_picture_is_solid(PicturePtr picture, uint32_t *color);
 
 void no_render_init(struct sna *sna);

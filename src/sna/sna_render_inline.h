@@ -190,4 +190,29 @@ sna_render_reduce_damage(struct sna_composite_op *op,
 	}
 }
 
+inline static uint32_t
+color_convert(uint32_t pixel,
+	      uint32_t src_format,
+	      uint32_t dst_format)
+{
+	DBG(("%s: src=%08x [%08x]\n", __FUNCTION__, pixel, src_format));
+
+	if (src_format != dst_format) {
+		uint16_t red, green, blue, alpha;
+
+		if (!sna_get_rgba_from_pixel(pixel,
+					     &red, &green, &blue, &alpha,
+					     src_format))
+			return 0;
+
+		if (!sna_get_pixel_from_rgba(&pixel,
+					     red, green, blue, alpha,
+					     dst_format))
+			return 0;
+	}
+
+	DBG(("%s: dst=%08x [%08x]\n", __FUNCTION__, pixel, dst_format));
+	return pixel;
+}
+
 #endif /* SNA_RENDER_INLINE_H */
