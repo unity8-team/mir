@@ -2364,7 +2364,6 @@ gen3_composite_picture(struct sna *sna,
 	x += dx + picture->pDrawable->x;
 	y += dy + picture->pDrawable->y;
 
-	channel->is_affine = sna_transform_is_affine(picture->transform);
 	if (sna_transform_is_integer_translation(picture->transform, &dx, &dy)) {
 		DBG(("%s: integer translation (%d, %d), removing\n",
 		     __FUNCTION__, dx, dy));
@@ -2372,8 +2371,10 @@ gen3_composite_picture(struct sna *sna,
 		y += dy;
 		channel->transform = NULL;
 		channel->filter = PictFilterNearest;
-	} else
+	} else {
 		channel->transform = picture->transform;
+		channel->is_affine = sna_transform_is_affine(picture->transform);
+	}
 
 	if (!gen3_composite_channel_set_format(channel, picture->format) &&
 	    !gen3_composite_channel_set_xformat(picture, channel, x, y, w, h))
@@ -2912,13 +2913,13 @@ gen3_render_composite(struct sna *sna,
 					v = multa(tmp->src.u.gen3.mode,
 						  tmp->mask.u.gen3.mode,
 						  24);
-					v != multa(tmp->src.u.gen3.mode,
+					v |= multa(tmp->src.u.gen3.mode,
 						   tmp->mask.u.gen3.mode,
 						   16);
-					v != multa(tmp->src.u.gen3.mode,
+					v |= multa(tmp->src.u.gen3.mode,
 						   tmp->mask.u.gen3.mode,
 						   8);
-					v != multa(tmp->src.u.gen3.mode,
+					v |= multa(tmp->src.u.gen3.mode,
 						   tmp->mask.u.gen3.mode,
 						   0);
 
@@ -2986,10 +2987,11 @@ gen3_render_composite(struct sna *sna,
 		tmp->floats_per_vertex += tmp->src.is_affine ? 2 : 4;
 	if (!is_constant_ps(tmp->mask.u.gen3.type))
 		tmp->floats_per_vertex += tmp->mask.is_affine ? 2 : 4;
-	DBG(("%s: floats_per_vertex = 2 + %d + %d = %d\n", __FUNCTION__,
+	DBG(("%s: floats_per_vertex = 2 + %d + %d = %d [specialised emitter? %d]\n", __FUNCTION__,
 	     !is_constant_ps(tmp->src.u.gen3.type) ? tmp->src.is_affine ? 2 : 4 : 0,
 	     !is_constant_ps(tmp->mask.u.gen3.type) ? tmp->mask.is_affine ? 2 : 4 : 0,
-	     tmp->floats_per_vertex));
+	     tmp->floats_per_vertex,
+	     tmp->prim_emit != gen3_emit_composite_primitive));
 	tmp->floats_per_rect = 3 * tmp->floats_per_vertex;
 
 	tmp->blt   = gen3_render_composite_blt;
