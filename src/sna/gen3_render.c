@@ -2404,10 +2404,6 @@ source_use_blt(struct sna *sna, PicturePtr picture)
 	if (too_large(picture->pDrawable->width, picture->pDrawable->height))
 		return true;
 
-	/* If we can sample directly from user-space, do so */
-	if (sna->kgem.has_vmap)
-		return false;
-
 	return is_cpu(picture->pDrawable) || is_dirty(picture->pDrawable);
 }
 
