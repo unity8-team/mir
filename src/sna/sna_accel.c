@@ -5556,9 +5556,19 @@ sna_poly_point_extents(DrawablePtr drawable, GCPtr gc,
 
 	box.x2 = box.x1 = pt->x;
 	box.y2 = box.y1 = pt->y;
-	while (--n) {
-		pt++;
-		box_add_pt(&box, pt->x, pt->y);
+	if (mode == CoordModePrevious) {
+		DDXPointRec last = *pt++;
+		while (--n) {
+			last.x += pt->x;
+			last.y += pt->y;
+			pt++;
+			box_add_pt(&box, last.x, last.y);
+		}
+	} else {
+		while (--n) {
+			++pt;
+			box_add_pt(&box, pt->x, pt->y);
+		}
 	}
 	box.x2++;
 	box.y2++;
