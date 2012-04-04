@@ -178,7 +178,7 @@ fallback:
 	}
 	if (kgem_bo_is_mappable(kgem, src_bo)) {
 		/* Is it worth detiling? */
-		if ((extents.y2 - extents.y1) * src_bo->pitch < 4096)
+		if ((extents.y2 - extents.y1 - 1) * src_bo->pitch < 4096)
 			goto fallback;
 	}
 
