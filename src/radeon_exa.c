@@ -511,6 +511,13 @@ void *RADEONEXACreatePixmap2(ScreenPtr pScreen, int width, int height,
 			surface.last_level = 0;
 			surface.bpe = cpp;
 			surface.nsamples = 1;
+			if (height < 64) {
+				/* disable 2d tiling for small surface to work around
+				 * the fact that ddx align height to 8 pixel for old
+				 * obscure reason i can't remember
+				 */
+				tiling &= ~RADEON_TILING_MACRO;
+			}
 			surface.flags = RADEON_SURF_SCANOUT;
 			surface.flags |= RADEON_SURF_SET(RADEON_SURF_TYPE_2D, TYPE);
 			surface.flags |= RADEON_SURF_SET(RADEON_SURF_MODE_LINEAR, MODE);
