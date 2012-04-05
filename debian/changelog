@@ -1,3 +1,10 @@
+xserver-xorg-video-intel (2:2.18.0-2) unstable; urgency=low
+
+  * Cherry-pick a change from upstream to fix a bug triggered by cairo 1.12:
+    uxa: Remove broken render glyphs-to-dst
+
+ -- Julien Cristau <jcristau@debian.org>  Thu, 05 Apr 2012 20:24:22 +0200
+
 xserver-xorg-video-intel (2:2.18.0-1) unstable; urgency=low
 
   * New upstream release.
