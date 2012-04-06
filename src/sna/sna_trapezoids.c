@@ -1383,22 +1383,21 @@ tor_render(struct sna *sna,
 		       active->min_height,
 		       active->is_vertical));
 		if (do_full_step) {
+			assert(active->is_vertical);
 			nonzero_row(active, coverages);
 
-			if (active->is_vertical) {
-				while (j < h &&
-				       polygon->y_buckets[j] == NULL &&
-				       active->min_height >= 2*FAST_SAMPLES_Y)
-				{
-					active->min_height -= FAST_SAMPLES_Y;
-					j++;
-				}
-				if (j != i + 1)
-					step_edges(active, j - (i + 1));
-
-				__DBG(("%s: vertical edges, full step (%d, %d)\n",
-				       __FUNCTION__,  i, j));
+			while (j < h &&
+			       polygon->y_buckets[j] == NULL &&
+			       active->min_height >= 2*FAST_SAMPLES_Y)
+			{
+				active->min_height -= FAST_SAMPLES_Y;
+				j++;
 			}
+			if (j != i + 1)
+				step_edges(active, j - (i + 1));
+
+			__DBG(("%s: vertical edges, full step (%d, %d)\n",
+			       __FUNCTION__,  i, j));
 		} else {
 			grid_scaled_y_t suby;
 
@@ -1748,27 +1747,27 @@ tor_inplace(struct tor *converter, PixmapPtr scratch, int mono, uint8_t *buf)
 		       active->min_height,
 		       active->is_vertical));
 		if (do_full_step) {
+			assert(active->is_vertical);
+
 			memset(ptr, 0, width);
 			inplace_row(active, ptr, width);
 			if (row != ptr)
 				memcpy(row, ptr, width);
 
-			if (active->is_vertical) {
-				while (j < h &&
-				       polygon->y_buckets[j] == NULL &&
-				       active->min_height >= 2*FAST_SAMPLES_Y)
-				{
-					active->min_height -= FAST_SAMPLES_Y;
-					row += stride;
-					memcpy(row, ptr, width);
-					j++;
-				}
-				if (j != i + 1)
-					step_edges(active, j - (i + 1));
-
-				__DBG(("%s: vertical edges, full step (%d, %d)\n",
-				       __FUNCTION__,  i, j));
+			while (j < h &&
+			       polygon->y_buckets[j] == NULL &&
+			       active->min_height >= 2*FAST_SAMPLES_Y)
+			{
+				active->min_height -= FAST_SAMPLES_Y;
+				row += stride;
+				memcpy(row, ptr, width);
+				j++;
 			}
+			if (j != i + 1)
+				step_edges(active, j - (i + 1));
+
+			__DBG(("%s: vertical edges, full step (%d, %d)\n",
+			       __FUNCTION__,  i, j));
 		} else {
 			grid_scaled_y_t suby;
 			int min = width, max = 0;
