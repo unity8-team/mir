@@ -650,12 +650,13 @@ polygon_init(struct polygon *polygon,
 			goto bail_no_mem;
 	}
 
-	if (num_buckets > ARRAY_SIZE(polygon->y_buckets_embedded)) {
-		polygon->y_buckets = malloc(num_buckets*sizeof(struct edge *));
+	if (num_buckets >= ARRAY_SIZE(polygon->y_buckets_embedded)) {
+		polygon->y_buckets = malloc((1+num_buckets)*sizeof(struct edge *));
 		if (unlikely(NULL == polygon->y_buckets))
 			goto bail_no_mem;
 	}
 	memset(polygon->y_buckets, 0, num_buckets * sizeof(struct edge *));
+	polygon->y_buckets[num_buckets] = (void *)-1;
 
 	polygon->ymin = ymin;
 	polygon->ymax = ymax;
@@ -1363,7 +1364,7 @@ tor_render(struct sna *sna,
 			if (active->head.next == &active->tail) {
 				active->min_height = INT_MAX;
 				active->is_vertical = 1;
-				for (; j < h && !polygon->y_buckets[j]; j++)
+				for (; !polygon->y_buckets[j]; j++)
 					;
 				__DBG(("%s: no new edges and no exisiting edges, skipping, %d -> %d\n",
 				       __FUNCTION__, i, j));
@@ -1386,8 +1387,7 @@ tor_render(struct sna *sna,
 			assert(active->is_vertical);
 			nonzero_row(active, coverages);
 
-			while (j < h &&
-			       polygon->y_buckets[j] == NULL &&
+			while (polygon->y_buckets[j] == NULL &&
 			       active->min_height >= 2*FAST_SAMPLES_Y)
 			{
 				active->min_height -= FAST_SAMPLES_Y;
@@ -1713,6 +1713,9 @@ tor_inplace(struct tor *converter, PixmapPtr scratch, int mono, uint8_t *buf)
 
 	__DBG(("%s: mono=%d, buf=%d\n", __FUNCTION__, mono, buf));
 	assert(!mono);
+	assert(converter->ymin == 0);
+	assert(converter->xmin == 0);
+	assert(scratch->drawable.depth == 8);
 
 	/* Render each pixel row. */
 	for (i = 0; i < h; i = j) {
@@ -1727,7 +1730,7 @@ tor_inplace(struct tor *converter, PixmapPtr scratch, int mono, uint8_t *buf)
 			if (active->head.next == &active->tail) {
 				active->min_height = INT_MAX;
 				active->is_vertical = 1;
-				for (; j < h && !polygon->y_buckets[j]; j++)
+				for (; !polygon->y_buckets[j]; j++)
 					;
 				__DBG(("%s: no new edges and no exisiting edges, skipping, %d -> %d\n",
 				       __FUNCTION__, i, j));
@@ -1754,8 +1757,7 @@ tor_inplace(struct tor *converter, PixmapPtr scratch, int mono, uint8_t *buf)
 			if (row != ptr)
 				memcpy(row, ptr, width);
 
-			while (j < h &&
-			       polygon->y_buckets[j] == NULL &&
+			while (polygon->y_buckets[j] == NULL &&
 			       active->min_height >= 2*FAST_SAMPLES_Y)
 			{
 				active->min_height -= FAST_SAMPLES_Y;
