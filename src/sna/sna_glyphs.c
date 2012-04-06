@@ -662,6 +662,13 @@ clear_pixmap(struct sna *sna, PixmapPtr pixmap)
 	return sna->render.clear(sna, pixmap, priv->gpu_bo);
 }
 
+static bool
+too_large(struct sna *sna, int width, int height)
+{
+	return (width > sna->render.max_3d_size ||
+		height > sna->render.max_3d_size);
+}
+
 static Bool
 glyphs_via_mask(struct sna *sna,
 		CARD8 op,
@@ -724,7 +731,8 @@ glyphs_via_mask(struct sna *sna,
 
 	component_alpha = NeedsComponent(format->format);
 	if (!NO_SMALL_MASK &&
-	    (uint32_t)width * height * format->depth < 8 * 4096) {
+	    ((uint32_t)width * height * format->depth < 8 * 4096 ||
+	     too_large(sna, width, height))) {
 		pixman_image_t *mask_image;
 		int s;
 
