@@ -2499,6 +2499,7 @@ gen3_composite_set_target(struct sna *sna,
 			kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
 			priv->gpu_bo = bo;
 		}
+		assert(priv->gpu_bo->proxy == NULL);
 
 		op->dst.bo = priv->gpu_bo;
 		op->damage = &priv->gpu_damage;

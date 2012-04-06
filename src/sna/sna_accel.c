@@ -1032,6 +1032,8 @@ skip_inplace_map:
 		goto done;
 	}
 
+	assert(priv->gpu_bo == NULL || priv->gpu_bo->proxy == NULL);
+
 	if (flags & MOVE_INPLACE_HINT &&
 	    priv->stride && priv->gpu_bo &&
 	    !kgem_bo_map_will_stall(&sna->kgem, priv->gpu_bo) &&
@@ -1772,6 +1774,7 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box, unsigned int flags)
 			goto done;
 		}
 	}
+	assert(priv->gpu_bo->proxy == NULL);
 
 	if ((flags & MOVE_READ) == 0)
 		sna_damage_subtract_box(&priv->cpu_damage, box);
@@ -1927,6 +1930,12 @@ sna_drawable_use_bo(DrawablePtr drawable,
 	if (priv == NULL) {
 		DBG(("%s: not attached\n", __FUNCTION__));
 		return NULL;
+	}
+
+	if (priv->gpu_bo && priv->gpu_bo->proxy) {
+		kgem_bo_destroy(to_sna_from_pixmap(pixmap), priv->gpu_bo);
+		priv->gpu_bo = NULL;
+		goto use_cpu_bo;
 	}
 
 	if (DAMAGE_IS_ALL(priv->gpu_damage))
@@ -2320,7 +2329,8 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 		goto done;
 
 	if (priv->gpu_bo->proxy) {
-		assert((flags & MOVE_WRITE) ==0);
+		DBG(("%s: reusing cached upload\n", __FUNCTION__));
+		assert((flags & MOVE_WRITE) == 0);
 		goto done;
 	}
 
@@ -2604,6 +2614,7 @@ sna_put_image_upload_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 		return FALSE;
 
 	assert(priv->gpu_bo);
+	assert(priv->gpu_bo->proxy == NULL);
 
 	if (!priv->pinned && nbox == 1 &&
 	    box->x1 <= 0 && box->y1 <= 0 &&
@@ -2710,6 +2721,12 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 
 		priv->clear = false;
 		return true;
+	}
+
+	if (priv->gpu_bo && priv->gpu_bo->proxy) {
+		DBG(("%s: discarding cached upload buffer\n", __FUNCTION__));
+		kgem_bo_destroy(sna, priv->gpu_bo);
+		priv->gpu_bo = NULL;
 	}
 
 	if (priv->cpu_bo) {
@@ -3307,6 +3324,7 @@ sna_self_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 		goto fallback;
 
 	if (priv->gpu_bo) {
+		assert(priv->gpu_bo->proxy == NULL);
 		if (!sna_pixmap_move_to_gpu(pixmap, MOVE_WRITE | MOVE_READ)) {
 			DBG(("%s: fallback - not a pure copy and failed to move dst to GPU\n",
 			     __FUNCTION__));
@@ -3501,6 +3519,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	}
 
 	if (dst_priv->gpu_bo && dst_priv->gpu_bo->proxy) {
+		DBG(("%s: discarding cached upload\n", __FUNCTION__));
 		kgem_bo_destroy(&sna->kgem, dst_priv->gpu_bo);
 		dst_priv->gpu_bo = NULL;
 	}
