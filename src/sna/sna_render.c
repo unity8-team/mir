@@ -1878,8 +1878,7 @@ sna_render_composite_redirect_done(struct sna *sna,
 		}
 		if (t->damage) {
 			sna_damage_combine(t->real_damage, t->damage,
-					   t->box.x1 - op->dst.x,
-					   t->box.y1 - op->dst.y);
+					   -t->box.x1, -t->box.y1);
 			__sna_damage_destroy(t->damage);
 		}
 

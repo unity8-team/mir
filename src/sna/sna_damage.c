@@ -945,8 +945,11 @@ struct sna_damage *_sna_damage_is_all(struct sna_damage *damage,
 {
 	DBG(("%s(%d, %d)%s?\n", __FUNCTION__, width, height,
 	     damage->dirty ? "*" : ""));
-	assert(damage->mode == DAMAGE_ADD);
+	DBG(("%s: (%d, %d), (%d, %d)\n", __FUNCTION__,
+	     damage->extents.x1, damage->extents.y1,
+	     damage->extents.x2, damage->extents.y2));
 
+	assert(damage->mode == DAMAGE_ADD);
 	assert(damage->extents.x1 == 0 &&
 	       damage->extents.y1 == 0 &&
 	       damage->extents.x2 == width &&
@@ -961,10 +964,6 @@ struct sna_damage *_sna_damage_is_all(struct sna_damage *damage,
 		DBG(("%s: no, not singular\n", __FUNCTION__));
 		return damage;
 	}
-
-	DBG(("%s: (%d, %d), (%d, %d)\n", __FUNCTION__,
-	     damage->extents.x1, damage->extents.y1,
-	     damage->extents.x2, damage->extents.y2));
 
 	assert(damage->extents.x1 == 0 &&
 	       damage->extents.y1 == 0 &&
