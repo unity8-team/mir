@@ -44,39 +44,48 @@ sna_gradient_sample_width(PictGradient *gradient)
 {
 	int n, width;
 
-	width = 2;
+	width = 0;
 	for (n = 1; n < gradient->nstops; n++) {
 		xFixed dx = gradient->stops[n].x - gradient->stops[n-1].x;
-		uint16_t delta, max;
-		int ramp;
+		int delta, max, ramp;
 
 		if (dx == 0)
 			return 1024;
 
 		max = gradient->stops[n].color.red -
 			gradient->stops[n-1].color.red;
+		if (max < 0)
+			max = -max;
 
 		delta = gradient->stops[n].color.green -
 			gradient->stops[n-1].color.green;
+		if (delta < 0)
+			delta = -delta;
 		if (delta > max)
 			max = delta;
 
 		delta = gradient->stops[n].color.blue -
 			gradient->stops[n-1].color.blue;
+		if (delta < 0)
+			delta = -delta;
 		if (delta > max)
 			max = delta;
 
 		delta = gradient->stops[n].color.alpha -
 			gradient->stops[n-1].color.alpha;
+		if (delta < 0)
+			delta = -delta;
 		if (delta > max)
 			max = delta;
 
-		ramp = 128 * max / dx;
+		ramp = 256 * max / dx;
 		if (ramp > width)
 			width = ramp;
 	}
 
-	width *= gradient->nstops-1;
+	if (width == 0)
+		return 1;
+
 	width = (width + 7) & -8;
 	return min(width, 1024);
 }
