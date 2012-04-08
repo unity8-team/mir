@@ -1234,6 +1234,24 @@ static void bubble_sort_partial(struct list *head, struct kgem_partial_bo *bo)
 	}
 }
 
+static void kgem_partial_buffer_release(struct kgem *kgem,
+					struct kgem_partial_bo *bo)
+{
+	while (!list_is_empty(&bo->base.vma)) {
+		struct kgem_bo *cached;
+
+		cached = list_first_entry(&bo->base.vma, struct kgem_bo, vma);
+		assert(cached->proxy == &bo->base);
+		list_del(&cached->vma);
+
+		assert(*(struct kgem_bo **)cached->map == cached);
+		*(struct kgem_bo **)cached->map = NULL;
+		cached->map = NULL;
+
+		kgem_bo_destroy(kgem, cached);
+	}
+}
+
 static void kgem_retire_partials(struct kgem *kgem)
 {
 	struct kgem_partial_bo *bo, *next;
@@ -1247,19 +1265,7 @@ static void kgem_retire_partials(struct kgem *kgem)
 
 		DBG(("%s: releasing upload cache for handle=%d? %d\n",
 		     __FUNCTION__, bo->base.handle, !list_is_empty(&bo->base.vma)));
-		while (!list_is_empty(&bo->base.vma)) {
-			struct kgem_bo *cached;
-
-			cached = list_first_entry(&bo->base.vma, struct kgem_bo, vma);
-			assert(cached->proxy == &bo->base);
-			list_del(&cached->vma);
-
-			assert(*(struct kgem_bo **)cached->map == cached);
-			*(struct kgem_bo **)cached->map = NULL;
-			cached->map = NULL;
-
-			kgem_bo_destroy(kgem, cached);
-		}
+		kgem_partial_buffer_release(kgem, bo);
 
 		assert(bo->base.refcnt > 0);
 		if (bo->base.refcnt != 1)
@@ -3519,6 +3525,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			     __FUNCTION__, size, bo->used, bytes(&bo->base)));
 			gem_write(kgem->fd, bo->base.handle,
 				  0, bo->used, bo->mem);
+			kgem_partial_buffer_release(kgem, bo);
 			bo->need_io = 0;
 			bo->write = 0;
 			offset = 0;
@@ -3991,8 +3998,9 @@ void kgem_buffer_read_sync(struct kgem *kgem, struct kgem_bo *_bo)
 	assert(_bo->io);
 	assert(_bo->exec == &_kgem_dummy_exec);
 	assert(_bo->rq == NULL);
-	if (_bo->proxy)
-		_bo = _bo->proxy;
+	assert(_bo->proxy);
+
+	_bo = _bo->proxy;
 	assert(_bo->exec == NULL);
 
 	bo = (struct kgem_partial_bo *)_bo;
