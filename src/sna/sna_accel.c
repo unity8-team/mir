@@ -7458,6 +7458,13 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 	     data.flags & 4));
 	if (!PM_IS_SOLID(drawable, gc->planemask))
 		goto fallback;
+
+	data.bo = sna_drawable_use_bo(drawable,
+				      &data.region.extents,
+				      &data.damage);
+	if (data.bo == NULL)
+		goto fallback;
+
 	if (gc->lineStyle != LineSolid || gc->lineWidth > 1)
 		goto spans_fallback;
 	if (gc_is_solid(gc, &color)) {
@@ -7465,10 +7472,7 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 		     __FUNCTION__, (unsigned)color, data.flags));
 
 		if (data.flags & 4) {
-			if ((data.bo = sna_drawable_use_bo(drawable,
-							   &data.region.extents,
-							   &data.damage)) &&
-			    sna_poly_segment_blt(drawable,
+			if (sna_poly_segment_blt(drawable,
 						 data.bo, data.damage,
 						 gc, color, n, seg,
 						 &data.region.extents,
@@ -7476,9 +7480,6 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 				return;
 		} else {
 			if (use_zero_spans(drawable, gc, &data.region.extents) &&
-			    (data.bo = sna_drawable_use_bo(drawable,
-							   &data.region.extents,
-							   &data.damage)) &&
 			    sna_poly_zero_segment_blt(drawable,
 						      data.bo, data.damage,
 						      gc, n, seg,
@@ -7488,70 +7489,67 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 		}
 	} else if (data.flags & 4) {
 		/* Try converting these to a set of rectangles instead */
-		if ((data.bo = sna_drawable_use_bo(drawable, &data.region.extents, &data.damage))) {
-			xRectangle *rect;
-			int i;
+		xRectangle *rect;
+		int i;
 
-			DBG(("%s: converting to rectagnles\n", __FUNCTION__));
+		DBG(("%s: converting to rectagnles\n", __FUNCTION__));
 
-			rect = malloc (n * sizeof (xRectangle));
-			if (rect == NULL)
-				return;
+		rect = malloc (n * sizeof (xRectangle));
+		if (rect == NULL)
+			return;
 
-			for (i = 0; i < n; i++) {
-				if (seg[i].x1 < seg[i].x2) {
-					rect[i].x = seg[i].x1;
-					rect[i].width = seg[i].x2 - seg[i].x1 + 1;
-				} else if (seg[i].x1 > seg[i].x2) {
-					rect[i].x = seg[i].x2;
-					rect[i].width = seg[i].x1 - seg[i].x2 + 1;
-				} else {
-					rect[i].x = seg[i].x1;
-					rect[i].width = 1;
-				}
-				if (seg[i].y1 < seg[i].y2) {
-					rect[i].y = seg[i].y1;
-					rect[i].height = seg[i].y2 - seg[i].y1 + 1;
-				} else if (seg[i].x1 > seg[i].y2) {
-					rect[i].y = seg[i].y2;
-					rect[i].height = seg[i].y1 - seg[i].y2 + 1;
-				} else {
-					rect[i].y = seg[i].y1;
-					rect[i].height = 1;
-				}
-
-				/* don't paint last pixel */
-				if (gc->capStyle == CapNotLast) {
-					if (seg[i].x1 == seg[i].x2)
-						rect[i].height--;
-					else
-						rect[i].width--;
-				}
-			}
-
-			if (gc->fillStyle == FillTiled) {
-				i = sna_poly_fill_rect_tiled_blt(drawable,
-								 data.bo, data.damage,
-								 gc, n, rect,
-								 &data.region.extents,
-								 data.flags & 2);
+		for (i = 0; i < n; i++) {
+			if (seg[i].x1 < seg[i].x2) {
+				rect[i].x = seg[i].x1;
+				rect[i].width = seg[i].x2 - seg[i].x1 + 1;
+			} else if (seg[i].x1 > seg[i].x2) {
+				rect[i].x = seg[i].x2;
+				rect[i].width = seg[i].x1 - seg[i].x2 + 1;
 			} else {
-				i = sna_poly_fill_rect_stippled_blt(drawable,
-								    data.bo, data.damage,
-								    gc, n, rect,
-								    &data.region.extents,
-								    data.flags & 2);
+				rect[i].x = seg[i].x1;
+				rect[i].width = 1;
 			}
-			free (rect);
+			if (seg[i].y1 < seg[i].y2) {
+				rect[i].y = seg[i].y1;
+				rect[i].height = seg[i].y2 - seg[i].y1 + 1;
+			} else if (seg[i].x1 > seg[i].y2) {
+				rect[i].y = seg[i].y2;
+				rect[i].height = seg[i].y1 - seg[i].y2 + 1;
+			} else {
+				rect[i].y = seg[i].y1;
+				rect[i].height = 1;
+			}
 
-			if (i)
-				return;
+			/* don't paint last pixel */
+			if (gc->capStyle == CapNotLast) {
+				if (seg[i].x1 == seg[i].x2)
+					rect[i].height--;
+				else
+					rect[i].width--;
+			}
 		}
+
+		if (gc->fillStyle == FillTiled) {
+			i = sna_poly_fill_rect_tiled_blt(drawable,
+							 data.bo, data.damage,
+							 gc, n, rect,
+							 &data.region.extents,
+							 data.flags & 2);
+		} else {
+			i = sna_poly_fill_rect_stippled_blt(drawable,
+							    data.bo, data.damage,
+							    gc, n, rect,
+							    &data.region.extents,
+							    data.flags & 2);
+		}
+		free (rect);
+
+		if (i)
+			return;
 	}
 
 spans_fallback:
-	if (use_wide_spans(drawable, gc, &data.region.extents) &&
-	    (data.bo = sna_drawable_use_bo(drawable, &data.region.extents, &data.damage))) {
+	if (use_wide_spans(drawable, gc, &data.region.extents)) {
 		void (*line)(DrawablePtr, GCPtr, int, int, DDXPointPtr);
 		int i;
 
