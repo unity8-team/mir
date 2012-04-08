@@ -332,6 +332,7 @@ Bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,
 	assert(bo->refcnt);
 	assert(!bo->purged);
 	assert(!kgem_busy(kgem, bo->handle));
+	assert(bo->proxy == NULL);
 
 	assert(length <= bytes(bo));
 	if (gem_write(kgem->fd, bo->handle, 0, length, data))
@@ -3156,6 +3157,7 @@ void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo)
 	     bo->handle, bo->presumed_offset, bo->tiling, bo->map, bo->domain));
 
 	assert(!bo->purged);
+	assert(bo->proxy == NULL);
 	assert(bo->exec == NULL);
 	assert(list_is_empty(&bo->list));
 
@@ -3385,6 +3387,7 @@ struct kgem_bo *kgem_create_map(struct kgem *kgem,
 
 void kgem_bo_sync__cpu(struct kgem *kgem, struct kgem_bo *bo)
 {
+	assert(bo->proxy == NULL);
 	kgem_bo_submit(kgem, bo);
 
 	if (bo->domain != DOMAIN_CPU) {
@@ -4037,7 +4040,8 @@ void kgem_buffer_read_sync(struct kgem *kgem, struct kgem_bo *_bo)
 		kgem_bo_map__cpu(kgem, &bo->base);
 		domain = DOMAIN_NONE;
 	}
-	kgem_bo_retire(kgem, &bo->base);
+	kgem_retire(kgem);
+	assert(bo->base.rq == NULL);
 	bo->base.domain = domain;
 }
 
