@@ -4255,8 +4255,15 @@ sna_fill_spans__fill(DrawablePtr drawable,
 			b->y2 = b->y1 + 1;
 			DBG(("%s: (%d, %d), (%d, %d)\n",
 			     __FUNCTION__, b->x1, b->y1, b->x2, b->y2));
-			if (b->x2 > b->x1)
-				b++;
+			if (b->x2 > b->x1) {
+				if (b != box &&
+				    b->y1 == b[-1].y2 &&
+				    b->x1 == b[-1].x1 &&
+				    b->x2 == b[-1].x2)
+					b[-1].y2 = b->y2;
+				else
+					b++;
+			}
 		} while (--nbox);
 		if (b != box)
 			op->boxes(data->sna, op, box, b - box);
@@ -4322,7 +4329,12 @@ sna_fill_spans__fill_clip_extents(DrawablePtr drawable,
 				b->x1 += data->dx; b->x2 += data->dx;
 				b->y1 += data->dy; b->y2 += data->dy;
 			}
-			if (++b == last_box) {
+			if (b != box &&
+			    b->y1 == b[-1].y2 &&
+			    b->x1 == b[-1].x1 &&
+			    b->x2 == b[-1].x2) {
+				b[-1].y2 = b->y2;
+			} else if (++b == last_box) {
 				op->boxes(data->sna, op, box, last_box - box);
 				b = box;
 			}
