@@ -2437,7 +2437,7 @@ try_blt(struct sna *sna,
 
 static void
 gen3_align_vertex(struct sna *sna,
-		  struct sna_composite_op *op)
+		  const struct sna_composite_op *op)
 {
 	if (op->floats_per_vertex != sna->render_state.gen3.last_floats_per_vertex) {
 		if (sna->render.vertex_size - sna->render.vertex_used < 2*op->floats_per_rect)
@@ -2450,6 +2450,7 @@ gen3_align_vertex(struct sna *sna,
 		     (sna->render.vertex_used + op->floats_per_vertex - 1) / op->floats_per_vertex));
 		sna->render.vertex_index = (sna->render.vertex_used + op->floats_per_vertex - 1) / op->floats_per_vertex;
 		sna->render.vertex_used = sna->render.vertex_index * op->floats_per_vertex;
+		assert(sna->render.vertex_used < sna->render.vertex_size - op->floats_per_rect);
 		sna->render_state.gen3.last_floats_per_vertex = op->floats_per_vertex;
 	}
 }
@@ -2824,6 +2825,7 @@ gen3_render_composite(struct sna *sna,
 			return FALSE;
 	}
 
+	tmp->u.gen3.num_constants = 0;
 	tmp->src.u.gen3.type = SHADER_TEXTURE;
 	tmp->src.is_affine = TRUE;
 	DBG(("%s: preparing source\n", __FUNCTION__));
