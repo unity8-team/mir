@@ -7642,7 +7642,7 @@ fallback:
 		goto out;
 	if (!sna_drawable_move_region_to_cpu(drawable, &data.region,
 					     drawable_gc_flags(drawable, gc,
-							       !(data.flags & 4 && n > 1))))
+							       !(data.flags & 4 && n == 1))))
 		goto out;
 
 	/* Install FillSpans in case we hit a fallback path in fbPolySegment */
