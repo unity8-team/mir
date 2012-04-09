@@ -320,6 +320,7 @@ static void kgem_bo_retire(struct kgem *kgem, struct kgem_bo *bo)
 	if (bo->exec == NULL) {
 		DBG(("%s: retiring bo handle=%d (needed flush? %d), rq? %d\n",
 		     __FUNCTION__, bo->handle, bo->needs_flush, bo->rq != NULL));
+		assert(list_is_empty(&bo->vma));
 		bo->rq = NULL;
 		list_del(&bo->request);
 		bo->needs_flush = bo->flush;
@@ -1040,6 +1041,7 @@ inline static void kgem_bo_move_to_inactive(struct kgem *kgem,
 	assert(bo->rq == NULL);
 	assert(bo->domain != DOMAIN_GPU);
 	assert(bo->reusable);
+	assert(list_is_empty(&bo->vma));
 
 	if (bucket(bo) >= NUM_CACHE_BUCKETS) {
 		kgem_bo_free(kgem, bo);
@@ -1051,12 +1053,11 @@ inline static void kgem_bo_move_to_inactive(struct kgem *kgem,
 		int type = IS_CPU_MAP(bo->map);
 		if (bucket(bo) >= NUM_CACHE_BUCKETS ||
 		    (!type && !kgem_bo_is_mappable(kgem, bo))) {
-			list_del(&bo->vma);
 			munmap(MAP(bo->map), bytes(bo));
 			bo->map = NULL;
 		}
 		if (bo->map) {
-			list_move(&bo->vma, &kgem->vma[type].inactive[bucket(bo)]);
+			list_add(&bo->vma, &kgem->vma[type].inactive[bucket(bo)]);
 			kgem->vma[type].count++;
 		}
 	}
