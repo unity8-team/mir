@@ -1786,6 +1786,7 @@ tor_inplace(struct tor *converter, PixmapPtr scratch, int mono, uint8_t *buf)
 
 				inplace_subrow(active, ptr, width, &min, &max);
 			}
+			assert(min >= 0 && max <= width);
 			memset(row, 0, min);
 			if (max > min)
 				inplace_end_subrows(active, row+min, (int8_t*)ptr+min, max-min);
