@@ -1476,55 +1476,61 @@ inplace_row(struct active_list *active, uint8_t *row, int width)
 		} else
 			FAST_SAMPLES_X_TO_INT_FRAC(right->x.quo, rix, rfx);
 		if (lix == rix) {
-			if (rfx != lfx)
+			if (rfx != lfx) {
+				assert(lix < width);
 				row[lix] += (rfx-lfx) * 256 / FAST_SAMPLES_X;
+			}
 		} else {
+			assert(lix < width);
 			if (lfx == 0)
 				row[lix] = 0xff;
 			else
 				row[lix] += 256 - lfx * 256 / FAST_SAMPLES_X;
 
-			if (rfx)
+			assert(rix <= width);
+			if (rfx) {
+				assert(rix < width);
 				row[rix] += rfx * 256 / FAST_SAMPLES_X;
+			}
 
 			if (rix > ++lix) {
+				uint8_t *r = row + lix;
 				rix -= lix;
-				row += lix;
 #if 0
 				if (rix == 1)
 					*row = 0xff;
 				else
 					memset(row, 0xff, rix);
 #else
-				if ((uintptr_t)row & 1 && rix) {
-					*row++ = 0xff;
+				if ((uintptr_t)r & 1 && rix) {
+					*r++ = 0xff;
 					rix--;
 				}
-				if ((uintptr_t)row & 2 && rix >= 2) {
-					*(uint16_t *)row = 0xffff;
-					row += 2;
+				if ((uintptr_t)r & 2 && rix >= 2) {
+					*(uint16_t *)r = 0xffff;
+					r += 2;
 					rix -= 2;
 				}
-				if ((uintptr_t)row & 4 && rix >= 4) {
-					*(uint32_t *)row = 0xffffffff;
-					row += 4;
+				if ((uintptr_t)r & 4 && rix >= 4) {
+					*(uint32_t *)r = 0xffffffff;
+					r += 4;
 					rix -= 4;
 				}
 				while (rix >= 8) {
-					*(uint64_t *)row = 0xffffffffffffffff;
-					row += 8;
+					*(uint64_t *)r = 0xffffffffffffffff;
+					r += 8;
 					rix -= 8;
 				}
 				if (rix & 4) {
-					*(uint32_t *)row = 0xffffffff;
-					row += 4;
+					*(uint32_t *)r = 0xffffffff;
+					r += 4;
 				}
 				if (rix & 2) {
-					*(uint16_t *)row = 0xffff;
-					row += 2;
+					*(uint16_t *)r = 0xffff;
+					r += 2;
 				}
 				if (rix & 1)
-					*row = 0xff;
+					*r = 0xff;
 #endif
 			}
 		}
