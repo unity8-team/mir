@@ -1748,20 +1748,20 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box, unsigned int flags)
 	}
 
 	if (priv->gpu_bo == NULL) {
-		unsigned flags;
+		unsigned create;
 
-		flags = 0;
+		create = 0;
 		if (priv->cpu_damage)
-			flags |= CREATE_INACTIVE;
+			create |= CREATE_INACTIVE;
 		if (pixmap->usage_hint == SNA_CREATE_FB)
-			flags |= CREATE_EXACT | CREATE_SCANOUT;
+			create |= CREATE_EXACT | CREATE_SCANOUT;
 
 		priv->gpu_bo = kgem_create_2d(&sna->kgem,
 					      pixmap->drawable.width,
 					      pixmap->drawable.height,
 					      pixmap->drawable.bitsPerPixel,
 					      sna_pixmap_choose_tiling(pixmap),
-					      flags);
+					      create);
 		if (priv->gpu_bo == NULL)
 			return false;
 
