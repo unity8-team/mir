@@ -1925,6 +1925,7 @@ void kgem_throttle(struct kgem *kgem)
 
 static void kgem_expire_partial(struct kgem *kgem)
 {
+	kgem_retire_partials(kgem);
 	while (!list_is_empty(&kgem->inactive_partials)) {
 		struct kgem_partial_bo *bo =
 			list_first_entry(&kgem->inactive_partials,
