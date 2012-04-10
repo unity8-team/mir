@@ -1979,7 +1979,7 @@ bool kgem_expire_cache(struct kgem *kgem)
 	time(&now);
 	expire = 0;
 
-	idle = true;
+	idle = !kgem->need_retire;
 	for (i = 0; i < ARRAY_SIZE(kgem->inactive); i++) {
 		idle &= list_is_empty(&kgem->inactive[i]);
 		list_for_each_entry(bo, &kgem->inactive[i], list) {
@@ -1999,7 +1999,7 @@ bool kgem_expire_cache(struct kgem *kgem)
 	if (expire == 0)
 		return true;
 
-	idle = true;
+	idle = !kgem->need_retire;
 	for (i = 0; i < ARRAY_SIZE(kgem->inactive); i++) {
 		struct list preserve;
 
