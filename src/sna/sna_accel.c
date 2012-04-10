@@ -1934,7 +1934,8 @@ sna_drawable_use_bo(DrawablePtr drawable,
 
 	if (priv->gpu_bo && priv->gpu_bo->proxy) {
 		assert(priv->gpu_bo->proxy->rq);
-		kgem_bo_destroy(to_sna_from_pixmap(pixmap), priv->gpu_bo);
+		kgem_bo_destroy(&to_sna_from_pixmap(pixmap)->kgem,
+				priv->gpu_bo);
 		priv->gpu_bo = NULL;
 		goto use_cpu_bo;
 	}
@@ -2727,7 +2728,7 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	if (priv->gpu_bo && priv->gpu_bo->proxy) {
 		DBG(("%s: discarding cached upload buffer\n", __FUNCTION__));
 		assert(priv->gpu_bo->proxy->rq);
-		kgem_bo_destroy(sna, priv->gpu_bo);
+		kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
 		priv->gpu_bo = NULL;
 	}
 
