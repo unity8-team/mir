@@ -1968,6 +1968,12 @@ bool kgem_expire_cache(struct kgem *kgem)
 	bool idle;
 	unsigned int i;
 
+	while (__kgem_freed_bo) {
+		bo = __kgem_freed_bo;
+		__kgem_freed_bo = *(struct kgem_bo **)bo;
+		free(bo);
+	}
+
 	kgem_retire(kgem);
 	if (kgem->wedged)
 		kgem_cleanup(kgem);
