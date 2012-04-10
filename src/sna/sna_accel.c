@@ -8767,6 +8767,9 @@ sna_pixmap_get_source_bo(PixmapPtr pixmap)
 					       pixmap->drawable.bitsPerPixel,
 					       KGEM_BUFFER_WRITE_INPLACE,
 					       &ptr);
+		if (upload == NULL)
+			return NULL;
+
 		memcpy_blt(pixmap->devPrivate.ptr, ptr,
 			   pixmap->drawable.bitsPerPixel,
 			   pixmap->devKind, upload->pitch,
