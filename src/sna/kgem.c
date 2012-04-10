@@ -3575,7 +3575,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 	}
 
 	if (flags & KGEM_BUFFER_WRITE) {
-		list_for_each_entry_reverse(bo, &kgem->inactive_partials, base.list) {
+		do list_for_each_entry_reverse(bo, &kgem->inactive_partials, base.list) {
 			assert(bo->base.io);
 			assert(bo->base.refcnt == 1);
 
@@ -3595,7 +3595,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			bo->used = size;
 			list_move(&bo->base.list, &kgem->active_partials);
 			goto done;
-		}
+		} while (kgem_retire(kgem));
 	}
 
 #if !DBG_NO_MAP_UPLOAD
