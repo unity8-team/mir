@@ -3997,7 +3997,6 @@ void kgem_buffer_read_sync(struct kgem *kgem, struct kgem_bo *_bo)
 {
 	struct kgem_partial_bo *bo;
 	uint32_t offset = _bo->delta, length = _bo->size.bytes;
-	int domain;
 
 	assert(_bo->io);
 	assert(_bo->exec == &_kgem_dummy_exec);
@@ -4023,15 +4022,9 @@ void kgem_buffer_read_sync(struct kgem *kgem, struct kgem_bo *_bo)
 
 		VG_CLEAR(set_domain);
 		set_domain.handle = bo->base.handle;
-		if (IS_CPU_MAP(bo->base.map)) {
-			set_domain.read_domains = I915_GEM_DOMAIN_CPU;
-			set_domain.write_domain = I915_GEM_DOMAIN_CPU;
-			domain = DOMAIN_CPU;
-		} else {
-			set_domain.read_domains = I915_GEM_DOMAIN_GTT;
-			set_domain.write_domain = I915_GEM_DOMAIN_GTT;
-			domain = DOMAIN_GTT;
-		}
+		set_domain.write_domain = 0;
+		set_domain.read_domains =
+			IS_CPU_MAP(bo->base.map) ? I915_GEM_DOMAIN_CPU : I915_GEM_DOMAIN_GTT;
 
 		drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_SET_DOMAIN, &set_domain);
 	} else {
@@ -4039,11 +4032,9 @@ void kgem_buffer_read_sync(struct kgem *kgem, struct kgem_bo *_bo)
 			 bo->base.handle, (char *)bo->mem+offset,
 			 offset, length);
 		kgem_bo_map__cpu(kgem, &bo->base);
-		domain = DOMAIN_NONE;
 	}
-	kgem_retire(kgem);
-	assert(bo->base.rq == NULL);
-	bo->base.domain = domain;
+	kgem_bo_retire(kgem, &bo->base);
+	bo->base.domain = DOMAIN_NONE;
 }
 
 uint32_t kgem_bo_get_binding(struct kgem_bo *bo, uint32_t format)
