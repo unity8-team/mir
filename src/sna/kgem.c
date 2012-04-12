@@ -220,7 +220,7 @@ static void *gem_mmap(int fd, uint32_t handle, int size, int prot)
 		return NULL;
 	}
 
-	ptr = mmap64(0, size, prot, MAP_SHARED, fd, mmap_arg.offset);
+	ptr = mmap(0, size, prot, MAP_SHARED, fd, mmap_arg.offset);
 	if (ptr == MAP_FAILED) {
 		assert(0);
 		ptr = NULL;
