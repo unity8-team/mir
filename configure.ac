@@ -52,6 +52,7 @@ m4_ifndef([XORG_DRIVER_CHECK_EXT],
 # Initialize libtool
 AC_DISABLE_STATIC
 AC_PROG_LIBTOOL
+AC_SYS_LARGEFILE
 
 # Are we in a git checkout?
 dot_git=no
