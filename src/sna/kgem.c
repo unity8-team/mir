@@ -3600,6 +3600,10 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			offset = 0;
 			bo->used = size;
 			list_move(&bo->base.list, &kgem->active_partials);
+
+			if (bo->base.vmap)
+				kgem_bo_sync__cpu(kgem, &bo->base);
+
 			goto done;
 		} while (kgem_retire(kgem));
 	}
