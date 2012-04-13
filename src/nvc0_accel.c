@@ -31,6 +31,11 @@ NVAccelInitM2MF_NVC0(ScrnInfoPtr pScrn)
 	struct nouveau_pushbuf *push = pNv->pushbuf;
 	int ret;
 
+	ret = nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM, 128 * 1024, 0x20000,
+			     NULL, &pNv->tesla_scratch);
+	if (ret)
+		return FALSE;
+
 	ret = nouveau_object_new(pNv->channel, 0x00009039, 0x9039,
 				 NULL, 0, &pNv->NvMemFormat);
 	if (ret)
@@ -38,6 +43,11 @@ NVAccelInitM2MF_NVC0(ScrnInfoPtr pScrn)
 
 	BEGIN_NVC0(push, NV01_SUBC(M2MF, OBJECT), 1);
 	PUSH_DATA (push, pNv->NvMemFormat->handle);
+	BEGIN_NVC0(push, NVC0_M2MF(QUERY_ADDRESS_HIGH), 3);
+	PUSH_DATA (push, (pNv->tesla_scratch->offset + NTFY_OFFSET) >> 32);
+	PUSH_DATA (push, (pNv->tesla_scratch->offset + NTFY_OFFSET));
+	PUSH_DATA (push, 0);
+
 	return TRUE;
 }
 
@@ -93,7 +103,7 @@ NVAccelInit3D_NVC0(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_pushbuf *push = pNv->pushbuf;
-	struct nouveau_bo *bo;
+	struct nouveau_bo *bo = pNv->tesla_scratch;
 	int ret;
 
 	ret = nouveau_object_new(pNv->channel, 0x00009097, 0x9097,
@@ -101,33 +111,19 @@ NVAccelInit3D_NVC0(ScrnInfoPtr pScrn)
 	if (ret)
 		return FALSE;
 
-	ret = nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM,
-			     (128 << 10), 0x20000, NULL,
-			     &pNv->tesla_scratch);
-	if (ret) {
-		nouveau_object_del(&pNv->Nv3D);
-		return FALSE;
-	}
-	bo = pNv->tesla_scratch;
-
 	if (nouveau_pushbuf_space(push, 512, 0, 0) ||
 	    nouveau_pushbuf_refn (push, &(struct nouveau_pushbuf_refn) {
 					pNv->tesla_scratch, NOUVEAU_BO_VRAM |
 					NOUVEAU_BO_WR }, 1))
 		return FALSE;
 
-	BEGIN_NVC0(push, NVC0_M2MF(QUERY_ADDRESS_HIGH), 3);
-	PUSH_DATA (push, (bo->offset + NTFY_OFFSET) >> 32);
-	PUSH_DATA (push, (bo->offset + NTFY_OFFSET));
-	PUSH_DATA (push, 0);
-
 	BEGIN_NVC0(push, NV01_SUBC(3D, OBJECT), 1);
 	PUSH_DATA (push, pNv->Nv3D->handle);
 	BEGIN_NVC0(push, NVC0_3D(COND_MODE), 1);
 	PUSH_DATA (push, NVC0_3D_COND_MODE_ALWAYS);
 	BEGIN_NVC0(push, SUBC_3D(NVC0_GRAPH_NOTIFY_ADDRESS_HIGH), 3);
-	PUSH_DATA (push, (bo->offset + NTFY_OFFSET) >> 32);
-	PUSH_DATA (push, (bo->offset + NTFY_OFFSET));
+	PUSH_DATA (push, (pNv->tesla_scratch->offset + NTFY_OFFSET) >> 32);
+	PUSH_DATA (push, (pNv->tesla_scratch->offset + NTFY_OFFSET));
 	PUSH_DATA (push, 0);
 	BEGIN_NVC0(push, NVC0_3D(CSAA_ENABLE), 1);
 	PUSH_DATA (push, 0);
