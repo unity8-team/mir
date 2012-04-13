@@ -4275,6 +4275,18 @@ sna_fill_spans__fill(DrawablePtr drawable,
 }
 
 static void
+sna_fill_spans__dash(DrawablePtr drawable,
+		     GCPtr gc, int n,
+		     DDXPointPtr pt, int *width, int sorted)
+{
+	struct sna_fill_spans *data = sna_gc(gc)->priv;
+	struct sna_fill_op *op = data->op;
+
+	if (op->base.u.blt.pixel == gc->fgPixel)
+		sna_fill_spans__fill(drawable, gc, n, pt, width, sorted);
+}
+
+static void
 sna_fill_spans__fill_offset(DrawablePtr drawable,
 			    GCPtr gc, int n,
 			    DDXPointPtr pt, int *width, int sorted)
@@ -4303,6 +4315,18 @@ sna_fill_spans__fill_offset(DrawablePtr drawable,
 		if (b != box)
 			op->boxes(data->sna, op, box, b - box);
 	}
+}
+
+static void
+sna_fill_spans__dash_offset(DrawablePtr drawable,
+			    GCPtr gc, int n,
+			    DDXPointPtr pt, int *width, int sorted)
+{
+	struct sna_fill_spans *data = sna_gc(gc)->priv;
+	struct sna_fill_op *op = data->op;
+
+	if (op->base.u.blt.pixel == gc->fgPixel)
+		sna_fill_spans__fill_offset(drawable, gc, n, pt, width, sorted);
 }
 
 static void
@@ -4346,6 +4370,18 @@ sna_fill_spans__fill_clip_extents(DrawablePtr drawable,
 	}
 	if (b != box)
 		op->boxes(data->sna, op, box, b - box);
+}
+
+static void
+sna_fill_spans__dash_clip_extents(DrawablePtr drawable,
+				  GCPtr gc, int n,
+				  DDXPointPtr pt, int *width, int sorted)
+{
+	struct sna_fill_spans *data = sna_gc(gc)->priv;
+	struct sna_fill_op *op = data->op;
+
+	if (op->base.u.blt.pixel == gc->fgPixel)
+		sna_fill_spans__fill_clip_extents(drawable, gc, n, pt, width, sorted);
 }
 
 static void
@@ -4420,6 +4456,18 @@ sna_fill_spans__fill_clip_boxes(DrawablePtr drawable,
 	}
 	if (b != box)
 		op->boxes(data->sna, op, box, b - box);
+}
+
+static void
+sna_fill_spans__dash_clip_boxes(DrawablePtr drawable,
+				GCPtr gc, int n,
+				DDXPointPtr pt, int *width, int sorted)
+{
+	struct sna_fill_spans *data = sna_gc(gc)->priv;
+	struct sna_fill_op *op = data->op;
+
+	if (op->base.u.blt.pixel == gc->fgPixel)
+		sna_fill_spans__fill_clip_boxes(drawable, gc, n, pt, width, sorted);
 }
 
 static Bool
@@ -6646,44 +6694,78 @@ spans_fallback:
 		get_drawable_deltas(drawable, data.pixmap, &data.dx, &data.dy);
 		sna_gc(gc)->priv = &data;
 
-		if (gc->lineWidth == 0 &&
-		    gc_is_solid(gc, &color)) {
+		if (gc->lineWidth == 0 && gc_is_solid(gc, &color)) {
 			struct sna_fill_op fill;
 
-			if (!sna_fill_init_blt(&fill,
-					       data.sna, data.pixmap,
-					       data.bo, gc->alu, color))
-				goto fallback;
-
-			data.op = &fill;
-
-			if ((data.flags & 2) == 0) {
-				if (data.dx | data.dy)
-					sna_gc_ops__tmp.FillSpans = sna_fill_spans__fill_offset;
-				else
-					sna_gc_ops__tmp.FillSpans = sna_fill_spans__fill;
-			} else {
-				region_maybe_clip(&data.region,
-						  gc->pCompositeClip);
-				if (!RegionNotEmpty(&data.region))
-					return;
-
-				if (region_is_singular(&data.region))
-					sna_gc_ops__tmp.FillSpans = sna_fill_spans__fill_clip_extents;
-				else
-					sna_gc_ops__tmp.FillSpans = sna_fill_spans__fill_clip_boxes;
-			}
-			assert(gc->miTranslate);
-
-			gc->ops = &sna_gc_ops__tmp;
 			if (gc->lineStyle == LineSolid) {
+				if (!sna_fill_init_blt(&fill,
+						       data.sna, data.pixmap,
+						       data.bo, gc->alu, color))
+					goto fallback;
+
+				data.op = &fill;
+
+				if ((data.flags & 2) == 0) {
+					if (data.dx | data.dy)
+						sna_gc_ops__tmp.FillSpans = sna_fill_spans__fill_offset;
+					else
+						sna_gc_ops__tmp.FillSpans = sna_fill_spans__fill;
+				} else {
+					region_maybe_clip(&data.region,
+							  gc->pCompositeClip);
+					if (!RegionNotEmpty(&data.region))
+						return;
+
+					if (region_is_singular(&data.region))
+						sna_gc_ops__tmp.FillSpans = sna_fill_spans__fill_clip_extents;
+					else
+						sna_gc_ops__tmp.FillSpans = sna_fill_spans__fill_clip_boxes;
+				}
+				assert(gc->miTranslate);
+
+				gc->ops = &sna_gc_ops__tmp;
 				DBG(("%s: miZeroLine (solid fill)\n", __FUNCTION__));
 				miZeroLine(drawable, gc, mode, n, pt);
+				fill.done(data.sna, &fill);
 			} else {
-				DBG(("%s: miZeroDashLine (solid fill)\n", __FUNCTION__));
+				data.op = &fill;
+
+				if ((data.flags & 2) == 0) {
+					if (data.dx | data.dy)
+						sna_gc_ops__tmp.FillSpans = sna_fill_spans__dash_offset;
+					else
+						sna_gc_ops__tmp.FillSpans = sna_fill_spans__dash;
+				} else {
+					region_maybe_clip(&data.region,
+							  gc->pCompositeClip);
+					if (!RegionNotEmpty(&data.region))
+						return;
+
+					if (region_is_singular(&data.region))
+						sna_gc_ops__tmp.FillSpans = sna_fill_spans__dash_clip_extents;
+					else
+						sna_gc_ops__tmp.FillSpans = sna_fill_spans__dash_clip_boxes;
+				}
+				assert(gc->miTranslate);
+
+				gc->ops = &sna_gc_ops__tmp;
+				DBG(("%s: miZeroLine (solid dash)\n", __FUNCTION__));
+				if (!sna_fill_init_blt(&fill,
+						       data.sna, data.pixmap,
+						       data.bo, gc->alu, color))
+					goto fallback;
+
 				miZeroDashLine(drawable, gc, mode, n, pt);
+				fill.done(data.sna, &fill);
+
+				if (sna_fill_init_blt(&fill,
+						       data.sna, data.pixmap,
+						       data.bo, gc->alu,
+						       gc->bgPixel)) {
+					miZeroDashLine(drawable, gc, mode, n, pt);
+					fill.done(data.sna, &fill);
+				}
 			}
-			fill.done(data.sna, &fill);
 		} else {
 			/* Note that the WideDash functions alternate
 			 * between filling using fgPixel and bgPixel
