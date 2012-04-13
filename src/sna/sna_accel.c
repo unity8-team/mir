@@ -458,6 +458,16 @@ static inline uint32_t default_tiling(PixmapPtr pixmap)
 		     __FUNCTION__));
 		sna_damage_destroy(&priv->gpu_damage);
 		priv->undamaged = false;
+
+		/* Only on later generations was the render pipeline
+		 * more flexible than the BLT. So on gen2/3, prefer to
+		 * keep large objects accessible through the BLT.
+		 */
+		if (sna->kgem.gen < 40 &&
+		    (pixmap->drawable.width > sna->render.max_3d_size ||
+		     pixmap->drawable.height > sna->render.max_3d_size))
+			return I915_TILING_X;
+
 		return I915_TILING_Y;
 	}
 
