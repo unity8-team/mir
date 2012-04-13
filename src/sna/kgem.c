@@ -3186,7 +3186,7 @@ void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo)
 
 	ptr = bo->map;
 	if (ptr == NULL) {
-		assert(kgem_bo_is_mappable(kgem, bo));
+		assert(kgem_bo_size(bo) <= kgem->aperture_mappable / 2);
 
 		kgem_trim_vma_cache(kgem, MAP_GTT, bucket(bo));
 
