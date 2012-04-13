@@ -60,7 +60,7 @@
 #define FORCE_FLUSH 0
 
 #define USE_INPLACE 1
-#define USE_WIDE_SPANS 1 /* -1 force CPU, 1 force GPU */
+#define USE_WIDE_SPANS 0 /* -1 force CPU, 1 force GPU */
 #define USE_ZERO_SPANS 1 /* -1 force CPU, 1 force GPU */
 #define USE_SHM_VMAP 0
 #define PREFER_VMAP 0
