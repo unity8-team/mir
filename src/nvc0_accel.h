@@ -94,4 +94,19 @@ VTX2s(NVPtr pNv, float s1x, float s1y, float s2x, float s2y,
 #endif
 }
 
+static __inline__ void
+PUSH_DATAu(struct nouveau_pushbuf *push, struct nouveau_bo *bo,
+	   unsigned delta, unsigned dwords)
+{
+	BEGIN_NVC0(push, NVC0_M2MF(OFFSET_OUT_HIGH), 2);
+	PUSH_DATA (push, (bo->offset + delta) >> 32);
+	PUSH_DATA (push, (bo->offset + delta));
+	BEGIN_NVC0(push, NVC0_M2MF(LINE_LENGTH_IN), 2);
+	PUSH_DATA (push, dwords * 4);
+	PUSH_DATA (push, 1);
+	BEGIN_NVC0(push, NVC0_M2MF(EXEC), 1);
+	PUSH_DATA (push, 0x100111);
+	BEGIN_NIC0(push, NVC0_M2MF(DATA), dwords);
+}
+
 #endif

@@ -203,15 +203,7 @@ NVAccelInit3D_NVC0(ScrnInfoPtr pScrn)
 	PUSH_DATA (push, (bo->offset + CODE_OFFSET) >> 32);
 	PUSH_DATA (push, (bo->offset + CODE_OFFSET));
 
-	BEGIN_NVC0(push, NVC0_M2MF(OFFSET_OUT_HIGH), 2);
-	PUSH_DATA (push, (bo->offset + PVP_PASS) >> 32);
-	PUSH_DATA (push, (bo->offset + PVP_PASS));
-	BEGIN_NVC0(push, NVC0_M2MF(LINE_LENGTH_IN), 2);
-	PUSH_DATA (push, 7 * 8 + 20 * 4);
-	PUSH_DATA (push, 1);
-	BEGIN_NVC0(push, NVC0_M2MF(EXEC), 1);
-	PUSH_DATA (push, 0x100111);
-	BEGIN_NIC0(push, NVC0_M2MF(DATA), 7 * 2 + 20);
+	PUSH_DATAu(push, bo, PVP_PASS, 20 + 7 * 2);
 	PUSH_DATA (push, 0x00020461);
 	PUSH_DATA (push, 0);
 	PUSH_DATA (push, 0);
@@ -257,15 +249,7 @@ NVAccelInit3D_NVC0(ScrnInfoPtr pScrn)
 	BEGIN_NVC0(push, SUBC_3D(0x2600), 1);
 	PUSH_DATA (push, 1);
 
-	BEGIN_NVC0(push, NVC0_M2MF(OFFSET_OUT_HIGH), 2);
-	PUSH_DATA (push, (bo->offset + PFP_S) >> 32);
-	PUSH_DATA (push, (bo->offset + PFP_S));
-	BEGIN_NVC0(push, NVC0_M2MF(LINE_LENGTH_IN), 2);
-	PUSH_DATA (push, 6 * 8 + 20 * 4);
-	PUSH_DATA (push, 1);
-	BEGIN_NVC0(push, NVC0_M2MF(EXEC), 1);
-	PUSH_DATA (push, 0x100111);
-	BEGIN_NIC0(push, NVC0_M2MF(DATA), 6 * 2 + 20);
+	PUSH_DATAu(push, bo, PFP_S, 20 + 6 * 2);
 	PUSH_DATA (push, 0x00021462);
 	PUSH_DATA (push, 0x00000000);
 	PUSH_DATA (push, 0x00000000);
@@ -299,15 +283,7 @@ NVAccelInit3D_NVC0(ScrnInfoPtr pScrn)
 	PUSH_DATA (push, 0x00001de7);
 	PUSH_DATA (push, 0x80000000); /* exit */
 
-	BEGIN_NVC0(push, NVC0_M2MF(OFFSET_OUT_HIGH), 2);
-	PUSH_DATA (push, (bo->offset + PFP_C) >> 32);
-	PUSH_DATA (push, (bo->offset + PFP_C));
-	BEGIN_NVC0(push, NVC0_M2MF(LINE_LENGTH_IN), 2);
-	PUSH_DATA (push, 13 * 8 + 20 * 4);
-	PUSH_DATA (push, 1);
-	BEGIN_NVC0(push, NVC0_M2MF(EXEC), 1);
-	PUSH_DATA (push, 0x100111);
-	BEGIN_NIC0(push, NVC0_M2MF(DATA), 13 * 2 + 20);
+	PUSH_DATAu(push, bo, PFP_C, 20 + 13 * 2);
 	PUSH_DATA (push, 0x00021462);
 	PUSH_DATA (push, 0x00000000);
 	PUSH_DATA (push, 0x00000000);
@@ -355,15 +331,7 @@ NVAccelInit3D_NVC0(ScrnInfoPtr pScrn)
 	PUSH_DATA (push, 0x00001de7);
 	PUSH_DATA (push, 0x80000000); /* exit */
 
-	BEGIN_NVC0(push, NVC0_M2MF(OFFSET_OUT_HIGH), 2);
-	PUSH_DATA (push, (bo->offset + PFP_CCA) >> 32);
-	PUSH_DATA (push, (bo->offset + PFP_CCA));
-	BEGIN_NVC0(push, NVC0_M2MF(LINE_LENGTH_IN), 2);
-	PUSH_DATA (push, 13 * 8 + 20 * 4);
-	PUSH_DATA (push, 1);
-	BEGIN_NVC0(push, NVC0_M2MF(EXEC), 1);
-	PUSH_DATA (push, 0x100111);
-	BEGIN_NIC0(push, NVC0_M2MF(DATA), 13 * 2 + 20);
+	PUSH_DATAu(push, bo, PFP_CCA, 20 + 13 * 2);
 	PUSH_DATA (push, 0x00021462); /* 0x0000c000 = USES_KIL, MULTI_COLORS */
 	PUSH_DATA (push, 0x00000000);
 	PUSH_DATA (push, 0x00000000);
@@ -411,15 +379,7 @@ NVAccelInit3D_NVC0(ScrnInfoPtr pScrn)
 	PUSH_DATA (push, 0x00001de7);
 	PUSH_DATA (push, 0x80000000); /* exit */
 
-	BEGIN_NVC0(push, NVC0_M2MF(OFFSET_OUT_HIGH), 2);
-	PUSH_DATA (push, (bo->offset + PFP_CCASA) >> 32);
-	PUSH_DATA (push, (bo->offset + PFP_CCASA));
-	BEGIN_NVC0(push, NVC0_M2MF(LINE_LENGTH_IN), 2);
-	PUSH_DATA (push, 13 * 8 + 20 * 4);
-	PUSH_DATA (push, 1);
-	BEGIN_NVC0(push, NVC0_M2MF(EXEC), 1);
-	PUSH_DATA (push, 0x100111);
-	BEGIN_NIC0(push, NVC0_M2MF(DATA), 13 * 2 + 20);
+	PUSH_DATAu(push, bo, PFP_CCASA, 20 + 13 * 2);
 	PUSH_DATA (push, 0x00021462);
 	PUSH_DATA (push, 0x00000000);
 	PUSH_DATA (push, 0x00000000);
@@ -467,15 +427,7 @@ NVAccelInit3D_NVC0(ScrnInfoPtr pScrn)
 	PUSH_DATA (push, 0x00001de7);
 	PUSH_DATA (push, 0x80000000); /* exit */
 
-	BEGIN_NVC0(push, NVC0_M2MF(OFFSET_OUT_HIGH), 2);
-	PUSH_DATA (push, (bo->offset + PFP_S_A8) >> 32);
-	PUSH_DATA (push, (bo->offset + PFP_S_A8));
-	BEGIN_NVC0(push, NVC0_M2MF(LINE_LENGTH_IN), 2);
-	PUSH_DATA (push, 9 * 8 + 20 * 4);
-	PUSH_DATA (push, 1);
-	BEGIN_NVC0(push, NVC0_M2MF(EXEC), 1);
-	PUSH_DATA (push, 0x100111);
-	BEGIN_NIC0(push, NVC0_M2MF(DATA), 9 * 2 + 20);
+	PUSH_DATAu(push, bo, PFP_S_A8, 20 + 9 * 2);
 	PUSH_DATA (push, 0x00021462);
 	PUSH_DATA (push, 0x00000000);
 	PUSH_DATA (push, 0x00000000);
@@ -515,15 +467,7 @@ NVAccelInit3D_NVC0(ScrnInfoPtr pScrn)
 	PUSH_DATA (push, 0x00001de7);
 	PUSH_DATA (push, 0x80000000); /* exit */
 
-	BEGIN_NVC0(push, NVC0_M2MF(OFFSET_OUT_HIGH), 2);
-	PUSH_DATA (push, (bo->offset + PFP_C_A8) >> 32);
-	PUSH_DATA (push, (bo->offset + PFP_C_A8));
-	BEGIN_NVC0(push, NVC0_M2MF(LINE_LENGTH_IN), 2);
-	PUSH_DATA (push, 13 * 8 + 20 * 4);
-	PUSH_DATA (push, 1);
-	BEGIN_NVC0(push, NVC0_M2MF(EXEC), 1);
-	PUSH_DATA (push, 0x100111);
-	BEGIN_NIC0(push, NVC0_M2MF(DATA), 13 * 2 + 20);
+	PUSH_DATAu(push, bo, PFP_C_A8, 20 + 13 * 2);
 	PUSH_DATA (push, 0x00021462);
 	PUSH_DATA (push, 0x00000000);
 	PUSH_DATA (push, 0x00000000);
@@ -571,15 +515,7 @@ NVAccelInit3D_NVC0(ScrnInfoPtr pScrn)
 	PUSH_DATA (push, 0x00001de7);
 	PUSH_DATA (push, 0x80000000); /* exit */
 
-	BEGIN_NVC0(push, NVC0_M2MF(OFFSET_OUT_HIGH), 2);
-	PUSH_DATA (push, (bo->offset + PFP_NV12) >> 32);
-	PUSH_DATA (push, (bo->offset + PFP_NV12));
-	BEGIN_NVC0(push, NVC0_M2MF(LINE_LENGTH_IN), 2);
-	PUSH_DATA (push, 19 * 8 + 20 * 4);
-	PUSH_DATA (push, 1);
-	BEGIN_NVC0(push, NVC0_M2MF(EXEC), 1);
-	PUSH_DATA (push, 0x100111);
-	BEGIN_NIC0(push, NVC0_M2MF(DATA), 19 * 2 + 20);
+	PUSH_DATAu(push, bo, PFP_NV12, 20 + 19 * 2);
 	PUSH_DATA (push, 0x00021462);
 	PUSH_DATA (push, 0x00000000);
 	PUSH_DATA (push, 0x00000000);

@@ -540,24 +540,13 @@ NVC0EXATexture(PixmapPtr ppix, PicturePtr ppict, unsigned unit)
 {
 	NVC0EXA_LOCALS(ppix);
 	struct nouveau_bo *bo = nouveau_pixmap_bo(ppix);
-	uint64_t tic = pNv->tesla_scratch->offset + TIC_OFFSET + (unit * 32);
-	uint64_t tsc = pNv->tesla_scratch->offset + TSC_OFFSET + (unit * 32);
 	uint32_t mode;
 
 	/* XXX: maybe add support for linear textures at some point */
 	if (!nv50_style_tiled_pixmap(ppix))
 		NOUVEAU_FALLBACK("pixmap is scanout buffer\n");
 
-	BEGIN_NVC0(push, NVC0_M2MF(OFFSET_OUT_HIGH), 2);
-	PUSH_DATA (push, tic >> 32);
-	PUSH_DATA (push, tic);
-	BEGIN_NVC0(push, NVC0_M2MF(LINE_LENGTH_IN), 2);
-	PUSH_DATA (push, 8 * 4);
-	PUSH_DATA (push, 1);
-	BEGIN_NVC0(push, NVC0_M2MF(EXEC), 1);
-	PUSH_DATA (push, 0x100111);
-	BEGIN_NIC0(push, NVC0_M2MF(DATA), 8);
-
+	PUSH_DATAu(push, pNv->tesla_scratch, TIC_OFFSET + (unit * 32), 8);
 	switch (ppict->format) {
 	case PICT_a8r8g8b8:
 		PUSH_DATA (push, _(B_C0, G_C1, R_C2, A_C3, 8_8_8_8));
@@ -637,16 +626,7 @@ NVC0EXATexture(PixmapPtr ppix, PicturePtr ppict, unsigned unit)
 	PUSH_DATA (push, 0x03000000);
 	PUSH_DATA (push, 0x00000000);
 
-	BEGIN_NVC0(push, NVC0_M2MF(OFFSET_OUT_HIGH), 2);
-	PUSH_DATA (push, tsc >> 32);
-	PUSH_DATA (push, tsc);
-	BEGIN_NVC0(push, NVC0_M2MF(LINE_LENGTH_IN), 2);
-	PUSH_DATA (push, 8 * 4);
-	PUSH_DATA (push, 1);
-	BEGIN_NVC0(push, NVC0_M2MF(EXEC), 1);
-	PUSH_DATA (push, 0x100111);
-	BEGIN_NIC0(push, NVC0_M2MF(DATA), 8);
-
+	PUSH_DATAu(push, pNv->tesla_scratch, TSC_OFFSET + (unit * 32), 8);
 	if (ppict->repeat) {
 		switch (ppict->repeatType) {
 		case RepeatPad:

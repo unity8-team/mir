@@ -103,15 +103,7 @@ nvc0_xv_image_put(ScrnInfoPtr pScrn,
 	BEGIN_NVC0(push, NVC0_3D(BLEND_ENABLE(0)), 1);
 	PUSH_DATA (push, 0);
 
-	BEGIN_NVC0(push, NVC0_M2MF(OFFSET_OUT_HIGH), 2);
-	PUSH_DATA (push, (pNv->tesla_scratch->offset + TIC_OFFSET) >> 32);
-	PUSH_DATA (push, (pNv->tesla_scratch->offset + TIC_OFFSET));
-	BEGIN_NVC0(push, NVC0_M2MF(LINE_LENGTH_IN), 2);
-	PUSH_DATA (push, 16 * 4);
-	PUSH_DATA (push, 1);
-	BEGIN_NVC0(push, NVC0_M2MF(EXEC), 1);
-	PUSH_DATA (push, 0x00100111);
-	BEGIN_NIC0(push, NVC0_M2MF(DATA), 16);
+	PUSH_DATAu(push, pNv->tesla_scratch, TIC_OFFSET, 16);
 	if (id == FOURCC_YV12 || id == FOURCC_I420) {
 	PUSH_DATA (push, NV50TIC_0_0_MAPA_C0 | NV50TIC_0_0_TYPEA_UNORM |
 			 NV50TIC_0_0_MAPB_ZERO | NV50TIC_0_0_TYPEB_UNORM |
@@ -180,15 +172,7 @@ nvc0_xv_image_put(ScrnInfoPtr pScrn,
 	PUSH_DATA (push, 0x00000000);
 	}
 
-	BEGIN_NVC0(push, NVC0_M2MF(OFFSET_OUT_HIGH), 2);
-	PUSH_DATA (push, (pNv->tesla_scratch->offset + TSC_OFFSET) >> 32);
-	PUSH_DATA (push, (pNv->tesla_scratch->offset + TSC_OFFSET));
-	BEGIN_NVC0(push, NVC0_M2MF(LINE_LENGTH_IN), 2);
-	PUSH_DATA (push, 16 * 4);
-	PUSH_DATA (push, 1);
-	BEGIN_NVC0(push, NVC0_M2MF(EXEC), 1);
-	PUSH_DATA (push, 0x00100111);
-	BEGIN_NIC0(push, NVC0_M2MF(DATA), 16);
+	PUSH_DATAu(push, pNv->tesla_scratch, TSC_OFFSET, 16);
 	PUSH_DATA (push, NV50TSC_1_0_WRAPS_CLAMP_TO_EDGE |
 			 NV50TSC_1_0_WRAPT_CLAMP_TO_EDGE |
 			 NV50TSC_1_0_WRAPR_CLAMP_TO_EDGE);
