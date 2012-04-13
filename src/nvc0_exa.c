@@ -779,16 +779,11 @@ NVC0EXAPrepareComposite(int op,
 
 	if (!NVC0EXATexture(pspix, pspict, 0))
 		NOUVEAU_FALLBACK("src picture invalid\n");
-	BEGIN_NVC0(push, NVC0_3D(BIND_TIC(4)), 1);
-	PUSH_DATA (push, (0 << 9) | (0 << 1) | NVC0_3D_BIND_TIC_ACTIVE);
 
 	if (pmpict) {
 		if (!NVC0EXATexture(pmpix, pmpict, 1))
 			NOUVEAU_FALLBACK("mask picture invalid\n");
 		state->have_mask = TRUE;
-
-		BEGIN_NVC0(push, NVC0_3D(BIND_TIC(4)), 1);
-		PUSH_DATA (push, (1 << 9) | (1 << 1) | NVC0_3D_BIND_TIC_ACTIVE);
 
 		BEGIN_NVC0(push, NVC0_3D(SP_START_ID(5)), 1);
 		if (pdpict->format == PICT_a8) {
@@ -806,9 +801,6 @@ NVC0EXAPrepareComposite(int op,
 		}
 	} else {
 		state->have_mask = FALSE;
-
-		BEGIN_NVC0(push, NVC0_3D(BIND_TIC(4)), 1);
-		PUSH_DATA (push, (1 << 1) | 0);
 
 		BEGIN_NVC0(push, NVC0_3D(SP_START_ID(5)), 1);
 		if (pdpict->format == PICT_a8)

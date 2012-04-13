@@ -208,11 +208,6 @@ nvc0_xv_image_put(ScrnInfoPtr pScrn,
 	BEGIN_NVC0(push, NVC0_3D(TEX_CACHE_CTL), 1);
 	PUSH_DATA (push, 0);
 
-	BEGIN_NVC0(push, NVC0_3D(BIND_TIC(4)), 1);
-	PUSH_DATA (push, 1);
-	BEGIN_NVC0(push, NVC0_3D(BIND_TIC(4)), 1);
-	PUSH_DATA (push, 0x203);
-
 	if (0 && pPriv->SyncToVBlank) {
 		NV50SyncToVBlank(ppix, dstBox);
 	}

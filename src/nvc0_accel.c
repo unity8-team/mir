@@ -165,9 +165,6 @@ NVAccelInit3D_NVC0(ScrnInfoPtr pScrn)
 	BEGIN_NVC0(push, SUBC_3D(0x1590), 1);
 	PUSH_DATA (push, 0);
 
-	BEGIN_NVC0(push, NVC0_3D(LINKED_TSC), 1);
-	PUSH_DATA (push, 1);
-
 	BEGIN_NVC0(push, NVC0_3D(VIEWPORT_TRANSFORM_EN), 1);
 	PUSH_DATA (push, 0);
 	BEGIN_NVC0(push, NVC0_3D(VIEW_VOLUME_CLIP_CTRL), 1);
@@ -184,8 +181,13 @@ NVAccelInit3D_NVC0(ScrnInfoPtr pScrn)
 	PUSH_DATA (push, (bo->offset + TSC_OFFSET) >> 32);
 	PUSH_DATA (push, (bo->offset + TSC_OFFSET));
 	PUSH_DATA (push, 0);
+	BEGIN_NVC0(push, NVC0_3D(LINKED_TSC), 1);
+	PUSH_DATA (push, 1);
 	BEGIN_NVC0(push, NVC0_3D(TEX_LIMITS(4)), 1);
 	PUSH_DATA (push, 0x54);
+	BEGIN_NIC0(push, NVC0_3D(BIND_TIC(4)), 2);
+	PUSH_DATA (push, (0 << 9) | (0 << 1) | NVC0_3D_BIND_TIC_ACTIVE);
+	PUSH_DATA (push, (1 << 9) | (1 << 1) | NVC0_3D_BIND_TIC_ACTIVE);
 
 	BEGIN_NVC0(push, NVC0_3D(BLEND_ENABLE(0)), 8);
 	PUSH_DATA (push, 1);
