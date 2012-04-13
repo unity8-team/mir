@@ -9,6 +9,16 @@
 #include "hwdefs/nv50_texture.h"
 #include "hwdefs/nv_3ddefs.xml.h"
 
+/* subchannel assignments */
+#define SUBC_M2MF(mthd)  0, (mthd)
+#define NVC0_M2MF(mthd)  SUBC_M2MF(NVC0_M2MF_##mthd)
+#define SUBC_NVSW(mthd)  1, (mthd)
+#define SUBC_2D(mthd)    2, (mthd)
+#define NV50_2D(mthd)    SUBC_2D(NV50_2D_##mthd)
+#define NVC0_2D(mthd)    SUBC_2D(NVC0_2D_##mthd)
+#define SUBC_3D(mthd)    7, (mthd)
+#define NVC0_3D(mthd)    SUBC_3D(NVC0_3D_##mthd)
+
 /* scratch buffer offsets */
 #define CODE_OFFSET 0x00000 /* Code */
 #define TIC_OFFSET  0x02000 /* Texture Image Control */
@@ -40,21 +50,21 @@
 static __inline__ void
 VTX1s(NVPtr pNv, float sx, float sy, unsigned dx, unsigned dy)
 {
-	struct nouveau_channel *chan = pNv->chan;
+	struct nouveau_pushbuf *push = pNv->pushbuf;
 
-	BEGIN_NVC0(chan, NVC0_3D(VTX_ATTR_DEFINE), 3);
-	OUT_RING  (chan, VTX_ATTR(1, 2, FLOAT, 4));
-	OUT_RINGf (chan, sx);
-	OUT_RINGf (chan, sy);
+	BEGIN_NVC0(push, NVC0_3D(VTX_ATTR_DEFINE), 3);
+	PUSH_DATA (push, VTX_ATTR(1, 2, FLOAT, 4));
+	PUSH_DATAf(push, sx);
+	PUSH_DATAf(push, sy);
 #if 1
-	BEGIN_NVC0(chan, NVC0_3D(VTX_ATTR_DEFINE), 2);
-	OUT_RING  (chan, VTX_ATTR(0, 2, USCALED, 2));
-	OUT_RING  (chan, (dy << 16) | dx);
+	BEGIN_NVC0(push, NVC0_3D(VTX_ATTR_DEFINE), 2);
+	PUSH_DATA (push, VTX_ATTR(0, 2, USCALED, 2));
+	PUSH_DATA (push, (dy << 16) | dx);
 #else
-	BEGIN_NVC0(chan, NVC0_3D(VTX_ATTR_DEFINE), 3);
-	OUT_RING  (chan, VTX_ATTR(0, 2, FLOAT, 4));
-	OUT_RINGf (chan, (float)dx);
-	OUT_RINGf (chan, (float)dy);
+	BEGIN_NVC0(push, NVC0_3D(VTX_ATTR_DEFINE), 3);
+	PUSH_DATA (push, VTX_ATTR(0, 2, FLOAT, 4));
+	PUSH_DATAf(push, (float)dx);
+	PUSH_DATAf(push, (float)dy);
 #endif
 }
 
@@ -62,25 +72,25 @@ static __inline__ void
 VTX2s(NVPtr pNv, float s1x, float s1y, float s2x, float s2y,
       unsigned dx, unsigned dy)
 {
-	struct nouveau_channel *chan = pNv->chan;
+	struct nouveau_pushbuf *push = pNv->pushbuf;
 
-	BEGIN_NVC0(chan, NVC0_3D(VTX_ATTR_DEFINE), 3);
-	OUT_RING  (chan, VTX_ATTR(1, 2, FLOAT, 4));
-	OUT_RINGf (chan, s1x);
-	OUT_RINGf (chan, s1y);
-	BEGIN_NVC0(chan, NVC0_3D(VTX_ATTR_DEFINE), 3);
-	OUT_RING  (chan, VTX_ATTR(2, 2, FLOAT, 4));
-	OUT_RINGf (chan, s2x);
-	OUT_RINGf (chan, s2y);
+	BEGIN_NVC0(push, NVC0_3D(VTX_ATTR_DEFINE), 3);
+	PUSH_DATA (push, VTX_ATTR(1, 2, FLOAT, 4));
+	PUSH_DATAf(push, s1x);
+	PUSH_DATAf(push, s1y);
+	BEGIN_NVC0(push, NVC0_3D(VTX_ATTR_DEFINE), 3);
+	PUSH_DATA (push, VTX_ATTR(2, 2, FLOAT, 4));
+	PUSH_DATAf(push, s2x);
+	PUSH_DATAf(push, s2y);
 #if 1
-	BEGIN_NVC0(chan, NVC0_3D(VTX_ATTR_DEFINE), 2);
-	OUT_RING  (chan, VTX_ATTR(0, 2, USCALED, 2));
-	OUT_RING  (chan, (dy << 16) | dx);
+	BEGIN_NVC0(push, NVC0_3D(VTX_ATTR_DEFINE), 2);
+	PUSH_DATA (push, VTX_ATTR(0, 2, USCALED, 2));
+	PUSH_DATA (push, (dy << 16) | dx);
 #else
-	BEGIN_NVC0(chan, NVC0_3D(VTX_ATTR_DEFINE), 3);
-	OUT_RING  (chan, VTX_ATTR(0, 2, FLOAT, 4));
-	OUT_RINGf (chan, (float)dx);
-	OUT_RINGf (chan, (float)dy);
+	BEGIN_NVC0(push, NVC0_3D(VTX_ATTR_DEFINE), 3);
+	PUSH_DATA (push, VTX_ATTR(0, 2, FLOAT, 4));
+	PUSH_DATAf(push, (float)dx);
+	PUSH_DATAf(push, (float)dy);
 #endif
 }
 

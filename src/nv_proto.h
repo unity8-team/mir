@@ -142,6 +142,8 @@ int NV40SetTexturePortAttribute(ScrnInfoPtr, Atom, INT32, pointer);
 
 /* in nv50_accel.c */
 void NV50SyncToVBlank(PixmapPtr ppix, BoxPtr box);
+Bool NVAccelInitM2MF_NV50(ScrnInfoPtr pScrn);
+Bool NVAccelInit2D_NV50(ScrnInfoPtr pScrn);
 Bool NVAccelInitNV50TCL(ScrnInfoPtr pScrn);
 
 /* in nvc0_accel.c */

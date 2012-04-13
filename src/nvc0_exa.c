@@ -39,10 +39,10 @@ struct nvc0_exa_state {
 
 static struct nvc0_exa_state exa_state;
 
-#define NVC0EXA_LOCALS(p)                                              \
-	ScrnInfoPtr pScrn = xf86Screens[(p)->drawable.pScreen->myNum]; \
-	NVPtr pNv = NVPTR(pScrn);                                      \
-	struct nouveau_channel *chan = pNv->chan; (void)chan;          \
+#define NVC0EXA_LOCALS(p)                                                      \
+	ScrnInfoPtr pScrn = xf86Screens[(p)->drawable.pScreen->myNum];         \
+	NVPtr pNv = NVPTR(pScrn);                                              \
+	struct nouveau_pushbuf *push = pNv->pushbuf; (void)push;               \
 	struct nvc0_exa_state *state = &exa_state; (void)state
 
 #define BF(f) NV50_BLEND_FACTOR_##f
@@ -96,53 +96,49 @@ static void NVC0EXASetClip(PixmapPtr ppix, int x, int y, int w, int h)
 {
 	NVC0EXA_LOCALS(ppix);
 
-	BEGIN_NVC0(chan, NV50_2D(CLIP_X), 4);
-	OUT_RING  (chan, x);
-	OUT_RING  (chan, y);
-	OUT_RING  (chan, w);
-	OUT_RING  (chan, h);
+	BEGIN_NVC0(push, NV50_2D(CLIP_X), 4);
+	PUSH_DATA (push, x);
+	PUSH_DATA (push, y);
+	PUSH_DATA (push, w);
+	PUSH_DATA (push, h);
 }
 
-static Bool
-NVC0EXAAcquireSurface2D(PixmapPtr ppix, int is_src)
+static void
+NVC0EXAAcquireSurface2D(PixmapPtr ppix, int is_src, uint32_t fmt)
 {
 	NVC0EXA_LOCALS(ppix);
 	struct nouveau_bo *bo = nouveau_pixmap_bo(ppix);
 	int mthd = is_src ? NV50_2D_SRC_FORMAT : NV50_2D_DST_FORMAT;
-	uint32_t fmt, bo_flags;
-
-	if (!NVC0EXA2DSurfaceFormat(ppix, &fmt))
-		return FALSE;
+	uint32_t bo_flags;
 
 	bo_flags  = NOUVEAU_BO_VRAM;
 	bo_flags |= is_src ? NOUVEAU_BO_RD : NOUVEAU_BO_WR;
 
 	if (!nv50_style_tiled_pixmap(ppix)) {
-		BEGIN_NVC0(chan, SUBC_2D(mthd), 2);
-		OUT_RING  (chan, fmt);
-		OUT_RING  (chan, 1);
-		BEGIN_NVC0(chan, SUBC_2D(mthd + 0x14), 1);
-		OUT_RING  (chan, (uint32_t)exaGetPixmapPitch(ppix));
+		BEGIN_NVC0(push, SUBC_2D(mthd), 2);
+		PUSH_DATA (push, fmt);
+		PUSH_DATA (push, 1);
+		BEGIN_NVC0(push, SUBC_2D(mthd + 0x14), 1);
+		PUSH_DATA (push, (uint32_t)exaGetPixmapPitch(ppix));
 	} else {
-		BEGIN_NVC0(chan, SUBC_2D(mthd), 5);
-		OUT_RING  (chan, fmt);
-		OUT_RING  (chan, 0);
-		OUT_RING  (chan, bo->tile_mode);
-		OUT_RING  (chan, 1);
-		OUT_RING  (chan, 0);
+		BEGIN_NVC0(push, SUBC_2D(mthd), 5);
+		PUSH_DATA (push, fmt);
+		PUSH_DATA (push, 0);
+		PUSH_DATA (push, bo->config.nvc0.tile_mode);
+		PUSH_DATA (push, 1);
+		PUSH_DATA (push, 0);
 	}
 
-	BEGIN_NVC0(chan, SUBC_2D(mthd + 0x18), 4);
-	OUT_RING  (chan, ppix->drawable.width);
-	OUT_RING  (chan, ppix->drawable.height);
-	if (OUT_RELOCh(chan, bo, 0, bo_flags) ||
-	    OUT_RELOCl(chan, bo, 0, bo_flags))
-		return FALSE;
+	BEGIN_NVC0(push, SUBC_2D(mthd + 0x18), 4);
+	PUSH_DATA (push, ppix->drawable.width);
+	PUSH_DATA (push, ppix->drawable.height);
+	PUSH_DATA (push, bo->offset >> 32);
+	PUSH_DATA (push, bo->offset);
 
 	if (is_src == 0)
 		NVC0EXASetClip(ppix, 0, 0, ppix->drawable.width, ppix->drawable.height);
 
-	return TRUE;
+	PUSH_REFN (push, bo, bo_flags);
 }
 
 static void
@@ -150,11 +146,11 @@ NVC0EXASetPattern(PixmapPtr pdpix, int col0, int col1, int pat0, int pat1)
 {
 	NVC0EXA_LOCALS(pdpix);
 
-	BEGIN_NVC0(chan, NV50_2D(PATTERN_COLOR(0)), 4);
-	OUT_RING  (chan, col0);
-	OUT_RING  (chan, col1);
-	OUT_RING  (chan, pat0);
-	OUT_RING  (chan, pat1);
+	BEGIN_NVC0(push, NV50_2D(PATTERN_COLOR(0)), 4);
+	PUSH_DATA (push, col0);
+	PUSH_DATA (push, col1);
+	PUSH_DATA (push, pat0);
+	PUSH_DATA (push, pat1);
 }
 
 static void
@@ -168,26 +164,26 @@ NVC0EXASetROP(PixmapPtr pdpix, int alu, Pixel planemask)
 	else
 		rop = NVROP[alu].copy;
 
-	BEGIN_NVC0(chan, NV50_2D(OPERATION), 1);
+	BEGIN_NVC0(push, NV50_2D(OPERATION), 1);
 	if (alu == GXcopy && EXA_PM_IS_SOLID(&pdpix->drawable, planemask)) {
-		OUT_RING  (chan, NV50_2D_OPERATION_SRCCOPY);
+		PUSH_DATA (push, NV50_2D_OPERATION_SRCCOPY);
 		return;
 	} else {
-		OUT_RING  (chan, NV50_2D_OPERATION_ROP);
+		PUSH_DATA (push, NV50_2D_OPERATION_ROP);
 	}
 
-	BEGIN_NVC0(chan, NV50_2D(PATTERN_COLOR_FORMAT), 2);
+	BEGIN_NVC0(push, NV50_2D(PATTERN_COLOR_FORMAT), 2);
 	switch (pdpix->drawable.bitsPerPixel) {
-	case  8: OUT_RING  (chan, 3); break;
-	case 15: OUT_RING  (chan, 1); break;
-	case 16: OUT_RING  (chan, 0); break;
+	case  8: PUSH_DATA (push, 3); break;
+	case 15: PUSH_DATA (push, 1); break;
+	case 16: PUSH_DATA (push, 0); break;
 	case 24:
 	case 32:
 	default:
-		 OUT_RING  (chan, 2);
+		 PUSH_DATA (push, 2);
 		 break;
 	}
-	OUT_RING  (chan, 1);
+	PUSH_DATA (push, 1);
 
 	/* There are 16 ALUs.
 	 * 0-15: copy
@@ -203,20 +199,10 @@ NVC0EXASetROP(PixmapPtr pdpix, int alu, Pixel planemask)
 	}
 
 	if (pNv->currentRop != alu) {
-		BEGIN_NVC0(chan, NV50_2D(ROP), 1);
-		OUT_RING  (chan, rop);
+		BEGIN_NVC0(push, NV50_2D(ROP), 1);
+		PUSH_DATA (push, rop);
 		pNv->currentRop = alu;
 	}
-}
-
-static void
-NVC0EXAStateSolidResubmit(struct nouveau_channel *chan)
-{
-	ScrnInfoPtr pScrn = chan->user_private;
-	NVPtr pNv = NVPTR(pScrn);
-
-	NVC0EXAPrepareSolid(pNv->pdpix, pNv->alu, pNv->planemask,
-			    pNv->fg_colour);
 }
 
 Bool
@@ -228,26 +214,24 @@ NVC0EXAPrepareSolid(PixmapPtr pdpix, int alu, Pixel planemask, Pixel fg)
 	if (!NVC0EXA2DSurfaceFormat(pdpix, &fmt))
 		NOUVEAU_FALLBACK("rect format\n");
 
-	if (MARK_RING(chan, 64, 4))
-		NOUVEAU_FALLBACK("ring space\n");
+	if (!PUSH_SPACE(push, 64))
+		NOUVEAU_FALLBACK("space\n");
+	PUSH_RESET(push);
 
-	if (!NVC0EXAAcquireSurface2D(pdpix, 0)) {
-		MARK_UNDO(chan);
-		NOUVEAU_FALLBACK("dest pixmap\n");
-	}
-
+	NVC0EXAAcquireSurface2D(pdpix, 0, fmt);
 	NVC0EXASetROP(pdpix, alu, planemask);
 
-	BEGIN_NVC0(chan, NV50_2D(DRAW_SHAPE), 3);
-	OUT_RING  (chan, NV50_2D_DRAW_SHAPE_RECTANGLES);
-	OUT_RING  (chan, fmt);
-	OUT_RING  (chan, fg);
+	BEGIN_NVC0(push, NV50_2D(DRAW_SHAPE), 3);
+	PUSH_DATA (push, NV50_2D_DRAW_SHAPE_RECTANGLES);
+	PUSH_DATA (push, fmt);
+	PUSH_DATA (push, fg);
 
-	pNv->pdpix = pdpix;
-	pNv->alu = alu;
-	pNv->planemask = planemask;
-	pNv->fg_colour = fg;
-	chan->flush_notify = NVC0EXAStateSolidResubmit;
+	nouveau_pushbuf_bufctx(push, pNv->bufctx);
+	if (nouveau_pushbuf_validate(push)) {
+		nouveau_pushbuf_bufctx(push, NULL);
+		NOUVEAU_FALLBACK("validate\n");
+	}
+
 	return TRUE;
 }
 
@@ -256,33 +240,24 @@ NVC0EXASolid(PixmapPtr pdpix, int x1, int y1, int x2, int y2)
 {
 	NVC0EXA_LOCALS(pdpix);
 
-	WAIT_RING (chan, 5);
-	BEGIN_NVC0(chan, NV50_2D(DRAW_POINT32_X(0)), 4);
-	OUT_RING  (chan, x1);
-	OUT_RING  (chan, y1);
-	OUT_RING  (chan, x2);
-	OUT_RING  (chan, y2);
+	if (!PUSH_SPACE(push, 8))
+		return;
+
+	BEGIN_NVC0(push, NV50_2D(DRAW_POINT32_X(0)), 4);
+	PUSH_DATA (push, x1);
+	PUSH_DATA (push, y1);
+	PUSH_DATA (push, x2);
+	PUSH_DATA (push, y2);
 
 	if ((x2 - x1) * (y2 - y1) >= 512)
-		FIRE_RING (chan);
+		PUSH_KICK(push);
 }
 
 void
 NVC0EXADoneSolid(PixmapPtr pdpix)
 {
 	NVC0EXA_LOCALS(pdpix);
-
-	chan->flush_notify = NULL;
-}
-
-static void
-NVC0EXAStateCopyResubmit(struct nouveau_channel *chan)
-{
-	ScrnInfoPtr pScrn = chan->user_private;
-	NVPtr pNv = NVPTR(pScrn);
-
-	NVC0EXAPrepareCopy(pNv->pspix, pNv->pdpix, 0, 0, pNv->alu,
-			   pNv->planemask);
+	nouveau_pushbuf_bufctx(push, NULL);
 }
 
 Bool
@@ -290,27 +265,27 @@ NVC0EXAPrepareCopy(PixmapPtr pspix, PixmapPtr pdpix, int dx, int dy,
 		   int alu, Pixel planemask)
 {
 	NVC0EXA_LOCALS(pdpix);
+	uint32_t src, dst;
 
-	if (MARK_RING(chan, 64, 4))
-		NOUVEAU_FALLBACK("ring space\n");
+	if (!NVC0EXA2DSurfaceFormat(pspix, &src))
+		NOUVEAU_FALLBACK("src format\n");
+	if (!NVC0EXA2DSurfaceFormat(pdpix, &dst))
+		NOUVEAU_FALLBACK("dst format\n");
 
-	if (!NVC0EXAAcquireSurface2D(pspix, 1)) {
-		MARK_UNDO(chan);
-		NOUVEAU_FALLBACK("src pixmap\n");
-	}
+	if (!PUSH_SPACE(push, 64))
+		NOUVEAU_FALLBACK("space\n");
+	PUSH_RESET(push);
 
-	if (!NVC0EXAAcquireSurface2D(pdpix, 0)) {
-		MARK_UNDO(chan);
-		NOUVEAU_FALLBACK("dest pixmap\n");
-	}
-
+	NVC0EXAAcquireSurface2D(pspix, 1, src);
+	NVC0EXAAcquireSurface2D(pdpix, 0, dst);
 	NVC0EXASetROP(pdpix, alu, planemask);
 
-	pNv->pspix = pspix;
-	pNv->pdpix = pdpix;
-	pNv->alu = alu;
-	pNv->planemask = planemask;
-	chan->flush_notify = NVC0EXAStateCopyResubmit;
+	nouveau_pushbuf_bufctx(push, pNv->bufctx);
+	if (nouveau_pushbuf_validate(push)) {
+		nouveau_pushbuf_bufctx(push, NULL);
+		NOUVEAU_FALLBACK("validate\n");
+	}
+
 	return TRUE;
 }
 
@@ -321,48 +296,36 @@ NVC0EXACopy(PixmapPtr pdpix, int srcX , int srcY,
 {
 	NVC0EXA_LOCALS(pdpix);
 
-	WAIT_RING (chan, 17);
-	BEGIN_NVC0(chan, SUBC_2D(NV50_GRAPH_SERIALIZE), 1);
-	OUT_RING  (chan, 0);
-	BEGIN_NVC0(chan, SUBC_2D(0x088c), 1);
-	OUT_RING  (chan, 0);
-	BEGIN_NVC0(chan, NV50_2D(BLIT_DST_X), 12);
-	OUT_RING  (chan, dstX);
-	OUT_RING  (chan, dstY);
-	OUT_RING  (chan, width);
-	OUT_RING  (chan, height);
-	OUT_RING  (chan, 0); /* DU,V_DX,Y_FRACT,INT */
-	OUT_RING  (chan, 1);
-	OUT_RING  (chan, 0);
-	OUT_RING  (chan, 1);
-	OUT_RING  (chan, 0); /* BLIT_SRC_X,Y_FRACT,INT */
-	OUT_RING  (chan, srcX);
-	OUT_RING  (chan, 0);
-	OUT_RING  (chan, srcY);
+	if (!PUSH_SPACE(push, 32))
+		return;
+
+	BEGIN_NVC0(push, SUBC_2D(NV50_GRAPH_SERIALIZE), 1);
+	PUSH_DATA (push, 0);
+	BEGIN_NVC0(push, SUBC_2D(0x088c), 1);
+	PUSH_DATA (push, 0);
+	BEGIN_NVC0(push, NV50_2D(BLIT_DST_X), 12);
+	PUSH_DATA (push, dstX);
+	PUSH_DATA (push, dstY);
+	PUSH_DATA (push, width);
+	PUSH_DATA (push, height);
+	PUSH_DATA (push, 0); /* DU,V_DX,Y_FRACT,INT */
+	PUSH_DATA (push, 1);
+	PUSH_DATA (push, 0);
+	PUSH_DATA (push, 1);
+	PUSH_DATA (push, 0); /* BLIT_SRC_X,Y_FRACT,INT */
+	PUSH_DATA (push, srcX);
+	PUSH_DATA (push, 0);
+	PUSH_DATA (push, srcY);
 
 	if (width * height >= 512)
-		FIRE_RING (chan);
+		PUSH_KICK(push);
 }
 
 void
 NVC0EXADoneCopy(PixmapPtr pdpix)
 {
 	NVC0EXA_LOCALS(pdpix);
-
-	chan->flush_notify = NULL;
-}
-
-static void
-NVC0EXAStateSIFCResubmit(struct nouveau_channel *chan)
-{
-	ScrnInfoPtr pScrn = chan->user_private;
-	NVPtr pNv = NVPTR(pScrn);
-	
-	if (MARK_RING(pNv->chan, 32, 2))
-		return;
-
-	if (!NVC0EXAAcquireSurface2D(pNv->pdpix, 0))
-		MARK_UNDO(pNv->chan);
+	nouveau_pushbuf_bufctx(push, NULL);
 }
 
 Bool
@@ -373,42 +336,38 @@ NVC0EXAUploadSIFC(const char *src, int src_pitch,
 	ScreenPtr pScreen = pdpix->drawable.pScreen;
 	int line_dwords = (w * cpp + 3) / 4;
 	uint32_t sifc_fmt;
+	Bool ret = FALSE;
 
 	if (!NVC0EXA2DSurfaceFormat(pdpix, &sifc_fmt))
 		NOUVEAU_FALLBACK("hostdata format\n");
 
-	if (MARK_RING(chan, 64, 2))
-		return FALSE;
+	if (!PUSH_SPACE(push, 64))
+		NOUVEAU_FALLBACK("pushbuf\n");
+	PUSH_RESET(push);
 
-	if (!NVC0EXAAcquireSurface2D(pdpix, 0)) {
-		MARK_UNDO(chan);
-		NOUVEAU_FALLBACK("dest pixmap\n");
-	}
-
-	/* If the pitch isn't aligned to a dword you can
-	 * get corruption at the end of a line.
-	 */
+	NVC0EXAAcquireSurface2D(pdpix, 0, sifc_fmt);
 	NVC0EXASetClip(pdpix, x, y, w, h);
 
-	BEGIN_NVC0(chan, NV50_2D(OPERATION), 1);
-	OUT_RING  (chan, NV50_2D_OPERATION_SRCCOPY);
-	BEGIN_NVC0(chan, NV50_2D(SIFC_BITMAP_ENABLE), 2);
-	OUT_RING  (chan, 0);
-	OUT_RING  (chan, sifc_fmt);
-	BEGIN_NVC0(chan, NV50_2D(SIFC_WIDTH), 10);
-	OUT_RING  (chan, (line_dwords * 4) / cpp);
-	OUT_RING  (chan, h);
-	OUT_RING  (chan, 0); /* SIFC_DX,Y_DU,V_FRACT,INT */
-	OUT_RING  (chan, 1);
-	OUT_RING  (chan, 0);
-	OUT_RING  (chan, 1);
-	OUT_RING  (chan, 0); /* SIFC_DST_X,Y_FRACT,INT */
-	OUT_RING  (chan, x);
-	OUT_RING  (chan, 0);
-	OUT_RING  (chan, y);
+	BEGIN_NVC0(push, NV50_2D(OPERATION), 1);
+	PUSH_DATA (push, NV50_2D_OPERATION_SRCCOPY);
+	BEGIN_NVC0(push, NV50_2D(SIFC_BITMAP_ENABLE), 2);
+	PUSH_DATA (push, 0);
+	PUSH_DATA (push, sifc_fmt);
+	BEGIN_NVC0(push, NV50_2D(SIFC_WIDTH), 10);
+	PUSH_DATA (push, (line_dwords * 4) / cpp);
+	PUSH_DATA (push, h);
+	PUSH_DATA (push, 0); /* SIFC_DX,Y_DU,V_FRACT,INT */
+	PUSH_DATA (push, 1);
+	PUSH_DATA (push, 0);
+	PUSH_DATA (push, 1);
+	PUSH_DATA (push, 0); /* SIFC_DST_X,Y_FRACT,INT */
+	PUSH_DATA (push, x);
+	PUSH_DATA (push, 0);
+	PUSH_DATA (push, y);
 
-	pNv->pdpix = pdpix;
-	chan->flush_notify = NVC0EXAStateSIFCResubmit;
+	nouveau_pushbuf_bufctx(push, pNv->bufctx);
+	if (nouveau_pushbuf_validate(push))
+		goto out;
 
 	while (h--) {
 		const char *ptr = src;
@@ -417,9 +376,10 @@ NVC0EXAUploadSIFC(const char *src, int src_pitch,
 		while (count) {
 			int size = count > 1792 ? 1792 : count;
 
-			WAIT_RING (chan, size + 1);
-			BEGIN_NIC0(chan, NV50_2D(SIFC_DATA), size);
-			OUT_RINGp (chan, ptr, size);
+			if (!PUSH_SPACE(push, size + 1))
+				goto out;
+			BEGIN_NIC0(push, NV50_2D(SIFC_DATA), size);
+			PUSH_DATAp(push, ptr, size);
 
 			ptr += size * 4;
 			count -= size;
@@ -428,11 +388,12 @@ NVC0EXAUploadSIFC(const char *src, int src_pitch,
 		src += src_pitch;
 	}
 
-	chan->flush_notify = NULL;
-
+	ret = TRUE;
+out:
+	nouveau_pushbuf_bufctx(push, NULL);
 	if (pdpix == pScreen->GetScreenPixmap(pScreen))
-		FIRE_RING(chan);
-	return TRUE;
+		PUSH_KICK(push);
+	return ret;
 }
 
 static Bool
@@ -495,17 +456,15 @@ NVC0EXARenderTarget(PixmapPtr ppix, PicturePtr ppict)
 		NOUVEAU_FALLBACK("invalid picture format\n");
 	}
 
-	BEGIN_NVC0(chan, NVC0_3D(RT_ADDRESS_HIGH(0)), 8);
-	if (OUT_RELOCh(chan, bo, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR) ||
-	    OUT_RELOCl(chan, bo, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR))
-		return FALSE;
-	OUT_RING  (chan, ppix->drawable.width);
-	OUT_RING  (chan, ppix->drawable.height);
-	OUT_RING  (chan, format);
-	OUT_RING  (chan, bo->tile_mode);
-	OUT_RING  (chan, 0x00000001);
-	OUT_RING  (chan, 0x00000000);
-
+	BEGIN_NVC0(push, NVC0_3D(RT_ADDRESS_HIGH(0)), 8);
+	PUSH_DATA (push, bo->offset >> 32);
+	PUSH_DATA (push, bo->offset);
+	PUSH_DATA (push, ppix->drawable.width);
+	PUSH_DATA (push, ppix->drawable.height);
+	PUSH_DATA (push, format);
+	PUSH_DATA (push, bo->config.nvc0.tile_mode);
+	PUSH_DATA (push, 0x00000001);
+	PUSH_DATA (push, 0x00000000);
 	return TRUE;
 }
 
@@ -581,174 +540,156 @@ NVC0EXATexture(PixmapPtr ppix, PicturePtr ppict, unsigned unit)
 {
 	NVC0EXA_LOCALS(ppix);
 	struct nouveau_bo *bo = nouveau_pixmap_bo(ppix);
-	const unsigned tcb_flags = NOUVEAU_BO_RDWR | NOUVEAU_BO_VRAM;
+	uint64_t tic = pNv->tesla_scratch->offset + TIC_OFFSET + (unit * 32);
+	uint64_t tsc = pNv->tesla_scratch->offset + TSC_OFFSET + (unit * 32);
 	uint32_t mode;
 
 	/* XXX: maybe add support for linear textures at some point */
 	if (!nv50_style_tiled_pixmap(ppix))
 		NOUVEAU_FALLBACK("pixmap is scanout buffer\n");
 
-	BEGIN_NVC0(chan, NVC0_3D(TIC_ADDRESS_HIGH), 3);
-	if (OUT_RELOCh(chan, pNv->tesla_scratch, TIC_OFFSET, tcb_flags) ||
-	    OUT_RELOCl(chan, pNv->tesla_scratch, TIC_OFFSET, tcb_flags))
-		return FALSE;
-	OUT_RING  (chan, 15);
-
-	BEGIN_NVC0(chan, NVC0_M2MF(OFFSET_OUT_HIGH), 2);
-	if (OUT_RELOCh(chan, pNv->tesla_scratch,
-		       TIC_OFFSET + unit * 32, tcb_flags) ||
-	    OUT_RELOCl(chan, pNv->tesla_scratch,
-		       TIC_OFFSET + unit * 32, tcb_flags))
-		return FALSE;
-	BEGIN_NVC0(chan, NVC0_M2MF(LINE_LENGTH_IN), 2);
-	OUT_RING  (chan, 8 * 4);
-	OUT_RING  (chan, 1);
-	BEGIN_NVC0(chan, NVC0_M2MF(EXEC), 1);
-	OUT_RING  (chan, 0x100111);
-	BEGIN_NIC0(chan, NVC0_M2MF(DATA), 8);
+	BEGIN_NVC0(push, NVC0_M2MF(OFFSET_OUT_HIGH), 2);
+	PUSH_DATA (push, tic >> 32);
+	PUSH_DATA (push, tic);
+	BEGIN_NVC0(push, NVC0_M2MF(LINE_LENGTH_IN), 2);
+	PUSH_DATA (push, 8 * 4);
+	PUSH_DATA (push, 1);
+	BEGIN_NVC0(push, NVC0_M2MF(EXEC), 1);
+	PUSH_DATA (push, 0x100111);
+	BEGIN_NIC0(push, NVC0_M2MF(DATA), 8);
 
 	switch (ppict->format) {
 	case PICT_a8r8g8b8:
-		OUT_RING(chan, _(B_C0, G_C1, R_C2, A_C3, 8_8_8_8));
+		PUSH_DATA (push, _(B_C0, G_C1, R_C2, A_C3, 8_8_8_8));
 		break;
 	case PICT_a8b8g8r8:
-		OUT_RING(chan, _(R_C0, G_C1, B_C2, A_C3, 8_8_8_8));
+		PUSH_DATA (push, _(R_C0, G_C1, B_C2, A_C3, 8_8_8_8));
 		break;
 	case PICT_x8r8g8b8:
-		OUT_RING(chan, _(B_C0, G_C1, R_C2, A_ONE, 8_8_8_8));
+		PUSH_DATA (push, _(B_C0, G_C1, R_C2, A_ONE, 8_8_8_8));
 		break;
 	case PICT_x8b8g8r8:
-		OUT_RING(chan, _(R_C0, G_C1, B_C2, A_ONE, 8_8_8_8));
+		PUSH_DATA (push, _(R_C0, G_C1, B_C2, A_ONE, 8_8_8_8));
 		break;
 	case PICT_r5g6b5:
-		OUT_RING(chan, _(B_C0, G_C1, R_C2, A_ONE, 5_6_5));
+		PUSH_DATA (push, _(B_C0, G_C1, R_C2, A_ONE, 5_6_5));
 		break;
 	case PICT_a8:
-		OUT_RING(chan, _(A_C0, B_ZERO, G_ZERO, R_ZERO, 8));
+		PUSH_DATA (push, _(A_C0, B_ZERO, G_ZERO, R_ZERO, 8));
 		break;
 	case PICT_x1r5g5b5:
-		OUT_RING(chan, _(B_C0, G_C1, R_C2, A_ONE, 1_5_5_5));
+		PUSH_DATA (push, _(B_C0, G_C1, R_C2, A_ONE, 1_5_5_5));
 		break;
 	case PICT_x1b5g5r5:
-		OUT_RING(chan, _(R_C0, G_C1, B_C2, A_ONE, 1_5_5_5));
+		PUSH_DATA (push, _(R_C0, G_C1, B_C2, A_ONE, 1_5_5_5));
 		break;
 	case PICT_a1r5g5b5:
-		OUT_RING(chan, _(B_C0, G_C1, R_C2, A_C3, 1_5_5_5));
+		PUSH_DATA (push, _(B_C0, G_C1, R_C2, A_C3, 1_5_5_5));
 		break;
 	case PICT_a1b5g5r5:
-		OUT_RING(chan, _(R_C0, G_C1, B_C2, A_C3, 1_5_5_5));
+		PUSH_DATA (push, _(R_C0, G_C1, B_C2, A_C3, 1_5_5_5));
 		break;
 	case PICT_b5g6r5:
-		OUT_RING(chan, _(R_C0, G_C1, B_C2, A_ONE, 5_6_5));
+		PUSH_DATA (push, _(R_C0, G_C1, B_C2, A_ONE, 5_6_5));
 		break;
 	case PICT_b8g8r8x8:
-		OUT_RING(chan, _(A_ONE, R_C1, G_C2, B_C3, 8_8_8_8));
+		PUSH_DATA (push, _(A_ONE, R_C1, G_C2, B_C3, 8_8_8_8));
 		break;
 	case PICT_b8g8r8a8:
-		OUT_RING(chan, _(A_C0, R_C1, G_C2, B_C3, 8_8_8_8));
+		PUSH_DATA (push, _(A_C0, R_C1, G_C2, B_C3, 8_8_8_8));
 		break;
 	case PICT_a2b10g10r10:
-		OUT_RING(chan, _(R_C0, G_C1, B_C2, A_C3, 2_10_10_10));
+		PUSH_DATA (push, _(R_C0, G_C1, B_C2, A_C3, 2_10_10_10));
 		break;
 	case PICT_x2b10g10r10:
-		OUT_RING(chan, _(R_C0, G_C1, B_C2, A_ONE, 2_10_10_10));
+		PUSH_DATA (push, _(R_C0, G_C1, B_C2, A_ONE, 2_10_10_10));
 		break;
 	case PICT_x2r10g10b10:
-		OUT_RING(chan, _(B_C0, G_C1, R_C2, A_ONE, 2_10_10_10));
+		PUSH_DATA (push, _(B_C0, G_C1, R_C2, A_ONE, 2_10_10_10));
 		break;
 	case PICT_a2r10g10b10:
-		OUT_RING(chan, _(B_C0, G_C1, R_C2, A_C3, 2_10_10_10));
+		PUSH_DATA (push, _(B_C0, G_C1, R_C2, A_C3, 2_10_10_10));
 		break;
 	case PICT_x4r4g4b4:
-		OUT_RING(chan, _(B_C0, G_C1, R_C2, A_ONE, 4_4_4_4));
+		PUSH_DATA (push, _(B_C0, G_C1, R_C2, A_ONE, 4_4_4_4));
 		break;
 	case PICT_x4b4g4r4:
-		OUT_RING(chan, _(R_C0, G_C1, B_C2, A_ONE, 4_4_4_4));
+		PUSH_DATA (push, _(R_C0, G_C1, B_C2, A_ONE, 4_4_4_4));
 		break;
 	case PICT_a4r4g4b4:
-		OUT_RING(chan, _(B_C0, G_C1, R_C2, A_C3, 4_4_4_4));
+		PUSH_DATA (push, _(B_C0, G_C1, R_C2, A_C3, 4_4_4_4));
 		break;
 	case PICT_a4b4g4r4:
-		OUT_RING(chan, _(R_C0, G_C1, B_C2, A_C3, 4_4_4_4));
+		PUSH_DATA (push, _(R_C0, G_C1, B_C2, A_C3, 4_4_4_4));
 		break;
 	default:
 		NOUVEAU_FALLBACK("invalid picture format, this SHOULD NOT HAPPEN. Expect trouble.\n");
 	}
 #undef _
 
-	mode = 0xd0005000 | (bo->tile_mode << (22 - 4));
-	if (OUT_RELOCl(chan, bo, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD) ||
-	    OUT_RELOCd(chan, bo, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD |
-		       NOUVEAU_BO_HIGH | NOUVEAU_BO_OR, mode, mode))
-		return FALSE;
-	OUT_RING  (chan, 0x00300000);
-	OUT_RING  (chan, (1 << 31) | ppix->drawable.width);
-	OUT_RING  (chan, (1 << 16) | ppix->drawable.height);
-	OUT_RING  (chan, 0x03000000);
-	OUT_RING  (chan, 0x00000000);
+	mode = 0xd0005000 | (bo->config.nvc0.tile_mode << (22 - 4));
+	PUSH_DATA (push, bo->offset);
+	PUSH_DATA (push, (bo->offset >> 32) | mode |
+			 (bo->config.nvc0.tile_mode << 18));
+	PUSH_DATA (push, 0x00300000);
+	PUSH_DATA (push, (1 << 31) | ppix->drawable.width);
+	PUSH_DATA (push, (1 << 16) | ppix->drawable.height);
+	PUSH_DATA (push, 0x03000000);
+	PUSH_DATA (push, 0x00000000);
 
-	BEGIN_NVC0(chan, NVC0_3D(TSC_ADDRESS_HIGH), 3);
-	if (OUT_RELOCh(chan, pNv->tesla_scratch, TSC_OFFSET, tcb_flags) ||
-	    OUT_RELOCl(chan, pNv->tesla_scratch, TSC_OFFSET, tcb_flags))
-		return FALSE;
-	OUT_RING  (chan, 0);
-
-	BEGIN_NVC0(chan, NVC0_M2MF(OFFSET_OUT_HIGH), 2);
-	if (OUT_RELOCh(chan, pNv->tesla_scratch,
-		       TSC_OFFSET + unit * 32, tcb_flags) ||
-	    OUT_RELOCl(chan, pNv->tesla_scratch,
-		       TSC_OFFSET + unit * 32, tcb_flags))
-		return FALSE;
-	BEGIN_NVC0(chan, NVC0_M2MF(LINE_LENGTH_IN), 2);
-	OUT_RING  (chan, 8 * 4);
-	OUT_RING  (chan, 1);
-	BEGIN_NVC0(chan, NVC0_M2MF(EXEC), 1);
-	OUT_RING  (chan, 0x100111);
-	BEGIN_NIC0(chan, NVC0_M2MF(DATA), 8);
+	BEGIN_NVC0(push, NVC0_M2MF(OFFSET_OUT_HIGH), 2);
+	PUSH_DATA (push, tsc >> 32);
+	PUSH_DATA (push, tsc);
+	BEGIN_NVC0(push, NVC0_M2MF(LINE_LENGTH_IN), 2);
+	PUSH_DATA (push, 8 * 4);
+	PUSH_DATA (push, 1);
+	BEGIN_NVC0(push, NVC0_M2MF(EXEC), 1);
+	PUSH_DATA (push, 0x100111);
+	BEGIN_NIC0(push, NVC0_M2MF(DATA), 8);
 
 	if (ppict->repeat) {
 		switch (ppict->repeatType) {
 		case RepeatPad:
-			OUT_RING  (chan, 0x00024000 |
+			PUSH_DATA (push, 0x00024000 |
 				   NV50TSC_1_0_WRAPS_CLAMP |
 				   NV50TSC_1_0_WRAPT_CLAMP |
 				   NV50TSC_1_0_WRAPR_CLAMP);
 			break;
 		case RepeatReflect:
-			OUT_RING  (chan, 0x00024000 |
+			PUSH_DATA (push, 0x00024000 |
 				   NV50TSC_1_0_WRAPS_MIRROR_REPEAT |
 				   NV50TSC_1_0_WRAPT_MIRROR_REPEAT |
 				   NV50TSC_1_0_WRAPR_MIRROR_REPEAT);
 			break;
 		case RepeatNormal:
 		default:
-			OUT_RING  (chan, 0x00024000 |
+			PUSH_DATA (push, 0x00024000 |
 				   NV50TSC_1_0_WRAPS_REPEAT |
 				   NV50TSC_1_0_WRAPT_REPEAT |
 				   NV50TSC_1_0_WRAPR_REPEAT);
 			break;
 		}
 	} else {
-		OUT_RING  (chan, 0x00024000 |
+		PUSH_DATA (push, 0x00024000 |
 			   NV50TSC_1_0_WRAPS_CLAMP_TO_BORDER |
 			   NV50TSC_1_0_WRAPT_CLAMP_TO_BORDER |
 			   NV50TSC_1_0_WRAPR_CLAMP_TO_BORDER);
 	}
 	if (ppict->filter == PictFilterBilinear) {
-		OUT_RING  (chan,
+		PUSH_DATA (push,
 			   NV50TSC_1_1_MAGF_LINEAR |
 			   NV50TSC_1_1_MINF_LINEAR | NV50TSC_1_1_MIPF_NONE);
 	} else {
-		OUT_RING  (chan,
+		PUSH_DATA (push,
 			   NV50TSC_1_1_MAGF_NEAREST |
 			   NV50TSC_1_1_MINF_NEAREST | NV50TSC_1_1_MIPF_NONE);
 	}
-	OUT_RING  (chan, 0x00000000);
-	OUT_RING  (chan, 0x00000000);
-	OUT_RINGf (chan, 0.0f);
-	OUT_RINGf (chan, 0.0f);
-	OUT_RINGf (chan, 0.0f);
-	OUT_RINGf (chan, 0.0f);
+	PUSH_DATA (push, 0x00000000);
+	PUSH_DATA (push, 0x00000000);
+	PUSH_DATAf(push, 0.0f);
+	PUSH_DATAf(push, 0.0f);
+	PUSH_DATAf(push, 0.0f);
+	PUSH_DATAf(push, 0.0f);
 
 	state->unit[unit].width = ppix->drawable.width;
 	state->unit[unit].height = ppix->drawable.height;
@@ -791,19 +732,19 @@ NVC0EXABlend(PixmapPtr ppix, PicturePtr ppict, int op, int component_alpha)
 	}
 
 	if (sblend == BF(ONE) && dblend == BF(ZERO)) {
-		BEGIN_NVC0(chan, NVC0_3D(BLEND_ENABLE(0)), 1);
-		OUT_RING  (chan, 0);
+		BEGIN_NVC0(push, NVC0_3D(BLEND_ENABLE(0)), 1);
+		PUSH_DATA (push, 0);
 	} else {
-		BEGIN_NVC0(chan, NVC0_3D(BLEND_ENABLE(0)), 1);
-		OUT_RING  (chan, 1);
-		BEGIN_NVC0(chan, NVC0_3D(BLEND_EQUATION_RGB), 5);
-		OUT_RING  (chan, NVC0_3D_BLEND_EQUATION_RGB_FUNC_ADD);
-		OUT_RING  (chan, sblend);
-		OUT_RING  (chan, dblend);
-		OUT_RING  (chan, NVC0_3D_BLEND_EQUATION_ALPHA_FUNC_ADD);
-		OUT_RING  (chan, sblend);
-		BEGIN_NVC0(chan, NVC0_3D(BLEND_FUNC_DST_ALPHA), 1);
-		OUT_RING  (chan, dblend);
+		BEGIN_NVC0(push, NVC0_3D(BLEND_ENABLE(0)), 1);
+		PUSH_DATA (push, 1);
+		BEGIN_NVC0(push, NVC0_3D(BLEND_EQUATION_RGB), 5);
+		PUSH_DATA (push, NVC0_3D_BLEND_EQUATION_RGB_FUNC_ADD);
+		PUSH_DATA (push, sblend);
+		PUSH_DATA (push, dblend);
+		PUSH_DATA (push, NVC0_3D_BLEND_EQUATION_ALPHA_FUNC_ADD);
+		PUSH_DATA (push, sblend);
+		BEGIN_NVC0(push, NVC0_3D(BLEND_FUNC_DST_ALPHA), 1);
+		PUSH_DATA (push, dblend);
 	}
 }
 
@@ -834,110 +775,88 @@ NVC0EXACheckComposite(int op,
 	return TRUE;
 }
 
-static void
-NVC0EXAStateCompositeResubmit(struct nouveau_channel *chan)
-{
-	ScrnInfoPtr pScrn = chan->user_private;
-	NVPtr pNv = NVPTR(pScrn);
-
-	NVC0EXAPrepareComposite(pNv->alu, pNv->pspict, pNv->pmpict, pNv->pdpict,
-				pNv->pspix, pNv->pmpix, pNv->pdpix);
-}
-
 Bool
 NVC0EXAPrepareComposite(int op,
 			PicturePtr pspict, PicturePtr pmpict, PicturePtr pdpict,
 			PixmapPtr pspix, PixmapPtr pmpix, PixmapPtr pdpix)
 {
+	struct nouveau_bo *src = nouveau_pixmap_bo(pspix);
+	struct nouveau_bo *dst = nouveau_pixmap_bo(pdpix);
+	struct nouveau_bo *mask = pmpix ? nouveau_pixmap_bo(pmpix) : NULL;
 	NVC0EXA_LOCALS(pspix);
-	const unsigned shd_flags = NOUVEAU_BO_VRAM | NOUVEAU_BO_RD;
 
-	if (MARK_RING (chan, 128, 4 + 2 + 2 * 10))
-		NOUVEAU_FALLBACK("ring space\n");
+	if (!PUSH_SPACE(push, 256))
+		NOUVEAU_FALLBACK("space\n");
 
-	// fonts: !pmpict, op == 12 (Add, ONE/ONE)
-	/*
-	if (pmpict || op != 12)
-		NOUVEAU_FALLBACK("comp-alpha");
-	*/
+	BEGIN_NVC0(push, SUBC_2D(NV50_GRAPH_SERIALIZE), 1);
+	PUSH_DATA (push, 0);
 
-	BEGIN_NVC0(chan, SUBC_2D(NV50_GRAPH_SERIALIZE), 1);
-	OUT_RING  (chan, 0);
-
-	if (!NVC0EXARenderTarget(pdpix, pdpict)) {
-		MARK_UNDO(chan);
+	if (!NVC0EXARenderTarget(pdpix, pdpict))
 		NOUVEAU_FALLBACK("render target invalid\n");
-	}
 
 	NVC0EXABlend(pdpix, pdpict, op, pmpict && pmpict->componentAlpha &&
 		     PICT_FORMAT_RGB(pmpict->format));
 
-	BEGIN_NVC0(chan, NVC0_3D(CODE_ADDRESS_HIGH), 2);
-	if (OUT_RELOCh(chan, pNv->tesla_scratch, CODE_OFFSET, shd_flags) ||
-	    OUT_RELOCl(chan, pNv->tesla_scratch, CODE_OFFSET, shd_flags)) {
-		MARK_UNDO(chan);
-		return FALSE;
-	}
-
-	if (!NVC0EXATexture(pspix, pspict, 0)) {
-		MARK_UNDO(chan);
+	if (!NVC0EXATexture(pspix, pspict, 0))
 		NOUVEAU_FALLBACK("src picture invalid\n");
-	}
-	BEGIN_NVC0(chan, NVC0_3D(BIND_TIC(4)), 1);
-	OUT_RING  (chan, (0 << 9) | (0 << 1) | NVC0_3D_BIND_TIC_ACTIVE);
+	BEGIN_NVC0(push, NVC0_3D(BIND_TIC(4)), 1);
+	PUSH_DATA (push, (0 << 9) | (0 << 1) | NVC0_3D_BIND_TIC_ACTIVE);
 
 	if (pmpict) {
-		if (!NVC0EXATexture(pmpix, pmpict, 1)) {
-			MARK_UNDO(chan);
+		if (!NVC0EXATexture(pmpix, pmpict, 1))
 			NOUVEAU_FALLBACK("mask picture invalid\n");
-		}
 		state->have_mask = TRUE;
 
-		BEGIN_NVC0(chan, NVC0_3D(BIND_TIC(4)), 1);
-		OUT_RING  (chan, (1 << 9) | (1 << 1) | NVC0_3D_BIND_TIC_ACTIVE);
+		BEGIN_NVC0(push, NVC0_3D(BIND_TIC(4)), 1);
+		PUSH_DATA (push, (1 << 9) | (1 << 1) | NVC0_3D_BIND_TIC_ACTIVE);
 
-		BEGIN_NVC0(chan, NVC0_3D(SP_START_ID(5)), 1);
+		BEGIN_NVC0(push, NVC0_3D(SP_START_ID(5)), 1);
 		if (pdpict->format == PICT_a8) {
-			OUT_RING  (chan, PFP_C_A8);
+			PUSH_DATA (push, PFP_C_A8);
 		} else {
 			if (pmpict->componentAlpha &&
 			    PICT_FORMAT_RGB(pmpict->format)) {
 				if (NVC0EXABlendOp[op].src_alpha)
-					OUT_RING  (chan, PFP_CCASA);
+					PUSH_DATA (push, PFP_CCASA);
 				else
-					OUT_RING  (chan, PFP_CCA);
+					PUSH_DATA (push, PFP_CCA);
 			} else {
-				OUT_RING  (chan, PFP_C);
+				PUSH_DATA (push, PFP_C);
 			}
 		}
 	} else {
 		state->have_mask = FALSE;
 
-		BEGIN_NVC0(chan, NVC0_3D(BIND_TIC(4)), 1);
-		OUT_RING  (chan, (1 << 1) | 0);
+		BEGIN_NVC0(push, NVC0_3D(BIND_TIC(4)), 1);
+		PUSH_DATA (push, (1 << 1) | 0);
 
-		BEGIN_NVC0(chan, NVC0_3D(SP_START_ID(5)), 1);
+		BEGIN_NVC0(push, NVC0_3D(SP_START_ID(5)), 1);
 		if (pdpict->format == PICT_a8)
-			OUT_RING  (chan, PFP_S_A8);
+			PUSH_DATA (push, PFP_S_A8);
 		else
-			OUT_RING  (chan, PFP_S);
+			PUSH_DATA (push, PFP_S);
 	}
 
-	BEGIN_NVC0(chan, NVC0_3D(TSC_FLUSH), 1);
-	OUT_RING  (chan, 0);
-	BEGIN_NVC0(chan, NVC0_3D(TIC_FLUSH), 1);
-	OUT_RING  (chan, 0);
-	BEGIN_NVC0(chan, NVC0_3D(TEX_CACHE_CTL), 1);
-	OUT_RING  (chan, 0);
+	BEGIN_NVC0(push, NVC0_3D(TSC_FLUSH), 1);
+	PUSH_DATA (push, 0);
+	BEGIN_NVC0(push, NVC0_3D(TIC_FLUSH), 1);
+	PUSH_DATA (push, 0);
+	BEGIN_NVC0(push, NVC0_3D(TEX_CACHE_CTL), 1);
+	PUSH_DATA (push, 0);
 
-	pNv->alu = op;
-	pNv->pspict = pspict;
-	pNv->pmpict = pmpict;
-	pNv->pdpict = pdpict;
-	pNv->pspix = pspix;
-	pNv->pmpix = pmpix;
-	pNv->pdpix = pdpix;
-	chan->flush_notify = NVC0EXAStateCompositeResubmit;
+	PUSH_RESET(push);
+	PUSH_REFN (push, pNv->tesla_scratch, NOUVEAU_BO_VRAM | NOUVEAU_BO_RDWR);
+	PUSH_REFN (push, src, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
+	PUSH_REFN (push, dst, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
+	if (pmpict)
+		PUSH_REFN (push, mask, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
+
+	nouveau_pushbuf_bufctx(push, pNv->bufctx);
+	if (nouveau_pushbuf_validate(push)) {
+		nouveau_pushbuf_bufctx(push, NULL);
+		NOUVEAU_FALLBACK("validate\n");
+	}
+
 	return TRUE;
 }
 
@@ -971,12 +890,14 @@ NVC0EXAComposite(PixmapPtr pdpix,
 	NVC0EXA_LOCALS(pdpix);
 	float sX0, sX1, sX2, sY0, sY1, sY2;
 
-	WAIT_RING (chan, 64);
-	BEGIN_NVC0(chan, NVC0_3D(SCISSOR_HORIZ(0)), 2);
-	OUT_RING  (chan, ((dx + w) << 16) | dx);
-	OUT_RING  (chan, ((dy + h) << 16) | dy);
-	BEGIN_NVC0(chan, NVC0_3D(VERTEX_BEGIN_GL), 1);
-	OUT_RING  (chan, NVC0_3D_VERTEX_BEGIN_GL_PRIMITIVE_TRIANGLES);
+	if (!PUSH_SPACE(push, 64))
+		return;
+
+	BEGIN_NVC0(push, NVC0_3D(SCISSOR_HORIZ(0)), 2);
+	PUSH_DATA (push, ((dx + w) << 16) | dx);
+	PUSH_DATA (push, ((dy + h) << 16) | dy);
+	BEGIN_NVC0(push, NVC0_3D(VERTEX_BEGIN_GL), 1);
+	PUSH_DATA (push, NVC0_3D_VERTEX_BEGIN_GL_PRIMITIVE_TRIANGLES);
 
 	NVC0EXATransform(state->unit[0].transform, sx, sy + (h * 2),
 			 state->unit[0].width, state->unit[0].height,
@@ -1010,16 +931,15 @@ NVC0EXAComposite(PixmapPtr pdpix,
 		VTX1s(pNv, sX2, sY2, dx + (w * 2), dy);
 	}
 
-	BEGIN_NVC0(chan, NVC0_3D(VERTEX_END_GL), 1);
-	OUT_RING  (chan, 0);
+	BEGIN_NVC0(push, NVC0_3D(VERTEX_END_GL), 1);
+	PUSH_DATA (push, 0);
 }
 
 void
 NVC0EXADoneComposite(PixmapPtr pdpix)
 {
 	NVC0EXA_LOCALS(pdpix);
-
-	chan->flush_notify = NULL;
+	nouveau_pushbuf_bufctx(push, NULL);
 }
 
 Bool
@@ -1029,35 +949,41 @@ NVC0EXARectM2MF(NVPtr pNv, int w, int h, int cpp,
 		struct nouveau_bo *dst, uint32_t dst_off, int dst_dom,
 		int dst_pitch, int dst_h, int dst_x, int dst_y)
 {
-	struct nouveau_grobj *m2mf = pNv->NvMemFormat;
-	struct nouveau_channel *chan = m2mf->channel;
+	struct nouveau_pushbuf_refn refs[] = {
+		{ src, src_dom | NOUVEAU_BO_RD },
+		{ dst, dst_dom | NOUVEAU_BO_WR },
+	};
+	struct nouveau_pushbuf *push = pNv->pushbuf;
 	unsigned exec = 0;
 
-	if (src->tile_flags & NOUVEAU_BO_TILE_LAYOUT_MASK) {
-		BEGIN_NVC0(chan, NVC0_M2MF(TILING_MODE_IN), 5);
-		OUT_RING  (chan, src->tile_mode);
-		OUT_RING  (chan, src_pitch);
-		OUT_RING  (chan, src_h);
-		OUT_RING  (chan, 1);
-		OUT_RING  (chan, 0);
+	if (!PUSH_SPACE(push, 64))
+		return FALSE;
+
+	if (src->config.nvc0.memtype) {
+		BEGIN_NVC0(push, NVC0_M2MF(TILING_MODE_IN), 5);
+		PUSH_DATA (push, src->config.nvc0.tile_mode);
+		PUSH_DATA (push, src_pitch);
+		PUSH_DATA (push, src_h);
+		PUSH_DATA (push, 1);
+		PUSH_DATA (push, 0);
 	} else {
-		BEGIN_NVC0(chan, NVC0_M2MF(PITCH_IN), 1);
-		OUT_RING  (chan, src_pitch);
+		BEGIN_NVC0(push, NVC0_M2MF(PITCH_IN), 1);
+		PUSH_DATA (push, src_pitch);
 
 		src_off += src_y * src_pitch + src_x * cpp;
 		exec |= NVC0_M2MF_EXEC_LINEAR_IN;
 	}
 
-	if (dst->tile_flags & NOUVEAU_BO_TILE_LAYOUT_MASK) {
-		BEGIN_NVC0(chan, NVC0_M2MF(TILING_MODE_OUT), 5);
-		OUT_RING  (chan, dst->tile_mode);
-		OUT_RING  (chan, dst_pitch);
-		OUT_RING  (chan, dst_h);
-		OUT_RING  (chan, 1);
-		OUT_RING  (chan, 0);
+	if (dst->config.nvc0.memtype) {
+		BEGIN_NVC0(push, NVC0_M2MF(TILING_MODE_OUT), 5);
+		PUSH_DATA (push, dst->config.nvc0.tile_mode);
+		PUSH_DATA (push, dst_pitch);
+		PUSH_DATA (push, dst_h);
+		PUSH_DATA (push, 1);
+		PUSH_DATA (push, 0);
 	} else {
-		BEGIN_NVC0(chan, NVC0_M2MF(PITCH_OUT), 1);
-		OUT_RING  (chan, dst_pitch);
+		BEGIN_NVC0(push, NVC0_M2MF(PITCH_OUT), 1);
+		PUSH_DATA (push, dst_pitch);
 
 		dst_off += dst_y * dst_pitch + dst_x * cpp;
 		exec |= NVC0_M2MF_EXEC_LINEAR_OUT;
@@ -1068,44 +994,38 @@ NVC0EXARectM2MF(NVPtr pNv, int w, int h, int cpp,
 		if (line_count > 2047)
 			line_count = 2047;
 
-		if (MARK_RING (chan, 32, 4))
+		if (nouveau_pushbuf_space(push, 32, 0, 0) ||
+		    nouveau_pushbuf_refn (push, refs, 2))
 			return FALSE;
 
-		BEGIN_NVC0(chan, NVC0_M2MF(OFFSET_OUT_HIGH), 2);
-		if (OUT_RELOCh(chan, dst, dst_off, dst_dom | NOUVEAU_BO_WR) ||
-		    OUT_RELOCl(chan, dst, dst_off, dst_dom | NOUVEAU_BO_WR)) {
-			MARK_UNDO(chan);
-			return FALSE;
-		}
+		BEGIN_NVC0(push, NVC0_M2MF(OFFSET_OUT_HIGH), 2);
+		PUSH_DATA (push, (dst->offset + dst_off) >> 32);
+		PUSH_DATA (push, (dst->offset + dst_off));
+		BEGIN_NVC0(push, NVC0_M2MF(OFFSET_IN_HIGH), 2);
+		PUSH_DATA (push, (src->offset + src_off) >> 32);
+		PUSH_DATA (push, (src->offset + src_off));
 
-		BEGIN_NVC0(chan, NVC0_M2MF(OFFSET_IN_HIGH), 2);
-		if (OUT_RELOCh(chan, src, src_off, src_dom | NOUVEAU_BO_RD) ||
-		    OUT_RELOCl(chan, src, src_off, src_dom | NOUVEAU_BO_RD)) {
-			MARK_UNDO(chan);
-			return FALSE;
-		}
-
-		if (src->tile_flags & NOUVEAU_BO_TILE_LAYOUT_MASK) {
-			BEGIN_NVC0(chan, NVC0_M2MF(TILING_POSITION_IN_X), 2);
-			OUT_RING  (chan, src_x * cpp);
-			OUT_RING  (chan, src_y);
+		if (src->config.nvc0.memtype) {
+			BEGIN_NVC0(push, NVC0_M2MF(TILING_POSITION_IN_X), 2);
+			PUSH_DATA (push, src_x * cpp);
+			PUSH_DATA (push, src_y);
 		} else {
 			src_off += line_count * src_pitch;
 		}
 
-		if (dst->tile_flags & NOUVEAU_BO_TILE_LAYOUT_MASK) {
-			BEGIN_NVC0(chan, NVC0_M2MF(TILING_POSITION_OUT_X), 2);
-			OUT_RING  (chan, dst_x * cpp);
-			OUT_RING  (chan, dst_y);
+		if (dst->config.nvc0.memtype) {
+			BEGIN_NVC0(push, NVC0_M2MF(TILING_POSITION_OUT_X), 2);
+			PUSH_DATA (push, dst_x * cpp);
+			PUSH_DATA (push, dst_y);
 		} else {
 			dst_off += line_count * dst_pitch;
 		}
 
-		BEGIN_NVC0(chan, NVC0_M2MF(LINE_LENGTH_IN), 2);
-		OUT_RING  (chan, w * cpp);
-		OUT_RING  (chan, line_count);
-		BEGIN_NVC0(chan, NVC0_M2MF(EXEC), 1);
-		OUT_RING  (chan, NVC0_M2MF_EXEC_QUERY_SHORT | exec);
+		BEGIN_NVC0(push, NVC0_M2MF(LINE_LENGTH_IN), 2);
+		PUSH_DATA (push, w * cpp);
+		PUSH_DATA (push, line_count);
+		BEGIN_NVC0(push, NVC0_M2MF(EXEC), 1);
+		PUSH_DATA (push, NVC0_M2MF_EXEC_QUERY_SHORT | exec);
 
 		src_y += line_count;
 		dst_y += line_count;

@@ -226,7 +226,7 @@ drmmode_fbcon_copy(ScreenPtr pScreen)
 	if (!fbcon_id)
 		goto fallback;
 
-	fb = drmModeGetFB(nouveau_device(pNv->dev)->fd, fbcon_id);
+	fb = drmModeGetFB(pNv->dev->fd, fbcon_id);
 	if (!fb) {
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			   "Failed to retrieve fbcon fb: id %d\n", fbcon_id);
@@ -272,13 +272,12 @@ drmmode_fbcon_copy(ScreenPtr pScreen)
 	exa->PrepareCopy(pspix, pdpix, 0, 0, GXcopy, ~0);
 	exa->Copy(pdpix, 0, 0, 0, 0, w, h);
 	exa->DoneCopy(pdpix);
-	FIRE_RING (pNv->chan);
+	PUSH_KICK(pNv->pushbuf);
 
 	/* wait for completion before continuing, avoids seeing a momentary
 	 * flash of "corruption" on occasion
 	 */
-	nouveau_bo_map(pNv->scanout, NOUVEAU_BO_RDWR);
-	nouveau_bo_unmap(pNv->scanout);
+	nouveau_bo_wait(pNv->scanout, NOUVEAU_BO_RDWR, pNv->client);
 
 	pScreen->DestroyPixmap(pdpix);
 	pScreen->DestroyPixmap(pspix);
@@ -287,10 +286,9 @@ drmmode_fbcon_copy(ScreenPtr pScreen)
 
 fallback:
 #endif
-	if (nouveau_bo_map(pNv->scanout, NOUVEAU_BO_WR))
+	if (nouveau_bo_map(pNv->scanout, NOUVEAU_BO_WR, pNv->client))
 		return;
 	memset(pNv->scanout->map, 0x00, pNv->scanout->size);
-	nouveau_bo_unmap(pNv->scanout);
 }
 
 static Bool
@@ -410,9 +408,8 @@ drmmode_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image)
 	struct nouveau_bo *cursor = drmmode_crtc->cursor;
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 
-	nouveau_bo_map(cursor, NOUVEAU_BO_WR);
+	nouveau_bo_map(cursor, NOUVEAU_BO_WR, pNv->client);
 	convert_cursor(cursor->map, image, 64, nv_cursor_width(pNv));
-	nouveau_bo_unmap(cursor);
 
 	if (drmmode_crtc->cursor_visible) {
 		drmModeSetCursor(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
@@ -462,7 +459,8 @@ drmmode_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 		return NULL;
 	}
 
-	ret = nouveau_bo_map(drmmode_crtc->rotate_bo, NOUVEAU_BO_RDWR);
+	ret = nouveau_bo_map(drmmode_crtc->rotate_bo, NOUVEAU_BO_RDWR,
+			     NVPTR(scrn)->client);
 	if (ret) {
 		xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
 			   "Couldn't get virtual address of shadow scanout\n");
@@ -470,7 +468,6 @@ drmmode_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 		return NULL;
 	}
 	virtual = drmmode_crtc->rotate_bo->map;
-	nouveau_bo_unmap(drmmode_crtc->rotate_bo);
 
 	ret = drmModeAddFB(drmmode->fd, width, height, crtc->scrn->depth,
 			   crtc->scrn->bitsPerPixel, drmmode_crtc->rotate_pitch,
@@ -571,7 +568,7 @@ drmmode_crtc_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
 	drmmode_crtc->drmmode = drmmode;
 
 	ret = nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP, 0,
-			     64*64*4, &drmmode_crtc->cursor);
+			     64*64*4, NULL, &drmmode_crtc->cursor);
 	assert(ret == 0);
 
 	crtc->driver_private = drmmode_crtc;
@@ -1112,15 +1109,13 @@ drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	scrn->virtualY = height;
 	scrn->displayWidth = pitch / (scrn->bitsPerPixel >> 3);
 
-	nouveau_bo_map(pNv->scanout, NOUVEAU_BO_RDWR);
+	nouveau_bo_map(pNv->scanout, NOUVEAU_BO_RDWR, pNv->client);
 
 	ret = drmModeAddFB(drmmode->fd, width, height, scrn->depth,
 			   scrn->bitsPerPixel, pitch, pNv->scanout->handle,
 			   &drmmode->fb_id);
-	if (ret) {
-		nouveau_bo_unmap(pNv->scanout);
+	if (ret)
 		goto fail;
-	}
 
 	if (pNv->ShadowPtr) {
 		free(pNv->ShadowPtr);
@@ -1139,16 +1134,13 @@ drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 #endif
 
 	if (!pNv->NoAccel) {
-		nouveau_bo_unmap(pNv->scanout);
 		pNv->EXADriverPtr->PrepareSolid(ppix, GXcopy, ~0, 0);
 		pNv->EXADriverPtr->Solid(ppix, 0, 0, width, height);
 		pNv->EXADriverPtr->DoneSolid(ppix);
-		nouveau_bo_map(pNv->scanout, NOUVEAU_BO_RDWR);
+		nouveau_bo_map(pNv->scanout, NOUVEAU_BO_RDWR, pNv->client);
 	} else {
 		memset(pNv->scanout->map, 0x00, pNv->scanout->size);
 	}
-
-	nouveau_bo_unmap(pNv->scanout);
 
 	for (i = 0; i < xf86_config->num_crtc; i++) {
 		xf86CrtcPtr crtc = xf86_config->crtc[i];

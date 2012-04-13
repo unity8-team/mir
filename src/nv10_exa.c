@@ -31,6 +31,7 @@
 
 #include "hwdefs/nv_object.xml.h"
 #include "hwdefs/nv10_3d.xml.h"
+#include "nv04_accel.h"
 
 /* Texture/Render target formats. */
 static struct pict_format {
@@ -374,73 +375,63 @@ NV10EXACheckComposite(int op, PicturePtr src, PicturePtr mask, PicturePtr dst)
 static Bool
 setup_texture(NVPtr pNv, int unit, PicturePtr pict, PixmapPtr pixmap)
 {
-	struct nouveau_channel *chan = pNv->chan;
+	struct nouveau_pushbuf *push = pNv->pushbuf;
 	struct nouveau_bo *bo = nouveau_pixmap_bo(pixmap);
-	unsigned tex_reloc = NOUVEAU_BO_VRAM | NOUVEAU_BO_GART | NOUVEAU_BO_RD;
-	long w = pict->pDrawable->width,
-	     h = pict->pDrawable->height;
-	unsigned int txfmt =
-		NV10_3D_TEX_FORMAT_WRAP_T_CLAMP_TO_EDGE |
-		NV10_3D_TEX_FORMAT_WRAP_S_CLAMP_TO_EDGE |
-		log2i(w) << 20 | log2i(h) << 16 |
-		1 << 12 | /* lod == 1 */
-		get_tex_format(pict) |
-		0x50 /* UNK */;
+	unsigned reloc = NOUVEAU_BO_VRAM | NOUVEAU_BO_GART | NOUVEAU_BO_RD;
+	unsigned h = pict->pDrawable->height;
+	unsigned w = pict->pDrawable->width;
+	unsigned format;
 
-	BEGIN_NV04(chan, NV10_3D(TEX_OFFSET(unit)), 1);
-	if (OUT_RELOCl(chan, bo, 0, tex_reloc))
-		return FALSE;
+	format = NV10_3D_TEX_FORMAT_WRAP_T_CLAMP_TO_EDGE |
+		 NV10_3D_TEX_FORMAT_WRAP_S_CLAMP_TO_EDGE |
+		 log2i(w) << 20 | log2i(h) << 16 |
+		 1 << 12 | /* lod == 1 */
+		 get_tex_format(pict) |
+		 0x50 /* UNK */;
 
-	if (pict->repeat == RepeatNone) {
-		/* NPOT_SIZE expects an even number for width, we can
-		 * round up uneven numbers here because EXA always
-		 * gives 64 byte aligned pixmaps and for all formats
-		 * we support 64 bytes represents an even number of
-		 * pixels
-		 */
+	/* NPOT_SIZE expects an even number for width, we can round up uneven
+	 * numbers here because EXA always gives 64 byte aligned pixmaps and
+	 * for all formats we support 64 bytes represents an even number of
+	 * pixels
+	 */
+//	if (pict->repeat == RepeatNone)
 		w = (w + 1) &~ 1;
 
-		BEGIN_NV04(chan, NV10_3D(TEX_NPOT_PITCH(unit)), 1);
-		OUT_RING  (chan, exaGetPixmapPitch(pixmap) << 16);
 
-		BEGIN_NV04(chan, NV10_3D(TEX_NPOT_SIZE(unit)), 1);
-		OUT_RING  (chan, w << 16 | h);
-	}
-
-	BEGIN_NV04(chan, NV10_3D(TEX_FORMAT(unit)), 1 );
-	if (OUT_RELOCd(chan, bo, txfmt, tex_reloc | NOUVEAU_BO_OR,
-		       NV10_3D_TEX_FORMAT_DMA0, NV10_3D_TEX_FORMAT_DMA1))
-		return FALSE;
-
-	BEGIN_NV04(chan, NV10_3D(TEX_ENABLE(unit)), 1 );
-	OUT_RING  (chan, NV10_3D_TEX_ENABLE_ENABLE);
-
-	BEGIN_NV04(chan, NV10_3D(TEX_FILTER(unit)), 1);
+	BEGIN_NV04(push, NV10_3D(TEX_OFFSET(unit)), 1);
+	PUSH_MTHDl(push, NV10_3D(TEX_OFFSET(unit)), bo, 0, reloc);
+	BEGIN_NV04(push, NV10_3D(TEX_FORMAT(unit)), 1);
+	PUSH_MTHDs(push, NV10_3D(TEX_FORMAT(unit)), bo, format, reloc,
+			 NV10_3D_TEX_FORMAT_DMA0,
+			 NV10_3D_TEX_FORMAT_DMA1);
+	BEGIN_NV04(push, NV10_3D(TEX_ENABLE(unit)), 1 );
+	PUSH_DATA (push, NV10_3D_TEX_ENABLE_ENABLE);
+	BEGIN_NV04(push, NV10_3D(TEX_NPOT_PITCH(unit)), 1);
+	PUSH_DATA (push, exaGetPixmapPitch(pixmap) << 16);
+	BEGIN_NV04(push, NV10_3D(TEX_NPOT_SIZE(unit)), 1);
+	PUSH_DATA (push, (w << 16) | h);
+	BEGIN_NV04(push, NV10_3D(TEX_FILTER(unit)), 1);
 	if (pict->filter == PictFilterNearest)
-		OUT_RING(chan, (NV10_3D_TEX_FILTER_MAGNIFY_NEAREST |
-				NV10_3D_TEX_FILTER_MINIFY_NEAREST));
+		PUSH_DATA(push, NV10_3D_TEX_FILTER_MAGNIFY_NEAREST |
+				NV10_3D_TEX_FILTER_MINIFY_NEAREST);
 	else
-		OUT_RING(chan, (NV10_3D_TEX_FILTER_MAGNIFY_LINEAR |
-				NV10_3D_TEX_FILTER_MINIFY_LINEAR));
-
+		PUSH_DATA(push, NV10_3D_TEX_FILTER_MAGNIFY_LINEAR |
+				NV10_3D_TEX_FILTER_MINIFY_LINEAR);
 	return TRUE;
 }
 
 static Bool
 setup_render_target(NVPtr pNv, PicturePtr pict, PixmapPtr pixmap)
 {
-	struct nouveau_channel *chan = pNv->chan;
+	struct nouveau_pushbuf *push = pNv->pushbuf;
 	struct nouveau_bo *bo = nouveau_pixmap_bo(pixmap);
 
-	BEGIN_NV04(chan, NV10_3D(RT_FORMAT), 2);
-	OUT_RING  (chan, get_rt_format(pict));
-	OUT_RING  (chan, (exaGetPixmapPitch(pixmap) << 16 |
+	BEGIN_NV04(push, NV10_3D(RT_FORMAT), 3);
+	PUSH_DATA (push, get_rt_format(pict));
+	PUSH_DATA (push, (exaGetPixmapPitch(pixmap) << 16 |
 			  exaGetPixmapPitch(pixmap)));
-
-	BEGIN_NV04(chan, NV10_3D(COLOR_OFFSET), 1);
-	if (OUT_RELOCl(chan, bo, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR))
-		return FALSE;
-
+	PUSH_MTHDl(push, NV10_3D(COLOR_OFFSET), bo, 0,
+			 NOUVEAU_BO_VRAM | NOUVEAU_BO_RDWR);
 	return TRUE;
 }
 
@@ -482,9 +473,9 @@ setup_render_target(NVPtr pNv, PicturePtr pict, PixmapPtr pixmap)
 	 NV10_3D_RC_IN_RGB_##input##_COMPONENT_USAGE_##chan)
 
 static void
-setup_combiners(NVPtr pNv, PicturePtr src, PicturePtr mask)
+setup_combiners(NVPtr pNv, PicturePtr src, PicturePtr mask, int alu)
 {
-	struct nouveau_channel *chan = pNv->chan;
+	struct nouveau_pushbuf *push = pNv->pushbuf;
 	uint32_t rc_in_alpha = 0, rc_in_rgb = 0;
 
 	if (PICT_FORMAT_A(src->format))
@@ -498,7 +489,7 @@ setup_combiners(NVPtr pNv, PicturePtr src, PicturePtr mask)
 		rc_in_alpha |= RC_IN_ONE(B);
 
 	if (effective_component_alpha(mask)) {
-		if (!needs_src_alpha(pNv->alu)) {
+		if (!needs_src_alpha(alu)) {
 			/* The alpha channels won't be used for blending. Drop
 			 * them, as our pixels only have 4 components...
 			 * output_i = src_i * mask_i
@@ -528,22 +519,22 @@ setup_combiners(NVPtr pNv, PicturePtr src, PicturePtr mask)
 			rc_in_rgb |= RC_IN_ONE(B);
 	}
 
-	BEGIN_NV04(chan, NV10_3D(RC_IN_ALPHA(0)), 1);
-	OUT_RING  (chan, rc_in_alpha);
-	BEGIN_NV04(chan, NV10_3D(RC_IN_RGB(0)), 1);
-	OUT_RING  (chan, rc_in_rgb);
+	BEGIN_NV04(push, NV10_3D(RC_IN_ALPHA(0)), 1);
+	PUSH_DATA (push, rc_in_alpha);
+	BEGIN_NV04(push, NV10_3D(RC_IN_RGB(0)), 1);
+	PUSH_DATA (push, rc_in_rgb);
 }
 
 static void
-setup_blend_function(NVPtr pNv)
+setup_blend_function(NVPtr pNv, PicturePtr pdpict, int alu)
 {
-	struct nouveau_channel *chan = pNv->chan;
-	struct pict_op *op = &nv10_pict_op[pNv->alu];
+	struct nouveau_pushbuf *push = pNv->pushbuf;
+	struct pict_op *op = &nv10_pict_op[alu];
 	int src_factor = op->src;
 	int dst_factor = op->dst;
 
 	if (src_factor == SF(ONE_MINUS_DST_ALPHA) &&
-	    !PICT_FORMAT_A(pNv->pdpict->format))
+	    !PICT_FORMAT_A(pdpict->format))
 		/* ONE_MINUS_DST_ALPHA doesn't always do the right thing for
 		 * framebuffers without alpha channel. But it's the same as
 		 * ZERO in that case.
@@ -557,21 +548,11 @@ setup_blend_function(NVPtr pNv)
 			dst_factor = DF(ONE_MINUS_SRC_COLOR);
 	}
 
-	BEGIN_NV04(chan, NV10_3D(BLEND_FUNC_SRC), 2);
-	OUT_RING  (chan, src_factor);
-	OUT_RING  (chan, dst_factor);
-	BEGIN_NV04(chan, NV10_3D(BLEND_FUNC_ENABLE), 1);
-	OUT_RING  (chan, 1);
-}
-
-static void
-NV10StateCompositeReemit(struct nouveau_channel *chan)
-{
-	ScrnInfoPtr pScrn = chan->user_private;
-	NVPtr pNv = NVPTR(pScrn);
-
-	NV10EXAPrepareComposite(pNv->alu, pNv->pspict, pNv->pmpict, pNv->pdpict,
-				pNv->pspix, pNv->pmpix, pNv->pdpix);
+	BEGIN_NV04(push, NV10_3D(BLEND_FUNC_SRC), 2);
+	PUSH_DATA (push, src_factor);
+	PUSH_DATA (push, dst_factor);
+	BEGIN_NV04(push, NV10_3D(BLEND_FUNC_ENABLE), 1);
+	PUSH_DATA (push, 1);
 }
 
 Bool
@@ -585,46 +566,39 @@ NV10EXAPrepareComposite(int op,
 {
 	ScrnInfoPtr pScrn = xf86Screens[dst->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_channel *chan = pNv->chan;
+	struct nouveau_pushbuf *push = pNv->pushbuf;
 
-	if (MARK_RING(chan, 128, 5))
+	if (!PUSH_SPACE(push, 128))
 		return FALSE;
-
-	pNv->alu = op;
-	pNv->pspict = pict_src;
-	pNv->pmpict = pict_mask;
-	pNv->pdpict = pict_dst;
-	pNv->pspix = src;
-	pNv->pmpix = mask;
-	pNv->pdpix = dst;
+	PUSH_RESET(push);
 
 	/* Set dst format */
 	if (!setup_render_target(pNv, pict_dst, dst))
-		goto fail;
+		return FALSE;
 
 	/* Set src format */
 	if (!setup_texture(pNv, 0, pict_src, src))
-		goto fail;
+		return FALSE;
 
 	/* Set mask format */
-	if (mask &&
-	    !setup_texture(pNv, 1, pict_mask, mask))
-		goto fail;
+	if (mask && !setup_texture(pNv, 1, pict_mask, mask))
+		return FALSE;
 
 	/* Set the register combiners up. */
-	setup_combiners(pNv, pict_src, pict_mask);
+	setup_combiners(pNv, pict_src, pict_mask, op);
 
 	/* Set PictOp */
-	setup_blend_function(pNv);
+	setup_blend_function(pNv, pict_dst, op);
 
-	chan->flush_notify = NV10StateCompositeReemit;
+	nouveau_pushbuf_bufctx(push, pNv->bufctx);
+	if (nouveau_pushbuf_validate(push)) {
+		nouveau_pushbuf_bufctx(push, NULL);
+		return FALSE;
+	}
 
+	pNv->pspict = pict_src;
+	pNv->pmpict = pict_mask;
 	return TRUE;
-
-fail:
-	MARK_UNDO(chan);
-
-	return FALSE;
 }
 
 #define QUAD(x, y, w, h)					\
@@ -642,29 +616,29 @@ fail:
 #define xFixedToFloat(v) \
 	((float)xFixedToInt((v)) + ((float)xFixedFrac(v) / 65536.0))
 
-#define OUT_RINGi(chan, v, i)				\
-	OUT_RINGf(chan, xFixedToFloat((v).vector[i]))
+#define PUSH_DATAi(push, v, i)				\
+	PUSH_DATAf(push, xFixedToFloat((v).vector[i]))
 
 static inline void
 emit_vertex(NVPtr pNv, int i, PictVector pos[],
 	    PictVector tex0[], PictVector tex1[])
 {
-	struct nouveau_channel *chan = pNv->chan;
+	struct nouveau_pushbuf *push = pNv->pushbuf;
 
-	BEGIN_NV04(chan, NV10_3D(VERTEX_TX0_2F_S), 2);
-	OUT_RINGi (chan, tex0[i], 0);
-	OUT_RINGi (chan, tex0[i], 1);
+	BEGIN_NV04(push, NV10_3D(VERTEX_TX0_2F_S), 2);
+	PUSH_DATAi(push, tex0[i], 0);
+	PUSH_DATAi(push, tex0[i], 1);
 
 	if (tex1) {
-		BEGIN_NV04(chan, NV10_3D(VERTEX_TX1_2F_S), 2);
-		OUT_RINGi (chan, tex1[i], 0);
-		OUT_RINGi (chan, tex1[i], 1);
+		BEGIN_NV04(push, NV10_3D(VERTEX_TX1_2F_S), 2);
+		PUSH_DATAi(push, tex1[i], 0);
+		PUSH_DATAi(push, tex1[i], 1);
 	}
 
-	BEGIN_NV04(chan, NV10_3D(VERTEX_POS_3F_X), 3);
-	OUT_RINGi (chan, pos[i], 0);
-	OUT_RINGi (chan, pos[i], 1);
-	OUT_RINGf (chan, 0);
+	BEGIN_NV04(push, NV10_3D(VERTEX_POS_3F_X), 3);
+	PUSH_DATAi(push, pos[i], 0);
+	PUSH_DATAi(push, pos[i], 1);
+	PUSH_DATAf(push, 0.0);
 }
 
 static inline void
@@ -683,7 +657,7 @@ NV10EXAComposite(PixmapPtr pix_dst,
 {
 	ScrnInfoPtr pScrn = xf86Screens[pix_dst->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_channel *chan = pNv->chan;
+	struct nouveau_pushbuf *push = pNv->pushbuf;
 	PicturePtr mask = pNv->pmpict,
 		src = pNv->pspict;
 	PictVector dstq[4] = QUAD(dstX, dstY, width, height),
@@ -694,31 +668,29 @@ NV10EXAComposite(PixmapPtr pix_dst,
 	if (mask)
 		MAP(transform_vertex, mask->transform, maskq);
 
-	WAIT_RING (chan, 64);
-	BEGIN_NV04(chan, NV10_3D(VERTEX_BEGIN_END), 1);
-	OUT_RING  (chan, NV10_3D_VERTEX_BEGIN_END_QUADS);
+	if (!PUSH_SPACE(push, 64))
+		return;
 
+	BEGIN_NV04(push, NV10_3D(VERTEX_BEGIN_END), 1);
+	PUSH_DATA (push, NV10_3D_VERTEX_BEGIN_END_QUADS);
 	MAP(emit_vertex, pNv, dstq, srcq, mask ? maskq : NULL);
-
-	BEGIN_NV04(chan, NV10_3D(VERTEX_BEGIN_END), 1);
-	OUT_RING  (chan, NV10_3D_VERTEX_BEGIN_END_STOP);
+	BEGIN_NV04(push, NV10_3D(VERTEX_BEGIN_END), 1);
+	PUSH_DATA (push, NV10_3D_VERTEX_BEGIN_END_STOP);
 }
 
 void
 NV10EXADoneComposite(PixmapPtr dst)
 {
 	ScrnInfoPtr pScrn = xf86Screens[dst->drawable.pScreen->myNum];
-	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_channel *chan = pNv->chan;
-
-	chan->flush_notify = NULL;
+	nouveau_pushbuf_bufctx(NVPTR(pScrn)->pushbuf, NULL);
 }
 
 Bool
 NVAccelInitNV10TCL(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_channel *chan = pNv->chan;
+	struct nouveau_pushbuf *push = pNv->pushbuf;
+	struct nv04_fifo *fifo = pNv->channel->data;
 	uint32_t class = 0;
 	int i;
 
@@ -735,233 +707,234 @@ NVAccelInitNV10TCL(ScrnInfoPtr pScrn)
 	else
 		class = NV10_3D_CLASS;
 
-	if (!pNv->Nv3D) {
-		if (nouveau_grobj_alloc(pNv->chan, Nv3D, class, &pNv->Nv3D))
-			return FALSE;
-	}
+	if (nouveau_object_new(pNv->channel, Nv3D, class, NULL, 0, &pNv->Nv3D))
+		return FALSE;
 
-	BEGIN_NV04(chan, NV01_SUBC(3D, OBJECT), 1);
-	OUT_RING  (chan, pNv->Nv3D->handle);
-	BEGIN_NV04(chan, NV10_3D(DMA_NOTIFY), 1);
-	OUT_RING  (chan, chan->nullobj->handle);
+	if (!PUSH_SPACE(push, 256))
+		return FALSE;
 
-	BEGIN_NV04(chan, NV10_3D(DMA_TEXTURE0), 2);
-	OUT_RING  (chan, pNv->chan->vram->handle);
-	OUT_RING  (chan, pNv->chan->gart->handle);
+	BEGIN_NV04(push, NV01_SUBC(3D, OBJECT), 1);
+	PUSH_DATA (push, pNv->Nv3D->handle);
+	BEGIN_NV04(push, NV10_3D(DMA_NOTIFY), 1);
+	PUSH_DATA (push, pNv->NvNull->handle);
 
-	BEGIN_NV04(chan, NV10_3D(DMA_COLOR), 2);
-	OUT_RING  (chan, pNv->chan->vram->handle);
-	OUT_RING  (chan, pNv->chan->vram->handle);
+	BEGIN_NV04(push, NV10_3D(DMA_TEXTURE0), 2);
+	PUSH_DATA (push, fifo->vram);
+	PUSH_DATA (push, fifo->gart);
 
-	BEGIN_NV04(chan, NV04_GRAPH(3D, NOP), 1);
-	OUT_RING  (chan, 0);
+	BEGIN_NV04(push, NV10_3D(DMA_COLOR), 2);
+	PUSH_DATA (push, fifo->vram);
+	PUSH_DATA (push, fifo->vram);
 
-	BEGIN_NV04(chan, NV10_3D(RT_HORIZ), 2);
-	OUT_RING  (chan, 2048 << 16 | 0);
-	OUT_RING  (chan, 2048 << 16 | 0);
+	BEGIN_NV04(push, NV04_GRAPH(3D, NOP), 1);
+	PUSH_DATA (push, 0);
 
-	BEGIN_NV04(chan, NV10_3D(ZETA_OFFSET), 1);
-	OUT_RING  (chan, 0);
+	BEGIN_NV04(push, NV10_3D(RT_HORIZ), 2);
+	PUSH_DATA (push, 2048 << 16 | 0);
+	PUSH_DATA (push, 2048 << 16 | 0);
 
-	BEGIN_NV04(chan, NV10_3D(VIEWPORT_CLIP_MODE), 1);
-	OUT_RING  (chan, 0);
+	BEGIN_NV04(push, NV10_3D(ZETA_OFFSET), 1);
+	PUSH_DATA (push, 0);
 
-	BEGIN_NV04(chan, NV10_3D(VIEWPORT_CLIP_HORIZ(0)), 1);
-	OUT_RING  (chan, 0x7ff << 16 | 0x800800);
-	BEGIN_NV04(chan, NV10_3D(VIEWPORT_CLIP_VERT(0)), 1);
-	OUT_RING  (chan, 0x7ff << 16 | 0x800800);
+	BEGIN_NV04(push, NV10_3D(VIEWPORT_CLIP_MODE), 1);
+	PUSH_DATA (push, 0);
+
+	BEGIN_NV04(push, NV10_3D(VIEWPORT_CLIP_HORIZ(0)), 1);
+	PUSH_DATA (push, 0x7ff << 16 | 0x800800);
+	BEGIN_NV04(push, NV10_3D(VIEWPORT_CLIP_VERT(0)), 1);
+	PUSH_DATA (push, 0x7ff << 16 | 0x800800);
 
 	for (i = 1; i < 8; i++) {
-		BEGIN_NV04(chan, NV10_3D(VIEWPORT_CLIP_HORIZ(i)), 1);
-		OUT_RING  (chan, 0);
-		BEGIN_NV04(chan, NV10_3D(VIEWPORT_CLIP_VERT(i)), 1);
-		OUT_RING  (chan, 0);
+		BEGIN_NV04(push, NV10_3D(VIEWPORT_CLIP_HORIZ(i)), 1);
+		PUSH_DATA (push, 0);
+		BEGIN_NV04(push, NV10_3D(VIEWPORT_CLIP_VERT(i)), 1);
+		PUSH_DATA (push, 0);
 	}
 
-	BEGIN_NV04(chan, SUBC_3D(0x290), 1);
-	OUT_RING  (chan, (0x10<<16)|1);
-	BEGIN_NV04(chan, SUBC_3D(0x3f4), 1);
-	OUT_RING  (chan, 0);
+	BEGIN_NV04(push, SUBC_3D(0x290), 1);
+	PUSH_DATA (push, (0x10<<16)|1);
+	BEGIN_NV04(push, SUBC_3D(0x3f4), 1);
+	PUSH_DATA (push, 0);
 
-	BEGIN_NV04(chan, NV04_GRAPH(3D, NOP), 1);
-	OUT_RING  (chan, 0);
+	BEGIN_NV04(push, NV04_GRAPH(3D, NOP), 1);
+	PUSH_DATA (push, 0);
 
 	if (class != NV10_3D_CLASS) {
 		/* For nv11, nv17 */
-		BEGIN_NV04(chan, SUBC_3D(0x120), 3);
-		OUT_RING  (chan, 0);
-		OUT_RING  (chan, 1);
-		OUT_RING  (chan, 2);
+		BEGIN_NV04(push, SUBC_3D(0x120), 3);
+		PUSH_DATA (push, 0);
+		PUSH_DATA (push, 1);
+		PUSH_DATA (push, 2);
 
-		BEGIN_NV04(chan, SUBC_BLIT(0x120), 3);
-		OUT_RING  (chan, 0);
-		OUT_RING  (chan, 1);
-		OUT_RING  (chan, 2);
+		BEGIN_NV04(push, SUBC_BLIT(0x120), 3);
+		PUSH_DATA (push, 0);
+		PUSH_DATA (push, 1);
+		PUSH_DATA (push, 2);
 
-		BEGIN_NV04(chan, NV04_GRAPH(3D, NOP), 1);
-		OUT_RING  (chan, 0);
+		BEGIN_NV04(push, NV04_GRAPH(3D, NOP), 1);
+		PUSH_DATA (push, 0);
 	}
 
-	BEGIN_NV04(chan, NV04_GRAPH(3D, NOP), 1);
-	OUT_RING  (chan, 0);
+	BEGIN_NV04(push, NV04_GRAPH(3D, NOP), 1);
+	PUSH_DATA (push, 0);
 
 	/* Set state */
-	BEGIN_NV04(chan, NV10_3D(FOG_ENABLE), 1);
-	OUT_RING  (chan, 0);
-	BEGIN_NV04(chan, NV10_3D(ALPHA_FUNC_ENABLE), 1);
-	OUT_RING  (chan, 0);
-	BEGIN_NV04(chan, NV10_3D(ALPHA_FUNC_FUNC), 2);
-	OUT_RING  (chan, 0x207);
-	OUT_RING  (chan, 0);
-	BEGIN_NV04(chan, NV10_3D(TEX_ENABLE(0)), 2);
-	OUT_RING  (chan, 0);
-	OUT_RING  (chan, 0);
-	BEGIN_NV04(chan, NV10_3D(RC_IN_ALPHA(0)), 6);
-	OUT_RING  (chan, 0);
-	OUT_RING  (chan, 0);
-	OUT_RING  (chan, 0);
-	OUT_RING  (chan, 0);
-	OUT_RING  (chan, 0);
-	OUT_RING  (chan, 0);
-	BEGIN_NV04(chan, NV10_3D(RC_OUT_ALPHA(0)), 6);
-	OUT_RING  (chan, 0x00000c00);
-	OUT_RING  (chan, 0);
-	OUT_RING  (chan, 0x00000c00);
-	OUT_RING  (chan, 0x18000000);
-	OUT_RING  (chan, 0x300c0000);
-	OUT_RING  (chan, 0x00001c80);
-	BEGIN_NV04(chan, NV10_3D(BLEND_FUNC_ENABLE), 1);
-	OUT_RING  (chan, 0);
-	BEGIN_NV04(chan, NV10_3D(DITHER_ENABLE), 2);
-	OUT_RING  (chan, 1);
-	OUT_RING  (chan, 0);
-	BEGIN_NV04(chan, NV10_3D(LINE_SMOOTH_ENABLE), 1);
-	OUT_RING  (chan, 0);
-	BEGIN_NV04(chan, NV10_3D(VERTEX_WEIGHT_ENABLE), 2);
-	OUT_RING  (chan, 0);
-	OUT_RING  (chan, 0);
-	BEGIN_NV04(chan, NV10_3D(BLEND_FUNC_SRC), 4);
-	OUT_RING  (chan, 1);
-	OUT_RING  (chan, 0);
-	OUT_RING  (chan, 0);
-	OUT_RING  (chan, 0x8006);
-	BEGIN_NV04(chan, NV10_3D(STENCIL_MASK), 8);
-	OUT_RING  (chan, 0xff);
-	OUT_RING  (chan, 0x207);
-	OUT_RING  (chan, 0);
-	OUT_RING  (chan, 0xff);
-	OUT_RING  (chan, 0x1e00);
-	OUT_RING  (chan, 0x1e00);
-	OUT_RING  (chan, 0x1e00);
-	OUT_RING  (chan, 0x1d01);
-	BEGIN_NV04(chan, NV10_3D(NORMALIZE_ENABLE), 1);
-	OUT_RING  (chan, 0);
-	BEGIN_NV04(chan, NV10_3D(FOG_ENABLE), 2);
-	OUT_RING  (chan, 0);
-	OUT_RING  (chan, 0);
-	BEGIN_NV04(chan, NV10_3D(LIGHT_MODEL), 1);
-	OUT_RING  (chan, 0);
-	BEGIN_NV04(chan, NV10_3D(SEPARATE_SPECULAR_ENABLE), 1);
-	OUT_RING  (chan, 0);
-	BEGIN_NV04(chan, NV10_3D(ENABLED_LIGHTS), 1);
-	OUT_RING  (chan, 0);
-	BEGIN_NV04(chan, NV10_3D(POLYGON_OFFSET_POINT_ENABLE), 3);
-	OUT_RING  (chan, 0);
-	OUT_RING  (chan, 0);
-	OUT_RING  (chan, 0);
-	BEGIN_NV04(chan, NV10_3D(DEPTH_FUNC), 1);
-	OUT_RING  (chan, 0x201);
-	BEGIN_NV04(chan, NV10_3D(DEPTH_WRITE_ENABLE), 1);
-	OUT_RING  (chan, 0);
-	BEGIN_NV04(chan, NV10_3D(DEPTH_TEST_ENABLE), 1);
-	OUT_RING  (chan, 0);
-	BEGIN_NV04(chan, NV10_3D(POLYGON_OFFSET_FACTOR), 2);
-	OUT_RING  (chan, 0);
-	OUT_RING  (chan, 0);
-	BEGIN_NV04(chan, NV10_3D(POINT_SIZE), 1);
-	OUT_RING  (chan, 8);
-	BEGIN_NV04(chan, NV10_3D(POINT_PARAMETERS_ENABLE), 2);
-	OUT_RING  (chan, 0);
-	OUT_RING  (chan, 0);
-	BEGIN_NV04(chan, NV10_3D(LINE_WIDTH), 1);
-	OUT_RING  (chan, 8);
-	BEGIN_NV04(chan, NV10_3D(LINE_SMOOTH_ENABLE), 1);
-	OUT_RING  (chan, 0);
-	BEGIN_NV04(chan, NV10_3D(POLYGON_MODE_FRONT), 2);
-	OUT_RING  (chan, 0x1b02);
-	OUT_RING  (chan, 0x1b02);
-	BEGIN_NV04(chan, NV10_3D(CULL_FACE), 2);
-	OUT_RING  (chan, 0x405);
-	OUT_RING  (chan, 0x901);
-	BEGIN_NV04(chan, NV10_3D(POLYGON_SMOOTH_ENABLE), 1);
-	OUT_RING  (chan, 0);
-	BEGIN_NV04(chan, NV10_3D(CULL_FACE_ENABLE), 1);
-	OUT_RING  (chan, 0);
-	BEGIN_NV04(chan, NV10_3D(TEX_GEN_MODE(0, 0)), 8);
+	BEGIN_NV04(push, NV10_3D(FOG_ENABLE), 1);
+	PUSH_DATA (push, 0);
+	BEGIN_NV04(push, NV10_3D(ALPHA_FUNC_ENABLE), 1);
+	PUSH_DATA (push, 0);
+	BEGIN_NV04(push, NV10_3D(ALPHA_FUNC_FUNC), 2);
+	PUSH_DATA (push, 0x207);
+	PUSH_DATA (push, 0);
+	BEGIN_NV04(push, NV10_3D(TEX_ENABLE(0)), 2);
+	PUSH_DATA (push, 0);
+	PUSH_DATA (push, 0);
+	BEGIN_NV04(push, NV10_3D(RC_IN_ALPHA(0)), 6);
+	PUSH_DATA (push, 0);
+	PUSH_DATA (push, 0);
+	PUSH_DATA (push, 0);
+	PUSH_DATA (push, 0);
+	PUSH_DATA (push, 0);
+	PUSH_DATA (push, 0);
+	BEGIN_NV04(push, NV10_3D(RC_OUT_ALPHA(0)), 6);
+	PUSH_DATA (push, 0x00000c00);
+	PUSH_DATA (push, 0);
+	PUSH_DATA (push, 0x00000c00);
+	PUSH_DATA (push, 0x18000000);
+	PUSH_DATA (push, 0x300c0000);
+	PUSH_DATA (push, 0x00001c80);
+	BEGIN_NV04(push, NV10_3D(BLEND_FUNC_ENABLE), 1);
+	PUSH_DATA (push, 0);
+	BEGIN_NV04(push, NV10_3D(DITHER_ENABLE), 2);
+	PUSH_DATA (push, 1);
+	PUSH_DATA (push, 0);
+	BEGIN_NV04(push, NV10_3D(LINE_SMOOTH_ENABLE), 1);
+	PUSH_DATA (push, 0);
+	BEGIN_NV04(push, NV10_3D(VERTEX_WEIGHT_ENABLE), 2);
+	PUSH_DATA (push, 0);
+	PUSH_DATA (push, 0);
+	BEGIN_NV04(push, NV10_3D(BLEND_FUNC_SRC), 4);
+	PUSH_DATA (push, 1);
+	PUSH_DATA (push, 0);
+	PUSH_DATA (push, 0);
+	PUSH_DATA (push, 0x8006);
+	BEGIN_NV04(push, NV10_3D(STENCIL_MASK), 8);
+	PUSH_DATA (push, 0xff);
+	PUSH_DATA (push, 0x207);
+	PUSH_DATA (push, 0);
+	PUSH_DATA (push, 0xff);
+	PUSH_DATA (push, 0x1e00);
+	PUSH_DATA (push, 0x1e00);
+	PUSH_DATA (push, 0x1e00);
+	PUSH_DATA (push, 0x1d01);
+	BEGIN_NV04(push, NV10_3D(NORMALIZE_ENABLE), 1);
+	PUSH_DATA (push, 0);
+	BEGIN_NV04(push, NV10_3D(FOG_ENABLE), 2);
+	PUSH_DATA (push, 0);
+	PUSH_DATA (push, 0);
+	BEGIN_NV04(push, NV10_3D(LIGHT_MODEL), 1);
+	PUSH_DATA (push, 0);
+	BEGIN_NV04(push, NV10_3D(SEPARATE_SPECULAR_ENABLE), 1);
+	PUSH_DATA (push, 0);
+	BEGIN_NV04(push, NV10_3D(ENABLED_LIGHTS), 1);
+	PUSH_DATA (push, 0);
+	BEGIN_NV04(push, NV10_3D(POLYGON_OFFSET_POINT_ENABLE), 3);
+	PUSH_DATA (push, 0);
+	PUSH_DATA (push, 0);
+	PUSH_DATA (push, 0);
+	BEGIN_NV04(push, NV10_3D(DEPTH_FUNC), 1);
+	PUSH_DATA (push, 0x201);
+	BEGIN_NV04(push, NV10_3D(DEPTH_WRITE_ENABLE), 1);
+	PUSH_DATA (push, 0);
+	BEGIN_NV04(push, NV10_3D(DEPTH_TEST_ENABLE), 1);
+	PUSH_DATA (push, 0);
+	BEGIN_NV04(push, NV10_3D(POLYGON_OFFSET_FACTOR), 2);
+	PUSH_DATA (push, 0);
+	PUSH_DATA (push, 0);
+	BEGIN_NV04(push, NV10_3D(POINT_SIZE), 1);
+	PUSH_DATA (push, 8);
+	BEGIN_NV04(push, NV10_3D(POINT_PARAMETERS_ENABLE), 2);
+	PUSH_DATA (push, 0);
+	PUSH_DATA (push, 0);
+	BEGIN_NV04(push, NV10_3D(LINE_WIDTH), 1);
+	PUSH_DATA (push, 8);
+	BEGIN_NV04(push, NV10_3D(LINE_SMOOTH_ENABLE), 1);
+	PUSH_DATA (push, 0);
+	BEGIN_NV04(push, NV10_3D(POLYGON_MODE_FRONT), 2);
+	PUSH_DATA (push, 0x1b02);
+	PUSH_DATA (push, 0x1b02);
+	BEGIN_NV04(push, NV10_3D(CULL_FACE), 2);
+	PUSH_DATA (push, 0x405);
+	PUSH_DATA (push, 0x901);
+	BEGIN_NV04(push, NV10_3D(POLYGON_SMOOTH_ENABLE), 1);
+	PUSH_DATA (push, 0);
+	BEGIN_NV04(push, NV10_3D(CULL_FACE_ENABLE), 1);
+	PUSH_DATA (push, 0);
+	BEGIN_NV04(push, NV10_3D(TEX_GEN_MODE(0, 0)), 8);
 	for (i = 0; i < 8; i++)
-		OUT_RING  (chan, 0);
+		PUSH_DATA (push, 0);
 
-	BEGIN_NV04(chan, NV10_3D(FOG_COEFF(0)), 3);
-	OUT_RING  (chan, 0x3fc00000);	/* -1.50 */
-	OUT_RING  (chan, 0xbdb8aa0a);	/* -0.09 */
-	OUT_RING  (chan, 0);		/*  0.00 */
+	BEGIN_NV04(push, NV10_3D(FOG_COEFF(0)), 3);
+	PUSH_DATA (push, 0x3fc00000);	/* -1.50 */
+	PUSH_DATA (push, 0xbdb8aa0a);	/* -0.09 */
+	PUSH_DATA (push, 0);		/*  0.00 */
 
-	BEGIN_NV04(chan, NV04_GRAPH(3D, NOP), 1);
-	OUT_RING  (chan, 0);
+	BEGIN_NV04(push, NV04_GRAPH(3D, NOP), 1);
+	PUSH_DATA (push, 0);
 
-	BEGIN_NV04(chan, NV10_3D(FOG_MODE), 2);
-	OUT_RING  (chan, 0x802);
-	OUT_RING  (chan, 2);
+	BEGIN_NV04(push, NV10_3D(FOG_MODE), 2);
+	PUSH_DATA (push, 0x802);
+	PUSH_DATA (push, 2);
 	/* for some reason VIEW_MATRIX_ENABLE need to be 6 instead of 4 when
 	 * using texturing, except when using the texture matrix
 	 */
-	BEGIN_NV04(chan, NV10_3D(VIEW_MATRIX_ENABLE), 1);
-	OUT_RING  (chan, 6);
-	BEGIN_NV04(chan, NV10_3D(COLOR_MASK), 1);
-	OUT_RING  (chan, 0x01010101);
+	BEGIN_NV04(push, NV10_3D(VIEW_MATRIX_ENABLE), 1);
+	PUSH_DATA (push, 6);
+	BEGIN_NV04(push, NV10_3D(COLOR_MASK), 1);
+	PUSH_DATA (push, 0x01010101);
 
-	BEGIN_NV04(chan, NV10_3D(PROJECTION_MATRIX(0)), 16);
+	BEGIN_NV04(push, NV10_3D(PROJECTION_MATRIX(0)), 16);
 	for(i = 0; i < 16; i++)
-		OUT_RINGf(chan, i/4 == i%4 ? 1.0 : 0.0);
+		PUSH_DATAf(push, i/4 == i%4 ? 1.0 : 0.0);
 
-	BEGIN_NV04(chan, NV10_3D(DEPTH_RANGE_NEAR), 2);
-	OUT_RING  (chan, 0);
-	OUT_RINGf (chan, 65536.0);
+	BEGIN_NV04(push, NV10_3D(DEPTH_RANGE_NEAR), 2);
+	PUSH_DATA (push, 0);
+	PUSH_DATAf(push, 65536.0);
 
-	BEGIN_NV04(chan, NV10_3D(VIEWPORT_TRANSLATE_X), 4);
-	OUT_RINGf (chan, -2048.0);
-	OUT_RINGf (chan, -2048.0);
-	OUT_RINGf (chan, 0);
-	OUT_RING  (chan, 0);
+	BEGIN_NV04(push, NV10_3D(VIEWPORT_TRANSLATE_X), 4);
+	PUSH_DATAf(push, -2048.0);
+	PUSH_DATAf(push, -2048.0);
+	PUSH_DATAf(push, 0);
+	PUSH_DATA (push, 0);
 
 	/* Set vertex component */
-	BEGIN_NV04(chan, NV10_3D(VERTEX_COL_4F_R), 4);
-	OUT_RINGf (chan, 1.0);
-	OUT_RINGf (chan, 1.0);
-	OUT_RINGf (chan, 1.0);
-	OUT_RINGf (chan, 1.0);
-	BEGIN_NV04(chan, NV10_3D(VERTEX_COL2_3F_R), 3);
-	OUT_RING  (chan, 0);
-	OUT_RING  (chan, 0);
-	OUT_RING  (chan, 0);
-	BEGIN_NV04(chan, NV10_3D(VERTEX_NOR_3F_X), 3);
-	OUT_RING  (chan, 0);
-	OUT_RING  (chan, 0);
-	OUT_RINGf (chan, 1.0);
-	BEGIN_NV04(chan, NV10_3D(VERTEX_TX0_4F_S), 4);
-	OUT_RINGf (chan, 0.0);
-	OUT_RINGf (chan, 0.0);
-	OUT_RINGf (chan, 0.0);
-	OUT_RINGf (chan, 1.0);
-	BEGIN_NV04(chan, NV10_3D(VERTEX_TX1_4F_S), 4);
-	OUT_RINGf (chan, 0.0);
-	OUT_RINGf (chan, 0.0);
-	OUT_RINGf (chan, 0.0);
-	OUT_RINGf (chan, 1.0);
-	BEGIN_NV04(chan, NV10_3D(VERTEX_FOG_1F), 1);
-	OUT_RINGf (chan, 0.0);
-	BEGIN_NV04(chan, NV10_3D(EDGEFLAG_ENABLE), 1);
-	OUT_RING  (chan, 1);
+	BEGIN_NV04(push, NV10_3D(VERTEX_COL_4F_R), 4);
+	PUSH_DATAf(push, 1.0);
+	PUSH_DATAf(push, 1.0);
+	PUSH_DATAf(push, 1.0);
+	PUSH_DATAf(push, 1.0);
+	BEGIN_NV04(push, NV10_3D(VERTEX_COL2_3F_R), 3);
+	PUSH_DATA (push, 0);
+	PUSH_DATA (push, 0);
+	PUSH_DATA (push, 0);
+	BEGIN_NV04(push, NV10_3D(VERTEX_NOR_3F_X), 3);
+	PUSH_DATA (push, 0);
+	PUSH_DATA (push, 0);
+	PUSH_DATAf(push, 1.0);
+	BEGIN_NV04(push, NV10_3D(VERTEX_TX0_4F_S), 4);
+	PUSH_DATAf(push, 0.0);
+	PUSH_DATAf(push, 0.0);
+	PUSH_DATAf(push, 0.0);
+	PUSH_DATAf(push, 1.0);
+	BEGIN_NV04(push, NV10_3D(VERTEX_TX1_4F_S), 4);
+	PUSH_DATAf(push, 0.0);
+	PUSH_DATAf(push, 0.0);
+	PUSH_DATAf(push, 0.0);
+	PUSH_DATAf(push, 1.0);
+	BEGIN_NV04(push, NV10_3D(VERTEX_FOG_1F), 1);
+	PUSH_DATAf(push, 0.0);
+	BEGIN_NV04(push, NV10_3D(EDGEFLAG_ENABLE), 1);
+	PUSH_DATA (push, 1);
 
 	return TRUE;
 }

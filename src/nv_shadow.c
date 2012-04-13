@@ -39,7 +39,7 @@ NVRefreshArea(ScrnInfoPtr pScrn, int num, BoxPtr pbox)
 	FBPitch = pScrn->displayWidth * cpp;
 	max_height = pNv->scanout->size/FBPitch;
 
-	nouveau_bo_map(pNv->scanout, NOUVEAU_BO_WR);
+	nouveau_bo_map(pNv->scanout, NOUVEAU_BO_WR, pNv->client);
 	while(num--) {
 		x1 = MAX(pbox->x1, 0);
 		y1 = MAX(pbox->y1, 0);
@@ -61,5 +61,4 @@ NVRefreshArea(ScrnInfoPtr pScrn, int num, BoxPtr pbox)
 
 		pbox++;
 	}
-	nouveau_bo_unmap(pNv->scanout);
 } 

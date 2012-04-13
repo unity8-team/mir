@@ -24,46 +24,55 @@
 #include <errno.h>
 #include "nv_include.h"
 
-static void
-NVLockedUp(ScrnInfoPtr pScrn)
-{
-	NVPtr pNv = NVPTR(pScrn);
-
-	/* avoid re-entering FatalError on shutdown */
-	if (pNv->LockedUp)
-		return;
-	pNv->LockedUp = TRUE;
-
-	FatalError("Detected GPU lockup\n");
-}
-
-static void
-NVChannelHangNotify(struct nouveau_channel *chan)
-{
-	ScrnInfoPtr pScrn = chan->user_private;
-
-	NVLockedUp(pScrn);
-}
-
 Bool
 NVInitDma(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	int ret;
+	struct nv04_fifo nv04_data = { .vram = NvDmaFB,
+				       .gart = NvDmaTT };
+	struct nvc0_fifo nvc0_data = { };
+	struct nouveau_object *device = &pNv->dev->object;
+	struct nouveau_fifo *fifo;
+	int size, ret;
+	void *data;
 
-	ret = nouveau_channel_alloc(pNv->dev, NvDmaFB, NvDmaTT, 24*1024,
-				    &pNv->chan);
+	if (pNv->Architecture < NV_ARCH_C0) {
+		data = &nv04_data;
+		size = sizeof(nv04_data);
+	} else {
+		data = &nvc0_data;
+		size = sizeof(nvc0_data);
+	}
+
+	ret = nouveau_object_new(device, 0, NOUVEAU_FIFO_CHANNEL_CLASS,
+				 data, size, &pNv->channel);
 	if (ret) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Error creating GPU channel: %d\n", ret);
 		return FALSE;
 	}
-	pNv->chan->user_private = pScrn;
-	pNv->chan->hang_notify = NVChannelHangNotify;
+
+	fifo = pNv->channel->data;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Opened GPU channel %d\n", pNv->chan->id);
+		   "Opened GPU channel %d\n", fifo->channel);
 
+	ret = nouveau_pushbuf_new(pNv->client, pNv->channel, 4, 32 * 1024,
+				  true, &pNv->pushbuf);
+	if (ret) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "Error allocating DMA push buffer: %d\n",ret);
+		NVTakedownDma(pScrn);
+		return FALSE;
+	}
+
+	ret = nouveau_bufctx_new(pNv->client, 1, &pNv->bufctx);
+	if (ret) {
+		NVTakedownDma(pScrn);
+		return FALSE;
+	}
+
+	pNv->pushbuf->user_priv = pNv->bufctx;
 	return TRUE;
 }
 
@@ -71,12 +80,16 @@ void
 NVTakedownDma(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
+	if (pNv->channel) {
+		struct nouveau_fifo *fifo = pNv->channel->data;
+		int chid = fifo->channel;
 
-	if (!pNv->chan)
-		return;
+		nouveau_bufctx_del(&pNv->bufctx);
+		nouveau_pushbuf_del(&pNv->pushbuf);
+		nouveau_object_del(&pNv->channel);
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Closed GPU channel %d\n", pNv->chan->id);
-	nouveau_channel_free(&pNv->chan);
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "Closed GPU channel %d\n", chid);
+	}
 }
 

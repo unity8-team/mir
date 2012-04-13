@@ -32,7 +32,7 @@ NV50SyncToVBlank(PixmapPtr ppix, BoxPtr box)
 {
 	ScrnInfoPtr pScrn = xf86Screens[ppix->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_channel *chan = pNv->chan;
+	struct nouveau_pushbuf *push = pNv->pushbuf;
 	int crtcs;
 
 	if (!nouveau_exa_pixmap_is_onscreen(ppix))
@@ -44,23 +44,87 @@ NV50SyncToVBlank(PixmapPtr ppix, BoxPtr box)
 	if (!crtcs)
 		return;
 
-	BEGIN_NV04(chan, SUBC_NVSW(0x0060), 2);
-	OUT_RING  (chan, pNv->vblank_sem->handle);
-	OUT_RING  (chan, 0);
-	BEGIN_NV04(chan, SUBC_NVSW(0x006c), 1);
-	OUT_RING  (chan, 0x22222222);
-	BEGIN_NV04(chan, SUBC_NVSW(0x0404), 2);
-	OUT_RING  (chan, 0x11111111);
-	OUT_RING  (chan, ffs(crtcs) - 1);
-	BEGIN_NV04(chan, SUBC_NVSW(0x0068), 1);
-	OUT_RING  (chan, 0x11111111);
+	BEGIN_NV04(push, SUBC_NVSW(0x0060), 2);
+	PUSH_DATA (push, pNv->vblank_sem->handle);
+	PUSH_DATA (push, 0);
+	BEGIN_NV04(push, SUBC_NVSW(0x006c), 1);
+	PUSH_DATA (push, 0x22222222);
+	BEGIN_NV04(push, SUBC_NVSW(0x0404), 2);
+	PUSH_DATA (push, 0x11111111);
+	PUSH_DATA (push, ffs(crtcs) - 1);
+	BEGIN_NV04(push, SUBC_NVSW(0x0068), 1);
+	PUSH_DATA (push, 0x11111111);
+}
+
+Bool
+NVAccelInitM2MF_NV50(ScrnInfoPtr pScrn)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	struct nouveau_pushbuf *push = pNv->pushbuf;
+	struct nv04_fifo *fifo = pNv->channel->data;
+
+	if (nouveau_object_new(pNv->channel, NvMemFormat, NV50_M2MF_CLASS,
+			       NULL, 0, &pNv->NvMemFormat))
+		return FALSE;
+
+	if (!PUSH_SPACE(push, 8))
+		return FALSE;
+
+	BEGIN_NV04(push, NV01_SUBC(M2MF, OBJECT), 1);
+	PUSH_DATA (push, pNv->NvMemFormat->handle);
+	BEGIN_NV04(push, NV03_M2MF(DMA_NOTIFY), 1);
+	PUSH_DATA (push, pNv->notify0->handle);
+	BEGIN_NV04(push, NV03_M2MF(DMA_BUFFER_IN), 2);
+	PUSH_DATA (push, fifo->vram);
+	PUSH_DATA (push, fifo->vram);
+	return TRUE;
+}
+
+Bool
+NVAccelInit2D_NV50(ScrnInfoPtr pScrn)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	struct nouveau_pushbuf *push = pNv->pushbuf;
+	struct nv04_fifo *fifo = pNv->channel->data;
+
+	if (nouveau_object_new(pNv->channel, Nv2D, NV50_2D_CLASS,
+			       NULL, 0, &pNv->Nv2D))
+		return FALSE;
+
+	if (!PUSH_SPACE(push, 64))
+		return FALSE;
+
+	BEGIN_NV04(push, NV01_SUBC(2D, OBJECT), 1);
+	PUSH_DATA (push, pNv->Nv2D->handle);
+	BEGIN_NV04(push, NV50_2D(DMA_NOTIFY), 3);
+	PUSH_DATA (push, pNv->notify0->handle);
+	PUSH_DATA (push, fifo->vram);
+	PUSH_DATA (push, fifo->vram);
+
+	/* Magics from nv, no clue what they do, but at least some
+	 * of them are needed to avoid crashes.
+	 */
+	BEGIN_NV04(push, SUBC_2D(0x0260), 1);
+	PUSH_DATA (push, 1);
+	BEGIN_NV04(push, NV50_2D(CLIP_ENABLE), 1);
+	PUSH_DATA (push, 1);
+	BEGIN_NV04(push, NV50_2D(COLOR_KEY_ENABLE), 1);
+	PUSH_DATA (push, 0);
+	BEGIN_NV04(push, SUBC_2D(0x058c), 1);
+	PUSH_DATA (push, 0x111);
+
+	pNv->currentRop = 0xfffffffa;
+	return TRUE;
 }
 
 Bool
 NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_channel *chan = pNv->chan;
+	struct nv04_fifo *fifo = pNv->channel->data;
+	struct nouveau_pushbuf *push = pNv->pushbuf;
+	struct nv04_notify ntfy = { .length = 32 };
+	struct nouveau_bo *bo;
 	unsigned class;
 	int i;
 
@@ -91,328 +155,302 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 		return FALSE;
 	}
 
-	if (!pNv->Nv3D) {
-		if (nouveau_grobj_alloc(chan, Nv3D, class, &pNv->Nv3D))
-			return FALSE;
-
-		if (nouveau_grobj_alloc(chan, NvSW, 0x506e, &pNv->NvSW)) {
-			nouveau_grobj_free(&pNv->Nv3D);
-			return FALSE;
-		}
-
-		if (nouveau_notifier_alloc(chan, NvVBlankSem, 1,
-					   &pNv->vblank_sem)) {
-			nouveau_grobj_free(&pNv->NvSW);
-			nouveau_grobj_free(&pNv->Nv3D);
-			return FALSE;
-		}
-
-		if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM, 0, 65536,
-				   &pNv->tesla_scratch)) {
-			nouveau_notifier_free(&pNv->vblank_sem);
-			nouveau_grobj_free(&pNv->NvSW);
-			nouveau_grobj_free(&pNv->Nv3D);
-			return FALSE;
-		}
-	}
-
-	if (MARK_RING(chan, 512, 32))
+	if (nouveau_object_new(pNv->channel, Nv3D, class, NULL, 0, &pNv->Nv3D))
 		return FALSE;
 
-	BEGIN_NV04(chan, NV01_SUBC(NVSW, OBJECT), 1);
-	OUT_RING  (chan, pNv->NvSW->handle);
-	BEGIN_NV04(chan, SUBC_NVSW(0x018c), 1);
-	OUT_RING  (chan, pNv->vblank_sem->handle);
-	BEGIN_NV04(chan, SUBC_NVSW(0x0400), 1);
-	OUT_RING  (chan, 0);
+	if (nouveau_object_new(pNv->channel, NvSW, 0x506e, NULL, 0, &pNv->NvSW)) {
+		nouveau_object_del(&pNv->Nv3D);
+		return FALSE;
+	}
 
-	BEGIN_NV04(chan, NV01_SUBC(3D, OBJECT), 1);
-	OUT_RING  (chan, pNv->Nv3D->handle);
-	BEGIN_NV04(chan, NV50_3D(COND_MODE), 1);
-	OUT_RING  (chan, NV50_3D_COND_MODE_ALWAYS);
-	BEGIN_NV04(chan, NV50_3D(DMA_NOTIFY), 1);
-	OUT_RING  (chan, chan->nullobj->handle);
-	BEGIN_NV04(chan, NV50_3D(DMA_ZETA), 11);
+	if (nouveau_object_new(pNv->channel, NvVBlankSem, NOUVEAU_NOTIFIER_CLASS,
+			       &ntfy, sizeof(ntfy), &pNv->vblank_sem)) {
+		nouveau_object_del(&pNv->NvSW);
+		nouveau_object_del(&pNv->Nv3D);
+		return FALSE;
+	}
+
+	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM, 0, 65536,
+			   NULL, &pNv->tesla_scratch)) {
+		nouveau_object_del(&pNv->vblank_sem);
+		nouveau_object_del(&pNv->NvSW);
+		nouveau_object_del(&pNv->Nv3D);
+		return FALSE;
+	}
+	bo = pNv->tesla_scratch;
+
+	if (nouveau_pushbuf_space(push, 512, 0, 0) ||
+	    nouveau_pushbuf_refn (push, &(struct nouveau_pushbuf_refn) {
+					bo, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR
+					}, 1))
+		return FALSE;
+
+	BEGIN_NV04(push, NV01_SUBC(NVSW, OBJECT), 1);
+	PUSH_DATA (push, pNv->NvSW->handle);
+	BEGIN_NV04(push, SUBC_NVSW(0x018c), 1);
+	PUSH_DATA (push, pNv->vblank_sem->handle);
+	BEGIN_NV04(push, SUBC_NVSW(0x0400), 1);
+	PUSH_DATA (push, 0);
+
+	BEGIN_NV04(push, NV01_SUBC(3D, OBJECT), 1);
+	PUSH_DATA (push, pNv->Nv3D->handle);
+	BEGIN_NV04(push, NV50_3D(COND_MODE), 1);
+	PUSH_DATA (push, NV50_3D_COND_MODE_ALWAYS);
+	BEGIN_NV04(push, NV50_3D(DMA_NOTIFY), 1);
+	PUSH_DATA (push, pNv->NvNull->handle);
+	BEGIN_NV04(push, NV50_3D(DMA_ZETA), 11);
 	for (i = 0; i < 11; i++)
-		OUT_RING  (chan, pNv->chan->vram->handle);
-	BEGIN_NV04(chan, NV50_3D(DMA_COLOR(0)), NV50_3D_DMA_COLOR__LEN);
+		PUSH_DATA (push, fifo->vram);
+	BEGIN_NV04(push, NV50_3D(DMA_COLOR(0)), NV50_3D_DMA_COLOR__LEN);
 	for (i = 0; i < NV50_3D_DMA_COLOR__LEN; i++)
-		OUT_RING  (chan, pNv->chan->vram->handle);
-	BEGIN_NV04(chan, NV50_3D(RT_CONTROL), 1);
-	OUT_RING  (chan, 1);
+		PUSH_DATA (push, fifo->vram);
+	BEGIN_NV04(push, NV50_3D(RT_CONTROL), 1);
+	PUSH_DATA (push, 1);
 
-	BEGIN_NV04(chan, NV50_3D(VIEWPORT_TRANSFORM_EN), 1);
-	OUT_RING  (chan, 0);
-	BEGIN_NV04(chan, SUBC_3D(0x0f90), 1);
-	OUT_RING  (chan, 1);
+	BEGIN_NV04(push, NV50_3D(VIEWPORT_TRANSFORM_EN), 1);
+	PUSH_DATA (push, 0);
+	BEGIN_NV04(push, SUBC_3D(0x0f90), 1);
+	PUSH_DATA (push, 1);
 
-	BEGIN_NV04(chan, NV50_3D(LINKED_TSC), 1);
-	OUT_RING  (chan, 1);
+	BEGIN_NV04(push, NV50_3D(TIC_ADDRESS_HIGH), 3);
+	PUSH_DATA (push, (bo->offset + TIC_OFFSET) >> 32);
+	PUSH_DATA (push, (bo->offset + TIC_OFFSET));
+	PUSH_DATA (push, 0x00000800);
+	BEGIN_NV04(push, NV50_3D(TSC_ADDRESS_HIGH), 3);
+	PUSH_DATA (push, (bo->offset + TSC_OFFSET) >> 32);
+	PUSH_DATA (push, (bo->offset + TSC_OFFSET));
+	PUSH_DATA (push, 0x00000000);
+	BEGIN_NV04(push, NV50_3D(LINKED_TSC), 1);
+	PUSH_DATA (push, 1);
+	BEGIN_NV04(push, NV50_3D(TEX_LIMITS(2)), 1);
+	PUSH_DATA (push, 0x54);
 
-	BEGIN_NV04(chan, NV50_3D(TEX_LIMITS(2)), 1);
-	OUT_RING  (chan, 0x54);
-
-	BEGIN_NV04(chan, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
-	if (OUT_RELOCh(chan, pNv->tesla_scratch, PVP_OFFSET,
-		       NOUVEAU_BO_VRAM | NOUVEAU_BO_WR) ||
-	    OUT_RELOCl(chan, pNv->tesla_scratch, PVP_OFFSET,
-		       NOUVEAU_BO_VRAM | NOUVEAU_BO_WR)) {
-		MARK_UNDO(chan);
-		return FALSE;
-	}
-	OUT_RING  (chan, 0x00004000);
-	BEGIN_NV04(chan, NV50_3D(CB_ADDR), 1);
-	OUT_RING  (chan, 0);
-	BEGIN_NI04(chan, NV50_3D(CB_DATA(0)), (3*2*2));
-	OUT_RING  (chan, 0x10000001);
-	OUT_RING  (chan, 0x0423c788);
-	OUT_RING  (chan, 0x10000205);
-	OUT_RING  (chan, 0x0423c788);
-	OUT_RING  (chan, 0x10000409);
-	OUT_RING  (chan, 0x0423c788);
-	OUT_RING  (chan, 0x1000060d);
-	OUT_RING  (chan, 0x0423c788);
-	OUT_RING  (chan, 0x10000811);
-	OUT_RING  (chan, 0x0423c788);
-	OUT_RING  (chan, 0x10000a15);
-	OUT_RING  (chan, 0x0423c789);
+	BEGIN_NV04(push, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
+	PUSH_DATA (push, (bo->offset + PVP_OFFSET) >> 32);
+	PUSH_DATA (push, (bo->offset + PVP_OFFSET));
+	PUSH_DATA (push, 0x00004000);
+	BEGIN_NV04(push, NV50_3D(CB_ADDR), 1);
+	PUSH_DATA (push, 0);
+	BEGIN_NI04(push, NV50_3D(CB_DATA(0)), (3*2*2));
+	PUSH_DATA (push, 0x10000001);
+	PUSH_DATA (push, 0x0423c788);
+	PUSH_DATA (push, 0x10000205);
+	PUSH_DATA (push, 0x0423c788);
+	PUSH_DATA (push, 0x10000409);
+	PUSH_DATA (push, 0x0423c788);
+	PUSH_DATA (push, 0x1000060d);
+	PUSH_DATA (push, 0x0423c788);
+	PUSH_DATA (push, 0x10000811);
+	PUSH_DATA (push, 0x0423c788);
+	PUSH_DATA (push, 0x10000a15);
+	PUSH_DATA (push, 0x0423c789);
 
 	/* fetch only VTX_ATTR[0,8,9].xy */
-	BEGIN_NV04(chan, NV50_3D(VP_ATTR_EN(0)), 2);
-	OUT_RING  (chan, 0x00000003);
-	OUT_RING  (chan, 0x00000033);
-	BEGIN_NV04(chan, NV50_3D(VP_REG_ALLOC_RESULT), 1);
-	OUT_RING  (chan, 6);
-	if (pNv->Nv3D->grclass != 0x8597) {
-		BEGIN_NV04(chan, NV50_3D(VP_RESULT_MAP_SIZE), 2);
-		OUT_RING  (chan, 8);
-		OUT_RING  (chan, 0); /* NV50_3D_VP_REG_ALLOC_TEMP */
+	BEGIN_NV04(push, NV50_3D(VP_ATTR_EN(0)), 2);
+	PUSH_DATA (push, 0x00000003);
+	PUSH_DATA (push, 0x00000033);
+	BEGIN_NV04(push, NV50_3D(VP_REG_ALLOC_RESULT), 1);
+	PUSH_DATA (push, 6);
+	if (pNv->Nv3D->oclass != 0x8597) {
+		BEGIN_NV04(push, NV50_3D(VP_RESULT_MAP_SIZE), 2);
+		PUSH_DATA (push, 8);
+		PUSH_DATA (push, 0); /* NV50_3D_VP_REG_ALLOC_TEMP */
 	} else {
-		BEGIN_NV04(chan, NV50_3D(VP_RESULT_MAP_SIZE), 1);
-		OUT_RING  (chan, 8);
+		BEGIN_NV04(push, NV50_3D(VP_RESULT_MAP_SIZE), 1);
+		PUSH_DATA (push, 8);
 	}
-	BEGIN_NV04(chan, NV50_3D(VP_START_ID), 1);
-	OUT_RING  (chan, 0);
+	BEGIN_NV04(push, NV50_3D(VP_ADDRESS_HIGH), 2);
+	PUSH_DATA (push, (bo->offset + PVP_OFFSET) >> 32);
+	PUSH_DATA (push, (bo->offset + PVP_OFFSET));
+	BEGIN_NV04(push, NV50_3D(VP_START_ID), 1);
+	PUSH_DATA (push, 0);
 
-	BEGIN_NV04(chan, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
-	if (OUT_RELOCh(chan, pNv->tesla_scratch,
-		       PFP_OFFSET + PFP_S, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR) ||
-	    OUT_RELOCl(chan, pNv->tesla_scratch,
-		       PFP_OFFSET + PFP_S, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR)) {
-		MARK_UNDO(chan);
-		return FALSE;
-	}
-	OUT_RING  (chan, (0 << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 0x4000);
-	BEGIN_NV04(chan, NV50_3D(CB_ADDR), 1);
-	OUT_RING  (chan, 0);
-	BEGIN_NI04(chan, NV50_3D(CB_DATA(0)), 6);
-	OUT_RING  (chan, 0x80000000);
-	OUT_RING  (chan, 0x90000004);
-	OUT_RING  (chan, 0x82010200);
-	OUT_RING  (chan, 0x82020204);
-	OUT_RING  (chan, 0xf6400001);
-	OUT_RING  (chan, 0x0000c785);
-	BEGIN_NV04(chan, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
-	if (OUT_RELOCh(chan, pNv->tesla_scratch,
-		       PFP_OFFSET + PFP_C, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR) ||
-	    OUT_RELOCl(chan, pNv->tesla_scratch,
-		       PFP_OFFSET + PFP_C, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR)) {
-		MARK_UNDO(chan);
-		return FALSE;
-	}
-	OUT_RING  (chan, (0 << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 0x4000);
-	BEGIN_NV04(chan, NV50_3D(CB_ADDR), 1);
-	OUT_RING  (chan, 0);
-	BEGIN_NI04(chan, NV50_3D(CB_DATA(0)), 16);
-	OUT_RING  (chan, 0x80000000);
-	OUT_RING  (chan, 0x90000004);
-	OUT_RING  (chan, 0x82030210);
-	OUT_RING  (chan, 0x82040214);
-	OUT_RING  (chan, 0x82010200);
-	OUT_RING  (chan, 0x82020204);
-	OUT_RING  (chan, 0xf6400001);
-	OUT_RING  (chan, 0x0000c784);
-	OUT_RING  (chan, 0xf0400211);
-	OUT_RING  (chan, 0x00008784);
-	OUT_RING  (chan, 0xc0040000);
-	OUT_RING  (chan, 0xc0040204);
-	OUT_RING  (chan, 0xc0040409);
-	OUT_RING  (chan, 0x00000780);
-	OUT_RING  (chan, 0xc004060d);
-	OUT_RING  (chan, 0x00000781);
-	BEGIN_NV04(chan, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
-	if (OUT_RELOCh(chan, pNv->tesla_scratch,
-		       PFP_OFFSET + PFP_CCA, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR) ||
-	    OUT_RELOCl(chan, pNv->tesla_scratch,
-		       PFP_OFFSET + PFP_CCA, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR)) {
-		MARK_UNDO(chan);
-		return FALSE;
-	}
-	OUT_RING  (chan, (0 << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 0x4000);
-	BEGIN_NV04(chan, NV50_3D(CB_ADDR), 1);
-	OUT_RING  (chan, 0);
-	BEGIN_NI04(chan, NV50_3D(CB_DATA(0)), 16);
-	OUT_RING  (chan, 0x80000000);
-	OUT_RING  (chan, 0x90000004);
-	OUT_RING  (chan, 0x82030210);
-	OUT_RING  (chan, 0x82040214);
-	OUT_RING  (chan, 0x82010200);
-	OUT_RING  (chan, 0x82020204);
-	OUT_RING  (chan, 0xf6400001);
-	OUT_RING  (chan, 0x0000c784);
-	OUT_RING  (chan, 0xf6400211);
-	OUT_RING  (chan, 0x0000c784);
-	OUT_RING  (chan, 0xc0040000);
-	OUT_RING  (chan, 0xc0050204);
-	OUT_RING  (chan, 0xc0060409);
-	OUT_RING  (chan, 0x00000780);
-	OUT_RING  (chan, 0xc007060d);
-	OUT_RING  (chan, 0x00000781);
-	BEGIN_NV04(chan, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
-	if (OUT_RELOCh(chan, pNv->tesla_scratch, PFP_OFFSET + PFP_CCASA,
-		       NOUVEAU_BO_VRAM | NOUVEAU_BO_WR) ||
-	    OUT_RELOCl(chan, pNv->tesla_scratch, PFP_OFFSET + PFP_CCASA,
-		       NOUVEAU_BO_VRAM | NOUVEAU_BO_WR)) {
-		MARK_UNDO(chan);
-		return FALSE;
-	}
-	OUT_RING  (chan, (0 << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 0x4000);
-	BEGIN_NV04(chan, NV50_3D(CB_ADDR), 1);
-	OUT_RING  (chan, 0);
-	BEGIN_NI04(chan, NV50_3D(CB_DATA(0)), 16);
-	OUT_RING  (chan, 0x80000000);
-	OUT_RING  (chan, 0x90000004);
-	OUT_RING  (chan, 0x82030200);
-	OUT_RING  (chan, 0x82040204);
-	OUT_RING  (chan, 0x82010210);
-	OUT_RING  (chan, 0x82020214);
-	OUT_RING  (chan, 0xf6400201);
-	OUT_RING  (chan, 0x0000c784);
-	OUT_RING  (chan, 0xf0400011);
-	OUT_RING  (chan, 0x00008784);
-	OUT_RING  (chan, 0xc0040000);
-	OUT_RING  (chan, 0xc0040204);
-	OUT_RING  (chan, 0xc0040409);
-	OUT_RING  (chan, 0x00000780);
-	OUT_RING  (chan, 0xc004060d);
-	OUT_RING  (chan, 0x00000781);
-	BEGIN_NV04(chan, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
-	if (OUT_RELOCh(chan, pNv->tesla_scratch, PFP_OFFSET + PFP_S_A8,
-		       NOUVEAU_BO_VRAM | NOUVEAU_BO_WR) ||
-	    OUT_RELOCl(chan, pNv->tesla_scratch, PFP_OFFSET + PFP_S_A8,
-		       NOUVEAU_BO_VRAM | NOUVEAU_BO_WR)) {
-		MARK_UNDO(chan);
-		return FALSE;
-	}
-	OUT_RING  (chan, (0 << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 0x4000);
-	BEGIN_NV04(chan, NV50_3D(CB_ADDR), 1);
-	OUT_RING  (chan, 0);
-	BEGIN_NI04(chan, NV50_3D(CB_DATA(0)), 10);
-	OUT_RING  (chan, 0x80000000);
-	OUT_RING  (chan, 0x90000004);
-	OUT_RING  (chan, 0x82010200);
-	OUT_RING  (chan, 0x82020204);
-	OUT_RING  (chan, 0xf0400001);
-	OUT_RING  (chan, 0x00008784);
-	OUT_RING  (chan, 0x10008004);
-	OUT_RING  (chan, 0x10008008);
-	OUT_RING  (chan, 0x1000000d);
-	OUT_RING  (chan, 0x0403c781);
-	BEGIN_NV04(chan, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
-	if (OUT_RELOCh(chan, pNv->tesla_scratch, PFP_OFFSET + PFP_C_A8,
-		       NOUVEAU_BO_VRAM | NOUVEAU_BO_WR) ||
-	    OUT_RELOCl(chan, pNv->tesla_scratch, PFP_OFFSET + PFP_C_A8,
-		       NOUVEAU_BO_VRAM | NOUVEAU_BO_WR)) {
-		MARK_UNDO(chan);
-		return FALSE;
-	}
-	OUT_RING  (chan, (0 << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 0x4000);
-	BEGIN_NV04(chan, NV50_3D(CB_ADDR), 1);
-	OUT_RING  (chan, 0);
-	BEGIN_NI04(chan, NV50_3D(CB_DATA(0)), 16);
-	OUT_RING  (chan, 0x80000000);
-	OUT_RING  (chan, 0x90000004);
-	OUT_RING  (chan, 0x82030208);
-	OUT_RING  (chan, 0x8204020c);
-	OUT_RING  (chan, 0x82010200);
-	OUT_RING  (chan, 0x82020204);
-	OUT_RING  (chan, 0xf0400001);
-	OUT_RING  (chan, 0x00008784);
-	OUT_RING  (chan, 0xf0400209);
-	OUT_RING  (chan, 0x00008784);
-	OUT_RING  (chan, 0xc002000d);
-	OUT_RING  (chan, 0x00000780);
-	OUT_RING  (chan, 0x10008600);
-	OUT_RING  (chan, 0x10008604);
-	OUT_RING  (chan, 0x10000609);
-	OUT_RING  (chan, 0x0403c781);
-	BEGIN_NV04(chan, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
-	if (OUT_RELOCh(chan, pNv->tesla_scratch, PFP_OFFSET + PFP_NV12,
-		       NOUVEAU_BO_VRAM | NOUVEAU_BO_WR) ||
-	    OUT_RELOCl(chan, pNv->tesla_scratch, PFP_OFFSET + PFP_NV12,
-		       NOUVEAU_BO_VRAM | NOUVEAU_BO_WR)) {
-		MARK_UNDO(chan);
-		return FALSE;
-	}
-	OUT_RING  (chan, (0 << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 0x4000);
-	BEGIN_NV04(chan, NV50_3D(CB_ADDR), 1);
-	OUT_RING  (chan, 0);
-	BEGIN_NI04(chan, NV50_3D(CB_DATA(0)), 24);
-	OUT_RING  (chan, 0x80000008);
-	OUT_RING  (chan, 0x90000408);
-	OUT_RING  (chan, 0x82010400);
-	OUT_RING  (chan, 0x82020404);
-	OUT_RING  (chan, 0xf0400001);
-	OUT_RING  (chan, 0x00008784);
-	OUT_RING  (chan, 0xc0800014);
-	OUT_RING  (chan, 0xb0810a0c);
-	OUT_RING  (chan, 0xb0820a10);
-	OUT_RING  (chan, 0xb0830a14);
-	OUT_RING  (chan, 0x82030400);
-	OUT_RING  (chan, 0x82040404);
-	OUT_RING  (chan, 0xf0400201);
-	OUT_RING  (chan, 0x0000c784);
-	OUT_RING  (chan, 0xe084000c);
-	OUT_RING  (chan, 0xe0850010);
-	OUT_RING  (chan, 0xe0860015);
-	OUT_RING  (chan, 0x00014780);
-	OUT_RING  (chan, 0xe0870201);
-	OUT_RING  (chan, 0x0000c780);
-	OUT_RING  (chan, 0xe0890209);
-	OUT_RING  (chan, 0x00014780);
-	OUT_RING  (chan, 0xe0880205);
-	OUT_RING  (chan, 0x00010781);
+	BEGIN_NV04(push, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
+	PUSH_DATA (push, (bo->offset + PFP_OFFSET + PFP_S) >> 32);
+	PUSH_DATA (push, (bo->offset + PFP_OFFSET + PFP_S));
+	PUSH_DATA (push, (0 << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 0x4000);
+	BEGIN_NV04(push, NV50_3D(CB_ADDR), 1);
+	PUSH_DATA (push, 0);
+	BEGIN_NI04(push, NV50_3D(CB_DATA(0)), 6);
+	PUSH_DATA (push, 0x80000000);
+	PUSH_DATA (push, 0x90000004);
+	PUSH_DATA (push, 0x82010200);
+	PUSH_DATA (push, 0x82020204);
+	PUSH_DATA (push, 0xf6400001);
+	PUSH_DATA (push, 0x0000c785);
+	BEGIN_NV04(push, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
+	PUSH_DATA (push, (bo->offset + PFP_OFFSET + PFP_C) >> 32);
+	PUSH_DATA (push, (bo->offset + PFP_OFFSET + PFP_C));
+	PUSH_DATA (push, (0 << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 0x4000);
+	BEGIN_NV04(push, NV50_3D(CB_ADDR), 1);
+	PUSH_DATA (push, 0);
+	BEGIN_NI04(push, NV50_3D(CB_DATA(0)), 16);
+	PUSH_DATA (push, 0x80000000);
+	PUSH_DATA (push, 0x90000004);
+	PUSH_DATA (push, 0x82030210);
+	PUSH_DATA (push, 0x82040214);
+	PUSH_DATA (push, 0x82010200);
+	PUSH_DATA (push, 0x82020204);
+	PUSH_DATA (push, 0xf6400001);
+	PUSH_DATA (push, 0x0000c784);
+	PUSH_DATA (push, 0xf0400211);
+	PUSH_DATA (push, 0x00008784);
+	PUSH_DATA (push, 0xc0040000);
+	PUSH_DATA (push, 0xc0040204);
+	PUSH_DATA (push, 0xc0040409);
+	PUSH_DATA (push, 0x00000780);
+	PUSH_DATA (push, 0xc004060d);
+	PUSH_DATA (push, 0x00000781);
+	BEGIN_NV04(push, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
+	PUSH_DATA (push, (bo->offset + PFP_OFFSET + PFP_CCA) >> 32);
+	PUSH_DATA (push, (bo->offset + PFP_OFFSET + PFP_CCA));
+	PUSH_DATA (push, (0 << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 0x4000);
+	BEGIN_NV04(push, NV50_3D(CB_ADDR), 1);
+	PUSH_DATA (push, 0);
+	BEGIN_NI04(push, NV50_3D(CB_DATA(0)), 16);
+	PUSH_DATA (push, 0x80000000);
+	PUSH_DATA (push, 0x90000004);
+	PUSH_DATA (push, 0x82030210);
+	PUSH_DATA (push, 0x82040214);
+	PUSH_DATA (push, 0x82010200);
+	PUSH_DATA (push, 0x82020204);
+	PUSH_DATA (push, 0xf6400001);
+	PUSH_DATA (push, 0x0000c784);
+	PUSH_DATA (push, 0xf6400211);
+	PUSH_DATA (push, 0x0000c784);
+	PUSH_DATA (push, 0xc0040000);
+	PUSH_DATA (push, 0xc0050204);
+	PUSH_DATA (push, 0xc0060409);
+	PUSH_DATA (push, 0x00000780);
+	PUSH_DATA (push, 0xc007060d);
+	PUSH_DATA (push, 0x00000781);
+	BEGIN_NV04(push, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
+	PUSH_DATA (push, (bo->offset + PFP_OFFSET + PFP_CCASA) >> 32);
+	PUSH_DATA (push, (bo->offset + PFP_OFFSET + PFP_CCASA));
+	PUSH_DATA (push, (0 << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 0x4000);
+	BEGIN_NV04(push, NV50_3D(CB_ADDR), 1);
+	PUSH_DATA (push, 0);
+	BEGIN_NI04(push, NV50_3D(CB_DATA(0)), 16);
+	PUSH_DATA (push, 0x80000000);
+	PUSH_DATA (push, 0x90000004);
+	PUSH_DATA (push, 0x82030200);
+	PUSH_DATA (push, 0x82040204);
+	PUSH_DATA (push, 0x82010210);
+	PUSH_DATA (push, 0x82020214);
+	PUSH_DATA (push, 0xf6400201);
+	PUSH_DATA (push, 0x0000c784);
+	PUSH_DATA (push, 0xf0400011);
+	PUSH_DATA (push, 0x00008784);
+	PUSH_DATA (push, 0xc0040000);
+	PUSH_DATA (push, 0xc0040204);
+	PUSH_DATA (push, 0xc0040409);
+	PUSH_DATA (push, 0x00000780);
+	PUSH_DATA (push, 0xc004060d);
+	PUSH_DATA (push, 0x00000781);
+	BEGIN_NV04(push, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
+	PUSH_DATA (push, (bo->offset + PFP_OFFSET + PFP_S_A8) >> 32);
+	PUSH_DATA (push, (bo->offset + PFP_OFFSET + PFP_S_A8));
+	PUSH_DATA (push, (0 << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 0x4000);
+	BEGIN_NV04(push, NV50_3D(CB_ADDR), 1);
+	PUSH_DATA (push, 0);
+	BEGIN_NI04(push, NV50_3D(CB_DATA(0)), 10);
+	PUSH_DATA (push, 0x80000000);
+	PUSH_DATA (push, 0x90000004);
+	PUSH_DATA (push, 0x82010200);
+	PUSH_DATA (push, 0x82020204);
+	PUSH_DATA (push, 0xf0400001);
+	PUSH_DATA (push, 0x00008784);
+	PUSH_DATA (push, 0x10008004);
+	PUSH_DATA (push, 0x10008008);
+	PUSH_DATA (push, 0x1000000d);
+	PUSH_DATA (push, 0x0403c781);
+	BEGIN_NV04(push, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
+	PUSH_DATA (push, (bo->offset + PFP_OFFSET + PFP_C_A8) >> 32);
+	PUSH_DATA (push, (bo->offset + PFP_OFFSET + PFP_C_A8));
+	PUSH_DATA (push, (0 << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 0x4000);
+	BEGIN_NV04(push, NV50_3D(CB_ADDR), 1);
+	PUSH_DATA (push, 0);
+	BEGIN_NI04(push, NV50_3D(CB_DATA(0)), 16);
+	PUSH_DATA (push, 0x80000000);
+	PUSH_DATA (push, 0x90000004);
+	PUSH_DATA (push, 0x82030208);
+	PUSH_DATA (push, 0x8204020c);
+	PUSH_DATA (push, 0x82010200);
+	PUSH_DATA (push, 0x82020204);
+	PUSH_DATA (push, 0xf0400001);
+	PUSH_DATA (push, 0x00008784);
+	PUSH_DATA (push, 0xf0400209);
+	PUSH_DATA (push, 0x00008784);
+	PUSH_DATA (push, 0xc002000d);
+	PUSH_DATA (push, 0x00000780);
+	PUSH_DATA (push, 0x10008600);
+	PUSH_DATA (push, 0x10008604);
+	PUSH_DATA (push, 0x10000609);
+	PUSH_DATA (push, 0x0403c781);
+	BEGIN_NV04(push, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
+	PUSH_DATA (push, (bo->offset + PFP_OFFSET + PFP_NV12) >> 32);
+	PUSH_DATA (push, (bo->offset + PFP_OFFSET + PFP_NV12));
+	PUSH_DATA (push, (0 << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 0x4000);
+	BEGIN_NV04(push, NV50_3D(CB_ADDR), 1);
+	PUSH_DATA (push, 0);
+	BEGIN_NI04(push, NV50_3D(CB_DATA(0)), 24);
+	PUSH_DATA (push, 0x80000008);
+	PUSH_DATA (push, 0x90000408);
+	PUSH_DATA (push, 0x82010400);
+	PUSH_DATA (push, 0x82020404);
+	PUSH_DATA (push, 0xf0400001);
+	PUSH_DATA (push, 0x00008784);
+	PUSH_DATA (push, 0xc0800014);
+	PUSH_DATA (push, 0xb0810a0c);
+	PUSH_DATA (push, 0xb0820a10);
+	PUSH_DATA (push, 0xb0830a14);
+	PUSH_DATA (push, 0x82030400);
+	PUSH_DATA (push, 0x82040404);
+	PUSH_DATA (push, 0xf0400201);
+	PUSH_DATA (push, 0x0000c784);
+	PUSH_DATA (push, 0xe084000c);
+	PUSH_DATA (push, 0xe0850010);
+	PUSH_DATA (push, 0xe0860015);
+	PUSH_DATA (push, 0x00014780);
+	PUSH_DATA (push, 0xe0870201);
+	PUSH_DATA (push, 0x0000c780);
+	PUSH_DATA (push, 0xe0890209);
+	PUSH_DATA (push, 0x00014780);
+	PUSH_DATA (push, 0xe0880205);
+	PUSH_DATA (push, 0x00010781);
 
 	/* HPOS.xy = ($o0, $o1), HPOS.zw = (0.0, 1.0), then map $o2 - $o5 */
-	BEGIN_NV04(chan, NV50_3D(VP_RESULT_MAP(0)), 2);
-	OUT_RING  (chan, 0x41400100);
-	OUT_RING  (chan, 0x05040302);
-	BEGIN_NV04(chan, NV50_3D(POINT_SPRITE_ENABLE), 1);
-	OUT_RING  (chan, 0x00000000);
-	BEGIN_NV04(chan, NV50_3D(FP_INTERPOLANT_CTRL), 2);
-	OUT_RING  (chan, 0x08040404);
-	OUT_RING  (chan, 0x00000008); /* NV50_3D_FP_REG_ALLOC_TEMP */
+	BEGIN_NV04(push, NV50_3D(VP_RESULT_MAP(0)), 2);
+	PUSH_DATA (push, 0x41400100);
+	PUSH_DATA (push, 0x05040302);
+	BEGIN_NV04(push, NV50_3D(POINT_SPRITE_ENABLE), 1);
+	PUSH_DATA (push, 0x00000000);
+	BEGIN_NV04(push, NV50_3D(FP_INTERPOLANT_CTRL), 2);
+	PUSH_DATA (push, 0x08040404);
+	PUSH_DATA (push, 0x00000008); /* NV50_3D_FP_REG_ALLOC_TEMP */
+	BEGIN_NV04(push, NV50_3D(FP_ADDRESS_HIGH), 2);
+	PUSH_DATA (push, (bo->offset + PFP_OFFSET) >> 32);
+	PUSH_DATA (push, (bo->offset + PFP_OFFSET));
 
-	BEGIN_NV04(chan, NV50_3D(SCISSOR_ENABLE(0)), 1);
-	OUT_RING  (chan, 1);
+	BEGIN_NV04(push, NV50_3D(SCISSOR_ENABLE(0)), 1);
+	PUSH_DATA (push, 1);
 
-	BEGIN_NV04(chan, NV50_3D(VIEWPORT_HORIZ(0)), 2);
-	OUT_RING  (chan, 8192 << NV50_3D_VIEWPORT_HORIZ_W__SHIFT);
-	OUT_RING  (chan, 8192 << NV50_3D_VIEWPORT_VERT_H__SHIFT);
+	BEGIN_NV04(push, NV50_3D(VIEWPORT_HORIZ(0)), 2);
+	PUSH_DATA (push, 8192 << NV50_3D_VIEWPORT_HORIZ_W__SHIFT);
+	PUSH_DATA (push, 8192 << NV50_3D_VIEWPORT_VERT_H__SHIFT);
 	/* NV50_3D_SCISSOR_VERT_T_SHIFT is wrong, because it was deducted with
 	 * origin lying at the bottom left. This will be changed to _MIN_ and _MAX_
 	 * later, because it is origin dependent.
 	 */
-	BEGIN_NV04(chan, NV50_3D(SCISSOR_HORIZ(0)), 2);
-	OUT_RING  (chan, 8192 << NV50_3D_SCISSOR_HORIZ_MAX__SHIFT);
-	OUT_RING  (chan, 8192 << NV50_3D_SCISSOR_VERT_MAX__SHIFT);
-	BEGIN_NV04(chan, NV50_3D(SCREEN_SCISSOR_HORIZ), 2);
-	OUT_RING  (chan, 8192 << NV50_3D_SCREEN_SCISSOR_HORIZ_W__SHIFT);
-	OUT_RING  (chan, 8192 << NV50_3D_SCREEN_SCISSOR_VERT_H__SHIFT);
+	BEGIN_NV04(push, NV50_3D(SCISSOR_HORIZ(0)), 2);
+	PUSH_DATA (push, 8192 << NV50_3D_SCISSOR_HORIZ_MAX__SHIFT);
+	PUSH_DATA (push, 8192 << NV50_3D_SCISSOR_VERT_MAX__SHIFT);
+	BEGIN_NV04(push, NV50_3D(SCREEN_SCISSOR_HORIZ), 2);
+	PUSH_DATA (push, 8192 << NV50_3D_SCREEN_SCISSOR_HORIZ_W__SHIFT);
+	PUSH_DATA (push, 8192 << NV50_3D_SCREEN_SCISSOR_VERT_H__SHIFT);
 
-	BEGIN_NV04(chan, NV50_3D(SET_PROGRAM_CB), 1);
-	OUT_RING  (chan, 0x00000031 | (CB_PFP << 12));
-
+	BEGIN_NV04(push, NV50_3D(SET_PROGRAM_CB), 1);
+	PUSH_DATA (push, 0x00000031 | (CB_PFP << 12));
 	return TRUE;
 }
 

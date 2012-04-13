@@ -5,7 +5,6 @@
 
 #include "xorg-server.h"
 #include "nv_include.h"
-#include "nouveau_pushbuf.h"
 #ifdef DRI2
 #include "dri2.h"
 #endif
@@ -82,7 +81,7 @@ nouveau_dri2_create_buffer(DrawablePtr pDraw, unsigned int attachment,
 
 	nvpix = nouveau_pixmap(ppix);
 	if (!nvpix || !nvpix->bo ||
-	    nouveau_bo_handle_get(nvpix->bo, &nvbuf->base.name)) {
+	    nouveau_bo_name_get(nvpix->bo, &nvbuf->base.name)) {
 		pScreen->DestroyPixmap(nvbuf->ppix);
 		free(nvbuf);
 		return NULL;
@@ -164,7 +163,7 @@ update_front(DrawablePtr draw, DRI2BufferPtr front)
 	pixmap->refcnt++;
 
 	exaMoveInPixmap(pixmap);
-	r = nouveau_bo_handle_get(nouveau_pixmap_bo(pixmap), &front->name);
+	r = nouveau_bo_name_get(nouveau_pixmap_bo(pixmap), &front->name);
 	if (r) {
 		(*draw->pScreen->DestroyPixmap)(pixmap);
 		return FALSE;
@@ -226,7 +225,7 @@ nouveau_wait_vblank(DrawablePtr draw, int type, CARD64 msc,
 	vbl.request.sequence = msc;
 	vbl.request.signal = (unsigned long)data;
 
-	ret = drmWaitVBlank(nouveau_device(pNv->dev)->fd, &vbl);
+	ret = drmWaitVBlank(pNv->dev->fd, &vbl);
 	if (ret) {
 		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 			   "Wait for VBlank failed: %s\n", strerror(errno));
@@ -278,7 +277,7 @@ nouveau_dri2_finish_swap(DrawablePtr draw, unsigned int frame,
 	PixmapPtr src_pix = nouveau_dri2_buffer(s->src)->ppix;
 	struct nouveau_bo *dst_bo;
 	struct nouveau_bo *src_bo = nouveau_pixmap_bo(src_pix);
-	struct nouveau_channel *chan = pNv->chan;
+	struct nouveau_pushbuf *push = pNv->pushbuf;
 	RegionRec reg;
 	int type, ret;
 	Bool front_updated;
@@ -308,21 +307,21 @@ nouveau_dri2_finish_swap(DrawablePtr draw, unsigned int frame,
 	dst_bo = nouveau_pixmap_bo(dst_pix);
 
 	/* Throttle on the previous frame before swapping */
-	nouveau_bo_map(dst_bo, NOUVEAU_BO_RD);
-	nouveau_bo_unmap(dst_bo);
+	nouveau_bo_wait(dst_bo, NOUVEAU_BO_RD, push->client);
 
 	if (can_sync_to_vblank(draw)) {
 		/* Reference the back buffer to sync it to vblank */
-		WAIT_RING(chan, 1);
-		OUT_RELOC(chan, src_bo, 0,
-			  NOUVEAU_BO_VRAM | NOUVEAU_BO_RD, 0, 0);
+		nouveau_pushbuf_refn(push, &(struct nouveau_pushbuf_refn) {
+					   src_bo,
+					   NOUVEAU_BO_VRAM | NOUVEAU_BO_RD
+				     }, 1);
 
 		if (pNv->Architecture >= NV_ARCH_50)
 			NV50SyncToVBlank(dst_pix, REGION_EXTENTS(0, &reg));
 		else
 			NV11SyncToVBlank(dst_pix, REGION_EXTENTS(0, &reg));
 
-		FIRE_RING(chan);
+		nouveau_pushbuf_kick(push, push->channel);
 	}
 
 	if (front_updated && can_exchange(draw, dst_pix, src_pix)) {
@@ -351,9 +350,10 @@ nouveau_dri2_finish_swap(DrawablePtr draw, unsigned int frame,
 
 		/* Reference the front buffer to let throttling work
 		 * on occluded drawables. */
-		WAIT_RING(chan, 1);
-		OUT_RELOC(chan, dst_bo, 0,
-			  NOUVEAU_BO_VRAM | NOUVEAU_BO_RD, 0, 0);
+		nouveau_pushbuf_refn(push, &(struct nouveau_pushbuf_refn) {
+					   dst_bo,
+					   NOUVEAU_BO_VRAM | NOUVEAU_BO_RD
+				     }, 1);
 
 		REGION_TRANSLATE(0, &reg, -draw->x, -draw->y);
 		nouveau_dri2_copy_region(draw, &reg, s->dst, s->src);
@@ -678,7 +678,7 @@ nouveau_dri2_init(ScreenPtr pScreen)
 	dri2.numDrivers = 2;
 	dri2.driverName = dri2.driverNames[0];
 
-	dri2.fd = nouveau_device(pNv->dev)->fd;
+	dri2.fd = pNv->dev->fd;
 	dri2.deviceName = pNv->drm_device_name;
 
 	dri2.version = DRI2INFOREC_VERSION;

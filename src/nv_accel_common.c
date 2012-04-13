@@ -26,6 +26,7 @@
 #include "hwdefs/nv_m2mf.xml.h"
 #include "hwdefs/nv01_2d.xml.h"
 #include "hwdefs/nv50_2d.xml.h"
+#include "nv04_accel.h"
 
 Bool
 nouveau_allocate_surface(ScrnInfoPtr scrn, int width, int height, int bpp,
@@ -34,7 +35,7 @@ nouveau_allocate_surface(ScrnInfoPtr scrn, int width, int height, int bpp,
 	NVPtr pNv = NVPTR(scrn);
 	Bool scanout = (usage_hint & NOUVEAU_CREATE_PIXMAP_SCANOUT);
 	Bool tiled = (usage_hint & NOUVEAU_CREATE_PIXMAP_TILED);
-	int tile_mode = 0, tile_flags = 0;
+	union nouveau_bo_config cfg = {};
 	int flags = NOUVEAU_BO_MAP | (bpp >= 8 ? NOUVEAU_BO_VRAM : 0);
 	int cpp = bpp / 8, ret;
 
@@ -59,69 +60,62 @@ nouveau_allocate_surface(ScrnInfoPtr scrn, int width, int height, int bpp,
 
 	if (tiled) {
 		if (pNv->Architecture >= NV_ARCH_C0) {
-			if (height > 64)
-				tile_mode = 0x40;
-			else if (height > 32)
-				tile_mode = 0x30;
-			else if (height > 16)
-				tile_mode = 0x20;
-			else if (height > 8)
-				tile_mode = 0x10;
-			else
-				tile_mode = 0x00;
+			if      (height > 64) cfg.nvc0.tile_mode = 0x040;
+			else if (height > 32) cfg.nvc0.tile_mode = 0x030;
+			else if (height > 16) cfg.nvc0.tile_mode = 0x020;
+			else if (height >  8) cfg.nvc0.tile_mode = 0x010;
+			else                  cfg.nvc0.tile_mode = 0x000;
 
 			if (usage_hint & NOUVEAU_CREATE_PIXMAP_ZETA)
-				tile_flags = (bpp == 16) ? 0x0100 : 0x1100; /* Z16 : Z24S8 */
+				cfg.nvc0.memtype = (bpp == 16) ? 0x01 : 0x11;
 			else
-				tile_flags = 0xfe00;
+				cfg.nvc0.memtype = 0xfe;
 
-			height = NOUVEAU_ALIGN(
-				height, NVC0_TILE_HEIGHT(tile_mode));
+			height = NOUVEAU_ALIGN(height,
+				 NVC0_TILE_HEIGHT(cfg.nv50.tile_mode));
 		} else if (pNv->Architecture >= NV_ARCH_50) {
-			if (height > 32)
-				tile_mode = 4;
-			else if (height > 16)
-				tile_mode = 3;
-			else if (height > 8)
-				tile_mode = 2;
-			else if (height > 4)
-				tile_mode = 1;
-			else
-				tile_mode = 0;
+			if      (height > 32) cfg.nv50.tile_mode = 0x040;
+			else if (height > 16) cfg.nv50.tile_mode = 0x030;
+			else if (height >  8) cfg.nv50.tile_mode = 0x020;
+			else if (height >  4) cfg.nv50.tile_mode = 0x010;
+			else                  cfg.nv50.tile_mode = 0x000;
 
 			if (usage_hint & NOUVEAU_CREATE_PIXMAP_ZETA)
-				tile_flags = (bpp == 16) ? 0x26c00 : 0x22800;
+				cfg.nv50.memtype = (bpp == 16) ? 0x16c : 0x128;
 			else if (usage_hint & NOUVEAU_CREATE_PIXMAP_SCANOUT)
-				tile_flags = (bpp == 16 ? 0x7000 : 0x7a00);
+				cfg.nv50.memtype = (bpp == 16) ? 0x070 : 0x07a;
 			else
-				tile_flags = 0x7000;
+				cfg.nv50.memtype = 0x070;
 
-			height = NOUVEAU_ALIGN(height, 1 << (tile_mode + 2));
+			height = NOUVEAU_ALIGN(height,
+				 NV50_TILE_HEIGHT(cfg.nv50.tile_mode));
 		} else {
 			int pitch_align = max(
 				pNv->dev->chipset >= 0x40 ? 1024 : 256,
 				round_down_pow2(*pitch / 4));
 
-			tile_mode = *pitch =
-				NOUVEAU_ALIGN(*pitch, pitch_align);
+			*pitch = NOUVEAU_ALIGN(*pitch, pitch_align);
+			cfg.nv04.surf_pitch = *pitch;
 		}
 	}
 
-	if (bpp == 32)
-		tile_flags |= NOUVEAU_BO_TILE_32BPP;
-	else if (bpp == 16)
-		tile_flags |= NOUVEAU_BO_TILE_16BPP;
-
-	if (usage_hint & NOUVEAU_CREATE_PIXMAP_ZETA)
-		tile_flags |= NOUVEAU_BO_TILE_ZETA;
+	if (pNv->Architecture < NV_ARCH_50) {
+		if (bpp == 16)
+			cfg.nv04.surf_flags |= NV04_BO_16BPP;
+		if (bpp == 32)
+			cfg.nv04.surf_flags |= NV04_BO_32BPP;
+		if (usage_hint & NOUVEAU_CREATE_PIXMAP_ZETA)
+			cfg.nv04.surf_flags |= NV04_BO_ZETA;
+	}
 
 	if (usage_hint & NOUVEAU_CREATE_PIXMAP_SCANOUT)
-		tile_flags |= NOUVEAU_BO_TILE_SCANOUT;
+		flags |= NOUVEAU_BO_CONTIG;
 
-	ret = nouveau_bo_new_tile(pNv->dev, flags, 0, *pitch * height,
-				  tile_mode, tile_flags, bo);
-	if (ret)
+	ret = nouveau_bo_new(pNv->dev, flags, 0, *pitch * height, &cfg, bo);
+	if (ret) {
+		ErrorF("%d\n", ret);
 		return FALSE;
+	}
 
 	return TRUE;
 }
@@ -131,7 +125,7 @@ NV11SyncToVBlank(PixmapPtr ppix, BoxPtr box)
 {
 	ScrnInfoPtr pScrn = xf86Screens[ppix->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_channel *chan = pNv->chan;
+	struct nouveau_pushbuf *push = pNv->pushbuf;
 	int crtcs;
 
 	if (!nouveau_exa_pixmap_is_onscreen(ppix))
@@ -143,76 +137,90 @@ NV11SyncToVBlank(PixmapPtr ppix, BoxPtr box)
 	if (!crtcs)
 		return;
 
-	BEGIN_NV04(chan, SUBC_BLIT(0x0000012C), 1);
-	OUT_RING  (chan, 0);
-	BEGIN_NV04(chan, SUBC_BLIT(0x00000134), 1);
-	OUT_RING  (chan, ffs(crtcs) - 1);
-	BEGIN_NV04(chan, SUBC_BLIT(0x00000100), 1);
-	OUT_RING  (chan, 0);
-	BEGIN_NV04(chan, SUBC_BLIT(0x00000130), 1);
-	OUT_RING  (chan, 0);
+	if (!PUSH_SPACE(push, 8))
+		return;
+
+	BEGIN_NV04(push, SUBC_BLIT(0x0000012C), 1);
+	PUSH_DATA (push, 0);
+	BEGIN_NV04(push, SUBC_BLIT(0x00000134), 1);
+	PUSH_DATA (push, ffs(crtcs) - 1);
+	BEGIN_NV04(push, SUBC_BLIT(0x00000100), 1);
+	PUSH_DATA (push, 0);
+	BEGIN_NV04(push, SUBC_BLIT(0x00000130), 1);
+	PUSH_DATA (push, 0);
 }
 
 static Bool
 NVAccelInitDmaNotifier0(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
+	struct nouveau_object *chan = pNv->channel;
+	struct nv04_notify ntfy = { .length = 32 };
 
-	if (!pNv->notify0) {
-		if (nouveau_notifier_alloc(pNv->chan, NvDmaNotifier0, 1,
-					   &pNv->notify0))
-			return FALSE;
-	}
+	if (nouveau_object_new(chan, NvDmaNotifier0, NOUVEAU_NOTIFIER_CLASS,
+			       &ntfy, sizeof(ntfy), &pNv->notify0))
+		return FALSE;
 
 	return TRUE;
 }
 
-/* FLAGS_ROP_AND, DmaFB, DmaFB, 0 */
+static Bool
+NVAccelInitNull(ScrnInfoPtr pScrn)
+{
+	NVPtr pNv = NVPTR(pScrn);
+
+	if (nouveau_object_new(pNv->channel, NvNullObject, NV01_NULL_CLASS,
+			       NULL, 0, &pNv->NvNull))
+		return FALSE;
+
+	return TRUE;
+}
+
 static Bool
 NVAccelInitContextSurfaces(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_channel *chan = pNv->chan;
+	struct nouveau_pushbuf *push = pNv->pushbuf;
+	struct nv04_fifo *fifo = pNv->channel->data;
 	uint32_t class;
 
 	class = (pNv->Architecture >= NV_ARCH_10) ? NV10_SURFACE_2D_CLASS :
 						    NV04_SURFACE_2D_CLASS;
 
-	if (!pNv->NvContextSurfaces) {
-		if (nouveau_grobj_alloc(chan, NvContextSurfaces, class,
-					&pNv->NvContextSurfaces))
-			return FALSE;
-	}
+	if (nouveau_object_new(pNv->channel, NvContextSurfaces, class,
+			       NULL, 0, &pNv->NvContextSurfaces))
+		return FALSE;
 
-	BEGIN_NV04(chan, NV01_SUBC(SF2D, OBJECT), 1);
-	OUT_RING  (chan, pNv->NvContextSurfaces->handle);
-	BEGIN_NV04(chan, NV04_SF2D(DMA_NOTIFY), 1);
-	OUT_RING  (chan, chan->nullobj->handle);
-	BEGIN_NV04(chan, NV04_SF2D(DMA_IMAGE_SOURCE), 2);
-	OUT_RING  (chan, pNv->chan->vram->handle);
-	OUT_RING  (chan, pNv->chan->vram->handle);
+	if (!PUSH_SPACE(push, 8))
+		return FALSE;
 
+	BEGIN_NV04(push, NV01_SUBC(SF2D, OBJECT), 1);
+	PUSH_DATA (push, pNv->NvContextSurfaces->handle);
+	BEGIN_NV04(push, NV04_SF2D(DMA_NOTIFY), 1);
+	PUSH_DATA (push, pNv->NvNull->handle);
+	BEGIN_NV04(push, NV04_SF2D(DMA_IMAGE_SOURCE), 2);
+	PUSH_DATA (push, fifo->vram);
+	PUSH_DATA (push, fifo->vram);
 	return TRUE;
 }
 
-/* FLAGS_ROP_AND, DmaFB, DmaFB, 0 */
 static Bool
 NVAccelInitContextBeta1(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_channel *chan = pNv->chan;
+	struct nouveau_pushbuf *push = pNv->pushbuf;
 
-	if (!pNv->NvContextBeta1) {
-		if (nouveau_grobj_alloc(chan, NvContextBeta1, 0x12,
-					&pNv->NvContextBeta1))
-			return FALSE;
-	}
+	if (nouveau_object_new(pNv->channel, NvContextBeta1, NV01_BETA_CLASS,
+			       NULL, 0, &pNv->NvContextBeta1))
+		return FALSE;
 
-	BEGIN_NV04(chan, NV01_SUBC(MISC, OBJECT), 1);
-	OUT_RING  (chan, pNv->NvContextBeta1->handle);
-	BEGIN_NV04(chan, NV01_BETA(BETA_1D31), 1); /*alpha factor*/
-	OUT_RING  (chan, 0xff << 23);
+	if (!PUSH_SPACE(push, 4))
+		return FALSE;
 
+	BEGIN_NV04(push, NV01_SUBC(MISC, OBJECT), 1);
+	PUSH_DATA (push, pNv->NvContextBeta1->handle);
+	BEGIN_NV04(push, NV01_BETA(BETA_1D31), 1); /*alpha factor*/
+	PUSH_DATA (push, 0xff << 23);
 	return TRUE;
 }
 
@@ -221,18 +229,19 @@ static Bool
 NVAccelInitContextBeta4(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_channel *chan = pNv->chan;
+	struct nouveau_pushbuf *push = pNv->pushbuf;
 	
-	if (!pNv->NvContextBeta4) {
-		if (nouveau_grobj_alloc(chan, NvContextBeta4, 0x72,
-					&pNv->NvContextBeta4))
-			return FALSE;
-	}
+	if (nouveau_object_new(pNv->channel, NvContextBeta4, NV04_BETA4_CLASS,
+			       NULL, 0, &pNv->NvContextBeta4))
+		return FALSE;
 
-	BEGIN_NV04(chan, NV01_SUBC(MISC, OBJECT), 1);
-	OUT_RING  (chan, pNv->NvContextBeta4->handle);
-	BEGIN_NV04(chan, NV04_BETA4(BETA_FACTOR), 1); /*RGBA factor*/
-	OUT_RING  (chan, 0xffff0000);
+	if (!PUSH_SPACE(push, 4))
+		return FALSE;
+
+	BEGIN_NV04(push, NV01_SUBC(MISC, OBJECT), 1);
+	PUSH_DATA (push, pNv->NvContextBeta4->handle);
+	BEGIN_NV04(push, NV04_BETA4(BETA_FACTOR), 1); /*RGBA factor*/
+	PUSH_DATA (push, 0xffff0000);
 	return TRUE;
 }
 
@@ -299,27 +308,27 @@ static Bool
 NVAccelInitImagePattern(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_channel *chan = pNv->chan;
+	struct nouveau_pushbuf *push = pNv->pushbuf;
 
-	if (!pNv->NvImagePattern) {
-		if (nouveau_grobj_alloc(chan, NvImagePattern,
-					NV04_PATTERN_CLASS,
-					&pNv->NvImagePattern))
-			return FALSE;
-	}
+	if (nouveau_object_new(pNv->channel, NvImagePattern, NV04_PATTERN_CLASS,
+			       NULL, 0, &pNv->NvImagePattern))
+		return FALSE;
 
-	BEGIN_NV04(chan, NV01_SUBC(MISC, OBJECT), 1);
-	OUT_RING  (chan, pNv->NvImagePattern->handle);
-	BEGIN_NV04(chan, NV01_PATT(DMA_NOTIFY), 1);
-	OUT_RING  (chan, chan->nullobj->handle);
-	BEGIN_NV04(chan, NV01_PATT(MONOCHROME_FORMAT), 3);
+	if (!PUSH_SPACE(push, 8))
+		return FALSE;
+
+	BEGIN_NV04(push, NV01_SUBC(MISC, OBJECT), 1);
+	PUSH_DATA (push, pNv->NvImagePattern->handle);
+	BEGIN_NV04(push, NV01_PATT(DMA_NOTIFY), 1);
+	PUSH_DATA (push, pNv->NvNull->handle);
+	BEGIN_NV04(push, NV01_PATT(MONOCHROME_FORMAT), 3);
 #if X_BYTE_ORDER == X_BIG_ENDIAN
-	OUT_RING  (chan, NV01_PATTERN_MONOCHROME_FORMAT_LE);
+	PUSH_DATA (push, NV01_PATTERN_MONOCHROME_FORMAT_LE);
 #else
-	OUT_RING  (chan, NV01_PATTERN_MONOCHROME_FORMAT_CGA6);
+	PUSH_DATA (push, NV01_PATTERN_MONOCHROME_FORMAT_CGA6);
 #endif
-	OUT_RING  (chan, NV01_PATTERN_MONOCHROME_SHAPE_8X8);
-	OUT_RING  (chan, NV04_PATTERN_PATTERN_SELECT_MONO);
+	PUSH_DATA (push, NV01_PATTERN_MONOCHROME_SHAPE_8X8);
+	PUSH_DATA (push, NV04_PATTERN_PATTERN_SELECT_MONO);
 
 	return TRUE;
 }
@@ -328,18 +337,19 @@ static Bool
 NVAccelInitRasterOp(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_channel *chan = pNv->chan;
+	struct nouveau_pushbuf *push = pNv->pushbuf;
 
-	if (!pNv->NvRop) {
-		if (nouveau_grobj_alloc(chan, NvRop, NV03_ROP_CLASS,
-					&pNv->NvRop))
-			return FALSE;
-	}
+	if (nouveau_object_new(pNv->channel, NvRop, NV03_ROP_CLASS,
+			       NULL, 0, &pNv->NvRop))
+		return FALSE;
 
-	BEGIN_NV04(chan, NV01_SUBC(MISC, OBJECT), 1);
-	OUT_RING  (chan, pNv->NvRop->handle);
-	BEGIN_NV04(chan, NV01_ROP(DMA_NOTIFY), 1);
-	OUT_RING  (chan, chan->nullobj->handle);
+	if (!PUSH_SPACE(push, 4))
+		return FALSE;
+
+	BEGIN_NV04(push, NV01_SUBC(MISC, OBJECT), 1);
+	PUSH_DATA (push, pNv->NvRop->handle);
+	BEGIN_NV04(push, NV01_ROP(DMA_NOTIFY), 1);
+	PUSH_DATA (push, pNv->NvNull->handle);
 
 	pNv->currentRop = ~0;
 	return TRUE;
@@ -349,34 +359,35 @@ static Bool
 NVAccelInitRectangle(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_channel *chan = pNv->chan;
+	struct nouveau_pushbuf *push = pNv->pushbuf;
 
-	if (!pNv->NvRectangle) {
-		if (nouveau_grobj_alloc(chan, NvRectangle, NV04_GDI_CLASS,
-					&pNv->NvRectangle))
-			return FALSE;
-	}
+	if (nouveau_object_new(pNv->channel, NvRectangle, NV04_GDI_CLASS,
+			       NULL, 0, &pNv->NvRectangle))
+		return FALSE;
 
-	BEGIN_NV04(chan, NV01_SUBC(RECT, OBJECT), 1);
-	OUT_RING  (chan, pNv->NvRectangle->handle);
-	BEGIN_NV04(chan, NV04_RECT(DMA_NOTIFY), 1);
-	OUT_RING  (chan, pNv->notify0->handle);
-	BEGIN_NV04(chan, NV04_RECT(DMA_FONTS), 1);
-	OUT_RING  (chan, chan->nullobj->handle);
-	BEGIN_NV04(chan, NV04_RECT(SURFACE), 1);
-	OUT_RING  (chan, pNv->NvContextSurfaces->handle);
-	BEGIN_NV04(chan, NV04_RECT(ROP), 1);
-	OUT_RING  (chan, pNv->NvRop->handle);
-	BEGIN_NV04(chan, NV04_RECT(PATTERN), 1);
-	OUT_RING  (chan, pNv->NvImagePattern->handle);
-	BEGIN_NV04(chan, NV04_RECT(OPERATION), 1);
-	OUT_RING  (chan, NV04_GDI_OPERATION_ROP_AND);
-	BEGIN_NV04(chan, NV04_RECT(MONOCHROME_FORMAT), 1);
+	if (!PUSH_SPACE(push, 16))
+		return FALSE;
+
+	BEGIN_NV04(push, NV01_SUBC(RECT, OBJECT), 1);
+	PUSH_DATA (push, pNv->NvRectangle->handle);
+	BEGIN_NV04(push, NV04_RECT(DMA_NOTIFY), 1);
+	PUSH_DATA (push, pNv->notify0->handle);
+	BEGIN_NV04(push, NV04_RECT(DMA_FONTS), 1);
+	PUSH_DATA (push, pNv->NvNull->handle);
+	BEGIN_NV04(push, NV04_RECT(SURFACE), 1);
+	PUSH_DATA (push, pNv->NvContextSurfaces->handle);
+	BEGIN_NV04(push, NV04_RECT(ROP), 1);
+	PUSH_DATA (push, pNv->NvRop->handle);
+	BEGIN_NV04(push, NV04_RECT(PATTERN), 1);
+	PUSH_DATA (push, pNv->NvImagePattern->handle);
+	BEGIN_NV04(push, NV04_RECT(OPERATION), 1);
+	PUSH_DATA (push, NV04_GDI_OPERATION_ROP_AND);
+	BEGIN_NV04(push, NV04_RECT(MONOCHROME_FORMAT), 1);
 	/* XXX why putting 1 like renouveau dump, swap the text */
 #if 1 || X_BYTE_ORDER == X_BIG_ENDIAN
-	OUT_RING  (chan, NV04_GDI_MONOCHROME_FORMAT_LE);
+	PUSH_DATA (push, NV04_GDI_MONOCHROME_FORMAT_LE);
 #else
-	OUT_RING  (chan, NV04_GDI_MONOCHROME_FORMAT_CGA6);
+	PUSH_DATA (push, NV04_GDI_MONOCHROME_FORMAT_CGA6);
 #endif
 
 	return TRUE;
@@ -386,36 +397,37 @@ static Bool
 NVAccelInitImageBlit(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_channel *chan = pNv->chan;
+	struct nouveau_pushbuf *push = pNv->pushbuf;
 	uint32_t class;
 
 	class = (pNv->dev->chipset >= 0x11) ? NV15_BLIT_CLASS : NV04_BLIT_CLASS;
 
-	if (!pNv->NvImageBlit) {
-		if (nouveau_grobj_alloc(chan, NvImageBlit, class,
-					&pNv->NvImageBlit))
-			return FALSE;
-	}
+	if (nouveau_object_new(pNv->channel, NvImageBlit, class,
+			       NULL, 0, &pNv->NvImageBlit))
+		return FALSE;
 
-	BEGIN_NV04(chan, NV01_SUBC(BLIT, OBJECT), 1);
-	OUT_RING  (chan, pNv->NvImageBlit->handle);
-	BEGIN_NV04(chan, NV01_BLIT(DMA_NOTIFY), 1);
-	OUT_RING  (chan, pNv->notify0->handle);
-	BEGIN_NV04(chan, NV01_BLIT(COLOR_KEY), 1);
-	OUT_RING  (chan, chan->nullobj->handle);
-	BEGIN_NV04(chan, NV04_BLIT(SURFACES), 1);
-	OUT_RING  (chan, pNv->NvContextSurfaces->handle);
-	BEGIN_NV04(chan, NV01_BLIT(CLIP), 3);
-	OUT_RING  (chan, chan->nullobj->handle);
-	OUT_RING  (chan, pNv->NvImagePattern->handle);
-	OUT_RING  (chan, pNv->NvRop->handle);
-	BEGIN_NV04(chan, NV01_BLIT(OPERATION), 1);
-	OUT_RING  (chan, NV01_BLIT_OPERATION_ROP_AND);
-	if (pNv->NvImageBlit->grclass == NV15_BLIT_CLASS) {
-		BEGIN_NV04(chan, NV15_BLIT(FLIP_SET_READ), 3);
-		OUT_RING  (chan, 0);
-		OUT_RING  (chan, 1);
-		OUT_RING  (chan, 2);
+	if (!PUSH_SPACE(push, 16))
+		return FALSE;
+
+	BEGIN_NV04(push, NV01_SUBC(BLIT, OBJECT), 1);
+	PUSH_DATA (push, pNv->NvImageBlit->handle);
+	BEGIN_NV04(push, NV01_BLIT(DMA_NOTIFY), 1);
+	PUSH_DATA (push, pNv->notify0->handle);
+	BEGIN_NV04(push, NV01_BLIT(COLOR_KEY), 1);
+	PUSH_DATA (push, pNv->NvNull->handle);
+	BEGIN_NV04(push, NV04_BLIT(SURFACES), 1);
+	PUSH_DATA (push, pNv->NvContextSurfaces->handle);
+	BEGIN_NV04(push, NV01_BLIT(CLIP), 3);
+	PUSH_DATA (push, pNv->NvNull->handle);
+	PUSH_DATA (push, pNv->NvImagePattern->handle);
+	PUSH_DATA (push, pNv->NvRop->handle);
+	BEGIN_NV04(push, NV01_BLIT(OPERATION), 1);
+	PUSH_DATA (push, NV01_BLIT_OPERATION_ROP_AND);
+	if (pNv->NvImageBlit->oclass == NV15_BLIT_CLASS) {
+		BEGIN_NV04(push, NV15_BLIT(FLIP_SET_READ), 3);
+		PUSH_DATA (push, 0);
+		PUSH_DATA (push, 1);
+		PUSH_DATA (push, 2);
 	}
 
 	return TRUE;
@@ -425,7 +437,8 @@ static Bool
 NVAccelInitScaledImage(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_channel *chan = pNv->chan;
+	struct nouveau_pushbuf *push = pNv->pushbuf;
+	struct nv04_fifo *fifo = pNv->channel->data;
 	uint32_t class;
 
 	switch (pNv->Architecture) {
@@ -443,28 +456,29 @@ NVAccelInitScaledImage(ScrnInfoPtr pScrn)
 		break;
 	}
 
-	if (!pNv->NvScaledImage) {
-		if (nouveau_grobj_alloc(chan, NvScaledImage, class,
-					&pNv->NvScaledImage))
-			return FALSE;
-	}
+	if (nouveau_object_new(pNv->channel, NvScaledImage, class,
+			       NULL, 0, &pNv->NvScaledImage))
+		return FALSE;
 
-	BEGIN_NV04(chan, NV01_SUBC(MISC, OBJECT), 1);
-	OUT_RING  (chan, pNv->NvScaledImage->handle);
-	BEGIN_NV04(chan, NV03_SIFM(DMA_NOTIFY), 7);
-	OUT_RING  (chan, pNv->notify0->handle);
-	OUT_RING  (chan, pNv->chan->vram->handle);
-	OUT_RING  (chan, chan->nullobj->handle);
-	OUT_RING  (chan, chan->nullobj->handle);
-	OUT_RING  (chan, pNv->NvContextBeta1->handle);
-	OUT_RING  (chan, pNv->NvContextBeta4->handle);
-	OUT_RING  (chan, pNv->NvContextSurfaces->handle);
+	if (!PUSH_SPACE(push, 16))
+		return FALSE;
+
+	BEGIN_NV04(push, NV01_SUBC(MISC, OBJECT), 1);
+	PUSH_DATA (push, pNv->NvScaledImage->handle);
+	BEGIN_NV04(push, NV03_SIFM(DMA_NOTIFY), 7);
+	PUSH_DATA (push, pNv->notify0->handle);
+	PUSH_DATA (push, fifo->vram);
+	PUSH_DATA (push, pNv->NvNull->handle);
+	PUSH_DATA (push, pNv->NvNull->handle);
+	PUSH_DATA (push, pNv->NvContextBeta1->handle);
+	PUSH_DATA (push, pNv->NvContextBeta4->handle);
+	PUSH_DATA (push, pNv->NvContextSurfaces->handle);
 	if (pNv->Architecture>=NV_ARCH_10) {
-		BEGIN_NV04(chan, NV05_SIFM(COLOR_CONVERSION), 1);
-		OUT_RING  (chan, NV05_SIFM_COLOR_CONVERSION_DITHER);
+		BEGIN_NV04(push, NV05_SIFM(COLOR_CONVERSION), 1);
+		PUSH_DATA (push, NV05_SIFM_COLOR_CONVERSION_DITHER);
 	}
-	BEGIN_NV04(chan, NV03_SIFM(OPERATION), 1);
-	OUT_RING  (chan, NV03_SIFM_OPERATION_SRCCOPY);
+	BEGIN_NV04(push, NV03_SIFM(OPERATION), 1);
+	PUSH_DATA (push, NV03_SIFM_OPERATION_SRCCOPY);
 
 	return TRUE;
 }
@@ -473,50 +487,39 @@ static Bool
 NVAccelInitClipRectangle(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_channel *chan = pNv->chan;
+	struct nouveau_pushbuf *push = pNv->pushbuf;
 
-	if (!pNv->NvClipRectangle) {
-		if (nouveau_grobj_alloc(pNv->chan, NvClipRectangle,
-					NV01_CLIP_CLASS,
-					&pNv->NvClipRectangle))
-			return FALSE;
-	}
+	if (nouveau_object_new(pNv->channel, NvClipRectangle, NV01_CLIP_CLASS,
+			       NULL, 0, &pNv->NvClipRectangle))
+		return FALSE;
 
-	BEGIN_NV04(chan, NV01_SUBC(MISC, OBJECT), 1);
-	OUT_RING  (chan, pNv->NvClipRectangle->handle);
-	BEGIN_NV04(chan, NV01_CLIP(DMA_NOTIFY), 1);
-	OUT_RING  (chan, chan->nullobj->handle);
+	if (!PUSH_SPACE(push, 4))
+		return FALSE;
 
+	BEGIN_NV04(push, NV01_SUBC(MISC, OBJECT), 1);
+	PUSH_DATA (push, pNv->NvClipRectangle->handle);
+	BEGIN_NV04(push, NV01_CLIP(DMA_NOTIFY), 1);
+	PUSH_DATA (push, pNv->NvNull->handle);
 	return TRUE;
 }
 
-/* FLAGS_NONE, NvDmaFB, NvDmaAGP, NvDmaNotifier0 */
 static Bool
 NVAccelInitMemFormat(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_channel *chan = pNv->chan;
-	uint32_t class;
+	struct nouveau_pushbuf *push = pNv->pushbuf;
 
-	if (pNv->Architecture < NV_ARCH_50)
-		class = NV03_M2MF_CLASS;
-	else
-		class = NV50_M2MF_CLASS;
+	if (nouveau_object_new(pNv->channel, NvMemFormat, NV03_M2MF_CLASS,
+			       NULL, 0, &pNv->NvMemFormat))
+		return FALSE;
 
-	if (!pNv->NvMemFormat) {
-		if (nouveau_grobj_alloc(chan, NvMemFormat, class,
-					&pNv->NvMemFormat))
-			return FALSE;
-	}
+	if (!PUSH_SPACE(push, 4))
+		return FALSE;
 
-	BEGIN_NV04(chan, NV01_SUBC(M2MF, OBJECT), 1);
-	OUT_RING  (chan, pNv->NvMemFormat->handle);
-	BEGIN_NV04(chan, NV03_M2MF(DMA_NOTIFY), 1);
-	OUT_RING  (chan, pNv->notify0->handle);
-	BEGIN_NV04(chan, NV03_M2MF(DMA_BUFFER_IN), 2);
-	OUT_RING  (chan, chan->vram->handle);
-	OUT_RING  (chan, chan->vram->handle);
-
+	BEGIN_NV04(push, NV01_SUBC(M2MF, OBJECT), 1);
+	PUSH_DATA (push, pNv->NvMemFormat->handle);
+	BEGIN_NV04(push, NV03_M2MF(DMA_NOTIFY), 1);
+	PUSH_DATA (push, pNv->notify0->handle);
 	return TRUE;
 }
 
@@ -524,7 +527,7 @@ static Bool
 NVAccelInitImageFromCpu(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_channel *chan = pNv->chan;
+	struct nouveau_pushbuf *push = pNv->pushbuf;
 	uint32_t class;
 
 	switch (pNv->Architecture) {
@@ -540,67 +543,33 @@ NVAccelInitImageFromCpu(ScrnInfoPtr pScrn)
 		break;
 	}
 
-	if (!pNv->NvImageFromCpu) {
-		if (nouveau_grobj_alloc(chan, NvImageFromCpu, class,
-					&pNv->NvImageFromCpu))
-			return FALSE;
-	}
+	if (nouveau_object_new(pNv->channel, NvImageFromCpu, class,
+			       NULL, 0, &pNv->NvImageFromCpu))
+		return FALSE;
 
-	BEGIN_NV04(chan, NV01_SUBC(IFC, OBJECT), 1);
-	OUT_RING  (chan, pNv->NvImageFromCpu->handle);
-	BEGIN_NV04(chan, NV01_IFC(DMA_NOTIFY), 1);
-	OUT_RING  (chan, pNv->notify0->handle);
-	BEGIN_NV04(chan, NV01_IFC(CLIP), 1);
-	OUT_RING  (chan, chan->nullobj->handle);
-	BEGIN_NV04(chan, NV01_IFC(PATTERN), 1);
-	OUT_RING  (chan, chan->nullobj->handle);
-	BEGIN_NV04(chan, NV01_IFC(ROP), 1);
-	OUT_RING  (chan, chan->nullobj->handle);
+	if (!PUSH_SPACE(push, 16))
+		return FALSE;
+
+	BEGIN_NV04(push, NV01_SUBC(IFC, OBJECT), 1);
+	PUSH_DATA (push, pNv->NvImageFromCpu->handle);
+	BEGIN_NV04(push, NV01_IFC(DMA_NOTIFY), 1);
+	PUSH_DATA (push, pNv->notify0->handle);
+	BEGIN_NV04(push, NV01_IFC(CLIP), 1);
+	PUSH_DATA (push, pNv->NvNull->handle);
+	BEGIN_NV04(push, NV01_IFC(PATTERN), 1);
+	PUSH_DATA (push, pNv->NvNull->handle);
+	BEGIN_NV04(push, NV01_IFC(ROP), 1);
+	PUSH_DATA (push, pNv->NvNull->handle);
 	if (pNv->Architecture >= NV_ARCH_10) {
-		BEGIN_NV04(chan, NV01_IFC(BETA), 1);
-		OUT_RING  (chan, chan->nullobj->handle);
-		BEGIN_NV04(chan, NV04_IFC(BETA4), 1);
-		OUT_RING  (chan, chan->nullobj->handle);
+		BEGIN_NV04(push, NV01_IFC(BETA), 1);
+		PUSH_DATA (push, pNv->NvNull->handle);
+		BEGIN_NV04(push, NV04_IFC(BETA4), 1);
+		PUSH_DATA (push, pNv->NvNull->handle);
 	}
-	BEGIN_NV04(chan, NV04_IFC(SURFACE), 1);
-	OUT_RING  (chan, pNv->NvContextSurfaces->handle);
-	BEGIN_NV04(chan, NV01_IFC(OPERATION), 1);
-	OUT_RING  (chan, NV01_IFC_OPERATION_SRCCOPY);
-
-	return TRUE;
-}
-
-static Bool
-NVAccelInit2D_NV50(ScrnInfoPtr pScrn)
-{
-	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_channel *chan = pNv->chan;
-
-	if (!pNv->Nv2D) {
-		if (nouveau_grobj_alloc(chan, Nv2D, NV50_2D_CLASS, &pNv->Nv2D))
-			return FALSE;
-	}
-
-	BEGIN_NV04(chan, NV01_SUBC(2D, OBJECT), 1);
-	OUT_RING  (chan, pNv->Nv2D->handle);
-	BEGIN_NV04(chan, NV50_2D(DMA_NOTIFY), 3);
-	OUT_RING  (chan, pNv->notify0->handle);
-	OUT_RING  (chan, pNv->chan->vram->handle);
-	OUT_RING  (chan, pNv->chan->vram->handle);
-
-	/* Magics from nv, no clue what they do, but at least some
-	 * of them are needed to avoid crashes.
-	 */
-	BEGIN_NV04(chan, SUBC_2D(0x0260), 1);
-	OUT_RING  (chan, 1);
-	BEGIN_NV04(chan, NV50_2D(CLIP_ENABLE), 1);
-	OUT_RING  (chan, 1);
-	BEGIN_NV04(chan, NV50_2D(COLOR_KEY_ENABLE), 1);
-	OUT_RING  (chan, 0);
-	BEGIN_NV04(chan, SUBC_2D(0x058c), 1);
-	OUT_RING  (chan, 0x111);
-
-	pNv->currentRop = 0xfffffffa;
+	BEGIN_NV04(push, NV04_IFC(SURFACE), 1);
+	PUSH_DATA (push, pNv->NvContextSurfaces->handle);
+	BEGIN_NV04(push, NV01_IFC(OPERATION), 1);
+	PUSH_DATA (push, NV01_IFC_OPERATION_SRCCOPY);
 	return TRUE;
 }
 
@@ -624,8 +593,10 @@ NVAccelCommonInit(ScrnInfoPtr pScrn)
 		return TRUE;
 
 	/* General engine objects */
-	if (pNv->Architecture < NV_ARCH_C0)
+	if (pNv->Architecture < NV_ARCH_C0) {
 		INIT_CONTEXT_OBJECT(DmaNotifier0);
+		INIT_CONTEXT_OBJECT(Null);
+	}
 
 	/* 2D engine */
 	if (pNv->Architecture < NV_ARCH_50) {
@@ -646,8 +617,11 @@ NVAccelCommonInit(ScrnInfoPtr pScrn)
 		INIT_CONTEXT_OBJECT(2D_NVC0);
 	}
 
-	if (pNv->Architecture < NV_ARCH_C0)
+	if (pNv->Architecture < NV_ARCH_50)
 		INIT_CONTEXT_OBJECT(MemFormat);
+	else
+	if (pNv->Architecture < NV_ARCH_C0)
+		INIT_CONTEXT_OBJECT(M2MF_NV50);
 	else
 		INIT_CONTEXT_OBJECT(M2MF_NVC0);
 
@@ -683,23 +657,23 @@ void NVAccelFree(ScrnInfoPtr pScrn)
 	if (pNv->NoAccel)
 		return;
 
-	nouveau_notifier_free(&pNv->notify0);
-	nouveau_notifier_free(&pNv->vblank_sem);
+	nouveau_object_del(&pNv->notify0);
+	nouveau_object_del(&pNv->vblank_sem);
 
-	nouveau_grobj_free(&pNv->NvContextSurfaces);
-	nouveau_grobj_free(&pNv->NvContextBeta1);
-	nouveau_grobj_free(&pNv->NvContextBeta4);
-	nouveau_grobj_free(&pNv->NvImagePattern);
-	nouveau_grobj_free(&pNv->NvRop);
-	nouveau_grobj_free(&pNv->NvRectangle);
-	nouveau_grobj_free(&pNv->NvImageBlit);
-	nouveau_grobj_free(&pNv->NvScaledImage);
-	nouveau_grobj_free(&pNv->NvClipRectangle);
-	nouveau_grobj_free(&pNv->NvImageFromCpu);
-	nouveau_grobj_free(&pNv->Nv2D);
-	nouveau_grobj_free(&pNv->NvMemFormat);
-	nouveau_grobj_free(&pNv->NvSW);
-	nouveau_grobj_free(&pNv->Nv3D);
+	nouveau_object_del(&pNv->NvContextSurfaces);
+	nouveau_object_del(&pNv->NvContextBeta1);
+	nouveau_object_del(&pNv->NvContextBeta4);
+	nouveau_object_del(&pNv->NvImagePattern);
+	nouveau_object_del(&pNv->NvRop);
+	nouveau_object_del(&pNv->NvRectangle);
+	nouveau_object_del(&pNv->NvImageBlit);
+	nouveau_object_del(&pNv->NvScaledImage);
+	nouveau_object_del(&pNv->NvClipRectangle);
+	nouveau_object_del(&pNv->NvImageFromCpu);
+	nouveau_object_del(&pNv->Nv2D);
+	nouveau_object_del(&pNv->NvMemFormat);
+	nouveau_object_del(&pNv->NvSW);
+	nouveau_object_del(&pNv->Nv3D);
 
 	nouveau_bo_ref(NULL, &pNv->tesla_scratch);
 	nouveau_bo_ref(NULL, &pNv->shader_mem);

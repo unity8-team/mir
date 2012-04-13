@@ -58,213 +58,6 @@ nv50_xv_check_image_put(PixmapPtr ppix)
 	return TRUE;
 }
 
-static Bool
-nv50_xv_state_emit(PixmapPtr ppix, int id, struct nouveau_bo *src,
-		   int packed_y, int uv, int src_w, int src_h)
-{
-	ScrnInfoPtr pScrn = xf86Screens[ppix->drawable.pScreen->myNum];
-	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_bo *bo = nouveau_pixmap_bo(ppix);
-	const unsigned shd_flags = NOUVEAU_BO_RD | NOUVEAU_BO_VRAM;
-	const unsigned tcb_flags = NOUVEAU_BO_RDWR | NOUVEAU_BO_VRAM;
-	uint32_t mode = 0xd0005000 | (src->tile_mode << 22);
-
-	if (MARK_RING(chan, 256, 18))
-		return FALSE;
-
-	BEGIN_NV04(chan, NV50_3D(RT_ADDRESS_HIGH(0)), 5);
-	if (OUT_RELOCh(chan, bo, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR) ||
-	    OUT_RELOCl(chan, bo, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR)) {
-		MARK_UNDO(chan);
-		return FALSE;
-	}
-	switch (ppix->drawable.bitsPerPixel) {
-	case 32: OUT_RING  (chan, NV50_SURFACE_FORMAT_BGRA8_UNORM); break;
-	case 24: OUT_RING  (chan, NV50_SURFACE_FORMAT_BGRX8_UNORM); break;
-	case 16: OUT_RING  (chan, NV50_SURFACE_FORMAT_B5G6R5_UNORM); break;
-	case 15: OUT_RING  (chan, NV50_SURFACE_FORMAT_BGR5_X1_UNORM); break;
-	}
-	OUT_RING  (chan, bo->tile_mode << 4);
-	OUT_RING  (chan, 0);
-	BEGIN_NV04(chan, NV50_3D(RT_HORIZ(0)), 2);
-	OUT_RING  (chan, ppix->drawable.width);
-	OUT_RING  (chan, ppix->drawable.height);
-	BEGIN_NV04(chan, NV50_3D(RT_ARRAY_MODE), 1);
-	OUT_RING  (chan, 1);
-
-	BEGIN_NV04(chan, NV50_3D(BLEND_ENABLE(0)), 1);
-	OUT_RING  (chan, 0);
-
-	BEGIN_NV04(chan, NV50_3D(TIC_ADDRESS_HIGH), 3);
-	if (OUT_RELOCh(chan, pNv->tesla_scratch, TIC_OFFSET, tcb_flags) ||
-	    OUT_RELOCl(chan, pNv->tesla_scratch, TIC_OFFSET, tcb_flags)) {
-		MARK_UNDO(chan);
-		return FALSE;
-	}
-	OUT_RING  (chan, 0x00000800);
-	BEGIN_NV04(chan, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
-	if (OUT_RELOCh(chan, pNv->tesla_scratch, TIC_OFFSET, tcb_flags) ||
-	    OUT_RELOCl(chan, pNv->tesla_scratch, TIC_OFFSET, tcb_flags)) {
-		MARK_UNDO(chan);
-		return FALSE;
-	}
-	OUT_RING  (chan, (CB_TIC << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 0x4000);
-	BEGIN_NV04(chan, NV50_3D(CB_ADDR), 1);
-	OUT_RING  (chan, CB_TIC);
-	BEGIN_NI04(chan, NV50_3D(CB_DATA(0)), 16);
-	if (id == FOURCC_YV12 || id == FOURCC_I420) {
-	OUT_RING  (chan, NV50TIC_0_0_MAPA_C0 | NV50TIC_0_0_TYPEA_UNORM |
-			 NV50TIC_0_0_MAPB_ZERO | NV50TIC_0_0_TYPEB_UNORM |
-			 NV50TIC_0_0_MAPG_ZERO | NV50TIC_0_0_TYPEG_UNORM |
-			 NV50TIC_0_0_MAPR_ZERO | NV50TIC_0_0_TYPER_UNORM |
-			 NV50TIC_0_0_FMT_8);
-	if (OUT_RELOCl(chan, src, packed_y, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD) ||
-	    OUT_RELOC (chan, src, packed_y, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD |
-		       NOUVEAU_BO_HIGH | NOUVEAU_BO_OR, mode, mode)) {
-		MARK_UNDO(chan);
-		return FALSE;
-	}
-	OUT_RING  (chan, 0x00300000);
-	OUT_RING  (chan, src_w);
-	OUT_RING  (chan, (1 << NV50TIC_0_5_DEPTH_SHIFT) | src_h);
-	OUT_RING  (chan, 0x03000000);
-	OUT_RING  (chan, 0x00000000);
-	OUT_RING  (chan, NV50TIC_0_0_MAPA_C1 | NV50TIC_0_0_TYPEA_UNORM |
-			 NV50TIC_0_0_MAPB_C0 | NV50TIC_0_0_TYPEB_UNORM |
-			 NV50TIC_0_0_MAPG_ZERO | NV50TIC_0_0_TYPEG_UNORM |
-			 NV50TIC_0_0_MAPR_ZERO | NV50TIC_0_0_TYPER_UNORM |
-			 NV50TIC_0_0_FMT_8_8);
-	if (OUT_RELOCl(chan, src, uv, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD) ||
-	    OUT_RELOC (chan, src, uv, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD |
-		       NOUVEAU_BO_HIGH | NOUVEAU_BO_OR, mode, mode)) {
-		MARK_UNDO(chan);
-		return FALSE;
-	}
-	OUT_RING  (chan, 0x00300000);
-	OUT_RING  (chan, src_w >> 1);
-	OUT_RING  (chan, (1 << NV50TIC_0_5_DEPTH_SHIFT) | (src_h >> 1));
-	OUT_RING  (chan, 0x03000000);
-	OUT_RING  (chan, 0x00000000);
-	} else {
-	if (id == FOURCC_UYVY) {
-	OUT_RING  (chan, NV50TIC_0_0_MAPA_C1 | NV50TIC_0_0_TYPEA_UNORM |
-			 NV50TIC_0_0_MAPB_ZERO | NV50TIC_0_0_TYPEB_UNORM |
-			 NV50TIC_0_0_MAPG_ZERO | NV50TIC_0_0_TYPEG_UNORM |
-			 NV50TIC_0_0_MAPR_ZERO | NV50TIC_0_0_TYPER_UNORM |
-			 NV50TIC_0_0_FMT_8_8);
-	} else {
-	OUT_RING  (chan, NV50TIC_0_0_MAPA_C0 | NV50TIC_0_0_TYPEA_UNORM |
-			 NV50TIC_0_0_MAPB_ZERO | NV50TIC_0_0_TYPEB_UNORM |
-			 NV50TIC_0_0_MAPG_ZERO | NV50TIC_0_0_TYPEG_UNORM |
-			 NV50TIC_0_0_MAPR_ZERO | NV50TIC_0_0_TYPER_UNORM |
-			 NV50TIC_0_0_FMT_8_8);
-	}
-	if (OUT_RELOCl(chan, src, packed_y, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD) ||
-	    OUT_RELOC (chan, src, packed_y, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD |
-		       NOUVEAU_BO_HIGH | NOUVEAU_BO_OR, mode, mode)) {
-		MARK_UNDO(chan);
-		return FALSE;
-	}
-	OUT_RING  (chan, 0x00300000);
-	OUT_RING  (chan, src_w);
-	OUT_RING  (chan, (1 << NV50TIC_0_5_DEPTH_SHIFT) | src_h);
-	OUT_RING  (chan, 0x03000000);
-	OUT_RING  (chan, 0x00000000);
-	if (id == FOURCC_UYVY) {
-	OUT_RING  (chan, NV50TIC_0_0_MAPA_C2 | NV50TIC_0_0_TYPEA_UNORM |
-			 NV50TIC_0_0_MAPB_C0 | NV50TIC_0_0_TYPEB_UNORM |
-			 NV50TIC_0_0_MAPG_ZERO | NV50TIC_0_0_TYPEG_UNORM |
-			 NV50TIC_0_0_MAPR_ZERO | NV50TIC_0_0_TYPER_UNORM |
-			 NV50TIC_0_0_FMT_8_8_8_8);
-	} else {
-	OUT_RING  (chan, NV50TIC_0_0_MAPA_C3 | NV50TIC_0_0_TYPEA_UNORM |
-			 NV50TIC_0_0_MAPB_C1 | NV50TIC_0_0_TYPEB_UNORM |
-			 NV50TIC_0_0_MAPG_ZERO | NV50TIC_0_0_TYPEG_UNORM |
-			 NV50TIC_0_0_MAPR_ZERO | NV50TIC_0_0_TYPER_UNORM |
-			 NV50TIC_0_0_FMT_8_8_8_8);
-	}
-	if (OUT_RELOCl(chan, src, packed_y, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD) ||
-	    OUT_RELOC (chan, src, packed_y, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD |
-		       NOUVEAU_BO_HIGH | NOUVEAU_BO_OR, mode, mode)) {
-		MARK_UNDO(chan);
-		return FALSE;
-	}
-	OUT_RING  (chan, 0x00300000);
-	OUT_RING  (chan, (src_w >> 1));
-	OUT_RING  (chan, (1 << NV50TIC_0_5_DEPTH_SHIFT) | src_h);
-	OUT_RING  (chan, 0x03000000);
-	OUT_RING  (chan, 0x00000000);
-	}
-
-	BEGIN_NV04(chan, NV50_3D(TSC_ADDRESS_HIGH), 3);
-	if (OUT_RELOCh(chan, pNv->tesla_scratch, TSC_OFFSET, tcb_flags) ||
-	    OUT_RELOCl(chan, pNv->tesla_scratch, TSC_OFFSET, tcb_flags)) {
-		MARK_UNDO(chan);
-		return FALSE;
-	}
-	OUT_RING  (chan, 0x00000000);
-	BEGIN_NV04(chan, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
-	if (OUT_RELOCh(chan, pNv->tesla_scratch, TSC_OFFSET, tcb_flags) ||
-	    OUT_RELOCl(chan, pNv->tesla_scratch, TSC_OFFSET, tcb_flags)) {
-		MARK_UNDO(chan);
-		return FALSE;
-	}
-	OUT_RING  (chan, (CB_TSC << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 0x4000);
-	BEGIN_NV04(chan, NV50_3D(CB_ADDR), 1);
-	OUT_RING  (chan, CB_TSC);
-	BEGIN_NI04(chan, NV50_3D(CB_DATA(0)), 16);
-	OUT_RING  (chan, NV50TSC_1_0_WRAPS_CLAMP_TO_EDGE |
-			 NV50TSC_1_0_WRAPT_CLAMP_TO_EDGE |
-			 NV50TSC_1_0_WRAPR_CLAMP_TO_EDGE);
-	OUT_RING  (chan, NV50TSC_1_1_MAGF_LINEAR |
-			 NV50TSC_1_1_MINF_LINEAR |
-			 NV50TSC_1_1_MIPF_NONE);
-	OUT_RING  (chan, 0x00000000);
-	OUT_RING  (chan, 0x00000000);
-	OUT_RING  (chan, 0x00000000);
-	OUT_RING  (chan, 0x00000000);
-	OUT_RING  (chan, 0x00000000);
-	OUT_RING  (chan, 0x00000000);
-	OUT_RING  (chan, NV50TSC_1_0_WRAPS_CLAMP_TO_EDGE |
-			 NV50TSC_1_0_WRAPT_CLAMP_TO_EDGE |
-			 NV50TSC_1_0_WRAPR_CLAMP_TO_EDGE);
-	OUT_RING  (chan, NV50TSC_1_1_MAGF_LINEAR |
-			 NV50TSC_1_1_MINF_LINEAR |
-			 NV50TSC_1_1_MIPF_NONE);
-	OUT_RING  (chan, 0x00000000);
-	OUT_RING  (chan, 0x00000000);
-	OUT_RING  (chan, 0x00000000);
-	OUT_RING  (chan, 0x00000000);
-	OUT_RING  (chan, 0x00000000);
-	OUT_RING  (chan, 0x00000000);
-
-	BEGIN_NV04(chan, NV50_3D(VP_ADDRESS_HIGH), 2);
-	if (OUT_RELOCh(chan, pNv->tesla_scratch, PVP_OFFSET, shd_flags) ||
-	    OUT_RELOCl(chan, pNv->tesla_scratch, PVP_OFFSET, shd_flags)) {
-		MARK_UNDO(chan);
-		return FALSE;
-	}
-	BEGIN_NV04(chan, NV50_3D(FP_ADDRESS_HIGH), 2);
-	if (OUT_RELOCh(chan, pNv->tesla_scratch, PFP_OFFSET, shd_flags) ||
-	    OUT_RELOCl(chan, pNv->tesla_scratch, PFP_OFFSET, shd_flags)) {
-		MARK_UNDO(chan);
-		return FALSE;
-	}
-	BEGIN_NV04(chan, NV50_3D(FP_START_ID), 1);
-	OUT_RING  (chan, PFP_NV12);
-
-	BEGIN_NV04(chan, SUBC_3D(0x1334), 1);
-	OUT_RING  (chan, 0);
-
-	BEGIN_NV04(chan, NV50_3D(BIND_TIC(2)), 1);
-	OUT_RING  (chan, 1);
-	BEGIN_NV04(chan, NV50_3D(BIND_TIC(2)), 1);
-	OUT_RING  (chan, 0x203);
-
-	return TRUE;
-}
-
 int
 nv50_xv_image_put(ScrnInfoPtr pScrn,
 		  struct nouveau_bo *src, int packed_y, int uv,
@@ -277,19 +70,164 @@ nv50_xv_image_put(ScrnInfoPtr pScrn,
 		  NVPortPrivPtr pPriv)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_channel *chan = pNv->chan;
+	struct nouveau_bo *dst = nouveau_pixmap_bo(ppix);
+	struct nouveau_pushbuf *push = pNv->pushbuf;
+	struct nouveau_pushbuf_refn refs[] = {
+		{ pNv->tesla_scratch, NOUVEAU_BO_VRAM | NOUVEAU_BO_RDWR },
+		{ src, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD },
+		{ dst, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR },
+	};
+	uint32_t mode = 0xd0005000 | (src->config.nv50.tile_mode << 18);
 	float X1, X2, Y1, Y2;
 	BoxPtr pbox;
 	int nbox;
 
 	if (!nv50_xv_check_image_put(ppix))
 		return BadMatch;
-	if (!nv50_xv_state_emit(ppix, id, src, packed_y, uv, width, height))
-		return BadAlloc;
 
-	if (pPriv->SyncToVBlank) {
-		NV50SyncToVBlank(ppix, dstBox);
+	if (!PUSH_SPACE(push, 256))
+		return BadImplementation;
+
+	BEGIN_NV04(push, NV50_3D(RT_ADDRESS_HIGH(0)), 5);
+	PUSH_DATA (push, dst->offset >> 32);
+	PUSH_DATA (push, dst->offset);
+	switch (ppix->drawable.bitsPerPixel) {
+	case 32: PUSH_DATA (push, NV50_SURFACE_FORMAT_BGRA8_UNORM); break;
+	case 24: PUSH_DATA (push, NV50_SURFACE_FORMAT_BGRX8_UNORM); break;
+	case 16: PUSH_DATA (push, NV50_SURFACE_FORMAT_B5G6R5_UNORM); break;
+	case 15: PUSH_DATA (push, NV50_SURFACE_FORMAT_BGR5_X1_UNORM); break;
 	}
+	PUSH_DATA (push, dst->config.nv50.tile_mode);
+	PUSH_DATA (push, 0);
+	BEGIN_NV04(push, NV50_3D(RT_HORIZ(0)), 2);
+	PUSH_DATA (push, ppix->drawable.width);
+	PUSH_DATA (push, ppix->drawable.height);
+	BEGIN_NV04(push, NV50_3D(RT_ARRAY_MODE), 1);
+	PUSH_DATA (push, 1);
+
+	BEGIN_NV04(push, NV50_3D(BLEND_ENABLE(0)), 1);
+	PUSH_DATA (push, 0);
+
+	BEGIN_NV04(push, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
+	PUSH_DATA (push, (pNv->tesla_scratch->offset + TIC_OFFSET) >> 32);
+	PUSH_DATA (push, (pNv->tesla_scratch->offset + TIC_OFFSET));
+	PUSH_DATA (push, (CB_TIC << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 0x4000);
+	BEGIN_NV04(push, NV50_3D(CB_ADDR), 1);
+	PUSH_DATA (push, CB_TIC);
+	BEGIN_NI04(push, NV50_3D(CB_DATA(0)), 16);
+	if (id == FOURCC_YV12 || id == FOURCC_I420) {
+	PUSH_DATA (push, NV50TIC_0_0_MAPA_C0 | NV50TIC_0_0_TYPEA_UNORM |
+			 NV50TIC_0_0_MAPB_ZERO | NV50TIC_0_0_TYPEB_UNORM |
+			 NV50TIC_0_0_MAPG_ZERO | NV50TIC_0_0_TYPEG_UNORM |
+			 NV50TIC_0_0_MAPR_ZERO | NV50TIC_0_0_TYPER_UNORM |
+			 NV50TIC_0_0_FMT_8);
+	PUSH_DATA (push, (src->offset + packed_y));
+	PUSH_DATA (push, (src->offset + packed_y) >> 32 | mode);
+	PUSH_DATA (push, 0x00300000);
+	PUSH_DATA (push, width);
+	PUSH_DATA (push, (1 << NV50TIC_0_5_DEPTH_SHIFT) | height);
+	PUSH_DATA (push, 0x03000000);
+	PUSH_DATA (push, 0x00000000);
+	PUSH_DATA (push, NV50TIC_0_0_MAPA_C1 | NV50TIC_0_0_TYPEA_UNORM |
+			 NV50TIC_0_0_MAPB_C0 | NV50TIC_0_0_TYPEB_UNORM |
+			 NV50TIC_0_0_MAPG_ZERO | NV50TIC_0_0_TYPEG_UNORM |
+			 NV50TIC_0_0_MAPR_ZERO | NV50TIC_0_0_TYPER_UNORM |
+			 NV50TIC_0_0_FMT_8_8);
+	PUSH_DATA (push, (src->offset + uv));
+	PUSH_DATA (push, (src->offset + uv) >> 32 | mode);
+	PUSH_DATA (push, 0x00300000);
+	PUSH_DATA (push, width >> 1);
+	PUSH_DATA (push, (1 << NV50TIC_0_5_DEPTH_SHIFT) | (height >> 1));
+	PUSH_DATA (push, 0x03000000);
+	PUSH_DATA (push, 0x00000000);
+	} else {
+	if (id == FOURCC_UYVY) {
+	PUSH_DATA (push, NV50TIC_0_0_MAPA_C1 | NV50TIC_0_0_TYPEA_UNORM |
+			 NV50TIC_0_0_MAPB_ZERO | NV50TIC_0_0_TYPEB_UNORM |
+			 NV50TIC_0_0_MAPG_ZERO | NV50TIC_0_0_TYPEG_UNORM |
+			 NV50TIC_0_0_MAPR_ZERO | NV50TIC_0_0_TYPER_UNORM |
+			 NV50TIC_0_0_FMT_8_8);
+	} else {
+	PUSH_DATA (push, NV50TIC_0_0_MAPA_C0 | NV50TIC_0_0_TYPEA_UNORM |
+			 NV50TIC_0_0_MAPB_ZERO | NV50TIC_0_0_TYPEB_UNORM |
+			 NV50TIC_0_0_MAPG_ZERO | NV50TIC_0_0_TYPEG_UNORM |
+			 NV50TIC_0_0_MAPR_ZERO | NV50TIC_0_0_TYPER_UNORM |
+			 NV50TIC_0_0_FMT_8_8);
+	}
+	PUSH_DATA (push, (src->offset + packed_y));
+	PUSH_DATA (push, (src->offset + packed_y) >> 32 | mode);
+	PUSH_DATA (push, 0x00300000);
+	PUSH_DATA (push, width);
+	PUSH_DATA (push, (1 << NV50TIC_0_5_DEPTH_SHIFT) | height);
+	PUSH_DATA (push, 0x03000000);
+	PUSH_DATA (push, 0x00000000);
+	if (id == FOURCC_UYVY) {
+	PUSH_DATA (push, NV50TIC_0_0_MAPA_C2 | NV50TIC_0_0_TYPEA_UNORM |
+			 NV50TIC_0_0_MAPB_C0 | NV50TIC_0_0_TYPEB_UNORM |
+			 NV50TIC_0_0_MAPG_ZERO | NV50TIC_0_0_TYPEG_UNORM |
+			 NV50TIC_0_0_MAPR_ZERO | NV50TIC_0_0_TYPER_UNORM |
+			 NV50TIC_0_0_FMT_8_8_8_8);
+	} else {
+	PUSH_DATA (push, NV50TIC_0_0_MAPA_C3 | NV50TIC_0_0_TYPEA_UNORM |
+			 NV50TIC_0_0_MAPB_C1 | NV50TIC_0_0_TYPEB_UNORM |
+			 NV50TIC_0_0_MAPG_ZERO | NV50TIC_0_0_TYPEG_UNORM |
+			 NV50TIC_0_0_MAPR_ZERO | NV50TIC_0_0_TYPER_UNORM |
+			 NV50TIC_0_0_FMT_8_8_8_8);
+	}
+	PUSH_DATA (push, (src->offset + packed_y));
+	PUSH_DATA (push, (src->offset + packed_y) >> 32 | mode);
+	PUSH_DATA (push, 0x00300000);
+	PUSH_DATA (push, (width >> 1));
+	PUSH_DATA (push, (1 << NV50TIC_0_5_DEPTH_SHIFT) | height);
+	PUSH_DATA (push, 0x03000000);
+	PUSH_DATA (push, 0x00000000);
+	}
+
+	BEGIN_NV04(push, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
+	PUSH_DATA (push, (pNv->tesla_scratch->offset + TSC_OFFSET) >> 32);
+	PUSH_DATA (push, (pNv->tesla_scratch->offset + TSC_OFFSET));
+	PUSH_DATA (push, (CB_TSC << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 0x4000);
+	BEGIN_NV04(push, NV50_3D(CB_ADDR), 1);
+	PUSH_DATA (push, CB_TSC);
+	BEGIN_NI04(push, NV50_3D(CB_DATA(0)), 16);
+	PUSH_DATA (push, NV50TSC_1_0_WRAPS_CLAMP_TO_EDGE |
+			 NV50TSC_1_0_WRAPT_CLAMP_TO_EDGE |
+			 NV50TSC_1_0_WRAPR_CLAMP_TO_EDGE);
+	PUSH_DATA (push, NV50TSC_1_1_MAGF_LINEAR |
+			 NV50TSC_1_1_MINF_LINEAR |
+			 NV50TSC_1_1_MIPF_NONE);
+	PUSH_DATA (push, 0x00000000);
+	PUSH_DATA (push, 0x00000000);
+	PUSH_DATA (push, 0x00000000);
+	PUSH_DATA (push, 0x00000000);
+	PUSH_DATA (push, 0x00000000);
+	PUSH_DATA (push, 0x00000000);
+	PUSH_DATA (push, NV50TSC_1_0_WRAPS_CLAMP_TO_EDGE |
+			 NV50TSC_1_0_WRAPT_CLAMP_TO_EDGE |
+			 NV50TSC_1_0_WRAPR_CLAMP_TO_EDGE);
+	PUSH_DATA (push, NV50TSC_1_1_MAGF_LINEAR |
+			 NV50TSC_1_1_MINF_LINEAR |
+			 NV50TSC_1_1_MIPF_NONE);
+	PUSH_DATA (push, 0x00000000);
+	PUSH_DATA (push, 0x00000000);
+	PUSH_DATA (push, 0x00000000);
+	PUSH_DATA (push, 0x00000000);
+	PUSH_DATA (push, 0x00000000);
+	PUSH_DATA (push, 0x00000000);
+
+	BEGIN_NV04(push, NV50_3D(FP_START_ID), 1);
+	PUSH_DATA (push, PFP_NV12);
+
+	BEGIN_NV04(push, SUBC_3D(0x1334), 1);
+	PUSH_DATA (push, 0);
+
+	BEGIN_NV04(push, NV50_3D(BIND_TIC(2)), 1);
+	PUSH_DATA (push, 1);
+	BEGIN_NV04(push, NV50_3D(BIND_TIC(2)), 1);
+	PUSH_DATA (push, 0x203);
+
+	if (pPriv->SyncToVBlank)
+		NV50SyncToVBlank(ppix, dstBox);
 
 	/* These are fixed point values in the 16.16 format. */
 	X1 = (float)(x1>>16)+(float)(x1&0xFFFF)/(float)0x10000;
@@ -314,32 +252,30 @@ nv50_xv_image_put(ScrnInfoPtr pScrn,
 		ty1 = ty1 / height;
 		ty2 = ty2 / height;
 
-		if (AVAIL_RING(chan) < 64) {
-			if (!nv50_xv_state_emit(ppix, id, src, packed_y, uv,
-						width, height))
-				return BadAlloc;
-		}
+		if (nouveau_pushbuf_space(push, 64, 0, 0) ||
+		    nouveau_pushbuf_refn (push, refs, 3))
+			return BadImplementation;
 
 		/* NV50_3D_SCISSOR_VERT_T_SHIFT is wrong, because it was deducted with
 		* origin lying at the bottom left. This will be changed to _MIN_ and _MAX_
 		* later, because it is origin dependent.
 		*/
-		BEGIN_NV04(chan, NV50_3D(SCISSOR_HORIZ(0)), 2);
-		OUT_RING  (chan, sx2 << NV50_3D_SCISSOR_HORIZ_MAX__SHIFT | sx1);
-		OUT_RING  (chan, sy2 << NV50_3D_SCISSOR_VERT_MAX__SHIFT | sy1 );
+		BEGIN_NV04(push, NV50_3D(SCISSOR_HORIZ(0)), 2);
+		PUSH_DATA (push, sx2 << NV50_3D_SCISSOR_HORIZ_MAX__SHIFT | sx1);
+		PUSH_DATA (push, sy2 << NV50_3D_SCISSOR_VERT_MAX__SHIFT | sy1 );
 
-		BEGIN_NV04(chan, NV50_3D(VERTEX_BEGIN_GL), 1);
-		OUT_RING  (chan, NV50_3D_VERTEX_BEGIN_GL_PRIMITIVE_TRIANGLES);
+		BEGIN_NV04(push, NV50_3D(VERTEX_BEGIN_GL), 1);
+		PUSH_DATA (push, NV50_3D_VERTEX_BEGIN_GL_PRIMITIVE_TRIANGLES);
 		VTX2s(pNv, tx1, ty1, tx1, ty1, sx1, sy1);
 		VTX2s(pNv, tx2+(tx2-tx1), ty1, tx2+(tx2-tx1), ty1, sx2+(sx2-sx1), sy1);
 		VTX2s(pNv, tx1, ty2+(ty2-ty1), tx1, ty2+(ty2-ty1), sx1, sy2+(sy2-sy1));
-		BEGIN_NV04(chan, NV50_3D(VERTEX_END_GL), 1);
-		OUT_RING  (chan, 0);
+		BEGIN_NV04(push, NV50_3D(VERTEX_END_GL), 1);
+		PUSH_DATA (push, 0);
 
 		pbox++;
 	}
 
-	FIRE_RING (chan);
+	PUSH_KICK(push);
 	return Success;
 }
 
@@ -371,7 +307,7 @@ void
 nv50_xv_csc_update(ScrnInfoPtr pScrn, NVPortPrivPtr pPriv)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_channel *chan = pNv->chan;
+	struct nouveau_pushbuf *push = pNv->pushbuf;
 	const float Loff = -0.0627;
 	const float Coff = -0.502;
 	float yco, off[3], uco[3], vco[3];
@@ -400,31 +336,30 @@ nv50_xv_csc_update(ScrnInfoPtr pScrn, NVPortPrivPtr pPriv)
 		return;
 	}
 
-	if (MARK_RING(chan, 64, 2))
+	if (nouveau_pushbuf_space(push, 64, 0, 0) ||
+	    nouveau_pushbuf_refn (push, &(struct nouveau_pushbuf_refn) {
+					pNv->tesla_scratch, NOUVEAU_BO_WR |
+					NOUVEAU_BO_VRAM }, 1))
 		return;
 
-	BEGIN_NV04(chan, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
-	if (OUT_RELOCh(chan, pNv->tesla_scratch, PFP_DATA,
-		       NOUVEAU_BO_VRAM | NOUVEAU_BO_WR) ||
-	    OUT_RELOCl(chan, pNv->tesla_scratch, PFP_DATA,
-		       NOUVEAU_BO_VRAM | NOUVEAU_BO_WR)) {
-		MARK_UNDO(chan);
-		return;
-	}
-	OUT_RING  (chan, (CB_PFP << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 0x4000);
-	BEGIN_NV04(chan, NV50_3D(CB_ADDR), 1);
-	OUT_RING  (chan, CB_PFP);
-	BEGIN_NI04(chan, NV50_3D(CB_DATA(0)), 10);
-	OUT_RINGf (chan, yco);
-	OUT_RINGf (chan, off[0]);
-	OUT_RINGf (chan, off[1]);
-	OUT_RINGf (chan, off[2]);
-	OUT_RINGf (chan, uco[0]);
-	OUT_RINGf (chan, uco[1]);
-	OUT_RINGf (chan, uco[2]);
-	OUT_RINGf (chan, vco[0]);
-	OUT_RINGf (chan, vco[1]);
-	OUT_RINGf (chan, vco[2]);
+	BEGIN_NV04(push, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
+	PUSH_DATA (push, (pNv->tesla_scratch->offset + PFP_DATA) >> 32);
+	PUSH_DATA (push, (pNv->tesla_scratch->offset + PFP_DATA));
+	PUSH_DATA (push, (CB_PFP << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) |
+			 0x00004000);
+	BEGIN_NV04(push, NV50_3D(CB_ADDR), 1);
+	PUSH_DATA (push, CB_PFP);
+	BEGIN_NI04(push, NV50_3D(CB_DATA(0)), 10);
+	PUSH_DATAf(push, yco);
+	PUSH_DATAf(push, off[0]);
+	PUSH_DATAf(push, off[1]);
+	PUSH_DATAf(push, off[2]);
+	PUSH_DATAf(push, uco[0]);
+	PUSH_DATAf(push, uco[1]);
+	PUSH_DATAf(push, uco[2]);
+	PUSH_DATAf(push, vco[0]);
+	PUSH_DATAf(push, vco[1]);
+	PUSH_DATAf(push, vco[2]);
 }
 
 void

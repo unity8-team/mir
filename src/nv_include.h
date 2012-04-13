@@ -63,18 +63,11 @@
 
 #define NV_DMA_DEBUG 0
 
+#include "nouveau_local.h"
+
 #include "nv_type.h"
 #include "nv_proto.h"
 #include "nv_dma.h"
 #include "sarea.h"
-
-#include "nouveau_drmif.h"
-#include "nouveau_device.h"
-#include "nouveau_channel.h"
-#include "nouveau_bo.h"
-#include "nouveau_grobj.h"
-#include "nouveau_notifier.h"
-#include "nouveau_local.h"
-#include "nouveau_pushbuf.h"
 
 #endif /* __NV_INCLUDE_H__ */

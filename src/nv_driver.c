@@ -24,8 +24,6 @@
 
 #include "nv_include.h"
 
-#include "nouveau_pushbuf.h"
-
 #include "xorg-server.h"
 #include "xf86int10.h"
 #include "xf86drm.h"
@@ -224,7 +222,7 @@ NVPciProbe(DriverPtr drv, int entity_num, struct pci_device *pci_dev,
 	}
 	busid = DRICreatePCIBusID(pci_dev);
 
-	ret = nouveau_device_open(&dev, busid);
+	ret = nouveau_device_open(busid, &dev);
 	if (ret) {
 		xf86DrvMsg(-1, X_ERROR, "[drm] failed to open device\n");
 		free(busid);
@@ -236,14 +234,14 @@ NVPciProbe(DriverPtr drv, int entity_num, struct pci_device *pci_dev,
 	 * But, we're currently using the kernel patchlevel to also version
 	 * the DRI interface.
 	 */
-	version = drmGetVersion(nouveau_device(dev)->fd);
+	version = drmGetVersion(dev->fd);
 	xf86DrvMsg(-1, X_INFO, "[drm] nouveau interface version: %d.%d.%d\n",
 		   version->version_major, version->version_minor,
 		   version->version_patchlevel);
 	drmFree(version);
 
 	chipset = dev->chipset;
-	nouveau_device_close(&dev);
+	nouveau_device_del(&dev);
 
 	ret = drmCheckModesettingSupported(busid);
 	free(busid);
@@ -337,7 +335,7 @@ NVEnterVT(int scrnIndex, int flags)
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NVEnterVT is called.\n");
 
-	ret = drmSetMaster(nouveau_device(pNv->dev)->fd);
+	ret = drmSetMaster(pNv->dev->fd);
 	if (ret)
 		ErrorF("Unable to get master: %s\n", strerror(errno));
 
@@ -365,7 +363,7 @@ NVLeaveVT(int scrnIndex, int flags)
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NVLeaveVT is called.\n");
 
-	ret = drmDropMaster(nouveau_device(pNv->dev)->fd);
+	ret = drmDropMaster(pNv->dev->fd);
 	if (ret)
 		ErrorF("Error dropping master: %d\n", ret);
 }
@@ -377,7 +375,7 @@ NVFlushCallback(CallbackListPtr *list, pointer user_data, pointer call_data)
 	NVPtr pNv = NVPTR(pScrn);
 
 	if (pScrn->vtSema && !pNv->NoAccel)
-		FIRE_RING (pNv->chan);
+		nouveau_pushbuf_kick(pNv->pushbuf, pNv->pushbuf->channel);
 }
 
 static void 
@@ -397,7 +395,7 @@ NVBlockHandler (
 	pScreen->BlockHandler = NVBlockHandler;
 
 	if (pScrn->vtSema && !pNv->NoAccel)
-		FIRE_RING (pNv->chan);
+		nouveau_pushbuf_kick(pNv->pushbuf, pNv->pushbuf->channel);
 
 	if (pNv->VideoTimerCallback) 
 		(*pNv->VideoTimerCallback)(pScrn, currentTime.milliseconds);
@@ -526,7 +524,7 @@ NVCloseDRM(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
 
-	nouveau_device_close(&pNv->dev);
+	nouveau_device_del(&pNv->dev);
 	drmFree(pNv->drm_device_name);
 }
 
@@ -585,12 +583,16 @@ NVPreInitDRM(ScrnInfoPtr pScrn)
 	}
 
 	/* Initialise libdrm_nouveau */
-	ret = nouveau_device_open_existing(&pNv->dev, 1, DRIMasterFD(pScrn), 0);
+	ret = nouveau_device_wrap(DRIMasterFD(pScrn), 1, &pNv->dev);
 	if (ret) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "[drm] error creating device\n");
 		return FALSE;
 	}
+
+	ret = nouveau_client_new(pNv->dev, &pNv->client);
+	if (ret)
+		return FALSE;
 
 	pNv->drm_device_name = drmGetDeviceNameFromFd(DRIMasterFD(pScrn));
 
@@ -709,7 +711,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	 * The first thing we should figure out is the depth, bpp, etc.
 	 */
 
-	if (dev->vm_vram_size <= 16 * 1024 * 1024)
+	if (dev->vram_size <= 16 * 1024 * 1024)
 		defaultDepth = 16;
 	if (!xf86SetDepthBpp(pScrn, defaultDepth, 0, 0, Support32bppFb)) {
 		NVPreInitFail("\n");
@@ -830,8 +832,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	reason = ": no kernel support";
 	from = X_DEFAULT;
 
-	ret = nouveau_device_get_param(pNv->dev,
-				       NOUVEAU_GETPARAM_HAS_PAGEFLIP, &v);
+	ret = nouveau_getparam(pNv->dev, NOUVEAU_GETPARAM_HAS_PAGEFLIP, &v);
 	if (ret == 0 && v == 1) {
 		pNv->has_pageflip = TRUE;
 		if (xf86GetOptValBool(pNv->Options, OPTION_PAGE_FLIP, &pNv->has_pageflip))
@@ -886,8 +887,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	xf86DrvMsg(pScrn->scrnIndex, from, "Swap limit set to %d [Max allowed %d]%s\n",
 		   pNv->swap_limit, pNv->max_swap_limit, reason);
 
-	ret = drmmode_pre_init(pScrn, nouveau_device(pNv->dev)->fd,
-			       pScrn->bitsPerPixel >> 3);
+	ret = drmmode_pre_init(pScrn, pNv->dev->fd, pScrn->bitsPerPixel >> 3);
 	if (ret == FALSE)
 		NVPreInitFail("Kernel modesetting failed to initialize\n");
 
@@ -959,15 +959,15 @@ NVMapMem(ScrnInfoPtr pScrn)
 		return TRUE;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "GART: %dMiB available\n",
-		   (unsigned int)(dev->vm_gart_size >> 20));
-	if (dev->vm_gart_size > (16 * 1024 * 1024))
+		   (unsigned int)(dev->gart_size >> 20));
+	if (dev->gart_size > (16 * 1024 * 1024))
 		size = 16 * 1024 * 1024;
 	else
 		/* always leave 512kb for other things like the fifos */
-		size = dev->vm_gart_size - 512*1024;
+		size = dev->gart_size - 512*1024;
 
 	if (nouveau_bo_new(dev, NOUVEAU_BO_GART | NOUVEAU_BO_MAP,
-			   0, size, &pNv->GART)) {
+			   0, size, NULL, &pNv->GART)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Unable to allocate GART memory\n");
 	}
@@ -1139,9 +1139,8 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	if (pNv->NoAccel) {
 		pNv->ShadowPtr = NULL;
 		displayWidth = pScrn->displayWidth;
-		nouveau_bo_map(pNv->scanout, NOUVEAU_BO_RDWR);
+		nouveau_bo_map(pNv->scanout, NOUVEAU_BO_RDWR, pNv->client);
 		FBStart = pNv->scanout->map;
-		nouveau_bo_unmap(pNv->scanout);
 	} else {
 		pNv->ShadowPtr = NULL;
 		displayWidth = pScrn->displayWidth;

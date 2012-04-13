@@ -243,9 +243,8 @@ static int
 nouveau_xv_bo_realloc(ScrnInfoPtr pScrn, unsigned flags, unsigned size,
 		      struct nouveau_bo **pbo)
 {
+	union nouveau_bo_config config = {};
 	NVPtr pNv = NVPTR(pScrn);
-	uint32_t tile_flags;
-	int ret;
 
 	if (*pbo) {
 		if ((*pbo)->size >= size)
@@ -253,21 +252,16 @@ nouveau_xv_bo_realloc(ScrnInfoPtr pScrn, unsigned flags, unsigned size,
 		nouveau_bo_ref(NULL, pbo);
 	}
 
-	tile_flags = 0;
 	if (flags & NOUVEAU_BO_VRAM) {
 		if (pNv->Architecture == NV_ARCH_50)
-			tile_flags = 0x7000;
+			config.nv50.memtype = 0x70;
 		else
 		if (pNv->Architecture == NV_ARCH_C0)
-			tile_flags = 0xfe00;
+			config.nvc0.memtype = 0xfe;
 	}
+	flags |= NOUVEAU_BO_MAP;
 
-	ret = nouveau_bo_new_tile(pNv->dev, flags | NOUVEAU_BO_MAP, 0,
-				  size, 0, tile_flags, pbo);
-	if (ret)
-		return ret;
-
-	return 0;
+	return nouveau_bo_new(pNv->dev, flags, 0, size, &config, pbo);
 }
 
 /**
@@ -1080,7 +1074,7 @@ NVPutImage(ScrnInfoPtr pScrn, short src_x, short src_y, short drw_x,
 		int i = 0;
 
 		/* Upload to GART */
-		nouveau_bo_map(destination_buffer, NOUVEAU_BO_WR);
+		nouveau_bo_map(destination_buffer, NOUVEAU_BO_WR, pNv->client);
 		dst = destination_buffer->map;
 
 		if (action_flags & IS_YV12) {
@@ -1116,8 +1110,6 @@ NVPutImage(ScrnInfoPtr pScrn, short src_x, short src_y, short drw_x,
 			}
 		}
 
-		nouveau_bo_unmap(destination_buffer);
-
 		if (uv_offset) {
 			NVAccelM2MF(pNv, line_len, nlines / 2, 1,
 				    line_len * nlines, uv_offset,
@@ -1135,7 +1127,7 @@ NVPutImage(ScrnInfoPtr pScrn, short src_x, short src_y, short drw_x,
 
 	} else {
 CPU_copy:
-		nouveau_bo_map(pPriv->video_mem, NOUVEAU_BO_WR);
+		nouveau_bo_map(pPriv->video_mem, NOUVEAU_BO_WR, pNv->client);
 		map = pPriv->video_mem->map + offset;
 
 		if (action_flags & IS_YV12) {
@@ -1201,8 +1193,6 @@ CPU_copy:
 				buf += srcPitch - (npixels << 1);
 			}
 		}
-
-		nouveau_bo_unmap(pPriv->video_mem);
 	}
 
 	if (skip)

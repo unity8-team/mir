@@ -82,7 +82,7 @@ nouveau_exa_prepare_access(PixmapPtr ppix, int index)
 
 	if (nv50_style_tiled_pixmap(ppix) && !pNv->wfb_enabled)
 		return FALSE;
-	if (nouveau_bo_map(bo, NOUVEAU_BO_RDWR))
+	if (nouveau_bo_map(bo, NOUVEAU_BO_RDWR, pNv->client))
 		return FALSE;
 	ppix->devPrivate.ptr = bo->map;
 	return TRUE;
@@ -91,9 +91,6 @@ nouveau_exa_prepare_access(PixmapPtr ppix, int index)
 static void
 nouveau_exa_finish_access(PixmapPtr ppix, int index)
 {
-	struct nouveau_bo *bo = nouveau_pixmap_bo(ppix);
-
-	nouveau_bo_unmap(bo);
 }
 
 static Bool
@@ -114,8 +111,7 @@ nouveau_exa_create_pixmap(ScreenPtr pScreen, int width, int height, int depth,
 	if (!width || !height)
 		return calloc(1, sizeof(*nvpix));
 
-	if (!pNv->exa_force_cp &&
-	     pNv->dev->vm_vram_size <= 32*1024*1024)
+	if (!pNv->exa_force_cp && pNv->dev->vram_size <= 32 * 1024 * 1024)
 		return NULL;
 
 	nvpix = calloc(1, sizeof(*nvpix));
@@ -151,8 +147,7 @@ nv50_style_tiled_pixmap(PixmapPtr ppix)
 	NVPtr pNv = NVPTR(pScrn);
 
 	return pNv->Architecture >= NV_ARCH_50 &&
-		(nouveau_pixmap_bo(ppix)->tile_flags &
-		 NOUVEAU_BO_TILE_LAYOUT_MASK);
+	       nouveau_pixmap_bo(ppix)->config.nv50.memtype;
 }
 
 static Bool
@@ -188,7 +183,7 @@ nouveau_exa_download_from_screen(PixmapPtr pspix, int x, int y, int w, int h,
 				 lines, 0, 0))
 			goto memcpy;
 
-		nouveau_bo_map(pNv->GART, NOUVEAU_BO_RD);
+		nouveau_bo_map(pNv->GART, NOUVEAU_BO_RD, pNv->client);
 		if (src_pitch == tmp_pitch) {
 			memcpy(dst, pNv->GART->map, dst_pitch * lines);
 			dst += dst_pitch * lines;
@@ -200,7 +195,6 @@ nouveau_exa_download_from_screen(PixmapPtr pspix, int x, int y, int w, int h,
 				dst += dst_pitch;
 			}
 		}
-		nouveau_bo_unmap(pNv->GART);
 
 		/* next! */
 		h -= lines;
@@ -209,11 +203,10 @@ nouveau_exa_download_from_screen(PixmapPtr pspix, int x, int y, int w, int h,
 
 memcpy:
 	bo = nouveau_pixmap_bo(pspix);
-	if (nouveau_bo_map(bo, NOUVEAU_BO_RD))
+	if (nouveau_bo_map(bo, NOUVEAU_BO_RD, pNv->client))
 		return FALSE;
 	src = (char *)bo->map + offset;
 	ret = NVAccelMemcpyRect(dst, src, h, dst_pitch, src_pitch, w*cpp);
-	nouveau_bo_unmap(bo);
 	return ret;
 }
 
@@ -268,7 +261,7 @@ nouveau_exa_upload_to_screen(PixmapPtr pdpix, int x, int y, int w, int h,
 		if (lines > h)
 			lines = h;
 
-		nouveau_bo_map(pNv->GART, NOUVEAU_BO_WR);
+		nouveau_bo_map(pNv->GART, NOUVEAU_BO_WR, pNv->client);
 		if (src_pitch == tmp_pitch) {
 			memcpy(pNv->GART->map, src, src_pitch * lines);
 			src += src_pitch * lines;
@@ -280,7 +273,6 @@ nouveau_exa_upload_to_screen(PixmapPtr pdpix, int x, int y, int w, int h,
 				dst += tmp_pitch;
 			}
 		}
-		nouveau_bo_unmap(pNv->GART);
 
 		if (!NVAccelM2MF(pNv, w, lines, cpp, 0, 0, pNv->GART,
 				 NOUVEAU_BO_GART, tmp_pitch, lines, 0, 0,
@@ -299,11 +291,10 @@ nouveau_exa_upload_to_screen(PixmapPtr pdpix, int x, int y, int w, int h,
 	/* fallback to memcpy-based transfer */
 memcpy:
 	bo = nouveau_pixmap_bo(pdpix);
-	if (nouveau_bo_map(bo, NOUVEAU_BO_WR))
+	if (nouveau_bo_map(bo, NOUVEAU_BO_WR, pNv->client))
 		return FALSE;
 	dst = (char *)bo->map + (y * dst_pitch) + (x * cpp);
 	ret = NVAccelMemcpyRect(dst, src, h, dst_pitch, src_pitch, w*cpp);
-	nouveau_bo_unmap(bo);
 	return ret;
 }
 

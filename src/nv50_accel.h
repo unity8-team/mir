@@ -9,6 +9,17 @@
 #include "hwdefs/nv_3ddefs.xml.h"
 #include "hwdefs/nv_m2mf.xml.h"
 
+/* subchannel assignments */
+#define SUBC_M2MF(mthd)  0, (mthd)
+#define NV03_M2MF(mthd)  SUBC_M2MF(NV03_M2MF_##mthd)
+#define NV50_M2MF(mthd)  SUBC_M2MF(NV50_M2MF_##mthd)
+#define SUBC_NVSW(mthd)  1, (mthd)
+#define SUBC_2D(mthd)    2, (mthd)
+#define NV50_2D(mthd)    SUBC_2D(NV50_2D_##mthd)
+#define NVC0_2D(mthd)    SUBC_2D(NVC0_2D_##mthd)
+#define SUBC_3D(mthd)    7, (mthd)
+#define NV50_3D(mthd)    SUBC_3D(NV50_3D_##mthd)
+
 /* "Tesla scratch buffer" offsets */
 #define PVP_OFFSET  0x00000000 /* Vertex program */
 #define PFP_OFFSET  0x00001000 /* Fragment program */
@@ -33,28 +44,28 @@
 static __inline__ void
 VTX1s(NVPtr pNv, float sx, float sy, unsigned dx, unsigned dy)
 {
-	struct nouveau_channel *chan = pNv->chan;
+	struct nouveau_pushbuf *push = pNv->pushbuf;
 
-	BEGIN_NV04(chan, NV50_3D(VTX_ATTR_2F_X(8)), 2);
-	OUT_RINGf (chan, sx);
-	OUT_RINGf (chan, sy);
-	BEGIN_NV04(chan, NV50_3D(VTX_ATTR_2I(0)), 1);
- 	OUT_RING  (chan, (dy << 16) | dx);
+	BEGIN_NV04(push, NV50_3D(VTX_ATTR_2F_X(8)), 2);
+	PUSH_DATAf(push, sx);
+	PUSH_DATAf(push, sy);
+	BEGIN_NV04(push, NV50_3D(VTX_ATTR_2I(0)), 1);
+ 	PUSH_DATA (push, (dy << 16) | dx);
 }
 
 static __inline__ void
 VTX2s(NVPtr pNv, float s1x, float s1y, float s2x, float s2y,
 		 unsigned dx, unsigned dy)
 {
-	struct nouveau_channel *chan = pNv->chan;
+	struct nouveau_pushbuf *push = pNv->pushbuf;
 
-	BEGIN_NV04(chan, NV50_3D(VTX_ATTR_2F_X(8)), 4);
-	OUT_RINGf (chan, s1x);
-	OUT_RINGf (chan, s1y);
-	OUT_RINGf (chan, s2x);
-	OUT_RINGf (chan, s2y);
-	BEGIN_NV04(chan, NV50_3D(VTX_ATTR_2I(0)), 1);
- 	OUT_RING  (chan, (dy << 16) | dx);
+	BEGIN_NV04(push, NV50_3D(VTX_ATTR_2F_X(8)), 4);
+	PUSH_DATAf(push, s1x);
+	PUSH_DATAf(push, s1y);
+	PUSH_DATAf(push, s2x);
+	PUSH_DATAf(push, s2y);
+	BEGIN_NV04(push, NV50_3D(VTX_ATTR_2I(0)), 1);
+ 	PUSH_DATA (push, (dy << 16) | dx);
 }
 
 #endif

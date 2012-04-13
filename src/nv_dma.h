@@ -20,8 +20,8 @@ enum DMAObjects {
 	NvContextBeta4		= 0x8000001C,
 	Nv2D			= 0x80000020,
 	NvSW			= 0x80000021,
-	NvDmaFB			= 0xD8000001,
-	NvDmaTT			= 0xD8000002,
+	NvDmaFB			= 0xbeef0201,
+	NvDmaTT			= 0xbeef0202,
 	NvDmaNotifier0		= 0xD8000003,
 	NvVBlankSem		= 0xD8000004,
 };
