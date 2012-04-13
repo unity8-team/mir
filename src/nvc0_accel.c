@@ -94,7 +94,7 @@ NVAccelInit3D_NVC0(ScrnInfoPtr pScrn)
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_pushbuf *push = pNv->pushbuf;
 	struct nouveau_bo *bo;
-	int ret, i;
+	int ret;
 
 	ret = nouveau_object_new(pNv->channel, 0x00009097, 0x9097,
 				 NULL, 0, &pNv->Nv3D);
@@ -123,56 +123,31 @@ NVAccelInit3D_NVC0(ScrnInfoPtr pScrn)
 
 	BEGIN_NVC0(push, NV01_SUBC(3D, OBJECT), 1);
 	PUSH_DATA (push, pNv->Nv3D->handle);
+	BEGIN_NVC0(push, NVC0_3D(COND_MODE), 1);
+	PUSH_DATA (push, NVC0_3D_COND_MODE_ALWAYS);
 	BEGIN_NVC0(push, SUBC_3D(NVC0_GRAPH_NOTIFY_ADDRESS_HIGH), 3);
 	PUSH_DATA (push, (bo->offset + NTFY_OFFSET) >> 32);
 	PUSH_DATA (push, (bo->offset + NTFY_OFFSET));
 	PUSH_DATA (push, 0);
-
 	BEGIN_NVC0(push, NVC0_3D(CSAA_ENABLE), 1);
 	PUSH_DATA (push, 0);
-	BEGIN_NVC0(push, NVC0_3D(MULTISAMPLE_ENABLE), 1);
-	PUSH_DATA (push, 0);
-	BEGIN_NVC0(push, NVC0_3D(MULTISAMPLE_MODE), 1);
-	PUSH_DATA (push, NVC0_3D_MULTISAMPLE_MODE_MS1);
-
-	BEGIN_NVC0(push, NVC0_3D(COND_MODE), 1);
-	PUSH_DATA (push, NVC0_3D_COND_MODE_ALWAYS);
-	BEGIN_NVC0(push, NVC0_3D(RT_CONTROL), 1);
-	PUSH_DATA (push, 1);
 	BEGIN_NVC0(push, NVC0_3D(ZETA_ENABLE), 1);
 	PUSH_DATA (push, 0);
-	BEGIN_NVC0(push, NVC0_3D(CLIP_RECTS_EN), 2);
+	BEGIN_NVC0(push, NVC0_3D(RT_SEPARATE_FRAG_DATA), 1);
 	PUSH_DATA (push, 0);
-	PUSH_DATA (push, 0);
-	BEGIN_NVC0(push, NVC0_3D(CLIPID_ENABLE), 1);
-	PUSH_DATA (push, 0);
-	BEGIN_NVC0(push, NVC0_3D(VERTEX_TWO_SIDE_ENABLE), 1);
-	PUSH_DATA (push, 0);
-	BEGIN_NVC0(push, SUBC_3D(0x0fac), 1);
-	PUSH_DATA (push, 0);
-	BEGIN_NVC0(push, NVC0_3D(COLOR_MASK(0)), 8);
-	PUSH_DATA (push, 0x1111);
-	for (i = 1; i < 8; ++i)
-		PUSH_DATA (push, 0);
 
+	BEGIN_NVC0(push, NVC0_3D(VIEWPORT_HORIZ(0)), 2);
+	PUSH_DATA (push, (8192 << 16) | 0);
+	PUSH_DATA (push, (8192 << 16) | 0);
 	BEGIN_NVC0(push, NVC0_3D(SCREEN_SCISSOR_HORIZ), 2);
 	PUSH_DATA (push, (8192 << 16) | 0);
 	PUSH_DATA (push, (8192 << 16) | 0);
-	BEGIN_NVC0(push, NVC0_3D(SCREEN_Y_CONTROL), 1);
-	PUSH_DATA (push, 0);
-	BEGIN_NVC0(push, NVC0_3D(WINDOW_OFFSET_X), 2);
-	PUSH_DATA (push, 0);
-	PUSH_DATA (push, 0);
-	BEGIN_NVC0(push, SUBC_3D(0x1590), 1);
-	PUSH_DATA (push, 0);
-
+	BEGIN_NVC0(push, NVC0_3D(SCISSOR_ENABLE(0)), 1);
+	PUSH_DATA (push, 1);
 	BEGIN_NVC0(push, NVC0_3D(VIEWPORT_TRANSFORM_EN), 1);
 	PUSH_DATA (push, 0);
 	BEGIN_NVC0(push, NVC0_3D(VIEW_VOLUME_CLIP_CTRL), 1);
 	PUSH_DATA (push, 0);
-	BEGIN_NVC0(push, NVC0_3D(DEPTH_RANGE_NEAR(0)), 2);
-	PUSH_DATAf(push, 0.0f);
-	PUSH_DATAf(push, 1.0f);
 
 	BEGIN_NVC0(push, NVC0_3D(TIC_ADDRESS_HIGH), 3);
 	PUSH_DATA (push, (bo->offset + TIC_OFFSET) >> 32);
@@ -190,14 +165,7 @@ NVAccelInit3D_NVC0(ScrnInfoPtr pScrn)
 	PUSH_DATA (push, (0 << 9) | (0 << 1) | NVC0_3D_BIND_TIC_ACTIVE);
 	PUSH_DATA (push, (1 << 9) | (1 << 1) | NVC0_3D_BIND_TIC_ACTIVE);
 
-	BEGIN_NVC0(push, NVC0_3D(BLEND_ENABLE(0)), 8);
-	PUSH_DATA (push, 1);
-	for (i = 1; i < 8; ++i)
-		PUSH_DATA (push, 0);
-	BEGIN_NVC0(push, NVC0_3D(BLEND_INDEPENDENT), 1);
-	PUSH_DATA (push, 0);
-
-	BEGIN_NVC0(push, SUBC_3D(0x17bc), 3);
+	BEGIN_NVC0(push, NVC0_3D(VERTEX_QUARANTINE_ADDRESS_HIGH), 3);
 	PUSH_DATA (push, (bo->offset + MISC_OFFSET) >> 32);
 	PUSH_DATA (push, (bo->offset + MISC_OFFSET));
 	PUSH_DATA (push, 1);
@@ -207,17 +175,6 @@ NVAccelInit3D_NVC0(ScrnInfoPtr pScrn)
 	PUSH_DATA (push, (bo->offset + CODE_OFFSET));
 
 	NVC0PushProgram(pNv, PVP_PASS, NVC0VP_Passthrough);
-
-	BEGIN_NVC0(push, NVC0_3D(SP_SELECT(1)), 2);
-	PUSH_DATA (push, 0x11);
-	PUSH_DATA (push, PVP_PASS);
-	BEGIN_NVC0(push, NVC0_3D(SP_GPR_ALLOC(1)), 1);
-	PUSH_DATA (push, 8);
-	BEGIN_NVC0(push, SUBC_3D(0x163c), 1);
-	PUSH_DATA (push, 0);
-	BEGIN_NVC0(push, SUBC_3D(0x2600), 1);
-	PUSH_DATA (push, 1);
-
 	NVC0PushProgram(pNv, PFP_S, NVC0FP_Source);
 	NVC0PushProgram(pNv, PFP_C, NVC0FP_Composite);
 	NVC0PushProgram(pNv, PFP_CCA, NVC0FP_CAComposite);
@@ -226,15 +183,26 @@ NVAccelInit3D_NVC0(ScrnInfoPtr pScrn)
 	NVC0PushProgram(pNv, PFP_C_A8, NVC0FP_Composite_A8);
 	NVC0PushProgram(pNv, PFP_NV12, NVC0FP_NV12);
 
-	BEGIN_NVC0(push, SUBC_3D(0x021c), 1); /* CODE_FLUSH ? */
+	BEGIN_NVC0(push, NVC0_3D(MEM_BARRIER), 1);
 	PUSH_DATA (push, 0x1111);
 
-	BEGIN_NVC0(push, NVC0_3D(SP_SELECT(5)), 2);
-	PUSH_DATA (push, 0x51);
-	PUSH_DATA (push, PFP_S);
-	BEGIN_NVC0(push, NVC0_3D(SP_GPR_ALLOC(5)), 1);
+	BEGIN_NVC0(push, NVC0_3D(SP_SELECT(1)), 4);
+	PUSH_DATA (push, NVC0_3D_SP_SELECT_PROGRAM_VP_B |
+			 NVC0_3D_SP_SELECT_ENABLE);
+	PUSH_DATA (push, PVP_PASS);
+	PUSH_DATA (push, 0x00000000);
 	PUSH_DATA (push, 8);
+	BEGIN_NVC0(push, NVC0_3D(VERT_COLOR_CLAMP_EN), 1);
+	PUSH_DATA (push, 1);
 
+	BEGIN_NVC0(push, NVC0_3D(SP_SELECT(5)), 4);
+	PUSH_DATA (push, NVC0_3D_SP_SELECT_PROGRAM_FP |
+			 NVC0_3D_SP_SELECT_ENABLE);
+	PUSH_DATA (push, PFP_S);
+	PUSH_DATA (push, 0x00000000);
+	PUSH_DATA (push, 8);
+	BEGIN_NVC0(push, NVC0_3D(FRAG_COLOR_CLAMP_EN), 1);
+	PUSH_DATA (push, 0x11111111);
 	BEGIN_NVC0(push, NVC0_3D(CB_SIZE), 3);
 	PUSH_DATA (push, 256);
 	PUSH_DATA (push, (bo->offset + CB_OFFSET) >> 32);
@@ -242,47 +210,6 @@ NVAccelInit3D_NVC0(ScrnInfoPtr pScrn)
 	BEGIN_NVC0(push, NVC0_3D(CB_BIND(4)), 1);
 	PUSH_DATA (push, 0x01);
 
-	BEGIN_NVC0(push, NVC0_3D(EARLY_FRAGMENT_TESTS), 1);
-	PUSH_DATA (push, 0);
-	BEGIN_NVC0(push, SUBC_3D(0x0360), 2);
-	PUSH_DATA (push, 0x20164010);
-	PUSH_DATA (push, 0x20);
-	BEGIN_NVC0(push, SUBC_3D(0x196c), 1);
-	PUSH_DATA (push, 0);
-	BEGIN_NVC0(push, SUBC_3D(0x1664), 1);
-	PUSH_DATA (push, 0);
-	BEGIN_NVC0(push, NVC0_3D(FRAG_COLOR_CLAMP_EN), 1);
-	PUSH_DATA (push, 0x11111111);
-
-	BEGIN_NVC0(push, NVC0_3D(DEPTH_TEST_ENABLE), 1);
-	PUSH_DATA (push, 0);
-
-	BEGIN_NVC0(push, NVC0_3D(RASTERIZE_ENABLE), 1);
-	PUSH_DATA (push, 1);
-	BEGIN_NVC0(push, NVC0_3D(SP_SELECT(4)), 1);
-	PUSH_DATA (push, 0x40);
-	BEGIN_NVC0(push, NVC0_3D(LAYER), 1);
-	PUSH_DATA (push, 0);
-	BEGIN_NVC0(push, NVC0_3D(SP_SELECT(3)), 1);
-	PUSH_DATA (push, 0x30);
-	BEGIN_NVC0(push, NVC0_3D(SP_SELECT(2)), 1);
-	PUSH_DATA (push, 0x20);
-	BEGIN_NVC0(push, NVC0_3D(SP_SELECT(0)), 1);
-	PUSH_DATA (push, 0x00);
-
-	BEGIN_NVC0(push, SUBC_3D(0x1604), 1);
-	PUSH_DATA (push, 4);
-	BEGIN_NVC0(push, NVC0_3D(POINT_SPRITE_ENABLE), 1);
-	PUSH_DATA (push, 0);
-	BEGIN_NVC0(push, NVC0_3D(SCISSOR_ENABLE(0)), 1);
-	PUSH_DATA (push, 1);
-
-	BEGIN_NVC0(push, NVC0_3D(VIEWPORT_HORIZ(0)), 2);
-	PUSH_DATA (push, (8192 << 16) | 0);
-	PUSH_DATA (push, (8192 << 16) | 0);
-	BEGIN_NVC0(push, NVC0_3D(SCISSOR_HORIZ(0)), 2);
-	PUSH_DATA (push, (8192 << 16) | 0);
-	PUSH_DATA (push, (8192 << 16) | 0);
 	return TRUE;
 }
 
