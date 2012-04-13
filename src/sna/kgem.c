@@ -2156,6 +2156,9 @@ search_linear_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags)
 			//assert(!kgem_busy(kgem, bo->handle));
 			return bo;
 		}
+
+		if (flags & CREATE_EXACT)
+			return NULL;
 	}
 
 	cache = use_active ? active(kgem, num_pages, I915_TILING_NONE) : inactive(kgem, num_pages);
@@ -3683,7 +3686,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 		 * devices like gen2 or with relatively slow gpu like i3.
 		 */
 		old = search_linear_cache(kgem, alloc,
-					  CREATE_INACTIVE | CREATE_GTT_MAP);
+					  CREATE_EXACT | CREATE_INACTIVE | CREATE_GTT_MAP);
 #if HAVE_I915_GEM_BUFFER_INFO
 		if (old) {
 			struct drm_i915_gem_buffer_info info;
@@ -3705,7 +3708,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 #endif
 		if (old == NULL)
 			old = search_linear_cache(kgem, NUM_PAGES(size),
-						  CREATE_INACTIVE | CREATE_GTT_MAP);
+						  CREATE_EXACT | CREATE_INACTIVE | CREATE_GTT_MAP);
 		if (old) {
 			DBG(("%s: reusing handle=%d for buffer\n",
 			     __FUNCTION__, old->handle));
