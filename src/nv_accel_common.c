@@ -623,11 +623,15 @@ NVAccelCommonInit(ScrnInfoPtr pScrn)
 	if (pNv->Architecture < NV_ARCH_C0)
 		INIT_CONTEXT_OBJECT(M2MF_NV50);
 	else
+	if (pNv->Architecture < NV_ARCH_E0)
 		INIT_CONTEXT_OBJECT(M2MF_NVC0);
+	else
+		INIT_CONTEXT_OBJECT(P2MF_NVE0);
 
 	/* 3D init */
 	switch (pNv->Architecture) {
 	case NV_ARCH_C0:
+	case NV_ARCH_E0:
 		INIT_CONTEXT_OBJECT(3D_NVC0);
 		break;
 	case NV_ARCH_50:

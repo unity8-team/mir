@@ -47,6 +47,11 @@ NVAccelM2MF(NVPtr pNv, int w, int h, int cpp, uint32_t srcoff, uint32_t dstoff,
 	    struct nouveau_bo *src, int sd, int sp, int sh, int sx, int sy,
 	    struct nouveau_bo *dst, int dd, int dp, int dh, int dx, int dy)
 {
+	if (pNv->Architecture >= NV_ARCH_E0)
+		return NVE0EXARectCopy(pNv, w, h, cpp,
+				       src, srcoff, sd, sp, sh, sx, sy,
+				       dst, dstoff, dd, dp, dh, dx, dy);
+	else
 	if (pNv->Architecture >= NV_ARCH_C0)
 		return NVC0EXARectM2MF(pNv, w, h, cpp,
 				       src, srcoff, sd, sp, sh, sx, sy,
@@ -413,6 +418,7 @@ nouveau_exa_init(ScreenPtr pScreen)
 		exa->DoneComposite    = NV50EXADoneComposite;
 		break;
 	case NV_ARCH_C0:
+	case NV_ARCH_E0:
 		exa->CheckComposite   = NVC0EXACheckComposite;
 		exa->PrepareComposite = NVC0EXAPrepareComposite;
 		exa->Composite        = NVC0EXAComposite;

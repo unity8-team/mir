@@ -256,7 +256,7 @@ nouveau_xv_bo_realloc(ScrnInfoPtr pScrn, unsigned flags, unsigned size,
 		if (pNv->Architecture == NV_ARCH_50)
 			config.nv50.memtype = 0x70;
 		else
-		if (pNv->Architecture == NV_ARCH_C0)
+		if (pNv->Architecture >= NV_ARCH_C0)
 			config.nvc0.memtype = 0xfe;
 	}
 	flags |= NOUVEAU_BO_MAP;
