@@ -9,15 +9,15 @@
 #include "hwdefs/nv50_texture.h"
 #include "hwdefs/nv_3ddefs.xml.h"
 
-/* subchannel assignments */
-#define SUBC_M2MF(mthd)  0, (mthd)
+/* subchannel assignments, compatible with kepler's fixed layout  */
+#define SUBC_3D(mthd)    0, (mthd)
+#define NVC0_3D(mthd)    SUBC_3D(NVC0_3D_##mthd)
+#define SUBC_M2MF(mthd)  2, (mthd)
 #define NVC0_M2MF(mthd)  SUBC_M2MF(NVC0_M2MF_##mthd)
-#define SUBC_NVSW(mthd)  1, (mthd)
-#define SUBC_2D(mthd)    2, (mthd)
+#define SUBC_2D(mthd)    3, (mthd)
 #define NV50_2D(mthd)    SUBC_2D(NV50_2D_##mthd)
 #define NVC0_2D(mthd)    SUBC_2D(NVC0_2D_##mthd)
-#define SUBC_3D(mthd)    7, (mthd)
-#define NVC0_3D(mthd)    SUBC_3D(NVC0_3D_##mthd)
+#define SUBC_NVSW(mthd)  5, (mthd)
 
 /* scratch buffer offsets */
 #define CODE_OFFSET 0x00000 /* Code */
