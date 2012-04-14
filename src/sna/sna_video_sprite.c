@@ -361,21 +361,21 @@ XF86VideoAdaptorPtr sna_video_sprite_setup(struct sna *sna,
 					   ScreenPtr screen)
 {
 	XF86VideoAdaptorPtr adaptor;
+	struct drm_mode_get_plane_res r;
 	struct sna_video *video;
-	drmModePlaneRes *plane_resources;
 
-	plane_resources = drmModeGetPlaneResources(sna->kgem.fd);
-	if (!plane_resources)
+	memset(&r, 0, sizeof(struct drm_mode_get_plane_res));
+	if (drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_GETPLANERESOURCES, &r))
+		return NULL;
+	if (r.count_planes == 0)
 		return NULL;
 
 	adaptor = calloc(1,
 			 sizeof(XF86VideoAdaptorRec) +
 			 sizeof(struct sna_video) +
 			 sizeof(DevUnion));
-	if (!adaptor) {
-		free(plane_resources);
+	if (!adaptor)
 		return NULL;
-	}
 
 	adaptor->type = XvWindowMask | XvInputMask | XvImageMask;
 	adaptor->flags = VIDEO_OVERLAID_IMAGES /*| VIDEO_CLIP_TO_VIEWPORT */ ;
@@ -427,8 +427,6 @@ XF86VideoAdaptorPtr sna_video_sprite_setup(struct sna *sna,
 	REGION_NULL(screen, &video->clip);
 
 	xvColorKey = MAKE_ATOM("XV_COLORKEY");
-
-	free(plane_resources);
 
 	return adaptor;
 }
