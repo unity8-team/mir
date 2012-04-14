@@ -686,12 +686,6 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	DBG(("%s: partial buffer size=%d [%d KiB]\n", __FUNCTION__,
 	     kgem->partial_buffer_size, kgem->partial_buffer_size / 1024));
 
-	kgem->min_alignment = 4;
-	if (gen < 60)
-		/* XXX workaround an issue where we appear to fail to
-		 * disable dual-stream mode */
-		kgem->min_alignment = 64;
-
 	kgem->max_object_size = 2 * aperture.aper_size / 3;
 	kgem->max_gpu_size = kgem->max_object_size;
 	if (!kgem->has_llc)
@@ -776,8 +770,8 @@ static uint32_t kgem_untiled_pitch(struct kgem *kgem,
 				   uint32_t width, uint32_t bpp,
 				   bool scanout)
 {
-	width = width * bpp >> 3;
-	return ALIGN(width, scanout ? 64 : kgem->min_alignment);
+	width = ALIGN(width, 4) * bpp >> 3;
+	return ALIGN(width, scanout ? 64 : 4);
 }
 
 void kgem_get_tile_size(struct kgem *kgem, int tiling,
@@ -838,14 +832,19 @@ static uint32_t kgem_surface_size(struct kgem *kgem,
 			tile_width = 512;
 			tile_height = kgem->gen < 30 ? 16 : 8;
 		} else {
-			tile_width = scanout ? 64 : kgem->min_alignment;
-			tile_height = 2;
+			tile_width = scanout ? 64 : 4 * bpp >> 3;
+			tile_height = 4;
 		}
 	} else switch (tiling) {
 	default:
 	case I915_TILING_NONE:
-		tile_width = scanout ? 64 : kgem->min_alignment;
-		tile_height = 2;
+		if (kgem->gen < 40) {
+			tile_width = scanout ? 64 : 4 * bpp >> 3;
+			tile_height = 4;
+		} else {
+			tile_width = scanout ? 64 : 2 * bpp >> 3;
+			tile_height = 2;
+		}
 		break;
 	case I915_TILING_X:
 		tile_width = 512;
@@ -899,7 +898,7 @@ static uint32_t kgem_aligned_height(struct kgem *kgem,
 	} else switch (tiling) {
 	default:
 	case I915_TILING_NONE:
-		tile_height = 2;
+		tile_height = kgem->gen < 40 ? 4 : 2;
 		break;
 	case I915_TILING_X:
 		tile_height = 8;
@@ -2881,7 +2880,7 @@ struct kgem_bo *kgem_create_cpu_2d(struct kgem *kgem,
 
 		stride = ALIGN(width, 2) * bpp >> 3;
 		stride = ALIGN(stride, 4);
-		size = ALIGN(height, 2) * stride;
+		size = ALIGN(height, kgem->gen < 40 ? 4 : 2) * stride;
 
 		assert(size >= PAGE_SIZE);
 
