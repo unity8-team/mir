@@ -1767,8 +1767,23 @@ sna_render_composite_redirect(struct sna *sna,
 			box.x2 = ALIGN(box.x2, tile_width * 8 / op->dst.pixmap->drawable.bitsPerPixel);
 
 			offset = box.x1 * op->dst.pixmap->drawable.bitsPerPixel / 8 / tile_width * tile_size;
-		} else
+		} else {
+			if (sna->kgem.gen < 40) {
+				box.y1 = box.y1 & ~3;
+				box.y2 = ALIGN(box.y2, 4);
+
+				box.x1 = box.x1 & ~3;
+				box.x2 = ALIGN(box.x2, 4);
+			} else {
+				box.y1 = box.y1 & ~1;
+				box.y2 = ALIGN(box.y2, 2);
+
+				box.x1 = box.x1 & ~1;
+				box.x2 = ALIGN(box.x2, 2);
+			}
+
 			offset = box.x1 * op->dst.pixmap->drawable.bitsPerPixel / 8;
+		}
 
 		if (box.y2 > op->dst.pixmap->drawable.height)
 			box.y2 = op->dst.pixmap->drawable.height;
