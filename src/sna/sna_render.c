@@ -839,8 +839,15 @@ sna_render_pixmap_partial(struct sna *sna,
 		box.x2 = ALIGN(box.x2, tile_width * 8 / pixmap->drawable.bitsPerPixel);
 
 		offset = box.x1 * pixmap->drawable.bitsPerPixel / 8 / tile_width * tile_size;
-	} else
+	} else {
+		box.y1 = box.y1 & ~1;
+		box.y2 = ALIGN(box.y2, 2);
+
+		box.x1 = box.x1 & ~1;
+		box.x2 = ALIGN(box.x2, 2);
+
 		offset = box.x1 * pixmap->drawable.bitsPerPixel / 8;
+	}
 
 	if (box.x2 > pixmap->drawable.width)
 		box.x2 = pixmap->drawable.width;
