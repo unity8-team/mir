@@ -126,6 +126,25 @@ Bool RADEONCheckBPP(int bpp)
 	return FALSE;
 }
 
+PixmapPtr RADEONSolidPixmap(ScreenPtr pScreen, uint32_t solid)
+{
+    PixmapPtr pPix = pScreen->CreatePixmap(pScreen, 1, 1, 32, 0);
+    struct radeon_bo *bo;
+
+    exaMoveInPixmap(pPix);
+    bo = radeon_get_pixmap_bo(pPix);
+
+    if (radeon_bo_map(bo, 1)) {
+	pScreen->DestroyPixmap(pPix);
+	return NULL;
+    }
+
+    memcpy(bo->ptr, &solid, 4);
+    radeon_bo_unmap(bo);
+
+    return pPix;
+}
+
 static Bool radeon_vb_get(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
