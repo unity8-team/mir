@@ -975,7 +975,10 @@ Bool RADEONScreenInit_KMS(int scrnIndex, ScreenPtr pScreen,
     radeon_cs_set_limit(info->cs, RADEON_GEM_DOMAIN_GTT, info->gart_size);
     radeon_cs_space_set_flush(info->cs, (void(*)(void *))radeon_cs_flush_indirect, pScrn); 
 
-    radeon_setup_kernel_mem(pScreen);
+    if (!radeon_setup_kernel_mem(pScreen)) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "radeon_setup_kernel_mem failed\n");
+	return FALSE;
+    }
     front_ptr = info->front_bo->ptr;
 
     if (info->r600_shadow_fb) {
@@ -1233,8 +1236,10 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
     }
     if (info->r600_shadow_fb == FALSE) {
         info->accel_state->exa = exaDriverAlloc();
-        if (info->accel_state->exa == NULL)
+        if (info->accel_state->exa == NULL) {
+	    xf86DrvMsg(pScreen->myNum, X_ERROR, "exaDriverAlloc failed\n");
 	    return FALSE;
+	}
     }
 
     if (info->allowColorTiling) {
@@ -1274,9 +1279,13 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
 			surface.flags |= RADEON_SURF_SET(RADEON_SURF_MODE_2D, MODE);
 		}
 		if (radeon_surface_best(info->surf_man, &surface)) {
+			xf86DrvMsg(pScreen->myNum, X_ERROR,
+				   "radeon_surface_best failed\n");
 			return FALSE;
 		}
 		if (radeon_surface_init(info->surf_man, &surface)) {
+			xf86DrvMsg(pScreen->myNum, X_ERROR,
+				   "radeon_surface_init failed\n");
 			return FALSE;
 		}
 		pitch = surface.level[0].pitch_bytes;
@@ -1311,6 +1320,7 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
                                                     cursor_size, 0,
                                                     RADEON_GEM_DOMAIN_VRAM, 0);
                 if (!info->cursor_bo[c]) {
+                    ErrorF("Failed to allocate cursor buffer memory\n");
                     return FALSE;
                 }
 
