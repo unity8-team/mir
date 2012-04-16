@@ -312,7 +312,7 @@ static void kgem_bo_retire(struct kgem *kgem, struct kgem_bo *bo)
 {
 	DBG(("%s: handle=%d, domain=%d\n",
 	     __FUNCTION__, bo->handle, bo->domain));
-	assert(!kgem_busy(kgem, bo->handle));
+	assert(bo->flush || !kgem_busy(kgem, bo->handle));
 
 	if (bo->rq)
 		kgem_retire(kgem);
@@ -332,7 +332,7 @@ Bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,
 {
 	assert(bo->refcnt);
 	assert(!bo->purged);
-	assert(!kgem_busy(kgem, bo->handle));
+	assert(bo->flush || !kgem_busy(kgem, bo->handle));
 	assert(bo->proxy == NULL);
 
 	assert(length <= bytes(bo));
@@ -1033,13 +1033,13 @@ static void kgem_bo_free(struct kgem *kgem, struct kgem_bo *bo)
 inline static void kgem_bo_move_to_inactive(struct kgem *kgem,
 					    struct kgem_bo *bo)
 {
+	assert(bo->reusable);
+	assert(bo->rq == NULL);
+	assert(bo->domain != DOMAIN_GPU);
 	assert(!kgem_busy(kgem, bo->handle));
 	assert(!bo->proxy);
 	assert(!bo->io);
 	assert(!bo->needs_flush);
-	assert(bo->rq == NULL);
-	assert(bo->domain != DOMAIN_GPU);
-	assert(bo->reusable);
 	assert(list_is_empty(&bo->vma));
 
 	if (bucket(bo) >= NUM_CACHE_BUCKETS) {
@@ -1098,6 +1098,7 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 		goto destroy;
 
 	if (bo->vmap) {
+		assert(!bo->flush);
 		DBG(("%s: handle=%d is vmapped, tracking until free\n",
 		     __FUNCTION__, bo->handle));
 		if (bo->rq == NULL) {
@@ -2279,6 +2280,7 @@ struct kgem_bo *kgem_create_for_name(struct kgem *kgem, uint32_t name)
 	}
 
 	bo->reusable = false;
+	bo->flush = true;
 	return bo;
 }
 
@@ -2807,8 +2809,7 @@ search_inactive:
 		assert(bo->refcnt == 0);
 		assert(bo->reusable);
 		assert((flags & CREATE_INACTIVE) == 0 || bo->domain != DOMAIN_GPU);
-		assert((flags & CREATE_INACTIVE) == 0 ||
-		       !kgem_busy(kgem, bo->handle));
+		assert((flags & CREATE_INACTIVE) == 0 || !kgem_busy(kgem, bo->handle));
 		assert(bo->pitch*kgem_aligned_height(kgem, height, bo->tiling) <= kgem_bo_size(bo));
 		bo->refcnt = 1;
 		return bo;
@@ -3206,8 +3207,8 @@ void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo)
 	if (bo->domain != DOMAIN_GTT) {
 		struct drm_i915_gem_set_domain set_domain;
 
-		DBG(("%s: sync: needs_flush? %d, domain? %d\n", __FUNCTION__,
-		     bo->needs_flush, bo->domain));
+		DBG(("%s: sync: needs_flush? %d, domain? %d, busy? %d\n", __FUNCTION__,
+		     bo->needs_flush, bo->domain, kgem_busy(kgem, bo->handle)));
 
 		/* XXX use PROT_READ to avoid the write flush? */
 
