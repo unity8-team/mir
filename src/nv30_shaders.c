@@ -33,8 +33,7 @@ void NV30_UploadFragProg(NVPtr pNv, nv_shader_t *shader, int *hw_offset)
 
 	shader->hw_id = *hw_offset;
 
-	nouveau_bo_map(pNv->shader_mem, NOUVEAU_BO_WR, pNv->client);
-	map = pNv->shader_mem->map + *hw_offset;
+	map = pNv->scratch->map + *hw_offset;
 	for (i = 0; i < shader->size; i++) {
 		data = shader->data[i];
 #if (X_BYTE_ORDER != X_LITTLE_ENDIAN)
@@ -73,7 +72,7 @@ NV30_LoadFragProg(ScrnInfoPtr pScrn, nv_shader_t *shader)
 	struct nouveau_pushbuf *push = pNv->pushbuf;
 
 	BEGIN_NV04(push, NV30_3D(FP_ACTIVE_PROGRAM), 1);
-	PUSH_MTHD (push, NV30_3D(FP_ACTIVE_PROGRAM), pNv->shader_mem,
+	PUSH_MTHD (push, NV30_3D(FP_ACTIVE_PROGRAM), pNv->scratch,
 			 shader->hw_id, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD |
 			 NOUVEAU_BO_LOW | NOUVEAU_BO_OR,
 			 NV30_3D_FP_ACTIVE_PROGRAM_DMA0,
@@ -108,7 +107,7 @@ NV40_LoadFragProg(ScrnInfoPtr pScrn, nv_shader_t *shader)
 	struct nouveau_pushbuf *push = pNv->pushbuf;
 
 	BEGIN_NV04(push, NV30_3D(FP_ACTIVE_PROGRAM), 1);
-	PUSH_MTHD (push, NV30_3D(FP_ACTIVE_PROGRAM), pNv->shader_mem,
+	PUSH_MTHD (push, NV30_3D(FP_ACTIVE_PROGRAM), pNv->scratch,
 			 shader->hw_id, NOUVEAU_BO_VRAM | NOUVEAU_BO_GART |
 			 NOUVEAU_BO_RD | NOUVEAU_BO_LOW | NOUVEAU_BO_OR,
 			 NV30_3D_FP_ACTIVE_PROGRAM_DMA0,

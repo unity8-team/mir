@@ -69,7 +69,7 @@ nvc0_xv_image_put(ScrnInfoPtr pScrn,
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_bo *dst = nouveau_pixmap_bo(ppix);
 	struct nouveau_pushbuf_refn refs[] = {
-		{ pNv->tesla_scratch, NOUVEAU_BO_VRAM | NOUVEAU_BO_RDWR },
+		{ pNv->scratch, NOUVEAU_BO_VRAM | NOUVEAU_BO_RDWR },
 		{ src, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD },
 		{ dst, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR },
 	};
@@ -103,7 +103,7 @@ nvc0_xv_image_put(ScrnInfoPtr pScrn,
 	BEGIN_NVC0(push, NVC0_3D(BLEND_ENABLE(0)), 1);
 	PUSH_DATA (push, 0);
 
-	PUSH_DATAu(push, pNv->tesla_scratch, TIC_OFFSET, 16);
+	PUSH_DATAu(push, pNv->scratch, TIC_OFFSET, 16);
 	if (id == FOURCC_YV12 || id == FOURCC_I420) {
 	PUSH_DATA (push, NV50TIC_0_0_MAPA_C0 | NV50TIC_0_0_TYPEA_UNORM |
 			 NV50TIC_0_0_MAPB_ZERO | NV50TIC_0_0_TYPEB_UNORM |
@@ -172,7 +172,7 @@ nvc0_xv_image_put(ScrnInfoPtr pScrn,
 	PUSH_DATA (push, 0x00000000);
 	}
 
-	PUSH_DATAu(push, pNv->tesla_scratch, TSC_OFFSET, 16);
+	PUSH_DATAu(push, pNv->scratch, TSC_OFFSET, 16);
 	PUSH_DATA (push, NV50TSC_1_0_WRAPS_CLAMP_TO_EDGE |
 			 NV50TSC_1_0_WRAPT_CLAMP_TO_EDGE |
 			 NV50TSC_1_0_WRAPR_CLAMP_TO_EDGE);
@@ -265,14 +265,14 @@ nvc0_xv_csc_update(NVPtr pNv, float yco, float *off, float *uco, float *vco)
 
 	if (nouveau_pushbuf_space(push, 64, 0, 0) ||
 	    nouveau_pushbuf_refn (push, &(struct nouveau_pushbuf_refn) {
-					pNv->tesla_scratch, NOUVEAU_BO_WR |
+					pNv->scratch, NOUVEAU_BO_WR |
 					NOUVEAU_BO_VRAM }, 1))
 		return;
 
 	BEGIN_NVC0(push, NVC0_3D(CB_SIZE), 3);
 	PUSH_DATA (push, 256);
-	PUSH_DATA (push, (pNv->tesla_scratch->offset + CB_OFFSET) >> 32);
-	PUSH_DATA (push, (pNv->tesla_scratch->offset + CB_OFFSET));
+	PUSH_DATA (push, (pNv->scratch->offset + CB_OFFSET) >> 32);
+	PUSH_DATA (push, (pNv->scratch->offset + CB_OFFSET));
 	BEGIN_NVC0(push, NVC0_3D(CB_POS), 11);
 	PUSH_DATA (push, 0);
 	PUSH_DATAf(push, yco);

@@ -102,9 +102,7 @@ typedef struct _NVRec {
 	struct nouveau_object *Nv2D;
 	struct nouveau_object *Nv3D;
 	struct nouveau_object *NvSW;
-	struct nouveau_bo *tesla_scratch;
-	struct nouveau_bo *shader_mem;
-	struct nouveau_bo *xv_filtertable_mem;
+	struct nouveau_bo *scratch;
 
 	/* Acceleration context */
 	PixmapPtr pspix, pmpix, pdpix;

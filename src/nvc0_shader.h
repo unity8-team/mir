@@ -3,7 +3,7 @@
 
 #define NVC0PushProgram(pNv,addr,code) do {                                    \
 	const unsigned size = sizeof(code) / sizeof(code[0]);                  \
-	PUSH_DATAu((pNv)->pushbuf, (pNv)->tesla_scratch, (addr), size);        \
+	PUSH_DATAu((pNv)->pushbuf, (pNv)->scratch, (addr), size);              \
 	PUSH_DATAp((pNv)->pushbuf, (code), size);                              \
 } while(0)
 

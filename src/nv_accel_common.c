@@ -592,6 +592,17 @@ NVAccelCommonInit(ScrnInfoPtr pScrn)
 	if (pNv->NoAccel)
 		return TRUE;
 
+	/* Scratch buffer */
+	ret = nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP,
+			     128 * 1024, 128 * 1024, NULL, &pNv->scratch);
+	if (!ret)
+		ret = nouveau_bo_map(pNv->scratch, 0, pNv->client);
+	if (ret) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "Failed to allocate scratch buffer: %d\n", ret);
+		return FALSE;
+	}
+
 	/* General engine objects */
 	if (pNv->Architecture < NV_ARCH_C0) {
 		INIT_CONTEXT_OBJECT(DmaNotifier0);
@@ -679,6 +690,5 @@ void NVAccelFree(ScrnInfoPtr pScrn)
 	nouveau_object_del(&pNv->NvSW);
 	nouveau_object_del(&pNv->Nv3D);
 
-	nouveau_bo_ref(NULL, &pNv->tesla_scratch);
-	nouveau_bo_ref(NULL, &pNv->shader_mem);
+	nouveau_bo_ref(NULL, &pNv->scratch);
 }

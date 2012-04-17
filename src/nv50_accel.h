@@ -20,7 +20,7 @@
 #define SUBC_3D(mthd)    7, (mthd)
 #define NV50_3D(mthd)    SUBC_3D(NV50_3D_##mthd)
 
-/* "Tesla scratch buffer" offsets */
+/* scratch buffer offsets */
 #define PVP_OFFSET  0x00000000 /* Vertex program */
 #define PFP_OFFSET  0x00001000 /* Fragment program */
 #define TIC_OFFSET  0x00002000 /* Texture Image Control */

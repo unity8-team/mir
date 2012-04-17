@@ -73,7 +73,7 @@ nv50_xv_image_put(ScrnInfoPtr pScrn,
 	struct nouveau_bo *dst = nouveau_pixmap_bo(ppix);
 	struct nouveau_pushbuf *push = pNv->pushbuf;
 	struct nouveau_pushbuf_refn refs[] = {
-		{ pNv->tesla_scratch, NOUVEAU_BO_VRAM | NOUVEAU_BO_RDWR },
+		{ pNv->scratch, NOUVEAU_BO_VRAM | NOUVEAU_BO_RDWR },
 		{ src, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD },
 		{ dst, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR },
 	};
@@ -109,8 +109,8 @@ nv50_xv_image_put(ScrnInfoPtr pScrn,
 	PUSH_DATA (push, 0);
 
 	BEGIN_NV04(push, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
-	PUSH_DATA (push, (pNv->tesla_scratch->offset + TIC_OFFSET) >> 32);
-	PUSH_DATA (push, (pNv->tesla_scratch->offset + TIC_OFFSET));
+	PUSH_DATA (push, (pNv->scratch->offset + TIC_OFFSET) >> 32);
+	PUSH_DATA (push, (pNv->scratch->offset + TIC_OFFSET));
 	PUSH_DATA (push, (CB_TIC << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 0x4000);
 	BEGIN_NV04(push, NV50_3D(CB_ADDR), 1);
 	PUSH_DATA (push, CB_TIC);
@@ -184,8 +184,8 @@ nv50_xv_image_put(ScrnInfoPtr pScrn,
 	}
 
 	BEGIN_NV04(push, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
-	PUSH_DATA (push, (pNv->tesla_scratch->offset + TSC_OFFSET) >> 32);
-	PUSH_DATA (push, (pNv->tesla_scratch->offset + TSC_OFFSET));
+	PUSH_DATA (push, (pNv->scratch->offset + TSC_OFFSET) >> 32);
+	PUSH_DATA (push, (pNv->scratch->offset + TSC_OFFSET));
 	PUSH_DATA (push, (CB_TSC << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 0x4000);
 	BEGIN_NV04(push, NV50_3D(CB_ADDR), 1);
 	PUSH_DATA (push, CB_TSC);
@@ -338,13 +338,13 @@ nv50_xv_csc_update(ScrnInfoPtr pScrn, NVPortPrivPtr pPriv)
 
 	if (nouveau_pushbuf_space(push, 64, 0, 0) ||
 	    nouveau_pushbuf_refn (push, &(struct nouveau_pushbuf_refn) {
-					pNv->tesla_scratch, NOUVEAU_BO_WR |
+					pNv->scratch, NOUVEAU_BO_WR |
 					NOUVEAU_BO_VRAM }, 1))
 		return;
 
 	BEGIN_NV04(push, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
-	PUSH_DATA (push, (pNv->tesla_scratch->offset + PFP_DATA) >> 32);
-	PUSH_DATA (push, (pNv->tesla_scratch->offset + PFP_DATA));
+	PUSH_DATA (push, (pNv->scratch->offset + PFP_DATA) >> 32);
+	PUSH_DATA (push, (pNv->scratch->offset + PFP_DATA));
 	PUSH_DATA (push, (CB_PFP << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) |
 			 0x00004000);
 	BEGIN_NV04(push, NV50_3D(CB_ADDR), 1);

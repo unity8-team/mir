@@ -546,8 +546,8 @@ NV50EXATexture(PixmapPtr ppix, PicturePtr ppict, unsigned unit)
 		NOUVEAU_FALLBACK("pixmap is scanout buffer\n");
 
 	BEGIN_NV04(push, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
-	PUSH_DATA (push, (pNv->tesla_scratch->offset + TIC_OFFSET) >> 32);
-	PUSH_DATA (push, (pNv->tesla_scratch->offset + TIC_OFFSET));
+	PUSH_DATA (push, (pNv->scratch->offset + TIC_OFFSET) >> 32);
+	PUSH_DATA (push, (pNv->scratch->offset + TIC_OFFSET));
 	PUSH_DATA (push, (CB_TIC << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 0x4000);
 	BEGIN_NV04(push, NV50_3D(CB_ADDR), 1);
 	PUSH_DATA (push, CB_TIC | ((unit * 8) << NV50_3D_CB_ADDR_ID__SHIFT));
@@ -632,8 +632,8 @@ NV50EXATexture(PixmapPtr ppix, PicturePtr ppict, unsigned unit)
 	PUSH_DATA (push, 0x00000000);
 
 	BEGIN_NV04(push, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
-	PUSH_DATA (push, (pNv->tesla_scratch->offset + TSC_OFFSET) >> 32);
-	PUSH_DATA (push, (pNv->tesla_scratch->offset + TSC_OFFSET));
+	PUSH_DATA (push, (pNv->scratch->offset + TSC_OFFSET) >> 32);
+	PUSH_DATA (push, (pNv->scratch->offset + TSC_OFFSET));
 	PUSH_DATA (push, (CB_TSC << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 0x4000);
 	BEGIN_NV04(push, NV50_3D(CB_ADDR), 1);
 	PUSH_DATA (push, CB_TSC | ((unit * 8) << NV50_3D_CB_ADDR_ID__SHIFT));
@@ -825,7 +825,7 @@ NV50EXAPrepareComposite(int op,
 	PUSH_DATA (push, 0x203);
 
 	PUSH_RESET(push);
-	PUSH_REFN (push, pNv->tesla_scratch, NOUVEAU_BO_VRAM | NOUVEAU_BO_RDWR);
+	PUSH_REFN (push, pNv->scratch, NOUVEAU_BO_VRAM | NOUVEAU_BO_RDWR);
 	PUSH_REFN (push, src, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
 	PUSH_REFN (push, dst, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
 	if (pmpict)

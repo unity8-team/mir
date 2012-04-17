@@ -124,7 +124,6 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 	struct nv04_fifo *fifo = pNv->channel->data;
 	struct nouveau_pushbuf *push = pNv->pushbuf;
 	struct nv04_notify ntfy = { .length = 32 };
-	struct nouveau_bo *bo;
 	unsigned class;
 	int i;
 
@@ -170,19 +169,10 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 		return FALSE;
 	}
 
-	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM, 0, 65536,
-			   NULL, &pNv->tesla_scratch)) {
-		nouveau_object_del(&pNv->vblank_sem);
-		nouveau_object_del(&pNv->NvSW);
-		nouveau_object_del(&pNv->Nv3D);
-		return FALSE;
-	}
-	bo = pNv->tesla_scratch;
-
 	if (nouveau_pushbuf_space(push, 512, 0, 0) ||
 	    nouveau_pushbuf_refn (push, &(struct nouveau_pushbuf_refn) {
-					bo, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR
-					}, 1))
+					pNv->scratch, NOUVEAU_BO_VRAM |
+					NOUVEAU_BO_WR }, 1))
 		return FALSE;
 
 	BEGIN_NV04(push, NV01_SUBC(NVSW, OBJECT), 1);
@@ -213,12 +203,12 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 	PUSH_DATA (push, 1);
 
 	BEGIN_NV04(push, NV50_3D(TIC_ADDRESS_HIGH), 3);
-	PUSH_DATA (push, (bo->offset + TIC_OFFSET) >> 32);
-	PUSH_DATA (push, (bo->offset + TIC_OFFSET));
+	PUSH_DATA (push, (pNv->scratch->offset + TIC_OFFSET) >> 32);
+	PUSH_DATA (push, (pNv->scratch->offset + TIC_OFFSET));
 	PUSH_DATA (push, 0x00000800);
 	BEGIN_NV04(push, NV50_3D(TSC_ADDRESS_HIGH), 3);
-	PUSH_DATA (push, (bo->offset + TSC_OFFSET) >> 32);
-	PUSH_DATA (push, (bo->offset + TSC_OFFSET));
+	PUSH_DATA (push, (pNv->scratch->offset + TSC_OFFSET) >> 32);
+	PUSH_DATA (push, (pNv->scratch->offset + TSC_OFFSET));
 	PUSH_DATA (push, 0x00000000);
 	BEGIN_NV04(push, NV50_3D(LINKED_TSC), 1);
 	PUSH_DATA (push, 1);
@@ -226,8 +216,8 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 	PUSH_DATA (push, 0x54);
 
 	BEGIN_NV04(push, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
-	PUSH_DATA (push, (bo->offset + PVP_OFFSET) >> 32);
-	PUSH_DATA (push, (bo->offset + PVP_OFFSET));
+	PUSH_DATA (push, (pNv->scratch->offset + PVP_OFFSET) >> 32);
+	PUSH_DATA (push, (pNv->scratch->offset + PVP_OFFSET));
 	PUSH_DATA (push, 0x00004000);
 	BEGIN_NV04(push, NV50_3D(CB_ADDR), 1);
 	PUSH_DATA (push, 0);
@@ -260,14 +250,14 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 		PUSH_DATA (push, 8);
 	}
 	BEGIN_NV04(push, NV50_3D(VP_ADDRESS_HIGH), 2);
-	PUSH_DATA (push, (bo->offset + PVP_OFFSET) >> 32);
-	PUSH_DATA (push, (bo->offset + PVP_OFFSET));
+	PUSH_DATA (push, (pNv->scratch->offset + PVP_OFFSET) >> 32);
+	PUSH_DATA (push, (pNv->scratch->offset + PVP_OFFSET));
 	BEGIN_NV04(push, NV50_3D(VP_START_ID), 1);
 	PUSH_DATA (push, 0);
 
 	BEGIN_NV04(push, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
-	PUSH_DATA (push, (bo->offset + PFP_OFFSET + PFP_S) >> 32);
-	PUSH_DATA (push, (bo->offset + PFP_OFFSET + PFP_S));
+	PUSH_DATA (push, (pNv->scratch->offset + PFP_OFFSET + PFP_S) >> 32);
+	PUSH_DATA (push, (pNv->scratch->offset + PFP_OFFSET + PFP_S));
 	PUSH_DATA (push, (0 << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 0x4000);
 	BEGIN_NV04(push, NV50_3D(CB_ADDR), 1);
 	PUSH_DATA (push, 0);
@@ -279,8 +269,8 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 	PUSH_DATA (push, 0xf6400001);
 	PUSH_DATA (push, 0x0000c785);
 	BEGIN_NV04(push, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
-	PUSH_DATA (push, (bo->offset + PFP_OFFSET + PFP_C) >> 32);
-	PUSH_DATA (push, (bo->offset + PFP_OFFSET + PFP_C));
+	PUSH_DATA (push, (pNv->scratch->offset + PFP_OFFSET + PFP_C) >> 32);
+	PUSH_DATA (push, (pNv->scratch->offset + PFP_OFFSET + PFP_C));
 	PUSH_DATA (push, (0 << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 0x4000);
 	BEGIN_NV04(push, NV50_3D(CB_ADDR), 1);
 	PUSH_DATA (push, 0);
@@ -302,8 +292,8 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 	PUSH_DATA (push, 0xc004060d);
 	PUSH_DATA (push, 0x00000781);
 	BEGIN_NV04(push, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
-	PUSH_DATA (push, (bo->offset + PFP_OFFSET + PFP_CCA) >> 32);
-	PUSH_DATA (push, (bo->offset + PFP_OFFSET + PFP_CCA));
+	PUSH_DATA (push, (pNv->scratch->offset + PFP_OFFSET + PFP_CCA) >> 32);
+	PUSH_DATA (push, (pNv->scratch->offset + PFP_OFFSET + PFP_CCA));
 	PUSH_DATA (push, (0 << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 0x4000);
 	BEGIN_NV04(push, NV50_3D(CB_ADDR), 1);
 	PUSH_DATA (push, 0);
@@ -325,8 +315,8 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 	PUSH_DATA (push, 0xc007060d);
 	PUSH_DATA (push, 0x00000781);
 	BEGIN_NV04(push, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
-	PUSH_DATA (push, (bo->offset + PFP_OFFSET + PFP_CCASA) >> 32);
-	PUSH_DATA (push, (bo->offset + PFP_OFFSET + PFP_CCASA));
+	PUSH_DATA (push, (pNv->scratch->offset + PFP_OFFSET + PFP_CCASA) >> 32);
+	PUSH_DATA (push, (pNv->scratch->offset + PFP_OFFSET + PFP_CCASA));
 	PUSH_DATA (push, (0 << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 0x4000);
 	BEGIN_NV04(push, NV50_3D(CB_ADDR), 1);
 	PUSH_DATA (push, 0);
@@ -348,8 +338,8 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 	PUSH_DATA (push, 0xc004060d);
 	PUSH_DATA (push, 0x00000781);
 	BEGIN_NV04(push, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
-	PUSH_DATA (push, (bo->offset + PFP_OFFSET + PFP_S_A8) >> 32);
-	PUSH_DATA (push, (bo->offset + PFP_OFFSET + PFP_S_A8));
+	PUSH_DATA (push, (pNv->scratch->offset + PFP_OFFSET + PFP_S_A8) >> 32);
+	PUSH_DATA (push, (pNv->scratch->offset + PFP_OFFSET + PFP_S_A8));
 	PUSH_DATA (push, (0 << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 0x4000);
 	BEGIN_NV04(push, NV50_3D(CB_ADDR), 1);
 	PUSH_DATA (push, 0);
@@ -365,8 +355,8 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 	PUSH_DATA (push, 0x1000000d);
 	PUSH_DATA (push, 0x0403c781);
 	BEGIN_NV04(push, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
-	PUSH_DATA (push, (bo->offset + PFP_OFFSET + PFP_C_A8) >> 32);
-	PUSH_DATA (push, (bo->offset + PFP_OFFSET + PFP_C_A8));
+	PUSH_DATA (push, (pNv->scratch->offset + PFP_OFFSET + PFP_C_A8) >> 32);
+	PUSH_DATA (push, (pNv->scratch->offset + PFP_OFFSET + PFP_C_A8));
 	PUSH_DATA (push, (0 << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 0x4000);
 	BEGIN_NV04(push, NV50_3D(CB_ADDR), 1);
 	PUSH_DATA (push, 0);
@@ -388,8 +378,8 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 	PUSH_DATA (push, 0x10000609);
 	PUSH_DATA (push, 0x0403c781);
 	BEGIN_NV04(push, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
-	PUSH_DATA (push, (bo->offset + PFP_OFFSET + PFP_NV12) >> 32);
-	PUSH_DATA (push, (bo->offset + PFP_OFFSET + PFP_NV12));
+	PUSH_DATA (push, (pNv->scratch->offset + PFP_OFFSET + PFP_NV12) >> 32);
+	PUSH_DATA (push, (pNv->scratch->offset + PFP_OFFSET + PFP_NV12));
 	PUSH_DATA (push, (0 << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 0x4000);
 	BEGIN_NV04(push, NV50_3D(CB_ADDR), 1);
 	PUSH_DATA (push, 0);
@@ -429,8 +419,8 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 	PUSH_DATA (push, 0x08040404);
 	PUSH_DATA (push, 0x00000008); /* NV50_3D_FP_REG_ALLOC_TEMP */
 	BEGIN_NV04(push, NV50_3D(FP_ADDRESS_HIGH), 2);
-	PUSH_DATA (push, (bo->offset + PFP_OFFSET) >> 32);
-	PUSH_DATA (push, (bo->offset + PFP_OFFSET));
+	PUSH_DATA (push, (pNv->scratch->offset + PFP_OFFSET) >> 32);
+	PUSH_DATA (push, (pNv->scratch->offset + PFP_OFFSET));
 
 	BEGIN_NV04(push, NV50_3D(SCISSOR_ENABLE(0)), 1);
 	PUSH_DATA (push, 1);

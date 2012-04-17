@@ -580,10 +580,11 @@ NVAccelInitNV40TCL(ScrnInfoPtr pScrn)
 	struct nouveau_pushbuf *push = pNv->pushbuf;
 	struct nv04_fifo *fifo = pNv->channel->data;
 	uint32_t class = 0, chipset;
-	int next_hw_id = 0, next_hw_offset = 0, i;
+	int next_hw_id = 0, next_hw_offset = FRAGPROG, i;
 
 	if (!nv40_fp_map_a8[0])
 		NV40EXAHackupA8Shaders(pScrn);
+	NVXVComputeBicubicFilter(pNv->scratch, XV_TABLE, XV_TABLE_SIZE);
 
 	chipset = pNv->dev->chipset;
 	if ((chipset & 0xf0) == NV_ARCH_40) {
@@ -604,15 +605,6 @@ NVAccelInitNV40TCL(ScrnInfoPtr pScrn)
 
 	if (nouveau_object_new(pNv->channel, Nv3D, class, NULL, 0, &pNv->Nv3D))
 		return FALSE;
-
-	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_GART |
-			   NOUVEAU_BO_MAP, 0, 0x1000, NULL,
-			   &pNv->shader_mem)) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Couldn't alloc fragprog buffer!\n");
-		nouveau_object_del(&pNv->Nv3D);
-		return FALSE;
-	}
 
 	if (!PUSH_SPACE(push, 256))
 		return FALSE;

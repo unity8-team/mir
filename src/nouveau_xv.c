@@ -2141,7 +2141,6 @@ NVTakedownVideo(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
 
-	nouveau_bo_ref(NULL, &pNv->xv_filtertable_mem);
 	if (pNv->blitAdaptor)
 		NVFreePortMemory(pScrn, GET_BLIT_PRIVATE(pNv));
 	if (pNv->textureAdaptor[0]) {
@@ -2154,3 +2153,45 @@ NVTakedownVideo(ScrnInfoPtr pScrn)
 	}
 }
 
+/* The filtering function used for video scaling. We use a cubic filter as
+ * defined in  "Reconstruction Filters in Computer Graphics" Mitchell &
+ * Netravali in SIGGRAPH '88
+ */
+static float filter_func(float x)
+{
+	const double B=0.75;
+	const double C=(1.0-B)/2.0;
+	double x1=fabs(x);
+	double x2=fabs(x)*x1;
+	double x3=fabs(x)*x2;
+
+	if (fabs(x)<1.0)
+		return ( (12.0-9.0*B-6.0*C)*x3+(-18.0+12.0*B+6.0*C)*x2+(6.0-2.0*B) )/6.0; 
+	else
+		return ( (-B-6.0*C)*x3+(6.0*B+30.0*C)*x2+(-12.0*B-48.0*C)*x1+(8.0*B+24.0*C) )/6.0;
+}
+
+static int8_t f32tosb8(float v)
+{
+	return (int8_t)(v*127.0);
+}
+
+void
+NVXVComputeBicubicFilter(struct nouveau_bo *bo, unsigned offset, unsigned size)
+{
+	int8_t *t = (int8_t *)(bo->map + offset);
+	int i;
+
+	for(i = 0; i < size; i++) {
+		float  x = (i + 0.5) / size;
+		float w0 = filter_func(x+1.0);
+		float w1 = filter_func(x);
+		float w2 = filter_func(x-1.0);
+		float w3 = filter_func(x-2.0);
+
+		t[4*i+2]=f32tosb8(1.0+x-w1/(w0+w1));
+		t[4*i+1]=f32tosb8(1.0-x+w3/(w2+w3));
+		t[4*i+0]=f32tosb8(w0+w1);
+		t[4*i+3]=f32tosb8(0.0);
+	}
+}

@@ -546,7 +546,7 @@ NVC0EXATexture(PixmapPtr ppix, PicturePtr ppict, unsigned unit)
 	if (!nv50_style_tiled_pixmap(ppix))
 		NOUVEAU_FALLBACK("pixmap is scanout buffer\n");
 
-	PUSH_DATAu(push, pNv->tesla_scratch, TIC_OFFSET + (unit * 32), 8);
+	PUSH_DATAu(push, pNv->scratch, TIC_OFFSET + (unit * 32), 8);
 	switch (ppict->format) {
 	case PICT_a8r8g8b8:
 		PUSH_DATA (push, _(B_C0, G_C1, R_C2, A_C3, 8_8_8_8));
@@ -626,7 +626,7 @@ NVC0EXATexture(PixmapPtr ppix, PicturePtr ppict, unsigned unit)
 	PUSH_DATA (push, 0x03000000);
 	PUSH_DATA (push, 0x00000000);
 
-	PUSH_DATAu(push, pNv->tesla_scratch, TSC_OFFSET + (unit * 32), 8);
+	PUSH_DATAu(push, pNv->scratch, TSC_OFFSET + (unit * 32), 8);
 	if (ppict->repeat) {
 		switch (ppict->repeatType) {
 		case RepeatPad:
@@ -817,7 +817,7 @@ NVC0EXAPrepareComposite(int op,
 	PUSH_DATA (push, 0);
 
 	PUSH_RESET(push);
-	PUSH_REFN (push, pNv->tesla_scratch, NOUVEAU_BO_VRAM | NOUVEAU_BO_RDWR);
+	PUSH_REFN (push, pNv->scratch, NOUVEAU_BO_VRAM | NOUVEAU_BO_RDWR);
 	PUSH_REFN (push, src, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
 	PUSH_REFN (push, dst, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
 	if (pmpict)

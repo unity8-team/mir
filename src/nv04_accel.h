@@ -1,6 +1,12 @@
 #ifndef __NV04_ACCEL_H__
 #define __NV04_ACCEL_H__
 
+#define XV_TABLE_SIZE 512
+
+/* scratch buffer offsets */
+#define FRAGPROG 0x00000000
+#define XV_TABLE 0x00001000
+
 /* subchannel assignments */
 #define SUBC_M2MF(mthd)  0, (mthd)
 #define NV03_M2MF(mthd)  SUBC_M2MF(NV03_M2MF_##mthd)

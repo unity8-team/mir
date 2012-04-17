@@ -43,79 +43,6 @@
 
 extern Atom xvSyncToVBlank, xvSetDefaults;
 
-/*
- * The filtering function used for video scaling. We use a cubic filter as defined in 
- * "Reconstruction Filters in Computer Graphics"
- * Mitchell & Netravali in SIGGRAPH '88 
- */
-static float filter_func(float x)
-{
-	const double B=0.75;
-	const double C=(1.0-B)/2.0;
-	double x1=fabs(x);
-	double x2=fabs(x)*x1;
-	double x3=fabs(x)*x2;
-
-	if (fabs(x)<1.0) 
-		return ( (12.0-9.0*B-6.0*C)*x3+(-18.0+12.0*B+6.0*C)*x2+(6.0-2.0*B) )/6.0; 
-	else 
-		return ( (-B-6.0*C)*x3+(6.0*B+30.0*C)*x2+(-12.0*B-48.0*C)*x1+(8.0*B+24.0*C) )/6.0;
-}
-
-static int8_t f32tosb8(float v)
-{
-	return (int8_t)(v*127.0);
-}
-
-/*
- * 512 means 2048 bytes of VRAM
- */
-#define TABLE_SIZE 512
-static void compute_filter_table(int8_t *t) {
-	int i;
-	float x;
-	for(i=0;i<TABLE_SIZE;i++) {
-		x=(i+0.5)/TABLE_SIZE;
-
-		float w0=filter_func(x+1.0);
-		float w1=filter_func(x);
-		float w2=filter_func(x-1.0);
-		float w3=filter_func(x-2.0);
-
-		t[4*i+2]=f32tosb8(1.0+x-w1/(w0+w1));
-		t[4*i+1]=f32tosb8(1.0-x+w3/(w2+w3));
-		t[4*i+0]=f32tosb8(w0+w1);
-		t[4*i+3]=f32tosb8(0.0);
-	}
-}
-
-static void
-NV30_LoadFilterTable(ScrnInfoPtr pScrn)
-{
-	NVPtr pNv = NVPTR(pScrn);
-
-	if (!pNv->xv_filtertable_mem) {
-		if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_GART |
-				   NOUVEAU_BO_MAP, 0,
-				   TABLE_SIZE * sizeof(float) * 4, NULL,
-				   &pNv->xv_filtertable_mem)) {
-			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-				"Couldn't alloc filter table!\n");
-			return;
-		}
-
-		if (nouveau_bo_map(pNv->xv_filtertable_mem, NOUVEAU_BO_RDWR,
-				   pNv->client)) {
-			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-				   "Couldn't map filter table!\n");
-			return;
-		}
-
-		int8_t *t=pNv->xv_filtertable_mem->map;
-		compute_filter_table(t);
-	}
-}
-
 #define SWIZZLE(ts0x,ts0y,ts0z,ts0w,ts1x,ts1y,ts1z,ts1w)			\
 	(									\
 	NV30_3D_TEX_SWIZZLE_S0_X_##ts0x | NV30_3D_TEX_SWIZZLE_S0_Y_##ts0y	|	\
@@ -307,14 +234,12 @@ NV30PutTextureImage(ScrnInfoPtr pScrn, struct nouveau_bo *src, int src_offset,
 		PUSH_DATA (push, (y<<16)|x);
 	}
 
-	NV30_LoadFilterTable(pScrn);
-
 	BEGIN_NV04(push, NV30_3D(TEX_UNITS_ENABLE), 1);
 	PUSH_DATA (push, NV30_3D_TEX_UNITS_ENABLE_TX0 |
 			 NV30_3D_TEX_UNITS_ENABLE_TX1);
 
-	if (!NV30VideoTexture(pScrn, pNv->xv_filtertable_mem, 0, TABLE_SIZE,
-			      1, 0 , 0) ||
+	if (!NV30VideoTexture(pScrn, pNv->scratch, XV_TABLE, XV_TABLE_SIZE,
+				     1, 0, 0) ||
 	    !NV30VideoTexture(pScrn, src, src_offset, src_w, src_h,
 		    	      src_pitch, 1))
 		return BadImplementation;

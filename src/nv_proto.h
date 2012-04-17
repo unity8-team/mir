@@ -36,6 +36,7 @@ void nouveau_dri2_fini(ScreenPtr pScreen);
 void NVInitVideo(ScreenPtr);
 void NVTakedownVideo(ScrnInfoPtr);
 void NVSetPortDefaults (ScrnInfoPtr pScrn, NVPortPrivPtr pPriv);
+void NVXVComputeBicubicFilter(struct nouveau_bo *, unsigned, unsigned);
 unsigned int nv_window_belongs_to_crtc(ScrnInfoPtr, int, int, int, int);
 
 /* in nv_dma.c */
