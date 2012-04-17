@@ -1285,7 +1285,7 @@ intel_wait_for_scanline(ScrnInfoPtr scrn, PixmapPtr pixmap,
 	int y1, y2;
 
 	pipe = -1;
-	if (pixmap_is_scanout(pixmap))
+	if (scrn->vtSema && pixmap_is_scanout(pixmap))
 		pipe = intel_crtc_to_pipe(crtc);
 	if (pipe < 0)
 		return;

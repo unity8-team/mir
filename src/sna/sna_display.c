@@ -2018,6 +2018,10 @@ sna_covering_crtc(ScrnInfoPtr scrn,
 	int best_coverage, c;
 	BoxRec best_crtc_box;
 
+	/* If we do not own the VT, we do not own the CRTC either */
+	if (!scrn->vtSema)
+		return NULL;
+
 	DBG(("%s for box=(%d, %d), (%d, %d)\n",
 	     __FUNCTION__, box->x1, box->y1, box->x2, box->y2));
 
