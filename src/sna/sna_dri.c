@@ -1372,14 +1372,14 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 			return FALSE;
 		}
 
-		if (!sna_dri_page_flip(sna, info)) {
-			DBG(("%s: failed to queue page flip\n", __FUNCTION__));
-			free(info);
-			return FALSE;
-		}
-
 		sna_dri_reference_buffer(front);
 		sna_dri_reference_buffer(back);
+
+		if (!sna_dri_page_flip(sna, info)) {
+			DBG(("%s: failed to queue page flip\n", __FUNCTION__));
+			sna_dri_frame_event_info_free(info);
+			return FALSE;
+		}
 
 		get_private(info->back)->bo =
 			kgem_create_2d(&sna->kgem,
@@ -1426,7 +1426,7 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 			vbl.request.type |= DRM_VBLANK_SECONDARY;
 		vbl.request.sequence = 0;
 		if (drmWaitVBlank(sna->kgem.fd, &vbl)) {
-			free(info);
+			sna_dri_frame_event_info_free(info);
 			return FALSE;
 		}
 
@@ -1482,7 +1482,7 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		vbl.request.sequence -= 1;
 		vbl.request.signal = (unsigned long)info;
 		if (drmWaitVBlank(sna->kgem.fd, &vbl)) {
-			free(info);
+			sna_dri_frame_event_info_free(info);
 			return FALSE;
 		}
 
@@ -1610,9 +1610,8 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	if (pipe > 0)
 		vbl.request.type |= DRM_VBLANK_SECONDARY;
 	vbl.request.sequence = 0;
-	if (drmWaitVBlank(sna->kgem.fd, &vbl)) {
+	if (drmWaitVBlank(sna->kgem.fd, &vbl))
 		goto blit_fallback;
-	}
 
 	current_msc = vbl.reply.sequence;
 
@@ -1677,9 +1676,8 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		vbl.request.sequence += divisor;
 
 	vbl.request.signal = (unsigned long)info;
-	if (drmWaitVBlank(sna->kgem.fd, &vbl)) {
+	if (drmWaitVBlank(sna->kgem.fd, &vbl))
 		goto blit_fallback;
-	}
 
 	*target_msc = vbl.reply.sequence;
 	info->frame = *target_msc;
@@ -1762,12 +1760,11 @@ blit:
 		if (!sna_dri_add_frame_event(info)) {
 			DBG(("%s: failed to hook up frame event\n", __FUNCTION__));
 			free(info);
-			info = NULL;
 			goto blit;
 		}
 
 		if (!sna_dri_page_flip(sna, info)) {
-			free(info);
+			sna_dri_frame_event_info_free(info);
 			goto blit;
 		}
 
@@ -1935,7 +1932,6 @@ sna_dri_schedule_wait_msc(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 	if (!sna_dri_add_frame_event(info)) {
 		DBG(("%s: failed to hook up frame event\n", __FUNCTION__));
 		free(info);
-		info = NULL;
 		goto out_complete;
 	}
 
@@ -1959,7 +1955,7 @@ sna_dri_schedule_wait_msc(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 					   strerror(errno));
 				limit--;
 			}
-			goto out_complete;
+			goto out_free_info;
 		}
 
 		info->frame = vbl.reply.sequence;
@@ -1996,15 +1992,16 @@ sna_dri_schedule_wait_msc(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 				   strerror(errno));
 			limit--;
 		}
-		goto out_complete;
+		goto out_free_info;
 	}
 
 	info->frame = vbl.reply.sequence;
 	DRI2BlockClient(client, draw);
 	return TRUE;
 
+out_free_info:
+	sna_dri_frame_event_info_free(info);
 out_complete:
-	free(info);
 	DRI2WaitMSCComplete(client, draw, target_msc, 0, 0);
 	return TRUE;
 }
