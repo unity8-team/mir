@@ -838,13 +838,8 @@ static uint32_t kgem_surface_size(struct kgem *kgem,
 	} else switch (tiling) {
 	default:
 	case I915_TILING_NONE:
-		if (kgem->gen < 40) {
-			tile_width = scanout ? 64 : 4 * bpp >> 3;
-			tile_height = 4;
-		} else {
-			tile_width = scanout ? 64 : 2 * bpp >> 3;
-			tile_height = 2;
-		}
+		tile_width = scanout ? 64 : 4 * bpp >> 3;
+		tile_height = 2;
 		break;
 	case I915_TILING_X:
 		tile_width = 512;
@@ -898,7 +893,7 @@ static uint32_t kgem_aligned_height(struct kgem *kgem,
 	} else switch (tiling) {
 	default:
 	case I915_TILING_NONE:
-		tile_height = kgem->gen < 40 ? 4 : 2;
+		tile_height = 2;
 		break;
 	case I915_TILING_X:
 		tile_height = 8;
@@ -2881,7 +2876,7 @@ struct kgem_bo *kgem_create_cpu_2d(struct kgem *kgem,
 
 		stride = ALIGN(width, 2) * bpp >> 3;
 		stride = ALIGN(stride, 4);
-		size = ALIGN(height, kgem->gen < 40 ? 4 : 2) * stride;
+		size = ALIGN(height, 2) * stride;
 
 		assert(size >= PAGE_SIZE);
 
