@@ -2288,6 +2288,13 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 		goto active;
 	}
 
+	if (flags & MOVE_WRITE && priv->gpu_bo && priv->gpu_bo->proxy) {
+		DBG(("%s: discarding cached upload buffer\n", __FUNCTION__));
+		assert(priv->gpu_bo->proxy->rq);
+		kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
+		priv->gpu_bo = NULL;
+	}
+
 	if ((flags & MOVE_READ) == 0)
 		sna_damage_destroy(&priv->cpu_damage);
 
