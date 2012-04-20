@@ -1943,7 +1943,6 @@ sna_drawable_use_bo(DrawablePtr drawable,
 	}
 
 	if (priv->gpu_bo && priv->gpu_bo->proxy) {
-		assert(priv->gpu_bo->proxy->rq);
 		kgem_bo_destroy(&to_sna_from_pixmap(pixmap)->kgem,
 				priv->gpu_bo);
 		priv->gpu_bo = NULL;
@@ -2290,7 +2289,6 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 
 	if (flags & MOVE_WRITE && priv->gpu_bo && priv->gpu_bo->proxy) {
 		DBG(("%s: discarding cached upload buffer\n", __FUNCTION__));
-		assert(priv->gpu_bo->proxy->rq);
 		kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
 		priv->gpu_bo = NULL;
 	}
@@ -2744,7 +2742,6 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 
 	if (priv->gpu_bo && priv->gpu_bo->proxy) {
 		DBG(("%s: discarding cached upload buffer\n", __FUNCTION__));
-		assert(priv->gpu_bo->proxy->rq);
 		kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
 		priv->gpu_bo = NULL;
 	}
@@ -3540,7 +3537,6 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 
 	if (dst_priv->gpu_bo && dst_priv->gpu_bo->proxy) {
 		DBG(("%s: discarding cached upload\n", __FUNCTION__));
-		assert(dst_priv->gpu_bo->proxy->rq);
 		kgem_bo_destroy(&sna->kgem, dst_priv->gpu_bo);
 		dst_priv->gpu_bo = NULL;
 	}
@@ -8383,9 +8379,10 @@ sna_poly_arc(DrawablePtr drawable, GCPtr gc, int n, xArc *arc)
 	if (data.flags == 0)
 		return;
 
-	DBG(("%s: extents=(%d, %d), (%d, %d)\n", __FUNCTION__,
+	DBG(("%s: extents=(%d, %d), (%d, %d), flags=%x\n", __FUNCTION__,
 	     data.region.extents.x1, data.region.extents.y1,
-	     data.region.extents.x2, data.region.extents.y2));
+	     data.region.extents.x2, data.region.extents.y2,
+	     data.flags));
 
 	data.region.data = NULL;
 
