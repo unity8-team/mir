@@ -333,6 +333,7 @@ static void _sna_dri_destroy_buffer(struct sna *sna, DRI2Buffer2Ptr buffer)
 		}
 
 		private->bo->flush = 0;
+		kgem_bo_clear_scanout(&sna->kgem, private->bo); /* paranoia */
 		kgem_bo_destroy(&sna->kgem, private->bo);
 
 		free(buffer);
@@ -388,6 +389,7 @@ static void set_bo(PixmapPtr pixmap, struct kgem_bo *bo)
 	sna_damage_destroy(&priv->cpu_damage);
 	priv->undamaged = false;
 
+	kgem_bo_clear_scanout(&sna->kgem, priv->gpu_bo); /* paranoia */
 	kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
 	priv->gpu_bo = ref(bo);
 }
