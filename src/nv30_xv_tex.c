@@ -128,6 +128,9 @@ NV30VideoTexture(ScrnInfoPtr pScrn, struct nouveau_bo *src, int offset,
 				 NV30_3D_TEX_FILTER_MAG_LINEAR | 0x2000);
 	PUSH_DATA (push, (width << NV30_3D_TEX_NPOT_SIZE_W__SHIFT) | height);
 	PUSH_DATA (push, 0); /* border ARGB */
+	BEGIN_NV04(push, NV30_3D(TEX_MATRIX_ENABLE(unit)), 1);
+	PUSH_DATA (push, 0);
+
 	return TRUE;
 }
 

@@ -47,18 +47,6 @@ typedef struct nv_pict_op {
 	uint32_t dst_card_op;
 } nv_pict_op_t;
 
-typedef struct nv30_exa_state {
-	Bool have_mask;
-
-	struct {
-		PictTransformPtr transform;
-		float width;
-		float height;
-	} unit[2];
-} nv30_exa_state_t;
-static nv30_exa_state_t exa_state;
-#define NV30EXA_STATE nv30_exa_state_t *state = &exa_state
-
 static nv_pict_surface_format_t
 NV30SurfaceFormat[] = {
 	{ PICT_a8r8g8b8	, 0x148 },
@@ -270,7 +258,6 @@ NV30EXATexture(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict, int unit)
 	uint32_t log2h = log2i(pPix->drawable.height);
 	uint32_t log2w = log2i(pPix->drawable.width);
 	uint32_t card_filter, card_repeat;
-	NV30EXA_STATE;
 
 	fmt = NV30_GetPictTextureFormat(pPict->format);
 	if (!fmt)
@@ -305,10 +292,31 @@ NV30EXATexture(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict, int unit)
 			  NV30_3D_TEX_NPOT_SIZE_W__SHIFT) |
 			 pPix->drawable.height);
 	PUSH_DATA (push, 0x00000000); /* border ARGB */
+	if (pPict->transform) {
+		BEGIN_NV04(push, NV30_3D(TEX_MATRIX_ENABLE(unit)), 1);
+		PUSH_DATA (push, 1);
+		BEGIN_NV04(push, NV30_3D(TEX_MATRIX(unit, 0)), 16);
+		PUSH_DATAf(push, xFixedToFloat(pPict->transform->matrix[0][0]));
+		PUSH_DATAf(push, xFixedToFloat(pPict->transform->matrix[0][1]));
+		PUSH_DATAf(push, 0.f);
+		PUSH_DATAf(push, xFixedToFloat(pPict->transform->matrix[0][2]));
+		PUSH_DATAf(push, xFixedToFloat(pPict->transform->matrix[1][0]));
+		PUSH_DATAf(push, xFixedToFloat(pPict->transform->matrix[1][1]));
+		PUSH_DATAf(push, 0.f);
+		PUSH_DATAf(push, xFixedToFloat(pPict->transform->matrix[1][2]));
+		PUSH_DATAf(push, 0.0f);
+		PUSH_DATAf(push, 0.0f);
+		PUSH_DATAf(push, 0.0f);
+		PUSH_DATAf(push, 0.0f);
+		PUSH_DATAf(push, xFixedToFloat(pPict->transform->matrix[2][0]));
+		PUSH_DATAf(push, xFixedToFloat(pPict->transform->matrix[2][1]));
+		PUSH_DATAf(push, 0.0f);
+		PUSH_DATAf(push, xFixedToFloat(pPict->transform->matrix[2][2]));
+	} else {
+		BEGIN_NV04(push, NV30_3D(TEX_MATRIX_ENABLE(unit)), 1);
+		PUSH_DATA (push, 0);
+	}
 
-	state->unit[unit].width		= (float)pPix->drawable.width;
-	state->unit[unit].height	= (float)pPix->drawable.height;
-	state->unit[unit].transform	= pPict->transform;
 	return TRUE;
 }
 
@@ -420,7 +428,6 @@ NV30EXAPrepareComposite(int op, PicturePtr psPict,
 	nv_pict_op_t *blend = NV30_GetPictOpRec(op);
 	struct nouveau_pushbuf *push = pNv->pushbuf;
 	uint32_t fragprog;
-	NV30EXA_STATE;
 
 	if (!PUSH_SPACE(push, 128))
 		return FALSE;
@@ -449,14 +456,11 @@ NV30EXAPrepareComposite(int op, PicturePtr psPict,
 		} else {
 			fragprog = PFP_C;
 		}
-
-		state->have_mask = TRUE;
 	} else {
 		if (pdPict->format == PICT_a8)
 			fragprog = PFP_S_A8;
 		else
 			fragprog = PFP_S;
-		state->have_mask = FALSE;
 	}
 
 	BEGIN_NV04(push, NV30_3D(FP_ACTIVE_PROGRAM), 1);
@@ -481,103 +485,43 @@ NV30EXAPrepareComposite(int op, PicturePtr psPict,
 	return TRUE;
 }
 
-static void
-NV30EXATransformCoord(PictTransformPtr t, int x, int y, float sx, float sy,
-					  float *x_ret, float *y_ret)
+static __inline__ void
+PUSH_VTX2s(struct nouveau_pushbuf *push,
+	   int x1, int y1, int x2, int y2, int dx, int dy)
 {
-	PictVector v;
-
-	if (t) {
-		v.vector[0] = IntToxFixed(x);
-		v.vector[1] = IntToxFixed(y);
-		v.vector[2] = xFixed1;
-		PictureTransformPoint(t, &v);
-		*x_ret = xFixedToFloat(v.vector[0]);
-		*y_ret = xFixedToFloat(v.vector[1]);
-	} else {
-		*x_ret = (float)x;
-		*y_ret = (float)y;
-	}
+	BEGIN_NV04(push, NV30_3D(VTX_ATTR_2I(8)), 2);
+	PUSH_DATA (push, (y1 << 16) | x1);
+	PUSH_DATA (push, (y2 << 16) | x2);
+	BEGIN_NV04(push, NV30_3D(VTX_ATTR_2I(0)), 1);
+	PUSH_DATA (push, (dy << 16) | dx);
 }
 
-#define CV_OUTm(sx,sy,mx,my,dx,dy) do {                                        \
-	BEGIN_NV04(push, NV30_3D(VTX_ATTR_2F_X(8)), 4);                        \
-	PUSH_DATAf(push, (sx)); PUSH_DATAf(push, (sy));                        \
-	PUSH_DATAf(push, (mx)); PUSH_DATAf(push, (my));                        \
-	BEGIN_NV04(push, NV30_3D(VTX_ATTR_2I(0)), 1);                          \
-	PUSH_DATA (push, ((dy)<<16)|(dx));                                     \
-} while(0)
-#define CV_OUT(sx,sy,dx,dy) do {                                               \
-	BEGIN_NV04(push, NV30_3D(VTX_ATTR_2F_X(8)), 2);                        \
-	PUSH_DATAf(push, (sx)); PUSH_DATAf(push, (sy));                        \
-	BEGIN_NV04(push, NV30_3D(VTX_ATTR_2I(0)), 1);                          \
-	PUSH_DATA (push, ((dy)<<16)|(dx));                                     \
-} while(0)
-
 void
-NV30EXAComposite(PixmapPtr pdPix, int srcX , int srcY,
-				  int maskX, int maskY,
-				  int dstX , int dstY,
-				  int width, int height)
+NV30EXAComposite(PixmapPtr pdPix,
+		 int sx, int sy, int mx, int my, int dx, int dy, int w, int h)
 {
 	ScrnInfoPtr pScrn = xf86Screens[pdPix->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_pushbuf *push = pNv->pushbuf;
-	float sX0, sX1, sX2, sY0, sY1, sY2;
-	float mX0, mX1, mX2, mY0, mY1, mY2;
-	NV30EXA_STATE;
 
 	if (!PUSH_SPACE(push, 64))
 		return;
 
 	/* We're drawing a triangle, we need to scissor it to a quad. */
 	/* The scissors are here for a good reason, we don't get the full
-	 * image, but just a part. */
+	 * image, but just a part.
+	 */
 	/* Handling the cliprects is done for us already. */
 	BEGIN_NV04(push, NV30_3D(SCISSOR_HORIZ), 2);
-	PUSH_DATA (push, (width << 16) | dstX);
-	PUSH_DATA (push, (height << 16) | dstY);
+	PUSH_DATA (push, (w << 16) | dx);
+	PUSH_DATA (push, (h << 16) | dy);
 	BEGIN_NV04(push, NV30_3D(VERTEX_BEGIN_END), 1);
 	PUSH_DATA (push, NV30_3D_VERTEX_BEGIN_END_TRIANGLES);
-
-	NV30EXATransformCoord(state->unit[0].transform, 
-				srcX, srcY - height,
-				state->unit[0].width,
-				state->unit[0].height, &sX0, &sY0);
-	NV30EXATransformCoord(state->unit[0].transform,
-				srcX, srcY + height,
-				state->unit[0].width,
-				state->unit[0].height, &sX1, &sY1);
-	NV30EXATransformCoord(state->unit[0].transform,
-				srcX + 2*width, srcY + height,
-				state->unit[0].width,
-				state->unit[0].height, &sX2, &sY2);
-
-	if (state->have_mask) {
-		NV30EXATransformCoord(state->unit[1].transform, 
-					maskX, maskY - height,
-					state->unit[1].width,
-					state->unit[1].height, &mX0, &mY0);
-		NV30EXATransformCoord(state->unit[1].transform,
-					maskX, maskY + height,
-					state->unit[1].width,
-					state->unit[1].height, &mX1, &mY1);
-		NV30EXATransformCoord(state->unit[1].transform,
-					maskX + 2*width, maskY + height,
-					state->unit[1].width,
-					state->unit[1].height, &mX2, &mY2);
-
-		CV_OUTm(sX0, sY0, mX0, mY0, dstX,             dstY - height);
-		CV_OUTm(sX1, sY1, mX1, mY1, dstX,             dstY + height);
-		CV_OUTm(sX2, sY2, mX2, mY2, dstX + 2 * width, dstY + height);
-	} else {
-		CV_OUT(sX0, sY0, dstX            , dstY - height);
-		CV_OUT(sX1, sY1, dstX            , dstY + height);
-		CV_OUT(sX2, sY2, dstX + 2 * width, dstY + height);
-	}
-
+	PUSH_VTX2s(push, sx, sy + (h * 2), mx, my + (h * 2), dx, dy + (h * 2));
+	PUSH_VTX2s(push, sx, sy, mx, my, dx, dy);
+	PUSH_VTX2s(push, sx + (w * 2), sy, mx + (w * 2), my, dx + (w * 2), dy);
 	BEGIN_NV04(push, NV30_3D(VERTEX_BEGIN_END), 1);
-	PUSH_DATA (push, 0);
+	PUSH_DATA (push, NV30_3D_VERTEX_BEGIN_END_STOP);
 }
 
 void
@@ -829,7 +773,7 @@ NVAccelInitNV30TCL(ScrnInfoPtr pScrn)
 	PUSH_DATA (push, 0x3fe1c800);
 
 	PUSH_DATAu(push, pNv->scratch, PFP_S, 2 * 4);
-	PUSH_DATA (push, 0x17009e00); /* tex r0, a[tex0], t[0] */
+	PUSH_DATA (push, 0x18009e00); /* txp r0, a[tex0], t[0] */
 	PUSH_DATA (push, 0x1c9dc801);
 	PUSH_DATA (push, 0x0001c800);
 	PUSH_DATA (push, 0x3fe1c800);
@@ -839,7 +783,7 @@ NVAccelInitNV30TCL(ScrnInfoPtr pScrn)
 	PUSH_DATA (push, 0x0001c800);
 
 	PUSH_DATAu(push, pNv->scratch, PFP_S_A8, 2 * 4);
-	PUSH_DATA (push, 0x17009000); /* tex r0.w, a[tex0], t[0] */
+	PUSH_DATA (push, 0x18009000); /* txp r0.w, a[tex0], t[0] */
 	PUSH_DATA (push, 0x1c9dc801);
 	PUSH_DATA (push, 0x0001c800);
 	PUSH_DATA (push, 0x3fe1c800);
@@ -849,11 +793,11 @@ NVAccelInitNV30TCL(ScrnInfoPtr pScrn)
 	PUSH_DATA (push, 0x0001c800);
 
 	PUSH_DATAu(push, pNv->scratch, PFP_C, 3 * 4);
-	PUSH_DATA (push, 0x1702b102); /* texc0 r1.w, a[tex1], t[1] */
+	PUSH_DATA (push, 0x1802b102); /* txpc0 r1.w, a[tex1], t[1] */
 	PUSH_DATA (push, 0x1c9dc801);
 	PUSH_DATA (push, 0x0001c800);
 	PUSH_DATA (push, 0x3fe1c800);
-	PUSH_DATA (push, 0x17009e00); /* tex r0 (ne0.w), a[tex0], t[0] */
+	PUSH_DATA (push, 0x18009e00); /* txp r0 (ne0.w), a[tex0], t[0] */
 	PUSH_DATA (push, 0x1ff5c801);
 	PUSH_DATA (push, 0x0001c800);
 	PUSH_DATA (push, 0x3fe1c800);
@@ -863,11 +807,11 @@ NVAccelInitNV30TCL(ScrnInfoPtr pScrn)
 	PUSH_DATA (push, 0x0001c800);
 
 	PUSH_DATAu(push, pNv->scratch, PFP_C_A8, 3 * 4);
-	PUSH_DATA (push, 0x1702b102); /* texc0 r1.w, a[tex1], t[1] */
+	PUSH_DATA (push, 0x1802b102); /* txpc0 r1.w, a[tex1], t[1] */
 	PUSH_DATA (push, 0x1c9dc801);
 	PUSH_DATA (push, 0x0001c800);
 	PUSH_DATA (push, 0x3fe1c800);
-	PUSH_DATA (push, 0x17009000); /* tex r0.w (ne0.w), a[tex0], t[0] */
+	PUSH_DATA (push, 0x18009000); /* txp r0.w (ne0.w), a[tex0], t[0] */
 	PUSH_DATA (push, 0x1ff5c801);
 	PUSH_DATA (push, 0x0001c800);
 	PUSH_DATA (push, 0x3fe1c800);
@@ -877,11 +821,11 @@ NVAccelInitNV30TCL(ScrnInfoPtr pScrn)
 	PUSH_DATA (push, 0x0001c800);
 
 	PUSH_DATAu(push, pNv->scratch, PFP_CCA, 3 * 4);
-	PUSH_DATA (push, 0x17009f00); /* texc0 r0, a[tex0], t[0] */
+	PUSH_DATA (push, 0x18009f00); /* txpc0 r0, a[tex0], t[0] */
 	PUSH_DATA (push, 0x1c9dc801);
 	PUSH_DATA (push, 0x0001c800);
 	PUSH_DATA (push, 0x3fe1c800);
-	PUSH_DATA (push, 0x1702be02); /* tex r1 (ne0), a[tex1], t[1] */
+	PUSH_DATA (push, 0x1802be02); /* txp r1 (ne0), a[tex1], t[1] */
 	PUSH_DATA (push, 0x1c95c801);
 	PUSH_DATA (push, 0x0001c800);
 	PUSH_DATA (push, 0x3fe1c800);
@@ -891,11 +835,11 @@ NVAccelInitNV30TCL(ScrnInfoPtr pScrn)
 	PUSH_DATA (push, 0x0001c800);
 
 	PUSH_DATAu(push, pNv->scratch, PFP_CCASA, 3 * 4);
-	PUSH_DATA (push, 0x17009102); /* texc0 r1.w, a[tex0], t[0] */
+	PUSH_DATA (push, 0x18009102); /* txpc0 r1.w, a[tex0], t[0] */
 	PUSH_DATA (push, 0x1c9dc801);
 	PUSH_DATA (push, 0x0001c800);
 	PUSH_DATA (push, 0x3fe1c800);
-	PUSH_DATA (push, 0x1702be00); /* tex r0 (ne0.w), a[tex1], t[1] */
+	PUSH_DATA (push, 0x1802be00); /* txp r0 (ne0.w), a[tex1], t[1] */
 	PUSH_DATA (push, 0x1ff5c801);
 	PUSH_DATA (push, 0x0001c800);
 	PUSH_DATA (push, 0x3fe1c800);
