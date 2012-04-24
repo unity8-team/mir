@@ -48,8 +48,6 @@ nouveau_drv_la_SOURCES = \
 			 nv04_xv_blit.c \
 			 nv10_exa.c \
 			 nv10_xv_ovl.c \
-			 nv30_shaders.c \
-			 nv30_shaders.h \
 			 nv30_exa.c \
 			 nv30_xv_tex.c \
 			 nv40_exa.c \

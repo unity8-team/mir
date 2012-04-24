@@ -36,8 +36,6 @@
 #include "nv_include.h"
 #include "nv_dma.h"
 
-#include "nv30_shaders.h"
-
 #include "hwdefs/nv30-40_3d.xml.h"
 #include "nv04_accel.h"
 
@@ -259,10 +257,17 @@ NV30PutTextureImage(ScrnInfoPtr pScrn, struct nouveau_bo *src, int src_offset,
 	if (drw_w / 2 < src_w || drw_h / 2 < src_h)
 		bicubic = FALSE;
 
-	if (!NV30_LoadFragProg(pScrn, bicubic ?
-			       &nv30_fp_yv12_bicubic :
-			       &nv30_fp_yv12_bilinear))
-		return BadImplementation;
+	BEGIN_NV04(push, NV30_3D(FP_ACTIVE_PROGRAM), 1);
+	PUSH_MTHD (push, NV30_3D(FP_ACTIVE_PROGRAM), pNv->scratch,
+			 bicubic ? PFP_NV12_BICUBIC : PFP_NV12_BILINEAR,
+			 NOUVEAU_BO_VRAM | NOUVEAU_BO_RD | NOUVEAU_BO_LOW |
+			 NOUVEAU_BO_OR,
+			 NV30_3D_FP_ACTIVE_PROGRAM_DMA0,
+			 NV30_3D_FP_ACTIVE_PROGRAM_DMA1);
+	BEGIN_NV04(push, NV30_3D(FP_REG_CONTROL), 1);
+	PUSH_DATA (push, 0x0001000f);
+	BEGIN_NV04(push, NV30_3D(FP_CONTROL), 1);
+	PUSH_DATA (push, 0x00000001);
 
 	nouveau_pushbuf_bufctx(push, pNv->bufctx);
 	if (nouveau_pushbuf_validate(push)) {
