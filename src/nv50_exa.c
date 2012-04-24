@@ -26,22 +26,10 @@
 
 #include "nv50_accel.h"
 
-struct nv50_exa_state {
-	Bool have_mask;
-
-	struct {
-		PictTransformPtr transform;
-		float width;
-		float height;
-	} unit[2];
-};
-static struct nv50_exa_state exa_state;
-
 #define NV50EXA_LOCALS(p)                                                      \
 	ScrnInfoPtr pScrn = xf86Screens[(p)->drawable.pScreen->myNum];         \
 	NVPtr pNv = NVPTR(pScrn);                                              \
-	struct nouveau_pushbuf *push = pNv->pushbuf; (void)push;               \
-	struct nv50_exa_state *state = &exa_state; (void)state
+	struct nouveau_pushbuf *push = pNv->pushbuf; (void)push;
 
 #define BF(f) NV50_BLEND_FACTOR_##f
 
@@ -666,9 +654,31 @@ NV50EXATexture(PixmapPtr ppix, PicturePtr ppict, unsigned unit)
 	PUSH_DATA (push, 0x00000000);
 	PUSH_DATA (push, 0x00000000);
 
-	state->unit[unit].width = ppix->drawable.width;
-	state->unit[unit].height = ppix->drawable.height;
-	state->unit[unit].transform = ppict->transform;
+	PUSH_DATAu(push, pNv->scratch, PVP_DATA + (unit * 11 * 4), 11);
+	if (ppict->transform) {
+		PUSH_DATAf(push, xFixedToFloat(ppict->transform->matrix[0][0]));
+		PUSH_DATAf(push, xFixedToFloat(ppict->transform->matrix[0][1]));
+		PUSH_DATAf(push, xFixedToFloat(ppict->transform->matrix[0][2]));
+		PUSH_DATAf(push, xFixedToFloat(ppict->transform->matrix[1][0]));
+		PUSH_DATAf(push, xFixedToFloat(ppict->transform->matrix[1][1]));
+		PUSH_DATAf(push, xFixedToFloat(ppict->transform->matrix[1][2]));
+		PUSH_DATAf(push, xFixedToFloat(ppict->transform->matrix[2][0]));
+		PUSH_DATAf(push, xFixedToFloat(ppict->transform->matrix[2][1]));
+		PUSH_DATAf(push, xFixedToFloat(ppict->transform->matrix[2][2]));
+	} else {
+		PUSH_DATAf(push, 1.0);
+		PUSH_DATAf(push, 0.0);
+		PUSH_DATAf(push, 0.0);
+		PUSH_DATAf(push, 0.0);
+		PUSH_DATAf(push, 1.0);
+		PUSH_DATAf(push, 0.0);
+		PUSH_DATAf(push, 0.0);
+		PUSH_DATAf(push, 0.0);
+		PUSH_DATAf(push, 1.0);
+	}
+	PUSH_DATAf(push, 1.0 / ppix->drawable.width);
+	PUSH_DATAf(push, 1.0 / ppix->drawable.height);
+
 	return TRUE;
 }
 
@@ -778,7 +788,6 @@ NV50EXAPrepareComposite(int op,
 	if (pmpict) {
 		if (!NV50EXATexture(pmpix, pmpict, 1))
 			NOUVEAU_FALLBACK("mask picture invalid\n");
-		state->have_mask = TRUE;
 
 		BEGIN_NV04(push, NV50_3D(FP_START_ID), 1);
 		if (pdpict->format == PICT_a8) {
@@ -795,8 +804,6 @@ NV50EXAPrepareComposite(int op,
 			}
 		}
 	} else {
-		state->have_mask = FALSE;
-
 		BEGIN_NV04(push, NV50_3D(FP_START_ID), 1);
 		if (pdpict->format == PICT_a8)
 			PUSH_DATA (push, PFP_S_A8);
@@ -828,33 +835,11 @@ NV50EXAPrepareComposite(int op,
 	return TRUE;
 }
 
-#define xFixedToFloat(v) \
-	((float)xFixedToInt((v)) + ((float)xFixedFrac(v) / 65536.0))
-static inline void
-NV50EXATransform(PictTransformPtr t, int x, int y, float sx, float sy,
-		 float *x_ret, float *y_ret)
-{
-	if (t) {
-		PictVector v;
-
-		v.vector[0] = IntToxFixed(x);
-		v.vector[1] = IntToxFixed(y);
-		v.vector[2] = xFixed1;
-		PictureTransformPoint(t, &v);
-		*x_ret = xFixedToFloat(v.vector[0]) / sx;
-		*y_ret = xFixedToFloat(v.vector[1]) / sy;
-	} else {
-		*x_ret = (float)x / sx;
-		*y_ret = (float)y / sy;
-	}
-}
-
 void
 NV50EXAComposite(PixmapPtr pdpix, int sx, int sy, int mx, int my,
 		 int dx, int dy, int w, int h)
 {
 	NV50EXA_LOCALS(pdpix);
-	float sX0, sX1, sX2, sY0, sY1, sY2;
 
 	if (!PUSH_SPACE(push, 64))
 		return;
@@ -864,39 +849,9 @@ NV50EXAComposite(PixmapPtr pdpix, int sx, int sy, int mx, int my,
 	PUSH_DATA (push, (dy + h) << 16 | dy);
 	BEGIN_NV04(push, NV50_3D(VERTEX_BEGIN_GL), 1);
 	PUSH_DATA (push, NV50_3D_VERTEX_BEGIN_GL_PRIMITIVE_TRIANGLES);
-
-	NV50EXATransform(state->unit[0].transform, sx, sy + (h * 2),
-			 state->unit[0].width, state->unit[0].height,
-			 &sX0, &sY0);
-	NV50EXATransform(state->unit[0].transform, sx, sy,
-			 state->unit[0].width, state->unit[0].height,
-			 &sX1, &sY1);
-	NV50EXATransform(state->unit[0].transform, sx + (w * 2), sy,
-			 state->unit[0].width, state->unit[0].height,
-			 &sX2, &sY2);
-
-	if (state->have_mask) {
-		float mX0, mX1, mX2, mY0, mY1, mY2;
-
-		NV50EXATransform(state->unit[1].transform, mx, my + (h * 2),
-				 state->unit[1].width, state->unit[1].height,
-				 &mX0, &mY0);
-		NV50EXATransform(state->unit[1].transform, mx, my,
-				 state->unit[1].width, state->unit[1].height,
-				 &mX1, &mY1);
-		NV50EXATransform(state->unit[1].transform, mx + (w * 2), my,
-				 state->unit[1].width, state->unit[1].height,
-				 &mX2, &mY2);
-
-		VTX2s(pNv, sX0, sY0, mX0, mY0, dx, dy + (h * 2));
-		VTX2s(pNv, sX1, sY1, mX1, mY1, dx, dy);
-		VTX2s(pNv, sX2, sY2, mX2, mY2, dx + (w * 2), dy);
-	} else {
-		VTX1s(pNv, sX0, sY0, dx, dy + (h * 2));
-		VTX1s(pNv, sX1, sY1, dx, dy);
-		VTX1s(pNv, sX2, sY2, dx + (w * 2), dy);
-	}
-
+	PUSH_VTX2s(push, sx, sy + (h * 2), mx, my + (h * 2), dx, dy + (h * 2));
+	PUSH_VTX2s(push, sx, sy, mx, my, dx, dy);
+	PUSH_VTX2s(push, sx + (w * 2), sy, mx + (w * 2), my, dx + (w * 2), dy);
 	BEGIN_NV04(push, NV50_3D(VERTEX_END_GL), 1);
 	PUSH_DATA (push, 0);
 }

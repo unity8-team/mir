@@ -214,6 +214,19 @@ nv50_xv_image_put(ScrnInfoPtr pScrn,
 	BEGIN_NV04(push, NV50_3D(BIND_TIC(2)), 1);
 	PUSH_DATA (push, 0x203);
 
+	PUSH_DATAu(push, pNv->scratch, PVP_DATA, 11);
+	PUSH_DATAf(push, 1.0);
+	PUSH_DATAf(push, 0.0);
+	PUSH_DATAf(push, 0.0);
+	PUSH_DATAf(push, 0.0);
+	PUSH_DATAf(push, 1.0);
+	PUSH_DATAf(push, 0.0);
+	PUSH_DATAf(push, 0.0);
+	PUSH_DATAf(push, 0.0);
+	PUSH_DATAf(push, 1.0);
+	PUSH_DATAf(push, 1.0 / width);
+	PUSH_DATAf(push, 1.0 / height);
+
 	if (pPriv->SyncToVBlank)
 		NV50SyncToVBlank(ppix, dstBox);
 
@@ -235,11 +248,6 @@ nv50_xv_image_put(ScrnInfoPtr pScrn,
 		int sy1=pbox->y1;
 		int sy2=pbox->y2;
 
-		tx1 = tx1 / width;
-		tx2 = tx2 / width;
-		ty1 = ty1 / height;
-		ty2 = ty2 / height;
-
 		if (nouveau_pushbuf_space(push, 64, 0, 0) ||
 		    nouveau_pushbuf_refn (push, refs, 3))
 			return BadImplementation;
@@ -251,12 +259,11 @@ nv50_xv_image_put(ScrnInfoPtr pScrn,
 		BEGIN_NV04(push, NV50_3D(SCISSOR_HORIZ(0)), 2);
 		PUSH_DATA (push, sx2 << NV50_3D_SCISSOR_HORIZ_MAX__SHIFT | sx1);
 		PUSH_DATA (push, sy2 << NV50_3D_SCISSOR_VERT_MAX__SHIFT | sy1 );
-
 		BEGIN_NV04(push, NV50_3D(VERTEX_BEGIN_GL), 1);
 		PUSH_DATA (push, NV50_3D_VERTEX_BEGIN_GL_PRIMITIVE_TRIANGLES);
-		VTX2s(pNv, tx1, ty1, tx1, ty1, sx1, sy1);
-		VTX2s(pNv, tx2+(tx2-tx1), ty1, tx2+(tx2-tx1), ty1, sx2+(sx2-sx1), sy1);
-		VTX2s(pNv, tx1, ty2+(ty2-ty1), tx1, ty2+(ty2-ty1), sx1, sy2+(sy2-sy1));
+		PUSH_VTX1s(push, tx1, ty1, sx1, sy1);
+		PUSH_VTX1s(push, tx2+(tx2-tx1), ty1, sx2+(sx2-sx1), sy1);
+		PUSH_VTX1s(push, tx1, ty2+(ty2-ty1), sx1, sy2+(sy2-sy1));
 		BEGIN_NV04(push, NV50_3D(VERTEX_END_GL), 1);
 		PUSH_DATA (push, 0);
 

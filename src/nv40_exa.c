@@ -429,9 +429,6 @@ NV40EXAPrepareComposite(int op, PicturePtr psPict,
 	return TRUE;
 }
 
-#define xFixedToFloat(v) \
-	((float)xFixedToInt((v)) + ((float)xFixedFrac(v) / 65536.0))
-
 static inline void
 NV40EXATransformCoord(PictTransformPtr t, int x, int y, float sx, float sy,
 					  float *x_ret, float *y_ret)

@@ -206,4 +206,7 @@ static inline int nv_cursor_width(NVPtr pNv)
 	return pNv->dev->chipset >= 0x10 ? NV10_CURSOR_SIZE : NV04_CURSOR_SIZE;
 }
 
+#define xFixedToFloat(v) \
+	((float)xFixedToInt((v)) + ((float)xFixedFrac(v) / 65536.0))
+
 #endif /* __NV_STRUCT_H__ */

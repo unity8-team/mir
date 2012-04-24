@@ -25,7 +25,8 @@
 #define PFP_OFFSET  0x00001000 /* Fragment program */
 #define TIC_OFFSET  0x00002000 /* Texture Image Control */
 #define TSC_OFFSET  0x00003000 /* Texture Sampler Control */
-#define PFP_DATA    0x00004000 /* FP constbuf */
+#define PVP_DATA    0x00004000 /* VP constbuf */
+#define PFP_DATA    0x00005000 /* FP constbuf */
 
 /* Fragment programs */
 #define PFP_S     0x0000 /* (src) */
@@ -38,33 +39,28 @@
 
 /* Constant buffer assignments */
 #define CB_PSH 0
+#define CB_PVP 1
 #define CB_PFP 2
 
 static __inline__ void
-VTX1s(NVPtr pNv, float sx, float sy, unsigned dx, unsigned dy)
+PUSH_VTX1s(struct nouveau_pushbuf *push, float sx, float sy, int dx, int dy)
 {
-	struct nouveau_pushbuf *push = pNv->pushbuf;
-
 	BEGIN_NV04(push, NV50_3D(VTX_ATTR_2F_X(8)), 2);
 	PUSH_DATAf(push, sx);
 	PUSH_DATAf(push, sy);
 	BEGIN_NV04(push, NV50_3D(VTX_ATTR_2I(0)), 1);
- 	PUSH_DATA (push, (dy << 16) | dx);
+	PUSH_DATA (push, (dy << 16) | dx);
 }
 
 static __inline__ void
-VTX2s(NVPtr pNv, float s1x, float s1y, float s2x, float s2y,
-		 unsigned dx, unsigned dy)
+PUSH_VTX2s(struct nouveau_pushbuf *push,
+	   int x1, int y1, int x2, int y2, int dx, int dy)
 {
-	struct nouveau_pushbuf *push = pNv->pushbuf;
-
-	BEGIN_NV04(push, NV50_3D(VTX_ATTR_2F_X(8)), 4);
-	PUSH_DATAf(push, s1x);
-	PUSH_DATAf(push, s1y);
-	PUSH_DATAf(push, s2x);
-	PUSH_DATAf(push, s2y);
+	BEGIN_NV04(push, NV50_3D(VTX_ATTR_2I(8)), 2);
+	PUSH_DATA (push, (y1 << 16) | x1);
+	PUSH_DATA (push, (y2 << 16) | x2);
 	BEGIN_NV04(push, NV50_3D(VTX_ATTR_2I(0)), 1);
- 	PUSH_DATA (push, (dy << 16) | dx);
+	PUSH_DATA (push, (dy << 16) | dx);
 }
 
 static __inline__ void

@@ -613,9 +613,6 @@ NV10EXAPrepareComposite(int op,
 			f(p, __i, v, ## __VA_ARGS__);			\
 	} while (0);
 
-#define xFixedToFloat(v) \
-	((float)xFixedToInt((v)) + ((float)xFixedFrac(v) / 65536.0))
-
 #define PUSH_DATAi(push, v, i)				\
 	PUSH_DATAf(push, xFixedToFloat((v).vector[i]))
 
