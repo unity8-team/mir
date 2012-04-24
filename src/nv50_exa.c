@@ -444,6 +444,7 @@ NV50EXARenderTarget(PixmapPtr ppix, PicturePtr ppict)
 		NOUVEAU_FALLBACK("invalid picture format\n");
 	}
 
+	PUSH_REFN (push, bo, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
 	BEGIN_NV04(push, NV50_3D(RT_ADDRESS_HIGH(0)), 5);
 	PUSH_DATA (push, bo->offset >> 32);
 	PUSH_DATA (push, bo->offset);
@@ -462,14 +463,19 @@ NV50EXARenderTarget(PixmapPtr ppix, PicturePtr ppict)
 static Bool
 NV50EXACheckTexture(PicturePtr ppict, PicturePtr pdpict, int op)
 {
-	if (!ppict->pDrawable)
-		NOUVEAU_FALLBACK("Solid and gradient pictures unsupported\n");
-
-	if (ppict->pDrawable->width > 8192 ||
-	    ppict->pDrawable->height > 8192)
-		NOUVEAU_FALLBACK("texture dimensions exceeded %dx%d\n",
-				 ppict->pDrawable->width,
-				 ppict->pDrawable->height);
+	if (ppict->pDrawable) {
+		if (ppict->pDrawable->width > 8192 ||
+		    ppict->pDrawable->height > 8192)
+			NOUVEAU_FALLBACK("texture too large\n");
+	} else {
+		switch (ppict->pSourcePict->type) {
+		case SourcePictTypeSolidFill:
+			break;
+		default:
+			NOUVEAU_FALLBACK("pict %d\n", ppict->pSourcePict->type);
+			break;
+		}
+	}
 
 	switch (ppict->format) {
 	case PICT_a8r8g8b8:
@@ -524,15 +530,56 @@ NV50EXACheckTexture(PicturePtr ppict, PicturePtr pdpict, int op)
 			    NV50TIC_0_0_FMT_##FMT)
 
 static Bool
-NV50EXATexture(PixmapPtr ppix, PicturePtr ppict, unsigned unit)
+NV50EXAPictSolid(NVPtr pNv, PicturePtr ppict, unsigned unit)
 {
-	NV50EXA_LOCALS(ppix);
+	uint64_t offset = pNv->scratch->offset + SOLID(unit);
+	struct nouveau_pushbuf *push = pNv->pushbuf;
+
+	PUSH_DATAu(push, pNv->scratch, SOLID(unit), 1);
+	PUSH_DATA (push, ppict->pSourcePict->solidFill.color);
+	PUSH_DATAu(push, pNv->scratch, TIC_OFFSET + (unit * 32), 8);
+	PUSH_DATA (push, _(B_C0, G_C1, R_C2, A_C3, 8_8_8_8));
+	PUSH_DATA (push,  offset);
+	PUSH_DATA (push, (offset >> 32) | 0xd005d000);
+	PUSH_DATA (push, 0x00300000);
+	PUSH_DATA (push, 0x00000001);
+	PUSH_DATA (push, 0x00010001);
+	PUSH_DATA (push, 0x03000000);
+	PUSH_DATA (push, 0x00000000);
+	PUSH_DATAu(push, pNv->scratch, TSC_OFFSET + (unit * 32), 8);
+	PUSH_DATA (push, NV50TSC_1_0_WRAPS_REPEAT |
+			 NV50TSC_1_0_WRAPT_REPEAT |
+			 NV50TSC_1_0_WRAPR_REPEAT | 0x00024000);
+	PUSH_DATA (push, NV50TSC_1_1_MAGF_NEAREST |
+			 NV50TSC_1_1_MINF_NEAREST |
+			 NV50TSC_1_1_MIPF_NONE);
+	PUSH_DATA (push, 0x00000000);
+	PUSH_DATA (push, 0x00000000);
+	PUSH_DATA (push, 0x00000000);
+	PUSH_DATA (push, 0x00000000);
+	PUSH_DATA (push, 0x00000000);
+	PUSH_DATA (push, 0x00000000);
+
+	return TRUE;
+}
+
+static Bool
+NV50EXAPictGradient(NVPtr pNv, PicturePtr ppict, unsigned unit)
+{
+	return FALSE;
+}
+
+static Bool
+NV50EXAPictTexture(NVPtr pNv, PixmapPtr ppix, PicturePtr ppict, unsigned unit)
+{
 	struct nouveau_bo *bo = nouveau_pixmap_bo(ppix);
+	struct nouveau_pushbuf *push = pNv->pushbuf;
 
 	/*XXX: Scanout buffer not tiled, someone needs to figure it out */
 	if (!nv50_style_tiled_pixmap(ppix))
 		NOUVEAU_FALLBACK("pixmap is scanout buffer\n");
 
+	PUSH_REFN (push, bo, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
 	PUSH_DATAu(push, pNv->scratch, TIC_OFFSET + (unit * 32), 8);
 	switch (ppict->format) {
 	case PICT_a8r8g8b8:
@@ -678,8 +725,25 @@ NV50EXATexture(PixmapPtr ppix, PicturePtr ppict, unsigned unit)
 	}
 	PUSH_DATAf(push, 1.0 / ppix->drawable.width);
 	PUSH_DATAf(push, 1.0 / ppix->drawable.height);
-
 	return TRUE;
+}
+
+static Bool
+NV50EXAPicture(NVPtr pNv, PixmapPtr ppix, PicturePtr ppict, int unit)
+{
+	if (ppict->pDrawable)
+		return NV50EXAPictTexture(pNv, ppix, ppict, unit);
+
+	switch (ppict->pSourcePict->type) {
+	case SourcePictTypeSolidFill:
+		return NV50EXAPictSolid(pNv, ppict, unit);
+	case SourcePictTypeLinear:
+		return NV50EXAPictGradient(pNv, ppict, unit);
+	default:
+		break;
+	}
+
+	return FALSE;
 }
 
 static Bool
@@ -765,13 +829,12 @@ NV50EXAPrepareComposite(int op,
 			PicturePtr pspict, PicturePtr pmpict, PicturePtr pdpict,
 			PixmapPtr pspix, PixmapPtr pmpix, PixmapPtr pdpix)
 {
-	NV50EXA_LOCALS(pspix);
-	struct nouveau_bo *src = nouveau_pixmap_bo(pspix);
-	struct nouveau_bo *dst = nouveau_pixmap_bo(pdpix);
-	struct nouveau_bo *mask = pmpix ? nouveau_pixmap_bo(pmpix) : NULL;
+	NV50EXA_LOCALS(pdpix);
 
 	if (!PUSH_SPACE(push, 256))
 		NOUVEAU_FALLBACK("space\n");
+	PUSH_RESET(push);
+	PUSH_REFN (push, pNv->scratch, NOUVEAU_BO_VRAM | NOUVEAU_BO_RDWR);
 
 	BEGIN_NV04(push, SUBC_2D(0x0110), 1);
 	PUSH_DATA (push, 0);
@@ -782,11 +845,11 @@ NV50EXAPrepareComposite(int op,
 	NV50EXABlend(pdpix, pdpict, op, pmpict && pmpict->componentAlpha &&
 		     PICT_FORMAT_RGB(pmpict->format));
 
-	if (!NV50EXATexture(pspix, pspict, 0))
+	if (!NV50EXAPicture(pNv, pspix, pspict, 0))
 		NOUVEAU_FALLBACK("src picture invalid\n");
 
 	if (pmpict) {
-		if (!NV50EXATexture(pmpix, pmpict, 1))
+		if (!NV50EXAPicture(pNv, pmpix, pmpict, 1))
 			NOUVEAU_FALLBACK("mask picture invalid\n");
 
 		BEGIN_NV04(push, NV50_3D(FP_START_ID), 1);
@@ -818,13 +881,6 @@ NV50EXAPrepareComposite(int op,
 	PUSH_DATA (push, 1);
 	BEGIN_NV04(push, NV50_3D(BIND_TIC(2)), 1);
 	PUSH_DATA (push, 0x203);
-
-	PUSH_RESET(push);
-	PUSH_REFN (push, pNv->scratch, NOUVEAU_BO_VRAM | NOUVEAU_BO_RDWR);
-	PUSH_REFN (push, src, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
-	PUSH_REFN (push, dst, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
-	if (pmpict)
-		PUSH_REFN (push, mask, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
 
 	nouveau_pushbuf_bufctx(push, pNv->bufctx);
 	if (nouveau_pushbuf_validate(push)) {

@@ -26,7 +26,8 @@
 #define TIC_OFFSET  0x00002000 /* Texture Image Control */
 #define TSC_OFFSET  0x00003000 /* Texture Sampler Control */
 #define PVP_DATA    0x00004000 /* VP constbuf */
-#define PFP_DATA    0x00005000 /* FP constbuf */
+#define PFP_DATA    0x00004100 /* FP constbuf */
+#define SOLID(i)   (0x00006000 + (i) * 0x100)
 
 /* Fragment programs */
 #define PFP_S     0x0000 /* (src) */
@@ -72,7 +73,7 @@ PUSH_DATAu(struct nouveau_pushbuf *push, struct nouveau_bo *bo,
 	BEGIN_NV04(push, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
 	PUSH_DATA (push, (bo->offset + off) >> 32);
 	PUSH_DATA (push, (bo->offset + off));
-	PUSH_DATA (push, (CB_PSH << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 0x4000);
+	PUSH_DATA (push, (CB_PSH << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 0x2000);
 	BEGIN_NV04(push, NV50_3D(CB_ADDR), 1);
 	PUSH_DATA (push, CB_PSH | (idx << NV50_3D_CB_ADDR_ID__SHIFT));
 	BEGIN_NI04(push, NV50_3D(CB_DATA(0)), dwords);

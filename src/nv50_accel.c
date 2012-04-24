@@ -292,7 +292,7 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 	BEGIN_NV04(push, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
 	PUSH_DATA (push, (pNv->scratch->offset + PVP_DATA) >> 32);
 	PUSH_DATA (push, (pNv->scratch->offset + PVP_DATA));
-	PUSH_DATA (push, (CB_PVP << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 0x4000);
+	PUSH_DATA (push, (CB_PVP << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 256);
 	BEGIN_NV04(push, NV50_3D(SET_PROGRAM_CB), 1);
 	PUSH_DATA (push, 0x00000001 | (CB_PVP << 12));
 	BEGIN_NV04(push, NV50_3D(VP_START_ID), 1);
@@ -425,7 +425,7 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 	BEGIN_NV04(push, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
 	PUSH_DATA (push, (pNv->scratch->offset + PFP_DATA) >> 32);
 	PUSH_DATA (push, (pNv->scratch->offset + PFP_DATA));
-	PUSH_DATA (push, (CB_PFP << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 0x4000);
+	PUSH_DATA (push, (CB_PFP << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 256);
 	BEGIN_NV04(push, NV50_3D(SET_PROGRAM_CB), 1);
 	PUSH_DATA (push, 0x00000031 | (CB_PFP << 12));
 
