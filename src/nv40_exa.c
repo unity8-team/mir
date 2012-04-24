@@ -233,7 +233,7 @@ NV40EXAPictSolid(NVPtr pNv, PicturePtr pPict, int unit)
 static Bool
 NV40EXAPictGradient(NVPtr pNv, PicturePtr pPict, int unit)
 {
-	return TRUE;
+	return FALSE;
 }
 
 static Bool
