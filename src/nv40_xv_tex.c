@@ -163,10 +163,10 @@ NV40StopTexturedVideo(ScrnInfoPtr pScrn, pointer data, Bool Exit)
 }
 
 #define VERTEX_OUT(sx,sy,dx,dy) do {                                           \
-	BEGIN_NV04(push, NV30_3D(VTX_ATTR_2F_X(8)), 4);                  \
+	BEGIN_NV04(push, NV30_3D(VTX_ATTR_2F_X(8)), 4);                        \
 	PUSH_DATAf(push, (sx)); PUSH_DATAf(push, (sy));                        \
 	PUSH_DATAf(push, (sx)/2.0); PUSH_DATAf(push, (sy)/2.0);                \
-	BEGIN_NV04(push, NV30_3D(VTX_ATTR_2I(0)), 1);                    \
+	BEGIN_NV04(push, NV30_3D(VTX_ATTR_2I(0)), 1);                          \
  	PUSH_DATA (push, ((dy)<<16)|(dx));                                     \
 } while(0)
 
@@ -187,7 +187,7 @@ NV40PutTextureImage(ScrnInfoPtr pScrn,
 	Bool bicubic = pPriv->bicubic;
 	float X1, X2, Y1, Y2;
 	BoxPtr pbox;
-	int nbox;
+	int nbox, i;
 	int dst_format = 0;
 
 	if (drw_w > 4096 || drw_h > 4096) {
@@ -254,6 +254,27 @@ NV40PutTextureImage(ScrnInfoPtr pScrn,
 	PUSH_DATA (push, 2);
 	BEGIN_NV04(push, NV40_3D(TEX_CACHE_CTL), 1);
 	PUSH_DATA (push, 1);
+
+	for (i = 0; i < 2; i++) {
+		BEGIN_NV04(push, NV30_3D(VP_UPLOAD_CONST_ID), 17);
+		PUSH_DATA (push, i * 4);
+		PUSH_DATAf(push, 1.0);
+		PUSH_DATAf(push, 0.0);
+		PUSH_DATAf(push, 0.0);
+		PUSH_DATAf(push, 0.0);
+		PUSH_DATAf(push, 0.0);
+		PUSH_DATAf(push, 1.0);
+		PUSH_DATAf(push, 0.0);
+		PUSH_DATAf(push, 0.0);
+		PUSH_DATAf(push, 0.0);
+		PUSH_DATAf(push, 0.0);
+		PUSH_DATAf(push, 1.0);
+		PUSH_DATAf(push, 0.0);
+		PUSH_DATAf(push, 1.0);
+		PUSH_DATAf(push, 1.0);
+		PUSH_DATAf(push, 0.0);
+		PUSH_DATAf(push, 0.0);
+	}
 
 	nouveau_pushbuf_bufctx(push, pNv->bufctx);
 	if (nouveau_pushbuf_validate(push)) {
