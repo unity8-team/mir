@@ -320,6 +320,51 @@ NV30EXATexture(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict, int unit)
 	return TRUE;
 }
 
+#define RCSRC_COL(i)  (0x01 + (unit))
+#define RCSRC_TEX(i)  (0x08 + (unit)) /* fragprog register */
+#define RCSEL_COLOR   (0x00)
+#define RCSEL_ALPHA   (0x10)
+#define RCINP_ZERO    (0x00)
+#define RCINP_ONE     (0x20)
+#define RCINP_A__SHIFT 24
+#define RCINP_B__SHIFT 16
+
+static Bool
+NV30EXAPicture(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict, int unit,
+	       uint32_t *color, uint32_t *alpha, uint32_t *solid)
+{
+	uint32_t shift, source;
+
+	if (pPict && pPict->pDrawable) {
+		if (!NV30EXATexture(pScrn, pPix, pPict, unit))
+			return FALSE;
+		*solid = 0x00000000;
+		source = RCSRC_TEX(unit);
+	} else
+	if (pPict) {
+		*solid = pPict->pSourcePict->solidFill.color;
+		source = RCSRC_COL(unit);
+	}
+
+	if (pPict && PICT_FORMAT_RGB(pPict->format))
+		*color = RCSEL_COLOR | source;
+	else
+		*color = RCSEL_ALPHA | RCINP_ZERO;
+
+	if (pPict && PICT_FORMAT_A(pPict->format))
+		*alpha = RCSEL_ALPHA | source;
+	else
+		*alpha = RCSEL_ALPHA | RCINP_ONE;
+
+	if (unit)
+		shift = RCINP_B__SHIFT;
+	else
+		shift = RCINP_A__SHIFT;
+	*color <<= shift;
+	*alpha <<= shift;
+	return TRUE;
+}
+
 static Bool
 NV30_SetupSurface(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict)
 {
@@ -347,13 +392,15 @@ static Bool
 NV30EXACheckCompositeTexture(PicturePtr pPict, PicturePtr pdPict, int op)
 {
 	nv_pict_texture_format_t *fmt;
-	int w, h;
+	int w = 1, h = 1;
 
-	if (!pPict->pDrawable)
-		NOUVEAU_FALLBACK("Solid and gradient pictures unsupported\n");
-
-	w = pPict->pDrawable->width;
-	h = pPict->pDrawable->height;
+	if (pPict->pDrawable) {
+		w = pPict->pDrawable->width;
+		h = pPict->pDrawable->height;
+	} else {
+		if (pPict->pSourcePict->type != SourcePictTypeSolidFill)
+			NOUVEAU_FALLBACK("gradient pictures unsupported\n");
+	}
 
 	if ((w > 4096) || (h > 4096))
 		NOUVEAU_FALLBACK("picture too large, %dx%d\n", w, h);
@@ -423,48 +470,56 @@ NV30EXAPrepareComposite(int op, PicturePtr psPict,
 		PixmapPtr  pmPix,
 		PixmapPtr  pdPix)
 {
-	ScrnInfoPtr pScrn = xf86Screens[psPix->drawable.pScreen->myNum];
+	ScrnInfoPtr pScrn = xf86Screens[pdPix->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
 	nv_pict_op_t *blend = NV30_GetPictOpRec(op);
 	struct nouveau_pushbuf *push = pNv->pushbuf;
-	uint32_t fragprog;
+	uint32_t sc, sa, mc, ma, solid[2];
 
 	if (!PUSH_SPACE(push, 128))
 		return FALSE;
 	PUSH_RESET(push);
 
+	/* setup render target and blending */
+	if (!NV30_SetupSurface(pScrn, pdPix, pdPict))
+		return FALSE;
 	NV30_SetupBlend(pScrn, blend, pdPict->format,
 			(pmPict && pmPict->componentAlpha &&
 			 PICT_FORMAT_RGB(pmPict->format)));
 
-	if (!NV30_SetupSurface(pScrn, pdPix, pdPict) ||
-	    !NV30EXATexture(pScrn, psPix, psPict, 0))
+	/* select picture sources */
+	if (!NV30EXAPicture(pScrn, psPix, psPict, 0, &sc, &sa, &solid[0]))
+		return FALSE;
+	if (!NV30EXAPicture(pScrn, pmPix, pmPict, 1, &mc, &ma, &solid[1]))
 		return FALSE;
 
-	if (pmPict) {
-		if (!NV30EXATexture(pScrn, pmPix, pmPict, 1))
-			return FALSE;
-
-		if (pdPict->format == PICT_a8) {
-			fragprog = PFP_C_A8;
-		} else
-		if (pmPict->componentAlpha && PICT_FORMAT_RGB(pmPict->format)) {
-			if (blend->src_alpha)
-				fragprog = PFP_CCASA;
-			else
-				fragprog = PFP_CCA;
-		} else {
-			fragprog = PFP_C;
-		}
-	} else {
-		if (pdPict->format == PICT_a8)
-			fragprog = PFP_S_A8;
+	/* configure register combiners */
+	BEGIN_NV04(push, NV30_3D(RC_IN_ALPHA(0)), 6);
+	PUSH_DATA (push, sa | ma);
+	if (pmPict &&
+	    pmPict->componentAlpha && PICT_FORMAT_RGB(pmPict->format)) {
+		if (blend->src_alpha)
+			PUSH_DATA(push, sa | mc);
 		else
-			fragprog = PFP_S;
+			PUSH_DATA(push, sc | mc);
+	} else {
+		PUSH_DATA(push, sc | ma);
 	}
+	PUSH_DATA (push, solid[0]);
+	PUSH_DATA (push, solid[1]);
+	PUSH_DATA (push, 0x00000c00);
+	PUSH_DATA (push, 0x00000c00);
+	BEGIN_NV04(push, NV30_3D(RC_FINAL0), 3);
+	if (pdPict->format != PICT_a8)
+		PUSH_DATA (push, 0x0000000c);
+	else
+		PUSH_DATA (push, 0x0000001c);
+	PUSH_DATA (push, 0x00001c00);
+	PUSH_DATA (push, 0x01000101);
 
+	/* select fragprog which just sources textures for combiners */
 	BEGIN_NV04(push, NV30_3D(FP_ACTIVE_PROGRAM), 1);
-	PUSH_MTHD (push, NV30_3D(FP_ACTIVE_PROGRAM), pNv->scratch, fragprog,
+	PUSH_MTHD (push, NV30_3D(FP_ACTIVE_PROGRAM), pNv->scratch, PFP_PASS,
 			 NOUVEAU_BO_VRAM | NOUVEAU_BO_RD | NOUVEAU_BO_LOW |
 			 NOUVEAU_BO_OR,
 			 NV30_3D_FP_ACTIVE_PROGRAM_DMA0,
@@ -474,7 +529,7 @@ NV30EXAPrepareComposite(int op, PicturePtr psPict,
 	BEGIN_NV04(push, NV30_3D(FP_CONTROL), 1);
 	PUSH_DATA (push, 0x00000000);
 	BEGIN_NV04(push, NV30_3D(TEX_UNITS_ENABLE), 1);
-	PUSH_DATA (push, pmPict ? 3 : 1);
+	PUSH_DATA (push, 3);
 
 	nouveau_pushbuf_bufctx(push, pNv->bufctx);
 	if (nouveau_pushbuf_validate(push)) {
@@ -630,8 +685,6 @@ NVAccelInitNV30TCL(ScrnInfoPtr pScrn)
 
 	BEGIN_NV04(push, NV30_3D(MULTISAMPLE_CONTROL), 1);
 	PUSH_DATA (push, 0xffff0000);
-	BEGIN_NV04(push, NV30_3D(RC_ENABLE), 1);
-	PUSH_DATA (push, 0);
 
 	/* Attempt to setup a known state.. Probably missing a heap of
 	 * stuff here..
@@ -766,87 +819,15 @@ NVAccelInitNV30TCL(ScrnInfoPtr pScrn)
 	PUSH_DATA (push, 4096<<16);
 	PUSH_DATA (push, 4096<<16);
 
-	PUSH_DATAu(push, pNv->scratch, PFP_PASS, 1 * 4);
-	PUSH_DATA (push, 0x01403e81); /* mov r0, a[col0] */
+	PUSH_DATAu(push, pNv->scratch, PFP_PASS, 2 * 4);
+	PUSH_DATA (push, 0x18009e80); /* txph r0, a[tex0], t[0] */
 	PUSH_DATA (push, 0x1c9dc801);
 	PUSH_DATA (push, 0x0001c800);
 	PUSH_DATA (push, 0x3fe1c800);
-
-	PUSH_DATAu(push, pNv->scratch, PFP_S, 2 * 4);
-	PUSH_DATA (push, 0x18009e00); /* txp r0, a[tex0], t[0] */
-	PUSH_DATA (push, 0x1c9dc801);
+	PUSH_DATA (push, 0x1802be83); /* txph r1, a[tex1], t[1] */
+	PUSH_DATA (push, 0x1c9dc801); /* exit */
 	PUSH_DATA (push, 0x0001c800);
 	PUSH_DATA (push, 0x3fe1c800);
-	PUSH_DATA (push, 0x01401e81); /* mov r0, r0 */
-	PUSH_DATA (push, 0x1c9dc800);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x0001c800);
-
-	PUSH_DATAu(push, pNv->scratch, PFP_S_A8, 2 * 4);
-	PUSH_DATA (push, 0x18009000); /* txp r0.w, a[tex0], t[0] */
-	PUSH_DATA (push, 0x1c9dc801);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x3fe1c800);
-	PUSH_DATA (push, 0x01401e81); /* mov r0, r0.w */
-	PUSH_DATA (push, 0x1c9dfe00);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x0001c800);
-
-	PUSH_DATAu(push, pNv->scratch, PFP_C, 3 * 4);
-	PUSH_DATA (push, 0x1802b102); /* txpc0 r1.w, a[tex1], t[1] */
-	PUSH_DATA (push, 0x1c9dc801);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x3fe1c800);
-	PUSH_DATA (push, 0x18009e00); /* txp r0 (ne0.w), a[tex0], t[0] */
-	PUSH_DATA (push, 0x1ff5c801);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x3fe1c800);
-	PUSH_DATA (push, 0x02001e81); /* mul r0, r0, r1.w */
-	PUSH_DATA (push, 0x1c9dc800);
-	PUSH_DATA (push, 0x0001fe04);
-	PUSH_DATA (push, 0x0001c800);
-
-	PUSH_DATAu(push, pNv->scratch, PFP_C_A8, 3 * 4);
-	PUSH_DATA (push, 0x1802b102); /* txpc0 r1.w, a[tex1], t[1] */
-	PUSH_DATA (push, 0x1c9dc801);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x3fe1c800);
-	PUSH_DATA (push, 0x18009000); /* txp r0.w (ne0.w), a[tex0], t[0] */
-	PUSH_DATA (push, 0x1ff5c801);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x3fe1c800);
-	PUSH_DATA (push, 0x02001e81); /* mul r0, r0.w, r1.w */
-	PUSH_DATA (push, 0x1c9dfe00);
-	PUSH_DATA (push, 0x0001fe04);
-	PUSH_DATA (push, 0x0001c800);
-
-	PUSH_DATAu(push, pNv->scratch, PFP_CCA, 3 * 4);
-	PUSH_DATA (push, 0x18009f00); /* txpc0 r0, a[tex0], t[0] */
-	PUSH_DATA (push, 0x1c9dc801);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x3fe1c800);
-	PUSH_DATA (push, 0x1802be02); /* txp r1 (ne0), a[tex1], t[1] */
-	PUSH_DATA (push, 0x1c95c801);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x3fe1c800);
-	PUSH_DATA (push, 0x02001e81); /* mul r0, r0, r1 */
-	PUSH_DATA (push, 0x1c9dc800);
-	PUSH_DATA (push, 0x0001c804);
-	PUSH_DATA (push, 0x0001c800);
-
-	PUSH_DATAu(push, pNv->scratch, PFP_CCASA, 3 * 4);
-	PUSH_DATA (push, 0x18009102); /* txpc0 r1.w, a[tex0], t[0] */
-	PUSH_DATA (push, 0x1c9dc801);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x3fe1c800);
-	PUSH_DATA (push, 0x1802be00); /* txp r0 (ne0.w), a[tex1], t[1] */
-	PUSH_DATA (push, 0x1ff5c801);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x3fe1c800);
-	PUSH_DATA (push, 0x02001e81); /* mul r0, r1.w, r0 */
-	PUSH_DATA (push, 0x1c9dfe04);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x0001c800);
 
 	PUSH_DATAu(push, pNv->scratch, PFP_NV12_BILINEAR, 8 * 4);
 	PUSH_DATA (push, 0x17028200); /* texr r0.x, a[tex0], t[1] */

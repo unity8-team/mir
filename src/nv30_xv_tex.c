@@ -271,6 +271,8 @@ NV30PutTextureImage(ScrnInfoPtr pScrn, struct nouveau_bo *src, int src_offset,
 	PUSH_DATA (push, 0x0001000f);
 	BEGIN_NV04(push, NV30_3D(FP_CONTROL), 1);
 	PUSH_DATA (push, 0x00000001);
+	BEGIN_NV04(push, NV30_3D(RC_ENABLE), 1);
+	PUSH_DATA (push, 0x00000000);
 
 	nouveau_pushbuf_bufctx(push, pNv->bufctx);
 	if (nouveau_pushbuf_validate(push)) {
