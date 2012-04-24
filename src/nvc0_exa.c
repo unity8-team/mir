@@ -27,23 +27,10 @@
 
 #define NOUVEAU_BO(a, b, c) (NOUVEAU_BO_##a | NOUVEAU_BO_##b | NOUVEAU_BO_##c)
 
-struct nvc0_exa_state {
-	struct {
-		PictTransformPtr transform;
-		float width;
-		float height;
-	} unit[2];
-
-	Bool have_mask;
-};
-
-static struct nvc0_exa_state exa_state;
-
 #define NVC0EXA_LOCALS(p)                                                      \
 	ScrnInfoPtr pScrn = xf86Screens[(p)->drawable.pScreen->myNum];         \
 	NVPtr pNv = NVPTR(pScrn);                                              \
-	struct nouveau_pushbuf *push = pNv->pushbuf; (void)push;               \
-	struct nvc0_exa_state *state = &exa_state; (void)state
+	struct nouveau_pushbuf *push = pNv->pushbuf; (void)push;
 
 #define BF(f) NV50_BLEND_FACTOR_##f
 
@@ -536,16 +523,56 @@ NVC0EXACheckTexture(PicturePtr ppict, PicturePtr pdpict, int op)
 	 NV50TIC_0_0_FMT_##FMT)
 
 static Bool
-NVC0EXATexture(PixmapPtr ppix, PicturePtr ppict, unsigned unit)
+NVC0EXAPictSolid(NVPtr pNv, PicturePtr ppict, unsigned unit)
 {
-	NVC0EXA_LOCALS(ppix);
-	struct nouveau_bo *bo = nouveau_pixmap_bo(ppix);
-	uint32_t mode;
+	uint64_t offset = pNv->scratch->offset + SOLID(unit);
+	struct nouveau_pushbuf *push = pNv->pushbuf;
 
-	/* XXX: maybe add support for linear textures at some point */
+	PUSH_DATAu(push, pNv->scratch, SOLID(unit), 1);
+	PUSH_DATA (push, ppict->pSourcePict->solidFill.color);
+	PUSH_DATAu(push, pNv->scratch, TIC_OFFSET + (unit * 32), 8);
+	PUSH_DATA (push, _(B_C0, G_C1, R_C2, A_C3, 8_8_8_8));
+	PUSH_DATA (push,  offset);
+	PUSH_DATA (push, (offset >> 32) | 0xd005d000);
+	PUSH_DATA (push, 0x00300000);
+	PUSH_DATA (push, 0x00000001);
+	PUSH_DATA (push, 0x00010001);
+	PUSH_DATA (push, 0x03000000);
+	PUSH_DATA (push, 0x00000000);
+	PUSH_DATAu(push, pNv->scratch, TSC_OFFSET + (unit * 32), 8);
+	PUSH_DATA (push, NV50TSC_1_0_WRAPS_REPEAT |
+			 NV50TSC_1_0_WRAPT_REPEAT |
+			 NV50TSC_1_0_WRAPR_REPEAT | 0x00024000);
+	PUSH_DATA (push, NV50TSC_1_1_MAGF_NEAREST |
+			 NV50TSC_1_1_MINF_NEAREST |
+			 NV50TSC_1_1_MIPF_NONE);
+	PUSH_DATA (push, 0x00000000);
+	PUSH_DATA (push, 0x00000000);
+	PUSH_DATA (push, 0x00000000);
+	PUSH_DATA (push, 0x00000000);
+	PUSH_DATA (push, 0x00000000);
+	PUSH_DATA (push, 0x00000000);
+
+	return TRUE;
+}
+
+static Bool
+NVC0EXAPictGradient(NVPtr pNv, PicturePtr ppict, unsigned unit)
+{
+	return FALSE;
+}
+
+static Bool
+NVC0EXAPictTexture(NVPtr pNv, PixmapPtr ppix, PicturePtr ppict, unsigned unit)
+{
+	struct nouveau_bo *bo = nouveau_pixmap_bo(ppix);
+	struct nouveau_pushbuf *push = pNv->pushbuf;
+
+	/*XXX: Scanout buffer not tiled, someone needs to figure it out */
 	if (!nv50_style_tiled_pixmap(ppix))
 		NOUVEAU_FALLBACK("pixmap is scanout buffer\n");
 
+	PUSH_REFN (push, bo, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
 	PUSH_DATAu(push, pNv->scratch, TIC_OFFSET + (unit * 32), 8);
 	switch (ppict->format) {
 	case PICT_a8r8g8b8:
@@ -616,10 +643,10 @@ NVC0EXATexture(PixmapPtr ppix, PicturePtr ppict, unsigned unit)
 	}
 #undef _
 
-	mode = 0xd0005000 | (bo->config.nvc0.tile_mode << (22 - 4));
 	PUSH_DATA (push, bo->offset);
-	PUSH_DATA (push, (bo->offset >> 32) | mode |
-			 (bo->config.nvc0.tile_mode << 18));
+	PUSH_DATA (push, (bo->offset >> 32) |
+			 (bo->config.nvc0.tile_mode << 18) |
+			 0xd0005000);
 	PUSH_DATA (push, 0x00300000);
 	PUSH_DATA (push, (1 << 31) | ppix->drawable.width);
 	PUSH_DATA (push, (1 << 16) | ppix->drawable.height);
@@ -631,52 +658,90 @@ NVC0EXATexture(PixmapPtr ppix, PicturePtr ppict, unsigned unit)
 		switch (ppict->repeatType) {
 		case RepeatPad:
 			PUSH_DATA (push, 0x00024000 |
-				   NV50TSC_1_0_WRAPS_CLAMP |
-				   NV50TSC_1_0_WRAPT_CLAMP |
-				   NV50TSC_1_0_WRAPR_CLAMP);
+					 NV50TSC_1_0_WRAPS_CLAMP |
+					 NV50TSC_1_0_WRAPT_CLAMP |
+					 NV50TSC_1_0_WRAPR_CLAMP);
 			break;
 		case RepeatReflect:
 			PUSH_DATA (push, 0x00024000 |
-				   NV50TSC_1_0_WRAPS_MIRROR_REPEAT |
-				   NV50TSC_1_0_WRAPT_MIRROR_REPEAT |
-				   NV50TSC_1_0_WRAPR_MIRROR_REPEAT);
+					 NV50TSC_1_0_WRAPS_MIRROR_REPEAT |
+					 NV50TSC_1_0_WRAPT_MIRROR_REPEAT |
+					 NV50TSC_1_0_WRAPR_MIRROR_REPEAT);
 			break;
 		case RepeatNormal:
 		default:
 			PUSH_DATA (push, 0x00024000 |
-				   NV50TSC_1_0_WRAPS_REPEAT |
-				   NV50TSC_1_0_WRAPT_REPEAT |
-				   NV50TSC_1_0_WRAPR_REPEAT);
+					 NV50TSC_1_0_WRAPS_REPEAT |
+					 NV50TSC_1_0_WRAPT_REPEAT |
+					 NV50TSC_1_0_WRAPR_REPEAT);
 			break;
 		}
 	} else {
 		PUSH_DATA (push, 0x00024000 |
-			   NV50TSC_1_0_WRAPS_CLAMP_TO_BORDER |
-			   NV50TSC_1_0_WRAPT_CLAMP_TO_BORDER |
-			   NV50TSC_1_0_WRAPR_CLAMP_TO_BORDER);
+				 NV50TSC_1_0_WRAPS_CLAMP_TO_BORDER |
+				 NV50TSC_1_0_WRAPT_CLAMP_TO_BORDER |
+				 NV50TSC_1_0_WRAPR_CLAMP_TO_BORDER);
 	}
 	if (ppict->filter == PictFilterBilinear) {
-		PUSH_DATA (push,
-			   NV50TSC_1_1_MAGF_LINEAR |
-			   NV50TSC_1_1_MINF_LINEAR | NV50TSC_1_1_MIPF_NONE);
+		PUSH_DATA (push, NV50TSC_1_1_MAGF_LINEAR |
+				 NV50TSC_1_1_MINF_LINEAR |
+				 NV50TSC_1_1_MIPF_NONE);
 	} else {
-		PUSH_DATA (push,
-			   NV50TSC_1_1_MAGF_NEAREST |
-			   NV50TSC_1_1_MINF_NEAREST | NV50TSC_1_1_MIPF_NONE);
+		PUSH_DATA (push, NV50TSC_1_1_MAGF_NEAREST |
+				 NV50TSC_1_1_MINF_NEAREST |
+				 NV50TSC_1_1_MIPF_NONE);
 	}
 	PUSH_DATA (push, 0x00000000);
 	PUSH_DATA (push, 0x00000000);
-	PUSH_DATAf(push, 0.0f);
-	PUSH_DATAf(push, 0.0f);
-	PUSH_DATAf(push, 0.0f);
-	PUSH_DATAf(push, 0.0f);
+	PUSH_DATA (push, 0x00000000);
+	PUSH_DATA (push, 0x00000000);
+	PUSH_DATA (push, 0x00000000);
+	PUSH_DATA (push, 0x00000000);
 
-	state->unit[unit].width = ppix->drawable.width;
-	state->unit[unit].height = ppix->drawable.height;
-	state->unit[unit].transform = ppict->transform;
+	PUSH_DATAu(push, pNv->scratch, PVP_DATA + (unit * 11 * 4), 11);
+	if (ppict->transform) {
+		PUSH_DATAf(push, xFixedToFloat(ppict->transform->matrix[0][0]));
+		PUSH_DATAf(push, xFixedToFloat(ppict->transform->matrix[0][1]));
+		PUSH_DATAf(push, xFixedToFloat(ppict->transform->matrix[0][2]));
+		PUSH_DATAf(push, xFixedToFloat(ppict->transform->matrix[1][0]));
+		PUSH_DATAf(push, xFixedToFloat(ppict->transform->matrix[1][1]));
+		PUSH_DATAf(push, xFixedToFloat(ppict->transform->matrix[1][2]));
+		PUSH_DATAf(push, xFixedToFloat(ppict->transform->matrix[2][0]));
+		PUSH_DATAf(push, xFixedToFloat(ppict->transform->matrix[2][1]));
+		PUSH_DATAf(push, xFixedToFloat(ppict->transform->matrix[2][2]));
+	} else {
+		PUSH_DATAf(push, 1.0);
+		PUSH_DATAf(push, 0.0);
+		PUSH_DATAf(push, 0.0);
+		PUSH_DATAf(push, 0.0);
+		PUSH_DATAf(push, 1.0);
+		PUSH_DATAf(push, 0.0);
+		PUSH_DATAf(push, 0.0);
+		PUSH_DATAf(push, 0.0);
+		PUSH_DATAf(push, 1.0);
+	}
+	PUSH_DATAf(push, 1.0 / ppix->drawable.width);
+	PUSH_DATAf(push, 1.0 / ppix->drawable.height);
 	return TRUE;
 }
 
+static Bool
+NVC0EXAPicture(NVPtr pNv, PixmapPtr ppix, PicturePtr ppict, int unit)
+{
+	if (ppict->pDrawable)
+		return NVC0EXAPictTexture(pNv, ppix, ppict, unit);
+
+	switch (ppict->pSourcePict->type) {
+	case SourcePictTypeSolidFill:
+		return NVC0EXAPictSolid(pNv, ppict, unit);
+	case SourcePictTypeLinear:
+		return NVC0EXAPictGradient(pNv, ppict, unit);
+	default:
+		break;
+	}
+
+	return FALSE;
+}
 static Bool
 NVC0EXACheckBlend(int op)
 {
@@ -777,13 +842,12 @@ NVC0EXAPrepareComposite(int op,
 	NVC0EXABlend(pdpix, pdpict, op, pmpict && pmpict->componentAlpha &&
 		     PICT_FORMAT_RGB(pmpict->format));
 
-	if (!NVC0EXATexture(pspix, pspict, 0))
+	if (!NVC0EXAPicture(pNv, pspix, pspict, 0))
 		NOUVEAU_FALLBACK("src picture invalid\n");
 
 	if (pmpict) {
-		if (!NVC0EXATexture(pmpix, pmpict, 1))
+		if (!NVC0EXAPicture(pNv, pmpix, pmpict, 1))
 			NOUVEAU_FALLBACK("mask picture invalid\n");
-		state->have_mask = TRUE;
 
 		BEGIN_NVC0(push, NVC0_3D(SP_START_ID(5)), 1);
 		if (pdpict->format == PICT_a8) {
@@ -800,8 +864,6 @@ NVC0EXAPrepareComposite(int op,
 			}
 		}
 	} else {
-		state->have_mask = FALSE;
-
 		BEGIN_NVC0(push, NVC0_3D(SP_START_ID(5)), 1);
 		if (pdpict->format == PICT_a8)
 			PUSH_DATA (push, PFP_S_A8);
@@ -832,32 +894,12 @@ NVC0EXAPrepareComposite(int op,
 	return TRUE;
 }
 
-static inline void
-NVC0EXATransform(PictTransformPtr t, int x, int y, float sx, float sy,
-		 float *x_ret, float *y_ret)
-{
-	if (t) {
-		PictVector v;
-
-		v.vector[0] = IntToxFixed(x);
-		v.vector[1] = IntToxFixed(y);
-		v.vector[2] = xFixed1;
-		PictureTransformPoint(t, &v);
-		*x_ret = xFixedToFloat(v.vector[0]) / sx;
-		*y_ret = xFixedToFloat(v.vector[1]) / sy;
-	} else {
-		*x_ret = (float)x / sx;
-		*y_ret = (float)y / sy;
-	}
-}
-
 void
 NVC0EXAComposite(PixmapPtr pdpix,
 		 int sx, int sy, int mx, int my,
 		 int dx, int dy, int w, int h)
 {
 	NVC0EXA_LOCALS(pdpix);
-	float sX0, sX1, sX2, sY0, sY1, sY2;
 
 	if (!PUSH_SPACE(push, 64))
 		return;
@@ -867,39 +909,9 @@ NVC0EXAComposite(PixmapPtr pdpix,
 	PUSH_DATA (push, ((dy + h) << 16) | dy);
 	BEGIN_NVC0(push, NVC0_3D(VERTEX_BEGIN_GL), 1);
 	PUSH_DATA (push, NVC0_3D_VERTEX_BEGIN_GL_PRIMITIVE_TRIANGLES);
-
-	NVC0EXATransform(state->unit[0].transform, sx, sy + (h * 2),
-			 state->unit[0].width, state->unit[0].height,
-			 &sX0, &sY0);
-	NVC0EXATransform(state->unit[0].transform, sx, sy,
-			 state->unit[0].width, state->unit[0].height,
-			 &sX1, &sY1);
-	NVC0EXATransform(state->unit[0].transform, sx + (w * 2), sy,
-			 state->unit[0].width, state->unit[0].height,
-			 &sX2, &sY2);
-
-	if (state->have_mask) {
-		float mX0, mX1, mX2, mY0, mY1, mY2;
-
-		NVC0EXATransform(state->unit[1].transform, mx, my + (h * 2),
-				 state->unit[1].width, state->unit[1].height,
-				 &mX0, &mY0);
-		NVC0EXATransform(state->unit[1].transform, mx, my,
-				 state->unit[1].width, state->unit[1].height,
-				 &mX1, &mY1);
-		NVC0EXATransform(state->unit[1].transform, mx + (w * 2), my,
-				 state->unit[1].width, state->unit[1].height,
-				 &mX2, &mY2);
-
-		VTX2s(pNv, sX0, sY0, mX0, mY0, dx, dy + (h * 2));
-		VTX2s(pNv, sX1, sY1, mX1, mY1, dx, dy);
-		VTX2s(pNv, sX2, sY2, mX2, mY2, dx + (w * 2), dy);
-	} else {
-		VTX1s(pNv, sX0, sY0, dx, dy + (h * 2));
-		VTX1s(pNv, sX1, sY1, dx, dy);
-		VTX1s(pNv, sX2, sY2, dx + (w * 2), dy);
-	}
-
+	PUSH_VTX2s(push, sx, sy + (h * 2), mx, my + (h * 2), dx, dy + (h * 2));
+	PUSH_VTX2s(push, sx, sy, mx, my, dx, dy);
+	PUSH_VTX2s(push, sx + (w * 2), sy, mx + (w * 2), my, dx + (w * 2), dy);
 	BEGIN_NVC0(push, NVC0_3D(VERTEX_END_GL), 1);
 	PUSH_DATA (push, 0);
 }

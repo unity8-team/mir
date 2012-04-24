@@ -23,8 +23,12 @@
 
 /* scratch buffer offsets */
 #define CODE_OFFSET 0x00000 /* Code */
+#define PVP_DATA    0x01000 /* VP constants */
+#define PFP_DATA    0x01100 /* FP constants */
+#define TB_OFFSET   0x01800 /* Texture bindings (kepler) */
 #define TIC_OFFSET  0x02000 /* Texture Image Control */
 #define TSC_OFFSET  0x03000 /* Texture Sampler Control */
+#define SOLID(i)   (0x04000 + (i) * 0x100)
 #define NTFY_OFFSET 0x08000
 #define MISC_OFFSET 0x10000
 
@@ -39,11 +43,6 @@
 #define PFP_C_A8  (0x0c00 + SPO) /* (src IN mask) a8 rt - same for CCA/CCASA */
 #define PFP_NV12  (0x0e00 + SPO) /* NV12 YUV->RGB */
 
-/* shader constants */
-#define CB_OFFSET 0x1000
-
-/* texture bindings (kepler) */
-#define TB_OFFSET 0x1800
 
 #define VTX_ATTR(a, c, t, s)				\
 	((NVC0_3D_VTX_ATTR_DEFINE_TYPE_##t) |		\
@@ -52,50 +51,30 @@
 	 ((s) << NVC0_3D_VTX_ATTR_DEFINE_SIZE__SHIFT))
 
 static __inline__ void
-VTX1s(NVPtr pNv, float sx, float sy, unsigned dx, unsigned dy)
+PUSH_VTX1s(struct nouveau_pushbuf *push, float sx, float sy, int dx, int dy)
 {
-	struct nouveau_pushbuf *push = pNv->pushbuf;
-
 	BEGIN_NVC0(push, NVC0_3D(VTX_ATTR_DEFINE), 3);
 	PUSH_DATA (push, VTX_ATTR(1, 2, FLOAT, 4));
 	PUSH_DATAf(push, sx);
 	PUSH_DATAf(push, sy);
-#if 1
 	BEGIN_NVC0(push, NVC0_3D(VTX_ATTR_DEFINE), 2);
 	PUSH_DATA (push, VTX_ATTR(0, 2, USCALED, 2));
 	PUSH_DATA (push, (dy << 16) | dx);
-#else
-	BEGIN_NVC0(push, NVC0_3D(VTX_ATTR_DEFINE), 3);
-	PUSH_DATA (push, VTX_ATTR(0, 2, FLOAT, 4));
-	PUSH_DATAf(push, (float)dx);
-	PUSH_DATAf(push, (float)dy);
-#endif
 }
 
 static __inline__ void
-VTX2s(NVPtr pNv, float s1x, float s1y, float s2x, float s2y,
-      unsigned dx, unsigned dy)
+PUSH_VTX2s(struct nouveau_pushbuf *push,
+	   int x0, int y0, int x1, int y1, int dx, int dy)
 {
-	struct nouveau_pushbuf *push = pNv->pushbuf;
-
-	BEGIN_NVC0(push, NVC0_3D(VTX_ATTR_DEFINE), 3);
-	PUSH_DATA (push, VTX_ATTR(1, 2, FLOAT, 4));
-	PUSH_DATAf(push, s1x);
-	PUSH_DATAf(push, s1y);
-	BEGIN_NVC0(push, NVC0_3D(VTX_ATTR_DEFINE), 3);
-	PUSH_DATA (push, VTX_ATTR(2, 2, FLOAT, 4));
-	PUSH_DATAf(push, s2x);
-	PUSH_DATAf(push, s2y);
-#if 1
+	BEGIN_NVC0(push, NVC0_3D(VTX_ATTR_DEFINE), 2);
+	PUSH_DATA (push, VTX_ATTR(1, 2, USCALED, 2));
+	PUSH_DATA (push, (y0 << 16) | x0);
+	BEGIN_NVC0(push, NVC0_3D(VTX_ATTR_DEFINE), 2);
+	PUSH_DATA (push, VTX_ATTR(2, 2, USCALED, 2));
+	PUSH_DATA (push, (y1 << 16) | x1);
 	BEGIN_NVC0(push, NVC0_3D(VTX_ATTR_DEFINE), 2);
 	PUSH_DATA (push, VTX_ATTR(0, 2, USCALED, 2));
 	PUSH_DATA (push, (dy << 16) | dx);
-#else
-	BEGIN_NVC0(push, NVC0_3D(VTX_ATTR_DEFINE), 3);
-	PUSH_DATA (push, VTX_ATTR(0, 2, FLOAT, 4));
-	PUSH_DATAf(push, (float)dx);
-	PUSH_DATAf(push, (float)dy);
-#endif
 }
 
 static __inline__ void

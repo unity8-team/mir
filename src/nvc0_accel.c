@@ -205,7 +205,7 @@ NVAccelInit3D_NVC0(ScrnInfoPtr pScrn)
 	PUSH_DATA (push, (bo->offset + CODE_OFFSET) >> 32);
 	PUSH_DATA (push, (bo->offset + CODE_OFFSET));
 	if (pNv->Architecture < NV_ARCH_E0) {
-		NVC0PushProgram(pNv, PVP_PASS, NVC0VP_Passthrough);
+		NVC0PushProgram(pNv, PVP_PASS, NVC0VP_Transform2);
 		NVC0PushProgram(pNv, PFP_S, NVC0FP_Source);
 		NVC0PushProgram(pNv, PFP_C, NVC0FP_Composite);
 		NVC0PushProgram(pNv, PFP_CCA, NVC0FP_CAComposite);
@@ -217,7 +217,7 @@ NVAccelInit3D_NVC0(ScrnInfoPtr pScrn)
 		BEGIN_NVC0(push, NVC0_3D(MEM_BARRIER), 1);
 		PUSH_DATA (push, 0x1111);
 	} else {
-		NVC0PushProgram(pNv, PVP_PASS, NVE0VP_Passthrough);
+		NVC0PushProgram(pNv, PVP_PASS, NVE0VP_Transform2);
 		NVC0PushProgram(pNv, PFP_S, NVE0FP_Source);
 		NVC0PushProgram(pNv, PFP_C, NVE0FP_Composite);
 		NVC0PushProgram(pNv, PFP_CCA, NVE0FP_CAComposite);
@@ -235,6 +235,12 @@ NVAccelInit3D_NVC0(ScrnInfoPtr pScrn)
 	PUSH_DATA (push, 8);
 	BEGIN_NVC0(push, NVC0_3D(VERT_COLOR_CLAMP_EN), 1);
 	PUSH_DATA (push, 1);
+	BEGIN_NVC0(push, NVC0_3D(CB_SIZE), 3);
+	PUSH_DATA (push, 256);
+	PUSH_DATA (push, (bo->offset + PVP_DATA) >> 32);
+	PUSH_DATA (push, (bo->offset + PVP_DATA));
+	BEGIN_NVC0(push, NVC0_3D(CB_BIND(0)), 1);
+	PUSH_DATA (push, 0x01);
 
 	BEGIN_NVC0(push, NVC0_3D(SP_SELECT(5)), 4);
 	PUSH_DATA (push, NVC0_3D_SP_SELECT_PROGRAM_FP |
@@ -246,8 +252,8 @@ NVAccelInit3D_NVC0(ScrnInfoPtr pScrn)
 	PUSH_DATA (push, 0x11111111);
 	BEGIN_NVC0(push, NVC0_3D(CB_SIZE), 3);
 	PUSH_DATA (push, 256);
-	PUSH_DATA (push, (bo->offset + CB_OFFSET) >> 32);
-	PUSH_DATA (push, (bo->offset + CB_OFFSET));
+	PUSH_DATA (push, (bo->offset + PFP_DATA) >> 32);
+	PUSH_DATA (push, (bo->offset + PFP_DATA));
 	BEGIN_NVC0(push, NVC0_3D(CB_BIND(4)), 1);
 	PUSH_DATA (push, 0x01);
 
