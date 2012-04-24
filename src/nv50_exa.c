@@ -545,13 +545,7 @@ NV50EXATexture(PixmapPtr ppix, PicturePtr ppict, unsigned unit)
 	if (!nv50_style_tiled_pixmap(ppix))
 		NOUVEAU_FALLBACK("pixmap is scanout buffer\n");
 
-	BEGIN_NV04(push, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
-	PUSH_DATA (push, (pNv->scratch->offset + TIC_OFFSET) >> 32);
-	PUSH_DATA (push, (pNv->scratch->offset + TIC_OFFSET));
-	PUSH_DATA (push, (CB_TIC << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 0x4000);
-	BEGIN_NV04(push, NV50_3D(CB_ADDR), 1);
-	PUSH_DATA (push, CB_TIC | ((unit * 8) << NV50_3D_CB_ADDR_ID__SHIFT));
-	BEGIN_NI04(push, NV50_3D(CB_DATA(0)), 8);
+	PUSH_DATAu(push, pNv->scratch, TIC_OFFSET + (unit * 32), 8);
 	switch (ppict->format) {
 	case PICT_a8r8g8b8:
 		PUSH_DATA (push, _(B_C0, G_C1, R_C2, A_C3, 8_8_8_8));
@@ -631,13 +625,7 @@ NV50EXATexture(PixmapPtr ppix, PicturePtr ppict, unsigned unit)
 	PUSH_DATA (push, 0x03000000);
 	PUSH_DATA (push, 0x00000000);
 
-	BEGIN_NV04(push, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
-	PUSH_DATA (push, (pNv->scratch->offset + TSC_OFFSET) >> 32);
-	PUSH_DATA (push, (pNv->scratch->offset + TSC_OFFSET));
-	PUSH_DATA (push, (CB_TSC << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 0x4000);
-	BEGIN_NV04(push, NV50_3D(CB_ADDR), 1);
-	PUSH_DATA (push, CB_TSC | ((unit * 8) << NV50_3D_CB_ADDR_ID__SHIFT));
-	BEGIN_NI04(push, NV50_3D(CB_DATA(0)), 8);
+	PUSH_DATAu(push, pNv->scratch, TSC_OFFSET + (unit * 32), 8);
 	if (ppict->repeat) {
 		switch (ppict->repeatType) {
 		case RepeatPad:

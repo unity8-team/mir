@@ -37,8 +37,7 @@
 #define PFP_NV12  0x0600 /* NV12 YUV->RGB */
 
 /* Constant buffer assignments */
-#define CB_TSC 0
-#define CB_TIC 1
+#define CB_PSH 0
 #define CB_PFP 2
 
 static __inline__ void
@@ -66,6 +65,21 @@ VTX2s(NVPtr pNv, float s1x, float s1y, float s2x, float s2y,
 	PUSH_DATAf(push, s2y);
 	BEGIN_NV04(push, NV50_3D(VTX_ATTR_2I(0)), 1);
  	PUSH_DATA (push, (dy << 16) | dx);
+}
+
+static __inline__ void
+PUSH_DATAu(struct nouveau_pushbuf *push, struct nouveau_bo *bo,
+	   unsigned delta, unsigned dwords)
+{
+	const unsigned idx = (delta & 0x000000fc) >> 2;
+	const unsigned off = (delta & 0xffffff00);
+	BEGIN_NV04(push, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
+	PUSH_DATA (push, (bo->offset + off) >> 32);
+	PUSH_DATA (push, (bo->offset + off));
+	PUSH_DATA (push, (CB_PSH << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 0x4000);
+	BEGIN_NV04(push, NV50_3D(CB_ADDR), 1);
+	PUSH_DATA (push, CB_PSH | (idx << NV50_3D_CB_ADDR_ID__SHIFT));
+	BEGIN_NI04(push, NV50_3D(CB_DATA(0)), dwords);
 }
 
 #endif
