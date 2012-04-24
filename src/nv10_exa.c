@@ -394,9 +394,7 @@ setup_texture(NVPtr pNv, int unit, PicturePtr pict, PixmapPtr pixmap)
 	 * for all formats we support 64 bytes represents an even number of
 	 * pixels
 	 */
-//	if (pict->repeat == RepeatNone)
-		w = (w + 1) &~ 1;
-
+	w = (w + 1) & ~1;
 
 	BEGIN_NV04(push, NV10_3D(TEX_OFFSET(unit)), 1);
 	PUSH_MTHDl(push, NV10_3D(TEX_OFFSET(unit)), bo, 0, reloc);
@@ -417,6 +415,31 @@ setup_texture(NVPtr pNv, int unit, PicturePtr pict, PixmapPtr pixmap)
 	else
 		PUSH_DATA(push, NV10_3D_TEX_FILTER_MAGNIFY_LINEAR |
 				NV10_3D_TEX_FILTER_MINIFY_LINEAR);
+	if (pict->transform) {
+		BEGIN_NV04(push, NV10_3D(TEX_MATRIX_ENABLE(unit)), 1);
+		PUSH_DATA (push, 1);
+		BEGIN_NV04(push, NV10_3D(TEX_MATRIX(unit, 0)), 16);
+		PUSH_DATAf(push, xFixedToFloat(pict->transform->matrix[0][0]));
+		PUSH_DATAf(push, xFixedToFloat(pict->transform->matrix[0][1]));
+		PUSH_DATAf(push, 0.f);
+		PUSH_DATAf(push, xFixedToFloat(pict->transform->matrix[0][2]));
+		PUSH_DATAf(push, xFixedToFloat(pict->transform->matrix[1][0]));
+		PUSH_DATAf(push, xFixedToFloat(pict->transform->matrix[1][1]));
+		PUSH_DATAf(push, 0.f);
+		PUSH_DATAf(push, xFixedToFloat(pict->transform->matrix[1][2]));
+		PUSH_DATAf(push, 0.0f);
+		PUSH_DATAf(push, 0.0f);
+		PUSH_DATAf(push, 0.0f);
+		PUSH_DATAf(push, 0.0f);
+		PUSH_DATAf(push, xFixedToFloat(pict->transform->matrix[2][0]));
+		PUSH_DATAf(push, xFixedToFloat(pict->transform->matrix[2][1]));
+		PUSH_DATAf(push, 0.0f);
+		PUSH_DATAf(push, xFixedToFloat(pict->transform->matrix[2][2]));
+	} else {
+		BEGIN_NV04(push, NV10_3D(TEX_MATRIX_ENABLE(unit)), 1);
+		PUSH_DATA (push, 0);
+	}
+
 	return TRUE;
 }
 
@@ -601,76 +624,37 @@ NV10EXAPrepareComposite(int op,
 	return TRUE;
 }
 
-#define QUAD(x, y, w, h)					\
-	{{{ IntToxFixed(x),     IntToxFixed(y),     xFixed1 }},	\
-	 {{ IntToxFixed(x + w), IntToxFixed(y),     xFixed1 }},	\
-	 {{ IntToxFixed(x + w), IntToxFixed(y + h), xFixed1 }},	\
-	 {{ IntToxFixed(x),     IntToxFixed(y + h), xFixed1 }}}
-
-#define MAP(f, p, v, ...) do {						\
-		int __i;						\
-		for (__i = 0; __i < sizeof(v)/sizeof((v)[0]); __i++)	\
-			f(p, __i, v, ## __VA_ARGS__);			\
-	} while (0);
-
-#define PUSH_DATAi(push, v, i)				\
-	PUSH_DATAf(push, xFixedToFloat((v).vector[i]))
-
 static inline void
-emit_vertex(NVPtr pNv, int i, PictVector pos[],
-	    PictVector tex0[], PictVector tex1[])
+PUSH_VTX2s(struct nouveau_pushbuf *push,
+	   int x1, int y1, int x2, int y2, int dx, int dy)
 {
-	struct nouveau_pushbuf *push = pNv->pushbuf;
-
-	BEGIN_NV04(push, NV10_3D(VERTEX_TX0_2F_S), 2);
-	PUSH_DATAi(push, tex0[i], 0);
-	PUSH_DATAi(push, tex0[i], 1);
-
-	if (tex1) {
-		BEGIN_NV04(push, NV10_3D(VERTEX_TX1_2F_S), 2);
-		PUSH_DATAi(push, tex1[i], 0);
-		PUSH_DATAi(push, tex1[i], 1);
-	}
-
+	BEGIN_NV04(push, NV10_3D(VERTEX_TX0_2I), 1);
+	PUSH_DATA (push, (y1 << 16) | x1);
+	BEGIN_NV04(push, NV10_3D(VERTEX_TX1_2I), 1);
+	PUSH_DATA (push, (y2 << 16) | x2);
 	BEGIN_NV04(push, NV10_3D(VERTEX_POS_3F_X), 3);
-	PUSH_DATAi(push, pos[i], 0);
-	PUSH_DATAi(push, pos[i], 1);
+	PUSH_DATAf(push, dx);
+	PUSH_DATAf(push, dy);
 	PUSH_DATAf(push, 0.0);
-}
-
-static inline void
-transform_vertex(PictTransformPtr t, int i, PictVector vs[])
-{
-	if  (t)
-		PictureTransformPoint(t, &vs[i]);
 }
 
 void
 NV10EXAComposite(PixmapPtr pix_dst,
-		 int srcX, int srcY,
-		 int maskX, int maskY,
-		 int dstX, int dstY,
-		 int width, int height)
+		 int sx, int sy, int mx, int my, int dx, int dy, int w, int h)
 {
 	ScrnInfoPtr pScrn = xf86Screens[pix_dst->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_pushbuf *push = pNv->pushbuf;
-	PicturePtr mask = pNv->pmpict,
-		src = pNv->pspict;
-	PictVector dstq[4] = QUAD(dstX, dstY, width, height),
-		maskq[4] = QUAD(maskX, maskY, width, height),
-		srcq[4] = QUAD(srcX, srcY, width, height);
-
-	MAP(transform_vertex, src->transform, srcq);
-	if (mask)
-		MAP(transform_vertex, mask->transform, maskq);
 
 	if (!PUSH_SPACE(push, 64))
 		return;
 
 	BEGIN_NV04(push, NV10_3D(VERTEX_BEGIN_END), 1);
 	PUSH_DATA (push, NV10_3D_VERTEX_BEGIN_END_QUADS);
-	MAP(emit_vertex, pNv, dstq, srcq, mask ? maskq : NULL);
+	PUSH_VTX2s(push, sx, sy, mx, my, dx, dy);
+	PUSH_VTX2s(push, sx + w, sy, mx + w, my, dx + w, dy);
+	PUSH_VTX2s(push, sx + w, sy + h, mx + w, my + h, dx + w, dy + h);
+	PUSH_VTX2s(push, sx, sy + h, mx, my + h, dx, dy + h);
 	BEGIN_NV04(push, NV10_3D(VERTEX_BEGIN_END), 1);
 	PUSH_DATA (push, NV10_3D_VERTEX_BEGIN_END_STOP);
 }
