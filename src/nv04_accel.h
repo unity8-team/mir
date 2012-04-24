@@ -17,6 +17,7 @@
 #define PFP_NV12_BILINEAR 0x00000700
 #define PFP_NV12_BICUBIC  0x00000800
 #define XV_TABLE          0x00001000
+#define SOLID(i)         (0x00002000 + (i) * 0x100)
 
 /* subchannel assignments */
 #define SUBC_M2MF(mthd)  0, (mthd)

@@ -181,9 +181,64 @@ NV40_SetupBlend(ScrnInfoPtr pScrn, nv_pict_op_t *blend,
 }
 
 static Bool
-NV40EXATexture(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict, int unit)
+NV40EXAPictSolid(NVPtr pNv, PicturePtr pPict, int unit)
 {
-	NVPtr pNv = NVPTR(pScrn);
+	struct nouveau_pushbuf *push = pNv->pushbuf;
+
+	PUSH_DATAu(push, pNv->scratch, SOLID(unit), 2);
+	PUSH_DATA (push, pPict->pSourcePict->solidFill.color);
+	PUSH_DATA (push, 0);
+	BEGIN_NV04(push, NV30_3D(TEX_OFFSET(unit)), 8);
+	PUSH_MTHDl(push, NV30_3D(TEX_OFFSET(unit)), pNv->scratch, SOLID(unit),
+			 NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
+	PUSH_DATA (push, NV40_3D_TEX_FORMAT_FORMAT_A8R8G8B8 | 0x8000 |
+			 NV40_3D_TEX_FORMAT_LINEAR |
+			 NV30_3D_TEX_FORMAT_DIMS_2D |
+			 NV30_3D_TEX_FORMAT_NO_BORDER |
+			 (1 << NV40_3D_TEX_FORMAT_MIPMAP_COUNT__SHIFT) |
+			 NV30_3D_TEX_FORMAT_DMA0);
+	PUSH_DATA (push, NV30_3D_TEX_WRAP_S_REPEAT |
+			 NV30_3D_TEX_WRAP_T_REPEAT |
+			 NV30_3D_TEX_WRAP_R_REPEAT);
+	PUSH_DATA (push, NV40_3D_TEX_ENABLE_ENABLE);
+	PUSH_DATA (push, 0x0000aae4);
+	PUSH_DATA (push, NV30_3D_TEX_FILTER_MIN_NEAREST |
+			 NV30_3D_TEX_FILTER_MAG_NEAREST | 0x3fd6);
+	PUSH_DATA (push, 0x00010001);
+	PUSH_DATA (push, 0x00000000);
+	BEGIN_NV04(push, NV40_3D(TEX_SIZE1(unit)), 1);
+	PUSH_DATA (push, 0x00100040);
+
+	BEGIN_NV04(push, NV30_3D(VP_UPLOAD_CONST_ID), 17);
+	PUSH_DATA (push, unit * 4);
+	PUSH_DATAf(push, 1.0);
+	PUSH_DATAf(push, 0.0);
+	PUSH_DATAf(push, 0.0);
+	PUSH_DATAf(push, 0.0);
+	PUSH_DATAf(push, 0.0);
+	PUSH_DATAf(push, 1.0);
+	PUSH_DATAf(push, 0.0);
+	PUSH_DATAf(push, 0.0);
+	PUSH_DATAf(push, 0.0);
+	PUSH_DATAf(push, 0.0);
+	PUSH_DATAf(push, 1.0);
+	PUSH_DATAf(push, 0.0);
+	PUSH_DATAf(push, 1.0);
+	PUSH_DATAf(push, 1.0);
+	PUSH_DATAf(push, 0.0);
+	PUSH_DATAf(push, 0.0);
+	return TRUE;
+}
+
+static Bool
+NV40EXAPictGradient(NVPtr pNv, PicturePtr pPict, int unit)
+{
+	return TRUE;
+}
+
+static Bool
+NV40EXAPictTexture(NVPtr pNv, PixmapPtr pPix, PicturePtr pPict, int unit)
+{
 	unsigned reloc = NOUVEAU_BO_VRAM | NOUVEAU_BO_GART | NOUVEAU_BO_WR;
 	struct nouveau_pushbuf *push = pNv->pushbuf;
 	struct nouveau_bo *bo = nouveau_pixmap_bo(pPix);
@@ -279,6 +334,24 @@ NV40EXATexture(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict, int unit)
 }
 
 static Bool
+NV40EXAPicture(NVPtr pNv, PixmapPtr ppix, PicturePtr ppict, int unit)
+{
+	if (ppict->pDrawable)
+		return NV40EXAPictTexture(pNv, ppix, ppict, unit);
+
+	switch (ppict->pSourcePict->type) {
+	case SourcePictTypeSolidFill:
+		return NV40EXAPictSolid(pNv, ppict, unit);
+	case SourcePictTypeLinear:
+		return NV40EXAPictGradient(pNv, ppict, unit);
+	default:
+		break;
+	}
+
+	return FALSE;
+}
+
+static Bool
 NV40_SetupSurface(ScrnInfoPtr pScrn, PixmapPtr pPix, PictFormatShort format)
 {
 	NVPtr pNv = NVPTR(pScrn);
@@ -305,13 +378,19 @@ static Bool
 NV40EXACheckCompositeTexture(PicturePtr pPict, PicturePtr pdPict, int op)
 {
 	nv_pict_texture_format_t *fmt;
-	int w, h;
+	int w = 1, h = 1;
 
-	if (!pPict->pDrawable)
-		NOUVEAU_FALLBACK("Solid and gradient pictures unsupported\n");
-
-	w = pPict->pDrawable->width;
-	h = pPict->pDrawable->height;
+	if (pPict->pDrawable) {
+		w = pPict->pDrawable->width;
+		h = pPict->pDrawable->height;
+	} else {
+		switch (pPict->pSourcePict->type) {
+		case SourcePictTypeSolidFill:
+			break;
+		default:
+			NOUVEAU_FALLBACK("gradient\n");
+		}
+	}
 
 	if ((w > 4096) || (h > 4096))
 		NOUVEAU_FALLBACK("picture too large, %dx%d\n", w, h);
@@ -377,7 +456,7 @@ NV40EXAPrepareComposite(int op, PicturePtr psPict,
 				PixmapPtr  pmPix,
 				PixmapPtr  pdPix)
 {
-	ScrnInfoPtr pScrn = xf86Screens[psPix->drawable.pScreen->myNum];
+	ScrnInfoPtr pScrn = xf86Screens[pdPix->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
 	nv_pict_op_t *blend = NV40_GetPictOpRec(op);
 	struct nouveau_pushbuf *push = pNv->pushbuf;
@@ -392,11 +471,11 @@ NV40EXAPrepareComposite(int op, PicturePtr psPict,
 			 PICT_FORMAT_RGB(pmPict->format)));
 
 	if (!NV40_SetupSurface(pScrn, pdPix, pdPict->format) ||
-	    !NV40EXATexture(pScrn, psPix, psPict, 0))
+	    !NV40EXAPicture(pNv, psPix, psPict, 0))
 		return FALSE;
 
 	if (pmPict) {
-		if (!NV40EXATexture(pScrn, pmPix, pmPict, 1))
+		if (!NV40EXAPicture(pNv, pmPix, pmPict, 1))
 			return FALSE;
 
 		if (pdPict->format == PICT_a8) {
