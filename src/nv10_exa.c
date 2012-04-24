@@ -66,11 +66,8 @@ static struct pict_format {
 };
 
 static int
-get_tex_format(PicturePtr pict)
+get_tex_format(NVPtr pNv, PicturePtr pict)
 {
-	ScrnInfoPtr pScrn = xf86Screens[pict->pDrawable->pScreen->myNum];
-	NVPtr pNv = NVPTR(pScrn);
-
 	/* If repeat is set we're always handling a 1x1 texture with
 	 * ARGB/XRGB destination, in that case we change the format to
 	 * use the POT (swizzled) matching format.
@@ -145,20 +142,22 @@ effective_component_alpha(PicturePtr mask)
 }
 
 static Bool
-check_texture(PicturePtr pict)
+check_texture(NVPtr pNv, PicturePtr pict)
 {
-	int w, h;
+	int w = 1, h = 1;
 
-	if (!pict->pDrawable)
-		NOUVEAU_FALLBACK("Solid and gradient pictures unsupported\n");
-
-	w = pict->pDrawable->width;
-	h = pict->pDrawable->height;
+	if (pict->pDrawable) {
+		w = pict->pDrawable->width;
+		h = pict->pDrawable->height;
+	} else {
+		if (pict->pSourcePict->type != SourcePictTypeSolidFill)
+			NOUVEAU_FALLBACK("gradient pictures unsupported\n");
+	}
 
 	if (w > 2046 || h > 2046)
 		NOUVEAU_FALLBACK("picture too large, %dx%d\n", w, h);
 
-	if (!get_tex_format(pict))
+	if (!get_tex_format(pNv, pict))
 		return FALSE;
 
 	if (pict->filter != PictFilterNearest &&
@@ -338,6 +337,9 @@ print_fallback_info(char *reason, int op, PicturePtr src, PicturePtr mask,
 Bool
 NV10EXACheckComposite(int op, PicturePtr src, PicturePtr mask, PicturePtr dst)
 {
+	ScrnInfoPtr pScrn = xf86Screens[dst->pDrawable->pScreen->myNum];
+	NVPtr pNv = NVPTR(pScrn);
+
 	if (!check_pict_op(op)) {
 		print_fallback_info("pictop", op, src, mask, dst);
 		return FALSE;
@@ -348,13 +350,13 @@ NV10EXACheckComposite(int op, PicturePtr src, PicturePtr mask, PicturePtr dst)
 		return FALSE;
 	}
 
-	if (!check_texture(src)) {
+	if (!check_texture(pNv, src)) {
 		print_fallback_info("src", op, src, mask, dst);
 		return FALSE;
 	}
 
 	if (mask) {
-		if (!check_texture(mask)) {
+		if (!check_texture(pNv, mask)) {
 			print_fallback_info("mask", op, src,
 					    mask, dst);
 			return FALSE;
@@ -386,7 +388,7 @@ setup_texture(NVPtr pNv, int unit, PicturePtr pict, PixmapPtr pixmap)
 		 NV10_3D_TEX_FORMAT_WRAP_S_CLAMP_TO_EDGE |
 		 log2i(w) << 20 | log2i(h) << 16 |
 		 1 << 12 | /* lod == 1 */
-		 get_tex_format(pict) |
+		 get_tex_format(pNv, pict) |
 		 0x50 /* UNK */;
 
 	/* NPOT_SIZE expects an even number for width, we can round up uneven
@@ -458,96 +460,6 @@ setup_render_target(NVPtr pNv, PicturePtr pict, PixmapPtr pixmap)
 	return TRUE;
 }
 
-/*
- * This can be a bit difficult to understand at first glance.  Reg
- * combiners are described here:
- * http://icps.u-strasbg.fr/~marchesin/perso/extensions/NV/register_combiners.html
- *
- * Single texturing setup, without honoring vertex colors (non default
- * setup) is: Alpha RC 0 : a_0 * 1 + 0 * 0 RGB RC 0 : rgb_0 * 1 + 0 *
- * 0 RC 1s are unused Final combiner uses default setup
- *
- * Default setup uses vertex rgb/alpha in place of 1s above, but we
- * don't need that in 2D.
- *
- * Multi texturing setup, where we do TEX0 in TEX1 (masking) is:
- * Alpha RC 0 : a_0 * a_1 + 0 * 0
- * RGB RC0 : rgb_0 * a_1 + 0 * 0
- * RC 1s are unused
- * Final combiner uses default setup
- */
-
-/* Bind the combiner variable <input> to a constant 1. */
-#define RC_IN_ONE(input)						\
-	(NV10_3D_RC_IN_RGB_##input##_INPUT_ZERO |			\
-	 NV10_3D_RC_IN_RGB_##input##_COMPONENT_USAGE_ALPHA |		\
-	 NV10_3D_RC_IN_RGB_##input##_MAPPING_UNSIGNED_INVERT)
-
-/* Bind the combiner variable <input> to the specified channel from
- * the texture unit <unit>. */
-#define RC_IN_TEX(input, chan, unit)					\
-	(NV10_3D_RC_IN_RGB_##input##_INPUT_TEXTURE##unit |		\
-	 NV10_3D_RC_IN_RGB_##input##_COMPONENT_USAGE_##chan)
-
-/* Bind the combiner variable <input> to the specified channel from
- * the constant color <unit>. */
-#define RC_IN_COLOR(input, chan, unit)					\
-	(NV10_3D_RC_IN_RGB_##input##_INPUT_CONSTANT_COLOR##unit |	\
-	 NV10_3D_RC_IN_RGB_##input##_COMPONENT_USAGE_##chan)
-
-static void
-setup_combiners(NVPtr pNv, PicturePtr src, PicturePtr mask, int alu)
-{
-	struct nouveau_pushbuf *push = pNv->pushbuf;
-	uint32_t rc_in_alpha = 0, rc_in_rgb = 0;
-
-	if (PICT_FORMAT_A(src->format))
-		rc_in_alpha |= RC_IN_TEX(A, ALPHA, 0);
-	else
-		rc_in_alpha |= RC_IN_ONE(A);
-
-	if (mask && PICT_FORMAT_A(mask->format))
-		rc_in_alpha |= RC_IN_TEX(B, ALPHA, 1);
-	else
-		rc_in_alpha |= RC_IN_ONE(B);
-
-	if (effective_component_alpha(mask)) {
-		if (!needs_src_alpha(alu)) {
-			/* The alpha channels won't be used for blending. Drop
-			 * them, as our pixels only have 4 components...
-			 * output_i = src_i * mask_i
-			 */
-			if (PICT_FORMAT_RGB(src->format))
-				rc_in_rgb |= RC_IN_TEX(A, RGB, 0);
-		} else {
-			/* The RGB channels won't be used for blending. Drop
-			 * them.
-			 * output_i = src_alpha * mask_i
-			 */
-			if (PICT_FORMAT_A(src->format))
-				rc_in_rgb |= RC_IN_TEX(A, ALPHA, 0);
-			else
-				rc_in_rgb |= RC_IN_ONE(A);
-		}
-
-		rc_in_rgb |= RC_IN_TEX(B, RGB, 1);
-
-	} else {
-		if (PICT_FORMAT_RGB(src->format))
-			rc_in_rgb |= RC_IN_TEX(A, RGB, 0);
-
-		if (mask && PICT_FORMAT_A(mask->format))
-			rc_in_rgb |= RC_IN_TEX(B, ALPHA, 1);
-		else
-			rc_in_rgb |= RC_IN_ONE(B);
-	}
-
-	BEGIN_NV04(push, NV10_3D(RC_IN_ALPHA(0)), 1);
-	PUSH_DATA (push, rc_in_alpha);
-	BEGIN_NV04(push, NV10_3D(RC_IN_RGB(0)), 1);
-	PUSH_DATA (push, rc_in_rgb);
-}
-
 static void
 setup_blend_function(NVPtr pNv, PicturePtr pdpict, int alu)
 {
@@ -578,6 +490,52 @@ setup_blend_function(NVPtr pNv, PicturePtr pdpict, int alu)
 	PUSH_DATA (push, 1);
 }
 
+#define RCSRC_COL(i)  (0x01 + (unit))
+#define RCSRC_TEX(i)  (0x08 + (unit))
+#define RCSEL_COLOR   (0x00)
+#define RCSEL_ALPHA   (0x10)
+#define RCINP_ZERO    (0x00)
+#define RCINP_ONE     (0x20)
+#define RCINP_A__SHIFT 24
+#define RCINP_B__SHIFT 16
+
+static Bool
+setup_picture(NVPtr pNv, PicturePtr pict, PixmapPtr pixmap, int unit,
+	      uint32_t *color, uint32_t *alpha)
+{
+	struct nouveau_pushbuf *push = pNv->pushbuf;
+	uint32_t shift, source;
+
+	if (pict && pict->pDrawable) {
+		if (!setup_texture(pNv, unit, pict, pixmap))
+			return FALSE;
+		source = RCSRC_TEX(unit);
+	} else
+	if (pict) {
+		BEGIN_NV04(push, NV10_3D(RC_COLOR(unit)), 1);
+		PUSH_DATA (push, pict->pSourcePict->solidFill.color);
+		source = RCSRC_COL(unit);
+	}
+
+	if (pict && PICT_FORMAT_RGB(pict->format))
+		*color = RCSEL_COLOR | source;
+	else
+		*color = RCSEL_ALPHA | RCINP_ZERO;
+
+	if (pict && PICT_FORMAT_A(pict->format))
+		*alpha = RCSEL_ALPHA | source;
+	else
+		*alpha = RCSEL_ALPHA | RCINP_ONE;
+
+	if (unit)
+		shift = RCINP_B__SHIFT;
+	else
+		shift = RCINP_A__SHIFT;
+	*color <<= shift;
+	*alpha <<= shift;
+	return TRUE;
+}
+
 Bool
 NV10EXAPrepareComposite(int op,
 			PicturePtr pict_src,
@@ -590,28 +548,35 @@ NV10EXAPrepareComposite(int op,
 	ScrnInfoPtr pScrn = xf86Screens[dst->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_pushbuf *push = pNv->pushbuf;
+	uint32_t sc, sa, mc, ma;
 
 	if (!PUSH_SPACE(push, 128))
 		return FALSE;
 	PUSH_RESET(push);
 
-	/* Set dst format */
+	/* setup render target and blending */
 	if (!setup_render_target(pNv, pict_dst, dst))
 		return FALSE;
-
-	/* Set src format */
-	if (!setup_texture(pNv, 0, pict_src, src))
-		return FALSE;
-
-	/* Set mask format */
-	if (mask && !setup_texture(pNv, 1, pict_mask, mask))
-		return FALSE;
-
-	/* Set the register combiners up. */
-	setup_combiners(pNv, pict_src, pict_mask, op);
-
-	/* Set PictOp */
 	setup_blend_function(pNv, pict_dst, op);
+
+	/* select picture sources */
+	if (!setup_picture(pNv, pict_src, src, 0, &sc, &sa))
+		return FALSE;
+	if (!setup_picture(pNv, pict_mask, mask, 1, &mc, &ma))
+		return FALSE;
+
+	/* configure register combiners */
+	BEGIN_NV04(push, NV10_3D(RC_IN_ALPHA(0)), 1);
+	PUSH_DATA (push, sa | ma);
+	BEGIN_NV04(push, NV10_3D(RC_IN_RGB(0)), 1);
+	if (effective_component_alpha(pict_mask)) {
+		if (needs_src_alpha(op))
+			PUSH_DATA(push, sa | mc);
+		else
+			PUSH_DATA(push, sc | mc);
+	} else {
+		PUSH_DATA(push, sc | ma);
+	}
 
 	nouveau_pushbuf_bufctx(push, pNv->bufctx);
 	if (nouveau_pushbuf_validate(push)) {
