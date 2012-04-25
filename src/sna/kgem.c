@@ -3167,7 +3167,7 @@ void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo)
 	assert(bo->exec == NULL);
 	assert(list_is_empty(&bo->list));
 
-	if (bo->tiling == I915_TILING_NONE &&
+	if (bo->tiling == I915_TILING_NONE && !bo->scanout &&
 	    (kgem->has_llc || bo->domain == DOMAIN_CPU)) {
 		DBG(("%s: converting request for GTT map into CPU map\n",
 		     __FUNCTION__));
@@ -3274,6 +3274,7 @@ void *kgem_bo_map__cpu(struct kgem *kgem, struct kgem_bo *bo)
 	DBG(("%s(handle=%d, size=%d)\n", __FUNCTION__, bo->handle, bytes(bo)));
 	assert(!bo->purged);
 	assert(list_is_empty(&bo->list));
+	assert(!bo->scanout);
 
 	if (IS_CPU_MAP(bo->map))
 		return MAP(bo->map);
