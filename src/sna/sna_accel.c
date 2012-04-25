@@ -2256,7 +2256,7 @@ sna_pixmap_force_to_gpu(PixmapPtr pixmap, unsigned flags)
 		sna_damage_destroy(&priv->cpu_damage);
 		priv->undamaged = false;
 		list_del(&priv->list);
-		assert(!priv->cpu_bo->sync);
+		assert(priv->cpu_bo == NULL || !priv->cpu_bo->sync);
 		sna_pixmap_free_cpu(to_sna_from_pixmap(pixmap), priv);
 	}
 
