@@ -837,11 +837,11 @@ gen7_emit_wm(struct sna *sna, unsigned int kernel, int nr_surfaces, int nr_input
 	OUT_BATCH(0); /* kernel 2 */
 }
 
-static void
+static bool
 gen7_emit_binding_table(struct sna *sna, uint16_t offset)
 {
 	if (sna->render_state.gen7.surface_table == offset)
-		return;
+		return false;
 
 	/* Binding table pointers */
 	assert(is_aligned(4*offset, 32));
@@ -849,6 +849,7 @@ gen7_emit_binding_table(struct sna *sna, uint16_t offset)
 	OUT_BATCH(offset*4);
 
 	sna->render_state.gen7.surface_table = offset;
+	return true;
 }
 
 static void
@@ -970,11 +971,7 @@ gen7_emit_state(struct sna *sna,
 		const struct sna_composite_op *op,
 		uint16_t wm_binding_table)
 {
-	if (kgem_bo_is_dirty(op->src.bo) || kgem_bo_is_dirty(op->mask.bo)) {
-		gen7_emit_flush(sna);
-		kgem_clear_dirty(&sna->kgem);
-		kgem_bo_mark_dirty(op->dst.bo);
-	}
+	bool need_stall = false;
 
 	gen7_emit_cc(sna,
 		     gen7_get_blend(op->op,
@@ -1001,8 +998,22 @@ gen7_emit_state(struct sna *sna,
 		     op->u.gen7.nr_inputs);
 	gen7_emit_vertex_elements(sna, op);
 
-	gen7_emit_binding_table(sna, wm_binding_table);
+	need_stall |= gen7_emit_binding_table(sna, wm_binding_table);
 	gen7_emit_drawing_rectangle(sna, op);
+
+	if (kgem_bo_is_dirty(op->src.bo) || kgem_bo_is_dirty(op->mask.bo)) {
+		gen7_emit_flush(sna);
+		kgem_clear_dirty(&sna->kgem);
+		kgem_bo_mark_dirty(op->dst.bo);
+		need_stall = false;
+	}
+	if (need_stall) {
+		OUT_BATCH(GEN7_PIPE_CONTROL | (4 - 2));
+		OUT_BATCH(GEN7_PIPE_CONTROL_CS_STALL |
+			  GEN7_PIPE_CONTROL_STALL_AT_SCOREBOARD);
+		OUT_BATCH(0);
+		OUT_BATCH(0);
+	}
 }
 
 static void gen7_magic_ca_pass(struct sna *sna,
