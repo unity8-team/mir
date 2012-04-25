@@ -436,6 +436,7 @@ sna_crtc_restore(struct sna *sna)
 
 	assert(bo->tiling != I915_TILING_Y);
 	bo->scanout = true;
+	bo->domain = DOMAIN_NONE;
 
 	DBG(("%s: create fb %dx%d@%d/%d\n",
 	     __FUNCTION__,
@@ -673,6 +674,7 @@ sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		DBG(("%s: handle %d attached to fb %d\n",
 		     __FUNCTION__, bo->handle, sna_mode->fb_id));
 		bo->scanout = true;
+		bo->domain = DOMAIN_NONE;
 		sna_mode->fb_pixmap = sna->front->drawable.serialNumber;
 	}
 
@@ -787,6 +789,7 @@ sna_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 	DBG(("%s: attached handle %d to fb %d\n",
 	     __FUNCTION__, bo->handle, sna_crtc->shadow_fb_id));
 	bo->scanout = true;
+	bo->domain = DOMAIN_NONE;
 	return sna_crtc->shadow = shadow;
 }
 
@@ -1725,6 +1728,7 @@ sna_crtc_resize(ScrnInfoPtr scrn, int width, int height)
 		if (!sna_crtc_apply(crtc))
 			goto fail;
 	}
+	bo->domain = DOMAIN_NONE;
 
 	scrn->virtualX = width;
 	scrn->virtualY = height;
@@ -1869,6 +1873,7 @@ sna_page_flip(struct sna *sna,
 	DBG(("%s: page flipped %d crtcs\n", __FUNCTION__, count));
 	if (count) {
 		bo->scanout = true;
+		bo->domain = DOMAIN_NONE;
 	} else {
 		drmModeRmFB(sna->kgem.fd, mode->fb_id);
 		mode->fb_id = *old_fb;
