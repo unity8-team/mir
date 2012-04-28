@@ -574,7 +574,7 @@ static bool semaphores_enabled(void)
 	if (file) {
 		int value;
 		if (fscanf(file, "%d", &value) == 1)
-			detected = value > 0;
+			detected = value != 0;
 		fclose(file);
 	}
 
