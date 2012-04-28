@@ -344,7 +344,8 @@ static inline void kgem_advance_batch(struct kgem *kgem, int num_dwords)
 }
 
 bool kgem_check_bo(struct kgem *kgem, ...) __attribute__((sentinel(0)));
-bool kgem_check_bo_fenced(struct kgem *kgem, ...) __attribute__((sentinel(0)));
+bool kgem_check_bo_fenced(struct kgem *kgem, struct kgem_bo *bo);
+bool kgem_check_many_bo_fenced(struct kgem *kgem, ...) __attribute__((sentinel(0)));
 
 void _kgem_add_bo(struct kgem *kgem, struct kgem_bo *bo);
 static inline void kgem_add_bo(struct kgem *kgem, struct kgem_bo *bo)

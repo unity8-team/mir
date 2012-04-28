@@ -360,7 +360,7 @@ fallback:
 	if (kgem->nexec + 2 > KGEM_EXEC_SIZE(kgem) ||
 	    kgem->nreloc + 2 > KGEM_RELOC_SIZE(kgem) ||
 	    !kgem_check_batch(kgem, 8) ||
-	    !kgem_check_bo_fenced(kgem, dst_bo, src_bo, NULL)) {
+	    !kgem_check_many_bo_fenced(kgem, dst_bo, src_bo, NULL)) {
 		_kgem_submit(kgem);
 		_kgem_set_mode(kgem, KGEM_BLT);
 	}
@@ -732,7 +732,7 @@ tile:
 	if (kgem->nexec + 2 > KGEM_EXEC_SIZE(kgem) ||
 	    kgem->nreloc + 2 > KGEM_RELOC_SIZE(kgem) ||
 	    !kgem_check_batch(kgem, 8) ||
-	    !kgem_check_bo_fenced(kgem, dst_bo, NULL)) {
+	    !kgem_check_bo_fenced(kgem, dst_bo)) {
 		_kgem_submit(kgem);
 		_kgem_set_mode(kgem, KGEM_BLT);
 	}
@@ -969,7 +969,7 @@ fallback:
 	if (kgem->nexec + 2 > KGEM_EXEC_SIZE(kgem) ||
 	    kgem->nreloc + 2 > KGEM_RELOC_SIZE(kgem) ||
 	    !kgem_check_batch(kgem, 8) ||
-	    !kgem_check_bo_fenced(kgem, dst_bo, NULL)) {
+	    !kgem_check_bo_fenced(kgem, dst_bo)) {
 		_kgem_submit(kgem);
 		_kgem_set_mode(kgem, KGEM_BLT);
 	}

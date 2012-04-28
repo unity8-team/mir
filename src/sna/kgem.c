@@ -2977,7 +2977,45 @@ bool kgem_check_bo(struct kgem *kgem, ...)
 	return true;
 }
 
-bool kgem_check_bo_fenced(struct kgem *kgem, ...)
+bool kgem_check_bo_fenced(struct kgem *kgem, struct kgem_bo *bo)
+{
+	uint32_t size;
+
+	if (bo->proxy)
+		bo = bo->proxy;
+	if (bo->exec) {
+		if (kgem->gen < 40 &&
+		    bo->tiling != I915_TILING_NONE &&
+		    (bo->exec->flags & EXEC_OBJECT_NEEDS_FENCE) == 0) {
+			if (kgem->nfence >= kgem->fence_max)
+				return false;
+
+			size = kgem->aperture_fenced;
+			size += kgem_bo_fenced_size(kgem, bo);
+			if (size > kgem->aperture_mappable)
+				return false;
+		}
+
+		return true;
+	}
+
+	if (kgem->aperture > kgem->aperture_low)
+		return false;
+
+	if (kgem->nexec >= KGEM_EXEC_SIZE(kgem) - 1)
+		return false;
+
+	if (kgem->gen < 40 &&
+	    bo->tiling != I915_TILING_NONE &&
+	    kgem->nfence >= kgem->fence_max)
+		return false;
+
+	size = kgem->aperture;
+	size += num_pages(bo);
+	return size <= kgem->aperture_high;
+}
+
+bool kgem_check_many_bo_fenced(struct kgem *kgem, ...)
 {
 	va_list ap;
 	struct kgem_bo *bo;
@@ -4165,7 +4203,7 @@ kgem_replace_bo(struct kgem *kgem,
 	kgem_set_mode(kgem, KGEM_BLT);
 	if (!kgem_check_batch(kgem, 8) ||
 	    !kgem_check_reloc(kgem, 2) ||
-	    !kgem_check_bo_fenced(kgem, src, dst, NULL)) {
+	    !kgem_check_many_bo_fenced(kgem, src, dst, NULL)) {
 		_kgem_submit(kgem);
 		_kgem_set_mode(kgem, KGEM_BLT);
 	}

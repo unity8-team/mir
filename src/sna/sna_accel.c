@@ -2975,7 +2975,7 @@ sna_put_xybitmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 		void *ptr;
 
 		if (!kgem_check_batch(&sna->kgem, 8) ||
-		    !kgem_check_bo_fenced(&sna->kgem, bo, NULL) ||
+		    !kgem_check_bo_fenced(&sna->kgem, bo) ||
 		    !kgem_check_reloc(&sna->kgem, 2)) {
 			_kgem_submit(&sna->kgem);
 			_kgem_set_mode(&sna->kgem, KGEM_BLT);
@@ -3103,7 +3103,7 @@ sna_put_xypixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 			void *ptr;
 
 			if (!kgem_check_batch(&sna->kgem, 12) ||
-			    !kgem_check_bo_fenced(&sna->kgem, bo, NULL) ||
+			    !kgem_check_bo_fenced(&sna->kgem, bo) ||
 			    !kgem_check_reloc(&sna->kgem, 2)) {
 				_kgem_submit(&sna->kgem);
 				_kgem_set_mode(&sna->kgem, KGEM_BLT);
@@ -5117,7 +5117,7 @@ sna_copy_bitmap_blt(DrawablePtr _bitmap, DrawablePtr drawable, GCPtr gc,
 		if (src_stride <= 128) {
 			src_stride = ALIGN(src_stride, 8) / 4;
 			if (!kgem_check_batch(&sna->kgem, 7+src_stride) ||
-			    !kgem_check_bo_fenced(&sna->kgem, arg->bo, NULL) ||
+			    !kgem_check_bo_fenced(&sna->kgem, arg->bo) ||
 			    !kgem_check_reloc(&sna->kgem, 1)) {
 				_kgem_submit(&sna->kgem);
 				_kgem_set_mode(&sna->kgem, KGEM_BLT);
@@ -5159,7 +5159,7 @@ sna_copy_bitmap_blt(DrawablePtr _bitmap, DrawablePtr drawable, GCPtr gc,
 			void *ptr;
 
 			if (!kgem_check_batch(&sna->kgem, 8) ||
-			    !kgem_check_bo_fenced(&sna->kgem, arg->bo, NULL) ||
+			    !kgem_check_bo_fenced(&sna->kgem, arg->bo) ||
 			    !kgem_check_reloc(&sna->kgem, 2)) {
 				_kgem_submit(&sna->kgem);
 				_kgem_set_mode(&sna->kgem, KGEM_BLT);
@@ -5277,7 +5277,7 @@ sna_copy_plane_blt(DrawablePtr source, DrawablePtr drawable, GCPtr gc,
 		     sx, sy, bx1, bx2));
 
 		if (!kgem_check_batch(&sna->kgem, 8) ||
-		    !kgem_check_bo_fenced(&sna->kgem, arg->bo, NULL) ||
+		    !kgem_check_bo_fenced(&sna->kgem, arg->bo) ||
 		    !kgem_check_reloc(&sna->kgem, 2)) {
 			_kgem_submit(&sna->kgem);
 			_kgem_set_mode(&sna->kgem, KGEM_BLT);
@@ -9195,7 +9195,7 @@ sna_poly_fill_rect_stippled_8x8_blt(DrawablePtr drawable,
 			     __FUNCTION__, r->x + dx, r->y + dy, r->width, r->height));
 
 			if (!kgem_check_batch(&sna->kgem, 9) ||
-			    !kgem_check_bo_fenced(&sna->kgem, bo, NULL) ||
+			    !kgem_check_bo_fenced(&sna->kgem, bo) ||
 			    !kgem_check_reloc(&sna->kgem, 1)) {
 				_kgem_submit(&sna->kgem);
 				_kgem_set_mode(&sna->kgem, KGEM_BLT);
@@ -9243,7 +9243,7 @@ sna_poly_fill_rect_stippled_8x8_blt(DrawablePtr drawable,
 					uint32_t *b;
 
 					if (!kgem_check_batch(&sna->kgem, 9) ||
-					    !kgem_check_bo_fenced(&sna->kgem, bo, NULL) ||
+					    !kgem_check_bo_fenced(&sna->kgem, bo) ||
 					    !kgem_check_reloc(&sna->kgem, 1)) {
 						_kgem_submit(&sna->kgem);
 						_kgem_set_mode(&sna->kgem, KGEM_BLT);
@@ -9293,7 +9293,7 @@ sna_poly_fill_rect_stippled_8x8_blt(DrawablePtr drawable,
 						uint32_t *b;
 
 						if (!kgem_check_batch(&sna->kgem, 9) ||
-						    !kgem_check_bo_fenced(&sna->kgem, bo, NULL) ||
+						    !kgem_check_bo_fenced(&sna->kgem, bo) ||
 						    !kgem_check_reloc(&sna->kgem, 1)) {
 							_kgem_submit(&sna->kgem);
 							_kgem_set_mode(&sna->kgem, KGEM_BLT);
@@ -9433,7 +9433,7 @@ sna_poly_fill_rect_stippled_1_blt(DrawablePtr drawable,
 			if (src_stride <= 128) {
 				src_stride = ALIGN(src_stride, 8) / 4;
 				if (!kgem_check_batch(&sna->kgem, 7+src_stride) ||
-				    !kgem_check_bo_fenced(&sna->kgem, bo, NULL) ||
+				    !kgem_check_bo_fenced(&sna->kgem, bo) ||
 				    !kgem_check_reloc(&sna->kgem, 1)) {
 					_kgem_submit(&sna->kgem);
 					_kgem_set_mode(&sna->kgem, KGEM_BLT);
@@ -9475,7 +9475,7 @@ sna_poly_fill_rect_stippled_1_blt(DrawablePtr drawable,
 				void *ptr;
 
 				if (!kgem_check_batch(&sna->kgem, 8) ||
-				    !kgem_check_bo_fenced(&sna->kgem, bo, NULL) ||
+				    !kgem_check_bo_fenced(&sna->kgem, bo) ||
 				    !kgem_check_reloc(&sna->kgem, 2)) {
 					_kgem_submit(&sna->kgem);
 					_kgem_set_mode(&sna->kgem, KGEM_BLT);
@@ -9575,7 +9575,7 @@ sna_poly_fill_rect_stippled_1_blt(DrawablePtr drawable,
 				if (src_stride <= 128) {
 					src_stride = ALIGN(src_stride, 8) / 4;
 					if (!kgem_check_batch(&sna->kgem, 7+src_stride) ||
-					    !kgem_check_bo_fenced(&sna->kgem, bo, NULL) ||
+					    !kgem_check_bo_fenced(&sna->kgem, bo) ||
 					    !kgem_check_reloc(&sna->kgem, 1)) {
 						_kgem_submit(&sna->kgem);
 						_kgem_set_mode(&sna->kgem, KGEM_BLT);
@@ -9614,7 +9614,7 @@ sna_poly_fill_rect_stippled_1_blt(DrawablePtr drawable,
 					} while (--bh);
 				} else {
 					if (!kgem_check_batch(&sna->kgem, 8) ||
-					    !kgem_check_bo_fenced(&sna->kgem, bo, NULL) ||
+					    !kgem_check_bo_fenced(&sna->kgem, bo) ||
 					    !kgem_check_reloc(&sna->kgem, 2)) {
 						_kgem_submit(&sna->kgem);
 						_kgem_set_mode(&sna->kgem, KGEM_BLT);
@@ -9715,7 +9715,7 @@ sna_poly_fill_rect_stippled_1_blt(DrawablePtr drawable,
 					if (src_stride <= 128) {
 						src_stride = ALIGN(src_stride, 8) / 4;
 						if (!kgem_check_batch(&sna->kgem, 7+src_stride) ||
-						    !kgem_check_bo_fenced(&sna->kgem, bo, NULL) ||
+						    !kgem_check_bo_fenced(&sna->kgem, bo) ||
 						    !kgem_check_reloc(&sna->kgem, 1)) {
 							_kgem_submit(&sna->kgem);
 							_kgem_set_mode(&sna->kgem, KGEM_BLT);
@@ -9754,7 +9754,7 @@ sna_poly_fill_rect_stippled_1_blt(DrawablePtr drawable,
 						} while (--bh);
 					} else {
 						if (!kgem_check_batch(&sna->kgem, 8) ||
-						    !kgem_check_bo_fenced(&sna->kgem, bo, NULL) ||
+						    !kgem_check_bo_fenced(&sna->kgem, bo) ||
 						    !kgem_check_reloc(&sna->kgem, 2)) {
 							_kgem_submit(&sna->kgem);
 							_kgem_set_mode(&sna->kgem, KGEM_BLT);
@@ -9856,7 +9856,7 @@ sna_poly_fill_rect_stippled_n_box(struct sna *sna,
 			len = bw*bh;
 			len = ALIGN(len, 8) / 4;
 			if (!kgem_check_batch(&sna->kgem, 7+len) ||
-			    !kgem_check_bo_fenced(&sna->kgem, bo, NULL) ||
+			    !kgem_check_bo_fenced(&sna->kgem, bo) ||
 			    !kgem_check_reloc(&sna->kgem, 1)) {
 				_kgem_submit(&sna->kgem);
 				_kgem_set_mode(&sna->kgem, KGEM_BLT);
@@ -10512,7 +10512,7 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 
 	kgem_set_mode(&sna->kgem, KGEM_BLT);
 	if (!kgem_check_batch(&sna->kgem, 16) ||
-	    !kgem_check_bo_fenced(&sna->kgem, bo, NULL) ||
+	    !kgem_check_bo_fenced(&sna->kgem, bo) ||
 	    !kgem_check_reloc(&sna->kgem, 1)) {
 		_kgem_submit(&sna->kgem);
 		_kgem_set_mode(&sna->kgem, KGEM_BLT);
@@ -11180,7 +11180,7 @@ sna_reversed_glyph_blt(DrawablePtr drawable, GCPtr gc,
 
 	kgem_set_mode(&sna->kgem, KGEM_BLT);
 	if (!kgem_check_batch(&sna->kgem, 16) ||
-	    !kgem_check_bo_fenced(&sna->kgem, bo, NULL) ||
+	    !kgem_check_bo_fenced(&sna->kgem, bo) ||
 	    !kgem_check_reloc(&sna->kgem, 1)) {
 		_kgem_submit(&sna->kgem);
 		_kgem_set_mode(&sna->kgem, KGEM_BLT);
@@ -11549,7 +11549,7 @@ sna_push_pixels_solid_blt(GCPtr gc,
 		void *ptr;
 
 		if (!kgem_check_batch(&sna->kgem, 8) ||
-		    !kgem_check_bo_fenced(&sna->kgem, bo, NULL) ||
+		    !kgem_check_bo_fenced(&sna->kgem, bo) ||
 		    !kgem_check_reloc(&sna->kgem, 2)) {
 			_kgem_submit(&sna->kgem);
 			_kgem_set_mode(&sna->kgem, KGEM_BLT);
