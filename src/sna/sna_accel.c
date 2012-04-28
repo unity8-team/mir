@@ -5560,8 +5560,7 @@ static Bool
 sna_poly_point_blt(DrawablePtr drawable,
 		   struct kgem_bo *bo,
 		   struct sna_damage **damage,
-		   GCPtr gc, uint32_t pixel,
-		   int mode, int n, DDXPointPtr pt,
+		   GCPtr gc, int mode, int n, DDXPointPtr pt,
 		   bool clipped)
 {
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
@@ -5574,7 +5573,7 @@ sna_poly_point_blt(DrawablePtr drawable,
 	DBG(("%s: alu=%d, pixel=%08lx, clipped?=%d\n",
 	     __FUNCTION__, gc->alu, gc->fgPixel, clipped));
 
-	if (!sna_fill_init_blt(&fill, sna, pixmap, bo, gc->alu, pixel))
+	if (!sna_fill_init_blt(&fill, sna, pixmap, bo, gc->alu, gc->fgPixel))
 		return FALSE;
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
@@ -5704,7 +5703,6 @@ sna_poly_point(DrawablePtr drawable, GCPtr gc,
 	struct sna *sna = to_sna_from_pixmap(pixmap);
 	RegionRec region;
 	unsigned flags;
-	uint32_t color;
 
 	DBG(("%s(mode=%d, n=%d, pt[0]=(%d, %d)\n",
 	     __FUNCTION__, mode, n, pt[0].x, pt[0].y));
@@ -5729,7 +5727,7 @@ sna_poly_point(DrawablePtr drawable, GCPtr gc,
 		goto fallback;
 	}
 
-	if (PM_IS_SOLID(drawable, gc->planemask) && gc_is_solid(gc, &color)) {
+	if (PM_IS_SOLID(drawable, gc->planemask)) {
 		struct sna_damage **damage;
 		struct kgem_bo *bo;
 
@@ -5738,7 +5736,7 @@ sna_poly_point(DrawablePtr drawable, GCPtr gc,
 
 		if ((bo = sna_drawable_use_bo(drawable, false, &region.extents, &damage)) &&
 		    sna_poly_point_blt(drawable, bo, damage,
-				       gc, color, mode, n, pt, flags & 2))
+				       gc, mode, n, pt, flags & 2))
 			return;
 	}
 
