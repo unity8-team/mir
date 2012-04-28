@@ -57,7 +57,7 @@
 #define NO_FILL_BOXES 0
 #define NO_CLEAR 0
 
-#define NO_RING_SWITCH 1
+#define NO_RING_SWITCH 0
 
 #define GEN7_MAX_SIZE 16384
 
@@ -2425,7 +2425,7 @@ static bool prefer_blt_ring(struct sna *sna)
 
 static bool can_switch_rings(struct sna *sna)
 {
-	return sna->kgem.has_semaphores && !NO_RING_SWITCH;
+	return sna->kgem.mode == KGEM_NONE && sna->kgem.has_semaphores && !NO_RING_SWITCH;
 }
 
 static Bool
@@ -2461,6 +2461,8 @@ try_blt(struct sna *sna,
 
 	if (can_switch_rings(sna)) {
 		if (sna_picture_is_solid(src, NULL))
+			return TRUE;
+		if (src->pDrawable)
 			return TRUE;
 	}
 
