@@ -171,7 +171,7 @@ struct kgem {
 
 	uint32_t batch[4*1024];
 	struct drm_i915_gem_exec_object2 exec[256];
-	struct drm_i915_gem_relocation_entry reloc[384];
+	struct drm_i915_gem_relocation_entry reloc[612];
 };
 
 #define KGEM_BATCH_RESERVED 1
