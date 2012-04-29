@@ -1,3 +1,29 @@
+Release 2.19.0 (2012-04-29)
+===========================
+More stability fixes for UXA and support for another variant of IvyBridge.
+Given the severity of the stability fixes, I strongly recommend everybody
+to upgrade to 2.19.0.
+
+* Prevent waiting on scanlines whilst not in control of the VT and therefore
+  whilst referencing foreign CRTC configurations.
+
+* Pixmap (and bo leak) during fallback glyph composition
+
+* Remove broken acceleration for rendering glyphs directly upon the
+  destination pixmap, exposed by cairo-1.12.0 (and coincidentally fix
+  another Pixmap leak upon fallback handling).
+
+* Add support for Ivy Bridge GT2 Server chipset [PCI id 0x016a]
+
+* Remove broken damage flushing with CompositeRectangles
+  https://bugs.freedesktop.org/show_bug.cgi?id=32547
+
+* Fix crash upon server start with multiple monitors
+  https://bugs.freedesktop.org/show_bug.cgi?id=47395
+
+* Fix composition issues resulting from overly aggressive Pixmap reuse
+  https://bugs.freedesktop.org/show_bug.cgi?id=47345
+
 Release 2.18.0 (2012-02-24)
 ===========================
 Time passes, a few more bugs have crept out of the woodwork that are a
