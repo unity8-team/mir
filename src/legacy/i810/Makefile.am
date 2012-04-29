@@ -25,10 +25,10 @@ liblegacy_i810_la_SOURCES +=\
          i810_dri.c \
          i810_dri.h \
 	 $(NULL)
-endif
 
 if XVMC
 liblegacy_i810_la_SOURCES += \
 	i810_hwmc.c \
 	$(NULL)
+endif
 endif
