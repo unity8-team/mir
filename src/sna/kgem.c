@@ -4148,13 +4148,13 @@ void kgem_bo_set_binding(struct kgem_bo *bo, uint32_t format, uint16_t offset)
 void kgem_bo_clear_scanout(struct kgem *kgem, struct kgem_bo *bo)
 {
 	bo->needs_flush = true;
-	bo->reusable = true;
 	bo->flush = false;
 
 	if (!bo->scanout)
 		return;
 
 	bo->scanout = false;
+	bo->reusable = true;
 }
 
 struct kgem_bo *
