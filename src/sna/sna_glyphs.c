@@ -427,8 +427,12 @@ glyphs_to_dst(struct sna *sna,
 	     __FUNCTION__, op, src_x, src_y, nlist,
 	     list->xOff, list->yOff, dst->pDrawable->x, dst->pDrawable->y));
 
-	rects = REGION_RECTS(dst->pCompositeClip);
-	nrect = REGION_NUM_RECTS(dst->pCompositeClip);
+	if (dst->pCompositeClip->extents.x2 - dst->pCompositeClip->extents.x1 < dst->pDrawable->width ||
+	    dst->pCompositeClip->extents.y2 - dst->pCompositeClip->extents.y1 < dst->pDrawable->height) {
+		rects = REGION_RECTS(dst->pCompositeClip);
+		nrect = REGION_NUM_RECTS(dst->pCompositeClip);
+	} else
+		nrect = 0;
 
 	x = dst->pDrawable->x;
 	y = dst->pDrawable->y;
@@ -476,47 +480,68 @@ glyphs_to_dst(struct sna *sna,
 				glyph_atlas = priv.atlas;
 			}
 
-			for (i = 0; i < nrect; i++) {
+			if (nrect) {
+				for (i = 0; i < nrect; i++) {
+					struct sna_composite_rectangles r;
+					int16_t dx, dy;
+					int16_t x2, y2;
+
+					r.dst.x = x - glyph->info.x;
+					r.dst.y = y - glyph->info.y;
+					x2 = r.dst.x + glyph->info.width;
+					y2 = r.dst.y + glyph->info.height;
+					dx = dy = 0;
+
+					DBG(("%s: glyph=(%d, %d), (%d, %d), clip=(%d, %d), (%d, %d)\n",
+					     __FUNCTION__,
+					     r.dst.x, r.dst.y, x2, y2,
+					     rects[i].x1, rects[i].y1,
+					     rects[i].x2, rects[i].y2));
+					if (rects[i].y1 >= y2)
+						break;
+
+					if (r.dst.x < rects[i].x1)
+						dx = rects[i].x1 - r.dst.x, r.dst.x = rects[i].x1;
+					if (x2 > rects[i].x2)
+						x2 = rects[i].x2;
+					if (r.dst.y < rects[i].y1)
+						dy = rects[i].y1 - r.dst.y, r.dst.y = rects[i].y1;
+					if (y2 > rects[i].y2)
+						y2 = rects[i].y2;
+
+					if (r.dst.x < x2 && r.dst.y < y2) {
+						DBG(("%s: blt=(%d, %d), (%d, %d)\n",
+						     __FUNCTION__, r.dst.x, r.dst.y, x2, y2));
+
+						r.src.x = r.dst.x + src_x;
+						r.src.y = r.dst.y + src_y;
+						r.mask.x = dx + priv.coordinate.x;
+						r.mask.y = dy + priv.coordinate.y;
+						r.width  = x2 - r.dst.x;
+						r.height = y2 - r.dst.y;
+						tmp.blt(sna, &tmp, &r);
+						apply_damage(&tmp, &r);
+					}
+				}
+			} else {
 				struct sna_composite_rectangles r;
-				int16_t dx, dy;
-				int16_t x2, y2;
 
 				r.dst.x = x - glyph->info.x;
 				r.dst.y = y - glyph->info.y;
-				x2 = r.dst.x + glyph->info.width;
-				y2 = r.dst.y + glyph->info.height;
-				dx = dy = 0;
+				r.src.x = r.dst.x + src_x;
+				r.src.y = r.dst.y + src_y;
+				r.mask.x = priv.coordinate.x;
+				r.mask.y = priv.coordinate.y;
+				r.width  = glyph->info.width;
+				r.height = glyph->info.height;
 
-				DBG(("%s: glyph=(%d, %d), (%d, %d), clip=(%d, %d), (%d, %d)\n",
+				DBG(("%s: glyph=(%d, %d)x(%d, %d), unclipped\n",
 				     __FUNCTION__,
-				     r.dst.x, r.dst.y, x2, y2,
-				     rects[i].x1, rects[i].y1,
-				     rects[i].x2, rects[i].y2));
-				if (rects[i].y1 >= y2)
-					break;
+				     r.dst.x, r.dst.y,
+				     r.width, r.height));
 
-				if (r.dst.x < rects[i].x1)
-					dx = rects[i].x1 - r.dst.x, r.dst.x = rects[i].x1;
-				if (x2 > rects[i].x2)
-					x2 = rects[i].x2;
-				if (r.dst.y < rects[i].y1)
-					dy = rects[i].y1 - r.dst.y, r.dst.y = rects[i].y1;
-				if (y2 > rects[i].y2)
-					y2 = rects[i].y2;
-
-				if (r.dst.x < x2 && r.dst.y < y2) {
-					DBG(("%s: blt=(%d, %d), (%d, %d)\n",
-					     __FUNCTION__, r.dst.x, r.dst.y, x2, y2));
-
-					r.src.x = r.dst.x + src_x;
-					r.src.y = r.dst.y + src_y;
-					r.mask.x = dx + priv.coordinate.x;
-					r.mask.y = dy + priv.coordinate.y;
-					r.width  = x2 - r.dst.x;
-					r.height = y2 - r.dst.y;
-					tmp.blt(sna, &tmp, &r);
-					apply_damage(&tmp, &r);
-				}
+				tmp.blt(sna, &tmp, &r);
+				apply_damage(&tmp, &r);
 			}
 
 next_glyph:
