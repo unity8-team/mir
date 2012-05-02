@@ -600,6 +600,10 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 		/* 865g cannot handle a batch spanning multiple pages */
 		kgem->max_batch_size = PAGE_SIZE / sizeof(uint32_t);
 
+	kgem->min_alignment = 4;
+	if (gen < 40)
+		kgem->min_alignment = 64;
+
 	kgem->half_cpu_cache_pages = cpu_cache_size() >> 13;
 
 	list_init(&kgem->active_partials);
@@ -770,8 +774,8 @@ static uint32_t kgem_untiled_pitch(struct kgem *kgem,
 				   uint32_t width, uint32_t bpp,
 				   bool scanout)
 {
-	width = ALIGN(width, 4) * bpp >> 3;
-	return ALIGN(width, scanout ? 64 : 4);
+	width = ALIGN(width, 2) * bpp >> 3;
+	return ALIGN(width, scanout ? 64 : kgem->min_alignment);
 }
 
 void kgem_get_tile_size(struct kgem *kgem, int tiling,
@@ -832,13 +836,17 @@ static uint32_t kgem_surface_size(struct kgem *kgem,
 			tile_width = 512;
 			tile_height = kgem->gen < 30 ? 16 : 8;
 		} else {
-			tile_width = scanout ? 64 : 4 * bpp >> 3;
-			tile_height = 4;
+			tile_width = 2 * bpp >> 3;
+			tile_width = ALIGN(tile_width,
+					   scanout ? 64 : kgem->min_alignment);
+			tile_height = 2;
 		}
 	} else switch (tiling) {
 	default:
 	case I915_TILING_NONE:
-		tile_width = scanout ? 64 : 4 * bpp >> 3;
+		tile_width = 2 * bpp >> 3;
+		tile_width = ALIGN(tile_width,
+				   scanout ? 64 : kgem->min_alignment);
 		tile_height = 2;
 		break;
 	case I915_TILING_X:

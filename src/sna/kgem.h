@@ -143,6 +143,7 @@ struct kgem {
 	uint16_t nfence;
 	uint16_t wait;
 	uint16_t max_batch_size;
+	uint16_t min_alignment;
 
 	uint32_t flush:1;
 	uint32_t need_expire:1;
