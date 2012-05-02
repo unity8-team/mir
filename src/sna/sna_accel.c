@@ -6746,7 +6746,6 @@ spans_fallback:
 		}
 
 		gc->ops = (GCOps *)&sna_gc_ops;
-		assert_pixmap_contains_box(data.pixmap, &data.region.extents);
 		if (data.damage) {
 			if (data.dx | data.dy)
 				pixman_region_translate(&data.region, data.dx, data.dy);
@@ -10622,8 +10621,6 @@ sna_glyph_extents(FontPtr font,
 
 		extents->overallWidth += p->metrics.characterWidth;
 	}
-
-	assert(extents->overallWidth > 0);
 }
 
 static bool sna_set_glyph(CharInfoPtr in, CharInfoPtr out)
@@ -10716,6 +10713,16 @@ inline static bool sna_get_glyph16(FontPtr font, struct sna_font *priv,
 	return sna_set_glyph(ret, *out = p);
 }
 
+static inline bool sna_font_too_large(FontPtr font)
+{
+	int top = max(FONTMAXBOUNDS(font, ascent), FONTASCENT(font));
+	int bot = max(FONTMAXBOUNDS(font, descent), FONTDESCENT(font));
+	int width = max(FONTMAXBOUNDS(font, characterWidth), -FONTMINBOUNDS(font, characterWidth));
+	DBG(("%s: (%d + %d) x %d: %d\n", __FUNCTION__,
+	     top, bot, width, (top + bot) * (width + 7)/8));
+	return (top + bot) * (width + 7)/8 > 124;
+}
+
 static int
 sna_poly_text8(DrawablePtr drawable, GCPtr gc,
 	       int x, int y,
@@ -10729,6 +10736,9 @@ sna_poly_text8(DrawablePtr drawable, GCPtr gc,
 	uint32_t fg;
 
 	if (drawable->depth < 8)
+		goto fallback;
+
+	if (sna_font_too_large(gc->font))
 		goto fallback;
 
 	for (i = n = 0; i < count; i++) {
@@ -10820,6 +10830,9 @@ sna_poly_text16(DrawablePtr drawable, GCPtr gc,
 	if (drawable->depth < 8)
 		goto fallback;
 
+	if (sna_font_too_large(gc->font))
+		goto fallback;
+
 	for (i = n = 0; i < count; i++) {
 		if (sna_get_glyph16(gc->font, priv, chars[i], &info[n]))
 			n++;
@@ -10907,6 +10920,9 @@ sna_image_text8(DrawablePtr drawable, GCPtr gc,
 	long unsigned i, n;
 
 	if (drawable->depth < 8)
+		goto fallback;
+
+	if (sna_font_too_large(gc->font))
 		goto fallback;
 
 	for (i = n = 0; i < count; i++) {
@@ -10998,6 +11014,9 @@ sna_image_text16(DrawablePtr drawable, GCPtr gc,
 	long unsigned i, n;
 
 	if (drawable->depth < 8)
+		goto fallback;
+
+	if (sna_font_too_large(gc->font))
 		goto fallback;
 
 	for (i = n = 0; i < count; i++) {
@@ -11335,6 +11354,9 @@ sna_image_glyph(DrawablePtr drawable, GCPtr gc,
 	if (!PM_IS_SOLID(drawable, gc->planemask))
 		goto fallback;
 
+	if (sna_font_too_large(gc->font))
+		goto fallback;
+
 	if ((bo = sna_drawable_use_bo(drawable, true,
 				      &region.extents, &damage)) &&
 	    sna_reversed_glyph_blt(drawable, gc, x, y, n, info, base,
@@ -11410,6 +11432,9 @@ sna_poly_glyph(DrawablePtr drawable, GCPtr gc,
 		goto fallback;
 
 	if (!gc_is_solid(gc, &fg))
+		goto fallback;
+
+	if (sna_font_too_large(gc->font))
 		goto fallback;
 
 	if ((bo = sna_drawable_use_bo(drawable, true,
