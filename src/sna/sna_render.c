@@ -1846,7 +1846,7 @@ sna_render_composite_redirect(struct sna *sna,
 			    width, height, bpp,
 			    kgem_choose_tiling(&sna->kgem, I915_TILING_X,
 					       width, height, bpp),
-			    CREATE_SCANOUT | CREATE_TEMPORARY);
+			    CREATE_TEMPORARY);
 	if (!bo)
 		return FALSE;
 

@@ -384,7 +384,7 @@ sna_tiling_fill_boxes(struct sna *sna,
 							       tmp.drawable.width,
 							       tmp.drawable.height,
 							       dst->drawable.bitsPerPixel),
-					    CREATE_SCANOUT | CREATE_TEMPORARY);
+					    CREATE_TEMPORARY);
 			if (bo) {
 				int16_t dx = this.extents.x1;
 				int16_t dy = this.extents.y1;
