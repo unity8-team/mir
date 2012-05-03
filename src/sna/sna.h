@@ -446,16 +446,7 @@ bool must_check sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 						RegionPtr region,
 						unsigned flags);
 
-static inline bool must_check
-sna_drawable_move_to_cpu(DrawablePtr drawable, unsigned flags)
-{
-	RegionRec region;
-
-	pixman_region_init_rect(&region,
-				drawable->x, drawable->y,
-				drawable->width, drawable->height);
-	return sna_drawable_move_region_to_cpu(drawable, &region, flags);
-}
+bool must_check sna_drawable_move_to_cpu(DrawablePtr drawable, unsigned flags);
 
 static inline bool must_check
 sna_drawable_move_to_gpu(DrawablePtr drawable, unsigned flags)

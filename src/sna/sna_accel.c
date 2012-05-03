@@ -1697,6 +1697,43 @@ out:
 	return true;
 }
 
+bool
+sna_drawable_move_to_cpu(DrawablePtr drawable, unsigned flags)
+{
+	RegionRec region;
+	PixmapPtr pixmap;
+	int16_t dx, dy;
+
+	if (drawable->type == DRAWABLE_PIXMAP)
+		return sna_pixmap_move_to_cpu((PixmapPtr)drawable, flags);
+
+	pixmap = get_window_pixmap((WindowPtr)drawable);
+	get_drawable_deltas(drawable, pixmap, &dx, &dy);
+
+	DBG(("%s: (%d, %d)x(%d, %d) + (%d, %d), flags=%x\n",
+	     __FUNCTION__,
+	     drawable->x, drawable->y,
+	     drawable->width, drawable->height,
+	     dx, dy, flags));
+
+	region.extents.x1 = drawable->x + dx;
+	region.extents.y1 = drawable->y + dy;
+	region.extents.x2 = region.extents.x1 + drawable->width;
+	region.extents.y2 = region.extents.y1 + drawable->height;
+	region.data = NULL;
+
+	if (region.extents.x1 < 0)
+		region.extents.x1 = 0;
+	if (region.extents.y1 < 0)
+		region.extents.y1 = 0;
+	if (region.extents.x2 > pixmap->drawable.width)
+		region.extents.x2 = pixmap->drawable.width;
+	if (region.extents.y2 > pixmap->drawable.height)
+		region.extents.y2 = pixmap->drawable.height;
+
+	return sna_drawable_move_region_to_cpu(&pixmap->drawable, &region, flags);
+}
+
 static bool alu_overwrites(uint8_t alu)
 {
 	switch (alu) {
