@@ -128,19 +128,36 @@ Bool RADEONCheckBPP(int bpp)
 
 PixmapPtr RADEONSolidPixmap(ScreenPtr pScreen, uint32_t solid)
 {
+    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    RADEONInfoPtr info = RADEONPTR(pScrn);
     PixmapPtr pPix = pScreen->CreatePixmap(pScreen, 1, 1, 32, 0);
-    struct radeon_bo *bo;
 
     exaMoveInPixmap(pPix);
-    bo = radeon_get_pixmap_bo(pPix);
 
-    if (radeon_bo_map(bo, 1)) {
+#if defined(XF86DRM_MODE)
+    if (info->cs) {
+	struct radeon_bo *bo;
+
+	bo = radeon_get_pixmap_bo(pPix);
+
+	if (radeon_bo_map(bo, 1)) {
+	    pScreen->DestroyPixmap(pPix);
+	    return NULL;
+	}
+
+	memcpy(bo->ptr, &solid, 4);
+	radeon_bo_unmap(bo);
+
+	return pPix;
+    }
+#endif
+
+    if (!exaDrawableIsOffscreen(&pPix->drawable)) {
 	pScreen->DestroyPixmap(pPix);
 	return NULL;
     }
 
-    memcpy(bo->ptr, &solid, 4);
-    radeon_bo_unmap(bo);
+    memcpy(info->FB + exaGetPixmapOffset(pPix), &solid, 4);
 
     return pPix;
 }
