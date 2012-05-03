@@ -190,6 +190,21 @@ static inline Bool sna_damage_intersect(struct sna_damage *damage,
 	return _sna_damage_intersect(damage, region, result);
 }
 
+static inline bool
+sna_damage_overlaps_box(const struct sna_damage *damage,
+			const BoxRec *box)
+{
+	if (box->x2 <= damage->extents.x1 ||
+	    box->x1 >= damage->extents.x2)
+		return FALSE;
+
+	if (box->y2 <= damage->extents.y1 ||
+	    box->y1 >= damage->extents.y2)
+		return FALSE;
+
+	return TRUE;
+}
+
 int _sna_damage_contains_box(struct sna_damage *damage,
 			     const BoxRec *box);
 static inline int sna_damage_contains_box(struct sna_damage *damage,

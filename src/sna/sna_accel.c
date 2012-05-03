@@ -1523,9 +1523,10 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 		priv->undamaged = true;
 	}
 
-	if (sna_damage_contains_box(priv->gpu_damage,
-				    &region->extents) != PIXMAN_REGION_OUT) {
-		DBG(("%s: region (%dx%d) intersects gpu damage\n",
+	if (priv->gpu_damage &&
+	    (DAMAGE_IS_ALL(priv->gpu_damage) ||
+	     sna_damage_overlaps_box(priv->gpu_damage, &region->extents))) {
+		DBG(("%s: region (%dx%d) overlaps gpu damage\n",
 		     __FUNCTION__,
 		     region->extents.x2 - region->extents.x1,
 		     region->extents.y2 - region->extents.y1));
@@ -1538,8 +1539,17 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 				       priv->gpu_bo, 0, 0,
 				       pixmap, 0, 0,
 				       &region->extents, 1);
-		} else {
+			goto done;
+		}
+
+		if (sna_damage_contains_box(priv->gpu_damage,
+					    &region->extents) != PIXMAN_REGION_OUT) {
 			RegionRec want, *r = region;
+
+			DBG(("%s: region (%dx%d) intersects gpu damage\n",
+			     __FUNCTION__,
+			     region->extents.x2 - region->extents.x1,
+			     region->extents.y2 - region->extents.y1));
 
 			/* Expand the region to move 32x32 pixel blocks at a
 			 * time, as we assume that we will continue writing

@@ -984,20 +984,6 @@ static bool box_contains(const BoxRec *a, const BoxRec *b)
 	return true;
 }
 
-static inline Bool sna_damage_maybe_contains_box(const struct sna_damage *damage,
-						 const BoxRec *box)
-{
-	if (box->x2 <= damage->extents.x1 ||
-	    box->x1 >= damage->extents.x2)
-		return FALSE;
-
-	if (box->y2 <= damage->extents.y1 ||
-	    box->y1 >= damage->extents.y2)
-		return FALSE;
-
-	return TRUE;
-}
-
 static struct sna_damage *__sna_damage_subtract(struct sna_damage *damage,
 						RegionPtr region)
 {
@@ -1011,7 +997,7 @@ static struct sna_damage *__sna_damage_subtract(struct sna_damage *damage,
 
 	assert(RegionNotEmpty(region));
 
-	if (!sna_damage_maybe_contains_box(damage, &region->extents))
+	if (!sna_damage_overlaps_box(damage, &region->extents))
 		return damage;
 
 
@@ -1096,7 +1082,7 @@ inline static struct sna_damage *__sna_damage_subtract_box(struct sna_damage *da
 		return NULL;
 	}
 
-	if (!sna_damage_maybe_contains_box(damage, box))
+	if (!sna_damage_overlaps_box(damage, box))
 		return damage;
 
 	if (box_contains(box, &damage->extents)) {
@@ -1189,7 +1175,7 @@ static struct sna_damage *__sna_damage_subtract_boxes(struct sna_damage *damage,
 	extents.y1 += dy;
 	extents.y2 += dy;
 
-	if (!sna_damage_maybe_contains_box(damage, &extents))
+	if (!sna_damage_overlaps_box(damage, &extents))
 		return damage;
 
 	if (n == 1)
@@ -1248,7 +1234,7 @@ static int __sna_damage_contains_box(struct sna_damage *damage,
 	if (damage->mode == DAMAGE_ALL)
 		return PIXMAN_REGION_IN;
 
-	if (!sna_damage_maybe_contains_box(damage, box))
+	if (!sna_damage_overlaps_box(damage, box))
 		return PIXMAN_REGION_OUT;
 
 	ret = pixman_region_contains_rectangle(&damage->region, (BoxPtr)box);
@@ -1297,7 +1283,7 @@ bool _sna_damage_contains_box__no_reduce(const struct sna_damage *damage,
 	if (damage->mode == DAMAGE_SUBTRACT)
 		return false;
 
-	if (!sna_damage_maybe_contains_box(damage, box))
+	if (!sna_damage_overlaps_box(damage, box))
 		return false;
 
 	return pixman_region_contains_rectangle((RegionPtr)&damage->region,
