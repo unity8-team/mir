@@ -462,7 +462,7 @@ static inline bool kgem_bo_map_will_stall(struct kgem *kgem, struct kgem_bo *bo)
 	     __FUNCTION__, bo->handle,
 	     bo->domain, bo->presumed_offset, bo->size));
 
-	if (!kgem_bo_is_mappable(kgem, bo))
+	if (!kgem_bo_is_mappable(kgem, bo) && kgem_bo_is_busy(bo))
 		return true;
 
 	if (kgem->wedged)

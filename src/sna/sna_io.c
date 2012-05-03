@@ -516,17 +516,16 @@ static bool upload_inplace(struct kgem *kgem,
 	 * able to almagamate a series of small writes into a single
 	 * operation.
 	 */
-	if (!bo->map) {
+	if (!bo->map || kgem_bo_map_will_stall(kgem, bo)) {
 		unsigned int bytes = 0;
 		while (n--) {
 			bytes += (box->x2 - box->x1) * (box->y2 - box->y1);
 			box++;
 		}
-		if (bytes * bpp >> 12 < kgem->half_cpu_cache_pages)
-			return false;
+		return bytes * bpp >> 12 >= kgem->half_cpu_cache_pages;
 	}
 
-	return !kgem_bo_map_will_stall(kgem, bo);
+	return true;
 }
 
 bool sna_write_boxes(struct sna *sna, PixmapPtr dst,
@@ -570,7 +569,9 @@ fallback:
 	}
 
 	/* Try to avoid switching rings... */
-	if (!can_blt || kgem->ring == KGEM_RENDER ||
+	if (!can_blt ||
+	    kgem->ring == KGEM_RENDER ||
+	    (kgem->has_semaphores && kgem->mode == KGEM_NONE) ||
 	    upload_too_large(sna, extents.x2 - extents.x1, extents.y2 - extents.y1)) {
 		PixmapRec tmp;
 
