@@ -4076,7 +4076,7 @@ void kgem_buffer_read_sync(struct kgem *kgem, struct kgem_bo *_bo)
 	assert(_bo->proxy);
 
 	_bo = _bo->proxy;
-	assert(bo->proxy == NULL);
+	assert(_bo->proxy == NULL);
 	assert(_bo->exec == NULL);
 
 	bo = (struct kgem_partial_bo *)_bo;
