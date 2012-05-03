@@ -1136,6 +1136,8 @@ glyphs_fallback(CARD8 op,
 		mask_image = dst_image;
 		src_x -= x;
 		src_y -= y;
+		x += dst->pDrawable->x;
+		y += dst->pDrawable->y;
 	}
 
 	do {
@@ -1152,7 +1154,7 @@ glyphs_fallback(CARD8 op,
 			glyph_image = sna_glyph(g)->image;
 			if (glyph_image == NULL) {
 				PicturePtr picture;
-				int dx, dy;
+				int gx, gy;
 
 				picture = GlyphPicture(g)[screen];
 				if (picture == NULL)
@@ -1160,11 +1162,11 @@ glyphs_fallback(CARD8 op,
 
 				glyph_image = image_from_pict(picture,
 							      FALSE,
-							      &dx, &dy);
+							      &gx, &gy);
 				if (!glyph_image)
 					goto next_glyph;
 
-				assert(dx == 0 && dy == 0);
+				assert(gx == 0 && gy == 0);
 				sna_glyph(g)->image = glyph_image;
 			}
 
@@ -1191,11 +1193,15 @@ glyphs_fallback(CARD8 op,
 				int xi = x - g->info.x;
 				int yi = y - g->info.y;
 
-				DBG(("%s: glyph+(%d, %d) to dst (%d, %d)x(%d, %d), src (%d, %d) [op=%d]\n",
+				DBG(("%s: glyph+(%d, %d) to dst (%d, %d)x(%d, %d)/[(%d, %d)x(%d, %d)], src (%d, %d) [op=%d]\n",
 				     __FUNCTION__,
 				     dx, dy,
 				     xi, yi,
 				     g->info.width, g->info.height,
+				     dst->pDrawable->x,
+				     dst->pDrawable->y,
+				     dst->pDrawable->width,
+				     dst->pDrawable->height,
 				     src_x + xi,
 				     src_y + yi,
 				     op));
@@ -1261,7 +1267,7 @@ sna_glyphs(CARD8 op,
 	if (REGION_NUM_RECTS(dst->pCompositeClip) == 0)
 		return;
 
-	if (FALLBACK || DEBUG_NO_RENDER)
+	if (FALLBACK || !sna->have_render)
 		goto fallback;
 
 	if (wedged(sna)) {
