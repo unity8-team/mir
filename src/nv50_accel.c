@@ -44,6 +44,9 @@ NV50SyncToVBlank(PixmapPtr ppix, BoxPtr box)
 	if (!crtcs)
 		return;
 
+	if (!PUSH_SPACE(push, 10))
+		return;
+
 	BEGIN_NV04(push, SUBC_NVSW(0x0060), 2);
 	PUSH_DATA (push, pNv->vblank_sem->handle);
 	PUSH_DATA (push, 0);
