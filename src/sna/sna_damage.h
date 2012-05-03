@@ -36,7 +36,8 @@ static inline void sna_damage_combine(struct sna_damage **l,
 				      struct sna_damage *r,
 				      int dx, int dy)
 {
-	*l = _sna_damage_combine(*l, r, dx, dy);
+	assert(!DAMAGE_IS_ALL(*l));
+	*l = _sna_damage_combine(*l, DAMAGE_PTR(r), dx, dy);
 }
 
 fastcall struct sna_damage *_sna_damage_add(struct sna_damage *damage,

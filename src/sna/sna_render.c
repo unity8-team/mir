@@ -1869,6 +1869,7 @@ sna_render_composite_redirect(struct sna *sna,
 	t->real_bo = op->dst.bo;
 	t->real_damage = op->damage;
 	if (op->damage) {
+		assert(!DAMAGE_IS_ALL(op->damage));
 		t->damage = sna_damage_create();
 		op->damage = &t->damage;
 	}
@@ -1899,8 +1900,10 @@ sna_render_composite_redirect_done(struct sna *sna,
 					   &t->box, 1);
 		}
 		if (t->damage) {
+			DBG(("%s: combining damage, offset=(%d, %d)\n",
+			     __FUNCTION__, t->box.x1, t->box.y1));
 			sna_damage_combine(t->real_damage, t->damage,
-					   -t->box.x1, -t->box.y1);
+					   t->box.x1, t->box.y1);
 			__sna_damage_destroy(t->damage);
 		}
 
