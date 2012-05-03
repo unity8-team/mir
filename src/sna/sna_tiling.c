@@ -188,6 +188,14 @@ sna_tiling_composite_done(struct sna *sna,
 					if (y2 > y + height)
 						y2 = y + height;
 
+					DBG(("%s: rect[%d] = (%d, %d)x(%d,%d), tile=(%d,%d)x(%d, %d), blt=(%d,%d),(%d,%d), delta=(%d,%d)\n",
+					     __FUNCTION__, n,
+					     r->dst.x, r->dst.y,
+					     r->width, r->height,
+					     x, y, width, height,
+					     x1, y1, x2, y2,
+					     dx, dy));
+
 					if (y2 > y1 && x2 > x1) {
 						struct sna_composite_rectangles rr;
 						rr.src.x = dx + r->src.x;

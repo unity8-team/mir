@@ -957,6 +957,10 @@ sna_render_picture_partial(struct sna *sna,
 		kgem_get_tile_size(&sna->kgem, bo->tiling,
 				   &tile_width, &tile_height, &tile_size);
 
+		DBG(("%s: tiling=%d, size=%dx%d, chunk=%d\n",
+		     __FUNCTION__, bo->tiling,
+		     tile_width, tile_height, tile_size));
+
 		/* Ensure we align to an even tile row */
 		box.y1 = box.y1 & ~(2*tile_height - 1);
 		box.y2 = ALIGN(box.y2, 2*tile_height);
@@ -988,8 +992,6 @@ sna_render_picture_partial(struct sna *sna,
 					h * bo->pitch);
 	if (channel->bo == NULL)
 		return 0;
-
-	channel->bo->pitch = bo->pitch;
 
 	if (channel->transform) {
 		memset(&channel->embedded_transform,

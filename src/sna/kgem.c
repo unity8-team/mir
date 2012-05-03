@@ -2960,7 +2960,7 @@ bool kgem_check_bo(struct kgem *kgem, ...)
 		if (bo->exec)
 			continue;
 
-		if (bo->proxy) {
+		while (bo->proxy) {
 			bo = bo->proxy;
 			if (bo->exec)
 				continue;
@@ -2989,7 +2989,7 @@ bool kgem_check_bo_fenced(struct kgem *kgem, struct kgem_bo *bo)
 {
 	uint32_t size;
 
-	if (bo->proxy)
+	while (bo->proxy)
 		bo = bo->proxy;
 	if (bo->exec) {
 		if (kgem->gen < 40 &&
@@ -3034,7 +3034,7 @@ bool kgem_check_many_bo_fenced(struct kgem *kgem, ...)
 
 	va_start(ap, kgem);
 	while ((bo = va_arg(ap, struct kgem_bo *))) {
-		if (bo->proxy)
+		while (bo->proxy)
 			bo = bo->proxy;
 		if (bo->exec) {
 			if (kgem->gen >= 40 || bo->tiling == I915_TILING_NONE)
@@ -3098,10 +3098,10 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 		assert(bo->refcnt);
 		assert(!bo->purged);
 
-		delta += bo->delta;
-		if (bo->proxy) {
-			DBG(("%s: adding proxy for handle=%d\n",
-			     __FUNCTION__, bo->handle));
+		while (bo->proxy) {
+			DBG(("%s: adding proxy [delta=%d] for handle=%d\n",
+			     __FUNCTION__, bo->delta, bo->handle));
+			delta += bo->delta;
 			assert(bo->handle == bo->proxy->handle);
 			/* need to release the cache upon batch submit */
 			list_move(&bo->request, &kgem->next_request->buffers);
@@ -3527,8 +3527,9 @@ struct kgem_bo *kgem_create_proxy(struct kgem_bo *target,
 {
 	struct kgem_bo *bo;
 
-	DBG(("%s: target handle=%d, offset=%d, length=%d, io=%d\n",
-	     __FUNCTION__, target->handle, offset, length, target->io));
+	DBG(("%s: target handle=%d [proxy? %d], offset=%d, length=%d, io=%d\n",
+	     __FUNCTION__, target->handle, target->proxy ? target->proxy->delta : -1,
+	     offset, length, target->io));
 
 	bo = __kgem_bo_alloc(target->handle, length);
 	if (bo == NULL)
@@ -3537,15 +3538,11 @@ struct kgem_bo *kgem_create_proxy(struct kgem_bo *target,
 	bo->reusable = false;
 	bo->size.bytes = length;
 
-	bo->io = target->io;
+	bo->io = target->io && target->proxy == NULL;
 	bo->dirty = target->dirty;
 	bo->tiling = target->tiling;
 	bo->pitch = target->pitch;
 
-	if (target->proxy) {
-		offset += target->delta;
-		target = target->proxy;
-	}
 	bo->proxy = kgem_bo_reference(target);
 	bo->delta = offset;
 	return bo;
@@ -4079,6 +4076,7 @@ void kgem_buffer_read_sync(struct kgem *kgem, struct kgem_bo *_bo)
 	assert(_bo->proxy);
 
 	_bo = _bo->proxy;
+	assert(bo->proxy == NULL);
 	assert(_bo->exec == NULL);
 
 	bo = (struct kgem_partial_bo *)_bo;

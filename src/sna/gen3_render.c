@@ -2381,9 +2381,14 @@ gen3_composite_picture(struct sna *sna,
 		return sna_render_picture_convert(sna, picture, channel, pixmap,
 						  x, y, w, h, dst_x, dst_y);
 
-	if (too_large(pixmap->drawable.width, pixmap->drawable.height))
+	if (too_large(pixmap->drawable.width, pixmap->drawable.height)) {
+		DBG(("%s: pixmap too large (%dx%d), extracting (%d, %d)x(%d,%d)\n",
+		     __FUNCTION__,
+		     pixmap->drawable.width, pixmap->drawable.height,
+		     x, y, w, h));
 		return sna_render_picture_extract(sna, picture, channel,
 						  x, y, w, h, dst_x, dst_y);
+	}
 
 	return sna_render_pixmap_bo(sna, channel, pixmap,
 				    x, y, w, h, dst_x, dst_y);

@@ -2138,7 +2138,8 @@ sna_pixmap_create_upload(ScreenPtr screen,
 	int bpp = BitsPerPixel(depth);
 	void *ptr;
 
-	DBG(("%s(%d, %d, %d)\n", __FUNCTION__, width, height, depth));
+	DBG(("%s(%d, %d, %d, flags=%x)\n", __FUNCTION__,
+	     width, height, depth, flags));
 	assert(width);
 	assert(height);
 
