@@ -129,7 +129,6 @@ struct sna_pixmap {
 
 	uint32_t stride;
 	uint32_t clear_color;
-	unsigned flush;
 
 #define SOURCE_BIAS 4
 	uint16_t source_count;
@@ -139,6 +138,7 @@ struct sna_pixmap {
 	uint8_t undamaged :1;
 	uint8_t create :3;
 	uint8_t header :1;
+	uint8_t flush :1;
 };
 
 struct sna_glyph {

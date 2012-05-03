@@ -163,7 +163,7 @@ static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 	if (priv == NULL)
 		return NULL;
 
-	if (priv->flush++)
+	if (priv->flush)
 		return priv->gpu_bo;
 
 	tiling = color_tiling(sna, &pixmap->drawable);
@@ -181,6 +181,7 @@ static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 
 	/* Don't allow this named buffer to be replaced */
 	priv->pinned = 1;
+	priv->flush = true;
 
 	return priv->gpu_bo;
 }
@@ -322,12 +323,11 @@ static void _sna_dri_destroy_buffer(struct sna *sna, DRI2Buffer2Ptr buffer)
 			struct sna_pixmap *priv = sna_pixmap(private->pixmap);
 
 			/* Undo the DRI markings on this pixmap */
-			assert(priv->flush > 0);
-			if (--priv->flush == 0) {
-				list_del(&priv->list);
-				sna_accel_watch_flush(sna, -1);
-				priv->pinned = private->pixmap == sna->front;
-			}
+			assert(priv->flush);
+			list_del(&priv->list);
+			sna_accel_watch_flush(sna, -1);
+			priv->pinned = private->pixmap == sna->front;
+			priv->flush = false;
 
 			screen->DestroyPixmap(private->pixmap);
 		}
@@ -649,13 +649,13 @@ sna_dri_copy_region(DrawablePtr draw,
 		     struct kgem_bo *, struct kgem_bo *, bool) = sna_dri_copy;
 
 	if (dst_buffer->attachment == DRI2BufferFrontLeft) {
-		dst = sna_pixmap_set_dri(sna, pixmap);
+		dst = sna_pixmap_get_bo(pixmap);
 		copy = sna_dri_copy_to_front;
 	} else
 		dst = get_private(dst_buffer)->bo;
 
 	if (src_buffer->attachment == DRI2BufferFrontLeft) {
-		src = sna_pixmap_set_dri(sna, pixmap);
+		src = sna_pixmap_get_bo(pixmap);
 		assert(copy == sna_dri_copy);
 		copy = sna_dri_copy_from_front;
 	} else
