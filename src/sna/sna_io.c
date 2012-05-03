@@ -42,6 +42,8 @@
 
 #define PITCH(x, y) ALIGN((x)*(y), 4)
 
+#define FORCE_INPLACE 0
+
 /* XXX Need to avoid using GTT fenced access for I915_TILING_Y on 855GM */
 
 static Bool
@@ -109,6 +111,15 @@ static void read_boxes_inplace(struct kgem *kgem,
 	} while (--n);
 }
 
+static bool download_inplace(struct kgem *kgem, struct kgem_bo *bo)
+{
+	if (FORCE_INPLACE)
+		return FORCE_INPLACE > 0;
+
+	return !kgem_bo_map_will_stall(kgem, bo) ||
+		bo->tiling == I915_TILING_NONE;
+}
+
 void sna_read_boxes(struct sna *sna,
 		    struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
 		    PixmapPtr dst, int16_t dst_dx, int16_t dst_dy,
@@ -150,8 +161,7 @@ void sna_read_boxes(struct sna *sna,
 	 * this path.
 	 */
 
-	if (!kgem_bo_map_will_stall(kgem, src_bo) ||
-	    src_bo->tiling == I915_TILING_NONE) {
+	if (download_inplace(kgem, src_bo)) {
 fallback:
 		read_boxes_inplace(kgem,
 				   src_bo, src_dx, src_dy,
@@ -512,6 +522,9 @@ static bool upload_inplace(struct kgem *kgem,
 			   const BoxRec *box,
 			   int n, int bpp)
 {
+	if (FORCE_INPLACE)
+		return FORCE_INPLACE > 0;
+
 	/* If we are writing through the GTT, check first if we might be
 	 * able to almagamate a series of small writes into a single
 	 * operation.
