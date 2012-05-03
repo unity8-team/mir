@@ -1315,8 +1315,10 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 			      pixmap->drawable.width,
 			      pixmap->drawable.height)) {
 		sna_damage_destroy(&priv->gpu_damage);
-		sna_pixmap_free_gpu(sna, priv);
 		priv->undamaged = false;
+
+		if (flags & MOVE_WRITE)
+			sna_pixmap_free_gpu(sna, priv);
 
 		if (pixmap->devPrivate.ptr == NULL &&
 		    !sna_pixmap_alloc_cpu(sna, pixmap, priv, false))
@@ -1458,8 +1460,10 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 	    !sna_pixmap_alloc_cpu(sna, pixmap, priv, priv->gpu_damage != NULL))
 		return false;
 
-	if (priv->gpu_bo == NULL)
+	if (priv->gpu_bo == NULL) {
+		assert(priv->gpu_damage == NULL);
 		goto done;
+	}
 
 	assert(priv->gpu_bo->proxy == NULL);
 	if (priv->clear) {
