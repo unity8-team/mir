@@ -163,7 +163,7 @@ static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 	if (priv == NULL)
 		return NULL;
 
-	if (priv->flush)
+	if (priv->flush++)
 		return priv->gpu_bo;
 
 	tiling = color_tiling(sna, &pixmap->drawable);
@@ -181,7 +181,6 @@ static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 
 	/* Don't allow this named buffer to be replaced */
 	priv->pinned = 1;
-	priv->flush = true;
 
 	return priv->gpu_bo;
 }
@@ -317,17 +316,21 @@ static void _sna_dri_destroy_buffer(struct sna *sna, DRI2Buffer2Ptr buffer)
 	if (buffer == NULL)
 		return;
 
+	DBG(("%s: %p [handle=%d] -- refcnt=%d, pixmap=%d\n",
+	     __FUNCTION__, buffer, private->bo->handle, private->refcnt,
+	     private->pixmap ? private->pixmap->drawable.serialNumber : 0));
+
 	if (--private->refcnt == 0) {
 		if (private->pixmap) {
 			ScreenPtr screen = private->pixmap->drawable.pScreen;
 			struct sna_pixmap *priv = sna_pixmap(private->pixmap);
 
 			/* Undo the DRI markings on this pixmap */
-			assert(priv->flush);
-			list_del(&priv->list);
-			sna_accel_watch_flush(sna, -1);
-			priv->pinned = private->pixmap == sna->front;
-			priv->flush = false;
+			if (priv->flush && --priv->flush == 0) {
+				list_del(&priv->list);
+				sna_accel_watch_flush(sna, -1);
+				priv->pinned = private->pixmap == sna->front;
+			}
 
 			screen->DestroyPixmap(private->pixmap);
 		}
@@ -1238,6 +1241,8 @@ static void sna_dri_flip_event(struct sna *sna,
 			flip->next_front.name = flip->front->name;
 			flip->off_delay = 5;
 		} else if (--flip->off_delay) {
+			DBG(("%s: queuing no-flip [delay=%d]\n",
+			     __FUNCTION__, flip->off_delay));
 			/* Just queue a no-op flip to trigger another event */
 			flip->count = sna_page_flip(sna,
 						    get_private(flip->front)->bo,
@@ -1765,6 +1770,13 @@ blit:
 			goto blit;
 		}
 
+		DBG(("%s: referencing (%p:%d, %p:%d)\n",
+		     __FUNCTION__,
+		     front, get_private(front)->refcnt,
+		     back, get_private(back)->refcnt));
+		sna_dri_reference_buffer(front);
+		sna_dri_reference_buffer(back);
+
 		if (!sna_dri_page_flip(sna, info)) {
 			sna_dri_frame_event_info_free(info);
 			goto blit;
@@ -1773,9 +1785,6 @@ blit:
 		info->next_front.name = info->front->name;
 		info->next_front.bo = get_private(info->front)->bo;
 		info->off_delay = 5;
-
-		sna_dri_reference_buffer(front);
-		sna_dri_reference_buffer(back);
 	} else if (info->type != DRI2_ASYNC_FLIP) {
 		/* A normal vsync'ed client is finishing, wait for it
 		 * to unpin the old framebuffer before taking over.
