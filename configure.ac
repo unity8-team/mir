@@ -265,8 +265,6 @@ if test "x$DEBUG" = xfull; then
         CFLAGS="$CFLAGS -O0 -ggdb3"
 fi
 
-AC_CHECK_HEADERS([sys/timerfd.h])
-
 DRIVER_NAME=intel
 AC_SUBST([DRIVER_NAME])
 AC_SUBST([moduledir])
