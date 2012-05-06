@@ -10796,9 +10796,6 @@ sna_poly_text8(DrawablePtr drawable, GCPtr gc,
 	if (drawable->depth < 8)
 		goto fallback;
 
-	if (sna_font_too_large(gc->font))
-		goto fallback;
-
 	for (i = n = 0; i < count; i++) {
 		if (sna_get_glyph8(gc->font, priv, chars[i], &info[n]))
 			n++;
@@ -10828,8 +10825,11 @@ sna_poly_text8(DrawablePtr drawable, GCPtr gc,
 	if (!ACCEL_POLY_TEXT8)
 		goto force_fallback;
 
+	if (sna_font_too_large(gc->font))
+		goto force_fallback;
+
 	if (!PM_IS_SOLID(drawable, gc->planemask))
-		return false;
+		goto force_fallback;
 
 	if (!gc_is_solid(gc, &fg))
 		goto force_fallback;
@@ -10888,9 +10888,6 @@ sna_poly_text16(DrawablePtr drawable, GCPtr gc,
 	if (drawable->depth < 8)
 		goto fallback;
 
-	if (sna_font_too_large(gc->font))
-		goto fallback;
-
 	for (i = n = 0; i < count; i++) {
 		if (sna_get_glyph16(gc->font, priv, chars[i], &info[n]))
 			n++;
@@ -10920,8 +10917,11 @@ sna_poly_text16(DrawablePtr drawable, GCPtr gc,
 	if (!ACCEL_POLY_TEXT16)
 		goto force_fallback;
 
+	if (sna_font_too_large(gc->font))
+		goto force_fallback;
+
 	if (!PM_IS_SOLID(drawable, gc->planemask))
-		return false;
+		goto force_fallback;
 
 	if (!gc_is_solid(gc, &fg))
 		goto force_fallback;
@@ -10980,9 +10980,6 @@ sna_image_text8(DrawablePtr drawable, GCPtr gc,
 	if (drawable->depth < 8)
 		goto fallback;
 
-	if (sna_font_too_large(gc->font))
-		goto fallback;
-
 	for (i = n = 0; i < count; i++) {
 		if (sna_get_glyph8(gc->font, priv, chars[i], &info[n]))
 			n++;
@@ -11022,6 +11019,9 @@ sna_image_text8(DrawablePtr drawable, GCPtr gc,
 		goto force_fallback;
 
 	if (!ACCEL_IMAGE_TEXT8)
+		goto force_fallback;
+
+	if (sna_font_too_large(gc->font))
 		goto force_fallback;
 
 	if (!PM_IS_SOLID(drawable, gc->planemask))
@@ -11074,9 +11074,6 @@ sna_image_text16(DrawablePtr drawable, GCPtr gc,
 	if (drawable->depth < 8)
 		goto fallback;
 
-	if (sna_font_too_large(gc->font))
-		goto fallback;
-
 	for (i = n = 0; i < count; i++) {
 		if (sna_get_glyph16(gc->font, priv, chars[i], &info[n]))
 			n++;
@@ -11116,6 +11113,9 @@ sna_image_text16(DrawablePtr drawable, GCPtr gc,
 		goto force_fallback;
 
 	if (!ACCEL_IMAGE_TEXT16)
+		goto force_fallback;
+
+	if (sna_font_too_large(gc->font))
 		goto force_fallback;
 
 	if (!PM_IS_SOLID(drawable, gc->planemask))
