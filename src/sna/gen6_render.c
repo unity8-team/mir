@@ -3339,14 +3339,14 @@ fallback_blt:
 		int i;
 
 		for (i = 1; i < n; i++) {
-			if (extents.x1 < box[i].x1)
+			if (box[i].x1 < extents.x1)
 				extents.x1 = box[i].x1;
-			if (extents.y1 < box[i].y1)
+			if (box[i].y1 < extents.y1)
 				extents.y1 = box[i].y1;
 
-			if (extents.x2 > box[i].x2)
+			if (box[i].x2 > extents.x2)
 				extents.x2 = box[i].x2;
-			if (extents.y2 > box[i].y2)
+			if (box[i].y2 > extents.y2)
 				extents.y2 = box[i].y2;
 		}
 		if (!sna_render_composite_redirect(sna, &tmp,
