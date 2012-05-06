@@ -151,6 +151,40 @@ int sna_crtc_to_plane(xf86CrtcPtr crtc)
 	return sna_crtc->plane;
 }
 
+static unsigned get_fb(struct sna *sna, struct kgem_bo *bo,
+		       int width, int height)
+{
+	ScrnInfoPtr scrn = sna->scrn;
+	int ret;
+
+	assert(bo->proxy == NULL);
+	if (bo->delta) {
+		DBG(("%s: reusing fb=%d for handle=%d\n",
+		     __FUNCTION__, bo->delta, bo->handle));
+		return bo->delta;
+	}
+
+	DBG(("%s: create fb %dx%d@%d/%d\n",
+	     __FUNCTION__, width, height, scrn->depth, scrn->bitsPerPixel));
+
+	assert(bo->tiling != I915_TILING_Y);
+	ret = drmModeAddFB(sna->kgem.fd,
+			   width, height,
+			   scrn->depth, scrn->bitsPerPixel,
+			   bo->pitch, bo->handle,
+			   &bo->delta);
+	if (ret < 0) {
+		ErrorF("%s: failed to add fb: %dx%d depth=%d, bpp=%d, pitch=%d\n",
+		       __FUNCTION__,
+		       width, height,
+		       scrn->depth, scrn->bitsPerPixel, bo->pitch);
+		return 0;
+	}
+
+	bo->scanout = true;
+	return bo->delta;
+}
+
 static uint32_t gem_create(int fd, int size)
 {
 	struct drm_i915_gem_create create;
@@ -434,10 +468,6 @@ sna_crtc_restore(struct sna *sna)
 	if (!bo)
 		return;
 
-	assert(bo->tiling != I915_TILING_Y);
-	bo->scanout = true;
-	bo->domain = DOMAIN_NONE;
-
 	DBG(("%s: create fb %dx%d@%d/%d\n",
 	     __FUNCTION__,
 	     sna->front->drawable.width,
@@ -446,13 +476,10 @@ sna_crtc_restore(struct sna *sna)
 	     sna->front->drawable.bitsPerPixel));
 
 	sna_mode_remove_fb(sna);
-	if (drmModeAddFB(sna->kgem.fd,
-			 sna->front->drawable.width,
-			 sna->front->drawable.height,
-			 sna->front->drawable.depth,
-			 sna->front->drawable.bitsPerPixel,
-			 bo->pitch, bo->handle,
-			 &sna->mode.fb_id))
+	sna->mode.fb_id = get_fb(sna, bo,
+				 sna->front->drawable.width,
+				 sna->front->drawable.height);
+	if (sna->mode.fb_id == 0)
 		return;
 
 	DBG(("%s: handle %d attached to fb %d\n",
@@ -468,6 +495,7 @@ sna_crtc_restore(struct sna *sna)
 			return;
 	}
 
+	bo->domain = DOMAIN_NONE;
 	scrn->displayWidth = bo->pitch / sna->mode.cpp;
 	sna->mode.fb_pixmap = sna->front->drawable.serialNumber;
 }
@@ -652,28 +680,16 @@ sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		if (!bo)
 			return FALSE;
 
-		DBG(("%s: create fb %dx%d@%d/%d\n",
-		     __FUNCTION__,
-		     scrn->virtualX, scrn->virtualY,
-		     scrn->depth, scrn->bitsPerPixel));
-
-		assert(bo->tiling != I915_TILING_Y);
-		ret = drmModeAddFB(sna->kgem.fd,
-				   scrn->virtualX, scrn->virtualY,
-				   scrn->depth, scrn->bitsPerPixel,
-				   bo->pitch, bo->handle,
-				   &sna_mode->fb_id);
-		if (ret < 0) {
-			ErrorF("%s: failed to add fb: %dx%d depth=%d, bpp=%d, pitch=%d\n",
-			       __FUNCTION__,
-			       scrn->virtualX, scrn->virtualY,
-			       scrn->depth, scrn->bitsPerPixel, bo->pitch);
+		/* recreate the fb in case the size has changed */
+		assert(bo->delta == 0);
+		sna_mode->fb_id = get_fb(sna, bo,
+					 scrn->virtualX, scrn->virtualY);
+		if (sna_mode->fb_id == 0)
 			return FALSE;
-		}
 
 		DBG(("%s: handle %d attached to fb %d\n",
 		     __FUNCTION__, bo->handle, sna_mode->fb_id));
-		bo->scanout = true;
+
 		bo->domain = DOMAIN_NONE;
 		sna_mode->fb_pixmap = sna->front->drawable.serialNumber;
 	}
@@ -773,22 +789,14 @@ sna_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 		return NULL;
 	}
 
-	assert(bo->tiling != I915_TILING_Y);
-	if (drmModeAddFB(sna->kgem.fd,
-			 width, height, scrn->depth, scrn->bitsPerPixel,
-			 bo->pitch, bo->handle,
-			 &sna_crtc->shadow_fb_id)) {
-		ErrorF("%s: failed to add rotate  fb: %dx%d depth=%d, bpp=%d, pitch=%d\n",
-		       __FUNCTION__,
-		       width, height,
-		       scrn->depth, scrn->bitsPerPixel, bo->pitch);
+	sna_crtc->shadow_fb_id = get_fb(sna, bo, width, height);
+	if (sna_crtc->shadow_fb_id == 0) {
 		scrn->pScreen->DestroyPixmap(shadow);
 		return NULL;
 	}
 
 	DBG(("%s: attached handle %d to fb %d\n",
 	     __FUNCTION__, bo->handle, sna_crtc->shadow_fb_id));
-	bo->scanout = true;
 	bo->domain = DOMAIN_NONE;
 	return sna_crtc->shadow = shadow;
 }
@@ -813,10 +821,8 @@ sna_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr pixmap, void *data)
 	DBG(("%s(fb=%d, handle=%d)\n", __FUNCTION__,
 	     sna_crtc->shadow_fb_id, sna_pixmap_get_bo(pixmap)->handle));
 
-	drmModeRmFB(sna->kgem.fd, sna_crtc->shadow_fb_id);
 	sna_crtc->shadow_fb_id = 0;
 
-	kgem_bo_clear_scanout(&sna->kgem, sna_pixmap_get_bo(pixmap));
 	pixmap->drawable.pScreen->DestroyPixmap(pixmap);
 	sna_crtc->shadow = NULL;
 }
@@ -1702,23 +1708,16 @@ sna_crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	if (!bo)
 		goto fail;
 
-	assert(bo->tiling != I915_TILING_Y);
-	if (drmModeAddFB(sna->kgem.fd, width, height,
-			 scrn->depth, scrn->bitsPerPixel,
-			 bo->pitch, bo->handle,
-			 &mode->fb_id)) {
-		ErrorF("%s: failed to add fb: %dx%d depth=%d, bpp=%d, pitch=%d\n",
-		       __FUNCTION__,
-		       width, height,
-		       scrn->depth, scrn->bitsPerPixel, bo->pitch);
+	assert(bo->delta == 0);
+
+	mode->fb_id = get_fb(sna, bo, width, height);
+	if (mode->fb_id == 0)
 		goto fail;
-	}
 
 	DBG(("%s: handle %d, pixmap serial %lu attached to fb %d\n",
 	     __FUNCTION__, bo->handle,
 	     sna->front->drawable.serialNumber, mode->fb_id));
 
-	bo->scanout = true;
 	for (i = 0; i < xf86_config->num_crtc; i++) {
 		xf86CrtcPtr crtc = xf86_config->crtc[i];
 
@@ -1739,17 +1738,12 @@ sna_crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	assert(scrn->pScreen->GetScreenPixmap(scrn->pScreen) == sna->front);
 	assert(scrn->pScreen->GetWindowPixmap(scrn->pScreen->root) == sna->front);
 
-	if (old_fb_id)
-		drmModeRmFB(sna->kgem.fd, old_fb_id);
-	kgem_bo_clear_scanout(&sna->kgem, sna_pixmap_get_bo(old_front));
 	scrn->pScreen->DestroyPixmap(old_front);
 
 	return TRUE;
 
 fail:
 	DBG(("%s: restoring original front pixmap and fb\n", __FUNCTION__));
-	if (old_fb_id != mode->fb_id)
-		drmModeRmFB(sna->kgem.fd, mode->fb_id);
 	mode->fb_id = old_fb_id;
 
 	if (sna->front)
@@ -1843,15 +1837,9 @@ sna_page_flip(struct sna *sna,
 	/*
 	 * Create a new handle for the back buffer
 	 */
-	assert(bo->tiling != I915_TILING_Y);
-	if (drmModeAddFB(sna->kgem.fd, scrn->virtualX, scrn->virtualY,
-			 scrn->depth, scrn->bitsPerPixel,
-			 bo->pitch, bo->handle,
-			 &mode->fb_id)) {
-		ErrorF("%s: failed to add fb: %dx%d depth=%d, bpp=%d, pitch=%d\n",
-		       __FUNCTION__,
-		       scrn->virtualX, scrn->virtualY,
-		       scrn->depth, scrn->bitsPerPixel, bo->pitch);
+	mode->fb_id = get_fb(sna, bo, scrn->virtualX, scrn->virtualY);
+	if (mode->fb_id == 0) {
+		mode->fb_id = *old_fb;
 		return 0;
 	}
 
@@ -1871,21 +1859,12 @@ sna_page_flip(struct sna *sna,
 	 */
 	count = do_page_flip(sna, data, ref_crtc_hw_id);
 	DBG(("%s: page flipped %d crtcs\n", __FUNCTION__, count));
-	if (count) {
-		bo->scanout = true;
+	if (count)
 		bo->domain = DOMAIN_NONE;
-	} else {
-		drmModeRmFB(sna->kgem.fd, mode->fb_id);
+	else
 		mode->fb_id = *old_fb;
-	}
 
 	return count;
-}
-
-void sna_mode_delete_fb(struct sna *sna, uint32_t fb)
-{
-	if (fb)
-		drmModeRmFB(sna->kgem.fd, fb);
 }
 
 static const xf86CrtcConfigFuncsRec sna_crtc_config_funcs = {
@@ -1932,11 +1911,8 @@ sna_mode_remove_fb(struct sna *sna)
 	DBG(("%s: deleting fb id %d for pixmap serial %d\n",
 	     __FUNCTION__, mode->fb_id,mode->fb_pixmap));
 
-	if (mode->fb_id) {
-		drmModeRmFB(sna->kgem.fd, mode->fb_id);
-		mode->fb_id = 0;
-		mode->fb_pixmap = 0;
-	}
+	mode->fb_id = 0;
+	mode->fb_pixmap = 0;
 }
 
 void
@@ -1957,7 +1933,6 @@ sna_mode_fini(struct sna *sna)
 #endif
 
 	sna_mode_remove_fb(sna);
-	kgem_bo_clear_scanout(&sna->kgem, sna_pixmap_get_bo(sna->front));
 
 	/* mode->shadow_fb_id should have been destroyed already */
 }

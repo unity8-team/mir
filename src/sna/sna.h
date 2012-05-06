@@ -318,8 +318,6 @@ extern int sna_page_flip(struct sna *sna,
 
 extern PixmapPtr sna_set_screen_pixmap(struct sna *sna, PixmapPtr pixmap);
 
-void sna_mode_delete_fb(struct sna *sna, uint32_t fb);
-
 constant static inline struct sna *
 to_sna(ScrnInfoPtr scrn)
 {

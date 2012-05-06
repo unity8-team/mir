@@ -336,7 +336,6 @@ static void _sna_dri_destroy_buffer(struct sna *sna, DRI2Buffer2Ptr buffer)
 		}
 
 		private->bo->flush = 0;
-		kgem_bo_clear_scanout(&sna->kgem, private->bo); /* paranoia */
 		kgem_bo_destroy(&sna->kgem, private->bo);
 
 		free(buffer);
@@ -392,7 +391,6 @@ static void set_bo(PixmapPtr pixmap, struct kgem_bo *bo)
 	sna_damage_destroy(&priv->cpu_damage);
 	priv->undamaged = false;
 
-	kgem_bo_clear_scanout(&sna->kgem, priv->gpu_bo); /* paranoia */
 	kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
 	priv->gpu_bo = ref(bo);
 }
@@ -860,15 +858,7 @@ sna_dri_add_frame_event(struct sna_dri_frame_event *info)
 static void
 sna_dri_frame_event_release_bo(struct kgem *kgem, struct kgem_bo *bo)
 {
-	kgem_bo_clear_scanout(kgem, bo);
 	kgem_bo_destroy(kgem, bo);
-}
-
-static void
-sna_dri_frame_event_finish(struct sna_dri_frame_event *info)
-{
-	sna_mode_delete_fb(info->sna, info->old_fb);
-	kgem_bo_clear_scanout(&info->sna->kgem, info->old_front.bo);
 }
 
 static void
@@ -1177,13 +1167,10 @@ static void sna_dri_flip_event(struct sna *sna,
 					 flip->event_data);
 		}
 
-		sna_dri_frame_event_finish(flip);
 		sna_dri_frame_event_info_free(flip);
 		break;
 
 	case DRI2_FLIP_THROTTLE:
-		sna_dri_frame_event_finish(flip);
-
 		assert(sna->dri.flip_pending[flip->pipe] == flip);
 		sna->dri.flip_pending[flip->pipe] = NULL;
 
@@ -1220,8 +1207,6 @@ static void sna_dri_flip_event(struct sna *sna,
 		     sna->dri.flip_pending[flip->pipe] != NULL,
 		     flip->front->name != flip->old_front.name));
 		assert(sna->dri.flip_pending[flip->pipe] == flip);
-
-		sna_dri_frame_event_finish(flip);
 
 		if (flip->front->name != flip->next_front.name) {
 			DBG(("%s: async flip continuing\n", __FUNCTION__));
@@ -1801,7 +1786,6 @@ blit:
 		}
 		info->front->name = info->back->name;
 		get_private(info->front)->bo = get_private(info->back)->bo;
-		__kgem_flush(&sna->kgem, get_private(info->back)->bo);
 	}
 
 	if (bo == NULL) {

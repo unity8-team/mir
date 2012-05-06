@@ -1088,6 +1088,25 @@ inline static void kgem_bo_remove_from_active(struct kgem *kgem,
 	assert(list_is_empty(&bo->vma));
 }
 
+static void kgem_bo_clear_scanout(struct kgem *kgem, struct kgem_bo *bo)
+{
+	if (!bo->scanout)
+		return;
+
+	assert(bo->proxy == NULL);
+
+	DBG(("%s: handle=%d, fb=%d\n", __FUNCTION__, bo->handle, bo->delta));
+	if (bo->delta) {
+		drmModeRmFB(kgem->fd, bo->delta);
+		bo->delta = 0;
+	}
+
+	bo->scanout = false;
+	bo->needs_flush = true;
+	bo->flush = false;
+	bo->reusable = true;
+}
+
 static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 {
 	DBG(("%s: handle=%d\n", __FUNCTION__, bo->handle));
@@ -1096,6 +1115,7 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 	assert(bo->refcnt == 0);
 
 	bo->binding.offset = 0;
+	kgem_bo_clear_scanout(kgem, bo);
 
 	if (NO_CACHE)
 		goto destroy;
@@ -4149,18 +4169,6 @@ void kgem_bo_set_binding(struct kgem_bo *bo, uint32_t format, uint16_t offset)
 		b->offset = offset;
 		bo->binding.next = b;
 	}
-}
-
-void kgem_bo_clear_scanout(struct kgem *kgem, struct kgem_bo *bo)
-{
-	bo->needs_flush = true;
-	bo->flush = false;
-
-	if (!bo->scanout)
-		return;
-
-	bo->scanout = false;
-	bo->reusable = true;
 }
 
 struct kgem_bo *
