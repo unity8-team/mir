@@ -249,7 +249,7 @@ struct sna {
 	} mode;
 
 	struct sna_dri {
-		void *flip_pending[2];
+		void *flip_pending;
 	} dri;
 
 	unsigned int tiling;

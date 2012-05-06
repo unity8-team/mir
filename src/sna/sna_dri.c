@@ -937,6 +937,9 @@ can_flip(struct sna * sna,
 	WindowPtr win = (WindowPtr)draw;
 	PixmapPtr pixmap;
 
+	if (!sna->scrn->vtSema)
+		return FALSE;
+
 	if (draw->type == DRAWABLE_PIXMAP)
 		return FALSE;
 
@@ -1109,7 +1112,7 @@ sna_dri_flip_continue(struct sna *sna,
 
 	info->next_front.name = 0;
 
-	sna->dri.flip_pending[info->pipe] = info;
+	sna->dri.flip_pending = info;
 
 	return TRUE;
 }
@@ -1171,8 +1174,8 @@ static void sna_dri_flip_event(struct sna *sna,
 		break;
 
 	case DRI2_FLIP_THROTTLE:
-		assert(sna->dri.flip_pending[flip->pipe] == flip);
-		sna->dri.flip_pending[flip->pipe] = NULL;
+		assert(sna->dri.flip_pending == flip);
+		sna->dri.flip_pending = NULL;
 
 		if (flip->next_front.name &&
 		    flip->drawable_id &&
@@ -1204,9 +1207,9 @@ static void sna_dri_flip_event(struct sna *sna,
 	case DRI2_ASYNC_FLIP:
 		DBG(("%s: async swap flip completed on pipe %d, pending? %d, new? %d\n",
 		     __FUNCTION__, flip->pipe,
-		     sna->dri.flip_pending[flip->pipe] != NULL,
+		     sna->dri.flip_pending != NULL,
 		     flip->front->name != flip->old_front.name));
-		assert(sna->dri.flip_pending[flip->pipe] == flip);
+		assert(sna->dri.flip_pending == flip);
 
 		if (flip->front->name != flip->next_front.name) {
 			DBG(("%s: async flip continuing\n", __FUNCTION__));
@@ -1240,7 +1243,7 @@ finish_async_flip:
 			flip->next_front.bo = NULL;
 
 			DBG(("%s: async flip completed\n", __FUNCTION__));
-			sna->dri.flip_pending[flip->pipe] = NULL;
+			sna->dri.flip_pending = NULL;
 			sna_dri_frame_event_info_free(flip);
 		}
 		break;
@@ -1326,9 +1329,9 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		int type = DRI2_FLIP_THROTTLE;
 
 		DBG(("%s: performing immediate swap on pipe %d, pending? %d\n",
-		     __FUNCTION__, pipe, sna->dri.flip_pending[pipe] != NULL));
+		     __FUNCTION__, pipe, sna->dri.flip_pending != NULL));
 
-		info = sna->dri.flip_pending[pipe];
+		info = sna->dri.flip_pending;
 		if (info) {
 			if (info->drawable_id == draw->id) {
 				DBG(("%s: chaining flip\n", __FUNCTION__));
@@ -1382,7 +1385,7 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 				       CREATE_EXACT);
 		info->back->name = kgem_bo_flink(&sna->kgem,
 						 get_private(info->back)->bo);
-		sna->dri.flip_pending[info->pipe] = info;
+		sna->dri.flip_pending = info;
 
 		DRI2SwapComplete(info->client, draw, 0, 0, 0,
 				 DRI2_EXCHANGE_COMPLETE,
@@ -1697,16 +1700,17 @@ sna_dri_async_swap(ClientPtr client, DrawablePtr draw,
 	struct sna *sna = to_sna_from_drawable(draw);
 	struct sna_dri_frame_event *info;
 	struct kgem_bo *bo;
-	int name, pipe;
+	int name;
 
 	DBG(("%s()\n", __FUNCTION__));
 
-	pipe = sna_dri_get_pipe(draw);
-	if (pipe == -1) {
-		PixmapPtr pixmap = get_drawable_pixmap(draw);
+	if (!sna->scrn->vtSema) {
+		PixmapPtr pixmap;
 
+exchange:
 		DBG(("%s: unattached, exchange pixmaps\n", __FUNCTION__));
 
+		pixmap = get_drawable_pixmap(draw);
 		set_bo(pixmap, get_private(back)->bo);
 		sna_dri_exchange_attachment(front, back);
 		get_private(back)->pixmap = pixmap;
@@ -1733,10 +1737,14 @@ blit:
 	bo = NULL;
 	name = 0;
 
-	info = sna->dri.flip_pending[pipe];
+	info = sna->dri.flip_pending;
 	if (info == NULL) {
-		DBG(("%s: no pending flip on pipe %d, so updating scanout\n",
-		     __FUNCTION__, pipe));
+		int pipe = sna_dri_get_pipe(draw);
+		if (pipe == -1)
+			goto exchange;
+
+		DBG(("%s: no pending flip, so updating scanout\n",
+		     __FUNCTION__));
 
 		info = calloc(1, sizeof(struct sna_dri_frame_event));
 		if (!info)
@@ -1801,7 +1809,7 @@ blit:
 	info->back->name = name;
 
 	set_bo(sna->front, get_private(info->front)->bo);
-	sna->dri.flip_pending[info->pipe] = info;
+	sna->dri.flip_pending = info;
 
 	DRI2SwapComplete(client, draw, 0, 0, 0,
 			 DRI2_EXCHANGE_COMPLETE, func, data);
