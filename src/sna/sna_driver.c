@@ -590,7 +590,7 @@ sna_block_handler(int i, pointer data, pointer timeout, pointer read_mask)
 	sna->BlockHandler(i, sna->BlockData, timeout, read_mask);
 
 	if (*tv == NULL || ((*tv)->tv_usec | (*tv)->tv_sec))
-		sna_accel_block_handler(sna);
+		sna_accel_block_handler(sna, tv);
 }
 
 static void

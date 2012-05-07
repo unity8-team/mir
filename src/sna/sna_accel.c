@@ -12372,7 +12372,7 @@ static void sna_accel_throttle(struct sna *sna)
 	kgem_throttle(&sna->kgem);
 }
 
-void sna_accel_block_handler(struct sna *sna)
+void sna_accel_block_handler(struct sna *sna, struct timeval **tv)
 {
 	sna->time = GetTimeInMillis();
 
@@ -12392,15 +12392,24 @@ void sna_accel_block_handler(struct sna *sna)
 	}
 
 	if (sna->timer_ready) {
+		int32_t timeout;
+
 		DBG(("%s: evaluating timers, ready=%x\n",
 		     __FUNCTION__, sna->timer_ready));
 		sna->timer_ready = 0;
-		TimerSet(sna->timer, 0,
-			 sna_timeout(sna->timer,
-				     sna->time,
-				     sna),
-			 sna_timeout, sna);
-		assert(sna->timer_ready == 0);
+		timeout = sna_timeout(sna->timer, sna->time, sna);
+		TimerSet(sna->timer, 0, timeout, sna_timeout, sna);
+		if (timeout) {
+			if (*tv == NULL) {
+				*tv = &sna->timer_tv;
+				goto set_tv;
+			}
+			if ((*tv)->tv_sec * 1000 + (*tv)->tv_usec / 1000 > timeout) {
+set_tv:
+				(*tv)->tv_sec = timeout / 1000;
+				(*tv)->tv_usec = timeout % 1000 * 1000;
+			}
+		}
 	}
 }
 
