@@ -11995,6 +11995,7 @@ static bool sna_accel_do_flush(struct sna *sna)
 		}
 
 		if (sna->timer_ready & (1<<(FLUSH_TIMER))) {
+			DBG(("%s (time=%ld), triggered\n", __FUNCTION__, (long)sna->time));
 			sna->timer_expire[FLUSH_TIMER] =
 				sna->time + sna->vblank_interval;
 			return true;
@@ -12007,6 +12008,7 @@ static bool sna_accel_do_flush(struct sna *sna)
 			sna->timer_ready |= 1 << FLUSH_TIMER;
 			sna->timer_expire[FLUSH_TIMER] =
 				sna->time + sna->vblank_interval / 2;
+			DBG(("%s (time=%ld), starting\n", __FUNCTION__, (long)sna->time));
 		}
 	}
 
@@ -12017,6 +12019,7 @@ static bool sna_accel_do_expire(struct sna *sna)
 {
 	if (sna->timer_active & (1<<(EXPIRE_TIMER))) {
 		if (sna->timer_ready & (1<<(EXPIRE_TIMER))) {
+			DBG(("%s (time=%ld), triggered\n", __FUNCTION__, (long)sna->time));
 			sna->timer_expire[EXPIRE_TIMER] =
 				sna->time + MAX_INACTIVE_TIME * 1000;
 			return true;
@@ -12027,6 +12030,7 @@ static bool sna_accel_do_expire(struct sna *sna)
 			sna->timer_ready |= 1 << EXPIRE_TIMER;
 			sna->timer_expire[EXPIRE_TIMER] =
 				sna->time + MAX_INACTIVE_TIME * 1000;
+			DBG(("%s (time=%ld), starting\n", __FUNCTION__, (long)sna->time));
 		}
 	}
 
@@ -12039,6 +12043,7 @@ static bool sna_accel_do_inactive(struct sna *sna)
 		if (sna->timer_ready & (1<<(INACTIVE_TIMER))) {
 			sna->timer_expire[INACTIVE_TIMER] =
 				sna->time + 120 * 1000;
+			DBG(("%s (time=%ld), triggered\n", __FUNCTION__, (long)sna->time));
 			return true;
 		}
 	} else {
@@ -12047,6 +12052,7 @@ static bool sna_accel_do_inactive(struct sna *sna)
 			sna->timer_ready |= 1 << INACTIVE_TIMER;
 			sna->timer_expire[INACTIVE_TIMER] =
 				sna->time + 120 * 1000;
+			DBG(("%s (time=%ld), starting\n", __FUNCTION__, (long)sna->time));
 		}
 	}
 
@@ -12056,30 +12062,31 @@ static bool sna_accel_do_inactive(struct sna *sna)
 static CARD32 sna_timeout(OsTimerPtr timer, CARD32 now, pointer arg)
 {
 	struct sna *sna = arg;
-	CARD32 next = UINT32_MAX;
+	int32_t next = 0;
 	uint32_t active;
 	int i;
 
+	DBG(("%s: now=%d, active=%08x, ready=%08x\n",
+	     __FUNCTION__, now, sna->timer_active, sna->timer_ready));
 	active = sna->timer_active & ~sna->timer_ready;
 	if (active == 0)
 		return 0;
 
 	for (i = 0; i < NUM_TIMERS; i++) {
 		if (active & (1 << i)) {
-			if (now > sna->timer_expire[i]) {
+			int32_t delta = sna->timer_expire[i] - now;
+			DBG(("%s: timer[%d] expires in %d [%d]\n",
+			     __FUNCTION__, i, delta, sna->timer_expire[i]));
+			if (delta <= 0)
 				sna->timer_ready |= 1 << i;
-			} else {
-				if (sna->timer_expire[i] < next)
-					next = sna->timer_expire[i];
-			}
+			else if (next == 0 || delta < next)
+				next = delta;
 		}
 	}
 
-	if ((sna->timer_active & ~sna->timer_ready) == 0)
-		return 0;
-
-	assert(next != UINT32_MAX);
-	return next - now;
+	DBG(("%s: active=%08x, ready=%08x, next=+%d\n",
+	     __FUNCTION__, sna->timer_active, sna->timer_ready, next));
+	return next;
 }
 
 static bool sna_accel_flush(struct sna *sna)
@@ -12385,8 +12392,15 @@ void sna_accel_block_handler(struct sna *sna)
 	}
 
 	if (sna->timer_ready) {
+		DBG(("%s: evaluating timers, ready=%x\n",
+		     __FUNCTION__, sna->timer_ready));
 		sna->timer_ready = 0;
-		TimerForce(sna->timer);
+		TimerSet(sna->timer, 0,
+			 sna_timeout(sna->timer,
+				     sna->time,
+				     sna),
+			 sna_timeout, sna);
+		assert(sna->timer_ready == 0);
 	}
 }
 
