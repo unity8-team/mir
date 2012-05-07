@@ -2891,7 +2891,7 @@ struct kgem_bo *kgem_create_cpu_2d(struct kgem *kgem,
 			return bo;
 
 		if (kgem_bo_map__cpu(kgem, bo) == NULL) {
-			_kgem_bo_destroy(kgem, bo);
+			kgem_bo_destroy(kgem, bo);
 			return NULL;
 		}
 
