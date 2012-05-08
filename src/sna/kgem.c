@@ -216,6 +216,9 @@ static bool __kgem_throttle_retire(struct kgem *kgem, unsigned flags)
 	if (kgem_retire(kgem))
 		return true;
 
+	if (!kgem->need_throttle)
+		return false;
+
 	if ((flags & CREATE_NO_THROTTLE) == 0)
 		kgem_throttle(kgem);
 
@@ -1520,7 +1523,7 @@ static void kgem_commit(struct kgem *kgem)
 		gem_close(kgem->fd, rq->bo->handle);
 	} else {
 		list_add_tail(&rq->list, &kgem->requests);
-		kgem->need_retire = 1;
+		kgem->need_throttle = kgem->need_retire = 1;
 	}
 
 	kgem->next_request = NULL;
@@ -1979,6 +1982,8 @@ void kgem_throttle(struct kgem *kgem)
 			   "When reporting this, please include i915_error_state from debugfs and the full dmesg.\n");
 		warned = 1;
 	}
+
+	kgem->need_throttle = 0;
 }
 
 static void kgem_expire_partial(struct kgem *kgem)

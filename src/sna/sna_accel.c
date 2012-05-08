@@ -12015,6 +12015,31 @@ static bool sna_accel_do_flush(struct sna *sna)
 	return false;
 }
 
+static bool sna_accel_do_throttle(struct sna *sna)
+{
+	if (sna->flags & SNA_NO_THROTTLE)
+		return false;
+
+	if (sna->timer_active & (1<<(THROTTLE_TIMER))) {
+		if (sna->timer_ready & (1<<(THROTTLE_TIMER))) {
+			DBG(("%s (time=%ld), triggered\n", __FUNCTION__, (long)sna->time));
+			sna->timer_expire[THROTTLE_TIMER] = sna->time + 20;
+			return true;
+		}
+	} else {
+		if (!sna->kgem.need_retire) {
+			DBG(("%s -- no pending activity\n", __FUNCTION__));
+		} else {
+			DBG(("%s (time=%ld), starting\n", __FUNCTION__, (long)sna->time));
+			sna->timer_active |= 1 << THROTTLE_TIMER;
+			sna->timer_ready |= 1 << THROTTLE_TIMER;
+			sna->timer_expire[THROTTLE_TIMER] = sna->time + 20;
+		}
+	}
+
+	return false;
+}
+
 static bool sna_accel_do_expire(struct sna *sna)
 {
 	if (sna->timer_active & (1<<(EXPIRE_TIMER))) {
@@ -12089,18 +12114,17 @@ static CARD32 sna_timeout(OsTimerPtr timer, CARD32 now, pointer arg)
 	return next;
 }
 
-static bool sna_accel_flush(struct sna *sna)
+static void sna_accel_flush(struct sna *sna)
 {
 	struct sna_pixmap *priv = sna_accel_scanout(sna);
-	bool need_throttle = priv->gpu_bo->rq;
-	bool busy = priv->cpu_damage || need_throttle;
+	bool busy = priv->cpu_damage || priv->gpu_bo->rq;
 
-	DBG(("%s (time=%ld), cpu damage? %p, exec? %d nbatch=%d, busy? %d, need_throttle=%d\n",
+	DBG(("%s (time=%ld), cpu damage? %p, exec? %d nbatch=%d, busy? %d\n",
 	     __FUNCTION__, (long)sna->time,
 	     priv->cpu_damage,
 	     priv->gpu_bo->exec != NULL,
 	     sna->kgem.nbatch,
-	     sna->kgem.busy, need_throttle));
+	     sna->kgem.busy));
 
 	if (!sna->kgem.busy && !busy)
 		sna_accel_disarm_timer(sna, FLUSH_TIMER);
@@ -12111,8 +12135,17 @@ static bool sna_accel_flush(struct sna *sna)
 
 	kgem_bo_flush(&sna->kgem, priv->gpu_bo);
 	sna->kgem.flush_now = 0;
+}
 
-	return need_throttle;
+static void sna_accel_throttle(struct sna *sna)
+{
+	DBG(("%s (time=%ld)\n", __FUNCTION__, (long)sna->time));
+
+	if (sna->kgem.need_throttle)
+		kgem_throttle(&sna->kgem);
+
+	if (!sna->kgem.need_retire)
+		sna_accel_disarm_timer(sna, THROTTLE_TIMER);
 }
 
 static void sna_accel_expire(struct sna *sna)
@@ -12362,21 +12395,14 @@ void sna_accel_close(struct sna *sna)
 	kgem_cleanup_cache(&sna->kgem);
 }
 
-static void sna_accel_throttle(struct sna *sna)
-{
-	if (sna->flags & SNA_NO_THROTTLE)
-		return;
-
-	DBG(("%s (time=%ld)\n", __FUNCTION__, (long)sna->time));
-
-	kgem_throttle(&sna->kgem);
-}
-
 void sna_accel_block_handler(struct sna *sna, struct timeval **tv)
 {
 	sna->time = GetTimeInMillis();
 
-	if (sna_accel_do_flush(sna) && sna_accel_flush(sna))
+	if (sna_accel_do_flush(sna))
+		sna_accel_flush(sna);
+
+	if (sna_accel_do_throttle(sna))
 		sna_accel_throttle(sna);
 
 	if (sna_accel_do_expire(sna))
