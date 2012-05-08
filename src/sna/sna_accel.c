@@ -11998,7 +11998,7 @@ static bool sna_accel_do_flush(struct sna *sna)
 			DBG(("%s (time=%ld), triggered\n", __FUNCTION__, (long)sna->time));
 			sna->timer_expire[FLUSH_TIMER] =
 				sna->time + sna->vblank_interval;
-			return true;
+			return priv->cpu_damage || !__kgem_flush(&sna->kgem, priv->gpu_bo);
 		}
 	} else {
 		if (priv->cpu_damage == NULL && priv->gpu_bo->exec == NULL) {

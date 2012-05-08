@@ -258,7 +258,7 @@ static inline void kgem_bo_submit(struct kgem *kgem, struct kgem_bo *bo)
 		_kgem_submit(kgem);
 }
 
-void __kgem_flush(struct kgem *kgem, struct kgem_bo *bo);
+bool __kgem_flush(struct kgem *kgem, struct kgem_bo *bo);
 static inline void kgem_bo_flush(struct kgem *kgem, struct kgem_bo *bo)
 {
 	kgem_bo_submit(kgem, bo);
