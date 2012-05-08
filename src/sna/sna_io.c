@@ -582,9 +582,7 @@ fallback:
 	}
 
 	/* Try to avoid switching rings... */
-	if (!can_blt ||
-	    kgem->ring == KGEM_RENDER ||
-	    (kgem->has_semaphores && kgem->mode == KGEM_NONE) ||
+	if (!can_blt || kgem->ring == KGEM_RENDER ||
 	    upload_too_large(sna, extents.x2 - extents.x1, extents.y2 - extents.y1)) {
 		PixmapRec tmp;
 
