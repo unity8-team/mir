@@ -1198,21 +1198,16 @@ gen6_bind_bo(struct sna *sna,
 		DBG(("[%x]  bo(handle=%d), format=%d, reuse %s binding\n",
 		     offset, bo->handle, format,
 		     domains & 0xffff ? "render" : "sampler"));
-		return offset;
+		return offset * sizeof(uint32_t);
 	}
 
-	offset = sna->kgem.surface - sizeof(struct gen6_surface_state_padded) / sizeof(uint32_t);
-	offset *= sizeof(uint32_t);
-
-	sna->kgem.surface -=
+	offset = sna->kgem.surface -=
 		sizeof(struct gen6_surface_state_padded) / sizeof(uint32_t);
-	ss = sna->kgem.batch + sna->kgem.surface;
+	ss = sna->kgem.batch + offset;
 	ss[0] = (GEN6_SURFACE_2D << GEN6_SURFACE_TYPE_SHIFT |
 		 GEN6_SURFACE_BLEND_ENABLED |
 		 format << GEN6_SURFACE_FORMAT_SHIFT);
-	ss[1] = kgem_add_reloc(&sna->kgem,
-			       sna->kgem.surface + 1,
-			       bo, domains, 0);
+	ss[1] = kgem_add_reloc(&sna->kgem, offset + 1, bo, domains, 0);
 	ss[2] = ((width - 1)  << GEN6_SURFACE_WIDTH_SHIFT |
 		 (height - 1) << GEN6_SURFACE_HEIGHT_SHIFT);
 	assert(bo->pitch <= (1 << 18));
@@ -1228,7 +1223,7 @@ gen6_bind_bo(struct sna *sna,
 	     format, width, height, bo->pitch, bo->tiling,
 	     domains & 0xffff ? "render" : "sampler"));
 
-	return offset;
+	return offset * sizeof(uint32_t);
 }
 
 fastcall static void

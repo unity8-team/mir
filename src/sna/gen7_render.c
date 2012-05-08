@@ -1293,7 +1293,7 @@ gen7_tiling_bits(uint32_t tiling)
  * Sets up the common fields for a surface state buffer for the given
  * picture in the given surface state buffer.
  */
-static int
+static uint32_t
 gen7_bind_bo(struct sna *sna,
 	     struct kgem_bo *bo,
 	     uint32_t width,
@@ -1303,7 +1303,7 @@ gen7_bind_bo(struct sna *sna,
 {
 	uint32_t *ss;
 	uint32_t domains;
-	uint16_t offset;
+	int offset;
 
 	COMPILE_TIME_ASSERT(sizeof(struct gen7_surface_state) == 32);
 
@@ -1316,20 +1316,15 @@ gen7_bind_bo(struct sna *sna,
 
 	offset = kgem_bo_get_binding(bo, format);
 	if (offset)
-		return offset;
+		return offset * sizeof(uint32_t);
 
-	offset = sna->kgem.surface - sizeof(struct gen7_surface_state) / sizeof(uint32_t);
-	offset *= sizeof(uint32_t);
-
-	sna->kgem.surface -=
+	offset = sna->kgem.surface -=
 		sizeof(struct gen7_surface_state) / sizeof(uint32_t);
-	ss = sna->kgem.batch + sna->kgem.surface;
+	ss = sna->kgem.batch + offset;
 	ss[0] = (GEN7_SURFACE_2D << GEN7_SURFACE_TYPE_SHIFT |
 		 gen7_tiling_bits(bo->tiling) |
 		 format << GEN7_SURFACE_FORMAT_SHIFT);
-	ss[1] = kgem_add_reloc(&sna->kgem,
-			       sna->kgem.surface + 1,
-			       bo, domains, 0);
+	ss[1] = kgem_add_reloc(&sna->kgem, offset + 1, bo, domains, 0);
 	ss[2] = ((width - 1)  << GEN7_SURFACE_WIDTH_SHIFT |
 		 (height - 1) << GEN7_SURFACE_HEIGHT_SHIFT);
 	ss[3] = (bo->pitch - 1) << GEN7_SURFACE_PITCH_SHIFT;
@@ -1345,7 +1340,7 @@ gen7_bind_bo(struct sna *sna,
 	     format, width, height, bo->pitch, bo->tiling,
 	     domains & 0xffff ? "render" : "sampler"));
 
-	return offset;
+	return offset * sizeof(uint32_t);
 }
 
 fastcall static void

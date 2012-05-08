@@ -142,7 +142,7 @@ struct kgem {
 	uint16_t nreloc;
 	uint16_t nfence;
 	uint16_t wait;
-	uint16_t max_batch_size;
+	uint16_t batch_size;
 	uint16_t min_alignment;
 
 	uint32_t flush:1;
@@ -170,9 +170,9 @@ struct kgem {
 	void (*context_switch)(struct kgem *kgem, int new_mode);
 	void (*retire)(struct kgem *kgem);
 
-	uint32_t batch[4*1024];
+	uint32_t batch[64*1024-8];
 	struct drm_i915_gem_exec_object2 exec[256];
-	struct drm_i915_gem_relocation_entry reloc[612];
+	struct drm_i915_gem_relocation_entry reloc[4096];
 };
 
 #define KGEM_BATCH_RESERVED 1
@@ -180,7 +180,7 @@ struct kgem {
 #define KGEM_EXEC_RESERVED 1
 
 #define ARRAY_SIZE(a) (sizeof(a)/sizeof((a)[0]))
-#define KGEM_BATCH_SIZE(K) ((K)->max_batch_size-KGEM_BATCH_RESERVED)
+#define KGEM_BATCH_SIZE(K) ((K)->batch_size-KGEM_BATCH_RESERVED)
 #define KGEM_EXEC_SIZE(K) (int)(ARRAY_SIZE((K)->exec)-KGEM_EXEC_RESERVED)
 #define KGEM_RELOC_SIZE(K) (int)(ARRAY_SIZE((K)->reloc)-KGEM_RELOC_RESERVED)
 

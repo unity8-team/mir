@@ -745,7 +745,7 @@ static bool gen4_check_repeat(PicturePtr picture)
  * Sets up the common fields for a surface state buffer for the given
  * picture in the given surface state buffer.
  */
-static int
+static uint32_t
 gen4_bind_bo(struct sna *sna,
 	     struct kgem_bo *bo,
 	     uint32_t width,
@@ -766,14 +766,11 @@ gen4_bind_bo(struct sna *sna,
 
 	offset = kgem_bo_get_binding(bo, format);
 	if (offset)
-		return offset;
+		return offset * sizeof(uint32_t);
 
-	offset = sna->kgem.surface - sizeof(struct gen4_surface_state_padded) / sizeof(uint32_t);
-	offset *= sizeof(uint32_t);
-
-	sna->kgem.surface -=
+	offset = sna->kgem.surface -=
 		sizeof(struct gen4_surface_state_padded) / sizeof(uint32_t);
-	ss = memset(sna->kgem.batch + sna->kgem.surface, 0, sizeof(*ss));
+	ss = memset(sna->kgem.batch + offset, 0, sizeof(*ss));
 
 	ss->ss0.surface_type = GEN4_SURFACE_2D;
 	ss->ss0.surface_format = format;
@@ -781,9 +778,7 @@ gen4_bind_bo(struct sna *sna,
 	ss->ss0.data_return_format = GEN4_SURFACERETURNFORMAT_FLOAT32;
 	ss->ss0.color_blend = 1;
 	ss->ss1.base_addr =
-		kgem_add_reloc(&sna->kgem,
-			       sna->kgem.surface + 1,
-			       bo, domains, 0);
+		kgem_add_reloc(&sna->kgem, offset + 1, bo, domains, 0);
 
 	ss->ss2.height = height - 1;
 	ss->ss2.width  = width - 1;
@@ -798,7 +793,7 @@ gen4_bind_bo(struct sna *sna,
 	     ss->ss0.surface_format, width, height, bo->pitch, bo->tiling,
 	     domains & 0xffff ? "render" : "sampler"));
 
-	return offset;
+	return offset * sizeof(uint32_t);
 }
 
 fastcall static void

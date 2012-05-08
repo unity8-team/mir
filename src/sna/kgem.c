@@ -595,10 +595,12 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	kgem->wedged = drmCommandNone(kgem->fd, DRM_I915_GEM_THROTTLE) == -EIO;
 	kgem->wedged |= DBG_NO_HW;
 
-	kgem->max_batch_size = ARRAY_SIZE(kgem->batch);
+	kgem->batch_size = ARRAY_SIZE(kgem->batch);
 	if (gen == 22)
 		/* 865g cannot handle a batch spanning multiple pages */
-		kgem->max_batch_size = PAGE_SIZE / sizeof(uint32_t);
+		kgem->batch_size = PAGE_SIZE / sizeof(uint32_t);
+	if (gen == 70)
+		kgem->batch_size = 16*1024;
 
 	kgem->min_alignment = 4;
 	if (gen < 40)
@@ -1656,16 +1658,16 @@ static int kgem_batch_write(struct kgem *kgem, uint32_t handle, uint32_t size)
 	assert(!kgem_busy(kgem, handle));
 
 	/* If there is no surface data, just upload the batch */
-	if (kgem->surface == kgem->max_batch_size)
+	if (kgem->surface == kgem->batch_size)
 		return gem_write(kgem->fd, handle,
 				 0, sizeof(uint32_t)*kgem->nbatch,
 				 kgem->batch);
 
 	/* Are the batch pages conjoint with the surface pages? */
-	if (kgem->surface < kgem->nbatch + PAGE_SIZE/4) {
-		assert(size == sizeof(kgem->batch));
+	if (kgem->surface < kgem->nbatch + PAGE_SIZE/sizeof(uint32_t)) {
+		assert(size == PAGE_ALIGN(kgem->batch_size*sizeof(uint32_t)));
 		return gem_write(kgem->fd, handle,
-				 0, sizeof(kgem->batch),
+				 0, kgem->batch_size*sizeof(uint32_t),
 				 kgem->batch);
 	}
 
@@ -1676,11 +1678,11 @@ static int kgem_batch_write(struct kgem *kgem, uint32_t handle, uint32_t size)
 	if (ret)
 		return ret;
 
-	assert(kgem->nbatch*sizeof(uint32_t) <=
-	       sizeof(uint32_t)*kgem->surface - (sizeof(kgem->batch)-size));
+	ret = PAGE_ALIGN(sizeof(uint32_t) * kgem->batch_size);
+	ret -= sizeof(uint32_t) * kgem->surface;
+	assert(size-ret >= kgem->nbatch*sizeof(uint32_t));
 	return __gem_write(kgem->fd, handle,
-			sizeof(uint32_t)*kgem->surface - (sizeof(kgem->batch)-size),
-			sizeof(kgem->batch) - sizeof(uint32_t)*kgem->surface,
+			size - ret, (kgem->batch_size - kgem->surface)*sizeof(uint32_t),
 			kgem->batch + kgem->surface);
 }
 
@@ -1719,7 +1721,7 @@ void kgem_reset(struct kgem *kgem)
 	kgem->aperture = 0;
 	kgem->aperture_fenced = 0;
 	kgem->nbatch = 0;
-	kgem->surface = kgem->max_batch_size;
+	kgem->surface = kgem->batch_size;
 	kgem->mode = KGEM_NONE;
 	kgem->flush = 0;
 	kgem->scanout = 0;
@@ -1734,24 +1736,26 @@ static int compact_batch_surface(struct kgem *kgem)
 	int size, shrink, n;
 
 	/* See if we can pack the contents into one or two pages */
-	size = kgem->max_batch_size - kgem->surface + kgem->nbatch;
-	if (size > 2048)
-		return sizeof(kgem->batch);
-	else if (size > 1024)
-		size = 8192, shrink = 2*4096;
-	else
-		size = 4096, shrink = 3*4096;
+	n = ALIGN(kgem->batch_size, 1024);
+	size = n - kgem->surface + kgem->nbatch;
+	size = ALIGN(size, 1024);
 
-	for (n = 0; n < kgem->nreloc; n++) {
-		if (kgem->reloc[n].read_domains == I915_GEM_DOMAIN_INSTRUCTION &&
-		    kgem->reloc[n].target_handle == 0)
-			kgem->reloc[n].delta -= shrink;
+	shrink = n - size;
+	if (shrink) {
+		DBG(("shrinking from %d to %d\n", kgem->batch_size, size));
 
-		if (kgem->reloc[n].offset >= size)
-			kgem->reloc[n].offset -= shrink;
+		shrink *= sizeof(uint32_t);
+		for (n = 0; n < kgem->nreloc; n++) {
+			if (kgem->reloc[n].read_domains == I915_GEM_DOMAIN_INSTRUCTION &&
+			    kgem->reloc[n].target_handle == 0)
+				kgem->reloc[n].delta -= shrink;
+
+			if (kgem->reloc[n].offset >= sizeof(uint32_t)*kgem->nbatch)
+				kgem->reloc[n].offset -= shrink;
+		}
 	}
 
-	return size;
+	return size * sizeof(uint32_t);
 }
 
 void _kgem_submit(struct kgem *kgem)
@@ -1769,11 +1773,11 @@ void _kgem_submit(struct kgem *kgem)
 	batch_end = kgem_end_batch(kgem);
 	kgem_sna_flush(kgem);
 
-	DBG(("batch[%d/%d]: %d %d %d, nreloc=%d, nexec=%d, nfence=%d, aperture=%d\n",
-	     kgem->mode, kgem->ring, batch_end, kgem->nbatch, kgem->surface,
+	DBG(("batch[%d/%d]: %d %d %d %d, nreloc=%d, nexec=%d, nfence=%d, aperture=%d\n",
+	     kgem->mode, kgem->ring, batch_end, kgem->nbatch, kgem->surface, kgem->batch_size,
 	     kgem->nreloc, kgem->nexec, kgem->nfence, kgem->aperture));
 
-	assert(kgem->nbatch <= kgem->max_batch_size);
+	assert(kgem->nbatch <= kgem->batch_size);
 	assert(kgem->nbatch <= kgem->surface);
 	assert(kgem->nreloc <= ARRAY_SIZE(kgem->reloc));
 	assert(kgem->nexec < ARRAY_SIZE(kgem->exec));
@@ -1786,7 +1790,7 @@ void _kgem_submit(struct kgem *kgem)
 #endif
 
 	rq = kgem->next_request;
-	if (kgem->surface != kgem->max_batch_size)
+	if (kgem->surface != kgem->batch_size)
 		size = compact_batch_surface(kgem);
 	else
 		size = kgem->nbatch * sizeof(kgem->batch[0]);
@@ -1821,7 +1825,7 @@ void _kgem_submit(struct kgem *kgem)
 			execbuf.buffers_ptr = (uintptr_t)kgem->exec;
 			execbuf.buffer_count = kgem->nexec;
 			execbuf.batch_start_offset = 0;
-			execbuf.batch_len = batch_end*4;
+			execbuf.batch_len = batch_end*sizeof(uint32_t);
 			execbuf.cliprects_ptr = 0;
 			execbuf.num_cliprects = 0;
 			execbuf.DR1 = 0;
@@ -1835,7 +1839,7 @@ void _kgem_submit(struct kgem *kgem)
 					      O_WRONLY | O_CREAT | O_APPEND,
 					      0666);
 				if (fd != -1) {
-					ret = write(fd, kgem->batch, batch_end*4);
+					ret = write(fd, kgem->batch, batch_end*sizeof(uint32_t));
 					fd = close(fd);
 				}
 			}
@@ -1864,7 +1868,7 @@ void _kgem_submit(struct kgem *kgem)
 
 				i = open("/tmp/batchbuffer", O_WRONLY | O_CREAT | O_APPEND, 0666);
 				if (i != -1) {
-					ret = write(i, kgem->batch, batch_end*4);
+					ret = write(i, kgem->batch, batch_end*sizeof(uint32_t));
 					close(i);
 				}
 
