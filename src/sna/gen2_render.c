@@ -524,7 +524,7 @@ gen2_get_batch(struct sna *sna)
 		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	}
 
-	if (sna->kgem.nreloc + 3 > KGEM_RELOC_SIZE(&sna->kgem)) {
+	if (!kgem_check_reloc(&sna->kgem, 3)) {
 		DBG(("%s: flushing batch: reloc %d >= %d\n",
 		     __FUNCTION__,
 		     sna->kgem.nreloc + 3,
@@ -533,7 +533,7 @@ gen2_get_batch(struct sna *sna)
 		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	}
 
-	if (sna->kgem.nexec + 3 > KGEM_EXEC_SIZE(&sna->kgem)) {
+	if (!kgem_check_exec(&sna->kgem, 3)) {
 		DBG(("%s: flushing batch: exec %d >= %d\n",
 		     __FUNCTION__,
 		     sna->kgem.nexec + 1,

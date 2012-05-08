@@ -330,7 +330,8 @@ static inline bool kgem_check_batch_with_surfaces(struct kgem *kgem,
 						  int num_surfaces)
 {
 	return (int)(kgem->nbatch + num_dwords + KGEM_BATCH_RESERVED) <= (int)(kgem->surface - num_surfaces*8) &&
-		kgem_check_reloc(kgem, num_surfaces);
+		kgem_check_reloc(kgem, num_surfaces) &&
+		kgem_check_exec(kgem, num_surfaces);
 }
 
 static inline uint32_t *kgem_get_batch(struct kgem *kgem, int num_dwords)
