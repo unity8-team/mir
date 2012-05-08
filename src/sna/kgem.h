@@ -452,32 +452,23 @@ static inline bool kgem_bo_mapped(struct kgem_bo *bo)
 	return IS_CPU_MAP(bo->map) == !bo->tiling;
 }
 
+static inline bool kgem_bo_can_map(struct kgem *kgem, struct kgem_bo *bo)
+{
+	if (kgem_bo_mapped(bo))
+		return true;
+
+	if (!bo->tiling && kgem->has_llc)
+		return true;
+
+	return kgem_bo_size(bo) <= kgem->aperture_mappable / 4;
+}
+
+
 static inline bool kgem_bo_is_busy(struct kgem_bo *bo)
 {
 	DBG_HDR(("%s: domain: %d exec? %d, rq? %d\n",
 		 __FUNCTION__, bo->domain, bo->exec != NULL, bo->rq != NULL));
 	return bo->rq;
-}
-
-static inline bool kgem_bo_map_will_stall(struct kgem *kgem, struct kgem_bo *bo)
-{
-	DBG(("%s? handle=%d, domain=%d, offset=%x, size=%x\n",
-	     __FUNCTION__, bo->handle,
-	     bo->domain, bo->presumed_offset, bo->size));
-
-	if (!kgem_bo_is_mappable(kgem, bo) && kgem_bo_is_busy(bo))
-		return true;
-
-	if (kgem->wedged)
-		return false;
-
-	if (kgem_bo_is_busy(bo))
-		return true;
-
-	if (bo->presumed_offset == 0)
-		return !list_is_empty(&kgem->requests);
-
-	return false;
 }
 
 static inline bool kgem_bo_is_dirty(struct kgem_bo *bo)

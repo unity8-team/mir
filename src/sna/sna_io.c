@@ -116,8 +116,7 @@ static bool download_inplace(struct kgem *kgem, struct kgem_bo *bo)
 	if (FORCE_INPLACE)
 		return FORCE_INPLACE > 0;
 
-	return !kgem_bo_map_will_stall(kgem, bo) ||
-		bo->tiling == I915_TILING_NONE;
+	return !kgem_bo_is_busy(bo) || bo->tiling == I915_TILING_NONE;
 }
 
 void sna_read_boxes(struct sna *sna,
@@ -480,7 +479,7 @@ static bool write_boxes_inplace(struct kgem *kgem,
 	DBG(("%s x %d, handle=%d, tiling=%d\n",
 	     __FUNCTION__, n, bo->handle, bo->tiling));
 
-	if (!kgem_bo_is_mappable(kgem, bo))
+	if (!kgem_bo_can_map(kgem, bo))
 		return false;
 
 	kgem_bo_submit(kgem, bo);
@@ -525,11 +524,14 @@ static bool upload_inplace(struct kgem *kgem,
 	if (FORCE_INPLACE)
 		return FORCE_INPLACE > 0;
 
+	if (!kgem_bo_can_map(kgem, bo))
+		return false;
+
 	/* If we are writing through the GTT, check first if we might be
 	 * able to almagamate a series of small writes into a single
 	 * operation.
 	 */
-	if (!bo->map || kgem_bo_map_will_stall(kgem, bo)) {
+	if (!kgem_bo_mapped(bo) || kgem_bo_is_busy(bo)) {
 		unsigned int bytes = 0;
 		while (n--) {
 			bytes += (box->x2 - box->x1) * (box->y2 - box->y1);
@@ -1146,7 +1148,7 @@ bool sna_replace(struct sna *sna,
 	     pixmap->drawable.bitsPerPixel,
 	     bo->tiling));
 
-	if ((!kgem_bo_mapped(bo) || bo->rq) &&
+	if ((!kgem_bo_mapped(bo) || kgem_bo_is_busy(bo)) &&
 	    indirect_replace(sna, pixmap, bo, src, stride))
 		return true;
 
