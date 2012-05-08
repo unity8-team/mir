@@ -328,7 +328,7 @@ nouveau_dri2_finish_swap(DrawablePtr draw, unsigned int frame,
 		type = DRI2_EXCHANGE_COMPLETE;
 		DamageRegionAppend(draw, &reg);
 
-		if (DRI2CanFlip(draw)) {
+		if (nouveau_exa_pixmap_is_onscreen(dst_pix)) {
 			type = DRI2_FLIP_COMPLETE;
 			ret = drmmode_page_flip(draw, src_pix,
 						violate_oml(draw) ? NULL : s,
