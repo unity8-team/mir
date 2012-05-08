@@ -3648,6 +3648,17 @@ gen5_render_context_switch(struct kgem *kgem,
 }
 
 static void
+discard_vbo(struct sna *sna)
+{
+	kgem_bo_destroy(&sna->kgem, sna->render.vbo);
+	sna->render.vbo = NULL;
+	sna->render.vertices = sna->render.vertex_data;
+	sna->render.vertex_size = ARRAY_SIZE(sna->render.vertex_data);
+	sna->render.vertex_used = 0;
+	sna->render.vertex_index = 0;
+}
+
+static void
 gen5_render_retire(struct kgem *kgem)
 {
 	struct sna *sna;
@@ -3655,12 +3666,7 @@ gen5_render_retire(struct kgem *kgem)
 	sna = container_of(kgem, struct sna, kgem);
 	if (!kgem->need_retire && kgem->nbatch == 0 && sna->render.vbo) {
 		DBG(("%s: discarding vbo\n", __FUNCTION__));
-		kgem_bo_destroy(kgem, sna->render.vbo);
-		sna->render.vbo = NULL;
-		sna->render.vertices = sna->render.vertex_data;
-		sna->render.vertex_size = ARRAY_SIZE(sna->render.vertex_data);
-		sna->render.vertex_used = 0;
-		sna->render.vertex_index = 0;
+		discard_vbo(sna);
 	}
 }
 
@@ -3679,10 +3685,7 @@ static void gen5_render_reset(struct sna *sna)
 	if (sna->render.vbo &&
 	    !kgem_bo_is_mappable(&sna->kgem, sna->render.vbo)) {
 		DBG(("%s: discarding unmappable vbo\n", __FUNCTION__));
-		kgem_bo_destroy(&sna->kgem, sna->render.vbo);
-		sna->render.vbo = NULL;
-		sna->render.vertices = sna->render.vertex_data;
-		sna->render.vertex_size = ARRAY_SIZE(sna->render.vertex_data);
+		discard_vbo(sna);
 	}
 }
 

@@ -1620,7 +1620,11 @@ static int gen3_vertex_finish(struct sna *sna)
 {
 	struct kgem_bo *bo;
 
+	DBG(("%s: used=%d/%d, vbo active? %d\n",
+	     __FUNCTION__, sna->render.vertex_used, sna->render.vertex_size,
+	     sna->render.vbo ? sna->render.vbo->handle : 0));
 	assert(sna->render.vertex_used);
+	assert(sna->render.vertex_used <= sna->render.vertex_size);
 
 	bo = sna->render.vbo;
 	if (bo) {
@@ -1668,8 +1672,9 @@ static void gen3_vertex_close(struct sna *sna)
 
 	assert(sna->render_state.gen3.vertex_offset == 0);
 
-	DBG(("%s: used=%d, vbo active? %d\n",
-	     __FUNCTION__, sna->render.vertex_used, sna->render.vbo != NULL));
+	DBG(("%s: used=%d/%d, vbo active? %d\n",
+	     __FUNCTION__, sna->render.vertex_used, sna->render.vertex_size,
+	     sna->render.vbo ? sna->render.vbo->handle : 0));
 
 	if (sna->render.vertex_used == 0) {
 		assert(sna->render.vbo == NULL);
@@ -1730,6 +1735,7 @@ static void gen3_vertex_close(struct sna *sna)
 	}
 
 	if (sna->render.vbo == NULL) {
+		DBG(("%s: resetting vbo\n", __FUNCTION__));
 		sna->render.vertex_used = 0;
 		sna->render.vertex_index = 0;
 		assert(sna->render.vertices == sna->render.vertex_data);
@@ -1937,6 +1943,17 @@ gen3_render_composite_done(struct sna *sna,
 }
 
 static void
+discard_vbo(struct sna *sna)
+{
+	kgem_bo_destroy(&sna->kgem, sna->render.vbo);
+	sna->render.vbo = NULL;
+	sna->render.vertices = sna->render.vertex_data;
+	sna->render.vertex_size = ARRAY_SIZE(sna->render.vertex_data);
+	sna->render.vertex_used = 0;
+	sna->render.vertex_index = 0;
+}
+
+static void
 gen3_render_reset(struct sna *sna)
 {
 	struct gen3_render_state *state = &sna->render_state.gen3;
@@ -1961,10 +1978,7 @@ gen3_render_reset(struct sna *sna)
 	if (sna->render.vbo &&
 	    !kgem_bo_is_mappable(&sna->kgem, sna->render.vbo)) {
 		DBG(("%s: discarding unmappable vbo\n", __FUNCTION__));
-		kgem_bo_destroy(&sna->kgem, sna->render.vbo);
-		sna->render.vbo = NULL;
-		sna->render.vertices = sna->render.vertex_data;
-		sna->render.vertex_size = ARRAY_SIZE(sna->render.vertex_data);
+		discard_vbo(sna);
 	}
 }
 
@@ -1976,12 +1990,7 @@ gen3_render_retire(struct kgem *kgem)
 	sna = container_of(kgem, struct sna, kgem);
 	if (!kgem->need_retire && kgem->nbatch == 0 && sna->render.vbo) {
 		DBG(("%s: discarding vbo\n", __FUNCTION__));
-		kgem_bo_destroy(kgem, sna->render.vbo);
-		sna->render.vbo = NULL;
-		sna->render.vertices = sna->render.vertex_data;
-		sna->render.vertex_size = ARRAY_SIZE(sna->render.vertex_data);
-		sna->render.vertex_used = 0;
-		sna->render.vertex_index = 0;
+		discard_vbo(sna);
 	}
 }
 

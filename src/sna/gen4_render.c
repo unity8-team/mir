@@ -3224,6 +3224,17 @@ gen4_render_flush(struct sna *sna)
 	gen4_vertex_close(sna);
 }
 
+static void
+discard_vbo(struct sna *sna)
+{
+	kgem_bo_destroy(&sna->kgem, sna->render.vbo);
+	sna->render.vbo = NULL;
+	sna->render.vertices = sna->render.vertex_data;
+	sna->render.vertex_size = ARRAY_SIZE(sna->render.vertex_data);
+	sna->render.vertex_used = 0;
+	sna->render.vertex_index = 0;
+}
+
 static void gen4_render_reset(struct sna *sna)
 {
 	sna->render_state.gen4.needs_invariant = TRUE;
@@ -3240,10 +3251,7 @@ static void gen4_render_reset(struct sna *sna)
 	if (sna->render.vbo &&
 	    !kgem_bo_is_mappable(&sna->kgem, sna->render.vbo)) {
 		DBG(("%s: discarding unmappable vbo\n", __FUNCTION__));
-		kgem_bo_destroy(&sna->kgem, sna->render.vbo);
-		sna->render.vbo = NULL;
-		sna->render.vertices = sna->render.vertex_data;
-		sna->render.vertex_size = ARRAY_SIZE(sna->render.vertex_data);
+		discard_vbo(sna);
 	}
 }
 
