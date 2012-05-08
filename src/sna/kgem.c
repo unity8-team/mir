@@ -205,6 +205,23 @@ static int gem_set_tiling(int fd, uint32_t handle, int tiling, int stride)
 	return set_tiling.tiling_mode;
 }
 
+static bool __kgem_throttle_retire(struct kgem *kgem, unsigned flags)
+{
+	if (flags & CREATE_NO_RETIRE)
+		return false;
+
+	if (!kgem->need_retire)
+		return false;
+
+	if (kgem_retire(kgem))
+		return true;
+
+	if ((flags & CREATE_NO_THROTTLE) == 0)
+		kgem_throttle(kgem);
+
+	return kgem_retire(kgem);
+}
+
 static void *__kgem_bo_map__gtt(struct kgem *kgem, struct kgem_bo *bo)
 {
 	struct drm_i915_gem_mmap_gtt mmap_arg;
@@ -219,8 +236,7 @@ retry_gtt:
 	if (drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_MMAP_GTT, &mmap_arg)) {
 		ErrorF("%s: failed to achieve GTT offset for handle=%d: %d\n",
 		       __FUNCTION__, bo->handle, errno);
-		kgem_throttle(kgem);
-		kgem_retire(kgem);
+		__kgem_throttle_retire(kgem, 0);
 		if (kgem_expire_cache(kgem))
 			goto retry_gtt;
 
@@ -234,8 +250,7 @@ retry_mmap:
 	if (ptr == MAP_FAILED) {
 		ErrorF("%s: failed to mmap %d, %d bytes, into GTT domain: %d\n",
 		       __FUNCTION__, bo->handle, bytes(bo), errno);
-		kgem_throttle(kgem);
-		if (kgem_retire(kgem))
+		if (__kgem_throttle_retire(kgem, 0))
 			goto retry_mmap;
 
 		assert(0);
@@ -1810,7 +1825,7 @@ void _kgem_submit(struct kgem *kgem)
 		size = compact_batch_surface(kgem);
 	else
 		size = kgem->nbatch * sizeof(kgem->batch[0]);
-	rq->bo = kgem_create_linear(kgem, size, 0);
+	rq->bo = kgem_create_linear(kgem, size, CREATE_NO_THROTTLE);
 	if (rq->bo) {
 		uint32_t handle = rq->bo->handle;
 		int i;
@@ -2150,7 +2165,7 @@ search_linear_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags)
 			return NULL;
 		}
 
-		if (!kgem->need_retire || !kgem_retire(kgem)) {
+		if (!__kgem_throttle_retire(kgem, 0)) {
 			DBG(("%s: nothing retired\n", __FUNCTION__));
 			return NULL;
 		}
@@ -2641,7 +2656,8 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 				bo->refcnt = 1;
 				return bo;
 			}
-		} while (!list_is_empty(cache) && kgem_retire(kgem));
+		} while (!list_is_empty(cache) &&
+			 __kgem_throttle_retire(kgem, flags));
 	}
 
 	if (flags & CREATE_INACTIVE)
@@ -2858,11 +2874,9 @@ search_inactive:
 		return bo;
 	}
 
-	if (flags & CREATE_INACTIVE && !list_is_empty(&kgem->requests)) {
-		if (kgem_retire(kgem)) {
-			flags &= ~CREATE_INACTIVE;
-			goto search_inactive;
-		}
+	if (flags & CREATE_INACTIVE && __kgem_throttle_retire(kgem, flags)) {
+		flags &= ~CREATE_INACTIVE;
+		goto search_inactive;
 	}
 
 	if (--retry) {
@@ -3375,8 +3389,7 @@ retry:
 	if (drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_MMAP, &mmap_arg)) {
 		ErrorF("%s: failed to mmap %d, %d bytes, into CPU domain: %d\n",
 		       __FUNCTION__, bo->handle, bytes(bo), errno);
-		kgem_throttle(kgem);
-		if (kgem_retire(kgem))
+		if (__kgem_throttle_retire(kgem, 0))
 			goto retry;
 
 		return NULL;
@@ -3708,7 +3721,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			}
 
 			goto done;
-		} while (kgem_retire(kgem));
+		} while (__kgem_throttle_retire(kgem, 0));
 	}
 
 #if !DBG_NO_MAP_UPLOAD

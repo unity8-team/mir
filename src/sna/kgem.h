@@ -225,6 +225,7 @@ enum {
 	CREATE_SCANOUT = 0x10,
 	CREATE_TEMPORARY = 0x20,
 	CREATE_NO_RETIRE = 0x40,
+	CREATE_NO_THROTTLE = 0x40,
 };
 struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 			       int width,
