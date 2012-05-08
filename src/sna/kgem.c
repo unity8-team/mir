@@ -205,23 +205,39 @@ static int gem_set_tiling(int fd, uint32_t handle, int tiling, int stride)
 	return set_tiling.tiling_mode;
 }
 
-static void *gem_mmap(int fd, uint32_t handle, int size, int prot)
+static void *__kgem_bo_map__gtt(struct kgem *kgem, struct kgem_bo *bo)
 {
 	struct drm_i915_gem_mmap_gtt mmap_arg;
 	void *ptr;
 
-	DBG(("%s(handle=%d, size=%d, prot=%s)\n", __FUNCTION__,
-	     handle, size, prot & PROT_WRITE ? "read/write" : "read-only"));
+	DBG(("%s(handle=%d, size=%d)\n", __FUNCTION__,
+	     bo->handle, bytes(bo)));
 
+retry_gtt:
 	VG_CLEAR(mmap_arg);
-	mmap_arg.handle = handle;
-	if (drmIoctl(fd, DRM_IOCTL_I915_GEM_MMAP_GTT, &mmap_arg)) {
+	mmap_arg.handle = bo->handle;
+	if (drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_MMAP_GTT, &mmap_arg)) {
+		ErrorF("%s: failed to achieve GTT offset for handle=%d: %d\n",
+		       __FUNCTION__, bo->handle, errno);
+		kgem_throttle(kgem);
+		kgem_retire(kgem);
+		if (kgem_expire_cache(kgem))
+			goto retry_gtt;
+
 		assert(0);
 		return NULL;
 	}
 
-	ptr = mmap(0, size, prot, MAP_SHARED, fd, mmap_arg.offset);
+retry_mmap:
+	ptr = mmap(0, bytes(bo), PROT_READ | PROT_WRITE, MAP_SHARED,
+		   kgem->fd, mmap_arg.offset);
 	if (ptr == MAP_FAILED) {
+		ErrorF("%s: failed to mmap %d, %d bytes, into GTT domain: %d\n",
+		       __FUNCTION__, bo->handle, bytes(bo), errno);
+		kgem_throttle(kgem);
+		if (kgem_retire(kgem))
+			goto retry_mmap;
+
 		assert(0);
 		ptr = NULL;
 	}
@@ -3255,8 +3271,7 @@ void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo)
 
 		kgem_trim_vma_cache(kgem, MAP_GTT, bucket(bo));
 
-		ptr = gem_mmap(kgem->fd, bo->handle, bytes(bo),
-			       PROT_READ | PROT_WRITE);
+		ptr = __kgem_bo_map__gtt(kgem, bo);
 		if (ptr == NULL)
 			return NULL;
 
@@ -3310,8 +3325,7 @@ void *kgem_bo_map__gtt(struct kgem *kgem, struct kgem_bo *bo)
 
 		kgem_trim_vma_cache(kgem, MAP_GTT, bucket(bo));
 
-		ptr = gem_mmap(kgem->fd, bo->handle, bytes(bo),
-			       PROT_READ | PROT_WRITE);
+		ptr = __kgem_bo_map__gtt(kgem, bo);
 		if (ptr == NULL)
 			return NULL;
 
@@ -3333,8 +3347,7 @@ void *kgem_bo_map__debug(struct kgem *kgem, struct kgem_bo *bo)
 		return MAP(bo->map);
 
 	kgem_trim_vma_cache(kgem, MAP_GTT, bucket(bo));
-	return bo->map = gem_mmap(kgem->fd, bo->handle, bytes(bo),
-				  PROT_READ | PROT_WRITE);
+	return bo->map = __kgem_bo_map__gtt(kgem, bo);
 }
 
 void *kgem_bo_map__cpu(struct kgem *kgem, struct kgem_bo *bo)
@@ -3354,13 +3367,18 @@ void *kgem_bo_map__cpu(struct kgem *kgem, struct kgem_bo *bo)
 
 	kgem_trim_vma_cache(kgem, MAP_CPU, bucket(bo));
 
+retry:
 	VG_CLEAR(mmap_arg);
 	mmap_arg.handle = bo->handle;
 	mmap_arg.offset = 0;
 	mmap_arg.size = bytes(bo);
 	if (drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_MMAP, &mmap_arg)) {
-		ErrorF("%s: failed to mmap %d, %d bytes, into CPU domain\n",
-		       __FUNCTION__, bo->handle, bytes(bo));
+		ErrorF("%s: failed to mmap %d, %d bytes, into CPU domain: %d\n",
+		       __FUNCTION__, bo->handle, bytes(bo), errno);
+		kgem_throttle(kgem);
+		if (kgem_retire(kgem))
+			goto retry;
+
 		return NULL;
 	}
 
