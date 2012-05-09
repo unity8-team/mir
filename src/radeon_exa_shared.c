@@ -157,6 +157,7 @@ PixmapPtr RADEONSolidPixmap(ScreenPtr pScreen, uint32_t solid)
 	return NULL;
     }
 
+    info->accel_state->exa->WaitMarker(pScreen, info->accel_state->exaSyncMarker);
     memcpy(info->FB + exaGetPixmapOffset(pPix), &solid, 4);
 
     return pPix;
