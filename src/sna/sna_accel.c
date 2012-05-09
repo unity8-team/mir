@@ -5948,6 +5948,7 @@ rectangle_continue:
 				}
 			} else if (adx >= ady) {
 				int x2_clipped = x2, y2_clipped = y2;
+				bool dirty;
 
 				/* X-major segment */
 				e1 = ady << 1;
@@ -5985,43 +5986,54 @@ rectangle_continue:
 				e3 = e2 - e1;
 				e  = e - e1;
 
-				if (sdx < 0) {
-					x = x2_clipped;
-					y = y2_clipped;
-					sdy = -sdy;
-				}
-
 				b->x1 = x;
-				b->y2 = b->y1 = y;
+				b->y1 = y;
+				dirty = false;
 				while (length--) {
 					e += e1;
-					x++;
+					dirty = true;
 					if (e >= 0) {
-						b->x2 = x;
-						b->y2++;
+						e += e3;
+
+						if (sdx < 0) {
+							b->x2 = b->x1 + 1;
+							b->x1 = x;
+						} else
+							b->x2 = x + 1;
+						b->y2 = b->y1 + 1;
+
 						if (++b == last_box) {
 							ret = &&X_continue;
 							goto *jump;
 X_continue:
 							b = box;
 						}
-						y += sdy;
-						e += e3;
-						b->y2 = b->y1 = y;
-						b->x1 = x;
-					}
-				}
 
-				b->x2 = ++x;
-				b->y2++;
-				if (++b == last_box) {
-					ret = &&X_continue2;
-					goto *jump;
-X_continue2:
-					b = box;
+						b->x1 = x + sdx;
+						b->y1 = y += sdy;
+						dirty = false;
+					}
+					x += sdx;
+				}
+				if (dirty) {
+					x -= sdx;
+					if (sdx < 0) {
+						b->x2 = b->x1 + 1;
+						b->x1 = x;
+					} else
+						b->x2 = x + 1;
+					b->y2 = b->y1 + 1;
+
+					if (++b == last_box) {
+						ret = &&X2_continue;
+						goto *jump;
+X2_continue:
+						b = box;
+					}
 				}
 			} else {
 				int x2_clipped = x2, y2_clipped = y2;
+				bool dirty;
 
 				/* Y-major segment */
 				e1 = adx << 1;
@@ -6060,62 +6072,50 @@ X_continue2:
 				e3 = e2 - e1;
 				e  = e - e1;
 
-				if (sdx < 0) {
-					x = x2_clipped;
-					y = y2_clipped;
-					sdy = -sdy;
+				b->x1 = x;
+				b->y1 = y;
+				dirty = false;
+				while (length--) {
+					e += e1;
+					dirty = true;
+					if (e >= 0) {
+						e += e3;
+
+						if (sdy < 0) {
+							b->y2 = b->y1 + 1;
+							b->y1 = y;
+						} else
+							b->y2 = y + 1;
+						b->x2 = x + 1;
+
+						if (++b == last_box) {
+							ret = &&Y_continue;
+							goto *jump;
+Y_continue:
+							b = box;
+						}
+
+						b->x1 = x += sdx;
+						b->y1 = y + sdy;
+						dirty = false;
+					}
+					y += sdy;
 				}
 
-				b->x2 = b->x1 = x;
-				if (sdy < 0) {
-					b->y2 = y + 1;
-					while (length--) {
-						e += e1;
-						y--;
-						if (e >= 0) {
-							b->y1 = y;
-							b->x2++;
-							if (++b == last_box) {
-								ret = &&Y_up_continue;
-								goto *jump;
-Y_up_continue:
-								b = box;
-							}
-							e += e3;
-							b->x2 = b->x1 = ++x;
-							b->y2 = y;
-						}
-					}
+				if (dirty) {
+					if (sdy < 0) {
+						b->y2 = b->y1 + 1;
+						b->y1 = y;
+					} else
+						b->y2 = y + 1;
+					b->x2 = x + 1;
 
-					b->y1 = y;
-				} else {
-					b->y1 = y;
-					while (length--) {
-						e += e1;
-						y++;
-						if (e >= 0) {
-							b->y2 = y;
-							b->x2++;
-							if (++b == last_box) {
-								ret = &&Y_down_continue;
-								goto *jump;
-Y_down_continue:
-								b = box;
-							}
-							e += e3;
-							b->x2 = b->x1 = ++x;
-							b->y1 = y;
-						}
+					if (++b == last_box) {
+						ret = &&Y2_continue;
+						goto *jump;
+Y2_continue:
+						b = box;
 					}
-
-					b->y2 = ++y;
-				}
-				b->x2++;
-				if (++b == last_box) {
-					ret = &&Y_continue2;
-					goto *jump;
-Y_continue2:
-					b = box;
 				}
 			}
 		}
@@ -7222,6 +7222,8 @@ rectangle_continue:
 					b = box;
 				}
 			} else if (adx >= ady) {
+				bool dirty;
+
 				/* X-major segment */
 				e1 = ady << 1;
 				e2 = e1 - (adx << 1);
@@ -7255,42 +7257,54 @@ rectangle_continue:
 				e3 = e2 - e1;
 				e  = e - e1;
 
-				if (sdx < 0) {
-					x1 = x2;
-					y1 = y2;
-					sdy = -sdy;
-				}
-
 				b->x1 = x1;
-				b->y2 = b->y1 = y1;
-				while (--length) {
+				b->y1 = y1;
+				dirty = false;
+				while (length--) {
 					e += e1;
-					x1++;
+					dirty = true;
 					if (e >= 0) {
-						b->x2 = x1;
-						b->y2++;
+						e += e3;
+
+						if (sdx < 0) {
+							b->x2 = b->x1 + 1;
+							b->x1 = x1;
+						} else
+							b->x2 = x1 + 1;
+						b->y2 = b->y1 + 1;
+
 						if (++b == last_box) {
 							ret = &&X_continue;
 							goto *jump;
 X_continue:
 							b = box;
 						}
-						y1 += sdy;
-						e += e3;
-						b->y2 = b->y1 = y1;
+
+						b->x1 = x1 + sdx;
+						b->y1 = y1 += sdy;
+						dirty = false;
+					}
+					x1 += sdx;
+				}
+				if (dirty) {
+					x1 -= sdx;
+					if (sdx < 0) {
+						b->x2 = b->x1 + 1;
 						b->x1 = x1;
+					} else
+						b->x2 = x1 + 1;
+					b->y2 = b->y1 + 1;
+
+					if (++b == last_box) {
+						ret = &&X2_continue;
+						goto *jump;
+X2_continue:
+						b = box;
 					}
 				}
-
-				b->x2 = ++x1;
-				b->y2++;
-				if (++b == last_box) {
-					ret = &&X_continue2;
-					goto *jump;
-X_continue2:
-					b = box;
-				}
 			} else {
+				bool dirty;
+
 				/* Y-major segment */
 				e1 = adx << 1;
 				e2 = e1 - (ady << 1);
@@ -7326,62 +7340,50 @@ X_continue2:
 				e3 = e2 - e1;
 				e  = e - e1;
 
-				if (sdx < 0) {
-					x1 = x2;
-					y1 = y2;
-					sdy = -sdy;
+				b->x1 = x1;
+				b->y1 = y1;
+				dirty = false;
+				while (length--) {
+					e += e1;
+					dirty = true;
+					if (e >= 0) {
+						e += e3;
+
+						if (sdy < 0) {
+							b->y2 = b->y1 + 1;
+							b->y1 = y1;
+						} else
+							b->y2 = y1 + 1;
+						b->x2 = x1 + 1;
+
+						if (++b == last_box) {
+							ret = &&Y_continue;
+							goto *jump;
+Y_continue:
+							b = box;
+						}
+
+						b->x1 = x1 += sdx;
+						b->y1 = y1 + sdy;
+						dirty = false;
+					}
+					y1 += sdy;
 				}
 
-				b->x2 = b->x1 = x1;
-				if (sdy < 0) {
-					b->y2 = y1 + 1;
-					while (--length) {
-						e += e1;
-						y1--;
-						if (e >= 0) {
-							b->y1 = y1;
-							b->x2++;
-							if (++b == last_box) {
-								ret = &&Y_up_continue;
-								goto *jump;
-Y_up_continue:
-								b = box;
-							}
-							e += e3;
-							b->x2 = b->x1 = ++x1;
-							b->y2 = y1;
-						}
-					}
+				if (dirty) {
+					if (sdy < 0) {
+						b->y2 = b->y1 + 1;
+						b->y1 = y1;
+					} else
+						b->y2 = y1 + 1;
+					b->x2 = x1 + 1;
 
-					b->y1 = y1;
-				} else {
-					b->y1 = y1;
-					while (--length) {
-						e += e1;
-						y1++;
-						if (e >= 0) {
-							b->y2 = y1;
-							b->x2++;
-							if (++b == last_box) {
-								ret = &&Y_down_continue;
-								goto *jump;
-Y_down_continue:
-								b = box;
-							}
-							e += e3;
-							b->x2 = b->x1 = ++x1;
-							b->y1 = y1;
-						}
+					if (++b == last_box) {
+						ret = &&Y2_continue;
+						goto *jump;
+Y2_continue:
+						b = box;
 					}
-
-					b->y2 = ++y1;
-				}
-				b->x2++;
-				if (++b == last_box) {
-					ret = &&Y_continue2;
-					goto *jump;
-Y_continue2:
-					b = box;
 				}
 			}
 		} while (--n);
