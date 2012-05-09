@@ -495,7 +495,7 @@ sna_crtc_restore(struct sna *sna)
 			return;
 	}
 
-	bo->domain = DOMAIN_NONE;
+	kgem_bo_retire(&sna->kgem, bo);
 	scrn->displayWidth = bo->pitch / sna->mode.cpp;
 	sna->mode.fb_pixmap = sna->front->drawable.serialNumber;
 }
@@ -659,7 +659,6 @@ sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	int saved_x, saved_y;
 	Rotation saved_rotation;
 	DisplayModeRec saved_mode;
-	int ret = TRUE;
 
 	DBG(("%s(rotation=%d, x=%d, y=%d, mode=%dx%d@%d)\n",
 	     __FUNCTION__, rotation, x, y,
@@ -690,7 +689,6 @@ sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		DBG(("%s: handle %d attached to fb %d\n",
 		     __FUNCTION__, bo->handle, sna_mode->fb_id));
 
-		bo->domain = DOMAIN_NONE;
 		sna_mode->fb_pixmap = sna->front->drawable.serialNumber;
 	}
 
@@ -797,7 +795,6 @@ sna_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 
 	DBG(("%s: attached handle %d to fb %d\n",
 	     __FUNCTION__, bo->handle, sna_crtc->shadow_fb_id));
-	bo->domain = DOMAIN_NONE;
 	return sna_crtc->shadow = shadow;
 }
 
@@ -810,7 +807,6 @@ sna_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 static void
 sna_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr pixmap, void *data)
 {
-	struct sna *sna = to_sna(crtc->scrn);
 	struct sna_crtc *sna_crtc = crtc->driver_private;
 
 	/* We may have not called shadow_create() on the data yet and
@@ -1727,7 +1723,8 @@ sna_crtc_resize(ScrnInfoPtr scrn, int width, int height)
 		if (!sna_crtc_apply(crtc))
 			goto fail;
 	}
-	bo->domain = DOMAIN_NONE;
+
+	kgem_bo_retire(&sna->kgem, bo);
 
 	scrn->virtualX = width;
 	scrn->virtualY = height;
@@ -1859,9 +1856,7 @@ sna_page_flip(struct sna *sna,
 	 */
 	count = do_page_flip(sna, data, ref_crtc_hw_id);
 	DBG(("%s: page flipped %d crtcs\n", __FUNCTION__, count));
-	if (count)
-		bo->domain = DOMAIN_NONE;
-	else
+	if (count == 0)
 		mode->fb_id = *old_fb;
 
 	return count;

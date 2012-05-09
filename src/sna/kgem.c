@@ -342,7 +342,7 @@ kgem_busy(struct kgem *kgem, int handle)
 	return busy.busy;
 }
 
-static void kgem_bo_retire(struct kgem *kgem, struct kgem_bo *bo)
+void kgem_bo_retire(struct kgem *kgem, struct kgem_bo *bo)
 {
 	DBG(("%s: handle=%d, domain=%d\n",
 	     __FUNCTION__, bo->handle, bo->domain));
@@ -359,6 +359,8 @@ static void kgem_bo_retire(struct kgem *kgem, struct kgem_bo *bo)
 		list_del(&bo->request);
 		bo->needs_flush = bo->flush;
 	}
+
+	bo->domain = DOMAIN_NONE;
 }
 
 Bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,
@@ -375,7 +377,6 @@ Bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,
 
 	DBG(("%s: flush=%d, domain=%d\n", __FUNCTION__, bo->flush, bo->domain));
 	kgem_bo_retire(kgem, bo);
-	bo->domain = DOMAIN_NONE;
 	return TRUE;
 }
 
@@ -4171,7 +4172,6 @@ void kgem_buffer_read_sync(struct kgem *kgem, struct kgem_bo *_bo)
 		kgem_bo_map__cpu(kgem, &bo->base);
 	}
 	kgem_bo_retire(kgem, &bo->base);
-	bo->base.domain = DOMAIN_NONE;
 }
 
 uint32_t kgem_bo_get_binding(struct kgem_bo *bo, uint32_t format)

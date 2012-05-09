@@ -243,6 +243,7 @@ struct kgem_bo *kgem_create_cpu_2d(struct kgem *kgem,
 uint32_t kgem_bo_get_binding(struct kgem_bo *bo, uint32_t format);
 void kgem_bo_set_binding(struct kgem_bo *bo, uint32_t format, uint16_t offset);
 
+void kgem_bo_retire(struct kgem *kgem, struct kgem_bo *bo);
 bool kgem_retire(struct kgem *kgem);
 
 void _kgem_submit(struct kgem *kgem);
