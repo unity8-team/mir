@@ -6103,6 +6103,7 @@ Y_continue:
 				}
 
 				if (dirty) {
+					y -= sdy;
 					if (sdy < 0) {
 						b->y2 = b->y1 + 1;
 						b->y1 = y;
@@ -7371,6 +7372,7 @@ Y_continue:
 				}
 
 				if (dirty) {
+					y1 -= sdy;
 					if (sdy < 0) {
 						b->y2 = b->y1 + 1;
 						b->y1 = y1;
