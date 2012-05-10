@@ -3451,8 +3451,11 @@ static uint32_t gem_vmap(int fd, void *ptr, int size, int read_only)
 	if (read_only)
 		vmap.flags |= I915_VMAP_READ_ONLY;
 
-	if (drmIoctl(fd, DRM_IOCTL_I915_GEM_VMAP, &vmap))
+	if (drmIoctl(fd, DRM_IOCTL_I915_GEM_VMAP, &vmap)) {
+		DBG(("%s: failed to map %p + %d bytes: %d\n",
+		     __FUNCTION__, ptr, size, errno));
 		return 0;
+	}
 
 	return vmap.handle;
 }
@@ -3764,9 +3767,9 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			free(old);
 			bo->base.refcnt = 1;
 		} else {
-			if (!__kgem_bo_init(&bo->base,
-					    gem_create(kgem->fd, alloc),
-					    alloc)) {
+			uint32_t handle = gem_create(kgem->fd, alloc);
+			if (handle == 0 ||
+			    !__kgem_bo_init(&bo->base, handle, alloc)) {
 				free(bo);
 				return NULL;
 			}
@@ -3874,23 +3877,23 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 	if (kgem->has_vmap) {
 		bo = partial_bo_alloc(alloc);
 		if (bo) {
-			if (!__kgem_bo_init(&bo->base,
-					    gem_vmap(kgem->fd, bo->mem,
-						     alloc * PAGE_SIZE, false),
-					    alloc)) {
+			uint32_t handle = gem_vmap(kgem->fd, bo->mem,
+						   alloc * PAGE_SIZE, false);
+			if (handle == 0 ||
+			    !__kgem_bo_init(&bo->base, handle, alloc)) {
 				free(bo);
-				return NULL;
+				bo = NULL;
+			} else {
+				DBG(("%s: created vmap handle=%d for buffer\n",
+				     __FUNCTION__, bo->base.handle));
+
+				bo->need_io = false;
+				bo->base.io = true;
+				bo->base.vmap = true;
+				bo->mmapped = true;
+
+				goto init;
 			}
-
-			DBG(("%s: created vmap handle=%d for buffer\n",
-			     __FUNCTION__, bo->base.handle));
-
-			bo->need_io = false;
-			bo->base.io = true;
-			bo->base.vmap = true;
-			bo->mmapped = true;
-
-			goto init;
 		}
 	}
 
@@ -3942,9 +3945,9 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			free(old);
 			bo->base.refcnt = 1;
 		} else {
-			if (!__kgem_bo_init(&bo->base,
-					    gem_create(kgem->fd, alloc),
-					    alloc)) {
+			uint32_t handle = gem_create(kgem->fd, alloc);
+			if (handle == 0 ||
+			    !__kgem_bo_init(&bo->base, handle, alloc)) {
 				free(bo);
 				return NULL;
 			}
