@@ -1256,6 +1256,11 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
     screen_size = RADEON_ALIGN(pScrn->virtualY, drmmode_get_height_align(pScrn, tiling_flags)) * pitch;
     base_align = drmmode_get_base_align(pScrn, cpp, tiling_flags);
 	if (info->ChipFamily >= CHIP_FAMILY_R600) {
+		if(!info->surf_man) {
+			xf86DrvMsg(pScreen->myNum, X_ERROR,
+				   "failed to initialise surface manager\n");
+			return FALSE;
+		}
 		memset(&surface, 0, sizeof(struct radeon_surface));
 		surface.npix_x = pScrn->displayWidth;
 		surface.npix_y = pScrn->virtualY;
