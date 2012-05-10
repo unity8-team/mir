@@ -12105,7 +12105,7 @@ static CARD32 sna_timeout(OsTimerPtr timer, CARD32 now, pointer arg)
 			int32_t delta = sna->timer_expire[i] - now;
 			DBG(("%s: timer[%d] expires in %d [%d]\n",
 			     __FUNCTION__, i, delta, sna->timer_expire[i]));
-			if (delta <= 0)
+			if (delta <= 3)
 				sna->timer_ready |= 1 << i;
 			else if (next == 0 || delta < next)
 				next = delta;
