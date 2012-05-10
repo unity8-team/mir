@@ -6848,6 +6848,44 @@ sna_poly_line__cpu(DrawablePtr drawable, GCPtr gc,
 	fbPolyLine(drawable, gc, mode, n, pt);
 }
 
+static inline void box_from_seg(BoxPtr b, xSegment *seg, GCPtr gc)
+{
+	if (seg->x1 == seg->x2) {
+		if (seg->y1 > seg->y2) {
+			b->y2 = seg->y1 + 1;
+			b->y1 = seg->y2 + 1;
+			if (gc->capStyle != CapNotLast)
+				b->y1--;
+		} else {
+			b->y1 = seg->y1;
+			b->y2 = seg->y2;
+			if (gc->capStyle != CapNotLast)
+				b->y2++;
+		}
+		b->x1 = seg->x1;
+		b->x2 = seg->x1 + 1;
+	} else {
+		if (seg->x1 > seg->x2) {
+			b->x2 = seg->x1 + 1;
+			b->x1 = seg->x2 + 1;
+			if (gc->capStyle != CapNotLast)
+				b->x1--;
+		} else {
+			b->x1 = seg->x1;
+			b->x2 = seg->x2;
+			if (gc->capStyle != CapNotLast)
+				b->x2++;
+		}
+		b->y1 = seg->y1;
+		b->y2 = seg->y1 + 1;
+	}
+
+	DBG(("%s: seg=(%d,%d),(%d,%d); box=(%d,%d),(%d,%d)\n",
+	     __FUNCTION__,
+	     seg->x1, seg->y1, seg->x2, seg->y2,
+	     b->x1, b->y1, b->x2, b->y2));
+}
+
 static Bool
 sna_poly_segment_blt(DrawablePtr drawable,
 		     struct kgem_bo *bo,
@@ -6880,35 +6918,7 @@ sna_poly_segment_blt(DrawablePtr drawable,
 					nbox = ARRAY_SIZE(boxes);
 				n -= nbox;
 				do {
-					if (seg->x1 <= seg->x2) {
-						b->x1 = seg->x1;
-						b->x2 = seg->x2;
-					} else {
-						b->x1 = seg->x2;
-						b->x2 = seg->x1;
-					}
-					b->x2++;
-
-					if (seg->y1 <= seg->y2) {
-						b->y1 = seg->y1;
-						b->y2 = seg->y2;
-					} else {
-						b->y1 = seg->y2;
-						b->y2 = seg->y1;
-					}
-					b->y2++;
-
-					/* don't paint last pixel */
-					if (gc->capStyle == CapNotLast) {
-						if (seg->x1 == seg->x2)
-							b->y2--;
-						else
-							b->x2--;
-					}
-
-					/* XXX does a degenerate segment
-					 * become a point?
-					 */
+					box_from_seg(b, seg, gc);
 					if (b->y2 > b->y1 && b->x2 > b->x1) {
 						b->x1 += dx;
 						b->x2 += dx;
@@ -6933,32 +6943,7 @@ sna_poly_segment_blt(DrawablePtr drawable,
 					nbox = ARRAY_SIZE(boxes);
 				n -= nbox;
 				do {
-					if (seg->x1 <= seg->x2) {
-						b->x1 = seg->x1;
-						b->x2 = seg->x2;
-					} else {
-						b->x1 = seg->x2;
-						b->x2 = seg->x1;
-					}
-					b->x2++;
-
-					if (seg->y1 <= seg->y2) {
-						b->y1 = seg->y1;
-						b->y2 = seg->y2;
-					} else {
-						b->y1 = seg->y2;
-						b->y2 = seg->y1;
-					}
-					b->y2++;
-
-					/* don't paint last pixel */
-					if (gc->capStyle == CapNotLast) {
-						if (seg->x1 == seg->x2)
-							b->y2--;
-						else
-							b->x2--;
-					}
-
+					box_from_seg(b, seg, gc);
 					if (b->y2 > b->y1 && b->x2 > b->x1)
 						b++;
 					seg++;
@@ -6985,41 +6970,13 @@ sna_poly_segment_blt(DrawablePtr drawable,
 			const BoxRec * const clip_end = clip_start + clip.data->numRects;
 			const BoxRec *c;
 			do {
-				int x, y, width, height;
 				BoxRec box;
 
-				if (seg->x1 < seg->x2) {
-					x = seg->x1;
-					width = seg->x2;
-				} else {
-					x = seg->x2;
-					width = seg->x1;
-				}
-				width -= x - 1;
-
-				if (seg->y1 < seg->y2) {
-					y = seg->y1;
-					height = seg->y2;
-				} else {
-					y = seg->y2;
-					height = seg->y1;
-				}
-				height -= y - 1;
-
-				/* don't paint last pixel */
-				if (gc->capStyle == CapNotLast) {
-					if (width == 1)
-						height--;
-					else
-						width--;
-				}
-
-				DBG(("%s: [%d] (%d, %d)x(%d, %d) + (%d, %d)\n", __FUNCTION__, n,
-				     x, y, width, height, dx+drawable->x, dy+drawable->y));
-				box.x1 = x + drawable->x;
-				box.x2 = box.x1 + width;
-				box.y1 = y + drawable->y;
-				box.y2 = box.y1 + height;
+				box_from_seg(b, seg, gc);
+				box.x1 += drawable->x;
+				box.x2 += drawable->x;
+				box.y1 += drawable->y;
+				box.y2 += drawable->y;
 				c = find_clip_box_for_y(clip_start,
 							clip_end,
 							box.y1);
@@ -7046,42 +7003,11 @@ sna_poly_segment_blt(DrawablePtr drawable,
 			} while (--n);
 		} else {
 			do {
-				int x, y, width, height;
-
-				if (seg->x1 < seg->x2) {
-					x = seg->x1;
-					width = seg->x2;
-				} else {
-					x = seg->x2;
-					width = seg->x1;
-				}
-				width -= x - 1;
-
-				if (seg->y1 < seg->y2) {
-					y = seg->y1;
-					height = seg->y2;
-				} else {
-					y = seg->y2;
-					height = seg->y1;
-				}
-				height -= y - 1;
-
-				/* don't paint last pixel */
-				if (gc->capStyle == CapNotLast) {
-					if (width == 1)
-						height--;
-					else
-						width--;
-				}
-
-				DBG(("%s: [%d] (%d, %d)x(%d, %d) + (%d, %d)\n", __FUNCTION__, n,
-				     x, y, width, height, dx+drawable->x, dy+drawable->y));
-
-				b->x1 = x + drawable->x;
-				b->x2 = b->x1 + width;
-				b->y1 = y + drawable->y;
-				b->y2 = b->y1 + height;
-
+				box_from_seg(b, seg, gc);
+				b->x1 += drawable->x;
+				b->x2 += drawable->x;
+				b->y1 += drawable->y;
+				b->y2 += drawable->y;
 				if (box_intersect(b, &clip.extents)) {
 					b->x1 += dx;
 					b->x2 += dx;
