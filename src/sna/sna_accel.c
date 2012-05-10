@@ -7188,8 +7188,8 @@ rectangle_continue:
 				b->y1 = y1;
 				dirty = false;
 				while (length--) {
-					e += e1;
 					dirty = true;
+					e += e1;
 					if (e >= 0) {
 						e += e3;
 
@@ -7199,6 +7199,10 @@ rectangle_continue:
 						} else
 							b->x2 = x1 + 1;
 						b->y2 = b->y1 + 1;
+
+						DBG(("%s: horizontal step: (%d, %d), box: (%d, %d), (%d, %d)\n",
+						     __FUNCTION__, x1, y1,
+						     b->x1, b->y1, b->x2, b->y2));
 
 						if (++b == last_box) {
 							ret = &&X_continue;
@@ -7215,6 +7219,8 @@ X_continue:
 				}
 				if (dirty) {
 					x1 -= sdx;
+					DBG(("%s: horizontal tail: (%d, %d)\n",
+					     __FUNCTION__, x1, y1));
 					if (sdx < 0) {
 						b->x2 = b->x1 + 1;
 						b->x1 = x1;
