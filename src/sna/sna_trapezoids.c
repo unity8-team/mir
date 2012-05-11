@@ -1581,11 +1581,11 @@ inplace_subrow(struct active_list *active, int8_t *row,
 					if (xstart < FAST_SAMPLES_X * width) {
 						FAST_SAMPLES_X_TO_INT_FRAC(xstart, ix, fx);
 						row[ix] -= FAST_SAMPLES_X - fx;
-						if (fx && ix + 1< width)
+						if (fx && ix + 1 < width)
 							row[++ix] -= fx;
 
-						if (ix > *max)
-							*max = ix;
+						if (ix >= *max)
+							*max = ix + 1;
 
 						xstart = INT_MIN;
 					} else
@@ -1622,6 +1622,7 @@ inplace_subrow(struct active_list *active, int8_t *row,
 		} else {
 			edge->prev->next = next;
 			next->prev = edge->prev;
+			active->min_height = -1;
 		}
 
 		edge = next;
