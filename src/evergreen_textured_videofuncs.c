@@ -508,7 +508,7 @@ EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     }
 
     while (nBox--) {
-	int srcX, srcY, srcw, srch;
+	float srcX, srcY, srcw, srch;
 	int dstX, dstY, dstw, dsth;
 	float *vb;
 
@@ -520,13 +520,13 @@ EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 
 	srcX = pPriv->src_x;
 	srcX += ((pBox->x1 - pPriv->drw_x) *
-		 pPriv->src_w) / pPriv->dst_w;
+		 pPriv->src_w) / (float)pPriv->dst_w;
 	srcY = pPriv->src_y;
 	srcY += ((pBox->y1 - pPriv->drw_y) *
-		 pPriv->src_h) / pPriv->dst_h;
+		 pPriv->src_h) / (float)pPriv->dst_h;
 
-	srcw = (pPriv->src_w * dstw) / pPriv->dst_w;
-	srch = (pPriv->src_h * dsth) / pPriv->dst_h;
+	srcw = (pPriv->src_w * dstw) / (float)pPriv->dst_w;
+	srch = (pPriv->src_h * dsth) / (float)pPriv->dst_h;
 
 	vb = radeon_vbo_space(pScrn, &accel_state->vbo, 16);
 
