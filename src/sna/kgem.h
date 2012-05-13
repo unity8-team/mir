@@ -445,7 +445,8 @@ static inline bool kgem_bo_is_mappable(struct kgem *kgem,
 
 static inline bool kgem_bo_mapped(struct kgem_bo *bo)
 {
-	DBG_HDR(("%s: map=%p, tiling=%d\n", __FUNCTION__, bo->map, bo->tiling));
+	DBG_HDR(("%s: map=%p, tiling=%d, domain=%d\n",
+		 __FUNCTION__, bo->map, bo->tiling, bo->domain));
 
 	if (bo->map == NULL)
 		return bo->tiling == I915_TILING_NONE && bo->domain == DOMAIN_CPU;

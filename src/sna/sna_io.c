@@ -531,7 +531,7 @@ static bool upload_inplace(struct kgem *kgem,
 	 * able to almagamate a series of small writes into a single
 	 * operation.
 	 */
-	if (!kgem_bo_mapped(bo) || kgem_bo_is_busy(bo)) {
+	if (kgem_bo_is_busy(bo)) {
 		unsigned int bytes = 0;
 		while (n--) {
 			bytes += (box->x2 - box->x1) * (box->y2 - box->y1);
@@ -1148,7 +1148,7 @@ bool sna_replace(struct sna *sna,
 	     pixmap->drawable.bitsPerPixel,
 	     bo->tiling));
 
-	if ((!kgem_bo_mapped(bo) || kgem_bo_is_busy(bo)) &&
+	if ((!kgem_bo_can_map(kgem, bo) || kgem_bo_is_busy(bo)) &&
 	    indirect_replace(sna, pixmap, bo, src, stride))
 		return true;
 
