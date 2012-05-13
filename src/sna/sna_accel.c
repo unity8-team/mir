@@ -12334,10 +12334,7 @@ void sna_accel_block_handler(struct sna *sna, struct timeval **tv)
 {
 	sna->time = GetTimeInMillis();
 
-	if (!sna->kgem.need_retire) {
-		kgem_submit(&sna->kgem);
-		sna->kgem.flush_now = 0;
-	}
+	sna_accel_wakeup_handler(sna, NULL);
 
 	if (sna_accel_do_flush(sna))
 		sna_accel_flush(sna);
@@ -12383,6 +12380,10 @@ void sna_accel_wakeup_handler(struct sna *sna, fd_set *ready)
 {
 	if (sna->kgem.need_retire)
 		kgem_retire(&sna->kgem);
+	if (!sna->kgem.need_retire) {
+		kgem_submit(&sna->kgem);
+		sna->kgem.flush_now = 0;
+	}
 	if (sna->kgem.need_purge)
 		kgem_purge_cache(&sna->kgem);
 }
