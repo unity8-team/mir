@@ -12334,6 +12334,11 @@ void sna_accel_block_handler(struct sna *sna, struct timeval **tv)
 {
 	sna->time = GetTimeInMillis();
 
+	if (!sna->kgem.need_retire) {
+		kgem_submit(&sna->kgem);
+		sna->kgem.flush_now = 0;
+	}
+
 	if (sna_accel_do_flush(sna))
 		sna_accel_flush(sna);
 
