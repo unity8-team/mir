@@ -974,7 +974,7 @@ void _kgem_add_bo(struct kgem *kgem, struct kgem_bo *bo)
 	bo->exec = kgem_add_handle(kgem, bo);
 	bo->rq = kgem->next_request;
 
-	list_move(&bo->request, &kgem->next_request->buffers);
+	list_move_tail(&bo->request, &kgem->next_request->buffers);
 
 	/* XXX is it worth working around gcc here? */
 	kgem->flush |= bo->flush;
@@ -3164,7 +3164,8 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 			delta += bo->delta;
 			assert(bo->handle == bo->proxy->handle);
 			/* need to release the cache upon batch submit */
-			list_move(&bo->request, &kgem->next_request->buffers);
+			list_move_tail(&bo->request,
+				       &kgem->next_request->buffers);
 			bo->exec = &_kgem_dummy_exec;
 			bo = bo->proxy;
 		}
@@ -3193,6 +3194,7 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 			DBG(("%s: marking handle=%d dirty\n",
 			     __FUNCTION__, bo->handle));
 			bo->needs_flush = bo->dirty = true;
+			list_move(&bo->request, &kgem->next_request->buffers);
 		}
 
 		delta += bo->presumed_offset;
@@ -3582,8 +3584,12 @@ void kgem_clear_dirty(struct kgem *kgem)
 	struct kgem_request *rq = kgem->next_request;
 	struct kgem_bo *bo;
 
-	list_for_each_entry(bo, &rq->buffers, request)
+	list_for_each_entry(bo, &rq->buffers, request) {
+		if (!bo->dirty)
+			break;
+
 		bo->dirty = false;
+	}
 }
 
 struct kgem_bo *kgem_create_proxy(struct kgem_bo *target,
