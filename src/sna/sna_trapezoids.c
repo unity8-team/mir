@@ -2473,7 +2473,13 @@ trapezoids_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 		bounds.x1 -= dst->pDrawable->x;
 		bounds.y1 -= dst->pDrawable->y;
 		depth = maskFormat->depth;
-		format = maskFormat->format | (BitsPerPixel(depth) << 24);
+		if (depth == 1) {
+			format = PIXMAN_a1;
+		} else if (depth < 8) {
+			format = PIXMAN_a4;
+			depth = 4;
+		} else
+			format = PIXMAN_a8;
 
 		DBG(("%s: mask (%dx%d) depth=%d, format=%08x\n",
 		     __FUNCTION__, width, height, depth, format));
@@ -2511,15 +2517,22 @@ trapezoids_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 								       0, 0,
 								       0, 0,
 								       width, height);
+						format = PIXMAN_a8;
+						depth = 8;
 						pixman_image_unref (a8);
 					}
 				}
 
 				pixman_image_unref(image);
 			}
+			if (format != PIXMAN_a8) {
+				screen->DestroyPixmap(scratch);
+				return;
+			}
 		} else {
 			scratch = sna_pixmap_create_unattached(screen,
-							       width, height, depth);
+							       width, height,
+							       depth);
 			if (!scratch)
 				return;
 
@@ -2532,6 +2545,7 @@ trapezoids_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 					pixman_rasterize_trapezoid(image,
 								   (pixman_trapezoid_t *)traps,
 								   -bounds.x1, -bounds.y1);
+				pixman_image_unref(image);
 			}
 		}
 
