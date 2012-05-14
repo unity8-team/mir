@@ -6918,7 +6918,7 @@ sna_poly_segment_blt(DrawablePtr drawable,
 					nbox = ARRAY_SIZE(boxes);
 				n -= nbox;
 				do {
-					box_from_seg(b, seg, gc);
+					box_from_seg(b, seg++, gc);
 					if (b->y2 > b->y1 && b->x2 > b->x1) {
 						b->x1 += dx;
 						b->x2 += dx;
@@ -6926,7 +6926,6 @@ sna_poly_segment_blt(DrawablePtr drawable,
 						b->y2 += dy;
 						b++;
 					}
-					seg++;
 				} while (--nbox);
 
 				if (b != boxes) {
@@ -6943,10 +6942,7 @@ sna_poly_segment_blt(DrawablePtr drawable,
 					nbox = ARRAY_SIZE(boxes);
 				n -= nbox;
 				do {
-					box_from_seg(b, seg, gc);
-					if (b->y2 > b->y1 && b->x2 > b->x1)
-						b++;
-					seg++;
+					box_from_seg(b++, seg++, gc);
 				} while (--nbox);
 
 				if (b != boxes) {
@@ -6972,7 +6968,7 @@ sna_poly_segment_blt(DrawablePtr drawable,
 			do {
 				BoxRec box;
 
-				box_from_seg(b, seg, gc);
+				box_from_seg(&box, seg++, gc);
 				box.x1 += drawable->x;
 				box.x2 += drawable->x;
 				box.y1 += drawable->y;
@@ -6998,12 +6994,10 @@ sna_poly_segment_blt(DrawablePtr drawable,
 						}
 					}
 				}
-
-				seg++;
 			} while (--n);
 		} else {
 			do {
-				box_from_seg(b, seg, gc);
+				box_from_seg(b, seg++, gc);
 				b->x1 += drawable->x;
 				b->x2 += drawable->x;
 				b->y1 += drawable->y;
@@ -7020,8 +7014,6 @@ sna_poly_segment_blt(DrawablePtr drawable,
 						b = boxes;
 					}
 				}
-
-				seg++;
 			} while (--n);
 		}
 		RegionUninit(&clip);

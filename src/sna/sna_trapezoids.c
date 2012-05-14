@@ -2475,7 +2475,7 @@ trapezoids_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 		depth = maskFormat->depth;
 		if (depth == 1) {
 			format = PIXMAN_a1;
-		} else if (depth < 8) {
+		} else if (depth <= 4) {
 			format = PIXMAN_a4;
 			depth = 4;
 		} else
