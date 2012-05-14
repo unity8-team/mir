@@ -1091,6 +1091,17 @@ static void kgem_bo_clear_scanout(struct kgem *kgem, struct kgem_bo *bo)
 	bo->reusable = true;
 }
 
+static void _kgem_bo_delete_partial(struct kgem *kgem, struct kgem_bo *bo)
+{
+	struct kgem_partial_bo *io = (struct kgem_partial_bo *)bo->proxy;
+
+	DBG(("%s: size=%d, offset=%d, parent used=%d\n",
+	     __FUNCTION__, bo->size.bytes, bo->delta, io->used));
+
+	if (ALIGN(bo->delta + bo->size.bytes, 64) == io->used)
+		io->used = bo->delta;
+}
+
 static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 {
 	DBG(("%s: handle=%d\n", __FUNCTION__, bo->handle));
@@ -2882,6 +2893,8 @@ void _kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 	if (bo->proxy) {
 		_list_del(&bo->vma);
 		_list_del(&bo->request);
+		if (bo->io && bo->exec == NULL)
+			_kgem_bo_delete_partial(kgem, bo);
 		kgem_bo_unref(kgem, bo->proxy);
 		kgem_bo_binding_free(kgem, bo);
 		free(bo);
