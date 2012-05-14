@@ -4176,12 +4176,10 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 			return true;
 		if (priv->clear && priv->clear_color == 0xff)
 			op = PictOpSrc;
-		if ((color >> 24) == 0)
-			return true;
 		unbounded = true;
 		break;
 	case PictOpSrc:
-		unbounded = !(priv->clear && priv->clear_color == 0);
+		unbounded = true;
 		break;
 	default:
 		DBG(("%s: fallback -- can not perform op [%d] in place\n",
@@ -4270,7 +4268,7 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 	DBG(("%s: move-to-cpu\n", __FUNCTION__));
 	region.data = NULL;
 	if (!sna_drawable_move_region_to_cpu(dst->pDrawable, &region,
-					     op == PictOpSrc ? MOVE_WRITE : MOVE_WRITE | MOVE_READ))
+					     op == PictOpSrc ? MOVE_WRITE | MOVE_INPLACE_HINT : MOVE_WRITE | MOVE_READ))
 		return true;
 
 	get_drawable_deltas(dst->pDrawable, pixmap, &dst_x, &dst_y);
