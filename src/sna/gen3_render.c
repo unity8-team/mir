@@ -2543,7 +2543,7 @@ mul_8_8(uint8_t a, uint8_t b)
     return ((t >> 8) + t) >> 8;
 }
 
-static inline uint8_t multa(uint32_t s, uint32_t m, int shift)
+static inline uint32_t multa(uint32_t s, uint32_t m, int shift)
 {
 	return mul_8_8((s >> shift) & 0xff, m >> 24) << shift;
 }
@@ -2944,6 +2944,7 @@ gen3_render_composite(struct sna *sna,
 
 					tmp->src.u.gen3.type = SHADER_CONSTANT;
 					tmp->src.u.gen3.mode = v;
+					tmp->src.is_opaque = false;
 
 					tmp->mask.u.gen3.type = SHADER_NONE;
 				}
