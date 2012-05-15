@@ -6751,13 +6751,13 @@ spans_fallback:
 				}
 				assert(gc->miTranslate);
 
-				gc->ops = &sna_gc_ops__tmp;
 				DBG(("%s: miZeroLine (solid dash)\n", __FUNCTION__));
 				if (!sna_fill_init_blt(&fill,
 						       data.sna, data.pixmap,
 						       data.bo, gc->alu, color))
 					goto fallback;
 
+				gc->ops = &sna_gc_ops__tmp;
 				miZeroDashLine(drawable, gc, mode, n, pt);
 				fill.done(data.sna, &fill);
 
