@@ -920,7 +920,7 @@ next_image:
 					if (!sna->render.composite(sna, PictOpAdd,
 								   this_atlas, NULL, mask,
 								   0, 0, 0, 0, 0, 0,
-								   0, 0,
+								   width, height,
 								   &tmp)) {
 						FreePicture(mask, 0);
 						return FALSE;
