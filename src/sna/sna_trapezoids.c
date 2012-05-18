@@ -607,14 +607,14 @@ cell_list_add_span(struct cell_list *cells,
 
 	cell = cell_list_find(cells, ix1);
 	if (ix1 != ix2) {
-		cell->uncovered_area += 2*fx1;
+		cell->uncovered_area += 2*fx1*FAST_SAMPLES_Y;
 		cell->covered_height += FAST_SAMPLES_Y;
 
 		cell = cell_list_find(cells, ix2);
-		cell->uncovered_area -= 2*fx2;
+		cell->uncovered_area -= 2*fx2*FAST_SAMPLES_Y;
 		cell->covered_height -= FAST_SAMPLES_Y;
 	} else
-		cell->uncovered_area += 2*(fx1-fx2);
+		cell->uncovered_area += 2*(fx1-fx2)*FAST_SAMPLES_Y;
 }
 
 static void
@@ -1025,6 +1025,7 @@ nonzero_subrow(struct active_list *active, struct cell_list *coverages)
 		} else {
 			edge->prev->next = next;
 			next->prev = edge->prev;
+			active->min_height = -1;
 		}
 
 		edge = next;
@@ -1718,7 +1719,7 @@ tor_inplace(struct tor *converter, PixmapPtr scratch, int mono, uint8_t *buf)
 	int stride = scratch->devKind;
 	int width = scratch->drawable.width;
 
-	__DBG(("%s: mono=%d, buf=%d\n", __FUNCTION__, mono, buf));
+	__DBG(("%s: mono=%d, buf?=%d\n", __FUNCTION__, mono, buf != NULL));
 	assert(!mono);
 	assert(converter->ymin == 0);
 	assert(converter->xmin == 0);
@@ -1750,9 +1751,9 @@ tor_inplace(struct tor *converter, PixmapPtr scratch, int mono, uint8_t *buf)
 			do_full_step = can_full_step(active);
 		}
 
-		__DBG(("%s: y=%d [%d], do_full_step=%d, new edges=%d, min_height=%d, vertical=%d\n",
+		__DBG(("%s: y=%d, do_full_step=%d, new edges=%d, min_height=%d, vertical=%d\n",
 		       __FUNCTION__,
-		       i, i+ymin, do_full_step,
+		       i, do_full_step,
 		       polygon->y_buckets[i] != NULL,
 		       active->min_height,
 		       active->is_vertical));
