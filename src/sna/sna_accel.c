@@ -904,9 +904,6 @@ static inline bool pixmap_inplace(struct sna *sna,
 	if (priv->mapped)
 		return true;
 
-	if (sna->kgem.has_llc && pixmap != sna->front)
-		return !priv->cpu_bo;
-
 	return (pixmap->devKind * pixmap->drawable.height >> 12) >
 		sna->kgem.half_cpu_cache_pages;
 }
@@ -1265,9 +1262,6 @@ static inline bool region_inplace(struct sna *sna,
 		DBG(("%s: uncovered CPU damage pending\n", __FUNCTION__));
 		return false;
 	}
-
-	if (sna->kgem.has_llc && pixmap != sna->front)
-		return !priv->cpu_bo;
 
 	DBG(("%s: (%dx%d), inplace? %d\n",
 	     __FUNCTION__,
