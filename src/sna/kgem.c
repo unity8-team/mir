@@ -303,9 +303,9 @@ void kgem_bo_retire(struct kgem *kgem, struct kgem_bo *bo)
 		assert(list_is_empty(&bo->vma));
 		bo->rq = NULL;
 		list_del(&bo->request);
-		bo->needs_flush = bo->flush;
 	}
 
+	bo->needs_flush = false;
 	bo->domain = DOMAIN_NONE;
 }
 
@@ -1280,7 +1280,6 @@ static bool kgem_retire__flushing(struct kgem *kgem)
 	bool retired = false;
 
 	list_for_each_entry_safe(bo, next, &kgem->flushing, request) {
-		assert(bo->refcnt == 0);
 		assert(bo->rq == &_kgem_static_request);
 		assert(bo->exec == NULL);
 
@@ -1289,16 +1288,19 @@ static bool kgem_retire__flushing(struct kgem *kgem)
 
 		DBG(("%s: moving %d from flush to inactive\n",
 		     __FUNCTION__, bo->handle));
-		if (bo->reusable && kgem_bo_set_purgeable(kgem, bo)) {
-			bo->needs_flush = false;
-			bo->domain = DOMAIN_NONE;
-			bo->rq = NULL;
-			list_del(&bo->request);
-			kgem_bo_move_to_inactive(kgem, bo);
-		} else
-			kgem_bo_free(kgem, bo);
+		bo->needs_flush = false;
+		bo->domain = DOMAIN_NONE;
+		bo->rq = NULL;
+		list_del(&bo->request);
 
-		retired = true;
+		if (!bo->refcnt) {
+			assert(bo->reusable);
+			if (kgem_bo_set_purgeable(kgem, bo)) {
+				kgem_bo_move_to_inactive(kgem, bo);
+				retired = true;
+			} else
+				kgem_bo_free(kgem, bo);
+		}
 	}
 
 	return retired;
@@ -1331,12 +1333,18 @@ static bool kgem_retire__requests(struct kgem *kgem)
 			assert(bo->domain == DOMAIN_GPU);
 
 			list_del(&bo->request);
-			bo->rq = NULL;
 
 			if (bo->needs_flush)
 				bo->needs_flush = kgem_busy(kgem, bo->handle);
-			if (!bo->needs_flush)
+			if (bo->needs_flush) {
+				DBG(("%s: moving %d to flushing\n",
+				     __FUNCTION__, bo->handle));
+				list_add(&bo->request, &kgem->flushing);
+				bo->rq = &_kgem_static_request;
+			} else {
 				bo->domain = DOMAIN_NONE;
+				bo->rq = NULL;
+			}
 
 			if (bo->refcnt)
 				continue;
@@ -1348,20 +1356,17 @@ static bool kgem_retire__requests(struct kgem *kgem)
 				continue;
 			}
 
-			if (bo->needs_flush) {
-				DBG(("%s: moving %d to flushing\n",
-				     __FUNCTION__, bo->handle));
-				list_add(&bo->request, &kgem->flushing);
-				bo->rq = &_kgem_static_request;
-			} else if (kgem_bo_set_purgeable(kgem, bo)) {
-				DBG(("%s: moving %d to inactive\n",
-				     __FUNCTION__, bo->handle));
-				kgem_bo_move_to_inactive(kgem, bo);
-				retired = true;
-			} else {
-				DBG(("%s: closing %d\n",
-				     __FUNCTION__, bo->handle));
-				kgem_bo_free(kgem, bo);
+			if (!bo->needs_flush) {
+				if (kgem_bo_set_purgeable(kgem, bo)) {
+					DBG(("%s: moving %d to inactive\n",
+					     __FUNCTION__, bo->handle));
+					kgem_bo_move_to_inactive(kgem, bo);
+					retired = true;
+				} else {
+					DBG(("%s: closing %d\n",
+					     __FUNCTION__, bo->handle));
+					kgem_bo_free(kgem, bo);
+				}
 			}
 		}
 
