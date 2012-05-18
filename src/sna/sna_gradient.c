@@ -258,7 +258,8 @@ sna_render_finish_solid(struct sna *sna, bool force)
 	DBG(("sna_render_finish_solid reset\n"));
 
 	cache->cache_bo = kgem_create_linear(&sna->kgem, sizeof(cache->color), 0);
-	cache->bo[0] = kgem_create_proxy(cache->cache_bo, 0, sizeof(uint32_t));
+	cache->bo[0] = kgem_create_proxy(&sna->kgem, cache->cache_bo,
+					 0, sizeof(uint32_t));
 	cache->bo[0]->pitch = 4;
 	if (force)
 		cache->size = 1;
@@ -308,7 +309,7 @@ sna_render_get_solid(struct sna *sna, uint32_t color)
 	DBG(("sna_render_get_solid(%d) = %x (new)\n", i, color));
 
 create:
-	cache->bo[i] = kgem_create_proxy(cache->cache_bo,
+	cache->bo[i] = kgem_create_proxy(&sna->kgem, cache->cache_bo,
 					 i*sizeof(uint32_t), sizeof(uint32_t));
 	cache->bo[i]->pitch = 4;
 
@@ -331,7 +332,8 @@ static Bool sna_alpha_cache_init(struct sna *sna)
 
 	for (i = 0; i < 256; i++) {
 		color[i] = i << 24;
-		cache->bo[i] = kgem_create_proxy(cache->cache_bo,
+		cache->bo[i] = kgem_create_proxy(&sna->kgem,
+						 cache->cache_bo,
 						 sizeof(uint32_t)*i,
 						 sizeof(uint32_t));
 		cache->bo[i]->pitch = 4;
@@ -356,7 +358,8 @@ static Bool sna_solid_cache_init(struct sna *sna)
 	 * zeroth slot simplifies some of the checks.
 	 */
 	cache->color[0] = 0xffffffff;
-	cache->bo[0] = kgem_create_proxy(cache->cache_bo, 0, sizeof(uint32_t));
+	cache->bo[0] = kgem_create_proxy(&sna->kgem, cache->cache_bo,
+					 0, sizeof(uint32_t));
 	cache->bo[0]->pitch = 4;
 	cache->dirty = 1;
 	cache->size = 1;

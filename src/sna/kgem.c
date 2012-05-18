@@ -3499,7 +3499,8 @@ void kgem_clear_dirty(struct kgem *kgem)
 	}
 }
 
-struct kgem_bo *kgem_create_proxy(struct kgem_bo *target,
+struct kgem_bo *kgem_create_proxy(struct kgem *kgem,
+				  struct kgem_bo *target,
 				  int offset, int length)
 {
 	struct kgem_bo *bo;
@@ -3512,6 +3513,7 @@ struct kgem_bo *kgem_create_proxy(struct kgem_bo *target,
 	if (bo == NULL)
 		return NULL;
 
+	bo->unique_id = kgem_get_unique_id(kgem);
 	bo->reusable = false;
 	bo->size.bytes = length;
 
@@ -3903,7 +3905,7 @@ done:
 	bo->used = ALIGN(bo->used, 64);
 	assert(bo->mem);
 	*ret = (char *)bo->mem + offset;
-	return kgem_create_proxy(&bo->base, offset, size);
+	return kgem_create_proxy(kgem, &bo->base, offset, size);
 }
 
 bool kgem_buffer_is_inplace(struct kgem_bo *_bo)

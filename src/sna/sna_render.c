@@ -870,7 +870,7 @@ sna_render_pixmap_partial(struct sna *sna,
 	}
 
 	/* How many tiles across are we? */
-	channel->bo = kgem_create_proxy(bo,
+	channel->bo = kgem_create_proxy(&sna->kgem, bo,
 					box.y1 * bo->pitch + offset,
 					h * bo->pitch);
 	if (channel->bo == NULL)
@@ -989,7 +989,7 @@ sna_render_picture_partial(struct sna *sna,
 		return 0;
 
 	/* How many tiles across are we? */
-	channel->bo = kgem_create_proxy(bo,
+	channel->bo = kgem_create_proxy(&sna->kgem, bo,
 					box.y1 * bo->pitch + offset,
 					h * bo->pitch);
 	if (channel->bo == NULL)
@@ -1821,7 +1821,7 @@ sna_render_composite_redirect(struct sna *sna,
 			}
 
 			/* How many tiles across are we? */
-			op->dst.bo = kgem_create_proxy(op->dst.bo,
+			op->dst.bo = kgem_create_proxy(&sna->kgem, op->dst.bo,
 						       box.y1 * op->dst.bo->pitch + offset,
 						       h * op->dst.bo->pitch);
 			if (!op->dst.bo) {

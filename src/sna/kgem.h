@@ -195,7 +195,8 @@ struct kgem_bo *kgem_create_map(struct kgem *kgem,
 struct kgem_bo *kgem_create_for_name(struct kgem *kgem, uint32_t name);
 
 struct kgem_bo *kgem_create_linear(struct kgem *kgem, int size, unsigned flags);
-struct kgem_bo *kgem_create_proxy(struct kgem_bo *target,
+struct kgem_bo *kgem_create_proxy(struct kgem *kgem,
+				  struct kgem_bo *target,
 				  int offset, int length);
 
 struct kgem_bo *kgem_upload_source_image(struct kgem *kgem,
