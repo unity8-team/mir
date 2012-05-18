@@ -2726,6 +2726,9 @@ static bool upload_inplace(struct sna *sna,
 	if (priv->gpu_bo) {
 		assert(priv->gpu_bo->proxy == NULL);
 
+		if (!kgem_bo_can_map(&sna->kgem, priv->gpu_bo))
+			return false;
+
 		if (!kgem_bo_is_busy(priv->gpu_bo))
 			return true;
 
