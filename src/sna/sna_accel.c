@@ -11266,7 +11266,7 @@ skip:
 		if (++extents == last_extents)
 			break;
 
-		if (kgem_check_batch(&sna->kgem, 3)) {
+		if (kgem_check_batch(&sna->kgem, 3 + 5)) {
 			b = sna->kgem.batch + sna->kgem.nbatch;
 			sna->kgem.nbatch += 3;
 
