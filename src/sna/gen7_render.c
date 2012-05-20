@@ -1663,7 +1663,7 @@ inline static int gen7_get_rectangles(struct sna *sna,
 				      int want,
 				      void (*emit_state)(struct sna *sna, const struct sna_composite_op *op))
 {
-	int rem = vertex_space(sna);
+	int rem;
 
 start:
 	rem = vertex_space(sna);
