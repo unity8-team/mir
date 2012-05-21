@@ -511,9 +511,10 @@ sna_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	DBG(("%s(pipe %d, dpms mode -> %d):= active=%d\n",
 	     __FUNCTION__, sna_crtc->pipe, mode, mode == DPMSModeOn));
 
-	sna_crtc->active = false;
 	if (mode != DPMSModeOff)
 		sna_crtc_restore(sna_crtc->sna);
+	else
+		sna_crtc->active = false;
 }
 
 static struct kgem_bo *sna_create_bo_for_fbcon(struct sna *sna,
