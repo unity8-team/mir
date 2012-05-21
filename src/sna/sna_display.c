@@ -385,11 +385,10 @@ mode_to_kmode(drmModeModeInfoPtr kmode, DisplayModePtr mode)
 static Bool
 sna_crtc_apply(xf86CrtcPtr crtc)
 {
-	ScrnInfoPtr scrn = crtc->scrn;
-	struct sna *sna = to_sna(scrn);
+	struct sna *sna = to_sna(crtc->scrn);
 	struct sna_crtc *sna_crtc = crtc->driver_private;
-	struct sna_mode *mode = &sna->mode;
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
+	struct sna_mode *mode = &sna->mode;
 	uint32_t output_ids[16];
 	int output_count = 0;
 	int fb_id, x, y;
@@ -427,6 +426,12 @@ sna_crtc_apply(xf86CrtcPtr crtc)
 		y = 0;
 	}
 
+	xf86DrvMsg(crtc->scrn->scrnIndex, X_INFO,
+		   "switch to mode %dx%d on crtc %d (pipe %d)\n",
+		   sna_crtc->kmode.hdisplay,
+		   sna_crtc->kmode.vdisplay,
+		   crtc_id(sna_crtc), sna_crtc->pipe);
+
 	DBG(("%s: applying crtc [%d] mode=%dx%d@%d, fb=%d%s update to %d outputs\n",
 	     __FUNCTION__, crtc_id(sna_crtc),
 	     sna_crtc->kmode.hdisplay,
@@ -445,8 +450,8 @@ sna_crtc_apply(xf86CrtcPtr crtc)
 	} else
 		ret = sna_crtc->active = sna_crtc_is_bound(sna, crtc);
 
-	if (scrn->pScreen)
-		xf86_reload_cursors(scrn->pScreen);
+	if (crtc->scrn->pScreen)
+		xf86_reload_cursors(crtc->scrn->pScreen);
 
 	return ret;
 }
@@ -2210,5 +2215,7 @@ bool sna_crtc_is_bound(struct sna *sna, xf86CrtcPtr crtc)
 	if (drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_GETCRTC, &mode))
 		return false;
 
+	DBG(("%s: mode valid?=%d, fb attached?=%d\n", __FUNCTION__,
+	     mode.mode_valid, sna->mode.fb_id == mode.fb_id));
 	return mode.mode_valid && sna->mode.fb_id == mode.fb_id;
 }
