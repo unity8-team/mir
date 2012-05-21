@@ -442,10 +442,8 @@ sna_crtc_apply(xf86CrtcPtr crtc)
 		xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
 			   "failed to set mode: %s\n", strerror(-ret));
 		ret = FALSE;
-	} else {
-		sna_crtc->active = 1;
-		ret = TRUE;
-	}
+	} else
+		ret = sna_crtc->active = sna_crtc_is_bound(sna, crtc);
 
 	if (scrn->pScreen)
 		xf86_reload_cursors(scrn->pScreen);
@@ -508,8 +506,8 @@ sna_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	DBG(("%s(pipe %d, dpms mode -> %d):= active=%d\n",
 	     __FUNCTION__, sna_crtc->pipe, mode, mode == DPMSModeOn));
 
-	sna_crtc->active = mode == DPMSModeOn;
-	if (mode == DPMSModeOn)
+	sna_crtc->active = false;
+	if (mode != DPMSModeOff)
 		sna_crtc_restore(sna_crtc->sna);
 }
 
