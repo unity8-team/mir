@@ -728,8 +728,8 @@ static void sna_leave_vt(int scrnIndex, int flags)
 	DBG(("%s\n", __FUNCTION__));
 
 	xf86RotateFreeShadow(scrn);
-
 	xf86_hide_cursors(scrn);
+	sna_mode_remove_fb(sna);
 
 	ret = drmDropMaster(sna->kgem.fd);
 	if (ret)
