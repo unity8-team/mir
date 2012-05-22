@@ -683,8 +683,7 @@ sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		if (!bo)
 			return FALSE;
 
-		/* recreate the fb in case the size has changed */
-		assert(bo->delta == 0);
+		/* XXX recreate the fb in case the size has changed? */
 		sna_mode->fb_id = get_fb(sna, bo,
 					 scrn->virtualX, scrn->virtualY);
 		if (sna_mode->fb_id == 0)
