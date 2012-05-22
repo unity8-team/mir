@@ -447,8 +447,10 @@ sna_crtc_apply(xf86CrtcPtr crtc)
 		xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
 			   "failed to set mode: %s\n", strerror(-ret));
 		ret = FALSE;
-	} else
-		ret = sna_crtc->active = sna_crtc_is_bound(sna, crtc);
+	} else {
+		crtc->enabled = sna_crtc->active = sna_crtc_is_bound(sna, crtc);
+		ret = TRUE;
+	}
 
 	if (crtc->scrn->pScreen)
 		xf86_reload_cursors(crtc->scrn->pScreen);
