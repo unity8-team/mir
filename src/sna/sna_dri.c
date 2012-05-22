@@ -937,11 +937,13 @@ can_flip(struct sna * sna,
 	WindowPtr win = (WindowPtr)draw;
 	PixmapPtr pixmap;
 
-	if (!sna->scrn->vtSema)
-		return FALSE;
-
 	if (draw->type == DRAWABLE_PIXMAP)
 		return FALSE;
+
+	if (!sna->scrn->vtSema) {
+		DBG(("%s: no, not attached to VT\n", __FUNCTION__));
+		return FALSE;
+	}
 
 	if (front->format != back->format) {
 		DBG(("%s: no, format mismatch, front = %d, back = %d\n",
@@ -1184,23 +1186,25 @@ static void sna_dri_flip_event(struct sna *sna,
 				      serverClient,
 				      M_ANY, DixWriteAccess) == Success) {
 			if (can_flip(sna, drawable, flip->front, flip->back) &&
-			    !sna_dri_flip_continue(sna, drawable, flip)) {
+			    sna_dri_flip_continue(sna, drawable, flip)) {
 				DRI2SwapComplete(flip->client, drawable,
-						 0, 0, 0,
-						 DRI2_BLIT_COMPLETE,
-						 flip->client ? flip->event_complete : NULL,
-						 flip->event_data);
-				sna_dri_frame_event_info_free(flip);
+						0, 0, 0,
+						DRI2_FLIP_COMPLETE,
+						flip->client ? flip->event_complete : NULL,
+						flip->event_data);
 			} else {
+				DBG(("%s: no longer able to flip\n",
+				     __FUNCTION__));
+
 				DRI2SwapComplete(flip->client, drawable,
-						 0, 0, 0,
-						 DRI2_FLIP_COMPLETE,
-						 flip->client ? flip->event_complete : NULL,
-						 flip->event_data);
+						0, 0, 0,
+						DRI2_EXCHANGE_COMPLETE,
+						flip->client ? flip->event_complete : NULL,
+						flip->event_data);
+				sna_dri_frame_event_info_free(flip);
 			}
-		} else {
+		} else
 			sna_dri_frame_event_info_free(flip);
-		}
 		break;
 
 #if DRI2INFOREC_VERSION >= 7
@@ -1296,31 +1300,10 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	     (long long)divisor,
 	     (long long)remainder));
 
-	/* Drawable not displayed... just complete the swap */
+	/* XXX In theory we can just exchange pixmaps.... */
 	pipe = sna_dri_get_pipe(draw);
-	if (pipe == -1) {
-		RegionRec region;
-
-		DBG(("%s: off-screen, immediate update\n", __FUNCTION__));
-
-		sna_dri_exchange_attachment(front, back);
-		get_private(back)->pixmap = get_private(front)->pixmap;
-		get_private(front)->pixmap = NULL;
-		set_bo(get_private(back)->pixmap, get_private(back)->bo);
-
-		/* XXX can we query whether we need to process damage? */
-		region.extents.x1 = draw->x;
-		region.extents.y1 = draw->y;
-		region.extents.x2 = draw->x + draw->width;
-		region.extents.y2 = draw->y + draw->height;
-		region.data = NULL;
-		DamageRegionAppend(draw, &region);
-		DamageRegionProcessPending(draw);
-
-		DRI2SwapComplete(client, draw, 0, 0, 0,
-				 DRI2_EXCHANGE_COMPLETE, func, data);
-		return TRUE;
-	}
+	if (pipe == -1)
+		return FALSE;
 
 	/* Truncate to match kernel interfaces; means occasional overflow
 	 * misses, but that's generally not a big deal */
