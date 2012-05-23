@@ -1120,7 +1120,7 @@ extern void RADEONCPFlushIndirect(ScrnInfoPtr pScrn, int discard);
 extern void RADEONCPReleaseIndirect(ScrnInfoPtr pScrn);
 extern int RADEONCPStop(ScrnInfoPtr pScrn,  RADEONInfoPtr info);
 #  ifdef USE_XAA
-extern Bool RADEONSetupMemXAA_DRI(int scrnIndex, ScreenPtr pScreen);
+extern Bool RADEONSetupMemXAA_DRI(ScreenPtr pScreen);
 #  endif
 uint32_t radeonGetPixmapOffset(PixmapPtr pPix);
 #endif
@@ -1129,7 +1129,7 @@ extern int radeon_cs_space_remaining(ScrnInfoPtr pScrn);
 #ifdef USE_XAA
 /* radeon_accelfuncs.c */
 extern void RADEONAccelInitMMIO(ScreenPtr pScreen, XAAInfoRecPtr a);
-extern Bool RADEONSetupMemXAA(int scrnIndex, ScreenPtr pScreen);
+extern Bool RADEONSetupMemXAA(ScreenPtr pScreen);
 #endif
 
 /* radeon_bios.c */

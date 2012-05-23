@@ -3636,14 +3636,14 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 		info->dri->textureSize = -1;
 	    }
 	}
-	if (!RADEONSetupMemXAA_DRI(scrnIndex, pScreen))
+	if (!RADEONSetupMemXAA_DRI(pScreen))
 	    return FALSE;
     	pScrn->fbOffset    = info->dri->frontOffset;
     }
 #endif
 
 #ifdef USE_XAA
-    if (!info->useEXA && !hasDRI && !RADEONSetupMemXAA(scrnIndex, pScreen))
+    if (!info->useEXA && !hasDRI && !RADEONSetupMemXAA(pScreen))
 	return FALSE;
 #endif
 
