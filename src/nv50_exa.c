@@ -27,7 +27,7 @@
 #include "nv50_accel.h"
 
 #define NV50EXA_LOCALS(p)                                                      \
-	ScrnInfoPtr pScrn = xf86Screens[(p)->drawable.pScreen->myNum];         \
+	ScrnInfoPtr pScrn = xf86ScreenToScrn((p)->drawable.pScreen);         \
 	NVPtr pNv = NVPTR(pScrn);                                              \
 	struct nouveau_pushbuf *push = pNv->pushbuf; (void)push;
 

@@ -28,7 +28,7 @@
 #define NOUVEAU_BO(a, b, c) (NOUVEAU_BO_##a | NOUVEAU_BO_##b | NOUVEAU_BO_##c)
 
 #define NVC0EXA_LOCALS(p)                                                      \
-	ScrnInfoPtr pScrn = xf86Screens[(p)->drawable.pScreen->myNum];         \
+	ScrnInfoPtr pScrn = xf86ScreenToScrn((p)->drawable.pScreen);         \
 	NVPtr pNv = NVPTR(pScrn);                                              \
 	struct nouveau_pushbuf *push = pNv->pushbuf; (void)push;
 
