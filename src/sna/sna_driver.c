@@ -571,13 +571,6 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 	return sna_accel_pre_init(sna);
 }
 
-/**
- * Intialiazes the hardware for the 3D pipeline use in the 2D driver.
- *
- * Some state caching is performed to avoid redundant state emits.  This
- * function is also responsible for marking the state as clobbered for DRI
- * clients.
- */
 static void
 sna_block_handler(int i, pointer data, pointer timeout, pointer read_mask)
 {
@@ -981,12 +974,17 @@ static Bool sna_enter_vt(int scrnIndex, int flags)
 	DBG(("%s\n", __FUNCTION__));
 
 	if (drmSetMaster(sna->kgem.fd)) {
-		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "drmSetMaster failed: %s\n",
 			   strerror(errno));
+		return FALSE;
 	}
 
-	return xf86SetDesiredModes(scrn);
+	if (!xf86SetDesiredModes(scrn))
+		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+			   "failed to restore desired modes on VT switch\n");
+
+	return TRUE;
 }
 
 static Bool sna_switch_mode(int scrnIndex, DisplayModePtr mode, int flags)
