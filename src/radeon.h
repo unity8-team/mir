@@ -67,8 +67,6 @@
 				/* Xv support */
 #include "xf86xv.h"
 
-#include "compat-api.h"
-
 #include "radeon_probe.h"
 #include "radeon_tv.h"
 
@@ -103,6 +101,8 @@
 #ifdef RENDER
 #include "picturestr.h"
 #endif
+
+#include "compat-api.h"
 
 #include "simple_list.h"
 #include "atipcirename.h"
@@ -515,7 +515,7 @@ struct radeon_dri {
     int               numVisualConfigs;
     __GLXvisualConfig *pVisualConfigs;
     RADEONConfigPrivPtr pVisualConfigsPriv;
-    Bool             (*DRICloseScreen)(int, ScreenPtr);
+    Bool             (*DRICloseScreen)(CLOSE_SCREEN_ARGS_DECL);
 
     drm_handle_t      fbHandle;
 
@@ -865,9 +865,9 @@ typedef struct {
 
     RADEONSavePtr     SavedReg;         /* Original (text) mode              */
     RADEONSavePtr     ModeReg;          /* Current mode                      */
-    Bool              (*CloseScreen)(int, ScreenPtr);
+    Bool              (*CloseScreen)(CLOSE_SCREEN_ARGS_DECL);
 
-    void              (*BlockHandler)(int, pointer, pointer, pointer);
+    void              (*BlockHandler)(SCREEN_ARG_TYPE, pointer, pointer, pointer);
 
     Bool              PaletteSavedOnVT; /* Palette saved on last VT switch   */
 

@@ -1716,7 +1716,7 @@ Bool RADEONDRIScreenInit(ScreenPtr pScreen)
     return TRUE;
 }
 
-static Bool RADEONDRIDoCloseScreen(int scrnIndex, ScreenPtr pScreen)
+static Bool RADEONDRIDoCloseScreen(CLOSE_SCREEN_ARGS_DECL)
 {
     ScrnInfoPtr    pScrn = xf86ScreenToScrn(pScreen);
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
@@ -1724,7 +1724,7 @@ static Bool RADEONDRIDoCloseScreen(int scrnIndex, ScreenPtr pScreen)
     RADEONDRICloseScreen(pScreen);
 
     pScreen->CloseScreen = info->dri->DRICloseScreen;
-    return (*pScreen->CloseScreen)(scrnIndex, pScreen);
+    return (*pScreen->CloseScreen)(CLOSE_SCREEN_ARGS);
 }
 
 /* Finish initializing the device-dependent DRI state, and call

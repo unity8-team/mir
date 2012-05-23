@@ -192,15 +192,15 @@ static Bool RADEONCreateScreenResources_KMS(ScreenPtr pScreen)
     return TRUE;
 }
 
-static void RADEONBlockHandler_KMS(int i, pointer blockData,
+static void RADEONBlockHandler_KMS(SCREEN_ARG_TYPE arg, pointer blockData,
 				   pointer pTimeout, pointer pReadmask)
 {
-    ScreenPtr      pScreen = screenInfo.screens[i];
-    ScrnInfoPtr    pScrn   = xf86Screens[i];
+    SCREEN_PTR(arg);
+    ScrnInfoPtr    pScrn   = xf86ScreenToScrn(pScreen);
     RADEONInfoPtr  info    = RADEONPTR(pScrn);
 
     pScreen->BlockHandler = info->BlockHandler;
-    (*pScreen->BlockHandler) (i, blockData, pTimeout, pReadmask);
+    (*pScreen->BlockHandler) (arg, blockData, pTimeout, pReadmask);
     pScreen->BlockHandler = RADEONBlockHandler_KMS;
 
     if (info->VideoTimerCallback)
@@ -863,9 +863,9 @@ static Bool RADEONSaveScreen_KMS(ScreenPtr pScreen, int mode)
  * text mode, unmap video memory, and unwrap and call the saved
  * CloseScreen function.
  */
-static Bool RADEONCloseScreen_KMS(int scrnIndex, ScreenPtr pScreen)
+static Bool RADEONCloseScreen_KMS(CLOSE_SCREEN_ARGS_DECL)
 {
-    ScrnInfoPtr    pScrn = xf86Screens[scrnIndex];
+    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
@@ -898,13 +898,13 @@ static Bool RADEONCloseScreen_KMS(int scrnIndex, ScreenPtr pScreen)
     xf86ClearPrimInitDone(info->pEnt->index);
     pScreen->BlockHandler = info->BlockHandler;
     pScreen->CloseScreen = info->CloseScreen;
-    return (*pScreen->CloseScreen)(scrnIndex, pScreen);
+    return (*pScreen->CloseScreen)(CLOSE_SCREEN_ARGS);
 }
 
 
-void RADEONFreeScreen_KMS(int scrnIndex, int flags)
+void RADEONFreeScreen_KMS(SCRN_ARG_TYPE arg, int flags)
 {
-    ScrnInfoPtr  pScrn = xf86Screens[scrnIndex];
+    SCRN_INFO_PTR(arg);
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
@@ -916,8 +916,7 @@ void RADEONFreeScreen_KMS(int scrnIndex, int flags)
     RADEONFreeRec(pScrn);
 }
 
-Bool RADEONScreenInit_KMS(int scrnIndex, ScreenPtr pScreen,
-			  int argc, char **argv)
+Bool RADEONScreenInit_KMS(SCREEN_INIT_ARGS)
 {
     ScrnInfoPtr    pScrn = xf86ScreenToScrn(pScreen);
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
@@ -1053,18 +1052,18 @@ Bool RADEONScreenInit_KMS(int scrnIndex, ScreenPtr pScreen,
     }
 
     if (info->r600_shadow_fb) {
-	xf86DrvMsg(scrnIndex, X_INFO, "Acceleration disabled\n");
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Acceleration disabled\n");
 	info->accelOn = FALSE;
     } else {
 	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		       "Initializing Acceleration\n");
 	if (RADEONAccelInit(pScreen)) {
-	    xf86DrvMsg(scrnIndex, X_INFO, "Acceleration enabled\n");
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Acceleration enabled\n");
 	    info->accelOn = TRUE;
 	} else {
-	    xf86DrvMsg(scrnIndex, X_ERROR,
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		       "Acceleration initialization failed\n");
-	    xf86DrvMsg(scrnIndex, X_INFO, "Acceleration disabled\n");
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Acceleration disabled\n");
 	    info->accelOn = FALSE;
 	}
     }
@@ -1104,7 +1103,7 @@ Bool RADEONScreenInit_KMS(int scrnIndex, ScreenPtr pScreen,
 
     if (info->r600_shadow_fb == TRUE) {
         if (!shadowSetup(pScreen)) {
-	    xf86DrvMsg(scrnIndex, X_ERROR,
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		       "Shadowfb initialization failed\n");
             return FALSE;
         }
@@ -1150,9 +1149,9 @@ Bool RADEONScreenInit_KMS(int scrnIndex, ScreenPtr pScreen,
     return TRUE;
 }
 
-Bool RADEONEnterVT_KMS(int scrnIndex, int flags)
+Bool RADEONEnterVT_KMS(SCRN_ARG_TYPE arg, int flags)
 {
-    ScrnInfoPtr    pScrn = xf86Screens[scrnIndex];
+    SCRN_INFO_PTR(arg);
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
     int ret;
 
@@ -1178,9 +1177,9 @@ Bool RADEONEnterVT_KMS(int scrnIndex, int flags)
 }
 
 
-void RADEONLeaveVT_KMS(int scrnIndex, int flags)
+void RADEONLeaveVT_KMS(SCRN_ARG_TYPE arg, int flags)
 {
-    ScrnInfoPtr    pScrn = xf86Screens[scrnIndex];
+    SCRN_INFO_PTR(arg);
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
@@ -1201,18 +1200,18 @@ void RADEONLeaveVT_KMS(int scrnIndex, int flags)
 }
 
 
-Bool RADEONSwitchMode_KMS(int scrnIndex, DisplayModePtr mode, int flags)
+Bool RADEONSwitchMode_KMS(SCRN_ARG_TYPE arg, DisplayModePtr mode, int flags)
 {
-    ScrnInfoPtr    pScrn       = xf86Screens[scrnIndex];
+    SCRN_INFO_PTR(arg);
     Bool ret;
     ret = xf86SetSingleMode (pScrn, mode, RR_Rotate_0);
     return ret;
 
 }
 
-void RADEONAdjustFrame_KMS(int scrnIndex, int x, int y, int flags)
+void RADEONAdjustFrame_KMS(SCRN_ARG_TYPE arg, int x, int y, int flags)
 {
-    ScrnInfoPtr    pScrn       = xf86Screens[scrnIndex];
+    SCRN_INFO_PTR(arg);
     RADEONInfoPtr  info        = RADEONPTR(pScrn);
     drmmode_adjust_frame(pScrn, &info->drmmode, x, y, flags);
     return;
