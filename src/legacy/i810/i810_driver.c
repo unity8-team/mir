@@ -78,12 +78,12 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "../legacy.h"
 
 static Bool I810PreInit(ScrnInfoPtr scrn, int flags);
-static Bool I810ScreenInit(int Index, ScreenPtr pScreen, int argc,
+static Bool I810ScreenInit(int Index, ScreenPtr screen, int argc,
 			   char **argv);
 static Bool I810EnterVT(int scrnIndex, int flags);
 static void I810LeaveVT(int scrnIndex, int flags);
-static Bool I810CloseScreen(int scrnIndex, ScreenPtr pScreen);
-static Bool I810SaveScreen(ScreenPtr pScreen, Bool unblank);
+static Bool I810CloseScreen(int scrnIndex, ScreenPtr screen);
+static Bool I810SaveScreen(ScreenPtr screen, Bool unblank);
 static void I810FreeScreen(int scrnIndex, int flags);
 static void I810DisplayPowerManagementSet(ScrnInfoPtr scrn,
 					  int PowerManagermentMode,
@@ -1570,14 +1570,14 @@ I810AllocateFront(ScrnInfoPtr scrn)
 }
 
 static Bool
-I810ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
+I810ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 {
    ScrnInfoPtr scrn;
    vgaHWPtr hwp;
    I810Ptr pI810;
    VisualPtr visual;
 
-   scrn = xf86Screens[pScreen->myNum];
+   scrn = xf86Screens[screen->myNum];
    pI810 = I810PTR(scrn);
    hwp = VGAHWPTR(scrn);
 
@@ -1623,7 +1623,7 @@ I810ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    pI810->directRenderingEnabled = !pI810->directRenderingDisabled;
    
    if (pI810->directRenderingEnabled==TRUE)
-     pI810->directRenderingEnabled = I810DRIScreenInit(pScreen);
+     pI810->directRenderingEnabled = I810DRIScreenInit(screen);
 
 #else
    pI810->directRenderingEnabled = FALSE;
@@ -1648,10 +1648,10 @@ I810ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    if (!I810ModeInit(scrn, scrn->currentMode))
       return FALSE;
 
-   I810SaveScreen(pScreen, FALSE);
+   I810SaveScreen(screen, FALSE);
    I810AdjustFrame(scrnIndex, scrn->frameX0, scrn->frameY0, 0);
 
-   if (!fbScreenInit(pScreen, pI810->FbBase + scrn->fbOffset,
+   if (!fbScreenInit(screen, pI810->FbBase + scrn->fbOffset,
 		     scrn->virtualX, scrn->virtualY,
 		     scrn->xDpi, scrn->yDpi,
 		     scrn->displayWidth, scrn->bitsPerPixel))
@@ -1659,8 +1659,8 @@ I810ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
    if (scrn->bitsPerPixel > 8) {
       /* Fixup RGB ordering */
-      visual = pScreen->visuals + pScreen->numVisuals;
-      while (--visual >= pScreen->visuals) {
+      visual = screen->visuals + screen->numVisuals;
+      while (--visual >= screen->visuals) {
 	 if ((visual->class | DynamicClass) == DirectColor) {
 	    visual->offsetRed = scrn->offset.red;
 	    visual->offsetGreen = scrn->offset.green;
@@ -1672,14 +1672,14 @@ I810ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       }
    }
 
-   fbPictureInit(pScreen, NULL, 0);
+   fbPictureInit(screen, NULL, 0);
 
-   xf86SetBlackWhitePixels(pScreen);
+   xf86SetBlackWhitePixels(screen);
 
 #ifdef HAVE_DRI1
    if (pI810->LpRing->mem.Start == 0 && pI810->directRenderingEnabled) {
       pI810->directRenderingEnabled = FALSE;
-      I810DRICloseScreen(pScreen);
+      I810DRICloseScreen(screen);
    }
 
    if (!pI810->directRenderingEnabled) {
@@ -1692,10 +1692,10 @@ I810ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 #endif
 
 #ifdef XFreeXDGA
-   I810DGAInit(pScreen);
+   I810DGAInit(screen);
 #endif
 
-   if (!xf86InitFBManager(pScreen, &(pI810->FbMemBox))) {
+   if (!xf86InitFBManager(screen, &(pI810->FbMemBox))) {
       xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 		 "Failed to init memory manager\n");
       return FALSE;
@@ -1705,7 +1705,7 @@ I810ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       if (pI810->LpRing->mem.Size != 0) {
 	 I810SetRingRegs(scrn);
 
-	 if (!I810AccelInit(pScreen)) {
+	 if (!I810AccelInit(screen)) {
 	    xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 		       "Hardware acceleration initialization failed\n");
 	 }  else /* PK added 16.02.2004 */
@@ -1713,57 +1713,57 @@ I810ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       }
    }
 
-   miInitializeBackingStore(pScreen);
-   xf86SetBackingStore(pScreen);
-   xf86SetSilkenMouse(pScreen);
+   miInitializeBackingStore(screen);
+   xf86SetBackingStore(screen);
+   xf86SetSilkenMouse(screen);
 
-   miDCInitialize(pScreen, xf86GetPointerScreenFuncs());
+   miDCInitialize(screen, xf86GetPointerScreenFuncs());
 
    if (!xf86ReturnOptValBool(pI810->Options, OPTION_SW_CURSOR, FALSE)) {
-      if (!I810CursorInit(pScreen)) {
+      if (!I810CursorInit(screen)) {
 	 xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 		    "Hardware cursor initialization failed\n");
       }
    }
 
-   if (!miCreateDefColormap(pScreen))
+   if (!miCreateDefColormap(screen))
       return FALSE;
 
    /* Use driver specific palette load routines for Direct Color support. -jens */
    if (scrn->bitsPerPixel == 16) {
       if (scrn->depth == 15) {
-	 if (!xf86HandleColormaps(pScreen, 256, 8, I810LoadPalette15, NULL,
+	 if (!xf86HandleColormaps(screen, 256, 8, I810LoadPalette15, NULL,
 				  CMAP_PALETTED_TRUECOLOR |
 				  CMAP_RELOAD_ON_MODE_SWITCH))
 	    return FALSE;
       } else {
-	 if (!xf86HandleColormaps(pScreen, 256, 8, I810LoadPalette16, NULL,
+	 if (!xf86HandleColormaps(screen, 256, 8, I810LoadPalette16, NULL,
 				  CMAP_PALETTED_TRUECOLOR |
 				  CMAP_RELOAD_ON_MODE_SWITCH))
 	    return FALSE;
       }
    } else {
-      if (!xf86HandleColormaps(pScreen, 256, 8, I810LoadPalette24, NULL,
+      if (!xf86HandleColormaps(screen, 256, 8, I810LoadPalette24, NULL,
 			       CMAP_PALETTED_TRUECOLOR |
 			       CMAP_RELOAD_ON_MODE_SWITCH))
 	 return FALSE;
    }
 
-   xf86DPMSInit(pScreen, I810DisplayPowerManagementSet, 0);
+   xf86DPMSInit(screen, I810DisplayPowerManagementSet, 0);
 
-   I810InitVideo(pScreen);
+   I810InitVideo(screen);
 
 #ifdef HAVE_DRI1
    if (pI810->directRenderingEnabled) {
       /* Now that mi, fb, drm and others have done their thing,
        * complete the DRI setup.
        */
-      pI810->directRenderingEnabled = I810DRIFinishScreenInit(pScreen);
+      pI810->directRenderingEnabled = I810DRIFinishScreenInit(screen);
    }
 #ifdef XvMCExtension
    if ((pI810->directRenderingEnabled) && (pI810->numSurfaces)) {
       /* Initialize the hardware motion compensation code */
-      I810InitMC(pScreen);
+      I810InitMC(screen);
    }
 #endif
 #endif
@@ -1774,9 +1774,9 @@ I810ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       xf86DrvMsg(scrn->scrnIndex, X_WARNING, "Direct rendering disabled\n");
    }
 
-   pScreen->SaveScreen = I810SaveScreen;
-   pI810->CloseScreen = pScreen->CloseScreen;
-   pScreen->CloseScreen = I810CloseScreen;
+   screen->SaveScreen = I810SaveScreen;
+   pI810->CloseScreen = screen->CloseScreen;
+   screen->CloseScreen = I810CloseScreen;
 
    if (serverGeneration == 1)
       xf86ShowUnusedOptions(scrn->scrnIndex, scrn->options);
@@ -1957,7 +1957,7 @@ I810LeaveVT(int scrnIndex, int flags)
 }
 
 static Bool
-I810CloseScreen(int scrnIndex, ScreenPtr pScreen)
+I810CloseScreen(int scrnIndex, ScreenPtr screen)
 {
    ScrnInfoPtr scrn = xf86Screens[scrnIndex];
    vgaHWPtr hwp = VGAHWPTR(scrn);
@@ -1975,7 +1975,7 @@ I810CloseScreen(int scrnIndex, ScreenPtr pScreen)
    }
 #ifdef HAVE_DRI1
    if (pI810->directRenderingEnabled) {
-      I810DRICloseScreen(pScreen);
+      I810DRICloseScreen(screen);
       pI810->directRenderingEnabled = FALSE;
    }
 #endif
@@ -2021,8 +2021,8 @@ I810CloseScreen(int scrnIndex, ScreenPtr pScreen)
    pI810->LpRing = NULL;
 
    scrn->vtSema = FALSE;
-   pScreen->CloseScreen = pI810->CloseScreen;
-   return (*pScreen->CloseScreen) (scrnIndex, pScreen);
+   screen->CloseScreen = pI810->CloseScreen;
+   return (*screen->CloseScreen) (scrnIndex, screen);
 }
 
 static void
@@ -2047,9 +2047,9 @@ I810ValidMode(int scrnIndex, DisplayModePtr mode, Bool verbose, int flags)
 }
 
 static Bool
-I810SaveScreen(ScreenPtr pScreen, Bool unblack)
+I810SaveScreen(ScreenPtr screen, Bool unblack)
 {
-   return vgaHWSaveScreen(pScreen, unblack);
+   return vgaHWSaveScreen(screen, unblack);
 }
 
 static void

@@ -152,17 +152,17 @@ static Atom xvBrightness, xvContrast, xvColorKey;
 #define RGB15ToColorKey(c) \
         (((c & 0x7c00) << 9) | ((c & 0x03E0) << 6) | ((c & 0x001F) << 3))
 
-void I810InitVideo(ScreenPtr pScreen)
+void I810InitVideo(ScreenPtr screen)
 {
-    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    ScrnInfoPtr pScrn = xf86Screens[screen->myNum];
     XF86VideoAdaptorPtr *adaptors, *newAdaptors = NULL;
     XF86VideoAdaptorPtr newAdaptor = NULL;
     int num_adaptors;
 	
     if (pScrn->bitsPerPixel != 8) 
     {
-	newAdaptor = I810SetupImageVideo(pScreen);
-	I810InitOffscreenImages(pScreen);
+	newAdaptor = I810SetupImageVideo(screen);
+	I810InitOffscreenImages(screen);
     }
 
     num_adaptors = xf86XVListGenericAdaptors(pScrn, &adaptors);
@@ -185,7 +185,7 @@ void I810InitVideo(ScreenPtr pScreen)
     }
 
     if(num_adaptors)
-        xf86XVScreenInit(pScreen, adaptors, num_adaptors);
+        xf86XVScreenInit(screen, adaptors, num_adaptors);
 
     if(newAdaptors)
 	free(newAdaptors);
@@ -375,9 +375,9 @@ static void I810ResetVideo(ScrnInfoPtr pScrn)
 
 
 static XF86VideoAdaptorPtr 
-I810SetupImageVideo(ScreenPtr pScreen)
+I810SetupImageVideo(ScreenPtr screen)
 {
-    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    ScrnInfoPtr pScrn = xf86Screens[screen->myNum];
     I810Ptr pI810 = I810PTR(pScrn);
     XF86VideoAdaptorPtr adapt;
     I810PortPrivPtr pPriv;
@@ -423,12 +423,12 @@ I810SetupImageVideo(ScreenPtr pScreen)
     pPriv->currentBuf = 0;
 
     /* gotta uninit this someplace */
-    REGION_NULL(pScreen, &pPriv->clip);
+    REGION_NULL(screen, &pPriv->clip);
 
     pI810->adaptor = adapt;
 
-    pI810->BlockHandler = pScreen->BlockHandler;
-    pScreen->BlockHandler = I810BlockHandler;
+    pI810->BlockHandler = screen->BlockHandler;
+    screen->BlockHandler = I810BlockHandler;
 
     xvBrightness = MAKE_ATOM("XV_BRIGHTNESS");
     xvContrast   = MAKE_ATOM("XV_CONTRAST");
@@ -522,7 +522,7 @@ I810StopVideo(ScrnInfoPtr pScrn, pointer data, Bool shutdown)
 
   I810OverlayRegPtr overlay = (I810OverlayRegPtr) (pI810->FbBase + pI810->OverlayStart); 
 
-  REGION_EMPTY(pScrn->pScreen, &pPriv->clip);   
+  REGION_EMPTY(pScrn->screen, &pPriv->clip);   
 
   if(shutdown) {
      if(pPriv->videoStatus & CLIENT_VIDEO_ON) {
@@ -579,7 +579,7 @@ I810SetPortAttribute(
                  break;
 	}
 	OVERLAY_UPDATE(pI810->OverlayPhysical);
-	REGION_EMPTY(pScrn->pScreen, &pPriv->clip);   
+	REGION_EMPTY(pScrn->screen, &pPriv->clip);   
   } else return BadMatch;
 
   return Success;
@@ -928,7 +928,7 @@ I810AllocateMemory(
   FBLinearPtr linear,
   int size
 ){
-   ScreenPtr pScreen;
+   ScreenPtr screen;
    FBLinearPtr new_linear;
 
    if(linear) {
@@ -941,21 +941,21 @@ I810AllocateMemory(
 	xf86FreeOffscreenLinear(linear);
    }
 
-   pScreen = screenInfo.screens[pScrn->scrnIndex];
+   screen = screenInfo.screens[pScrn->scrnIndex];
 
-   new_linear = xf86AllocateOffscreenLinear(pScreen, size, 4,
+   new_linear = xf86AllocateOffscreenLinear(screen, size, 4,
                                             NULL, NULL, NULL);
 
    if(!new_linear) {
         int max_size;
 
-        xf86QueryLargestOffscreenLinear(pScreen, &max_size, 4, 
+        xf86QueryLargestOffscreenLinear(screen, &max_size, 4, 
 				       PRIORITY_EXTREME);
 
         if(max_size < size) return NULL;
 
-        xf86PurgeUnlockedOffscreenAreas(pScreen);
-        new_linear = xf86AllocateOffscreenLinear(pScreen, size, 4, 
+        xf86PurgeUnlockedOffscreenAreas(screen);
+        new_linear = xf86AllocateOffscreenLinear(screen, size, 4, 
                                                  NULL, NULL, NULL);
    } 
 
@@ -995,7 +995,7 @@ I810PutImage(
     dstBox.y2 = drw_y + drw_h;
 
     I810ClipVideo(&dstBox, &x1, &x2, &y1, &y2, 
-		  REGION_EXTENTS(pScrn->pScreen, clipBoxes), width, height);
+		  REGION_EXTENTS(pScrn->screen, clipBoxes), width, height);
     
     if((x1 >= x2) || (y1 >= y2))
        return Success;
@@ -1081,8 +1081,8 @@ I810PutImage(
     }
 
     /* update cliplist */
-    if(!REGION_EQUAL(pScrn->pScreen, &pPriv->clip, clipBoxes)) {
-	REGION_COPY(pScrn->pScreen, &pPriv->clip, clipBoxes);
+    if(!REGION_EQUAL(pScrn->screen, &pPriv->clip, clipBoxes)) {
+	REGION_COPY(pScrn->screen, &pPriv->clip, clipBoxes);
 	/* draw these */
 	xf86XVFillKeyHelperDrawable(pDraw, pPriv->colorKey, clipBoxes);
     }
@@ -1151,17 +1151,17 @@ I810BlockHandler (
     pointer     pTimeout,
     pointer     pReadmask
 ){
-    ScreenPtr   pScreen = screenInfo.screens[i];
+    ScreenPtr   screen = screenInfo.screens[i];
     ScrnInfoPtr pScrn = xf86Screens[i];
     I810Ptr      pI810 = I810PTR(pScrn);
     I810PortPrivPtr pPriv = GET_PORT_PRIVATE(pScrn);
     I810OverlayRegPtr overlay = (I810OverlayRegPtr) (pI810->FbBase + pI810->OverlayStart); 
 
-    pScreen->BlockHandler = pI810->BlockHandler;
+    screen->BlockHandler = pI810->BlockHandler;
     
-    (*pScreen->BlockHandler) (i, blockData, pTimeout, pReadmask);
+    (*screen->BlockHandler) (i, blockData, pTimeout, pReadmask);
 
-    pScreen->BlockHandler = I810BlockHandler;
+    screen->BlockHandler = I810BlockHandler;
 
     if(pPriv->videoStatus & TIMER_MASK) {
 	UpdateCurrentTime();
@@ -1382,7 +1382,7 @@ I810DisplaySurface(
     pPriv->isOn = TRUE;
     /* we've prempted the XvImage stream so set its free timer */
     if(pI810Priv->videoStatus & CLIENT_VIDEO_ON) {
-      REGION_EMPTY(pScrn->pScreen, & pI810Priv->clip);   
+      REGION_EMPTY(pScrn->screen, & pI810Priv->clip);   
       UpdateCurrentTime();
       pI810Priv->videoStatus = FREE_TIMER;
       pI810Priv->freeTime = currentTime.milliseconds + FREE_DELAY;
@@ -1394,7 +1394,7 @@ I810DisplaySurface(
 
 
 static void 
-I810InitOffscreenImages(ScreenPtr pScreen)
+I810InitOffscreenImages(ScreenPtr screen)
 {
     XF86OffscreenImagePtr offscreenImages;
 
@@ -1417,6 +1417,6 @@ I810InitOffscreenImages(ScreenPtr pScreen)
     offscreenImages[0].num_attributes = 1;
     offscreenImages[0].attributes = Attributes;
 
-    xf86XVRegisterOffscreenImages(pScreen, offscreenImages, 1);
+    xf86XVRegisterOffscreenImages(screen, offscreenImages, 1);
 }
 
