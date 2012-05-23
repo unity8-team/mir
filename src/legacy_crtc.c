@@ -853,7 +853,7 @@ RADEONInitCrtcBase(xf86CrtcPtr crtc, RADEONSavePtr save,
         /*** NOTE: r3/4xx will need sarea and drm pageflip updates to handle the xytile regs for
 	 *** pageflipping!
 	 ***/
-	pSAREAPriv = DRIGetSAREAPrivate(screenInfo.screens[pScrn->scrnIndex]);
+	pSAREAPriv = DRIGetSAREAPrivate(xf86ScrnToScreen(pScrn));
 	/* can't get at sarea in a semi-sane way? */
 	pSAREA = (void *)((char*)pSAREAPriv - sizeof(XF86DRISAREARec));
 
@@ -1074,7 +1074,7 @@ RADEONInitCrtc2Base(xf86CrtcPtr crtc, RADEONSavePtr save,
         /*** NOTE: r3/4xx will need sarea and drm pageflip updates to handle the xytile regs for
 	 *** pageflipping!
 	 ***/
-	pSAREAPriv = DRIGetSAREAPrivate(screenInfo.screens[pScrn->scrnIndex]);
+	pSAREAPriv = DRIGetSAREAPrivate(xf86ScrnToScreen(pScrn));
 	/* can't get at sarea in a semi-sane way? */
 	pSAREA = (void *)((char*)pSAREAPriv - sizeof(XF86DRISAREARec));
 

@@ -555,7 +555,7 @@ void RADEONEngineInit(ScrnInfoPtr pScrn)
 
 uint32_t radeonGetPixmapOffset(PixmapPtr pPix)
 {
-    ScrnInfoPtr pScrn = xf86Screens[pPix->drawable.pScreen->myNum];
+    ScrnInfoPtr pScrn = xf86ScreenToScrn(pPix->drawable.pScreen);
     RADEONInfoPtr info = RADEONPTR(pScrn);
     uint32_t offset = 0;
     if (info->cs)
@@ -1065,7 +1065,7 @@ RADEONHostDataBlitCopyPass(
 
 Bool RADEONAccelInit(ScreenPtr pScreen)
 {
-    ScrnInfoPtr    pScrn = xf86Screens[pScreen->myNum];
+    ScrnInfoPtr    pScrn = xf86ScreenToScrn(pScreen);
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
 
 #ifdef USE_EXA
@@ -1152,7 +1152,7 @@ void RADEONInit3DEngine(ScrnInfoPtr pScrn)
 Bool
 RADEONSetupMemXAA_DRI(ScreenPtr pScreen)
 {
-    ScrnInfoPtr    pScrn = xf86Screens[pScreen->myNum];
+    ScrnInfoPtr    pScrn = xf86ScreenToScrn(pScreen);
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
     int            cpp = info->CurrentLayout.pixel_bytes;
     int            depthCpp = (info->dri->depthBits - 8) / 4;
@@ -1410,7 +1410,7 @@ RADEONSetupMemXAA_DRI(ScreenPtr pScreen)
 Bool
 RADEONSetupMemXAA(ScreenPtr pScreen)
 {
-    ScrnInfoPtr    pScrn = xf86Screens[pScreen->myNum];
+    ScrnInfoPtr    pScrn = xf86ScreenToScrn(pScreen);
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
     BoxRec         MemBox;
     int            y2;

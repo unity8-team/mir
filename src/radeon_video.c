@@ -279,7 +279,7 @@ radeon_crtc_clip_video(ScrnInfoPtr pScrn,
 
 void RADEONInitVideo(ScreenPtr pScreen)
 {
-    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
     RADEONInfoPtr    info = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     XF86VideoAdaptorPtr *adaptors, *newAdaptors = NULL;
@@ -1616,7 +1616,7 @@ skip_theatre:
 static XF86VideoAdaptorPtr
 RADEONSetupImageVideo(ScreenPtr pScreen)
 {
-    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
     RADEONPortPrivPtr pPriv;
     XF86VideoAdaptorPtr adapt;
 
@@ -3391,7 +3391,7 @@ RADEONDisplaySurface(
 static void
 RADEONInitOffscreenImages(ScreenPtr pScreen)
 {
-/*  ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+/*  ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
     RADEONInfoPtr info = RADEONPTR(pScrn); */
     XF86OffscreenImagePtr offscreenImages;
     /* need to free this someplace */

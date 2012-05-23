@@ -42,6 +42,7 @@
 #include <sys/time.h>		/* For gettimeofday() */
 
 #include "config.h"
+
 #include "xf86str.h"
 #include "compiler.h"
 #include "xf86fbman.h"

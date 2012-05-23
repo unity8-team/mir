@@ -48,7 +48,7 @@
 
 
 /***********************************************************************/
-#define RINFO_FROM_SCREEN(pScr) ScrnInfoPtr pScrn =  xf86Screens[pScr->myNum]; \
+#define RINFO_FROM_SCREEN(pScr) ScrnInfoPtr pScrn =  xf86ScreenToScrn(pScr); \
     RADEONInfoPtr info   = RADEONPTR(pScrn)
 
 static struct {
@@ -301,7 +301,7 @@ static void RADEONFinishAccess_BE(PixmapPtr pPix, int index)
 Bool RADEONPrepareAccess_CS(PixmapPtr pPix, int index)
 {
     ScreenPtr pScreen = pPix->drawable.pScreen;
-    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_exa_pixmap_priv *driver_priv;
     uint32_t possible_domains = ~0U;
@@ -384,7 +384,7 @@ void RADEONFinishAccess_CS(PixmapPtr pPix, int index)
 
 void *RADEONEXACreatePixmap(ScreenPtr pScreen, int size, int align)
 {
-    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_exa_pixmap_priv *new_priv;
 
@@ -450,7 +450,7 @@ void *RADEONEXACreatePixmap2(ScreenPtr pScreen, int width, int height,
 			     int depth, int usage_hint, int bitsPerPixel,
 			     int *new_pitch)
 {
-    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_exa_pixmap_priv *new_priv;
     int pitch, base_align;
@@ -713,7 +713,7 @@ Bool RADEONEXAPixmapIsOffscreen(PixmapPtr pPix)
  */
 Bool RADEONSetupMemEXA (ScreenPtr pScreen)
 {
-    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
     RADEONInfoPtr info = RADEONPTR(pScrn);
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     int cpp = info->CurrentLayout.pixel_bytes;

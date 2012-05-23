@@ -128,7 +128,7 @@ Bool RADEONCheckBPP(int bpp)
 
 PixmapPtr RADEONSolidPixmap(ScreenPtr pScreen, uint32_t solid)
 {
-    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
     RADEONInfoPtr info = RADEONPTR(pScrn);
     PixmapPtr pPix = pScreen->CreatePixmap(pScreen, 1, 1, 32, 0);
 

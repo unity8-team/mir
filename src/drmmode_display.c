@@ -1243,7 +1243,7 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	RADEONInfoPtr info = RADEONPTR(scrn);
 	struct radeon_bo *old_front = NULL;
 	Bool	    ret;
-	ScreenPtr   screen = screenInfo.screens[scrn->scrnIndex];
+	ScreenPtr   screen = xf86ScrnToScreen(scrn);
 	uint32_t    old_fb_id;
 	int	    i, pitch, old_width, old_height, old_pitch;
 	int screen_size;
@@ -1704,7 +1704,7 @@ drmmode_handle_uevents(int fd, void *closure)
 	if (!dev)
 		return;
 
-	RRGetInfo(screenInfo.screens[scrn->scrnIndex], TRUE);
+	RRGetInfo(xf86ScrnToScreen(scrn), TRUE);
 	udev_device_unref(dev);
 }
 #endif

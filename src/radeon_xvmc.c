@@ -126,7 +126,7 @@ RADEONCreateAdaptorXvMC(ScreenPtr pScreen, char *xv_adaptor_name)
 
 	assert(pScreen);
 
-	pScrn = xf86Screens[pScreen->myNum];
+	pScrn = xf86ScreenToScrn(pScreen);
 	adaptor = xf86XvMCCreateAdaptorRec();
 
 	if (!adaptor)

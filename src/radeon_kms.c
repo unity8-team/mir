@@ -144,7 +144,7 @@ static void *
 radeonShadowWindow(ScreenPtr screen, CARD32 row, CARD32 offset, int mode,
 		   CARD32 *size, void *closure)
 {
-    ScrnInfoPtr pScrn = xf86Screens[screen->myNum];
+    ScrnInfoPtr pScrn = xf86ScreenToScrn(screen);
     RADEONInfoPtr  info   = RADEONPTR(pScrn);
     int stride;
 
@@ -156,7 +156,7 @@ radeonShadowWindow(ScreenPtr screen, CARD32 row, CARD32 offset, int mode,
 
 static Bool RADEONCreateScreenResources_KMS(ScreenPtr pScreen)
 {
-    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
     RADEONInfoPtr  info   = RADEONPTR(pScrn);
     PixmapPtr pixmap;
     struct radeon_surface *surface;
@@ -841,7 +841,7 @@ static Bool RADEONCursorInit_KMS(ScreenPtr pScreen)
 
 static Bool RADEONSaveScreen_KMS(ScreenPtr pScreen, int mode)
 {
-    ScrnInfoPtr  pScrn = xf86Screens[pScreen->myNum];
+    ScrnInfoPtr  pScrn = xf86ScreenToScrn(pScreen);
     Bool         unblank;
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
@@ -919,7 +919,7 @@ void RADEONFreeScreen_KMS(int scrnIndex, int flags)
 Bool RADEONScreenInit_KMS(int scrnIndex, ScreenPtr pScreen,
 			  int argc, char **argv)
 {
-    ScrnInfoPtr    pScrn = xf86Screens[pScreen->myNum];
+    ScrnInfoPtr    pScrn = xf86ScreenToScrn(pScreen);
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
     int            subPixelOrder = SubPixelUnknown;
     char*          s;
@@ -1220,7 +1220,7 @@ void RADEONAdjustFrame_KMS(int scrnIndex, int x, int y, int flags)
 
 static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
 {
-    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
     RADEONInfoPtr info = RADEONPTR(pScrn);
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     int cpp = info->CurrentLayout.pixel_bytes;

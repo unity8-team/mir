@@ -1140,7 +1140,7 @@ static Bool R300CheckCompositeTexture(PicturePtr pPict,
 				      Bool is_r500)
 {
     ScreenPtr pScreen = pDstPict->pDrawable->pScreen;
-    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
     RADEONInfoPtr info = RADEONPTR(pScrn);
     unsigned int repeatType = pPict->repeat ? pPict->repeatType : RepeatNone;
     int i;
@@ -1407,7 +1407,7 @@ static Bool R300CheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskP
     uint32_t tmp1;
     ScreenPtr pScreen = pDstPicture->pDrawable->pScreen;
     PixmapPtr pSrcPixmap, pDstPixmap;
-    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
     RADEONInfoPtr info = RADEONPTR(pScrn);
     int max_tex_w, max_tex_h, max_dst_w, max_dst_h;
 

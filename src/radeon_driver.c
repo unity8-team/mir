@@ -231,7 +231,7 @@ static void *
 radeonShadowWindow(ScreenPtr screen, CARD32 row, CARD32 offset, int mode,
 		   CARD32 *size, void *closure)
 {
-    ScrnInfoPtr pScrn = xf86Screens[screen->myNum];
+    ScrnInfoPtr pScrn = xf86ScreenToScrn(screen);
     RADEONInfoPtr  info   = RADEONPTR(pScrn);
     int stride;
 
@@ -243,7 +243,7 @@ radeonShadowWindow(ScreenPtr screen, CARD32 row, CARD32 offset, int mode,
 static Bool
 RADEONCreateScreenResources (ScreenPtr pScreen)
 {
-   ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+   ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
    RADEONInfoPtr  info   = RADEONPTR(pScrn);
    PixmapPtr pixmap;
 
@@ -3451,7 +3451,7 @@ RADEONInitBIOSRegisters(ScrnInfoPtr pScrn)
 Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
                                 int argc, char **argv)
 {
-    ScrnInfoPtr    pScrn = xf86Screens[pScreen->myNum];
+    ScrnInfoPtr    pScrn = xf86ScreenToScrn(pScreen);
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
     int            hasDRI = 0;
 #ifdef RENDER
@@ -5936,7 +5936,7 @@ static void RADEONRestore(ScrnInfoPtr pScrn)
 
 static Bool RADEONSaveScreen(ScreenPtr pScreen, int mode)
 {
-    ScrnInfoPtr  pScrn = xf86Screens[pScreen->myNum];
+    ScrnInfoPtr  pScrn = xf86ScreenToScrn(pScreen);
     Bool         unblank;
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
@@ -6157,7 +6157,7 @@ void RADEONDoAdjustFrame(ScrnInfoPtr pScrn, int x, int y, Bool crtc2)
         /*** NOTE: r3/4xx will need sarea and drm pageflip updates to handle the xytile regs for
 	 *** pageflipping!
 	 ***/
-	pSAREAPriv = DRIGetSAREAPrivate(screenInfo.screens[pScrn->scrnIndex]);
+	pSAREAPriv = DRIGetSAREAPrivate(xf86ScrnToScreen(pScrn));
 	/* can't get at sarea in a semi-sane way? */
 	pSAREA = (void *)((char*)pSAREAPriv - sizeof(XF86DRISAREARec));
 
