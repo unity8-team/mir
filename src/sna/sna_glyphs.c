@@ -221,7 +221,7 @@ glyph_cache_upload(ScreenPtr screen,
 	DBG(("%s: upload glyph %p to cache (%d, %d)x(%d, %d)\n",
 	     __FUNCTION__, glyph, x, y, glyph->info.width, glyph->info.height));
 	sna_composite(PictOpSrc,
-		      GlyphPicture(glyph)[screen->myNum], 0, cache->picture,
+		      GetGlyphPicture(glyph, screen), 0, cache->picture,
 		      0, 0,
 		      0, 0,
 		      x, y,
@@ -302,7 +302,7 @@ glyph_cache(ScreenPtr screen,
 	    struct sna_render *render,
 	    GlyphPtr glyph)
 {
-	PicturePtr glyph_picture = GlyphPicture(glyph)[screen->myNum];
+	PicturePtr glyph_picture = GetGlyphPicture(glyph, screen);
 	struct sna_glyph_cache *cache = &render->glyph[PICT_FORMAT_RGB(glyph_picture->format) != 0];
 	struct sna_glyph *priv;
 	int size, mask, pos, s;
@@ -460,7 +460,7 @@ glyphs_to_dst(struct sna *sna,
 				}
 				if (!glyph_cache(screen, &sna->render, glyph)) {
 					/* no cache for this glyph */
-					priv.atlas = GlyphPicture(glyph)[index];
+					priv.atlas = GetGlyphPicture(glyph, screen);
 					priv.coordinate.x = priv.coordinate.y = 0;
 				} else
 					priv = *sna_glyph(glyph);
@@ -600,7 +600,7 @@ glyphs_slow(struct sna *sna,
 			if (priv.atlas == NULL) {
 				if (!glyph_cache(screen, &sna->render, glyph)) {
 					/* no cache for this glyph */
-					priv.atlas = GlyphPicture(glyph)[index];
+					priv.atlas = GetGlyphPicture(glyph, screen);
 					priv.coordinate.x = priv.coordinate.y = 0;
 				} else
 					priv = *sna_glyph(glyph);
@@ -813,7 +813,7 @@ upload:
 				if (glyph_image == NULL) {
 					int dx, dy;
 
-					picture = GlyphPicture(g)[s];
+					picture = GetGlyphPicture(g, dst->pDrawable->pScreen);
 					if (picture == NULL)
 						goto next_image;
 
@@ -908,7 +908,7 @@ next_image:
 						r.src = priv->coordinate;
 					} else {
 						/* no cache for this glyph */
-						this_atlas = GlyphPicture(glyph)[index];
+						this_atlas = GetGlyphPicture(glyph, screen);
 						r.src.x = r.src.y = 0;
 					}
 				}
@@ -1046,7 +1046,6 @@ glyphs_fallback(CARD8 op,
 		GlyphListPtr list,
 		GlyphPtr *glyphs)
 {
-	int screen = dst->pDrawable->pScreen->myNum;
 	pixman_image_t *dst_image, *mask_image, *src_image;
 	int dx, dy, x, y;
 	BoxRec box;
@@ -1156,7 +1155,7 @@ glyphs_fallback(CARD8 op,
 				PicturePtr picture;
 				int gx, gy;
 
-				picture = GlyphPicture(g)[screen];
+				picture = GetGlyphPicture(g, dst->pDrawable->pScreen);
 				if (picture == NULL)
 					goto next_glyph;
 
