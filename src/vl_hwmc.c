@@ -9,6 +9,8 @@
 #include <xf86.h>
 #include <fourcc.h>
 
+#include "compat-api.h"
+
 #define FOURCC_RGB	0x0000003
 #define XVIMAGE_RGB								\
 {										\
