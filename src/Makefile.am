@@ -60,6 +60,7 @@ nouveau_drv_la_SOURCES = \
 			 nvc0_exa.c \
 			 nvc0_xv.c \
 			 drmmode_display.c \
+			 compat-api.h \
 			 vl_hwmc.c \
 			 vl_hwmc.h
 
