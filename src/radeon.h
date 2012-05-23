@@ -66,6 +66,8 @@
 				/* Xv support */
 #include "xf86xv.h"
 
+#include "compat-api.h"
+
 #include "radeon_probe.h"
 #include "radeon_tv.h"
 
