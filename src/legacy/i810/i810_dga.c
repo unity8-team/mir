@@ -70,7 +70,7 @@ DGAFunctionRec I810DGAFuncs = {
 Bool
 I810DGAInit(ScreenPtr pScreen)
 {
-   ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+   ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
    I810Ptr pI810 = I810PTR(pScrn);
    DGAModePtr modes = NULL, newmodes = NULL, currentMode;
    DisplayModePtr pMode, firstMode;

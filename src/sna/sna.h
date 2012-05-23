@@ -332,7 +332,7 @@ to_sna(ScrnInfoPtr scrn)
 constant static inline struct sna *
 to_sna_from_screen(ScreenPtr screen)
 {
-	return to_sna(xf86Screens[screen->myNum]);
+	return to_sna(xf86ScreenToScrn(screen));
 }
 
 constant static inline struct sna *

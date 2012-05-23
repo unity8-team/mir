@@ -181,7 +181,7 @@ i965_check_composite(int op,
 		     PicturePtr dest_picture,
 		     int width, int height)
 {
-	ScrnInfoPtr scrn = xf86Screens[dest_picture->pDrawable->pScreen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(dest_picture->pDrawable->pScreen);
 
 	/* Check for unsupported compositing operations. */
 	if (op >= sizeof(i965_blend_op) / sizeof(i965_blend_op[0])) {
@@ -219,7 +219,7 @@ Bool
 i965_check_composite_texture(ScreenPtr screen, PicturePtr picture)
 {
 	if (picture->repeatType > RepeatReflect) {
-		ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+		ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 		intel_debug_fallback(scrn,
 				     "extended repeat (%d) not supported\n",
 				     picture->repeatType);
@@ -228,7 +228,7 @@ i965_check_composite_texture(ScreenPtr screen, PicturePtr picture)
 
 	if (picture->filter != PictFilterNearest &&
 	    picture->filter != PictFilterBilinear) {
-		ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+		ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 		intel_debug_fallback(scrn, "Unsupported filter 0x%x\n",
 				     picture->filter);
 		return FALSE;
@@ -240,7 +240,7 @@ i965_check_composite_texture(ScreenPtr screen, PicturePtr picture)
 		w = picture->pDrawable->width;
 		h = picture->pDrawable->height;
 		if ((w > 8192) || (h > 8192)) {
-			ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+			ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 			intel_debug_fallback(scrn,
 					     "Picture w/h too large (%dx%d)\n",
 					     w, h);
@@ -255,7 +255,7 @@ i965_check_composite_texture(ScreenPtr screen, PicturePtr picture)
 		}
 		if (i == sizeof(i965_tex_formats) / sizeof(i965_tex_formats[0]))
 		{
-			ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+			ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 			intel_debug_fallback(scrn,
 					     "Unsupported picture format "
 					     "0x%x\n",
@@ -1978,7 +1978,7 @@ i965_prepare_composite(int op, PicturePtr source_picture,
 		       PicturePtr mask_picture, PicturePtr dest_picture,
 		       PixmapPtr source, PixmapPtr mask, PixmapPtr dest)
 {
-	ScrnInfoPtr scrn = xf86Screens[dest_picture->pDrawable->pScreen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(dest_picture->pDrawable->pScreen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct gen4_render_state *render_state = intel->gen4_render_state;
 	gen4_composite_op *composite_op = &render_state->composite_op;
@@ -2202,7 +2202,7 @@ void
 i965_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 	       int dstX, int dstY, int w, int h)
 {
-	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(dest->drawable.pScreen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	intel_batch_start_atomic(scrn, 200);

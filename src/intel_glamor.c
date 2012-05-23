@@ -53,7 +53,7 @@ intel_glamor_exchange_buffers(struct intel_screen_private *intel,
 Bool
 intel_glamor_create_screen_resources(ScreenPtr screen)
 {
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	if (!(intel->uxa_flags & UXA_USE_GLAMOR))
@@ -104,7 +104,7 @@ PixmapPtr
 intel_glamor_create_pixmap(ScreenPtr screen, int w, int h,
 			   int depth, unsigned int usage)
 {
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	if (intel->uxa_flags & UXA_USE_GLAMOR)
@@ -116,7 +116,7 @@ intel_glamor_create_pixmap(ScreenPtr screen, int w, int h,
 Bool
 intel_glamor_create_textured_pixmap(PixmapPtr pixmap)
 {
-	ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(pixmap->drawable.pScreen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct intel_pixmap *priv;
 
@@ -136,7 +136,7 @@ intel_glamor_create_textured_pixmap(PixmapPtr pixmap)
 void
 intel_glamor_destroy_pixmap(PixmapPtr pixmap)
 {
-	ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(pixmap->drawable.pScreen);
 	intel_screen_private * intel;
 
 	intel = intel_get_screen_private(scrn);
@@ -147,7 +147,7 @@ intel_glamor_destroy_pixmap(PixmapPtr pixmap)
 static void
 intel_glamor_need_flush(DrawablePtr pDrawable)
 {
-	ScrnInfoPtr scrn = xf86Screens[pDrawable->pScreen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(pDrawable->pScreen);
 	intel_screen_private * intel;
 
 	intel = intel_get_screen_private(scrn);
@@ -175,7 +175,7 @@ intel_glamor_finish_access(PixmapPtr pixmap, uxa_access_t access)
 Bool
 intel_glamor_init(ScreenPtr screen)
 {
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	if ((intel->uxa_flags & UXA_GLAMOR_EGL_INITIALIZED) == 0)
@@ -213,7 +213,7 @@ intel_glamor_flush(intel_screen_private * intel)
 {
 	ScreenPtr screen;
 
-	screen = screenInfo.screens[intel->scrn->scrnIndex];
+	screen = xf86ScrnToScreen(intel->scrn);
 	if (intel->uxa_flags & UXA_USE_GLAMOR)
 		glamor_block_handler(screen);
 }
@@ -221,7 +221,7 @@ intel_glamor_flush(intel_screen_private * intel)
 Bool
 intel_glamor_close_screen(ScreenPtr screen)
 {
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	if (intel->uxa_flags & UXA_USE_GLAMOR)

@@ -154,7 +154,7 @@ static Atom xvBrightness, xvContrast, xvColorKey;
 
 void I810InitVideo(ScreenPtr screen)
 {
-    ScrnInfoPtr pScrn = xf86Screens[screen->myNum];
+    ScrnInfoPtr pScrn = xf86ScreenToScrn(screen);
     XF86VideoAdaptorPtr *adaptors, *newAdaptors = NULL;
     XF86VideoAdaptorPtr newAdaptor = NULL;
     int num_adaptors;
@@ -377,7 +377,7 @@ static void I810ResetVideo(ScrnInfoPtr pScrn)
 static XF86VideoAdaptorPtr 
 I810SetupImageVideo(ScreenPtr screen)
 {
-    ScrnInfoPtr pScrn = xf86Screens[screen->myNum];
+    ScrnInfoPtr pScrn = xf86ScreenToScrn(screen);
     I810Ptr pI810 = I810PTR(pScrn);
     XF86VideoAdaptorPtr adapt;
     I810PortPrivPtr pPriv;
@@ -941,7 +941,7 @@ I810AllocateMemory(
 	xf86FreeOffscreenLinear(linear);
    }
 
-   screen = screenInfo.screens[pScrn->scrnIndex];
+   screen = xf86ScrnToScreen(pScrn);
 
    new_linear = xf86AllocateOffscreenLinear(screen, size, 4,
                                             NULL, NULL, NULL);

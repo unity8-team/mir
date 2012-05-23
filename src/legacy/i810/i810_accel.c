@@ -69,7 +69,7 @@ Bool
 I810AccelInit(ScreenPtr pScreen)
 {
    XAAInfoRecPtr infoPtr;
-   ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+   ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
    I810Ptr pI810 = I810PTR(pScrn);
 
    if (I810_DEBUG & DEBUG_VERBOSE_ACCEL)
@@ -215,8 +215,8 @@ I810WaitLpRing(ScrnInfoPtr pScrn, int n, int timeout_millis)
 	 ErrorF("space: %d wanted %d\n", ring->space, n);
 #ifdef HAVE_DRI1
 	 if (pI810->directRenderingEnabled) {
-	    DRIUnlock(screenInfo.screens[pScrn->scrnIndex]);
-	    DRICloseScreen(screenInfo.screens[pScrn->scrnIndex]);
+	    DRIUnlock(xf86ScrnToScreen(pScrn));
+	    DRICloseScreen(xf86ScrnToScreen(pScrn));
 	 }
 #endif
 	 pI810->AccelInfoRec = NULL;	/* Stops recursive behavior */

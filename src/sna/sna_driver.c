@@ -641,7 +641,7 @@ sna_handle_uevents(int fd, void *closure)
 
 	if (memcmp(&s.st_rdev, &udev_devnum, sizeof (dev_t)) == 0 &&
 			hotplug && atoi(hotplug) == 1)
-		RRGetInfo(screenInfo.screens[scrn->scrnIndex], TRUE);
+		RRGetInfo(xf86ScrnToScreen(scrn), TRUE);
 
 	udev_device_unref(dev);
 }
@@ -826,7 +826,7 @@ agp_aperture_size(struct pci_device *dev, int gen)
 static Bool
 sna_screen_init(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 {
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	struct sna *sna = to_sna(scrn);
 	VisualPtr visual;
 

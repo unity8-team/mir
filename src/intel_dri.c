@@ -97,7 +97,7 @@ static uint32_t pixmap_flink(PixmapPtr pixmap)
 static PixmapPtr get_front_buffer(DrawablePtr drawable)
 {
 	ScreenPtr screen = drawable->pScreen;
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	PixmapPtr pixmap;
 
@@ -130,7 +130,7 @@ static PixmapPtr get_front_buffer(DrawablePtr drawable)
 static PixmapPtr fixup_glamor(DrawablePtr drawable, PixmapPtr pixmap)
 {
 	ScreenPtr screen = drawable->pScreen;
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	PixmapPtr old = get_drawable_pixmap(drawable);
 	struct intel_pixmap *priv = intel_get_pixmap_private(pixmap);
 	GCPtr gc;
@@ -182,7 +182,7 @@ static PixmapPtr fixup_glamor(DrawablePtr drawable, PixmapPtr pixmap)
 				   priv->stride,
 				   NULL);
 
-	intel_get_screen_private(xf86Screens[screen->myNum])->needs_flush = TRUE;
+	intel_get_screen_private(xf86ScreenToScrn(screen))->needs_flush = TRUE;
 	return old;
 }
 
@@ -248,7 +248,7 @@ static PixmapPtr fixup_shadow(DrawablePtr drawable, PixmapPtr pixmap)
 	intel_set_pixmap_private(old, priv);
 	old->refcnt++;
 
-	intel_get_screen_private(xf86Screens[screen->myNum])->needs_flush = TRUE;
+	intel_get_screen_private(xf86ScreenToScrn(screen))->needs_flush = TRUE;
 	return old;
 }
 
@@ -258,7 +258,7 @@ I830DRI2CreateBuffers(DrawablePtr drawable, unsigned int *attachments,
 		      int count)
 {
 	ScreenPtr screen = drawable->pScreen;
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	DRI2BufferPtr buffers;
 	I830DRI2BufferPrivatePtr privates;
@@ -385,7 +385,7 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 		     unsigned int format)
 {
 	ScreenPtr screen = drawable->pScreen;
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	DRI2Buffer2Ptr buffer;
 	I830DRI2BufferPrivatePtr privates;
@@ -534,7 +534,7 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 	I830DRI2BufferPrivatePtr srcPrivate = sourceBuffer->driverPrivate;
 	I830DRI2BufferPrivatePtr dstPrivate = destBuffer->driverPrivate;
 	ScreenPtr screen = drawable->pScreen;
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	DrawablePtr src = (sourceBuffer->attachment == DRI2BufferFrontLeft)
 		? drawable : &srcPrivate->pixmap->drawable;
@@ -687,7 +687,7 @@ static int
 I830DRI2DrawablePipe(DrawablePtr pDraw)
 {
 	ScreenPtr pScreen = pDraw->pScreen;
-	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+	ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
 	BoxRec box, crtcbox;
 	xf86CrtcPtr crtc;
 	int pipe = -1;
@@ -910,7 +910,7 @@ intel_glamor_create_back_pixmap(ScreenPtr screen,
 				   0);
 	intel_set_pixmap_bo(back_pixmap, back_bo);
 	if (!intel_glamor_create_textured_pixmap(back_pixmap)) {
-		ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+		ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 			   "Failed to create textured back pixmap.\n");
 		screen->DestroyPixmap(back_pixmap);
@@ -1026,7 +1026,7 @@ I830DRI2ScheduleFlip(struct intel_screen_private *intel,
 static Bool
 can_exchange(DrawablePtr drawable, DRI2BufferPtr front, DRI2BufferPtr back)
 {
-	struct intel_screen_private *intel = intel_get_screen_private(xf86Screens[drawable->pScreen->myNum]);
+	struct intel_screen_private *intel = intel_get_screen_private(xf86ScreenToScrn(drawable->pScreen));
 	I830DRI2BufferPrivatePtr front_priv = front->driverPrivate;
 	I830DRI2BufferPrivatePtr back_priv = back->driverPrivate;
 	PixmapPtr front_pixmap = front_priv->pixmap;
@@ -1244,7 +1244,7 @@ I830DRI2ScheduleSwap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		     CARD64 remainder, DRI2SwapEventPtr func, void *data)
 {
 	ScreenPtr screen = draw->pScreen;
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	drmVBlank vbl;
 	int ret, pipe = I830DRI2DrawablePipe(draw), flip = 0;
@@ -1431,7 +1431,7 @@ static int
 I830DRI2GetMSC(DrawablePtr draw, CARD64 *ust, CARD64 *msc)
 {
 	ScreenPtr screen = draw->pScreen;
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	drmVBlank vbl;
 	int ret, pipe = I830DRI2DrawablePipe(draw);
@@ -1478,7 +1478,7 @@ I830DRI2ScheduleWaitMSC(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 			CARD64 divisor, CARD64 remainder)
 {
 	ScreenPtr screen = draw->pScreen;
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	DRI2FrameEventPtr wait_info;
 	drmVBlank vbl;
@@ -1616,7 +1616,7 @@ static int dri2_server_generation;
 
 Bool I830DRI2ScreenInit(ScreenPtr screen)
 {
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	DRI2InfoRec info;
 	int dri2_major = 1;
@@ -1701,7 +1701,7 @@ Bool I830DRI2ScreenInit(ScreenPtr screen)
 
 void I830DRI2CloseScreen(ScreenPtr screen)
 {
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	DRI2CloseScreen(screen);

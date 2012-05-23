@@ -327,7 +327,7 @@ intel_overlay_put_image(intel_screen_private *intel,
 
 void I830InitVideo(ScreenPtr screen)
 {
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	XF86VideoAdaptorPtr *adaptors, *newAdaptors = NULL;
 	XF86VideoAdaptorPtr overlayAdaptor = NULL, texturedAdaptor = NULL;
@@ -407,7 +407,7 @@ void I830InitVideo(ScreenPtr screen)
 
 static XF86VideoAdaptorPtr I830SetupImageVideoOverlay(ScreenPtr screen)
 {
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	XF86VideoAdaptorPtr adapt;
 	intel_adaptor_private *adaptor_priv;
@@ -516,7 +516,7 @@ static XF86VideoAdaptorPtr I830SetupImageVideoOverlay(ScreenPtr screen)
 
 static XF86VideoAdaptorPtr I830SetupImageVideoTextured(ScreenPtr screen)
 {
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	XF86VideoAdaptorPtr adapt;
 	intel_adaptor_private *adaptor_privs;

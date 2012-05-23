@@ -189,7 +189,7 @@ static XF86MCSurfaceInfoPtr surface_info_vld[] = {
 /* check chip type and load xvmc driver */
 Bool intel_xvmc_adaptor_init(ScreenPtr pScreen)
 {
-	ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(pScreen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	static XF86MCAdaptorRec *pAdapt;
 	char *name;

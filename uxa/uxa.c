@@ -366,7 +366,7 @@ void uxa_set_force_fallback(ScreenPtr screen, Bool value)
 static Bool uxa_close_screen(int i, ScreenPtr pScreen)
 {
 	uxa_screen_t *uxa_screen = uxa_get_screen(pScreen);
-	ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(pScreen);
 #ifdef RENDER
 	PictureScreenPtr ps = GetPictureScreenIfSet(pScreen);
 #endif

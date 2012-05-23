@@ -560,7 +560,7 @@ intel_check_pitch_2d(PixmapPtr pixmap)
 {
 	uint32_t pitch = intel_pixmap_pitch(pixmap);
 	if (pitch > KB(32)) {
-		ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
+		ScrnInfoPtr scrn = xf86ScreenToScrn(pixmap->drawable.pScreen);
 		intel_debug_fallback(scrn, "pitch exceeds 2d limit 32K\n");
 		return FALSE;
 	}
@@ -573,7 +573,7 @@ intel_check_pitch_3d(PixmapPtr pixmap)
 {
 	uint32_t pitch = intel_pixmap_pitch(pixmap);
 	if (pitch > KB(8)) {
-		ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
+		ScrnInfoPtr scrn = xf86ScreenToScrn(pixmap->drawable.pScreen);
 		intel_debug_fallback(scrn, "pitch exceeds 3d limit 8K\n");
 		return FALSE;
 	}

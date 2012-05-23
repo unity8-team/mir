@@ -160,7 +160,7 @@ intel_uxa_pixmap_compute_size(PixmapPtr pixmap,
 			      int *stride,
 			      unsigned usage)
 {
-	ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(pixmap->drawable.pScreen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	int pitch, size;
 
@@ -241,7 +241,7 @@ intel_uxa_pixmap_compute_size(PixmapPtr pixmap,
 static Bool
 intel_uxa_check_solid(DrawablePtr drawable, int alu, Pixel planemask)
 {
-	ScrnInfoPtr scrn = xf86Screens[drawable->pScreen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(drawable->pScreen);
 
 	if (!UXA_PM_IS_SOLID(drawable, planemask)) {
 		intel_debug_fallback(scrn, "planemask is not solid\n");
@@ -266,7 +266,7 @@ intel_uxa_check_solid(DrawablePtr drawable, int alu, Pixel planemask)
 static Bool
 intel_uxa_prepare_solid(PixmapPtr pixmap, int alu, Pixel planemask, Pixel fg)
 {
-	ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(pixmap->drawable.pScreen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	drm_intel_bo *bo_table[] = {
 		NULL,		/* batch_bo */
@@ -299,7 +299,7 @@ intel_uxa_prepare_solid(PixmapPtr pixmap, int alu, Pixel planemask, Pixel fg)
 
 static void intel_uxa_solid(PixmapPtr pixmap, int x1, int y1, int x2, int y2)
 {
-	ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(pixmap->drawable.pScreen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	unsigned long pitch;
 	uint32_t cmd;
@@ -353,7 +353,7 @@ static Bool
 intel_uxa_check_copy(PixmapPtr source, PixmapPtr dest,
 		    int alu, Pixel planemask)
 {
-	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(dest->drawable.pScreen);
 
 	if (!UXA_PM_IS_SOLID(&source->drawable, planemask)) {
 		intel_debug_fallback(scrn, "planemask is not solid");
@@ -385,7 +385,7 @@ static Bool
 intel_uxa_prepare_copy(PixmapPtr source, PixmapPtr dest, int xdir,
 		      int ydir, int alu, Pixel planemask)
 {
-	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(dest->drawable.pScreen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	drm_intel_bo *bo_table[] = {
 		NULL,		/* batch_bo */
@@ -417,7 +417,7 @@ static void
 intel_uxa_copy(PixmapPtr dest, int src_x1, int src_y1, int dst_x1,
 	      int dst_y1, int w, int h)
 {
-	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(dest->drawable.pScreen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	uint32_t cmd;
 	int dst_x2, dst_y2, src_x2, src_y2;
@@ -501,7 +501,7 @@ intel_uxa_copy(PixmapPtr dest, int src_x1, int src_y1, int dst_x1,
 
 static void intel_uxa_done(PixmapPtr pixmap)
 {
-	ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(pixmap->drawable.pScreen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	if (IS_GEN6(intel) || IS_GEN7(intel)) {
@@ -523,7 +523,7 @@ static void intel_uxa_done(PixmapPtr pixmap)
  */
 static void i830_done_composite(PixmapPtr dest)
 {
-	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(dest->drawable.pScreen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	if (intel->vertex_flush)
@@ -682,7 +682,7 @@ static Bool intel_uxa_pixmap_is_offscreen(PixmapPtr pixmap)
 
 static Bool intel_uxa_prepare_access(PixmapPtr pixmap, uxa_access_t access)
 {
-	ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(pixmap->drawable.pScreen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct intel_pixmap *priv = intel_get_pixmap_private(pixmap);
 	dri_bo *bo = priv->bo;
@@ -787,7 +787,7 @@ static Bool intel_uxa_put_image(PixmapPtr pixmap,
 		    w == pixmap->drawable.width &&
 		    h == pixmap->drawable.height)
 		{
-			intel_screen_private *intel = intel_get_screen_private(xf86Screens[screen->myNum]);
+			intel_screen_private *intel = intel_get_screen_private(xf86ScreenToScrn(screen));
 			uint32_t tiling = priv->tiling;
 			int size, stride;
 			dri_bo *bo;
@@ -932,7 +932,7 @@ static Bool intel_uxa_get_image(PixmapPtr pixmap,
 
 		FreeScratchGC(gc);
 
-		intel_batch_submit(xf86Screens[screen->myNum]);
+		intel_batch_submit(xf86ScreenToScrn(screen));
 
 		x = y = 0;
 		pixmap = scratch;
@@ -1008,7 +1008,7 @@ static PixmapPtr
 intel_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 			unsigned usage)
 {
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct intel_pixmap *priv;
 	PixmapPtr pixmap, new_pixmap = NULL;
@@ -1146,7 +1146,7 @@ static Bool intel_uxa_destroy_pixmap(PixmapPtr pixmap)
 
 Bool intel_uxa_create_screen_resources(ScreenPtr screen)
 {
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	dri_bo *bo = intel->front_buffer;
 
@@ -1230,7 +1230,7 @@ intel_limits_init(intel_screen_private *intel)
 
 Bool intel_uxa_init(ScreenPtr screen)
 {
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 #if HAS_DIXREGISTERPRIVATEKEY

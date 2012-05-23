@@ -217,7 +217,7 @@ I830LoadPalette(ScrnInfoPtr scrn, int numColors, int *indices,
  */
 static Bool i830CreateScreenResources(ScreenPtr screen)
 {
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	screen->CreateScreenResources = intel->CreateScreenResources;
@@ -840,7 +840,7 @@ I830HandleUEvents(int fd, void *closure)
 
 	if (memcmp(&s.st_rdev, &udev_devnum, sizeof (dev_t)) == 0 &&
 			hotplug && atoi(hotplug) == 1)
-		RRGetInfo(screenInfo.screens[scrn->scrnIndex], TRUE);
+		RRGetInfo(xf86ScrnToScreen(scrn), TRUE);
 
 	udev_device_unref(dev);
 }
@@ -919,7 +919,7 @@ I830UeventFini(ScrnInfoPtr scrn)
 static Bool
 I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 {
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	VisualPtr visual;
 #ifdef INTEL_XVMC

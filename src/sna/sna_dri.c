@@ -686,7 +686,7 @@ sna_dri_copy_region(DrawablePtr draw,
 static int
 sna_dri_get_pipe(DrawablePtr pDraw)
 {
-	ScrnInfoPtr pScrn = xf86Screens[pDraw->pScreen->myNum];
+	ScrnInfoPtr pScrn = xf86ScreenToScrn(pDraw->pScreen);
 	BoxRec box, crtcbox;
 	xf86CrtcPtr crtc;
 	int pipe;
@@ -1496,7 +1496,7 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		       CARD64 remainder, DRI2SwapEventPtr func, void *data)
 {
 	ScreenPtr screen = draw->pScreen;
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	struct sna *sna = to_sna(scrn);
 	drmVBlank vbl;
 	int pipe;

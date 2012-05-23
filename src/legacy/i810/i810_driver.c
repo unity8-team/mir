@@ -1353,7 +1353,7 @@ I810ModeInit(ScrnInfoPtr scrn, DisplayModePtr mode)
 
 #ifdef HAVE_DRI1
    if (pI810->directRenderingEnabled) {
-      DRILock(screenInfo.screens[scrn->scrnIndex], 0);
+      DRILock(xf86ScrnToScreen(scrn), 0);
       pI810->LockHeld = 1;
    }
 #endif
@@ -1362,7 +1362,7 @@ I810ModeInit(ScrnInfoPtr scrn, DisplayModePtr mode)
 
 #ifdef HAVE_DRI1
    if (pI810->directRenderingEnabled) {
-      DRIUnlock(screenInfo.screens[scrn->scrnIndex]);
+      DRIUnlock(xf86ScrnToScreen(scrn));
       pI810->LockHeld = 0;
    }
 #endif
@@ -1577,7 +1577,7 @@ I810ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
    I810Ptr pI810;
    VisualPtr visual;
 
-   scrn = xf86Screens[screen->myNum];
+   scrn = xf86ScreenToScrn(screen);
    pI810 = I810PTR(scrn);
    hwp = VGAHWPTR(scrn);
 

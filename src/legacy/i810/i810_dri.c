@@ -155,7 +155,7 @@ mylog2(unsigned int n)
 Bool
 I810DRIScreenInit(ScreenPtr pScreen)
 {
-   ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+   ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
    I810Ptr pI810 = I810PTR(pScrn);
    DRIInfoPtr pDRIInfo;
    I810DRIPtr pI810DRI;
@@ -891,7 +891,7 @@ I810DRIScreenInit(ScreenPtr pScreen)
 void
 I810DRICloseScreen(ScreenPtr pScreen)
 {
-   ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+   ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
    I810Ptr pI810 = I810PTR(pScrn);
    I810DRIPtr pI810DRI = (I810DRIPtr) pI810->pDRIInfo->devPrivate;
 
@@ -956,7 +956,7 @@ Bool
 I810DRIFinishScreenInit(ScreenPtr pScreen)
 {
    I810SAREARec *sPriv = (I810SAREARec *) DRIGetSAREAPrivate(pScreen);
-   ScrnInfoPtr        pScrn = xf86Screens[pScreen->myNum];
+   ScrnInfoPtr        pScrn = xf86ScreenToScrn(pScreen);
    I810Ptr info  = I810PTR(pScrn);
 
    memset(sPriv, 0, sizeof(sPriv));
@@ -976,7 +976,7 @@ I810DRISwapContext(ScreenPtr pScreen, DRISyncType syncType,
 		   DRIContextType oldContextType, void *oldContext,
 		   DRIContextType newContextType, void *newContext)
 {
-   ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+   ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
    I810Ptr pI810 = I810PTR(pScrn);
 
    if (syncType == DRI_3D_SYNC &&
@@ -1002,7 +1002,7 @@ static void
 I810DRIInitBuffers(WindowPtr pWin, RegionPtr prgn, CARD32 index)
 {
    ScreenPtr pScreen = pWin->drawable.pScreen;
-   ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+   ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
    I810Ptr pI810 = I810PTR(pScrn);
    BoxPtr pbox = REGION_RECTS(prgn);
    int nbox = REGION_NUM_RECTS(prgn);
@@ -1047,7 +1047,7 @@ I810DRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
 		   RegionPtr prgnSrc, CARD32 index)
 {
    ScreenPtr pScreen = pParent->drawable.pScreen;
-   ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+   ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
    I810Ptr pI810 = I810PTR(pScrn);
    BoxPtr pboxTmp, pboxNext, pboxBase;
    DDXPointPtr pptTmp, pptNew2 = NULL;
@@ -1249,7 +1249,7 @@ static void I810DRIRefreshArea(ScrnInfoPtr pScrn, int num, BoxPtr pbox)
 
 static void I810EnablePageFlip(ScreenPtr pScreen)
 {
-    ScrnInfoPtr         pScrn      = xf86Screens[pScreen->myNum];
+    ScrnInfoPtr         pScrn      = xf86ScreenToScrn(pScreen);
     I810Ptr       pI810       = I810PTR(pScrn);
     I810SAREAPtr  pSAREAPriv = DRIGetSAREAPrivate(pScreen);
     int cpp=2;
@@ -1298,7 +1298,7 @@ static void I810DRITransitionMultiToSingle3d(ScreenPtr pScreen)
 
 static void I810DRITransitionTo3d(ScreenPtr pScreen)
 {
-    ScrnInfoPtr    pScrn = xf86Screens[pScreen->myNum];
+    ScrnInfoPtr    pScrn = xf86ScreenToScrn(pScreen);
     I810Ptr  pI810  = I810PTR(pScrn);
 
     I810EnablePageFlip(pScreen);
@@ -1307,7 +1307,7 @@ static void I810DRITransitionTo3d(ScreenPtr pScreen)
 
 static void I810DRITransitionTo2d(ScreenPtr pScreen)
 {
-    ScrnInfoPtr         pScrn      = xf86Screens[pScreen->myNum];
+    ScrnInfoPtr         pScrn      = xf86ScreenToScrn(pScreen);
     I810Ptr       pI810       = I810PTR(pScrn);
     I810SAREAPtr  pSAREAPriv = DRIGetSAREAPrivate(pScreen);
 
