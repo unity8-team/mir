@@ -63,6 +63,8 @@
 
 #define NV_DMA_DEBUG 0
 
+#include "compat-api.h"
+
 #include "nouveau_local.h"
 
 #include "nv_type.h"
