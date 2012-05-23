@@ -83,7 +83,7 @@ static Bool
 nouveau_exa_prepare_access(PixmapPtr ppix, int index)
 {
 	struct nouveau_bo *bo = nouveau_pixmap_bo(ppix);
-	NVPtr pNv = NVPTR(xf86Screens[ppix->drawable.pScreen->myNum]);
+	NVPtr pNv = NVPTR(xf86ScreenToScrn(ppix->drawable.pScreen));
 
 	if (nv50_style_tiled_pixmap(ppix) && !pNv->wfb_enabled)
 		return FALSE;
@@ -108,7 +108,7 @@ static void *
 nouveau_exa_create_pixmap(ScreenPtr pScreen, int width, int height, int depth,
 			  int usage_hint, int bitsPerPixel, int *new_pitch)
 {
-	ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(pScreen);
 	NVPtr pNv = NVPTR(scrn);
 	struct nouveau_pixmap *nvpix;
 	int ret;
@@ -148,7 +148,7 @@ nouveau_exa_destroy_pixmap(ScreenPtr pScreen, void *priv)
 bool
 nv50_style_tiled_pixmap(PixmapPtr ppix)
 {
-	ScrnInfoPtr pScrn = xf86Screens[ppix->drawable.pScreen->myNum];
+	ScrnInfoPtr pScrn = xf86ScreenToScrn(ppix->drawable.pScreen);
 	NVPtr pNv = NVPTR(pScrn);
 
 	return pNv->Architecture >= NV_ARCH_50 &&
@@ -159,7 +159,7 @@ static Bool
 nouveau_exa_download_from_screen(PixmapPtr pspix, int x, int y, int w, int h,
 				 char *dst, int dst_pitch)
 {
-	ScrnInfoPtr pScrn = xf86Screens[pspix->drawable.pScreen->myNum];
+	ScrnInfoPtr pScrn = xf86ScreenToScrn(pspix->drawable.pScreen);
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_bo *bo;
 	int src_pitch, tmp_pitch, cpp, offset;
@@ -219,7 +219,7 @@ static Bool
 nouveau_exa_upload_to_screen(PixmapPtr pdpix, int x, int y, int w, int h,
 			     char *src, int src_pitch)
 {
-	ScrnInfoPtr pScrn = xf86Screens[pdpix->drawable.pScreen->myNum];
+	ScrnInfoPtr pScrn = xf86ScreenToScrn(pdpix->drawable.pScreen);
 	NVPtr pNv = NVPTR(pScrn);
 	int dst_pitch, tmp_pitch, cpp;
 	int max_lines, lines, i;
@@ -306,7 +306,7 @@ memcpy:
 Bool
 nouveau_exa_pixmap_is_onscreen(PixmapPtr ppix)
 {
-	ScrnInfoPtr pScrn = xf86Screens[ppix->drawable.pScreen->myNum];
+	ScrnInfoPtr pScrn = xf86ScreenToScrn(ppix->drawable.pScreen);
 
 	if (pScrn->pScreen->GetScreenPixmap(pScrn->pScreen) == ppix)
 		return TRUE;
@@ -317,7 +317,7 @@ nouveau_exa_pixmap_is_onscreen(PixmapPtr ppix)
 Bool
 nouveau_exa_init(ScreenPtr pScreen) 
 {
-	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+	ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
 	NVPtr pNv = NVPTR(pScrn);
 	ExaDriverPtr exa;
 

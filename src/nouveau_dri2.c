@@ -26,7 +26,7 @@ nouveau_dri2_create_buffer(DrawablePtr pDraw, unsigned int attachment,
 			   unsigned int format)
 {
 	ScreenPtr pScreen = pDraw->pScreen;
-	NVPtr pNv = NVPTR(xf86Screens[pScreen->myNum]);
+	NVPtr pNv = NVPTR(xf86ScreenToScrn(pScreen));
 	struct nouveau_dri2_buffer *nvbuf;
 	struct nouveau_pixmap *nvpix;
 	PixmapPtr ppix;
@@ -180,7 +180,7 @@ update_front(DrawablePtr draw, DRI2BufferPtr front)
 static Bool
 can_exchange(DrawablePtr draw, PixmapPtr dst_pix, PixmapPtr src_pix)
 {
-	ScrnInfoPtr scrn = xf86Screens[draw->pScreen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(draw->pScreen);
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
 	NVPtr pNv = NVPTR(scrn);
 	int i;
@@ -202,7 +202,7 @@ can_exchange(DrawablePtr draw, PixmapPtr dst_pix, PixmapPtr src_pix)
 static Bool
 can_sync_to_vblank(DrawablePtr draw)
 {
-	ScrnInfoPtr scrn = xf86Screens[draw->pScreen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(draw->pScreen);
 	NVPtr pNv = NVPTR(scrn);
 
 	return pNv->glx_vblank &&
@@ -214,7 +214,7 @@ static int
 nouveau_wait_vblank(DrawablePtr draw, int type, CARD64 msc,
 		    CARD64 *pmsc, CARD64 *pust, void *data)
 {
-	ScrnInfoPtr scrn = xf86Screens[draw->pScreen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(draw->pScreen);
 	NVPtr pNv = NVPTR(scrn);
 	int crtcs = nv_window_belongs_to_crtc(scrn, draw->x, draw->y,
 					      draw->width, draw->height);
@@ -244,7 +244,7 @@ nouveau_wait_vblank(DrawablePtr draw, int type, CARD64 msc,
 static Bool
 nouveau_dri2_swap_limit_validate(DrawablePtr draw, int swap_limit)
 {
-	ScrnInfoPtr scrn = xf86Screens[draw->pScreen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(draw->pScreen);
 	NVPtr pNv = NVPTR(scrn);
 
 	if ((swap_limit < 1 ) || (swap_limit > pNv->max_swap_limit))
@@ -260,7 +260,7 @@ nouveau_dri2_swap_limit_validate(DrawablePtr draw, int swap_limit)
  */
 static Bool violate_oml(DrawablePtr draw)
 {
-	ScrnInfoPtr scrn = xf86Screens[draw->pScreen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(draw->pScreen);
 	NVPtr pNv = NVPTR(scrn);
 
 	return (DRI2INFOREC_VERSION < 6) && (pNv->swap_limit > 1);
@@ -271,7 +271,7 @@ nouveau_dri2_finish_swap(DrawablePtr draw, unsigned int frame,
 			 unsigned int tv_sec, unsigned int tv_usec,
 			 struct nouveau_dri2_vblank_state *s)
 {
-	ScrnInfoPtr scrn = xf86Screens[draw->pScreen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(draw->pScreen);
 	NVPtr pNv = NVPTR(scrn);
 	PixmapPtr dst_pix;
 	PixmapPtr src_pix = nouveau_dri2_buffer(s->src)->ppix;
@@ -579,7 +579,7 @@ nouveau_dri2_vblank_handler(int fd, unsigned int frame,
 		nouveau_dri2_finish_swap(draw, frame, tv_sec, tv_usec, s);
 #if DRI2INFOREC_VERSION >= 6
 		/* Restore real swap limit on drawable, now that it is safe. */
-		ScrnInfoPtr scrn = xf86Screens[draw->pScreen->myNum];
+		ScrnInfoPtr scrn = xf86ScreenToScrn(draw->pScreen);
 		DRI2SwapLimit(draw, NVPTR(scrn)->swap_limit);
 #endif
 
@@ -617,7 +617,7 @@ nouveau_dri2_flip_event_handler(unsigned int frame, unsigned int tv_sec,
 	}
 
 	screen = draw->pScreen;
-	scrn = xf86Screens[screen->myNum];
+	scrn = xf86ScreenToScrn(screen);
 
 	pixmap = screen->GetScreenPixmap(screen);
 	xf86DrvMsgVerb(scrn->scrnIndex, X_INFO, 4,
@@ -663,7 +663,7 @@ nouveau_dri2_flip_event_handler(unsigned int frame, unsigned int tv_sec,
 Bool
 nouveau_dri2_init(ScreenPtr pScreen)
 {
-	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+	ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
 	NVPtr pNv = NVPTR(pScrn);
 	DRI2InfoRec dri2 = { 0 };
 	const char *drivernames[2][2] = {

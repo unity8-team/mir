@@ -404,7 +404,7 @@ NVBlockHandler (
 static Bool
 NVCreateScreenResources(ScreenPtr pScreen)
 {
-	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+	ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
 	NVPtr pNv = NVPTR(pScrn);
 	PixmapPtr ppix;
 
@@ -1061,7 +1061,7 @@ NVLoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
 static Bool
 NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 {
-	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+	ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
 	NVPtr pNv = NVPTR(pScrn);
 	int ret;
 	VisualPtr visual;

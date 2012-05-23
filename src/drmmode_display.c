@@ -117,7 +117,7 @@ static PixmapPtr
 drmmode_pixmap_wrap(ScreenPtr pScreen, int width, int height, int depth,
 		    int bpp, int pitch, struct nouveau_bo *bo, void *data)
 {
-	NVPtr pNv = NVPTR(xf86Screens[pScreen->myNum]);
+	NVPtr pNv = NVPTR(xf86ScreenToScrn(pScreen));
 	PixmapPtr ppix;
 
 	if (!pNv->NoAccel)
@@ -201,7 +201,7 @@ drmmode_crtc_dpms(xf86CrtcPtr drmmode_crtc, int mode)
 void
 drmmode_fbcon_copy(ScreenPtr pScreen)
 {
-	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+	ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
 	NVPtr pNv = NVPTR(pScrn);
 #if XORG_VERSION_CURRENT >= 10999001
 	ExaDriverPtr exa = pNv->EXADriverPtr;
@@ -1076,7 +1076,7 @@ static Bool
 drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 {
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
-	ScreenPtr screen = screenInfo.screens[scrn->scrnIndex];
+	ScreenPtr screen = xf86ScrnToScreen(scrn);
 	NVPtr pNv = NVPTR(scrn);
 	drmmode_crtc_private_ptr
 		    drmmode_crtc = xf86_config->crtc[0]->driver_private;
@@ -1241,7 +1241,7 @@ drmmode_remove_fb(ScrnInfoPtr pScrn)
 int
 drmmode_cursor_init(ScreenPtr pScreen)
 {
-	NVPtr pNv = NVPTR(xf86Screens[pScreen->myNum]);
+	NVPtr pNv = NVPTR(xf86ScreenToScrn(pScreen));
 	int size = nv_cursor_width(pNv);
 	int flags = HARDWARE_CURSOR_TRUECOLOR_AT_8BPP |
 		    HARDWARE_CURSOR_SOURCE_MASK_INTERLEAVE_32 |
@@ -1255,7 +1255,7 @@ Bool
 drmmode_page_flip(DrawablePtr draw, PixmapPtr back, void *priv,
 		  unsigned int ref_crtc_hw_id)
 {
-	ScrnInfoPtr scrn = xf86Screens[draw->pScreen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(draw->pScreen);
 	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(scrn);
 	drmmode_crtc_private_ptr crtc = config->crtc[0]->driver_private;
 	drmmode_ptr mode = crtc->drmmode;
@@ -1346,7 +1346,7 @@ drmmode_handle_uevents(ScrnInfoPtr scrn)
 	if (!dev)
 		return;
 
-	RRGetInfo(screenInfo.screens[scrn->scrnIndex], TRUE);
+	RRGetInfo(xf86ScrnToScreen(scrn), TRUE);
 	udev_device_unref(dev);
 }
 #endif
@@ -1455,7 +1455,7 @@ drmmode_wakeup_handler(pointer data, int err, pointer p)
 void
 drmmode_screen_init(ScreenPtr pScreen)
 {
-	ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(pScreen);
 	drmmode_ptr drmmode = drmmode_from_scrn(scrn);
 
 	drmmode_uevent_init(scrn);
@@ -1477,7 +1477,7 @@ drmmode_screen_init(ScreenPtr pScreen)
 void
 drmmode_screen_fini(ScreenPtr pScreen)
 {
-	ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(pScreen);
 
 	drmmode_uevent_fini(scrn);
 }

@@ -456,7 +456,7 @@ NV40EXAPrepareComposite(int op, PicturePtr psPict,
 				PixmapPtr  pmPix,
 				PixmapPtr  pdPix)
 {
-	ScrnInfoPtr pScrn = xf86Screens[pdPix->drawable.pScreen->myNum];
+	ScrnInfoPtr pScrn = xf86ScreenToScrn(pdPix->drawable.pScreen);
 	NVPtr pNv = NVPTR(pScrn);
 	nv_pict_op_t *blend = NV40_GetPictOpRec(op);
 	struct nouveau_pushbuf *push = pNv->pushbuf;
@@ -537,7 +537,7 @@ void
 NV40EXAComposite(PixmapPtr pdPix,
 		 int sx, int sy, int mx, int my, int dx, int dy, int w, int h)
 {
-	ScrnInfoPtr pScrn = xf86Screens[pdPix->drawable.pScreen->myNum];
+	ScrnInfoPtr pScrn = xf86ScreenToScrn(pdPix->drawable.pScreen);
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_pushbuf *push = pNv->pushbuf;
 
@@ -564,7 +564,7 @@ NV40EXAComposite(PixmapPtr pdPix,
 void
 NV40EXADoneComposite(PixmapPtr pdPix)
 {
-	ScrnInfoPtr pScrn = xf86Screens[pdPix->drawable.pScreen->myNum];
+	ScrnInfoPtr pScrn = xf86ScreenToScrn(pdPix->drawable.pScreen);
 	nouveau_pushbuf_bufctx(NVPTR(pScrn)->pushbuf, NULL);
 }
 

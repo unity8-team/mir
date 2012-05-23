@@ -123,7 +123,7 @@ nouveau_allocate_surface(ScrnInfoPtr scrn, int width, int height, int bpp,
 void
 NV11SyncToVBlank(PixmapPtr ppix, BoxPtr box)
 {
-	ScrnInfoPtr pScrn = xf86Screens[ppix->drawable.pScreen->myNum];
+	ScrnInfoPtr pScrn = xf86ScreenToScrn(ppix->drawable.pScreen);
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_pushbuf *push = pNv->pushbuf;
 	int crtcs;

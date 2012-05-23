@@ -1540,7 +1540,7 @@ NVDisplaySurface(XF86SurfacePtr surface,
 static XF86VideoAdaptorPtr
 NVSetupBlitVideo (ScreenPtr pScreen)
 {
-	ScrnInfoPtr         pScrn = xf86Screens[pScreen->myNum];
+	ScrnInfoPtr         pScrn = xf86ScreenToScrn(pScreen);
 	NVPtr               pNv       = NVPTR(pScrn);
 	XF86VideoAdaptorPtr adapt;
 	NVPortPrivPtr       pPriv;
@@ -1609,7 +1609,7 @@ NVSetupBlitVideo (ScreenPtr pScreen)
 static XF86VideoAdaptorPtr
 NVSetupOverlayVideoAdapter(ScreenPtr pScreen)
 {
-	ScrnInfoPtr         pScrn = xf86Screens[pScreen->myNum];
+	ScrnInfoPtr         pScrn = xf86ScreenToScrn(pScreen);
 	NVPtr               pNv       = NVPTR(pScrn);
 	XF86VideoAdaptorPtr adapt;
 	NVPortPrivPtr       pPriv;
@@ -1759,7 +1759,7 @@ NVChipsetHasOverlay(NVPtr pNv)
 static XF86VideoAdaptorPtr
 NVSetupOverlayVideo(ScreenPtr pScreen)
 {
-	ScrnInfoPtr          pScrn = xf86Screens[pScreen->myNum];
+	ScrnInfoPtr          pScrn = xf86ScreenToScrn(pScreen);
 	XF86VideoAdaptorPtr  overlayAdaptor = NULL;
 	NVPtr                pNv   = NVPTR(pScrn);
 
@@ -1804,7 +1804,7 @@ static XF86ImageRec NV30TexturedImages[NUM_FORMAT_TEXTURED] =
 static XF86VideoAdaptorPtr
 NV30SetupTexturedVideo (ScreenPtr pScreen, Bool bicubic)
 {
-	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+	ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
 	NVPtr pNv = NVPTR(pScrn);
 	XF86VideoAdaptorPtr adapt;
 	NVPortPrivPtr pPriv;
@@ -1885,7 +1885,7 @@ static XF86ImageRec NV40TexturedImages[NUM_FORMAT_TEXTURED] =
 static XF86VideoAdaptorPtr
 NV40SetupTexturedVideo (ScreenPtr pScreen, Bool bicubic)
 {
-	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+	ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
 	NVPtr pNv = NVPTR(pScrn);
 	XF86VideoAdaptorPtr adapt;
 	NVPortPrivPtr pPriv;
@@ -1957,7 +1957,7 @@ NV50TexturedImages[] =
 static XF86VideoAdaptorPtr
 NV50SetupTexturedVideo (ScreenPtr pScreen)
 {
-	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+	ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
 	NVPtr pNv = NVPTR(pScrn);
 	XF86VideoAdaptorPtr adapt;
 	NVPortPrivPtr pPriv;
@@ -2015,7 +2015,7 @@ NV50SetupTexturedVideo (ScreenPtr pScreen)
 void
 NVSetupTexturedVideo (ScreenPtr pScreen, XF86VideoAdaptorPtr *textureAdaptor)
 {
-	ScrnInfoPtr          pScrn = xf86Screens[pScreen->myNum];
+	ScrnInfoPtr          pScrn = xf86ScreenToScrn(pScreen);
 	NVPtr                pNv = NVPTR(pScrn);
 
 	if (!pNv->Nv3D)
@@ -2046,7 +2046,7 @@ NVSetupTexturedVideo (ScreenPtr pScreen, XF86VideoAdaptorPtr *textureAdaptor)
 void
 NVInitVideo(ScreenPtr pScreen)
 {
-	ScrnInfoPtr          pScrn = xf86Screens[pScreen->myNum];
+	ScrnInfoPtr          pScrn = xf86ScreenToScrn(pScreen);
 	NVPtr                pNv = NVPTR(pScrn);
 	XF86VideoAdaptorPtr *adaptors, *newAdaptors = NULL;
 	XF86VideoAdaptorPtr  overlayAdaptor = NULL;

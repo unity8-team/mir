@@ -45,7 +45,7 @@ NV04EXASetPattern(NVPtr pNv, CARD32 clr0, CARD32 clr1, CARD32 pat0, CARD32 pat1)
 static Bool
 NV04EXASetROP(PixmapPtr ppix, int subc, int mthd, int alu, Pixel planemask)
 {
-	ScrnInfoPtr pScrn = xf86Screens[ppix->drawable.pScreen->myNum];
+	ScrnInfoPtr pScrn = xf86ScreenToScrn(ppix->drawable.pScreen);
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_pushbuf *push = pNv->pushbuf;
 
@@ -86,7 +86,7 @@ NV04EXASetROP(PixmapPtr ppix, int subc, int mthd, int alu, Pixel planemask)
 Bool
 NV04EXAPrepareSolid(PixmapPtr ppix, int alu, Pixel planemask, Pixel fg)
 {
-	ScrnInfoPtr pScrn = xf86Screens[ppix->drawable.pScreen->myNum];
+	ScrnInfoPtr pScrn = xf86ScreenToScrn(ppix->drawable.pScreen);
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_pushbuf *push = pNv->pushbuf;
 	struct nouveau_bo *bo = nouveau_pixmap_bo(ppix);
@@ -140,7 +140,7 @@ NV04EXAPrepareSolid(PixmapPtr ppix, int alu, Pixel planemask, Pixel fg)
 void
 NV04EXASolid (PixmapPtr pPixmap, int x, int y, int x2, int y2)
 {
-	ScrnInfoPtr pScrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
+	ScrnInfoPtr pScrn = xf86ScreenToScrn(pPixmap->drawable.pScreen);
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_pushbuf *push = pNv->pushbuf;
 	int w = x2 - x;
@@ -161,7 +161,7 @@ NV04EXASolid (PixmapPtr pPixmap, int x, int y, int x2, int y2)
 void
 NV04EXADoneSolid (PixmapPtr pPixmap)
 {
-	ScrnInfoPtr pScrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
+	ScrnInfoPtr pScrn = xf86ScreenToScrn(pPixmap->drawable.pScreen);
 	nouveau_pushbuf_bufctx(NVPTR(pScrn)->pushbuf, NULL);
 }
 
@@ -169,7 +169,7 @@ Bool
 NV04EXAPrepareCopy(PixmapPtr pspix, PixmapPtr pdpix, int dx, int dy,
 		   int alu, Pixel planemask)
 {
-	ScrnInfoPtr pScrn = xf86Screens[pspix->drawable.pScreen->myNum];
+	ScrnInfoPtr pScrn = xf86ScreenToScrn(pspix->drawable.pScreen);
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_pushbuf *push = pNv->pushbuf;
 	struct nouveau_bo *src_bo = nouveau_pixmap_bo(pspix);
@@ -214,7 +214,7 @@ void
 NV04EXACopy(PixmapPtr pdpix, int srcX, int srcY, int dstX, int dstY,
 	    int width, int height)
 {
-	ScrnInfoPtr pScrn = xf86Screens[pdpix->drawable.pScreen->myNum];
+	ScrnInfoPtr pScrn = xf86ScreenToScrn(pdpix->drawable.pScreen);
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_pushbuf *push = pNv->pushbuf;
 	int split_dstY = NOUVEAU_ALIGN(dstY + 1, 64);
@@ -270,7 +270,7 @@ NV04EXACopy(PixmapPtr pdpix, int srcX, int srcY, int dstX, int dstY,
 void
 NV04EXADoneCopy(PixmapPtr pdpix)
 {
-	ScrnInfoPtr pScrn = xf86Screens[pdpix->drawable.pScreen->myNum];
+	ScrnInfoPtr pScrn = xf86ScreenToScrn(pdpix->drawable.pScreen);
 	nouveau_pushbuf_bufctx(NVPTR(pScrn)->pushbuf, NULL);
 }
 

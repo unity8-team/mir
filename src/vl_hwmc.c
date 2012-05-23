@@ -114,7 +114,7 @@ XF86MCAdaptorPtr vlCreateAdaptorXvMC(ScreenPtr pScreen, char *xv_adaptor_name)
 	assert(pScreen);
 	assert(xv_adaptor_name);
 	
-	pScrn = xf86Screens[pScreen->myNum];
+	pScrn = xf86ScreenToScrn(pScreen);
 	adaptor = xf86XvMCCreateAdaptorRec();
 	
 	if (!adaptor)
@@ -150,7 +150,7 @@ void vlInitXvMC(ScreenPtr pScreen, unsigned int num_adaptors, XF86MCAdaptorPtr *
 	for (i = 0; i < num_adaptors; ++i)
 		assert(adaptors[i]);
 	
-	pScrn = xf86Screens[pScreen->myNum];
+	pScrn = xf86ScreenToScrn(pScreen);
 	
 	if (!xf86XvMCScreenInit(pScreen, num_adaptors, adaptors))
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "[XvMC] Failed to initialize extension.\n");

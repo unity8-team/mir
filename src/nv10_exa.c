@@ -337,7 +337,7 @@ print_fallback_info(char *reason, int op, PicturePtr src, PicturePtr mask,
 Bool
 NV10EXACheckComposite(int op, PicturePtr src, PicturePtr mask, PicturePtr dst)
 {
-	ScrnInfoPtr pScrn = xf86Screens[dst->pDrawable->pScreen->myNum];
+	ScrnInfoPtr pScrn = xf86ScreenToScrn(dst->pDrawable->pScreen);
 	NVPtr pNv = NVPTR(pScrn);
 
 	if (!check_pict_op(op)) {
@@ -545,7 +545,7 @@ NV10EXAPrepareComposite(int op,
 			PixmapPtr mask,
 			PixmapPtr dst)
 {
-	ScrnInfoPtr pScrn = xf86Screens[dst->drawable.pScreen->myNum];
+	ScrnInfoPtr pScrn = xf86ScreenToScrn(dst->drawable.pScreen);
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_pushbuf *push = pNv->pushbuf;
 	uint32_t sc, sa, mc, ma;
@@ -607,7 +607,7 @@ void
 NV10EXAComposite(PixmapPtr pix_dst,
 		 int sx, int sy, int mx, int my, int dx, int dy, int w, int h)
 {
-	ScrnInfoPtr pScrn = xf86Screens[pix_dst->drawable.pScreen->myNum];
+	ScrnInfoPtr pScrn = xf86ScreenToScrn(pix_dst->drawable.pScreen);
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_pushbuf *push = pNv->pushbuf;
 
@@ -627,7 +627,7 @@ NV10EXAComposite(PixmapPtr pix_dst,
 void
 NV10EXADoneComposite(PixmapPtr dst)
 {
-	ScrnInfoPtr pScrn = xf86Screens[dst->drawable.pScreen->myNum];
+	ScrnInfoPtr pScrn = xf86ScreenToScrn(dst->drawable.pScreen);
 	nouveau_pushbuf_bufctx(NVPTR(pScrn)->pushbuf, NULL);
 }
 
