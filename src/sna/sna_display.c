@@ -448,7 +448,7 @@ sna_crtc_apply(xf86CrtcPtr crtc)
 			   "failed to set mode: %s\n", strerror(-ret));
 		ret = FALSE;
 	} else {
-		crtc->enabled = sna_crtc->active = sna_crtc_is_bound(sna, crtc);
+		sna_crtc->active = sna_crtc_is_bound(sna, crtc);
 		ret = TRUE;
 	}
 
