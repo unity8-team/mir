@@ -1403,8 +1403,11 @@ bool kgem_retire(struct kgem *kgem)
 	retired |= kgem_retire__requests(kgem);
 	retired |= kgem_retire__partials(kgem);
 
-	DBG(("%s -- need_retire=%d\n", __FUNCTION__, kgem->need_retire));
-	kgem->need_retire = !list_is_empty(&kgem->requests);
+	kgem->need_retire =
+		!list_is_empty(&kgem->requests) ||
+		!list_is_empty(&kgem->flushing);
+	DBG(("%s -- retired=%d, need_retire=%d\n",
+	     __FUNCTION__, retired, kgem->need_retire));
 
 	kgem->retire(kgem);
 
