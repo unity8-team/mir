@@ -51,6 +51,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xorg-server.h"
 #include <pciaccess.h>
 
+#include "compat-api.h"
 #ifdef HAVE_DRI1
 #include "xf86drm.h"
 #include "sarea.h"

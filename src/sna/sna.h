@@ -59,6 +59,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 
+#include "../compat-api.h"
 #define _XF86DRI_SERVER_
 #include <dri2.h>
 #include <i915_drm.h>

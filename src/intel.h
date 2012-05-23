@@ -69,6 +69,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "intel_driver.h"
 #include "intel_list.h"
+#include "compat-api.h"
 
 #if HAVE_UDEV
 #include <libudev.h>
