@@ -2243,3 +2243,18 @@ bool sna_crtc_is_bound(struct sna *sna, xf86CrtcPtr crtc)
 	     mode.mode_valid, sna->mode.fb_id == mode.fb_id));
 	return mode.mode_valid && sna->mode.fb_id == mode.fb_id;
 }
+
+void sna_mode_hotplug(struct sna *sna)
+{
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(sna->scrn);
+	int i;
+
+	/* Validate CRTC attachments */
+	for (i = 0; i < xf86_config->num_crtc; i++) {
+		xf86CrtcPtr crtc = xf86_config->crtc[i];
+		if (crtc->enabled) {
+			struct sna_crtc *sna_crtc = crtc->driver_private;
+			sna_crtc->active = sna_crtc_is_bound(sna, crtc);
+		}
+	}
+}

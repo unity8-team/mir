@@ -635,6 +635,7 @@ sna_handle_uevents(int fd, void *closure)
 	if (memcmp(&s.st_rdev, &udev_devnum, sizeof (dev_t)) == 0 &&
 	    hotplug && atoi(hotplug) == 1) {
 		DBG(("%s: hotplug event\n", __FUNCTION__));
+		sna_mode_hotplug(sna);
 		RRGetInfo(xf86ScrnToScreen(scrn), TRUE);
 	}
 
