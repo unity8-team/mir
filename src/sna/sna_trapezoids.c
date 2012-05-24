@@ -3150,7 +3150,7 @@ composite_unaligned_boxes(struct sna *sna,
 
 static inline int pixman_fixed_to_grid (pixman_fixed_t v)
 {
-	return (v + FAST_SAMPLES_mask/2) >> (16 - FAST_SAMPLES_shift);
+	return (v + ((1<<(16-FAST_SAMPLES_shift))-1)/2) >> (16 - FAST_SAMPLES_shift);
 }
 
 static inline bool
@@ -3158,6 +3158,12 @@ project_trapezoid_onto_grid(const xTrapezoid *in,
 			    int dx, int dy,
 			    xTrapezoid *out)
 {
+	__DBG(("%s: in: L:(%d, %d), (%d, %d); R:(%d, %d), (%d, %d), [%d, %d]\n",
+	       __FUNCTION__,
+	       in->left.p1.x, in->left.p1.y, in->left.p2.x, in->left.p2.y,
+	       in->right.p1.x, in->right.p1.y, in->right.p2.x, in->right.p2.y,
+	       in->top, in->bottom));
+
 	out->left.p1.x = dx + pixman_fixed_to_grid(in->left.p1.x);
 	out->left.p1.y = dy + pixman_fixed_to_grid(in->left.p1.y);
 	out->left.p2.x = dx + pixman_fixed_to_grid(in->left.p2.x);
@@ -3170,6 +3176,12 @@ project_trapezoid_onto_grid(const xTrapezoid *in,
 
 	out->top = dy + pixman_fixed_to_grid(in->top);
 	out->bottom = dy + pixman_fixed_to_grid(in->bottom);
+
+	__DBG(("%s: out: L:(%d, %d), (%d, %d); R:(%d, %d), (%d, %d), [%d, %d]\n",
+	       __FUNCTION__,
+	       out->left.p1.x, out->left.p1.y, out->left.p2.x, out->left.p2.y,
+	       out->right.p1.x, out->right.p1.y, out->right.p2.x, out->right.p2.y,
+	       out->top, out->bottom));
 
 	return xTrapezoidValid(out);
 }
