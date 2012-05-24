@@ -213,6 +213,8 @@ sna_output_backlight_set(xf86OutputPtr output, int level)
 	char path[BACKLIGHT_PATH_LEN], val[BACKLIGHT_VALUE_LEN];
 	int fd, len, ret;
 
+	DBG(("%s: level=%d\n", __FUNCTION__, level));
+
 	if (level > sna_output->backlight_max)
 		level = sna_output->backlight_max;
 	if (! sna_output->backlight_iface || level < 0)
@@ -262,9 +264,12 @@ sna_output_backlight_get(xf86OutputPtr output)
 	close(fd);
 
 	level = atoi(val);
+	DBG(("%s: level=%d (max=%d)\n",
+	     __FUNCTION__, level, sna_output->backlight_max));
+
 	if (level > sna_output->backlight_max)
 		level = sna_output->backlight_max;
-	if (level < 0)
+	else if (level < 0)
 		level = -1;
 	return level;
 }
@@ -394,6 +399,8 @@ sna_crtc_apply(xf86CrtcPtr crtc)
 	int fb_id, x, y;
 	int i, ret = FALSE;
 
+	DBG(("%s\n", __FUNCTION__));
+
 	assert(xf86_config->num_output < ARRAY_SIZE(output_ids));
 
 	for (i = 0; i < xf86_config->num_output; i++) {
@@ -466,6 +473,9 @@ sna_crtc_restore(struct sna *sna)
 	struct kgem_bo *bo;
 	int i;
 
+	DBG(("%s (fb_pixmap=%d, front=%d)\n", __FUNCTION__,
+	     sna->mode.fb_pixmap, sna->front->drawable.serialNumber));
+
 	if (sna->mode.fb_pixmap == sna->front->drawable.serialNumber)
 		return;
 
@@ -492,12 +502,8 @@ sna_crtc_restore(struct sna *sna)
 
 	for (i = 0; i < xf86_config->num_crtc; i++) {
 		xf86CrtcPtr crtc = xf86_config->crtc[i];
-
-		if (!crtc->enabled)
-			continue;
-
-		if (!sna_crtc_apply(crtc))
-			return;
+		if (crtc->enabled)
+			sna_crtc_apply(crtc);
 	}
 
 	kgem_bo_retire(&sna->kgem, bo);
@@ -560,8 +566,10 @@ void sna_copy_fbcon(struct sna *sna)
 	int dx, dy;
 	int i;
 
-	if (sna->kgem.wedged)
+	if (wedged(sna))
 		return;
+
+	DBG(("%s\n", __FUNCTION__));
 
 	/* Scan the connectors for a framebuffer and assume that is the fbcon */
 	fbcon = NULL;
@@ -579,8 +587,10 @@ void sna_copy_fbcon(struct sna *sna)
 					     mode_crtc->buffer_id);
 		drmModeFreeCrtc(mode_crtc);
 	}
-	if (fbcon == NULL)
+	if (fbcon == NULL) {
+		DBG(("%s: no fbcon found\n", __FUNCTION__));
 		return;
+	}
 
 	/* Wrap the fbcon in a pixmap so that we select the right formats
 	 * in the render copy in case we need to preserve the fbcon
@@ -600,6 +610,8 @@ void sna_copy_fbcon(struct sna *sna)
 	bo = sna_create_bo_for_fbcon(sna, fbcon);
 	if (bo == NULL)
 		goto cleanup_scratch;
+
+	DBG(("%s: fbcon handle=%d\n", __FUNCTION__, bo->handle));
 
 	priv = sna_pixmap(sna->front);
 	assert(priv && priv->gpu_bo);
@@ -756,6 +768,7 @@ sna_crtc_hide_cursor(xf86CrtcPtr crtc)
 	struct sna *sna = to_sna(crtc->scrn);
 	struct sna_crtc *sna_crtc = crtc->driver_private;
 
+	DBG(("%s: CRTC:%d\n", __FUNCTION__, crtc_id(sna_crtc)));
 	drmModeSetCursor(sna->kgem.fd, crtc_id(sna_crtc), 0, 64, 64);
 }
 
@@ -765,6 +778,7 @@ sna_crtc_show_cursor(xf86CrtcPtr crtc)
 	struct sna *sna = to_sna(crtc->scrn);
 	struct sna_crtc *sna_crtc = crtc->driver_private;
 
+	DBG(("%s: CRTC:%d\n", __FUNCTION__, crtc_id(sna_crtc)));
 	drmModeSetCursor(sna->kgem.fd, crtc_id(sna_crtc),
 			 sna_crtc->cursor, 64, 64);
 }
@@ -909,6 +923,8 @@ sna_crtc_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 	struct sna_crtc *sna_crtc;
 	struct drm_i915_get_pipe_from_crtc_id get_pipe;
 
+	DBG(("%s\n", __FUNCTION__));
+
 	sna_crtc = calloc(sizeof(struct sna_crtc), 1);
 	if (sna_crtc == NULL)
 		return;
@@ -966,6 +982,8 @@ sna_output_detect(xf86OutputPtr output)
 	struct sna *sna = to_sna(output->scrn);
 	struct sna_output *sna_output = output->driver_private;
 	xf86OutputStatus status;
+
+	DBG(("%s\n", __FUNCTION__));
 
 	drmModeFreeConnector(sna_output->mode_output);
 	sna_output->mode_output =
@@ -1099,6 +1117,8 @@ sna_output_get_modes(xf86OutputPtr output)
 	DisplayModePtr Modes = NULL;
 	int i;
 
+	DBG(("%s\n", __FUNCTION__));
+
 	sna_output_attach_edid(output);
 
 	/* modes should already be available */
@@ -1189,6 +1209,8 @@ sna_output_dpms(xf86OutputPtr output, int dpms)
 	struct sna_output *sna_output = output->driver_private;
 	drmModeConnectorPtr koutput = sna_output->mode_output;
 	int i;
+
+	DBG(("%s: dpms=%d\n", __FUNCTION__, dpms));
 
 	for (i = 0; i < koutput->count_props; i++) {
 		drmModePropertyPtr props;

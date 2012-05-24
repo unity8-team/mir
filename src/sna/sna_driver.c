@@ -633,8 +633,10 @@ sna_handle_uevents(int fd, void *closure)
 	hotplug = udev_device_get_property_value(dev, "HOTPLUG");
 
 	if (memcmp(&s.st_rdev, &udev_devnum, sizeof (dev_t)) == 0 &&
-			hotplug && atoi(hotplug) == 1)
+	    hotplug && atoi(hotplug) == 1) {
+		DBG(("%s: hotplug event\n", __FUNCTION__));
 		RRGetInfo(xf86ScrnToScreen(scrn), TRUE);
+	}
 
 	udev_device_unref(dev);
 }
