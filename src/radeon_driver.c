@@ -3373,15 +3373,14 @@ static void RADEONLoadPalette(ScrnInfoPtr pScrn, int numColors,
 #endif
 }
 
-static void RADEONBlockHandler(SCREEN_ARG_TYPE arg, pointer blockData,
-			       pointer pTimeout, pointer pReadmask)
+static void RADEONBlockHandler(BLOCKHANDLER_ARGS_DECL)
 {
     SCREEN_PTR(arg);
     ScrnInfoPtr    pScrn   = xf86ScreenToScrn(pScreen);
     RADEONInfoPtr  info    = RADEONPTR(pScrn);
 
     pScreen->BlockHandler = info->BlockHandler;
-    (*pScreen->BlockHandler) (arg, blockData, pTimeout, pReadmask);
+    (*pScreen->BlockHandler) (BLOCKHANDLER_ARGS);
     pScreen->BlockHandler = RADEONBlockHandler;
 
     if (info->VideoTimerCallback)
@@ -3448,7 +3447,7 @@ RADEONInitBIOSRegisters(ScrnInfoPtr pScrn)
 
 
 /* Called at the start of each server generation. */
-Bool RADEONScreenInit(SCREEN_INIT_ARGS)
+Bool RADEONScreenInit(SCREEN_INIT_ARGS_DECL)
 {
     ScrnInfoPtr    pScrn = xf86ScreenToScrn(pScreen);
     RADEONInfoPtr  info  = RADEONPTR(pScrn);

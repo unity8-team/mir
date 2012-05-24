@@ -867,7 +867,7 @@ typedef struct {
     RADEONSavePtr     ModeReg;          /* Current mode                      */
     Bool              (*CloseScreen)(CLOSE_SCREEN_ARGS_DECL);
 
-    void              (*BlockHandler)(SCREEN_ARG_TYPE, pointer, pointer, pointer);
+    void              (*BlockHandler)(BLOCKHANDLER_ARGS_DECL);
 
     Bool              PaletteSavedOnVT; /* Palette saved on last VT switch   */
 

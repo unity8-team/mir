@@ -192,15 +192,14 @@ static Bool RADEONCreateScreenResources_KMS(ScreenPtr pScreen)
     return TRUE;
 }
 
-static void RADEONBlockHandler_KMS(SCREEN_ARG_TYPE arg, pointer blockData,
-				   pointer pTimeout, pointer pReadmask)
+static void RADEONBlockHandler_KMS(BLOCKHANDLER_ARGS_DECL)
 {
     SCREEN_PTR(arg);
     ScrnInfoPtr    pScrn   = xf86ScreenToScrn(pScreen);
     RADEONInfoPtr  info    = RADEONPTR(pScrn);
 
     pScreen->BlockHandler = info->BlockHandler;
-    (*pScreen->BlockHandler) (arg, blockData, pTimeout, pReadmask);
+    (*pScreen->BlockHandler) (BLOCKHANDLER_ARGS);
     pScreen->BlockHandler = RADEONBlockHandler_KMS;
 
     if (info->VideoTimerCallback)
@@ -916,7 +915,7 @@ void RADEONFreeScreen_KMS(SCRN_ARG_TYPE arg, int flags)
     RADEONFreeRec(pScrn);
 }
 
-Bool RADEONScreenInit_KMS(SCREEN_INIT_ARGS)
+Bool RADEONScreenInit_KMS(SCREEN_INIT_ARGS_DECL)
 {
     ScrnInfoPtr    pScrn = xf86ScreenToScrn(pScreen);
     RADEONInfoPtr  info  = RADEONPTR(pScrn);

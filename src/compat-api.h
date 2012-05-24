@@ -46,12 +46,16 @@
 #define SCREEN_ARG_TYPE int
 #define SCREEN_PTR(arg1) ScreenPtr pScreen = screenInfo.screens[(arg1)]
 
-#define SCREEN_INIT_ARGS int i, ScreenPtr pScreen, int argc, char **argv
+#define SCREEN_INIT_ARGS_DECL int i, ScreenPtr pScreen, int argc, char **argv
+
+#define BLOCKHANDLER_ARGS_DECL int arg, pointer blockData, pointer pTimeout, pointer pReadmask
+#define BLOCKHANDLER_ARGS arg, blockData, pTimeout, pReadmask
 
 #define CLOSE_SCREEN_ARGS_DECL int scrnIndex, ScreenPtr pScreen
 #define CLOSE_SCREEN_ARGS scrnIndex, pScreen
 
 #define VTFUNC_ARGS(flags) pScrn->scrnIndex, (flags)
+#define XF86_ENABLEDISABLEFB_ARG(x) ((x)->scrnIndex)
 #else
 #define SCRN_ARG_TYPE ScrnInfoPtr
 #define SCRN_INFO_PTR(arg1) ScrnInfoPtr pScrn = (arg1)
@@ -59,12 +63,17 @@
 #define SCREEN_ARG_TYPE ScreenPtr
 #define SCREEN_PTR(arg1) ScreenPtr pScreen = (arg1)
 
-#define SCREEN_INIT_ARGS ScreenPtr pScreen, int argc, char **argv
+#define SCREEN_INIT_ARGS_DECL ScreenPtr pScreen, int argc, char **argv
+
+#define BLOCKHANDLER_ARGS_DECL ScreenPtr arg, pointer pTimeout, pointer pReadmask
+#define BLOCKHANDLER_ARGS arg, pTimeout, pReadmask
 
 #define CLOSE_SCREEN_ARGS_DECL ScreenPtr pScreen
 #define CLOSE_SCREEN_ARGS pScreen
 
 #define VTFUNC_ARGS(flags) pScrn, (flags)
+
+#define XF86_ENABLEDISABLEFB_ARG(x) (x)
 
 #endif
 

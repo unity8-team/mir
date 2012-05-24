@@ -761,7 +761,7 @@ extern PciChipsets          RADEONPciChipsets[];
 
 /* radeon_driver.c */
 extern Bool                 RADEONPreInit(ScrnInfoPtr, int);
-extern Bool                 RADEONScreenInit(SCREEN_INIT_ARGS);
+extern Bool                 RADEONScreenInit(SCREEN_INIT_ARGS_DECL);
 extern Bool                 RADEONSwitchMode(SCRN_ARG_TYPE, DisplayModePtr, int);
 #ifdef X_XF86MiscPassMessage
 extern Bool                 RADEONHandleMessage(int, const char*, const char*,
@@ -777,7 +777,7 @@ extern const OptionInfoRec *RADEONOptionsWeak(void);
 
 #ifdef XF86DRM_MODE
 extern Bool                 RADEONPreInit_KMS(ScrnInfoPtr, int);
-extern Bool                 RADEONScreenInit_KMS(SCREEN_INIT_ARGS);
+extern Bool                 RADEONScreenInit_KMS(SCREEN_INIT_ARGS_DECL);
 extern Bool                 RADEONSwitchMode_KMS(SCRN_ARG_TYPE, DisplayModePtr, int);
 extern void                 RADEONAdjustFrame_KMS(SCRN_ARG_TYPE, int, int, int);
 extern Bool                 RADEONEnterVT_KMS(SCRN_ARG_TYPE, int);
