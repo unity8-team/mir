@@ -1699,3 +1699,25 @@ int intel_crtc_to_pipe(xf86CrtcPtr crtc)
 	struct intel_crtc *intel_crtc = crtc->driver_private;
 	return intel_crtc->pipe;
 }
+
+Bool intel_crtc_on(xf86CrtcPtr crtc)
+{
+	ScrnInfoPtr scrn = crtc->scrn;
+	struct intel_crtc *intel_crtc = crtc->driver_private;
+	drmModeCrtcPtr drm_crtc;
+	Bool ret;
+
+	if (!crtc->enabled)
+		return FALSE;
+
+	/* Kernel manages CRTC status based on output config */
+	drm_crtc = drmModeGetCrtc(intel_crtc->mode->fd, crtc_id(intel_crtc));
+	if (drm_crtc == NULL)
+		return FALSE;
+
+	ret = (drm_crtc->mode_valid &&
+	       intel_crtc->mode->fb_id == drm_crtc->buffer_id);
+	free(drm_crtc);
+
+	return ret;
+}

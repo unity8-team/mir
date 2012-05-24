@@ -782,26 +782,6 @@ intel_init_initial_framebuffer(ScrnInfoPtr scrn)
 	return TRUE;
 }
 
-Bool intel_crtc_on(xf86CrtcPtr crtc)
-{
-	ScrnInfoPtr scrn = crtc->scrn;
-	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
-	int i;
-
-	if (!crtc->enabled)
-		return FALSE;
-
-	/* Kernel manages CRTC status based out output config */
-	for (i = 0; i < xf86_config->num_output; i++) {
-		xf86OutputPtr output = xf86_config->output[i];
-		if (output->crtc == crtc &&
-		    intel_output_dpms_status(output) == DPMSModeOn)
-			return TRUE;
-	}
-
-	return FALSE;
-}
-
 static void
 intel_flush_callback(CallbackListPtr *list,
 		     pointer user_data, pointer call_data)
