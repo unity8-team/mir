@@ -30,6 +30,7 @@
 #endif
 
 #include <xf86.h>
+#include "compat-api.h"
 #include "radeon_video.h"
 
 #include <X11/extensions/Xv.h>
