@@ -1236,7 +1236,7 @@ static Bool I830PMEvent(int scrnIndex, pmEvent event, Bool undo)
 	return TRUE;
 }
 
-void intel_init_scrn(ScrnInfoPtr scrn)
+Bool intel_init_scrn(ScrnInfoPtr scrn)
 {
 	scrn->PreInit = I830PreInit;
 	scrn->ScreenInit = I830ScreenInit;
@@ -1247,4 +1247,5 @@ void intel_init_scrn(ScrnInfoPtr scrn)
 	scrn->FreeScreen = I830FreeScreen;
 	scrn->ValidMode = I830ValidMode;
 	scrn->PMEvent = I830PMEvent;
+	return TRUE;
 }

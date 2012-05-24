@@ -31,6 +31,7 @@
 #include <xf86.h>
 #include <xf86_OSproc.h>
 #include <xf86cmap.h>
+#include <xf86Parser.h>
 #include <xf86drmMode.h>
 
 #include <xorgVersion.h>
@@ -292,6 +293,43 @@ static Bool has_kernel_mode_setting(struct pci_device *dev)
 	return ret == 0;
 }
 
+extern XF86ConfigPtr xf86configptr;
+
+static XF86ConfDevicePtr
+_xf86findDriver(const char *ident, XF86ConfDevicePtr p)
+{
+	while (p) {
+		if (xf86nameCompare(ident, p->dev_driver) == 0)
+			return p;
+
+		p = p->list.next;
+	}
+	return NULL;
+}
+
+static enum accel_method { UXA, SNA } get_accel_method(void)
+{
+	enum accel_method accel_method = DEFAULT_ACCEL_METHOD;
+	XF86ConfDevicePtr dev;
+
+	dev = _xf86findDriver("intel", xf86configptr->conf_device_lst);
+	if (dev && dev->dev_option_lst) {
+		const char *s;
+
+		s = xf86FindOptionValue(dev->dev_option_lst, "AccelMethod");
+		if (s ) {
+			if (strcasecmp(s, "sna") == 0)
+				accel_method = SNA;
+			else if (strcasecmp(s, "uxa") == 0)
+				accel_method = UXA;
+			else if (strcasecmp(s, "glamor") == 0)
+				accel_method = UXA;
+		}
+	}
+
+	return accel_method;
+}
+
 /*
  * intel_pci_probe --
  *
@@ -338,34 +376,35 @@ static Bool intel_pci_probe(DriverPtr		driver,
 
 	scrn = xf86ConfigPciEntity(NULL, 0, entity_num, intel_pci_chipsets,
 				   NULL, NULL, NULL, NULL, NULL);
-	if (scrn != NULL) {
-		scrn->driverVersion = INTEL_VERSION;
-		scrn->driverName = INTEL_DRIVER_NAME;
-		scrn->name = INTEL_NAME;
-		scrn->Probe = NULL;
+	if (scrn == NULL)
+		return FALSE;
 
-		switch (DEVICE_ID(device)) {
+	scrn->driverVersion = INTEL_VERSION;
+	scrn->driverName = INTEL_DRIVER_NAME;
+	scrn->name = INTEL_NAME;
+	scrn->Probe = NULL;
+
 #if !KMS_ONLY
-		case PCI_CHIP_I810:
-		case PCI_CHIP_I810_DC100:
-		case PCI_CHIP_I810_E:
-		case PCI_CHIP_I815:
-			lg_i810_init(scrn);
-			break;
+	switch (DEVICE_ID(device)) {
+	case PCI_CHIP_I810:
+	case PCI_CHIP_I810_DC100:
+	case PCI_CHIP_I810_E:
+	case PCI_CHIP_I815:
+		return lg_i810_init(scrn);
+	}
 #endif
 
-		default:
+	switch (get_accel_method()) {
 #if USE_SNA
-			sna_init_scrn(scrn, entity_num);
-#elif USE_UXA
-			intel_init_scrn(scrn);
-#else
-			scrn = NULL;
+	case SNA: return sna_init_scrn(scrn, entity_num);
 #endif
-			break;
-		}
+
+#if USE_UXA
+	case UXA: return intel_init_scrn(scrn);
+#endif
+
+	default: return FALSE;
 	}
-	return scrn != NULL;
 }
 
 #ifdef XFree86LOADER

@@ -8,6 +8,7 @@
  */
 
 enum intel_options {
+	OPTION_ACCEL_METHOD,
 	OPTION_DRI,
 	OPTION_VIDEO_KEY,
 	OPTION_COLOR_KEY,
@@ -40,6 +41,7 @@ enum intel_options {
 };
 
 static OptionInfoRec intel_options[] = {
+	{OPTION_ACCEL_METHOD,	"AccelMethod",	OPTV_STRING,	{0},	0},
 	{OPTION_DRI,		"DRI",		OPTV_BOOLEAN,	{0},	TRUE},
 	{OPTION_COLOR_KEY,	"ColorKey",	OPTV_INTEGER,	{0},	FALSE},
 	{OPTION_VIDEO_KEY,	"VideoKey",	OPTV_INTEGER,	{0},	FALSE},

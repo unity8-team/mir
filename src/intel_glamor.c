@@ -172,6 +172,18 @@ intel_glamor_finish_access(PixmapPtr pixmap, uxa_access_t access)
 	return;
 }
 
+static Bool
+intel_glamor_enabled(intel_screen_private *intel)
+{
+	const char *s;
+
+	s = xf86GetOptString(intel->Options, ACCEL_METHOD);
+	if (s == NULL)
+		return FALSE;
+
+	return strcasecmp(s, "glamor") == 0;
+}
+
 Bool
 intel_glamor_init(ScreenPtr screen)
 {
@@ -179,6 +191,9 @@ intel_glamor_init(ScreenPtr screen)
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	if ((intel->uxa_flags & UXA_GLAMOR_EGL_INITIALIZED) == 0)
+		goto fail;
+
+	if (!intel_glamor_enabled(intel))
 		goto fail;
 
 	if (!glamor_init(screen, GLAMOR_INVERTED_Y_AXIS | GLAMOR_USE_EGL_SCREEN)) {

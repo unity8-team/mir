@@ -2102,7 +2102,7 @@ lg_i810_available_options(int chipid, int busid)
 }
 
 
-void lg_i810_init(ScrnInfoPtr scrn)
+Bool lg_i810_init(ScrnInfoPtr scrn)
 {
     scrn->PreInit = I810PreInit;
     scrn->ScreenInit = I810ScreenInit;
@@ -2112,4 +2112,5 @@ void lg_i810_init(ScrnInfoPtr scrn)
     scrn->LeaveVT = I810LeaveVT;
     scrn->FreeScreen = I810FreeScreen;
     scrn->ValidMode = I810ValidMode;
+    return TRUE;
 }

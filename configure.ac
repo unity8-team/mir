@@ -158,6 +158,43 @@ if test "x$GLAMOR" != "xno"; then
 	AC_DEFINE(USE_GLAMOR, 1, [Enable glamor acceleration])
 fi
 
+AC_ARG_WITH(default-accel,
+	    AS_HELP_STRING([--with-default-accel],
+			   [Select the default acceleration method [default=sna if enabled, otherwise uxa]]),
+			   [accel="$withval"],
+			   [accel=auto])
+
+AC_MSG_CHECKING([which acceleration method to use by default])
+if test "x$accel" = xauto; then
+	if test "x$UXA" != "xno"; then
+		accel=uxa
+	else
+		if test "x$SNA" != "xno"; then
+			accel=sna
+		fi
+	fi
+	if test "x$accel" = xauto; then
+		AC_MSG_ERROR([No default acceleration option])
+	fi
+fi
+
+if test "x$accel" = xsna; then
+	if test "x$SNA" != "xno"; then
+		AC_DEFINE(DEFAULT_ACCEL_METHOD, SNA, [Default acceleration method])
+	else
+		AC_MSG_ERROR([SNA requested as default, but is not enabled])
+	fi
+fi
+
+if test "x$accel" = xuxa; then
+	if test "x$UXA" != "xno"; then
+		AC_DEFINE(DEFAULT_ACCEL_METHOD, UXA, [Default acceleration method])
+	else
+		AC_MSG_ERROR([UXA requested as default, but is not enabled])
+	fi
+fi
+AC_MSG_RESULT($accel)
+
 AC_ARG_ENABLE(vmap,
 	      AS_HELP_STRING([--enable-vmap],
 			     [Enable use of vmap [default=no]]),
@@ -174,7 +211,6 @@ AC_ARG_ENABLE(debug,
 			     [Enables internal debugging [default=no]]),
               [DEBUG="$enableval"],
               [DEBUG=no])
-
 # Store the list of server defined optional extensions in REQUIRED_MODULES
 XORG_DRIVER_CHECK_EXT(RANDR, randrproto)
 XORG_DRIVER_CHECK_EXT(RENDER, renderproto)
