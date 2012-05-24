@@ -1702,7 +1702,6 @@ int intel_crtc_to_pipe(xf86CrtcPtr crtc)
 
 Bool intel_crtc_on(xf86CrtcPtr crtc)
 {
-	ScrnInfoPtr scrn = crtc->scrn;
 	struct intel_crtc *intel_crtc = crtc->driver_private;
 	drmModeCrtcPtr drm_crtc;
 	Bool ret;

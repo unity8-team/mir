@@ -41,6 +41,7 @@
 
 #include "common.h"
 #include "intel_driver.h"
+#include "intel_options.h"
 #include "legacy/legacy.h"
 #include "sna/sna_module.h"
 
@@ -397,13 +398,7 @@ intel_available_options(int chipid, int busid)
 #endif
 
 	default:
-#if USE_SNA
-		return sna_available_options(chipid, busid);
-#elif USE_UXA
-		return intel_uxa_available_options(chipid, busid);
-#else
-		return NULL;
-#endif
+		return intel_options;
 	}
 }
 

@@ -78,59 +78,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <xf86drmMode.h>
 
 #include "intel_glamor.h"
-
-/* *INDENT-OFF* */
-/*
- * Note: "ColorKey" is provided for compatibility with the i810 driver.
- * However, the correct option name is "VideoKey".  "ColorKey" usually
- * refers to the tranparency key for 8+24 overlays, not for video overlays.
- */
-
-typedef enum {
-   OPTION_DRI,
-   OPTION_VIDEO_KEY,
-   OPTION_COLOR_KEY,
-   OPTION_FALLBACKDEBUG,
-   OPTION_TILING_FB,
-   OPTION_TILING_2D,
-   OPTION_SHADOW,
-   OPTION_SWAPBUFFERS_WAIT,
-   OPTION_TRIPLE_BUFFER,
-#ifdef INTEL_XVMC
-   OPTION_XVMC,
-#endif
-   OPTION_PREFER_OVERLAY,
-   OPTION_DEBUG_FLUSH_BATCHES,
-   OPTION_DEBUG_FLUSH_CACHES,
-   OPTION_DEBUG_WAIT,
-   OPTION_HOTPLUG,
-   OPTION_RELAXED_FENCING,
-   OPTION_BUFFER_CACHE,
-} I830Opts;
-
-static OptionInfoRec I830Options[] = {
-   {OPTION_DRI,		"DRI",		OPTV_BOOLEAN,	{0},	TRUE},
-   {OPTION_COLOR_KEY,	"ColorKey",	OPTV_INTEGER,	{0},	FALSE},
-   {OPTION_VIDEO_KEY,	"VideoKey",	OPTV_INTEGER,	{0},	FALSE},
-   {OPTION_FALLBACKDEBUG, "FallbackDebug", OPTV_BOOLEAN, {0},	FALSE},
-   {OPTION_TILING_2D,	"Tiling",	OPTV_BOOLEAN,	{0},	TRUE},
-   {OPTION_TILING_FB,	"LinearFramebuffer",	OPTV_BOOLEAN,	{0},	FALSE},
-   {OPTION_SHADOW,	"Shadow",	OPTV_BOOLEAN,	{0},	FALSE},
-   {OPTION_SWAPBUFFERS_WAIT, "SwapbuffersWait", OPTV_BOOLEAN,	{0},	TRUE},
-   {OPTION_TRIPLE_BUFFER, "TripleBuffer", OPTV_BOOLEAN,	{0},	TRUE},
-#ifdef INTEL_XVMC
-   {OPTION_XVMC,	"XvMC",		OPTV_BOOLEAN,	{0},	TRUE},
-#endif
-   {OPTION_PREFER_OVERLAY, "XvPreferOverlay", OPTV_BOOLEAN, {0}, FALSE},
-   {OPTION_DEBUG_FLUSH_BATCHES, "DebugFlushBatches", OPTV_BOOLEAN, {0}, FALSE},
-   {OPTION_DEBUG_FLUSH_CACHES, "DebugFlushCaches", OPTV_BOOLEAN, {0}, FALSE},
-   {OPTION_DEBUG_WAIT, "DebugWait", OPTV_BOOLEAN, {0}, FALSE},
-   {OPTION_HOTPLUG,	"HotPlug",	OPTV_BOOLEAN,	{0},	TRUE},
-   {OPTION_RELAXED_FENCING,	"RelaxedFencing",	OPTV_BOOLEAN,	{0},	TRUE},
-   {OPTION_BUFFER_CACHE,	"BufferCache",	OPTV_BOOLEAN,	{0},	TRUE},
-   {-1,			NULL,		OPTV_NONE,	{0},	FALSE}
-};
-/* *INDENT-ON* */
+#include "intel_options.h"
 
 static void i830AdjustFrame(int scrnIndex, int x, int y, int flags);
 static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen);
@@ -140,11 +88,6 @@ static Bool I830EnterVT(int scrnIndex, int flags);
 extern void xf86SetCursor(ScreenPtr screen, CursorPtr pCurs, int x, int y);
 
 /* Export I830 options to i830 driver where necessary */
-const OptionInfoRec *intel_uxa_available_options(int chipid, int busid)
-{
-	return I830Options;
-}
-
 static void
 I830LoadPalette(ScrnInfoPtr scrn, int numColors, int *indices,
 		LOCO * colors, VisualPtr pVisual)
@@ -278,9 +221,9 @@ static Bool I830GetEarlyOptions(ScrnInfoPtr scrn)
 
 	/* Process the options */
 	xf86CollectOptions(scrn, NULL);
-	if (!(intel->Options = malloc(sizeof(I830Options))))
+	if (!(intel->Options = malloc(sizeof(intel_options))))
 		return FALSE;
-	memcpy(intel->Options, I830Options, sizeof(I830Options));
+	memcpy(intel->Options, intel_options, sizeof(intel_options));
 	xf86ProcessOptions(scrn->scrnIndex, scrn->options, intel->Options);
 
 	intel->fallback_debug = xf86ReturnOptValBool(intel->Options,

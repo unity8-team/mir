@@ -57,6 +57,8 @@
 #include "sna_reg.h"
 #include "sna_video.h"
 
+#include "intel_options.h"
+
 #include <xf86xv.h>
 #include <X11/extensions/Xv.h>
 
