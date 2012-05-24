@@ -29,11 +29,11 @@
 #include "config.h"
 #endif
 
+#include <xf86.h>
 #include "radeon_video.h"
 
 #include <X11/extensions/Xv.h>
 #include <X11/extensions/XvMC.h>
-#include <xf86.h>
 #include "fourcc.h"
 
 #define FOURCC_RGB	0x0000003
