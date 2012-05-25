@@ -220,11 +220,9 @@ static Bool I830GetEarlyOptions(ScrnInfoPtr scrn)
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	/* Process the options */
-	xf86CollectOptions(scrn, NULL);
-	if (!(intel->Options = malloc(sizeof(intel_options))))
+	intel->Options = intel_options_get(scrn);
+	if (!intel->Options)
 		return FALSE;
-	memcpy(intel->Options, intel_options, sizeof(intel_options));
-	xf86ProcessOptions(scrn->scrnIndex, scrn->options, intel->Options);
 
 	intel->fallback_debug = xf86ReturnOptValBool(intel->Options,
 						     OPTION_FALLBACKDEBUG,

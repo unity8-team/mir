@@ -259,15 +259,8 @@ static Bool sna_get_early_options(ScrnInfoPtr scrn)
 {
 	struct sna *sna = to_sna(scrn);
 
-	/* Process the options */
-	xf86CollectOptions(scrn, NULL);
-	if (!(sna->Options = malloc(sizeof(intel_options))))
-		return FALSE;
-
-	memcpy(sna->Options, intel_options, sizeof(intel_options));
-	xf86ProcessOptions(scrn->scrnIndex, scrn->options, sna->Options);
-
-	return TRUE;
+	sna->Options = intel_options_get(scrn);
+	return sna->Options != NULL;
 }
 
 struct sna_device {
