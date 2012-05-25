@@ -402,6 +402,8 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 		return FALSE;
 
 	pEnt = xf86GetEntityInfo(scrn->entityList[0]);
+	if (pEnt->location.type != BUS_PCI)
+		return FALSE;
 
 	if (flags & PROBE_DETECT)
 		return TRUE;
@@ -418,9 +420,6 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 	sna->pEnt = pEnt;
 
 	scrn->displayWidth = 640;	/* default it */
-
-	if (sna->pEnt->location.type != BUS_PCI)
-		return FALSE;
 
 	sna->PciInfo = xf86GetPciInfoForEntity(sna->pEnt->index);
 
