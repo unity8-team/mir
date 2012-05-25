@@ -493,8 +493,7 @@ sna_dri_copy_to_front(struct sna *sna, DrawablePtr draw, RegionPtr region,
 
 	DBG(("%s: flushing? %d\n", __FUNCTION__, flush));
 	if (flush) { /* STAT! */
-		if (!sna_crtc_is_bound(sna, crtc))
-			sna->kgem.batch[sna->kgem.wait] = 0;
+		assert(sna_crtc_is_bound(sna, ctrc));
 		kgem_submit(&sna->kgem);
 	}
 

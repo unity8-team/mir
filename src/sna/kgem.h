@@ -141,7 +141,6 @@ struct kgem {
 	uint16_t nexec;
 	uint16_t nreloc;
 	uint16_t nfence;
-	uint16_t wait;
 	uint16_t batch_size;
 	uint16_t min_alignment;
 

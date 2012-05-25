@@ -389,6 +389,19 @@ mode_to_kmode(drmModeModeInfoPtr kmode, DisplayModePtr mode)
 	kmode->name[DRM_DISPLAY_MODE_LEN-1] = 0;
 }
 
+bool sna_crtc_is_bound(struct sna *sna, xf86CrtcPtr crtc)
+{
+	struct drm_mode_crtc mode;
+
+	mode.crtc_id = crtc_id(crtc->driver_private);
+	if (drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_GETCRTC, &mode))
+		return false;
+
+	DBG(("%s: mode valid?=%d, fb attached?=%d\n", __FUNCTION__,
+	     mode.mode_valid, sna->mode.fb_id == mode.fb_id));
+	return mode.mode_valid && sna->mode.fb_id == mode.fb_id;
+}
+
 static Bool
 sna_crtc_apply(xf86CrtcPtr crtc)
 {
@@ -2110,7 +2123,6 @@ static void sna_emit_wait_for_scanline_gen6(struct sna *sna,
 	b[1] = pipe;
 	b[2] = y2 - 1;
 	b[3] = MI_WAIT_FOR_EVENT | event;
-	sna->kgem.wait = sna->kgem.nbatch + 3;
 	kgem_advance_batch(&sna->kgem, 4);
 }
 
@@ -2140,7 +2152,6 @@ static void sna_emit_wait_for_scanline_gen4(struct sna *sna,
 	b[2] = b[0] = MI_LOAD_SCAN_LINES_INCL | pipe << 20;
 	b[3] = b[1] = (y1 << 16) | (y2-1);
 	b[4] = MI_WAIT_FOR_EVENT | event;
-	sna->kgem.wait = sna->kgem.nbatch + 4;
 	kgem_advance_batch(&sna->kgem, 5);
 }
 
@@ -2168,7 +2179,6 @@ static void sna_emit_wait_for_scanline_gen2(struct sna *sna,
 		b[4] = MI_WAIT_FOR_EVENT | MI_WAIT_FOR_PIPEA_SCAN_LINE_WINDOW;
 	else
 		b[4] = MI_WAIT_FOR_EVENT | MI_WAIT_FOR_PIPEB_SCAN_LINE_WINDOW;
-	sna->kgem.wait = sna->kgem.nbatch + 4;
 	kgem_advance_batch(&sna->kgem, 5);
 }
 
@@ -2231,19 +2241,6 @@ sna_wait_for_scanline(struct sna *sna,
 		sna_emit_wait_for_scanline_gen2(sna, pipe, y1, y2, full_height);
 
 	return true;
-}
-
-bool sna_crtc_is_bound(struct sna *sna, xf86CrtcPtr crtc)
-{
-	struct drm_mode_crtc mode;
-
-	mode.crtc_id = crtc_id(crtc->driver_private);
-	if (drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_GETCRTC, &mode))
-		return false;
-
-	DBG(("%s: mode valid?=%d, fb attached?=%d\n", __FUNCTION__,
-	     mode.mode_valid, sna->mode.fb_id == mode.fb_id));
-	return mode.mode_valid && sna->mode.fb_id == mode.fb_id;
 }
 
 void sna_mode_hotplug(struct sna *sna)

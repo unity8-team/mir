@@ -299,6 +299,7 @@ extern void sna_mode_hotplug(struct sna *sna);
 extern void sna_mode_fini(struct sna *sna);
 
 extern int sna_crtc_id(xf86CrtcPtr crtc);
+extern bool sna_crtc_is_bound(struct sna *sna, xf86CrtcPtr crtc);
 extern int sna_output_dpms_status(xf86OutputPtr output);
 
 extern int sna_page_flip(struct sna *sna,
@@ -353,7 +354,6 @@ extern xf86CrtcPtr sna_covering_crtc(ScrnInfoPtr scrn,
 
 extern bool sna_wait_for_scanline(struct sna *sna, PixmapPtr pixmap,
 				  xf86CrtcPtr crtc, const BoxRec *clip);
-extern bool sna_crtc_is_bound(struct sna *sna, xf86CrtcPtr crtc);
 
 Bool sna_dri_open(struct sna *sna, ScreenPtr pScreen);
 void sna_dri_wakeup(struct sna *sna);
