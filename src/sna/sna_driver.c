@@ -396,8 +396,6 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 
 	DBG(("%s\n", __FUNCTION__));
 
-	sna_selftest();
-
 	if (scrn->numEntities != 1)
 		return FALSE;
 
@@ -407,6 +405,8 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 
 	if (flags & PROBE_DETECT)
 		return TRUE;
+
+	sna_selftest();
 
 	sna = to_sna(scrn);
 	if (sna == NULL) {
