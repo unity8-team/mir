@@ -308,7 +308,7 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 	 * we can hit the next vsync.
 	 */
 	if (flush) {
-		assert(sna_crtc_is_bound(sna, ctrc));
+		assert(sna_crtc_is_bound(sna, crtc));
 		kgem_submit(&sna->kgem);
 	}
 
