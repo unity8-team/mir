@@ -413,7 +413,9 @@ sna_composite(CARD8 op,
 	      INT16 dst_x,  INT16 dst_y,
 	      CARD16 width, CARD16 height)
 {
-	struct sna *sna = to_sna_from_drawable(dst->pDrawable);
+	PixmapPtr pixmap = get_drawable_pixmap(dst->pDrawable);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
+	struct sna_pixmap *priv;
 	struct sna_composite_op tmp;
 	unsigned flags;
 	RegionRec region;
@@ -462,8 +464,14 @@ sna_composite(CARD8 op,
 		goto fallback;
 	}
 
-	if (too_small(dst->pDrawable) &&
-	    !picture_is_gpu(src) && !picture_is_gpu(mask)) {
+	priv = sna_pixmap(pixmap);
+	if (priv == NULL) {
+		DBG(("%s: fallback as destination is unattached\n",
+		     __FUNCTION__));
+		goto fallback;
+	}
+
+	if (too_small(priv) && !picture_is_gpu(src) && !picture_is_gpu(mask)) {
 		DBG(("%s: fallback due to too small\n", __FUNCTION__));
 		goto fallback;
 	}
@@ -478,6 +486,19 @@ sna_composite(CARD8 op,
 	     region.extents.x2, region.extents.y2,
 	     get_drawable_dx(dst->pDrawable),
 	     get_drawable_dy(dst->pDrawable)));
+
+	if (op <= PictOpSrc) {
+		int16_t x, y;
+
+		get_drawable_deltas(dst->pDrawable, pixmap, &x, &y);
+		if (x|y)
+			pixman_region_translate(&region, x, y);
+
+		sna_damage_subtract(&priv->cpu_damage, &region);
+
+		if (x|y)
+			pixman_region_translate(&region, -x, -y);
+	}
 
 	memset(&tmp, 0, sizeof(tmp));
 	if (!sna->render.composite(sna,
@@ -563,7 +584,7 @@ _pixman_region_init_clipped_rectangles(pixman_region16_t *region,
 				       unsigned int num_rects,
 				       xRectangle *rects,
 				       int tx, int ty,
-				       int maxx, int maxy)
+				       BoxPtr extents)
 {
 	pixman_box16_t stack_boxes[64], *boxes = stack_boxes;
 	pixman_bool_t ret;
@@ -576,35 +597,29 @@ _pixman_region_init_clipped_rectangles(pixman_region16_t *region,
 	}
 
 	for (i = j = 0; i < num_rects; i++) {
-		boxes[j].x1 = rects[i].x;
-		if (boxes[j].x1 < 0)
-			boxes[j].x1 = 0;
-		boxes[j].x1 += tx;
+		boxes[j].x1 = rects[i].x + tx;
+		if (boxes[j].x1 < extents->x1)
+			boxes[j].x1 = extents->x1;
 
-		boxes[j].y1 = rects[i].y;
-		if (boxes[j].y1 < 0)
-			boxes[j].y1 = 0;
-		boxes[j].y1 += ty;
+		boxes[j].y1 = rects[i].y + ty;
+		if (boxes[j].y1 < extents->y1)
+			boxes[j].y1 = extents->y1;
 
-		boxes[j].x2 = bound(rects[i].x, rects[i].width);
-		if (boxes[j].x2 > maxx)
-			boxes[j].x2 = maxx;
-		boxes[j].x2 += tx;
+		boxes[j].x2 = bound(rects[i].x + tx, rects[i].width);
+		if (boxes[j].x2 > extents->x2)
+			boxes[j].x2 = extents->x2;
 
-		boxes[j].y2 = bound(rects[i].y, rects[i].height);
-		if (boxes[j].y2 > maxy)
-			boxes[j].y2 = maxy;
-		boxes[j].y2 += ty;
+		boxes[j].y2 = bound(rects[i].y + ty, rects[i].height);
+		if (boxes[j].y2 > extents->y2)
+			boxes[j].y2 = extents->y2;
 
 		if (boxes[j].x2 > boxes[j].x1 && boxes[j].y2 > boxes[j].y1)
 			j++;
 	}
 
-	ret = TRUE;
+	ret = FALSE;
 	if (j)
 	    ret = pixman_region_init_rects(region, boxes, j);
-	else
-	    pixman_region_init(region);
 
 	if (boxes != stack_boxes)
 		free(boxes);
@@ -613,7 +628,7 @@ _pixman_region_init_clipped_rectangles(pixman_region16_t *region,
 	     __FUNCTION__, num_rects,
 	     region->extents.x1, region->extents.y1,
 	     region->extents.x2, region->extents.y2,
-	     pixman_region_n_rects(region)));
+	     j));
 	return ret;
 }
 
@@ -650,7 +665,7 @@ sna_composite_rectangles(CARD8		 op,
 		return;
 	}
 
-	if (color->alpha <= 0x00ff) {
+	if ((color->red|color->green|color->blue|color->alpha) <= 0x00ff) {
 		switch (op) {
 		case PictOpOver:
 		case PictOpOutReverse:
@@ -658,6 +673,22 @@ sna_composite_rectangles(CARD8		 op,
 			return;
 		case  PictOpInReverse:
 		case  PictOpSrc:
+			op = PictOpClear;
+			break;
+		case  PictOpAtopReverse:
+			op = PictOpOut;
+			break;
+		case  PictOpXor:
+			op = PictOpOverReverse;
+			break;
+		}
+	}
+	if (color->alpha <= 0x00ff) {
+		switch (op) {
+		case PictOpOver:
+		case PictOpOutReverse:
+			return;
+		case  PictOpInReverse:
 			op = PictOpClear;
 			break;
 		case  PictOpAtopReverse:
@@ -689,8 +720,9 @@ sna_composite_rectangles(CARD8		 op,
 
 	if (!_pixman_region_init_clipped_rectangles(&region,
 						    num_rects, rects,
-						    dst->pDrawable->x, dst->pDrawable->y,
-						    dst->pDrawable->width, dst->pDrawable->height))
+						    dst->pDrawable->x,
+						    dst->pDrawable->y,
+						    &dst->pCompositeClip->extents))
 	{
 		DBG(("%s: allocation failed for region\n", __FUNCTION__));
 		return;
@@ -702,8 +734,9 @@ sna_composite_rectangles(CARD8		 op,
 	     RegionExtents(&region)->x2, RegionExtents(&region)->y2,
 	     RegionNumRects(&region)));
 
-	if (!pixman_region_intersect(&region, &region, dst->pCompositeClip) ||
-	    region_is_empty(&region)) {
+	if (dst->pCompositeClip->data &&
+	    (!pixman_region_intersect(&region, &region, dst->pCompositeClip) ||
+	     region_is_empty(&region))) {
 		DBG(("%s: zero-intersection between rectangles and clip\n",
 		     __FUNCTION__));
 		pixman_region_fini(&region);
@@ -735,7 +768,13 @@ sna_composite_rectangles(CARD8		 op,
 
 	boxes = pixman_region_rectangles(&region, &num_boxes);
 
-	if (too_small(dst->pDrawable)) {
+	priv = sna_pixmap(pixmap);
+	if (priv == NULL) {
+		DBG(("%s: fallback, not attached\n", __FUNCTION__));
+		goto fallback;
+	}
+
+	if (too_small(priv)) {
 		DBG(("%s: fallback, dst is too small\n", __FUNCTION__));
 		goto fallback;
 	}
@@ -744,11 +783,8 @@ sna_composite_rectangles(CARD8		 op,
 	 * operation, then we may as well delete it without moving it
 	 * first to the GPU.
 	 */
-	if (op <= PictOpSrc) {
-		priv = sna_pixmap_attach(pixmap);
-		if (priv)
-			sna_damage_subtract(&priv->cpu_damage, &region);
-	}
+	if (op <= PictOpSrc)
+		sna_damage_subtract(&priv->cpu_damage, &region);
 
 	priv = sna_pixmap_move_to_gpu(pixmap, MOVE_READ | MOVE_WRITE);
 	if (priv == NULL) {
@@ -766,45 +802,29 @@ sna_composite_rectangles(CARD8		 op,
 	/* Clearing a pixmap after creation is a common operation, so take
 	 * advantage and reduce further damage operations.
 	 */
+	if (region.data == NULL &&
+	    region.extents.x2 - region.extents.x1 == pixmap->drawable.width &&
+	    region.extents.y2 - region.extents.y1 == pixmap->drawable.height) {
+		sna_damage_all(&priv->gpu_damage,
+			       pixmap->drawable.width, pixmap->drawable.height);
+		priv->undamaged = false;
+		if (op <= PictOpSrc) {
+			priv->clear = true;
+			priv->clear_color = 0;
+			if (op == PictOpSrc)
+				sna_get_pixel_from_rgba(&priv->clear_color,
+							color->red,
+							color->green,
+							color->blue,
+							color->alpha,
+							dst->format);
+			DBG(("%s: marking clear [%08x]\n",
+			     __FUNCTION__, priv->clear_color));
+		}
+	}
 	if (!DAMAGE_IS_ALL(priv->gpu_damage)) {
 		assert_pixmap_contains_box(pixmap, RegionExtents(&region));
-
-		if (region.data == NULL &&
-		    region.extents.x2 - region.extents.x1 == pixmap->drawable.width &&
-		    region.extents.y2 - region.extents.y1 == pixmap->drawable.height) {
-			sna_damage_all(&priv->gpu_damage,
-				       pixmap->drawable.width, pixmap->drawable.height);
-			priv->undamaged = false;
-			if (op <= PictOpSrc) {
-				priv->clear = true;
-				priv->clear_color = 0;
-				if (op == PictOpSrc)
-					sna_get_pixel_from_rgba(&priv->clear_color,
-								color->red,
-								color->green,
-								color->blue,
-								color->alpha,
-								dst->format);
-				DBG(("%s: marking clear [%08x]\n",
-				     __FUNCTION__, priv->clear_color));
-			}
-		} else
-			sna_damage_add(&priv->gpu_damage, &region);
-	} else if (op <= PictOpSrc &&
-		   region.data == NULL &&
-		   region.extents.x2 - region.extents.x1 == pixmap->drawable.width &&
-		   region.extents.y2 - region.extents.y1 == pixmap->drawable.height) {
-		priv->clear = true;
-		priv->clear_color = 0;
-		if (op == PictOpSrc)
-			sna_get_pixel_from_rgba(&priv->clear_color,
-						color->red,
-						color->green,
-						color->blue,
-						color->alpha,
-						dst->format);
-		DBG(("%s: marking clear [%08x]\n",
-		     __FUNCTION__, priv->clear_color));
+		sna_damage_add(&priv->gpu_damage, &region);
 	}
 
 	goto done;

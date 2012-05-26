@@ -402,8 +402,6 @@ static int intel_init_bufmgr(intel_screen_private *intel)
 	drm_intel_bufmgr_gem_enable_fenced_relocs(intel->bufmgr);
 
 	list_init(&intel->batch_pixmaps);
-	list_init(&intel->flush_pixmaps);
-	list_init(&intel->in_flight);
 
 	if ((INTEL_INFO(intel)->gen == 60)) {
 		intel->wa_scratch_bo =
@@ -1013,13 +1011,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 			   "Hardware cursor initialization failed\n");
 	}
 
-	/* Must force it before EnterVT, so we are in control of VT and
-	 * later memory should be bound when allocating, e.g rotate_mem */
-	scrn->vtSema = TRUE;
-
-	if (!I830EnterVT(scrnIndex, 0))
-		return FALSE;
-
 	intel->BlockHandler = screen->BlockHandler;
 	screen->BlockHandler = I830BlockHandler;
 
@@ -1092,7 +1083,11 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 	I830UeventInit(scrn);
 #endif
 
-	return TRUE;
+	/* Must force it before EnterVT, so we are in control of VT and
+	 * later memory should be bound when allocating, e.g rotate_mem */
+	scrn->vtSema = TRUE;
+
+	return I830EnterVT(scrnIndex, 0);
 }
 
 static void i830AdjustFrame(int scrnIndex, int x, int y, int flags)

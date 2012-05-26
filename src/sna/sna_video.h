@@ -51,6 +51,7 @@ struct sna_video {
 	uint32_t gamma5;
 
 	int color_key;
+	int color_key_changed;
 
 	/** YUV data buffers */
 	struct kgem_bo *old_buf[2];
@@ -58,6 +59,7 @@ struct sna_video {
 
 	Bool textured;
 	Rotation rotation;
+	int plane;
 
 	int SyncToVblank;	/* -1: auto, 0: off, 1: on */
 };
@@ -78,10 +80,9 @@ struct sna_video_frame {
 };
 
 void sna_video_init(struct sna *sna, ScreenPtr screen);
-XF86VideoAdaptorPtr sna_video_overlay_setup(struct sna *sna,
-					    ScreenPtr screen);
-XF86VideoAdaptorPtr sna_video_textured_setup(struct sna *sna,
-					     ScreenPtr screen);
+XF86VideoAdaptorPtr sna_video_overlay_setup(struct sna *sna, ScreenPtr screen);
+XF86VideoAdaptorPtr sna_video_sprite_setup(struct sna *sna, ScreenPtr screen);
+XF86VideoAdaptorPtr sna_video_textured_setup(struct sna *sna, ScreenPtr screen);
 
 #define FOURCC_XVMC     (('C' << 24) + ('M' << 16) + ('V' << 8) + 'X')
 

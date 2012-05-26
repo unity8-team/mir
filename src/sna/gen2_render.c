@@ -1116,10 +1116,7 @@ gen2_composite_solid_init(struct sna *sna,
 {
 	channel->filter = PictFilterNearest;
 	channel->repeat = RepeatNormal;
-	channel->is_affine = TRUE;
 	channel->is_solid  = TRUE;
-	channel->is_linear = FALSE;
-	channel->transform = NULL;
 	channel->width  = 1;
 	channel->height = 1;
 	channel->pict_format = PICT_a8r8g8b8;
@@ -1169,11 +1166,7 @@ gen2_composite_linear_init(struct sna *sna,
 
 	channel->filter = PictFilterNearest;
 	channel->repeat = picture->repeat ? picture->repeatType : RepeatNone;
-	channel->is_affine = TRUE;
-	channel->is_opaque = FALSE;
-	channel->is_solid  = FALSE;
 	channel->is_linear = TRUE;
-	channel->transform = NULL;
 	channel->width  = channel->bo->pitch / 4;
 	channel->height = 1;
 	channel->pict_format = PICT_a8r8g8b8;
@@ -1196,32 +1189,29 @@ gen2_composite_linear_init(struct sna *sna,
 		struct pixman_f_vector p1, p2;
 		struct pixman_f_transform m, inv;
 
+		pixman_f_transform_from_pixman_transform(&m, picture->transform);
 		DBG(("%s: transform = [%f %f %f, %f %f %f, %f %f %f]\n",
 		     __FUNCTION__,
-		     pixman_fixed_to_double(picture->transform->matrix[0][0]),
-		     pixman_fixed_to_double(picture->transform->matrix[0][1]),
-		     pixman_fixed_to_double(picture->transform->matrix[0][2]),
-		     pixman_fixed_to_double(picture->transform->matrix[1][0]),
-		     pixman_fixed_to_double(picture->transform->matrix[1][1]),
-		     pixman_fixed_to_double(picture->transform->matrix[1][2]),
-		     pixman_fixed_to_double(picture->transform->matrix[2][0]),
-		     pixman_fixed_to_double(picture->transform->matrix[2][1]),
-		     pixman_fixed_to_double(picture->transform->matrix[2][2])));
-
-		pixman_f_transform_from_pixman_transform(&m,
-							 picture->transform);
+		     m.m[0][0], m.m[0][1], m.m[0][2],
+		     m.m[1][0], m.m[1][1], m.m[1][2],
+		     m.m[2][0], m.m[2][1], m.m[2][2]));
 		if (!pixman_f_transform_invert(&inv, &m))
 			return 0;
 
-		p1.v[0] = linear->p1.x;
-		p1.v[1] = linear->p1.y;
-		p1.v[2] = pixman_fixed_1;
+		p1.v[0] = pixman_fixed_to_double(linear->p1.x);
+		p1.v[1] = pixman_fixed_to_double(linear->p1.y);
+		p1.v[2] = 1.;
 		pixman_f_transform_point(&inv, &p1);
 
-		p2.v[0] = linear->p2.x;
-		p2.v[1] = linear->p2.y;
-		p2.v[2] = pixman_fixed_1;
+		p2.v[0] = pixman_fixed_to_double(linear->p2.x);
+		p2.v[1] = pixman_fixed_to_double(linear->p2.y);
+		p2.v[2] = 1.;
 		pixman_f_transform_point(&inv, &p2);
+
+		DBG(("%s: untransformed: p1=(%f, %f, %f), p2=(%f, %f, %f)\n",
+		     __FUNCTION__,
+		     p1.v[0], p1.v[1], p1.v[2],
+		     p2.v[0], p2.v[1], p2.v[2]));
 
 		dx = p2.v[0] - p1.v[0];
 		dy = p2.v[1] - p1.v[1];
@@ -1236,7 +1226,7 @@ gen2_composite_linear_init(struct sna *sna,
 
 	channel->u.gen2.linear_dx = dx;
 	channel->u.gen2.linear_dy = dy;
-	channel->u.gen2.linear_offset = -dx*(x0+x-dst_x) + -dy*(y0+y-dst_y);
+	channel->u.gen2.linear_offset = -dx*(x0+dst_x-x) + -dy*(y0+dst_y-y);
 
 	DBG(("%s: dx=%f, dy=%f, offset=%f\n",
 	     __FUNCTION__, dx, dy, channel->u.gen2.linear_offset));
@@ -1320,7 +1310,8 @@ gen2_composite_picture(struct sna *sna,
 		       struct sna_composite_channel *channel,
 		       int x, int y,
 		       int w, int h,
-		       int dst_x, int dst_y)
+		       int dst_x, int dst_y,
+		       bool precise)
 {
 	PixmapPtr pixmap;
 	uint32_t color;
@@ -1331,6 +1322,9 @@ gen2_composite_picture(struct sna *sna,
 
 	channel->is_solid = FALSE;
 	channel->is_linear = FALSE;
+	channel->is_opaque = FALSE;
+	channel->is_affine = TRUE;
+	channel->transform = NULL;
 
 	if (sna_picture_is_solid(picture, &color))
 		return gen2_composite_solid_init(sna, channel, color);
@@ -1350,6 +1344,8 @@ gen2_composite_picture(struct sna *sna,
 	}
 
 	if (picture->pDrawable == NULL) {
+		int ret;
+
 		if (picture->pSourcePict->type == SourcePictTypeLinear)
 			return gen2_composite_linear_init(sna, picture, channel,
 							  x, y,
@@ -1358,8 +1354,14 @@ gen2_composite_picture(struct sna *sna,
 
 		DBG(("%s -- fallback, unhandled source %d\n",
 		     __FUNCTION__, picture->pSourcePict->type));
-		return sna_render_picture_fixup(sna, picture, channel,
-						x, y, w, h, dst_x, dst_y);
+		ret = -1;
+		if (!precise)
+			ret = sna_render_picture_approximate_gradient(sna, picture, channel,
+								      x, y, w, h, dst_x, dst_y);
+		if (ret == -1)
+			ret = sna_render_picture_fixup(sna, picture, channel,
+						       x, y, w, h, dst_x, dst_y);
+		return ret;
 	}
 
 	if (picture->alphaMap) {
@@ -1519,16 +1521,37 @@ need_upload(PicturePtr p)
 }
 
 static bool
-source_fallback(PicturePtr p)
+source_is_busy(PixmapPtr pixmap)
+{
+	struct sna_pixmap *priv = sna_pixmap(pixmap);
+	if (priv == NULL)
+		return false;
+
+	if (priv->clear)
+		return false;
+
+	if (priv->gpu_bo && kgem_bo_is_busy(priv->gpu_bo))
+		return true;
+
+	if (priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo))
+		return true;
+
+	return priv->gpu_damage && !priv->cpu_damage;
+}
+
+static bool
+source_fallback(PicturePtr p, PixmapPtr pixmap)
 {
 	if (sna_picture_is_solid(p, NULL))
 		return false;
 
-	return (has_alphamap(p) ||
-		is_unhandled_gradient(p) ||
-		!gen2_check_filter(p) ||
-		!gen2_check_repeat(p) ||
-		need_upload(p));
+	if (is_unhandled_gradient(p) || !gen2_check_repeat(p))
+		return true;
+
+	if (pixmap && source_is_busy(pixmap))
+		return false;
+
+	return has_alphamap(p) || !gen2_check_filter(p) || need_upload(p);
 }
 
 static bool
@@ -1541,6 +1564,7 @@ gen2_composite_fallback(struct sna *sna,
 	PixmapPtr src_pixmap;
 	PixmapPtr mask_pixmap;
 	PixmapPtr dst_pixmap;
+	bool src_fallback, mask_fallback;
 
 	if (!gen2_check_dst_format(dst->format)) {
 		DBG(("%s: unknown destination format: %d\n",
@@ -1549,18 +1573,27 @@ gen2_composite_fallback(struct sna *sna,
 	}
 
 	dst_pixmap = get_drawable_pixmap(dst->pDrawable);
+
 	src_pixmap = src->pDrawable ? get_drawable_pixmap(src->pDrawable) : NULL;
-	mask_pixmap = (mask && mask->pDrawable) ? get_drawable_pixmap(mask->pDrawable) : NULL;
+	src_fallback = source_fallback(src, src_pixmap);
+
+	if (mask) {
+		mask_pixmap = mask->pDrawable ? get_drawable_pixmap(mask->pDrawable) : NULL;
+		mask_fallback = source_fallback(mask, mask_pixmap);
+	} else {
+		mask_pixmap = NULL;
+		mask_fallback = NULL;
+	}
 
 	/* If we are using the destination as a source and need to
 	 * readback in order to upload the source, do it all
 	 * on the cpu.
 	 */
-	if (src_pixmap == dst_pixmap && source_fallback(src)) {
+	if (src_pixmap == dst_pixmap && src_fallback) {
 		DBG(("%s: src is dst and will fallback\n",__FUNCTION__));
 		return TRUE;
 	}
-	if (mask_pixmap == dst_pixmap && source_fallback(mask)) {
+	if (mask_pixmap == dst_pixmap && mask_fallback) {
 		DBG(("%s: mask is dst and will fallback\n",__FUNCTION__));
 		return TRUE;
 	}
@@ -1573,34 +1606,28 @@ gen2_composite_fallback(struct sna *sna,
 		return FALSE;
 	}
 
-	if (src_pixmap && !source_fallback(src)) {
-		priv = sna_pixmap(src_pixmap);
-		if (priv && priv->gpu_damage && !priv->cpu_damage) {
-			DBG(("%s: src is already on the GPU, try to use GPU\n",
-			     __FUNCTION__));
-			return FALSE;
-		}
+	if (src_pixmap && !src_fallback) {
+		DBG(("%s: src is already on the GPU, try to use GPU\n",
+		     __FUNCTION__));
+		return FALSE;
 	}
-	if (mask_pixmap && !source_fallback(mask)) {
-		priv = sna_pixmap(mask_pixmap);
-		if (priv && priv->gpu_damage && !priv->cpu_damage) {
-			DBG(("%s: mask is already on the GPU, try to use GPU\n",
-			     __FUNCTION__));
-			return FALSE;
-		}
+	if (mask_pixmap && !mask_fallback) {
+		DBG(("%s: mask is already on the GPU, try to use GPU\n",
+		     __FUNCTION__));
+		return FALSE;
 	}
 
 	/* However if the dst is not on the GPU and we need to
 	 * render one of the sources using the CPU, we may
 	 * as well do the entire operation in place onthe CPU.
 	 */
-	if (source_fallback(src)) {
+	if (src_fallback) {
 		DBG(("%s: dst is on the CPU and src will fallback\n",
 		     __FUNCTION__));
 		return TRUE;
 	}
 
-	if (mask && source_fallback(mask)) {
+	if (mask && mask_fallback) {
 		DBG(("%s: dst is on the CPU and mask will fallback\n",
 		     __FUNCTION__));
 		return TRUE;
@@ -1726,7 +1753,7 @@ gen2_render_composite(struct sna *sna,
 		return FALSE;
 	}
 
-	if (mask == NULL && sna->kgem.mode == KGEM_BLT  &&
+	if (mask == NULL && sna->kgem.mode == KGEM_BLT &&
 	    sna_blt_composite(sna, op,
 			      src, dst,
 			      src_x, src_y,
@@ -1747,7 +1774,8 @@ gen2_render_composite(struct sna *sna,
 	switch (gen2_composite_picture(sna, src, &tmp->src,
 				       src_x, src_y,
 				       width, height,
-				       dst_x, dst_y)) {
+				       dst_x, dst_y,
+				       dst->polyMode == PolyModePrecise)) {
 	case -1:
 		goto cleanup_dst;
 	case 0:
@@ -1763,7 +1791,8 @@ gen2_render_composite(struct sna *sna,
 			switch (gen2_composite_picture(sna, mask, &tmp->mask,
 						       mask_x, mask_y,
 						       width,  height,
-						       dst_x,  dst_y)) {
+						       dst_x,  dst_y,
+						       dst->polyMode == PolyModePrecise)) {
 			case -1:
 				goto cleanup_src;
 			case 0:
@@ -2211,7 +2240,8 @@ gen2_render_composite_spans(struct sna *sna,
 	switch (gen2_composite_picture(sna, src, &tmp->base.src,
 				       src_x, src_y,
 				       width, height,
-				       dst_x, dst_y)) {
+				       dst_x, dst_y,
+				       dst->polyMode == PolyModePrecise)) {
 	case -1:
 		goto cleanup_dst;
 	case 0:
@@ -2330,30 +2360,24 @@ gen2_render_fill_boxes_try_blt(struct sna *sna,
 			       PixmapPtr dst, struct kgem_bo *dst_bo,
 			       const BoxRec *box, int n)
 {
-	uint8_t alu = GXcopy;
+	uint8_t alu;
 	uint32_t pixel;
 
-	if (!sna_get_pixel_from_rgba(&pixel,
-				     color->red,
-				     color->green,
-				     color->blue,
-				     color->alpha,
-				     format))
+	if (op > PictOpSrc)
 		return FALSE;
 
 	if (op == PictOpClear) {
 		alu = GXclear;
 		pixel = 0;
-		op = PictOpSrc;
-	}
-
-	if (op == PictOpOver) {
-		if ((pixel & 0xff000000) == 0xff000000)
-			op = PictOpSrc;
-	}
-
-	if (op != PictOpSrc)
+	} else if (!sna_get_pixel_from_rgba(&pixel,
+					    color->red,
+					    color->green,
+					    color->blue,
+					    color->alpha,
+					    format))
 		return FALSE;
+	else
+		alu = GXcopy;
 
 	return sna_blt_fill_boxes(sna, alu,
 				  dst_bo, dst->drawable.bitsPerPixel,

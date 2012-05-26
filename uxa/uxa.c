@@ -407,7 +407,6 @@ static Bool uxa_close_screen(int i, ScreenPtr pScreen)
 #ifdef RENDER
 	if (ps) {
 		ps->Composite = uxa_screen->SavedComposite;
-		ps->CompositeRects = uxa_screen->SavedCompositeRects;
 		ps->Glyphs = uxa_screen->SavedGlyphs;
 		ps->Trapezoids = uxa_screen->SavedTrapezoids;
 		ps->AddTraps = uxa_screen->SavedAddTraps;
@@ -535,9 +534,6 @@ Bool uxa_driver_init(ScreenPtr screen, uxa_driver_t * uxa_driver)
 		if (ps) {
 			uxa_screen->SavedComposite = ps->Composite;
 			ps->Composite = uxa_composite;
-
-			uxa_screen->SavedCompositeRects = ps->CompositeRects;
-			ps->CompositeRects = uxa_solid_rects;
 
 			uxa_screen->SavedGlyphs = ps->Glyphs;
 			ps->Glyphs = uxa_glyphs;

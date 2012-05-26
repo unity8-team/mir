@@ -315,7 +315,7 @@ glyph_cache(ScreenPtr screen,
 		PixmapPtr pixmap = (PixmapPtr)glyph_picture->pDrawable;
 		assert(glyph_picture->pDrawable->type == DRAWABLE_PIXMAP);
 		if (pixmap->drawable.depth >= 8) {
-			pixmap->usage_hint = SNA_CREATE_GLYPH;
+			pixmap->usage_hint = 0;
 			sna_pixmap_force_to_gpu(pixmap, MOVE_READ);
 		}
 		return FALSE;
@@ -662,6 +662,13 @@ clear_pixmap(struct sna *sna, PixmapPtr pixmap)
 	return sna->render.clear(sna, pixmap, priv->gpu_bo);
 }
 
+static bool
+too_large(struct sna *sna, int width, int height)
+{
+	return (width > sna->render.max_3d_size ||
+		height > sna->render.max_3d_size);
+}
+
 static Bool
 glyphs_via_mask(struct sna *sna,
 		CARD8 op,
@@ -724,7 +731,8 @@ glyphs_via_mask(struct sna *sna,
 
 	component_alpha = NeedsComponent(format->format);
 	if (!NO_SMALL_MASK &&
-	    (uint32_t)width * height * format->depth < 8 * 4096) {
+	    ((uint32_t)width * height * format->depth < 8 * 4096 ||
+	     too_large(sna, width, height))) {
 		pixman_image_t *mask_image;
 		int s;
 
@@ -1217,7 +1225,9 @@ sna_glyphs(CARD8 op,
 	   INT16 src_x, INT16 src_y,
 	   int nlist, GlyphListPtr list, GlyphPtr *glyphs)
 {
-	struct sna *sna = to_sna_from_drawable(dst->pDrawable);
+	PixmapPtr pixmap = get_drawable_pixmap(dst->pDrawable);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
+	struct sna_pixmap *priv;
 	PictFormatPtr _mask;
 
 	DBG(("%s(op=%d, nlist=%d, src=(%d, %d))\n",
@@ -1234,14 +1244,20 @@ sna_glyphs(CARD8 op,
 		goto fallback;
 	}
 
-	if (too_small(dst->pDrawable) && !picture_is_gpu(src)) {
-		DBG(("%s: fallback -- too small (%dx%d)\n",
-		     __FUNCTION__, dst->pDrawable->width, dst->pDrawable->height));
+	if (dst->alphaMap) {
+		DBG(("%s: fallback -- dst alpha map\n", __FUNCTION__));
 		goto fallback;
 	}
 
-	if (dst->alphaMap) {
-		DBG(("%s: fallback -- dst alpha map\n", __FUNCTION__));
+	priv = sna_pixmap(pixmap);
+	if (priv == NULL) {
+		DBG(("%s: fallback -- destination unattached\n", __FUNCTION__));
+		goto fallback;
+	}
+
+	if (too_small(priv) && !picture_is_gpu(src)) {
+		DBG(("%s: fallback -- too small (%dx%d)\n",
+		     __FUNCTION__, dst->pDrawable->width, dst->pDrawable->height));
 		goto fallback;
 	}
 

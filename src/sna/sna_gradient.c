@@ -44,39 +44,48 @@ sna_gradient_sample_width(PictGradient *gradient)
 {
 	int n, width;
 
-	width = 2;
+	width = 0;
 	for (n = 1; n < gradient->nstops; n++) {
 		xFixed dx = gradient->stops[n].x - gradient->stops[n-1].x;
-		uint16_t delta, max;
-		int ramp;
+		int delta, max, ramp;
 
 		if (dx == 0)
 			return 1024;
 
 		max = gradient->stops[n].color.red -
 			gradient->stops[n-1].color.red;
+		if (max < 0)
+			max = -max;
 
 		delta = gradient->stops[n].color.green -
 			gradient->stops[n-1].color.green;
+		if (delta < 0)
+			delta = -delta;
 		if (delta > max)
 			max = delta;
 
 		delta = gradient->stops[n].color.blue -
 			gradient->stops[n-1].color.blue;
+		if (delta < 0)
+			delta = -delta;
 		if (delta > max)
 			max = delta;
 
 		delta = gradient->stops[n].color.alpha -
 			gradient->stops[n-1].color.alpha;
+		if (delta < 0)
+			delta = -delta;
 		if (delta > max)
 			max = delta;
 
-		ramp = 128 * max / dx;
+		ramp = 256 * max / dx;
 		if (ramp > width)
 			width = ramp;
 	}
 
-	width *= gradient->nstops-1;
+	if (width == 0)
+		return 1;
+
 	width = (width + 7) & -8;
 	return min(width, 1024);
 }
@@ -168,7 +177,7 @@ sna_render_get_gradient(struct sna *sna,
 	     width/2, pixman_image_get_data(image)[width/2],
 	     width-1, pixman_image_get_data(image)[width-1]));
 
-	bo = kgem_create_linear(&sna->kgem, width*4);
+	bo = kgem_create_linear(&sna->kgem, width*4, 0);
 	if (!bo) {
 		pixman_image_unref(image);
 		return NULL;
@@ -248,7 +257,7 @@ sna_render_finish_solid(struct sna *sna, bool force)
 
 	DBG(("sna_render_finish_solid reset\n"));
 
-	cache->cache_bo = kgem_create_linear(&sna->kgem, sizeof(cache->color));
+	cache->cache_bo = kgem_create_linear(&sna->kgem, sizeof(cache->color), 0);
 	cache->bo[0] = kgem_create_proxy(cache->cache_bo, 0, sizeof(uint32_t));
 	cache->bo[0]->pitch = 4;
 	if (force)
@@ -316,7 +325,7 @@ static Bool sna_alpha_cache_init(struct sna *sna)
 
 	DBG(("%s\n", __FUNCTION__));
 
-	cache->cache_bo = kgem_create_linear(&sna->kgem, sizeof(color));
+	cache->cache_bo = kgem_create_linear(&sna->kgem, sizeof(color), 0);
 	if (!cache->cache_bo)
 		return FALSE;
 
@@ -338,7 +347,7 @@ static Bool sna_solid_cache_init(struct sna *sna)
 	DBG(("%s\n", __FUNCTION__));
 
 	cache->cache_bo =
-		kgem_create_linear(&sna->kgem, sizeof(cache->color));
+		kgem_create_linear(&sna->kgem, sizeof(cache->color), 0);
 	if (!cache->cache_bo)
 		return FALSE;
 

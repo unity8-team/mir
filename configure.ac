@@ -23,7 +23,7 @@
 # Initialize Autoconf
 AC_PREREQ([2.60])
 AC_INIT([xf86-video-intel],
-        [2.18.0],
+        [2.19.0],
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
         [xf86-video-intel])
 AC_CONFIG_SRCDIR([Makefile.am])
@@ -52,6 +52,7 @@ m4_ifndef([XORG_DRIVER_CHECK_EXT],
 # Initialize libtool
 AC_DISABLE_STATIC
 AC_PROG_LIBTOOL
+AC_SYS_LARGEFILE
 
 # Are we in a git checkout?
 dot_git=no
@@ -192,8 +193,8 @@ sdkdir=`$PKG_CONFIG --variable=sdkdir xorg-server`
 if test "x$enable_dri" != "xno"; then
         save_CFLAGS="$CFLAGS"
         save_CPPFLAGS="$CPPFLAGS"
-        CFLAGS="$XORG_CFLAGS $DRI_CFLAGS $DRM_CFLAGS"
-        CPPFLAGS="$XORG_CFLAGS $DRI_CFLAGS $DRM_CFLAGS"
+        CFLAGS="$CFLAGS $XORG_CFLAGS $DRI_CFLAGS $DRM_CFLAGS"
+        CPPFLAGS="$CPPFLAGS $XORG_CFLAGS $DRI_CFLAGS $DRM_CFLAGS"
         AC_CHECK_HEADERS([dri.h sarea.h dristruct.h],, [DRI=no],
                 [/* for dri.h */
                  #include <xf86str.h>
@@ -217,8 +218,7 @@ AC_MSG_RESULT([${DRI-yes}])
 
 AM_CONDITIONAL(DRI, test x$DRI != xno)
 if test "x$DRI" != "xno"; then
-        AC_DEFINE(XF86DRI,1,[Enable DRI driver support])
-        AC_DEFINE(XF86DRI_DEVEL,1,[Enable developmental DRI driver support])
+        AC_DEFINE(HAVE_DRI1,1,[Enable DRI driver support])
 else
         DRI_CFLAGS=""
         DRI_LIBS=""
@@ -255,8 +255,10 @@ if test "x$DEBUG" = xno; then
 fi
 if test "x$DEBUG" != xno; then
 	AC_DEFINE(HAS_EXTRA_DEBUG,1,[Enable additional debugging])
-	PKG_CHECK_MODULES(VALGRIND, [valgrind],
-			  AC_DEFINE([HAVE_VALGRIND], 1, [Use valgrind intrinsics to suppress false warings]),)
+	PKG_CHECK_MODULES(VALGRIND, [valgrind], have_valgrind=yes, have_valgrind=no)
+	if test x$have_valgrind = xyes; then
+		AC_DEFINE([HAVE_VALGRIND], 1, [Use valgrind intrinsics to suppress false warnings])
+	fi
 fi
 if test "x$DEBUG" = xfull; then
 	AC_DEFINE(HAS_DEBUG_FULL,1,[Enable all debugging])

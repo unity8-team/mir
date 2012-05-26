@@ -72,10 +72,10 @@ is_gpu(DrawablePtr drawable)
 {
 	struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
 
-	if (priv == NULL)
+	if (priv == NULL || priv->clear)
 		return false;
 
-	if (priv->gpu_damage)
+	if (priv->gpu_damage || (priv->gpu_bo && kgem_bo_is_busy(priv->gpu_bo) && !priv->gpu_bo->proxy))
 		return true;
 
 	return priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo);
@@ -85,7 +85,13 @@ static inline Bool
 is_cpu(DrawablePtr drawable)
 {
 	struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
-	return !priv || priv->cpu_damage != NULL;
+	if (priv == NULL || priv->clear || DAMAGE_IS_ALL(priv->cpu_damage))
+		return true;
+
+	if (priv->gpu_damage || (priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo)))
+		return false;
+
+	return true;
 }
 
 static inline Bool
@@ -95,13 +101,10 @@ is_dirty(DrawablePtr drawable)
 	return priv == NULL || kgem_bo_is_dirty(priv->gpu_bo);
 }
 
-static inline Bool
-too_small(DrawablePtr drawable)
+static inline bool
+too_small(struct sna_pixmap *priv)
 {
-	struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
-
-	if (priv == NULL)
-		return true;
+	assert(priv);
 
 	if (priv->gpu_damage)
 		return false;
@@ -185,6 +188,31 @@ sna_render_reduce_damage(struct sna_composite_op *op,
 		     __FUNCTION__));
 		op->damage = NULL;
 	}
+}
+
+inline static uint32_t
+color_convert(uint32_t pixel,
+	      uint32_t src_format,
+	      uint32_t dst_format)
+{
+	DBG(("%s: src=%08x [%08x]\n", __FUNCTION__, pixel, src_format));
+
+	if (src_format != dst_format) {
+		uint16_t red, green, blue, alpha;
+
+		if (!sna_get_rgba_from_pixel(pixel,
+					     &red, &green, &blue, &alpha,
+					     src_format))
+			return 0;
+
+		if (!sna_get_pixel_from_rgba(&pixel,
+					     red, green, blue, alpha,
+					     dst_format))
+			return 0;
+	}
+
+	DBG(("%s: dst=%08x [%08x]\n", __FUNCTION__, pixel, dst_format));
+	return pixel;
 }
 
 #endif /* SNA_RENDER_INLINE_H */

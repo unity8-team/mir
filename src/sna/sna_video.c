@@ -83,12 +83,17 @@ void sna_video_free_buffers(struct sna *sna, struct sna_video *video)
 
 	for (i = 0; i < ARRAY_SIZE(video->old_buf); i++) {
 		if (video->old_buf[i]) {
+			if (video->old_buf[i]->unique_id)
+				drmModeRmFB(sna->kgem.fd,
+						video->old_buf[i]->unique_id);
 			kgem_bo_destroy(&sna->kgem, video->old_buf[i]);
 			video->old_buf[i] = NULL;
 		}
 	}
 
 	if (video->buf) {
+		if (video->buf->unique_id)
+			drmModeRmFB(sna->kgem.fd, video->buf->unique_id);
 		kgem_bo_destroy(&sna->kgem, video->buf);
 		video->buf = NULL;
 	}
@@ -104,7 +109,8 @@ sna_video_buffer(struct sna *sna,
 		sna_video_free_buffers(sna, video);
 
 	if (video->buf == NULL)
-		video->buf = kgem_create_linear(&sna->kgem, frame->size);
+		video->buf = kgem_create_linear(&sna->kgem, frame->size,
+						CREATE_GTT_MAP);
 
 	return video->buf;
 }
@@ -439,6 +445,11 @@ sna_video_copy_data(struct sna *sna,
 	if (frame->bo == NULL)
 		return FALSE;
 
+	DBG(("%s: handle=%d, size=%dx%d, rotation=%d\n",
+	     __FUNCTION__, frame->bo->handle, frame->width, frame->height,
+	     video->rotation));
+	DBG(("%s: top=%d, left=%d\n", __FUNCTION__, frame->top, frame->left));
+
 	/* In the common case, we can simply the upload in a single pwrite */
 	if (video->rotation == RR_Rotate_0) {
 		if (is_planar_fourcc(frame->id)) {
@@ -471,8 +482,8 @@ sna_video_copy_data(struct sna *sna,
 		}
 	}
 
-	/* copy data */
-	dst = kgem_bo_map(&sna->kgem, frame->bo);
+	/* copy data, must use GTT so that we keep the overlay uncached */
+	dst = kgem_bo_map__gtt(&sna->kgem, frame->bo);
 	if (dst == NULL)
 		return FALSE;
 
@@ -509,7 +520,9 @@ void sna_video_init(struct sna *sna, ScreenPtr screen)
 	 * supported hardware.
 	 */
 	textured = sna_video_textured_setup(sna, screen);
-	overlay = sna_video_overlay_setup(sna, screen);
+	overlay = sna_video_sprite_setup(sna, screen);
+	if (overlay == NULL)
+		overlay = sna_video_overlay_setup(sna, screen);
 
 	if (overlay && prefer_overlay)
 		adaptors[num_adaptors++] = overlay;

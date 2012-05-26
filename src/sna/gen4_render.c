@@ -398,7 +398,8 @@ static int gen4_vertex_finish(struct sna *sna)
 	}
 
 	sna->render.vertices = NULL;
-	sna->render.vbo = kgem_create_linear(&sna->kgem, 256*1024);
+	sna->render.vbo = kgem_create_linear(&sna->kgem,
+					     256*1024, CREATE_GTT_MAP);
 	if (sna->render.vbo)
 		sna->render.vertices = kgem_bo_map(&sna->kgem, sna->render.vbo);
 	if (sna->render.vertices == NULL) {
@@ -418,8 +419,13 @@ static int gen4_vertex_finish(struct sna *sna)
 
 static void gen4_vertex_close(struct sna *sna)
 {
-	struct kgem_bo *bo;
+	struct kgem_bo *bo, *free_bo = NULL;
 	unsigned int i, delta = 0;
+
+	assert(sna->render_state.gen4.vertex_offset == 0);
+
+	DBG(("%s: used=%d, vbo active? %d\n",
+	     __FUNCTION__, sna->render.vertex_used, sna->render.vbo != NULL));
 
 	if (!sna->render.vertex_used) {
 		assert(sna->render.vbo == NULL);
@@ -428,10 +434,26 @@ static void gen4_vertex_close(struct sna *sna)
 		return;
 	}
 
-	DBG(("%s: used=%d\n", __FUNCTION__, sna->render.vertex_used));
-
 	bo = sna->render.vbo;
-	if (bo == NULL) {
+	if (bo) {
+		if (sna->render.vertex_size - sna->render.vertex_used < 64) {
+			DBG(("%s: discarding full vbo\n", __FUNCTION__));
+			sna->render.vbo = NULL;
+			sna->render.vertices = sna->render.vertex_data;
+			sna->render.vertex_size = ARRAY_SIZE(sna->render.vertex_data);
+			free_bo = bo;
+		} else if (IS_CPU_MAP(bo->map)) {
+			DBG(("%s: converting CPU map to GTT\n", __FUNCTION__));
+			sna->render.vertices =
+				kgem_bo_map__gtt(&sna->kgem, sna->render.vbo);
+			if (sna->render.vertices == NULL) {
+				sna->render.vbo = NULL;
+				sna->render.vertices = sna->render.vertex_data;
+				sna->render.vertex_size = ARRAY_SIZE(sna->render.vertex_data);
+				free_bo = bo;
+			}
+		}
+	} else {
 		if (sna->kgem.nbatch + sna->render.vertex_used <= sna->kgem.surface) {
 			DBG(("%s: copy to batch: %d @ %d\n", __FUNCTION__,
 			     sna->render.vertex_used, sna->kgem.nbatch));
@@ -442,15 +464,17 @@ static void gen4_vertex_close(struct sna *sna)
 			bo = NULL;
 			sna->kgem.nbatch += sna->render.vertex_used;
 		} else {
-			bo = kgem_create_linear(&sna->kgem, 4*sna->render.vertex_used);
+			bo = kgem_create_linear(&sna->kgem,
+						4*sna->render.vertex_used, 0);
 			if (bo && !kgem_bo_write(&sna->kgem, bo,
 						 sna->render.vertex_data,
 						 4*sna->render.vertex_used)) {
 				kgem_bo_destroy(&sna->kgem, bo);
-				goto reset;
+				bo = NULL;
 			}
 			DBG(("%s: new vbo: %d\n", __FUNCTION__,
 			     sna->render.vertex_used));
+			free_bo = bo;
 		}
 	}
 
@@ -469,17 +493,13 @@ static void gen4_vertex_close(struct sna *sna)
 		}
 	}
 
-	if (bo)
-		kgem_bo_destroy(&sna->kgem, bo);
+	if (sna->render.vbo == NULL) {
+		sna->render.vertex_used = 0;
+		sna->render.vertex_index = 0;
+	}
 
-reset:
-	sna->render.vertex_used = 0;
-	sna->render.vertex_index = 0;
-	sna->render_state.gen4.vb_id = 0;
-
-	sna->render.vbo = NULL;
-	sna->render.vertices = sna->render.vertex_data;
-	sna->render.vertex_size = ARRAY_SIZE(sna->render.vertex_data);
+	if (free_bo)
+		kgem_bo_destroy(&sna->kgem, free_bo);
 }
 
 
@@ -679,7 +699,10 @@ static uint32_t gen4_check_filter(PicturePtr picture)
 	case PictFilterBilinear:
 		return TRUE;
 	default:
-		DBG(("%s: unknown filter: %d\n", __FUNCTION__, picture->filter));
+		DBG(("%s: unknown filter: %s [%d]\n",
+		     __FUNCTION__,
+		     PictureGetFilterName(picture->filter),
+		     picture->filter));
 		return FALSE;
 	}
 }
@@ -1814,13 +1837,128 @@ gen4_composite_solid_init(struct sna *sna,
 	return channel->bo != NULL;
 }
 
+static Bool
+gen4_composite_linear_init(struct sna *sna,
+			   PicturePtr picture,
+			   struct sna_composite_channel *channel,
+			   int x, int y,
+			   int w, int h,
+			   int dst_x, int dst_y)
+{
+	PictLinearGradient *linear =
+		(PictLinearGradient *)picture->pSourcePict;
+	pixman_fixed_t tx, ty;
+	float x0, y0, sf;
+	float dx, dy;
+
+	DBG(("%s: p1=(%f, %f), p2=(%f, %f), src=(%d, %d), dst=(%d, %d), size=(%d, %d)\n",
+	     __FUNCTION__,
+	     pixman_fixed_to_double(linear->p1.x), pixman_fixed_to_double(linear->p1.y),
+	     pixman_fixed_to_double(linear->p2.x), pixman_fixed_to_double(linear->p2.y),
+	     x, y, dst_x, dst_y, w, h));
+
+	if (linear->p2.x == linear->p1.x && linear->p2.y == linear->p1.y)
+		return 0;
+
+	if (!sna_transform_is_affine(picture->transform)) {
+		DBG(("%s: fallback due to projective transform\n",
+		     __FUNCTION__));
+		return sna_render_picture_fixup(sna, picture, channel,
+						x, y, w, h, dst_x, dst_y);
+	}
+
+	channel->bo = sna_render_get_gradient(sna, (PictGradient *)linear);
+	if (!channel->bo)
+		return 0;
+
+	channel->filter = PictFilterNearest;
+	channel->repeat = picture->repeat ? picture->repeatType : RepeatNone;
+	channel->width  = channel->bo->pitch / 4;
+	channel->height = 1;
+	channel->pict_format = PICT_a8r8g8b8;
+
+	channel->scale[0]  = channel->scale[1]  = 1;
+	channel->offset[0] = channel->offset[1] = 0;
+
+	if (sna_transform_is_translation(picture->transform, &tx, &ty)) {
+		dx = pixman_fixed_to_double(linear->p2.x - linear->p1.x);
+		dy = pixman_fixed_to_double(linear->p2.y - linear->p1.y);
+
+		x0 = pixman_fixed_to_double(linear->p1.x);
+		y0 = pixman_fixed_to_double(linear->p1.y);
+
+		if (tx | ty) {
+			x0 -= pixman_fixed_to_double(tx);
+			y0 -= pixman_fixed_to_double(ty);
+		}
+	} else {
+		struct pixman_f_vector p1, p2;
+		struct pixman_f_transform m, inv;
+
+		pixman_f_transform_from_pixman_transform(&m, picture->transform);
+		DBG(("%s: transform = [%f %f %f, %f %f %f, %f %f %f]\n",
+		     __FUNCTION__,
+		     m.m[0][0], m.m[0][1], m.m[0][2],
+		     m.m[1][0], m.m[1][1], m.m[1][2],
+		     m.m[2][0], m.m[2][1], m.m[2][2]));
+		if (!pixman_f_transform_invert(&inv, &m))
+			return 0;
+
+		p1.v[0] = pixman_fixed_to_double(linear->p1.x);
+		p1.v[1] = pixman_fixed_to_double(linear->p1.y);
+		p1.v[2] = 1.;
+		pixman_f_transform_point(&inv, &p1);
+
+		p2.v[0] = pixman_fixed_to_double(linear->p2.x);
+		p2.v[1] = pixman_fixed_to_double(linear->p2.y);
+		p2.v[2] = 1.;
+		pixman_f_transform_point(&inv, &p2);
+
+		DBG(("%s: untransformed: p1=(%f, %f, %f), p2=(%f, %f, %f)\n",
+		     __FUNCTION__,
+		     p1.v[0], p1.v[1], p1.v[2],
+		     p2.v[0], p2.v[1], p2.v[2]));
+
+		dx = p2.v[0] - p1.v[0];
+		dy = p2.v[1] - p1.v[1];
+
+		x0 = p1.v[0];
+		y0 = p1.v[1];
+	}
+
+	sf = dx*dx + dy*dy;
+	dx /= sf;
+	dy /= sf;
+
+	channel->embedded_transform.matrix[0][0] = pixman_double_to_fixed(dx);
+	channel->embedded_transform.matrix[0][1] = pixman_double_to_fixed(dy);
+	channel->embedded_transform.matrix[0][2] = -pixman_double_to_fixed(dx*(x0+dst_x-x) + dy*(y0+dst_y-y));
+
+	channel->embedded_transform.matrix[1][0] = 0;
+	channel->embedded_transform.matrix[1][1] = 0;
+	channel->embedded_transform.matrix[1][2] = pixman_double_to_fixed(.5);
+
+	channel->embedded_transform.matrix[2][0] = 0;
+	channel->embedded_transform.matrix[2][1] = 0;
+	channel->embedded_transform.matrix[2][2] = pixman_fixed_1;
+
+	channel->transform = &channel->embedded_transform;
+	channel->is_affine = 1;
+
+	DBG(("%s: dx=%f, dy=%f, offset=%f\n",
+	     __FUNCTION__, dx, dy, -dx*(x0-x+dst_x) + -dy*(y0-y+dst_y)));
+
+	return channel->bo != NULL;
+}
+
 static int
 gen4_composite_picture(struct sna *sna,
 		       PicturePtr picture,
 		       struct sna_composite_channel *channel,
 		       int x, int y,
 		       int w, int h,
-		       int dst_x, int dst_y)
+		       int dst_x, int dst_y,
+		       bool precise)
 {
 	PixmapPtr pixmap;
 	uint32_t color;
@@ -1836,9 +1974,23 @@ gen4_composite_picture(struct sna *sna,
 		return gen4_composite_solid_init(sna, channel, color);
 
 	if (picture->pDrawable == NULL) {
-		DBG(("%s: procedural source fixup\n", __FUNCTION__));
-		return sna_render_picture_fixup(sna, picture, channel,
-						x, y, w, h, dst_x, dst_y);
+		int ret;
+
+		if (picture->pSourcePict->type == SourcePictTypeLinear)
+			return gen4_composite_linear_init(sna, picture, channel,
+							  x, y,
+							  w, h,
+							  dst_x, dst_y);
+
+		DBG(("%s -- fixup, gradient\n", __FUNCTION__));
+		ret = -1;
+		if (!precise)
+			ret = sna_render_picture_approximate_gradient(sna, picture, channel,
+								      x, y, w, h, dst_x, dst_y);
+		if (ret == -1)
+			ret = sna_render_picture_fixup(sna, picture, channel,
+						       x, y, w, h, dst_x, dst_y);
+		return ret;
 	}
 
 	if (picture->alphaMap) {
@@ -1997,12 +2149,15 @@ try_blt(struct sna *sna,
 }
 
 static bool
-is_gradient(PicturePtr picture)
+check_gradient(PicturePtr picture)
 {
-	if (picture->pDrawable)
+	switch (picture->pSourcePict->type) {
+	case SourcePictTypeSolidFill:
+	case SourcePictTypeLinear:
 		return FALSE;
-
-	return picture->pSourcePict->type != SourcePictTypeSolidFill;
+	default:
+		return TRUE;
+	}
 }
 
 static bool
@@ -2024,17 +2179,38 @@ need_upload(PicturePtr p)
 }
 
 static bool
-source_fallback(PicturePtr p)
+source_is_busy(PixmapPtr pixmap)
+{
+	struct sna_pixmap *priv = sna_pixmap(pixmap);
+	if (priv == NULL)
+		return false;
+
+	if (priv->clear)
+		return false;
+
+	if (priv->gpu_bo && kgem_bo_is_busy(priv->gpu_bo))
+		return true;
+
+	return priv->gpu_damage && !priv->cpu_damage;
+}
+
+static bool
+source_fallback(PicturePtr p, PixmapPtr pixmap)
 {
 	if (sna_picture_is_solid(p, NULL))
 		return false;
 
-	return (has_alphamap(p) ||
-		is_gradient(p) ||
-		!gen4_check_filter(p) ||
-		!gen4_check_repeat(p) ||
-		!gen4_check_format(p->format) ||
-		need_upload(p));
+	if (p->pSourcePict)
+		return check_gradient(p);
+
+	if (!gen4_check_repeat(p) || !gen4_check_format(p->format))
+		return true;
+
+	/* soft errors: perfer to upload/compute rather than readback */
+	if (pixmap && source_is_busy(pixmap))
+		return false;
+
+	return has_alphamap(p) || !gen4_check_filter(p) || need_upload(p);
 }
 
 static bool
@@ -2047,6 +2223,7 @@ gen4_composite_fallback(struct sna *sna,
 	PixmapPtr src_pixmap;
 	PixmapPtr mask_pixmap;
 	PixmapPtr dst_pixmap;
+	bool src_fallback, mask_fallback;
 
 	if (!gen4_check_dst_format(dst->format)) {
 		DBG(("%s: unknown destination format: %d\n",
@@ -2055,18 +2232,27 @@ gen4_composite_fallback(struct sna *sna,
 	}
 
 	dst_pixmap = get_drawable_pixmap(dst->pDrawable);
+
 	src_pixmap = src->pDrawable ? get_drawable_pixmap(src->pDrawable) : NULL;
-	mask_pixmap = (mask && mask->pDrawable) ? get_drawable_pixmap(mask->pDrawable) : NULL;
+	src_fallback = source_fallback(src, src_pixmap);
+
+	if (mask) {
+		mask_pixmap = mask->pDrawable ? get_drawable_pixmap(mask->pDrawable) : NULL;
+		mask_fallback = source_fallback(mask, mask_pixmap);
+	} else {
+		mask_pixmap = NULL;
+		mask_fallback = false;
+	}
 
 	/* If we are using the destination as a source and need to
 	 * readback in order to upload the source, do it all
 	 * on the cpu.
 	 */
-	if (src_pixmap == dst_pixmap && source_fallback(src)) {
+	if (src_pixmap == dst_pixmap && src_fallback) {
 		DBG(("%s: src is dst and will fallback\n",__FUNCTION__));
 		return TRUE;
 	}
-	if (mask_pixmap == dst_pixmap && source_fallback(mask)) {
+	if (mask_pixmap == dst_pixmap && mask_fallback) {
 		DBG(("%s: mask is dst and will fallback\n",__FUNCTION__));
 		return TRUE;
 	}
@@ -2079,34 +2265,28 @@ gen4_composite_fallback(struct sna *sna,
 		return FALSE;
 	}
 
-	if (src_pixmap && !source_fallback(src)) {
-		priv = sna_pixmap(src_pixmap);
-		if (priv && priv->gpu_damage && !priv->cpu_damage) {
-			DBG(("%s: src is already on the GPU, try to use GPU\n",
-			     __FUNCTION__));
-			return FALSE;
-		}
+	if (!src_fallback) {
+		DBG(("%s: src is already on the GPU, try to use GPU\n",
+		     __FUNCTION__));
+		return FALSE;
 	}
-	if (mask_pixmap && !source_fallback(mask)) {
-		priv = sna_pixmap(mask_pixmap);
-		if (priv && priv->gpu_damage && !priv->cpu_damage) {
-			DBG(("%s: mask is already on the GPU, try to use GPU\n",
-			     __FUNCTION__));
-			return FALSE;
-		}
+	if (mask && !mask_fallback) {
+		DBG(("%s: mask is already on the GPU, try to use GPU\n",
+		     __FUNCTION__));
+		return FALSE;
 	}
 
 	/* However if the dst is not on the GPU and we need to
 	 * render one of the sources using the CPU, we may
 	 * as well do the entire operation in place onthe CPU.
 	 */
-	if (source_fallback(src)) {
+	if (src_fallback) {
 		DBG(("%s: dst is on the CPU and src will fallback\n",
 		     __FUNCTION__));
 		return TRUE;
 	}
 
-	if (mask && source_fallback(mask)) {
+	if (mask && mask_fallback) {
 		DBG(("%s: dst is on the CPU and mask will fallback\n",
 		     __FUNCTION__));
 		return TRUE;
@@ -2233,7 +2413,8 @@ gen4_render_composite(struct sna *sna,
 	switch (gen4_composite_picture(sna, src, &tmp->src,
 				       src_x, src_y,
 				       width, height,
-				       dst_x, dst_y)) {
+				       dst_x, dst_y,
+				       dst->polyMode == PolyModePrecise)) {
 	case -1:
 		DBG(("%s: failed to prepare source\n", __FUNCTION__));
 		goto cleanup_dst;
@@ -2278,7 +2459,8 @@ gen4_render_composite(struct sna *sna,
 			switch (gen4_composite_picture(sna, mask, &tmp->mask,
 						       msk_x, msk_y,
 						       width, height,
-						       dst_x, dst_y)) {
+						       dst_x, dst_y,
+						       dst->polyMode == PolyModePrecise)) {
 			case -1:
 				DBG(("%s: failed to prepare mask\n", __FUNCTION__));
 				goto cleanup_src;
@@ -2748,29 +2930,24 @@ gen4_render_fill_boxes(struct sna *sna,
 		return FALSE;
 	}
 
-	if (prefer_blt(sna) ||
-	    too_large(dst->drawable.width, dst->drawable.height) ||
-	    !gen4_check_dst_format(format)) {
+	if (op <= PictOpSrc &&
+	    (prefer_blt(sna) ||
+	     too_large(dst->drawable.width, dst->drawable.height) ||
+	     !gen4_check_dst_format(format))) {
 		uint8_t alu = -1;
 
-		if (op == PictOpClear || (op == PictOpOutReverse && color->alpha >= 0xff00))
-			alu = GXclear;
-
-		if (op == PictOpSrc || (op == PictOpOver && color->alpha >= 0xff00)) {
-			alu = GXcopy;
-			if (color->alpha <= 0x00ff)
-				alu = GXclear;
-		}
-
 		pixel = 0;
-		if ((alu == GXclear ||
-		     (alu == GXcopy &&
-		      sna_get_pixel_from_rgba(&pixel,
-					      color->red,
-					      color->green,
-					      color->blue,
-					      color->alpha,
-					      format))) &&
+		if (op == PictOpClear)
+			alu = GXclear;
+		else if (sna_get_pixel_from_rgba(&pixel,
+						 color->red,
+						 color->green,
+						 color->blue,
+						 color->alpha,
+						 format))
+			alu = GXcopy;
+
+		if (alu != -1 &&
 		    sna_blt_fill_boxes(sna, alu,
 				       dst_bo, dst->drawable.bitsPerPixel,
 				       pixel, box, n))
@@ -3059,6 +3236,15 @@ static void gen4_render_reset(struct sna *sna)
 	sna->render_state.gen4.drawrect_offset = -1;
 	sna->render_state.gen4.drawrect_limit = -1;
 	sna->render_state.gen4.surface_table = -1;
+
+	if (sna->render.vbo &&
+	    !kgem_bo_is_mappable(&sna->kgem, sna->render.vbo)) {
+		DBG(("%s: discarding unmappable vbo\n", __FUNCTION__));
+		kgem_bo_destroy(&sna->kgem, sna->render.vbo);
+		sna->render.vbo = NULL;
+		sna->render.vertices = sna->render.vertex_data;
+		sna->render.vertex_size = ARRAY_SIZE(sna->render.vertex_data);
+	}
 }
 
 static void gen4_render_fini(struct sna *sna)

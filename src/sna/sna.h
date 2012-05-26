@@ -115,11 +115,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "sna_damage.h"
 #include "sna_render.h"
 
-#ifndef CREATE_PIXMAP_USAGE_SCRATCH_HEADER
-#define FAKE_CREATE_PIXMAP_USAGE_SCRATCH_HEADER 1
-#define CREATE_PIXMAP_USAGE_SCRATCH_HEADER (unsigned)-1
-#endif
-
 #define SNA_CURSOR_X			64
 #define SNA_CURSOR_Y			SNA_CURSOR_X
 
@@ -134,12 +129,12 @@ struct sna_pixmap {
 
 	uint32_t stride;
 	uint32_t clear_color;
+	unsigned flush;
 
 #define SOURCE_BIAS 4
 	uint16_t source_count;
 	uint8_t pinned :1;
 	uint8_t mapped :1;
-	uint8_t flush :1;
 	uint8_t clear :1;
 	uint8_t undamaged :1;
 	uint8_t create :3;
@@ -226,13 +221,15 @@ struct sna {
 #define SNA_NO_THROTTLE		0x1
 #define SNA_NO_DELAYED_FLUSH	0x2
 
+	unsigned watch_flush;
+	unsigned flush;
+
 	int timer[NUM_TIMERS];
 	uint16_t timer_active;
 	uint16_t timer_ready;
 
 	int vblank_interval;
 
-	struct list deferred_free;
 	struct list dirty_pixmaps;
 	struct list active_pixmaps;
 	struct list inactive_clock[2];
@@ -260,7 +257,6 @@ struct sna {
 #define SNA_TILING_3D		0x4
 #define SNA_TILING_ALL (~0)
 
-	int Chipset;
 	EntityInfoPtr pEnt;
 	struct pci_device *PciInfo;
 	struct intel_chipset chipset;
@@ -367,6 +363,7 @@ extern xf86CrtcPtr sna_covering_crtc(ScrnInfoPtr scrn,
 
 extern bool sna_wait_for_scanline(struct sna *sna, PixmapPtr pixmap,
 				  xf86CrtcPtr crtc, const BoxRec *clip);
+extern bool sna_crtc_is_bound(struct sna *sna, xf86CrtcPtr crtc);
 
 Bool sna_dri_open(struct sna *sna, ScreenPtr pScreen);
 void sna_dri_wakeup(struct sna *sna);
@@ -374,6 +371,7 @@ void sna_dri_close(struct sna *sna, ScreenPtr pScreen);
 
 extern Bool sna_crtc_on(xf86CrtcPtr crtc);
 int sna_crtc_to_pipe(xf86CrtcPtr crtc);
+int sna_crtc_to_plane(xf86CrtcPtr crtc);
 
 CARD32 sna_format_for_depth(int depth);
 CARD32 sna_render_format_for_depth(int depth);
@@ -419,21 +417,11 @@ static inline Bool pixmap_is_scanout(PixmapPtr pixmap)
 	return pixmap == screen->GetScreenPixmap(screen);
 }
 
-struct sna_pixmap *_sna_pixmap_attach(PixmapPtr pixmap);
-inline static struct sna_pixmap *sna_pixmap_attach(PixmapPtr pixmap)
-{
-	struct sna_pixmap *priv;
-
-	priv = sna_pixmap(pixmap);
-	if (priv)
-		return priv;
-
-	return _sna_pixmap_attach(pixmap);
-}
-
 PixmapPtr sna_pixmap_create_upload(ScreenPtr screen,
 				   int width, int height, int depth,
 				   unsigned flags);
+PixmapPtr sna_pixmap_create_unattached(ScreenPtr screen,
+				       int width, int height, int depth);
 
 struct sna_pixmap *sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags);
 struct sna_pixmap *sna_pixmap_force_to_gpu(PixmapPtr pixmap, unsigned flags);
@@ -448,7 +436,7 @@ static inline bool must_check sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned 
 {
 	if (flags == MOVE_READ) {
 		struct sna_pixmap *priv = sna_pixmap(pixmap);
-		if (priv == NULL || priv->gpu_damage == NULL)
+		if (priv == NULL)
 			return true;
 	}
 
@@ -473,6 +461,13 @@ static inline bool must_check
 sna_drawable_move_to_gpu(DrawablePtr drawable, unsigned flags)
 {
 	return sna_pixmap_move_to_gpu(get_drawable_pixmap(drawable), flags) != NULL;
+}
+
+static inline bool
+sna_drawable_is_clear(DrawablePtr d)
+{
+	struct sna_pixmap *priv = sna_pixmap(get_drawable_pixmap(d));
+	return priv && priv->clear && priv->clear_color == 0;
 }
 
 static inline struct kgem_bo *sna_pixmap_get_bo(PixmapPtr pixmap)
@@ -576,6 +571,7 @@ Bool sna_accel_pre_init(struct sna *sna);
 Bool sna_accel_init(ScreenPtr sreen, struct sna *sna);
 void sna_accel_block_handler(struct sna *sna);
 void sna_accel_wakeup_handler(struct sna *sna, fd_set *ready);
+void sna_accel_watch_flush(struct sna *sna, int enable);
 void sna_accel_close(struct sna *sna);
 void sna_accel_free(struct sna *sna);
 
@@ -698,7 +694,6 @@ memcpy_xor(const void *src, void *dst, int bpp,
 
 #define SNA_CREATE_FB 0x10
 #define SNA_CREATE_SCRATCH 0x11
-#define SNA_CREATE_GLYPH 0x12
 
 inline static bool is_power_of_two(unsigned x)
 {

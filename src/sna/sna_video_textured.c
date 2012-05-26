@@ -273,7 +273,8 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 
 		assert(kgem_bo_size(frame.bo) >= frame.size);
 	} else {
-		frame.bo = kgem_create_linear(&sna->kgem, frame.size);
+		frame.bo = kgem_create_linear(&sna->kgem, frame.size,
+					      CREATE_GTT_MAP);
 		if (frame.bo == NULL) {
 			DBG(("%s: failed to allocate bo\n", __FUNCTION__));
 			return BadAlloc;
@@ -286,7 +287,8 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 		}
 	}
 
-	if (crtc && video->SyncToVblank != 0)
+	if (crtc && video->SyncToVblank != 0 &&
+	    pixmap == sna->front && !sna->shadow)
 		flush = sna_wait_for_scanline(sna, pixmap, crtc,
 					      &clip->extents);
 
@@ -305,8 +307,11 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 	/* Push the frame to the GPU as soon as possible so
 	 * we can hit the next vsync.
 	 */
-	if (flush)
+	if (flush) {
+		if (!sna_crtc_is_bound(sna, crtc))
+			sna->kgem.batch[sna->kgem.wait] = 0;
 		kgem_submit(&sna->kgem);
+	}
 
 	return ret;
 }

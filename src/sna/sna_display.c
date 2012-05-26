@@ -60,6 +60,7 @@ struct sna_crtc {
 	int num;
 	int id;
 	int pipe;
+	int plane;
 	int active;
 	struct list link;
 };
@@ -142,6 +143,12 @@ int sna_crtc_to_pipe(xf86CrtcPtr crtc)
 {
 	struct sna_crtc *sna_crtc = crtc->driver_private;
 	return sna_crtc->pipe;
+}
+
+int sna_crtc_to_plane(xf86CrtcPtr crtc)
+{
+	struct sna_crtc *sna_crtc = crtc->driver_private;
+	return sna_crtc->plane;
 }
 
 static uint32_t gem_create(int fd, int size)
@@ -429,6 +436,7 @@ sna_crtc_restore(struct sna *sna)
 
 	assert(bo->tiling != I915_TILING_Y);
 	bo->scanout = true;
+	bo->domain = DOMAIN_NONE;
 
 	DBG(("%s: create fb %dx%d@%d/%d\n",
 	     __FUNCTION__,
@@ -634,8 +642,10 @@ sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	     sna_mode->fb_pixmap,
 	     sna->front->drawable.serialNumber));
 
-	if (sna_mode->fb_pixmap != sna->front->drawable.serialNumber)
+	if (sna_mode->fb_pixmap != sna->front->drawable.serialNumber) {
+		kgem_submit(&sna->kgem);
 		sna_mode_remove_fb(sna);
+	}
 
 	if (sna_mode->fb_id == 0) {
 		struct kgem_bo *bo = sna_pixmap_pin(sna->front);
@@ -664,6 +674,7 @@ sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		DBG(("%s: handle %d attached to fb %d\n",
 		     __FUNCTION__, bo->handle, sna_mode->fb_id));
 		bo->scanout = true;
+		bo->domain = DOMAIN_NONE;
 		sna_mode->fb_pixmap = sna->front->drawable.serialNumber;
 	}
 
@@ -676,8 +687,6 @@ sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	crtc->x = x;
 	crtc->y = y;
 	crtc->rotation = rotation;
-
-	kgem_submit(&sna->kgem);
 
 	mode_to_kmode(&sna_crtc->kmode, mode);
 	if (!sna_crtc_apply(crtc)) {
@@ -780,6 +789,7 @@ sna_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 	DBG(("%s: attached handle %d to fb %d\n",
 	     __FUNCTION__, bo->handle, sna_crtc->shadow_fb_id));
 	bo->scanout = true;
+	bo->domain = DOMAIN_NONE;
 	return sna_crtc->shadow = shadow;
 }
 
@@ -852,6 +862,37 @@ static const xf86CrtcFuncsRec sna_crtc_funcs = {
 	.destroy = sna_crtc_destroy,
 };
 
+static uint32_t
+sna_crtc_find_plane(struct sna *sna, int pipe)
+{
+	drmModePlaneRes *resources;
+	uint32_t id = 0;
+	int i;
+
+	resources = drmModeGetPlaneResources(sna->kgem.fd);
+	if (!resources) {
+		xf86DrvMsg(sna->scrn->scrnIndex, X_ERROR,
+			   "failed to get plane resources: %s\n",
+			   strerror(errno));
+		return 0;
+	}
+
+	for (i = 0; id == 0 && i < resources->count_planes; i++) {
+		drmModePlane *p;
+
+		p = drmModeGetPlane(sna->kgem.fd, resources->planes[i]);
+		if (p) {
+			if (p->possible_crtcs & (1 << pipe))
+				id = p->plane_id;
+
+			drmModeFreePlane(p);
+		}
+	}
+
+	free(resources);
+	return id;
+}
+
 static void
 sna_crtc_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 {
@@ -878,6 +919,7 @@ sna_crtc_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 		 DRM_IOCTL_I915_GET_PIPE_FROM_CRTC_ID,
 		 &get_pipe);
 	sna_crtc->pipe = get_pipe.pipe;
+	sna_crtc->plane = sna_crtc_find_plane(sna, sna_crtc->pipe);
 
 	if (xf86IsEntityShared(scrn->entityList[0]) &&
 	    scrn->confScreen->device->screen != sna_crtc->pipe) {
@@ -1205,6 +1247,33 @@ sna_property_ignore(drmModePropertyPtr prop)
 	return FALSE;
 }
 
+static void
+sna_output_create_ranged_atom(xf86OutputPtr output, Atom *atom,
+			      const char *name, INT32 min, INT32 max,
+			      uint64_t value, Bool immutable)
+{
+	int err;
+	INT32 atom_range[2];
+
+	atom_range[0] = min;
+	atom_range[1] = max;
+
+	*atom = MakeAtom(name, strlen(name), TRUE);
+
+	err = RRConfigureOutputProperty(output->randr_output, *atom, FALSE,
+					TRUE, immutable, 2, atom_range);
+	if (err != 0)
+		xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
+			   "RRConfigureOutputProperty error, %d\n", err);
+
+	err = RRChangeOutputProperty(output->randr_output, *atom, XA_INTEGER,
+				     32, PropModeReplace, 1, &value, FALSE,
+				     TRUE);
+	if (err != 0)
+		xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
+			   "RRChangeOutputProperty error, %d\n", err);
+}
+
 #define BACKLIGHT_NAME             "Backlight"
 #define BACKLIGHT_DEPRECATED_NAME  "BACKLIGHT"
 static Atom backlight_atom, backlight_deprecated_atom;
@@ -1244,30 +1313,18 @@ sna_output_create_resources(xf86OutputPtr output)
 		drmModePropertyPtr drmmode_prop = p->mode_prop;
 
 		if (drmmode_prop->flags & DRM_MODE_PROP_RANGE) {
-			INT32 range[2];
-
 			p->num_atoms = 1;
 			p->atoms = calloc(p->num_atoms, sizeof(Atom));
 			if (!p->atoms)
 				continue;
 
-			p->atoms[0] = MakeAtom(drmmode_prop->name, strlen(drmmode_prop->name), TRUE);
-			range[0] = drmmode_prop->values[0];
-			range[1] = drmmode_prop->values[1];
-			err = RRConfigureOutputProperty(output->randr_output, p->atoms[0],
-							FALSE, TRUE,
-							drmmode_prop->flags & DRM_MODE_PROP_IMMUTABLE ? TRUE : FALSE,
-							2, range);
-			if (err != 0) {
-				xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
-					   "RRConfigureOutputProperty error, %d\n", err);
-			}
-			err = RRChangeOutputProperty(output->randr_output, p->atoms[0],
-						     XA_INTEGER, 32, PropModeReplace, 1, &p->value, FALSE, TRUE);
-			if (err != 0) {
-				xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
-					   "RRChangeOutputProperty error, %d\n", err);
-			}
+			sna_output_create_ranged_atom(output, &p->atoms[0],
+						      drmmode_prop->name,
+						      drmmode_prop->values[0],
+						      drmmode_prop->values[1],
+						      p->value,
+						      drmmode_prop->flags & DRM_MODE_PROP_IMMUTABLE ? TRUE : FALSE);
+
 		} else if (drmmode_prop->flags & DRM_MODE_PROP_ENUM) {
 			p->num_atoms = drmmode_prop->count_enums + 1;
 			p->atoms = calloc(p->num_atoms, sizeof(Atom));
@@ -1303,50 +1360,21 @@ sna_output_create_resources(xf86OutputPtr output)
 	}
 
 	if (sna_output->backlight_iface) {
-		INT32 data, backlight_range[2];
-
 		/* Set up the backlight property, which takes effect
 		 * immediately and accepts values only within the
 		 * backlight_range.
 		 */
-		backlight_atom = MakeAtom(BACKLIGHT_NAME, sizeof(BACKLIGHT_NAME) - 1, TRUE);
-		backlight_deprecated_atom = MakeAtom(BACKLIGHT_DEPRECATED_NAME,
-						     sizeof(BACKLIGHT_DEPRECATED_NAME) - 1, TRUE);
-
-		backlight_range[0] = 0;
-		backlight_range[1] = sna_output->backlight_max;
-		err = RRConfigureOutputProperty(output->randr_output,
-					       	backlight_atom,
-						FALSE, TRUE, FALSE,
-					       	2, backlight_range);
-		if (err != 0) {
-			xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
-				   "RRConfigureOutputProperty error, %d\n", err);
-		}
-		err = RRConfigureOutputProperty(output->randr_output,
-					       	backlight_deprecated_atom,
-						FALSE, TRUE, FALSE,
-					       	2, backlight_range);
-		if (err != 0) {
-			xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
-				   "RRConfigureOutputProperty error, %d\n", err);
-		}
-		/* Set the current value of the backlight property */
-		data = sna_output->backlight_active_level;
-		err = RRChangeOutputProperty(output->randr_output, backlight_atom,
-					     XA_INTEGER, 32, PropModeReplace, 1, &data,
-					     FALSE, TRUE);
-		if (err != 0) {
-			xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
-				   "RRChangeOutputProperty error, %d\n", err);
-		}
-		err = RRChangeOutputProperty(output->randr_output, backlight_deprecated_atom,
-					     XA_INTEGER, 32, PropModeReplace, 1, &data,
-					     FALSE, TRUE);
-		if (err != 0) {
-			xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
-				   "RRChangeOutputProperty error, %d\n", err);
-		}
+		sna_output_create_ranged_atom(output, &backlight_atom,
+					BACKLIGHT_NAME, 0,
+					sna_output->backlight_max,
+					sna_output->backlight_active_level,
+					FALSE);
+		sna_output_create_ranged_atom(output,
+					&backlight_deprecated_atom,
+					BACKLIGHT_DEPRECATED_NAME, 0,
+					sna_output->backlight_max,
+					sna_output->backlight_active_level,
+					FALSE);
 	}
 }
 
@@ -1700,6 +1728,7 @@ sna_crtc_resize(ScrnInfoPtr scrn, int width, int height)
 		if (!sna_crtc_apply(crtc))
 			goto fail;
 	}
+	bo->domain = DOMAIN_NONE;
 
 	scrn->virtualX = width;
 	scrn->virtualY = height;
@@ -1844,6 +1873,7 @@ sna_page_flip(struct sna *sna,
 	DBG(("%s: page flipped %d crtcs\n", __FUNCTION__, count));
 	if (count) {
 		bo->scanout = true;
+		bo->domain = DOMAIN_NONE;
 	} else {
 		drmModeRmFB(sna->kgem.fd, mode->fb_id);
 		mode->fb_id = *old_fb;
@@ -1993,6 +2023,10 @@ sna_covering_crtc(ScrnInfoPtr scrn,
 	int best_coverage, c;
 	BoxRec best_crtc_box;
 
+	/* If we do not own the VT, we do not own the CRTC either */
+	if (!scrn->vtSema)
+		return NULL;
+
 	DBG(("%s for box=(%d, %d), (%d, %d)\n",
 	     __FUNCTION__, box->x1, box->y1, box->x2, box->y2));
 
@@ -2077,14 +2111,44 @@ static void sna_emit_wait_for_scanline_gen6(struct sna *sna,
 	b[1] = pipe;
 	b[2] = y2 - 1;
 	b[3] = MI_WAIT_FOR_EVENT | event;
+	sna->kgem.wait = sna->kgem.nbatch + 3;
 	kgem_advance_batch(&sna->kgem, 4);
+}
+
+static void sna_emit_wait_for_scanline_gen4(struct sna *sna,
+					    int pipe, int y1, int y2,
+					    bool full_height)
+{
+	uint32_t event;
+	uint32_t *b;
+
+	if (pipe == 0) {
+		if (full_height)
+			event = MI_WAIT_FOR_PIPEA_SVBLANK;
+		else
+			event = MI_WAIT_FOR_PIPEA_SCAN_LINE_WINDOW;
+	} else {
+		if (full_height)
+			event = MI_WAIT_FOR_PIPEB_SVBLANK;
+		else
+			event = MI_WAIT_FOR_PIPEB_SCAN_LINE_WINDOW;
+	}
+
+	kgem_set_mode(&sna->kgem, KGEM_BLT);
+	b = kgem_get_batch(&sna->kgem, 5);
+	/* The documentation says that the LOAD_SCAN_LINES command
+	 * always comes in pairs. Don't ask me why. */
+	b[2] = b[0] = MI_LOAD_SCAN_LINES_INCL | pipe << 20;
+	b[3] = b[1] = (y1 << 16) | (y2-1);
+	b[4] = MI_WAIT_FOR_EVENT | event;
+	sna->kgem.wait = sna->kgem.nbatch + 4;
+	kgem_advance_batch(&sna->kgem, 5);
 }
 
 static void sna_emit_wait_for_scanline_gen2(struct sna *sna,
 					    int pipe, int y1, int y2,
 					    bool full_height)
 {
-	uint32_t event;
 	uint32_t *b;
 
 	/*
@@ -2092,29 +2156,20 @@ static void sna_emit_wait_for_scanline_gen2(struct sna *sna,
 	 * of extra time for the blitter to start up and
 	 * do its job for a full height blit
 	 */
-	if (pipe == 0) {
-		pipe = MI_LOAD_SCAN_LINES_DISPLAY_PIPEA;
-		event = MI_WAIT_FOR_PIPEA_SCAN_LINE_WINDOW;
-		if (full_height)
-			event = MI_WAIT_FOR_PIPEA_SVBLANK;
-	} else {
-		pipe = MI_LOAD_SCAN_LINES_DISPLAY_PIPEB;
-		event = MI_WAIT_FOR_PIPEB_SCAN_LINE_WINDOW;
-		if (full_height)
-			event = MI_WAIT_FOR_PIPEB_SVBLANK;
-	}
+	if (full_height)
+		y2 -= 2;
 
-	if (sna->kgem.mode == KGEM_NONE)
-		kgem_set_mode(&sna->kgem, KGEM_BLT);
-
+	kgem_set_mode(&sna->kgem, KGEM_BLT);
 	b = kgem_get_batch(&sna->kgem, 5);
 	/* The documentation says that the LOAD_SCAN_LINES command
 	 * always comes in pairs. Don't ask me why. */
-	b[0] = MI_LOAD_SCAN_LINES_INCL | pipe;
-	b[1] = (y1 << 16) | (y2-1);
-	b[2] = MI_LOAD_SCAN_LINES_INCL | pipe;
-	b[3] = (y1 << 16) | (y2-1);
-	b[4] = MI_WAIT_FOR_EVENT | event;
+	b[2] = b[0] = MI_LOAD_SCAN_LINES_INCL | pipe << 20;
+	b[3] = b[1] = (y1 << 16) | (y2-1);
+	if (pipe == 0)
+		b[4] = MI_WAIT_FOR_EVENT | MI_WAIT_FOR_PIPEA_SCAN_LINE_WINDOW;
+	else
+		b[4] = MI_WAIT_FOR_EVENT | MI_WAIT_FOR_PIPEB_SCAN_LINE_WINDOW;
+	sna->kgem.wait = sna->kgem.nbatch + 4;
 	kgem_advance_batch(&sna->kgem, 5);
 }
 
@@ -2128,21 +2183,15 @@ sna_wait_for_scanline(struct sna *sna,
 	Bool full_height;
 	int y1, y2, pipe;
 
+	assert(crtc);
+	assert(sna_crtc_on(crtc));
+	assert(pixmap_is_scanout(pixmap));
+
 	/* XXX WAIT_EVENT is still causing hangs on SNB */
 	if (sna->kgem.gen >= 60)
 		return false;
 
-	if (!pixmap_is_scanout(pixmap))
-		return false;
-
-	if (crtc == NULL) {
-		crtc = sna_covering_crtc(sna->scrn, clip, NULL, &crtc_box);
-		if (crtc == NULL)
-			return false;
-	} else
-		sna_crtc_box(crtc, &crtc_box);
-	assert(sna_crtc_on(crtc));
-
+	sna_crtc_box(crtc, &crtc_box);
 	if (crtc->transform_in_use) {
 		box = *clip;
 		pixman_f_transform_bounds(&crtc->f_framebuffer_to_crtc, &box);
@@ -2177,8 +2226,21 @@ sna_wait_for_scanline(struct sna *sna,
 
 	if (sna->kgem.gen >= 60)
 		sna_emit_wait_for_scanline_gen6(sna, pipe, y1, y2, full_height);
+	else if (sna->kgem.gen >= 40)
+		sna_emit_wait_for_scanline_gen4(sna, pipe, y1, y2, full_height);
 	else
 		sna_emit_wait_for_scanline_gen2(sna, pipe, y1, y2, full_height);
 
 	return true;
+}
+
+bool sna_crtc_is_bound(struct sna *sna, xf86CrtcPtr crtc)
+{
+	struct drm_mode_crtc mode;
+
+	mode.crtc_id = crtc_id(crtc->driver_private);
+	if (drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_GETCRTC, &mode))
+		return false;
+
+	return mode.mode_valid && sna->mode.fb_id == mode.fb_id;
 }
