@@ -1,3 +1,9 @@
+xserver-xorg-video-intel (2:2.19.0-1) unstable; urgency=low
+
+  * New upstream release.
+
+ -- Julien Cristau <jcristau@debian.org>  Sat, 26 May 2012 12:38:07 +0200
+
 xserver-xorg-video-intel (2:2.18.0-2) unstable; urgency=low
 
   * Cherry-pick a change from upstream to fix a bug triggered by cairo 1.12:

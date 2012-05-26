@@ -812,8 +812,10 @@ uxa_glyphs_via_mask(CARD8 op,
 				if (!uxa_pixmap_is_offscreen(src_pixmap) ||
 				    !uxa_screen->info->prepare_composite(PictOpAdd,
 									 this_atlas, NULL, mask,
-									 src_pixmap, NULL, pixmap))
+									 src_pixmap, NULL, pixmap)) {
+					FreePicture(mask, 0);
 					return -1;
+				}
 
 				glyph_atlas = this_atlas;
 			}

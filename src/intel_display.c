@@ -992,6 +992,33 @@ intel_property_ignore(drmModePropertyPtr prop)
 	return FALSE;
 }
 
+static void
+intel_output_create_ranged_atom(xf86OutputPtr output, Atom *atom,
+				const char *name, INT32 min, INT32 max,
+				uint64_t value, Bool immutable)
+{
+	int err;
+	INT32 atom_range[2];
+
+	atom_range[0] = min;
+	atom_range[1] = max;
+
+	*atom = MakeAtom(name, strlen(name), TRUE);
+
+	err = RRConfigureOutputProperty(output->randr_output, *atom, FALSE,
+					TRUE, immutable, 2, atom_range);
+	if (err != 0)
+		xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
+			   "RRConfigureOutputProperty error, %d\n", err);
+
+	err = RRChangeOutputProperty(output->randr_output, *atom, XA_INTEGER,
+				     32, PropModeReplace, 1, &value, FALSE,
+				     TRUE);
+	if (err != 0)
+		xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
+			   "RRChangeOutputProperty error, %d\n", err);
+}
+
 #define BACKLIGHT_NAME             "Backlight"
 #define BACKLIGHT_DEPRECATED_NAME  "BACKLIGHT"
 static Atom backlight_atom, backlight_deprecated_atom;
@@ -1031,30 +1058,18 @@ intel_output_create_resources(xf86OutputPtr output)
 		drmModePropertyPtr drmmode_prop = p->mode_prop;
 
 		if (drmmode_prop->flags & DRM_MODE_PROP_RANGE) {
-			INT32 range[2];
-
 			p->num_atoms = 1;
 			p->atoms = calloc(p->num_atoms, sizeof(Atom));
 			if (!p->atoms)
 				continue;
 
-			p->atoms[0] = MakeAtom(drmmode_prop->name, strlen(drmmode_prop->name), TRUE);
-			range[0] = drmmode_prop->values[0];
-			range[1] = drmmode_prop->values[1];
-			err = RRConfigureOutputProperty(output->randr_output, p->atoms[0],
-							FALSE, TRUE,
-							drmmode_prop->flags & DRM_MODE_PROP_IMMUTABLE ? TRUE : FALSE,
-							2, range);
-			if (err != 0) {
-				xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
-					   "RRConfigureOutputProperty error, %d\n", err);
-			}
-			err = RRChangeOutputProperty(output->randr_output, p->atoms[0],
-						     XA_INTEGER, 32, PropModeReplace, 1, &p->value, FALSE, TRUE);
-			if (err != 0) {
-				xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
-					   "RRChangeOutputProperty error, %d\n", err);
-			}
+			intel_output_create_ranged_atom(output, &p->atoms[0],
+							drmmode_prop->name,
+							drmmode_prop->values[0],
+							drmmode_prop->values[1],
+							p->value,
+							drmmode_prop->flags & DRM_MODE_PROP_IMMUTABLE ? TRUE : FALSE);
+
 		} else if (drmmode_prop->flags & DRM_MODE_PROP_ENUM) {
 			p->num_atoms = drmmode_prop->count_enums + 1;
 			p->atoms = calloc(p->num_atoms, sizeof(Atom));
@@ -1090,50 +1105,21 @@ intel_output_create_resources(xf86OutputPtr output)
 	}
 
 	if (intel_output->backlight_iface) {
-		INT32 data, backlight_range[2];
-
 		/* Set up the backlight property, which takes effect
 		 * immediately and accepts values only within the
 		 * backlight_range.
 		 */
-		backlight_atom = MakeAtom(BACKLIGHT_NAME, sizeof(BACKLIGHT_NAME) - 1, TRUE);
-		backlight_deprecated_atom = MakeAtom(BACKLIGHT_DEPRECATED_NAME,
-						     sizeof(BACKLIGHT_DEPRECATED_NAME) - 1, TRUE);
-
-		backlight_range[0] = 0;
-		backlight_range[1] = intel_output->backlight_max;
-		err = RRConfigureOutputProperty(output->randr_output,
-					       	backlight_atom,
-						FALSE, TRUE, FALSE,
-					       	2, backlight_range);
-		if (err != 0) {
-			xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
-				   "RRConfigureOutputProperty error, %d\n", err);
-		}
-		err = RRConfigureOutputProperty(output->randr_output,
-					       	backlight_deprecated_atom,
-						FALSE, TRUE, FALSE,
-					       	2, backlight_range);
-		if (err != 0) {
-			xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
-				   "RRConfigureOutputProperty error, %d\n", err);
-		}
-		/* Set the current value of the backlight property */
-		data = intel_output->backlight_active_level;
-		err = RRChangeOutputProperty(output->randr_output, backlight_atom,
-					     XA_INTEGER, 32, PropModeReplace, 1, &data,
-					     FALSE, TRUE);
-		if (err != 0) {
-			xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
-				   "RRChangeOutputProperty error, %d\n", err);
-		}
-		err = RRChangeOutputProperty(output->randr_output, backlight_deprecated_atom,
-					     XA_INTEGER, 32, PropModeReplace, 1, &data,
-					     FALSE, TRUE);
-		if (err != 0) {
-			xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
-				   "RRChangeOutputProperty error, %d\n", err);
-		}
+		intel_output_create_ranged_atom(output, &backlight_atom,
+					BACKLIGHT_NAME, 0,
+					intel_output->backlight_max,
+					intel_output->backlight_active_level,
+					FALSE);
+		intel_output_create_ranged_atom(output,
+					&backlight_deprecated_atom,
+					BACKLIGHT_DEPRECATED_NAME, 0,
+					intel_output->backlight_max,
+					intel_output->backlight_active_level,
+					FALSE);
 	}
 }
 

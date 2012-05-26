@@ -20,6 +20,9 @@
 /* Are we in a git checkout? */
 #undef HAVE_DOT_GIT
 
+/* Enable DRI driver support */
+#undef HAVE_DRI1
+
 /* Define to 1 if you have the <dristruct.h> header file. */
 #undef HAVE_DRISTRUCT_H
 
@@ -65,7 +68,7 @@
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
 
-/* Use valgrind intrinsics to suppress false warings */
+/* Use valgrind intrinsics to suppress false warnings */
 #undef HAVE_VALGRIND
 
 /* Assume KMS support */
@@ -132,8 +135,8 @@
 /* Version number of package */
 #undef VERSION
 
-/* Enable DRI driver support */
-#undef XF86DRI
+/* Number of bits in a file offset, on hosts where this is settable. */
+#undef _FILE_OFFSET_BITS
 
-/* Enable developmental DRI driver support */
-#undef XF86DRI_DEVEL
+/* Define for large files, on AIX-style hosts. */
+#undef _LARGE_FILES

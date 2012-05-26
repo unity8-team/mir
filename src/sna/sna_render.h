@@ -204,6 +204,7 @@ struct sna_render {
 				unsigned flags,
 				struct sna_composite_spans_op *tmp);
 #define COMPOSITE_SPANS_RECTILINEAR 0x1
+#define COMPOSITE_SPANS_INPLACE_HINT 0x2
 
 	Bool (*video)(struct sna *sna,
 		      struct sna_video *video,
@@ -427,6 +428,7 @@ enum {
 };
 
 struct gen7_render_state {
+	const struct gt_info *info;
 	struct kgem_bo *general_bo;
 
 	uint32_t vs_state;
@@ -482,6 +484,13 @@ sna_render_get_gradient(struct sna *sna,
 			PictGradient *pattern);
 
 uint32_t sna_rgba_for_color(uint32_t color, int depth);
+uint32_t sna_rgba_to_color(uint32_t rgba, uint32_t format);
+Bool sna_get_rgba_from_pixel(uint32_t pixel,
+			     uint16_t *red,
+			     uint16_t *green,
+			     uint16_t *blue,
+			     uint16_t *alpha,
+			     uint32_t format);
 Bool sna_picture_is_solid(PicturePtr picture, uint32_t *color);
 
 void no_render_init(struct sna *sna);
@@ -611,6 +620,14 @@ sna_render_picture_extract(struct sna *sna,
 			   int16_t x, int16_t y,
 			   int16_t w, int16_t h,
 			   int16_t dst_x, int16_t dst_y);
+
+int
+sna_render_picture_approximate_gradient(struct sna *sna,
+					PicturePtr picture,
+					struct sna_composite_channel *channel,
+					int16_t x, int16_t y,
+					int16_t w, int16_t h,
+					int16_t dst_x, int16_t dst_y);
 
 int
 sna_render_picture_fixup(struct sna *sna,

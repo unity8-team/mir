@@ -323,7 +323,7 @@ use_cpu_bo(struct sna *sna, PixmapPtr pixmap, const BoxRec *box)
 		}
 
 		if (priv->gpu_bo->tiling != I915_TILING_NONE &&
-		    priv->cpu_bo->pitch >= 4096) {
+		    (priv->cpu_bo->vmap || priv->cpu_bo->pitch >= 4096)) {
 			DBG(("%s: GPU bo exists and is tiled [%d], upload\n",
 			     __FUNCTION__, priv->gpu_bo->tiling));
 			return NULL;
@@ -332,145 +332,117 @@ use_cpu_bo(struct sna *sna, PixmapPtr pixmap, const BoxRec *box)
 		int w = box->x2 - box->x1;
 		int h = box->y2 - box->y1;
 
-		if ((priv->create & KGEM_CAN_CREATE_GPU) == 0)
-			goto done;
+		if (priv->cpu_bo->vmap && priv->source_count > SOURCE_BIAS) {
+			DBG(("%s: promoting snooped CPU bo due to reuse\n",
+			     __FUNCTION__));
+			return NULL;
+		}
 
-		if (priv->source_count*w*h >= pixmap->drawable.width * pixmap->drawable.height &&
-		    I915_TILING_NONE != kgem_choose_tiling(&sna->kgem, I915_TILING_X,
-							   pixmap->drawable.width,
-							   pixmap->drawable.height,
-							   pixmap->drawable.bitsPerPixel)) {
+		if (priv->source_count++*w*h >= (int)pixmap->drawable.width * pixmap->drawable.height &&
+		     I915_TILING_NONE != kgem_choose_tiling(&sna->kgem, I915_TILING_X,
+							    pixmap->drawable.width,
+							    pixmap->drawable.height,
+							    pixmap->drawable.bitsPerPixel)) {
 			DBG(("%s: pitch (%d) requires tiling\n",
 			     __FUNCTION__, priv->cpu_bo->pitch));
 			return NULL;
 		}
 	}
 
-done:
 	DBG(("%s for box=(%d, %d), (%d, %d)\n",
 	     __FUNCTION__, box->x1, box->y1, box->x2, box->y2));
 	return priv->cpu_bo;
 }
 
-static Bool
+static struct kgem_bo *
 move_to_gpu(PixmapPtr pixmap, const BoxRec *box)
 {
 	struct sna_pixmap *priv;
 	int count, w, h;
+	bool migrate = false;
 
 	if (DBG_FORCE_UPLOAD > 0)
-		return FALSE;
+		return NULL;
+
+	priv = sna_pixmap(pixmap);
+	if (priv == NULL) {
+		DBG(("%s: not migrating unattached pixmap\n",
+		     __FUNCTION__));
+		return NULL;
+	}
+
+	if (priv->gpu_bo) {
+		if (priv->cpu_damage &&
+		    sna_damage_contains_box(priv->cpu_damage,
+					    box) != PIXMAN_REGION_OUT) {
+			if (!sna_pixmap_move_to_gpu(pixmap, MOVE_READ))
+				return NULL;
+		}
+
+		return priv->gpu_bo;
+	}
 
 	if (pixmap->usage_hint) {
 		DBG(("%s: not migrating pixmap due to usage_hint=%d\n",
 		     __FUNCTION__, pixmap->usage_hint));
-		return FALSE;
+		return NULL;
 	}
 
 	if (DBG_FORCE_UPLOAD < 0)
-		return TRUE;
+		migrate = true;
 
 	w = box->x2 - box->x1;
 	h = box->y2 - box->y1;
 	if (w == pixmap->drawable.width && h == pixmap->drawable.height) {
-		bool upload;
-
-		priv = sna_pixmap_attach(pixmap);
-		if (!priv)
-			return false;
-
-		upload = true;
+		migrate = true;
 		if ((priv->create & KGEM_CAN_CREATE_GPU) == 0 ||
 		    kgem_choose_tiling(&to_sna_from_pixmap(pixmap)->kgem,
 				       I915_TILING_X,
 				       pixmap->drawable.width,
 				       pixmap->drawable.height,
 				       pixmap->drawable.bitsPerPixel) == I915_TILING_NONE)
-			upload = priv->source_count++ > SOURCE_BIAS;
+			migrate = priv->source_count++ > SOURCE_BIAS;
 
-		DBG(("%s: migrating whole pixmap (%dx%d) for source (%d,%d),(%d,%d)? %d\n",
+		DBG(("%s: migrating whole pixmap (%dx%d) for source (%d,%d),(%d,%d), count %d? %d\n",
 		     __FUNCTION__,
 		     pixmap->drawable.width, pixmap->drawable.height,
-		     box->x1, box->y1, box->x2, box->y2,
-		     upload));
-		return upload;
+		     box->x1, box->y1, box->x2, box->y2, priv->source_count,
+		     migrate));
+	} else {
+		/* ignore tiny fractions */
+		if (64*w*h > pixmap->drawable.width * pixmap->drawable.height) {
+			count = priv->source_count++;
+			if ((priv->create & KGEM_CAN_CREATE_GPU) == 0 ||
+			    kgem_choose_tiling(&to_sna_from_pixmap(pixmap)->kgem,
+					       I915_TILING_X,
+					       pixmap->drawable.width,
+					       pixmap->drawable.height,
+					       pixmap->drawable.bitsPerPixel) == I915_TILING_NONE)
+				count -= SOURCE_BIAS;
+
+			DBG(("%s: migrate box (%d, %d), (%d, %d)? source count=%d, fraction=%d/%d [%d]\n",
+			     __FUNCTION__,
+			     box->x1, box->y1, box->x2, box->y2,
+			     count, w*h,
+			     pixmap->drawable.width * pixmap->drawable.height,
+			     pixmap->drawable.width * pixmap->drawable.height / (w*h)));
+
+			migrate =  count*w*h > pixmap->drawable.width * pixmap->drawable.height;
+		}
 	}
 
-	/* ignore tiny fractions */
-	if (64*w*h < pixmap->drawable.width * pixmap->drawable.height)
-		return FALSE;
+	if (migrate && !sna_pixmap_force_to_gpu(pixmap, MOVE_READ))
+		return NULL;
 
-	priv = sna_pixmap_attach(pixmap);
-	if (!priv)
-		return FALSE;
-
-	count = priv->source_count++;
-	if ((priv->create & KGEM_CAN_CREATE_GPU) == 0 ||
-	    kgem_choose_tiling(&to_sna_from_pixmap(pixmap)->kgem,
-			       I915_TILING_X,
-			       pixmap->drawable.width,
-			       pixmap->drawable.height,
-			       pixmap->drawable.bitsPerPixel) == I915_TILING_NONE)
-		count -= SOURCE_BIAS;
-
-	DBG(("%s: migrate box (%d, %d), (%d, %d)? source count=%d, fraction=%d/%d [%d]\n",
-	     __FUNCTION__,
-	     box->x1, box->y1, box->x2, box->y2,
-	     count, w*h,
-	     pixmap->drawable.width * pixmap->drawable.height,
-	     pixmap->drawable.width * pixmap->drawable.height / (w*h)));
-
-	return count*w*h > pixmap->drawable.width * pixmap->drawable.height;
+	return priv->gpu_bo;
 }
-
-static Bool
-_texture_is_cpu(PixmapPtr pixmap, const BoxRec *box)
-{
-	struct sna_pixmap *priv = sna_pixmap(pixmap);
-
-	if (priv == NULL)
-		return TRUE;
-
-	if (priv->gpu_bo == NULL)
-		return TRUE;
-
-	if (!priv->cpu_damage)
-		return FALSE;
-
-	if (DAMAGE_IS_ALL(priv->cpu_damage))
-		return TRUE;
-
-	if (sna_damage_contains_box__no_reduce(priv->cpu_damage, box))
-		return TRUE;
-
-	if (sna_damage_contains_box(priv->gpu_damage, box) != PIXMAN_REGION_OUT)
-		return FALSE;
-
-	return sna_damage_contains_box(priv->cpu_damage, box) != PIXMAN_REGION_OUT;
-}
-
-#if DEBUG_RENDER
-static Bool
-texture_is_cpu(PixmapPtr pixmap, const BoxRec *box)
-{
-	Bool ret = _texture_is_cpu(pixmap, box);
-	ErrorF("%s(pixmap=%p, box=((%d, %d), (%d, %d)) = %d\n",
-	       __FUNCTION__, pixmap, box->x1, box->y1, box->x2, box->y2, ret);
-	return ret;
-}
-#else
-static Bool
-texture_is_cpu(PixmapPtr pixmap, const BoxRec *box)
-{
-	return _texture_is_cpu(pixmap, box);
-}
-#endif
 
 static struct kgem_bo *upload(struct sna *sna,
 			      struct sna_composite_channel *channel,
 			      PixmapPtr pixmap,
 			      BoxPtr box)
 {
+	struct sna_pixmap *priv;
 	struct kgem_bo *bo;
 
 	DBG(("%s: box=(%d, %d), (%d, %d), pixmap=%dx%d\n",
@@ -479,6 +451,19 @@ static struct kgem_bo *upload(struct sna *sna,
 	assert(box->y1 >= 0);
 	assert(box->x2 <= pixmap->drawable.width);
 	assert(box->y2 <= pixmap->drawable.height);
+
+	priv = sna_pixmap(pixmap);
+	if (priv) {
+		/* As we know this box is on the CPU just fixup the shadow */
+		if (priv->mapped) {
+			pixmap->devPrivate.ptr = NULL;
+			priv->mapped = false;
+		}
+		if (pixmap->devPrivate.ptr == NULL) {
+			pixmap->devPrivate.ptr = priv->ptr;
+			pixmap->devKind = priv->stride;
+		}
+	}
 
 	bo = kgem_upload_source_image(&sna->kgem,
 				      pixmap->devPrivate.ptr, box,
@@ -491,6 +476,12 @@ static struct kgem_bo *upload(struct sna *sna,
 		channel->offset[1] -= box->y1;
 		channel->scale[0] = 1.f/channel->width;
 		channel->scale[1] = 1.f/channel->height;
+
+		if (priv &&
+		    pixmap->usage_hint == 0 &&
+		    channel->width  == pixmap->drawable.width &&
+		    channel->height == pixmap->drawable.height)
+			kgem_proxy_bo_attach(bo, &priv->gpu_bo);
 	}
 
 	return bo;
@@ -521,14 +512,15 @@ sna_render_pixmap_bo(struct sna *sna,
 	priv = sna_pixmap(pixmap);
 	if (priv) {
 		if (priv->gpu_bo &&
-		    (DAMAGE_IS_ALL(priv->gpu_damage) || !priv->cpu_damage)) {
+		    (DAMAGE_IS_ALL(priv->gpu_damage) || !priv->cpu_damage ||
+		     priv->gpu_bo->proxy)) {
 			channel->bo = kgem_bo_reference(priv->gpu_bo);
 			return 1;
 		}
 
 		if (priv->cpu_bo &&
 		    (DAMAGE_IS_ALL(priv->cpu_damage) || !priv->gpu_damage) &&
-		    priv->cpu_bo->pitch < 4096) {
+		    !priv->cpu_bo->vmap && priv->cpu_bo->pitch < 4096) {
 			channel->bo = kgem_bo_reference(priv->cpu_bo);
 			return 1;
 		}
@@ -586,22 +578,13 @@ sna_render_pixmap_bo(struct sna *sna,
 	if (bo) {
 		bo = kgem_bo_reference(bo);
 	} else {
-		if (texture_is_cpu(pixmap, &box) && !move_to_gpu(pixmap, &box)) {
+		bo = move_to_gpu(pixmap, &box);
+		if (bo == NULL) {
 			DBG(("%s: uploading CPU box (%d, %d), (%d, %d)\n",
 			     __FUNCTION__, box.x1, box.y1, box.x2, box.y2));
 			bo = upload(sna, channel, pixmap, &box);
-		}
-
-		if (bo == NULL) {
-			priv = sna_pixmap_move_to_gpu(pixmap, MOVE_READ);
-			if (priv) {
-				bo = kgem_bo_reference(priv->gpu_bo);
-			} else {
-				DBG(("%s: failed to upload pixmap to gpu, uploading CPU box (%d, %d), (%d, %d) instead\n",
-				     __FUNCTION__, box.x1, box.y1, box.x2, box.y2));
-				bo = upload(sna, channel, pixmap, &box);
-			}
-		}
+		} else
+			bo = kgem_bo_reference(bo);
 	}
 
 	channel->bo = bo;
@@ -856,8 +839,15 @@ sna_render_pixmap_partial(struct sna *sna,
 		box.x2 = ALIGN(box.x2, tile_width * 8 / pixmap->drawable.bitsPerPixel);
 
 		offset = box.x1 * pixmap->drawable.bitsPerPixel / 8 / tile_width * tile_size;
-	} else
+	} else {
+		box.y1 = box.y1 & ~1;
+		box.y2 = ALIGN(box.y2, 2);
+
+		box.x1 = box.x1 & ~1;
+		box.x2 = ALIGN(box.x2, 2);
+
 		offset = box.x1 * pixmap->drawable.bitsPerPixel / 8;
+	}
 
 	if (box.x2 > pixmap->drawable.width)
 		box.x2 = pixmap->drawable.width;
@@ -1138,23 +1128,21 @@ sna_render_picture_extract(struct sna *sna,
 		if (!sna_pixmap_move_to_cpu(pixmap, MOVE_READ))
 			return 0;
 	} else {
-		bool upload = true;
-		if (!texture_is_cpu(pixmap, &box) ||
-		    move_to_gpu(pixmap, &box)) {
-			struct sna_pixmap *priv;
-
-			priv = sna_pixmap_move_to_gpu(pixmap, MOVE_READ);
-			if (priv) {
-				src_bo = priv->gpu_bo;
-				upload = false;
-			}
-		}
-		if (upload)
+		src_bo = move_to_gpu(pixmap, &box);
+		if (src_bo == NULL) {
 			bo = kgem_upload_source_image(&sna->kgem,
 						      pixmap->devPrivate.ptr,
 						      &box,
 						      pixmap->devKind,
 						      pixmap->drawable.bitsPerPixel);
+			if (pixmap->usage_hint == 0 &&
+			    box.x2 - box.x1 == pixmap->drawable.width &&
+			    box.y2 - box.y1 == pixmap->drawable.height) {
+				struct sna_pixmap *priv = sna_pixmap(pixmap);
+				if (priv)
+					kgem_proxy_bo_attach(bo, &priv->gpu_bo);
+			}
+		}
 	}
 	if (src_bo) {
 		bo = kgem_create_2d(&sna->kgem, w, h,
@@ -1232,15 +1220,18 @@ sna_render_picture_convolve(struct sna *sna,
 	PixmapPtr pixmap;
 	PicturePtr tmp;
 	pixman_fixed_t *params = picture->filter_params;
-	int x_off = (params[0] - pixman_fixed_1) >> 1;
-	int y_off = (params[1] - pixman_fixed_1) >> 1;
+	int x_off = -pixman_fixed_to_int((params[0] - pixman_fixed_1) >> 1);
+	int y_off = -pixman_fixed_to_int((params[1] - pixman_fixed_1) >> 1);
 	int cw = pixman_fixed_to_int(params[0]);
 	int ch = pixman_fixed_to_int(params[1]);
 	int i, j, error, depth;
+	struct kgem_bo *bo;
 
 	/* Lame multi-pass accumulation implementation of a general convolution
 	 * that works everywhere.
 	 */
+	DBG(("%s: origin=(%d,%d) kernel=%dx%d, size=%dx%d\n",
+	     __FUNCTION__, x_off, y_off, cw, ch, w, h));
 
 	assert(picture->pDrawable);
 	assert(picture->filter == PictFilterConvolution);
@@ -1265,8 +1256,10 @@ sna_render_picture_convolve(struct sna *sna,
 	if (tmp == NULL)
 		return 0;
 
-	if (!sna->render.fill_one(sna, pixmap, sna_pixmap_get_bo(pixmap), 0,
-				  0, 0, w, h, GXclear)) {
+	ValidatePicture(tmp);
+
+	bo = sna_pixmap_get_bo(pixmap);
+	if (!sna->render.clear(sna, pixmap, bo)) {
 		FreePicture(tmp, 0);
 		return 0;
 	}
@@ -1280,6 +1273,8 @@ sna_render_picture_convolve(struct sna *sna,
 
 			color.alpha = *params++;
 			color.red = color.green = color.blue = 0;
+			DBG(("%s: (%d, %d), alpha=%x\n",
+			     __FUNCTION__, i,j, color.alpha));
 
 			if (color.alpha <= 0x00ff)
 				continue;
@@ -1289,7 +1284,7 @@ sna_render_picture_convolve(struct sna *sna,
 				sna_composite(PictOpAdd, picture, alpha, tmp,
 					      x, y,
 					      0, 0,
-					      x_off-i, y_off-j,
+					      x_off+i, y_off+j,
 					      w, h);
 				FreePicture(alpha, 0);
 			}
@@ -1307,7 +1302,7 @@ sna_render_picture_convolve(struct sna *sna,
 	channel->scale[1] = 1.f / h;
 	channel->offset[0] = -dst_x;
 	channel->offset[1] = -dst_y;
-	channel->bo = kgem_bo_reference(sna_pixmap_get_bo(pixmap));
+	channel->bo = kgem_bo_reference(bo); /* transfer ownership */
 	FreePicture(tmp, 0);
 
 	return 1;
@@ -1381,6 +1376,92 @@ sna_render_picture_flatten(struct sna *sna,
 }
 
 int
+sna_render_picture_approximate_gradient(struct sna *sna,
+					PicturePtr picture,
+					struct sna_composite_channel *channel,
+					int16_t x, int16_t y,
+					int16_t w, int16_t h,
+					int16_t dst_x, int16_t dst_y)
+{
+	pixman_image_t *dst, *src;
+	pixman_transform_t t;
+	int w2 = w/2, h2 = h/2;
+	int dx, dy;
+	void *ptr;
+
+#if NO_FIXUP
+	return -1;
+#endif
+
+	DBG(("%s: (%d, %d)x(%d, %d)\n", __FUNCTION__, x, y, w, h));
+
+	if (w2 == 0 || h2 == 0) {
+		DBG(("%s: fallback - unknown bounds\n", __FUNCTION__));
+		return -1;
+	}
+	if (w2 > sna->render.max_3d_size || h2 > sna->render.max_3d_size) {
+		DBG(("%s: fallback - too large (%dx%d)\n", __FUNCTION__, w, h));
+		return -1;
+	}
+
+	channel->pict_format = PIXMAN_a8r8g8b8;
+	channel->bo = kgem_create_buffer_2d(&sna->kgem,
+					    w2, h2, 32,
+					    KGEM_BUFFER_WRITE_INPLACE,
+					    &ptr);
+	if (!channel->bo) {
+		DBG(("%s: failed to create upload buffer, using clear\n",
+		     __FUNCTION__));
+		return 0;
+	}
+
+	dst = pixman_image_create_bits(PIXMAN_a8r8g8b8,
+				       w2, h2, ptr, channel->bo->pitch);
+	if (!dst) {
+		kgem_bo_destroy(&sna->kgem, channel->bo);
+		return 0;
+	}
+
+	src = image_from_pict(picture, FALSE, &dx, &dy);
+	if (src == NULL) {
+		pixman_image_unref(dst);
+		kgem_bo_destroy(&sna->kgem, channel->bo);
+		return 0;
+	}
+
+	memset(&t, 0, sizeof(t));
+	t.matrix[0][0] = (w << 16) / w2;
+	t.matrix[1][1] = (h << 16) / h2;
+	t.matrix[2][2] = 1 << 16;
+	if (picture->transform)
+		pixman_transform_multiply(&t, picture->transform, &t);
+	pixman_image_set_transform(src, &t);
+
+	pixman_image_composite(PictOpSrc, src, NULL, dst,
+			       x + dx, y + dy,
+			       0, 0,
+			       0, 0,
+			       w2, h2);
+	free_pixman_pict(picture, src);
+	pixman_image_unref(dst);
+
+	channel->width  = w2;
+	channel->height = h2;
+
+	channel->filter = PictFilterNearest;
+	channel->repeat = RepeatNone;
+	channel->is_affine = TRUE;
+
+	channel->scale[0] = 1.f/w;
+	channel->scale[1] = 1.f/h;
+	channel->offset[0] = -dst_x;
+	channel->offset[1] = -dst_y;
+	channel->transform = NULL;
+
+	return 1;
+}
+
+int
 sna_render_picture_fixup(struct sna *sna,
 			 PicturePtr picture,
 			 struct sna_composite_channel *channel,
@@ -1409,7 +1490,7 @@ sna_render_picture_fixup(struct sna *sna,
 
 	if (picture->alphaMap) {
 		DBG(("%s: alphamap\n", __FUNCTION__));
-		if ((is_gpu(picture->pDrawable) || is_gpu(picture->alphaMap->pDrawable))) {
+		if (is_gpu(picture->pDrawable) || is_gpu(picture->alphaMap->pDrawable)) {
 			return sna_render_picture_flatten(sna, picture, channel,
 							  x, y, w, y, dst_x, dst_y);
 		}
@@ -1419,9 +1500,9 @@ sna_render_picture_fixup(struct sna *sna,
 
 	if (picture->filter == PictFilterConvolution) {
 		DBG(("%s: convolution\n", __FUNCTION__));
-		if (picture->pDrawable && is_gpu(picture->pDrawable)) {
+		if (is_gpu(picture->pDrawable)) {
 			return sna_render_picture_convolve(sna, picture, channel,
-							   x, y, w, y, dst_x, dst_y);
+							   x, y, w, h, dst_x, dst_y);
 		}
 
 		goto do_fixup;
@@ -1693,8 +1774,23 @@ sna_render_composite_redirect(struct sna *sna,
 			box.x2 = ALIGN(box.x2, tile_width * 8 / op->dst.pixmap->drawable.bitsPerPixel);
 
 			offset = box.x1 * op->dst.pixmap->drawable.bitsPerPixel / 8 / tile_width * tile_size;
-		} else
+		} else {
+			if (sna->kgem.gen < 40) {
+				box.y1 = box.y1 & ~3;
+				box.y2 = ALIGN(box.y2, 4);
+
+				box.x1 = box.x1 & ~3;
+				box.x2 = ALIGN(box.x2, 4);
+			} else {
+				box.y1 = box.y1 & ~1;
+				box.y2 = ALIGN(box.y2, 2);
+
+				box.x1 = box.x1 & ~1;
+				box.x2 = ALIGN(box.x2, 2);
+			}
+
 			offset = box.x1 * op->dst.pixmap->drawable.bitsPerPixel / 8;
+		}
 
 		if (box.y2 > op->dst.pixmap->drawable.height)
 			box.y2 = op->dst.pixmap->drawable.height;
@@ -1804,8 +1900,7 @@ sna_render_composite_redirect_done(struct sna *sna,
 		}
 		if (t->damage) {
 			sna_damage_combine(t->real_damage, t->damage,
-					   t->box.x1 - op->dst.x,
-					   t->box.y1 - op->dst.y);
+					   -t->box.x1, -t->box.y1);
 			__sna_damage_destroy(t->damage);
 		}
 

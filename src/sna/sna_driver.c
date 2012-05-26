@@ -198,7 +198,7 @@ static Bool sna_create_screen_resources(ScreenPtr screen)
 		return FALSE;
 	}
 
-	if (!sna_pixmap_force_to_gpu(sna->front, MOVE_READ)) {
+	if (!sna_pixmap_force_to_gpu(sna->front, MOVE_WRITE)) {
 		xf86DrvMsg(screen->myNum, X_ERROR,
 			   "[intel] Failed to allocate video resources for front buffer %dx%d at depth %d\n",
 			   screen->width,
@@ -784,6 +784,9 @@ static Bool sna_close_screen(int scrnIndex, ScreenPtr screen)
 
 	sna_mode_remove_fb(sna);
 	if (sna->front) {
+		struct kgem_bo *bo = sna_pixmap_get_bo(sna->front);
+		if (bo)
+			kgem_bo_clear_scanout(&sna->kgem, bo); /* valgrind */
 		screen->DestroyPixmap(sna->front);
 		sna->front = NULL;
 	}
@@ -817,20 +820,25 @@ sna_register_all_privates(void)
 	return TRUE;
 }
 
+static size_t
+agp_aperture_size(struct pci_device *dev, int gen)
+{
+	return dev->regions[gen < 30 ? 0 : 2].size;
+}
+
 static Bool
 sna_screen_init(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 {
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	struct sna *sna = to_sna(scrn);
 	VisualPtr visual;
-	struct pci_device *const device = sna->PciInfo;
 
 	DBG(("%s\n", __FUNCTION__));
 
 	if (!sna_register_all_privates())
 		return FALSE;
 
-	scrn->videoRam = device->regions[2].size / 1024;
+	scrn->videoRam = agp_aperture_size(sna->PciInfo, sna->kgem.gen) / 1024;
 
 	miClearVisualTypes();
 	if (!miSetVisualTypes(scrn->depth,
@@ -1070,6 +1078,10 @@ void sna_init_scrn(ScrnInfoPtr scrn, int entity_num)
 #elif BUILDER_DESCRIPTION
 	xf86DrvMsg(scrn->scrnIndex, X_INFO,
 		   "SNA compiled: %s\n", BUILDER_DESCRIPTION);
+#endif
+#if HAVE_EXTRA_DEBUG
+	xf86DrvMsg(scrn->scrnIndex, X_INFO,
+		   "SNA compiled with debugging enabled\n");
 #endif
 
 	DBG(("%s\n", __FUNCTION__));

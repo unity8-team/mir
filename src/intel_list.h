@@ -207,13 +207,16 @@ list_append(struct list *entry, struct list *head)
 static inline void
 __list_del(struct list *prev, struct list *next)
 {
-    next->prev = prev;
-    prev->next = next;
+	assert(next->prev == prev->next);
+	next->prev = prev;
+	prev->next = next;
 }
 
 static inline void
 _list_del(struct list *entry)
 {
+    assert(entry->prev->next == entry);
+    assert(entry->next->prev == entry);
     __list_del(entry->prev, entry->next);
 }
 
@@ -327,6 +330,11 @@ list_is_empty(struct list *head)
 	 &pos->member != (head);					\
 	 pos = __container_of(pos->member.next, pos, member))
 
+#define list_for_each_entry_reverse(pos, head, member)				\
+    for (pos = __container_of((head)->prev, pos, member);		\
+	 &pos->member != (head);					\
+	 pos = __container_of(pos->member.prev, pos, member))
+
 /**
  * Loop through the list, keeping a backup pointer to the element. This
  * macro allows for the deletion of a list element while looping through the
@@ -353,6 +361,8 @@ list_add_tail(struct list *entry, struct list *head)
 static inline void
 _list_del(struct list *entry)
 {
+    assert(entry->prev->next == entry);
+    assert(entry->next->prev == entry);
     __list_del(entry->prev, entry->next);
 }
 
@@ -381,6 +391,11 @@ static inline void list_move_tail(struct list *list, struct list *head)
 
 #define list_last_entry(ptr, type, member) \
     list_entry((ptr)->prev, type, member)
+
+#define list_for_each_entry_reverse(pos, head, member)				\
+    for (pos = __container_of((head)->prev, pos, member);		\
+	 &pos->member != (head);					\
+	 pos = __container_of(pos->member.prev, pos, member))
 
 #endif
 

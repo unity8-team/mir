@@ -178,7 +178,7 @@ fallback:
 	}
 	if (kgem_bo_is_mappable(kgem, src_bo)) {
 		/* Is it worth detiling? */
-		if ((extents.y2 - extents.y1) * src_bo->pitch < 4096)
+		if ((extents.y2 - extents.y1 - 1) * src_bo->pitch < 4096)
 			goto fallback;
 	}
 
@@ -360,7 +360,7 @@ fallback:
 	if (kgem->nexec + 2 > KGEM_EXEC_SIZE(kgem) ||
 	    kgem->nreloc + 2 > KGEM_RELOC_SIZE(kgem) ||
 	    !kgem_check_batch(kgem, 8) ||
-	    !kgem_check_bo_fenced(kgem, dst_bo, src_bo, NULL)) {
+	    !kgem_check_many_bo_fenced(kgem, dst_bo, src_bo, NULL)) {
 		_kgem_submit(kgem);
 		_kgem_set_mode(kgem, KGEM_BLT);
 	}
@@ -732,7 +732,7 @@ tile:
 	if (kgem->nexec + 2 > KGEM_EXEC_SIZE(kgem) ||
 	    kgem->nreloc + 2 > KGEM_RELOC_SIZE(kgem) ||
 	    !kgem_check_batch(kgem, 8) ||
-	    !kgem_check_bo_fenced(kgem, dst_bo, NULL)) {
+	    !kgem_check_bo_fenced(kgem, dst_bo)) {
 		_kgem_submit(kgem);
 		_kgem_set_mode(kgem, KGEM_BLT);
 	}
@@ -969,7 +969,7 @@ fallback:
 	if (kgem->nexec + 2 > KGEM_EXEC_SIZE(kgem) ||
 	    kgem->nreloc + 2 > KGEM_RELOC_SIZE(kgem) ||
 	    !kgem_check_batch(kgem, 8) ||
-	    !kgem_check_bo_fenced(kgem, dst_bo, NULL)) {
+	    !kgem_check_bo_fenced(kgem, dst_bo)) {
 		_kgem_submit(kgem);
 		_kgem_set_mode(kgem, KGEM_BLT);
 	}
@@ -1072,6 +1072,7 @@ indirect_replace(struct sna *sna,
 {
 	struct kgem *kgem = &sna->kgem;
 	struct kgem_bo *src_bo;
+	BoxRec box;
 	void *ptr;
 	bool ret;
 
@@ -1083,103 +1084,37 @@ indirect_replace(struct sna *sna,
 	if ((int)pixmap->devKind * pixmap->drawable.height >> 12 > kgem->half_cpu_cache_pages)
 		return false;
 
-	if (kgem->ring == KGEM_RENDER || !kgem_bo_can_blt(kgem, bo)) {
-		BoxRec box;
+	if (!kgem_bo_can_blt(kgem, bo) &&
+	    must_tile(sna, pixmap->drawable.width, pixmap->drawable.height))
+		return false;
 
-		assert(!must_tile(sna,
-				  pixmap->drawable.width,
-				  pixmap->drawable.height));
+	src_bo = kgem_create_buffer_2d(kgem,
+				       pixmap->drawable.width,
+				       pixmap->drawable.height,
+				       pixmap->drawable.bitsPerPixel,
+				       KGEM_BUFFER_WRITE_INPLACE,
+				       &ptr);
+	if (!src_bo)
+		return false;
 
-		src_bo = kgem_create_buffer_2d(kgem,
-					       pixmap->drawable.width,
-					       pixmap->drawable.height,
-					       pixmap->drawable.bitsPerPixel,
-					       KGEM_BUFFER_WRITE_INPLACE,
-					       &ptr);
-		if (!src_bo)
-			return false;
+	memcpy_blt(src, ptr, pixmap->drawable.bitsPerPixel,
+		   stride, src_bo->pitch,
+		   0, 0,
+		   0, 0,
+		   pixmap->drawable.width,
+		   pixmap->drawable.height);
 
-		memcpy_blt(src, ptr, pixmap->drawable.bitsPerPixel,
-			   stride, src_bo->pitch,
-			   0, 0,
-			   0, 0,
-			   pixmap->drawable.width,
-			   pixmap->drawable.height);
+	box.x1 = box.y1 = 0;
+	box.x2 = pixmap->drawable.width;
+	box.y2 = pixmap->drawable.height;
 
-		box.x1 = box.y1 = 0;
-		box.x2 = pixmap->drawable.width;
-		box.y2 = pixmap->drawable.height;
-
-		ret = sna->render.copy_boxes(sna, GXcopy,
-					     pixmap, src_bo, 0, 0,
-					     pixmap, bo, 0, 0,
-					     &box, 1);
-	} else {
-		uint32_t cmd, br13, *b;
-		int pitch;
-
-		pitch = pixmap->drawable.width * pixmap->drawable.bitsPerPixel;
-		pitch = ALIGN(pitch, 32) >> 3;
-
-		src_bo = kgem_create_buffer(kgem,
-					    pitch * pixmap->drawable.height,
-					    KGEM_BUFFER_WRITE_INPLACE,
-					    &ptr);
-		if (!src_bo)
-			return false;
-
-		memcpy_blt(src, ptr, pixmap->drawable.bitsPerPixel,
-			   stride, pitch,
-			   0, 0,
-			   0, 0,
-			   pixmap->drawable.width,
-			   pixmap->drawable.height);
-
-		cmd = XY_SRC_COPY_BLT_CMD;
-		br13 = bo->pitch;
-		if (kgem->gen >= 40 && bo->tiling) {
-			cmd |= BLT_DST_TILED;
-			br13 >>= 2;
-		}
-		br13 |= 0xcc << 16;
-		switch (pixmap->drawable.bitsPerPixel) {
-		default:
-		case 32: cmd |= BLT_WRITE_ALPHA | BLT_WRITE_RGB;
-			 br13 |= 1 << 25; /* RGB8888 */
-		case 16: br13 |= 1 << 24; /* RGB565 */
-		case 8: break;
-		}
-
-		kgem_set_mode(kgem, KGEM_BLT);
-		if (kgem->nexec + 2 > KGEM_EXEC_SIZE(kgem) ||
-		    kgem->nreloc + 2 > KGEM_RELOC_SIZE(kgem) ||
-		    !kgem_check_batch(kgem, 8) ||
-		    !kgem_check_bo_fenced(kgem, bo, NULL)) {
-			_kgem_submit(kgem);
-			_kgem_set_mode(kgem, KGEM_BLT);
-		}
-
-		b = kgem->batch + kgem->nbatch;
-		b[0] = cmd;
-		b[1] = br13;
-		b[2] = 0;
-		b[3] = pixmap->drawable.height << 16 | pixmap->drawable.width;
-		b[4] = kgem_add_reloc(kgem, kgem->nbatch + 4, bo,
-				      I915_GEM_DOMAIN_RENDER << 16 |
-				      I915_GEM_DOMAIN_RENDER |
-				      KGEM_RELOC_FENCED,
-				      0);
-		b[5] = 0;
-		b[6] = pitch;
-		b[7] = kgem_add_reloc(kgem, kgem->nbatch + 7, src_bo,
-				      I915_GEM_DOMAIN_RENDER << 16 |
-				      KGEM_RELOC_FENCED,
-				      0);
-		kgem->nbatch += 8;
-		ret = true;
-	}
+	ret = sna->render.copy_boxes(sna, GXcopy,
+				     pixmap, src_bo, 0, 0,
+				     pixmap, bo, 0, 0,
+				     &box, 1);
 
 	kgem_bo_destroy(kgem, src_bo);
+
 	return ret;
 }
 

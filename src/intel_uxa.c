@@ -628,12 +628,9 @@ dri_bo *intel_get_pixmap_bo(PixmapPtr pixmap)
 
 void intel_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo)
 {
-	ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
-	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct intel_pixmap *priv;
 
 	priv = intel_get_pixmap_private(pixmap);
-
 	if (priv == NULL && bo == NULL)
 	    return;
 
@@ -641,19 +638,11 @@ void intel_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo)
 		if (priv->bo == bo)
 			return;
 
-		if (list_is_empty(&priv->batch)) {
-			dri_bo_unreference(priv->bo);
-		} else if (!drm_intel_bo_is_reusable(priv->bo)) {
-			dri_bo_unreference(priv->bo);
-			list_del(&priv->batch);
-			list_del(&priv->flush);
-		} else {
-			list_add(&priv->in_flight, &intel->in_flight);
-			priv = NULL;
-		}
+		dri_bo_unreference(priv->bo);
+		list_del(&priv->batch);
 
-		if (intel->render_current_dest == pixmap)
-		    intel->render_current_dest = NULL;
+		free(priv);
+		priv = NULL;
 	}
 
 	if (bo != NULL) {
@@ -661,14 +650,11 @@ void intel_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo)
 		uint32_t swizzle_mode;
 		int ret;
 
-		if (priv == NULL) {
-			priv = calloc(1, sizeof (struct intel_pixmap));
-			if (priv == NULL)
-				goto BAIL;
+		priv = calloc(1, sizeof (struct intel_pixmap));
+		if (priv == NULL)
+			goto BAIL;
 
-			list_init(&priv->batch);
-			list_init(&priv->flush);
-		}
+		list_init(&priv->batch);
 
 		dri_bo_reference(bo);
 		priv->bo = bo;
@@ -683,11 +669,6 @@ void intel_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo)
 		priv->tiling = tiling;
 		priv->busy = -1;
 		priv->offscreen = 1;
-	} else {
-		if (priv != NULL) {
-			free(priv);
-			priv = NULL;
-		}
 	}
 
   BAIL:
@@ -717,8 +698,7 @@ static Bool intel_uxa_prepare_access(PixmapPtr pixmap, uxa_access_t access)
 
 	/* When falling back to swrast, flush all pending operations */
 	intel_glamor_flush(intel);
-	if (!list_is_empty(&priv->batch) &&
-	    (access == UXA_ACCESS_RW || priv->batch_write))
+	if (access == UXA_ACCESS_RW || priv->dirty)
 		intel_batch_submit(scrn);
 
 	assert(bo->size <= intel->max_gtt_map_size);
@@ -1088,45 +1068,6 @@ intel_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 		if (size > intel->max_bo_size || stride >= KB(32))
 			goto fallback_pixmap;
 
-		/* Perform a preliminary search for an in-flight bo */
-		if (usage != UXA_CREATE_PIXMAP_FOR_MAP) {
-			int aligned_h;
-
-			if (tiling == I915_TILING_X)
-				aligned_h = ALIGN(h, 8);
-			else if (tiling == I915_TILING_Y)
-				aligned_h = ALIGN(h, 32);
-			else
-				aligned_h = ALIGN(h, 2);
-
-			list_for_each_entry(priv, &intel->in_flight, in_flight) {
-				if (priv->tiling != tiling)
-					continue;
-
-				if (tiling == I915_TILING_NONE) {
-				    if (priv->bo->size < size)
-					    continue;
-
-					priv->stride = stride;
-				} else {
-					if (priv->stride < stride ||
-					    priv->bo->size < priv->stride * aligned_h)
-						continue;
-
-					stride = priv->stride;
-				}
-
-				list_del(&priv->in_flight);
-				intel_set_pixmap_private(pixmap, priv);
-
-				screen->ModifyPixmapHeader(pixmap, w, h, 0, 0, stride, NULL);
-
-				if (!intel_glamor_create_textured_pixmap(pixmap))
-					goto fallback_glamor;
-				return pixmap;
-			}
-		}
-
 		priv = calloc(1, sizeof (struct intel_pixmap));
 		if (priv == NULL)
 			goto fallback_pixmap;
@@ -1151,7 +1092,6 @@ intel_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 		priv->offscreen = 1;
 
 		list_init(&priv->batch);
-		list_init(&priv->flush);
 		intel_set_pixmap_private(pixmap, priv);
 
 		screen->ModifyPixmapHeader(pixmap, w, h, 0, 0, stride, NULL);
@@ -1311,7 +1251,6 @@ Bool intel_uxa_init(ScreenPtr screen)
 	intel->uxa_driver->uxa_major = 1;
 	intel->uxa_driver->uxa_minor = 0;
 
-	intel->render_current_dest = NULL;
 	intel->prim_offset = 0;
 	intel->vertex_count = 0;
 	intel->vertex_offset = 0;

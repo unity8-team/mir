@@ -123,7 +123,6 @@ typedef struct {
 	BitmapToRegionProcPtr SavedBitmapToRegion;
 #ifdef RENDER
 	CompositeProcPtr SavedComposite;
-	CompositeRectsProcPtr SavedCompositeRects;
 	TrianglesProcPtr SavedTriangles;
 	GlyphsProcPtr SavedGlyphs;
 	TrapezoidsProcPtr SavedTrapezoids;
