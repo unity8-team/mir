@@ -39,6 +39,7 @@
 #include "i915_drm.h"
 #include "intel_glamor.h"
 #include "uxa.h"
+#include "intel_options.h"
 
 void
 intel_glamor_exchange_buffers(struct intel_screen_private *intel,
@@ -177,7 +178,7 @@ intel_glamor_enabled(intel_screen_private *intel)
 {
 	const char *s;
 
-	s = xf86GetOptString(intel->Options, ACCEL_METHOD);
+	s = xf86GetOptValString(intel->Options, OPTION_ACCEL_METHOD);
 	if (s == NULL)
 		return FALSE;
 
