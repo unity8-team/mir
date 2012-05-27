@@ -397,8 +397,8 @@ bool sna_crtc_is_bound(struct sna *sna, xf86CrtcPtr crtc)
 	if (drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_GETCRTC, &mode))
 		return false;
 
-	DBG(("%s: mode valid?=%d, fb attached?=%d\n", __FUNCTION__,
-	     mode.mode_valid, sna->mode.fb_id == mode.fb_id));
+	DBG(("%s: crtc=%d, mode valid?=%d, fb attached?=%d\n", __FUNCTION__,
+	     mode.crtc_id, mode.mode_valid, sna->mode.fb_id == mode.fb_id));
 	return mode.mode_valid && sna->mode.fb_id == mode.fb_id;
 }
 
@@ -469,10 +469,8 @@ sna_crtc_apply(xf86CrtcPtr crtc)
 		xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
 			   "failed to set mode: %s\n", strerror(-ret));
 		ret = FALSE;
-	} else {
-		sna_crtc->active = sna_crtc_is_bound(sna, crtc);
+	} else
 		ret = TRUE;
-	}
 
 	if (crtc->scrn->pScreen)
 		xf86_reload_cursors(crtc->scrn->pScreen);
@@ -520,6 +518,7 @@ sna_crtc_restore(struct sna *sna)
 		if (crtc->enabled)
 			sna_crtc_apply(crtc);
 	}
+	sna_mode_update(sna);
 
 	kgem_bo_retire(&sna->kgem, bo);
 	scrn->displayWidth = bo->pitch / sna->mode.cpp;
@@ -742,6 +741,7 @@ sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		crtc->mode = saved_mode;
 		return FALSE;
 	}
+	sna_mode_update(sna);
 
 	update_flush_interval(sna);
 	return TRUE;
@@ -1765,6 +1765,7 @@ sna_crtc_resize(ScrnInfoPtr scrn, int width, int height)
 		if (!sna_crtc_apply(crtc))
 			goto fail;
 	}
+	sna_mode_update(sna);
 
 	kgem_bo_retire(&sna->kgem, bo);
 
@@ -2243,7 +2244,7 @@ sna_wait_for_scanline(struct sna *sna,
 	return true;
 }
 
-void sna_mode_hotplug(struct sna *sna)
+void sna_mode_update(struct sna *sna)
 {
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(sna->scrn);
 	int i;
@@ -2251,9 +2252,10 @@ void sna_mode_hotplug(struct sna *sna)
 	/* Validate CRTC attachments */
 	for (i = 0; i < xf86_config->num_crtc; i++) {
 		xf86CrtcPtr crtc = xf86_config->crtc[i];
-		if (crtc->enabled) {
-			struct sna_crtc *sna_crtc = crtc->driver_private;
+		struct sna_crtc *sna_crtc = crtc->driver_private;
+		if (crtc->enabled)
 			sna_crtc->active = sna_crtc_is_bound(sna, crtc);
-		}
+		else
+			sna_crtc->active = false;
 	}
 }

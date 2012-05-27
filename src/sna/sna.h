@@ -295,7 +295,7 @@ struct sna {
 
 Bool sna_mode_pre_init(ScrnInfoPtr scrn, struct sna *sna);
 extern void sna_mode_remove_fb(struct sna *sna);
-extern void sna_mode_hotplug(struct sna *sna);
+extern void sna_mode_update(struct sna *sna);
 extern void sna_mode_fini(struct sna *sna);
 
 extern int sna_crtc_id(xf86CrtcPtr crtc);
