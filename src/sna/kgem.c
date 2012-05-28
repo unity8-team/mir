@@ -1382,17 +1382,18 @@ static bool kgem_retire__requests(struct kgem *kgem)
 			}
 		}
 
-		rq->bo->refcnt--;
-		assert(rq->bo->refcnt == 0);
 		assert(rq->bo->rq == NULL);
 		assert(list_is_empty(&rq->bo->request));
-		if (kgem_bo_set_purgeable(kgem, rq->bo)) {
-			kgem_bo_move_to_inactive(kgem, rq->bo);
-			retired = true;
-		} else {
-			DBG(("%s: closing %d\n",
-			     __FUNCTION__, rq->bo->handle));
-			kgem_bo_free(kgem, rq->bo);
+
+		if (--rq->bo->refcnt == 0) {
+			if (kgem_bo_set_purgeable(kgem, rq->bo)) {
+				kgem_bo_move_to_inactive(kgem, rq->bo);
+				retired = true;
+			} else {
+				DBG(("%s: closing %d\n",
+				     __FUNCTION__, rq->bo->handle));
+				kgem_bo_free(kgem, rq->bo);
+			}
 		}
 
 		if (kgem->sync == rq)
@@ -4220,4 +4221,18 @@ kgem_replace_bo(struct kgem *kgem,
 	kgem->nbatch += 8;
 
 	return dst;
+}
+
+struct kgem_bo *kgem_get_last_request(struct kgem *kgem)
+{
+	struct kgem_request *rq;
+
+	if (list_is_empty(&kgem->requests))
+		return NULL;
+
+	rq = list_last_entry(&kgem->requests,
+			     struct kgem_request,
+			     list);
+
+	return kgem_bo_reference(rq->bo);
 }

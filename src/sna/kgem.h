@@ -245,6 +245,7 @@ void kgem_bo_set_binding(struct kgem_bo *bo, uint32_t format, uint16_t offset);
 
 void kgem_bo_retire(struct kgem *kgem, struct kgem_bo *bo);
 bool kgem_retire(struct kgem *kgem);
+struct kgem_bo *kgem_get_last_request(struct kgem *kgem);
 
 void _kgem_submit(struct kgem *kgem);
 static inline void kgem_submit(struct kgem *kgem)

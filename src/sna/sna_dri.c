@@ -90,6 +90,7 @@ struct sna_dri_frame_event {
 	void *event_data;
 	DRI2BufferPtr front;
 	DRI2BufferPtr back;
+	struct kgem_bo *bo;
 
 	unsigned int fe_frame;
 	unsigned int fe_tv_sec;
@@ -395,13 +396,14 @@ static void set_bo(PixmapPtr pixmap, struct kgem_bo *bo)
 	priv->gpu_bo = ref(bo);
 }
 
-static void
+static struct kgem_bo *
 sna_dri_copy_to_front(struct sna *sna, DrawablePtr draw, RegionPtr region,
 		      struct kgem_bo *dst_bo, struct kgem_bo *src_bo,
 		      bool sync)
 {
 	PixmapPtr pixmap = get_drawable_pixmap(draw);
 	pixman_region16_t clip;
+	struct kgem_bo *bo = NULL;
 	bool flush = false;
 	xf86CrtcPtr crtc;
 	BoxRec box, *boxes;
@@ -421,7 +423,7 @@ sna_dri_copy_to_front(struct sna *sna, DrawablePtr draw, RegionPtr region,
 
 		if (!pixman_region_not_empty(region)) {
 			DBG(("%s: all clipped\n", __FUNCTION__));
-			return;
+			return NULL;
 		}
 	}
 
@@ -443,7 +445,7 @@ sna_dri_copy_to_front(struct sna *sna, DrawablePtr draw, RegionPtr region,
 		pixman_region_intersect(region, &win->clipList, region);
 		if (!pixman_region_not_empty(region)) {
 			DBG(("%s: all clipped\n", __FUNCTION__));
-			return;
+			return NULL;
 		}
 
 		if (pixmap == sna->front && sync) {
@@ -495,6 +497,7 @@ sna_dri_copy_to_front(struct sna *sna, DrawablePtr draw, RegionPtr region,
 	if (flush) { /* STAT! */
 		assert(sna_crtc_is_bound(sna, crtc));
 		kgem_submit(&sna->kgem);
+		bo = kgem_get_last_request(&sna->kgem);
 	}
 
 	pixman_region_translate(region, dx, dy);
@@ -503,6 +506,8 @@ sna_dri_copy_to_front(struct sna *sna, DrawablePtr draw, RegionPtr region,
 
 	if (region == &clip)
 		pixman_region_fini(&clip);
+
+	return bo;
 }
 
 static void
@@ -650,7 +655,7 @@ sna_dri_copy_region(DrawablePtr draw,
 
 	if (dst_buffer->attachment == DRI2BufferFrontLeft) {
 		dst = sna_pixmap_get_bo(pixmap);
-		copy = sna_dri_copy_to_front;
+		copy = (void *)sna_dri_copy_to_front;
 	} else
 		dst = get_private(dst_buffer)->bo;
 
@@ -884,6 +889,9 @@ sna_dri_frame_event_info_free(struct sna_dri_frame_event *info)
 		sna_dri_frame_event_release_bo(&info->sna->kgem,
 					       info->cache.bo);
 
+	if (info->bo)
+		kgem_bo_destroy(&info->sna->kgem, info->bo);
+
 	free(info);
 }
 
@@ -1052,13 +1060,32 @@ static void sna_dri_vblank_handle(int fd,
 		}
 		/* else fall through to blit */
 	case DRI2_SWAP:
-		sna_dri_copy_to_front(sna, draw, NULL,
-				      get_private(info->front)->bo,
-				      get_private(info->back)->bo,
-				      true);
+		info->bo = sna_dri_copy_to_front(sna, draw, NULL,
+						 get_private(info->front)->bo,
+						 get_private(info->back)->bo,
+						 true);
+		info->type = DRI2_SWAP_THROTTLE;
 	case DRI2_SWAP_THROTTLE:
 		DBG(("%s: %d complete, frame=%d tv=%d.%06d\n",
 		     __FUNCTION__, info->type, frame, tv_sec, tv_usec));
+
+		if (info->bo && kgem_bo_is_busy(info->bo)) {
+			kgem_retire(&sna->kgem);
+			if (kgem_bo_is_busy(info->bo)) {
+				drmVBlank vbl;
+
+				vbl.request.type =
+					DRM_VBLANK_RELATIVE |
+					DRM_VBLANK_EVENT;
+				if (info->pipe > 0)
+					vbl.request.type |= DRM_VBLANK_SECONDARY;
+				vbl.request.sequence = 1;
+				vbl.request.signal = (unsigned long)info;
+				if (!drmWaitVBlank(sna->kgem.fd, &vbl))
+					return;
+			}
+		}
+
 		DRI2SwapComplete(info->client,
 				 draw, frame,
 				 tv_sec, tv_usec,
@@ -1560,26 +1587,26 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		DBG(("%s: emitting immediate vsync'ed blit, throttling client\n",
 		     __FUNCTION__));
 
-		 info->type = DRI2_SWAP_THROTTLE;
+		info->bo = sna_dri_copy_to_front(sna, draw, NULL,
+						 get_private(front)->bo,
+						 get_private(back)->bo,
+						 true);
 
-		 vbl.request.type =
-			 DRM_VBLANK_RELATIVE |
-			 DRM_VBLANK_EVENT |
-			 DRM_VBLANK_NEXTONMISS;
-		 if (pipe > 0)
-			 vbl.request.type |= DRM_VBLANK_SECONDARY;
-		 vbl.request.sequence = 0;
-		 vbl.request.signal = (unsigned long)info;
-		 if (drmWaitVBlank(sna->kgem.fd, &vbl)) {
-			 sna_dri_frame_event_info_free(info);
-			 DRI2SwapComplete(client, draw, 0, 0, 0, DRI2_BLIT_COMPLETE, func, data);
-		 }
+		info->type = DRI2_SWAP_THROTTLE;
+		vbl.request.type =
+			DRM_VBLANK_RELATIVE |
+			DRM_VBLANK_NEXTONMISS |
+			DRM_VBLANK_EVENT;
+		if (pipe > 0)
+			vbl.request.type |= DRM_VBLANK_SECONDARY;
+		vbl.request.sequence = 0;
+		vbl.request.signal = (unsigned long)info;
+		if (drmWaitVBlank(sna->kgem.fd, &vbl)) {
+			sna_dri_frame_event_info_free(info);
+			DRI2SwapComplete(client, draw, 0, 0, 0, DRI2_BLIT_COMPLETE, func, data);
+		}
 
-		 sna_dri_copy_to_front(sna, draw, NULL,
-				       get_private(front)->bo,
-				       get_private(back)->bo,
-				       true);
-		 return TRUE;
+		return TRUE;
 	}
 
 	/* Get current count */
