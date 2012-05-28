@@ -153,21 +153,25 @@ static int gem_set_tiling(int fd, uint32_t handle, int tiling, int stride)
 
 static bool __kgem_throttle_retire(struct kgem *kgem, unsigned flags)
 {
-	if (flags & CREATE_NO_RETIRE)
+	if (flags & CREATE_NO_RETIRE) {
+		DBG(("%s: not retiring per-request\n", __FUNCTION__));
 		return false;
+	}
 
-	if (!kgem->need_retire)
+	if (!kgem->need_retire) {
+		DBG(("%s: nothing to retire\n", __FUNCTION__));
 		return false;
+	}
 
 	if (kgem_retire(kgem))
 		return true;
 
-	if (!kgem->need_throttle)
+	if (flags & CREATE_NO_THROTTLE || !kgem->need_throttle) {
+		DBG(("%s: not throttling\n", __FUNCTION__));
 		return false;
+	}
 
-	if ((flags & CREATE_NO_THROTTLE) == 0)
-		kgem_throttle(kgem);
-
+	kgem_throttle(kgem);
 	return kgem_retire(kgem);
 }
 
@@ -3707,6 +3711,8 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 		 * XXX This is especially noticeable on memory constrained
 		 * devices like gen2 or with relatively slow gpu like i3.
 		 */
+		DBG(("%s: searching for an inactive GTT map for upload\n",
+		     __FUNCTION__));
 		old = search_linear_cache(kgem, alloc,
 					  CREATE_EXACT | CREATE_INACTIVE | CREATE_GTT_MAP);
 #if HAVE_I915_GEM_BUFFER_INFO
@@ -3731,6 +3737,13 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 		if (old == NULL)
 			old = search_linear_cache(kgem, NUM_PAGES(size),
 						  CREATE_EXACT | CREATE_INACTIVE | CREATE_GTT_MAP);
+		if (old == NULL) {
+			old = search_linear_cache(kgem, alloc, CREATE_INACTIVE);
+			if (old && !kgem_bo_is_mappable(kgem, old)) {
+				_kgem_bo_destroy(kgem, old);
+				old = NULL;
+			}
+		}
 		if (old) {
 			DBG(("%s: reusing handle=%d for buffer\n",
 			     __FUNCTION__, old->handle));
