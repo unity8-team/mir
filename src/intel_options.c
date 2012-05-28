@@ -7,9 +7,7 @@ const OptionInfoRec intel_options[] = {
 	{OPTION_VIDEO_KEY,	"VideoKey",	OPTV_INTEGER,	{0},	0},
 	{OPTION_TILING_2D,	"Tiling",	OPTV_BOOLEAN,	{0},	1},
 	{OPTION_TILING_FB,	"LinearFramebuffer",	OPTV_BOOLEAN,	{0},	0},
-	{OPTION_SHADOW,	"Shadow",	OPTV_BOOLEAN,	{0},	0},
 	{OPTION_SWAPBUFFERS_WAIT, "SwapbuffersWait", OPTV_BOOLEAN,	{0},	1},
-	{OPTION_TRIPLE_BUFFER, "TripleBuffer", OPTV_BOOLEAN,	{0},	1},
 #ifdef INTEL_XVMC
 	{OPTION_XVMC,	"XvMC",		OPTV_BOOLEAN,	{0},	1},
 #endif
@@ -26,8 +24,10 @@ const OptionInfoRec intel_options[] = {
 	{OPTION_DELAYED_FLUSH,	"DelayedFlush",	OPTV_BOOLEAN,	{0},	1},
 #endif
 #ifdef USE_UXA
-	{OPTION_FALLBACKDEBUG, "FallbackDebug", OPTV_BOOLEAN, {0},	0},
-	{OPTION_BUFFER_CACHE,       "BufferCache",  OPTV_BOOLEAN,   {0},    1},
+	{OPTION_FALLBACKDEBUG,	"FallbackDebug",OPTV_BOOLEAN,	{0},	0},
+	{OPTION_BUFFER_CACHE,	"BufferCache",	OPTV_BOOLEAN,   {0},    1},
+	{OPTION_SHADOW,		"Shadow",	OPTV_BOOLEAN,	{0},	0},
+	{OPTION_TRIPLE_BUFFER,	"TripleBuffer", OPTV_BOOLEAN,	{0},	1},
 #endif
 	{-1,			NULL,		OPTV_NONE,	{0},	0}
 };
