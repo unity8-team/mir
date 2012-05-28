@@ -393,6 +393,7 @@ bool sna_crtc_is_bound(struct sna *sna, xf86CrtcPtr crtc)
 {
 	struct drm_mode_crtc mode;
 
+	VG_CLEAR(mode);
 	mode.crtc_id = crtc_id(crtc->driver_private);
 	if (drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_GETCRTC, &mode))
 		return false;
