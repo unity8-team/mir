@@ -448,7 +448,8 @@ sna_dri_copy_to_front(struct sna *sna, DrawablePtr draw, RegionPtr region,
 			return NULL;
 		}
 
-		if (pixmap == sna->front && sync) {
+		if (pixmap == sna->front && sync &&
+		    (sna->flags & SNA_NO_WAIT) == 0) {
 			BoxRec crtc_box;
 
 			crtc = sna_covering_crtc(sna->scrn, &region->extents,
@@ -949,6 +950,11 @@ can_flip(struct sna * sna,
 
 	if (!sna->scrn->vtSema) {
 		DBG(("%s: no, not attached to VT\n", __FUNCTION__));
+		return FALSE;
+	}
+
+	if (sna->flags & SNA_NO_FLIP) {
+		DBG(("%s: no, pageflips disabled\n", __FUNCTION__));
 		return FALSE;
 	}
 
@@ -1591,21 +1597,22 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 						 get_private(front)->bo,
 						 get_private(back)->bo,
 						 true);
-
-		info->type = DRI2_SWAP_THROTTLE;
-		vbl.request.type =
-			DRM_VBLANK_RELATIVE |
-			DRM_VBLANK_NEXTONMISS |
-			DRM_VBLANK_EVENT;
-		if (pipe > 0)
-			vbl.request.type |= DRM_VBLANK_SECONDARY;
-		vbl.request.sequence = 0;
-		vbl.request.signal = (unsigned long)info;
-		if (drmWaitVBlank(sna->kgem.fd, &vbl)) {
-			sna_dri_frame_event_info_free(info);
-			DRI2SwapComplete(client, draw, 0, 0, 0, DRI2_BLIT_COMPLETE, func, data);
+		if ((sna->flags & SNA_NO_WAIT) == 0) {
+			info->type = DRI2_SWAP_THROTTLE;
+			vbl.request.type =
+				DRM_VBLANK_RELATIVE |
+				DRM_VBLANK_NEXTONMISS |
+				DRM_VBLANK_EVENT;
+			if (pipe > 0)
+				vbl.request.type |= DRM_VBLANK_SECONDARY;
+			vbl.request.sequence = 0;
+			vbl.request.signal = (unsigned long)info;
+			if (drmWaitVBlank(sna->kgem.fd, &vbl) == 0)
+				return TRUE;
 		}
 
+		sna_dri_frame_event_info_free(info);
+		DRI2SwapComplete(client, draw, 0, 0, 0, DRI2_BLIT_COMPLETE, func, data);
 		return TRUE;
 	}
 

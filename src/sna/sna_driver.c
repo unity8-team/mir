@@ -62,6 +62,11 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <sys/poll.h>
 #include "i915_drm.h"
 
+#ifdef HAVE_VALGRIND
+#include <valgrind.h>
+#include <memcheck.h>
+#endif
+
 #if HAVE_DOT_GIT
 #include "git_version.h"
 #endif
@@ -372,6 +377,23 @@ static void sna_selftest(void)
 	sna_damage_selftest();
 }
 
+static bool has_pageflipping(struct sna *sna)
+{
+	drm_i915_getparam_t gp;
+	int v;
+
+	if (sna->flags & SNA_NO_WAIT)
+		return false;
+
+	VG_CLEAR(gp);
+	gp.param = I915_PARAM_HAS_PAGEFLIPPING;
+	gp.value = &v;
+	drmIoctl(sna->kgem.fd, DRM_IOCTL_I915_GETPARAM, &gp);
+
+	VG(VALGRIND_MAKE_MEM_DEFINED(&v, sizeof(v)));
+	return v > 0;
+}
+
 /**
  * This is called before ScreenInit to do any require probing of screen
  * configuration.
@@ -500,6 +522,10 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 		sna->flags |= SNA_NO_THROTTLE;
 	if (!xf86ReturnOptValBool(sna->Options, OPTION_DELAYED_FLUSH, TRUE))
 		sna->flags |= SNA_NO_DELAYED_FLUSH;
+	if (!xf86ReturnOptValBool(sna->Options, OPTION_SWAPBUFFERS_WAIT, TRUE))
+		sna->flags |= SNA_NO_WAIT;
+	if (!has_pageflipping(sna))
+		sna->flags |= SNA_NO_FLIP;
 
 	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Framebuffer %s\n",
 		   sna->tiling & SNA_TILING_FB ? "tiled" : "linear");

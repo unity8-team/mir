@@ -208,6 +208,8 @@ struct sna {
 	unsigned flags;
 #define SNA_NO_THROTTLE		0x1
 #define SNA_NO_DELAYED_FLUSH	0x2
+#define SNA_NO_WAIT		0x4
+#define SNA_NO_FLIP		0x8
 
 	unsigned watch_flush;
 	unsigned flush;
