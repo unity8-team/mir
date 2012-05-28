@@ -1685,15 +1685,13 @@ Bool I830DRI2ScreenInit(ScreenPtr screen)
 
 	info.CopyRegion = I830DRI2CopyRegion;
 #if DRI2INFOREC_VERSION >= 4
-	if (intel->use_pageflipping) {
-	    info.version = 4;
-	    info.ScheduleSwap = I830DRI2ScheduleSwap;
-	    info.GetMSC = I830DRI2GetMSC;
-	    info.ScheduleWaitMSC = I830DRI2ScheduleWaitMSC;
-	    info.numDrivers = 1;
-	    info.driverNames = driverNames;
-	    driverNames[0] = info.driverName;
-	}
+	info.version = 4;
+	info.ScheduleSwap = I830DRI2ScheduleSwap;
+	info.GetMSC = I830DRI2GetMSC;
+	info.ScheduleWaitMSC = I830DRI2ScheduleWaitMSC;
+	info.numDrivers = 1;
+	info.driverNames = driverNames;
+	driverNames[0] = info.driverName;
 #endif
 
 	return DRI2ScreenInit(screen, &info);
