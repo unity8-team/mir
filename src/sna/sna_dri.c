@@ -686,6 +686,11 @@ sna_dri_copy_region(DrawablePtr draw,
 	copy(sna, draw, region, dst, src, false);
 }
 
+static inline int sna_wait_vblank(struct sna *sna, drmVBlank *vbl)
+{
+	return drmIoctl(sna->kgem.fd, DRM_IOCTL_WAIT_VBLANK, vbl);
+}
+
 #if DRI2INFOREC_VERSION >= 4
 
 static int
@@ -1080,6 +1085,7 @@ static void sna_dri_vblank_handle(int fd,
 			if (kgem_bo_is_busy(info->bo)) {
 				drmVBlank vbl;
 
+				VG_CLEAR(vbl);
 				vbl.request.type =
 					DRM_VBLANK_RELATIVE |
 					DRM_VBLANK_EVENT;
@@ -1087,7 +1093,7 @@ static void sna_dri_vblank_handle(int fd,
 					vbl.request.type |= DRM_VBLANK_SECONDARY;
 				vbl.request.sequence = 1;
 				vbl.request.signal = (unsigned long)info;
-				if (!drmWaitVBlank(sna->kgem.fd, &vbl))
+				if (!sna_wait_vblank(sna, &vbl))
 					return;
 			}
 		}
@@ -1332,6 +1338,8 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	     (long long)divisor,
 	     (long long)remainder));
 
+	VG_CLEAR(vbl);
+
 	/* XXX In theory we can just exchange pixmaps.... */
 	pipe = sna_dri_get_pipe(draw);
 	if (pipe == -1)
@@ -1435,7 +1443,7 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		if (pipe > 0)
 			vbl.request.type |= DRM_VBLANK_SECONDARY;
 		vbl.request.sequence = 0;
-		if (drmWaitVBlank(sna->kgem.fd, &vbl)) {
+		if (sna_wait_vblank(sna, &vbl)) {
 			sna_dri_frame_event_info_free(info);
 			return FALSE;
 		}
@@ -1491,7 +1499,7 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		/* Account for 1 frame extra pageflip delay */
 		vbl.request.sequence -= 1;
 		vbl.request.signal = (unsigned long)info;
-		if (drmWaitVBlank(sna->kgem.fd, &vbl)) {
+		if (sna_wait_vblank(sna, &vbl)) {
 			sna_dri_frame_event_info_free(info);
 			return FALSE;
 		}
@@ -1559,6 +1567,8 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		goto blit_fallback;
 	}
 
+	VG_CLEAR(vbl);
+
 	/* Truncate to match kernel interfaces; means occasional overflow
 	 * misses, but that's generally not a big deal */
 	*target_msc &= 0xffffffff;
@@ -1607,7 +1617,7 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 				vbl.request.type |= DRM_VBLANK_SECONDARY;
 			vbl.request.sequence = 0;
 			vbl.request.signal = (unsigned long)info;
-			if (drmWaitVBlank(sna->kgem.fd, &vbl) == 0)
+			if (sna_wait_vblank(sna, &vbl) == 0)
 				return TRUE;
 		}
 
@@ -1621,7 +1631,7 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	if (pipe > 0)
 		vbl.request.type |= DRM_VBLANK_SECONDARY;
 	vbl.request.sequence = 0;
-	if (drmWaitVBlank(sna->kgem.fd, &vbl))
+	if (sna_wait_vblank(sna, &vbl))
 		goto blit_fallback;
 
 	current_msc = vbl.reply.sequence;
@@ -1648,7 +1658,7 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 			 vbl.request.type |= DRM_VBLANK_SECONDARY;
 		 vbl.request.sequence = *target_msc;
 		 vbl.request.signal = (unsigned long)info;
-		 if (drmWaitVBlank(sna->kgem.fd, &vbl))
+		 if (sna_wait_vblank(sna, &vbl))
 			 goto blit_fallback;
 
 		 return TRUE;
@@ -1683,7 +1693,7 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	vbl.request.sequence -= 1;
 
 	vbl.request.signal = (unsigned long)info;
-	if (drmWaitVBlank(sna->kgem.fd, &vbl))
+	if (sna_wait_vblank(sna, &vbl))
 		goto blit_fallback;
 
 	*target_msc = vbl.reply.sequence;
@@ -1849,20 +1859,14 @@ sna_dri_get_msc(DrawablePtr draw, CARD64 *ust, CARD64 *msc)
 		return TRUE;
 	}
 
+	VG_CLEAR(vbl);
+
 	vbl.request.type = DRM_VBLANK_RELATIVE;
 	if (pipe > 0)
 		vbl.request.type |= DRM_VBLANK_SECONDARY;
 	vbl.request.sequence = 0;
 
-	if (drmWaitVBlank(sna->kgem.fd, &vbl)) {
-		static int limit = 5;
-		if (limit) {
-			xf86DrvMsg(sna->scrn->scrnIndex, X_WARNING,
-				   "%s:%d get vblank counter failed: %s\n",
-				   __FUNCTION__, __LINE__,
-				   strerror(errno));
-			limit--;
-		}
+	if (sna_wait_vblank(sna, &vbl)) {
 		DBG(("%s: failed on pipe %d\n", __FUNCTION__, pipe));
 		return FALSE;
 	}
@@ -1906,22 +1910,15 @@ sna_dri_schedule_wait_msc(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 	if (pipe == -1)
 		goto out_complete;
 
+	VG_CLEAR(vbl);
+
 	/* Get current count */
 	vbl.request.type = DRM_VBLANK_RELATIVE;
 	if (pipe > 0)
 		vbl.request.type |= DRM_VBLANK_SECONDARY;
 	vbl.request.sequence = 0;
-	if (drmWaitVBlank(sna->kgem.fd, &vbl)) {
-		static int limit = 5;
-		if (limit) {
-			xf86DrvMsg(sna->scrn->scrnIndex, X_WARNING,
-				   "%s:%d get vblank counter failed: %s\n",
-				   __FUNCTION__, __LINE__,
-				   strerror(errno));
-			limit--;
-		}
+	if (sna_wait_vblank(sna, &vbl))
 		goto out_complete;
-	}
 
 	current_msc = vbl.reply.sequence;
 
@@ -1961,17 +1958,8 @@ sna_dri_schedule_wait_msc(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 			vbl.request.type |= DRM_VBLANK_SECONDARY;
 		vbl.request.sequence = target_msc;
 		vbl.request.signal = (unsigned long)info;
-		if (drmWaitVBlank(sna->kgem.fd, &vbl)) {
-			static int limit = 5;
-			if (limit) {
-				xf86DrvMsg(sna->scrn->scrnIndex, X_WARNING,
-					   "%s:%d get vblank counter failed: %s\n",
-					   __FUNCTION__, __LINE__,
-					   strerror(errno));
-				limit--;
-			}
+		if (sna_wait_vblank(sna, &vbl))
 			goto out_free_info;
-		}
 
 		info->frame = vbl.reply.sequence;
 		DRI2BlockClient(client, draw);
@@ -1998,17 +1986,8 @@ sna_dri_schedule_wait_msc(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 		vbl.request.sequence += divisor;
 
 	vbl.request.signal = (unsigned long)info;
-	if (drmWaitVBlank(sna->kgem.fd, &vbl)) {
-		static int limit = 5;
-		if (limit) {
-			xf86DrvMsg(sna->scrn->scrnIndex, X_WARNING,
-				   "%s:%d get vblank counter failed: %s\n",
-				   __FUNCTION__, __LINE__,
-				   strerror(errno));
-			limit--;
-		}
+	if (sna_wait_vblank(sna, &vbl))
 		goto out_free_info;
-	}
 
 	info->frame = vbl.reply.sequence;
 	DRI2BlockClient(client, draw);
