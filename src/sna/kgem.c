@@ -2837,7 +2837,9 @@ search_inactive:
 		return bo;
 	}
 
-	if (flags & CREATE_INACTIVE && __kgem_throttle_retire(kgem, flags)) {
+	if (flags & CREATE_INACTIVE &&
+	    !list_is_empty(&kgem->active[bucket][tiling]) &&
+	    __kgem_throttle_retire(kgem, flags)) {
 		flags &= ~CREATE_INACTIVE;
 		goto search_inactive;
 	}
