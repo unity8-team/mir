@@ -748,18 +748,63 @@ sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 }
 
 static void
-sna_crtc_set_cursor_colors(xf86CrtcPtr crtc, int bg, int fg)
-{
-
-}
-
-static void
-sna_crtc_set_cursor_position (xf86CrtcPtr crtc, int x, int y)
+sna_crtc_hide_cursor(xf86CrtcPtr crtc)
 {
 	struct sna *sna = to_sna(crtc->scrn);
 	struct sna_crtc *sna_crtc = crtc->driver_private;
+	struct drm_mode_cursor arg;
 
-	drmModeMoveCursor(sna->kgem.fd, crtc_id(sna_crtc), x, y);
+	DBG(("%s: CRTC:%d\n", __FUNCTION__, crtc_id(sna_crtc)));
+
+	VG_CLEAR(arg);
+	arg.flags = DRM_MODE_CURSOR_BO;
+	arg.crtc_id = sna_crtc->id;
+	arg.width = arg.height = 64;
+	arg.handle = 0;
+
+	drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_CURSOR, &arg);
+}
+
+static void
+sna_crtc_show_cursor(xf86CrtcPtr crtc)
+{
+	struct sna *sna = to_sna(crtc->scrn);
+	struct sna_crtc *sna_crtc = crtc->driver_private;
+	struct drm_mode_cursor arg;
+
+	DBG(("%s: CRTC:%d\n", __FUNCTION__, crtc_id(sna_crtc)));
+
+	VG_CLEAR(arg);
+	arg.flags = DRM_MODE_CURSOR_BO;
+	arg.crtc_id = sna_crtc->id;
+	arg.width = arg.height = 64;
+	arg.handle = sna_crtc->cursor;
+
+	drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_CURSOR, &arg);
+}
+
+static void
+sna_crtc_set_cursor_colors(xf86CrtcPtr crtc, int bg, int fg)
+{
+}
+
+static void
+sna_crtc_set_cursor_position(xf86CrtcPtr crtc, int x, int y)
+{
+	struct sna *sna = to_sna(crtc->scrn);
+	struct sna_crtc *sna_crtc = crtc->driver_private;
+	struct drm_mode_cursor arg;
+
+	DBG(("%s: CRTC:%d (%d, %d)\n", __FUNCTION__, crtc_id(sna_crtc), x, y));
+
+	VG_CLEAR(arg);
+	arg.flags = DRM_MODE_CURSOR_MOVE;
+	arg.crtc_id = sna_crtc->id;
+	arg.x = x;
+	arg.y = y;
+	arg.handle = sna_crtc->cursor;
+
+	drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_CURSOR, &arg);
 }
 
 static void
@@ -775,27 +820,6 @@ sna_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *image)
 	pwrite.size = 64*64*4;
 	pwrite.data_ptr = (uintptr_t)image;
 	(void)drmIoctl(sna->kgem.fd, DRM_IOCTL_I915_GEM_PWRITE, &pwrite);
-}
-
-static void
-sna_crtc_hide_cursor(xf86CrtcPtr crtc)
-{
-	struct sna *sna = to_sna(crtc->scrn);
-	struct sna_crtc *sna_crtc = crtc->driver_private;
-
-	DBG(("%s: CRTC:%d\n", __FUNCTION__, crtc_id(sna_crtc)));
-	drmModeSetCursor(sna->kgem.fd, crtc_id(sna_crtc), 0, 64, 64);
-}
-
-static void
-sna_crtc_show_cursor(xf86CrtcPtr crtc)
-{
-	struct sna *sna = to_sna(crtc->scrn);
-	struct sna_crtc *sna_crtc = crtc->driver_private;
-
-	DBG(("%s: CRTC:%d\n", __FUNCTION__, crtc_id(sna_crtc)));
-	drmModeSetCursor(sna->kgem.fd, crtc_id(sna_crtc),
-			 sna_crtc->cursor, 64, 64);
 }
 
 static void *
