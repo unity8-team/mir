@@ -915,7 +915,7 @@ sna_crtc_destroy(xf86CrtcPtr crtc)
 	struct sna *sna = to_sna(crtc->scrn);
 	struct sna_crtc *sna_crtc = crtc->driver_private;
 
-	drmModeSetCursor(sna->kgem.fd, crtc_id(sna_crtc), 0, 64, 64);
+	sna_crtc_hide_cursor(crtc);
 	gem_close(sna->kgem.fd, sna_crtc->cursor);
 
 	list_del(&sna_crtc->link);
