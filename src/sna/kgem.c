@@ -1306,6 +1306,14 @@ static bool kgem_retire__flushing(struct kgem *kgem)
 				kgem_bo_free(kgem, bo);
 		}
 	}
+#if DEBUG_KGEM
+	{
+		int count = 0;
+		list_for_each_entry(bo, &kgem->flushing, request)
+			count++;
+		ErrorF("%s: %d bo on flushing list\n", __FUNCTION__, count);
+	}
+#endif
 
 	return retired;
 }
@@ -1393,6 +1401,24 @@ static bool kgem_retire__requests(struct kgem *kgem)
 		_list_del(&rq->list);
 		free(rq);
 	}
+
+#if DEBUG_KGEM
+	{
+		int count = 0;
+
+		list_for_each_entry(bo, &kgem->requests, request)
+			count++;
+
+		bo = NULL;
+		if (!list_is_empty(&kgem->requests))
+			bo = list_first_entry(&kgem->requests,
+					      struct kgem_request,
+					      list)->bo;
+
+		ErrorF("%s: %d outstanding requests, oldest=%d\n",
+		       __FUNCTION__, count, bo ? bo->handle : 0);
+	}
+#endif
 
 	return retired;
 }
