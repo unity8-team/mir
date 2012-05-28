@@ -554,7 +554,7 @@ sna_crtc_dpms(xf86CrtcPtr crtc, int mode)
 }
 
 static struct kgem_bo *sna_create_bo_for_fbcon(struct sna *sna,
-					       drmModeFBPtr fbcon)
+					       const struct drm_mode_fb_cmd *fbcon)
 {
 	struct drm_gem_flink flink;
 	struct kgem_bo *bo;
@@ -584,7 +584,7 @@ static struct kgem_bo *sna_create_bo_for_fbcon(struct sna *sna,
 void sna_copy_fbcon(struct sna *sna)
 {
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(sna->scrn);
-	drmModeFBPtr fbcon;
+	struct drm_mode_fb_cmd fbcon;
 	PixmapPtr scratch;
 	struct sna_pixmap *priv;
 	struct kgem_bo *bo;
@@ -600,22 +600,27 @@ void sna_copy_fbcon(struct sna *sna)
 	DBG(("%s\n", __FUNCTION__));
 
 	/* Scan the connectors for a framebuffer and assume that is the fbcon */
-	fbcon = NULL;
-	for (i = 0; fbcon == NULL && i < xf86_config->num_crtc; i++) {
+	VG_CLEAR(fbcon);
+	fbcon.fb_id = 0;
+	for (i = 0; i < xf86_config->num_crtc; i++) {
 		struct sna_crtc *crtc = xf86_config->crtc[i]->driver_private;
-		drmModeCrtcPtr mode_crtc;
+		struct drm_mode_crtc mode;
 
-		mode_crtc = drmModeGetCrtc(sna->kgem.fd,
-					   sna->mode.mode_res->crtcs[crtc->num]);
-		if (mode_crtc == NULL)
+		VG_CLEAR(mode);
+		mode.crtc_id = crtc->id;
+		if (drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_GETCRTC, &mode))
+			continue;
+		if (!mode.fb_id)
 			continue;
 
-		if (mode_crtc->buffer_id)
-			fbcon = drmModeGetFB(sna->kgem.fd,
-					     mode_crtc->buffer_id);
-		drmModeFreeCrtc(mode_crtc);
+		fbcon.fb_id = mode.fb_id;
+		if (drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_GETFB, &fbcon)) {
+			fbcon.fb_id = 0;
+			continue;
+		}
+		break;
 	}
-	if (fbcon == NULL) {
+	if (fbcon.fb_id == 0) {
 		DBG(("%s: no fbcon found\n", __FUNCTION__));
 		return;
 	}
@@ -625,17 +630,17 @@ void sna_copy_fbcon(struct sna *sna)
 	 * across a depth change upon starting X.
 	 */
 	scratch = GetScratchPixmapHeader(sna->scrn->pScreen,
-					fbcon->width, fbcon->height,
-					fbcon->depth, fbcon->bpp,
+					fbcon.width, fbcon.height,
+					fbcon.depth, fbcon.bpp,
 					0, NULL);
 	if (scratch == NullPixmap)
-		goto cleanup_fbcon;
+		return;
 
 	box.x1 = box.y1 = 0;
-	box.x2 = min(fbcon->width, sna->front->drawable.width);
-	box.y2 = min(fbcon->height, sna->front->drawable.height);
+	box.x2 = min(fbcon.width, sna->front->drawable.width);
+	box.y2 = min(fbcon.height, sna->front->drawable.height);
 
-	bo = sna_create_bo_for_fbcon(sna, fbcon);
+	bo = sna_create_bo_for_fbcon(sna, &fbcon);
 	if (bo == NULL)
 		goto cleanup_scratch;
 
@@ -645,14 +650,14 @@ void sna_copy_fbcon(struct sna *sna)
 	assert(priv && priv->gpu_bo);
 
 	sx = dx = 0;
-	if (box.x2 < (uint16_t)fbcon->width)
-		sx = (fbcon->width - box.x2) / 2.;
+	if (box.x2 < (uint16_t)fbcon.width)
+		sx = (fbcon.width - box.x2) / 2.;
 	if (box.x2 < sna->front->drawable.width)
 		dx = (sna->front->drawable.width - box.x2) / 2.;
 
 	sy = dy = 0;
-	if (box.y2 < (uint16_t)fbcon->height)
-		sy = (fbcon->height - box.y2) / 2.;
+	if (box.y2 < (uint16_t)fbcon.height)
+		sy = (fbcon.height - box.y2) / 2.;
 	if (box.y2 < sna->front->drawable.height)
 		dy = (sna->front->drawable.height - box.y2) / 2.;
 
@@ -669,8 +674,6 @@ void sna_copy_fbcon(struct sna *sna)
 
 cleanup_scratch:
 	FreeScratchPixmapHeader(scratch);
-cleanup_fbcon:
-	drmModeFreeFB(fbcon);
 }
 
 static void update_flush_interval(struct sna *sna)
