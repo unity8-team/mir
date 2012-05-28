@@ -54,7 +54,7 @@
 
 struct sna_crtc {
 	struct sna *sna;
-	drmModeModeInfo kmode;
+	struct drm_mode_modeinfo kmode;
 	PixmapPtr shadow;
 	uint32_t shadow_fb_id;
 	uint32_t cursor;
@@ -371,7 +371,7 @@ mode_from_kmode(ScrnInfoPtr scrn,
 }
 
 static void
-mode_to_kmode(drmModeModeInfoPtr kmode, DisplayModePtr mode)
+mode_to_kmode(struct drm_mode_modeinfo *kmode, DisplayModePtr mode)
 {
 	memset(kmode, 0, sizeof(*kmode));
 
@@ -415,6 +415,7 @@ sna_crtc_apply(xf86CrtcPtr crtc)
 	struct sna_crtc *sna_crtc = crtc->driver_private;
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
 	struct sna_mode *mode = &sna->mode;
+	struct drm_mode_crtc arg;
 	uint32_t output_ids[16];
 	int output_count = 0;
 	int fb_id, x, y;
@@ -468,9 +469,16 @@ sna_crtc_apply(xf86CrtcPtr crtc)
 	     fb_id, sna_crtc->shadow_fb_id ? " [shadow]" : "",
 	     output_count));
 
-	ret = drmModeSetCrtc(sna->kgem.fd, crtc_id(sna_crtc),
-			     fb_id, x, y, output_ids, output_count,
-			     &sna_crtc->kmode);
+	VG_CLEAR(arg);
+	arg.x = x;
+	arg.y = y;
+	arg.crtc_id = sna_crtc->id;
+	arg.fb_id = fb_id;
+	arg.set_connectors_ptr = (uintptr_t)output_ids;
+	arg.count_connectors = output_count;
+	arg.mode = sna_crtc->kmode;
+	arg.mode_valid = 1;
+	ret = drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_SETCRTC, &arg);
 	if (ret) {
 		xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
 			   "failed to set mode: %s\n", strerror(-ret));
