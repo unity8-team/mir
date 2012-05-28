@@ -933,12 +933,12 @@ I830DRI2ScheduleFlip(struct intel_screen_private *intel,
 	int tmp_name;
 
 	if (!intel->use_triple_buffer) {
+		info->type = DRI2_SWAP;
 		if (!intel_do_pageflip(intel,
 				       intel_get_pixmap_bo(priv->pixmap),
 				       info, info->pipe))
 			return FALSE;
 
-		info->type = DRI2_SWAP;
 		I830DRI2ExchangeBuffers(intel, info->front, info->back);
 		return TRUE;
 	}
