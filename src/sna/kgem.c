@@ -82,7 +82,7 @@ search_linear_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags);
 #define IS_VMAP_MAP(ptr) ((uintptr_t)(ptr) & 2)
 
 #if defined(USE_VMAP) && !defined(I915_PARAM_HAS_VMAP)
-#define DRM_I915_GEM_VMAP       0x2c
+#define DRM_I915_GEM_VMAP       0x2d
 #define DRM_IOCTL_I915_GEM_VMAP DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_GEM_VMAP, struct drm_i915_gem_vmap)
 #define I915_PARAM_HAS_VMAP              19
 struct drm_i915_gem_vmap {
