@@ -1665,26 +1665,22 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		     (int)*target_msc,
 		     (int)divisor));
 
-	vbl.request.type = DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT;
-	vbl.request.type |= DRM_VBLANK_NEXTONMISS;
+	vbl.request.type =
+		DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT | DRM_VBLANK_NEXTONMISS;
 	if (pipe > 0)
 		vbl.request.type |= DRM_VBLANK_SECONDARY;
 
 	vbl.request.sequence = current_msc - current_msc % divisor + remainder;
-
 	/*
 	 * If the calculated deadline vbl.request.sequence is smaller than
 	 * or equal to current_msc, it means we've passed the last point
 	 * when effective onset frame seq could satisfy
 	 * seq % divisor == remainder, so we need to wait for the next time
 	 * this will happen.
-	 *
-	 * This comparison takes the 1 frame swap delay in pageflipping mode
-	 * into account, as well as a potential DRM_VBLANK_NEXTONMISS delay
-	 * if we are blitting/exchanging instead of flipping.
 	 */
-	if (vbl.request.sequence <= current_msc)
+	if (vbl.request.sequence < current_msc)
 		vbl.request.sequence += divisor;
+	vbl.request.sequence -= 1;
 
 	vbl.request.signal = (unsigned long)info;
 	if (drmWaitVBlank(sna->kgem.fd, &vbl))
