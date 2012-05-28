@@ -157,6 +157,7 @@ static unsigned get_fb(struct sna *sna, struct kgem_bo *bo,
 		       int width, int height)
 {
 	ScrnInfoPtr scrn = sna->scrn;
+	struct drm_mode_fb_cmd arg;
 	int ret;
 
 	assert(bo->proxy == NULL);
@@ -170,21 +171,25 @@ static unsigned get_fb(struct sna *sna, struct kgem_bo *bo,
 	     __FUNCTION__, width, height, scrn->depth, scrn->bitsPerPixel));
 
 	assert(bo->tiling != I915_TILING_Y);
-	ret = drmModeAddFB(sna->kgem.fd,
-			   width, height,
-			   scrn->depth, scrn->bitsPerPixel,
-			   bo->pitch, bo->handle,
-			   &bo->delta);
-	if (ret < 0) {
-		ErrorF("%s: failed to add fb: %dx%d depth=%d, bpp=%d, pitch=%d\n",
-		       __FUNCTION__,
-		       width, height,
-		       scrn->depth, scrn->bitsPerPixel, bo->pitch);
+
+	VG_CLEAR(arg);
+	arg.width = width;
+	arg.height = height;
+	arg.pitch = bo->pitch;
+	arg.bpp = scrn->bitsPerPixel;
+	arg.depth = scrn->depth;
+	arg.handle = bo->handle;
+
+	if ((ret = drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_ADDFB, &arg))) {
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+			   "%s: failed to add fb: %dx%d depth=%d, bpp=%d, pitch=%d: %d\n",
+			   __FUNCTION__, width, height,
+			   scrn->depth, scrn->bitsPerPixel, bo->pitch, ret);
 		return 0;
 	}
 
 	bo->scanout = true;
-	return bo->delta;
+	return bo->delta = arg.fb_id;
 }
 
 static uint32_t gem_create(int fd, int size)
