@@ -971,7 +971,6 @@ static void
 sna_crtc_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 {
 	struct sna *sna = to_sna(scrn);
-	drmModeCrtcPtr mode_crtc;
 	xf86CrtcPtr crtc;
 	struct sna_crtc *sna_crtc;
 	struct drm_i915_get_pipe_from_crtc_id get_pipe;
@@ -983,10 +982,7 @@ sna_crtc_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 		return;
 
 	sna_crtc->num = num;
-
-	mode_crtc = drmModeGetCrtc(sna->kgem.fd, mode->mode_res->crtcs[num]);
-	sna_crtc->id = mode_crtc->crtc_id;
-	drmModeFreeCrtc(mode_crtc);
+	sna_crtc->id = mode->mode_res->crtcs[num];
 
 	VG_CLEAR(get_pipe);
 	get_pipe.pipe = 0;
