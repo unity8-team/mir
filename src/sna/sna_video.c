@@ -196,6 +196,7 @@ sna_video_frame_init(struct sna *sna,
 {
 	int align;
 
+	frame->bo = NULL;
 	frame->id = id;
 	frame->width = width;
 	frame->height = height;
@@ -444,12 +445,9 @@ sna_video_copy_data(struct sna *sna,
 {
 	uint8_t *dst;
 
-	if (frame->bo == NULL)
-		return FALSE;
-
 	DBG(("%s: handle=%d, size=%dx%d, rotation=%d\n",
-	     __FUNCTION__, frame->bo->handle, frame->width, frame->height,
-	     video->rotation));
+	     __FUNCTION__, frame->bo ? frame->bo->handle : 0,
+	     frame->width, frame->height, video->rotation));
 	DBG(("%s: top=%d, left=%d\n", __FUNCTION__, frame->top, frame->left));
 
 	/* In the common case, we can simply the upload in a single pwrite */
@@ -462,10 +460,22 @@ sna_video_copy_data(struct sna *sna,
 			if (pitch[0] == frame->pitch[0] &&
 			    pitch[1] == frame->pitch[1] &&
 			    frame->top == 0 && frame->left == 0) {
-				kgem_bo_write(&sna->kgem, frame->bo,
-					      buf,
-					      pitch[1]*frame->height +
-					      pitch[0]*frame->height);
+				if (frame->bo) {
+					kgem_bo_write(&sna->kgem, frame->bo,
+						      buf,
+						      pitch[1]*frame->height +
+						      pitch[0]*frame->height);
+				} else {
+					frame->bo = kgem_create_buffer(&sna->kgem, frame->size,
+								       KGEM_BUFFER_WRITE | KGEM_BUFFER_WRITE_INPLACE,
+								       (void **)&dst);
+					if (frame->bo == NULL)
+						return FALSE;
+
+					memcpy(dst, buf,
+					       pitch[1]*frame->height +
+					       pitch[0]*frame->height);
+				}
 				if (frame->id != FOURCC_I420) {
 					uint32_t tmp;
 					tmp = frame->VBufOffset;
@@ -476,18 +486,38 @@ sna_video_copy_data(struct sna *sna,
 			}
 		} else {
 			if (frame->width*2 == frame->pitch[0]) {
-				kgem_bo_write(&sna->kgem, frame->bo,
-					      buf + (frame->top * frame->width*2) + (frame->left << 1),
-					      frame->nlines*frame->width*2);
+				if (frame->bo) {
+					kgem_bo_write(&sna->kgem, frame->bo,
+						      buf + (frame->top * frame->width*2) + (frame->left << 1),
+						      frame->nlines*frame->width*2);
+				} else {
+					frame->bo = kgem_create_buffer(&sna->kgem, frame->size,
+								       KGEM_BUFFER_WRITE | KGEM_BUFFER_WRITE_INPLACE,
+								       (void **)&dst);
+					if (frame->bo == NULL)
+						return FALSE;
+
+					memcpy(dst,
+					       buf + (frame->top * frame->width*2) + (frame->left << 1),
+					       frame->nlines*frame->width*2);
+				}
 				return TRUE;
 			}
 		}
 	}
 
 	/* copy data, must use GTT so that we keep the overlay uncached */
-	dst = kgem_bo_map__gtt(&sna->kgem, frame->bo);
-	if (dst == NULL)
-		return FALSE;
+	if (frame->bo) {
+		dst = kgem_bo_map__gtt(&sna->kgem, frame->bo);
+		if (dst == NULL)
+			return FALSE;
+	} else {
+		frame->bo = kgem_create_buffer(&sna->kgem, frame->size,
+					       KGEM_BUFFER_WRITE | KGEM_BUFFER_WRITE_INPLACE,
+					       (void **)&dst);
+		if (frame->bo == NULL)
+			return FALSE;
+	}
 
 	if (is_planar_fourcc(frame->id))
 		sna_copy_planar_data(video, frame, buf, dst);
