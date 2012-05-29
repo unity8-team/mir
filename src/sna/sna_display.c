@@ -79,7 +79,6 @@ struct sna_output {
 	struct sna_mode *mode;
 	int output_id;
 	drmModeConnectorPtr mode_output;
-	drmModeEncoderPtr mode_encoder;
 	int num_props;
 	struct sna_property *props;
 	void *private_data;
@@ -1649,7 +1648,7 @@ sna_output_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 	struct sna *sna = to_sna(scrn);
 	xf86OutputPtr output;
 	drmModeConnectorPtr koutput;
-	drmModeEncoderPtr kencoder;
+	struct drm_mode_get_encoder enc;
 	struct sna_output *sna_output;
 	const char *output_name;
 	const char *s;
@@ -1660,8 +1659,9 @@ sna_output_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 	if (!koutput)
 		return;
 
-	kencoder = drmModeGetEncoder(sna->kgem.fd, koutput->encoders[0]);
-	if (!kencoder)
+	VG_CLEAR(enc);
+	enc.encoder_id = koutput->encoders[0];
+	if (drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_GETENCODER, &enc))
 		goto cleanup_connector;
 
 	if (koutput->connector_type < ARRAY_SIZE(output_names))
@@ -1673,12 +1673,12 @@ sna_output_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 	if (xf86IsEntityShared(scrn->entityList[0])) {
 		s = xf86GetOptValString(sna->Options, OPTION_ZAPHOD);
 		if (s && !sna_zaphod_match(s, name))
-			goto cleanup_encoder;
+			goto cleanup_connector;
 	}
 
 	output = xf86OutputCreate(scrn, &sna_output_funcs, name);
 	if (!output)
-		goto cleanup_encoder;
+		goto cleanup_connector;
 
 	sna_output = calloc(sizeof(struct sna_output), 1);
 	if (!sna_output)
@@ -1686,7 +1686,6 @@ sna_output_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 
 	sna_output->output_id = mode->mode_res->connectors[num];
 	sna_output->mode_output = koutput;
-	sna_output->mode_encoder = kencoder;
 	sna_output->mode = mode;
 
 	output->mm_width = koutput->mmWidth;
@@ -1698,8 +1697,8 @@ sna_output_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 	if (is_panel(koutput->connector_type))
 		sna_output_backlight_init(output);
 
-	output->possible_crtcs = kencoder->possible_crtcs;
-	output->possible_clones = kencoder->possible_clones;
+	output->possible_crtcs = enc.possible_crtcs;
+	output->possible_clones = enc.possible_clones;
 	output->interlaceAllowed = TRUE;
 
 	sna_output->output = output;
@@ -1711,8 +1710,6 @@ cleanup_output:
 	xf86OutputDestroy(output);
 cleanup_connector:
 	drmModeFreeConnector(koutput);
-cleanup_encoder:
-	drmModeFreeEncoder(kencoder);
 }
 
 struct sna_visit_set_pixmap_window {
