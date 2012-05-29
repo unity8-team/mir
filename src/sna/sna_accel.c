@@ -9751,7 +9751,7 @@ sna_poly_fill_rect_stippled_n_box(struct sna *sna,
 	uint32_t *b;
 
 	for (y1 = box->y1; y1 < box->y2; y1 = y2) {
-		int oy = (y1 - origin->y)  % gc->stipple->drawable.height;
+		int oy = (y1 - origin->y) % gc->stipple->drawable.height;
 
 		y2 = box->y2;
 		if (y2 - y1 > gc->stipple->drawable.height - oy)
@@ -9765,12 +9765,11 @@ sna_poly_fill_rect_stippled_n_box(struct sna *sna,
 			ox = (x1 - origin->x) % gc->stipple->drawable.width;
 			bx1 = ox & ~7;
 			bx2 = ox + (x2 - x1);
-			if (bx2 - bx1 > gc->stipple->drawable.width) {
-				bx2 = bx1 + gc->stipple->drawable.width;
-				x2 = x1 + (bx1-ox) + gc->stipple->drawable.width;
+			if (bx2 > gc->stipple->drawable.width) {
+				bx2 = gc->stipple->drawable.width;
+				x2 = x1 + bx2-ox;
 			}
-			bx2 = (bx2 + 7) & ~7;
-			bw = (bx2 - bx1)/8;
+			bw = (bx2 - bx1 + 7)/8;
 			bw = ALIGN(bw, 2);
 			bh = y2 - y1;
 
