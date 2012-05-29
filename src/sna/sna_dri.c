@@ -36,16 +36,15 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "config.h"
 #endif
 
-#include <xf86.h>
-#include <xf86_OSproc.h>
 #include <errno.h>
 #include <string.h>
 
-#include <i915_drm.h>
-#include <dri2.h>
-
 #include "sna.h"
 #include "sna_reg.h"
+
+#include <xf86drm.h>
+#include <i915_drm.h>
+#include <dri2.h>
 
 #if DRI2INFOREC_VERSION <= 2
 #error DRI2 version supported by the Xserver is too old

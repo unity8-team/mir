@@ -3,6 +3,8 @@
 
 #include "compiler.h"
 
+#include <picturestr.h>
+
 #define GRADIENT_CACHE_SIZE 16
 
 struct sna;

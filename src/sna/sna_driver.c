@@ -46,6 +46,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <errno.h>
 
 #include <xf86cmap.h>
+#include <xf86drm.h>
 #include <micmap.h>
 #include <fb.h>
 

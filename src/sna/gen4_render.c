@@ -34,8 +34,6 @@
 #include "config.h"
 #endif
 
-#include <xf86.h>
-
 #include "sna.h"
 #include "sna_reg.h"
 #include "sna_render.h"

@@ -31,7 +31,6 @@
 #include "config.h"
 #endif
 
-#include "xf86.h"
 #include "sna.h"
 
 /**

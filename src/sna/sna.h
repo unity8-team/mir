@@ -45,18 +45,15 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "compiler.h"
 
-#include <xf86_OSproc.h>
-#include <xf86Pci.h>
-#include <xf86Cursor.h>
-#include <xf86xv.h>
 #include <xf86Crtc.h>
-#include <xf86RandR12.h>
+#include <windowstr.h>
+#include <glyphstr.h>
+#include <picturestr.h>
 #include <gcstruct.h>
 
 #include <xorg-server.h>
 #include <pciaccess.h>
 
-#include <xf86drm.h>
 #include <xf86drmMode.h>
 
 #include "../compat-api.h"

@@ -40,7 +40,8 @@
 #include <xorgVersion.h>
 #include <X11/Xatom.h>
 #include <X11/extensions/dpmsconst.h>
-#include <xf86DDC.h>
+#include <xf86drm.h>
+#include <xf86DDC.h> /* for xf86InterpretEDID */
 
 #include "sna.h"
 #include "sna_reg.h"

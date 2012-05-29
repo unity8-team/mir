@@ -27,8 +27,8 @@ THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef SNA_VIDEO_H
 #define SNA_VIDEO_H
 
-#include <xf86.h>
 #include <xf86_OSproc.h>
+#include <xf86xv.h>
 #include <fourcc.h>
 
 #if defined(XvMCExtension) && defined(ENABLE_XVMC)

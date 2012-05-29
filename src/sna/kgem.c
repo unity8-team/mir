@@ -39,6 +39,8 @@
 #include <errno.h>
 #include <fcntl.h>
 
+#include <xf86drm.h>
+
 #ifdef HAVE_VALGRIND
 #include <valgrind.h>
 #include <memcheck.h>
