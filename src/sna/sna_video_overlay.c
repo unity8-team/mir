@@ -31,6 +31,7 @@
 #include "sna.h"
 #include "sna_video.h"
 
+#include <xf86drm.h>
 #include <xf86xv.h>
 #include <X11/extensions/Xv.h>
 #include <fourcc.h>
