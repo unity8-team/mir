@@ -1263,41 +1263,40 @@ sna_output_dpms(xf86OutputPtr output, int dpms)
 	DBG(("%s: dpms=%d\n", __FUNCTION__, dpms));
 
 	for (i = 0; i < koutput->count_props; i++) {
-		drmModePropertyPtr props;
+		struct drm_mode_get_property prop;
 
-		props = drmModeGetProperty(sna->kgem.fd, koutput->props[i]);
-		if (!props)
+		VG_CLEAR(prop);
+		prop.prop_id = koutput->props[i];
+		if (drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_GETPROPERTY, &prop))
 			continue;
 
-		if (!strcmp(props->name, "DPMS")) {
-			/* Record thevalue of the backlight before turning
-			 * off the display, and reset if after turnging it on.
-			 * Order is important as the kernel may record and also
-			 * reset the backlight across DPMS. Hence we need to
-			 * record the value before the kernel modifies it
-			 * and reapply it afterwards.
-			 */
-			if (dpms == DPMSModeOff)
-				sna_output_dpms_backlight(output,
-							  sna_output->dpms_mode,
-							  dpms);
+		if (strcmp(prop.name, "DPMS"))
+			continue;
 
-			drmModeConnectorSetProperty(sna->kgem.fd,
-						    sna_output->output_id,
-						    props->prop_id,
-						    dpms);
+		/* Record thevalue of the backlight before turning
+		 * off the display, and reset if after turnging it on.
+		 * Order is important as the kernel may record and also
+		 * reset the backlight across DPMS. Hence we need to
+		 * record the value before the kernel modifies it
+		 * and reapply it afterwards.
+		 */
+		if (dpms == DPMSModeOff)
+			sna_output_dpms_backlight(output,
+						  sna_output->dpms_mode,
+						  dpms);
 
-			if (dpms != DPMSModeOff)
-				sna_output_dpms_backlight(output,
-							  sna_output->dpms_mode,
-							  dpms);
+		drmModeConnectorSetProperty(sna->kgem.fd,
+					    sna_output->output_id,
+					    prop.prop_id,
+					    dpms);
 
-			sna_output->dpms_mode = dpms;
-			drmModeFreeProperty(props);
-			return;
-		}
+		if (dpms != DPMSModeOff)
+			sna_output_dpms_backlight(output,
+						  sna_output->dpms_mode,
+						  dpms);
 
-		drmModeFreeProperty(props);
+		sna_output->dpms_mode = dpms;
+		break;
 	}
 }
 
