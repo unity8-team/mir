@@ -327,6 +327,11 @@ static inline bool kgem_check_exec(struct kgem *kgem, int n)
 	return likely(kgem->nexec + n <= KGEM_EXEC_SIZE(kgem));
 }
 
+static inline bool kgem_check_reloc_and_exec(struct kgem *kgem, int n)
+{
+	return kgem_check_reloc(kgem, n) && kgem_check_exec(kgem, n);
+}
+
 static inline bool kgem_check_batch_with_surfaces(struct kgem *kgem,
 						  int num_dwords,
 						  int num_surfaces)

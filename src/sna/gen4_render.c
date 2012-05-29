@@ -1155,9 +1155,7 @@ static int gen4_get_rectangles__flush(struct sna *sna,
 {
 	if (!kgem_check_batch(&sna->kgem, 25))
 		return 0;
-	if (!kgem_check_exec(&sna->kgem, 1))
-		return 0;
-	if (!kgem_check_reloc(&sna->kgem, 1))
+	if (!kgem_check_reloc_and_exec(&sna->kgem, 1))
 		return 0;
 
 	if (op->need_magic_ca_pass && sna->render.vbo)
