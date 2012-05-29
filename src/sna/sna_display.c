@@ -1086,24 +1086,22 @@ sna_output_attach_edid(xf86OutputPtr output)
 
 	/* look for an EDID property */
 	for (i = 0; i < koutput->count_props; i++) {
-		drmModePropertyPtr props;
+		struct drm_mode_get_property prop;
 
-		props = drmModeGetProperty(sna->kgem.fd, koutput->props[i]);
-		if (!props)
+		VG_CLEAR(prop);
+		prop.prop_id = koutput->props[i];
+		if (drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_GETPROPERTY, &prop))
 			continue;
 
-		if (!(props->flags & DRM_MODE_PROP_BLOB)) {
-			drmModeFreeProperty(props);
+		if (!(prop.flags & DRM_MODE_PROP_BLOB))
 			continue;
-		}
 
-		if (!strcmp(props->name, "EDID")) {
-			drmModeFreePropertyBlob(edid_blob);
-			edid_blob =
-				drmModeGetPropertyBlob(sna->kgem.fd,
-						       koutput->prop_values[i]);
-		}
-		drmModeFreeProperty(props);
+		if (strcmp(prop.name, "EDID"))
+			continue;
+
+		drmModeFreePropertyBlob(edid_blob);
+		edid_blob = drmModeGetPropertyBlob(sna->kgem.fd,
+						   koutput->prop_values[i]);
 	}
 
 	if (edid_blob) {
