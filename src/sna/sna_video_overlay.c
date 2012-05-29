@@ -114,7 +114,7 @@ static Bool sna_has_overlay(struct sna *sna)
 	gp.param = I915_PARAM_HAS_OVERLAY;
 	gp.value = &has_overlay;
 	ret = drmIoctl(sna->kgem.fd, DRM_IOCTL_I915_GETPARAM, &gp);
-	return ret > 0 && has_overlay;
+	return ret == 0 && has_overlay;
 }
 
 static Bool sna_video_overlay_update_attrs(struct sna *sna,
