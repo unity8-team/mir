@@ -36,6 +36,12 @@ NVInitDma(ScrnInfoPtr pScrn)
 	int size, ret;
 	void *data;
 
+	if (pNv->dev->drm_version < 0x01000000 && pNv->dev->chipset >= 0xc0) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "Fermi acceleration not supported on old kernel\n");
+		return FALSE;
+	}
+
 	if (pNv->Architecture < NV_ARCH_C0) {
 		data = &nv04_data;
 		size = sizeof(nv04_data);
