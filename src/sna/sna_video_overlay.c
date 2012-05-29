@@ -113,10 +113,8 @@ static Bool sna_has_overlay(struct sna *sna)
 
 	gp.param = I915_PARAM_HAS_OVERLAY;
 	gp.value = &has_overlay;
-	ret = drmCommandWriteRead(sna->kgem.fd, DRM_I915_GETPARAM, &gp, sizeof(gp));
-
-	return !! has_overlay;
-	(void)ret;
+	ret = drmIoctl(sna->kgem.fd, DRM_IOCTL_I915_GETPARAM, &gp);
+	return ret > 0 && has_overlay;
 }
 
 static Bool sna_video_overlay_update_attrs(struct sna *sna,
@@ -138,22 +136,18 @@ static Bool sna_video_overlay_update_attrs(struct sna *sna,
 	attrs.gamma4 = video->gamma4;
 	attrs.gamma5 = video->gamma5;
 
-	return drmCommandWriteRead(sna->kgem.fd, DRM_I915_OVERLAY_ATTRS,
-				  &attrs, sizeof(attrs)) == 0;
+	return drmIoctl(sna->kgem.fd, DRM_IOCTL_I915_OVERLAY_ATTRS, &attrs) == 0;
 }
 
 static void sna_video_overlay_off(struct sna *sna)
 {
 	struct drm_intel_overlay_put_image request;
-	int ret;
 
 	DBG(("%s()\n", __FUNCTION__));
 
 	request.flags = 0;
 
-	ret = drmCommandWrite(sna->kgem.fd, DRM_I915_OVERLAY_PUT_IMAGE,
-			      &request, sizeof(request));
-	(void)ret;
+	drmIoctl(sna->kgem.fd, DRM_IOCTL_I915_OVERLAY_PUT_IMAGE, &request);
 }
 
 static void sna_video_overlay_stop(ScrnInfoPtr scrn,
@@ -448,8 +442,7 @@ sna_video_overlay_show(struct sna *sna,
 
 	DBG(("%s: flags=%x\n", __FUNCTION__, request.flags));
 
-	return drmCommandWrite(sna->kgem.fd, DRM_I915_OVERLAY_PUT_IMAGE,
-			       &request, sizeof(request)) == 0;
+	return drmIoctl(sna->kgem.fd, DRM_IOCTL_I915_OVERLAY_PUT_IMAGE, &request) == 0;
 }
 
 static int
