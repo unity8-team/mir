@@ -33,6 +33,7 @@
 
 #include "intel_options.h"
 
+#include <xf86drm.h>
 #include <xf86xv.h>
 #include <X11/extensions/Xv.h>
 #include <fourcc.h>
@@ -197,9 +198,9 @@ sna_video_sprite_show(struct sna *sna,
 		set.plane_id = plane;
 		set.value = video->color_key;
 
-		if (drmCommandWrite(sna->kgem.fd,
-				    DRM_I915_SET_SPRITE_DESTKEY,
-				    &set, sizeof(set)))
+		if (drmIoctl(sna->kgem.fd,
+			     DRM_IOCTL_I915_SET_SPRITE_DESTKEY,
+			     &set))
 			xf86DrvMsg(sna->scrn->scrnIndex, X_ERROR,
 				   "failed to update color key\n");
 
