@@ -568,6 +568,11 @@ static bool semaphores_enabled(void)
 	return detected;
 }
 
+static bool __kgem_throttle(struct kgem *kgem)
+{
+	return drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_THROTTLE, NULL) == -EIO;
+}
+
 void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 {
 	struct drm_i915_gem_get_aperture aperture;
@@ -579,7 +584,7 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 
 	kgem->fd = fd;
 	kgem->gen = gen;
-	kgem->wedged = drmCommandNone(kgem->fd, DRM_I915_GEM_THROTTLE) == -EIO;
+	kgem->wedged = __kgem_throttle(kgem);
 	kgem->wedged |= DBG_NO_HW;
 
 	kgem->batch_size = ARRAY_SIZE(kgem->batch);
@@ -1864,7 +1869,7 @@ void _kgem_submit(struct kgem *kgem)
 				       DRM_IOCTL_I915_GEM_EXECBUFFER2,
 				       &execbuf);
 			while (ret == -1 && errno == EBUSY && retry--) {
-				drmCommandNone(kgem->fd, DRM_I915_GEM_THROTTLE);
+				__kgem_throttle(kgem);
 				ret = drmIoctl(kgem->fd,
 					       DRM_IOCTL_I915_GEM_EXECBUFFER2,
 					       &execbuf);
@@ -1954,8 +1959,7 @@ void kgem_throttle(struct kgem *kgem)
 {
 	static int warned;
 
-	kgem->wedged |= drmCommandNone(kgem->fd, DRM_I915_GEM_THROTTLE) == -EIO;
-
+	kgem->wedged |= __kgem_throttle(kgem);
 	if (kgem->wedged && !warned) {
 		struct sna *sna = container_of(kgem, struct sna, kgem);
 		xf86DrvMsg(sna->scrn->scrnIndex, X_ERROR,

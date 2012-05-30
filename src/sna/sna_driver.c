@@ -334,8 +334,7 @@ static int sna_open_drm_master(ScrnInfoPtr scrn)
 	val = FALSE;
 	gp.param = I915_PARAM_HAS_BLT;
 	gp.value = &val;
-	if (drmCommandWriteRead(fd, DRM_I915_GETPARAM,
-				&gp, sizeof(gp))) {
+	if (drmIoctl(fd, DRM_IOCTL_I915_GETPARAM, &gp)) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "Failed to detect BLT.  Kernel 2.6.37 required.\n");
 		drmClose(fd);
