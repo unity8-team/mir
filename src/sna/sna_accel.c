@@ -11924,11 +11924,12 @@ static bool sna_accel_do_flush(struct sna *sna)
 			return priv->cpu_damage || !__kgem_flush(&sna->kgem, priv->gpu_bo);
 		}
 	} else {
-		if (priv->cpu_damage == NULL && priv->gpu_bo->exec == NULL) {
+		if (priv->cpu_damage == NULL &&
+		    !__kgem_flush(&sna->kgem, priv->gpu_bo)) {
 			DBG(("%s -- no pending write to scanout\n", __FUNCTION__));
 		} else {
 			sna->timer_active |= 1 << FLUSH_TIMER;
-			sna->timer_ready |= 1 << FLUSH_TIMER;
+			sna->timer_ready  |= 1 << FLUSH_TIMER;
 			sna->timer_expire[FLUSH_TIMER] =
 				sna->time + sna->vblank_interval / 2;
 			DBG(("%s (time=%ld), starting\n", __FUNCTION__, (long)sna->time));
