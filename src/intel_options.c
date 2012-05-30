@@ -12,15 +12,12 @@ const OptionInfoRec intel_options[] = {
 	{OPTION_TILING_2D,	"Tiling",	OPTV_BOOLEAN,	{0},	1},
 	{OPTION_TILING_FB,	"LinearFramebuffer",	OPTV_BOOLEAN,	{0},	0},
 	{OPTION_SWAPBUFFERS_WAIT, "SwapbuffersWait", OPTV_BOOLEAN,	{0},	1},
+	{OPTION_PREFER_OVERLAY, "XvPreferOverlay", OPTV_BOOLEAN, {0}, 0},
+	{OPTION_HOTPLUG,	"HotPlug",	OPTV_BOOLEAN,	{0},	1},
+	{OPTION_RELAXED_FENCING,"RelaxedFencing",	OPTV_BOOLEAN,	{0},	1},
 #ifdef INTEL_XVMC
 	{OPTION_XVMC,	"XvMC",		OPTV_BOOLEAN,	{0},	1},
 #endif
-	{OPTION_PREFER_OVERLAY, "XvPreferOverlay", OPTV_BOOLEAN, {0}, 0},
-	{OPTION_DEBUG_FLUSH_BATCHES, "DebugFlushBatches", OPTV_BOOLEAN, {0}, 0},
-	{OPTION_DEBUG_FLUSH_CACHES, "DebugFlushCaches", OPTV_BOOLEAN, {0}, 0},
-	{OPTION_DEBUG_WAIT, "DebugWait", OPTV_BOOLEAN, {0}, 0},
-	{OPTION_HOTPLUG,	"HotPlug",	OPTV_BOOLEAN,	{0},	1},
-	{OPTION_RELAXED_FENCING,	"RelaxedFencing",	OPTV_BOOLEAN,	{0},	1},
 #ifdef USE_SNA
 	{OPTION_THROTTLE,	"Throttle",	OPTV_BOOLEAN,	{0},	1},
 	{OPTION_VMAP,	"UseVmap",	OPTV_BOOLEAN,	{0},	1},
@@ -29,6 +26,9 @@ const OptionInfoRec intel_options[] = {
 #endif
 #ifdef USE_UXA
 	{OPTION_FALLBACKDEBUG,	"FallbackDebug",OPTV_BOOLEAN,	{0},	0},
+	{OPTION_DEBUG_FLUSH_BATCHES, "DebugFlushBatches", OPTV_BOOLEAN, {0}, 0},
+	{OPTION_DEBUG_FLUSH_CACHES, "DebugFlushCaches", OPTV_BOOLEAN, {0}, 0},
+	{OPTION_DEBUG_WAIT, "DebugWait", OPTV_BOOLEAN, {0}, 0},
 	{OPTION_BUFFER_CACHE,	"BufferCache",	OPTV_BOOLEAN,   {0},    1},
 	{OPTION_SHADOW,		"Shadow",	OPTV_BOOLEAN,	{0},	0},
 	{OPTION_TRIPLE_BUFFER,	"TripleBuffer", OPTV_BOOLEAN,	{0},	1},
