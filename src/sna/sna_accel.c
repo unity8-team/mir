@@ -11899,7 +11899,7 @@ static bool sna_accel_do_flush(struct sna *sna)
 	struct sna_pixmap *priv;
 
 	priv = sna_accel_scanout(sna);
-	if (priv == NULL) {
+	if (priv == NULL || priv->gpu_bo == NULL) {
 		DBG(("%s -- no scanout attached\n", __FUNCTION__));
 		sna_accel_disarm_timer(sna, FLUSH_TIMER);
 		return false;
