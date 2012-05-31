@@ -41,6 +41,9 @@
 #define DBG(x) ErrorF x
 #endif
 
+#define NO_COMPOSITE 0
+#define NO_COMPOSITE_RECTANGLES 0
+
 #define BOUND(v)	(INT16) ((v) < MINSHORT ? MINSHORT : (v) > MAXSHORT ? MAXSHORT : (v))
 
 Bool sna_composite_create(struct sna *sna)
@@ -450,9 +453,12 @@ sna_composite(CARD8 op,
 					  src, mask, dst,
 					  src_x,  src_y,
 					  mask_x, mask_y,
-					  dst_x, dst_y,
+					  dst_x,  dst_y,
 					  width,  height))
 		return;
+
+	if (NO_COMPOSITE)
+		goto fallback;
 
 	if (wedged(sna)) {
 		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
@@ -526,13 +532,15 @@ sna_composite(CARD8 op,
 	goto out;
 
 fallback:
-	DBG(("%s -- fallback dst=(%d, %d)+(%d, %d), size=(%d, %d)\n",
+	DBG(("%s -- fallback dst=(%d, %d)+(%d, %d), size=(%d, %d): region=((%d,%d), (%d, %d))\n",
 	     __FUNCTION__,
 	     dst_x, dst_y,
 	     dst->pDrawable->x, dst->pDrawable->y,
-	     width, height));
-	if (op == PictOpSrc || op == PictOpClear)
-		flags = MOVE_WRITE;
+	     width, height,
+	     region.extents.x1, region.extents.y1,
+	     region.extents.x2, region.extents.y2));
+	if (op <= PictOpSrc && !dst->alphaMap)
+		flags = MOVE_WRITE | MOVE_INPLACE_HINT;
 	else
 		flags = MOVE_WRITE | MOVE_READ;
 	if (!sna_drawable_move_region_to_cpu(dst->pDrawable, &region, flags))
@@ -563,10 +571,10 @@ fallback:
 
 	DBG(("%s: fallback -- fbComposite\n", __FUNCTION__));
 	fbComposite(op, src, mask, dst,
-		    src_x, src_y,
+		    src_x,  src_y,
 		    mask_x, mask_y,
-		    dst_x, dst_y,
-		    width, height);
+		    dst_x,  dst_y,
+		    width,  height);
 out:
 	REGION_UNINIT(NULL, &region);
 }
@@ -757,6 +765,9 @@ sna_composite_rectangles(CARD8		 op,
 	     __FUNCTION__, dst_x, dst_y,
 	     RegionExtents(&region)->x1, RegionExtents(&region)->y1,
 	     RegionExtents(&region)->x2, RegionExtents(&region)->y2));
+
+	if (NO_COMPOSITE_RECTANGLES)
+		goto fallback;
 
 	if (wedged(sna))
 		goto fallback;
