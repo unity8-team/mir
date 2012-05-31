@@ -415,6 +415,36 @@ static void apply_damage(struct sna_composite_op *op,
 	sna_damage_add_box(op->damage, &box);
 }
 
+static void apply_damage_clipped_to_dst(struct sna_composite_op *op,
+					const struct sna_composite_rectangles *r,
+					DrawablePtr dst)
+{
+	BoxRec box;
+
+	if (op->damage == NULL)
+		return;
+
+	box.x1 = r->dst.x + op->dst.x;
+	box.y1 = r->dst.y + op->dst.y;
+	box.x2 = box.x1 + r->width;
+	box.y2 = box.y1 + r->height;
+
+	if (box.x1 < dst->x)
+		box.x1 = dst->x;
+
+	if (box.x2 > op->dst.width)
+		box.x2 = op->dst.width;
+
+	if (box.y1 < dst->y)
+		box.y1 = dst->y;
+
+	if (box.y2 > op->dst.height)
+		box.y2 = op->dst.height;
+
+	assert_pixmap_contains_box(op->dst.pixmap, &box);
+	sna_damage_add_box(op->damage, &box);
+}
+
 static Bool
 glyphs_to_dst(struct sna *sna,
 	      CARD8 op,
@@ -553,7 +583,7 @@ glyphs_to_dst(struct sna *sna,
 				     r.width, r.height));
 
 				tmp.blt(sna, &tmp, &r);
-				apply_damage(&tmp, &r);
+				apply_damage_clipped_to_dst(&tmp, &r, dst->pDrawable);
 			}
 
 next_glyph:
