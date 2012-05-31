@@ -130,6 +130,15 @@ static void unrealize_glyph_caches(struct sna *sna)
 		free(cache->glyphs);
 	}
 	memset(render->glyph, 0, sizeof(render->glyph));
+
+	if (render->white_image) {
+		pixman_image_unref(render->white_image);
+		render->white_image = NULL;
+	}
+	if (render->white_picture) {
+		FreePicture(render->white_picture, 0);
+		render->white_picture = NULL;
+	}
 }
 
 /* All caches for a single format share a single pixmap for glyph storage,
@@ -144,11 +153,13 @@ static void unrealize_glyph_caches(struct sna *sna)
 static Bool realize_glyph_caches(struct sna *sna)
 {
 	ScreenPtr screen = sna->scrn->pScreen;
+	pixman_color_t white = { 0xffff, 0xffff, 0xffff, 0xffff };
 	unsigned int formats[] = {
 		PIXMAN_a8,
 		PIXMAN_a8r8g8b8,
 	};
 	unsigned int i;
+	int error;
 
 	DBG(("%s\n", __FUNCTION__));
 
@@ -163,7 +174,6 @@ static Bool realize_glyph_caches(struct sna *sna)
 		PictFormatPtr pPictFormat;
 		CARD32 component_alpha;
 		int depth = PIXMAN_FORMAT_DEPTH(formats[i]);
-		int error;
 
 		pPictFormat = PictureMatchFormat(screen, depth, formats[i]);
 		if (!pPictFormat)
@@ -205,7 +215,10 @@ static Bool realize_glyph_caches(struct sna *sna)
 		cache->evict = rand() % GLYPH_CACHE_SIZE;
 	}
 
-	return TRUE;
+	sna->render.white_image = pixman_image_create_solid_fill(&white);
+	sna->render.white_picture =
+		CreateSolidPicture(0, (xRenderColor *)&white, &error);
+	return sna->render.white_image && sna->render.white_picture;
 
 bail:
 	unrealize_glyph_caches(sna);
@@ -412,7 +425,6 @@ glyphs_to_dst(struct sna *sna,
 {
 	struct sna_composite_op tmp;
 	ScreenPtr screen = dst->pDrawable->pScreen;
-	int index = screen->myNum;
 	PicturePtr glyph_atlas;
 	BoxPtr rects;
 	int nrect;
@@ -566,7 +578,6 @@ glyphs_slow(struct sna *sna,
 {
 	struct sna_composite_op tmp;
 	ScreenPtr screen = dst->pDrawable->pScreen;
-	int index = screen->myNum;
 	int16_t x, y;
 
 	if (NO_GLYPHS_SLOW)
@@ -705,7 +716,6 @@ glyphs_via_mask(struct sna *sna,
 {
 	ScreenPtr screen = dst->pDrawable->pScreen;
 	struct sna_composite_op tmp;
-	int index = screen->myNum;
 	CARD32 component_alpha;
 	PixmapPtr pixmap;
 	PicturePtr glyph_atlas, mask;
@@ -759,7 +769,6 @@ glyphs_via_mask(struct sna *sna,
 	    ((uint32_t)width * height * format->depth < 8 * 4096 ||
 	     too_large(sna, width, height))) {
 		pixman_image_t *mask_image;
-		int s;
 
 		DBG(("%s: small mask [format=%lx, depth=%d, size=%d], rendering glyphs to upload buffer\n",
 		     __FUNCTION__, (unsigned long)format->format,
@@ -784,7 +793,6 @@ upload:
 		}
 
 		memset(pixmap->devPrivate.ptr, 0, pixmap->devKind*height);
-		s = dst->pDrawable->pScreen->myNum;
 		do {
 			int n = list->len;
 			x += list->xOff;
@@ -833,15 +841,28 @@ upload:
 				     g->info.width,
 				     g->info.height));
 
-				pixman_image_composite(PictOpAdd,
-						       glyph_image,
-						       NULL,
-						       mask_image,
-						       0, 0,
-						       0, 0,
-						       xi, yi,
-						       g->info.width,
-						       g->info.height);
+				if (list->format == format) {
+					assert(pixman_image_get_format(glyph_image) == pixman_image_get_format(mask_image));
+					pixman_image_composite(PictOpAdd,
+							       glyph_image,
+							       NULL,
+							       mask_image,
+							       0, 0,
+							       0, 0,
+							       xi, yi,
+							       g->info.width,
+							       g->info.height);
+				} else {
+					pixman_image_composite(PictOpAdd,
+							       sna->render.white_image,
+							       glyph_image,
+							       mask_image,
+							       0, 0,
+							       0, 0,
+							       xi, yi,
+							       g->info.width,
+							       g->info.height);
+				}
 
 next_image:
 				x += g->info.xOff;
@@ -914,14 +935,25 @@ next_image:
 				}
 
 				if (this_atlas != glyph_atlas) {
+					bool ok;
+
 					if (glyph_atlas)
 						tmp.done(sna, &tmp);
 
-					if (!sna->render.composite(sna, PictOpAdd,
-								   this_atlas, NULL, mask,
-								   0, 0, 0, 0, 0, 0,
-								   width, height,
-								   &tmp)) {
+					if (this_atlas->format == format->format) {
+						ok = sna->render.composite(sna, PictOpAdd,
+									   this_atlas, NULL, mask,
+									   0, 0, 0, 0, 0, 0,
+									   width, height,
+									   &tmp);
+					} else {
+						ok = sna->render.composite(sna, PictOpAdd,
+									   sna->render.white_picture, this_atlas, mask,
+									   0, 0, 0, 0, 0, 0,
+									   width, height,
+									   &tmp);
+					}
+					if (!ok) {
 						FreePicture(mask, 0);
 						return FALSE;
 					}
@@ -1046,6 +1078,7 @@ glyphs_fallback(CARD8 op,
 		GlyphListPtr list,
 		GlyphPtr *glyphs)
 {
+	struct sna *sna = to_sna_from_drawable(dst->pDrawable);
 	pixman_image_t *dst_image, *mask_image, *src_image;
 	int dx, dy, x, y;
 	BoxRec box;
@@ -1178,16 +1211,30 @@ glyphs_fallback(CARD8 op,
 				     g->info.width,
 				     g->info.height));
 
-				pixman_image_composite(PictOpAdd,
-						       glyph_image,
-						       NULL,
-						       mask_image,
-						       dx, dy,
-						       0, 0,
-						       x - g->info.x,
-						       y - g->info.y,
-						       g->info.width,
-						       g->info.height);
+				if (list->format == mask_format) {
+					assert(pixman_image_get_format(glyph_image) == pixman_image_get_format(mask_image));
+					pixman_image_composite(PictOpAdd,
+							       glyph_image,
+							       NULL,
+							       mask_image,
+							       dx, dy,
+							       0, 0,
+							       x - g->info.x,
+							       y - g->info.y,
+							       g->info.width,
+							       g->info.height);
+				} else {
+					pixman_image_composite(PictOpAdd,
+							       sna->render.white_image,
+							       glyph_image,
+							       mask_image,
+							       dx, dy,
+							       0, 0,
+							       x - g->info.x,
+							       y - g->info.y,
+							       g->info.width,
+							       g->info.height);
+				}
 			} else {
 				int xi = x - g->info.x;
 				int yi = y - g->info.y;

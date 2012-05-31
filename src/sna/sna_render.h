@@ -274,6 +274,8 @@ struct sna_render {
 		uint16_t count;
 		uint16_t evict;
 	} glyph[2];
+	pixman_image_t *white_image;
+	PicturePtr white_picture;
 
 	uint16_t vertex_start;
 	uint16_t vertex_index;
