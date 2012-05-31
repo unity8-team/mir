@@ -4425,10 +4425,10 @@ trapezoid_span_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 	if (mask) {
 		RegionRec region;
 
-		region.extents.x1 = dst_x;
-		region.extents.y1 = dst_y;
-		region.extents.x2 = dst_x + extents.x2;
-		region.extents.y2 = dst_y + extents.y2;
+		region.extents.x1 = dst_x + dst->pDrawable->x;
+		region.extents.y1 = dst_y + dst->pDrawable->y;
+		region.extents.x2 = region.extents.x1 + extents.x2;
+		region.extents.y2 = region.extents.y2 + extents.y2;
 		region.data = NULL;
 
 		DBG(("%s: move-to-cpu\n", __FUNCTION__));
