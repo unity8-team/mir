@@ -1528,21 +1528,22 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 		     region->extents.x2 - region->extents.x1,
 		     region->extents.y2 - region->extents.y1));
 
-		if ((flags & MOVE_WRITE) == 0 && priv->cpu_damage == NULL &&
-		    region->extents.x2 - region->extents.x1 == 1 &&
-		    region->extents.y2 - region->extents.y1 == 1) {
-			/*  Often associated with synchronisation, KISS */
-			sna_read_boxes(sna,
-				       priv->gpu_bo, 0, 0,
-				       pixmap, 0, 0,
-				       &region->extents, 1);
-			goto done;
+		if (priv->cpu_damage == NULL) {
+			if ((flags & MOVE_WRITE) == 0 &&
+			    region->extents.x2 - region->extents.x1 == 1 &&
+			    region->extents.y2 - region->extents.y1 == 1) {
+				/*  Often associated with synchronisation, KISS */
+				sna_read_boxes(sna,
+					       priv->gpu_bo, 0, 0,
+					       pixmap, 0, 0,
+					       &region->extents, 1);
+				goto done;
+			}
+		} else {
+			if (sna_damage_contains_box__no_reduce(priv->cpu_damage,
+							       &region->extents))
+				goto done;
 		}
-
-		if (priv->cpu_damage &&
-		    sna_damage_contains_box__no_reduce(priv->cpu_damage,
-						       &region->extents))
-			goto done;
 
 		if (sna_damage_contains_box(priv->gpu_damage,
 					    &region->extents) != PIXMAN_REGION_OUT) {
