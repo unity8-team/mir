@@ -9900,19 +9900,28 @@ sna_poly_fill_rect_stippled_n_blt(DrawablePtr drawable,
 
 		region_set(&clip, extents);
 		region_maybe_clip(&clip, gc->pCompositeClip);
-		if (!RegionNotEmpty(&clip))
+		if (!RegionNotEmpty(&clip)) {
+			DBG(("%s: all clipped\n", __FUNCTION__));
 			return true;
+		}
 
 		if (clip.data == NULL) {
+			DBG(("%s: clipped to extents ((%d, %d), (%d, %d))\n",
+			     __FUNCTION__,
+			     clip.extents.x1, clip.extents.y1,
+			     clip.extents.x2, clip.extents.y2));
 			do {
 				BoxRec box;
 
 				box.x1 = r->x + drawable->x;
-				box.x2 = bound(r->x, r->width);
+				box.x2 = bound(box.x1, r->width);
 				box.y1 = r->y + drawable->y;
-				box.y2 = bound(r->y, r->height);
+				box.y2 = bound(box.y1, r->height);
 				r++;
 
+				DBG(("%s: box (%d, %d), (%d, %d)\n",
+				     __FUNCTION__,
+				     box.x1, box.y1, box.x2, box.y2));
 				if (!box_intersect(&box, &clip.extents))
 					continue;
 
@@ -9928,13 +9937,18 @@ sna_poly_fill_rect_stippled_n_blt(DrawablePtr drawable,
 			const BoxRec * const clip_end = clip_start + clip.data->numRects;
 			const BoxRec *c;
 
+			DBG(("%s: clipped to boxes: start((%d, %d), (%d, %d)); end=((%d, %d), (%d, %d))\n", __FUNCTION__,
+			     clip_start->x1, clip_start->y1,
+			     clip_start->x2, clip_start->y2,
+			     clip_end->x1, clip_end->y1,
+			     clip_end->x2, clip_end->y2));
 			do {
 				BoxRec unclipped;
 
 				unclipped.x1 = r->x + drawable->x;
-				unclipped.x2 = bound(r->x, r->width);
+				unclipped.x2 = bound(unclipped.x1, r->width);
 				unclipped.y1 = r->y + drawable->y;
-				unclipped.y2 = bound(r->y, r->height);
+				unclipped.y2 = bound(unclipped.y1, r->height);
 				r++;
 
 				c = find_clip_box_for_y(clip_start,
