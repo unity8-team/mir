@@ -940,7 +940,11 @@ next_image:
 					if (glyph_atlas)
 						tmp.done(sna, &tmp);
 
-					if (this_atlas->format == format->format) {
+					DBG(("%s: atlas format=%08x, mask format=%08x\n",
+					     __FUNCTION__,
+					     (int)this_atlas->format,
+					     (int)(format->depth << 24 | format->format)));
+					if (this_atlas->format == (format->depth << 24 | format->format)) {
 						ok = sna->render.composite(sna, PictOpAdd,
 									   this_atlas, NULL, mask,
 									   0, 0, 0, 0, 0, 0,
@@ -954,6 +958,8 @@ next_image:
 									   &tmp);
 					}
 					if (!ok) {
+						DBG(("%s: fallback -- can not handle PictOpAdd of glyph onto mask!\n",
+						     __FUNCTION__));
 						FreePicture(mask, 0);
 						return FALSE;
 					}
@@ -968,6 +974,7 @@ next_image:
 				     r.src.x, r.src.y,
 				     glyph->info.width, glyph->info.height));
 
+				r.mask = r.src;
 				r.dst.x = x - glyph->info.x;
 				r.dst.y = y - glyph->info.y;
 				r.width  = glyph->info.width;
