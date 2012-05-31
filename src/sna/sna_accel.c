@@ -1539,6 +1539,11 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 			goto done;
 		}
 
+		if (priv->cpu_damage &&
+		    sna_damage_contains_box__no_reduce(priv->cpu_damage,
+						       &region->extents))
+			goto done;
+
 		if (sna_damage_contains_box(priv->gpu_damage,
 					    &region->extents) != PIXMAN_REGION_OUT) {
 			RegionRec want, *r = region;
