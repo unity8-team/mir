@@ -9758,8 +9758,8 @@ sna_poly_fill_rect_stippled_n_box(struct sna *sna,
 				  struct kgem_bo *bo,
 				  uint32_t br00, uint32_t br13,
 				  GCPtr gc,
-				  BoxRec *box,
-				  DDXPointRec *origin)
+				  const BoxRec *box,
+				  const DDXPointRec *origin)
 {
 	int x1, x2, y1, y2;
 	uint32_t *b;
@@ -9787,8 +9787,13 @@ sna_poly_fill_rect_stippled_n_box(struct sna *sna,
 			bw = ALIGN(bw, 2);
 			bh = y2 - y1;
 
-			DBG(("%s: box(%d, %d), (%d, %d) pat=(%d, %d), up=(%d, %d)\n",
-			     __FUNCTION__, x1, y1, x2, y2, ox, oy, bx1, bx2));
+			DBG(("%s: box((%d, %d)x(%d, %d)) origin=(%d, %d), pat=(%d, %d), up=(%d, %d), stipple=%dx%d\n",
+			     __FUNCTION__,
+			     x1, y1, x2-x1, y2-y1,
+			     origin->x, origin->y,
+			     ox, oy, bx1, bx2,
+			     gc->stipple->drawable.width,
+			     gc->stipple->drawable.height));
 
 			len = bw*bh;
 			len = ALIGN(len, 8) / 4;
@@ -9846,11 +9851,11 @@ sna_poly_fill_rect_stippled_n_blt(DrawablePtr drawable,
 	int16_t dx, dy;
 	uint32_t br00, br13;
 
-	DBG(("%s: upload (%d, %d), (%d, %d), origin (%d, %d), clipped=%d\n", __FUNCTION__,
+	DBG(("%s: upload (%d, %d), (%d, %d), origin (%d, %d), clipped=%d, alu=%d, opaque=%d\n", __FUNCTION__,
 	     extents->x1, extents->y1,
 	     extents->x2, extents->y2,
 	     origin.x, origin.y,
-	     clipped));
+	     clipped, gc->alu, gc->fillStyle == FillOpaqueStippled));
 
 	if (gc->stipple->drawable.width > 32 ||
 	    gc->stipple->drawable.height > 32)
