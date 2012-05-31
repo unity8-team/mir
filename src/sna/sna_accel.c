@@ -1528,7 +1528,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 		     region->extents.x2 - region->extents.x1,
 		     region->extents.y2 - region->extents.y1));
 
-		if ((flags & MOVE_WRITE) == 0 &&
+		if ((flags & MOVE_WRITE) == 0 && priv->cpu_damage == NULL &&
 		    region->extents.x2 - region->extents.x1 == 1 &&
 		    region->extents.y2 - region->extents.y1 == 1) {
 			/*  Often associated with synchronisation, KISS */
@@ -1547,6 +1547,16 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 			     __FUNCTION__,
 			     region->extents.x2 - region->extents.x1,
 			     region->extents.y2 - region->extents.y1));
+
+			if ((flags & MOVE_WRITE) == 0 &&
+			    region->extents.x2 - region->extents.x1 == 1 &&
+			    region->extents.y2 - region->extents.y1 == 1) {
+				sna_read_boxes(sna,
+					       priv->gpu_bo, 0, 0,
+					       pixmap, 0, 0,
+					       &region->extents, 1);
+				goto done;
+			}
 
 			/* Expand the region to move 32x32 pixel blocks at a
 			 * time, as we assume that we will continue writing
@@ -10079,8 +10089,11 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 		goto fallback;
 	}
 
-	if (!PM_IS_SOLID(draw, gc->planemask))
+	if (!PM_IS_SOLID(draw, gc->planemask)) {
+		DBG(("%s: fallback -- planemask=%#lx (not-solid)\n",
+		     __FUNCTION__, gc->planemask));
 		goto fallback;
+	}
 
 	/* Clear the cpu damage so that we refresh the GPU status of the
 	 * pixmap upon a redraw after a period of inactivity.
