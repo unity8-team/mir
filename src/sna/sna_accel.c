@@ -5881,7 +5881,7 @@ sna_poly_zero_line_blt(DrawablePtr drawable,
 
 		while (--n) {
 			int16_t sdx, sdy;
-			uint16_t adx, ady, length;
+			int adx, ady, length;
 			int e, e1, e2, e3;
 			int x1 = x2, x;
 			int y1 = y2, y;
@@ -7079,7 +7079,7 @@ sna_poly_zero_segment_blt(DrawablePtr drawable,
 		const xSegment *s = _s;
 		do {
 			int16_t sdx, sdy;
-			uint16_t adx, ady, length;
+			int adx, ady, length;
 			int e, e1, e2, e3;
 			int x1, x2;
 			int y1, y2;
