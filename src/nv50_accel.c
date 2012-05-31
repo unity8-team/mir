@@ -84,6 +84,29 @@ NVAccelInitM2MF_NV50(ScrnInfoPtr pScrn)
 }
 
 Bool
+NVAccelInitCopy_NV50(ScrnInfoPtr pScrn)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	struct nouveau_pushbuf *push = pNv->ce_pushbuf;
+	struct nv04_fifo *fifo = pNv->ce_channel->data;
+
+	if (nouveau_object_new(pNv->ce_channel, 0xbeef85b5, 0x85b5,
+			       NULL, 0, &pNv->NvCopy))
+		return FALSE;
+
+	if (!PUSH_SPACE(push, 8))
+		return FALSE;
+
+	BEGIN_NV04(push, NV01_SUBC(COPY, OBJECT), 1);
+	PUSH_DATA (push, pNv->NvCopy->handle);
+	BEGIN_NV04(push, SUBC_COPY(0x0180), 3);
+	PUSH_DATA (push, fifo->vram);
+	PUSH_DATA (push, fifo->vram);
+	PUSH_DATA (push, fifo->vram);
+	return TRUE;
+}
+
+Bool
 NVAccelInit2D_NV50(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);

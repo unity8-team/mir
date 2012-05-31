@@ -818,6 +818,9 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 		pNv->tiled_scanout = TRUE;
 	}
 
+	pNv->ce_enabled =
+		xf86ReturnOptValBool(pNv->Options, OPTION_ASYNC_COPY, FALSE);
+
 	if (!pNv->NoAccel && pNv->dev->chipset >= 0x11) {
 		from = X_DEFAULT;
 		if (xf86GetOptValBool(pNv->Options, OPTION_GLX_VBLANK,

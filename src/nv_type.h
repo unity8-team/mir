@@ -82,6 +82,7 @@ typedef struct _NVRec {
 
 	/* GPU context */
 	struct nouveau_client *client;
+
 	struct nouveau_object *channel;
 	struct nouveau_pushbuf *pushbuf;
 	struct nouveau_bufctx *bufctx;
@@ -103,6 +104,11 @@ typedef struct _NVRec {
 	struct nouveau_object *Nv3D;
 	struct nouveau_object *NvSW;
 	struct nouveau_bo *scratch;
+
+	Bool ce_enabled;
+	struct nouveau_object *ce_channel;
+	struct nouveau_pushbuf *ce_pushbuf;
+	struct nouveau_object *NvCopy;
 
 	/* Acceleration context */
 	PixmapPtr pspix, pmpix, pdpix;

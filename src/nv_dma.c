@@ -79,6 +79,32 @@ NVInitDma(ScrnInfoPtr pScrn)
 	}
 
 	pNv->pushbuf->user_priv = pNv->bufctx;
+
+	if (pNv->ce_enabled) {
+		ret = nouveau_object_new(device, 0, NOUVEAU_FIFO_CHANNEL_CLASS,
+					 data, size, &pNv->ce_channel);
+		if (ret) {
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+				   "Error creating CE channel: %d\n", ret);
+			NVTakedownDma(pScrn);
+			return FALSE;
+		}
+
+		fifo = pNv->ce_channel->data;
+
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "Opened GPU CE channel %d\n", fifo->channel);
+
+		ret = nouveau_pushbuf_new(pNv->client, pNv->ce_channel, 4,
+					  32 * 1024, true, &pNv->ce_pushbuf);
+		if (ret) {
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+				   "Error allocating CE pushbuf: %d\n", ret);
+			NVTakedownDma(pScrn);
+			return FALSE;
+		}
+	}
+
 	return TRUE;
 }
 
@@ -86,6 +112,18 @@ void
 NVTakedownDma(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
+
+	if (pNv->ce_channel) {
+		struct nouveau_fifo *fifo = pNv->ce_channel->data;
+		int chid = fifo->channel;
+
+		nouveau_pushbuf_del(&pNv->ce_pushbuf);
+		nouveau_object_del(&pNv->ce_channel);
+
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "Closed GPU CE channel %d\n", chid);
+	}
+
 	if (pNv->channel) {
 		struct nouveau_fifo *fifo = pNv->channel->data;
 		int chid = fifo->channel;
