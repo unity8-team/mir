@@ -2954,7 +2954,11 @@ void _kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 bool __kgem_flush(struct kgem *kgem, struct kgem_bo *bo)
 {
 	/* The kernel will emit a flush *and* update its own flushing lists. */
-	return kgem_busy(kgem, bo->handle);
+	if (!bo->needs_flush)
+		return false;
+
+	bo->needs_flush = kgem_busy(kgem, bo->handle);
+	return bo->needs_flush;
 }
 
 bool kgem_check_bo(struct kgem *kgem, ...)
