@@ -1173,10 +1173,8 @@ glyphs_fallback(CARD8 op,
 		y -= region.extents.y1;
 	} else {
 		mask_image = dst_image;
-		src_x -= x;
-		src_y -= y;
-		x += dst->pDrawable->x;
-		y += dst->pDrawable->y;
+		src_x -= x - dst->pDrawable->x;
+		src_y -= y - dst->pDrawable->y;
 	}
 
 	do {
