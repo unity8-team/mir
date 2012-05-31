@@ -52,6 +52,10 @@ NVAccelM2MF(NVPtr pNv, int w, int h, int cpp, uint32_t srcoff, uint32_t dstoff,
 				       src, srcoff, sd, sp, sh, sx, sy,
 				       dst, dstoff, dd, dp, dh, dx, dy);
 	else
+	if (pNv->Architecture >= NV_ARCH_C0 && pNv->NvCopy)
+		return NVC0EXARectCopy(pNv, w, h, cpp,
+				       src, srcoff, sd, sp, sh, sx, sy,
+				       dst, dstoff, dd, dp, dh, dx, dy);
 	if (pNv->Architecture >= NV_ARCH_C0)
 		return NVC0EXARectM2MF(pNv, w, h, cpp,
 				       src, srcoff, sd, sp, sh, sx, sy,

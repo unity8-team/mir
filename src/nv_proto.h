@@ -150,6 +150,7 @@ Bool NVAccelInitNV50TCL(ScrnInfoPtr pScrn);
 
 /* in nvc0_accel.c */
 Bool NVAccelInitM2MF_NVC0(ScrnInfoPtr pScrn);
+Bool NVAccelInitCopy_NVC0(ScrnInfoPtr pScrn);
 Bool NVAccelInitP2MF_NVE0(ScrnInfoPtr pScrn);
 Bool NVAccelInit2D_NVC0(ScrnInfoPtr pScrn);
 Bool NVAccelInit3D_NVC0(ScrnInfoPtr pScrn);
@@ -195,6 +196,9 @@ void NVC0EXADoneComposite(PixmapPtr);
 Bool NVC0EXAUploadSIFC(const char *src, int src_pitch,
 		       PixmapPtr pdPix, int x, int y, int w, int h, int cpp);
 Bool NVC0EXARectM2MF(NVPtr pNv, int, int, int,
+		     struct nouveau_bo *, uint32_t, int, int, int, int, int,
+		     struct nouveau_bo *, uint32_t, int, int, int, int, int);
+Bool NVC0EXARectCopy(NVPtr pNv, int, int, int,
 		     struct nouveau_bo *, uint32_t, int, int, int, int, int,
 		     struct nouveau_bo *, uint32_t, int, int, int, int, int);
 Bool NVE0EXARectCopy(NVPtr pNv, int, int, int,

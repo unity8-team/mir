@@ -628,6 +628,8 @@ NVAccelCommonInit(ScrnInfoPtr pScrn)
 			INIT_CONTEXT_OBJECT(Copy_NV50);
 	} else {
 		INIT_CONTEXT_OBJECT(2D_NVC0);
+		if (pNv->ce_enabled)
+			INIT_CONTEXT_OBJECT(Copy_NVC0);
 	}
 
 	if (pNv->Architecture < NV_ARCH_50)
