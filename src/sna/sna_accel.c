@@ -4155,12 +4155,10 @@ sna_fill_spans__cpu(DrawablePtr drawable,
 		    GCPtr gc, int n,
 		    DDXPointPtr pt, int *width, int sorted)
 {
-	RegionRec *clip = sna_gc(gc)->priv;
-	BoxRec extents;
+	const RegionRec *clip = sna_gc(gc)->priv;
 
 	DBG(("%s x %d\n", __FUNCTION__, n));
 
-	extents = clip->extents;
 	while (n--) {
 		BoxRec b;
 
@@ -4171,26 +4169,37 @@ sna_fill_spans__cpu(DrawablePtr drawable,
 		b.x2 = b.x1 + *width++;
 		b.y2 = b.y1 + 1;
 
-		if (!box_intersect(&b, &extents))
+		if (!box_intersect(&b, &clip->extents))
 			continue;
 
 		if (region_is_singular(clip)) {
+			DBG(("%s: singular fill: (%d, %d) x %d\n",
+			     __FUNCTION__, b.x1, b.y1, b.x2 - b.x1));
 			fbFill(drawable, gc, b.x1, b.y1, b.x2 - b.x1, 1);
 		} else {
 			const BoxRec * const clip_start = RegionBoxptr(clip);
 			const BoxRec * const clip_end = clip_start + clip->data->numRects;
 			const BoxRec *c;
 
+			DBG(("%s: multiple fills: (%d, %d) x %d, clip start((%d, %d), (%d,%d)), end((%d, %d), (%d, %d))\n",
+			     __FUNCTION__, b.x1, b.y1, b.x2 - b.x1,
+			     clip_start->x1, clip_start->y1,
+			     clip_start->x2, clip_start->y2,
+			     clip_end[-1].x1, clip_end[-1].y1,
+			     clip_end[-1].x2, clip_end[-1].y2));
+
 			c = find_clip_box_for_y(clip_start, clip_end, b.y1);
 			while (c != clip_end) {
 				int16_t x1, x2;
 
-				if (b.y2 <= c->y1)
+				DBG(("%s: clip box? (%d, %d), (%d, %d)\n",
+				     __FUNCTION__,
+				     c->x1, c->y1, c->x2, c->y2));
+
+				if (b.y2 <= c->y1 || b.x2 <= c->x1)
 					break;
 
-				if (b.x1 >= c->x2)
-					break;
-				if (b.x2 <= c->x1) {
+				if (b.x1 > c->x2) {
 					c++;
 					continue;
 				}
@@ -4203,9 +4212,12 @@ sna_fill_spans__cpu(DrawablePtr drawable,
 					x1 = b.x1;
 				if (x2 > b.x2)
 					x2 = b.x2;
-				if (x2 > x1)
+				if (x2 > x1) {
+					DBG(("%s: fbFill(%d, %d) x %d\n",
+					     __FUNCTION__, x1, b.y1, x2 - x1));
 					fbFill(drawable, gc,
 					       x1, b.y1, x2 - x1, 1);
+				}
 			}
 		}
 	}
@@ -4518,12 +4530,10 @@ sna_fill_spans__fill_clip_boxes(DrawablePtr drawable,
 
 		c = find_clip_box_for_y(clip_start, clip_end, y);
 		while (c != clip_end) {
-			if (y + 1 <= c->y1)
+			if (y + 1 <= c->y1 || X2 <= c->x1)
 				break;
 
-			if (X1 >= c->x2)
-				break;
-			if (X2 <= c->x1) {
+			if (X1 >= c->x2) {
 				c++;
 				continue;
 			}
@@ -4719,12 +4729,10 @@ no_damage_clipped:
 							clip_end,
 							y);
 				while (c != clip_end) {
-					if (y + 1 <= c->y1)
+					if (y + 1 <= c->y1 || X2 <= c->x1)
 						break;
 
-					if (X1 >= c->x2)
-						break;
-					if (X2 <= c->x1) {
+					if (X1 >= c->x2) {
 						c++;
 						continue;
 					}
@@ -4824,12 +4832,10 @@ damage_clipped:
 							clip_end,
 							y);
 				while (c != clip_end) {
-					if (y + 1 <= c->y1)
+					if (y + 1 <= c->y1 || X2 <= c->x1)
 						break;
 
-					if (X1 >= c->x2)
-						break;
-					if (X2 <= c->x1) {
+					if (X1 >= c->x2) {
 						c++;
 						continue;
 					}
@@ -10364,7 +10370,7 @@ fallback:
 							       true)))
 		goto out;
 
-	DBG(("%s: fallback -- miFillPolygon -> sna_fill_spans__cpu\n",
+	DBG(("%s: fallback -- miPolyFillArc -> sna_fill_spans__cpu\n",
 	     __FUNCTION__));
 	sna_gc(gc)->priv = &data.region;
 	assert(gc->ops == (GCOps *)&sna_gc_ops);
