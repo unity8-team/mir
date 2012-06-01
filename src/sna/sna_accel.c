@@ -10791,7 +10791,7 @@ static inline bool sna_font_too_large(FontPtr font)
 	int top = max(FONTMAXBOUNDS(font, ascent), FONTASCENT(font));
 	int bot = max(FONTMAXBOUNDS(font, descent), FONTDESCENT(font));
 	int width = max(FONTMAXBOUNDS(font, characterWidth), -FONTMINBOUNDS(font, characterWidth));
-	DBG(("%s: (%d + %d) x %d: %d\n", __FUNCTION__,
+	DBG(("%s? (%d + %d) x %d: %d > 124\n", __FUNCTION__,
 	     top, bot, width, (top + bot) * (width + 7)/8));
 	return (top + bot) * (width + 7)/8 > 124;
 }
