@@ -762,15 +762,15 @@ extern PciChipsets          RADEONPciChipsets[];
 /* radeon_driver.c */
 extern Bool                 RADEONPreInit(ScrnInfoPtr, int);
 extern Bool                 RADEONScreenInit(SCREEN_INIT_ARGS_DECL);
-extern Bool                 RADEONSwitchMode(SCRN_ARG_TYPE, DisplayModePtr, int);
+extern Bool                 RADEONSwitchMode(SWITCH_MODE_ARGS_DECL);
 #ifdef X_XF86MiscPassMessage
 extern Bool                 RADEONHandleMessage(int, const char*, const char*,
 					        char**);
 #endif
-extern void                 RADEONAdjustFrame(SCRN_ARG_TYPE, int, int, int);
-extern Bool                 RADEONEnterVT(SCRN_ARG_TYPE, int);
-extern void                 RADEONLeaveVT(SCRN_ARG_TYPE, int);
-extern void                 RADEONFreeScreen(SCRN_ARG_TYPE, int);
+extern void                 RADEONAdjustFrame(ADJUST_FRAME_ARGS_DECL);
+extern Bool                 RADEONEnterVT(VT_FUNC_ARGS_DECL);
+extern void                 RADEONLeaveVT(VT_FUNC_ARGS_DECL);
+extern void                 RADEONFreeScreen(FREE_SCREEN_ARGS_DECL);
 extern ModeStatus           RADEONValidMode(SCRN_ARG_TYPE, DisplayModePtr, Bool, int);
 
 extern const OptionInfoRec *RADEONOptionsWeak(void);
@@ -778,11 +778,11 @@ extern const OptionInfoRec *RADEONOptionsWeak(void);
 #ifdef XF86DRM_MODE
 extern Bool                 RADEONPreInit_KMS(ScrnInfoPtr, int);
 extern Bool                 RADEONScreenInit_KMS(SCREEN_INIT_ARGS_DECL);
-extern Bool                 RADEONSwitchMode_KMS(SCRN_ARG_TYPE, DisplayModePtr, int);
-extern void                 RADEONAdjustFrame_KMS(SCRN_ARG_TYPE, int, int, int);
-extern Bool                 RADEONEnterVT_KMS(SCRN_ARG_TYPE, int);
-extern void                 RADEONLeaveVT_KMS(SCRN_ARG_TYPE, int);
-extern void RADEONFreeScreen_KMS(SCRN_ARG_TYPE, int flags);
+extern Bool                 RADEONSwitchMode_KMS(SWITCH_MODE_ARGS_DECL);
+extern void                 RADEONAdjustFrame_KMS(ADJUST_FRAME_ARGS_DECL);
+extern Bool                 RADEONEnterVT_KMS(VT_FUNC_ARGS_DECL);
+extern void                 RADEONLeaveVT_KMS(VT_FUNC_ARGS_DECL);
+extern void RADEONFreeScreen_KMS(FREE_SCREEN_ARGS_DECL);
 #endif
 
 #endif /* _RADEON_PROBE_H_ */

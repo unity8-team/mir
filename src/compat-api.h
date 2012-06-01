@@ -54,7 +54,15 @@
 #define CLOSE_SCREEN_ARGS_DECL int scrnIndex, ScreenPtr pScreen
 #define CLOSE_SCREEN_ARGS scrnIndex, pScreen
 
-#define VTFUNC_ARGS(flags) pScrn->scrnIndex, (flags)
+#define ADJUST_FRAME_ARGS_DECL int arg, int x, int y, int flags
+
+#define SWITCH_MODE_ARGS_DECL int arg, DisplayModePtr mode, int flags
+
+#define FREE_SCREEN_ARGS_DECL int arg, int flags
+
+#define VT_FUNC_ARGS_DECL int arg, int flags
+#define VT_FUNC_ARGS(flags) pScrn->scrnIndex, (flags)
+
 #define XF86_ENABLEDISABLEFB_ARG(x) ((x)->scrnIndex)
 #else
 #define SCRN_ARG_TYPE ScrnInfoPtr
@@ -71,7 +79,13 @@
 #define CLOSE_SCREEN_ARGS_DECL ScreenPtr pScreen
 #define CLOSE_SCREEN_ARGS pScreen
 
-#define VTFUNC_ARGS(flags) pScrn, (flags)
+#define ADJUST_FRAME_ARGS_DECL ScrnInfoPtr arg, int x, int y
+#define SWITCH_MODE_ARGS_DECL ScrnInfoPtr arg, DisplayModePtr mode
+
+#define FREE_SCREEN_ARGS_DECL ScrnInfoPtr arg
+
+#define VT_FUNC_ARGS_DECL ScrnInfoPtr arg
+#define VT_FUNC_ARGS(flags) pScrn
 
 #define XF86_ENABLEDISABLEFB_ARG(x) (x)
 

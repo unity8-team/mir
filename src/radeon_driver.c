@@ -5952,7 +5952,7 @@ static Bool RADEONSaveScreen(ScreenPtr pScreen, int mode)
     return TRUE;
 }
 
-Bool RADEONSwitchMode(SCRN_ARG_TYPE arg, DisplayModePtr mode, int flags)
+Bool RADEONSwitchMode(SWITCH_MODE_ARGS_DECL)
 {
     SCRN_INFO_PTR(arg);
     RADEONInfoPtr  info        = RADEONPTR(pScrn);
@@ -6186,7 +6186,7 @@ void RADEONDoAdjustFrame(ScrnInfoPtr pScrn, int x, int y, Bool crtc2)
     OUTREG(reg, Base);
 }
 
-void RADEONAdjustFrame(SCRN_ARG_TYPE arg, int x, int y, int flags)
+void RADEONAdjustFrame(ADJUST_FRAME_ARGS_DECL)
 {
     SCRN_INFO_PTR(arg);
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
@@ -6224,7 +6224,7 @@ void RADEONAdjustFrame(SCRN_ARG_TYPE arg, int x, int y, int flags)
 /* Called when VT switching back to the X server.  Reinitialize the
  * video mode.
  */
-Bool RADEONEnterVT(SCRN_ARG_TYPE arg, int flags)
+Bool RADEONEnterVT(VT_FUNC_ARGS_DECL)
 {
     SCRN_INFO_PTR(arg);
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
@@ -6324,7 +6324,7 @@ Bool RADEONEnterVT(SCRN_ARG_TYPE arg, int flags)
 /* Called when VT switching away from the X server.  Restore the
  * original text mode.
  */
-void RADEONLeaveVT(SCRN_ARG_TYPE arg, int flags)
+void RADEONLeaveVT(VT_FUNC_ARGS_DECL)
 {
     SCRN_INFO_PTR(arg);
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
@@ -6499,7 +6499,7 @@ static Bool RADEONCloseScreen(CLOSE_SCREEN_ARGS_DECL)
     return (*pScreen->CloseScreen)(CLOSE_SCREEN_ARGS);
 }
 
-void RADEONFreeScreen(SCRN_ARG_TYPE arg, int flags)
+void RADEONFreeScreen(FREE_SCREEN_ARGS_DECL)
 {
     SCRN_INFO_PTR(arg);
     RADEONInfoPtr  info  = RADEONPTR(pScrn);

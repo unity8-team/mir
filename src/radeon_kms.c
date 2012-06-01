@@ -901,7 +901,7 @@ static Bool RADEONCloseScreen_KMS(CLOSE_SCREEN_ARGS_DECL)
 }
 
 
-void RADEONFreeScreen_KMS(SCRN_ARG_TYPE arg, int flags)
+void RADEONFreeScreen_KMS(FREE_SCREEN_ARGS_DECL)
 {
     SCRN_INFO_PTR(arg);
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
@@ -1148,7 +1148,7 @@ Bool RADEONScreenInit_KMS(SCREEN_INIT_ARGS_DECL)
     return TRUE;
 }
 
-Bool RADEONEnterVT_KMS(SCRN_ARG_TYPE arg, int flags)
+Bool RADEONEnterVT_KMS(VT_FUNC_ARGS_DECL)
 {
     SCRN_INFO_PTR(arg);
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
@@ -1176,7 +1176,7 @@ Bool RADEONEnterVT_KMS(SCRN_ARG_TYPE arg, int flags)
 }
 
 
-void RADEONLeaveVT_KMS(SCRN_ARG_TYPE arg, int flags)
+void RADEONLeaveVT_KMS(VT_FUNC_ARGS_DECL)
 {
     SCRN_INFO_PTR(arg);
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
@@ -1199,7 +1199,7 @@ void RADEONLeaveVT_KMS(SCRN_ARG_TYPE arg, int flags)
 }
 
 
-Bool RADEONSwitchMode_KMS(SCRN_ARG_TYPE arg, DisplayModePtr mode, int flags)
+Bool RADEONSwitchMode_KMS(SWITCH_MODE_ARGS_DECL)
 {
     SCRN_INFO_PTR(arg);
     Bool ret;
@@ -1208,7 +1208,7 @@ Bool RADEONSwitchMode_KMS(SCRN_ARG_TYPE arg, DisplayModePtr mode, int flags)
 
 }
 
-void RADEONAdjustFrame_KMS(SCRN_ARG_TYPE arg, int x, int y, int flags)
+void RADEONAdjustFrame_KMS(ADJUST_FRAME_ARGS_DECL)
 {
     SCRN_INFO_PTR(arg);
     RADEONInfoPtr  info        = RADEONPTR(pScrn);
