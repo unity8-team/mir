@@ -983,29 +983,24 @@ gen5_emit_composite_primitive(struct sna *sna,
 						&src_x[2],
 						&src_y[2]);
 	} else {
-		if (!sna_get_transformed_coordinates_3d(r->src.x + op->src.offset[0],
-							r->src.y + op->src.offset[1],
-							op->src.transform,
-							&src_x[0],
-							&src_y[0],
-							&src_w[0]))
-			return;
-
-		if (!sna_get_transformed_coordinates_3d(r->src.x + op->src.offset[0],
-							r->src.y + op->src.offset[1] + r->height,
-							op->src.transform,
-							&src_x[1],
-							&src_y[1],
-							&src_w[1]))
-			return;
-
-		if (!sna_get_transformed_coordinates_3d(r->src.x + op->src.offset[0] + r->width,
-							r->src.y + op->src.offset[1] + r->height,
-							op->src.transform,
-							&src_x[2],
-							&src_y[2],
-							&src_w[2]))
-			return;
+		sna_get_transformed_coordinates_3d(r->src.x + op->src.offset[0],
+						   r->src.y + op->src.offset[1],
+						   op->src.transform,
+						   &src_x[0],
+						   &src_y[0],
+						   &src_w[0]);
+		sna_get_transformed_coordinates_3d(r->src.x + op->src.offset[0],
+						   r->src.y + op->src.offset[1] + r->height,
+						   op->src.transform,
+						   &src_x[1],
+						   &src_y[1],
+						   &src_w[1]);
+		sna_get_transformed_coordinates_3d(r->src.x + op->src.offset[0] + r->width,
+						   r->src.y + op->src.offset[1] + r->height,
+						   op->src.transform,
+						   &src_x[2],
+						   &src_y[2],
+						   &src_w[2]);
 	}
 
 	if (op->mask.bo) {
@@ -1028,29 +1023,25 @@ gen5_emit_composite_primitive(struct sna *sna,
 							&mask_x[2],
 							&mask_y[2]);
 		} else {
-			if (!sna_get_transformed_coordinates_3d(r->mask.x + op->mask.offset[0],
-								r->mask.y + op->mask.offset[1],
-								op->mask.transform,
-								&mask_x[0],
-								&mask_y[0],
-								&mask_w[0]))
-				return;
+			sna_get_transformed_coordinates_3d(r->mask.x + op->mask.offset[0],
+							   r->mask.y + op->mask.offset[1],
+							   op->mask.transform,
+							   &mask_x[0],
+							   &mask_y[0],
+							   &mask_w[0]);
 
-			if (!sna_get_transformed_coordinates_3d(r->mask.x + op->mask.offset[0],
-								r->mask.y + op->mask.offset[1] + r->height,
-								op->mask.transform,
-								&mask_x[1],
-								&mask_y[1],
-								&mask_w[1]))
-				return;
-
-			if (!sna_get_transformed_coordinates_3d(r->mask.x + op->mask.offset[0] + r->width,
-								r->mask.y + op->mask.offset[1] + r->height,
-								op->mask.transform,
-								&mask_x[2],
-								&mask_y[2],
-								&mask_w[2]))
-				return;
+			sna_get_transformed_coordinates_3d(r->mask.x + op->mask.offset[0],
+							   r->mask.y + op->mask.offset[1] + r->height,
+							   op->mask.transform,
+							   &mask_x[1],
+							   &mask_y[1],
+							   &mask_w[1]);
+			sna_get_transformed_coordinates_3d(r->mask.x + op->mask.offset[0] + r->width,
+							   r->mask.y + op->mask.offset[1] + r->height,
+							   op->mask.transform,
+							   &mask_x[2],
+							   &mask_y[2],
+							   &mask_w[2]);
 		}
 	}
 

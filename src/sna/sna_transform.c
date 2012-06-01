@@ -114,7 +114,7 @@ sna_get_transformed_coordinates(int x, int y,
 /**
  * Returns the un-normalized floating-point coordinates transformed by the given transform.
  */
-Bool
+void
 sna_get_transformed_coordinates_3d(int x, int y,
 				   const PictTransform *transform,
 				   float *x_out, float *y_out, float *w_out)
@@ -126,13 +126,13 @@ sna_get_transformed_coordinates_3d(int x, int y,
 	} else {
 		int64_t result[3];
 
-		if (!_sna_transform_point(transform, x, y, result))
-			return FALSE;
-
-		*x_out = result[0] / 65536.;
-		*y_out = result[1] / 65536.;
-		*w_out = result[2] / 65536.;
+		if (_sna_transform_point(transform, x, y, result)) {
+			*x_out = result[0] / 65536.;
+			*y_out = result[1] / 65536.;
+			*w_out = result[2] / 65536.;
+		} else {
+			*x_out = *y_out = 0;
+			*w_out = 1.;
+		}
 	}
-
-	return TRUE;
 }

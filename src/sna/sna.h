@@ -500,7 +500,7 @@ sna_get_transformed_coordinates(int x, int y,
 				const PictTransform *transform,
 				float *x_out, float *y_out);
 
-Bool
+void
 sna_get_transformed_coordinates_3d(int x, int y,
 				   const PictTransform *transform,
 				   float *x_out, float *y_out, float *z_out);
