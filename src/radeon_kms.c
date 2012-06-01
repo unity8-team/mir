@@ -1212,7 +1212,7 @@ void RADEONAdjustFrame_KMS(SCRN_ARG_TYPE arg, int x, int y, int flags)
 {
     SCRN_INFO_PTR(arg);
     RADEONInfoPtr  info        = RADEONPTR(pScrn);
-    drmmode_adjust_frame(pScrn, &info->drmmode, x, y, flags);
+    drmmode_adjust_frame(pScrn, &info->drmmode, x, y);
     return;
 }
 

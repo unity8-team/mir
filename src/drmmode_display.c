@@ -1542,7 +1542,7 @@ void drmmode_set_cursor(ScrnInfoPtr scrn, drmmode_ptr drmmode, int id, struct ra
 	drmmode_crtc->cursor_bo = bo;
 }
 
-void drmmode_adjust_frame(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int x, int y, int flags)
+void drmmode_adjust_frame(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int x, int y)
 {
 	xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR(pScrn);
 	xf86OutputPtr  output = config->output[config->compat_output];
