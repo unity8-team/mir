@@ -174,7 +174,7 @@ sna_video_clip_helper(ScrnInfoPtr scrn,
 	ret = xf86XVClipVideoHelper(dst, &x1, &x2, &y1, &y2,
 				    crtc_region, frame->width, frame->height);
 	if (crtc_region != reg)
-		RegionUninit(&crtc_region_local);
+		RegionUninit(crtc_region);
 
 	frame->top = y1 >> 16;
 	frame->left = (x1 >> 16) & ~1;
@@ -539,13 +539,12 @@ void sna_video_init(struct sna *sna, ScreenPtr screen)
 		return;
 
 	num_adaptors = xf86XVListGenericAdaptors(sna->scrn, &adaptors);
-	newAdaptors =
-	    malloc((num_adaptors + 2) * sizeof(XF86VideoAdaptorPtr *));
-	if (newAdaptors == NULL)
+	newAdaptors = realloc(adaptors,
+			      (num_adaptors + 2) * sizeof(XF86VideoAdaptorPtr));
+	if (newAdaptors == NULL) {
+		free(adaptors);
 		return;
-
-	memcpy(newAdaptors, adaptors,
-	       num_adaptors * sizeof(XF86VideoAdaptorPtr));
+	}
 	adaptors = newAdaptors;
 
 	/* Set up textured video if we can do it at this depth and we are on

@@ -2477,7 +2477,6 @@ gen3_composite_set_target(struct sna *sna,
 	op->dst.format = dst->format;
 	op->dst.width = op->dst.pixmap->drawable.width;
 	op->dst.height = op->dst.pixmap->drawable.height;
-	priv = sna_pixmap(op->dst.pixmap);
 
 	op->dst.bo = NULL;
 	priv = sna_pixmap(op->dst.pixmap);

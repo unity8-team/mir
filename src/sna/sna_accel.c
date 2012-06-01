@@ -3277,10 +3277,10 @@ sna_put_image(DrawablePtr drawable, GCPtr gc, int depth,
 	if (priv == NULL) {
 		DBG(("%s: fbPutImage, unattached(%d, %d, %d, %d)\n",
 		     __FUNCTION__, x, y, w, h));
-		if (!sna_gc_move_to_cpu(gc, drawable))
-			goto out;
-
-		fbPutImage(drawable, gc, depth, x, y, w, h, left, format, bits);
+		if (sna_gc_move_to_cpu(gc, drawable))
+			fbPutImage(drawable, gc, depth,
+				   x, y, w, h, left,
+				   format, bits);
 		return;
 	}
 
