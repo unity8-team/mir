@@ -261,14 +261,19 @@ fallback:
 								       tmp.drawable.bitsPerPixel,
 								       KGEM_BUFFER_LAST,
 								       &ptr);
-					if (!dst_bo)
+					if (!dst_bo) {
+						if (clipped != stack)
+							free(clipped);
 						goto fallback;
+					}
 
 					if (!sna->render.copy_boxes(sna, GXcopy,
 								    dst, src_bo, src_dx, src_dy,
 								    &tmp, dst_bo, -tile.x1, -tile.y1,
 								    clipped, c-clipped)) {
 						kgem_bo_destroy(&sna->kgem, dst_bo);
+						if (clipped != stack)
+							free(clipped);
 						goto fallback;
 					}
 
