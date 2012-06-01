@@ -40,10 +40,13 @@
 
 #include "intel.h"
 #include "intel_bufmgr.h"
+#include "xf86drm.h"
 #include "xf86drmMode.h"
 #include "X11/Xatom.h"
 #include "X11/extensions/dpmsconst.h"
 #include "xf86DDC.h"
+
+#include "intel_glamor.h"
 
 struct intel_mode {
 	int fd;
@@ -407,8 +410,6 @@ intel_crtc_apply(xf86CrtcPtr crtc)
 		}
 	}
 
-	intel_set_gem_max_sizes(scrn);
-
 	if (scrn->pScreen)
 		xf86_reload_cursors(scrn->pScreen);
 
@@ -453,6 +454,7 @@ intel_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	crtc->y = y;
 	crtc->rotation = rotation;
 
+	intel_glamor_flush(intel);
 	intel_batch_submit(crtc->scrn);
 
 	mode_to_kmode(crtc->scrn, &intel_crtc->kmode, mode);
@@ -695,13 +697,8 @@ intel_crtc_init(ScrnInfoPtr scrn, struct intel_mode *mode, int num)
 static Bool
 is_panel(int type)
 {
-#if 0
-	/* XXX https://bugs.freedesktop.org/show_bug.cgi?id=38012 */
 	return (type == DRM_MODE_CONNECTOR_LVDS ||
 		type == DRM_MODE_CONNECTOR_eDP);
-#else
-	return type == DRM_MODE_CONNECTOR_LVDS;
-#endif
 }
 
 static xf86OutputStatus
@@ -948,13 +945,19 @@ intel_output_dpms(xf86OutputPtr output, int dpms)
 			continue;
 
 		if (!strcmp(props->name, "DPMS")) {
+			/* Make sure to reverse the order between on and off. */
+			if (dpms == DPMSModeOff)
+				intel_output_dpms_backlight(output,
+							    intel_output->dpms_mode,
+							    dpms);
 			drmModeConnectorSetProperty(mode->fd,
 						    intel_output->output_id,
 						    props->prop_id,
 						    dpms);
-			intel_output_dpms_backlight(output,
-						      intel_output->dpms_mode,
-						      dpms);
+			if (dpms != DPMSModeOff)
+				intel_output_dpms_backlight(output,
+							    intel_output->dpms_mode,
+							    dpms);
 			intel_output->dpms_mode = dpms;
 			drmModeFreeProperty(props);
 			return;
@@ -987,6 +990,33 @@ intel_property_ignore(drmModePropertyPtr prop)
 		return TRUE;
 
 	return FALSE;
+}
+
+static void
+intel_output_create_ranged_atom(xf86OutputPtr output, Atom *atom,
+				const char *name, INT32 min, INT32 max,
+				uint64_t value, Bool immutable)
+{
+	int err;
+	INT32 atom_range[2];
+
+	atom_range[0] = min;
+	atom_range[1] = max;
+
+	*atom = MakeAtom(name, strlen(name), TRUE);
+
+	err = RRConfigureOutputProperty(output->randr_output, *atom, FALSE,
+					TRUE, immutable, 2, atom_range);
+	if (err != 0)
+		xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
+			   "RRConfigureOutputProperty error, %d\n", err);
+
+	err = RRChangeOutputProperty(output->randr_output, *atom, XA_INTEGER,
+				     32, PropModeReplace, 1, &value, FALSE,
+				     TRUE);
+	if (err != 0)
+		xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
+			   "RRChangeOutputProperty error, %d\n", err);
 }
 
 #define BACKLIGHT_NAME             "Backlight"
@@ -1028,30 +1058,18 @@ intel_output_create_resources(xf86OutputPtr output)
 		drmModePropertyPtr drmmode_prop = p->mode_prop;
 
 		if (drmmode_prop->flags & DRM_MODE_PROP_RANGE) {
-			INT32 range[2];
-
 			p->num_atoms = 1;
 			p->atoms = calloc(p->num_atoms, sizeof(Atom));
 			if (!p->atoms)
 				continue;
 
-			p->atoms[0] = MakeAtom(drmmode_prop->name, strlen(drmmode_prop->name), TRUE);
-			range[0] = drmmode_prop->values[0];
-			range[1] = drmmode_prop->values[1];
-			err = RRConfigureOutputProperty(output->randr_output, p->atoms[0],
-							FALSE, TRUE,
-							drmmode_prop->flags & DRM_MODE_PROP_IMMUTABLE ? TRUE : FALSE,
-							2, range);
-			if (err != 0) {
-				xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
-					   "RRConfigureOutputProperty error, %d\n", err);
-			}
-			err = RRChangeOutputProperty(output->randr_output, p->atoms[0],
-						     XA_INTEGER, 32, PropModeReplace, 1, &p->value, FALSE, TRUE);
-			if (err != 0) {
-				xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
-					   "RRChangeOutputProperty error, %d\n", err);
-			}
+			intel_output_create_ranged_atom(output, &p->atoms[0],
+							drmmode_prop->name,
+							drmmode_prop->values[0],
+							drmmode_prop->values[1],
+							p->value,
+							drmmode_prop->flags & DRM_MODE_PROP_IMMUTABLE ? TRUE : FALSE);
+
 		} else if (drmmode_prop->flags & DRM_MODE_PROP_ENUM) {
 			p->num_atoms = drmmode_prop->count_enums + 1;
 			p->atoms = calloc(p->num_atoms, sizeof(Atom));
@@ -1087,50 +1105,21 @@ intel_output_create_resources(xf86OutputPtr output)
 	}
 
 	if (intel_output->backlight_iface) {
-		INT32 data, backlight_range[2];
-
 		/* Set up the backlight property, which takes effect
 		 * immediately and accepts values only within the
 		 * backlight_range.
 		 */
-		backlight_atom = MakeAtom(BACKLIGHT_NAME, sizeof(BACKLIGHT_NAME) - 1, TRUE);
-		backlight_deprecated_atom = MakeAtom(BACKLIGHT_DEPRECATED_NAME,
-						     sizeof(BACKLIGHT_DEPRECATED_NAME) - 1, TRUE);
-
-		backlight_range[0] = 0;
-		backlight_range[1] = intel_output->backlight_max;
-		err = RRConfigureOutputProperty(output->randr_output,
-					       	backlight_atom,
-						FALSE, TRUE, FALSE,
-					       	2, backlight_range);
-		if (err != 0) {
-			xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
-				   "RRConfigureOutputProperty error, %d\n", err);
-		}
-		err = RRConfigureOutputProperty(output->randr_output,
-					       	backlight_deprecated_atom,
-						FALSE, TRUE, FALSE,
-					       	2, backlight_range);
-		if (err != 0) {
-			xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
-				   "RRConfigureOutputProperty error, %d\n", err);
-		}
-		/* Set the current value of the backlight property */
-		data = intel_output->backlight_active_level;
-		err = RRChangeOutputProperty(output->randr_output, backlight_atom,
-					     XA_INTEGER, 32, PropModeReplace, 1, &data,
-					     FALSE, TRUE);
-		if (err != 0) {
-			xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
-				   "RRChangeOutputProperty error, %d\n", err);
-		}
-		err = RRChangeOutputProperty(output->randr_output, backlight_deprecated_atom,
-					     XA_INTEGER, 32, PropModeReplace, 1, &data,
-					     FALSE, TRUE);
-		if (err != 0) {
-			xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
-				   "RRChangeOutputProperty error, %d\n", err);
-		}
+		intel_output_create_ranged_atom(output, &backlight_atom,
+					BACKLIGHT_NAME, 0,
+					intel_output->backlight_max,
+					intel_output->backlight_active_level,
+					FALSE);
+		intel_output_create_ranged_atom(output,
+					&backlight_deprecated_atom,
+					BACKLIGHT_DEPRECATED_NAME, 0,
+					intel_output->backlight_max,
+					intel_output->backlight_active_level,
+					FALSE);
 	}
 }
 
@@ -1366,10 +1355,12 @@ intel_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	int	    i, old_width, old_height, old_pitch;
 	unsigned long pitch;
 	uint32_t tiling;
+	ScreenPtr screen;
 
 	if (scrn->virtualX == width && scrn->virtualY == height)
 		return TRUE;
 
+	intel_glamor_flush(intel);
 	intel_batch_submit(scrn);
 
 	old_width = scrn->virtualX;
@@ -1377,6 +1368,12 @@ intel_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	old_pitch = scrn->displayWidth;
 	old_fb_id = mode->fb_id;
 	old_front = intel->front_buffer;
+
+	if (intel->back_pixmap) {
+		screen = intel->back_pixmap->drawable.pScreen;
+		screen->DestroyPixmap(intel->back_pixmap);
+		intel->back_pixmap = NULL;
+	}
 
 	if (intel->back_buffer) {
 		drm_intel_bo_unreference(intel->back_buffer);
@@ -1459,6 +1456,7 @@ intel_do_pageflip(intel_screen_private *intel,
 			 new_front->handle, &mode->fb_id))
 		goto error_out;
 
+	intel_glamor_flush(intel);
 	intel_batch_submit(scrn);
 
 	/*

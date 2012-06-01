@@ -83,13 +83,11 @@ static void gen7_update_vertex_buffer(struct kgem *kgem, const uint32_t *data)
 			if (bo->handle == reloc)
 				break;
 		assert(&bo->request != &kgem->next_request->buffers);
-		base = kgem_bo_map(kgem, bo, PROT_READ);
+		base = kgem_bo_map__debug(kgem, bo);
 	}
 	ptr = (char *)base + kgem->reloc[i].delta;
 
 	i = data[0] >> 26;
-	if (state.vb[i].current)
-		munmap(state.vb[i].base, state.vb[i].current->size);
 
 	state.vb[i].current = bo;
 	state.vb[i].base = base;
@@ -120,7 +118,7 @@ static void gen7_update_dynamic_buffer(struct kgem *kgem, const uint32_t offset)
 				if (bo->handle == reloc)
 					break;
 			assert(&bo->request != &kgem->next_request->buffers);
-			base = kgem_bo_map(kgem, bo, PROT_READ);
+			base = kgem_bo_map__debug(kgem, bo);
 		}
 		ptr = (char *)base + (kgem->reloc[i].delta & ~1);
 	} else {
@@ -128,9 +126,6 @@ static void gen7_update_dynamic_buffer(struct kgem *kgem, const uint32_t offset)
 		base = NULL;
 		ptr = NULL;
 	}
-
-	if (state.dynamic_state.current)
-		munmap(state.dynamic_state.base, state.dynamic_state.current->size);
 
 	state.dynamic_state.current = bo;
 	state.dynamic_state.base = base;
@@ -300,22 +295,8 @@ static void primitive_out(struct kgem *kgem, uint32_t *data)
 	}
 }
 
-static void finish_vertex_buffers(struct kgem *kgem)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(state.vb); i++)
-		if (state.vb[i].current)
-			munmap(state.vb[i].base, state.vb[i].current->size);
-}
-
 static void finish_state(struct kgem *kgem)
 {
-	finish_vertex_buffers(kgem);
-
-	if (state.dynamic_state.current)
-		munmap(state.dynamic_state.base, state.dynamic_state.current->size);
-
 	memset(&state, 0, sizeof(state));
 }
 
@@ -469,20 +450,13 @@ get_reloc(struct kgem *kgem,
 				if (bo->handle == handle)
 					break;
 			assert(&bo->request != &kgem->next_request->buffers);
-			base = kgem_bo_map(kgem, bo, PROT_READ);
+			base = kgem_bo_map__debug(kgem, bo);
 			r->bo = bo;
 			r->base = base;
 		}
 	}
 
 	return (char *)base + (delta & ~3);
-}
-
-static void
-put_reloc(struct kgem *kgem, struct reloc *r)
-{
-	if (r->bo != NULL)
-		munmap(r->base, r->bo->size);
 }
 
 static const char *
@@ -539,8 +513,6 @@ gen7_decode_sampler_state(struct kgem *kgem, const uint32_t *reloc)
 	ErrorF("  Sampler 1:\n");
 	ErrorF("    filter: min=%s, mag=%s\n", min, mag);
 	ErrorF("    wrap: s=%s, t=%s, r=%s\n", s_wrap, t_wrap, r_wrap);
-
-	put_reloc(kgem, &r);
 }
 
 static const char *
@@ -604,8 +576,6 @@ gen7_decode_blend(struct kgem *kgem, const uint32_t *reloc)
 	ErrorF("  Blend (%s): function %s, src=%s, dst=%s\n",
 	       blend->blend0.blend_enable ? "enabled" : "disabled",
 	       func, src, dst);
-
-	put_reloc(kgem, &r);
 }
 
 int kgem_gen7_decode_3d(struct kgem *kgem, uint32_t offset)

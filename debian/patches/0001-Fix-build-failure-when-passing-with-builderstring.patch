@@ -1,0 +1,33 @@
+From d96feed041266a7629e4839e1294f3074679891a Mon Sep 17 00:00:00 2001
+From: Cyril Brulebois <kibi@debian.org>
+Date: Mon, 7 Nov 2011 23:29:29 +0100
+Subject: [PATCH] Fix build failure when passing --with-builderstring.
+
+If --with-builderstring="foo" is passed to configure (and sna enabled):
+  CC     sna_driver.lo
+src/sna/sna_driver.c: In function 'sna_init_scrn':
+src/sna/sna_driver.c:1023:7: error: token ""foo"" is not valid in preprocessor expressions
+
+Fix the missing defined() around the BUILDER_DESCRIPTION variable.
+
+Signed-off-by: Cyril Brulebois <kibi@debian.org>
+---
+ src/sna/sna_driver.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/src/sna/sna_driver.c b/src/sna/sna_driver.c
+index 770a5bd..763a5a3 100644
+--- a/src/sna/sna_driver.c
++++ b/src/sna/sna_driver.c
+@@ -1068,7 +1068,7 @@ void sna_init_scrn(ScrnInfoPtr scrn, int entity_num)
+ #if defined(USE_GIT_DESCRIBE)
+ 	xf86DrvMsg(scrn->scrnIndex, X_INFO,
+ 		   "SNA compiled from %s\n", git_version);
+-#elif BUILDER_DESCRIPTION
++#elif defined(BUILDER_DESCRIPTION)
+ 	xf86DrvMsg(scrn->scrnIndex, X_INFO,
+ 		   "SNA compiled: %s\n", BUILDER_DESCRIPTION);
+ #endif
+-- 
+1.7.7.3
+

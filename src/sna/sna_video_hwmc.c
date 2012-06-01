@@ -196,10 +196,11 @@ Bool sna_video_xvmc_setup(struct sna *sna,
 	char buf[64];
 
 	/* Needs KMS support. */
-	if (IS_I915G(sna) || IS_I915GM(sna))
+	if (sna->kgem.gen < 31)
 		return FALSE;
 
-	if (IS_GEN2(sna))
+	/* Not implemented */
+	if (sna->kgem.gen >= 60)
 		return FALSE;
 
 	pAdapt = calloc(1, sizeof(XF86MCAdaptorRec));

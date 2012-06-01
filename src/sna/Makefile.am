@@ -18,17 +18,18 @@
 #  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 #  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-AM_CFLAGS = @CWARNFLAGS@ @XORG_CFLAGS@ \
-	    @UDEV_CFLAGS@ \
-	    @DRM_CFLAGS@ \
-	    @DRI_CFLAGS@ \
-	    -I$(top_srcdir)/src \
-	    -I$(top_srcdir)/src/render_program
+AM_CFLAGS = \
+	@CWARNFLAGS@ \
+	-I$(top_srcdir)/src \
+	-I$(top_srcdir)/src/render_program \
+	@XORG_CFLAGS@ \
+	@UDEV_CFLAGS@ \
+	@DRM_CFLAGS@ \
+	@DRI_CFLAGS@ \
+	$(NULL)
 
 noinst_LTLIBRARIES = libsna.la
 libsna_la_LIBADD = @UDEV_LIBS@ -lm @DRM_LIBS@
-
-NULL:=#
 
 libsna_la_SOURCES = \
 	blt.c \
@@ -59,6 +60,7 @@ libsna_la_SOURCES = \
 	sna_video.c \
 	sna_video.h \
 	sna_video_overlay.c \
+	sna_video_sprite.c \
 	sna_video_textured.c \
 	gen2_render.c \
 	gen2_render.h \
@@ -91,6 +93,7 @@ libsna_la_SOURCES += \
 endif
 
 if DEBUG
+AM_CFLAGS += @VALGRIND_CFLAGS@
 libsna_la_SOURCES += \
 	kgem_debug.c \
 	kgem_debug.h \
@@ -104,7 +107,7 @@ libsna_la_SOURCES += \
 endif
 
 if HAVE_DOT_GIT
-git_version.h: $(top_builddir)/.git/HEAD $(shell sed -e '/ref:/!d' -e 's#ref: *#$(top_builddir)/.git/#' < $(top_builddir)/.git/HEAD)
+git_version.h: $(top_srcdir)/.git/HEAD $(shell sed -e '/ref:/!d' -e 's#ref: *#$(top_srcdir)/.git/#' < $(top_srcdir)/.git/HEAD)
 	@echo "Recording git-tree used for compilation: `git describe`"
 	@V=`git describe`; echo "static const char git_version[] = \"$$V\";" > git_version.h
 sna_driver.c: git_version.h

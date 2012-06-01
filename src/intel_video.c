@@ -58,9 +58,9 @@
 #include "xf86.h"
 #include "xf86_OSproc.h"
 #include "compiler.h"
-#include "xf86PciInfo.h"
 #include "xf86Pci.h"
 #include "xf86fbman.h"
+#include "xf86drm.h"
 #include "regionstr.h"
 #include "randrstr.h"
 #include "windowstr.h"
@@ -1285,7 +1285,7 @@ intel_wait_for_scanline(ScrnInfoPtr scrn, PixmapPtr pixmap,
 	int y1, y2;
 
 	pipe = -1;
-	if (pixmap_is_scanout(pixmap))
+	if (scrn->vtSema && pixmap_is_scanout(pixmap))
 		pipe = intel_crtc_to_pipe(crtc);
 	if (pipe < 0)
 		return;

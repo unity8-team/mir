@@ -43,10 +43,30 @@
 
 #define BOUND(v)	(INT16) ((v) < MINSHORT ? MINSHORT : (v) > MAXSHORT ? MAXSHORT : (v))
 
+Bool sna_composite_create(struct sna *sna)
+{
+	xRenderColor color ={ 0 };
+	int error;
+
+	sna->clear = CreateSolidPicture(0, &color, &error);
+	return sna->clear != NULL;
+}
+
+void sna_composite_close(struct sna *sna)
+{
+	FreePicture(sna->clear, 0);
+}
+
 static inline bool
 region_is_singular(pixman_region16_t *region)
 {
 	return region->data == NULL;
+}
+
+static inline bool
+region_is_empty(pixman_region16_t *region)
+{
+	return region->data && region->data->numRects == 0;
 }
 
 static inline pixman_bool_t
@@ -84,7 +104,7 @@ clip_to_dst(pixman_region16_t *region,
 		}
 
 		return TRUE;
-	} else if (!pixman_region_not_empty(clip)) {
+	} else if (region_is_empty(clip)) {
 		return FALSE;
 	} else {
 		if (dx | dy)
@@ -94,7 +114,7 @@ clip_to_dst(pixman_region16_t *region,
 		if (dx | dy)
 			pixman_region_translate(region, dx, dy);
 
-		return pixman_region_not_empty(region);
+		return !region_is_empty(region);
 	}
 }
 
@@ -116,7 +136,7 @@ clip_to_src(RegionPtr region, PicturePtr p, int dx, int	 dy)
 				-(p->clipOrigin.x + dx),
 				-(p->clipOrigin.y + dy));
 
-	return result && pixman_region_not_empty(region);
+	return result && !region_is_empty(region);
 }
 
 Bool
@@ -231,7 +251,7 @@ sna_compute_composite_region(RegionPtr region,
 		     region->extents.x2, region->extents.y2));
 	}
 
-	return pixman_region_not_empty(region);
+	return !region_is_empty(region);
 }
 
 static void
@@ -393,8 +413,11 @@ sna_composite(CARD8 op,
 	      INT16 dst_x,  INT16 dst_y,
 	      CARD16 width, CARD16 height)
 {
-	struct sna *sna = to_sna_from_drawable(dst->pDrawable);
+	PixmapPtr pixmap = get_drawable_pixmap(dst->pDrawable);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
+	struct sna_pixmap *priv;
 	struct sna_composite_op tmp;
+	unsigned flags;
 	RegionRec region;
 	int dx, dy;
 
@@ -404,6 +427,17 @@ sna_composite(CARD8 op,
 	     mask_x, mask_y,
 	     dst_x, dst_y, dst->pDrawable->x, dst->pDrawable->y,
 	     width, height));
+
+	if (region_is_empty(dst->pCompositeClip)) {
+		DBG(("%s: empty clip, skipping\n", __FUNCTION__));
+		return;
+	}
+
+	if (op == PictOpClear) {
+		DBG(("%s: discarding source and mask for clear\n", __FUNCTION__));
+		mask = NULL;
+		src = sna->clear;
+	}
 
 	if (mask && sna_composite_mask_is_opaque(mask)) {
 		DBG(("%s: removing opaque %smask\n",
@@ -425,13 +459,19 @@ sna_composite(CARD8 op,
 		goto fallback;
 	}
 
-	if (dst->alphaMap || src->alphaMap || (mask && mask->alphaMap)) {
+	if (dst->alphaMap) {
 		DBG(("%s: fallback due to unhandled alpha-map\n", __FUNCTION__));
 		goto fallback;
 	}
 
-	if (too_small(dst->pDrawable) &&
-	    !picture_is_gpu(src) && !picture_is_gpu(mask)) {
+	priv = sna_pixmap(pixmap);
+	if (priv == NULL) {
+		DBG(("%s: fallback as destination is unattached\n",
+		     __FUNCTION__));
+		goto fallback;
+	}
+
+	if (too_small(priv) && !picture_is_gpu(src) && !picture_is_gpu(mask)) {
 		DBG(("%s: fallback due to too small\n", __FUNCTION__));
 		goto fallback;
 	}
@@ -447,6 +487,19 @@ sna_composite(CARD8 op,
 	     get_drawable_dx(dst->pDrawable),
 	     get_drawable_dy(dst->pDrawable)));
 
+	if (op <= PictOpSrc) {
+		int16_t x, y;
+
+		get_drawable_deltas(dst->pDrawable, pixmap, &x, &y);
+		if (x|y)
+			pixman_region_translate(&region, x, y);
+
+		sna_damage_subtract(&priv->cpu_damage, &region);
+
+		if (x|y)
+			pixman_region_translate(&region, -x, -y);
+	}
+
 	memset(&tmp, 0, sizeof(tmp));
 	if (!sna->render.composite(sna,
 				   op, src, mask, dst,
@@ -461,14 +514,16 @@ sna_composite(CARD8 op,
 		goto fallback;
 	}
 
-	tmp.boxes(sna, &tmp,
-		  REGION_RECTS(&region),
-		  REGION_NUM_RECTS(&region));
+	if (region.data == NULL)
+		tmp.box(sna, &tmp, &region.extents);
+	else
+		tmp.boxes(sna, &tmp,
+			  REGION_BOXPTR(&region),
+			  REGION_NUM_RECTS(&region));
 	apply_damage(&tmp, &region);
 	tmp.done(sna, &tmp);
 
-	REGION_UNINIT(NULL, &region);
-	return;
+	goto out;
 
 fallback:
 	DBG(("%s -- fallback dst=(%d, %d)+(%d, %d), size=(%d, %d)\n",
@@ -476,19 +531,34 @@ fallback:
 	     dst_x, dst_y,
 	     dst->pDrawable->x, dst->pDrawable->y,
 	     width, height));
-
-	sna_drawable_move_region_to_cpu(dst->pDrawable, &region, true);
-	if (dst->alphaMap)
-		sna_drawable_move_to_cpu(dst->alphaMap->pDrawable, true);
+	if (op == PictOpSrc || op == PictOpClear)
+		flags = MOVE_WRITE;
+	else
+		flags = MOVE_WRITE | MOVE_READ;
+	if (!sna_drawable_move_region_to_cpu(dst->pDrawable, &region, flags))
+		goto out;
+	if (dst->alphaMap &&
+	    !sna_drawable_move_to_cpu(dst->alphaMap->pDrawable, flags))
+		goto out;
 	if (src->pDrawable) {
-		sna_drawable_move_to_cpu(src->pDrawable, false);
-		if (src->alphaMap)
-			sna_drawable_move_to_cpu(src->alphaMap->pDrawable, false);
+		if (!sna_drawable_move_to_cpu(src->pDrawable,
+					      MOVE_READ))
+			goto out;
+
+		if (src->alphaMap &&
+		    !sna_drawable_move_to_cpu(src->alphaMap->pDrawable,
+					      MOVE_READ))
+			goto out;
 	}
 	if (mask && mask->pDrawable) {
-		sna_drawable_move_to_cpu(mask->pDrawable, false);
-		if (mask->alphaMap)
-			sna_drawable_move_to_cpu(mask->alphaMap->pDrawable, false);
+		if (!sna_drawable_move_to_cpu(mask->pDrawable,
+					      MOVE_READ))
+			goto out;
+
+		if (mask->alphaMap &&
+		    !sna_drawable_move_to_cpu(mask->alphaMap->pDrawable,
+					      MOVE_READ))
+			goto out;
 	}
 
 	DBG(("%s: fallback -- fbComposite\n", __FUNCTION__));
@@ -497,6 +567,8 @@ fallback:
 		    mask_x, mask_y,
 		    dst_x, dst_y,
 		    width, height);
+out:
+	REGION_UNINIT(NULL, &region);
 }
 
 static int16_t bound(int16_t a, uint16_t b)
@@ -512,7 +584,7 @@ _pixman_region_init_clipped_rectangles(pixman_region16_t *region,
 				       unsigned int num_rects,
 				       xRectangle *rects,
 				       int tx, int ty,
-				       int maxx, int maxy)
+				       BoxPtr extents)
 {
 	pixman_box16_t stack_boxes[64], *boxes = stack_boxes;
 	pixman_bool_t ret;
@@ -525,35 +597,29 @@ _pixman_region_init_clipped_rectangles(pixman_region16_t *region,
 	}
 
 	for (i = j = 0; i < num_rects; i++) {
-		boxes[j].x1 = rects[i].x;
-		if (boxes[j].x1 < 0)
-			boxes[j].x1 = 0;
-		boxes[j].x1 += tx;
+		boxes[j].x1 = rects[i].x + tx;
+		if (boxes[j].x1 < extents->x1)
+			boxes[j].x1 = extents->x1;
 
-		boxes[j].y1 = rects[i].y;
-		if (boxes[j].y1 < 0)
-			boxes[j].y1 = 0;
-		boxes[j].y1 += ty;
+		boxes[j].y1 = rects[i].y + ty;
+		if (boxes[j].y1 < extents->y1)
+			boxes[j].y1 = extents->y1;
 
-		boxes[j].x2 = bound(rects[i].x, rects[i].width);
-		if (boxes[j].x2 > maxx)
-			boxes[j].x2 = maxx;
-		boxes[j].x2 += tx;
+		boxes[j].x2 = bound(rects[i].x + tx, rects[i].width);
+		if (boxes[j].x2 > extents->x2)
+			boxes[j].x2 = extents->x2;
 
-		boxes[j].y2 = bound(rects[i].y, rects[i].height);
-		if (boxes[j].y2 > maxy)
-			boxes[j].y2 = maxy;
-		boxes[j].y2 += ty;
+		boxes[j].y2 = bound(rects[i].y + ty, rects[i].height);
+		if (boxes[j].y2 > extents->y2)
+			boxes[j].y2 = extents->y2;
 
 		if (boxes[j].x2 > boxes[j].x1 && boxes[j].y2 > boxes[j].y1)
 			j++;
 	}
 
-	ret = TRUE;
+	ret = FALSE;
 	if (j)
 	    ret = pixman_region_init_rects(region, boxes, j);
-	else
-	    pixman_region_init(region);
 
 	if (boxes != stack_boxes)
 		free(boxes);
@@ -562,7 +628,7 @@ _pixman_region_init_clipped_rectangles(pixman_region16_t *region,
 	     __FUNCTION__, num_rects,
 	     region->extents.x1, region->extents.y1,
 	     region->extents.x2, region->extents.y2,
-	     pixman_region_n_rects(region)));
+	     j));
 	return ret;
 }
 
@@ -594,7 +660,12 @@ sna_composite_rectangles(CARD8		 op,
 	if (!num_rects)
 		return;
 
-	if (color->alpha <= 0x00ff) {
+	if (region_is_empty(dst->pCompositeClip)) {
+		DBG(("%s: empty clip, skipping\n", __FUNCTION__));
+		return;
+	}
+
+	if ((color->red|color->green|color->blue|color->alpha) <= 0x00ff) {
 		switch (op) {
 		case PictOpOver:
 		case PictOpOutReverse:
@@ -602,6 +673,22 @@ sna_composite_rectangles(CARD8		 op,
 			return;
 		case  PictOpInReverse:
 		case  PictOpSrc:
+			op = PictOpClear;
+			break;
+		case  PictOpAtopReverse:
+			op = PictOpOut;
+			break;
+		case  PictOpXor:
+			op = PictOpOverReverse;
+			break;
+		}
+	}
+	if (color->alpha <= 0x00ff) {
+		switch (op) {
+		case PictOpOver:
+		case PictOpOutReverse:
+			return;
+		case  PictOpInReverse:
 			op = PictOpClear;
 			break;
 		case  PictOpAtopReverse:
@@ -631,15 +718,11 @@ sna_composite_rectangles(CARD8		 op,
 	}
 	DBG(("%s: converted to op %d\n", __FUNCTION__, op));
 
-	if (!pixman_region_not_empty(dst->pCompositeClip)) {
-		DBG(("%s: empty clip, skipping\n", __FUNCTION__));
-		return;
-	}
-
 	if (!_pixman_region_init_clipped_rectangles(&region,
 						    num_rects, rects,
-						    dst->pDrawable->x, dst->pDrawable->y,
-						    dst->pDrawable->width, dst->pDrawable->height))
+						    dst->pDrawable->x,
+						    dst->pDrawable->y,
+						    &dst->pCompositeClip->extents))
 	{
 		DBG(("%s: allocation failed for region\n", __FUNCTION__));
 		return;
@@ -651,8 +734,9 @@ sna_composite_rectangles(CARD8		 op,
 	     RegionExtents(&region)->x2, RegionExtents(&region)->y2,
 	     RegionNumRects(&region)));
 
-	if (!pixman_region_intersect(&region, &region, dst->pCompositeClip) ||
-	    !pixman_region_not_empty(&region)) {
+	if (dst->pCompositeClip->data &&
+	    (!pixman_region_intersect(&region, &region, dst->pCompositeClip) ||
+	     region_is_empty(&region))) {
 		DBG(("%s: zero-intersection between rectangles and clip\n",
 		     __FUNCTION__));
 		pixman_region_fini(&region);
@@ -684,7 +768,13 @@ sna_composite_rectangles(CARD8		 op,
 
 	boxes = pixman_region_rectangles(&region, &num_boxes);
 
-	if (too_small(dst->pDrawable)) {
+	priv = sna_pixmap(pixmap);
+	if (priv == NULL) {
+		DBG(("%s: fallback, not attached\n", __FUNCTION__));
+		goto fallback;
+	}
+
+	if (too_small(priv)) {
 		DBG(("%s: fallback, dst is too small\n", __FUNCTION__));
 		goto fallback;
 	}
@@ -693,13 +783,10 @@ sna_composite_rectangles(CARD8		 op,
 	 * operation, then we may as well delete it without moving it
 	 * first to the GPU.
 	 */
-	if (op == PictOpSrc || op == PictOpClear) {
-		priv = sna_pixmap_attach(pixmap);
-		if (priv && !priv->gpu_only)
-			sna_damage_subtract(&priv->cpu_damage, &region);
-	}
+	if (op <= PictOpSrc)
+		sna_damage_subtract(&priv->cpu_damage, &region);
 
-	priv = sna_pixmap_move_to_gpu(pixmap);
+	priv = sna_pixmap_move_to_gpu(pixmap, MOVE_READ | MOVE_WRITE);
 	if (priv == NULL) {
 		DBG(("%s: fallback due to no GPU bo\n", __FUNCTION__));
 		goto fallback;
@@ -712,7 +799,30 @@ sna_composite_rectangles(CARD8		 op,
 		goto fallback;
 	}
 
-	if (!priv->gpu_only) {
+	/* Clearing a pixmap after creation is a common operation, so take
+	 * advantage and reduce further damage operations.
+	 */
+	if (region.data == NULL &&
+	    region.extents.x2 - region.extents.x1 == pixmap->drawable.width &&
+	    region.extents.y2 - region.extents.y1 == pixmap->drawable.height) {
+		sna_damage_all(&priv->gpu_damage,
+			       pixmap->drawable.width, pixmap->drawable.height);
+		priv->undamaged = false;
+		if (op <= PictOpSrc) {
+			priv->clear = true;
+			priv->clear_color = 0;
+			if (op == PictOpSrc)
+				sna_get_pixel_from_rgba(&priv->clear_color,
+							color->red,
+							color->green,
+							color->blue,
+							color->alpha,
+							dst->format);
+			DBG(("%s: marking clear [%08x]\n",
+			     __FUNCTION__, priv->clear_color));
+		}
+	}
+	if (!DAMAGE_IS_ALL(priv->gpu_damage)) {
 		assert_pixmap_contains_box(pixmap, RegionExtents(&region));
 		sna_damage_add(&priv->gpu_damage, &region);
 	}
@@ -721,11 +831,18 @@ sna_composite_rectangles(CARD8		 op,
 
 fallback:
 	DBG(("%s: fallback\n", __FUNCTION__));
-	sna_drawable_move_region_to_cpu(&pixmap->drawable, &region, true);
-	if (dst->alphaMap)
-		sna_drawable_move_to_cpu(dst->alphaMap->pDrawable, true);
+	if (op <= PictOpSrc)
+		error = MOVE_WRITE;
+	else
+		error = MOVE_WRITE | MOVE_READ;
+	if (!sna_drawable_move_region_to_cpu(&pixmap->drawable, &region, error))
+		goto done;
 
-	if (op == PictOpSrc || op == PictOpClear) {
+	if (dst->alphaMap &&
+	    !sna_drawable_move_to_cpu(dst->alphaMap->pDrawable, error))
+		goto done;
+
+	if (op <= PictOpSrc) {
 		int nbox = REGION_NUM_RECTS(&region);
 		BoxPtr box = REGION_RECTS(&region);
 		uint32_t pixel;

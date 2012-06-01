@@ -20,6 +20,9 @@
 /* Are we in a git checkout? */
 #undef HAVE_DOT_GIT
 
+/* Enable DRI driver support */
+#undef HAVE_DRI1
+
 /* Define to 1 if you have the <dristruct.h> header file. */
 #undef HAVE_DRISTRUCT_H
 
@@ -50,6 +53,9 @@
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #undef HAVE_SYS_STAT_H
 
+/* Define to 1 if you have the <sys/sysinfo.h> header file. */
+#undef HAVE_SYS_SYSINFO_H
+
 /* Define to 1 if you have the <sys/timerfd.h> header file. */
 #undef HAVE_SYS_TIMERFD_H
 
@@ -61,6 +67,9 @@
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
+
+/* Use valgrind intrinsics to suppress false warnings */
+#undef HAVE_VALGRIND
 
 /* Assume KMS support */
 #undef KMS_ONLY
@@ -111,6 +120,9 @@
 /* Use automagic builder description */
 #undef USE_GIT_DESCRIBE
 
+/* Enable glamor acceleration */
+#undef USE_GLAMOR
+
 /* Enable SNA support */
 #undef USE_SNA
 
@@ -123,8 +135,8 @@
 /* Version number of package */
 #undef VERSION
 
-/* Enable DRI driver support */
-#undef XF86DRI
+/* Number of bits in a file offset, on hosts where this is settable. */
+#undef _FILE_OFFSET_BITS
 
-/* Enable developmental DRI driver support */
-#undef XF86DRI_DEVEL
+/* Define for large files, on AIX-style hosts. */
+#undef _LARGE_FILES

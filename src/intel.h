@@ -53,7 +53,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "xf86_OSproc.h"
 #include "compiler.h"
-#include "xf86PciInfo.h"
 #include "xf86Pci.h"
 #include "xf86Cursor.h"
 #include "xf86xv.h"
@@ -63,105 +62,16 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xorg-server.h"
 #include <pciaccess.h>
 
-#include "xf86drm.h"
 #define _XF86DRI_SERVER_
 #include "dri2.h"
 #include "intel_bufmgr.h"
 #include "i915_drm.h"
 
 #include "intel_driver.h"
+#include "intel_list.h"
 
 #if HAVE_UDEV
 #include <libudev.h>
-#endif
-
-/* XXX
- * The X server gained an *almost* identical implementation in 1.9.
- *
- * Remove this duplicate code either in 2.16 (when we can depend upon 1.9)
- * or the drivers are merged back into the xserver tree, whichever happens
- * earlier.
- */
-
-#ifndef _LIST_H_
-/* classic doubly-link circular list */
-struct list {
-	struct list *next, *prev;
-};
-
-static void
-list_init(struct list *list)
-{
-	list->next = list->prev = list;
-}
-
-static inline void
-__list_add(struct list *entry,
-	    struct list *prev,
-	    struct list *next)
-{
-	next->prev = entry;
-	entry->next = next;
-	entry->prev = prev;
-	prev->next = entry;
-}
-
-static inline void
-list_add(struct list *entry, struct list *head)
-{
-	__list_add(entry, head, head->next);
-}
-
-static inline void
-__list_del(struct list *prev, struct list *next)
-{
-	next->prev = prev;
-	prev->next = next;
-}
-
-static inline void
-list_del(struct list *entry)
-{
-	__list_del(entry->prev, entry->next);
-	list_init(entry);
-}
-
-static inline Bool
-list_is_empty(struct list *head)
-{
-	return head->next == head;
-}
-#endif
-
-/* XXX work around a broken define in list.h currently [ickle 20100713] */
-#undef container_of
-
-#ifndef container_of
-#define container_of(ptr, type, member) \
-	((type *)((char *)(ptr) - (char *) &((type *)0)->member))
-#endif
-
-#ifndef list_entry
-#define list_entry(ptr, type, member) \
-	container_of(ptr, type, member)
-#endif
-
-#ifndef list_first_entry
-#define list_first_entry(ptr, type, member) \
-	list_entry((ptr)->next, type, member)
-#endif
-
-#ifndef list_foreach
-#define list_foreach(pos, head)			\
-	for (pos = (head)->next; pos != (head);	pos = pos->next)
-#endif
-
-/* XXX list.h from xserver-1.9 uses a GCC-ism to avoid having to pass type */
-#ifndef list_foreach_entry
-#define list_foreach_entry(pos, type, head, member)		\
-	for (pos = list_entry((head)->next, type, member);\
-	     &pos->member != (head);					\
-	     pos = list_entry(pos->member.next, type, member))
 #endif
 
 /* remain compatible to xorg-server 1.6 */
@@ -172,12 +82,12 @@ list_is_empty(struct list *head)
 struct intel_pixmap {
 	dri_bo *bo;
 
-	struct list flush, batch, in_flight;
+	struct list batch;
 
 	uint16_t stride;
 	uint8_t tiling;
 	int8_t busy :2;
-	int8_t batch_write :1;
+	int8_t dirty :1;
 	int8_t offscreen :1;
 	int8_t pinned :1;
 };
@@ -211,7 +121,7 @@ static inline void intel_set_pixmap_private(PixmapPtr pixmap, struct intel_pixma
 
 static inline Bool intel_pixmap_is_dirty(PixmapPtr pixmap)
 {
-	return !list_is_empty(&intel_get_pixmap_private(pixmap)->flush);
+	return pixmap && intel_get_pixmap_private(pixmap)->dirty;
 }
 
 static inline Bool intel_pixmap_tiled(PixmapPtr pixmap)
@@ -256,6 +166,8 @@ typedef struct intel_screen_private {
 
 	void *modes;
 	drm_intel_bo *front_buffer, *back_buffer;
+	PixmapPtr back_pixmap;
+	unsigned int back_name;
 	long front_pitch, front_tiling;
 	void *shadow_buffer;
 	int shadow_stride;
@@ -276,9 +188,8 @@ typedef struct intel_screen_private {
 	/** Ending batch_used that was verified by intel_start_batch_atomic() */
 	int batch_atomic_limit;
 	struct list batch_pixmaps;
-	struct list flush_pixmaps;
-	struct list in_flight;
 	drm_intel_bo *wa_scratch_bo;
+	OsTimerPtr cache_expire;
 
 	/* For Xvideo */
 	Bool use_overlay;
@@ -316,6 +227,7 @@ typedef struct intel_screen_private {
 	void (*batch_commit_notify) (struct intel_screen_private *intel);
 
 	struct _UxaDriver *uxa_driver;
+	int uxa_flags;
 	Bool need_sync;
 	int accel_pixmap_offset_alignment;
 	int accel_max_x;
@@ -356,14 +268,10 @@ typedef struct intel_screen_private {
 	PixmapPtr render_source, render_mask, render_dest;
 	PicturePtr render_source_picture, render_mask_picture, render_dest_picture;
 	CARD32 render_source_solid;
-	CARD32 render_mask_solid;
-	PixmapPtr render_current_dest;
 	Bool render_source_is_solid;
-	Bool render_mask_is_solid;
 	Bool needs_3d_invariant;
 	Bool needs_render_state_emit;
 	Bool needs_render_vertex_emit;
-	Bool needs_render_ca_pass;
 
 	/* i830 render accel state */
 	uint32_t render_dest_format;
@@ -541,7 +449,6 @@ int intel_crtc_to_pipe(xf86CrtcPtr crtc);
 unsigned long intel_get_fence_size(intel_screen_private *intel, unsigned long size);
 unsigned long intel_get_fence_pitch(intel_screen_private *intel, unsigned long pitch,
 				   uint32_t tiling_mode);
-void intel_set_gem_max_sizes(ScrnInfoPtr scrn);
 
 drm_intel_bo *intel_allocate_framebuffer(ScrnInfoPtr scrn,
 					int w, int h, int cpp,
@@ -692,7 +599,7 @@ intel_emit_reloc(drm_intel_bo * bo, uint32_t offset,
 static inline drm_intel_bo *intel_bo_alloc_for_data(intel_screen_private *intel,
 						    const void *data,
 						    unsigned int size,
-						    char *name)
+						    const char *name)
 {
 	drm_intel_bo *bo;
 
@@ -720,8 +627,6 @@ static inline Bool pixmap_is_scanout(PixmapPtr pixmap)
 
 	return pixmap == screen->GetScreenPixmap(screen);
 }
-
-const OptionInfoRec *intel_uxa_available_options(int chipid, int busid);
 
 Bool intel_uxa_init(ScreenPtr pScreen);
 Bool intel_uxa_create_screen_resources(ScreenPtr pScreen);

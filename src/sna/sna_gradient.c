@@ -44,39 +44,48 @@ sna_gradient_sample_width(PictGradient *gradient)
 {
 	int n, width;
 
-	width = 2;
+	width = 0;
 	for (n = 1; n < gradient->nstops; n++) {
 		xFixed dx = gradient->stops[n].x - gradient->stops[n-1].x;
-		uint16_t delta, max;
-		int ramp;
+		int delta, max, ramp;
 
 		if (dx == 0)
 			return 1024;
 
 		max = gradient->stops[n].color.red -
 			gradient->stops[n-1].color.red;
+		if (max < 0)
+			max = -max;
 
 		delta = gradient->stops[n].color.green -
 			gradient->stops[n-1].color.green;
+		if (delta < 0)
+			delta = -delta;
 		if (delta > max)
 			max = delta;
 
 		delta = gradient->stops[n].color.blue -
 			gradient->stops[n-1].color.blue;
+		if (delta < 0)
+			delta = -delta;
 		if (delta > max)
 			max = delta;
 
 		delta = gradient->stops[n].color.alpha -
 			gradient->stops[n-1].color.alpha;
+		if (delta < 0)
+			delta = -delta;
 		if (delta > max)
 			max = delta;
 
-		ramp = 128 * max / dx;
+		ramp = 256 * max / dx;
 		if (ramp > width)
 			width = ramp;
 	}
 
-	width *= gradient->nstops-1;
+	if (width == 0)
+		return 1;
+
 	width = (width + 7) & -8;
 	return min(width, 1024);
 }
@@ -104,7 +113,7 @@ sna_render_get_gradient(struct sna *sna,
 	int i, width;
 	struct kgem_bo *bo;
 
-	DBG(("%s: %dx[%f:%x...%f:%x...%f:%x]\n", __FUNCTION__,
+	DBG(("%s: %dx[%f:%x ... %f:%x ... %f:%x]\n", __FUNCTION__,
 	     pattern->nstops,
 	     pattern->stops[0].x / 65536.,
 	     pattern->stops[0].color.alpha >> 8 << 24 |
@@ -168,7 +177,7 @@ sna_render_get_gradient(struct sna *sna,
 	     width/2, pixman_image_get_data(image)[width/2],
 	     width-1, pixman_image_get_data(image)[width-1]));
 
-	bo = kgem_create_linear(&sna->kgem, width*4);
+	bo = kgem_create_linear(&sna->kgem, width*4, 0);
 	if (!bo) {
 		pixman_image_unref(image);
 		return NULL;
@@ -213,6 +222,8 @@ sna_render_flush_solid(struct sna *sna)
 	struct sna_solid_cache *cache = &sna->render.solid_cache;
 
 	DBG(("sna_render_flush_solid(size=%d)\n", cache->size));
+	assert(cache->dirty);
+	assert(cache->size);
 
 	kgem_bo_write(&sna->kgem, cache->cache_bo,
 		      cache->color, cache->size*sizeof(uint32_t));
@@ -226,10 +237,10 @@ sna_render_finish_solid(struct sna *sna, bool force)
 	struct sna_solid_cache *cache = &sna->render.solid_cache;
 	int i;
 
-	DBG(("sna_render_finish_solid(force=%d, busy=%d, dirty=%d)\n",
-	     force, cache->cache_bo->gpu, cache->dirty));
+	DBG(("sna_render_finish_solid(force=%d, domain=%d, busy=%d, dirty=%d)\n",
+	     force, cache->cache_bo->domain, cache->cache_bo->rq != NULL, cache->dirty));
 
-	if (!force && !cache->cache_bo->gpu)
+	if (!force && cache->cache_bo->domain != DOMAIN_GPU)
 		return;
 
 	if (cache->dirty)
@@ -246,7 +257,7 @@ sna_render_finish_solid(struct sna *sna, bool force)
 
 	DBG(("sna_render_finish_solid reset\n"));
 
-	cache->cache_bo = kgem_create_linear(&sna->kgem, sizeof(cache->color));
+	cache->cache_bo = kgem_create_linear(&sna->kgem, sizeof(cache->color), 0);
 	cache->bo[0] = kgem_create_proxy(cache->cache_bo, 0, sizeof(uint32_t));
 	cache->bo[0]->pitch = 4;
 	if (force)
@@ -258,6 +269,8 @@ sna_render_get_solid(struct sna *sna, uint32_t color)
 {
 	struct sna_solid_cache *cache = &sna->render.solid_cache;
 	int i;
+
+	DBG(("%s: %08x\n", __FUNCTION__, color));
 
 	if ((color & 0xffffff) == 0) /* alpha only */
 		return kgem_bo_reference(sna->render.alpha_cache.bo[color>>24]);
@@ -310,7 +323,9 @@ static Bool sna_alpha_cache_init(struct sna *sna)
 	uint32_t color[256];
 	int i;
 
-	cache->cache_bo = kgem_create_linear(&sna->kgem, sizeof(color));
+	DBG(("%s\n", __FUNCTION__));
+
+	cache->cache_bo = kgem_create_linear(&sna->kgem, sizeof(color), 0);
 	if (!cache->cache_bo)
 		return FALSE;
 
@@ -329,8 +344,10 @@ static Bool sna_solid_cache_init(struct sna *sna)
 {
 	struct sna_solid_cache *cache = &sna->render.solid_cache;
 
+	DBG(("%s\n", __FUNCTION__));
+
 	cache->cache_bo =
-		kgem_create_linear(&sna->kgem, sizeof(cache->color));
+		kgem_create_linear(&sna->kgem, sizeof(cache->color), 0);
 	if (!cache->cache_bo)
 		return FALSE;
 
@@ -350,6 +367,8 @@ static Bool sna_solid_cache_init(struct sna *sna)
 
 Bool sna_gradients_create(struct sna *sna)
 {
+	DBG(("%s\n", __FUNCTION__));
+
 	if (!sna_alpha_cache_init(sna))
 		return FALSE;
 
@@ -362,6 +381,8 @@ Bool sna_gradients_create(struct sna *sna)
 void sna_gradients_close(struct sna *sna)
 {
 	int i;
+
+	DBG(("%s\n", __FUNCTION__));
 
 	for (i = 0; i < 256; i++) {
 		if (sna->render.alpha_cache.bo[i])

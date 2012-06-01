@@ -19,17 +19,17 @@ static inline bool need_redirect(struct sna *sna, PixmapPtr dst)
 
 static inline int vertex_space(struct sna *sna)
 {
-	return ARRAY_SIZE(sna->render.vertex_data) - sna->render.vertex_used;
+	return sna->render.vertex_size - sna->render.vertex_used;
 }
 static inline void vertex_emit(struct sna *sna, float v)
 {
-	assert(sna->render.vertex_used < ARRAY_SIZE(sna->render.vertex_data));
-	sna->render.vertex_data[sna->render.vertex_used++] = v;
+	assert(sna->render.vertex_used < sna->render.vertex_size);
+	sna->render.vertices[sna->render.vertex_used++] = v;
 }
 static inline void vertex_emit_2s(struct sna *sna, int16_t x, int16_t y)
 {
-	int16_t *v = (int16_t *)&sna->render.vertex_data[sna->render.vertex_used++];
-	assert(sna->render.vertex_used <= ARRAY_SIZE(sna->render.vertex_data));
+	int16_t *v = (int16_t *)&sna->render.vertices[sna->render.vertex_used++];
+	assert(sna->render.vertex_used <= sna->render.vertex_size);
 	v[0] = x;
 	v[1] = y;
 }
@@ -47,12 +47,13 @@ static inline float pack_2s(int16_t x, int16_t y)
 
 static inline int batch_space(struct sna *sna)
 {
-	return KGEM_BATCH_SIZE(&sna->kgem) - sna->kgem.nbatch;
+	return sna->kgem.surface - sna->kgem.nbatch - KGEM_BATCH_RESERVED;
 }
 
 static inline void batch_emit(struct sna *sna, uint32_t dword)
 {
-	assert(sna->kgem.nbatch < sna->kgem.surface);
+	assert(sna->kgem.mode != KGEM_NONE);
+	assert(sna->kgem.nbatch + KGEM_BATCH_RESERVED < sna->kgem.surface);
 	sna->kgem.batch[sna->kgem.nbatch++] = dword;
 }
 
@@ -70,28 +71,59 @@ static inline Bool
 is_gpu(DrawablePtr drawable)
 {
 	struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
-	return priv && priv->gpu_bo;
+
+	if (priv == NULL || priv->clear)
+		return false;
+
+	if (priv->gpu_damage || (priv->gpu_bo && kgem_bo_is_busy(priv->gpu_bo) && !priv->gpu_bo->proxy))
+		return true;
+
+	return priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo);
 }
 
 static inline Bool
 is_cpu(DrawablePtr drawable)
 {
 	struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
-	return !priv || priv->gpu_bo == NULL;
+	if (priv == NULL || priv->clear || DAMAGE_IS_ALL(priv->cpu_damage))
+		return true;
+
+	if (priv->gpu_damage || (priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo)))
+		return false;
+
+	return true;
 }
 
 static inline Bool
-is_dirty_gpu(DrawablePtr drawable)
+is_dirty(DrawablePtr drawable)
 {
 	struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
-	return priv && priv->gpu_bo && priv->gpu_damage;
+	return priv == NULL || kgem_bo_is_dirty(priv->gpu_bo);
+}
+
+static inline bool
+too_small(struct sna_pixmap *priv)
+{
+	assert(priv);
+
+	if (priv->gpu_damage)
+		return false;
+
+	if (priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo))
+		return false;
+
+	return (priv->create & KGEM_CAN_CREATE_GPU) == 0;
 }
 
 static inline Bool
-too_small(DrawablePtr drawable)
+unattached(DrawablePtr drawable)
 {
-	return ((uint32_t)drawable->width * drawable->height * drawable->bitsPerPixel <= 8*4096) &&
-		!is_dirty_gpu(drawable);
+	struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
+
+	if (priv == NULL)
+		return true;
+
+	return priv->gpu_bo == NULL && priv->cpu_bo == NULL;
 }
 
 static inline Bool
@@ -132,7 +164,17 @@ sna_render_reduce_damage(struct sna_composite_op *op,
 {
 	BoxRec r;
 
-	if (width == 0 || height == 0 || op->damage == NULL)
+	if (op->damage == NULL || *op->damage == NULL)
+		return;
+
+	if (DAMAGE_IS_ALL(*op->damage)) {
+		DBG(("%s: damage-all, dicarding damage\n",
+		     __FUNCTION__));
+		op->damage = NULL;
+		return;
+	}
+
+	if (width == 0 || height == 0)
 		return;
 
 	r.x1 = dst_x + op->dst.x;
@@ -141,8 +183,36 @@ sna_render_reduce_damage(struct sna_composite_op *op,
 	r.y1 = dst_y + op->dst.y;
 	r.y2 = r.y1 + height;
 
-	if (sna_damage_contains_box(*op->damage, &r) == PIXMAN_REGION_IN)
+	if (sna_damage_contains_box__no_reduce(*op->damage, &r)) {
+		DBG(("%s: damage contains render extents, dicarding damage\n",
+		     __FUNCTION__));
 		op->damage = NULL;
+	}
+}
+
+inline static uint32_t
+color_convert(uint32_t pixel,
+	      uint32_t src_format,
+	      uint32_t dst_format)
+{
+	DBG(("%s: src=%08x [%08x]\n", __FUNCTION__, pixel, src_format));
+
+	if (src_format != dst_format) {
+		uint16_t red, green, blue, alpha;
+
+		if (!sna_get_rgba_from_pixel(pixel,
+					     &red, &green, &blue, &alpha,
+					     src_format))
+			return 0;
+
+		if (!sna_get_pixel_from_rgba(&pixel,
+					     red, green, blue, alpha,
+					     dst_format))
+			return 0;
+	}
+
+	DBG(("%s: dst=%08x [%08x]\n", __FUNCTION__, pixel, dst_format));
+	return pixel;
 }
 
 #endif /* SNA_RENDER_INLINE_H */

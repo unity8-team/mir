@@ -190,6 +190,7 @@
 #define PCI_CHIP_IVYBRIDGE_D_GT1	0x0152
 #define PCI_CHIP_IVYBRIDGE_D_GT2	0x0162
 #define PCI_CHIP_IVYBRIDGE_S_GT1	0x015a
+#define PCI_CHIP_IVYBRIDGE_S_GT2	0x016a
 
 #endif
 
@@ -245,5 +246,8 @@ struct intel_chipset {
 void intel_detect_chipset(ScrnInfoPtr scrn,
 			  struct pci_device *pci,
 			  struct intel_chipset *chipset);
+
+const OptionInfoRec *intel_uxa_available_options(int chipid, int busid);
+
 
 #endif /* INTEL_DRIVER_H */

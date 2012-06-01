@@ -2035,8 +2035,7 @@ i965_prepare_composite(int op, PicturePtr source_picture,
 	}
 
 	/* Flush any pending writes prior to relocating the textures. */
-	if (intel_pixmap_is_dirty(source) ||
-	    (mask && intel_pixmap_is_dirty(mask)))
+	if (intel_pixmap_is_dirty(source) || intel_pixmap_is_dirty(mask))
 		intel_batch_emit_flush(scrn);
 
 	composite_op->op = op;

@@ -1,3 +1,77 @@
+xserver-xorg-video-intel (2:2.19.0-1ubuntu1) quantal; urgency=low
+
+  * Merge from Debian.  Remaining Ubuntu changes:
+    - 101_copy-fb.patch
+      + Plymouth integration patch
+    - debian/xserver-xorg-video-intel.install:
+      + Don't install unnecessary i915-kms.conf; KMS is kernel default.
+    - debian/xserver-xorg-video-intel.udev
+      + Add apport hook, triggered on udev GPU error event    
+
+ -- Christopher James Halse Rogers <raof@ubuntu.com>  Fri, 01 Jun 2012 09:36:44 +1000
+
+xserver-xorg-video-intel (2:2.19.0-1) unstable; urgency=low
+
+  * New upstream release.
+
+ -- Julien Cristau <jcristau@debian.org>  Sat, 26 May 2012 12:38:07 +0200
+
+xserver-xorg-video-intel (2:2.18.0-2) unstable; urgency=low
+
+  * Cherry-pick a change from upstream to fix a bug triggered by cairo 1.12:
+    uxa: Remove broken render glyphs-to-dst
+
+ -- Julien Cristau <jcristau@debian.org>  Thu, 05 Apr 2012 20:24:22 +0200
+
+xserver-xorg-video-intel (2:2.18.0-1) unstable; urgency=low
+
+  * New upstream release.
+  * No SNA for unstable, it's too fast of a moving target for now.
+  * Since we're building for unstable, let's go back to the previous
+    xorg-server build-dep.
+
+ -- Cyril Brulebois <kibi@debian.org>  Fri, 24 Feb 2012 14:16:47 +0100
+
+xserver-xorg-video-intel (2:2.17.0+git20120204-1) experimental; urgency=low
+
+  * New upstream snapshot:
+    - Merge from upstream master up to 24ece4a87e.
+
+ -- Cyril Brulebois <kibi@debian.org>  Sat, 04 Feb 2012 09:20:13 +0100
+
+xserver-xorg-video-intel (2:2.17.0+git20120115-1) experimental; urgency=low
+
+  * New upstream snapshot:
+    - Merge from upstream master up to 5df7147b09.
+
+ -- Cyril Brulebois <kibi@debian.org>  Mon, 16 Jan 2012 00:52:23 +0100
+
+xserver-xorg-video-intel (2:2.17.0+git20120104-1) experimental; urgency=low
+
+  * New upstream snapshot:
+    - Merge from upstream master up to 4119e68fb1.
+  * Implement a generate-snapshot rule to ease packaging snapshots.
+
+ -- Cyril Brulebois <kibi@debian.org>  Wed, 04 Jan 2012 22:19:19 +0100
+
+xserver-xorg-video-intel (2:2.17.0+git20120101-2) experimental; urgency=low
+
+  * Build against Xserver 1.12 RC1 (Closes: #653914).
+
+ -- Cyril Brulebois <kibi@debian.org>  Sun, 01 Jan 2012 14:58:27 +0100
+
+xserver-xorg-video-intel (2:2.17.0+git20120101-1) experimental; urgency=low
+
+  * New upstream snapshot:
+    - Merge from upstream master up to 770a953ff0.
+  * Enable SNA support, as suggested by upstream. It should be usable now
+    and regression reports are welcome.
+  * Add patch to support passing a builder string:
+    - 0001-Fix-build-failure-when-passing-with-builderstring.patch
+  * Pass a builder string, as done in the server.
+
+ -- Cyril Brulebois <kibi@debian.org>  Sun, 01 Jan 2012 06:34:09 +0100
+
 xserver-xorg-video-intel (2:2.17.0-1ubuntu4) precise; urgency=low
 
   * Add 104_uxa_fix_gtt_mapping_limits.patch: Fix SIGBUS errors
