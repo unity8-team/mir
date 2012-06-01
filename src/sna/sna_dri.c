@@ -1369,7 +1369,7 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		}
 
 		info = calloc(1, sizeof(struct sna_dri_frame_event));
-		if (!info)
+		if (info == NULL)
 			return FALSE;
 
 		info->type = type;
@@ -1415,7 +1415,7 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 				 info->event_data);
 	} else {
 		info = calloc(1, sizeof(struct sna_dri_frame_event));
-		if (info)
+		if (info == NULL)
 			return FALSE;
 
 		info->sna = sna;
