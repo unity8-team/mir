@@ -7782,6 +7782,9 @@ zero:
 	do {
 		xRectangle rr = *r++;
 
+		if ((rr.width | rr.height) == 0)
+			continue;
+
 		DBG(("%s - zero : r[%d] = (%d, %d) x (%d, %d)\n", __FUNCTION__,
 		     n, rr.x, rr.y, rr.width, rr.height));
 		rr.x += dx;
@@ -7794,11 +7797,11 @@ zero:
 			b = boxes;
 		}
 
-		if (rr.width <= 2 || rr.height <= 2) {
+		if (rr.width <= 1 || rr.height <= 1) {
 			b->x1 = rr.x;
 			b->y1 = rr.y;
-			b->x2 = rr.x + rr.width + 1;
-			b->y2 = rr.y + rr.height + 1;
+			b->x2 = rr.x + rr.width + (rr.height != 0);
+			b->y2 = rr.y + rr.height + (rr.width != 0);
 			DBG(("%s: blt (%d, %d), (%d, %d)\n",
 			     __FUNCTION__,
 			     b->x1, b->y1, b->x2,b->y2));
@@ -7847,14 +7850,18 @@ zero_clipped:
 
 				DBG(("%s - zero, clipped complex: r[%d] = (%d, %d) x (%d, %d)\n", __FUNCTION__,
 				     n, rr.x, rr.y, rr.width, rr.height));
+
+				if ((rr.width | rr.height) == 0)
+					continue;
+
 				rr.x += drawable->x;
 				rr.y += drawable->y;
 
-				if (rr.width <= 2 || rr.height <= 2) {
+				if (rr.width <= 1 || rr.height <= 1) {
 					box[0].x1 = rr.x;
 					box[0].y1 = rr.y;
-					box[0].x2 = rr.x + rr.width + 1;
-					box[0].y2 = rr.y + rr.height + 1;
+					box[0].x2 = rr.x + rr.width + (rr.height != 0);
+					box[0].y2 = rr.y + rr.height + (rr.width != 0);
 					count = 1;
 				} else {
 					box[0].x1 = rr.x;
@@ -7907,14 +7914,18 @@ zero_clipped:
 				xRectangle rr = *r++;
 				DBG(("%s - zero, clip: r[%d] = (%d, %d) x (%d, %d)\n", __FUNCTION__,
 				     n, rr.x, rr.y, rr.width, rr.height));
+
+				if ((rr.width | rr.height) == 0)
+					continue;
+
 				rr.x += drawable->x;
 				rr.y += drawable->y;
 
-				if (rr.width <= 2 || rr.height <= 2) {
+				if (rr.width <= 1 || rr.height <= 1) {
 					box[0].x1 = rr.x;
 					box[0].y1 = rr.y;
-					box[0].x2 = rr.x + rr.width + 1;
-					box[0].y2 = rr.y + rr.height + 1;
+					box[0].x2 = rr.x + rr.width + (rr.height != 0);
+					box[0].y2 = rr.y + rr.height + (rr.width != 0);
 					count = 1;
 				} else {
 					box[0].x1 = rr.x;
@@ -7968,6 +7979,10 @@ wide_clipped:
 
 		region_set(&clip, extents);
 		region_maybe_clip(&clip, gc->pCompositeClip);
+		DBG(("%s: wide clipped: extents=((%d, %d), (%d, %d))\n",
+		     __FUNCTION__,
+		     clip.extents.x1, clip.extents.y1,
+		     clip.extents.x2, clip.extents.y2));
 		if (!RegionNotEmpty(&clip))
 			goto done;
 
@@ -7978,23 +7993,27 @@ wide_clipped:
 			do {
 				xRectangle rr = *r++;
 				int count;
+
+				if ((rr.width | rr.height) == 0)
+					continue;
+
 				rr.x += drawable->x;
 				rr.y += drawable->y;
 
 				if (rr.height <= offset2 || rr.width <= offset2) {
 					if (rr.height == 0) {
 						box[0].x1 = rr.x;
-						box[0].x2 = rr.x + rr.width + 1;
+						box[0].x2 = rr.x + rr.width;
 					} else {
 						box[0].x1 = rr.x - offset1;
-						box[0].x2 = box[0].x1 + rr.width + offset2;
+						box[0].x2 = rr.x + rr.width + offset3;
 					}
 					if (rr.width == 0) {
 						box[0].y1 = rr.y;
-						box[0].y2 = rr.y + rr.height + 1;
+						box[0].y2 = rr.y + rr.height;
 					} else {
 						box[0].y1 = rr.y - offset1;
-						box[0].y2 = box[0].y1 + rr.height + offset2;
+						box[0].y2 = rr.y + rr.height + offset3;
 					}
 					count = 1;
 				} else {
@@ -8009,8 +8028,8 @@ wide_clipped:
 					box[1].y2 = rr.y + rr.height - offset1;
 
 					box[2] = box[1];
-					box[3].x1 += rr.width;
-					box[3].x2 += rr.width;
+					box[2].x1 += rr.width;
+					box[2].x2 += rr.width;
 
 					box[3] = box[0];
 					box[3].y1 += rr.height;
@@ -8043,23 +8062,27 @@ wide_clipped:
 				}
 			} while (--n);
 		} else {
+			DBG(("%s: singular clip offset1=%d, offset2=%d, offset3=%d\n",
+			     __FUNCTION__, offset1, offset2, offset3));
 			do {
 				xRectangle rr = *r++;
 				int count;
 				rr.x += drawable->x;
 				rr.y += drawable->y;
 
+				DBG(("%s: r=(%d, %d)x(%d, %d)\n",
+				     __FUNCTION__, rr.x, rr.y, rr.width, rr.height));
 				if (rr.height <= offset2 || rr.width <= offset2) {
 					if (rr.height == 0) {
 						box[0].x1 = rr.x;
-						box[0].x2 = rr.x + rr.width + 1;
+						box[0].x2 = rr.x + rr.width;
 					} else {
 						box[0].x1 = rr.x - offset1;
 						box[0].x2 = box[0].x1 + rr.width + offset2;
 					}
 					if (rr.width == 0) {
 						box[0].y1 = rr.y;
-						box[0].y2 = rr.y + rr.height + 1;
+						box[0].y2 = rr.y + rr.height;
 					} else {
 						box[0].y1 = rr.y - offset1;
 						box[0].y2 = box[0].y1 + rr.height + offset2;
@@ -8070,19 +8093,36 @@ wide_clipped:
 					box[0].x2 = box[0].x1 + rr.width + offset2;
 					box[0].y1 = rr.y - offset1;
 					box[0].y2 = box[0].y1 + offset2;
+					DBG(("%s: box[0]=(%d, %d), (%d, %d)\n",
+					     __FUNCTION__,
+					     box[0].x1, box[0].y1,
+					     box[0].x2, box[0].y2));
 
 					box[1].x1 = rr.x - offset1;
 					box[1].x2 = box[1].x1 + offset2;
 					box[1].y1 = rr.y + offset3;
 					box[1].y2 = rr.y + rr.height - offset1;
+					DBG(("%s: box[1]=(%d, %d), (%d, %d)\n",
+					     __FUNCTION__,
+					     box[1].x1, box[1].y1,
+					     box[1].x2, box[1].y2));
 
 					box[2] = box[1];
-					box[3].x1 += rr.width;
-					box[3].x2 += rr.width;
+					box[2].x1 += rr.width;
+					box[2].x2 += rr.width;
+					DBG(("%s: box[2]=(%d, %d), (%d, %d)\n",
+					     __FUNCTION__,
+					     box[2].x1, box[2].y1,
+					     box[2].x2, box[2].y2));
 
 					box[3] = box[0];
 					box[3].y1 += rr.height;
 					box[3].y2 += rr.height;
+					DBG(("%s: box[3]=(%d, %d), (%d, %d)\n",
+					     __FUNCTION__,
+					     box[3].x1, box[3].y1,
+					     box[3].x2, box[3].y2));
+
 					count = 4;
 				}
 
@@ -8117,6 +8157,10 @@ wide:
 
 		do {
 			xRectangle rr = *r++;
+
+			if ((rr.width | rr.height) == 0)
+				continue;
+
 			rr.x += dx;
 			rr.y += dy;
 
@@ -8130,17 +8174,17 @@ wide:
 			if (rr.height <= offset2 || rr.width <= offset2) {
 				if (rr.height == 0) {
 					b->x1 = rr.x;
-					b->x2 = rr.x + rr.width + 1;
+					b->x2 = rr.x + rr.width;
 				} else {
 					b->x1 = rr.x - offset1;
-					b->x2 = rr.x + rr.width + offset2;
+					b->x2 = rr.x + rr.width + offset3;
 				}
 				if (rr.width == 0) {
 					b->y1 = rr.y;
-					b->y2 = rr.y + rr.height + 1;
+					b->y2 = rr.y + rr.height;
 				} else {
 					b->y1 = rr.y - offset1;
-					b->y2 = rr.y + rr.height + offset2;
+					b->y2 = rr.y + rr.height + offset3;
 				}
 				b++;
 			} else {
@@ -8149,18 +8193,18 @@ wide:
 				b[0].y1 = rr.y - offset1;
 				b[0].y2 = b[0].y1 + offset2;
 
-				b[1] = b[0];
-				b[1].y1 = rr.y + rr.height - offset1;
-				b[1].y2 = b[1].y1 + offset2;
+				b[1].x1 = rr.x - offset1;
+				b[1].x2 = b[1].x1 + offset2;
+				b[1].y1 = rr.y + offset3;
+				b[1].y2 = rr.y + rr.height - offset1;
 
-				b[2].x1 = rr.x - offset1;
-				b[2].x2 = b[2].x1 + offset2;
-				b[2].y1 = rr.y + offset3;
-				b[2].y2 = rr.y + rr.height - offset1;
+				b[2] = b[1];
+				b[2].x1 += rr.width;
+				b[2].x2 += rr.width;
 
-				b[3] = b[2];
-				b[3].x1 = rr.x + rr.width - offset1;
-				b[3].x2 = b[3].x1 + offset2;
+				b[3] = b[0];
+				b[3].y1 += rr.height;
+				b[3].y2 += rr.height;
 				b += 4;
 			}
 		} while (--n);
@@ -8217,9 +8261,11 @@ sna_poly_rectangle(DrawablePtr drawable, GCPtr gc, int n, xRectangle *r)
 	     gc->lineStyle, gc->lineStyle == LineSolid,
 	     gc->joinStyle, gc->joinStyle == JoinMiter,
 	     gc->planemask, PM_IS_SOLID(drawable, gc->planemask)));
-	if (gc->lineStyle == LineSolid &&
-	    gc->joinStyle == JoinMiter &&
-	    PM_IS_SOLID(drawable, gc->planemask)) {
+
+	if (!PM_IS_SOLID(drawable, gc->planemask))
+		goto fallback;
+
+	if (gc->lineStyle == LineSolid && gc->joinStyle == JoinMiter) {
 		DBG(("%s: trying blt solid fill [%08lx] paths\n",
 		     __FUNCTION__, gc->fgPixel));
 		if ((bo = sna_drawable_use_bo(drawable, true,
@@ -11742,7 +11788,7 @@ static GCOps sna_gc_ops__tmp = {
 static void
 sna_validate_gc(GCPtr gc, unsigned long changes, DrawablePtr drawable)
 {
-	DBG(("%s\n", __FUNCTION__));
+	DBG(("%s changes=%x\n", __FUNCTION__, changes));
 
 	if (changes & (GCClipMask|GCSubwindowMode) ||
 	    drawable->serialNumber != (gc->serialNumber & DRAWABLE_SERIAL_BITS) ||
