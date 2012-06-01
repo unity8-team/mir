@@ -2486,7 +2486,7 @@ done:
 	if (DAMAGE_IS_ALL(priv->gpu_damage)) {
 		priv->undamaged = false;
 		if (priv->ptr) {
-			assert(!priv->cpu_bo->sync);
+			assert(priv->cpu_bo == NULL || !priv->cpu_bo->sync);
 			sna_pixmap_free_cpu(sna, priv);
 		}
 	}
