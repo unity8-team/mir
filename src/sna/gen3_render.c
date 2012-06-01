@@ -1651,7 +1651,8 @@ static int gen3_vertex_finish(struct sna *sna)
 	if (sna->render.vbo)
 		sna->render.vertices = kgem_bo_map(&sna->kgem, sna->render.vbo);
 	if (sna->render.vertices == NULL) {
-		kgem_bo_destroy(&sna->kgem, sna->render.vbo);
+		if (sna->render.vbo)
+			kgem_bo_destroy(&sna->kgem, sna->render.vbo);
 		sna->render.vbo = NULL;
 		return 0;
 	}
