@@ -2598,8 +2598,11 @@ composite_aligned_boxes(struct sna *sna,
 	DBG(("%s\n", __FUNCTION__));
 
 	boxes = stack_boxes;
-	if (ntrap > (int)ARRAY_SIZE(stack_boxes))
+	if (ntrap > (int)ARRAY_SIZE(stack_boxes)) {
 		boxes = malloc(sizeof(BoxRec)*ntrap);
+		if (boxes == NULL)
+			return false;
+	}
 
 	dx = dst->pDrawable->x;
 	dy = dst->pDrawable->y;
