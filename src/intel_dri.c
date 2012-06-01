@@ -1034,9 +1034,6 @@ can_exchange(DrawablePtr drawable, DRI2BufferPtr front, DRI2BufferPtr back)
 	struct intel_pixmap *front_intel = intel_get_pixmap_private(front_pixmap);
 	struct intel_pixmap *back_intel = intel_get_pixmap_private(back_pixmap);
 
-	if (drawable == NULL)
-		return FALSE;
-
 	if (!DRI2CanFlip(drawable))
 		return FALSE;
 
@@ -1275,7 +1272,7 @@ I830DRI2ScheduleSwap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	swap_info->event_data = data;
 	swap_info->front = front;
 	swap_info->back = back;
-	swap_info->pipe = I830DRI2DrawablePipe(draw);
+	swap_info->pipe = pipe;
 
 	if (!i830_dri2_add_frame_event(swap_info)) {
 	    free(swap_info);

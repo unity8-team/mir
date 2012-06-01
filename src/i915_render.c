@@ -665,7 +665,7 @@ i915_prepare_composite(int op, PicturePtr source_picture,
 	drm_intel_bo *bo_table[] = {
 		NULL,		/* batch_bo */
 		intel_get_pixmap_bo(dest),
-		source ? intel_get_pixmap_bo(source) : NULL,
+		intel_get_pixmap_bo(source),
 		mask ? intel_get_pixmap_bo(mask) : NULL,
 	};
 	int tex_unit = 0;
