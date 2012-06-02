@@ -809,7 +809,12 @@ I810DRIScreenInit(ScreenPtr pScreen)
       return FALSE;
    }
 
-   I810AllocLow(&(pI810->TexMem), &(pI810->SysMem), pI810DRI->textureSize);
+   if (!I810AllocLow(&(pI810->TexMem), &(pI810->SysMem), pI810DRI->textureSize)) {
+      xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		 "[agp] Texure memory allocation failed\n");
+      DRICloseScreen(pScreen);
+      return FALSE;
+   }
 
    if (drmAddMap(pI810->drmSubFD, (drm_handle_t) pI810->TexMem.Start,
 		 pI810->TexMem.Size, DRM_AGP, 0, 
