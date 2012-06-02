@@ -3666,7 +3666,10 @@ trapezoid_mask_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 struct inplace {
 	uint32_t stride;
 	uint8_t *ptr;
-	uint8_t opacity;
+	union {
+		uint8_t opacity;
+		uint32_t color;
+	};
 };
 
 static inline uint8_t
@@ -3835,6 +3838,110 @@ tor_blt_add_clipped(struct sna *sna,
 	box = REGION_RECTS(&region);
 	while (n--)
 		tor_blt_add(sna, op, NULL, box++, coverage);
+	pixman_region_fini(&region);
+}
+
+#define ONE_HALF 0x7f
+#define RB_MASK 0x00ff00ff
+#define RB_ONE_HALF 0x007f007f
+#define RB_MASK_PLUS_ONE 0x01000100
+#define G_SHIFT 8
+
+static force_inline uint32_t
+mul8x2_8 (uint32_t a, uint8_t b)
+{
+	uint32_t t = (a & RB_MASK) * b + RB_ONE_HALF;
+	return ((t + ((t >> G_SHIFT) & RB_MASK)) >> G_SHIFT) & RB_MASK;
+}
+
+static force_inline uint32_t
+add8x2_8x2(uint32_t a, uint32_t b)
+{
+	uint32_t t = a + b;
+	t |= RB_MASK_PLUS_ONE - ((t >> G_SHIFT) & RB_MASK);
+	return t & RB_MASK;
+}
+
+static force_inline uint32_t
+lerp8x4(uint32_t src, uint8_t a, uint32_t dst)
+{
+	return (add8x2_8x2(mul8x2_8(src, a),
+			   mul8x2_8(dst, ~a)) |
+		add8x2_8x2(mul8x2_8(src >> G_SHIFT, a),
+			   mul8x2_8(dst >> G_SHIFT, ~a)) << G_SHIFT);
+}
+
+static void
+tor_blt_lerp32(struct sna *sna,
+	       struct sna_composite_spans_op *op,
+	       pixman_region16_t *clip,
+	       const BoxRec *box,
+	       int coverage)
+{
+	struct inplace *in = (struct inplace *)op;
+	uint32_t *ptr = (uint32_t *)in->ptr;
+	int stride = in->stride / sizeof(uint32_t);
+	int h, w, i;
+
+	if (coverage == 0)
+		return;
+
+	ptr += box->y1 * stride + box->x1;
+
+	h = box->y2 - box->y1;
+	w = box->x2 - box->x1;
+	if (coverage == FAST_SAMPLES_XY) {
+		if ((w | h) == 1) {
+			*ptr = in->color;
+		} else {
+			if (w < 16) {
+				do {
+					for (i = 0; i < w; i++)
+						ptr[i] = in->color;
+					ptr += stride;
+				} while (--h);
+			} else {
+				pixman_fill(ptr, stride, 32,
+					    0, 0, w, h, in->color);
+			}
+		}
+	} else {
+		coverage = coverage * 256 / FAST_SAMPLES_XY;
+		coverage -= coverage >> 8;
+
+		if ((w | h) == 1) {
+			*ptr = lerp8x4(in->color, coverage, *ptr);
+		} else if (w == 1) {
+			do {
+				*ptr = lerp8x4(in->color, coverage, *ptr);
+				ptr += stride;
+			} while (--h);
+		} else{
+			do {
+				for (i = 0; i < w; i++)
+					ptr[i] = lerp8x4(in->color, coverage, ptr[i]);
+				ptr += stride;
+			} while (--h);
+		}
+	}
+}
+
+static void
+tor_blt_lerp32_clipped(struct sna *sna,
+		       struct sna_composite_spans_op *op,
+		       pixman_region16_t *clip,
+		       const BoxRec *box,
+		       int coverage)
+{
+	pixman_region16_t region;
+	int n;
+
+	pixman_region_init_rects(&region, box, 1);
+	RegionIntersect(&region, &region, clip);
+	n = REGION_NUM_RECTS(&region);
+	box = REGION_RECTS(&region);
+	while (n--)
+		tor_blt_lerp32(sna, op, NULL, box++, coverage);
 	pixman_region_fini(&region);
 }
 
@@ -4130,6 +4237,134 @@ unbounded_pass:
 }
 
 static bool
+trapezoid_span_inplace__x8r8g8b8(CARD8 op,
+				 uint32_t color,
+				 PicturePtr src,
+				 PicturePtr dst,
+				 PictFormatPtr maskFormat,
+				 int ntrap, xTrapezoid *traps)
+{
+	struct tor tor;
+	span_func_t span;
+	RegionRec region;
+	int16_t dst_x, dst_y;
+	int dx, dy;
+	int n;
+
+	if (op == PictOpOver && (color >> 24) == 0xff)
+		op = PictOpSrc;
+	if (op == PictOpOver) {
+		struct sna_pixmap *priv = sna_pixmap_from_drawable(dst->pDrawable);
+		if (priv && priv->clear && priv->clear_color == 0)
+			op = PictOpSrc;
+	}
+
+	switch (op) {
+	case PictOpSrc:
+		break;
+	default:
+		DBG(("%s: fallback -- can not perform op [%d] in place\n",
+		     __FUNCTION__, op));
+		return false;
+	}
+
+	DBG(("%s: format=%x, op=%d, color=%x\n",
+	     __FUNCTION__, dst->format, op, color));
+
+	if (maskFormat == NULL && ntrap > 1) {
+		DBG(("%s: individual rasterisation requested\n",
+		     __FUNCTION__));
+		do {
+			/* XXX unwind errors? */
+			if (!trapezoid_span_inplace__x8r8g8b8(op, color,
+							      src, dst, NULL,
+							      1, traps++))
+				return false;
+		} while (--ntrap);
+		return true;
+	}
+
+	trapezoids_bounds(ntrap, traps, &region.extents);
+	if (region.extents.y1 >= region.extents.y2 ||
+	    region.extents.x1 >= region.extents.x2)
+		return true;
+
+	DBG(("%s: extents (%d, %d), (%d, %d)\n",
+	     __FUNCTION__,
+	     region.extents.x1, region.extents.y1,
+	     region.extents.x2, region.extents.y2));
+
+	if (!sna_compute_composite_extents(&region.extents,
+					   src, NULL, dst,
+					   0, 0,
+					   0, 0,
+					   region.extents.x1, region.extents.y1,
+					   region.extents.x2 - region.extents.x1,
+					   region.extents.y2 - region.extents.y1))
+		return true;
+
+	DBG(("%s: clipped extents (%d, %d), (%d, %d)\n",
+	     __FUNCTION__,
+	     region.extents.x1, region.extents.y1,
+	     region.extents.x2, region.extents.y2));
+
+	if (tor_init(&tor, &region.extents, 2*ntrap))
+		return true;
+
+	dx = dst->pDrawable->x * FAST_SAMPLES_X;
+	dy = dst->pDrawable->y * FAST_SAMPLES_Y;
+
+	for (n = 0; n < ntrap; n++) {
+		xTrapezoid t;
+
+		if (!project_trapezoid_onto_grid(&traps[n], dx, dy, &t))
+			continue;
+
+		if (pixman_fixed_to_int(traps[n].top) >= region.extents.y2 - dst->pDrawable->y ||
+		    pixman_fixed_to_int(traps[n].bottom) < region.extents.y1 - dst->pDrawable->y)
+			continue;
+
+		tor_add_edge(&tor, &t, &t.left, 1);
+		tor_add_edge(&tor, &t, &t.right, -1);
+	}
+
+	switch (op) {
+	case PictOpSrc:
+		if (dst->pCompositeClip->data)
+			span = tor_blt_lerp32_clipped;
+		else
+			span = tor_blt_lerp32;
+		break;
+	}
+
+	DBG(("%s: move-to-cpu\n", __FUNCTION__));
+	region.data = NULL;
+	if (sna_drawable_move_region_to_cpu(dst->pDrawable, &region,
+					    MOVE_WRITE | MOVE_READ)) {
+		PixmapPtr pixmap;
+		struct inplace inplace;
+
+		pixmap = get_drawable_pixmap(dst->pDrawable);
+
+		get_drawable_deltas(dst->pDrawable, pixmap, &dst_x, &dst_y);
+
+		inplace.ptr = pixmap->devPrivate.ptr;
+		inplace.ptr += dst_y * pixmap->devKind + dst_x;
+		inplace.stride = pixmap->devKind;
+		inplace.color = color;
+
+		DBG(("%s: render inplace op=%d, color=%08x\n",
+		     __FUNCTION__, op, color));
+		tor_render(NULL, &tor, (void*)&inplace,
+			   dst->pCompositeClip, span, false);
+
+		tor_fini(&tor);
+	}
+
+	return true;
+}
+
+static bool
 trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 		       PictFormatPtr maskFormat, INT16 src_x, INT16 src_y,
 		       int ntrap, xTrapezoid *traps,
@@ -4178,6 +4413,11 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 		return false;
 	}
 
+	if (dst->format == PICT_a8r8g8b8 || dst->format == PICT_x8r8g8b8)
+		return trapezoid_span_inplace__x8r8g8b8(op, color,
+							src, dst, maskFormat,
+							ntrap, traps);
+
 	if (dst->format != PICT_a8) {
 		DBG(("%s: fallback -- can not perform operation in place, format=%x\n",
 		     __FUNCTION__, dst->format));
@@ -4185,36 +4425,49 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 	}
 
 	pixmap = get_drawable_pixmap(dst->pDrawable);
-	priv = sna_pixmap(pixmap);
-	if (priv == NULL) {
-		DBG(("%s: fallback -- unattached\n", __FUNCTION__));
-		return false;
-	}
 
 	unbounded = false;
-	switch (op) {
-	case PictOpAdd:
-		if (priv->clear && priv->clear_color == 0) {
+	priv = sna_pixmap(pixmap);
+	if (priv) {
+		switch (op) {
+		case PictOpAdd:
+			if (priv->clear && priv->clear_color == 0) {
+				unbounded = true;
+				op = PictOpSrc;
+			}
+			if ((color >> 24) == 0)
+				return true;
+			break;
+		case PictOpIn:
+			if (priv->clear && priv->clear_color == 0)
+				return true;
+			if (priv->clear && priv->clear_color == 0xff)
+				op = PictOpSrc;
 			unbounded = true;
-			op = PictOpSrc;
+			break;
+		case PictOpSrc:
+			unbounded = true;
+			break;
+		default:
+			DBG(("%s: fallback -- can not perform op [%d] in place\n",
+			     __FUNCTION__, op));
+			return false;
 		}
-		if ((color >> 24) == 0)
-			return true;
-		break;
-	case PictOpIn:
-		if (priv->clear && priv->clear_color == 0)
-			return true;
-		if (priv->clear && priv->clear_color == 0xff)
-			op = PictOpSrc;
-		unbounded = true;
-		break;
-	case PictOpSrc:
-		unbounded = true;
-		break;
-	default:
-		DBG(("%s: fallback -- can not perform op [%d] in place\n",
-		     __FUNCTION__, op));
-		return false;
+	} else {
+		switch (op) {
+		case PictOpAdd:
+			if ((color >> 24) == 0)
+				return true;
+			break;
+		case PictOpIn:
+		case PictOpSrc:
+			unbounded = true;
+			break;
+		default:
+			DBG(("%s: fallback -- can not perform op [%d] in place\n",
+			     __FUNCTION__, op));
+			return false;
+		}
 	}
 
 	DBG(("%s: format=%x, op=%d, color=%x\n",
