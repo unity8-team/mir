@@ -868,7 +868,12 @@ fallback:
 						  dst->format))
 			goto fallback_composite;
 
-		do {
+		if (pixel == 0 &&
+		    box->x2 - box->x1 == pixmap->drawable.width &&
+		    box->y2 - box->y1 == pixmap->drawable.height) {
+			memset(pixmap->devPrivate.ptr, 0,
+			       pixmap->devKind*pixmap->drawable.height);
+		} else do {
 			DBG(("%s: fallback fill: (%d, %d)x(%d, %d) %08x\n",
 			     __FUNCTION__,
 			     box->x1, box->y1,
