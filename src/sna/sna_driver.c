@@ -213,6 +213,7 @@ static Bool sna_create_screen_resources(ScreenPtr screen)
 	return TRUE;
 
 cleanup_front:
+	screen->SetScreenPixmap(NULL);
 	screen->DestroyPixmap(sna->front);
 	sna->front = NULL;
 	return FALSE;
@@ -326,7 +327,8 @@ static int sna_open_drm_master(ScrnInfoPtr scrn)
 	err = drmSetInterfaceVersion(fd, &sv);
 	if (err != 0) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-			   "[drm] failed to set drm interface version.\n");
+			   "[drm] failed to set drm interface version: %s [%d].\n",
+			   strerror(-err), -err);
 		drmClose(fd);
 		return -1;
 	}
@@ -362,8 +364,10 @@ static void sna_close_drm_master(ScrnInfoPtr scrn)
 {
 	struct sna_device *dev = sna_device(scrn);
 
-	DBG(("%s(open_count=%d)\n", __FUNCTION__, dev->open_count));
+	if (dev == NULL)
+		return;
 
+	DBG(("%s(open_count=%d)\n", __FUNCTION__, dev->open_count));
 	if (--dev->open_count)
 		return;
 
