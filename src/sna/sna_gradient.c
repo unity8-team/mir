@@ -336,10 +336,12 @@ static Bool sna_alpha_cache_init(struct sna *sna)
 						 cache->cache_bo,
 						 sizeof(uint32_t)*i,
 						 sizeof(uint32_t));
+		if (cache->bo[i] == NULL)
+			return FALSE;
+
 		cache->bo[i]->pitch = 4;
 	}
-	kgem_bo_write(&sna->kgem, cache->cache_bo, color, sizeof(color));
-	return TRUE;
+	return kgem_bo_write(&sna->kgem, cache->cache_bo, color, sizeof(color));
 }
 
 static Bool sna_solid_cache_init(struct sna *sna)
@@ -360,6 +362,9 @@ static Bool sna_solid_cache_init(struct sna *sna)
 	cache->color[0] = 0xffffffff;
 	cache->bo[0] = kgem_create_proxy(&sna->kgem, cache->cache_bo,
 					 0, sizeof(uint32_t));
+	if (cache->bo[0] == NULL)
+		return FALSE;
+
 	cache->bo[0]->pitch = 4;
 	cache->dirty = 1;
 	cache->size = 1;
