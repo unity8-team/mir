@@ -235,6 +235,7 @@ static void
 sna_render_finish_solid(struct sna *sna, bool force)
 {
 	struct sna_solid_cache *cache = &sna->render.solid_cache;
+	struct kgem_bo *old;
 	int i;
 
 	DBG(("sna_render_finish_solid(force=%d, domain=%d, busy=%d, dirty=%d)\n",
@@ -253,16 +254,25 @@ sna_render_finish_solid(struct sna *sna, bool force)
 		kgem_bo_destroy(&sna->kgem, cache->bo[i]);
 		cache->bo[i] = NULL;
 	}
-	kgem_bo_destroy(&sna->kgem, cache->cache_bo);
+
+	old = cache->cache_bo;
 
 	DBG(("sna_render_finish_solid reset\n"));
 
 	cache->cache_bo = kgem_create_linear(&sna->kgem, sizeof(cache->color), 0);
+	if (cache->cache_bo == NULL) {
+		cache->cache_bo = old;
+		old = NULL;
+	}
+
 	cache->bo[0] = kgem_create_proxy(&sna->kgem, cache->cache_bo,
 					 0, sizeof(uint32_t));
 	cache->bo[0]->pitch = 4;
 	if (force)
 		cache->size = 1;
+
+	if (old)
+		kgem_bo_destroy(&sna->kgem, old);
 }
 
 struct kgem_bo *
