@@ -12459,9 +12459,11 @@ set_tv:
 
 void sna_accel_wakeup_handler(struct sna *sna, fd_set *ready)
 {
+	DBG(("%s\n", __FUNCTION__));
 	if (sna->kgem.need_retire)
 		kgem_retire(&sna->kgem);
 	if (!sna->kgem.need_retire) {
+		DBG(("%s: GPU idle, flushing\n", __FUNCTION__));
 		kgem_submit(&sna->kgem);
 		sna->kgem.flush_now = 0;
 	}
