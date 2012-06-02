@@ -337,13 +337,12 @@ void I830InitVideo(ScreenPtr screen)
 	/* Give our adaptor list enough space for the overlay and/or texture video
 	 * adaptors.
 	 */
-	newAdaptors =
-	    malloc((num_adaptors + 2) * sizeof(XF86VideoAdaptorPtr *));
-	if (newAdaptors == NULL)
+	newAdaptors = realloc(adaptors,
+			      (num_adaptors + 2) * sizeof(XF86VideoAdaptorPtr));
+	if (newAdaptors == NULL) {
+		free(adaptors);
 		return;
-
-	memcpy(newAdaptors, adaptors,
-	       num_adaptors * sizeof(XF86VideoAdaptorPtr));
+	}
 	adaptors = newAdaptors;
 
 	/* Add the adaptors supported by our hardware.  First, set up the atoms
