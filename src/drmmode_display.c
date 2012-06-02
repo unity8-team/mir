@@ -194,42 +194,41 @@ drmmode_crtc_dpms(xf86CrtcPtr crtc, int mode)
 
 static PixmapPtr
 create_pixmap_for_fbcon(drmmode_ptr drmmode,
-			ScrnInfoPtr pScrn, int crtc_id)
+			ScrnInfoPtr pScrn, int fbcon_id)
 {
-	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-	drmmode_crtc_private_ptr drmmode_crtc;
-	PixmapPtr pixmap;
+	PixmapPtr pixmap = NULL;
 	struct radeon_bo *bo;
 	drmModeFBPtr fbcon;
 	struct drm_gem_flink flink;
 
-	drmmode_crtc = xf86_config->crtc[crtc_id]->driver_private;
-
-	fbcon = drmModeGetFB(drmmode->fd, drmmode_crtc->mode_crtc->buffer_id);
+	fbcon = drmModeGetFB(drmmode->fd, fbcon_id);
 	if (fbcon == NULL)
 		return NULL;
+
+	if (fbcon->depth != pScrn->depth ||
+	    fbcon->width != pScrn->virtualX ||
+	    fbcon->height != pScrn->virtualY)
+		goto out_free_fb;
 
 	flink.handle = fbcon->handle;
 	if (ioctl(drmmode->fd, DRM_IOCTL_GEM_FLINK, &flink) < 0) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Couldn't flink fbcon handle\n");
-		return NULL;
+		goto out_free_fb;
 	}
 
 	bo = radeon_bo_open(drmmode->bufmgr, flink.name, 0, 0, 0, 0);
 	if (bo == NULL) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Couldn't allocate bo for fbcon handle\n");
-		return NULL;
+		goto out_free_fb;
 	}
 
 	pixmap = drmmode_create_bo_pixmap(pScrn, fbcon->width, fbcon->height,
 					  fbcon->depth, fbcon->bpp,
 					  fbcon->pitch, 0, bo, NULL);
-	if (!pixmap) 
-		return NULL;
-
 	radeon_bo_unref(bo);
+out_free_fb:
 	drmModeFreeFB(fbcon);
 	return pixmap;
 }
@@ -240,27 +239,28 @@ void drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 	RADEONInfoPtr info = RADEONPTR(pScrn);
 	PixmapPtr src, dst;
 	ScreenPtr pScreen = pScrn->pScreen;
-	int crtc_id = 0;
+	int fbcon_id = 0;
 	int i;
 	int pitch;
 	uint32_t tiling_flags = 0;
 	Bool ret;
 
 	if (info->accelOn == FALSE)
-		return;
+		goto fallback;
 
 	for (i = 0; i < xf86_config->num_crtc; i++) {
-		xf86CrtcPtr crtc = xf86_config->crtc[i];
-		drmmode_crtc_private_ptr drmmode_crtc;
+		drmmode_crtc_private_ptr drmmode_crtc = xf86_config->crtc[i]->driver_private;
 
-		drmmode_crtc = crtc->driver_private;
 		if (drmmode_crtc->mode_crtc->buffer_id)
-			crtc_id = i;
+			fbcon_id = drmmode_crtc->mode_crtc->buffer_id;
 	}
 
-	src = create_pixmap_for_fbcon(drmmode, pScrn, crtc_id);
+	if (!fbcon_id)
+		goto fallback;
+
+	src = create_pixmap_for_fbcon(drmmode, pScrn, fbcon_id);
 	if (!src)
-		return;
+		goto fallback;
 
 	if (info->allowColorTiling) {
 		if (info->ChipFamily >= CHIP_FAMILY_R600) {
@@ -299,7 +299,15 @@ void drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 	drmmode_destroy_bo_pixmap(dst);
  out_free_src:
 	drmmode_destroy_bo_pixmap(src);
+	return;
 
+fallback:
+	/* map and memset the bo */
+	if (radeon_bo_map(info->front_bo, 1))
+		return;
+
+	memset(info->front_bo->ptr, 0x00, info->front_bo->size);
+	radeon_bo_unmap(info->front_bo);
 }
 
 static Bool
