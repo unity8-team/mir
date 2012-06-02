@@ -88,9 +88,9 @@ struct intel_pixmap {
 	uint16_t stride;
 	uint8_t tiling;
 	int8_t busy :2;
-	int8_t dirty :1;
-	int8_t offscreen :1;
-	int8_t pinned :1;
+	uint8_t dirty :1;
+	uint8_t offscreen :1;
+	uint8_t pinned :1;
 };
 
 #if HAS_DEVPRIVATEKEYREC
