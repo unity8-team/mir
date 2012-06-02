@@ -1085,6 +1085,8 @@ sna_output_attach_edid(xf86OutputPtr output)
 
 		VG_CLEAR(prop);
 		prop.prop_id = koutput->props[i];
+		prop.count_values = 0;
+		prop.count_enum_blobs = 0;
 		if (drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_GETPROPERTY, &prop))
 			continue;
 
@@ -1280,6 +1282,8 @@ sna_output_dpms(xf86OutputPtr output, int dpms)
 
 		VG_CLEAR(prop);
 		prop.prop_id = koutput->props[i];
+		prop.count_values = 0;
+		prop.count_enum_blobs = 0;
 		if (drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_GETPROPERTY, &prop))
 			continue;
 
