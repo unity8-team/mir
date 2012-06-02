@@ -53,7 +53,7 @@ static PixmapPtr drmmode_create_bo_pixmap(ScrnInfoPtr pScrn,
 					  int width, int height,
 					  int depth, int bpp,
 					  int pitch, int tiling,
-					  struct radeon_bo *bo)
+					  struct radeon_bo *bo, struct radeon_surface *psurf)
 {
 	RADEONInfoPtr info = RADEONPTR(pScrn);
 	ScreenPtr pScreen = pScrn->pScreen;
@@ -73,7 +73,9 @@ static PixmapPtr drmmode_create_bo_pixmap(ScrnInfoPtr pScrn,
 	radeon_set_pixmap_bo(pixmap, bo);
 	if (info->ChipFamily >= CHIP_FAMILY_R600) {
 		surface = radeon_get_pixmap_surface(pixmap);
-		if (surface) {
+		if (surface && psurf) 
+			*surface = *psurf;
+		else if (surface) {
 			memset(surface, 0, sizeof(struct radeon_surface));
 			surface->npix_x = width;
 			surface->npix_y = height;
@@ -223,7 +225,7 @@ create_pixmap_for_fbcon(drmmode_ptr drmmode,
 
 	pixmap = drmmode_create_bo_pixmap(pScrn, fbcon->width, fbcon->height,
 					  fbcon->depth, fbcon->bpp,
-					  fbcon->pitch, 0, bo);
+					  fbcon->pitch, 0, bo, NULL);
 	if (!pixmap) 
 		return NULL;
 
@@ -278,7 +280,7 @@ void drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 	dst = drmmode_create_bo_pixmap(pScrn, pScrn->virtualX,
 				       pScrn->virtualY, pScrn->depth,
 				       pScrn->bitsPerPixel, pitch,
-				       tiling_flags, info->front_bo);
+				       tiling_flags, info->front_bo, &info->front_surface);
 	if (!dst)
 		goto out_free_src;
 
@@ -551,7 +553,7 @@ drmmode_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 						 pScrn->depth,
 						 pScrn->bitsPerPixel,
 						 rotate_pitch,
-						 0, drmmode_crtc->rotate_bo);
+						 0, drmmode_crtc->rotate_bo, NULL);
 	if (rotate_pixmap == NULL) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Couldn't allocate shadow pixmap for rotated CRTC\n");
