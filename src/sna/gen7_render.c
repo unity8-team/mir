@@ -4233,8 +4233,11 @@ gen7_render_context_switch(struct kgem *kgem,
 	if (!new_mode)
 		return;
 
-	if (kgem->mode)
+	if (kgem->mode) {
+		DBG(("%s: switch rings %d -> %d\n",
+		     __FUNCTION__, kgem->mode, new_mode));
 		kgem_submit(kgem);
+	}
 
 	kgem->ring = new_mode;
 }
