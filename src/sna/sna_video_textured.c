@@ -387,7 +387,7 @@ XF86VideoAdaptorPtr sna_video_textured_setup(struct sna *sna,
 		return NULL;
 	}
 
-	if (sna->kgem.wedged) {
+	if (wedged(sna)) {
 		xf86DrvMsg(sna->scrn->scrnIndex, X_WARNING,
 			   "cannot enable XVideo whilst the GPU is wedged\n");
 		return FALSE;
