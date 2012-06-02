@@ -1847,47 +1847,45 @@ i965_emit_composite_primitive(intel_screen_private *intel,
 	float src_x[3], src_y[3], src_w[3], mask_x[3], mask_y[3], mask_w[3];
 	Bool is_affine = intel->gen4_render_state->composite_op.is_affine;
 
-	if (! intel->render_source_is_solid) {
-		if (is_affine) {
-			if (!intel_get_transformed_coordinates(srcX, srcY,
-							      intel->transform[0],
-							      &src_x[0],
-							      &src_y[0]))
-				return;
+	if (is_affine) {
+		if (!intel_get_transformed_coordinates(srcX, srcY,
+						       intel->transform[0],
+						       &src_x[0],
+						       &src_y[0]))
+			return;
 
-			if (!intel_get_transformed_coordinates(srcX, srcY + h,
-							      intel->transform[0],
-							      &src_x[1],
-							      &src_y[1]))
-				return;
+		if (!intel_get_transformed_coordinates(srcX, srcY + h,
+						       intel->transform[0],
+						       &src_x[1],
+						       &src_y[1]))
+			return;
 
-			if (!intel_get_transformed_coordinates(srcX + w, srcY + h,
-							      intel->transform[0],
-							      &src_x[2],
-							      &src_y[2]))
-				return;
-		} else {
-			if (!intel_get_transformed_coordinates_3d(srcX, srcY,
-								 intel->transform[0],
-								 &src_x[0],
-								 &src_y[0],
-								 &src_w[0]))
-				return;
+		if (!intel_get_transformed_coordinates(srcX + w, srcY + h,
+						       intel->transform[0],
+						       &src_x[2],
+						       &src_y[2]))
+			return;
+	} else {
+		if (!intel_get_transformed_coordinates_3d(srcX, srcY,
+							  intel->transform[0],
+							  &src_x[0],
+							  &src_y[0],
+							  &src_w[0]))
+			return;
 
-			if (!intel_get_transformed_coordinates_3d(srcX, srcY + h,
-								 intel->transform[0],
-								 &src_x[1],
-								 &src_y[1],
-								 &src_w[1]))
-				return;
+		if (!intel_get_transformed_coordinates_3d(srcX, srcY + h,
+							  intel->transform[0],
+							  &src_x[1],
+							  &src_y[1],
+							  &src_w[1]))
+			return;
 
-			if (!intel_get_transformed_coordinates_3d(srcX + w, srcY + h,
-								 intel->transform[0],
-								 &src_x[2],
-								 &src_y[2],
-								 &src_w[2]))
-				return;
-		}
+		if (!intel_get_transformed_coordinates_3d(srcX + w, srcY + h,
+							  intel->transform[0],
+							  &src_x[2],
+							  &src_y[2],
+							  &src_w[2]))
+			return;
 	}
 
 	if (intel->render_mask) {

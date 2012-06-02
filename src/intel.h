@@ -268,8 +268,6 @@ typedef struct intel_screen_private {
 
 	PixmapPtr render_source, render_mask, render_dest;
 	PicturePtr render_source_picture, render_mask_picture, render_dest_picture;
-	CARD32 render_source_solid;
-	Bool render_source_is_solid;
 	Bool needs_3d_invariant;
 	Bool needs_render_state_emit;
 	Bool needs_render_vertex_emit;
