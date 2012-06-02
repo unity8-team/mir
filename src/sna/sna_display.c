@@ -1072,13 +1072,16 @@ sna_output_attach_edid(xf86OutputPtr output)
 	struct sna *sna = to_sna(output->scrn);
 	struct sna_output *sna_output = output->driver_private;
 	drmModeConnectorPtr koutput = sna_output->mode_output;
-	drmModePropertyBlobPtr edid_blob = NULL;
+	void *raw = NULL;
+	int raw_length = 0;
 	xf86MonPtr mon = NULL;
 	int i;
 
 	/* look for an EDID property */
 	for (i = 0; i < koutput->count_props; i++) {
 		struct drm_mode_get_property prop;
+		struct drm_mode_get_blob blob;
+		void *tmp;
 
 		VG_CLEAR(prop);
 		prop.prop_id = koutput->props[i];
@@ -1091,23 +1094,41 @@ sna_output_attach_edid(xf86OutputPtr output)
 		if (strcmp(prop.name, "EDID"))
 			continue;
 
-		drmModeFreePropertyBlob(edid_blob);
-		edid_blob = drmModeGetPropertyBlob(sna->kgem.fd,
-						   koutput->prop_values[i]);
+		VG_CLEAR(blob);
+		blob.length = 0;
+		blob.data =0;
+		blob.blob_id = koutput->prop_values[i];
+
+		if (drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_GETPROPBLOB, &blob))
+			continue;
+
+		DBG(("%s: retreiving blob (property %d, id=%d, value=%ld), length=%d\n",
+		     __FUNCTION__, i, koutput->props[i], (long)koutput->prop_values[i],
+		     blob.length));
+
+		tmp = malloc(blob.length);
+		if (tmp == NULL)
+			continue;
+
+		blob.data = (uintptr_t)tmp;
+		if (drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_GETPROPBLOB, &blob)) {
+			free(tmp);
+			continue;
+		}
+
+		free(raw);
+		raw = tmp;
+		raw_length = blob.length;
 	}
 
-	if (edid_blob) {
-		mon = xf86InterpretEDID(output->scrn->scrnIndex,
-					edid_blob->data);
-
-		if (mon && edid_blob->length > 128)
+	if (raw) {
+		mon = xf86InterpretEDID(output->scrn->scrnIndex, raw);
+		if (mon && raw_length > 128)
 			mon->flags |= MONITOR_EDID_COMPLETE_RAWDATA;
 	}
 
 	xf86OutputSetEDID(output, mon);
-
-	if (0&&edid_blob)
-		drmModeFreePropertyBlob(edid_blob);
+	free(raw);
 }
 
 static DisplayModePtr
