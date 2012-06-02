@@ -601,11 +601,16 @@ static inline drm_intel_bo *intel_bo_alloc_for_data(intel_screen_private *intel,
 						    const char *name)
 {
 	drm_intel_bo *bo;
+	int ret;
 
 	bo = drm_intel_bo_alloc(intel->bufmgr, name, size, 4096);
-	if (bo)
-		drm_intel_bo_subdata(bo, 0, size, data);
+	assert(bo);
+
+	ret = drm_intel_bo_subdata(bo, 0, size, data);
+	assert(ret == 0);
+
 	return bo;
+	(void)ret;
 }
 
 void intel_debug_flush(ScrnInfoPtr scrn);

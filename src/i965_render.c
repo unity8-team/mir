@@ -778,13 +778,16 @@ static drm_intel_bo *gen4_create_sf_state(intel_screen_private *intel,
 {
 	struct brw_sf_unit_state *sf_state;
 	drm_intel_bo *sf_state_bo;
+	int ret;
 
 	sf_state_bo = drm_intel_bo_alloc(intel->bufmgr, "gen4 SF state",
 					 sizeof(*sf_state), 4096);
-	drm_intel_bo_map(sf_state_bo, TRUE);
-	sf_state = sf_state_bo->virtual;
+	assert(sf_state_bo);
 
-	memset(sf_state, 0, sizeof(*sf_state));
+	ret = drm_intel_bo_map(sf_state_bo, TRUE);
+	assert(ret == 0);
+
+	sf_state = memset(sf_state_bo->virtual, 0, sizeof(*sf_state));
 	sf_state->thread0.grf_reg_count = BRW_GRF_BLOCKS(SF_KERNEL_NUM_GRF);
 	sf_state->thread0.kernel_start_pointer =
 	    intel_emit_reloc(sf_state_bo,
@@ -820,6 +823,7 @@ static drm_intel_bo *gen4_create_sf_state(intel_screen_private *intel,
 	drm_intel_bo_unmap(sf_state_bo);
 
 	return sf_state_bo;
+	(void)ret;
 }
 
 static drm_intel_bo *sampler_border_color_create(intel_screen_private *intel)
@@ -982,11 +986,16 @@ static drm_intel_bo *gen4_create_sampler_state(intel_screen_private *intel,
 {
 	drm_intel_bo *sampler_state_bo;
 	struct brw_sampler_state *sampler_state;
+	int ret;
 
 	sampler_state_bo =
 	    drm_intel_bo_alloc(intel->bufmgr, "gen4 sampler state",
 			       sizeof(struct brw_sampler_state) * 2, 4096);
-	drm_intel_bo_map(sampler_state_bo, TRUE);
+	assert(sampler_state_bo);
+
+	ret = drm_intel_bo_map(sampler_state_bo, TRUE);
+	assert(ret == 0);
+
 	sampler_state = sampler_state_bo->virtual;
 
 	gen4_sampler_state_init(sampler_state_bo,
@@ -999,6 +1008,7 @@ static drm_intel_bo *gen4_create_sampler_state(intel_screen_private *intel,
 	drm_intel_bo_unmap(sampler_state_bo);
 
 	return sampler_state_bo;
+	(void)ret;
 }
 
 static drm_intel_bo *
@@ -1011,11 +1021,16 @@ gen7_create_sampler_state(intel_screen_private *intel,
 {
 	drm_intel_bo *sampler_state_bo;
 	struct gen7_sampler_state *sampler_state;
+	int ret;
 
 	sampler_state_bo =
 	    drm_intel_bo_alloc(intel->bufmgr, "gen7 sampler state",
 			       sizeof(struct gen7_sampler_state) * 2, 4096);
-	drm_intel_bo_map(sampler_state_bo, TRUE);
+	assert(sampler_state_bo);
+
+	ret = drm_intel_bo_map(sampler_state_bo, TRUE);
+	assert(ret == 0);
+
 	sampler_state = sampler_state_bo->virtual;
 
 	gen7_sampler_state_init(sampler_state_bo,
@@ -1028,6 +1043,7 @@ gen7_create_sampler_state(intel_screen_private *intel,
 	drm_intel_bo_unmap(sampler_state_bo);
 
 	return sampler_state_bo;
+	(void)ret;
 }
 
 static inline drm_intel_bo *
@@ -1096,13 +1112,16 @@ static drm_intel_bo *gen4_create_wm_state(intel_screen_private *intel,
 {
 	struct brw_wm_unit_state *state;
 	drm_intel_bo *wm_state_bo;
+	int ret;
 
 	wm_state_bo = drm_intel_bo_alloc(intel->bufmgr, "gen4 WM state",
 					 sizeof(*state), 4096);
-	drm_intel_bo_map(wm_state_bo, TRUE);
-	state = wm_state_bo->virtual;
+	assert(wm_state_bo);
 
-	memset(state, 0, sizeof(*state));
+	ret = drm_intel_bo_map(wm_state_bo, TRUE);
+	assert(ret == 0);
+
+	state = memset(wm_state_bo->virtual, 0, sizeof(*state));
 	state->thread0.grf_reg_count = BRW_GRF_BLOCKS(PS_KERNEL_NUM_GRF);
 	state->thread0.kernel_start_pointer =
 	    intel_emit_reloc(wm_state_bo,
@@ -1162,21 +1181,27 @@ static drm_intel_bo *gen4_create_wm_state(intel_screen_private *intel,
 	drm_intel_bo_unmap(wm_state_bo);
 
 	return wm_state_bo;
+	(void)ret;
 }
 
 static drm_intel_bo *gen4_create_cc_viewport(intel_screen_private *intel)
 {
 	drm_intel_bo *bo;
 	struct brw_cc_viewport vp;
+	int ret;
 
 	vp.min_depth = -1.e35;
 	vp.max_depth = 1.e35;
 
 	bo = drm_intel_bo_alloc(intel->bufmgr, "gen4 render unit state",
 				sizeof(vp), 4096);
-	drm_intel_bo_subdata(bo, 0, sizeof(vp), &vp);
+	assert(bo);
+
+	ret = drm_intel_bo_subdata(bo, 0, sizeof(vp), &vp);
+	assert(ret == 0);
 
 	return bo;
+	(void)ret;
 }
 
 static drm_intel_bo *gen4_create_vs_unit_state(intel_screen_private *intel)
@@ -1204,14 +1229,18 @@ static drm_intel_bo *gen4_create_vs_unit_state(intel_screen_private *intel)
 static drm_intel_bo *gen4_create_cc_unit_state(intel_screen_private *intel)
 {
 	drm_intel_bo *cc_state_bo, *cc_vp_bo;
-	int i, j;
+	int i, j, ret;
 
 	cc_vp_bo = gen4_create_cc_viewport(intel);
 
 	cc_state_bo = drm_intel_bo_alloc(intel->bufmgr, "gen4 CC state",
 					 sizeof(struct gen4_cc_unit_state),
 					 4096);
-	drm_intel_bo_map(cc_state_bo, TRUE);
+	assert(cc_state_bo);
+
+	ret = drm_intel_bo_map(cc_state_bo, TRUE);
+	assert(ret == 0);
+
 	for (i = 0; i < BRW_BLENDFACTOR_COUNT; i++) {
 		for (j = 0; j < BRW_BLENDFACTOR_COUNT; j++) {
 			cc_state_init(cc_state_bo,
@@ -1225,6 +1254,7 @@ static drm_intel_bo *gen4_create_cc_unit_state(intel_screen_private *intel)
 	drm_intel_bo_unreference(cc_vp_bo);
 
 	return cc_state_bo;
+	(void)ret;
 }
 
 static uint32_t i965_get_card_format(PicturePtr picture)
@@ -1724,9 +1754,12 @@ static Bool i965_composite_check_aperture(intel_screen_private *intel)
 
 static void i965_surface_flush(struct intel_screen_private *intel)
 {
-	drm_intel_bo_subdata(intel->surface_bo,
-			     0, intel->surface_used,
-			     intel->surface_data);
+	int ret;
+
+	ret = drm_intel_bo_subdata(intel->surface_bo,
+				   0, intel->surface_used,
+				   intel->surface_data);
+	assert(ret == 0);
 	intel->surface_used = 0;
 
 	assert (intel->surface_reloc != 0);
@@ -1740,6 +1773,10 @@ static void i965_surface_flush(struct intel_screen_private *intel)
 	intel->surface_bo =
 		drm_intel_bo_alloc(intel->bufmgr, "surface data",
 				   sizeof(intel->surface_data), 4096);
+	assert(intel->surface_bo);
+
+	return;
+	(void)ret;
 }
 
 static void
@@ -2297,6 +2334,8 @@ void gen4_render_state_init(ScrnInfoPtr scrn)
 	intel->surface_bo =
 		drm_intel_bo_alloc(intel->bufmgr, "surface data",
 				   sizeof(intel->surface_data), 4096);
+	assert(intel->surface_bo);
+
 	intel->surface_used = 0;
 
 	if (intel->gen4_render_state == NULL)
@@ -2433,14 +2472,18 @@ gen6_composite_create_cc_state(intel_screen_private *intel)
 {
 	struct gen6_color_calc_state *state;
 	drm_intel_bo *cc_bo;
+	int ret;
 
 	cc_bo = drm_intel_bo_alloc(intel->bufmgr,
 				"gen6 CC state",
 				sizeof(*state),
 				4096);
-	drm_intel_bo_map(cc_bo, TRUE);
-	state = cc_bo->virtual;
-	memset(state, 0, sizeof(*state));
+	assert(cc_bo);
+
+	ret = drm_intel_bo_map(cc_bo, TRUE);
+	assert(ret == 0);
+
+	state = memset(cc_bo->virtual, 0, sizeof(*state));
 	state->constant_r = 1.0;
 	state->constant_g = 0.0;
 	state->constant_b = 1.0;
@@ -2448,21 +2491,25 @@ gen6_composite_create_cc_state(intel_screen_private *intel)
 	drm_intel_bo_unmap(cc_bo);
 
 	return cc_bo;
+	(void)ret;
 }
 
 static drm_intel_bo *
 gen6_composite_create_blend_state(intel_screen_private *intel)
 {
 	drm_intel_bo *blend_bo;
-	int src, dst;
+	int src, dst, ret;
 
 	blend_bo = drm_intel_bo_alloc(intel->bufmgr,
 				"gen6 BLEND state",
 				BRW_BLENDFACTOR_COUNT * BRW_BLENDFACTOR_COUNT * GEN6_BLEND_STATE_PADDED_SIZE,
 				4096);
-	drm_intel_bo_map(blend_bo, TRUE);
-	memset(blend_bo->virtual, 0, blend_bo->size);
+	assert(blend_bo);
 
+	ret = drm_intel_bo_map(blend_bo, TRUE);
+	assert(ret == 0);
+
+	memset(blend_bo->virtual, 0, blend_bo->size);
 	for (src = 0; src < BRW_BLENDFACTOR_COUNT; src++) {
 		for (dst = 0; dst < BRW_BLENDFACTOR_COUNT; dst++) {
 			uint32_t blend_state_offset = (src * BRW_BLENDFACTOR_COUNT + dst) * GEN6_BLEND_STATE_PADDED_SIZE;
@@ -2481,6 +2528,7 @@ gen6_composite_create_blend_state(intel_screen_private *intel)
 
 	drm_intel_bo_unmap(blend_bo);
 	return blend_bo;
+	(void)ret;
 }
 
 static drm_intel_bo *
@@ -2488,17 +2536,22 @@ gen6_composite_create_depth_stencil_state(intel_screen_private *intel)
 {
 	struct gen6_depth_stencil_state *state;
 	drm_intel_bo *depth_stencil_bo;
+	int ret;
 
 	depth_stencil_bo = drm_intel_bo_alloc(intel->bufmgr,
 					"gen6 DEPTH_STENCIL state",
 					sizeof(*state),
 					4096);
-	drm_intel_bo_map(depth_stencil_bo, TRUE);
-	state = depth_stencil_bo->virtual;
-	memset(state, 0, sizeof(*state));
+	assert(depth_stencil_bo);
+
+	ret = drm_intel_bo_map(depth_stencil_bo, TRUE);
+	assert(ret == 0);
+
+	state = memset(depth_stencil_bo->virtual, 0, sizeof(*state));
 	drm_intel_bo_unmap(depth_stencil_bo);
 
 	return depth_stencil_bo;
+	(void)ret;
 }
 
 static void
