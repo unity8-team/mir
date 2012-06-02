@@ -155,40 +155,34 @@ static Atom xvBrightness, xvContrast, xvColorKey;
 void I810InitVideo(ScreenPtr screen)
 {
     ScrnInfoPtr pScrn = xf86ScreenToScrn(screen);
-    XF86VideoAdaptorPtr *adaptors, *newAdaptors = NULL;
-    XF86VideoAdaptorPtr newAdaptor = NULL;
+    XF86VideoAdaptorPtr *adaptors;
     int num_adaptors;
-	
-    if (pScrn->bitsPerPixel != 8) 
-    {
-	newAdaptor = I810SetupImageVideo(screen);
-	I810InitOffscreenImages(screen);
-    }
 
     num_adaptors = xf86XVListGenericAdaptors(pScrn, &adaptors);
 
-    if(newAdaptor) {
-	if(!num_adaptors) {
-	    num_adaptors = 1;
-	    adaptors = &newAdaptor;
-	} else {
-	    newAdaptors =  /* need to free this someplace */
-		malloc((num_adaptors + 1) * sizeof(XF86VideoAdaptorPtr*));
-	    if(newAdaptors) {
-		memcpy(newAdaptors, adaptors, num_adaptors * 
-					sizeof(XF86VideoAdaptorPtr));
-		newAdaptors[num_adaptors] = newAdaptor;
+    if (pScrn->bitsPerPixel != 8) {
+	XF86VideoAdaptorPtr newAdaptor;
+
+	newAdaptor = I810SetupImageVideo(screen);
+	I810InitOffscreenImages(screen);
+
+	if (newAdaptor) {
+	    XF86VideoAdaptorPtr *newAdaptors;
+
+	    newAdaptors =
+		realloc(adaptors,
+			(num_adaptors + 1) * sizeof(XF86VideoAdaptorPtr));
+	    if (newAdaptors != NULL) {
+		newAdaptors[num_adaptors++] = newAdaptor;
 		adaptors = newAdaptors;
-		num_adaptors++;
 	    }
 	}
     }
 
-    if(num_adaptors)
-        xf86XVScreenInit(screen, adaptors, num_adaptors);
+    if (num_adaptors)
+	xf86XVScreenInit(screen, adaptors, num_adaptors);
 
-    if(newAdaptors)
-	free(newAdaptors);
+    free(adaptors);
 }
 
 /* *INDENT-OFF* */
