@@ -54,17 +54,14 @@
 #endif
 
 struct sna_crtc {
-	struct sna *sna;
 	struct drm_mode_modeinfo kmode;
 	PixmapPtr shadow;
 	uint32_t shadow_fb_id;
 	uint32_t cursor;
-	xf86CrtcPtr crtc;
-	int num;
-	int id;
-	int pipe;
-	int plane;
-	int active;
+	uint8_t id;
+	uint8_t pipe;
+	uint8_t plane;
+	uint8_t active;
 	struct list link;
 };
 
@@ -76,12 +73,10 @@ struct sna_property {
 };
 
 struct sna_output {
-	struct sna_mode *mode;
-	int output_id;
+	int id;
 	drmModeConnectorPtr mode_output;
 	int num_props;
 	struct sna_property *props;
-	void *private_data;
 
 	Bool has_panel_limits;
 	int panel_hdisplay;
@@ -91,7 +86,6 @@ struct sna_output {
 	const char *backlight_iface;
 	int backlight_active_level;
 	int backlight_max;
-	xf86OutputPtr output;
 	struct list link;
 };
 
@@ -104,7 +98,7 @@ sna_output_dpms(xf86OutputPtr output, int mode);
  * List of available kernel interfaces in priority order
  */
 static const char *backlight_interfaces[] = {
-	"sna", /* prefer our own native backlight driver */
+	"intel", /* prefer our own native backlight driver */
 	"asus-laptop",
 	"eeepc",
 	"thinkpad_screen",
@@ -493,15 +487,16 @@ sna_crtc_apply(xf86CrtcPtr crtc)
 }
 
 static void
-sna_crtc_restore(struct sna *sna)
+sna_crtc_restore(ScrnInfoPtr scrn)
 {
-	ScrnInfoPtr scrn = sna->scrn;
+	struct sna *sna = to_sna(scrn);
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
 	struct kgem_bo *bo;
 	int i;
 
-	DBG(("%s (fb_pixmap=%d, front=%d)\n", __FUNCTION__,
-	     sna->mode.fb_pixmap, sna->front->drawable.serialNumber));
+	DBG(("%s (fb_pixmap=%ld, front=%ld)\n", __FUNCTION__,
+	     (long)sna->mode.fb_pixmap,
+	     (long)sna->front->drawable.serialNumber));
 
 	if (sna->mode.fb_pixmap == sna->front->drawable.serialNumber)
 		return;
@@ -548,7 +543,7 @@ sna_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	     __FUNCTION__, sna_crtc->pipe, mode, mode == DPMSModeOn));
 
 	if (mode != DPMSModeOff)
-		sna_crtc_restore(sna_crtc->sna);
+		sna_crtc_restore(crtc->scrn);
 	else
 		sna_crtc->active = false;
 }
@@ -984,7 +979,6 @@ sna_crtc_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 	if (sna_crtc == NULL)
 		return;
 
-	sna_crtc->num = num;
 	sna_crtc->id = mode->mode_res->crtcs[num];
 
 	VG_CLEAR(get_pipe);
@@ -1012,8 +1006,6 @@ sna_crtc_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 
 	sna_crtc->cursor = gem_create(sna->kgem.fd, 64*64*4);
 
-	sna_crtc->sna = sna;
-	sna_crtc->crtc = crtc;
 	list_add(&sna_crtc->link, &mode->crtcs);
 
 	DBG(("%s: attached crtc[%d] id=%d, pipe=%d\n",
@@ -1039,7 +1031,7 @@ sna_output_detect(xf86OutputPtr output)
 
 	drmModeFreeConnector(sna_output->mode_output);
 	sna_output->mode_output =
-		drmModeGetConnector(sna->kgem.fd, sna_output->output_id);
+		drmModeGetConnector(sna->kgem.fd, sna_output->id);
 
 	switch (sna_output->mode_output->connection) {
 	case DRM_MODE_CONNECTED:
@@ -1286,7 +1278,7 @@ sna_output_dpms(xf86OutputPtr output, int dpms)
 						  dpms);
 
 		drmModeConnectorSetProperty(sna->kgem.fd,
-					    sna_output->output_id,
+					    sna_output->id,
 					    prop.prop_id,
 					    dpms);
 
@@ -1497,7 +1489,7 @@ sna_output_set_property(xf86OutputPtr output, Atom property,
 				return FALSE;
 			val = *(uint32_t *)value->data;
 
-			drmModeConnectorSetProperty(sna->kgem.fd, sna_output->output_id,
+			drmModeConnectorSetProperty(sna->kgem.fd, sna_output->id,
 						    p->mode_prop->prop_id, (uint64_t)val);
 			return TRUE;
 		} else if (p->mode_prop->flags & DRM_MODE_PROP_ENUM) {
@@ -1515,7 +1507,7 @@ sna_output_set_property(xf86OutputPtr output, Atom property,
 			/* search for matching name string, then set its value down */
 			for (j = 0; j < p->mode_prop->count_enums; j++) {
 				if (!strcmp(p->mode_prop->enums[j].name, name)) {
-					drmModeConnectorSetProperty(sna->kgem.fd, sna_output->output_id,
+					drmModeConnectorSetProperty(sna->kgem.fd, sna_output->id,
 								    p->mode_prop->prop_id, p->mode_prop->enums[j].value);
 					return TRUE;
 				}
@@ -1683,9 +1675,8 @@ sna_output_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 	if (!sna_output)
 		goto cleanup_output;
 
-	sna_output->output_id = mode->mode_res->connectors[num];
+	sna_output->id = mode->mode_res->connectors[num];
 	sna_output->mode_output = koutput;
-	sna_output->mode = mode;
 
 	output->mm_width = koutput->mmWidth;
 	output->mm_height = koutput->mmHeight;
@@ -1700,7 +1691,6 @@ sna_output_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 	output->possible_clones = enc.possible_clones;
 	output->interlaceAllowed = TRUE;
 
-	sna_output->output = output;
 	list_add(&sna_output->link, &mode->outputs);
 
 	return;
@@ -1853,11 +1843,11 @@ static int do_page_flip(struct sna *sna, void *data, int ref_crtc_hw_id)
 		 * completion event. All other crtc's events will be discarded.
 		 */
 		evdata = (uintptr_t)data;
-		evdata |= sna_crtc_to_pipe(crtc->crtc) == ref_crtc_hw_id;
+		evdata |= crtc->pipe == ref_crtc_hw_id;
 
 		DBG(("%s: crtc %d [ref? %d] --> fb %d\n",
 		     __FUNCTION__, crtc_id(crtc),
-		     sna_crtc_to_pipe(crtc->crtc) == ref_crtc_hw_id,
+		     crtc->pipe == ref_crtc_hw_id,
 		     sna->mode.fb_id));
 		if (drmModePageFlip(sna->kgem.fd,
 				    crtc_id(crtc),
