@@ -263,8 +263,8 @@ I830DRI2CreateBuffers(DrawablePtr drawable, unsigned int *attachments,
 	DRI2BufferPtr buffers;
 	I830DRI2BufferPrivatePtr privates;
 	PixmapPtr pixmap, pDepthPixmap;
+	int is_glamor_pixmap = FALSE;
 	int i;
-	int is_glamor_pixmap;
 
 	buffers = calloc(count, sizeof *buffers);
 	if (buffers == NULL)
