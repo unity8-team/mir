@@ -426,7 +426,7 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 		return FALSE;
 
 	pEnt = xf86GetEntityInfo(scrn->entityList[0]);
-	if (pEnt->location.type != BUS_PCI)
+	if (pEnt == NULL || pEnt->location.type != BUS_PCI)
 		return FALSE;
 
 	if (flags & PROBE_DETECT)
