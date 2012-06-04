@@ -474,8 +474,8 @@ static inline bool kgem_bo_can_map(struct kgem *kgem, struct kgem_bo *bo)
 
 static inline bool kgem_bo_is_busy(struct kgem_bo *bo)
 {
-	DBG_HDR(("%s: domain: %d exec? %d, rq? %d\n",
-		 __FUNCTION__, bo->domain, bo->exec != NULL, bo->rq != NULL));
+	DBG_HDR(("%s: handle=%d, domain: %d exec? %d, rq? %d\n", __FUNCTION__,
+		 bo->handle, bo->domain, bo->exec != NULL, bo->rq != NULL));
 	return bo->rq;
 }
 
