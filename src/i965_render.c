@@ -2325,9 +2325,13 @@ void gen4_render_state_init(ScrnInfoPtr scrn)
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct gen4_render_state *render;
 	const struct wm_kernel_info *wm_kernels;
-	int i, j, k, l, m;
+	sampler_state_filter_t src_filter;
+	sampler_state_extend_t src_extend;
+	sampler_state_filter_t mask_filter;
+	sampler_state_extend_t mask_extend;
 	drm_intel_bo *sf_kernel_bo, *sf_kernel_mask_bo;
 	drm_intel_bo *border_color_bo;
+	int m;
 
 	intel->needs_3d_invariant = TRUE;
 
@@ -2389,20 +2393,20 @@ void gen4_render_state_init(ScrnInfoPtr scrn)
 	 * kernel.
 	 */
 	border_color_bo = sampler_border_color_create(intel);
-	for (i = 0; i < FILTER_COUNT; i++) {
-		for (j = 0; j < EXTEND_COUNT; j++) {
-			for (k = 0; k < FILTER_COUNT; k++) {
-				for (l = 0; l < EXTEND_COUNT; l++) {
+	for (src_filter = 0; src_filter < FILTER_COUNT; src_filter++) {
+		for (src_extend = 0; src_extend < EXTEND_COUNT; src_extend++) {
+			for (mask_filter = 0; mask_filter < FILTER_COUNT; mask_filter++) {
+				for (mask_extend = 0; mask_extend < EXTEND_COUNT; mask_extend++) {
 					drm_intel_bo *sampler_state_bo;
 
 					sampler_state_bo =
 					    i965_create_sampler_state(intel,
-								      i, j,
-								      k, l,
+								      src_filter, src_extend,
+								      mask_filter, mask_extend,
 								      border_color_bo);
 
 					for (m = 0; m < KERNEL_COUNT; m++) {
-						render->wm_state_bo[m][i][j][k][l] =
+						render->wm_state_bo[m][src_filter][src_extend][mask_filter][mask_extend] =
 							gen4_create_wm_state
 							(intel,
 							 wm_kernels[m]. has_mask,
@@ -2875,7 +2879,11 @@ gen6_render_state_init(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct gen4_render_state *render;
-	int i, j, k, l, m;
+	sampler_state_filter_t src_filter;
+	sampler_state_filter_t mask_filter;
+	sampler_state_extend_t src_extend;
+	sampler_state_extend_t mask_extend;
+	int m;
 	drm_intel_bo *border_color_bo;
 	const struct wm_kernel_info *wm_kernels;
 
@@ -2899,14 +2907,14 @@ gen6_render_state_init(ScrnInfoPtr scrn)
 
 	border_color_bo = sampler_border_color_create(intel);
 
-	for (i = 0; i < FILTER_COUNT; i++) {
-		for (j = 0; j < EXTEND_COUNT; j++) {
-			for (k = 0; k < FILTER_COUNT; k++) {
-				for (l = 0; l < EXTEND_COUNT; l++) {
-					render->ps_sampler_state_bo[i][j][k][l] =
+	for (src_filter = 0; src_filter < FILTER_COUNT; src_filter++) {
+		for (src_extend = 0; src_extend < EXTEND_COUNT; src_extend++) {
+			for (mask_filter = 0; mask_filter < FILTER_COUNT; mask_filter++) {
+				for (mask_extend = 0; mask_extend < EXTEND_COUNT; mask_extend++) {
+					render->ps_sampler_state_bo[src_filter][src_extend][mask_filter][mask_extend] =
 						i965_create_sampler_state(intel,
-								i, j,
-								k, l,
+									  src_filter, src_extend,
+									  mask_filter, mask_extend,
 								border_color_bo);
 				}
 			}
