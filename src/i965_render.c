@@ -2538,20 +2538,21 @@ gen6_composite_create_blend_state(intel_screen_private *intel)
 static drm_intel_bo *
 gen6_composite_create_depth_stencil_state(intel_screen_private *intel)
 {
-	struct gen6_depth_stencil_state *state;
 	drm_intel_bo *depth_stencil_bo;
 	int ret;
 
-	depth_stencil_bo = drm_intel_bo_alloc(intel->bufmgr,
-					"gen6 DEPTH_STENCIL state",
-					sizeof(*state),
-					4096);
+	depth_stencil_bo =
+		drm_intel_bo_alloc(intel->bufmgr,
+				   "gen6 DEPTH_STENCIL state",
+				   sizeof(struct gen6_depth_stencil_state),
+				   4096);
 	assert(depth_stencil_bo);
 
 	ret = drm_intel_bo_map(depth_stencil_bo, TRUE);
 	assert(ret == 0);
 
-	state = memset(depth_stencil_bo->virtual, 0, sizeof(*state));
+	memset(depth_stencil_bo->virtual, 0,
+	       sizeof(struct gen6_depth_stencil_state));
 	drm_intel_bo_unmap(depth_stencil_bo);
 
 	return depth_stencil_bo;
