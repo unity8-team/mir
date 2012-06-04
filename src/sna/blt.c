@@ -150,7 +150,7 @@ memcpy_blt(const void *src, void *dst, int bpp,
 	   int16_t dst_x, int16_t dst_y,
 	   uint16_t width, uint16_t height)
 {
-	uint8_t *src_bytes;
+	const uint8_t *src_bytes;
 	uint8_t *dst_bytes;
 	int byte_width;
 
