@@ -48,6 +48,7 @@ kgem_debug_get_reloc_entry(struct kgem *kgem, uint32_t offset)
 		if (kgem->reloc[i].offset == offset)
 			return kgem->reloc+i;
 
+	assert(!"valid relocation entry, unknown batch offset");
 	return NULL;
 }
 
@@ -265,7 +266,6 @@ decode_2d(struct kgem *kgem, uint32_t offset)
 		kgem_debug_print(data, offset, 3, "(%d,%d)\n",
 			  data[3] & 0xffff, data[3] >> 16);
 		reloc = kgem_debug_get_reloc_entry(kgem, offset+4);
-		assert(reloc);
 		kgem_debug_print(data, offset, 4, "dst offset 0x%08x [handle=%d, delta=%d, read=%x, write=%x (fenced? %d, tiling? %d)]\n",
 				 data[4],
 				 reloc->target_handle, reloc->delta,
