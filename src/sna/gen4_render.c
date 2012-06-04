@@ -2916,7 +2916,7 @@ gen4_render_fill_boxes(struct sna *sna,
 	    (prefer_blt(sna) ||
 	     too_large(dst->drawable.width, dst->drawable.height) ||
 	     !gen4_check_dst_format(format))) {
-		uint8_t alu = ~0;
+		uint8_t alu = GXinvalid;
 
 		pixel = 0;
 		if (op == PictOpClear)
@@ -2929,7 +2929,7 @@ gen4_render_fill_boxes(struct sna *sna,
 						 format))
 			alu = GXcopy;
 
-		if (alu != ~0 &&
+		if (alu != GXinvalid &&
 		    sna_blt_fill_boxes(sna, alu,
 				       dst_bo, dst->drawable.bitsPerPixel,
 				       pixel, box, n))

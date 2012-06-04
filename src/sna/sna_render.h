@@ -7,6 +7,8 @@
 
 #define GRADIENT_CACHE_SIZE 16
 
+#define GXinvalid 0xff
+
 struct sna;
 struct sna_glyph;
 struct sna_video;
