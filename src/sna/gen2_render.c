@@ -977,7 +977,7 @@ static void gen2_vertex_flush(struct sna *sna,
 }
 
 inline static int gen2_get_rectangles(struct sna *sna,
-				      const const struct sna_composite_op *op,
+				      const struct sna_composite_op *op,
 				      int want)
 {
 	struct gen2_render_state *state = &sna->render_state.gen2;
