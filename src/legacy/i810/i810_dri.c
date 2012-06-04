@@ -898,30 +898,42 @@ I810DRICloseScreen(ScreenPtr pScreen)
 {
    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
    I810Ptr pI810 = I810PTR(pScrn);
-   I810DRIPtr pI810DRI = (I810DRIPtr) pI810->pDRIInfo->devPrivate;
 
-   if (pI810DRI->irq) {
-       drmCtlUninstHandler(pI810->drmSubFD);
-       pI810DRI->irq = 0;
+   if (pI810->pDRIInfo) {
+       I810DRIPtr pI810DRI = (I810DRIPtr) pI810->pDRIInfo->devPrivate;
+
+       if (pI810DRI) {
+	   if (pI810DRI->irq) {
+	       drmCtlUninstHandler(pI810->drmSubFD);
+	       pI810DRI->irq = 0;
+	   }
+
+	   free(pI810->pDRIInfo->devPrivate);
+	   pI810->pDRIInfo->devPrivate = NULL;
+       }
+
+       I810CleanupDma(pScrn);
+
+       DRICloseScreen(pScreen);
+       DRIDestroyInfoRec(pI810->pDRIInfo);
+       pI810->pDRIInfo = NULL;
    }
 
-   I810CleanupDma(pScrn);
-
    if (pI810->dcacheHandle!=DRM_AGP_NO_HANDLE)
-      drmAgpFree(pI810->drmSubFD, pI810->dcacheHandle);
+       drmAgpFree(pI810->drmSubFD, pI810->dcacheHandle);
    if (pI810->backHandle!=DRM_AGP_NO_HANDLE)
-      drmAgpFree(pI810->drmSubFD, pI810->backHandle);
+       drmAgpFree(pI810->drmSubFD, pI810->backHandle);
    if (pI810->zHandle!=DRM_AGP_NO_HANDLE)
-      drmAgpFree(pI810->drmSubFD, pI810->zHandle);
+       drmAgpFree(pI810->drmSubFD, pI810->zHandle);
    if (pI810->cursorHandle!=DRM_AGP_NO_HANDLE)
-      drmAgpFree(pI810->drmSubFD, pI810->cursorHandle);
+       drmAgpFree(pI810->drmSubFD, pI810->cursorHandle);
    if (pI810->xvmcHandle!=DRM_AGP_NO_HANDLE)
-      drmAgpFree(pI810->drmSubFD, pI810->xvmcHandle);
+       drmAgpFree(pI810->drmSubFD, pI810->xvmcHandle);
    if (pI810->sysmemHandle!=DRM_AGP_NO_HANDLE)
-      drmAgpFree(pI810->drmSubFD, pI810->sysmemHandle);
+       drmAgpFree(pI810->drmSubFD, pI810->sysmemHandle);
 
    if (pI810->agpAcquired == TRUE)
-      drmAgpRelease(pI810->drmSubFD);
+       drmAgpRelease(pI810->drmSubFD);
 
    pI810->backHandle = DRM_AGP_NO_HANDLE;
    pI810->zHandle = DRM_AGP_NO_HANDLE;
@@ -930,17 +942,6 @@ I810DRICloseScreen(ScreenPtr pScreen)
    pI810->sysmemHandle = DRM_AGP_NO_HANDLE;
    pI810->agpAcquired = FALSE;
    pI810->dcacheHandle = DRM_AGP_NO_HANDLE;
-
-   DRICloseScreen(pScreen);
-
-   if (pI810->pDRIInfo) {
-      if (pI810->pDRIInfo->devPrivate) {
-	 free(pI810->pDRIInfo->devPrivate);
-	 pI810->pDRIInfo->devPrivate = NULL;
-      }
-      DRIDestroyInfoRec(pI810->pDRIInfo);
-      pI810->pDRIInfo = NULL;
-   }
 }
 
 static Bool
