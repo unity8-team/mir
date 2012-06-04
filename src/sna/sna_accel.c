@@ -477,20 +477,18 @@ static inline uint32_t default_tiling(PixmapPtr pixmap)
 constant static uint32_t sna_pixmap_choose_tiling(PixmapPtr pixmap)
 {
 	struct sna *sna = to_sna_from_pixmap(pixmap);
-	uint32_t tiling = default_tiling(pixmap);
-	uint32_t bit;
+	uint32_t tiling, bit;
 
 	/* Use tiling by default, but disable per user request */
 	if (pixmap->usage_hint == SNA_CREATE_FB) {
-		tiling = I915_TILING_X;
+		tiling = -I915_TILING_X;
 		bit = SNA_TILING_FB;
-	} else
+	} else {
+		tiling = default_tiling(pixmap);
 		bit = SNA_TILING_2D;
+	}
 	if ((sna->tiling && (1 << bit)) == 0)
 		tiling = I915_TILING_NONE;
-
-	if (pixmap->usage_hint == SNA_CREATE_FB)
-		tiling = -tiling;
 
 	/* Also adjust tiling if it is not supported or likely to
 	 * slow us down,
