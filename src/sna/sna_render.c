@@ -1139,7 +1139,8 @@ sna_render_picture_extract(struct sna *sna,
 						      &box,
 						      pixmap->devKind,
 						      pixmap->drawable.bitsPerPixel);
-			if (pixmap->usage_hint == 0 &&
+			if (bo != NULL &&
+			    pixmap->usage_hint == 0 &&
 			    box.x2 - box.x1 == pixmap->drawable.width &&
 			    box.y2 - box.y1 == pixmap->drawable.height) {
 				struct sna_pixmap *priv = sna_pixmap(pixmap);
