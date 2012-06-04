@@ -717,6 +717,12 @@ intel_output_detect(xf86OutputPtr output)
 	drmModeFreeConnector(intel_output->mode_output);
 	intel_output->mode_output =
 		drmModeGetConnector(mode->fd, intel_output->output_id);
+	if (intel_output->mode_output == NULL) {
+		/* and hope we are safe everywhere else */
+		xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
+			   "drmModeGetConnector failed, reporting output disconnected\n");
+		return XF86OutputStatusDisconnected;
+	}
 
 	switch (intel_output->mode_output->connection) {
 	case DRM_MODE_CONNECTED:
