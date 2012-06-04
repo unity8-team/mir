@@ -254,7 +254,7 @@ I810PreInit(ScrnInfoPtr scrn, int flags)
    pI810 = I810PTR(scrn);
 
    pI810->pEnt = xf86GetEntityInfo(scrn->entityList[0]);
-   if (pI810->pEnt->location.type != BUS_PCI)
+   if (pI810->pEnt == NULL || pI810->pEnt->location.type != BUS_PCI)
       return FALSE;
 
    if (flags & PROBE_DETECT) {
