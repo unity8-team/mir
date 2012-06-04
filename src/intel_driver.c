@@ -480,6 +480,8 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 		return FALSE;
 
 	pEnt = xf86GetEntityInfo(scrn->entityList[0]);
+	if (pEnt == NULL || pEnt->location.type != BUS_PCI)
+		return FALSE;
 
 	if (flags & PROBE_DETECT)
 		return TRUE;
@@ -496,9 +498,6 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 	intel->pEnt = pEnt;
 
 	scrn->displayWidth = 640;	/* default it */
-
-	if (intel->pEnt->location.type != BUS_PCI)
-		return FALSE;
 
 	intel->PciInfo = xf86GetPciInfoForEntity(intel->pEnt->index);
 
