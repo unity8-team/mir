@@ -191,7 +191,7 @@ retry_gtt:
 	if (drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_MMAP_GTT, &mmap_arg)) {
 		ErrorF("%s: failed to achieve GTT offset for handle=%d: %d\n",
 		       __FUNCTION__, bo->handle, errno);
-		__kgem_throttle_retire(kgem, 0);
+		(void)__kgem_throttle_retire(kgem, 0);
 		if (kgem_expire_cache(kgem))
 			goto retry_gtt;
 
