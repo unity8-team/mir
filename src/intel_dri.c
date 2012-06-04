@@ -1522,7 +1522,7 @@ I830DRI2ScheduleWaitMSC(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 				   strerror(errno));
 			limit--;
 		}
-		goto out_complete;
+		goto out_free;
 	}
 
 	current_msc = vbl.reply.sequence;
@@ -1556,7 +1556,7 @@ I830DRI2ScheduleWaitMSC(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 					   strerror(errno));
 				limit--;
 			}
-			goto out_complete;
+			goto out_free;
 		}
 
 		wait_info->frame = vbl.reply.sequence;
@@ -1595,7 +1595,7 @@ I830DRI2ScheduleWaitMSC(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 				   strerror(errno));
 			limit--;
 		}
-		goto out_complete;
+		goto out_free;
 	}
 
 	wait_info->frame = vbl.reply.sequence;
@@ -1603,6 +1603,8 @@ I830DRI2ScheduleWaitMSC(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 
 	return TRUE;
 
+out_free:
+	i830_dri2_del_frame_event(draw, wait_info);
 out_complete:
 	DRI2WaitMSCComplete(client, draw, target_msc, 0, 0);
 	return TRUE;
