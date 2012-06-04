@@ -1411,6 +1411,7 @@ I810InitOffscreenImages(ScreenPtr screen)
     offscreenImages[0].num_attributes = 1;
     offscreenImages[0].attributes = Attributes;
 
-    xf86XVRegisterOffscreenImages(screen, offscreenImages, 1);
+    if (!xf86XVRegisterOffscreenImages(screen, offscreenImages, 1))
+	    free(offscreenImages);
 }
 
