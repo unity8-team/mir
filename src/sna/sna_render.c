@@ -154,10 +154,8 @@ no_render_fill_boxes(struct sna *sna,
 	     __FUNCTION__, op,
 	     color->red, color->green, color->blue, color->alpha));
 
-	if (color == 0)
-		op = PictOpClear;
-
 	if (op == PictOpClear) {
+		pixel = 0;
 		alu = GXclear;
 		op = PictOpSrc;
 	}
@@ -170,7 +168,8 @@ no_render_fill_boxes(struct sna *sna,
 	if (op != PictOpSrc)
 		return FALSE;
 
-	if (!sna_get_pixel_from_rgba(&pixel,
+	if (alu == GXcopy &&
+	    !sna_get_pixel_from_rgba(&pixel,
 				     color->red,
 				     color->green,
 				     color->blue,
