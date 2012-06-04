@@ -2342,8 +2342,10 @@ void gen4_render_state_init(ScrnInfoPtr scrn)
 
 	intel->surface_used = 0;
 
-	if (intel->gen4_render_state == NULL)
-		intel->gen4_render_state = calloc(sizeof(*render), 1);
+	if (intel->gen4_render_state == NULL) {
+		intel->gen4_render_state = calloc(1, sizeof(*render));
+		assert(intel->gen4_render_state != NULL);
+	}
 
 	if (INTEL_INFO(intel)->gen >= 60)
 		return gen6_render_state_init(scrn);
