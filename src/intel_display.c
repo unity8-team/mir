@@ -680,6 +680,11 @@ intel_crtc_init(ScrnInfoPtr scrn, struct intel_mode *mode, int num)
 
 	intel_crtc->mode_crtc = drmModeGetCrtc(mode->fd,
 					       mode->mode_res->crtcs[num]);
+	if (intel_crtc->mode_crtc == NULL) {
+		free(intel_crtc);
+		return;
+	}
+
 	intel_crtc->mode = mode;
 	crtc->driver_private = intel_crtc;
 
