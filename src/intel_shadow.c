@@ -182,7 +182,7 @@ void intel_shadow_create(struct intel_screen_private *intel)
 		free(intel->shadow_buffer);
 		intel->shadow_buffer = buffer;
 	} else {
-		free(bufer);
+		free(buffer);
 		stride = intel->shadow_stride;
 	}
 
