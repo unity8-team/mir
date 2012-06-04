@@ -646,8 +646,11 @@ tile:
 								       tmp.drawable.bitsPerPixel,
 								       KGEM_BUFFER_WRITE_INPLACE,
 								       &ptr);
-					if (!src_bo)
+					if (!src_bo) {
+						if (clipped != stack)
+							free(clipped);
 						goto fallback;
+					}
 
 					c = clipped;
 					for (n = 0; n < nbox; n++) {
@@ -683,8 +686,11 @@ tile:
 
 					kgem_bo_destroy(&sna->kgem, src_bo);
 
-					if (!n)
+					if (!n) {
+						if (clipped != stack)
+							free(clipped);
 						goto fallback;
+					}
 				}
 			}
 
