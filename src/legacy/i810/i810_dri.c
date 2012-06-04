@@ -659,9 +659,7 @@ I810DRIScreenInit(ScreenPtr pScreen)
    pI810->cursorARGBHandle = agpHandle;
 
    if (agpHandle != DRM_AGP_NO_HANDLE) {
- 	int r;
-
-      if ((r = drmAgpBind(pI810->drmSubFD, agpHandle, tom)) == 0) {
+      if (drmAgpBind(pI810->drmSubFD, agpHandle, tom) == 0) {
 	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		    "[agp] GART: Allocated 16K for ARGB mouse cursor image\n");
 	 pI810->CursorARGBStart = tom;
