@@ -2658,7 +2658,8 @@ gen3_composite_fallback(struct sna *sna,
 
 	if (mask &&
 	    mask->componentAlpha && PICT_FORMAT_RGB(mask->format) &&
-	    op != PictOpOver)
+	    op != PictOpOver &&
+	    gen3_blend_op[op].src_blend != BLENDFACT_ZERO)
 	{
 		DBG(("%s: component-alpha mask with op=%d, should fallback\n",
 		     __FUNCTION__, op));
@@ -2697,6 +2698,13 @@ gen3_composite_fallback(struct sna *sna,
 	if (mask && mask_fallback) {
 		DBG(("%s: dst is on the CPU and mask will fallback\n",
 		     __FUNCTION__));
+		return TRUE;
+	}
+
+	if (too_large(dst_pixmap->drawable.width,
+		      dst_pixmap->drawable.height) &&
+	    (priv == NULL || DAMAGE_IS_ALL(priv->cpu_damage))) {
+		DBG(("%s: dst is on the CPU and too large\n", __FUNCTION__));
 		return TRUE;
 	}
 

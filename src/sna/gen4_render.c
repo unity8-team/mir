@@ -2274,6 +2274,13 @@ gen4_composite_fallback(struct sna *sna,
 		return TRUE;
 	}
 
+	if (too_large(dst_pixmap->drawable.width,
+		      dst_pixmap->drawable.height) &&
+	    (priv == NULL || DAMAGE_IS_ALL(priv->cpu_damage))) {
+		DBG(("%s: dst is on the CPU and too large\n", __FUNCTION__));
+		return TRUE;
+	}
+
 	DBG(("%s: dst is not on the GPU and the operation should not fallback\n",
 	     __FUNCTION__));
 	return FALSE;
