@@ -46,7 +46,7 @@
 #define SCREEN_ARG_TYPE int
 #define SCREEN_PTR(arg1) ScreenPtr pScreen = screenInfo.screens[(arg1)]
 
-#define SCREEN_INIT_ARGS_DECL int i, ScreenPtr pScreen, int argc, char **argv
+#define SCREEN_INIT_ARGS_DECL int index, ScreenPtr pScreen, int argc, char **argv
 
 #define BLOCKHANDLER_ARGS_DECL int arg, pointer blockData, pointer pTimeout, pointer pReadmask
 #define BLOCKHANDLER_ARGS arg, blockData, pTimeout, pReadmask
