@@ -338,7 +338,7 @@ use_cpu_bo(struct sna *sna, PixmapPtr pixmap, const BoxRec *box)
 		}
 
 		if (priv->source_count++*w*h >= (int)pixmap->drawable.width * pixmap->drawable.height &&
-		     I915_TILING_NONE != kgem_choose_tiling(&sna->kgem, I915_TILING_X,
+		     I915_TILING_NONE != kgem_choose_tiling(&sna->kgem, I915_TILING_Y,
 							    pixmap->drawable.width,
 							    pixmap->drawable.height,
 							    pixmap->drawable.bitsPerPixel)) {
@@ -396,7 +396,7 @@ move_to_gpu(PixmapPtr pixmap, const BoxRec *box)
 		migrate = true;
 		if ((priv->create & KGEM_CAN_CREATE_GPU) == 0 ||
 		    kgem_choose_tiling(&to_sna_from_pixmap(pixmap)->kgem,
-				       I915_TILING_X,
+				       I915_TILING_Y,
 				       pixmap->drawable.width,
 				       pixmap->drawable.height,
 				       pixmap->drawable.bitsPerPixel) == I915_TILING_NONE)
@@ -413,7 +413,7 @@ move_to_gpu(PixmapPtr pixmap, const BoxRec *box)
 			count = priv->source_count++;
 			if ((priv->create & KGEM_CAN_CREATE_GPU) == 0 ||
 			    kgem_choose_tiling(&to_sna_from_pixmap(pixmap)->kgem,
-					       I915_TILING_X,
+					       I915_TILING_Y,
 					       pixmap->drawable.width,
 					       pixmap->drawable.height,
 					       pixmap->drawable.bitsPerPixel) == I915_TILING_NONE)
