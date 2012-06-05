@@ -317,7 +317,7 @@ NVAdjustFrame(int scrnIndex, int x, int y, int flags)
 {
 	ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
 
-	drmmode_adjust_frame(pScrn, x, y, flags);
+	drmmode_adjust_frame(pScrn, x, y);
 }
 
 /*
