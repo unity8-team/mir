@@ -32,7 +32,7 @@
 #define likely(expr) (__builtin_expect (!!(expr), 1))
 #define unlikely(expr) (__builtin_expect (!!(expr), 0))
 #define noinline __attribute__((noinline))
-#define force_inline __attribute__((always_inline))
+#define force_inline inline __attribute__((always_inline))
 #define fastcall __attribute__((regparm(3)))
 #define must_check __attribute__((warn_unused_result))
 #define constant __attribute__((const))

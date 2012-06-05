@@ -3672,14 +3672,14 @@ struct inplace {
 	};
 };
 
-static inline uint8_t
+static force_inline uint8_t
 mul_8_8(uint8_t a, uint8_t b)
 {
     uint16_t t = a * (uint16_t)b + 0x7f;
     return ((t >> 8) + t) >> 8;
 }
 
-static uint8_t coverage_opacity(int coverage, uint8_t opacity)
+static force_inline uint8_t coverage_opacity(int coverage, uint8_t opacity)
 {
 	coverage = coverage * 256 / FAST_SAMPLES_XY;
 	return mul_8_8(coverage - (coverage >> 8), opacity);
