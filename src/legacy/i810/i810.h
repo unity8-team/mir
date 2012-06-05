@@ -287,8 +287,8 @@ extern Bool I810UnbindGARTMemory(ScrnInfoPtr pScrn);
 
 extern int I810CheckAvailableMemory(ScrnInfoPtr pScrn);
 
-extern Bool I810SwitchMode(int scrnIndex, DisplayModePtr mode, int flags);
-extern void I810AdjustFrame(int scrnIndex, int x, int y, int flags);
+extern Bool I810SwitchMode(SWITCH_MODE_ARGS_DECL);
+extern void I810AdjustFrame(ADJUST_FRAME_ARGS_DECL);
 
 extern void I810SetupForScreenToScreenCopy(ScrnInfoPtr pScrn, int xdir,
 					   int ydir, int rop,

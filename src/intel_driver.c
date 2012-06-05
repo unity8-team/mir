@@ -80,9 +80,9 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "intel_glamor.h"
 #include "intel_options.h"
 
-static void i830AdjustFrame(int scrnIndex, int x, int y, int flags);
-static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen);
-static Bool I830EnterVT(int scrnIndex, int flags);
+static void i830AdjustFrame(ADJUST_FRAME_ARGS_DECL);
+static Bool I830CloseScreen(CLOSE_SCREEN_ARGS_DECL);
+static Bool I830EnterVT(VT_FUNC_ARGS_DECL);
 
 /* temporary */
 extern void xf86SetCursor(ScreenPtr screen, CursorPtr pCurs, int x, int y);
@@ -677,15 +677,15 @@ void IntelEmitInvarientState(ScrnInfoPtr scrn)
 }
 
 static void
-I830BlockHandler(int i, pointer blockData, pointer pTimeout, pointer pReadmask)
+I830BlockHandler(BLOCKHANDLER_ARGS_DECL)
 {
-	ScreenPtr screen = screenInfo.screens[i];
-	ScrnInfoPtr scrn = xf86Screens[i];
+	SCREEN_PTR(arg);
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	screen->BlockHandler = intel->BlockHandler;
 
-	(*screen->BlockHandler) (i, blockData, pTimeout, pReadmask);
+	(*screen->BlockHandler) (BLOCKHANDLER_ARGS);
 
 	intel->BlockHandler = screen->BlockHandler;
 	screen->BlockHandler = I830BlockHandler;
@@ -837,7 +837,7 @@ I830UeventFini(ScrnInfoPtr scrn)
 #endif /* HAVE_UDEV */
 
 static Bool
-I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
+I830ScreenInit(SCREEN_INIT_ARGS_DECL)
 {
 	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
@@ -1007,16 +1007,16 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 	 * later memory should be bound when allocating, e.g rotate_mem */
 	scrn->vtSema = TRUE;
 
-	return I830EnterVT(scrnIndex, 0);
+	return I830EnterVT(VT_FUNC_ARGS(0));
 }
 
-static void i830AdjustFrame(int scrnIndex, int x, int y, int flags)
+static void i830AdjustFrame(ADJUST_FRAME_ARGS_DECL)
 {
 }
 
-static void I830FreeScreen(int scrnIndex, int flags)
+static void I830FreeScreen(FREE_SCREEN_ARGS_DECL)
 {
-	ScrnInfoPtr scrn = xf86Screens[scrnIndex];
+	SCRN_INFO_PTR(arg);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	if (intel) {
@@ -1029,9 +1029,9 @@ static void I830FreeScreen(int scrnIndex, int flags)
 	}
 }
 
-static void I830LeaveVT(int scrnIndex, int flags)
+static void I830LeaveVT(VT_FUNC_ARGS_DECL)
 {
-	ScrnInfoPtr scrn = xf86Screens[scrnIndex];
+	SCRN_INFO_PTR(arg);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	int ret;
 
@@ -1048,9 +1048,9 @@ static void I830LeaveVT(int scrnIndex, int flags)
 /*
  * This gets called when gaining control of the VT, and from ScreenInit().
  */
-static Bool I830EnterVT(int scrnIndex, int flags)
+static Bool I830EnterVT(VT_FUNC_ARGS_DECL)
 {
-	ScrnInfoPtr scrn = xf86Screens[scrnIndex];
+	SCRN_INFO_PTR(arg);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	int ret;
 
@@ -1067,16 +1067,16 @@ static Bool I830EnterVT(int scrnIndex, int flags)
 	return TRUE;
 }
 
-static Bool I830SwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
+static Bool I830SwitchMode(SWITCH_MODE_ARGS_DECL)
 {
-	ScrnInfoPtr scrn = xf86Screens[scrnIndex];
+	SCRN_INFO_PTR(arg);
 
 	return xf86SetSingleMode(scrn, mode, RR_Rotate_0);
 }
 
-static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen)
+static Bool I830CloseScreen(CLOSE_SCREEN_ARGS_DECL)
 {
-	ScrnInfoPtr scrn = xf86Screens[scrnIndex];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 #if HAVE_UDEV
@@ -1084,7 +1084,7 @@ static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen)
 #endif
 
 	if (scrn->vtSema == TRUE) {
-		I830LeaveVT(scrnIndex, 0);
+		I830LeaveVT(VT_FUNC_ARGS(0));
 	}
 
 	DeleteCallback(&FlushCallback, intel_flush_callback, scrn);
@@ -1141,7 +1141,7 @@ static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen)
 	i965_free_video(scrn);
 
 	screen->CloseScreen = intel->CloseScreen;
-	(*screen->CloseScreen) (scrnIndex, screen);
+	(*screen->CloseScreen) (CLOSE_SCREEN_ARGS);
 
 	if (intel->directRenderingOpen
 	    && intel->directRenderingType == DRI_DRI2) {
@@ -1149,18 +1149,19 @@ static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen)
 		I830DRI2CloseScreen(screen);
 	}
 
-	xf86GARTCloseScreen(scrnIndex);
+	xf86GARTCloseScreen(scrn->scrnIndex);
 
 	scrn->vtSema = FALSE;
 	return TRUE;
 }
 
 static ModeStatus
-I830ValidMode(int scrnIndex, DisplayModePtr mode, Bool verbose, int flags)
+I830ValidMode(SCRN_ARG_TYPE arg, DisplayModePtr mode, Bool verbose, int flags)
 {
+	SCRN_INFO_PTR(arg);
 	if (mode->Flags & V_INTERLACE) {
 		if (verbose) {
-			xf86DrvMsg(scrnIndex, X_PROBED,
+			xf86DrvMsg(scrn->scrnIndex, X_PROBED,
 				   "Removing interlaced mode \"%s\"\n",
 				   mode->name);
 		}
@@ -1181,9 +1182,9 @@ I830ValidMode(int scrnIndex, DisplayModePtr mode, Bool verbose, int flags)
  * DoApmEvent() in common/xf86PM.c, including if we want to see events other
  * than suspend/resume.
  */
-static Bool I830PMEvent(int scrnIndex, pmEvent event, Bool undo)
+static Bool I830PMEvent(SCRN_ARG_TYPE arg, pmEvent event, Bool undo)
 {
-	ScrnInfoPtr scrn = xf86Screens[scrnIndex];
+	SCRN_INFO_PTR(arg);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	switch (event) {
@@ -1193,12 +1194,12 @@ static Bool I830PMEvent(int scrnIndex, pmEvent event, Bool undo)
 	case XF86_APM_SYS_STANDBY:
 	case XF86_APM_USER_STANDBY:
 		if (!undo && !intel->suspended) {
-			scrn->LeaveVT(scrnIndex, 0);
+			scrn->LeaveVT(VT_FUNC_ARGS(0));
 			intel->suspended = TRUE;
 			sleep(SUSPEND_SLEEP);
 		} else if (undo && intel->suspended) {
 			sleep(RESUME_SLEEP);
-			scrn->EnterVT(scrnIndex, 0);
+			scrn->EnterVT(VT_FUNC_ARGS(0));
 			intel->suspended = FALSE;
 		}
 		break;
@@ -1207,7 +1208,7 @@ static Bool I830PMEvent(int scrnIndex, pmEvent event, Bool undo)
 	case XF86_APM_CRITICAL_RESUME:
 		if (intel->suspended) {
 			sleep(RESUME_SLEEP);
-			scrn->EnterVT(scrnIndex, 0);
+			scrn->EnterVT(VT_FUNC_ARGS(0));
 			intel->suspended = FALSE;
 			/*
 			 * Turn the screen saver off when resuming.  This seems to be

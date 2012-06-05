@@ -78,7 +78,7 @@ static int I810PutImage( ScrnInfoPtr,
 static int I810QueryImageAttributes(ScrnInfoPtr, 
 	int, unsigned short *, unsigned short *,  int *, int *);
 
-static void I810BlockHandler(int, pointer, pointer, pointer);
+static void I810BlockHandler(BLOCKHANDLER_ARGS_DECL);
 
 #define MAKE_ATOM(a) MakeAtom(a, sizeof(a) - 1, TRUE)
 
@@ -1139,21 +1139,17 @@ I810QueryImageAttributes(
 }
 
 static void
-I810BlockHandler (
-    int i,
-    pointer     blockData,
-    pointer     pTimeout,
-    pointer     pReadmask
-){
-    ScreenPtr   screen = screenInfo.screens[i];
-    ScrnInfoPtr pScrn = xf86Screens[i];
+I810BlockHandler (BLOCKHANDLER_ARGS_DECL)
+{
+    SCREEN_PTR(arg);
+    ScrnInfoPtr pScrn = xf86ScreenToScrn(screen);
     I810Ptr      pI810 = I810PTR(pScrn);
     I810PortPrivPtr pPriv = GET_PORT_PRIVATE(pScrn);
     I810OverlayRegPtr overlay = (I810OverlayRegPtr) (pI810->FbBase + pI810->OverlayStart); 
 
     screen->BlockHandler = pI810->BlockHandler;
     
-    (*screen->BlockHandler) (i, blockData, pTimeout, pReadmask);
+    (*screen->BlockHandler) (BLOCKHANDLER_ARGS);
 
     screen->BlockHandler = I810BlockHandler;
 

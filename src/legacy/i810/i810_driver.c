@@ -77,18 +77,17 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "../legacy.h"
 
-static Bool I810PreInit(ScrnInfoPtr scrn, int flags);
-static Bool I810ScreenInit(int Index, ScreenPtr screen, int argc,
-			   char **argv);
-static Bool I810EnterVT(int scrnIndex, int flags);
-static void I810LeaveVT(int scrnIndex, int flags);
-static Bool I810CloseScreen(int scrnIndex, ScreenPtr screen);
-static Bool I810SaveScreen(ScreenPtr screen, Bool unblank);
-static void I810FreeScreen(int scrnIndex, int flags);
-static void I810DisplayPowerManagementSet(ScrnInfoPtr scrn,
+static Bool I810PreInit(ScrnInfoPtr pScrn, int flags);
+static Bool I810ScreenInit(SCREEN_INIT_ARGS);
+static Bool I810EnterVT(VT_FUNC_ARGS_DECL);
+static void I810LeaveVT(VT_FUNC_ARGS_DECL);
+static Bool I810CloseScreen(CLOSE_SCREEN_ARGS_DECL);
+static Bool I810SaveScreen(ScreenPtr pScreen, Bool unblank);
+static void I810FreeScreen(FREE_SCREEN_ARGS_DECL);
+static void I810DisplayPowerManagementSet(ScrnInfoPtr pScrn,
 					  int PowerManagermentMode,
 					  int flags);
-static ModeStatus I810ValidMode(int scrnIndex, DisplayModePtr mode,
+static ModeStatus I810ValidMode(SCRN_ARG_TYPE arg, DisplayModePtr mode,
 				Bool verbose, int flags);
 
 typedef enum {
@@ -1570,7 +1569,7 @@ I810AllocateFront(ScrnInfoPtr scrn)
 }
 
 static Bool
-I810ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
+I810ScreenInit(SCREEN_INIT_ARGS_DECL)
 {
    ScrnInfoPtr scrn;
    vgaHWPtr hwp;
@@ -1649,7 +1648,7 @@ I810ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
       return FALSE;
 
    I810SaveScreen(screen, FALSE);
-   I810AdjustFrame(scrnIndex, scrn->frameX0, scrn->frameY0, 0);
+   I810AdjustFrame(ADJUST_FRAME_ARGS(scrn, scrn->frameX0, scrn->frameY0));
 
    if (!fbScreenInit(screen, pI810->FbBase + scrn->fbOffset,
 		     scrn->virtualX, scrn->virtualY,
@@ -1785,14 +1784,14 @@ I810ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 }
 
 Bool
-I810SwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
+I810SwitchMode(SWITCH_MODE_ARGS_DECL)
 {
-   ScrnInfoPtr scrn = xf86Screens[scrnIndex];
+   SCRN_INFO_PTR(arg);
 #if 0
    I810Ptr pI810 = I810PTR(scrn);
 #endif
    if (I810_DEBUG & DEBUG_VERBOSE_CURSOR)
-      ErrorF("I810SwitchMode %p %x\n", (void *)mode, flags);
+      ErrorF("I810SwitchMode %p\n", (void *)mode);
 
 #if 0
 /* 
@@ -1836,9 +1835,9 @@ I810SwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 }
 
 void
-I810AdjustFrame(int scrnIndex, int x, int y, int flags)
+I810AdjustFrame(ADJUST_FRAME_ARGS_DECL)
 {
-   ScrnInfoPtr scrn = xf86Screens[scrnIndex];
+   SCRN_INFO_PTR(arg);
    I810Ptr pI810 = I810PTR(scrn);
    vgaHWPtr hwp = VGAHWPTR(scrn);
    int Base;
@@ -1856,7 +1855,7 @@ I810AdjustFrame(int scrnIndex, int x, int y, int flags)
    Base = (y * scrn->displayWidth + x) >> 2;
 
    if (I810_DEBUG & DEBUG_VERBOSE_CURSOR)
-      ErrorF("I810AdjustFrame %d,%d %x\n", x, y, flags);
+      ErrorF("I810AdjustFrame %d,%d\n", x, y);
 
    switch (scrn->bitsPerPixel) {
    case 8:
@@ -1888,9 +1887,9 @@ I810AdjustFrame(int scrnIndex, int x, int y, int flags)
 /* These functions are usually called with the lock **not held**.
  */
 static Bool
-I810EnterVT(int scrnIndex, int flags)
+I810EnterVT(VT_FUNC_ARGS_DECL)
 {
-   ScrnInfoPtr scrn = xf86Screens[scrnIndex];
+   SCRN_INFO_PTR(arg);
 
 #ifdef HAVE_DRI1
    I810Ptr pI810 = I810PTR(scrn);
@@ -1909,21 +1908,21 @@ I810EnterVT(int scrnIndex, int flags)
    if (pI810->directRenderingEnabled) {
       if (I810_DEBUG & DEBUG_VERBOSE_DRI)
 	 ErrorF("calling dri unlock\n");
-      DRIUnlock(screenInfo.screens[scrnIndex]);
+      DRIUnlock(xf86ScrnToScreen(scrn));
       pI810->LockHeld = 0;
    }
 #endif
 
    if (!I810ModeInit(scrn, scrn->currentMode))
       return FALSE;
-   I810AdjustFrame(scrnIndex, scrn->frameX0, scrn->frameY0, 0);
+   I810AdjustFrame(ADJUST_FRAME_ARGS(scrn, scrn->frameX0, scrn->frameY0));
    return TRUE;
 }
 
 static void
-I810LeaveVT(int scrnIndex, int flags)
+I810LeaveVT(VT_FUNC_ARGS_DECL)
 {
-   ScrnInfoPtr scrn = xf86Screens[scrnIndex];
+   SCRN_INFO_PTR(arg);
    vgaHWPtr hwp = VGAHWPTR(scrn);
    I810Ptr pI810 = I810PTR(scrn);
 
@@ -1934,7 +1933,7 @@ I810LeaveVT(int scrnIndex, int flags)
    if (pI810->directRenderingEnabled) {
       if (I810_DEBUG & DEBUG_VERBOSE_DRI)
 	 ErrorF("calling dri lock\n");
-      DRILock(screenInfo.screens[scrnIndex], 0);
+      DRILock(xf86ScrnToScreen(scrn), 0);
       pI810->LockHeld = 1;
    }
 #endif
@@ -1957,9 +1956,9 @@ I810LeaveVT(int scrnIndex, int flags)
 }
 
 static Bool
-I810CloseScreen(int scrnIndex, ScreenPtr screen)
+I810CloseScreen(CLOSE_SCREEN_ARGS_DECL)
 {
-   ScrnInfoPtr scrn = xf86Screens[scrnIndex];
+   ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
    vgaHWPtr hwp = VGAHWPTR(scrn);
    I810Ptr pI810 = I810PTR(scrn);
    XAAInfoRecPtr infoPtr = pI810->AccelInfoRec;
@@ -2015,30 +2014,32 @@ I810CloseScreen(int scrnIndex, ScreenPtr screen)
    /* Need to actually close the gart fd, or the unbound memory will just sit
     * around.  Will prevent the Xserver from recycling.
     */
-   xf86GARTCloseScreen(scrnIndex);
+   xf86GARTCloseScreen(scrn->scrnIndex);
 
    free(pI810->LpRing);
    pI810->LpRing = NULL;
 
    scrn->vtSema = FALSE;
    screen->CloseScreen = pI810->CloseScreen;
-   return (*screen->CloseScreen) (scrnIndex, screen);
+   return (*screen->CloseScreen) (CLOSE_SCREEN_ARGS);
 }
 
 static void
-I810FreeScreen(int scrnIndex, int flags)
+I810FreeScreen(FREE_SCREEN_ARGS_DECL)
 {
-   I810FreeRec(xf86Screens[scrnIndex]);
+   SCRN_INFO_PTR(arg);
+   I810FreeRec(scrn);
    if (xf86LoaderCheckSymbol("vgaHWFreeHWRec"))
-      vgaHWFreeHWRec(xf86Screens[scrnIndex]);
+     vgaHWFreeHWRec(scrn);
 }
 
 static ModeStatus
-I810ValidMode(int scrnIndex, DisplayModePtr mode, Bool verbose, int flags)
+I810ValidMode(SCRN_ARG_TYPE arg, DisplayModePtr mode, Bool verbose, int flags)
 {
+   SCRN_INFO_PTR(arg);
    if (mode->Flags & V_INTERLACE) {
       if (verbose) {
-	 xf86DrvMsg(scrnIndex, X_PROBED,
+	 xf86DrvMsg(scrn->scrnIndex, X_PROBED,
 		    "Removing interlaced mode \"%s\"\n", mode->name);
       }
       return MODE_BAD;
