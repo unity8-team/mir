@@ -131,7 +131,6 @@ typedef struct {
 	AddTrapsProcPtr SavedAddTraps;
 	UnrealizeGlyphProcPtr SavedUnrealizeGlyph;
 #endif
-	EnableDisableFBAccessProcPtr SavedEnableDisableFBAccess;
 
 	Bool force_fallback;
 	Bool fallback_debug;
