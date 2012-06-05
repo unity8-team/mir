@@ -40,18 +40,17 @@
 static const OptionInfoRec * NVAvailableOptions(int chipid, int busid);
 static void    NVIdentify(int flags);
 static Bool    NVPreInit(ScrnInfoPtr pScrn, int flags);
-static Bool    NVScreenInit(int Index, ScreenPtr pScreen, int argc,
-                            char **argv);
-static Bool    NVEnterVT(int scrnIndex, int flags);
-static void    NVLeaveVT(int scrnIndex, int flags);
-static Bool    NVCloseScreen(int scrnIndex, ScreenPtr pScreen);
+static Bool    NVScreenInit(SCREEN_INIT_ARGS_DECL);
+static Bool    NVEnterVT(VT_FUNC_ARGS_DECL);
+static void    NVLeaveVT(VT_FUNC_ARGS_DECL);
+static Bool    NVCloseScreen(CLOSE_SCREEN_ARGS_DECL);
 static Bool    NVSaveScreen(ScreenPtr pScreen, int mode);
 static void    NVCloseDRM(ScrnInfoPtr);
 
 /* Optional functions */
-static Bool    NVSwitchMode(int scrnIndex, DisplayModePtr mode, int flags);
-static void    NVAdjustFrame(int scrnIndex, int x, int y, int flags);
-static void    NVFreeScreen(int scrnIndex, int flags);
+static Bool    NVSwitchMode(SWITCH_MODE_ARGS_DECL);
+static void    NVAdjustFrame(ADJUST_FRAME_ARGS_DECL);
+static void    NVFreeScreen(FREE_SCREEN_ARGS_DECL);
 
 /* Internally used functions */
 
@@ -300,9 +299,9 @@ NVPciProbe(DriverPtr drv, int entity_num, struct pci_device *pci_dev,
 #define MAX_CHIPS MAXSCREENS
 
 Bool
-NVSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
+NVSwitchMode(SWITCH_MODE_ARGS_DECL)
 {
-	ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
+	SCRN_INFO_PTR(arg);
 
 	return xf86SetSingleMode(pScrn, mode, RR_Rotate_0);
 }
@@ -313,10 +312,9 @@ NVSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
  */
 /* Usually mandatory */
 void 
-NVAdjustFrame(int scrnIndex, int x, int y, int flags)
+NVAdjustFrame(ADJUST_FRAME_ARGS_DECL)
 {
-	ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
-
+	SCRN_INFO_PTR(arg);
 	drmmode_adjust_frame(pScrn, x, y);
 }
 
@@ -327,9 +325,9 @@ NVAdjustFrame(int scrnIndex, int x, int y, int flags)
 
 /* Mandatory */
 static Bool
-NVEnterVT(int scrnIndex, int flags)
+NVEnterVT(VT_FUNC_ARGS_DECL)
 {
-	ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
+	SCRN_INFO_PTR(arg);
 	NVPtr pNv = NVPTR(pScrn);
 	int ret;
 
@@ -355,9 +353,9 @@ NVEnterVT(int scrnIndex, int flags)
 
 /* Mandatory */
 static void
-NVLeaveVT(int scrnIndex, int flags)
+NVLeaveVT(VT_FUNC_ARGS_DECL)
 {
-	ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
+	SCRN_INFO_PTR(arg);
 	NVPtr pNv = NVPTR(pScrn);
 	int ret;
 
@@ -379,19 +377,14 @@ NVFlushCallback(CallbackListPtr *list, pointer user_data, pointer call_data)
 }
 
 static void 
-NVBlockHandler (
-	int i, 
-	pointer blockData, 
-	pointer pTimeout,
-	pointer pReadmask
-)
+NVBlockHandler (BLOCKHANDLER_ARGS_DECL)
 {
-	ScreenPtr pScreen = screenInfo.screens[i];
-	ScrnInfoPtr pScrn = xf86Screens[i];
+	SCREEN_PTR(arg);
+	ScrnInfoPtr pScrn   = xf86ScreenToScrn(pScreen);
 	NVPtr pNv = NVPTR(pScrn);
 
 	pScreen->BlockHandler = pNv->BlockHandler;
-	(*pScreen->BlockHandler) (i, blockData, pTimeout, pReadmask);
+	(*pScreen->BlockHandler) (BLOCKHANDLER_ARGS);
 	pScreen->BlockHandler = NVBlockHandler;
 
 	if (pScrn->vtSema && !pNv->NoAccel)
@@ -414,7 +407,7 @@ NVCreateScreenResources(ScreenPtr pScreen)
 	pScreen->CreateScreenResources = NVCreateScreenResources;
 
 	drmmode_fbcon_copy(pScreen);
-	if (!NVEnterVT(pScrn->scrnIndex, 0))
+	if (!NVEnterVT(VT_FUNC_ARGS(0)))
 		return FALSE;
 
 	if (!pNv->NoAccel) {
@@ -434,9 +427,9 @@ NVCreateScreenResources(ScreenPtr pScreen)
 
 /* Mandatory */
 static Bool
-NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
+NVCloseScreen(CLOSE_SCREEN_ARGS_DECL)
 {
-	ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
+	ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
 	NVPtr pNv = NVPTR(pScrn);
 
 	drmmode_screen_fini(pScreen);
@@ -445,7 +438,7 @@ NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
 		nouveau_dri2_fini(pScreen);
 
 	if (pScrn->vtSema) {
-		NVLeaveVT(scrnIndex, 0);
+		NVLeaveVT(VT_FUNC_ARGS(0));
 		pScrn->vtSema = FALSE;
 	}
 
@@ -487,21 +480,20 @@ NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
 	pScrn->vtSema = FALSE;
 	pScreen->CloseScreen = pNv->CloseScreen;
 	pScreen->BlockHandler = pNv->BlockHandler;
-	return (*pScreen->CloseScreen)(scrnIndex, pScreen);
+	return (*pScreen->CloseScreen)(CLOSE_SCREEN_ARGS);
 }
 
 /* Free up any persistent data structures */
 
 /* Optional */
 static void
-NVFreeScreen(int scrnIndex, int flags)
+NVFreeScreen(FREE_SCREEN_ARGS_DECL)
 {
 	/*
 	 * This only gets called when a screen is being deleted.  It does not
 	 * get called routinely at the end of a server generation.
 	 */
-
-	ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
+	SCRN_INFO_PTR(arg);
 	NVPtr pNv = NVPTR(pScrn);
 
 	if (!pNv)
@@ -515,7 +507,7 @@ NVFreeScreen(int scrnIndex, int flags)
 
 #define NVPreInitFail(fmt, args...) do {                                    \
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "%d: "fmt, __LINE__, ##args); \
-	NVFreeScreen(pScrn->scrnIndex, 0);                                  \
+	NVFreeScreen(FREE_SCREEN_ARGS(pScrn));			\
 	return FALSE;                                                       \
 } while(0)
 
@@ -1062,7 +1054,7 @@ NVLoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
 
 /* This gets called at the start of each server generation */
 static Bool
-NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
+NVScreenInit(SCREEN_INIT_ARGS_DECL)
 {
 	ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
 	NVPtr pNv = NVPTR(pScrn);
@@ -1166,7 +1158,7 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	}
 		break;
 	default:
-		xf86DrvMsg(scrnIndex, X_ERROR,
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Internal error: invalid bpp (%d) in NVScreenInit\n",
 			   pScrn->bitsPerPixel);
 		ret = FALSE;
