@@ -252,9 +252,7 @@ struct sna {
 	struct intel_chipset chipset;
 
 	ScreenBlockHandlerProcPtr BlockHandler;
-	void *BlockData;
 	ScreenWakeupHandlerProcPtr WakeupHandler;
-	void *WakeupData;
 	CloseScreenProcPtr CloseScreen;
 
 	PicturePtr clear;

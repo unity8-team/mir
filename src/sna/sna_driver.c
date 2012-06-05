@@ -577,13 +577,14 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 static void
 sna_block_handler(int i, pointer data, pointer timeout, pointer read_mask)
 {
-	struct sna *sna = data;
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screenInfo.screens[i]);
+	struct sna *sna = to_sna(scrn);
 	struct timeval **tv = timeout;
 
 	DBG(("%s (tv=%ld.%06ld)\n", __FUNCTION__,
 	     *tv ? (*tv)->tv_sec : -1, *tv ? (*tv)->tv_usec : 0));
 
-	sna->BlockHandler(i, sna->BlockData, timeout, read_mask);
+	sna->BlockHandler(i, data, timeout, read_mask);
 
 	if (*tv == NULL || ((*tv)->tv_usec | (*tv)->tv_sec))
 		sna_accel_block_handler(sna, tv);
@@ -592,7 +593,8 @@ sna_block_handler(int i, pointer data, pointer timeout, pointer read_mask)
 static void
 sna_wakeup_handler(int i, pointer data, unsigned long result, pointer read_mask)
 {
-	struct sna *sna = data;
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screenInfo.screens[i]);
+	struct sna *sna = to_sna(scrn);
 
 	DBG(("%s\n", __FUNCTION__));
 
@@ -600,7 +602,7 @@ sna_wakeup_handler(int i, pointer data, unsigned long result, pointer read_mask)
 	if ((int)result < 0)
 		return;
 
-	sna->WakeupHandler(i, sna->WakeupData, result, read_mask);
+	sna->WakeupHandler(i, data, result, read_mask);
 
 	sna_accel_wakeup_handler(sna, read_mask);
 
@@ -900,14 +902,10 @@ sna_screen_init(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 	scrn->vtSema = TRUE;
 
 	sna->BlockHandler = screen->BlockHandler;
-	sna->BlockData = screen->blockData;
 	screen->BlockHandler = sna_block_handler;
-	screen->blockData = sna;
 
 	sna->WakeupHandler = screen->WakeupHandler;
-	sna->WakeupData = screen->wakeupData;
 	screen->WakeupHandler = sna_wakeup_handler;
-	screen->wakeupData = sna;
 
 	screen->SaveScreen = xf86SaveScreen;
 	sna->CloseScreen = screen->CloseScreen;
