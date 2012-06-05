@@ -671,8 +671,10 @@ __sna_damage_add_boxes(struct sna_damage *damage,
 		break;
 	}
 
+	assert(box[0].x2 > box[0].x1 && box[0].y2 > box[0].y1);
 	extents = box[0];
 	for (i = 1; i < n; i++) {
+		assert(box[i].x2 > box[i].x1 && box[i].y2 > box[i].y1);
 		if (extents.x1 > box[i].x1)
 			extents.x1 = box[i].x1;
 		if (extents.x2 < box[i].x2)
@@ -738,11 +740,13 @@ __sna_damage_add_rectangles(struct sna_damage *damage,
 
 	assert(n);
 
+	assert(r[0].width && r[0].height);
 	extents.x1 = r[0].x;
 	extents.x2 = r[0].x + r[0].width;
 	extents.y1 = r[0].y;
 	extents.y2 = r[0].y + r[0].height;
 	for (i = 1; i < n; i++) {
+		assert(r[i].width && r[i].height);
 		if (extents.x1 > r[i].x)
 			extents.x1 = r[i].x;
 		if (extents.x2 < r[i].x + r[i].width)
@@ -1074,6 +1078,8 @@ fastcall struct sna_damage *_sna_damage_subtract(struct sna_damage *damage,
 inline static struct sna_damage *__sna_damage_subtract_box(struct sna_damage *damage,
 							   const BoxRec *box)
 {
+	assert(box->x2 > box->x1 && box->y2 > box->y1);
+
 	if (damage == NULL)
 		return NULL;
 
@@ -1156,8 +1162,10 @@ static struct sna_damage *__sna_damage_subtract_boxes(struct sna_damage *damage,
 
 	assert(n);
 
+	assert(box[0].x2 > box[0].x1 && box[0].y2 > box[0].y1);
 	extents = box[0];
 	for (i = 1; i < n; i++) {
+		assert(box[i].x2 > box[i].x1 && box[i].y2 > box[i].y1);
 		if (extents.x1 > box[i].x1)
 			extents.x1 = box[i].x1;
 		if (extents.x2 < box[i].x2)
