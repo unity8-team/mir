@@ -790,6 +790,13 @@ sna_composite_rectangles(CARD8		 op,
 		goto fallback;
 	}
 
+	if (DAMAGE_IS_ALL(priv->cpu_damage) &&
+	    (region.extents.x2 - region.extents.x1 < pixmap->drawable.width ||
+	     region.extents.y2 - region.extents.y1 < pixmap->drawable.height)) {
+		DBG(("%s: fallback due to completely damaged CPU\n", __FUNCTION__));
+		goto fallback;
+	}
+
 	/* If we going to be overwriting any CPU damage with a subsequent
 	 * operation, then we may as well delete it without moving it
 	 * first to the GPU.
