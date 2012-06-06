@@ -240,10 +240,16 @@ I810DRIScreenInit(ScreenPtr pScreen)
       pDRIInfo->busIdString = DRICreatePCIBusID(pI810->PciInfo);
    } else {
       pDRIInfo->busIdString = malloc(64);
-      sprintf(pDRIInfo->busIdString, "PCI:%d:%d:%d",
-	      ((pI810->PciInfo->domain << 8) | pI810->PciInfo->bus),
-	      pI810->PciInfo->dev, pI810->PciInfo->func
-	      );
+      if (pDRIInfo->busIdString)
+	 sprintf(pDRIInfo->busIdString, "PCI:%d:%d:%d",
+		 ((pI810->PciInfo->domain << 8) | pI810->PciInfo->bus),
+		 pI810->PciInfo->dev, pI810->PciInfo->func
+		);
+   }
+   if (!pDRIInfo->busIdString) {
+      DRIDestroyInfoRec(pI810->pDRIInfo);
+      pI810->pDRIInfo = NULL;
+      return FALSE;
    }
    pDRIInfo->ddxDriverMajorVersion = I810_MAJOR_VERSION;
    pDRIInfo->ddxDriverMinorVersion = I810_MINOR_VERSION;
