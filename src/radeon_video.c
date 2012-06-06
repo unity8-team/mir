@@ -19,6 +19,14 @@
 #include "atipciids.h"
 #include "xf86fbman.h"
 
+/* DPMS */
+#ifdef HAVE_XEXTPROTO_71
+#include <X11/extensions/dpmsconst.h>
+#else
+#define DPMS_SERVER
+#include <X11/extensions/dpms.h>
+#endif
+
 #include <X11/extensions/Xv.h>
 #include "fourcc.h"
 
@@ -160,6 +168,11 @@ radeon_pick_best_crtc(ScrnInfoPtr pScrn,
 
     for (c = 0; c < xf86_config->num_crtc; c++) {
 	xf86CrtcPtr crtc = xf86_config->crtc[c];
+	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+
+	if (drmmode_crtc->dpms_mode == DPMSModeOff)
+	    continue;
+
 	radeon_crtc_box(crtc, &crtc_box);
 	radeon_box_intersect(&cover_box, &crtc_box, &box);
 	coverage = radeon_box_area(&cover_box);

@@ -179,11 +179,12 @@ drmmode_ConvertToKMode(ScrnInfoPtr	scrn,
 static void
 drmmode_crtc_dpms(xf86CrtcPtr crtc, int mode)
 {
-#if 0
-	xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
-//	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 //	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 
+	drmmode_crtc->dpms_mode = mode;
+
+#if 0
 	/* bonghits in the randr 1.2 - uses dpms to disable crtc - bad buzz */
 	if (mode == DPMSModeOff) {
 //		drmModeSetCrtc(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,

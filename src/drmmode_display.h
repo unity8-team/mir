@@ -73,6 +73,7 @@ typedef struct {
     struct radeon_bo *cursor_bo;
     struct radeon_bo *rotate_bo;
     unsigned rotate_fb_id;
+    int dpms_mode;
     uint16_t lut_r[256], lut_g[256], lut_b[256];
 } drmmode_crtc_private_rec, *drmmode_crtc_private_ptr;
 
