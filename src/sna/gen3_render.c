@@ -1065,6 +1065,7 @@ gen3_composite_emit_shader(struct sna *sna,
 		case SHADER_LINEAR:
 		case SHADER_RADIAL:
 			gen3_fs_dcl(FS_S0 + t);
+			/* fall through */
 		case SHADER_OPACITY:
 			gen3_fs_dcl(FS_T0 + t);
 			break;

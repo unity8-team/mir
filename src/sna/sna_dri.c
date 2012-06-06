@@ -1075,6 +1075,7 @@ static void sna_dri_vblank_handle(int fd,
 						 get_private(info->back)->bo,
 						 true);
 		info->type = DRI2_SWAP_THROTTLE;
+		/* fall through to SwapComplete */
 	case DRI2_SWAP_THROTTLE:
 		DBG(("%s: %d complete, frame=%d tv=%d.%06d\n",
 		     __FUNCTION__, info->type, frame, tv_sec, tv_usec));
