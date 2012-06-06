@@ -900,19 +900,6 @@ sna_dri_frame_event_info_free(struct sna_dri_frame_event *info)
 	free(info);
 }
 
-static void
-sna_dri_exchange_attachment(DRI2BufferPtr front, DRI2BufferPtr back)
-{
-	int tmp;
-
-	DBG(("%s(%d <--> %d)\n",
-	     __FUNCTION__, front->attachment, back->attachment));
-
-	tmp = front->attachment;
-	front->attachment = back->attachment;
-	back->attachment = tmp;
-}
-
 /*
  * Our internal swap routine takes care of actually exchanging, blitting, or
  * flipping buffers as necessary.
@@ -1714,6 +1701,19 @@ blit_fallback:
 }
 
 #if DRI2INFOREC_VERSION >= 7
+static void
+sna_dri_exchange_attachment(DRI2BufferPtr front, DRI2BufferPtr back)
+{
+	int tmp;
+
+	DBG(("%s(%d <--> %d)\n",
+	     __FUNCTION__, front->attachment, back->attachment));
+
+	tmp = front->attachment;
+	front->attachment = back->attachment;
+	back->attachment = tmp;
+}
+
 static Bool
 sna_dri_async_swap(ClientPtr client, DrawablePtr draw,
 		   DRI2BufferPtr front, DRI2BufferPtr back,

@@ -1540,14 +1540,6 @@ inplace_row(struct active_list *active, uint8_t *row, int width)
 	}
 }
 
-static inline uint8_t clip255(int x)
-{
-	if (x > 255)
-		return 255;
-
-	return x;
-}
-
 inline static void
 inplace_subrow(struct active_list *active, int8_t *row,
 	       int width, int *min, int *max)

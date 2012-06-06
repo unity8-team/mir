@@ -265,12 +265,6 @@ done:
 	free(tile);
 }
 
-static inline int split(int x, int y)
-{
-	int n = x / y + 1;
-	return (x + n - 1) / n;
-}
-
 Bool
 sna_tiling_composite(uint32_t op,
 		     PicturePtr src,
