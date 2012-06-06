@@ -919,6 +919,13 @@ intel_glamor_create_back_pixmap(ScreenPtr screen,
 	return back_pixmap;
 }
 
+static drm_intel_bo *get_pixmap_bo(I830DRI2BufferPrivatePtr priv)
+{
+	drm_intel_bo *bo = intel_get_pixmap_bo(priv->pixmap);
+	assert(bo != NULL); /* guaranteed by construction of the DRI2 buffer */
+	return bo;
+}
+
 /*
  * Our internal swap routine takes care of actually exchanging, blitting, or
  * flipping buffers as necessary.
@@ -935,7 +942,7 @@ I830DRI2ScheduleFlip(struct intel_screen_private *intel,
 	if (!intel->use_triple_buffer) {
 		info->type = DRI2_SWAP;
 		if (!intel_do_pageflip(intel,
-				       intel_get_pixmap_bo(priv->pixmap),
+				       get_pixmap_bo(priv),
 				       info, info->pipe))
 			return FALSE;
 
@@ -990,7 +997,7 @@ I830DRI2ScheduleFlip(struct intel_screen_private *intel,
 		intel->back_buffer = NULL;
 	}
 
-	old_back = intel_get_pixmap_bo(priv->pixmap);
+	old_back = get_pixmap_bo(priv);
 	if (!intel_do_pageflip(intel, old_back, info, info->pipe)) {
 		intel->back_buffer = new_back;
 		return FALSE;
