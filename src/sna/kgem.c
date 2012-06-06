@@ -523,7 +523,9 @@ cpu_cache_size(void)
 		while (getline(&line, &len, file) != -1) {
 			int mb;
 			if (sscanf(line, "cache size : %d KB", &mb) == 1) {
-				size = mb * 1024;
+				/* Paranoid check against gargantuan caches */
+				if (mb <= 1<<20)
+					size = mb * 1024;
 				break;
 			}
 		}
