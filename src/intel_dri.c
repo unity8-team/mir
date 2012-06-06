@@ -263,7 +263,7 @@ I830DRI2CreateBuffers(DrawablePtr drawable, unsigned int *attachments,
 	DRI2BufferPtr buffers;
 	I830DRI2BufferPrivatePtr privates;
 	PixmapPtr pixmap, pDepthPixmap;
-	bool is_glamor_pixmap = false;
+	Bool is_glamor_pixmap = FALSE;
 	int i;
 
 	buffers = calloc(count, sizeof *buffers);
@@ -282,7 +282,7 @@ I830DRI2CreateBuffers(DrawablePtr drawable, unsigned int *attachments,
 			pixmap = get_front_buffer(drawable);
 
 			if (pixmap && intel_get_pixmap_private(pixmap) == NULL) {
-				is_glamor_pixmap = true;
+				is_glamor_pixmap = TRUE;
 				drawable = &pixmap->drawable;
 				pixmap = NULL;
 			}
@@ -390,7 +390,7 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 	DRI2Buffer2Ptr buffer;
 	I830DRI2BufferPrivatePtr privates;
 	PixmapPtr pixmap;
-	bool is_glamor_pixmap = false;
+	Bool is_glamor_pixmap = FALSE;
 
 	buffer = calloc(1, sizeof *buffer);
 	if (buffer == NULL)
@@ -406,7 +406,7 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 		pixmap = get_front_buffer(drawable);
 
 		if (pixmap && intel_get_pixmap_private(pixmap) == NULL) {
-			is_glamor_pixmap = true;
+			is_glamor_pixmap = FALSE;
 			drawable = &pixmap->drawable;
 			pixmap = NULL;
 		}
