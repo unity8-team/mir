@@ -930,8 +930,19 @@ sna_pixmap_create_mappable_gpu(PixmapPtr pixmap)
 	return priv->gpu_bo && kgem_bo_is_mappable(&sna->kgem, priv->gpu_bo);
 }
 
-static bool use_cpu_bo_for_xfer(struct sna_pixmap *priv)
+static inline bool use_cpu_bo_for_write(struct sna *sna,
+					struct sna_pixmap *priv)
 {
+	return priv->cpu_bo != NULL && sna->kgem.gen >= 30;
+}
+
+static inline bool use_cpu_bo_for_read(struct sna_pixmap *priv)
+{
+#if 0
+	if (pixmap->devPrivate.ptr == NULL)
+		return TRUE;
+#endif
+
 	if (priv->cpu_bo == NULL)
 		return FALSE;
 
@@ -1112,7 +1123,7 @@ skip_inplace_map:
 		if (n) {
 			Bool ok = FALSE;
 
-			if (sna->kgem.gen >= 30 && use_cpu_bo_for_xfer(priv))
+			if (use_cpu_bo_for_write(sna, priv))
 				ok = sna->render.copy_boxes(sna, GXcopy,
 							    pixmap, priv->gpu_bo, 0, 0,
 							    pixmap, priv->cpu_bo, 0, 0,
@@ -1503,7 +1514,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 			assert(pixmap_contains_damage(pixmap, priv->gpu_damage));
 
 			ok = FALSE;
-			if (sna->kgem.gen >= 30 && use_cpu_bo_for_xfer(priv))
+			if (use_cpu_bo_for_write(sna, priv))
 				ok = sna->render.copy_boxes(sna, GXcopy,
 							    pixmap, priv->gpu_bo, 0, 0,
 							    pixmap, priv->cpu_bo, 0, 0,
@@ -1604,7 +1615,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 				if (n) {
 					Bool ok = FALSE;
 
-					if (sna->kgem.gen >= 30 && use_cpu_bo_for_xfer(priv))
+					if (use_cpu_bo_for_write(sna, priv))
 						ok = sna->render.copy_boxes(sna, GXcopy,
 									    pixmap, priv->gpu_bo, 0, 0,
 									    pixmap, priv->cpu_bo, 0, 0,
@@ -1626,7 +1637,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 				int n = REGION_NUM_RECTS(r);
 				Bool ok = FALSE;
 
-				if (sna->kgem.gen >= 30 && use_cpu_bo_for_xfer(priv))
+				if (use_cpu_bo_for_write(sna, priv))
 					ok = sna->render.copy_boxes(sna, GXcopy,
 								    pixmap, priv->gpu_bo, 0, 0,
 								    pixmap, priv->cpu_bo, 0, 0,
@@ -1648,7 +1659,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 					int n = REGION_NUM_RECTS(&need);
 					Bool ok = FALSE;
 
-					if (sna->kgem.gen >= 30 && use_cpu_bo_for_xfer(priv))
+					if (use_cpu_bo_for_write(sna, priv))
 						ok = sna->render.copy_boxes(sna, GXcopy,
 									    pixmap, priv->gpu_bo, 0, 0,
 									    pixmap, priv->cpu_bo, 0, 0,
@@ -1878,7 +1889,7 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box, unsigned int flags)
 		if (n) {
 			Bool ok = FALSE;
 
-			if (pixmap->devPrivate.ptr == NULL || use_cpu_bo_for_xfer(priv))
+			if (use_cpu_bo_for_read(priv))
 				ok = sna->render.copy_boxes(sna, GXcopy,
 							    pixmap, priv->cpu_bo, 0, 0,
 							    pixmap, priv->gpu_bo, 0, 0,
@@ -1916,7 +1927,7 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box, unsigned int flags)
 	} else if (DAMAGE_IS_ALL(priv->cpu_damage) ||
 		   sna_damage_contains_box__no_reduce(priv->cpu_damage, box)) {
 		Bool ok = FALSE;
-		if (pixmap->devPrivate.ptr == NULL || use_cpu_bo_for_xfer(priv))
+		if (use_cpu_bo_for_read(priv))
 			ok = sna->render.copy_boxes(sna, GXcopy,
 						    pixmap, priv->cpu_bo, 0, 0,
 						    pixmap, priv->gpu_bo, 0, 0,
@@ -1945,7 +1956,7 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box, unsigned int flags)
 
 		box = REGION_RECTS(&i);
 		ok = FALSE;
-		if (pixmap->devPrivate.ptr == NULL || use_cpu_bo_for_xfer(priv))
+		if (use_cpu_bo_for_read(priv))
 			ok = sna->render.copy_boxes(sna, GXcopy,
 						    pixmap, priv->cpu_bo, 0, 0,
 						    pixmap, priv->gpu_bo, 0, 0,
@@ -2441,7 +2452,7 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 		DBG(("%s: uploading %d damage boxes\n", __FUNCTION__, n));
 
 		ok = FALSE;
-		if (pixmap->devPrivate.ptr == NULL || use_cpu_bo_for_xfer(priv))
+		if (use_cpu_bo_for_read(priv))
 			ok = sna->render.copy_boxes(sna, GXcopy,
 						    pixmap, priv->cpu_bo, 0, 0,
 						    pixmap, priv->gpu_bo, 0, 0,
