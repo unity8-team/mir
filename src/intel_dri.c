@@ -406,7 +406,7 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 		pixmap = get_front_buffer(drawable);
 
 		if (pixmap && intel_get_pixmap_private(pixmap) == NULL) {
-			is_glamor_pixmap = FALSE;
+			is_glamor_pixmap = TRUE;
 			drawable = &pixmap->drawable;
 			pixmap = NULL;
 		}
