@@ -3887,6 +3887,33 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 		}
 
 		goto out;
+	} else if (dst_priv->cpu_bo &&
+		   src_priv && DAMAGE_IS_ALL(src_priv->gpu_damage) && !src_priv->clear) {
+		if (!sna->render.copy_boxes(sna, alu,
+					    src_pixmap, src_priv->gpu_bo, src_dx, src_dy,
+					    dst_pixmap, dst_priv->cpu_bo, dst_dx, dst_dy,
+					    box, n)) {
+			DBG(("%s: fallback - accelerated copy boxes failed\n",
+			     __FUNCTION__));
+			goto fallback;
+		}
+
+		if (replaces) {
+			sna_damage_all(&dst_priv->cpu_damage,
+				       dst_pixmap->drawable.width,
+				       dst_pixmap->drawable.height);
+			dst_priv->undamaged = false;
+		} else {
+			RegionTranslate(&region, dst_dx, dst_dy);
+			assert_pixmap_contains_box(dst_pixmap,
+						   RegionExtents(&region));
+			sna_damage_add(&dst_priv->cpu_damage, &region);
+			RegionTranslate(&region, -dst_dx, -dst_dy);
+		}
+		if (dst_priv->flush)
+			list_move(&dst_priv->list, &sna->dirty_pixmaps);
+
+		goto out;
 	}
 
 fallback:
