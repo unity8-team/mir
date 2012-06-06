@@ -2409,6 +2409,7 @@ gen4_render_composite(struct sna *sna,
 		goto cleanup_dst;
 	case 0:
 		gen4_composite_solid_init(sna, &tmp->src, 0);
+		/* fall through to fixup */
 	case 1:
 		gen4_composite_channel_convert(&tmp->src);
 		break;
@@ -2455,6 +2456,7 @@ gen4_render_composite(struct sna *sna,
 				goto cleanup_src;
 			case 0:
 				gen4_composite_solid_init(sna, &tmp->mask, 0);
+				/* fall through to fixup */
 			case 1:
 				gen4_composite_channel_convert(&tmp->mask);
 				break;

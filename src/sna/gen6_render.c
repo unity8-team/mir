@@ -2665,6 +2665,7 @@ gen6_render_composite(struct sna *sna,
 		goto cleanup_dst;
 	case 0:
 		gen6_composite_solid_init(sna, &tmp->src, 0);
+		/* fall through to fixup */
 	case 1:
 		gen6_composite_channel_convert(&tmp->src);
 		break;
@@ -2722,6 +2723,7 @@ gen6_render_composite(struct sna *sna,
 				goto cleanup_src;
 			case 0:
 				gen6_composite_solid_init(sna, &tmp->mask, 0);
+				/* fall through to fixup */
 			case 1:
 				gen6_composite_channel_convert(&tmp->mask);
 				break;
@@ -3112,6 +3114,7 @@ gen6_render_composite_spans(struct sna *sna,
 		goto cleanup_dst;
 	case 0:
 		gen6_composite_solid_init(sna, &tmp->base.src, 0);
+		/* fall through to fixup */
 	case 1:
 		gen6_composite_channel_convert(&tmp->base.src);
 		break;
