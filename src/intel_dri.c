@@ -1005,6 +1005,7 @@ I830DRI2ScheduleFlip(struct intel_screen_private *intel,
 		intel->back_buffer = intel->front_buffer;
 		drm_intel_bo_reference(intel->back_buffer);
 		intel_set_pixmap_bo(priv->pixmap, new_back);
+		drm_intel_bo_unreference(new_back);
 	}
 	else
 		intel_exchange_pixmap_buffers(intel, priv->pixmap,
