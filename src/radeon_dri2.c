@@ -744,6 +744,7 @@ can_flip(ScrnInfoPtr pScrn, DrawablePtr draw,
 {
     return draw->type == DRAWABLE_WINDOW &&
 	   RADEONPTR(pScrn)->allowPageFlip &&
+	   pScrn->vtSema &&
 	   DRI2CanFlip(draw) &&
 	   can_exchange(pScrn, draw, front, back);
 }

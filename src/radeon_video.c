@@ -153,6 +153,9 @@ radeon_pick_best_crtc(ScrnInfoPtr pScrn,
     RROutputPtr         primary_output = NULL;
     xf86CrtcPtr         best_crtc = NULL, primary_crtc = NULL;
 
+    if (!pScrn->vtSema)
+	return NULL;
+
     box.x1 = x1;
     box.x2 = x2;
     box.y1 = y1;
