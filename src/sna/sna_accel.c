@@ -12169,8 +12169,9 @@ static CARD32 sna_timeout(OsTimerPtr timer, CARD32 now, pointer arg)
 static void sna_accel_flush(struct sna *sna)
 {
 	struct sna_pixmap *priv = sna_accel_scanout(sna);
-	bool busy = priv->cpu_damage || priv->gpu_bo->rq;
+	bool busy;
 
+	assert(priv != NULL);
 	DBG(("%s (time=%ld), cpu damage? %p, exec? %d nbatch=%d, busy? %d\n",
 	     __FUNCTION__, (long)sna->time,
 	     priv->cpu_damage,
@@ -12178,6 +12179,7 @@ static void sna_accel_flush(struct sna *sna)
 	     sna->kgem.nbatch,
 	     sna->kgem.busy));
 
+	busy = priv->cpu_damage || priv->gpu_bo->rq;
 	if (!sna->kgem.busy && !busy)
 		sna_accel_disarm_timer(sna, FLUSH_TIMER);
 	sna->kgem.busy = busy;
