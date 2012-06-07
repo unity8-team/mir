@@ -2136,6 +2136,11 @@ search_linear_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags)
 			return NULL;
 		}
 
+		if (list_is_empty(active(kgem, num_pages, I915_TILING_NONE))) {
+			DBG(("%s: active cache bucket empty\n", __FUNCTION__));
+			return NULL;
+		}
+
 		if (!__kgem_throttle_retire(kgem, 0)) {
 			DBG(("%s: nothing retired\n", __FUNCTION__));
 			return NULL;
