@@ -141,7 +141,7 @@ if test "$DRI" = yes; then
 	   	AC_CHECK_HEADER(xf86drmMode.h,[DRM_MODE=yes],[DRM_MODE=no],[#include <stdint.h>
 #include <stdlib.h>])
 		if test "x$DRM_MODE" = xyes; then
-			PKG_CHECK_MODULES(LIBDRM_RADEON, [xorg-server >= 1.6.2 libdrm >= 2.4.33 libdrm_radeon],
+			PKG_CHECK_MODULES(LIBDRM_RADEON, [xorg-server >= 1.6.2 libdrm >= 2.4.35 libdrm_radeon],
 			[LIBDRM_RADEON=yes], [LIBDRM_RADEON=no])
 
 			if test "x$LIBDRM_RADEON" = xyes; then
