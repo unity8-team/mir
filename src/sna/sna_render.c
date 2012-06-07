@@ -388,49 +388,38 @@ move_to_gpu(PixmapPtr pixmap, const BoxRec *box)
 	}
 
 	if (DBG_FORCE_UPLOAD < 0)
-		migrate = true;
+		return sna_pixmap_force_to_gpu(pixmap,
+					       MOVE_SOURCE_HINT | MOVE_READ);
 
 	w = box->x2 - box->x1;
 	h = box->y2 - box->y1;
 	if (w == pixmap->drawable.width && h == pixmap->drawable.height) {
-		migrate = true;
-		if ((priv->create & KGEM_CAN_CREATE_GPU) == 0 ||
-		    kgem_choose_tiling(&to_sna_from_pixmap(pixmap)->kgem,
-				       I915_TILING_Y,
-				       pixmap->drawable.width,
-				       pixmap->drawable.height,
-				       pixmap->drawable.bitsPerPixel) == I915_TILING_NONE)
-			migrate = priv->source_count++ > SOURCE_BIAS;
+		migrate = priv->source_count++ > SOURCE_BIAS;
 
 		DBG(("%s: migrating whole pixmap (%dx%d) for source (%d,%d),(%d,%d), count %d? %d\n",
 		     __FUNCTION__,
 		     pixmap->drawable.width, pixmap->drawable.height,
 		     box->x1, box->y1, box->x2, box->y2, priv->source_count,
 		     migrate));
-	} else {
-		/* ignore tiny fractions */
-		if (64*w*h > pixmap->drawable.width * pixmap->drawable.height) {
-			count = priv->source_count++;
-			if ((priv->create & KGEM_CAN_CREATE_GPU) == 0 ||
-			    kgem_choose_tiling(&to_sna_from_pixmap(pixmap)->kgem,
-					       I915_TILING_Y,
-					       pixmap->drawable.width,
-					       pixmap->drawable.height,
-					       pixmap->drawable.bitsPerPixel) == I915_TILING_NONE)
-				count -= SOURCE_BIAS;
+	} else if (kgem_choose_tiling(&to_sna_from_pixmap(pixmap)->kgem,
+				      I915_TILING_Y, w, h,
+				      pixmap->drawable.bitsPerPixel) != I915_TILING_NONE) {
+		count = priv->source_count++;
+		if ((priv->create & KGEM_CAN_CREATE_GPU) == 0)
+			count -= SOURCE_BIAS;
 
-			DBG(("%s: migrate box (%d, %d), (%d, %d)? source count=%d, fraction=%d/%d [%d]\n",
-			     __FUNCTION__,
-			     box->x1, box->y1, box->x2, box->y2,
-			     count, w*h,
-			     pixmap->drawable.width * pixmap->drawable.height,
-			     pixmap->drawable.width * pixmap->drawable.height / (w*h)));
+		DBG(("%s: migrate box (%d, %d), (%d, %d)? source count=%d, fraction=%d/%d [%d]\n",
+		     __FUNCTION__,
+		     box->x1, box->y1, box->x2, box->y2,
+		     count, w*h,
+		     pixmap->drawable.width * pixmap->drawable.height,
+		     pixmap->drawable.width * pixmap->drawable.height / (w*h)));
 
-			migrate =  count*w*h > pixmap->drawable.width * pixmap->drawable.height;
-		}
+		migrate = count*w*h > pixmap->drawable.width * pixmap->drawable.height;
 	}
 
-	if (migrate && !sna_pixmap_force_to_gpu(pixmap, MOVE_READ))
+	if (migrate && !sna_pixmap_force_to_gpu(pixmap,
+						MOVE_SOURCE_HINT | MOVE_READ))
 		return NULL;
 
 	return priv->gpu_bo;
@@ -680,7 +669,7 @@ static int sna_render_picture_downsample(struct sna *sna,
 	DBG(("%s: creating temporary GPU bo %dx%d\n",
 	     __FUNCTION__, width, height));
 
-	if (!sna_pixmap_force_to_gpu(pixmap, MOVE_READ))
+	if (!sna_pixmap_force_to_gpu(pixmap, MOVE_SOURCE_HINT | MOVE_READ))
 		return sna_render_picture_fixup(sna, picture, channel,
 						x, y, ow, oh,
 						dst_x, dst_y);
@@ -943,7 +932,8 @@ sna_render_picture_partial(struct sna *sna,
 
 		bo = sna_pixmap(pixmap)->cpu_bo;
 	} else {
-		if (!sna_pixmap_force_to_gpu(pixmap, MOVE_READ))
+		if (!sna_pixmap_force_to_gpu(pixmap,
+					     MOVE_SOURCE_HINT | MOVE_READ))
 			return 0;
 
 		bo = sna_pixmap(pixmap)->gpu_bo;

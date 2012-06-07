@@ -270,7 +270,6 @@ struct sna {
 		struct gen7_render_state gen7;
 	} render_state;
 	uint32_t have_render;
-	uint32_t default_tiling;
 
 	Bool directRenderingOpen;
 	char *deviceName;
@@ -418,6 +417,7 @@ struct kgem_bo *sna_pixmap_change_tiling(PixmapPtr pixmap, uint32_t tiling);
 #define MOVE_READ 0x2
 #define MOVE_INPLACE_HINT 0x4
 #define MOVE_ASYNC_HINT 0x8
+#define MOVE_SOURCE_HINT 0x10
 bool must_check _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned flags);
 static inline bool must_check sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned flags)
 {
