@@ -163,8 +163,6 @@ struct quorem {
 
 struct _pool_chunk {
 	size_t size;
-	size_t capacity;
-
 	struct _pool_chunk *prev_chunk;
 	/* Actual data starts here.	 Well aligned for pointers. */
 };
@@ -176,9 +174,6 @@ struct _pool_chunk {
 struct pool {
 	struct _pool_chunk *current;
 	struct _pool_chunk *first_free;
-
-	/* The default capacity of a chunk. */
-	size_t default_capacity;
 
 	/* Header for the sentinel chunk.  Directly following the pool
 	 * struct should be some space for embedded elements from which
@@ -292,7 +287,7 @@ struct cell_list {
 	 * allocated from this pool.  */
 	struct {
 		struct pool base[1];
-		struct cell embedded[32];
+		struct cell embedded[256];
 	} cell_pool;
 };
 
@@ -351,42 +346,34 @@ floored_muldivrem(int x, int a, int b)
 	return qr;
 }
 
-static void
-_pool_chunk_init(
-    struct _pool_chunk *p,
-    struct _pool_chunk *prev_chunk,
-    size_t capacity)
+static inline void
+_pool_chunk_init(struct _pool_chunk *p,
+		 struct _pool_chunk *prev_chunk)
 {
 	p->prev_chunk = prev_chunk;
-	p->size = 0;
-	p->capacity = capacity;
+	p->size = sizeof(*p);
 }
 
 static struct _pool_chunk *
-_pool_chunk_create(struct _pool_chunk *prev_chunk, size_t size)
+_pool_chunk_create(struct _pool_chunk *prev_chunk)
 {
+	size_t size = 256*sizeof(struct cell);
 	struct _pool_chunk *p;
-	size_t size_with_head = size + sizeof(struct _pool_chunk);
 
-	if (size_with_head < size)
-		return NULL;
+	p = malloc(size + sizeof(struct _pool_chunk));
+	if (unlikely (p == NULL))
+		abort();
 
-	p = malloc(size_with_head);
-	if (p)
-		_pool_chunk_init(p, prev_chunk, size);
-
+	_pool_chunk_init(p, prev_chunk);
 	return p;
 }
 
 static void
-pool_init(struct pool *pool,
-	  size_t default_capacity,
-	  size_t embedded_capacity)
+pool_init(struct pool *pool)
 {
 	pool->current = pool->sentinel;
 	pool->first_free = NULL;
-	pool->default_capacity = default_capacity;
-	_pool_chunk_init(pool->sentinel, NULL, embedded_capacity);
+	_pool_chunk_init(pool->sentinel, NULL);
 }
 
 static void
@@ -403,57 +390,39 @@ pool_fini(struct pool *pool)
 		p = pool->first_free;
 		pool->first_free = NULL;
 	} while (NULL != p);
-	pool_init(pool, 0, 0);
 }
 
-/* Satisfy an allocation by first allocating a new large enough chunk
- * and adding it to the head of the pool's chunk list. This function
- * is called as a fallback if pool_alloc() couldn't do a quick
- * allocation from the current chunk in the pool. */
 static void *
-_pool_alloc_from_new_chunk(struct pool *pool, size_t size)
+_pool_alloc_from_new_chunk(struct pool *pool)
 {
 	struct _pool_chunk *chunk;
 	void *obj;
-	size_t capacity;
 
-	/* If the allocation is smaller than the default chunk size then
-	 * try getting a chunk off the free list.  Force alloc of a new
-	 * chunk for large requests. */
-	capacity = size;
-	chunk = NULL;
-	if (size < pool->default_capacity) {
-		capacity = pool->default_capacity;
-		chunk = pool->first_free;
-		if (chunk) {
-			pool->first_free = chunk->prev_chunk;
-			_pool_chunk_init(chunk, pool->current, chunk->capacity);
-		}
-	}
-
-	if (NULL == chunk) {
-		chunk = _pool_chunk_create (pool->current, capacity);
-		if (unlikely (NULL == chunk))
-			return NULL;
+	chunk = pool->first_free;
+	if (chunk) {
+		pool->first_free = chunk->prev_chunk;
+		_pool_chunk_init(chunk, pool->current);
+	} else {
+		chunk = _pool_chunk_create(pool->current);
 	}
 	pool->current = chunk;
 
-	obj = ((unsigned char*)chunk + sizeof(*chunk) + chunk->size);
-	chunk->size += size;
+	obj = (unsigned char*)chunk + chunk->size;
+	chunk->size += sizeof(struct cell);
 	return obj;
 }
 
 inline static void *
-pool_alloc(struct pool *pool, size_t size)
+pool_alloc(struct pool *pool)
 {
 	struct _pool_chunk *chunk = pool->current;
 
-	if (size <= chunk->capacity - chunk->size) {
-		void *obj = ((unsigned char*)chunk + sizeof(*chunk) + chunk->size);
-		chunk->size += size;
+	if (chunk->size < 256*sizeof(struct cell)+sizeof(*chunk)) {
+		void *obj = (unsigned char*)chunk + chunk->size;
+		chunk->size += sizeof(struct cell);
 		return obj;
 	} else
-		return _pool_alloc_from_new_chunk(pool, size);
+		return _pool_alloc_from_new_chunk(pool);
 }
 
 static void
@@ -471,7 +440,7 @@ pool_reset(struct pool *pool)
 
 	/* Reset the sentinel as the current chunk. */
 	pool->current = pool->sentinel;
-	pool->sentinel->size = 0;
+	pool->sentinel->size = sizeof(*chunk);
 }
 
 /* Rewinds the cell list's cursor to the beginning.  After rewinding
@@ -485,9 +454,7 @@ cell_list_rewind(struct cell_list *cells)
 static void
 cell_list_init(struct cell_list *cells)
 {
-	pool_init(cells->cell_pool.base,
-		  256*sizeof(struct cell),
-		  sizeof(cells->cell_pool.embedded));
+	pool_init(cells->cell_pool.base);
 	cells->tail.next = NULL;
 	cells->tail.x = INT_MAX;
 	cells->head.x = INT_MIN;
@@ -516,9 +483,7 @@ cell_list_alloc(struct cell_list *cells,
 {
 	struct cell *cell;
 
-	cell = pool_alloc(cells->cell_pool.base, sizeof (struct cell));
-	if (unlikely(NULL == cell))
-		abort();
+	cell = pool_alloc(cells->cell_pool.base);
 
 	cell->next = tail->next;
 	tail->next = cell;
