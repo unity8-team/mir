@@ -197,7 +197,7 @@ AC_MSG_RESULT($accel)
 
 AC_ARG_ENABLE(vmap,
 	      AS_HELP_STRING([--enable-vmap],
-			     [Enable use of vmap [default=no]]),
+			     [Enable use of vmap (experimental) [default=no]]),
 	      [VMAP="$enableval"],
 	      [VMAP=no])
 AM_CONDITIONAL(USE_VMAP, test x$VMAP = xyes)
@@ -205,6 +205,15 @@ if test "x$VMAP" = xyes; then
 	AC_DEFINE(USE_VMAP,1,[Assume VMAP support])
 fi
 
+AC_ARG_ENABLE(async-swap,
+	      AS_HELP_STRING([--enable-async-swap],
+			     [Enable use of asynchronous swaps (experimental) [default=no]]),
+	      [ASYNC_SWAP="$enableval"],
+	      [ASYNC_SWAP=no])
+AM_CONDITIONAL(USE_ASYNC_SWAP, test x$ASYNC_SWAP = xyes)
+if test "x$ASYNC_SWAP" = xyes; then
+	AC_DEFINE(USE_ASYNC_SWAP,1,[Assume asynchronous swap support])
+fi
 
 AC_ARG_ENABLE(debug,
 	      AS_HELP_STRING([--enable-debug],
