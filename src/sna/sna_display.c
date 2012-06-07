@@ -53,6 +53,12 @@
 #define DBG(x) ErrorF x
 #endif
 
+#if 0
+#define __DBG DBG
+#else
+#define __DBG(x)
+#endif
+
 struct sna_crtc {
 	struct drm_mode_modeinfo kmode;
 	PixmapPtr shadow;
@@ -766,7 +772,7 @@ sna_crtc_hide_cursor(xf86CrtcPtr crtc)
 	struct sna_crtc *sna_crtc = crtc->driver_private;
 	struct drm_mode_cursor arg;
 
-	DBG(("%s: CRTC:%d\n", __FUNCTION__, crtc_id(sna_crtc)));
+	__DBG(("%s: CRTC:%d\n", __FUNCTION__, crtc_id(sna_crtc)));
 
 	VG_CLEAR(arg);
 	arg.flags = DRM_MODE_CURSOR_BO;
@@ -784,7 +790,7 @@ sna_crtc_show_cursor(xf86CrtcPtr crtc)
 	struct sna_crtc *sna_crtc = crtc->driver_private;
 	struct drm_mode_cursor arg;
 
-	DBG(("%s: CRTC:%d\n", __FUNCTION__, crtc_id(sna_crtc)));
+	__DBG(("%s: CRTC:%d\n", __FUNCTION__, crtc_id(sna_crtc)));
 
 	VG_CLEAR(arg);
 	arg.flags = DRM_MODE_CURSOR_BO;
@@ -798,6 +804,8 @@ sna_crtc_show_cursor(xf86CrtcPtr crtc)
 static void
 sna_crtc_set_cursor_colors(xf86CrtcPtr crtc, int bg, int fg)
 {
+	__DBG(("%s: CRTC:%d (bg=%x, fg=%x)\n", __FUNCTION__,
+	       crtc_id(crtc->driver_private), bg, fg));
 }
 
 static void
@@ -807,7 +815,7 @@ sna_crtc_set_cursor_position(xf86CrtcPtr crtc, int x, int y)
 	struct sna_crtc *sna_crtc = crtc->driver_private;
 	struct drm_mode_cursor arg;
 
-	DBG(("%s: CRTC:%d (%d, %d)\n", __FUNCTION__, crtc_id(sna_crtc), x, y));
+	__DBG(("%s: CRTC:%d (%d, %d)\n", __FUNCTION__, crtc_id(sna_crtc), x, y));
 
 	VG_CLEAR(arg);
 	arg.flags = DRM_MODE_CURSOR_MOVE;
@@ -825,6 +833,8 @@ sna_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *image)
 	struct sna *sna = to_sna(crtc->scrn);
 	struct sna_crtc *sna_crtc = crtc->driver_private;
 	struct drm_i915_gem_pwrite pwrite;
+
+	__DBG(("%s: CRTC:%d\n", __FUNCTION__, crtc_id(sna_crtc)));
 
 	VG_CLEAR(pwrite);
 	pwrite.handle = sna_crtc->cursor;
@@ -1005,6 +1015,8 @@ sna_crtc_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 	crtc->driver_private = sna_crtc;
 
 	sna_crtc->cursor = gem_create(sna->kgem.fd, 64*64*4);
+	DBG(("%s: created handle=%d for cursor on CRTC:%d\n",
+	     __FUNCTION__, sna_crtc->cursor, sna_crtc->id));
 
 	list_add(&sna_crtc->link, &mode->crtcs);
 
