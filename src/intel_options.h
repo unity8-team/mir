@@ -26,7 +26,6 @@ enum intel_options {
 #endif
 #ifdef USE_SNA
 	OPTION_THROTTLE,
-	OPTION_VMAP,
 	OPTION_ZAPHOD,
 	OPTION_DELAYED_FLUSH,
 #endif

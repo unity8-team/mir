@@ -501,14 +501,6 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 			   "Disabling use of relaxed fencing\n");
 		sna->kgem.has_relaxed_fencing = 0;
 	}
-	if (!xf86ReturnOptValBool(sna->Options,
-				  OPTION_VMAP,
-				  sna->kgem.has_vmap)) {
-		xf86DrvMsg(scrn->scrnIndex,
-			   sna->kgem.has_vmap ? X_CONFIG : X_PROBED,
-			   "Disabling use of vmap\n");
-		sna->kgem.has_vmap = 0;
-	}
 
 	/* Enable tiling by default */
 	sna->tiling = SNA_TILING_ALL;

@@ -20,7 +20,6 @@ const OptionInfoRec intel_options[] = {
 #endif
 #ifdef USE_SNA
 	{OPTION_THROTTLE,	"Throttle",	OPTV_BOOLEAN,	{0},	1},
-	{OPTION_VMAP,	"UseVmap",	OPTV_BOOLEAN,	{0},	1},
 	{OPTION_ZAPHOD,	"ZaphodHeads",	OPTV_STRING,	{0},	0},
 	{OPTION_DELAYED_FLUSH,	"DelayedFlush",	OPTV_BOOLEAN,	{0},	1},
 #endif
