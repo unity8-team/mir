@@ -1092,7 +1092,8 @@ static void kgem_bo_clear_scanout(struct kgem *kgem, struct kgem_bo *bo)
 
 	assert(bo->proxy == NULL);
 
-	DBG(("%s: handle=%d, fb=%d\n", __FUNCTION__, bo->handle, bo->delta));
+	DBG(("%s: handle=%d, fb=%d (reusable=%d)\n",
+	     __FUNCTION__, bo->handle, bo->delta, bo->reusable));
 	if (bo->delta) {
 		drmModeRmFB(kgem->fd, bo->delta);
 		bo->delta = 0;
@@ -3380,6 +3381,9 @@ uint32_t kgem_bo_flink(struct kgem *kgem, struct kgem_bo *bo)
 	ret = drmIoctl(kgem->fd, DRM_IOCTL_GEM_FLINK, &flink);
 	if (ret)
 		return 0;
+
+	DBG(("%s: flinked handle=%d to name=%d, marking non-reusable\n",
+	     __FUNCTION__, flink.handle, flink.name));
 
 	/* Ordinarily giving the name aware makes the buffer non-reusable.
 	 * However, we track the lifetime of all clients and their hold
