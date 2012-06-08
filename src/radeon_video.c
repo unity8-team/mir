@@ -143,6 +143,22 @@ radeon_box_area(BoxPtr box)
     return (int) (box->x2 - box->x1) * (int) (box->y2 - box->y1);
 }
 
+static Bool
+radeon_crtc_is_enabled(xf86CrtcPtr crtc)
+{
+    RADEONCrtcPrivatePtr radeon_crtc;
+
+#ifdef XF86DRM_MODE
+    if (RADEONPTR(crtc->scrn)->cs) {
+	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+	return drmmode_crtc->dpms_mode == DPMSModeOn;
+    }
+#endif
+
+    radeon_crtc = crtc->driver_private;
+    return radeon_crtc->enabled;
+}
+
 xf86CrtcPtr
 radeon_pick_best_crtc(ScrnInfoPtr pScrn,
 		      int x1, int x2, int y1, int y2)
@@ -171,9 +187,8 @@ radeon_pick_best_crtc(ScrnInfoPtr pScrn,
 
     for (c = 0; c < xf86_config->num_crtc; c++) {
 	xf86CrtcPtr crtc = xf86_config->crtc[c];
-	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 
-	if (drmmode_crtc->dpms_mode == DPMSModeOff)
+	if (!radeon_crtc_is_enabled(crtc))
 	    continue;
 
 	radeon_crtc_box(crtc, &crtc_box);
