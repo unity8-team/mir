@@ -220,7 +220,7 @@ NV04EXACopy(PixmapPtr pdpix, int srcX, int srcY, int dstX, int dstY,
 	int split_dstY = NOUVEAU_ALIGN(dstY + 1, 64);
 	int split_height = split_dstY - dstY;
 
-	if (nouveau_pushbuf_space(push, 16, 1, 0))
+	if (nouveau_pushbuf_space(push, 16, 2, 0))
 		return;
 
 	if ((width * height) >= 200000 && pNv->pspix != pNv->pdpix &&
@@ -249,7 +249,13 @@ NV04EXACopy(PixmapPtr pdpix, int srcX, int srcY, int dstX, int dstY,
 		height -= split_height;
 		dstY = 0;
 		pNv->pmpix = pdpix;
-	} else
+	}
+
+	BEGIN_NV04(push, NV01_BLIT(POINT_IN), 3);
+	PUSH_DATA (push, (srcY << 16) | srcX);
+	PUSH_DATA (push, (dstY << 16) | dstX);
+	PUSH_DATA (push, (height  << 16) | width);
+
 	if (pNv->pmpix) {
 		struct nouveau_bo *dst_bo = nouveau_pixmap_bo(pdpix);
 
@@ -257,11 +263,6 @@ NV04EXACopy(PixmapPtr pdpix, int srcX, int srcY, int dstX, int dstY,
 		PUSH_RELOC(push, dst_bo, 0, NOUVEAU_BO_LOW, 0, 0);
 		pNv->pmpix = NULL;
 	}
-
-	BEGIN_NV04(push, NV01_BLIT(POINT_IN), 3);
-	PUSH_DATA (push, (srcY << 16) | srcX);
-	PUSH_DATA (push, (dstY << 16) | dstX);
-	PUSH_DATA (push, (height  << 16) | width);
 
 	if ((width * height) >= 512)
 		PUSH_KICK(push);
