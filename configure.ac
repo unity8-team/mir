@@ -163,6 +163,10 @@ AC_ARG_WITH(default-accel,
 			   [Select the default acceleration method [default=sna if enabled, otherwise uxa]]),
 			   [accel="$withval"],
 			   [accel=auto])
+if test "x$accel" = xyes; then
+	AC_MSG_WARN([No default acceleration specified, choosing automatic selection])
+	accel="auto"
+fi
 
 AC_MSG_CHECKING([which acceleration method to use by default])
 if test "x$accel" = xauto; then
@@ -178,9 +182,11 @@ if test "x$accel" = xauto; then
 	fi
 fi
 
+have_accel=no
 if test "x$accel" = xsna; then
 	if test "x$SNA" != "xno"; then
 		AC_DEFINE(DEFAULT_ACCEL_METHOD, SNA, [Default acceleration method])
+		have_accel=yes
 	else
 		AC_MSG_ERROR([SNA requested as default, but is not enabled])
 	fi
@@ -189,11 +195,15 @@ fi
 if test "x$accel" = xuxa; then
 	if test "x$UXA" != "xno"; then
 		AC_DEFINE(DEFAULT_ACCEL_METHOD, UXA, [Default acceleration method])
+		have_accel=yes
 	else
 		AC_MSG_ERROR([UXA requested as default, but is not enabled])
 	fi
 fi
 AC_MSG_RESULT($accel)
+if test "x$accel" = xno; then
+	AC_MSG_ERROR([No default acceleration option])
+fi
 
 AC_ARG_ENABLE(vmap,
 	      AS_HELP_STRING([--enable-vmap],
