@@ -1,0 +1,15 @@
+--- a/man/intel.man
++++ b/man/intel.man
+@@ -57,6 +57,12 @@ The following driver
+ .B Options
+ are supported
+ .TP
++.BI "Option \*qAccelMethod\*q \*q" string \*q
++This sets the acceleration method. The legacy method is uxa, the experimental
++one is sna.
++.IP
++Default: uxa.
++.TP
+ .BI "Option \*qColorKey\*q \*q" integer \*q
+ This sets the default pixel value for the YUV video overlay key.
+ .IP

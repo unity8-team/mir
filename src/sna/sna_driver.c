@@ -55,6 +55,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "sna_video.h"
 
 #include "intel_driver.h"
+#include "intel_options.h"
 
 #include <sys/ioctl.h>
 #include <sys/fcntl.h>
@@ -76,30 +77,10 @@ DevPrivateKeyRec sna_gc_index;
 DevPrivateKeyRec sna_glyph_key;
 DevPrivateKeyRec sna_glyph_image_key;
 
-static OptionInfoRec sna_options[] = {
-   {OPTION_TILING_FB,	"LinearFramebuffer",	OPTV_BOOLEAN,	{0},	FALSE},
-   {OPTION_TILING_2D,	"Tiling",	OPTV_BOOLEAN,	{0},	TRUE},
-   {OPTION_PREFER_OVERLAY, "XvPreferOverlay", OPTV_BOOLEAN, {0}, FALSE},
-   {OPTION_COLOR_KEY,	"ColorKey",	OPTV_INTEGER,	{0},	FALSE},
-   {OPTION_VIDEO_KEY,	"VideoKey",	OPTV_INTEGER,	{0},	FALSE},
-   {OPTION_HOTPLUG,	"HotPlug",	OPTV_BOOLEAN,	{0},	TRUE},
-   {OPTION_THROTTLE,	"Throttle",	OPTV_BOOLEAN,	{0},	TRUE},
-   {OPTION_RELAXED_FENCING,	"UseRelaxedFencing",	OPTV_BOOLEAN,	{0},	TRUE},
-   {OPTION_VMAP,	"UseVmap",	OPTV_BOOLEAN,	{0},	TRUE},
-   {OPTION_ZAPHOD,	"ZaphodHeads",	OPTV_STRING,	{0},	FALSE},
-   {OPTION_DELAYED_FLUSH,	"DelayedFlush",	OPTV_BOOLEAN,	{0},	TRUE},
-   {-1,			NULL,		OPTV_NONE,	{0},	FALSE}
-};
-
 static Bool sna_enter_vt(int scrnIndex, int flags);
 
 /* temporary */
 extern void xf86SetCursor(ScreenPtr screen, CursorPtr pCurs, int x, int y);
-
-const OptionInfoRec *sna_available_options(int chipid, int busid)
-{
-	return sna_options;
-}
 
 static void
 sna_load_palette(ScrnInfoPtr scrn, int numColors, int *indices,
@@ -280,10 +261,10 @@ static Bool sna_get_early_options(ScrnInfoPtr scrn)
 
 	/* Process the options */
 	xf86CollectOptions(scrn, NULL);
-	if (!(sna->Options = malloc(sizeof(sna_options))))
+	if (!(sna->Options = malloc(sizeof(intel_options))))
 		return FALSE;
 
-	memcpy(sna->Options, sna_options, sizeof(sna_options));
+	memcpy(sna->Options, intel_options, sizeof(intel_options));
 	xf86ProcessOptions(scrn->scrnIndex, scrn->options, sna->Options);
 
 	return TRUE;
@@ -1068,7 +1049,7 @@ static Bool sna_pm_event(int scrnIndex, pmEvent event, Bool undo)
 	return TRUE;
 }
 
-void sna_init_scrn(ScrnInfoPtr scrn, int entity_num)
+Bool sna_init_scrn(ScrnInfoPtr scrn, int entity_num)
 {
 	EntityInfoPtr entity;
 
@@ -1102,8 +1083,13 @@ void sna_init_scrn(ScrnInfoPtr scrn, int entity_num)
 	xf86SetEntitySharable(scrn->entityList[0]);
 
 	entity = xf86GetEntityInfo(entity_num);
+	if (!entity)
+		return FALSE;
+
 	xf86SetEntityInstanceForScreen(scrn,
 				       entity->index,
 				       xf86GetNumEntityInstances(entity->index)-1);
 	free(entity);
+
+	return TRUE;
 }

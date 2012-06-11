@@ -1210,7 +1210,7 @@ static void sna_dri_flip_event(struct sna *sna,
 		}
 		break;
 
-#if DRI2INFOREC_VERSION >= 7
+#if USE_ASYNC_SWAP && DRI2INFOREC_VERSION >= 7
 	case DRI2_ASYNC_FLIP:
 		DBG(("%s: async swap flip completed on pipe %d, pending? %d, new? %d\n",
 		     __FUNCTION__, flip->pipe,
@@ -1698,7 +1698,7 @@ blit_fallback:
 	return TRUE;
 }
 
-#if DRI2INFOREC_VERSION >= 7
+#if USE_ASYNC_SWAP && DRI2INFOREC_VERSION >= 7
 static Bool
 sna_dri_async_swap(ClientPtr client, DrawablePtr draw,
 		   DRI2BufferPtr front, DRI2BufferPtr back,
@@ -2078,7 +2078,7 @@ Bool sna_dri_open(struct sna *sna, ScreenPtr screen)
 	info.ReuseBufferNotify = NULL;
 #endif
 
-#if DRI2INFOREC_VERSION >= 7
+#if USE_ASYNC_SWAP && DRI2INFOREC_VERSION >= 7
 	info.version = 7;
 	info.AsyncSwap = sna_dri_async_swap;
 #endif

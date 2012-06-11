@@ -45,6 +45,8 @@
 #include "sna.h"
 #include "sna_reg.h"
 
+#include "intel_options.h"
+
 #if DEBUG_DISPLAY
 #undef DBG
 #define DBG(x) ErrorF x

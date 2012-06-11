@@ -1,3 +1,22 @@
+xserver-xorg-video-intel (2:2.19.0-2) unstable; urgency=low
+
+  * Cherry-pick the following commits to make it possible to build both
+    uxa (legacy acceleration method) and sna (experimental acceleration
+    method):
+    - 3f3bde4f0c uxa: Only consider an output valid if the kernel reports it attached
+    - df6ab02c36 Unify options handling between UXA and SNA
+    - e456291350 Allow runtime switching of AccelMethod between uxa/sna and even glamor
+    - 318982566b sna/dri: Disable experimental code by default
+    - 7614a54188 configure: Harden --with-default-accel against simple mistakes
+    - 4e984b79cc configure: Correct the help string for --with-default-accel
+  * rules: Enable sna and uxa accel methods, default to uxa. The switch
+    to sna can be achieved through a minimal xorg.conf (look for “AccelMethod”
+    in: man intel).
+  * Add patch to document the new AccelMethod option accordingly:
+    - 0002-Update-manpage-for-new-accelmethod-option.patch
+
+ -- Cyril Brulebois <kibi@debian.org>  Mon, 11 Jun 2012 22:22:00 +0000
+
 xserver-xorg-video-intel (2:2.19.0-1) unstable; urgency=low
 
   * New upstream release.

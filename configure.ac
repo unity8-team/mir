@@ -158,9 +158,56 @@ if test "x$GLAMOR" != "xno"; then
 	AC_DEFINE(USE_GLAMOR, 1, [Enable glamor acceleration])
 fi
 
+AC_ARG_WITH(default-accel,
+	    AS_HELP_STRING([--with-default-accel],
+			   [Select the default acceleration method [default=uxa if enabled, otherwise sna]]),
+			   [accel="$withval"],
+			   [accel=auto])
+if test "x$accel" = xyes; then
+	AC_MSG_WARN([No default acceleration specified, choosing automatic selection])
+	accel="auto"
+fi
+
+AC_MSG_CHECKING([which acceleration method to use by default])
+if test "x$accel" = xauto; then
+	if test "x$UXA" != "xno"; then
+		accel=uxa
+	else
+		if test "x$SNA" != "xno"; then
+			accel=sna
+		fi
+	fi
+	if test "x$accel" = xauto; then
+		AC_MSG_ERROR([No default acceleration option])
+	fi
+fi
+
+have_accel=no
+if test "x$accel" = xsna; then
+	if test "x$SNA" != "xno"; then
+		AC_DEFINE(DEFAULT_ACCEL_METHOD, SNA, [Default acceleration method])
+		have_accel=yes
+	else
+		AC_MSG_ERROR([SNA requested as default, but is not enabled])
+	fi
+fi
+
+if test "x$accel" = xuxa; then
+	if test "x$UXA" != "xno"; then
+		AC_DEFINE(DEFAULT_ACCEL_METHOD, UXA, [Default acceleration method])
+		have_accel=yes
+	else
+		AC_MSG_ERROR([UXA requested as default, but is not enabled])
+	fi
+fi
+AC_MSG_RESULT($accel)
+if test "x$accel" = xno; then
+	AC_MSG_ERROR([No default acceleration option])
+fi
+
 AC_ARG_ENABLE(vmap,
 	      AS_HELP_STRING([--enable-vmap],
-			     [Enable use of vmap [default=no]]),
+			     [Enable use of vmap (experimental) [default=no]]),
 	      [VMAP="$enableval"],
 	      [VMAP=no])
 AM_CONDITIONAL(USE_VMAP, test x$VMAP = xyes)
@@ -168,13 +215,21 @@ if test "x$VMAP" = xyes; then
 	AC_DEFINE(USE_VMAP,1,[Assume VMAP support])
 fi
 
+AC_ARG_ENABLE(async-swap,
+	      AS_HELP_STRING([--enable-async-swap],
+			     [Enable use of asynchronous swaps (experimental) [default=no]]),
+	      [ASYNC_SWAP="$enableval"],
+	      [ASYNC_SWAP=no])
+AM_CONDITIONAL(USE_ASYNC_SWAP, test x$ASYNC_SWAP = xyes)
+if test "x$ASYNC_SWAP" = xyes; then
+	AC_DEFINE(USE_ASYNC_SWAP,1,[Assume asynchronous swap support])
+fi
 
 AC_ARG_ENABLE(debug,
 	      AS_HELP_STRING([--enable-debug],
 			     [Enables internal debugging [default=no]]),
               [DEBUG="$enableval"],
               [DEBUG=no])
-
 # Store the list of server defined optional extensions in REQUIRED_MODULES
 XORG_DRIVER_CHECK_EXT(RANDR, randrproto)
 XORG_DRIVER_CHECK_EXT(RENDER, renderproto)

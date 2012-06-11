@@ -36,6 +36,8 @@
 #include <fourcc.h>
 #include <i915_drm.h>
 
+#include "intel_options.h"
+
 #if DEBUG_VIDEO_OVERLAY
 #undef DBG
 #define DBG(x) ErrorF x
