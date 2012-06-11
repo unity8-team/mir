@@ -160,7 +160,7 @@ fi
 
 AC_ARG_WITH(default-accel,
 	    AS_HELP_STRING([--with-default-accel],
-			   [Select the default acceleration method [default=sna if enabled, otherwise uxa]]),
+			   [Select the default acceleration method [default=uxa if enabled, otherwise sna]]),
 			   [accel="$withval"],
 			   [accel=auto])
 if test "x$accel" = xyes; then
