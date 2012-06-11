@@ -195,9 +195,11 @@ enum {
 	THROTTLE_TIMER,
 	EXPIRE_TIMER,
 	INACTIVE_TIMER,
+#if DEBUG_MEMORY
+	DEBUG_MEMORY_TIMER,
+#endif
 	NUM_TIMERS
 };
-#define NUM_FINE_TIMERS 1
 
 struct sna {
 	ScrnInfoPtr scrn;
@@ -287,6 +289,15 @@ struct sna {
 
 	struct kgem kgem;
 	struct sna_render render;
+
+#if DEBUG_MEMORY
+	struct {
+	       int shadow_pixels_allocs;
+	       int cpu_bo_allocs;
+	       size_t shadow_pixels_bytes;
+	       size_t cpu_bo_bytes;
+	} debug_memory;
+#endif
 };
 
 Bool sna_mode_pre_init(ScrnInfoPtr scrn, struct sna *sna);

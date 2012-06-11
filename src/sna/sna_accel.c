@@ -362,6 +362,11 @@ sna_pixmap_alloc_cpu(struct sna *sna,
 	DBG(("%s: pixmap=%ld\n", __FUNCTION__, pixmap->drawable.serialNumber));
 	assert(priv->stride);
 
+#ifdef DEBUG_MEMORY
+	sna->debug_memory.shadow_pixels_allocs++;
+	sna->debug_memory.shadow_pixels_bytes += priv->stride * pixmap->drawable.height;
+#endif
+
 	if (priv->create & KGEM_CAN_CREATE_CPU) {
 		DBG(("%s: allocating CPU buffer (%dx%d)\n", __FUNCTION__,
 		     pixmap->drawable.width, pixmap->drawable.height));
@@ -377,6 +382,10 @@ sna_pixmap_alloc_cpu(struct sna *sna,
 
 			priv->ptr = kgem_bo_map__cpu(&sna->kgem, priv->cpu_bo);
 			priv->stride = priv->cpu_bo->pitch;
+#ifdef DEBUG_MEMORY
+			sna->debug_memory.cpu_bo_allocs++;
+			sna->debug_memory.cpu_bo_bytes += kgem_bo_size(priv->cpu_bo);
+#endif
 		}
 	}
 
@@ -400,6 +409,10 @@ static void sna_pixmap_free_cpu(struct sna *sna, struct sna_pixmap *priv)
 	assert(priv->cpu_damage == NULL);
 	assert(list_is_empty(&priv->list));
 
+#ifdef DEBUG_MEMORY
+	sna->debug_memory.shadow_pixels_allocs--;
+	sna->debug_memory.shadow_pixels_bytes -= priv->stride * priv->pixmap->drawable.height;
+#endif
 	if (priv->cpu_bo) {
 		DBG(("%s: discarding CPU buffer, handle=%d, size=%d\n",
 		     __FUNCTION__, priv->cpu_bo->handle, kgem_bo_size(priv->cpu_bo)));
@@ -409,6 +422,10 @@ static void sna_pixmap_free_cpu(struct sna *sna, struct sna_pixmap *priv)
 		}
 		kgem_bo_destroy(&sna->kgem, priv->cpu_bo);
 		priv->cpu_bo = NULL;
+#ifdef DEBUG_MEMORY
+		sna->debug_memory.cpu_bo_allocs--;
+		sna->debug_memory.cpu_bo_bytes -= kgem_bo_size(priv->cpu_bo);
+#endif
 	} else
 		free(priv->ptr);
 
@@ -12317,6 +12334,35 @@ static void sna_accel_inactive(struct sna *sna)
 		sna_accel_disarm_timer(sna, INACTIVE_TIMER);
 }
 
+#ifdef DEBUG_MEMORY
+static bool sna_accel_do_debug_memory(struct sna *sna)
+{
+	int32_t delta = sna->timer_expire[DEBUG_MEMORY_TIMER] - sna->time;
+
+	if (delta <= 3) {
+		sna->timer_expire[DEBUG_MEMORY_TIMER] = sna->time + 10 * 1000;
+		return true;
+	} else
+		return false;
+}
+
+static void sna_accel_debug_memory(struct sna *sna)
+{
+	ErrorF("Allocated shadow pixels: %d, %d bytes, as CPU bo: %d, %d bytes\n",
+	       sna->debug_memory.shadow_pixels_allocs,
+	       sna->debug_memory.shadow_pixels_bytes,
+	       sna->debug_memory.cpu_bo_allocs,
+	       sna->debug_memory.cpu_bo_bytes);
+	ErrorF("Allocated bo: %d, %d bytes\n",
+	       sna->kgem.debug_memory.bo_allocs,
+	       sna->kgem.debug_memory.bo_bytes);
+}
+
+#else
+#define sna_accel_do_debug_memory(x) 0
+static void sna_accel_debug_memory(struct sna *sna) { }
+#endif
+
 Bool sna_accel_pre_init(struct sna *sna)
 {
 	sna->timer = TimerSet(NULL, 0, 0, sna_timeout, sna);
@@ -12339,6 +12385,10 @@ Bool sna_accel_init(ScreenPtr screen, struct sna *sna)
 	list_init(&sna->inactive_clock[1]);
 
 	AddGeneralSocket(sna->kgem.fd);
+
+#ifdef DEBUG_MEMORY
+	sna->timer_expire[DEBUG_MEMORY_TIMER] = GetTimeInMillis()+ 10 * 1000;
+#endif
 
 	screen->CreateGC = sna_create_gc;
 	screen->GetImage = sna_get_image;
@@ -12475,6 +12525,9 @@ void sna_accel_block_handler(struct sna *sna, struct timeval **tv)
 
 	if (sna_accel_do_inactive(sna))
 		sna_accel_inactive(sna);
+
+	if (sna_accel_do_debug_memory(sna))
+		sna_accel_debug_memory(sna);
 
 	if (sna->flush == 0 && sna->watch_flush == 1) {
 		DBG(("%s: removing watchers\n", __FUNCTION__));

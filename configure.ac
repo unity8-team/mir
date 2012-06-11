@@ -315,7 +315,11 @@ if test "x$DEBUG" != xno; then
 		AC_DEFINE([HAVE_VALGRIND], 1, [Use valgrind intrinsics to suppress false warnings])
 	fi
 fi
+if test "x$DEBUG" = xmemory; then
+	AC_DEFINE(DEBUG_MEMORY,1,[Enable memory debugging])
+fi
 if test "x$DEBUG" = xfull; then
+	AC_DEFINE(DEBUG_MEMORY,1,[Enable memory debugging])
 	AC_DEFINE(HAS_DEBUG_FULL,1,[Enable all debugging])
         CFLAGS="$CFLAGS -O0 -ggdb3"
 fi

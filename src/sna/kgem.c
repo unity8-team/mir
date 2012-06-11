@@ -116,6 +116,21 @@ static inline int bytes(struct kgem_bo *bo)
 #define bucket(B) (B)->size.pages.bucket
 #define num_pages(B) (B)->size.pages.count
 
+#ifdef DEBUG_MEMORY
+static void debug_alloc(struct kgem *kgem, size_t size)
+{
+	kgem->debug_memory.bo_allocs++;
+	kgem->debug_memory.bo_bytes += size;
+}
+static void debug_alloc__bo(struct kgem *kgem, struct kgem_bo *bo)
+{
+	debug_alloc(kgem, bytes(bo));
+}
+#else
+#define debug_alloc(k, b)
+#define debug_alloc__bo(k, b)
+#endif
+
 static void kgem_sna_reset(struct kgem *kgem)
 {
 	struct sna *sna = container_of(kgem, struct sna, kgem);
@@ -1007,6 +1022,11 @@ static void kgem_bo_free(struct kgem *kgem, struct kgem_bo *bo)
 	assert(bo->refcnt == 0);
 	assert(bo->exec == NULL);
 	assert(!bo->vmap || bo->rq == NULL);
+
+#ifdef DEBUG_MEMORY
+	kgem->debug_memory.bo_allocs--;
+	kgem->debug_memory.bo_bytes -= bytes(bo);
+#endif
 
 	kgem_bo_binding_free(kgem, bo);
 
@@ -2316,6 +2336,8 @@ struct kgem_bo *kgem_create_for_name(struct kgem *kgem, uint32_t name)
 
 	bo->reusable = false;
 	bo->flush = true;
+
+	debug_alloc__bo(kgem, bo);
 	return bo;
 }
 
@@ -2349,6 +2371,7 @@ struct kgem_bo *kgem_create_linear(struct kgem *kgem, int size, unsigned flags)
 		return NULL;
 	}
 
+	debug_alloc__bo(kgem, bo);
 	return bo;
 }
 
@@ -2881,6 +2904,8 @@ create:
 		bo->tiling = gem_set_tiling(kgem->fd, handle, tiling, pitch);
 
 	assert(bytes(bo) >= bo->pitch * kgem_aligned_height(kgem, height, bo->tiling));
+
+	debug_alloc__bo(kgem, bo);
 
 	DBG(("  new pitch=%d, tiling=%d, handle=%d, id=%d\n",
 	     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
@@ -3449,6 +3474,8 @@ struct kgem_bo *kgem_create_map(struct kgem *kgem,
 	bo->reusable = false;
 	bo->vmap = true;
 
+	debug_alloc__bo(kgem, bo);
+
 	DBG(("%s(ptr=%p, size=%d, pages=%d, read_only=%d) => handle=%d\n",
 	     __FUNCTION__, ptr, size, NUM_PAGES(size), read_only, handle));
 	return bo;
@@ -3729,6 +3756,8 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			}
 			DBG(("%s: created handle=%d for buffer\n",
 			     __FUNCTION__, bo->base.handle));
+
+			debug_alloc(kgem, alloc);
 		}
 
 		bo->mem = kgem_bo_map__cpu(kgem, &bo->base);
@@ -3916,6 +3945,8 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			}
 			DBG(("%s: created handle=%d for buffer\n",
 			     __FUNCTION__, bo->base.handle));
+
+			debug_alloc(kgem, alloc * PAGE_SIZE);
 		}
 
 		bo->mem = kgem_bo_map__cpu(kgem, &bo->base);
@@ -4195,6 +4226,8 @@ kgem_replace_bo(struct kgem *kgem,
 			gem_close(kgem->fd, handle);
 			return NULL;
 		}
+
+		debug_alloc__bo(kgem, dst);
 	}
 	dst->pitch = pitch;
 	dst->unique_id = kgem_get_unique_id(kgem);

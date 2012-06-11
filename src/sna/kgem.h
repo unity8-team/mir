@@ -173,6 +173,13 @@ struct kgem {
 	uint32_t batch[64*1024-8];
 	struct drm_i915_gem_exec_object2 exec[256];
 	struct drm_i915_gem_relocation_entry reloc[4096];
+
+#ifdef DEBUG_MEMORY
+	struct {
+		int bo_allocs;
+		size_t bo_bytes;
+	} debug_memory;
+#endif
 };
 
 #define KGEM_BATCH_RESERVED 1

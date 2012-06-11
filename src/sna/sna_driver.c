@@ -1074,9 +1074,13 @@ Bool sna_init_scrn(ScrnInfoPtr scrn, int entity_num)
 	xf86DrvMsg(scrn->scrnIndex, X_INFO,
 		   "SNA compiled: %s\n", BUILDER_DESCRIPTION);
 #endif
-#if HAVE_EXTRA_DEBUG
+#if HAS_EXTRA_DEBUG
 	xf86DrvMsg(scrn->scrnIndex, X_INFO,
 		   "SNA compiled with debugging enabled\n");
+#endif
+#if DEBUG_MEMORY
+	xf86DrvMsg(scrn->scrnIndex, X_INFO,
+		   "SNA compiled with memory allocation reporting enabled\n");
 #endif
 
 	DBG(("%s\n", __FUNCTION__));
