@@ -114,7 +114,7 @@ static inline struct sna_glyph *sna_glyph(GlyphPtr glyph)
 
 #define NeedsComponent(f) (PICT_FORMAT_A(f) != 0 && PICT_FORMAT_RGB(f) != 0)
 
-static void unrealize_glyph_caches(struct sna *sna)
+void sna_glyphs_close(struct sna *sna)
 {
 	struct sna_render *render = &sna->render;
 	unsigned int i;
@@ -150,7 +150,7 @@ static void unrealize_glyph_caches(struct sna *sna)
  * This function allocates the storage pixmap, and then fills in the
  * rest of the allocated structures for all caches with the given format.
  */
-static Bool realize_glyph_caches(struct sna *sna)
+Bool sna_glyphs_create(struct sna *sna)
 {
 	ScreenPtr screen = sna->scrn->pScreen;
 	pixman_color_t white = { 0xffff, 0xffff, 0xffff, 0xffff };
@@ -221,7 +221,7 @@ static Bool realize_glyph_caches(struct sna *sna)
 	return sna->render.white_image && sna->render.white_picture;
 
 bail:
-	unrealize_glyph_caches(sna);
+	sna_glyphs_close(sna);
 	return FALSE;
 }
 
@@ -1032,11 +1032,6 @@ next_glyph:
 	return TRUE;
 }
 
-Bool sna_glyphs_create(struct sna *sna)
-{
-	return realize_glyph_caches(sna);
-}
-
 static PictFormatPtr
 glyphs_format(int nlist, GlyphListPtr list, GlyphPtr * glyphs)
 {
@@ -1423,9 +1418,4 @@ sna_glyph_unrealize(ScreenPtr screen, GlyphPtr glyph)
 		cache->glyphs[priv->pos >> 1] = NULL;
 		priv->atlas = NULL;
 	}
-}
-
-void sna_glyphs_close(struct sna *sna)
-{
-	unrealize_glyph_caches(sna);
 }
