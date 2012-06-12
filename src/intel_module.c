@@ -298,11 +298,8 @@ extern XF86ConfigPtr xf86configptr;
 static XF86ConfDevicePtr
 _xf86findDriver(const char *ident, XF86ConfDevicePtr p)
 {
-	if (p->dev_driver == NULL)
-		return NULL;
-
 	while (p) {
-		if (xf86nameCompare(ident, p->dev_driver) == 0)
+		if (p->dev_driver && xf86nameCompare(ident, p->dev_driver) == 0)
 			return p;
 
 		p = p->list.next;
