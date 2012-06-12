@@ -368,6 +368,7 @@ extern void intel_mode_fini(intel_screen_private *intel);
 extern int intel_get_pipe_from_crtc_id(drm_intel_bufmgr *bufmgr, xf86CrtcPtr crtc);
 extern int intel_crtc_id(xf86CrtcPtr crtc);
 extern int intel_output_dpms_status(xf86OutputPtr output);
+extern void intel_copy_fb(ScrnInfoPtr scrn);
 
 enum DRI2FrameEventType {
 	DRI2_SWAP,

@@ -167,7 +167,11 @@ static Bool i830CreateScreenResources(ScreenPtr screen)
 	if (!(*screen->CreateScreenResources) (screen))
 		return FALSE;
 
-	return intel_uxa_create_screen_resources(screen);
+	if (!intel_uxa_create_screen_resources(screen))
+		return FALSE;
+
+	intel_copy_fb(scrn);
+	return TRUE;
 }
 
 static void PreInitCleanup(ScrnInfoPtr scrn)
