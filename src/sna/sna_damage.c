@@ -251,7 +251,7 @@ _sna_damage_create_elt(struct sna_damage *damage,
 	}
 	assert(damage->remain >= 0);
 
-	 return damage;
+	return damage;
 }
 
 static struct sna_damage *
@@ -530,7 +530,12 @@ done:
 
 static void damage_union(struct sna_damage *damage, const BoxRec *box)
 {
-	assert(box->x2 > box->x1 && box->y2 > box>y1);
+	DBG(("%s: extending damage (%d, %d), (%d, %d) by (%d, %d), (%d, %d)\n",
+	     __FUNCTION__,
+	     damage->extents.x1, damage->extents.y1,
+	     damage->extents.x2, damage->extents.y2,
+	     box->x1, box->y1, box->x2, box->y2));
+	assert(box->x2 > box->x1 && box->y2 > box->y1);
 	if (damage->extents.x2 < damage->extents.x1) {
 		damage->extents = *box;
 	} else {
@@ -574,11 +579,11 @@ static struct sna_damage *__sna_damage_add_box(struct sna_damage *damage,
 	switch (REGION_NUM_RECTS(&damage->region)) {
 	case 0:
 		pixman_region_init_rects(&damage->region, box, 1);
-		damage_union(damage, box);
+		damage->extents = *box;
 		return damage;
 	case 1:
 		_pixman_region_union_box(&damage->region, box);
-		damage_union(damage, box);
+		damage->extents = damage->region.extents;
 		return damage;
 	}
 
@@ -613,7 +618,7 @@ inline static struct sna_damage *__sna_damage_add(struct sna_damage *damage,
 
 	if (REGION_NUM_RECTS(&damage->region) <= 1) {
 		pixman_region_union(&damage->region, &damage->region, region);
-		damage_union(damage, &region->extents);
+		damage->extents = damage->region.extents;
 		return damage;
 	}
 
