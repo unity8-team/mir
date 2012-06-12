@@ -154,7 +154,7 @@ static const char *_debug_describe_damage(char *buf, int max,
 
 #endif
 
-static struct sna_damage_box *
+static void
 reset_embedded_box(struct sna_damage *damage)
 {
 	damage->dirty = false;
@@ -162,8 +162,6 @@ reset_embedded_box(struct sna_damage *damage)
 	damage->embedded_box.size =
 		damage->remain = ARRAY_SIZE(damage->embedded_box.box);
 	list_init(&damage->embedded_box.list);
-
-	return (struct sna_damage_box *)&damage->embedded_box;
 }
 
 static struct sna_damage *_sna_damage_create(void)
