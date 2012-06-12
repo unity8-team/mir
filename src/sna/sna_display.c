@@ -765,6 +765,16 @@ sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	return TRUE;
 }
 
+void sna_mode_adjust_frame(struct sna *sna, int x, int y)
+{
+	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(sna->scrn);
+	xf86OutputPtr output = config->output[config->compat_output];
+	xf86CrtcPtr crtc = output->crtc;
+
+	if (crtc && crtc->enabled)
+		sna_crtc_set_mode_major(crtc, &crtc->mode, crtc->rotation, x, y);
+}
+
 static void
 sna_crtc_hide_cursor(xf86CrtcPtr crtc)
 {

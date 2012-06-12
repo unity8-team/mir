@@ -943,6 +943,9 @@ sna_screen_init(SCREEN_INIT_ARGS_DECL)
 
 static void sna_adjust_frame(ADJUST_FRAME_ARGS_DECL)
 {
+	SCRN_INFO_PTR(arg);
+	DBG(("%s(%d, %d)\n", __FUNCTION__, x, y));
+	sna_mode_adjust_frame(to_sna(scrn), x, y);
 }
 
 static void sna_free_screen(FREE_SCREEN_ARGS_DECL)
