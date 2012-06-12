@@ -1,0 +1,32 @@
+From 0de44dd7d7cbd5307afce2245ffbdc748e868223 Mon Sep 17 00:00:00 2001
+From: Cyril Brulebois <kibi@debian.org>
+Date: Tue, 12 Jun 2012 20:00:10 +0200
+Subject: [PATCH] Avoid calling xf86nameCompare() with a NULL pointer.
+
+Device sections without a Driver property would lead to a server
+segfault because of a NULL pointer's being passed as the second
+argument of xf86nameCompare().
+
+Debian bug #677206 <http://bugs.debian.org/677206>
+
+Signed-off-by: Cyril Brulebois <kibi@debian.org>
+---
+ src/intel_module.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/intel_module.c b/src/intel_module.c
+index 4430ac6..fa78b59 100644
+--- a/src/intel_module.c
++++ b/src/intel_module.c
+@@ -299,7 +299,7 @@ static XF86ConfDevicePtr
+ _xf86findDriver(const char *ident, XF86ConfDevicePtr p)
+ {
+ 	while (p) {
+-		if (xf86nameCompare(ident, p->dev_driver) == 0)
++		if (p->dev_driver && xf86nameCompare(ident, p->dev_driver) == 0)
+ 			return p;
+ 
+ 		p = p->list.next;
+-- 
+1.7.10
+
