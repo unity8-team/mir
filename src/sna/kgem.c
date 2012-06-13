@@ -3651,7 +3651,8 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 		/* We can reuse any write buffer which we can fit */
 		if (flags == KGEM_BUFFER_LAST &&
 		    bo->write == KGEM_BUFFER_WRITE &&
-		    !bo->mmapped && size <= bytes(&bo->base)) {
+		    bo->base.refcnt == 1 && !bo->mmapped &&
+		    size <= bytes(&bo->base)) {
 			DBG(("%s: reusing write buffer for read of %d bytes? used=%d, total=%d\n",
 			     __FUNCTION__, size, bo->used, bytes(&bo->base)));
 			gem_write(kgem->fd, bo->base.handle,
