@@ -12372,14 +12372,14 @@ static bool sna_accel_do_debug_memory(struct sna *sna)
 
 static void sna_accel_debug_memory(struct sna *sna)
 {
-	ErrorF("Allocated shadow pixels: %d, %d bytes, as CPU bo: %d, %d bytes\n",
+	ErrorF("Allocated shadow pixels: %d, %ld bytes, as CPU bo: %d, %ld bytes\n",
 	       sna->debug_memory.shadow_pixels_allocs,
-	       sna->debug_memory.shadow_pixels_bytes,
+	       (long)sna->debug_memory.shadow_pixels_bytes,
 	       sna->debug_memory.cpu_bo_allocs,
-	       sna->debug_memory.cpu_bo_bytes);
-	ErrorF("Allocated bo: %d, %d bytes\n",
+	       (long)sna->debug_memory.cpu_bo_bytes);
+	ErrorF("Allocated bo: %d, %ld bytes\n",
 	       sna->kgem.debug_memory.bo_allocs,
-	       sna->kgem.debug_memory.bo_bytes);
+	       (long)sna->kgem.debug_memory.bo_bytes);
 }
 
 #else
