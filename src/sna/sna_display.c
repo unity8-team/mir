@@ -957,31 +957,41 @@ static const xf86CrtcFuncsRec sna_crtc_funcs = {
 static uint32_t
 sna_crtc_find_plane(struct sna *sna, int pipe)
 {
-	drmModePlaneRes *resources;
-	uint32_t id = 0;
+	struct drm_mode_get_plane_res r;
+	uint32_t *planes, id = 0;
 	int i;
 
-	resources = drmModeGetPlaneResources(sna->kgem.fd);
-	if (!resources) {
-		xf86DrvMsg(sna->scrn->scrnIndex, X_ERROR,
-			   "failed to get plane resources: %s\n",
-			   strerror(errno));
+	VG_CLEAR(r);
+	r.count_planes = 0;
+	if (drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_GETPLANERESOURCES, &r))
 		return 0;
-	}
 
-	for (i = 0; id == 0 && i < resources->count_planes; i++) {
-		drmModePlane *p;
+	if (!r.count_planes)
+		return 0;
 
-		p = drmModeGetPlane(sna->kgem.fd, resources->planes[i]);
-		if (p) {
-			if (p->possible_crtcs & (1 << pipe))
-				id = p->plane_id;
+	planes = malloc(sizeof(uint32_t)*r.count_planes);
+	if (planes == NULL)
+		return 0;
 
-			drmModeFreePlane(p);
+	r.plane_id_ptr = (uintptr_t)planes;
+	if (drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_GETPLANERESOURCES, &r))
+		r.count_planes = 0;
+
+	for (i = 0; i < r.count_planes; i++) {
+		struct drm_mode_get_plane p;
+
+		VG_CLEAR(p);
+		p.plane_id = planes[i];
+		p.count_format_types = 0;
+		if (drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_GETPLANE, &p) == 0) {
+			if (p.possible_crtcs & (1 << pipe)) {
+				id = p.plane_id;
+				break;
+			}
 		}
 	}
+	free(planes);
 
-	free(resources);
 	return id;
 }
 
