@@ -574,14 +574,9 @@ static struct sna_damage *__sna_damage_add_box(struct sna_damage *damage,
 		break;
 	}
 
-	switch (REGION_NUM_RECTS(&damage->region)) {
-	case 0:
-		pixman_region_init_rects(&damage->region, box, 1);
-		damage->extents = *box;
-		return damage;
-	case 1:
+	if (REGION_NUM_RECTS(&damage->region) <= 1) {
 		_pixman_region_union_box(&damage->region, box);
-		damage->extents = damage->region.extents;
+		damage_union(damage, box);
 		return damage;
 	}
 
@@ -616,7 +611,7 @@ inline static struct sna_damage *__sna_damage_add(struct sna_damage *damage,
 
 	if (REGION_NUM_RECTS(&damage->region) <= 1) {
 		pixman_region_union(&damage->region, &damage->region, region);
-		damage->extents = damage->region.extents;
+		damage_union(damage, &region->extents);
 		return damage;
 	}
 
