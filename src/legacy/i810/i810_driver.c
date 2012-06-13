@@ -78,7 +78,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "../legacy.h"
 
 static Bool I810PreInit(ScrnInfoPtr pScrn, int flags);
-static Bool I810ScreenInit(SCREEN_INIT_ARGS);
+static Bool I810ScreenInit(SCREEN_INIT_ARGS_DECL);
 static Bool I810EnterVT(VT_FUNC_ARGS_DECL);
 static void I810LeaveVT(VT_FUNC_ARGS_DECL);
 static Bool I810CloseScreen(CLOSE_SCREEN_ARGS_DECL);
