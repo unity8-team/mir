@@ -387,9 +387,13 @@ move_to_gpu(PixmapPtr pixmap, const BoxRec *box)
 		return NULL;
 	}
 
-	if (DBG_FORCE_UPLOAD < 0)
-		return sna_pixmap_force_to_gpu(pixmap,
-					       MOVE_SOURCE_HINT | MOVE_READ);
+	if (DBG_FORCE_UPLOAD < 0) {
+		if (!sna_pixmap_force_to_gpu(pixmap,
+					       MOVE_SOURCE_HINT | MOVE_READ))
+			return NULL;
+
+		return priv->gpu_bo;
+	}
 
 	w = box->x2 - box->x1;
 	h = box->y2 - box->y1;
@@ -584,9 +588,9 @@ sna_render_pixmap_bo(struct sna *sna,
 static int sna_render_picture_downsample(struct sna *sna,
 					 PicturePtr picture,
 					 struct sna_composite_channel *channel,
-					 int16_t x, int16_t y,
-					 int16_t w, int16_t h,
-					 int16_t dst_x, int16_t dst_y)
+					 const int16_t x, const int16_t y,
+					 const int16_t w, const int16_t h,
+					 const int16_t dst_x, const int16_t dst_y)
 {
 	PixmapPtr pixmap = get_drawable_pixmap(picture->pDrawable);
 	ScreenPtr screen = pixmap->drawable.pScreen;
@@ -596,15 +600,12 @@ static int sna_render_picture_downsample(struct sna *sna,
 	pixman_transform_t t;
 	PixmapPtr tmp;
 	int width, height, size;
-	int sx, sy, ox, oy, ow, oh;
+	int sx, sy, sw, sh;
 	int error, ret = 0;
 	BoxRec box, b;
 
-	ow = w;
-	oh = h;
-
-	ox = box.x1 = x;
-	oy = box.y1 = y;
+	box.x1 = x;
+	box.y1 = y;
 	box.x2 = x + w;
 	box.y2 = y + h;
 	if (channel->transform) {
@@ -612,12 +613,10 @@ static int sna_render_picture_downsample(struct sna *sna,
 
 		pixman_transform_bounds(channel->transform, &box);
 
-		v.vector[0] = ox << 16;
-		v.vector[1] = oy << 16;
-		v.vector[2] =  1 << 16;
+		v.vector[0] = x << 16;
+		v.vector[1] = y << 16;
+		v.vector[2] = 1 << 16;
 		pixman_transform_point(channel->transform, &v);
-		ox = v.vector[0] / v.vector[2];
-		oy = v.vector[1] / v.vector[2];
 	}
 
 	if (channel->repeat == RepeatNone || channel->repeat == RepeatPad) {
@@ -645,33 +644,33 @@ static int sna_render_picture_downsample(struct sna *sna,
 				return sna_render_picture_fixup(sna,
 								picture,
 								channel,
-								x, y, ow, oh,
+								x, y, w, h,
 								dst_x, dst_y);
 			}
 		}
 	}
 
-	w = box.x2 - box.x1;
-	h = box.y2 - box.y1;
+	sw = box.x2 - box.x1;
+	sh = box.y2 - box.y1;
 
 	DBG(("%s: sample (%d, %d), (%d, %d)\n",
 	     __FUNCTION__, box.x1, box.y1, box.x2, box.y2));
 
-	sx = (w + sna->render.max_3d_size - 1) / sna->render.max_3d_size;
-	sy = (h + sna->render.max_3d_size - 1) / sna->render.max_3d_size;
+	sx = (sw + sna->render.max_3d_size - 1) / sna->render.max_3d_size;
+	sy = (sh + sna->render.max_3d_size - 1) / sna->render.max_3d_size;
 
 	DBG(("%s: scaling (%d, %d) down by %dx%d\n",
-	     __FUNCTION__, w, h, sx, sy));
+	     __FUNCTION__, sw, sh, sx, sy));
 
-	width  = w / sx;
-	height = h / sy;
+	width  = sw / sx;
+	height = sh / sy;
 
 	DBG(("%s: creating temporary GPU bo %dx%d\n",
 	     __FUNCTION__, width, height));
 
 	if (!sna_pixmap_force_to_gpu(pixmap, MOVE_SOURCE_HINT | MOVE_READ))
 		return sna_render_picture_fixup(sna, picture, channel,
-						x, y, ow, oh,
+						x, y, w, h,
 						dst_x, dst_y);
 
 	tmp = screen->CreatePixmap(screen,
@@ -706,9 +705,9 @@ static int sna_render_picture_downsample(struct sna *sna,
 	 */
 	tmp_src->filter = PictFilterNearest;
 	memset(&t, 0, sizeof(t));
-	t.matrix[0][0] = (w << 16) / width;
+	t.matrix[0][0] = (sw << 16) / width;
 	t.matrix[0][2] = box.x1 << 16;
-	t.matrix[1][1] = (h << 16) / height;
+	t.matrix[1][1] = (sh << 16) / height;
 	t.matrix[1][2] = box.y1 << 16;
 	t.matrix[2][2] = 1 << 16;
 	tmp_src->transform = &t;
@@ -721,20 +720,20 @@ static int sna_render_picture_downsample(struct sna *sna,
 	while (size * size * 4 > sna->kgem.max_copy_tile_size)
 		size /= 2;
 
-	w = size / sx - 2 * sx;
-	h = size / sy - 2 * sy;
+	sw = size / sx - 2 * sx;
+	sh = size / sy - 2 * sy;
 	DBG(("%s %d:%d downsampling using %dx%d GPU tiles\n",
-	     __FUNCTION__, (width + w-1)/w, (height + h-1)/h, w, h));
+	     __FUNCTION__, (width + sw-1)/sw, (height + sh-1)/sh, sw, sh));
 
 	for (b.y1 = 0; b.y1 < height; b.y1 = b.y2) {
-		b.y2 = b.y1 + h;
+		b.y2 = b.y1 + sh;
 		if (b.y2 > height)
 			b.y2 = height;
 
 		for (b.x1 = 0; b.x1 < width; b.x1 = b.x2) {
 			struct sna_composite_op op;
 
-			b.x2 = b.x1 + w;
+			b.x2 = b.x1 + sw;
 			if (b.x2 > width)
 				b.x2 = width;
 

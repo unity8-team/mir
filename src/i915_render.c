@@ -344,7 +344,6 @@ static Bool i915_texture_setup(PicturePtr picture, PixmapPtr pixmap, int unit)
 		    (FILTER_LINEAR << SS2_MIN_FILTER_SHIFT);
 		break;
 	default:
-		filter = 0;
 		intel_debug_fallback(scrn, "Bad filter 0x%x\n",
 				     picture->filter);
 		return FALSE;
@@ -486,12 +485,9 @@ i915_emit_composite_primitive(intel_screen_private *intel,
 			      int w, int h)
 {
 	Bool is_affine_src = TRUE, is_affine_mask = TRUE;
-	int per_vertex;
 	int tex_unit = 0;
 	int src_unit = -1, mask_unit = -1;
 	float src_x[3], src_y[3], src_w[3], mask_x[3], mask_y[3], mask_w[3];
-
-	per_vertex = 2;		/* dest x/y */
 
 	src_unit = tex_unit++;
 
@@ -517,8 +513,6 @@ i915_emit_composite_primitive(intel_screen_private *intel,
 						      &src_x[2],
 						      &src_y[2]))
 			return;
-
-		per_vertex += 2;	/* src x/y */
 	} else {
 		if (!intel_get_transformed_coordinates_3d(srcX, srcY,
 							 intel->
@@ -543,8 +537,6 @@ i915_emit_composite_primitive(intel_screen_private *intel,
 							 &src_y[2],
 							 &src_w[2]))
 			return;
-
-		per_vertex += 4;	/* src x/y/z/w */
 	}
 
 	if (intel->render_mask) {
@@ -572,8 +564,6 @@ i915_emit_composite_primitive(intel_screen_private *intel,
 							      &mask_x[2],
 							      &mask_y[2]))
 				return;
-
-			per_vertex += 2;	/* mask x/y */
 		} else {
 			if (!intel_get_transformed_coordinates_3d(maskX, maskY,
 								 intel->
@@ -598,8 +588,6 @@ i915_emit_composite_primitive(intel_screen_private *intel,
 								 &mask_y[2],
 								 &mask_w[2]))
 				return;
-
-			per_vertex += 4;	/* mask x/y/z/w */
 		}
 	}
 
@@ -723,7 +711,8 @@ i915_prepare_composite(int op, PicturePtr source_picture,
 	else
 		floats_per_vertex += 4;	/* src x/y/z/w */
 
-	if (mask != NULL) {
+	if (mask_picture != NULL) {
+		assert(mask != NULL);
 		if (!i915_texture_setup(mask_picture, mask, tex_unit++)) {
 			intel_debug_fallback(scrn,
 					     "fail to setup mask texture\n");

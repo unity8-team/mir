@@ -330,6 +330,7 @@ sna_compute_composite_extents(BoxPtr extents,
 	v = dst_y + height;
 	if (v > dst->pDrawable->height)
 		v = dst->pDrawable->height;
+	extents->y2 = v;
 
 	DBG(("%s: initial clip against dst->pDrawable: (%d, %d), (%d, %d)\n",
 	     __FUNCTION__,

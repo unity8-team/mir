@@ -1914,6 +1914,7 @@ void _kgem_submit(struct kgem *kgem)
 				if (i != -1) {
 					ret = write(i, kgem->batch, batch_end*sizeof(uint32_t));
 					close(i);
+					(void)ret;
 				}
 
 				for (i = 0; i < kgem->nexec; i++) {

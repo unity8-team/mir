@@ -2087,11 +2087,12 @@ i965_prepare_composite(int op, PicturePtr source_picture,
 	intel->transform[0] = source_picture->transform;
 	composite_op->is_affine = intel_transform_is_affine(intel->transform[0]);
 
-	if (!mask) {
+	if (mask_picture == NULL) {
 		intel->transform[1] = NULL;
 		intel->scale_units[1][0] = -1;
 		intel->scale_units[1][1] = -1;
 	} else {
+		assert(mask != NULL);
 		intel->transform[1] = mask_picture->transform;
 		intel->scale_units[1][0] = 1. / mask->drawable.width;
 		intel->scale_units[1][1] = 1. / mask->drawable.height;

@@ -2008,7 +2008,7 @@ Bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
 		nbox -= nbox_this_time;
 
 		do {
-			uint32_t *b = kgem->batch + kgem->nbatch;
+			uint32_t *b;
 
 			DBG(("%s: (%d, %d), (%d, %d): %08x\n",
 			     __FUNCTION__,

@@ -627,7 +627,6 @@ XF86VideoAdaptorPtr sna_video_overlay_setup(struct sna *sna,
 {
 	XF86VideoAdaptorPtr adaptor;
 	struct sna_video *video;
-	XF86AttributePtr att;
 
 	if (!sna_has_overlay(sna)) {
 		xf86DrvMsg(sna->scrn->scrnIndex, X_INFO,
@@ -664,17 +663,15 @@ XF86VideoAdaptorPtr sna_video_overlay_setup(struct sna *sna,
 	adaptor->nAttributes = NUM_ATTRIBUTES;
 	if (HAS_GAMMA(sna))
 		adaptor->nAttributes += GAMMA_ATTRIBUTES;
-	adaptor->pAttributes =
+
+	 adaptor->pAttributes =
 	    xnfalloc(sizeof(XF86AttributeRec) * adaptor->nAttributes);
 	/* Now copy the attributes */
-	att = adaptor->pAttributes;
-	memcpy(att, Attributes, sizeof(XF86AttributeRec) * NUM_ATTRIBUTES);
-	att += NUM_ATTRIBUTES;
-	if (HAS_GAMMA(sna)) {
-		memcpy(att, GammaAttributes,
+	memcpy(adaptor->pAttributes, Attributes, sizeof(XF86AttributeRec) * NUM_ATTRIBUTES);
+	if (HAS_GAMMA(sna))
+		memcpy(adaptor->pAttributes + NUM_ATTRIBUTES, GammaAttributes,
 		       sizeof(XF86AttributeRec) * GAMMA_ATTRIBUTES);
-		att += GAMMA_ATTRIBUTES;
-	}
+
 	adaptor->nImages = NUM_IMAGES;
 	adaptor->pImages = (XF86ImagePtr)Images;
 	adaptor->PutVideo = NULL;

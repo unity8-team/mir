@@ -214,7 +214,7 @@ typedef struct box32 {
 	(((_pm) & FbFullMask((_draw)->depth)) == FbFullMask((_draw)->depth))
 
 #if DEBUG_ACCEL
-static void _assert_pixmap_contains_box(PixmapPtr pixmap, BoxPtr box, const char *function)
+static void _assert_pixmap_contains_box(PixmapPtr pixmap, const BoxRec *box, const char *function)
 {
 	if (box->x1 < 0 || box->y1 < 0 ||
 	    box->x2 > pixmap->drawable.width ||
@@ -229,7 +229,7 @@ static void _assert_pixmap_contains_box(PixmapPtr pixmap, BoxPtr box, const char
 	}
 }
 
-static void _assert_pixmap_contains_boxes(PixmapPtr pixmap, BoxPtr box, int n, int dx, int dy, const char *function)
+static void _assert_pixmap_contains_boxes(PixmapPtr pixmap, const BoxRec *box, int n, int dx, int dy, const char *function)
 {
 	BoxRec extents;
 
@@ -255,7 +255,7 @@ static void _assert_pixmap_contains_boxes(PixmapPtr pixmap, BoxPtr box, int n, i
 }
 
 
-static void _assert_pixmap_contains_points(PixmapPtr pixmap, DDXPointRec *pt, int n, int dx, int dy, const char *function)
+static void _assert_pixmap_contains_points(PixmapPtr pixmap, const DDXPointRec *pt, int n, int dx, int dy, const char *function)
 {
 	BoxRec extents;
 
@@ -416,16 +416,16 @@ static void sna_pixmap_free_cpu(struct sna *sna, struct sna_pixmap *priv)
 	if (priv->cpu_bo) {
 		DBG(("%s: discarding CPU buffer, handle=%d, size=%d\n",
 		     __FUNCTION__, priv->cpu_bo->handle, kgem_bo_size(priv->cpu_bo)));
+#ifdef DEBUG_MEMORY
+		sna->debug_memory.cpu_bo_allocs--;
+		sna->debug_memory.cpu_bo_bytes -= kgem_bo_size(priv->cpu_bo);
+#endif
 		if (priv->cpu_bo->sync) {
 			kgem_bo_sync__cpu(&sna->kgem, priv->cpu_bo);
 			sna_accel_watch_flush(sna, -1);
 		}
 		kgem_bo_destroy(&sna->kgem, priv->cpu_bo);
 		priv->cpu_bo = NULL;
-#ifdef DEBUG_MEMORY
-		sna->debug_memory.cpu_bo_allocs--;
-		sna->debug_memory.cpu_bo_bytes -= kgem_bo_size(priv->cpu_bo);
-#endif
 	} else
 		free(priv->ptr);
 
@@ -928,7 +928,7 @@ static inline bool pixmap_inplace(struct sna *sna,
 }
 
 static bool
-sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box, unsigned flags);
+sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned flags);
 
 static bool
 sna_pixmap_create_mappable_gpu(PixmapPtr pixmap)
@@ -1834,7 +1834,7 @@ inline static unsigned drawable_gc_flags(DrawablePtr draw,
 }
 
 static bool
-sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box, unsigned int flags)
+sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int flags)
 {
 	struct sna *sna = to_sna_from_pixmap(pixmap);
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
@@ -2151,6 +2151,7 @@ move_to_gpu:
 	}
 
 done:
+	assert(priv->gpu_bo != NULL);
 	if (sna_damage_is_all(&priv->gpu_damage,
 			      pixmap->drawable.width,
 			      pixmap->drawable.height))
@@ -2164,6 +2165,7 @@ done:
 	return priv->gpu_bo;
 
 use_gpu_bo:
+	assert(priv->gpu_bo != NULL);
 	priv->clear = false;
 	if (!priv->pinned && (priv->create & KGEM_CAN_CREATE_LARGE) == 0)
 		list_move(&priv->inactive,
@@ -3916,6 +3918,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 		goto out;
 	} else if (dst_priv->cpu_bo &&
 		   src_priv && DAMAGE_IS_ALL(src_priv->gpu_damage) && !src_priv->clear) {
+		assert(src_priv->gpu_bo != NULL); /* guaranteed by gpu_damage */
 		if (!sna->render.copy_boxes(sna, alu,
 					    src_pixmap, src_priv->gpu_bo, src_dx, src_dy,
 					    dst_pixmap, dst_priv->cpu_bo, dst_dx, dst_dy,

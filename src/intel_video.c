@@ -451,7 +451,6 @@ static XF86VideoAdaptorPtr I830SetupImageVideoOverlay(ScreenPtr screen)
 	if (INTEL_INFO(intel)->gen >= 30) {
 		memcpy((char *)att, (char *)GammaAttributes,
 		       sizeof(XF86AttributeRec) * GAMMA_ATTRIBUTES);
-		att += GAMMA_ATTRIBUTES;
 	}
 	adapt->nImages = NUM_IMAGES - XVMC_IMAGE;
 
