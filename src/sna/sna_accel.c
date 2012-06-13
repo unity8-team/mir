@@ -8031,6 +8031,7 @@ zero_clipped:
 				}
 			} while (--n);
 		}
+		RegionUninit(&clip);
 	}
 	goto done;
 
@@ -8208,6 +8209,7 @@ wide_clipped:
 				}
 			} while (--n);
 		}
+		RegionUninit(&clip);
 	}
 	goto done;
 
