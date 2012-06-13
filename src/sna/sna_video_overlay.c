@@ -111,6 +111,7 @@ static Bool sna_has_overlay(struct sna *sna)
 	int has_overlay = 0;
 	int ret;
 
+	VG_CLEAR(gp);
 	gp.param = I915_PARAM_HAS_OVERLAY;
 	gp.value = &has_overlay;
 	ret = drmIoctl(sna->kgem.fd, DRM_IOCTL_I915_GETPARAM, &gp);

@@ -1144,6 +1144,7 @@ sna_output_attach_edid(xf86OutputPtr output)
 		if (tmp == NULL)
 			continue;
 
+		VG(memset(tmp, 0, blob.length));
 		blob.data = (uintptr_t)tmp;
 		if (drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_GETPROPBLOB, &blob)) {
 			free(tmp);

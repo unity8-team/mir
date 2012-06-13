@@ -335,6 +335,8 @@ static int sna_open_drm_master(ScrnInfoPtr scrn)
 	}
 
 	val = FALSE;
+
+	VG_CLEAR(gp);
 	gp.param = I915_PARAM_HAS_BLT;
 	gp.value = &val;
 	if (drmIoctl(fd, DRM_IOCTL_I915_GETPARAM, &gp)) {

@@ -10804,6 +10804,7 @@ static bool sna_set_glyph(CharInfoPtr in, CharInfoPtr out)
 	if (out->bits == NULL)
 		return false;
 
+	VG(memset(out->bits, 0, (w*h + 7) & ~7));
 	src = (uint8_t *)in->bits;
 	dst = (uint8_t *)out->bits;
 	stride -= w;
