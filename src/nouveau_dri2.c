@@ -607,7 +607,6 @@ nouveau_dri2_flip_event_handler(unsigned int frame, unsigned int tv_sec,
 	ScreenPtr screen;
 	ScrnInfoPtr scrn;
 	int status;
-	PixmapPtr pixmap;
 
 	status = dixLookupDrawable(&draw, flip->draw, serverClient,
 				   M_ANY, DixWriteAccess);
@@ -618,12 +617,6 @@ nouveau_dri2_flip_event_handler(unsigned int frame, unsigned int tv_sec,
 
 	screen = draw->pScreen;
 	scrn = xf86ScreenToScrn(screen);
-
-	pixmap = screen->GetScreenPixmap(screen);
-	xf86DrvMsgVerb(scrn->scrnIndex, X_INFO, 4,
-		       "%s: flipevent : width %d x height %d : msc %d : ust = %d.%06d\n",
-		       __func__, pixmap->drawable.width, pixmap->drawable.height,
-		       frame, tv_sec, tv_usec);
 
 	/* We assume our flips arrive in order, so we don't check the frame */
 	switch (flip->action) {
