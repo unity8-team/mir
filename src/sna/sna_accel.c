@@ -6238,6 +6238,7 @@ Y2_continue:
 
 done:
 	fill.done(sna, &fill);
+	RegionUninit(&clip);
 	return true;
 
 damage:
@@ -7402,6 +7403,7 @@ Y2_continue:
 
 done:
 	fill.done(sna, &fill);
+	RegionUninit(&clip);
 	return true;
 
 damage:
