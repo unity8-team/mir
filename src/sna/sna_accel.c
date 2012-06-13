@@ -4221,7 +4221,7 @@ sna_fill_spans__cpu(DrawablePtr drawable,
 		    GCPtr gc, int n,
 		    DDXPointPtr pt, int *width, int sorted)
 {
-	const RegionRec *clip = sna_gc(gc)->priv;
+	RegionRec *clip = sna_gc(gc)->priv;
 
 	DBG(("%s x %d\n", __FUNCTION__, n));
 

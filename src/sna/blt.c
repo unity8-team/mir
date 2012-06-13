@@ -164,7 +164,7 @@ memcpy_blt(const void *src, void *dst, int bpp,
 
 	bpp /= 8;
 
-	src_bytes = (uint8_t *)src + src_stride * src_y + src_x * bpp;
+	src_bytes = (const uint8_t *)src + src_stride * src_y + src_x * bpp;
 	dst_bytes = (uint8_t *)dst + dst_stride * dst_y + dst_x * bpp;
 
 	byte_width = width * bpp;
@@ -184,7 +184,7 @@ memcpy_blt(const void *src, void *dst, int bpp,
 
 	case 2:
 		do {
-			*(uint16_t *)dst_bytes = *(uint16_t *)src_bytes;
+			*(uint16_t *)dst_bytes = *(const uint16_t *)src_bytes;
 			src_bytes += src_stride;
 			dst_bytes += dst_stride;
 		} while (--height);
@@ -192,7 +192,7 @@ memcpy_blt(const void *src, void *dst, int bpp,
 
 	case 4:
 		do {
-			*(uint32_t *)dst_bytes = *(uint32_t *)src_bytes;
+			*(uint32_t *)dst_bytes = *(const uint32_t *)src_bytes;
 			src_bytes += src_stride;
 			dst_bytes += dst_stride;
 		} while (--height);
@@ -200,7 +200,7 @@ memcpy_blt(const void *src, void *dst, int bpp,
 
 	case 8:
 		do {
-			*(uint64_t *)dst_bytes = *(uint64_t *)src_bytes;
+			*(uint64_t *)dst_bytes = *(const uint64_t *)src_bytes;
 			src_bytes += src_stride;
 			dst_bytes += dst_stride;
 		} while (--height);
@@ -224,7 +224,7 @@ memcpy_xor(const void *src, void *dst, int bpp,
 	   uint16_t width, uint16_t height,
 	   uint32_t and, uint32_t or)
 {
-	uint8_t *src_bytes;
+	const uint8_t *src_bytes;
 	uint8_t *dst_bytes;
 	int i;
 
@@ -239,7 +239,7 @@ memcpy_xor(const void *src, void *dst, int bpp,
 	     bpp, and, or));
 
 	bpp /= 8;
-	src_bytes = (uint8_t *)src + src_stride * src_y + src_x * bpp;
+	src_bytes = (const uint8_t *)src + src_stride * src_y + src_x * bpp;
 	dst_bytes = (uint8_t *)dst + dst_stride * dst_y + dst_x * bpp;
 
 	if (and == 0xffffffff) {
@@ -262,7 +262,7 @@ memcpy_xor(const void *src, void *dst, int bpp,
 			if (width & 1) {
 				do {
 					uint16_t *d = (uint16_t *)dst_bytes;
-					uint16_t *s = (uint16_t *)src_bytes;
+					const uint16_t *s = (const uint16_t *)src_bytes;
 
 					for (i = 0; i < width; i++)
 						d[i] = s[i] | or;
@@ -285,7 +285,7 @@ memcpy_xor(const void *src, void *dst, int bpp,
 			if (have_sse2()) {
 				do {
 					uint32_t *d = (uint32_t *)dst_bytes;
-					uint32_t *s = (uint32_t *)src_bytes;
+					const uint32_t *s = (const uint32_t *)src_bytes;
 					__m128i mask = xmm_create_mask_32(or);
 
 					i = width;

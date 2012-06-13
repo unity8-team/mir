@@ -790,7 +790,7 @@ inline static void _sna_blt_fill_box(struct sna *sna,
 	kgem->nbatch += 3;
 
 	b[0] = blt->cmd;
-	*(uint64_t *)(b+1) = *(uint64_t *)box;
+	*(uint64_t *)(b+1) = *(const uint64_t *)box;
 }
 
 inline static void _sna_blt_fill_boxes(struct sna *sna,
@@ -818,31 +818,31 @@ inline static void _sna_blt_fill_boxes(struct sna *sna,
 
 		kgem->nbatch += 3 * nbox_this_time;
 		while (nbox_this_time >= 8) {
-			b[0] = cmd; *(uint64_t *)(b+1) = *(uint64_t *)box++;
-			b[3] = cmd; *(uint64_t *)(b+4) = *(uint64_t *)box++;
-			b[6] = cmd; *(uint64_t *)(b+7) = *(uint64_t *)box++;
-			b[9] = cmd; *(uint64_t *)(b+10) = *(uint64_t *)box++;
-			b[12] = cmd; *(uint64_t *)(b+13) = *(uint64_t *)box++;
-			b[15] = cmd; *(uint64_t *)(b+16) = *(uint64_t *)box++;
-			b[18] = cmd; *(uint64_t *)(b+19) = *(uint64_t *)box++;
-			b[21] = cmd; *(uint64_t *)(b+22) = *(uint64_t *)box++;
+			b[0] = cmd; *(uint64_t *)(b+1) = *(const uint64_t *)box++;
+			b[3] = cmd; *(uint64_t *)(b+4) = *(const uint64_t *)box++;
+			b[6] = cmd; *(uint64_t *)(b+7) = *(const uint64_t *)box++;
+			b[9] = cmd; *(uint64_t *)(b+10) = *(const uint64_t *)box++;
+			b[12] = cmd; *(uint64_t *)(b+13) = *(const uint64_t *)box++;
+			b[15] = cmd; *(uint64_t *)(b+16) = *(const uint64_t *)box++;
+			b[18] = cmd; *(uint64_t *)(b+19) = *(const uint64_t *)box++;
+			b[21] = cmd; *(uint64_t *)(b+22) = *(const uint64_t *)box++;
 			b += 24;
 			nbox_this_time -= 8;
 		}
 		if (nbox_this_time & 4) {
-			b[0] = cmd; *(uint64_t *)(b+1) = *(uint64_t *)box++;
-			b[3] = cmd; *(uint64_t *)(b+4) = *(uint64_t *)box++;
-			b[6] = cmd; *(uint64_t *)(b+7) = *(uint64_t *)box++;
-			b[9] = cmd; *(uint64_t *)(b+10) = *(uint64_t *)box++;
+			b[0] = cmd; *(uint64_t *)(b+1) = *(const uint64_t *)box++;
+			b[3] = cmd; *(uint64_t *)(b+4) = *(const uint64_t *)box++;
+			b[6] = cmd; *(uint64_t *)(b+7) = *(const uint64_t *)box++;
+			b[9] = cmd; *(uint64_t *)(b+10) = *(const uint64_t *)box++;
 			b += 12;
 		}
 		if (nbox_this_time & 2) {
-			b[0] = cmd; *(uint64_t *)(b+1) = *(uint64_t *)box++;
-			b[3] = cmd; *(uint64_t *)(b+4) = *(uint64_t *)box++;
+			b[0] = cmd; *(uint64_t *)(b+1) = *(const uint64_t *)box++;
+			b[3] = cmd; *(uint64_t *)(b+4) = *(const uint64_t *)box++;
 			b += 6;
 		}
 		if (nbox_this_time & 1) {
-			b[0] = cmd; *(uint64_t *)(b+1) = *(uint64_t *)box++;
+			b[0] = cmd; *(uint64_t *)(b+1) = *(const uint64_t *)box++;
 		}
 
 		if (!nbox)
@@ -1848,7 +1848,7 @@ static bool sna_blt_fill_box(struct sna *sna, uint8_t alu,
 	overwrites = alu == GXcopy || alu == GXclear || alu == GXset;
 	if (overwrites && kgem->nbatch >= 6 &&
 	    kgem->batch[kgem->nbatch-6] == cmd &&
-	    *(uint64_t *)&kgem->batch[kgem->nbatch-4] == *(uint64_t *)box &&
+	    *(uint64_t *)&kgem->batch[kgem->nbatch-4] == *(const uint64_t *)box &&
 	    kgem->reloc[kgem->nreloc-1].target_handle == bo->handle) {
 		DBG(("%s: replacing last fill\n", __FUNCTION__));
 		kgem->batch[kgem->nbatch-5] = br13;
@@ -1857,7 +1857,7 @@ static bool sna_blt_fill_box(struct sna *sna, uint8_t alu,
 	}
 	if (overwrites && kgem->nbatch >= 8 &&
 	    (kgem->batch[kgem->nbatch-8] & 0xffc0000f) == XY_SRC_COPY_BLT_CMD &&
-	    *(uint64_t *)&kgem->batch[kgem->nbatch-6] == *(uint64_t *)box &&
+	    *(uint64_t *)&kgem->batch[kgem->nbatch-6] == *(const uint64_t *)box &&
 	    kgem->reloc[kgem->nreloc-2].target_handle == bo->handle) {
 		DBG(("%s: replacing last copy\n", __FUNCTION__));
 		kgem->batch[kgem->nbatch-8] = cmd;
@@ -1893,7 +1893,7 @@ static bool sna_blt_fill_box(struct sna *sna, uint8_t alu,
 	b = kgem->batch + kgem->nbatch;
 	b[0] = cmd;
 	b[1] = br13;
-	*(uint64_t *)(b+2) = *(uint64_t *)box;
+	*(uint64_t *)(b+2) = *(const uint64_t *)box;
 	b[4] = kgem_add_reloc(kgem, kgem->nbatch + 4, bo,
 			      I915_GEM_DOMAIN_RENDER << 16 |
 			      I915_GEM_DOMAIN_RENDER |

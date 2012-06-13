@@ -225,7 +225,7 @@ decode_2d(struct kgem *kgem, uint32_t offset)
 	};
 
 	unsigned int op, len;
-	char *format = NULL;
+	const char *format = NULL;
 	uint32_t *data = kgem->batch + offset;
 	struct drm_i915_gem_relocation_entry *reloc;
 

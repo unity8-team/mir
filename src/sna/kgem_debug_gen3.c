@@ -344,7 +344,7 @@ gen3_get_instruction_dst(uint32_t *data, int i, char *dstname, int do_mask)
     uint32_t a0 = data[i];
     int dst_nr = (a0 >> 14) & 0xf;
     char dstmask[8];
-    char *sat;
+    const char *sat;
 
     if (do_mask) {
 	if (((a0 >> 10) & 0xf) == 0xf) {
@@ -396,7 +396,7 @@ gen3_get_instruction_dst(uint32_t *data, int i, char *dstname, int do_mask)
     }
 }
 
-static char *
+static const char *
 gen3_get_channel_swizzle(uint32_t select)
 {
     switch (select & 0x7) {
@@ -468,10 +468,10 @@ gen3_get_instruction_src0(uint32_t *data, int i, char *srcname)
     uint32_t a0 = data[i];
     uint32_t a1 = data[i + 1];
     int src_nr = (a0 >> 2) & 0x1f;
-    char *swizzle_x = gen3_get_channel_swizzle((a1 >> 28) & 0xf);
-    char *swizzle_y = gen3_get_channel_swizzle((a1 >> 24) & 0xf);
-    char *swizzle_z = gen3_get_channel_swizzle((a1 >> 20) & 0xf);
-    char *swizzle_w = gen3_get_channel_swizzle((a1 >> 16) & 0xf);
+    const char *swizzle_x = gen3_get_channel_swizzle((a1 >> 28) & 0xf);
+    const char *swizzle_y = gen3_get_channel_swizzle((a1 >> 24) & 0xf);
+    const char *swizzle_z = gen3_get_channel_swizzle((a1 >> 20) & 0xf);
+    const char *swizzle_w = gen3_get_channel_swizzle((a1 >> 16) & 0xf);
     char swizzle[100];
 
     gen3_get_instruction_src_name((a0 >> 7) & 0x7, src_nr, srcname);
@@ -486,10 +486,10 @@ gen3_get_instruction_src1(uint32_t *data, int i, char *srcname)
     uint32_t a1 = data[i + 1];
     uint32_t a2 = data[i + 2];
     int src_nr = (a1 >> 8) & 0x1f;
-    char *swizzle_x = gen3_get_channel_swizzle((a1 >> 4) & 0xf);
-    char *swizzle_y = gen3_get_channel_swizzle((a1 >> 0) & 0xf);
-    char *swizzle_z = gen3_get_channel_swizzle((a2 >> 28) & 0xf);
-    char *swizzle_w = gen3_get_channel_swizzle((a2 >> 24) & 0xf);
+    const char *swizzle_x = gen3_get_channel_swizzle((a1 >> 4) & 0xf);
+    const char *swizzle_y = gen3_get_channel_swizzle((a1 >> 0) & 0xf);
+    const char *swizzle_z = gen3_get_channel_swizzle((a2 >> 28) & 0xf);
+    const char *swizzle_w = gen3_get_channel_swizzle((a2 >> 24) & 0xf);
     char swizzle[100];
 
     gen3_get_instruction_src_name((a1 >> 13) & 0x7, src_nr, srcname);
@@ -503,10 +503,10 @@ gen3_get_instruction_src2(uint32_t *data, int i, char *srcname)
 {
     uint32_t a2 = data[i + 2];
     int src_nr = (a2 >> 16) & 0x1f;
-    char *swizzle_x = gen3_get_channel_swizzle((a2 >> 12) & 0xf);
-    char *swizzle_y = gen3_get_channel_swizzle((a2 >> 8) & 0xf);
-    char *swizzle_z = gen3_get_channel_swizzle((a2 >> 4) & 0xf);
-    char *swizzle_w = gen3_get_channel_swizzle((a2 >> 0) & 0xf);
+    const char *swizzle_x = gen3_get_channel_swizzle((a2 >> 12) & 0xf);
+    const char *swizzle_y = gen3_get_channel_swizzle((a2 >> 8) & 0xf);
+    const char *swizzle_z = gen3_get_channel_swizzle((a2 >> 4) & 0xf);
+    const char *swizzle_w = gen3_get_channel_swizzle((a2 >> 0) & 0xf);
     char swizzle[100];
 
     gen3_get_instruction_src_name((a2 >> 21) & 0x7, src_nr, srcname);
@@ -554,7 +554,7 @@ gen3_get_instruction_addr(uint32_t src_type, uint32_t src_nr, char *name)
 
 static void
 gen3_decode_alu1(uint32_t *data, uint32_t offset,
-		 int i, char *instr_prefix, char *op_name)
+		 int i, char *instr_prefix, const char *op_name)
 {
     char dst[100], src0[100];
 
@@ -569,7 +569,7 @@ gen3_decode_alu1(uint32_t *data, uint32_t offset,
 
 static void
 gen3_decode_alu2(uint32_t *data, uint32_t offset,
-		 int i, char *instr_prefix, char *op_name)
+		 int i, char *instr_prefix, const char *op_name)
 {
     char dst[100], src0[100], src1[100];
 
@@ -585,7 +585,7 @@ gen3_decode_alu2(uint32_t *data, uint32_t offset,
 
 static void
 gen3_decode_alu3(uint32_t *data, uint32_t offset,
-		 int i, char *instr_prefix, char *op_name)
+		 int i, char *instr_prefix, const char *op_name)
 {
     char dst[100], src0[100], src1[100], src2[100];
 
@@ -602,7 +602,7 @@ gen3_decode_alu3(uint32_t *data, uint32_t offset,
 
 static void
 gen3_decode_tex(uint32_t *data, uint32_t offset, int i, char *instr_prefix,
-		char *tex_name)
+		const char *tex_name)
 {
     uint32_t t0 = data[i];
     uint32_t t1 = data[i + 1];
@@ -626,12 +626,12 @@ static void
 gen3_decode_dcl(uint32_t *data, uint32_t offset, int i, char *instr_prefix)
 {
 	uint32_t d0 = data[i];
-	char *sampletype;
+	const char *sampletype;
 	int dcl_nr = (d0 >> 14) & 0xf;
-	char *dcl_x = d0 & (1 << 10) ? "x" : "";
-	char *dcl_y = d0 & (1 << 11) ? "y" : "";
-	char *dcl_z = d0 & (1 << 12) ? "z" : "";
-	char *dcl_w = d0 & (1 << 13) ? "w" : "";
+	const char *dcl_x = d0 & (1 << 10) ? "x" : "";
+	const char *dcl_y = d0 & (1 << 11) ? "y" : "";
+	const char *dcl_z = d0 & (1 << 12) ? "z" : "";
+	const char *dcl_w = d0 & (1 << 13) ? "w" : "";
 	char dcl_mask[10];
 
 	switch ((d0 >> 19) & 0x3) {
@@ -790,7 +790,7 @@ gen3_decode_instruction(uint32_t *data, uint32_t offset,
     }
 }
 
-static char *
+static const char *
 gen3_decode_compare_func(uint32_t op)
 {
 	switch (op&0x7) {
@@ -806,7 +806,7 @@ gen3_decode_compare_func(uint32_t op)
 	return "";
 }
 
-static char *
+static const char *
 gen3_decode_stencil_op(uint32_t op)
 {
 	switch (op&0x7) {
@@ -824,7 +824,7 @@ gen3_decode_stencil_op(uint32_t op)
 
 #if 0
 /* part of MODES_4 */
-static char *
+static const char *
 gen3_decode_logic_op(uint32_t op)
 {
 	switch (op&0xf) {
@@ -849,7 +849,7 @@ gen3_decode_logic_op(uint32_t op)
 }
 #endif
 
-static char *
+static const char *
 gen3_decode_blend_fact(uint32_t op)
 {
 	switch (op&0xf) {
@@ -872,7 +872,7 @@ gen3_decode_blend_fact(uint32_t op)
 	return "";
 }
 
-static char *
+static const char *
 decode_tex_coord_mode(uint32_t mode)
 {
     switch (mode&0x7) {
@@ -886,7 +886,7 @@ decode_tex_coord_mode(uint32_t mode)
     return "";
 }
 
-static char *
+static const char *
 gen3_decode_sample_filter(uint32_t mode)
 {
 	switch (mode&0x7) {
@@ -949,8 +949,8 @@ gen3_decode_load_state_immediate_1(struct kgem *kgem, uint32_t offset)
 				break;
 			case 4:
 				{
-					char *cullmode = "";
-					char *vfmt_xyzw = "";
+					const char *cullmode = "";
+					const char *vfmt_xyzw = "";
 					switch((data[i]>>13)&0x3) {
 					case 0: cullmode = "both"; break;
 					case 1: cullmode = "none"; break;
@@ -1050,13 +1050,13 @@ gen3_decode_3d_1d(struct kgem *kgem, uint32_t offset)
 {
 	uint32_t *data = kgem->batch + offset;
 	unsigned int len, i, c, idx, word, map, sampler, instr;
-	char *format, *zformat, *type;
+	const char *format, *zformat, *type;
 	uint32_t opcode;
-	const struct {
+	static const struct {
 		uint32_t opcode;
 		int min_len;
 		int max_len;
-		char *name;
+		const char *name;
 	} opcodes_3d_1d[] = {
 		{ 0x86, 4, 4, "3DSTATE_CHROMA_KEY" },
 		{ 0x88, 2, 2, "3DSTATE_CONSTANT_BLEND_COLOR" },
@@ -1310,7 +1310,7 @@ gen3_decode_3d_1d(struct kgem *kgem, uint32_t offset)
 		for (sampler = 0; sampler <= 15; sampler++) {
 			if (data[1] & (1 << sampler)) {
 				uint32_t dword;
-				char *mip_filter = "";
+				const char *mip_filter = "";
 				dword = data[i];
 				switch ((dword>>20)&0x3) {
 				case 0: mip_filter = "none"; break;
@@ -1483,7 +1483,7 @@ gen3_decode_3d_primitive(struct kgem *kgem, uint32_t offset)
 	uint32_t *data = kgem->batch + offset;
 	char immediate = (data[0] & (1 << 23)) == 0;
 	unsigned int len, i, ret;
-	char *primtype;
+	const char *primtype;
 	unsigned int vertex = 0;
 
 	switch ((data[0] >> 18) & 0xf) {
@@ -1553,11 +1553,11 @@ out:
 
 int kgem_gen3_decode_3d(struct kgem *kgem, uint32_t offset)
 {
-    struct {
+    static const struct {
 	uint32_t opcode;
 	int min_len;
 	int max_len;
-	char *name;
+	const char *name;
     } opcodes[] = {
 	{ 0x06, 1, 1, "3DSTATE_ANTI_ALIASING" },
 	{ 0x08, 1, 1, "3DSTATE_BACKFACE_STENCIL_OPS" },
