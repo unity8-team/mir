@@ -7630,7 +7630,7 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 			if (seg[i].y1 < seg[i].y2) {
 				rect[i].y = seg[i].y1;
 				rect[i].height = seg[i].y2 - seg[i].y1 + 1;
-			} else if (seg[i].x1 > seg[i].y2) {
+			} else if (seg[i].y1 > seg[i].y2) {
 				rect[i].y = seg[i].y2;
 				rect[i].height = seg[i].y1 - seg[i].y2 + 1;
 			} else {
