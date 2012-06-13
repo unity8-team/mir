@@ -431,7 +431,7 @@ static void sna_blt_copy_one(struct sna *sna,
 	/* Compare against a previous fill */
 	if (kgem->nbatch >= 6 &&
 	    blt->overwrites &&
-	    kgem->batch[kgem->nbatch-6] == (XY_COLOR_BLT | (blt->cmd & BLT_WRITE_ALPHA | BLT_WRITE_RGB)) &&
+	    kgem->batch[kgem->nbatch-6] == (XY_COLOR_BLT | (blt->cmd & (BLT_WRITE_ALPHA | BLT_WRITE_RGB))) &&
 	    kgem->batch[kgem->nbatch-4] == ((uint32_t)dst_y << 16 | (uint16_t)dst_x) &&
 	    kgem->batch[kgem->nbatch-3] == ((uint32_t)(dst_y+height) << 16 | (uint16_t)(dst_x+width)) &&
 	    kgem->reloc[kgem->nreloc-1].target_handle == blt->bo[1]->handle) {
