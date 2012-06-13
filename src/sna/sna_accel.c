@@ -10503,6 +10503,9 @@ struct sna_font {
 	CharInfoRec glyphs8[256];
 	CharInfoRec *glyphs16[256];
 };
+#define GLYPH_INVALID (void *)1
+#define GLYPH_EMPTY (void *)2
+#define GLYPH_CLEAR (void *)3
 
 static Bool
 sna_realize_font(ScreenPtr screen, FontPtr font)
@@ -10525,15 +10528,28 @@ static Bool
 sna_unrealize_font(ScreenPtr screen, FontPtr font)
 {
 	struct sna_font *priv = FontGetPrivate(font, sna_font_key);
-	int n;
+	int i, j;
 
-	if (priv) {
-		for (n = 0; n < 256; n++)
-			free(priv->glyphs16[n]);
-		free(priv);
-		FontSetPrivate(font, sna_font_key, NULL);
+	if (priv == NULL)
+		return TRUE;
+
+	for (i = 0; i < 256; i++) {
+		if ((uintptr_t)priv->glyphs8[i].bits & ~3)
+			free(priv->glyphs8[i].bits);
 	}
+	for (j = 0; j < 256; j++) {
+		if (priv->glyphs16[j] == NULL)
+			continue;
 
+		for (i = 0; i < 256; i++) {
+			if ((uintptr_t)priv->glyphs16[j][i].bits & ~3)
+				free(priv->glyphs16[j][i].bits);
+		}
+		free(priv->glyphs16[j]);
+	}
+	free(priv);
+
+	FontSetPrivate(font, sna_font_key, NULL);
 	return TRUE;
 }
 
@@ -10634,10 +10650,10 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 			int w8 = (w + 7) >> 3;
 			int x1, y1, len;
 
-			if (c->bits == (void *)1)
+			if (c->bits == GLYPH_EMPTY)
 				goto skip;
 
-			if (!transparent && c->bits == (void *)2)
+			if (!transparent && c->bits == GLYPH_CLEAR)
 				goto skip;
 
 			len = (w8 * h + 7) >> 3 << 1;
@@ -10684,7 +10700,7 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 			b[0] = br00 | (1 + len);
 			b[1] = (uint16_t)y1 << 16 | (uint16_t)x1;
 			b[2] = (uint16_t)(y1+h) << 16 | (uint16_t)(x1+w);
-			if (c->bits == (void *)2) {
+			if (c->bits == GLYPH_CLEAR) {
 				memset(b+3, 0, len*4);
 			} else {
 				uint64_t *src = (uint64_t *)c->bits;
@@ -10775,7 +10791,7 @@ static bool sna_set_glyph(CharInfoPtr in, CharInfoPtr out)
 
 	/* Skip empty glyphs */
 	if (w == 0 || h == 0 || ((w|h) == 1 && (in->bits[0] & 1) == 0)) {
-		out->bits = (void *)1;
+		out->bits = GLYPH_EMPTY;
 		return true;
 	}
 
@@ -10799,7 +10815,7 @@ static bool sna_set_glyph(CharInfoPtr in, CharInfoPtr out)
 
 	if (clear) {
 		free(out->bits);
-		out->bits = (void *)2;
+		out->bits = GLYPH_CLEAR;
 	}
 
 	return true;
@@ -10814,12 +10830,12 @@ inline static bool sna_get_glyph8(FontPtr font, struct sna_font *priv,
 	p = &priv->glyphs8[g];
 	if (p->bits) {
 		*out = p;
-		return p->bits != (void*)-1;
+		return p->bits != GLYPH_INVALID;
 	}
 
 	font->get_glyphs(font, 1, &g, Linear8Bit, &n, &ret);
 	if (n == 0) {
-		p->bits = (void*)-1;
+		p->bits = GLYPH_INVALID;
 		return false;
 	}
 
@@ -10839,14 +10855,14 @@ inline static bool sna_get_glyph16(FontPtr font, struct sna_font *priv,
 	p = &page[g&0xff];
 	if (p->bits) {
 		*out = p;
-		return p->bits != (void*)-1;
+		return p->bits != GLYPH_INVALID;
 	}
 
 	font->get_glyphs(font, 1, (unsigned char *)&g,
 			 FONTLASTROW(font) ? TwoD16Bit : Linear16Bit,
 			 &n, &ret);
 	if (n == 0) {
-		p->bits = (void*)-1;
+		p->bits = GLYPH_INVALID;
 		return false;
 	}
 
