@@ -3489,7 +3489,7 @@ fallback:
 
 		stride = pixmap->devKind;
 		bpp = pixmap->drawable.bitsPerPixel;
-		if (alu == GXcopy && !reverse && !upsidedown && bpp >= 8) {
+		if (alu == GXcopy && bpp >= 8) {
 			dst_bits = (FbBits *)
 				((char *)pixmap->devPrivate.ptr +
 				 ty * stride + tx * bpp / 8);
@@ -3498,8 +3498,9 @@ fallback:
 				 dy * stride + dx * bpp / 8);
 
 			do {
-				memmove_blt__box(src_bits, dst_bits,
-						 bpp, stride, box);
+				memmove_box(src_bits, dst_bits,
+					    bpp, stride, box,
+					    dx, dy);
 				box++;
 			} while (--n);
 		} else {

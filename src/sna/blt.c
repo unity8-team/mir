@@ -217,98 +217,17 @@ memcpy_blt(const void *src, void *dst, int bpp,
 }
 
 void
-memmove_blt(const void *src, void *dst, int bpp,
-	    int32_t src_stride, int32_t dst_stride,
-	    int16_t src_x, int16_t src_y,
-	    int16_t dst_x, int16_t dst_y,
-	    uint16_t width, uint16_t height)
+memmove_box(const void *src, void *dst,
+	    int bpp, int32_t stride,
+	    const BoxRec *box,
+	    int dx, int dy)
 {
-	const uint8_t *src_bytes;
-	uint8_t *dst_bytes;
-	int byte_width;
-
-	assert(src);
-	assert(dst);
-	assert(width && height);
-	assert(bpp >= 8);
-
-	DBG(("%s: src=(%d, %d), dst=(%d, %d), size=%dx%d, pitch=%d/%d\n",
-	     __FUNCTION__, src_x, src_y, dst_x, dst_y, width, height, src_stride, dst_stride));
-
-	bpp /= 8;
-
-	src_bytes = (const uint8_t *)src + src_stride * src_y + src_x * bpp;
-	dst_bytes = (uint8_t *)dst + dst_stride * dst_y + dst_x * bpp;
-
-	byte_width = width * bpp;
-	if (byte_width == src_stride && byte_width == dst_stride) {
-		byte_width *= height;
-		height = 1;
-	}
-
-	switch (byte_width) {
-	case 1:
-		do {
-			*dst_bytes = *src_bytes;
-			src_bytes += src_stride;
-			dst_bytes += dst_stride;
-		} while (--height);
-		break;
-
-	case 2:
-		do {
-			*(uint16_t *)dst_bytes = *(const uint16_t *)src_bytes;
-			src_bytes += src_stride;
-			dst_bytes += dst_stride;
-		} while (--height);
-		break;
-
-	case 4:
-		do {
-			*(uint32_t *)dst_bytes = *(const uint32_t *)src_bytes;
-			src_bytes += src_stride;
-			dst_bytes += dst_stride;
-		} while (--height);
-		break;
-
-	case 8:
-		do {
-			*(uint64_t *)dst_bytes = *(const uint64_t *)src_bytes;
-			src_bytes += src_stride;
-			dst_bytes += dst_stride;
-		} while (--height);
-		break;
-
-	default:
-		if (src_stride == dst_stride) {
-			if (dst_bytes < src_bytes + byte_width &&
-			    src_bytes < dst_bytes + byte_width) {
-				do {
-					memmove(dst_bytes, src_bytes, byte_width);
-					src_bytes += src_stride;
-					dst_bytes += src_stride;
-				} while (--height);
-			} else {
-				do {
-					memcpy(dst_bytes, src_bytes, byte_width);
-					src_bytes += src_stride;
-					dst_bytes += src_stride;
-				} while (--height);
-			}
-		} else do {
-			memmove(dst_bytes, src_bytes, byte_width);
-			src_bytes += src_stride;
-			dst_bytes += dst_stride;
-		} while (--height);
-		break;
-	}
-}
-
-void
-memmove_blt__box(const void *src, void *dst,
-		 int bpp, int32_t stride,
-		 const BoxRec *box)
-{
+	union {
+		uint8_t u8;
+		uint16_t u16;
+		uint32_t u32;
+		uint64_t u64;
+	} tmp;
 	const uint8_t *src_bytes;
 	uint8_t *dst_bytes;
 	int width, height;
@@ -319,8 +238,10 @@ memmove_blt__box(const void *src, void *dst,
 	assert(box->x2 > box->x1);
 	assert(box->y2 > box->y1);
 
-	DBG(("%s: box=(%d, %d), (%d, %d), pitch=%d, bpp=%d\n",
-	     __FUNCTION__, box->x1, box->y1, box->x2, box->y2, stride, bpp));
+	DBG(("%s: box=(%d, %d), (%d, %d), pitch=%d, bpp=%d, dx=%d, dy=%d\n",
+	     __FUNCTION__,
+	     box->x1, box->y1, box->x2, box->y2,
+	     stride, bpp, dx, dy));
 
 	bpp /= 8;
 	width = box->y1 * stride + box->x1 * bpp;
@@ -334,55 +255,111 @@ memmove_blt__box(const void *src, void *dst,
 		height = 1;
 	}
 
-	switch (width) {
-	case 1:
-		do {
-			*dst_bytes = *src_bytes;
-			src_bytes += stride;
-			dst_bytes += stride;
-		} while (--height);
-		break;
-
-	case 2:
-		do {
-			*(uint16_t *)dst_bytes = *(const uint16_t *)src_bytes;
-			src_bytes += stride;
-			dst_bytes += stride;
-		} while (--height);
-		break;
-
-	case 4:
-		do {
-			*(uint32_t *)dst_bytes = *(const uint32_t *)src_bytes;
-			src_bytes += stride;
-			dst_bytes += stride;
-		} while (--height);
-		break;
-
-	case 8:
-		do {
-			*(uint64_t *)dst_bytes = *(const uint64_t *)src_bytes;
-			src_bytes += stride;
-			dst_bytes += stride;
-		} while (--height);
-		break;
-
-	default:
-		if (dst_bytes < src_bytes + width &&
-		    src_bytes < dst_bytes + width) {
+	if (dy >= 0) {
+		switch (width) {
+		case 1:
 			do {
-				memmove(dst_bytes, src_bytes, width);
+				*dst_bytes = tmp.u8 = *src_bytes;
 				src_bytes += stride;
 				dst_bytes += stride;
 			} while (--height);
-		} else {
+			break;
+
+		case 2:
 			do {
-				memcpy(dst_bytes, src_bytes, width);
+				*(uint16_t *)dst_bytes = tmp.u16 = *(const uint16_t *)src_bytes;
 				src_bytes += stride;
 				dst_bytes += stride;
 			} while (--height);
+			break;
+
+		case 4:
+			do {
+				*(uint32_t *)dst_bytes = tmp.u32 = *(const uint32_t *)src_bytes;
+				src_bytes += stride;
+				dst_bytes += stride;
+			} while (--height);
+			break;
+
+		case 8:
+			do {
+				*(uint64_t *)dst_bytes = tmp.u64 = *(const uint64_t *)src_bytes;
+				src_bytes += stride;
+				dst_bytes += stride;
+			} while (--height);
+			break;
+
+		default:
+			if (dst_bytes < src_bytes + width &&
+			    src_bytes < dst_bytes + width) {
+				do {
+					memmove(dst_bytes, src_bytes, width);
+					src_bytes += stride;
+					dst_bytes += stride;
+				} while (--height);
+			} else {
+				do {
+					memcpy(dst_bytes, src_bytes, width);
+					src_bytes += stride;
+					dst_bytes += stride;
+				} while (--height);
+			}
+			break;
 		}
-		break;
+	} else {
+		src_bytes += (height-1) * stride;
+		dst_bytes += (height-1) * stride;
+
+		switch (width) {
+		case 1:
+			do {
+				*dst_bytes = tmp.u8 = *src_bytes;
+				src_bytes -= stride;
+				dst_bytes -= stride;
+			} while (--height);
+			break;
+
+		case 2:
+			do {
+				*(uint16_t *)dst_bytes = tmp.u16 = *(const uint16_t *)src_bytes;
+				src_bytes -= stride;
+				dst_bytes -= stride;
+			} while (--height);
+			break;
+
+		case 4:
+			do {
+				*(uint32_t *)dst_bytes = tmp.u32 = *(const uint32_t *)src_bytes;
+				src_bytes -= stride;
+				dst_bytes -= stride;
+			} while (--height);
+			break;
+
+		case 8:
+			do {
+				*(uint64_t *)dst_bytes = tmp.u64 = *(const uint64_t *)src_bytes;
+				src_bytes -= stride;
+				dst_bytes -= stride;
+			} while (--height);
+			break;
+
+		default:
+			if (dst_bytes < src_bytes + width &&
+			    src_bytes < dst_bytes + width) {
+				do {
+					memmove(dst_bytes, src_bytes, width);
+					src_bytes -= stride;
+					dst_bytes -= stride;
+				} while (--height);
+			} else {
+				do {
+					memcpy(dst_bytes, src_bytes, width);
+					src_bytes -= stride;
+					dst_bytes -= stride;
+				} while (--height);
+			}
+			break;
+		}
 	}
 }
 

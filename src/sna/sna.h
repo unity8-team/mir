@@ -673,15 +673,10 @@ memcpy_blt(const void *src, void *dst, int bpp,
 	   int16_t dst_x, int16_t dst_y,
 	   uint16_t width, uint16_t height);
 void
-memmove_blt(const void *src, void *dst, int bpp,
-	    int32_t src_stride, int32_t dst_stride,
-	    int16_t src_x, int16_t src_y,
-	    int16_t dst_x, int16_t dst_y,
-	    uint16_t width, uint16_t height);
-void
-memmove_blt__box(const void *src, void *dst,
-		 int bpp, int32_t stride,
-		 const BoxRec *box);
+memmove_box(const void *src, void *dst,
+	    int bpp, int32_t stride,
+	    const BoxRec *box,
+	    int dx, int dy);
 
 void
 memcpy_xor(const void *src, void *dst, int bpp,
