@@ -316,8 +316,6 @@ extern int sna_page_flip(struct sna *sna,
 			 int ref_crtc_hw_id,
 			 uint32_t *old_fb);
 
-extern PixmapPtr sna_set_screen_pixmap(struct sna *sna, PixmapPtr pixmap);
-
 constant static inline struct sna *
 to_sna(ScrnInfoPtr scrn)
 {
