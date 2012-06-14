@@ -988,6 +988,8 @@ static Bool sna_enter_vt(VT_FUNC_ARGS_DECL)
 		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 			   "failed to restore desired modes on VT switch\n");
 
+	sna_mode_disable_unused(sna);
+
 	return TRUE;
 }
 

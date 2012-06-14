@@ -515,9 +515,20 @@ sna_crtc_dpms(xf86CrtcPtr crtc, int mode)
 {
 	DBG(("%s(pipe %d, dpms mode -> %d):= active=%d\n",
 	     __FUNCTION__, to_sna_crtc(crtc)->pipe, mode, mode == DPMSModeOn));
+}
 
-	if (mode == DPMSModeOff)
-		sna_crtc_disable(crtc);
+void sna_mode_disable_unused(struct sna *sna)
+{
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(sna->scrn);
+	int i;
+
+	DBG(("%s\n", __FUNCTION__));
+
+	/* Force consistency between kernel and ourselves */
+	for (i = 0; i < xf86_config->num_crtc; i++) {
+		if (!xf86_config->crtc[i]->enabled)
+			sna_crtc_disable(xf86_config->crtc[i]);
+	}
 }
 
 static struct kgem_bo *sna_create_bo_for_fbcon(struct sna *sna,
