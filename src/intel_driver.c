@@ -1068,6 +1068,7 @@ static Bool I830EnterVT(VT_FUNC_ARGS_DECL)
 	if (!xf86SetDesiredModes(scrn))
 		return FALSE;
 
+	intel_mode_disable_unused_functions(scrn);
 	return TRUE;
 }
 

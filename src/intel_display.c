@@ -332,9 +332,24 @@ mode_to_kmode(ScrnInfoPtr scrn,
 }
 
 static void
-intel_crtc_dpms(xf86CrtcPtr intel_crtc, int mode)
+intel_crtc_dpms(xf86CrtcPtr crtc, int mode)
 {
+}
 
+void
+intel_mode_disable_unused_functions(ScrnInfoPtr scrn)
+{
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
+	struct intel_mode *mode = intel_get_screen_private(scrn)->modes;
+	int i;
+
+	/* Force off for consistency between kernel and ddx */
+	for (i = 0; i < xf86_config->num_crtc; i++) {
+		xf86CrtcPtr crtc = xf86_config->crtc[i];
+		if (!crtc->enabled)
+			drmModeSetCrtc(mode->fd, crtc_id(crtc->driver_private),
+				       0, 0, 0, NULL, 0, NULL);
+	}
 }
 
 static Bool

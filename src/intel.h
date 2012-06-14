@@ -362,6 +362,7 @@ enum {
 
 extern Bool intel_mode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp);
 extern void intel_mode_init(struct intel_screen_private *intel);
+extern void intel_mode_disable_unused_functions(ScrnInfoPtr scrn);
 extern void intel_mode_remove_fb(intel_screen_private *intel);
 extern void intel_mode_fini(intel_screen_private *intel);
 
