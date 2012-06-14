@@ -3498,12 +3498,8 @@ fallback:
 				 dy * stride + dx * bpp / 8);
 
 			do {
-				memcpy_blt(src_bits, dst_bits, bpp,
-					   stride, stride,
-					   box->x1, box->y1,
-					   box->x1, box->y1,
-					   box->x2 - box->x1,
-					   box->y2 - box->y1);
+				memmove_blt__box(src_bits, dst_bits,
+						 bpp, stride, box);
 				box++;
 			} while (--n);
 		} else {
