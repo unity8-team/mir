@@ -164,6 +164,12 @@ reset_embedded_box(struct sna_damage *damage)
 	list_init(&damage->embedded_box.list);
 }
 
+static void reset_extents(struct sna_damage *damage)
+{
+	damage->extents.x1 = damage->extents.y1 = MAXSHORT;
+	damage->extents.x2 = damage->extents.y2 = MINSHORT;
+}
+
 static struct sna_damage *_sna_damage_create(void)
 {
 	struct sna_damage *damage;
@@ -179,8 +185,7 @@ static struct sna_damage *_sna_damage_create(void)
 	reset_embedded_box(damage);
 	damage->mode = DAMAGE_ADD;
 	pixman_region_init(&damage->region);
-	damage->extents.x1 = damage->extents.y1 = MAXSHORT;
-	damage->extents.x2 = damage->extents.y2 = MINSHORT;
+	reset_extents(damage);
 
 	return damage;
 }
@@ -498,6 +503,7 @@ static void __sna_damage_reduce(struct sna_damage *damage)
 		pixman_region_fini(region);
 		pixman_region_init_rects(region, boxes, nboxes);
 
+		assert(!pixman_region_not_empty(region));
 		assert(damage->extents.x1 == region->extents.x1 &&
 		       damage->extents.y1 == region->extents.y1 &&
 		       damage->extents.x2 == region->extents.x2 &&
@@ -513,7 +519,10 @@ static void __sna_damage_reduce(struct sna_damage *damage)
 		       damage->extents.y1 <= region->extents.y1 &&
 		       damage->extents.x2 >= region->extents.x2 &&
 		       damage->extents.y2 >= region->extents.y2);
-		damage->extents = region->extents;
+		if (pixman_region_not_empty(region))
+			damage->extents = region->extents;
+		else
+			reset_extents(damage);
 	}
 
 	free(free_boxes);
