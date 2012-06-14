@@ -92,6 +92,12 @@ static void read_boxes_inplace(struct kgem *kgem,
 		return;
 
 	do {
+		DBG(("%s: copying box (%d, %d), (%d, %d)\n",
+		     __FUNCTION__, box->x1, box->y1, box->x2, box->y2));
+
+		assert(box->x2 > box->x1);
+		assert(box->y2 > box->y1);
+
 		assert(box->x1 + src_dx >= 0);
 		assert(box->y1 + src_dy >= 0);
 		assert(box->x2 + src_dx <= pixmap->drawable.width);
@@ -501,6 +507,9 @@ static bool write_boxes_inplace(struct kgem *kgem,
 		     box->x1 + dst_dx, box->y1 + dst_dy,
 		     box->x2 - box->x1, box->y2 - box->y1,
 		     bpp, stride, bo->pitch));
+
+		assert(box->x2 > box->x1);
+		assert(box->y2 > box->y1);
 
 		assert(box->x1 + dst_dx >= 0);
 		assert((box->x2 + dst_dx)*bpp <= 8*bo->pitch);
