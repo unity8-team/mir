@@ -503,7 +503,7 @@ static void __sna_damage_reduce(struct sna_damage *damage)
 		pixman_region_fini(region);
 		pixman_region_init_rects(region, boxes, nboxes);
 
-		assert(!pixman_region_not_empty(region));
+		assert(pixman_region_not_empty(region));
 		assert(damage->extents.x1 == region->extents.x1 &&
 		       damage->extents.y1 == region->extents.y1 &&
 		       damage->extents.x2 == region->extents.x2 &&
