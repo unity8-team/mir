@@ -257,24 +257,24 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     }
 
     if (pPriv->video_memory == NULL) {
-	pPriv->video_offset = radeon_legacy_allocate_memory(pScrn,
-							    &pPriv->video_memory,
-							    size, pPriv->hw_align,
-							    RADEON_GEM_DOMAIN_GTT);
-	if (pPriv->video_offset == 0)
-	    return BadAlloc;
+      int ret;
+      ret = radeon_legacy_allocate_memory(pScrn,
+					  &pPriv->video_memory,
+					  size, pPriv->hw_align,
+					  RADEON_GEM_DOMAIN_GTT);
+      if (ret == 0)
+	  return BadAlloc;
 
-	pPriv->src_bo[0] = pPriv->video_memory;
-	radeon_legacy_allocate_memory(pScrn, (void*)&pPriv->src_bo[1], size,
-				      pPriv->hw_align,
-				      RADEON_GEM_DOMAIN_GTT);
+      pPriv->src_bo[0] = pPriv->video_memory;
+      radeon_legacy_allocate_memory(pScrn, (void*)&pPriv->src_bo[1], size,
+				    pPriv->hw_align,
+				    RADEON_GEM_DOMAIN_GTT);
     }
 
     /* Bicubic filter loading */
     if (pPriv->bicubic_enabled) {
 	if (info->bicubic_offset == 0)
 	    pPriv->bicubic_enabled = FALSE;
-	pPriv->bicubic_src_offset = info->bicubic_offset;
     }
 
     if (pDraw->type == DRAWABLE_WINDOW)
@@ -291,8 +291,6 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     top = (y1 >> 16) & ~1;
     nlines = ((y2 + 0xffff) >> 16) - top;
 
-    pPriv->src_offset = pPriv->video_offset;
-    
     pPriv->currentBuffer ^= 1;
 	
     src_bo = pPriv->src_bo[pPriv->currentBuffer];

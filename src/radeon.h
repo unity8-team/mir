@@ -297,7 +297,6 @@ struct r600_accel_object {
     uint32_t pitch;
     uint32_t width;
     uint32_t height;
-    uint32_t offset;
     int bpp;
     uint32_t domain;
     struct radeon_bo *bo;
@@ -438,12 +437,6 @@ typedef struct {
     Bool              (*CloseScreen)(CLOSE_SCREEN_ARGS_DECL);
 
     void              (*BlockHandler)(BLOCKHANDLER_ARGS_DECL);
-
-#ifdef ARGB_CURSOR
-    Bool	      cursor_argb;
-#endif
-    int               cursor_fg;
-    int               cursor_bg;
 
     int               pix24bpp;         /* Depth of pixmap for 24bpp fb      */
     Bool              dac6bits;         /* Use 6 bit DAC?                    */

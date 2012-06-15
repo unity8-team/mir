@@ -31,14 +31,12 @@ typedef struct {
    int           size;
 
    void         *video_memory;
-   int           video_offset;
 
    int           planeu_offset;
    int           planev_offset;
 
    /* bicubic filtering */
    Bool          bicubic_enabled;
-   uint32_t      bicubic_src_offset;
    int           bicubic_state;
 #define BICUBIC_OFF  0
 #define BICUBIC_ON   1
@@ -49,7 +47,6 @@ typedef struct {
     DrawablePtr pDraw;
     PixmapPtr pPixmap;
 
-    uint32_t src_offset;
     uint32_t src_pitch;
     uint8_t *src_addr;
 
