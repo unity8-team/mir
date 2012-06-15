@@ -513,12 +513,12 @@ r600_set_vtx_resource(ScrnInfoPtr pScrn, vtx_resource_t *res, uint32_t domain)
 	(info->ChipFamily == CHIP_FAMILY_RS880) ||
 	(info->ChipFamily == CHIP_FAMILY_RV710))
 	r600_cp_set_surface_sync(pScrn, TC_ACTION_ENA_bit,
-				 accel_state->vbo.vb_offset, accel_state->vbo.vb_mc_addr,
+				 accel_state->vbo.vb_offset, 0,
 				 res->bo,
 				 domain, 0);
     else
 	r600_cp_set_surface_sync(pScrn, VC_ACTION_ENA_bit,
-				 accel_state->vbo.vb_offset, accel_state->vbo.vb_mc_addr,
+				 accel_state->vbo.vb_offset, 0,
 				 res->bo,
 				 domain, 0);
 
@@ -1212,7 +1212,7 @@ void r600_finish_op(ScrnInfoPtr pScrn, int vtx_size)
     vtx_res.vtx_size_dw     = vtx_size / 4;
     vtx_res.vtx_num_entries = accel_state->vbo.vb_size / 4;
     vtx_res.mem_req_size    = 1;
-    vtx_res.vb_addr         = accel_state->vbo.vb_mc_addr + accel_state->vbo.vb_start_op;
+    vtx_res.vb_addr         = accel_state->vbo.vb_start_op;
     vtx_res.bo              = accel_state->vbo.vb_bo;
 #if X_BYTE_ORDER == X_BIG_ENDIAN
     vtx_res.endian          = SQ_ENDIAN_8IN32;

@@ -422,7 +422,7 @@ EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     ps_const_conf.type = SHADER_TYPE_PS;
     ps_alu_consts = radeon_vbo_space(pScrn, &accel_state->cbuf, 256);
     ps_const_conf.bo = accel_state->cbuf.vb_bo;
-    ps_const_conf.const_addr = accel_state->cbuf.vb_mc_addr + accel_state->cbuf.vb_offset;
+    ps_const_conf.const_addr = accel_state->cbuf.vb_offset;
     ps_const_conf.cpu_ptr = (uint32_t *)(char *)ps_alu_consts;
 
     ps_alu_consts[0] = off[0];
@@ -448,7 +448,7 @@ EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     vs_const_conf.type = SHADER_TYPE_VS;
     vs_alu_consts = radeon_vbo_space(pScrn, &accel_state->cbuf, 256);
     vs_const_conf.bo = accel_state->cbuf.vb_bo;
-    vs_const_conf.const_addr = accel_state->cbuf.vb_mc_addr + accel_state->cbuf.vb_offset;
+    vs_const_conf.const_addr = accel_state->cbuf.vb_offset;
     vs_const_conf.cpu_ptr = (uint32_t *)(char *)vs_alu_consts;
 
     vs_alu_consts[0] = 1.0 / pPriv->w;

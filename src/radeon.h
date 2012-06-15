@@ -306,7 +306,6 @@ struct r600_accel_object {
 
 struct radeon_vbo_object {
     int               vb_offset;
-    uint64_t          vb_mc_addr;
     int               vb_total;
     uint32_t          vb_size;
     uint32_t          vb_op_vert_size;
