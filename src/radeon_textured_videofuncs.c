@@ -949,7 +949,7 @@ R300PrepareTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     struct radeon_bo *src_bo = pPriv->src_bo[pPriv->currentBuffer];
     uint32_t txfilter, txformat0, txformat1, txpitch;
     uint32_t dst_pitch, dst_format;
-    uint32_t txenable, colorpitch, bicubic_offset;
+    uint32_t txenable, colorpitch;
     uint32_t output_fmt;
     int pixel_shift;
     int ret;
@@ -1097,15 +1097,13 @@ R300PrepareTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 		    R300_TX_MAG_FILTER_NEAREST |
 		    (1 << R300_TX_ID_SHIFT));
 
-	bicubic_offset = 0;
-
 	BEGIN_ACCEL_RELOC(6, 1);
 	OUT_RING_REG(R300_TX_FILTER0_1, txfilter);
 	OUT_RING_REG(R300_TX_FILTER1_1, 0);
 	OUT_RING_REG(R300_TX_FORMAT0_1, txformat0);
 	OUT_RING_REG(R300_TX_FORMAT1_1, txformat1);
 	OUT_RING_REG(R300_TX_FORMAT2_1, txpitch);
-	OUT_TEXTURE_REG(R300_TX_OFFSET_1, bicubic_offset, info->bicubic_bo);
+	OUT_TEXTURE_REG(R300_TX_OFFSET_1, 0, info->bicubic_bo);
 	ADVANCE_RING();
 
 	/* Enable tex 1 */
@@ -2369,7 +2367,7 @@ R500PrepareTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     struct radeon_bo *src_bo = pPriv->src_bo[pPriv->currentBuffer];
     uint32_t txfilter, txformat0, txformat1, txpitch, us_format = 0;
     uint32_t dst_pitch, dst_format;
-    uint32_t txenable, colorpitch, bicubic_offset;
+    uint32_t txenable, colorpitch;
     uint32_t output_fmt;
     int pixel_shift, out_size = 6;
     int ret;
@@ -2541,15 +2539,13 @@ R500PrepareTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 		    R300_TX_MAG_FILTER_NEAREST |
 		    (1 << R300_TX_ID_SHIFT));
 
-	bicubic_offset = 0;
-
 	BEGIN_ACCEL_RELOC(6, 1);
 	OUT_RING_REG(R300_TX_FILTER0_1, txfilter);
 	OUT_RING_REG(R300_TX_FILTER1_1, 0);
 	OUT_RING_REG(R300_TX_FORMAT0_1, txformat0);
 	OUT_RING_REG(R300_TX_FORMAT1_1, txformat1);
 	OUT_RING_REG(R300_TX_FORMAT2_1, txpitch);
-	OUT_TEXTURE_REG(R300_TX_OFFSET_1, bicubic_offset, info->bicubic_bo);
+	OUT_TEXTURE_REG(R300_TX_OFFSET_1, 0, info->bicubic_bo);
 	ADVANCE_RING();
 
 	/* Enable tex 1 */

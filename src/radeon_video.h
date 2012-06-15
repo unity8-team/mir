@@ -30,7 +30,7 @@ typedef struct {
 
    int           size;
 
-   void         *video_memory;
+   struct radeon_bo *video_memory;
 
    int           planeu_offset;
    int           planev_offset;
@@ -81,8 +81,6 @@ typedef struct tagREF_TRANSFORM
 #define RTFContrast(a)   (1.0 + ((a)*1.0)/1000.0)
 #define RTFHue(a)   (((a)*3.1416)/1000.0)
 
-void RADEONFreeVideoMemory(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv);
-void RADEONStopVideo(ScrnInfoPtr, pointer, Bool);
 void RADEONQueryBestSize(ScrnInfoPtr, Bool, short, short, short, short,
 			 unsigned int *, unsigned int *, pointer);
 int  RADEONQueryImageAttributes(ScrnInfoPtr, int, unsigned short *,

@@ -497,8 +497,7 @@ typedef struct {
 
     /* Xv bicubic filtering */
     struct radeon_bo *bicubic_bo;
-    void             *bicubic_memory;
-    int               bicubic_offset;
+
     /* kms pageflipping */
     Bool allowPageFlip;
 
@@ -550,17 +549,6 @@ extern void RADEONResetVideo(ScrnInfoPtr pScrn);
 extern Bool radeon_load_bicubic_texture(ScrnInfoPtr pScrn);
 extern xf86CrtcPtr radeon_pick_best_crtc(ScrnInfoPtr pScrn,
 					 int x1, int x2, int y1, int y2);
-
-/* radeon_legacy_memory.c */
-extern uint32_t
-radeon_legacy_allocate_memory(ScrnInfoPtr pScrn,
-			      void **mem_struct,
-			      int size,
-			      int align,
-			      int domain);
-extern void
-radeon_legacy_free_memory(ScrnInfoPtr pScrn,
-		          void *mem_struct);
 
 extern void radeon_cs_flush_indirect(ScrnInfoPtr pScrn);
 extern void radeon_ddx_cs_start(ScrnInfoPtr pScrn,

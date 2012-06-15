@@ -336,34 +336,6 @@ void RADEONInitVideo(ScreenPtr pScreen)
 #endif
 
 void
-RADEONFreeVideoMemory(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
-{
-    if (pPriv->video_memory != NULL) {
-	radeon_legacy_free_memory(pScrn, pPriv->video_memory);
-	pPriv->video_memory = NULL;
-
-	if (pPriv->textured) {
-	    pPriv->src_bo[0] = NULL;
-	    radeon_legacy_free_memory(pScrn, pPriv->src_bo[1]);
-	    pPriv->src_bo[1] = NULL;
-	}
-    }
-}
-
-void
-RADEONStopVideo(ScrnInfoPtr pScrn, pointer data, Bool cleanup)
-{
-  RADEONPortPrivPtr pPriv = (RADEONPortPrivPtr)data;
-
-  if (pPriv->textured) {
-      if (cleanup) {
-	  RADEONFreeVideoMemory(pScrn, pPriv);
-      }
-      return;
-  }
-}
-
-void
 RADEONQueryBestSize(
   ScrnInfoPtr pScrn,
   Bool motion,

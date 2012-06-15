@@ -57,7 +57,7 @@ radeon_drv_la_LTLIBRARIES = radeon_drv.la
 radeon_drv_la_LDFLAGS = -module -avoid-version
 radeon_drv_ladir = @moduledir@/drivers
 radeon_drv_la_SOURCES = \
-	radeon_accel.c radeon_legacy_memory.c \
+	radeon_accel.c \
 	radeon_driver.c radeon_video.c \
 	radeon_misc.c radeon_probe.c \
 	radeon_textured_video.c radeon_xvmc.c \

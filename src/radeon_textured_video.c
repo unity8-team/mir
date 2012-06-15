@@ -122,6 +122,62 @@ static REF_TRANSFORM trans[2] =
 };
 
 
+/* Allocates memory, either by resizing the allocation pointed to by mem_struct,
+ * or by freeing mem_struct (if non-NULL) and allocating a new space.  The size
+ * is measured in bytes, and the offset from the beginning of card space is
+ * returned.
+ */
+static Bool
+radeon_allocate_video_bo(ScrnInfoPtr pScrn,
+			 struct radeon_bo **video_bo_p,
+			 int size,
+			 int align,
+			 int domain)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    struct radeon_bo *video_bo;
+
+    if (*video_bo_p)
+        radeon_bo_unref(*video_bo_p);
+
+    video_bo = radeon_bo_open(info->bufmgr, 0, size, align, domain, 0);
+
+    *video_bo_p = video_bo;
+
+    if (!video_bo)
+        return FALSE;
+
+    return TRUE;
+}
+
+static void
+RADEONFreeVideoMemory(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
+{
+    if (pPriv->video_memory != NULL) {
+	radeon_bo_unref(pPriv->video_memory);
+	pPriv->video_memory = NULL;
+
+	if (pPriv->textured) {
+	    pPriv->src_bo[0] = NULL;
+	    radeon_bo_unref(pPriv->src_bo[1]);
+	    pPriv->src_bo[1] = NULL;
+	}
+    }
+}
+
+static void
+RADEONStopVideo(ScrnInfoPtr pScrn, pointer data, Bool cleanup)
+{
+  RADEONPortPrivPtr pPriv = (RADEONPortPrivPtr)data;
+
+  if (pPriv->textured) {
+      if (cleanup) {
+	  RADEONFreeVideoMemory(pScrn, pPriv);
+      }
+      return;
+  }
+}
+
 #define OUT_ACCEL_REG_F(reg, val)	OUT_RING_REG(reg, F_TO_DW(val))
 
 #include "radeon_textured_videofuncs.c"
@@ -257,23 +313,23 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     }
 
     if (pPriv->video_memory == NULL) {
-      int ret;
-      ret = radeon_legacy_allocate_memory(pScrn,
-					  &pPriv->video_memory,
-					  size, pPriv->hw_align,
-					  RADEON_GEM_DOMAIN_GTT);
-      if (ret == 0)
+      Bool ret;
+      ret = radeon_allocate_video_bo(pScrn,
+				     &pPriv->video_memory,
+				     size, pPriv->hw_align,
+				     RADEON_GEM_DOMAIN_GTT);
+      if (ret == FALSE)
 	  return BadAlloc;
 
       pPriv->src_bo[0] = pPriv->video_memory;
-      radeon_legacy_allocate_memory(pScrn, (void*)&pPriv->src_bo[1], size,
-				    pPriv->hw_align,
-				    RADEON_GEM_DOMAIN_GTT);
+      radeon_allocate_video_bo(pScrn, (void*)&pPriv->src_bo[1], size,
+			       pPriv->hw_align,
+			       RADEON_GEM_DOMAIN_GTT);
     }
 
     /* Bicubic filter loading */
     if (pPriv->bicubic_enabled) {
-	if (info->bicubic_offset == 0)
+	if (info->bicubic_bo == NULL)
 	    pPriv->bicubic_enabled = FALSE;
     }
 
@@ -632,16 +688,14 @@ RADEONSetTexPortAttribute(ScrnInfoPtr  pScrn,
 Bool radeon_load_bicubic_texture(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr    info = RADEONPTR(pScrn);
-
+    int ret;
     /* Bicubic filter loading */
-    info->bicubic_offset = radeon_legacy_allocate_memory(pScrn,
-							 &info->bicubic_memory,
-							 sizeof(bicubic_tex_512), 64,
-							 RADEON_GEM_DOMAIN_VRAM);
-    if (info->bicubic_offset == 0)
+    ret = radeon_allocate_video_bo(pScrn,
+				   &info->bicubic_bo,
+				   sizeof(bicubic_tex_512), 64,
+				   RADEON_GEM_DOMAIN_VRAM);
+    if (ret == FALSE)
 	return FALSE;
-
-    info->bicubic_bo = info->bicubic_memory;
 
     /* Upload bicubic filter tex */
     if (info->ChipFamily < CHIP_FAMILY_R600) {
@@ -672,7 +726,7 @@ static void radeon_unload_bicubic_texture(ScrnInfoPtr pScrn)
     RADEONInfoPtr    info = RADEONPTR(pScrn);
 
     if (info->bicubic_memory != NULL) {
-	radeon_legacy_free_memory(pScrn, info->bicubic_memory);
+	radeon_bo_unref(info->bicubic_memory);
 	info->bicubic_memory = NULL;
     }
 
