@@ -532,11 +532,7 @@ Bool RADEONEXAPixmapIsOffscreen(PixmapPtr pPix)
 /***********************************************************************/
 
 #define BEGIN_ACCEL(n)		BEGIN_RING(2*(n))
-#define OUT_ACCEL_REG(reg, val)	OUT_RING_REG(reg, val)
-#define FINISH_ACCEL()		ADVANCE_RING()
 #define OUT_RELOC(x, read, write) OUT_RING_RELOC(x, read, write)
-
-#define OUT_RING_F(x) OUT_RING(F_TO_DW(x))
 
 #ifdef RENDER
 #include "radeon_exa_render.c"
@@ -544,8 +540,5 @@ Bool RADEONEXAPixmapIsOffscreen(PixmapPtr pPix)
 #include "radeon_exa_funcs.c"
 
 #undef BEGIN_ACCEL
-#undef OUT_ACCEL_REG
-#undef FINISH_ACCEL
-#undef OUT_RING_F
 
 

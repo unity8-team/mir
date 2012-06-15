@@ -124,12 +124,10 @@ static REF_TRANSFORM trans[2] =
 
 
 #define OUT_ACCEL_REG_F(reg, val)	OUT_RING_REG(reg, F_TO_DW(val))
-#define OUT_RING_F(x) OUT_RING(F_TO_DW(x))
 
 #include "radeon_textured_videofuncs.c"
 
 #undef OUT_ACCEL_REG_F
-#undef OUT_RING_F
 
 static void
 R600CopyData(

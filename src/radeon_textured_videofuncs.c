@@ -27,20 +27,20 @@
 
 #define VTX_OUT_6(_dstX, _dstY, _srcX, _srcY, _maskX, _maskY)	\
 do {								\
-    OUT_RING_F(_dstX);						\
-    OUT_RING_F(_dstY);						\
-    OUT_RING_F(_srcX);						\
-    OUT_RING_F(_srcY);						\
-    OUT_RING_F(_maskX);						\
-    OUT_RING_F(_maskY);						\
+    OUT_RING(F_TO_DW(_dstX));						\
+    OUT_RING(F_TO_DW(_dstY));						\
+    OUT_RING(F_TO_DW(_srcX));						\
+    OUT_RING(F_TO_DW(_srcY));						\
+    OUT_RING(F_TO_DW(_maskX));						\
+    OUT_RING(F_TO_DW(_maskY));						\
 } while (0)
 
 #define VTX_OUT_4(_dstX, _dstY, _srcX, _srcY)			\
 do {								\
-    OUT_RING_F(_dstX);						\
-    OUT_RING_F(_dstY);						\
-    OUT_RING_F(_srcX);						\
-    OUT_RING_F(_srcY);						\
+    OUT_RING(F_TO_DW(_dstX));						\
+    OUT_RING(F_TO_DW(_dstY));						\
+    OUT_RING(F_TO_DW(_srcX));						\
+    OUT_RING(F_TO_DW(_srcY));						\
 } while (0)
 
 

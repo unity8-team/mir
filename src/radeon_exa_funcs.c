@@ -70,23 +70,23 @@ static void Emit2DState(ScrnInfoPtr pScrn, int op)
     } else {
       BEGIN_ACCEL_RELOC(9, 1);
     }
-    OUT_ACCEL_REG(RADEON_DEFAULT_SC_BOTTOM_RIGHT, info->state_2d.default_sc_bottom_right);
-    OUT_ACCEL_REG(RADEON_DP_GUI_MASTER_CNTL, info->state_2d.dp_gui_master_cntl);
-    OUT_ACCEL_REG(RADEON_DP_BRUSH_FRGD_CLR, info->state_2d.dp_brush_frgd_clr);
-    OUT_ACCEL_REG(RADEON_DP_BRUSH_BKGD_CLR, info->state_2d.dp_brush_bkgd_clr);
-    OUT_ACCEL_REG(RADEON_DP_SRC_FRGD_CLR,   info->state_2d.dp_src_frgd_clr);
-    OUT_ACCEL_REG(RADEON_DP_SRC_BKGD_CLR,   info->state_2d.dp_src_bkgd_clr);
-    OUT_ACCEL_REG(RADEON_DP_WRITE_MASK, info->state_2d.dp_write_mask);
-    OUT_ACCEL_REG(RADEON_DP_CNTL, info->state_2d.dp_cntl);
+    OUT_RING_REG(RADEON_DEFAULT_SC_BOTTOM_RIGHT, info->state_2d.default_sc_bottom_right);
+    OUT_RING_REG(RADEON_DP_GUI_MASTER_CNTL, info->state_2d.dp_gui_master_cntl);
+    OUT_RING_REG(RADEON_DP_BRUSH_FRGD_CLR, info->state_2d.dp_brush_frgd_clr);
+    OUT_RING_REG(RADEON_DP_BRUSH_BKGD_CLR, info->state_2d.dp_brush_bkgd_clr);
+    OUT_RING_REG(RADEON_DP_SRC_FRGD_CLR,   info->state_2d.dp_src_frgd_clr);
+    OUT_RING_REG(RADEON_DP_SRC_BKGD_CLR,   info->state_2d.dp_src_bkgd_clr);
+    OUT_RING_REG(RADEON_DP_WRITE_MASK, info->state_2d.dp_write_mask);
+    OUT_RING_REG(RADEON_DP_CNTL, info->state_2d.dp_cntl);
 
-    OUT_ACCEL_REG(RADEON_DST_PITCH_OFFSET, info->state_2d.dst_pitch_offset);
+    OUT_RING_REG(RADEON_DST_PITCH_OFFSET, info->state_2d.dst_pitch_offset);
     OUT_RELOC(info->state_2d.dst_bo, 0, RADEON_GEM_DOMAIN_VRAM);
 
     if (has_src) {
-	OUT_ACCEL_REG(RADEON_SRC_PITCH_OFFSET, info->state_2d.src_pitch_offset);
+	OUT_RING_REG(RADEON_SRC_PITCH_OFFSET, info->state_2d.src_pitch_offset);
 	OUT_RELOC(info->state_2d.src_bo, RADEON_GEM_DOMAIN_GTT|RADEON_GEM_DOMAIN_VRAM, 0);
     }
-    FINISH_ACCEL();
+    ADVANCE_RING();
 
     if (op)
 	info->state_2d.op = op;
@@ -101,10 +101,10 @@ RADEONFlush2D(PixmapPtr pPix)
     TRACE;
 
     BEGIN_ACCEL(2);
-    OUT_ACCEL_REG(RADEON_DSTCACHE_CTLSTAT, RADEON_RB2D_DC_FLUSH_ALL);
-    OUT_ACCEL_REG(RADEON_WAIT_UNTIL,
+    OUT_RING_REG(RADEON_DSTCACHE_CTLSTAT, RADEON_RB2D_DC_FLUSH_ALL);
+    OUT_RING_REG(RADEON_WAIT_UNTIL,
                   RADEON_WAIT_2D_IDLECLEAN | RADEON_WAIT_DMA_GUI_IDLE);
-    FINISH_ACCEL();
+    ADVANCE_RING();
 }
 
 static void
@@ -192,9 +192,9 @@ RADEONSolid(PixmapPtr pPix, int x1, int y1, int x2, int y2)
 			   y1, y2);
 
     BEGIN_ACCEL(2);
-    OUT_ACCEL_REG(RADEON_DST_Y_X, (y1 << 16) | x1);
-    OUT_ACCEL_REG(RADEON_DST_HEIGHT_WIDTH, ((y2 - y1) << 16) | (x2 - x1));
-    FINISH_ACCEL();
+    OUT_RING_REG(RADEON_DST_Y_X, (y1 << 16) | x1);
+    OUT_RING_REG(RADEON_DST_HEIGHT_WIDTH, ((y2 - y1) << 16) | (x2 - x1));
+    ADVANCE_RING();
 }
 
 static void
@@ -306,11 +306,11 @@ RADEONCopy(PixmapPtr pDst,
 
     BEGIN_ACCEL(3);
 
-    OUT_ACCEL_REG(RADEON_SRC_Y_X,	   (srcY << 16) | srcX);
-    OUT_ACCEL_REG(RADEON_DST_Y_X,	   (dstY << 16) | dstX);
-    OUT_ACCEL_REG(RADEON_DST_HEIGHT_WIDTH, (h  << 16) | w);
+    OUT_RING_REG(RADEON_SRC_Y_X,	   (srcY << 16) | srcX);
+    OUT_RING_REG(RADEON_DST_Y_X,	   (dstY << 16) | dstX);
+    OUT_RING_REG(RADEON_DST_HEIGHT_WIDTH, (h  << 16) | w);
 
-    FINISH_ACCEL();
+    ADVANCE_RING();
 }
 
 /* Emit blit with arbitrary source and destination offsets and pitches */
@@ -330,7 +330,7 @@ RADEONBlitChunk(ScrnInfoPtr pScrn, struct radeon_bo *src_bo,
     } else {
         BEGIN_ACCEL(6);
     }
-    OUT_ACCEL_REG(RADEON_DP_GUI_MASTER_CNTL,
+    OUT_RING_REG(RADEON_DP_GUI_MASTER_CNTL,
 		  RADEON_GMC_DST_PITCH_OFFSET_CNTL |
 		  RADEON_GMC_SRC_PITCH_OFFSET_CNTL |
 		  RADEON_GMC_BRUSH_NONE |
@@ -340,23 +340,23 @@ RADEONBlitChunk(ScrnInfoPtr pScrn, struct radeon_bo *src_bo,
 		  RADEON_DP_SRC_SOURCE_MEMORY |
 		  RADEON_GMC_CLR_CMP_CNTL_DIS |
 		  RADEON_GMC_WR_MSK_DIS);
-    OUT_ACCEL_REG(RADEON_SRC_PITCH_OFFSET, src_pitch_offset);
+    OUT_RING_REG(RADEON_SRC_PITCH_OFFSET, src_pitch_offset);
     if (src_bo) {
 	OUT_RELOC(src_bo, src_domain, 0);
     }
-    OUT_ACCEL_REG(RADEON_DST_PITCH_OFFSET, dst_pitch_offset);
+    OUT_RING_REG(RADEON_DST_PITCH_OFFSET, dst_pitch_offset);
     if (dst_bo) {
 	OUT_RELOC(dst_bo, 0, dst_domain);
     }
-    OUT_ACCEL_REG(RADEON_SRC_Y_X, (srcY << 16) | srcX);
-    OUT_ACCEL_REG(RADEON_DST_Y_X, (dstY << 16) | dstX);
-    OUT_ACCEL_REG(RADEON_DST_HEIGHT_WIDTH, (h << 16) | w);
-    FINISH_ACCEL();
+    OUT_RING_REG(RADEON_SRC_Y_X, (srcY << 16) | srcX);
+    OUT_RING_REG(RADEON_DST_Y_X, (dstY << 16) | dstX);
+    OUT_RING_REG(RADEON_DST_HEIGHT_WIDTH, (h << 16) | w);
+    ADVANCE_RING();
     BEGIN_ACCEL(2);
-    OUT_ACCEL_REG(RADEON_DSTCACHE_CTLSTAT, RADEON_RB2D_DC_FLUSH_ALL);
-    OUT_ACCEL_REG(RADEON_WAIT_UNTIL,
+    OUT_RING_REG(RADEON_DSTCACHE_CTLSTAT, RADEON_RB2D_DC_FLUSH_ALL);
+    OUT_RING_REG(RADEON_WAIT_UNTIL,
                   RADEON_WAIT_2D_IDLECLEAN | RADEON_WAIT_DMA_GUI_IDLE);
-    FINISH_ACCEL();
+    ADVANCE_RING();
 }
 
 static Bool
