@@ -30,19 +30,6 @@
  *
  */
 
-#if !defined(UNIXCPP) || defined(ANSICPP)
-#define FUNC_NAME_CAT(prefix,suffix) prefix##suffix
-#else
-#define FUNC_NAME_CAT(prefix,suffix) prefix/**/suffix
-#endif
-
-#define FUNC_NAME(prefix) FUNC_NAME_CAT(prefix,CP)
-
-#define ONLY_ONCE
-
-/* Only include the following (generic) bits once. */
-#ifdef ONLY_ONCE
-
 struct blendinfo {
     Bool dst_alpha;
     Bool src_alpha;
@@ -362,9 +349,7 @@ static Bool R100CheckCompositeTexture(PicturePtr pPict,
     return TRUE;
 }
 
-#endif /* ONLY_ONCE */
-
-static Bool FUNC_NAME(R100TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
+static Bool R100TextureSetup(PicturePtr pPict, PixmapPtr pPix,
 					int unit)
 {
     RINFO_FROM_SCREEN(pPix->drawable.pScreen);
@@ -480,9 +465,6 @@ static Bool FUNC_NAME(R100TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
     return TRUE;
 }
 
-#ifdef ONLY_ONCE
-
-
 static Bool R100CheckComposite(int op, PicturePtr pSrcPicture,
 			       PicturePtr pMaskPicture, PicturePtr pDstPicture)
 {
@@ -591,9 +573,7 @@ RADEONPrepareCompositeCS(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture
     return TRUE;
 }
 
-#endif /* ONLY_ONCE */
-
-static Bool FUNC_NAME(R100PrepareComposite)(int op,
+static Bool R100PrepareComposite(int op,
 					    PicturePtr pSrcPicture,
 					    PicturePtr pMaskPicture,
 					    PicturePtr pDstPicture,
@@ -650,12 +630,12 @@ static Bool FUNC_NAME(R100PrepareComposite)(int op,
     /* switch to 3D after doing buffer space checks as the latter may flush */
     RADEON_SWITCH_TO_3D();
 
-    if (!FUNC_NAME(R100TextureSetup)(pSrcPicture, pSrc, 0))
+    if (!R100TextureSetup(pSrcPicture, pSrc, 0))
 	return FALSE;
     pp_cntl = RADEON_TEX_0_ENABLE | RADEON_TEX_BLEND_0_ENABLE;
 
     if (pMask != NULL) {
-	if (!FUNC_NAME(R100TextureSetup)(pMaskPicture, pMask, 1))
+	if (!R100TextureSetup(pMaskPicture, pMask, 1))
 	    return FALSE;
 	pp_cntl |= RADEON_TEX_1_ENABLE;
     } else {
@@ -723,8 +703,6 @@ static Bool FUNC_NAME(R100PrepareComposite)(int op,
     return TRUE;
 }
 
-#ifdef ONLY_ONCE
-
 static Bool R200CheckCompositeTexture(PicturePtr pPict,
 				      PicturePtr pDstPict,
 				      int op,
@@ -768,9 +746,7 @@ static Bool R200CheckCompositeTexture(PicturePtr pPict,
     return TRUE;
 }
 
-#endif /* ONLY_ONCE */
-
-static Bool FUNC_NAME(R200TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
+static Bool R200TextureSetup(PicturePtr pPict, PixmapPtr pPix,
 					int unit)
 {
     RINFO_FROM_SCREEN(pPix->drawable.pScreen);
@@ -886,7 +862,6 @@ static Bool FUNC_NAME(R200TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
     return TRUE;
 }
 
-#ifdef ONLY_ONCE
 static Bool R200CheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
 			       PicturePtr pDstPicture)
 {
@@ -963,9 +938,8 @@ static Bool R200CheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskP
 
     return TRUE;
 }
-#endif /* ONLY_ONCE */
 
-static Bool FUNC_NAME(R200PrepareComposite)(int op, PicturePtr pSrcPicture,
+static Bool R200PrepareComposite(int op, PicturePtr pSrcPicture,
 				PicturePtr pMaskPicture, PicturePtr pDstPicture,
 				PixmapPtr pSrc, PixmapPtr pMask, PixmapPtr pDst)
 {
@@ -1018,12 +992,12 @@ static Bool FUNC_NAME(R200PrepareComposite)(int op, PicturePtr pSrcPicture,
     /* switch to 3D after doing buffer space checks as it may flush */
     RADEON_SWITCH_TO_3D();
 
-    if (!FUNC_NAME(R200TextureSetup)(pSrcPicture, pSrc, 0))
+    if (!R200TextureSetup(pSrcPicture, pSrc, 0))
 	return FALSE;
     pp_cntl = RADEON_TEX_0_ENABLE | RADEON_TEX_BLEND_0_ENABLE;
 
     if (pMask != NULL) {
-	if (!FUNC_NAME(R200TextureSetup)(pMaskPicture, pMask, 1))
+	if (!R200TextureSetup(pMaskPicture, pMask, 1))
 	    return FALSE;
 	pp_cntl |= RADEON_TEX_1_ENABLE;
     } else {
@@ -1101,8 +1075,6 @@ static Bool FUNC_NAME(R200PrepareComposite)(int op, PicturePtr pSrcPicture,
     return TRUE;
 }
 
-#ifdef ONLY_ONCE
-
 static Bool R300CheckCompositeTexture(PicturePtr pPict,
 				      PicturePtr pDstPict,
 				      int op,
@@ -1156,9 +1128,7 @@ static Bool R300CheckCompositeTexture(PicturePtr pPict,
     return TRUE;
 }
 
-#endif /* ONLY_ONCE */
-
-static Bool FUNC_NAME(R300TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
+static Bool R300TextureSetup(PicturePtr pPict, PixmapPtr pPix,
 					int unit)
 {
     RINFO_FROM_SCREEN(pPix->drawable.pScreen);
@@ -1363,8 +1333,6 @@ static Bool FUNC_NAME(R300TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
     return TRUE;
 }
 
-#ifdef ONLY_ONCE
-
 static Bool R300CheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
 			       PicturePtr pDstPicture)
 {
@@ -1460,9 +1428,8 @@ static Bool R300CheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskP
     return TRUE;
 
 }
-#endif /* ONLY_ONCE */
 
-static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
+static Bool R300PrepareComposite(int op, PicturePtr pSrcPicture,
 				PicturePtr pMaskPicture, PicturePtr pDstPicture,
 				PixmapPtr pSrc, PixmapPtr pMask, PixmapPtr pDst)
 {
@@ -1517,12 +1484,12 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
     /* have to execute switch after doing buffer sizing check as the latter flushes */
     RADEON_SWITCH_TO_3D();
 
-    if (!FUNC_NAME(R300TextureSetup)(pSrcPicture, pSrc, 0))
+    if (!R300TextureSetup(pSrcPicture, pSrc, 0))
 	return FALSE;
     txenable = R300_TEX_0_ENABLE;
 
     if (pMask != NULL) {
-	if (!FUNC_NAME(R300TextureSetup)(pMaskPicture, pMask, 1))
+	if (!R300TextureSetup(pMaskPicture, pMask, 1))
 	    return FALSE;
 	txenable |= R300_TEX_1_ENABLE;
     } else {
@@ -2132,7 +2099,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
     return TRUE;
 }
 
-static void FUNC_NAME(RadeonFinishComposite)(PixmapPtr pDst)
+static void RadeonFinishComposite(PixmapPtr pDst)
 {
     RINFO_FROM_SCREEN(pDst->drawable.pScreen);
 
@@ -2178,13 +2145,13 @@ static void FUNC_NAME(RadeonFinishComposite)(PixmapPtr pDst)
     LEAVE_DRAW(0);
 }
 
-static void FUNC_NAME(RadeonDoneComposite)(PixmapPtr pDst)
+static void RadeonDoneComposite(PixmapPtr pDst)
 {
     ScreenPtr pScreen = pDst->drawable.pScreen;
     RINFO_FROM_SCREEN(pScreen);
     struct radeon_accel_state *accel_state = info->accel_state;
 
-    FUNC_NAME(RadeonFinishComposite)(pDst);
+    RadeonFinishComposite(pDst);
 
     if (!accel_state->src_pic->pDrawable)
 	pScreen->DestroyPixmap(accel_state->src_pix);
@@ -2211,7 +2178,6 @@ do {								\
     OUT_RING_F(_srcY);						\
 } while (0)
 
-#ifdef ONLY_ONCE
 static inline void transformPoint(PictTransform *transform, xPointFixed *point)
 {
     PictVector v;
@@ -2222,9 +2188,8 @@ static inline void transformPoint(PictTransform *transform, xPointFixed *point)
     point->x = v.vector[0];
     point->y = v.vector[1];
 }
-#endif
 
-static void FUNC_NAME(RadeonCompositeTile)(ScrnInfoPtr pScrn,
+static void RadeonCompositeTile(ScrnInfoPtr pScrn,
 					   RADEONInfoPtr info,
 					   PixmapPtr pDst,
 					   int srcX, int srcY,
@@ -2242,7 +2207,7 @@ static void FUNC_NAME(RadeonCompositeTile)(ScrnInfoPtr pScrn,
        srcX, srcY, maskX, maskY,dstX, dstY, w, h); */
 
     if (CS_FULL(info->cs)) {
-	FUNC_NAME(RadeonFinishComposite)(info->accel_state->dst_pix);
+	RadeonFinishComposite(info->accel_state->dst_pix);
 	radeon_cs_flush_indirect(pScrn);
 	info->accel_state->exa->PrepareComposite(info->accel_state->composite_op,
 						 info->accel_state->src_pic,
@@ -2295,9 +2260,9 @@ static void FUNC_NAME(RadeonCompositeTile)(ScrnInfoPtr pScrn,
 	vtx_count = 4;
 
     if (info->accel_state->vsync)
-	FUNC_NAME(RADEONWaitForVLine)(pScrn, pDst,
-				      radeon_pick_best_crtc(pScrn, dstX, dstX + w, dstY, dstY + h),
-				      dstY, dstY + h);
+        RADEONWaitForVLine(pScrn, pDst,
+			   radeon_pick_best_crtc(pScrn, dstX, dstX + w, dstY, dstY + h),
+			   dstY, dstY + h);
 
     if (info->ChipFamily < CHIP_FAMILY_R200) {
 	if (!info->accel_state->draw_header) {
@@ -2399,7 +2364,7 @@ static void FUNC_NAME(RadeonCompositeTile)(ScrnInfoPtr pScrn,
 #undef VTX_OUT
 #undef VTX_OUT_MASK
 
-static void FUNC_NAME(RadeonComposite)(PixmapPtr pDst,
+static void RadeonComposite(PixmapPtr pDst,
 				       int srcX, int srcY,
 				       int maskX, int maskY,
 				       int dstX, int dstY,
@@ -2410,7 +2375,7 @@ static void FUNC_NAME(RadeonComposite)(PixmapPtr pDst,
     RINFO_FROM_SCREEN(pDst->drawable.pScreen);
 
     if (!info->accel_state->need_src_tile_x && !info->accel_state->need_src_tile_y) {
-	FUNC_NAME(RadeonCompositeTile)(pScrn,
+	RadeonCompositeTile(pScrn,
 				       info,
 				       pDst,
 				       srcX, srcY,
@@ -2446,7 +2411,7 @@ static void FUNC_NAME(RadeonComposite)(PixmapPtr pDst,
 		w = remainingWidth;
 	    remainingWidth -= w;
 	    
-	    FUNC_NAME(RadeonCompositeTile)(pScrn,
+	    RadeonCompositeTile(pScrn,
 					   info,
 					   pDst,
 					   tileSrcX, tileSrcY,
@@ -2464,5 +2429,3 @@ static void FUNC_NAME(RadeonComposite)(PixmapPtr pDst,
     }
 }
 
-#undef ONLY_ONCE
-#undef FUNC_NAME

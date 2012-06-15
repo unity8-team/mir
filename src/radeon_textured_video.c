@@ -123,19 +123,12 @@ static REF_TRANSFORM trans[2] =
 };
 
 
-#define BEGIN_ACCEL(n)		BEGIN_RING(2*(n))
-#define OUT_ACCEL_REG(reg, val)	OUT_RING_REG(reg, val)
-#define OUT_ACCEL_REG_F(reg, val)	OUT_ACCEL_REG(reg, F_TO_DW(val))
-#define FINISH_ACCEL()		ADVANCE_RING()
+#define OUT_ACCEL_REG_F(reg, val)	OUT_RING_REG(reg, F_TO_DW(val))
 #define OUT_RING_F(x) OUT_RING(F_TO_DW(x))
-#define OUT_RELOC(x, read, write) OUT_RING_RELOC(x, read, write)
 
 #include "radeon_textured_videofuncs.c"
 
-#undef BEGIN_ACCEL
-#undef OUT_ACCEL_REG
 #undef OUT_ACCEL_REG_F
-#undef FINISH_ACCEL
 #undef OUT_RING_F
 
 static void
@@ -402,13 +395,13 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 	else if (IS_R600_3D)
 	    R600DisplayTexturedVideo(pScrn, pPriv);
 	else if (IS_R500_3D)
-	    R500DisplayTexturedVideoCP(pScrn, pPriv);
+	    R500DisplayTexturedVideo(pScrn, pPriv);
 	else if (IS_R300_3D)
-	    R300DisplayTexturedVideoCP(pScrn, pPriv);
+	    R300DisplayTexturedVideo(pScrn, pPriv);
 	else if (IS_R200_3D)
-	    R200DisplayTexturedVideoCP(pScrn, pPriv);
+	    R200DisplayTexturedVideo(pScrn, pPriv);
 	else
-	    RADEONDisplayTexturedVideoCP(pScrn, pPriv);
+	    RADEONDisplayTexturedVideo(pScrn, pPriv);
     }
 
     return Success;

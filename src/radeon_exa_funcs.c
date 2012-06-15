@@ -31,14 +31,6 @@
  *
  */
 
-#if !defined(UNIXCPP) || defined(ANSICPP)
-#define FUNC_NAME_CAT(prefix,suffix) prefix##suffix
-#else
-#define FUNC_NAME_CAT(prefix,suffix) prefix/**/suffix
-#endif
-
-#define FUNC_NAME(prefix) FUNC_NAME_CAT(prefix,CP)
-
 #include <errno.h>
 #include <string.h>
 
@@ -47,7 +39,7 @@
 #include "exa.h"
 
 static int
-FUNC_NAME(RADEONMarkSync)(ScreenPtr pScreen)
+RADEONMarkSync(ScreenPtr pScreen)
 {
     RINFO_FROM_SCREEN(pScreen);
 
@@ -57,12 +49,12 @@ FUNC_NAME(RADEONMarkSync)(ScreenPtr pScreen)
 }
 
 static void
-FUNC_NAME(RADEONSync)(ScreenPtr pScreen, int marker)
+RADEONSync(ScreenPtr pScreen, int marker)
 {
 
 }
 
-static void FUNC_NAME(Emit2DState)(ScrnInfoPtr pScrn, int op)
+static void Emit2DState(ScrnInfoPtr pScrn, int op)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     int has_src;
@@ -98,11 +90,11 @@ static void FUNC_NAME(Emit2DState)(ScrnInfoPtr pScrn, int op)
 
     if (op)
 	info->state_2d.op = op;
-    info->reemit_current2d = FUNC_NAME(Emit2DState);
+    info->reemit_current2d = Emit2DState;
 }
 
 static void
-FUNC_NAME(RADEONFlush2D)(PixmapPtr pPix)
+RADEONFlush2D(PixmapPtr pPix)
 {
     RINFO_FROM_SCREEN(pPix->drawable.pScreen);
 
@@ -116,16 +108,16 @@ FUNC_NAME(RADEONFlush2D)(PixmapPtr pPix)
 }
 
 static void
-FUNC_NAME(RADEONDone2D)(PixmapPtr pPix)
+RADEONDone2D(PixmapPtr pPix)
 {
     RINFO_FROM_SCREEN(pPix->drawable.pScreen);
     info->state_2d.op = 0;
 
-    FUNC_NAME(RADEONFlush2D)(pPix);
+    RADEONFlush2D(pPix);
 }
 
 static Bool
-FUNC_NAME(RADEONPrepareSolid)(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
+RADEONPrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
 {
     RINFO_FROM_SCREEN(pPix->drawable.pScreen);
     uint32_t datatype, dst_pitch_offset;
@@ -176,28 +168,28 @@ FUNC_NAME(RADEONPrepareSolid)(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
 
     info->accel_state->dst_pix = pPix;
 
-    FUNC_NAME(Emit2DState)(pScrn, RADEON_2D_EXA_SOLID);
+    Emit2DState(pScrn, RADEON_2D_EXA_SOLID);
 
     return TRUE;
 }
 
 
 static void
-FUNC_NAME(RADEONSolid)(PixmapPtr pPix, int x1, int y1, int x2, int y2)
+RADEONSolid(PixmapPtr pPix, int x1, int y1, int x2, int y2)
 {
     RINFO_FROM_SCREEN(pPix->drawable.pScreen);
 
     TRACE;
 
     if (CS_FULL(info->cs)) {
-	FUNC_NAME(RADEONFlush2D)(info->accel_state->dst_pix);
+	RADEONFlush2D(info->accel_state->dst_pix);
 	radeon_cs_flush_indirect(pScrn);
     }
 
     if (info->accel_state->vsync)
-	FUNC_NAME(RADEONWaitForVLine)(pScrn, pPix,
-				      radeon_pick_best_crtc(pScrn, x1, x2, y1, y2),
-				      y1, y2);
+	RADEONWaitForVLine(pScrn, pPix,
+			   radeon_pick_best_crtc(pScrn, x1, x2, y1, y2),
+			   y1, y2);
 
     BEGIN_ACCEL(2);
     OUT_ACCEL_REG(RADEON_DST_Y_X, (y1 << 16) | x1);
@@ -206,9 +198,9 @@ FUNC_NAME(RADEONSolid)(PixmapPtr pPix, int x1, int y1, int x2, int y2)
 }
 
 void
-FUNC_NAME(RADEONDoPrepareCopy)(ScrnInfoPtr pScrn, uint32_t src_pitch_offset,
-			       uint32_t dst_pitch_offset, uint32_t datatype, int rop,
-			       Pixel planemask)
+RADEONDoPrepareCopy(ScrnInfoPtr pScrn, uint32_t src_pitch_offset,
+		    uint32_t dst_pitch_offset, uint32_t datatype, int rop,
+		    Pixel planemask)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
 
@@ -233,14 +225,14 @@ FUNC_NAME(RADEONDoPrepareCopy)(ScrnInfoPtr pScrn, uint32_t src_pitch_offset,
     info->state_2d.default_sc_bottom_right =  (RADEON_DEFAULT_SC_RIGHT_MAX
 						| RADEON_DEFAULT_SC_BOTTOM_MAX);
 
-    FUNC_NAME(Emit2DState)(pScrn, RADEON_2D_EXA_COPY);
+    Emit2DState(pScrn, RADEON_2D_EXA_COPY);
 }
 
 static Bool
-FUNC_NAME(RADEONPrepareCopy)(PixmapPtr pSrc,   PixmapPtr pDst,
-			     int xdir, int ydir,
-			     int rop,
-			     Pixel planemask)
+RADEONPrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
+		  int xdir, int ydir,
+		  int rop,
+		  Pixel planemask)
 {
     RINFO_FROM_SCREEN(pDst->drawable.pScreen);
     uint32_t datatype, src_pitch_offset, dst_pitch_offset;
@@ -277,24 +269,24 @@ FUNC_NAME(RADEONPrepareCopy)(PixmapPtr pSrc,   PixmapPtr pDst,
     info->accel_state->ydir = ydir;
     info->accel_state->dst_pix = pDst;
 
-    FUNC_NAME(RADEONDoPrepareCopy)(pScrn, src_pitch_offset, dst_pitch_offset,
-				   datatype, rop, planemask);
+    RADEONDoPrepareCopy(pScrn, src_pitch_offset, dst_pitch_offset,
+			datatype, rop, planemask);
 
     return TRUE;
 }
 
 void
-FUNC_NAME(RADEONCopy)(PixmapPtr pDst,
-		      int srcX, int srcY,
-		      int dstX, int dstY,
-		      int w, int h)
+RADEONCopy(PixmapPtr pDst,
+	   int srcX, int srcY,
+	   int dstX, int dstY,
+	   int w, int h)
 {
     RINFO_FROM_SCREEN(pDst->drawable.pScreen);
 
     TRACE;
 
     if (CS_FULL(info->cs)) {
-	FUNC_NAME(RADEONFlush2D)(info->accel_state->dst_pix);
+        RADEONFlush2D(info->accel_state->dst_pix);
 	radeon_cs_flush_indirect(pScrn);
     }
 
@@ -308,9 +300,9 @@ FUNC_NAME(RADEONCopy)(PixmapPtr pDst,
     }
 
     if (info->accel_state->vsync)
-	FUNC_NAME(RADEONWaitForVLine)(pScrn, pDst,
-				      radeon_pick_best_crtc(pScrn, dstX, dstX + w, dstY, dstY + h),
-				      dstY, dstY + h);
+	RADEONWaitForVLine(pScrn, pDst,
+			   radeon_pick_best_crtc(pScrn, dstX, dstX + w, dstY, dstY + h),
+			   dstY, dstY + h);
 
     BEGIN_ACCEL(3);
 
@@ -578,7 +570,7 @@ out:
     return r;
 }
 
-Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
+Bool RADEONDrawInit(ScreenPtr pScreen)
 {
     RINFO_FROM_SCREEN(pScreen);
 
@@ -590,16 +582,16 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
     info->accel_state->exa->exa_major = EXA_VERSION_MAJOR;
     info->accel_state->exa->exa_minor = EXA_VERSION_MINOR;
 
-    info->accel_state->exa->PrepareSolid = FUNC_NAME(RADEONPrepareSolid);
-    info->accel_state->exa->Solid = FUNC_NAME(RADEONSolid);
-    info->accel_state->exa->DoneSolid = FUNC_NAME(RADEONDone2D);
+    info->accel_state->exa->PrepareSolid = RADEONPrepareSolid;
+    info->accel_state->exa->Solid = RADEONSolid;
+    info->accel_state->exa->DoneSolid = RADEONDone2D;
 
-    info->accel_state->exa->PrepareCopy = FUNC_NAME(RADEONPrepareCopy);
-    info->accel_state->exa->Copy = FUNC_NAME(RADEONCopy);
-    info->accel_state->exa->DoneCopy = FUNC_NAME(RADEONDone2D);
+    info->accel_state->exa->PrepareCopy = RADEONPrepareCopy;
+    info->accel_state->exa->Copy = RADEONCopy;
+    info->accel_state->exa->DoneCopy = RADEONDone2D;
 
-    info->accel_state->exa->MarkSync = FUNC_NAME(RADEONMarkSync);
-    info->accel_state->exa->WaitMarker = FUNC_NAME(RADEONSync);
+    info->accel_state->exa->MarkSync = RADEONMarkSync;
+    info->accel_state->exa->WaitMarker = RADEONSync;
 
     info->accel_state->exa->UploadToScreen = &RADEONUploadToScreenCS;
     info->accel_state->exa->DownloadFromScreen = &RADEONDownloadFromScreenCS;
@@ -632,9 +624,9 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
 			       "enabled for R300/R400/R500 type cards.\n");
 		info->accel_state->exa->CheckComposite = R300CheckComposite;
 		info->accel_state->exa->PrepareComposite =
-		    FUNC_NAME(R300PrepareComposite);
-		info->accel_state->exa->Composite = FUNC_NAME(RadeonComposite);
-		info->accel_state->exa->DoneComposite = FUNC_NAME(RadeonDoneComposite);
+		    R300PrepareComposite;
+		info->accel_state->exa->Composite = RadeonComposite;
+		info->accel_state->exa->DoneComposite = RadeonDoneComposite;
 	    } else
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EXA Composite requires CP on R5xx/IGP\n");
 	} else if (IS_R200_3D) {
@@ -642,17 +634,17 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
 			       "enabled for R200 type cards.\n");
 		info->accel_state->exa->CheckComposite = R200CheckComposite;
 		info->accel_state->exa->PrepareComposite =
-		    FUNC_NAME(R200PrepareComposite);
-		info->accel_state->exa->Composite = FUNC_NAME(RadeonComposite);
-		info->accel_state->exa->DoneComposite = FUNC_NAME(RadeonDoneComposite);
+		    R200PrepareComposite;
+		info->accel_state->exa->Composite = RadeonComposite;
+		info->accel_state->exa->DoneComposite = RadeonDoneComposite;
 	} else {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Render acceleration "
 			       "enabled for R100 type cards.\n");
 		info->accel_state->exa->CheckComposite = R100CheckComposite;
 		info->accel_state->exa->PrepareComposite =
-		    FUNC_NAME(R100PrepareComposite);
-		info->accel_state->exa->Composite = FUNC_NAME(RadeonComposite);
-		info->accel_state->exa->DoneComposite = FUNC_NAME(RadeonDoneComposite);
+		    R100PrepareComposite;
+		info->accel_state->exa->Composite = RadeonComposite;
+		info->accel_state->exa->DoneComposite = RadeonDoneComposite;
 	}
     }
 #endif
@@ -696,4 +688,3 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
     return TRUE;
 }
 
-#undef FUNC_NAME

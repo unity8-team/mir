@@ -229,7 +229,7 @@ Bool RADEONAccelInit(ScreenPtr pScreen)
     return TRUE;
 }
 
-static void RADEONInit3DEngineCP(ScrnInfoPtr pScrn)
+static void RADEONInit3DEngineInternal(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     uint32_t gb_tile_config, vap_cntl;
@@ -953,8 +953,8 @@ static void RADEONInit3DEngineCP(ScrnInfoPtr pScrn)
 }
 
 /* inserts a wait for vline in the command stream */
-void RADEONWaitForVLineCP(ScrnInfoPtr pScrn, PixmapPtr pPix,
-			  xf86CrtcPtr crtc, int start, int stop)
+void RADEONWaitForVLine(ScrnInfoPtr pScrn, PixmapPtr pPix,
+			xf86CrtcPtr crtc, int start, int stop)
 {
     RADEONInfoPtr  info = RADEONPTR(pScrn);
     drmmode_crtc_private_ptr drmmode_crtc;
@@ -1009,7 +1009,7 @@ void RADEONInit3DEngine(ScrnInfoPtr pScrn)
     RADEONInfoPtr info = RADEONPTR (pScrn);
 
     if (info->directRenderingEnabled) {
-	RADEONInit3DEngineCP(pScrn);
+	RADEONInit3DEngineInternal(pScrn);
     }
     info->accel_state->XInited3D = TRUE;
 }

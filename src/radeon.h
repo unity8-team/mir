@@ -523,8 +523,8 @@ uint32_t radeonGetPixmapOffset(PixmapPtr pPix);
 extern int radeon_cs_space_remaining(ScrnInfoPtr pScrn);
 
 /* radeon_commonfuncs.c */
-extern void RADEONWaitForVLineCP(ScrnInfoPtr pScrn, PixmapPtr pPix,
-				 xf86CrtcPtr crtc, int start, int stop);
+extern void RADEONWaitForVLine(ScrnInfoPtr pScrn, PixmapPtr pPix,
+			       xf86CrtcPtr crtc, int start, int stop);
 
 
 /* radeon_driver.c */
