@@ -1736,6 +1736,11 @@ out:
 	return true;
 }
 
+static inline bool box_empty(const BoxRec *box)
+{
+	return box->x2 <= box->x1 || box->y2 <= box->y1;
+}
+
 bool
 sna_drawable_move_to_cpu(DrawablePtr drawable, unsigned flags)
 {
@@ -1769,6 +1774,9 @@ sna_drawable_move_to_cpu(DrawablePtr drawable, unsigned flags)
 		region.extents.x2 = pixmap->drawable.width;
 	if (region.extents.y2 > pixmap->drawable.height)
 		region.extents.y2 = pixmap->drawable.height;
+
+	if (box_empty(&region.extents))
+		return true;
 
 	return sna_drawable_move_region_to_cpu(&pixmap->drawable, &region, flags);
 }
@@ -2712,11 +2720,6 @@ static inline void box32_add_rect(Box32Rec *box, const xRectangle *r)
 	v += r->height;
 	if (box->y2 < v)
 		box->y2 = v;
-}
-
-static inline bool box_empty(const BoxRec *box)
-{
-	return box->x2 <= box->x1 || box->y2 <= box->y1;
 }
 
 static Bool
