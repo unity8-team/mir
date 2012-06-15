@@ -4147,8 +4147,6 @@ void kgem_buffer_read_sync(struct kgem *kgem, struct kgem_bo *_bo)
 			     bo->base.handle, (char *)bo->mem+offset,
 			     offset, length))
 			return;
-
-		kgem_bo_map__cpu(kgem, &bo->base);
 	}
 	kgem_bo_retire(kgem, &bo->base);
 }
