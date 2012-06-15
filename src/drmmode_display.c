@@ -274,8 +274,8 @@ void drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 	}
 
 	pitch = RADEON_ALIGN(pScrn->displayWidth,
-			     drmmode_get_pitch_align(pScrn, info->CurrentLayout.pixel_bytes, tiling_flags)) *
-		info->CurrentLayout.pixel_bytes;
+			     drmmode_get_pitch_align(pScrn, info->pixel_bytes, tiling_flags)) *
+		info->pixel_bytes;
 
 	dst = drmmode_create_bo_pixmap(pScrn, pScrn->virtualX,
 				       pScrn->virtualY, pScrn->depth,
@@ -339,8 +339,8 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 			tiling_flags |= RADEON_TILING_MACRO;
 	}
 
-	pitch = RADEON_ALIGN(pScrn->displayWidth, drmmode_get_pitch_align(pScrn, info->CurrentLayout.pixel_bytes, tiling_flags)) *
-		info->CurrentLayout.pixel_bytes;
+	pitch = RADEON_ALIGN(pScrn->displayWidth, drmmode_get_pitch_align(pScrn, info->pixel_bytes, tiling_flags)) *
+		info->pixel_bytes;
 	height = RADEON_ALIGN(pScrn->virtualY, drmmode_get_height_align(pScrn, tiling_flags));
 	if (info->ChipFamily >= CHIP_FAMILY_R600) {
 		pitch = info->front_surface.level[0].pitch_bytes;
@@ -1257,7 +1257,7 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	uint32_t    old_fb_id;
 	int	    i, pitch, old_width, old_height, old_pitch;
 	int screen_size;
-	int cpp = info->CurrentLayout.pixel_bytes;
+	int cpp = info->pixel_bytes;
 	struct radeon_bo *front_bo;
 	struct radeon_surface surface;
 	struct radeon_surface *psurface;
@@ -1785,8 +1785,8 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, struct radeon_bo *new_front, void *dat
 			tiling_flags |= RADEON_TILING_MACRO;
 	}
 
-	pitch = RADEON_ALIGN(scrn->displayWidth, drmmode_get_pitch_align(scrn, info->CurrentLayout.pixel_bytes, tiling_flags)) *
-		info->CurrentLayout.pixel_bytes;
+	pitch = RADEON_ALIGN(scrn->displayWidth, drmmode_get_pitch_align(scrn, info->pixel_bytes, tiling_flags)) *
+		info->pixel_bytes;
 	height = RADEON_ALIGN(scrn->virtualY, drmmode_get_height_align(scrn, tiling_flags));
 	if (info->ChipFamily >= CHIP_FAMILY_R600 && info->surf_man) {
 		pitch = info->front_surface.level[0].pitch_bytes;

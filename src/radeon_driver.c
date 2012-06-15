@@ -172,12 +172,7 @@ Bool RADEONPreInitVisual(ScrnInfoPtr pScrn)
 
     info->pix24bpp                   = xf86GetBppFromDepth(pScrn,
 							   pScrn->depth);
-    info->CurrentLayout.bitsPerPixel = pScrn->bitsPerPixel;
-    info->CurrentLayout.depth        = pScrn->depth;
-    info->CurrentLayout.pixel_bytes  = pScrn->bitsPerPixel / 8;
-    info->CurrentLayout.pixel_code   = (pScrn->bitsPerPixel != 16
-				       ? pScrn->bitsPerPixel
-				       : pScrn->depth);
+    info->pixel_bytes  = pScrn->bitsPerPixel / 8;
 
     if (info->pix24bpp == 24) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -188,8 +183,8 @@ Bool RADEONPreInitVisual(ScrnInfoPtr pScrn)
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	       "Pixel depth = %d bits stored in %d byte%s (%d bpp pixmaps)\n",
 	       pScrn->depth,
-	       info->CurrentLayout.pixel_bytes,
-	       info->CurrentLayout.pixel_bytes > 1 ? "s" : "",
+	       info->pixel_bytes,
+	       info->pixel_bytes > 1 ? "s" : "",
 	       info->pix24bpp);
 
     if (!xf86SetDefaultVisual(pScrn, -1)) return FALSE;

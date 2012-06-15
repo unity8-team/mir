@@ -179,16 +179,6 @@ typedef enum {
 #define RADEON_ALIGN(x,bytes) (((x) + ((bytes) - 1)) & ~((bytes) - 1))
 #define RADEONPTR(pScrn)      ((RADEONInfoPtr)(pScrn)->driverPrivate)
 
-typedef struct {
-    int               bitsPerPixel;
-    int               depth;
-    int               displayWidth;
-    int               displayHeight;
-    int               pixel_code;
-    int               pixel_bytes;
-    DisplayModePtr    mode;
-} RADEONFBLayout;
-
 #define IS_RV100_VARIANT ((info->ChipFamily == CHIP_FAMILY_RV100)  ||  \
         (info->ChipFamily == CHIP_FAMILY_RV200)  ||  \
         (info->ChipFamily == CHIP_FAMILY_RS100)  ||  \
@@ -309,10 +299,6 @@ struct radeon_vbo_object {
 };
 
 struct radeon_accel_state {
-    /* common accel data */
-				/* Computed values for Radeon */
-    uint32_t          dp_gui_master_cntl;
-    uint32_t          dp_gui_master_cntl_clip;
 
 				/* Saved values for ScreenToScreenCopy */
     int               xdir;
@@ -425,8 +411,6 @@ typedef struct {
     int               Chipset;
     RADEONChipFamily  ChipFamily;
 
-    Bool              IsIGP;            /* IGP chips */
-
     Bool              (*CloseScreen)(CLOSE_SCREEN_ARGS_DECL);
 
     void              (*BlockHandler)(BLOCKHANDLER_ARGS_DECL);
@@ -434,7 +418,7 @@ typedef struct {
     int               pix24bpp;         /* Depth of pixmap for 24bpp fb      */
     Bool              dac6bits;         /* Use 6 bit DAC?                    */
 
-    RADEONFBLayout    CurrentLayout;
+    int               pixel_bytes;
 
     Bool              directRenderingEnabled;
     struct radeon_dri2  dri2;

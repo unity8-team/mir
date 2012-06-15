@@ -104,13 +104,7 @@ static int RADEONDRMGetNumPipes(ScrnInfoPtr pScrn, int *num_pipes)
 void RADEONEngineInit(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    int datatype = 0;
     info->accel_state->num_gb_pipes = 0;
-
-    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
-		   "EngineInit (%d/%d)\n",
-		   info->CurrentLayout.pixel_code,
-		   info->CurrentLayout.bitsPerPixel);
 
     if (info->directRenderingEnabled && (IS_R300_3D || IS_R500_3D)) {
 	int num_pipes;
@@ -124,26 +118,6 @@ void RADEONEngineInit(ScrnInfoPtr pScrn)
 	    info->accel_state->num_gb_pipes = num_pipes;
 	}
     }
-
-    switch (info->CurrentLayout.pixel_code) {
-    case 8:  datatype = 2; break;
-    case 15: datatype = 3; break;
-    case 16: datatype = 4; break;
-    case 24: datatype = 5; break;
-    case 32: datatype = 6; break;
-    default:
-	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
-		       "Unknown depth/bpp = %d/%d (code = %d)\n",
-		       info->CurrentLayout.depth,
-		       info->CurrentLayout.bitsPerPixel,
-		       info->CurrentLayout.pixel_code);
-    }
-
-    info->accel_state->dp_gui_master_cntl =
-	((datatype << RADEON_GMC_DST_DATATYPE_SHIFT)
-	 | RADEON_GMC_CLR_CMP_CNTL_DIS
-	 | RADEON_GMC_DST_PITCH_OFFSET_CNTL);
-
 }
 
 int radeon_cs_space_remaining(ScrnInfoPtr pScrn)

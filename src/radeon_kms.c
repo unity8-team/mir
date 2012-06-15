@@ -358,7 +358,6 @@ static Bool RADEONPreInitChipType_KMS(ScrnInfoPtr pScrn)
 	if (info->Chipset == RADEONCards[i].pci_device_id) {
 	    RADEONCardInfo *card = &RADEONCards[i];
 	    info->ChipFamily = card->chip_family;
-	    info->IsIGP = card->igp;
 	    break;
 	}
     }
@@ -743,7 +742,6 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
     cpp = pScrn->bitsPerPixel / 8;
     pScrn->displayWidth =
 	RADEON_ALIGN(pScrn->virtualX, drmmode_get_pitch_align(pScrn, cpp, tiling));
-    info->CurrentLayout.displayWidth = pScrn->displayWidth;
 
     /* Set display resolution */
     xf86SetDpi(pScrn, 0, 0);
@@ -1196,7 +1194,7 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
     ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
     RADEONInfoPtr info = RADEONPTR(pScrn);
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-    int cpp = info->CurrentLayout.pixel_bytes;
+    int cpp = info->pixel_bytes;
     int screen_size;
     int pitch, base_align;
     int total_size_bytes = 0;
