@@ -978,13 +978,13 @@ next_image:
 						ok = sna->render.composite(sna, PictOpAdd,
 									   this_atlas, NULL, mask,
 									   0, 0, 0, 0, 0, 0,
-									   width, height,
+									   0, 0,
 									   &tmp);
 					} else {
 						ok = sna->render.composite(sna, PictOpAdd,
 									   sna->render.white_picture, this_atlas, mask,
 									   0, 0, 0, 0, 0, 0,
-									   width, height,
+									   0, 0,
 									   &tmp);
 					}
 					if (!ok) {
