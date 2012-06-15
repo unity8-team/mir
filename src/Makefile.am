@@ -83,7 +83,6 @@ EXTRA_DIST = \
 	ati.h \
 	ativersion.h \
 	bicubic_table.h \
-	radeon_commonfuncs.c \
 	radeon_drm.h \
 	radeon_exa_render.c \
 	radeon_exa_funcs.c \
