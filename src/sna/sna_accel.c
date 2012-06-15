@@ -1917,7 +1917,7 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 	if (MIGRATE_ALL || region_subsumes_damage(&r, priv->cpu_damage)) {
 		int n;
 
-		n = sna_damage_get_boxes(priv->cpu_damage, &box);
+		n = sna_damage_get_boxes(priv->cpu_damage, (BoxPtr *)&box);
 		if (n) {
 			Bool ok = FALSE;
 
@@ -8781,7 +8781,7 @@ sna_poly_fill_polygon(DrawablePtr draw, GCPtr gc,
 	      (gc->fillStyle == FillTiled && gc->tileIsPixel)),
 	     gc->fillStyle, gc->tileIsPixel,
 	     gc->alu));
-	DBG(("%s: draw=%d, offset=(%d, %d), size=%dx%d\n",
+	DBG(("%s: draw=%ld, offset=(%d, %d), size=%dx%d\n",
 	     __FUNCTION__, draw->serialNumber,
 	     draw->x, draw->y, draw->width, draw->height));
 
@@ -11875,7 +11875,7 @@ static GCOps sna_gc_ops__tmp = {
 static void
 sna_validate_gc(GCPtr gc, unsigned long changes, DrawablePtr drawable)
 {
-	DBG(("%s changes=%x\n", __FUNCTION__, changes));
+	DBG(("%s changes=%lx\n", __FUNCTION__, changes));
 
 	if (changes & (GCClipMask|GCSubwindowMode) ||
 	    drawable->serialNumber != (gc->serialNumber & DRAWABLE_SERIAL_BITS) ||
@@ -12195,7 +12195,7 @@ static CARD32 sna_timeout(OsTimerPtr timer, CARD32 now, pointer arg)
 	int i;
 
 	DBG(("%s: now=%d, active=%08x, ready=%08x\n",
-	     __FUNCTION__, now, sna->timer_active, sna->timer_ready));
+	     __FUNCTION__, (int)now, sna->timer_active, sna->timer_ready));
 	active = sna->timer_active & ~sna->timer_ready;
 	if (active == 0)
 		return 0;
