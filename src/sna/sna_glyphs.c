@@ -226,20 +226,22 @@ bail:
 }
 
 static void
-glyph_cache_upload(ScreenPtr screen,
-		   struct sna_glyph_cache *cache,
-		   GlyphPtr glyph,
+glyph_cache_upload(struct sna_glyph_cache *cache,
+		   GlyphPtr glyph, PicturePtr glyph_picture,
 		   int16_t x, int16_t y)
 {
 	DBG(("%s: upload glyph %p to cache (%d, %d)x(%d, %d)\n",
-	     __FUNCTION__, glyph, x, y, glyph->info.width, glyph->info.height));
+	     __FUNCTION__,
+	     glyph, x, y,
+	     glyph_picture->pDrawable->width,
+	     glyph_picture->pDrawable->height));
 	sna_composite(PictOpSrc,
-		      GetGlyphPicture(glyph, screen), 0, cache->picture,
+		      glyph_picture, 0, cache->picture,
 		      0, 0,
 		      0, 0,
 		      x, y,
-		      glyph->info.width,
-		      glyph->info.height);
+		      glyph_picture->pDrawable->width,
+		      glyph_picture->pDrawable->height);
 }
 
 static void
@@ -392,7 +394,7 @@ glyph_cache(ScreenPtr screen,
 		pos >>= 2;
 	}
 
-	glyph_cache_upload(screen, cache, glyph,
+	glyph_cache_upload(cache, glyph, glyph_picture,
 			   priv->coordinate.x, priv->coordinate.y);
 
 	return TRUE;

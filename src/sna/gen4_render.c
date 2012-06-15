@@ -1476,6 +1476,9 @@ gen4_emit_state(struct sna *sna,
 	gen4_emit_drawing_rectangle(sna, op);
 
 	if (kgem_bo_is_dirty(op->src.bo) || kgem_bo_is_dirty(op->mask.bo)) {
+		DBG(("%s: flushing dirty (%d, %d)\n", __FUNCTION__,
+		     kgem_bo_is_dirty(op->src.bo),
+		     kgem_bo_is_dirty(op->mask.bo)));
 		OUT_BATCH(MI_FLUSH);
 		kgem_clear_dirty(&sna->kgem);
 		kgem_bo_mark_dirty(op->dst.bo);

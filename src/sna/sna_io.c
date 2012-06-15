@@ -453,9 +453,9 @@ fallback:
 		int width  = box->x2 - box->x1;
 		int pitch = PITCH(width, cpp);
 
-		DBG(("    copy offset %lx [%08x...%08x]: (%d, %d) x (%d, %d), src pitch=%d, dst pitch=%d, bpp=%d\n",
+		DBG(("    copy offset %lx [%08x...%08x...%08x]: (%d, %d) x (%d, %d), src pitch=%d, dst pitch=%d, bpp=%d\n",
 		     (long)((char *)src - (char *)ptr),
-		     *(uint32_t*)src, *(uint32_t*)(src+pitch*height - 4),
+		     *(uint32_t*)src, *(uint32_t*)(src+pitch*height/2 + pitch/2 - 4), *(uint32_t*)(src+pitch*height - 4),
 		     box->x1 + dst_dx,
 		     box->y1 + dst_dy,
 		     width, height,
@@ -558,8 +558,8 @@ static bool upload_inplace(struct kgem *kgem,
 }
 
 bool sna_write_boxes(struct sna *sna, PixmapPtr dst,
-		     struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
-		     const void *src, int stride, int16_t src_dx, int16_t src_dy,
+		     struct kgem_bo * const dst_bo, int16_t const dst_dx, int16_t const dst_dy,
+		     const void * const src, int const stride, int16_t const src_dx, int16_t const src_dy,
 		     const BoxRec *box, int nbox)
 {
 	struct kgem *kgem = &sna->kgem;
@@ -570,7 +570,7 @@ bool sna_write_boxes(struct sna *sna, PixmapPtr dst,
 	int n, cmd, br13;
 	bool can_blt;
 
-	DBG(("%s x %d\n", __FUNCTION__, nbox));
+	DBG(("%s x %d, src stride=%d,  src dx=(%d, %d)\n", __FUNCTION__, nbox, stride, src_dx, src_dy));
 
 	if (upload_inplace(kgem, dst_bo, box, nbox, dst->drawable.bitsPerPixel)) {
 fallback:

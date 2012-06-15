@@ -1563,6 +1563,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 			    region->extents.x2 - region->extents.x1 == 1 &&
 			    region->extents.y2 - region->extents.y1 == 1) {
 				/*  Often associated with synchronisation, KISS */
+				DBG(("%s: single pixel read\n", __FUNCTION__));
 				sna_read_boxes(sna,
 					       priv->gpu_bo, 0, 0,
 					       pixmap, 0, 0,
@@ -1571,8 +1572,11 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 			}
 		} else {
 			if (sna_damage_contains_box__no_reduce(priv->cpu_damage,
-							       &region->extents))
+							       &region->extents)) {
+				DBG(("%s: region already in CPU damage\n",
+				     __FUNCTION__));
 				goto done;
+			}
 		}
 
 		if (sna_damage_contains_box(priv->gpu_damage,
@@ -1631,6 +1635,9 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 				BoxPtr box;
 				int n;
 
+				DBG(("%s: region wholly contains damage\n",
+				     __FUNCTION__));
+
 				n = sna_damage_get_boxes(priv->gpu_damage,
 							 &box);
 				if (n) {
@@ -1658,6 +1665,9 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 				int n = REGION_NUM_RECTS(r);
 				Bool ok = FALSE;
 
+				DBG(("%s: region wholly inside damage\n",
+				     __FUNCTION__));
+
 				if (use_cpu_bo_for_write(sna, priv))
 					ok = sna->render.copy_boxes(sna, GXcopy,
 								    pixmap, priv->gpu_bo, 0, 0,
@@ -1679,6 +1689,9 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 					BoxPtr box = REGION_RECTS(&need);
 					int n = REGION_NUM_RECTS(&need);
 					Bool ok = FALSE;
+
+					DBG(("%s: region intersects damage\n",
+					     __FUNCTION__));
 
 					if (use_cpu_bo_for_write(sna, priv))
 						ok = sna->render.copy_boxes(sna, GXcopy,
@@ -1717,6 +1730,16 @@ done:
 		}
 		if (priv->flush)
 			list_move(&priv->list, &sna->dirty_pixmaps);
+#ifdef HAVE_FULL_DEBUG
+		{
+			RegionRec need;
+
+			RegionNull(&need);
+			assert(priv->gpu_damage == NULL ||
+			       !sna_damage_intersect(priv->gpu_damage, r, &need));
+			RegionUninit(&need);
+		}
+#endif
 	}
 
 	if (dx | dy)

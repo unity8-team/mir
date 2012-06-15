@@ -544,12 +544,14 @@ fallback:
 		flags = MOVE_WRITE | MOVE_INPLACE_HINT;
 	else
 		flags = MOVE_WRITE | MOVE_READ;
+	DBG(("%s: fallback -- move dst to cpu\n", __FUNCTION__));
 	if (!sna_drawable_move_region_to_cpu(dst->pDrawable, &region, flags))
 		goto out;
 	if (dst->alphaMap &&
 	    !sna_drawable_move_to_cpu(dst->alphaMap->pDrawable, flags))
 		goto out;
 	if (src->pDrawable) {
+		DBG(("%s: fallback -- move src to cpu\n", __FUNCTION__));
 		if (!sna_drawable_move_to_cpu(src->pDrawable,
 					      MOVE_READ))
 			goto out;
@@ -560,6 +562,7 @@ fallback:
 			goto out;
 	}
 	if (mask && mask->pDrawable) {
+		DBG(("%s: fallback -- move mask to cpu\n", __FUNCTION__));
 		if (!sna_drawable_move_to_cpu(mask->pDrawable,
 					      MOVE_READ))
 			goto out;
