@@ -128,9 +128,6 @@ typedef struct
     int dri2_info_cnt;
 } RADEONEntRec, *RADEONEntPtr;
 
-/* radeon_probe.c */
-extern PciChipsets          RADEONPciChipsets[];
-
 /* radeon_driver.c */
 #ifdef X_XF86MiscPassMessage
 extern Bool                 RADEONHandleMessage(int, const char*, const char*,

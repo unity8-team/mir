@@ -53,7 +53,6 @@
 
 
 				/* Exa and Cursor Support */
-#include "vbe.h"
 #include "xf86Cursor.h"
 
 				/* DDC support */
