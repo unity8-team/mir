@@ -253,12 +253,6 @@ typedef struct {
 	(info->ChipFamily == CHIP_FAMILY_RS300) || \
 	(info->ChipFamily == CHIP_FAMILY_R200))
 
-typedef enum {
-	CARD_PCI,
-	CARD_AGP,
-	CARD_PCIE
-} RADEONCardType;
-
 struct radeon_exa_pixmap_priv {
     struct radeon_bo *bo;
     uint32_t tiling_flags;
@@ -443,7 +437,6 @@ typedef struct {
     RADEONFBLayout    CurrentLayout;
 
     Bool              directRenderingEnabled;
-    RADEONCardType    cardType;            /* Current card is a PCI card */
     struct radeon_dri2  dri2;
     Bool              accelDFS;
 

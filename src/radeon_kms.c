@@ -334,7 +334,6 @@ static Bool RADEONPreInitAccel_KMS(ScrnInfoPtr pScrn)
 static Bool RADEONPreInitChipType_KMS(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info   = RADEONPTR(pScrn);
-    uint32_t cmd_stat;
     int i;
 
     info->Chipset = PCI_DEV_DEVICE_ID(info->PciInfo);
@@ -363,45 +362,6 @@ static Bool RADEONPreInitChipType_KMS(ScrnInfoPtr pScrn)
 	    break;
 	}
     }
-
-    info->cardType = CARD_PCI;
-
-    PCI_READ_LONG(info->PciInfo, &cmd_stat, PCI_CMD_STAT_REG);
-    if (cmd_stat & RADEON_CAP_LIST) {
-	uint32_t cap_ptr, cap_id;
-
-	PCI_READ_LONG(info->PciInfo, &cap_ptr, RADEON_CAPABILITIES_PTR_PCI_CONFIG);
-	cap_ptr &= RADEON_CAP_PTR_MASK;
-
-	while(cap_ptr != RADEON_CAP_ID_NULL) {
-	    PCI_READ_LONG(info->PciInfo, &cap_id, cap_ptr);
-	    if ((cap_id & 0xff)== RADEON_CAP_ID_AGP) {
-		info->cardType = CARD_AGP;
-		break;
-	    }
-	    if ((cap_id & 0xff)== RADEON_CAP_ID_EXP) {
-		info->cardType = CARD_PCIE;
-		break;
-	    }
-	    cap_ptr = (cap_id >> 8) & RADEON_CAP_PTR_MASK;
-	}
-    }
-
-
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "%s card detected\n",
-	       (info->cardType==CARD_PCI) ? "PCI" :
-		(info->cardType==CARD_PCIE) ? "PCIE" : "AGP");
-
-    /* treat PCIE IGP cards as PCI */
-    if (info->cardType == CARD_PCIE && info->IsIGP)
-	info->cardType = CARD_PCI;
-
-    if ((info->ChipFamily >= CHIP_FAMILY_R600) && info->IsIGP)
-	info->cardType = CARD_PCIE;
-
-    /* not sure about gart table requirements */
-    if ((info->ChipFamily == CHIP_FAMILY_RS600) && info->IsIGP)
-	info->cardType = CARD_PCIE;
 
 #ifdef RENDER
     info->RenderAccel = xf86ReturnOptValBool(info->Options, OPTION_RENDER_ACCEL,
