@@ -150,17 +150,16 @@ static Bool RADEONGetOffsetPitch(PixmapPtr pPix, int bpp, uint32_t *pitch_offset
 
 Bool RADEONGetPixmapOffsetPitch(PixmapPtr pPix, uint32_t *pitch_offset)
 {
-	uint32_t pitch, offset;
+	uint32_t pitch;
 	int bpp;
 
 	bpp = pPix->drawable.bitsPerPixel;
 	if (bpp == 24)
 		bpp = 8;
 
-	offset = radeonGetPixmapOffset(pPix);
 	pitch = exaGetPixmapPitch(pPix);
 
-	return RADEONGetOffsetPitch(pPix, bpp, pitch_offset, offset, pitch);
+	return RADEONGetOffsetPitch(pPix, bpp, pitch_offset, 0, pitch);
 }
 
 /**

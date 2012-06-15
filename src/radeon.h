@@ -509,7 +509,6 @@ extern Bool RADEONAccelInit(ScreenPtr pScreen);
 extern void RADEONEngineInit(ScrnInfoPtr pScrn);
 extern void  RADEONCopySwap(uint8_t *dst, uint8_t *src, unsigned int size, int swap);
 extern void RADEONInit3DEngine(ScrnInfoPtr pScrn);
-uint32_t radeonGetPixmapOffset(PixmapPtr pPix);
 extern int radeon_cs_space_remaining(ScrnInfoPtr pScrn);
 
 /* radeon_commonfuncs.c */

@@ -146,11 +146,6 @@ void RADEONEngineInit(ScrnInfoPtr pScrn)
 
 }
 
-uint32_t radeonGetPixmapOffset(PixmapPtr pPix)
-{
-    return 0;
-}
-
 int radeon_cs_space_remaining(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
