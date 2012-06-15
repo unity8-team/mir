@@ -1283,14 +1283,24 @@ static inline bool region_inplace(struct sna *sna,
 		return false;
 
 	if (priv->flush) {
-		DBG(("%s: exported via dri, will flush\n", __FUNCTION__));
+		DBG(("%s: yes, exported via dri, will flush\n", __FUNCTION__));
 		return true;
 	}
 
 	if (priv->cpu_damage &&
 	    region_overlaps_damage(region, priv->cpu_damage)) {
-		DBG(("%s: uncovered CPU damage pending\n", __FUNCTION__));
+		DBG(("%s: no, uncovered CPU damage pending\n", __FUNCTION__));
 		return false;
+	}
+
+	if (priv->mapped) {
+		DBG(("%s: yes, already mapped, continuiung\n", __FUNCTION__));
+		return true;
+	}
+
+	if (DAMAGE_IS_ALL(priv->gpu_damage)) {
+		DBG(("%s: yes, already wholly damaged on the GPU\n", __FUNCTION__));
+		return true;
 	}
 
 	DBG(("%s: (%dx%d), inplace? %d\n",
