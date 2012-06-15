@@ -37,7 +37,6 @@
 #include "radeon_reg.h"
 #include "r600_reg.h"
 #include "radeon_drm.h"
-#include "radeon_macros.h"
 #include "radeon_probe.h"
 #include "radeon_version.h"
 #include "radeon_exa_shared.h"

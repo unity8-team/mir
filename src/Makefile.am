@@ -88,7 +88,6 @@ EXTRA_DIST = \
 	radeon_exa_funcs.c \
 	radeon_exa_shared.h \
 	radeon.h \
-	radeon_macros.h \
 	radeon_probe.h \
 	radeon_reg.h \
 	radeon_version.h \

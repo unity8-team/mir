@@ -80,7 +80,6 @@
 #include "radeon.h"
 #include "radeon_reg.h"
 #include "r600_reg.h"
-#include "radeon_macros.h"
 #include "radeon_probe.h"
 #include "radeon_version.h"
 

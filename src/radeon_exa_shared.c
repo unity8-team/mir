@@ -35,7 +35,6 @@
 #endif
 
 #include "radeon.h"
-#include "radeon_macros.h"
 #include "radeon_probe.h"
 #include "radeon_version.h"
 #include "radeon_vbo.h"

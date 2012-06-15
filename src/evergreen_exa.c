@@ -33,7 +33,6 @@
 #include "exa.h"
 
 #include "radeon.h"
-#include "radeon_macros.h"
 #include "radeon_reg.h"
 #include "evergreen_shader.h"
 #include "evergreen_reg.h"

@@ -747,6 +747,33 @@ do {									\
         info->accel_state->engineMode = EXA_ENGINEMODE_3D;              \
 } while (0);
 
+				/* Memory mapped register access macros */
+
+#define BEGIN_ACCEL_RELOC(n, r) do {		\
+	int _nqw = (n) + (r);	\
+	BEGIN_RING(2*_nqw);			\
+    } while (0)
+
+#define EMIT_OFFSET(reg, value, pPix, rd, wd) do {		\
+    driver_priv = exaGetPixmapDriverPrivate(pPix);		\
+    OUT_RING_REG((reg), (value));				\
+    OUT_RING_RELOC(driver_priv->bo, (rd), (wd));			\
+    } while(0)
+
+#define EMIT_READ_OFFSET(reg, value, pPix) EMIT_OFFSET(reg, value, pPix, (RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT), 0)
+#define EMIT_WRITE_OFFSET(reg, value, pPix) EMIT_OFFSET(reg, value, pPix, 0, RADEON_GEM_DOMAIN_VRAM)
+
+#define OUT_TEXTURE_REG(reg, offset, bo) do {   \
+    OUT_RING_REG((reg), (offset));                                   \
+    OUT_RING_RELOC((bo), RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT, 0); \
+  } while(0)
+
+#define EMIT_COLORPITCH(reg, value, pPix) do {			\
+    driver_priv = exaGetPixmapDriverPrivate(pPix);			\
+    OUT_RING_REG((reg), value);					\
+    OUT_RING_RELOC(driver_priv->bo, 0, RADEON_GEM_DOMAIN_VRAM);		\
+} while(0)
+
 static __inline__ void RADEON_SYNC(RADEONInfoPtr info, ScrnInfoPtr pScrn)
 {
     if (pScrn->pScreen)

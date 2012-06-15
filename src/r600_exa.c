@@ -33,7 +33,6 @@
 #include "exa.h"
 
 #include "radeon.h"
-#include "radeon_macros.h"
 #include "radeon_reg.h"
 #include "r600_shader.h"
 #include "r600_reg.h"
