@@ -600,8 +600,6 @@ uint32_t radeon_get_pixmap_tiling(PixmapPtr pPix);
 
 #define RADEON_VERBOSE	0
 
-#define RING_LOCALS
-
 #define BEGIN_RING(n) do {						\
     if (RADEON_VERBOSE) {						\
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,				\

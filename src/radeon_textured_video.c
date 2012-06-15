@@ -123,8 +123,6 @@ static REF_TRANSFORM trans[2] =
 };
 
 
-#define ACCEL_PREAMBLE()						\
-    RING_LOCALS;
 #define BEGIN_ACCEL(n)		BEGIN_RING(2*(n))
 #define OUT_ACCEL_REG(reg, val)	OUT_RING_REG(reg, val)
 #define OUT_ACCEL_REG_F(reg, val)	OUT_ACCEL_REG(reg, F_TO_DW(val))
@@ -134,7 +132,6 @@ static REF_TRANSFORM trans[2] =
 
 #include "radeon_textured_videofuncs.c"
 
-#undef ACCEL_PREAMBLE
 #undef BEGIN_ACCEL
 #undef OUT_ACCEL_REG
 #undef OUT_ACCEL_REG_F

@@ -531,8 +531,6 @@ Bool RADEONEXAPixmapIsOffscreen(PixmapPtr pPix)
 #define LEAVE_DRAW(x) TRACE
 /***********************************************************************/
 
-#define ACCEL_PREAMBLE()						\
-    RING_LOCALS;
 #define BEGIN_ACCEL(n)		BEGIN_RING(2*(n))
 #define OUT_ACCEL_REG(reg, val)	OUT_RING_REG(reg, val)
 #define FINISH_ACCEL()		ADVANCE_RING()
@@ -545,7 +543,6 @@ Bool RADEONEXAPixmapIsOffscreen(PixmapPtr pPix)
 #endif
 #include "radeon_exa_funcs.c"
 
-#undef ACCEL_PREAMBLE
 #undef BEGIN_ACCEL
 #undef OUT_ACCEL_REG
 #undef FINISH_ACCEL

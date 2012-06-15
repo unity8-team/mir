@@ -373,7 +373,6 @@ static Bool FUNC_NAME(R100TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
     Bool repeat;
     int i, w, h;
     struct radeon_exa_pixmap_priv *driver_priv;
-    ACCEL_PREAMBLE();
 
     if (pPict->pDrawable) {
 	w = pPict->pDrawable->width;
@@ -608,7 +607,6 @@ static Bool FUNC_NAME(R100PrepareComposite)(int op,
     uint32_t pp_cntl, blendcntl, cblend, ablend;
     int pixel_shift;
     struct radeon_exa_pixmap_priv *driver_priv;
-    ACCEL_PREAMBLE();
 
     TRACE;
 
@@ -781,7 +779,6 @@ static Bool FUNC_NAME(R200TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
     Bool repeat;
     int i, w, h;
     struct radeon_exa_pixmap_priv *driver_priv;
-    ACCEL_PREAMBLE();
 
     if (pPict->pDrawable) {
 	w = pPict->pDrawable->width;
@@ -978,7 +975,6 @@ static Bool FUNC_NAME(R200PrepareComposite)(int op, PicturePtr pSrcPicture,
     uint32_t pp_cntl, blendcntl, cblend, ablend, colorpitch;
     int pixel_shift;
     struct radeon_exa_pixmap_priv *driver_priv;
-    ACCEL_PREAMBLE();
 
     TRACE;
 
@@ -1171,7 +1167,6 @@ static Bool FUNC_NAME(R300TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
     int i, pixel_shift, out_size = 6;
     unsigned int repeatType;
     struct radeon_exa_pixmap_priv *driver_priv;
-    ACCEL_PREAMBLE();
 
     TRACE;
 
@@ -1480,7 +1475,6 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
     uint32_t mask_color, mask_alpha;
     int pixel_shift;
     struct radeon_exa_pixmap_priv *driver_priv;
-    ACCEL_PREAMBLE();
     TRACE;
 
     if (!R300GetDestFormat(pDstPicture, &dst_format))
@@ -2141,7 +2135,6 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 static void FUNC_NAME(RadeonFinishComposite)(PixmapPtr pDst)
 {
     RINFO_FROM_SCREEN(pDst->drawable.pScreen);
-    ACCEL_PREAMBLE();
 
     ENTER_DRAW(0);
 
@@ -2242,7 +2235,6 @@ static void FUNC_NAME(RadeonCompositeTile)(ScrnInfoPtr pScrn,
     int vtx_count;
     xPointFixed srcTopLeft, srcTopRight, srcBottomLeft, srcBottomRight;
     static xPointFixed maskTopLeft, maskTopRight, maskBottomLeft, maskBottomRight;
-    ACCEL_PREAMBLE();
 
     ENTER_DRAW(0);
 

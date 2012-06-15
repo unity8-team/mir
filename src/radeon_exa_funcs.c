@@ -66,7 +66,6 @@ static void FUNC_NAME(Emit2DState)(ScrnInfoPtr pScrn, int op)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     int has_src;
-    ACCEL_PREAMBLE();
 
     /* don't emit if no operation in progress */
     if (info->state_2d.op == 0 && op == 0)
@@ -106,7 +105,6 @@ static void
 FUNC_NAME(RADEONFlush2D)(PixmapPtr pPix)
 {
     RINFO_FROM_SCREEN(pPix->drawable.pScreen);
-    ACCEL_PREAMBLE();
 
     TRACE;
 
@@ -188,7 +186,6 @@ static void
 FUNC_NAME(RADEONSolid)(PixmapPtr pPix, int x1, int y1, int x2, int y2)
 {
     RINFO_FROM_SCREEN(pPix->drawable.pScreen);
-    ACCEL_PREAMBLE();
 
     TRACE;
 
@@ -293,7 +290,6 @@ FUNC_NAME(RADEONCopy)(PixmapPtr pDst,
 		      int w, int h)
 {
     RINFO_FROM_SCREEN(pDst->drawable.pScreen);
-    ACCEL_PREAMBLE();
 
     TRACE;
 
@@ -334,7 +330,6 @@ RADEONBlitChunk(ScrnInfoPtr pScrn, struct radeon_bo *src_bo,
                 uint32_t src_domain, uint32_t dst_domain)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
-    ACCEL_PREAMBLE();
 
     if (src_bo && dst_bo) {
         BEGIN_ACCEL_RELOC(6, 2);
@@ -463,7 +458,6 @@ copy:
     if (copy_dst == scratch) {
 	RADEONGetDatatypeBpp(pDst->drawable.bitsPerPixel, &datatype);
 	RADEONGetPixmapOffsetPitch(pDst, &dst_pitch_offset);
-	ACCEL_PREAMBLE();
 	RADEON_SWITCH_TO_2D();
 	RADEONBlitChunk(pScrn, scratch, driver_priv->bo, datatype, scratch_pitch << 16,
 			dst_pitch_offset, 0, 0, x, y, w, h,
@@ -547,7 +541,6 @@ RADEONDownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
     }
     RADEONGetDatatypeBpp(pSrc->drawable.bitsPerPixel, &datatype);
     RADEONGetPixmapOffsetPitch(pSrc, &src_pitch_offset);
-    ACCEL_PREAMBLE();
     RADEON_SWITCH_TO_2D();
     RADEONBlitChunk(pScrn, driver_priv->bo, scratch, datatype, src_pitch_offset,
                     scratch_pitch << 16, x, y, 0, 0, w, h,

@@ -159,8 +159,6 @@ int radeon_cs_space_remaining(ScrnInfoPtr pScrn)
     return (info->cs->ndw - info->cs->cdw);
 }
 
-#define ACCEL_PREAMBLE()						\
-    RING_LOCALS;
 #define BEGIN_ACCEL(n)          BEGIN_RING(2*(n))
 #define OUT_ACCEL_REG(reg, val) OUT_RING_REG(reg, val)
 #define FINISH_ACCEL()          ADVANCE_RING()
@@ -168,7 +166,6 @@ int radeon_cs_space_remaining(ScrnInfoPtr pScrn)
 
 #include "radeon_commonfuncs.c"
 
-#undef ACCEL_PREAMBLE
 #undef BEGIN_ACCEL
 #undef OUT_ACCEL_REG
 #undef FINISH_ACCEL

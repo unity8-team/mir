@@ -44,7 +44,6 @@ static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     uint32_t gb_tile_config, vap_cntl;
-    ACCEL_PREAMBLE();
 
     info->accel_state->texW[0] = info->accel_state->texH[0] =
 	info->accel_state->texW[1] = info->accel_state->texH[1] = 1;
@@ -770,7 +769,6 @@ void FUNC_NAME(RADEONWaitForVLine)(ScrnInfoPtr pScrn, PixmapPtr pPix,
 {
     RADEONInfoPtr  info = RADEONPTR(pScrn);
     drmmode_crtc_private_ptr drmmode_crtc;
-    ACCEL_PREAMBLE();
 
     if (!crtc)
 	return;

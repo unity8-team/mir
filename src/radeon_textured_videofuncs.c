@@ -67,7 +67,6 @@ FUNC_NAME(RADEONPrepareTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
     int scissor_w = MIN(pPixmap->drawable.width, 2047);
     int scissor_h = MIN(pPixmap->drawable.height, 2047);
     int ret;
-    ACCEL_PREAMBLE();
 
     radeon_cs_space_reset_bos(info->cs);
     radeon_cs_space_add_persistent_bo(info->cs, src_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
@@ -304,7 +303,6 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
     int dstxoff, dstyoff;
     BoxPtr pBox = REGION_RECTS(&pPriv->clip);
     int nBox = REGION_NUM_RECTS(&pPriv->clip);
-    ACCEL_PREAMBLE();
 
 #ifdef COMPOSITE
     dstxoff = -pPixmap->screen_x + pPixmap->drawable.x;
@@ -441,7 +439,6 @@ FUNC_NAME(R200PrepareTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     float ucscale = 0.25, vcscale = 0.25;
     Bool needux8 = FALSE, needvx8 = FALSE;
     int ret;
-    ACCEL_PREAMBLE();
 
     radeon_cs_space_reset_bos(info->cs);
     radeon_cs_space_add_persistent_bo(info->cs, src_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
@@ -852,7 +849,6 @@ FUNC_NAME(R200DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     int dstxoff, dstyoff;
     BoxPtr pBox = REGION_RECTS(&pPriv->clip);
     int nBox = REGION_NUM_RECTS(&pPriv->clip);
-    ACCEL_PREAMBLE();
 
 #ifdef COMPOSITE
     dstxoff = -pPixmap->screen_x + pPixmap->drawable.x;
@@ -970,7 +966,6 @@ FUNC_NAME(R300PrepareTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     uint32_t output_fmt;
     int pixel_shift;
     int ret;
-    ACCEL_PREAMBLE();
 
     radeon_cs_space_reset_bos(info->cs);
     radeon_cs_space_add_persistent_bo(info->cs, src_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
@@ -2210,7 +2205,6 @@ FUNC_NAME(R300DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     int dstxoff, dstyoff;
     BoxPtr pBox = REGION_RECTS(&pPriv->clip);
     int nBox = REGION_NUM_RECTS(&pPriv->clip);
-    ACCEL_PREAMBLE();
 
 #ifdef COMPOSITE
     dstxoff = -pPixmap->screen_x + pPixmap->drawable.x;
@@ -2394,7 +2388,6 @@ FUNC_NAME(R500PrepareTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     uint32_t output_fmt;
     int pixel_shift, out_size = 6;
     int ret;
-    ACCEL_PREAMBLE();
 
     radeon_cs_space_reset_bos(info->cs);
     radeon_cs_space_add_persistent_bo(info->cs, src_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
@@ -3781,7 +3774,6 @@ FUNC_NAME(R500DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     int dstxoff, dstyoff;
     BoxPtr pBox = REGION_RECTS(&pPriv->clip);
     int nBox = REGION_NUM_RECTS(&pPriv->clip);
-    ACCEL_PREAMBLE();
 
 #ifdef COMPOSITE
     dstxoff = -pPixmap->screen_x + pPixmap->drawable.x;
