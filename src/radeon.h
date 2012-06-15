@@ -494,7 +494,6 @@ typedef struct {
     struct radeon_surface_manager *surf_man;
     struct radeon_surface front_surface;
 
-
     /* Xv bicubic filtering */
     struct radeon_bo *bicubic_bo;
 

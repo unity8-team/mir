@@ -733,6 +733,88 @@ static void radeon_unload_bicubic_texture(ScrnInfoPtr pScrn)
 }
 #endif
 
+static void
+RADEONQueryBestSize(
+  ScrnInfoPtr pScrn,
+  Bool motion,
+  short vid_w, short vid_h,
+  short drw_w, short drw_h,
+  unsigned int *p_w, unsigned int *p_h,
+  pointer data
+){
+    RADEONPortPrivPtr pPriv = (RADEONPortPrivPtr)data;
+
+    if (!pPriv->textured) {
+	if (vid_w > (drw_w << 4))
+	    drw_w = vid_w >> 4;
+	if (vid_h > (drw_h << 4))
+	    drw_h = vid_h >> 4;
+    }
+
+  *p_w = drw_w;
+  *p_h = drw_h;
+}
+
+#define FOURCC_RGB24    0x00000000
+#define FOURCC_RGBT16   0x54424752
+#define FOURCC_RGB16    0x32424752
+#define FOURCC_RGBA32   0x41424752
+
+static int
+RADEONQueryImageAttributes(
+    ScrnInfoPtr pScrn,
+    int id,
+    unsigned short *w, unsigned short *h,
+    int *pitches, int *offsets
+){
+    const RADEONInfoRec * const info = RADEONPTR(pScrn);
+    int size, tmp;
+
+    if(*w > info->xv_max_width) *w = info->xv_max_width;
+    if(*h > info->xv_max_height) *h = info->xv_max_height;
+
+    *w = RADEON_ALIGN(*w, 2);
+    if(offsets) offsets[0] = 0;
+
+    switch(id) {
+    case FOURCC_YV12:
+    case FOURCC_I420:
+	*h = RADEON_ALIGN(*h, 2);
+	size = RADEON_ALIGN(*w, 4);
+	if(pitches) pitches[0] = size;
+	size *= *h;
+	if(offsets) offsets[1] = size;
+	tmp = RADEON_ALIGN(*w >> 1, 4);
+	if(pitches) pitches[1] = pitches[2] = tmp;
+	tmp *= (*h >> 1);
+	size += tmp;
+	if(offsets) offsets[2] = size;
+	size += tmp;
+	break;
+    case FOURCC_RGBA32:
+	size = *w << 2;
+	if(pitches) pitches[0] = size;
+	size *= *h;
+	break;
+    case FOURCC_RGB24:
+	size = *w * 3;
+	if(pitches) pitches[0] = size;
+	size *= *h;
+	break;
+    case FOURCC_RGBT16:
+    case FOURCC_RGB16:
+    case FOURCC_UYVY:
+    case FOURCC_YUY2:
+    default:
+	size = *w << 1;
+	if(pitches) pitches[0] = size;
+	size *= *h;
+	break;
+    }
+
+    return size;
+}
+
 XF86VideoAdaptorPtr
 RADEONSetupImageTexturedVideo(ScreenPtr pScreen)
 {

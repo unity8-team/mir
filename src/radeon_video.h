@@ -81,11 +81,6 @@ typedef struct tagREF_TRANSFORM
 #define RTFContrast(a)   (1.0 + ((a)*1.0)/1000.0)
 #define RTFHue(a)   (((a)*3.1416)/1000.0)
 
-void RADEONQueryBestSize(ScrnInfoPtr, Bool, short, short, short, short,
-			 unsigned int *, unsigned int *, pointer);
-int  RADEONQueryImageAttributes(ScrnInfoPtr, int, unsigned short *,
-			unsigned short *,  int *, int *);
-
 XF86VideoAdaptorPtr
 RADEONSetupImageTexturedVideo(ScreenPtr pScreen);
 
