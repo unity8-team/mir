@@ -28,8 +28,6 @@
 #include "config.h"
 #endif
 
-#ifdef XF86DRM_MODE
-
 #include "xf86.h"
 
 #include "exa.h"
@@ -1769,8 +1767,6 @@ EVERGREENAllocShaders(ScrnInfoPtr pScrn, ScreenPtr pScreen)
     /* 512 bytes per shader for now */
     int size = 512 * 9;
 
-    accel_state->shaders = NULL;
-
     accel_state->shaders_bo = radeon_bo_open(info->bufmgr, 0, size, 0,
 					     RADEON_GEM_DOMAIN_VRAM, 0);
     if (accel_state->shaders_bo == NULL) {
@@ -1897,10 +1893,6 @@ EVERGREENDrawInit(ScreenPtr pScreen)
 	return FALSE;
     }
 
-    /* accel requires kms */
-    if (!info->cs)
-	return FALSE;
-
     info->accel_state->exa->exa_major = EXA_VERSION_MAJOR;
     info->accel_state->exa->exa_minor = EXA_VERSION_MINOR;
 
@@ -1998,5 +1990,3 @@ EVERGREENDrawInit(ScreenPtr pScreen)
     return TRUE;
 
 }
-
-#endif

@@ -27,8 +27,6 @@
 #include "config.h"
 #endif
 
-#ifdef XF86DRM_MODE
-
 #include "xf86.h"
 
 #include <errno.h>
@@ -209,7 +207,6 @@ evergreen_set_render_target(ScrnInfoPtr pScrn, cb_config_t *cb_conf, uint32_t do
     uint32_t tile_split, macro_aspect, bankw, bankh;
     RADEONInfoPtr info = RADEONPTR(pScrn);
 
-#if defined(XF86DRM_MODE)
     if (cb_conf->surface) {
 	switch (cb_conf->surface->level[0].mode) {
 	case RADEON_SURF_MODE_1D:
@@ -234,9 +231,7 @@ evergreen_set_render_target(ScrnInfoPtr pScrn, cb_config_t *cb_conf, uint32_t do
 	macro_aspect = eg_macro_tile_aspect(macro_aspect);
 	bankw = eg_bank_wh(bankw);
 	bankh = eg_bank_wh(bankh);
-    } else
-#endif
-    {
+    } else {
 	pitch = (cb_conf->w / 8) - 1;
 	h = RADEON_ALIGN(cb_conf->h, 8);
 	slice = ((cb_conf->w * h) / 64) - 1;
@@ -371,7 +366,6 @@ void evergreen_cp_wait_vline_sync(ScrnInfoPtr pScrn, PixmapPtr pPix,
 {
     RADEONInfoPtr  info = RADEONPTR(pScrn);
     drmmode_crtc_private_ptr drmmode_crtc;
-    uint32_t offset;
 
     if (!crtc)
         return;
@@ -381,21 +375,8 @@ void evergreen_cp_wait_vline_sync(ScrnInfoPtr pScrn, PixmapPtr pPix,
     if (!crtc->enabled)
         return;
 
-    if (info->cs) {
-        if (pPix != pScrn->pScreen->GetScreenPixmap(pScrn->pScreen))
-	    return;
-    } else {
-#ifdef USE_EXA
-	if (info->useEXA)
-	    offset = exaGetPixmapOffset(pPix);
-	else
-#endif
-	    offset = pPix->devPrivate.ptr - info->FB;
-
-	/* if drawing to front buffer */
-	if (offset != 0)
-	    return;
-    }
+    if (pPix != pScrn->pScreen->GetScreenPixmap(pScrn->pScreen))
+        return;
 
     start = max(start, crtc->y);
     stop = min(stop, crtc->y + crtc->mode.VDisplay);
@@ -698,7 +679,6 @@ evergreen_set_tex_resource(ScrnInfoPtr pScrn, tex_resource_t *tex_res, uint32_t 
     uint32_t sq_tex_resource_word5, sq_tex_resource_word6, sq_tex_resource_word7;
     uint32_t array_mode, pitch, tile_split, macro_aspect, bankw, bankh, nbanks;
 
-#if defined(XF86DRM_MODE)
     if (tex_res->surface) {
 	switch (tex_res->surface->level[0].mode) {
 	case RADEON_SURF_MODE_1D:
@@ -720,9 +700,7 @@ evergreen_set_tex_resource(ScrnInfoPtr pScrn, tex_resource_t *tex_res, uint32_t 
 	macro_aspect = eg_macro_tile_aspect(macro_aspect);
 	bankw = eg_bank_wh(bankw);
 	bankh = eg_bank_wh(bankh);
-    } else
-#endif
-    {
+    } else {
 	array_mode = tex_res->array_mode;
 	pitch = (tex_res->pitch + 7) >> 3;
 	tile_split = 4;
@@ -1503,4 +1481,3 @@ void evergreen_finish_op(ScrnInfoPtr pScrn, int vtx_size)
 
 }
 
-#endif

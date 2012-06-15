@@ -32,45 +32,24 @@
 
 #include "ati_pciids_gen.h"
 
-#if defined(ACCEL_MMIO) && defined(ACCEL_CP)
-#error Cannot define both MMIO and CP acceleration!
-#endif
-
 #if !defined(UNIXCPP) || defined(ANSICPP)
 #define FUNC_NAME_CAT(prefix,suffix) prefix##suffix
 #else
 #define FUNC_NAME_CAT(prefix,suffix) prefix/**/suffix
 #endif
 
-#ifdef ACCEL_MMIO
-#define FUNC_NAME(prefix) FUNC_NAME_CAT(prefix,MMIO)
-#else
-#ifdef ACCEL_CP
 #define FUNC_NAME(prefix) FUNC_NAME_CAT(prefix,CP)
-#else
-#error No accel type defined!
-#endif
-#endif
 
 static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    uint32_t gb_tile_config, su_reg_dest, vap_cntl;
-    int size;
+    uint32_t gb_tile_config, vap_cntl;
     ACCEL_PREAMBLE();
 
     info->accel_state->texW[0] = info->accel_state->texH[0] =
 	info->accel_state->texW[1] = info->accel_state->texH[1] = 1;
 
     if (IS_R300_3D || IS_R500_3D) {
-
-	if (!info->cs) {
-	    BEGIN_ACCEL(3);
-	    OUT_ACCEL_REG(R300_RB3D_DSTCACHE_CTLSTAT, R300_DC_FLUSH_3D | R300_DC_FREE_3D);
-	    OUT_ACCEL_REG(R300_RB3D_ZCACHE_CTLSTAT, R300_ZC_FLUSH | R300_ZC_FREE);
-	    OUT_ACCEL_REG(RADEON_WAIT_UNTIL, RADEON_WAIT_2D_IDLECLEAN | RADEON_WAIT_3D_IDLECLEAN);
-	    FINISH_ACCEL();
-	}
 
 	gb_tile_config = (R300_ENABLE_TILING | R300_TILE_SIZE_16);
 
@@ -80,28 +59,6 @@ static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 	case 4: gb_tile_config |= R300_PIPE_COUNT_R420; break;
 	default:
 	case 1: gb_tile_config |= R300_PIPE_COUNT_RV350; break;
-	}
-
-	if (!info->cs) {
-	    size = (info->ChipFamily >= CHIP_FAMILY_R420) ? 5 : 4;
-	    BEGIN_ACCEL(size);
-	    OUT_ACCEL_REG(R300_GB_TILE_CONFIG, gb_tile_config);
-	    OUT_ACCEL_REG(RADEON_WAIT_UNTIL, RADEON_WAIT_2D_IDLECLEAN | RADEON_WAIT_3D_IDLECLEAN);
-	    if (info->ChipFamily >= CHIP_FAMILY_R420)
-		OUT_ACCEL_REG(R300_DST_PIPE_CONFIG, R300_PIPE_AUTO_CONFIG);
-	    OUT_ACCEL_REG(R300_GB_SELECT, 0);
-	    OUT_ACCEL_REG(R300_GB_ENABLE, 0);
-	    FINISH_ACCEL();
-	}
-
-	if (IS_R500_3D) {
-	    if (!info->cs) {
-		su_reg_dest = ((1 << info->accel_state->num_gb_pipes) - 1);
-		BEGIN_ACCEL(2);
-		OUT_ACCEL_REG(R500_SU_REG_DEST, su_reg_dest);
-		OUT_ACCEL_REG(R500_VAP_INDEX_OFFSET, 0);
-		FINISH_ACCEL();
-	    }
 	}
 
 	BEGIN_ACCEL(3);
@@ -115,27 +72,6 @@ static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 	OUT_ACCEL_REG(R300_RB3D_DSTCACHE_CTLSTAT, R300_DC_FLUSH_3D | R300_DC_FREE_3D);
 	OUT_ACCEL_REG(R300_RB3D_ZCACHE_CTLSTAT, R300_ZC_FLUSH | R300_ZC_FREE);
 	FINISH_ACCEL();
-
-	if (!info->cs) {
-	    BEGIN_ACCEL(3);
-	    OUT_ACCEL_REG(R300_GB_MSPOS0, ((6 << R300_MS_X0_SHIFT) |
-					   (6 << R300_MS_Y0_SHIFT) |
-					   (6 << R300_MS_X1_SHIFT) |
-					   (6 << R300_MS_Y1_SHIFT) |
-					   (6 << R300_MS_X2_SHIFT) |
-					   (6 << R300_MS_Y2_SHIFT) |
-					   (6 << R300_MSBD0_Y_SHIFT) |
-					   (6 << R300_MSBD0_X_SHIFT)));
-	    OUT_ACCEL_REG(R300_GB_MSPOS1, ((6 << R300_MS_X3_SHIFT) |
-					   (6 << R300_MS_Y3_SHIFT) |
-					   (6 << R300_MS_X4_SHIFT) |
-					   (6 << R300_MS_Y4_SHIFT) |
-					   (6 << R300_MS_X5_SHIFT) |
-					   (6 << R300_MS_Y5_SHIFT) |
-					   (6 << R300_MSBD1_SHIFT)));
-	    OUT_ACCEL_REG(R300_GA_ENHANCE, R300_GA_DEADLOCK_CNTL | R300_GA_FASTSYNC_CNTL);
-	    FINISH_ACCEL();
-	}
 
 	BEGIN_ACCEL(4);
 	OUT_ACCEL_REG(R300_GA_POLY_MODE, R300_FRONT_PTYPE_TRIANGE | R300_BACK_PTYPE_TRIANGE);
@@ -833,7 +769,7 @@ void FUNC_NAME(RADEONWaitForVLine)(ScrnInfoPtr pScrn, PixmapPtr pPix,
 				   xf86CrtcPtr crtc, int start, int stop)
 {
     RADEONInfoPtr  info = RADEONPTR(pScrn);
-    uint32_t offset;
+    drmmode_crtc_private_ptr drmmode_crtc;
     ACCEL_PREAMBLE();
 
     if (!crtc)
@@ -842,21 +778,8 @@ void FUNC_NAME(RADEONWaitForVLine)(ScrnInfoPtr pScrn, PixmapPtr pPix,
     if (!crtc->enabled)
 	return;
 
-    if (info->cs) {
-        if (pPix != pScrn->pScreen->GetScreenPixmap(pScrn->pScreen))
-	    return;
-    } else {
-#ifdef USE_EXA
-	if (info->useEXA)
-	    offset = exaGetPixmapOffset(pPix);
-	else
-#endif
-	    offset = pPix->devPrivate.ptr - info->FB;
-
-	/* if drawing to front buffer */
-	if (offset != 0)
-	    return;
-    }
+    if (pPix != pScrn->pScreen->GetScreenPixmap(pScrn->pScreen))
+        return;
 
     start = max(start, crtc->y);
     stop = min(stop, crtc->y + crtc->mode.VDisplay);
@@ -870,168 +793,26 @@ void FUNC_NAME(RADEONWaitForVLine)(ScrnInfoPtr pScrn, PixmapPtr pPix,
 	stop -= crtc->y;
     }
 
-#if defined(ACCEL_CP) && defined(XF86DRM_MODE)
-    if (info->cs) {
-	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+    drmmode_crtc = crtc->driver_private;
 
-	BEGIN_ACCEL(3);
-	if (IS_AVIVO_VARIANT) {
-	    OUT_ACCEL_REG(AVIVO_D1MODE_VLINE_START_END, /* this is just a marker */
-			  ((start << AVIVO_D1MODE_VLINE_START_SHIFT) |
-			   (stop << AVIVO_D1MODE_VLINE_END_SHIFT) |
-			   AVIVO_D1MODE_VLINE_INV));
-	} else {
-	    OUT_ACCEL_REG(RADEON_CRTC_GUI_TRIG_VLINE, /* another placeholder */
-			  ((start << RADEON_CRTC_GUI_TRIG_VLINE_START_SHIFT) |
-			   (stop << RADEON_CRTC_GUI_TRIG_VLINE_END_SHIFT) |
-			   RADEON_CRTC_GUI_TRIG_VLINE_INV |
-			   RADEON_CRTC_GUI_TRIG_VLINE_STALL));
-	}
-	OUT_ACCEL_REG(RADEON_WAIT_UNTIL, (RADEON_WAIT_CRTC_VLINE |
-					  RADEON_ENG_DISPLAY_SELECT_CRTC0));
-
-	OUT_RING(CP_PACKET3(RADEON_CP_PACKET3_NOP, 0));
-	OUT_RING(drmmode_crtc->mode_crtc->crtc_id);
-	FINISH_ACCEL();
-    } else
-#endif
-    {
-	RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
-
-	BEGIN_ACCEL(2);
-	if (IS_AVIVO_VARIANT) {
-	    OUT_ACCEL_REG(AVIVO_D1MODE_VLINE_START_END + radeon_crtc->crtc_offset,
-			  ((start << AVIVO_D1MODE_VLINE_START_SHIFT) |
-			   (stop << AVIVO_D1MODE_VLINE_END_SHIFT) |
-			   AVIVO_D1MODE_VLINE_INV));
-	} else {
-	    if (radeon_crtc->crtc_id == 0)
-		OUT_ACCEL_REG(RADEON_CRTC_GUI_TRIG_VLINE,
-			      ((start << RADEON_CRTC_GUI_TRIG_VLINE_START_SHIFT) |
-			       (stop << RADEON_CRTC_GUI_TRIG_VLINE_END_SHIFT) |
-			       RADEON_CRTC_GUI_TRIG_VLINE_INV |
-			       RADEON_CRTC_GUI_TRIG_VLINE_STALL));
-	    else
-		OUT_ACCEL_REG(RADEON_CRTC2_GUI_TRIG_VLINE,
-			      ((start << RADEON_CRTC_GUI_TRIG_VLINE_START_SHIFT) |
-			       (stop << RADEON_CRTC_GUI_TRIG_VLINE_END_SHIFT) |
-			       RADEON_CRTC_GUI_TRIG_VLINE_INV |
-			       RADEON_CRTC_GUI_TRIG_VLINE_STALL));
-	}
-
-	if (radeon_crtc->crtc_id == 0)
-	    OUT_ACCEL_REG(RADEON_WAIT_UNTIL, (RADEON_WAIT_CRTC_VLINE |
-					      RADEON_ENG_DISPLAY_SELECT_CRTC0));
-	else
-	    OUT_ACCEL_REG(RADEON_WAIT_UNTIL, (RADEON_WAIT_CRTC_VLINE |
-					      RADEON_ENG_DISPLAY_SELECT_CRTC1));
-	FINISH_ACCEL();
-    }
-}
-
-/* MMIO:
- *
- * Wait for the graphics engine to be completely idle: the FIFO has
- * drained, the Pixel Cache is flushed, and the engine is idle.  This is
- * a standard "sync" function that will make the hardware "quiescent".
- *
- * CP:
- *
- * Wait until the CP is completely idle: the FIFO has drained and the CP
- * is idle.
- */
-void FUNC_NAME(RADEONWaitForIdle)(ScrnInfoPtr pScrn)
-{
-    RADEONInfoPtr  info = RADEONPTR(pScrn);
-    unsigned char *RADEONMMIO = info->MMIO;
-    int            i    = 0;
-
-#ifdef ACCEL_CP
-    /* Make sure the CP is idle first */
-    if (info->cp->CPStarted) {
-	int  ret;
-
-	FLUSH_RING();
-
-	for (;;) {
-	    do {
-		ret = drmCommandNone(info->dri->drmFD, DRM_RADEON_CP_IDLE);
-		if (ret && ret != -EBUSY) {
-		    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			       "%s: CP idle %d\n", __FUNCTION__, ret);
-		}
-	    } while ((ret == -EBUSY) && (i++ < RADEON_TIMEOUT));
-
-	    if (ret == 0) return;
-
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "Idle timed out, resetting engine...\n");
-	    if (info->ChipFamily < CHIP_FAMILY_R600) {
-		RADEONEngineReset(pScrn);
-		RADEONEngineRestore(pScrn);
-	    } else
-		R600EngineReset(pScrn);
-
-	    /* Always restart the engine when doing CP 2D acceleration */
-	    RADEONCP_RESET(pScrn, info);
-	    RADEONCP_START(pScrn, info);
-	}
-    }
-#endif
-
-    if (info->ChipFamily >= CHIP_FAMILY_R600) {
-	if (!info->accelOn)
-	    return;
-
-	/* Wait for the engine to go idle */
-	if (info->ChipFamily >= CHIP_FAMILY_RV770)
-	    R600WaitForFifoFunction(pScrn, 8);
-	else
-	    R600WaitForFifoFunction(pScrn, 16);
-
-	for (;;) {
-	    for (i = 0; i < RADEON_TIMEOUT; i++) {
-		if (!(INREG(R600_GRBM_STATUS) & R600_GUI_ACTIVE))
-		    return;
-	    }
-	    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
-			   "Idle timed out: stat=0x%08x\n",
-			   (unsigned int)INREG(R600_GRBM_STATUS));
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "Idle timed out, resetting engine...\n");
-	    R600EngineReset(pScrn);
-#ifdef XF86DRI
-	    if (info->directRenderingEnabled) {
-		RADEONCP_RESET(pScrn, info);
-		RADEONCP_START(pScrn, info);
-	    }
-#endif
-	}
+    BEGIN_ACCEL(3);
+    if (IS_AVIVO_VARIANT) {
+	OUT_ACCEL_REG(AVIVO_D1MODE_VLINE_START_END, /* this is just a marker */
+		      ((start << AVIVO_D1MODE_VLINE_START_SHIFT) |
+		       (stop << AVIVO_D1MODE_VLINE_END_SHIFT) |
+		       AVIVO_D1MODE_VLINE_INV));
     } else {
-	/* Wait for the engine to go idle */
-	RADEONWaitForFifoFunction(pScrn, 64);
-
-	for (;;) {
-	    for (i = 0; i < RADEON_TIMEOUT; i++) {
-		if (!(INREG(RADEON_RBBM_STATUS) & RADEON_RBBM_ACTIVE)) {
-		    RADEONEngineFlush(pScrn);
-		    return;
-		}
-	    }
-	    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
-			   "Idle timed out: %u entries, stat=0x%08x\n",
-			   (unsigned int)INREG(RADEON_RBBM_STATUS) & RADEON_RBBM_FIFOCNT_MASK,
-			   (unsigned int)INREG(RADEON_RBBM_STATUS));
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "Idle timed out, resetting engine...\n");
-	    RADEONEngineReset(pScrn);
-	    RADEONEngineRestore(pScrn);
-#ifdef XF86DRI
-	    if (info->directRenderingEnabled) {
-		RADEONCP_RESET(pScrn, info);
-		RADEONCP_START(pScrn, info);
-	    }
-#endif
-	}
+	OUT_ACCEL_REG(RADEON_CRTC_GUI_TRIG_VLINE, /* another placeholder */
+		      ((start << RADEON_CRTC_GUI_TRIG_VLINE_START_SHIFT) |
+		       (stop << RADEON_CRTC_GUI_TRIG_VLINE_END_SHIFT) |
+		       RADEON_CRTC_GUI_TRIG_VLINE_INV |
+		       RADEON_CRTC_GUI_TRIG_VLINE_STALL));
     }
+    OUT_ACCEL_REG(RADEON_WAIT_UNTIL, (RADEON_WAIT_CRTC_VLINE |
+				      RADEON_ENG_DISPLAY_SELECT_CRTC0));
+    
+    OUT_RING(CP_PACKET3(RADEON_CP_PACKET3_NOP, 0));
+    OUT_RING(drmmode_crtc->mode_crtc->crtc_id);
+    FINISH_ACCEL();
 }
+

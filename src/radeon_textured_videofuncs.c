@@ -25,9 +25,6 @@
  *
  */
 
-#if defined(ACCEL_MMIO) && defined(ACCEL_CP)
-#error Cannot define both MMIO and CP acceleration!
-#endif
 
 #if !defined(UNIXCPP) || defined(ANSICPP)
 #define FUNC_NAME_CAT(prefix,suffix) prefix##suffix
@@ -35,17 +32,7 @@
 #define FUNC_NAME_CAT(prefix,suffix) prefix/**/suffix
 #endif
 
-#ifdef ACCEL_MMIO
-#define FUNC_NAME(prefix) FUNC_NAME_CAT(prefix,MMIO)
-#else
-#ifdef ACCEL_CP
 #define FUNC_NAME(prefix) FUNC_NAME_CAT(prefix,CP)
-#else
-#error No accel type defined!
-#endif
-#endif
-
-#ifdef ACCEL_CP
 
 #define VTX_OUT_6(_dstX, _dstY, _srcX, _srcY, _maskX, _maskY)	\
 do {								\
@@ -65,27 +52,6 @@ do {								\
     OUT_RING_F(_srcY);						\
 } while (0)
 
-#else /* ACCEL_CP */
-
-#define VTX_OUT_6(_dstX, _dstY, _srcX, _srcY, _maskX, _maskY)		\
-do {									\
-    OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _dstX);			\
-    OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _dstY);			\
-    OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _srcX);			\
-    OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _srcY);			\
-    OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _maskX);			\
-    OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _maskY);			\
-} while (0)
-
-#define VTX_OUT_4(_dstX, _dstY, _srcX, _srcY)			\
-do {								\
-    OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _dstX);		\
-    OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _dstY);		\
-    OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _srcX);		\
-    OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _srcY);		\
-} while (0)
-
-#endif /* !ACCEL_CP */
 
 static Bool
 FUNC_NAME(RADEONPrepareTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
@@ -100,62 +66,28 @@ FUNC_NAME(RADEONPrepareTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
     int pixel_shift;
     int scissor_w = MIN(pPixmap->drawable.width, 2047);
     int scissor_h = MIN(pPixmap->drawable.height, 2047);
+    int ret;
     ACCEL_PREAMBLE();
 
-#ifdef XF86DRM_MODE
-    if (info->cs) {
-	int ret;
+    radeon_cs_space_reset_bos(info->cs);
+    radeon_cs_space_add_persistent_bo(info->cs, src_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
 
-	radeon_cs_space_reset_bos(info->cs);
-        radeon_cs_space_add_persistent_bo(info->cs, src_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+    if (pPriv->bicubic_enabled)
+	radeon_cs_space_add_persistent_bo(info->cs, info->bicubic_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
 
-	if (pPriv->bicubic_enabled)
-	    radeon_cs_space_add_persistent_bo(info->cs, info->bicubic_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+    driver_priv = exaGetPixmapDriverPrivate(pPixmap);
+    radeon_cs_space_add_persistent_bo(info->cs, driver_priv->bo, 0, RADEON_GEM_DOMAIN_VRAM);
 
-	driver_priv = exaGetPixmapDriverPrivate(pPixmap);
-	radeon_cs_space_add_persistent_bo(info->cs, driver_priv->bo, 0, RADEON_GEM_DOMAIN_VRAM);
-
-	ret = radeon_cs_space_check(info->cs);
-	if (ret) {
-	    ErrorF("Not enough RAM to hw accel xv operation\n");
-	    return FALSE;
-	}
+    ret = radeon_cs_space_check(info->cs);
+    if (ret) {
+	ErrorF("Not enough RAM to hw accel xv operation\n");
+	return FALSE;
     }
-#else
-    (void)src_bo;
-#endif
 
     pixel_shift = pPixmap->drawable.bitsPerPixel >> 4;
 
-
-#ifdef USE_EXA
-    if (info->useEXA) {
-	dst_pitch = exaGetPixmapPitch(pPixmap);
-    } else
-#endif
-    {
-        dst_pitch = pPixmap->devKind;
-    }
-
-#ifdef USE_EXA
-    if (info->useEXA) {
-	RADEON_SWITCH_TO_3D();
-    } else
-#endif
-    {
-	BEGIN_ACCEL(2);
-	OUT_ACCEL_REG(RADEON_RB3D_DSTCACHE_CTLSTAT, RADEON_RB3D_DC_FLUSH);
-	/* We must wait for 3d to idle, in case source was just written as a dest. */
-	OUT_ACCEL_REG(RADEON_WAIT_UNTIL,
-		      RADEON_WAIT_HOST_IDLECLEAN |
-		      RADEON_WAIT_2D_IDLECLEAN |
-		      RADEON_WAIT_3D_IDLECLEAN |
-		      RADEON_WAIT_DMA_GUI_IDLE);
-	FINISH_ACCEL();
-
-	if (!info->accel_state->XInited3D)
-	    RADEONInit3DEngine(pScrn);
-    }
+    dst_pitch = exaGetPixmapPitch(pPixmap);
+    RADEON_SWITCH_TO_3D();
 
     /* Same for R100/R200 */
     switch (pPixmap->drawable.bitsPerPixel) {
@@ -190,7 +122,7 @@ FUNC_NAME(RADEONPrepareTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
     if (RADEONTilingEnabled(pScrn, pPixmap))
 	colorpitch |= RADEON_COLOR_TILE_ENABLE;
 
-    txoffset = info->cs ? 0 : pPriv->src_offset;
+    txoffset = 0;
 
     BEGIN_ACCEL_RELOC(4,2);
 
@@ -404,16 +336,12 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
      *     the single triangle up to 2560/4021 pixels; above that we
      *     render as a quad.
      */
-#ifdef ACCEL_CP
     while (nBox) {
 	int draw_size = 3 * pPriv->vtx_count + 5;
 	int loop_boxes;
 
 	if (draw_size > radeon_cs_space_remaining(pScrn)) {
-	    if (info->cs)
-		radeon_cs_flush_indirect(pScrn);
-	    else
-		RADEONCPFlushIndirect(pScrn, 1);
+	    radeon_cs_flush_indirect(pScrn);
 	    if (!FUNC_NAME(RADEONPrepareTexturedVideo)(pScrn, pPriv))
 		return;
 	}
@@ -486,63 +414,6 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	OUT_ACCEL_REG(RADEON_WAIT_UNTIL, RADEON_WAIT_3D_IDLECLEAN);
 	ADVANCE_RING();
     }
-#else /* ACCEL_CP */
-    BEGIN_ACCEL(nBox * pPriv->vtx_count * 3 + 2);
-    OUT_ACCEL_REG(RADEON_SE_VF_CNTL, (RADEON_VF_PRIM_TYPE_RECTANGLE_LIST |
-				      RADEON_VF_PRIM_WALK_DATA |
-				      RADEON_VF_RADEON_MODE |
-				      ((nBox * 3) << RADEON_VF_NUM_VERTICES_SHIFT)));
-    while (nBox--) {
-	float srcX, srcY, srcw, srch;
-	int dstX, dstY, dstw, dsth;
-	dstX = pBox->x1 + dstxoff;
-	dstY = pBox->y1 + dstyoff;
-	dstw = pBox->x2 - pBox->x1;
-	dsth = pBox->y2 - pBox->y1;
-
-	srcX = pPriv->src_x;
-	srcX += ((pBox->x1 - pPriv->drw_x) *
-		 pPriv->src_w) / (float)pPriv->dst_w;
-	srcY = pPriv->src_y;
-	srcY += ((pBox->y1 - pPriv->drw_y) *
-		 pPriv->src_h) / (float)pPriv->dst_h;
-
-	srcw = (pPriv->src_w * dstw) / (float)pPriv->dst_w;
-	srch = (pPriv->src_h * dsth) / (float)pPriv->dst_h;
-
-
-	if (pPriv->is_planar) {
-	    /*
-	     * Just render a rect (using three coords).
-	     */
-	    VTX_OUT_6((float)dstX,                     (float)(dstY + dsth),
-		      (float)srcX / pPriv->w,          (float)(srcY + srch) / pPriv->h,
-		      (float)srcX / pPriv->w,          (float)(srcY + srch) / pPriv->h);
-	    VTX_OUT_6((float)(dstX + dstw),            (float)(dstY + dsth),
-		      (float)(srcX + srcw) / pPriv->w, (float)(srcY + srch) / pPriv->h,
-		      (float)(srcX + srcw) / pPriv->w, (float)(srcY + srch) / pPriv->h);
-	    VTX_OUT_6((float)(dstX + dstw),            (float)dstY,
-		      (float)(srcX + srcw) / pPriv->w, (float)srcY / pPriv->h,
-		      (float)(srcX + srcw) / pPriv->w, (float)srcY / pPriv->h);
-	} else {
-	    /*
-	     * Just render a rect (using three coords).
-	     */
-	    VTX_OUT_4((float)dstX,                     (float)(dstY + dsth),
-		      (float)srcX / pPriv->w,          (float)(srcY + srch) / pPriv->h);
-	    VTX_OUT_4((float)(dstX + dstw),            (float)(dstY + dsth),
-		      (float)(srcX + srcw) / pPriv->w, (float)(srcY + srch) / pPriv->h);
-	    VTX_OUT_4((float)(dstX + dstw),            (float)dstY,
-		      (float)(srcX + srcw) / pPriv->w, (float)srcY / pPriv->h);
-	}
-
-	pBox++;
-    }
-
-    OUT_ACCEL_REG(RADEON_WAIT_UNTIL, RADEON_WAIT_3D_IDLECLEAN);
-    FINISH_ACCEL();
-#endif /* !ACCEL_CP */
-
     DamageDamageRegion(pPriv->pDraw, &pPriv->clip);
 }
 
@@ -569,61 +440,29 @@ FUNC_NAME(R200PrepareTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     int ref = pPriv->transform_index;
     float ucscale = 0.25, vcscale = 0.25;
     Bool needux8 = FALSE, needvx8 = FALSE;
+    int ret;
     ACCEL_PREAMBLE();
 
-#ifdef XF86DRM_MODE
-    if (info->cs) {
-	int ret;
+    radeon_cs_space_reset_bos(info->cs);
+    radeon_cs_space_add_persistent_bo(info->cs, src_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
 
-	radeon_cs_space_reset_bos(info->cs);
-        radeon_cs_space_add_persistent_bo(info->cs, src_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+    if (pPriv->bicubic_enabled)
+	radeon_cs_space_add_persistent_bo(info->cs, info->bicubic_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
 
-	if (pPriv->bicubic_enabled)
-	    radeon_cs_space_add_persistent_bo(info->cs, info->bicubic_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+    driver_priv = exaGetPixmapDriverPrivate(pPixmap);
+    radeon_cs_space_add_persistent_bo(info->cs, driver_priv->bo, 0, RADEON_GEM_DOMAIN_VRAM);
 
-	driver_priv = exaGetPixmapDriverPrivate(pPixmap);
-	radeon_cs_space_add_persistent_bo(info->cs, driver_priv->bo, 0, RADEON_GEM_DOMAIN_VRAM);
-
-	ret = radeon_cs_space_check(info->cs);
-	if (ret) {
-	    ErrorF("Not enough RAM to hw accel xv operation\n");
-	    return FALSE;
-	}
+    ret = radeon_cs_space_check(info->cs);
+    if (ret) {
+	ErrorF("Not enough RAM to hw accel xv operation\n");
+	return FALSE;
     }
-#else
-    (void)src_bo;
-#endif
 
     pixel_shift = pPixmap->drawable.bitsPerPixel >> 4;
 
-#ifdef USE_EXA
-    if (info->useEXA) {
-	dst_pitch = exaGetPixmapPitch(pPixmap);
-    } else
-#endif
-    {
-	dst_pitch = pPixmap->devKind;
-    }
+    dst_pitch = exaGetPixmapPitch(pPixmap);
 
-#ifdef USE_EXA
-    if (info->useEXA) {
-	RADEON_SWITCH_TO_3D();
-    } else
-#endif
-    {
-	BEGIN_ACCEL(2);
-	OUT_ACCEL_REG(RADEON_RB3D_DSTCACHE_CTLSTAT, RADEON_RB3D_DC_FLUSH);
-	/* We must wait for 3d to idle, in case source was just written as a dest. */
-	OUT_ACCEL_REG(RADEON_WAIT_UNTIL,
-		      RADEON_WAIT_HOST_IDLECLEAN |
-		      RADEON_WAIT_2D_IDLECLEAN |
-		      RADEON_WAIT_3D_IDLECLEAN |
-		      RADEON_WAIT_DMA_GUI_IDLE);
-	FINISH_ACCEL();
-
-	if (!info->accel_state->XInited3D)
-	    RADEONInit3DEngine(pScrn);
-    }
+    RADEON_SWITCH_TO_3D();
 
     /* Same for R100/R200 */
     switch (pPixmap->drawable.bitsPerPixel) {
@@ -705,7 +544,7 @@ FUNC_NAME(R200PrepareTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	vcscale = 0.125;
     }
 
-    txoffset = info->cs ? 0 : pPriv->src_offset;
+    txoffset = 0;
 
     if (pPriv->is_planar) {
 	/* need 2 texcoord sets (even though they are identical) due
@@ -1046,16 +885,12 @@ FUNC_NAME(R200DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
      *     render as a quad.
      */
 
-#ifdef ACCEL_CP
     while (nBox) {
 	int draw_size = 3 * pPriv->vtx_count + 4;
 	int loop_boxes;
 
 	if (draw_size > radeon_cs_space_remaining(pScrn)) {
-	    if (info->cs)
-		radeon_cs_flush_indirect(pScrn);
-	    else
-		RADEONCPFlushIndirect(pScrn, 1);
+	    radeon_cs_flush_indirect(pScrn);
 	    if (!FUNC_NAME(R200PrepareTexturedVideo)(pScrn, pPriv))
 		return;
 	}
@@ -1118,60 +953,6 @@ FUNC_NAME(R200DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	OUT_ACCEL_REG(RADEON_WAIT_UNTIL, RADEON_WAIT_3D_IDLECLEAN);
 	ADVANCE_RING();
     }
-#else /* ACCEL_CP */
-    BEGIN_ACCEL(nBox * 3 * pPriv->vtx_count + 2);
-    OUT_ACCEL_REG(RADEON_SE_VF_CNTL, (RADEON_VF_PRIM_TYPE_RECTANGLE_LIST |
-				      RADEON_VF_PRIM_WALK_DATA |
-				      ((nBox * 3) << RADEON_VF_NUM_VERTICES_SHIFT)));
-    while (nBox--) {
-	float srcX, srcY, srcw, srch;
-	int dstX, dstY, dstw, dsth;
-	dstX = pBox->x1 + dstxoff;
-	dstY = pBox->y1 + dstyoff;
-	dstw = pBox->x2 - pBox->x1;
-	dsth = pBox->y2 - pBox->y1;
-
-	srcX = pPriv->src_x;
-	srcX += ((pBox->x1 - pPriv->drw_x) *
-		 pPriv->src_w) / (float)pPriv->dst_w;
-	srcY = pPriv->src_y;
-	srcY += ((pBox->y1 - pPriv->drw_y) *
-		 pPriv->src_h) / (float)pPriv->dst_h;
-
-	srcw = (pPriv->src_w * dstw) / (float)pPriv->dst_w;
-	srch = (pPriv->src_h * dsth) / (float)pPriv->dst_h;
-
-	if (pPriv->is_planar) {
-	    /*
-	     * Just render a rect (using three coords).
-	     */
-	    VTX_OUT_6((float)dstX,                     (float)(dstY + dsth),
-		      (float)srcX / pPriv->w,          (float)(srcY + srch) / pPriv->h,
-		      (float)srcX / pPriv->w,          (float)(srcY + srch) / pPriv->h);
-	    VTX_OUT_6((float)(dstX + dstw),            (float)(dstY + dsth),
-		      (float)(srcX + srcw) / pPriv->w, (float)(srcY + srch) / pPriv->h,
-		      (float)(srcX + srcw) / pPriv->w, (float)(srcY + srch) / pPriv->h);
-	    VTX_OUT_6((float)(dstX + dstw),            (float)dstY,
-		      (float)(srcX + srcw) / pPriv->w, (float)srcY / pPriv->h,
-		      (float)(srcX + srcw) / pPriv->w, (float)srcY / pPriv->h);
-	} else {
-	    /*
-	     * Just render a rect (using three coords).
-	     */
-	    VTX_OUT_4((float)dstX,                     (float)(dstY + dsth),
-		      (float)srcX / pPriv->w,          (float)(srcY + srch) / pPriv->h);
-	    VTX_OUT_4((float)(dstX + dstw),            (float)(dstY + dsth),
-		      (float)(srcX + srcw) / pPriv->w, (float)(srcY + srch) / pPriv->h);
-	    VTX_OUT_4((float)(dstX + dstw),            (float)dstY,
-		      (float)(srcX + srcw) / pPriv->w, (float)srcY / pPriv->h);
-	}
-
-	pBox++;
-    }
-
-    OUT_ACCEL_REG(RADEON_WAIT_UNTIL, RADEON_WAIT_3D_IDLECLEAN);
-    FINISH_ACCEL();
-#endif /* !ACCEL_CP */
 
     DamageDamageRegion(pPriv->pDraw, &pPriv->clip);
 }
@@ -1188,61 +969,28 @@ FUNC_NAME(R300PrepareTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     uint32_t txenable, colorpitch, bicubic_offset;
     uint32_t output_fmt;
     int pixel_shift;
+    int ret;
     ACCEL_PREAMBLE();
 
-#ifdef XF86DRM_MODE
-    if (info->cs) {
-	int ret;
+    radeon_cs_space_reset_bos(info->cs);
+    radeon_cs_space_add_persistent_bo(info->cs, src_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
 
-	radeon_cs_space_reset_bos(info->cs);
-	radeon_cs_space_add_persistent_bo(info->cs, src_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+    if (pPriv->bicubic_enabled)
+	radeon_cs_space_add_persistent_bo(info->cs, info->bicubic_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
 
-	if (pPriv->bicubic_enabled)
-	  radeon_cs_space_add_persistent_bo(info->cs, info->bicubic_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+    driver_priv = exaGetPixmapDriverPrivate(pPixmap);
+    radeon_cs_space_add_persistent_bo(info->cs, driver_priv->bo, 0, RADEON_GEM_DOMAIN_VRAM);
 
-	driver_priv = exaGetPixmapDriverPrivate(pPixmap);
-	radeon_cs_space_add_persistent_bo(info->cs, driver_priv->bo, 0, RADEON_GEM_DOMAIN_VRAM);
-
-	ret = radeon_cs_space_check(info->cs);
-	if (ret) {
-	    ErrorF("Not enough RAM to hw accel xv operation\n");
-	    return FALSE;
-	}
+    ret = radeon_cs_space_check(info->cs);
+    if (ret) {
+	ErrorF("Not enough RAM to hw accel xv operation\n");
+	return FALSE;
     }
-#else
-    (void)src_bo;
-#endif
 
     pixel_shift = pPixmap->drawable.bitsPerPixel >> 4;
 
-#ifdef USE_EXA
-    if (info->useEXA) {
-	dst_pitch = exaGetPixmapPitch(pPixmap);
-    } else
-#endif
-    {
-	dst_pitch = pPixmap->devKind;
-    }
-
-#ifdef USE_EXA
-    if (info->useEXA) {
-	RADEON_SWITCH_TO_3D();
-    } else
-#endif
-    {
-	BEGIN_ACCEL(2);
-	OUT_ACCEL_REG(R300_RB3D_DSTCACHE_CTLSTAT, R300_DC_FLUSH_3D);
-	/* We must wait for 3d to idle, in case source was just written as a dest. */
-	OUT_ACCEL_REG(RADEON_WAIT_UNTIL,
-		      RADEON_WAIT_HOST_IDLECLEAN |
-		      RADEON_WAIT_2D_IDLECLEAN |
-		      RADEON_WAIT_3D_IDLECLEAN |
-		      RADEON_WAIT_DMA_GUI_IDLE);
-	FINISH_ACCEL();
-
-	if (!info->accel_state->XInited3D)
-	    RADEONInit3DEngine(pScrn);
-    }
+    dst_pitch = exaGetPixmapPitch(pPixmap);
+    RADEON_SWITCH_TO_3D();
 
     if (pPriv->bicubic_enabled)
 	pPriv->vtx_count = 6;
@@ -1309,7 +1057,7 @@ FUNC_NAME(R300PrepareTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 		R300_TX_MIN_FILTER_LINEAR |
 		(0 << R300_TX_ID_SHIFT));
 
-    txoffset = info->cs ? 0 : pPriv->src_offset;
+    txoffset = 0;
 
     BEGIN_ACCEL_RELOC(6, 1);
     OUT_ACCEL_REG(R300_TX_FILTER0_0, txfilter);
@@ -1369,10 +1117,7 @@ FUNC_NAME(R300PrepareTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 		    R300_TX_MAG_FILTER_NEAREST |
 		    (1 << R300_TX_ID_SHIFT));
 
-	if (info->cs)
-	    bicubic_offset = 0;
-	else
-	    bicubic_offset = pPriv->bicubic_src_offset;
+	bicubic_offset = 0;
 
 	BEGIN_ACCEL_RELOC(6, 1);
 	OUT_ACCEL_REG(R300_TX_FILTER0_1, txfilter);
@@ -2502,18 +2247,13 @@ FUNC_NAME(R300DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	float srcX, srcY, srcw, srch;
 	int dstX, dstY, dstw, dsth;
 	Bool use_quad = FALSE;
-#ifdef ACCEL_CP
 	int draw_size = 4 * pPriv->vtx_count + 4 + 2 + 3;
 
 	if (draw_size > radeon_cs_space_remaining(pScrn)) {
-	    if (info->cs)
-		radeon_cs_flush_indirect(pScrn);
-	    else
-		RADEONCPFlushIndirect(pScrn, 1);
+	    radeon_cs_flush_indirect(pScrn);
 	    if (!FUNC_NAME(R300PrepareTexturedVideo)(pScrn, pPriv))
 		return;
 	}
-#endif
 
 	dstX = pBox->x1 + dstxoff;
 	dstY = pBox->y1 + dstyoff;
@@ -2548,7 +2288,6 @@ FUNC_NAME(R300DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 					 ((dstY + dsth + 1440 - 1) << R300_SCISSOR_Y_SHIFT)));
 	FINISH_ACCEL();
 
-#ifdef ACCEL_CP
 	if (use_quad) {
 	    BEGIN_RING(4 * pPriv->vtx_count + 4);
 	    OUT_RING(CP_PACKET3(R200_CP_PACKET3_3D_DRAW_IMMD_2,
@@ -2564,21 +2303,7 @@ FUNC_NAME(R300DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 		     RADEON_CP_VC_CNTL_PRIM_WALK_RING |
 		     (3 << RADEON_CP_VC_CNTL_NUM_SHIFT));
 	}
-#else /* ACCEL_CP */
-	if (use_quad)
-	    BEGIN_ACCEL(2 + pPriv->vtx_count * 4);
-	else
-	    BEGIN_ACCEL(2 + pPriv->vtx_count * 3);
 
-	if (use_quad)
-	    OUT_ACCEL_REG(RADEON_SE_VF_CNTL, (RADEON_VF_PRIM_TYPE_QUAD_LIST |
-					      RADEON_VF_PRIM_WALK_DATA |
-					      (4 << RADEON_VF_NUM_VERTICES_SHIFT)));
-	else
-	    OUT_ACCEL_REG(RADEON_SE_VF_CNTL, (RADEON_VF_PRIM_TYPE_TRIANGLE_LIST |
-					      RADEON_VF_PRIM_WALK_DATA |
-					      (3 << RADEON_VF_NUM_VERTICES_SHIFT)));
-#endif
 	if (pPriv->bicubic_enabled) {
 		/*
 		 * This code is only executed on >= R300, so we don't
@@ -2642,11 +2367,7 @@ FUNC_NAME(R300DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	/* flushing is pipelined, free/finish is not */
 	OUT_ACCEL_REG(R300_RB3D_DSTCACHE_CTLSTAT, R300_DC_FLUSH_3D);
 
-#ifdef ACCEL_CP
 	ADVANCE_RING();
-#else
-	FINISH_ACCEL();
-#endif /* !ACCEL_CP */
 
 	pBox++;
     }
@@ -2672,61 +2393,28 @@ FUNC_NAME(R500PrepareTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     uint32_t txenable, colorpitch, bicubic_offset;
     uint32_t output_fmt;
     int pixel_shift, out_size = 6;
+    int ret;
     ACCEL_PREAMBLE();
 
-#ifdef XF86DRM_MODE
-    if (info->cs) {
-	int ret;
+    radeon_cs_space_reset_bos(info->cs);
+    radeon_cs_space_add_persistent_bo(info->cs, src_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
 
-	radeon_cs_space_reset_bos(info->cs);
-	radeon_cs_space_add_persistent_bo(info->cs, src_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+    if (pPriv->bicubic_enabled)
+	radeon_cs_space_add_persistent_bo(info->cs, info->bicubic_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+    
+    driver_priv = exaGetPixmapDriverPrivate(pPixmap);
+    radeon_cs_space_add_persistent_bo(info->cs, driver_priv->bo, 0, RADEON_GEM_DOMAIN_VRAM);
 
-	if (pPriv->bicubic_enabled)
-	    radeon_cs_space_add_persistent_bo(info->cs, info->bicubic_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
-
-	driver_priv = exaGetPixmapDriverPrivate(pPixmap);
-	radeon_cs_space_add_persistent_bo(info->cs, driver_priv->bo, 0, RADEON_GEM_DOMAIN_VRAM);
-
-	ret = radeon_cs_space_check(info->cs);
-	if (ret) {
-	    ErrorF("Not enough RAM to hw accel xv operation\n");
-	    return FALSE;
-	}
+    ret = radeon_cs_space_check(info->cs);
+    if (ret) {
+	ErrorF("Not enough RAM to hw accel xv operation\n");
+	return FALSE;
     }
-#else
-    (void)src_bo;
-#endif
 
     pixel_shift = pPixmap->drawable.bitsPerPixel >> 4;
 
-#ifdef USE_EXA
-    if (info->useEXA) {
-	dst_pitch = exaGetPixmapPitch(pPixmap);
-    } else
-#endif
-    {
-	dst_pitch = pPixmap->devKind;
-    }
-
-#ifdef USE_EXA
-    if (info->useEXA) {
-	RADEON_SWITCH_TO_3D();
-    } else
-#endif
-    {
-	BEGIN_ACCEL(2);
-	OUT_ACCEL_REG(R300_RB3D_DSTCACHE_CTLSTAT, R300_DC_FLUSH_3D);
-	/* We must wait for 3d to idle, in case source was just written as a dest. */
-	OUT_ACCEL_REG(RADEON_WAIT_UNTIL,
-		      RADEON_WAIT_HOST_IDLECLEAN |
-		      RADEON_WAIT_2D_IDLECLEAN |
-		      RADEON_WAIT_3D_IDLECLEAN |
-		      RADEON_WAIT_DMA_GUI_IDLE);
-	FINISH_ACCEL();
-
-	if (!info->accel_state->XInited3D)
-	    RADEONInit3DEngine(pScrn);
-    }
+    dst_pitch = exaGetPixmapPitch(pPixmap);
+    RADEON_SWITCH_TO_3D();
 
     if (pPriv->bicubic_enabled)
 	pPriv->vtx_count = 6;
@@ -2818,7 +2506,7 @@ FUNC_NAME(R500PrepareTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	out_size++;
     }
 
-    txoffset = info->cs ? 0 : pPriv->src_offset;
+    txoffset = 0;
 
     BEGIN_ACCEL_RELOC(out_size, 1);
     OUT_ACCEL_REG(R300_TX_FILTER0_0, txfilter);
@@ -2877,10 +2565,7 @@ FUNC_NAME(R500PrepareTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 		    R300_TX_MAG_FILTER_NEAREST |
 		    (1 << R300_TX_ID_SHIFT));
 
-	if (info->cs)
-	    bicubic_offset = 0;
-	else
-	    bicubic_offset = pPriv->bicubic_src_offset;
+	bicubic_offset = 0;
 
 	BEGIN_ACCEL_RELOC(6, 1);
 	OUT_ACCEL_REG(R300_TX_FILTER0_1, txfilter);
@@ -4132,18 +3817,13 @@ FUNC_NAME(R500DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     while (nBox--) {
 	float srcX, srcY, srcw, srch;
 	int dstX, dstY, dstw, dsth;
-#ifdef ACCEL_CP
 	int draw_size = 3 * pPriv->vtx_count + 4 + 2 + 3;
 
 	if (draw_size > radeon_cs_space_remaining(pScrn)) {
-	    if (info->cs)
-		radeon_cs_flush_indirect(pScrn);
-	    else
-		RADEONCPFlushIndirect(pScrn, 1);
+	    radeon_cs_flush_indirect(pScrn);
 	    if (!FUNC_NAME(R500PrepareTexturedVideo)(pScrn, pPriv))
 		return;
 	}
-#endif
 
 	dstX = pBox->x1 + dstxoff;
 	dstY = pBox->y1 + dstyoff;
@@ -4167,19 +3847,13 @@ FUNC_NAME(R500DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 					 ((dstY + dsth - 1) << R300_SCISSOR_Y_SHIFT)));
 	FINISH_ACCEL();
 
-#ifdef ACCEL_CP
 	BEGIN_RING(3 * pPriv->vtx_count + 4);
 	OUT_RING(CP_PACKET3(R200_CP_PACKET3_3D_DRAW_IMMD_2,
 			    3 * pPriv->vtx_count));
 	OUT_RING(RADEON_CP_VC_CNTL_PRIM_TYPE_TRI_LIST |
 		 RADEON_CP_VC_CNTL_PRIM_WALK_RING |
 		 (3 << RADEON_CP_VC_CNTL_NUM_SHIFT));
-#else /* ACCEL_CP */
-	BEGIN_ACCEL(2 + pPriv->vtx_count * 3);
-	OUT_ACCEL_REG(RADEON_SE_VF_CNTL, (RADEON_VF_PRIM_TYPE_TRIANGLE_LIST |
-					  RADEON_VF_PRIM_WALK_DATA |
-					  (3 << RADEON_VF_NUM_VERTICES_SHIFT)));
-#endif
+
 	if (pPriv->bicubic_enabled) {
 	    VTX_OUT_6((float)dstX,            (float)dstY,
 		      (float)srcX / pPriv->w, (float)srcY / pPriv->h,
@@ -4210,11 +3884,7 @@ FUNC_NAME(R500DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	/* flushing is pipelined, free/finish is not */
 	OUT_ACCEL_REG(R300_RB3D_DSTCACHE_CTLSTAT, R300_DC_FLUSH_3D);
 
-#ifdef ACCEL_CP
 	ADVANCE_RING();
-#else
-	FINISH_ACCEL();
-#endif /* !ACCEL_CP */
 
 	pBox++;
     }

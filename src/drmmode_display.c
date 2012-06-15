@@ -30,7 +30,6 @@
 #endif
 
 #include <errno.h>
-#ifdef XF86DRM_MODE
 #include <sys/ioctl.h>
 #include "micmap.h"
 #include "xf86cmap.h"
@@ -636,7 +635,7 @@ void drmmode_crtc_hw_id(xf86CrtcPtr crtc)
 	ginfo.request = 0x4;
 	tmp = drmmode_crtc->mode_crtc->crtc_id;
 	ginfo.value = (uintptr_t)&tmp;
-	r = drmCommandWriteRead(info->dri->drmFD, DRM_RADEON_INFO, &ginfo, sizeof(ginfo));
+	r = drmCommandWriteRead(info->dri2.drm_fd, DRM_RADEON_INFO, &ginfo, sizeof(ginfo));
 	if (r) {
 		drmmode_crtc->hw_id = -1;
 		return;
@@ -1528,7 +1527,7 @@ void drmmode_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 	RADEONInfoPtr info = RADEONPTR(pScrn);
 
 	if (pRADEONEnt->fd_wakeup_registered != serverGeneration &&
-	    info->dri->pKernelDRMVersion->version_minor >= 4) {
+	    info->dri2.pKernelDRMVersion->version_minor >= 4) {
 		AddGeneralSocket(drmmode->fd);
 		RegisterBlockAndWakeupHandlers((BlockHandlerProcPtr)NoopDDA,
 				drm_wakeup_handler, drmmode);
@@ -1868,4 +1867,3 @@ error_out:
 	return FALSE;
 }
 
-#endif

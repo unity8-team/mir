@@ -28,8 +28,6 @@
 #include "config.h"
 #endif
 
-#ifdef XF86DRM_MODE
-
 #include "xf86.h"
 
 #include "exa.h"
@@ -527,5 +525,3 @@ EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 
     DamageDamageRegion(pPriv->pDraw, &pPriv->clip);
 }
-
-#endif

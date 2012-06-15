@@ -30,29 +30,15 @@
  *
  */
 
-#if defined(ACCEL_MMIO) && defined(ACCEL_CP)
-#error Cannot define both MMIO and CP acceleration!
-#endif
-
 #if !defined(UNIXCPP) || defined(ANSICPP)
 #define FUNC_NAME_CAT(prefix,suffix) prefix##suffix
 #else
 #define FUNC_NAME_CAT(prefix,suffix) prefix/**/suffix
 #endif
 
-#ifdef ACCEL_MMIO
-#define FUNC_NAME(prefix) FUNC_NAME_CAT(prefix,MMIO)
-#else
-#ifdef ACCEL_CP
 #define FUNC_NAME(prefix) FUNC_NAME_CAT(prefix,CP)
-#else
-#error No accel type defined!
-#endif
-#endif
 
-#ifndef ACCEL_CP
 #define ONLY_ONCE
-#endif
 
 /* Only include the following (generic) bits once. */
 #ifdef ONLY_ONCE
@@ -404,8 +390,6 @@ static Bool FUNC_NAME(R100TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
     txpitch = exaGetPixmapPitch(pPix);
     txoffset = 0;
 
-    CHECK_OFFSET(pPix, 0x1f, "texture");
-
     if ((txpitch & 0x1f) != 0)
 	RADEON_FALLBACK(("Bad texture pitch 0x%x\n", (int)txpitch));
 
@@ -581,6 +565,7 @@ RADEONPrepareCompositeCS(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture
 			    PixmapPtr pDst)
 {
     RINFO_FROM_SCREEN(pDst->drawable.pScreen);
+    int ret;
 
     info->accel_state->composite_op = op;
     info->accel_state->dst_pic = pDstPicture;
@@ -590,25 +575,19 @@ RADEONPrepareCompositeCS(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture
     info->accel_state->msk_pix = pMask;
     info->accel_state->src_pix = pSrc;
 
-#ifdef XF86DRM_MODE
-    if (info->cs) {
-	int ret;
+    radeon_cs_space_reset_bos(info->cs);
 
-	radeon_cs_space_reset_bos(info->cs);
+    radeon_add_pixmap(info->cs, pSrc,
+		      RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
 
-	radeon_add_pixmap(info->cs, pSrc,
-			  RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+    if (pMask)
+	radeon_add_pixmap(info->cs, pMask, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
 
-	if (pMask)
-	    radeon_add_pixmap(info->cs, pMask, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+    radeon_add_pixmap(info->cs, pDst, 0, RADEON_GEM_DOMAIN_VRAM);
 
-	radeon_add_pixmap(info->cs, pDst, 0, RADEON_GEM_DOMAIN_VRAM);
-
-	ret = radeon_cs_space_check(info->cs);
-	if (ret)
-	    RADEON_FALLBACK(("Not enough RAM to hw accel composite operation\n"));
-    }
-#endif
+    ret = radeon_cs_space_check(info->cs);
+    if (ret)
+	RADEON_FALLBACK(("Not enough RAM to hw accel composite operation\n"));
 
     return TRUE;
 }
@@ -645,8 +624,6 @@ static Bool FUNC_NAME(R100PrepareComposite)(int op,
     colorpitch = dst_pitch >> pixel_shift;
     if (RADEONPixmapIsColortiled(pDst))
 	colorpitch |= RADEON_COLOR_TILE_ENABLE;
-
-    CHECK_OFFSET(pDst, 0x0f, "destination");
 
     if (!pSrc) {
 	pSrc = RADEONSolidPixmap(pScreen, cpu_to_le32(pSrcPicture->pSourcePict->solidFill.color));
@@ -821,7 +798,6 @@ static Bool FUNC_NAME(R200TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
     txpitch = exaGetPixmapPitch(pPix);
 
     txoffset = 0;
-    CHECK_OFFSET(pPix, 0x1f, "texture");
 
     if ((txpitch & 0x1f) != 0)
 	RADEON_FALLBACK(("Bad texture pitch 0x%x\n", (int)txpitch));
@@ -1019,8 +995,6 @@ static Bool FUNC_NAME(R200PrepareComposite)(int op, PicturePtr pSrcPicture,
     if (RADEONPixmapIsColortiled(pDst))
 	colorpitch |= RADEON_COLOR_TILE_ENABLE;
 
-    CHECK_OFFSET(pDst, 0xf, "destination");
-
     if (((dst_pitch >> pixel_shift) & 0x7) != 0)
 	RADEON_FALLBACK(("Bad destination pitch 0x%x\n", (int)dst_pitch));
 
@@ -1139,9 +1113,6 @@ static Bool R300CheckCompositeTexture(PicturePtr pPict,
 				      int unit,
 				      Bool is_r500)
 {
-    ScreenPtr pScreen = pDstPict->pDrawable->pScreen;
-    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
-    RADEONInfoPtr info = RADEONPTR(pScrn);
     unsigned int repeatType = pPict->repeat ? pPict->repeatType : RepeatNone;
     int i;
 
@@ -1155,14 +1126,14 @@ static Bool R300CheckCompositeTexture(PicturePtr pPict,
 			 (int)pPict->format));
 
     if (pPict->pDrawable && !RADEONCheckTexturePOT(pPict, unit == 0)) {
-	if (info->cs) {
-    		struct radeon_exa_pixmap_priv *driver_priv;
+#if 0
+	      		struct radeon_exa_pixmap_priv *driver_priv;
 		PixmapPtr pPix;
 
     		pPix = RADEONGetDrawablePixmap(pPict->pDrawable);
 		driver_priv = exaGetPixmapDriverPrivate(pPix);
 		//TODOradeon_bufmgr_gem_force_gtt(driver_priv->bo);
-	}
+#endif
 	return FALSE;
     }
 
@@ -1215,8 +1186,6 @@ static Bool FUNC_NAME(R300TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 
     txpitch = exaGetPixmapPitch(pPix);
     txoffset = 0;
-
-    CHECK_OFFSET(pPix, 0x1f, "texture");
 
     if ((txpitch & 0x1f) != 0)
 	RADEON_FALLBACK(("Bad texture pitch 0x%x\n", (int)txpitch));
@@ -1526,8 +1495,6 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 	colorpitch |= R300_COLORTILE;
 
     colorpitch |= dst_format;
-
-    CHECK_OFFSET(pDst, 0x0f, "destination");
 
     if (((dst_pitch >> pixel_shift) & 0x7) != 0)
 	RADEON_FALLBACK(("Bad destination pitch 0x%x\n", (int)dst_pitch));
@@ -2233,8 +2200,6 @@ static void FUNC_NAME(RadeonDoneComposite)(PixmapPtr pDst)
 	pScreen->DestroyPixmap(accel_state->msk_pix);
 }
 
-#ifdef ACCEL_CP
-
 #define VTX_OUT_MASK(_dstX, _dstY, _srcX, _srcY, _maskX, _maskY)	\
 do {								\
     OUT_RING_F(_dstX);						\
@@ -2252,28 +2217,6 @@ do {								\
     OUT_RING_F(_srcX);						\
     OUT_RING_F(_srcY);						\
 } while (0)
-
-#else /* ACCEL_CP */
-
-#define VTX_OUT_MASK(_dstX, _dstY, _srcX, _srcY, _maskX, _maskY)	\
-do {								\
-    OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _dstX);		\
-    OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _dstY);		\
-    OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _srcX);		\
-    OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _srcY);		\
-    OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _maskX);		\
-    OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _maskY);		\
-} while (0)
-
-#define VTX_OUT(_dstX, _dstY, _srcX, _srcY)	\
-do {								\
-    OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _dstX);		\
-    OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _dstY);		\
-    OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _srcX);		\
-    OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _srcY);		\
-} while (0)
-
-#endif /* !ACCEL_CP */
 
 #ifdef ONLY_ONCE
 static inline void transformPoint(PictTransform *transform, xPointFixed *point)
@@ -2306,15 +2249,9 @@ static void FUNC_NAME(RadeonCompositeTile)(ScrnInfoPtr pScrn,
     /* ErrorF("RadeonComposite (%d,%d) (%d,%d) (%d,%d) (%d,%d)\n",
        srcX, srcY, maskX, maskY,dstX, dstY, w, h); */
 
-#if defined(ACCEL_CP)
-    if ((info->cs && CS_FULL(info->cs)) ||
-	(!info->cs && (info->cp->indirectBuffer->used + 4 * 32) >
-	 info->cp->indirectBuffer->total)) {
+    if (CS_FULL(info->cs)) {
 	FUNC_NAME(RadeonFinishComposite)(info->accel_state->dst_pix);
-	if (info->cs)
-	    radeon_cs_flush_indirect(pScrn);
-	else
-	    RADEONCPFlushIndirect(pScrn, 1);
+	radeon_cs_flush_indirect(pScrn);
 	info->accel_state->exa->PrepareComposite(info->accel_state->composite_op,
 						 info->accel_state->src_pic,
 						 info->accel_state->msk_pic,
@@ -2323,7 +2260,6 @@ static void FUNC_NAME(RadeonCompositeTile)(ScrnInfoPtr pScrn,
 						 info->accel_state->msk_pix,
 						 info->accel_state->dst_pix);
     }
-#endif
 
     srcTopLeft.x     = IntToxFixed(srcX);
     srcTopLeft.y     = IntToxFixed(srcY);
@@ -2371,17 +2307,11 @@ static void FUNC_NAME(RadeonCompositeTile)(ScrnInfoPtr pScrn,
 				      radeon_pick_best_crtc(pScrn, dstX, dstX + w, dstY, dstY + h),
 				      dstY, dstY + h);
 
-#ifdef ACCEL_CP
     if (info->ChipFamily < CHIP_FAMILY_R200) {
 	if (!info->accel_state->draw_header) {
 	    BEGIN_RING(3);
 
-#ifdef XF86DRM_MODE
-	    if (info->cs)
-		info->accel_state->draw_header = info->cs->packets + info->cs->cdw;
-	    else
-#endif
-		info->accel_state->draw_header = __head;
+	    info->accel_state->draw_header = info->cs->packets + info->cs->cdw;
 	    info->accel_state->num_vtx = 0;
 	    info->accel_state->vtx_count = vtx_count;
 
@@ -2408,12 +2338,7 @@ static void FUNC_NAME(RadeonCompositeTile)(ScrnInfoPtr pScrn,
 	if (!info->accel_state->draw_header) {
 	    BEGIN_RING(2);
 
-#ifdef XF86DRM_MODE
-	    if (info->cs)
-		info->accel_state->draw_header = info->cs->packets + info->cs->cdw;
-	    else
-#endif
-		info->accel_state->draw_header = __head;
+	    info->accel_state->draw_header = info->cs->packets + info->cs->cdw;
 	    info->accel_state->num_vtx = 0;
 	    info->accel_state->vtx_count = vtx_count;
 
@@ -2431,12 +2356,7 @@ static void FUNC_NAME(RadeonCompositeTile)(ScrnInfoPtr pScrn,
 	if (!info->accel_state->draw_header) {
 	    BEGIN_RING(2);
 
-#ifdef XF86DRM_MODE
-	    if (info->cs)
-		info->accel_state->draw_header = info->cs->packets + info->cs->cdw;
-	    else
-#endif
-		info->accel_state->draw_header = __head;
+	    info->accel_state->draw_header = info->cs->packets + info->cs->cdw;
 	    info->accel_state->num_vtx = 0;
 	    info->accel_state->vtx_count = vtx_count;
 
@@ -2451,28 +2371,6 @@ static void FUNC_NAME(RadeonCompositeTile)(ScrnInfoPtr pScrn,
 	info->accel_state->num_vtx += 3;
 	BEGIN_RING(3 * vtx_count);
     }
-
-#else /* ACCEL_CP */
-    if (IS_R300_3D || IS_R500_3D)
-	BEGIN_ACCEL(2 + vtx_count * 4);
-    else
-	BEGIN_ACCEL(1 + vtx_count * 3);
-
-    if (info->ChipFamily < CHIP_FAMILY_R200)
-	OUT_ACCEL_REG(RADEON_SE_VF_CNTL, (RADEON_VF_PRIM_TYPE_RECTANGLE_LIST |
-					  RADEON_VF_PRIM_WALK_DATA |
-					  RADEON_VF_RADEON_MODE |
-					  (3 << RADEON_VF_NUM_VERTICES_SHIFT)));
-    else if (IS_R300_3D || IS_R500_3D)
-	OUT_ACCEL_REG(RADEON_SE_VF_CNTL, (RADEON_VF_PRIM_TYPE_QUAD_LIST |
-					  RADEON_VF_PRIM_WALK_DATA |
-					  (4 << RADEON_VF_NUM_VERTICES_SHIFT)));
-    else
-	OUT_ACCEL_REG(RADEON_SE_VF_CNTL, (RADEON_VF_PRIM_TYPE_RECTANGLE_LIST |
-					  RADEON_VF_PRIM_WALK_DATA |
-					  (3 << RADEON_VF_NUM_VERTICES_SHIFT)));
-
-#endif
 
     if (info->accel_state->msk_pic) {
 	if (IS_R300_3D || IS_R500_3D) {
@@ -2502,11 +2400,7 @@ static void FUNC_NAME(RadeonCompositeTile)(ScrnInfoPtr pScrn,
 		xFixedToFloat(srcTopRight.x) / info->accel_state->texW[0],     xFixedToFloat(srcTopRight.y) / info->accel_state->texH[0]);
     }
 
-#ifdef ACCEL_CP
     ADVANCE_RING();
-#else
-    FINISH_ACCEL();
-#endif /* !ACCEL_CP */
 
     LEAVE_DRAW(0);
 }

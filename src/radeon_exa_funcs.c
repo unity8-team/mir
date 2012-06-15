@@ -31,25 +31,13 @@
  *
  */
 
-#if defined(ACCEL_MMIO) && defined(ACCEL_CP)
-#error Cannot define both MMIO and CP acceleration!
-#endif
-
 #if !defined(UNIXCPP) || defined(ANSICPP)
 #define FUNC_NAME_CAT(prefix,suffix) prefix##suffix
 #else
 #define FUNC_NAME_CAT(prefix,suffix) prefix/**/suffix
 #endif
 
-#ifdef ACCEL_MMIO
-#define FUNC_NAME(prefix) FUNC_NAME_CAT(prefix,MMIO)
-#else
-#ifdef ACCEL_CP
 #define FUNC_NAME(prefix) FUNC_NAME_CAT(prefix,CP)
-#else
-#error No accel type defined!
-#endif
-#endif
 
 #include <errno.h>
 #include <string.h>
@@ -71,20 +59,7 @@ FUNC_NAME(RADEONMarkSync)(ScreenPtr pScreen)
 static void
 FUNC_NAME(RADEONSync)(ScreenPtr pScreen, int marker)
 {
-    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
-    RADEONInfoPtr info = RADEONPTR(pScrn);
 
-    if (info->cs)
-	    return;
-
-    TRACE;
-
-    if (info->accel_state->exaMarkerSynced != marker) {
-	FUNC_NAME(RADEONWaitForIdle)(pScrn);
-	info->accel_state->exaMarkerSynced = marker;
-    }
-
-    RADEONPTR(pScrn)->accel_state->engineMode = EXA_ENGINEMODE_UNKNOWN;
 }
 
 static void FUNC_NAME(Emit2DState)(ScrnInfoPtr pScrn, int op)
@@ -97,7 +72,7 @@ static void FUNC_NAME(Emit2DState)(ScrnInfoPtr pScrn, int op)
     if (info->state_2d.op == 0 && op == 0)
 	return;
 
-    has_src = info->state_2d.src_pitch_offset || (info->cs && info->state_2d.src_bo);
+    has_src = info->state_2d.src_pitch_offset || info->state_2d.src_bo;
 
     if (has_src) {
       BEGIN_ACCEL_RELOC(10, 2);
@@ -114,21 +89,17 @@ static void FUNC_NAME(Emit2DState)(ScrnInfoPtr pScrn, int op)
     OUT_ACCEL_REG(RADEON_DP_CNTL, info->state_2d.dp_cntl);
 
     OUT_ACCEL_REG(RADEON_DST_PITCH_OFFSET, info->state_2d.dst_pitch_offset);
-    if (info->cs)
-	OUT_RELOC(info->state_2d.dst_bo, 0, RADEON_GEM_DOMAIN_VRAM);
+    OUT_RELOC(info->state_2d.dst_bo, 0, RADEON_GEM_DOMAIN_VRAM);
 
     if (has_src) {
-	    OUT_ACCEL_REG(RADEON_SRC_PITCH_OFFSET, info->state_2d.src_pitch_offset);
-	    if (info->cs)
-		OUT_RELOC(info->state_2d.src_bo, RADEON_GEM_DOMAIN_GTT|RADEON_GEM_DOMAIN_VRAM, 0);
-	    
+	OUT_ACCEL_REG(RADEON_SRC_PITCH_OFFSET, info->state_2d.src_pitch_offset);
+	OUT_RELOC(info->state_2d.src_bo, RADEON_GEM_DOMAIN_GTT|RADEON_GEM_DOMAIN_VRAM, 0);
     }
     FINISH_ACCEL();
 
     if (op)
 	info->state_2d.op = op;
-    if (info->cs)
-	info->reemit_current2d = FUNC_NAME(Emit2DState);
+    info->reemit_current2d = FUNC_NAME(Emit2DState);
 }
 
 static void
@@ -160,6 +131,8 @@ FUNC_NAME(RADEONPrepareSolid)(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
 {
     RINFO_FROM_SCREEN(pPix->drawable.pScreen);
     uint32_t datatype, dst_pitch_offset;
+    struct radeon_exa_pixmap_priv *driver_priv;
+    int ret;
 
     TRACE;
 
@@ -172,25 +145,18 @@ FUNC_NAME(RADEONPrepareSolid)(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
 
     RADEON_SWITCH_TO_2D();
 
-#ifdef XF86DRM_MODE
-    if (info->cs) {
-	struct radeon_exa_pixmap_priv *driver_priv;
-	int ret;
-      
-	radeon_cs_space_reset_bos(info->cs);
+    radeon_cs_space_reset_bos(info->cs);
 
-	driver_priv = exaGetPixmapDriverPrivate(pPix);
-	radeon_cs_space_add_persistent_bo(info->cs, driver_priv->bo, 0, RADEON_GEM_DOMAIN_VRAM);
+    driver_priv = exaGetPixmapDriverPrivate(pPix);
+    radeon_cs_space_add_persistent_bo(info->cs, driver_priv->bo, 0, RADEON_GEM_DOMAIN_VRAM);
 
-	ret = radeon_cs_space_check(info->cs);
-	if (ret)
-	    RADEON_FALLBACK(("Not enough RAM to hw accel solid operation\n"));
+    ret = radeon_cs_space_check(info->cs);
+    if (ret)
+	RADEON_FALLBACK(("Not enough RAM to hw accel solid operation\n"));
 
-	driver_priv = exaGetPixmapDriverPrivate(pPix);
-	if (driver_priv)
-	    info->state_2d.dst_bo = driver_priv->bo;
-    }
-#endif
+    driver_priv = exaGetPixmapDriverPrivate(pPix);
+    if (driver_priv)
+	info->state_2d.dst_bo = driver_priv->bo;
 
     info->state_2d.default_sc_bottom_right = (RADEON_DEFAULT_SC_RIGHT_MAX |
 					       RADEON_DEFAULT_SC_BOTTOM_MAX);
@@ -226,12 +192,10 @@ FUNC_NAME(RADEONSolid)(PixmapPtr pPix, int x1, int y1, int x2, int y2)
 
     TRACE;
 
-#if defined(ACCEL_CP) && defined(XF86DRM_MODE)
-    if (info->cs && CS_FULL(info->cs)) {
+    if (CS_FULL(info->cs)) {
 	FUNC_NAME(RADEONFlush2D)(info->accel_state->dst_pix);
 	radeon_cs_flush_indirect(pScrn);
     }
-#endif
 
     if (info->accel_state->vsync)
 	FUNC_NAME(RADEONWaitForVLine)(pScrn, pPix,
@@ -283,6 +247,8 @@ FUNC_NAME(RADEONPrepareCopy)(PixmapPtr pSrc,   PixmapPtr pDst,
 {
     RINFO_FROM_SCREEN(pDst->drawable.pScreen);
     uint32_t datatype, src_pitch_offset, dst_pitch_offset;
+    struct radeon_exa_pixmap_priv *driver_priv;
+    int ret;
     TRACE;
 
     if (pDst->drawable.bitsPerPixel == 24)
@@ -296,26 +262,19 @@ FUNC_NAME(RADEONPrepareCopy)(PixmapPtr pSrc,   PixmapPtr pDst,
 
     RADEON_SWITCH_TO_2D();
 
-#ifdef XF86DRM_MODE
-    if (info->cs) {
-	struct radeon_exa_pixmap_priv *driver_priv;
-	int ret;
-      
-	radeon_cs_space_reset_bos(info->cs);
+    radeon_cs_space_reset_bos(info->cs);
 
-	driver_priv = exaGetPixmapDriverPrivate(pSrc);
-	radeon_cs_space_add_persistent_bo(info->cs, driver_priv->bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
-	info->state_2d.src_bo = driver_priv->bo;
+    driver_priv = exaGetPixmapDriverPrivate(pSrc);
+    radeon_cs_space_add_persistent_bo(info->cs, driver_priv->bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+    info->state_2d.src_bo = driver_priv->bo;
 
-	driver_priv = exaGetPixmapDriverPrivate(pDst);
-	radeon_cs_space_add_persistent_bo(info->cs, driver_priv->bo, 0, RADEON_GEM_DOMAIN_VRAM);
-	info->state_2d.dst_bo = driver_priv->bo;
+    driver_priv = exaGetPixmapDriverPrivate(pDst);
+    radeon_cs_space_add_persistent_bo(info->cs, driver_priv->bo, 0, RADEON_GEM_DOMAIN_VRAM);
+    info->state_2d.dst_bo = driver_priv->bo;
 
-	ret = radeon_cs_space_check(info->cs);
-	if (ret)
-	    RADEON_FALLBACK(("Not enough RAM to hw accel copy operation\n"));
-    }
-#endif
+    ret = radeon_cs_space_check(info->cs);
+    if (ret)
+	RADEON_FALLBACK(("Not enough RAM to hw accel copy operation\n"));
 
     info->accel_state->xdir = xdir;
     info->accel_state->ydir = ydir;
@@ -338,12 +297,10 @@ FUNC_NAME(RADEONCopy)(PixmapPtr pDst,
 
     TRACE;
 
-#if defined(ACCEL_CP) && defined(XF86DRM_MODE)
-    if (info->cs && CS_FULL(info->cs)) {
+    if (CS_FULL(info->cs)) {
 	FUNC_NAME(RADEONFlush2D)(info->accel_state->dst_pix);
 	radeon_cs_flush_indirect(pScrn);
     }
-#endif
 
     if (info->accel_state->xdir < 0) {
 	srcX += w - 1;
@@ -366,50 +323,6 @@ FUNC_NAME(RADEONCopy)(PixmapPtr pDst,
     OUT_ACCEL_REG(RADEON_DST_HEIGHT_WIDTH, (h  << 16) | w);
 
     FINISH_ACCEL();
-}
-
-#ifdef ACCEL_CP
-
-static Bool
-RADEONUploadToScreenCP(PixmapPtr pDst, int x, int y, int w, int h,
-		       char *src, int src_pitch)
-{
-    RINFO_FROM_SCREEN(pDst->drawable.pScreen);
-    unsigned int   bpp	     = pDst->drawable.bitsPerPixel;
-    unsigned int   hpass;
-    uint32_t	   buf_pitch, dst_pitch_off;
-
-    TRACE;
-
-    if (bpp < 8)
-	return FALSE;
-
-    if (info->directRenderingEnabled &&
-	RADEONGetPixmapOffsetPitch(pDst, &dst_pitch_off)) {
-	uint8_t *buf;
-	int cpp = bpp / 8;
-	ACCEL_PREAMBLE();
-
-	RADEON_SWITCH_TO_2D();
-
-	if (info->accel_state->vsync)
-	    FUNC_NAME(RADEONWaitForVLine)(pScrn, pDst,
-					  radeon_pick_best_crtc(pScrn, x, x + w, y, y + h),
-					  y, y + h);
-
-	while ((buf = RADEONHostDataBlit(pScrn,
-					 cpp, w, dst_pitch_off, &buf_pitch,
-					 x, &y, (unsigned int*)&h, &hpass)) != 0) {
-	    RADEONHostDataBlitCopyPass(pScrn, cpp, buf, (uint8_t *)src,
-				       hpass, buf_pitch, src_pitch);
-	    src += hpass * src_pitch;
-	}
-
-	exaMarkSync(pDst->drawable.pScreen);
-	return TRUE;
-    }
-
-    return FALSE;
 }
 
 /* Emit blit with arbitrary source and destination offsets and pitches */
@@ -459,7 +372,6 @@ RADEONBlitChunk(ScrnInfoPtr pScrn, struct radeon_bo *src_bo,
     FINISH_ACCEL();
 }
 
-#if defined(XF86DRM_MODE)
 static Bool
 RADEONUploadToScreenCS(PixmapPtr pDst, int x, int y, int w, int h,
 		       char *src, int src_pitch)
@@ -672,118 +584,6 @@ out:
 	radeon_bo_unref(scratch);
     return r;
 }
-#endif
-
-static Bool
-RADEONDownloadFromScreenCP(PixmapPtr pSrc, int x, int y, int w, int h,
-				    char *dst, int dst_pitch)
-{
-    RINFO_FROM_SCREEN(pSrc->drawable.pScreen);
-    uint8_t	  *src	     = info->FB + exaGetPixmapOffset(pSrc);
-    int		   bpp	     = pSrc->drawable.bitsPerPixel;
-    uint32_t datatype, src_pitch_offset, scratch_pitch = RADEON_ALIGN(w * bpp / 8, 64), scratch_off = 0;
-    drmBufPtr scratch;
-
-    TRACE;
-
-    /*
-     * Try to accelerate download. Use an indirect buffer as scratch space,
-     * blitting the bits to one half while copying them out of the other one and
-     * then swapping the halves.
-     */
-    if (bpp != 24 && RADEONGetDatatypeBpp(bpp, &datatype) &&
-	RADEONGetPixmapOffsetPitch(pSrc, &src_pitch_offset) &&
-	(scratch = RADEONCPGetBuffer(pScrn)))
-    {
-	int swap = RADEON_HOST_DATA_SWAP_NONE, wpass = w * bpp / 8;
-	int hpass = min(h, scratch->total/2 / scratch_pitch);
-	uint32_t scratch_pitch_offset = scratch_pitch << 16
-				    | (info->gartLocation + info->dri->bufStart
-				       + scratch->idx * scratch->total) >> 10;
-	drm_radeon_indirect_t indirect;
-	ACCEL_PREAMBLE();
-
-	RADEON_SWITCH_TO_2D();
-
-	/* Kick the first blit as early as possible */
-	RADEONBlitChunk(pScrn, NULL, NULL, datatype, src_pitch_offset,
-                        scratch_pitch_offset, x, y, 0, 0, w, hpass, 0, 0);
-	FLUSH_RING();
-
-#if X_BYTE_ORDER == X_BIG_ENDIAN
-	switch (bpp) {
-	case 16:
-	  swap = RADEON_HOST_DATA_SWAP_16BIT;
-	  break;
-	case 32:
-	  swap = RADEON_HOST_DATA_SWAP_32BIT;
-	  break;
-	}
-#endif
-
-	while (h) {
-	    int oldhpass = hpass, i = 0;
-
-	    src = (uint8_t*)scratch->address + scratch_off;
-
-	    y += oldhpass;
-	    h -= oldhpass;
-	    hpass = min(h, scratch->total/2 / scratch_pitch);
-
-	    /* Prepare next blit if anything's left */
-	    if (hpass) {
-		scratch_off = scratch->total/2 - scratch_off;
-		RADEONBlitChunk(pScrn, NULL, NULL, datatype, src_pitch_offset,
-                                scratch_pitch_offset + (scratch_off >> 10),
-				x, y, 0, 0, w, hpass, 0, 0);
-	    }
-
-	    /*
-	     * Wait for previous blit to complete.
-	     *
-	     * XXX: Doing here essentially the same things this ioctl does in
-	     * the DRM results in corruption with 'small' transfers, apparently
-	     * because the data doesn't actually land in system RAM before the
-	     * memcpy. I suspect the ioctl helps mostly due to its latency; what
-	     * we'd really need is a way to reliably wait for the host interface
-	     * to be done with pushing the data to the host.
-	     */
-	    while ((drmCommandNone(info->dri->drmFD, DRM_RADEON_CP_IDLE) == -EBUSY)
-		   && (i++ < RADEON_TIMEOUT))
-		;
-
-	    /* Kick next blit */
-	    if (hpass)
-		FLUSH_RING();
-
-	    /* Copy out data from previous blit */
-	    if (wpass == scratch_pitch && wpass == dst_pitch) {
-		RADEONCopySwap((uint8_t*)dst, src, wpass * oldhpass, swap);
-		dst += dst_pitch * oldhpass;
-	    } else while (oldhpass--) {
-		RADEONCopySwap((uint8_t*)dst, src, wpass, swap);
-		src += scratch_pitch;
-		dst += dst_pitch;
-	    }
-	}
-
-	indirect.idx = scratch->idx;
-	indirect.start = indirect.end = 0;
-	indirect.discard = 1;
-
-	drmCommandWriteRead(info->dri->drmFD, DRM_RADEON_INDIRECT,
-			    &indirect, sizeof(drm_radeon_indirect_t));
-
-	info->accel_state->exaMarkerSynced = info->accel_state->exaSyncMarker;
-
-	return TRUE;
-    }
-
-    return FALSE;
-}
-
-#endif	/* def ACCEL_CP */
-
 
 Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
 {
@@ -807,24 +607,9 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
 
     info->accel_state->exa->MarkSync = FUNC_NAME(RADEONMarkSync);
     info->accel_state->exa->WaitMarker = FUNC_NAME(RADEONSync);
-#ifdef ACCEL_CP
-    if (!info->kms_enabled) {
-	info->accel_state->exa->UploadToScreen = RADEONUploadToScreenCP;
-	if (info->accelDFS)
-	    info->accel_state->exa->DownloadFromScreen = RADEONDownloadFromScreenCP;
-    }
-# if defined(XF86DRM_MODE)
-    else {
-	info->accel_state->exa->UploadToScreen = &RADEONUploadToScreenCS;
-        info->accel_state->exa->DownloadFromScreen = &RADEONDownloadFromScreenCS;
-    }
-# endif
-#endif
 
-#if X_BYTE_ORDER == X_BIG_ENDIAN
-    info->accel_state->exa->PrepareAccess = RADEONPrepareAccess_BE;
-    info->accel_state->exa->FinishAccess = RADEONFinishAccess_BE;
-#endif
+    info->accel_state->exa->UploadToScreen = &RADEONUploadToScreenCS;
+    info->accel_state->exa->DownloadFromScreen = &RADEONDownloadFromScreenCS;
 
     info->accel_state->exa->flags = EXA_OFFSCREEN_PIXMAPS;
 #ifdef EXA_SUPPORTS_PREPARE_AUX
@@ -838,21 +623,17 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
     info->accel_state->exa->pixmapPitchAlign = 64;
 
 #ifdef EXA_HANDLES_PIXMAPS
-    if (info->cs) {
-	info->accel_state->exa->flags |= EXA_HANDLES_PIXMAPS;
+    info->accel_state->exa->flags |= EXA_HANDLES_PIXMAPS;
 #ifdef EXA_MIXED_PIXMAPS
-	info->accel_state->exa->flags |= EXA_MIXED_PIXMAPS;
+    info->accel_state->exa->flags |= EXA_MIXED_PIXMAPS;
 #endif
-    }
 #endif
 
 #ifdef RENDER
     if (info->RenderAccel) {
 	if (IS_R300_3D || IS_R500_3D) {
 	    if ((info->ChipFamily < CHIP_FAMILY_RS400)
-#ifdef XF86DRI
 		|| (info->directRenderingEnabled)
-#endif
 		) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Render acceleration "
 			       "enabled for R300/R400/R500 type cards.\n");
@@ -883,18 +664,14 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
     }
 #endif
 
-#ifdef XF86DRM_MODE
 #if (EXA_VERSION_MAJOR == 2 && EXA_VERSION_MINOR >= 4)
-    if (info->cs) {
-        info->accel_state->exa->CreatePixmap = RADEONEXACreatePixmap;
-        info->accel_state->exa->DestroyPixmap = RADEONEXADestroyPixmap;
-        info->accel_state->exa->PixmapIsOffscreen = RADEONEXAPixmapIsOffscreen;
-	info->accel_state->exa->PrepareAccess = RADEONPrepareAccess_CS;
-	info->accel_state->exa->FinishAccess = RADEONFinishAccess_CS;
+    info->accel_state->exa->CreatePixmap = RADEONEXACreatePixmap;
+    info->accel_state->exa->DestroyPixmap = RADEONEXADestroyPixmap;
+    info->accel_state->exa->PixmapIsOffscreen = RADEONEXAPixmapIsOffscreen;
+    info->accel_state->exa->PrepareAccess = RADEONPrepareAccess_CS;
+    info->accel_state->exa->FinishAccess = RADEONFinishAccess_CS;
 #if (EXA_VERSION_MAJOR == 2 && EXA_VERSION_MINOR >= 5)
-        info->accel_state->exa->CreatePixmap2 = RADEONEXACreatePixmap2;
-#endif
-    }
+    info->accel_state->exa->CreatePixmap2 = RADEONEXACreatePixmap2;
 #endif
 #endif
 

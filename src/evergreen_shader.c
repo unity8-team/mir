@@ -28,8 +28,6 @@
 #include "config.h"
 #endif
 
-#ifdef XF86DRM_MODE
-
 #include "xf86.h"
 
 #include "evergreen_shader.h"
@@ -3130,5 +3128,3 @@ int evergreen_comp_ps(RADEONChipFamily ChipSet, uint32_t* shader)
 
     return i;
 }
-
-#endif

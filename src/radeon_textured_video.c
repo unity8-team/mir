@@ -46,16 +46,9 @@
 extern void
 R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv);
 
-#ifdef XF86DRM_MODE
 extern void
 EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv);
-#endif
 
-extern Bool
-R600CopyToVRAM(ScrnInfoPtr pScrn,
-	       char *src, int src_pitch,
-	       uint32_t dst_pitch, uint32_t dst_mc_addr, uint32_t dst_width, uint32_t dst_height, int bpp,
-	       int x, int y, int w, int h);
 
 #define IMAGE_MAX_WIDTH		2048
 #define IMAGE_MAX_HEIGHT	2048
@@ -72,22 +65,7 @@ R600CopyToVRAM(ScrnInfoPtr pScrn,
 static Bool
 RADEONTilingEnabled(ScrnInfoPtr pScrn, PixmapPtr pPix)
 {
-    RADEONInfoPtr info = RADEONPTR(pScrn);
-
-#ifdef USE_EXA
-    if (info->useEXA) {
-	if (info->tilingEnabled && exaGetPixmapOffset(pPix) == 0)
-	    return TRUE;
-	else
-	    return FALSE;
-    } else
-#endif
-	{
-	    if (info->tilingEnabled && ((pPix->devPrivate.ptr - info->FB) == 0))
-		return TRUE;
-	    else
-		return FALSE;
-	}
+    return FALSE;
 }
 
 static __inline__ uint32_t F_TO_DW(float val)
@@ -144,30 +122,9 @@ static REF_TRANSFORM trans[2] =
     {1.1643, 0.0, 1.7927, -0.2132, -0.5329, 2.1124, 0.0}  /* BT.709 */
 };
 
-#define ACCEL_MMIO
-#define ACCEL_PREAMBLE()	unsigned char *RADEONMMIO = info->MMIO
-#define BEGIN_ACCEL(n)		RADEONWaitForFifo(pScrn, (n))
-#define OUT_ACCEL_REG(reg, val)	OUTREG(reg, val)
-#define OUT_ACCEL_REG_F(reg, val) OUTREG(reg, F_TO_DW(val))
-#define OUT_RELOC(x, read, write) do {} while(0)
-#define FINISH_ACCEL()
 
-#include "radeon_textured_videofuncs.c"
-
-#undef ACCEL_MMIO
-#undef ACCEL_PREAMBLE
-#undef BEGIN_ACCEL
-#undef OUT_ACCEL_REG
-#undef OUT_ACCEL_REG_F
-#undef OUT_RELOC
-#undef FINISH_ACCEL
-
-#ifdef XF86DRI
-
-#define ACCEL_CP
 #define ACCEL_PREAMBLE()						\
-    RING_LOCALS;							\
-    RADEONCP_REFRESH(pScrn, info)
+    RING_LOCALS;
 #define BEGIN_ACCEL(n)		BEGIN_RING(2*(n))
 #define OUT_ACCEL_REG(reg, val)	OUT_RING_REG(reg, val)
 #define OUT_ACCEL_REG_F(reg, val)	OUT_ACCEL_REG(reg, F_TO_DW(val))
@@ -177,15 +134,12 @@ static REF_TRANSFORM trans[2] =
 
 #include "radeon_textured_videofuncs.c"
 
-#undef ACCEL_CP
 #undef ACCEL_PREAMBLE
 #undef BEGIN_ACCEL
 #undef OUT_ACCEL_REG
 #undef OUT_ACCEL_REG_F
 #undef FINISH_ACCEL
 #undef OUT_RING_F
-
-#endif /* XF86DRI */
 
 static void
 R600CopyData(
@@ -198,29 +152,18 @@ R600CopyData(
     unsigned int w,
     unsigned int cpp
 ){
-    RADEONInfoPtr info = RADEONPTR( pScrn );
-
     if (cpp == 2) {
 	w *= 2;
 	cpp = 1;
     }
 
-    if (info->DMAForXv) {
-	uint32_t dst_mc_addr = dst - (unsigned char *)info->FB + info->fbLocation;
-
-	R600CopyToVRAM(pScrn,
-		       (char *)src, srcPitch,
-		       dstPitch, dst_mc_addr, w, h, cpp * 8,
-		       0, 0, w, h);
-    } else {
-	if (srcPitch == dstPitch)
-	    memcpy(dst, src, srcPitch * h);
-	else {
-	    while (h--) {
-		memcpy(dst, src, srcPitch);
-		src += srcPitch;
-		dst += dstPitch;
-	    }
+    if (srcPitch == dstPitch)
+        memcpy(dst, src, srcPitch * h);
+    else {
+	while (h--) {
+	    memcpy(dst, src, srcPitch);
+	    src += srcPitch;
+	    dst += dstPitch;
 	}
     }
 }
@@ -251,11 +194,10 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     BoxRec dstBox;
     int dst_width = width, dst_height = height;
     int aligned_height;
-#ifdef XF86DRM_MODE
     int h_align = drmmode_get_height_align(pScrn, 0);
-#else
-    int h_align = 1;
-#endif
+    struct radeon_bo *src_bo;
+    int ret;
+
     /* make the compiler happy */
     s2offset = s3offset = srcPitch2 = 0;
 
@@ -291,20 +233,10 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 	    pPriv->bicubic_enabled = FALSE;
     }
 
-#ifdef XF86DRM_MODE
-    if (info->cs) {
-	if (info->ChipFamily >= CHIP_FAMILY_R600)
-	    pPriv->hw_align = drmmode_get_base_align(pScrn, 2, 0);
-	else
-	    pPriv->hw_align = 64;
-    } else
-#endif
-    {
-	if (info->ChipFamily >= CHIP_FAMILY_R600)
-	    pPriv->hw_align = 256;
-	else
-	    pPriv->hw_align = 64;
-    }
+    if (info->ChipFamily >= CHIP_FAMILY_R600)
+	pPriv->hw_align = drmmode_get_base_align(pScrn, 2, 0);
+    else
+	pPriv->hw_align = 64;
 
     aligned_height = RADEON_ALIGN(dst_height, h_align);
 
@@ -345,12 +277,10 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 	if (pPriv->video_offset == 0)
 	    return BadAlloc;
 
-	if (info->cs) {
-	    pPriv->src_bo[0] = pPriv->video_memory;
-	    radeon_legacy_allocate_memory(pScrn, (void*)&pPriv->src_bo[1], size,
-					  pPriv->hw_align,
-					  RADEON_GEM_DOMAIN_GTT);
-	}
+	pPriv->src_bo[0] = pPriv->video_memory;
+	radeon_legacy_allocate_memory(pScrn, (void*)&pPriv->src_bo[1], size,
+				      pPriv->hw_align,
+				      RADEON_GEM_DOMAIN_GTT);
     }
 
     /* Bicubic filter loading */
@@ -365,47 +295,26 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     else
 	pPriv->pPixmap = (PixmapPtr)pDraw;
 
-#ifdef USE_EXA
-    if (info->useEXA) {
-	/* Force the pixmap into framebuffer so we can draw to it. */
-	info->exa_force_create = TRUE;
-	exaMoveInPixmap(pPriv->pPixmap);
-	info->exa_force_create = FALSE;
-    }
-#endif
-
-    if (!info->useEXA &&
-	(((char *)pPriv->pPixmap->devPrivate.ptr < (char *)info->FB) ||
-	 ((char *)pPriv->pPixmap->devPrivate.ptr >= (char *)info->FB +
-	  info->FbMapSize))) {
-	/* If the pixmap wasn't in framebuffer, then we have no way in XAA to
-	 * force it there. So, we simply refuse to draw and fail.
-	 */
-	return BadAlloc;
-    }
+    /* Force the pixmap into framebuffer so we can draw to it. */
+    info->exa_force_create = TRUE;
+    exaMoveInPixmap(pPriv->pPixmap);
+    info->exa_force_create = FALSE;
 
     /* copy data */
     top = (y1 >> 16) & ~1;
     nlines = ((y2 + 0xffff) >> 16) - top;
 
     pPriv->src_offset = pPriv->video_offset;
-    if (info->cs) {
-	struct radeon_bo *src_bo;
-	int ret;
+    
+    pPriv->currentBuffer ^= 1;
+	
+    src_bo = pPriv->src_bo[pPriv->currentBuffer];
 
-	pPriv->currentBuffer ^= 1;
-
-	src_bo = pPriv->src_bo[pPriv->currentBuffer];
-
-	ret = radeon_bo_map(src_bo, 1);
-	if (ret)
-	    return BadAlloc;
-
-	pPriv->src_addr = src_bo->ptr;
-    } else {
-	pPriv->src_addr = (uint8_t *)(info->FB + pPriv->video_offset);
-	RADEONWaitForIdleMMIO(pScrn);
-    }
+    ret = radeon_bo_map(src_bo, 1);
+    if (ret)
+	return BadAlloc;
+  
+    pPriv->src_addr = src_bo->ptr;
     pPriv->src_pitch = dstPitch;
 
     pPriv->planeu_offset = dstPitch * aligned_height;
@@ -489,18 +398,11 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     pPriv->w = width;
     pPriv->h = height;
 
-#if defined(XF86DRM_MODE)
-    if (info->cs)
-	radeon_bo_unmap(pPriv->src_bo[pPriv->currentBuffer]);
-#endif
-#ifdef XF86DRI
+    radeon_bo_unmap(pPriv->src_bo[pPriv->currentBuffer]);
     if (info->directRenderingEnabled) {
-#ifdef XF86DRM_MODE
 	if (IS_EVERGREEN_3D)
 	    EVERGREENDisplayTexturedVideo(pScrn, pPriv);
-	else
-#endif
-	  if (IS_R600_3D)
+	else if (IS_R600_3D)
 	    R600DisplayTexturedVideo(pScrn, pPriv);
 	else if (IS_R500_3D)
 	    R500DisplayTexturedVideoCP(pScrn, pPriv);
@@ -510,17 +412,6 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 	    R200DisplayTexturedVideoCP(pScrn, pPriv);
 	else
 	    RADEONDisplayTexturedVideoCP(pScrn, pPriv);
-    } else
-#endif
-    {
-	if (IS_R500_3D)
-	    R500DisplayTexturedVideoMMIO(pScrn, pPriv);
-	else if (IS_R300_3D)
-	    R300DisplayTexturedVideoMMIO(pScrn, pPriv);
-	else if (IS_R200_3D)
-	    R200DisplayTexturedVideoMMIO(pScrn, pPriv);
-	else
-	    RADEONDisplayTexturedVideoMMIO(pScrn, pPriv);
     }
 
     return Success;
@@ -765,21 +656,17 @@ Bool radeon_load_bicubic_texture(ScrnInfoPtr pScrn)
     if (info->bicubic_offset == 0)
 	return FALSE;
 
-    if (info->cs)
-	info->bicubic_bo = info->bicubic_memory;
+    info->bicubic_bo = info->bicubic_memory;
 
     /* Upload bicubic filter tex */
     if (info->ChipFamily < CHIP_FAMILY_R600) {
 	uint8_t *bicubic_addr;
 	int ret;
-	if (info->cs) {
-	    ret = radeon_bo_map(info->bicubic_bo, 1);
-	    if (ret)
-		return FALSE;
+	ret = radeon_bo_map(info->bicubic_bo, 1);
+	if (ret)
+	    return FALSE;
 
-	    bicubic_addr = info->bicubic_bo->ptr;
-	} else
-	    bicubic_addr = (uint8_t *)(info->FB + info->bicubic_offset);
+	bicubic_addr = info->bicubic_bo->ptr;
 
 	RADEONCopySwap(bicubic_addr, (uint8_t *)bicubic_tex_512, 1024,
 #if X_BYTE_ORDER == X_BIG_ENDIAN
@@ -788,8 +675,7 @@ Bool radeon_load_bicubic_texture(ScrnInfoPtr pScrn)
 		       RADEON_HOST_DATA_SWAP_NONE
 #endif
 );
-	if (info->cs)
-	    radeon_bo_unmap(info->bicubic_bo);
+	radeon_bo_unmap(info->bicubic_bo);
     }
     return TRUE;
 }
@@ -895,9 +781,6 @@ RADEONSetupImageTexturedVideo(ScreenPtr pScreen)
 	RADEONPortPrivPtr pPriv = &pPortPriv[i];
 
 	pPriv->textured = TRUE;
-	pPriv->videoStatus = 0;
-	pPriv->currentBuffer = 0;
-	pPriv->doubleBuffer = 0;
 	pPriv->bicubic_state = BICUBIC_OFF;
 	pPriv->vsync = TRUE;
 	pPriv->brightness = 0;

@@ -28,8 +28,6 @@
 #include "config.h"
 #endif
 
-#ifdef XF86DRM_MODE
-
 #include "xf86.h"
 
 #include "cayman_shader.h"
@@ -3131,5 +3129,3 @@ int cayman_comp_ps(RADEONChipFamily ChipSet, uint32_t* shader)
 
     return i;
 }
-
-#endif

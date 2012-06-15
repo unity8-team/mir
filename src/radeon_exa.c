@@ -36,9 +36,7 @@
 #include "radeon.h"
 #include "radeon_reg.h"
 #include "r600_reg.h"
-#ifdef XF86DRI
 #include "radeon_drm.h"
-#endif
 #include "radeon_macros.h"
 #include "radeon_probe.h"
 #include "radeon_version.h"
@@ -128,22 +126,7 @@ Bool RADEONGetDatatypeBpp(int bpp, uint32_t *type)
 
 static Bool RADEONPixmapIsColortiled(PixmapPtr pPix)
 {
-    RINFO_FROM_SCREEN(pPix->drawable.pScreen);
-
-#ifdef XF86DRM_MODE
-    if (info->cs) {
-	/* Taken care of by the kernel relocation handling */
-	return FALSE;
-    }
-#endif
-
-    /* This doesn't account for the back buffer, which we may want to wrap in
-     * a pixmap at some point for the purposes of DRI buffer moves.
-     */
-    if (info->tilingEnabled && exaGetPixmapOffset(pPix) == 0)
-	return TRUE;
-    else
-	return FALSE;
+    return FALSE;
 }
 
 static Bool RADEONGetOffsetPitch(PixmapPtr pPix, int bpp, uint32_t *pitch_offset,
@@ -194,110 +177,6 @@ Bool radeon_transform_is_affine_or_scaled(PictTransformPtr t)
 	return t->matrix[2][0] == 0 && t->matrix[2][1] == 0 && t->matrix[2][2] == IntToxFixed(1);
 }
 
-#if X_BYTE_ORDER == X_BIG_ENDIAN
-
-static unsigned long swapper_surfaces[6];
-
-static Bool RADEONPrepareAccess_BE(PixmapPtr pPix, int index)
-{
-    RINFO_FROM_SCREEN(pPix->drawable.pScreen);
-    unsigned char *RADEONMMIO = info->MMIO;
-    uint32_t offset = exaGetPixmapOffset(pPix);
-    int bpp, soff;
-    uint32_t size, flags;
-
-    /* Front buffer is always set with proper swappers */
-    if (offset == 0)
-        return TRUE;
-
-    /* If same bpp as front buffer, just do nothing as the main
-     * swappers will apply
-     */
-    bpp = pPix->drawable.bitsPerPixel;
-    if (bpp == pScrn->bitsPerPixel)
-        return TRUE;
-
-    /* We need to setup a separate swapper, let's request a
-     * surface. We need to align the size first
-     */
-    size = exaGetPixmapSize(pPix);
-    size = RADEON_ALIGN(size, RADEON_GPU_PAGE_SIZE);
-
-    /* Set surface to tiling disabled with appropriate swapper */
-    switch (bpp) {
-    case 16:
-        flags = RADEON_SURF_AP0_SWP_16BPP | RADEON_SURF_AP1_SWP_16BPP;
-	break;
-    case 32:
-        flags = RADEON_SURF_AP0_SWP_32BPP | RADEON_SURF_AP1_SWP_32BPP;
-	break;
-    default:
-        flags = 0;
-    }
-#if defined(XF86DRI)
-    if (info->directRenderingEnabled && info->allowColorTiling) {
-	struct drm_radeon_surface_alloc drmsurfalloc;
-	int rc;
-
-        drmsurfalloc.address = offset;
-        drmsurfalloc.size = size;
-	drmsurfalloc.flags = flags | 1; /* bogus pitch to please DRM */
-
-        rc = drmCommandWrite(info->dri->drmFD, DRM_RADEON_SURF_ALLOC,
-			     &drmsurfalloc, sizeof(drmsurfalloc));
-	if (rc < 0) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "drm: could not allocate surface for access"
-		       " swapper, err: %d!\n", rc);
-	    return FALSE;
-	}
-	swapper_surfaces[index] = offset;
-
-	return TRUE;
-    }
-#endif
-    soff = (index + 1) * 0x10;
-    OUTREG(RADEON_SURFACE0_INFO + soff, flags);
-    OUTREG(RADEON_SURFACE0_LOWER_BOUND + soff, offset);
-    OUTREG(RADEON_SURFACE0_UPPER_BOUND + soff, offset + size - 1);
-    swapper_surfaces[index] = offset;
-    return TRUE;
-}
-
-static void RADEONFinishAccess_BE(PixmapPtr pPix, int index)
-{
-    RINFO_FROM_SCREEN(pPix->drawable.pScreen);
-    unsigned char *RADEONMMIO = info->MMIO;
-    uint32_t offset = exaGetPixmapOffset(pPix);
-    int soff;
-
-    /* Front buffer is always set with proper swappers */
-    if (offset == 0)
-        return;
-
-    if (swapper_surfaces[index] == 0)
-        return;
-#if defined(XF86DRI)
-    if (info->directRenderingEnabled && info->allowColorTiling) {
-	struct drm_radeon_surface_free drmsurffree;
-
-	drmsurffree.address = offset;
-	drmCommandWrite(info->dri->drmFD, DRM_RADEON_SURF_FREE,
-			&drmsurffree, sizeof(drmsurffree));
-	swapper_surfaces[index] = 0;
-	return;
-    }
-#endif
-    soff = (index + 1) * 0x10;
-    OUTREG(RADEON_SURFACE0_INFO + soff, 0);
-    OUTREG(RADEON_SURFACE0_LOWER_BOUND + soff, 0);
-    OUTREG(RADEON_SURFACE0_UPPER_BOUND + soff, 0);
-    swapper_surfaces[index] = 0;
-}
-
-#endif /* X_BYTE_ORDER == X_BIG_ENDIAN */
-
-#ifdef XF86DRM_MODE
 Bool RADEONPrepareAccess_CS(PixmapPtr pPix, int index)
 {
     ScreenPtr pScreen = pPix->drawable.pScreen;
@@ -457,9 +336,7 @@ void *RADEONEXACreatePixmap2(ScreenPtr pScreen, int width, int height,
     uint32_t size, heighta;
     uint32_t tiling = 0;
     int cpp = bitsPerPixel / 8;
-#ifdef XF86DRM_MODE
     struct radeon_surface surface;
-#endif
 
 #ifdef EXA_MIXED_PIXMAPS
     if (info->accel_state->exa->flags & EXA_MIXED_PIXMAPS) {
@@ -497,7 +374,6 @@ void *RADEONEXACreatePixmap2(ScreenPtr pScreen, int width, int height,
     size = RADEON_ALIGN(heighta * pitch, RADEON_GPU_PAGE_SIZE);
     memset(&surface, 0, sizeof(struct radeon_surface));
 
-#ifdef XF86DRM_MODE
     if (info->ChipFamily >= CHIP_FAMILY_R600 && info->surf_man) {
 		if (width) {
 			surface.npix_x = width;
@@ -560,7 +436,6 @@ void *RADEONEXACreatePixmap2(ScreenPtr pScreen, int width, int height,
 			}
 		}
 	}
-#endif
 
     new_priv = calloc(1, sizeof(struct radeon_exa_pixmap_priv));
     if (!new_priv) {
@@ -607,14 +482,12 @@ struct radeon_bo *radeon_get_pixmap_bo(PixmapPtr pPix)
     return driver_priv->bo;
 }
 
-#if defined(XF86DRM_MODE)
 struct radeon_surface *radeon_get_pixmap_surface(PixmapPtr pPix)
 {
     struct radeon_exa_pixmap_priv *driver_priv;
     driver_priv = exaGetPixmapDriverPrivate(pPix);
     return &driver_priv->surface;
 }
-#endif
 
 uint32_t radeon_get_pixmap_tiling(PixmapPtr pPix)
 {
@@ -653,39 +526,13 @@ Bool RADEONEXAPixmapIsOffscreen(PixmapPtr pPix)
        return TRUE;
     return FALSE;
 }
-#endif
 
 #define ENTER_DRAW(x) TRACE
 #define LEAVE_DRAW(x) TRACE
 /***********************************************************************/
 
-#define ACCEL_MMIO
-#define ACCEL_PREAMBLE()	unsigned char *RADEONMMIO = info->MMIO
-#define BEGIN_ACCEL(n)		RADEONWaitForFifo(pScrn, (n))
-#define OUT_ACCEL_REG(reg, val)	OUTREG(reg, val)
-#define OUT_ACCEL_REG_F(reg, val) OUTREG(reg, F_TO_DW(val))
-#define OUT_RELOC(x, read, write)            do {} while(0)
-#define FINISH_ACCEL()
-
-#ifdef RENDER
-#include "radeon_exa_render.c"
-#endif
-#include "radeon_exa_funcs.c"
-
-#undef ACCEL_MMIO
-#undef ACCEL_PREAMBLE
-#undef BEGIN_ACCEL
-#undef OUT_ACCEL_REG
-#undef OUT_ACCEL_REG_F
-#undef FINISH_ACCEL
-#undef OUT_RELOC
-
-#ifdef XF86DRI
-
-#define ACCEL_CP
 #define ACCEL_PREAMBLE()						\
-    RING_LOCALS;							\
-    RADEONCP_REFRESH(pScrn, info)
+    RING_LOCALS;
 #define BEGIN_ACCEL(n)		BEGIN_RING(2*(n))
 #define OUT_ACCEL_REG(reg, val)	OUT_RING_REG(reg, val)
 #define FINISH_ACCEL()		ADVANCE_RING()
@@ -698,178 +545,10 @@ Bool RADEONEXAPixmapIsOffscreen(PixmapPtr pPix)
 #endif
 #include "radeon_exa_funcs.c"
 
-#undef ACCEL_CP
 #undef ACCEL_PREAMBLE
 #undef BEGIN_ACCEL
 #undef OUT_ACCEL_REG
 #undef FINISH_ACCEL
 #undef OUT_RING_F
 
-#endif /* XF86DRI */
 
-/*
- * Once screen->off_screen_base is set, this function
- * allocates the remaining memory appropriately
- */
-Bool RADEONSetupMemEXA (ScreenPtr pScreen)
-{
-    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
-    RADEONInfoPtr info = RADEONPTR(pScrn);
-    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-    int cpp = info->CurrentLayout.pixel_bytes;
-    int screen_size;
-    int byteStride = pScrn->displayWidth * cpp;
-
-    if (info->accel_state->exa != NULL) {
-	xf86DrvMsg(pScreen->myNum, X_ERROR, "Memory map already initialized\n");
-	return FALSE;
-    }
-    info->accel_state->exa = exaDriverAlloc();
-    if (info->accel_state->exa == NULL)
-	return FALSE;
-
-    /* Need to adjust screen size for 16 line tiles, and then make it align to.
-     * the buffer alignment requirement.
-     */
-    if (info->allowColorTiling)
-	screen_size = RADEON_ALIGN(pScrn->virtualY, 16) * byteStride;
-    else
-	screen_size = pScrn->virtualY * byteStride;
-
-    info->accel_state->exa->memoryBase = info->FB;
-    info->accel_state->exa->memorySize = info->FbMapSize - info->FbSecureSize;
-    info->accel_state->exa->offScreenBase = screen_size;
-
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Allocating from a screen of %ld kb\n",
-	       info->accel_state->exa->memorySize / 1024);
-
-    /* Reserve static area for hardware cursor */
-    if (!xf86ReturnOptValBool(info->Options, OPTION_SW_CURSOR, FALSE)) {
-        int cursor_size = 64 * 4 * 64;
-        int align = IS_AVIVO_VARIANT ? 4096 : 256;
-        int c;
-
-        for (c = 0; c < xf86_config->num_crtc; c++) {
-            xf86CrtcPtr crtc = xf86_config->crtc[c];
-            RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
-
-            radeon_crtc->cursor_offset =
-                RADEON_ALIGN(info->accel_state->exa->offScreenBase, align);
-            info->accel_state->exa->offScreenBase = radeon_crtc->cursor_offset + cursor_size;
-
-            xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-                       "Will use %d kb for hardware cursor %d at offset 0x%08x\n",
-                       (cursor_size * xf86_config->num_crtc) / 1024,
-                       c,
-                       (unsigned int)radeon_crtc->cursor_offset);
-        }
-    }
-
-#if defined(XF86DRI)
-    if (info->directRenderingEnabled) {
-	int depthCpp = (info->dri->depthBits - 8) / 4, l, next, depth_size;
-
-	info->dri->frontOffset = 0;
-	info->dri->frontPitch = pScrn->displayWidth;
-
-        xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	       "Will use %d kb for front buffer at offset 0x%08x\n",
-	       screen_size / 1024, info->dri->frontOffset);
-	RADEONDRIAllocatePCIGARTTable(pScreen);
-	
-	if (info->cardType==CARD_PCIE)
-	  xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		     "Will use %d kb for PCI GART at offset 0x%08x\n",
-		     info->dri->pciGartSize / 1024,
-		     (int)info->dri->pciGartOffset);
-
-	/* Reserve a static area for the back buffer the same size as the
-	 * visible screen.  XXX: This would be better initialized in ati_dri.c
-	 * when GLX is set up, but the offscreen memory manager's allocations
-	 * don't last through VT switches, while the kernel's understanding of
-	 * offscreen locations does.
-	 */
-	info->dri->backPitch = pScrn->displayWidth;
-	next = RADEON_ALIGN(info->accel_state->exa->offScreenBase, RADEON_GPU_PAGE_SIZE);
-	if (!info->dri->noBackBuffer &&
-	    next + screen_size <= info->accel_state->exa->memorySize)
-	{
-	    info->dri->backOffset = next;
-	    info->accel_state->exa->offScreenBase = next + screen_size;
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		       "Will use %d kb for back buffer at offset 0x%08x\n",
-		       screen_size / 1024, info->dri->backOffset);
-	}
-
-	/* Reserve the static depth buffer, and adjust pitch and height to
-	 * handle tiling.
-	 */
-	info->dri->depthPitch = RADEON_ALIGN(pScrn->displayWidth, 32);
-	depth_size = RADEON_ALIGN(pScrn->virtualY, 16) * info->dri->depthPitch * depthCpp;
-	next = RADEON_ALIGN(info->accel_state->exa->offScreenBase, RADEON_GPU_PAGE_SIZE);
-	if (next + depth_size <= info->accel_state->exa->memorySize)
-	{
-	    info->dri->depthOffset = next;
-	    info->accel_state->exa->offScreenBase = next + depth_size;
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		       "Will use %d kb for depth buffer at offset 0x%08x\n",
-		       depth_size / 1024, info->dri->depthOffset);
-	}
-	
-	info->dri->textureSize *= (info->accel_state->exa->memorySize -
-				   info->accel_state->exa->offScreenBase) / 100;
-
-	l = RADEONLog2(info->dri->textureSize / RADEON_NR_TEX_REGIONS);
-	if (l < RADEON_LOG_TEX_GRANULARITY)
-	    l = RADEON_LOG_TEX_GRANULARITY;
-	info->dri->textureSize = (info->dri->textureSize >> l) << l;
-	if (info->dri->textureSize >= 512 * 1024) {
-	    info->dri->textureOffset = info->accel_state->exa->offScreenBase;
-	    info->accel_state->exa->offScreenBase += info->dri->textureSize;
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		       "Will use %d kb for textures at offset 0x%08x\n",
-		       info->dri->textureSize / 1024, info->dri->textureOffset);
-	} else {
-	    /* Minimum texture size is for 2 256x256x32bpp textures */
-	    info->dri->textureSize = 0;
-	}
-    } else
-#endif /* XF86DRI */
-    	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		       "Will use %d kb for front buffer at offset 0x%08x\n",
-		       screen_size / 1024, 0);
-
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	       "Will use %ld kb for X Server offscreen at offset 0x%08lx\n",
-	       (info->accel_state->exa->memorySize - info->accel_state->exa->offScreenBase) /
-	       1024, info->accel_state->exa->offScreenBase);
-
-    return TRUE;
-}
-
-#ifdef XF86DRI
-
-#ifndef ExaOffscreenMarkUsed
-extern void ExaOffscreenMarkUsed(PixmapPtr);
-#endif
-
-unsigned long long
-RADEONTexOffsetStart(PixmapPtr pPix)
-{
-    RINFO_FROM_SCREEN(pPix->drawable.pScreen);
-    unsigned long long offset;
-
-    if (exaGetPixmapDriverPrivate(pPix))
-	return -1;
-
-    exaMoveInPixmap(pPix);
-    ExaOffscreenMarkUsed(pPix);
-
-    offset = exaGetPixmapOffset(pPix);
-
-    if (offset > info->FbMapSize)
-	return ~0ULL;
-    else
-	return info->fbLocation + offset;
-}
-#endif

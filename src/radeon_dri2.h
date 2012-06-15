@@ -28,16 +28,15 @@
 #define RADEON_DRI2_H
 
 struct radeon_dri2 {
+    drmVersionPtr     pKernelDRMVersion;
     int         drm_fd;
     Bool        enabled;
     char	*device_name;
 };
 
-#ifdef RADEON_DRI2
 #include "dri2.h"
 Bool radeon_dri2_screen_init(ScreenPtr pScreen);
 void radeon_dri2_close_screen(ScreenPtr pScreen);
-#endif
 
 int drmmode_get_crtc_id(xf86CrtcPtr crtc);
 xf86CrtcPtr radeon_covering_crtc(ScrnInfoPtr pScrn, BoxPtr box,
