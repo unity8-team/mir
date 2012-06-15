@@ -588,75 +588,6 @@ do {									\
     radeon_cs_flush_indirect(pScrn); 				\
 } while (0)
 
-
-#define RADEON_WAIT_UNTIL_2D_IDLE()					\
-do {									\
-    if (info->ChipFamily < CHIP_FAMILY_R600) {                          \
-	BEGIN_RING(2);                                                  \
-	OUT_RING(CP_PACKET0(RADEON_WAIT_UNTIL, 0));                     \
-	OUT_RING((RADEON_WAIT_2D_IDLECLEAN |                            \
-		  RADEON_WAIT_HOST_IDLECLEAN));                         \
-	ADVANCE_RING();                                                 \
-    }                                                                   \
-} while (0)
-
-#define RADEON_WAIT_UNTIL_3D_IDLE()					\
-do {									\
-    if (info->ChipFamily < CHIP_FAMILY_R600) {				\
-	BEGIN_RING(2);							\
-	OUT_RING(CP_PACKET0(RADEON_WAIT_UNTIL, 0));                     \
-	OUT_RING((RADEON_WAIT_3D_IDLECLEAN |                            \
-		  RADEON_WAIT_HOST_IDLECLEAN));                         \
-	ADVANCE_RING();							\
-    }                                                                   \
-} while (0)
-
-#define RADEON_WAIT_UNTIL_IDLE()					\
-do {									\
-    if (RADEON_VERBOSE) {						\
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,				\
-		   "WAIT_UNTIL_IDLE() in %s\n", __FUNCTION__);		\
-    }									\
-    if (info->ChipFamily < CHIP_FAMILY_R600) {                          \
-	BEGIN_RING(2);							\
-	OUT_RING(CP_PACKET0(RADEON_WAIT_UNTIL, 0));                     \
-	OUT_RING((RADEON_WAIT_2D_IDLECLEAN |                            \
-                  RADEON_WAIT_3D_IDLECLEAN |                            \
-		  RADEON_WAIT_HOST_IDLECLEAN));                         \
-	ADVANCE_RING();							\
-    }                                                                   \
-} while (0)
-
-#define RADEON_PURGE_CACHE()						\
-do {									\
-    if (info->ChipFamily < CHIP_FAMILY_R600) {				\
-	BEGIN_RING(2);							\
-	if (info->ChipFamily <= CHIP_FAMILY_RV280) {			\
-	    OUT_RING(CP_PACKET0(RADEON_RB3D_DSTCACHE_CTLSTAT, 0));	\
-	    OUT_RING(RADEON_RB3D_DC_FLUSH_ALL);				\
-	} else {							\
-	    OUT_RING(CP_PACKET0(R300_RB3D_DSTCACHE_CTLSTAT, 0));	\
-	    OUT_RING(R300_RB3D_DC_FLUSH_ALL);				\
-	}								\
-	ADVANCE_RING();							\
-    }									\
-} while (0)
-
-#define RADEON_PURGE_ZCACHE()						\
-do {									\
-    if (info->ChipFamily < CHIP_FAMILY_R600) {                          \
-	BEGIN_RING(2);                                                  \
-	if (info->ChipFamily <= CHIP_FAMILY_RV280) {                    \
-	    OUT_RING(CP_PACKET0(RADEON_RB3D_ZCACHE_CTLSTAT, 0));        \
-	    OUT_RING(RADEON_RB3D_ZC_FLUSH_ALL);                         \
-	} else {                                                        \
-	    OUT_RING(CP_PACKET0(R300_RB3D_ZCACHE_CTLSTAT, 0));          \
-	    OUT_RING(R300_ZC_FLUSH_ALL);                                \
-	}                                                               \
-	ADVANCE_RING();                                                 \
-    }                                                                   \
-} while (0)
-
 #define CS_FULL(cs) ((cs)->cdw > 15 * 1024)
 
 #define RADEON_SWITCH_TO_2D()						\
@@ -732,23 +663,6 @@ static __inline__ void RADEON_SYNC(RADEONInfoPtr info, ScrnInfoPtr pScrn)
 {
     if (pScrn->pScreen)
 	exaWaitSync(pScrn->pScreen);
-}
-
-static __inline__ void radeon_init_timeout(struct timeval *endtime,
-    unsigned int timeout)
-{
-    gettimeofday(endtime, NULL);
-    endtime->tv_usec += timeout;
-    endtime->tv_sec += endtime->tv_usec / 1000000;
-    endtime->tv_usec %= 1000000;
-}
-
-static __inline__ int radeon_timedout(const struct timeval *endtime)
-{
-    struct timeval now;
-    gettimeofday(&now, NULL);
-    return now.tv_sec == endtime->tv_sec ?
-        now.tv_usec > endtime->tv_usec : now.tv_sec > endtime->tv_sec;
 }
 
 enum {
