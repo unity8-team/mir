@@ -222,7 +222,7 @@ Bool RADEONAccelInit(ScreenPtr pScreen)
 		if (!R600DrawInit(pScreen))
 		    return FALSE;
 	    } else {
-		if (!RADEONDrawInitCP(pScreen))
+		if (!RADEONDrawInit(pScreen))
 		    return FALSE;
 	    }
     }

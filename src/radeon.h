@@ -542,14 +542,7 @@ extern unsigned eg_tile_split(unsigned tile_split);
 extern Bool radeon_transform_is_affine_or_scaled(PictTransformPtr t);
 
 /* radeon_exa_funcs.c */
-extern void RADEONCopyCP(PixmapPtr pDst, int srcX, int srcY, int dstX,
-			 int dstY, int w, int h);
-extern Bool RADEONDrawInitCP(ScreenPtr pScreen);
-extern void RADEONDoPrepareCopyCP(ScrnInfoPtr pScrn,
-				  uint32_t src_pitch_offset,
-				  uint32_t dst_pitch_offset,
-				  uint32_t datatype, int rop,
-				  Pixel planemask);
+extern Bool RADEONDrawInit(ScreenPtr pScreen);
 extern Bool R600DrawInit(ScreenPtr pScreen);
 extern Bool R600LoadShaders(ScrnInfoPtr pScrn);
 extern Bool EVERGREENDrawInit(ScreenPtr pScreen);

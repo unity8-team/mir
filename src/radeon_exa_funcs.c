@@ -197,7 +197,7 @@ RADEONSolid(PixmapPtr pPix, int x1, int y1, int x2, int y2)
     FINISH_ACCEL();
 }
 
-void
+static void
 RADEONDoPrepareCopy(ScrnInfoPtr pScrn, uint32_t src_pitch_offset,
 		    uint32_t dst_pitch_offset, uint32_t datatype, int rop,
 		    Pixel planemask)
@@ -275,7 +275,7 @@ RADEONPrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
     return TRUE;
 }
 
-void
+static void
 RADEONCopy(PixmapPtr pDst,
 	   int srcX, int srcY,
 	   int dstX, int dstY,
