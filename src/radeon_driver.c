@@ -94,10 +94,6 @@
 
 #include "shadow.h"
 				/* vgaHW definitions */
-#ifdef WITH_VGAHW
-#include "vgaHW.h"
-#endif
-
 #ifdef HAVE_XEXTPROTO_71
 #include <X11/extensions/dpmsconst.h>
 #else

@@ -16,8 +16,6 @@
 
 #include "xf86.h"
 #include "dixstruct.h"
-#include "atipciids.h"
-#include "xf86fbman.h"
 
 /* DPMS */
 #ifdef HAVE_XEXTPROTO_71

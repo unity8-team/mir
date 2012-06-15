@@ -170,8 +170,6 @@ int radeon_cs_space_remaining(ScrnInfoPtr pScrn)
 #undef OUT_ACCEL_REG
 #undef FINISH_ACCEL
 
-#define RADEON_IB_RESERVE (16 * sizeof(uint32_t))
-
 void RADEONCopySwap(uint8_t *dst, uint8_t *src, unsigned int size, int swap)
 {
     switch(swap) {
