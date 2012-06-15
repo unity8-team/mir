@@ -303,7 +303,6 @@ struct radeon_accel_state {
 				/* Saved values for ScreenToScreenCopy */
     int               xdir;
     int               ydir;
-    uint32_t          dst_pitch_offset;
 
     /* render accel */
     unsigned short    texW[2];
