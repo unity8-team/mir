@@ -531,14 +531,10 @@ Bool RADEONEXAPixmapIsOffscreen(PixmapPtr pPix)
 #define LEAVE_DRAW(x) TRACE
 /***********************************************************************/
 
-#define BEGIN_ACCEL(n)		BEGIN_RING(2*(n))
-#define OUT_RELOC(x, read, write) OUT_RING_RELOC(x, read, write)
-
 #ifdef RENDER
 #include "radeon_exa_render.c"
 #endif
 #include "radeon_exa_funcs.c"
 
-#undef BEGIN_ACCEL
 
 

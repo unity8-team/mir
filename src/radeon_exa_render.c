@@ -1278,7 +1278,7 @@ static Bool R300TextureSetup(PicturePtr pPict, PixmapPtr pPix,
 	if (info->accel_state->has_tcl) {
 	    info->accel_state->texW[unit] = 1;
 	    info->accel_state->texH[unit] = 1;
-	    BEGIN_ACCEL(9);
+	    BEGIN_RING(2*9);
 	    if (IS_R300_3D)
 		OUT_RING_REG(R300_VAP_PVS_VECTOR_INDX_REG, R300_PVS_VECTOR_CONST_INDEX(unit * 2));
 	    else
@@ -1307,7 +1307,7 @@ static Bool R300TextureSetup(PicturePtr pPict, PixmapPtr pPix,
 	    info->accel_state->texW[unit] = 1;
 	    info->accel_state->texH[unit] = 1;
 
-	    BEGIN_ACCEL(9);
+	    BEGIN_RING(2*9);
 	    if (IS_R300_3D)
 		OUT_RING_REG(R300_VAP_PVS_VECTOR_INDX_REG, R300_PVS_VECTOR_CONST_INDEX(unit * 2));
 	    else
@@ -1499,15 +1499,15 @@ static Bool R300PrepareComposite(int op, PicturePtr pSrcPicture,
     /* setup the VAP */
     if (info->accel_state->has_tcl) {
 	if (pMask)
-	    BEGIN_ACCEL(10);
+	    BEGIN_RING(2*10);
 	else
-	    BEGIN_ACCEL(9);
+	    BEGIN_RING(2*9);
 	OUT_RING_REG(R300_VAP_PVS_STATE_FLUSH_REG, 0);
     } else {
 	if (pMask)
-	    BEGIN_ACCEL(6);
+	    BEGIN_RING(2*6);
 	else
-	    BEGIN_ACCEL(5);
+	    BEGIN_RING(2*5);
     }
 
     /* These registers define the number, type, and location of data submitted
@@ -1670,7 +1670,7 @@ static Bool R300PrepareComposite(int op, PicturePtr pSrcPicture,
 
 	/* setup the rasterizer, load FS */
 	if (pMask) {
-	    BEGIN_ACCEL(16);
+	    BEGIN_RING(2*16);
 	    /* 4 components: 2 for tex0, 2 for tex1 */
 	    OUT_RING_REG(R300_RS_COUNT,
 			  ((4 << R300_RS_COUNT_IT_COUNT_SHIFT) |
@@ -1693,7 +1693,7 @@ static Bool R300PrepareComposite(int op, PicturePtr pSrcPicture,
 
 
 	} else {
-	    BEGIN_ACCEL(15);
+	    BEGIN_RING(2*15);
 	    /* 2 components: 2 for tex0 */
 	    OUT_RING_REG(R300_RS_COUNT,
 			  ((2 << R300_RS_COUNT_IT_COUNT_SHIFT) |
@@ -1865,7 +1865,7 @@ static Bool R300PrepareComposite(int op, PicturePtr pSrcPicture,
 	    mask_alpha = R500_ALPHA_SWIZ_B_1;
 	}
 
-	BEGIN_ACCEL(7);
+	BEGIN_RING(2*7);
 	if (pMask) {
 	    /* 4 components: 2 for tex0, 2 for tex1 */
 	    OUT_RING_REG(R300_RS_COUNT,
@@ -1899,7 +1899,7 @@ static Bool R300PrepareComposite(int op, PicturePtr pSrcPicture,
 	ADVANCE_RING();
 
 	if (pMask) {
-	    BEGIN_ACCEL(19);
+	    BEGIN_RING(2*19);
 	    OUT_RING_REG(R500_GA_US_VECTOR_INDEX, R500_US_VECTOR_INST_INDEX(0));
 	    /* tex inst for src texture */
 	    OUT_RING_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_TEX |
@@ -1971,7 +1971,7 @@ static Bool R300PrepareComposite(int op, PicturePtr pSrcPicture,
 	    OUT_RING_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 	    OUT_RING_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 	} else {
-	    BEGIN_ACCEL(13);
+	    BEGIN_RING(2*13);
 	    OUT_RING_REG(R500_GA_US_VECTOR_INDEX, R500_US_VECTOR_INST_INDEX(0));
 	    /* tex inst for src texture */
 	    OUT_RING_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_TEX |
@@ -2064,7 +2064,7 @@ static Bool R300PrepareComposite(int op, PicturePtr pSrcPicture,
     }
 
     /* Clear out scissoring */
-    BEGIN_ACCEL(2);
+    BEGIN_RING(2*2);
     if (IS_R300_3D) {
 	OUT_RING_REG(R300_SC_SCISSOR0, ((1440 << R300_SCISSOR_X_SHIFT) |
 					 (1440 << R300_SCISSOR_Y_SHIFT)));
@@ -2089,7 +2089,7 @@ static Bool R300PrepareComposite(int op, PicturePtr pSrcPicture,
 
     ADVANCE_RING();
 
-    BEGIN_ACCEL(1);
+    BEGIN_RING(2*1);
     if (pMask)
 	OUT_RING_REG(R300_VAP_VTX_SIZE, 6);
     else
@@ -2134,11 +2134,11 @@ static void RadeonFinishComposite(PixmapPtr pDst)
     }
 
     if (IS_R300_3D || IS_R500_3D) {
-	BEGIN_ACCEL(3);
+	BEGIN_RING(2*3);
 	OUT_RING_REG(R300_SC_CLIP_RULE, 0xAAAA);
 	OUT_RING_REG(R300_RB3D_DSTCACHE_CTLSTAT, R300_RB3D_DC_FLUSH_ALL);
     } else
-	BEGIN_ACCEL(1);
+	BEGIN_RING(2*1);
     OUT_RING_REG(RADEON_WAIT_UNTIL, RADEON_WAIT_3D_IDLECLEAN);
     ADVANCE_RING();
 
