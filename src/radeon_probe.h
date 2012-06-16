@@ -128,12 +128,6 @@ typedef struct
     int dri2_info_cnt;
 } RADEONEntRec, *RADEONEntPtr;
 
-/* radeon_driver.c */
-#ifdef X_XF86MiscPassMessage
-extern Bool                 RADEONHandleMessage(int, const char*, const char*,
-					        char**);
-#endif
-
 extern const OptionInfoRec *RADEONOptionsWeak(void);
 
 extern Bool                 RADEONPreInit_KMS(ScrnInfoPtr, int);

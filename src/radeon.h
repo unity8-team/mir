@@ -494,13 +494,6 @@ extern void RADEONWaitForVLine(ScrnInfoPtr pScrn, PixmapPtr pPix,
 
 /* radeon_driver.c */
 extern RADEONEntPtr RADEONEntPriv(ScrnInfoPtr pScrn);
-extern Bool
-RADEONZaphodStringMatches(ScrnInfoPtr pScrn, const char *s, char *output_name);
-
-Bool RADEONGetRec(ScrnInfoPtr pScrn);
-void RADEONFreeRec(ScrnInfoPtr pScrn);
-Bool RADEONPreInitVisual(ScrnInfoPtr pScrn);
-Bool RADEONPreInitWeight(ScrnInfoPtr pScrn);
 
 /* radeon_exa.c */
 extern unsigned eg_tile_split(unsigned tile_split);

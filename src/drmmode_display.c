@@ -48,6 +48,39 @@
 #include <X11/extensions/dpms.h>
 #endif
 
+static Bool
+RADEONZaphodStringMatches(ScrnInfoPtr pScrn, const char *s, char *output_name)
+{
+    int i = 0;
+    char s1[20];
+
+    do {
+	switch(*s) {
+	case ',':
+  	    s1[i] = '\0';
+	    i = 0;
+	    if (strcmp(s1, output_name) == 0)
+		return TRUE;
+	    break;
+	case ' ':
+	case '\t':
+	case '\n':
+	case '\r':
+	    break;
+	default:
+	    s1[i] = *s;
+	    i++;
+	    break;
+	}
+    } while(*s++);
+
+    s1[i] = '\0';
+    if (strcmp(s1, output_name) == 0)
+	return TRUE;
+
+    return FALSE;
+}
+
 static PixmapPtr drmmode_create_bo_pixmap(ScrnInfoPtr pScrn,
 					  int width, int height,
 					  int depth, int bpp,

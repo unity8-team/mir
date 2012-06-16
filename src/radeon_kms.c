@@ -36,6 +36,7 @@
 #include "radeon_probe.h"
 #include "micmap.h"
 
+#include "radeon_version.h"
 #include "shadow.h"
 
 #include "atipciids.h"
@@ -145,6 +146,43 @@ extern _X_EXPORT int gRADEONEntityIndex;
 static int getRADEONEntityIndex(void)
 {
     return gRADEONEntityIndex;
+}
+
+
+RADEONEntPtr RADEONEntPriv(ScrnInfoPtr pScrn)
+{
+    DevUnion     *pPriv;
+    RADEONInfoPtr  info   = RADEONPTR(pScrn);
+    pPriv = xf86GetEntityPrivate(info->pEnt->index,
+                                 getRADEONEntityIndex());
+    return pPriv->ptr;
+}
+
+/* Allocate our private RADEONInfoRec */
+static Bool RADEONGetRec(ScrnInfoPtr pScrn)
+{
+    if (pScrn->driverPrivate) return TRUE;
+
+    pScrn->driverPrivate = xnfcalloc(sizeof(RADEONInfoRec), 1);
+    return TRUE;
+}
+
+/* Free our private RADEONInfoRec */
+static void RADEONFreeRec(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr  info;
+
+    if (!pScrn || !pScrn->driverPrivate) return;
+
+    info = RADEONPTR(pScrn);
+
+    if (info->accel_state) {
+	free(info->accel_state);
+	info->accel_state = NULL;
+    }
+
+    free(pScrn->driverPrivate);
+    pScrn->driverPrivate = NULL;
 }
 
 static void *
@@ -278,6 +316,85 @@ static Bool RADEONIsAccelWorking(ScrnInfoPtr pScrn)
     if (tmp)
         return TRUE;
     return FALSE;
+}
+
+/* This is called by RADEONPreInit to set up the default visual */
+static Bool RADEONPreInitVisual(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr  info = RADEONPTR(pScrn);
+
+    if (!xf86SetDepthBpp(pScrn, 0, 0, 0, Support32bppFb))
+	return FALSE;
+
+    switch (pScrn->depth) {
+    case 8:
+    case 15:
+    case 16:
+    case 24:
+	break;
+
+    default:
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "Given depth (%d) is not supported by %s driver\n",
+		   pScrn->depth, RADEON_DRIVER_NAME);
+	return FALSE;
+    }
+
+    xf86PrintDepthBpp(pScrn);
+
+    info->pix24bpp                   = xf86GetBppFromDepth(pScrn,
+							   pScrn->depth);
+    info->pixel_bytes  = pScrn->bitsPerPixel / 8;
+
+    if (info->pix24bpp == 24) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "Radeon does NOT support 24bpp\n");
+	return FALSE;
+    }
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	       "Pixel depth = %d bits stored in %d byte%s (%d bpp pixmaps)\n",
+	       pScrn->depth,
+	       info->pixel_bytes,
+	       info->pixel_bytes > 1 ? "s" : "",
+	       info->pix24bpp);
+
+    if (!xf86SetDefaultVisual(pScrn, -1)) return FALSE;
+
+    if (pScrn->depth > 8 && pScrn->defaultVisual != TrueColor) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "Default visual (%s) is not supported at depth %d\n",
+		   xf86GetVisualName(pScrn->defaultVisual), pScrn->depth);
+	return FALSE;
+    }
+    return TRUE;
+}
+
+/* This is called by RADEONPreInit to handle all color weight issues */
+static Bool RADEONPreInitWeight(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr  info = RADEONPTR(pScrn);
+
+				/* Save flag for 6 bit DAC to use for
+				   setting CRTC registers.  Otherwise use
+				   an 8 bit DAC, even if xf86SetWeight sets
+				   pScrn->rgbBits to some value other than
+				   8. */
+    info->dac6bits = FALSE;
+
+    if (pScrn->depth > 8) {
+	rgb  defaultWeight = { 0, 0, 0 };
+
+	if (!xf86SetWeight(pScrn, defaultWeight, defaultWeight)) return FALSE;
+    } else {
+	pScrn->rgbBits = 8;
+    }
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	       "Using %d bits per RGB (%d bit DAC)\n",
+	       pScrn->rgbBits, info->dac6bits ? 6 : 8);
+
+    return TRUE;
 }
 
 static Bool RADEONPreInitAccel_KMS(ScrnInfoPtr pScrn)
@@ -1390,3 +1507,24 @@ ModeStatus RADEONValidMode(SCRN_ARG_TYPE arg, DisplayModePtr mode,
    }
     return MODE_OK;
 }
+
+#ifndef HAVE_XF86MODEBANDWIDTH
+/** Calculates the memory bandwidth (in MiB/sec) of a mode. */
+_X_HIDDEN unsigned int
+xf86ModeBandwidth(DisplayModePtr mode, int depth)
+{
+    float a_active, a_total, active_percent, pixels_per_second;
+    int bytes_per_pixel = (depth + 7) / 8;
+
+    if (!mode->HTotal || !mode->VTotal || !mode->Clock)
+	return 0;
+
+    a_active = mode->HDisplay * mode->VDisplay;
+    a_total = mode->HTotal * mode->VTotal;
+    active_percent = a_active / a_total;
+    pixels_per_second = active_percent * mode->Clock * 1000.0;
+
+    return (unsigned int)(pixels_per_second * bytes_per_pixel / (1024 * 1024));
+}
+#endif
+

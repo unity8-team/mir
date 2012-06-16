@@ -617,9 +617,6 @@ Bool RADEONDrawInit(ScreenPtr pScreen)
 #ifdef RENDER
     if (info->RenderAccel) {
 	if (IS_R300_3D || IS_R500_3D) {
-	    if ((info->ChipFamily < CHIP_FAMILY_RS400)
-		|| (info->directRenderingEnabled)
-		) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Render acceleration "
 			       "enabled for R300/R400/R500 type cards.\n");
 		info->accel_state->exa->CheckComposite = R300CheckComposite;
@@ -627,8 +624,6 @@ Bool RADEONDrawInit(ScreenPtr pScreen)
 		    R300PrepareComposite;
 		info->accel_state->exa->Composite = RadeonComposite;
 		info->accel_state->exa->DoneComposite = RadeonDoneComposite;
-	    } else
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EXA Composite requires CP on R5xx/IGP\n");
 	} else if (IS_R200_3D) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Render acceleration "
 			       "enabled for R200 type cards.\n");
