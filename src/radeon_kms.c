@@ -48,7 +48,6 @@
 #include <X11/extensions/dpms.h>
 #endif
 
-#include "radeon_chipset_gen.h"
 #include "radeon_chipinfo_gen.h"
 
 #define CURSOR_WIDTH	64
@@ -58,6 +57,7 @@
 #include "radeon_cs_gem.h"
 #include "radeon_vbo.h"
 
+extern SymTabRec *RADEONChipsets;
 static Bool radeon_setup_kernel_mem(ScreenPtr pScreen);
 
 const OptionInfoRec RADEONOptions_KMS[] = {
