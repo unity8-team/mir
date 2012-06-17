@@ -1697,6 +1697,7 @@ static void gen3_vertex_close(struct sna *sna)
 			DBG(("%s: converting CPU map to GTT\n", __FUNCTION__));
 			sna->render.vertices = kgem_bo_map__gtt(&sna->kgem, bo);
 			if (sna->render.vertices == NULL) {
+				DBG(("%s: discarding non-mappable vertices\n",__FUNCTION__));
 				sna->render.vbo = NULL;
 				sna->render.vertices = sna->render.vertex_data;
 				sna->render.vertex_size = ARRAY_SIZE(sna->render.vertex_data);
