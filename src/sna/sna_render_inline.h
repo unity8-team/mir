@@ -123,11 +123,7 @@ static inline Bool
 unattached(DrawablePtr drawable)
 {
 	struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
-
-	if (priv == NULL || DAMAGE_IS_ALL(priv->cpu_damage))
-		return true;
-
-	return priv->gpu_bo == NULL && priv->cpu_bo == NULL;
+	return priv == NULL || (priv->gpu_damage == NULL && priv->cpu_damage);
 }
 
 static inline Bool
