@@ -3002,7 +3002,7 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 			kgem_bo_sync__cpu(&sna->kgem, priv->cpu_bo);
 		}
 
-		if (priv->clear_color = 0) {
+		if (priv->clear_color == 0) {
 			memset(pixmap->devPrivate.ptr,
 			       0, pixmap->devKind * pixmap->drawable.height);
 		} else {
