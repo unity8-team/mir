@@ -2979,13 +2979,18 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 			kgem_bo_sync__cpu(&sna->kgem, priv->cpu_bo);
 		}
 
-		pixman_fill(pixmap->devPrivate.ptr,
-			    pixmap->devKind/sizeof(uint32_t),
-			    pixmap->drawable.bitsPerPixel,
-			    0, 0,
-			    pixmap->drawable.width,
-			    pixmap->drawable.height,
-			    priv->clear_color);
+		if (priv->clear_color = 0) {
+			memset(pixmap->devPrivate.ptr,
+			       0, pixmap->devKind * pixmap->drawable.height);
+		} else {
+			pixman_fill(pixmap->devPrivate.ptr,
+				    pixmap->devKind/sizeof(uint32_t),
+				    pixmap->drawable.bitsPerPixel,
+				    0, 0,
+				    pixmap->drawable.width,
+				    pixmap->drawable.height,
+				    priv->clear_color);
+		}
 
 		sna_damage_all(&priv->cpu_damage,
 			       pixmap->drawable.width,
