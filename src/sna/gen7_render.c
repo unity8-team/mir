@@ -3166,9 +3166,6 @@ gen7_render_composite_spans(struct sna *sna,
 	DBG(("%s: %dx%d with flags=%x, current mode=%d\n", __FUNCTION__,
 	     width, height, flags, sna->kgem.ring));
 
-	if ((flags & COMPOSITE_SPANS_RECTILINEAR) == 0)
-		return FALSE;
-
 	if (op >= ARRAY_SIZE(gen7_blend_op))
 		return FALSE;
 
