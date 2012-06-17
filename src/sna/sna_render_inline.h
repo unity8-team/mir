@@ -75,7 +75,7 @@ is_gpu(DrawablePtr drawable)
 	if (priv == NULL || priv->clear)
 		return false;
 
-	if (priv->gpu_damage || (priv->gpu_bo && kgem_bo_is_busy(priv->gpu_bo) && !priv->gpu_bo->proxy))
+	if (DAMAGE_IS_ALL(priv->gpu_damage) || (priv->gpu_bo && kgem_bo_is_busy(priv->gpu_bo) && !priv->gpu_bo->proxy))
 		return true;
 
 	return priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo);
@@ -85,10 +85,14 @@ static inline Bool
 is_cpu(DrawablePtr drawable)
 {
 	struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
-	if (priv == NULL || priv->clear || DAMAGE_IS_ALL(priv->cpu_damage))
+	if (priv == NULL || priv->gpu_bo == NULL || priv->clear || DAMAGE_IS_ALL(priv->cpu_damage))
 		return true;
 
-	if (priv->gpu_damage || (priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo)))
+	assert(!priv->gpu_bo->proxy); /* should be marked as cpu damaged */
+	if (priv->gpu_damage && kgem_bo_is_busy(priv->gpu_bo));
+		return false;
+
+	if (priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo))
 		return false;
 
 	return true;
@@ -106,7 +110,7 @@ too_small(struct sna_pixmap *priv)
 {
 	assert(priv);
 
-	if (priv->gpu_damage)
+	if (priv->gpu_bo)
 		return false;
 
 	if (priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo))
@@ -120,7 +124,7 @@ unattached(DrawablePtr drawable)
 {
 	struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
 
-	if (priv == NULL)
+	if (priv == NULL || DAMAGE_IS_ALL(priv->cpu_damage))
 		return true;
 
 	return priv->gpu_bo == NULL && priv->cpu_bo == NULL;

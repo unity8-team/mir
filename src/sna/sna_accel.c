@@ -1282,15 +1282,15 @@ static inline bool region_inplace(struct sna *sna,
 	if (wedged(sna))
 		return false;
 
-	if (priv->flush) {
-		DBG(("%s: yes, exported via dri, will flush\n", __FUNCTION__));
-		return true;
-	}
-
 	if (priv->cpu_damage &&
 	    region_overlaps_damage(region, priv->cpu_damage)) {
 		DBG(("%s: no, uncovered CPU damage pending\n", __FUNCTION__));
 		return false;
+	}
+
+	if (priv->flush) {
+		DBG(("%s: yes, exported via dri, will flush\n", __FUNCTION__));
+		return true;
 	}
 
 	if (priv->mapped) {
