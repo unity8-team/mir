@@ -3392,9 +3392,18 @@ gen3_render_composite_spans(struct sna *sna,
 		return FALSE;
 
 	if (need_tiling(sna, width, height)) {
-		DBG(("%s: fallback, operation (%dx%d) too wide for pipeline\n",
+		DBG(("%s: tiling, operation (%dx%d) too wide for pipeline\n",
 		     __FUNCTION__, width, height));
-		return FALSE;
+
+		if (!is_gpu(dst->pDrawable)) {
+			DBG(("%s: fallback, tiled operation not on GPU\n",
+			     __FUNCTION__));
+			return FALSE;
+		}
+
+		return sna_tiling_composite_spans(op, src, dst,
+						  src_x, src_y, dst_x, dst_y,
+						  width, height, flags, tmp);
 	}
 
 	if (!gen3_composite_set_target(sna, &tmp->base, dst)) {

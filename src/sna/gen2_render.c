@@ -2220,14 +2220,23 @@ gen2_render_composite_spans(struct sna *sna,
 		return FALSE;
 	}
 
-	if (!gen2_check_dst_format(dst->format)) {
-		DBG(("%s: fallback due to unhandled dst format: %x\n",
-		     __FUNCTION__, dst->format));
+	if (gen2_composite_fallback(sna, src, NULL, dst))
 		return FALSE;
-	}
 
-	if (need_tiling(sna, width, height))
-		return FALSE;
+	if (need_tiling(sna, width, height)) {
+		DBG(("%s: tiling, operation (%dx%d) too wide for pipeline\n",
+		     __FUNCTION__, width, height));
+
+		if (!is_gpu(dst->pDrawable)) {
+			DBG(("%s: fallback, tiled operation not on GPU\n",
+			     __FUNCTION__));
+			return FALSE;
+		}
+
+		return sna_tiling_composite_spans(op, src, dst,
+						  src_x, src_y, dst_x, dst_y,
+						  width, height, flags, tmp);
+	}
 
 	if (!gen2_composite_set_target(sna, &tmp->base, dst)) {
 		DBG(("%s: unable to set render target\n",

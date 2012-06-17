@@ -39,6 +39,11 @@
 #define DBG(x) ErrorF x
 #endif
 
+struct sna_tile_span {
+	BoxRec box;
+	float opacity;
+};
+
 struct sna_tile_state {
 	int op;
 	PicturePtr src, mask, dst;
@@ -48,6 +53,7 @@ struct sna_tile_state {
 	int16_t mask_x, mask_y;
 	int16_t dst_x, dst_y;
 	int16_t width, height;
+	unsigned flags;
 
 	int rect_count;
 	int rect_size;
@@ -315,6 +321,262 @@ sna_tiling_composite(uint32_t op,
 	tmp->done  = sna_tiling_composite_done;
 
 	tmp->priv = tile;
+	return TRUE;
+}
+
+fastcall static void
+sna_tiling_composite_spans_box(struct sna *sna,
+			       const struct sna_composite_spans_op *op,
+			       const BoxRec *box, float opacity)
+{
+	struct sna_tile_state *tile = op->base.priv;
+	struct sna_tile_span *a;
+
+	if (tile->rect_count == tile->rect_size) {
+		int newsize = tile->rect_size * 2;
+
+		if (tile->rects == tile->rects_embedded) {
+			a = malloc (sizeof(struct sna_tile_span) * newsize);
+			if (a == NULL)
+				return;
+
+			memcpy(a,
+			       tile->rects_embedded,
+			       sizeof(struct sna_tile_span) * tile->rect_count);
+		} else {
+			a = realloc(tile->rects,
+				    sizeof(struct sna_tile_span) * newsize);
+			if (a == NULL)
+				return;
+		}
+
+		tile->rects = (void *)a;
+		tile->rect_size = newsize;
+	} else
+		a = (void *)tile->rects;
+
+	a[tile->rect_count].box = *box;
+	a[tile->rect_count].opacity = opacity;
+	tile->rect_count++;
+	(void)sna;
+}
+
+static void
+sna_tiling_composite_spans_boxes(struct sna *sna,
+				 const struct sna_composite_spans_op *op,
+				 const BoxRec *box, int nbox, float opacity)
+{
+	while (nbox--)
+		sna_tiling_composite_spans_box(sna, op->base.priv, box++, opacity);
+	(void)sna;
+}
+
+fastcall static void
+sna_tiling_composite_spans_done(struct sna *sna,
+				const struct sna_composite_spans_op *op)
+{
+	struct sna_tile_state *tile = op->base.priv;
+	struct sna_composite_spans_op tmp;
+	int x, y, n, step;
+	bool force_fallback = false;
+
+	/* Use a small step to accommodate enlargement through tile alignment */
+	step = sna->render.max_3d_size;
+	if (tile->dst_x & (8*512 / tile->dst->pDrawable->bitsPerPixel - 1) ||
+	    tile->dst_y & 63)
+		step /= 2;
+	while (step * step * 4 > sna->kgem.max_copy_tile_size)
+		step /= 2;
+
+	DBG(("%s -- %dx%d, count=%d, step size=%d\n", __FUNCTION__,
+	     tile->width, tile->height, tile->rect_count, step));
+
+	if (tile->rect_count == 0)
+		goto done;
+
+	for (y = 0; y < tile->height; y += step) {
+		int height = step;
+		if (y + height > tile->height)
+			height = tile->height - y;
+		for (x = 0; x < tile->width; x += step) {
+			const struct sna_tile_span *r = (void *)tile->rects;
+			int width = step;
+			if (x + width > tile->width)
+				width = tile->width - x;
+			if (!force_fallback &&
+			    sna->render.composite_spans(sna, tile->op,
+							tile->src, tile->dst,
+							tile->src_x + x,  tile->src_y + y,
+							tile->dst_x + x,  tile->dst_y + y,
+							width, height, tile->flags,
+							memset(&tmp, 0, sizeof(tmp)))) {
+				for (n = 0; n < tile->rect_count; n++) {
+					BoxRec b;
+
+					b.x1 = r->box.x1 - tile->dst_x;
+					if (b.x1 < x)
+						b.x1 = x;
+
+					b.y1 = r->box.y1 - tile->dst_y;
+					if (b.y1 < y)
+						b.y1 = y;
+
+					b.x2 = r->box.x2 - tile->dst_x;
+					if (b.x2 > x + width)
+						b.x2 = x + width;
+
+					b.y2 = r->box.y2 - tile->dst_y;
+					if (b.y2 > y + height)
+						b.y2 = y + height;
+
+					DBG(("%s: rect[%d] = (%d, %d)x(%d,%d), tile=(%d,%d)x(%d, %d), blt=(%d,%d),(%d,%d)\n",
+					     __FUNCTION__, n,
+					     r->dst.x, r->dst.y,
+					     r->width, r->height,
+					     x, y, width, height,
+					     b.x1, b.y1, b.x2, b.y2));
+
+					if (b.y2 > b.y1 && b.x2 > b.x1)
+						tmp.box(sna, &tmp, &b, r->opacity);
+					r++;
+				}
+				tmp.done(sna, &tmp);
+			} else {
+				unsigned int flags;
+
+				DBG(("%s -- falback\n", __FUNCTION__));
+
+				if (tile->op <= PictOpSrc)
+					flags = MOVE_WRITE;
+				else
+					flags = MOVE_WRITE | MOVE_READ;
+				if (!sna_drawable_move_to_cpu(tile->dst->pDrawable,
+							      flags))
+					goto done;
+				if (tile->dst->alphaMap &&
+				    !sna_drawable_move_to_cpu(tile->dst->alphaMap->pDrawable,
+							      flags))
+					goto done;
+
+				if (tile->src->pDrawable &&
+				    !sna_drawable_move_to_cpu(tile->src->pDrawable,
+							      MOVE_READ))
+					goto done;
+				if (tile->src->alphaMap &&
+				    !sna_drawable_move_to_cpu(tile->src->alphaMap->pDrawable,
+							      MOVE_READ))
+					goto done;
+
+				for (n = 0; n < tile->rect_count; n++) {
+					BoxRec b;
+
+					b.x1 = r->box.x1 - tile->dst_x;
+					if (b.x1 < x)
+						b.x1 = x;
+
+					b.y1 = r->box.y1 - tile->dst_y;
+					if (b.y1 < y)
+						b.y1 = y;
+
+					b.x2 = r->box.x2 - tile->dst_x;
+					if (b.x2 > x + width)
+						b.x2 = x + width;
+
+					b.y2 = r->box.y2 - tile->dst_y;
+					if (b.y2 > y + height)
+						b.y2 = y + height;
+
+					DBG(("%s: rect[%d] = (%d, %d)x(%d,%d), tile=(%d,%d)x(%d, %d), blt=(%d,%d),(%d,%d)\n",
+					     __FUNCTION__, n,
+					     r->dst.x, r->dst.y,
+					     r->width, r->height,
+					     x, y, width, height,
+					     b.x1, b.y1, b.x2, b.y2));
+
+					if (b.y2 > b.y1 && b.x2 > b.x1) {
+						xRenderColor alpha;
+						PicturePtr mask;
+						int error;
+
+						alpha.red = alpha.green = alpha.blue = 0;
+						alpha.alpha = r->opacity * 0xffff;
+
+						mask = CreateSolidPicture(0, &alpha, &error);
+						if (!mask)
+							goto done;
+
+						fbComposite(tile->op,
+							    tile->src, mask, tile->dst,
+							    tile->src_x + x,  tile->src_y + y,
+							    0, 0,
+							    tile->dst_x + x,  tile->dst_y + y,
+							    width, height);
+
+						FreePicture(mask, 0);
+					}
+					r++;
+				}
+
+				force_fallback = true;
+			}
+		}
+	}
+
+done:
+	if (tile->rects != tile->rects_embedded)
+		free(tile->rects);
+	free(tile);
+}
+
+Bool
+sna_tiling_composite_spans(uint32_t op,
+			   PicturePtr src,
+			   PicturePtr dst,
+			   int16_t src_x,  int16_t src_y,
+			   int16_t dst_x,  int16_t dst_y,
+			   int16_t width,  int16_t height,
+			   unsigned flags,
+			   struct sna_composite_spans_op *tmp)
+{
+	struct sna_tile_state *tile;
+	struct sna_pixmap *priv;
+
+	DBG(("%s size=(%d, %d), tile=%d\n",
+	     __FUNCTION__, width, height,
+	     to_sna_from_drawable(dst->pDrawable)->render.max_3d_size));
+
+	priv = sna_pixmap(get_drawable_pixmap(dst->pDrawable));
+	if (priv == NULL || priv->gpu_bo == NULL)
+		return FALSE;
+
+	tile = malloc(sizeof(*tile));
+	if (!tile)
+		return FALSE;
+
+	tile->op = op;
+	tile->flags = flags;
+
+	tile->src  = src;
+	tile->mask = NULL;
+	tile->dst  = dst;
+
+	tile->src_x = src_x;
+	tile->src_y = src_y;
+	tile->mask_x = 0;
+	tile->mask_y = 0;
+	tile->dst_x = dst_x;
+	tile->dst_y = dst_y;
+	tile->width = width;
+	tile->height = height;
+	tile->rects = tile->rects_embedded;
+	tile->rect_count = 0;
+	tile->rect_size = ARRAY_SIZE(tile->rects_embedded);
+
+	tmp->box   = sna_tiling_composite_spans_box;
+	tmp->boxes = sna_tiling_composite_spans_boxes;
+	tmp->done  = sna_tiling_composite_spans_done;
+
+	tmp->base.priv = tile;
 	return TRUE;
 }
 
