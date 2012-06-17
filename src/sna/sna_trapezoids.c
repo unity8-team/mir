@@ -2541,9 +2541,10 @@ composite_aligned_boxes(struct sna *sna,
 			PicturePtr dst,
 			PictFormatPtr maskFormat,
 			INT16 src_x, INT16 src_y,
-			int ntrap, xTrapezoid *traps)
+			int ntrap, xTrapezoid *traps,
+			bool force_fallback)
 {
-	BoxRec stack_boxes[64], *boxes, extents;
+	BoxRec stack_boxes[64], *boxes;
 	pixman_region16_t region, clip;
 	struct sna_composite_op tmp;
 	Bool ret = true;
@@ -2564,8 +2565,8 @@ composite_aligned_boxes(struct sna *sna,
 	dx = dst->pDrawable->x;
 	dy = dst->pDrawable->y;
 
-	extents.x1 = extents.y1 = 32767;
-	extents.x2 = extents.y2 = -32767;
+	region.extents.x1 = region.extents.y1 = 32767;
+	region.extents.x2 = region.extents.y2 = -32767;
 	num_boxes = 0;
 	for (n = 0; n < ntrap; n++) {
 		boxes[num_boxes].x1 = dx + pixman_fixed_to_int(traps[n].left.p1.x + pixman_fixed_1_minus_e/2);
@@ -2578,15 +2579,15 @@ composite_aligned_boxes(struct sna *sna,
 		if (boxes[num_boxes].y1 >= boxes[num_boxes].y2)
 			continue;
 
-		if (boxes[num_boxes].x1 < extents.x1)
-			extents.x1 = boxes[num_boxes].x1;
-		if (boxes[num_boxes].x2 > extents.x2)
-			extents.x2 = boxes[num_boxes].x2;
+		if (boxes[num_boxes].x1 < region.extents.x1)
+			region.extents.x1 = boxes[num_boxes].x1;
+		if (boxes[num_boxes].x2 > region.extents.x2)
+			region.extents.x2 = boxes[num_boxes].x2;
 
-		if (boxes[num_boxes].y1 < extents.y1)
-			extents.y1 = boxes[num_boxes].y1;
-		if (boxes[num_boxes].y2 > extents.y2)
-			extents.y2 = boxes[num_boxes].y2;
+		if (boxes[num_boxes].y1 < region.extents.y1)
+			region.extents.y1 = boxes[num_boxes].y1;
+		if (boxes[num_boxes].y2 > region.extents.y2)
+			region.extents.y2 = boxes[num_boxes].y2;
 
 		num_boxes++;
 	}
@@ -2596,37 +2597,96 @@ composite_aligned_boxes(struct sna *sna,
 
 	DBG(("%s: extents (%d, %d), (%d, %d) offset of (%d, %d)\n",
 	     __FUNCTION__,
-	     extents.x1, extents.y1,
-	     extents.x2, extents.y2,
-	     extents.x1 - boxes[0].x1,
-	     extents.y1 - boxes[0].y1));
+	     region.extents.x1, region.extents.y1,
+	     region.extents.x2, region.extents.y2,
+	     region.extents.x1 - boxes[0].x1,
+	     region.extents.y1 - boxes[0].y1));
 
-	src_x += extents.x1 - boxes[0].x1;
-	src_y += extents.y1 - boxes[0].y1;
+	src_x += region.extents.x1 - boxes[0].x1;
+	src_y += region.extents.y1 - boxes[0].y1;
 
 	if (!sna_compute_composite_region(&clip,
 					  src, NULL, dst,
 					  src_x,  src_y,
 					  0, 0,
-					  extents.x1 - dx, extents.y1 - dy,
-					  extents.x2 - extents.x1,
-					  extents.y2 - extents.y1)) {
+					  region.extents.x1 - dx, region.extents.y1 - dy,
+					  region.extents.x2 - region.extents.x1,
+					  region.extents.y2 - region.extents.y1)) {
 		DBG(("%s: trapezoids do not intersect drawable clips\n",
 		     __FUNCTION__)) ;
 		goto done;
 	}
 
-	memset(&tmp, 0, sizeof(tmp));
-	if (!sna->render.composite(sna, op, src, NULL, dst,
+	if (force_fallback ||
+	    !sna->render.composite(sna, op, src, NULL, dst,
 				   src_x,  src_y,
 				   0, 0,
-				   extents.x1,  extents.y1,
-				   extents.x2 - extents.x1,
-				   extents.y2 - extents.y1,
-				   &tmp)) {
+				   clip.extents.x1,  clip.extents.y1,
+				   clip.extents.x2 - clip.extents.x1,
+				   clip.extents.y2 - clip.extents.y1,
+				   memset(&tmp, 0, sizeof(tmp)))) {
+		unsigned int flags;
+		pixman_box16_t *b;
+		int i, count;
+
 		DBG(("%s: composite render op not supported\n",
 		     __FUNCTION__));
-		ret = false;
+
+		flags = MOVE_READ | MOVE_WRITE;
+		if (n == 1 && op <= PictOpSrc)
+			flags = MOVE_WRITE | MOVE_INPLACE_HINT;
+
+		if (!sna_drawable_move_region_to_cpu(dst->pDrawable, &clip, flags))
+			goto done;
+		if (dst->alphaMap  &&
+		    !sna_drawable_move_to_cpu(dst->alphaMap->pDrawable,
+					      MOVE_READ | MOVE_WRITE))
+			goto done;
+		if (src->pDrawable) {
+			if (!sna_drawable_move_to_cpu(src->pDrawable,
+						      MOVE_READ))
+				goto done;
+			if (src->alphaMap &&
+			    !sna_drawable_move_to_cpu(src->alphaMap->pDrawable,
+						      MOVE_READ))
+				goto done;
+		}
+
+		DBG(("%s: fbComposite()\n", __FUNCTION__));
+		if (maskFormat) {
+			pixman_region_init_rects(&region, boxes, num_boxes);
+			RegionIntersect(&region, &region, &clip);
+
+			b = REGION_RECTS(&region);
+			count = REGION_NUM_RECTS(&region);
+			for (i = 0; i < count; i++) {
+				fbComposite(op, src, NULL, dst,
+					    src_x + b[i].x1 - boxes[0].x1,
+					    src_y + b[i].y1 - boxes[0].y1,
+					    0, 0,
+					    b[i].x1, b[i].y1,
+					    b[i].x2 - b[i].x1, b[i].y2 - b[i].y1);
+			}
+			pixman_region_fini(&region);
+		} else {
+			for (n = 0; n < num_boxes; n++) {
+				pixman_region_init_rects(&region, &boxes[n], 1);
+				RegionIntersect(&region, &region, &clip);
+				b = REGION_RECTS(&region);
+				count = REGION_NUM_RECTS(&region);
+				for (i = 0; i < count; i++) {
+					fbComposite(op, src, NULL, dst,
+						    src_x + b[i].x1 - boxes[0].x1,
+						    src_y + b[i].y1 - boxes[0].y1,
+						    0, 0,
+						    b[i].x1, b[i].y1,
+						    b[i].x2 - b[i].x1, b[i].y2 - b[i].y1);
+				}
+				pixman_region_fini(&region);
+				pixman_region_fini(&region);
+			}
+		}
+		ret = true;
 		goto done;
 	}
 
@@ -2877,15 +2937,17 @@ blt_unaligned_box_row(PixmapPtr scratch,
 			    y1, y2,
 			    covered * (grid_coverage(SAMPLES_X, trap->right.p1.x) - grid_coverage(SAMPLES_X, trap->left.p1.x)));
 	} else {
-		if (pixman_fixed_frac(trap->left.p1.x))
+		if (pixman_fixed_frac(trap->left.p1.x)) {
 			blt_opacity(scratch,
-				    x1, x1+1,
+				    x1, x1,
 				    y1, y2,
 				    covered * (SAMPLES_X - grid_coverage(SAMPLES_X, trap->left.p1.x)));
+			x1++;
+		}
 
-		if (x2 > x1 + 1) {
+		if (x2 > x1) {
 			blt_opacity(scratch,
-				    x1 + 1, x2,
+				    x1, x2,
 				    y1, y2,
 				    covered*SAMPLES_X);
 		}
@@ -2898,20 +2960,581 @@ blt_unaligned_box_row(PixmapPtr scratch,
 	}
 }
 
-static Bool
+#define ONE_HALF 0x7f
+#define RB_MASK 0x00ff00ff
+#define RB_ONE_HALF 0x007f007f
+#define RB_MASK_PLUS_ONE 0x01000100
+#define G_SHIFT 8
+
+static force_inline uint32_t
+mul8x2_8 (uint32_t a, uint8_t b)
+{
+	uint32_t t = (a & RB_MASK) * b + RB_ONE_HALF;
+	return ((t + ((t >> G_SHIFT) & RB_MASK)) >> G_SHIFT) & RB_MASK;
+}
+
+static force_inline uint32_t
+add8x2_8x2(uint32_t a, uint32_t b)
+{
+	uint32_t t = a + b;
+	t |= RB_MASK_PLUS_ONE - ((t >> G_SHIFT) & RB_MASK);
+	return t & RB_MASK;
+}
+
+static force_inline uint32_t
+lerp8x4(uint32_t src, uint8_t a, uint32_t dst)
+{
+	return (add8x2_8x2(mul8x2_8(src, a),
+			   mul8x2_8(dst, ~a)) |
+		add8x2_8x2(mul8x2_8(src >> G_SHIFT, a),
+			   mul8x2_8(dst >> G_SHIFT, ~a)) << G_SHIFT);
+}
+
+inline static void
+lerp32_opacity(PixmapPtr scratch,
+	       uint32_t color,
+	       int16_t x, int16_t w,
+	       int16_t y, int16_t h,
+	       uint8_t opacity)
+{
+	uint32_t *ptr;
+	int stride, i;
+
+	ptr = (uint32_t*)((uint8_t *)scratch->devPrivate.ptr + scratch->devKind * y);
+	ptr += x;
+	stride = scratch->devKind / 4;
+
+	if (opacity == 0xff) {
+		if ((w | h) == 1) {
+			*ptr = color;
+		} else {
+			if (w < 16) {
+				do {
+					for (i = 0; i < w; i++)
+						ptr[i] = color;
+					ptr += stride;
+				} while (--h);
+			} else {
+				pixman_fill(ptr, stride, 32,
+					    0, 0, w, h, color);
+			}
+		}
+	} else {
+		if ((w | h) == 1) {
+			*ptr = lerp8x4(color, opacity, *ptr);
+		} else if (w == 1) {
+			do {
+				*ptr = lerp8x4(color, opacity, *ptr);
+				ptr += stride;
+			} while (--h);
+		} else{
+			do {
+				for (i = 0; i < w; i++)
+					ptr[i] = lerp8x4(color, opacity, ptr[i]);
+				ptr += stride;
+			} while (--h);
+		}
+	}
+}
+
+static void
+lerp32_unaligned_box_row(PixmapPtr scratch, uint32_t color,
+			 const BoxRec *extents,
+			 xTrapezoid *trap, int16_t dx,
+			 int16_t y, int16_t h,
+			 uint8_t covered)
+{
+	int16_t x1 = pixman_fixed_to_int(trap->left.p1.x) + dx;
+	int16_t fx1 = grid_coverage(SAMPLES_X, trap->left.p1.x);
+	int16_t x2 = pixman_fixed_to_int(trap->right.p1.x) + dx;
+	int16_t fx2 = grid_coverage(SAMPLES_X, trap->right.p1.x);
+
+	if (x1 < extents->x1)
+		x1 = extents->x1, fx1 = 0;
+	if (x2 > extents->x2)
+		x2 = extents->x2, fx2 = 0;
+
+	if (x2 < x1) {
+		if (fx1) {
+			lerp32_opacity(scratch, color,
+				       x1, 1,
+				       y, h,
+				       covered * (SAMPLES_X - fx1));
+			x1++;
+		}
+
+		if (x2 > x1) {
+			lerp32_opacity(scratch, color,
+				       x1, x2-x1,
+				       y, h,
+				       covered*SAMPLES_X);
+		}
+
+		if (fx2) {
+			lerp32_opacity(scratch, color,
+				       x2, 1,
+				       y, h,
+				       covered * fx2);
+		}
+	} else if (x1 == x2 && fx2 > fx1) {
+		lerp32_opacity(scratch, color,
+			       x1, 1,
+			       y, h,
+			       covered * (fx2 - fx1));
+	}
+}
+
+struct pixman_inplace {
+	pixman_image_t *image, *source, *mask;
+	uint32_t color;
+	uint32_t *bits;
+	int dx, dy;
+	int sx, sy;
+	uint8_t op;
+};
+
+static force_inline uint8_t
+mul_8_8(uint8_t a, uint8_t b)
+{
+    uint16_t t = a * (uint16_t)b + 0x7f;
+    return ((t >> 8) + t) >> 8;
+}
+
+static inline uint32_t multa(uint32_t s, uint8_t a, int shift)
+{
+	return mul_8_8((s >> shift) & 0xff, a) << shift;
+}
+
+static inline uint32_t mul_4x8_8(uint32_t color, uint8_t alpha)
+{
+	uint32_t v;
+
+	v = multa(color, alpha, 24);
+	v |= multa(color, alpha, 16);
+	v |= multa(color, alpha, 8);
+	v |= multa(color, alpha, 0);
+
+	return v;
+}
+
+inline static void
+pixsolid_opacity(struct pixman_inplace *pi,
+		 int16_t x, int16_t w,
+		 int16_t y, int16_t h,
+		 uint8_t opacity)
+{
+	if (opacity == 0xff)
+		*pi->bits = pi->color;
+	else
+		*pi->bits = mul_4x8_8(pi->color, opacity);
+	pixman_image_composite(pi->op, pi->source, NULL, pi->image,
+			       0, 0, 0, 0, pi->dx + x, pi->dy + y, w, h);
+}
+
+static void
+pixsolid_unaligned_box_row(struct pixman_inplace *pi,
+			   const BoxRec *extents,
+			   xTrapezoid *trap,
+			   int16_t y, int16_t h,
+			   uint8_t covered)
+{
+	int16_t x1 = pixman_fixed_to_int(trap->left.p1.x);
+	int16_t fx1 = grid_coverage(SAMPLES_X, trap->left.p1.x);
+	int16_t x2 = pixman_fixed_to_int(trap->right.p1.x);
+	int16_t fx2 = grid_coverage(SAMPLES_X, trap->right.p1.x);
+
+	if (x1 < extents->x1)
+		x1 = extents->x1, fx1 = 0;
+	if (x2 > extents->x2)
+		x2 = extents->x2, fx2 = 0;
+
+	if (x2 < x1) {
+		if (fx1) {
+			pixsolid_opacity(pi, x1, 1, y, h,
+					 covered * (SAMPLES_X - fx1));
+			x1++;
+		}
+
+		if (x2 > x1)
+			pixsolid_opacity(pi, x1, x2-x1, y, h, covered*SAMPLES_X);
+
+		if (fx2)
+			pixsolid_opacity(pi, x2, 1, y, h, covered * fx2);
+	} else if (x1 == x2 && fx2 > fx1) {
+		pixsolid_opacity(pi, x1, 1, y, h, covered * (fx2 - fx1));
+	}
+}
+
+static bool
+composite_unaligned_boxes_inplace__solid(CARD8 op, uint32_t color,
+					 PicturePtr dst, int n, xTrapezoid *t,
+					 bool force_fallback)
+{
+	PixmapPtr pixmap;
+	int16_t dx, dy;
+
+	if (!force_fallback && is_gpu(dst->pDrawable)) {
+		DBG(("%s: fallback -- can not perform operation in place, destination busy\n",
+		     __FUNCTION__));
+
+		return false;
+	}
+
+	/* XXX a8 boxes */
+	if (dst->format == PICT_a8r8g8b8 || dst->format == PICT_x8r8g8b8) {
+		DBG(("%s: fallback -- can not perform operation in place, unhanbled format %08lx\n",
+		     __FUNCTION__, dst->format));
+		goto pixman;
+	}
+
+	pixmap = get_drawable_pixmap(dst->pDrawable);
+	get_drawable_deltas(dst->pDrawable, pixmap, &dx, &dy);
+
+	if (op == PictOpOver && (color >> 24) == 0xff)
+		op = PictOpSrc;
+	if (op == PictOpOver) {
+		struct sna_pixmap *priv = sna_pixmap(pixmap);
+		if (priv && priv->clear && priv->clear_color == 0)
+			op = PictOpSrc;
+	}
+
+	switch (op) {
+	case PictOpSrc:
+		break;
+	default:
+		DBG(("%s: fallback -- can not perform op [%d] in place\n",
+		     __FUNCTION__, op));
+		goto pixman;
+	}
+
+	do {
+		RegionRec clip;
+		BoxPtr extents;
+		int count;
+
+		clip.extents.x1 = pixman_fixed_to_int(t->left.p1.x);
+		clip.extents.x2 = pixman_fixed_to_int(t->right.p1.x + pixman_fixed_1_minus_e);
+		clip.extents.y1 = pixman_fixed_to_int(t->top);
+		clip.extents.y2 = pixman_fixed_to_int(t->bottom + pixman_fixed_1_minus_e);
+		clip.data = NULL;
+
+		if (!sna_compute_composite_region(&clip,
+						   NULL, NULL, dst,
+						   0, 0,
+						   0, 0,
+						   clip.extents.x1, clip.extents.y1,
+						   clip.extents.x2 - clip.extents.x1,
+						   clip.extents.y2 - clip.extents.y1))
+			continue;
+
+		if (!sna_drawable_move_region_to_cpu(dst->pDrawable, &clip,
+						     MOVE_WRITE | MOVE_READ)) {
+			RegionUninit(&clip);
+			continue;
+		}
+
+		RegionTranslate(&clip, dx, dy);
+		count = REGION_NUM_RECTS(&clip);
+		extents = REGION_RECTS(&clip);
+		while (count--) {
+			int16_t y1 = dy + pixman_fixed_to_int(t->top);
+			int16_t fy1 = pixman_fixed_frac(t->top);
+			int16_t y2 = dy + pixman_fixed_to_int(t->bottom);
+			int16_t fy2 = pixman_fixed_frac(t->bottom);
+
+			if (y1 < extents->y1)
+				y1 = extents->y1, fy1 = 0;
+			if (y2 > extents->y2)
+				y2 = extents->y2, fy2 = 0;
+			if (y1 < y2) {
+				if (fy1) {
+					lerp32_unaligned_box_row(pixmap, color, extents,
+								 t, dx, y1, 1,
+								 SAMPLES_Y - grid_coverage(SAMPLES_Y, fy1));
+					y1++;
+				}
+
+				if (y2 > y1)
+					lerp32_unaligned_box_row(pixmap, color, extents,
+								 t, dx, y1, y2 - y1,
+								 SAMPLES_Y);
+
+				if (fy2)
+					lerp32_unaligned_box_row(pixmap, color,  extents,
+								 t, dx, y2, 1,
+								 grid_coverage(SAMPLES_Y, fy2));
+			} else if (y1 == y2 && fy2 > fy1) {
+				lerp32_unaligned_box_row(pixmap, color, extents,
+							 t, dx, y1, 1,
+							 grid_coverage(SAMPLES_Y, fy2) - grid_coverage(SAMPLES_Y, fy1));
+			}
+			extents++;
+		}
+
+		RegionUninit(&clip);
+	} while (--n && t++);
+
+	return true;
+
+pixman:
+	do {
+		struct pixman_inplace pi;
+		RegionRec clip;
+		BoxPtr extents;
+		int count;
+
+		clip.extents.x1 = pixman_fixed_to_int(t->left.p1.x);
+		clip.extents.x2 = pixman_fixed_to_int(t->right.p1.x + pixman_fixed_1_minus_e);
+		clip.extents.y1 = pixman_fixed_to_int(t->top);
+		clip.extents.y2 = pixman_fixed_to_int(t->bottom + pixman_fixed_1_minus_e);
+		clip.data = NULL;
+
+		if (!sna_compute_composite_region(&clip,
+						   NULL, NULL, dst,
+						   0, 0,
+						   0, 0,
+						   clip.extents.x1, clip.extents.y1,
+						   clip.extents.x2 - clip.extents.x1,
+						   clip.extents.y2 - clip.extents.y1))
+			continue;
+
+		if (!sna_drawable_move_region_to_cpu(dst->pDrawable, &clip,
+						     MOVE_WRITE | MOVE_READ)) {
+			RegionUninit(&clip);
+			continue;
+		}
+
+		pi.image = image_from_pict(dst, FALSE, &pi.dx, &pi.dy);
+		pi.source = pixman_image_create_bits(PIXMAN_a8r8g8b8, 1, 1, NULL, 0);
+		pixman_image_set_repeat(pi.source, PIXMAN_REPEAT_NORMAL);
+		pi.bits = pixman_image_get_data(pi.source);
+		pi.op = op;
+
+		count = REGION_NUM_RECTS(&clip);
+		extents = REGION_RECTS(&clip);
+		while (count--) {
+			int16_t y1 = pixman_fixed_to_int(t->top);
+			int16_t fy1 = pixman_fixed_frac(t->top);
+			int16_t y2 = pixman_fixed_to_int(t->bottom);
+			int16_t fy2 = pixman_fixed_frac(t->bottom);
+
+			if (y1 < extents->y1)
+				y1 = extents->y1, fy1 = 0;
+			if (y2 > extents->y2)
+				y2 = extents->y2, fy2 = 0;
+			if (y1 < y2) {
+				if (fy1) {
+					pixsolid_unaligned_box_row(&pi, extents, t, y1, 1,
+								   SAMPLES_Y - grid_coverage(SAMPLES_Y, fy1));
+					y1++;
+				}
+
+				if (y2 > y1)
+					pixsolid_unaligned_box_row(&pi, extents, t, y1, y2 - y1,
+								   SAMPLES_Y);
+
+				if (fy2)
+					pixsolid_unaligned_box_row(&pi, extents, t, y2, 1,
+								   grid_coverage(SAMPLES_Y, fy2));
+			} else if (y1 == y2 && fy2 > fy1) {
+				pixsolid_unaligned_box_row(&pi, extents, t, y1, 1,
+							   grid_coverage(SAMPLES_Y, fy2) - grid_coverage(SAMPLES_Y, fy1));
+			}
+			extents++;
+		}
+
+		RegionUninit(&clip);
+		pixman_image_unref(pi.image);
+		pixman_image_unref(pi.source);
+	} while (--n && t++);
+	return true;
+}
+
+inline static void
+pixmask_opacity(struct pixman_inplace *pi,
+		int16_t x, int16_t w,
+		int16_t y, int16_t h,
+		uint8_t opacity)
+{
+	if (opacity == 0xff) {
+		pixman_image_composite(pi->op, pi->source, NULL, pi->image,
+				       pi->sx + x, pi->sy + y,
+				       0, 0,
+				       pi->dx + x, pi->dy + y,
+				       w, h);
+	} else {
+		*pi->bits = opacity;
+		pixman_image_composite(pi->op, pi->source, pi->mask, pi->image,
+				       pi->sx + x, pi->sy + y,
+				       0, 0,
+				       pi->dx + x, pi->dy + y,
+				       w, h);
+	}
+}
+
+static void
+pixmask_unaligned_box_row(struct pixman_inplace *pi,
+			  const BoxRec *extents,
+			  xTrapezoid *trap,
+			  int16_t y, int16_t h,
+			  uint8_t covered)
+{
+	int16_t x1 = pixman_fixed_to_int(trap->left.p1.x);
+	int16_t fx1 = grid_coverage(SAMPLES_X, trap->left.p1.x);
+	int16_t x2 = pixman_fixed_to_int(trap->right.p1.x);
+	int16_t fx2 = grid_coverage(SAMPLES_X, trap->right.p1.x);
+
+	if (x1 < extents->x1)
+		x1 = extents->x1, fx1 = 0;
+	if (x2 > extents->x2)
+		x2 = extents->x2, fx2 = 0;
+
+	if (x2 < x1) {
+		if (fx1) {
+			pixmask_opacity(pi, x1, 1, y, h,
+					 covered * (SAMPLES_X - fx1));
+			x1++;
+		}
+
+		if (x2 > x1)
+			pixmask_opacity(pi, x1, x2-x1, y, h, covered*SAMPLES_X);
+
+		if (fx2)
+			pixmask_opacity(pi, x2, 1, y, h, covered * fx2);
+	} else if (x1 == x2 && fx2 > fx1) {
+		pixmask_opacity(pi, x1, 1, y, h, covered * (fx2 - fx1));
+	}
+}
+
+static bool
+composite_unaligned_boxes_inplace(CARD8 op,
+				  PicturePtr src, int16_t src_x, int16_t src_y,
+				  PicturePtr dst, int n, xTrapezoid *t,
+				  bool force_fallback)
+{
+	PixmapPtr pixmap;
+	int16_t dx, dy;
+
+	if (!force_fallback && is_gpu(dst->pDrawable)) {
+		DBG(("%s: fallback -- can not perform operation in place, destination busy\n",
+		     __FUNCTION__));
+
+		return false;
+	}
+
+	src_x -= pixman_fixed_to_int(t[0].left.p1.x);
+	src_y -= pixman_fixed_to_int(t[0].left.p1.y);
+
+	pixmap = get_drawable_pixmap(dst->pDrawable);
+	get_drawable_deltas(dst->pDrawable, pixmap, &dx, &dy);
+
+	do {
+		struct pixman_inplace pi;
+		RegionRec clip;
+		BoxPtr extents;
+		int count;
+
+		clip.extents.x1 = pixman_fixed_to_int(t->left.p1.x);
+		clip.extents.x2 = pixman_fixed_to_int(t->right.p1.x + pixman_fixed_1_minus_e);
+		clip.extents.y1 = pixman_fixed_to_int(t->top);
+		clip.extents.y2 = pixman_fixed_to_int(t->bottom + pixman_fixed_1_minus_e);
+		clip.data = NULL;
+
+		if (!sna_compute_composite_region(&clip,
+						   NULL, NULL, dst,
+						   0, 0,
+						   0, 0,
+						   clip.extents.x1, clip.extents.y1,
+						   clip.extents.x2 - clip.extents.x1,
+						   clip.extents.y2 - clip.extents.y1))
+			continue;
+
+		if (!sna_drawable_move_region_to_cpu(dst->pDrawable, &clip,
+						     MOVE_WRITE | MOVE_READ)) {
+			RegionUninit(&clip);
+			continue;
+		}
+
+		pi.image = image_from_pict(dst, FALSE, &pi.dx, &pi.dy);
+		pi.source = image_from_pict(src, TRUE, &pi.sx, &pi.sy);
+		pi.sx += src_x;
+		pi.sy += src_y;
+		pi.mask = pixman_image_create_bits(PIXMAN_a8, 1, 1, NULL, 0);
+		pixman_image_set_repeat(pi.mask, PIXMAN_REPEAT_NORMAL);
+		pi.bits = pixman_image_get_data(pi.mask);
+		pi.op = op;
+
+		count = REGION_NUM_RECTS(&clip);
+		extents = REGION_RECTS(&clip);
+		while (count--) {
+			int16_t y1 = pixman_fixed_to_int(t->top);
+			int16_t fy1 = pixman_fixed_frac(t->top);
+			int16_t y2 = pixman_fixed_to_int(t->bottom);
+			int16_t fy2 = pixman_fixed_frac(t->bottom);
+
+			if (y1 < extents->y1)
+				y1 = extents->y1, fy1 = 0;
+			if (y2 > extents->y2)
+				y2 = extents->y2, fy2 = 0;
+			if (y1 < y2) {
+				if (fy1) {
+					pixmask_unaligned_box_row(&pi, extents, t, y1, 1,
+								   SAMPLES_Y - grid_coverage(SAMPLES_Y, fy1));
+					y1++;
+				}
+
+				if (y2 > y1)
+					pixmask_unaligned_box_row(&pi, extents, t, y1, y2 - y1,
+								   SAMPLES_Y);
+
+				if (fy2)
+					pixmask_unaligned_box_row(&pi, extents, t, y2, 1,
+								   grid_coverage(SAMPLES_Y, fy2));
+			} else if (y1 == y2 && fy2 > fy1) {
+				pixmask_unaligned_box_row(&pi, extents, t, y1, 1,
+							  grid_coverage(SAMPLES_Y, fy2) - grid_coverage(SAMPLES_Y, fy1));
+			}
+			extents++;
+		}
+
+		RegionUninit(&clip);
+		pixman_image_unref(pi.image);
+		pixman_image_unref(pi.source);
+		pixman_image_unref(pi.mask);
+	} while (--n && t++);
+
+	return true;
+}
+
+static bool
 composite_unaligned_boxes_fallback(CARD8 op,
 				   PicturePtr src,
 				   PicturePtr dst,
 				   INT16 src_x, INT16 src_y,
-				   int ntrap, xTrapezoid *traps)
+				   int ntrap, xTrapezoid *traps,
+				   bool force_fallback)
 {
 	ScreenPtr screen = dst->pDrawable->pScreen;
-	INT16 dst_x = pixman_fixed_to_int(traps[0].left.p1.x);
-	INT16 dst_y = pixman_fixed_to_int(traps[0].left.p1.y);
-	int dx = dst->pDrawable->x;
-	int dy = dst->pDrawable->y;
+	uint32_t color;
+	int16_t dst_x, dst_y;
+	int16_t dx, dy;
 	int n;
 
+	if (sna_picture_is_solid(src, &color) &&
+	    composite_unaligned_boxes_inplace__solid(op, color, dst,
+						     ntrap, traps,
+						     force_fallback))
+		return true;
+
+	if (composite_unaligned_boxes_inplace(op, src, src_x, src_y,
+					      dst, ntrap, traps,
+					      force_fallback))
+		return true;
+
+	dst_x = pixman_fixed_to_int(traps[0].left.p1.x);
+	dst_y = pixman_fixed_to_int(traps[0].left.p1.y);
+	dx = dst->pDrawable->x;
+	dy = dst->pDrawable->y;
 	for (n = 0; n < ntrap; n++) {
 		xTrapezoid *t = &traps[n];
 		PixmapPtr scratch;
@@ -2934,10 +3557,16 @@ composite_unaligned_boxes_fallback(CARD8 op,
 						   extents.y2 - extents.y1))
 			continue;
 
-		scratch = sna_pixmap_create_upload(screen,
-						   extents.x2 - extents.x1,
-						   extents.y2 - extents.y1,
-						   8, KGEM_BUFFER_WRITE);
+		if (force_fallback)
+			scratch = sna_pixmap_create_unattached(screen,
+							       extents.x2 - extents.x1,
+							       extents.y2 - extents.y1,
+							       8);
+		else
+			scratch = sna_pixmap_create_upload(screen,
+							   extents.x2 - extents.x1,
+							   extents.y2 - extents.y1,
+							   8, KGEM_BUFFER_WRITE);
 		if (!scratch)
 			continue;
 
@@ -2956,12 +3585,14 @@ composite_unaligned_boxes_fallback(CARD8 op,
 			blt_unaligned_box_row(scratch, &extents, t, y1, y1 + 1,
 					      grid_coverage(SAMPLES_Y, t->bottom) - grid_coverage(SAMPLES_Y, t->top));
 		} else {
-			if (pixman_fixed_frac(t->top))
+			if (pixman_fixed_frac(t->top)) {
 				blt_unaligned_box_row(scratch, &extents, t, y1, y1 + 1,
 						      SAMPLES_Y - grid_coverage(SAMPLES_Y, t->top));
+				y1++;
+			}
 
-			if (y2 > y1 + 1)
-				blt_unaligned_box_row(scratch, &extents, t, y1+1, y2,
+			if (y2 > y1)
+				blt_unaligned_box_row(scratch, &extents, t, y1, y2,
 						      SAMPLES_Y);
 
 			if (pixman_fixed_frac(t->bottom))
@@ -2985,17 +3616,18 @@ composite_unaligned_boxes_fallback(CARD8 op,
 		}
 	}
 
-	return TRUE;
+	return true;
 }
 
-static Bool
+static bool
 composite_unaligned_boxes(struct sna *sna,
 			  CARD8 op,
 			  PicturePtr src,
 			  PicturePtr dst,
 			  PictFormatPtr maskFormat,
 			  INT16 src_x, INT16 src_y,
-			  int ntrap, xTrapezoid *traps)
+			  int ntrap, xTrapezoid *traps,
+			  bool force_fallback)
 {
 	BoxRec extents;
 	struct sna_composite_spans_op tmp;
@@ -3013,9 +3645,13 @@ composite_unaligned_boxes(struct sna *sna,
 	if (ntrap > 1 && maskFormat)
 		return false;
 
-	priv = sna_pixmap(get_drawable_pixmap(dst->pDrawable));
-	if (priv == NULL || !sna->render.composite_spans)
-		return composite_unaligned_boxes_fallback(op, src, dst, src_x, src_y, ntrap, traps);
+	if (force_fallback || !sna->render.composite_spans) {
+fallback:
+		return composite_unaligned_boxes_fallback(op, src, dst,
+							  src_x, src_y,
+							  ntrap, traps,
+							  force_fallback);
+	}
 
 	dst_x = extents.x1 = pixman_fixed_to_int(traps[0].left.p1.x);
 	extents.x2 = pixman_fixed_to_int(traps[0].right.p1.x + pixman_fixed_1_minus_e);
@@ -3077,10 +3713,14 @@ composite_unaligned_boxes(struct sna *sna,
 	switch (op) {
 	case PictOpAdd:
 	case PictOpOver:
+		priv = sna_pixmap(get_drawable_pixmap(dst->pDrawable));
+		assert(priv != NULL);
 		if (priv->clear && priv->clear_color == 0)
 			op = PictOpSrc;
 		break;
 	case PictOpIn:
+		priv = sna_pixmap(get_drawable_pixmap(dst->pDrawable));
+		assert(priv != NULL);
 		if (priv->clear && priv->clear_color == 0)
 			return true;
 		break;
@@ -3097,13 +3737,13 @@ composite_unaligned_boxes(struct sna *sna,
 					 &tmp)) {
 		DBG(("%s: composite spans render op not supported\n",
 		     __FUNCTION__));
-		return false;
+		REGION_UNINIT(NULL, &clip);
+		goto fallback;
 	}
 
 	for (n = 0; n < ntrap; n++)
 		composite_unaligned_trap(sna, &tmp, &traps[n], dx, dy, c);
 	tmp.done(sna, &tmp);
-
 	REGION_UNINIT(NULL, &clip);
 	return true;
 }
@@ -3629,13 +4269,6 @@ struct inplace {
 	};
 };
 
-static force_inline uint8_t
-mul_8_8(uint8_t a, uint8_t b)
-{
-    uint16_t t = a * (uint16_t)b + 0x7f;
-    return ((t >> 8) + t) >> 8;
-}
-
 static force_inline uint8_t coverage_opacity(int coverage, uint8_t opacity)
 {
 	coverage = coverage * 256 / FAST_SAMPLES_XY;
@@ -3796,36 +4429,6 @@ tor_blt_add_clipped(struct sna *sna,
 	while (n--)
 		tor_blt_add(sna, op, NULL, box++, coverage);
 	pixman_region_fini(&region);
-}
-
-#define ONE_HALF 0x7f
-#define RB_MASK 0x00ff00ff
-#define RB_ONE_HALF 0x007f007f
-#define RB_MASK_PLUS_ONE 0x01000100
-#define G_SHIFT 8
-
-static force_inline uint32_t
-mul8x2_8 (uint32_t a, uint8_t b)
-{
-	uint32_t t = (a & RB_MASK) * b + RB_ONE_HALF;
-	return ((t + ((t >> G_SHIFT) & RB_MASK)) >> G_SHIFT) & RB_MASK;
-}
-
-static force_inline uint32_t
-add8x2_8x2(uint32_t a, uint32_t b)
-{
-	uint32_t t = a + b;
-	t |= RB_MASK_PLUS_ONE - ((t >> G_SHIFT) & RB_MASK);
-	return t & RB_MASK;
-}
-
-static force_inline uint32_t
-lerp8x4(uint32_t src, uint8_t a, uint32_t dst)
-{
-	return (add8x2_8x2(mul8x2_8(src, a),
-			   mul8x2_8(dst, ~a)) |
-		add8x2_8x2(mul8x2_8(src >> G_SHIFT, a),
-			   mul8x2_8(dst >> G_SHIFT, ~a)) << G_SHIFT);
 }
 
 static void
@@ -4196,7 +4799,6 @@ unbounded_pass:
 static bool
 trapezoid_span_inplace__x8r8g8b8(CARD8 op,
 				 uint32_t color,
-				 PicturePtr src,
 				 PicturePtr dst,
 				 PictFormatPtr maskFormat,
 				 int ntrap, xTrapezoid *traps)
@@ -4234,7 +4836,7 @@ trapezoid_span_inplace__x8r8g8b8(CARD8 op,
 		do {
 			/* XXX unwind errors? */
 			if (!trapezoid_span_inplace__x8r8g8b8(op, color,
-							      src, dst, NULL,
+							      dst, NULL,
 							      1, traps++))
 				return false;
 		} while (--ntrap);
@@ -4252,7 +4854,7 @@ trapezoid_span_inplace__x8r8g8b8(CARD8 op,
 	     region.extents.x2, region.extents.y2));
 
 	if (!sna_compute_composite_extents(&region.extents,
-					   src, NULL, dst,
+					   NULL, NULL, dst,
 					   0, 0,
 					   0, 0,
 					   region.extents.x1, region.extents.y1,
@@ -4372,7 +4974,7 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 
 	if (dst->format == PICT_a8r8g8b8 || dst->format == PICT_x8r8g8b8)
 		return trapezoid_span_inplace__x8r8g8b8(op, color,
-							src, dst, maskFormat,
+							dst, maskFormat,
 							ntrap, traps);
 
 	if (dst->format != PICT_a8) {
@@ -4454,8 +5056,8 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 	     region.extents.x2, region.extents.y2));
 
 	if (!sna_compute_composite_extents(&region.extents,
-					   src, NULL, dst,
-					   src_x, src_y,
+					   NULL, NULL, dst,
+					   0, 0,
 					   0, 0,
 					   region.extents.x1, region.extents.y1,
 					   region.extents.x2 - region.extents.x1,
@@ -4687,7 +5289,7 @@ sna_composite_trapezoids(CARD8 op,
 	PixmapPtr pixmap = get_drawable_pixmap(dst->pDrawable);
 	struct sna *sna = to_sna_from_pixmap(pixmap);
 	struct sna_pixmap *priv;
-	bool rectilinear, pixel_aligned;
+	bool rectilinear, pixel_aligned, force_fallback;
 	unsigned flags;
 	int n;
 
@@ -4718,12 +5320,14 @@ sna_composite_trapezoids(CARD8 op,
 		goto fallback;
 	}
 
-	if (too_small(priv) && !picture_is_gpu(src)) {
-		DBG(("%s: fallback -- dst is too small, %dx%d\n",
+	force_fallback = false;
+	if ((too_small(priv) || DAMAGE_IS_ALL(priv->cpu_damage)) &&
+	    !picture_is_gpu(src)) {
+		DBG(("%s: force fallbacks -- dst is too small, %dx%d\n",
 		     __FUNCTION__,
 		     dst->pDrawable->width,
 		     dst->pDrawable->height));
-		goto fallback;
+		force_fallback = true;
 	}
 
 	/* scan through for fast rectangles */
@@ -4769,17 +5373,22 @@ sna_composite_trapezoids(CARD8 op,
 			if (composite_aligned_boxes(sna, op, src, dst,
 						    maskFormat,
 						    xSrc, ySrc,
-						    ntrap, traps))
+						    ntrap, traps,
+						    force_fallback))
 			    return;
 		} else {
 			if (composite_unaligned_boxes(sna, op, src, dst,
 						      maskFormat,
 						      xSrc, ySrc,
-						      ntrap, traps))
+						      ntrap, traps,
+						      force_fallback))
 				return;
 		}
 		flags |= COMPOSITE_SPANS_RECTILINEAR;
 	}
+
+	if (force_fallback)
+		goto fallback;
 
 	if (is_mono(dst, maskFormat) &&
 	    mono_trapezoids_span_converter(op, src, dst,

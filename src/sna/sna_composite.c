@@ -207,25 +207,27 @@ sna_compute_composite_region(RegionPtr region,
 	}
 
 	/* clip against src */
-	if (src->pDrawable) {
-		src_x += src->pDrawable->x;
-		src_y += src->pDrawable->y;
-	}
-	if (!clip_to_src(region, src, dst_x - src_x, dst_y - src_y)) {
-		pixman_region_fini (region);
-		return FALSE;
-	}
-	DBG(("%s: clip against src: (%d, %d), (%d, %d)\n",
-	     __FUNCTION__,
-	     region->extents.x1, region->extents.y1,
-	     region->extents.x2, region->extents.y2));
-
-	if (src->alphaMap) {
-		if (!clip_to_src(region, src->alphaMap,
-				 dst_x - (src_x - src->alphaOrigin.x),
-				 dst_y - (src_y - src->alphaOrigin.y))) {
-			pixman_region_fini(region);
+	if (src) {
+		if (src->pDrawable) {
+			src_x += src->pDrawable->x;
+			src_y += src->pDrawable->y;
+		}
+		if (!clip_to_src(region, src, dst_x - src_x, dst_y - src_y)) {
+			pixman_region_fini (region);
 			return FALSE;
+		}
+		DBG(("%s: clip against src: (%d, %d), (%d, %d)\n",
+		     __FUNCTION__,
+		     region->extents.x1, region->extents.y1,
+		     region->extents.x2, region->extents.y2));
+
+		if (src->alphaMap) {
+			if (!clip_to_src(region, src->alphaMap,
+					 dst_x - (src_x - src->alphaOrigin.x),
+					 dst_y - (src_y - src->alphaOrigin.y))) {
+				pixman_region_fini(region);
+				return FALSE;
+			}
 		}
 	}
 
@@ -361,7 +363,8 @@ sna_compute_composite_extents(BoxPtr extents,
 	     extents->x1, extents->y1,
 	     extents->x2, extents->y2));
 
-	trim_source_extents(extents, src, dst_x - src_x, dst_y - src_y);
+	if (src)
+		trim_source_extents(extents, src, dst_x - src_x, dst_y - src_y);
 	if (mask)
 		trim_source_extents(extents, mask,
 				    dst_x - mask_x, dst_y - mask_y);
