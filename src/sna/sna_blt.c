@@ -889,6 +889,38 @@ static void blt_composite_fill_boxes(struct sna *sna,
 	} while (--n);
 }
 
+fastcall
+static void blt_composite_nop(struct sna *sna,
+			       const struct sna_composite_op *op,
+			       const struct sna_composite_rectangles *r)
+{
+}
+
+fastcall static void blt_composite_nop_box(struct sna *sna,
+					   const struct sna_composite_op *op,
+					   const BoxRec *box)
+{
+}
+
+static void blt_composite_nop_boxes(struct sna *sna,
+				    const struct sna_composite_op *op,
+				    const BoxRec *box, int n)
+{
+}
+
+static Bool
+prepare_blt_nop(struct sna *sna,
+		struct sna_composite_op *op)
+{
+	DBG(("%s\n", __FUNCTION__));
+
+	op->blt   = blt_composite_nop;
+	op->box   = blt_composite_nop_box;
+	op->boxes = blt_composite_nop_boxes;
+	op->done  = nop_done;
+	return TRUE;
+}
+
 static Bool
 prepare_blt_clear(struct sna *sna,
 		  struct sna_composite_op *op)
@@ -1100,14 +1132,18 @@ prepare_blt_copy(struct sna *sna,
 	PixmapPtr src = op->u.blt.src_pixmap;
 	struct sna_pixmap *priv = sna_pixmap(src);
 
-	if (!kgem_bo_can_blt(&sna->kgem, priv->gpu_bo))
+	if (!kgem_bo_can_blt(&sna->kgem, priv->gpu_bo)) {
+		DBG(("%s: fallback -- can't blt from source\n", __FUNCTION__));
 		return FALSE;
+	}
 
 	if (!kgem_check_many_bo_fenced(&sna->kgem, op->dst.bo, priv->gpu_bo, NULL)) {
 		_kgem_submit(&sna->kgem);
 		if (!kgem_check_many_bo_fenced(&sna->kgem,
-					       op->dst.bo, priv->gpu_bo, NULL))
+					       op->dst.bo, priv->gpu_bo, NULL)) {
+			DBG(("%s: fallback -- no room in aperture\n", __FUNCTION__));
 			return FALSE;
+		}
 		_kgem_set_mode(&sna->kgem, KGEM_BLT);
 	}
 
@@ -1586,8 +1622,9 @@ sna_blt_composite(struct sna *sna,
 	if (op == PictOpClear) {
 clear:
 		if (was_clear)
-			return TRUE;
-		return prepare_blt_clear(sna, tmp);
+			return prepare_blt_nop(sna, tmp);
+		else
+			return prepare_blt_clear(sna, tmp);
 	}
 
 	if (is_solid(src)) {
