@@ -4052,10 +4052,21 @@ fallback:
 		DBG(("%s: fallback -- src=(%d, %d), dst=(%d, %d)\n",
 		     __FUNCTION__, src_dx, src_dy, dst_dx, dst_dy));
 		if (src_priv) {
+			unsigned mode;
+
 			RegionTranslate(&region, src_dx, src_dy);
+
+			assert_pixmap_contains_box(src_pixmap,
+						   RegionExtents(&region));
+
+			mode = MOVE_READ;
+			if (src_priv->cpu_bo == NULL)
+				mode |= MOVE_INPLACE_HINT;
+
 			if (!sna_drawable_move_region_to_cpu(&src_pixmap->drawable,
-							     &region, MOVE_READ))
+							     &region, mode))
 				goto out;
+
 			RegionTranslate(&region, -src_dx, -src_dy);
 		}
 
