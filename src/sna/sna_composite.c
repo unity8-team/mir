@@ -410,6 +410,21 @@ static void apply_damage(struct sna_composite_op *op, RegionPtr region)
 	sna_damage_add(op->damage, region);
 }
 
+static inline bool use_cpu(PixmapPtr pixmap, struct sna_pixmap *priv,
+			   CARD8 op, INT16 width, INT16 height)
+{
+	if (too_small(priv))
+		return true;
+
+	if (DAMAGE_IS_ALL(priv->cpu_damage) &&
+	    (op > PictOpSrc ||
+	     width  < pixmap->drawable.width ||
+	     height < pixmap->drawable.height))
+		return true;
+
+	return false;
+}
+
 void
 sna_composite(CARD8 op,
 	      PicturePtr src,
@@ -481,8 +496,9 @@ sna_composite(CARD8 op,
 		goto fallback;
 	}
 
-	if (too_small(priv) && !picture_is_gpu(src) && !picture_is_gpu(mask)) {
-		DBG(("%s: fallback due to too small\n", __FUNCTION__));
+	if (use_cpu(pixmap, priv, op, width, height) &&
+	    !picture_is_gpu(src) && !picture_is_gpu(mask)) {
+		DBG(("%s: fallback, dst is too small (or completely damaged)\n", __FUNCTION__));
 		goto fallback;
 	}
 
@@ -792,15 +808,10 @@ sna_composite_rectangles(CARD8		 op,
 		goto fallback;
 	}
 
-	if (too_small(priv)) {
-		DBG(("%s: fallback, dst is too small\n", __FUNCTION__));
-		goto fallback;
-	}
-
-	if (DAMAGE_IS_ALL(priv->cpu_damage) &&
-	    (region.extents.x2 - region.extents.x1 < pixmap->drawable.width ||
-	     region.extents.y2 - region.extents.y1 < pixmap->drawable.height)) {
-		DBG(("%s: fallback due to completely damaged CPU\n", __FUNCTION__));
+	if (use_cpu(pixmap, priv, op,
+		    region.extents.x2 - region.extents.x1,
+		    region.extents.y2 - region.extents.y1)) {
+		DBG(("%s: fallback, dst is too small (or completely damaged)\n", __FUNCTION__));
 		goto fallback;
 	}
 
