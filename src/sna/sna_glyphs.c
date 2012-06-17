@@ -1364,7 +1364,8 @@ sna_glyphs(CARD8 op,
 		goto fallback;
 	}
 
-	if (too_small(priv) && !picture_is_gpu(src)) {
+	if ((too_small(priv) || DAMAGE_IS_ALL(priv->cpu_damage)) &&
+	    !picture_is_gpu(src)) {
 		DBG(("%s: fallback -- too small (%dx%d)\n",
 		     __FUNCTION__, dst->pDrawable->width, dst->pDrawable->height));
 		goto fallback;
