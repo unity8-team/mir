@@ -1136,13 +1136,18 @@ skip_inplace_map:
 			kgem_bo_sync__cpu(&sna->kgem, priv->cpu_bo);
 		}
 
-		pixman_fill(pixmap->devPrivate.ptr,
-			    pixmap->devKind/sizeof(uint32_t),
-			    pixmap->drawable.bitsPerPixel,
-			    0, 0,
-			    pixmap->drawable.width,
-			    pixmap->drawable.height,
-			    priv->clear_color);
+		if (priv->clear_color == 0 || pixmap->drawable.bitsPerPixel == 8) {
+			memset(pixmap->devPrivate.ptr, priv->clear_color,
+			       pixmap->devKind * pixmap->drawable.height);
+		} else {
+			pixman_fill(pixmap->devPrivate.ptr,
+				    pixmap->devKind/sizeof(uint32_t),
+				    pixmap->drawable.bitsPerPixel,
+				    0, 0,
+				    pixmap->drawable.width,
+				    pixmap->drawable.height,
+				    priv->clear_color);
+		}
 
 		priv->clear = false;
 	}
