@@ -11982,8 +11982,9 @@ sna_get_image(DrawablePtr drawable,
 	      char *dst)
 {
 	RegionRec region;
+	unsigned int flags;
 
-	DBG(("%s (%d, %d, %d, %d)\n", __FUNCTION__, x, y, w, h));
+	DBG(("%s (%d, %d)x(%d, %d)\n", __FUNCTION__, x, y, w, h));
 
 	region.extents.x1 = x + drawable->x;
 	region.extents.y1 = y + drawable->y;
@@ -11991,7 +11992,10 @@ sna_get_image(DrawablePtr drawable,
 	region.extents.y2 = region.extents.y1 + h;
 	region.data = NULL;
 
-	if (!sna_drawable_move_region_to_cpu(drawable, &region, MOVE_READ))
+	flags = MOVE_READ;
+	if ((w | h) == 1)
+		flags |= MOVE_INPLACE_HINT;
+	if (!sna_drawable_move_region_to_cpu(drawable, &region, flags))
 		return;
 
 	if (format == ZPixmap &&
