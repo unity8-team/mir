@@ -431,8 +431,8 @@ sna_tiling_composite_spans_done(struct sna *sna,
 
 					DBG(("%s: rect[%d] = (%d, %d)x(%d,%d), tile=(%d,%d)x(%d, %d), blt=(%d,%d),(%d,%d)\n",
 					     __FUNCTION__, n,
-					     r->dst.x, r->dst.y,
-					     r->width, r->height,
+					     r->box.x1, r->box.y1,
+					     r->box.x2-r->box.x1, r->box.y2-r->box.y1,
 					     x, y, width, height,
 					     b.x1, b.y1, b.x2, b.y2));
 
@@ -488,8 +488,8 @@ sna_tiling_composite_spans_done(struct sna *sna,
 
 					DBG(("%s: rect[%d] = (%d, %d)x(%d,%d), tile=(%d,%d)x(%d, %d), blt=(%d,%d),(%d,%d)\n",
 					     __FUNCTION__, n,
-					     r->dst.x, r->dst.y,
-					     r->width, r->height,
+					     r->box.x1, r->box.y1,
+					     r->box.x2-r->box.x1, r->box.y2-r->box.y1,
 					     x, y, width, height,
 					     b.x1, b.y1, b.x2, b.y2));
 
