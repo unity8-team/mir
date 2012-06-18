@@ -57,7 +57,7 @@ PUSH_VTX1s(struct nouveau_pushbuf *push, float sx, float sy, int dx, int dy)
 	PUSH_DATA (push, VTX_ATTR(1, 2, FLOAT, 4));
 	PUSH_DATAf(push, sx);
 	PUSH_DATAf(push, sy);
-	BEGIN_NVC0(push, NVC0_3D(VTX_ATTR_DEFINE), 2);
+	BEGIN_NVC0(push, NVC0_3D(VTX_ATTR_DEFINE), 3);
 	PUSH_DATA (push, VTX_ATTR(0, 2, SSCALED, 4));
 	PUSH_DATA (push, dx);
 	PUSH_DATA (push, dy);
