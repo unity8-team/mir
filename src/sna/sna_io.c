@@ -122,7 +122,7 @@ static bool download_inplace(struct kgem *kgem, struct kgem_bo *bo)
 	if (FORCE_INPLACE)
 		return FORCE_INPLACE > 0;
 
-	return !kgem_bo_is_busy(bo) || bo->tiling == I915_TILING_NONE;
+	return !__kgem_bo_is_busy(kgem, bo) || bo->tiling == I915_TILING_NONE;
 }
 
 void sna_read_boxes(struct sna *sna,
@@ -1158,21 +1158,23 @@ bool sna_replace(struct sna *sna,
 {
 	struct kgem_bo *bo = *_bo;
 	struct kgem *kgem = &sna->kgem;
+	bool busy;
 	void *dst;
 
-	DBG(("%s(handle=%d, %dx%d, bpp=%d, tiling=%d)\n",
+	busy = __kgem_bo_is_busy(kgem, bo);
+	DBG(("%s(handle=%d, %dx%d, bpp=%d, tiling=%d) busy?=%d\n",
 	     __FUNCTION__, bo->handle,
 	     pixmap->drawable.width,
 	     pixmap->drawable.height,
 	     pixmap->drawable.bitsPerPixel,
-	     bo->tiling));
+	     bo->tiling, busy));
 	assert(!bo->flush);
 
-	if ((!kgem_bo_can_map(kgem, bo) || kgem_bo_is_busy(bo)) &&
+	if ((busy || !kgem_bo_can_map(kgem, bo)) &&
 	    indirect_replace(sna, pixmap, bo, src, stride))
 		return true;
 
-	if (kgem_bo_is_busy(bo)) {
+	if (busy) {
 		struct kgem_bo *new_bo;
 
 		new_bo = kgem_create_2d(kgem,
