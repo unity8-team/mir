@@ -486,6 +486,15 @@ static inline bool kgem_bo_is_busy(struct kgem_bo *bo)
 	return bo->rq;
 }
 
+static inline bool __kgem_bo_is_busy(struct kgem *kgem, struct kgem_bo *bo)
+{
+	DBG_HDR(("%s: handle=%d, domain: %d exec? %d, rq? %d\n", __FUNCTION__,
+		 bo->handle, bo->domain, bo->exec != NULL, bo->rq != NULL));
+	if (bo->rq && !bo->exec)
+		kgem_retire(kgem);
+	return kgem_bo_is_busy(bo);
+}
+
 static inline bool kgem_bo_is_dirty(struct kgem_bo *bo)
 {
 	if (bo == NULL)

@@ -42,7 +42,7 @@
 
 #define PITCH(x, y) ALIGN((x)*(y), 4)
 
-#define FORCE_INPLACE 0
+#define FORCE_INPLACE 0 /* 1 upload directly, -1 force indirect */
 
 /* XXX Need to avoid using GTT fenced access for I915_TILING_Y on 855GM */
 
@@ -545,7 +545,7 @@ static bool upload_inplace(struct kgem *kgem,
 	 * able to almagamate a series of small writes into a single
 	 * operation.
 	 */
-	if (kgem_bo_is_busy(bo)) {
+	if (__kgem_bo_is_busy(kgem, bo)) {
 		unsigned int bytes = 0;
 		while (n--) {
 			bytes += (box->x2 - box->x1) * (box->y2 - box->y1);
@@ -763,9 +763,8 @@ tile:
 	}
 
 	kgem_set_mode(kgem, KGEM_BLT);
-	if (kgem->nexec + 2 > KGEM_EXEC_SIZE(kgem) ||
-	    kgem->nreloc + 2 > KGEM_RELOC_SIZE(kgem) ||
-	    !kgem_check_batch(kgem, 8) ||
+	if (!kgem_check_batch(kgem, 8) ||
+	    !kgem_check_reloc_and_exec(kgem, 2) ||
 	    !kgem_check_bo_fenced(kgem, dst_bo)) {
 		_kgem_submit(kgem);
 		_kgem_set_mode(kgem, KGEM_BLT);
