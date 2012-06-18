@@ -175,20 +175,24 @@ nouveau_exa_scratch(NVPtr pNv, int size, struct nouveau_bo **pbo, int *off)
 		ret = nouveau_bo_new(pNv->dev, NOUVEAU_BO_GART | NOUVEAU_BO_MAP,
 				     0, NOUVEAU_ALIGN(size, 1 * 1024 * 1024),
 				     NULL, &bo);
-		if (ret == 0)
-			ret = nouveau_bo_map(bo, NOUVEAU_BO_RDWR, pNv->client);
 		if (ret != 0)
 			return ret;
 
+		ret = nouveau_bo_map(bo, NOUVEAU_BO_RDWR, pNv->client);
+		if (ret != 0) {
+			nouveau_bo_ref(NULL, &bo);
+			return ret;
+		}
+
 		nouveau_bo_ref(bo, &pNv->transfer);
+		nouveau_bo_ref(NULL, &bo);
 		pNv->transfer_offset = 0;
 	}
 
 	*off = pNv->transfer_offset;
 	*pbo = pNv->transfer;
 
-	pNv->transfer_offset += size + 0xff;
-	pNv->transfer_offset &= ~0xff;
+	pNv->transfer_offset += size;
 	return 0;
 }
 
