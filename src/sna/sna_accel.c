@@ -3792,11 +3792,10 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	if (dst_priv == NULL)
 		goto fallback;
 
-	if (src_priv == NULL &&
-	    !copy_use_gpu_bo(sna, dst_priv, &region, alu_overwrites(alu))) {
-		DBG(("%s: fallback - unattached to source and not use dst gpu bo\n",
-		     __FUNCTION__));
-		goto fallback;
+	if (dst_priv->gpu_bo && dst_priv->gpu_bo->proxy) {
+		DBG(("%s: discarding cached upload\n", __FUNCTION__));
+		kgem_bo_destroy(&sna->kgem, dst_priv->gpu_bo);
+		dst_priv->gpu_bo = NULL;
 	}
 
 	if (replaces) {
@@ -3807,10 +3806,11 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 		dst_priv->clear = false;
 	}
 
-	if (dst_priv->gpu_bo && dst_priv->gpu_bo->proxy) {
-		DBG(("%s: discarding cached upload\n", __FUNCTION__));
-		kgem_bo_destroy(&sna->kgem, dst_priv->gpu_bo);
-		dst_priv->gpu_bo = NULL;
+	if (src_priv == NULL &&
+	    !copy_use_gpu_bo(sna, dst_priv, &region, alu_overwrites(alu))) {
+		DBG(("%s: fallback - unattached to source and not use dst gpu bo\n",
+		     __FUNCTION__));
+		goto fallback;
 	}
 
 	/* Try to maintain the data on the GPU */
@@ -4023,13 +4023,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			}
 			assert_pixmap_damage(dst_pixmap);
 		} else {
-			if (src_priv) {
-				RegionTranslate(&region, src_dx, src_dy);
-				if (!sna_drawable_move_region_to_cpu(&src_pixmap->drawable,
-								&region, MOVE_READ))
-					goto out;
-				RegionTranslate(&region, -src_dx, -src_dy);
-			}
+			assert(!src_priv->gpu_bo);
 
 			if (!dst_priv->pinned && replaces) {
 				stride = src_pixmap->devKind;
@@ -4054,6 +4048,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			} else {
 				DBG(("%s: dst is on the GPU, src is on the CPU, uploading into dst\n",
 				     __FUNCTION__));
+				assert(!DAMAGE_IS_ALL(dst_priv->cpu_damage));
 				if (!sna_write_boxes(sna, dst_pixmap,
 						     dst_priv->gpu_bo, dst_dx, dst_dy,
 						     src_pixmap->devPrivate.ptr,
@@ -4084,7 +4079,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 		}
 
 		goto out;
-	} else if (dst_priv->cpu_bo &&
+	} else if (use_cpu_bo_for_write(sna, dst_priv) &&
 		   src_priv && DAMAGE_IS_ALL(src_priv->gpu_damage) && !src_priv->clear) {
 		assert(src_priv->gpu_bo != NULL); /* guaranteed by gpu_damage */
 		if (!sna->render.copy_boxes(sna, alu,
@@ -4188,7 +4183,7 @@ fallback:
 		dst_stride = dst_pixmap->devKind;
 		src_stride = src_pixmap->devKind;
 
-		if (alu == GXcopy && !reverse && !upsidedown && bpp >= 8) {
+		if (alu == GXcopy && bpp >= 8) {
 			dst_bits = (FbBits *)
 				((char *)dst_pixmap->devPrivate.ptr +
 				 dst_dy * dst_stride + dst_dx * bpp / 8);
