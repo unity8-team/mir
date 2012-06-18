@@ -594,9 +594,9 @@ PUSH_VTX2s(struct nouveau_pushbuf *push,
 	   int x1, int y1, int x2, int y2, int dx, int dy)
 {
 	BEGIN_NV04(push, NV10_3D(VERTEX_TX0_2I), 1);
-	PUSH_DATA (push, (y1 << 16) | x1);
+	PUSH_DATA (push, ((y1 & 0xffff) << 16) | (x1 & 0xffff));
 	BEGIN_NV04(push, NV10_3D(VERTEX_TX1_2I), 1);
-	PUSH_DATA (push, (y2 << 16) | x2);
+	PUSH_DATA (push, ((y2 & 0xffff) << 16) | (x2 & 0xffff));
 	BEGIN_NV04(push, NV10_3D(VERTEX_POS_3F_X), 3);
 	PUSH_DATAf(push, dx);
 	PUSH_DATAf(push, dy);

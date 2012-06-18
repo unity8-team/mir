@@ -545,10 +545,10 @@ PUSH_VTX2s(struct nouveau_pushbuf *push,
 	   int x1, int y1, int x2, int y2, int dx, int dy)
 {
 	BEGIN_NV04(push, NV30_3D(VTX_ATTR_2I(8)), 2);
-	PUSH_DATA (push, (y1 << 16) | x1);
-	PUSH_DATA (push, (y2 << 16) | x2);
+	PUSH_DATA (push, ((y1 & 0xffff) << 16) | (x1 & 0xffff));
+	PUSH_DATA (push, ((y2 & 0xffff) << 16) | (x2 & 0xffff));
 	BEGIN_NV04(push, NV30_3D(VTX_ATTR_2I(0)), 1);
-	PUSH_DATA (push, (dy << 16) | dx);
+	PUSH_DATA (push, ((dy & 0xffff) << 16) | (dx & 0xffff));
 }
 
 void

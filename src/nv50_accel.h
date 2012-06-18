@@ -53,20 +53,18 @@ PUSH_VTX1s(struct nouveau_pushbuf *push, float sx, float sy, int dx, int dy)
 	PUSH_DATAf(push, sx);
 	PUSH_DATAf(push, sy);
 	BEGIN_NV04(push, NV50_3D(VTX_ATTR_2I(0)), 1);
-	PUSH_DATA (push, (dy << 16) | dx);
+	PUSH_DATA (push, ((dy & 0xffff) << 16) | (dx & 0xffff));
 }
 
 static __inline__ void
 PUSH_VTX2s(struct nouveau_pushbuf *push,
 	   int x1, int y1, int x2, int y2, int dx, int dy)
 {
-	BEGIN_NV04(push, NV50_3D(VTX_ATTR_2F_X(8)), 4);
-	PUSH_DATAf(push, x1);
-	PUSH_DATAf(push, y1);
-	PUSH_DATAf(push, x2);
-	PUSH_DATAf(push, y2);
+	BEGIN_NV04(push, NV50_3D(VTX_ATTR_2I(8)), 2);
+	PUSH_DATA (push, ((y1 & 0xffff) << 16) | (x1 & 0xffff));
+	PUSH_DATA (push, ((y2 & 0xffff) << 16) | (x2 & 0xffff));
 	BEGIN_NV04(push, NV50_3D(VTX_ATTR_2I(0)), 1);
-	PUSH_DATA (push, (dy << 16) | dx);
+	PUSH_DATA (push, ((dy & 0xffff) << 16) | (dx & 0xffff));
 }
 
 static __inline__ void

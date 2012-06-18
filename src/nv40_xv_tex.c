@@ -167,7 +167,7 @@ NV40StopTexturedVideo(ScrnInfoPtr pScrn, pointer data, Bool Exit)
 	PUSH_DATAf(push, (sx)); PUSH_DATAf(push, (sy));                        \
 	PUSH_DATAf(push, (sx)/2.0); PUSH_DATAf(push, (sy)/2.0);                \
 	BEGIN_NV04(push, NV30_3D(VTX_ATTR_2I(0)), 1);                          \
- 	PUSH_DATA (push, ((dy)<<16)|(dx));                                     \
+	PUSH_DATA (push, (((dy)&0xffff)<<16)|((dx)&0xffff));                   \
 } while(0)
 
 int
