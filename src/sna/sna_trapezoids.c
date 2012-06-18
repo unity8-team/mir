@@ -3148,7 +3148,7 @@ pixsolid_unaligned_box_row(struct pixman_inplace *pi,
 	if (x2 > extents->x2)
 		x2 = extents->x2, fx2 = 0;
 
-	if (x2 < x1) {
+	if (x1 < x2) {
 		if (fx1) {
 			pixsolid_opacity(pi, x1, 1, y, h,
 					 covered * (SAMPLES_X - fx1));
@@ -3389,7 +3389,7 @@ pixmask_unaligned_box_row(struct pixman_inplace *pi,
 	if (x2 > extents->x2)
 		x2 = extents->x2, fx2 = 0;
 
-	if (x2 < x1) {
+	if (x1 < x2) {
 		if (fx1) {
 			pixmask_opacity(pi, x1, 1, y, h,
 					 covered * (SAMPLES_X - fx1));
@@ -3412,10 +3412,9 @@ composite_unaligned_boxes_inplace(CARD8 op,
 				  PicturePtr dst, int n, xTrapezoid *t,
 				  bool force_fallback)
 {
-	PixmapPtr pixmap;
-	int16_t dx, dy;
-
-	if (!force_fallback && is_gpu(dst->pDrawable)) {
+	if (!force_fallback &&
+	    (is_gpu(dst->pDrawable) ||
+	     (src->pDrawable && is_gpu(src->pDrawable)))) {
 		DBG(("%s: fallback -- can not perform operation in place, destination busy\n",
 		     __FUNCTION__));
 
@@ -3424,10 +3423,6 @@ composite_unaligned_boxes_inplace(CARD8 op,
 
 	src_x -= pixman_fixed_to_int(t[0].left.p1.x);
 	src_y -= pixman_fixed_to_int(t[0].left.p1.y);
-
-	pixmap = get_drawable_pixmap(dst->pDrawable);
-	get_drawable_deltas(dst->pDrawable, pixmap, &dx, &dy);
-
 	do {
 		struct pixman_inplace pi;
 		RegionRec clip;
@@ -3441,8 +3436,9 @@ composite_unaligned_boxes_inplace(CARD8 op,
 		clip.data = NULL;
 
 		if (!sna_compute_composite_region(&clip,
-						   NULL, NULL, dst,
-						   0, 0,
+						   src, NULL, dst,
+						   clip.extents.x1 + src_x,
+						   clip.extents.y1 + src_y,
 						   0, 0,
 						   clip.extents.x1, clip.extents.y1,
 						   clip.extents.x2 - clip.extents.x1,
@@ -3455,8 +3451,23 @@ composite_unaligned_boxes_inplace(CARD8 op,
 			continue;
 		}
 
+		if (src->pDrawable) {
+			if (!sna_drawable_move_to_cpu(src->pDrawable,
+						      MOVE_READ)) {
+				RegionUninit(&clip);
+				continue;
+			}
+			if (src->alphaMap) {
+				if (!sna_drawable_move_to_cpu(src->alphaMap->pDrawable,
+							      MOVE_READ)) {
+					RegionUninit(&clip);
+					continue;
+				}
+			}
+		}
+
 		pi.image = image_from_pict(dst, FALSE, &pi.dx, &pi.dy);
-		pi.source = image_from_pict(src, TRUE, &pi.sx, &pi.sy);
+		pi.source = image_from_pict(src, FALSE, &pi.sx, &pi.sy);
 		pi.sx += src_x;
 		pi.sy += src_y;
 		pi.mask = pixman_image_create_bits(PIXMAN_a8, 1, 1, NULL, 0);
