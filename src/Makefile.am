@@ -30,19 +30,12 @@ nouveau_drv_la_LDFLAGS = -module -avoid-version @LIBDRM_NOUVEAU_LIBS@ \
 nouveau_drv_ladir = @moduledir@/drivers
 
 nouveau_drv_la_SOURCES = \
-			 nouveau_class.h nouveau_local.h \
 			 nouveau_exa.c nouveau_xv.c nouveau_dri2.c \
 			 nouveau_wfb.c \
-			 nv_accel_common.c nv04_accel.h \
-			 nv_const.h \
+			 nv_accel_common.c \
 			 nv_dma.c \
-			 nv_dma.h \
 			 nv_driver.c \
-			 nv_include.h \
-			 nv_proto.h \
-			 nv_rop.h \
 			 nv_shadow.c \
-			 nv_type.h \
 			 nv04_exa.c \
 			 nv04_xv_ovl.c \
 			 nv04_xv_blit.c \
@@ -52,15 +45,42 @@ nouveau_drv_la_SOURCES = \
 			 nv30_xv_tex.c \
 			 nv40_exa.c \
 			 nv40_xv_tex.c \
-			 nv50_accel.c nv50_accel.h \
+			 nv50_accel.c \
 			 nv50_exa.c \
 			 nv50_xv.c \
-			 nv50_texture.h \
-			 nvc0_accel.c nvc0_accel.h \
+			 nvc0_accel.c \
 			 nvc0_exa.c \
 			 nvc0_xv.c \
 			 drmmode_display.c \
-			 compat-api.h \
-			 vl_hwmc.c \
-			 vl_hwmc.h
+			 vl_hwmc.c
+
+EXTRA_DIST = hwdefs/nv_3ddefs.xml.h \
+	     hwdefs/nv_m2mf.xml.h \
+	     hwdefs/nv_object.xml.h \
+	     hwdefs/nv01_2d.xml.h \
+	     hwdefs/nv10_3d.xml.h \
+	     hwdefs/nv30-40_3d.xml.h \
+	     hwdefs/nv50_2d.xml.h \
+	     hwdefs/nv50_3d.xml.h \
+	     hwdefs/nv50_defs.xml.h \
+	     hwdefs/nv50_texture.h \
+	     hwdefs/nvc0_3d.xml.h \
+	     hwdefs/nvc0_m2mf.xml.h \
+	     nouveau_local.h \
+	     nv_const.h \
+	     nv_dma.h \
+	     nv_include.h \
+	     nv_proto.h \
+	     nv_rop.h \
+	     nv_type.h \
+	     nv04_accel.h \
+	     nv50_accel.h \
+	     nvc0_accel.h \
+	     nvc0_shader.h \
+	     nve0_shader.h \
+	     compat-api.h \
+	     vl_hwmc.c \
+	     vl_hwmc.h
+
+
 
