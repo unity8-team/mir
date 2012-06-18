@@ -3412,12 +3412,8 @@ composite_unaligned_boxes_inplace(CARD8 op,
 				  PicturePtr dst, int n, xTrapezoid *t,
 				  bool force_fallback)
 {
-	if (!force_fallback &&
-	    (is_gpu(dst->pDrawable) ||
-	     (src->pDrawable && is_gpu(src->pDrawable)))) {
-		DBG(("%s: fallback -- can not perform operation in place, destination busy\n",
-		     __FUNCTION__));
-
+	if (!force_fallback) {
+		DBG(("%s: fallback -- not forcing\n", __FUNCTION__));
 		return false;
 	}
 
