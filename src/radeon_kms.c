@@ -58,7 +58,7 @@
 #include "radeon_cs_gem.h"
 #include "radeon_vbo.h"
 
-extern SymTabRec *RADEONChipsets;
+extern SymTabRec RADEONChipsets[];
 static Bool radeon_setup_kernel_mem(ScreenPtr pScreen);
 
 const OptionInfoRec RADEONOptions_KMS[] = {
