@@ -71,6 +71,13 @@ search_linear_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags);
 #define DBG(x) ErrorF x
 #endif
 
+/* Worst case seems to be 965gm where we cannot write within a cacheline that
+ * is being simultaneously being read by the GPU, or within the sampler
+ * prefetch. In general, the chipsets seem to have a requirement that sampler
+ * offsets be aligned to a cacheline (64 bytes).
+ */
+#define UPLOAD_ALIGNMENT 128
+
 #define PAGE_ALIGN(x) ALIGN(x, PAGE_SIZE)
 #define NUM_PAGES(x) (((x) + PAGE_SIZE-1) / PAGE_SIZE)
 
@@ -1134,7 +1141,7 @@ static void _kgem_bo_delete_partial(struct kgem *kgem, struct kgem_bo *bo)
 	DBG(("%s: size=%d, offset=%d, parent used=%d\n",
 	     __FUNCTION__, bo->size.bytes, bo->delta, io->used));
 
-	if (ALIGN(bo->delta + bo->size.bytes, 64) == io->used)
+	if (ALIGN(bo->delta + bo->size.bytes, UPLOAD_ALIGNMENT) == io->used)
 		io->used = bo->delta;
 }
 
@@ -3619,9 +3626,9 @@ static struct kgem_partial_bo *partial_bo_alloc(int num_pages)
 {
 	struct kgem_partial_bo *bo;
 
-	bo = malloc(sizeof(*bo) + 128 + num_pages * PAGE_SIZE);
+	bo = malloc(sizeof(*bo) + 2*UPLOAD_ALIGNMENT + num_pages * PAGE_SIZE);
 	if (bo) {
-		bo->mem = (void *)ALIGN((uintptr_t)bo + sizeof(*bo), 64);
+		bo->mem = (void *)ALIGN((uintptr_t)bo + sizeof(*bo), UPLOAD_ALIGNMENT);
 		bo->mmapped = false;
 	}
 
@@ -4005,7 +4012,7 @@ init:
 	     __FUNCTION__, alloc, bo->base.handle));
 
 done:
-	bo->used = ALIGN(bo->used, 64);
+	bo->used = ALIGN(bo->used, UPLOAD_ALIGNMENT);
 	assert(bo->mem);
 	*ret = (char *)bo->mem + offset;
 	return kgem_create_proxy(kgem, &bo->base, offset, size);
@@ -4052,7 +4059,7 @@ struct kgem_bo *kgem_create_buffer_2d(struct kgem *kgem,
 		 * that it can be allocated to other pixmaps.
 		 */
 		min = bo->delta + height * stride;
-		min = ALIGN(min, 64);
+		min = ALIGN(min, UPLOAD_ALIGNMENT);
 		if (io->used != min) {
 			DBG(("%s: trimming partial buffer from %d to %d\n",
 			     __FUNCTION__, io->used, min));
