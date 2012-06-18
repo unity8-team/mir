@@ -1032,7 +1032,9 @@ static void kgem_bo_free(struct kgem *kgem, struct kgem_bo *bo)
 
 	if (IS_VMAP_MAP(bo->map)) {
 		assert(bo->rq == NULL);
-		free(MAP(bo->map));
+		assert(MAP(bo->map) != bo || bo->io);
+		if (bo != MAP(bo->map))
+			free(MAP(bo->map));
 		bo->map = NULL;
 	}
 	if (bo->map)
@@ -1578,6 +1580,7 @@ static void kgem_finish_partials(struct kgem *kgem)
 			    (kgem->has_llc || !IS_CPU_MAP(bo->base.map))) {
 				DBG(("%s: retaining partial upload buffer (%d/%d)\n",
 				     __FUNCTION__, bo->used, bytes(&bo->base)));
+				assert(!bo->base.vmap);
 				list_move(&bo->base.list,
 					  &kgem->active_partials);
 				continue;
@@ -3881,10 +3884,11 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 				DBG(("%s: created vmap handle=%d for buffer\n",
 				     __FUNCTION__, bo->base.handle));
 
-				bo->need_io = false;
 				bo->base.io = true;
 				bo->base.vmap = true;
+				bo->base.map = MAKE_VMAP_MAP(bo);
 				bo->mmapped = true;
+				bo->need_io = false;
 
 				goto init;
 			}
