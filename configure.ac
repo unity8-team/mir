@@ -318,8 +318,12 @@ fi
 if test "x$DEBUG" = xmemory; then
 	AC_DEFINE(DEBUG_MEMORY,1,[Enable memory debugging])
 fi
+if test "x$DEBUG" = xpixmap; then
+	AC_DEFINE(DEBUG_PIXMAP,1,[Enable pixmap debugging])
+fi
 if test "x$DEBUG" = xfull; then
 	AC_DEFINE(DEBUG_MEMORY,1,[Enable memory debugging])
+	AC_DEFINE(DEBUG_PIXMAP,1,[Enable pixmap debugging])
 	AC_DEFINE(HAS_DEBUG_FULL,1,[Enable all debugging])
         CFLAGS="$CFLAGS -O0 -ggdb3"
 fi

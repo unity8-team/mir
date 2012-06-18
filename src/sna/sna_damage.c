@@ -1626,3 +1626,101 @@ void sna_damage_selftest(void)
 	}
 }
 #endif
+
+void _sna_damage_debug_get_region(struct sna_damage *damage, RegionRec *r)
+{
+	int n, nboxes;
+	BoxPtr boxes;
+	struct sna_damage_box *iter;
+
+	RegionCopy(r, &damage->region);
+	if (!damage->dirty)
+		return;
+
+	nboxes = damage->embedded_box.size;
+	list_for_each_entry(iter, &damage->embedded_box.list, list)
+		nboxes += iter->size;
+	nboxes -= damage->remain;
+	if (nboxes == 0)
+		return;
+
+	if (nboxes == 1) {
+		pixman_region16_t tmp;
+
+		tmp.extents = damage->embedded_box.box[0];
+		tmp.data = NULL;
+
+		if (damage->mode == DAMAGE_ADD)
+			pixman_region_union(r, r, &tmp);
+		else
+			pixman_region_subtract(r, r, &tmp);
+
+		return;
+	}
+
+	if (damage->mode == DAMAGE_ADD)
+		nboxes += REGION_NUM_RECTS(r);
+
+	iter = list_entry(damage->embedded_box.list.prev,
+			  struct sna_damage_box,
+			  list);
+	n = iter->size - damage->remain;
+	boxes = malloc(sizeof(BoxRec)*nboxes);
+	if (boxes == NULL)
+		return;
+
+	if (list_is_empty(&damage->embedded_box.list)) {
+		memcpy(boxes,
+		       damage->embedded_box.box,
+		       n*sizeof(BoxRec));
+	} else {
+		if (boxes != (BoxPtr)(iter+1))
+			memcpy(boxes, iter+1, n*sizeof(BoxRec));
+
+		iter = list_entry(iter->list.prev,
+				  struct sna_damage_box,
+				  list);
+		while (&iter->list != &damage->embedded_box.list) {
+			memcpy(boxes + n, iter+1,
+			       iter->size * sizeof(BoxRec));
+			n += iter->size;
+
+			iter = list_entry(iter->list.prev,
+					  struct sna_damage_box,
+					  list);
+		}
+
+		memcpy(boxes + n,
+		       damage->embedded_box.box,
+		       sizeof(damage->embedded_box.box));
+		n += damage->embedded_box.size;
+	}
+
+	if (damage->mode == DAMAGE_ADD) {
+		memcpy(boxes + n,
+		       REGION_RECTS(r),
+		       REGION_NUM_RECTS(r)*sizeof(BoxRec));
+		assert(n + REGION_NUM_RECTS(r) == nboxes);
+		pixman_region_fini(r);
+		pixman_region_init_rects(r, boxes, nboxes);
+
+		assert(pixman_region_not_empty(r));
+		assert(damage->extents.x1 == r->extents.x1 &&
+		       damage->extents.y1 == r->extents.y1 &&
+		       damage->extents.x2 == r->extents.x2 &&
+		       damage->extents.y2 == r->extents.y2);
+	} else {
+		pixman_region16_t tmp;
+
+		pixman_region_init_rects(&tmp, boxes, nboxes);
+		pixman_region_subtract(r, r, &tmp);
+		pixman_region_fini(&tmp);
+
+		assert(damage->extents.x1 <= r->extents.x1 &&
+		       damage->extents.y1 <= r->extents.y1 &&
+		       damage->extents.x2 >= r->extents.x2 &&
+		       damage->extents.y2 >= r->extents.y2);
+	}
+
+	free(boxes);
+}

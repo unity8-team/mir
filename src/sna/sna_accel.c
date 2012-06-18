@@ -213,7 +213,7 @@ typedef struct box32 {
 #define PM_IS_SOLID(_draw, _pm) \
 	(((_pm) & FbFullMask((_draw)->depth)) == FbFullMask((_draw)->depth))
 
-#if DEBUG_ACCEL
+#ifdef DEBUG_PIXMAP
 static void _assert_pixmap_contains_box(PixmapPtr pixmap, const BoxRec *box, const char *function)
 {
 	if (box->x1 < 0 || box->y1 < 0 ||
@@ -296,15 +296,53 @@ static void _assert_drawable_contains_box(DrawablePtr drawable, const BoxRec *bo
 		assert(0);
 	}
 }
+
+static void assert_pixmap_damage(PixmapPtr p)
+{
+	struct sna_pixmap *priv;
+	RegionRec reg, cpu, gpu;
+
+	priv = sna_pixmap(p);
+	if (priv == NULL)
+		return;
+
+	if (DAMAGE_IS_ALL(priv->gpu_damage) && DAMAGE_IS_ALL(priv->cpu_damage))
+		/* special upload buffer */
+		return;
+
+	assert(!DAMAGE_IS_ALL(priv->gpu_damage) || priv->cpu_damage == NULL);
+	assert(!DAMAGE_IS_ALL(priv->cpu_damage) || priv->gpu_damage == NULL);
+
+	/* Avoid reducing damage to minimise interferrence */
+	RegionNull(&reg);
+	RegionNull(&gpu);
+	RegionNull(&cpu);
+
+	if (priv->gpu_damage)
+		_sna_damage_debug_get_region(DAMAGE_PTR(priv->gpu_damage), &gpu);
+
+	if (priv->cpu_damage)
+		_sna_damage_debug_get_region(DAMAGE_PTR(priv->cpu_damage), &cpu);
+
+	RegionIntersect(&reg, &cpu, &gpu);
+	assert(!RegionNotEmpty(&reg));
+
+	RegionUninit(&reg);
+	RegionUninit(&gpu);
+	RegionUninit(&cpu);
+}
+
 #define assert_pixmap_contains_box(p, b) _assert_pixmap_contains_box(p, b, __FUNCTION__)
 #define assert_drawable_contains_box(d, b) _assert_drawable_contains_box(d, b, __FUNCTION__)
 #define assert_pixmap_contains_boxes(p, b, n, x, y) _assert_pixmap_contains_boxes(p, b, n, x, y, __FUNCTION__)
 #define assert_pixmap_contains_points(p, pt, n, x, y) _assert_pixmap_contains_points(p, pt, n, x, y, __FUNCTION__)
+
 #else
 #define assert_pixmap_contains_box(p, b)
 #define assert_pixmap_contains_boxes(p, b, n, x, y)
 #define assert_pixmap_contains_points(p, pt, n, x, y)
 #define assert_drawable_contains_box(d, b)
+#define assert_pixmap_damage(p)
 #endif
 
 inline static bool
@@ -441,6 +479,8 @@ static Bool sna_destroy_private(PixmapPtr pixmap, struct sna_pixmap *priv)
 	list_del(&priv->list);
 	list_del(&priv->inactive);
 
+	assert_pixmap_damage(pixmap);
+
 	sna_damage_destroy(&priv->gpu_damage);
 	sna_damage_destroy(&priv->cpu_damage);
 
@@ -535,6 +575,8 @@ struct kgem_bo *sna_pixmap_change_tiling(PixmapPtr pixmap, uint32_t tiling)
 		DBG(("%s: can't convert pinned bo\n", __FUNCTION__));
 		return NULL;
 	}
+
+	assert_pixmap_damage(pixmap);
 
 	bo = kgem_create_2d(&sna->kgem,
 			    pixmap->drawable.width,
@@ -939,6 +981,8 @@ sna_pixmap_create_mappable_gpu(PixmapPtr pixmap)
 	if (wedged(sna))
 		return false;
 
+	assert_pixmap_damage(pixmap);
+
 	assert(priv->gpu_bo == NULL);
 	priv->gpu_bo =
 		kgem_create_2d(&sna->kgem,
@@ -992,6 +1036,8 @@ _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 	     pixmap->drawable.width,
 	     pixmap->drawable.height,
 	     flags));
+
+	assert_pixmap_damage(pixmap);
 
 	priv = sna_pixmap(pixmap);
 	if (priv == NULL) {
@@ -1052,6 +1098,7 @@ _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 				sna_pixmap_free_cpu(sna, priv);
 			}
 
+			assert_pixmap_damage(pixmap);
 			return true;
 		}
 
@@ -1105,6 +1152,8 @@ skip_inplace_map:
 				priv->undamaged = false;
 				priv->clear = false;
 			}
+
+			assert_pixmap_damage(pixmap);
 			return true;
 		}
 
@@ -1203,6 +1252,7 @@ done:
 	}
 	assert(pixmap->devPrivate.ptr);
 	assert(pixmap->devKind);
+	assert_pixmap_damage(pixmap);
 	return true;
 }
 
@@ -1295,6 +1345,8 @@ static inline bool region_inplace(struct sna *sna,
 				  struct sna_pixmap *priv,
 				  bool write_only)
 {
+	assert_pixmap_damage(pixmap);
+
 	if (FORCE_INPLACE)
 		return FORCE_INPLACE > 0;
 
@@ -1353,6 +1405,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 	     RegionExtents(region)->x2, RegionExtents(region)->y2,
 	     flags));
 
+	assert_pixmap_damage(pixmap);
 	if (flags & MOVE_WRITE) {
 		assert_drawable_contains_box(drawable, &region->extents);
 	}
@@ -1432,6 +1485,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 						       region);
 
 				priv->clear = false;
+				assert_pixmap_damage(pixmap);
 				return true;
 			}
 		}
@@ -1470,6 +1524,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 			} else
 				sna_damage_add(&priv->gpu_damage, region);
 
+			assert_pixmap_damage(pixmap);
 			priv->clear = false;
 			return true;
 		}
@@ -1501,6 +1556,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 					sna_damage_subtract(&priv->cpu_damage,
 							    region);
 			}
+			assert_pixmap_damage(pixmap);
 			priv->clear = false;
 			return true;
 		}
@@ -1771,16 +1827,6 @@ done:
 		}
 		if (priv->flush)
 			list_move(&priv->list, &sna->dirty_pixmaps);
-#ifdef HAVE_FULL_DEBUG
-		{
-			RegionRec need;
-
-			RegionNull(&need);
-			assert(priv->gpu_damage == NULL ||
-			       !sna_damage_intersect(priv->gpu_damage, r, &need));
-			RegionUninit(&need);
-		}
-#endif
 	}
 
 	if (dx | dy)
@@ -1797,6 +1843,7 @@ out:
 	}
 	assert(pixmap->devPrivate.ptr);
 	assert(pixmap->devKind);
+	assert_pixmap_damage(pixmap);
 	return true;
 }
 
@@ -1914,6 +1961,7 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 
 	DBG(("%s()\n", __FUNCTION__));
 
+	assert_pixmap_damage(pixmap);
 	assert_pixmap_contains_box(pixmap, box);
 
 	if (sna_damage_is_all(&priv->gpu_damage,
@@ -1961,6 +2009,7 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 		sna_damage_subtract_box(&priv->cpu_damage, box);
 
 	sna_damage_reduce(&priv->cpu_damage);
+	assert_pixmap_damage(pixmap);
 	if (priv->cpu_damage == NULL) {
 		list_del(&priv->list);
 		goto done;
@@ -2082,6 +2131,7 @@ done:
 	if (!priv->pinned && (priv->create & KGEM_CAN_CREATE_LARGE) == 0)
 		list_move(&priv->inactive, &sna->active_pixmaps);
 	priv->clear = false;
+	assert_pixmap_damage(pixmap);
 	return true;
 }
 
@@ -2107,6 +2157,7 @@ sna_drawable_use_bo(DrawablePtr drawable,
 	DBG(("%s((%d, %d), (%d, %d))...\n", __FUNCTION__,
 	     box->x1, box->y1, box->x2, box->y2));
 
+	assert_pixmap_damage(pixmap);
 	assert_drawable_contains_box(drawable, box);
 
 	if (priv == NULL) {
@@ -2482,6 +2533,7 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 		sna_damage_destroy(&priv->cpu_damage);
 
 	sna_damage_reduce(&priv->cpu_damage);
+	assert_pixmap_damage(pixmap);
 	DBG(("%s: CPU damage? %d\n", __FUNCTION__, priv->cpu_damage != NULL));
 	if (priv->gpu_bo == NULL) {
 		DBG(("%s: creating GPU bo (%dx%d@%d), create=%x\n",
