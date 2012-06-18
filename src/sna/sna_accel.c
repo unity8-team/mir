@@ -1292,7 +1292,8 @@ static bool sync_will_stall(struct kgem_bo *bo)
 static inline bool region_inplace(struct sna *sna,
 				  PixmapPtr pixmap,
 				  RegionPtr region,
-				  struct sna_pixmap *priv)
+				  struct sna_pixmap *priv,
+				  bool write_only)
 {
 	if (FORCE_INPLACE)
 		return FORCE_INPLACE > 0;
@@ -1300,7 +1301,7 @@ static inline bool region_inplace(struct sna *sna,
 	if (wedged(sna))
 		return false;
 
-	if (priv->cpu_damage &&
+	if (!write_only && priv->cpu_damage &&
 	    region_overlaps_damage(region, priv->cpu_damage)) {
 		DBG(("%s: no, uncovered CPU damage pending\n", __FUNCTION__));
 		return false;
@@ -1404,7 +1405,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 		assert(flags & MOVE_WRITE);
 
 		if (priv->stride && priv->gpu_bo &&
-		    region_inplace(sna, pixmap, region, priv)) {
+		    region_inplace(sna, pixmap, region, priv, true)) {
 			assert(priv->gpu_bo->proxy == NULL);
 			if (sync_will_stall(priv->gpu_bo) &&
 			    priv->gpu_bo->exec == NULL)
@@ -1449,7 +1450,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 
 		if (priv->gpu_bo == NULL && priv->stride &&
 		    sna_pixmap_choose_tiling(pixmap, DEFAULT_TILING) != I915_TILING_NONE &&
-		    region_inplace(sna, pixmap, region, priv) &&
+		    region_inplace(sna, pixmap, region, priv, true) &&
 		    sna_pixmap_create_mappable_gpu(pixmap)) {
 			pixmap->devPrivate.ptr =
 				kgem_bo_map(&sna->kgem, priv->gpu_bo);
@@ -1475,7 +1476,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 	}
 
 	if (operate_inplace(priv, flags) &&
-	    region_inplace(sna, pixmap, region, priv)) {
+	    region_inplace(sna, pixmap, region, priv, (flags & MOVE_READ) == 0)) {
 		kgem_bo_submit(&sna->kgem, priv->gpu_bo);
 
 		DBG(("%s: operate inplace\n", __FUNCTION__));
@@ -1496,7 +1497,9 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 					sna_damage_destroy(&priv->cpu_damage);
 					priv->undamaged = false;
 					list_del(&priv->list);
-				}
+				} else
+					sna_damage_subtract(&priv->cpu_damage,
+							    region);
 			}
 			priv->clear = false;
 			return true;
@@ -2832,12 +2835,7 @@ static bool upload_inplace(struct sna *sna,
 			   struct sna_pixmap *priv,
 			   RegionRec *region)
 {
-	if (priv->mapped) {
-		DBG(("%s: already mapped\n", __FUNCTION__));
-		return true;
-	}
-
-	if (!region_inplace(sna, pixmap, region, priv))
+	if (!region_inplace(sna, pixmap, region, priv, true))
 		return false;
 
 	if (priv->gpu_bo) {
@@ -3051,7 +3049,6 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 		}
 		if (priv->flush)
 			list_move(&priv->list, &sna->dirty_pixmaps);
-		priv->clear = false;
 	}
 
 blt:
@@ -3068,6 +3065,15 @@ blt:
 	box = REGION_RECTS(region);
 	n = REGION_NUM_RECTS(region);
 	do {
+		DBG(("%s: copy box (%d, %d)->(%d, %d)x(%d, %d)\n",
+		     __FUNCTION__,
+		     box->x1 - x, box->y1 - y,
+		     box->x1, box->y1,
+		     box->x2 - box->x1, box->y2 - box->y1));
+
+		assert(box->x2 > box->x1);
+		assert(box->y2 > box->y1);
+
 		assert(box->x1 >= 0);
 		assert(box->y1 >= 0);
 		assert(box->x2 <= pixmap->drawable.width);
@@ -3599,9 +3605,10 @@ fallback:
 
 static bool copy_use_gpu_bo(struct sna *sna,
 			    struct sna_pixmap *priv,
-			    RegionPtr region)
+			    RegionPtr region,
+			    bool write_only)
 {
-	if (region_inplace(sna, priv->pixmap, region, priv)) {
+	if (region_inplace(sna, priv->pixmap, region, priv, write_only)) {
 		DBG(("%s: perform in place, use gpu bo\n", __FUNCTION__));
 		return true;
 	}
@@ -3706,7 +3713,8 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	if (dst_priv == NULL)
 		goto fallback;
 
-	if (src_priv == NULL && !copy_use_gpu_bo(sna, dst_priv, &region)) {
+	if (src_priv == NULL &&
+	    !copy_use_gpu_bo(sna, dst_priv, &region, alu_overwrites(alu))) {
 		DBG(("%s: fallback - unattached to source and not use dst gpu bo\n",
 		     __FUNCTION__));
 		goto fallback;
@@ -3728,7 +3736,8 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 
 	/* Try to maintain the data on the GPU */
 	if (dst_priv->gpu_bo == NULL &&
-	    ((dst_priv->cpu_damage == NULL && copy_use_gpu_bo(sna, dst_priv, &region)) ||
+	    ((dst_priv->cpu_damage == NULL &&
+	      copy_use_gpu_bo(sna, dst_priv, &region, alu_overwrites(alu))) ||
 	     (src_priv && (src_priv->gpu_bo != NULL || (src_priv->cpu_bo && kgem_bo_is_busy(src_priv->cpu_bo)))))) {
 		uint32_t tiling = sna_pixmap_choose_tiling(dst_pixmap,
 							   DEFAULT_TILING);
