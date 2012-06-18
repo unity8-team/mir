@@ -164,6 +164,34 @@ nv50_style_tiled_pixmap(PixmapPtr ppix)
 	       nouveau_pixmap_bo(ppix)->config.nv50.memtype;
 }
 
+static int
+nouveau_exa_scratch(NVPtr pNv, int size, struct nouveau_bo **pbo, int *off)
+{
+	struct nouveau_bo *bo;
+	int ret;
+
+	if (!pNv->transfer ||
+	     pNv->transfer->size <= pNv->transfer_offset + size) {
+		ret = nouveau_bo_new(pNv->dev, NOUVEAU_BO_GART | NOUVEAU_BO_MAP,
+				     0, NOUVEAU_ALIGN(size, 1 * 1024 * 1024),
+				     NULL, &bo);
+		if (ret == 0)
+			ret = nouveau_bo_map(bo, NOUVEAU_BO_RDWR, pNv->client);
+		if (ret != 0)
+			return ret;
+
+		nouveau_bo_ref(bo, &pNv->transfer);
+		pNv->transfer_offset = 0;
+	}
+
+	*off = pNv->transfer_offset;
+	*pbo = pNv->transfer;
+
+	pNv->transfer_offset += size + 0xff;
+	pNv->transfer_offset &= ~0xff;
+	return 0;
+}
+
 static Bool
 nouveau_exa_download_from_screen(PixmapPtr pspix, int x, int y, int w, int h,
 				 char *dst, int dst_pitch)
@@ -171,38 +199,36 @@ nouveau_exa_download_from_screen(PixmapPtr pspix, int x, int y, int w, int h,
 	ScrnInfoPtr pScrn = xf86ScreenToScrn(pspix->drawable.pScreen);
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_bo *bo;
-	int src_pitch, tmp_pitch, cpp, offset;
-	int max_lines, lines, i;
+	int src_pitch, tmp_pitch, cpp, i;
 	const char *src;
 	Bool ret;
 
-	src_pitch  = exaGetPixmapPitch(pspix);
 	cpp = pspix->drawable.bitsPerPixel >> 3;
-	offset = (y * src_pitch) + (x * cpp);
-
-	if (!pNv->GART)
-		goto memcpy;
-
+	src_pitch  = exaGetPixmapPitch(pspix);
 	tmp_pitch = w * cpp;
-	max_lines = pNv->GART->size / tmp_pitch;
-	while (h) {
-		lines = max_lines;
-		if (lines > h)
-			lines = h;
 
-		if (!NVAccelM2MF(pNv, w, lines, cpp, 0, 0,
+	while (h) {
+		const int lines = (h > 2047) ? 2047 : h;
+		struct nouveau_bo *tmp;
+		int tmp_offset;
+
+		if (nouveau_exa_scratch(pNv, lines * tmp_pitch,
+					&tmp, &tmp_offset))
+			goto memcpy;
+
+		if (!NVAccelM2MF(pNv, w, lines, cpp, 0, tmp_offset,
 				 nouveau_pixmap_bo(pspix), NOUVEAU_BO_VRAM,
 				 src_pitch, pspix->drawable.height, x, y,
-				 pNv->GART, NOUVEAU_BO_GART, tmp_pitch,
+				 tmp, NOUVEAU_BO_GART, tmp_pitch,
 				 lines, 0, 0))
 			goto memcpy;
 
-		nouveau_bo_map(pNv->GART, NOUVEAU_BO_RD, pNv->client);
+		nouveau_bo_wait(tmp, NOUVEAU_BO_RD, pNv->client);
 		if (src_pitch == tmp_pitch) {
-			memcpy(dst, pNv->GART->map, dst_pitch * lines);
+			memcpy(dst, tmp->map + tmp_offset, dst_pitch * lines);
 			dst += dst_pitch * lines;
 		} else {
-			src = pNv->GART->map;
+			src = tmp->map + tmp_offset;
 			for (i = 0; i < lines; i++) {
 				memcpy(dst, src, tmp_pitch);
 				src += tmp_pitch;
@@ -219,7 +245,7 @@ memcpy:
 	bo = nouveau_pixmap_bo(pspix);
 	if (nouveau_bo_map(bo, NOUVEAU_BO_RD, pNv->client))
 		return FALSE;
-	src = (char *)bo->map + offset;
+	src = (char *)bo->map + (y * src_pitch) + (x * cpp);
 	ret = NVAccelMemcpyRect(dst, src, h, dst_pitch, src_pitch, w*cpp);
 	return ret;
 }
@@ -230,14 +256,14 @@ nouveau_exa_upload_to_screen(PixmapPtr pdpix, int x, int y, int w, int h,
 {
 	ScrnInfoPtr pScrn = xf86ScreenToScrn(pdpix->drawable.pScreen);
 	NVPtr pNv = NVPTR(pScrn);
-	int dst_pitch, tmp_pitch, cpp;
-	int max_lines, lines, i;
+	int dst_pitch, tmp_pitch, cpp, i;
 	struct nouveau_bo *bo;
 	char *dst;
 	Bool ret;
 
-	dst_pitch  = exaGetPixmapPitch(pdpix);
 	cpp = pdpix->drawable.bitsPerPixel >> 3;
+	dst_pitch  = exaGetPixmapPitch(pdpix);
+	tmp_pitch = w * cpp;
 
 	/* try hostdata transfer */
 	if (w * h * cpp < 16*1024) /* heuristic */
@@ -264,23 +290,20 @@ nouveau_exa_upload_to_screen(PixmapPtr pdpix, int x, int y, int w, int h,
 		}
 	}
 
-	/* try gart-based transfer */
-	if (!pNv->GART)
-		goto memcpy;
-
-	tmp_pitch = w * cpp;
-	max_lines = pNv->GART->size / tmp_pitch;
 	while (h) {
-		lines = max_lines;
-		if (lines > h)
-			lines = h;
+		const int lines = (h > 2047) ? 2047 : h;
+		struct nouveau_bo *tmp;
+		int tmp_offset;
 
-		nouveau_bo_map(pNv->GART, NOUVEAU_BO_WR, pNv->client);
+		if (nouveau_exa_scratch(pNv, lines * tmp_pitch,
+					&tmp, &tmp_offset))
+			goto memcpy;
+
 		if (src_pitch == tmp_pitch) {
-			memcpy(pNv->GART->map, src, src_pitch * lines);
+			memcpy(tmp->map + tmp_offset, src, src_pitch * lines);
 			src += src_pitch * lines;
 		} else {
-			dst = pNv->GART->map;
+			dst = tmp->map + tmp_offset;
 			for (i = 0; i < lines; i++) {
 				memcpy(dst, src, tmp_pitch);
 				src += src_pitch;
@@ -288,7 +311,7 @@ nouveau_exa_upload_to_screen(PixmapPtr pdpix, int x, int y, int w, int h,
 			}
 		}
 
-		if (!NVAccelM2MF(pNv, w, lines, cpp, 0, 0, pNv->GART,
+		if (!NVAccelM2MF(pNv, w, lines, cpp, tmp_offset, 0, tmp,
 				 NOUVEAU_BO_GART, tmp_pitch, lines, 0, 0,
 				 nouveau_pixmap_bo(pdpix), NOUVEAU_BO_VRAM,
 				 dst_pitch, pdpix->drawable.height, x, y))

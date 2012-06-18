@@ -35,11 +35,7 @@ typedef struct _NVRec {
     Bool                Primary;
     Bool		Secondary;
 
-    /* Various pinned memory regions */
     struct nouveau_bo * scanout;
-    struct nouveau_bo * offscreen;
-    void *              offscreen_map;
-    struct nouveau_bo * GART;
 
     Bool                NoAccel;
     Bool                HWCursor;
@@ -82,6 +78,9 @@ typedef struct _NVRec {
 
 	/* GPU context */
 	struct nouveau_client *client;
+
+	struct nouveau_bo *transfer;
+	CARD32 transfer_offset;
 
 	struct nouveau_object *channel;
 	struct nouveau_pushbuf *pushbuf;

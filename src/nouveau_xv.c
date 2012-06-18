@@ -1054,12 +1054,7 @@ NVPutImage(ScrnInfoPtr pScrn, short src_x, short src_y, short drw_x,
 	if (pPriv->currentHostBuffer != NO_PRIV_HOST_BUFFER_AVAILABLE) {
 		destination_buffer =
 			pPriv->TT_mem_chunk[pPriv->currentHostBuffer];
-	} else {
-		/* Otherwise we fall back on DDX's GARTScratch */
-		destination_buffer = pNv->GART;
 	}
-
-	/* If we have no GART at all... */
 	if (!destination_buffer) {
 		if (pNv->Architecture >= NV_ARCH_50) {
 			NOUVEAU_ERR("No scratch buffer for tiled upload\n");

@@ -935,8 +935,7 @@ static Bool
 NVMapMem(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_device *dev = pNv->dev;
-	int ret, pitch, size;
+	int ret, pitch;
 
 	ret = nouveau_allocate_surface(pScrn, pScrn->virtualX, pScrn->virtualY,
 				       pScrn->bitsPerPixel,
@@ -953,25 +952,6 @@ NVMapMem(ScrnInfoPtr pScrn)
 	if (pNv->NoAccel)
 		return TRUE;
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "GART: %dMiB available\n",
-		   (unsigned int)(dev->gart_size >> 20));
-	if (dev->gart_size > (16 * 1024 * 1024))
-		size = 16 * 1024 * 1024;
-	else
-		/* always leave 512kb for other things like the fifos */
-		size = dev->gart_size - 512*1024;
-
-	if (nouveau_bo_new(dev, NOUVEAU_BO_GART | NOUVEAU_BO_MAP,
-			   0, size, NULL, &pNv->GART)) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Unable to allocate GART memory\n");
-	}
-	if (pNv->GART) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "GART: Allocated %dMiB as a scratch buffer\n",
-			   (unsigned int)(pNv->GART->size >> 20));
-	}
-
 	return TRUE;
 }
 
@@ -986,9 +966,8 @@ NVUnmapMem(ScrnInfoPtr pScrn)
 
 	drmmode_remove_fb(pScrn);
 
+	nouveau_bo_ref(NULL, &pNv->transfer);
 	nouveau_bo_ref(NULL, &pNv->scanout);
-	nouveau_bo_ref(NULL, &pNv->offscreen);
-	nouveau_bo_ref(NULL, &pNv->GART);
 	return TRUE;
 }
 
