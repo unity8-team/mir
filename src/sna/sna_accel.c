@@ -1467,8 +1467,11 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 			if (!kgem_bo_is_busy(priv->gpu_bo)) {
 				pixmap->devPrivate.ptr =
 					kgem_bo_map(&sna->kgem, priv->gpu_bo);
-				if (pixmap->devPrivate.ptr == NULL)
+				if (pixmap->devPrivate.ptr == NULL) {
+					if (dx | dy)
+						RegionTranslate(region, -dx, -dy);
 					return false;
+				}
 
 				priv->mapped = true;
 				pixmap->devKind = priv->gpu_bo->pitch;
@@ -1486,6 +1489,8 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 
 				priv->clear = false;
 				assert_pixmap_damage(pixmap);
+				if (dx | dy)
+					RegionTranslate(region, -dx, -dy);
 				return true;
 			}
 		}
@@ -1495,8 +1500,11 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 				kgem_retire(&sna->kgem);
 			if (sync_will_stall(priv->cpu_bo)) {
 				sna_damage_subtract(&priv->cpu_damage, region);
-				if (!sna_pixmap_move_to_gpu(pixmap, MOVE_WRITE))
+				if (!sna_pixmap_move_to_gpu(pixmap, MOVE_WRITE)) {
+					if (dx | dy)
+						RegionTranslate(region, -dx, -dy);
 					return false;
+				}
 
 				sna_pixmap_free_cpu(sna, priv);
 			}
@@ -1508,8 +1516,11 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 		    sna_pixmap_create_mappable_gpu(pixmap)) {
 			pixmap->devPrivate.ptr =
 				kgem_bo_map(&sna->kgem, priv->gpu_bo);
-			if (pixmap->devPrivate.ptr == NULL)
+			if (pixmap->devPrivate.ptr == NULL) {
+				if (dx | dy)
+					RegionTranslate(region, -dx, -dy);
 				return false;
+			}
 
 			priv->mapped = true;
 			pixmap->devKind = priv->gpu_bo->pitch;
@@ -1526,6 +1537,8 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 
 			assert_pixmap_damage(pixmap);
 			priv->clear = false;
+			if (dx | dy)
+				RegionTranslate(region, -dx, -dy);
 			return true;
 		}
 	}
@@ -1558,6 +1571,8 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 			}
 			assert_pixmap_damage(pixmap);
 			priv->clear = false;
+			if (dx | dy)
+				RegionTranslate(region, -dx, -dy);
 			return true;
 		}
 
@@ -1577,8 +1592,11 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 	}
 
 	if (pixmap->devPrivate.ptr == NULL &&
-	    !sna_pixmap_alloc_cpu(sna, pixmap, priv, priv->gpu_damage != NULL))
+	    !sna_pixmap_alloc_cpu(sna, pixmap, priv, priv->gpu_damage != NULL)) {
+		if (dx | dy)
+			RegionTranslate(region, -dx, -dy);
 		return false;
+	}
 
 	if (priv->gpu_bo == NULL) {
 		assert(priv->gpu_damage == NULL);
