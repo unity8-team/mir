@@ -2967,6 +2967,7 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 			}
 		}
 
+		assert_pixmap_damage(pixmap);
 		priv->clear = false;
 		return true;
 	}
@@ -3006,6 +3007,7 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 							sna_damage_add(&priv->gpu_damage, region);
 					}
 
+					assert_pixmap_damage(pixmap);
 					priv->clear = false;
 					return true;
 				}
@@ -3145,6 +3147,7 @@ blt:
 		box++;
 	} while (--n);
 
+	assert_pixmap_damage(pixmap);
 	return true;
 }
 
@@ -3195,6 +3198,7 @@ sna_put_xybitmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	assert_pixmap_contains_box(pixmap, RegionExtents(region));
 	if (damage)
 		sna_damage_add(damage, region);
+	assert_pixmap_damage(pixmap);
 
 	DBG(("%s: upload(%d, %d, %d, %d)\n", __FUNCTION__, x, y, w, h));
 
@@ -3318,6 +3322,7 @@ sna_put_xypixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	assert_pixmap_contains_box(pixmap, RegionExtents(region));
 	if (damage)
 		sna_damage_add(damage, region);
+	assert_pixmap_damage(pixmap);
 
 	DBG(("%s: upload(%d, %d, %d, %d)\n", __FUNCTION__, x, y, w, h));
 
@@ -3605,6 +3610,7 @@ sna_self_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 
 		if (!DAMAGE_IS_ALL(priv->gpu_damage))
 			sna_damage_add_boxes(&priv->gpu_damage, box, n, tx, ty);
+		assert_pixmap_damage(pixmap);
 	} else {
 		FbBits *dst_bits, *src_bits;
 		int stride, bpp;
@@ -3736,6 +3742,9 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	     dx, dy, alu,
 	     src_pixmap->drawable.width, src_pixmap->drawable.height,
 	     dst_pixmap->drawable.width, dst_pixmap->drawable.height));
+
+	assert_pixmap_damage(dst_pixmap);
+	assert_pixmap_damage(src_pixmap);
 
 	pixman_region_init_rects(&region, box, n);
 
@@ -3870,6 +3879,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 					assert_pixmap_contains_box(dst_pixmap,
 								   RegionExtents(&region));
 					sna_damage_add(&dst_priv->gpu_damage, &region);
+					assert_pixmap_damage(dst_pixmap);
 				}
 			}
 
@@ -3905,6 +3915,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 					sna_damage_add(&dst_priv->gpu_damage, &region);
 					RegionTranslate(&region, -dst_dx, -dst_dy);
 				}
+				assert_pixmap_damage(dst_pixmap);
 			}
 		} else if (copy_use_cpu_bo(src_priv, dst_priv->gpu_bo)) {
 			if (!sna->render.copy_boxes(sna, alu,
@@ -3931,6 +3942,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 					sna_damage_add(&dst_priv->gpu_damage, &region);
 					RegionTranslate(&region, -dst_dx, -dst_dy);
 				}
+				assert_pixmap_damage(dst_pixmap);
 			}
 		} else if (alu != GXcopy) {
 			PixmapPtr tmp;
@@ -3991,6 +4003,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 				sna_damage_add(&dst_priv->gpu_damage, &region);
 				RegionTranslate(&region, -dst_dx, -dst_dy);
 			}
+			assert_pixmap_damage(dst_pixmap);
 		} else {
 			if (src_priv) {
 				RegionTranslate(&region, src_dx, src_dy);
@@ -4047,6 +4060,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 							       &region);
 						RegionTranslate(&region, -dst_dx, -dst_dy);
 					}
+					assert_pixmap_damage(dst_pixmap);
 				}
 			}
 		}
@@ -4076,6 +4090,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			sna_damage_add(&dst_priv->cpu_damage, &region);
 			RegionTranslate(&region, -dst_dx, -dst_dy);
 		}
+		assert_pixmap_damage(dst_pixmap);
 		if (dst_priv->flush)
 			list_move(&dst_priv->list, &sna->dirty_pixmaps);
 
@@ -5088,6 +5103,7 @@ damage_clipped:
 
 done:
 	fill.done(sna, &fill);
+	assert_pixmap_damage(pixmap);
 	return TRUE;
 }
 
@@ -5387,6 +5403,7 @@ sna_copy_bitmap_blt(DrawablePtr _bitmap, DrawablePtr drawable, GCPtr gc,
 	assert_pixmap_contains_boxes(pixmap, box, n, dx, dy);
 	if (arg->damage)
 		sna_damage_add_boxes(arg->damage, box, n, dx, dy);
+	assert_pixmap_damage(pixmap);
 
 	br00 = 3 << 20;
 	br13 = arg->bo->pitch;
@@ -5548,6 +5565,7 @@ sna_copy_plane_blt(DrawablePtr source, DrawablePtr drawable, GCPtr gc,
 	assert_pixmap_contains_boxes(dst_pixmap, box, n, dx, dy);
 	if (arg->damage)
 		sna_damage_add_boxes(arg->damage, box, n, dx, dy);
+	assert_pixmap_damage(dst_pixmap);
 
 	br00 = XY_MONO_SRC_COPY;
 	if (drawable->bitsPerPixel == 32)
@@ -5937,6 +5955,7 @@ sna_poly_point_blt(DrawablePtr drawable,
 		}
 	}
 	fill.done(sna, &fill);
+	assert_pixmap_damage(pixmap);
 	return TRUE;
 }
 
@@ -6388,6 +6407,7 @@ Y2_continue:
 
 done:
 	fill.done(sna, &fill);
+	assert_pixmap_damage(pixmap);
 	RegionUninit(&clip);
 	return true;
 
@@ -6641,6 +6661,7 @@ sna_poly_line_blt(DrawablePtr drawable,
 			sna_damage_add_boxes(damage, boxes, b - boxes, 0, 0);
 	}
 	fill.done(sna, &fill);
+	assert_pixmap_damage(pixmap);
 	return TRUE;
 }
 
@@ -7041,6 +7062,7 @@ spans_fallback:
 				pixman_region_translate(&data.region, data.dx, data.dy);
 			assert_pixmap_contains_box(data.pixmap, &data.region.extents);
 			sna_damage_add(data.damage, &data.region);
+			assert_pixmap_damage(data.pixmap);
 		}
 		RegionUninit(&data.region);
 		return;
@@ -7257,6 +7279,7 @@ sna_poly_segment_blt(DrawablePtr drawable,
 	}
 done:
 	fill.done(sna, &fill);
+	assert_pixmap_damage(pixmap);
 	return TRUE;
 }
 
@@ -7553,6 +7576,7 @@ Y2_continue:
 
 done:
 	fill.done(sna, &fill);
+	assert_pixmap_damage(pixmap);
 	RegionUninit(&clip);
 	return true;
 
@@ -7894,6 +7918,7 @@ spans_fallback:
 			assert_pixmap_contains_box(data.pixmap, &data.region.extents);
 			sna_damage_add(data.damage, &data.region);
 		}
+		assert_pixmap_damage(data.pixmap);
 		RegionUninit(&data.region);
 		return;
 	}
@@ -8435,6 +8460,7 @@ done:
 			sna_damage_add_boxes(damage, boxes, b-boxes, 0, 0);
 	}
 	fill.done(sna, &fill);
+	assert_pixmap_damage(pixmap);
 	return TRUE;
 }
 
@@ -8669,6 +8695,7 @@ sna_poly_arc(DrawablePtr drawable, GCPtr gc, int n, xArc *arc)
 				assert_pixmap_contains_box(data.pixmap, &data.region.extents);
 				sna_damage_add(data.damage, &data.region);
 			}
+			assert_pixmap_damage(data.pixmap);
 			RegionUninit(&data.region);
 			return;
 		}
@@ -8755,6 +8782,7 @@ sna_poly_fill_rect_blt(DrawablePtr drawable,
 					} else
 						sna_damage_add_box(damage, &r);
 				}
+				assert_pixmap_damage(pixmap);
 
 				if ((gc->alu == GXcopy || gc->alu == GXclear) &&
 				    r.x2 - r.x1 == pixmap->drawable.width &&
@@ -8897,6 +8925,7 @@ sna_poly_fill_rect_blt(DrawablePtr drawable,
 	}
 done:
 	fill.done(sna, &fill);
+	assert_pixmap_damage(pixmap);
 	return TRUE;
 }
 
@@ -9022,6 +9051,7 @@ sna_poly_fill_polygon(DrawablePtr draw, GCPtr gc,
 			assert_pixmap_contains_box(data.pixmap, &data.region.extents);
 			sna_damage_add(data.damage, &data.region);
 		}
+		assert_pixmap_damage(data.pixmap);
 		RegionUninit(&data.region);
 		return;
 	}
@@ -9337,6 +9367,7 @@ sna_poly_fill_rect_tiled_blt(DrawablePtr drawable,
 	}
 done:
 	copy.done(sna, &copy);
+	assert_pixmap_damage(pixmap);
 	kgem_bo_destroy(&sna->kgem, tile_bo);
 	return TRUE;
 }
@@ -9528,6 +9559,7 @@ sna_poly_fill_rect_stippled_8x8_blt(DrawablePtr drawable,
 		}
 	}
 
+	assert_pixmap_damage(pixmap);
 	sna->blt_state.fill_bo = 0;
 	return true;
 }
@@ -10248,6 +10280,7 @@ sna_poly_fill_rect_stippled_n_blt(DrawablePtr drawable,
 		}
 	}
 
+	assert_pixmap_damage(pixmap);
 	sna->blt_state.fill_bo = 0;
 	return true;
 }
@@ -10616,6 +10649,7 @@ sna_poly_fill_arc(DrawablePtr draw, GCPtr gc, int n, xArc *arc)
 			assert_pixmap_contains_box(data.pixmap, &data.region.extents);
 			sna_damage_add(data.damage, &data.region);
 		}
+		assert_pixmap_damage(data.pixmap);
 		RegionUninit(&data.region);
 		return;
 	}
@@ -10888,6 +10922,7 @@ skip:
 		}
 	} while (1);
 
+	assert_pixmap_damage(pixmap);
 	sna->blt_state.fill_bo = 0;
 	return true;
 }
@@ -11601,6 +11636,7 @@ skip:
 		}
 	} while (1);
 
+	assert_pixmap_damage(pixmap);
 	sna->blt_state.fill_bo = 0;
 	return true;
 }
@@ -11803,6 +11839,7 @@ sna_push_pixels_solid_blt(GCPtr gc,
 	assert_pixmap_contains_box(pixmap, RegionExtents(region));
 	if (damage)
 		sna_damage_add(damage, region);
+	assert_pixmap_damage(pixmap);
 
 	DBG(("%s: upload(%d, %d, %d, %d)\n", __FUNCTION__,
 	     region->extents.x1, region->extents.y1,
