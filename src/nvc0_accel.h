@@ -58,23 +58,27 @@ PUSH_VTX1s(struct nouveau_pushbuf *push, float sx, float sy, int dx, int dy)
 	PUSH_DATAf(push, sx);
 	PUSH_DATAf(push, sy);
 	BEGIN_NVC0(push, NVC0_3D(VTX_ATTR_DEFINE), 2);
-	PUSH_DATA (push, VTX_ATTR(0, 2, USCALED, 2));
-	PUSH_DATA (push, (dy << 16) | dx);
+	PUSH_DATA (push, VTX_ATTR(0, 2, SSCALED, 4));
+	PUSH_DATA (push, dx);
+	PUSH_DATA (push, dy);
 }
 
 static __inline__ void
 PUSH_VTX2s(struct nouveau_pushbuf *push,
 	   int x0, int y0, int x1, int y1, int dx, int dy)
 {
-	BEGIN_NVC0(push, NVC0_3D(VTX_ATTR_DEFINE), 2);
-	PUSH_DATA (push, VTX_ATTR(1, 2, USCALED, 2));
-	PUSH_DATA (push, (y0 << 16) | x0);
-	BEGIN_NVC0(push, NVC0_3D(VTX_ATTR_DEFINE), 2);
-	PUSH_DATA (push, VTX_ATTR(2, 2, USCALED, 2));
-	PUSH_DATA (push, (y1 << 16) | x1);
-	BEGIN_NVC0(push, NVC0_3D(VTX_ATTR_DEFINE), 2);
-	PUSH_DATA (push, VTX_ATTR(0, 2, USCALED, 2));
-	PUSH_DATA (push, (dy << 16) | dx);
+	BEGIN_NVC0(push, NVC0_3D(VTX_ATTR_DEFINE), 3);
+	PUSH_DATA (push, VTX_ATTR(1, 2, SSCALED, 4));
+	PUSH_DATA (push, x0);
+	PUSH_DATA (push, y0);
+	BEGIN_NVC0(push, NVC0_3D(VTX_ATTR_DEFINE), 3);
+	PUSH_DATA (push, VTX_ATTR(2, 2, SSCALED, 4));
+	PUSH_DATA (push, x1);
+	PUSH_DATA (push, y1);
+	BEGIN_NVC0(push, NVC0_3D(VTX_ATTR_DEFINE), 3);
+	PUSH_DATA (push, VTX_ATTR(0, 2, SSCALED, 4));
+	PUSH_DATA (push, dx);
+	PUSH_DATA (push, dy);
 }
 
 static __inline__ void
