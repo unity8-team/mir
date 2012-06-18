@@ -4023,7 +4023,18 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			}
 			assert_pixmap_damage(dst_pixmap);
 		} else {
-			assert(!src_priv->gpu_bo);
+			if (src_priv) {
+				/* Fixup the shadow pointer as neccessary */
+				assert(!src_priv->gpu_bo);
+				assert(!src_priv->mapped);
+				if (src_pixmap->devPrivate.ptr == NULL) {
+					if (!src_priv->ptr) /* uninitialised!*/
+						goto out;
+					assert(src_priv->stride);
+					src_pixmap->devPrivate.ptr = src_priv->ptr;
+					src_pixmap->devKind = src_priv->stride;
+				}
+			}
 
 			if (!dst_priv->pinned && replaces) {
 				stride = src_pixmap->devKind;
