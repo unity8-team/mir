@@ -384,6 +384,7 @@ static void set_bo(PixmapPtr pixmap, struct kgem_bo *bo)
 {
 	struct sna *sna = to_sna_from_pixmap(pixmap);
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
+	RegionRec region;
 
 	sna_damage_all(&priv->gpu_damage,
 		       pixmap->drawable.width,
@@ -393,6 +394,16 @@ static void set_bo(PixmapPtr pixmap, struct kgem_bo *bo)
 
 	kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
 	priv->gpu_bo = ref(bo);
+
+	/* Post damage on the new front buffer so that listeners, such
+	 * as DisplayLink know take a copy and shove it over the USB.
+	 */
+	region.extents.x1 = region.extents.y1 = 0;
+	region.extents.x2 = pixmap->drawable.width;
+	region.extents.y2 = pixmap->drawable.height;
+	region.data = NULL;
+	DamageRegionAppend(&pixmap->drawable, &region);
+	DamageRegionProcessPending(&pixmap->drawable);
 }
 
 static struct kgem_bo *

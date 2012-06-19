@@ -860,6 +860,21 @@ intel_exchange_pixmap_buffers(struct intel_screen_private *intel, PixmapPtr fron
 	new_back->busy = -1;
 
 	intel_glamor_exchange_buffers(intel, front, back);
+
+	/* Post damage on the new front buffer so that listeners, such
+	 * as DisplayLink know take a copy and shove it over the USB.
+	 */
+	{
+		RegionRec region;
+
+		region.extents.x1 = region.extents.y1 = 0;
+		region.extents.x2 = front->drawable.width;
+		region.extents.y2 = front->drawable.height;
+		region.data = NULL;
+		DamageRegionAppend(&front->drawable, &region);
+		DamageRegionProcessPending(&front->drawable);
+	}
+
 	return new_front;
 }
 
