@@ -451,7 +451,7 @@ uxa_check_glyphs(CARD8 op,
 {
 	pixman_image_t *image;
 	PixmapPtr scratch;
-	PicturePtr mask, mask_src = NULL, white = NULL;
+	PicturePtr mask, mask_src = NULL, mask_dst = NULL, white = NULL;
 	int width = 0, height = 0;
 	int x, y, n;
 	int xDst = list->xOff, yDst = list->yOff;
@@ -511,6 +511,9 @@ uxa_check_glyphs(CARD8 op,
 
 		mask_src = src;
 		src = white;
+
+		mask_dst = dst;
+		dst = mask;
 	} else {
 		mask = dst;
 		x = 0;
@@ -547,7 +550,7 @@ uxa_check_glyphs(CARD8 op,
 	if (maskFormat) {
 		x = extents.x1;
 		y = extents.y1;
-		CompositePicture(mask_op, mask_src, mask, dst,
+		CompositePicture(mask_op, mask_src, mask, mask_dst,
 				 xSrc + x - xDst,
 				 ySrc + y - yDst,
 				 0, 0,
