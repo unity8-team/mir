@@ -538,6 +538,7 @@ void sna_video_init(struct sna *sna, ScreenPtr screen)
 	if (!xf86LoaderCheckSymbol("xf86XVListGenericAdaptors"))
 		return;
 
+	adaptors = NULL;
 	num_adaptors = xf86XVListGenericAdaptors(sna->scrn, &adaptors);
 	newAdaptors = realloc(adaptors,
 			      (num_adaptors + 2) * sizeof(XF86VideoAdaptorPtr));

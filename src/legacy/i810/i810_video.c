@@ -155,10 +155,8 @@ static Atom xvBrightness, xvContrast, xvColorKey;
 void I810InitVideo(ScreenPtr screen)
 {
     ScrnInfoPtr pScrn = xf86ScreenToScrn(screen);
-    XF86VideoAdaptorPtr *adaptors;
-    int num_adaptors;
-
-    num_adaptors = xf86XVListGenericAdaptors(pScrn, &adaptors);
+    XF86VideoAdaptorPtr *adaptors = NULL;
+    int num_adaptors = xf86XVListGenericAdaptors(pScrn, &adaptors);
 
     if (pScrn->bitsPerPixel != 8) {
 	XF86VideoAdaptorPtr newAdaptor;

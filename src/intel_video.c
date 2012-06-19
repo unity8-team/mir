@@ -329,11 +329,9 @@ void I830InitVideo(ScreenPtr screen)
 {
 	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	XF86VideoAdaptorPtr *adaptors, *newAdaptors = NULL;
+	XF86VideoAdaptorPtr *adaptors = NULL, *newAdaptors = NULL;
 	XF86VideoAdaptorPtr overlayAdaptor = NULL, texturedAdaptor = NULL;
-	int num_adaptors;
-
-	num_adaptors = xf86XVListGenericAdaptors(scrn, &adaptors);
+	int num_adaptors = xf86XVListGenericAdaptors(scrn, &adaptors);
 	/* Give our adaptor list enough space for the overlay and/or texture video
 	 * adaptors.
 	 */
