@@ -1886,12 +1886,15 @@ sna_render_composite_redirect_done(struct sna *sna,
 		assert(op->dst.bo != t->real_bo);
 
 		if (t->box.x2 > t->box.x1) {
+			bool ok;
+
 			DBG(("%s: copying temporary to dst\n", __FUNCTION__));
-			sna_blt_copy_boxes(sna, GXcopy,
-					   op->dst.bo, -t->box.x1, -t->box.y1,
-					   t->real_bo, 0, 0,
-					   op->dst.pixmap->drawable.bitsPerPixel,
-					   &t->box, 1);
+			ok = sna_blt_copy_boxes(sna, GXcopy,
+						op->dst.bo, -t->box.x1, -t->box.y1,
+						t->real_bo, 0, 0,
+						op->dst.pixmap->drawable.bitsPerPixel,
+						&t->box, 1);
+			assert(ok);
 		}
 		if (t->damage) {
 			DBG(("%s: combining damage, offset=(%d, %d)\n",

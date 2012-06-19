@@ -845,17 +845,19 @@ sna_composite_rectangles(CARD8		 op,
 			       pixmap->drawable.width, pixmap->drawable.height);
 		priv->undamaged = false;
 		if (op <= PictOpSrc) {
-			priv->clear = true;
+			bool ok = true;
+
 			priv->clear_color = 0;
 			if (op == PictOpSrc)
-				sna_get_pixel_from_rgba(&priv->clear_color,
-							color->red,
-							color->green,
-							color->blue,
-							color->alpha,
-							dst->format);
-			DBG(("%s: marking clear [%08x]\n",
-			     __FUNCTION__, priv->clear_color));
+				ok = sna_get_pixel_from_rgba(&priv->clear_color,
+							     color->red,
+							     color->green,
+							     color->blue,
+							     color->alpha,
+							     dst->format);
+			priv->clear = ok;
+			DBG(("%s: marking clear [%08x]? %d\n",
+			     __FUNCTION__, priv->clear_color, ok));
 		}
 	}
 	if (!DAMAGE_IS_ALL(priv->gpu_damage)) {

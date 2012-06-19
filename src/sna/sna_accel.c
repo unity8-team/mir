@@ -5200,15 +5200,15 @@ sna_fill_spans__gpu(DrawablePtr drawable, GCPtr gc, int n,
 		}
 
 		if (gc->fillStyle == FillTiled) {
-			sna_poly_fill_rect_tiled_blt(drawable,
-						     data->bo, NULL,
-						     gc, n, rect,
-						     &data->region.extents, 2);
+			(void)sna_poly_fill_rect_tiled_blt(drawable,
+							   data->bo, NULL,
+							   gc, n, rect,
+							   &data->region.extents, 2);
 		} else {
-			sna_poly_fill_rect_stippled_blt(drawable,
-							data->bo, NULL,
-							gc, n, rect,
-							&data->region.extents, 2);
+			(void)sna_poly_fill_rect_stippled_blt(drawable,
+							      data->bo, NULL,
+							      gc, n, rect,
+							      &data->region.extents, 2);
 		}
 		free (rect);
 	}
@@ -6212,8 +6212,12 @@ sna_poly_zero_line_blt(DrawablePtr drawable,
 				}
 				b->x2++;
 				b->y2++;
-				if (oc1 | oc2)
-					box_intersect(b, extents);
+				if (oc1 | oc2) {
+					bool intersects;
+
+					intersects = box_intersect(b, extents);
+					assert(intersects);
+				}
 				if (++b == last_box) {
 					ret = &&rectangle_continue;
 					goto *jump;
