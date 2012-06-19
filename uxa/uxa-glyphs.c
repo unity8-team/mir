@@ -451,15 +451,17 @@ uxa_check_glyphs(CARD8 op,
 {
 	pixman_image_t *image;
 	PixmapPtr scratch;
-	PicturePtr mask;
+	PicturePtr mask, white = NULL;
 	int width = 0, height = 0;
 	int x, y, n;
 	int xDst = list->xOff, yDst = list->yOff;
 	BoxRec extents = { 0, 0, 0, 0 };
+	CARD8 mask_op;
 
 	if (maskFormat) {
 		pixman_format_code_t format;
 		CARD32 component_alpha;
+		xRenderColor color;
 		int error;
 
 		uxa_glyph_extents(nlist, list, glyphs, &extents);
@@ -500,6 +502,12 @@ uxa_check_glyphs(CARD8 op,
 
 		x = -extents.x1;
 		y = -extents.y1;
+
+		color.red = color.green = color.blue = color.alpha = 0xffff;
+		src = white = CreateSolidPicture(0, &color, &error);
+
+		mask_op = op;
+		op = PictOpAdd;
 	} else {
 		mask = dst;
 		x = 0;
@@ -514,24 +522,14 @@ uxa_check_glyphs(CARD8 op,
 			GlyphPtr glyph = *glyphs++;
 			PicturePtr g = GetGlyphPicture(glyph, dst->pDrawable->pScreen);
 			if (g) {
-				if (maskFormat) {
-					CompositePicture(PictOpAdd, g, NULL, mask,
-							 0, 0,
-							 0, 0,
-							 x - glyph->info.x,
-							 y - glyph->info.y,
-							 glyph->info.width,
-							 glyph->info.height);
-				} else {
-					CompositePicture(op, src, g, dst,
-							 xSrc + (x - glyph->info.x) - xDst,
-							 ySrc + (y - glyph->info.y) - yDst,
-							 0, 0,
-							 x - glyph->info.x,
-							 y - glyph->info.y,
-							 glyph->info.width,
-							 glyph->info.height);
-				}
+				CompositePicture(op, src, g, dst,
+						 xSrc + (x - glyph->info.x) - xDst,
+						 ySrc + (y - glyph->info.y) - yDst,
+						 0, 0,
+						 x - glyph->info.x,
+						 y - glyph->info.y,
+						 glyph->info.width,
+						 glyph->info.height);
 			}
 
 			x += glyph->info.xOff;
@@ -540,10 +538,13 @@ uxa_check_glyphs(CARD8 op,
 		list++;
 	}
 
+	if (white)
+		FreePicture(white, 0);
+
 	if (maskFormat) {
 		x = extents.x1;
 		y = extents.y1;
-		CompositePicture(op, src, mask, dst,
+		CompositePicture(mask_op, src, mask, dst,
 				 xSrc + x - xDst,
 				 ySrc + y - yDst,
 				 0, 0,
@@ -703,6 +704,23 @@ fallback:
 	}
 }
 
+static PicturePtr
+create_white_solid(ScreenPtr screen)
+{
+	PicturePtr white, ret = NULL;
+	xRenderColor color;
+	int error;
+
+	color.red = color.green = color.blue = color.alpha = 0xffff;
+	white = CreateSolidPicture(0, &color, &error);
+	if (white) {
+		ret = uxa_acquire_solid(screen, white->pSourcePict);
+		FreePicture(white, 0);
+	}
+
+	return ret;
+}
+
 static int
 uxa_glyphs_via_mask(CARD8 op,
 		    PicturePtr pSrc,
@@ -714,8 +732,8 @@ uxa_glyphs_via_mask(CARD8 op,
 	ScreenPtr screen = pDst->pDrawable->pScreen;
 	uxa_screen_t *uxa_screen = uxa_get_screen(screen);
 	CARD32 component_alpha;
-	PixmapPtr pixmap;
-	PicturePtr glyph_atlas, mask;
+	PixmapPtr pixmap, white_pixmap;
+	PicturePtr glyph_atlas, mask, white;
 	int xDst = list->xOff, yDst = list->yOff;
 	int x, y, width, height;
 	int dst_off_x, dst_off_y;
@@ -755,6 +773,17 @@ uxa_glyphs_via_mask(CARD8 op,
 		return -1;
 	}
 
+	white_pixmap = NULL;
+	white = create_white_solid(screen);
+	if (white)
+		white_pixmap = uxa_get_drawable_pixmap(white->pDrawable);
+	if (!white_pixmap) {
+		if (white)
+			FreePicture(white, 0);
+		screen->DestroyPixmap(pixmap);
+		return -1;
+	}
+
 	uxa_clear_pixmap(screen, uxa_screen, pixmap);
 
 	component_alpha = NeedsComponent(maskFormat->format);
@@ -763,8 +792,10 @@ uxa_glyphs_via_mask(CARD8 op,
 			      &component_alpha, serverClient, &error);
 	screen->DestroyPixmap(pixmap);
 
-	if (!mask)
+	if (!mask) {
+		FreePicture(white, 0);
 		return 1;
+	}
 
 	ValidatePicture(mask);
 
@@ -776,7 +807,7 @@ uxa_glyphs_via_mask(CARD8 op,
 		while (n--) {
 			GlyphPtr glyph = *glyphs++;
 			PicturePtr this_atlas;
-			int src_x, src_y;
+			int glyph_x, glyph_y;
 			struct uxa_glyph *priv;
 
 			if (glyph->info.width == 0 || glyph->info.height == 0)
@@ -784,34 +815,35 @@ uxa_glyphs_via_mask(CARD8 op,
 
 			priv = uxa_glyph_get_private(glyph);
 			if (priv != NULL) {
-				src_x = priv->x;
-				src_y = priv->y;
+				glyph_x = priv->x;
+				glyph_y = priv->y;
 				this_atlas = priv->cache->picture;
 			} else {
 				if (glyph_atlas) {
 					uxa_screen->info->done_composite(pixmap);
 					glyph_atlas = NULL;
 				}
-				this_atlas = uxa_glyph_cache(screen, glyph, &src_x, &src_y);
+				this_atlas = uxa_glyph_cache(screen, glyph, &glyph_x, &glyph_y);
 				if (this_atlas == NULL) {
 					/* no cache for this glyph */
 					this_atlas = GetGlyphPicture(glyph, screen);
-					src_x = src_y = 0;
+					glyph_x = glyph_y = 0;
 				}
 			}
 
 			if (this_atlas != glyph_atlas) {
-				PixmapPtr src_pixmap;
+				PixmapPtr glyph_pixmap;
 
 				if (glyph_atlas)
 					uxa_screen->info->done_composite(pixmap);
 
-				src_pixmap =
+				glyph_pixmap =
 					uxa_get_drawable_pixmap(this_atlas->pDrawable);
-				if (!uxa_pixmap_is_offscreen(src_pixmap) ||
+				if (!uxa_pixmap_is_offscreen(glyph_pixmap) ||
 				    !uxa_screen->info->prepare_composite(PictOpAdd,
-									 this_atlas, NULL, mask,
-									 src_pixmap, NULL, pixmap)) {
+									 white, this_atlas, mask,
+									 white_pixmap, glyph_pixmap, pixmap)) {
+					FreePicture(white, 0);
 					FreePicture(mask, 0);
 					return -1;
 				}
@@ -820,8 +852,8 @@ uxa_glyphs_via_mask(CARD8 op,
 			}
 
 			uxa_screen->info->composite(pixmap,
-						    src_x, src_y,
 						    0, 0,
+						    glyph_x, glyph_y,
 						    x - glyph->info.x,
 						    y - glyph->info.y,
 						    glyph->info.width,
@@ -844,6 +876,7 @@ next_glyph:
 		      dst_off_x, dst_off_y,
 		      width, height);
 
+	FreePicture(white, 0);
 	FreePicture(mask, 0);
 	return 0;
 }
