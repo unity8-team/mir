@@ -148,7 +148,10 @@ static void sna_video_overlay_off(struct sna *sna)
 
 	request.flags = 0;
 
-	drmIoctl(sna->kgem.fd, DRM_IOCTL_I915_OVERLAY_PUT_IMAGE, &request);
+	/* Not much we can do if the hardware dies before we turn it off! */
+	(void)drmIoctl(sna->kgem.fd,
+		       DRM_IOCTL_I915_OVERLAY_PUT_IMAGE,
+		       &request);
 }
 
 static void sna_video_overlay_stop(ScrnInfoPtr scrn,

@@ -353,7 +353,7 @@ static int sna_open_drm_master(ScrnInfoPtr scrn)
 		/* make the fd nonblocking to handle event loops */
 		flags = fcntl(fd, F_GETFL, 0);
 		if (flags != -1)
-			fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+			(void)fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 
 		dev->fd = fd;
 		dev->open_count = 1;
@@ -392,10 +392,14 @@ static bool has_pageflipping(struct sna *sna)
 	if (sna->flags & SNA_NO_WAIT)
 		return false;
 
+	v = 0;
+
 	VG_CLEAR(gp);
 	gp.param = I915_PARAM_HAS_PAGEFLIPPING;
 	gp.value = &v;
-	drmIoctl(sna->kgem.fd, DRM_IOCTL_I915_GETPARAM, &gp);
+
+	if (drmIoctl(sna->kgem.fd, DRM_IOCTL_I915_GETPARAM, &gp))
+		return false;
 
 	VG(VALGRIND_MAKE_MEM_DEFINED(&v, sizeof(v)));
 	return v > 0;
@@ -625,7 +629,11 @@ sna_handle_uevents(int fd, void *closure)
 		return;
 
 	udev_devnum = udev_device_get_devnum(dev);
-	fstat(sna->kgem.fd, &s);
+	if (fstat(sna->kgem.fd, &s)) {
+		udev_device_unref(dev);
+		return;
+	}
+
 	/*
 	 * Check to make sure this event is directed at our
 	 * device (by comparing dev_t values), then make

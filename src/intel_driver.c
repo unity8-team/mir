@@ -753,7 +753,10 @@ I830HandleUEvents(int fd, void *closure)
 		return;
 
 	udev_devnum = udev_device_get_devnum(dev);
-	fstat(intel->drmSubFD, &s);
+	if (fstat(intel->drmSubFD, &s)) {
+		udev_device_unref(dev);
+		return;
+	}
 	/*
 	 * Check to make sure this event is directed at our
 	 * device (by comparing dev_t values), then make

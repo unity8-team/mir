@@ -567,7 +567,8 @@ static int gem_param(struct kgem *kgem, int name)
 	VG_CLEAR(gp);
 	gp.param = name;
 	gp.value = &v;
-	drmIoctl(kgem->fd, DRM_IOCTL_I915_GETPARAM, &gp);
+	if (drmIoctl(kgem->fd, DRM_IOCTL_I915_GETPARAM, &gp))
+		return -1;
 
 	VG(VALGRIND_MAKE_MEM_DEFINED(&v, sizeof(v)));
 	return v;
@@ -2129,7 +2130,9 @@ void kgem_cleanup_cache(struct kgem *kgem)
 		set_domain.handle = rq->bo->handle;
 		set_domain.read_domains = I915_GEM_DOMAIN_GTT;
 		set_domain.write_domain = I915_GEM_DOMAIN_GTT;
-		drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_SET_DOMAIN, &set_domain);
+		(void)drmIoctl(kgem->fd,
+			       DRM_IOCTL_I915_GEM_SET_DOMAIN,
+			       &set_domain);
 	}
 
 	kgem_retire(kgem);
