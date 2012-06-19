@@ -205,22 +205,11 @@ static void gen3_update_vertex_elements_offsets(struct kgem *kgem)
 	int i, offset;
 
 	for (i = offset = 0; i < ARRAY_SIZE(state.ve); i++) {
-		int size;
-
 		if (!state.ve[i].valid)
 			continue;
 
-		size = 0;
-		switch (state.ve[i].type) {
-		case T_FLOAT16:
-			size = 4;
-			break;
-		case T_FLOAT32:
-			size = 4;
-			break;
-		}
 		state.ve[i].offset = offset;
-		offset += size * state.ve[i].size;
+		offset += 4 * state.ve[i].size;
 		state.num_ve = i;
 	}
 }
@@ -969,7 +958,7 @@ gen3_decode_load_state_immediate_1(struct kgem *kgem, uint32_t offset)
 					}
 					kgem_debug_print(data, offset, i, "S4: point_width=%i, line_width=%.1f,"
 						  "%s%s%s%s%s cullmode=%s, vfmt=%s%s%s%s%s%s%s%s "
-						  "%s%s\n",
+						  "%s%s%s\n",
 						  (data[i]>>23)&0x1ff,
 						  ((data[i]>>19)&0xf) / 2.0,
 						  data[i]&(0xf<<15)?" flatshade=":"",
@@ -1342,7 +1331,6 @@ gen3_decode_3d_1d(struct kgem *kgem, uint32_t offset)
 					  dword&(1<<5)?" normalized coords,":"",
 					  (dword>>1)&0xf,
 					  dword&(1<<0)?" deinterlacer,":"");
-				dword = data[i];
 				kgem_debug_print(data, offset, i++, "sampler %d SS4: border color\n",
 					  sampler);
 			}
