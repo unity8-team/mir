@@ -51,6 +51,7 @@
 #endif
 
 #define NO_ACCEL 0
+#define FORCE_FALLBACK 0
 #define NO_ALIGNED_BOXES 0
 #define NO_UNALIGNED_BOXES 0
 #define NO_SCAN_CONVERTER 0
@@ -3109,7 +3110,8 @@ static inline uint32_t mul_4x8_8(uint32_t color, uint8_t alpha)
 {
 	uint32_t v;
 
-	v = multa(color, alpha, 24);
+	v = 0;
+	v |= multa(color, alpha, 24);
 	v |= multa(color, alpha, 16);
 	v |= multa(color, alpha, 8);
 	v |= multa(color, alpha, 0);
@@ -3308,6 +3310,7 @@ pixman:
 		pi.source = pixman_image_create_bits(PIXMAN_a8r8g8b8, 1, 1, NULL, 0);
 		pixman_image_set_repeat(pi.source, PIXMAN_REPEAT_NORMAL);
 		pi.bits = pixman_image_get_data(pi.source);
+		pi.color = color;
 		pi.op = op;
 
 		count = REGION_NUM_RECTS(&clip);
@@ -5327,7 +5330,7 @@ sna_composite_trapezoids(CARD8 op,
 		goto fallback;
 	}
 
-	force_fallback = false;
+	force_fallback = FORCE_FALLBACK;
 	if ((too_small(priv) || DAMAGE_IS_ALL(priv->cpu_damage)) &&
 	    !picture_is_gpu(src)) {
 		DBG(("%s: force fallbacks -- dst is too small, %dx%d\n",
