@@ -451,12 +451,12 @@ uxa_check_glyphs(CARD8 op,
 {
 	pixman_image_t *image;
 	PixmapPtr scratch;
-	PicturePtr mask, white = NULL;
+	PicturePtr mask, mask_src = NULL, white = NULL;
 	int width = 0, height = 0;
 	int x, y, n;
 	int xDst = list->xOff, yDst = list->yOff;
 	BoxRec extents = { 0, 0, 0, 0 };
-	CARD8 mask_op;
+	CARD8 mask_op = 0;
 
 	if (maskFormat) {
 		pixman_format_code_t format;
@@ -504,10 +504,13 @@ uxa_check_glyphs(CARD8 op,
 		y = -extents.y1;
 
 		color.red = color.green = color.blue = color.alpha = 0xffff;
-		src = white = CreateSolidPicture(0, &color, &error);
+		white = CreateSolidPicture(0, &color, &error);
 
 		mask_op = op;
 		op = PictOpAdd;
+
+		mask_src = src;
+		src = white;
 	} else {
 		mask = dst;
 		x = 0;
@@ -544,7 +547,7 @@ uxa_check_glyphs(CARD8 op,
 	if (maskFormat) {
 		x = extents.x1;
 		y = extents.y1;
-		CompositePicture(mask_op, src, mask, dst,
+		CompositePicture(mask_op, mask_src, mask, dst,
 				 xSrc + x - xDst,
 				 ySrc + y - yDst,
 				 0, 0,
