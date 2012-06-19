@@ -2288,6 +2288,7 @@ move_to_gpu:
 	if (!sna_pixmap_move_area_to_gpu(pixmap, &extents,
 					 MOVE_READ | MOVE_WRITE)) {
 		DBG(("%s: failed to move-to-gpu, fallback\n", __FUNCTION__));
+		assert(priv->gpu_bo == NULL);
 		goto use_cpu_bo;
 	}
 
@@ -2330,8 +2331,16 @@ use_cpu_bo:
 			return NULL;
 
 		/* Both CPU and GPU are busy, prefer to use the GPU */
-		if (priv->gpu_bo && kgem_bo_is_busy(priv->gpu_bo))
+		if (priv->gpu_bo && kgem_bo_is_busy(priv->gpu_bo)) {
+			get_drawable_deltas(drawable, pixmap, &dx, &dy);
+
+			extents = *box;
+			extents.x1 += dx;
+			extents.x2 += dx;
+			extents.y1 += dy;
+			extents.y2 += dy;
 			goto move_to_gpu;
+		}
 
 		priv->mapped = false;
 		pixmap->devPrivate.ptr = NULL;
