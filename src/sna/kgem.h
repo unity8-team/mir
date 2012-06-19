@@ -275,8 +275,11 @@ static inline void kgem_bo_flush(struct kgem *kgem, struct kgem_bo *bo)
 	if (!bo->needs_flush)
 		return;
 
-	__kgem_flush(kgem, bo);
-
+	/* If the kernel fails to emit the flush, then it will be forced when
+	 * we assume direct access. And as the useual failure is EIO, we do
+	 * not actualy care.
+	 */
+	(void)__kgem_flush(kgem, bo);
 	bo->needs_flush = false;
 }
 
