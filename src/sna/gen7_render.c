@@ -2412,14 +2412,14 @@ gen7_composite_set_target(struct sna *sna, struct sna_composite_op *op, PictureP
 	return TRUE;
 }
 
-static bool prefer_blt_ring(struct sna *sna)
-{
-	return sna->kgem.ring != KGEM_RENDER;
-}
-
-static bool can_switch_rings(struct sna *sna)
+inline static bool can_switch_rings(struct sna *sna)
 {
 	return sna->kgem.mode == KGEM_NONE && sna->kgem.has_semaphores && !NO_RING_SWITCH;
+}
+
+inline static bool prefer_blt_ring(struct sna *sna)
+{
+	return sna->kgem.ring != KGEM_RENDER || can_switch_rings(sna);
 }
 
 static Bool
@@ -3308,7 +3308,7 @@ static inline bool prefer_blt_copy(struct sna *sna,
 				   PixmapPtr src, struct kgem_bo *src_bo,
 				   PixmapPtr dst, struct kgem_bo *dst_bo)
 {
-	return (sna->kgem.ring == KGEM_BLT ||
+	return (prefer_blt_ring(sna) ||
 		prefer_blt_bo(sna, src, src_bo) ||
 		prefer_blt_bo(sna, dst, dst_bo));
 }
@@ -3715,9 +3715,7 @@ gen7_emit_fill_state(struct sna *sna, const struct sna_composite_op *op)
 static inline bool prefer_blt_fill(struct sna *sna,
 				   struct kgem_bo *bo)
 {
-	return (can_switch_rings(sna) ||
-		prefer_blt_ring(sna) ||
-		untiled_tlb_miss(bo));
+	return prefer_blt_ring(sna) || untiled_tlb_miss(bo);
 }
 
 static Bool
