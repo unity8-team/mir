@@ -280,7 +280,6 @@ static inline void kgem_bo_flush(struct kgem *kgem, struct kgem_bo *bo)
 	 * not actualy care.
 	 */
 	(void)__kgem_flush(kgem, bo);
-	bo->needs_flush = false;
 }
 
 static inline struct kgem_bo *kgem_bo_reference(struct kgem_bo *bo)
