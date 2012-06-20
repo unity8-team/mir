@@ -3316,9 +3316,7 @@ static bool prefer_blt_bo(struct sna *sna,
 			  PixmapPtr pixmap,
 			  struct kgem_bo *bo)
 {
-	return (too_large(pixmap->drawable.width, pixmap->drawable.height) ||
-		untiled_tlb_miss(bo)) &&
-		kgem_bo_can_blt(&sna->kgem, bo);
+	return untiled_tlb_miss(bo) && kgem_bo_can_blt(&sna->kgem, bo);
 }
 
 static inline bool prefer_blt_copy(struct sna *sna,
