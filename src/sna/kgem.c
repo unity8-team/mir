@@ -803,11 +803,12 @@ void kgem_get_tile_size(struct kgem *kgem, int tiling,
 {
 	if (kgem->gen <= 30) {
 		if (tiling) {
-			*tile_width = 512;
 			if (kgem->gen < 30) {
+				*tile_width = 128;
 				*tile_height = 16;
 				*tile_size = 2048;
 			} else {
+				*tile_width = 512;
 				*tile_height = 8;
 				*tile_size = 4096;
 			}
@@ -853,8 +854,13 @@ static uint32_t kgem_surface_size(struct kgem *kgem,
 
 	if (kgem->gen <= 30) {
 		if (tiling) {
-			tile_width = 512;
-			tile_height = kgem->gen < 30 ? 16 : 8;
+			if (kgem->gen < 30) {
+				tile_width = 128;
+				tile_height = 16;
+			} else {
+				tile_width = 512;
+				tile_height =  8;
+			}
 		} else {
 			tile_width = 2 * bpp >> 3;
 			tile_width = ALIGN(tile_width,
