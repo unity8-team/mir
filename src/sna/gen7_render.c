@@ -955,12 +955,12 @@ gen7_emit_vertex_elements(struct sna *sna,
 }
 
 inline static void
-gen7_emit_pipe_invalidate(struct sna *sna)
+gen7_emit_pipe_invalidate(struct sna *sna, bool stall)
 {
 	OUT_BATCH(GEN7_PIPE_CONTROL | (4 - 2));
 	OUT_BATCH(GEN7_PIPE_CONTROL_WC_FLUSH |
 		  GEN7_PIPE_CONTROL_TC_FLUSH |
-		  GEN7_PIPE_CONTROL_CS_STALL);
+		  (stall ? GEN7_PIPE_CONTROL_CS_STALL : 0));
 	OUT_BATCH(0);
 	OUT_BATCH(0);
 }
@@ -1020,7 +1020,7 @@ gen7_emit_state(struct sna *sna,
 	need_stall &= gen7_emit_drawing_rectangle(sna, op);
 
 	if (kgem_bo_is_dirty(op->src.bo) || kgem_bo_is_dirty(op->mask.bo)) {
-		gen7_emit_pipe_invalidate(sna);
+		gen7_emit_pipe_invalidate(sna, need_stall);
 		kgem_clear_dirty(&sna->kgem);
 		kgem_bo_mark_dirty(op->dst.bo);
 		need_stall = false;
@@ -1042,7 +1042,7 @@ static void gen7_magic_ca_pass(struct sna *sna,
 	DBG(("%s: CA fixup (%d -> %d)\n", __FUNCTION__,
 	     sna->render.vertex_start, sna->render.vertex_index));
 
-	gen7_emit_pipe_invalidate(sna);
+	gen7_emit_pipe_invalidate(sna, true);
 
 	gen7_emit_cc(sna, gen7_get_blend(PictOpAdd, TRUE, op->dst.format));
 	gen7_emit_wm(sna,
