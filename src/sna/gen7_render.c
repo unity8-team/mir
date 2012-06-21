@@ -850,7 +850,7 @@ gen7_emit_binding_table(struct sna *sna, uint16_t offset)
 	return true;
 }
 
-static void
+static bool
 gen7_emit_drawing_rectangle(struct sna *sna,
 			    const struct sna_composite_op *op)
 {
@@ -862,7 +862,7 @@ gen7_emit_drawing_rectangle(struct sna *sna,
 
 	if (sna->render_state.gen7.drawrect_limit == limit &&
 	    sna->render_state.gen7.drawrect_offset == offset)
-		return;
+		return true;
 
 	sna->render_state.gen7.drawrect_offset = offset;
 	sna->render_state.gen7.drawrect_limit = limit;
@@ -871,6 +871,7 @@ gen7_emit_drawing_rectangle(struct sna *sna,
 	OUT_BATCH(0);
 	OUT_BATCH(limit);
 	OUT_BATCH(offset);
+	return false;
 }
 
 static void
@@ -1016,7 +1017,7 @@ gen7_emit_state(struct sna *sna,
 	gen7_emit_vertex_elements(sna, op);
 
 	need_stall |= gen7_emit_binding_table(sna, wm_binding_table);
-	gen7_emit_drawing_rectangle(sna, op);
+	need_stall &= gen7_emit_drawing_rectangle(sna, op);
 
 	if (kgem_bo_is_dirty(op->src.bo) || kgem_bo_is_dirty(op->mask.bo)) {
 		gen7_emit_pipe_invalidate(sna);
