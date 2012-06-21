@@ -3400,6 +3400,32 @@ gen7_render_copy_boxes(struct sna *sna, uint8_t alu,
 			       box, n))
 		return TRUE;
 
+	if ((too_large(dst->drawable.width, dst->drawable.height) ||
+	     too_large(src->drawable.width, src->drawable.height)) &&
+	    sna_blt_compare_depth(&src->drawable, &dst->drawable)) {
+		BoxRec extents = box[0];
+		int i;
+
+		for (i = 1; i < n; i++) {
+			if (box[i].x1 < extents.x1)
+				extents.x1 = box[i].x1;
+			if (box[i].y1 < extents.y1)
+				extents.y1 = box[i].y1;
+
+			if (box[i].x2 > extents.x2)
+				extents.x2 = box[i].x2;
+			if (box[i].y2 > extents.y2)
+				extents.y2 = box[i].y2;
+		}
+		if (too_large(extents.x2 - extents.x1, extents.y2 - extents.y1) &&
+		    sna_blt_copy_boxes(sna, alu,
+				       src_bo, src_dx, src_dy,
+				       dst_bo, dst_dx, dst_dy,
+				       dst->drawable.bitsPerPixel,
+				       box, n))
+			return TRUE;
+	}
+
 	if (!(alu == GXcopy || alu == GXclear) ||
 	    overlaps(src_bo, src_dx, src_dy,
 		     dst_bo, dst_dx, dst_dy,
@@ -3449,6 +3475,7 @@ fallback_blt:
 			if (box[i].y2 > extents.y2)
 				extents.y2 = box[i].y2;
 		}
+
 		if (!sna_render_composite_redirect(sna, &tmp,
 						   extents.x1 + dst_dx,
 						   extents.y1 + dst_dy,
