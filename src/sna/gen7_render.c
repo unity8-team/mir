@@ -2448,7 +2448,7 @@ try_blt(struct sna *sna,
 	PicturePtr dst, PicturePtr src,
 	int width, int height)
 {
-	if (prefer_blt_ring(sna)) {
+	if (sna->kgem.ring == KGEM_BLT) {
 		DBG(("%s: already performing BLT\n", __FUNCTION__));
 		return TRUE;
 	}
@@ -2461,8 +2461,6 @@ try_blt(struct sna *sna,
 
 	if (can_switch_rings(sna)) {
 		if (sna_picture_is_solid(src, NULL))
-			return TRUE;
-		if (src->pDrawable)
 			return TRUE;
 	}
 
@@ -3329,7 +3327,7 @@ static inline bool prefer_blt_copy(struct sna *sna,
 				   PixmapPtr src, struct kgem_bo *src_bo,
 				   PixmapPtr dst, struct kgem_bo *dst_bo)
 {
-	return (prefer_blt_ring(sna) ||
+	return (sna->kgem.ring == KGEM_BLT ||
 		prefer_blt_bo(sna, src, src_bo) ||
 		prefer_blt_bo(sna, dst, dst_bo));
 }
