@@ -2558,7 +2558,7 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 			       uint32_t flags)
 {
 	struct list *cache;
-	struct kgem_bo *bo, *next;
+	struct kgem_bo *bo;
 	uint32_t pitch, untiled_pitch, tiled_height, size;
 	uint32_t handle;
 	int i, bucket, retry;
@@ -2847,7 +2847,7 @@ search_inactive:
 	/* Now just look for a close match and prefer any currently active */
 	assert(bucket < NUM_CACHE_BUCKETS);
 	cache = &kgem->inactive[bucket];
-	list_for_each_entry_safe(bo, next, cache, list) {
+	list_for_each_entry(bo, cache, list) {
 		assert(bucket(bo) == bucket);
 		assert(bo->reusable);
 
@@ -2861,10 +2861,8 @@ search_inactive:
 		    (tiling != I915_TILING_NONE && bo->pitch != pitch)) {
 			if (tiling != gem_set_tiling(kgem->fd,
 						     bo->handle,
-						     tiling, pitch)) {
-				kgem_bo_free(kgem, bo);
+						     tiling, pitch))
 				continue;
-			}
 
 			if (bo->map)
 				kgem_bo_release_map(kgem, bo);
@@ -2872,7 +2870,7 @@ search_inactive:
 
 		if (bo->purged && !kgem_bo_clear_purgeable(kgem, bo)) {
 			kgem_bo_free(kgem, bo);
-			continue;
+			break;
 		}
 
 		kgem_bo_remove_from_inactive(kgem, bo);
@@ -2903,6 +2901,7 @@ search_inactive:
 
 	if (--retry) {
 		bucket++;
+		flags &= ~CREATE_INACTIVE;
 		goto search_inactive;
 	}
 
