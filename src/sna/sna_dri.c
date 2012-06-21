@@ -1032,6 +1032,21 @@ can_flip(struct sna * sna,
 	return TRUE;
 }
 
+inline static uint32_t pipe_select(int pipe)
+{
+	/* The third pipe was introduced with IvyBridge long after
+	 * multiple pipe support was added to the kernel, hence
+	 * we can safely ignore the capability check - if we have more
+	 * than two pipes, we can assume that they are fully supported.
+	 */
+	if (pipe > 1)
+		return pipe << DRM_VBLANK_HIGH_CRTC_SHIFT;
+	else if (pipe > 0)
+		return DRM_VBLANK_SECONDARY;
+	else
+		return 0;
+}
+
 static void sna_dri_vblank_handle(int fd,
 				  unsigned int frame, unsigned int tv_sec,
 				  unsigned int tv_usec,
@@ -1086,9 +1101,8 @@ static void sna_dri_vblank_handle(int fd,
 				VG_CLEAR(vbl);
 				vbl.request.type =
 					DRM_VBLANK_RELATIVE |
-					DRM_VBLANK_EVENT;
-				if (info->pipe > 0)
-					vbl.request.type |= DRM_VBLANK_SECONDARY;
+					DRM_VBLANK_EVENT |
+					pipe_select(info->pipe);
 				vbl.request.sequence = 1;
 				vbl.request.signal = (unsigned long)info;
 				if (!sna_wait_vblank(sna, &vbl))
@@ -1437,9 +1451,7 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		sna_dri_reference_buffer(back);
 
 		/* Get current count */
-		vbl.request.type = DRM_VBLANK_RELATIVE;
-		if (pipe > 0)
-			vbl.request.type |= DRM_VBLANK_SECONDARY;
+		vbl.request.type = DRM_VBLANK_RELATIVE | pipe_select(pipe);
 		vbl.request.sequence = 0;
 		if (sna_wait_vblank(sna, &vbl)) {
 			sna_dri_frame_event_info_free(info);
@@ -1452,9 +1464,8 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 
 		vbl.request.type =
 			DRM_VBLANK_ABSOLUTE |
-			DRM_VBLANK_EVENT;
-		if (pipe > 0)
-			vbl.request.type |= DRM_VBLANK_SECONDARY;
+			DRM_VBLANK_EVENT |
+			pipe_select(pipe);
 
 		/*
 		 * If divisor is zero, or current_msc is smaller than target_msc
@@ -1610,9 +1621,8 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 			vbl.request.type =
 				DRM_VBLANK_RELATIVE |
 				DRM_VBLANK_NEXTONMISS |
-				DRM_VBLANK_EVENT;
-			if (pipe > 0)
-				vbl.request.type |= DRM_VBLANK_SECONDARY;
+				DRM_VBLANK_EVENT |
+				pipe_select(pipe);
 			vbl.request.sequence = 0;
 			vbl.request.signal = (unsigned long)info;
 			if (sna_wait_vblank(sna, &vbl) == 0)
@@ -1625,9 +1635,7 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	}
 
 	/* Get current count */
-	vbl.request.type = DRM_VBLANK_RELATIVE;
-	if (pipe > 0)
-		vbl.request.type |= DRM_VBLANK_SECONDARY;
+	vbl.request.type = DRM_VBLANK_RELATIVE | pipe_select(pipe);
 	vbl.request.sequence = 0;
 	if (sna_wait_vblank(sna, &vbl))
 		goto blit_fallback;
@@ -1651,9 +1659,8 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 
 		 vbl.request.type =
 			 DRM_VBLANK_ABSOLUTE |
-			 DRM_VBLANK_EVENT;
-		 if (pipe > 0)
-			 vbl.request.type |= DRM_VBLANK_SECONDARY;
+			 DRM_VBLANK_EVENT |
+			 pipe_select(pipe);
 		 vbl.request.sequence = *target_msc;
 		 vbl.request.signal = (unsigned long)info;
 		 if (sna_wait_vblank(sna, &vbl))
@@ -1674,9 +1681,10 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		     (int)divisor));
 
 	vbl.request.type =
-		DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT | DRM_VBLANK_NEXTONMISS;
-	if (pipe > 0)
-		vbl.request.type |= DRM_VBLANK_SECONDARY;
+		DRM_VBLANK_ABSOLUTE |
+		DRM_VBLANK_EVENT |
+		DRM_VBLANK_NEXTONMISS |
+		pipe_select(pipe);
 
 	vbl.request.sequence = current_msc - current_msc % divisor + remainder;
 	/*
@@ -1872,9 +1880,7 @@ sna_dri_get_msc(DrawablePtr draw, CARD64 *ust, CARD64 *msc)
 
 	VG_CLEAR(vbl);
 
-	vbl.request.type = DRM_VBLANK_RELATIVE;
-	if (pipe > 0)
-		vbl.request.type |= DRM_VBLANK_SECONDARY;
+	vbl.request.type = DRM_VBLANK_RELATIVE | pipe_select(pipe);
 	vbl.request.sequence = 0;
 
 	if (sna_wait_vblank(sna, &vbl)) {
@@ -1924,9 +1930,7 @@ sna_dri_schedule_wait_msc(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 	VG_CLEAR(vbl);
 
 	/* Get current count */
-	vbl.request.type = DRM_VBLANK_RELATIVE;
-	if (pipe > 0)
-		vbl.request.type |= DRM_VBLANK_SECONDARY;
+	vbl.request.type = DRM_VBLANK_RELATIVE | pipe_select(pipe);
 	vbl.request.sequence = 0;
 	if (sna_wait_vblank(sna, &vbl))
 		goto out_complete;
@@ -1964,9 +1968,10 @@ sna_dri_schedule_wait_msc(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 	 * client.
 	 */
 	if (divisor == 0 || current_msc < target_msc) {
-		vbl.request.type = DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT;
-		if (pipe > 0)
-			vbl.request.type |= DRM_VBLANK_SECONDARY;
+		vbl.request.type =
+			DRM_VBLANK_ABSOLUTE |
+			DRM_VBLANK_EVENT |
+			pipe_select(pipe);
 		vbl.request.sequence = target_msc;
 		vbl.request.signal = (unsigned long)info;
 		if (sna_wait_vblank(sna, &vbl))
@@ -1981,9 +1986,8 @@ sna_dri_schedule_wait_msc(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 	 * If we get here, target_msc has already passed or we don't have one,
 	 * so we queue an event that will satisfy the divisor/remainder equation.
 	 */
-	vbl.request.type = DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT;
-	if (pipe > 0)
-		vbl.request.type |= DRM_VBLANK_SECONDARY;
+	vbl.request.type =
+		DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT | pipe_select(pipe);
 
 	vbl.request.sequence = current_msc - current_msc % divisor + remainder;
 
@@ -2024,7 +2028,7 @@ Bool sna_dri_open(struct sna *sna, ScreenPtr screen)
 
 	DBG(("%s()\n", __FUNCTION__));
 
-	if (sna->kgem.wedged) {
+	if (wedged(sna)) {
 		xf86DrvMsg(sna->scrn->scrnIndex, X_WARNING,
 			   "cannot enable DRI2 whilst the GPU is wedged\n");
 		return FALSE;

@@ -1238,6 +1238,16 @@ void I830DRI2FlipEventHandler(unsigned int frame, unsigned int tv_sec,
 	i830_dri2_del_frame_event(drawable, flip_info);
 }
 
+static uint32_t pipe_select(int pipe)
+{
+	if (pipe > 1)
+		return pipe << DRM_VBLANK_HIGH_CRTC_SHIFT;
+	else if (pipe > 0)
+		return DRM_VBLANK_SECONDARY;
+	else
+		return 0;
+}
+
 /*
  * ScheduleSwap is responsible for requesting a DRM vblank event for the
  * appropriate frame.
@@ -1307,9 +1317,7 @@ I830DRI2ScheduleSwap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	I830DRI2ReferenceBuffer(back);
 
 	/* Get current count */
-	vbl.request.type = DRM_VBLANK_RELATIVE;
-	if (pipe > 0)
-		vbl.request.type |= DRM_VBLANK_SECONDARY;
+	vbl.request.type = DRM_VBLANK_RELATIVE | pipe_select(pipe);
 	vbl.request.sequence = 0;
 	ret = drmWaitVBlank(intel->drmSubFD, &vbl);
 	if (ret) {
@@ -1345,9 +1353,8 @@ I830DRI2ScheduleSwap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		if (flip && I830DRI2ScheduleFlip(intel, draw, swap_info))
 			return TRUE;
 
-		vbl.request.type =  DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT;
-		if (pipe > 0)
-			vbl.request.type |= DRM_VBLANK_SECONDARY;
+		vbl.request.type =
+			DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT | pipe_select(pipe);
 
 		/* If non-pageflipping, but blitting/exchanging, we need to use
 		 * DRM_VBLANK_NEXTONMISS to avoid unreliable timestamping later
@@ -1355,8 +1362,6 @@ I830DRI2ScheduleSwap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		 */
 		if (flip == 0)
 			vbl.request.type |= DRM_VBLANK_NEXTONMISS;
-		if (pipe > 0)
-			vbl.request.type |= DRM_VBLANK_SECONDARY;
 
 		/* If target_msc already reached or passed, set it to
 		 * current_msc to ensure we return a reasonable value back
@@ -1386,11 +1391,10 @@ I830DRI2ScheduleSwap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	 * and we need to queue an event that will satisfy the divisor/remainder
 	 * equation.
 	 */
-	vbl.request.type = DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT;
+	vbl.request.type =
+		DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT | pipe_select(pipe);
 	if (flip == 0)
 		vbl.request.type |= DRM_VBLANK_NEXTONMISS;
-	if (pipe > 0)
-		vbl.request.type |= DRM_VBLANK_SECONDARY;
 
 	vbl.request.sequence = current_msc - (current_msc % divisor) +
 		remainder;
@@ -1463,9 +1467,7 @@ I830DRI2GetMSC(DrawablePtr draw, CARD64 *ust, CARD64 *msc)
 		return TRUE;
 	}
 
-	vbl.request.type = DRM_VBLANK_RELATIVE;
-	if (pipe > 0)
-		vbl.request.type |= DRM_VBLANK_SECONDARY;
+	vbl.request.type = DRM_VBLANK_RELATIVE | pipe_select(pipe);
 	vbl.request.sequence = 0;
 
 	ret = drmWaitVBlank(intel->drmSubFD, &vbl);
@@ -1531,9 +1533,7 @@ I830DRI2ScheduleWaitMSC(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 	}
 
 	/* Get current count */
-	vbl.request.type = DRM_VBLANK_RELATIVE;
-	if (pipe > 0)
-		vbl.request.type |= DRM_VBLANK_SECONDARY;
+	vbl.request.type = DRM_VBLANK_RELATIVE | pipe_select(pipe);
 	vbl.request.sequence = 0;
 	ret = drmWaitVBlank(intel->drmSubFD, &vbl);
 	if (ret) {
@@ -1564,9 +1564,8 @@ I830DRI2ScheduleWaitMSC(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 		 */
 		if (current_msc >= target_msc)
 			target_msc = current_msc;
-		vbl.request.type = DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT;
-		if (pipe > 0)
-			vbl.request.type |= DRM_VBLANK_SECONDARY;
+		vbl.request.type =
+			DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT | pipe_select(pipe);
 		vbl.request.sequence = target_msc;
 		vbl.request.signal = (unsigned long)wait_info;
 		ret = drmWaitVBlank(intel->drmSubFD, &vbl);
@@ -1591,9 +1590,8 @@ I830DRI2ScheduleWaitMSC(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 	 * If we get here, target_msc has already passed or we don't have one,
 	 * so we queue an event that will satisfy the divisor/remainder equation.
 	 */
-	vbl.request.type = DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT;
-	if (pipe > 0)
-		vbl.request.type |= DRM_VBLANK_SECONDARY;
+	vbl.request.type =
+		DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT | pipe_select(pipe);
 
 	vbl.request.sequence = current_msc - (current_msc % divisor) +
 	    remainder;
