@@ -953,13 +953,32 @@ gen7_emit_vertex_elements(struct sna *sna,
 	}
 }
 
-static void
-gen7_emit_flush(struct sna *sna)
+inline static void
+gen7_emit_pipe_invalidate(struct sna *sna)
 {
 	OUT_BATCH(GEN7_PIPE_CONTROL | (4 - 2));
 	OUT_BATCH(GEN7_PIPE_CONTROL_WC_FLUSH |
 		  GEN7_PIPE_CONTROL_TC_FLUSH |
 		  GEN7_PIPE_CONTROL_CS_STALL);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+}
+
+inline static void
+gen7_emit_pipe_flush(struct sna *sna)
+{
+	OUT_BATCH(GEN7_PIPE_CONTROL | (4 - 2));
+	OUT_BATCH(GEN7_PIPE_CONTROL_WC_FLUSH);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+}
+
+inline static void
+gen7_emit_pipe_stall(struct sna *sna)
+{
+	OUT_BATCH(GEN7_PIPE_CONTROL | (4 - 2));
+	OUT_BATCH(GEN7_PIPE_CONTROL_CS_STALL |
+		  GEN7_PIPE_CONTROL_STALL_AT_SCOREBOARD);
 	OUT_BATCH(0);
 	OUT_BATCH(0);
 }
@@ -1000,18 +1019,15 @@ gen7_emit_state(struct sna *sna,
 	gen7_emit_drawing_rectangle(sna, op);
 
 	if (kgem_bo_is_dirty(op->src.bo) || kgem_bo_is_dirty(op->mask.bo)) {
-		gen7_emit_flush(sna);
+		gen7_emit_pipe_invalidate(sna);
 		kgem_clear_dirty(&sna->kgem);
 		kgem_bo_mark_dirty(op->dst.bo);
 		need_stall = false;
 	}
-	if (need_stall) {
-		OUT_BATCH(GEN7_PIPE_CONTROL | (4 - 2));
-		OUT_BATCH(GEN7_PIPE_CONTROL_CS_STALL |
-			  GEN7_PIPE_CONTROL_STALL_AT_SCOREBOARD);
-		OUT_BATCH(0);
-		OUT_BATCH(0);
-	}
+	if (need_stall)
+		gen7_emit_pipe_stall(sna);
+
+	sna->render_state.gen7.emit_flush = op->op != PictOpSrc;
 }
 
 static void gen7_magic_ca_pass(struct sna *sna,
@@ -1025,7 +1041,7 @@ static void gen7_magic_ca_pass(struct sna *sna,
 	DBG(("%s: CA fixup (%d -> %d)\n", __FUNCTION__,
 	     sna->render.vertex_start, sna->render.vertex_index));
 
-	gen7_emit_flush(sna);
+	gen7_emit_pipe_invalidate(sna);
 
 	gen7_emit_cc(sna, gen7_get_blend(PictOpAdd, TRUE, op->dst.format));
 	gen7_emit_wm(sna,
@@ -1055,6 +1071,11 @@ static void gen7_vertex_flush(struct sna *sna)
 	sna->kgem.batch[sna->render_state.gen7.vertex_offset] =
 		sna->render.vertex_index - sna->render.vertex_start;
 	sna->render_state.gen7.vertex_offset = 0;
+
+	if (sna->render_state.gen7.emit_flush) {
+		gen7_emit_pipe_flush(sna);
+		sna->render_state.gen7.emit_flush = false;
+	}
 }
 
 static int gen7_vertex_finish(struct sna *sna)

@@ -461,6 +461,7 @@ struct gen7_render_state {
 	uint16_t surface_table;
 
 	Bool needs_invariant;
+	Bool emit_flush;
 };
 
 struct sna_static_stream {
