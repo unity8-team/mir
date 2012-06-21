@@ -4298,7 +4298,20 @@ gen7_render_retire(struct kgem *kgem)
 		kgem->ring = kgem->mode;
 
 	sna = container_of(kgem, struct sna, kgem);
-	if (!kgem->need_retire && kgem->nbatch == 0 && sna->render.vbo) {
+	if (kgem->nbatch == 0 && sna->render.vbo && !kgem_bo_is_busy(sna->render.vbo)) {
+		DBG(("%s: resetting idle vbo\n", __FUNCTION__));
+		sna->render.vertex_used = 0;
+		sna->render.vertex_index = 0;
+	}
+}
+
+static void
+gen7_render_expire(struct kgem *kgem)
+{
+	struct sna *sna;
+
+	sna = container_of(kgem, struct sna, kgem);
+	if (sna->render.vbo && !sna->render.vertex_used) {
 		DBG(("%s: discarding vbo\n", __FUNCTION__));
 		kgem_bo_destroy(kgem, sna->render.vbo);
 		sna->render.vbo = NULL;
@@ -4386,6 +4399,7 @@ Bool gen7_render_init(struct sna *sna)
 
 	sna->kgem.context_switch = gen7_render_context_switch;
 	sna->kgem.retire = gen7_render_retire;
+	sna->kgem.expire = gen7_render_expire;
 
 	sna->render.composite = gen7_render_composite;
 #if !NO_COMPOSITE_SPANS

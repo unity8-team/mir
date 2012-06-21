@@ -169,6 +169,7 @@ struct kgem {
 
 	void (*context_switch)(struct kgem *kgem, int new_mode);
 	void (*retire)(struct kgem *kgem);
+	void (*expire)(struct kgem *kgem);
 
 	uint32_t batch[64*1024-8];
 	struct drm_i915_gem_exec_object2 exec[256];

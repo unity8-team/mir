@@ -2049,6 +2049,8 @@ bool kgem_expire_cache(struct kgem *kgem)
 	if (kgem->wedged)
 		kgem_cleanup(kgem);
 
+	kgem->expire(kgem);
+
 	if (kgem->need_purge)
 		kgem_purge_cache(kgem);
 

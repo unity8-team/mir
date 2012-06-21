@@ -1797,6 +1797,7 @@ static int gen3_get_rectangles__flush(struct sna *sna,
 		return 0;
 	if (!kgem_check_reloc_and_exec(&sna->kgem, 1))
 		return 0;
+
 	if (op->need_magic_ca_pass && sna->render.vbo)
 		return 0;
 
@@ -1988,7 +1989,20 @@ gen3_render_retire(struct kgem *kgem)
 	struct sna *sna;
 
 	sna = container_of(kgem, struct sna, kgem);
-	if (!kgem->need_retire && kgem->nbatch == 0 && sna->render.vbo) {
+	if (kgem->nbatch == 0 && sna->render.vbo && !kgem_bo_is_busy(sna->render.vbo)) {
+		DBG(("%s: resetting idle vbo\n", __FUNCTION__));
+		sna->render.vertex_used = 0;
+		sna->render.vertex_index = 0;
+	}
+}
+
+static void
+gen3_render_expire(struct kgem *kgem)
+{
+	struct sna *sna;
+
+	sna = container_of(kgem, struct sna, kgem);
+	if (sna->render.vbo && !sna->render.vertex_used) {
 		DBG(("%s: discarding vbo\n", __FUNCTION__));
 		discard_vbo(sna);
 	}
@@ -4680,5 +4694,6 @@ Bool gen3_render_init(struct sna *sna)
 	render->max_3d_pitch = MAX_3D_PITCH;
 
 	sna->kgem.retire = gen3_render_retire;
+	sna->kgem.expire = gen3_render_expire;
 	return TRUE;
 }
