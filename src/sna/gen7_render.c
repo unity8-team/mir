@@ -1153,12 +1153,8 @@ static void gen7_vertex_close(struct sna *sna)
 	DBG(("%s: used=%d, vbo active? %d\n",
 	     __FUNCTION__, sna->render.vertex_used, sna->render.vbo != NULL));
 
-	if (!sna->render.vertex_used) {
-		assert(sna->render.vbo == NULL);
-		assert(sna->render.vertices == sna->render.vertex_data);
-		assert(sna->render.vertex_size == ARRAY_SIZE(sna->render.vertex_data));
+	if (!sna->render.vertex_used)
 		return;
-	}
 
 	bo = sna->render.vbo;
 	if (bo) {

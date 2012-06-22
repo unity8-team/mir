@@ -1678,12 +1678,8 @@ static void gen3_vertex_close(struct sna *sna)
 	     __FUNCTION__, sna->render.vertex_used, sna->render.vertex_size,
 	     sna->render.vbo ? sna->render.vbo->handle : 0));
 
-	if (sna->render.vertex_used == 0) {
-		assert(sna->render.vbo == NULL);
-		assert(sna->render.vertices == sna->render.vertex_data);
-		assert(sna->render.vertex_size == ARRAY_SIZE(sna->render.vertex_data));
+	if (sna->render.vertex_used == 0)
 		return;
-	}
 
 	bo = sna->render.vbo;
 	if (bo) {
