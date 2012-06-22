@@ -8,7 +8,7 @@ Build-Depends:
  debhelper (>= 8),
  dh-autoreconf,
  pkg-config,
- xserver-xorg-dev (>= 2:1.11),
+ xserver-xorg-dev (>= 2:1.12),
  x11proto-core-dev,
  x11proto-fonts-dev,
  x11proto-xinerama-dev,

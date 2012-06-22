@@ -1,3 +1,9 @@
+xserver-xorg-video-intel (2:2.19.0-1ubuntu2) quantal-proposed; urgency=low
+
+  * Rebuild against new X server
+
+ -- Christopher James Halse Rogers <raof@ubuntu.com>  Fri, 22 Jun 2012 16:38:24 +1000
+
 xserver-xorg-video-intel (2:2.19.0-1ubuntu1) quantal; urgency=low
 
   * Merge from Debian.  Remaining Ubuntu changes:
