@@ -66,12 +66,6 @@ enum frame_event_type {
 	DRI2_WAITMSC,
 };
 
-struct sna_dri_private {
-	int refcnt;
-	PixmapPtr pixmap;
-	struct kgem_bo *bo;
-};
-
 struct sna_dri_frame_event {
 	XID drawable_id;
 	ClientPtr client;
@@ -90,6 +84,8 @@ struct sna_dri_frame_event {
 	DRI2BufferPtr back;
 	struct kgem_bo *bo;
 
+	struct sna_dri_frame_event *chain;
+
 	unsigned int fe_frame;
 	unsigned int fe_tv_sec;
 	unsigned int fe_tv_usec;
@@ -103,7 +99,19 @@ struct sna_dri_frame_event {
 	int off_delay;
 };
 
+struct sna_dri_private {
+	int refcnt;
+	PixmapPtr pixmap;
+	int width, height;
+	struct kgem_bo *bo;
+	struct sna_dri_frame_event *chain;
+};
+
 static DevPrivateKeyRec sna_client_key;
+
+static RESTYPE frame_event_client_type;
+static RESTYPE frame_event_drawable_type;
+static RESTYPE dri_drawable_type;
 
 static inline struct sna_dri_frame_event *
 to_frame_event(uintptr_t  data)
@@ -204,6 +212,25 @@ sna_dri_create_buffer(DrawablePtr drawable,
 	switch (attachment) {
 	case DRI2BufferFrontLeft:
 		pixmap = get_drawable_pixmap(drawable);
+
+		buffer = NULL;
+		dixLookupResourceByType((void **)&buffer, drawable->id,
+					dri_drawable_type, NULL, DixWriteAccess);
+		if (buffer) {
+			private = get_private(buffer);
+			if (private->pixmap == pixmap &&
+			    private->width  == pixmap->drawable.width &&
+			    private->height == pixmap->drawable.height)  {
+				DBG(("%s: reusing front buffer attachment\n",
+				     __FUNCTION__));
+				private->refcnt++;
+				return buffer;
+			}
+			FreeResourceByType(drawable->id,
+					   dri_drawable_type,
+					   TRUE);
+		}
+
 		bo = sna_pixmap_set_dri(sna, pixmap);
 		if (bo == NULL)
 			return NULL;
@@ -292,6 +319,10 @@ sna_dri_create_buffer(DrawablePtr drawable,
 	buffer->name = kgem_bo_flink(&sna->kgem, bo);
 	private->refcnt = 1;
 	private->pixmap = pixmap;
+	if (pixmap) {
+		private->width  = pixmap->drawable.width;
+		private->height = pixmap->drawable.height;
+	}
 	private->bo = bo;
 
 	if (buffer->name == 0)
@@ -299,6 +330,9 @@ sna_dri_create_buffer(DrawablePtr drawable,
 
 	if (pixmap)
 		pixmap->refcnt++;
+
+	if (attachment == DRI2BufferFrontLeft)
+		(void)AddResource(drawable->id, dri_drawable_type, buffer);
 
 	return buffer;
 
@@ -727,8 +761,6 @@ sna_dri_get_pipe(DrawablePtr pDraw)
 	return pipe;
 }
 
-static RESTYPE frame_event_client_type, frame_event_drawable_type;
-
 static struct list *
 get_resource(XID id, RESTYPE type)
 {
@@ -806,6 +838,13 @@ sna_dri_frame_event_drawable_gone(void *data, XID id)
 	return Success;
 }
 
+static int
+sna_dri_drawable_gone(void *data, XID id)
+{
+	DBG(("%s(%ld)\n", __FUNCTION__, (long)id));
+	return Success;
+}
+
 static Bool
 sna_dri_register_frame_event_resource_types(void)
 {
@@ -815,11 +854,25 @@ sna_dri_register_frame_event_resource_types(void)
 	if (!frame_event_client_type)
 		return FALSE;
 
+	DBG(("%s: frame_event_client_type=%d\n",
+	     __FUNCTION__, frame_event_client_type));
+
 	frame_event_drawable_type =
 		CreateNewResourceType(sna_dri_frame_event_drawable_gone,
 				      "Frame Event Drawable");
 	if (!frame_event_drawable_type)
 		return FALSE;
+
+	DBG(("%s: frame_event_drawable_type=%d\n",
+	     __FUNCTION__, frame_event_drawable_type));
+
+	dri_drawable_type =
+		CreateNewResourceType(sna_dri_drawable_gone,
+				      "DRI2 Drawable");
+	if (!dri_drawable_type)
+		return FALSE;
+
+	DBG(("%s: dri_drawable_type=%d\n", __FUNCTION__, dri_drawable_type));
 
 	return TRUE;
 }
@@ -1083,6 +1136,9 @@ void sna_dri_vblank_handler(struct sna *sna, struct drm_event_vblank *event)
 			if (kgem_bo_is_busy(info->bo)) {
 				drmVBlank vbl;
 
+				DBG(("%s: vsync'ed blit is still busy, postponing\n",
+				     __FUNCTION__));
+
 				VG_CLEAR(vbl);
 				vbl.request.type =
 					DRM_VBLANK_RELATIVE |
@@ -1095,12 +1151,53 @@ void sna_dri_vblank_handler(struct sna *sna, struct drm_event_vblank *event)
 			}
 		}
 
-		DRI2SwapComplete(info->client,
-				 draw, event->sequence,
-				 event->tv_sec, event->tv_usec,
-				 DRI2_BLIT_COMPLETE,
-				 info->client ? info->event_complete : NULL,
-				 info->event_data);
+		if (info->chain) {
+			struct sna_dri_frame_event *chain = info->chain;
+			drmVBlank vbl;
+
+			DBG(("%s: emitting chained vsync'ed blit\n",
+			     __FUNCTION__));
+
+			assert(get_private(info->front)->chain == info);
+			get_private(info->front)->chain = chain;
+
+			chain->bo = sna_dri_copy_to_front(sna, draw, NULL,
+							  get_private(chain->front)->bo,
+							  get_private(chain->back)->bo,
+							  true);
+
+			DRI2SwapComplete(chain->client,
+					 draw, event->sequence,
+					 event->tv_sec, event->tv_usec,
+					 DRI2_BLIT_COMPLETE,
+					 chain->client ? chain->event_complete : NULL,
+					 chain->event_data);
+
+			VG_CLEAR(vbl);
+			vbl.request.type =
+				DRM_VBLANK_RELATIVE |
+				DRM_VBLANK_NEXTONMISS |
+				DRM_VBLANK_EVENT |
+				pipe_select(chain->pipe);
+			vbl.request.sequence = 0;
+			vbl.request.signal = (unsigned long)chain;
+			if (sna_wait_vblank(sna, &vbl))
+				sna_dri_frame_event_info_free(sna, chain);
+
+			info->chain = NULL;
+		} else if (get_private(info->front)->chain == info) {
+			DBG(("%s: chain complete\n", __FUNCTION__));
+			get_private(info->front)->chain = NULL;
+		} else {
+			DBG(("%s: deferred blit complete, unblock client\n",
+			     __FUNCTION__));
+			DRI2SwapComplete(info->client,
+					 draw, event->sequence,
+					 event->tv_sec, event->tv_usec,
+					 DRI2_BLIT_COMPLETE,
+					 info->client ? info->event_complete : NULL,
+					 info->event_data);
+		}
 		break;
 
 	case DRI2_WAITMSC:
@@ -1596,21 +1693,44 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		DBG(("%s: emitting immediate vsync'ed blit, throttling client\n",
 		     __FUNCTION__));
 
-		info->bo = sna_dri_copy_to_front(sna, draw, NULL,
-						 get_private(front)->bo,
-						 get_private(back)->bo,
-						 true);
 		if ((sna->flags & SNA_NO_WAIT) == 0) {
+			struct sna_dri_private *priv = get_private(front);
+
 			info->type = DRI2_SWAP_THROTTLE;
-			vbl.request.type =
-				DRM_VBLANK_RELATIVE |
-				DRM_VBLANK_NEXTONMISS |
-				DRM_VBLANK_EVENT |
-				pipe_select(pipe);
-			vbl.request.sequence = 0;
-			vbl.request.signal = (unsigned long)info;
-			if (sna_wait_vblank(sna, &vbl) == 0)
+			if (priv->chain == NULL) {
+				DBG(("%s: no pending blit, starting chain\n",
+				     __FUNCTION__));
+
+				info->bo = sna_dri_copy_to_front(sna, draw, NULL,
+								 get_private(front)->bo,
+								 get_private(back)->bo,
+								 true);
+
+				DRI2SwapComplete(client, draw, 0, 0, 0,
+						 DRI2_BLIT_COMPLETE, func, data);
+				vbl.request.type =
+					DRM_VBLANK_RELATIVE |
+					DRM_VBLANK_NEXTONMISS |
+					DRM_VBLANK_EVENT |
+					pipe_select(pipe);
+				vbl.request.sequence = 0;
+				vbl.request.signal = (unsigned long)info;
+				if (sna_wait_vblank(sna, &vbl) == 0) {
+					priv->chain = info;
+					return TRUE;
+				}
+			} else {
+				DBG(("%s: attaching to vsync chain\n",
+				     __FUNCTION__));
+				assert(priv->chain->chain == NULL);
+				priv->chain->chain = info;
 				return TRUE;
+			}
+		} else {
+			info->bo = sna_dri_copy_to_front(sna, draw, NULL,
+							 get_private(front)->bo,
+							 get_private(back)->bo,
+							 true);
 		}
 
 		sna_dri_frame_event_info_free(sna, info);
