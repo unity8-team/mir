@@ -1,3 +1,12 @@
+xserver-xorg-video-intel (2:2.19.0-4) unstable; urgency=medium
+
+  [ Julien Cristau ]
+  * uxa: Check for DPMS off before scheduling a WAIT_ON_EVENT.  Fixes
+    regression from a cherry-pick in 2:2.19.0-2 (Closes: #677466).
+    Thanks to Julian Andres Klode for tracking this down.
+
+ -- Cyril Brulebois <kibi@debian.org>  Sat, 23 Jun 2012 21:06:26 +0200
+
 xserver-xorg-video-intel (2:2.19.0-3) unstable; urgency=low
 
   * Add patch to avoid X segfaults with Driver-less Device sections in

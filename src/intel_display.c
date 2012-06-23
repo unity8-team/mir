@@ -1703,13 +1703,28 @@ int intel_crtc_to_pipe(xf86CrtcPtr crtc)
 Bool intel_crtc_on(xf86CrtcPtr crtc)
 {
 	struct intel_crtc *intel_crtc = crtc->driver_private;
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
 	drmModeCrtcPtr drm_crtc;
 	Bool ret;
+	int i;
 
 	if (!crtc->enabled)
 		return FALSE;
 
 	/* Kernel manages CRTC status based on output config */
+	ret = FALSE;
+	for (i = 0; i < xf86_config->num_output; i++) {
+		xf86OutputPtr output = xf86_config->output[i];
+		if (output->crtc == crtc &&
+		    intel_output_dpms_status(output) == DPMSModeOn) {
+			ret = TRUE;
+			break;
+		}
+	}
+	if (!ret)
+		return FALSE;
+
+	/* And finally check with the kernel that the fb is bound */
 	drm_crtc = drmModeGetCrtc(intel_crtc->mode->fd, crtc_id(intel_crtc));
 	if (drm_crtc == NULL)
 		return FALSE;
