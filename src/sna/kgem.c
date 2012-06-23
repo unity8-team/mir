@@ -1990,7 +1990,6 @@ void _kgem_submit(struct kgem *kgem)
 	if (kgem->wedged)
 		kgem_cleanup(kgem);
 
-	kgem->flush_now = kgem->scanout;
 	kgem_reset(kgem);
 
 	assert(kgem->next_request != NULL);
@@ -2486,14 +2485,30 @@ done:
 	return tiling;
 }
 
+static int bits_per_pixel(int depth)
+{
+	switch (depth) {
+	case 8: return 8;
+	case 15:
+	case 16: return 16;
+	case 24:
+	case 30:
+	case 32: return 32;
+	default: return 0;
+	}
+}
+
 unsigned kgem_can_create_2d(struct kgem *kgem,
 			    int width, int height, int depth)
 {
-	int bpp = BitsPerPixel(depth);
 	uint32_t pitch, size;
 	unsigned flags = 0;
+	int bpp;
 
-	if (depth < 8) {
+	DBG(("%s: %dx%d @ %d\n", __FUNCTION__, width, height, depth));
+
+	bpp = bits_per_pixel(depth);
+	if (bpp == 0) {
 		DBG(("%s: unhandled depth %d\n", __FUNCTION__, depth));
 		return 0;
 	}
@@ -2509,6 +2524,8 @@ unsigned kgem_can_create_2d(struct kgem *kgem,
 				 I915_TILING_NONE, &pitch);
 	if (size > 0 && size <= kgem->max_cpu_size)
 		flags |= KGEM_CAN_CREATE_CPU | KGEM_CAN_CREATE_GPU;
+	if (size > 0 && size <= kgem->aperture_mappable/4)
+		flags |= KGEM_CAN_CREATE_GTT;
 	if (size > kgem->large_object_size)
 		flags |= KGEM_CAN_CREATE_LARGE;
 	if (size > kgem->max_object_size) {
@@ -2524,6 +2541,8 @@ unsigned kgem_can_create_2d(struct kgem *kgem,
 				 &pitch);
 	if (size > 0 && size <= kgem->max_gpu_size)
 		flags |= KGEM_CAN_CREATE_GPU;
+	if (size > 0 && size <= kgem->aperture_mappable/4)
+		flags |= KGEM_CAN_CREATE_GTT;
 	if (size > kgem->large_object_size)
 		flags |= KGEM_CAN_CREATE_LARGE;
 	if (size > kgem->max_object_size) {

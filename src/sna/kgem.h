@@ -150,7 +150,6 @@ struct kgem {
 	uint32_t need_retire:1;
 	uint32_t need_throttle:1;
 	uint32_t scanout:1;
-	uint32_t flush_now:1;
 	uint32_t busy:1;
 
 	uint32_t has_vmap :1;
@@ -218,6 +217,7 @@ unsigned kgem_can_create_2d(struct kgem *kgem, int width, int height, int depth)
 #define KGEM_CAN_CREATE_GPU	0x1
 #define KGEM_CAN_CREATE_CPU	0x2
 #define KGEM_CAN_CREATE_LARGE	0x4
+#define KGEM_CAN_CREATE_GTT	0x8
 
 struct kgem_bo *
 kgem_replace_bo(struct kgem *kgem,

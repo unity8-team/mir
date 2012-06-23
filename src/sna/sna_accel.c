@@ -645,7 +645,7 @@ _sna_pixmap_reset(PixmapPtr pixmap)
 	return _sna_pixmap_init(priv, pixmap);
 }
 
-static struct sna_pixmap *sna_pixmap_attach(struct sna *sna, PixmapPtr pixmap)
+static struct sna_pixmap *sna_pixmap_attach(PixmapPtr pixmap)
 {
 	struct sna_pixmap *priv;
 
@@ -655,6 +655,22 @@ static struct sna_pixmap *sna_pixmap_attach(struct sna *sna, PixmapPtr pixmap)
 
 	sna_set_pixmap(pixmap, priv);
 	return _sna_pixmap_init(priv, pixmap);
+}
+
+bool sna_pixmap_attach_to_bo(PixmapPtr pixmap, struct kgem_bo *bo)
+{
+	struct sna_pixmap *priv;
+
+	priv = sna_pixmap_attach(pixmap);
+	if (!priv)
+		return false;
+
+	priv->gpu_bo = kgem_bo_reference(bo);
+	sna_damage_all(&priv->gpu_damage,
+		       pixmap->drawable.width,
+		       pixmap->drawable.height);
+
+	return true;
 }
 
 static inline PixmapPtr
@@ -724,7 +740,7 @@ sna_pixmap_create_shm(ScreenPtr screen,
 		pixmap->drawable.depth = depth;
 		pixmap->drawable.bitsPerPixel = bpp;
 
-		priv = sna_pixmap_attach(sna, pixmap);
+		priv = sna_pixmap_attach(pixmap);
 		if (!priv) {
 			fbDestroyPixmap(pixmap);
 			return NullPixmap;
@@ -816,7 +832,7 @@ sna_pixmap_create_scratch(ScreenPtr screen,
 		pixmap->drawable.depth = depth;
 		pixmap->drawable.bitsPerPixel = bpp;
 
-		priv = sna_pixmap_attach(sna, pixmap);
+		priv = sna_pixmap_attach(pixmap);
 		if (!priv) {
 			fbDestroyPixmap(pixmap);
 			return NullPixmap;
@@ -907,7 +923,7 @@ force_create:
 		if (pixmap == NullPixmap)
 			return NullPixmap;
 
-		sna_pixmap_attach(sna, pixmap);
+		sna_pixmap_attach(pixmap);
 	} else {
 		struct sna_pixmap *priv;
 
@@ -923,7 +939,7 @@ force_create:
 		pixmap->devKind = pad;
 		pixmap->devPrivate.ptr = NULL;
 
-		priv = sna_pixmap_attach(sna, pixmap);
+		priv = sna_pixmap_attach(pixmap);
 		if (priv == NULL) {
 			free(pixmap);
 			goto fallback;
@@ -2508,7 +2524,7 @@ sna_pixmap_force_to_gpu(PixmapPtr pixmap, unsigned flags)
 		}
 	}
 
-	if (!sna_pixmap_move_to_gpu(pixmap, flags))
+	if (!sna_pixmap_move_to_gpu(pixmap, flags | __MOVE_FORCE))
 		return NULL;
 
 	/* For large bo, try to keep only a single copy around */
@@ -2536,6 +2552,9 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 
 	DBG(("%s(pixmap=%ld, usage=%d)\n",
 	     __FUNCTION__, pixmap->drawable.serialNumber, pixmap->usage_hint));
+
+	if ((flags & __MOVE_FORCE) == 0 && wedged(sna))
+		return NULL;
 
 	priv = sna_pixmap(pixmap);
 	if (priv == NULL) {
@@ -12277,7 +12296,6 @@ sna_accel_flush_callback(CallbackListPtr *list,
 	}
 
 	kgem_submit(&sna->kgem);
-	sna->kgem.flush_now = 0;
 
 	kgem_sync(&sna->kgem);
 
@@ -12286,8 +12304,7 @@ sna_accel_flush_callback(CallbackListPtr *list,
 
 static struct sna_pixmap *sna_accel_scanout(struct sna *sna)
 {
-	PixmapPtr front = sna->shadow ? sna->shadow : sna->front;
-	struct sna_pixmap *priv = sna_pixmap(front);
+	struct sna_pixmap *priv = sna_pixmap(sna->front);
 	return priv && priv->gpu_bo ? priv : NULL;
 }
 
@@ -12298,12 +12315,48 @@ static void sna_accel_disarm_timer(struct sna *sna, int id)
 	sna->timer_ready &= ~(1<<id);
 }
 
+static bool has_shadow(struct sna *sna)
+{
+	DamagePtr damage = sna->mode.shadow_damage;
+
+	if (!(damage && RegionNotEmpty(DamageRegion(damage))))
+		return false;
+
+	DBG(("%s: has pending damage\n", __FUNCTION__));
+	if ((sna->flags & SNA_TEAR_FREE) == 0)
+		return true;
+
+	DBG(("%s: outstanding flips: %d\n",
+	     __FUNCTION__, sna->mode.shadow_flip));
+	return !sna->mode.shadow_flip;
+}
+
+static bool need_flush(struct sna *sna, struct sna_pixmap *scanout)
+{
+	DBG(("%s: scanout=%d shadow?=%d || (cpu?=%d || gpu?=%d) && !busy=%d)\n",
+	     __FUNCTION__,
+	     scanout && scanout->gpu_bo ? scanout->gpu_bo->handle : 0,
+	     has_shadow(sna),
+	     scanout && scanout->cpu_damage != NULL,
+	     scanout && scanout->gpu_bo && scanout->gpu_bo->exec != NULL,
+	     scanout && scanout->gpu_bo && __kgem_flush(&sna->kgem, scanout->gpu_bo)));
+
+	if (has_shadow(sna))
+		return true;
+
+	if (!scanout)
+		return false;
+
+	return (scanout->cpu_damage || scanout->gpu_bo->exec) &&
+		!__kgem_flush(&sna->kgem, scanout->gpu_bo);
+}
+
 static bool sna_accel_do_flush(struct sna *sna)
 {
 	struct sna_pixmap *priv;
 
 	priv = sna_accel_scanout(sna);
-	if (priv == NULL || priv->gpu_bo == NULL) {
+	if (priv == NULL && !sna->mode.shadow_active) {
 		DBG(("%s -- no scanout attached\n", __FUNCTION__));
 		sna_accel_disarm_timer(sna, FLUSH_TIMER);
 		return false;
@@ -12313,27 +12366,19 @@ static bool sna_accel_do_flush(struct sna *sna)
 		return true;
 
 	if (sna->timer_active & (1<<(FLUSH_TIMER))) {
-		if (sna->kgem.flush_now) {
-			sna->kgem.flush_now = 0;
-			if (priv->gpu_bo->exec) {
-				DBG(("%s -- forcing flush\n", __FUNCTION__));
-				sna->timer_ready |= 1 << FLUSH_TIMER;
-			}
-		}
-
+		DBG(("%s: flush timer active\n", __FUNCTION__));
 		if (sna->timer_ready & (1<<(FLUSH_TIMER))) {
 			DBG(("%s (time=%ld), triggered\n", __FUNCTION__, (long)sna->time));
 			sna->timer_expire[FLUSH_TIMER] =
 				sna->time + sna->vblank_interval;
-			return priv->cpu_damage || !__kgem_flush(&sna->kgem, priv->gpu_bo);
+			return true;
 		}
 	} else {
-		if (priv->cpu_damage == NULL &&
-		    !__kgem_flush(&sna->kgem, priv->gpu_bo)) {
+		if (!need_flush(sna, priv)) {
 			DBG(("%s -- no pending write to scanout\n", __FUNCTION__));
 		} else {
 			sna->timer_active |= 1 << FLUSH_TIMER;
-			sna->timer_ready  |= 1 << FLUSH_TIMER;
+			sna->timer_ready |= 1 << FLUSH_TIMER;
 			sna->timer_expire[FLUSH_TIMER] =
 				sna->time + sna->vblank_interval / 2;
 			DBG(("%s (time=%ld), starting\n", __FUNCTION__, (long)sna->time));
@@ -12447,24 +12492,24 @@ static void sna_accel_flush(struct sna *sna)
 	struct sna_pixmap *priv = sna_accel_scanout(sna);
 	bool busy;
 
-	assert(priv != NULL);
 	DBG(("%s (time=%ld), cpu damage? %p, exec? %d nbatch=%d, busy? %d\n",
 	     __FUNCTION__, (long)sna->time,
-	     priv->cpu_damage,
-	     priv->gpu_bo->exec != NULL,
+	     priv && priv->cpu_damage,
+	     priv && priv->gpu_bo->exec != NULL,
 	     sna->kgem.nbatch,
 	     sna->kgem.busy));
 
-	busy = priv->cpu_damage || priv->gpu_bo->rq;
+	busy = need_flush(sna, priv);
 	if (!sna->kgem.busy && !busy)
 		sna_accel_disarm_timer(sna, FLUSH_TIMER);
 	sna->kgem.busy = busy;
 
-	if (priv->cpu_damage)
-		sna_pixmap_move_to_gpu(priv->pixmap, MOVE_READ);
+	if (priv) {
+		sna_pixmap_force_to_gpu(priv->pixmap, MOVE_READ);
+		kgem_bo_flush(&sna->kgem, priv->gpu_bo);
+	}
 
-	kgem_bo_flush(&sna->kgem, priv->gpu_bo);
-	sna->kgem.flush_now = 0;
+	sna_mode_redisplay(sna);
 }
 
 static void sna_accel_throttle(struct sna *sna)
@@ -12811,10 +12856,9 @@ void sna_accel_wakeup_handler(struct sna *sna, fd_set *ready)
 	DBG(("%s\n", __FUNCTION__));
 	if (sna->kgem.need_retire)
 		kgem_retire(&sna->kgem);
-	if (!sna->kgem.need_retire) {
+	if (!sna->mode.shadow_active && !sna->kgem.need_retire) {
 		DBG(("%s: GPU idle, flushing\n", __FUNCTION__));
 		kgem_submit(&sna->kgem);
-		sna->kgem.flush_now = 0;
 	}
 	if (sna->kgem.need_purge)
 		kgem_purge_cache(&sna->kgem);

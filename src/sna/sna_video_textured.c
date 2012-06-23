@@ -281,7 +281,7 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 	}
 
 	if (crtc && video->SyncToVblank != 0 &&
-	    pixmap == sna->front && !sna->shadow)
+	    sna_pixmap_is_scanout(sna, pixmap))
 		flush = sna_wait_for_scanline(sna, pixmap, crtc,
 					      &clip->extents);
 

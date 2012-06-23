@@ -64,15 +64,15 @@ CARD32
 sna_render_format_for_depth(int depth)
 {
 	switch (depth) {
-	case 1: return PICT_a1;
-	case 4: return PICT_a4;
-	case 8: return PICT_a8;
-	case 15: return PICT_a1r5g5b5;
-	case 16: return PICT_r5g6b5;
-	case 30: return PICT_a2r10g10b10;
+	case 1: return PIXMAN_a1;
+	case 4: return PIXMAN_a4;
+	case 8: return PIXMAN_a8;
+	case 15: return PIXMAN_a1r5g5b5;
+	case 16: return PIXMAN_r5g6b5;
+	case 30: return PIXMAN_a2r10g10b10;
 	default: assert(0);
 	case 24:
-	case 32: return PICT_a8r8g8b8;
+	case 32: return PIXMAN_a8r8g8b8;
 	}
 }
 

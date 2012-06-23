@@ -22,6 +22,7 @@ const OptionInfoRec intel_options[] = {
 	{OPTION_THROTTLE,	"Throttle",	OPTV_BOOLEAN,	{0},	1},
 	{OPTION_ZAPHOD,	"ZaphodHeads",	OPTV_STRING,	{0},	0},
 	{OPTION_DELAYED_FLUSH,	"DelayedFlush",	OPTV_BOOLEAN,	{0},	1},
+	{OPTION_TEAR_FREE,	"TearFree",	OPTV_BOOLEAN,	{0},	1},
 #endif
 #ifdef USE_UXA
 	{OPTION_FALLBACKDEBUG,	"FallbackDebug",OPTV_BOOLEAN,	{0},	0},

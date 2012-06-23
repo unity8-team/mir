@@ -47,6 +47,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <xf86cmap.h>
 #include <xf86drm.h>
+#include <xf86RandR12.h>
 #include <micmap.h>
 #include <fb.h>
 
@@ -492,8 +493,6 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 	if (!xf86SetDefaultVisual(scrn, -1))
 		return FALSE;
 
-	sna->mode.cpp = scrn->bitsPerPixel / 8;
-
 	if (!sna_get_early_options(scrn))
 		return FALSE;
 
@@ -527,7 +526,10 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 		sna->flags |= SNA_NO_DELAYED_FLUSH;
 	if (!xf86ReturnOptValBool(sna->Options, OPTION_SWAPBUFFERS_WAIT, TRUE))
 		sna->flags |= SNA_NO_WAIT;
-	if (!has_pageflipping(sna))
+	if (has_pageflipping(sna)) {
+		if (xf86ReturnOptValBool(sna->Options, OPTION_TEAR_FREE, FALSE))
+			sna->flags |= SNA_TEAR_FREE;
+	} else
 		sna->flags |= SNA_NO_FLIP;
 
 	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Framebuffer %s\n",
@@ -540,6 +542,8 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 		   sna->flags & SNA_NO_THROTTLE ? "dis" : "en");
 	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Delayed flush %sabled\n",
 		   sna->flags & SNA_NO_DELAYED_FLUSH ? "dis" : "en");
+	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "\"Tear free\" %sabled\n",
+		   sna->flags & SNA_TEAR_FREE ? "en" : "dis");
 
 	if (!sna_mode_pre_init(scrn, sna)) {
 		PreInitCleanup(scrn);
@@ -608,7 +612,7 @@ sna_wakeup_handler(WAKEUPHANDLER_ARGS_DECL)
 	sna_accel_wakeup_handler(sna, read_mask);
 
 	if (FD_ISSET(sna->kgem.fd, (fd_set*)read_mask))
-		sna_dri_wakeup(sna);
+		sna_mode_wakeup(sna);
 }
 
 #if HAVE_UDEV
@@ -735,7 +739,6 @@ static void sna_leave_vt(VT_FUNC_ARGS_DECL)
 
 	xf86RotateFreeShadow(scrn);
 	xf86_hide_cursors(scrn);
-	sna_mode_remove_fb(sna);
 
 	ret = drmDropMaster(sna->kgem.fd);
 	if (ret)
@@ -747,7 +750,7 @@ static void sna_leave_vt(VT_FUNC_ARGS_DECL)
  * check that the fd is readable before attempting to read the next
  * event from drm.
  */
-static Bool sna_dri_has_pending_events(struct sna *sna)
+static Bool sna_mode_has_pending_events(struct sna *sna)
 {
 	struct pollfd pfd;
 	pfd.fd = sna->kgem.fd;
@@ -767,8 +770,8 @@ static Bool sna_close_screen(CLOSE_SCREEN_ARGS_DECL)
 #endif
 
 	/* drain the event queues */
-	if (sna_dri_has_pending_events(sna))
-		sna_dri_wakeup(sna);
+	if (sna_mode_has_pending_events(sna))
+		sna_mode_wakeup(sna);
 
 	if (scrn->vtSema == TRUE)
 		sna_leave_vt(VT_FUNC_ARGS(0));
@@ -788,7 +791,6 @@ static Bool sna_close_screen(CLOSE_SCREEN_ARGS_DECL)
 		sna->directRenderingOpen = FALSE;
 	}
 
-	sna_mode_remove_fb(sna);
 	if (sna->front) {
 		screen->DestroyPixmap(sna->front);
 		sna->front = NULL;
@@ -797,6 +799,20 @@ static Bool sna_close_screen(CLOSE_SCREEN_ARGS_DECL)
 
 	scrn->vtSema = FALSE;
 	return TRUE;
+}
+
+static void sna_mode_set(ScrnInfoPtr scrn)
+{
+	struct sna *sna = to_sna(scrn);
+
+	DBG(("%s\n", __FUNCTION__));
+
+	if (sna->ModeSet) {
+		scrn->ModeSet = sna->ModeSet;
+		scrn->ModeSet(scrn);
+		scrn->ModeSet = sna_mode_set;
+	}
+	sna_mode_update(sna);
 }
 
 static Bool
@@ -917,8 +933,16 @@ sna_screen_init(SCREEN_INIT_ARGS_DECL)
 	screen->CloseScreen = sna_close_screen;
 	screen->CreateScreenResources = sna_create_screen_resources;
 
+	sna->ModeSet = scrn->ModeSet;
+	scrn->ModeSet = sna_mode_set;
+
 	if (!xf86CrtcScreenInit(screen))
 		return FALSE;
+
+	xf86RandR12SetRotations(screen,
+				RR_Rotate_0 | RR_Rotate_90 | RR_Rotate_180 | RR_Rotate_270 |
+				RR_Reflect_X | RR_Reflect_Y);
+	xf86RandR12SetTransformSupport(screen, TRUE);
 
 	if (!miCreateDefColormap(screen))
 		return FALSE;

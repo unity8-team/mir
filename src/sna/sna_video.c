@@ -143,7 +143,6 @@ sna_video_clip_helper(ScrnInfoPtr scrn,
 	Bool ret;
 	RegionRec crtc_region_local;
 	RegionPtr crtc_region = reg;
-	BoxRec crtc_box;
 	INT32 x1, x2, y1, y2;
 	xf86CrtcPtr crtc;
 
@@ -161,11 +160,12 @@ sna_video_clip_helper(ScrnInfoPtr scrn,
 	 * For overlay video, compute the relevant CRTC and
 	 * clip video to that
 	 */
-	crtc = sna_covering_crtc(scrn, dst, video->desired_crtc, &crtc_box);
+	crtc = sna_covering_crtc(scrn, dst, video->desired_crtc);
 
 	/* For textured video, we don't actually want to clip at all. */
 	if (crtc && !video->textured) {
-		RegionInit(&crtc_region_local, &crtc_box, 0);
+		crtc_region_local.extents = crtc->bounds;
+		crtc_region_local.data = NULL;
 		crtc_region = &crtc_region_local;
 		RegionIntersect(crtc_region, crtc_region, reg);
 	}

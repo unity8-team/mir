@@ -46,6 +46,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "compiler.h"
 
 #include <xf86Crtc.h>
+#include <xf86str.h>
 #include <windowstr.h>
 #include <glyphstr.h>
 #include <picturestr.h>
@@ -58,6 +59,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "../compat-api.h"
 #define _XF86DRI_SERVER_
+#include <drm.h>
 #include <dri2.h>
 #include <i915_drm.h>
 
@@ -209,6 +211,7 @@ struct sna {
 #define SNA_NO_DELAYED_FLUSH	0x2
 #define SNA_NO_WAIT		0x4
 #define SNA_NO_FLIP		0x8
+#define SNA_TEAR_FREE		0x10
 
 	unsigned watch_flush;
 	unsigned flush;
@@ -226,14 +229,16 @@ struct sna {
 	struct list active_pixmaps;
 	struct list inactive_clock[2];
 
-	PixmapPtr front, shadow;
+	PixmapPtr front;
 	PixmapPtr freed_pixmap;
 
 	struct sna_mode {
-		uint32_t fb_id;
-		uint32_t fb_pixmap;
-		drmModeResPtr mode_res;
-		int cpp;
+		drmModeResPtr kmode;
+
+		int shadow_active;
+		DamagePtr shadow_damage;
+		struct kgem_bo *shadow;
+		int shadow_flip;
 
 		struct list outputs;
 		struct list crtcs;
@@ -256,6 +261,7 @@ struct sna {
 	ScreenBlockHandlerProcPtr BlockHandler;
 	ScreenWakeupHandlerProcPtr WakeupHandler;
 	CloseScreenProcPtr CloseScreen;
+	xf86ModeSetProc *ModeSet;
 
 	PicturePtr clear;
 	struct {
@@ -302,9 +308,10 @@ struct sna {
 
 Bool sna_mode_pre_init(ScrnInfoPtr scrn, struct sna *sna);
 void sna_mode_adjust_frame(struct sna *sna, int x, int y);
-extern void sna_mode_remove_fb(struct sna *sna);
 extern void sna_mode_update(struct sna *sna);
 extern void sna_mode_disable_unused(struct sna *sna);
+extern void sna_mode_wakeup(struct sna *sna);
+extern void sna_mode_redisplay(struct sna *sna);
 extern void sna_mode_fini(struct sna *sna);
 
 extern int sna_crtc_id(xf86CrtcPtr crtc);
@@ -356,17 +363,17 @@ to_sna_from_kgem(struct kgem *kgem)
 
 extern xf86CrtcPtr sna_covering_crtc(ScrnInfoPtr scrn,
 				     const BoxRec *box,
-				     xf86CrtcPtr desired,
-				     BoxPtr crtc_box_ret);
+				     xf86CrtcPtr desired);
 
 extern bool sna_wait_for_scanline(struct sna *sna, PixmapPtr pixmap,
 				  xf86CrtcPtr crtc, const BoxRec *clip);
 
 Bool sna_dri_open(struct sna *sna, ScreenPtr pScreen);
-void sna_dri_wakeup(struct sna *sna);
+void sna_dri_page_flip_handler(struct sna *sna, struct drm_event_vblank *event);
+void sna_dri_vblank_handler(struct sna *sna, struct drm_event_vblank *event);
 void sna_dri_close(struct sna *sna, ScreenPtr pScreen);
 
-extern Bool sna_crtc_on(xf86CrtcPtr crtc);
+extern bool sna_crtc_on(xf86CrtcPtr crtc);
 int sna_crtc_to_pipe(xf86CrtcPtr crtc);
 int sna_crtc_to_plane(xf86CrtcPtr crtc);
 
@@ -408,10 +415,12 @@ get_drawable_dy(DrawablePtr drawable)
 	return 0;
 }
 
-static inline Bool pixmap_is_scanout(PixmapPtr pixmap)
+bool sna_pixmap_attach_to_bo(PixmapPtr pixmap, struct kgem_bo *bo);
+static inline bool sna_pixmap_is_scanout(struct sna *sna, PixmapPtr pixmap)
 {
-	ScreenPtr screen = pixmap->drawable.pScreen;
-	return pixmap == screen->GetScreenPixmap(screen);
+	return (pixmap == sna->front &&
+		!sna->mode.shadow_active &&
+		(sna->flags & SNA_NO_WAIT) == 0);
 }
 
 PixmapPtr sna_pixmap_create_upload(ScreenPtr screen,
@@ -429,6 +438,7 @@ struct kgem_bo *sna_pixmap_change_tiling(PixmapPtr pixmap, uint32_t tiling);
 #define MOVE_INPLACE_HINT 0x4
 #define MOVE_ASYNC_HINT 0x8
 #define MOVE_SOURCE_HINT 0x10
+#define __MOVE_FORCE 0x20
 bool must_check _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned flags);
 static inline bool must_check sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned flags)
 {
