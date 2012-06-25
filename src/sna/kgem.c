@@ -217,7 +217,6 @@ retry_gtt:
 		if (kgem_expire_cache(kgem))
 			goto retry_gtt;
 
-		assert(0);
 		return NULL;
 	}
 
@@ -230,7 +229,6 @@ retry_mmap:
 		if (__kgem_throttle_retire(kgem, 0))
 			goto retry_mmap;
 
-		assert(0);
 		ptr = NULL;
 	}
 
@@ -295,7 +293,6 @@ static int gem_read(int fd, uint32_t handle, const void *dst,
 	ret = drmIoctl(fd, DRM_IOCTL_I915_GEM_PREAD, &pread);
 	if (ret) {
 		DBG(("%s: failed, errno=%d\n", __FUNCTION__, errno));
-		assert(0);
 		return ret;
 	}
 
@@ -3523,14 +3520,12 @@ struct kgem_bo *kgem_create_map(struct kgem *kgem,
 #else
 static uint32_t gem_vmap(int fd, void *ptr, int size, int read_only)
 {
-	assert(0);
 	return 0;
 }
 struct kgem_bo *kgem_create_map(struct kgem *kgem,
 				void *ptr, uint32_t size,
 				bool read_only)
 {
-	assert(0);
 	return 0;
 }
 #endif
