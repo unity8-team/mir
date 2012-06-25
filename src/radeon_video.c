@@ -179,7 +179,10 @@ radeon_pick_best_crtc(ScrnInfoPtr pScrn,
     best_coverage = 0;
 
     /* Prefer the CRTC of the primary output */
-    if (dixPrivateKeyRegistered(rrPrivKey)) {
+#ifdef HAS_DIXREGISTERPRIVATEKEY
+    if (dixPrivateKeyRegistered(rrPrivKey))
+#endif
+    {
 	primary_output = RRFirstOutput(pScrn->pScreen);
     }
     if (primary_output && primary_output->crtc)
