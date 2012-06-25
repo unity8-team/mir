@@ -65,7 +65,7 @@
 #define URB_CS_ENTRIES	      0
 
 #define URB_VS_ENTRY_SIZE     1
-#define URB_VS_ENTRIES	      128 /* minimum of 8 */
+#define URB_VS_ENTRIES	      256 /* minimum of 8 */
 
 #define URB_GS_ENTRY_SIZE     0
 #define URB_GS_ENTRIES	      0
@@ -74,7 +74,7 @@
 #define URB_CLIP_ENTRIES      0
 
 #define URB_SF_ENTRY_SIZE     2
-#define URB_SF_ENTRIES	      32
+#define URB_SF_ENTRIES	      64
 
 /*
  * this program computes dA/dx and dA/dy for the texture coordinates along
@@ -82,10 +82,10 @@
  */
 
 #define SF_KERNEL_NUM_GRF  16
-#define SF_MAX_THREADS	   2
+#define SF_MAX_THREADS	   48
 
 #define PS_KERNEL_NUM_GRF   32
-#define PS_MAX_THREADS	    48
+#define PS_MAX_THREADS	    72
 
 static const uint32_t sf_kernel[][4] = {
 #include "exa_sf.g5b"
