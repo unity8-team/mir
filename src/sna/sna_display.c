@@ -413,6 +413,29 @@ bool sna_crtc_is_bound(struct sna *sna, xf86CrtcPtr crtc)
 	return mode.mode_valid && fb_id(sna_crtc->bo) == mode.fb_id;
 }
 
+static void
+sna_crtc_force_outputs_on(xf86CrtcPtr crtc)
+{
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
+	int i;
+
+	/* DPMS handling by the kernel is inconsistent, so after setting a
+	 * mode on an output presume that we intend for it to be on, or that
+	 * the kernel will force it on.
+	 *
+	 * So force DPMS to be on for all connected outputs, and restore
+	 * the backlight.
+	 */
+	for (i = 0; i < xf86_config->num_output; i++) {
+		xf86OutputPtr output = xf86_config->output[i];
+
+		if (output->crtc != crtc)
+			continue;
+
+		output->funcs->dpms(output, DPMSModeOn);
+	}
+}
+
 static Bool
 sna_crtc_apply(xf86CrtcPtr crtc)
 {
@@ -478,14 +501,14 @@ sna_crtc_apply(xf86CrtcPtr crtc)
 	if (ret) {
 		xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
 			   "failed to set mode: %s\n", strerror(errno));
-		ret = FALSE;
-	} else
-		ret = TRUE;
+		return FALSE;
+	}
 
 	if (crtc->scrn->pScreen)
 		xf86_reload_cursors(crtc->scrn->pScreen);
 
-	return ret;
+	sna_crtc_force_outputs_on(crtc);
+	return TRUE;
 }
 
 static bool sna_mode_enable_shadow(struct sna *sna)
