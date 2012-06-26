@@ -1270,6 +1270,8 @@ gen4_emit_state_base_address(struct sna *sna)
 static void
 gen4_emit_invariant(struct sna *sna)
 {
+	assert(sna->kgem.surface == sna->kgem.batch_size);
+
 	if (sna->kgem.gen >= 45)
 		OUT_BATCH(NEW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
 	else

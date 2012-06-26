@@ -1155,6 +1155,7 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 
 	assert(list_is_empty(&bo->list));
 	assert(bo->refcnt == 0);
+	assert(!bo->purged);
 
 	bo->binding.offset = 0;
 	kgem_bo_clear_scanout(kgem, bo);
