@@ -41,7 +41,8 @@ static int dri2_open(Display *dpy)
 	return fd;
 }
 
-static void dri2_copy_swap(Display *dpy, Drawable d, int width, int height)
+static void dri2_copy_swap(Display *dpy, Drawable d,
+			   int width, int height, int has_front)
 {
 	XRectangle rect;
 	XserverRegion region;
@@ -53,6 +54,8 @@ static void dri2_copy_swap(Display *dpy, Drawable d, int width, int height)
 
 	region = XFixesCreateRegion(dpy, &rect, 1);
 	DRI2CopyRegion(dpy, d, region, DRI2BufferFrontLeft, DRI2BufferBackLeft);
+	if (has_front)
+		DRI2CopyRegion(dpy, d, region, DRI2BufferFakeFrontLeft, DRI2BufferFrontLeft);
 	XFixesDestroyRegion(dpy, region);
 }
 
@@ -114,7 +117,7 @@ static void run(Display *dpy, int width, int height,
 	xsync(dpy, win);
 	clock_gettime(CLOCK_MONOTONIC, &start);
 	for (count = 0; count < COUNT; count++)
-		dri2_copy_swap(dpy, win, width, height);
+		dri2_copy_swap(dpy, win, width, height, nattachments == 2);
 	xsync(dpy, win);
 	clock_gettime(CLOCK_MONOTONIC, &end);
 
@@ -164,7 +167,6 @@ int main(void)
 	height /= 2;
 	run(dpy, width, height, attachments, 1, "windowed");
 	run(dpy, width, height, attachments, 2, "windowed (with front)");
-
 
 	return 0;
 }
