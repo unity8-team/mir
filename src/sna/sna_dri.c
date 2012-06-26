@@ -229,7 +229,7 @@ sna_dri_create_buffer(DrawablePtr drawable,
 			}
 			FreeResourceByType(drawable->id,
 					   dri_drawable_type,
-					   TRUE);
+					   FALSE);
 		}
 
 		bo = sna_pixmap_set_dri(sna, pixmap);
@@ -332,8 +332,9 @@ sna_dri_create_buffer(DrawablePtr drawable,
 	if (pixmap)
 		pixmap->refcnt++;
 
-	if (attachment == DRI2BufferFrontLeft)
-		(void)AddResource(drawable->id, dri_drawable_type, buffer);
+	if (attachment == DRI2BufferFrontLeft &&
+	    AddResource(drawable->id, dri_drawable_type, buffer))
+		private->refcnt++;
 
 	return buffer;
 
@@ -843,6 +844,10 @@ static int
 sna_dri_drawable_gone(void *data, XID id)
 {
 	DBG(("%s(%ld)\n", __FUNCTION__, (long)id));
+
+	_sna_dri_destroy_buffer(to_sna_from_pixmap(get_private(data)->pixmap),
+				data);
+
 	return Success;
 }
 
