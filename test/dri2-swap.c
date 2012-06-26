@@ -73,14 +73,11 @@ static double elapsed(const struct timespec *start,
 }
 
 static void run(Display *dpy, int width, int height,
+		unsigned int *attachments, int nattachments,
 		const char *name)
 {
 	Window win;
 	XSetWindowAttributes attr;
-	unsigned int attachments[] = {
-		DRI2BufferFrontLeft,
-		DRI2BufferBackLeft,
-	};
 	int count;
 	DRI2Buffer *buffers;
 	struct timespec start, end;
@@ -100,10 +97,9 @@ static void run(Display *dpy, int width, int height,
 
 	DRI2CreateDrawable(dpy, win);
 
-	count = 2;
 	buffers = DRI2GetBuffers(dpy, win, &width, &height,
-				 attachments, count, &count);
-	if (count != 2)
+				 attachments, nattachments, &count);
+	if (count != nattachments)
 		return;
 
 	xsync(dpy, win);
@@ -146,6 +142,10 @@ int main(void)
 {
 	Display *dpy;
 	int width, height, fd;
+	unsigned int attachments[] = {
+		DRI2BufferBackLeft,
+		DRI2BufferFrontLeft,
+	};
 
 	dpy = XOpenDisplay (NULL);
 	if (dpy == NULL)
@@ -157,11 +157,13 @@ int main(void)
 
 	width = WidthOfScreen(DefaultScreenOfDisplay(dpy));
 	height = HeightOfScreen(DefaultScreenOfDisplay(dpy));
-	run(dpy, width, height, "fullscreen");
+	run(dpy, width, height, attachments, 1, "fullscreen");
+	run(dpy, width, height, attachments, 2, "fullscreen (with front)");
 
 	width /= 2;
 	height /= 2;
-	run(dpy, width, height, "windowed");
+	run(dpy, width, height, attachments, 1, "windowed");
+	run(dpy, width, height, attachments, 2, "windowed (with front)");
 
 
 	return 0;
