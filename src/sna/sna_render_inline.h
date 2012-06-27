@@ -89,7 +89,7 @@ is_cpu(DrawablePtr drawable)
 		return true;
 
 	assert(!priv->gpu_bo->proxy); /* should be marked as cpu damaged */
-	if (priv->gpu_damage && kgem_bo_is_busy(priv->gpu_bo));
+	if (priv->gpu_damage && kgem_bo_is_busy(priv->gpu_bo))
 		return false;
 
 	if (priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo))
