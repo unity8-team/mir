@@ -1250,7 +1250,7 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
 	} else
 	    tiling_flags |= RADEON_TILING_MACRO;
     }
-    pitch = RADEON_ALIGN(pScrn->displayWidth, drmmode_get_pitch_align(pScrn, cpp, tiling_flags)) * cpp;
+    pitch = RADEON_ALIGN(pScrn->virtualX, drmmode_get_pitch_align(pScrn, cpp, tiling_flags)) * cpp;
     screen_size = RADEON_ALIGN(pScrn->virtualY, drmmode_get_height_align(pScrn, tiling_flags)) * pitch;
     base_align = drmmode_get_base_align(pScrn, cpp, tiling_flags);
 	if (info->ChipFamily >= CHIP_FAMILY_R600) {
@@ -1260,7 +1260,7 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
 			return FALSE;
 		}
 		memset(&surface, 0, sizeof(struct radeon_surface));
-		surface.npix_x = pScrn->displayWidth;
+		surface.npix_x = pScrn->virtualX;
 		surface.npix_y = pScrn->virtualY;
 		surface.npix_z = 1;
 		surface.blk_w = 1;
@@ -1364,6 +1364,8 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
 	if (tiling_flags)
             radeon_bo_set_tiling(info->front_bo, tiling_flags, pitch);
     }
+
+    info->CurrentLayout.displayWidth = pScrn->displayWidth = pitch / cpp;
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Front buffer size: %dK\n", info->front_bo->size/1024);
     radeon_kms_update_vram_limit(pScrn, screen_size);
