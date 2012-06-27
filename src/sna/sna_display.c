@@ -978,7 +978,7 @@ sna_crtc_damage(xf86CrtcPtr crtc)
 		region.extents.y1 = 0;
 	if (region.extents.x2 > screen->width)
 		region.extents.x2 = screen->width;
-	if (region.extents.y2 > screen->width)
+	if (region.extents.y2 > screen->height)
 		region.extents.y2 = screen->height;
 
 	DBG(("%s: marking crtc %d as completely damaged (%d, %d), (%d, %d)\n",
