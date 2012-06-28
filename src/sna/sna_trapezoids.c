@@ -3175,6 +3175,9 @@ composite_unaligned_boxes_inplace__solid(CARD8 op, uint32_t color,
 	PixmapPtr pixmap;
 	int16_t dx, dy;
 
+	DBG(("%s: force=%d, is_gpu=%d, op=%d, color=%x\n", __FUNCTION__,
+	     force_fallback, is_gpu(dst->pDrawable), op, color));
+
 	if (!force_fallback && is_gpu(dst->pDrawable)) {
 		DBG(("%s: fallback -- can not perform operation in place, destination busy\n",
 		     __FUNCTION__));
@@ -3183,7 +3186,7 @@ composite_unaligned_boxes_inplace__solid(CARD8 op, uint32_t color,
 	}
 
 	/* XXX a8 boxes */
-	if (dst->format == PICT_a8r8g8b8 || dst->format == PICT_x8r8g8b8) {
+	if (!(dst->format == PICT_a8r8g8b8 || dst->format == PICT_x8r8g8b8)) {
 		DBG(("%s: fallback -- can not perform operation in place, unhanbled format %08lx\n",
 		     __FUNCTION__, dst->format));
 		goto pixman;
@@ -3209,6 +3212,7 @@ composite_unaligned_boxes_inplace__solid(CARD8 op, uint32_t color,
 		goto pixman;
 	}
 
+	DBG(("%s: inplace operation on argb32 destination\n", __FUNCTION__));
 	do {
 		RegionRec clip;
 		BoxPtr extents;
@@ -3419,6 +3423,8 @@ composite_unaligned_boxes_inplace(CARD8 op,
 		DBG(("%s: fallback -- not forcing\n", __FUNCTION__));
 		return false;
 	}
+
+	DBG(("%s\n", __FUNCTION__));
 
 	src_x -= pixman_fixed_to_int(t[0].left.p1.x);
 	src_y -= pixman_fixed_to_int(t[0].left.p1.y);
@@ -3649,7 +3655,8 @@ composite_unaligned_boxes(struct sna *sna,
 	if (NO_UNALIGNED_BOXES)
 		return false;
 
-	DBG(("%s\n", __FUNCTION__));
+	DBG(("%s: force_fallback=%d, mask=%x, n=%d\n",
+	     __FUNCTION__, force_fallback, maskFormat ? (int)maskFormat->format : 0, ntrap));
 
 	/* need a span converter to handle overlapping traps */
 	if (ntrap > 1 && maskFormat)
@@ -5330,7 +5337,7 @@ sna_composite_trapezoids(CARD8 op,
 		goto fallback;
 	}
 
-	force_fallback = FORCE_FALLBACK;
+	force_fallback = FORCE_FALLBACK > 0;
 	if ((too_small(priv) || DAMAGE_IS_ALL(priv->cpu_damage)) &&
 	    !picture_is_gpu(src)) {
 		DBG(("%s: force fallbacks -- dst is too small, %dx%d\n",
@@ -5339,6 +5346,8 @@ sna_composite_trapezoids(CARD8 op,
 		     dst->pDrawable->height));
 		force_fallback = true;
 	}
+	if (FORCE_FALLBACK < 0)
+		force_fallback = false;
 
 	/* scan through for fast rectangles */
 	rectilinear = pixel_aligned = true;
