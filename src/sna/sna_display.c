@@ -488,11 +488,12 @@ sna_crtc_apply(xf86CrtcPtr crtc)
 		   sna_crtc->kmode.vdisplay,
 		   sna_crtc->id, sna_crtc->pipe);
 
-	DBG(("%s: applying crtc [%d] mode=%dx%d@%d, fb=%d%s update to %d outputs\n",
+	DBG(("%s: applying crtc [%d] mode=%dx%d+%d+%d@%d, fb=%d%s update to %d outputs\n",
 	     __FUNCTION__, sna_crtc->id,
-	     sna_crtc->kmode.hdisplay,
-	     sna_crtc->kmode.vdisplay,
-	     sna_crtc->kmode.clock,
+	     arg.mode.hdisplay,
+	     arg.mode.vdisplay,
+	     arg.x, arg.y,
+	     arg.mode.clock,
 	     arg.fb_id,
 	     sna_crtc->shadow ? " [shadow]" : "",
 	     output_count));
@@ -593,10 +594,8 @@ sna_crtc_disable(xf86CrtcPtr crtc)
 
 	DBG(("%s: disabling crtc [%d]\n", __FUNCTION__, sna_crtc->id));
 
-	VG_CLEAR(arg);
+	memset(&arg, 0, sizeof(arg));
 	arg.crtc_id = sna_crtc->id;
-	arg.fb_id = 0;
-	arg.mode_valid = 0;
 	(void)drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_SETCRTC, &arg);
 
 	sna_crtc_disable_shadow(sna, sna_crtc);
