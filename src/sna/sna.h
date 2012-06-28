@@ -234,6 +234,7 @@ struct sna {
 
 	struct sna_mode {
 		drmModeResPtr kmode;
+		int max_tile_offset;
 
 		int shadow_active;
 		DamagePtr shadow_damage;

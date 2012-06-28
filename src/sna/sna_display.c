@@ -790,6 +790,14 @@ static bool use_shadow(struct sna *sna, xf86CrtcPtr crtc)
 		return true;
 	}
 
+	if (crtc->x >= sna->mode.max_tile_offset ||
+	    crtc->y >= sna->mode.max_tile_offset) {
+		DBG(("%s: offset too large (%d, %d) >= %d\n",
+		    __FUNCTION__,
+		    crtc->x, crtc->y, sna->mode.max_tile_offset));
+		return true;
+	}
+
 	transform = NULL;
 	if (crtc->transformPresent)
 		transform = &crtc->transform;
@@ -2201,6 +2209,7 @@ Bool sna_mode_pre_init(ScrnInfoPtr scrn, struct sna *sna)
 			   "failed to get resources: %s\n", strerror(errno));
 		return FALSE;
 	}
+	mode->max_tile_offset = 4096;
 
 	set_size_range(sna);
 
