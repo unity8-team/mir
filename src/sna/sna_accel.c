@@ -12347,8 +12347,10 @@ static bool need_flush(struct sna *sna, struct sna_pixmap *scanout)
 	if (!scanout)
 		return false;
 
-	return (scanout->cpu_damage || scanout->gpu_bo->exec) &&
-		!__kgem_flush(&sna->kgem, scanout->gpu_bo);
+	if (scanout->cpu_damage || scanout->gpu_bo->exec)
+		return true;
+
+	return __kgem_flush(&sna->kgem, scanout->gpu_bo);
 }
 
 static bool sna_accel_do_flush(struct sna *sna)
