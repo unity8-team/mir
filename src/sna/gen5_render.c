@@ -2192,7 +2192,7 @@ untransformed(PicturePtr p)
 static bool
 need_upload(PicturePtr p)
 {
-	return p->pDrawable && unattached(p->pDrawable) && untransformed(p);
+	return p->pDrawable && untransformed(p) && is_cpu(p->pDrawable);
 }
 
 static bool
@@ -2304,7 +2304,7 @@ gen5_composite_fallback(struct sna *sna,
 		return TRUE;
 	}
 
-	if (mask && mask_fallback) {
+	if (mask_fallback) {
 		DBG(("%s: dst is on the CPU and mask will fallback\n",
 		     __FUNCTION__));
 		return TRUE;
@@ -2422,7 +2422,7 @@ gen5_render_composite(struct sna *sna,
 		return FALSE;
 	}
 
-	if (mask == NULL && sna->kgem.mode == KGEM_BLT  &&
+	if (mask == NULL && sna->kgem.mode == KGEM_BLT &&
 	    sna_blt_composite(sna, op,
 			      src, dst,
 			      src_x, src_y,

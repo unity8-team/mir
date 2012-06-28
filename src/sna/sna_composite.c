@@ -526,7 +526,6 @@ sna_composite(CARD8 op,
 			pixman_region_translate(&region, -x, -y);
 	}
 
-	memset(&tmp, 0, sizeof(tmp));
 	if (!sna->render.composite(sna,
 				   op, src, mask, dst,
 				   src_x + dx,  src_y + dy,
@@ -535,7 +534,7 @@ sna_composite(CARD8 op,
 				   region.extents.y1,
 				   region.extents.x2 - region.extents.x1,
 				   region.extents.y2 - region.extents.y1,
-				   &tmp)) {
+				   memset(&tmp, 0, sizeof(tmp)))) {
 		DBG(("%s: fallback due unhandled composite op\n", __FUNCTION__));
 		goto fallback;
 	}
