@@ -3029,6 +3029,8 @@ bool __kgem_flush(struct kgem *kgem, struct kgem_bo *bo)
 		return false;
 
 	bo->needs_flush = kgem_busy(kgem, bo->handle);
+	DBG(("%s: handle=%d, busy?=%d\n",
+	     __FUNCTION__, bo->handle, bo->needs_flush));
 	return bo->needs_flush;
 }
 

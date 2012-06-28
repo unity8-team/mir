@@ -12333,7 +12333,7 @@ static bool has_shadow(struct sna *sna)
 
 static bool need_flush(struct sna *sna, struct sna_pixmap *scanout)
 {
-	DBG(("%s: scanout=%d shadow?=%d || (cpu?=%d || gpu?=%d) && !busy=%d)\n",
+	DBG(("%s: scanout=%d shadow?=%d, (cpu?=%d || gpu?=%d), busy=%d)\n",
 	     __FUNCTION__,
 	     scanout && scanout->gpu_bo ? scanout->gpu_bo->handle : 0,
 	     has_shadow(sna),
