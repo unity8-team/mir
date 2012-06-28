@@ -2758,8 +2758,10 @@ void sna_mode_redisplay(struct sna *sna)
 		damage.extents = crtc->bounds;
 		damage.data = NULL;
 		RegionIntersect(&damage, &damage, region);
-		if (RegionNotEmpty(&damage))
+		if (RegionNotEmpty(&damage)) {
 			sna_crtc_redisplay(crtc, &damage);
+			__kgem_flush(&sna->kgem, sna_crtc->bo);
+		}
 		RegionUninit(&damage);
 	}
 
