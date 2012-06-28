@@ -2700,8 +2700,8 @@ sna_crtc_redisplay(xf86CrtcPtr crtc, RegionPtr region)
 		 */
 
 		if (sna->render.copy_boxes(sna, GXcopy,
-					   sna->front, sna_pixmap_get_bo(sna->front), tx, ty,
-					   &tmp, sna_crtc->bo, 0, 0,
+					   sna->front, sna_pixmap_get_bo(sna->front), 0, 0,
+					   &tmp, sna_crtc->bo, -tx, -ty,
 					   REGION_RECTS(region), REGION_NUM_RECTS(region)))
 			return;
 	}
