@@ -1453,7 +1453,7 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
             radeon_bo_set_tiling(info->front_bo, tiling_flags, pitch);
     }
 
-    info->CurrentLayout.displayWidth = pScrn->displayWidth = pitch / cpp;
+    pScrn->displayWidth = pitch / cpp;
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Front buffer size: %dK\n", info->front_bo->size/1024);
     radeon_kms_update_vram_limit(pScrn, screen_size);
