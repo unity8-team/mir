@@ -3582,7 +3582,7 @@ composite_unaligned_boxes_fallback(CARD8 op,
 			scratch = sna_pixmap_create_upload(screen,
 							   extents.x2 - extents.x1,
 							   extents.y2 - extents.y1,
-							   8, KGEM_BUFFER_WRITE);
+							   8, KGEM_BUFFER_WRITE_INPLACE);
 		if (!scratch)
 			continue;
 
