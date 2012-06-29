@@ -12812,12 +12812,21 @@ void sna_accel_block_handler(struct sna *sna, struct timeval **tv)
 
 	if (sna_accel_do_flush(sna))
 		sna_accel_flush(sna);
+	assert(sna->flags & SNA_NO_DELAYED_FLUSH ||
+	       sna_accel_scanout(sna) == NULL ||
+	       sna_accel_scanout(sna)->gpu_bo->exec == NULL ||
+	       sna->timer_active & (1<<(FLUSH_TIMER)));
 
 	if (sna_accel_do_throttle(sna))
 		sna_accel_throttle(sna);
+	assert(sna->flags & SNA_NO_THROTTLE ||
+	       !sna->kgem.need_retire ||
+	       sna->timer_active & (1<<(THROTTLE_TIMER)));
 
 	if (sna_accel_do_expire(sna))
 		sna_accel_expire(sna);
+	assert(!sna->kgem.need_expire ||
+	       sna->timer_active & (1<<(EXPIRE_TIMER)));
 
 	if (sna_accel_do_inactive(sna))
 		sna_accel_inactive(sna);
