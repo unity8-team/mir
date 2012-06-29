@@ -451,18 +451,18 @@ sna_dri_copy_to_front(struct sna *sna, DrawablePtr draw, RegionPtr region,
 	struct kgem_bo *bo = NULL;
 	bool flush = false;
 	xf86CrtcPtr crtc;
-	BoxRec box, *boxes;
+	BoxRec *boxes;
 	int16_t dx, dy;
 	int n;
 
-	box.x1 = draw->x;
-	box.y1 = draw->y;
-	box.x2 = draw->x + draw->width;
-	box.y2 = draw->y + draw->height;
+	clip.extents.x1 = draw->x;
+	clip.extents.y1 = draw->y;
+	clip.extents.x2 = draw->x + draw->width;
+	clip.extents.y2 = draw->y + draw->height;
+	clip.data = NULL;
 
 	if (region) {
 		pixman_region_translate(region, draw->x, draw->y);
-		pixman_region_init_rects(&clip, &box, 1);
 		pixman_region_intersect(&clip, &clip, region);
 		region = &clip;
 
@@ -476,28 +476,32 @@ sna_dri_copy_to_front(struct sna *sna, DrawablePtr draw, RegionPtr region,
 	if (draw->type != DRAWABLE_PIXMAP) {
 		WindowPtr win = (WindowPtr)draw;
 
-		DBG(("%s: draw=(%d, %d), delta=(%d, %d), clip.extents=(%d, %d), (%d, %d)\n",
-		     __FUNCTION__, draw->x, draw->y,
-		     get_drawable_dx(draw), get_drawable_dy(draw),
-		     win->clipList.extents.x1, win->clipList.extents.y1,
-		     win->clipList.extents.x2, win->clipList.extents.y2));
+		if (win->clipList.data ||
+		    win->clipList.extents.x2 - win->clipList.extents.x1 != draw->width ||
+		    win->clipList.extents.y2 - win->clipList.extents.y1 != draw->height) {
+			DBG(("%s: draw=(%d, %d), delta=(%d, %d), clip.extents=(%d, %d), (%d, %d)\n",
+			     __FUNCTION__, draw->x, draw->y,
+			     get_drawable_dx(draw), get_drawable_dy(draw),
+			     win->clipList.extents.x1, win->clipList.extents.y1,
+			     win->clipList.extents.x2, win->clipList.extents.y2));
 
-		if (region == NULL) {
-			pixman_region_init_rects(&clip, &box, 1);
+			if (region == NULL)
+				region = &clip;
+
+			pixman_region_intersect(&clip, &win->clipList, region);
+			if (!pixman_region_not_empty(&clip)) {
+				DBG(("%s: all clipped\n", __FUNCTION__));
+				return NULL;
+			}
+
 			region = &clip;
 		}
 
-		pixman_region_intersect(region, &win->clipList, region);
-		if (!pixman_region_not_empty(region)) {
-			DBG(("%s: all clipped\n", __FUNCTION__));
-			return NULL;
-		}
-
 		if (sync && sna_pixmap_is_scanout(sna, pixmap)) {
-			crtc = sna_covering_crtc(sna->scrn, &region->extents, NULL);
+			crtc = sna_covering_crtc(sna->scrn, &clip.extents, NULL);
 			if (crtc)
 				flush = sna_wait_for_scanline(sna, pixmap, crtc,
-							      &region->extents);
+							      &clip.extents);
 		}
 
 		get_drawable_deltas(draw, pixmap, &dx, &dy);
@@ -525,9 +529,8 @@ sna_dri_copy_to_front(struct sna *sna, DrawablePtr draw, RegionPtr region,
 		n = REGION_NUM_RECTS(region);
 		assert(n);
 	} else {
-		pixman_region_init_rects(&clip, &box, 1);
 		region = &clip;
-		boxes = &box;
+		boxes = &clip.extents;
 		n = 1;
 	}
 	sna->render.copy_boxes(sna, GXcopy,
@@ -546,7 +549,7 @@ sna_dri_copy_to_front(struct sna *sna, DrawablePtr draw, RegionPtr region,
 	DamageRegionAppend(&pixmap->drawable, region);
 	DamageRegionProcessPending(&pixmap->drawable);
 
-	if (region == &clip)
+	if (clip.data)
 		pixman_region_fini(&clip);
 
 	return bo;
