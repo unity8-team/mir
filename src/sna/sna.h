@@ -216,7 +216,6 @@ struct sna {
 	unsigned watch_flush;
 	unsigned flush;
 
-	uint32_t time;
 	OsTimerPtr timer;
 	uint32_t timer_expire[NUM_TIMERS];
 	uint16_t timer_active;

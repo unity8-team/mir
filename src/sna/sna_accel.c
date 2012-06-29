@@ -12308,9 +12308,10 @@ static struct sna_pixmap *sna_accel_scanout(struct sna *sna)
 	return priv && priv->gpu_bo ? priv : NULL;
 }
 
+#define TIME currentTime.milliseconds
 static void sna_accel_disarm_timer(struct sna *sna, int id)
 {
-	DBG(("%s[%d] (time=%ld)\n", __FUNCTION__, id, (long)sna->time));
+	DBG(("%s[%d] (time=%ld)\n", __FUNCTION__, id, (long)TIME));
 	sna->timer_active &= ~(1<<id);
 	sna->timer_ready &= ~(1<<id);
 }
@@ -12370,9 +12371,9 @@ static bool sna_accel_do_flush(struct sna *sna)
 	if (sna->timer_active & (1<<(FLUSH_TIMER))) {
 		DBG(("%s: flush timer active\n", __FUNCTION__));
 		if (sna->timer_ready & (1<<(FLUSH_TIMER))) {
-			DBG(("%s (time=%ld), triggered\n", __FUNCTION__, (long)sna->time));
+			DBG(("%s (time=%ld), triggered\n", __FUNCTION__, (long)TIME));
 			sna->timer_expire[FLUSH_TIMER] =
-				sna->time + sna->vblank_interval;
+				TIME + sna->vblank_interval;
 			return true;
 		}
 	} else {
@@ -12382,8 +12383,8 @@ static bool sna_accel_do_flush(struct sna *sna)
 			sna->timer_active |= 1 << FLUSH_TIMER;
 			sna->timer_ready |= 1 << FLUSH_TIMER;
 			sna->timer_expire[FLUSH_TIMER] =
-				sna->time + sna->vblank_interval / 2;
-			DBG(("%s (time=%ld), starting\n", __FUNCTION__, (long)sna->time));
+				TIME + sna->vblank_interval / 2;
+			DBG(("%s (time=%ld), starting\n", __FUNCTION__, (long)TIME));
 		}
 	}
 
@@ -12397,18 +12398,18 @@ static bool sna_accel_do_throttle(struct sna *sna)
 
 	if (sna->timer_active & (1<<(THROTTLE_TIMER))) {
 		if (sna->timer_ready & (1<<(THROTTLE_TIMER))) {
-			DBG(("%s (time=%ld), triggered\n", __FUNCTION__, (long)sna->time));
-			sna->timer_expire[THROTTLE_TIMER] = sna->time + 20;
+			DBG(("%s (time=%ld), triggered\n", __FUNCTION__, (long)TIME));
+			sna->timer_expire[THROTTLE_TIMER] = TIME + 20;
 			return true;
 		}
 	} else {
 		if (!sna->kgem.need_retire) {
 			DBG(("%s -- no pending activity\n", __FUNCTION__));
 		} else {
-			DBG(("%s (time=%ld), starting\n", __FUNCTION__, (long)sna->time));
+			DBG(("%s (time=%ld), starting\n", __FUNCTION__, (long)TIME));
 			sna->timer_active |= 1 << THROTTLE_TIMER;
 			sna->timer_ready |= 1 << THROTTLE_TIMER;
-			sna->timer_expire[THROTTLE_TIMER] = sna->time + 20;
+			sna->timer_expire[THROTTLE_TIMER] = TIME + 20;
 		}
 	}
 
@@ -12419,9 +12420,9 @@ static bool sna_accel_do_expire(struct sna *sna)
 {
 	if (sna->timer_active & (1<<(EXPIRE_TIMER))) {
 		if (sna->timer_ready & (1<<(EXPIRE_TIMER))) {
-			DBG(("%s (time=%ld), triggered\n", __FUNCTION__, (long)sna->time));
+			DBG(("%s (time=%ld), triggered\n", __FUNCTION__, (long)TIME));
 			sna->timer_expire[EXPIRE_TIMER] =
-				sna->time + MAX_INACTIVE_TIME * 1000;
+				TIME + MAX_INACTIVE_TIME * 1000;
 			return true;
 		}
 	} else {
@@ -12429,8 +12430,8 @@ static bool sna_accel_do_expire(struct sna *sna)
 			sna->timer_active |= 1 << EXPIRE_TIMER;
 			sna->timer_ready |= 1 << EXPIRE_TIMER;
 			sna->timer_expire[EXPIRE_TIMER] =
-				sna->time + MAX_INACTIVE_TIME * 1000;
-			DBG(("%s (time=%ld), starting\n", __FUNCTION__, (long)sna->time));
+				TIME + MAX_INACTIVE_TIME * 1000;
+			DBG(("%s (time=%ld), starting\n", __FUNCTION__, (long)TIME));
 		}
 	}
 
@@ -12442,8 +12443,8 @@ static bool sna_accel_do_inactive(struct sna *sna)
 	if (sna->timer_active & (1<<(INACTIVE_TIMER))) {
 		if (sna->timer_ready & (1<<(INACTIVE_TIMER))) {
 			sna->timer_expire[INACTIVE_TIMER] =
-				sna->time + 120 * 1000;
-			DBG(("%s (time=%ld), triggered\n", __FUNCTION__, (long)sna->time));
+				TIME + 120 * 1000;
+			DBG(("%s (time=%ld), triggered\n", __FUNCTION__, (long)TIME));
 			return true;
 		}
 	} else {
@@ -12451,8 +12452,8 @@ static bool sna_accel_do_inactive(struct sna *sna)
 			sna->timer_active |= 1 << INACTIVE_TIMER;
 			sna->timer_ready |= 1 << INACTIVE_TIMER;
 			sna->timer_expire[INACTIVE_TIMER] =
-				sna->time + 120 * 1000;
-			DBG(("%s (time=%ld), starting\n", __FUNCTION__, (long)sna->time));
+				TIME + 120 * 1000;
+			DBG(("%s (time=%ld), starting\n", __FUNCTION__, (long)TIME));
 		}
 	}
 
@@ -12495,7 +12496,7 @@ static void sna_accel_flush(struct sna *sna)
 	bool busy;
 
 	DBG(("%s (time=%ld), cpu damage? %p, exec? %d nbatch=%d, busy? %d\n",
-	     __FUNCTION__, (long)sna->time,
+	     __FUNCTION__, (long)TIME,
 	     priv && priv->cpu_damage,
 	     priv && priv->gpu_bo->exec != NULL,
 	     sna->kgem.nbatch,
@@ -12516,7 +12517,7 @@ static void sna_accel_flush(struct sna *sna)
 
 static void sna_accel_throttle(struct sna *sna)
 {
-	DBG(("%s (time=%ld)\n", __FUNCTION__, (long)sna->time));
+	DBG(("%s (time=%ld)\n", __FUNCTION__, (long)TIME));
 
 	if (sna->kgem.need_throttle)
 		kgem_throttle(&sna->kgem);
@@ -12527,7 +12528,7 @@ static void sna_accel_throttle(struct sna *sna)
 
 static void sna_accel_expire(struct sna *sna)
 {
-	DBG(("%s (time=%ld)\n", __FUNCTION__, (long)sna->time));
+	DBG(("%s (time=%ld)\n", __FUNCTION__, (long)TIME));
 
 	if (!kgem_expire_cache(&sna->kgem))
 		sna_accel_disarm_timer(sna, EXPIRE_TIMER);
@@ -12538,7 +12539,7 @@ static void sna_accel_inactive(struct sna *sna)
 	struct sna_pixmap *priv;
 	struct list preserve;
 
-	DBG(("%s (time=%ld)\n", __FUNCTION__, (long)sna->time));
+	DBG(("%s (time=%ld)\n", __FUNCTION__, (long)TIME));
 
 #if DEBUG_ACCEL
 	{
@@ -12633,10 +12634,10 @@ static void sna_accel_inactive(struct sna *sna)
 #ifdef DEBUG_MEMORY
 static bool sna_accel_do_debug_memory(struct sna *sna)
 {
-	int32_t delta = sna->timer_expire[DEBUG_MEMORY_TIMER] - sna->time;
+	int32_t delta = sna->timer_expire[DEBUG_MEMORY_TIMER] - TIME;
 
 	if (delta <= 3) {
-		sna->timer_expire[DEBUG_MEMORY_TIMER] = sna->time + 10 * 1000;
+		sna->timer_expire[DEBUG_MEMORY_TIMER] = TIME + 10 * 1000;
 		return true;
 	} else
 		return false;
@@ -12806,8 +12807,6 @@ void sna_accel_close(struct sna *sna)
 
 void sna_accel_block_handler(struct sna *sna, struct timeval **tv)
 {
-	sna->time = GetTimeInMillis();
-
 	sna_accel_wakeup_handler(sna, NULL);
 
 	if (sna_accel_do_flush(sna))
@@ -12846,7 +12845,7 @@ void sna_accel_block_handler(struct sna *sna, struct timeval **tv)
 		DBG(("%s: evaluating timers, ready=%x\n",
 		     __FUNCTION__, sna->timer_ready));
 		sna->timer_ready = 0;
-		timeout = sna_timeout(sna->timer, sna->time, sna);
+		timeout = sna_timeout(sna->timer, TIME, sna);
 		TimerSet(sna->timer, 0, timeout, sna_timeout, sna);
 		if (timeout) {
 			if (*tv == NULL) {
