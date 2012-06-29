@@ -261,7 +261,6 @@ struct sna {
 	ScreenBlockHandlerProcPtr BlockHandler;
 	ScreenWakeupHandlerProcPtr WakeupHandler;
 	CloseScreenProcPtr CloseScreen;
-	xf86ModeSetProc *ModeSet;
 
 	PicturePtr clear;
 	struct {

@@ -806,12 +806,6 @@ static void sna_mode_set(ScrnInfoPtr scrn)
 	struct sna *sna = to_sna(scrn);
 
 	DBG(("%s\n", __FUNCTION__));
-
-	if (sna->ModeSet) {
-		scrn->ModeSet = sna->ModeSet;
-		scrn->ModeSet(scrn);
-		scrn->ModeSet = sna_mode_set;
-	}
 	sna_mode_update(sna);
 }
 
@@ -932,9 +926,6 @@ sna_screen_init(SCREEN_INIT_ARGS_DECL)
 	sna->CloseScreen = screen->CloseScreen;
 	screen->CloseScreen = sna_close_screen;
 	screen->CreateScreenResources = sna_create_screen_resources;
-
-	sna->ModeSet = scrn->ModeSet;
-	scrn->ModeSet = sna_mode_set;
 
 	if (!xf86CrtcScreenInit(screen))
 		return FALSE;
@@ -1136,6 +1127,8 @@ Bool sna_init_scrn(ScrnInfoPtr scrn, int entity_num)
 	scrn->FreeScreen = sna_free_screen;
 	scrn->ValidMode = sna_valid_mode;
 	scrn->PMEvent = sna_pm_event;
+
+	scrn->ModeSet = sna_mode_set;
 
 	xf86SetEntitySharable(scrn->entityList[0]);
 
