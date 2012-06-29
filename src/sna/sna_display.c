@@ -2825,11 +2825,14 @@ disable:
 		/* XXX only works if the kernel stalls fwrites to the current
 		 * scanout whilst the flip is pending
 		 */
+		while (sna->mode.shadow_flip)
+			sna_mode_wakeup(sna);
 		(void)sna->render.copy_boxes(sna, GXcopy,
 					     sna->front, new, 0, 0,
 					     sna->front, old, 0, 0,
 					     REGION_RECTS(region),
 					     REGION_NUM_RECTS(region));
+		kgem_submit(&sna->kgem);
 
 		sna_pixmap(sna->front)->gpu_bo = old;
 		sna->mode.shadow = new;
