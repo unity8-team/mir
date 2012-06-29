@@ -397,21 +397,16 @@ static void damage(PixmapPtr pixmap, RegionPtr region)
 
 	if (region == NULL) {
 damage_all:
-		sna_damage_all(&priv->gpu_damage,
-			       pixmap->drawable.width,
-			       pixmap->drawable.height);
+		priv->gpu_damage = _sna_damage_all(priv->gpu_damage,
+						   pixmap->drawable.width,
+						   pixmap->drawable.height);
 		sna_damage_destroy(&priv->cpu_damage);
 		priv->undamaged = false;
 	} else {
-		BoxPtr box = RegionExtents(region);
-		if (region->data == NULL &&
-		    box->x1 <= 0 && box->y1 <= 0 &&
-		    box->x2 >= pixmap->drawable.width &&
-		    box->y2 >= pixmap->drawable.height)
-			goto damage_all;
-
-		sna_damage_add(&priv->gpu_damage, region);
 		sna_damage_subtract(&priv->cpu_damage, region);
+		if (priv->cpu_damage == NULL)
+			goto damage_all;
+		sna_damage_add(&priv->gpu_damage, region);
 	}
 }
 
