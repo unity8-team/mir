@@ -2940,7 +2940,7 @@ blt_unaligned_box_row(PixmapPtr scratch,
 	} else {
 		if (pixman_fixed_frac(trap->left.p1.x)) {
 			blt_opacity(scratch,
-				    x1, x1,
+				    x1, x1 + 1,
 				    y1, y2,
 				    covered * (SAMPLES_X - grid_coverage(SAMPLES_X, trap->left.p1.x)));
 			x1++;
