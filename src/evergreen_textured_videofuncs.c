@@ -28,8 +28,6 @@
 #include "config.h"
 #endif
 
-#ifdef XF86DRM_MODE
-
 #include "xf86.h"
 
 #include "exa.h"
@@ -154,8 +152,6 @@ EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     CLEAR (vs_const_conf);
     CLEAR (ps_const_conf);
 
-    dst_obj.offset = 0;
-    src_obj.offset = 0;
     dst_obj.bo = radeon_get_pixmap_bo(pPixmap);
     dst_obj.tiling_flags = radeon_get_pixmap_tiling(pPixmap);
     dst_obj.surface = radeon_get_pixmap_surface(pPixmap);
@@ -245,8 +241,8 @@ EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	tex_res.pitch               = accel_state->src_obj[0].pitch;
 	tex_res.depth               = 0;
 	tex_res.dim                 = SQ_TEX_DIM_2D;
-	tex_res.base                = accel_state->src_obj[0].offset;
-	tex_res.mip_base            = accel_state->src_obj[0].offset;
+	tex_res.base                = 0;
+	tex_res.mip_base            = 0;
 	tex_res.size                = accel_state->src_size[0];
 	tex_res.bo                  = accel_state->src_obj[0].bo;
 	tex_res.mip_bo              = accel_state->src_obj[0].bo;
@@ -292,8 +288,8 @@ EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	tex_res.dst_sel_w           = SQ_SEL_1;
 	tex_res.interlaced          = 0;
 
-	tex_res.base                = accel_state->src_obj[0].offset + pPriv->planev_offset;
-	tex_res.mip_base            = accel_state->src_obj[0].offset + pPriv->planev_offset;
+	tex_res.base                = pPriv->planev_offset;
+	tex_res.mip_base            = pPriv->planev_offset;
 	tex_res.size                = tex_res.pitch * (pPriv->h >> 1);
 	if (accel_state->src_obj[0].tiling_flags == 0)
 	    tex_res.array_mode          = 1;
@@ -315,8 +311,8 @@ EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	tex_res.dst_sel_w           = SQ_SEL_1;
 	tex_res.interlaced          = 0;
 
-	tex_res.base                = accel_state->src_obj[0].offset + pPriv->planeu_offset;
-	tex_res.mip_base            = accel_state->src_obj[0].offset + pPriv->planeu_offset;
+	tex_res.base                = pPriv->planeu_offset;
+	tex_res.mip_base            = pPriv->planeu_offset;
 	tex_res.size                = tex_res.pitch * (pPriv->h >> 1);
 	if (accel_state->src_obj[0].tiling_flags == 0)
 	    tex_res.array_mode          = 1;
@@ -338,8 +334,8 @@ EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	tex_res.pitch               = accel_state->src_obj[0].pitch >> 1;
 	tex_res.depth               = 0;
 	tex_res.dim                 = SQ_TEX_DIM_2D;
-	tex_res.base                = accel_state->src_obj[0].offset;
-	tex_res.mip_base            = accel_state->src_obj[0].offset;
+	tex_res.base                = 0;
+	tex_res.mip_base            = 0;
 	tex_res.size                = accel_state->src_size[0];
 	tex_res.bo                  = accel_state->src_obj[0].bo;
 	tex_res.mip_bo              = accel_state->src_obj[0].bo;
@@ -381,7 +377,7 @@ EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     cb_conf.id = 0;
     cb_conf.w = accel_state->dst_obj.pitch;
     cb_conf.h = accel_state->dst_obj.height;
-    cb_conf.base = accel_state->dst_obj.offset;
+    cb_conf.base = 0;
     cb_conf.bo = accel_state->dst_obj.bo;
     cb_conf.surface = accel_state->dst_obj.surface;
 
@@ -426,7 +422,7 @@ EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     ps_const_conf.type = SHADER_TYPE_PS;
     ps_alu_consts = radeon_vbo_space(pScrn, &accel_state->cbuf, 256);
     ps_const_conf.bo = accel_state->cbuf.vb_bo;
-    ps_const_conf.const_addr = accel_state->cbuf.vb_mc_addr + accel_state->cbuf.vb_offset;
+    ps_const_conf.const_addr = accel_state->cbuf.vb_offset;
     ps_const_conf.cpu_ptr = (uint32_t *)(char *)ps_alu_consts;
 
     ps_alu_consts[0] = off[0];
@@ -452,7 +448,7 @@ EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     vs_const_conf.type = SHADER_TYPE_VS;
     vs_alu_consts = radeon_vbo_space(pScrn, &accel_state->cbuf, 256);
     vs_const_conf.bo = accel_state->cbuf.vb_bo;
-    vs_const_conf.const_addr = accel_state->cbuf.vb_mc_addr + accel_state->cbuf.vb_offset;
+    vs_const_conf.const_addr = accel_state->cbuf.vb_offset;
     vs_const_conf.cpu_ptr = (uint32_t *)(char *)vs_alu_consts;
 
     vs_alu_consts[0] = 1.0 / pPriv->w;
@@ -527,5 +523,3 @@ EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 
     DamageDamageRegion(pPriv->pDraw, &pPriv->clip);
 }
-
-#endif

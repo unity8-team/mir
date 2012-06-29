@@ -27,8 +27,6 @@
 #ifndef DRMMODE_DISPLAY_H
 #define DRMMODE_DISPLAY_H
 
-#ifdef XF86DRM_MODE
-
 #include "xf86drmMode.h"
 #ifdef HAVE_LIBUDEV
 #include "libudev.h"
@@ -119,4 +117,3 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, struct radeon_bo *new_front, void *dat
 
 #endif
 
-#endif

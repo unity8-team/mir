@@ -49,7 +49,6 @@
 #endif
 #endif
 
-#ifdef RADEON_DRI2
 
 #include "radeon_bo_gem.h"
 
@@ -1319,11 +1318,6 @@ radeon_dri2_screen_init(ScreenPtr pScreen)
     Bool scheduling_works = TRUE;
 #endif
 
-    if (!info->useEXA) {
-        xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DRI2 requires EXA\n");
-        return FALSE;
-    }
-
     info->dri2.device_name = drmGetDeviceNameFromFd(info->dri2.drm_fd);
 
     if ( (info->ChipFamily >= CHIP_FAMILY_R600) ) {
@@ -1349,7 +1343,7 @@ radeon_dri2_screen_init(ScreenPtr pScreen)
     dri2_info.CopyRegion = radeon_dri2_copy_region;
 
 #ifdef USE_DRI2_SCHEDULING
-    if (info->dri->pKernelDRMVersion->version_minor < 4) {
+    if (info->dri2.pKernelDRMVersion->version_minor < 4) {
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "You need a newer kernel for "
 		   "sync extension\n");
 	scheduling_works = FALSE;
@@ -1426,4 +1420,3 @@ void radeon_dri2_close_screen(ScreenPtr pScreen)
     drmFree(info->dri2.device_name);
 }
 
-#endif

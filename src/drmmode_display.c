@@ -30,7 +30,6 @@
 #endif
 
 #include <errno.h>
-#ifdef XF86DRM_MODE
 #include <sys/ioctl.h>
 #include "micmap.h"
 #include "xf86cmap.h"
@@ -48,6 +47,39 @@
 #define DPMS_SERVER
 #include <X11/extensions/dpms.h>
 #endif
+
+static Bool
+RADEONZaphodStringMatches(ScrnInfoPtr pScrn, const char *s, char *output_name)
+{
+    int i = 0;
+    char s1[20];
+
+    do {
+	switch(*s) {
+	case ',':
+  	    s1[i] = '\0';
+	    i = 0;
+	    if (strcmp(s1, output_name) == 0)
+		return TRUE;
+	    break;
+	case ' ':
+	case '\t':
+	case '\n':
+	case '\r':
+	    break;
+	default:
+	    s1[i] = *s;
+	    i++;
+	    break;
+	}
+    } while(*s++);
+
+    s1[i] = '\0';
+    if (strcmp(s1, output_name) == 0)
+	return TRUE;
+
+    return FALSE;
+}
 
 static PixmapPtr drmmode_create_bo_pixmap(ScrnInfoPtr pScrn,
 					  int width, int height,
@@ -275,8 +307,8 @@ void drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 	}
 
 	pitch = RADEON_ALIGN(pScrn->displayWidth,
-			     drmmode_get_pitch_align(pScrn, info->CurrentLayout.pixel_bytes, tiling_flags)) *
-		info->CurrentLayout.pixel_bytes;
+			     drmmode_get_pitch_align(pScrn, info->pixel_bytes, tiling_flags)) *
+		info->pixel_bytes;
 
 	dst = drmmode_create_bo_pixmap(pScrn, pScrn->virtualX,
 				       pScrn->virtualY, pScrn->depth,
@@ -340,8 +372,8 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 			tiling_flags |= RADEON_TILING_MACRO;
 	}
 
-	pitch = RADEON_ALIGN(pScrn->displayWidth, drmmode_get_pitch_align(pScrn, info->CurrentLayout.pixel_bytes, tiling_flags)) *
-		info->CurrentLayout.pixel_bytes;
+	pitch = RADEON_ALIGN(pScrn->displayWidth, drmmode_get_pitch_align(pScrn, info->pixel_bytes, tiling_flags)) *
+		info->pixel_bytes;
 	height = RADEON_ALIGN(pScrn->virtualY, drmmode_get_height_align(pScrn, tiling_flags));
 	if (info->ChipFamily >= CHIP_FAMILY_R600) {
 		pitch = info->front_surface.level[0].pitch_bytes;
@@ -636,7 +668,7 @@ void drmmode_crtc_hw_id(xf86CrtcPtr crtc)
 	ginfo.request = 0x4;
 	tmp = drmmode_crtc->mode_crtc->crtc_id;
 	ginfo.value = (uintptr_t)&tmp;
-	r = drmCommandWriteRead(info->dri->drmFD, DRM_RADEON_INFO, &ginfo, sizeof(ginfo));
+	r = drmCommandWriteRead(info->dri2.drm_fd, DRM_RADEON_INFO, &ginfo, sizeof(ginfo));
 	if (r) {
 		drmmode_crtc->hw_id = -1;
 		return;
@@ -1258,7 +1290,7 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	uint32_t    old_fb_id;
 	int	    i, pitch, old_width, old_height, old_pitch;
 	int screen_size;
-	int cpp = info->CurrentLayout.pixel_bytes;
+	int cpp = info->pixel_bytes;
 	struct radeon_bo *front_bo;
 	struct radeon_surface surface;
 	struct radeon_surface *psurface;
@@ -1528,7 +1560,7 @@ void drmmode_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 	RADEONInfoPtr info = RADEONPTR(pScrn);
 
 	if (pRADEONEnt->fd_wakeup_registered != serverGeneration &&
-	    info->dri->pKernelDRMVersion->version_minor >= 4) {
+	    info->dri2.pKernelDRMVersion->version_minor >= 4) {
 		AddGeneralSocket(drmmode->fd);
 		RegisterBlockAndWakeupHandlers((BlockHandlerProcPtr)NoopDDA,
 				drm_wakeup_handler, drmmode);
@@ -1786,8 +1818,8 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, struct radeon_bo *new_front, void *dat
 			tiling_flags |= RADEON_TILING_MACRO;
 	}
 
-	pitch = RADEON_ALIGN(scrn->displayWidth, drmmode_get_pitch_align(scrn, info->CurrentLayout.pixel_bytes, tiling_flags)) *
-		info->CurrentLayout.pixel_bytes;
+	pitch = RADEON_ALIGN(scrn->displayWidth, drmmode_get_pitch_align(scrn, info->pixel_bytes, tiling_flags)) *
+		info->pixel_bytes;
 	height = RADEON_ALIGN(scrn->virtualY, drmmode_get_height_align(scrn, tiling_flags));
 	if (info->ChipFamily >= CHIP_FAMILY_R600 && info->surf_man) {
 		pitch = info->front_surface.level[0].pitch_bytes;
@@ -1868,4 +1900,3 @@ error_out:
 	return FALSE;
 }
 
-#endif

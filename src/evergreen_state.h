@@ -93,9 +93,7 @@ typedef struct {
     int blend_enable;
     uint32_t blendcntl;
     struct radeon_bo *bo;
-#ifdef XF86DRM_MODE
     struct radeon_surface *surface;
-#endif
 } cb_config_t;
 
 /* Shader */
@@ -182,9 +180,7 @@ typedef struct {
     int min_lod;
     struct radeon_bo *bo;
     struct radeon_bo *mip_bo;
-#ifdef XF86DRM_MODE
     struct radeon_surface *surface;
-#endif
 } tex_resource_t;
 
 /* Texture sampler */
