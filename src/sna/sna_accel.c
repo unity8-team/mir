@@ -12807,7 +12807,10 @@ void sna_accel_close(struct sna *sna)
 
 void sna_accel_block_handler(struct sna *sna, struct timeval **tv)
 {
-	sna_accel_wakeup_handler(sna, NULL);
+	if (sna->kgem.nbatch && kgem_is_idle(&sna->kgem)) {
+		DBG(("%s: GPU idle, flushing\n", __FUNCTION__));
+		_kgem_submit(&sna->kgem);
+	}
 
 	if (sna_accel_do_flush(sna))
 		sna_accel_flush(sna);
