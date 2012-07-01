@@ -416,7 +416,7 @@ gen6_emit_urb(struct sna *sna)
 {
 	OUT_BATCH(GEN6_3DSTATE_URB | (3 - 2));
 	OUT_BATCH(((1 - 1) << GEN6_3DSTATE_URB_VS_SIZE_SHIFT) |
-		  (24 << GEN6_3DSTATE_URB_VS_ENTRIES_SHIFT)); /* at least 24 on GEN6 */
+		  (256 << GEN6_3DSTATE_URB_VS_ENTRIES_SHIFT)); /* at least 24 on GEN6 */
 	OUT_BATCH((0 << GEN6_3DSTATE_URB_GS_SIZE_SHIFT) |
 		  (0 << GEN6_3DSTATE_URB_GS_ENTRIES_SHIFT)); /* no GS thread */
 }
