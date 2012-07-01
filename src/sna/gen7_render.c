@@ -3523,7 +3523,7 @@ fallback_blt:
 	tmp.has_component_alpha = 0;
 	tmp.need_magic_ca_pass = 0;
 
-	tmp.u.gen7.wm_kernel = GEN6_WM_KERNEL_NOMASK;
+	tmp.u.gen7.wm_kernel = GEN7_WM_KERNEL_NOMASK;
 	tmp.u.gen7.nr_surfaces = 2;
 	tmp.u.gen7.nr_inputs = 1;
 	tmp.u.gen7.ve_id = 1;
