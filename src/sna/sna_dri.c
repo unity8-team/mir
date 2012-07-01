@@ -1147,6 +1147,9 @@ sna_dri_exchange_buffers(DrawablePtr draw,
 	back_bo = get_private(back)->bo;
 	front_bo = get_private(front)->bo;
 
+	assert(pixmap->drawable.height * back_bo->pitch <= kgem_bo_size(back_bo));
+	assert(pixmap->drawable.height * front_bo->pitch <= kgem_bo_size(front_bo));
+
 	DBG(("%s: exchange front=%d/%d and back=%d/%d\n",
 	     __FUNCTION__,
 	     front_bo->handle, front->name,
@@ -1335,6 +1338,7 @@ sna_dri_flip_continue(struct sna *sna,
 
 	name = info->back->name;
 	bo = get_private(info->back)->bo;
+	assert(get_drawable_pixmap(draw)->drawable.height * bo->pitch <= kgem_bo_size(bo));
 
 	info->count = sna_page_flip(sna, bo, info, info->pipe, &info->old_fb);
 	if (info->count == 0)
