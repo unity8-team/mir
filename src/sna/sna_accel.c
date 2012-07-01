@@ -1108,6 +1108,7 @@ _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 				       pixmap->drawable.height);
 			sna_damage_destroy(&priv->cpu_damage);
 			priv->undamaged = false;
+			priv->cpu = false;
 			list_del(&priv->list);
 			if (priv->cpu_bo) {
 				assert(!priv->cpu_bo->sync);
@@ -1134,6 +1135,7 @@ skip_inplace_map:
 					list_del(&priv->list);
 					priv->undamaged = false;
 				}
+				priv->cpu = false;
 				assert(!priv->cpu_bo->sync);
 				sna_pixmap_free_cpu(sna, priv);
 			}
@@ -1167,6 +1169,7 @@ skip_inplace_map:
 				list_del(&priv->list);
 				priv->undamaged = false;
 				priv->clear = false;
+				priv->cpu = false;
 			}
 
 			assert_pixmap_damage(pixmap);
@@ -1266,6 +1269,7 @@ done:
 		DBG(("%s: syncing CPU bo\n", __FUNCTION__));
 		kgem_bo_sync__cpu(&sna->kgem, priv->cpu_bo);
 	}
+	priv->cpu = true;
 	assert(pixmap->devPrivate.ptr);
 	assert(pixmap->devKind);
 	assert_pixmap_damage(pixmap);
@@ -1368,6 +1372,11 @@ static inline bool region_inplace(struct sna *sna,
 
 	if (wedged(sna))
 		return false;
+
+	if (priv->cpu) {
+		DBG(("%s: no, preferring last action of CPU\n", __FUNCTION__));
+		return false;
+	}
 
 	if (!write_only && priv->cpu_damage &&
 	    region_overlaps_damage(region, priv->cpu_damage)) {
@@ -1504,6 +1513,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 						       region);
 
 				priv->clear = false;
+				priv->cpu = false;
 				assert_pixmap_damage(pixmap);
 				if (dx | dy)
 					RegionTranslate(region, -dx, -dy);
@@ -1553,6 +1563,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 
 			assert_pixmap_damage(pixmap);
 			priv->clear = false;
+			priv->cpu = false;
 			if (dx | dy)
 				RegionTranslate(region, -dx, -dy);
 			return true;
@@ -1587,6 +1598,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 			}
 			assert_pixmap_damage(pixmap);
 			priv->clear = false;
+			priv->cpu = false;
 			if (dx | dy)
 				RegionTranslate(region, -dx, -dy);
 			return true;
@@ -1871,10 +1883,11 @@ out:
 		priv->source_count = SOURCE_BIAS;
 		assert(priv->gpu_bo == NULL || priv->gpu_bo->proxy == NULL);
 	}
-	if (priv->cpu_bo) {
+	if ((flags & MOVE_ASYNC_HINT) == 0 && priv->cpu_bo) {
 		DBG(("%s: syncing cpu bo\n", __FUNCTION__));
 		kgem_bo_sync__cpu(&sna->kgem, priv->cpu_bo);
 	}
+	priv->cpu = true;
 	assert(pixmap->devPrivate.ptr);
 	assert(pixmap->devKind);
 	assert_pixmap_damage(pixmap);
@@ -2206,6 +2219,9 @@ sna_drawable_use_bo(DrawablePtr drawable,
 		goto use_cpu_bo;
 	}
 
+	if (priv->cpu)
+		prefer_gpu = false;
+
 	if (!prefer_gpu && priv->gpu_bo && !kgem_bo_is_busy(priv->gpu_bo))
 		goto use_cpu_bo;
 
@@ -2457,6 +2473,7 @@ sna_pixmap_mark_active(struct sna *sna, struct sna_pixmap *priv)
 	    (priv->create & KGEM_CAN_CREATE_LARGE) == 0)
 		list_move(&priv->inactive, &sna->active_pixmaps);
 	priv->clear = false;
+	priv->cpu = false;
 	return priv;
 }
 
@@ -2526,6 +2543,8 @@ sna_pixmap_force_to_gpu(PixmapPtr pixmap, unsigned flags)
 
 	if (!sna_pixmap_move_to_gpu(pixmap, flags | __MOVE_FORCE))
 		return NULL;
+
+	assert(!priv->cpu);
 
 	/* For large bo, try to keep only a single copy around */
 	if (priv->create & KGEM_CAN_CREATE_LARGE && priv->ptr) {
@@ -2986,6 +3005,7 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	if (upload_inplace(sna, pixmap, priv, region) &&
 	    sna_put_image_upload_blt(drawable, gc, region,
 				     x, y, w, h, bits, stride)) {
+		assert(priv->cpu == false);
 		if (!DAMAGE_IS_ALL(priv->gpu_damage)) {
 			DBG(("%s: marking damage\n", __FUNCTION__));
 			if (region_subsumes_drawable(region, &pixmap->drawable))
@@ -3055,6 +3075,7 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 
 					assert_pixmap_damage(pixmap);
 					priv->clear = false;
+					priv->cpu = false;
 					return true;
 				}
 			} else {
@@ -3124,6 +3145,7 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 		sna_pixmap_free_gpu(sna, priv);
 		priv->undamaged = false;
 		priv->clear = false;
+		priv->cpu = false;
 	}
 
 	if (!DAMAGE_IS_ALL(priv->cpu_damage)) {
@@ -3150,6 +3172,7 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 		if (priv->flush)
 			list_move(&priv->list, &sna->dirty_pixmaps);
 	}
+	priv->cpu = true;
 
 blt:
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
@@ -3832,6 +3855,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 		list_del(&dst_priv->list);
 		dst_priv->undamaged = true;
 		dst_priv->clear = false;
+		dst_priv->cpu = false;
 	}
 
 	if (src_priv == NULL &&
@@ -3913,6 +3937,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 				fill.done(sna, &fill);
 			}
 
+			dst_priv->cpu = false;
 			if (!DAMAGE_IS_ALL(dst_priv->gpu_damage)) {
 				if (replaces) {
 					sna_damage_destroy(&dst_priv->cpu_damage);
@@ -3946,6 +3971,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 				goto fallback;
 			}
 
+			dst_priv->cpu = false;
 			if (!DAMAGE_IS_ALL(dst_priv->gpu_damage)) {
 				if (replaces) {
 					sna_damage_destroy(&dst_priv->cpu_damage);
@@ -3973,6 +3999,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 				goto fallback;
 			}
 
+			dst_priv->cpu = false;
 			if (!DAMAGE_IS_ALL(dst_priv->gpu_damage)) {
 				if (replaces) {
 					sna_damage_destroy(&dst_priv->cpu_damage);
@@ -4042,6 +4069,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			}
 			tmp->drawable.pScreen->DestroyPixmap(tmp);
 
+			dst_priv->cpu = false;
 			if (!DAMAGE_IS_ALL(dst_priv->gpu_damage)) {
 				RegionTranslate(&region, dst_dx, dst_dy);
 				assert_pixmap_contains_box(dst_pixmap,
@@ -4076,6 +4104,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 						 bits, stride))
 					goto fallback;
 
+				dst_priv->cpu = false;
 				if (!DAMAGE_IS_ALL(dst_priv->gpu_damage)) {
 					sna_damage_destroy(&dst_priv->cpu_damage);
 					sna_damage_all(&dst_priv->gpu_damage,
@@ -4096,6 +4125,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 						     box, n))
 					goto fallback;
 
+				dst_priv->cpu = false;
 				if (!DAMAGE_IS_ALL(dst_priv->gpu_damage)) {
 					if (replaces) {
 						sna_damage_destroy(&dst_priv->cpu_damage);
@@ -4130,6 +4160,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			goto fallback;
 		}
 
+		dst_priv->cpu = true;
 		if (replaces) {
 			sna_damage_all(&dst_priv->cpu_damage,
 				       dst_pixmap->drawable.width,
@@ -10492,6 +10523,8 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 		if (region_subsumes_damage(&region, priv->cpu_damage)) {
 			sna_damage_destroy(&priv->cpu_damage);
 			list_del(&priv->list);
+			priv->undamaged = false;
+			priv->cpu = false;
 		}
 	}
 
@@ -12598,6 +12631,7 @@ static void sna_accel_inactive(struct sna *sna)
 			assert(priv->cpu_bo == NULL || !priv->cpu_bo->sync);
 			sna_pixmap_free_cpu(sna, priv);
 			priv->undamaged = false;
+			priv->cpu = false;
 
 			list_add(&priv->inactive, &preserve);
 		} else {
