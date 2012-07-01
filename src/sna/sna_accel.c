@@ -2219,6 +2219,8 @@ sna_drawable_use_bo(DrawablePtr drawable,
 		goto use_cpu_bo;
 	}
 
+	if (priv->flush)
+		prefer_gpu = true;
 	if (priv->cpu)
 		prefer_gpu = false;
 
