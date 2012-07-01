@@ -2770,6 +2770,7 @@ composite_unaligned_trap_row(struct sna *sna,
 	BoxRec box;
 	int opacity;
 	int x1, x2;
+#define u8_to_float(x) ((x) * (1.f/255))
 
 	if (covered == 0)
 		return;
@@ -2800,7 +2801,7 @@ composite_unaligned_trap_row(struct sna *sna,
 
 		if (opacity)
 			composite_unaligned_box(sna, tmp, &box,
-						opacity/255., clip);
+						u8_to_float(opacity), clip);
 	} else {
 		if (pixman_fixed_frac(trap->left.p1.x)) {
 			box.x1 = x1;
@@ -2811,7 +2812,7 @@ composite_unaligned_trap_row(struct sna *sna,
 
 			if (opacity)
 				composite_unaligned_box(sna, tmp, &box,
-							opacity/255., clip);
+							u8_to_float(opacity), clip);
 		}
 
 		if (x2 > x1) {
@@ -2819,7 +2820,8 @@ composite_unaligned_trap_row(struct sna *sna,
 			box.x2 = x2;
 
 			composite_unaligned_box(sna, tmp, &box,
-						covered*SAMPLES_X/255., clip);
+						covered == SAMPLES_Y ? 1. : u8_to_float(covered*SAMPLES_X),
+						clip);
 		}
 
 		if (pixman_fixed_frac(trap->right.p1.x)) {
@@ -2831,7 +2833,7 @@ composite_unaligned_trap_row(struct sna *sna,
 
 			if (opacity)
 				composite_unaligned_box(sna, tmp, &box,
-							opacity/255., clip);
+							u8_to_float(opacity), clip);
 		}
 	}
 }
