@@ -34,8 +34,10 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <dirent.h>
 #include <errno.h>
 #include <poll.h>
+#include <ctype.h>
 
 #include <xorgVersion.h>
 #include <X11/Xatom.h>
@@ -91,7 +93,7 @@ struct sna_output {
 	int panel_vdisplay;
 
 	int dpms_mode;
-	const char *backlight_iface;
+	char *backlight_iface;
 	int backlight_active_level;
 	int backlight_max;
 	struct list link;
@@ -104,28 +106,6 @@ static inline struct sna_crtc *to_sna_crtc(xf86CrtcPtr crtc)
 
 #define BACKLIGHT_CLASS "/sys/class/backlight"
 
-/*
- * List of available kernel interfaces in priority order
- */
-static const char *backlight_interfaces[] = {
-	"intel", /* prefer our own native backlight driver */
-	"asus-laptop",
-	"asus-nb-wmi",
-	"eeepc",
-	"thinkpad_screen",
-	"mbp_backlight",
-	"fujitsu-laptop",
-	"sony",
-	"samsung",
-	"acpi_video1", /* finally fallback to the generic acpi drivers */
-	"acpi_video0",
-	NULL,
-};
-/*
- * Must be long enough for BACKLIGHT_CLASS + '/' + longest in above table +
- * '/' + "max_backlight"
- */
-#define BACKLIGHT_PATH_LEN 80
 /* Enough for 10 digits of backlight + '\n' + '\0' */
 #define BACKLIGHT_VALUE_LEN 12
 
@@ -219,14 +199,14 @@ static void
 sna_output_backlight_set(xf86OutputPtr output, int level)
 {
 	struct sna_output *sna_output = output->driver_private;
-	char path[BACKLIGHT_PATH_LEN], val[BACKLIGHT_VALUE_LEN];
+	char path[1024], val[BACKLIGHT_VALUE_LEN];
 	int fd, len, ret;
 
 	DBG(("%s: level=%d\n", __FUNCTION__, level));
 
 	if (level > sna_output->backlight_max)
 		level = sna_output->backlight_max;
-	if (! sna_output->backlight_iface || level < 0)
+	if (!sna_output->backlight_iface || level < 0)
 		return;
 
 	len = snprintf(val, BACKLIGHT_VALUE_LEN, "%d\n", level);
@@ -252,7 +232,7 @@ static int
 sna_output_backlight_get(xf86OutputPtr output)
 {
 	struct sna_output *sna_output = output->driver_private;
-	char path[BACKLIGHT_PATH_LEN], val[BACKLIGHT_VALUE_LEN];
+	char path[1024], val[BACKLIGHT_VALUE_LEN];
 	int fd, level;
 
 	sprintf(path, "%s/%s/actual_brightness",
@@ -287,7 +267,7 @@ static int
 sna_output_backlight_get_max(xf86OutputPtr output)
 {
 	struct sna_output *sna_output = output->driver_private;
-	char path[BACKLIGHT_PATH_LEN], val[BACKLIGHT_VALUE_LEN];
+	char path[1024], val[BACKLIGHT_VALUE_LEN];
 	int fd, max = 0;
 
 	sprintf(path, "%s/%s/max_brightness",
@@ -313,29 +293,117 @@ sna_output_backlight_get_max(xf86OutputPtr output)
 	return max;
 }
 
+enum {
+	FIRMWARE,
+	PLATFORM,
+	RAW,
+	NAMED,
+};
+
 static void
 sna_output_backlight_init(xf86OutputPtr output)
 {
+	static const char *known_interfaces[] = {
+		"asus-laptop",
+		"asus-nb-wmi",
+		"eeepc",
+		"thinkpad_screen",
+		"mbp_backlight",
+		"fujitsu-laptop",
+		"sony",
+		"samsung",
+		"acpi_video1",
+		"acpi_video0",
+		"intel_backlight",
+	};
 	struct sna_output *sna_output = output->driver_private;
-	int i;
+	char *best_iface;
+	int best_type;
+	DIR *dir;
+	struct dirent *de;
 
-	for (i = 0; backlight_interfaces[i] != NULL; i++) {
-		char path[BACKLIGHT_PATH_LEN];
-		struct stat buf;
+	best_iface = NULL;
+	best_type = INT_MAX;
 
-		sprintf(path, "%s/%s", BACKLIGHT_CLASS, backlight_interfaces[i]);
-		if (!stat(path, &buf)) {
-			sna_output->backlight_iface = backlight_interfaces[i];
-			sna_output->backlight_max = sna_output_backlight_get_max(output);
-			if (sna_output->backlight_max > 0) {
-				sna_output->backlight_active_level = sna_output_backlight_get(output);
-				xf86DrvMsg(output->scrn->scrnIndex, X_INFO,
-					   "found backlight control interface %s\n", path);
-				return;
+	dir = opendir(BACKLIGHT_CLASS);
+	while ((de = readdir(dir))) {
+		char path[1024];
+		char buf[100];
+		int fd, v;
+
+		snprintf(path, sizeof(path), "%s/%s/type",
+			 BACKLIGHT_CLASS, de->d_name);
+
+		v = -1;
+		fd = open(path, O_RDONLY);
+		if (fd >= 0) {
+			v = read(fd, buf, sizeof(buf)-1);
+			close(fd);
+		}
+		if (v > 0) {
+			while (v > 0 && isspace(buf[v-1]))
+				v--;
+			buf[v] = '\0';
+
+			if (strcmp(buf, "raw") == 0)
+				v = RAW;
+			else if (strcmp(buf, "platform") == 0)
+				v = PLATFORM;
+			else if (strcmp(buf, "firmware") == 0)
+				v = FIRMWARE;
+			else
+				v = NAMED;
+		} else
+			v = NAMED;
+
+		/* Fallback to priority list of known iface for old kernels */
+		if (v == NAMED) {
+			int i;
+			for (i = 0; i < ARRAY_SIZE(known_interfaces); i++) {
+				if (strcmp(de->d_name, known_interfaces[i]) == 0)
+					break;
+			}
+			v += i;
+		}
+
+		if (v < best_type) {
+			char *copy;
+			int max;
+
+			/* XXX detect right backlight for multi-GPU/panels */
+
+			sna_output->backlight_iface = de->d_name;
+			max = sna_output_backlight_get_max(output);
+			if (max <= 0)
+				continue;
+
+			copy = strdup(de->d_name);
+			if (copy) {
+				free(best_iface);
+				best_iface = copy;
+				best_type = v;
 			}
 		}
 	}
+
 	sna_output->backlight_iface = NULL;
+
+	if (best_iface) {
+		const char *str;
+
+		sna_output->backlight_iface = best_iface;
+		sna_output->backlight_max = sna_output_backlight_get_max(output);
+		sna_output->backlight_active_level = sna_output_backlight_get(output);
+		switch (best_type) {
+		case FIRMWARE: str = "firmware"; break;
+		case PLATFORM: str = "platform"; break;
+		case RAW: str = "raw"; break;
+		default: str = "unknown"; break;
+		}
+		xf86DrvMsg(output->scrn->scrnIndex, X_INFO,
+			   "found backlight control interface %s (type '%s')\n",
+			   best_iface, str);
+	}
 }
 
 
@@ -1514,6 +1582,8 @@ sna_output_destroy(xf86OutputPtr output)
 
 	drmModeFreeConnector(sna_output->mode_output);
 	sna_output->mode_output = NULL;
+
+	free(sna_output->backlight_iface);
 
 	list_del(&sna_output->link);
 	free(sna_output);
