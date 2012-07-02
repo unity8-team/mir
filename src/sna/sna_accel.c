@@ -2341,14 +2341,15 @@ done:
 	return priv->gpu_bo;
 
 use_gpu_bo:
+	DBG(("%s: using whole GPU bo\n", __FUNCTION__));
 	assert(priv->gpu_bo != NULL);
+	assert(priv->gpu_bo->proxy == NULL);
 	priv->clear = false;
+	priv->cpu = false;
 	if (!priv->pinned && (priv->create & KGEM_CAN_CREATE_LARGE) == 0)
 		list_move(&priv->inactive,
 			  &to_sna_from_pixmap(pixmap)->active_pixmaps);
 	*damage = NULL;
-	DBG(("%s: using whole GPU bo\n", __FUNCTION__));
-	assert(priv->gpu_bo->proxy == NULL);
 	return priv->gpu_bo;
 
 use_cpu_bo:
