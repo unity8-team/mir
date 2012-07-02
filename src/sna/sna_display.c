@@ -331,6 +331,9 @@ sna_output_backlight_init(xf86OutputPtr output)
 		char buf[100];
 		int fd, v;
 
+		if (*de->d_name == '.')
+			continue;
+
 		snprintf(path, sizeof(path), "%s/%s/type",
 			 BACKLIGHT_CLASS, de->d_name);
 
