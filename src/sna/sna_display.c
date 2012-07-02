@@ -110,6 +110,7 @@ static inline struct sna_crtc *to_sna_crtc(xf86CrtcPtr crtc)
 static const char *backlight_interfaces[] = {
 	"intel", /* prefer our own native backlight driver */
 	"asus-laptop",
+	"asus-nb-wmi",
 	"eeepc",
 	"thinkpad_screen",
 	"mbp_backlight",

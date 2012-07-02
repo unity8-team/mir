@@ -128,6 +128,7 @@ intel_output_dpms_backlight(xf86OutputPtr output, int oldmode, int mode);
  */
 static const char *backlight_interfaces[] = {
 	"asus-laptop",
+	"asus-nb-wmi",
 	"eeepc",
 	"thinkpad_screen",
 	"mbp_backlight",
