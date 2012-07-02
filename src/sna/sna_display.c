@@ -391,6 +391,7 @@ sna_output_backlight_init(xf86OutputPtr output)
 			}
 		}
 	}
+	closedir(dir);
 
 	sna_output->backlight_iface = NULL;
 
