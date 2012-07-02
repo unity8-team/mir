@@ -326,6 +326,9 @@ sna_output_backlight_init(xf86OutputPtr output)
 	best_type = INT_MAX;
 
 	dir = opendir(BACKLIGHT_CLASS);
+	if (dir == NULL)
+		return;
+
 	while ((de = readdir(dir))) {
 		char path[1024];
 		char buf[100];
