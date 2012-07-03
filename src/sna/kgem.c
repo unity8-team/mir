@@ -3052,10 +3052,9 @@ struct kgem_bo *kgem_create_cpu_2d(struct kgem *kgem,
 		if (bo == NULL)
 			return NULL;
 
-		gem_set_cache_level(kgem->fd, bo->handle, I915_CACHE_LLC);
 		bo->reusable = false;
-
-		if (kgem_bo_map__cpu(kgem, bo) == NULL) {
+		if (!gem_set_cache_level(kgem->fd, bo->handle, I915_CACHE_LLC) ||
+		    kgem_bo_map__cpu(kgem, bo) == NULL) {
 			kgem_bo_destroy(kgem, bo);
 			return NULL;
 		}
