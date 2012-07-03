@@ -3716,16 +3716,24 @@ source_prefer_gpu(struct sna_pixmap *priv)
 {
 	unsigned flags;
 
-	if (priv == NULL)
+	if (priv == NULL) {
+		DBG(("%s: source unattached, use cpu\n", __FUNCTION__));
 		return 0;
+	}
 
-	if (priv->gpu_damage)
+	if (priv->gpu_damage) {
+		DBG(("%s: source has gpu damage, force gpu\n", __FUNCTION__));
 		return PREFER_GPU | FORCE_GPU;
+	}
 
-	if (priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo))
+	if (priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo)) {
+		DBG(("%s: source has busy CPU bo, force gpu\n", __FUNCTION__));
 		return PREFER_GPU | FORCE_GPU;
+	}
 
-	return PREFER_GPU;
+	DBG(("%s: source has GPU bo? %d\n",
+	     __FUNCTION__, priv->gpu_bo != NULL));
+	return priv->gpu_bo != NULL;
 }
 
 static void
@@ -3811,7 +3819,9 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	}
 
 	bo = sna_drawable_use_bo(&dst_pixmap->drawable,
-				 source_prefer_gpu(src_priv),
+				 source_prefer_gpu(src_priv) ?:
+				 region_inplace(sna, dst_pixmap, &region,
+						dst_priv, alu_overwrites(alu)),
 				 &region.extents, &damage);
 	if (bo) {
 		if (src_priv && src_priv->clear) {
