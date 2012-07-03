@@ -3796,14 +3796,12 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	     replaces));
 
 	RegionTranslate(&region, dst_dx, dst_dy);
-	src_dx -= dst_dx;
-	src_dy -= dst_dy;
 
 	if (dst_priv == NULL)
 		goto fallback;
 
 	if (dst_priv->cpu_damage && alu_overwrites(alu)) {
-		DBG(("%s: overwritting CPU damage\n", _FUNCTION__));
+		DBG(("%s: overwritting CPU damage\n", __FUNCTION__));
 		sna_damage_subtract(&dst_priv->cpu_damage, &region);
 		if (dst_priv->cpu_damage == NULL) {
 			list_del(&dst_priv->list);
@@ -3821,8 +3819,6 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			     __FUNCTION__, src_priv->clear_color));
 			assert_pixmap_contains_box(dst_pixmap,
 						   RegionExtents(&region));
-			box = REGION_RECTS(&region);
-			n = REGION_NUM_RECTS(&region);
 			if (n == 1) {
 				if (!sna->render.fill_one(sna,
 							  dst_pixmap, bo,
@@ -3862,7 +3858,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			     __FUNCTION__));
 			if (!sna->render.copy_boxes(sna, alu,
 						    src_pixmap, src_priv->gpu_bo, src_dx, src_dy,
-						    dst_pixmap, bo, 0, 0,
+						    dst_pixmap, bo, dst_dx, dst_dy,
 						    box, n)) {
 				DBG(("%s: fallback - accelerated copy boxes failed\n",
 				     __FUNCTION__));
@@ -3897,7 +3893,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 
 			if (!sna->render.copy_boxes(sna, alu,
 						    src_pixmap, src_priv->gpu_bo, src_dx, src_dy,
-						    dst_pixmap, bo, 0, 0,
+						    dst_pixmap, bo, dst_dx, dst_dy,
 						    box, n)) {
 				DBG(("%s: fallback - accelerated copy boxes failed\n",
 				     __FUNCTION__));
@@ -3923,17 +3919,17 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 
 			assert(bo != dst_priv->cpu_bo);
 
-			RegionTranslate(&region, src_dx, src_dy);
+			RegionTranslate(&region, src_dx-dst_dx, src_dy-dst_dy);
 			ret = sna_drawable_move_region_to_cpu(&src_pixmap->drawable,
 							      &region,
 							      MOVE_READ | MOVE_ASYNC_HINT);
-			RegionTranslate(&region, -src_dx, -src_dy);
+			RegionTranslate(&region, dst_dx-src_dx, dst_dy-src_dy);
 			if (!ret)
 				goto fallback;
 
 			if (!sna->render.copy_boxes(sna, alu,
 						    src_pixmap, src_priv->cpu_bo, src_dx, src_dy,
-						    dst_pixmap, bo, 0, 0,
+						    dst_pixmap, bo, dst_dx, dst_dy,
 						    box, n)) {
 				DBG(("%s: fallback - accelerated copy boxes failed\n",
 				     __FUNCTION__));
@@ -3993,7 +3989,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 
 			if (!sna->render.copy_boxes(sna, alu,
 						    tmp, sna_pixmap_get_bo(tmp), dx, dy,
-						    dst_pixmap, bo, 0, 0,
+						    dst_pixmap, bo, dst_dx, dst_dy,
 						    box, n)) {
 				DBG(("%s: fallback - accelerated copy boxes failed\n",
 				     __FUNCTION__));
@@ -4074,9 +4070,6 @@ fallback:
 		DBG(("%s: copying clear [%08x]\n",
 		     __FUNCTION__, src_priv->clear_color));
 
-		box = REGION_RECTS(&region);
-		n = REGION_NUM_RECTS(&region);
-
 		if (dst_priv) {
 			assert_pixmap_contains_box(dst_pixmap,
 						   RegionExtents(&region));
@@ -4091,7 +4084,7 @@ fallback:
 			pixman_fill(dst_pixmap->devPrivate.ptr,
 				    dst_pixmap->devKind/sizeof(uint32_t),
 				    dst_pixmap->drawable.bitsPerPixel,
-				    box->x1, box->y1,
+				    box->x1 + dst_dx, box->y1 + dst_dy,
 				    box->x2 - box->x1,
 				    box->y2 - box->y1,
 				    src_priv->clear_color);
@@ -4106,7 +4099,7 @@ fallback:
 		if (src_priv) {
 			unsigned mode;
 
-			RegionTranslate(&region, src_dx, src_dy);
+			RegionTranslate(&region, src_dx-dst_dx, src_dy-dst_dy);
 
 			assert_pixmap_contains_box(src_pixmap,
 						   RegionExtents(&region));
@@ -4119,7 +4112,7 @@ fallback:
 							     &region, mode))
 				goto out;
 
-			RegionTranslate(&region, -src_dx, -src_dy);
+			RegionTranslate(&region, dst_dx-src_dx, dst_dy-src_dy);
 		}
 
 		if (dst_priv) {
@@ -4140,8 +4133,6 @@ fallback:
 		dst_stride = dst_pixmap->devKind;
 		src_stride = src_pixmap->devKind;
 
-		src_dx += dst_dx;
-		src_dy += dst_dy;
 		if (alu == GXcopy && bpp >= 8) {
 			dst_bits = (FbBits *)
 				((char *)dst_pixmap->devPrivate.ptr +
