@@ -1187,7 +1187,6 @@ skip_inplace_map:
 		if (priv->cpu_bo && !priv->cpu_bo->sync && kgem_bo_is_busy(priv->cpu_bo))
 			sna_pixmap_free_cpu(sna, priv);
 		sna_damage_destroy(&priv->gpu_damage);
-		priv->undamaged = true;
 	}
 
 	if (pixmap->devPrivate.ptr == NULL &&
@@ -1465,6 +1464,9 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 
 		goto out;
 	}
+
+	if (flags & MOVE_WHOLE_HINT)
+		return _sna_pixmap_move_to_cpu(pixmap, flags);
 
 	if (priv->gpu_bo == NULL &&
 	    (priv->create & KGEM_CAN_CREATE_GPU) == 0 &&
@@ -1872,9 +1874,12 @@ done:
 		sna_damage_reduce_all(&priv->cpu_damage,
 				      pixmap->drawable.width,
 				      pixmap->drawable.height);
-		if (priv->gpu_bo && DAMAGE_IS_ALL(priv->cpu_damage)) {
-			DBG(("%s: replaced entire pixmap\n", __FUNCTION__));
-			sna_pixmap_free_gpu(sna, priv);
+		if (DAMAGE_IS_ALL(priv->cpu_damage)) {
+			if (priv->gpu_bo) {
+				DBG(("%s: replaced entire pixmap\n",
+				     __FUNCTION__));
+				sna_pixmap_free_gpu(sna, priv);
+			}
 			priv->undamaged = false;
 		}
 		if (priv->flush)
@@ -12091,6 +12096,8 @@ sna_get_image(DrawablePtr drawable,
 	flags = MOVE_READ;
 	if ((w | h) == 1)
 		flags |= MOVE_INPLACE_HINT;
+	if (w == drawable->width)
+		flags |= MOVE_WHOLE_HINT;
 	if (!sna_drawable_move_region_to_cpu(drawable, &region, flags))
 		return;
 

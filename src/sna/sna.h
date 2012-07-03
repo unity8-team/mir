@@ -438,7 +438,8 @@ struct kgem_bo *sna_pixmap_change_tiling(PixmapPtr pixmap, uint32_t tiling);
 #define MOVE_INPLACE_HINT 0x4
 #define MOVE_ASYNC_HINT 0x8
 #define MOVE_SOURCE_HINT 0x10
-#define __MOVE_FORCE 0x20
+#define MOVE_WHOLE_HINT 0x20
+#define __MOVE_FORCE 0x40
 bool must_check _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned flags);
 static inline bool must_check sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned flags)
 {
