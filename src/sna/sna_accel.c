@@ -1869,10 +1869,10 @@ done:
 		assert(!DAMAGE_IS_ALL(priv->cpu_damage));
 		assert_pixmap_contains_box(pixmap, RegionExtents(region));
 		sna_damage_add(&priv->cpu_damage, region);
-		if (priv->gpu_bo &&
-		    sna_damage_is_all(&priv->cpu_damage,
+		sna_damage_reduce_all(&priv->cpu_damage,
 				      pixmap->drawable.width,
-				      pixmap->drawable.height)) {
+				      pixmap->drawable.height);
+		if (priv->gpu_bo && DAMAGE_IS_ALL(priv->cpu_damage)) {
 			DBG(("%s: replaced entire pixmap\n", __FUNCTION__));
 			sna_pixmap_free_gpu(sna, priv);
 			priv->undamaged = false;
