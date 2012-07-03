@@ -595,6 +595,20 @@ static bool __kgem_throttle(struct kgem *kgem)
 	return drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_THROTTLE, NULL) == -EIO;
 }
 
+static bool is_hw_supported(struct kgem *kgem)
+{
+	if (DBG_NO_HW)
+		return false;
+
+	if (kgem->gen >= 60) /* Only if the kernel supports the BLT ring */
+		return gem_param(kgem, I915_PARAM_HAS_BLT) > 0;
+
+	if (kgem->gen <= 20) /* dynamic GTT is fubar */
+		return false;
+
+	return true;
+}
+
 void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 {
 	struct drm_i915_gem_get_aperture aperture;
@@ -607,7 +621,7 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	kgem->fd = fd;
 	kgem->gen = gen;
 	kgem->wedged = __kgem_throttle(kgem);
-	kgem->wedged |= DBG_NO_HW;
+	kgem->wedged |= !is_hw_supported(kgem);
 
 	kgem->batch_size = ARRAY_SIZE(kgem->batch);
 	if (gen == 22)

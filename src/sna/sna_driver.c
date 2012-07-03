@@ -294,8 +294,7 @@ static int sna_open_drm_master(ScrnInfoPtr scrn)
 	struct sna *sna = to_sna(scrn);
 	struct pci_device *pci = sna->PciInfo;
 	drmSetVersion sv;
-	struct drm_i915_getparam gp;
-	int err, val;
+	int err;
 	char busid[20];
 	int fd;
 
@@ -331,18 +330,6 @@ static int sna_open_drm_master(ScrnInfoPtr scrn)
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[drm] failed to set drm interface version: %s [%d].\n",
 			   strerror(-err), -err);
-		drmClose(fd);
-		return -1;
-	}
-
-	val = FALSE;
-
-	VG_CLEAR(gp);
-	gp.param = I915_PARAM_HAS_BLT;
-	gp.value = &val;
-	if (drmIoctl(fd, DRM_IOCTL_I915_GETPARAM, &gp)) {
-		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-			   "Failed to detect BLT.  Kernel 2.6.37 required.\n");
 		drmClose(fd);
 		return -1;
 	}
