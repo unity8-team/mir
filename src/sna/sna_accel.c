@@ -3973,7 +3973,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 
 			dx = -region.extents.x1;
 			dy = -region.extents.y1;
-			for (i = 0; i < n; n++) {
+			for (i = 0; i < n; i++) {
 				assert(box[i].x1 + src_dx >= 0);
 				assert(box[i].y1 + src_dy >= 0);
 				assert(box[i].x2 + src_dx <= src_pixmap->drawable.width);
