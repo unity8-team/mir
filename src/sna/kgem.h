@@ -155,6 +155,7 @@ struct kgem {
 	uint32_t has_vmap :1;
 	uint32_t has_relaxed_fencing :1;
 	uint32_t has_semaphores :1;
+	uint32_t has_cache_level :1;
 	uint32_t has_llc :1;
 
 	uint16_t fence_max;
@@ -235,6 +236,7 @@ enum {
 	CREATE_TEMPORARY = 0x20,
 	CREATE_NO_RETIRE = 0x40,
 	CREATE_NO_THROTTLE = 0x40,
+	CREATE_FORCE = 0x80,
 };
 struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 			       int width,

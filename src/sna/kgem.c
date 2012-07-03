@@ -53,9 +53,9 @@
 static struct kgem_bo *
 search_linear_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags);
 
-
 #define DBG_NO_HW 0
 #define DBG_NO_TILING 0
+#define DBG_NO_CACHE_LEVEL 0
 #define DBG_NO_VMAP 0
 #define DBG_NO_LLC 0
 #define DBG_NO_SEMAPHORES 0
@@ -101,6 +101,23 @@ struct drm_i915_gem_vmap {
 #define I915_VMAP_READ_ONLY 0x1
 	uint32_t handle;
 };
+#endif
+
+#if !defined(DRM_I915_GEM_SET_CACHE_LEVEL)
+#define I915_CACHE_NONE		0
+#define I915_CACHE_LLC		1
+#define I915_CACHE_LLC_MLC	2 /* gen6+ */
+
+struct drm_i915_gem_cache_level {
+	/** Handle of the buffer to check for busy */
+	__u32 handle;
+
+	/** Cache level to apply or return value */
+	__u32 cache_level;
+};
+
+#define DRM_I915_GEM_SET_CACHE_LEVEL	0x2f
+#define DRM_IOCTL_I915_GEM_SET_CACHE_LEVEL		DRM_IOW(DRM_COMMAND_BASE + DRM_I915_GEM_SET_CACHE_LEVEL, struct drm_i915_gem_cache_level)
 #endif
 
 struct kgem_partial_bo {
@@ -173,6 +190,16 @@ static int gem_set_tiling(int fd, uint32_t handle, int tiling, int stride)
 		ret = ioctl(fd, DRM_IOCTL_I915_GEM_SET_TILING, &set_tiling);
 	} while (ret == -1 && (errno == EINTR || errno == EAGAIN));
 	return set_tiling.tiling_mode;
+}
+
+static bool gem_set_cache_level(int fd, uint32_t handle, int cache_level)
+{
+	struct drm_i915_gem_cache_level arg;
+
+	VG_CLEAR(arg);
+	arg.handle = handle;
+	arg.cache_level = cache_level;
+	return drmIoctl(fd, DRM_IOCTL_I915_GEM_SET_CACHE_LEVEL, &arg) == 0;
 }
 
 static bool __kgem_throttle_retire(struct kgem *kgem, unsigned flags)
@@ -609,6 +636,30 @@ static bool is_hw_supported(struct kgem *kgem)
 	return true;
 }
 
+static bool test_has_cache_level(struct kgem *kgem)
+{
+#if defined(USE_CACHE_LEVEL)
+	uint32_t handle;
+	bool ret;
+
+	if (DBG_NO_CACHE_LEVEL)
+		return false;
+
+	if (kgem->gen == 40) /* XXX sampler dies with snoopable memory */
+		return false;
+
+	handle = gem_create(kgem->fd, 1);
+	if (handle == 0)
+		return false;
+
+	ret = gem_set_cache_level(kgem->fd, handle, I915_CACHE_NONE);
+	gem_close(kgem->fd, handle);
+	return ret;
+#else
+	return false;
+#endif
+}
+
 void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 {
 	struct drm_i915_gem_get_aperture aperture;
@@ -658,6 +709,9 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 
 	kgem->next_request = __kgem_request_alloc();
 
+	kgem->has_cache_level = test_has_cache_level(kgem);
+	DBG(("%s: using set-cache-level=%d\n", __FUNCTION__, kgem->has_cache_level));
+
 #if defined(USE_VMAP)
 	if (!DBG_NO_VMAP)
 		kgem->has_vmap = gem_param(kgem, I915_PARAM_HAS_VMAP) > 0;
@@ -688,8 +742,9 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 		}
 		kgem->has_llc = has_llc;
 	}
-	DBG(("%s: cpu bo enabled %d: llc? %d, vmap? %d\n", __FUNCTION__,
-	     kgem->has_llc | kgem->has_vmap, kgem->has_llc, kgem->has_vmap));
+	DBG(("%s: cpu bo enabled %d: llc? %d, set-cache-level? %d, vmap? %d\n", __FUNCTION__,
+	     kgem->has_llc | kgem->has_vmap | kgem->has_cache_level,
+	     kgem->has_llc, kgem->has_cache_level, kgem->has_vmap));
 
 	kgem->has_semaphores = false;
 	if (gen >= 60 && semaphores_enabled())
@@ -766,7 +821,7 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	kgem->large_object_size = MAX_CACHE_SIZE;
 	if (kgem->large_object_size > kgem->max_gpu_size)
 		kgem->large_object_size = kgem->max_gpu_size;
-	if (kgem->has_llc | kgem->has_vmap) {
+	if (kgem->has_llc | kgem->has_cache_level | kgem->has_vmap) {
 		if (kgem->large_object_size > kgem->max_cpu_size)
 			kgem->large_object_size = kgem->max_cpu_size;
 	} else
@@ -2616,6 +2671,9 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 	size /= PAGE_SIZE;
 	bucket = cache_bucket(size);
 
+	if (flags & CREATE_FORCE)
+		goto create;
+
 	if (bucket >= NUM_CACHE_BUCKETS) {
 		DBG(("%s: large bo num pages=%d, bucket=%d\n",
 		     __FUNCTION__, size, bucket));
@@ -2979,6 +3037,23 @@ struct kgem_bo *kgem_create_cpu_2d(struct kgem *kgem,
 				    I915_TILING_NONE, flags);
 		if (bo == NULL)
 			return bo;
+
+		if (kgem_bo_map__cpu(kgem, bo) == NULL) {
+			kgem_bo_destroy(kgem, bo);
+			return NULL;
+		}
+
+		return bo;
+	}
+
+	if (kgem->has_cache_level) {
+		bo = kgem_create_2d(kgem, width, height, bpp,
+				    I915_TILING_NONE, flags | CREATE_FORCE);
+		if (bo == NULL)
+			return NULL;
+
+		gem_set_cache_level(kgem->fd, bo->handle, I915_CACHE_LLC);
+		bo->reusable = false;
 
 		if (kgem_bo_map__cpu(kgem, bo) == NULL) {
 			kgem_bo_destroy(kgem, bo);
