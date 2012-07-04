@@ -1167,7 +1167,7 @@ sna_render_picture_extract(struct sna *sna,
 			if (!sna->render.copy_boxes(sna, GXcopy,
 						    pixmap, src_bo, 0, 0,
 						    &tmp, bo, -box.x1, -box.y1,
-						    &box, 1)) {
+						    &box, 1, 0)) {
 				kgem_bo_destroy(&sna->kgem, bo);
 				bo = NULL;
 			}

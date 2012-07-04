@@ -568,7 +568,7 @@ sna_dri_copy_to_front(struct sna *sna, DrawablePtr draw, RegionPtr region,
 	sna->render.copy_boxes(sna, GXcopy,
 			       (PixmapPtr)draw, src_bo, -draw->x, -draw->y,
 			       pixmap, dst_bo, dx, dy,
-			       boxes, n);
+			       boxes, n, COPY_LAST);
 
 	DBG(("%s: flushing? %d\n", __FUNCTION__, flush));
 	if (flush) { /* STAT! */
@@ -654,7 +654,7 @@ sna_dri_copy_from_front(struct sna *sna, DrawablePtr draw, RegionPtr region,
 	sna->render.copy_boxes(sna, GXcopy,
 			       pixmap, src_bo, dx, dy,
 			       (PixmapPtr)draw, dst_bo, -draw->x, -draw->y,
-			       boxes, n);
+			       boxes, n, COPY_LAST);
 
 	if (region == &clip)
 		pixman_region_fini(&clip);
@@ -697,7 +697,7 @@ sna_dri_copy(struct sna *sna, DrawablePtr draw, RegionPtr region,
 	sna->render.copy_boxes(sna, GXcopy,
 			       (PixmapPtr)draw, src_bo, 0, 0,
 			       (PixmapPtr)draw, dst_bo, 0, 0,
-			       boxes, n);
+			       boxes, n, COPY_LAST);
 
 	if (region == &clip)
 		pixman_region_fini(&clip);

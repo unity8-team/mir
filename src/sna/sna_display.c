@@ -814,7 +814,7 @@ void sna_copy_fbcon(struct sna *sna)
 	ok = sna->render.copy_boxes(sna, GXcopy,
 				    scratch, bo, sx, sy,
 				    sna->front, priv->gpu_bo, dx, dy,
-				    &box, 1);
+				    &box, 1, 0);
 	if (!DAMAGE_IS_ALL(priv->gpu_damage))
 		sna_damage_add_box(&priv->gpu_damage, &box);
 
@@ -2780,7 +2780,7 @@ sna_crtc_redisplay(xf86CrtcPtr crtc, RegionPtr region)
 		if (sna->render.copy_boxes(sna, GXcopy,
 					   sna->front, sna_pixmap_get_bo(sna->front), 0, 0,
 					   &tmp, sna_crtc->bo, -tx, -ty,
-					   REGION_RECTS(region), REGION_NUM_RECTS(region)))
+					   REGION_RECTS(region), REGION_NUM_RECTS(region), 0))
 			return;
 	}
 
@@ -2909,7 +2909,8 @@ disable:
 					     sna->front, new, 0, 0,
 					     sna->front, old, 0, 0,
 					     REGION_RECTS(region),
-					     REGION_NUM_RECTS(region));
+					     REGION_NUM_RECTS(region),
+					     COPY_LAST);
 		kgem_submit(&sna->kgem);
 
 		sna_pixmap(sna->front)->gpu_bo = old;

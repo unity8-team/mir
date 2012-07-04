@@ -2909,7 +2909,7 @@ static Bool
 gen5_render_copy_boxes(struct sna *sna, uint8_t alu,
 		       PixmapPtr src, struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
 		       PixmapPtr dst, struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
-		       const BoxRec *box, int n)
+		       const BoxRec *box, int n, unsigned flags)
 {
 	struct sna_composite_op tmp;
 

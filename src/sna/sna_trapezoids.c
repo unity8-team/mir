@@ -5779,7 +5779,7 @@ trap_mask_converter(PicturePtr picture,
 	sna->render.copy_boxes(sna, GXcopy,
 			       scratch, sna_pixmap_get_bo(scratch), -extents.x1, -extents.x1,
 			       pixmap, priv->gpu_bo, x, y,
-			       &extents, 1);
+			       &extents, 1, 0);
 	mark_damaged(pixmap, priv, &extents ,x, y);
 
 	screen->DestroyPixmap(scratch);
@@ -5857,7 +5857,7 @@ trap_upload(PicturePtr picture,
 	sna->render.copy_boxes(sna, GXcopy,
 			       scratch, sna_pixmap_get_bo(scratch), -extents.x1, -extents.x1,
 			       pixmap, priv->gpu_bo, x, y,
-			       &extents, 1);
+			       &extents, 1, 0);
 	mark_damaged(pixmap, priv, &extents, x, y);
 
 	screen->DestroyPixmap(scratch);

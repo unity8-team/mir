@@ -2409,7 +2409,7 @@ static inline Bool prefer_blt_fill(struct sna *sna)
 #endif
 }
 
-static inline Bool prefer_blt_copy(struct sna *sna)
+static inline Bool prefer_blt_copy(struct sna *sna, unsigned flags)
 {
 #if PREFER_BLT_COPY
 	return true;
@@ -2864,7 +2864,7 @@ static Bool
 gen2_render_copy_boxes(struct sna *sna, uint8_t alu,
 		       PixmapPtr src, struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
 		       PixmapPtr dst, struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
-		       const BoxRec *box, int n)
+		       const BoxRec *box, int n, unsigned flags)
 {
 	struct sna_composite_op tmp;
 
@@ -2882,7 +2882,7 @@ gen2_render_copy_boxes(struct sna *sna, uint8_t alu,
 	DBG(("%s (%d, %d)->(%d, %d) x %d\n",
 	     __FUNCTION__, src_dx, src_dy, dst_dx, dst_dy, n));
 
-	if (prefer_blt_copy(sna) &&
+	if (prefer_blt_copy(sna, flags) &&
 	    sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
 	    sna_blt_copy_boxes(sna, alu,
 			       src_bo, src_dx, src_dy,
@@ -3048,7 +3048,7 @@ gen2_render_copy(struct sna *sna, uint8_t alu,
 #endif
 
 	/* Prefer to use the BLT */
-	if (prefer_blt_copy(sna) &&
+	if (prefer_blt_copy(sna, 0) &&
 	    sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
 	    sna_blt_copy(sna, alu,
 			 src_bo, dst_bo,

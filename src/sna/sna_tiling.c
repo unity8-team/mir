@@ -659,7 +659,7 @@ sna_tiling_fill_boxes(struct sna *sna,
 				if (!sna->render.copy_boxes(sna, GXcopy,
 							     dst, dst_bo, 0, 0,
 							     &tmp, bo, -dx, -dy,
-							     REGION_RECTS(&this), REGION_NUM_RECTS(&this)))
+							     REGION_RECTS(&this), REGION_NUM_RECTS(&this), 0))
 					goto err;
 
 				RegionTranslate(&this, -dx, -dy);
@@ -671,7 +671,7 @@ sna_tiling_fill_boxes(struct sna *sna,
 				if (!sna->render.copy_boxes(sna, GXcopy,
 							     &tmp, bo, 0, 0,
 							     dst, dst_bo, dx, dy,
-							     REGION_RECTS(&this), REGION_NUM_RECTS(&this)))
+							     REGION_RECTS(&this), REGION_NUM_RECTS(&this), 0))
 					goto err;
 
 				kgem_bo_destroy(&sna->kgem, bo);
@@ -898,11 +898,11 @@ sna_tiling_copy_boxes(struct sna *sna, uint8_t alu,
 			i = (sna->render.copy_boxes(sna, GXcopy,
 						    src, src_bo, src_dx, src_dy,
 						    &p, tmp_bo, -tile.x1, -tile.y1,
-						    clipped, c - clipped) &&
+						    clipped, c - clipped, 0) &&
 			     sna->render.copy_boxes(sna, alu,
 						    &p, tmp_bo, -tile.x1, -tile.y1,
 						    dst, dst_bo, dst_dx, dst_dy,
-						    clipped, c - clipped));
+						    clipped, c - clipped, 0));
 
 			kgem_bo_destroy(&sna->kgem, tmp_bo);
 

@@ -3238,9 +3238,11 @@ static bool prefer_blt_bo(struct sna *sna,
 
 static inline bool prefer_blt_copy(struct sna *sna,
 				   PixmapPtr src, struct kgem_bo *src_bo,
-				   PixmapPtr dst, struct kgem_bo *dst_bo)
+				   PixmapPtr dst, struct kgem_bo *dst_bo,
+				   unsigned flags)
 {
 	return (sna->kgem.ring == KGEM_BLT ||
+		(flags & COPY_LAST && sna->kgem.mode == KGEM_NONE) ||
 		prefer_blt_bo(sna, src, src_bo) ||
 		prefer_blt_bo(sna, dst, dst_bo));
 }
@@ -3280,7 +3282,7 @@ static Bool
 gen6_render_copy_boxes(struct sna *sna, uint8_t alu,
 		       PixmapPtr src, struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
 		       PixmapPtr dst, struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
-		       const BoxRec *box, int n)
+		       const BoxRec *box, int n, unsigned flags)
 {
 	struct sna_composite_op tmp;
 
@@ -3302,7 +3304,7 @@ gen6_render_copy_boxes(struct sna *sna, uint8_t alu,
 		      dst_bo, dst_dx, dst_dy,
 		      box, n)));
 
-	if (prefer_blt_copy(sna, src, src_bo, dst, dst_bo) &&
+	if (prefer_blt_copy(sna, src, src_bo, dst, dst_bo, flags) &&
 	    sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
 	    sna_blt_copy_boxes(sna, alu,
 			       src_bo, src_dx, src_dy,
@@ -3537,7 +3539,7 @@ gen6_render_copy(struct sna *sna, uint8_t alu,
 	     src->drawable.width, src->drawable.height,
 	     dst->drawable.width, dst->drawable.height));
 
-	if (prefer_blt_copy(sna, src, src_bo, dst, dst_bo) &&
+	if (prefer_blt_copy(sna, src, src_bo, dst, dst_bo, 0) &&
 	    sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
 	    sna_blt_copy(sna, alu,
 			 src_bo, dst_bo,

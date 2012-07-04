@@ -276,7 +276,7 @@ fallback:
 					if (!sna->render.copy_boxes(sna, GXcopy,
 								    dst, src_bo, src_dx, src_dy,
 								    &tmp, dst_bo, -tile.x1, -tile.y1,
-								    clipped, c-clipped)) {
+								    clipped, c-clipped, COPY_LAST)) {
 						kgem_bo_destroy(&sna->kgem, dst_bo);
 						if (clipped != stack)
 							free(clipped);
@@ -316,7 +316,7 @@ fallback:
 			if (!sna->render.copy_boxes(sna, GXcopy,
 						    dst, src_bo, src_dx, src_dy,
 						    &tmp, dst_bo, -extents.x1, -extents.y1,
-						    box, nbox)) {
+						    box, nbox, COPY_LAST)) {
 				kgem_bo_destroy(&sna->kgem, dst_bo);
 				goto fallback;
 			}
@@ -689,7 +689,7 @@ tile:
 						n = sna->render.copy_boxes(sna, GXcopy,
 									   &tmp, src_bo, -tile.x1, -tile.y1,
 									   dst, dst_bo, dst_dx, dst_dy,
-									   clipped, c - clipped);
+									   clipped, c - clipped, 0);
 					else
 						n = 1;
 
@@ -736,7 +736,7 @@ tile:
 			n = sna->render.copy_boxes(sna, GXcopy,
 						   &tmp, src_bo, -extents.x1, -extents.y1,
 						   dst, dst_bo, dst_dx, dst_dy,
-						   box, nbox);
+						   box, nbox, 0);
 
 			kgem_bo_destroy(&sna->kgem, src_bo);
 
@@ -973,7 +973,7 @@ fallback:
 		n = sna->render.copy_boxes(sna, GXcopy,
 					   &tmp, src_bo, -extents.x1, -extents.y1,
 					   dst, dst_bo, dst_dx, dst_dy,
-					   box, nbox);
+					   box, nbox, 0);
 
 		kgem_bo_destroy(&sna->kgem, src_bo);
 
@@ -1144,7 +1144,7 @@ indirect_replace(struct sna *sna,
 	ret = sna->render.copy_boxes(sna, GXcopy,
 				     pixmap, src_bo, 0, 0,
 				     pixmap, bo, 0, 0,
-				     &box, 1);
+				     &box, 1, 0);
 
 	kgem_bo_destroy(kgem, src_bo);
 

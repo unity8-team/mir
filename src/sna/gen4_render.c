@@ -2576,11 +2576,22 @@ gen4_render_copy_one(struct sna *sna,
 	FLUSH(op);
 }
 
+static inline bool prefer_blt_copy(struct sna *sna, unsigned flags)
+{
+#if PREFER_BLT
+	return true;
+	(void)sna;
+#else
+	return sna->kgem.mode != KGEM_RENDER;
+#endif
+	(void)flags;
+}
+
 static Bool
 gen4_render_copy_boxes(struct sna *sna, uint8_t alu,
 		       PixmapPtr src, struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
 		       PixmapPtr dst, struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
-		       const BoxRec *box, int n)
+		       const BoxRec *box, int n, unsigned flags)
 {
 	struct sna_composite_op tmp;
 
@@ -2597,7 +2608,7 @@ gen4_render_copy_boxes(struct sna *sna, uint8_t alu,
 				  box, n);
 #endif
 
-	if (prefer_blt(sna) &&
+	if (prefer_blt_copy(sna, flags) &&
 	    sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
 	    sna_blt_copy_boxes(sna, alu,
 			       src_bo, src_dx, src_dy,
