@@ -46,13 +46,17 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <i915_drm.h>
 #include <dri2.h>
 
+#if DEBUG_DRI
+#undef DBG
+#define DBG(x) ErrorF x
+#endif
+
 #if DRI2INFOREC_VERSION <= 2
 #error DRI2 version supported by the Xserver is too old
 #endif
 
-#if DEBUG_DRI
-#undef DBG
-#define DBG(x) ErrorF x
+#if DRI2INFOREC_VERSION < 9
+#define USE_ASYNC_SWAP 0
 #endif
 
 #define COLOR_PREFER_TILING_Y 0
@@ -1468,7 +1472,7 @@ static void sna_dri_flip_event(struct sna *sna,
 			sna_dri_frame_event_info_free(sna, flip);
 		break;
 
-#if USE_ASYNC_SWAP && DRI2INFOREC_VERSION >= 7
+#if USE_ASYNC_SWAP
 	case DRI2_ASYNC_FLIP:
 		DBG(("%s: async swap flip completed on pipe %d, pending? %d, new? %d\n",
 		     __FUNCTION__, flip->pipe,
@@ -1509,7 +1513,7 @@ finish_async_flip:
 
 			DBG(("%s: async flip completed\n", __FUNCTION__));
 			sna->dri.flip_pending = NULL;
-			sna_dri_frame_event_info_free(fsna, lip);
+			sna_dri_frame_event_info_free(sna, flip);
 		}
 		break;
 #endif
@@ -2028,20 +2032,7 @@ blit_fallback:
 	return TRUE;
 }
 
-#if USE_ASYNC_SWAP && DRI2INFOREC_VERSION >= 7
-static void
-sna_dri_exchange_attachment(DRI2BufferPtr front, DRI2BufferPtr back)
-{
-	int tmp;
-
-	DBG(("%s(%d <--> %d)\n",
-	     __FUNCTION__, front->attachment, back->attachment));
-
-	tmp = front->attachment;
-	front->attachment = back->attachment;
-	back->attachment = tmp;
-}
-
+#if USE_ASYNC_SWAP
 static Bool
 sna_dri_async_swap(ClientPtr client, DrawablePtr draw,
 		   DRI2BufferPtr front, DRI2BufferPtr back,
@@ -2054,34 +2045,23 @@ sna_dri_async_swap(ClientPtr client, DrawablePtr draw,
 
 	DBG(("%s()\n", __FUNCTION__));
 
-	if (!sna->scrn->vtSema) {
-		PixmapPtr pixmap;
-
-exchange:
-		DBG(("%s: unattached, exchange pixmaps\n", __FUNCTION__));
-
-		pixmap = get_drawable_pixmap(draw);
-		set_bo(pixmap, get_private(back)->bo);
-		sna_dri_exchange_attachment(front, back);
-		get_private(back)->pixmap = pixmap;
-		get_private(front)->pixmap = NULL;
-
-		DRI2SwapComplete(client, draw, 0, 0, 0,
-				 DRI2_EXCHANGE_COMPLETE, func, data);
-		return TRUE;
-	}
-
 	if (!can_flip(sna, draw, front, back)) {
 blit:
-		DBG(("%s: unable to flip, so blit\n", __FUNCTION__));
+		if (can_exchange(sna, draw, front, back)) {
+			DBG(("%s: unable to flip, so xchg\n", __FUNCTION__));
+			sna_dri_exchange_buffers(draw, front, back);
+			name = DRI2_EXCHANGE_COMPLETE;
+		} else {
+			DBG(("%s: unable to flip, so blit\n", __FUNCTION__));
+			sna_dri_copy_to_front(sna, draw, NULL,
+					      get_private(front)->bo,
+					      get_private(back)->bo,
+					      false);
+			name = DRI2_BLIT_COMPLETE;
+		}
 
-		sna_dri_copy_to_front(sna, draw, NULL,
-				      get_private(front)->bo,
-				      get_private(back)->bo,
-				      false);
-		DRI2SwapComplete(client, draw, 0, 0, 0,
-				 DRI2_BLIT_COMPLETE, func, data);
-		return FALSE;
+		DRI2SwapComplete(client, draw, 0, 0, 0, name, func, data);
+		return name == DRI2_EXCHANGE_COMPLETE;
 	}
 
 	bo = NULL;
@@ -2091,7 +2071,7 @@ blit:
 	if (info == NULL) {
 		int pipe = sna_dri_get_pipe(draw);
 		if (pipe == -1)
-			goto exchange;
+			goto blit;
 
 		DBG(("%s: no pending flip, so updating scanout\n",
 		     __FUNCTION__));
@@ -2100,7 +2080,6 @@ blit:
 		if (!info)
 			goto blit;
 
-		info->sna = sna;
 		info->client = client;
 		info->type = DRI2_ASYNC_FLIP;
 		info->pipe = pipe;
@@ -2393,8 +2372,8 @@ Bool sna_dri_open(struct sna *sna, ScreenPtr screen)
 	info.ReuseBufferNotify = NULL;
 #endif
 
-#if USE_AYSYNC_SWAP && DRI2INFOREC_VERSION >= 7
-	info.version = 7;
+#if USE_ASYNC_SWAP
+	info.version = 9;
 	info.AsyncSwap = sna_dri_async_swap;
 #endif
 
