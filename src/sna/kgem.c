@@ -619,7 +619,10 @@ static bool semaphores_enabled(void)
 
 static bool __kgem_throttle(struct kgem *kgem)
 {
-	return drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_THROTTLE, NULL) == -EIO;
+	if (drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_THROTTLE, NULL) == 0)
+		return false;
+
+	return errno == EIO;
 }
 
 static bool is_hw_supported(struct kgem *kgem)
@@ -2067,6 +2070,7 @@ void kgem_throttle(struct kgem *kgem)
 	static int warned;
 
 	kgem->wedged |= __kgem_throttle(kgem);
+	DBG(("%s: wedged=%d\n", __FUNCTION__, kgem->wedged));
 	if (kgem->wedged && !warned) {
 		struct sna *sna = container_of(kgem, struct sna, kgem);
 		xf86DrvMsg(sna->scrn->scrnIndex, X_ERROR,
