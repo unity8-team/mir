@@ -1646,6 +1646,10 @@ Bool intel_mode_pre_init(ScrnInfoPtr scrn, int fd, int cpp)
 
 	xf86InitialConfiguration(scrn, TRUE);
 
+	mode->event_context.version = DRM_EVENT_CONTEXT_VERSION;
+	mode->event_context.vblank_handler = intel_vblank_handler;
+	mode->event_context.page_flip_handler = intel_page_flip_handler;
+
 	has_flipping = 0;
 	gp.param = I915_PARAM_HAS_PAGEFLIPPING;
 	gp.value = &has_flipping;
@@ -1655,10 +1659,6 @@ Bool intel_mode_pre_init(ScrnInfoPtr scrn, int fd, int cpp)
 		xf86DrvMsg(scrn->scrnIndex, X_INFO,
 			   "Kernel page flipping support detected, enabling\n");
 		intel->use_pageflipping = TRUE;
-
-		mode->event_context.version = DRM_EVENT_CONTEXT_VERSION;
-		mode->event_context.vblank_handler = intel_vblank_handler;
-		mode->event_context.page_flip_handler = intel_page_flip_handler;
 	}
 
 	intel->modes = mode;
@@ -1668,18 +1668,16 @@ Bool intel_mode_pre_init(ScrnInfoPtr scrn, int fd, int cpp)
 void
 intel_mode_init(struct intel_screen_private *intel)
 {
-	if (intel->use_pageflipping) {
-		struct intel_mode *mode = intel->modes;
+	struct intel_mode *mode = intel->modes;
 
-		/* We need to re-register the mode->fd for the synchronisation
-		 * feedback on every server generation, so perform the
-		 * registration within ScreenInit and not PreInit.
-		 */
-		mode->flip_count = 0;
-		AddGeneralSocket(mode->fd);
-		RegisterBlockAndWakeupHandlers((BlockHandlerProcPtr)NoopDDA,
-					       drm_wakeup_handler, mode);
-	}
+	/* We need to re-register the mode->fd for the synchronisation
+	 * feedback on every server generation, so perform the
+	 * registration within ScreenInit and not PreInit.
+	 */
+	mode->flip_count = 0;
+	AddGeneralSocket(mode->fd);
+	RegisterBlockAndWakeupHandlers((BlockHandlerProcPtr)NoopDDA,
+				       drm_wakeup_handler, mode);
 }
 
 void
