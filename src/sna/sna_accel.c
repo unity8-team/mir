@@ -3974,7 +3974,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 						       src->depth,
 						       KGEM_BUFFER_WRITE_INPLACE);
 			if (tmp == NullPixmap)
-				return;
+				goto out;
 
 			dx = -region.extents.x1;
 			dy = -region.extents.y1;
