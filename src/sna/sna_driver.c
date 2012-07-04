@@ -596,7 +596,7 @@ sna_wakeup_handler(WAKEUPHANDLER_ARGS_DECL)
 
 	sna->WakeupHandler(WAKEUPHANDLER_ARGS);
 
-	sna_accel_wakeup_handler(sna, read_mask);
+	sna_accel_wakeup_handler(sna);
 
 	if (FD_ISSET(sna->kgem.fd, (fd_set*)read_mask))
 		sna_mode_wakeup(sna);

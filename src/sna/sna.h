@@ -217,11 +217,9 @@ struct sna {
 	unsigned watch_flush;
 	unsigned flush;
 
-	OsTimerPtr timer;
+	struct timeval timer_tv;
 	uint32_t timer_expire[NUM_TIMERS];
 	uint16_t timer_active;
-	uint16_t timer_ready;
-	struct timeval timer_tv;
 
 	int vblank_interval;
 
@@ -570,7 +568,7 @@ static inline uint32_t pixmap_size(PixmapPtr pixmap)
 Bool sna_accel_pre_init(struct sna *sna);
 Bool sna_accel_init(ScreenPtr sreen, struct sna *sna);
 void sna_accel_block_handler(struct sna *sna, struct timeval **tv);
-void sna_accel_wakeup_handler(struct sna *sna, fd_set *ready);
+void sna_accel_wakeup_handler(struct sna *sna);
 void sna_accel_watch_flush(struct sna *sna, int enable);
 void sna_accel_close(struct sna *sna);
 void sna_accel_free(struct sna *sna);

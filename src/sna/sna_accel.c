@@ -3719,8 +3719,6 @@ fallback:
 static int
 source_prefer_gpu(struct sna_pixmap *priv)
 {
-	unsigned flags;
-
 	if (priv == NULL) {
 		DBG(("%s: source unattached, use cpu\n", __FUNCTION__));
 		return 0;
@@ -12246,7 +12244,6 @@ static void sna_accel_disarm_timer(struct sna *sna, int id)
 {
 	DBG(("%s[%d] (time=%ld)\n", __FUNCTION__, id, (long)TIME));
 	sna->timer_active &= ~(1<<id);
-	sna->timer_ready &= ~(1<<id);
 }
 
 static bool has_shadow(struct sna *sna)
@@ -12302,8 +12299,10 @@ static bool sna_accel_do_flush(struct sna *sna)
 		return true;
 
 	if (sna->timer_active & (1<<(FLUSH_TIMER))) {
-		DBG(("%s: flush timer active\n", __FUNCTION__));
-		if (sna->timer_ready & (1<<(FLUSH_TIMER))) {
+		int32_t delta = sna->timer_expire[FLUSH_TIMER] - TIME;
+		DBG(("%s: flush timer active: delta=%d\n",
+		     __FUNCTION__, delta));
+		if (delta <= 3) {
 			DBG(("%s (time=%ld), triggered\n", __FUNCTION__, (long)TIME));
 			sna->timer_expire[FLUSH_TIMER] =
 				TIME + sna->vblank_interval;
@@ -12314,7 +12313,6 @@ static bool sna_accel_do_flush(struct sna *sna)
 			DBG(("%s -- no pending write to scanout\n", __FUNCTION__));
 		} else {
 			sna->timer_active |= 1 << FLUSH_TIMER;
-			sna->timer_ready |= 1 << FLUSH_TIMER;
 			sna->timer_expire[FLUSH_TIMER] =
 				TIME + sna->vblank_interval / 2;
 			DBG(("%s (time=%ld), starting\n", __FUNCTION__, (long)TIME));
@@ -12330,7 +12328,8 @@ static bool sna_accel_do_throttle(struct sna *sna)
 		return false;
 
 	if (sna->timer_active & (1<<(THROTTLE_TIMER))) {
-		if (sna->timer_ready & (1<<(THROTTLE_TIMER))) {
+		int32_t delta = sna->timer_expire[THROTTLE_TIMER] - TIME;
+		if (delta <= 3) {
 			DBG(("%s (time=%ld), triggered\n", __FUNCTION__, (long)TIME));
 			sna->timer_expire[THROTTLE_TIMER] = TIME + 20;
 			return true;
@@ -12341,7 +12340,6 @@ static bool sna_accel_do_throttle(struct sna *sna)
 		} else {
 			DBG(("%s (time=%ld), starting\n", __FUNCTION__, (long)TIME));
 			sna->timer_active |= 1 << THROTTLE_TIMER;
-			sna->timer_ready |= 1 << THROTTLE_TIMER;
 			sna->timer_expire[THROTTLE_TIMER] = TIME + 20;
 		}
 	}
@@ -12352,7 +12350,8 @@ static bool sna_accel_do_throttle(struct sna *sna)
 static bool sna_accel_do_expire(struct sna *sna)
 {
 	if (sna->timer_active & (1<<(EXPIRE_TIMER))) {
-		if (sna->timer_ready & (1<<(EXPIRE_TIMER))) {
+		int32_t delta = sna->timer_expire[EXPIRE_TIMER] - TIME;
+		if (delta <= 3) {
 			DBG(("%s (time=%ld), triggered\n", __FUNCTION__, (long)TIME));
 			sna->timer_expire[EXPIRE_TIMER] =
 				TIME + MAX_INACTIVE_TIME * 1000;
@@ -12361,7 +12360,6 @@ static bool sna_accel_do_expire(struct sna *sna)
 	} else {
 		if (sna->kgem.need_expire) {
 			sna->timer_active |= 1 << EXPIRE_TIMER;
-			sna->timer_ready |= 1 << EXPIRE_TIMER;
 			sna->timer_expire[EXPIRE_TIMER] =
 				TIME + MAX_INACTIVE_TIME * 1000;
 			DBG(("%s (time=%ld), starting\n", __FUNCTION__, (long)TIME));
@@ -12374,7 +12372,8 @@ static bool sna_accel_do_expire(struct sna *sna)
 static bool sna_accel_do_inactive(struct sna *sna)
 {
 	if (sna->timer_active & (1<<(INACTIVE_TIMER))) {
-		if (sna->timer_ready & (1<<(INACTIVE_TIMER))) {
+		int32_t delta = sna->timer_expire[INACTIVE_TIMER] - TIME;
+		if (delta <= 3) {
 			sna->timer_expire[INACTIVE_TIMER] =
 				TIME + 120 * 1000;
 			DBG(("%s (time=%ld), triggered\n", __FUNCTION__, (long)TIME));
@@ -12383,7 +12382,6 @@ static bool sna_accel_do_inactive(struct sna *sna)
 	} else {
 		if (!list_is_empty(&sna->active_pixmaps)) {
 			sna->timer_active |= 1 << INACTIVE_TIMER;
-			sna->timer_ready |= 1 << INACTIVE_TIMER;
 			sna->timer_expire[INACTIVE_TIMER] =
 				TIME + 120 * 1000;
 			DBG(("%s (time=%ld), starting\n", __FUNCTION__, (long)TIME));
@@ -12393,33 +12391,25 @@ static bool sna_accel_do_inactive(struct sna *sna)
 	return false;
 }
 
-static CARD32 sna_timeout(OsTimerPtr timer, CARD32 now, pointer arg)
+static int32_t sna_timeout(struct sna *sna)
 {
-	struct sna *sna = arg;
-	int32_t next = 0;
-	uint32_t active;
+	int32_t now = TIME, next = 0;
 	int i;
 
-	DBG(("%s: now=%d, active=%08x, ready=%08x\n",
-	     __FUNCTION__, (int)now, sna->timer_active, sna->timer_ready));
-	active = sna->timer_active & ~sna->timer_ready;
-	if (active == 0)
-		return 0;
-
+	DBG(("%s: now=%d, active=%08x\n",
+	     __FUNCTION__, (int)now, sna->timer_active));
 	for (i = 0; i < NUM_TIMERS; i++) {
-		if (active & (1 << i)) {
+		if (sna->timer_active & (1 << i)) {
 			int32_t delta = sna->timer_expire[i] - now;
 			DBG(("%s: timer[%d] expires in %d [%d]\n",
 			     __FUNCTION__, i, delta, sna->timer_expire[i]));
-			if (delta <= 3)
-				sna->timer_ready |= 1 << i;
-			else if (next == 0 || delta < next)
+			if (next == 0 || delta < next)
 				next = delta;
 		}
 	}
 
-	DBG(("%s: active=%08x, ready=%08x, next=+%d\n",
-	     __FUNCTION__, sna->timer_active, sna->timer_ready, next));
+	DBG(("%s: active=%08x, next=+%d\n",
+	     __FUNCTION__, sna->timer_active, next));
 	return next;
 }
 
@@ -12596,7 +12586,6 @@ static void sna_accel_debug_memory(struct sna *sna) { }
 
 Bool sna_accel_pre_init(struct sna *sna)
 {
-	sna->timer = TimerSet(NULL, 0, 0, sna_timeout, sna);
 	return TRUE;
 }
 
@@ -12741,6 +12730,8 @@ void sna_accel_close(struct sna *sna)
 
 void sna_accel_block_handler(struct sna *sna, struct timeval **tv)
 {
+	UpdateCurrentTimeIf();
+
 	if (sna->kgem.nbatch && kgem_is_idle(&sna->kgem)) {
 		DBG(("%s: GPU idle, flushing\n", __FUNCTION__));
 		_kgem_submit(&sna->kgem);
@@ -12776,14 +12767,12 @@ void sna_accel_block_handler(struct sna *sna, struct timeval **tv)
 		sna->watch_flush = 0;
 	}
 
-	if (sna->timer_ready) {
+	if (sna->timer_active) {
 		int32_t timeout;
 
-		DBG(("%s: evaluating timers, ready=%x\n",
-		     __FUNCTION__, sna->timer_ready));
-		sna->timer_ready = 0;
-		timeout = sna_timeout(sna->timer, TIME, sna);
-		TimerSet(sna->timer, 0, timeout, sna_timeout, sna);
+		DBG(("%s: evaluating timers, active=%x\n",
+		     __FUNCTION__, sna->timer_active));
+		timeout = sna_timeout(sna);
 		if (timeout) {
 			if (*tv == NULL) {
 				*tv = &sna->timer_tv;
@@ -12798,9 +12787,10 @@ set_tv:
 	}
 }
 
-void sna_accel_wakeup_handler(struct sna *sna, fd_set *ready)
+void sna_accel_wakeup_handler(struct sna *sna)
 {
 	DBG(("%s\n", __FUNCTION__));
+
 	if (sna->kgem.need_retire)
 		kgem_retire(&sna->kgem);
 	if (!sna->mode.shadow_active && !sna->kgem.need_retire) {
