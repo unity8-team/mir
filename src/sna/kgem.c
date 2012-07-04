@@ -1604,7 +1604,7 @@ static void kgem_commit(struct kgem *kgem)
 		set_domain.write_domain = I915_GEM_DOMAIN_GTT;
 		if (drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_SET_DOMAIN, &set_domain)) {
 			DBG(("%s: sync: GPU hang detected\n", __FUNCTION__));
-			kgem->wedged = 1;
+			kgem_throttle(kgem);
 		}
 
 		kgem_retire(kgem);
@@ -1983,7 +1983,7 @@ void _kgem_submit(struct kgem *kgem)
 			}
 			if (ret == -1 && (errno == EIO || errno == EBUSY)) {
 				DBG(("%s: GPU hang detected\n", __FUNCTION__));
-				kgem->wedged = 1;
+				kgem_throttle(kgem);
 				ret = 0;
 			}
 #if !NDEBUG
@@ -2047,7 +2047,7 @@ void _kgem_submit(struct kgem *kgem)
 				ret = drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_SET_DOMAIN, &set_domain);
 				if (ret == -1) {
 					DBG(("%s: sync: GPU hang detected\n", __FUNCTION__));
-					kgem->wedged = 1;
+					kgem_throttle(kgem);
 				}
 			}
 		}
