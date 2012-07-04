@@ -436,6 +436,53 @@ static void set_bo(PixmapPtr pixmap, struct kgem_bo *bo)
 	DamageRegionProcessPending(&pixmap->drawable);
 }
 
+static void sna_dri_select_mode(struct sna *sna, struct kgem_bo *src, bool sync)
+{
+	struct drm_i915_gem_busy busy;
+
+	if (sna->kgem.gen < 60)
+		return;
+
+	if (sync) {
+		DBG(("%s: sync, force RENDER ring\n", __FUNCTION__));
+		kgem_set_mode(&sna->kgem, KGEM_RENDER);
+		return;
+	}
+
+	if (sna->kgem.mode != KGEM_NONE) {
+		DBG(("%s: busy, not switching\n", __FUNCTION__));
+		return;
+	}
+
+	VG_CLEAR(busy);
+	busy.handle = src->handle;
+	if (drmIoctl(sna->kgem.fd, DRM_IOCTL_I915_GEM_BUSY, &busy))
+		return;
+
+	DBG(("%s: src busy?=%x\n", __FUNCTION__, busy.busy));
+	if (busy.busy == 0) {
+		DBG(("%s: src is idle, using defaults\n", __FUNCTION__));
+		return;
+	}
+
+	/* Sandybridge introduced a separate ring which it uses to
+	 * perform blits. Switching rendering between rings incurs
+	 * a stall as we wait upon the old ring to finish and
+	 * flush its render cache before we can proceed on with
+	 * the operation on the new ring.
+	 *
+	 * As this buffer, we presume, has just been written to by
+	 * the DRI client using the RENDER ring, we want to perform
+	 * our operation on the same ring, and ideally on the same
+	 * ring as we will flip from (which should be the RENDER ring
+	 * as well).
+	 */
+	if ((busy.busy & 0xffff0000) == 0 || busy.busy & (1 << 16))
+		kgem_set_mode(&sna->kgem, KGEM_RENDER);
+	else
+		kgem_set_mode(&sna->kgem, KGEM_BLT);
+}
+
 static struct kgem_bo *
 sna_dri_copy_to_front(struct sna *sna, DrawablePtr draw, RegionPtr region,
 		      struct kgem_bo *dst_bo, struct kgem_bo *src_bo,
@@ -502,21 +549,7 @@ sna_dri_copy_to_front(struct sna *sna, DrawablePtr draw, RegionPtr region,
 		get_drawable_deltas(draw, pixmap, &dx, &dy);
 	}
 
-	if (sna->kgem.gen >= 60) {
-		/* Sandybridge introduced a separate ring which it uses to
-		 * perform blits. Switching rendering between rings incurs
-		 * a stall as we wait upon the old ring to finish and
-		 * flush its render cache before we can proceed on with
-		 * the operation on the new ring.
-		 *
-		 * As this buffer, we presume, has just been written to by
-		 * the DRI client using the RENDER ring, we want to perform
-		 * our operation on the same ring, and ideally on the same
-		 * ring as we will flip from (which should be the RENDER ring
-		 * as well).
-		 */
-		kgem_set_mode(&sna->kgem, KGEM_RENDER);
-	}
+	sna_dri_select_mode(sna, src_bo, flush);
 
 	damage(pixmap, region);
 	if (region) {
@@ -602,8 +635,7 @@ sna_dri_copy_from_front(struct sna *sna, DrawablePtr draw, RegionPtr region,
 		get_drawable_deltas(draw, pixmap, &dx, &dy);
 	}
 
-	if (sna->kgem.gen >= 60)
-		kgem_set_mode(&sna->kgem, KGEM_RENDER);
+	sna_dri_select_mode(sna, src_bo, false);
 
 	if (region) {
 		boxes = REGION_RECTS(region);
@@ -656,21 +688,7 @@ sna_dri_copy(struct sna *sna, DrawablePtr draw, RegionPtr region,
 		n = 1;
 	}
 
-	if (sna->kgem.gen >= 60) {
-		/* Sandybridge introduced a separate ring which it uses to
-		 * perform blits. Switching rendering between rings incurs
-		 * a stall as we wait upon the old ring to finish and
-		 * flush its render cache before we can proceed on with
-		 * the operation on the new ring.
-		 *
-		 * As this buffer, we presume, has just been written to by
-		 * the DRI client using the RENDER ring, we want to perform
-		 * our operation on the same ring, and ideally on the same
-		 * ring as we will flip from (which should be the RENDER ring
-		 * as well).
-		 */
-		kgem_set_mode(&sna->kgem, KGEM_RENDER);
-	}
+	sna_dri_select_mode(sna, src_bo, false);
 
 	sna->render.copy_boxes(sna, GXcopy,
 			       (PixmapPtr)draw, src_bo, 0, 0,
