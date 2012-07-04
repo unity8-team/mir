@@ -1767,6 +1767,7 @@ sna_dri_immediate_xchg(struct sna *sna,
 			priv->chain->chain = info;
 		}
 	} else {
+		sna_dri_exchange_buffers(draw, info->front, info->back);
 		DRI2SwapComplete(info->client, draw, 0, 0, 0,
 				 DRI2_EXCHANGE_COMPLETE,
 				 info->event_complete,
@@ -1928,7 +1929,7 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 
 	info->type = swap_type;
 	if (divisor == 0) {
-		if (can_exchange(sna, draw, info->front, info->back))
+		if (can_exchange(sna, draw, front, back))
 			sna_dri_immediate_xchg(sna, draw, info);
 		else
 			sna_dri_immediate_blit(sna, draw, info);
@@ -2008,14 +2009,21 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	return TRUE;
 
 blit_fallback:
-	DBG(("%s -- blit\n", __FUNCTION__));
-	sna_dri_copy_to_front(sna, draw, NULL,
-			      get_private(front)->bo,
-			      get_private(back)->bo,
-			      false);
+	if (can_exchange(sna, draw, front, back)) {
+		DBG(("%s -- xchg\n", __FUNCTION__));
+		sna_dri_exchange_buffers(draw, front, back);
+		pipe = DRI2_EXCHANGE_COMPLETE;
+	} else {
+		DBG(("%s -- blit\n", __FUNCTION__));
+		sna_dri_copy_to_front(sna, draw, NULL,
+				      get_private(front)->bo,
+				      get_private(back)->bo,
+				      false);
+		pipe = DRI2_BLIT_COMPLETE;
+	}
 	if (info)
 		sna_dri_frame_event_info_free(sna, info);
-	DRI2SwapComplete(client, draw, 0, 0, 0, DRI2_BLIT_COMPLETE, func, data);
+	DRI2SwapComplete(client, draw, 0, 0, 0, pipe, func, data);
 	*target_msc = 0; /* offscreen, so zero out target vblank count */
 	return TRUE;
 }
