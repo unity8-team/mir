@@ -3531,12 +3531,10 @@ retry:
 uint32_t kgem_bo_flink(struct kgem *kgem, struct kgem_bo *bo)
 {
 	struct drm_gem_flink flink;
-	int ret;
 
 	VG_CLEAR(flink);
 	flink.handle = bo->handle;
-	ret = drmIoctl(kgem->fd, DRM_IOCTL_GEM_FLINK, &flink);
-	if (ret)
+	if (drmIoctl(kgem->fd, DRM_IOCTL_GEM_FLINK, &flink))
 		return 0;
 
 	DBG(("%s: flinked handle=%d to name=%d, marking non-reusable\n",
