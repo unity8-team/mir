@@ -1,7 +1,7 @@
 .ds q \N'34'
 .TH RADEON __drivermansuffix__ __vendorversion__
 .SH NAME
-radeon \- ATI RADEON video driver
+radeon \- ATI/AMD RADEON video driver
 .SH SYNOPSIS
 .nf
 .B "Section \*qDevice\*q"
@@ -12,7 +12,7 @@ radeon \- ATI RADEON video driver
 .fi
 .SH DESCRIPTION
 .B radeon
-is an __xservername__ driver for ATI RADEON-based video cards with the
+is an __xservername__ driver for ATI/AMD RADEON-based video cards with the
 following features:
 .PP
 .PD 0
@@ -36,7 +36,7 @@ only available on R/RV3xx, R/RV/RS4xx, R/RV5xx, and RS6xx/RS740);
 .SH SUPPORTED HARDWARE
 The
 .B radeon
-driver supports PCI, AGP, and PCIE video cards based on the following ATI chips
+driver supports PCI, AGP, and PCIe video cards based on the following ATI/AMD chips
 (note: list is non-exhaustive):
 .PP
 .PD 0
@@ -99,16 +99,16 @@ Radeon X300, M22
 Radeon X600, M24
 .TP 12
 .B RV410
-Radeon X700, M26 PCIE
+Radeon X700, M26 PCIe
 .TP 12
 .B R420
 Radeon X800 AGP
 .TP 12
 .B R423/R430
-Radeon X800, M28 PCIE
+Radeon X800, M28 PCIe
 .TP 12
 .B R480/R481
-Radeon X850 PCIE/AGP
+Radeon X850 PCIe/AGP
 .TP 12
 .B RV505/RV515/RV516/RV550
 Radeon X1300/X1400/X1500/X1550/X2300
