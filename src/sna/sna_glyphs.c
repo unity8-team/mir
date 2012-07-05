@@ -472,7 +472,8 @@ glyphs_to_dst(struct sna *sna,
 	     list->xOff, list->yOff, dst->pDrawable->x, dst->pDrawable->y));
 
 	if (dst->pCompositeClip->extents.x2 - dst->pCompositeClip->extents.x1 < dst->pDrawable->width ||
-	    dst->pCompositeClip->extents.y2 - dst->pCompositeClip->extents.y1 < dst->pDrawable->height) {
+	    dst->pCompositeClip->extents.y2 - dst->pCompositeClip->extents.y1 < dst->pDrawable->height ||
+	    dst->pCompositeClip->data) {
 		rects = REGION_RECTS(dst->pCompositeClip);
 		nrect = REGION_NUM_RECTS(dst->pCompositeClip);
 	} else
