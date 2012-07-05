@@ -69,6 +69,7 @@ struct sna_crtc {
 	struct kgem_bo *bo;
 	uint32_t cursor;
 	bool shadow;
+	bool fallback_shadow;
 	uint8_t id;
 	uint8_t pipe;
 	uint8_t plane;
@@ -540,9 +541,6 @@ sna_crtc_apply(xf86CrtcPtr crtc)
 		output_count++;
 	}
 
-	crtc->funcs->gamma_set(crtc, crtc->gamma_red, crtc->gamma_green,
-			       crtc->gamma_blue, crtc->gamma_size);
-
 	VG_CLEAR(arg);
 	arg.crtc_id = sna_crtc->id;
 	arg.fb_id = fb_id(sna_crtc->bo);
@@ -558,12 +556,6 @@ sna_crtc_apply(xf86CrtcPtr crtc)
 	arg.mode = sna_crtc->kmode;
 	arg.mode_valid = 1;
 
-	xf86DrvMsg(crtc->scrn->scrnIndex, X_INFO,
-		   "switch to mode %dx%d on crtc %d (pipe %d)\n",
-		   sna_crtc->kmode.hdisplay,
-		   sna_crtc->kmode.vdisplay,
-		   sna_crtc->id, sna_crtc->pipe);
-
 	DBG(("%s: applying crtc [%d] mode=%dx%d+%d+%d@%d, fb=%d%s update to %d outputs\n",
 	     __FUNCTION__, sna_crtc->id,
 	     arg.mode.hdisplay,
@@ -575,14 +567,8 @@ sna_crtc_apply(xf86CrtcPtr crtc)
 	     output_count));
 
 	ret = drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_SETCRTC, &arg);
-	if (ret) {
-		xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
-			   "failed to set mode: %s\n", strerror(errno));
+	if (ret)
 		return FALSE;
-	}
-
-	if (crtc->scrn->pScreen)
-		xf86_reload_cursors(crtc->scrn->pScreen);
 
 	sna_crtc_force_outputs_on(crtc);
 	return TRUE;
@@ -649,6 +635,7 @@ static bool sna_crtc_enable_shadow(struct sna *sna, struct sna_crtc *crtc)
 
 static void sna_crtc_disable_shadow(struct sna *sna, struct sna_crtc *crtc)
 {
+	crtc->fallback_shadow = false;
 	if (!crtc->shadow)
 		return;
 
@@ -856,6 +843,16 @@ static bool use_shadow(struct sna *sna, xf86CrtcPtr crtc)
 
 	assert(sna->scrn->virtualX && sna->scrn->virtualY);
 
+	if (sna->flags & SNA_FORCE_SHADOW) {
+		DBG(("%s: forcing shadow\n", __FUNCTION__));
+		return true;
+	}
+
+	if (to_sna_crtc(crtc)->fallback_shadow) {
+		DBG(("%s: fallback shadow\n", __FUNCTION__));
+		return true;
+	}
+
 	if (sna->scrn->virtualX > sna->mode.kmode->max_width ||
 	    sna->scrn->virtualY > sna->mode.kmode->max_height) {
 		DBG(("%s: framebuffer too large (%dx%d) > (%dx%d)\n",
@@ -863,14 +860,6 @@ static bool use_shadow(struct sna *sna, xf86CrtcPtr crtc)
 		    sna->scrn->virtualX, sna->scrn->virtualY,
 		    sna->mode.kmode->max_width,
 		    sna->mode.kmode->max_height));
-		return true;
-	}
-
-	if (crtc->x >= sna->mode.max_tile_offset ||
-	    crtc->y >= sna->mode.max_tile_offset) {
-		DBG(("%s: offset too large (%d, %d) >= %d\n",
-		    __FUNCTION__,
-		    crtc->x, crtc->y, sna->mode.max_tile_offset));
 		return true;
 	}
 
@@ -1084,6 +1073,11 @@ sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	struct kgem_bo *saved_bo, *bo;
 	struct drm_mode_modeinfo saved_kmode;
 
+	xf86DrvMsg(crtc->scrn->scrnIndex, X_INFO,
+		   "switch to mode %dx%d on crtc %d (pipe %d)\n",
+		   mode->HDisplay, mode->VDisplay,
+		   sna_crtc->id, sna_crtc->pipe);
+
 	DBG(("%s(crtc=%d [pipe=%d] rotation=%d, x=%d, y=%d, mode=%dx%d@%d)\n",
 	     __FUNCTION__, sna_crtc->id, sna_crtc->pipe, rotation, x, y,
 	     mode->HDisplay, mode->VDisplay, mode->Clock));
@@ -1091,20 +1085,36 @@ sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	assert(mode->HDisplay <= sna->mode.kmode->max_width &&
 	       mode->VDisplay <= sna->mode.kmode->max_height);
 
-	/* Attach per-crtc pixmap or direct */
+	crtc->funcs->gamma_set(crtc,
+			       crtc->gamma_red,
+			       crtc->gamma_green,
+			       crtc->gamma_blue,
+			       crtc->gamma_size);
+
+	saved_kmode = sna_crtc->kmode;
+	saved_bo = sna_crtc->bo;
+
+	sna_crtc->fallback_shadow = false;
+retry: /* Attach per-crtc pixmap or direct */
 	bo = sna_crtc_attach(crtc);
 	if (bo == NULL)
 		return FALSE;
 
-	saved_kmode = sna_crtc->kmode;
-	saved_bo = sna_crtc->bo;
 	sna_crtc->bo = bo;
 	mode_to_kmode(&sna_crtc->kmode, mode);
-
 	if (!sna_crtc_apply(crtc)) {
+		kgem_bo_destroy(&sna->kgem, bo);
+
+		if (!sna_crtc->shadow) {
+			sna_crtc->fallback_shadow = true;
+			goto retry;
+		}
+
+		xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
+			   "failed to set mode: %s\n", strerror(errno));
+
 		sna_crtc->bo = saved_bo;
 		sna_crtc->kmode = saved_kmode;
-		kgem_bo_destroy(&sna->kgem, bo);
 		return FALSE;
 	}
 	if (saved_bo)
@@ -1115,6 +1125,9 @@ sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	sna_crtc_randr(crtc);
 	if (sna_crtc->shadow)
 		sna_crtc_damage(crtc);
+
+	if (scrn->pScreen)
+		xf86_reload_cursors(scrn->pScreen);
 
 	return TRUE;
 }
@@ -2287,7 +2300,6 @@ Bool sna_mode_pre_init(ScrnInfoPtr scrn, struct sna *sna)
 			   "failed to get resources: %s\n", strerror(errno));
 		return FALSE;
 	}
-	mode->max_tile_offset = 4096;
 
 	set_size_range(sna);
 

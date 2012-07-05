@@ -213,6 +213,7 @@ struct sna {
 #define SNA_NO_WAIT		0x4
 #define SNA_NO_FLIP		0x8
 #define SNA_TEAR_FREE		0x10
+#define SNA_FORCE_SHADOW	0x20
 
 	unsigned watch_flush;
 	unsigned flush;
@@ -232,7 +233,6 @@ struct sna {
 
 	struct sna_mode {
 		drmModeResPtr kmode;
-		int max_tile_offset;
 
 		int shadow_active;
 		DamagePtr shadow_damage;

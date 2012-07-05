@@ -518,6 +518,8 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 			sna->flags |= SNA_TEAR_FREE;
 	} else
 		sna->flags |= SNA_NO_FLIP;
+	if (xf86ReturnOptValBool(sna->Options, OPTION_CRTC_PIXMAPS, FALSE))
+		sna->flags |= SNA_FORCE_SHADOW;
 
 	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Framebuffer %s\n",
 		   sna->tiling & SNA_TILING_FB ? "tiled" : "linear");
@@ -531,6 +533,8 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 		   sna->flags & SNA_NO_DELAYED_FLUSH ? "dis" : "en");
 	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "\"Tear free\" %sabled\n",
 		   sna->flags & SNA_TEAR_FREE ? "en" : "dis");
+	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Forcing per-crtc-pixmaps? %s\n",
+		   sna->flags & SNA_FORCE_SHADOW ? "yes" : "no");
 
 	if (!sna_mode_pre_init(scrn, sna)) {
 		PreInitCleanup(scrn);
