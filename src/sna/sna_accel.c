@@ -1267,7 +1267,7 @@ done:
 		DBG(("%s: syncing CPU bo\n", __FUNCTION__));
 		kgem_bo_sync__cpu(&sna->kgem, priv->cpu_bo);
 	}
-	priv->cpu = true;
+	priv->cpu = (flags & MOVE_ASYNC_HINT) == 0;
 	assert(pixmap->devPrivate.ptr);
 	assert(pixmap->devKind);
 	assert_pixmap_damage(pixmap);
@@ -1898,7 +1898,7 @@ out:
 		DBG(("%s: syncing cpu bo\n", __FUNCTION__));
 		kgem_bo_sync__cpu(&sna->kgem, priv->cpu_bo);
 	}
-	priv->cpu = true;
+	priv->cpu = (flags & MOVE_ASYNC_HINT) == 0;
 	assert(pixmap->devPrivate.ptr);
 	assert(pixmap->devKind);
 	assert_pixmap_damage(pixmap);
@@ -2211,7 +2211,7 @@ sna_drawable_use_bo(DrawablePtr drawable,
 {
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
-	BoxRec extents;
+	RegionRec region;
 	int16_t dx, dy;
 	int ret;
 
@@ -2267,8 +2267,7 @@ sna_drawable_use_bo(DrawablePtr drawable,
 		}
 
 		if (priv->cpu_damage && prefer_gpu == 0) {
-			DBG(("%s: prefer cpu",
-			     __FUNCTION__));
+			DBG(("%s: prefer cpu", __FUNCTION__));
 			goto use_cpu_bo;
 		}
 
@@ -2284,19 +2283,20 @@ sna_drawable_use_bo(DrawablePtr drawable,
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
 
-	extents = *box;
-	extents.x1 += dx;
-	extents.x2 += dx;
-	extents.y1 += dy;
-	extents.y2 += dy;
+	region.extents = *box;
+	region.extents.x1 += dx;
+	region.extents.x2 += dx;
+	region.extents.y1 += dy;
+	region.extents.y2 += dy;
 
 	DBG(("%s extents (%d, %d), (%d, %d)\n", __FUNCTION__,
-	     extents.x1, extents.y1, extents.x2, extents.y2));
+	     region.extents.x1, region.extents.y1,
+	     region.extents.x2, region.extents.y2));
 
 	if (priv->gpu_damage) {
 		if (!priv->cpu_damage) {
 			if (sna_damage_contains_box__no_reduce(priv->gpu_damage,
-							       &extents)) {
+							       &region.extents)) {
 				DBG(("%s: region wholly contained within GPU damage\n",
 				     __FUNCTION__));
 				goto use_gpu_bo;
@@ -2307,7 +2307,7 @@ sna_drawable_use_bo(DrawablePtr drawable,
 			}
 		}
 
-		ret = sna_damage_contains_box(priv->gpu_damage, &extents);
+		ret = sna_damage_contains_box(priv->gpu_damage, &region.extents);
 		if (ret == PIXMAN_REGION_IN) {
 			DBG(("%s: region wholly contained within GPU damage\n",
 			     __FUNCTION__));
@@ -2322,7 +2322,7 @@ sna_drawable_use_bo(DrawablePtr drawable,
 	}
 
 	if (priv->cpu_damage) {
-		ret = sna_damage_contains_box(priv->cpu_damage, &extents);
+		ret = sna_damage_contains_box(priv->cpu_damage, &region.extents);
 		if (ret == PIXMAN_REGION_IN) {
 			DBG(("%s: region wholly contained within CPU damage\n",
 			     __FUNCTION__));
@@ -2342,7 +2342,7 @@ sna_drawable_use_bo(DrawablePtr drawable,
 	}
 
 move_to_gpu:
-	if (!sna_pixmap_move_area_to_gpu(pixmap, &extents,
+	if (!sna_pixmap_move_area_to_gpu(pixmap, &region.extents,
 					 MOVE_READ | MOVE_WRITE)) {
 		DBG(("%s: failed to move-to-gpu, fallback\n", __FUNCTION__));
 		assert(priv->gpu_bo == NULL);
@@ -2379,29 +2379,26 @@ use_cpu_bo:
 	if (priv->cpu_bo == NULL)
 		return NULL;
 
-	if (priv->cpu_bo->sync && !kgem_bo_is_busy(priv->cpu_bo))
+	if (prefer_gpu == 0 && !kgem_bo_is_busy(priv->cpu_bo))
 		return NULL;
 
-	/* Continue to use the shadow pixmap once mapped */
-	if (pixmap->devPrivate.ptr) {
-		/* But only if we do not need to sync the CPU bo */
-		if (prefer_gpu == 0 && !kgem_bo_is_busy(priv->cpu_bo))
-			return NULL;
+	get_drawable_deltas(drawable, pixmap, &dx, &dy);
 
-		/* Both CPU and GPU are busy, prefer to use the GPU */
-		if (priv->gpu_bo && kgem_bo_is_busy(priv->gpu_bo)) {
-			get_drawable_deltas(drawable, pixmap, &dx, &dy);
+	region.extents = *box;
+	region.extents.x1 += dx;
+	region.extents.x2 += dx;
+	region.extents.y1 += dy;
+	region.extents.y2 += dy;
+	region.data = NULL;
 
-			extents = *box;
-			extents.x1 += dx;
-			extents.x2 += dx;
-			extents.y1 += dy;
-			extents.y2 += dy;
-			goto move_to_gpu;
-		}
+	/* Both CPU and GPU are busy, prefer to use the GPU */
+	if (priv->gpu_bo && kgem_bo_is_busy(priv->gpu_bo))
+		goto move_to_gpu;
 
-		priv->mapped = false;
-		pixmap->devPrivate.ptr = NULL;
+	if (!sna_drawable_move_region_to_cpu(&pixmap->drawable, &region,
+					     MOVE_READ | MOVE_ASYNC_HINT)) {
+		DBG(("%s: failed to move-to-cpu, fallback\n", __FUNCTION__));
+		return NULL;
 	}
 
 	if (sna_damage_is_all(&priv->cpu_damage,
