@@ -665,4 +665,24 @@ enum {
     RADEON_CREATE_PIXMAP_SZBUFFER = 0x80000000, /* for eg */
 };
 
+
+/* Compute log base 2 of val. */
+static __inline__ int
+RADEONLog2(int val)
+{
+	int bits;
+#if (defined __i386__ || defined __x86_64__) && (defined __GNUC__)
+	__asm volatile("bsrl	%1, %0"
+		: "=r" (bits)
+		: "c" (val)
+	);
+	return bits;
+#else
+	for (bits = 0; val != 0; val >>= 1, ++bits)
+		;
+	return bits - 1;
+#endif
+}
+
+
 #endif /* _RADEON_H_ */

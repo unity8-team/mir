@@ -28,7 +28,8 @@
 
 radeon_drv_la_LIBADD = $(LIBDRM_RADEON_LIBS)
 
-RADEON_KMS_SRCS=radeon_dri2.c radeon_kms.c drmmode_display.c radeon_vbo.c
+RADEON_KMS_SRCS=radeon_dri2.c radeon_kms.c drmmode_display.c radeon_vbo.c \
+	radeon_bo_helper.c
 
 RADEON_EXA_SOURCES = radeon_exa.c r600_exa.c r6xx_accel.c r600_textured_videofuncs.c r600_shader.c radeon_exa_shared.c \
 	evergreen_exa.c evergreen_accel.c evergreen_shader.c evergreen_textured_videofuncs.c cayman_accel.c cayman_shader.c
@@ -82,6 +83,7 @@ EXTRA_DIST = \
 	ati.h \
 	ativersion.h \
 	bicubic_table.h \
+	radeon_bo_helper.h \
 	radeon_drm.h \
 	radeon_exa_render.c \
 	radeon_exa_funcs.c \

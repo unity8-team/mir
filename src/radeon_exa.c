@@ -37,6 +37,7 @@
 #include "radeon_reg.h"
 #include "r600_reg.h"
 #include "radeon_drm.h"
+#include "radeon_bo_helper.h"
 #include "radeon_probe.h"
 #include "radeon_version.h"
 #include "radeon_exa_shared.h"
@@ -69,24 +70,6 @@ static struct {
     { RADEON_ROP3_DSan, RADEON_ROP3_DPan }, /* GXnand         */
     { RADEON_ROP3_ONE,  RADEON_ROP3_ONE  }  /* GXset          */
 };
-
-/* Compute log base 2 of val. */
-static __inline__ int
-RADEONLog2(int val)
-{
-	int bits;
-#if (defined __i386__ || defined __x86_64__) && (defined __GNUC__)
-	__asm volatile("bsrl	%1, %0"
-		: "=r" (bits)
-		: "c" (val)
-	);
-	return bits;
-#else
-	for (bits = 0; val != 0; val >>= 1, ++bits)
-		;
-	return bits - 1;
-#endif
-}
 
 static __inline__ uint32_t F_TO_DW(float val)
 {
@@ -292,37 +275,6 @@ void *RADEONEXACreatePixmap(ScreenPtr pScreen, int size, int align)
 
 }
 
-static const unsigned MicroBlockTable[5][3][2] = {
-    /*linear  tiled   square-tiled */
-    {{32, 1}, {8, 4}, {0, 0}}, /*   8 bits per pixel */
-    {{16, 1}, {8, 2}, {4, 4}}, /*  16 bits per pixel */
-    {{ 8, 1}, {4, 2}, {0, 0}}, /*  32 bits per pixel */
-    {{ 4, 1}, {0, 0}, {2, 2}}, /*  64 bits per pixel */
-    {{ 2, 1}, {0, 0}, {0, 0}}  /* 128 bits per pixel */
-};
-
-/* Return true if macrotiling can be enabled */
-static Bool RADEONMacroSwitch(int width, int height, int bpp,
-                              uint32_t flags, Bool rv350_mode)
-{
-    unsigned tilew, tileh, microtiled, logbpp;
-
-    logbpp = RADEONLog2(bpp / 8);
-    if (logbpp > 4)
-        return 0;
-
-    microtiled = !!(flags & RADEON_TILING_MICRO);
-    tilew = MicroBlockTable[logbpp][microtiled][0] * 8;
-    tileh = MicroBlockTable[logbpp][microtiled][1] * 8;
-
-    /* See TX_FILTER1_n.MACRO_SWITCH. */
-    if (rv350_mode) {
-        return width >= tilew && height >= tileh;
-    } else {
-        return width > tilew && height > tileh;
-    }
-}
-
 void *RADEONEXACreatePixmap2(ScreenPtr pScreen, int width, int height,
 			     int depth, int usage_hint, int bitsPerPixel,
 			     int *new_pitch)
@@ -330,11 +282,6 @@ void *RADEONEXACreatePixmap2(ScreenPtr pScreen, int width, int height,
     ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_exa_pixmap_priv *new_priv;
-    int pitch, base_align;
-    uint32_t size, heighta;
-    uint32_t tiling = 0;
-    int cpp = bitsPerPixel / 8;
-    struct radeon_surface surface;
 
 #ifdef EXA_MIXED_PIXMAPS
     if (info->accel_state->exa->flags & EXA_MIXED_PIXMAPS) {
@@ -344,120 +291,25 @@ void *RADEONEXACreatePixmap2(ScreenPtr pScreen, int width, int height,
     }
 #endif
 
-    if (usage_hint) {
-	if (info->allowColorTiling) {
-    	    if (usage_hint & RADEON_CREATE_PIXMAP_TILING_MACRO)
- 	   	tiling |= RADEON_TILING_MACRO;
-    	    if (usage_hint & RADEON_CREATE_PIXMAP_TILING_MICRO)
-                tiling |= RADEON_TILING_MICRO;
-	}
-	if (usage_hint & RADEON_CREATE_PIXMAP_DEPTH)
- 	   	tiling |= RADEON_TILING_MACRO | RADEON_TILING_MICRO;
-		
-    }
-
-    /* Small pixmaps must not be macrotiled on R300, hw cannot sample them
-     * correctly because samplers automatically switch to macrolinear. */
-    if (info->ChipFamily >= CHIP_FAMILY_R300 &&
-        info->ChipFamily <= CHIP_FAMILY_RS740 &&
-        (tiling & RADEON_TILING_MACRO) &&
-        !RADEONMacroSwitch(width, height, bitsPerPixel, tiling,
-                           info->ChipFamily >= CHIP_FAMILY_RV350)) {
-        tiling &= ~RADEON_TILING_MACRO;
-    }
-
-    heighta = RADEON_ALIGN(height, drmmode_get_height_align(pScrn, tiling));
-    pitch = RADEON_ALIGN(width, drmmode_get_pitch_align(pScrn, cpp, tiling)) * cpp;
-    base_align = drmmode_get_base_align(pScrn, cpp, tiling);
-    size = RADEON_ALIGN(heighta * pitch, RADEON_GPU_PAGE_SIZE);
-    memset(&surface, 0, sizeof(struct radeon_surface));
-
-    if (info->ChipFamily >= CHIP_FAMILY_R600 && info->surf_man) {
-		if (width) {
-			surface.npix_x = width;
-			/* need to align height to 8 for old kernel */
-			surface.npix_y = RADEON_ALIGN(height, 8);
-			surface.npix_z = 1;
-			surface.blk_w = 1;
-			surface.blk_h = 1;
-			surface.blk_d = 1;
-			surface.array_size = 1;
-			surface.last_level = 0;
-			surface.bpe = cpp;
-			surface.nsamples = 1;
-			if (height < 64) {
-				/* disable 2d tiling for small surface to work around
-				 * the fact that ddx align height to 8 pixel for old
-				 * obscure reason i can't remember
-				 */
-				tiling &= ~RADEON_TILING_MACRO;
-			}
-			surface.flags = RADEON_SURF_SCANOUT;
-			surface.flags |= RADEON_SURF_SET(RADEON_SURF_TYPE_2D, TYPE);
-			surface.flags |= RADEON_SURF_SET(RADEON_SURF_MODE_LINEAR, MODE);
-			if ((tiling & RADEON_TILING_MICRO)) {
-				surface.flags = RADEON_SURF_CLR(surface.flags, MODE);
-				surface.flags |= RADEON_SURF_SET(RADEON_SURF_MODE_1D, MODE);
-			}
-			if ((tiling & RADEON_TILING_MACRO)) {
-				surface.flags = RADEON_SURF_CLR(surface.flags, MODE);
-				surface.flags |= RADEON_SURF_SET(RADEON_SURF_MODE_2D, MODE);
-			}
-			if (usage_hint & RADEON_CREATE_PIXMAP_SZBUFFER) {
-				surface.flags |= RADEON_SURF_ZBUFFER;
-				surface.flags |= RADEON_SURF_SBUFFER;
-			}
-			if (radeon_surface_best(info->surf_man, &surface)) {
-				return NULL;
-			}
-			if (radeon_surface_init(info->surf_man, &surface)) {
-				return NULL;
-			}
-			size = surface.bo_size;
-			base_align = surface.bo_alignment;
-			pitch = surface.level[0].pitch_bytes;
-			tiling = 0;
-			switch (surface.level[0].mode) {
-			case RADEON_SURF_MODE_2D:
-				tiling |= RADEON_TILING_MACRO;
-				tiling |= surface.bankw << RADEON_TILING_EG_BANKW_SHIFT;
-				tiling |= surface.bankh << RADEON_TILING_EG_BANKH_SHIFT;
-				tiling |= surface.mtilea << RADEON_TILING_EG_MACRO_TILE_ASPECT_SHIFT;
-				tiling |= eg_tile_split(surface.tile_split) << RADEON_TILING_EG_TILE_SPLIT_SHIFT;
-				tiling |= eg_tile_split(surface.stencil_tile_split) << RADEON_TILING_EG_STENCIL_TILE_SPLIT_SHIFT;
-				break;
-			case RADEON_SURF_MODE_1D:
-				tiling |= RADEON_TILING_MICRO;
-				break;
-			default:
-				break;
-			}
-		}
-	}
-
     new_priv = calloc(1, sizeof(struct radeon_exa_pixmap_priv));
     if (!new_priv) {
 	return NULL;
     }
 
-    if (size == 0) {
+    if (width == 0 || height == 0) {
 	return new_priv;
     }
 
-    *new_pitch = pitch;
-
-    new_priv->bo = radeon_bo_open(info->bufmgr, 0, size, base_align,
-				  RADEON_GEM_DOMAIN_VRAM, 0);
+    new_priv->bo = radeon_alloc_pixmap_bo(pScrn, width, height, depth,
+					  usage_hint, bitsPerPixel, new_pitch,
+					  &new_priv->surface,
+					  &new_priv->tiling_flags);
     if (!new_priv->bo) {
 	free(new_priv);
 	ErrorF("Failed to alloc memory\n");
 	return NULL;
     }
 
-    if (tiling && !radeon_bo_set_tiling(new_priv->bo, tiling, *new_pitch))
-	new_priv->tiling_flags = tiling;
-
-    new_priv->surface = surface;
     return new_priv;
 }
 
