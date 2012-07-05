@@ -223,11 +223,11 @@ sna_dri_create_buffer(DrawablePtr drawable,
 					dri_drawable_type, NULL, DixWriteAccess);
 		if (buffer) {
 			private = get_private(buffer);
-			if (private->pixmap == pixmap &&
-			    private->width  == pixmap->drawable.width &&
-			    private->height == pixmap->drawable.height)  {
+			if (private->pixmap == pixmap) {
 				DBG(("%s: reusing front buffer attachment\n",
 				     __FUNCTION__));
+				assert(private->width  == pixmap->drawable.width);
+				assert(private->height == pixmap->drawable.height);
 				private->refcnt++;
 				return buffer;
 			}
