@@ -2260,14 +2260,20 @@ sna_drawable_use_bo(DrawablePtr drawable,
 			goto use_cpu_bo;
 		}
 
-		if (priv->cpu_damage && !box_inplace(pixmap, box)) {
-			DBG(("%s: damaged with a small operation, will not force allocation\n",
+		if (priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo)) {
+			DBG(("%s: already using CPU bo, will not force allocation\n",
 			     __FUNCTION__));
 			goto use_cpu_bo;
 		}
 
 		if (priv->cpu_damage && prefer_gpu == 0) {
 			DBG(("%s: prefer cpu", __FUNCTION__));
+			goto use_cpu_bo;
+		}
+
+		if (priv->cpu_damage && !box_inplace(pixmap, box)) {
+			DBG(("%s: damaged with a small operation, will not force allocation\n",
+			     __FUNCTION__));
 			goto use_cpu_bo;
 		}
 
