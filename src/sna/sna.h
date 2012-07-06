@@ -703,4 +703,12 @@ inline static bool is_power_of_two(unsigned x)
 	return (x & (x-1)) == 0;
 }
 
+inline static bool is_clipped(const RegionRec *r,
+			      const DrawableRec *d)
+{
+	return (r->data ||
+		r->extents.x2 - r->extents.x1 != d->width ||
+		r->extents.y2 - r->extents.y1 != d->height);
+}
+
 #endif /* _SNA_H */

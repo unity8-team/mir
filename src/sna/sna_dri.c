@@ -522,9 +522,7 @@ sna_dri_copy_to_front(struct sna *sna, DrawablePtr draw, RegionPtr region,
 	if (draw->type != DRAWABLE_PIXMAP) {
 		WindowPtr win = (WindowPtr)draw;
 
-		if (win->clipList.data ||
-		    win->clipList.extents.x2 - win->clipList.extents.x1 != draw->width ||
-		    win->clipList.extents.y2 - win->clipList.extents.y1 != draw->height) {
+		if (is_clipped(&win->clipList, draw)) {
 			DBG(("%s: draw=(%d, %d), delta=(%d, %d), clip.extents=(%d, %d), (%d, %d)\n",
 			     __FUNCTION__, draw->x, draw->y,
 			     get_drawable_dx(draw), get_drawable_dy(draw),
