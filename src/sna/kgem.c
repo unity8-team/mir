@@ -625,16 +625,22 @@ static bool __kgem_throttle(struct kgem *kgem)
 	return errno == EIO;
 }
 
-static bool is_hw_supported(struct kgem *kgem)
+static bool is_hw_supported(struct kgem *kgem,
+			    struct pci_device *dev)
 {
 	if (DBG_NO_HW)
 		return false;
 
-	if (kgem->gen >= 60) /* Only if the kernel supports the BLT ring */
-		return gem_param(kgem, I915_PARAM_HAS_BLT) > 0;
-
 	if (kgem->gen <= 20) /* dynamic GTT is fubar */
 		return false;
+
+	if (kgem->gen == 60 && dev->revision < 8) {
+		/* pre-production SNB with dysfunctional BLT */
+		return false;
+	}
+
+	if (kgem->gen >= 60) /* Only if the kernel supports the BLT ring */
+		return gem_param(kgem, I915_PARAM_HAS_BLT) > 0;
 
 	return true;
 }
@@ -663,6 +669,12 @@ static bool test_has_cache_level(struct kgem *kgem)
 #endif
 }
 
+static int kgem_get_screen_index(struct kgem *kgem)
+{
+	struct sna *sna = container_of(kgem, struct sna, kgem);
+	return sna->scrn->scrnIndex;
+}
+
 void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 {
 	struct drm_i915_gem_get_aperture aperture;
@@ -674,8 +686,15 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 
 	kgem->fd = fd;
 	kgem->gen = gen;
-	kgem->wedged = __kgem_throttle(kgem);
-	kgem->wedged |= !is_hw_supported(kgem);
+	if (!is_hw_supported(kgem, dev)) {
+		xf86DrvMsg(kgem_get_screen_index(kgem), X_WARNING,
+			   "Detected unsupported/dysfunctional hardware, disabling acceleration.\n");
+		kgem->wedged = 1;
+	} else if (__kgem_throttle(kgem)) {
+		xf86DrvMsg(kgem_get_screen_index(kgem), X_WARNING,
+			   "Detected a hung GPU, disabling acceleration.\n");
+		kgem->wedged = 1;
+	}
 
 	kgem->batch_size = ARRAY_SIZE(kgem->batch);
 	if (gen == 22)
@@ -2072,10 +2091,9 @@ void kgem_throttle(struct kgem *kgem)
 	kgem->wedged |= __kgem_throttle(kgem);
 	DBG(("%s: wedged=%d\n", __FUNCTION__, kgem->wedged));
 	if (kgem->wedged && !warned) {
-		struct sna *sna = container_of(kgem, struct sna, kgem);
-		xf86DrvMsg(sna->scrn->scrnIndex, X_ERROR,
+		xf86DrvMsg(kgem_get_screen_index(kgem), X_ERROR,
 			   "Detected a hung GPU, disabling acceleration.\n");
-		xf86DrvMsg(sna->scrn->scrnIndex, X_ERROR,
+		xf86DrvMsg(kgem_get_screen_index(kgem), X_ERROR,
 			   "When reporting this, please include i915_error_state from debugfs and the full dmesg.\n");
 		warned = 1;
 	}
