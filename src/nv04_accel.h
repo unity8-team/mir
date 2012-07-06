@@ -80,4 +80,14 @@ PUSH_DATAu(struct nouveau_pushbuf *push, struct nouveau_bo *bo,
 	BEGIN_NV04(push, NV01_IFC(COLOR(0)), dwords);
 }
 
+/* For NV40 FP upload, deal with the weird-arse big-endian swap */
+static __inline__ void
+PUSH_DATAs(struct nouveau_pushbuf *push, unsigned data)
+{
+#if (X_BYTE_ORDER != X_LITTLE_ENDIAN)
+	data = (data >> 16) | ((data & 0xffff) << 16);
+#endif
+	PUSH_DATA(push, data);
+}
+
 #endif

@@ -778,238 +778,238 @@ NVAccelInitNV40TCL(ScrnInfoPtr pScrn)
 	PUSH_DATA (push, 0x0000c001);
 
 	PUSH_DATAu(push, pNv->scratch, PFP_PASS, 1 * 4);
-	PUSH_DATA (push, 0x01403e81); /* mov r0, a[col0] */
-	PUSH_DATA (push, 0x1c9dc801);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x3fe1c800);
+	PUSH_DATAs(push, 0x01403e81); /* mov r0, a[col0] */
+	PUSH_DATAs(push, 0x1c9dc801);
+	PUSH_DATAs(push, 0x0001c800);
+	PUSH_DATAs(push, 0x3fe1c800);
 
 	PUSH_DATAu(push, pNv->scratch, PFP_S, 2 * 4);
-	PUSH_DATA (push, 0x18009e00); /* txp r0, a[tex0], t[0] */
-	PUSH_DATA (push, 0x1c9dc801);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x3fe1c800);
-	PUSH_DATA (push, 0x01401e81); /* mov r0, r0 */
-	PUSH_DATA (push, 0x1c9dc800);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x0001c800);
+	PUSH_DATAs(push, 0x18009e00); /* txp r0, a[tex0], t[0] */
+	PUSH_DATAs(push, 0x1c9dc801);
+	PUSH_DATAs(push, 0x0001c800);
+	PUSH_DATAs(push, 0x3fe1c800);
+	PUSH_DATAs(push, 0x01401e81); /* mov r0, r0 */
+	PUSH_DATAs(push, 0x1c9dc800);
+	PUSH_DATAs(push, 0x0001c800);
+	PUSH_DATAs(push, 0x0001c800);
 
 	PUSH_DATAu(push, pNv->scratch, PFP_S_A8, 2 * 4);
-	PUSH_DATA (push, 0x18009000); /* txp r0.w, a[tex0], t[0] */
-	PUSH_DATA (push, 0x1c9dc801);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x3fe1c800);
-	PUSH_DATA (push, 0x01401e81); /* mov r0, r0.w */
-	PUSH_DATA (push, 0x1c9dfe00);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x0001c800);
+	PUSH_DATAs(push, 0x18009000); /* txp r0.w, a[tex0], t[0] */
+	PUSH_DATAs(push, 0x1c9dc801);
+	PUSH_DATAs(push, 0x0001c800);
+	PUSH_DATAs(push, 0x3fe1c800);
+	PUSH_DATAs(push, 0x01401e81); /* mov r0, r0.w */
+	PUSH_DATAs(push, 0x1c9dfe00);
+	PUSH_DATAs(push, 0x0001c800);
+	PUSH_DATAs(push, 0x0001c800);
 
 	PUSH_DATAu(push, pNv->scratch, PFP_C, 3 * 4);
-	PUSH_DATA (push, 0x1802b102); /* txpc0 r1.w, a[tex1], t[1] */
-	PUSH_DATA (push, 0x1c9dc801);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x3fe1c800);
-	PUSH_DATA (push, 0x18009e00); /* txp r0 (ne0.w), a[tex0], t[0] */
-	PUSH_DATA (push, 0x1ff5c801);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x3fe1c800);
-	PUSH_DATA (push, 0x02001e81); /* mul r0, r0, r1.w */
-	PUSH_DATA (push, 0x1c9dc800);
-	PUSH_DATA (push, 0x0001fe04);
-	PUSH_DATA (push, 0x0001c800);
+	PUSH_DATAs(push, 0x1802b102); /* txpc0 r1.w, a[tex1], t[1] */
+	PUSH_DATAs(push, 0x1c9dc801);
+	PUSH_DATAs(push, 0x0001c800);
+	PUSH_DATAs(push, 0x3fe1c800);
+	PUSH_DATAs(push, 0x18009e00); /* txp r0 (ne0.w), a[tex0], t[0] */
+	PUSH_DATAs(push, 0x1ff5c801);
+	PUSH_DATAs(push, 0x0001c800);
+	PUSH_DATAs(push, 0x3fe1c800);
+	PUSH_DATAs(push, 0x02001e81); /* mul r0, r0, r1.w */
+	PUSH_DATAs(push, 0x1c9dc800);
+	PUSH_DATAs(push, 0x0001fe04);
+	PUSH_DATAs(push, 0x0001c800);
 
 	PUSH_DATAu(push, pNv->scratch, PFP_C_A8, 3 * 4);
-	PUSH_DATA (push, 0x1802b102); /* txpc0 r1.w, a[tex1], t[1] */
-	PUSH_DATA (push, 0x1c9dc801);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x3fe1c800);
-	PUSH_DATA (push, 0x18009000); /* txp r0.w (ne0.w), a[tex0], t[0] */
-	PUSH_DATA (push, 0x1ff5c801);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x3fe1c800);
-	PUSH_DATA (push, 0x02001e81); /* mul r0, r0.w, r1.w */
-	PUSH_DATA (push, 0x1c9dfe00);
-	PUSH_DATA (push, 0x0001fe04);
-	PUSH_DATA (push, 0x0001c800);
+	PUSH_DATAs(push, 0x1802b102); /* txpc0 r1.w, a[tex1], t[1] */
+	PUSH_DATAs(push, 0x1c9dc801);
+	PUSH_DATAs(push, 0x0001c800);
+	PUSH_DATAs(push, 0x3fe1c800);
+	PUSH_DATAs(push, 0x18009000); /* txp r0.w (ne0.w), a[tex0], t[0] */
+	PUSH_DATAs(push, 0x1ff5c801);
+	PUSH_DATAs(push, 0x0001c800);
+	PUSH_DATAs(push, 0x3fe1c800);
+	PUSH_DATAs(push, 0x02001e81); /* mul r0, r0.w, r1.w */
+	PUSH_DATAs(push, 0x1c9dfe00);
+	PUSH_DATAs(push, 0x0001fe04);
+	PUSH_DATAs(push, 0x0001c800);
 
 	PUSH_DATAu(push, pNv->scratch, PFP_CCA, 3 * 4);
-	PUSH_DATA (push, 0x18009f00); /* txpc0 r0, a[tex0], t[0] */
-	PUSH_DATA (push, 0x1c9dc801);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x3fe1c800);
-	PUSH_DATA (push, 0x1802be02); /* txp r1 (ne0), a[tex1], t[1] */
-	PUSH_DATA (push, 0x1c95c801);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x3fe1c800);
-	PUSH_DATA (push, 0x02001e81); /* mul r0, r0, r1 */
-	PUSH_DATA (push, 0x1c9dc800);
-	PUSH_DATA (push, 0x0001c804);
-	PUSH_DATA (push, 0x0001c800);
+	PUSH_DATAs(push, 0x18009f00); /* txpc0 r0, a[tex0], t[0] */
+	PUSH_DATAs(push, 0x1c9dc801);
+	PUSH_DATAs(push, 0x0001c800);
+	PUSH_DATAs(push, 0x3fe1c800);
+	PUSH_DATAs(push, 0x1802be02); /* txp r1 (ne0), a[tex1], t[1] */
+	PUSH_DATAs(push, 0x1c95c801);
+	PUSH_DATAs(push, 0x0001c800);
+	PUSH_DATAs(push, 0x3fe1c800);
+	PUSH_DATAs(push, 0x02001e81); /* mul r0, r0, r1 */
+	PUSH_DATAs(push, 0x1c9dc800);
+	PUSH_DATAs(push, 0x0001c804);
+	PUSH_DATAs(push, 0x0001c800);
 
 	PUSH_DATAu(push, pNv->scratch, PFP_CCASA, 3 * 4);
-	PUSH_DATA (push, 0x18009102); /* txpc0 r1.w, a[tex0], t[0] */
-	PUSH_DATA (push, 0x1c9dc801);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x3fe1c800);
-	PUSH_DATA (push, 0x1802be00); /* txp r0 (ne0.w), a[tex1], t[1] */
-	PUSH_DATA (push, 0x1ff5c801);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x3fe1c800);
-	PUSH_DATA (push, 0x02001e81); /* mul r0, r1.w, r0 */
-	PUSH_DATA (push, 0x1c9dfe04);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x0001c800);
+	PUSH_DATAs(push, 0x18009102); /* txpc0 r1.w, a[tex0], t[0] */
+	PUSH_DATAs(push, 0x1c9dc801);
+	PUSH_DATAs(push, 0x0001c800);
+	PUSH_DATAs(push, 0x3fe1c800);
+	PUSH_DATAs(push, 0x1802be00); /* txp r0 (ne0.w), a[tex1], t[1] */
+	PUSH_DATAs(push, 0x1ff5c801);
+	PUSH_DATAs(push, 0x0001c800);
+	PUSH_DATAs(push, 0x3fe1c800);
+	PUSH_DATAs(push, 0x02001e81); /* mul r0, r1.w, r0 */
+	PUSH_DATAs(push, 0x1c9dfe04);
+	PUSH_DATAs(push, 0x0001c800);
+	PUSH_DATAs(push, 0x0001c800);
 
 	PUSH_DATAu(push, pNv->scratch, PFP_NV12_BILINEAR, 8 * 4);
-	PUSH_DATA (push, 0x17028200); /* texr r0.x, a[tex0], t[1] */
-	PUSH_DATA (push, 0x1c9dc801);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x3fe1c800);
-	PUSH_DATA (push, 0x04000e02); /* madr r1.xyz, r0.x, imm.x, imm.yzww */
-	PUSH_DATA (push, 0x1c9c0000);
-	PUSH_DATA (push, 0x00000002);
-	PUSH_DATA (push, 0x0001f202);
-	PUSH_DATA (push, 0x3f9507c8); /* { 1.16, -0.87, 0.53, -1.08 } */
-	PUSH_DATA (push, 0xbf5ee393);
-	PUSH_DATA (push, 0x3f078fef);
-	PUSH_DATA (push, 0xbf8a6762);
-	PUSH_DATA (push, 0x1704ac80); /* texr r0.yz, a[tex1], t[2] */
-	PUSH_DATA (push, 0x1c9dc801);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x3fe1c800);
-	PUSH_DATA (push, 0x04000e02); /* madr r1.xyz, r0.y, imm, r1 */
-	PUSH_DATA (push, 0x1c9cab00);
-	PUSH_DATA (push, 0x0001c802);
-	PUSH_DATA (push, 0x0001c804);
-	PUSH_DATA (push, 0x00000000); /* { 0.00, -0.39, 2.02, 0.00 } */
-	PUSH_DATA (push, 0xbec890d6);
-	PUSH_DATA (push, 0x40011687);
-	PUSH_DATA (push, 0x00000000);
-	PUSH_DATA (push, 0x04000e81); /* madr r0.xyz, r0.z, imm, r1 */
-	PUSH_DATA (push, 0x1c9d5500);
-	PUSH_DATA (push, 0x0001c802);
-	PUSH_DATA (push, 0x0001c804);
-	PUSH_DATA (push, 0x3fcc432d); /* { 1.60, -0.81, 0.00, 0.00 } */
-	PUSH_DATA (push, 0xbf501a37);
-	PUSH_DATA (push, 0x00000000);
-	PUSH_DATA (push, 0x00000000);
+	PUSH_DATAs(push, 0x17028200); /* texr r0.x, a[tex0], t[1] */
+	PUSH_DATAs(push, 0x1c9dc801);
+	PUSH_DATAs(push, 0x0001c800);
+	PUSH_DATAs(push, 0x3fe1c800);
+	PUSH_DATAs(push, 0x04000e02); /* madr r1.xyz, r0.x, imm.x, imm.yzww */
+	PUSH_DATAs(push, 0x1c9c0000);
+	PUSH_DATAs(push, 0x00000002);
+	PUSH_DATAs(push, 0x0001f202);
+	PUSH_DATAs(push, 0x3f9507c8); /* { 1.16, -0.87, 0.53, -1.08 } */
+	PUSH_DATAs(push, 0xbf5ee393);
+	PUSH_DATAs(push, 0x3f078fef);
+	PUSH_DATAs(push, 0xbf8a6762);
+	PUSH_DATAs(push, 0x1704ac80); /* texr r0.yz, a[tex1], t[2] */
+	PUSH_DATAs(push, 0x1c9dc801);
+	PUSH_DATAs(push, 0x0001c800);
+	PUSH_DATAs(push, 0x3fe1c800);
+	PUSH_DATAs(push, 0x04000e02); /* madr r1.xyz, r0.y, imm, r1 */
+	PUSH_DATAs(push, 0x1c9cab00);
+	PUSH_DATAs(push, 0x0001c802);
+	PUSH_DATAs(push, 0x0001c804);
+	PUSH_DATAs(push, 0x00000000); /* { 0.00, -0.39, 2.02, 0.00 } */
+	PUSH_DATAs(push, 0xbec890d6);
+	PUSH_DATAs(push, 0x40011687);
+	PUSH_DATAs(push, 0x00000000);
+	PUSH_DATAs(push, 0x04000e81); /* madr r0.xyz, r0.z, imm, r1 */
+	PUSH_DATAs(push, 0x1c9d5500);
+	PUSH_DATAs(push, 0x0001c802);
+	PUSH_DATAs(push, 0x0001c804);
+	PUSH_DATAs(push, 0x3fcc432d); /* { 1.60, -0.81, 0.00, 0.00 } */
+	PUSH_DATAs(push, 0xbf501a37);
+	PUSH_DATAs(push, 0x00000000);
+	PUSH_DATAs(push, 0x00000000);
 
 
 	PUSH_DATAu(push, pNv->scratch, PFP_NV12_BICUBIC, 29 * 4);
-	PUSH_DATA (push, 0x01008600); /* movr r0.xy, a[tex0] */
-	PUSH_DATA (push, 0x1c9dc801);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x3fe1c800);
-	PUSH_DATA (push, 0x03000800); /* addr r0.z, r0.y, imm.x */
-	PUSH_DATA (push, 0x1c9caa00);
-	PUSH_DATA (push, 0x00000002);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x3f000000); /* { 0.50, 0.00, 0.00, 0.00 } */
-	PUSH_DATA (push, 0x00000000);
-	PUSH_DATA (push, 0x00000000);
-	PUSH_DATA (push, 0x00000000);
-	PUSH_DATA (push, 0x03000202); /* addr r1.x, r0, imm.x */
-	PUSH_DATA (push, 0x1c9dc800);
-	PUSH_DATA (push, 0x00000002);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x3f000000); /* { 0.50, 0.00, 0.00, 0.00 } */
-	PUSH_DATA (push, 0x00000000);
-	PUSH_DATA (push, 0x00000000);
-	PUSH_DATA (push, 0x00000000);
-	PUSH_DATA (push, 0x17000f82); /* texrc0 r1.xyz, r0.z, t[0] */
-	PUSH_DATA (push, 0x1c9d5400);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x02001404); /* mulr r2.yw, r1.xxyy, imm.xxyy */
-	PUSH_DATA (push, 0x1c9ca104);
-	PUSH_DATA (push, 0x0000a002);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0xbf800000); /* { -1.00, 1.00, 0.00, 0.00 } */
-	PUSH_DATA (push, 0x3f800000);
-	PUSH_DATA (push, 0x00000000);
-	PUSH_DATA (push, 0x00000000);
-	PUSH_DATA (push, 0x17000e86); /* texr r3.xyz, r1, t[0] */
-	PUSH_DATA (push, 0x1c9dc804);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x02000a04); /* mulr r2.xz, r3.xxyy, imm.xxyy */
-	PUSH_DATA (push, 0x1c9ca10c);
-	PUSH_DATA (push, 0x0000a002);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0xbf800000); /* { -1.00, 1.00, 0.00, 0.00 } */
-	PUSH_DATA (push, 0x3f800000);
-	PUSH_DATA (push, 0x00000000);
-	PUSH_DATA (push, 0x00000000);
-	PUSH_DATA (push, 0x03001e04); /* addr r2, r0.xyxy, r2 */
-	PUSH_DATA (push, 0x1c9c8800);
-	PUSH_DATA (push, 0x0001c808);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x17020402); /* texr r1.y, r2.zwzz, -t[1] */
-	PUSH_DATA (push, 0x1c9d5c08);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x04400282); /* madh r1.x, -r1.z, r1.y, r1.y */
-	PUSH_DATA (push, 0x1c9f5504);
-	PUSH_DATA (push, 0x0000aa04);
-	PUSH_DATA (push, 0x0000aa04);
-	PUSH_DATA (push, 0x17020400); /* texr r0.y, r2.xwxw, -t[1] */
-	PUSH_DATA (push, 0x1c9d9808);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x04401080); /* madh r0.w, -r1.z, r0.y, r0.y */
-	PUSH_DATA (push, 0x1c9f5504);
-	PUSH_DATA (push, 0x0000aa00);
-	PUSH_DATA (push, 0x0000aa00);
-	PUSH_DATA (push, 0x17020200); /* texr r0.x, r2.zyxy, t[1] */
-	PUSH_DATA (push, 0x1c9c8c08);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x04400282); /* madh r1.x, r1.z, r0, r1 */
-	PUSH_DATA (push, 0x1c9d5504);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x0001c904);
-	PUSH_DATA (push, 0x17020200); /* texr r0.x (NE0.z), r2, t[1] */
-	PUSH_DATA (push, 0x1555c808);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x04400280); /* madh r0.x, r1.z, r0, r0.w */
-	PUSH_DATA (push, 0x1c9d5504);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x0001ff00);
-	PUSH_DATA (push, 0x04401080); /* madh r0.w, -r3.z, r1.x, r1.x */
-	PUSH_DATA (push, 0x1c9f550c);
-	PUSH_DATA (push, 0x00000104);
-	PUSH_DATA (push, 0x00000104);
-	PUSH_DATA (push, 0x1704ac80); /* texr r0.yz, a[tex1], t[2] */
-	PUSH_DATA (push, 0x1c9dc801);
-	PUSH_DATA (push, 0x0001c800);
-	PUSH_DATA (push, 0x3fe1c800);
-	PUSH_DATA (push, 0x04400280); /* madh r0.x, r3.z, r0, r0.w */
-	PUSH_DATA (push, 0x1c9d550c);
-	PUSH_DATA (push, 0x0001c900);
-	PUSH_DATA (push, 0x0001ff00);
-	PUSH_DATA (push, 0x04400e82); /* madh r1.xyz, r0.x, imm.x, imm.yzww */
-	PUSH_DATA (push, 0x1c9c0100);
-	PUSH_DATA (push, 0x00000002);
-	PUSH_DATA (push, 0x0001f202);
-	PUSH_DATA (push, 0x3f9507c8); /* { 1.16, -0.87, 0.53, -1.08 } */
-	PUSH_DATA (push, 0xbf5ee393);
-	PUSH_DATA (push, 0x3f078fef);
-	PUSH_DATA (push, 0xbf8a6762);
-	PUSH_DATA (push, 0x04400e82); /* madh r1.xyz, r0.y, imm, r1 */
-	PUSH_DATA (push, 0x1c9cab00);
-	PUSH_DATA (push, 0x0001c802);
-	PUSH_DATA (push, 0x0001c904);
-	PUSH_DATA (push, 0x00000000); /* { 0.00, -0.39, 2.02, 0.00 } */
-	PUSH_DATA (push, 0xbec890d6);
-	PUSH_DATA (push, 0x40011687);
-	PUSH_DATA (push, 0x00000000);
-	PUSH_DATA (push, 0x04400e81); /* madh r0.xyz, r0.z, imm, r1 */
-	PUSH_DATA (push, 0x1c9d5500);
-	PUSH_DATA (push, 0x0001c802);
-	PUSH_DATA (push, 0x0001c904);
-	PUSH_DATA (push, 0x3fcc432d); /* { 1.60, -0.81, 0.00, 0.00 } */
-	PUSH_DATA (push, 0xbf501a37);
-	PUSH_DATA (push, 0x00000000);
-	PUSH_DATA (push, 0x00000000);
+	PUSH_DATAs(push, 0x01008600); /* movr r0.xy, a[tex0] */
+	PUSH_DATAs(push, 0x1c9dc801);
+	PUSH_DATAs(push, 0x0001c800);
+	PUSH_DATAs(push, 0x3fe1c800);
+	PUSH_DATAs(push, 0x03000800); /* addr r0.z, r0.y, imm.x */
+	PUSH_DATAs(push, 0x1c9caa00);
+	PUSH_DATAs(push, 0x00000002);
+	PUSH_DATAs(push, 0x0001c800);
+	PUSH_DATAs(push, 0x3f000000); /* { 0.50, 0.00, 0.00, 0.00 } */
+	PUSH_DATAs(push, 0x00000000);
+	PUSH_DATAs(push, 0x00000000);
+	PUSH_DATAs(push, 0x00000000);
+	PUSH_DATAs(push, 0x03000202); /* addr r1.x, r0, imm.x */
+	PUSH_DATAs(push, 0x1c9dc800);
+	PUSH_DATAs(push, 0x00000002);
+	PUSH_DATAs(push, 0x0001c800);
+	PUSH_DATAs(push, 0x3f000000); /* { 0.50, 0.00, 0.00, 0.00 } */
+	PUSH_DATAs(push, 0x00000000);
+	PUSH_DATAs(push, 0x00000000);
+	PUSH_DATAs(push, 0x00000000);
+	PUSH_DATAs(push, 0x17000f82); /* texrc0 r1.xyz, r0.z, t[0] */
+	PUSH_DATAs(push, 0x1c9d5400);
+	PUSH_DATAs(push, 0x0001c800);
+	PUSH_DATAs(push, 0x0001c800);
+	PUSH_DATAs(push, 0x02001404); /* mulr r2.yw, r1.xxyy, imm.xxyy */
+	PUSH_DATAs(push, 0x1c9ca104);
+	PUSH_DATAs(push, 0x0000a002);
+	PUSH_DATAs(push, 0x0001c800);
+	PUSH_DATAs(push, 0xbf800000); /* { -1.00, 1.00, 0.00, 0.00 } */
+	PUSH_DATAs(push, 0x3f800000);
+	PUSH_DATAs(push, 0x00000000);
+	PUSH_DATAs(push, 0x00000000);
+	PUSH_DATAs(push, 0x17000e86); /* texr r3.xyz, r1, t[0] */
+	PUSH_DATAs(push, 0x1c9dc804);
+	PUSH_DATAs(push, 0x0001c800);
+	PUSH_DATAs(push, 0x0001c800);
+	PUSH_DATAs(push, 0x02000a04); /* mulr r2.xz, r3.xxyy, imm.xxyy */
+	PUSH_DATAs(push, 0x1c9ca10c);
+	PUSH_DATAs(push, 0x0000a002);
+	PUSH_DATAs(push, 0x0001c800);
+	PUSH_DATAs(push, 0xbf800000); /* { -1.00, 1.00, 0.00, 0.00 } */
+	PUSH_DATAs(push, 0x3f800000);
+	PUSH_DATAs(push, 0x00000000);
+	PUSH_DATAs(push, 0x00000000);
+	PUSH_DATAs(push, 0x03001e04); /* addr r2, r0.xyxy, r2 */
+	PUSH_DATAs(push, 0x1c9c8800);
+	PUSH_DATAs(push, 0x0001c808);
+	PUSH_DATAs(push, 0x0001c800);
+	PUSH_DATAs(push, 0x17020402); /* texr r1.y, r2.zwzz, -t[1] */
+	PUSH_DATAs(push, 0x1c9d5c08);
+	PUSH_DATAs(push, 0x0001c800);
+	PUSH_DATAs(push, 0x0001c800);
+	PUSH_DATAs(push, 0x04400282); /* madh r1.x, -r1.z, r1.y, r1.y */
+	PUSH_DATAs(push, 0x1c9f5504);
+	PUSH_DATAs(push, 0x0000aa04);
+	PUSH_DATAs(push, 0x0000aa04);
+	PUSH_DATAs(push, 0x17020400); /* texr r0.y, r2.xwxw, -t[1] */
+	PUSH_DATAs(push, 0x1c9d9808);
+	PUSH_DATAs(push, 0x0001c800);
+	PUSH_DATAs(push, 0x0001c800);
+	PUSH_DATAs(push, 0x04401080); /* madh r0.w, -r1.z, r0.y, r0.y */
+	PUSH_DATAs(push, 0x1c9f5504);
+	PUSH_DATAs(push, 0x0000aa00);
+	PUSH_DATAs(push, 0x0000aa00);
+	PUSH_DATAs(push, 0x17020200); /* texr r0.x, r2.zyxy, t[1] */
+	PUSH_DATAs(push, 0x1c9c8c08);
+	PUSH_DATAs(push, 0x0001c800);
+	PUSH_DATAs(push, 0x0001c800);
+	PUSH_DATAs(push, 0x04400282); /* madh r1.x, r1.z, r0, r1 */
+	PUSH_DATAs(push, 0x1c9d5504);
+	PUSH_DATAs(push, 0x0001c800);
+	PUSH_DATAs(push, 0x0001c904);
+	PUSH_DATAs(push, 0x17020200); /* texr r0.x (NE0.z), r2, t[1] */
+	PUSH_DATAs(push, 0x1555c808);
+	PUSH_DATAs(push, 0x0001c800);
+	PUSH_DATAs(push, 0x0001c800);
+	PUSH_DATAs(push, 0x04400280); /* madh r0.x, r1.z, r0, r0.w */
+	PUSH_DATAs(push, 0x1c9d5504);
+	PUSH_DATAs(push, 0x0001c800);
+	PUSH_DATAs(push, 0x0001ff00);
+	PUSH_DATAs(push, 0x04401080); /* madh r0.w, -r3.z, r1.x, r1.x */
+	PUSH_DATAs(push, 0x1c9f550c);
+	PUSH_DATAs(push, 0x00000104);
+	PUSH_DATAs(push, 0x00000104);
+	PUSH_DATAs(push, 0x1704ac80); /* texr r0.yz, a[tex1], t[2] */
+	PUSH_DATAs(push, 0x1c9dc801);
+	PUSH_DATAs(push, 0x0001c800);
+	PUSH_DATAs(push, 0x3fe1c800);
+	PUSH_DATAs(push, 0x04400280); /* madh r0.x, r3.z, r0, r0.w */
+	PUSH_DATAs(push, 0x1c9d550c);
+	PUSH_DATAs(push, 0x0001c900);
+	PUSH_DATAs(push, 0x0001ff00);
+	PUSH_DATAs(push, 0x04400e82); /* madh r1.xyz, r0.x, imm.x, imm.yzww */
+	PUSH_DATAs(push, 0x1c9c0100);
+	PUSH_DATAs(push, 0x00000002);
+	PUSH_DATAs(push, 0x0001f202);
+	PUSH_DATAs(push, 0x3f9507c8); /* { 1.16, -0.87, 0.53, -1.08 } */
+	PUSH_DATAs(push, 0xbf5ee393);
+	PUSH_DATAs(push, 0x3f078fef);
+	PUSH_DATAs(push, 0xbf8a6762);
+	PUSH_DATAs(push, 0x04400e82); /* madh r1.xyz, r0.y, imm, r1 */
+	PUSH_DATAs(push, 0x1c9cab00);
+	PUSH_DATAs(push, 0x0001c802);
+	PUSH_DATAs(push, 0x0001c904);
+	PUSH_DATAs(push, 0x00000000); /* { 0.00, -0.39, 2.02, 0.00 } */
+	PUSH_DATAs(push, 0xbec890d6);
+	PUSH_DATAs(push, 0x40011687);
+	PUSH_DATAs(push, 0x00000000);
+	PUSH_DATAs(push, 0x04400e81); /* madh r0.xyz, r0.z, imm, r1 */
+	PUSH_DATAs(push, 0x1c9d5500);
+	PUSH_DATAs(push, 0x0001c802);
+	PUSH_DATAs(push, 0x0001c904);
+	PUSH_DATAs(push, 0x3fcc432d); /* { 1.60, -0.81, 0.00, 0.00 } */
+	PUSH_DATAs(push, 0xbf501a37);
+	PUSH_DATAs(push, 0x00000000);
+	PUSH_DATAs(push, 0x00000000);
 	return TRUE;
 }
