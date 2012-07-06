@@ -1065,7 +1065,7 @@ _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 	     priv->gpu_bo ? priv->gpu_bo->handle : 0,
 	     priv->gpu_damage, priv->cpu_damage, priv->clear));
 
-	if ((flags & MOVE_READ) == 0) {
+	if (USE_INPLACE && (flags & MOVE_READ) == 0) {
 		assert(flags & MOVE_WRITE);
 		DBG(("%s: no readbck, discarding gpu damage [%d], pending clear[%d]\n",
 		     __FUNCTION__, priv->gpu_damage != NULL, priv->clear));
@@ -1485,7 +1485,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 		return _sna_pixmap_move_to_cpu(pixmap, flags);
 	}
 
-	if ((flags & MOVE_READ) == 0) {
+	if (USE_INPLACE && (flags & MOVE_READ) == 0) {
 		DBG(("%s: no read, checking to see if we can stream the write into the GPU bo\n",
 		     __FUNCTION__));
 		assert(flags & MOVE_WRITE);
@@ -2001,8 +2001,6 @@ inline static unsigned drawable_gc_flags(DrawablePtr draw,
 	     __FUNCTION__, drawable_gc_inplace_hint(draw, gc)));
 
 	flags = MOVE_WRITE;
-	if (USE_INPLACE)
-		flags |= MOVE_INPLACE_HINT;
 	if (read) {
 		DBG(("%s: partial write\n", __FUNCTION__));
 		flags |= MOVE_READ;
