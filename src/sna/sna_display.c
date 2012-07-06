@@ -525,6 +525,7 @@ sna_crtc_apply(xf86CrtcPtr crtc)
 	int i, ret = FALSE;
 
 	DBG(("%s\n", __FUNCTION__));
+	kgem_bo_submit(&sna->kgem, sna_crtc->bo);
 
 	assert(xf86_config->num_output < ARRAY_SIZE(output_ids));
 
@@ -788,15 +789,15 @@ void sna_copy_fbcon(struct sna *sna)
 
 	sx = dx = 0;
 	if (box.x2 < (uint16_t)fbcon.width)
-		sx = (fbcon.width - box.x2) / 2.;
+		sx = (fbcon.width - box.x2) / 2;
 	if (box.x2 < sna->front->drawable.width)
-		dx = (sna->front->drawable.width - box.x2) / 2.;
+		dx = (sna->front->drawable.width - box.x2) / 2;
 
 	sy = dy = 0;
 	if (box.y2 < (uint16_t)fbcon.height)
-		sy = (fbcon.height - box.y2) / 2.;
+		sy = (fbcon.height - box.y2) / 2;
 	if (box.y2 < sna->front->drawable.height)
-		dy = (sna->front->drawable.height - box.y2) / 2.;
+		dy = (sna->front->drawable.height - box.y2) / 2;
 
 	ok = sna->render.copy_boxes(sna, GXcopy,
 				    scratch, bo, sx, sy,
@@ -2122,6 +2123,62 @@ sna_redirect_screen_pixmap(ScrnInfoPtr scrn, PixmapPtr old, PixmapPtr new)
 	screen->SetScreenPixmap(new);
 }
 
+static void copy_front(struct sna *sna, PixmapPtr old, PixmapPtr new)
+{
+	struct sna_pixmap *old_priv, *new_priv;
+	int16_t sx, sy, dx, dy;
+	BoxRec box;
+
+	DBG(("%s\n", __FUNCTION__));
+
+	if (wedged(sna))
+		return;
+
+	old_priv = sna_pixmap_force_to_gpu(old, MOVE_READ);
+	if (!old_priv)
+		return;
+
+	new_priv = sna_pixmap_force_to_gpu(new, MOVE_WRITE);
+	if (!new_priv)
+		return;
+
+	box.x1 = box.y1 = 0;
+	box.x2 = min(old->drawable.width, new->drawable.width);
+	box.y2 = min(old->drawable.height, new->drawable.height);
+
+	sx = dx = 0;
+	if (box.x2 < old->drawable.width)
+		sx = (old->drawable.width - box.x2) / 2;
+	if (box.x2 < new->drawable.width)
+		dx = (new->drawable.width - box.x2) / 2;
+
+	sy = dy = 0;
+	if (box.y2 < old->drawable.height)
+		sy = (old->drawable.height - box.y2) / 2;
+	if (box.y2 < new->drawable.height)
+		dy = (new->drawable.height - box.y2) / 2;
+
+	DBG(("%s: copying box (%dx%d) from (%d, %d) to (%d, %d)\n",
+	     __FUNCTION__, box.x2, box.y2, sx, sy, dx, dy));
+
+	if (box.x2 != new->drawable.width || box.y2 != new->drawable.height) {
+		(void)sna->render.fill_one(sna, new, new_priv->gpu_bo, 0,
+					   0, 0,
+					   new->drawable.width,
+					   new->drawable.height,
+					   GXclear);
+	}
+	(void)sna->render.copy_boxes(sna, GXcopy,
+				     old, old_priv->gpu_bo, sx, sy,
+				     new, new_priv->gpu_bo, dx, dy,
+				     &box, 1, 0);
+
+	if (!DAMAGE_IS_ALL(new_priv->gpu_damage))
+		sna_damage_all(&new_priv->gpu_damage,
+			       new->drawable.width,
+			       new->drawable.height);
+}
+
 static Bool
 sna_crtc_resize(ScrnInfoPtr scrn, int width, int height)
 {
@@ -2156,6 +2213,8 @@ sna_crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	assert(sna->mode.shadow_active == 0);
 	assert(sna->mode.shadow_damage == NULL);
 	assert(sna->mode.shadow == NULL);
+
+	copy_front(sna, sna->front, new_front);
 
 	sna->front = new_front;
 	scrn->virtualX = width;
