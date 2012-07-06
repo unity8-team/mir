@@ -48,6 +48,10 @@
 
 static struct intel_device_info *chipset_info;
 
+static const struct intel_device_info intel_generic_info = {
+	.gen = 0,
+};
+
 static const struct intel_device_info intel_i81x_info = {
 	.gen = 10,
 };
@@ -215,6 +219,7 @@ static const struct pci_id_match intel_device_match[] = {
 	INTEL_DEVICE_MATCH (PCI_CHIP_IVYBRIDGE_S_GT1, &intel_ivybridge_info ),
 	INTEL_DEVICE_MATCH (PCI_CHIP_IVYBRIDGE_S_GT2, &intel_ivybridge_info ),
 
+	INTEL_DEVICE_MATCH (PCI_MATCH_ANY, &intel_generic_info ),
 	{ 0, 0, 0 },
 };
 
@@ -225,6 +230,7 @@ void intel_detect_chipset(ScrnInfoPtr scrn,
 	int i;
 
 	chipset->info = chipset_info;
+	chipset->name = NULL;
 
 	for (i = 0; intel_chipsets[i].name != NULL; i++) {
 		if (DEVICE_ID(pci) == intel_chipsets[i].token) {
@@ -232,12 +238,14 @@ void intel_detect_chipset(ScrnInfoPtr scrn,
 			break;
 		}
 	}
-	if (intel_chipsets[i].name == NULL) {
-		chipset->name = "unknown chipset";
+	if (chipset->name == NULL) {
+		xf86DrvMsg(scrn->scrnIndex, X_WARNING, "unknown chipset\n");
+		chipset->name = "unknown";
+	} else {
+		xf86DrvMsg(scrn->scrnIndex, X_INFO,
+			   "Integrated Graphics Chipset: Intel(R) %s\n",
+			   chipset->name);
 	}
-
-	xf86DrvMsg(scrn->scrnIndex, X_INFO,
-		   "Integrated Graphics Chipset: Intel(R) %s\n", chipset->name);
 }
 
 /*

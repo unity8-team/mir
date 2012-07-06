@@ -543,7 +543,10 @@ static struct list *active(struct kgem *kgem, int num_pages, int tiling)
 static size_t
 agp_aperture_size(struct pci_device *dev, int gen)
 {
-	return dev->regions[gen < 30 ? 0 : 2].size;
+	/* XXX assume that only future chipsets are unknown and follow
+	 * the post gen2 PCI layout.
+	 */
+	return dev->regions[(gen && gen < 30) ? 0 : 2].size;
 }
 
 static size_t

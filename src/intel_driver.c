@@ -417,6 +417,9 @@ static Bool has_relaxed_fencing(struct intel_screen_private *intel)
 
 static Bool can_accelerate_blt(struct intel_screen_private *intel)
 {
+	if (INTEL_INFO(intel)->gen == 0)
+		return FALSE;
+
 	if (0 && (IS_I830(intel) || IS_845G(intel))) {
 		/* These pair of i8xx chipsets have a crippling erratum
 		 * that prevents the use of a PTE entry by the BLT
