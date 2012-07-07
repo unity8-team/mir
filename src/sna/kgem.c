@@ -60,6 +60,8 @@ search_linear_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags);
 #define DBG_NO_LLC 0
 #define DBG_NO_SEMAPHORES 0
 #define DBG_NO_MADV 0
+#define DBG_NO_UPLOAD_CACHE 0
+#define DBG_NO_UPLOAD_ACTIVE 0
 #define DBG_NO_MAP_UPLOAD 0
 #define DBG_NO_RELAXED_FENCING 0
 #define DBG_DUMP 0
@@ -1682,7 +1684,8 @@ static void kgem_finish_partials(struct kgem *kgem)
 
 		if (bo->mmapped) {
 			assert(!bo->need_io);
-			if (bo->used + PAGE_SIZE <= bytes(&bo->base) &&
+			if (!DBG_NO_UPLOAD_ACTIVE &&
+			    bo->used + PAGE_SIZE <= bytes(&bo->base) &&
 			    (kgem->has_llc || !IS_CPU_MAP(bo->base.map))) {
 				DBG(("%s: retaining partial upload buffer (%d/%d)\n",
 				     __FUNCTION__, bo->used, bytes(&bo->base)));
@@ -3793,6 +3796,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 	if (kgem->has_llc)
 		flags &= ~KGEM_BUFFER_INPLACE;
 
+#if !DBG_NO_UPLOAD_CACHE
 	list_for_each_entry(bo, &kgem->batch_partials, base.list) {
 		assert(bo->base.io);
 		assert(bo->base.refcnt >= 1);
@@ -3863,6 +3867,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			}
 		}
 	}
+#endif
 
 #if !DBG_NO_MAP_UPLOAD
 	/* Be a little more generous and hope to hold fewer mmappings */
