@@ -1630,6 +1630,7 @@ sna_dri_immediate_xchg(struct sna *sna,
 	drmVBlank vbl;
 
 	DBG(("%s: emitting immediate exchange, throttling client\n", __FUNCTION__));
+	VG_CLEAR(vbl);
 
 	if ((sna->flags & SNA_NO_WAIT) == 0) {
 		info->type = DRI2_XCHG_THROTTLE;
@@ -1678,6 +1679,7 @@ sna_dri_immediate_blit(struct sna *sna,
 	drmVBlank vbl;
 
 	DBG(("%s: emitting immediate blit, throttling client\n", __FUNCTION__));
+	VG_CLEAR(vbl);
 
 	if ((sna->flags & SNA_NO_WAIT) == 0) {
 		info->type = DRI2_SWAP_THROTTLE;
