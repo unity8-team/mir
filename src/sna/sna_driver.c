@@ -82,6 +82,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 static DevPrivateKeyRec sna_private_index;
 static DevPrivateKeyRec sna_pixmap_index;
+static DevPrivateKeyRec sna_dri_index;
 static DevPrivateKeyRec sna_gc_index;
 static DevPrivateKeyRec sna_glyph_key;
 static DevPrivateKeyRec sna_window_key;
@@ -809,6 +810,10 @@ sna_register_all_privates(void)
 	if (!dixRegisterPrivateKey(&sna_pixmap_index, PRIVATE_PIXMAP, 0))
 		return FALSE;
 	assert(sna_pixmap_index.offset == sizeof(void*));
+
+	if (!dixRegisterPrivateKey(&sna_dri_index, PRIVATE_PIXMAP, 0))
+		return FALSE;
+	assert(sna_dri_index.offset == 2*sizeof(void*));
 
 	if (!dixRegisterPrivateKey(&sna_gc_index, PRIVATE_GC,
 				   sizeof(FbGCPrivate)))

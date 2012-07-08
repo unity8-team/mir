@@ -107,7 +107,6 @@ struct sna_dri_frame_event {
 struct sna_dri_private {
 	int refcnt;
 	PixmapPtr pixmap;
-	int width, height;
 	struct kgem_bo *bo;
 	struct sna_dri_frame_event *chain;
 };
@@ -116,7 +115,6 @@ static DevPrivateKeyRec sna_client_key;
 
 static RESTYPE frame_event_client_type;
 static RESTYPE frame_event_drawable_type;
-static RESTYPE dri_drawable_type;
 
 static inline struct sna_dri_frame_event *
 to_frame_event(uintptr_t  data)
@@ -197,6 +195,16 @@ static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 	return priv->gpu_bo;
 }
 
+constant static inline void *sna_pixmap_get_dri(PixmapPtr pixmap)
+{
+	return ((void **)pixmap->devPrivates)[2];
+}
+
+static inline void *sna_pixmap_set_dri(PixmapPtr pixmap, void *ptr)
+{
+	((void **)pixmap->devPrivates)[2] = ptr;
+}
+
 static DRI2Buffer2Ptr
 sna_dri_create_buffer(DrawablePtr drawable,
 		      unsigned int attachment,
@@ -217,23 +225,16 @@ sna_dri_create_buffer(DrawablePtr drawable,
 	switch (attachment) {
 	case DRI2BufferFrontLeft:
 		pixmap = get_drawable_pixmap(drawable);
-
-		buffer = NULL;
-		dixLookupResourceByType((void **)&buffer, drawable->id,
-					dri_drawable_type, NULL, DixWriteAccess);
+		buffer = sna_pixmap_get_dri(pixmap);
 		if (buffer) {
+			DBG(("%s: reusing front buffer attachment\n",
+			     __FUNCTION__));
+
 			private = get_private(buffer);
-			if (private->pixmap == pixmap) {
-				DBG(("%s: reusing front buffer attachment\n",
-				     __FUNCTION__));
-				assert(private->width  == pixmap->drawable.width);
-				assert(private->height == pixmap->drawable.height);
-				private->refcnt++;
-				return buffer;
-			}
-			FreeResourceByType(drawable->id,
-					   dri_drawable_type,
-					   FALSE);
+			assert(private->pixmap == pixmap);
+
+			private->refcnt++;
+			return buffer;
 		}
 
 		bo = sna_pixmap_set_dri(sna, pixmap);
@@ -323,22 +324,18 @@ sna_dri_create_buffer(DrawablePtr drawable,
 	buffer->flags = 0;
 	buffer->name = kgem_bo_flink(&sna->kgem, bo);
 	private->refcnt = 1;
-	private->pixmap = pixmap;
-	if (pixmap) {
-		private->width  = pixmap->drawable.width;
-		private->height = pixmap->drawable.height;
-	}
 	private->bo = bo;
+	private->pixmap = pixmap;
 
 	if (buffer->name == 0)
 		goto err;
 
-	if (pixmap)
+	if (pixmap) {
+		assert(attachment == DRI2BufferFrontLeft);
+		sna_pixmap_set_dri(pixmap, buffer);
+		assert(sna_pixmap_get_dri(pixmap) == buffer);
 		pixmap->refcnt++;
-
-	if (attachment == DRI2BufferFrontLeft &&
-	    AddResource(drawable->id, dri_drawable_type, buffer))
-		private->refcnt++;
+	}
 
 	return buffer;
 
@@ -361,17 +358,18 @@ static void _sna_dri_destroy_buffer(struct sna *sna, DRI2Buffer2Ptr buffer)
 
 	if (--private->refcnt == 0) {
 		if (private->pixmap) {
-			ScreenPtr screen = private->pixmap->drawable.pScreen;
-			struct sna_pixmap *priv = sna_pixmap(private->pixmap);
+			PixmapPtr pixmap = private->pixmap;
+			struct sna_pixmap *priv = sna_pixmap(pixmap);
 
 			/* Undo the DRI markings on this pixmap */
 			if (priv->flush && --priv->flush == 0) {
 				list_del(&priv->list);
 				sna_accel_watch_flush(sna, -1);
-				priv->pinned = private->pixmap == sna->front;
+				priv->pinned = pixmap == sna->front;
 			}
 
-			screen->DestroyPixmap(private->pixmap);
+			sna_pixmap_set_dri(pixmap, NULL);
+			pixmap->drawable.pScreen->DestroyPixmap(pixmap);
 		}
 
 		private->bo->flush = 0;
@@ -858,17 +856,6 @@ sna_dri_frame_event_drawable_gone(void *data, XID id)
 	return Success;
 }
 
-static int
-sna_dri_drawable_gone(void *data, XID id)
-{
-	DBG(("%s(%ld)\n", __FUNCTION__, (long)id));
-
-	_sna_dri_destroy_buffer(to_sna_from_pixmap(get_private(data)->pixmap),
-				data);
-
-	return Success;
-}
-
 static Bool
 sna_dri_register_frame_event_resource_types(void)
 {
@@ -889,14 +876,6 @@ sna_dri_register_frame_event_resource_types(void)
 
 	DBG(("%s: frame_event_drawable_type=%d\n",
 	     __FUNCTION__, frame_event_drawable_type));
-
-	dri_drawable_type =
-		CreateNewResourceType(sna_dri_drawable_gone,
-				      "DRI2 Drawable");
-	if (!dri_drawable_type)
-		return FALSE;
-
-	DBG(("%s: dri_drawable_type=%d\n", __FUNCTION__, dri_drawable_type));
 
 	return TRUE;
 }
