@@ -80,10 +80,8 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define DBG(x) ErrorF x
 #endif
 
-static DevPrivateKeyRec sna_private_index;
-static DevPrivateKeyRec sna_pixmap_index;
-static DevPrivateKeyRec sna_dri_index;
-static DevPrivateKeyRec sna_gc_index;
+static DevPrivateKeyRec sna_pixmap_key;
+static DevPrivateKeyRec sna_gc_key;
 static DevPrivateKeyRec sna_glyph_key;
 static DevPrivateKeyRec sna_window_key;
 
@@ -803,30 +801,23 @@ static void sna_mode_set(ScrnInfoPtr scrn)
 static Bool
 sna_register_all_privates(void)
 {
-	if (!dixRegisterPrivateKey(&sna_private_index, PRIVATE_PIXMAP, 0))
+	if (!dixRegisterPrivateKey(&sna_pixmap_key, PRIVATE_PIXMAP,
+				   3*sizeof(void *)))
 		return FALSE;
-	assert(sna_private_index.offset == 0);
+	assert(sna_pixmap_key.offset == 0);
 
-	if (!dixRegisterPrivateKey(&sna_pixmap_index, PRIVATE_PIXMAP, 0))
-		return FALSE;
-	assert(sna_pixmap_index.offset == sizeof(void*));
-
-	if (!dixRegisterPrivateKey(&sna_dri_index, PRIVATE_PIXMAP, 0))
-		return FALSE;
-	assert(sna_dri_index.offset == 2*sizeof(void*));
-
-	if (!dixRegisterPrivateKey(&sna_gc_index, PRIVATE_GC,
+	if (!dixRegisterPrivateKey(&sna_gc_key, PRIVATE_GC,
 				   sizeof(FbGCPrivate)))
 		return FALSE;
-	assert(sna_gc_index.offset == 0);
+	assert(sna_gc_key.offset == 0);
 
 	if (!dixRegisterPrivateKey(&sna_glyph_key, PRIVATE_GLYPH,
 				   sizeof(struct sna_glyph)))
 		return FALSE;
 	assert(sna_glyph_key.offset == 0);
 
-	if (!dixRegisterPrivateKey(&sna_window_key,
-				   PRIVATE_WINDOW, 0))
+	if (!dixRegisterPrivateKey(&sna_window_key, PRIVATE_WINDOW,
+				   2*sizeof(void *)))
 		return FALSE;
 	assert(sna_window_key.offset == 0);
 

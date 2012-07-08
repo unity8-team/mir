@@ -358,6 +358,7 @@ extern bool sna_wait_for_scanline(struct sna *sna, PixmapPtr pixmap,
 Bool sna_dri_open(struct sna *sna, ScreenPtr pScreen);
 void sna_dri_page_flip_handler(struct sna *sna, struct drm_event_vblank *event);
 void sna_dri_vblank_handler(struct sna *sna, struct drm_event_vblank *event);
+void sna_dri_destroy_window(WindowPtr win);
 void sna_dri_close(struct sna *sna, ScreenPtr pScreen);
 
 extern bool sna_crtc_on(xf86CrtcPtr crtc);

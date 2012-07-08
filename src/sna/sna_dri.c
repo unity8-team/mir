@@ -79,8 +79,7 @@ struct sna_dri_frame_event {
 	int pipe;
 	int count;
 
-	struct list drawable_resource;
-	struct list client_resource;
+	struct list drawable_events;
 
 	/* for swaps & flips only */
 	DRI2SwapEventPtr event_complete;
@@ -110,11 +109,6 @@ struct sna_dri_private {
 	struct kgem_bo *bo;
 	struct sna_dri_frame_event *chain;
 };
-
-static DevPrivateKeyRec sna_client_key;
-
-static RESTYPE frame_event_client_type;
-static RESTYPE frame_event_drawable_type;
 
 static inline struct sna_dri_frame_event *
 to_frame_event(uintptr_t  data)
@@ -195,12 +189,12 @@ static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 	return priv->gpu_bo;
 }
 
-constant static inline void *sna_pixmap_get_dri(PixmapPtr pixmap)
+constant static inline void *sna_pixmap_get_buffer(PixmapPtr pixmap)
 {
 	return ((void **)pixmap->devPrivates)[2];
 }
 
-static inline void *sna_pixmap_set_dri(PixmapPtr pixmap, void *ptr)
+static inline void sna_pixmap_set_buffer(PixmapPtr pixmap, void *ptr)
 {
 	((void **)pixmap->devPrivates)[2] = ptr;
 }
@@ -225,7 +219,7 @@ sna_dri_create_buffer(DrawablePtr drawable,
 	switch (attachment) {
 	case DRI2BufferFrontLeft:
 		pixmap = get_drawable_pixmap(drawable);
-		buffer = sna_pixmap_get_dri(pixmap);
+		buffer = sna_pixmap_get_buffer(pixmap);
 		if (buffer) {
 			DBG(("%s: reusing front buffer attachment\n",
 			     __FUNCTION__));
@@ -332,8 +326,8 @@ sna_dri_create_buffer(DrawablePtr drawable,
 
 	if (pixmap) {
 		assert(attachment == DRI2BufferFrontLeft);
-		sna_pixmap_set_dri(pixmap, buffer);
-		assert(sna_pixmap_get_dri(pixmap) == buffer);
+		sna_pixmap_set_buffer(pixmap, buffer);
+		assert(sna_pixmap_get_buffer(pixmap) == buffer);
 		pixmap->refcnt++;
 	}
 
@@ -368,7 +362,7 @@ static void _sna_dri_destroy_buffer(struct sna *sna, DRI2Buffer2Ptr buffer)
 				priv->pinned = pixmap == sna->front;
 			}
 
-			sna_pixmap_set_dri(pixmap, NULL);
+			sna_pixmap_set_buffer(pixmap, NULL);
 			pixmap->drawable.pScreen->DestroyPixmap(pixmap);
 		}
 
@@ -780,147 +774,66 @@ sna_dri_get_pipe(DrawablePtr pDraw)
 }
 
 static struct list *
-get_resource(XID id, RESTYPE type)
+sna_dri_get_window_events(WindowPtr win)
 {
-	struct list *resource;
-	void *ptr;
+	struct list *head;
 
-	ptr = NULL;
-	dixLookupResourceByType(&ptr, id, type, NULL, DixWriteAccess);
-	if (ptr)
-		return ptr;
+	head = ((void **)win->devPrivates)[1];
+	if (head)
+		return head;
 
-	resource = malloc(sizeof(*resource));
-	if (resource == NULL)
+	head = malloc(sizeof(*head));
+	if (head == NULL)
 		return NULL;
 
-	if (!AddResource(id, type, resource)) {
-		DBG(("%s: failed to add resource (%ld, %ld)\n",
-		     __FUNCTION__, (long)id, (long)type));
-		free(resource);
-		return NULL;
-	}
-
-	DBG(("%s(%ld): new(%ld)=%p\n", __FUNCTION__,
-	     (long)id, (long)type, resource));
-
-	list_init(resource);
-	return resource;
+	list_init(head);
+	((void **)win->devPrivates)[1] = head;
+	return head;
 }
 
-static int
-sna_dri_frame_event_client_gone(void *data, XID id)
+void sna_dri_destroy_window(WindowPtr win)
 {
-	struct list *resource = data;
+	struct list *head = ((void **)win->devPrivates)[1];
 
-	DBG(("%s(%ld): %p\n", __FUNCTION__, (long)id, data));
+	if (head == NULL)
+		return;
 
-	while (!list_is_empty(resource)) {
+	DBG(("%s: window=%ld\n", __FUNCTION__, win->drawable.serialNumber));
+
+	while (!list_is_empty(head)) {
 		struct sna_dri_frame_event *info =
-			list_first_entry(resource,
+			list_first_entry(head,
 					 struct sna_dri_frame_event,
-					 client_resource);
-
-		DBG(("%s: marking client gone [%p]: %p\n",
-		     __FUNCTION__, info, info->client));
-
-		list_del(&info->client_resource);
-		info->client = NULL;
-	}
-	free(resource);
-
-	return Success;
-}
-
-static int
-sna_dri_frame_event_drawable_gone(void *data, XID id)
-{
-	struct list *resource = data;
-
-	DBG(("%s(%ld): resource=%p\n", __FUNCTION__, (long)id, resource));
-
-	while (!list_is_empty(resource)) {
-		struct sna_dri_frame_event *info =
-			list_first_entry(resource,
-					 struct sna_dri_frame_event,
-					 drawable_resource);
+					 drawable_events);
 
 		DBG(("%s: marking drawable gone [%p]: %ld\n",
 		     __FUNCTION__, info, (long)info->drawable_id));
 
-		list_del(&info->drawable_resource);
+		list_del(&info->drawable_events);
 		info->drawable_id = None;
 	}
-	free(resource);
-
-	return Success;
+	free(head);
 }
 
-static Bool
-sna_dri_register_frame_event_resource_types(void)
+static bool
+sna_dri_add_frame_event(DrawablePtr draw, struct sna_dri_frame_event *info)
 {
-	frame_event_client_type =
-		CreateNewResourceType(sna_dri_frame_event_client_gone,
-				      "Frame Event Client");
-	if (!frame_event_client_type)
-		return FALSE;
+	struct list *head;
 
-	DBG(("%s: frame_event_client_type=%d\n",
-	     __FUNCTION__, frame_event_client_type));
+	if (draw->type != DRAWABLE_WINDOW)
+		return true;
 
-	frame_event_drawable_type =
-		CreateNewResourceType(sna_dri_frame_event_drawable_gone,
-				      "Frame Event Drawable");
-	if (!frame_event_drawable_type)
-		return FALSE;
-
-	DBG(("%s: frame_event_drawable_type=%d\n",
-	     __FUNCTION__, frame_event_drawable_type));
-
-	return TRUE;
-}
-
-static XID
-get_client_id(ClientPtr client)
-{
-	XID *ptr = dixGetPrivateAddr(&client->devPrivates, &sna_client_key);
-	if (*ptr == 0)
-		*ptr = FakeClientID(client->index);
-	return *ptr;
-}
-
-/*
- * Hook this frame event into the server resource
- * database so we can clean it up if the drawable or
- * client exits while the swap is pending
- */
-static Bool
-sna_dri_add_frame_event(struct sna_dri_frame_event *info)
-{
-	struct list *resource;
-
-	resource = get_resource(get_client_id(info->client),
-				frame_event_client_type);
-	if (resource == NULL) {
-		DBG(("%s: failed to get client resource\n", __FUNCTION__));
-		return FALSE;
+	head = sna_dri_get_window_events((WindowPtr)draw);
+	if (head == NULL) {
+		DBG(("%s: failed to get drawable events\n", __FUNCTION__));
+		return false;
 	}
 
-	list_add(&info->client_resource, resource);
+	list_add(&info->drawable_events, head);
 
-	resource = get_resource(info->drawable_id, frame_event_drawable_type);
-	if (resource == NULL) {
-		DBG(("%s: failed to get drawable resource\n", __FUNCTION__));
-		list_del(&info->client_resource);
-		return FALSE;
-	}
-
-	list_add(&info->drawable_resource, resource);
-
-	DBG(("%s: add[%p] (%p, %ld)\n", __FUNCTION__,
-	     info, info->client, (long)info->drawable_id));
-
-	return TRUE;
+	DBG(("%s: add[%p] to window %ld)\n",
+	     __FUNCTION__, info, (long)draw->id));
+	return true;
 }
 
 static void
@@ -936,8 +849,7 @@ sna_dri_frame_event_info_free(struct sna *sna,
 	DBG(("%s: del[%p] (%p, %ld)\n", __FUNCTION__,
 	     info, info->client, (long)info->drawable_id));
 
-	list_del(&info->client_resource);
-	list_del(&info->drawable_resource);
+	list_del(&info->drawable_events);
 
 	_sna_dri_destroy_buffer(sna, info->front);
 	_sna_dri_destroy_buffer(sna, info->back);
@@ -1587,7 +1499,7 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		info->back = back;
 		info->pipe = pipe;
 
-		if (!sna_dri_add_frame_event(info)) {
+		if (!sna_dri_add_frame_event(draw, info)) {
 			DBG(("%s: failed to hook up frame event\n", __FUNCTION__));
 			free(info);
 			return FALSE;
@@ -1631,7 +1543,7 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		info->pipe = pipe;
 		info->type = DRI2_FLIP;
 
-		if (!sna_dri_add_frame_event(info)) {
+		if (!sna_dri_add_frame_event(draw, info)) {
 			DBG(("%s: failed to hook up frame event\n", __FUNCTION__));
 			free(info);
 			return FALSE;
@@ -1898,7 +1810,7 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	info->back = back;
 	info->pipe = pipe;
 
-	if (!sna_dri_add_frame_event(info)) {
+	if (!sna_dri_add_frame_event(draw, info)) {
 		DBG(("%s: failed to hook up frame event\n", __FUNCTION__));
 		free(info);
 		info = NULL;
@@ -2063,7 +1975,7 @@ blit:
 		info->front = front;
 		info->back = back;
 
-		if (!sna_dri_add_frame_event(info)) {
+		if (!sna_dri_add_frame_event(draw, info)) {
 			DBG(("%s: failed to hook up frame event\n", __FUNCTION__));
 			free(info);
 			goto blit;
@@ -2220,7 +2132,7 @@ sna_dri_schedule_wait_msc(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 	info->drawable_id = draw->id;
 	info->client = client;
 	info->type = DRI2_WAITMSC;
-	if (!sna_dri_add_frame_event(info)) {
+	if (!sna_dri_add_frame_event(draw, info)) {
 		DBG(("%s: failed to hook up frame event\n", __FUNCTION__));
 		free(info);
 		goto out_complete;
@@ -2280,8 +2192,6 @@ out_complete:
 }
 #endif
 
-static unsigned int dri2_server_generation;
-
 Bool sna_dri_open(struct sna *sna, ScreenPtr screen)
 {
 	DRI2InfoRec info;
@@ -2306,18 +2216,6 @@ Bool sna_dri_open(struct sna *sna, ScreenPtr screen)
 			   "DRI2 requires DRI2 module version 1.1.0 or later\n");
 		return FALSE;
 	}
-
-	if (serverGeneration != dri2_server_generation) {
-	    dri2_server_generation = serverGeneration;
-	    if (!sna_dri_register_frame_event_resource_types()) {
-		xf86DrvMsg(sna->scrn->scrnIndex, X_WARNING,
-			   "Cannot register DRI2 frame event resources\n");
-		return FALSE;
-	    }
-	}
-
-	if (!dixRegisterPrivateKey(&sna_client_key, PRIVATE_CLIENT, sizeof(XID)))
-		return FALSE;
 
 	sna->deviceName = drmGetDeviceNameFromFd(sna->kgem.fd);
 	memset(&info, '\0', sizeof(info));

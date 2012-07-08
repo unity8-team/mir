@@ -12618,6 +12618,7 @@ sna_unmap_window(WindowPtr win)
 static Bool
 sna_destroy_window(WindowPtr win)
 {
+	sna_dri_destroy_window(win);
 	return TRUE;
 }
 
