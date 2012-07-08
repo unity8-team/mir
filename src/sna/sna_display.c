@@ -2159,17 +2159,28 @@ static void copy_front(struct sna *sna, PixmapPtr old, PixmapPtr new)
 	DBG(("%s: copying box (%dx%d) from (%d, %d) to (%d, %d)\n",
 	     __FUNCTION__, box.x2, box.y2, sx, sy, dx, dy));
 
-	if (box.x2 != new->drawable.width || box.y2 != new->drawable.height) {
-		(void)sna->render.fill_one(sna, new, new_priv->gpu_bo, 0,
+	if (old_priv->clear) {
+		(void)sna->render.fill_one(sna, new, new_priv->gpu_bo,
+					   old_priv->clear_color,
 					   0, 0,
 					   new->drawable.width,
 					   new->drawable.height,
-					   GXclear);
+					   GXcopy);
+		new_priv->clear = true;
+		new_priv->clear_color = old_priv->clear_color;
+	} else {
+		if (box.x2 != new->drawable.width || box.y2 != new->drawable.height) {
+			(void)sna->render.fill_one(sna, new, new_priv->gpu_bo, 0,
+						   0, 0,
+						   new->drawable.width,
+						   new->drawable.height,
+						   GXclear);
+		}
+		(void)sna->render.copy_boxes(sna, GXcopy,
+					     old, old_priv->gpu_bo, sx, sy,
+					     new, new_priv->gpu_bo, dx, dy,
+					     &box, 1, 0);
 	}
-	(void)sna->render.copy_boxes(sna, GXcopy,
-				     old, old_priv->gpu_bo, sx, sy,
-				     new, new_priv->gpu_bo, dx, dy,
-				     &box, 1, 0);
 
 	if (!DAMAGE_IS_ALL(new_priv->gpu_damage))
 		sna_damage_all(&new_priv->gpu_damage,
