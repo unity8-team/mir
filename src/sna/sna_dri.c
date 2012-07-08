@@ -73,7 +73,7 @@ enum frame_event_type {
 };
 
 struct sna_dri_frame_event {
-	XID drawable_id;
+	DrawablePtr draw;
 	ClientPtr client;
 	enum frame_event_type type;
 	unsigned frame;
@@ -817,7 +817,7 @@ void sna_dri_destroy_window(WindowPtr win)
 
 	DBG(("%s: window=%ld\n", __FUNCTION__, win->drawable.serialNumber));
 	while (chain) {
-		chain->drawable_id = None;
+		chain->draw = NULL;
 		chain = chain->chain;
 	}
 }
@@ -849,9 +849,6 @@ sna_dri_frame_event_info_free(struct sna *sna,
 			      DrawablePtr draw,
 			      struct sna_dri_frame_event *info)
 {
-	DBG(("%s: del[%p] (%p, %ld)\n", __FUNCTION__,
-	     info, info->client, (long)info->drawable_id));
-
 	if (draw && draw->type == DRAWABLE_WINDOW)
 		sna_dri_remove_frame_event((WindowPtr)draw, info);
 	_sna_dri_destroy_buffer(sna, info->front);
@@ -1148,19 +1145,12 @@ static bool sna_dri_blit_complete(struct sna *sna,
 void sna_dri_vblank_handler(struct sna *sna, struct drm_event_vblank *event)
 {
 	struct sna_dri_frame_event *info = (void *)(uintptr_t)event->user_data;
-	DrawablePtr draw = NULL;
-	int status;
+	DrawablePtr draw;
 
-	DBG(("%s(id=%d, type=%d)\n", __FUNCTION__,
-	     (int)info->drawable_id, info->type));
+	DBG(("%s(type=%d)\n", __FUNCTION__, info->type));
 
-	status = BadDrawable;
-	if (info->drawable_id)
-		status = dixLookupDrawable(&draw,
-					   info->drawable_id,
-					   serverClient,
-					   M_ANY, DixWriteAccess);
-	if (status != Success)
+	draw = info->draw;
+	if (draw == NULL)
 		goto done;
 
 	switch (info->type) {
@@ -1268,8 +1258,7 @@ sna_dri_flip_continue(struct sna *sna,
 static void sna_dri_flip_event(struct sna *sna,
 			       struct sna_dri_frame_event *flip)
 {
-	DrawablePtr draw = NULL;
-	int status;
+	DrawablePtr draw;
 
 	DBG(("%s(frame=%d, tv=%d.%06d, type=%d)\n",
 	     __FUNCTION__,
@@ -1281,13 +1270,8 @@ static void sna_dri_flip_event(struct sna *sna,
 	if (sna->dri.flip_pending == flip)
 		sna->dri.flip_pending = NULL;
 
-	status = BadDrawable;
-	if (flip->drawable_id)
-		status = dixLookupDrawable(&draw,
-					   flip->drawable_id,
-					   serverClient,
-					   M_ANY, DixWriteAccess);
-	if (status != Success) {
+	draw = flip->draw;
+	if (draw == NULL) {
 		DBG(("%s: drawable already gone\n", __FUNCTION__));
 		sna_dri_frame_event_info_free(sna, draw, flip);
 		return;
@@ -1457,7 +1441,7 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 
 		info = sna->dri.flip_pending;
 		if (info) {
-			if (info->drawable_id == draw->id) {
+			if (info->draw == draw) {
 				DBG(("%s: chaining flip\n", __FUNCTION__));
 				info->next_front.name = 1;
 				return TRUE;
@@ -1478,7 +1462,7 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 
 		info->type = type;
 
-		info->drawable_id = draw->id;
+		info->draw = draw;
 		info->client = client;
 		info->event_complete = func;
 		info->event_data = data;
@@ -1518,7 +1502,7 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		if (info == NULL)
 			return FALSE;
 
-		info->drawable_id = draw->id;
+		info->draw = draw;
 		info->client = client;
 		info->event_complete = func;
 		info->event_data = data;
@@ -1767,7 +1751,7 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	if (!info)
 		goto blit_fallback;
 
-	info->drawable_id = draw->id;
+	info->draw = draw;
 	info->client = client;
 	info->event_complete = func;
 	info->event_data = data;
@@ -2078,7 +2062,7 @@ sna_dri_schedule_wait_msc(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 	if (!info)
 		goto out_complete;
 
-	info->drawable_id = draw->id;
+	info->draw = draw;
 	info->client = client;
 	info->type = DRI2_WAITMSC;
 	sna_dri_add_frame_event(draw, info);
