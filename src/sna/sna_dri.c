@@ -2058,12 +2058,11 @@ sna_dri_get_msc(DrawablePtr draw, CARD64 *ust, CARD64 *msc)
 	}
 
 	VG_CLEAR(vbl);
-
 	vbl.request.type = DRM_VBLANK_RELATIVE | pipe_select(pipe);
 	vbl.request.sequence = 0;
-
 	if (sna_wait_vblank(sna, &vbl)) {
-		DBG(("%s: failed on pipe %d\n", __FUNCTION__, pipe));
+		DBG(("%s: query failed on pipe %d, ret=%d\n",
+		     __FUNCTION__, pipe, errno));
 		return FALSE;
 	}
 
