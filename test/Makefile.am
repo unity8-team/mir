@@ -32,6 +32,7 @@ libtest_la_SOURCES = \
 	test_log.c \
 	test_render.c \
 	dri2.c \
+	dri2.h \
 	$(NULL)
 
 EXTRA_DIST = README
