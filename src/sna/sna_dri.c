@@ -869,10 +869,6 @@ sna_dri_frame_event_info_free(struct sna *sna,
 	free(info);
 }
 
-/*
- * Our internal swap routine takes care of actually exchanging, blitting, or
- * flipping buffers as necessary.
- */
 static Bool
 sna_dri_page_flip(struct sna *sna, struct sna_dri_frame_event *info)
 {
@@ -1402,7 +1398,6 @@ sna_dri_page_flip_handler(struct sna *sna,
 
 	/* Is this the event whose info shall be delivered to higher level? */
 	if (event->user_data & 1) {
-		/* Yes: Cache msc, ust for later delivery. */
 		info->fe_frame = event->sequence;
 		info->fe_tv_sec = event->tv_sec;
 		info->fe_tv_usec = event->tv_usec;
@@ -1433,7 +1428,6 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 
 	VG_CLEAR(vbl);
 
-	/* XXX In theory we can just exchange pixmaps.... */
 	pipe = sna_dri_get_pipe(draw);
 	if (pipe == -1)
 		return FALSE;
@@ -1562,14 +1556,15 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 			vbl.request.sequence = current_msc - current_msc % divisor + remainder;
 
 			/*
-			 * If the calculated deadline vbl.request.sequence is smaller than
-			 * or equal to current_msc, it means we've passed the last point
-			 * when effective onset frame seq could satisfy
-			 * seq % divisor == remainder, so we need to wait for the next time
-			 * this will happen.
+			 * If the calculated deadline vbl.request.sequence is
+			 * smaller than or equal to current_msc, it means
+			 * we've passed the last point when effective onset
+			 * frame seq could satisfy *seq % divisor == remainder,
+			 * so we need to wait for the next time this will
+			 * happen.
 			 *
-			 * This comparison takes the 1 frame swap delay in pageflipping mode
-			 * into account.
+			 * This comparison takes the 1 frame swap delay
+			 * in pageflipping mode into account.
 			 */
 			if (vbl.request.sequence <= current_msc)
 				vbl.request.sequence += divisor;
@@ -1599,7 +1594,8 @@ sna_dri_immediate_xchg(struct sna *sna,
 {
 	drmVBlank vbl;
 
-	DBG(("%s: emitting immediate exchange, throttling client\n", __FUNCTION__));
+	DBG(("%s: emitting immediate exchange, throttling client\n",
+	     __FUNCTION__));
 	VG_CLEAR(vbl);
 
 	if ((sna->flags & SNA_NO_WAIT) == 0) {
@@ -1794,7 +1790,7 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	 * the swap.
 	 */
 	if (current_msc < *target_msc) {
-		DBG(("%s: waiting for swap: current=%d, target=%d,  divisor=%d\n",
+		DBG(("%s: waiting for swap: current=%d, target=%d, divisor=%d\n",
 		     __FUNCTION__,
 		     (int)current_msc,
 		     (int)*target_msc,
@@ -2097,7 +2093,8 @@ sna_dri_schedule_wait_msc(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 
 	/*
 	 * If we get here, target_msc has already passed or we don't have one,
-	 * so we queue an event that will satisfy the divisor/remainder equation.
+	 * so we queue an event that will satisfy the divisor/remainder
+	 * equation.
 	 */
 	vbl.request.type =
 		DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT | pipe_select(pipe);
