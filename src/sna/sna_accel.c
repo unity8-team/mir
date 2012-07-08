@@ -2064,7 +2064,7 @@ drawable_gc_flags(DrawablePtr draw, GCPtr gc, bool partial)
 	DBG(("%s: try operating on drawable inplace [hint? %d]\n",
 	     __FUNCTION__, drawable_gc_inplace_hint(draw, gc)));
 
-	return (!partial ?: MOVE_READ) | MOVE_WRITE | MOVE_INPLACE_HINT;
+	return (partial ? MOVE_READ : 0) | MOVE_WRITE | MOVE_INPLACE_HINT;
 }
 
 static bool
@@ -2257,13 +2257,12 @@ box_inplace(PixmapPtr pixmap, const BoxRec *box)
 	return ((box->x2 - box->x1) * (box->y2 - box->y1) * pixmap->drawable.bitsPerPixel >> 15) >= sna->kgem.half_cpu_cache_pages;
 }
 
-#define PREFER_GPU 1
-#define FORCE_GPU 2
+#define PREFER_GPU	0x1
+#define FORCE_GPU	0x2
+#define IGNORE_CPU	0x4
 
 static inline struct kgem_bo *
-sna_drawable_use_bo(DrawablePtr drawable,
-		    int prefer_gpu,
-		    const BoxRec *box,
+sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
 		    struct sna_damage ***damage)
 {
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
@@ -2272,11 +2271,11 @@ sna_drawable_use_bo(DrawablePtr drawable,
 	int16_t dx, dy;
 	int ret;
 
-	DBG(("%s pixmap=%ld, box=((%d, %d), (%d, %d)), prefer_gpu?=%d...\n",
+	DBG(("%s pixmap=%ld, box=((%d, %d), (%d, %d)), flagss=%x...\n",
 	     __FUNCTION__,
 	     pixmap->drawable.serialNumber,
 	     box->x1, box->y1, box->x2, box->y2,
-	     prefer_gpu));
+	     flags));
 
 	assert_pixmap_damage(pixmap);
 	assert_drawable_contains_box(drawable, box);
@@ -2294,11 +2293,11 @@ sna_drawable_use_bo(DrawablePtr drawable,
 	}
 
 	if (priv->flush)
-		prefer_gpu |= PREFER_GPU;
-	if (priv->cpu && (prefer_gpu & FORCE_GPU) == 0)
-		prefer_gpu = 0;
+		flags |= PREFER_GPU;
+	if (priv->cpu && (flags & (IGNORE_CPU | FORCE_GPU)) == 0)
+		flags = 0;
 
-	if (!prefer_gpu && (!priv->gpu_bo || !kgem_bo_is_busy(priv->gpu_bo)))
+	if (!flags && (!priv->gpu_bo || !kgem_bo_is_busy(priv->gpu_bo)))
 		goto use_cpu_bo;
 
 	if (DAMAGE_IS_ALL(priv->gpu_damage))
@@ -2308,9 +2307,9 @@ sna_drawable_use_bo(DrawablePtr drawable,
 		goto use_cpu_bo;
 
 	if (priv->gpu_bo == NULL) {
-		unsigned int flags;
+		unsigned int move;
 
-		if ((prefer_gpu & FORCE_GPU) == 0 &&
+		if ((flags & FORCE_GPU) == 0 &&
 		    (priv->create & KGEM_CAN_CREATE_GPU) == 0) {
 			DBG(("%s: untiled, will not force allocation\n",
 			     __FUNCTION__));
@@ -2323,7 +2322,7 @@ sna_drawable_use_bo(DrawablePtr drawable,
 			goto use_cpu_bo;
 		}
 
-		if (priv->cpu_damage && prefer_gpu == 0) {
+		if (priv->cpu_damage && flags == 0) {
 			DBG(("%s: prefer cpu", __FUNCTION__));
 			goto use_cpu_bo;
 		}
@@ -2334,10 +2333,10 @@ sna_drawable_use_bo(DrawablePtr drawable,
 			goto use_cpu_bo;
 		}
 
-		flags = MOVE_WRITE | MOVE_READ;
-		if (prefer_gpu & FORCE_GPU)
-			flags |= __MOVE_FORCE;
-		if (!sna_pixmap_move_to_gpu(pixmap, flags))
+		move = MOVE_WRITE | MOVE_READ;
+		if (flags & FORCE_GPU)
+			move |= __MOVE_FORCE;
+		if (!sna_pixmap_move_to_gpu(pixmap, move))
 			goto use_cpu_bo;
 
 		DBG(("%s: allocated GPU bo for operation\n", __FUNCTION__));
@@ -2357,7 +2356,7 @@ sna_drawable_use_bo(DrawablePtr drawable,
 	     region.extents.x2, region.extents.y2));
 
 	if (priv->gpu_damage) {
-		if (!priv->cpu_damage) {
+		if (flags & IGNORE_CPU || !priv->cpu_damage) {
 			if (sna_damage_contains_box__no_reduce(priv->gpu_damage,
 							       &region.extents)) {
 				DBG(("%s: region wholly contained within GPU damage\n",
@@ -2384,7 +2383,7 @@ sna_drawable_use_bo(DrawablePtr drawable,
 		}
 	}
 
-	if (priv->cpu_damage) {
+	if ((flags & IGNORE_CPU) == 0 && priv->cpu_damage) {
 		ret = sna_damage_contains_box(priv->cpu_damage, &region.extents);
 		if (ret == PIXMAN_REGION_IN) {
 			DBG(("%s: region wholly contained within CPU damage\n",
@@ -2442,7 +2441,7 @@ use_cpu_bo:
 	if (priv->cpu_bo == NULL)
 		return NULL;
 
-	if (prefer_gpu == 0 && !kgem_bo_is_busy(priv->cpu_bo))
+	if (flags == 0 && !kgem_bo_is_busy(priv->cpu_bo))
 		return NULL;
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
@@ -10334,7 +10333,7 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 	struct sna_damage **damage;
 	struct kgem_bo *bo;
 	RegionRec region;
-	unsigned flags;
+	unsigned flags, hint;
 	uint32_t color;
 
 	DBG(("%s(n=%d, PlaneMask: %lx (solid %d), solid fill: %d [style=%d, tileIsPixel=%d], alu=%d)\n", __FUNCTION__,
@@ -10380,19 +10379,27 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 	/* Clear the cpu damage so that we refresh the GPU status of the
 	 * pixmap upon a redraw after a period of inactivity.
 	 */
-	if (priv->cpu_damage &&
-	    n == 1 && region_is_singular(gc->pCompositeClip) &&
-	    gc->fillStyle != FillStippled && alu_overwrites(gc->alu)) {
-		region.data = NULL;
-		if (region_subsumes_damage(&region, priv->cpu_damage)) {
-			sna_damage_destroy(&priv->cpu_damage);
-			list_del(&priv->list);
+	hint = PREFER_GPU;
+	if (n == 1 && gc->fillStyle != FillStippled && alu_overwrites(gc->alu)) {
+		if (priv->cpu_damage &&
+		    region_is_singular(gc->pCompositeClip)) {
+			region.data = NULL;
+			if (region_subsumes_damage(&region, priv->cpu_damage)) {
+				sna_damage_destroy(&priv->cpu_damage);
+				list_del(&priv->list);
+			}
+		}
+		if (priv->cpu_damage == NULL) {
+			sna_damage_all(&priv->gpu_damage,
+				       pixmap->drawable.width,
+				       pixmap->drawable.height);
 			priv->undamaged = false;
 			priv->cpu = false;
 		}
+		hint |= IGNORE_CPU;
 	}
 
-	bo = sna_drawable_use_bo(draw, PREFER_GPU, &region.extents, &damage);
+	bo = sna_drawable_use_bo(draw, hint, &region.extents, &damage);
 	if (bo == NULL)
 		goto fallback;
 
