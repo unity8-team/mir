@@ -308,8 +308,7 @@ extern int sna_output_dpms_status(xf86OutputPtr output);
 extern int sna_page_flip(struct sna *sna,
 			 struct kgem_bo *bo,
 			 void *data,
-			 int ref_crtc_hw_id,
-			 uint32_t *old_fb);
+			 int ref_crtc_hw_id);
 
 constant static inline struct sna *
 to_sna(ScrnInfoPtr scrn)

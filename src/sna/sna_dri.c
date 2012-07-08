@@ -97,7 +97,6 @@ struct sna_dri_frame_event {
 		struct kgem_bo *bo;
 		uint32_t name;
 	} old_front, next_front, cache;
-	uint32_t old_fb;
 
 	int off_delay;
 };
@@ -884,9 +883,7 @@ sna_dri_page_flip(struct sna *sna, struct sna_dri_frame_event *info)
 
 	DBG(("%s()\n", __FUNCTION__));
 
-	info->count = sna_page_flip(sna, bo,
-				    info, info->pipe,
-				    &info->old_fb);
+	info->count = sna_page_flip(sna, bo, info, info->pipe);
 	if (info->count == 0)
 		return FALSE;
 
@@ -1246,7 +1243,7 @@ sna_dri_flip_continue(struct sna *sna,
 	bo = get_private(info->back)->bo;
 	assert(get_drawable_pixmap(draw)->drawable.height * bo->pitch <= kgem_bo_size(bo));
 
-	info->count = sna_page_flip(sna, bo, info, info->pipe, &info->old_fb);
+	info->count = sna_page_flip(sna, bo, info, info->pipe);
 	if (info->count == 0)
 		return FALSE;
 
@@ -1368,8 +1365,7 @@ static void sna_dri_flip_event(struct sna *sna,
 
 			flip->count = sna_page_flip(sna,
 						    get_private(flip->front)->bo,
-						    flip, flip->pipe,
-						    &flip->old_fb);
+						    flip, flip->pipe);
 			if (flip->count == 0)
 				goto finish_async_flip;
 
@@ -1382,8 +1378,7 @@ static void sna_dri_flip_event(struct sna *sna,
 			/* Just queue a no-op flip to trigger another event */
 			flip->count = sna_page_flip(sna,
 						    get_private(flip->front)->bo,
-						    flip, flip->pipe,
-						    &flip->old_fb);
+						    flip, flip->pipe);
 			if (flip->count == 0)
 				goto finish_async_flip;
 		} else {
