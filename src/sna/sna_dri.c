@@ -1083,9 +1083,17 @@ static void chain_swap(struct sna *sna,
 	int type;
 
 	assert(chain == sna_dri_window_get_chain((WindowPtr)draw));
+	DBG(("%s: chaining type=%d\n", __FUNCTION__, chain->type));
+	switch (chain->type) {
+	case DRI2_XCHG_THROTTLE:
+	case DRI2_SWAP_THROTTLE:
+		break;
+	default:
+		return;
+	}
 
-	/* In theory, it shoudln't be possible for cross-chaining to occur! */
-	if (chain->type == DRI2_XCHG_THROTTLE) {
+	if (chain->type == DRI2_XCHG_THROTTLE &&
+	    can_exchange(sna, draw, chain->front, chain->back)) {
 		DBG(("%s: performing chained exchange\n", __FUNCTION__));
 		sna_dri_exchange_buffers(draw, chain->front, chain->back);
 		type = DRI2_EXCHANGE_COMPLETE;
