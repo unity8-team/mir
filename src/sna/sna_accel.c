@@ -2757,7 +2757,8 @@ static bool must_check sna_gc_move_to_cpu(GCPtr gc,
 	assert(gc->ops == (GCOps *)&sna_gc_ops);
 	assert(gc->funcs == (GCFuncs *)&sna_gc_funcs);
 
-	sgc->priv = region;
+	sgc->priv = gc->pCompositeClip;
+	gc->pCompositeClip = region;
 	gc->ops = (GCOps *)&sna_gc_ops__cpu;
 	gc->funcs = (GCFuncs *)&sna_gc_funcs__cpu;
 
@@ -2815,6 +2816,7 @@ static void sna_gc_move_to_gpu(GCPtr gc)
 
 	gc->ops = (GCOps *)&sna_gc_ops;
 	gc->funcs = (GCFuncs *)&sna_gc_funcs;
+	gc->pCompositeClip = sna_gc(gc)->priv;
 }
 
 static inline bool clip_box(BoxPtr box, GCPtr gc)
@@ -3545,18 +3547,6 @@ sna_put_image(DrawablePtr drawable, GCPtr gc, int depth,
 	if (w == 0 || h == 0)
 		return;
 
-	if (priv == NULL) {
-		DBG(("%s: fbPutImage, unattached(%d, %d, %d, %d)\n",
-		     __FUNCTION__, x, y, w, h));
-		if (sna_gc_move_to_cpu(gc, drawable, NULL)) {
-			fbPutImage(drawable, gc, depth,
-				   x, y, w, h, left,
-				   format, bits);
-			sna_gc_move_to_gpu(gc);
-		}
-		return;
-	}
-
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
 
 	region.extents.x1 = x + drawable->x;
@@ -3573,6 +3563,12 @@ sna_put_image(DrawablePtr drawable, GCPtr gc, int depth,
 		RegionIntersect(&region, &region, gc->pCompositeClip);
 		if (!RegionNotEmpty(&region))
 			return;
+	}
+
+	if (priv == NULL) {
+		DBG(("%s: fallback -- unattached(%d, %d, %d, %d)\n",
+		     __FUNCTION__, x, y, w, h));
+		goto fallback;
 	}
 
 	RegionTranslate(&region, dx, dy);
@@ -4355,6 +4351,9 @@ sna_copy_area(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 				src_y - dst_y - dst->y + src->y);
 		if (!sna_drawable_move_region_to_cpu(src, &region, MOVE_READ))
 			goto out_gc;
+		RegionTranslate(&region,
+				-(src_x - dst_x - dst->x + src->x),
+				-(src_y - dst_y - dst->y + src->y));
 
 		ret = miDoCopy(src, dst, gc,
 			       src_x, src_y,
