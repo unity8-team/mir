@@ -12254,15 +12254,14 @@ static bool has_shadow(struct sna *sna)
 	return !sna->mode.shadow_flip;
 }
 
-static bool need_flush(struct sna *sna, struct sna_pixmap *scanout)
+static bool start_flush(struct sna *sna, struct sna_pixmap *scanout)
 {
-	DBG(("%s: scanout=%d shadow?=%d, (cpu?=%d || gpu?=%d), busy=%d)\n",
+	DBG(("%s: scanout=%d shadow?=%d, (cpu?=%d || gpu?=%d))\n",
 	     __FUNCTION__,
 	     scanout && scanout->gpu_bo ? scanout->gpu_bo->handle : 0,
 	     has_shadow(sna),
 	     scanout && scanout->cpu_damage != NULL,
-	     scanout && scanout->gpu_bo && scanout->gpu_bo->exec != NULL,
-	     scanout && scanout->gpu_bo && __kgem_flush(&sna->kgem, scanout->gpu_bo)));
+	     scanout && scanout->gpu_bo && scanout->gpu_bo->exec != NULL));
 
 	if (has_shadow(sna))
 		return true;
@@ -12270,10 +12269,25 @@ static bool need_flush(struct sna *sna, struct sna_pixmap *scanout)
 	if (!scanout)
 		return false;
 
-	if (scanout->cpu_damage || scanout->gpu_bo->exec)
+	return scanout->cpu_damage || scanout->gpu_bo->exec;
+}
+
+static bool stop_flush(struct sna *sna, struct sna_pixmap *scanout)
+{
+	DBG(("%s: scanout=%d shadow?=%d, (cpu?=%d || gpu?=%d))\n",
+	     __FUNCTION__,
+	     scanout && scanout->gpu_bo ? scanout->gpu_bo->handle : 0,
+	     has_shadow(sna),
+	     scanout && scanout->cpu_damage != NULL,
+	     scanout && scanout->gpu_bo && scanout->gpu_bo->rq != NULL));
+
+	if (has_shadow(sna))
 		return true;
 
-	return __kgem_flush(&sna->kgem, scanout->gpu_bo);
+	if (!scanout)
+		return false;
+
+	return scanout->cpu_damage || scanout->gpu_bo->needs_flush;
 }
 
 static bool sna_accel_do_flush(struct sna *sna)
@@ -12301,8 +12315,9 @@ static bool sna_accel_do_flush(struct sna *sna)
 			return true;
 		}
 	} else {
-		if (!need_flush(sna, priv)) {
+		if (!start_flush(sna, priv)) {
 			DBG(("%s -- no pending write to scanout\n", __FUNCTION__));
+			kgem_bo_flush(&sna->kgem, priv->gpu_bo);
 		} else {
 			sna->timer_active |= 1 << FLUSH_TIMER;
 			sna->timer_expire[FLUSH_TIMER] =
@@ -12417,7 +12432,7 @@ static void sna_accel_flush(struct sna *sna)
 	     sna->kgem.nbatch,
 	     sna->kgem.busy));
 
-	busy = need_flush(sna, priv);
+	busy = stop_flush(sna, priv);
 	if (!sna->kgem.busy && !busy)
 		sna_accel_disarm_timer(sna, FLUSH_TIMER);
 	sna->kgem.busy = busy;
