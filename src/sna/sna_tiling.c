@@ -31,8 +31,7 @@
 
 #include "sna.h"
 #include "sna_render.h"
-
-#include <fbpict.h>
+#include "fb/fbpict.h"
 
 #if DEBUG_RENDER
 #undef DBG

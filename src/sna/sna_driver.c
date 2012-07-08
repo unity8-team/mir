@@ -48,8 +48,10 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <xf86cmap.h>
 #include <xf86drm.h>
 #include <xf86RandR12.h>
+#include <mi.h>
 #include <micmap.h>
-#include <fb.h>
+#include <mipict.h>
+#include <mibstore.h>
 
 #include "compiler.h"
 #include "sna.h"
@@ -78,11 +80,11 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define DBG(x) ErrorF x
 #endif
 
-DevPrivateKeyRec sna_private_index;
-DevPrivateKeyRec sna_pixmap_index;
-DevPrivateKeyRec sna_gc_index;
-DevPrivateKeyRec sna_glyph_key;
-DevPrivateKeyRec sna_glyph_image_key;
+static DevPrivateKeyRec sna_private_index;
+static DevPrivateKeyRec sna_pixmap_index;
+static DevPrivateKeyRec sna_gc_index;
+static DevPrivateKeyRec sna_glyph_key;
+static DevPrivateKeyRec sna_window_key;
 
 static Bool sna_enter_vt(VT_FUNC_ARGS_DECL);
 
@@ -556,16 +558,10 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 	/* Set display resolution */
 	xf86SetDpi(scrn, 0, 0);
 
-	/* Load the required sub modules */
-	if (!xf86LoadSubModule(scrn, "fb")) {
-		PreInitCleanup(scrn);
-		return FALSE;
-	}
-
 	/* Load the dri2 module if requested. */
 	xf86LoadSubModule(scrn, "dri2");
 
-	return sna_accel_pre_init(sna);
+	return TRUE;
 }
 
 static void
@@ -753,6 +749,8 @@ static Bool sna_close_screen(CLOSE_SCREEN_ARGS_DECL)
 {
 	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	struct sna *sna = to_sna(scrn);
+	DepthPtr depths;
+	int d;
 
 	DBG(("%s\n", __FUNCTION__));
 
@@ -771,11 +769,12 @@ static Bool sna_close_screen(CLOSE_SCREEN_ARGS_DECL)
 
 	xf86_cursors_fini(screen);
 
-	/* XXX unhook devPrivate otherwise fbCloseScreen frees it! */
-	screen->devPrivate = NULL;
+	depths = screen->allowedDepths;
+	for (d = 0; d < screen->numDepths; d++)
+		free(depths[d].vids);
+	free(depths);
 
-	screen->CloseScreen = sna->CloseScreen;
-	(*screen->CloseScreen) (CLOSE_SCREEN_ARGS);
+	free(screen->visuals);
 
 	if (sna->directRenderingOpen) {
 		sna_dri_close(sna, screen);
@@ -812,7 +811,7 @@ sna_register_all_privates(void)
 	assert(sna_pixmap_index.offset == sizeof(void*));
 
 	if (!dixRegisterPrivateKey(&sna_gc_index, PRIVATE_GC,
-				   sizeof(struct sna_gc)))
+				   sizeof(FbGCPrivate)))
 		return FALSE;
 	assert(sna_gc_index.offset == 0);
 
@@ -820,6 +819,11 @@ sna_register_all_privates(void)
 				   sizeof(struct sna_glyph)))
 		return FALSE;
 	assert(sna_glyph_key.offset == 0);
+
+	if (!dixRegisterPrivateKey(&sna_window_key,
+				   PRIVATE_WINDOW, 0))
+		return FALSE;
+	assert(sna_window_key.offset == 0);
 
 	return TRUE;
 }
@@ -835,7 +839,12 @@ sna_screen_init(SCREEN_INIT_ARGS_DECL)
 {
 	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	struct sna *sna = to_sna(scrn);
-	VisualPtr visual;
+	VisualPtr visuals;
+	DepthPtr depths;
+	int nvisuals;
+	int ndepths;
+	int rootdepth;
+	VisualID defaultVisual;
 
 	DBG(("%s\n", __FUNCTION__));
 
@@ -852,16 +861,23 @@ sna_screen_init(SCREEN_INIT_ARGS_DECL)
 	if (!miSetPixmapDepths())
 		return FALSE;
 
-	if (!fbScreenInit(screen, NULL,
-			  scrn->virtualX, scrn->virtualY,
-			  scrn->xDpi, scrn->yDpi,
-			  scrn->displayWidth, scrn->bitsPerPixel))
+	rootdepth = 0;
+	if (!miInitVisuals(&visuals, &depths, &nvisuals, &ndepths, &rootdepth,
+			   &defaultVisual,
+			   ((unsigned long)1 << (scrn->bitsPerPixel - 1)),
+			   8, -1))
 		return FALSE;
-	assert(fbGetWinPrivateKey()->offset == 0);
+
+	if (!miScreenInit(screen, NULL,
+			  scrn->virtualX, scrn->virtualY,
+			  scrn->xDpi, scrn->yDpi, 0,
+			  rootdepth, ndepths, depths,
+			  defaultVisual, nvisuals, visuals))
+		return FALSE;
 
 	if (scrn->bitsPerPixel > 8) {
 		/* Fixup RGB ordering */
-		visual = screen->visuals + screen->numVisuals;
+		VisualPtr visual = screen->visuals + screen->numVisuals;
 		while (--visual >= screen->visuals) {
 			if ((visual->class | DynamicClass) == DirectColor) {
 				visual->offsetRed = scrn->offset.red;
@@ -874,15 +890,15 @@ sna_screen_init(SCREEN_INIT_ARGS_DECL)
 		}
 	}
 
-	fbPictureInit(screen, NULL, 0);
-
-	xf86SetBlackWhitePixels(screen);
-
+	assert(screen->CloseScreen == NULL);
+	screen->CloseScreen = sna_close_screen;
 	if (!sna_accel_init(screen, sna)) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "Hardware acceleration initialization failed\n");
 		return FALSE;
 	}
+
+	xf86SetBlackWhitePixels(screen);
 
 	miInitializeBackingStore(screen);
 	xf86SetBackingStore(screen);
@@ -914,8 +930,6 @@ sna_screen_init(SCREEN_INIT_ARGS_DECL)
 	screen->WakeupHandler = sna_wakeup_handler;
 
 	screen->SaveScreen = xf86SaveScreen;
-	sna->CloseScreen = screen->CloseScreen;
-	screen->CloseScreen = sna_close_screen;
 	screen->CreateScreenResources = sna_create_screen_resources;
 
 	if (!xf86CrtcScreenInit(screen))

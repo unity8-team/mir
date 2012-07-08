@@ -36,14 +36,15 @@
 #include <X11/fonts/font.h>
 #include <X11/fonts/fontstruct.h>
 
-#include <fb.h>
 #include <dixfontstr.h>
 
+#include <mi.h>
+#include <migc.h>
+#include <miline.h>
+#include <micmap.h>
 #ifdef RENDER
 #include <mipict.h>
-#include <fbpict.h>
 #endif
-#include <miline.h>
 #include <shmint.h>
 
 #include <sys/time.h>
@@ -113,11 +114,11 @@ static void __sna_fallback_flush(DrawablePtr d)
 	box.x2 = pixmap->drawable.width;
 	box.y2 = pixmap->drawable.height;
 
-	tmp = fbCreatePixmap(pixmap->drawable.pScreen,
-			     pixmap->drawable.width,
-			     pixmap->drawable.height,
-			     pixmap->drawable.depth,
-			     0);
+	tmp = sna_pixmap_create_unattached(pixmap->drawable.pScreen,
+					   pixmap->drawable.width,
+					   pixmap->drawable.height,
+					   pixmap->drawable.depth,
+					   0);
 
 	DBG(("%s: comparing with direct read...\n", __FUNCTION__));
 	sna_read_boxes(sna,
@@ -138,7 +139,7 @@ static void __sna_fallback_flush(DrawablePtr d)
 		src += pixmap->devKind;
 		dst += tmp->devKind;
 	}
-	fbDestroyPixmap(tmp);
+	tmp->drawable.pScreen->DestroyPixmap(tmp);
 }
 #define FALLBACK_FLUSH(d) __sna_fallback_flush(d)
 #else
@@ -187,6 +188,8 @@ static const uint8_t fill_ROP[] = {
 static const GCOps sna_gc_ops;
 static const GCOps sna_gc_ops__cpu;
 static GCOps sna_gc_ops__tmp;
+static const GCFuncs sna_gc_funcs;
+static const GCFuncs sna_gc_funcs__cpu;
 
 static inline void region_set(RegionRec *r, const BoxRec *b)
 {
@@ -471,9 +474,13 @@ static void sna_pixmap_free_cpu(struct sna *sna, struct sna_pixmap *priv)
 		priv->pixmap->devPrivate.ptr = NULL;
 }
 
-static Bool sna_destroy_private(PixmapPtr pixmap, struct sna_pixmap *priv)
+static bool sna_destroy_private(PixmapPtr pixmap)
 {
 	struct sna *sna = to_sna_from_pixmap(pixmap);
+	struct sna_pixmap *priv = sna_pixmap(pixmap);
+
+	if (priv == NULL)
+		return true;
 
 	list_del(&priv->list);
 	list_del(&priv->inactive);
@@ -612,7 +619,11 @@ struct kgem_bo *sna_pixmap_change_tiling(PixmapPtr pixmap, uint32_t tiling)
 
 static inline void sna_set_pixmap(PixmapPtr pixmap, struct sna_pixmap *sna)
 {
-	dixSetPrivate(&pixmap->devPrivates, &sna_pixmap_index, sna);
+#if 0
+	dixSetPrivate(&pixmap->devPrivates, &sna_private_index, sna);
+#else
+	((void **)pixmap->devPrivates)[1] = sna;
+#endif
 	assert(sna_pixmap(pixmap) == sna);
 }
 
@@ -672,16 +683,73 @@ bool sna_pixmap_attach_to_bo(PixmapPtr pixmap, struct kgem_bo *bo)
 	return true;
 }
 
-static inline PixmapPtr
+static int bits_per_pixel(int depth)
+{
+	switch (depth) {
+	case 1: return 1;
+	case 4:
+	case 8: return 8;
+	case 15:
+	case 16: return 16;
+	case 24:
+	case 30:
+	case 32: return 32;
+	default: return 0;
+	}
+}
+static PixmapPtr
 create_pixmap(struct sna *sna, ScreenPtr screen,
 	      int width, int height, int depth,
-	      unsigned usage)
+	      unsigned usage_hint)
 {
 	PixmapPtr pixmap;
+	size_t datasize;
+	size_t stride;
+	int base, bpp;
 
-	pixmap = fbCreatePixmap(screen, width, height, depth, usage);
-	if (pixmap == NullPixmap)
+	bpp = bits_per_pixel(depth);
+	if (bpp == 0)
 		return NullPixmap;
+
+	stride = ((width * bpp + FB_MASK) >> FB_SHIFT) * sizeof(FbBits);
+	if (stride / 4 > 32767 || height > 32767)
+		return NullPixmap;
+
+	datasize = height * stride;
+	base = screen->totalPixmapSize;
+	if (base & 15) {
+		int adjust = 16 - (base & 15);
+		base += adjust;
+		datasize += adjust;
+	}
+
+	pixmap = AllocatePixmap(screen, datasize);
+	if (!pixmap)
+		return NullPixmap;
+
+	((void **)pixmap->devPrivates)[0] = sna;
+
+	pixmap->drawable.type = DRAWABLE_PIXMAP;
+	pixmap->drawable.class = 0;
+	pixmap->drawable.pScreen = screen;
+	pixmap->drawable.depth = depth;
+	pixmap->drawable.bitsPerPixel = bpp;
+	pixmap->drawable.id = 0;
+	pixmap->drawable.serialNumber = NEXT_SERIAL_NUMBER;
+	pixmap->drawable.x = 0;
+	pixmap->drawable.y = 0;
+	pixmap->drawable.width = width;
+	pixmap->drawable.height = height;
+	pixmap->devKind = stride;
+	pixmap->refcnt = 1;
+	pixmap->devPrivate.ptr =  (char *)pixmap + base;
+
+#ifdef COMPOSITE
+	pixmap->screen_x = 0;
+	pixmap->screen_y = 0;
+#endif
+
+	pixmap->usage_hint = usage_hint;
 
 	DBG(("%s: serial=%ld, usage=%d, %dx%d\n",
 	     __FUNCTION__,
@@ -690,8 +758,6 @@ create_pixmap(struct sna *sna, ScreenPtr screen,
 	     pixmap->drawable.width,
 	     pixmap->drawable.height));
 
-	assert(sna_private_index.offset == 0);
-	dixSetPrivate(&pixmap->devPrivates, &sna_private_index, sna);
 	return pixmap;
 }
 
@@ -701,7 +767,7 @@ sna_pixmap_create_shm(ScreenPtr screen,
 		      char *addr)
 {
 	struct sna *sna = to_sna_from_screen(screen);
-	int bpp = BitsPerPixel(depth);
+	int bpp = bits_per_pixel(depth);
 	int pitch = PixmapBytePad(width, depth);
 	struct sna_pixmap *priv;
 	PixmapPtr pixmap;
@@ -741,7 +807,7 @@ sna_pixmap_create_shm(ScreenPtr screen,
 
 		priv = sna_pixmap_attach(pixmap);
 		if (!priv) {
-			fbDestroyPixmap(pixmap);
+			FreePixmap(pixmap);
 			return NullPixmap;
 		}
 	}
@@ -749,7 +815,7 @@ sna_pixmap_create_shm(ScreenPtr screen,
 	priv->cpu_bo = kgem_create_map(&sna->kgem, addr, pitch*height, false);
 	if (priv->cpu_bo == NULL) {
 		free(priv);
-		fbDestroyPixmap(pixmap);
+		FreePixmap(pixmap);
 		return GetScratchPixmapHeader(screen, width, height, depth,
 					      bpp, pitch, addr);
 	}
@@ -787,7 +853,7 @@ sna_pixmap_create_scratch(ScreenPtr screen,
 	DBG(("%s(%d, %d, %d, tiling=%d)\n", __FUNCTION__,
 	     width, height, depth, tiling));
 
-	bpp = BitsPerPixel(depth);
+	bpp = bits_per_pixel(depth);
 	if (tiling == I915_TILING_Y && !sna->have_render)
 		tiling = I915_TILING_X;
 
@@ -833,7 +899,7 @@ sna_pixmap_create_scratch(ScreenPtr screen,
 
 		priv = sna_pixmap_attach(pixmap);
 		if (!priv) {
-			fbDestroyPixmap(pixmap);
+			FreePixmap(pixmap);
 			return NullPixmap;
 		}
 	}
@@ -846,7 +912,7 @@ sna_pixmap_create_scratch(ScreenPtr screen,
 				      CREATE_TEMPORARY);
 	if (priv->gpu_bo == NULL) {
 		free(priv);
-		fbDestroyPixmap(pixmap);
+		FreePixmap(pixmap);
 		return NullPixmap;
 	}
 
@@ -956,15 +1022,14 @@ fallback:
 
 static Bool sna_destroy_pixmap(PixmapPtr pixmap)
 {
-	if (pixmap->refcnt == 1) {
-		struct sna_pixmap *priv = sna_pixmap(pixmap);
-		if (priv) {
-			if (!sna_destroy_private(pixmap, priv))
-				return TRUE;
-		}
-	}
+	if (--pixmap->refcnt)
+		return TRUE;
 
-	return fbDestroyPixmap(pixmap);
+	if (!sna_destroy_private(pixmap))
+		return TRUE;
+
+	FreePixmap(pixmap);
+	return TRUE;
 }
 
 static inline bool pixmap_inplace(struct sna *sna,
@@ -1991,9 +2056,9 @@ inline static unsigned drawable_gc_flags(DrawablePtr draw,
 		return MOVE_READ | MOVE_WRITE;
 	}
 
-	if (fbGetGCPrivate(gc)->and) {
+	if (fb_gc(gc)->and) {
 		DBG(("%s: read due to rop %d:%x\n",
-		     __FUNCTION__, gc->alu, (unsigned)fbGetGCPrivate(gc)->and));
+		     __FUNCTION__, gc->alu, (unsigned)fb_gc(gc)->and));
 		return MOVE_READ | MOVE_WRITE;
 	}
 
@@ -2425,7 +2490,7 @@ sna_pixmap_create_upload(ScreenPtr screen,
 	struct sna *sna = to_sna_from_screen(screen);
 	PixmapPtr pixmap;
 	struct sna_pixmap *priv;
-	int bpp = BitsPerPixel(depth);
+	int bpp = bits_per_pixel(depth);
 	void *ptr;
 
 	DBG(("%s(%d, %d, %d, flags=%x)\n", __FUNCTION__,
@@ -2446,7 +2511,7 @@ sna_pixmap_create_upload(ScreenPtr screen,
 
 		priv = malloc(sizeof(*priv));
 		if (!priv) {
-			fbDestroyPixmap(pixmap);
+			FreePixmap(pixmap);
 			return NullPixmap;
 		}
 
@@ -2461,7 +2526,7 @@ sna_pixmap_create_upload(ScreenPtr screen,
 					     flags, &ptr);
 	if (!priv->gpu_bo) {
 		free(priv);
-		fbDestroyPixmap(pixmap);
+		FreePixmap(pixmap);
 		return NullPixmap;
 	}
 
@@ -2699,24 +2764,34 @@ active:
 
 static bool must_check sna_validate_pixmap(DrawablePtr draw, PixmapPtr pixmap)
 {
-	bool ret = true;
-
 	if (draw->bitsPerPixel == pixmap->drawable.bitsPerPixel &&
 	    FbEvenTile(pixmap->drawable.width *
 		       pixmap->drawable.bitsPerPixel)) {
 		DBG(("%s: flushing pixmap\n", __FUNCTION__));
-		ret = sna_pixmap_move_to_cpu(pixmap, MOVE_READ | MOVE_WRITE);
+		if (!sna_pixmap_move_to_cpu(pixmap, MOVE_READ | MOVE_WRITE))
+			return false;
+
+		fbPadPixmap(pixmap);
 	}
 
-	return ret;
+	return true;
 }
 
-static bool must_check sna_gc_move_to_cpu(GCPtr gc, DrawablePtr drawable)
+static bool must_check sna_gc_move_to_cpu(GCPtr gc,
+					  DrawablePtr drawable,
+					  RegionPtr region)
 {
 	struct sna_gc *sgc = sna_gc(gc);
 	long changes = sgc->changes;
 
 	DBG(("%s, changes=%lx\n", __FUNCTION__, changes));
+
+	assert(gc->ops == (GCOps *)&sna_gc_ops);
+	assert(gc->funcs == (GCFuncs *)&sna_gc_funcs);
+
+	sgc->priv = region;
+	gc->ops = (GCOps *)&sna_gc_ops__cpu;
+	gc->funcs = (GCFuncs *)&sna_gc_funcs__cpu;
 
 	if (gc->clientClipType == CT_PIXMAP) {
 		PixmapPtr clip = gc->clientClip;
@@ -2730,6 +2805,11 @@ static bool must_check sna_gc_move_to_cpu(GCPtr gc, DrawablePtr drawable)
 	if (changes || drawable->serialNumber != sgc->serial) {
 		gc->serialNumber = sgc->serial;
 
+		if (fb_gc(gc)->bpp != drawable->bitsPerPixel) {
+			changes |= GCStipple | GCForeground | GCBackground | GCPlaneMask;
+			fb_gc(gc)->bpp = drawable->bitsPerPixel;
+		}
+
 		if (changes & GCTile && !gc->tileIsPixel) {
 			DBG(("%s: flushing tile pixmap\n", __FUNCTION__));
 			if (!sna_validate_pixmap(drawable, gc->tile.pixmap))
@@ -2738,7 +2818,7 @@ static bool must_check sna_gc_move_to_cpu(GCPtr gc, DrawablePtr drawable)
 
 		if (changes & GCStipple && gc->stipple) {
 			DBG(("%s: flushing stipple pixmap\n", __FUNCTION__));
-			if (!sna_pixmap_move_to_cpu(gc->stipple, MOVE_READ))
+			if (!sna_validate_pixmap(drawable, gc->stipple))
 				return false;
 		}
 
@@ -2758,6 +2838,15 @@ static bool must_check sna_gc_move_to_cpu(GCPtr gc, DrawablePtr drawable)
 	default:
 		return true;
 	}
+}
+
+static void sna_gc_move_to_gpu(GCPtr gc)
+{
+	assert(gc->ops == (GCOps *)&sna_gc_ops__cpu);
+	assert(gc->funcs == (GCFuncs *)&sna_gc_funcs__cpu);
+
+	gc->ops = (GCOps *)&sna_gc_ops;
+	gc->funcs = (GCFuncs *)&sna_gc_funcs;
 }
 
 static inline bool clip_box(BoxPtr box, GCPtr gc)
@@ -3491,10 +3580,12 @@ sna_put_image(DrawablePtr drawable, GCPtr gc, int depth,
 	if (priv == NULL) {
 		DBG(("%s: fbPutImage, unattached(%d, %d, %d, %d)\n",
 		     __FUNCTION__, x, y, w, h));
-		if (sna_gc_move_to_cpu(gc, drawable))
+		if (sna_gc_move_to_cpu(gc, drawable, NULL)) {
 			fbPutImage(drawable, gc, depth,
 				   x, y, w, h, left,
 				   format, bits);
+			sna_gc_move_to_gpu(gc);
+		}
 		return;
 	}
 
@@ -3563,17 +3654,19 @@ fallback:
 	DBG(("%s: fallback\n", __FUNCTION__));
 	RegionTranslate(&region, -dx, -dy);
 
-	if (!sna_gc_move_to_cpu(gc, drawable))
+	if (!sna_gc_move_to_cpu(gc, drawable, &region))
 		goto out;
 	if (!sna_drawable_move_region_to_cpu(drawable, &region,
 					     drawable_gc_flags(drawable, gc,
 							       true)))
-		goto out;
+		goto out_gc;
 
 	DBG(("%s: fbPutImage(%d, %d, %d, %d)\n",
 	     __FUNCTION__, x, y, w, h));
 	fbPutImage(drawable, gc, depth, x, y, w, h, left, format, bits);
 	FALLBACK_FLUSH(drawable);
+out_gc:
+	sna_gc_move_to_gpu(gc);
 out:
 	RegionUninit(&region);
 }
@@ -4284,23 +4377,26 @@ sna_copy_area(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			return NULL;
 
 		ret = NULL;
-		if (!sna_gc_move_to_cpu(gc, dst))
+		if (!sna_gc_move_to_cpu(gc, dst, &region))
 			goto out;
 
 		if (!sna_drawable_move_region_to_cpu(dst, &region, MOVE_READ | MOVE_WRITE))
-			goto out;
+			goto out_gc;
 
 		RegionTranslate(&region,
 				src_x - dst_x - dst->x + src->x,
 				src_y - dst_y - dst->y + src->y);
 		if (!sna_drawable_move_region_to_cpu(src, &region, MOVE_READ))
-			goto out;
+			goto out_gc;
 
-		ret = fbCopyArea(src, dst, gc,
-				  src_x, src_y,
-				  width, height,
-				  dst_x, dst_y);
+		ret = miDoCopy(src, dst, gc,
+			       src_x, src_y,
+			       width, height,
+			       dst_x, dst_y,
+			       fbCopyNtoN, 0, 0);
 		FALLBACK_FLUSH(dst);
+out_gc:
+		sna_gc_move_to_gpu(gc);
 out:
 		RegionUninit(&region);
 		return ret;
@@ -4353,79 +4449,6 @@ find_clip_box_for_y(const BoxRec *begin, const BoxRec *end, int16_t y)
 	return find_clip_box_for_y(begin, mid, y);
     else
 	return find_clip_box_for_y(mid, end, y);
-}
-
-static void
-sna_fill_spans__cpu(DrawablePtr drawable,
-		    GCPtr gc, int n,
-		    DDXPointPtr pt, int *width, int sorted)
-{
-	RegionRec *clip = sna_gc(gc)->priv;
-
-	DBG(("%s x %d\n", __FUNCTION__, n));
-
-	while (n--) {
-		BoxRec b;
-
-		DBG(("%s: (%d, %d) + %d\n",
-		     __FUNCTION__, pt->x, pt->y, *width));
-
-		*(DDXPointRec *)&b = *pt++;
-		b.x2 = b.x1 + *width++;
-		b.y2 = b.y1 + 1;
-
-		if (!box_intersect(&b, &clip->extents))
-			continue;
-
-		if (region_is_singular(clip)) {
-			DBG(("%s: singular fill: (%d, %d) x %d\n",
-			     __FUNCTION__, b.x1, b.y1, b.x2 - b.x1));
-			fbFill(drawable, gc, b.x1, b.y1, b.x2 - b.x1, 1);
-		} else {
-			const BoxRec * const clip_start = RegionBoxptr(clip);
-			const BoxRec * const clip_end = clip_start + clip->data->numRects;
-			const BoxRec *c;
-
-			DBG(("%s: multiple fills: (%d, %d) x %d, clip start((%d, %d), (%d,%d)), end((%d, %d), (%d, %d))\n",
-			     __FUNCTION__, b.x1, b.y1, b.x2 - b.x1,
-			     clip_start->x1, clip_start->y1,
-			     clip_start->x2, clip_start->y2,
-			     clip_end[-1].x1, clip_end[-1].y1,
-			     clip_end[-1].x2, clip_end[-1].y2));
-
-			c = find_clip_box_for_y(clip_start, clip_end, b.y1);
-			while (c != clip_end) {
-				int16_t x1, x2;
-
-				DBG(("%s: clip box? (%d, %d), (%d, %d)\n",
-				     __FUNCTION__,
-				     c->x1, c->y1, c->x2, c->y2));
-
-				if (b.y2 <= c->y1 || b.x2 <= c->x1)
-					break;
-
-				if (b.x1 > c->x2) {
-					c++;
-					continue;
-				}
-
-				x1 = c->x1;
-				x2 = c->x2;
-				c++;
-
-				if (x1 < b.x1)
-					x1 = b.x1;
-				if (x2 > b.x2)
-					x2 = b.x2;
-				if (x2 > x1) {
-					DBG(("%s: fbFill(%d, %d) x %d\n",
-					     __FUNCTION__, x1, b.y1, x2 - x1));
-					fbFill(drawable, gc,
-					       x1, b.y1, x2 - x1, 1);
-				}
-			}
-		}
-	}
 }
 
 struct sna_fill_spans {
@@ -5300,16 +5323,18 @@ fallback:
 	if (!RegionNotEmpty(&region))
 		return;
 
-	if (!sna_gc_move_to_cpu(gc, drawable))
+	if (!sna_gc_move_to_cpu(gc, drawable, &region))
 		goto out;
 	if (!sna_drawable_move_region_to_cpu(drawable, &region,
 					     drawable_gc_flags(drawable,
 							       gc, n > 1)))
-		goto out;
+		goto out_gc;
 
 	DBG(("%s: fbFillSpans\n", __FUNCTION__));
 	fbFillSpans(drawable, gc, n, pt, width, sorted);
 	FALLBACK_FLUSH(drawable);
+out_gc:
+	sna_gc_move_to_gpu(gc);
 out:
 	RegionUninit(&region);
 }
@@ -5339,16 +5364,18 @@ fallback:
 	if (!RegionNotEmpty(&region))
 		return;
 
-	if (!sna_gc_move_to_cpu(gc, drawable))
+	if (!sna_gc_move_to_cpu(gc, drawable, &region))
 		goto out;
 	if (!sna_drawable_move_region_to_cpu(drawable, &region,
 					     drawable_gc_flags(drawable,
 							       gc, true)))
-		goto out;
+		goto out_gc;
 
 	DBG(("%s: fbSetSpans\n", __FUNCTION__));
 	fbSetSpans(drawable, gc, src, pt, width, n, sorted);
 	FALLBACK_FLUSH(drawable);
+out_gc:
+	sna_gc_move_to_gpu(gc);
 out:
 	RegionUninit(&region);
 }
@@ -5822,16 +5849,21 @@ sna_copy_plane(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 
 fallback:
 	DBG(("%s: fallback\n", __FUNCTION__));
-	if (!sna_gc_move_to_cpu(gc, dst))
+	if (!sna_gc_move_to_cpu(gc, dst, &region))
 		goto out;
 	if (!sna_drawable_move_region_to_cpu(dst, &region,
 					     MOVE_READ | MOVE_WRITE))
-		goto out;
+		goto out_gc;
 
 	DBG(("%s: fbCopyPlane(%d, %d, %d, %d, %d,%d) %x\n",
 	     __FUNCTION__, src_x, src_y, w, h, dst_x, dst_y, (unsigned)bit));
-	ret = fbCopyPlane(src, dst, gc, src_x, src_y, w, h, dst_x, dst_y, bit);
+	ret = miDoCopy(src, dst, gc,
+		       src_x, src_y, w, h, dst_x, dst_y,
+		       src->bitsPerPixel > 1 ? fbCopyNto1 : fbCopy1toN,
+		       bit, 0);
 	FALLBACK_FLUSH(dst);
+out_gc:
+	sna_gc_move_to_gpu(gc);
 out:
 	RegionUninit(&region);
 	return ret;
@@ -5894,7 +5926,7 @@ sna_poly_point_blt(DrawablePtr drawable,
 			b = box;
 		} while (n);
 	} else {
-		RegionPtr clip = fbGetCompositeClip(gc);
+		RegionPtr clip = gc->pCompositeClip;
 
 		while (n--) {
 			int x, y;
@@ -5976,13 +6008,6 @@ sna_poly_point_extents(DrawablePtr drawable, GCPtr gc,
 }
 
 static void
-sna_poly_point__cpu(DrawablePtr drawable, GCPtr gc,
-	       int mode, int n, DDXPointPtr pt)
-{
-	fbPolyPoint(drawable, gc, mode, n, pt);
-}
-
-static void
 sna_poly_point(DrawablePtr drawable, GCPtr gc,
 	       int mode, int n, DDXPointPtr pt)
 {
@@ -6035,16 +6060,18 @@ fallback:
 	if (!RegionNotEmpty(&region))
 		return;
 
-	if (!sna_gc_move_to_cpu(gc, drawable))
+	if (!sna_gc_move_to_cpu(gc, drawable, &region))
 		goto out;
 	if (!sna_drawable_move_region_to_cpu(drawable, &region,
 					     drawable_gc_flags(drawable, gc,
 							       n > 1)))
-		goto out;
+		goto out_gc;
 
 	DBG(("%s: fbPolyPoint\n", __FUNCTION__));
 	fbPolyPoint(drawable, gc, mode, n, pt);
 	FALLBACK_FLUSH(drawable);
+out_gc:
+	sna_gc_move_to_gpu(gc);
 out:
 	RegionUninit(&region);
 }
@@ -7058,32 +7085,21 @@ fallback:
 	if (!RegionNotEmpty(&data.region))
 		return;
 
-	if (!sna_gc_move_to_cpu(gc, drawable))
+	if (!sna_gc_move_to_cpu(gc, drawable, &data.region))
 		goto out;
 	if (!sna_drawable_move_region_to_cpu(drawable, &data.region,
 					     drawable_gc_flags(drawable, gc,
 							       !(data.flags & 4 && n == 2))))
-		goto out;
-
-	/* Install FillSpans in case we hit a fallback path in fbPolyLine */
-	sna_gc(gc)->priv = &data.region;
-	assert(gc->ops == (GCOps *)&sna_gc_ops);
-	gc->ops = (GCOps *)&sna_gc_ops__cpu;
+		goto out_gc;
 
 	DBG(("%s: fbPolyLine\n", __FUNCTION__));
 	fbPolyLine(drawable, gc, mode, n, pt);
 	FALLBACK_FLUSH(drawable);
 
-	gc->ops = (GCOps *)&sna_gc_ops;
+out_gc:
+	sna_gc_move_to_gpu(gc);
 out:
 	RegionUninit(&data.region);
-}
-
-static void
-sna_poly_line__cpu(DrawablePtr drawable, GCPtr gc,
-		   int mode, int n, DDXPointPtr pt)
-{
-	fbPolyLine(drawable, gc, mode, n, pt);
 }
 
 static inline void box_from_seg(BoxPtr b, xSegment *seg, GCPtr gc)
@@ -7913,23 +7929,19 @@ fallback:
 	if (!RegionNotEmpty(&data.region))
 		return;
 
-	if (!sna_gc_move_to_cpu(gc, drawable))
+	if (!sna_gc_move_to_cpu(gc, drawable, &data.region))
 		goto out;
 	if (!sna_drawable_move_region_to_cpu(drawable, &data.region,
 					     drawable_gc_flags(drawable, gc,
 							       !(data.flags & 4 && n == 1))))
-		goto out;
-
-	/* Install FillSpans in case we hit a fallback path in fbPolySegment */
-	sna_gc(gc)->priv = &data.region;
-	assert(gc->ops == (GCOps *)&sna_gc_ops);
-	gc->ops = (GCOps *)&sna_gc_ops__cpu;
+		goto out_gc;
 
 	DBG(("%s: fbPolySegment\n", __FUNCTION__));
 	fbPolySegment(drawable, gc, n, seg);
 	FALLBACK_FLUSH(drawable);
 
-	gc->ops = (GCOps *)&sna_gc_ops;
+out_gc:
+	sna_gc_move_to_gpu(gc);
 out:
 	RegionUninit(&data.region);
 }
@@ -8519,16 +8531,18 @@ fallback:
 	if (!RegionNotEmpty(&region))
 		return;
 
-	if (!sna_gc_move_to_cpu(gc, drawable))
+	if (!sna_gc_move_to_cpu(gc, drawable, &region))
 		goto out;
 	if (!sna_drawable_move_region_to_cpu(drawable, &region,
 					     drawable_gc_flags(drawable,
 							       gc, true)))
 		goto out;
 
-	DBG(("%s: fbPolyRectangle\n", __FUNCTION__));
-	fbPolyRectangle(drawable, gc, n, r);
+	DBG(("%s: miPolyRectangle\n", __FUNCTION__));
+	miPolyRectangle(drawable, gc, n, r);
 	FALLBACK_FLUSH(drawable);
+out_gc:
+	sna_gc_move_to_gpu(gc);
 out:
 	RegionUninit(&region);
 }
@@ -8698,23 +8712,19 @@ fallback:
 	if (!RegionNotEmpty(&data.region))
 		return;
 
-	if (!sna_gc_move_to_cpu(gc, drawable))
+	if (!sna_gc_move_to_cpu(gc, drawable, &data.region))
 		goto out;
 	if (!sna_drawable_move_region_to_cpu(drawable, &data.region,
 					     drawable_gc_flags(drawable,
 							       gc, true)))
-		goto out;
-
-	/* Install FillSpans in case we hit a fallback path in fbPolyArc */
-	sna_gc(gc)->priv = &data.region;
-	assert(gc->ops == (GCOps *)&sna_gc_ops);
-	gc->ops = (GCOps *)&sna_gc_ops__cpu;
+		goto out_gc;
 
 	DBG(("%s -- fbPolyArc\n", __FUNCTION__));
 	fbPolyArc(drawable, gc, n, arc);
 	FALLBACK_FLUSH(drawable);
 
-	gc->ops = (GCOps *)&sna_gc_ops;
+out_gc:
+	sna_gc_move_to_gpu(gc);
 out:
 	RegionUninit(&data.region);
 }
@@ -9050,21 +9060,18 @@ fallback:
 		return;
 	}
 
-	if (!sna_gc_move_to_cpu(gc, draw))
+	if (!sna_gc_move_to_cpu(gc, draw, &data.region))
 		goto out;
 	if (!sna_drawable_move_region_to_cpu(draw, &data.region,
 					     drawable_gc_flags(draw, gc,
 							       true)))
-		goto out;
+		goto out_gc;
 
 	DBG(("%s: fallback -- miFillPolygon -> sna_fill_spans__cpu\n",
 	     __FUNCTION__));
-	sna_gc(gc)->priv = &data.region;
-	assert(gc->ops == (GCOps *)&sna_gc_ops);
-	gc->ops = (GCOps *)&sna_gc_ops__cpu;
-
 	miFillPolygon(draw, gc, shape, mode, n, pt);
-	gc->ops = (GCOps *)&sna_gc_ops;
+out_gc:
+	sna_gc_move_to_gpu(gc);
 out:
 	RegionUninit(&data.region);
 }
@@ -10465,72 +10472,18 @@ fallback:
 		return;
 	}
 
-	if (!sna_gc_move_to_cpu(gc, draw))
+	if (!sna_gc_move_to_cpu(gc, draw, &region))
 		goto out;
 	if (!sna_drawable_move_region_to_cpu(draw, &region,
 					     drawable_gc_flags(draw, gc,
 							       n > 1)))
-		goto out;
+		goto out_gc;
 
 	DBG(("%s: fallback - fbPolyFillRect\n", __FUNCTION__));
-	if (region.data == NULL) {
-		do {
-			BoxRec box;
-
-			box.x1 = rect->x + draw->x;
-			box.y1 = rect->y + draw->y;
-			box.x2 = bound(box.x1, rect->width);
-			box.y2 = bound(box.y1, rect->height);
-			rect++;
-
-			if (box_intersect(&box, &region.extents)) {
-				DBG(("%s: fallback - fbFill((%d, %d), (%d, %d))\n",
-				     __FUNCTION__,
-				     box.x1, box.y1,
-				     box.x2-box.x1, box.y2-box.y1));
-				fbFill(draw, gc,
-				       box.x1, box.y1,
-				       box.x2-box.x1, box.y2-box.y1);
-			}
-		} while (--n);
-	} else {
-		const BoxRec * const clip_start = RegionBoxptr(&region);
-		const BoxRec * const clip_end = clip_start + region.data->numRects;
-		const BoxRec *c;
-
-		do {
-			BoxRec box;
-
-			box.x1 = rect->x + draw->x;
-			box.y1 = rect->y + draw->y;
-			box.x2 = bound(box.x1, rect->width);
-			box.y2 = bound(box.y1, rect->height);
-			rect++;
-
-			c = find_clip_box_for_y(clip_start,
-						clip_end,
-						box.y1);
-
-			while (c != clip_end) {
-				BoxRec b;
-
-				if (box.y2 <= c->y1)
-					break;
-
-				b = box;
-				if (box_intersect(&b, c++)) {
-					DBG(("%s: fallback - fbFill((%d, %d), (%d, %d))\n",
-					     __FUNCTION__,
-					       b.x1, b.y1,
-					       b.x2-b.x1, b.y2-b.y1));
-					fbFill(draw, gc,
-					       b.x1, b.y1,
-					       b.x2-b.x1, b.y2-b.y1);
-				}
-			}
-		} while (--n);
-	}
+	fbPolyFillRect(draw, gc, n, rect);
 	FALLBACK_FLUSH(draw);
+out_gc:
+	sna_gc_move_to_gpu(gc);
 out:
 	RegionUninit(&region);
 }
@@ -10650,21 +10603,19 @@ fallback:
 		return;
 	}
 
-	if (!sna_gc_move_to_cpu(gc, draw))
+	if (!sna_gc_move_to_cpu(gc, draw, &data.region))
 		goto out;
 	if (!sna_drawable_move_region_to_cpu(draw, &data.region,
 					     drawable_gc_flags(draw, gc,
 							       true)))
-		goto out;
+		goto out_gc;
 
 	DBG(("%s: fallback -- miPolyFillArc -> sna_fill_spans__cpu\n",
 	     __FUNCTION__));
-	sna_gc(gc)->priv = &data.region;
-	assert(gc->ops == (GCOps *)&sna_gc_ops);
-	gc->ops = (GCOps *)&sna_gc_ops__cpu;
 
 	miPolyFillArc(draw, gc, n, arc);
-	gc->ops = (GCOps *)&sna_gc_ops;
+out_gc:
+	sna_gc_move_to_gpu(gc);
 out:
 	RegionUninit(&data.region);
 }
@@ -10681,6 +10632,8 @@ static Bool
 sna_realize_font(ScreenPtr screen, FontPtr font)
 {
 	struct sna_font *priv;
+
+	DBG(("%s (key=%d)\n", __FUNCTION__, sna_font_key));
 
 	priv = calloc(1, sizeof(struct sna_font));
 	if (priv == NULL)
@@ -10699,6 +10652,8 @@ sna_unrealize_font(ScreenPtr screen, FontPtr font)
 {
 	struct sna_font *priv = FontGetPrivate(font, sna_font_key);
 	int i, j;
+
+	DBG(("%s (key=%d)\n", __FUNCTION__, sna_font_key));
 
 	if (priv == NULL)
 		return TRUE;
@@ -11110,17 +11065,19 @@ force_fallback:
 		gc->font->get_glyphs(gc->font, count, (unsigned char *)chars,
 				     Linear8Bit, &n, info);
 
-		if (!sna_gc_move_to_cpu(gc, drawable))
+		if (!sna_gc_move_to_cpu(gc, drawable, &region))
 			goto out;
 		if (!sna_drawable_move_region_to_cpu(drawable, &region,
 						     drawable_gc_flags(drawable,
 								       gc, true)))
-			goto out;
+			goto out_gc;
 
 		DBG(("%s: fallback -- fbPolyGlyphBlt\n", __FUNCTION__));
 		fbPolyGlyphBlt(drawable, gc, x, y, n,
 			       info, FONTGLYPHS(gc->font));
 		FALLBACK_FLUSH(drawable);
+out_gc:
+		sna_gc_move_to_gpu(gc);
 	}
 out:
 	RegionUninit(&region);
@@ -11203,16 +11160,18 @@ force_fallback:
 				     FONTLASTROW(gc->font) ? TwoD16Bit : Linear16Bit,
 				     &n, info);
 
-		if (!sna_gc_move_to_cpu(gc, drawable))
+		if (!sna_gc_move_to_cpu(gc, drawable, &region))
 			goto out;
 		if (!sna_drawable_move_region_to_cpu(drawable, &region,
 						     drawable_gc_flags(drawable, gc, true)))
-			goto out;
+			goto out_gc;
 
 		DBG(("%s: fallback -- fbPolyGlyphBlt\n", __FUNCTION__));
 		fbPolyGlyphBlt(drawable, gc, x, y, n,
 			       info, FONTGLYPHS(gc->font));
 		FALLBACK_FLUSH(drawable);
+out_gc:
+		sna_gc_move_to_gpu(gc);
 	}
 out:
 	RegionUninit(&region);
@@ -11304,17 +11263,19 @@ force_fallback:
 		gc->font->get_glyphs(gc->font, count, (unsigned char *)chars,
 				     Linear8Bit, &n, info);
 
-		if (!sna_gc_move_to_cpu(gc, drawable))
+		if (!sna_gc_move_to_cpu(gc, drawable, &region))
 			goto out;
 		if (!sna_drawable_move_region_to_cpu(drawable, &region,
 						     drawable_gc_flags(drawable,
 								       gc, n > 1)))
-			goto out;
+			goto out_gc;
 
 		DBG(("%s: fallback -- fbImageGlyphBlt\n", __FUNCTION__));
 		fbImageGlyphBlt(drawable, gc, x, y, n,
 				info, FONTGLYPHS(gc->font));
 		FALLBACK_FLUSH(drawable);
+out_gc:
+		sna_gc_move_to_gpu(gc);
 	}
 out:
 	RegionUninit(&region);
@@ -11399,17 +11360,19 @@ force_fallback:
 				     FONTLASTROW(gc->font) ? TwoD16Bit : Linear16Bit,
 				     &n, info);
 
-		if (!sna_gc_move_to_cpu(gc, drawable))
+		if (!sna_gc_move_to_cpu(gc, drawable, &region))
 			goto out;
 		if (!sna_drawable_move_region_to_cpu(drawable, &region,
 						     drawable_gc_flags(drawable,
 								       gc, n > 1)))
-			goto out;
+			goto out_gc;
 
 		DBG(("%s: fallback -- fbImageGlyphBlt\n", __FUNCTION__));
 		fbImageGlyphBlt(drawable, gc, x, y, n,
 				info, FONTGLYPHS(gc->font));
 		FALLBACK_FLUSH(drawable);
+out_gc:
+		sna_gc_move_to_gpu(gc);
 	}
 out:
 	RegionUninit(&region);
@@ -11695,17 +11658,19 @@ sna_image_glyph(DrawablePtr drawable, GCPtr gc,
 
 fallback:
 	DBG(("%s: fallback\n", __FUNCTION__));
-	if (!sna_gc_move_to_cpu(gc, drawable))
+	if (!sna_gc_move_to_cpu(gc, drawable, &region))
 		goto out;
 	if (!sna_drawable_move_region_to_cpu(drawable, &region,
 					     drawable_gc_flags(drawable,
 							       gc, n > 1)))
-		goto out;
+		goto out_gc;
 
 	DBG(("%s: fallback -- fbImageGlyphBlt\n", __FUNCTION__));
 	fbImageGlyphBlt(drawable, gc, x, y, n, info, base);
 	FALLBACK_FLUSH(drawable);
 
+out_gc:
+	sna_gc_move_to_gpu(gc);
 out:
 	RegionUninit(&region);
 }
@@ -11774,17 +11739,19 @@ sna_poly_glyph(DrawablePtr drawable, GCPtr gc,
 
 fallback:
 	DBG(("%s: fallback\n", __FUNCTION__));
-	if (!sna_gc_move_to_cpu(gc, drawable))
+	if (!sna_gc_move_to_cpu(gc, drawable, &region))
 		goto out;
 	if (!sna_drawable_move_region_to_cpu(drawable, &region,
 					     drawable_gc_flags(drawable,
 							       gc, true)))
-		goto out;
+		goto out_gc;
 
 	DBG(("%s: fallback -- fbPolyGlyphBlt\n", __FUNCTION__));
 	fbPolyGlyphBlt(drawable, gc, x, y, n, info, base);
 	FALLBACK_FLUSH(drawable);
 
+out_gc:
+	sna_gc_move_to_gpu(gc);
 out:
 	RegionUninit(&region);
 }
@@ -11956,19 +11923,21 @@ sna_push_pixels(GCPtr gc, PixmapPtr bitmap, DrawablePtr drawable,
 	}
 
 	DBG(("%s: fallback\n", __FUNCTION__));
-	if (!sna_gc_move_to_cpu(gc, drawable))
+	if (!sna_gc_move_to_cpu(gc, drawable, &region))
 		goto out;
 	if (!sna_pixmap_move_to_cpu(bitmap, MOVE_READ))
-		goto out;
+		goto out_gc;
 	if (!sna_drawable_move_region_to_cpu(drawable, &region,
 					     drawable_gc_flags(drawable,
 							       gc, false)))
-		goto out;
+		goto out_gc;
 
 	DBG(("%s: fallback, fbPushPixels(%d, %d, %d %d)\n",
 	     __FUNCTION__, w, h, x, y));
 	fbPushPixels(gc, bitmap, drawable, w, h, x, y);
 	FALLBACK_FLUSH(drawable);
+out_gc:
+	sna_gc_move_to_gpu(gc);
 out:
 	RegionUninit(&region);
 }
@@ -11997,26 +11966,26 @@ static const GCOps sna_gc_ops = {
 };
 
 static const GCOps sna_gc_ops__cpu = {
-	sna_fill_spans__cpu,
-	sna_set_spans,
-	sna_put_image,
-	sna_copy_area,
-	sna_copy_plane,
-	sna_poly_point__cpu,
-	sna_poly_line__cpu,
-	sna_poly_segment,
-	sna_poly_rectangle,
-	sna_poly_arc,
-	sna_poly_fill_polygon,
-	sna_poly_fill_rect,
-	sna_poly_fill_arc,
-	sna_poly_text8,
-	sna_poly_text16,
-	sna_image_text8,
-	sna_image_text16,
-	sna_image_glyph,
-	sna_poly_glyph,
-	sna_push_pixels,
+	fbFillSpans,
+	fbSetSpans,
+	fbPutImage,
+	fbCopyArea,
+	fbCopyPlane,
+	fbPolyPoint,
+	fbPolyLine,
+	fbPolySegment,
+	miPolyRectangle,
+	fbPolyArc,
+	miFillPolygon,
+	fbPolyFillRect,
+	miPolyFillArc,
+	miPolyText8,
+	miPolyText16,
+	miImageText8,
+	miImageText16,
+	fbImageGlyphBlt,
+	fbPolyGlyphBlt,
+	fbPushPixels
 };
 
 static GCOps sna_gc_ops__tmp = {
@@ -12065,10 +12034,22 @@ static const GCFuncs sna_gc_funcs = {
 	miCopyClip
 };
 
+static const GCFuncs sna_gc_funcs__cpu = {
+	fbValidateGC,
+	miChangeGC,
+	miCopyGC,
+	miDestroyGC,
+	miChangeClip,
+	miDestroyClip,
+	miCopyClip
+};
+
 static int sna_create_gc(GCPtr gc)
 {
-	if (!fbCreateGC(gc))
-		return FALSE;
+	gc->miTranslate = 1;
+	gc->fExpose = 1;
+
+	fb_gc(gc)->bpp = bits_per_pixel(gc->depth);
 
 	gc->funcs = (GCFuncs *)&sna_gc_funcs;
 	gc->ops = (GCOps *)&sna_gc_ops;
@@ -12083,6 +12064,9 @@ sna_get_image(DrawablePtr drawable,
 {
 	RegionRec region;
 	unsigned int flags;
+
+	if (!fbDrawableEnabled(drawable))
+		return;
 
 	DBG(("%s (%d, %d)x(%d, %d)\n", __FUNCTION__, x, y, w, h));
 
@@ -12126,6 +12110,9 @@ sna_get_spans(DrawablePtr drawable, int wMax,
 {
 	RegionRec region;
 
+	if (!fbDrawableEnabled(drawable))
+		return;
+
 	if (sna_spans_extents(drawable, NULL, n, pt, width, &region.extents) == 0)
 		return;
 
@@ -12145,13 +12132,8 @@ sna_copy_window(WindowPtr win, DDXPointRec origin, RegionPtr src)
 	int dx, dy;
 
 	DBG(("%s origin=(%d, %d)\n", __FUNCTION__, origin.x, origin.y));
-
-	if (wedged(sna)) {
-		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
-		if (sna_pixmap_move_to_cpu(pixmap, MOVE_READ | MOVE_WRITE))
-			fbCopyWindow(win, origin, src);
+	if (!fbWindowEnabled(win))
 		return;
-	}
 
 	dx = origin.x - win->drawable.x;
 	dy = origin.y - win->drawable.y;
@@ -12164,8 +12146,17 @@ sna_copy_window(WindowPtr win, DDXPointRec origin, RegionPtr src)
 		RegionTranslate(&dst, -pixmap->screen_x, -pixmap->screen_y);
 #endif
 
-	miCopyRegion(&pixmap->drawable, &pixmap->drawable,
-		     NULL, &dst, dx, dy, sna_self_copy_boxes, 0, NULL);
+	if (wedged(sna)) {
+		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
+		if (!sna_pixmap_move_to_cpu(pixmap, MOVE_READ | MOVE_WRITE))
+			return;
+
+		miCopyRegion(&pixmap->drawable, &pixmap->drawable,
+			     0, &dst, dx, dy, fbCopyNtoN, 0, NULL);
+	} else {
+		miCopyRegion(&pixmap->drawable, &pixmap->drawable,
+			     NULL, &dst, dx, dy, sna_self_copy_boxes, 0, NULL);
+	}
 
 	RegionUninit(&dst);
 }
@@ -12189,7 +12180,7 @@ static Bool sna_change_window_attributes(WindowPtr win, unsigned long mask)
 		ret &= sna_validate_pixmap(&win->drawable, win->border.pixmap);
 	}
 
-	return ret && fbChangeWindowAttributes(win, mask);
+	return ret;
 }
 
 static void
@@ -12585,20 +12576,112 @@ static void sna_accel_debug_memory(struct sna *sna)
 static void sna_accel_debug_memory(struct sna *sna) { }
 #endif
 
-Bool sna_accel_pre_init(struct sna *sna)
+static ShmFuncs shm_funcs = { sna_pixmap_create_shm, NULL };
+
+static PixmapPtr
+sna_get_window_pixmap(WindowPtr window)
+{
+	return get_window_pixmap(window);
+}
+
+static void
+sna_set_window_pixmap(WindowPtr window, PixmapPtr pixmap)
+{
+	*(PixmapPtr *)window->devPrivates = pixmap;
+}
+
+static Bool
+sna_create_window(WindowPtr win)
+{
+	sna_set_window_pixmap(win, win->drawable.pScreen->devPrivate);
+	return TRUE;
+}
+
+static Bool
+sna_map_window(WindowPtr win)
 {
 	return TRUE;
 }
 
-static ShmFuncs shm_funcs = { sna_pixmap_create_shm, NULL };
+static Bool
+sna_position_window(WindowPtr win, int x, int y)
+{
+	return TRUE;
+}
 
-Bool sna_accel_init(ScreenPtr screen, struct sna *sna)
+static Bool
+sna_unmap_window(WindowPtr win)
+{
+	return TRUE;
+}
+
+static Bool
+sna_destroy_window(WindowPtr win)
+{
+	return TRUE;
+}
+
+static void
+sna_query_best_size(int class,
+		    unsigned short *width, unsigned short *height,
+		    ScreenPtr screen)
+{
+	unsigned short w;
+
+	switch (class) {
+	case CursorShape:
+		if (*width > screen->width)
+			*width = screen->width;
+		if (*height > screen->height)
+			*height = screen->height;
+		break;
+
+	case TileShape:
+	case StippleShape:
+		w = *width;
+		if ((w & (w - 1)) && w < FB_UNIT) {
+			for (w = 1; w < *width; w <<= 1)
+				;
+			*width = w;
+		}
+		break;
+	}
+}
+
+static void sna_store_colors(ColormapPtr cmap, int n, xColorItem *def)
+{
+}
+
+static bool sna_picture_init(ScreenPtr screen)
+{
+	PictureScreenPtr ps;
+
+	if (!miPictureInit(screen, NULL, 0))
+		return false;
+
+	ps = GetPictureScreen(screen);
+	assert(ps != NULL);
+
+	ps->Composite = sna_composite;
+	ps->CompositeRects = sna_composite_rectangles;
+	ps->Glyphs = sna_glyphs;
+	ps->UnrealizeGlyph = sna_glyph_unrealize;
+	ps->AddTraps = sna_add_traps;
+	ps->Trapezoids = sna_composite_trapezoids;
+	ps->Triangles = sna_composite_triangles;
+#if PICTURE_SCREEN_VERSION >= 2
+	ps->TriStrip = sna_composite_tristrip;
+	ps->TriFan = sna_composite_trifan;
+#endif
+
+	return true;
+}
+
+bool sna_accel_init(ScreenPtr screen, struct sna *sna)
 {
 	const char *backend;
 
 	sna_font_key = AllocateFontPrivateIndex();
-	screen->RealizeFont = sna_realize_font;
-	screen->UnrealizeFont = sna_unrealize_font;
 
 	list_init(&sna->dirty_pixmaps);
 	list_init(&sna->active_pixmaps);
@@ -12611,35 +12694,53 @@ Bool sna_accel_init(ScreenPtr screen, struct sna *sna)
 	sna->timer_expire[DEBUG_MEMORY_TIMER] = GetTimeInMillis()+ 10 * 1000;
 #endif
 
-	screen->CreateGC = sna_create_gc;
+	screen->defColormap = FakeClientID(0);
+	/* let CreateDefColormap do whatever it wants for pixels */
+	screen->blackPixel = screen->whitePixel = (Pixel) 0;
+	screen->QueryBestSize = sna_query_best_size;
+	assert(screen->GetImage == NULL);
 	screen->GetImage = sna_get_image;
+	assert(screen->GetSpans == NULL);
 	screen->GetSpans = sna_get_spans;
-	screen->CopyWindow = sna_copy_window;
+	assert(screen->CreateWindow == NULL);
+	screen->CreateWindow = sna_create_window;
+	assert(screen->DestroyWindow == NULL);
+	screen->DestroyWindow = sna_destroy_window;
+	screen->PositionWindow = sna_position_window;
 	screen->ChangeWindowAttributes = sna_change_window_attributes;
+	screen->RealizeWindow = sna_map_window;
+	screen->UnrealizeWindow = sna_unmap_window;
+	screen->CopyWindow = sna_copy_window;
+	assert(screen->CreatePixmap == NULL);
 	screen->CreatePixmap = sna_create_pixmap;
+	assert(screen->DestroyPixmap == NULL);
 	screen->DestroyPixmap = sna_destroy_pixmap;
+	screen->RealizeFont = sna_realize_font;
+	screen->UnrealizeFont = sna_unrealize_font;
+	assert(screen->CreateGC == NULL);
+	screen->CreateGC = sna_create_gc;
+	screen->CreateColormap = miInitializeColormap;
+	screen->DestroyColormap = (void (*)(ColormapPtr)) NoopDDA;
+	screen->InstallColormap = miInstallColormap;
+	screen->UninstallColormap = miUninstallColormap;
+	screen->ListInstalledColormaps = miListInstalledColormaps;
+	screen->ResolveColor = miResolveColor;
+	assert(screen->StoreColors = PictureStoreColors);
+	screen->StoreColors = sna_store_colors;
+	screen->BitmapToRegion = fbBitmapToRegion;
 
-#ifdef RENDER
-	{
-		PictureScreenPtr ps = GetPictureScreenIfSet(screen);
-		if (ps) {
-			ps->Composite = sna_composite;
-			ps->CompositeRects = sna_composite_rectangles;
-			ps->Glyphs = sna_glyphs;
-			ps->UnrealizeGlyph = sna_glyph_unrealize;
-			ps->AddTraps = sna_add_traps;
-			ps->Trapezoids = sna_composite_trapezoids;
-			ps->Triangles = sna_composite_triangles;
-#if PICTURE_SCREEN_VERSION >= 2
-			ps->TriStrip = sna_composite_tristrip;
-			ps->TriFan = sna_composite_trifan;
-#endif
-		}
-	}
-#endif
+	assert(screen->GetWindowPixmap == NULL);
+	screen->GetWindowPixmap = sna_get_window_pixmap;
+	assert(screen->SetWindowPixmap == NULL);
+	screen->SetWindowPixmap = sna_set_window_pixmap;
 
 	if (USE_SHM_VMAP && sna->kgem.has_vmap)
 		ShmRegisterFuncs(screen, &shm_funcs);
+	else
+		ShmRegisterFbFuncs(screen);
+
+	if (!sna_picture_init(screen))
+		return false;
 
 	backend = "no";
 	sna->have_render = false;
@@ -12718,9 +12819,9 @@ void sna_accel_close(struct sna *sna)
 	sna_glyphs_close(sna);
 
 	if (sna->freed_pixmap) {
-		assert(sna->freed_pixmap->refcnt == 1);
+		assert(sna->freed_pixmap->refcnt == 0);
 		free(sna_pixmap(sna->freed_pixmap));
-		fbDestroyPixmap(sna->freed_pixmap);
+		FreePixmap(sna->freed_pixmap);
 		sna->freed_pixmap = NULL;
 	}
 

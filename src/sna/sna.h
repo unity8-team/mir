@@ -42,8 +42,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 
 #include <stdint.h>
-
 #include "compiler.h"
+
+#include <xorg-server.h>
 
 #include <xf86Crtc.h>
 #include <xf86str.h>
@@ -52,7 +53,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <picturestr.h>
 #include <gcstruct.h>
 
-#include <xorg-server.h>
 #include <pciaccess.h>
 
 #include <xf86drmMode.h>
@@ -66,8 +66,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #if HAVE_UDEV
 #include <libudev.h>
 #endif
-
-#include "compiler.h"
 
 #define DBG(x)
 
@@ -114,6 +112,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "kgem.h"
 #include "sna_damage.h"
 #include "sna_render.h"
+#include "fb/fb.h"
 
 #define SNA_CURSOR_X			64
 #define SNA_CURSOR_Y			SNA_CURSOR_X
@@ -150,18 +149,9 @@ struct sna_glyph {
 	uint16_t size, pos;
 };
 
-extern DevPrivateKeyRec sna_private_index;
-extern DevPrivateKeyRec sna_pixmap_index;
-extern DevPrivateKeyRec sna_gc_index;
-extern DevPrivateKeyRec sna_glyph_key;
-
 static inline PixmapPtr get_window_pixmap(WindowPtr window)
 {
-#if 0
-	return window->drawable.pScreen->GetWindowPixmap(window)
-#else
-	return *(void **)window->devPrivates;
-#endif
+	return fbGetWindowPixmap(window);
 }
 
 static inline PixmapPtr get_drawable_pixmap(DrawablePtr drawable)
@@ -259,7 +249,6 @@ struct sna {
 
 	ScreenBlockHandlerProcPtr BlockHandler;
 	ScreenWakeupHandlerProcPtr WakeupHandler;
-	CloseScreenProcPtr CloseScreen;
 
 	PicturePtr clear;
 	struct {
@@ -565,8 +554,7 @@ static inline uint32_t pixmap_size(PixmapPtr pixmap)
 		pixmap->drawable.width * pixmap->drawable.bitsPerPixel/8;
 }
 
-Bool sna_accel_pre_init(struct sna *sna);
-Bool sna_accel_init(ScreenPtr sreen, struct sna *sna);
+bool sna_accel_init(ScreenPtr sreen, struct sna *sna);
 void sna_accel_block_handler(struct sna *sna, struct timeval **tv);
 void sna_accel_wakeup_handler(struct sna *sna);
 void sna_accel_watch_flush(struct sna *sna, int enable);

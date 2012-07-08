@@ -45,11 +45,9 @@
 #include <xf86drm.h>
 #include <xf86DDC.h> /* for xf86InterpretEDID */
 
-#include <fb.h>
-#include <fbpict.h>
-
 #include "sna.h"
 #include "sna_reg.h"
+#include "fb/fbpict.h"
 
 #include "intel_options.h"
 
@@ -2651,7 +2649,8 @@ sna_crtc_redisplay__fallback(xf86CrtcPtr crtc, RegionPtr region)
 	if (ptr == NULL)
 		return;
 
-	pixmap = fbCreatePixmap(screen, 0, 0, sna->front->drawable.depth, 0);
+	pixmap = sna_pixmap_create_unattached(screen,
+					      0, 0, sna->front->drawable.depth);
 	if (pixmap == NullPixmap)
 		return;
 

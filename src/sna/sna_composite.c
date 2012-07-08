@@ -32,9 +32,9 @@
 #include "sna.h"
 #include "sna_render.h"
 #include "sna_render_inline.h"
+#include "fb/fbpict.h"
 
 #include <mipict.h>
-#include <fbpict.h>
 
 #if DEBUG_COMPOSITE
 #undef DBG

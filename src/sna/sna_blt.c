@@ -38,9 +38,6 @@
 #include "sna_reg.h"
 #include "rop.h"
 
-#include <mipict.h>
-#include <fbpict.h>
-
 #if DEBUG_BLT
 #undef DBG
 #define DBG(x) ErrorF x

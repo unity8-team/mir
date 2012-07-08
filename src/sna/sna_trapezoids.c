@@ -34,10 +34,9 @@
 #include "sna.h"
 #include "sna_render.h"
 #include "sna_render_inline.h"
+#include "fb/fbpict.h"
 
-#include <fb.h>
 #include <mipict.h>
-#include <fbpict.h>
 
 #if DEBUG_TRAPEZOIDS
 #undef DBG
@@ -5213,9 +5212,8 @@ trapezoid_span_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 
 	DBG(("%s: mask (%dx%d), dx=(%d, %d)\n",
 	     __FUNCTION__, extents.x2, extents.y2, dx, dy));
-	scratch = fbCreatePixmap(screen,
-				 extents.x2, extents.y2, 8,
-				 CREATE_PIXMAP_USAGE_SCRATCH);
+	scratch = sna_pixmap_create_unattached(screen,
+					       extents.x2, extents.y2, 8);
 	if (!scratch)
 		return true;
 
@@ -5882,8 +5880,17 @@ sna_add_traps(PicturePtr picture, INT16 x, INT16 y, int n, xTrap *t)
 
 	DBG(("%s -- fallback\n", __FUNCTION__));
 	if (sna_drawable_move_to_cpu(picture->pDrawable,
-				     MOVE_READ | MOVE_WRITE))
-		fbAddTraps(picture, x, y, n, t);
+				     MOVE_READ | MOVE_WRITE)) {
+		pixman_image_t *image;
+		int dx, dy;
+
+		if (!(image = image_from_pict(picture, FALSE, &dx, &dy)))
+			return;
+
+		pixman_add_traps(image, x + dx, y + dy, n, (pixman_trap_t *)t);
+
+		free_pixman_pict(picture, image);
+	}
 }
 
 static inline void

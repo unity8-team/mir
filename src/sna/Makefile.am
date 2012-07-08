@@ -18,6 +18,8 @@
 #  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 #  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+SUBDIRS = fb
+
 AM_CFLAGS = \
 	@CWARNFLAGS@ \
 	-I$(top_srcdir)/src \
@@ -29,7 +31,7 @@ AM_CFLAGS = \
 	$(NULL)
 
 noinst_LTLIBRARIES = libsna.la
-libsna_la_LIBADD = @UDEV_LIBS@ -lm @DRM_LIBS@
+libsna_la_LIBADD = @UDEV_LIBS@ -lm @DRM_LIBS@ fb/libfb.la
 
 libsna_la_SOURCES = \
 	blt.c \
