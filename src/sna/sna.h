@@ -416,10 +416,6 @@ PixmapPtr sna_pixmap_create_upload(ScreenPtr screen,
 PixmapPtr sna_pixmap_create_unattached(ScreenPtr screen,
 				       int width, int height, int depth);
 
-struct sna_pixmap *sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags);
-struct sna_pixmap *sna_pixmap_force_to_gpu(PixmapPtr pixmap, unsigned flags);
-struct kgem_bo *sna_pixmap_change_tiling(PixmapPtr pixmap, uint32_t tiling);
-
 #define MOVE_WRITE 0x1
 #define MOVE_READ 0x2
 #define MOVE_INPLACE_HINT 0x4
@@ -427,6 +423,15 @@ struct kgem_bo *sna_pixmap_change_tiling(PixmapPtr pixmap, uint32_t tiling);
 #define MOVE_SOURCE_HINT 0x10
 #define MOVE_WHOLE_HINT 0x20
 #define __MOVE_FORCE 0x40
+
+struct sna_pixmap *sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags);
+static inline struct sna_pixmap *
+sna_pixmap_force_to_gpu(PixmapPtr pixmap, unsigned flags)
+{
+	/* Unlike move-to-gpu, we ignore wedged and always create the GPU bo */
+	DBG(("%s(pixmap=%p, flags=%x)\n", __FUNCTION__, pixmap, flags));
+	return sna_pixmap_move_to_gpu(pixmap, flags | __MOVE_FORCE);
+}
 bool must_check _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned flags);
 static inline bool must_check sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned flags)
 {
@@ -449,6 +454,8 @@ sna_drawable_move_to_gpu(DrawablePtr drawable, unsigned flags)
 {
 	return sna_pixmap_move_to_gpu(get_drawable_pixmap(drawable), flags) != NULL;
 }
+
+struct kgem_bo *sna_pixmap_change_tiling(PixmapPtr pixmap, uint32_t tiling);
 
 static inline bool
 sna_drawable_is_clear(DrawablePtr d)

@@ -1218,7 +1218,8 @@ skip_inplace_map:
 	    sna_pixmap_move_to_gpu(pixmap, flags)) {
 		kgem_bo_submit(&sna->kgem, priv->gpu_bo);
 
-		DBG(("%s: operate inplace\n", __FUNCTION__));
+		DBG(("%s: try to operate inplace\n", __FUNCTION__));
+		assert(priv->cpu == false);
 
 		pixmap->devPrivate.ptr =
 			kgem_bo_map(&sna->kgem, priv->gpu_bo);
@@ -1233,10 +1234,10 @@ skip_inplace_map:
 				list_del(&priv->list);
 				priv->undamaged = false;
 				priv->clear = false;
-				priv->cpu = false;
 			}
 
 			assert_pixmap_damage(pixmap);
+			DBG(("%s: operate inplace\n", __FUNCTION__));
 			return true;
 		}
 
@@ -1647,7 +1648,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 	    region_inplace(sna, pixmap, region, priv, (flags & MOVE_READ) == 0)) {
 		kgem_bo_submit(&sna->kgem, priv->gpu_bo);
 
-		DBG(("%s: operate inplace\n", __FUNCTION__));
+		DBG(("%s: try to operate inplace\n", __FUNCTION__));
 
 		pixmap->devPrivate.ptr =
 			kgem_bo_map(&sna->kgem, priv->gpu_bo);
@@ -1674,6 +1675,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 			priv->cpu = false;
 			if (dx | dy)
 				RegionTranslate(region, -dx, -dy);
+			DBG(("%s: operate inplace\n", __FUNCTION__));
 			return true;
 		}
 
@@ -2570,32 +2572,6 @@ sna_pixmap_mark_active(struct sna *sna, struct sna_pixmap *priv)
 }
 
 struct sna_pixmap *
-sna_pixmap_force_to_gpu(PixmapPtr pixmap, unsigned flags)
-{
-	struct sna_pixmap *priv;
-
-	DBG(("%s(pixmap=%p)\n", __FUNCTION__, pixmap));
-
-	priv = sna_pixmap(pixmap);
-	if (priv == NULL)
-		return NULL;
-
-	if (DAMAGE_IS_ALL(priv->gpu_damage)) {
-		DBG(("%s: GPU all-damaged\n", __FUNCTION__));
-		assert(!priv->gpu_bo->proxy || (flags & MOVE_WRITE) == 0);
-		return sna_pixmap_mark_active(to_sna_from_pixmap(pixmap), priv);
-	}
-
-	/* Unlike move-to-gpu, we ignore wedged and always create the GPU bo */
-	if (!sna_pixmap_move_to_gpu(pixmap, flags | __MOVE_FORCE))
-		return NULL;
-
-	assert(!priv->cpu);
-
-	return priv;
-}
-
-struct sna_pixmap *
 sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 {
 	struct sna *sna = to_sna_from_pixmap(pixmap);
@@ -2679,14 +2655,14 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 		}
 	}
 
-	if (priv->cpu_damage == NULL)
-		goto done;
-
 	if (priv->gpu_bo->proxy) {
 		DBG(("%s: reusing cached upload\n", __FUNCTION__));
 		assert((flags & MOVE_WRITE) == 0);
-		goto done;
+		return priv;
 	}
+
+	if (priv->cpu_damage == NULL)
+		goto done;
 
 	if (priv->mapped) {
 		assert(priv->stride);
@@ -12440,6 +12416,7 @@ static void sna_accel_flush(struct sna *sna)
 	if (priv) {
 		sna_pixmap_force_to_gpu(priv->pixmap, MOVE_READ);
 		kgem_bo_flush(&sna->kgem, priv->gpu_bo);
+		assert(!priv->cpu);
 	}
 
 	sna_mode_redisplay(sna);
