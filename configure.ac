@@ -320,7 +320,6 @@ if test "x$DEBUG" = xno; then
 	AC_DEFINE(NDEBUG,1,[Disable internal debugging])
 fi
 if test "x$DEBUG" != xno; then
-	AC_DEFINE(HAS_EXTRA_DEBUG,1,[Enable additional debugging])
 	PKG_CHECK_MODULES(VALGRIND, [valgrind], have_valgrind=yes, have_valgrind=no)
 	if test x$have_valgrind = xyes; then
 		AC_DEFINE([HAVE_VALGRIND], 1, [Use valgrind intrinsics to suppress false warnings])
