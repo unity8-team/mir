@@ -1050,9 +1050,6 @@ static inline bool pixmap_inplace(struct sna *sna,
 }
 
 static bool
-sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned flags);
-
-static bool
 sna_pixmap_create_mappable_gpu(PixmapPtr pixmap)
 {
 	struct sna *sna = to_sna_from_pixmap(pixmap);
@@ -2067,6 +2064,25 @@ drawable_gc_flags(DrawablePtr draw, GCPtr gc, bool partial)
 	return (partial ? MOVE_READ : 0) | MOVE_WRITE | MOVE_INPLACE_HINT;
 }
 
+static inline bool
+box_inplace(PixmapPtr pixmap, const BoxRec *box)
+{
+	struct sna *sna = to_sna_from_pixmap(pixmap);
+	return ((int)(box->x2 - box->x1) * (int)(box->y2 - box->y1) * pixmap->drawable.bitsPerPixel >> 12) >= sna->kgem.half_cpu_cache_pages;
+}
+
+static inline struct sna_pixmap *
+sna_pixmap_mark_active(struct sna *sna, struct sna_pixmap *priv)
+{
+	assert(priv->gpu_bo);
+	if (!priv->pinned && priv->gpu_bo->proxy == NULL &&
+	    (priv->create & KGEM_CAN_CREATE_LARGE) == 0)
+		list_move(&priv->inactive, &sna->active_pixmaps);
+	priv->clear = false;
+	priv->cpu = false;
+	return priv;
+}
+
 static bool
 sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int flags)
 {
@@ -2087,6 +2103,12 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 		list_del(&priv->list);
 		goto done;
 	}
+
+	if ((flags & MOVE_READ) == 0)
+		sna_damage_subtract_box(&priv->cpu_damage, box);
+
+	sna_damage_reduce(&priv->cpu_damage);
+	assert_pixmap_damage(pixmap);
 
 	if (priv->gpu_bo == NULL) {
 		unsigned create, tiling;
@@ -2115,16 +2137,12 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 			sna_damage_all(&priv->gpu_damage,
 				       pixmap->drawable.width,
 				       pixmap->drawable.height);
+			list_del(&priv->list);
 			goto done;
 		}
 	}
 	assert(priv->gpu_bo->proxy == NULL);
 
-	if ((flags & MOVE_READ) == 0)
-		sna_damage_subtract_box(&priv->cpu_damage, box);
-
-	sna_damage_reduce(&priv->cpu_damage);
-	assert_pixmap_damage(pixmap);
 	if (priv->cpu_damage == NULL) {
 		list_del(&priv->list);
 		goto done;
@@ -2243,18 +2261,19 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 	}
 
 done:
-	if (!priv->pinned && (priv->create & KGEM_CAN_CREATE_LARGE) == 0)
-		list_move(&priv->inactive, &sna->active_pixmaps);
-	priv->clear = false;
-	assert_pixmap_damage(pixmap);
-	return true;
-}
+	if (priv->cpu_damage == NULL &&
+	    flags & MOVE_WRITE &&
+	    box_inplace(pixmap, box)) {
+		DBG(("%s: large operation on undamaged, promoting to full GPU\n",
+		     __FUNCTION__));
+		sna_damage_all(&priv->gpu_damage,
+			       pixmap->drawable.width,
+			       pixmap->drawable.height);
+		priv->undamaged = false;
+	}
 
-static inline bool
-box_inplace(PixmapPtr pixmap, const BoxRec *box)
-{
-	struct sna *sna = to_sna_from_pixmap(pixmap);
-	return ((int)(box->x2 - box->x1) * (int)(box->y2 - box->y1) * pixmap->drawable.bitsPerPixel >> 12) >= sna->kgem.half_cpu_cache_pages;
+	assert(!priv->gpu_bo->proxy || (flags & MOVE_WRITE) == 0);
+	return sna_pixmap_mark_active(sna, priv) != NULL;
 }
 
 #define PREFER_GPU	0x1
@@ -2550,18 +2569,6 @@ sna_pixmap_create_upload(ScreenPtr screen,
 	return pixmap;
 }
 
-static inline struct sna_pixmap *
-sna_pixmap_mark_active(struct sna *sna, struct sna_pixmap *priv)
-{
-	assert(priv->gpu_bo);
-	if (!priv->pinned && priv->gpu_bo->proxy == NULL &&
-	    (priv->create & KGEM_CAN_CREATE_LARGE) == 0)
-		list_move(&priv->inactive, &sna->active_pixmaps);
-	priv->clear = false;
-	priv->cpu = false;
-	return priv;
-}
-
 struct sna_pixmap *
 sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 {
@@ -2638,8 +2645,6 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 			sna_damage_all(&priv->gpu_damage,
 				       pixmap->drawable.width,
 				       pixmap->drawable.height);
-			list_del(&priv->list);
-			priv->undamaged = false;
 			DBG(("%s: marking as all-damaged for GPU\n",
 			     __FUNCTION__));
 			goto active;
