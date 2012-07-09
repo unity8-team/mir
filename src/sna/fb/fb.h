@@ -43,6 +43,8 @@
 #define DBG(x)
 #endif
 
+#include "sfb.h"
+
 #define WRITE(ptr, val) (*(ptr) = (val))
 #define READ(ptr) (*(ptr))
 

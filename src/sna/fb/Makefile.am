@@ -5,6 +5,7 @@ libfb_la_LIBADD = $(PIXMAN_LIBS)
 
 libfb_la_SOURCES = 	\
 	fb.h		\
+	sfb.h		\
 	fbarc.c		\
 	fbarcbits.h	\
 	fbbitmap.c	\

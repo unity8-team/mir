@@ -24,6 +24,8 @@
 #ifndef FBPICT_H
 #define FBPICT_H
 
+#include "sfb.h"
+
 extern void
 fbComposite(CARD8 op,
             PicturePtr pSrc,
