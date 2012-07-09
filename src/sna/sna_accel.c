@@ -2735,7 +2735,7 @@ static bool must_check sna_validate_pixmap(DrawablePtr draw, PixmapPtr pixmap)
 	    FbEvenTile(pixmap->drawable.width *
 		       pixmap->drawable.bitsPerPixel)) {
 		DBG(("%s: flushing pixmap\n", __FUNCTION__));
-		if (!sna_pixmap_move_to_cpu(pixmap, MOVE_READ | MOVE_WRITE))
+		if (!sna_pixmap_move_to_cpu(pixmap, MOVE_READ))
 			return false;
 
 		fbPadPixmap(pixmap);
