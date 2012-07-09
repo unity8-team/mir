@@ -36,10 +36,10 @@
 
 #include "compiler.h"
 
-#if DEBUG_KGEM
-#define DBG_HDR(x) ErrorF x
+#if HAS_DEBUG_FULL
+#define DBG(x) ErrorF x
 #else
-#define DBG_HDR(x)
+#define DBG(x)
 #endif
 
 struct kgem_bo {
@@ -455,8 +455,8 @@ static inline bool kgem_bo_can_blt(struct kgem *kgem,
 static inline bool kgem_bo_is_mappable(struct kgem *kgem,
 				       struct kgem_bo *bo)
 {
-	DBG_HDR(("%s: domain=%d, offset: %d size: %d\n",
-		 __FUNCTION__, bo->domain, bo->presumed_offset, kgem_bo_size(bo)));
+	DBG(("%s: domain=%d, offset: %d size: %d\n",
+	     __FUNCTION__, bo->domain, bo->presumed_offset, kgem_bo_size(bo)));
 
 	if (bo->domain == DOMAIN_GTT)
 		return true;
@@ -473,8 +473,8 @@ static inline bool kgem_bo_is_mappable(struct kgem *kgem,
 
 static inline bool kgem_bo_mapped(struct kgem_bo *bo)
 {
-	DBG_HDR(("%s: map=%p, tiling=%d, domain=%d\n",
-		 __FUNCTION__, bo->map, bo->tiling, bo->domain));
+	DBG(("%s: map=%p, tiling=%d, domain=%d\n",
+	     __FUNCTION__, bo->map, bo->tiling, bo->domain));
 
 	if (bo->map == NULL)
 		return bo->tiling == I915_TILING_NONE && bo->domain == DOMAIN_CPU;
@@ -496,15 +496,15 @@ static inline bool kgem_bo_can_map(struct kgem *kgem, struct kgem_bo *bo)
 
 static inline bool kgem_bo_is_busy(struct kgem_bo *bo)
 {
-	DBG_HDR(("%s: handle=%d, domain: %d exec? %d, rq? %d\n", __FUNCTION__,
-		 bo->handle, bo->domain, bo->exec != NULL, bo->rq != NULL));
+	DBG(("%s: handle=%d, domain: %d exec? %d, rq? %d\n", __FUNCTION__,
+	     bo->handle, bo->domain, bo->exec != NULL, bo->rq != NULL));
 	return bo->rq;
 }
 
 static inline bool __kgem_bo_is_busy(struct kgem *kgem, struct kgem_bo *bo)
 {
-	DBG_HDR(("%s: handle=%d, domain: %d exec? %d, rq? %d\n", __FUNCTION__,
-		 bo->handle, bo->domain, bo->exec != NULL, bo->rq != NULL));
+	DBG(("%s: handle=%d, domain: %d exec? %d, rq? %d\n", __FUNCTION__,
+	     bo->handle, bo->domain, bo->exec != NULL, bo->rq != NULL));
 	if (bo->rq && !bo->exec)
 		kgem_retire(kgem);
 	return kgem_bo_is_busy(bo);
@@ -520,7 +520,7 @@ static inline bool kgem_bo_is_dirty(struct kgem_bo *bo)
 
 static inline void kgem_bo_mark_dirty(struct kgem_bo *bo)
 {
-	DBG_HDR(("%s: handle=%d\n", __FUNCTION__, bo->handle));
+	DBG(("%s: handle=%d\n", __FUNCTION__, bo->handle));
 	bo->dirty = true;
 }
 
@@ -557,7 +557,5 @@ static inline void __kgem_batch_debug(struct kgem *kgem, uint32_t nbatch)
 	(void)nbatch;
 }
 #endif
-
-#undef DBG_HDR
 
 #endif /* KGEM_H */

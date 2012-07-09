@@ -60,10 +60,7 @@ static inline bool region_is_singular(RegionRec *r)
 	return r->data == NULL;
 }
 
-#if DEBUG_DAMAGE
-#undef DBG
-#define DBG(x) ErrorF x
-
+#if HAS_DEBUG_FULL
 static const char *_debug_describe_region(char *buf, int max,
 					  RegionPtr region)
 {
@@ -151,7 +148,6 @@ static const char *_debug_describe_damage(char *buf, int max,
 
 	return buf;
 }
-
 #endif
 
 static void
@@ -634,7 +630,7 @@ inline static struct sna_damage *__sna_damage_add(struct sna_damage *damage,
 				      REGION_NUM_RECTS(region));
 }
 
-#if DEBUG_DAMAGE
+#if HAS_DEBUG_FULL
 fastcall struct sna_damage *_sna_damage_add(struct sna_damage *damage,
 					    RegionPtr region)
 {
@@ -715,7 +711,7 @@ __sna_damage_add_boxes(struct sna_damage *damage,
 	return _sna_damage_create_elt_from_boxes(damage, box, n, dx, dy);
 }
 
-#if DEBUG_DAMAGE
+#if HAS_DEBUG_FULL
 struct sna_damage *_sna_damage_add_boxes(struct sna_damage *damage,
 					 const BoxRec *b, int n,
 					 int16_t dx, int16_t dy)
@@ -800,7 +796,7 @@ __sna_damage_add_rectangles(struct sna_damage *damage,
 	return _sna_damage_create_elt_from_rectangles(damage, r, n, dx, dy);
 }
 
-#if DEBUG_DAMAGE
+#if HAS_DEBUG_FULL
 struct sna_damage *_sna_damage_add_rectangles(struct sna_damage *damage,
 					      const xRectangle *r, int n,
 					      int16_t dx, int16_t dy)
@@ -882,7 +878,7 @@ __sna_damage_add_points(struct sna_damage *damage,
 	return damage;
 }
 
-#if DEBUG_DAMAGE
+#if HAS_DEBUG_FULL
 struct sna_damage *_sna_damage_add_points(struct sna_damage *damage,
 					  const DDXPointRec *p, int n,
 					  int16_t dx, int16_t dy)
@@ -909,7 +905,7 @@ struct sna_damage *_sna_damage_add_points(struct sna_damage *damage,
 }
 #endif
 
-#if DEBUG_DAMAGE
+#if HAS_DEBUG_FULL
 fastcall struct sna_damage *_sna_damage_add_box(struct sna_damage *damage,
 						const BoxRec *box)
 {
@@ -1060,7 +1056,7 @@ static struct sna_damage *__sna_damage_subtract(struct sna_damage *damage,
 				      REGION_NUM_RECTS(region));
 }
 
-#if DEBUG_DAMAGE
+#if HAS_DEBUG_FULL
 fastcall struct sna_damage *_sna_damage_subtract(struct sna_damage *damage,
 						 RegionPtr region)
 {
@@ -1131,7 +1127,7 @@ inline static struct sna_damage *__sna_damage_subtract_box(struct sna_damage *da
 	return _sna_damage_create_elt(damage, box, 1);
 }
 
-#if DEBUG_DAMAGE
+#if HAS_DEBUG_FULL
 fastcall struct sna_damage *_sna_damage_subtract_box(struct sna_damage *damage,
 						     const BoxRec *box)
 {
@@ -1212,7 +1208,7 @@ static struct sna_damage *__sna_damage_subtract_boxes(struct sna_damage *damage,
 	return _sna_damage_create_elt_from_boxes(damage, box, n, dx, dy);
 }
 
-#if DEBUG_DAMAGE
+#if HAS_DEBUG_FULL
 fastcall struct sna_damage *_sna_damage_subtract_boxes(struct sna_damage *damage,
 						       const BoxRec *box, int n,
 						       int dx, int dy)
@@ -1272,7 +1268,7 @@ static int __sna_damage_contains_box(struct sna_damage *damage,
 	return pixman_region_contains_rectangle(&damage->region, (BoxPtr)box);
 }
 
-#if DEBUG_DAMAGE
+#if HAS_DEBUG_FULL
 int _sna_damage_contains_box(struct sna_damage *damage,
 			     const BoxRec *box)
 {
@@ -1338,7 +1334,7 @@ static Bool __sna_damage_intersect(struct sna_damage *damage,
 	return RegionNotEmpty(result);
 }
 
-#if DEBUG_DAMAGE
+#if HAS_DEBUG_FULL
 Bool _sna_damage_intersect(struct sna_damage *damage,
 			   RegionPtr region, RegionPtr result)
 {
@@ -1391,7 +1387,7 @@ struct sna_damage *_sna_damage_reduce(struct sna_damage *damage)
 	return damage;
 }
 
-#if DEBUG_DAMAGE
+#if HAS_DEBUG_FULL
 int _sna_damage_get_boxes(struct sna_damage *damage, BoxPtr *boxes)
 {
 	char damage_buf[1000];
@@ -1436,7 +1432,7 @@ void __sna_damage_destroy(struct sna_damage *damage)
 	__freed_damage = damage;
 }
 
-#if DEBUG_DAMAGE && TEST_DAMAGE
+#if TEST_DAMAGE && HAS_DEBUG_FULL
 struct sna_damage_selftest{
 	int width, height;
 };

@@ -51,11 +51,6 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-#if DEBUG_ACCEL
-#undef DBG
-#define DBG(x) ErrorF x
-#endif
-
 #define FORCE_INPLACE 0
 #define FORCE_FALLBACK 0
 #define FORCE_FLUSH 0
@@ -12441,7 +12436,7 @@ static void sna_accel_inactive(struct sna *sna)
 
 	DBG(("%s (time=%ld)\n", __FUNCTION__, (long)TIME));
 
-#if DEBUG_ACCEL
+#if HAS_FULL_DEBUG
 	{
 		unsigned count, bytes;
 

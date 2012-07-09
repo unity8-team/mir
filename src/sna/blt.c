@@ -35,11 +35,6 @@
 #define USE_SSE2 1
 #endif
 
-#if DEBUG_BLT
-#undef DBG
-#define DBG(x) ErrorF x
-#endif
-
 #if USE_SSE2
 #include <xmmintrin.h>
 

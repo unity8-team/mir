@@ -83,7 +83,7 @@ fbBitmapToRegion(PixmapPtr pixmap)
 		if (READ(bits) & mask0)
 			x1 = 0;
 		else
-			x1 =-1;
+			x1 = -1;
 
 		/* Process all words which are fully in the pixmap */
 		end = bits + (width >> FB_SHIFT);

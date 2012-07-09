@@ -74,11 +74,6 @@ static inline Bool sna_video_xvmc_setup(struct sna *sna,
 }
 #endif
 
-#if DEBUG_VIDEO_TEXTURED
-#undef DBG
-#define DBG(x) ErrorF x
-#endif
-
 void sna_video_free_buffers(struct sna *sna, struct sna_video *video)
 {
 	unsigned int i;

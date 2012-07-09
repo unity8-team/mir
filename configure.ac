@@ -315,6 +315,7 @@ if test "x$KMS_ONLY" = xyes; then
 fi
 
 AM_CONDITIONAL(DEBUG, test x$DEBUG != xno)
+AM_CONDITIONAL(FULL_DEBUG, test x$FULL_DEBUG == xfull)
 if test "x$DEBUG" = xno; then
 	AC_DEFINE(NDEBUG,1,[Disable internal debugging])
 fi

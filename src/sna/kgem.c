@@ -55,6 +55,7 @@ search_linear_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags);
 
 #define DBG_NO_HW 0
 #define DBG_NO_TILING 0
+#define DBG_NO_CACHE 0
 #define DBG_NO_CACHE_LEVEL 0
 #define DBG_NO_VMAP 0
 #define DBG_NO_LLC 0
@@ -66,12 +67,7 @@ search_linear_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags);
 #define DBG_NO_RELAXED_FENCING 0
 #define DBG_DUMP 0
 
-#define NO_CACHE 0
-
-#if DEBUG_KGEM
-#undef DBG
-#define DBG(x) ErrorF x
-#endif
+#define SHOW_BATCH 0
 
 /* Worst case seems to be 965gm where we cannot write within a cacheline that
  * is being simultaneously being read by the GPU, or within the sampler
@@ -1256,7 +1252,7 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 	bo->binding.offset = 0;
 	kgem_bo_clear_scanout(kgem, bo);
 
-	if (NO_CACHE)
+	if (DBG_NO_CACHE)
 		goto destroy;
 
 	if (bo->vmap) {
@@ -1446,7 +1442,7 @@ static bool kgem_retire__flushing(struct kgem *kgem)
 				kgem_bo_free(kgem, bo);
 		}
 	}
-#if DEBUG_KGEM
+#if HAS_DEBUG_FULL
 	{
 		int count = 0;
 		list_for_each_entry(bo, &kgem->flushing, request)
@@ -1543,7 +1539,7 @@ static bool kgem_retire__requests(struct kgem *kgem)
 		free(rq);
 	}
 
-#if DEBUG_KGEM
+#if HAS_DEBUG_FULL
 	{
 		int count = 0;
 
@@ -1941,7 +1937,7 @@ void _kgem_submit(struct kgem *kgem)
 
 	kgem_finish_partials(kgem);
 
-#if DEBUG_BATCH
+#if HAS_DEBUG_FULL && SHOW_BATCH
 	__kgem_batch_debug(kgem, batch_end);
 #endif
 

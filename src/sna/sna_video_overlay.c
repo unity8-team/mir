@@ -39,11 +39,6 @@
 
 #include "intel_options.h"
 
-#if DEBUG_VIDEO_OVERLAY
-#undef DBG
-#define DBG(x) ErrorF x
-#endif
-
 #define MAKE_ATOM(a) MakeAtom(a, sizeof(a) - 1, TRUE)
 
 #define HAS_GAMMA(sna) ((sna)->kgem.gen >= 30)

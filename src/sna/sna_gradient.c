@@ -32,11 +32,6 @@
 #include "sna.h"
 #include "sna_render.h"
 
-#if DEBUG_GRADIENT
-#undef DBG
-#define DBG(x) ErrorF x
-#endif
-
 #define xFixedToDouble(f) pixman_fixed_to_double(f)
 
 static int

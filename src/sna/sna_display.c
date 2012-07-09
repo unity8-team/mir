@@ -51,11 +51,6 @@
 
 #include "intel_options.h"
 
-#if DEBUG_DISPLAY
-#undef DBG
-#define DBG(x) ErrorF x
-#endif
-
 #if 0
 #define __DBG DBG
 #else

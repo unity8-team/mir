@@ -30,6 +30,10 @@ AM_CFLAGS = \
 	@DRI_CFLAGS@ \
 	$(NULL)
 
+if DEBUG
+AM_CFLAGS += @VALGRIND_CFLAGS@
+endif
+
 noinst_LTLIBRARIES = libsna.la
 libsna_la_LIBADD = @UDEV_LIBS@ -lm @DRM_LIBS@ fb/libfb.la
 
@@ -94,8 +98,7 @@ libsna_la_SOURCES += \
 	$(NULL)
 endif
 
-if DEBUG
-AM_CFLAGS += @VALGRIND_CFLAGS@
+if FULL_DEBUG
 libsna_la_SOURCES += \
 	kgem_debug.c \
 	kgem_debug.h \

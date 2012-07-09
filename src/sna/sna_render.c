@@ -30,11 +30,6 @@
 #include "sna_render_inline.h"
 #include "fb/fbpict.h"
 
-#if DEBUG_RENDER
-#undef DBG
-#define DBG(x) ErrorF x
-#endif
-
 #define NO_REDIRECT 0
 #define NO_CONVERT 0
 #define NO_FIXUP 0

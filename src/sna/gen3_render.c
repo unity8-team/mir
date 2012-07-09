@@ -37,11 +37,6 @@
 
 #include "gen3_render.h"
 
-#if DEBUG_RENDER
-#undef DBG
-#define DBG(x) ErrorF x
-#endif
-
 #define NO_COMPOSITE 0
 #define NO_COMPOSITE_SPANS 0
 #define NO_COPY 0

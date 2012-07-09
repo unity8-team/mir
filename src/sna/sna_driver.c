@@ -75,11 +75,6 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "git_version.h"
 #endif
 
-#if DEBUG_DRIVER
-#undef DBG
-#define DBG(x) ErrorF x
-#endif
-
 static DevPrivateKeyRec sna_pixmap_key;
 static DevPrivateKeyRec sna_gc_key;
 static DevPrivateKeyRec sna_glyph_key;

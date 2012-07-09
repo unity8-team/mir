@@ -39,11 +39,6 @@
 #include "sna_video_hwmc.h"
 #endif
 
-#if DEBUG_VIDEO_TEXTURED
-#undef DBG
-#define DBG(x) ErrorF x
-#endif
-
 #define MAKE_ATOM(a) MakeAtom(a, sizeof(a) - 1, TRUE)
 
 static Atom xvBrightness, xvContrast, xvSyncToVblank;

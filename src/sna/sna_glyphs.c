@@ -69,11 +69,6 @@
 
 #include <mipict.h>
 
-#if DEBUG_GLYPHS
-#undef DBG
-#define DBG(x) ErrorF x
-#endif
-
 #define FALLBACK 0
 #define NO_GLYPH_CACHE 0
 #define NO_GLYPHS_TO_DST 0
@@ -86,7 +81,7 @@
 #define GLYPH_MAX_SIZE 64
 #define GLYPH_CACHE_SIZE (CACHE_PICTURE_SIZE * CACHE_PICTURE_SIZE / (GLYPH_MIN_SIZE * GLYPH_MIN_SIZE))
 
-#if DEBUG_GLYPHS
+#if HAS_DEBUG_FULL
 static void _assert_pixmap_contains_box(PixmapPtr pixmap, BoxPtr box, const char *function)
 {
 	if (box->x1 < 0 || box->y1 < 0 ||

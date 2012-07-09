@@ -38,11 +38,6 @@
 
 #include <mipict.h>
 
-#if DEBUG_TRAPEZOIDS
-#undef DBG
-#define DBG(x) ErrorF x
-#endif
-
 #if 0
 #define __DBG(x) ErrorF x
 #else
@@ -79,7 +74,7 @@ typedef void (*span_func_t)(struct sna *sna,
 			    const BoxRec *box,
 			    int coverage);
 
-#if DEBUG_TRAPEZOIDS
+#if HAS_DEBUG_FULL
 static void _assert_pixmap_contains_box(PixmapPtr pixmap, BoxPtr box, const char *function)
 {
 	if (box->x1 < 0 || box->y1 < 0 ||
@@ -2000,7 +1995,7 @@ mono_merge_unsorted_edges(struct mono_edge *head, struct mono_edge *unsorted)
 	return mono_merge_sorted_edges(head, unsorted);
 }
 
-#if DEBUG_TRAPEZOIDS
+#if 0
 static inline void
 __dbg_mono_edges(const char *function, struct mono_edge *edges)
 {

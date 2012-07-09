@@ -35,11 +35,6 @@
 
 #include <sys/mman.h>
 
-#if DEBUG_IO
-#undef DBG
-#define DBG(x) ErrorF x
-#endif
-
 #define PITCH(x, y) ALIGN((x)*(y), 4)
 
 #define FORCE_INPLACE 0 /* 1 upload directly, -1 force indirect */

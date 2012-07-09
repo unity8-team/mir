@@ -42,11 +42,6 @@
 
 #include "gen5_render.h"
 
-#if DEBUG_RENDER
-#undef DBG
-#define DBG(x) ErrorF x
-#endif
-
 #define NO_COMPOSITE_SPANS 0
 
 #define PREFER_BLT_FILL 1

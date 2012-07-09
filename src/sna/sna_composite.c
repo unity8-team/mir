@@ -36,11 +36,6 @@
 
 #include <mipict.h>
 
-#if DEBUG_COMPOSITE
-#undef DBG
-#define DBG(x) ErrorF x
-#endif
-
 #define NO_COMPOSITE 0
 #define NO_COMPOSITE_RECTANGLES 0
 
@@ -372,7 +367,7 @@ sna_compute_composite_extents(BoxPtr extents,
 	return extents->x1 < extents->x2 && extents->y1 < extents->y2;
 }
 
-#if DEBUG_COMPOSITE
+#if HAS_DEBUG_FULL
 static void _assert_pixmap_contains_box(PixmapPtr pixmap, BoxPtr box, const char *function)
 {
 	if (box->x1 < 0 || box->y1 < 0 ||

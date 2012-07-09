@@ -40,11 +40,6 @@
 #include <drm_fourcc.h>
 #include <i915_drm.h>
 
-#if DEBUG_VIDEO_OVERLAY
-#undef DBG
-#define DBG(x) ErrorF x
-#endif
-
 #define IMAGE_MAX_WIDTH		2048
 #define IMAGE_MAX_HEIGHT	2048
 

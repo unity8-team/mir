@@ -287,7 +287,7 @@ static inline void sna_damage_destroy(struct sna_damage **damage)
 
 void _sna_damage_debug_get_region(struct sna_damage *damage, RegionRec *r);
 
-#if DEBUG_DAMAGE && TEST_DAMAGE
+#if HAS_DEBUG_FULL && TEST_DAMAGE
 void sna_damage_selftest(void);
 #else
 static inline void sna_damage_selftest(void) {}

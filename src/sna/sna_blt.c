@@ -38,11 +38,6 @@
 #include "sna_reg.h"
 #include "rop.h"
 
-#if DEBUG_BLT
-#undef DBG
-#define DBG(x) ErrorF x
-#endif
-
 #define NO_BLT_COMPOSITE 0
 #define NO_BLT_COPY 0
 #define NO_BLT_COPY_BOXES 0

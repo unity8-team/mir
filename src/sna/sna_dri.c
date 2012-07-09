@@ -46,11 +46,6 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <i915_drm.h>
 #include <dri2.h>
 
-#if DEBUG_DRI
-#undef DBG
-#define DBG(x) ErrorF x
-#endif
-
 #if DRI2INFOREC_VERSION <= 2
 #error DRI2 version supported by the Xserver is too old
 #endif

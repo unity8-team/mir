@@ -33,11 +33,6 @@
 #include "sna_render.h"
 #include "fb/fbpict.h"
 
-#if DEBUG_RENDER
-#undef DBG
-#define DBG(x) ErrorF x
-#endif
-
 struct sna_tile_span {
 	BoxRec box;
 	float opacity;

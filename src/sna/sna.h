@@ -67,27 +67,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <libudev.h>
 #endif
 
+#if HAS_DEBUG_FULL
+#define DBG(x) ErrorF x
+#else
 #define DBG(x)
-
-#define DEBUG_ALL (HAS_DEBUG_FULL || 0)
-#define DEBUG_ACCEL (DEBUG_ALL || 0)
-#define DEBUG_BATCH (DEBUG_ALL || 0)
-#define DEBUG_BLT (DEBUG_ALL || 0)
-#define DEBUG_COMPOSITE (DEBUG_ALL || 0)
-#define DEBUG_DAMAGE (DEBUG_ALL || 0)
-#define DEBUG_DISPLAY (DEBUG_ALL || 0)
-#define DEBUG_DRI (DEBUG_ALL || 0)
-#define DEBUG_DRIVER (DEBUG_ALL || 0)
-#define DEBUG_GRADIENT (DEBUG_ALL || 0)
-#define DEBUG_GLYPHS (DEBUG_ALL || 0)
-#define DEBUG_IO (DEBUG_ALL || 0)
-#define DEBUG_KGEM (DEBUG_ALL || 0)
-#define DEBUG_RENDER (DEBUG_ALL || 0)
-#define DEBUG_STREAM (DEBUG_ALL || 0)
-#define DEBUG_TRAPEZOIDS (DEBUG_ALL || 0)
-#define DEBUG_VIDEO (DEBUG_ALL || 0)
-#define DEBUG_VIDEO_TEXTURED (DEBUG_ALL || 0)
-#define DEBUG_VIDEO_OVERLAY (DEBUG_ALL || 0)
+#endif
 
 #define DEBUG_NO_RENDER 0
 #define DEBUG_NO_BLT 0
