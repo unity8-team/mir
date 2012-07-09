@@ -55,8 +55,14 @@ fbDrawableRun(DrawablePtr d, GCPtr gc, const BoxRec *box,
 	for (c = fbClipBoxes(gc->pCompositeClip, box, &end); c != end; c++) {
 		BoxRec b;
 
-		if (box->x2 <= c->x1 || box->x1 >= c->x2)
+		if (box->x1 >= c->x2)
 			continue;
+		if (box->x2 <= c->x1) {
+			if (box->y2 <= c->y2)
+				break;
+			else
+				continue;
+		}
 
 		b = *box;
 		if (box_intersect(&b, c))
@@ -71,8 +77,14 @@ fbDrawableRunUnclipped(DrawablePtr d, GCPtr gc, const BoxRec *box,
 {
 	const BoxRec *c, *end;
 	for (c = fbClipBoxes(gc->pCompositeClip, box, &end); c != end; c++) {
-		if (box->x2 <= c->x1 || box->x1 >= c->x2)
+		if (box->x1 >= c->x2)
 			continue;
+		if (box->x2 <= c->x1) {
+			if (box->y2 <= c->y2)
+				break;
+			else
+				continue;
+		}
 		func(d, gc, c, data);
 	}
 }

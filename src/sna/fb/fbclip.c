@@ -29,7 +29,7 @@
 #include "fbclip.h"
 
 static const BoxRec *
-find_c0(const BoxRec *begin, const BoxRec *end, int16_t y)
+find_clip_row_for_y(const BoxRec *begin, const BoxRec *end, int16_t y)
 {
 	const BoxRec *mid;
 
@@ -45,31 +45,9 @@ find_c0(const BoxRec *begin, const BoxRec *end, int16_t y)
 
 	mid = begin + (end - begin) / 2;
 	if (mid->y2 > y)
-		return find_c0(begin, mid, y);
+		return find_clip_row_for_y(begin, mid, y);
 	else
-		return find_c0(mid, end, y);
-}
-
-static const BoxRec *
-find_c1(const BoxRec *begin, const BoxRec *end, int16_t y)
-{
-	const BoxRec *mid;
-
-	if (end == begin)
-		return end;
-
-	if (end - begin == 1) {
-		if (begin->y1 > y)
-			return begin;
-		else
-			return end;
-	}
-
-	mid = begin + (end - begin) / 2;
-	if (mid->y1 > y)
-		return find_c1(begin, mid, y);
-	else
-		return find_c1(mid, end, y);
+		return find_clip_row_for_y(mid, end, y);
 }
 
 const BoxRec *
@@ -99,14 +77,10 @@ fbClipBoxes(const RegionRec *region, const BoxRec *box, const BoxRec **end)
 	c1 = c0 + region->data->numRects;
 
 	if (c0->y2 <= box->y1)
-		c0 = find_c0(c0, c1, box->y1);
-	if (c1[-1].y1 >= box->y2)
-		c1 = find_c1(c0, c1, box->y2);
+		c0 = find_clip_row_for_y(c0, c1, box->y1);
 
-	DBG(("%s: c0=(%d, %d),(%d, %d); c1=(%d, %d),(%d, %d)\n",
-	     __FUNCTION__,
-	     c0->x1, c0->y1, c0->x2, c0->y2,
-	     c1[-1].x1, c1[-1].y1, c1[-1].x2, c1[-1].y2));
+	DBG(("%s: c0=(%d, %d),(%d, %d)\n",
+	     __FUNCTION__, c0->x1, c0->y1, c0->x2, c0->y2));
 
 	*end = c1;
 	return c0;
