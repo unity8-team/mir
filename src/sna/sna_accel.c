@@ -2254,7 +2254,7 @@ static inline bool
 box_inplace(PixmapPtr pixmap, const BoxRec *box)
 {
 	struct sna *sna = to_sna_from_pixmap(pixmap);
-	return ((box->x2 - box->x1) * (box->y2 - box->y1) * pixmap->drawable.bitsPerPixel >> 15) >= sna->kgem.half_cpu_cache_pages;
+	return ((int)(box->x2 - box->x1) * (int)(box->y2 - box->y1) * pixmap->drawable.bitsPerPixel >> 12) >= sna->kgem.half_cpu_cache_pages;
 }
 
 #define PREFER_GPU	0x1
@@ -10381,22 +10381,27 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 	 */
 	hint = PREFER_GPU;
 	if (n == 1 && gc->fillStyle != FillStippled && alu_overwrites(gc->alu)) {
+		region.data = NULL;
 		if (priv->cpu_damage &&
 		    region_is_singular(gc->pCompositeClip)) {
-			region.data = NULL;
 			if (region_subsumes_damage(&region, priv->cpu_damage)) {
+				DBG(("%s: discarding existing CPU damage\n", __FUNCTION__));
 				sna_damage_destroy(&priv->cpu_damage);
 				list_del(&priv->list);
 			}
 		}
-		if (priv->cpu_damage == NULL) {
-			sna_damage_all(&priv->gpu_damage,
-				       pixmap->drawable.width,
-				       pixmap->drawable.height);
-			priv->undamaged = false;
-			priv->cpu = false;
+		if (region_subsumes_drawable(&region, &pixmap->drawable) ||
+		    box_inplace(pixmap, &region.extents)) {
+			DBG(("%s: promoting to full GPU\n", __FUNCTION__));
+			if (priv->cpu_damage == NULL) {
+				sna_damage_all(&priv->gpu_damage,
+					       pixmap->drawable.width,
+					       pixmap->drawable.height);
+				priv->undamaged = false;
+				priv->cpu = false;
+			}
+			hint |= IGNORE_CPU;
 		}
-		hint |= IGNORE_CPU;
 	}
 
 	bo = sna_drawable_use_bo(draw, hint, &region.extents, &damage);
