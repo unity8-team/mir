@@ -144,7 +144,7 @@ void sna_glyphs_close(struct sna *sna)
  * This function allocates the storage pixmap, and then fills in the
  * rest of the allocated structures for all caches with the given format.
  */
-Bool sna_glyphs_create(struct sna *sna)
+bool sna_glyphs_create(struct sna *sna)
 {
 	ScreenPtr screen = sna->scrn->pScreen;
 	pixman_color_t white = { 0xffff, 0xffff, 0xffff, 0xffff };
@@ -441,7 +441,7 @@ static void apply_damage_clipped_to_dst(struct sna_composite_op *op,
 	sna_damage_add_box(op->damage, &box);
 }
 
-static Bool
+static bool
 glyphs_to_dst(struct sna *sna,
 	      CARD8 op,
 	      PicturePtr src,
@@ -593,7 +593,7 @@ next_glyph:
 	return TRUE;
 }
 
-static Bool
+static bool
 glyphs_slow(struct sna *sna,
 	    CARD8 op,
 	    PicturePtr src,
@@ -730,7 +730,7 @@ too_large(struct sna *sna, int width, int height)
 		height > sna->render.max_3d_size);
 }
 
-static Bool
+static bool
 glyphs_via_mask(struct sna *sna,
 		CARD8 op,
 		PicturePtr src,
@@ -1033,17 +1033,32 @@ glyphs_format(int nlist, GlyphListPtr list, GlyphPtr * glyphs)
 	PictFormatPtr format = list[0].format;
 	int16_t x1, x2, y1, y2;
 	int16_t x, y;
-	BoxRec extents;
-	Bool first = TRUE;
+	BoxRec stack_extents[64], *list_extents = stack_extents;
+	int i, j;
+
+	if (nlist > ARRAY_SIZE(stack_extents) + 1) {
+		list_extents = malloc(sizeof(BoxRec) * (nlist-1));
+		if (list_extents == NULL)
+			return NULL;
+	}
 
 	x = 0;
 	y = 0;
-	extents.x1 = 0;
-	extents.y1 = 0;
-	extents.x2 = 0;
-	extents.y2 = 0;
-	while (nlist--) {
+	for (i = 0; i < nlist; i++) {
+		BoxRec extents;
+		bool first = true;
 		int n = list->len;
+
+		/* Check the intersection of each glyph within the list and
+		 * then each list against the previous lists.
+		 *
+		 * If we overlap then we cannot substitute a mask as the
+		 * rendering will be altered.
+		 */
+		extents.x1 = 0;
+		extents.y1 = 0;
+		extents.x2 = 0;
+		extents.y2 = 0;
 
 		if (format->format != list->format->format)
 			return NULL;
@@ -1074,8 +1089,10 @@ glyphs_format(int nlist, GlyphListPtr list, GlyphPtr * glyphs)
 			} else {
 				/* Potential overlap */
 				if (x1 < extents.x2 && x2 > extents.x1 &&
-				    y1 < extents.y2 && y2 > extents.y1)
-					return NULL;
+				    y1 < extents.y2 && y2 > extents.y1) {
+					format = NULL;
+					goto out;
+				}
 
 				if (x1 < extents.x1)
 					extents.x1 = x1;
@@ -1089,8 +1106,26 @@ glyphs_format(int nlist, GlyphListPtr list, GlyphPtr * glyphs)
 			x += glyph->info.xOff;
 			y += glyph->info.yOff;
 		}
+
+		/* Incrementally building a region is expensive. We expect
+		 * the number of lists to be small, so just keep a list
+		 * of the previous boxes and walk those.
+		 */
+		for (j = 0; j < i; j++) {
+			if (extents.x2 < list_extents[j].x1 &&
+			    extents.x1 > list_extents[j].x2 &&
+			    extents.y2 < list_extents[j].y1 &&
+			    extents.y1 > list_extents[j].y2) {
+				format = NULL;
+				goto out;
+			}
+		}
+		list_extents[i] = extents;
 	}
 
+out:
+	if (list_extents != stack_extents)
+		free(list_extents);
 	return format;
 }
 

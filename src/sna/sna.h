@@ -603,7 +603,7 @@ void sna_composite_trifan(CARD8 op,
 Bool sna_gradients_create(struct sna *sna);
 void sna_gradients_close(struct sna *sna);
 
-Bool sna_glyphs_create(struct sna *sna);
+bool sna_glyphs_create(struct sna *sna);
 void sna_glyphs(CARD8 op,
 		PicturePtr src,
 		PicturePtr dst,
