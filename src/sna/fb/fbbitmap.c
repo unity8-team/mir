@@ -90,10 +90,10 @@ fbBitmapToRegion(PixmapPtr pixmap)
 		for (base = 0; bits < end; base += FB_UNIT) {
 			FbBits w = READ(bits++);
 			if (x1 < 0) {
-				if (!~w)
+				if (!w)
 					continue;
 			} else {
-				if (!w)
+				if (!~w)
 					continue;
 			}
 			for (i = 0; i < FB_UNIT; i++) {
