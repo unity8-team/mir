@@ -158,6 +158,29 @@ if test "x$GLAMOR" != "xno"; then
 	AC_DEFINE(USE_GLAMOR, 1, [Enable glamor acceleration])
 fi
 
+
+PKG_CHECK_MODULES(XORG, [xorg-server >= $required_xorg_xserver_version xproto fontsproto pixman-1 >= $required_pixman_version $REQUIRED_MODULES])
+
+
+AC_MSG_CHECKING([whether to include XAA support])
+AC_ARG_ENABLE(xaa,
+	      AS_HELP_STRING([--enable-xaa],
+			     [Enable legacy X Acceleration Architecture (XAA) [default=auto]]),
+	      [XAA="$enableval"],
+	      [XAA=auto])
+AC_MSG_RESULT([$XAA])
+AM_CONDITIONAL(XAA, test "x$XAA" != xno)
+if test "x$XAA" != xno; then
+        save_CFLAGS=$CFLAGS
+        CFLAGS=$XSERVER_CFLAGS
+	AC_CHECK_HEADERS([xaa.h], XAA=yes, XAA=no)
+        CFLAGS=$save_CFLAGS
+fi
+if test "x$XAA" = xyes; then
+	AC_DEFINE(USE_XAA, 1, [Enable XAA support])
+fi
+AM_CONDITIONAL(XAA, test "x$XAA" = xyes)
+
 AC_ARG_WITH(default-accel,
 	    AS_HELP_STRING([--with-default-accel],
 			   [Select the default acceleration method [default=uxa if enabled, otherwise sna]]),
@@ -247,7 +270,6 @@ XORG_DRIVER_CHECK_EXT(XF86DRI, xextproto x11)
 XORG_DRIVER_CHECK_EXT(DPMSExtension, xextproto)
 
 # Obtain compiler/linker options for the driver dependencies
-PKG_CHECK_MODULES(XORG, [xorg-server >= $required_xorg_xserver_version xproto fontsproto pixman-1 >= $required_pixman_version $REQUIRED_MODULES])
 PKG_CHECK_MODULES(DRM, [libdrm >= 2.4.24]) # libdrm_intel is checked separately
 PKG_CHECK_MODULES(DRI, [xf86driproto], , DRI=no)
 PKG_CHECK_MODULES(DRI2, [dri2proto >= 2.6],, DRI2=no)

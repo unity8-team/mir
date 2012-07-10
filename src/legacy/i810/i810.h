@@ -42,7 +42,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "compiler.h"
 #include "xf86Pci.h"
 #include "i810_reg.h"
+#ifdef HAVE_XAA
 #include "xaa.h"
+#endif
 #include "xf86Cursor.h"
 #include "xf86xv.h"
 #include "vbe.h"
@@ -202,7 +204,9 @@ typedef struct _I810Rec {
    I810RegRec SavedReg;
    I810RegRec ModeReg;
 
+#ifdef XAA
    XAAInfoRecPtr AccelInfoRec;
+#endif
    xf86CursorInfoPtr CursorInfoRec;
    CloseScreenProcPtr CloseScreen;
    ScreenBlockHandlerProcPtr BlockHandler;

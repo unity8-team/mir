@@ -68,6 +68,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xf86xv.h"
 #include <X11/extensions/Xv.h>
 #include "vbe.h"
+#include "xf86fbman.h"
 
 #include "i810.h"
 
@@ -1094,6 +1095,7 @@ DoRestore(ScrnInfoPtr scrn, vgaRegPtr vgaReg, I810RegPtr i810Reg,
    hwp->writeCrtc(hwp, IO_CTNL, temp);
 }
 
+#ifdef HAVE_XAA
 static void
 I810SetRingRegs(ScrnInfoPtr scrn)
 {
@@ -1113,6 +1115,7 @@ I810SetRingRegs(ScrnInfoPtr scrn)
    itemp |= ((pI810->LpRing->mem.Size - 4096) | RING_NO_REPORT | RING_VALID);
    OUTREG(LP_RING + RING_LEN, itemp);
 }
+#endif
 
 static void
 I810Restore(ScrnInfoPtr scrn)
@@ -1700,6 +1703,7 @@ I810ScreenInit(SCREEN_INIT_ARGS_DECL)
       return FALSE;
    }
 
+#ifdef HAVE_XAA
    if (!xf86ReturnOptValBool(pI810->Options, OPTION_NOACCEL, FALSE)) {
       if (pI810->LpRing->mem.Size != 0) {
 	 I810SetRingRegs(scrn);
@@ -1711,6 +1715,7 @@ I810ScreenInit(SCREEN_INIT_ARGS_DECL)
 	     I810EmitFlush(scrn);
       }
    }
+#endif
 
    miInitializeBackingStore(screen);
    xf86SetBackingStore(screen);
@@ -1938,11 +1943,13 @@ I810LeaveVT(VT_FUNC_ARGS_DECL)
    }
 #endif
 
+#ifdef HAVE_XAA
    if (pI810->AccelInfoRec != NULL) {
       I810RefreshRing(scrn);
       I810Sync(scrn);
       pI810->AccelInfoRec->NeedToSync = FALSE;
    }
+#endif
    I810Restore(scrn);
 
    if (!I810UnbindGARTMemory(scrn))
@@ -1961,14 +1968,18 @@ I810CloseScreen(CLOSE_SCREEN_ARGS_DECL)
    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
    vgaHWPtr hwp = VGAHWPTR(scrn);
    I810Ptr pI810 = I810PTR(scrn);
+#ifdef HAVE_XAA
    XAAInfoRecPtr infoPtr = pI810->AccelInfoRec;
+#endif
 
    if (scrn->vtSema == TRUE) {
+#ifdef HAVE_XAA
       if (pI810->AccelInfoRec != NULL) {
 	 I810RefreshRing(scrn);
 	 I810Sync(scrn);
 	 pI810->AccelInfoRec->NeedToSync = FALSE;
       }
+#endif
       I810Restore(scrn);
       vgaHWLock(hwp);
    }
@@ -1993,12 +2004,14 @@ I810CloseScreen(CLOSE_SCREEN_ARGS_DECL)
       pI810->ScanlineColorExpandBuffers = NULL;
    }
 
+#ifdef HAVE_XAA
    if (infoPtr) {
       if (infoPtr->ScanlineColorExpandBuffers)
 	 free(infoPtr->ScanlineColorExpandBuffers);
       XAADestroyInfoRec(infoPtr);
       pI810->AccelInfoRec = NULL;
    }
+#endif
 
    if (pI810->CursorInfoRec) {
       xf86DestroyCursorInfoRec(pI810->CursorInfoRec);

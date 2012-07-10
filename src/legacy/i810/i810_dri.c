@@ -379,7 +379,7 @@ I810DRIScreenInit(ScreenPtr pScreen)
 
    pI810DRI->regsSize = I810_REG_SIZE;
    if (drmAddMap(pI810->drmSubFD, (drm_handle_t) pI810->MMIOAddr,
-		 pI810DRI->regsSize, DRM_REGISTERS, 0, 
+		 pI810DRI->regsSize, DRM_REGISTERS, 0,
 		 (drmAddress) &pI810DRI->regs) < 0) {
       xf86DrvMsg(pScreen->myNum, X_ERROR, "[drm] drmAddMap(regs) failed\n");
       DRICloseScreen(pScreen);
@@ -421,7 +421,7 @@ I810DRIScreenInit(ScreenPtr pScreen)
     * under the DRI.
     */
 
-   drmAgpAlloc(pI810->drmSubFD, 4096 * 1024, 1, NULL, 
+   drmAgpAlloc(pI810->drmSubFD, 4096 * 1024, 1, NULL,
 	       (drmAddress) &dcacheHandle);
    pI810->dcacheHandle = dcacheHandle;
 
@@ -507,7 +507,7 @@ I810DRIScreenInit(ScreenPtr pScreen)
 		 "[agp] GART: no dcache memory found\n");
    }
 
-   drmAgpAlloc(pI810->drmSubFD, back_size, 0, NULL, 
+   drmAgpAlloc(pI810->drmSubFD, back_size, 0, NULL,
 	       (drmAddress) &agpHandle);
    pI810->backHandle = agpHandle;
 
@@ -564,10 +564,10 @@ I810DRIScreenInit(ScreenPtr pScreen)
    /* Now allocate and bind the agp space.  This memory will include the
     * regular framebuffer as well as texture memory.
     */
-   drmAgpAlloc(pI810->drmSubFD, sysmem_size, 0, NULL, 
+   drmAgpAlloc(pI810->drmSubFD, sysmem_size, 0, NULL,
 	       (drmAddress)&agpHandle);
    pI810->sysmemHandle = agpHandle;
-   
+
    if (agpHandle != DRM_AGP_NO_HANDLE) {
       if (drmAgpBind(pI810->drmSubFD, agpHandle, 0) == 0) {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -610,7 +610,7 @@ I810DRIScreenInit(ScreenPtr pScreen)
       }
       drmAgpAlloc(pI810->drmSubFD, pI810->MC.Size, 0, NULL,
 		  (drmAddress) &agpHandle);
-      
+
       pI810->xvmcHandle = agpHandle;
 
       if (agpHandle != DRM_AGP_NO_HANDLE) {
@@ -634,7 +634,7 @@ I810DRIScreenInit(ScreenPtr pScreen)
    }
 
    drmAgpAlloc(pI810->drmSubFD, 4096, 2,
-	       (unsigned long *)&pI810->CursorPhysical, 
+	       (unsigned long *)&pI810->CursorPhysical,
 	       (drmAddress) &agpHandle);
 
    pI810->cursorHandle = agpHandle;
@@ -787,7 +787,7 @@ I810DRIScreenInit(ScreenPtr pScreen)
    pI810DRI->agp_buf_size = pI810->BufferMem.Size;
 
    if (drmAddMap(pI810->drmSubFD, (drm_handle_t) pI810->LpRing->mem.Start,
-		 pI810->LpRing->mem.Size, DRM_AGP, 0, 
+		 pI810->LpRing->mem.Size, DRM_AGP, 0,
 		 (drmAddress) &pI810->ring_map) < 0) {
       xf86DrvMsg(pScreen->myNum, X_ERROR,
 		 "[drm] drmAddMap(ring_map) failed.  Disabling DRI.\n");
@@ -821,7 +821,7 @@ I810DRIScreenInit(ScreenPtr pScreen)
    }
 
    if (drmAddMap(pI810->drmSubFD, (drm_handle_t) pI810->TexMem.Start,
-		 pI810->TexMem.Size, DRM_AGP, 0, 
+		 pI810->TexMem.Size, DRM_AGP, 0,
 		 (drmAddress) &pI810DRI->textures) < 0) {
       xf86DrvMsg(pScreen->myNum, X_ERROR,
 		 "[drm] drmAddMap(textures) failed.  Disabling DRI.\n");
@@ -975,7 +975,7 @@ I810DRIFinishScreenInit(ScreenPtr pScreen)
     */
    if (info->allowPageFlip && info->drmMinor >= 3) {
      ShadowFBInit( pScreen, I810DRIRefreshArea );
-   } 
+   }
    else
      info->allowPageFlip = 0;
    return DRIFinishScreenInit(pScreen);
@@ -1009,11 +1009,20 @@ I810DRISwapContext(ScreenPtr pScreen, DRISyncType syncType,
 }
 
 static void
+I810DRISetNeedSync(ScrnInfoPtr pScrn)
+{
+#ifdef HAVE_XAA
+   I810Ptr pI810 = I810PTR(pScrn);
+   if (pI810->AccelInfoRec)
+	pI810->AccelInfoRec->NeedToSync = TRUE;
+#endif
+}
+
+static void
 I810DRIInitBuffers(WindowPtr pWin, RegionPtr prgn, CARD32 index)
 {
    ScreenPtr pScreen = pWin->drawable.pScreen;
    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
-   I810Ptr pI810 = I810PTR(pScrn);
    BoxPtr pbox = REGION_RECTS(prgn);
    int nbox = REGION_NUM_RECTS(prgn);
 
@@ -1041,8 +1050,7 @@ I810DRIInitBuffers(WindowPtr pWin, RegionPtr prgn, CARD32 index)
    }
    I810SelectBuffer(pScrn, I810_SELECT_FRONT);
 
-   if (pI810->AccelInfoRec)
-   	pI810->AccelInfoRec->NeedToSync = TRUE;
+   I810DRISetNeedSync(pScrn);
 }
 
 /* This routine is a modified form of XAADoBitBlt with the calls to
@@ -1058,7 +1066,6 @@ I810DRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
 {
    ScreenPtr pScreen = pParent->drawable.pScreen;
    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
-   I810Ptr pI810 = I810PTR(pScrn);
    BoxPtr pboxTmp, pboxNext, pboxBase;
    DDXPointPtr pptTmp, pptNew2 = NULL;
    int xdir, ydir;
@@ -1201,8 +1208,7 @@ I810DRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
       free(pboxNew1);
    }
 
-   if (pI810->AccelInfoRec)
-	pI810->AccelInfoRec->NeedToSync = TRUE;
+   I810DRISetNeedSync(pScrn);
 }
 
 
