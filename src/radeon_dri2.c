@@ -1400,7 +1400,9 @@ radeon_dri2_screen_init(ScreenPtr pScreen)
 
     info->dri2.device_name = drmGetDeviceNameFromFd(info->dri2.drm_fd);
 
-    if ( (info->ChipFamily >= CHIP_FAMILY_R600) ) {
+    if ( (info->ChipFamily >= CHIP_FAMILY_TAHITI) ) {
+        dri2_info.driverName = SI_DRIVER_NAME;
+    } else if ( (info->ChipFamily >= CHIP_FAMILY_R600) ) {
         dri2_info.driverName = R600_DRIVER_NAME;
     } else if ( (info->ChipFamily >= CHIP_FAMILY_R300) ) {
         dri2_info.driverName = R300_DRIVER_NAME;

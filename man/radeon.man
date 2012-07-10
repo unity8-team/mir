@@ -180,6 +180,12 @@ Radeon HD 6430/6450/6470/6490
 Radeon HD 6950/6970/6990
 .TP 12
 .B ARUBA
+.TP 12
+.B TAHITI
+.TP 12
+.B PITCAIRN
+.TP 12
+.B VERDE
 .PD
 .SH CONFIGURATION DETAILS
 Please refer to __xconfigfile__(__filemansuffix__) for general configuration

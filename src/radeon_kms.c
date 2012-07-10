@@ -418,6 +418,7 @@ static Bool RADEONPreInitAccel_KMS(ScrnInfoPtr pScrn)
 	(!RADEONIsAccelWorking(pScrn))) {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "GPU accel disabled or not working, using shadowfb for KMS\n");
+shadowfb:
 	info->r600_shadow_fb = TRUE;
 	if (!xf86LoadSubModule(pScrn, "shadow"))
 	    info->r600_shadow_fb = FALSE;
@@ -427,7 +428,9 @@ static Bool RADEONPreInitAccel_KMS(ScrnInfoPtr pScrn)
     if (radeon_glamor_pre_init(pScrn))
 	return TRUE;
 
-    if (info->ChipFamily == CHIP_FAMILY_PALM) {
+    if (info->ChipFamily >= CHIP_FAMILY_TAHITI) {
+	goto shadowfb;
+    } else if (info->ChipFamily == CHIP_FAMILY_PALM) {
 	info->accel_state->allowHWDFS = RADEONIsFusionGARTWorking(pScrn);
     } else
 	info->accel_state->allowHWDFS = TRUE;

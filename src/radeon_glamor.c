@@ -135,18 +135,85 @@ radeon_glamor_create_textured_pixmap(PixmapPtr pixmap)
 		return FALSE;
 }
 
+Bool radeon_glamor_pixmap_is_offscreen(PixmapPtr pixmap)
+{
+	struct radeon_pixmap *priv = radeon_get_pixmap_private(pixmap);
+	return priv && priv->bo;
+}
+
+Bool radeon_glamor_prepare_access(PixmapPtr pixmap, glamor_access_t access)
+{
+	ScrnInfoPtr scrn = xf86ScreenToScrn(pixmap->drawable.pScreen);
+	RADEONInfoPtr info = RADEONPTR(scrn);
+	struct radeon_bo *bo;
+	int ret;
+
+	if (access == GLAMOR_GPU_ACCESS_RW || access == GLAMOR_GPU_ACCESS_RO)
+		return info->ChipFamily < CHIP_FAMILY_TAHITI;
+
+	bo = radeon_get_pixmap_bo(pixmap);
+	if (bo) {
+		/* When falling back to swrast, flush all pending operations */
+		if (info->ChipFamily < CHIP_FAMILY_TAHITI)
+			radeon_glamor_flush(scrn);
+
+		ret = radeon_bo_map(bo, 1);
+		if (ret) {
+			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+				   "%s: bo map (tiling_flags %d, access %d) failed: %s\n",
+				   __FUNCTION__,
+				   radeon_get_pixmap_private(pixmap)->tiling_flags,
+				   access,
+				   strerror(-ret));
+			return FALSE;
+		}
+
+		pixmap->devPrivate.ptr = bo->ptr;
+	}
+
+	return TRUE;
+}
+
+void
+radeon_glamor_finish_access(PixmapPtr pixmap, glamor_access_t access)
+{
+	struct radeon_bo *bo;
+
+	switch(access) {
+	case GLAMOR_GPU_ACCESS_RW:
+	case GLAMOR_GPU_ACCESS_RO:
+		break;
+	case GLAMOR_CPU_ACCESS_RO:
+	case GLAMOR_CPU_ACCESS_RW:
+		bo = radeon_get_pixmap_bo(pixmap);
+		if (bo) {
+			radeon_bo_unmap(bo);
+			pixmap->devPrivate.ptr = NULL;
+		}
+		break;
+	default:
+		ErrorF("Invalid access mode %d\n", access);
+	}
+
+	return;
+}
+
 static PixmapPtr
 radeon_glamor_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 			unsigned usage)
 {
 	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+	RADEONInfoPtr info = RADEONPTR(scrn);
 	struct radeon_pixmap *priv;
 	PixmapPtr pixmap, new_pixmap = NULL;
 
 	if (!(usage & RADEON_CREATE_PIXMAP_DRI2)) {
-		pixmap = glamor_create_pixmap(screen, w, h, depth, usage);
-		if (pixmap)
-			return pixmap;
+		if (info->ChipFamily < CHIP_FAMILY_TAHITI) {
+			pixmap = glamor_create_pixmap(screen, w, h, depth, usage);
+			if (pixmap)
+				return pixmap;
+		} else
+			return fbCreatePixmap(screen, w, h, depth, usage);
 	}
 
 	if (w > 32767 || h > 32767)
@@ -230,9 +297,13 @@ Bool
 radeon_glamor_init(ScreenPtr screen)
 {
 	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+	RADEONInfoPtr info = RADEONPTR(scrn);
+	unsigned int glamor_init_flags = GLAMOR_INVERTED_Y_AXIS | GLAMOR_USE_EGL_SCREEN;
 
-	if (!glamor_init(screen, GLAMOR_INVERTED_Y_AXIS | GLAMOR_USE_EGL_SCREEN |
-			 GLAMOR_USE_SCREEN | GLAMOR_USE_PICTURE_SCREEN)) {
+	if (info->ChipFamily < CHIP_FAMILY_TAHITI)
+		glamor_init_flags |= GLAMOR_USE_SCREEN | GLAMOR_USE_PICTURE_SCREEN;
+
+	if (!glamor_init(screen, glamor_init_flags)) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "Failed to initialize glamor.\n");
 		return FALSE;
@@ -250,6 +321,13 @@ radeon_glamor_init(ScreenPtr screen)
 	if (!dixRequestPrivate(&glamor_pixmap_index, 0))
 #endif
 		return FALSE;
+
+	if (!(glamor_init_flags & GLAMOR_USE_SCREEN) &&
+	    !glamor_screen_init(screen)) {
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+			   "GLAMOR initialization failed\n");
+		return FALSE;
+	}
 
 	screen->CreatePixmap = radeon_glamor_create_pixmap;
 	screen->DestroyPixmap = radeon_glamor_destroy_pixmap;

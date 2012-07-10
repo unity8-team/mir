@@ -29,6 +29,7 @@
 
 #ifdef USE_GLAMOR
 
+#include "radeon_glamor_wrappers.h"
 #include "radeon_surface.h"
 
 Bool radeon_glamor_pre_init(ScrnInfoPtr scrn);
@@ -42,6 +43,8 @@ Bool radeon_glamor_create_textured_pixmap(PixmapPtr pixmap);
 void radeon_glamor_exchange_buffers(PixmapPtr src, PixmapPtr dst);
 
 Bool radeon_glamor_pixmap_is_offscreen(PixmapPtr pixmap);
+Bool radeon_glamor_prepare_access(PixmapPtr pixmap, glamor_access_t access);
+void radeon_glamor_finish_access(PixmapPtr pixmap, glamor_access_t access);
 
 struct radeon_pixmap {
 	struct radeon_surface surface;
@@ -85,6 +88,8 @@ static inline Bool radeon_glamor_create_textured_pixmap(PixmapPtr pixmap) { retu
 static inline void radeon_glamor_exchange_buffers(PixmapPtr src, PixmapPtr dst) {}
 
 static inline Bool radeon_glamor_pixmap_is_offscreen(PixmapPtr pixmap) { return FALSE; }
+static inline Bool radeon_glamor_prepare_access(PixmapPtr pixmap, int access) { return FALSE; }
+static inline void radeon_glamor_finish_access(PixmapPtr pixmap, int access) {}
 
 static inline struct radeon_pixmap *radeon_get_pixmap_private(PixmapPtr pixmap) { return NULL; }
 
