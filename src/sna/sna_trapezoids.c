@@ -3184,7 +3184,7 @@ composite_unaligned_boxes_inplace__solid(CARD8 op, uint32_t color,
 	/* XXX a8 boxes */
 	if (!(dst->format == PICT_a8r8g8b8 || dst->format == PICT_x8r8g8b8)) {
 		DBG(("%s: fallback -- can not perform operation in place, unhanbled format %08lx\n",
-		     __FUNCTION__, dst->format));
+		     __FUNCTION__, (long)dst->format));
 		goto pixman;
 	}
 

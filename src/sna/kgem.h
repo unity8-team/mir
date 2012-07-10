@@ -433,7 +433,7 @@ static inline bool kgem_bo_blt_pitch_is_ok(struct kgem *kgem,
 		pitch /= 4;
 	if (pitch > MAXSHORT) {
 		DBG(("%s: can not blt to handle=%d, adjusted pitch=%d\n",
-		     __FUNCTION__, pitch));
+		     __FUNCTION__, bo->handle, pitch));
 		return false;
 	}
 
