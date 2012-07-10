@@ -10393,7 +10393,7 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 		if (region_subsumes_drawable(&region, &pixmap->drawable) ||
 		    box_inplace(pixmap, &region.extents)) {
 			DBG(("%s: promoting to full GPU\n", __FUNCTION__));
-			if (priv->cpu_damage == NULL) {
+			if (priv->gpu_bo && priv->cpu_damage == NULL) {
 				sna_damage_all(&priv->gpu_damage,
 					       pixmap->drawable.width,
 					       pixmap->drawable.height);
