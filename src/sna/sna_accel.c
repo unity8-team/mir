@@ -12292,7 +12292,12 @@ sna_accel_flush_callback(CallbackListPtr *list,
 
 static struct sna_pixmap *sna_accel_scanout(struct sna *sna)
 {
-	struct sna_pixmap *priv = sna_pixmap(sna->front);
+	struct sna_pixmap *priv;
+
+	if (sna->vblank_interval == 0)
+		return NULL;
+
+	priv = sna_pixmap(sna->front);
 	return priv && priv->gpu_bo ? priv : NULL;
 }
 
