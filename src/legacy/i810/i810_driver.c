@@ -993,7 +993,7 @@ DoRestore(ScrnInfoPtr scrn, vgaRegPtr vgaReg, I810RegPtr i810Reg,
        uint32_t LCD_TV_Control = INREG(LCD_TV_C);
        uint32_t TV_HTotal = INREG(LCD_TV_HTOTAL);
        uint32_t ActiveStart, ActiveEnd;
-       
+
        if((LCD_TV_Control & LCD_TV_ENABLE)
 	  && !(LCD_TV_Control & LCD_TV_VGAMOD)
 	   && TV_HTotal) {
@@ -1006,7 +1006,7 @@ DoRestore(ScrnInfoPtr scrn, vgaRegPtr vgaReg, I810RegPtr i810Reg,
        OUTREG(LCD_TV_OVRACT,
 	      (ActiveEnd << 16) | ActiveStart);
    }
-   
+
    /* Turn on DRAM Refresh */
    temp = INREG8(DRAM_ROW_CNTL_HI);
    temp &= ~DRAM_REFRESH_RATE;
@@ -1585,11 +1585,11 @@ I810ScreenInit(SCREEN_INIT_ARGS_DECL)
 
    pI810->LpRing = calloc(sizeof(I810RingBuffer),1);
    if (!pI810->LpRing) {
-     xf86DrvMsg(scrn->scrnIndex, X_ERROR, 
+     xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 		"Could not allocate lpring data structure.\n");
      return FALSE;
    }
-   
+
    miClearVisualTypes();
 
    /* Re-implemented Direct Color support, -jens */
@@ -1623,7 +1623,7 @@ I810ScreenInit(SCREEN_INIT_ARGS_DECL)
     * pI810->directRenderingEnabled based on it each generation.
     */
    pI810->directRenderingEnabled = !pI810->directRenderingDisabled;
-   
+
    if (pI810->directRenderingEnabled==TRUE)
      pI810->directRenderingEnabled = I810DRIScreenInit(screen);
 
@@ -1693,7 +1693,7 @@ I810ScreenInit(SCREEN_INIT_ARGS_DECL)
    }
 #endif
 
-#ifdef XFreeXDGA
+#ifdef HAVE_DGA
    I810DGAInit(screen);
 #endif
 
