@@ -101,7 +101,8 @@ static PixmapPtr drmmode_create_bo_pixmap(ScrnInfoPtr pScrn,
 		return NULL;
 	}
 
-	exaMoveInPixmap(pixmap);
+	if (!info->use_glamor)
+		exaMoveInPixmap(pixmap);
 	radeon_set_pixmap_bo(pixmap, bo);
 	if (info->ChipFamily >= CHIP_FAMILY_R600) {
 		surface = radeon_get_pixmap_surface(pixmap);
@@ -278,7 +279,7 @@ void drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 	uint32_t tiling_flags = 0;
 	Bool ret;
 
-	if (info->accelOn == FALSE)
+	if (info->accelOn == FALSE || info->use_glamor)
 		goto fallback;
 
 	for (i = 0; i < xf86_config->num_crtc; i++) {
@@ -1441,6 +1442,9 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 		drmmode_set_mode_major(crtc, &crtc->mode,
 				       crtc->rotation, crtc->x, crtc->y);
 	}
+
+	if (info->use_glamor)
+		radeon_glamor_create_screen_resources(scrn->pScreen);
 
 	if (old_fb_id)
 		drmModeRmFB(drmmode->fd, old_fb_id);

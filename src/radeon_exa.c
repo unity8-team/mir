@@ -325,43 +325,11 @@ void RADEONEXADestroyPixmap(ScreenPtr pScreen, void *driverPriv)
     free(driverPriv);
 }
 
-struct radeon_bo *radeon_get_pixmap_bo(PixmapPtr pPix)
-{
-    struct radeon_exa_pixmap_priv *driver_priv;
-    driver_priv = exaGetPixmapDriverPrivate(pPix);
-    return driver_priv->bo;
-}
-
-struct radeon_surface *radeon_get_pixmap_surface(PixmapPtr pPix)
-{
-    struct radeon_exa_pixmap_priv *driver_priv;
-    driver_priv = exaGetPixmapDriverPrivate(pPix);
-    return &driver_priv->surface;
-}
-
 uint32_t radeon_get_pixmap_tiling(PixmapPtr pPix)
 {
     struct radeon_exa_pixmap_priv *driver_priv;
     driver_priv = exaGetPixmapDriverPrivate(pPix);
     return driver_priv->tiling_flags;
-}
-
-void radeon_set_pixmap_bo(PixmapPtr pPix, struct radeon_bo *bo)
-{
-    struct radeon_exa_pixmap_priv *driver_priv;
-
-    driver_priv = exaGetPixmapDriverPrivate(pPix);
-    if (driver_priv) {
-	uint32_t pitch;
-
-	if (driver_priv->bo)
-	    radeon_bo_unref(driver_priv->bo);
-
-	radeon_bo_ref(bo);
-	driver_priv->bo = bo;
-
-	radeon_bo_get_tiling(bo, &driver_priv->tiling_flags, &pitch);
-    }
 }
 
 Bool RADEONEXAPixmapIsOffscreen(PixmapPtr pPix)

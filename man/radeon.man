@@ -211,13 +211,6 @@ For example:
 Option \*qZaphodHeads\*q \*qLVDS,VGA-0\*q
 will assign xrandr outputs LVDS and VGA-0 to this instance of the driver.
 .TP
-.BI "Option \*qEXAVSync\*q \*q" boolean \*q
-This option attempts to avoid tearing by stalling the engine until the display
-controller has passed the destination region.  It reduces tearing at the cost
-of performance and has been known to cause instability on some chips.
-The default is
-.B off.
-.TP
 .BI "Option \*qColorTiling\*q \*q" "boolean" \*q
 The framebuffer can be addressed either in linear or tiled mode. Tiled mode can provide
 significant performance benefits with 3D applications.  Tiling will be disabled if the drm
@@ -241,6 +234,33 @@ The default value is
 .B off
 for R/RV6XX, R/RV7XX, RS780, RS880, EVERGREEN, and CAYMAN.
 .TP
+.BI "Option \*qEnablePageFlip\*q \*q" boolean \*q
+Enable DRI2 page flipping.  The default is
+.B on.
+Pageflipping is supported on all radeon hardware.
+.TP
+.BI "Option \*qAccelMethod\*q \*q" "string" \*q
+Chooses between available acceleration architectures.  Valid values are
+.B EXA
+and
+.B glamor.
+The default is
+.B EXA.
+
+.PP
+The following driver
+.B Options
+are supported for
+.B EXA
+:
+.TP
+.BI "Option \*qEXAVSync\*q \*q" boolean \*q
+This option attempts to avoid tearing by stalling the engine until the display
+controller has passed the destination region.  It reduces tearing at the cost
+of performance and has been known to cause instability on some chips.
+The default is
+.B off.
+.TP
 .BI "Option \*qEXAPixmaps\*q \*q" boolean \*q
 Under KMS, to avoid thrashing pixmaps in/out of VRAM on low memory cards,
 we use a heuristic based on VRAM amount to determine whether to allow EXA
@@ -259,11 +279,6 @@ the framerate of applications that render frames at less than refresh rate.
 .IP
 The default value is
 .B on.
-.TP
-.BI "Option \*qEnablePageFlip\*q \*q" boolean \*q
-Enable DRI2 page flipping.  The default is
-.B on.
-Pageflipping is supported on all radeon hardware.
 
 .SH TEXTURED VIDEO ATTRIBUTES
 The driver supports the following X11 Xv attributes for Textured Video.

@@ -73,6 +73,77 @@ struct dri2_buffer_priv {
 };
 
 
+static PixmapPtr get_drawable_pixmap(DrawablePtr drawable)
+{
+    if (drawable->type == DRAWABLE_PIXMAP)
+	return (PixmapPtr)drawable;
+    else
+	return (*drawable->pScreen->GetWindowPixmap)((WindowPtr)drawable);
+}
+
+
+static PixmapPtr fixup_glamor(DrawablePtr drawable, PixmapPtr pixmap)
+{
+	PixmapPtr old = get_drawable_pixmap(drawable);
+#ifdef USE_GLAMOR
+	ScreenPtr screen = drawable->pScreen;
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+	struct radeon_pixmap *priv = radeon_get_pixmap_private(pixmap);
+	GCPtr gc;
+
+	/* With a glamor pixmap, 2D pixmaps are created in texture
+	 * and without a static BO attached to it. To support DRI,
+	 * we need to create a new textured-drm pixmap and
+	 * need to copy the original content to this new textured-drm
+	 * pixmap, and then convert the old pixmap to a coherent
+	 * textured-drm pixmap which has a valid BO attached to it
+	 * and also has a valid texture, thus both glamor and DRI2
+	 * can access it.
+	 *
+	 */
+
+	/* Copy the current contents of the pixmap to the bo. */
+	gc = GetScratchGC(drawable->depth, screen);
+	if (gc) {
+		ValidateGC(&pixmap->drawable, gc);
+		gc->ops->CopyArea(&old->drawable, &pixmap->drawable,
+				  gc,
+				  0, 0,
+				  old->drawable.width,
+				  old->drawable.height,
+				  0, 0);
+		FreeScratchGC(gc);
+	}
+
+	radeon_set_pixmap_private(pixmap, NULL);
+	screen->DestroyPixmap(pixmap);
+
+	/* And redirect the pixmap to the new bo (for 3D). */
+	radeon_set_pixmap_private(old, priv);
+	old->refcnt++;
+
+	/* This creating should not fail, as we already created its
+	 * successfully. But if it happens, we put a warning indicator
+	 * here, and the old pixmap will still be a glamor pixmap, and
+	 * latter the pixmap_flink will get a 0 name, then the X server
+	 * will pass a BadAlloc to the client.*/
+	if (!radeon_glamor_create_textured_pixmap(old))
+		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+			   "Failed to get DRI drawable for glamor pixmap.\n");
+
+	screen->ModifyPixmapHeader(old,
+				   old->drawable.width,
+				   old->drawable.height,
+				   0, 0,
+				   priv->stride,
+				   NULL);
+
+#endif /* USE_GLAMOR*/
+
+	return old;
+}
+
+
 #ifndef USE_DRI2_1_1_0
 static BufferPtr
 radeon_dri2_create_buffers(DrawablePtr drawable,
@@ -85,13 +156,13 @@ radeon_dri2_create_buffers(DrawablePtr drawable,
     BufferPtr buffers;
     struct dri2_buffer_priv *privates;
     PixmapPtr pixmap, depth_pixmap;
-    struct radeon_exa_pixmap_priv *driver_priv;
+    struct radeon_bo *bo;
     int i, r, need_enlarge = 0;
     int flags = 0;
     unsigned front_width;
     uint32_t tiling = 0;
 
-    pixmap = screen->GetScreenPixmap(screen);
+    pixmap = pScreen->GetScreenPixmap(pScreen);
     front_width = pixmap->drawable.width;
 
     buffers = calloc(count, sizeof *buffers);
@@ -106,17 +177,25 @@ radeon_dri2_create_buffers(DrawablePtr drawable,
 
     depth_pixmap = NULL;
     for (i = 0; i < count; i++) {
+	Bool is_glamor_pixmap = FALSE;
+	unsigned aligned_width = drawable->width;
+	unsigned aligned_height = drawable->height;
+
         if (attachments[i] == DRI2BufferFrontLeft) {
-            if (drawable->type == DRAWABLE_PIXMAP) {
-                pixmap = (Pixmap*)drawable;
-            } else {
-                pixmap = (*pScreen->GetWindowPixmap)((WindowPtr)drawable);
-            }
-            pixmap->refcnt++;
+            pixmap = get_drawable_pixmap(drawable);
+	    if (info->use_glamor && !radeon_get_pixmap_bo(pixmap)) {
+		is_glamor_pixmap = TRUE;
+		aligned_width = pixmap->drawable.width;
+		aligned_height = pixmap->drawable.height;
+		pixmap = NULL;
+	    } else
+		pixmap->refcnt++;
         } else if (attachments[i] == DRI2BufferStencil && depth_pixmap) {
             pixmap = depth_pixmap;
             pixmap->refcnt++;
-        } else {
+        }
+
+	if (!pixmap) {
 	    /* tile the back buffer */
 	    switch(attachments[i]) {
 	    case DRI2BufferDepth:
@@ -145,6 +224,8 @@ radeon_dri2_create_buffers(DrawablePtr drawable,
 		break;
 	    case DRI2BufferBackLeft:
 	    case DRI2BufferBackRight:
+	    case DRI2BufferFrontLeft:
+	    case DRI2BufferFrontRight:
 	    case DRI2BufferFakeFrontLeft:
 	    case DRI2BufferFakeFrontRight:
 		if (info->ChipFamily >= CHIP_FAMILY_R600)
@@ -164,14 +245,15 @@ radeon_dri2_create_buffers(DrawablePtr drawable,
 	    if (flags & RADEON_CREATE_PIXMAP_TILING_MACRO)
 		tiling |= RADEON_TILING_MACRO;
 
+	    if (aligned_width == front_width)
+		aligned_width = pScrn->virtualX;
+
 	    if (need_enlarge) {
 		/* evergreen uses separate allocations for depth and stencil
 		 * so we make an extra large depth buffer to cover stencil
 		 * as well.
 		 */
-		unsigned aligned_width = drawable->width;
 		unsigned width_align = drmmode_get_pitch_align(pScrn, drawable->depth / 8, tiling);
-		unsigned aligned_height;
 		unsigned height_align = drmmode_get_height_align(pScrn, tiling);
 		unsigned base_align = drmmode_get_base_align(pScrn, drawable->depth / 8, tiling);
 		unsigned pitch_bytes;
@@ -181,42 +263,33 @@ radeon_dri2_create_buffers(DrawablePtr drawable,
 		    aligned_width = pScrn->virtualX;
 		aligned_width = RADEON_ALIGN(aligned_width, width_align);
 		pitch_bytes = aligned_width * (drawable->depth / 8);
-		aligned_height = RADEON_ALIGN(drawable->height, height_align);
+		aligned_height = RADEON_ALIGN(aligned_height, height_align);
 		size = pitch_bytes * aligned_height;
 		size = RADEON_ALIGN(size, base_align);
 		/* add additional size for stencil */
 		size += aligned_width * aligned_height;
 		aligned_height = RADEON_ALIGN(size / pitch_bytes, height_align);
-
-		pixmap = (*pScreen->CreatePixmap)(pScreen,
-						  aligned_width,
-						  aligned_height,
-						  drawable->depth,
-						  flags);
-
-	    } else {
-		unsigned aligned_width = drawable->width;
-
-		if (aligned_width == front_width)
-		    aligned_width = pScrn->virtualX;
-
-		pixmap = (*pScreen->CreatePixmap)(pScreen,
-						  aligned_width,
-						  drawable->height,
-						  drawable->depth,
-						  flags);
 	    }
+
+	    pixmap = (*pScreen->CreatePixmap)(pScreen,
+					      aligned_width,
+					      aligned_height,
+					      drawable->depth,
+					      flags | RADEON_CREATE_PIXMAP_DRI2);
         }
 
         if (attachments[i] == DRI2BufferDepth) {
             depth_pixmap = pixmap;
         }
-	info->exa_force_create = TRUE;
-	exaMoveInPixmap(pixmap);
-	info->exa_force_create = FALSE;
-        driver_priv = exaGetPixmapDriverPrivate(pixmap);
-	if (!driver_priv ||
-	    radeon_gem_get_kernel_name(driver_priv->bo, &buffers[i].name) != 0) {
+	if (!info->use_glamor) {
+	    info->exa_force_create = TRUE;
+	    exaMoveInPixmap(pixmap);
+	    info->exa_force_create = FALSE;
+	}
+	if (is_glamor_pixmap)
+	    pixmap = fixup_glamor(drawable, pixmap);
+	bo = radeon_get_pixmap_bo(pixmap);
+	if (!bo || radeon_gem_get_kernel_name(bo, &buffers[i].name) != 0) {
 	    int j;
 
 	    for (j = 0; j < i; j++)
@@ -249,11 +322,13 @@ radeon_dri2_create_buffer(DrawablePtr drawable,
     BufferPtr buffers;
     struct dri2_buffer_priv *privates;
     PixmapPtr pixmap, depth_pixmap;
-    struct radeon_exa_pixmap_priv *driver_priv;
+    struct radeon_bo *bo;
     int flags;
     unsigned front_width;
     uint32_t tiling = 0;
     unsigned aligned_width = drawable->width;
+    unsigned height = drawable->height;
+    Bool is_glamor_pixmap = FALSE;
 
     pixmap = pScreen->GetScreenPixmap(pScreen);
     front_width = pixmap->drawable.width;
@@ -261,16 +336,20 @@ radeon_dri2_create_buffer(DrawablePtr drawable,
     pixmap = depth_pixmap = NULL;
 
     if (attachment == DRI2BufferFrontLeft) {
-        if (drawable->type == DRAWABLE_PIXMAP) {
-            pixmap = (PixmapPtr)drawable;
-        } else {
-            pixmap = (*pScreen->GetWindowPixmap)((WindowPtr)drawable);
-        }
-        pixmap->refcnt++;
+        pixmap = get_drawable_pixmap(drawable);
+	if (info->use_glamor && !radeon_get_pixmap_bo(pixmap)) {
+	    is_glamor_pixmap = TRUE;
+	    aligned_width = pixmap->drawable.width;
+	    height = pixmap->drawable.height;
+	    pixmap = NULL;
+	} else
+	    pixmap->refcnt++;
     } else if (attachment == DRI2BufferStencil && depth_pixmap) {
         pixmap = depth_pixmap;
         pixmap->refcnt++;
-    } else {
+    }
+
+    if (!pixmap) {
 	/* tile the back buffer */
 	switch(attachment) {
 	case DRI2BufferDepth:
@@ -310,6 +389,8 @@ radeon_dri2_create_buffer(DrawablePtr drawable,
 	    break;
 	case DRI2BufferBackLeft:
 	case DRI2BufferBackRight:
+	case DRI2BufferFrontLeft:
+	case DRI2BufferFrontRight:
 	case DRI2BufferFakeFrontLeft:
 	case DRI2BufferFakeFrontRight:
 	    if (info->ChipFamily >= CHIP_FAMILY_R600) {
@@ -336,9 +417,9 @@ radeon_dri2_create_buffer(DrawablePtr drawable,
 
 	    pixmap = (*pScreen->CreatePixmap)(pScreen,
 					      aligned_width,
-					      drawable->height,
+					      height,
 					      (format != 0)?format:drawable->depth,
-					      flags);
+					      flags | RADEON_CREATE_PIXMAP_DRI2);
     }
 
     if (!pixmap)
@@ -351,12 +432,15 @@ radeon_dri2_create_buffer(DrawablePtr drawable,
     if (attachment == DRI2BufferDepth) {
         depth_pixmap = pixmap;
     }
-    info->exa_force_create = TRUE;
-    exaMoveInPixmap(pixmap);
-    info->exa_force_create = FALSE;
-    driver_priv = exaGetPixmapDriverPrivate(pixmap);
-    if (!driver_priv ||
-	(radeon_gem_get_kernel_name(driver_priv->bo, &buffers->name) != 0))
+    if (!info->use_glamor) {
+	info->exa_force_create = TRUE;
+	exaMoveInPixmap(pixmap);
+	info->exa_force_create = FALSE;
+    }
+    if (is_glamor_pixmap)
+	pixmap = fixup_glamor(drawable, pixmap);
+    bo = radeon_get_pixmap_bo(pixmap);
+    if (!bo || radeon_gem_get_kernel_name(bo, &buffers->name) != 0)
         goto error;
 
     privates = calloc(1, sizeof(struct dri2_buffer_priv));
@@ -476,11 +560,10 @@ radeon_dri2_copy_region(DrawablePtr drawable,
 	    if (extents->x1 == 0 && extents->y1 == 0 &&
 		extents->x2 == drawable->width &&
 		extents->y2 == drawable->height) {
-		struct radeon_exa_pixmap_priv *exa_priv =
-		    exaGetPixmapDriverPrivate(dst_private->pixmap);
+		struct radeon_bo *bo = radeon_get_pixmap_bo(dst_private->pixmap);
 
-		if (exa_priv && exa_priv->bo)
-		    radeon_bo_wait(exa_priv->bo);
+		if (bo)
+		    radeon_bo_wait(bo);
 	    }
 	}
     }
@@ -643,7 +726,7 @@ radeon_dri2_schedule_flip(ScrnInfoPtr scrn, ClientPtr client,
 			  void *data, unsigned int target_msc)
 {
     struct dri2_buffer_priv *back_priv;
-    struct radeon_exa_pixmap_priv *exa_priv;
+    struct radeon_bo *bo;
     DRI2FrameEventPtr flip_info;
 
     /* Main crtc for this drawable shall finally deliver pageflip event. */
@@ -665,9 +748,9 @@ radeon_dri2_schedule_flip(ScrnInfoPtr scrn, ClientPtr client,
 
     /* Page flip the full screen buffer */
     back_priv = back->driverPrivate;
-    exa_priv = exaGetPixmapDriverPrivate(back_priv->pixmap);
+    bo = radeon_get_pixmap_bo(back_priv->pixmap);
 
-    return radeon_do_pageflip(scrn, exa_priv->bo, flip_info, ref_crtc_hw_id);
+    return radeon_do_pageflip(scrn, bo, flip_info, ref_crtc_hw_id);
 }
 
 static Bool
@@ -675,19 +758,17 @@ update_front(DrawablePtr draw, DRI2BufferPtr front)
 {
     int r;
     PixmapPtr pixmap;
+    RADEONInfoPtr info = RADEONPTR(xf86ScreenToScrn(draw->pScreen));
     struct dri2_buffer_priv *priv = front->driverPrivate;
-    struct radeon_exa_pixmap_priv *driver_priv;
+    struct radeon_bo *bo;
 
-    if (draw->type == DRAWABLE_PIXMAP)
-	pixmap = (PixmapPtr)draw;
-    else
-	pixmap = (*draw->pScreen->GetWindowPixmap)((WindowPtr)draw);
-
+    pixmap = get_drawable_pixmap(draw);
     pixmap->refcnt++;
 
-    exaMoveInPixmap(pixmap);
-    driver_priv = exaGetPixmapDriverPrivate(pixmap);
-    r = radeon_gem_get_kernel_name(driver_priv->bo, &front->name);
+    if (!info->use_glamor)
+	exaMoveInPixmap(pixmap);
+    bo = radeon_get_pixmap_bo(pixmap);
+    r = radeon_gem_get_kernel_name(bo, &front->name);
     if (r) {
 	(*draw->pScreen->DestroyPixmap)(pixmap);
 	return FALSE;
@@ -753,10 +834,9 @@ radeon_dri2_exchange_buffers(DrawablePtr draw, DRI2BufferPtr front, DRI2BufferPt
 {
     struct dri2_buffer_priv *front_priv = front->driverPrivate;
     struct dri2_buffer_priv *back_priv = back->driverPrivate;
-    struct radeon_exa_pixmap_priv *front_radeon, *back_radeon;
+    struct radeon_bo *front_bo, *back_bo;
     ScreenPtr screen;
     RADEONInfoPtr info;
-    struct radeon_bo *bo;
     int tmp;
 
     /* Swap BO names so DRI works */
@@ -765,22 +845,22 @@ radeon_dri2_exchange_buffers(DrawablePtr draw, DRI2BufferPtr front, DRI2BufferPt
     back->name = tmp;
 
     /* Swap pixmap bos */
-    front_radeon = exaGetPixmapDriverPrivate(front_priv->pixmap);
-    back_radeon = exaGetPixmapDriverPrivate(back_priv->pixmap);
-    bo = back_radeon->bo;
-    back_radeon->bo = front_radeon->bo;
-    front_radeon->bo = bo;
+    front_bo = radeon_get_pixmap_bo(front_priv->pixmap);
+    back_bo = radeon_get_pixmap_bo(back_priv->pixmap);
+    radeon_set_pixmap_bo(front_priv->pixmap, back_bo);
+    radeon_set_pixmap_bo(back_priv->pixmap, front_bo);
 
     /* Do we need to update the Screen? */
     screen = draw->pScreen;
     info = RADEONPTR(xf86ScreenToScrn(screen));
-    if (front_radeon->bo == info->front_bo) {
+    if (front_bo == info->front_bo) {
+	radeon_bo_ref(back_bo);
 	radeon_bo_unref(info->front_bo);
-	info->front_bo = back_radeon->bo;
-	radeon_bo_ref(info->front_bo);
-	front_radeon = exaGetPixmapDriverPrivate(screen->GetScreenPixmap(screen));
-        front_radeon->bo = bo;
+	info->front_bo = back_bo;
+	radeon_set_pixmap_bo(screen->GetScreenPixmap(screen), back_bo);
     }
+
+    radeon_glamor_exchange_buffers(front_priv->pixmap, back_priv->pixmap);
 }
 
 void radeon_dri2_frame_event_handler(unsigned int frame, unsigned int tv_sec,

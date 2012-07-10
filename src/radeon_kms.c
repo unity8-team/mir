@@ -224,7 +224,7 @@ static Bool RADEONCreateScreenResources_KMS(ScreenPtr pScreen)
 	    return FALSE;
     }
 
-    if (info->dri2.enabled) {
+    if (info->dri2.enabled || info->use_glamor) {
 	if (info->front_bo) {
 	    PixmapPtr pPix = pScreen->GetScreenPixmap(pScreen);
 	    radeon_set_pixmap_bo(pPix, info->front_bo);
@@ -234,6 +234,10 @@ static Bool RADEONCreateScreenResources_KMS(ScreenPtr pScreen)
 	    }
 	}
     }
+
+    if (info->use_glamor)
+	radeon_glamor_create_screen_resources(pScreen);
+
     return TRUE;
 }
 
@@ -247,6 +251,9 @@ static void RADEONBlockHandler_KMS(BLOCKHANDLER_ARGS_DECL)
     (*pScreen->BlockHandler) (BLOCKHANDLER_ARGS);
     pScreen->BlockHandler = RADEONBlockHandler_KMS;
 
+    if (info->use_glamor)
+	radeon_glamor_flush(pScrn);
+
     radeon_cs_flush_indirect(pScrn);
 }
 
@@ -258,6 +265,7 @@ radeon_flush_callback(CallbackListPtr *list,
 
     if (pScrn->vtSema) {
         radeon_cs_flush_indirect(pScrn);
+	radeon_glamor_flush(pScrn);
     }
 }
 
@@ -415,6 +423,9 @@ static Bool RADEONPreInitAccel_KMS(ScrnInfoPtr pScrn)
 	    info->r600_shadow_fb = FALSE;
 	return TRUE;
     }
+
+    if (radeon_glamor_pre_init(pScrn))
+	return TRUE;
 
     if (info->ChipFamily == CHIP_FAMILY_PALM) {
 	info->accel_state->allowHWDFS = RADEONIsFusionGARTWorking(pScrn);
@@ -838,16 +849,18 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 	}
     }
 
-    info->exa_pixmaps = xf86ReturnOptValBool(info->Options,
-                                             OPTION_EXA_PIXMAPS, 
-					     ((info->vram_size > (32 * 1024 * 1024) &&
-					      info->RenderAccel)));
-    if (info->exa_pixmaps)
-    	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		"EXA: Driver will allow EXA pixmaps in VRAM\n");
-    else
-    	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		"EXA: Driver will not allow EXA pixmaps in VRAM\n");
+    if (!info->use_glamor) {
+	info->exa_pixmaps = xf86ReturnOptValBool(info->Options,
+						 OPTION_EXA_PIXMAPS,
+						 ((info->vram_size > (32 * 1024 * 1024) &&
+						 info->RenderAccel)));
+	if (info->exa_pixmaps)
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		       "EXA: Driver will allow EXA pixmaps in VRAM\n");
+	else
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		       "EXA: Driver will not allow EXA pixmaps in VRAM\n");
+    }
 
     /* no tiled scanout on r6xx+ yet */
     if (info->allowColorTiling) {
@@ -1186,7 +1199,7 @@ Bool RADEONScreenInit_KMS(SCREEN_INIT_ARGS_DECL)
      */
     /* xf86DiDGAInit(pScreen, info->LinearAddr + pScrn->fbOffset); */
 #endif
-    if (info->r600_shadow_fb == FALSE) {
+    if (!info->use_glamor && info->r600_shadow_fb == FALSE) {
         /* Init Xv */
         xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
                        "Initializing Xv\n");
@@ -1322,7 +1335,7 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
 	xf86DrvMsg(pScreen->myNum, X_ERROR, "Memory map already initialized\n");
 	return FALSE;
     }
-    if (info->r600_shadow_fb == FALSE) {
+    if (!info->use_glamor && info->r600_shadow_fb == FALSE) {
         info->accel_state->exa = exaDriverAlloc();
         if (info->accel_state->exa == NULL) {
 	    xf86DrvMsg(pScreen->myNum, X_ERROR, "exaDriverAlloc failed\n");

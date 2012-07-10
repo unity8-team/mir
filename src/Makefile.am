@@ -64,6 +64,13 @@ radeon_drv_la_SOURCES = \
 	$(RADEON_EXA_SOURCES) \
 	$(RADEON_KMS_SRCS)
 
+if GLAMOR
+AM_CFLAGS += @LIBGLAMOR_CFLAGS@
+radeon_drv_la_LIBADD += @LIBGLAMOR_LIBS@
+radeon_drv_la_SOURCES += \
+	 radeon_glamor.c
+endif
+
 EXTRA_DIST = \
 	radeon_textured_videofuncs.c \
 	r600_reg.h \
@@ -88,6 +95,7 @@ EXTRA_DIST = \
 	radeon_exa_render.c \
 	radeon_exa_funcs.c \
 	radeon_exa_shared.h \
+	radeon_glamor.h \
 	radeon.h \
 	radeon_probe.h \
 	radeon_reg.h \

@@ -91,6 +91,20 @@ AM_CONDITIONAL(LIBUDEV, test x$LIBUDEV = xyes)
 SAVE_CPPFLAGS="$CPPFLAGS"
 CPPFLAGS="$CPPFLAGS $XORG_CFLAGS"
 
+AC_MSG_CHECKING([whether to include GLAMOR support])
+AC_ARG_ENABLE(glamor,
+	      AS_HELP_STRING([--enable-glamor],
+			     [Enable glamor, a new GL-based acceleration [default=no]]),
+	      [GLAMOR="$enableval"],
+	      [GLAMOR=no])
+AC_MSG_RESULT([$GLAMOR])
+AM_CONDITIONAL(GLAMOR, test x$GLAMOR != xno)
+if test "x$GLAMOR" != "xno"; then
+	PKG_CHECK_MODULES(LIBGLAMOR, [glamor >= 0.3.1])
+	PKG_CHECK_MODULES(LIBGLAMOR_EGL, [glamor-egl])
+	AC_DEFINE(USE_GLAMOR, 1, [Enable glamor acceleration])
+fi
+
 AC_CHECK_DECL(xf86ModeBandwidth,
 	      [AC_DEFINE(HAVE_XF86MODEBANDWIDTH, 1, [Have xf86ModeBandwidth prototype])],
 	      [],

@@ -182,7 +182,12 @@ Bool RADEONAccelInit(ScreenPtr pScreen)
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
 
     if (info->directRenderingEnabled) {
-	if (info->ChipFamily >= CHIP_FAMILY_CEDAR) {
+	if (info->use_glamor) {
+	    if (!radeon_glamor_init(pScreen)) {
+		info->use_glamor = FALSE;
+		return FALSE;
+	    }
+	} else if (info->ChipFamily >= CHIP_FAMILY_CEDAR) {
 	    if (!EVERGREENDrawInit(pScreen))
 		return FALSE;
 	} else

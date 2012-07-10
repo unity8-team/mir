@@ -51,6 +51,7 @@
 
 #include "exa.h"
 
+#include "radeon_glamor.h"
 
 				/* Exa and Cursor Support */
 #include "xf86Cursor.h"
@@ -429,6 +430,7 @@ typedef struct {
     Bool              allowColorTiling2D;
     struct radeon_accel_state *accel_state;
     Bool              accelOn;
+    Bool              use_glamor;
     Bool	      exa_pixmaps;
     Bool              exa_force_create;
     XF86ModReqInfo    exaReq;
@@ -522,10 +524,106 @@ extern void radeon_ddx_cs_start(ScrnInfoPtr pScrn,
 				int num, const char *file,
 				const char *func, int line);
 void radeon_kms_update_vram_limit(ScrnInfoPtr pScrn, int new_fb_size);
-struct radeon_surface *radeon_get_pixmap_surface(PixmapPtr pPix);
-struct radeon_bo *radeon_get_pixmap_bo(PixmapPtr pPix);
-void radeon_set_pixmap_bo(PixmapPtr pPix, struct radeon_bo *bo);
+
+static inline struct radeon_surface *radeon_get_pixmap_surface(PixmapPtr pPix)
+{
+#ifdef USE_GLAMOR
+    RADEONInfoPtr info = RADEONPTR(xf86ScreenToScrn(pPix->drawable.pScreen));
+
+    if (info->use_glamor) {
+	struct radeon_pixmap *priv;
+	priv = radeon_get_pixmap_private(pPix);
+	return priv ? &priv->surface : NULL;
+    } else
+#endif
+    {
+	struct radeon_exa_pixmap_priv *driver_priv;
+	driver_priv = exaGetPixmapDriverPrivate(pPix);
+	return &driver_priv->surface;
+    }
+
+    return NULL;
+}
+
 uint32_t radeon_get_pixmap_tiling(PixmapPtr pPix);
+
+static inline void radeon_set_pixmap_bo(PixmapPtr pPix, struct radeon_bo *bo)
+{
+#ifdef USE_GLAMOR
+    RADEONInfoPtr info = RADEONPTR(xf86ScreenToScrn(pPix->drawable.pScreen));
+
+    if (info->use_glamor) {
+	struct radeon_pixmap *priv;
+
+	priv = radeon_get_pixmap_private(pPix);
+	if (priv == NULL && bo == NULL)
+	    return;
+
+	if (priv) {
+	    if (priv->bo == bo)
+		return;
+
+	    if (priv->bo)
+		radeon_bo_unref(priv->bo);
+
+	    free(priv);
+	    priv = NULL;
+	}
+
+	if (bo) {
+	    uint32_t pitch;
+
+	    priv = calloc(1, sizeof (struct radeon_pixmap));
+	    if (priv == NULL)
+		goto out;
+
+	    radeon_bo_ref(bo);
+	    priv->bo = bo;
+
+	    radeon_bo_get_tiling(bo, &priv->tiling_flags, &pitch);
+	}
+out:
+	radeon_set_pixmap_private(pPix, priv);
+    } else
+#endif /* USE_GLAMOR */
+    {
+	struct radeon_exa_pixmap_priv *driver_priv;
+
+	driver_priv = exaGetPixmapDriverPrivate(pPix);
+	if (driver_priv) {
+	    uint32_t pitch;
+
+	    if (driver_priv->bo)
+		radeon_bo_unref(driver_priv->bo);
+
+	    radeon_bo_ref(bo);
+	    driver_priv->bo = bo;
+
+	    radeon_bo_get_tiling(bo, &driver_priv->tiling_flags, &pitch);
+	}
+    }
+}
+
+static inline struct radeon_bo *radeon_get_pixmap_bo(PixmapPtr pPix)
+{
+#ifdef USE_GLAMOR
+    RADEONInfoPtr info = RADEONPTR(xf86ScreenToScrn(pPix->drawable.pScreen));
+
+    if (info->use_glamor) {
+	struct radeon_pixmap *priv;
+	priv = radeon_get_pixmap_private(pPix);
+	return priv ? priv->bo : NULL;
+    } else
+#endif
+    {
+	struct radeon_exa_pixmap_priv *driver_priv;
+	driver_priv = exaGetPixmapDriverPrivate(pPix);
+	return driver_priv->bo;
+    }
+
+    return NULL;
+}
+
 
 #define CP_PACKET0(reg, n)						\
 	(RADEON_CP_PACKET0 | ((n) << 16) | ((reg) >> 2))
@@ -659,6 +757,7 @@ static __inline__ void RADEON_SYNC(RADEONInfoPtr info, ScrnInfoPtr pScrn)
 }
 
 enum {
+    RADEON_CREATE_PIXMAP_DRI2 = 0x08000000,
     RADEON_CREATE_PIXMAP_TILING_MACRO = 0x10000000,
     RADEON_CREATE_PIXMAP_TILING_MICRO = 0x20000000,
     RADEON_CREATE_PIXMAP_DEPTH = 0x40000000, /* for r200 */
