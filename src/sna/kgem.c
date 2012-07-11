@@ -712,7 +712,6 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 
 	list_init(&kgem->batch_partials);
 	list_init(&kgem->active_partials);
-	list_init(&kgem->cached_partials);
 	list_init(&kgem->requests);
 	list_init(&kgem->flushing);
 	list_init(&kgem->sync_list);
@@ -1387,16 +1386,11 @@ static void kgem_partial_buffer_release(struct kgem *kgem,
 
 static bool kgem_retire__partials(struct kgem *kgem)
 {
-	struct list *list[] = {
-		&kgem->active_partials,
-		&kgem->cached_partials,
-		NULL
-	}, **head = list;
 	bool retired = false;
 
-	do while (!list_is_empty(*head)) {
+	while (!list_is_empty(&kgem->active_partials)) {
 		struct kgem_partial_bo *bo =
-			list_last_entry(*head,
+			list_last_entry(&kgem->active_partials,
 					struct kgem_partial_bo,
 					base.list);
 
@@ -1409,7 +1403,7 @@ static bool kgem_retire__partials(struct kgem *kgem)
 		kgem_partial_buffer_release(kgem, bo);
 		kgem_bo_unref(kgem, &bo->base);
 		retired = true;
-	} while (*++head);
+	}
 
 	return retired;
 }
@@ -1765,12 +1759,8 @@ static void kgem_finish_partials(struct kgem *kgem)
 decouple:
 		DBG(("%s: releasing handle=%d\n",
 		     __FUNCTION__, bo->base.handle));
-		if (!list_is_empty(&bo->base.vma)) {
-			list_move(&bo->base.list, &kgem->cached_partials);
-		} else {
-			list_del(&bo->base.list);
-			kgem_bo_unref(kgem, &bo->base);
-		}
+		list_del(&bo->base.list);
+		kgem_bo_unref(kgem, &bo->base);
 	}
 }
 
