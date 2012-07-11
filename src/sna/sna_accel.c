@@ -1466,12 +1466,12 @@ static inline bool region_inplace(struct sna *sna,
 	     __FUNCTION__,
 	     region->extents.x2 - region->extents.x1,
 	     region->extents.y2 - region->extents.y1,
-	     ((region->extents.x2 - region->extents.x1) *
-	      (region->extents.y2 - region->extents.y1) *
+	     ((int)(region->extents.x2 - region->extents.x1) *
+	      (int)(region->extents.y2 - region->extents.y1) *
 	      pixmap->drawable.bitsPerPixel >> 12)
 	     >= sna->kgem.half_cpu_cache_pages));
-	return ((region->extents.x2 - region->extents.x1) *
-		(region->extents.y2 - region->extents.y1) *
+	return ((int)(region->extents.x2 - region->extents.x1) *
+		(int)(region->extents.y2 - region->extents.y1) *
 		pixmap->drawable.bitsPerPixel >> 12)
 		>= sna->kgem.half_cpu_cache_pages;
 }
@@ -2986,24 +2986,41 @@ static bool upload_inplace(struct sna *sna,
 			   struct sna_pixmap *priv,
 			   RegionRec *region)
 {
-	if (!region_inplace(sna, pixmap, region, priv, true))
+	if (!region_inplace(sna, pixmap, region, priv, true)) {
+		DBG(("%s? no, region not suitable\n", __FUNCTION__));
 		return false;
+	}
 
 	if (priv->gpu_bo) {
 		assert(priv->gpu_bo->proxy == NULL);
 
-		if (!kgem_bo_can_map(&sna->kgem, priv->gpu_bo))
+		if (!kgem_bo_can_map(&sna->kgem, priv->gpu_bo)) {
+			DBG(("%s? no, GPU bo not mappable\n", __FUNCTION__));
 			return false;
+		}
 
-		if (!kgem_bo_is_busy(priv->gpu_bo))
+		if (!kgem_bo_is_busy(priv->gpu_bo)) {
+			DBG(("%s? yes, GPU bo is idle\n", __FUNCTION__));
 			return true;
+		}
 
 		if (!priv->pinned &&
-		    region_subsumes_drawable(region, &pixmap->drawable))
+		    region_subsumes_drawable(region, &pixmap->drawable)) {
+			DBG(("%s? yes, will replace busy GPU\n", __FUNCTION__));
 			return true;
+		}
+
 	}
 
-	return priv->gpu_bo == NULL && priv->cpu_bo == NULL;
+	if (priv->cpu_bo) {
+		if (kgem_bo_is_busy(priv->cpu_bo)) {
+			DBG(("%s? yes, CPU bo is busy\n", __FUNCTION__));
+			return true;
+		}
+	}
+
+	DBG(("%s? no\n", __FUNCTION__));
+	return false;
 }
 
 static Bool
