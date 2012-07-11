@@ -1087,9 +1087,15 @@ glyphs_format(int nlist, GlyphListPtr list, GlyphPtr * glyphs)
 				extents.y2 = y2;
 				first = FALSE;
 			} else {
-				/* Potential overlap */
-				if (x1 < extents.x2 && x2 > extents.x1 &&
-				    y1 < extents.y2 && y2 > extents.y1) {
+				/* Potential overlap?
+				 * We cheat and ignore the boundary pixels, as
+				 * the likelihood of an actual overlap of
+				 * inkedk pixels being noticeable in the
+				 * boundary is small, yet glyphs frequently
+				 * overlap on the boundaries.
+				 */
+				if (x1 < extents.x2-1 && x2 > extents.x1+1 &&
+				    y1 < extents.y2-1 && y2 > extents.y1+1) {
 					format = NULL;
 					goto out;
 				}
@@ -1112,10 +1118,10 @@ glyphs_format(int nlist, GlyphListPtr list, GlyphPtr * glyphs)
 		 * of the previous boxes and walk those.
 		 */
 		for (j = 0; j < i; j++) {
-			if (extents.x2 < list_extents[j].x1 &&
-			    extents.x1 > list_extents[j].x2 &&
-			    extents.y2 < list_extents[j].y1 &&
-			    extents.y1 > list_extents[j].y2) {
+			if (extents.x1 < list_extents[j].x2-1 &&
+			    extents.x2 > list_extents[j].x1+1 &&
+			    extents.y1 < list_extents[j].y2-1 &&
+			    extents.y2 > list_extents[j].y1+1) {
 				format = NULL;
 				goto out;
 			}
@@ -1354,6 +1360,19 @@ cleanup_region:
 	RegionUninit(&region);
 }
 
+static bool op_is_bounded(uint8_t op)
+{
+	switch (op) {
+	case PictOpOver:
+	case PictOpOutReverse:
+	case PictOpAdd:
+	case PictOpXor:
+		return true;
+	default:
+		return false;
+	}
+}
+
 void
 sna_glyphs(CARD8 op,
 	   PicturePtr src,
@@ -1365,7 +1384,6 @@ sna_glyphs(CARD8 op,
 	PixmapPtr pixmap = get_drawable_pixmap(dst->pDrawable);
 	struct sna *sna = to_sna_from_pixmap(pixmap);
 	struct sna_pixmap *priv;
-	PictFormatPtr _mask;
 
 	DBG(("%s(op=%d, nlist=%d, src=(%d, %d))\n",
 	     __FUNCTION__, op, nlist, src_x, src_y));
@@ -1399,12 +1417,9 @@ sna_glyphs(CARD8 op,
 		goto fallback;
 	}
 
-	_mask = mask;
-	/* XXX discard the mask for non-overlapping glyphs? */
-
-	if (!_mask ||
+	if (!mask ||
 	    (((nlist == 1 && list->len == 1) || op == PictOpAdd) &&
-	     dst->format == (_mask->depth << 24 | _mask->format))) {
+	     dst->format == (mask->depth << 24 | mask->format))) {
 		if (glyphs_to_dst(sna, op,
 				  src, dst,
 				  src_x, src_y,
@@ -1412,11 +1427,24 @@ sna_glyphs(CARD8 op,
 			return;
 	}
 
-	if (!_mask)
-		_mask = glyphs_format(nlist, list, glyphs);
-	if (_mask) {
+	/* Try to discard the mask for non-overlapping glyphs */
+	if (mask &&
+	    op_is_bounded(op) &&
+	    dst->pCompositeClip->data == NULL &&
+	    mask == glyphs_format(nlist, list, glyphs)) {
+		if (glyphs_to_dst(sna, op,
+				  src, dst,
+				  src_x, src_y,
+				  nlist, list, glyphs))
+			return;
+	}
+
+	/* Otherwise see if we can substitute a mask */
+	if (!mask)
+		mask = glyphs_format(nlist, list, glyphs);
+	if (mask) {
 		if (glyphs_via_mask(sna, op,
-				    src, dst, _mask,
+				    src, dst, mask,
 				    src_x, src_y,
 				    nlist, list, glyphs))
 			return;
