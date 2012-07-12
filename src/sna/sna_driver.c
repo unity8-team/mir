@@ -891,7 +891,8 @@ sna_screen_init(SCREEN_INIT_ARGS_DECL)
 	miInitializeBackingStore(screen);
 	xf86SetBackingStore(screen);
 	xf86SetSilkenMouse(screen);
-	miDCInitialize(screen, xf86GetPointerScreenFuncs());
+	if (!miDCInitialize(screen, xf86GetPointerScreenFuncs()))
+		return FALSE;
 
 	xf86DrvMsg(scrn->scrnIndex, X_INFO, "Initializing HW Cursor\n");
 	if (!xf86_cursors_init(screen, SNA_CURSOR_X, SNA_CURSOR_Y,
