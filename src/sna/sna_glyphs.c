@@ -1417,9 +1417,7 @@ sna_glyphs(CARD8 op,
 		goto fallback;
 	}
 
-	if (!mask ||
-	    (((nlist == 1 && list->len == 1) || op == PictOpAdd) &&
-	     dst->format == (mask->depth << 24 | mask->format))) {
+	if (mask == NULL) {
 		if (glyphs_to_dst(sna, op,
 				  src, dst,
 				  src_x, src_y,
@@ -1428,9 +1426,8 @@ sna_glyphs(CARD8 op,
 	}
 
 	/* Try to discard the mask for non-overlapping glyphs */
-	if (mask &&
-	    op_is_bounded(op) &&
-	    dst->pCompositeClip->data == NULL &&
+	if (mask && dst->pCompositeClip->data == NULL &&
+	    (op_is_bounded(op) || (nlist == 1 && list->len == 1)) &&
 	    mask == glyphs_format(nlist, list, glyphs)) {
 		if (glyphs_to_dst(sna, op,
 				  src, dst,
