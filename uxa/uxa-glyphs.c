@@ -112,6 +112,9 @@ static void uxa_unrealize_glyph_caches(ScreenPtr pScreen)
 	uxa_screen_t *uxa_screen = uxa_get_screen(pScreen);
 	int i;
 
+	if (uxa_screen->info->flags & UXA_USE_GLAMOR)
+		return;
+
 	if (!uxa_screen->glyph_cache_initialized)
 		return;
 
@@ -211,6 +214,11 @@ bail:
 
 Bool uxa_glyphs_init(ScreenPtr pScreen)
 {
+
+	uxa_screen_t *uxa_screen = uxa_get_screen(pScreen);
+
+	if (uxa_screen->info->flags & UXA_USE_GLAMOR)
+		return TRUE;
 #if HAS_DIXREGISTERPRIVATEKEY
 	if (!dixRegisterPrivateKey(&uxa_glyph_key, PRIVATE_GLYPH, 0))
 		return FALSE;
@@ -307,8 +315,10 @@ uxa_glyph_unrealize(ScreenPtr screen,
 	struct uxa_glyph *priv;
 	uxa_screen_t *uxa_screen = uxa_get_screen(screen);
 
-	if (uxa_screen->info->flags & UXA_USE_GLAMOR)
+	if (uxa_screen->info->flags & UXA_USE_GLAMOR) {
 		glamor_glyph_unrealize(screen, glyph);
+		return;
+	}
 
 	/* Use Lookup in case we have not attached to this glyph. */
 	priv = dixLookupPrivate(&glyph->devPrivates, &uxa_glyph_key);
