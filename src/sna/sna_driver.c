@@ -941,12 +941,10 @@ sna_screen_init(SCREEN_INIT_ARGS_DECL)
 	xf86DPMSInit(screen, xf86DPMSSet, 0);
 
 	sna_video_init(sna, screen);
-#if USE_DRI2
 	sna->directRenderingOpen = sna_dri_open(sna, screen);
 	if (sna->directRenderingOpen)
 		xf86DrvMsg(scrn->scrnIndex, X_INFO,
 			   "direct rendering: DRI2 Enabled\n");
-#endif
 
 	if (serverGeneration == 1)
 		xf86ShowUnusedOptions(scrn->scrnIndex, scrn->options);

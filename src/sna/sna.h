@@ -58,10 +58,12 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <xf86drmMode.h>
 
 #include "../compat-api.h"
-#define _XF86DRI_SERVER_
 #include <drm.h>
-#include <dri2.h>
 #include <i915_drm.h>
+
+#ifdef HAVE_DRI2_H
+#include <dri2.h>
+#endif
 
 #if HAVE_UDEV
 #include <libudev.h>
@@ -338,11 +340,19 @@ extern xf86CrtcPtr sna_covering_crtc(ScrnInfoPtr scrn,
 extern bool sna_wait_for_scanline(struct sna *sna, PixmapPtr pixmap,
 				  xf86CrtcPtr crtc, const BoxRec *clip);
 
+#if HAVE_DRI2_H
 Bool sna_dri_open(struct sna *sna, ScreenPtr pScreen);
 void sna_dri_page_flip_handler(struct sna *sna, struct drm_event_vblank *event);
 void sna_dri_vblank_handler(struct sna *sna, struct drm_event_vblank *event);
 void sna_dri_destroy_window(WindowPtr win);
 void sna_dri_close(struct sna *sna, ScreenPtr pScreen);
+#else
+static inline bool sna_dri_open(struct sna *sna, ScreenPtr pScreen) { return false; }
+static inline void sna_dri_page_flip_handler(struct sna *sna, struct drm_event_vblank *event) { }
+static inline void sna_dri_vblank_handler(struct sna *sna, struct drm_event_vblank *event) { }
+static inline void sna_dri_destroy_window(WindowPtr win) { }
+static inline void sna_dri_close(struct sna *sna, ScreenPtr pScreen) { }
+#endif
 
 extern bool sna_crtc_on(xf86CrtcPtr crtc);
 int sna_crtc_to_pipe(xf86CrtcPtr crtc);

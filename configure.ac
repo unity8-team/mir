@@ -168,7 +168,7 @@ AC_ARG_ENABLE(xaa,
 	      [XAA=auto])
 if test "x$XAA" != xno; then
         save_CFLAGS=$CFLAGS
-        CFLAGS=$XSERVER_CFLAGS
+        CFLAGS=$XORG_CFLAGS
 	AC_CHECK_HEADERS([xaa.h], XAA=yes, XAA=no)
         CFLAGS=$save_CFLAGS
 fi
@@ -183,8 +183,8 @@ AC_ARG_ENABLE(dga,
 	      [DGA=auto])
 if test "x$DGA" != xno; then
         save_CFLAGS=$CFLAGS
-        CFLAGS=$XSERVER_CFLAGS
-	AC_CHECK_HEADERS([dgaproc.h], DGA=yes, DGA=no)
+        CFLAGS=$XORG_CFLAGS
+	AC_CHECK_HEADERS([dgaproc.h], DGA=yes, DGA=no, [#include <dixstruct.h>])
         CFLAGS=$save_CFLAGS
 fi
 AC_MSG_CHECKING([whether to include DGA support])
@@ -324,10 +324,16 @@ else
                 AC_MSG_ERROR([DRI requested but prerequisites not found])
         fi
 fi
-AM_CONDITIONAL(DRI2, test x$DRI2 != xno)
+
 if test "x$DRI2" != "xno"; then
-        AC_DEFINE(USE_DRI2,1,[Enable DRI2 driver support])
+	save_CFLAGS=$CFLAGS
+	CFLAGS="$XORG_CFLAGS $DRM_CFLAGS $DRI_CFLAGS $DRI2_CFLAGS"
+	AC_CHECK_HEADERS([dri2.h], DRI2=yes, DRI2=no, [#include <dixstruct.h>])
+	CFLAGS=$save_CFLAGS
 fi
+AC_MSG_CHECKING([whether to include DRI2 support])
+AM_CONDITIONAL(DRI2, test "x$DRI2" = xyes)
+AC_MSG_RESULT([$DRI2])
 
 if test "$XVMC" = yes; then
 	PKG_CHECK_MODULES(XVMCLIB,

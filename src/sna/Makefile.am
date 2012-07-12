@@ -27,7 +27,6 @@ AM_CFLAGS = \
 	@XORG_CFLAGS@ \
 	@UDEV_CFLAGS@ \
 	@DRM_CFLAGS@ \
-	@DRI_CFLAGS@ \
 	$(NULL)
 
 if DEBUG
@@ -83,12 +82,9 @@ libsna_la_SOURCES = \
 	$(NULL)
 
 if DRI2
-libsna_la_SOURCES += \
-	sna_dri.c \
-	$(NULL)
-libsna_la_LIBADD += \
-	$(DRI_LIBS) \
-	$(NULL)
+AM_CFLAGS += @DRI_CFLAGS@
+libsna_la_SOURCES += sna_dri.c
+libsna_la_LIBADD += $(DRI_LIBS)
 endif
 
 if XVMC
