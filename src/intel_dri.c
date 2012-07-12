@@ -1023,9 +1023,10 @@ I830DRI2ScheduleFlip(struct intel_screen_private *intel,
 	priv = info->front->driverPrivate;
 
 	/* Exchange the current front-buffer with the fresh bo */
+
+	intel->back_buffer = intel->front_buffer;
+	drm_intel_bo_reference(intel->back_buffer);
 	if (!(intel->uxa_flags & UXA_USE_GLAMOR)) {
-		intel->back_buffer = intel->front_buffer;
-		drm_intel_bo_reference(intel->back_buffer);
 		intel_set_pixmap_bo(priv->pixmap, new_back);
 		drm_intel_bo_unreference(new_back);
 	}
