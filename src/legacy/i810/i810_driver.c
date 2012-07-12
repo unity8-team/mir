@@ -1095,7 +1095,7 @@ DoRestore(ScrnInfoPtr scrn, vgaRegPtr vgaReg, I810RegPtr i810Reg,
    hwp->writeCrtc(hwp, IO_CTNL, temp);
 }
 
-#ifdef HAVE_XAA
+#ifdef HAVE_XAA_H
 static void
 I810SetRingRegs(ScrnInfoPtr scrn)
 {
@@ -1693,7 +1693,7 @@ I810ScreenInit(SCREEN_INIT_ARGS_DECL)
    }
 #endif
 
-#ifdef HAVE_DGA
+#ifdef HAVE_DGAPROC_H
    I810DGAInit(screen);
 #endif
 
@@ -1703,7 +1703,7 @@ I810ScreenInit(SCREEN_INIT_ARGS_DECL)
       return FALSE;
    }
 
-#ifdef HAVE_XAA
+#ifdef HAVE_XAA_H
    if (!xf86ReturnOptValBool(pI810->Options, OPTION_NOACCEL, FALSE)) {
       if (pI810->LpRing->mem.Size != 0) {
 	 I810SetRingRegs(scrn);
@@ -1943,7 +1943,7 @@ I810LeaveVT(VT_FUNC_ARGS_DECL)
    }
 #endif
 
-#ifdef HAVE_XAA
+#ifdef HAVE_XAA_H
    if (pI810->AccelInfoRec != NULL) {
       I810RefreshRing(scrn);
       I810Sync(scrn);
@@ -1968,12 +1968,12 @@ I810CloseScreen(CLOSE_SCREEN_ARGS_DECL)
    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
    vgaHWPtr hwp = VGAHWPTR(scrn);
    I810Ptr pI810 = I810PTR(scrn);
-#ifdef HAVE_XAA
+#ifdef HAVE_XAA_H
    XAAInfoRecPtr infoPtr = pI810->AccelInfoRec;
 #endif
 
    if (scrn->vtSema == TRUE) {
-#ifdef HAVE_XAA
+#ifdef HAVE_XAA_H
       if (pI810->AccelInfoRec != NULL) {
 	 I810RefreshRing(scrn);
 	 I810Sync(scrn);
@@ -2004,7 +2004,7 @@ I810CloseScreen(CLOSE_SCREEN_ARGS_DECL)
       pI810->ScanlineColorExpandBuffers = NULL;
    }
 
-#ifdef HAVE_XAA
+#ifdef HAVE_XAA_H
    if (infoPtr) {
       if (infoPtr->ScanlineColorExpandBuffers)
 	 free(infoPtr->ScanlineColorExpandBuffers);

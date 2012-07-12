@@ -161,43 +161,35 @@ fi
 
 PKG_CHECK_MODULES(XORG, [xorg-server >= $required_xorg_xserver_version xproto fontsproto pixman-1 >= $required_pixman_version $REQUIRED_MODULES])
 
-AC_MSG_CHECKING([whether to include XAA support])
 AC_ARG_ENABLE(xaa,
 	      AS_HELP_STRING([--enable-xaa],
 			     [Enable legacy X Acceleration Architecture (XAA) [default=auto]]),
 	      [XAA="$enableval"],
 	      [XAA=auto])
-AC_MSG_RESULT([$XAA])
-AM_CONDITIONAL(XAA, test "x$XAA" != xno)
 if test "x$XAA" != xno; then
         save_CFLAGS=$CFLAGS
         CFLAGS=$XSERVER_CFLAGS
 	AC_CHECK_HEADERS([xaa.h], XAA=yes, XAA=no)
         CFLAGS=$save_CFLAGS
 fi
-if test "x$XAA" = xyes; then
-	AC_DEFINE(USE_XAA, 1, [Enable XAA support])
-fi
+AC_MSG_CHECKING([whether to include XAA support])
 AM_CONDITIONAL(XAA, test "x$XAA" = xyes)
+AC_MSG_RESULT([$XAA])
 
-AC_MSG_CHECKING([whether to include DGA support])
 AC_ARG_ENABLE(dga,
 	      AS_HELP_STRING([--enable-dga],
 			     [Enable legacy Direct Graphics Access (DGA) [default=auto]]),
 	      [DGA="$enableval"],
 	      [DGA=auto])
-AC_MSG_RESULT([$DGA])
-AM_CONDITIONAL(DGA, test "x$DGA" != xno)
 if test "x$DGA" != xno; then
         save_CFLAGS=$CFLAGS
         CFLAGS=$XSERVER_CFLAGS
 	AC_CHECK_HEADERS([dgaproc.h], DGA=yes, DGA=no)
         CFLAGS=$save_CFLAGS
 fi
-if test "x$DGA" = xyes; then
-	AC_DEFINE(USE_DGA, 1, [Enable DGA support])
-fi
+AC_MSG_CHECKING([whether to include DGA support])
 AM_CONDITIONAL(DGA, test "x$DGA" = xyes)
+AC_MSG_RESULT([$DGA])
 
 AC_ARG_WITH(default-accel,
 	    AS_HELP_STRING([--with-default-accel],
