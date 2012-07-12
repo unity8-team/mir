@@ -115,30 +115,31 @@ AC_ARG_ENABLE(kms-only, AS_HELP_STRING([--enable-kms-only],
               [KMS_ONLY="$enableval"],
               [KMS_ONLY=no])
 
-AC_MSG_CHECKING([whether to include SNA support])
+required_xorg_xserver_version=1.6
+required_pixman_version=0.24
+
 AC_ARG_ENABLE(sna,
 	      AS_HELP_STRING([--enable-sna],
 			     [Enable SandyBridge's New Acceleration (SNA) [default=no]]),
 	      [SNA="$enableval"],
 	      [SNA=no])
-AM_CONDITIONAL(SNA, test x$SNA != xno)
-required_xorg_xserver_version=1.6
-required_pixman_version=0.24
 if test "x$SNA" != "xno"; then
 	required_xorg_xserver_version=1.10
 	AC_DEFINE(USE_SNA, 1, [Enable SNA support])
 	AC_CHECK_HEADERS([sys/sysinfo.h])
 fi
+AC_MSG_CHECKING([whether to include SNA support])
+AM_CONDITIONAL(SNA, test x$SNA != xno)
 AC_MSG_RESULT([$SNA])
 
-AC_MSG_CHECKING([whether to include UXA support])
 AC_ARG_ENABLE(uxa,
 	      AS_HELP_STRING([--enable-uxa],
 			     [Enable Unified Acceleration Architecture (UXA) [default=yes]]),
 	      [UXA="$enableval"],
 	      [UXA=yes])
-AC_MSG_RESULT([$UXA])
+AC_MSG_CHECKING([whether to include UXA support])
 AM_CONDITIONAL(UXA, test x$UXA != xno)
+AC_MSG_RESULT([$UXA])
 if test "x$UXA" != "xno"; then
 	AC_DEFINE(USE_UXA, 1, [Enable UXA support])
 	PKG_CHECK_MODULES(DRMINTEL, [libdrm_intel >= 2.4.29])
