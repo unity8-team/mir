@@ -1049,8 +1049,8 @@ glyphs_format(int nlist, GlyphListPtr list, GlyphPtr * glyphs)
 	BoxRec stack_extents[64], *list_extents = stack_extents;
 	int i, j;
 
-	if (nlist > ARRAY_SIZE(stack_extents) + 1) {
-		list_extents = malloc(sizeof(BoxRec) * (nlist-1));
+	if (nlist > ARRAY_SIZE(stack_extents)) {
+		list_extents = malloc(sizeof(BoxRec) * nlist);
 		if (list_extents == NULL)
 			return NULL;
 	}
