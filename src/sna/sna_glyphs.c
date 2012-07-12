@@ -108,6 +108,19 @@ static inline struct sna_glyph *sna_glyph(GlyphPtr glyph)
 
 #define NeedsComponent(f) (PICT_FORMAT_A(f) != 0 && PICT_FORMAT_RGB(f) != 0)
 
+static bool op_is_bounded(uint8_t op)
+{
+	switch (op) {
+	case PictOpOver:
+	case PictOpOutReverse:
+	case PictOpAdd:
+	case PictOpXor:
+		return true;
+	default:
+		return false;
+	}
+}
+
 void sna_glyphs_close(struct sna *sna)
 {
 	struct sna_render *render = &sna->render;
@@ -1208,6 +1221,11 @@ glyphs_fallback(CARD8 op,
 	src_x += dx - list->xOff;
 	src_y += dy - list->yOff;
 
+	if (mask_format &&
+	    (op_is_bounded(op) || (nlist == 1 && list->len == 1)) &&
+	    mask_format == glyphs_format(nlist, list, glyphs))
+		mask_format = NULL;
+
 	if (mask_format) {
 		DBG(("%s: create mask (%d, %d)x(%d,%d) + (%d,%d) + (%d,%d), depth=%d, format=%lx [%lx], ca? %d\n",
 		     __FUNCTION__,
@@ -1258,8 +1276,7 @@ glyphs_fallback(CARD8 op,
 				if (picture == NULL)
 					goto next_glyph;
 
-				glyph_image = image_from_pict(picture,
-							      FALSE,
+				glyph_image = image_from_pict(picture, FALSE,
 							      &gx, &gy);
 				if (!glyph_image)
 					goto next_glyph;
@@ -1358,19 +1375,6 @@ cleanup_dst:
 	free_pixman_pict(dst, dst_image);
 cleanup_region:
 	RegionUninit(&region);
-}
-
-static bool op_is_bounded(uint8_t op)
-{
-	switch (op) {
-	case PictOpOver:
-	case PictOpOutReverse:
-	case PictOpAdd:
-	case PictOpXor:
-		return true;
-	default:
-		return false;
-	}
 }
 
 void
