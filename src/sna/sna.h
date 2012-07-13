@@ -235,6 +235,7 @@ struct sna {
 
 	ScreenBlockHandlerProcPtr BlockHandler;
 	ScreenWakeupHandlerProcPtr WakeupHandler;
+	CloseScreenProcPtr CloseScreen;
 
 	PicturePtr clear;
 	struct {

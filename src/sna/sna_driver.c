@@ -704,6 +704,8 @@ sna_uevent_fini(ScrnInfoPtr scrn)
 		sna->uevent_monitor = NULL;
 	}
 }
+#else
+static void sna_uevent_fini(ScrnInfoPtr scrn) { }
 #endif /* HAVE_UDEV */
 
 static void sna_leave_vt(VT_FUNC_ARGS_DECL)
@@ -735,7 +737,35 @@ static Bool sna_mode_has_pending_events(struct sna *sna)
 	return poll(&pfd, 1, 0) == 1;
 }
 
-static Bool sna_close_screen(CLOSE_SCREEN_ARGS_DECL)
+static Bool sna_early_close_screen(CLOSE_SCREEN_ARGS_DECL)
+{
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+	struct sna *sna = to_sna(scrn);
+
+	DBG(("%s\n", __FUNCTION__));
+
+	sna_uevent_fini(scrn);
+
+	/* drain the event queues */
+	if (sna_mode_has_pending_events(sna))
+		sna_mode_wakeup(sna);
+
+	if (scrn->vtSema == TRUE) {
+		sna_leave_vt(VT_FUNC_ARGS(0));
+		scrn->vtSema = FALSE;
+	}
+
+	if (sna->dri_open) {
+		sna_dri_close(sna, screen);
+		sna->dri_open = false;
+	}
+
+	xf86_cursors_fini(screen);
+
+	return TRUE;
+}
+
+static Bool sna_late_close_screen(CLOSE_SCREEN_ARGS_DECL)
 {
 	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	struct sna *sna = to_sna(scrn);
@@ -744,20 +774,12 @@ static Bool sna_close_screen(CLOSE_SCREEN_ARGS_DECL)
 
 	DBG(("%s\n", __FUNCTION__));
 
-#if HAVE_UDEV
-	sna_uevent_fini(scrn);
-#endif
-
-	/* drain the event queues */
-	if (sna_mode_has_pending_events(sna))
-		sna_mode_wakeup(sna);
-
-	if (scrn->vtSema == TRUE)
-		sna_leave_vt(VT_FUNC_ARGS(0));
+	if (sna->front) {
+		screen->DestroyPixmap(sna->front);
+		sna->front = NULL;
+	}
 
 	sna_accel_close(sna);
-
-	xf86_cursors_fini(screen);
 
 	depths = screen->allowedDepths;
 	for (d = 0; d < screen->numDepths; d++)
@@ -766,18 +788,6 @@ static Bool sna_close_screen(CLOSE_SCREEN_ARGS_DECL)
 
 	free(screen->visuals);
 
-	if (sna->dri_open) {
-		sna_dri_close(sna, screen);
-		sna->dri_open = false;
-	}
-
-	if (sna->front) {
-		screen->DestroyPixmap(sna->front);
-		sna->front = NULL;
-	}
-	xf86GARTCloseScreen(scrn->scrnIndex);
-
-	scrn->vtSema = FALSE;
 	return TRUE;
 }
 
@@ -878,7 +888,7 @@ sna_screen_init(SCREEN_INIT_ARGS_DECL)
 	}
 
 	assert(screen->CloseScreen == NULL);
-	screen->CloseScreen = sna_close_screen;
+	screen->CloseScreen = sna_late_close_screen;
 	if (!sna_accel_init(screen, sna)) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "Hardware acceleration initialization failed\n");
@@ -893,8 +903,7 @@ sna_screen_init(SCREEN_INIT_ARGS_DECL)
 	if (!miDCInitialize(screen, xf86GetPointerScreenFuncs()))
 		return FALSE;
 
-	xf86DrvMsg(scrn->scrnIndex, X_INFO, "Initializing HW Cursor\n");
-	if (!xf86_cursors_init(screen, SNA_CURSOR_X, SNA_CURSOR_Y,
+	if (xf86_cursors_init(screen, SNA_CURSOR_X, SNA_CURSOR_Y,
 			       HARDWARE_CURSOR_TRUECOLOR_AT_8BPP |
 			       HARDWARE_CURSOR_BIT_ORDER_MSBFIRST |
 			       HARDWARE_CURSOR_INVERT_MASK |
@@ -902,10 +911,8 @@ sna_screen_init(SCREEN_INIT_ARGS_DECL)
 			       HARDWARE_CURSOR_AND_SOURCE_WITH_MASK |
 			       HARDWARE_CURSOR_SOURCE_MASK_INTERLEAVE_64 |
 			       HARDWARE_CURSOR_UPDATE_UNHIDDEN |
-			       HARDWARE_CURSOR_ARGB)) {
-		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-			   "Hardware cursor initialization failed\n");
-	}
+			       HARDWARE_CURSOR_ARGB))
+		xf86DrvMsg(scrn->scrnIndex, X_INFO, "HW Cursor enabled\n");
 
 	/* Must force it before EnterVT, so we are in control of VT and
 	 * later memory should be bound when allocating, e.g rotate_mem */
@@ -919,6 +926,9 @@ sna_screen_init(SCREEN_INIT_ARGS_DECL)
 
 	screen->SaveScreen = xf86SaveScreen;
 	screen->CreateScreenResources = sna_create_screen_resources;
+
+	sna->CloseScreen = screen->CloseScreen;
+	screen->CloseScreen = sna_early_close_screen;
 
 	if (!xf86CrtcScreenInit(screen))
 		return FALSE;
