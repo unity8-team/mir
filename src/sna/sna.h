@@ -252,7 +252,8 @@ struct sna {
 	} render_state;
 	uint32_t have_render;
 
-	Bool directRenderingOpen;
+	bool dri_available;
+	bool dri_open;
 	char *deviceName;
 
 	/* Broken-out options. */
