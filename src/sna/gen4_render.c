@@ -1335,7 +1335,8 @@ gen4_emit_pipelined_pointers(struct sna *sna,
 			     const struct sna_composite_op *op,
 			     int blend, int kernel)
 {
-	uint16_t offset = sna->kgem.nbatch, last;
+	uint32_t key;
+	uint16_t sp, bp;
 
 	DBG(("%s: has_mask=%d, src=(%d, %d), mask=(%d, %d),kernel=%d, blend=%d, ca=%d, format=%x\n",
 	     __FUNCTION__, op->mask.bo != NULL,
@@ -1343,28 +1344,28 @@ gen4_emit_pipelined_pointers(struct sna *sna,
 	     op->mask.filter, op->mask.repeat,
 	     kernel, blend, op->has_component_alpha, (int)op->dst.format));
 
+	sp = SAMPLER_OFFSET(op->src.filter, op->src.repeat,
+			      op->mask.filter, op->mask.repeat,
+			      kernel);
+	bp = gen4_get_blend(blend, op->has_component_alpha, op->dst.format);
+
+	key = op->mask.bo != NULL;
+	key |= sp << 1;
+	key |= bp << 16;
+
+	if (key == sna->render_state.gen4.last_pipelined_pointers)
+		return;
+
 	OUT_BATCH(GEN4_3DSTATE_PIPELINED_POINTERS | 5);
 	OUT_BATCH(sna->render_state.gen4.vs);
 	OUT_BATCH(GEN4_GS_DISABLE); /* passthrough */
 	OUT_BATCH(GEN4_CLIP_DISABLE); /* passthrough */
 	OUT_BATCH(sna->render_state.gen4.sf[op->mask.bo != NULL]);
-	OUT_BATCH(sna->render_state.gen4.wm +
-		  SAMPLER_OFFSET(op->src.filter, op->src.repeat,
-				 op->mask.filter, op->mask.repeat,
-				 kernel));
-	OUT_BATCH(sna->render_state.gen4.cc +
-		  gen4_get_blend(blend, op->has_component_alpha, op->dst.format));
+	OUT_BATCH(sna->render_state.gen4.wm + sp);
+	OUT_BATCH(sna->render_state.gen4.cc + bp);
 
-	last = sna->render_state.gen4.last_pipelined_pointers;
-	if (last &&
-	    sna->kgem.batch[offset + 4] == sna->kgem.batch[last + 4] &&
-	    sna->kgem.batch[offset + 5] == sna->kgem.batch[last + 5] &&
-	    sna->kgem.batch[offset + 6] == sna->kgem.batch[last + 6]) {
-		sna->kgem.nbatch = offset;
-	} else {
-		sna->render_state.gen4.last_pipelined_pointers = offset;
-		gen4_emit_urb(sna);
-	}
+	sna->render_state.gen4.last_pipelined_pointers = key;
+	gen4_emit_urb(sna);
 }
 
 static void
@@ -3240,7 +3241,7 @@ static void gen4_render_reset(struct sna *sna)
 	sna->render_state.gen4.vb_id = 0;
 	sna->render_state.gen4.ve_id = -1;
 	sna->render_state.gen4.last_primitive = -1;
-	sna->render_state.gen4.last_pipelined_pointers = 0;
+	sna->render_state.gen4.last_pipelined_pointers = -1;
 
 	sna->render_state.gen4.drawrect_offset = -1;
 	sna->render_state.gen4.drawrect_limit = -1;

@@ -338,11 +338,11 @@ struct gen4_render_state {
 	uint32_t drawrect_offset;
 	uint32_t drawrect_limit;
 	uint32_t vb_id;
+	uint32_t last_pipelined_pointers;
 	uint16_t vertex_offset;
 	uint16_t last_primitive;
 	int16_t floats_per_vertex;
 	uint16_t surface_table;
-	uint16_t last_pipelined_pointers;
 
 	Bool needs_invariant;
 	Bool needs_urb;
