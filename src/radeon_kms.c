@@ -425,6 +425,10 @@ shadowfb:
 	return TRUE;
     }
 
+#ifdef DRI2
+    info->dri2.available = !!xf86LoadSubModule(pScrn, "dri2");
+#endif
+
     if (radeon_glamor_pre_init(pScrn))
 	return TRUE;
 
@@ -740,6 +744,7 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 	goto fail;
     }
 
+    info->dri2.available = FALSE;
     info->dri2.enabled = FALSE;
     info->dri2.pKernelDRMVersion = drmGetVersion(info->dri2.drm_fd);
     if (info->dri2.pKernelDRMVersion == NULL) {

@@ -29,13 +29,16 @@
 #include "config.h"
 #endif
 
+#include "radeon.h"
+#include "radeon_dri2.h"
+
+#ifdef DRI2
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
 
-#include "radeon.h"
-#include "radeon_dri2.h"
 #include "radeon_version.h"
 
 #if HAVE_LIST_H
@@ -1398,6 +1401,9 @@ radeon_dri2_screen_init(ScreenPtr pScreen)
     Bool scheduling_works = TRUE;
 #endif
 
+    if (!info->dri2.available)
+        return FALSE;
+
     info->dri2.device_name = drmGetDeviceNameFromFd(info->dri2.drm_fd);
 
     if ( (info->ChipFamily >= CHIP_FAMILY_TAHITI) ) {
@@ -1501,4 +1507,6 @@ void radeon_dri2_close_screen(ScreenPtr pScreen)
     DRI2CloseScreen(pScreen);
     drmFree(info->dri2.device_name);
 }
+
+#endif /* DRI2 */
 

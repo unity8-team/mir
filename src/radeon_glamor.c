@@ -83,6 +83,9 @@ radeon_glamor_pre_init(ScrnInfoPtr scrn)
 	CARD32 version;
 	const char *s;
 
+	if (!info->dri2.available)
+		return FALSE;
+
 	s = xf86GetOptValString(info->Options, OPTION_ACCELMETHOD);
 	if (s == NULL)
 		return FALSE;
