@@ -768,6 +768,10 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	DBG(("%s: semaphores enabled? %d\n", __FUNCTION__,
 	     kgem->has_semaphores));
 
+	kgem->can_blt_cpu = gen == 0 || gen >= 30;
+	DBG(("%s: can blt to cpu? %d\n", __FUNCTION__,
+	     kgem->can_blt_cpu));
+
 	if (!is_hw_supported(kgem, dev)) {
 		xf86DrvMsg(kgem_get_screen_index(kgem), X_WARNING,
 			   "Detected unsupported/dysfunctional hardware, disabling acceleration.\n");

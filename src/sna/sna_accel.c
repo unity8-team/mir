@@ -1070,7 +1070,7 @@ sna_pixmap_create_mappable_gpu(PixmapPtr pixmap)
 static inline bool use_cpu_bo_for_write(struct sna *sna,
 					struct sna_pixmap *priv)
 {
-	return priv->cpu_bo != NULL && sna->kgem.gen >= 30;
+	return priv->cpu_bo != NULL && sna->kgem.can_blt_cpu;
 }
 
 static inline bool use_cpu_bo_for_read(struct sna_pixmap *priv)
@@ -2453,6 +2453,9 @@ use_gpu_bo:
 
 use_cpu_bo:
 	if (priv->cpu_bo == NULL)
+		return NULL;
+
+	if (!to_sna_from_pixmap(pixmap)->kgem.can_blt_cpu)
 		return NULL;
 
 	if (flags == 0 && !kgem_bo_is_busy(priv->cpu_bo))

@@ -160,6 +160,8 @@ struct kgem {
 	uint32_t has_cache_level :1;
 	uint32_t has_llc :1;
 
+	uint32_t can_blt_cpu :1;
+
 	uint16_t fence_max;
 	uint16_t half_cpu_cache_pages;
 	uint32_t aperture_total, aperture_high, aperture_low, aperture_mappable;
