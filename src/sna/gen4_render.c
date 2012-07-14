@@ -510,11 +510,45 @@ static uint32_t gen4_get_blend(int op,
 	return BLEND_OFFSET(src, dst);
 }
 
+static uint32_t gen4_get_card_format(PictFormat format)
+{
+	switch (format) {
+	default:
+		return -1;
+	case PICT_a8r8g8b8:
+		return GEN4_SURFACEFORMAT_B8G8R8A8_UNORM;
+	case PICT_x8r8g8b8:
+		return GEN4_SURFACEFORMAT_B8G8R8X8_UNORM;
+	case PICT_a8b8g8r8:
+		return GEN4_SURFACEFORMAT_R8G8B8A8_UNORM;
+	case PICT_x8b8g8r8:
+		return GEN4_SURFACEFORMAT_R8G8B8X8_UNORM;
+	case PICT_a2r10g10b10:
+		return GEN4_SURFACEFORMAT_B10G10R10A2_UNORM;
+	case PICT_x2r10g10b10:
+		return GEN4_SURFACEFORMAT_B10G10R10X2_UNORM;
+	case PICT_a2b10g10r10:
+		return GEN4_SURFACEFORMAT_R10G10B10A2_UNORM;
+	case PICT_r8g8b8:
+		return GEN4_SURFACEFORMAT_R8G8B8_UNORM;
+	case PICT_r5g6b5:
+		return GEN4_SURFACEFORMAT_B5G6R5_UNORM;
+	case PICT_x1r5g5b5:
+		return GEN4_SURFACEFORMAT_B5G5R5X1_UNORM;
+	case PICT_a1r5g5b5:
+		return GEN4_SURFACEFORMAT_B5G5R5A1_UNORM;
+	case PICT_a8:
+		return GEN4_SURFACEFORMAT_A8_UNORM;
+	case PICT_a4r4g4b4:
+		return GEN4_SURFACEFORMAT_B4G4R4A4_UNORM;
+	}
+}
+
 static uint32_t gen4_get_dest_format(PictFormat format)
 {
 	switch (format) {
 	default:
-		assert(0);
+		return -1;
 	case PICT_a8r8g8b8:
 	case PICT_x8r8g8b8:
 		return GEN4_SURFACEFORMAT_B8G8R8A8_UNORM;
@@ -539,46 +573,20 @@ static uint32_t gen4_get_dest_format(PictFormat format)
 
 static bool gen4_check_dst_format(PictFormat format)
 {
-	switch (format) {
-	case PICT_a8r8g8b8:
-	case PICT_x8r8g8b8:
-	case PICT_a8b8g8r8:
-	case PICT_x8b8g8r8:
-	case PICT_a2r10g10b10:
-	case PICT_x2r10g10b10:
-	case PICT_r5g6b5:
-	case PICT_x1r5g5b5:
-	case PICT_a1r5g5b5:
-	case PICT_a8:
-	case PICT_a4r4g4b4:
-	case PICT_x4r4g4b4:
+	if (gen4_check_dst_format(format) != -1)
 		return true;
-	default:
-		DBG(("%s: unhandled format: %x\n", __FUNCTION__, (int)format));
-		return false;
-	}
+
+	DBG(("%s: unhandled format: %x\n", __FUNCTION__, (int)format));
+	return false;
 }
 
 static bool gen4_check_format(uint32_t format)
 {
-	switch (format) {
-	case PICT_a8r8g8b8:
-	case PICT_x8r8g8b8:
-	case PICT_a8b8g8r8:
-	case PICT_x8b8g8r8:
-	case PICT_a2r10g10b10:
-	case PICT_x2r10g10b10:
-	case PICT_r8g8b8:
-	case PICT_r5g6b5:
-	case PICT_a1r5g5b5:
-	case PICT_a8:
-	case PICT_a4r4g4b4:
-	case PICT_x4r4g4b4:
+	if (gen4_get_card_format(format) != -1)
 		return true;
-	default:
-		DBG(("%s: unhandled format: %x\n", __FUNCTION__, format));
-		return false;
-	}
+
+	DBG(("%s: unhandled format: %x\n", __FUNCTION__, (int)format));
+	return false;
 }
 
 typedef struct gen4_surface_state_padded {
@@ -637,33 +645,6 @@ sampler_state_init(struct gen4_sampler_state *sampler_state,
 		sampler_state->ss1.s_wrap_mode = GEN4_TEXCOORDMODE_MIRROR;
 		sampler_state->ss1.t_wrap_mode = GEN4_TEXCOORDMODE_MIRROR;
 		break;
-	}
-}
-
-static uint32_t gen4_get_card_format(PictFormat format)
-{
-	switch (format) {
-	default:
-		return -1;
-	case PICT_a8r8g8b8:
-	case PICT_x8r8g8b8:
-		return GEN4_SURFACEFORMAT_B8G8R8A8_UNORM;
-	case PICT_a8b8g8r8:
-	case PICT_x8b8g8r8:
-		return GEN4_SURFACEFORMAT_R8G8B8A8_UNORM;
-	case PICT_a2r10g10b10:
-	case PICT_x2r10g10b10:
-		return GEN4_SURFACEFORMAT_B10G10R10A2_UNORM;
-	case PICT_r5g6b5:
-		return GEN4_SURFACEFORMAT_B5G6R5_UNORM;
-	case PICT_x1r5g5b5:
-	case PICT_a1r5g5b5:
-		return GEN4_SURFACEFORMAT_B5G5R5A1_UNORM;
-	case PICT_a8:
-		return GEN4_SURFACEFORMAT_A8_UNORM;
-	case PICT_a4r4g4b4:
-	case PICT_x4r4g4b4:
-		return GEN4_SURFACEFORMAT_B4G4R4A4_UNORM;
 	}
 }
 

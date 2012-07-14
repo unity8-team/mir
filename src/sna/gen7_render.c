@@ -274,7 +274,7 @@ static uint32_t gen7_get_blend(int op,
 	return BLEND_OFFSET(src, dst);
 }
 
-static uint32_t gen7_get_dest_format(PictFormat format)
+static uint32_t gen7_get_card_format(PictFormat format)
 {
 	switch (format) {
 	default:
@@ -308,46 +308,49 @@ static uint32_t gen7_get_dest_format(PictFormat format)
 	}
 }
 
-static bool gen7_check_dst_format(PictFormat format)
+static uint32_t gen7_get_dest_format(PictFormat format)
 {
 	switch (format) {
+	default:
+		return -1;
 	case PICT_a8r8g8b8:
 	case PICT_x8r8g8b8:
+		return GEN7_SURFACEFORMAT_B8G8R8A8_UNORM;
 	case PICT_a8b8g8r8:
 	case PICT_x8b8g8r8:
+		return GEN7_SURFACEFORMAT_R8G8B8A8_UNORM;
 	case PICT_a2r10g10b10:
 	case PICT_x2r10g10b10:
+		return GEN7_SURFACEFORMAT_B10G10R10A2_UNORM;
 	case PICT_r5g6b5:
+		return GEN7_SURFACEFORMAT_B5G6R5_UNORM;
 	case PICT_x1r5g5b5:
 	case PICT_a1r5g5b5:
+		return GEN7_SURFACEFORMAT_B5G5R5A1_UNORM;
 	case PICT_a8:
+		return GEN7_SURFACEFORMAT_A8_UNORM;
 	case PICT_a4r4g4b4:
 	case PICT_x4r4g4b4:
-		return true;
+		return GEN7_SURFACEFORMAT_B4G4R4A4_UNORM;
 	}
+}
+
+static bool gen7_check_dst_format(PictFormat format)
+{
+	if (gen7_get_dest_format(format) != -1)
+		return true;
+
+	DBG(("%s: unhandled format: %x\n", __FUNCTION__, (int)format));
 	return false;
 }
 
 static bool gen7_check_format(uint32_t format)
 {
-	switch (format) {
-	case PICT_a8r8g8b8:
-	case PICT_x8r8g8b8:
-	case PICT_a8b8g8r8:
-	case PICT_x8b8g8r8:
-	case PICT_a2r10g10b10:
-	case PICT_x2r10g10b10:
-	case PICT_r8g8b8:
-	case PICT_r5g6b5:
-	case PICT_a1r5g5b5:
-	case PICT_a8:
-	case PICT_a4r4g4b4:
-	case PICT_x4r4g4b4:
+	if (gen7_get_card_format(format) != -1)
 		return true;
-	default:
-		DBG(("%s: unhandled format: %x\n", __FUNCTION__, format));
-		return false;
-	}
+
+	DBG(("%s: unhandled format: %x\n", __FUNCTION__, (int)format));
+	return false;
 }
 
 static uint32_t gen7_filter(uint32_t filter)
@@ -1262,33 +1265,6 @@ static uint32_t gen7_create_cc_viewport(struct sna_static_stream *stream)
 	vp.max_depth = 1.e35;
 
 	return sna_static_stream_add(stream, &vp, sizeof(vp), 32);
-}
-
-static uint32_t gen7_get_card_format(PictFormat format)
-{
-	switch (format) {
-	default:
-		return -1;
-	case PICT_a8r8g8b8:
-	case PICT_x8r8g8b8:
-		return GEN7_SURFACEFORMAT_B8G8R8A8_UNORM;
-	case PICT_a8b8g8r8:
-	case PICT_x8b8g8r8:
-		return GEN7_SURFACEFORMAT_R8G8B8A8_UNORM;
-	case PICT_a2r10g10b10:
-	case PICT_x2r10g10b10:
-		return GEN7_SURFACEFORMAT_B10G10R10A2_UNORM;
-	case PICT_r5g6b5:
-		return GEN7_SURFACEFORMAT_B5G6R5_UNORM;
-	case PICT_x1r5g5b5:
-	case PICT_a1r5g5b5:
-		return GEN7_SURFACEFORMAT_B5G5R5A1_UNORM;
-	case PICT_a8:
-		return GEN7_SURFACEFORMAT_A8_UNORM;
-	case PICT_a4r4g4b4:
-	case PICT_x4r4g4b4:
-		return GEN7_SURFACEFORMAT_B4G4R4A4_UNORM;
-	}
 }
 
 static uint32_t
