@@ -2148,7 +2148,8 @@ bool sna_dri_open(struct sna *sna, ScreenPtr screen)
 	sna->deviceName = drmGetDeviceNameFromFd(sna->kgem.fd);
 	memset(&info, '\0', sizeof(info));
 	info.fd = sna->kgem.fd;
-	info.driverName = sna->kgem.gen < 40 ? "i915" : "i965";
+	info.driverName =
+		(sna->kgem.gen && sna->kgem.gen < 40) ? "i915" : "i965";
 	info.deviceName = sna->deviceName;
 
 	DBG(("%s: loading dri driver '%s' [gen=%d] for device '%s'\n",
