@@ -3185,13 +3185,12 @@ gen7_render_composite_spans(struct sna *sna,
 		break;
 	}
 
-	tmp->base.mask.bo = NULL;
-
 	tmp->base.is_affine = tmp->base.src.is_affine;
 	tmp->base.has_component_alpha = false;
 	tmp->base.need_magic_ca_pass = false;
 
-	gen7_composite_alpha_gradient_init(sna, &tmp->base.mask);
+	if (!gen7_composite_alpha_gradient_init(sna, &tmp->base.mask))
+		goto cleanup_src;
 
 	tmp->prim_emit = gen7_emit_composite_spans_primitive;
 	if (tmp->base.src.is_solid) {
