@@ -1346,7 +1346,7 @@ glyphs_fallback(CARD8 op,
 				pixman_image_t *glyph_image;
 
 				glyph_image = sna_glyph_get_image(g, screen);
-				if (glyph_image)
+				if (glyph_image == NULL)
 					goto next;
 
 				ptr = pixman_glyph_cache_insert(cache, g, NULL,
