@@ -3369,8 +3369,7 @@ gen7_render_copy_boxes(struct sna *sna, uint8_t alu,
 			       box, n))
 		return true;
 
-	if ((too_large(dst->drawable.width, dst->drawable.height) ||
-	     too_large(src->drawable.width, src->drawable.height)) &&
+	if (too_large(dst->drawable.width, dst->drawable.height) ||
 	    sna_blt_compare_depth(&src->drawable, &dst->drawable)) {
 		BoxRec extents = box[0];
 		int i;
