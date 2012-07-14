@@ -118,6 +118,10 @@ AC_ARG_ENABLE(kms-only, AS_HELP_STRING([--enable-kms-only],
 required_xorg_xserver_version=1.6
 required_pixman_version=0.24
 
+if pkg-config --exists 'pixman-1 >= 0.27.1'; then
+	AC_DEFINE([HAS_PIXMAN_GLYPHS], 1, [Enable pixman glyph cache])
+fi
+
 AC_ARG_ENABLE(sna,
 	      AS_HELP_STRING([--enable-sna],
 			     [Enable SandyBridge's New Acceleration (SNA) [default=auto]]),
