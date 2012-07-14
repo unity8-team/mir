@@ -28,9 +28,7 @@
 #include "config.h"
 #endif
 
-#include <xf86.h>
 #include <xf86_OSproc.h>
-#include <xf86cmap.h>
 #include <xf86Parser.h>
 #include <xf86drmMode.h>
 
@@ -159,10 +157,12 @@ SymTabRec *intel_chipsets = (SymTabRec *) _intel_chipsets;
     { 0x8086, (d), PCI_MATCH_ANY, PCI_MATCH_ANY, 0, 0, (intptr_t)(i) }
 
 static const struct pci_id_match intel_device_match[] = {
+#if !KMS_ONLY
 	INTEL_DEVICE_MATCH (PCI_CHIP_I810, &intel_i81x_info ),
 	INTEL_DEVICE_MATCH (PCI_CHIP_I810_DC100, &intel_i81x_info ),
 	INTEL_DEVICE_MATCH (PCI_CHIP_I810_E, &intel_i81x_info ),
 	INTEL_DEVICE_MATCH (PCI_CHIP_I815, &intel_i81x_info ),
+#endif
 
 	INTEL_DEVICE_MATCH (PCI_CHIP_I830_M, &intel_i830_info ),
 	INTEL_DEVICE_MATCH (PCI_CHIP_845_G, &intel_i845_info ),

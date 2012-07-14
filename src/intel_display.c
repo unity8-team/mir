@@ -711,8 +711,7 @@ intel_crtc_init(ScrnInfoPtr scrn, struct intel_mode *mode, int num)
 							   crtc_id(intel_crtc));
 
 	intel_crtc->cursor = drm_intel_bo_alloc(intel->bufmgr, "ARGB cursor",
-						HWCURSOR_SIZE_ARGB,
-						GTT_PAGE_SIZE);
+						4*64*64, 4096);
 
 	intel_crtc->crtc = crtc;
 	list_add(&intel_crtc->link, &mode->crtcs);

@@ -932,7 +932,7 @@ I830ScreenInit(SCREEN_INIT_ARGS_DECL)
 	miDCInitialize(screen, xf86GetPointerScreenFuncs());
 
 	xf86DrvMsg(scrn->scrnIndex, X_INFO, "Initializing HW Cursor\n");
-	if (!xf86_cursors_init(screen, I810_CURSOR_X, I810_CURSOR_Y,
+	if (!xf86_cursors_init(screen, 64, 64,
 			       (HARDWARE_CURSOR_TRUECOLOR_AT_8BPP |
 				HARDWARE_CURSOR_BIT_ORDER_MSBFIRST |
 				HARDWARE_CURSOR_INVERT_MASK |

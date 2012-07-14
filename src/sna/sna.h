@@ -289,10 +289,6 @@ extern void sna_mode_wakeup(struct sna *sna);
 extern void sna_mode_redisplay(struct sna *sna);
 extern void sna_mode_fini(struct sna *sna);
 
-extern int sna_crtc_id(xf86CrtcPtr crtc);
-extern bool sna_crtc_is_bound(struct sna *sna, xf86CrtcPtr crtc);
-extern int sna_output_dpms_status(xf86OutputPtr output);
-
 extern int sna_page_flip(struct sna *sna,
 			 struct kgem_bo *bo,
 			 void *data,
@@ -356,9 +352,9 @@ static inline void sna_dri_destroy_window(WindowPtr win) { }
 static inline void sna_dri_close(struct sna *sna, ScreenPtr pScreen) { }
 #endif
 
-extern bool sna_crtc_on(xf86CrtcPtr crtc);
-int sna_crtc_to_pipe(xf86CrtcPtr crtc);
-int sna_crtc_to_plane(xf86CrtcPtr crtc);
+extern int sna_crtc_to_pipe(xf86CrtcPtr crtc);
+extern int sna_crtc_to_plane(xf86CrtcPtr crtc);
+extern int sna_crtc_id(xf86CrtcPtr crtc);
 
 CARD32 sna_format_for_depth(int depth);
 CARD32 sna_render_format_for_depth(int depth);

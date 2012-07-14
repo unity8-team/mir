@@ -295,10 +295,8 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 	/* Push the frame to the GPU as soon as possible so
 	 * we can hit the next vsync.
 	 */
-	if (flush) {
-		assert(sna_crtc_is_bound(sna, crtc));
+	if (flush)
 		kgem_submit(&sna->kgem);
-	}
 
 	return ret;
 }

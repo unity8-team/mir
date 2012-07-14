@@ -113,21 +113,14 @@ int sna_crtc_id(xf86CrtcPtr crtc)
 	return to_sna_crtc(crtc)->id;
 }
 
-bool sna_crtc_on(xf86CrtcPtr crtc)
-{
-	return to_sna_crtc(crtc)->bo != NULL;
-}
-
 int sna_crtc_to_pipe(xf86CrtcPtr crtc)
 {
-	struct sna_crtc *sna_crtc = to_sna_crtc(crtc);
-	return sna_crtc->pipe;
+	return to_sna_crtc(crtc)->pipe;
 }
 
 int sna_crtc_to_plane(xf86CrtcPtr crtc)
 {
-	struct sna_crtc *sna_crtc = to_sna_crtc(crtc);
-	return sna_crtc->plane;
+	return to_sna_crtc(crtc)->plane;
 }
 
 static unsigned get_fb(struct sna *sna, struct kgem_bo *bo,
@@ -465,7 +458,7 @@ mode_to_kmode(struct drm_mode_modeinfo *kmode, DisplayModePtr mode)
 	kmode->name[DRM_DISPLAY_MODE_LEN-1] = 0;
 }
 
-bool sna_crtc_is_bound(struct sna *sna, xf86CrtcPtr crtc)
+static bool sna_crtc_is_bound(struct sna *sna, xf86CrtcPtr crtc)
 {
 	struct sna_crtc *sna_crtc = to_sna_crtc(crtc);
 	struct drm_mode_crtc mode;
@@ -1676,13 +1669,6 @@ sna_output_dpms(xf86OutputPtr output, int dpms)
 	}
 }
 
-int
-sna_output_dpms_status(xf86OutputPtr output)
-{
-	struct sna_output *sna_output = output->driver_private;
-	return sna_output->dpms_mode;
-}
-
 static bool
 sna_property_ignore(drmModePropertyPtr prop)
 {
@@ -2579,7 +2565,7 @@ sna_wait_for_scanline(struct sna *sna,
 	int y1, y2, pipe;
 
 	assert(crtc);
-	assert(sna_crtc_on(crtc));
+	assert(to_sna_crtc(crtc)->bo != NULL);
 	assert(pixmap == sna->front);
 
 	/* XXX WAIT_EVENT is still causing hangs on SNB */

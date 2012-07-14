@@ -142,8 +142,6 @@ static int i810_pitches[] = {
 };
 #endif
 
-int I830EntityIndex = -1;
-
 /*
  * I810GetRec and I810FreeRec --
  *
