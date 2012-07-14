@@ -974,6 +974,9 @@ gen7_emit_state(struct sna *sna,
 {
 	bool need_stall = false;
 
+	if (sna->render_state.gen7.emit_flush)
+		gen7_emit_pipe_flush(sna);
+
 	gen7_emit_cc(sna,
 		     gen7_get_blend(op->op,
 				    op->has_component_alpha,
@@ -1011,7 +1014,7 @@ gen7_emit_state(struct sna *sna,
 	if (need_stall)
 		gen7_emit_pipe_stall(sna);
 
-	sna->render_state.gen7.emit_flush = op->op != PictOpSrc;
+	sna->render_state.gen7.emit_flush = op->op > PictOpSrc;
 }
 
 static void gen7_magic_ca_pass(struct sna *sna,
@@ -1055,11 +1058,6 @@ static void gen7_vertex_flush(struct sna *sna)
 	sna->kgem.batch[sna->render_state.gen7.vertex_offset] =
 		sna->render.vertex_index - sna->render.vertex_start;
 	sna->render_state.gen7.vertex_offset = 0;
-
-	if (sna->render_state.gen7.emit_flush) {
-		gen7_emit_pipe_flush(sna);
-		sna->render_state.gen7.emit_flush = false;
-	}
 }
 
 static int gen7_vertex_finish(struct sna *sna)
@@ -4293,6 +4291,7 @@ gen7_render_expire(struct kgem *kgem)
 
 static void gen7_render_reset(struct sna *sna)
 {
+	sna->render_state.gen7.emit_flush = false;
 	sna->render_state.gen7.needs_invariant = true;
 	sna->render_state.gen7.vb_id = 0;
 	sna->render_state.gen7.ve_id = -1;
