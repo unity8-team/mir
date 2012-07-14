@@ -1433,6 +1433,7 @@ sna_glyphs(CARD8 op,
 	if (mask && dst->pCompositeClip->data == NULL &&
 	    (op_is_bounded(op) || (nlist == 1 && list->len == 1)) &&
 	    mask == glyphs_format(nlist, list, glyphs)) {
+		DBG(("%s: discarding mask\n", __FUNCTION__));
 		if (glyphs_to_dst(sna, op,
 				  src, dst,
 				  src_x, src_y,
@@ -1441,8 +1442,10 @@ sna_glyphs(CARD8 op,
 	}
 
 	/* Otherwise see if we can substitute a mask */
-	if (!mask)
+	if (!mask) {
 		mask = glyphs_format(nlist, list, glyphs);
+		DBG(("%s: substituting mask? %d\n", __FUNCTION__, mask!=NULL));
+	}
 	if (mask) {
 		if (glyphs_via_mask(sna, op,
 				    src, dst, mask,
