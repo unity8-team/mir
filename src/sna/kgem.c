@@ -359,7 +359,7 @@ void kgem_bo_retire(struct kgem *kgem, struct kgem_bo *bo)
 	bo->domain = DOMAIN_NONE;
 }
 
-Bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,
+bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,
 		   const void *data, int length)
 {
 	assert(bo->refcnt);
@@ -369,11 +369,11 @@ Bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,
 
 	assert(length <= bytes(bo));
 	if (gem_write(kgem->fd, bo->handle, 0, length, data))
-		return FALSE;
+		return false;
 
 	DBG(("%s: flush=%d, domain=%d\n", __FUNCTION__, bo->flush, bo->domain));
 	kgem_bo_retire(kgem, bo);
-	return TRUE;
+	return true;
 }
 
 static uint32_t gem_create(int fd, int num_pages)

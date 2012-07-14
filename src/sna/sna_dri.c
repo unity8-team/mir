@@ -864,7 +864,7 @@ sna_dri_frame_event_info_free(struct sna *sna,
 	free(info);
 }
 
-static Bool
+static bool
 sna_dri_page_flip(struct sna *sna, struct sna_dri_frame_event *info)
 {
 	struct kgem_bo *bo = get_private(info->back)->bo;
@@ -873,7 +873,7 @@ sna_dri_page_flip(struct sna *sna, struct sna_dri_frame_event *info)
 
 	info->count = sna_page_flip(sna, bo, info, info->pipe);
 	if (info->count == 0)
-		return FALSE;
+		return false;
 
 	info->old_front.name = info->front->name;
 	info->old_front.bo = get_private(info->front)->bo;
@@ -882,10 +882,10 @@ sna_dri_page_flip(struct sna *sna, struct sna_dri_frame_event *info)
 
 	info->front->name = info->back->name;
 	get_private(info->front)->bo = bo;
-	return TRUE;
+	return true;
 }
 
-static Bool
+static bool
 can_flip(struct sna * sna,
 	 DrawablePtr draw,
 	 DRI2BufferPtr front,
@@ -895,22 +895,22 @@ can_flip(struct sna * sna,
 	PixmapPtr pixmap;
 
 	if (draw->type == DRAWABLE_PIXMAP)
-		return FALSE;
+		return false;
 
 	if (!sna->scrn->vtSema) {
 		DBG(("%s: no, not attached to VT\n", __FUNCTION__));
-		return FALSE;
+		return false;
 	}
 
 	if (sna->flags & SNA_NO_FLIP) {
 		DBG(("%s: no, pageflips disabled\n", __FUNCTION__));
-		return FALSE;
+		return false;
 	}
 
 	if (front->format != back->format) {
 		DBG(("%s: no, format mismatch, front = %d, back = %d\n",
 		     __FUNCTION__, front->format, back->format));
-		return FALSE;
+		return false;
 	}
 
 	if (front->attachment != DRI2BufferFrontLeft) {
@@ -918,19 +918,19 @@ can_flip(struct sna * sna,
 		     __FUNCTION__,
 		     front->attachment,
 		     DRI2BufferFrontLeft));
-		return FALSE;
+		return false;
 	}
 
 	if (sna->mode.shadow_active) {
 		DBG(("%s: no, shadow enabled\n", __FUNCTION__));
-		return FALSE;
+		return false;
 	}
 
 	pixmap = get_drawable_pixmap(draw);
 	if (pixmap != sna->front) {
 		DBG(("%s: no, window is not on the front buffer\n",
 		     __FUNCTION__));
-		return FALSE;
+		return false;
 	}
 
 	DBG(("%s: window size: %dx%d, clip=(%d, %d), (%d, %d)\n",
@@ -949,7 +949,7 @@ can_flip(struct sna * sna,
 		     draw->pScreen->root->winSize.extents.y1,
 		     draw->pScreen->root->winSize.extents.x2,
 		     draw->pScreen->root->winSize.extents.y2));
-		return FALSE;
+		return false;
 	}
 
 	if (draw->x != 0 || draw->y != 0 ||
@@ -964,7 +964,7 @@ can_flip(struct sna * sna,
 		     draw->width, draw->height,
 		     pixmap->drawable.width,
 		     pixmap->drawable.height));
-		return FALSE;
+		return false;
 	}
 
 	/* prevent an implicit tiling mode change */
@@ -973,13 +973,13 @@ can_flip(struct sna * sna,
 		     __FUNCTION__,
 		     get_private(front)->bo->tiling,
 		     get_private(back)->bo->tiling));
-		return FALSE;
+		return false;
 	}
 
-	return TRUE;
+	return true;
 }
 
-static Bool
+static bool
 can_exchange(struct sna * sna,
 	     DrawablePtr draw,
 	     DRI2BufferPtr front,
@@ -989,19 +989,19 @@ can_exchange(struct sna * sna,
 	PixmapPtr pixmap;
 
 	if (draw->type == DRAWABLE_PIXMAP)
-		return TRUE;
+		return true;
 
 	if (front->format != back->format) {
 		DBG(("%s: no, format mismatch, front = %d, back = %d\n",
 		     __FUNCTION__, front->format, back->format));
-		return FALSE;
+		return false;
 	}
 
 	pixmap = get_window_pixmap(win);
 	if (pixmap == sna->front) {
 		DBG(("%s: no, window is attached to the front buffer\n",
 		     __FUNCTION__));
-		return FALSE;
+		return false;
 	}
 
 	if (pixmap->drawable.width != win->drawable.width ||
@@ -1012,10 +1012,10 @@ can_exchange(struct sna * sna,
 		     win->drawable.height,
 		     pixmap->drawable.width,
 		     pixmap->drawable.height));
-		return FALSE;
+		return false;
 	}
 
-	return TRUE;
+	return true;
 }
 
 inline static uint32_t pipe_select(int pipe)
@@ -1234,7 +1234,7 @@ sna_dri_flip_continue(struct sna *sna,
 
 	info->count = sna_page_flip(sna, bo, info, info->pipe);
 	if (info->count == 0)
-		return FALSE;
+		return false;
 
 	set_bo(sna->front, bo);
 
@@ -1251,7 +1251,7 @@ sna_dri_flip_continue(struct sna *sna,
 
 	sna->dri.flip_pending = info;
 
-	return TRUE;
+	return true;
 }
 
 static void sna_dri_flip_event(struct sna *sna,
@@ -1404,7 +1404,7 @@ sna_dri_page_flip_handler(struct sna *sna,
 	sna_dri_flip_event(sna, info);
 }
 
-static int
+static bool
 sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		      DRI2BufferPtr back, CARD64 *target_msc, CARD64 divisor,
 		      CARD64 remainder, DRI2SwapEventPtr func, void *data)
@@ -1425,7 +1425,7 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 
 	pipe = sna_dri_get_pipe(draw);
 	if (pipe == -1)
-		return FALSE;
+		return false;
 
 	/* Truncate to match kernel interfaces; means occasional overflow
 	 * misses, but that's generally not a big deal */
@@ -1441,7 +1441,7 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 			if (info->draw == draw) {
 				DBG(("%s: chaining flip\n", __FUNCTION__));
 				info->next_front.name = 1;
-				return TRUE;
+				return true;
 			} else {
 				/* We need to first wait (one vblank) for the
 				 * async flips to complete before this client
@@ -1455,7 +1455,7 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 
 		info = calloc(1, sizeof(struct sna_dri_frame_event));
 		if (info == NULL)
-			return FALSE;
+			return false;
 
 		info->type = type;
 
@@ -1474,7 +1474,7 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		if (!sna_dri_page_flip(sna, info)) {
 			DBG(("%s: failed to queue page flip\n", __FUNCTION__));
 			sna_dri_frame_event_info_free(sna, draw, info);
-			return FALSE;
+			return false;
 		}
 
 		if (type != DRI2_FLIP) {
@@ -1497,7 +1497,7 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	} else {
 		info = calloc(1, sizeof(struct sna_dri_frame_event));
 		if (info == NULL)
-			return FALSE;
+			return false;
 
 		info->draw = draw;
 		info->client = client;
@@ -1517,7 +1517,7 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		vbl.request.sequence = 0;
 		if (sna_wait_vblank(sna, &vbl)) {
 			sna_dri_frame_event_info_free(sna, draw, info);
-			return FALSE;
+			return false;
 		}
 
 		current_msc = vbl.reply.sequence;
@@ -1573,13 +1573,13 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		vbl.request.signal = (unsigned long)info;
 		if (sna_wait_vblank(sna, &vbl)) {
 			sna_dri_frame_event_info_free(sna, draw, info);
-			return FALSE;
+			return false;
 		}
 
 		info->frame = *target_msc;
 	}
 
-	return TRUE;
+	return true;
 }
 
 static void
@@ -2121,7 +2121,7 @@ out_complete:
 }
 #endif
 
-Bool sna_dri_open(struct sna *sna, ScreenPtr screen)
+bool sna_dri_open(struct sna *sna, ScreenPtr screen)
 {
 	DRI2InfoRec info;
 	int major = 1, minor = 0;
@@ -2134,7 +2134,7 @@ Bool sna_dri_open(struct sna *sna, ScreenPtr screen)
 	if (wedged(sna)) {
 		xf86DrvMsg(sna->scrn->scrnIndex, X_WARNING,
 			   "cannot enable DRI2 whilst the GPU is wedged\n");
-		return FALSE;
+		return false;
 	}
 
 	if (xf86LoaderCheckSymbol("DRI2Version"))
@@ -2143,7 +2143,7 @@ Bool sna_dri_open(struct sna *sna, ScreenPtr screen)
 	if (minor < 1) {
 		xf86DrvMsg(sna->scrn->scrnIndex, X_WARNING,
 			   "DRI2 requires DRI2 module version 1.1.0 or later\n");
-		return FALSE;
+		return false;
 	}
 
 	sna->deviceName = drmGetDeviceNameFromFd(sna->kgem.fd);

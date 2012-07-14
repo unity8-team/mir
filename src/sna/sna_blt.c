@@ -184,7 +184,7 @@ static bool sna_blt_fill_init(struct sna *sna,
 		sna->blt_state.fill_alu = alu;
 	}
 
-	return TRUE;
+	return true;
 }
 
 noinline static void sna_blt_fill_begin(struct sna *sna,
@@ -242,7 +242,7 @@ inline static void sna_blt_fill_one(struct sna *sna,
 	b[2] = b[1] + (height << 16 | width);
 }
 
-static Bool sna_blt_copy_init(struct sna *sna,
+static bool sna_blt_copy_init(struct sna *sna,
 			      struct sna_blt_state *blt,
 			      struct kgem_bo *src,
 			      struct kgem_bo *dst,
@@ -288,15 +288,15 @@ static Bool sna_blt_copy_init(struct sna *sna,
 	if (!kgem_check_many_bo_fenced(kgem, src, dst, NULL)) {
 		_kgem_submit(kgem);
 		if (!kgem_check_many_bo_fenced(kgem, src, dst, NULL))
-			return FALSE;
+			return false;
 		_kgem_set_mode(kgem, KGEM_BLT);
 	}
 
 	sna->blt_state.fill_bo = 0;
-	return TRUE;
+	return true;
 }
 
-static Bool sna_blt_alpha_fixup_init(struct sna *sna,
+static bool sna_blt_alpha_fixup_init(struct sna *sna,
 				     struct sna_blt_state *blt,
 				     struct kgem_bo *src,
 				     struct kgem_bo *dst,
@@ -340,12 +340,12 @@ static Bool sna_blt_alpha_fixup_init(struct sna *sna,
 	if (!kgem_check_many_bo_fenced(kgem, src, dst, NULL)) {
 		_kgem_submit(kgem);
 		if (!kgem_check_many_bo_fenced(kgem, src, dst, NULL))
-			return FALSE;
+			return false;
 		_kgem_set_mode(kgem, KGEM_BLT);
 	}
 
 	sna->blt_state.fill_bo = 0;
-	return TRUE;
+	return true;
 }
 
 static void sna_blt_alpha_fixup_one(struct sna *sna,
@@ -468,7 +468,7 @@ static void sna_blt_copy_one(struct sna *sna,
 	kgem->nbatch += 8;
 }
 
-Bool
+bool
 sna_get_rgba_from_pixel(uint32_t pixel,
 			uint16_t *red,
 			uint16_t *green,
@@ -504,7 +504,7 @@ sna_get_rgba_from_pixel(uint32_t pixel,
 		gshift = rshift + rbits;
 		bshift = gshift + gbits;
 	} else {
-		return FALSE;
+		return false;
 	}
 
 	if (rbits) {
@@ -543,10 +543,10 @@ sna_get_rgba_from_pixel(uint32_t pixel,
 	} else
 		*alpha = 0xffff;
 
-	return TRUE;
+	return true;
 }
 
-Bool
+bool
 _sna_get_pixel_from_rgba(uint32_t * pixel,
 			uint16_t red,
 			uint16_t green,
@@ -566,11 +566,11 @@ _sna_get_pixel_from_rgba(uint32_t * pixel,
 
 	if (PICT_FORMAT_TYPE(format) == PICT_TYPE_A) {
 		*pixel = alpha >> (16 - abits);
-		return TRUE;
+		return true;
 	}
 
 	if (!PICT_FORMAT_COLOR(format))
-		return FALSE;
+		return false;
 
 	if (PICT_FORMAT_TYPE(format) == PICT_TYPE_ARGB) {
 		bshift = 0;
@@ -588,7 +588,7 @@ _sna_get_pixel_from_rgba(uint32_t * pixel,
 		gshift = rshift + rbits;
 		bshift = gshift + gbits;
 	} else
-		return FALSE;
+		return false;
 
 	*pixel = 0;
 	*pixel |= (blue  >> (16 - bbits)) << bshift;
@@ -596,7 +596,7 @@ _sna_get_pixel_from_rgba(uint32_t * pixel,
 	*pixel |= (red   >> (16 - rbits)) << rshift;
 	*pixel |= (alpha >> (16 - abits)) << ashift;
 
-	return TRUE;
+	return true;
 }
 
 uint32_t
@@ -638,43 +638,43 @@ get_solid_color(PicturePtr picture, uint32_t format)
 		return color_convert(get_pixel(picture), picture->format, format);
 }
 
-static Bool
+static bool
 is_solid(PicturePtr picture)
 {
 	if (picture->pSourcePict) {
 		if (picture->pSourcePict->type == SourcePictTypeSolidFill)
-			return TRUE;
+			return true;
 	}
 
 	if (picture->pDrawable) {
 		if (picture->pDrawable->width  == 1 &&
 		    picture->pDrawable->height == 1 &&
 		    picture->repeat)
-			return TRUE;
+			return true;
 	}
 
-	return FALSE;
+	return false;
 }
 
-Bool
+bool
 sna_picture_is_solid(PicturePtr picture, uint32_t *color)
 {
 	if (!is_solid(picture))
-		return FALSE;
+		return false;
 
 	if (color)
 		*color = get_solid_color(picture, PICT_a8r8g8b8);
-	return TRUE;
+	return true;
 }
 
-static Bool
+static bool
 pixel_is_opaque(uint32_t pixel, uint32_t format)
 {
 	unsigned int abits;
 
 	abits = PICT_FORMAT_A(format);
 	if (!abits)
-		return TRUE;
+		return true;
 
 	if (PICT_FORMAT_TYPE(format) == PICT_TYPE_A ||
 	    PICT_FORMAT_TYPE(format) == PICT_TYPE_BGRA) {
@@ -684,10 +684,10 @@ pixel_is_opaque(uint32_t pixel, uint32_t format)
 		unsigned int ashift = PICT_FORMAT_BPP(format) - abits;
 		return (pixel >> ashift) == (unsigned)((1 << abits) - 1);
 	} else
-		return FALSE;
+		return false;
 }
 
-static Bool
+static bool
 pixel_is_white(uint32_t pixel, uint32_t format)
 {
 	switch (PICT_FORMAT_TYPE(format)) {
@@ -697,11 +697,11 @@ pixel_is_white(uint32_t pixel, uint32_t format)
 	case PICT_TYPE_BGRA:
 		return pixel == ((1U << PICT_FORMAT_BPP(format)) - 1);
 	default:
-		return FALSE;
+		return false;
 	}
 }
 
-static Bool
+static bool
 is_opaque_solid(PicturePtr picture)
 {
 	if (picture->pSourcePict) {
@@ -711,7 +711,7 @@ is_opaque_solid(PicturePtr picture)
 		return pixel_is_opaque(get_pixel(picture), picture->format);
 }
 
-static Bool
+static bool
 is_white(PicturePtr picture)
 {
 	if (picture->pSourcePict) {
@@ -727,7 +727,7 @@ sna_composite_mask_is_opaque(PicturePtr mask)
 	if (mask->componentAlpha && PICT_FORMAT_RGB(mask->format))
 		return is_solid(mask) && is_white(mask);
 	else if (!PICT_FORMAT_A(mask->format))
-		return TRUE;
+		return true;
 	else
 		return is_solid(mask) && is_opaque_solid(mask);
 }
@@ -900,7 +900,20 @@ static void blt_composite_nop_boxes(struct sna *sna,
 {
 }
 
-static Bool
+static bool
+begin_blt(struct sna *sna,
+	  struct sna_composite_op *op)
+{
+	if (!kgem_check_bo_fenced(&sna->kgem, op->dst.bo)) {
+		_kgem_submit(&sna->kgem);
+		assert(kgem_check_bo_fenced(&sna->kgem, op->dst.bo));
+		_kgem_set_mode(&sna->kgem, KGEM_BLT);
+	}
+
+	return true;
+}
+
+static bool
 prepare_blt_nop(struct sna *sna,
 		struct sna_composite_op *op)
 {
@@ -910,10 +923,10 @@ prepare_blt_nop(struct sna *sna,
 	op->box   = blt_composite_nop_box;
 	op->boxes = blt_composite_nop_boxes;
 	op->done  = nop_done;
-	return TRUE;
+	return true;
 }
 
-static Bool
+static bool
 prepare_blt_clear(struct sna *sna,
 		  struct sna_composite_op *op)
 {
@@ -929,10 +942,13 @@ prepare_blt_clear(struct sna *sna,
 	}
 	op->done = nop_done;
 
-	return sna_blt_fill_init(sna, &op->u.blt,
+	if (!sna_blt_fill_init(sna, &op->u.blt,
 				 op->dst.bo,
 				 op->dst.pixmap->drawable.bitsPerPixel,
-				 GXclear, 0);
+				 GXclear, 0))
+		return false;
+
+	return begin_blt(sna, op);
 }
 
 static bool
@@ -952,10 +968,13 @@ prepare_blt_fill(struct sna *sna,
 	}
 	op->done = nop_done;
 
-	return sna_blt_fill_init(sna, &op->u.blt, op->dst.bo,
-				 op->dst.pixmap->drawable.bitsPerPixel,
-				 GXcopy,
-				 get_solid_color(source, op->dst.format));
+	if (!sna_blt_fill_init(sna, &op->u.blt, op->dst.bo,
+			       op->dst.pixmap->drawable.bitsPerPixel,
+			       GXcopy,
+			       get_solid_color(source, op->dst.format)))
+		return false;
+
+	return begin_blt(sna, op);
 }
 
 fastcall static void
@@ -1116,7 +1135,7 @@ blt_composite_copy_boxes_with_alpha(struct sna *sna,
 	} while(--nbox);
 }
 
-static Bool
+static bool
 prepare_blt_copy(struct sna *sna,
 		 struct sna_composite_op *op,
 		 uint32_t alpha_fixup)
@@ -1126,7 +1145,7 @@ prepare_blt_copy(struct sna *sna,
 
 	if (!kgem_bo_can_blt(&sna->kgem, priv->gpu_bo)) {
 		DBG(("%s: fallback -- can't blt from source\n", __FUNCTION__));
-		return FALSE;
+		return false;
 	}
 
 	if (!kgem_check_many_bo_fenced(&sna->kgem, op->dst.bo, priv->gpu_bo, NULL)) {
@@ -1134,7 +1153,7 @@ prepare_blt_copy(struct sna *sna,
 		if (!kgem_check_many_bo_fenced(&sna->kgem,
 					       op->dst.bo, priv->gpu_bo, NULL)) {
 			DBG(("%s: fallback -- no room in aperture\n", __FUNCTION__));
-			return FALSE;
+			return false;
 		}
 		_kgem_set_mode(&sna->kgem, KGEM_BLT);
 	}
@@ -1151,22 +1170,26 @@ prepare_blt_copy(struct sna *sna,
 		op->box   = blt_composite_copy_box_with_alpha;
 		op->boxes = blt_composite_copy_boxes_with_alpha;
 
-		return sna_blt_alpha_fixup_init(sna, &op->u.blt,
-						priv->gpu_bo,
-						op->dst.bo,
-						src->drawable.bitsPerPixel,
-						alpha_fixup);
+		if (!sna_blt_alpha_fixup_init(sna, &op->u.blt,
+					      priv->gpu_bo,
+					      op->dst.bo,
+					      src->drawable.bitsPerPixel,
+					      alpha_fixup))
+			return false;
 	} else {
 		op->blt   = blt_composite_copy;
 		op->box   = blt_composite_copy_box;
 		op->boxes = blt_composite_copy_boxes;
 
-		return sna_blt_copy_init(sna, &op->u.blt,
-					 priv->gpu_bo,
-					 op->dst.bo,
-					 src->drawable.bitsPerPixel,
-					 GXcopy);
+		if (!sna_blt_copy_init(sna, &op->u.blt,
+				       priv->gpu_bo,
+				       op->dst.bo,
+				       src->drawable.bitsPerPixel,
+				       GXcopy))
+			return false;
 	}
+
+	return begin_blt(sna, op);
 }
 
 fastcall static void
@@ -1405,7 +1428,7 @@ blt_put_composite_boxes_with_alpha(struct sna *sna,
 	}
 }
 
-static Bool
+static bool
 prepare_blt_put(struct sna *sna,
 		struct sna_composite_op *op,
 		uint32_t alpha_fixup)
@@ -1428,29 +1451,33 @@ prepare_blt_put(struct sna *sna,
 			op->box   = blt_composite_copy_box_with_alpha;
 			op->boxes = blt_composite_copy_boxes_with_alpha;
 
-			return sna_blt_alpha_fixup_init(sna, &op->u.blt,
-							src_bo, op->dst.bo,
-							op->dst.pixmap->drawable.bitsPerPixel,
-							alpha_fixup);
+			if (!sna_blt_alpha_fixup_init(sna, &op->u.blt,
+						      src_bo, op->dst.bo,
+						      op->dst.pixmap->drawable.bitsPerPixel,
+						      alpha_fixup))
+				return false;
 		} else {
 			op->blt   = blt_composite_copy;
 			op->box   = blt_composite_copy_box;
 			op->boxes = blt_composite_copy_boxes;
 
-			return sna_blt_copy_init(sna, &op->u.blt,
-						 src_bo, op->dst.bo,
-						 op->dst.pixmap->drawable.bitsPerPixel,
-						 GXcopy);
+			if (!sna_blt_copy_init(sna, &op->u.blt,
+					       src_bo, op->dst.bo,
+					       op->dst.pixmap->drawable.bitsPerPixel,
+					       GXcopy))
+				return false;
 		}
+
+		return begin_blt(sna, op);
 	} else {
 		if (!sna_pixmap_move_to_cpu(src, MOVE_READ))
-			return FALSE;
+			return false;
 
 		assert(src->devKind);
 		assert(src->devPrivate.ptr);
 
 		if (alpha_fixup)
-			return FALSE; /* XXX */
+			return false; /* XXX */
 
 		if (alpha_fixup) {
 			op->u.blt.pixel = alpha_fixup;
@@ -1464,24 +1491,24 @@ prepare_blt_put(struct sna *sna,
 		}
 	}
 
-	return TRUE;
+	return true;
 }
 
-static Bool
+static bool
 has_gpu_area(PixmapPtr pixmap, int x, int y, int w, int h)
 {
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
 	BoxRec area;
 
 	if (!priv)
-		return FALSE;
+		return false;
 	if (!priv->gpu_bo)
-		return FALSE;
+		return false;
 
 	if (priv->cpu_damage == NULL)
-		return TRUE;
+		return true;
 	if (priv->cpu_damage->mode == DAMAGE_ALL)
-		return FALSE;
+		return false;
 
 	area.x1 = x;
 	area.y1 = y;
@@ -1489,24 +1516,24 @@ has_gpu_area(PixmapPtr pixmap, int x, int y, int w, int h)
 	area.y2 = y + h;
 	if (priv->gpu_damage &&
 	    sna_damage_contains_box__no_reduce(priv->gpu_damage, &area))
-		return TRUE;
+		return true;
 
 	return sna_damage_contains_box(priv->cpu_damage,
 				       &area) == PIXMAN_REGION_OUT;
 }
 
-static Bool
+static bool
 has_cpu_area(PixmapPtr pixmap, int x, int y, int w, int h)
 {
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
 	BoxRec area;
 
 	if (!priv)
-		return TRUE;
+		return true;
 	if (priv->gpu_damage == NULL)
-		return TRUE;
+		return true;
 	if (priv->gpu_damage->mode == DAMAGE_ALL)
-		return FALSE;
+		return false;
 
 	area.x1 = x;
 	area.y1 = y;
@@ -1514,7 +1541,7 @@ has_cpu_area(PixmapPtr pixmap, int x, int y, int w, int h)
 	area.y2 = y + h;
 	if (priv->cpu_damage &&
 	    sna_damage_contains_box__no_reduce(priv->cpu_damage, &area))
-		return TRUE;
+		return true;
 
 	return sna_damage_contains_box(priv->gpu_damage,
 				       &area) == PIXMAN_REGION_OUT;
@@ -1552,7 +1579,7 @@ reduce_damage(struct sna_composite_op *op,
 				      PICT_FORMAT_G(format),		\
 				      PICT_FORMAT_B(format))
 
-Bool
+bool
 sna_blt_composite(struct sna *sna,
 		  uint32_t op,
 		  PicturePtr src,
@@ -1568,10 +1595,10 @@ sna_blt_composite(struct sna *sna,
 	int16_t tx, ty;
 	uint32_t alpha_fixup;
 	bool was_clear;
-	Bool ret;
+	bool ret;
 
 #if DEBUG_NO_BLT || NO_BLT_COMPOSITE
-	return FALSE;
+	return false;
 #endif
 
 	DBG(("%s (%d, %d), (%d, %d), %dx%d\n",
@@ -1585,7 +1612,7 @@ sna_blt_composite(struct sna *sna,
 	default:
 		DBG(("%s: unhandled bpp: %d\n", __FUNCTION__,
 		     dst->pDrawable->bitsPerPixel));
-		return FALSE;
+		return false;
 	}
 
 	was_clear = sna_drawable_is_clear(dst->pDrawable);
@@ -1593,12 +1620,12 @@ sna_blt_composite(struct sna *sna,
 	priv = sna_pixmap_move_to_gpu(tmp->dst.pixmap, MOVE_WRITE | MOVE_READ);
 	if (priv == NULL) {
 		DBG(("%s: dst not attached\n", __FUNCTION__));
-		return FALSE;
+		return false;
 	}
 	if (!kgem_bo_can_blt(&sna->kgem, priv->gpu_bo)) {
 		DBG(("%s: can not blit to dst, tiling? %d, pitch? %d\n",
 		     __FUNCTION__, priv->gpu_bo->tiling, priv->gpu_bo->pitch));
-		return FALSE;
+		return false;
 	}
 
 	tmp->dst.format = dst->format;
@@ -1612,12 +1639,6 @@ sna_blt_composite(struct sna *sna,
 		tmp->damage = &priv->gpu_damage;
 	if (width && height)
 		reduce_damage(tmp, dst_x, dst_y, width, height);
-
-	if (!kgem_check_bo_fenced(&sna->kgem, priv->gpu_bo)) {
-		_kgem_submit(&sna->kgem);
-		assert(kgem_check_bo_fenced(&sna->kgem, priv->gpu_bo));
-		_kgem_set_mode(&sna->kgem, KGEM_BLT);
-	}
 
 	if (op == PictOpClear) {
 clear:
@@ -1640,7 +1661,7 @@ clear:
 		if (op != PictOpSrc) {
 			DBG(("%s: unsuported op [%d] for blitting\n",
 			     __FUNCTION__, op));
-			return FALSE;
+			return false;
 		}
 
 		return prepare_blt_fill(sna, tmp, src);
@@ -1649,13 +1670,13 @@ clear:
 	if (!src->pDrawable) {
 		DBG(("%s: unsuported procedural source\n",
 		     __FUNCTION__));
-		return FALSE;
+		return false;
 	}
 
 	if (src->filter == PictFilterConvolution) {
 		DBG(("%s: convolutions filters not handled\n",
 		     __FUNCTION__));
-		return FALSE;
+		return false;
 	}
 
 	if (op == PictOpOver && PICT_FORMAT_A(src_format) == 0)
@@ -1664,25 +1685,25 @@ clear:
 	if (op != PictOpSrc) {
 		DBG(("%s: unsuported op [%d] for blitting\n",
 		     __FUNCTION__, op));
-		return FALSE;
+		return false;
 	}
 
 	if (!sna_transform_is_integer_translation(src->transform, &tx, &ty)) {
 		DBG(("%s: source transform is not an integer translation\n",
 		     __FUNCTION__));
-		return FALSE;
+		return false;
 	}
 	x += tx;
 	y += ty;
 
-	if ((x > src->pDrawable->width ||
-	     y > src->pDrawable->height ||
-	     x + width < 0 ||
-	     y + height < 0) &&
+	if ((x >= src->pDrawable->width ||
+	     y >= src->pDrawable->height ||
+	     x + width <= 0 ||
+	     y + height <= 0) &&
 	    (!src->repeat || src->repeatType == RepeatNone)) {
 		DBG(("%s: source is outside of valid area, converting to clear\n",
 		     __FUNCTION__));
-		return prepare_blt_clear(sna, tmp);
+		goto clear;
 	}
 
 	alpha_fixup = 0;
@@ -1694,7 +1715,7 @@ clear:
 				       dst->format)))) {
 		DBG(("%s: incompatible src/dst formats src=%08x, dst=%08x\n",
 		     __FUNCTION__, (unsigned)src_format, dst->format));
-		return FALSE;
+		return false;
 	}
 
 	/* XXX tiling? fixup extend none? */
@@ -1704,7 +1725,7 @@ clear:
 		DBG(("%s: source extends outside (%d, %d), (%d, %d) of valid drawable %dx%d\n",
 		     __FUNCTION__,
 		     x, y, x+width, y+width, src->pDrawable->width, src->pDrawable->height));
-		return FALSE;
+		return false;
 	}
 
 	src_pixmap = get_drawable_pixmap(src->pDrawable);
@@ -1717,7 +1738,7 @@ clear:
 		DBG(("%s: source extends outside (%d, %d), (%d, %d) of valid pixmap %dx%d\n",
 		     __FUNCTION__,
 		     x, y, x+width, y+width, src_pixmap->drawable.width, src_pixmap->drawable.height));
-		return FALSE;
+		return false;
 	}
 
 	tmp->u.blt.src_pixmap = src_pixmap;
@@ -1773,7 +1794,7 @@ bool sna_blt_fill(struct sna *sna, uint8_t alu,
 		  struct sna_fill_op *fill)
 {
 #if DEBUG_NO_BLT || NO_BLT_FILL
-	return FALSE;
+	return false;
 #endif
 
 	DBG(("%s(alu=%d, pixel=%x, bpp=%d)\n", __FUNCTION__, alu, pixel, bpp));
@@ -1781,18 +1802,18 @@ bool sna_blt_fill(struct sna *sna, uint8_t alu,
 	if (!kgem_bo_can_blt(&sna->kgem, bo)) {
 		DBG(("%s: rejected due to incompatible Y-tiling\n",
 		     __FUNCTION__));
-		return FALSE;
+		return false;
 	}
 
 	if (!sna_blt_fill_init(sna, &fill->base.u.blt,
 			       bo, bpp, alu, pixel))
-		return FALSE;
+		return false;
 
 	fill->blt   = sna_blt_fill_op_blt;
 	fill->box   = sna_blt_fill_op_box;
 	fill->boxes = sna_blt_fill_op_boxes;
 	fill->done  = sna_blt_fill_op_done;
-	return TRUE;
+	return true;
 }
 
 static void sna_blt_copy_op_blt(struct sna *sna,
@@ -1825,26 +1846,26 @@ bool sna_blt_copy(struct sna *sna, uint8_t alu,
 		  struct sna_copy_op *op)
 {
 #if DEBUG_NO_BLT || NO_BLT_COPY
-	return FALSE;
+	return false;
 #endif
 
 	if (!kgem_bo_can_blt(&sna->kgem, src))
-		return FALSE;
+		return false;
 
 	if (!kgem_bo_can_blt(&sna->kgem, dst))
-		return FALSE;
+		return false;
 
 	if (!sna_blt_copy_init(sna, &op->base.u.blt,
 			       src, dst,
 			       bpp, alu))
-		return FALSE;
+		return false;
 
 	op->blt  = sna_blt_copy_op_blt;
 	if (sna->kgem.gen >= 60)
 		op->done = gen6_blt_copy_op_done;
 	else
 		op->done = sna_blt_copy_op_done;
-	return TRUE;
+	return true;
 }
 
 static bool sna_blt_fill_box(struct sna *sna, uint8_t alu,
@@ -1945,7 +1966,7 @@ static bool sna_blt_fill_box(struct sna *sna, uint8_t alu,
 	return true;
 }
 
-Bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
+bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
 			struct kgem_bo *bo, int bpp,
 			uint32_t pixel,
 			const BoxRec *box, int nbox)
@@ -1954,7 +1975,7 @@ Bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
 	uint32_t br13, cmd;
 
 #if DEBUG_NO_BLT || NO_BLT_FILL_BOXES
-	return FALSE;
+	return false;
 #endif
 
 	DBG(("%s (%d, %08x, %d) x %d\n",
@@ -1962,7 +1983,7 @@ Bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
 
 	if (!kgem_bo_can_blt(kgem, bo)) {
 		DBG(("%s: fallback -- dst uses Y-tiling\n", __FUNCTION__));
-		return FALSE;
+		return false;
 	}
 
 	if (alu == GXclear)
@@ -1975,7 +1996,7 @@ Bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
 	}
 
 	if (nbox == 1 && sna_blt_fill_box(sna, alu, bo, bpp, pixel, box))
-		return TRUE;
+		return true;
 
 	br13 = bo->pitch;
 	cmd = XY_SCANLINE_BLT;
@@ -2090,10 +2111,10 @@ Bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
 		}
 	} while (nbox);
 
-	return TRUE;
+	return true;
 }
 
-Bool sna_blt_copy_boxes(struct sna *sna, uint8_t alu,
+bool sna_blt_copy_boxes(struct sna *sna, uint8_t alu,
 			struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
 			struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
 			int bpp, const BoxRec *box, int nbox)
@@ -2102,7 +2123,7 @@ Bool sna_blt_copy_boxes(struct sna *sna, uint8_t alu,
 	unsigned src_pitch, br13, cmd;
 
 #if DEBUG_NO_BLT || NO_BLT_COPY_BOXES
-	return FALSE;
+	return false;
 #endif
 
 	DBG(("%s src=(%d, %d) -> (%d, %d) x %d, tiling=(%d, %d), pitch=(%d, %d)\n",
@@ -2115,7 +2136,7 @@ Bool sna_blt_copy_boxes(struct sna *sna, uint8_t alu,
 		     __FUNCTION__,
 		     kgem_bo_can_blt(kgem, src_bo),
 		     kgem_bo_can_blt(kgem, dst_bo)));
-		return FALSE;
+		return false;
 	}
 
 	cmd = XY_SRC_COPY_BLT_CMD;
@@ -2227,7 +2248,7 @@ Bool sna_blt_copy_boxes(struct sna *sna, uint8_t alu,
 		kgem->nbatch += 3;
 	}
 
-	return TRUE;
+	return true;
 }
 
 static void box_extents(const BoxRec *box, int n, BoxRec *extents)
@@ -2247,20 +2268,20 @@ static void box_extents(const BoxRec *box, int n, BoxRec *extents)
 	}
 }
 
-Bool sna_blt_copy_boxes_fallback(struct sna *sna, uint8_t alu,
+bool sna_blt_copy_boxes_fallback(struct sna *sna, uint8_t alu,
 				 PixmapPtr src, struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
 				 PixmapPtr dst, struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
 				 const BoxRec *box, int nbox)
 {
 	struct kgem_bo *free_bo = NULL;
-	Bool ret;
+	bool ret;
 
 	DBG(("%s: alu=%d, n=%d\n", __FUNCTION__, alu, nbox));
 
 	if (!sna_blt_compare_depth(&src->drawable, &dst->drawable)) {
 		DBG(("%s: mismatching depths %d -> %d\n",
 		     __FUNCTION__, src->drawable.depth, dst->drawable.depth));
-		return FALSE;
+		return false;
 	}
 
 	if (src_bo == dst_bo) {
@@ -2289,7 +2310,7 @@ Bool sna_blt_copy_boxes_fallback(struct sna *sna, uint8_t alu,
 				if (free_bo == NULL) {
 					DBG(("%s: fallback -- temp allocation failed\n",
 					     __FUNCTION__));
-					return FALSE;
+					return false;
 				}
 
 				if (!sna_blt_copy_boxes(sna, GXcopy,
@@ -2300,7 +2321,7 @@ Bool sna_blt_copy_boxes_fallback(struct sna *sna, uint8_t alu,
 					DBG(("%s: fallback -- temp copy failed\n",
 					     __FUNCTION__));
 					kgem_bo_destroy(&sna->kgem, free_bo);
-					return FALSE;
+					return false;
 				}
 
 				src_dx = -extents.x1;
@@ -2318,7 +2339,7 @@ Bool sna_blt_copy_boxes_fallback(struct sna *sna, uint8_t alu,
 			if (src_bo == NULL) {
 				DBG(("%s: fallback -- src y-tiling conversion failed\n",
 				     __FUNCTION__));
-				return FALSE;
+				return false;
 			}
 		}
 
@@ -2330,7 +2351,7 @@ Bool sna_blt_copy_boxes_fallback(struct sna *sna, uint8_t alu,
 			if (dst_bo == NULL) {
 				DBG(("%s: fallback -- dst y-tiling conversion failed\n",
 				     __FUNCTION__));
-				return FALSE;
+				return false;
 			}
 		}
 	}

@@ -2221,9 +2221,9 @@ static int operator_is_bounded(uint8_t op)
 	case PictOpOver:
 	case PictOpOutReverse:
 	case PictOpAdd:
-		return TRUE;
+		return true;
 	default:
-		return FALSE;
+		return false;
 	}
 }
 
@@ -2366,7 +2366,7 @@ trapezoids_inplace_fallback(CARD8 op,
 
 	image = NULL;
 	if (sna_drawable_move_to_cpu(dst->pDrawable, MOVE_READ | MOVE_WRITE))
-		image = image_from_pict(dst, FALSE, &dx, &dy);
+		image = image_from_pict(dst, false, &dx, &dy);
 	if (image) {
 		dx += dst->pDrawable->x;
 		dy += dst->pDrawable->y;
@@ -2529,7 +2529,7 @@ trapezoids_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 	}
 }
 
-static Bool
+static bool
 composite_aligned_boxes(struct sna *sna,
 			CARD8 op,
 			PicturePtr src,
@@ -2542,7 +2542,7 @@ composite_aligned_boxes(struct sna *sna,
 	BoxRec stack_boxes[64], *boxes;
 	pixman_region16_t region, clip;
 	struct sna_composite_op tmp;
-	Bool ret = true;
+	bool ret = true;
 	int dx, dy, n, num_boxes;
 
 	if (NO_ALIGNED_BOXES)
@@ -3306,7 +3306,7 @@ pixman:
 			continue;
 		}
 
-		pi.image = image_from_pict(dst, FALSE, &pi.dx, &pi.dy);
+		pi.image = image_from_pict(dst, false, &pi.dx, &pi.dy);
 		pi.source = pixman_image_create_bits(PIXMAN_a8r8g8b8, 1, 1, NULL, 0);
 		pixman_image_set_repeat(pi.source, PIXMAN_REPEAT_NORMAL);
 		pi.bits = pixman_image_get_data(pi.source);
@@ -3467,8 +3467,8 @@ composite_unaligned_boxes_inplace(CARD8 op,
 			}
 		}
 
-		pi.image = image_from_pict(dst, FALSE, &pi.dx, &pi.dy);
-		pi.source = image_from_pict(src, FALSE, &pi.sx, &pi.sy);
+		pi.image = image_from_pict(dst, false, &pi.dx, &pi.dy);
+		pi.source = image_from_pict(src, false, &pi.sx, &pi.sy);
 		pi.sx += src_x;
 		pi.sy += src_y;
 		pi.mask = pixman_image_create_bits(PIXMAN_a8, 1, 1, NULL, 0);
@@ -4743,10 +4743,10 @@ unbounded_pass:
 
 		op = 0;
 	} else {
-		inplace.composite.dst = image_from_pict(dst, FALSE,
+		inplace.composite.dst = image_from_pict(dst, false,
 							&inplace.composite.dx,
 							&inplace.composite.dy);
-		inplace.composite.src = image_from_pict(src, FALSE,
+		inplace.composite.src = image_from_pict(src, false,
 							&inplace.composite.sx,
 							&inplace.composite.sy);
 		inplace.composite.sx +=
@@ -5879,7 +5879,7 @@ sna_add_traps(PicturePtr picture, INT16 x, INT16 y, int n, xTrap *t)
 		pixman_image_t *image;
 		int dx, dy;
 
-		if (!(image = image_from_pict(picture, FALSE, &dx, &dy)))
+		if (!(image = image_from_pict(picture, false, &dx, &dy)))
 			return;
 
 		pixman_add_traps(image, x + dx, y + dy, n, (pixman_trap_t *)t);
@@ -5910,9 +5910,9 @@ xTriangleValid(const xTriangle *t)
 
 	/* if the length of any edge is zero, the area must be zero */
 	if (v1.x == 0 && v1.y == 0)
-		return FALSE;
+		return false;
 	if (v2.x == 0 && v2.y == 0)
-		return FALSE;
+		return false;
 
 	/* if the cross-product is zero, so it the size */
 	return v2.y * v1.x != v1.y * v2.x;

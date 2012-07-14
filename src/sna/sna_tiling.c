@@ -265,7 +265,7 @@ done:
 	free(tile);
 }
 
-Bool
+bool
 sna_tiling_composite(uint32_t op,
 		     PicturePtr src,
 		     PicturePtr mask,
@@ -285,11 +285,11 @@ sna_tiling_composite(uint32_t op,
 
 	priv = sna_pixmap(get_drawable_pixmap(dst->pDrawable));
 	if (priv == NULL || priv->gpu_bo == NULL)
-		return FALSE;
+		return false;
 
 	tile = malloc(sizeof(*tile));
 	if (!tile)
-		return FALSE;
+		return false;
 
 	tile->op = op;
 
@@ -315,7 +315,7 @@ sna_tiling_composite(uint32_t op,
 	tmp->done  = sna_tiling_composite_done;
 
 	tmp->priv = tile;
-	return TRUE;
+	return true;
 }
 
 fastcall static void
@@ -522,7 +522,7 @@ done:
 	free(tile);
 }
 
-Bool
+bool
 sna_tiling_composite_spans(uint32_t op,
 			   PicturePtr src,
 			   PicturePtr dst,
@@ -541,11 +541,11 @@ sna_tiling_composite_spans(uint32_t op,
 
 	priv = sna_pixmap(get_drawable_pixmap(dst->pDrawable));
 	if (priv == NULL || priv->gpu_bo == NULL)
-		return FALSE;
+		return false;
 
 	tile = malloc(sizeof(*tile));
 	if (!tile)
-		return FALSE;
+		return false;
 
 	tile->op = op;
 	tile->flags = flags;
@@ -571,10 +571,10 @@ sna_tiling_composite_spans(uint32_t op,
 	tmp->done  = sna_tiling_composite_spans_done;
 
 	tmp->base.priv = tile;
-	return TRUE;
+	return true;
 }
 
-Bool
+bool
 sna_tiling_fill_boxes(struct sna *sna,
 		      CARD8 op,
 		      PictFormat format,
@@ -585,7 +585,7 @@ sna_tiling_fill_boxes(struct sna *sna,
 	RegionRec region, tile, this;
 	struct kgem_bo *bo;
 	int step;
-	Bool ret = FALSE;
+	bool ret = false;
 
 	pixman_region_init_rects(&region, box, n);
 
@@ -674,7 +674,7 @@ sna_tiling_fill_boxes(struct sna *sna,
 		}
 	}
 
-	ret = TRUE;
+	ret = true;
 	goto done;
 err:
 	kgem_bo_destroy(&sna->kgem, bo);
@@ -684,7 +684,7 @@ done:
 	return ret;
 }
 
-Bool sna_tiling_blt_copy_boxes(struct sna *sna, uint8_t alu,
+bool sna_tiling_blt_copy_boxes(struct sna *sna, uint8_t alu,
 			       struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
 			       struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
 			       int bpp, const BoxRec *box, int nbox)
@@ -692,7 +692,7 @@ Bool sna_tiling_blt_copy_boxes(struct sna *sna, uint8_t alu,
 	RegionRec region, tile, this;
 	struct kgem_bo *bo;
 	int step;
-	Bool ret = FALSE;
+	bool ret = false;
 
 	if (!kgem_bo_can_blt(&sna->kgem, src_bo) ||
 	    !kgem_bo_can_blt(&sna->kgem, dst_bo)) {
@@ -701,7 +701,7 @@ Bool sna_tiling_blt_copy_boxes(struct sna *sna, uint8_t alu,
 		     __FUNCTION__,
 		     kgem_bo_can_blt(&sna->kgem, src_bo),
 		     kgem_bo_can_blt(&sna->kgem, dst_bo)));
-		return FALSE;
+		return false;
 	}
 
 	pixman_region_init_rects(&region, box, nbox);
@@ -773,7 +773,7 @@ Bool sna_tiling_blt_copy_boxes(struct sna *sna, uint8_t alu,
 		}
 	}
 
-	ret = TRUE;
+	ret = true;
 	goto done;
 err:
 	kgem_bo_destroy(&sna->kgem, bo);
@@ -783,7 +783,7 @@ done:
 	return ret;
 }
 
-static Bool
+static bool
 box_intersect(BoxPtr a, const BoxRec *b)
 {
 	if (a->x1 < b->x1)
@@ -798,7 +798,7 @@ box_intersect(BoxPtr a, const BoxRec *b)
 	return a->x1 < a->x2 && a->y1 < a->y2;
 }
 
-Bool
+bool
 sna_tiling_copy_boxes(struct sna *sna, uint8_t alu,
 		      PixmapPtr src, struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
 		      PixmapPtr dst, struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
@@ -807,7 +807,7 @@ sna_tiling_copy_boxes(struct sna *sna, uint8_t alu,
 	BoxRec extents, tile, stack[64], *clipped, *c;
 	PixmapRec p;
 	int i, step, tiling;
-	Bool ret = FALSE;
+	bool ret = false;
 
 	extents = box[0];
 	for (i = 1; i < n; i++) {
@@ -905,7 +905,7 @@ sna_tiling_copy_boxes(struct sna *sna, uint8_t alu,
 		}
 	}
 
-	ret = TRUE;
+	ret = true;
 tiled_error:
 	if (clipped != stack)
 		free(clipped);

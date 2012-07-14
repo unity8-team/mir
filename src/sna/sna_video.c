@@ -66,11 +66,11 @@
 #define _SNA_XVMC_SERVER_
 #include "sna_video_hwmc.h"
 #else
-static inline Bool sna_video_xvmc_setup(struct sna *sna,
+static inline bool sna_video_xvmc_setup(struct sna *sna,
 					ScreenPtr ptr,
 					XF86VideoAdaptorPtr target)
 {
-	return FALSE;
+	return false;
 }
 #endif
 
@@ -123,7 +123,7 @@ void sna_video_buffer_fini(struct sna *sna,
 	video->buf = bo;
 }
 
-Bool
+bool
 sna_video_clip_helper(ScrnInfoPtr scrn,
 		      struct sna_video *video,
 		      struct sna_video_frame *frame,
@@ -135,7 +135,7 @@ sna_video_clip_helper(ScrnInfoPtr scrn,
 		      short drw_w, short drw_h,
 		      RegionPtr reg)
 {
-	Bool ret;
+	bool ret;
 	RegionRec crtc_region_local;
 	RegionPtr crtc_region = reg;
 	INT32 x1, x2, y1, y2;
@@ -432,7 +432,7 @@ sna_copy_packed_data(struct sna_video *video,
 	}
 }
 
-Bool
+bool
 sna_video_copy_data(struct sna *sna,
 		    struct sna_video *video,
 		    struct sna_video_frame *frame,
@@ -465,7 +465,7 @@ sna_video_copy_data(struct sna *sna,
 								       KGEM_BUFFER_WRITE | KGEM_BUFFER_WRITE_INPLACE,
 								       (void **)&dst);
 					if (frame->bo == NULL)
-						return FALSE;
+						return false;
 
 					memcpy(dst, buf,
 					       pitch[1]*frame->height +
@@ -477,7 +477,7 @@ sna_video_copy_data(struct sna *sna,
 					frame->VBufOffset = frame->UBufOffset;
 					frame->UBufOffset = tmp;
 				}
-				return TRUE;
+				return true;
 			}
 		} else {
 			if (frame->width*2 == frame->pitch[0]) {
@@ -490,13 +490,13 @@ sna_video_copy_data(struct sna *sna,
 								       KGEM_BUFFER_WRITE | KGEM_BUFFER_WRITE_INPLACE,
 								       (void **)&dst);
 					if (frame->bo == NULL)
-						return FALSE;
+						return false;
 
 					memcpy(dst,
 					       buf + (frame->top * frame->width*2) + (frame->left << 1),
 					       frame->nlines*frame->width*2);
 				}
-				return TRUE;
+				return true;
 			}
 		}
 	}
@@ -505,13 +505,13 @@ sna_video_copy_data(struct sna *sna,
 	if (frame->bo) {
 		dst = kgem_bo_map__gtt(&sna->kgem, frame->bo);
 		if (dst == NULL)
-			return FALSE;
+			return false;
 	} else {
 		frame->bo = kgem_create_buffer(&sna->kgem, frame->size,
 					       KGEM_BUFFER_WRITE | KGEM_BUFFER_WRITE_INPLACE,
 					       (void **)&dst);
 		if (frame->bo == NULL)
-			return FALSE;
+			return false;
 	}
 
 	if (is_planar_fourcc(frame->id))
@@ -519,7 +519,7 @@ sna_video_copy_data(struct sna *sna,
 	else
 		sna_copy_packed_data(video, frame, buf, dst);
 
-	return TRUE;
+	return true;
 }
 
 void sna_video_init(struct sna *sna, ScreenPtr screen)
@@ -528,7 +528,7 @@ void sna_video_init(struct sna *sna, ScreenPtr screen)
 	XF86VideoAdaptorPtr textured, overlay;
 	int num_adaptors;
 	int prefer_overlay =
-	    xf86ReturnOptValBool(sna->Options, OPTION_PREFER_OVERLAY, FALSE);
+	    xf86ReturnOptValBool(sna->Options, OPTION_PREFER_OVERLAY, false);
 
 	if (!xf86LoaderCheckSymbol("xf86XVListGenericAdaptors"))
 		return;

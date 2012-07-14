@@ -70,7 +70,7 @@ sna_render_format_for_depth(int depth)
 	}
 }
 
-static Bool
+static bool
 no_render_composite(struct sna *sna,
 		    uint8_t op,
 		    PicturePtr src,
@@ -98,7 +98,7 @@ no_render_composite(struct sna *sna,
 	(void)mask_y;
 }
 
-static Bool
+static bool
 no_render_copy_boxes(struct sna *sna, uint8_t alu,
 		     PixmapPtr src, struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
 		     PixmapPtr dst, struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
@@ -116,7 +116,7 @@ no_render_copy_boxes(struct sna *sna, uint8_t alu,
 				  box, n);
 }
 
-static Bool
+static bool
 no_render_copy(struct sna *sna, uint8_t alu,
 		 PixmapPtr src, struct kgem_bo *src_bo,
 		 PixmapPtr dst, struct kgem_bo *dst_bo,
@@ -133,7 +133,7 @@ no_render_copy(struct sna *sna, uint8_t alu,
 	return FALSE;
 }
 
-static Bool
+static bool
 no_render_fill_boxes(struct sna *sna,
 		     CARD8 op,
 		     PictFormat format,
@@ -176,7 +176,7 @@ no_render_fill_boxes(struct sna *sna,
 				  pixel, box, n);
 }
 
-static Bool
+static bool
 no_render_fill(struct sna *sna, uint8_t alu,
 	       PixmapPtr dst, struct kgem_bo *dst_bo,
 	       uint32_t color,
@@ -189,7 +189,7 @@ no_render_fill(struct sna *sna, uint8_t alu,
 			    tmp);
 }
 
-static Bool
+static bool
 no_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 		   uint32_t color,
 		   int16_t x1, int16_t y1, int16_t x2, int16_t y2,
@@ -209,7 +209,7 @@ no_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 				  color, &box, 1);
 }
 
-static Bool
+static bool
 no_render_clear(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo)
 {
 	DBG(("%s: pixmap=%ld %dx%d\n", __FUNCTION__,
@@ -1717,7 +1717,7 @@ sna_render_picture_convert(struct sna *sna,
 	return 1;
 }
 
-Bool
+bool
 sna_render_composite_redirect(struct sna *sna,
 			      struct sna_composite_op *op,
 			      int x, int y, int width, int height)

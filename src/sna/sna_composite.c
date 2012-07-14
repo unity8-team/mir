@@ -41,7 +41,7 @@
 
 #define BOUND(v)	(INT16) ((v) < MINSHORT ? MINSHORT : (v) > MAXSHORT ? MAXSHORT : (v))
 
-Bool sna_composite_create(struct sna *sna)
+bool sna_composite_create(struct sna *sna)
 {
 	xRenderColor color ={ 0 };
 	int error;
@@ -101,7 +101,7 @@ clip_to_dst(pixman_region16_t *region,
 			return FALSE;
 		}
 
-		return TRUE;
+		return true;
 	} else if (region_is_empty(clip)) {
 		return FALSE;
 	} else {
@@ -116,13 +116,13 @@ clip_to_dst(pixman_region16_t *region,
 	}
 }
 
-static inline Bool
+static inline bool
 clip_to_src(RegionPtr region, PicturePtr p, int dx, int	 dy)
 {
-	Bool result;
+	bool result;
 
 	if (p->clientClipType == CT_NONE)
-		return TRUE;
+		return true;
 
 	pixman_region_translate(p->clientClip,
 				p->clipOrigin.x + dx,
@@ -137,7 +137,7 @@ clip_to_src(RegionPtr region, PicturePtr p, int dx, int	 dy)
 	return result && !region_is_empty(region);
 }
 
-Bool
+bool
 sna_compute_composite_region(RegionPtr region,
 			     PicturePtr src, PicturePtr mask, PicturePtr dst,
 			     INT16 src_x,  INT16 src_y,
@@ -302,7 +302,7 @@ trim_source_extents(BoxPtr extents, const PicturePtr p, int dx, int dy)
 	     extents->x2, extents->y2));
 }
 
-Bool
+bool
 sna_compute_composite_extents(BoxPtr extents,
 			      PicturePtr src, PicturePtr mask, PicturePtr dst,
 			      INT16 src_x,  INT16 src_y,
@@ -604,7 +604,7 @@ static int16_t bound(int16_t a, uint16_t b)
 	return v;
 }
 
-static Bool
+static bool
 _pixman_region_init_clipped_rectangles(pixman_region16_t *region,
 				       unsigned int num_rects,
 				       xRectangle *rects,

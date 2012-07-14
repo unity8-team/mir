@@ -100,7 +100,7 @@ static const XF86ImageRec Images[NUM_IMAGES] = {
 };
 
 /* kernel modesetting overlay functions */
-static Bool sna_has_overlay(struct sna *sna)
+static bool sna_has_overlay(struct sna *sna)
 {
 	struct drm_i915_getparam gp;
 	int has_overlay = 0;
@@ -113,7 +113,7 @@ static Bool sna_has_overlay(struct sna *sna)
 	return ret == 0 && has_overlay;
 }
 
-static Bool sna_video_overlay_update_attrs(struct sna *sna,
+static bool sna_video_overlay_update_attrs(struct sna *sna,
 					   struct sna_video *video)
 {
 	struct drm_intel_overlay_attrs attrs;
@@ -348,7 +348,7 @@ update_dst_box_to_crtc_coords(struct sna *sna, xf86CrtcPtr crtc, BoxPtr dstBox)
 	return;
 }
 
-static Bool
+static bool
 sna_video_overlay_show(struct sna *sna,
 		       struct sna_video *video,
 		       struct sna_video_frame *frame,
@@ -684,7 +684,7 @@ XF86VideoAdaptorPtr sna_video_overlay_setup(struct sna *sna,
 	adaptor->PutImage = sna_video_overlay_put_image;
 	adaptor->QueryImageAttributes = sna_video_overlay_query_video_attributes;
 
-	video->textured = FALSE;
+	video->textured = false;
 	video->color_key = sna_video_overlay_color_key(sna);
 	video->brightness = -19;	/* (255/219) * -16 */
 	video->contrast = 75;	/* 255/219 * 64 */

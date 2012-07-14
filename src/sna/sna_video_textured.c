@@ -39,7 +39,7 @@
 #include "sna_video_hwmc.h"
 #endif
 
-#define MAKE_ATOM(a) MakeAtom(a, sizeof(a) - 1, TRUE)
+#define MAKE_ATOM(a) MakeAtom(a, sizeof(a) - 1, true)
 
 static Atom xvBrightness, xvContrast, xvSyncToVblank;
 
@@ -197,7 +197,7 @@ sna_video_textured_best_size(ScrnInfoPtr scrn,
  * id is a fourcc code for the format of the video.
  * buf is the pointer to the source data in system memory.
  * width and height are the w/h of the source data.
- * If "sync" is TRUE, then we must be finished with *buf at the point of return
+ * If "sync" is true, then we must be finished with *buf at the point of return
  * (which we always are).
  * clip is the clipping region in screen space.
  * data is a pointer to our port private.
@@ -221,8 +221,8 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
 	BoxRec dstBox;
 	xf86CrtcPtr crtc;
-	Bool flush = false;
-	Bool ret;
+	bool flush = false;
+	bool ret;
 
 	DBG(("%s: src=(%d, %d),(%d, %d), dst=(%d, %d),(%d, %d), id=%d, sizep=%dx%d, sync?=%d\n",
 	     __FUNCTION__,
@@ -385,7 +385,7 @@ XF86VideoAdaptorPtr sna_video_textured_setup(struct sna *sna,
 	if (wedged(sna)) {
 		xf86DrvMsg(sna->scrn->scrnIndex, X_WARNING,
 			   "cannot enable XVideo whilst the GPU is wedged\n");
-		return FALSE;
+		return NULL;
 	}
 
 	adaptor = calloc(1, sizeof(XF86VideoAdaptorRec));
@@ -448,7 +448,7 @@ XF86VideoAdaptorPtr sna_video_textured_setup(struct sna *sna,
 	for (i = 0; i < nports; i++) {
 		struct sna_video *v = &video[i];
 
-		v->textured = TRUE;
+		v->textured = true;
 		v->rotation = RR_Rotate_0;
 		v->SyncToVblank = 1;
 

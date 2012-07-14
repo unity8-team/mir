@@ -1310,23 +1310,23 @@ bool _sna_damage_contains_box__no_reduce(const struct sna_damage *damage,
 						(BoxPtr)box) == PIXMAN_REGION_IN;
 }
 
-static Bool __sna_damage_intersect(struct sna_damage *damage,
+static bool __sna_damage_intersect(struct sna_damage *damage,
 				   RegionPtr region, RegionPtr result)
 {
 	assert(damage && damage->mode != DAMAGE_ALL);
 	if (region->extents.x2 <= damage->extents.x1 ||
 	    region->extents.x1 >= damage->extents.x2)
-		return FALSE;
+		return false;
 
 	if (region->extents.y2 <= damage->extents.y1 ||
 	    region->extents.y1 >= damage->extents.y2)
-		return FALSE;
+		return false;
 
 	if (damage->dirty)
 		__sna_damage_reduce(damage);
 
 	if (!pixman_region_not_empty(&damage->region))
-		return FALSE;
+		return false;
 
 	RegionNull(result);
 	RegionIntersect(result, &damage->region, region);
@@ -1335,12 +1335,12 @@ static Bool __sna_damage_intersect(struct sna_damage *damage,
 }
 
 #if HAS_DEBUG_FULL
-Bool _sna_damage_intersect(struct sna_damage *damage,
+bool _sna_damage_intersect(struct sna_damage *damage,
 			   RegionPtr region, RegionPtr result)
 {
 	char damage_buf[1000];
 	char region_buf[120];
-	Bool ret;
+	bool ret;
 
 	ErrorF("%s(%s, %s)...\n", __FUNCTION__,
 	       _debug_describe_damage(damage_buf, sizeof(damage_buf), damage),
@@ -1356,7 +1356,7 @@ Bool _sna_damage_intersect(struct sna_damage *damage,
 	return ret;
 }
 #else
-Bool _sna_damage_intersect(struct sna_damage *damage,
+bool _sna_damage_intersect(struct sna_damage *damage,
 			  RegionPtr region, RegionPtr result)
 {
 	return __sna_damage_intersect(damage, region, result);
@@ -1563,16 +1563,16 @@ static bool st_check_equal(struct sna_damage_selftest *test,
 	if (d_num != r_num) {
 		ErrorF("%s: damage and ref contain different number of rectangles\n",
 		       __FUNCTION__);
-		return FALSE;
+		return false;
 	}
 
 	if (memcmp(d_boxes, r_boxes, d_num*sizeof(BoxRec))) {
 		ErrorF("%s: damage and ref contain different rectangles\n",
 		       __FUNCTION__);
-		return FALSE;
+		return false;
 	}
 
-	return TRUE;
+	return true;
 }
 
 void sna_damage_selftest(void)

@@ -41,7 +41,7 @@
 
 /* XXX Need to avoid using GTT fenced access for I915_TILING_Y on 855GM */
 
-static Bool
+static bool
 box_intersect(BoxPtr a, const BoxRec *b)
 {
 	if (a->x1 < b->x1)

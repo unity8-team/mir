@@ -406,7 +406,7 @@ void kgem_bo_sync__cpu(struct kgem *kgem, struct kgem_bo *bo);
 void kgem_bo_set_sync(struct kgem *kgem, struct kgem_bo *bo);
 uint32_t kgem_bo_flink(struct kgem *kgem, struct kgem_bo *bo);
 
-Bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,
+bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,
 		   const void *data, int length);
 
 int kgem_bo_fenced_size(struct kgem *kgem, struct kgem_bo *bo);
@@ -513,7 +513,7 @@ static inline bool __kgem_bo_is_busy(struct kgem *kgem, struct kgem_bo *bo)
 static inline bool kgem_bo_is_dirty(struct kgem_bo *bo)
 {
 	if (bo == NULL)
-		return FALSE;
+		return false;
 
 	return bo->dirty;
 }

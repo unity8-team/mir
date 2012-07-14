@@ -85,12 +85,12 @@ sna_gradient_sample_width(PictGradient *gradient)
 	return min(width, 1024);
 }
 
-static Bool
+static bool
 _gradient_color_stops_equal(PictGradient *pattern,
 			    struct sna_gradient_cache *cache)
 {
     if (cache->nstops != pattern->nstops)
-	    return FALSE;
+	    return false;
 
     return memcmp(cache->stops,
 		  pattern->stops,
@@ -323,7 +323,7 @@ done:
 	return kgem_bo_reference(cache->bo[i]);
 }
 
-static Bool sna_alpha_cache_init(struct sna *sna)
+static bool sna_alpha_cache_init(struct sna *sna)
 {
 	struct sna_alpha_cache *cache = &sna->render.alpha_cache;
 	uint32_t color[256];
@@ -333,7 +333,7 @@ static Bool sna_alpha_cache_init(struct sna *sna)
 
 	cache->cache_bo = kgem_create_linear(&sna->kgem, sizeof(color), 0);
 	if (!cache->cache_bo)
-		return FALSE;
+		return false;
 
 	for (i = 0; i < 256; i++) {
 		color[i] = i << 24;
@@ -342,14 +342,14 @@ static Bool sna_alpha_cache_init(struct sna *sna)
 						 sizeof(uint32_t)*i,
 						 sizeof(uint32_t));
 		if (cache->bo[i] == NULL)
-			return FALSE;
+			return false;
 
 		cache->bo[i]->pitch = 4;
 	}
 	return kgem_bo_write(&sna->kgem, cache->cache_bo, color, sizeof(color));
 }
 
-static Bool sna_solid_cache_init(struct sna *sna)
+static bool sna_solid_cache_init(struct sna *sna)
 {
 	struct sna_solid_cache *cache = &sna->render.solid_cache;
 
@@ -358,7 +358,7 @@ static Bool sna_solid_cache_init(struct sna *sna)
 	cache->cache_bo =
 		kgem_create_linear(&sna->kgem, sizeof(cache->color), 0);
 	if (!cache->cache_bo)
-		return FALSE;
+		return false;
 
 	/*
 	 * Initialise [0] with white since it is very common and filling the
@@ -368,27 +368,27 @@ static Bool sna_solid_cache_init(struct sna *sna)
 	cache->bo[0] = kgem_create_proxy(&sna->kgem, cache->cache_bo,
 					 0, sizeof(uint32_t));
 	if (cache->bo[0] == NULL)
-		return FALSE;
+		return false;
 
 	cache->bo[0]->pitch = 4;
 	cache->dirty = 1;
 	cache->size = 1;
 	cache->last = 0;
 
-	return TRUE;
+	return true;
 }
 
-Bool sna_gradients_create(struct sna *sna)
+bool sna_gradients_create(struct sna *sna)
 {
 	DBG(("%s\n", __FUNCTION__));
 
 	if (!sna_alpha_cache_init(sna))
-		return FALSE;
+		return false;
 
 	if (!sna_solid_cache_init(sna))
-		return FALSE;
+		return false;
 
-	return TRUE;
+	return true;
 }
 
 void sna_gradients_close(struct sna *sna)

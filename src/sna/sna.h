@@ -261,7 +261,7 @@ struct sna {
 	OptionInfoPtr Options;
 
 	/* Driver phase/state information */
-	Bool suspended;
+	bool suspended;
 
 #if HAVE_UDEV
 	struct udev_monitor *uevent_monitor;
@@ -281,7 +281,7 @@ struct sna {
 #endif
 };
 
-Bool sna_mode_pre_init(ScrnInfoPtr scrn, struct sna *sna);
+bool sna_mode_pre_init(ScrnInfoPtr scrn, struct sna *sna);
 void sna_mode_adjust_frame(struct sna *sna, int x, int y);
 extern void sna_mode_update(struct sna *sna);
 extern void sna_mode_disable_unused(struct sna *sna);
@@ -343,7 +343,7 @@ extern bool sna_wait_for_scanline(struct sna *sna, PixmapPtr pixmap,
 				  xf86CrtcPtr crtc, const BoxRec *clip);
 
 #if HAVE_DRI2_H
-Bool sna_dri_open(struct sna *sna, ScreenPtr pScreen);
+bool sna_dri_open(struct sna *sna, ScreenPtr pScreen);
 void sna_dri_page_flip_handler(struct sna *sna, struct drm_event_vblank *event);
 void sna_dri_vblank_handler(struct sna *sna, struct drm_event_vblank *event);
 void sna_dri_destroy_window(WindowPtr win);
@@ -478,7 +478,7 @@ static inline struct kgem_bo *sna_pixmap_pin(PixmapPtr pixmap)
 }
 
 
-static inline Bool
+static inline bool
 _sna_transform_point(const PictTransform *transform,
 		     int64_t x, int64_t y, int64_t result[3])
 {
@@ -515,10 +515,10 @@ sna_get_transformed_coordinates_3d(int x, int y,
 				   const PictTransform *transform,
 				   float *x_out, float *y_out, float *z_out);
 
-Bool sna_transform_is_affine(const PictTransform *t);
-Bool sna_transform_is_integer_translation(const PictTransform *t,
+bool sna_transform_is_affine(const PictTransform *t);
+bool sna_transform_is_integer_translation(const PictTransform *t,
 					  int16_t *tx, int16_t *ty);
-Bool sna_transform_is_translation(const PictTransform *t,
+bool sna_transform_is_translation(const PictTransform *t,
 				  pixman_fixed_t *tx, pixman_fixed_t *ty);
 
 static inline bool
@@ -564,10 +564,10 @@ void sna_accel_watch_flush(struct sna *sna, int enable);
 void sna_accel_close(struct sna *sna);
 void sna_accel_free(struct sna *sna);
 
-Bool sna_accel_create(struct sna *sna);
+bool sna_accel_create(struct sna *sna);
 void sna_copy_fbcon(struct sna *sna);
 
-Bool sna_composite_create(struct sna *sna);
+bool sna_composite_create(struct sna *sna);
 void sna_composite_close(struct sna *sna);
 
 void sna_composite(CARD8 op,
@@ -612,7 +612,7 @@ void sna_composite_trifan(CARD8 op,
 			  INT16 xSrc, INT16 ySrc,
 			  int npoints, xPointFixed *points);
 
-Bool sna_gradients_create(struct sna *sna);
+bool sna_gradients_create(struct sna *sna);
 void sna_gradients_close(struct sna *sna);
 
 bool sna_glyphs_create(struct sna *sna);
@@ -651,14 +651,14 @@ struct kgem_bo *sna_replace__xor(struct sna *sna,
 				 const void *src, int stride,
 				 uint32_t and, uint32_t or);
 
-Bool
+bool
 sna_compute_composite_extents(BoxPtr extents,
 			      PicturePtr src, PicturePtr mask, PicturePtr dst,
 			      INT16 src_x,  INT16 src_y,
 			      INT16 mask_x, INT16 mask_y,
 			      INT16 dst_x,  INT16 dst_y,
 			      CARD16 width, CARD16 height);
-Bool
+bool
 sna_compute_composite_region(RegionPtr region,
 			     PicturePtr src, PicturePtr mask, PicturePtr dst,
 			     INT16 src_x,  INT16 src_y,

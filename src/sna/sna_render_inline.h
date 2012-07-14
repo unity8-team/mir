@@ -67,7 +67,7 @@ static inline void batch_emit_float(struct sna *sna, float f)
 	batch_emit(sna, u.dw);
 }
 
-static inline Bool
+static inline bool
 is_gpu(DrawablePtr drawable)
 {
 	struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
@@ -81,7 +81,7 @@ is_gpu(DrawablePtr drawable)
 	return priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo);
 }
 
-static inline Bool
+static inline bool
 is_cpu(DrawablePtr drawable)
 {
 	struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
@@ -98,7 +98,7 @@ is_cpu(DrawablePtr drawable)
 	return true;
 }
 
-static inline Bool
+static inline bool
 is_dirty(DrawablePtr drawable)
 {
 	struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
@@ -119,36 +119,36 @@ too_small(struct sna_pixmap *priv)
 	return (priv->create & KGEM_CAN_CREATE_GPU) == 0;
 }
 
-static inline Bool
+static inline bool
 unattached(DrawablePtr drawable)
 {
 	struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
 	return priv == NULL || (priv->gpu_damage == NULL && priv->cpu_damage);
 }
 
-static inline Bool
+static inline bool
 picture_is_gpu(PicturePtr picture)
 {
 	if (!picture || !picture->pDrawable)
-		return FALSE;
+		return false;
 	return is_gpu(picture->pDrawable);
 }
 
-static inline Bool sna_blt_compare_depth(DrawablePtr src, DrawablePtr dst)
+static inline bool sna_blt_compare_depth(DrawablePtr src, DrawablePtr dst)
 {
 	if (src->depth == dst->depth)
-		return TRUE;
+		return true;
 
 	/* Also allow for the alpha to be discarded on a copy */
 	if (src->bitsPerPixel != dst->bitsPerPixel)
-		return FALSE;
+		return false;
 
 	if (dst->depth == 24 && src->depth == 32)
-		return TRUE;
+		return true;
 
 	/* Note that a depth-16 pixmap is r5g6b5, not x1r5g5b5. */
 
-	return FALSE;
+	return false;
 }
 
 static inline struct kgem_bo *

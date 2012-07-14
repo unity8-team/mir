@@ -178,10 +178,10 @@ static inline void sna_damage_subtract_boxes(struct sna_damage **damage,
 	assert(*damage == NULL || (*damage)->mode != DAMAGE_ALL);
 }
 
-Bool _sna_damage_intersect(struct sna_damage *damage,
+bool _sna_damage_intersect(struct sna_damage *damage,
 			  RegionPtr region, RegionPtr result);
 
-static inline Bool sna_damage_intersect(struct sna_damage *damage,
+static inline bool sna_damage_intersect(struct sna_damage *damage,
 					RegionPtr region, RegionPtr result)
 {
 	assert(damage);
@@ -197,13 +197,13 @@ sna_damage_overlaps_box(const struct sna_damage *damage,
 {
 	if (box->x2 <= damage->extents.x1 ||
 	    box->x1 >= damage->extents.x2)
-		return FALSE;
+		return false;
 
 	if (box->y2 <= damage->extents.y1 ||
 	    box->y1 >= damage->extents.y2)
-		return FALSE;
+		return false;
 
-	return TRUE;
+	return true;
 }
 
 int _sna_damage_contains_box(struct sna_damage *damage,

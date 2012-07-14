@@ -82,7 +82,7 @@ struct sna_output {
 	int num_props;
 	struct sna_property *props;
 
-	Bool has_panel_limits;
+	bool has_panel_limits;
 	int panel_hdisplay;
 	int panel_vdisplay;
 
@@ -506,7 +506,7 @@ sna_crtc_force_outputs_on(xf86CrtcPtr crtc)
 	}
 }
 
-static Bool
+static bool
 sna_crtc_apply(xf86CrtcPtr crtc)
 {
 	struct sna *sna = to_sna(crtc->scrn);
@@ -515,7 +515,7 @@ sna_crtc_apply(xf86CrtcPtr crtc)
 	struct drm_mode_crtc arg;
 	uint32_t output_ids[16];
 	int output_count = 0;
-	int i, ret = FALSE;
+	int i;
 
 	DBG(("%s\n", __FUNCTION__));
 	kgem_bo_submit(&sna->kgem, sna_crtc->bo);
@@ -560,12 +560,11 @@ sna_crtc_apply(xf86CrtcPtr crtc)
 	     sna_crtc->shadow ? " [shadow]" : "",
 	     output_count));
 
-	ret = drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_SETCRTC, &arg);
-	if (ret)
-		return FALSE;
+	if (drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_SETCRTC, &arg))
+		return false;
 
 	sna_crtc_force_outputs_on(crtc);
-	return TRUE;
+	return true;
 }
 
 static bool sna_mode_enable_shadow(struct sna *sna)
@@ -1357,7 +1356,7 @@ sna_crtc_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 	     __FUNCTION__, num, sna_crtc->id, sna_crtc->pipe));
 }
 
-static Bool
+static bool
 is_panel(int type)
 {
 	return (type == DRM_MODE_CONNECTOR_LVDS ||
@@ -1561,7 +1560,7 @@ sna_output_get_modes(xf86OutputPtr output)
 	 * the fullscreen experience.
 	 * If it is incorrect, please fix me.
 	 */
-	sna_output->has_panel_limits = FALSE;
+	sna_output->has_panel_limits = false;
 	if (is_panel(koutput->connector_type)) {
 		for (i = 0; i < koutput->count_modes; i++) {
 			drmModeModeInfo *mode_ptr;
@@ -1684,22 +1683,22 @@ sna_output_dpms_status(xf86OutputPtr output)
 	return sna_output->dpms_mode;
 }
 
-static Bool
+static bool
 sna_property_ignore(drmModePropertyPtr prop)
 {
 	if (!prop)
-		return TRUE;
+		return true;
 
 	/* ignore blob prop */
 	if (prop->flags & DRM_MODE_PROP_BLOB)
-		return TRUE;
+		return true;
 
 	/* ignore standard property */
 	if (!strcmp(prop->name, "EDID") ||
 	    !strcmp(prop->name, "DPMS"))
-		return TRUE;
+		return true;
 
-	return FALSE;
+	return false;
 }
 
 static void
@@ -2015,7 +2014,7 @@ sna_zaphod_match(const char *s, const char *output)
 		s++;
 	} while (i < sizeof(t));
 
-	return FALSE;
+	return false;
 }
 
 static void
@@ -2347,7 +2346,7 @@ static void set_size_range(struct sna *sna)
 	xf86CrtcSetSizeRange(sna->scrn, 320, 200, INT16_MAX, INT16_MAX);
 }
 
-Bool sna_mode_pre_init(ScrnInfoPtr scrn, struct sna *sna)
+bool sna_mode_pre_init(ScrnInfoPtr scrn, struct sna *sna)
 {
 	struct sna_mode *mode = &sna->mode;
 	int i;
@@ -2361,7 +2360,7 @@ Bool sna_mode_pre_init(ScrnInfoPtr scrn, struct sna *sna)
 	if (!mode->kmode) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "failed to get resources: %s\n", strerror(errno));
-		return FALSE;
+		return false;
 	}
 
 	set_size_range(sna);
@@ -2374,7 +2373,7 @@ Bool sna_mode_pre_init(ScrnInfoPtr scrn, struct sna *sna)
 
 	xf86InitialConfiguration(scrn, TRUE);
 
-	return TRUE;
+	return true;
 }
 
 void
@@ -2576,7 +2575,7 @@ sna_wait_for_scanline(struct sna *sna,
 		      xf86CrtcPtr crtc,
 		      const BoxRec *clip)
 {
-	Bool full_height;
+	bool full_height;
 	int y1, y2, pipe;
 
 	assert(crtc);

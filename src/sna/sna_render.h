@@ -192,7 +192,7 @@ struct sna_render {
 	int max_3d_size;
 	int max_3d_pitch;
 
-	Bool (*composite)(struct sna *sna, uint8_t op,
+	bool (*composite)(struct sna *sna, uint8_t op,
 			  PicturePtr dst, PicturePtr src, PicturePtr mask,
 			  int16_t src_x, int16_t src_y,
 			  int16_t msk_x, int16_t msk_y,
@@ -200,7 +200,7 @@ struct sna_render {
 			  int16_t w, int16_t h,
 			  struct sna_composite_op *tmp);
 
-	Bool (*composite_spans)(struct sna *sna, uint8_t op,
+	bool (*composite_spans)(struct sna *sna, uint8_t op,
 				PicturePtr dst, PicturePtr src,
 				int16_t src_x, int16_t src_y,
 				int16_t dst_x, int16_t dst_y,
@@ -210,7 +210,7 @@ struct sna_render {
 #define COMPOSITE_SPANS_RECTILINEAR 0x1
 #define COMPOSITE_SPANS_INPLACE_HINT 0x2
 
-	Bool (*video)(struct sna *sna,
+	bool (*video)(struct sna *sna,
 		      struct sna_video *video,
 		      struct sna_video_frame *frame,
 		      RegionPtr dstRegion,
@@ -218,29 +218,29 @@ struct sna_render {
 		      short drw_w, short drw_h,
 		      PixmapPtr pixmap);
 
-	Bool (*fill_boxes)(struct sna *sna,
+	bool (*fill_boxes)(struct sna *sna,
 			   CARD8 op,
 			   PictFormat format,
 			   const xRenderColor *color,
 			   PixmapPtr dst, struct kgem_bo *dst_bo,
 			   const BoxRec *box, int n);
-	Bool (*fill)(struct sna *sna, uint8_t alu,
+	bool (*fill)(struct sna *sna, uint8_t alu,
 		     PixmapPtr dst, struct kgem_bo *dst_bo,
 		     uint32_t color,
 		     struct sna_fill_op *tmp);
-	Bool (*fill_one)(struct sna *sna, PixmapPtr dst, struct kgem_bo *dst_bo,
+	bool (*fill_one)(struct sna *sna, PixmapPtr dst, struct kgem_bo *dst_bo,
 			 uint32_t color,
 			 int16_t x1, int16_t y1, int16_t x2, int16_t y2,
 			 uint8_t alu);
-	Bool (*clear)(struct sna *sna, PixmapPtr dst, struct kgem_bo *dst_bo);
+	bool (*clear)(struct sna *sna, PixmapPtr dst, struct kgem_bo *dst_bo);
 
-	Bool (*copy_boxes)(struct sna *sna, uint8_t alu,
+	bool (*copy_boxes)(struct sna *sna, uint8_t alu,
 			   PixmapPtr src, struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
 			   PixmapPtr dst, struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
 			   const BoxRec *box, int n, unsigned flags);
 #define COPY_LAST 0x1
 
-	Bool (*copy)(struct sna *sna, uint8_t alu,
+	bool (*copy)(struct sna *sna, uint8_t alu,
 		     PixmapPtr src, struct kgem_bo *src_bo,
 		     PixmapPtr dst, struct kgem_bo *dst_bo,
 		     struct sna_copy_op *op);
@@ -295,7 +295,7 @@ struct sna_render {
 
 struct gen2_render_state {
 	uint32_t target;
-	Bool need_invariant;
+	bool need_invariant;
 	uint32_t logic_op_enabled;
 	uint32_t ls1, ls2, vft;
 	uint32_t diffuse;
@@ -305,7 +305,7 @@ struct gen2_render_state {
 
 struct gen3_render_state {
 	uint32_t current_dst;
-	Bool need_invariant;
+	bool need_invariant;
 	uint32_t tex_count;
 	uint32_t last_drawrect_limit;
 	uint32_t last_target;
@@ -344,8 +344,8 @@ struct gen4_render_state {
 	int16_t floats_per_vertex;
 	uint16_t surface_table;
 
-	Bool needs_invariant;
-	Bool needs_urb;
+	bool needs_invariant;
+	bool needs_urb;
 };
 
 struct gen5_render_state {
@@ -366,7 +366,7 @@ struct gen5_render_state {
 	uint16_t surface_table;
 	uint16_t last_pipelined_pointers;
 
-	Bool needs_invariant;
+	bool needs_invariant;
 };
 
 enum {
@@ -413,8 +413,8 @@ struct gen6_render_state {
 	int16_t floats_per_vertex;
 	uint16_t surface_table;
 
-	Bool needs_invariant;
-	Bool first_state_packet;
+	bool needs_invariant;
+	bool first_state_packet;
 };
 
 enum {
@@ -462,8 +462,8 @@ struct gen7_render_state {
 	int16_t floats_per_vertex;
 	uint16_t surface_table;
 
-	Bool needs_invariant;
-	Bool emit_flush;
+	bool needs_invariant;
+	bool emit_flush;
 };
 
 struct sna_static_stream {
@@ -494,24 +494,24 @@ sna_render_get_gradient(struct sna *sna,
 
 uint32_t sna_rgba_for_color(uint32_t color, int depth);
 uint32_t sna_rgba_to_color(uint32_t rgba, uint32_t format);
-Bool sna_get_rgba_from_pixel(uint32_t pixel,
+bool sna_get_rgba_from_pixel(uint32_t pixel,
 			     uint16_t *red,
 			     uint16_t *green,
 			     uint16_t *blue,
 			     uint16_t *alpha,
 			     uint32_t format);
-Bool sna_picture_is_solid(PicturePtr picture, uint32_t *color);
+bool sna_picture_is_solid(PicturePtr picture, uint32_t *color);
 
 void no_render_init(struct sna *sna);
 
-Bool gen2_render_init(struct sna *sna);
-Bool gen3_render_init(struct sna *sna);
-Bool gen4_render_init(struct sna *sna);
-Bool gen5_render_init(struct sna *sna);
-Bool gen6_render_init(struct sna *sna);
-Bool gen7_render_init(struct sna *sna);
+bool gen2_render_init(struct sna *sna);
+bool gen3_render_init(struct sna *sna);
+bool gen4_render_init(struct sna *sna);
+bool gen5_render_init(struct sna *sna);
+bool gen6_render_init(struct sna *sna);
+bool gen7_render_init(struct sna *sna);
 
-Bool sna_tiling_composite(uint32_t op,
+bool sna_tiling_composite(uint32_t op,
 			  PicturePtr src,
 			  PicturePtr mask,
 			  PicturePtr dst,
@@ -520,7 +520,7 @@ Bool sna_tiling_composite(uint32_t op,
 			  int16_t dst_x, int16_t dst_y,
 			  int16_t width, int16_t height,
 			  struct sna_composite_op *tmp);
-Bool sna_tiling_composite_spans(uint32_t op,
+bool sna_tiling_composite_spans(uint32_t op,
 				PicturePtr src,
 				PicturePtr dst,
 				int16_t src_x,  int16_t src_y,
@@ -528,24 +528,24 @@ Bool sna_tiling_composite_spans(uint32_t op,
 				int16_t width,  int16_t height,
 				unsigned flags,
 				struct sna_composite_spans_op *tmp);
-Bool sna_tiling_fill_boxes(struct sna *sna,
+bool sna_tiling_fill_boxes(struct sna *sna,
 			   CARD8 op,
 			   PictFormat format,
 			   const xRenderColor *color,
 			   PixmapPtr dst, struct kgem_bo *dst_bo,
 			   const BoxRec *box, int n);
 
-Bool sna_tiling_copy_boxes(struct sna *sna, uint8_t alu,
+bool sna_tiling_copy_boxes(struct sna *sna, uint8_t alu,
 			   PixmapPtr src, struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
 			   PixmapPtr dst, struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
 			   const BoxRec *box, int n);
 
-Bool sna_tiling_blt_copy_boxes(struct sna *sna, uint8_t alu,
+bool sna_tiling_blt_copy_boxes(struct sna *sna, uint8_t alu,
 			       struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
 			       struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
 			       int bpp, const BoxRec *box, int nbox);
 
-Bool sna_blt_composite(struct sna *sna,
+bool sna_blt_composite(struct sna *sna,
 		       uint32_t op,
 		       PicturePtr src,
 		       PicturePtr dst,
@@ -566,30 +566,30 @@ bool sna_blt_copy(struct sna *sna, uint8_t alu,
 		  int bpp,
 		  struct sna_copy_op *copy);
 
-Bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
+bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
 			struct kgem_bo *bo,
 			int bpp,
 			uint32_t pixel,
 			const BoxRec *box, int n);
 
-Bool sna_blt_copy_boxes(struct sna *sna, uint8_t alu,
+bool sna_blt_copy_boxes(struct sna *sna, uint8_t alu,
 			struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
 			struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
 			int bpp,
 			const BoxRec *box, int n);
-Bool sna_blt_copy_boxes_fallback(struct sna *sna, uint8_t alu,
+bool sna_blt_copy_boxes_fallback(struct sna *sna, uint8_t alu,
 				 PixmapPtr src, struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
 				 PixmapPtr dst, struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
 				 const BoxRec *box, int nbox);
 
-Bool _sna_get_pixel_from_rgba(uint32_t *pixel,
+bool _sna_get_pixel_from_rgba(uint32_t *pixel,
 			     uint16_t red,
 			     uint16_t green,
 			     uint16_t blue,
 			     uint16_t alpha,
 			     uint32_t format);
 
-static inline Bool
+static inline bool
 sna_get_pixel_from_rgba(uint32_t * pixel,
 			uint16_t red,
 			uint16_t green,
@@ -671,7 +671,7 @@ inline static void sna_render_composite_redirect_init(struct sna_composite_op *o
 	t->damage = NULL;
 }
 
-Bool
+bool
 sna_render_composite_redirect(struct sna *sna,
 			      struct sna_composite_op *op,
 			      int x, int y, int width, int height);
