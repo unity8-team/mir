@@ -85,10 +85,9 @@ static inline bool
 is_cpu(DrawablePtr drawable)
 {
 	struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
-	if (priv == NULL || priv->gpu_bo == NULL || priv->clear || DAMAGE_IS_ALL(priv->cpu_damage))
+	if (priv == NULL || priv->gpu_bo == NULL || priv->clear)
 		return true;
 
-	assert(!priv->gpu_bo->proxy); /* should be marked as cpu damaged */
 	if (priv->gpu_damage && kgem_bo_is_busy(priv->gpu_bo))
 		return false;
 
