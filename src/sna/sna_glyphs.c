@@ -1316,6 +1316,11 @@ glyphs_fallback(CARD8 op,
 	}
 	RegionTranslate(&region, -dst->pDrawable->x, -dst->pDrawable->y);
 
+	if (mask_format &&
+	    (op_is_bounded(op) || (nlist == 1 && list->len == 1)) &&
+	    mask_format == glyphs_format(nlist, list, glyphs))
+		mask_format = NULL;
+
 	cache = sna->render.glyph_cache;
 	pixman_glyph_cache_freeze(cache);
 
@@ -1376,11 +1381,6 @@ next:
 	dst_image = image_from_pict(dst, TRUE, &dst_dx, &dst_dy);
 	if (dst_image == NULL)
 		goto out_free_src;
-
-	if (mask_format &&
-	    (op_is_bounded(op) || (nlist == 1 && list->len == 1)) &&
-	    mask_format == glyphs_format(nlist, list, glyphs))
-		mask_format = NULL;
 
 	if (mask_format) {
 		pixman_composite_glyphs(op, src_image, dst_image,
