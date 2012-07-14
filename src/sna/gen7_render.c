@@ -2874,8 +2874,6 @@ gen7_composite_alpha_gradient_init(struct sna *sna,
 {
 	DBG(("%s\n", __FUNCTION__));
 
-	channel->filter = PictFilterNearest;
-	channel->repeat = RepeatPad;
 	channel->is_affine = true;
 	channel->is_solid  = false;
 	channel->transform = NULL;
@@ -3222,7 +3220,7 @@ gen7_render_composite_spans(struct sna *sna,
 	tmp->base.u.gen7.sampler = SAMPLER_OFFSET(tmp->base.src.filter,
 						  tmp->base.src.repeat,
 						  SAMPLER_FILTER_NEAREST,
-						  SAMPLER_EXTEND_NONE);
+						  SAMPLER_EXTEND_PAD);
 
 	tmp->box   = gen7_render_composite_spans_box;
 	tmp->boxes = gen7_render_composite_spans_boxes;
