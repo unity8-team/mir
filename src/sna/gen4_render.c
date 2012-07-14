@@ -573,7 +573,7 @@ static uint32_t gen4_get_dest_format(PictFormat format)
 
 static bool gen4_check_dst_format(PictFormat format)
 {
-	if (gen4_check_dst_format(format) != -1)
+	if (gen4_get_dest_format(format) != -1)
 		return true;
 
 	DBG(("%s: unhandled format: %x\n", __FUNCTION__, (int)format));
