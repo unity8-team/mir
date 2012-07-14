@@ -920,7 +920,7 @@ upload:
 						pixman_image_t *glyph_image;
 
 						glyph_image = sna_glyph_get_image(g, screen);
-						if (glyph_image)
+						if (glyph_image == NULL)
 							goto next_image;
 
 						ptr = pixman_glyph_cache_insert(cache, g, NULL,
@@ -943,7 +943,7 @@ next_image:
 				list++;
 			} while (--nlist);
 
-			pixman_composite_glyphs_no_mask(PictOpAdd,
+			pixman_composite_glyphs_no_mask(PIXMAN_OP_ADD,
 							sna->render.white_image,
 							mask_image,
 							0, 0,
