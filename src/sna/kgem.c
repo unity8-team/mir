@@ -697,12 +697,22 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 		kgem->wedged = 1;
 	}
 
+	kgem->has_relaxed_delta =
+		gem_param(kgem, I915_PARAM_HAS_RELAXED_DELTA) > 0;
+	DBG(("%s: has relaxed delta? %d\n", __FUNCTION__,
+	     kgem->has_relaxed_delta));
+
 	kgem->batch_size = ARRAY_SIZE(kgem->batch);
 	if (gen == 22)
 		/* 865g cannot handle a batch spanning multiple pages */
 		kgem->batch_size = PAGE_SIZE / sizeof(uint32_t);
 	if (gen == 70)
 		kgem->batch_size = 16*1024;
+	if (!kgem->has_relaxed_delta)
+		kgem->batch_size = 4*1024;
+
+	DBG(("%s: maximum batch size? %d\n", __FUNCTION__,
+	     kgem->batch_size));
 
 	kgem->min_alignment = 4;
 	if (gen < 40)
@@ -1876,6 +1886,9 @@ void kgem_reset(struct kgem *kgem)
 static int compact_batch_surface(struct kgem *kgem)
 {
 	int size, shrink, n;
+
+	if (!kgem->has_relaxed_delta)
+		return kgem->batch_size;
 
 	/* See if we can pack the contents into one or two pages */
 	n = ALIGN(kgem->batch_size, 1024);
