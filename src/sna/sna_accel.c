@@ -69,6 +69,7 @@
 #define ACCEL_PUT_IMAGE 1
 #define ACCEL_COPY_AREA 1
 #define ACCEL_COPY_PLANE 1
+#define ACCEL_COPY_WINDOW 1
 #define ACCEL_POLY_POINT 1
 #define ACCEL_POLY_LINE 1
 #define ACCEL_POLY_SEGMENT 1
@@ -3723,6 +3724,9 @@ sna_self_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 		goto fallback;
 
 	if (priv->gpu_bo) {
+		if (alu == GXcopy && priv->clear)
+			return;
+
 		assert(priv->gpu_bo->proxy == NULL);
 		if (!sna_pixmap_move_to_gpu(pixmap, MOVE_WRITE | MOVE_READ)) {
 			DBG(("%s: fallback - not a pure copy and failed to move dst to GPU\n",
@@ -3773,7 +3777,7 @@ fallback:
 				box++;
 			} while (--n);
 		} else {
-			if (!sna_gc_move_to_cpu(gc, dst, region))
+			if (gc && !sna_gc_move_to_cpu(gc, dst, region))
 				return;
 
 			get_drawable_deltas(src, pixmap, &tx, &ty);
@@ -3781,7 +3785,8 @@ fallback:
 				     region, dx - tx, dy - ty,
 				     fbCopyNtoN, 0, NULL);
 
-			sna_gc_move_to_gpu(gc);
+			if (gc)
+				sna_gc_move_to_gpu(gc);
 		}
 	}
 }
@@ -3821,17 +3826,17 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	struct sna *sna = to_sna_from_pixmap(src_pixmap);
 	struct sna_damage **damage;
 	struct kgem_bo *bo;
-	int alu = gc ? gc->alu : GXcopy;
 	int16_t src_dx, src_dy;
 	int16_t dst_dx, dst_dy;
 	BoxPtr box = RegionRects(region);
 	int n = RegionNumRects(region);
+	int alu = gc->alu;
 	int stride, bpp;
 	char *bits;
 	bool replaces;
 
-	if (n == 0)
-		return;
+	assert(RegionNumRects(region));
+	assert_pixmap_contains_box(dst_pixmap, RegionExtents(region));
 
 	if (src_pixmap == dst_pixmap)
 		return sna_self_copy_boxes(src, dst, gc,
@@ -3851,13 +3856,10 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	bpp = dst_pixmap->drawable.bitsPerPixel;
 
 	get_drawable_deltas(dst, dst_pixmap, &dst_dx, &dst_dy);
-	get_drawable_deltas(src, src_pixmap, &src_dx, &src_dy);
-	src_dx += dx;
-	src_dy += dy;
-
 	RegionTranslate(region, dst_dx, dst_dy);
-	src_dx -= dst_dx;
-	src_dy -= dst_dy;
+	get_drawable_deltas(src, src_pixmap, &src_dx, &src_dy);
+	src_dx += dx - dst_dx;
+	src_dy += dy - dst_dy;
 
 	replaces = n == 1 &&
 		box->x1 <= 0 &&
@@ -3897,8 +3899,6 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 		if (src_priv && src_priv->clear) {
 			DBG(("%s: applying src clear[%08x] to dst\n",
 			     __FUNCTION__, src_priv->clear_color));
-			assert_pixmap_contains_box(dst_pixmap,
-						   RegionExtents(region));
 			if (n == 1) {
 				if (!sna->render.fill_one(sna,
 							  dst_pixmap, bo,
@@ -3927,7 +3927,6 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 
 			if (damage)
 				sna_damage_add(damage, region);
-
 			return;
 		}
 
@@ -3945,11 +3944,8 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 				goto fallback;
 			}
 
-			if (damage) {
-				assert_pixmap_contains_box(dst_pixmap,
-							   RegionExtents(region));
+			if (damage)
 				sna_damage_add(damage, region);
-			}
 			return;
 		}
 
@@ -3980,11 +3976,8 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 				goto fallback;
 			}
 
-			if (damage) {
-				assert_pixmap_contains_box(dst_pixmap,
-							   RegionExtents(region));
+			if (damage)
 				sna_damage_add(damage, region);
-			}
 			return;
 		}
 
@@ -4016,11 +4009,8 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 				goto fallback;
 			}
 
-			if (damage) {
-				assert_pixmap_contains_box(dst_pixmap,
-							   RegionExtents(region));
+			if (damage)
 				sna_damage_add(damage, region);
-			}
 			return;
 		}
 
@@ -4028,7 +4018,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			PixmapPtr tmp;
 			int i;
 
-			assert (src_pixmap->drawable.depth != 1);
+			assert(src_pixmap->drawable.depth != 1);
 
 			DBG(("%s: creating temporary source upload for non-copy alu [%d]\n",
 			     __FUNCTION__, alu));
@@ -4078,11 +4068,8 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			}
 			tmp->drawable.pScreen->DestroyPixmap(tmp);
 
-			if (damage) {
-				assert_pixmap_contains_box(dst_pixmap,
-							   RegionExtents(region));
+			if (damage)
 				sna_damage_add(damage, region);
-			}
 			return;
 		} else {
 			DBG(("%s: dst is on the GPU, src is on the CPU, uploading into dst\n",
@@ -4132,12 +4119,9 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 						       dst_pixmap->drawable.height);
 					list_del(&dst_priv->list);
 					dst_priv->undamaged = false;
-				} else {
-					assert_pixmap_contains_box(dst_pixmap,
-								   RegionExtents(region));
+				} else
 					sna_damage_add(&dst_priv->gpu_damage,
 						       region);
-				}
 				assert_pixmap_damage(dst_pixmap);
 			}
 		}
@@ -4151,9 +4135,6 @@ fallback:
 		     __FUNCTION__, src_priv->clear_color));
 
 		if (dst_priv) {
-			assert_pixmap_contains_box(dst_pixmap,
-						   RegionExtents(region));
-
 			if (!sna_drawable_move_region_to_cpu(&dst_pixmap->drawable,
 							     region,
 							     MOVE_WRITE | MOVE_INPLACE_HINT))
@@ -4197,9 +4178,6 @@ fallback:
 
 		if (dst_priv) {
 			unsigned mode;
-
-			assert_pixmap_contains_box(dst_pixmap,
-						   RegionExtents(region));
 
 			if (alu_overwrites(alu))
 				mode = MOVE_WRITE | MOVE_INPLACE_HINT;
@@ -4267,6 +4245,21 @@ typedef void (*sna_copy_func)(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			      RegionPtr region, int dx, int dy,
 			      Pixel bitPlane, void *closure);
 
+inline static bool
+box_intersect(BoxPtr a, const BoxRec *b)
+{
+	if (a->x1 < b->x1)
+		a->x1 = b->x1;
+	if (a->x2 > b->x2)
+		a->x2 = b->x2;
+	if (a->y1 < b->y1)
+		a->y1 = b->y1;
+	if (a->y2 > b->y2)
+		a->y2 = b->y2;
+
+	return a->x1 < a->x2 && a->y1 < a->y2;
+}
+
 static RegionPtr
 sna_do_copy(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	    int sx, int sy,
@@ -4274,13 +4267,18 @@ sna_do_copy(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	    int dx, int dy,
 	    sna_copy_func copy, Pixel bitPlane, void *closure)
 {
-	RegionPtr clip = NULL, free_clip = NULL;
+	RegionPtr clip, free_clip = NULL;
 	RegionRec region;
-	bool expose = false;
+	bool expose;
+
+	DBG(("%s: src=(%d, %d), dst=(%d, %d), size=(%dx%d)\n",
+	     __FUNCTION__, sx, sy, dx, dy, width, height));
 
 	/* Short cut for unmapped windows */
-	if (dst->type == DRAWABLE_WINDOW && !((WindowPtr)dst)->realized)
+	if (dst->type == DRAWABLE_WINDOW && !((WindowPtr)dst)->realized) {
+		DBG(("%s: unmapped\n", __FUNCTION__));
 		return NULL;
+	}
 
 	if (src->pScreen->SourceValidate)
 		src->pScreen->SourceValidate(src, sx, sy,
@@ -4293,25 +4291,23 @@ sna_do_copy(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	dx += dst->x;
 	dy += dst->y;
 
+	DBG(("%s: after drawable: src=(%d, %d), dst=(%d, %d), size=(%dx%d)\n",
+	     __FUNCTION__, sx, sy, dx, dy, width, height));
+
 	region.extents.x1 = dx;
 	region.extents.y1 = dy;
 	region.extents.x2 = dx + width;
 	region.extents.y2 = dy + height;
 	region.data = NULL;
 
-	{
-		BoxPtr box = &gc->pCompositeClip->extents;
-		if (region.extents.x1 < box->x1)
-			region.extents.x1 = box->x1;
-		if (region.extents.x2 > box->x2)
-			region.extents.x2 = box->x2;
-		if (region.extents.y1 < box->y1)
-			region.extents.y1 = box->y1;
-		if (region.extents.y2 > box->y2)
-			region.extents.y2 = box->y2;
-	}
-	if (box_empty(&region.extents))
+	DBG(("%s: dst extents (%d, %d), (%d, %d)\n", __FUNCTION__,
+	     region.extents.x1, region.extents.y1,
+	     region.extents.x2, region.extents.y2));
+
+	if (!box_intersect(&region.extents, &gc->pCompositeClip->extents)) {
+		DBG(("%s: dst clipped out\n", __FUNCTION__));
 		return NULL;
+	}
 
 	region.extents.x1 += sx - dx;
 	region.extents.x2 += sx - dx;
@@ -4319,31 +4315,28 @@ sna_do_copy(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	region.extents.y2 += sy - dy;
 
 	/* Compute source clip region */
-	if (src->type == DRAWABLE_PIXMAP) {
-		if (src == dst && gc->clientClipType == CT_NONE)
-			clip = gc->pCompositeClip;
+	clip = NULL;
+	if (src == dst && gc->clientClipType == CT_NONE) {
+		DBG(("%s: using gc clip for src\n", __FUNCTION__));
+		clip = gc->pCompositeClip;
+	} else if (src->type == DRAWABLE_PIXMAP) {
+		DBG(("%s: pixmap -- no source clipping\n", __FUNCTION__));
+	} else if (gc->subWindowMode == IncludeInferiors) {
+		/*
+		 * XFree86 DDX empties the border clip when the
+		 * VT is inactive, make sure the region isn't empty
+		 */
+		if (((WindowPtr)src)->parent ||
+		    !RegionNotEmpty(&((WindowPtr)src)->borderClip)) {
+			DBG(("%s: include inferiors\n", __FUNCTION__));
+			free_clip = clip = NotClippedByChildren((WindowPtr)src);
+		}
 	} else {
-		if (gc->subWindowMode == IncludeInferiors) {
-			/*
-			 * XFree86 DDX empties the border clip when the
-			 * VT is inactive, make sure the region isn't empty
-			 */
-			if (!((WindowPtr) src)->parent &&
-			    RegionNotEmpty(&((WindowPtr) src)->borderClip)) {
-				/*
-				 * special case bitblt from root window in
-				 * IncludeInferiors mode; just like from a pixmap
-				 */
-			} else if (src == dst && gc->clientClipType == CT_NONE) {
-				clip = gc->pCompositeClip;
-			} else {
-				free_clip = clip =
-					NotClippedByChildren((WindowPtr) src);
-			}
-		} else
-			clip = &((WindowPtr)src)->clipList;
+		DBG(("%s: window clip\n", __FUNCTION__));
+		clip = &((WindowPtr)src)->clipList;
 	}
 	if (clip == NULL) {
+		DBG(("%s: fast source clip against extents\n", __FUNCTION__));
 		expose = true;
 		if (region.extents.x1 < src->x) {
 			region.extents.x1 = src->x;
@@ -4364,13 +4357,22 @@ sna_do_copy(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 		if (box_empty(&region.extents))
 			return NULL;
 	} else {
+		expose = false;
 		RegionIntersect(&region, &region, clip);
 		if (free_clip)
 			RegionDestroy(free_clip);
 	}
+	DBG(("%s: src extents (%d, %d), (%d, %d) x %d\n", __FUNCTION__,
+	     region.extents.x1, region.extents.y1,
+	     region.extents.x2, region.extents.y2,
+	     RegionNumRects(&region)));
 	RegionTranslate(&region, dx-sx, dy-sy);
 	if (gc->pCompositeClip->data)
 		RegionIntersect(&region, &region, gc->pCompositeClip);
+	DBG(("%s: copy region (%d, %d), (%d, %d) x %d\n", __FUNCTION__,
+	     region.extents.x1, region.extents.y1,
+	     region.extents.x2, region.extents.y2,
+	     RegionNumRects(&region)));
 
 	if (RegionNotEmpty(&region))
 		copy(src, dst, gc, &region, sx-dx, sy-dy, bitPlane, closure);
@@ -4483,21 +4485,6 @@ out:
 			   dst_x, dst_y,
 			   src == dst ? sna_self_copy_boxes : sna_copy_boxes,
 			   0, NULL);
-}
-
-inline static bool
-box_intersect(BoxPtr a, const BoxRec *b)
-{
-	if (a->x1 < b->x1)
-		a->x1 = b->x1;
-	if (a->x2 > b->x2)
-		a->x2 = b->x2;
-	if (a->y1 < b->y1)
-		a->y1 = b->y1;
-	if (a->y2 > b->y2)
-		a->y2 = b->y2;
-
-	return a->x1 < a->x2 && a->y1 < a->y2;
 }
 
 static const BoxRec *
@@ -12231,7 +12218,7 @@ sna_copy_window(WindowPtr win, DDXPointRec origin, RegionPtr src)
 		RegionTranslate(&dst, -pixmap->screen_x, -pixmap->screen_y);
 #endif
 
-	if (wedged(sna)) {
+	if (wedged(sna) || FORCE_FALLBACK || !ACCEL_COPY_WINDOW) {
 		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
 		if (!sna_pixmap_move_to_cpu(pixmap, MOVE_READ | MOVE_WRITE))
 			return;

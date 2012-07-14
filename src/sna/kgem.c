@@ -800,7 +800,7 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 
 	kgem->half_cpu_cache_pages = cpu_cache_size() >> 13;
 	DBG(("%s: half cpu cache %d pages\n", __FUNCTION__,
-	     kgem->half_cpu_cace_pages));
+	     kgem->half_cpu_cache_pages));
 
 	list_init(&kgem->batch_partials);
 	list_init(&kgem->active_partials);
