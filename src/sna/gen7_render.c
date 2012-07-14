@@ -221,28 +221,6 @@ static const struct blendinfo {
  */
 #define GEN7_BLENDFACTOR_COUNT (GEN7_BLENDFACTOR_INV_DST_ALPHA + 1)
 
-/* FIXME: surface format defined in gen7_defines.h, shared Sampling engine
- * 1.7.2
- */
-static const struct formatinfo {
-	CARD32 pict_fmt;
-	uint32_t card_fmt;
-} gen7_tex_formats[] = {
-	{PICT_a8, GEN7_SURFACEFORMAT_A8_UNORM},
-	{PICT_a8r8g8b8, GEN7_SURFACEFORMAT_B8G8R8A8_UNORM},
-	{PICT_x8r8g8b8, GEN7_SURFACEFORMAT_B8G8R8X8_UNORM},
-	{PICT_a8b8g8r8, GEN7_SURFACEFORMAT_R8G8B8A8_UNORM},
-	{PICT_x8b8g8r8, GEN7_SURFACEFORMAT_R8G8B8X8_UNORM},
-	{PICT_r8g8b8, GEN7_SURFACEFORMAT_R8G8B8_UNORM},
-	{PICT_r5g6b5, GEN7_SURFACEFORMAT_B5G6R5_UNORM},
-	{PICT_a1r5g5b5, GEN7_SURFACEFORMAT_B5G5R5A1_UNORM},
-	{PICT_a2r10g10b10, GEN7_SURFACEFORMAT_B10G10R10A2_UNORM},
-	{PICT_x2r10g10b10, GEN7_SURFACEFORMAT_B10G10R10X2_UNORM},
-	{PICT_a2b10g10r10, GEN7_SURFACEFORMAT_R10G10B10A2_UNORM},
-	{PICT_x2r10g10b10, GEN7_SURFACEFORMAT_B10G10R10X2_UNORM},
-	{PICT_a4r4g4b4, GEN7_SURFACEFORMAT_B4G4R4A4_UNORM},
-};
-
 #define GEN7_BLEND_STATE_PADDED_SIZE	ALIGN(sizeof(struct gen7_blend_state), 64)
 
 #define BLEND_OFFSET(s, d) \
@@ -300,25 +278,32 @@ static uint32_t gen7_get_dest_format(PictFormat format)
 {
 	switch (format) {
 	default:
-		assert(0);
+		return -1;
 	case PICT_a8r8g8b8:
-	case PICT_x8r8g8b8:
 		return GEN7_SURFACEFORMAT_B8G8R8A8_UNORM;
+	case PICT_x8r8g8b8:
+		return GEN7_SURFACEFORMAT_B8G8R8X8_UNORM;
 	case PICT_a8b8g8r8:
-	case PICT_x8b8g8r8:
 		return GEN7_SURFACEFORMAT_R8G8B8A8_UNORM;
+	case PICT_x8b8g8r8:
+		return GEN7_SURFACEFORMAT_R8G8B8X8_UNORM;
 	case PICT_a2r10g10b10:
-	case PICT_x2r10g10b10:
 		return GEN7_SURFACEFORMAT_B10G10R10A2_UNORM;
+	case PICT_x2r10g10b10:
+		return GEN7_SURFACEFORMAT_B10G10R10X2_UNORM;
+	case PICT_a2b10g10r10:
+		return GEN7_SURFACEFORMAT_R10G10B10A2_UNORM;
+	case PICT_r8g8b8:
+		return GEN7_SURFACEFORMAT_R8G8B8_UNORM;
 	case PICT_r5g6b5:
 		return GEN7_SURFACEFORMAT_B5G6R5_UNORM;
 	case PICT_x1r5g5b5:
+		return GEN7_SURFACEFORMAT_B5G5R5X1_UNORM;
 	case PICT_a1r5g5b5:
 		return GEN7_SURFACEFORMAT_B5G5R5A1_UNORM;
 	case PICT_a8:
 		return GEN7_SURFACEFORMAT_A8_UNORM;
 	case PICT_a4r4g4b4:
-	case PICT_x4r4g4b4:
 		return GEN7_SURFACEFORMAT_B4G4R4A4_UNORM;
 	}
 }
@@ -1281,13 +1266,29 @@ static uint32_t gen7_create_cc_viewport(struct sna_static_stream *stream)
 
 static uint32_t gen7_get_card_format(PictFormat format)
 {
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(gen7_tex_formats); i++) {
-		if (gen7_tex_formats[i].pict_fmt == format)
-			return gen7_tex_formats[i].card_fmt;
+	switch (format) {
+	default:
+		return -1;
+	case PICT_a8r8g8b8:
+	case PICT_x8r8g8b8:
+		return GEN7_SURFACEFORMAT_B8G8R8A8_UNORM;
+	case PICT_a8b8g8r8:
+	case PICT_x8b8g8r8:
+		return GEN7_SURFACEFORMAT_R8G8B8A8_UNORM;
+	case PICT_a2r10g10b10:
+	case PICT_x2r10g10b10:
+		return GEN7_SURFACEFORMAT_B10G10R10A2_UNORM;
+	case PICT_r5g6b5:
+		return GEN7_SURFACEFORMAT_B5G6R5_UNORM;
+	case PICT_x1r5g5b5:
+	case PICT_a1r5g5b5:
+		return GEN7_SURFACEFORMAT_B5G5R5A1_UNORM;
+	case PICT_a8:
+		return GEN7_SURFACEFORMAT_A8_UNORM;
+	case PICT_a4r4g4b4:
+	case PICT_x4r4g4b4:
+		return GEN7_SURFACEFORMAT_B4G4R4A4_UNORM;
 	}
-	return -1;
 }
 
 static uint32_t
