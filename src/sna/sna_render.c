@@ -510,6 +510,7 @@ sna_render_pixmap_bo(struct sna *sna,
 		if (priv->gpu_bo &&
 		    (DAMAGE_IS_ALL(priv->gpu_damage) || !priv->cpu_damage ||
 		     priv->gpu_bo->proxy)) {
+			DBG(("%s: GPU all damaged\n", __FUNCTION__));
 			channel->bo = kgem_bo_reference(priv->gpu_bo);
 			return 1;
 		}
@@ -517,6 +518,7 @@ sna_render_pixmap_bo(struct sna *sna,
 		if (priv->cpu_bo &&
 		    (DAMAGE_IS_ALL(priv->cpu_damage) || !priv->gpu_damage) &&
 		    !priv->cpu_bo->vmap && priv->cpu_bo->pitch < 4096) {
+			DBG(("%s: CPU all damaged\n", __FUNCTION__));
 			channel->bo = kgem_bo_reference(priv->cpu_bo);
 			return 1;
 		}
