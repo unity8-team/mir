@@ -599,7 +599,7 @@ static int gem_param(struct kgem *kgem, int name)
 	return v;
 }
 
-static bool semaphores_enabled(void)
+static bool test_has_semaphores_enabled(void)
 {
 	FILE *file;
 	bool detected = false;
@@ -632,6 +632,9 @@ static bool is_hw_supported(struct kgem *kgem,
 	if (DBG_NO_HW)
 		return false;
 
+	if (kgem->gen == 0) /* unknown chipset, assume future gen */
+		return kgem->has_blt;
+
 	if (kgem->gen <= 20) /* dynamic GTT is fubar */
 		return false;
 
@@ -641,9 +644,38 @@ static bool is_hw_supported(struct kgem *kgem,
 	}
 
 	if (kgem->gen >= 60) /* Only if the kernel supports the BLT ring */
-		return gem_param(kgem, I915_PARAM_HAS_BLT) > 0;
+		return kgem->has_blt;
 
 	return true;
+}
+
+static bool test_has_relaxed_fencing(struct kgem *kgem)
+{
+	if (kgem->gen < 40) {
+		if (DBG_NO_RELAXED_FENCING)
+			return false;
+
+		return gem_param(kgem, I915_PARAM_HAS_RELAXED_FENCING) > 0;
+	} else
+		return true;
+}
+
+static bool test_has_llc(struct kgem *kgem)
+{
+	int has_llc = -1;
+
+	if (DBG_NO_LLC)
+		return false;
+
+#if defined(I915_PARAM_HAS_LLC) /* Expected in libdrm-2.4.31 */
+	has_llc = gem_param(kgem, I915_PARAM_HAS_LLC);
+#endif
+	if (has_llc == -1) {
+		DBG(("%s: no kernel/drm support for HAS_LLC, assuming support for LLC based on GPU generation\n", __FUNCTION__));
+		has_llc = kgem->gen >= 60;
+	}
+
+	return has_llc;
 }
 
 static bool test_has_cache_level(struct kgem *kgem)
@@ -670,6 +702,21 @@ static bool test_has_cache_level(struct kgem *kgem)
 #endif
 }
 
+static bool test_has_vmap(struct kgem *kgem)
+{
+#if defined(USE_VMAP)
+	if (DBG_NO_VMAP)
+		return false;
+
+	if (kgem->gen == 40)
+		return false;
+
+	return gem_param(kgem, I915_PARAM_HAS_VMAP) > 0;
+#else
+	return false;
+#endif
+}
+
 static int kgem_get_screen_index(struct kgem *kgem)
 {
 	struct sna *sna = container_of(kgem, struct sna, kgem);
@@ -683,10 +730,44 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	unsigned half_gpu_max;
 	unsigned int i, j;
 
+	DBG(("%s: fd=%d, gen=%d\n", __FUNCTION__, fd, gen));
+
 	memset(kgem, 0, sizeof(*kgem));
 
 	kgem->fd = fd;
 	kgem->gen = gen;
+
+	kgem->has_blt = gem_param(kgem, I915_PARAM_HAS_BLT) > 0;
+	DBG(("%s: has BLT ring? %d\n", __FUNCTION__,
+	     kgem->has_blt));
+
+	kgem->has_relaxed_delta =
+		gem_param(kgem, I915_PARAM_HAS_RELAXED_DELTA) > 0;
+	DBG(("%s: has relaxed delta? %d\n", __FUNCTION__,
+	     kgem->has_relaxed_delta));
+
+	kgem->has_relaxed_fencing = test_has_relaxed_fencing(kgem);
+	DBG(("%s: has relaxed fencing? %d\n", __FUNCTION__,
+	     kgem->has_relaxed_fencing));
+
+	kgem->has_llc = test_has_llc(kgem);
+	DBG(("%s: has shared last-level-cache? %d\n", __FUNCTION__,
+	     kgem->has_llc));
+
+	kgem->has_cache_level = test_has_cache_level(kgem);
+	DBG(("%s: has set-cache-level? %d\n", __FUNCTION__,
+	     kgem->has_cache_level));
+
+	kgem->has_vmap = test_has_vmap(kgem);
+	DBG(("%s: has vmap? %d\n", __FUNCTION__,
+	     kgem->has_vmap));
+
+	kgem->has_semaphores = false;
+	if (kgem->has_blt && test_has_semaphores_enabled())
+		kgem->has_semaphores = true;
+	DBG(("%s: semaphores enabled? %d\n", __FUNCTION__,
+	     kgem->has_semaphores));
+
 	if (!is_hw_supported(kgem, dev)) {
 		xf86DrvMsg(kgem_get_screen_index(kgem), X_WARNING,
 			   "Detected unsupported/dysfunctional hardware, disabling acceleration.\n");
@@ -696,11 +777,6 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 			   "Detected a hung GPU, disabling acceleration.\n");
 		kgem->wedged = 1;
 	}
-
-	kgem->has_relaxed_delta =
-		gem_param(kgem, I915_PARAM_HAS_RELAXED_DELTA) > 0;
-	DBG(("%s: has relaxed delta? %d\n", __FUNCTION__,
-	     kgem->has_relaxed_delta));
 
 	kgem->batch_size = ARRAY_SIZE(kgem->batch);
 	if (gen == 22)
@@ -719,6 +795,8 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 		kgem->min_alignment = 64;
 
 	kgem->half_cpu_cache_pages = cpu_cache_size() >> 13;
+	DBG(("%s: half cpu cache %d pages\n", __FUNCTION__,
+	     kgem->half_cpu_cace_pages));
 
 	list_init(&kgem->batch_partials);
 	list_init(&kgem->active_partials);
@@ -741,48 +819,9 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 
 	kgem->next_request = __kgem_request_alloc();
 
-	kgem->has_cache_level = test_has_cache_level(kgem);
-	DBG(("%s: using set-cache-level=%d\n", __FUNCTION__, kgem->has_cache_level));
-
-#if defined(USE_VMAP)
-	if (!DBG_NO_VMAP)
-		kgem->has_vmap = gem_param(kgem, I915_PARAM_HAS_VMAP) > 0;
-	if (gen == 40)
-		kgem->has_vmap = false; /* sampler dies with snoopable memory */
-#endif
-	DBG(("%s: using vmap=%d\n", __FUNCTION__, kgem->has_vmap));
-
-	if (gen < 40) {
-		if (!DBG_NO_RELAXED_FENCING) {
-			kgem->has_relaxed_fencing =
-				gem_param(kgem, I915_PARAM_HAS_RELAXED_FENCING) > 0;
-		}
-	} else
-		kgem->has_relaxed_fencing = 1;
-	DBG(("%s: has relaxed fencing? %d\n", __FUNCTION__,
-	     kgem->has_relaxed_fencing));
-
-	kgem->has_llc = false;
-	if (!DBG_NO_LLC) {
-		int has_llc = -1;
-#if defined(I915_PARAM_HAS_LLC) /* Expected in libdrm-2.4.31 */
-		has_llc = gem_param(kgem, I915_PARAM_HAS_LLC);
-#endif
-		if (has_llc == -1) {
-			DBG(("%s: no kernel/drm support for HAS_LLC, assuming support for LLC based on GPU generation\n", __FUNCTION__));
-			has_llc = gen >= 60;
-		}
-		kgem->has_llc = has_llc;
-	}
 	DBG(("%s: cpu bo enabled %d: llc? %d, set-cache-level? %d, vmap? %d\n", __FUNCTION__,
 	     kgem->has_llc | kgem->has_vmap | kgem->has_cache_level,
 	     kgem->has_llc, kgem->has_cache_level, kgem->has_vmap));
-
-	kgem->has_semaphores = false;
-	if (gen >= 60 && semaphores_enabled())
-		kgem->has_semaphores = true;
-	DBG(("%s: semaphores enabled? %d\n", __FUNCTION__,
-	     kgem->has_semaphores));
 
 	VG_CLEAR(aperture);
 	aperture.aper_size = 64*1024*1024;
