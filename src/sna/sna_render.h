@@ -137,6 +137,7 @@ struct sna_composite_op {
 			int nr_surfaces;
 			int nr_inputs;
 			int ve_id;
+			int sampler;
 		} gen7;
 	} u;
 

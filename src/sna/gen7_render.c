@@ -229,6 +229,19 @@ static const struct blendinfo {
 #define SAMPLER_OFFSET(sf, se, mf, me) \
 	(((((sf) * EXTEND_COUNT + (se)) * FILTER_COUNT + (mf)) * EXTEND_COUNT + (me)) * 2 * sizeof(struct gen7_sampler_state))
 
+#define FILL_SAMPLER \
+	SAMPLER_OFFSET(SAMPLER_FILTER_NEAREST, SAMPLER_EXTEND_REPEAT, \
+		       SAMPLER_FILTER_NEAREST, SAMPLER_EXTEND_NONE)
+
+#define COPY_SAMPLER \
+	SAMPLER_OFFSET(SAMPLER_FILTER_NEAREST, SAMPLER_EXTEND_NONE, \
+		       SAMPLER_FILTER_NEAREST, SAMPLER_EXTEND_NONE)
+
+#define VIDEO_SAMPLER \
+	SAMPLER_OFFSET(SAMPLER_FILTER_BILINEAR, SAMPLER_EXTEND_PAD, \
+		       SAMPLER_FILTER_NEAREST, SAMPLER_EXTEND_NONE)
+
+
 #define OUT_BATCH(v) batch_emit(sna, v)
 #define OUT_VERTEX(x,y) vertex_emit_2s(sna, x,y)
 #define OUT_VERTEX_F(v) vertex_emit(sna, v)
@@ -982,19 +995,7 @@ gen7_emit_state(struct sna *sna,
 				    op->has_component_alpha,
 				    op->dst.format));
 
-	DBG(("%s: sampler src=(%d, %d), mask=(%d, %d), offset=%d\n",
-	     __FUNCTION__,
-	     op->src.filter, op->src.repeat,
-	     op->mask.filter, op->mask.repeat,
-	     (int)SAMPLER_OFFSET(op->src.filter,
-				 op->src.repeat,
-				 op->mask.filter,
-				 op->mask.repeat)));
-	gen7_emit_sampler(sna,
-			  SAMPLER_OFFSET(op->src.filter,
-					 op->src.repeat,
-					 op->mask.filter,
-					 op->mask.repeat));
+	gen7_emit_sampler(sna, op->u.gen7.sampler);
 	gen7_emit_sf(sna, op->mask.bo != NULL);
 	gen7_emit_wm(sna,
 		     op->u.gen7.wm_kernel,
@@ -2017,9 +2018,6 @@ gen7_render_video(struct sna *sna,
 	tmp.dst.bo = priv->gpu_bo;
 
 	tmp.src.bo = frame->bo;
-	tmp.src.filter = SAMPLER_FILTER_BILINEAR;
-	tmp.src.repeat = SAMPLER_EXTEND_PAD;
-
 	tmp.mask.bo = NULL;
 
 	tmp.is_affine = true;
@@ -2035,6 +2033,7 @@ gen7_render_video(struct sna *sna,
 	}
 	tmp.u.gen7.nr_inputs = 1;
 	tmp.u.gen7.ve_id = 1;
+	tmp.u.gen7.sampler = VIDEO_SAMPLER;
 	tmp.priv = frame;
 
 	kgem_set_mode(&sna->kgem, KGEM_RENDER);
@@ -2829,6 +2828,10 @@ gen7_render_composite(struct sna *sna,
 	tmp->u.gen7.nr_surfaces = 2 + (tmp->mask.bo != NULL);
 	tmp->u.gen7.nr_inputs = 1 + (tmp->mask.bo != NULL);
 	tmp->u.gen7.ve_id = gen7_choose_composite_vertex_buffer(tmp);
+	tmp->u.gen7.sampler = SAMPLER_OFFSET(tmp->src.filter,
+					     tmp->src.repeat,
+					     tmp->mask.filter,
+					     tmp->mask.repeat);
 
 	tmp->blt   = gen7_render_composite_blt;
 	tmp->box   = gen7_render_composite_box;
@@ -3216,6 +3219,10 @@ gen7_render_composite_spans(struct sna *sna,
 	tmp->base.u.gen7.nr_surfaces = 3;
 	tmp->base.u.gen7.nr_inputs = 2;
 	tmp->base.u.gen7.ve_id = 1 << 1 | tmp->base.is_affine;
+	tmp->base.u.gen7.sampler = SAMPLER_OFFSET(tmp->base.src.filter,
+						  tmp->base.src.repeat,
+						  SAMPLER_FILTER_NEAREST,
+						  SAMPLER_EXTEND_NONE);
 
 	tmp->box   = gen7_render_composite_spans_box;
 	tmp->boxes = gen7_render_composite_spans_boxes;
@@ -3450,8 +3457,6 @@ fallback_blt:
 			goto fallback_tiled;
 	}
 
-	tmp.src.filter = SAMPLER_FILTER_NEAREST;
-	tmp.src.repeat = SAMPLER_EXTEND_NONE;
 	tmp.src.card_format = gen7_get_card_format(tmp.src.pict_format);
 	if (too_large(src->drawable.width, src->drawable.height)) {
 		BoxRec extents = box[0];
@@ -3485,8 +3490,6 @@ fallback_blt:
 	}
 
 	tmp.mask.bo = NULL;
-	tmp.mask.filter = SAMPLER_FILTER_NEAREST;
-	tmp.mask.repeat = SAMPLER_EXTEND_NONE;
 
 	tmp.is_affine = true;
 	tmp.floats_per_vertex = 3;
@@ -3498,6 +3501,7 @@ fallback_blt:
 	tmp.u.gen7.nr_surfaces = 2;
 	tmp.u.gen7.nr_inputs = 1;
 	tmp.u.gen7.ve_id = 1;
+	tmp.u.gen7.sampler = COPY_SAMPLER;
 
 	kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL)) {
@@ -3659,8 +3663,6 @@ fallback:
 	op->base.src.height = src->drawable.height;
 	op->base.src.scale[0] = 1.f/src->drawable.width;
 	op->base.src.scale[1] = 1.f/src->drawable.height;
-	op->base.src.filter = SAMPLER_FILTER_NEAREST;
-	op->base.src.repeat = SAMPLER_EXTEND_NONE;
 
 	op->base.mask.bo = NULL;
 
@@ -3672,6 +3674,7 @@ fallback:
 	op->base.u.gen7.nr_surfaces = 2;
 	op->base.u.gen7.nr_inputs = 1;
 	op->base.u.gen7.ve_id = 1;
+	op->base.u.gen7.sampler = COPY_SAMPLER;
 
 	kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL)) {
@@ -3813,12 +3816,7 @@ gen7_render_fill_boxes(struct sna *sna,
 	tmp.dst.x = tmp.dst.y = 0;
 
 	tmp.src.bo = sna_render_get_solid(sna, pixel);
-	tmp.src.filter = SAMPLER_FILTER_NEAREST;
-	tmp.src.repeat = SAMPLER_EXTEND_REPEAT;
-
 	tmp.mask.bo = NULL;
-	tmp.mask.filter = SAMPLER_FILTER_NEAREST;
-	tmp.mask.repeat = SAMPLER_EXTEND_NONE;
 
 	tmp.is_affine = true;
 	tmp.floats_per_vertex = 3;
@@ -3830,6 +3828,7 @@ gen7_render_fill_boxes(struct sna *sna,
 	tmp.u.gen7.nr_surfaces = 2;
 	tmp.u.gen7.nr_inputs = 1;
 	tmp.u.gen7.ve_id = 1;
+	tmp.u.gen7.sampler = FILL_SAMPLER;
 
 	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL)) {
 		kgem_submit(&sna->kgem);
@@ -4001,12 +4000,7 @@ gen7_render_fill(struct sna *sna, uint8_t alu,
 		sna_render_get_solid(sna,
 				     sna_rgba_for_color(color,
 							dst->drawable.depth));
-	op->base.src.filter = SAMPLER_FILTER_NEAREST;
-	op->base.src.repeat = SAMPLER_EXTEND_REPEAT;
-
 	op->base.mask.bo = NULL;
-	op->base.mask.filter = SAMPLER_FILTER_NEAREST;
-	op->base.mask.repeat = SAMPLER_EXTEND_NONE;
 
 	op->base.is_affine = true;
 	op->base.has_component_alpha = false;
@@ -4018,6 +4012,7 @@ gen7_render_fill(struct sna *sna, uint8_t alu,
 	op->base.u.gen7.nr_surfaces = 2;
 	op->base.u.gen7.nr_inputs = 1;
 	op->base.u.gen7.ve_id = 1;
+	op->base.u.gen7.sampler = FILL_SAMPLER;
 
 	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL)) {
 		kgem_submit(&sna->kgem);
@@ -4094,12 +4089,7 @@ gen7_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 		sna_render_get_solid(sna,
 				     sna_rgba_for_color(color,
 							dst->drawable.depth));
-	tmp.src.filter = SAMPLER_FILTER_NEAREST;
-	tmp.src.repeat = SAMPLER_EXTEND_REPEAT;
-
 	tmp.mask.bo = NULL;
-	tmp.mask.filter = SAMPLER_FILTER_NEAREST;
-	tmp.mask.repeat = SAMPLER_EXTEND_NONE;
 
 	tmp.is_affine = true;
 	tmp.floats_per_vertex = 3;
@@ -4111,6 +4101,7 @@ gen7_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 	tmp.u.gen7.nr_surfaces = 2;
 	tmp.u.gen7.nr_inputs = 1;
 	tmp.u.gen7.ve_id = 1;
+	tmp.u.gen7.sampler = FILL_SAMPLER;
 
 	if (!kgem_check_bo(&sna->kgem, bo, NULL)) {
 		_kgem_submit(&sna->kgem);
@@ -4189,12 +4180,7 @@ gen7_render_clear(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo)
 	tmp.dst.x = tmp.dst.y = 0;
 
 	tmp.src.bo = sna_render_get_solid(sna, 0);
-	tmp.src.filter = SAMPLER_FILTER_NEAREST;
-	tmp.src.repeat = SAMPLER_EXTEND_REPEAT;
-
 	tmp.mask.bo = NULL;
-	tmp.mask.filter = SAMPLER_FILTER_NEAREST;
-	tmp.mask.repeat = SAMPLER_EXTEND_NONE;
 
 	tmp.is_affine = true;
 	tmp.floats_per_vertex = 3;
@@ -4206,6 +4192,7 @@ gen7_render_clear(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo)
 	tmp.u.gen7.nr_surfaces = 2;
 	tmp.u.gen7.nr_inputs = 1;
 	tmp.u.gen7.ve_id = 1;
+	tmp.u.gen7.sampler = FILL_SAMPLER;
 
 	if (!kgem_check_bo(&sna->kgem, bo, NULL)) {
 		_kgem_submit(&sna->kgem);
