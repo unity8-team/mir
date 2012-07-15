@@ -3699,7 +3699,17 @@ reorder_boxes(BoxPtr box, int n, int dx, int dy)
 
 	DBG(("%s x %d dx=%d, dy=%d\n", __FUNCTION__, n, dx, dy));
 
-	if (dy < 0) {
+	if (dy <= 0 && dx <= 0) {
+		new = malloc(sizeof(BoxRec) * n);
+		if (new == NULL)
+			return NULL;
+
+		tmp = new;
+		next = box + n;
+		do {
+			*tmp++ = *--next;
+		} while (next != box);
+	} else if (dy < 0) {
 		new = malloc(sizeof(BoxRec) * n);
 		if (new == NULL)
 			return NULL;
@@ -3714,16 +3724,11 @@ reorder_boxes(BoxPtr box, int n, int dx, int dy)
 			base = next;
 		}
 		new -= n;
-		box = new;
-	}
-
-	if (dx < 0) {
+	} else {
 		new = malloc(sizeof(BoxRec) * n);
-		if (!new) {
-			if (dy < 0)
-				free(box);
+		if (!new)
 			return NULL;
-		}
+
 		base = next = box;
 		while (base < box + n) {
 			while (next < box + n && next->y1 == base->y1)
@@ -3734,10 +3739,9 @@ reorder_boxes(BoxPtr box, int n, int dx, int dy)
 			base = next;
 		}
 		new -= n;
-		box = new;
 	}
 
-	return box;
+	return new;
 }
 
 static void
