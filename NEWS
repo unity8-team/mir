@@ -1,3 +1,45 @@
+Release 2.12.0 (2012-07-15)
+===========================
+First the big news, a new acceleration method that aims to be faster and
+consume far less CPU than UXA is now available for selection at runtime.
+This snazzy new architecture can be selected through use of
+  Option "AccelMethod" "sna"
+in your xorg.conf. Whilst it has been under development for some time, it
+has not yet had the same degree of widespread testing of UXA, so tread
+lightly. Try it and if you spot anything that can be improved, please do
+report a bug.
+
+Otherwise we have the usual smattering of bug fixes for UXA:
+
+ * Use a white source whilst adding glyphs to the glyph mask
+   (This fixes blank glyphs if using a font that mixes ARGB and A glyphs.)
+
+ * Avoid fallbacks for glyph-to-dst in e.g. gnome-terminal
+   https://bugs.freedesktop.org/show_bug.cgi?id=50508
+
+ * Force unused outputs off when VT switching
+   https://bugs.freedesktop.org/show_bug.cgi?id=50772
+
+ * Copy the fbcon across to the Screen pixmap at startup.
+   (This patch has been kicking around in the distributions for years.)
+
+ * Many missed malloc failures checks and forgotten frees found by a static
+   analyzer. Thanks Zdenek Kabelac!
+
+ * Leak of the back buffer when terminating an application after pageflipping
+   https://bugs.freedesktop.org/show_bug.cgi?id=50670
+
+ * Double check that the pipe is on before emitting a WAIT_ON_EVENT.
+   In conjunction with an uptodate kernel, this should eliminate any
+   hangs when changing resolutions or adding/removing displays.
+   https://bugs.freedesktop.org/show_bug.cgi?id=50668
+
+ * Update to new Xorg APIs. Future proofing for the next generation of
+   hotplug Xorg display servers.
+
+Many thanks to everyone who has reported a bug and otherwise helped to
+improve the driver.
+
 Release 2.19.0 (2012-04-29)
 ===========================
 More stability fixes for UXA and support for another variant of IvyBridge.
