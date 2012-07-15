@@ -2990,6 +2990,19 @@ static bool upload_inplace(struct sna *sna,
 			   struct sna_pixmap *priv,
 			   RegionRec *region)
 {
+	if (priv->create & KGEM_CAN_CREATE_LARGE) {
+		if (priv->gpu_bo) {
+			DBG(("%s: yes, large buffer and already have GPU bo\n",
+			     __FUNCTION__));
+			return true;
+		}
+		if (priv->cpu_bo){
+			DBG(("%s: no, large buffer and already have CPU bo\n",
+			     __FUNCTION__));
+			return false;
+		}
+	}
+
 	if (!region_inplace(sna, pixmap, region, priv, true)) {
 		DBG(("%s? no, region not suitable\n", __FUNCTION__));
 		return false;
