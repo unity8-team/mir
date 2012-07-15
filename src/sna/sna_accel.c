@@ -2995,6 +2995,25 @@ static bool upload_inplace(struct sna *sna,
 		return false;
 	}
 
+	if (sna->kgem.has_llc) {
+		if (priv->cpu_bo) {
+			if (priv->cpu_damage &&
+			    kgem_bo_is_busy(priv->cpu_bo) &&
+			    !region_subsumes_damage(region, priv->cpu_damage)) {
+				DBG(("%s? yes, CPU bo is busy\n", __FUNCTION__));
+				return true;
+			}
+
+			DBG(("%s? no, have CPU bo\n", __FUNCTION__));
+			return false;
+		}
+
+		if (priv->create & KGEM_CAN_CREATE_CPU) {
+			DBG(("%s? no, can create CPU bo\n", __FUNCTION__));
+			return false;
+		}
+	}
+
 	if (priv->gpu_bo) {
 		assert(priv->gpu_bo->proxy == NULL);
 
@@ -3014,13 +3033,6 @@ static bool upload_inplace(struct sna *sna,
 			return true;
 		}
 
-	}
-
-	if (priv->cpu_bo) {
-		if (kgem_bo_is_busy(priv->cpu_bo)) {
-			DBG(("%s? yes, CPU bo is busy\n", __FUNCTION__));
-			return true;
-		}
 	}
 
 	DBG(("%s? no\n", __FUNCTION__));
