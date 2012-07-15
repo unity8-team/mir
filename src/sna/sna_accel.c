@@ -3814,6 +3814,7 @@ fallback:
 			FbBits *dst_bits, *src_bits;
 			int stride = pixmap->devKind;
 			int bpp = pixmap->drawable.bitsPerPixel;
+			int i;
 
 			dst_bits = (FbBits *)
 				((char *)pixmap->devPrivate.ptr +
@@ -3822,12 +3823,10 @@ fallback:
 				((char *)pixmap->devPrivate.ptr +
 				 dy * stride + dx * bpp / 8);
 
-			do {
+			for (i = 0; i < n; i++)
 				memmove_box(src_bits, dst_bits,
-					    bpp, stride, box,
+					    bpp, stride, box+i,
 					    dx, dy);
-				box++;
-			} while (--n);
 		} else {
 			if (gc && !sna_gc_move_to_cpu(gc, dst, region))
 				goto out;
