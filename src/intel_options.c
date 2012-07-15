@@ -31,7 +31,6 @@ const OptionInfoRec intel_options[] = {
 	{OPTION_DEBUG_FLUSH_CACHES, "DebugFlushCaches", OPTV_BOOLEAN, {0}, 0},
 	{OPTION_DEBUG_WAIT, "DebugWait", OPTV_BOOLEAN, {0}, 0},
 	{OPTION_BUFFER_CACHE,	"BufferCache",	OPTV_BOOLEAN,   {0},    1},
-	{OPTION_SHADOW,		"Shadow",	OPTV_BOOLEAN,	{0},	0},
 	{OPTION_TRIPLE_BUFFER,	"TripleBuffer", OPTV_BOOLEAN,	{0},	1},
 #endif
 	{-1,			NULL,		OPTV_NONE,	{0},	0}

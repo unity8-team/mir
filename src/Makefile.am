@@ -64,7 +64,6 @@ intel_drv_la_SOURCES += \
          intel_driver.h \
 	 intel_glamor.h \
          intel_memory.c \
-	 intel_shadow.c \
 	 intel_uxa.c \
          intel_video.c \
          intel_video.h \

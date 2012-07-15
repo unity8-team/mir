@@ -989,12 +989,6 @@ static void intel_throttle(intel_screen_private *intel)
 
 void intel_uxa_block_handler(intel_screen_private *intel)
 {
-	if (intel->shadow_damage &&
-	    pixman_region_not_empty(DamageRegion(intel->shadow_damage))) {
-		intel_shadow_blt(intel);
-		DamageEmpty(intel->shadow_damage);
-	}
-
 	/* Emit a flush of the rendering cache, or on the 965
 	 * and beyond rendering results may not hit the
 	 * framebuffer until significantly later.
@@ -1023,9 +1017,6 @@ intel_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 		return NullPixmap;
 
 	if (depth == 1 || intel->force_fallback)
-		return fbCreatePixmap(screen, w, h, depth, usage);
-
-	if (intel->use_shadow && (usage & INTEL_CREATE_PIXMAP_DRI2) == 0)
 		return fbCreatePixmap(screen, w, h, depth, usage);
 
 	if (usage == CREATE_PIXMAP_USAGE_GLYPH_PICTURE && w <= 32 && h <= 32)
@@ -1147,6 +1138,7 @@ static Bool intel_uxa_destroy_pixmap(PixmapPtr pixmap)
 Bool intel_uxa_create_screen_resources(ScreenPtr screen)
 {
 	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+	PixmapPtr pixmap = screen->GetScreenPixmap(screen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	dri_bo *bo = intel->front_buffer;
 
@@ -1155,20 +1147,16 @@ Bool intel_uxa_create_screen_resources(ScreenPtr screen)
 
 	drm_intel_gem_bo_map_gtt(bo);
 
-	if (intel->use_shadow) {
-		intel_shadow_create(intel);
-	} else {
-		PixmapPtr pixmap = screen->GetScreenPixmap(screen);
-		intel_set_pixmap_bo(pixmap, bo);
-		intel_get_pixmap_private(pixmap)->pinned = 1;
-		screen->ModifyPixmapHeader(pixmap,
-					   scrn->virtualX,
-					   scrn->virtualY,
-					   -1, -1,
-					   intel->front_pitch,
-					   NULL);
-		scrn->displayWidth = intel->front_pitch / intel->cpp;
-	}
+	pixmap = screen->GetScreenPixmap(screen);
+	intel_set_pixmap_bo(pixmap, bo);
+	intel_get_pixmap_private(pixmap)->pinned = 1;
+	screen->ModifyPixmapHeader(pixmap,
+				   scrn->virtualX,
+				   scrn->virtualY,
+				   -1, -1,
+				   intel->front_pitch,
+				   NULL);
+	scrn->displayWidth = intel->front_pitch / intel->cpp;
 
 	if (!intel_glamor_create_screen_resources(screen))
 		return FALSE;

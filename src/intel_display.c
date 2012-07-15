@@ -634,7 +634,7 @@ intel_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *data)
 		intel_crtc->rotate_bo = NULL;
 	}
 
-	intel->shadow_present = intel->use_shadow;
+	intel->shadow_present = FALSE;
 }
 
 static void

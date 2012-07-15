@@ -96,34 +96,13 @@ static uint32_t pixmap_flink(PixmapPtr pixmap)
 
 static PixmapPtr get_front_buffer(DrawablePtr drawable)
 {
-	ScreenPtr screen = drawable->pScreen;
-	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
-	intel_screen_private *intel = intel_get_screen_private(scrn);
 	PixmapPtr pixmap;
 
 	pixmap = get_drawable_pixmap(drawable);
-	if (!intel->use_shadow) {
-		pixmap->refcnt++;
-	} else if (pixmap_is_scanout(pixmap)) {
-		pixmap = fbCreatePixmap(screen, 0, 0, drawable->depth, 0);
-		if (pixmap) {
-			screen->ModifyPixmapHeader(pixmap,
-						   drawable->width,
-						   drawable->height,
-						   0, 0,
-						   intel->front_pitch,
-						   intel->front_buffer->virtual);
+	if (!intel_get_pixmap_bo(pixmap))
+		return NULL;
 
-			intel_set_pixmap_bo(pixmap, intel->front_buffer);
-			intel_get_pixmap_private(pixmap)->offscreen = 0;
-			if (WindowDrawable(drawable->type))
-				screen->SetWindowPixmap((WindowPtr)drawable,
-							pixmap);
-		}
-	} else if (intel_get_pixmap_bo(pixmap)) {
-		pixmap->refcnt++;
-	} else
-		pixmap = NULL;
+	pixmap->refcnt++;
 	return pixmap;
 }
 
@@ -181,72 +160,6 @@ static PixmapPtr fixup_glamor(DrawablePtr drawable, PixmapPtr pixmap)
 				   0, 0,
 				   priv->stride,
 				   NULL);
-
-	intel_get_screen_private(xf86ScreenToScrn(screen))->needs_flush = TRUE;
-	return old;
-}
-
-static PixmapPtr fixup_shadow(DrawablePtr drawable, PixmapPtr pixmap)
-{
-	ScreenPtr screen = drawable->pScreen;
-	PixmapPtr old = get_drawable_pixmap(drawable);
-	struct intel_pixmap *priv = intel_get_pixmap_private(pixmap);
-	GCPtr gc;
-
-	/* With an active shadow buffer, 2D pixmaps are created in
-	 * system memory and GPU acceleration of 2D render operations
-	 * is *disabled*. As DRI is still enabled, we create hardware
-	 * buffers for the clients, and need to mix this with the
-	 * 2D rendering. So we replace the system pixmap with a GTT
-	 * mapping (with the kernel enforcing coherency between
-	 * CPU and GPU) for 2D and provide the bo so that clients
-	 * can write directly to it (or read from it in the case
-	 * of TextureFromPixmap) using the GPU.
-	 *
-	 * So for a compositor with a GL backend (i.e. compiz) we have
-	 * smooth wobbly windows but incur the cost of uncached 2D rendering,
-	 * however 3D applications (games and clutter) are still fully
-	 * accelerated.
-	 */
-
-	if (drm_intel_gem_bo_map_gtt(priv->bo))
-		return pixmap;
-
-	screen->ModifyPixmapHeader(pixmap,
-				   drawable->width,
-				   drawable->height,
-				   0, 0,
-				   priv->stride,
-				   priv->bo->virtual);
-	priv->offscreen = 0;
-
-	/* Copy the current contents of the pixmap to the bo. */
-	gc = GetScratchGC(drawable->depth, screen);
-	if (gc) {
-		ValidateGC(&pixmap->drawable, gc);
-		gc->ops->CopyArea(drawable, &pixmap->drawable,
-				  gc,
-				  0, 0,
-				  drawable->width,
-				  drawable->height,
-				  0, 0);
-		FreeScratchGC(gc);
-	}
-
-	intel_set_pixmap_private(pixmap, NULL);
-	screen->DestroyPixmap(pixmap);
-
-	/* Redirect 2D rendering to the uncached GTT map of the bo */
-	screen->ModifyPixmapHeader(old,
-				   drawable->width,
-				   drawable->height,
-				   0, 0,
-				   priv->stride,
-				   priv->bo->virtual);
-
-	/* And redirect the pixmap to the new bo (for 3D). */
-	intel_set_pixmap_private(old, priv);
-	old->refcnt++;
 
 	intel_get_screen_private(xf86ScreenToScrn(screen))->needs_flush = TRUE;
 	return old;
@@ -324,12 +237,8 @@ I830DRI2CreateBuffers(DrawablePtr drawable, unsigned int *attachments,
 				goto unwind;
 			}
 
-			if (attachment == DRI2BufferFrontLeft) {
-				if (!is_glamor_pixmap)
-					pixmap = fixup_shadow(drawable, pixmap);
-				else
-					pixmap = fixup_glamor(drawable, pixmap);
-			}
+			if (attachment == DRI2BufferFrontLeft)
+				pixmap = fixup_glamor(drawable, pixmap);
 		}
 
 		if (attachments[i] == DRI2BufferDepth)
@@ -482,12 +391,8 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 			free(buffer);
 			return NULL;
 		}
-		if (attachment == DRI2BufferFrontLeft) {
-			if (!is_glamor_pixmap)
-				pixmap = fixup_shadow(drawable, pixmap);
-			else
-				pixmap = fixup_glamor(drawable, pixmap);
-		}
+		if (attachment == DRI2BufferFrontLeft)
+			pixmap = fixup_glamor(drawable, pixmap);
 	}
 
 	buffer->attachment = attachment;
@@ -638,38 +543,11 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 	 * that will happen before the client tries to render
 	 * again. */
 
-	/* Re-enable 2D acceleration... */
-	if (intel->use_shadow) {
-		struct intel_pixmap *src_pixmap, *dst_pixmap;
+	gc->ops->CopyArea(src, dst, gc,
+			  0, 0,
+			  drawable->width, drawable->height,
+			  0, 0);
 
-		src_pixmap = intel_get_pixmap_private(get_drawable_pixmap(src));
-		if (src_pixmap) {
-			src_pixmap->offscreen = 1;
-			src_pixmap->busy = 1;
-		}
-
-		dst_pixmap = intel_get_pixmap_private(get_drawable_pixmap(dst));
-		if (dst_pixmap) {
-			dst_pixmap->offscreen = 1;
-			dst_pixmap->busy = 1;
-		}
-
-		gc->ops->CopyArea(src, dst, gc,
-				  0, 0,
-				  drawable->width, drawable->height,
-				  0, 0);
-
-		/* and restore 2D/3D coherency */
-		if (src_pixmap)
-			src_pixmap->offscreen = 0;
-		if (dst_pixmap)
-			dst_pixmap->offscreen = 0;
-	} else {
-		gc->ops->CopyArea(src, dst, gc,
-				  0, 0,
-				  drawable->width, drawable->height,
-				  0, 0);
-	}
 	FreeScratchGC(gc);
 }
 

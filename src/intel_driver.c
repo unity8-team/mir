@@ -569,23 +569,12 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 		intel->tiling &= ~INTEL_TILING_2D;
 	if (xf86ReturnOptValBool(intel->Options, OPTION_TILING_FB, FALSE))
 		intel->tiling &= ~INTEL_TILING_FB;
+	if (!can_accelerate_blt(intel)) {
+		intel->force_fallback = true;
+		intel->tiling &= ~INTEL_TILING_FB;
+	}
 
-	intel->can_blt = can_accelerate_blt(intel);
 	intel->has_kernel_flush = has_kernel_flush(intel);
-	intel->use_shadow = !intel->can_blt;
-
-	if (xf86IsOptionSet(intel->Options, OPTION_SHADOW)) {
-		intel->use_shadow =
-			xf86ReturnOptValBool(intel->Options,
-					     OPTION_SHADOW,
-					     FALSE);
-	}
-
-	if (intel->use_shadow) {
-		xf86DrvMsg(scrn->scrnIndex, X_CONFIG,
-			   "Shadow buffer enabled,"
-			   " 2D GPU acceleration disabled.\n");
-	}
 
 	intel->has_relaxed_fencing =
 		xf86ReturnOptValBool(intel->Options,
@@ -1126,24 +1115,9 @@ static Bool I830CloseScreen(CLOSE_SCREEN_ARGS_DECL)
 	}
 
 	if (intel->front_buffer) {
-		if (!intel->use_shadow)
-			intel_set_pixmap_bo(screen->GetScreenPixmap(screen),
-					    NULL);
 		intel_mode_remove_fb(intel);
 		drm_intel_bo_unreference(intel->front_buffer);
 		intel->front_buffer = NULL;
-	}
-
-	if (intel->shadow_buffer) {
-		free(intel->shadow_buffer);
-		intel->shadow_buffer = NULL;
-	}
-
-	if (intel->shadow_damage) {
-		DamageUnregister(&screen->GetScreenPixmap(screen)->drawable,
-				 intel->shadow_damage);
-		DamageDestroy(intel->shadow_damage);
-		intel->shadow_damage = NULL;
 	}
 
 	intel_batch_teardown(scrn);
