@@ -3043,13 +3043,16 @@ lerp32_unaligned_box_row(PixmapPtr scratch, uint32_t color,
 {
 	int16_t x1 = pixman_fixed_to_int(trap->left.p1.x) + dx;
 	int16_t fx1 = grid_coverage(SAMPLES_X, trap->left.p1.x);
-	int16_t x2 = pixman_fixed_to_int(trap->right.p1.x) + dx;
-	int16_t fx2 = grid_coverage(SAMPLES_X, trap->right.p1.x);
+	int16_t x2 = pixman_fixed_to_int(trap->right.p2.x) + dx;
+	int16_t fx2 = grid_coverage(SAMPLES_X, trap->right.p2.x);
 
 	if (x1 < extents->x1)
 		x1 = extents->x1, fx1 = 0;
 	if (x2 > extents->x2)
 		x2 = extents->x2, fx2 = 0;
+
+	DBG(("%s: x=(%d.%d, %d.%d), y=%dx%d, covered=%d\n", __FUNCTION__,
+	     x1, fx1, x2, fx2, y, h, covered));
 
 	if (x2 < x1) {
 		if (fx1) {
@@ -3185,6 +3188,7 @@ composite_unaligned_boxes_inplace__solid(CARD8 op, uint32_t color,
 	if (!(dst->format == PICT_a8r8g8b8 || dst->format == PICT_x8r8g8b8)) {
 		DBG(("%s: fallback -- can not perform operation in place, unhanbled format %08lx\n",
 		     __FUNCTION__, (long)dst->format));
+
 		goto pixman;
 	}
 
@@ -3193,7 +3197,7 @@ composite_unaligned_boxes_inplace__solid(CARD8 op, uint32_t color,
 
 	if (op == PictOpOver && (color >> 24) == 0xff)
 		op = PictOpSrc;
-	if (op == PictOpOver) {
+	if (op == PictOpOver || op == PictOpAdd) {
 		struct sna_pixmap *priv = sna_pixmap(pixmap);
 		if (priv && priv->clear && priv->clear_color == 0)
 			op = PictOpSrc;
@@ -3208,7 +3212,8 @@ composite_unaligned_boxes_inplace__solid(CARD8 op, uint32_t color,
 		goto pixman;
 	}
 
-	DBG(("%s: inplace operation on argb32 destination\n", __FUNCTION__));
+	DBG(("%s: inplace operation on argb32 destination x %d\n",
+	     __FUNCTION__, n));
 	do {
 		RegionRec clip;
 		BoxPtr extents;
@@ -3244,10 +3249,20 @@ composite_unaligned_boxes_inplace__solid(CARD8 op, uint32_t color,
 			int16_t y2 = dy + pixman_fixed_to_int(t->bottom);
 			int16_t fy2 = pixman_fixed_frac(t->bottom);
 
+			DBG(("%s: t=(%d, %d), (%d, %d), extents (%d, %d), (%d, %d)\n",
+			     __FUNCTION__,
+			     pixman_fixed_to_int(t->left.p1.x),
+			     pixman_fixed_to_int(t->top),
+			     pixman_fixed_to_int(t->right.p2.x),
+			     pixman_fixed_to_int(t->bottom),
+			     extents->x1, extents->y1,
+			     extents->x2, extents->y2));
+
 			if (y1 < extents->y1)
 				y1 = extents->y1, fy1 = 0;
 			if (y2 > extents->y2)
 				y2 = extents->y2, fy2 = 0;
+
 			if (y1 < y2) {
 				if (fy1) {
 					lerp32_unaligned_box_row(pixmap, color, extents,
