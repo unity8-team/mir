@@ -687,6 +687,10 @@ static bool test_has_cache_level(struct kgem *kgem)
 	if (DBG_NO_CACHE_LEVEL)
 		return false;
 
+	/* Incoherent blt and sampler hangs the GPU */
+	if (kgem->gen == 40)
+		return false;
+
 	handle = gem_create(kgem->fd, 1);
 	if (handle == 0)
 		return false;
@@ -703,6 +707,10 @@ static bool test_has_vmap(struct kgem *kgem)
 {
 #if defined(USE_VMAP)
 	if (DBG_NO_VMAP)
+		return false;
+
+	/* Incoherent blt and sampler hangs the GPU */
+	if (kgem->gen == 40)
 		return false;
 
 	return gem_param(kgem, I915_PARAM_HAS_VMAP) > 0;
@@ -3102,6 +3110,8 @@ struct kgem_bo *kgem_create_cpu_2d(struct kgem *kgem,
 		if (bo == NULL)
 			return bo;
 
+		assert(bo->tiling == I915_TILING_NONE);
+
 		if (kgem_bo_map__cpu(kgem, bo) == NULL) {
 			kgem_bo_destroy(kgem, bo);
 			return NULL;
@@ -3115,6 +3125,8 @@ struct kgem_bo *kgem_create_cpu_2d(struct kgem *kgem,
 				    I915_TILING_NONE, flags | CREATE_FORCE);
 		if (bo == NULL)
 			return NULL;
+
+		assert(bo->tiling == I915_TILING_NONE);
 
 		bo->reusable = false;
 		bo->vmap = true;
@@ -3816,8 +3828,7 @@ static struct kgem_partial_bo *partial_bo_alloc(int num_pages)
 static inline bool
 use_snoopable_buffer(struct kgem *kgem, uint32_t flags)
 {
-	if (kgem->gen == 40)
-		return false;
+	assert(kgem->gen != 40);
 
 	if (kgem->gen < 30)
 		return flags & KGEM_BUFFER_WRITE;
