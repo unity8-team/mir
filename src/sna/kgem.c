@@ -3813,6 +3813,18 @@ static struct kgem_partial_bo *partial_bo_alloc(int num_pages)
 	return bo;
 }
 
+static inline bool
+use_snoopable_buffer(struct kgem *kgem, uint32_t flags)
+{
+	if (kgem->gen == 40)
+		return false;
+
+	if (kgem->gen < 30)
+		return flags & KGEM_BUFFER_WRITE;
+
+	return true;
+}
+
 struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 				   uint32_t size, uint32_t flags,
 				   void **ret)
@@ -4056,7 +4068,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 		alloc = NUM_PAGES(size);
 	flags &= ~KGEM_BUFFER_INPLACE;
 
-	if (flags & KGEM_BUFFER_WRITE && kgem->has_cache_level) {
+	if (kgem->has_cache_level && use_snoopable_buffer(kgem, flags)) {
 		uint32_t handle;
 
 		handle = gem_create(kgem->fd, alloc);
@@ -4079,13 +4091,14 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 		DBG(("%s: created handle=%d for buffer\n",
 		     __FUNCTION__, bo->base.handle));
 
+		bo->base.reusable = false;
+		bo->base.vmap = true;
+
 		bo->mem = kgem_bo_map__cpu(kgem, &bo->base);
 		if (bo->mem) {
 			bo->mmapped = true;
 			bo->need_io = false;
 			bo->base.io = true;
-			bo->base.reusable = false;
-			bo->base.vmap = true;
 			goto init;
 		} else {
 			bo->base.refcnt = 0; /* for valgrind */
@@ -4094,7 +4107,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 		}
 	}
 
-	if (flags & KGEM_BUFFER_WRITE && kgem->has_vmap) {
+	if (kgem->has_vmap && use_snoopable_buffer(kgem, flags)) {
 		bo = partial_bo_alloc(alloc);
 		if (bo) {
 			uint32_t handle = gem_vmap(kgem->fd, bo->mem,

@@ -725,6 +725,8 @@ gen4_bind_bo(struct sna *sna,
 	uint32_t domains;
 	uint16_t offset;
 
+	assert(!kgem_bo_is_vmap(bo));
+
 	/* After the first bind, we manage the cache domains within the batch */
 	if (is_dst) {
 		domains = I915_GEM_DOMAIN_RENDER << 16 | I915_GEM_DOMAIN_RENDER;

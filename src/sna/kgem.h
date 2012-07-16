@@ -500,6 +500,12 @@ static inline bool kgem_bo_can_map(struct kgem *kgem, struct kgem_bo *bo)
 	return kgem_bo_size(bo) <= kgem->aperture_mappable / 4;
 }
 
+static inline bool kgem_bo_is_vmap(struct kgem_bo *bo)
+{
+	while (bo->proxy)
+		bo = bo->proxy;
+	return bo->vmap;
+}
 
 static inline bool kgem_bo_is_busy(struct kgem_bo *bo)
 {
