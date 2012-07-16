@@ -3054,7 +3054,7 @@ lerp32_unaligned_box_row(PixmapPtr scratch, uint32_t color,
 	DBG(("%s: x=(%d.%d, %d.%d), y=%dx%d, covered=%d\n", __FUNCTION__,
 	     x1, fx1, x2, fx2, y, h, covered));
 
-	if (x2 < x1) {
+	if (x1 < x2) {
 		if (fx1) {
 			lerp32_opacity(scratch, color,
 				       x1, 1,
