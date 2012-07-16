@@ -288,7 +288,7 @@ void no_render_init(struct sna *sna)
 }
 
 static struct kgem_bo *
-use_cpu_bo(struct sna *sna, PixmapPtr pixmap, const BoxRec *box)
+use_cpu_bo(struct sna *sna, PixmapPtr pixmap, const BoxRec *box, bool blt)
 {
 	struct sna_pixmap *priv;
 
@@ -322,15 +322,30 @@ use_cpu_bo(struct sna *sna, PixmapPtr pixmap, const BoxRec *box)
 			break;
 		}
 
-		if (priv->gpu_bo->tiling != I915_TILING_NONE &&
+		if (!blt &&
+		    priv->gpu_bo->tiling != I915_TILING_NONE &&
 		    (priv->cpu_bo->vmap || priv->cpu_bo->pitch >= 4096)) {
 			DBG(("%s: GPU bo exists and is tiled [%d], upload\n",
 			     __FUNCTION__, priv->gpu_bo->tiling));
 			return NULL;
 		}
+	}
+
+	if (blt) {
+		if (priv->cpu_bo->vmap && priv->source_count++ > SOURCE_BIAS) {
+			DBG(("%s: promoting snooped CPU bo due to BLT reuse\n",
+			     __FUNCTION__));
+			return NULL;
+		}
 	} else {
 		int w = box->x2 - box->x1;
 		int h = box->y2 - box->y1;
+
+		if (priv->cpu_bo->pitch >= 4096) {
+			DBG(("%s: promoting snooped CPU bo due to TLB miss\n",
+			     __FUNCTION__));
+			return NULL;
+		}
 
 		if (priv->cpu_bo->vmap && priv->source_count > SOURCE_BIAS) {
 			DBG(("%s: promoting snooped CPU bo due to reuse\n",
@@ -338,8 +353,9 @@ use_cpu_bo(struct sna *sna, PixmapPtr pixmap, const BoxRec *box)
 			return NULL;
 		}
 
-		if (priv->source_count++*w*h >= (int)pixmap->drawable.width * pixmap->drawable.height &&
-		     I915_TILING_NONE != kgem_choose_tiling(&sna->kgem, I915_TILING_Y,
+		if (priv->source_count*w*h >= (int)pixmap->drawable.width * pixmap->drawable.height &&
+		     I915_TILING_NONE != kgem_choose_tiling(&sna->kgem,
+							    blt ? I915_TILING_X : I915_TILING_Y,
 							    pixmap->drawable.width,
 							    pixmap->drawable.height,
 							    pixmap->drawable.bitsPerPixel)) {
@@ -347,15 +363,20 @@ use_cpu_bo(struct sna *sna, PixmapPtr pixmap, const BoxRec *box)
 			     __FUNCTION__, priv->cpu_bo->pitch));
 			return NULL;
 		}
+
+		++priv->source_count;
 	}
 
 	DBG(("%s for box=(%d, %d), (%d, %d)\n",
 	     __FUNCTION__, box->x1, box->y1, box->x2, box->y2));
+	if (!sna_pixmap_move_to_cpu(pixmap, MOVE_READ | MOVE_ASYNC_HINT))
+		return NULL;
+
 	return priv->cpu_bo;
 }
 
 static struct kgem_bo *
-move_to_gpu(PixmapPtr pixmap, const BoxRec *box)
+move_to_gpu(PixmapPtr pixmap, const BoxRec *box, bool blt)
 {
 	struct sna_pixmap *priv;
 	int count, w, h;
@@ -390,7 +411,7 @@ move_to_gpu(PixmapPtr pixmap, const BoxRec *box)
 
 	if (DBG_FORCE_UPLOAD < 0) {
 		if (!sna_pixmap_force_to_gpu(pixmap,
-					       MOVE_SOURCE_HINT | MOVE_READ))
+					     blt ? MOVE_READ : MOVE_SOURCE_HINT | MOVE_READ))
 			return NULL;
 
 		return priv->gpu_bo;
@@ -407,7 +428,7 @@ move_to_gpu(PixmapPtr pixmap, const BoxRec *box)
 		     box->x1, box->y1, box->x2, box->y2, priv->source_count,
 		     migrate));
 	} else if (kgem_choose_tiling(&to_sna_from_pixmap(pixmap)->kgem,
-				      I915_TILING_Y, w, h,
+				      blt ? I915_TILING_X : I915_TILING_Y, w, h,
 				      pixmap->drawable.bitsPerPixel) != I915_TILING_NONE) {
 		count = priv->source_count++;
 		if ((priv->create & KGEM_CAN_CREATE_GPU) == 0)
@@ -424,7 +445,7 @@ move_to_gpu(PixmapPtr pixmap, const BoxRec *box)
 	}
 
 	if (migrate && !sna_pixmap_force_to_gpu(pixmap,
-						MOVE_SOURCE_HINT | MOVE_READ))
+						blt ? MOVE_READ : MOVE_SOURCE_HINT | MOVE_READ))
 		return NULL;
 
 	return priv->gpu_bo;
@@ -465,19 +486,35 @@ static struct kgem_bo *upload(struct sna *sna,
 				      pixmap->devPrivate.ptr, box,
 				      pixmap->devKind,
 				      pixmap->drawable.bitsPerPixel);
-	if (bo) {
+	if (channel && bo) {
 		channel->width  = box->x2 - box->x1;
 		channel->height = box->y2 - box->y1;
 		channel->offset[0] -= box->x1;
 		channel->offset[1] -= box->y1;
-		channel->scale[0] = 1.f/channel->width;
-		channel->scale[1] = 1.f/channel->height;
 
 		if (priv &&
 		    pixmap->usage_hint == 0 &&
 		    channel->width  == pixmap->drawable.width &&
 		    channel->height == pixmap->drawable.height)
 			kgem_proxy_bo_attach(bo, &priv->gpu_bo);
+	}
+
+	return bo;
+}
+
+struct kgem_bo *
+__sna_render_pixmap_bo(struct sna *sna,
+		       PixmapPtr pixmap,
+		       const BoxRec *box,
+		       bool blt)
+{
+	struct kgem_bo *bo;
+
+	bo = use_cpu_bo(sna, pixmap, box, blt);
+	if (bo == NULL) {
+		bo = move_to_gpu(pixmap, box, blt);
+		if (bo == NULL)
+			return NULL;
 	}
 
 	return bo;
@@ -491,7 +528,6 @@ sna_render_pixmap_bo(struct sna *sna,
 		     int16_t w, int16_t h,
 		     int16_t dst_x, int16_t dst_y)
 {
-	struct kgem_bo *bo;
 	struct sna_pixmap *priv;
 	BoxRec box;
 
@@ -500,8 +536,6 @@ sna_render_pixmap_bo(struct sna *sna,
 
 	channel->width  = pixmap->drawable.width;
 	channel->height = pixmap->drawable.height;
-	channel->scale[0] = 1.f / pixmap->drawable.width;
-	channel->scale[1] = 1.f / pixmap->drawable.height;
 	channel->offset[0] = x - dst_x;
 	channel->offset[1] = y - dst_y;
 
@@ -511,16 +545,16 @@ sna_render_pixmap_bo(struct sna *sna,
 		    (DAMAGE_IS_ALL(priv->gpu_damage) || !priv->cpu_damage ||
 		     priv->gpu_bo->proxy)) {
 			DBG(("%s: GPU all damaged\n", __FUNCTION__));
-			channel->bo = kgem_bo_reference(priv->gpu_bo);
-			return 1;
+			channel->bo = priv->gpu_bo;
+			goto done;
 		}
 
 		if (priv->cpu_bo &&
 		    (DAMAGE_IS_ALL(priv->cpu_damage) || !priv->gpu_damage) &&
 		    !priv->cpu_bo->vmap && priv->cpu_bo->pitch < 4096) {
 			DBG(("%s: CPU all damaged\n", __FUNCTION__));
-			channel->bo = kgem_bo_reference(priv->cpu_bo);
-			return 1;
+			channel->bo = priv->cpu_bo;
+			goto done;
 		}
 	}
 
@@ -572,21 +606,22 @@ sna_render_pixmap_bo(struct sna *sna,
 	     channel->offset[0], channel->offset[1],
 	     pixmap->drawable.width, pixmap->drawable.height));
 
-	bo = use_cpu_bo(sna, pixmap, &box);
-	if (bo) {
-		bo = kgem_bo_reference(bo);
+
+	channel->bo = __sna_render_pixmap_bo(sna, pixmap, &box, false);
+	if (channel->bo == NULL) {
+		DBG(("%s: uploading CPU box (%d, %d), (%d, %d)\n",
+		     __FUNCTION__, box.x1, box.y1, box.x2, box.y2));
+		channel->bo = upload(sna, channel, pixmap, &box);
+		if (channel->bo == NULL)
+			return 0;
 	} else {
-		bo = move_to_gpu(pixmap, &box);
-		if (bo == NULL) {
-			DBG(("%s: uploading CPU box (%d, %d), (%d, %d)\n",
-			     __FUNCTION__, box.x1, box.y1, box.x2, box.y2));
-			bo = upload(sna, channel, pixmap, &box);
-		} else
-			bo = kgem_bo_reference(bo);
+done:
+		kgem_bo_reference(channel->bo);
 	}
 
-	channel->bo = bo;
-	return bo != NULL;
+	channel->scale[0] = 1.f / channel->width;
+	channel->scale[1] = 1.f / channel->height;
+	return 1;
 }
 
 static int sna_render_picture_downsample(struct sna *sna,
@@ -929,14 +964,11 @@ sna_render_picture_partial(struct sna *sna,
 		}
 	}
 
-	if (use_cpu_bo(sna, pixmap, &box)) {
-		if (!sna_pixmap_move_to_cpu(pixmap, MOVE_READ))
-			return 0;
-
+	if (use_cpu_bo(sna, pixmap, &box, false)) {
 		bo = sna_pixmap(pixmap)->cpu_bo;
 	} else {
 		if (!sna_pixmap_force_to_gpu(pixmap,
-					     MOVE_SOURCE_HINT | MOVE_READ))
+					     MOVE_READ | MOVE_SOURCE_HINT))
 			return 0;
 
 		bo = sna_pixmap(pixmap)->gpu_bo;
@@ -1119,12 +1151,9 @@ sna_render_picture_extract(struct sna *sna,
 						     dst_x, dst_y);
 	}
 
-	src_bo = use_cpu_bo(sna, pixmap, &box);
-	if (src_bo) {
-		if (!sna_pixmap_move_to_cpu(pixmap, MOVE_READ))
-			return 0;
-	} else {
-		src_bo = move_to_gpu(pixmap, &box);
+	src_bo = use_cpu_bo(sna, pixmap, &box, true);
+	if (src_bo == NULL) {
+		src_bo = move_to_gpu(pixmap, &box, false);
 		if (src_bo == NULL) {
 			bo = kgem_upload_source_image(&sna->kgem,
 						      pixmap->devPrivate.ptr,

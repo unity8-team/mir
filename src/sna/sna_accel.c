@@ -425,8 +425,8 @@ sna_pixmap_alloc_cpu(struct sna *sna,
 						  pixmap->drawable.bitsPerPixel,
 						  from_gpu ? 0 : CREATE_CPU_MAP | CREATE_INACTIVE);
 		if (priv->cpu_bo) {
-			DBG(("%s: allocated CPU handle=%d\n", __FUNCTION__,
-			     priv->cpu_bo->handle));
+			DBG(("%s: allocated CPU handle=%d (vmap? %d)\n", __FUNCTION__,
+			     priv->cpu_bo->handle, priv->cpu_bo->vmap));
 
 			priv->ptr = kgem_bo_map__cpu(&sna->kgem, priv->cpu_bo);
 			priv->stride = priv->cpu_bo->pitch;
@@ -525,22 +525,23 @@ static inline uint32_t default_tiling(PixmapPtr pixmap,
 	if (sna->kgem.gen == 21)
 		return I915_TILING_X;
 
-	if (sna_damage_is_all(&priv->cpu_damage,
+	/* Only on later generations was the render pipeline
+	 * more flexible than the BLT. So on gen2/3, prefer to
+	 * keep large objects accessible through the BLT.
+	 */
+	if (sna->kgem.gen < 40 &&
+	    (pixmap->drawable.width  > sna->render.max_3d_size ||
+	     pixmap->drawable.height > sna->render.max_3d_size))
+		return I915_TILING_X;
+
+	if (tiling == I915_TILING_Y &&
+	    sna_damage_is_all(&priv->cpu_damage,
 			      pixmap->drawable.width,
 			      pixmap->drawable.height)) {
 		DBG(("%s: entire source is damaged, using Y-tiling\n",
 		     __FUNCTION__));
 		sna_damage_destroy(&priv->gpu_damage);
 		priv->undamaged = false;
-
-		/* Only on later generations was the render pipeline
-		 * more flexible than the BLT. So on gen2/3, prefer to
-		 * keep large objects accessible through the BLT.
-		 */
-		if (sna->kgem.gen < 40 &&
-		    (pixmap->drawable.width > sna->render.max_3d_size ||
-		     pixmap->drawable.height > sna->render.max_3d_size))
-			return I915_TILING_X;
 
 		return I915_TILING_Y;
 	}
@@ -1089,13 +1090,22 @@ static inline bool use_cpu_bo_for_download(struct sna *sna,
 	return priv->cpu_bo != NULL && sna->kgem.can_blt_cpu;
 }
 
-static inline bool use_cpu_bo_for_upload(struct sna_pixmap *priv)
+static inline bool use_cpu_bo_for_upload(struct sna_pixmap *priv,
+					 unsigned flags)
 {
 	if (DBG_NO_CPU_UPLOAD)
 		return false;
 
 	if (priv->cpu_bo == NULL)
 		return false;
+
+	DBG(("%s? flags=%x, gpu busy?=%d, cpu busy?=%d\n", __FUNCTION__,
+	     flags,
+	     kgem_bo_is_busy(priv->gpu_bo),
+	     kgem_bo_is_busy(priv->cpu_bo)));
+
+	if (flags & (MOVE_WRITE | MOVE_ASYNC_HINT))
+		return true;
 
 	return kgem_bo_is_busy(priv->gpu_bo) || kgem_bo_is_busy(priv->cpu_bo);
 }
@@ -2135,14 +2145,13 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 			create |= CREATE_EXACT | CREATE_SCANOUT;
 
 		tiling = (flags & MOVE_SOURCE_HINT) ? I915_TILING_Y : DEFAULT_TILING;
+		tiling = sna_pixmap_choose_tiling(pixmap, tiling);
 
 		priv->gpu_bo = kgem_create_2d(&sna->kgem,
 					      pixmap->drawable.width,
 					      pixmap->drawable.height,
 					      pixmap->drawable.bitsPerPixel,
-					      sna_pixmap_choose_tiling(pixmap,
-								       tiling),
-					      create);
+					      tiling, create);
 		if (priv->gpu_bo == NULL)
 			return false;
 
@@ -2182,7 +2191,7 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 		if (n) {
 			bool ok = false;
 
-			if (use_cpu_bo_for_upload(priv)) {
+			if (use_cpu_bo_for_upload(priv, 0)) {
 				DBG(("%s: using CPU bo for upload to GPU\n", __FUNCTION__));
 				ok = sna->render.copy_boxes(sna, GXcopy,
 							    pixmap, priv->cpu_bo, 0, 0,
@@ -2222,7 +2231,7 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 	} else if (DAMAGE_IS_ALL(priv->cpu_damage) ||
 		   sna_damage_contains_box__no_reduce(priv->cpu_damage, box)) {
 		bool ok = false;
-		if (use_cpu_bo_for_upload(priv)) {
+		if (use_cpu_bo_for_upload(priv, 0)) {
 			DBG(("%s: using CPU bo for upload to GPU\n", __FUNCTION__));
 			ok = sna->render.copy_boxes(sna, GXcopy,
 						    pixmap, priv->cpu_bo, 0, 0,
@@ -2253,7 +2262,7 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 
 		box = REGION_RECTS(&i);
 		ok = false;
-		if (use_cpu_bo_for_upload(priv)) {
+		if (use_cpu_bo_for_upload(priv, 0)) {
 			DBG(("%s: using CPU bo for upload to GPU\n", __FUNCTION__));
 			ok = sna->render.copy_boxes(sna, GXcopy,
 						    pixmap, priv->cpu_bo, 0, 0,
@@ -2641,17 +2650,25 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 		     priv->create));
 		assert(!priv->mapped);
 		if (flags & __MOVE_FORCE || priv->create & KGEM_CAN_CREATE_GPU) {
+			unsigned create, tiling;
+
 			assert(pixmap->drawable.width > 0);
 			assert(pixmap->drawable.height > 0);
 			assert(pixmap->drawable.bitsPerPixel >= 8);
+
+			tiling = (flags & MOVE_SOURCE_HINT) ? I915_TILING_Y : DEFAULT_TILING;
+			tiling = sna_pixmap_choose_tiling(pixmap, tiling);
+
+			create = 0;
+			if (priv->cpu_damage && priv->cpu_bo == NULL)
+				create = CREATE_GTT_MAP | CREATE_INACTIVE;
+
 			priv->gpu_bo =
 				kgem_create_2d(&sna->kgem,
 					       pixmap->drawable.width,
 					       pixmap->drawable.height,
 					       pixmap->drawable.bitsPerPixel,
-					       sna_pixmap_choose_tiling(pixmap,
-									DEFAULT_TILING),
-					       (priv->cpu_damage && priv->cpu_bo == NULL) ? CREATE_GTT_MAP | CREATE_INACTIVE : 0);
+					       tiling, create);
 		}
 		if (priv->gpu_bo == NULL) {
 			DBG(("%s: not creating GPU bo\n", __FUNCTION__));
@@ -2698,8 +2715,11 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 		assert(pixmap_contains_damage(pixmap, priv->cpu_damage));
 		DBG(("%s: uploading %d damage boxes\n", __FUNCTION__, n));
 
+		if (DAMAGE_IS_ALL(priv->cpu_damage))
+			flags |= MOVE_ASYNC_HINT;
+
 		ok = false;
-		if (use_cpu_bo_for_upload(priv)) {
+		if (use_cpu_bo_for_upload(priv, flags)) {
 			DBG(("%s: using CPU bo for upload to GPU\n", __FUNCTION__));
 			ok = sna->render.copy_boxes(sna, GXcopy,
 						    pixmap, priv->cpu_bo, 0, 0,
@@ -3055,7 +3075,8 @@ static bool upload_inplace(struct sna *sna,
 	}
 
 	if (priv->gpu_bo) {
-		assert(priv->gpu_bo->proxy == NULL);
+		if (priv->gpu_bo->proxy)
+			return false;
 
 		if (!kgem_bo_can_map(&sna->kgem, priv->gpu_bo)) {
 			DBG(("%s? no, GPU bo not mappable\n", __FUNCTION__));

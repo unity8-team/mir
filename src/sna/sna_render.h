@@ -619,6 +619,12 @@ sna_get_pixel_from_rgba(uint32_t * pixel,
 	return _sna_get_pixel_from_rgba(pixel, red, green, blue, alpha, format);
 }
 
+struct kgem_bo *
+__sna_render_pixmap_bo(struct sna *sna,
+		       PixmapPtr pixmap,
+		       const BoxRec *box,
+		       bool blt);
+
 int
 sna_render_pixmap_bo(struct sna *sna,
 		     struct sna_composite_channel *channel,
