@@ -570,7 +570,7 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 	if (xf86ReturnOptValBool(intel->Options, OPTION_TILING_FB, FALSE))
 		intel->tiling &= ~INTEL_TILING_FB;
 	if (!can_accelerate_blt(intel)) {
-		intel->force_fallback = true;
+		intel->force_fallback = TRUE;
 		intel->tiling &= ~INTEL_TILING_FB;
 	}
 
