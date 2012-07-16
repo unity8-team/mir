@@ -3123,6 +3123,7 @@ struct kgem_bo *kgem_create_cpu_2d(struct kgem *kgem,
 			return NULL;
 
 		bo->reusable = false;
+		bo->vmap = true;
 		if (!gem_set_cache_level(kgem->fd, bo->handle, I915_CACHE_LLC) ||
 		    kgem_bo_map__cpu(kgem, bo) == NULL) {
 			kgem_bo_destroy(kgem, bo);
@@ -4055,15 +4056,51 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			}
 		}
 	}
-#else
-	flags &= ~KGEM_BUFFER_INPLACE;
 #endif
 	/* Be more parsimonious with pwrite/pread buffers */
 	if ((flags & KGEM_BUFFER_INPLACE) == 0)
 		alloc = NUM_PAGES(size);
 	flags &= ~KGEM_BUFFER_INPLACE;
 
-	if (kgem->has_vmap) {
+	if (flags & KGEM_BUFFER_WRITE && kgem->has_cache_level) {
+		uint32_t handle;
+
+		handle = gem_create(kgem->fd, alloc);
+		if (handle == 0)
+			return NULL;
+
+		if (!gem_set_cache_level(kgem->fd, handle, I915_CACHE_LLC)) {
+			gem_close(kgem->fd, handle);
+			return NULL;
+		}
+
+		bo = malloc(sizeof(*bo));
+		if (bo == NULL) {
+			gem_close(kgem->fd, handle);
+			return NULL;
+		}
+
+		debug_alloc(kgem, alloc);
+		__kgem_bo_init(&bo->base, handle, alloc);
+		DBG(("%s: created handle=%d for buffer\n",
+		     __FUNCTION__, bo->base.handle));
+
+		bo->mem = kgem_bo_map__cpu(kgem, &bo->base);
+		if (bo->mem) {
+			bo->mmapped = true;
+			bo->need_io = false;
+			bo->base.io = true;
+			bo->base.reusable = false;
+			bo->base.vmap = true;
+			goto init;
+		} else {
+			bo->base.refcnt = 0; /* for valgrind */
+			kgem_bo_free(kgem, &bo->base);
+			bo = NULL;
+		}
+	}
+
+	if (flags & KGEM_BUFFER_WRITE && kgem->has_vmap) {
 		bo = partial_bo_alloc(alloc);
 		if (bo) {
 			uint32_t handle = gem_vmap(kgem->fd, bo->mem,
