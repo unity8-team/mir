@@ -408,9 +408,17 @@ intel_get_screen_private(ScrnInfoPtr scrn)
 	return (intel_screen_private *)(scrn->driverPrivate);
 }
 
+#ifndef ARRAY_SIZE
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
+#endif
+
+#ifndef ALIGN
 #define ALIGN(i,m)	(((i) + (m) - 1) & ~((m) - 1))
+#endif
+
+#ifndef MIN
 #define MIN(a,b)	((a) < (b) ? (a) : (b))
+#endif
 
 static inline unsigned long intel_pixmap_pitch(PixmapPtr pixmap)
 {

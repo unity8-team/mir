@@ -191,7 +191,10 @@ struct kgem {
 #define KGEM_RELOC_RESERVED 4
 #define KGEM_EXEC_RESERVED 1
 
+#ifndef ARRAY_SIZE
 #define ARRAY_SIZE(a) (sizeof(a)/sizeof((a)[0]))
+#endif
+
 #define KGEM_BATCH_SIZE(K) ((K)->batch_size-KGEM_BATCH_RESERVED)
 #define KGEM_EXEC_SIZE(K) (int)(ARRAY_SIZE((K)->exec)-KGEM_EXEC_RESERVED)
 #define KGEM_RELOC_SIZE(K) (int)(ARRAY_SIZE((K)->reloc)-KGEM_RELOC_RESERVED)
