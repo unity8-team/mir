@@ -229,6 +229,14 @@ static void _assert_pixmap_contains_box(PixmapPtr pixmap, const BoxRec *box, con
 	}
 }
 
+static void _assert_pixmap_contains_box_with_offset(PixmapPtr pixmap, const BoxRec *box, int dx, int dy, const char *function)
+{
+	BoxRec b = *box;
+	b.x1 += dx; b.x2 += dx;
+	b.y1 += dy; b.y2 += dy;
+	_assert_pixmap_contains_box(pixmap, &b, function);
+}
+
 static void _assert_pixmap_contains_boxes(PixmapPtr pixmap, const BoxRec *box, int n, int dx, int dy, const char *function)
 {
 	BoxRec extents;
@@ -333,12 +341,14 @@ static void assert_pixmap_damage(PixmapPtr p)
 }
 
 #define assert_pixmap_contains_box(p, b) _assert_pixmap_contains_box(p, b, __FUNCTION__)
+#define assert_pixmap_contains_box_with_offset(p, b, dx, dy) _assert_pixmap_contains_box_with_offset(p, b, dx, dy, __FUNCTION__)
 #define assert_drawable_contains_box(d, b) _assert_drawable_contains_box(d, b, __FUNCTION__)
 #define assert_pixmap_contains_boxes(p, b, n, x, y) _assert_pixmap_contains_boxes(p, b, n, x, y, __FUNCTION__)
 #define assert_pixmap_contains_points(p, pt, n, x, y) _assert_pixmap_contains_points(p, pt, n, x, y, __FUNCTION__)
 
 #else
 #define assert_pixmap_contains_box(p, b)
+#define assert_pixmap_contains_box_with_offset(p, b, dx, dy)
 #define assert_pixmap_contains_boxes(p, b, n, x, y)
 #define assert_pixmap_contains_points(p, pt, n, x, y)
 #define assert_drawable_contains_box(d, b)
@@ -3937,7 +3947,6 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	bool replaces;
 
 	assert(RegionNumRects(region));
-	assert_pixmap_contains_box(dst_pixmap, RegionExtents(region));
 
 	if (src_pixmap == dst_pixmap)
 		return sna_self_copy_boxes(src, dst, gc,
@@ -3961,6 +3970,11 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	get_drawable_deltas(src, src_pixmap, &src_dx, &src_dy);
 	src_dx += dx - dst_dx;
 	src_dy += dy - dst_dy;
+
+	assert_pixmap_contains_box(dst_pixmap, RegionExtents(region));
+	assert_pixmap_contains_box_with_offset(src_pixmap,
+					       RegionExtents(region),
+					       src_dx, src_dy);
 
 	replaces = n == 1 &&
 		box->x1 <= 0 &&
