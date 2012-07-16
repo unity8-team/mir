@@ -1127,8 +1127,6 @@ _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 		assert(flags & MOVE_WRITE);
 		DBG(("%s: no readbck, discarding gpu damage [%d], pending clear[%d]\n",
 		     __FUNCTION__, priv->gpu_damage != NULL, priv->clear));
-		sna_damage_destroy(&priv->gpu_damage);
-		priv->clear = false;
 
 		if (priv->create & KGEM_CAN_CREATE_GPU &&
 		    pixmap_inplace(sna, pixmap, priv)) {
@@ -1165,6 +1163,7 @@ _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 				       pixmap->drawable.height);
 			sna_damage_destroy(&priv->cpu_damage);
 			priv->undamaged = false;
+			priv->clear = false;
 			priv->cpu = false;
 			list_del(&priv->list);
 			if (priv->cpu_bo) {
@@ -1177,23 +1176,20 @@ _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 		}
 
 skip_inplace_map:
+		sna_damage_destroy(&priv->gpu_damage);
 		if (priv->cpu_bo && !priv->cpu_bo->sync && kgem_bo_is_busy(priv->cpu_bo)) {
 			if (priv->cpu_bo->exec == NULL)
 				kgem_retire(&sna->kgem);
 
 			if (kgem_bo_is_busy(priv->cpu_bo)) {
 				DBG(("%s: discarding busy CPU bo\n", __FUNCTION__));
+				assert(priv->gpu_bo);
+				assert(priv->gpu_damage == NULL);
+
 				sna_damage_destroy(&priv->cpu_damage);
-				list_del(&priv->list);
-				if (priv->undamaged) {
-					sna_damage_all(&priv->gpu_damage,
-						       pixmap->drawable.width,
-						       pixmap->drawable.height);
-					list_del(&priv->list);
-					priv->undamaged = false;
-				}
-				priv->cpu = false;
-				assert(!priv->cpu_bo->sync);
+				priv->undamaged = false;
+
+				sna_pixmap_free_gpu(sna, priv);
 				sna_pixmap_free_cpu(sna, priv);
 			}
 		}
