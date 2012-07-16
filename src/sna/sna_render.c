@@ -301,6 +301,9 @@ use_cpu_bo(struct sna *sna, PixmapPtr pixmap, const BoxRec *box)
 		return NULL;
 	}
 
+	if (sna->kgem.gen == 40) /* XXX sampler dies with snoopable memory */
+		return NULL;
+
 	if (priv->gpu_bo) {
 		switch (sna_damage_contains_box(priv->cpu_damage, box)) {
 		case PIXMAN_REGION_OUT:

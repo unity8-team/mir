@@ -687,9 +687,6 @@ static bool test_has_cache_level(struct kgem *kgem)
 	if (DBG_NO_CACHE_LEVEL)
 		return false;
 
-	if (kgem->gen == 40) /* XXX sampler dies with snoopable memory */
-		return false;
-
 	handle = gem_create(kgem->fd, 1);
 	if (handle == 0)
 		return false;
@@ -706,9 +703,6 @@ static bool test_has_vmap(struct kgem *kgem)
 {
 #if defined(USE_VMAP)
 	if (DBG_NO_VMAP)
-		return false;
-
-	if (kgem->gen == 40)
 		return false;
 
 	return gem_param(kgem, I915_PARAM_HAS_VMAP) > 0;
