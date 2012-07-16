@@ -63,6 +63,8 @@
 #define USE_SHM_VMAP 0
 
 #define MIGRATE_ALL 0
+#define DBG_NO_CPU_UPLOAD 0
+#define DBG_NO_CPU_DOWNLOAD 0
 
 #define ACCEL_FILL_SPANS 1
 #define ACCEL_SET_SPANS 1
@@ -1071,15 +1073,16 @@ sna_pixmap_create_mappable_gpu(PixmapPtr pixmap)
 static inline bool use_cpu_bo_for_download(struct sna *sna,
 					   struct sna_pixmap *priv)
 {
+	if (DBG_NO_CPU_DOWNLOAD)
+		return false;
+
 	return priv->cpu_bo != NULL && sna->kgem.can_blt_cpu;
 }
 
 static inline bool use_cpu_bo_for_upload(struct sna_pixmap *priv)
 {
-#if 0
-	if (pixmap->devPrivate.ptr == NULL)
-		return true;
-#endif
+	if (DBG_NO_CPU_UPLOAD)
+		return false;
 
 	if (priv->cpu_bo == NULL)
 		return false;
