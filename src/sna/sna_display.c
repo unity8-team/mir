@@ -59,6 +59,7 @@
 
 struct sna_crtc {
 	struct drm_mode_modeinfo kmode;
+	int dpms_mode;
 	struct kgem_bo *bo;
 	uint32_t cursor;
 	bool shadow;
@@ -655,11 +656,38 @@ sna_crtc_disable(xf86CrtcPtr crtc)
 	}
 }
 
+static void update_flush_interval(struct sna *sna)
+{
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(sna->scrn);
+	int i, max_vrefresh = 0;
+
+	for (i = 0; i < xf86_config->num_crtc; i++) {
+		if (!xf86_config->crtc[i]->enabled)
+			continue;
+
+		if (to_sna_crtc(xf86_config->crtc[i])->dpms_mode != DPMSModeOn)
+			continue;
+
+		max_vrefresh = max(max_vrefresh,
+				   xf86ModeVRefresh(&xf86_config->crtc[i]->mode));
+	}
+
+	if (max_vrefresh == 0)
+		sna->vblank_interval = 0;
+	else
+		sna->vblank_interval = 1000 / max_vrefresh; /* Hz -> ms */
+
+	DBG(("max_vrefresh=%d, vblank_interval=%d ms\n",
+	       max_vrefresh, sna->vblank_interval));
+}
+
 static void
 sna_crtc_dpms(xf86CrtcPtr crtc, int mode)
 {
 	DBG(("%s(pipe %d, dpms mode -> %d):= active=%d\n",
 	     __FUNCTION__, to_sna_crtc(crtc)->pipe, mode, mode == DPMSModeOn));
+	to_sna_crtc(crtc)->dpms_mode = mode;
+	update_flush_interval(to_sna(crtc->scrn));
 }
 
 void sna_mode_disable_unused(struct sna *sna)
@@ -797,28 +825,6 @@ void sna_copy_fbcon(struct sna *sna)
 
 cleanup_scratch:
 	FreeScratchPixmapHeader(scratch);
-}
-
-static void update_flush_interval(struct sna *sna)
-{
-	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(sna->scrn);
-	int i, max_vrefresh = 0;
-
-	for (i = 0; i < xf86_config->num_crtc; i++) {
-		if (!xf86_config->crtc[i]->enabled)
-			continue;
-
-		max_vrefresh = max(max_vrefresh,
-				   xf86ModeVRefresh(&xf86_config->crtc[i]->mode));
-	}
-
-	if (max_vrefresh == 0)
-		sna->vblank_interval = 0;
-	else
-		sna->vblank_interval = 1000 / max_vrefresh; /* Hz -> ms */
-
-	DBG(("max_vrefresh=%d, vblank_interval=%d ms\n",
-	       max_vrefresh, sna->vblank_interval));
 }
 
 static bool use_shadow(struct sna *sna, xf86CrtcPtr crtc)
@@ -1106,8 +1112,6 @@ retry: /* Attach per-crtc pixmap or direct */
 	}
 	if (saved_bo)
 		kgem_bo_destroy(&sna->kgem, saved_bo);
-
-	update_flush_interval(sna);
 
 	sna_crtc_randr(crtc);
 	if (sna_crtc->shadow)
@@ -2619,6 +2623,8 @@ void sna_mode_update(struct sna *sna)
 		if (!crtc->active || !sna_crtc_is_bound(sna, crtc))
 			sna_crtc_disable(crtc);
 	}
+
+	update_flush_interval(sna);
 }
 
 static void
