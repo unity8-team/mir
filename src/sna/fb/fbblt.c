@@ -276,6 +276,7 @@ fbBlt(FbBits *srcLine, FbStride srcStride, int srcX,
 	if (alu == GXcopy && pm == FB_ALLONES && ((srcX|dstX|width) & 7) == 0) {
 		CARD8 *s = (CARD8 *) srcLine;
 		CARD8 *d = (CARD8 *) dstLine;
+		void *(*func)(void *, const void *, size_t);
 		int i;
 
 		srcStride *= sizeof(FbBits);
@@ -287,28 +288,24 @@ fbBlt(FbBits *srcLine, FbStride srcStride, int srcX,
 		DBG(("%s fast blt\n", __FUNCTION__));
 
 		if ((srcLine < dstLine && srcLine + width > dstLine) ||
-		    (dstLine < srcLine && dstLine + width > srcLine)) {
-			if (!upsidedown)
-				for (i = 0; i < height; i++)
-					memmove(d + i * dstStride,
-						s + i * srcStride,
-						width);
-			else
-				for (i = height - 1; i >= 0; i--)
-					memmove(d + i * dstStride,
-						s + i * srcStride,
-						width);
+		    (dstLine < srcLine && dstLine + width > srcLine))
+			func = memmove;
+		else
+			func = memcpy;
+		if (!upsidedown) {
+			if (srcStride == dstStride && srcStride == width) {
+				width *= height;
+				height = 1;
+			}
+			for (i = 0; i < height; i++)
+				func(d + i * dstStride,
+				     s + i * srcStride,
+				     width);
 		} else {
-			if (!upsidedown)
-				for (i = 0; i < height; i++)
-					memcpy(d + i * dstStride,
-					       s + i * srcStride,
-					       width);
-			else
-				for (i = height - 1; i >= 0; i--)
-					memcpy(d + i * dstStride,
-					       s + i * srcStride,
-					       width);
+			for (i = height; i--; )
+				func(d + i * dstStride,
+				     s + i * srcStride,
+				     width);
 		}
 
 		return;
