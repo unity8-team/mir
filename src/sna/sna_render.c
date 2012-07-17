@@ -369,9 +369,6 @@ use_cpu_bo(struct sna *sna, PixmapPtr pixmap, const BoxRec *box, bool blt)
 
 	DBG(("%s for box=(%d, %d), (%d, %d)\n",
 	     __FUNCTION__, box->x1, box->y1, box->x2, box->y2));
-	if (!sna_pixmap_move_to_cpu(pixmap, MOVE_READ | MOVE_ASYNC_HINT))
-		return NULL;
-
 	return priv->cpu_bo;
 }
 
