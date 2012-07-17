@@ -83,7 +83,7 @@ static const struct gt_info gt1_info = {
 static const struct gt_info gt2_info = {
 	.max_vs_threads = 128,
 	.max_gs_threads = 128,
-	.max_wm_threads = 86,
+	.max_wm_threads = 172,
 	.urb = { 256, 704, 320 },
 };
 
