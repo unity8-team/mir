@@ -10942,6 +10942,12 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 		_kgem_submit(&sna->kgem);
 		_kgem_set_mode(&sna->kgem, KGEM_BLT);
 	}
+
+	DBG(("%s: glyph clip box (%d, %d), (%d, %d)\n",
+	     __FUNCTION__,
+	     extents->x1, extents->y1,
+	     extents->x2, extents->y2));
+
 	b = sna->kgem.batch + sna->kgem.nbatch;
 	b[0] = XY_SETUP_BLT | 3 << 20;
 	b[1] = bo->pitch;
@@ -10984,11 +10990,11 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 				goto skip;
 
 			len = (w8 * h + 7) >> 3 << 1;
-			DBG(("%s glyph: (%d, %d) x (%d[%d], %d), len=%d\n" ,__FUNCTION__,
-			     x,y, w, w8, h, len));
-
 			x1 = x + c->metrics.leftSideBearing;
 			y1 = y - c->metrics.ascent;
+
+			DBG(("%s glyph: (%d, %d) -> (%d, %d) x (%d[%d], %d), len=%d\n" ,__FUNCTION__,
+			     x,y, x1, y1, w, w8, h, len));
 
 			if (x1 >= extents->x2 || y1 >= extents->y2)
 				goto skip;
@@ -10999,6 +11005,11 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 			if (!kgem_check_batch(&sna->kgem, 3+len)) {
 				_kgem_submit(&sna->kgem);
 				_kgem_set_mode(&sna->kgem, KGEM_BLT);
+
+				DBG(("%s: new batch, glyph clip box (%d, %d), (%d, %d)\n",
+				     __FUNCTION__,
+				     extents->x1, extents->y1,
+				     extents->x2, extents->y2));
 
 				b = sna->kgem.batch + sna->kgem.nbatch;
 				b[0] = XY_SETUP_BLT | 3 << 20;
@@ -11058,6 +11069,11 @@ skip:
 		if (kgem_check_batch(&sna->kgem, 3)) {
 			b = sna->kgem.batch + sna->kgem.nbatch;
 			sna->kgem.nbatch += 3;
+
+			DBG(("%s: glyph clip box (%d, %d), (%d, %d)\n",
+			     __FUNCTION__,
+			     extents->x1, extents->y1,
+			     extents->x2, extents->y2));
 
 			b[0] = XY_SETUP_CLIP;
 			b[1] = extents->y1 << 16 | extents->x1;
@@ -11637,6 +11653,11 @@ sna_reversed_glyph_blt(DrawablePtr drawable, GCPtr gc,
 		_kgem_submit(&sna->kgem);
 		_kgem_set_mode(&sna->kgem, KGEM_BLT);
 	}
+
+	DBG(("%s: glyph clip box (%d, %d), (%d, %d)\n",
+	     __FUNCTION__,
+	     extents->x1, extents->y1,
+	     extents->x2, extents->y2));
 	b = sna->kgem.batch + sna->kgem.nbatch;
 	b[0] = XY_SETUP_BLT | 1 << 20;
 	b[1] = bo->pitch;
@@ -11675,11 +11696,11 @@ sna_reversed_glyph_blt(DrawablePtr drawable, GCPtr gc,
 				goto skip;
 
 			len = (w8 * h + 7) >> 3 << 1;
-			DBG(("%s glyph: (%d, %d) x (%d[%d], %d), len=%d\n" ,__FUNCTION__,
-			     x,y, w, w8, h, len));
-
 			x1 = x + c->metrics.leftSideBearing;
 			y1 = y - c->metrics.ascent;
+
+			DBG(("%s glyph: (%d, %d) -> (%d, %d) x (%d[%d], %d), len=%d\n" ,__FUNCTION__,
+			     x,y, x1, y1, w, w8, h, len));
 
 			if (x1 >= extents->x2 || y1 >= extents->y2 ||
 			    x1 + w <= extents->x1 || y1 + h <= extents->y1) {
@@ -11712,6 +11733,11 @@ sna_reversed_glyph_blt(DrawablePtr drawable, GCPtr gc,
 			if (!kgem_check_batch(&sna->kgem, 3+len)) {
 				_kgem_submit(&sna->kgem);
 				_kgem_set_mode(&sna->kgem, KGEM_BLT);
+
+				DBG(("%s: new batch, glyph clip box (%d, %d), (%d, %d)\n",
+				     __FUNCTION__,
+				     extents->x1, extents->y1,
+				     extents->x2, extents->y2));
 
 				b = sna->kgem.batch + sna->kgem.nbatch;
 				b[0] = XY_SETUP_BLT | 1 << 20;
@@ -11777,6 +11803,11 @@ skip:
 		if (kgem_check_batch(&sna->kgem, 3 + 5)) {
 			b = sna->kgem.batch + sna->kgem.nbatch;
 			sna->kgem.nbatch += 3;
+
+			DBG(("%s: glyph clip box (%d, %d), (%d, %d)\n",
+			     __FUNCTION__,
+			     extents->x1, extents->y1,
+			     extents->x2, extents->y2));
 
 			b[0] = XY_SETUP_CLIP;
 			b[1] = extents->y1 << 16 | extents->x1;
