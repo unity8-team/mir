@@ -4584,7 +4584,8 @@ sna_copy_area(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 		if (!sna_gc_move_to_cpu(gc, dst, &region))
 			goto out;
 
-		if (!sna_drawable_move_region_to_cpu(dst, &region, MOVE_READ | MOVE_WRITE))
+		if (!sna_drawable_move_region_to_cpu(dst, &region,
+						     drawable_gc_flags(dst, gc, false)))
 			goto out_gc;
 
 		RegionTranslate(&region,
