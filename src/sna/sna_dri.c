@@ -1014,6 +1014,12 @@ can_exchange(struct sna * sna,
 		return false;
 	}
 
+	if (sna_pixmap_get_buffer(pixmap) != front) {
+		DBG(("%s: no, DRI2 drawable is no longer attached\n",
+		     __FUNCTION__));
+		return false;
+	}
+
 	return true;
 }
 
@@ -1046,13 +1052,21 @@ sna_dri_exchange_buffers(DrawablePtr draw,
 	back_bo = get_private(back)->bo;
 	front_bo = get_private(front)->bo;
 
-	assert(pixmap->drawable.height * back_bo->pitch <= kgem_bo_size(back_bo));
-	assert(pixmap->drawable.height * front_bo->pitch <= kgem_bo_size(front_bo));
-
-	DBG(("%s: exchange front=%d/%d and back=%d/%d\n",
+	DBG(("%s: exchange front=%d/%d and back=%d/%d, pixmap=%ld %x%d\n",
 	     __FUNCTION__,
 	     front_bo->handle, front->name,
-	     back_bo->handle, back->name));
+	     back_bo->handle, back->name,
+	     pixmap->drawable.serialNumber,
+	     pixmap->drawable.width,
+	     pixmap->drawable.height));
+
+	DBG(("%s: back_bo pitch=%d, size=%d\n",
+	     __FUNCTION__, back_bo->pitch, kgem_bo_size(back_bo)));
+	DBG(("%s: front_bo pitch=%d, size=%d\n",
+	     __FUNCTION__, front_bo->pitch, kgem_bo_size(front_bo)));
+
+	assert(pixmap->drawable.height * back_bo->pitch <= kgem_bo_size(back_bo));
+	assert(pixmap->drawable.height * front_bo->pitch <= kgem_bo_size(front_bo));
 
 	set_bo(pixmap, back_bo);
 
