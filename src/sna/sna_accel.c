@@ -2135,12 +2135,16 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 	sna_damage_reduce(&priv->cpu_damage);
 	assert_pixmap_damage(pixmap);
 
+	if (priv->cpu_damage == NULL) {
+		priv->undamaged = false;
+		list_del(&priv->list);
+		return sna_pixmap_move_to_gpu(pixmap, flags);
+	}
+
 	if (priv->gpu_bo == NULL) {
 		unsigned create, tiling;
 
-		create = 0;
-		if (priv->cpu_damage)
-			create |= CREATE_INACTIVE;
+		create = CREATE_INACTIVE;
 		if (pixmap->usage_hint == SNA_CREATE_FB)
 			create |= CREATE_EXACT | CREATE_SCANOUT;
 
@@ -2156,21 +2160,8 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 			return false;
 
 		DBG(("%s: created gpu bo\n", __FUNCTION__));
-
-		if (flags & MOVE_WRITE && priv->cpu_damage == NULL) {
-			sna_damage_all(&priv->gpu_damage,
-				       pixmap->drawable.width,
-				       pixmap->drawable.height);
-			list_del(&priv->list);
-			goto done;
-		}
 	}
 	assert(priv->gpu_bo->proxy == NULL);
-
-	if (priv->cpu_damage == NULL) {
-		list_del(&priv->list);
-		goto done;
-	}
 
 	if (priv->mapped) {
 		pixmap->devPrivate.ptr = NULL;
