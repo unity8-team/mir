@@ -35,42 +35,27 @@ fbCopyNtoN(DrawablePtr src_drawable, DrawablePtr dst_drawable, GCPtr gc,
 {
 	CARD8 alu = gc ? gc->alu : GXcopy;
 	FbBits pm = gc ? fb_gc(gc)->pm : FB_ALLONES;
-	FbBits *src;
-	FbStride srcStride;
-	int srcBpp;
+	FbBits *src, *dst;
+	FbStride srcStride, dstStride;
+	int dstBpp, srcBpp;
 	int srcXoff, srcYoff;
-	FbBits *dst;
-	FbStride dstStride;
-	int dstBpp;
 	int dstXoff, dstYoff;
 
 	fbGetDrawable(src_drawable, src, srcStride, srcBpp, srcXoff, srcYoff);
 	fbGetDrawable(dst_drawable, dst, dstStride, dstBpp, dstXoff, dstYoff);
 
-	while (nbox--) {
-		if (pm == FB_ALLONES && alu == GXcopy && !reverse && !upsidedown) {
-			if (!pixman_blt
-			    ((uint32_t *) src, (uint32_t *) dst, srcStride, dstStride,
-			     srcBpp, dstBpp, (box->x1 + dx + srcXoff),
-			     (box->y1 + dy + srcYoff), (box->x1 + dstXoff),
-			     (box->y1 + dstYoff), (box->x2 - box->x1),
-			     (box->y2 - box->y1)))
-				goto fallback;
-			else
-				goto next;
-		}
-fallback:
-		fbBlt(src + (box->y1 + dy + srcYoff) * srcStride,
-		      srcStride,
-		      (box->x1 + dx + srcXoff) * srcBpp,
-		      dst + (box->y1 + dstYoff) * dstStride,
-		      dstStride,
+	src += (dy + srcYoff) * srcStride;
+	srcXoff += dx;
+	dst += dstYoff * dstStride;
+	do {
+		fbBlt(src + box->y1 * srcStride, srcStride,
+		      (box->x1 + srcXoff) * srcBpp,
+		      dst + box->y1 * dstStride, dstStride,
 		      (box->x1 + dstXoff) * dstBpp,
 		      (box->x2 - box->x1) * dstBpp,
-		      (box->y2 - box->y1), alu, pm, dstBpp, reverse, upsidedown);
-next:
-		box++;
-	}
+		      (box->y2 - box->y1),
+		      alu, pm, dstBpp, reverse, upsidedown);
+	} while (box++, --nbox);
 }
 
 void
