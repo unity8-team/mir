@@ -1048,7 +1048,7 @@ static inline bool pixmap_inplace(struct sna *sna,
 	if (FORCE_INPLACE)
 		return FORCE_INPLACE > 0;
 
-	if (wedged(sna))
+	if (wedged(sna) && !priv->pinned)
 		return false;
 
 	if (priv->mapped)
@@ -1455,7 +1455,7 @@ static inline bool region_inplace(struct sna *sna,
 	if (FORCE_INPLACE)
 		return FORCE_INPLACE > 0;
 
-	if (wedged(sna))
+	if (wedged(sna) && !priv->pinned)
 		return false;
 
 	if (priv->cpu) {
