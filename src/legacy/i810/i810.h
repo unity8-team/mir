@@ -310,7 +310,6 @@ extern void I810SelectBuffer(ScrnInfoPtr pScrn, int buffer);
 
 extern void I810RefreshRing(ScrnInfoPtr pScrn);
 extern void I810EmitFlush(ScrnInfoPtr pScrn);
-extern void I810EmitInvarientState(ScrnInfoPtr pScrn);
 
 extern Bool I810DGAInit(ScreenPtr pScreen);
 
