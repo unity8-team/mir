@@ -301,6 +301,12 @@ use_cpu_bo(struct sna *sna, PixmapPtr pixmap, const BoxRec *box, bool blt)
 		return NULL;
 	}
 
+	if (priv->cpu_bo->vmap && priv->source_count > SOURCE_BIAS) {
+		DBG(("%s: promoting snooped CPU bo due to reuse\n",
+		     __FUNCTION__));
+		return NULL;
+	}
+
 	if (priv->gpu_bo) {
 		switch (sna_damage_contains_box(priv->cpu_damage, box)) {
 		case PIXMAN_REGION_OUT:
@@ -321,54 +327,43 @@ use_cpu_bo(struct sna *sna, PixmapPtr pixmap, const BoxRec *box, bool blt)
 			}
 			break;
 		}
-
-		if (!blt &&
-		    priv->gpu_bo->tiling != I915_TILING_NONE &&
-		    (priv->cpu_bo->vmap || priv->cpu_bo->pitch >= 4096)) {
-			DBG(("%s: GPU bo exists and is tiled [%d], upload\n",
-			     __FUNCTION__, priv->gpu_bo->tiling));
-			return NULL;
-		}
 	}
 
-	if (blt) {
-		if (priv->cpu_bo->vmap && priv->source_count++ > SOURCE_BIAS) {
-			DBG(("%s: promoting snooped CPU bo due to BLT reuse\n",
-			     __FUNCTION__));
-			return NULL;
-		}
-	} else {
+	if (!blt) {
 		int w = box->x2 - box->x1;
 		int h = box->y2 - box->y1;
 
-		if (priv->cpu_bo->pitch >= 4096) {
-			DBG(("%s: promoting snooped CPU bo due to TLB miss\n",
-			     __FUNCTION__));
-			return NULL;
-		}
+		if (w < pixmap->drawable.width ||
+		    h < pixmap->drawable.height ||
+		    priv->source_count != SOURCE_BIAS) {
+			bool want_tiling;
 
-		if (priv->cpu_bo->vmap && priv->source_count > SOURCE_BIAS) {
-			DBG(("%s: promoting snooped CPU bo due to reuse\n",
-			     __FUNCTION__));
-			return NULL;
-		}
+			if (priv->cpu_bo->pitch >= 4096) {
+				DBG(("%s: promoting snooped CPU bo due to TLB miss\n",
+				     __FUNCTION__));
+				return NULL;
+			}
 
-		if (priv->source_count*w*h >= (int)pixmap->drawable.width * pixmap->drawable.height &&
-		     I915_TILING_NONE != kgem_choose_tiling(&sna->kgem,
-							    blt ? I915_TILING_X : I915_TILING_Y,
-							    pixmap->drawable.width,
-							    pixmap->drawable.height,
-							    pixmap->drawable.bitsPerPixel)) {
-			DBG(("%s: pitch (%d) requires tiling\n",
-			     __FUNCTION__, priv->cpu_bo->pitch));
-			return NULL;
+			if (priv->gpu_bo)
+				want_tiling = priv->gpu_bo->tiling != I915_TILING_NONE;
+			else
+				want_tiling = kgem_choose_tiling(&sna->kgem,
+								 I915_TILING_Y,
+								 pixmap->drawable.width,
+								 pixmap->drawable.height,
+								 pixmap->drawable.bitsPerPixel) != I915_TILING_NONE;
+			if (want_tiling &&
+			    priv->source_count*w*h >= (int)pixmap->drawable.width * pixmap->drawable.height) {
+				DBG(("%s: pitch (%d) requires tiling\n",
+				     __FUNCTION__, priv->cpu_bo->pitch));
+				return NULL;
+			}
 		}
-
-		++priv->source_count;
 	}
 
 	DBG(("%s for box=(%d, %d), (%d, %d)\n",
 	     __FUNCTION__, box->x1, box->y1, box->x2, box->y2));
+	++priv->source_count;
 	return priv->cpu_bo;
 }
 
