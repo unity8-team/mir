@@ -2766,9 +2766,10 @@ done:
 			sna_pixmap_free_cpu(sna, priv);
 		}
 	}
+
+active:
 	if (flags & MOVE_WRITE)
 		priv->clear = false;
-active:
 	assert(!priv->gpu_bo->proxy || (flags & MOVE_WRITE) == 0);
 	return sna_pixmap_mark_active(sna, priv);
 }
