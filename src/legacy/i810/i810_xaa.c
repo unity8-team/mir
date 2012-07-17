@@ -55,7 +55,7 @@ I810SetupForMono8x8PatternFill(ScrnInfoPtr pScrn, int pattx, int patty,
    pI810->BR[18] = bg;
    pI810->BR[19] = fg;
    pI810->BR[13] = (pScrn->displayWidth * pI810->cpp);
-   pI810->BR[13] |= XAAGetPatternROP(rop) << 16;
+   pI810->BR[13] |= I810PatternROP[rop] << 16;
    if (bg == -1)
       pI810->BR[13] |= BR13_MONO_PATN_TRANS;
 }
@@ -119,7 +119,7 @@ I810SetupForScanlineCPUToScreenColorExpandFill(ScrnInfoPtr pScrn,
 	     fg, bg, rop, planemask);
 
    pI810->BR[13] = (pScrn->displayWidth * pI810->cpp);
-   pI810->BR[13] |= XAAGetCopyROP(rop) << 16;
+   pI810->BR[13] |= I810CopyROP[rop] << 16;
    pI810->BR[13] |= (1 << 27);
    if (bg == -1)
       pI810->BR[13] |= BR13_MONO_TRANSPCY;

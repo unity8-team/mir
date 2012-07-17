@@ -40,6 +40,44 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xaarop.h"
 #include "i810.h"
 
+const int I810CopyROP[16] = {
+	ROP_0,			/* GXclear */
+	ROP_DSa,		/* GXand */
+	ROP_SDna,		/* GXandReverse */
+	ROP_S,			/* GXcopy */
+	ROP_DSna,		/* GXandInverted */
+	ROP_D,			/* GXnoop */
+	ROP_DSx,		/* GXxor */
+	ROP_DSo,		/* GXor */
+	ROP_DSon,		/* GXnor */
+	ROP_DSxn,		/* GXequiv */
+	ROP_Dn,			/* GXinvert */
+	ROP_SDno,		/* GXorReverse */
+	ROP_Sn,			/* GXcopyInverted */
+	ROP_DSno,		/* GXorInverted */
+	ROP_DSan,		/* GXnand */
+	ROP_1			/* GXset */
+};
+
+const int I810PatternROP[16] = {
+	ROP_0,
+	ROP_DPa,
+	ROP_PDna,
+	ROP_P,
+	ROP_DPna,
+	ROP_D,
+	ROP_DPx,
+	ROP_DPo,
+	ROP_DPon,
+	ROP_PDxn,
+	ROP_Dn,
+	ROP_PDno,
+	ROP_Pn,
+	ROP_DPno,
+	ROP_DPan,
+	ROP_1
+};
+
 int
 I810WaitLpRing(ScrnInfoPtr pScrn, int n, int timeout_millis)
 {
@@ -153,7 +191,7 @@ I810SetupForSolidFill(ScrnInfoPtr pScrn, int color, int rop,
 
    /* Color blit, p166 */
    pI810->BR[13] = (BR13_SOLID_PATTERN |
-		    (XAAGetPatternROP(rop) << 16) |
+		    (I810PatternROP[rop] << 16) |
 		    (pScrn->displayWidth * pI810->cpp));
    pI810->BR[16] = color;
 }
@@ -199,7 +237,7 @@ I810SetupForScreenToScreenCopy(ScrnInfoPtr pScrn, int xdir, int ydir, int rop,
    if (xdir == -1)
       pI810->BR[13] |= BR13_RIGHT_TO_LEFT;
 
-   pI810->BR[13] |= XAAGetCopyROP(rop) << 16;
+   pI810->BR[13] |= I810CopyROP[rop] << 16;
 
    pI810->BR[18] = 0;
 }
