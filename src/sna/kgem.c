@@ -3950,15 +3950,122 @@ static struct kgem_partial_bo *partial_bo_alloc(int num_pages)
 static inline bool
 use_snoopable_buffer(struct kgem *kgem, uint32_t flags)
 {
-	assert(kgem->gen != 40);
-
-	if ((flags & KGEM_BUFFER_WRITE_INPLACE) == KGEM_BUFFER_WRITE_INPLACE)
-		return true;
-
 	if ((flags & KGEM_BUFFER_WRITE) == 0)
 		return kgem->gen >= 30;
 
-	return false;
+	return true;
+}
+
+static struct kgem_partial_bo *
+search_snoopable_buffer(struct kgem *kgem, unsigned alloc)
+{
+	struct kgem_partial_bo *bo;
+	struct kgem_bo *old;
+
+	old = search_vmap_cache(kgem, alloc, 0);
+	if (old) {
+		bo = malloc(sizeof(*bo));
+		if (bo == NULL)
+			return NULL;
+
+		memcpy(&bo->base, old, sizeof(*old));
+		if (old->rq)
+			list_replace(&old->request, &bo->base.request);
+		else
+			list_init(&bo->base.request);
+		list_replace(&old->vma, &bo->base.vma);
+		list_init(&bo->base.list);
+		free(old);
+
+		DBG(("%s: created CPU handle=%d for buffer, size %d\n",
+		     __FUNCTION__, bo->base.handle, num_pages(&bo->base)));
+
+		assert(bo->base.vmap);
+		assert(bo->base.tiling == I915_TILING_NONE);
+		assert(num_pages(&bo->base) >= alloc);
+
+		bo->mem = kgem_bo_map__cpu(kgem, &bo->base);
+		if (bo->mem) {
+			bo->mmapped = true;
+			bo->need_io = false;
+			bo->base.io = true;
+			bo->base.refcnt = 1;
+
+			return bo;
+		} else
+			kgem_bo_free(kgem, &bo->base);
+	}
+
+	return NULL;
+}
+
+static struct kgem_partial_bo *
+create_snoopable_buffer(struct kgem *kgem, unsigned alloc)
+{
+	struct kgem_partial_bo *bo;
+
+	if (kgem->has_cache_level) {
+		uint32_t handle;
+
+		handle = gem_create(kgem->fd, alloc);
+		if (handle == 0)
+			return NULL;
+
+		if (!gem_set_cache_level(kgem->fd, handle, I915_CACHE_LLC)) {
+			gem_close(kgem->fd, handle);
+			return NULL;
+		}
+
+		bo = malloc(sizeof(*bo));
+		if (bo == NULL) {
+			gem_close(kgem->fd, handle);
+			return NULL;
+		}
+
+		debug_alloc(kgem, alloc);
+		__kgem_bo_init(&bo->base, handle, alloc);
+		DBG(("%s: created CPU handle=%d for buffer, size %d\n",
+		     __FUNCTION__, bo->base.handle, alloc));
+
+		bo->base.reusable = false;
+		bo->base.vmap = true;
+
+		bo->mem = kgem_bo_map__cpu(kgem, &bo->base);
+		if (bo->mem) {
+			bo->mmapped = true;
+			bo->need_io = false;
+			bo->base.io = true;
+			return bo;
+		} else {
+			bo->base.refcnt = 0; /* for valgrind */
+			kgem_bo_free(kgem, &bo->base);
+		}
+	}
+
+	if (kgem->has_vmap) {
+		bo = partial_bo_alloc(alloc);
+		if (bo) {
+			uint32_t handle = gem_vmap(kgem->fd, bo->mem,
+						   alloc * PAGE_SIZE, false);
+			if (handle == 0 ||
+			    !__kgem_bo_init(&bo->base, handle, alloc)) {
+				free(bo);
+			} else {
+				DBG(("%s: created vmap handle=%d for buffer\n",
+				     __FUNCTION__, bo->base.handle));
+
+				bo->base.io = true;
+				bo->base.vmap = true;
+				bo->base.map = MAKE_VMAP_MAP(bo);
+				bo->mmapped = true;
+				bo->need_io = false;
+
+				return bo;
+			}
+		}
+	}
+
+	return NULL;
 }
 
 struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
@@ -4199,105 +4306,23 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 		}
 	}
 #endif
-	/* Be more parsimonious with pwrite/pread buffers */
+	/* Be more parsimonious with pwrite/pread/cacheable buffers */
 	if ((flags & KGEM_BUFFER_INPLACE) == 0)
 		alloc = NUM_PAGES(size);
 
 	if (use_snoopable_buffer(kgem, flags)) {
-		old = search_vmap_cache(kgem, NUM_PAGES(size), 0);
-		if (old) {
-			bo = malloc(sizeof(*bo));
-			if (bo == NULL)
-				return NULL;
-
-			memcpy(&bo->base, old, sizeof(*old));
-			if (old->rq)
-				list_replace(&old->request, &bo->base.request);
-			else
-				list_init(&bo->base.request);
-			list_replace(&old->vma, &bo->base.vma);
-			list_init(&bo->base.list);
-			free(old);
-
-			assert(bo->base.vmap);
-			assert(bo->base.tiling == I915_TILING_NONE);
-			assert(num_pages(&bo->base) >= NUM_PAGES(size));
-
-			bo->mem = kgem_bo_map__cpu(kgem, &bo->base);
-			if (bo->mem) {
-				bo->mmapped = true;
-				bo->need_io = false;
-				bo->base.io = true;
-				bo->base.refcnt = 1;
-
-				alloc = num_pages(&bo->base);
-				goto init;
-			} else {
-				kgem_bo_free(kgem, &bo->base);
-				bo = NULL;
-			}
+		bo = search_snoopable_buffer(kgem, alloc);
+		if (bo) {
+			flags &= ~KGEM_BUFFER_INPLACE;
+			alloc = num_pages(&bo->base);
+			goto init;
 		}
 
-		if (kgem->has_cache_level) {
-			uint32_t handle;
-
-			handle = gem_create(kgem->fd, alloc);
-			if (handle == 0)
-				return NULL;
-
-			if (!gem_set_cache_level(kgem->fd, handle, I915_CACHE_LLC)) {
-				gem_close(kgem->fd, handle);
-				return NULL;
-			}
-
-			bo = malloc(sizeof(*bo));
-			if (bo == NULL) {
-				gem_close(kgem->fd, handle);
-				return NULL;
-			}
-
-			debug_alloc(kgem, alloc);
-			__kgem_bo_init(&bo->base, handle, alloc);
-			DBG(("%s: created CPU handle=%d for buffer, size %d\n",
-			     __FUNCTION__, bo->base.handle, alloc));
-
-			bo->base.reusable = false;
-			bo->base.vmap = true;
-
-			bo->mem = kgem_bo_map__cpu(kgem, &bo->base);
-			if (bo->mem) {
-				bo->mmapped = true;
-				bo->need_io = false;
-				bo->base.io = true;
-				goto init;
-			} else {
-				bo->base.refcnt = 0; /* for valgrind */
-				kgem_bo_free(kgem, &bo->base);
-				bo = NULL;
-			}
-		}
-
-		if (kgem->has_vmap) {
-			bo = partial_bo_alloc(alloc);
+		if ((flags & KGEM_BUFFER_WRITE_INPLACE) != KGEM_BUFFER_WRITE_INPLACE) {
+			bo = create_snoopable_buffer(kgem, alloc);
 			if (bo) {
-				uint32_t handle = gem_vmap(kgem->fd, bo->mem,
-							   alloc * PAGE_SIZE, false);
-				if (handle == 0 ||
-				    !__kgem_bo_init(&bo->base, handle, alloc)) {
-					free(bo);
-					bo = NULL;
-				} else {
-					DBG(("%s: created vmap handle=%d for buffer\n",
-					     __FUNCTION__, bo->base.handle));
-
-					bo->base.io = true;
-					bo->base.vmap = true;
-					bo->base.map = MAKE_VMAP_MAP(bo);
-					bo->mmapped = true;
-					bo->need_io = false;
-
-					goto init;
-				}
+				flags &= ~KGEM_BUFFER_INPLACE;
+				goto init;
 			}
 		}
 	}
@@ -4331,6 +4356,12 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 		bo->need_io = flags & KGEM_BUFFER_WRITE;
 		bo->base.io = true;
 	} else {
+		if (use_snoopable_buffer(kgem, flags)) {
+			bo = create_snoopable_buffer(kgem, alloc);
+			if (bo)
+				goto init;
+		}
+
 		bo = malloc(sizeof(*bo));
 		if (bo == NULL)
 			return NULL;
