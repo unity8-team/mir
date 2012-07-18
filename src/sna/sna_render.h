@@ -133,11 +133,7 @@ struct sna_composite_op {
 		} gen6;
 
 		struct {
-			int wm_kernel;
-			int nr_surfaces;
-			int nr_inputs;
-			int ve_id;
-			int sampler;
+			uint32_t flags;
 		} gen7;
 	} u;
 
