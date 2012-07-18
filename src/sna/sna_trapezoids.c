@@ -4824,10 +4824,50 @@ unbounded_pass:
 	return true;
 }
 
+static void
+pixmask_span(struct sna *sna,
+	     struct sna_composite_spans_op *op,
+	     pixman_region16_t *clip,
+	     const BoxRec *box,
+	     int coverage)
+{
+	struct pixman_inplace *pi = (struct pixman_inplace *)op;
+	pixman_image_t *mask = NULL;
+	if (coverage != FAST_SAMPLES_XY) {
+		coverage = coverage * 256 / FAST_SAMPLES_XY;
+		coverage -= coverage >> 8;
+		*pi->bits = coverage;
+		mask = pi->mask;
+	}
+	pixman_image_composite(pi->op, pi->source, mask, pi->image,
+			       pi->sx + box->x1, pi->sy + box->y1,
+			       0, 0,
+			       pi->dx + box->x1, pi->dy + box->y1,
+			       box->x2 - box->x1, box->y2 - box->y1);
+}
+static void
+pixmask_span__clipped(struct sna *sna,
+		      struct sna_composite_spans_op *op,
+		      pixman_region16_t *clip,
+		      const BoxRec *box,
+		      int coverage)
+{
+	pixman_region16_t region;
+	int n;
+
+	pixman_region_init_rects(&region, box, 1);
+	RegionIntersect(&region, &region, clip);
+	n = REGION_NUM_RECTS(&region);
+	box = REGION_RECTS(&region);
+	while (n--)
+		pixmask_span(sna, op, NULL, box++, coverage);
+	pixman_region_fini(&region);
+}
+
 static bool
 trapezoid_span_inplace__x8r8g8b8(CARD8 op,
-				 uint32_t color,
 				 PicturePtr dst,
+				 PicturePtr src, int16_t src_x, int16_t src_y,
 				 PictFormatPtr maskFormat,
 				 int ntrap, xTrapezoid *traps)
 {
@@ -4838,34 +4878,14 @@ trapezoid_span_inplace__x8r8g8b8(CARD8 op,
 	int dx, dy;
 	int n;
 
-	if (op == PictOpOver && (color >> 24) == 0xff)
-		op = PictOpSrc;
-	if (op == PictOpOver) {
-		struct sna_pixmap *priv = sna_pixmap_from_drawable(dst->pDrawable);
-		if (priv && priv->clear && priv->clear_color == 0)
-			op = PictOpSrc;
-	}
-
-	switch (op) {
-	case PictOpSrc:
-		break;
-	default:
-		DBG(("%s: fallback -- can not perform op [%d] in place\n",
-		     __FUNCTION__, op));
-		return false;
-	}
-
-	DBG(("%s: format=%x, op=%d, color=%x\n",
-	     __FUNCTION__, dst->format, op, color));
-
 	if (maskFormat == NULL && ntrap > 1) {
 		DBG(("%s: individual rasterisation requested\n",
 		     __FUNCTION__));
 		do {
 			/* XXX unwind errors? */
-			if (!trapezoid_span_inplace__x8r8g8b8(op, color,
-							      dst, NULL,
-							      1, traps++))
+			if (!trapezoid_span_inplace__x8r8g8b8(op, dst,
+							      src, src_x, src_y,
+							      NULL, 1, traps++))
 				return false;
 		} while (--ntrap);
 		return true;
@@ -4915,37 +4935,76 @@ trapezoid_span_inplace__x8r8g8b8(CARD8 op,
 		tor_add_edge(&tor, &t, &t.right, -1);
 	}
 
-	switch (op) {
-	case PictOpSrc:
-		if (dst->pCompositeClip->data)
-			span = tor_blt_lerp32_clipped;
-		else
-			span = tor_blt_lerp32;
-		break;
-	}
-
 	DBG(("%s: move-to-cpu\n", __FUNCTION__));
 	region.data = NULL;
 	if (sna_drawable_move_region_to_cpu(dst->pDrawable, &region,
 					    MOVE_WRITE | MOVE_READ)) {
 		PixmapPtr pixmap;
-		struct inplace inplace;
+		uint32_t color;
 
 		pixmap = get_drawable_pixmap(dst->pDrawable);
-
 		get_drawable_deltas(dst->pDrawable, pixmap, &dst_x, &dst_y);
 
-		inplace.ptr = pixmap->devPrivate.ptr;
-		inplace.ptr += dst_y * pixmap->devKind + dst_x;
-		inplace.stride = pixmap->devKind;
-		inplace.color = color;
+		if (!sna_picture_is_solid(src, &color))
+			goto pixman;
 
-		DBG(("%s: render inplace op=%d, color=%08x\n",
-		     __FUNCTION__, op, color));
-		tor_render(NULL, &tor, (void*)&inplace,
-			   dst->pCompositeClip, span, false);
+		if (op == PictOpOver && (color >> 24) == 0xff)
+			op = PictOpSrc;
+		if (op == PictOpOver) {
+			struct sna_pixmap *priv = sna_pixmap_from_drawable(dst->pDrawable);
+			if (priv && priv->clear && priv->clear_color == 0)
+				op = PictOpSrc;
+		}
 
-		tor_fini(&tor);
+		DBG(("%s: format=%x, op=%d, color=%x\n",
+		     __FUNCTION__, dst->format, op, color));
+
+		if (op == PictOpSrc) {
+			struct inplace inplace;
+
+			inplace.ptr = pixmap->devPrivate.ptr;
+			inplace.ptr += dst_y * pixmap->devKind + dst_x;
+			inplace.stride = pixmap->devKind;
+			inplace.color = color;
+
+			if (dst->pCompositeClip->data)
+				span = tor_blt_lerp32_clipped;
+			else
+				span = tor_blt_lerp32;
+
+			DBG(("%s: render inplace op=%d, color=%08x\n",
+			     __FUNCTION__, op, color));
+
+			tor_render(NULL, &tor, (void*)&inplace,
+				   dst->pCompositeClip, span, false);
+			tor_fini(&tor);
+		} else {
+			struct pixman_inplace pi;
+
+pixman:
+			pi.image = image_from_pict(dst, false, &pi.dx, &pi.dy);
+			pi.source = image_from_pict(src, false, &pi.sx, &pi.sy);
+			pi.sx += src_x;
+			pi.sy += src_y;
+			pi.mask = pixman_image_create_bits(PIXMAN_a8, 1, 1, NULL, 0);
+			pixman_image_set_repeat(pi.mask, PIXMAN_REPEAT_NORMAL);
+			pi.bits = pixman_image_get_data(pi.mask);
+			pi.op = op;
+
+			if (dst->pCompositeClip->data)
+				span = pixmask_span__clipped;
+			else
+				span = pixmask_span;
+
+			tor_render(NULL, &tor, (void*)&pi,
+				   dst->pCompositeClip, span,
+				   operator_is_bounded(op));
+			tor_fini(&tor);
+
+			pixman_image_unref(pi.mask);
+			pixman_image_unref(pi.source);
+			pixman_image_unref(pi.image);
+		}
 	}
 
 	return true;
@@ -4994,16 +5053,17 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 		return trapezoid_span_mono_inplace(op, src, dst,
 						   src_x, src_y, ntrap, traps);
 
+	if (dst->format == PICT_a8r8g8b8 || dst->format == PICT_x8r8g8b8)
+		return trapezoid_span_inplace__x8r8g8b8(op, dst,
+							src, src_x, src_y,
+							maskFormat,
+							ntrap, traps);
+
 	if (!sna_picture_is_solid(src, &color)) {
 		DBG(("%s: fallback -- can not perform operation in place, requires solid source\n",
 		     __FUNCTION__));
 		return false;
 	}
-
-	if (dst->format == PICT_a8r8g8b8 || dst->format == PICT_x8r8g8b8)
-		return trapezoid_span_inplace__x8r8g8b8(op, color,
-							dst, maskFormat,
-							ntrap, traps);
 
 	if (dst->format != PICT_a8) {
 		DBG(("%s: fallback -- can not perform operation in place, format=%x\n",
