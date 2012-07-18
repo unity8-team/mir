@@ -247,16 +247,6 @@ if test "x$accel" = xno; then
 	AC_MSG_ERROR([No default acceleration option])
 fi
 
-AC_ARG_ENABLE(cache-level,
-	      AS_HELP_STRING([--enable-cache-level],
-			     [Enable use of cache level ioctl (experimental) [default=no]]),
-	      [CACHE_LEVEL="$enableval"],
-	      [CACHE_LEVEL=no])
-AM_CONDITIONAL(USE_CACHE_LEVEL, test x$CACHE_LEVEL = xyes)
-if test "x$CACHE_LEVEL" = xyes; then
-	AC_DEFINE(USE_CACHE_LEVEL,1,[Assume DRM_I915_GEM_SET_CACHE_LEVEL_IOCTL support])
-fi
-
 AC_ARG_ENABLE(vmap,
 	      AS_HELP_STRING([--enable-vmap],
 			     [Enable use of vmap (experimental) [default=no]]),

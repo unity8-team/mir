@@ -158,7 +158,7 @@ struct kgem {
 	uint32_t has_relaxed_fencing :1;
 	uint32_t has_relaxed_delta :1;
 	uint32_t has_semaphores :1;
-	uint32_t has_cache_level :1;
+	uint32_t has_cacheing :1;
 	uint32_t has_llc :1;
 
 	uint32_t can_blt_cpu :1;

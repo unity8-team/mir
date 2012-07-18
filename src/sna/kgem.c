@@ -104,22 +104,16 @@ struct drm_i915_gem_vmap {
 };
 #endif
 
-#if !defined(DRM_I915_GEM_SET_CACHE_LEVEL)
-#define I915_CACHE_NONE		0
-#define I915_CACHE_LLC		1
-#define I915_CACHE_LLC_MLC	2 /* gen6+ */
+#define UNCACHED	0
+#define SNOOPED		1
 
-struct drm_i915_gem_cache_level {
-	/** Handle of the buffer to check for busy */
-	__u32 handle;
-
-	/** Cache level to apply or return value */
-	__u32 cache_level;
+struct local_i915_gem_cacheing {
+	uint32_t handle;
+	uint32_t cacheing;
 };
 
-#define DRM_I915_GEM_SET_CACHE_LEVEL	0x2f
-#define DRM_IOCTL_I915_GEM_SET_CACHE_LEVEL		DRM_IOW(DRM_COMMAND_BASE + DRM_I915_GEM_SET_CACHE_LEVEL, struct drm_i915_gem_cache_level)
-#endif
+#define LOCAL_I915_GEM_SET_CACHEING	0x2f
+#define LOCAL_IOCTL_I915_GEM_SET_CACHEING DRM_IOW(DRM_COMMAND_BASE + LOCAL_I915_GEM_SET_CACHEING, struct local_i915_gem_cacheing)
 
 struct kgem_partial_bo {
 	struct kgem_bo base;
@@ -193,14 +187,14 @@ static int gem_set_tiling(int fd, uint32_t handle, int tiling, int stride)
 	return set_tiling.tiling_mode;
 }
 
-static bool gem_set_cache_level(int fd, uint32_t handle, int cache_level)
+static bool gem_set_cacheing(int fd, uint32_t handle, int cacheing)
 {
-	struct drm_i915_gem_cache_level arg;
+	struct local_i915_gem_cacheing arg;
 
 	VG_CLEAR(arg);
 	arg.handle = handle;
-	arg.cache_level = cache_level;
-	return drmIoctl(fd, DRM_IOCTL_I915_GEM_SET_CACHE_LEVEL, &arg) == 0;
+	arg.cacheing = cacheing;
+	return drmIoctl(fd, LOCAL_IOCTL_I915_GEM_SET_CACHEING, &arg) == 0;
 }
 
 static bool __kgem_throttle_retire(struct kgem *kgem, unsigned flags)
@@ -681,9 +675,8 @@ static bool test_has_llc(struct kgem *kgem)
 	return has_llc;
 }
 
-static bool test_has_cache_level(struct kgem *kgem)
+static bool test_has_cacheing(struct kgem *kgem)
 {
-#if defined(USE_CACHE_LEVEL)
 	uint32_t handle;
 	bool ret;
 
@@ -698,12 +691,9 @@ static bool test_has_cache_level(struct kgem *kgem)
 	if (handle == 0)
 		return false;
 
-	ret = gem_set_cache_level(kgem->fd, handle, I915_CACHE_NONE);
+	ret = gem_set_cacheing(kgem->fd, handle, UNCACHED);
 	gem_close(kgem->fd, handle);
 	return ret;
-#else
-	return false;
-#endif
 }
 
 static bool test_has_vmap(struct kgem *kgem)
@@ -759,9 +749,9 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	DBG(("%s: has shared last-level-cache? %d\n", __FUNCTION__,
 	     kgem->has_llc));
 
-	kgem->has_cache_level = test_has_cache_level(kgem);
+	kgem->has_cacheing = test_has_cacheing(kgem);
 	DBG(("%s: has set-cache-level? %d\n", __FUNCTION__,
-	     kgem->has_cache_level));
+	     kgem->has_cacheing));
 
 	kgem->has_vmap = test_has_vmap(kgem);
 	DBG(("%s: has vmap? %d\n", __FUNCTION__,
@@ -830,8 +820,8 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	kgem->next_request = __kgem_request_alloc();
 
 	DBG(("%s: cpu bo enabled %d: llc? %d, set-cache-level? %d, vmap? %d\n", __FUNCTION__,
-	     kgem->has_llc | kgem->has_vmap | kgem->has_cache_level,
-	     kgem->has_llc, kgem->has_cache_level, kgem->has_vmap));
+	     kgem->has_llc | kgem->has_vmap | kgem->has_cacheing,
+	     kgem->has_llc, kgem->has_cacheing, kgem->has_vmap));
 
 	VG_CLEAR(aperture);
 	aperture.aper_size = 64*1024*1024;
@@ -902,7 +892,7 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	kgem->large_object_size = MAX_CACHE_SIZE;
 	if (kgem->large_object_size > kgem->max_gpu_size)
 		kgem->large_object_size = kgem->max_gpu_size;
-	if (kgem->has_llc | kgem->has_cache_level | kgem->has_vmap) {
+	if (kgem->has_llc | kgem->has_cacheing | kgem->has_vmap) {
 		if (kgem->large_object_size > kgem->max_cpu_size)
 			kgem->large_object_size = kgem->max_cpu_size;
 	} else
@@ -3249,7 +3239,7 @@ struct kgem_bo *kgem_create_cpu_2d(struct kgem *kgem,
 		return bo;
 	}
 
-	if (kgem->has_cache_level) {
+	if (kgem->has_cacheing) {
 		bo = kgem_create_linear(kgem, size, flags);
 		if (bo == NULL)
 			return NULL;
@@ -3258,7 +3248,7 @@ struct kgem_bo *kgem_create_cpu_2d(struct kgem *kgem,
 
 		bo->reusable = false;
 		bo->vmap = true;
-		if (!gem_set_cache_level(kgem->fd, bo->handle, I915_CACHE_LLC) ||
+		if (!gem_set_cacheing(kgem->fd, bo->handle, SNOOPED) ||
 		    kgem_bo_map__cpu(kgem, bo) == NULL) {
 			kgem_bo_destroy(kgem, bo);
 			return NULL;
@@ -4004,14 +3994,14 @@ create_snoopable_buffer(struct kgem *kgem, unsigned alloc)
 {
 	struct kgem_partial_bo *bo;
 
-	if (kgem->has_cache_level) {
+	if (kgem->has_cacheing) {
 		uint32_t handle;
 
 		handle = gem_create(kgem->fd, alloc);
 		if (handle == 0)
 			return NULL;
 
-		if (!gem_set_cache_level(kgem->fd, handle, I915_CACHE_LLC)) {
+		if (!gem_set_cacheing(kgem->fd, handle, SNOOPED)) {
 			gem_close(kgem->fd, handle);
 			return NULL;
 		}
