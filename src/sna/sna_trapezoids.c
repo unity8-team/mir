@@ -4873,10 +4873,35 @@ trapezoid_span_inplace__x8r8g8b8(CARD8 op,
 {
 	struct tor tor;
 	span_func_t span;
+	uint32_t color;
+	bool lerp;
 	RegionRec region;
 	int16_t dst_x, dst_y;
 	int dx, dy;
 	int n;
+
+	lerp = false;
+	if (sna_picture_is_solid(src, &color)) {
+		if (op == PictOpOver && (color >> 24) == 0xff)
+			op = PictOpSrc;
+		if (op == PictOpOver && sna_drawable_is_clear(dst->pDrawable))
+			op = PictOpSrc;
+		lerp = op == PictOpSrc;
+	}
+	if (!lerp) {
+		switch (op) {
+		case PictOpOver:
+		case PictOpAdd:
+		case PictOpOutReverse:
+			break;
+		case PictOpSrc:
+			if (!sna_drawable_is_clear(dst->pDrawable))
+				return false;
+			break;
+		default:
+			return false;
+		}
+	}
 
 	if (maskFormat == NULL && ntrap > 1) {
 		DBG(("%s: individual rasterisation requested\n",
@@ -4902,8 +4927,8 @@ trapezoid_span_inplace__x8r8g8b8(CARD8 op,
 	     region.extents.x2, region.extents.y2));
 
 	if (!sna_compute_composite_extents(&region.extents,
-					   NULL, NULL, dst,
-					   0, 0,
+					   src, NULL, dst,
+					   src_x, src_y,
 					   0, 0,
 					   region.extents.x1, region.extents.y1,
 					   region.extents.x2 - region.extents.x1,
@@ -4940,26 +4965,14 @@ trapezoid_span_inplace__x8r8g8b8(CARD8 op,
 	if (sna_drawable_move_region_to_cpu(dst->pDrawable, &region,
 					    MOVE_WRITE | MOVE_READ)) {
 		PixmapPtr pixmap;
-		uint32_t color;
 
 		pixmap = get_drawable_pixmap(dst->pDrawable);
 		get_drawable_deltas(dst->pDrawable, pixmap, &dst_x, &dst_y);
 
-		if (!sna_picture_is_solid(src, &color))
-			goto pixman;
-
-		if (op == PictOpOver && (color >> 24) == 0xff)
-			op = PictOpSrc;
-		if (op == PictOpOver) {
-			struct sna_pixmap *priv = sna_pixmap_from_drawable(dst->pDrawable);
-			if (priv && priv->clear && priv->clear_color == 0)
-				op = PictOpSrc;
-		}
-
 		DBG(("%s: format=%x, op=%d, color=%x\n",
 		     __FUNCTION__, dst->format, op, color));
 
-		if (op == PictOpSrc) {
+		if (lerp) {
 			struct inplace inplace;
 
 			inplace.ptr = pixmap->devPrivate.ptr;
@@ -4981,11 +4994,10 @@ trapezoid_span_inplace__x8r8g8b8(CARD8 op,
 		} else {
 			struct pixman_inplace pi;
 
-pixman:
 			pi.image = image_from_pict(dst, false, &pi.dx, &pi.dy);
 			pi.source = image_from_pict(src, false, &pi.sx, &pi.sy);
-			pi.sx += src_x;
-			pi.sy += src_y;
+			pi.sx += src_x - pixman_fixed_to_int(traps[0].left.p1.x);
+			pi.sy += src_y - pixman_fixed_to_int(traps[0].left.p1.y);
 			pi.mask = pixman_image_create_bits(PIXMAN_a8, 1, 1, NULL, 0);
 			pixman_image_set_repeat(pi.mask, PIXMAN_REPEAT_NORMAL);
 			pi.bits = pixman_image_get_data(pi.mask);
@@ -4998,7 +5010,7 @@ pixman:
 
 			tor_render(NULL, &tor, (void*)&pi,
 				   dst->pCompositeClip, span,
-				   operator_is_bounded(op));
+				   false);
 			tor_fini(&tor);
 
 			pixman_image_unref(pi.mask);
