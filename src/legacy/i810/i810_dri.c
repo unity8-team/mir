@@ -1424,5 +1424,7 @@ I810DRIEnter(ScrnInfoPtr pScrn)
 			pI810->CursorARGBStart) != 0)
 	    return FALSE;
    }
+
+   I810SelectBuffer(pScrn, I810_SELECT_FRONT);
    return TRUE;
 }
