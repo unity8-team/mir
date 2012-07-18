@@ -2146,8 +2146,7 @@ bool sna_dri_open(struct sna *sna, ScreenPtr screen)
 
 	if (wedged(sna)) {
 		xf86DrvMsg(sna->scrn->scrnIndex, X_WARNING,
-			   "cannot enable DRI2 whilst the GPU is wedged\n");
-		return false;
+			   "loading DRI2 whilst the GPU is wedged.\n");
 	}
 
 	if (xf86LoaderCheckSymbol("DRI2Version"))
