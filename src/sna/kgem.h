@@ -125,6 +125,7 @@ struct kgem {
 	struct list large;
 	struct list active[NUM_CACHE_BUCKETS][3];
 	struct list inactive[NUM_CACHE_BUCKETS];
+	struct list vmap;
 	struct list batch_partials, active_partials;
 	struct list requests;
 	struct list sync_list;
@@ -243,7 +244,6 @@ enum {
 	CREATE_TEMPORARY = 0x20,
 	CREATE_NO_RETIRE = 0x40,
 	CREATE_NO_THROTTLE = 0x40,
-	CREATE_FORCE = 0x80,
 };
 struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 			       int width,
