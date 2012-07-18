@@ -37,6 +37,11 @@ static inline void add(RegionPtr region,
 	r->x1 = x1; r->y1 = y1;
 	r->x2 = x2; r->y2 = y2;
 
+	DBG(("%s[%d/%d]: (%d, %d), (%d, %d)\n",
+	     __FUNCTION__,
+	     region->data->numRects, region->data->size,
+	     x1, y1, x2, y2));
+
 	if (x1 < region->extents.x1)
 		region->extents.x1 = x1;
 	if (x2 > region->extents.x2)
@@ -137,6 +142,12 @@ fbBitmapToRegion(PixmapPtr pixmap)
 		}
 	} else
 		region->extents.x1 = region->extents.x2 = 0;
+
+	DBG(("%s: region extents=(%d, %d), (%d, %d) x %d\n",
+	     __FUNCTION__,
+	     region->extents.x1, region->extents.y1,
+	     region->extents.x2, region->extents.y2,
+	     RegionNumRects(region)));
 
 	return region;
 }

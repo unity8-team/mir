@@ -46,6 +46,13 @@ box_intersect(BoxPtr a, const BoxRec *b)
 	return a->x1 < a->x2 && a->y1 < a->y2;
 }
 
+#define run_box(b, c) \
+	DBG(("%s: box=(%d, %d), (%d, %d), clip=(%d, %d), (%d, %d)\n", \
+	     __FUNCTION__, (b)->x1, (b)->y1, (b)->x2, (b)->y2, (c)->x1, (c)->y1, (c)->x2, (c)->y2)); \
+	if ((b)->y2 <= (c)->y1) break; \
+	if ((b)->x1 >= (c)->x2) continue; \
+	if ((b)->x2 <= (c)->x1) { if ((b)->y2 <= (c)->y2) break; continue; }
+
 static inline void
 fbDrawableRun(DrawablePtr d, GCPtr gc, const BoxRec *box,
 	      void (*func)(DrawablePtr, GCPtr, const BoxRec *b, void *data),
@@ -55,14 +62,7 @@ fbDrawableRun(DrawablePtr d, GCPtr gc, const BoxRec *box,
 	for (c = fbClipBoxes(gc->pCompositeClip, box, &end); c != end; c++) {
 		BoxRec b;
 
-		if (box->x1 >= c->x2)
-			continue;
-		if (box->x2 <= c->x1) {
-			if (box->y2 <= c->y2)
-				break;
-			else
-				continue;
-		}
+		run_box(box, c);
 
 		b = *box;
 		if (box_intersect(&b, c))
@@ -77,14 +77,7 @@ fbDrawableRunUnclipped(DrawablePtr d, GCPtr gc, const BoxRec *box,
 {
 	const BoxRec *c, *end;
 	for (c = fbClipBoxes(gc->pCompositeClip, box, &end); c != end; c++) {
-		if (box->x1 >= c->x2)
-			continue;
-		if (box->x2 <= c->x1) {
-			if (box->y2 <= c->y2)
-				break;
-			else
-				continue;
-		}
+		run_box(box, c);
 		func(d, gc, c, data);
 	}
 }

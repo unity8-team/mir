@@ -76,11 +76,16 @@ fbClipBoxes(const RegionRec *region, const BoxRec *box, const BoxRec **end)
 	c0 = (const BoxRec *)region->data + 1;
 	c1 = c0 + region->data->numRects;
 
-	if (c0->y2 <= box->y1)
+	if (c0->y2 <= box->y1) {
+		DBG(("%s: first clip (%d, %d), (%d, %d) before box (%d, %d), (%d, %d)\n",
+		     __FUNCTION__,
+		     c0->x1, c0->y1, c0->x2, c0->y2,
+		     box->x1, box->y1, box->x2, box->y2));
 		c0 = find_clip_row_for_y(c0, c1, box->y1);
+	}
 
-	DBG(("%s: c0=(%d, %d),(%d, %d)\n",
-	     __FUNCTION__, c0->x1, c0->y1, c0->x2, c0->y2));
+	DBG(("%s: c0=(%d, %d),(%d, %d) x %ld\n",
+	     __FUNCTION__, c0->x1, c0->y1, c0->x2, c0->y2, c1 - c0));
 
 	*end = c1;
 	return c0;

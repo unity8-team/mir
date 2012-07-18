@@ -141,28 +141,14 @@ fbFill(DrawablePtr drawable, GCPtr gc, int x, int y, int width, int height)
 
 	case FillTiled:
 		{
-			PixmapPtr pTile = gc->tile.pixmap;
-			FbBits *tile;
-			FbStride tileStride;
-			int tileBpp;
-			int tileWidth;
-			int tileHeight;
-			_X_UNUSED int tileXoff, tileYoff;
+			PixmapPtr tile = gc->tile.pixmap;
 
-			fbGetDrawable(&pTile->drawable, tile,
-				      tileStride, tileBpp, tileXoff, tileYoff);
-			tileWidth = pTile->drawable.width;
-			tileHeight = pTile->drawable.height;
-			fbTile(dst + (y + dstYoff) * dstStride,
-			       dstStride,
-			       (x + dstXoff) * dstBpp,
-			       width * dstBpp, height,
-			       tile,
-			       tileStride,
-			       tileWidth * tileBpp,
-			       tileHeight,
-			       gc->alu, pgc->pm,
-			       dstBpp,
+			fbTile(dst + (y + dstYoff) * dstStride, dstStride,
+			       (x + dstXoff) * dstBpp, width * dstBpp, height,
+			       tile->devPrivate.ptr, tile->devKind / sizeof(FbBits),
+			       tile->drawable.width * tile->drawable.bitsPerPixel,
+			       tile->drawable.height,
+			       gc->alu, pgc->pm, dstBpp,
 			       (gc->patOrg.x + drawable->x + dstXoff) * dstBpp,
 			       gc->patOrg.y + drawable->y - y);
 			break;

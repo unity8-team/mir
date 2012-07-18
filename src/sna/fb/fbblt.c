@@ -285,7 +285,10 @@ fbBlt(FbBits *srcLine, FbStride srcStride, int srcX,
 		s += srcX >> 3;
 		d += dstX >> 3;
 
-		DBG(("%s fast blt\n", __FUNCTION__));
+		DBG(("%s fast blt, src_stride=%d, dst_stride=%d, width=%d (offset=%d)\n",
+		     __FUNCTION__,
+		     srcStride, dstStride, width,
+		     srcLine - dstLine));
 
 		if ((srcLine < dstLine && srcLine + width > dstLine) ||
 		    (dstLine < srcLine && dstLine + width > srcLine))

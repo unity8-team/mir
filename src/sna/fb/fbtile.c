@@ -99,30 +99,29 @@ fbOddTile(FbBits *dst, FbStride dstStride, int dstX,
 	  int xRot, int yRot)
 {
 	int tileX, tileY;
-	int widthTmp;
-	int h, w;
 	int x, y;
+
+	DBG(("%s tile=%dx%d, size=%dx%d\n", __FUNCTION__,
+	     tileWidth, tileHeight, width, height));
 
 	modulus(-yRot, tileHeight, tileY);
 	y = 0;
 	while (height) {
-		h = tileHeight - tileY;
+		int ww = width;
+		int h = tileHeight - tileY;
 		if (h > height)
 			h = height;
 		height -= h;
-		widthTmp = width;
 		x = dstX;
 		modulus(dstX - xRot, tileWidth, tileX);
-		while (widthTmp) {
-			w = tileWidth - tileX;
-			if (w > widthTmp)
-				w = widthTmp;
-			widthTmp -= w;
-			fbBlt(tile + tileY * tileStride,
-			      tileStride,
-			      tileX,
-			      dst + y * dstStride,
-			      dstStride, x, w, h, alu, pm, bpp, FALSE, FALSE);
+		while (ww) {
+			int w = tileWidth - tileX;
+			if (w > ww)
+				w = ww;
+			ww -= w;
+			fbBlt(tile + tileY * tileStride, tileStride, tileX,
+			      dst + y * dstStride, dstStride,
+			      x, w, h, alu, pm, bpp, FALSE, FALSE);
 			x += w;
 			tileX = 0;
 		}
