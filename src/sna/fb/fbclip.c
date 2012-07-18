@@ -73,7 +73,7 @@ fbClipBoxes(const RegionRec *region, const BoxRec *box, const BoxRec **end)
 		return &region->extents;
 	}
 
-	c0 = (const BoxRec *)region->data + 1;
+	c0 = (const BoxRec *)(region->data + 1);
 	c1 = c0 + region->data->numRects;
 
 	if (c0->y2 <= box->y1) {
