@@ -267,7 +267,11 @@ extern Bool I810CleanupDma(ScrnInfoPtr pScrn);
 #define I810REGPTR(p) (&(I810PTR(p)->ModeReg))
 
 extern Bool I810CursorInit(ScreenPtr pScreen);
+#ifdef HAVE_XAA_H
 extern Bool I810AccelInit(ScreenPtr pScreen);
+#else
+static inline  Bool I810AccelInit(ScreenPtr pScreen) { return TRUE; }
+#endif
 extern void I810SetPIOAccess(I810Ptr pI810);
 extern void I810SetMMIOAccess(I810Ptr pI810);
 extern unsigned int I810CalcWatermark(ScrnInfoPtr pScrn, double freq,

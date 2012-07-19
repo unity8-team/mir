@@ -343,12 +343,8 @@ I810PreInit(ScrnInfoPtr scrn, int flags)
    if (xf86ReturnOptValBool(pI810->Options, OPTION_NOACCEL, FALSE))
       pI810->noAccel = TRUE;
 
-   if (!pI810->noAccel) {
-      if (!xf86LoadSubModule(scrn, "xaa")) {
-	 I810FreeRec(scrn);
-	 return FALSE;
-      }
-   }
+   if (!pI810->noAccel && !xf86LoadSubModule(scrn, "xaa"))
+      pI810->noAccel = TRUE;
    
 #ifdef HAVE_DRI1
    pI810->directRenderingDisabled =
@@ -1089,7 +1085,6 @@ DoRestore(ScrnInfoPtr scrn, vgaRegPtr vgaReg, I810RegPtr i810Reg,
    hwp->writeCrtc(hwp, IO_CTNL, temp);
 }
 
-#ifdef HAVE_XAA_H
 static void
 I810SetRingRegs(ScrnInfoPtr scrn)
 {
@@ -1109,7 +1104,6 @@ I810SetRingRegs(ScrnInfoPtr scrn)
    itemp |= ((pI810->LpRing->mem.Size - 4096) | RING_NO_REPORT | RING_VALID);
    OUTREG(LP_RING + RING_LEN, itemp);
 }
-#endif
 
 static void
 I810Restore(ScrnInfoPtr scrn)
@@ -1697,19 +1691,16 @@ I810ScreenInit(SCREEN_INIT_ARGS_DECL)
       return FALSE;
    }
 
-#ifdef HAVE_XAA_H
-   if (!xf86ReturnOptValBool(pI810->Options, OPTION_NOACCEL, FALSE)) {
-      if (pI810->LpRing->mem.Size != 0) {
-	 I810SetRingRegs(scrn);
+   if (pI810->LpRing->mem.Size != 0) {
+      I810SetRingRegs(scrn);
 
-	 if (!I810AccelInit(screen)) {
-	    xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-		       "Hardware acceleration initialization failed\n");
-	 }  else /* PK added 16.02.2004 */
-	     I810EmitFlush(scrn);
+      if (pI810->noAccel && !I810AccelInit(screen)) {
+	 xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+		    "Hardware acceleration initialization failed\n");
       }
+
+      I810EmitFlush(scrn);
    }
-#endif
 
    miInitializeBackingStore(screen);
    xf86SetBackingStore(screen);
