@@ -1604,7 +1604,7 @@ do_fixup:
 					       w, h);
 			pixman_image_unref(src);
 		} else {
-			memset(ptr, 0, kgem_buffer_size(channel->bo));
+			memset(ptr, 0, __kgem_buffer_size(channel->bo));
 			dst = src;
 		}
 	}

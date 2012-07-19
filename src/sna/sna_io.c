@@ -438,7 +438,7 @@ fallback:
 		_kgem_set_mode(kgem, KGEM_BLT);
 		tmp_box += nbox_this_time;
 	} while (1);
-	assert(offset == kgem_buffer_size(dst_bo));
+	assert(offset == __kgem_buffer_size(dst_bo));
 
 	kgem_buffer_read_sync(kgem, dst_bo);
 
@@ -470,7 +470,7 @@ fallback:
 
 		src += pitch * height;
 	} while (--nbox);
-	assert(src - (char *)ptr == kgem_buffer_size(dst_bo));
+	assert(src - (char *)ptr == __kgem_buffer_size(dst_bo));
 	kgem_bo_destroy(kgem, dst_bo);
 	sna->blt_state.fill_bo = 0;
 }
@@ -841,7 +841,7 @@ tile:
 			box++;
 			offset += pitch * height;
 		} while (--nbox_this_time);
-		assert(offset == kgem_buffer_size(src_bo));
+		assert(offset == __kgem_buffer_size(src_bo));
 
 		if (nbox) {
 			_kgem_submit(kgem);
@@ -1079,7 +1079,7 @@ fallback:
 			box++;
 			offset += pitch * height;
 		} while (--nbox_this_time);
-		assert(offset == kgem_buffer_size(src_bo));
+		assert(offset == __kgem_buffer_size(src_bo));
 
 		if (nbox) {
 			_kgem_submit(kgem);

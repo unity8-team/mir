@@ -420,16 +420,24 @@ int kgem_bo_fenced_size(struct kgem *kgem, struct kgem_bo *bo);
 void kgem_get_tile_size(struct kgem *kgem, int tiling,
 			int *tile_width, int *tile_height, int *tile_size);
 
+static inline int __kgem_buffer_size(struct kgem_bo *bo)
+{
+	assert(bo->proxy && bo->io);
+	return bo->size.bytes;
+}
+
 static inline int kgem_bo_size(struct kgem_bo *bo)
 {
 	assert(!(bo->proxy && bo->io));
 	return PAGE_SIZE * bo->size.pages.count;
 }
 
-static inline int kgem_buffer_size(struct kgem_bo *bo)
+static inline int __kgem_bo_size(struct kgem_bo *bo)
 {
-	assert(bo->proxy && bo->io);
-	return bo->size.bytes;
+	if (bo->io)
+		return __kgem_buffer_size(bo);
+	else
+		return __kgem_bo_size(bo);
 }
 
 static inline bool kgem_bo_blt_pitch_is_ok(struct kgem *kgem,
