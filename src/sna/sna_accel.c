@@ -12990,6 +12990,11 @@ bool sna_accel_init(ScreenPtr screen, struct sna *sna)
 	assert(screen->SetWindowPixmap == NULL);
 	screen->SetWindowPixmap = sna_set_window_pixmap;
 
+	if (USE_SHM_VMAP && sna->kgem.has_vmap)
+		ShmRegisterFuncs(screen, &shm_funcs);
+	else
+		ShmRegisterFbFuncs(screen);
+
 	if (!sna_picture_init(screen))
 		return false;
 
@@ -13033,11 +13038,6 @@ bool sna_accel_init(ScreenPtr screen, struct sna *sna)
 
 bool sna_accel_create(ScreenPtr screen, struct sna *sna)
 {
-	if (USE_SHM_VMAP && sna->kgem.has_vmap)
-		ShmRegisterFuncs(screen, &shm_funcs);
-	else
-		ShmRegisterFbFuncs(screen);
-
 	if (!sna_glyphs_create(sna))
 		return false;
 
