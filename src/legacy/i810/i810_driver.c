@@ -1694,7 +1694,7 @@ I810ScreenInit(SCREEN_INIT_ARGS_DECL)
    if (pI810->LpRing->mem.Size != 0) {
       I810SetRingRegs(scrn);
 
-      if (pI810->noAccel && !I810AccelInit(screen)) {
+      if (!pI810->noAccel && !I810AccelInit(screen)) {
 	 xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 		    "Hardware acceleration initialization failed\n");
       }
