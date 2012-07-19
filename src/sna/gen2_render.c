@@ -2192,6 +2192,28 @@ gen2_render_composite_spans_done(struct sna *sna,
 }
 
 static bool
+gen2_check_composite_spans(struct sna *sna,
+			   uint8_t op, PicturePtr src, PicturePtr dst,
+			   int16_t width, int16_t height, unsigned flags)
+{
+	if (op >= ARRAY_SIZE(gen2_blend_op))
+		return false;
+
+	if (gen2_composite_fallback(sna, src, NULL, dst))
+		return false;
+
+	if (need_tiling(sna, width, height)) {
+		if (!is_gpu(dst->pDrawable)) {
+			DBG(("%s: fallback, tiled operation not on GPU\n",
+			     __FUNCTION__));
+			return false;
+		}
+	}
+
+	return true;
+}
+
+static bool
 gen2_render_composite_spans(struct sna *sna,
 			    uint8_t op,
 			    PicturePtr src,
@@ -2205,29 +2227,10 @@ gen2_render_composite_spans(struct sna *sna,
 	DBG(("%s(src=(%d, %d), dst=(%d, %d), size=(%d, %d))\n", __FUNCTION__,
 	     src_x, src_y, dst_x, dst_y, width, height));
 
-#if NO_COMPOSITE_SPANS
-	return false;
-#endif
-
-	if (op >= ARRAY_SIZE(gen2_blend_op)) {
-		DBG(("%s: fallback due to unhandled blend op: %d\n",
-		     __FUNCTION__, op));
-		return false;
-	}
-
-	if (gen2_composite_fallback(sna, src, NULL, dst))
-		return false;
-
+	assert(gen2_check_composite_spans(sna, op, src, dst, width, height, flags));
 	if (need_tiling(sna, width, height)) {
 		DBG(("%s: tiling, operation (%dx%d) too wide for pipeline\n",
 		     __FUNCTION__, width, height));
-
-		if (!is_gpu(dst->pDrawable)) {
-			DBG(("%s: fallback, tiled operation not on GPU\n",
-			     __FUNCTION__));
-			return false;
-		}
-
 		return sna_tiling_composite_spans(op, src, dst,
 						  src_x, src_y, dst_x, dst_y,
 						  width, height, flags, tmp);
@@ -3134,7 +3137,10 @@ bool gen2_render_init(struct sna *sna)
 	 * use the texture combiners.
 	 */
 	render->composite = gen2_render_composite;
+#if !NO_COMPOSITE_SPANS
+	render->check_composite_spans = gen2_check_composite_spans;
 	render->composite_spans = gen2_render_composite_spans;
+#endif
 	render->fill_boxes = gen2_render_fill_boxes;
 	render->fill = gen2_render_fill;
 	render->fill_one = gen2_render_fill_one;

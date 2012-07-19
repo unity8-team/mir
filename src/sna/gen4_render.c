@@ -50,6 +50,7 @@
 #define FLUSH_EVERY_VERTEX 1
 
 #define NO_COMPOSITE 0
+#define NO_COMPOSITE_SPANS 0
 #define NO_COPY 0
 #define NO_COPY_BOXES 0
 #define NO_FILL 0
@@ -61,8 +62,13 @@
 	gen4_magic_ca_pass(sna, OP); \
 	OUT_BATCH(MI_FLUSH | MI_INHIBIT_RENDER_CACHE_FLUSH); \
 } while (0)
+#define FLUSH_NOCA() do { \
+	gen4_vertex_flush(sna); \
+	OUT_BATCH(MI_FLUSH | MI_INHIBIT_RENDER_CACHE_FLUSH); \
+} while (0)
 #else
 #define FLUSH(OP)
+#define FLUSH_NOCA()
 #endif
 
 #define GEN4_GRF_BLOCKS(nreg)    ((nreg + 15) / 16 - 1)
@@ -2494,6 +2500,320 @@ cleanup_dst:
 	return false;
 }
 
+/* A poor man's span interface. But better than nothing? */
+#if !NO_COMPOSITE_SPANS
+static bool
+gen4_composite_alpha_gradient_init(struct sna *sna,
+				   struct sna_composite_channel *channel)
+{
+	DBG(("%s\n", __FUNCTION__));
+
+	channel->filter = PictFilterNearest;
+	channel->repeat = RepeatPad;
+	channel->is_affine = true;
+	channel->is_solid  = false;
+	channel->transform = NULL;
+	channel->width  = 256;
+	channel->height = 1;
+	channel->card_format = GEN4_SURFACEFORMAT_B8G8R8A8_UNORM;
+
+	channel->bo = sna_render_get_alpha_gradient(sna);
+
+	channel->scale[0]  = channel->scale[1]  = 1;
+	channel->offset[0] = channel->offset[1] = 0;
+	return channel->bo != NULL;
+}
+
+inline static void
+gen4_emit_composite_texcoord(struct sna *sna,
+			     const struct sna_composite_channel *channel,
+			     int16_t x, int16_t y)
+{
+	float t[3];
+
+	if (channel->is_affine) {
+		sna_get_transformed_coordinates(x + channel->offset[0],
+						y + channel->offset[1],
+						channel->transform,
+						&t[0], &t[1]);
+		OUT_VERTEX_F(t[0] * channel->scale[0]);
+		OUT_VERTEX_F(t[1] * channel->scale[1]);
+	} else {
+		t[0] = t[1] = 0; t[2] = 1;
+		sna_get_transformed_coordinates_3d(x + channel->offset[0],
+						   y + channel->offset[1],
+						   channel->transform,
+						   &t[0], &t[1], &t[2]);
+		OUT_VERTEX_F(t[0] * channel->scale[0]);
+		OUT_VERTEX_F(t[1] * channel->scale[1]);
+		OUT_VERTEX_F(t[2]);
+	}
+}
+
+inline static void
+gen4_emit_composite_texcoord_affine(struct sna *sna,
+				    const struct sna_composite_channel *channel,
+				    int16_t x, int16_t y)
+{
+	float t[2];
+
+	sna_get_transformed_coordinates(x + channel->offset[0],
+					y + channel->offset[1],
+					channel->transform,
+					&t[0], &t[1]);
+	OUT_VERTEX_F(t[0] * channel->scale[0]);
+	OUT_VERTEX_F(t[1] * channel->scale[1]);
+}
+
+inline static void
+gen4_emit_composite_spans_vertex(struct sna *sna,
+				 const struct sna_composite_spans_op *op,
+				 int16_t x, int16_t y)
+{
+	OUT_VERTEX(x, y);
+	gen4_emit_composite_texcoord(sna, &op->base.src, x, y);
+}
+
+fastcall static void
+gen4_emit_composite_spans_primitive(struct sna *sna,
+				    const struct sna_composite_spans_op *op,
+				    const BoxRec *box,
+				    float opacity)
+{
+	gen4_emit_composite_spans_vertex(sna, op, box->x2, box->y2);
+	OUT_VERTEX_F(opacity);
+	OUT_VERTEX_F(1);
+	if (!op->base.is_affine)
+		OUT_VERTEX_F(1);
+
+	gen4_emit_composite_spans_vertex(sna, op, box->x1, box->y2);
+	OUT_VERTEX_F(opacity);
+	OUT_VERTEX_F(1);
+	if (!op->base.is_affine)
+		OUT_VERTEX_F(1);
+
+	gen4_emit_composite_spans_vertex(sna, op, box->x1, box->y1);
+	OUT_VERTEX_F(opacity);
+	OUT_VERTEX_F(0);
+	if (!op->base.is_affine)
+		OUT_VERTEX_F(1);
+}
+
+fastcall static void
+gen4_emit_composite_spans_solid(struct sna *sna,
+				const struct sna_composite_spans_op *op,
+				const BoxRec *box,
+				float opacity)
+{
+	OUT_VERTEX(box->x2, box->y2);
+	OUT_VERTEX_F(1); OUT_VERTEX_F(1);
+	OUT_VERTEX_F(opacity); OUT_VERTEX_F(1);
+
+	OUT_VERTEX(box->x1, box->y2);
+	OUT_VERTEX_F(0); OUT_VERTEX_F(1);
+	OUT_VERTEX_F(opacity); OUT_VERTEX_F(1);
+
+	OUT_VERTEX(box->x1, box->y1);
+	OUT_VERTEX_F(0); OUT_VERTEX_F(0);
+	OUT_VERTEX_F(opacity); OUT_VERTEX_F(0);
+}
+
+fastcall static void
+gen4_emit_composite_spans_affine(struct sna *sna,
+				 const struct sna_composite_spans_op *op,
+				 const BoxRec *box,
+				 float opacity)
+{
+	OUT_VERTEX(box->x2, box->y2);
+	gen4_emit_composite_texcoord_affine(sna, &op->base.src,
+					    box->x2, box->y2);
+	OUT_VERTEX_F(opacity);
+	OUT_VERTEX_F(1);
+
+	OUT_VERTEX(box->x1, box->y2);
+	gen4_emit_composite_texcoord_affine(sna, &op->base.src,
+					    box->x1, box->y2);
+	OUT_VERTEX_F(opacity);
+	OUT_VERTEX_F(1);
+
+	OUT_VERTEX(box->x1, box->y1);
+	gen4_emit_composite_texcoord_affine(sna, &op->base.src,
+					    box->x1, box->y1);
+	OUT_VERTEX_F(opacity);
+	OUT_VERTEX_F(0);
+}
+
+fastcall static void
+gen4_render_composite_spans_box(struct sna *sna,
+				const struct sna_composite_spans_op *op,
+				const BoxRec *box, float opacity)
+{
+	DBG(("%s: src=+(%d, %d), opacity=%f, dst=+(%d, %d), box=(%d, %d) x (%d, %d)\n",
+	     __FUNCTION__,
+	     op->base.src.offset[0], op->base.src.offset[1],
+	     opacity,
+	     op->base.dst.x, op->base.dst.y,
+	     box->x1, box->y1,
+	     box->x2 - box->x1,
+	     box->y2 - box->y1));
+
+	gen4_get_rectangles(sna, &op->base, 1, gen4_bind_surfaces);
+	op->prim_emit(sna, op, box, opacity);
+	FLUSH_NOCA();
+}
+
+static void
+gen4_render_composite_spans_boxes(struct sna *sna,
+				  const struct sna_composite_spans_op *op,
+				  const BoxRec *box, int nbox,
+				  float opacity)
+{
+	DBG(("%s: nbox=%d, src=+(%d, %d), opacity=%f, dst=+(%d, %d)\n",
+	     __FUNCTION__, nbox,
+	     op->base.src.offset[0], op->base.src.offset[1],
+	     opacity,
+	     op->base.dst.x, op->base.dst.y));
+
+	do {
+		gen4_render_composite_spans_box(sna, op, box++, opacity);
+	} while (--nbox);
+}
+
+fastcall static void
+gen4_render_composite_spans_done(struct sna *sna,
+				 const struct sna_composite_spans_op *op)
+{
+	if (sna->render_state.gen4.vertex_offset)
+		gen4_vertex_flush(sna);
+
+	DBG(("%s()\n", __FUNCTION__));
+
+	if (op->base.src.bo)
+		kgem_bo_destroy(&sna->kgem, op->base.src.bo);
+
+	sna_render_composite_redirect_done(sna, &op->base);
+}
+
+static bool
+gen4_check_composite_spans(struct sna *sna,
+			   uint8_t op, PicturePtr src, PicturePtr dst,
+			   int16_t width,  int16_t height,
+			   unsigned flags)
+{
+	if ((flags & COMPOSITE_SPANS_RECTILINEAR) == 0)
+		return false;
+
+	if (op >= ARRAY_SIZE(gen4_blend_op))
+		return false;
+
+	if (gen4_composite_fallback(sna, src, NULL, dst))
+		return false;
+
+	if (!is_gpu(dst->pDrawable))
+		return false;
+
+	return true;
+}
+
+static bool
+gen4_render_composite_spans(struct sna *sna,
+			    uint8_t op,
+			    PicturePtr src,
+			    PicturePtr dst,
+			    int16_t src_x,  int16_t src_y,
+			    int16_t dst_x,  int16_t dst_y,
+			    int16_t width,  int16_t height,
+			    unsigned flags,
+			    struct sna_composite_spans_op *tmp)
+{
+	DBG(("%s: %dx%d with flags=%x, current mode=%d\n", __FUNCTION__,
+	     width, height, flags, sna->kgem.ring));
+
+	assert(gen4_check_composite_spans(sna, op, src, dst, width, height, flags));
+
+	if (need_tiling(sna, width, height)) {
+		DBG(("%s: tiling, operation (%dx%d) too wide for pipeline\n",
+		     __FUNCTION__, width, height));
+		return sna_tiling_composite_spans(op, src, dst,
+						  src_x, src_y, dst_x, dst_y,
+						  width, height, flags, tmp);
+	}
+
+	tmp->base.op = op;
+	if (!gen4_composite_set_target(dst, &tmp->base))
+		return false;
+	sna_render_reduce_damage(&tmp->base, dst_x, dst_y, width, height);
+
+	if (too_large(tmp->base.dst.width, tmp->base.dst.height)) {
+		if (!sna_render_composite_redirect(sna, &tmp->base,
+						   dst_x, dst_y, width, height))
+			return false;
+	}
+
+	switch (gen4_composite_picture(sna, src, &tmp->base.src,
+				       src_x, src_y,
+				       width, height,
+				       dst_x, dst_y,
+				       dst->polyMode == PolyModePrecise)) {
+	case -1:
+		goto cleanup_dst;
+	case 0:
+		gen4_composite_solid_init(sna, &tmp->base.src, 0);
+		/* fall through to fixup */
+	case 1:
+		gen4_composite_channel_convert(&tmp->base.src);
+		break;
+	}
+
+	tmp->base.mask.bo = NULL;
+	tmp->base.is_affine = tmp->base.src.is_affine;
+	tmp->base.has_component_alpha = false;
+	tmp->base.need_magic_ca_pass = false;
+
+	gen4_composite_alpha_gradient_init(sna, &tmp->base.mask);
+
+	tmp->prim_emit = gen4_emit_composite_spans_primitive;
+	if (tmp->base.src.is_solid)
+		tmp->prim_emit = gen4_emit_composite_spans_solid;
+	else if (tmp->base.is_affine)
+		tmp->prim_emit = gen4_emit_composite_spans_affine;
+	tmp->base.floats_per_vertex = 5 + 2*!tmp->base.is_affine;
+	tmp->base.floats_per_rect = 3 * tmp->base.floats_per_vertex;
+
+	tmp->base.u.gen4.wm_kernel =
+		gen4_choose_composite_kernel(tmp->base.op,
+					     true, false,
+					     tmp->base.is_affine);
+	tmp->base.u.gen4.ve_id = 1 << 1 | tmp->base.is_affine;
+
+	tmp->box   = gen4_render_composite_spans_box;
+	tmp->boxes = gen4_render_composite_spans_boxes;
+	tmp->done  = gen4_render_composite_spans_done;
+
+	if (!kgem_check_bo(&sna->kgem,
+			   tmp->base.dst.bo, tmp->base.src.bo,
+			   NULL))  {
+		kgem_submit(&sna->kgem);
+		if (!kgem_check_bo(&sna->kgem,
+				   tmp->base.dst.bo, tmp->base.src.bo,
+				   NULL))
+			goto cleanup_src;
+	}
+
+	gen4_bind_surfaces(sna, &tmp->base);
+	gen4_align_vertex(sna, &tmp->base);
+	return true;
+
+cleanup_src:
+	if (tmp->base.src.bo)
+		kgem_bo_destroy(&sna->kgem, tmp->base.src.bo);
+cleanup_dst:
+	if (tmp->base.redirect.real_bo)
+		kgem_bo_destroy(&sna->kgem, tmp->base.dst.bo);
+	return false;
+}
+#endif
+
 static void
 gen4_copy_bind_surfaces(struct sna *sna, const struct sna_composite_op *op)
 {
@@ -3472,6 +3792,10 @@ bool gen4_render_init(struct sna *sna)
 		return false;
 
 	sna->render.composite = gen4_render_composite;
+#if !NO_COMPOSITE_SPANS
+	sna->render.check_composite_spans = gen4_check_composite_spans;
+	sna->render.composite_spans = gen4_render_composite_spans;
+#endif
 	sna->render.video = gen4_render_video;
 
 	sna->render.copy_boxes = gen4_render_copy_boxes;

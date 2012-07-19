@@ -194,6 +194,9 @@ struct sna_render {
 			  int16_t w, int16_t h,
 			  struct sna_composite_op *tmp);
 
+	bool (*check_composite_spans)(struct sna *sna, uint8_t op,
+				      PicturePtr dst, PicturePtr src,
+				      int16_t w, int16_t h, unsigned flags);
 	bool (*composite_spans)(struct sna *sna, uint8_t op,
 				PicturePtr dst, PicturePtr src,
 				int16_t src_x, int16_t src_y,

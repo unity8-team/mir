@@ -3673,7 +3673,9 @@ composite_unaligned_boxes(struct sna *sna,
 	if (ntrap > 1 && maskFormat)
 		return false;
 
-	if (force_fallback || !sna->render.composite_spans) {
+	if (force_fallback ||
+	    !sna->render.check_composite_spans(sna, op, src, dst, 0, 0,
+					       COMPOSITE_SPANS_RECTILINEAR)) {
 fallback:
 		return composite_unaligned_boxes_fallback(op, src, dst,
 							  src_x, src_y,
@@ -3719,6 +3721,15 @@ fallback:
 		DBG(("%s: trapezoids do not intersect drawable clips\n",
 		     __FUNCTION__)) ;
 		return true;
+	}
+
+	if (!sna->render.check_composite_spans(sna, op, src, dst,
+					       clip.extents.x2 - clip.extents.x1,
+					       clip.extents.y2 - clip.extents.y1,
+					       COMPOSITE_SPANS_RECTILINEAR)) {
+		DBG(("%s: fallback -- composite spans not supported\n",
+		     __FUNCTION__));
+		goto fallback;
 	}
 
 	c = NULL;
@@ -4016,7 +4027,7 @@ trapezoid_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	}
 
 	sna = to_sna_from_drawable(dst->pDrawable);
-	if (!sna->render.composite_spans) {
+	if (!sna->render.check_composite_spans(sna, op, src, dst, 0, 0, flags)) {
 		DBG(("%s: fallback -- composite spans not supported\n",
 		     __FUNCTION__));
 		return false;
@@ -4051,6 +4062,15 @@ trapezoid_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 		DBG(("%s: trapezoids do not intersect drawable clips\n",
 		     __FUNCTION__)) ;
 		return true;
+	}
+
+	if (!sna->render.check_composite_spans(sna, op, src, dst,
+					       clip.extents.x2 - clip.extents.x1,
+					       clip.extents.y2 - clip.extents.y1,
+					       flags)) {
+		DBG(("%s: fallback -- composite spans not supported\n",
+		     __FUNCTION__));
+		return false;
 	}
 
 	extents = *RegionExtents(&clip);
@@ -5633,11 +5653,8 @@ trap_span_converter(PicturePtr dst,
 	struct sna_composite_spans_op tmp;
 	struct tor tor;
 	BoxRec extents;
-	PicturePtr src;
-	xRenderColor white;
 	pixman_region16_t *clip;
-	int dx, dy;
-	int n, error;
+	int dx, dy, n;
 
 	if (NO_SCAN_CONVERTER)
 		return false;
@@ -5649,14 +5666,14 @@ trap_span_converter(PicturePtr dst,
 		return mono_trap_span_converter(dst, src_x, src_y, ntrap, trap);
 
 	sna = to_sna_from_drawable(dst->pDrawable);
-	if (!sna->render.composite_spans) {
+	if (!sna->render.check_composite_spans(sna, PictOpAdd, sna->render.white_picture, dst,
+					       dst->pCompositeClip->extents.x2 - dst->pCompositeClip->extents.x1,
+					       dst->pCompositeClip->extents.y2 - dst->pCompositeClip->extents.y1,
+					       0)) {
 		DBG(("%s: fallback -- composite spans not supported\n",
 		     __FUNCTION__));
 		return false;
 	}
-
-	DBG(("%s: extents (%d, %d), (%d, %d)\n",
-	     __FUNCTION__, extents.x1, extents.y1, extents.x2, extents.y2));
 
 	clip = dst->pCompositeClip;
 	extents = *RegionExtents(clip);
@@ -5669,13 +5686,8 @@ trap_span_converter(PicturePtr dst,
 	     extents.x2, extents.y2,
 	     dx, dy));
 
-	white.red = white.green = white.blue = white.alpha = 0xffff;
-	src = CreateSolidPicture(0, &white, &error);
-	if (src == NULL)
-		return true;
-
 	memset(&tmp, 0, sizeof(tmp));
-	if (!sna->render.composite_spans(sna, PictOpAdd, src, dst,
+	if (!sna->render.composite_spans(sna, PictOpAdd, sna->render.white_picture, dst,
 					 0, 0,
 					 extents.x1,  extents.y1,
 					 extents.x2 - extents.x1,
@@ -5684,7 +5696,6 @@ trap_span_converter(PicturePtr dst,
 					 &tmp)) {
 		DBG(("%s: fallback -- composite spans render op not supported\n",
 		     __FUNCTION__));
-		FreePicture(src, 0);
 		return false;
 	}
 
@@ -5723,7 +5734,6 @@ trap_span_converter(PicturePtr dst,
 skip:
 	tor_fini(&tor);
 	tmp.done(sna, &tmp);
-	FreePicture(src, 0);
 	return true;
 }
 
@@ -6175,7 +6185,7 @@ triangles_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	}
 
 	sna = to_sna_from_drawable(dst->pDrawable);
-	if (!sna->render.composite_spans) {
+	if (!sna->render.check_composite_spans(sna, op, src, dst, 0, 0, 0)) {
 		DBG(("%s: fallback -- composite spans not supported\n",
 		     __FUNCTION__));
 		return false;
@@ -6210,6 +6220,15 @@ triangles_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 		DBG(("%s: triangles do not intersect drawable clips\n",
 		     __FUNCTION__)) ;
 		return true;
+	}
+
+	if (!sna->render.check_composite_spans(sna, op, src, dst,
+					       clip.extents.x2 - clip.extents.x1,
+					       clip.extents.y2 - clip.extents.y1,
+					       0)) {
+		DBG(("%s: fallback -- composite spans not supported\n",
+		     __FUNCTION__));
+		return false;
 	}
 
 	extents = *RegionExtents(&clip);
@@ -6531,7 +6550,7 @@ tristrip_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	}
 
 	sna = to_sna_from_drawable(dst->pDrawable);
-	if (!sna->render.composite_spans) {
+	if (!sna->render.check_composite_spans(sna, op, src, dst, 0, 0, 0)) {
 		DBG(("%s: fallback -- composite spans not supported\n",
 		     __FUNCTION__));
 		return false;
@@ -6566,6 +6585,15 @@ tristrip_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 		DBG(("%s: triangles do not intersect drawable clips\n",
 		     __FUNCTION__)) ;
 		return true;
+	}
+
+	if (!sna->render.check_composite_spans(sna, op, src, dst,
+					       clip.extents.x2 - clip.extents.x1,
+					       clip.extents.y2 - clip.extents.y1,
+					       0)) {
+		DBG(("%s: fallback -- composite spans not supported\n",
+		     __FUNCTION__));
+		return false;
 	}
 
 	extents = *RegionExtents(&clip);

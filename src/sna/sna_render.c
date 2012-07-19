@@ -91,11 +91,19 @@ no_render_composite(struct sna *sna,
 			      dst_x, dst_y,
 			      width, height,
 			      tmp))
-		return TRUE;
+		return true;
 
-	return FALSE;
+	return false;
 	(void)mask_x;
 	(void)mask_y;
+}
+
+static bool
+no_render_check_composite_spans(struct sna *sna,
+				uint8_t op, PicturePtr src, PicturePtr dst,
+				int16_t width,  int16_t height, unsigned flags)
+{
+	return false;
 }
 
 static bool
@@ -107,7 +115,7 @@ no_render_copy_boxes(struct sna *sna, uint8_t alu,
 	DBG(("%s (n=%d)\n", __FUNCTION__, n));
 
 	if (!sna_blt_compare_depth(&src->drawable, &dst->drawable))
-		return FALSE;
+		return false;
 
 	return sna_blt_copy_boxes(sna, alu,
 				  src_bo, src_dx, src_dy,
@@ -128,9 +136,9 @@ no_render_copy(struct sna *sna, uint8_t alu,
 	    sna_blt_copy(sna, alu,
 			 src_bo, dst_bo, dst->drawable.bitsPerPixel,
 			 tmp))
-		return TRUE;
+		return true;
 
-	return FALSE;
+	return false;
 }
 
 static bool
@@ -160,7 +168,7 @@ no_render_fill_boxes(struct sna *sna,
 	}
 
 	if (op != PictOpSrc)
-		return FALSE;
+		return false;
 
 	if (alu == GXcopy &&
 	    !sna_get_pixel_from_rgba(&pixel,
@@ -169,7 +177,7 @@ no_render_fill_boxes(struct sna *sna,
 				     color->blue,
 				     color->alpha,
 				     format))
-		return FALSE;
+		return false;
 
 	return sna_blt_fill_boxes(sna, alu,
 				  dst_bo, dst->drawable.bitsPerPixel,
@@ -267,6 +275,7 @@ void no_render_init(struct sna *sna)
 	render->vertex_size = ARRAY_SIZE(render->vertex_data);
 
 	render->composite = no_render_composite;
+	render->check_composite_spans = no_render_check_composite_spans;
 
 	render->copy_boxes = no_render_copy_boxes;
 	render->copy = no_render_copy;
@@ -1314,7 +1323,7 @@ sna_render_picture_convolve(struct sna *sna,
 	channel->width  = w;
 	channel->filter = PictFilterNearest;
 	channel->repeat = RepeatNone;
-	channel->is_affine = TRUE;
+	channel->is_affine = true;
 	channel->transform = NULL;
 	channel->scale[0] = 1.f / w;
 	channel->scale[1] = 1.f / h;
@@ -1381,7 +1390,7 @@ sna_render_picture_flatten(struct sna *sna,
 	channel->filter = PictFilterNearest;
 	channel->repeat = RepeatNone;
 	channel->pict_format = PIXMAN_a8r8g8b8;
-	channel->is_affine = TRUE;
+	channel->is_affine = true;
 	channel->transform = NULL;
 	channel->scale[0] = 1.f / w;
 	channel->scale[1] = 1.f / h;
@@ -1440,7 +1449,7 @@ sna_render_picture_approximate_gradient(struct sna *sna,
 		return 0;
 	}
 
-	src = image_from_pict(picture, FALSE, &dx, &dy);
+	src = image_from_pict(picture, false, &dx, &dy);
 	if (src == NULL) {
 		pixman_image_unref(dst);
 		kgem_bo_destroy(&sna->kgem, channel->bo);
@@ -1468,7 +1477,7 @@ sna_render_picture_approximate_gradient(struct sna *sna,
 
 	channel->filter = PictFilterNearest;
 	channel->repeat = RepeatNone;
-	channel->is_affine = TRUE;
+	channel->is_affine = true;
 
 	channel->scale[0] = 1.f/w;
 	channel->scale[1] = 1.f/h;
@@ -1561,7 +1570,7 @@ do_fixup:
 		return 0;
 	}
 
-	src = image_from_pict(picture, FALSE, &dx, &dy);
+	src = image_from_pict(picture, false, &dx, &dy);
 	if (src == NULL) {
 		pixman_image_unref(dst);
 		kgem_bo_destroy(&sna->kgem, channel->bo);
@@ -1606,7 +1615,7 @@ do_fixup:
 
 	channel->filter = PictFilterNearest;
 	channel->repeat = RepeatNone;
-	channel->is_affine = TRUE;
+	channel->is_affine = true;
 
 	channel->scale[0] = 1.f/w;
 	channel->scale[1] = 1.f/h;
@@ -1750,7 +1759,7 @@ sna_render_composite_redirect(struct sna *sna,
 	struct kgem_bo *bo;
 
 #if NO_REDIRECT
-	return FALSE;
+	return false;
 #endif
 
 	DBG(("%s: target too large (%dx%d), copying to temporary %dx%d, max %d\n",
@@ -1760,11 +1769,11 @@ sna_render_composite_redirect(struct sna *sna,
 	     sna->render.max_3d_size));
 
 	if (!width || !height)
-		return FALSE;
+		return false;
 
 	if (width  > sna->render.max_3d_size ||
 	    height > sna->render.max_3d_size)
-		return FALSE;
+		return false;
 
 	if (op->dst.bo->pitch <= sna->render.max_3d_pitch) {
 		BoxRec box;
@@ -1842,7 +1851,7 @@ sna_render_composite_redirect(struct sna *sna,
 				t->real_bo = NULL;
 				if (t->damage)
 					__sna_damage_destroy(t->damage);
-				return FALSE;
+				return false;
 			}
 
 			assert(op->dst.bo != t->real_bo);
@@ -1852,7 +1861,7 @@ sna_render_composite_redirect(struct sna *sna,
 			op->dst.y -= box.y1;
 			op->dst.width  = w;
 			op->dst.height = h;
-			return TRUE;
+			return true;
 		}
 	}
 
@@ -1866,7 +1875,7 @@ sna_render_composite_redirect(struct sna *sna,
 					       width, height, bpp),
 			    CREATE_TEMPORARY);
 	if (!bo)
-		return FALSE;
+		return false;
 
 	t->box.x1 = x + op->dst.x;
 	t->box.y1 = y + op->dst.y;
@@ -1881,7 +1890,7 @@ sna_render_composite_redirect(struct sna *sna,
 				bo, -t->box.x1, -t->box.y1,
 				bpp, &t->box, 1)) {
 		kgem_bo_destroy(&sna->kgem, bo);
-		return FALSE;
+		return false;
 	}
 
 	t->real_bo = op->dst.bo;
@@ -1897,7 +1906,7 @@ sna_render_composite_redirect(struct sna *sna,
 	op->dst.y = -y;
 	op->dst.width  = width;
 	op->dst.height = height;
-	return TRUE;
+	return true;
 }
 
 void

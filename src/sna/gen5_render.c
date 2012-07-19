@@ -2729,6 +2729,31 @@ gen5_render_composite_spans_done(struct sna *sna,
 }
 
 static bool
+gen5_check_composite_spans(struct sna *sna,
+			   uint8_t op, PicturePtr src, PicturePtr dst,
+			   int16_t width, int16_t height, unsigned flags)
+{
+	if ((flags & COMPOSITE_SPANS_RECTILINEAR) == 0)
+		return false;
+
+	if (op >= ARRAY_SIZE(gen5_blend_op))
+		return false;
+
+	if (gen5_composite_fallback(sna, src, NULL, dst))
+		return false;
+
+	if (need_tiling(sna, width, height)) {
+		if (!is_gpu(dst->pDrawable)) {
+			DBG(("%s: fallback, tiled operation not on GPU\n",
+			     __FUNCTION__));
+			return false;
+		}
+	}
+
+	return true;
+}
+
+static bool
 gen5_render_composite_spans(struct sna *sna,
 			    uint8_t op,
 			    PicturePtr src,
@@ -2742,25 +2767,11 @@ gen5_render_composite_spans(struct sna *sna,
 	DBG(("%s: %dx%d with flags=%x, current mode=%d\n", __FUNCTION__,
 	     width, height, flags, sna->kgem.ring));
 
-	if ((flags & COMPOSITE_SPANS_RECTILINEAR) == 0)
-		return false;
-
-	if (op >= ARRAY_SIZE(gen5_blend_op))
-		return false;
-
-	if (gen5_composite_fallback(sna, src, NULL, dst))
-		return false;
+	assert(gen5_check_composite_spans(sna, op, src, dst, width, height, flags));
 
 	if (need_tiling(sna, width, height)) {
 		DBG(("%s: tiling, operation (%dx%d) too wide for pipeline\n",
 		     __FUNCTION__, width, height));
-
-		if (!is_gpu(dst->pDrawable)) {
-			DBG(("%s: fallback, tiled operation not on GPU\n",
-			     __FUNCTION__));
-			return false;
-		}
-
 		return sna_tiling_composite_spans(op, src, dst,
 						  src_x, src_y, dst_x, dst_y,
 						  width, height, flags, tmp);
@@ -3924,6 +3935,7 @@ bool gen5_render_init(struct sna *sna)
 
 	sna->render.composite = gen5_render_composite;
 #if !NO_COMPOSITE_SPANS
+	sna->render.check_composite_spans = gen5_check_composite_spans;
 	sna->render.composite_spans = gen5_render_composite_spans;
 #endif
 	sna->render.video = gen5_render_video;
