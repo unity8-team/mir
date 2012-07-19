@@ -168,6 +168,12 @@ static Bool sna_create_screen_resources(ScreenPtr screen)
 	free(screen->devPrivate);
 	screen->devPrivate = NULL;
 
+	if (!sna_accel_create(screen, sna)) {
+		xf86DrvMsg(screen->myNum, X_ERROR,
+			   "[intel] Failed to initialise acceleration routines\n");
+		goto cleanup_front;
+	}
+
 	sna->front = screen->CreatePixmap(screen,
 					  screen->width,
 					  screen->height,
@@ -193,12 +199,6 @@ static Bool sna_create_screen_resources(ScreenPtr screen)
 	}
 
 	screen->SetScreenPixmap(sna->front);
-
-	if (!sna_accel_create(sna)) {
-		xf86DrvMsg(screen->myNum, X_ERROR,
-			   "[intel] Failed to initialise acceleration routines\n");
-		goto cleanup_front;
-	}
 
 	sna_copy_fbcon(sna);
 
