@@ -52,6 +52,7 @@
 #define NO_FILL_CLEAR 0
 
 #define NO_RING_SWITCH 0
+#define PREFER_RENDER 0
 
 #define GEN6_MAX_SIZE 8192
 
@@ -2344,6 +2345,9 @@ gen6_composite_set_target(struct sna *sna,
 
 static bool prefer_blt_ring(struct sna *sna)
 {
+	if (PREFER_RENDER)
+		return PREFER_RENDER < 0;
+
 	return sna->kgem.ring != KGEM_RENDER;
 }
 
@@ -3272,6 +3276,9 @@ static inline bool prefer_blt_copy(struct sna *sna,
 				   PixmapPtr dst, struct kgem_bo *dst_bo,
 				   unsigned flags)
 {
+	if (PREFER_RENDER)
+		return PREFER_RENDER > 0;
+
 	return (sna->kgem.ring == KGEM_BLT ||
 		(flags & COPY_LAST && sna->kgem.mode == KGEM_NONE) ||
 		prefer_blt_bo(sna, src, src_bo) ||
@@ -3647,6 +3654,9 @@ gen6_emit_fill_state(struct sna *sna, const struct sna_composite_op *op)
 static inline bool prefer_blt_fill(struct sna *sna,
 				   struct kgem_bo *bo)
 {
+	if (PREFER_RENDER)
+		return PREFER_RENDER < 0;
+
 	return (can_switch_rings(sna) ||
 		prefer_blt_ring(sna) ||
 		untiled_tlb_miss(bo));
