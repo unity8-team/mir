@@ -388,6 +388,7 @@ enum {
 };
 
 struct gen6_render_state {
+	const struct gt_info *info;
 	struct kgem_bo *general_bo;
 
 	uint32_t vs_state;

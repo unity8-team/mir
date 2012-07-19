@@ -4268,7 +4268,7 @@ static bool gen7_render_setup(struct sna *sna)
 
 	state->info = &gt1_info;
 	if (DEVICE_ID(sna->PciInfo) & 0x20)
-		state->info = &gt2_info;
+		state->info = &gt2_info; /* XXX requires GT_MODE WiZ disabled */
 
 	sna_static_stream_init(&general);
 

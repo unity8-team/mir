@@ -56,6 +56,31 @@
 
 #define GEN6_MAX_SIZE 8192
 
+struct gt_info {
+	int max_vs_threads;
+	int max_gs_threads;
+	int max_wm_threads;
+	struct {
+		int size;
+		int max_vs_entries;
+		int max_gs_entries;
+	} urb;
+};
+
+static const struct gt_info gt1_info = {
+	.max_vs_threads = 24,
+	.max_gs_threads = 21,
+	.max_wm_threads = 40,
+	.urb = { 32, 256, 256 },
+};
+
+static const struct gt_info gt2_info = {
+	.max_vs_threads = 60,
+	.max_gs_threads = 60,
+	.max_wm_threads = 80,
+	.urb = { 64, 256, 256 },
+};
+
 static const uint32_t ps_kernel_nomask_affine[][4] = {
 #include "exa_wm_src_affine.g6b"
 #include "exa_wm_src_sample_argb.g6b"
@@ -422,7 +447,7 @@ gen6_emit_urb(struct sna *sna)
 {
 	OUT_BATCH(GEN6_3DSTATE_URB | (3 - 2));
 	OUT_BATCH(((1 - 1) << GEN6_3DSTATE_URB_VS_SIZE_SHIFT) |
-		  (256 << GEN6_3DSTATE_URB_VS_ENTRIES_SHIFT)); /* at least 24 on GEN6 */
+		  (sna->render_state.gen6.info->urb.max_vs_entries << GEN6_3DSTATE_URB_VS_ENTRIES_SHIFT)); /* at least 24 on GEN6 */
 	OUT_BATCH((0 << GEN6_3DSTATE_URB_GS_SIZE_SHIFT) |
 		  (0 << GEN6_3DSTATE_URB_GS_ENTRIES_SHIFT)); /* no GS thread */
 }
@@ -665,7 +690,7 @@ gen6_emit_wm(struct sna *sna, unsigned int kernel)
 		  wm_kernels[kernel].num_surfaces << GEN6_3DSTATE_WM_BINDING_TABLE_ENTRY_COUNT_SHIFT);
 	OUT_BATCH(0);
 	OUT_BATCH(6 << GEN6_3DSTATE_WM_DISPATCH_START_GRF_0_SHIFT); /* DW4 */
-	OUT_BATCH((40 - 1) << GEN6_3DSTATE_WM_MAX_THREADS_SHIFT |
+	OUT_BATCH((sna->render_state.gen6.info->max_wm_threads - 1) << GEN6_3DSTATE_WM_MAX_THREADS_SHIFT |
 		  GEN6_3DSTATE_WM_DISPATCH_ENABLE |
 		  GEN6_3DSTATE_WM_16_DISPATCH_ENABLE);
 	OUT_BATCH(wm_kernels[kernel].num_inputs << GEN6_3DSTATE_WM_NUM_SF_OUTPUTS_SHIFT |
@@ -4197,6 +4222,10 @@ static bool gen6_render_setup(struct sna *sna)
 	struct sna_static_stream general;
 	struct gen6_sampler_state *ss;
 	int i, j, k, l, m;
+
+	state->info = &gt1_info;
+	if (DEVICE_ID(sna->PciInfo) & 0x20)
+		state->info = &gt2_info; /* XXX requires GT_MODE WiZ disabled */
 
 	sna_static_stream_init(&general);
 
