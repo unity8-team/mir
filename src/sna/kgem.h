@@ -536,10 +536,15 @@ static inline bool kgem_bo_is_dirty(struct kgem_bo *bo)
 	return bo->dirty;
 }
 
-static inline void kgem_bo_mark_dirty(struct kgem_bo *bo)
+static inline void kgem_bo_mark_dirty(struct kgem *kgem, struct kgem_bo *bo)
 {
+	if (bo->dirty)
+		return;
+
 	DBG(("%s: handle=%d\n", __FUNCTION__, bo->handle));
-	bo->dirty = true;
+
+	bo->needs_flush = bo->dirty = true;
+	list_move(&bo->request, &kgem->next_request->buffers);
 }
 
 void kgem_sync(struct kgem *kgem);

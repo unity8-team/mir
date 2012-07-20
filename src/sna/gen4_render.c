@@ -732,7 +732,7 @@ gen4_bind_bo(struct sna *sna,
 	/* After the first bind, we manage the cache domains within the batch */
 	if (is_dst) {
 		domains = I915_GEM_DOMAIN_RENDER << 16 | I915_GEM_DOMAIN_RENDER;
-		kgem_bo_mark_dirty(bo);
+		kgem_bo_mark_dirty(&sna->kgem, bo);
 	} else
 		domains = I915_GEM_DOMAIN_SAMPLER << 16;
 
@@ -1457,7 +1457,7 @@ gen4_emit_state(struct sna *sna,
 		     kgem_bo_is_dirty(op->mask.bo)));
 		OUT_BATCH(MI_FLUSH);
 		kgem_clear_dirty(&sna->kgem);
-		kgem_bo_mark_dirty(op->dst.bo);
+		kgem_bo_mark_dirty(&sna->kgem, op->dst.bo);
 	}
 }
 

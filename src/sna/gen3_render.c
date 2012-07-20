@@ -1373,7 +1373,7 @@ static void gen3_emit_target(struct sna *sna,
 
 		state->current_dst = bo->unique_id;
 	}
-	kgem_bo_mark_dirty(bo);
+	kgem_bo_mark_dirty(&sna->kgem, bo);
 }
 
 static void gen3_emit_composite_state(struct sna *sna,

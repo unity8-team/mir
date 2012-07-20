@@ -349,9 +349,10 @@ void kgem_bo_retire(struct kgem *kgem, struct kgem_bo *bo)
 		assert(list_is_empty(&bo->vma));
 		bo->rq = NULL;
 		list_del(&bo->request);
+
+		bo->needs_flush = false;
 	}
 
-	bo->needs_flush = false;
 	bo->domain = DOMAIN_NONE;
 }
 
@@ -3494,12 +3495,8 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 		kgem->reloc[index].target_handle = bo->handle;
 		kgem->reloc[index].presumed_offset = bo->presumed_offset;
 
-		if (read_write_domain & 0x7fff) {
-			DBG(("%s: marking handle=%d dirty\n",
-			     __FUNCTION__, bo->handle));
-			bo->needs_flush = bo->dirty = true;
-			list_move(&bo->request, &kgem->next_request->buffers);
-		}
+		if (read_write_domain & 0x7ff)
+			kgem_bo_mark_dirty(kgem, bo);
 
 		delta += bo->presumed_offset;
 	} else {
