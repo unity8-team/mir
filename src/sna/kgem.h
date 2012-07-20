@@ -125,7 +125,7 @@ struct kgem {
 	struct list active[NUM_CACHE_BUCKETS][3];
 	struct list inactive[NUM_CACHE_BUCKETS];
 	struct list vmap;
-	struct list batch_partials, active_partials;
+	struct list batch_buffers, active_buffers;
 	struct list requests;
 	struct list sync_list;
 	struct kgem_request *next_request;
@@ -167,7 +167,7 @@ struct kgem {
 	uint32_t max_upload_tile_size, max_copy_tile_size;
 	uint32_t max_gpu_size, max_cpu_size;
 	uint32_t large_object_size, max_object_size;
-	uint32_t partial_buffer_size;
+	uint32_t buffer_size;
 
 	void (*context_switch)(struct kgem *kgem, int new_mode);
 	void (*retire)(struct kgem *kgem);
