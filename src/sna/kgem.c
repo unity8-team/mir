@@ -1104,7 +1104,6 @@ void _kgem_add_bo(struct kgem *kgem, struct kgem_bo *bo)
 
 	/* XXX is it worth working around gcc here? */
 	kgem->flush |= bo->flush;
-	kgem->scanout |= bo->scanout;
 
 	if (bo->sync)
 		kgem->sync = kgem->next_request;
@@ -1990,8 +1989,6 @@ void kgem_reset(struct kgem *kgem)
 	kgem->nbatch = 0;
 	kgem->surface = kgem->batch_size;
 	kgem->mode = KGEM_NONE;
-	kgem->flush = 0;
-	kgem->scanout = 0;
 
 	kgem->next_request = __kgem_request_alloc();
 

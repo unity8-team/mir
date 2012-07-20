@@ -12457,6 +12457,7 @@ sna_accel_flush_callback(CallbackListPtr *list,
 	kgem_sync(&sna->kgem);
 
 	sna->flush = false;
+	sna->kgem.flush = false;
 }
 
 static struct sna_pixmap *sna_accel_scanout(struct sna *sna)
