@@ -2397,27 +2397,8 @@ try_blt(struct sna *sna,
 		return true;
 	}
 
-	if (too_large(dst->pDrawable->width, dst->pDrawable->height)) {
-		DBG(("%s: dst too large for 3D pipe (%d, %d)\n",
-		     __FUNCTION__,
-		     dst->pDrawable->width, dst->pDrawable->height));
+	if (can_switch_rings(sna) && sna_picture_is_solid(src, NULL))
 		return true;
-	}
-
-	if (src->pDrawable &&
-	    too_large(src->pDrawable->width, src->pDrawable->height)) {
-		DBG(("%s: src too large for 3D pipe (%d, %d)\n",
-		     __FUNCTION__,
-		     src->pDrawable->width, src->pDrawable->height));
-		return true;
-	}
-
-	if (can_switch_rings(sna)) {
-		if (sna_picture_is_solid(src, NULL))
-			return true;
-		if (src->pDrawable)
-			return true;
-	}
 
 	return false;
 }
