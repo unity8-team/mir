@@ -791,7 +791,7 @@ static int sna_render_picture_downsample(struct sna *sna,
 						   &op))
 				goto cleanup_src;
 
-			op.boxes(sna, &op, &b, 1);
+			op.box(sna, &op, &b);
 			op.done(sna, &op);
 		}
 	}
