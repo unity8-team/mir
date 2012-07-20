@@ -3972,26 +3972,54 @@ search_snoopable_buffer(struct kgem *kgem, unsigned alloc)
 	return NULL;
 }
 
+static void
+init_buffer_from_bo(struct kgem_partial_bo *bo, struct kgem_bo *old)
+{
+	DBG(("%s: reusing handle=%d for buffer\n",
+	     __FUNCTION__, old->handle));
+
+	memcpy(&bo->base, old, sizeof(*old));
+	if (old->rq)
+		list_replace(&old->request, &bo->base.request);
+	else
+		list_init(&bo->base.request);
+	list_replace(&old->vma, &bo->base.vma);
+	list_init(&bo->base.list);
+	free(old);
+	bo->base.refcnt = 1;
+
+	assert(bo->base.tiling == I915_TILING_NONE);
+}
+
 static struct kgem_partial_bo *
 create_snoopable_buffer(struct kgem *kgem, unsigned alloc)
 {
 	struct kgem_partial_bo *bo;
 
 	if (kgem->has_cacheing) {
+		struct kgem_bo *old;
 		uint32_t handle;
 
-		handle = gem_create(kgem->fd, alloc);
-		if (handle == 0)
+		bo = malloc(sizeof(*bo));
+		if (bo == NULL)
 			return NULL;
 
-		if (!gem_set_cacheing(kgem->fd, handle, SNOOPED)) {
-			gem_close(kgem->fd, handle);
+		old = search_linear_cache(kgem, alloc,
+					 CREATE_INACTIVE | CREATE_CPU_MAP | CREATE_EXACT);
+		if (old) {
+			init_buffer_from_bo(bo, old);
+			return bo;
+		}
+
+		handle = gem_create(kgem->fd, alloc);
+		if (handle == 0) {
+			free(bo);
 			return NULL;
 		}
 
-		bo = malloc(sizeof(*bo));
-		if (bo == NULL) {
+		if (!gem_set_cacheing(kgem->fd, handle, SNOOPED)) {
 			gem_close(kgem->fd, handle);
+			free(bo);
 			return NULL;
 		}
 
@@ -4155,18 +4183,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 		if (old == NULL)
 			old = search_linear_cache(kgem, NUM_PAGES(size), CREATE_INACTIVE | CREATE_CPU_MAP);
 		if (old) {
-			DBG(("%s: reusing handle=%d for buffer\n",
-			     __FUNCTION__, old->handle));
-
-			memcpy(&bo->base, old, sizeof(*old));
-			if (old->rq)
-				list_replace(&old->request, &bo->base.request);
-			else
-				list_init(&bo->base.request);
-			list_replace(&old->vma, &bo->base.vma);
-			list_init(&bo->base.list);
-			free(old);
-			bo->base.refcnt = 1;
+			init_buffer_from_bo(bo, old);
 		} else {
 			uint32_t handle = gem_create(kgem->fd, alloc);
 			if (handle == 0 ||
@@ -4251,16 +4268,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			if (bo == NULL)
 				return NULL;
 
-			memcpy(&bo->base, old, sizeof(*old));
-			if (old->rq)
-				list_replace(&old->request, &bo->base.request);
-			else
-				list_init(&bo->base.request);
-			list_replace(&old->vma, &bo->base.vma);
-			list_init(&bo->base.list);
-			free(old);
-
-			assert(bo->base.tiling == I915_TILING_NONE);
+			init_buffer_from_bo(bo, old);
 			assert(num_pages(&bo->base) >= NUM_PAGES(size));
 
 			bo->mem = kgem_bo_map(kgem, &bo->base);
@@ -4268,11 +4276,11 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 				bo->need_io = false;
 				bo->base.io = true;
 				bo->mmapped = true;
-				bo->base.refcnt = 1;
 
 				alloc = num_pages(&bo->base);
 				goto init;
 			} else {
+				bo->base.refcnt = 0;
 				kgem_bo_free(kgem, &bo->base);
 				bo = NULL;
 			}
@@ -4315,17 +4323,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 		if (bo == NULL)
 			return NULL;
 
-		memcpy(&bo->base, old, sizeof(*old));
-		if (old->rq)
-			list_replace(&old->request,
-				     &bo->base.request);
-		else
-			list_init(&bo->base.request);
-		list_replace(&old->vma, &bo->base.vma);
-		list_init(&bo->base.list);
-		free(old);
-		bo->base.refcnt = 1;
-
+		init_buffer_from_bo(bo, old);
 		bo->need_io = flags & KGEM_BUFFER_WRITE;
 		bo->base.io = true;
 	} else {
@@ -4345,16 +4343,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			DBG(("%s: reusing cpu map handle=%d for buffer\n",
 			     __FUNCTION__, old->handle));
 			alloc = num_pages(old);
-
-			memcpy(&bo->base, old, sizeof(*old));
-			if (old->rq)
-				list_replace(&old->request, &bo->base.request);
-			else
-				list_init(&bo->base.request);
-			list_replace(&old->vma, &bo->base.vma);
-			list_init(&bo->base.list);
-			free(old);
-			bo->base.refcnt = 1;
+			init_buffer_from_bo(bo, old);
 		} else {
 			uint32_t handle = gem_create(kgem->fd, alloc);
 			if (handle == 0 ||
