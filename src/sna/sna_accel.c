@@ -12428,7 +12428,6 @@ sna_accel_flush_callback(CallbackListPtr *list,
 			 pointer user_data, pointer call_data)
 {
 	struct sna *sna = user_data;
-	struct list preserve;
 
 	/* XXX we should be able to reduce the frequency of flushes further
 	 * by checking for outgoing damage events or sync replies. Tricky,
@@ -12438,26 +12437,32 @@ sna_accel_flush_callback(CallbackListPtr *list,
 		return;
 
 	/* flush any pending damage from shadow copies to tfp clients */
-	list_init(&preserve);
-	while (!list_is_empty(&sna->dirty_pixmaps)) {
-		struct sna_pixmap *priv = list_first_entry(&sna->dirty_pixmaps,
-							   struct sna_pixmap,
-							   list);
-		if (!sna_pixmap_move_to_gpu(priv->pixmap, MOVE_READ))
-			list_move(&priv->list, &preserve);
-	}
-	if (!list_is_empty(&preserve)) {
-		sna->dirty_pixmaps.next = preserve.next;
-		preserve.next->prev = &sna->dirty_pixmaps;
-		preserve.prev->next = &sna->dirty_pixmaps;
-		sna->dirty_pixmaps.prev = preserve.prev;
+	if (!list_is_empty(&sna->dirty_pixmaps)) {
+		struct list preserve;
+
+		list_init(&preserve);
+
+		do {
+			struct sna_pixmap *priv;
+
+			priv = list_first_entry(&sna->dirty_pixmaps,
+						struct sna_pixmap, list);
+			if (!sna_pixmap_move_to_gpu(priv->pixmap, MOVE_READ))
+				list_move(&priv->list, &preserve);
+
+		} while (!list_is_empty(&sna->dirty_pixmaps));
+
+		if (!list_is_empty(&preserve)) {
+			sna->dirty_pixmaps.next = preserve.next;
+			preserve.next->prev = &sna->dirty_pixmaps;
+			preserve.prev->next = &sna->dirty_pixmaps;
+			sna->dirty_pixmaps.prev = preserve.prev;
+		}
 	}
 
 	kgem_submit(&sna->kgem);
-
 	kgem_sync(&sna->kgem);
 
-	sna->flush = false;
 	sna->kgem.flush = false;
 }
 
@@ -13121,7 +13126,7 @@ void sna_accel_block_handler(struct sna *sna, struct timeval **tv)
 	if (sna_accel_do_debug_memory(sna))
 		sna_accel_debug_memory(sna);
 
-	if (sna->flush == 0 && sna->watch_flush == 1) {
+	if (sna->watch_flush == 1) {
 		DBG(("%s: removing watchers\n", __FUNCTION__));
 		DeleteCallback(&FlushCallback, sna_accel_flush_callback, sna);
 		sna->watch_flush = 0;

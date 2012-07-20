@@ -192,7 +192,6 @@ struct sna {
 #define SNA_FORCE_SHADOW	0x20
 
 	unsigned watch_flush;
-	unsigned flush;
 
 	struct timeval timer_tv;
 	uint32_t timer_expire[NUM_TIMERS];
