@@ -3242,10 +3242,15 @@ struct kgem_bo *kgem_create_cpu_2d(struct kgem *kgem,
 
 		assert(bo->tiling == I915_TILING_NONE);
 
+		if (!gem_set_cacheing(kgem->fd, bo->handle, SNOOPED)) {
+			kgem_bo_destroy(kgem, bo);
+			return NULL;
+		}
+
 		bo->reusable = false;
 		bo->vmap = true;
-		if (!gem_set_cacheing(kgem->fd, bo->handle, SNOOPED) ||
-		    kgem_bo_map__cpu(kgem, bo) == NULL) {
+
+		if (kgem_bo_map__cpu(kgem, bo) == NULL) {
 			kgem_bo_destroy(kgem, bo);
 			return NULL;
 		}
