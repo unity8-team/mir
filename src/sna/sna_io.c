@@ -170,7 +170,8 @@ fallback:
 		return;
 	}
 
-	can_blt = kgem_bo_can_blt(kgem, src_bo);
+	can_blt = kgem_bo_can_blt(kgem, src_bo) &&
+		(box[0].x2 - box[0].x1) * dst->drawable.bitsPerPixel < 8 * (MAXSHORT - 4);
 	extents = box[0];
 	for (n = 1; n < nbox; n++) {
 		if (box[n].x1 < extents.x1)
@@ -575,7 +576,8 @@ fallback:
 					   box, nbox);
 	}
 
-	can_blt = kgem_bo_can_blt(kgem, dst_bo);
+	can_blt = kgem_bo_can_blt(kgem, dst_bo) &&
+		(box[0].x2 - box[0].x1) * dst->drawable.bitsPerPixel < 8 * (MAXSHORT - 4);
 	extents = box[0];
 	for (n = 1; n < nbox; n++) {
 		if (box[n].x1 < extents.x1)
