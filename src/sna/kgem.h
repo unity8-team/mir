@@ -86,7 +86,6 @@ struct kgem_bo {
 	uint32_t io : 1;
 	uint32_t flush : 1;
 	uint32_t scanout : 1;
-	uint32_t sync : 1;
 	uint32_t purged : 1;
 };
 #define DOMAIN_NONE 0
@@ -130,7 +129,6 @@ struct kgem {
 	struct list requests;
 	struct list sync_list;
 	struct kgem_request *next_request;
-	struct kgem_request *sync;
 
 	struct {
 		struct list inactive[NUM_CACHE_BUCKETS];

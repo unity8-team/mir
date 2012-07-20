@@ -468,7 +468,7 @@ static void sna_pixmap_free_cpu(struct sna *sna, struct sna_pixmap *priv)
 		sna->debug_memory.cpu_bo_allocs--;
 		sna->debug_memory.cpu_bo_bytes -= kgem_bo_size(priv->cpu_bo);
 #endif
-		if (priv->cpu_bo->sync) {
+		if (priv->cpu_bo->flush) {
 			kgem_bo_sync__cpu(&sna->kgem, priv->cpu_bo);
 			sna_accel_watch_flush(sna, -1);
 		}
@@ -1190,7 +1190,7 @@ _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 			priv->cpu = false;
 			list_del(&priv->list);
 			if (priv->cpu_bo) {
-				assert(!priv->cpu_bo->sync);
+				assert(!priv->cpu_bo->flush);
 				sna_pixmap_free_cpu(sna, priv);
 			}
 
@@ -1200,7 +1200,7 @@ _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 
 skip_inplace_map:
 		sna_damage_destroy(&priv->gpu_damage);
-		if (priv->cpu_bo && !priv->cpu_bo->sync && kgem_bo_is_busy(priv->cpu_bo)) {
+		if (priv->cpu_bo && !priv->cpu_bo->flush && kgem_bo_is_busy(priv->cpu_bo)) {
 			if (priv->cpu_bo->exec == NULL)
 				kgem_retire(&sna->kgem);
 
@@ -1262,7 +1262,7 @@ skip_inplace_map:
 	}
 
 	if (priv->clear) {
-		if (priv->cpu_bo && !priv->cpu_bo->sync && kgem_bo_is_busy(priv->cpu_bo))
+		if (priv->cpu_bo && !priv->cpu_bo->flush && kgem_bo_is_busy(priv->cpu_bo))
 			sna_pixmap_free_cpu(sna, priv);
 		sna_damage_destroy(&priv->gpu_damage);
 	}
@@ -1333,8 +1333,10 @@ skip_inplace_map:
 		sna_pixmap_free_gpu(sna, priv);
 		priv->undamaged = false;
 
-		if (priv->flush)
+		if (priv->flush) {
 			list_move(&priv->list, &sna->dirty_pixmaps);
+			sna->kgem.flush |= 1;
+		}
 	}
 
 done:
@@ -1609,7 +1611,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 			}
 		}
 
-		if (priv->cpu_bo && !priv->cpu_bo->sync) {
+		if (priv->cpu_bo && !priv->cpu_bo->flush) {
 			if (sync_will_stall(priv->cpu_bo) && priv->cpu_bo->exec == NULL)
 				kgem_retire(&sna->kgem);
 			if (sync_will_stall(priv->cpu_bo)) {
@@ -1971,8 +1973,10 @@ done:
 			}
 			priv->undamaged = false;
 		}
-		if (priv->flush)
+		if (priv->flush) {
 			list_move(&priv->list, &sna->dirty_pixmaps);
+			sna->kgem.flush |= 1;
+		}
 	}
 
 	if (dx | dy)
@@ -2762,7 +2766,7 @@ done:
 	if (DAMAGE_IS_ALL(priv->gpu_damage)) {
 		priv->undamaged = false;
 		if (priv->ptr) {
-			assert(priv->cpu_bo == NULL || !priv->cpu_bo->sync);
+			assert(priv->cpu_bo == NULL || !priv->cpu_bo->flush);
 			sna_pixmap_free_cpu(sna, priv);
 		}
 	}
@@ -3177,7 +3181,7 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 		if (sync_will_stall(priv->cpu_bo) && priv->cpu_bo->exec == NULL)
 			kgem_retire(&sna->kgem);
 		if (sync_will_stall(priv->cpu_bo)) {
-			if (priv->cpu_bo->sync) {
+			if (priv->cpu_bo->flush) {
 				if (sna_put_image_upload_blt(drawable, gc, region,
 							     x, y, w, h, bits, stride)) {
 					if (!DAMAGE_IS_ALL(priv->gpu_damage)) {
@@ -3221,7 +3225,7 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 					list_del(&priv->list);
 					priv->undamaged = false;
 				}
-				assert(!priv->cpu_bo->sync);
+				assert(!priv->cpu_bo->flush);
 				sna_pixmap_free_cpu(sna, priv);
 			}
 		}
@@ -3291,8 +3295,10 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 				priv->undamaged = false;
 			}
 		}
-		if (priv->flush)
+		if (priv->flush) {
 			list_move(&priv->list, &sna->dirty_pixmaps);
+			sna->kgem.flush |= 1;
+		}
 	}
 	priv->cpu = true;
 
@@ -12428,13 +12434,8 @@ sna_accel_flush_callback(CallbackListPtr *list,
 	 * by checking for outgoing damage events or sync replies. Tricky,
 	 * and doesn't appear to mitigate the performance loss.
 	 */
-	if (!(sna->kgem.flush ||
-	      sna->kgem.sync ||
-	      !list_is_empty(&sna->dirty_pixmaps)))
-	    return;
-
-	DBG(("%s: need_sync=%d, need_flush=%d, dirty? %d\n", __FUNCTION__,
-	     sna->kgem.sync!=NULL, sna->kgem.flush, !list_is_empty(&sna->dirty_pixmaps)));
+	if (!sna->kgem.flush)
+		return;
 
 	/* flush any pending damage from shadow copies to tfp clients */
 	list_init(&preserve);
@@ -12766,7 +12767,7 @@ static void sna_accel_inactive(struct sna *sna)
 			sna_damage_destroy(&priv->cpu_damage);
 			list_del(&priv->list);
 
-			assert(priv->cpu_bo == NULL || !priv->cpu_bo->sync);
+			assert(priv->cpu_bo == NULL || !priv->cpu_bo->flush);
 			sna_pixmap_free_cpu(sna, priv);
 			priv->undamaged = false;
 			priv->cpu = false;

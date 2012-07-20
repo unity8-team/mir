@@ -1104,9 +1104,6 @@ void _kgem_add_bo(struct kgem *kgem, struct kgem_bo *bo)
 
 	/* XXX is it worth working around gcc here? */
 	kgem->flush |= bo->flush;
-
-	if (bo->sync)
-		kgem->sync = kgem->next_request;
 }
 
 static uint32_t kgem_end_batch(struct kgem *kgem)
@@ -1649,9 +1646,6 @@ static bool kgem_retire__requests(struct kgem *kgem)
 				kgem_bo_free(kgem, rq->bo);
 			}
 		}
-
-		if (kgem->sync == rq)
-			kgem->sync = NULL;
 
 		_list_del(&rq->list);
 		free(rq);
@@ -3853,31 +3847,23 @@ void kgem_bo_sync__gtt(struct kgem *kgem, struct kgem_bo *bo)
 
 void kgem_bo_set_sync(struct kgem *kgem, struct kgem_bo *bo)
 {
+	assert(bo->vmap);
 	assert(!bo->reusable);
 	assert(list_is_empty(&bo->list));
 	list_add(&bo->list, &kgem->sync_list);
-	bo->sync = true;
+	bo->flush = true;
 }
 
 void kgem_sync(struct kgem *kgem)
 {
-	struct kgem_request *rq;
 	struct kgem_bo *bo;
 
 	DBG(("%s\n", __FUNCTION__));
 
-	rq = kgem->sync;
-	if (rq == NULL)
-		return;
-
-	if (rq == kgem->next_request)
-		_kgem_submit(kgem);
-
-	kgem_bo_sync__gtt(kgem, rq->bo);
-	list_for_each_entry(bo, &kgem->sync_list, list)
+	list_for_each_entry(bo, &kgem->sync_list, list) {
+		kgem_bo_submit(kgem, bo);
 		kgem_bo_sync__cpu(kgem, bo);
-
-	assert(kgem->sync == NULL);
+	}
 }
 
 void kgem_clear_dirty(struct kgem *kgem)
