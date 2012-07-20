@@ -91,11 +91,10 @@ search_vmap_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags);
 #define MAKE_VMAP_MAP(ptr) ((void*)((uintptr_t)(ptr) | 3))
 #define IS_VMAP_MAP(ptr) ((uintptr_t)(ptr) & 2)
 
-#if defined(USE_VMAP) && !defined(I915_PARAM_HAS_VMAP)
-#define DRM_I915_GEM_VMAP       0x2d
-#define DRM_IOCTL_I915_GEM_VMAP DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_GEM_VMAP, struct drm_i915_gem_vmap)
-#define I915_PARAM_HAS_VMAP              19
-struct drm_i915_gem_vmap {
+#if defined(USE_VMAP)
+#define LOCAL_I915_GEM_VMAP       0x32
+#define LOCAL_IOCTL_I915_GEM_VMAP DRM_IOWR (DRM_COMMAND_BASE + LOCAL_I915_GEM_VMAP, struct local_i915_gem_vmap)
+struct local_i915_gem_vmap {
 	uint64_t user_ptr;
 	uint32_t user_size;
 	uint32_t flags;
@@ -699,6 +698,8 @@ static bool test_has_cacheing(struct kgem *kgem)
 static bool test_has_vmap(struct kgem *kgem)
 {
 #if defined(USE_VMAP)
+	uint32_t handle;
+
 	if (DBG_NO_VMAP)
 		return false;
 
@@ -706,7 +707,12 @@ static bool test_has_vmap(struct kgem *kgem)
 	if (kgem->gen == 40)
 		return false;
 
-	return gem_param(kgem, I915_PARAM_HAS_VMAP) > 0;
+	ptr = malloc(PAGE_SIZE);
+	handle = gem_vmap(kgem->fd, ptr, PAGE_SIZE, false);
+	gem_close(kgem->fd, handle);
+	free(ptr);
+
+	return handle != 0;
 #else
 	return false;
 #endif
@@ -3738,7 +3744,7 @@ uint32_t kgem_bo_flink(struct kgem *kgem, struct kgem_bo *bo)
 #if defined(USE_VMAP)
 static uint32_t gem_vmap(int fd, void *ptr, int size, int read_only)
 {
-	struct drm_i915_gem_vmap vmap;
+	struct local_i915_gem_vmap vmap;
 
 	VG_CLEAR(vmap);
 	vmap.user_ptr = (uintptr_t)ptr;
@@ -3747,7 +3753,7 @@ static uint32_t gem_vmap(int fd, void *ptr, int size, int read_only)
 	if (read_only)
 		vmap.flags |= I915_VMAP_READ_ONLY;
 
-	if (drmIoctl(fd, DRM_IOCTL_I915_GEM_VMAP, &vmap)) {
+	if (drmIoctl(fd, LOCAL_IOCTL_I915_GEM_VMAP, &vmap)) {
 		DBG(("%s: failed to map %p + %d bytes: %d\n",
 		     __FUNCTION__, ptr, size, errno));
 		return 0;
