@@ -3733,12 +3733,10 @@ move_to_gpu(PixmapPtr pixmap, struct sna_pixmap *priv,
 {
 	int w = box->x2 - box->x1;
 	int h = box->y2 - box->y1;
+	int count;
 
 	if (DAMAGE_IS_ALL(priv->gpu_damage))
 		return true;
-
-	if (DAMAGE_IS_ALL(priv->cpu_damage))
-		return false;
 
 	if (priv->gpu_bo) {
 		if (alu != GXcopy)
@@ -3746,22 +3744,29 @@ move_to_gpu(PixmapPtr pixmap, struct sna_pixmap *priv,
 
 		if (!priv->cpu)
 			return true;
+
+		if (priv->gpu_bo->tiling)
+			return true;
 	} else {
 		if ((priv->create & KGEM_CAN_CREATE_GPU) == 0)
 			return false;
 	}
 
+	count = priv->source_count++;
 	if (priv->cpu_bo) {
-		if (sna_pixmap_choose_tiling(pixmap, DEFAULT_TILING) == I915_TILING_NONE)
+		if (priv->cpu_bo->flush && count > SOURCE_BIAS)
+			return true;
+
+		if (sna_pixmap_choose_tiling(pixmap,
+					     DEFAULT_TILING) == I915_TILING_NONE)
 			return false;
 
 		if (priv->cpu)
 			return false;
 
-		return (priv->source_count++-SOURCE_BIAS) * w*h >=
-			(int)pixmap->drawable.width * pixmap->drawable.height;
+		return count > SOURCE_BIAS;
 	} else {
-		return ++priv->source_count * w*h >= (SOURCE_BIAS+2) * (int)pixmap->drawable.width * pixmap->drawable.height;
+		return count * w*h >= (SOURCE_BIAS+2) * (int)pixmap->drawable.width * pixmap->drawable.height;
 	}
 }
 
