@@ -426,6 +426,7 @@ static void set_bo(PixmapPtr pixmap, struct kgem_bo *bo)
 static void sna_dri_select_mode(struct sna *sna, struct kgem_bo *src, bool sync)
 {
 	struct drm_i915_gem_busy busy;
+	int mode;
 
 	if (sna->kgem.gen < 60)
 		return;
@@ -463,11 +464,14 @@ static void sna_dri_select_mode(struct sna *sna, struct kgem_bo *src, bool sync)
 	 * our operation on the same ring, and ideally on the same
 	 * ring as we will flip from (which should be the RENDER ring
 	 * as well).
+	 *
+	 * The ultimate question is whether preserving the ring outweighs
+	 * the cost of the query.
 	 */
-	if ((busy.busy & 0xffff0000) == 0 || busy.busy & (1 << 16))
-		kgem_set_mode(&sna->kgem, KGEM_RENDER);
-	else
-		kgem_set_mode(&sna->kgem, KGEM_BLT);
+	mode = KGEM_RENDER;
+	if (busy.busy & (1 << 16))
+		mode = KGEM_BLT;
+	_kgem_set_mode(&sna->kgem, mode);
 }
 
 static struct kgem_bo *
