@@ -2028,6 +2028,13 @@ bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
 	return true;
 }
 
+static inline uint32_t add2(uint32_t v, int16_t x, int16_t y)
+{
+	x += v & 0xffff;
+	y += v >> 16;
+	return (uint16_t)y << 16 | x;
+}
+
 bool sna_blt_copy_boxes(struct sna *sna, uint8_t alu,
 			struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
 			struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
@@ -2104,56 +2111,110 @@ bool sna_blt_copy_boxes(struct sna *sna, uint8_t alu,
 		_kgem_set_mode(kgem, KGEM_BLT);
 	}
 
-	do {
-		int nbox_this_time;
-
-		nbox_this_time = nbox;
-		if (8*nbox_this_time > kgem->surface - kgem->nbatch - KGEM_BATCH_RESERVED)
-			nbox_this_time = (kgem->surface - kgem->nbatch - KGEM_BATCH_RESERVED) / 8;
-		if (2*nbox_this_time > KGEM_RELOC_SIZE(kgem) - kgem->nreloc)
-			nbox_this_time = (KGEM_RELOC_SIZE(kgem) - kgem->nreloc)/2;
-		assert(nbox_this_time);
-		nbox -= nbox_this_time;
-
+	if ((dst_dx | dst_dy) == 0) {
+		uint64_t hdr = (uint64_t)br13 << 32 | cmd;
 		do {
-			uint32_t *b = kgem->batch + kgem->nbatch;
+			int nbox_this_time;
 
-			DBG(("  %s: box=(%d, %d)x(%d, %d)\n",
-			     __FUNCTION__,
-			     box->x1, box->y1,
-			     box->x2 - box->x1, box->y2 - box->y1));
+			nbox_this_time = nbox;
+			if (8*nbox_this_time > kgem->surface - kgem->nbatch - KGEM_BATCH_RESERVED)
+				nbox_this_time = (kgem->surface - kgem->nbatch - KGEM_BATCH_RESERVED) / 8;
+			if (2*nbox_this_time > KGEM_RELOC_SIZE(kgem) - kgem->nreloc)
+				nbox_this_time = (KGEM_RELOC_SIZE(kgem) - kgem->nreloc)/2;
+			assert(nbox_this_time);
+			nbox -= nbox_this_time;
 
-			assert(box->x1 + src_dx >= 0);
-			assert(box->y1 + src_dy >= 0);
+			do {
+				uint32_t *b = kgem->batch + kgem->nbatch;
 
-			assert(box->x1 + dst_dx >= 0);
-			assert(box->y1 + dst_dy >= 0);
+				DBG(("  %s: box=(%d, %d)x(%d, %d)\n",
+				     __FUNCTION__,
+				     box->x1, box->y1,
+				     box->x2 - box->x1, box->y2 - box->y1));
 
-			b[0] = cmd;
-			b[1] = br13;
-			b[2] = ((box->y1 + dst_dy) << 16) | (box->x1 + dst_dx);
-			b[3] = ((box->y2 + dst_dy) << 16) | (box->x2 + dst_dx);
-			b[4] = kgem_add_reloc(kgem, kgem->nbatch + 4, dst_bo,
-					      I915_GEM_DOMAIN_RENDER << 16 |
-					      I915_GEM_DOMAIN_RENDER |
-					      KGEM_RELOC_FENCED,
-					      0);
-			b[5] = ((box->y1 + src_dy) << 16) | (box->x1 + src_dx);
-			b[6] = src_pitch;
-			b[7] = kgem_add_reloc(kgem, kgem->nbatch + 7, src_bo,
-					      I915_GEM_DOMAIN_RENDER << 16 |
-					      KGEM_RELOC_FENCED,
-					      0);
-			kgem->nbatch += 8;
-			box++;
-		} while (--nbox_this_time);
+				assert(box->x1 + src_dx >= 0);
+				assert(box->y1 + src_dy >= 0);
+				assert(box->x1 + src_dx <= MAX_SHORT);
+				assert(box->y1 + src_dy <= MAX_SHORT);
 
-		if (!nbox)
-			break;
+				assert(box->x1 >= 0);
+				assert(box->y1 >= 0);
 
-		_kgem_submit(kgem);
-		_kgem_set_mode(kgem, KGEM_BLT);
-	} while (1);
+				*(uint64_t *)&b[0] = hdr;
+				*(uint64_t *)&b[2] = *(uint64_t *)box;
+				b[4] = kgem_add_reloc(kgem, kgem->nbatch + 4, dst_bo,
+						      I915_GEM_DOMAIN_RENDER << 16 |
+						      I915_GEM_DOMAIN_RENDER |
+						      KGEM_RELOC_FENCED,
+						      0);
+				b[5] = add2(b[2], src_dx, src_dy);
+				b[6] = src_pitch;
+				b[7] = kgem_add_reloc(kgem, kgem->nbatch + 7, src_bo,
+						      I915_GEM_DOMAIN_RENDER << 16 |
+						      KGEM_RELOC_FENCED,
+						      0);
+				kgem->nbatch += 8;
+				box++;
+			} while (--nbox_this_time);
+
+			if (!nbox)
+				break;
+
+			_kgem_submit(kgem);
+			_kgem_set_mode(kgem, KGEM_BLT);
+		} while (1);
+	} else {
+		do {
+			int nbox_this_time;
+
+			nbox_this_time = nbox;
+			if (8*nbox_this_time > kgem->surface - kgem->nbatch - KGEM_BATCH_RESERVED)
+				nbox_this_time = (kgem->surface - kgem->nbatch - KGEM_BATCH_RESERVED) / 8;
+			if (2*nbox_this_time > KGEM_RELOC_SIZE(kgem) - kgem->nreloc)
+				nbox_this_time = (KGEM_RELOC_SIZE(kgem) - kgem->nreloc)/2;
+			assert(nbox_this_time);
+			nbox -= nbox_this_time;
+
+			do {
+				uint32_t *b = kgem->batch + kgem->nbatch;
+
+				DBG(("  %s: box=(%d, %d)x(%d, %d)\n",
+				     __FUNCTION__,
+				     box->x1, box->y1,
+				     box->x2 - box->x1, box->y2 - box->y1));
+
+				assert(box->x1 + src_dx >= 0);
+				assert(box->y1 + src_dy >= 0);
+
+				assert(box->x1 + dst_dx >= 0);
+				assert(box->y1 + dst_dy >= 0);
+
+				b[0] = cmd;
+				b[1] = br13;
+				b[2] = ((box->y1 + dst_dy) << 16) | (box->x1 + dst_dx);
+				b[3] = ((box->y2 + dst_dy) << 16) | (box->x2 + dst_dx);
+				b[4] = kgem_add_reloc(kgem, kgem->nbatch + 4, dst_bo,
+						      I915_GEM_DOMAIN_RENDER << 16 |
+						      I915_GEM_DOMAIN_RENDER |
+						      KGEM_RELOC_FENCED,
+						      0);
+				b[5] = ((box->y1 + src_dy) << 16) | (box->x1 + src_dx);
+				b[6] = src_pitch;
+				b[7] = kgem_add_reloc(kgem, kgem->nbatch + 7, src_bo,
+						      I915_GEM_DOMAIN_RENDER << 16 |
+						      KGEM_RELOC_FENCED,
+						      0);
+				kgem->nbatch += 8;
+				box++;
+			} while (--nbox_this_time);
+
+			if (!nbox)
+				break;
+
+			_kgem_submit(kgem);
+			_kgem_set_mode(kgem, KGEM_BLT);
+		} while (1);
+	}
 
 	if (kgem->gen >= 60 && kgem_check_batch(kgem, 3)) {
 		uint32_t *b = kgem->batch + kgem->nbatch;
