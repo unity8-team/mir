@@ -60,7 +60,6 @@
 #define USE_INPLACE 1
 #define USE_WIDE_SPANS 0 /* -1 force CPU, 1 force GPU */
 #define USE_ZERO_SPANS 1 /* -1 force CPU, 1 force GPU */
-#define USE_SHM_VMAP 1
 
 #define MIGRATE_ALL 0
 #define DBG_NO_CPU_UPLOAD 0
@@ -13053,7 +13052,7 @@ bool sna_accel_init(ScreenPtr screen, struct sna *sna)
 	assert(screen->SetWindowPixmap == NULL);
 	screen->SetWindowPixmap = sna_set_window_pixmap;
 
-	if (USE_SHM_VMAP && sna->kgem.has_vmap)
+	if (sna->kgem.has_userptr)
 		ShmRegisterFuncs(screen, &shm_funcs);
 	else
 		ShmRegisterFbFuncs(screen);

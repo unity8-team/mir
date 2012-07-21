@@ -60,7 +60,7 @@ search_snoop_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags);
 #define DBG_NO_TILING 0
 #define DBG_NO_CACHE 0
 #define DBG_NO_CACHE_LEVEL 0
-#define DBG_NO_VMAP 0
+#define DBG_NO_USERPTR 0
 #define DBG_NO_LLC 0
 #define DBG_NO_SEMAPHORES 0
 #define DBG_NO_MADV 0
@@ -88,17 +88,17 @@ search_snoop_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags);
 
 #define MAP(ptr) ((void*)((uintptr_t)(ptr) & ~3))
 #define MAKE_CPU_MAP(ptr) ((void*)((uintptr_t)(ptr) | 1))
-#define MAKE_VMAP_MAP(ptr) ((void*)((uintptr_t)(ptr) | 3))
-#define IS_VMAP_MAP(ptr) ((uintptr_t)(ptr) & 2)
+#define MAKE_USER_MAP(ptr) ((void*)((uintptr_t)(ptr) | 3))
+#define IS_USER_MAP(ptr) ((uintptr_t)(ptr) & 2)
 #define __MAP_TYPE(ptr) ((uintptr_t)(ptr) & 3)
 
-#define LOCAL_I915_GEM_VMAP       0x32
-#define LOCAL_IOCTL_I915_GEM_VMAP DRM_IOWR (DRM_COMMAND_BASE + LOCAL_I915_GEM_VMAP, struct local_i915_gem_vmap)
-struct local_i915_gem_vmap {
+#define LOCAL_I915_GEM_USERPTR       0x32
+#define LOCAL_IOCTL_I915_GEM_USERPTR DRM_IOWR (DRM_COMMAND_BASE + LOCAL_I915_GEM_USERPTR, struct local_i915_gem_userptr)
+struct local_i915_gem_userptr {
 	uint64_t user_ptr;
 	uint32_t user_size;
 	uint32_t flags;
-#define I915_VMAP_READ_ONLY 0x1
+#define I915_USERPTR_READ_ONLY 0x1
 	uint32_t handle;
 };
 
@@ -195,24 +195,24 @@ static bool gem_set_cacheing(int fd, uint32_t handle, int cacheing)
 	return drmIoctl(fd, LOCAL_IOCTL_I915_GEM_SET_CACHEING, &arg) == 0;
 }
 
-static uint32_t gem_vmap(int fd, void *ptr, int size, int read_only)
+static uint32_t gem_userptr(int fd, void *ptr, int size, int read_only)
 {
-	struct local_i915_gem_vmap vmap;
+	struct local_i915_gem_userptr arg;
 
-	VG_CLEAR(vmap);
-	vmap.user_ptr = (uintptr_t)ptr;
-	vmap.user_size = size;
-	vmap.flags = 0;
+	VG_CLEAR(arg);
+	arg.user_ptr = (uintptr_t)ptr;
+	arg.user_size = size;
+	arg.flags = 0;
 	if (read_only)
-		vmap.flags |= I915_VMAP_READ_ONLY;
+		arg.flags |= I915_USERPTR_READ_ONLY;
 
-	if (drmIoctl(fd, LOCAL_IOCTL_I915_GEM_VMAP, &vmap)) {
+	if (drmIoctl(fd, LOCAL_IOCTL_I915_GEM_USERPTR, &arg)) {
 		DBG(("%s: failed to map %p + %d bytes: %d\n",
 		     __FUNCTION__, ptr, size, errno));
 		return 0;
 	}
 
-	return vmap.handle;
+	return arg.handle;
 }
 
 static bool __kgem_throttle_retire(struct kgem *kgem, unsigned flags)
@@ -716,13 +716,13 @@ static bool test_has_cacheing(struct kgem *kgem)
 	return ret;
 }
 
-static bool test_has_vmap(struct kgem *kgem)
+static bool test_has_userptr(struct kgem *kgem)
 {
-#if defined(USE_VMAP)
+#if defined(USE_USERPTR)
 	uint32_t handle;
 	void *ptr;
 
-	if (DBG_NO_VMAP)
+	if (DBG_NO_USERPTR)
 		return false;
 
 	/* Incoherent blt and sampler hangs the GPU */
@@ -730,7 +730,7 @@ static bool test_has_vmap(struct kgem *kgem)
 		return false;
 
 	ptr = malloc(PAGE_SIZE);
-	handle = gem_vmap(kgem->fd, ptr, PAGE_SIZE, false);
+	handle = gem_userptr(kgem->fd, ptr, PAGE_SIZE, false);
 	gem_close(kgem->fd, handle);
 	free(ptr);
 
@@ -781,9 +781,9 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	DBG(("%s: has set-cache-level? %d\n", __FUNCTION__,
 	     kgem->has_cacheing));
 
-	kgem->has_vmap = test_has_vmap(kgem);
-	DBG(("%s: has vmap? %d\n", __FUNCTION__,
-	     kgem->has_vmap));
+	kgem->has_userptr = test_has_userptr(kgem);
+	DBG(("%s: has userptr? %d\n", __FUNCTION__,
+	     kgem->has_userptr));
 
 	kgem->has_semaphores = false;
 	if (kgem->has_blt && test_has_semaphores_enabled())
@@ -846,9 +846,9 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 
 	kgem->next_request = __kgem_request_alloc();
 
-	DBG(("%s: cpu bo enabled %d: llc? %d, set-cache-level? %d, vmap? %d\n", __FUNCTION__,
-	     kgem->has_llc | kgem->has_vmap | kgem->has_cacheing,
-	     kgem->has_llc, kgem->has_cacheing, kgem->has_vmap));
+	DBG(("%s: cpu bo enabled %d: llc? %d, set-cache-level? %d, userptr? %d\n", __FUNCTION__,
+	     kgem->has_llc | kgem->has_userptr | kgem->has_cacheing,
+	     kgem->has_llc, kgem->has_cacheing, kgem->has_userptr));
 
 	VG_CLEAR(aperture);
 	aperture.aper_size = 64*1024*1024;
@@ -919,7 +919,7 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	kgem->large_object_size = MAX_CACHE_SIZE;
 	if (kgem->large_object_size > kgem->max_gpu_size)
 		kgem->large_object_size = kgem->max_gpu_size;
-	if (kgem->has_llc | kgem->has_cacheing | kgem->has_vmap) {
+	if (kgem->has_llc | kgem->has_cacheing | kgem->has_userptr) {
 		if (kgem->large_object_size > kgem->max_cpu_size)
 			kgem->large_object_size = kgem->max_cpu_size;
 	} else
@@ -1174,7 +1174,7 @@ static void kgem_bo_release_map(struct kgem *kgem, struct kgem_bo *bo)
 {
 	int type = IS_CPU_MAP(bo->map);
 
-	assert(!IS_VMAP_MAP(bo->map));
+	assert(!IS_USER_MAP(bo->map));
 
 	DBG(("%s: releasing %s vma for handle=%d, count=%d\n",
 	     __FUNCTION__, type ? "CPU" : "GTT",
@@ -1204,7 +1204,7 @@ static void kgem_bo_free(struct kgem *kgem, struct kgem_bo *bo)
 
 	kgem_bo_binding_free(kgem, bo);
 
-	if (IS_VMAP_MAP(bo->map)) {
+	if (IS_USER_MAP(bo->map)) {
 		assert(bo->rq == NULL);
 		assert(MAP(bo->map) != bo || bo->io);
 		if (bo != MAP(bo->map)) {
@@ -3296,7 +3296,7 @@ struct kgem_bo *kgem_create_cpu_2d(struct kgem *kgem,
 		return bo;
 	}
 
-	if (kgem->has_vmap) {
+	if (kgem->has_userptr) {
 		void *ptr;
 
 		/* XXX */
@@ -3310,7 +3310,7 @@ struct kgem_bo *kgem_create_cpu_2d(struct kgem *kgem,
 			return NULL;
 		}
 
-		bo->map = MAKE_VMAP_MAP(ptr);
+		bo->map = MAKE_USER_MAP(ptr);
 		bo->pitch = stride;
 		return bo;
 	}
@@ -3788,10 +3788,10 @@ struct kgem_bo *kgem_create_map(struct kgem *kgem,
 	struct kgem_bo *bo;
 	uint32_t handle;
 
-	if (!kgem->has_vmap)
+	if (!kgem->has_userptr)
 		return NULL;
 
-	handle = gem_vmap(kgem->fd, ptr, size, read_only);
+	handle = gem_userptr(kgem->fd, ptr, size, read_only);
 	if (handle == 0)
 		return NULL;
 
@@ -4052,7 +4052,7 @@ create_snoopable_buffer(struct kgem *kgem, unsigned alloc)
 		return bo;
 	}
 
-	if (kgem->has_vmap) {
+	if (kgem->has_userptr) {
 		bo = buffer_alloc();
 		if (bo == NULL)
 			return NULL;
@@ -4063,7 +4063,7 @@ create_snoopable_buffer(struct kgem *kgem, unsigned alloc)
 			return NULL;
 		}
 
-		handle = gem_vmap(kgem->fd, bo->mem, alloc * PAGE_SIZE, false);
+		handle = gem_userptr(kgem->fd, bo->mem, alloc * PAGE_SIZE, false);
 		if (handle == 0) {
 			free(bo->mem);
 			free(bo);
@@ -4081,7 +4081,7 @@ create_snoopable_buffer(struct kgem *kgem, unsigned alloc)
 		bo->base.refcnt = 1;
 		bo->base.snoop = true;
 		bo->base.reusable = false;
-		bo->base.map = MAKE_VMAP_MAP(bo->mem);
+		bo->base.map = MAKE_USER_MAP(bo->mem);
 
 		return bo;
 	}

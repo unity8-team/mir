@@ -149,7 +149,7 @@ struct kgem {
 	uint32_t need_throttle:1;
 	uint32_t busy:1;
 
-	uint32_t has_vmap :1;
+	uint32_t has_userptr :1;
 	uint32_t has_blt :1;
 	uint32_t has_relaxed_fencing :1;
 	uint32_t has_relaxed_delta :1;

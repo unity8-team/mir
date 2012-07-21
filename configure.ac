@@ -247,14 +247,14 @@ if test "x$accel" = xno; then
 	AC_MSG_ERROR([No default acceleration option])
 fi
 
-AC_ARG_ENABLE(vmap,
-	      AS_HELP_STRING([--enable-vmap],
-			     [Enable use of vmap (experimental) [default=no]]),
-	      [VMAP="$enableval"],
-	      [VMAP=no])
-AM_CONDITIONAL(USE_VMAP, test x$VMAP = xyes)
-if test "x$VMAP" = xyes; then
-	AC_DEFINE(USE_VMAP,1,[Assume VMAP support])
+AC_ARG_ENABLE(userptr,
+	      AS_HELP_STRING([--enable-userptr],
+			     [Enable use of userptr (experimental) [default=no]]),
+	      [USERPTR="$enableval"],
+	      [USERPTR=no])
+AM_CONDITIONAL(USE_USERPTR, test x$USERPTR = xyes)
+if test "x$USERPTR" = xyes; then
+	AC_DEFINE(USE_USERPTR,1,[Assume USERPTR support])
 fi
 
 AC_ARG_ENABLE(async-swap,
