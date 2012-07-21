@@ -461,6 +461,7 @@ static void sna_pixmap_free_cpu(struct sna *sna, struct sna_pixmap *priv)
 #endif
 		if (priv->cpu_bo->flush) {
 			kgem_bo_sync__cpu(&sna->kgem, priv->cpu_bo);
+			priv->cpu_bo->reusable = false;
 			sna_accel_watch_flush(sna, -1);
 		}
 		kgem_bo_destroy(&sna->kgem, priv->cpu_bo);

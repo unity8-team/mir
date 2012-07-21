@@ -1431,14 +1431,14 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 			     __FUNCTION__, bo->handle));
 			/* transfer the handle to a minimum bo */
 			memcpy(base, bo, sizeof(*base));
-			base->reusable = true;
 			base->io = false;
 			list_init(&base->list);
 			list_replace(&bo->request, &base->request);
 			list_replace(&bo->vma, &base->vma);
 			free(bo);
 			bo = base;
-		}
+		} else
+			bo->reusable = false;
 	}
 
 	if (!bo->reusable) {
@@ -1749,7 +1749,8 @@ static void kgem_commit(struct kgem *kgem)
 		bo->presumed_offset = bo->exec->offset;
 		bo->exec = NULL;
 
-		if (!bo->refcnt && !bo->reusable && !bo->snoop) {
+		if (!bo->refcnt && !bo->reusable) {
+			assert(!bo->snoop);
 			kgem_bo_free(kgem, bo);
 			continue;
 		}
@@ -3801,7 +3802,6 @@ struct kgem_bo *kgem_create_map(struct kgem *kgem,
 		return NULL;
 	}
 
-	bo->reusable = false;
 	bo->snoop = true;
 
 	debug_alloc__bo(kgem, bo);
@@ -4040,7 +4040,6 @@ create_snoopable_buffer(struct kgem *kgem, unsigned alloc)
 		assert(bo->mmapped == true);
 		assert(bo->need_io == false);
 
-		bo->base.reusable = false;
 		bo->base.snoop = true;
 
 		bo->mem = kgem_bo_map__cpu(kgem, &bo->base);
@@ -4080,7 +4079,6 @@ create_snoopable_buffer(struct kgem *kgem, unsigned alloc)
 
 		bo->base.refcnt = 1;
 		bo->base.snoop = true;
-		bo->base.reusable = false;
 		bo->base.map = MAKE_USER_MAP(bo->mem);
 
 		return bo;
@@ -4408,7 +4406,6 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 	}
 init:
 	bo->base.io = true;
-	bo->base.reusable = false;
 	assert(bo->base.refcnt == 1);
 	assert(num_pages(&bo->base) == alloc);
 	assert(!bo->need_io || !bo->base.needs_flush);
