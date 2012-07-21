@@ -423,7 +423,7 @@ static inline int __kgem_buffer_size(struct kgem_bo *bo)
 
 static inline int __kgem_bo_size(struct kgem_bo *bo)
 {
-	assert(!(bo->proxy && bo->io));
+	assert(bo->proxy == NULL);
 	return PAGE_SIZE * bo->size.pages.count;
 }
 

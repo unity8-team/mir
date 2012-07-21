@@ -127,7 +127,7 @@ static struct drm_i915_gem_exec_object2 _kgem_dummy_exec;
 
 static inline int bytes(struct kgem_bo *bo)
 {
-	return kgem_bo_size(bo);
+	return __kgem_bo_size(bo);
 }
 
 #define bucket(B) (B)->size.pages.bucket
