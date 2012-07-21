@@ -10701,10 +10701,11 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 					       pixmap->drawable.width,
 					       pixmap->drawable.height);
 				priv->undamaged = false;
-				priv->cpu = false;
 			}
 			hint |= IGNORE_CPU;
 		}
+		if (priv->cpu_damage == NULL)
+			priv->cpu = false;
 	}
 
 	bo = sna_drawable_use_bo(draw, hint, &region.extents, &damage);
