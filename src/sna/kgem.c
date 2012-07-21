@@ -3284,8 +3284,6 @@ struct kgem_bo *kgem_create_cpu_2d(struct kgem *kgem,
 			kgem_bo_destroy(kgem, bo);
 			return NULL;
 		}
-
-		bo->reusable = false;
 		bo->snoop = true;
 
 		if (kgem_bo_map__cpu(kgem, bo) == NULL) {
@@ -3803,7 +3801,6 @@ struct kgem_bo *kgem_create_map(struct kgem *kgem,
 	}
 
 	bo->snoop = true;
-
 	debug_alloc__bo(kgem, bo);
 
 	DBG(("%s(ptr=%p, size=%d, pages=%d, read_only=%d) => handle=%d\n",
@@ -4024,12 +4021,6 @@ create_snoopable_buffer(struct kgem *kgem, unsigned alloc)
 				return NULL;
 			}
 
-			if (!gem_set_cacheing(kgem->fd, handle, SNOOPED)) {
-				gem_close(kgem->fd, handle);
-				free(bo);
-				return NULL;
-			}
-
 			debug_alloc(kgem, alloc);
 			__kgem_bo_init(&bo->base, handle, alloc);
 			DBG(("%s: created CPU handle=%d for buffer, size %d\n",
@@ -4040,15 +4031,20 @@ create_snoopable_buffer(struct kgem *kgem, unsigned alloc)
 		assert(bo->mmapped == true);
 		assert(bo->need_io == false);
 
+		if (!gem_set_cacheing(kgem->fd, bo->base.handle, SNOOPED))
+			goto free_cacheing;
+
 		bo->base.snoop = true;
 
 		bo->mem = kgem_bo_map__cpu(kgem, &bo->base);
-		if (bo->mem == NULL) {
-			bo->base.refcnt = 0; /* for valgrind */
-			kgem_bo_free(kgem, &bo->base);
-			bo = NULL;
-		}
+		if (bo->mem == NULL)
+			goto free_cacheing;
+
 		return bo;
+
+free_cacheing:
+		bo->base.refcnt = 0; /* for valgrind */
+		kgem_bo_free(kgem, &bo->base);
 	}
 
 	if (kgem->has_userptr) {
