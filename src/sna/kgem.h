@@ -82,7 +82,7 @@ struct kgem_bo {
 	uint32_t dirty : 1;
 	uint32_t domain : 2;
 	uint32_t needs_flush : 1;
-	uint32_t vmap : 1;
+	uint32_t snoop : 1;
 	uint32_t io : 1;
 	uint32_t flush : 1;
 	uint32_t scanout : 1;
@@ -124,7 +124,7 @@ struct kgem {
 	struct list large;
 	struct list active[NUM_CACHE_BUCKETS][3];
 	struct list inactive[NUM_CACHE_BUCKETS];
-	struct list vmap;
+	struct list snoop;
 	struct list batch_buffers, active_buffers;
 	struct list requests;
 	struct kgem_request *next_request;
@@ -503,11 +503,11 @@ static inline bool kgem_bo_can_map(struct kgem *kgem, struct kgem_bo *bo)
 	return kgem_bo_size(bo) <= kgem->aperture_mappable / 4;
 }
 
-static inline bool kgem_bo_is_vmap(struct kgem_bo *bo)
+static inline bool kgem_bo_is_snoop(struct kgem_bo *bo)
 {
 	while (bo->proxy)
 		bo = bo->proxy;
-	return bo->vmap;
+	return bo->snoop;
 }
 
 static inline bool kgem_bo_is_busy(struct kgem_bo *bo)

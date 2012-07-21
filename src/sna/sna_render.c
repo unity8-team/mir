@@ -310,7 +310,7 @@ use_cpu_bo(struct sna *sna, PixmapPtr pixmap, const BoxRec *box, bool blt)
 		return NULL;
 	}
 
-	if (priv->cpu_bo->vmap && priv->source_count > SOURCE_BIAS) {
+	if (priv->cpu_bo->snoop && priv->source_count > SOURCE_BIAS) {
 		DBG(("%s: promoting snooped CPU bo due to reuse\n",
 		     __FUNCTION__));
 		return NULL;
@@ -558,7 +558,7 @@ sna_render_pixmap_bo(struct sna *sna,
 
 		if (priv->cpu_bo &&
 		    (DAMAGE_IS_ALL(priv->cpu_damage) || !priv->gpu_damage) &&
-		    !priv->cpu_bo->vmap && priv->cpu_bo->pitch < 4096) {
+		    !priv->cpu_bo->snoop && priv->cpu_bo->pitch < 4096) {
 			DBG(("%s: CPU all damaged\n", __FUNCTION__));
 			channel->bo = priv->cpu_bo;
 			goto done;

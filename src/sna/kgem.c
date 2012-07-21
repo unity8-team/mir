@@ -54,7 +54,7 @@ static struct kgem_bo *
 search_linear_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags);
 
 static struct kgem_bo *
-search_vmap_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags);
+search_snoop_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags);
 
 #define DBG_NO_HW 0
 #define DBG_NO_TILING 0
@@ -830,7 +830,7 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	list_init(&kgem->requests);
 	list_init(&kgem->flushing);
 	list_init(&kgem->large);
-	list_init(&kgem->vmap);
+	list_init(&kgem->snoop);
 	for (i = 0; i < ARRAY_SIZE(kgem->inactive); i++)
 		list_init(&kgem->inactive[i]);
 	for (i = 0; i < ARRAY_SIZE(kgem->active); i++) {
@@ -1195,7 +1195,7 @@ static void kgem_bo_free(struct kgem *kgem, struct kgem_bo *bo)
 	DBG(("%s: handle=%d\n", __FUNCTION__, bo->handle));
 	assert(bo->refcnt == 0);
 	assert(bo->exec == NULL);
-	assert(!bo->vmap || bo->rq == NULL);
+	assert(!bo->snoop || bo->rq == NULL);
 
 #ifdef DEBUG_MEMORY
 	kgem->debug_memory.bo_allocs--;
@@ -1208,7 +1208,7 @@ static void kgem_bo_free(struct kgem *kgem, struct kgem_bo *bo)
 		assert(bo->rq == NULL);
 		assert(MAP(bo->map) != bo || bo->io);
 		if (bo != MAP(bo->map)) {
-			DBG(("%s: freeing vmap base\n", __FUNCTION__));
+			DBG(("%s: freeing snooped base\n", __FUNCTION__));
 			free(MAP(bo->map));
 		}
 		bo->map = NULL;
@@ -1320,7 +1320,7 @@ static void _kgem_bo_delete_buffer(struct kgem *kgem, struct kgem_bo *bo)
 		io->used = bo->delta;
 }
 
-static void kgem_bo_move_to_vmap(struct kgem *kgem, struct kgem_bo *bo)
+static void kgem_bo_move_to_snoop(struct kgem *kgem, struct kgem_bo *bo)
 {
 	if (num_pages(bo) > kgem->max_cpu_size >> 13) {
 		DBG(("%s handle=%d discarding large CPU buffer (%d >%d pages)\n",
@@ -1332,18 +1332,18 @@ static void kgem_bo_move_to_vmap(struct kgem *kgem, struct kgem_bo *bo)
 	assert(bo->tiling == I915_TILING_NONE);
 	assert(bo->rq == NULL);
 
-	DBG(("%s: moving %d to vmap\n", __FUNCTION__, bo->handle));
-	list_add(&bo->list, &kgem->vmap);
+	DBG(("%s: moving %d to snoop cachee\n", __FUNCTION__, bo->handle));
+	list_add(&bo->list, &kgem->snoop);
 }
 
 static struct kgem_bo *
-search_vmap_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags)
+search_snoop_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags)
 {
 	struct kgem_bo *bo, *first = NULL;
 
 	DBG(("%s: num_pages=%d, flags=%x\n", __FUNCTION__, num_pages, flags));
 
-	if (list_is_empty(&kgem->vmap)) {
+	if (list_is_empty(&kgem->snoop)) {
 		DBG(("%s: inactive and cache empty\n", __FUNCTION__));
 		if (!__kgem_throttle_retire(kgem, flags)) {
 			DBG(("%s: nothing retired\n", __FUNCTION__));
@@ -1351,9 +1351,9 @@ search_vmap_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags)
 		}
 	}
 
-	list_for_each_entry(bo, &kgem->vmap, list) {
+	list_for_each_entry(bo, &kgem->snoop, list) {
 		assert(bo->refcnt == 0);
-		assert(bo->vmap);
+		assert(bo->snoop);
 		assert(bo->proxy == NULL);
 		assert(bo->tiling == I915_TILING_NONE);
 		assert(bo->rq == NULL);
@@ -1371,7 +1371,7 @@ search_vmap_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags)
 		bo->pitch = 0;
 		bo->delta = 0;
 
-		DBG(("  %s: found handle=%d (num_pages=%d) in vmap cache\n",
+		DBG(("  %s: found handle=%d (num_pages=%d) in snoop cache\n",
 		     __FUNCTION__, bo->handle, num_pages(bo)));
 		return bo;
 	}
@@ -1381,7 +1381,7 @@ search_vmap_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags)
 		first->pitch = 0;
 		first->delta = 0;
 
-		DBG(("  %s: found handle=%d (num_pages=%d) in vmap cache\n",
+		DBG(("  %s: found handle=%d (num_pages=%d) in snoop cache\n",
 		     __FUNCTION__, first->handle, num_pages(first)));
 		return first;
 	}
@@ -1404,27 +1404,27 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 	if (DBG_NO_CACHE)
 		goto destroy;
 
-	if (bo->vmap && !bo->flush) {
-		DBG(("%s: handle=%d is vmapped\n", __FUNCTION__, bo->handle));
+	if (bo->snoop && !bo->flush) {
+		DBG(("%s: handle=%d is snooped\n", __FUNCTION__, bo->handle));
 		assert(!bo->flush);
 		assert(list_is_empty(&bo->list));
 		if (bo->rq == NULL) {
 			if (bo->needs_flush && kgem_busy(kgem, bo->handle)) {
-				DBG(("%s: handle=%d is vmapped, tracking until free\n",
+				DBG(("%s: handle=%d is snooped, tracking until free\n",
 				     __FUNCTION__, bo->handle));
 				list_add(&bo->request, &kgem->flushing);
 				bo->rq = &_kgem_static_request;
 			}
 		}
 		if (bo->rq == NULL)
-			kgem_bo_move_to_vmap(kgem, bo);
+			kgem_bo_move_to_snoop(kgem, bo);
 		return;
 	}
 
 	if (bo->io) {
 		struct kgem_bo *base;
 
-		assert(!bo->vmap);
+		assert(!bo->snoop);
 		base = malloc(sizeof(*base));
 		if (base) {
 			DBG(("%s: transferring io handle=%d to bo\n",
@@ -1452,7 +1452,7 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 
 	assert(list_is_empty(&bo->vma));
 	assert(list_is_empty(&bo->list));
-	assert(bo->vmap == false);
+	assert(bo->snoop == false);
 	assert(bo->io == false);
 	assert(bo->scanout == false);
 	assert(bo->flush == false);
@@ -1576,8 +1576,8 @@ static bool kgem_retire__flushing(struct kgem *kgem)
 		list_del(&bo->request);
 
 		if (!bo->refcnt) {
-			if (bo->vmap) {
-				kgem_bo_move_to_vmap(kgem, bo);
+			if (bo->snoop) {
+				kgem_bo_move_to_snoop(kgem, bo);
 			} else if (kgem_bo_set_purgeable(kgem, bo)) {
 				assert(bo->reusable);
 				kgem_bo_move_to_inactive(kgem, bo);
@@ -1641,12 +1641,12 @@ static bool kgem_retire__requests(struct kgem *kgem)
 			if (bo->refcnt)
 				continue;
 
-			if (bo->vmap) {
+			if (bo->snoop) {
 				if (bo->needs_flush) {
 					list_add(&bo->request, &kgem->flushing);
 					bo->rq = &_kgem_static_request;
 				} else {
-					kgem_bo_move_to_vmap(kgem, bo);
+					kgem_bo_move_to_snoop(kgem, bo);
 				}
 				continue;
 			}
@@ -1738,9 +1738,10 @@ static void kgem_commit(struct kgem *kgem)
 	list_for_each_entry_safe(bo, next, &rq->buffers, request) {
 		assert(next->request.prev == &bo->request);
 
-		DBG(("%s: release handle=%d (proxy? %d), dirty? %d flush? %d -> offset=%x\n",
+		DBG(("%s: release handle=%d (proxy? %d), dirty? %d flush? %d, snoop? %d -> offset=%x\n",
 		     __FUNCTION__, bo->handle, bo->proxy != NULL,
-		     bo->dirty, bo->needs_flush, (unsigned)bo->exec->offset));
+		     bo->dirty, bo->needs_flush, bo->snoop,
+		     (unsigned)bo->exec->offset));
 
 		assert(!bo->purged);
 		assert(bo->rq == rq || (bo->proxy->rq == rq));
@@ -1748,7 +1749,7 @@ static void kgem_commit(struct kgem *kgem)
 		bo->presumed_offset = bo->exec->offset;
 		bo->exec = NULL;
 
-		if (!bo->refcnt && !bo->reusable && !bo->vmap) {
+		if (!bo->refcnt && !bo->reusable && !bo->snoop) {
 			kgem_bo_free(kgem, bo);
 			continue;
 		}
@@ -1834,7 +1835,7 @@ static void kgem_finish_buffers(struct kgem *kgem)
 			    (kgem->has_llc || !IS_CPU_MAP(bo->base.map))) {
 				DBG(("%s: retaining upload buffer (%d/%d)\n",
 				     __FUNCTION__, bo->used, bytes(&bo->base)));
-				assert(!bo->base.vmap);
+				assert(!bo->base.snoop);
 				list_move(&bo->base.list,
 					  &kgem->active_buffers);
 				continue;
@@ -2285,7 +2286,7 @@ bool kgem_expire_cache(struct kgem *kgem)
 
 
 	expire = 0;
-	list_for_each_entry(bo, &kgem->vmap, list) {
+	list_for_each_entry(bo, &kgem->snoop, list) {
 		if (bo->delta) {
 			expire = now - MAX_INACTIVE_TIME/2;
 			break;
@@ -2294,8 +2295,8 @@ bool kgem_expire_cache(struct kgem *kgem)
 		bo->delta = now;
 	}
 	if (expire) {
-		while (!list_is_empty(&kgem->vmap)) {
-			bo = list_last_entry(&kgem->vmap, struct kgem_bo, list);
+		while (!list_is_empty(&kgem->snoop)) {
+			bo = list_last_entry(&kgem->snoop, struct kgem_bo, list);
 
 			if (bo->delta > expire)
 				break;
@@ -2411,9 +2412,9 @@ void kgem_cleanup_cache(struct kgem *kgem)
 						     struct kgem_bo, list));
 	}
 
-	while (!list_is_empty(&kgem->vmap))
+	while (!list_is_empty(&kgem->snoop))
 		kgem_bo_free(kgem,
-			     list_last_entry(&kgem->vmap,
+			     list_last_entry(&kgem->snoop,
 					     struct kgem_bo, list));
 
 	while (__kgem_freed_bo) {
@@ -3262,10 +3263,10 @@ struct kgem_bo *kgem_create_cpu_2d(struct kgem *kgem,
 	DBG(("%s: %dx%d, %d bpp, stride=%d\n",
 	     __FUNCTION__, width, height, bpp, stride));
 
-	bo = search_vmap_cache(kgem, NUM_PAGES(size), 0);
+	bo = search_snoop_cache(kgem, NUM_PAGES(size), 0);
 	if (bo) {
 		assert(bo->tiling == I915_TILING_NONE);
-		assert(bo->vmap);
+		assert(bo->snoop);
 		bo->refcnt = 1;
 		bo->pitch = stride;
 		return bo;
@@ -3284,7 +3285,7 @@ struct kgem_bo *kgem_create_cpu_2d(struct kgem *kgem,
 		}
 
 		bo->reusable = false;
-		bo->vmap = true;
+		bo->snoop = true;
 
 		if (kgem_bo_map__cpu(kgem, bo) == NULL) {
 			kgem_bo_destroy(kgem, bo);
@@ -3801,7 +3802,7 @@ struct kgem_bo *kgem_create_map(struct kgem *kgem,
 	}
 
 	bo->reusable = false;
-	bo->vmap = true;
+	bo->snoop = true;
 
 	debug_alloc__bo(kgem, bo);
 
@@ -3964,7 +3965,7 @@ search_snoopable_buffer(struct kgem *kgem, unsigned alloc)
 	struct kgem_buffer *bo;
 	struct kgem_bo *old;
 
-	old = search_vmap_cache(kgem, alloc, 0);
+	old = search_snoop_cache(kgem, alloc, 0);
 	if (old) {
 		if (!old->io) {
 			bo = buffer_alloc();
@@ -3980,7 +3981,7 @@ search_snoopable_buffer(struct kgem *kgem, unsigned alloc)
 		DBG(("%s: created CPU handle=%d for buffer, size %d\n",
 		     __FUNCTION__, bo->base.handle, num_pages(&bo->base)));
 
-		assert(bo->base.vmap);
+		assert(bo->base.snoop);
 		assert(bo->base.tiling == I915_TILING_NONE);
 		assert(num_pages(&bo->base) >= alloc);
 		assert(bo->mmapped == true);
@@ -4040,7 +4041,7 @@ create_snoopable_buffer(struct kgem *kgem, unsigned alloc)
 		assert(bo->need_io == false);
 
 		bo->base.reusable = false;
-		bo->base.vmap = true;
+		bo->base.snoop = true;
 
 		bo->mem = kgem_bo_map__cpu(kgem, &bo->base);
 		if (bo->mem == NULL) {
@@ -4071,14 +4072,14 @@ create_snoopable_buffer(struct kgem *kgem, unsigned alloc)
 
 		debug_alloc(kgem, alloc);
 		__kgem_bo_init(&bo->base, handle, alloc);
-		DBG(("%s: created vmap handle=%d for buffer\n",
+		DBG(("%s: created snoop handle=%d for buffer\n",
 		     __FUNCTION__, bo->base.handle));
 
 		assert(bo->mmapped == true);
 		assert(bo->need_io == false);
 
 		bo->base.refcnt = 1;
-		bo->base.vmap = true;
+		bo->base.snoop = true;
 		bo->base.reusable = false;
 		bo->base.map = MAKE_VMAP_MAP(bo->mem);
 
@@ -4133,7 +4134,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 		if (flags & KGEM_BUFFER_WRITE) {
 			if ((bo->write & KGEM_BUFFER_WRITE) == 0 ||
 			    (((bo->write & ~flags) & KGEM_BUFFER_INPLACE) &&
-			     !bo->base.vmap)) {
+			     !bo->base.snoop)) {
 				DBG(("%s: skip write %x buffer, need %x\n",
 				     __FUNCTION__, bo->write, flags));
 				continue;
@@ -4161,7 +4162,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			assert(bo->base.io);
 			assert(bo->base.refcnt >= 1);
 			assert(bo->mmapped);
-			assert(!bo->base.vmap);
+			assert(!bo->base.snoop);
 
 			if ((bo->write & ~flags) & KGEM_BUFFER_INPLACE) {
 				DBG(("%s: skip write %x buffer, need %x\n",
@@ -4546,8 +4547,8 @@ void kgem_buffer_read_sync(struct kgem *kgem, struct kgem_bo *_bo)
 
 	bo = (struct kgem_buffer *)_bo;
 
-	DBG(("%s(offset=%d, length=%d, vmap=%d)\n", __FUNCTION__,
-	     offset, length, bo->base.vmap));
+	DBG(("%s(offset=%d, length=%d, snooped=%d)\n", __FUNCTION__,
+	     offset, length, bo->base.snoop));
 
 	if (bo->mmapped) {
 		struct drm_i915_gem_set_domain set_domain;
