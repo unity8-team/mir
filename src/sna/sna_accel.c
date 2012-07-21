@@ -9274,7 +9274,7 @@ sna_poly_fill_polygon(DrawablePtr draw, GCPtr gc,
 		goto fallback;
 
 	if ((data.bo = sna_drawable_use_bo(draw,
-					   use_wide_spans(draw, gc, &data.region.extents),
+					   (shape == Convex ? use_zero_spans : use_wide_spans)(draw, gc, &data.region.extents),
 					   &data.region.extents,
 					   &data.damage))) {
 		uint32_t color;
