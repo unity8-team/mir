@@ -71,7 +71,6 @@ struct sna_dri_frame_event {
 	DrawablePtr draw;
 	ClientPtr client;
 	enum frame_event_type type;
-	unsigned frame;
 	int pipe;
 	int count;
 
@@ -1300,18 +1299,6 @@ static void sna_dri_flip_event(struct sna *sna,
 	/* We assume our flips arrive in order, so we don't check the frame */
 	switch (flip->type) {
 	case DRI2_FLIP:
-		/* Deliver cached msc, ust from reference crtc */
-		/* Check for too small vblank count of pageflip completion,
-		 * taking wraparound * into account. This usually means some
-		 * defective kms pageflip completion, causing wrong (msc, ust)
-		 * return values and possible visual corruption.
-		 */
-		if (flip->fe_frame < flip->frame &&
-		    flip->frame - flip->fe_frame < 5) {
-			/* All-0 values signal timestamping failure. */
-			flip->fe_frame = flip->fe_tv_sec = flip->fe_tv_usec = 0;
-		}
-
 		DBG(("%s: flip complete\n", __FUNCTION__));
 		DRI2SwapComplete(flip->client, draw,
 				 flip->fe_frame,
@@ -1596,8 +1583,6 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 			sna_dri_frame_event_info_free(sna, draw, info);
 			return false;
 		}
-
-		info->frame = *target_msc;
 	}
 
 	return true;
@@ -1812,7 +1797,6 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		     (int)*target_msc,
 		     (int)divisor));
 
-		info->frame = *target_msc;
 		info->type = DRI2_SWAP;
 
 		vbl.request.type =
@@ -1861,7 +1845,6 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		goto blit_fallback;
 
 	*target_msc = vbl.reply.sequence;
-	info->frame = *target_msc;
 	return TRUE;
 
 blit_fallback:
@@ -2102,7 +2085,6 @@ sna_dri_schedule_wait_msc(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 		if (sna_wait_vblank(sna, &vbl))
 			goto out_free_info;
 
-		info->frame = vbl.reply.sequence;
 		DRI2BlockClient(client, draw);
 		return TRUE;
 	}
@@ -2130,7 +2112,6 @@ sna_dri_schedule_wait_msc(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 	if (sna_wait_vblank(sna, &vbl))
 		goto out_free_info;
 
-	info->frame = vbl.reply.sequence;
 	DRI2BlockClient(client, draw);
 	return TRUE;
 
