@@ -1208,7 +1208,7 @@ _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 			priv->cpu = false;
 			list_del(&priv->list);
 			if (priv->cpu_bo) {
-				assert(priv->shm);
+				assert(!priv->shm);
 				assert(!priv->cpu_bo->flush);
 				sna_pixmap_free_cpu(sna, priv);
 			}
