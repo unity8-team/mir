@@ -121,6 +121,7 @@ struct sna_pixmap {
 	uint16_t source_count;
 	uint8_t pinned :1;
 	uint8_t mapped :1;
+	uint8_t shm :1;
 	uint8_t clear :1;
 	uint8_t undamaged :1;
 	uint8_t create :3;
@@ -199,7 +200,7 @@ struct sna {
 
 	int vblank_interval;
 
-	struct list dirty_pixmaps;
+	struct list flush_pixmaps;
 	struct list active_pixmaps;
 	struct list inactive_clock[2];
 
@@ -415,6 +416,7 @@ PixmapPtr sna_pixmap_create_upload(ScreenPtr screen,
 				   unsigned flags);
 PixmapPtr sna_pixmap_create_unattached(ScreenPtr screen,
 				       int width, int height, int depth);
+void sna_pixmap_destroy(PixmapPtr pixmap);
 
 #define MOVE_WRITE 0x1
 #define MOVE_READ 0x2

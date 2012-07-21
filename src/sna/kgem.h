@@ -127,7 +127,6 @@ struct kgem {
 	struct list vmap;
 	struct list batch_buffers, active_buffers;
 	struct list requests;
-	struct list sync_list;
 	struct kgem_request *next_request;
 
 	struct {
@@ -407,7 +406,6 @@ void kgem_bo_sync__gtt(struct kgem *kgem, struct kgem_bo *bo);
 void *kgem_bo_map__debug(struct kgem *kgem, struct kgem_bo *bo);
 void *kgem_bo_map__cpu(struct kgem *kgem, struct kgem_bo *bo);
 void kgem_bo_sync__cpu(struct kgem *kgem, struct kgem_bo *bo);
-void kgem_bo_set_sync(struct kgem *kgem, struct kgem_bo *bo);
 uint32_t kgem_bo_flink(struct kgem *kgem, struct kgem_bo *bo);
 
 bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,
@@ -546,8 +544,6 @@ static inline void kgem_bo_mark_dirty(struct kgem *kgem, struct kgem_bo *bo)
 	bo->needs_flush = bo->dirty = true;
 	list_move(&bo->request, &kgem->next_request->buffers);
 }
-
-void kgem_sync(struct kgem *kgem);
 
 #define KGEM_BUFFER_WRITE	0x1
 #define KGEM_BUFFER_INPLACE	0x2

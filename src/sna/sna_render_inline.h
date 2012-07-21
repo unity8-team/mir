@@ -75,7 +75,8 @@ is_gpu(DrawablePtr drawable)
 	if (priv == NULL || priv->clear)
 		return false;
 
-	if (DAMAGE_IS_ALL(priv->gpu_damage) || (priv->gpu_bo && kgem_bo_is_busy(priv->gpu_bo) && !priv->gpu_bo->proxy))
+	if (DAMAGE_IS_ALL(priv->gpu_damage) ||
+	    (priv->gpu_bo && kgem_bo_is_busy(priv->gpu_bo) && !priv->gpu_bo->proxy))
 		return true;
 
 	return priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo);

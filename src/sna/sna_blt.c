@@ -2134,8 +2134,8 @@ bool sna_blt_copy_boxes(struct sna *sna, uint8_t alu,
 
 				assert(box->x1 + src_dx >= 0);
 				assert(box->y1 + src_dy >= 0);
-				assert(box->x1 + src_dx <= MAX_SHORT);
-				assert(box->y1 + src_dy <= MAX_SHORT);
+				assert(box->x1 + src_dx <= INT16_MAX);
+				assert(box->y1 + src_dy <= INT16_MAX);
 
 				assert(box->x1 >= 0);
 				assert(box->y1 >= 0);

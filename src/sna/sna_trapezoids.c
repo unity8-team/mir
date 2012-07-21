@@ -2479,7 +2479,7 @@ trapezoids_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 				pixman_image_unref(image);
 			}
 			if (format != PIXMAN_a8) {
-				screen->DestroyPixmap(scratch);
+				sna_pixmap_destroy(scratch);
 				return;
 			}
 		} else {
@@ -2505,17 +2505,16 @@ trapezoids_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 		mask = CreatePicture(0, &scratch->drawable,
 				     PictureMatchFormat(screen, depth, format),
 				     0, 0, serverClient, &error);
-		screen->DestroyPixmap(scratch);
-		if (!mask)
-			return;
-
-		CompositePicture(op, src, mask, dst,
-				 xSrc + bounds.x1 - dst_x,
-				 ySrc + bounds.y1 - dst_y,
-				 0, 0,
-				 bounds.x1, bounds.y1,
-				 width, height);
-		FreePicture(mask, 0);
+		if (mask) {
+			CompositePicture(op, src, mask, dst,
+					 xSrc + bounds.x1 - dst_x,
+					 ySrc + bounds.y1 - dst_y,
+					 0, 0,
+					 bounds.x1, bounds.y1,
+					 width, height);
+			FreePicture(mask, 0);
+		}
+		sna_pixmap_destroy(scratch);
 	} else {
 		if (dst->polyEdge == PolyEdgeSharp)
 			maskFormat = PictureMatchFormat(screen, 1, PICT_a1);
@@ -3630,7 +3629,6 @@ composite_unaligned_boxes_fallback(CARD8 op,
 		mask = CreatePicture(0, &scratch->drawable,
 				     PictureMatchFormat(screen, 8, PICT_a8),
 				     0, 0, serverClient, &error);
-		screen->DestroyPixmap(scratch);
 		if (mask) {
 			CompositePicture(op, src, mask, dst,
 					 src_x + extents.x1 - dst_x,
@@ -3641,6 +3639,7 @@ composite_unaligned_boxes_fallback(CARD8 op,
 					 extents.y2 - extents.y1);
 			FreePicture(mask, 0);
 		}
+		sna_pixmap_destroy(scratch);
 	}
 
 	return true;
@@ -4260,7 +4259,7 @@ trapezoid_mask_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	     __FUNCTION__, scratch->devPrivate.ptr, scratch->devKind));
 
 	if (tor_init(&tor, &extents, 2*ntrap)) {
-		screen->DestroyPixmap(scratch);
+		sna_pixmap_destroy(scratch);
 		return true;
 	}
 
@@ -4294,7 +4293,6 @@ trapezoid_mask_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	mask = CreatePicture(0, &scratch->drawable,
 			     PictureMatchFormat(screen, 8, PICT_a8),
 			     0, 0, serverClient, &error);
-	screen->DestroyPixmap(scratch);
 	if (mask) {
 		CompositePicture(op, src, mask, dst,
 				 src_x + dst_x - pixman_fixed_to_int(traps[0].left.p1.x),
@@ -4304,6 +4302,7 @@ trapezoid_mask_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 				 extents.x2, extents.y2);
 		FreePicture(mask, 0);
 	}
+	sna_pixmap_destroy(scratch);
 
 	return true;
 }
@@ -5323,7 +5322,7 @@ trapezoid_span_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 	     __FUNCTION__, scratch->devPrivate.ptr, scratch->devKind));
 
 	if (tor_init(&tor, &extents, 2*ntrap)) {
-		screen->DestroyPixmap(scratch);
+		sna_pixmap_destroy(scratch);
 		return true;
 	}
 
@@ -5355,7 +5354,6 @@ trapezoid_span_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 	mask = CreatePicture(0, &scratch->drawable,
 			     PictureMatchFormat(screen, 8, PICT_a8),
 			     0, 0, serverClient, &error);
-	screen->DestroyPixmap(scratch);
 	if (mask) {
 		RegionRec region;
 
@@ -5393,6 +5391,7 @@ trapezoid_span_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 done:
 		FreePicture(mask, 0);
 	}
+	sna_pixmap_destroy(scratch);
 
 	return true;
 }
@@ -5823,7 +5822,7 @@ trap_mask_converter(PicturePtr picture,
 	dx *= FAST_SAMPLES_X;
 	dy *= FAST_SAMPLES_Y;
 	if (tor_init(&tor, &extents, 2*ntrap)) {
-		screen->DestroyPixmap(scratch);
+		sna_pixmap_destroy(scratch);
 		return true;
 	}
 
@@ -5871,8 +5870,7 @@ trap_mask_converter(PicturePtr picture,
 			       pixmap, priv->gpu_bo, x, y,
 			       &extents, 1, 0);
 	mark_damaged(pixmap, priv, &extents ,x, y);
-
-	screen->DestroyPixmap(scratch);
+	sna_pixmap_destroy(scratch);
 	return true;
 }
 
@@ -5950,7 +5948,7 @@ trap_upload(PicturePtr picture,
 			       &extents, 1, 0);
 	mark_damaged(pixmap, priv, &extents, x, y);
 
-	screen->DestroyPixmap(scratch);
+	sna_pixmap_destroy(scratch);
 	return true;
 }
 
@@ -6362,7 +6360,7 @@ triangles_mask_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	     __FUNCTION__, scratch->devPrivate.ptr, scratch->devKind));
 
 	if (tor_init(&tor, &extents, 3*count)) {
-		screen->DestroyPixmap(scratch);
+		sna_pixmap_destroy(scratch);
 		return true;
 	}
 
@@ -6390,7 +6388,6 @@ triangles_mask_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	mask = CreatePicture(0, &scratch->drawable,
 			     PictureMatchFormat(screen, 8, PICT_a8),
 			     0, 0, serverClient, &error);
-	screen->DestroyPixmap(scratch);
 	if (mask) {
 		CompositePicture(op, src, mask, dst,
 				 src_x + dst_x - pixman_fixed_to_int(tri[0].p1.x),
@@ -6401,6 +6398,7 @@ triangles_mask_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 		FreePicture(mask, 0);
 	}
 	tor_fini(&tor);
+	sna_pixmap_destroy(scratch);
 
 	return true;
 }
@@ -6478,17 +6476,16 @@ triangles_fallback(CARD8 op,
 		mask = CreatePicture(0, &scratch->drawable,
 				     PictureMatchFormat(screen, depth, format),
 				     0, 0, serverClient, &error);
-		screen->DestroyPixmap(scratch);
-		if (!mask)
-			return;
-
-		CompositePicture(op, src, mask, dst,
-				 xSrc + bounds.x1 - dst_x,
-				 ySrc + bounds.y1 - dst_y,
-				 0, 0,
-				 bounds.x1, bounds.y1,
-				 width, height);
-		FreePicture(mask, 0);
+		if (mask) {
+			CompositePicture(op, src, mask, dst,
+					 xSrc + bounds.x1 - dst_x,
+					 ySrc + bounds.y1 - dst_y,
+					 0, 0,
+					 bounds.x1, bounds.y1,
+					 width, height);
+			FreePicture(mask, 0);
+		}
+		sna_pixmap_destroy(scratch);
 	} else {
 		if (dst->polyEdge == PolyEdgeSharp)
 			maskFormat = PictureMatchFormat(screen, 1, PICT_a1);
@@ -6746,17 +6743,16 @@ tristrip_fallback(CARD8 op,
 		mask = CreatePicture(0, &scratch->drawable,
 				     PictureMatchFormat(screen, depth, format),
 				     0, 0, serverClient, &error);
-		screen->DestroyPixmap(scratch);
-		if (!mask)
-			return;
-
-		CompositePicture(op, src, mask, dst,
-				 xSrc + bounds.x1 - dst_x,
-				 ySrc + bounds.y1 - dst_y,
-				 0, 0,
-				 bounds.x1, bounds.y1,
-				 width, height);
-		FreePicture(mask, 0);
+		if (mask) {
+			CompositePicture(op, src, mask, dst,
+					 xSrc + bounds.x1 - dst_x,
+					 ySrc + bounds.y1 - dst_y,
+					 0, 0,
+					 bounds.x1, bounds.y1,
+					 width, height);
+			FreePicture(mask, 0);
+		}
+		sna_pixmap_destroy(scratch);
 	} else {
 		xTriangle tri;
 		xPointFixed *p[3] = { &tri.p1, &tri.p2, &tri.p3 };
@@ -6881,17 +6877,16 @@ trifan_fallback(CARD8 op,
 		mask = CreatePicture(0, &scratch->drawable,
 				     PictureMatchFormat(screen, depth, format),
 				     0, 0, serverClient, &error);
-		screen->DestroyPixmap(scratch);
-		if (!mask)
-			return;
-
-		CompositePicture(op, src, mask, dst,
-				 xSrc + bounds.x1 - dst_x,
-				 ySrc + bounds.y1 - dst_y,
-				 0, 0,
-				 bounds.x1, bounds.y1,
-				 width, height);
-		FreePicture(mask, 0);
+		if (mask) {
+			CompositePicture(op, src, mask, dst,
+					 xSrc + bounds.x1 - dst_x,
+					 ySrc + bounds.y1 - dst_y,
+					 0, 0,
+					 bounds.x1, bounds.y1,
+					 width, height);
+			FreePicture(mask, 0);
+		}
+		sna_pixmap_destroy(scratch);
 	} else {
 		xTriangle tri;
 		xPointFixed *p[3] = { &tri.p1, &tri.p2, &tri.p3 };

@@ -863,7 +863,6 @@ glyphs_via_mask(struct sna *sna,
 		     __FUNCTION__, (unsigned long)format->format,
 		     format->depth, (uint32_t)width*height*format->depth));
 
-upload:
 		pixmap = sna_pixmap_create_upload(screen,
 						  width, height,
 						  format->depth,
@@ -876,10 +875,8 @@ upload:
 						 width, height,
 						 pixmap->devPrivate.ptr,
 						 pixmap->devKind);
-		if (mask_image == NULL) {
-			screen->DestroyPixmap(pixmap);
-			return false;
-		}
+		if (mask_image == NULL)
+			goto err_pixmap;
 
 		memset(pixmap->devPrivate.ptr, 0, pixmap->devKind*height);
 #if HAS_PIXMAN_GLYPHS
@@ -897,10 +894,8 @@ upload:
 				count += list[n].len;
 			if (count > N_STACK_GLYPHS) {
 				pglyphs = malloc (count * sizeof(pixman_glyph_t));
-				if (pglyphs == NULL) {
-					screen->DestroyPixmap(pixmap);
-					return false;
-				}
+				if (pglyphs == NULL)
+					goto err_pixmap;
 			}
 
 			count = 0;
@@ -1021,9 +1016,8 @@ next_image:
 		mask = CreatePicture(0, &pixmap->drawable,
 				     format, CPComponentAlpha,
 				     &component_alpha, serverClient, &error);
-		screen->DestroyPixmap(pixmap);
 		if (!mask)
-			return false;
+			goto err_pixmap;
 
 		ValidatePicture(mask);
 	} else {
@@ -1036,15 +1030,12 @@ next_image:
 		mask = CreatePicture(0, &pixmap->drawable,
 				     format, CPComponentAlpha,
 				     &component_alpha, serverClient, &error);
-		screen->DestroyPixmap(pixmap);
 		if (!mask)
-			return false;
+			goto err_pixmap;
 
 		ValidatePicture(mask);
-		if (!clear_pixmap(sna, pixmap)) {
-			FreePicture(mask, 0);
-			goto upload;
-		}
+		if (!clear_pixmap(sna, pixmap))
+			goto err_mask;
 
 		memset(&tmp, 0, sizeof(tmp));
 		glyph_atlas = NULL;
@@ -1106,8 +1097,7 @@ next_image:
 					if (!ok) {
 						DBG(("%s: fallback -- can not handle PictOpAdd of glyph onto mask!\n",
 						     __FUNCTION__));
-						FreePicture(mask, 0);
-						return false;
+						goto err_mask;
 					}
 
 					glyph_atlas = this_atlas;
@@ -1143,9 +1133,11 @@ next_glyph:
 		      0, 0,
 		      box.x1, box.y1,
 		      width, height);
-
+err_mask:
 	FreePicture(mask, 0);
-	return true;
+err_pixmap:
+	sna_pixmap_destroy(pixmap);
+	return TRUE;
 }
 
 static PictFormatPtr

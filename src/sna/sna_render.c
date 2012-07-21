@@ -370,6 +370,12 @@ use_cpu_bo(struct sna *sna, PixmapPtr pixmap, const BoxRec *box, bool blt)
 		}
 	}
 
+	if (priv->shm) {
+		assert(!priv->flush);
+		list_move(&priv->list, &sna->flush_pixmaps);
+		sna->kgem.flush |= 1;
+	}
+
 	DBG(("%s for box=(%d, %d), (%d, %d)\n",
 	     __FUNCTION__, box->x1, box->y1, box->x2, box->y2));
 	++priv->source_count;
