@@ -3993,11 +3993,31 @@ out:
 		free(box);
 }
 
+static inline bool
+sna_pixmap_is_gpu(PixmapPtr pixmap)
+{
+	struct sna_pixmap *priv = sna_pixmap(pixmap);
+
+	if (priv == NULL || priv->clear)
+		return false;
+
+	if (DAMAGE_IS_ALL(priv->gpu_damage) ||
+	    (priv->gpu_bo && kgem_bo_is_busy(priv->gpu_bo) && !priv->gpu_bo->proxy))
+		return true;
+
+	return priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo);
+}
+
 static int
 source_prefer_gpu(struct sna_pixmap *priv)
 {
 	if (priv == NULL) {
 		DBG(("%s: source unattached, use cpu\n", __FUNCTION__));
+		return 0;
+	}
+
+	if (priv->clear) {
+		DBG(("%s: source is clear, don't force use of GPU\n", __FUNCTION__));
 		return 0;
 	}
 
@@ -11012,6 +11032,12 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 		}
 		if (priv->cpu_damage == NULL)
 			priv->cpu = false;
+	}
+
+	/* If the source is already on the GPU, keep the operation on the GPU */
+	if (gc->fillStyle == FillTiled) {
+		if (!gc->tileIsPixel && sna_pixmap_is_gpu(gc->tile.pixmap))
+			hint |= PREFER_GPU | FORCE_GPU;
 	}
 
 	bo = sna_drawable_use_bo(draw, hint, &region.extents, &damage);
