@@ -1248,6 +1248,44 @@ out:
 	return format;
 }
 
+static bool can_discard_mask(uint8_t op, PicturePtr src, PictFormatPtr mask,
+			     int nlist, GlyphListPtr list, GlyphPtr *glyphs)
+{
+	PictFormatPtr g;
+	uint32_t color;
+
+	if (nlist == 1 && list->len == 1)
+		return true;
+
+	if (!op_is_bounded(op))
+		return false;
+
+	/* No glyphs overlap and we are not performing a mask conversion. */
+	g = glyphs_format(nlist, list, glyphs);
+	if (mask == g)
+		return true;
+
+	/* Otherwise if the glyphs are all bitmaps and we have an
+	 * opaque source we can also render directly to the dst.
+	 */
+	if (g == NULL) {
+		while (nlist--) {
+			if (list->format->depth != 1)
+				return false;
+
+			list++;
+		}
+	} else {
+		if (g->depth != 1)
+			return false;
+	}
+
+	if (!sna_picture_is_solid(src, &color))
+		return false;
+
+	return color >> 24 == 0xff;
+}
+
 #if HAS_PIXMAN_GLYPHS
 static void
 glyphs_fallback(CARD8 op,
@@ -1309,8 +1347,7 @@ glyphs_fallback(CARD8 op,
 	RegionTranslate(&region, -dst->pDrawable->x, -dst->pDrawable->y);
 
 	if (mask_format &&
-	    (op_is_bounded(op) || (nlist == 1 && list->len == 1)) &&
-	    mask_format == glyphs_format(nlist, list, glyphs))
+	    can_discard_mask(op, src, mask_format, nlist, list, glyphs))
 		mask_format = NULL;
 
 	cache = sna->render.glyph_cache;
@@ -1674,8 +1711,7 @@ sna_glyphs(CARD8 op,
 
 	/* Try to discard the mask for non-overlapping glyphs */
 	if (mask && dst->pCompositeClip->data == NULL &&
-	    (op_is_bounded(op) || (nlist == 1 && list->len == 1)) &&
-	    mask == glyphs_format(nlist, list, glyphs)) {
+	    can_discard_mask(op, src, mask, nlist, list, glyphs)) {
 		DBG(("%s: discarding mask\n", __FUNCTION__));
 		if (glyphs_to_dst(sna, op,
 				  src, dst,
