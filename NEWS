@@ -1,3 +1,43 @@
+Release 2.20.1 (2012-07-22)
+===========================
+A week in, grab the brown paper bags, for it is time to reveal a couple
+of critical bugs that spoilt the 2.20.0 release.
+
+Firstly we have the restoration of DRI for i810. I am sure that the
+solitary user will be overjoyed in a couple of years when a new xserver
+is forced upon him. That enjoyment will be short-lived when as no actual
+acceleration remains, not even shadow, for the chipset.
+
+Perhaps a little more wildly felt, I hope!, will be that the SNA
+fallbacks were broken on 64-bit machines if they required clipping. One
+little misplaced cast of a pointer, and the screen is filled with
+corruption.
+
+Among the other tweaks this week:
+
+* A bug affecting gen4 handling of trapezoids was fixed, and CPU
+  overhead reduced.
+  https://bugs.freedesktop.org/show_bug.cgi?id=52158
+
+* A fix for a bug causing corruption of a DRI2 unredirected client
+  window that was resized whilst under a compositor.
+
+* Support for snoopable buffers on non-LLC architectures, coming to
+  a future kernel. The aim to accelerate transfers between the CPU
+  and the GPU, in particular to dramatically improve readback
+  performance, and to further minimise clflushes.
+
+* Improvement to the composite performance on GT2 SandyBridge and
+  IvyBridge devices, in particular the render copy is significantly
+  improved.
+
+* Improved handling for when acceleration is disabled, including
+  permitting DRI2 to remain supported even if the X server believes
+  the GPU wedged.
+
+* Shadow support was dropped from UXA as it was neither complete nor
+  correct, use SNA instead.
+
 Release 2.12.0 (2012-07-15)
 ===========================
 First the big news, a new acceleration method that aims to be faster and
