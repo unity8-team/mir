@@ -226,21 +226,6 @@ static void PreInitCleanup(ScrnInfoPtr scrn)
 	scrn->driverPrivate = NULL;
 }
 
-static void sna_check_chipset_option(ScrnInfoPtr scrn)
-{
-	struct sna *sna = to_sna(scrn);
-
-	sna->info = intel_detect_chipset(scrn, sna->pEnt, sna->PciInfo);
-}
-
-static Bool sna_get_early_options(ScrnInfoPtr scrn)
-{
-	struct sna *sna = to_sna(scrn);
-
-	sna->Options = intel_options_get(scrn);
-	return sna->Options != NULL;
-}
-
 struct sna_device {
 	int fd;
 	int open_count;
@@ -449,7 +434,8 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 	if (!xf86SetDefaultVisual(scrn, -1))
 		return FALSE;
 
-	if (!sna_get_early_options(scrn))
+	sna->Options = intel_options_get(scrn);
+	if (sna->Options == NULL)
 		return FALSE;
 
 	sna->info = intel_detect_chipset(scrn, sna->pEnt, sna->PciInfo);
