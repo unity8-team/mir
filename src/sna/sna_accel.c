@@ -3698,7 +3698,6 @@ sna_put_image(DrawablePtr drawable, GCPtr gc, int depth,
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
 	RegionRec region;
 	int16_t dx, dy;
-	unsigned hint;
 
 	DBG(("%s((%d, %d)x(%d, %d), depth=%d, format=%d)\n",
 	     __FUNCTION__, x, y, w, h, depth, format));
@@ -3727,47 +3726,39 @@ sna_put_image(DrawablePtr drawable, GCPtr gc, int depth,
 	if (priv == NULL) {
 		DBG(("%s: fallback -- unattached(%d, %d, %d, %d)\n",
 		     __FUNCTION__, x, y, w, h));
-hint_and_fallback:
-		hint = (format == XYPixmap ?
-			MOVE_READ | MOVE_WRITE :
-			drawable_gc_flags(drawable, gc, false));
 		goto fallback;
 	}
 
 	RegionTranslate(&region, dx, dy);
 
 	if (FORCE_FALLBACK)
-		goto hint_and_fallback;
+		goto fallback;
 
 	if (wedged(sna))
-		goto hint_and_fallback;
+		goto fallback;
 
 	if (!ACCEL_PUT_IMAGE)
-		goto hint_and_fallback;
+		goto fallback;
 
 	switch (format) {
 	case ZPixmap:
 		if (!PM_IS_SOLID(drawable, gc->planemask))
-			goto hint_and_fallback;
+			goto fallback;
 
 		if (sna_put_zpixmap_blt(drawable, gc, &region,
 					x, y, w, h,
 					bits, PixmapBytePad(w, depth)))
 			return;
-
-		hint = drawable_gc_flags(drawable, gc, false);
 		break;
 
 	case XYBitmap:
 		if (!PM_IS_SOLID(drawable, gc->planemask))
-			goto hint_and_fallback;
+			goto fallback;
 
 		if (sna_put_xybitmap_blt(drawable, gc, &region,
 					 x, y, w, h,
 					 bits))
 			return;
-
-		hint = drawable_gc_flags(drawable, gc, false);
 		break;
 
 	case XYPixmap:
@@ -3775,8 +3766,6 @@ hint_and_fallback:
 					 x, y, w, h, left,
 					 bits))
 			return;
-
-		hint = MOVE_READ | MOVE_WRITE;
 		break;
 
 	default:
@@ -3789,7 +3778,10 @@ fallback:
 
 	if (!sna_gc_move_to_cpu(gc, drawable, &region))
 		goto out;
-	if (!sna_drawable_move_region_to_cpu(drawable, &region, hint))
+	if (!sna_drawable_move_region_to_cpu(drawable, &region,
+					      format == XYPixmap ?
+					      MOVE_READ | MOVE_WRITE :
+					      drawable_gc_flags(drawable, gc, false)))
 		goto out_gc;
 
 	DBG(("%s: fbPutImage(%d, %d, %d, %d)\n",
