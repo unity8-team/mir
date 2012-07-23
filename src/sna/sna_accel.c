@@ -10440,6 +10440,7 @@ sna_poly_fill_rect_stippled_n_box__imm(struct sna *sna,
 static void
 sna_poly_fill_rect_stippled_n_box(struct sna *sna,
 				  struct kgem_bo *bo,
+				  struct kgem_bo **tile,
 				  uint32_t br00, uint32_t br13,
 				  const GC *gc,
 				  const BoxRec *box,
@@ -10471,6 +10472,7 @@ sna_poly_fill_rect_stippled_n_box(struct sna *sna,
 		row = oy * stride;
 		for (x1 = box->x1; x1 < box->x2; x1 = x2) {
 			int bx1, bx2, bw, bh, len, ox;
+			bool use_tile;
 
 			x2 = box->x2;
 			ox = (x1 - origin->x) % w;
@@ -10483,11 +10485,14 @@ sna_poly_fill_rect_stippled_n_box(struct sna *sna,
 				x2 = x1 + bx2-ox;
 			}
 
-			DBG(("%s: box((%d, %d)x(%d, %d)) origin=(%d, %d), pat=(%d, %d), up=(%d, %d), stipple=%dx%d\n",
+			use_tile = y2-y1 == h && x2-x1 == w;
+
+			DBG(("%s: box((%d, %d)x(%d, %d)) origin=(%d, %d), pat=(%d, %d), up=(%d, %d), stipple=%dx%d, full tile?=%d\n",
 			     __FUNCTION__,
 			     x1, y1, x2-x1, y2-y1,
 			     origin->x, origin->y,
-			     ox, oy, bx1, bx2, w, h));
+			     ox, oy, bx1, bx2, w, h,
+			     use_tile));
 
 			bw = (bx2 - bx1 + 7)/8;
 			bw = ALIGN(bw, 2);
@@ -10504,7 +10509,7 @@ sna_poly_fill_rect_stippled_n_box(struct sna *sna,
 
 			b = sna->kgem.batch + sna->kgem.nbatch;
 
-			if (len <= 128) {
+			if (!use_tile && len <= 128) {
 				uint8_t *dst, *src;
 
 				b[0] = XY_MONO_SRC_COPY_IMM;
@@ -10540,15 +10545,20 @@ sna_poly_fill_rect_stippled_n_box(struct sna *sna,
 					src += len;
 				} while (--bh);
 			} else {
+				bool has_tile = use_tile && *tile;
 				struct kgem_bo *upload;
 				uint8_t *dst, *src;
 				void *ptr;
 
-				upload = kgem_create_buffer(&sna->kgem, bw*bh,
-							    KGEM_BUFFER_WRITE_INPLACE,
-							    &ptr);
-				if (!upload)
-					return;
+				if (has_tile) {
+					upload = kgem_bo_reference(*tile);
+				} else {
+					upload = kgem_create_buffer(&sna->kgem, bw*bh,
+								    KGEM_BUFFER_WRITE_INPLACE,
+								    &ptr);
+					if (!upload)
+						return;
+				}
 
 				b = sna->kgem.batch + sna->kgem.nbatch;
 				b[0] = br00 | (ox & 7) << 17;
@@ -10571,20 +10581,24 @@ sna_poly_fill_rect_stippled_n_box(struct sna *sna,
 
 				sna->kgem.nbatch += 8;
 
-				dst = ptr;
-				len = stride;
-				src = gc->stipple->devPrivate.ptr;
-				src += row + (ox >> 3);
-				len -= bw;
-				do {
-					int i = bw;
+				if (!has_tile) {
+					dst = ptr;
+					len = stride;
+					src = gc->stipple->devPrivate.ptr;
+					src += row + (ox >> 3);
+					len -= bw;
 					do {
-						*dst++ = byte_reverse(*src++);
-						*dst++ = byte_reverse(*src++);
-						i -= 2;
-					} while (i);
-					src += len;
-				} while (--bh);
+						int i = bw;
+						do {
+							*dst++ = byte_reverse(*src++);
+							*dst++ = byte_reverse(*src++);
+							i -= 2;
+						} while (i);
+						src += len;
+					} while (--bh);
+					if (use_tile)
+						*tile = kgem_bo_reference(upload);
+				}
 
 				kgem_bo_destroy(&sna->kgem, upload);
 			}
@@ -10740,6 +10754,7 @@ sna_poly_fill_rect_stippled_n_blt(DrawablePtr drawable,
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
 	struct sna *sna = to_sna_from_pixmap(pixmap);
 	DDXPointRec origin = gc->patOrg;
+	struct kgem_bo *tile = NULL;
 	int16_t dx, dy;
 	uint32_t br00, br13;
 
@@ -10784,7 +10799,7 @@ sna_poly_fill_rect_stippled_n_blt(DrawablePtr drawable,
 			box.x2 = box.x1 + r->width;
 			box.y2 = box.y1 + r->height;
 
-			sna_poly_fill_rect_stippled_n_box(sna, bo,
+			sna_poly_fill_rect_stippled_n_box(sna, bo, &tile,
 							  br00, br13, gc,
 							  &box, &origin);
 			r++;
@@ -10822,7 +10837,7 @@ sna_poly_fill_rect_stippled_n_blt(DrawablePtr drawable,
 				box.x1 += dx; box.x2 += dx;
 				box.y1 += dy; box.y2 += dy;
 
-				sna_poly_fill_rect_stippled_n_box(sna, bo,
+				sna_poly_fill_rect_stippled_n_box(sna, bo, &tile,
 								  br00, br13, gc,
 								  &box, &origin);
 			} while (--n);
@@ -10861,7 +10876,7 @@ sna_poly_fill_rect_stippled_n_blt(DrawablePtr drawable,
 					box.x1 += dx; box.x2 += dx;
 					box.y1 += dy; box.y2 += dy;
 
-					sna_poly_fill_rect_stippled_n_box(sna, bo,
+					sna_poly_fill_rect_stippled_n_box(sna, bo, &tile,
 									  br00, br13, gc,
 									  &box, &origin);
 				}
@@ -10870,6 +10885,8 @@ sna_poly_fill_rect_stippled_n_blt(DrawablePtr drawable,
 	}
 
 	assert_pixmap_damage(pixmap);
+	if (tile)
+		kgem_bo_destroy(&sna->kgem, tile);
 	sna->blt_state.fill_bo = 0;
 	return true;
 }
