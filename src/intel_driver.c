@@ -186,37 +186,8 @@ static void PreInitCleanup(ScrnInfoPtr scrn)
 static void intel_check_chipset_option(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	MessageType from = X_PROBED;
-
-	intel_detect_chipset(scrn,
-			     intel->PciInfo,
-			     &intel->chipset);
-
-	/* Set the Chipset and ChipRev, allowing config file entries to override. */
-	if (intel->pEnt->device->chipset && *intel->pEnt->device->chipset) {
-		scrn->chipset = intel->pEnt->device->chipset;
-		from = X_CONFIG;
-	} else if (intel->pEnt->device->chipID >= 0) {
-		scrn->chipset = (char *)xf86TokenToString(intel_chipsets,
-							   intel->pEnt->device->chipID);
-		from = X_CONFIG;
-		xf86DrvMsg(scrn->scrnIndex, X_CONFIG,
-			   "ChipID override: 0x%04X\n",
-			   intel->pEnt->device->chipID);
-		DEVICE_ID(intel->PciInfo) = intel->pEnt->device->chipID;
-	} else {
-		from = X_PROBED;
-		scrn->chipset = (char *)xf86TokenToString(intel_chipsets,
-							   DEVICE_ID(intel->PciInfo));
-	}
-
-	if (intel->pEnt->device->chipRev >= 0) {
-		xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "ChipRev override: %d\n",
-			   intel->pEnt->device->chipRev);
-	}
-
-	xf86DrvMsg(scrn->scrnIndex, from, "Chipset: \"%s\"\n",
-		   (scrn->chipset != NULL) ? scrn->chipset : "Unknown i8xx");
+	intel->info =
+		intel_detect_chipset(scrn, intel->pEnt->device, intel->PciInfo);
 }
 
 static Bool I830GetEarlyOptions(ScrnInfoPtr scrn)

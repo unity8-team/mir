@@ -212,7 +212,7 @@ typedef struct intel_screen_private {
 	int Chipset;
 	EntityInfoPtr pEnt;
 	struct pci_device *PciInfo;
-	struct intel_chipset chipset;
+	const struct intel_device_info *info;
 
 	unsigned int BR[20];
 

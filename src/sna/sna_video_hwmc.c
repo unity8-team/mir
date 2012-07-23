@@ -78,7 +78,7 @@ static int create_context(ScrnInfoPtr scrn, XvMCContextPtr pContext,
 			contextRec->type = XVMC_I965_MPEG2_MC;
 		contextRec->i965.is_g4x = sna->kgem.gen == 45;
 		contextRec->i965.is_965_q = IS_965_Q(sna);
-		contextRec->i965.is_igdng = IS_GEN5(sna);
+		contextRec->i965.is_igdng = sna->kgem.gen == 50;
 	} else {
 		contextRec->type = XVMC_I915_MPEG2_MC;
 		contextRec->i915.use_phys_addr = 0;
@@ -192,7 +192,7 @@ Bool sna_video_xvmc_setup(struct sna *sna,
 			  XF86VideoAdaptorPtr target)
 {
 	XF86MCAdaptorRec *pAdapt;
-	char *name;
+	const char *name;
 	char buf[64];
 
 	/* Needs KMS support. */

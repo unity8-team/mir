@@ -240,7 +240,6 @@ I810PreInit(ScrnInfoPtr scrn, int flags)
    rgb defaultWeight = { 0, 0, 0 };
    int mem;
    Bool enable;
-   struct intel_chipset chipset;
 
    if (scrn->numEntities != 1)
       return FALSE;
@@ -365,40 +364,14 @@ I810PreInit(ScrnInfoPtr scrn, int flags)
     */
    I810DoDDC(scrn, pI810->pEnt->index);
 
-   intel_detect_chipset(scrn, pI810->PciInfo, &chipset);
-
-   /*
-    * Set the Chipset and ChipRev, allowing config file entries to
-    * override.
-    */
-   if (pI810->pEnt->device->chipset && *pI810->pEnt->device->chipset) {
-      scrn->chipset = pI810->pEnt->device->chipset;
-      from = X_CONFIG;
-   } else if (pI810->pEnt->device->chipID >= 0) {
-      scrn->chipset = (char *)xf86TokenToString(intel_chipsets,
-						 pI810->pEnt->device->chipID);
-      from = X_CONFIG;
-      xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "ChipID override: 0x%04X\n",
-		 pI810->pEnt->device->chipID);
-   } else {
-      from = X_PROBED;
-      scrn->chipset = (char *)xf86TokenToString(intel_chipsets,
-						 DEVICE_ID(pI810->PciInfo));
-   }
-   if (pI810->pEnt->device->chipRev >= 0) {
-      xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "ChipRev override: %d\n",
-		 pI810->pEnt->device->chipRev);
-   }
-
-   xf86DrvMsg(scrn->scrnIndex, from, "Chipset: \"%s\"\n",
-	      (scrn->chipset != NULL) ? scrn->chipset : "Unknown i810");
+   intel_detect_chipset(scrn, pI810->pEnt, pI810->PciInfo);
 
    pI810->LinearAddr = pI810->PciInfo->regions[0].base_addr;
-   xf86DrvMsg(scrn->scrnIndex, from, "Linear framebuffer at 0x%lX\n",
+   xf86DrvMsg(scrn->scrnIndex, X_PROBED, "Linear framebuffer at 0x%lX\n",
 	      (unsigned long)pI810->LinearAddr);
 
    pI810->MMIOAddr = pI810->PciInfo->regions[1].base_addr;
-   xf86DrvMsg(scrn->scrnIndex, from, "IO registers at addr 0x%lX\n",
+   xf86DrvMsg(scrn->scrnIndex, X_PROBED, "IO registers at addr 0x%lX\n",
 	      (unsigned long)pI810->MMIOAddr);
 
    /* AGP GART support is required.  Don't proceed any further if it isn't

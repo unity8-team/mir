@@ -223,29 +223,38 @@ static const struct pci_id_match intel_device_match[] = {
 	{ 0, 0, 0 },
 };
 
-void intel_detect_chipset(ScrnInfoPtr scrn,
-			  struct pci_device *pci,
-			  struct intel_chipset *chipset)
+const struct intel_device_info *
+intel_detect_chipset(ScrnInfoPtr scrn,
+		     EntityInfoPtr ent, struct pci_device *pci)
 {
+	MessageType from = X_PROBED;
+	const char *name = NULL;
 	int i;
 
-	chipset->info = chipset_info;
-	chipset->name = NULL;
+	if (ent->device->chipID >= 0) {
+		xf86DrvMsg(scrn->scrnIndex, from = X_CONFIG,
+			   "ChipID override: 0x%04X\n",
+			   ent->device->chipID);
+		DEVICE_ID(pci) = ent->device->chipID;
+	}
 
 	for (i = 0; intel_chipsets[i].name != NULL; i++) {
 		if (DEVICE_ID(pci) == intel_chipsets[i].token) {
-			chipset->name = intel_chipsets[i].name;
+			name = intel_chipsets[i].name;
 			break;
 		}
 	}
-	if (chipset->name == NULL) {
+	if (name == NULL) {
 		xf86DrvMsg(scrn->scrnIndex, X_WARNING, "unknown chipset\n");
-		chipset->name = "unknown";
+		name = "unknown";
 	} else {
-		xf86DrvMsg(scrn->scrnIndex, X_INFO,
+		xf86DrvMsg(scrn->scrnIndex, from,
 			   "Integrated Graphics Chipset: Intel(R) %s\n",
-			   chipset->name);
+			   name);
 	}
+
+	scrn->chipset = name;
+	return chipset_info;
 }
 
 /*

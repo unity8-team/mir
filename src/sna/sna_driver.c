@@ -229,35 +229,8 @@ static void PreInitCleanup(ScrnInfoPtr scrn)
 static void sna_check_chipset_option(ScrnInfoPtr scrn)
 {
 	struct sna *sna = to_sna(scrn);
-	MessageType from = X_PROBED;
 
-	intel_detect_chipset(scrn, sna->PciInfo, &sna->chipset);
-
-	/* Set the Chipset and ChipRev, allowing config file entries to override. */
-	if (sna->pEnt->device->chipset && *sna->pEnt->device->chipset) {
-		scrn->chipset = sna->pEnt->device->chipset;
-		from = X_CONFIG;
-	} else if (sna->pEnt->device->chipID >= 0) {
-		scrn->chipset = (char *)xf86TokenToString(intel_chipsets,
-							  sna->pEnt->device->chipID);
-		from = X_CONFIG;
-		xf86DrvMsg(scrn->scrnIndex, X_CONFIG,
-			   "ChipID override: 0x%04X\n",
-			   sna->pEnt->device->chipID);
-		DEVICE_ID(sna->PciInfo) = sna->pEnt->device->chipID;
-	} else {
-		from = X_PROBED;
-		scrn->chipset = (char *)xf86TokenToString(intel_chipsets,
-							   DEVICE_ID(sna->PciInfo));
-	}
-
-	if (sna->pEnt->device->chipRev >= 0) {
-		xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "ChipRev override: %d\n",
-			   sna->pEnt->device->chipRev);
-	}
-
-	xf86DrvMsg(scrn->scrnIndex, from, "Chipset: \"%s\"\n",
-		   (scrn->chipset != NULL) ? scrn->chipset : "Unknown i8xx");
+	sna->info = intel_detect_chipset(scrn, sna->pEnt, sna->PciInfo);
 }
 
 static Bool sna_get_early_options(ScrnInfoPtr scrn)
@@ -479,8 +452,8 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 	if (!sna_get_early_options(scrn))
 		return FALSE;
 
-	sna_check_chipset_option(scrn);
-	kgem_init(&sna->kgem, fd, sna->PciInfo, sna->chipset.info->gen);
+	sna->info = intel_detect_chipset(scrn, sna->pEnt, sna->PciInfo);
+	kgem_init(&sna->kgem, fd, sna->PciInfo, sna->info->gen);
 	if (!xf86ReturnOptValBool(sna->Options,
 				  OPTION_RELAXED_FENCING,
 				  sna->kgem.has_relaxed_fencing)) {

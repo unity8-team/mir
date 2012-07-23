@@ -231,7 +231,7 @@ struct sna {
 
 	EntityInfoPtr pEnt;
 	struct pci_device *PciInfo;
-	struct intel_chipset chipset;
+	const struct intel_device_info *info;
 
 	ScreenBlockHandlerProcPtr BlockHandler;
 	ScreenWakeupHandlerProcPtr WakeupHandler;

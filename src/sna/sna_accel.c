@@ -13706,23 +13706,23 @@ bool sna_accel_init(ScreenPtr screen, struct sna *sna)
 	no_render_init(sna);
 
 #if !DEBUG_NO_RENDER
-	if (sna->chipset.info->gen >= 80) {
-	} else if (sna->chipset.info->gen >= 70) {
+	if (sna->info->gen >= 80) {
+	} else if (sna->info->gen >= 70) {
 		if ((sna->have_render = gen7_render_init(sna)))
 			backend = "IvyBridge";
-	} else if (sna->chipset.info->gen >= 60) {
+	} else if (sna->info->gen >= 60) {
 		if ((sna->have_render = gen6_render_init(sna)))
 			backend = "SandyBridge";
-	} else if (sna->chipset.info->gen >= 50) {
+	} else if (sna->info->gen >= 50) {
 		if ((sna->have_render = gen5_render_init(sna)))
 			backend = "Ironlake";
-	} else if (sna->chipset.info->gen >= 40) {
+	} else if (sna->info->gen >= 40) {
 		if ((sna->have_render = gen4_render_init(sna)))
 			backend = "Broadwater";
-	} else if (sna->chipset.info->gen >= 30) {
+	} else if (sna->info->gen >= 30) {
 		if ((sna->have_render = gen3_render_init(sna)))
 			backend = "gen3";
-	} else if (sna->chipset.info->gen >= 20) {
+	} else if (sna->info->gen >= 20) {
 		if ((sna->have_render = gen2_render_init(sna)))
 			backend = "gen2";
 	}
