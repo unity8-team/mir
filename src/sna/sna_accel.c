@@ -9423,6 +9423,277 @@ sna_pixmap_get_source_bo(PixmapPtr pixmap)
 	return kgem_bo_reference(priv->gpu_bo);
 }
 
+/*
+static bool
+tile(DrawablePtr drawable,
+	struct kgem_bo *bo, struct sna_damage **damage,
+	PixmapPtr tile, const DDXPointRec * const origin, int alu,
+	int n, xRectangle *rect,
+	const BoxRec *extents, unsigned clipped)
+	*/
+
+static bool
+sna_poly_fill_rect_tiled_8x8_blt(DrawablePtr drawable,
+				 struct kgem_bo *bo, struct sna_damage **damage,
+				 struct kgem_bo *tile_bo, GCPtr gc,
+				 int n, xRectangle *r,
+				 const BoxRec *extents, unsigned clipped)
+{
+	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
+	const DDXPointRec * const origin = &gc->patOrg;
+	uint32_t br00, br13;
+	int tx, ty;
+	int16_t dx, dy;
+	uint32_t *b;
+
+	DBG(("%s x %d [(%d, %d)+(%d, %d)...], clipped=%x\n",
+	     __FUNCTION__, n, r->x, r->y, r->width, r->height, clipped));
+
+	br00 = XY_PAT_BLT | 3 << 20;
+	br13 = bo->pitch;
+	if (bo->tiling && sna->kgem.gen >= 40) {
+		br13 >>= 2;
+		br00 |= BLT_DST_TILED;
+	}
+	br13 |= blt_depth(drawable->depth) << 24;
+	br13 |= fill_ROP[gc->alu] << 16;
+
+	kgem_set_mode(&sna->kgem, KGEM_BLT);
+	get_drawable_deltas(drawable, pixmap, &dx, &dy);
+	if (!clipped) {
+		dx += drawable->x;
+		dy += drawable->y;
+
+		if (!kgem_check_batch(&sna->kgem, 6) ||
+		    !kgem_check_reloc(&sna->kgem, 2) ||
+		    !kgem_check_bo_fenced(&sna->kgem, bo)) {
+			_kgem_submit(&sna->kgem);
+			_kgem_set_mode(&sna->kgem, KGEM_BLT);
+		}
+
+		sna_damage_add_rectangles(damage, r, n, dx, dy);
+		do {
+			int n_this_time;
+
+			n_this_time = n;
+			if (6*n_this_time > sna->kgem.surface - sna->kgem.nbatch - KGEM_BATCH_RESERVED)
+				n_this_time = (sna->kgem.surface - sna->kgem.nbatch - KGEM_BATCH_RESERVED) / 8;
+			if (2*n_this_time > KGEM_RELOC_SIZE(&sna->kgem) - sna->kgem.nreloc)
+				n_this_time = (KGEM_RELOC_SIZE(&sna->kgem) - sna->kgem.nreloc)/2;
+			assert(n_this_time);
+			n -= n_this_time;
+
+			assert(r->x + dx >= 0);
+			assert(r->y + dy >= 0);
+			assert(r->x + dx + r->width  <= pixmap->drawable.width);
+			assert(r->y + dy + r->height <= pixmap->drawable.height);
+
+			b = sna->kgem.batch + sna->kgem.nbatch;
+			sna->kgem.nbatch += 6*n_this_time;
+			do {
+				tx = (r->x - origin->x) % 8;
+				if (tx < 8)
+					tx = 8 - tx;
+				ty = (r->y - origin->y) % 8;
+				if (ty < 8)
+					ty = 8 - ty;
+
+				b[0] = br00 | tx << 12 | ty << 8;
+				b[1] = br13;
+				b[2] = (r->y + dy) << 16 | (r->x + dx);
+				b[3] = (r->y + r->height + dy) << 16 | (r->x + r->width + dx);
+				b[4] = kgem_add_reloc(&sna->kgem, b - sna->kgem.batch + 4, bo,
+						      I915_GEM_DOMAIN_RENDER << 16 |
+						      I915_GEM_DOMAIN_RENDER |
+						      KGEM_RELOC_FENCED,
+						      0);
+				b[5] = kgem_add_reloc(&sna->kgem, b - sna->kgem.batch + 5, tile_bo,
+						      I915_GEM_DOMAIN_RENDER << 16 |
+						      KGEM_RELOC_FENCED,
+						      0);
+				b += 6;
+				r++;
+			} while (--n_this_time);
+
+			if (!n)
+				break;
+
+			_kgem_submit(&sna->kgem);
+			_kgem_set_mode(&sna->kgem, KGEM_BLT);
+		} while (1);
+	} else {
+		RegionRec clip;
+
+		region_set(&clip, extents);
+		region_maybe_clip(&clip, gc->pCompositeClip);
+		if (!RegionNotEmpty(&clip))
+			goto done;
+
+		if (clip.data == NULL) {
+			const BoxRec *c = &clip.extents;
+			while (n--) {
+				BoxRec box;
+
+				box.x1 = r->x + drawable->x;
+				box.y1 = r->y + drawable->y;
+				box.x2 = bound(box.x1, r->width);
+				box.y2 = bound(box.y1, r->height);
+				r++;
+
+				if (box_intersect(&box, c)) {
+					ty = (box.y1 - drawable->y - origin->y) % 8;
+					if (ty < 0)
+						ty = 8 - ty;
+
+					tx = (box.x1 - drawable->x - origin->x) % 8;
+					if (tx < 0)
+						tx = 8 - tx;
+
+					if (!kgem_check_batch(&sna->kgem, 6) ||
+					    !kgem_check_reloc(&sna->kgem, 2) ||
+					    !kgem_check_bo_fenced(&sna->kgem, bo)) {
+						_kgem_submit(&sna->kgem);
+						_kgem_set_mode(&sna->kgem, KGEM_BLT);
+					}
+
+					b = sna->kgem.batch + sna->kgem.nbatch;
+					b[0] = br00 | tx << 12 | ty << 8;
+					b[1] = br13;
+					b[2] = box.y1 << 16 | box.x1;
+					b[3] = box.y2 << 16 | box.x2;
+					b[4] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 4, bo,
+							      I915_GEM_DOMAIN_RENDER << 16 |
+							      I915_GEM_DOMAIN_RENDER |
+							      KGEM_RELOC_FENCED,
+							      0);
+					b[5] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 5, tile_bo,
+							      I915_GEM_DOMAIN_RENDER << 16 |
+							      KGEM_RELOC_FENCED,
+							      0);
+					sna->kgem.nbatch += 6;
+				}
+			}
+		} else {
+			const BoxRec * const clip_start = RegionBoxptr(&clip);
+			const BoxRec * const clip_end = clip_start + clip.data->numRects;
+			const BoxRec *c;
+
+			do {
+				BoxRec box;
+
+				box.x1 = r->x + drawable->x;
+				box.y1 = r->y + drawable->y;
+				box.x2 = bound(box.x1, r->width);
+				box.y2 = bound(box.y1, r->height);
+				r++;
+
+				c = find_clip_box_for_y(clip_start,
+							clip_end,
+							box.y1);
+				while (c != clip_end) {
+					BoxRec bb;
+
+					if (box.y2 <= c->y1)
+						break;
+
+					bb = box;
+					if (box_intersect(&bb, c++)) {
+						ty = (bb.y1 - drawable->y - origin->y) % 8;
+						if (ty < 0)
+							ty = 8 - ty;
+
+						tx = (bb.x1 - drawable->x - origin->x) % 8;
+						if (tx < 0)
+							tx = 8 - tx;
+
+						if (!kgem_check_batch(&sna->kgem, 6) ||
+						    !kgem_check_reloc(&sna->kgem, 2) ||
+						    !kgem_check_bo_fenced(&sna->kgem, bo)) {
+							_kgem_submit(&sna->kgem);
+							_kgem_set_mode(&sna->kgem, KGEM_BLT);
+						}
+
+						b = sna->kgem.batch + sna->kgem.nbatch;
+						b[0] = br00 | tx << 12 | ty << 8;
+						b[1] = br13;
+						b[2] = (bb.y1+dy) << 16 | (bb.x1+dx);
+						b[3] = (bb.y2+dy) << 16 | (bb.x2+dx);
+						b[4] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 4, bo,
+								      I915_GEM_DOMAIN_RENDER << 16 |
+								      I915_GEM_DOMAIN_RENDER |
+								      KGEM_RELOC_FENCED,
+								      0);
+						b[5] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 5, tile_bo,
+								      I915_GEM_DOMAIN_RENDER << 16 |
+								      KGEM_RELOC_FENCED,
+								      0);
+						sna->kgem.nbatch += 6;
+					}
+				}
+			} while (--n);
+		}
+	}
+done:
+	assert_pixmap_damage(pixmap);
+	return true;
+}
+
+static bool
+sna_poly_fill_rect_tiled_nxm_blt(DrawablePtr drawable,
+				 struct kgem_bo *bo,
+				 struct sna_damage **damage,
+				 GCPtr gc, int n, xRectangle *rect,
+				 const BoxRec *extents, unsigned clipped)
+{
+	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
+	PixmapPtr tile = gc->tile.pixmap;
+	struct kgem_bo *upload;
+	int w, h, cpp;
+	void *ptr;
+	bool ret;
+
+	DBG(("%s: %dx%d\n", __FUNCTION__,
+	     tile->drawable.width, tile->drawable.height));
+
+	if (!sna_pixmap_move_to_cpu(tile, MOVE_READ))
+		return false;
+
+	upload = kgem_create_buffer(&sna->kgem, 8*tile->drawable.bitsPerPixel,
+				    KGEM_BUFFER_WRITE_INPLACE,
+				    &ptr);
+	if (upload == NULL)
+		return false;
+
+	assert(tile->drawable.height && tile->drawable.height <= 8);
+	assert(tile->drawable.width && tile->drawable.width <= 8);
+
+	cpp = tile->drawable.bitsPerPixel/8;
+	for (h = 0; h < tile->drawable.height; h++) {
+		uint8_t *src = (uint8_t *)tile->devPrivate.ptr + tile->devKind*h;
+		uint8_t *dst = (uint8_t *)ptr + 8*cpp*h;
+
+		w = tile->drawable.width*cpp;
+		memcpy(dst, src, w);
+		while (w < 8*cpp) {
+			memcpy(dst+w, dst, w);
+			w *= 2;
+		}
+	}
+	while (h < 8) {
+		memcpy((uint8_t*)ptr + h*w, ptr, h*w);
+		h *= 2;
+	}
+
+	ret = sna_poly_fill_rect_tiled_8x8_blt(drawable, bo, damage,
+					       upload, gc, n, rect,
+					       extents, clipped);
+
+	kgem_bo_destroy(&sna->kgem, upload);
+	return ret;
+}
+
 static bool
 sna_poly_fill_rect_tiled_blt(DrawablePtr drawable,
 			     struct kgem_bo *bo,
@@ -9458,6 +9729,25 @@ sna_poly_fill_rect_tiled_blt(DrawablePtr drawable,
 	 * Also we can do the lg2 reduction for BLT and use repeat modes for
 	 * RENDER.
 	 */
+
+	if ((tile->drawable.width | tile->drawable.height) == 8) {
+		bool ret;
+
+		tile_bo = sna_pixmap_get_source_bo(tile);
+		ret = sna_poly_fill_rect_tiled_8x8_blt(drawable, bo, damage,
+						       tile_bo, gc, n, rect,
+						       extents, clipped);
+		kgem_bo_destroy(&sna->kgem, tile_bo);
+
+		return ret;
+	}
+
+	if ((tile->drawable.width | tile->drawable.height) <= 0xc &&
+	    is_power_of_two(tile->drawable.width) &&
+	    is_power_of_two(tile->drawable.height))
+		return sna_poly_fill_rect_tiled_nxm_blt(drawable, bo, damage,
+							gc, n, rect,
+							extents, clipped);
 
 	tile_bo = sna_pixmap_get_source_bo(tile);
 	if (tile_bo == NULL) {
