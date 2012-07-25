@@ -556,12 +556,12 @@ static struct list *active(struct kgem *kgem, int num_pages, int tiling)
 }
 
 static size_t
-agp_aperture_size(struct pci_device *dev, int gen)
+agp_aperture_size(struct pci_device *dev, unsigned gen)
 {
 	/* XXX assume that only future chipsets are unknown and follow
 	 * the post gen2 PCI layout.
 	 */
-	return dev->regions[(gen && gen < 30) ? 0 : 2].size;
+	return dev->regions[gen < 30 ? 0 : 2].size;
 }
 
 static size_t
@@ -649,7 +649,7 @@ static bool is_hw_supported(struct kgem *kgem,
 	if (DBG_NO_HW)
 		return false;
 
-	if (kgem->gen == 0) /* unknown chipset, assume future gen */
+	if (kgem->gen == (unsigned)-1) /* unknown chipset, assume future gen */
 		return kgem->has_blt;
 
 	if (kgem->gen <= 20) /* dynamic GTT is fubar */
@@ -791,7 +791,7 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	DBG(("%s: semaphores enabled? %d\n", __FUNCTION__,
 	     kgem->has_semaphores));
 
-	kgem->can_blt_cpu = gen == 0 || gen >= 30;
+	kgem->can_blt_cpu = gen >= 30;
 	DBG(("%s: can blt to cpu? %d\n", __FUNCTION__,
 	     kgem->can_blt_cpu));
 

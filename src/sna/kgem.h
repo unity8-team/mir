@@ -108,7 +108,7 @@ enum {
 struct kgem {
 	int fd;
 	int wedged;
-	int gen;
+	unsigned gen;
 
 	uint32_t unique_id;
 

@@ -47,7 +47,7 @@
 static struct intel_device_info *chipset_info;
 
 static const struct intel_device_info intel_generic_info = {
-	.gen = 0,
+	.gen = -1,
 };
 
 static const struct intel_device_info intel_i81x_info = {

@@ -387,7 +387,7 @@ static Bool has_relaxed_fencing(struct intel_screen_private *intel)
 
 static Bool can_accelerate_blt(struct intel_screen_private *intel)
 {
-	if (INTEL_INFO(intel)->gen == 0)
+	if (INTEL_INFO(intel)->gen == -1)
 		return FALSE;
 
 	if (0 && (IS_I830(intel) || IS_845G(intel))) {
