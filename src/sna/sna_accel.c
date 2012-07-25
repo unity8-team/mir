@@ -9466,6 +9466,13 @@ sna_poly_fill_rect_tiled_8x8_blt(DrawablePtr drawable,
 
 		sna_damage_add_rectangles(damage, r, n, dx, dy);
 		if (n == 1) {
+			tx = (r->x - origin->x) % 8;
+			if (tx < 8)
+				tx = 8 - tx;
+			ty = (r->y - origin->y) % 8;
+			if (ty < 8)
+				ty = 8 - ty;
+
 			b = sna->kgem.batch + sna->kgem.nbatch;
 			b[0] = XY_PAT_BLT | tx << 12 | ty << 8 | 3 << 20 | (br00 & BLT_DST_TILED);
 			b[1] = br13;
