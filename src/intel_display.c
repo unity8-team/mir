@@ -127,6 +127,7 @@ intel_output_dpms_backlight(xf86OutputPtr output, int oldmode, int mode);
  * List of available kernel interfaces in priority order
  */
 static const char *backlight_interfaces[] = {
+	"gmux_backlight",
 	"asus-laptop",
 	"asus-nb-wmi",
 	"eeepc",
