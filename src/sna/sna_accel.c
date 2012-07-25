@@ -13375,7 +13375,8 @@ static bool sna_accel_do_flush(struct sna *sna)
 	} else {
 		if (!start_flush(sna, priv)) {
 			DBG(("%s -- no pending write to scanout\n", __FUNCTION__));
-			kgem_bo_flush(&sna->kgem, priv->gpu_bo);
+			if (priv)
+				kgem_bo_flush(&sna->kgem, priv->gpu_bo);
 		} else {
 			sna->timer_active |= 1 << FLUSH_TIMER;
 			sna->timer_expire[FLUSH_TIMER] =
