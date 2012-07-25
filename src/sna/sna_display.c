@@ -282,8 +282,8 @@ sna_output_backlight_get_max(xf86OutputPtr output)
 }
 
 enum {
-	FIRMWARE,
 	PLATFORM,
+	FIRMWARE,
 	RAW,
 	NAMED,
 };
