@@ -64,9 +64,9 @@
 #define is_aligned(x, y) (((x) & ((y) - 1)) == 0)
 
 struct gt_info {
-	int max_vs_threads;
-	int max_gs_threads;
-	int max_wm_threads;
+	uint32_t max_vs_threads;
+	uint32_t max_gs_threads;
+	uint32_t max_wm_threads;
 	struct {
 		int size;
 		int max_vs_entries;
@@ -77,14 +77,14 @@ struct gt_info {
 static const struct gt_info gt1_info = {
 	.max_vs_threads = 36,
 	.max_gs_threads = 36,
-	.max_wm_threads = 86,
+	.max_wm_threads = (86-1) << GEN7_PS_MAX_THREADS_SHIFT,
 	.urb = { 128, 512, 192 },
 };
 
 static const struct gt_info gt2_info = {
 	.max_vs_threads = 128,
 	.max_gs_threads = 128,
-	.max_wm_threads = 172,
+	.max_wm_threads = (172-1) << GEN7_PS_MAX_THREADS_SHIFT,
 	.urb = { 256, 704, 320 },
 };
 
@@ -833,7 +833,7 @@ gen7_emit_wm(struct sna *sna, int kernel)
 	OUT_BATCH(1 << GEN7_PS_SAMPLER_COUNT_SHIFT |
 		  wm_kernels[kernel].num_surfaces << GEN7_PS_BINDING_TABLE_ENTRY_COUNT_SHIFT);
 	OUT_BATCH(0); /* scratch address */
-	OUT_BATCH((sna->render_state.gen7.info->max_wm_threads - 1) << GEN7_PS_MAX_THREADS_SHIFT |
+	OUT_BATCH(sna->render_state.gen7.info->max_wm_threads |
 		  GEN7_PS_ATTRIBUTE_ENABLE |
 		  GEN7_PS_16_DISPATCH_ENABLE);
 	OUT_BATCH(6 << GEN7_PS_DISPATCH_START_GRF_SHIFT_0);
