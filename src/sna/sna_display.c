@@ -292,6 +292,7 @@ static void
 sna_output_backlight_init(xf86OutputPtr output)
 {
 	static const char *known_interfaces[] = {
+		"gmux_backlight",
 		"asus-laptop",
 		"asus-nb-wmi",
 		"eeepc",
