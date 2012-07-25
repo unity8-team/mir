@@ -4277,7 +4277,7 @@ static bool gen7_render_setup(struct sna *sna)
 	 */
 	null_create(&general);
 
-	for (m = 0; m < GEN7_KERNEL_COUNT; m++)
+	for (m = 0; m < GEN7_WM_KERNEL_COUNT; m++)
 		state->wm_kernel[m] =
 			sna_static_stream_add(&general,
 					       wm_kernels[m].data,
