@@ -3120,7 +3120,7 @@ static bool upload_inplace(struct sna *sna,
 		return false;
 	}
 
-	if (sna->kgem.has_llc) {
+	if (sna->kgem.has_llc && !priv->flush) {
 		if (priv->cpu_bo) {
 			if (priv->cpu_damage &&
 			    kgem_bo_is_busy(priv->cpu_bo) &&
@@ -3158,7 +3158,6 @@ static bool upload_inplace(struct sna *sna,
 			DBG(("%s? yes, will replace busy GPU\n", __FUNCTION__));
 			return true;
 		}
-
 	}
 
 	DBG(("%s? no\n", __FUNCTION__));
