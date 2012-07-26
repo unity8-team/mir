@@ -77,7 +77,7 @@ struct gt_info {
 static const struct gt_info gt1_info = {
 	.max_vs_threads = 36,
 	.max_gs_threads = 36,
-	.max_wm_threads = (86-1) << GEN7_PS_MAX_THREADS_SHIFT,
+	.max_wm_threads = (48-1) << GEN7_PS_MAX_THREADS_SHIFT,
 	.urb = { 128, 512, 192 },
 };
 
