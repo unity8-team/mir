@@ -2659,8 +2659,11 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 	BoxPtr box;
 	int n;
 
-	DBG(("%s(pixmap=%ld, usage=%d)\n",
-	     __FUNCTION__, pixmap->drawable.serialNumber, pixmap->usage_hint));
+	DBG(("%s(pixmap=%ld, usage=%d), flags=%x\n",
+	     __FUNCTION__,
+	     pixmap->drawable.serialNumber,
+	     pixmap->usage_hint,
+	     flags));
 
 	if ((flags & __MOVE_FORCE) == 0 && wedged(sna))
 		return NULL;
@@ -13278,7 +13281,8 @@ sna_accel_flush_callback(CallbackListPtr *list,
 		} else {
 			DBG(("%s: flushing DRI pixmap=%ld\n", __FUNCTION__,
 			     priv->pixmap->drawable.serialNumber));
-			ret = sna_pixmap_move_to_gpu(priv->pixmap, MOVE_READ);
+			ret = sna_pixmap_move_to_gpu(priv->pixmap,
+						     MOVE_READ | __MOVE_FORCE);
 		}
 		(void)ret;
 	}
