@@ -38,7 +38,7 @@ Among the other tweaks this week:
 * Shadow support was dropped from UXA as it was neither complete nor
   correct, use SNA instead.
 
-Release 2.12.0 (2012-07-15)
+Release 2.20.0 (2012-07-15)
 ===========================
 First the big news, a new acceleration method that aims to be faster and
 consume far less CPU than UXA is now available for selection at runtime.
