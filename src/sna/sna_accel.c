@@ -1153,8 +1153,10 @@ static inline bool operate_inplace(struct sna_pixmap *priv, unsigned flags)
 
 static inline void add_flush_pixmap(struct sna *sna, struct sna_pixmap *priv)
 {
+	DBG(("%s: marking pixmap=%ld for flushing\n",
+	     __FUNCTION__, priv->pixmap->drawable.serialNumber));
 	list_move(&priv->list, &sna->flush_pixmaps);
-	sna->kgem.flush |= 1;
+	sna->kgem.flush = true;
 }
 
 bool
@@ -13261,6 +13263,7 @@ sna_accel_flush_callback(CallbackListPtr *list,
 	 * by checking for outgoing damage events or sync replies. Tricky,
 	 * and doesn't appear to mitigate the performance loss.
 	 */
+	DBG(("%s: flush?=%d\n", __FUNCTION__, sna->kgem.flush));
 	if (!sna->kgem.flush)
 		return;
 

@@ -189,6 +189,13 @@ static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 	/* Don't allow this named buffer to be replaced */
 	priv->pinned = 1;
 
+	if (priv->gpu_bo->exec || priv->cpu_damage) {
+		DBG(("%s: marking pixmap=%ld for flushing\n",
+		     __FUNCTION__, pixmap->drawable.serialNumber));
+		list_move(&priv->list, &sna->flush_pixmaps);
+		sna->kgem.flush = true;
+	}
+
 	return priv->gpu_bo;
 }
 
