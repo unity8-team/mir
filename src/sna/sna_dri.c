@@ -154,13 +154,21 @@ static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 	struct sna_pixmap *priv;
 	int tiling;
 
-	priv = sna_pixmap(pixmap);
-	if (priv == NULL || priv->shm)
-		return NULL;
+	DBG(("%s: attaching DRI client to pixmap=%ld\n",
+	     __FUNCTION__, pixmap->drawable.serialNumber));
 
-	priv = sna_pixmap_force_to_gpu(pixmap, MOVE_READ | MOVE_WRITE);
-	if (priv == NULL)
+	priv = sna_pixmap(pixmap);
+	if (priv != NULL && priv->shm) {
+		DBG(("%s: SHM Pixmap, BadAlloc\n", __FUNCTION__));
 		return NULL;
+	}
+
+	priv = sna_pixmap_move_to_gpu(pixmap,
+				      MOVE_READ | MOVE_WRITE | __MOVE_FORCE | __MOVE_DRI);
+	if (priv == NULL) {
+		DBG(("%s: failed to move to GPU, BadAlloc\n", __FUNCTION__));
+		return NULL;
+	}
 
 	if (priv->flush++)
 		return priv->gpu_bo;

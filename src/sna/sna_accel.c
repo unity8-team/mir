@@ -2671,7 +2671,18 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 	priv = sna_pixmap(pixmap);
 	if (priv == NULL) {
 		DBG(("%s: not attached\n", __FUNCTION__));
-		return NULL;
+		if ((flags & __MOVE_DRI) == 0)
+			return NULL;
+
+		DBG(("%s: forcing the creation on the GPU\n", __FUNCTION__));
+
+		priv = sna_pixmap_attach(pixmap);
+		if (priv == NULL)
+			return NULL;
+
+		sna_damage_all(&priv->cpu_damage,
+			       pixmap->drawable.width,
+			       pixmap->drawable.height);
 	}
 
 	if (sna_damage_is_all(&priv->gpu_damage,
