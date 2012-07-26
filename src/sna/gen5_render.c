@@ -2096,8 +2096,6 @@ picture_is_cpu(PicturePtr picture)
 	if (!picture->pDrawable)
 		return false;
 
-	if (too_large(picture->pDrawable->width, picture->pDrawable->height))
-		return true;
 
 	return is_cpu(picture->pDrawable) || is_dirty(picture->pDrawable);
 }
@@ -2731,7 +2729,8 @@ gen5_render_composite_spans_done(struct sna *sna,
 static bool
 gen5_check_composite_spans(struct sna *sna,
 			   uint8_t op, PicturePtr src, PicturePtr dst,
-			   int16_t width, int16_t height, unsigned flags)
+			   int16_t width, int16_t height,
+			   unsigned flags)
 {
 	if ((flags & COMPOSITE_SPANS_RECTILINEAR) == 0)
 		return false;
