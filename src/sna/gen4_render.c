@@ -80,7 +80,7 @@
 #define URB_CS_ENTRIES	      0
 
 #define URB_VS_ENTRY_SIZE     1	// each 512-bit row
-#define URB_VS_ENTRIES	      8	// we needs at least 8 entries
+#define URB_VS_ENTRIES	      32	// we needs at least 8 entries
 
 #define URB_GS_ENTRY_SIZE     0
 #define URB_GS_ENTRIES	      0
@@ -89,7 +89,7 @@
 #define URB_CLIP_ENTRIES      0
 
 #define URB_SF_ENTRY_SIZE     2
-#define URB_SF_ENTRIES	      1
+#define URB_SF_ENTRIES	      8
 
 /*
  * this program computes dA/dx and dA/dy for the texture coordinates along
@@ -97,10 +97,18 @@
  */
 
 #define SF_KERNEL_NUM_GRF  16
-#define SF_MAX_THREADS	   2
 
 #define PS_KERNEL_NUM_GRF   32
-#define PS_MAX_THREADS	    48
+
+static const struct gt_info {
+	uint32_t max_sf_threads;
+	uint32_t max_wm_threads;
+	uint32_t urb_size;
+} gen4_gt_info = {
+	16, 32, 256,
+}, g4x_gt_info = {
+	32, 50, 384,
+};
 
 static const uint32_t sf_kernel[][4] = {
 #include "exa_sf.g4b"
@@ -3569,34 +3577,35 @@ static uint32_t gen4_create_vs_unit_state(struct sna_static_stream *stream)
 }
 
 static uint32_t gen4_create_sf_state(struct sna_static_stream *stream,
+				     const struct gt_info *info,
 				     uint32_t kernel)
 {
-	struct gen4_sf_unit_state *sf_state;
+	struct gen4_sf_unit_state *sf;
 
-	sf_state = sna_static_stream_map(stream, sizeof(*sf_state), 32);
+	sf = sna_static_stream_map(stream, sizeof(*sf), 32);
 
-	sf_state->thread0.grf_reg_count = GEN4_GRF_BLOCKS(SF_KERNEL_NUM_GRF);
-	sf_state->thread0.kernel_start_pointer = kernel >> 6;
-	sf_state->sf1.single_program_flow = 1;
+	sf->thread0.grf_reg_count = GEN4_GRF_BLOCKS(SF_KERNEL_NUM_GRF);
+	sf->thread0.kernel_start_pointer = kernel >> 6;
+	sf->sf1.single_program_flow = 1;
 	/* scratch space is not used in our kernel */
-	sf_state->thread2.scratch_space_base_pointer = 0;
-	sf_state->thread3.const_urb_entry_read_length = 0;	/* no const URBs */
-	sf_state->thread3.const_urb_entry_read_offset = 0;	/* no const URBs */
-	sf_state->thread3.urb_entry_read_length = 1;	/* 1 URB per vertex */
+	sf->thread2.scratch_space_base_pointer = 0;
+	sf->thread3.const_urb_entry_read_length = 0;	/* no const URBs */
+	sf->thread3.const_urb_entry_read_offset = 0;	/* no const URBs */
+	sf->thread3.urb_entry_read_length = 1;	/* 1 URB per vertex */
 	/* don't smash vertex header, read start from dw8 */
-	sf_state->thread3.urb_entry_read_offset = 1;
-	sf_state->thread3.dispatch_grf_start_reg = 3;
-	sf_state->thread4.max_threads = SF_MAX_THREADS - 1;
-	sf_state->thread4.urb_entry_allocation_size = URB_SF_ENTRY_SIZE - 1;
-	sf_state->thread4.nr_urb_entries = URB_SF_ENTRIES;
-	sf_state->sf5.viewport_transform = false;	/* skip viewport */
-	sf_state->sf6.cull_mode = GEN4_CULLMODE_NONE;
-	sf_state->sf6.scissor = 0;
-	sf_state->sf7.trifan_pv = 2;
-	sf_state->sf6.dest_org_vbias = 0x8;
-	sf_state->sf6.dest_org_hbias = 0x8;
+	sf->thread3.urb_entry_read_offset = 1;
+	sf->thread3.dispatch_grf_start_reg = 3;
+	sf->thread4.max_threads = info->max_sf_threads - 1;
+	sf->thread4.urb_entry_allocation_size = URB_SF_ENTRY_SIZE - 1;
+	sf->thread4.nr_urb_entries = URB_SF_ENTRIES;
+	sf->sf5.viewport_transform = false;	/* skip viewport */
+	sf->sf6.cull_mode = GEN4_CULLMODE_NONE;
+	sf->sf6.scissor = 0;
+	sf->sf7.trifan_pv = 2;
+	sf->sf6.dest_org_vbias = 0x8;
+	sf->sf6.dest_org_hbias = 0x8;
 
-	return sna_static_stream_offsetof(stream, sf_state);
+	return sna_static_stream_offsetof(stream, sf);
 }
 
 static uint32_t gen4_create_sampler_state(struct sna_static_stream *stream,
@@ -3616,47 +3625,48 @@ static uint32_t gen4_create_sampler_state(struct sna_static_stream *stream,
 	return sna_static_stream_offsetof(stream, sampler_state);
 }
 
-static void gen4_init_wm_state(struct gen4_wm_unit_state *state,
+static void gen4_init_wm_state(struct gen4_wm_unit_state *wm,
+			       const struct gt_info *info,
 			       bool has_mask,
 			       uint32_t kernel,
 			       uint32_t sampler)
 {
-	state->thread0.grf_reg_count = GEN4_GRF_BLOCKS(PS_KERNEL_NUM_GRF);
-	state->thread0.kernel_start_pointer = kernel >> 6;
+	wm->thread0.grf_reg_count = GEN4_GRF_BLOCKS(PS_KERNEL_NUM_GRF);
+	wm->thread0.kernel_start_pointer = kernel >> 6;
 
-	state->thread1.single_program_flow = 0;
+	wm->thread1.single_program_flow = 0;
 
 	/* scratch space is not used in our kernel */
-	state->thread2.scratch_space_base_pointer = 0;
-	state->thread2.per_thread_scratch_space = 0;
+	wm->thread2.scratch_space_base_pointer = 0;
+	wm->thread2.per_thread_scratch_space = 0;
 
-	state->thread3.const_urb_entry_read_length = 0;
-	state->thread3.const_urb_entry_read_offset = 0;
+	wm->thread3.const_urb_entry_read_length = 0;
+	wm->thread3.const_urb_entry_read_offset = 0;
 
-	state->thread3.urb_entry_read_offset = 0;
+	wm->thread3.urb_entry_read_offset = 0;
 	/* wm kernel use urb from 3, see wm_program in compiler module */
-	state->thread3.dispatch_grf_start_reg = 3;	/* must match kernel */
+	wm->thread3.dispatch_grf_start_reg = 3;	/* must match kernel */
 
-	state->wm4.sampler_count = 1;	/* 1-4 samplers */
+	wm->wm4.sampler_count = 1;	/* 1-4 samplers */
 
-	state->wm4.sampler_state_pointer = sampler >> 5;
-	state->wm5.max_threads = PS_MAX_THREADS - 1;
-	state->wm5.transposed_urb_read = 0;
-	state->wm5.thread_dispatch_enable = 1;
+	wm->wm4.sampler_state_pointer = sampler >> 5;
+	wm->wm5.max_threads = info->max_wm_threads - 1;
+	wm->wm5.transposed_urb_read = 0;
+	wm->wm5.thread_dispatch_enable = 1;
 	/* just use 16-pixel dispatch (4 subspans), don't need to change kernel
 	 * start point
 	 */
-	state->wm5.enable_16_pix = 1;
-	state->wm5.enable_8_pix = 0;
-	state->wm5.early_depth_test = 1;
+	wm->wm5.enable_16_pix = 1;
+	wm->wm5.enable_8_pix = 0;
+	wm->wm5.early_depth_test = 1;
 
 	/* Each pair of attributes (src/mask coords) is two URB entries */
 	if (has_mask) {
-		state->thread1.binding_table_entry_count = 3;	/* 2 tex and fb */
-		state->thread3.urb_entry_read_length = 4;
+		wm->thread1.binding_table_entry_count = 3;	/* 2 tex and fb */
+		wm->thread3.urb_entry_read_length = 4;
 	} else {
-		state->thread1.binding_table_entry_count = 2;	/* 1 tex and fb */
-		state->thread3.urb_entry_read_length = 2;
+		wm->thread1.binding_table_entry_count = 2;	/* 1 tex and fb */
+		wm->thread3.urb_entry_read_length = 2;
 	}
 }
 
@@ -3716,8 +3726,14 @@ static bool gen4_render_setup(struct sna *sna)
 	struct gen4_render_state *state = &sna->render_state.gen4;
 	struct sna_static_stream general;
 	struct gen4_wm_unit_state_padded *wm_state;
+	const struct gt_info *info;
 	uint32_t sf[2], wm[KERNEL_COUNT];
 	int i, j, k, l, m;
+
+	if (sna->kgem.gen == 45)
+		info = &g4x_gt_info;
+	else
+		info = &gen4_gt_info;
 
 	sna_static_stream_init(&general);
 
@@ -3744,8 +3760,8 @@ static bool gen4_render_setup(struct sna *sna)
 
 	state->vs = gen4_create_vs_unit_state(&general);
 
-	state->sf[0] = gen4_create_sf_state(&general, sf[0]);
-	state->sf[1] = gen4_create_sf_state(&general, sf[1]);
+	state->sf[0] = gen4_create_sf_state(&general, info, sf[0]);
+	state->sf[1] = gen4_create_sf_state(&general, info, sf[1]);
 
 
 	/* Set up the WM states: each filter/extend type for source and mask, per
@@ -3769,7 +3785,7 @@ static bool gen4_render_setup(struct sna *sna)
 									  k, l);
 
 					for (m = 0; m < KERNEL_COUNT; m++) {
-						gen4_init_wm_state(&wm_state->state,
+						gen4_init_wm_state(&wm_state->state, info,
 								   wm_kernels[m].has_mask,
 								   wm[m],
 								   sampler_state);
