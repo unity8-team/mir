@@ -578,8 +578,6 @@ sna_dri_copy_to_front(struct sna *sna, DrawablePtr draw, RegionPtr region,
 		get_drawable_deltas(draw, pixmap, &dx, &dy);
 	}
 
-	sna_dri_select_mode(sna, src_bo, flush);
-
 	damage(pixmap, region);
 	if (region) {
 		boxes = REGION_RECTS(region);
@@ -596,16 +594,18 @@ sna_dri_copy_to_front(struct sna *sna, DrawablePtr draw, RegionPtr region,
 				      dst_bo, dx, dy,
 				      boxes, n);
 	} else {
+		sna_dri_select_mode(sna, src_bo, flush);
+
 		sna->render.copy_boxes(sna, GXcopy,
 				       (PixmapPtr)draw, src_bo, -draw->x, -draw->y,
 				       pixmap, dst_bo, dx, dy,
 				       boxes, n, COPY_LAST);
-	}
 
-	DBG(("%s: flushing? %d\n", __FUNCTION__, flush));
-	if (flush) { /* STAT! */
-		kgem_submit(&sna->kgem);
-		bo = kgem_get_last_request(&sna->kgem);
+		DBG(("%s: flushing? %d\n", __FUNCTION__, flush));
+		if (flush) { /* STAT! */
+			kgem_submit(&sna->kgem);
+			bo = kgem_get_last_request(&sna->kgem);
+		}
 	}
 
 	pixman_region_translate(region, dx, dy);
@@ -670,8 +670,6 @@ sna_dri_copy_from_front(struct sna *sna, DrawablePtr draw, RegionPtr region,
 		get_drawable_deltas(draw, pixmap, &dx, &dy);
 	}
 
-	sna_dri_select_mode(sna, src_bo, false);
-
 	if (region) {
 		boxes = REGION_RECTS(region);
 		n = REGION_NUM_RECTS(region);
@@ -688,6 +686,7 @@ sna_dri_copy_from_front(struct sna *sna, DrawablePtr draw, RegionPtr region,
 				      dst_bo, -draw->x, -draw->y,
 				      boxes, n);
 	} else {
+		sna_dri_select_mode(sna, src_bo, false);
 		sna->render.copy_boxes(sna, GXcopy,
 				       pixmap, src_bo, dx, dy,
 				       (PixmapPtr)draw, dst_bo, -draw->x, -draw->y,
@@ -730,14 +729,13 @@ sna_dri_copy(struct sna *sna, DrawablePtr draw, RegionPtr region,
 		n = 1;
 	}
 
-	sna_dri_select_mode(sna, src_bo, false);
-
 	if (wedged(sna)) {
 		sna_dri_copy_fallback(sna, draw->bitsPerPixel,
 				      src_bo, 0, 0,
 				      dst_bo, 0, 0,
 				      boxes, n);
 	} else {
+		sna_dri_select_mode(sna, src_bo, false);
 		sna->render.copy_boxes(sna, GXcopy,
 				       (PixmapPtr)draw, src_bo, 0, 0,
 				       (PixmapPtr)draw, dst_bo, 0, 0,
