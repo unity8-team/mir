@@ -2419,7 +2419,7 @@ sna_covering_crtc(ScrnInfoPtr scrn,
 	int best_coverage, c;
 
 	/* If we do not own the VT, we do not own the CRTC either */
-	if (!scrn->vtSema || wedged(to_sna(scrn)))
+	if (!scrn->vtSema)
 		return NULL;
 
 	DBG(("%s for box=(%d, %d), (%d, %d)\n",
