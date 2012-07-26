@@ -154,7 +154,7 @@ static const SymTabRec _intel_chipsets[] = {
 SymTabRec *intel_chipsets = (SymTabRec *) _intel_chipsets;
 
 #define INTEL_DEVICE_MATCH(d,i) \
-    { 0x8086, (d), PCI_MATCH_ANY, PCI_MATCH_ANY, 0, 0, (intptr_t)(i) }
+    { 0x8086, (d), PCI_MATCH_ANY, PCI_MATCH_ANY, 0x3 << 16, 0xff << 16, (intptr_t)(i) }
 
 static const struct pci_id_match intel_device_match[] = {
 #if !KMS_ONLY
