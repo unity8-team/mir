@@ -397,6 +397,7 @@ static void damage(PixmapPtr pixmap, RegionPtr region)
 	struct sna_pixmap *priv;
 
 	priv = sna_pixmap(pixmap);
+	assert(priv != NULL);
 	if (DAMAGE_IS_ALL(priv->gpu_damage))
 		return;
 
