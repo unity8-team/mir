@@ -31,6 +31,30 @@
 #include <mipict.h>
 #include "fbpict.h"
 
+static void
+SourceValidateOnePicture(PicturePtr picture)
+{
+	DrawablePtr drawable = picture->pDrawable;
+	ScreenPtr screen;
+
+	if (!drawable)
+		return;
+
+	screen = drawable->pScreen;
+	if (screen->SourceValidate)
+		screen->SourceValidate(drawable,
+				       0, 0, drawable->width, drawable->height,
+				       picture->subWindowMode);
+}
+
+static void
+fbCompositeSourceValidate(PicturePtr picture)
+{
+	SourceValidateOnePicture(picture);
+	if (picture->alphaMap)
+		SourceValidateOnePicture(picture->alphaMap);
+}
+
 void
 fbComposite(CARD8 op,
             PicturePtr pSrc,
@@ -46,9 +70,9 @@ fbComposite(CARD8 op,
 	int msk_xoff, msk_yoff;
 	int dst_xoff, dst_yoff;
 
-	miCompositeSourceValidate(pSrc);
+	fbCompositeSourceValidate(pSrc);
 	if (pMask)
-		miCompositeSourceValidate(pMask);
+		fbCompositeSourceValidate(pMask);
 
 	src = image_from_pict(pSrc, FALSE, &src_xoff, &src_yoff);
 	mask = image_from_pict(pMask, FALSE, &msk_xoff, &msk_yoff);
