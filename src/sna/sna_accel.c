@@ -923,20 +923,15 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 	}
 	assert(width && height);
 
-	if (wedged(sna)) {
-		if (usage == SNA_CREATE_FB) {
-			flags = KGEM_CAN_CREATE_GPU;
-			goto force_create;
-		}
-		goto fallback;
-	}
-
 	flags = kgem_can_create_2d(&sna->kgem, width, height, depth);
 	if (flags == 0) {
 		DBG(("%s: can not use GPU, just creating shadow\n",
 		     __FUNCTION__));
 		goto fallback;
 	}
+
+	if (wedged(sna))
+		flags = 0;
 
 	if (usage == CREATE_PIXMAP_USAGE_SCRATCH) {
 		if (flags & KGEM_CAN_CREATE_GPU)
