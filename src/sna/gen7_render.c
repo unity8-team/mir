@@ -1031,7 +1031,7 @@ gen7_emit_state(struct sna *sna,
 		const struct sna_composite_op *op,
 		uint16_t wm_binding_table)
 {
-	bool need_stall = false;
+	bool need_stall;
 
 	if (sna->render_state.gen7.emit_flush)
 		gen7_emit_pipe_flush(sna);
@@ -1042,7 +1042,10 @@ gen7_emit_state(struct sna *sna,
 	gen7_emit_wm(sna, GEN7_KERNEL(op->u.gen7.flags));
 	gen7_emit_vertex_elements(sna, op);
 
-	need_stall |= gen7_emit_binding_table(sna, wm_binding_table);
+	need_stall = false;
+	if (wm_binding_table & 1)
+		need_stall = GEN7_BLEND(op->u.gen7.flags) != NO_BLEND;
+	need_stall |= gen7_emit_binding_table(sna, wm_binding_table & ~1);
 	need_stall &= gen7_emit_drawing_rectangle(sna, op);
 
 	if (kgem_bo_is_dirty(op->src.bo) || kgem_bo_is_dirty(op->mask.bo)) {
@@ -1787,8 +1790,10 @@ static void gen7_emit_composite_state(struct sna *sna,
 {
 	uint32_t *binding_table;
 	uint16_t offset;
+	bool dirty;
 
 	gen7_get_batch(sna);
+	dirty = kgem_bo_is_dirty(op->dst.bo);
 
 	binding_table = gen7_composite_get_binding_table(sna, &offset);
 
@@ -1820,7 +1825,7 @@ static void gen7_emit_composite_state(struct sna *sna,
 		offset = sna->render_state.gen7.surface_table;
 	}
 
-	gen7_emit_state(sna, op, offset);
+	gen7_emit_state(sna, op, offset | dirty);
 }
 
 static void
@@ -3329,6 +3334,7 @@ gen7_emit_copy_state(struct sna *sna,
 		offset = sna->render_state.gen7.surface_table;
 	}
 
+	assert(GEN7_BLEND(op->u.gen7.flags) == NO_BLEND);
 	gen7_emit_state(sna, op, offset);
 }
 
@@ -3705,6 +3711,7 @@ gen7_emit_fill_state(struct sna *sna, const struct sna_composite_op *op)
 {
 	uint32_t *binding_table;
 	uint16_t offset;
+	bool dirty;
 
 	/* XXX Render Target Fast Clear
 	 * Set RTFC Enable in PS and render a rectangle.
@@ -3713,6 +3720,7 @@ gen7_emit_fill_state(struct sna *sna, const struct sna_composite_op *op)
 	 */
 
 	gen7_get_batch(sna);
+	dirty = kgem_bo_is_dirty(op->dst.bo);
 
 	binding_table = gen7_composite_get_binding_table(sna, &offset);
 
@@ -3734,7 +3742,7 @@ gen7_emit_fill_state(struct sna *sna, const struct sna_composite_op *op)
 		offset = sna->render_state.gen7.surface_table;
 	}
 
-	gen7_emit_state(sna, op, offset);
+	gen7_emit_state(sna, op, offset | dirty);
 }
 
 static inline bool prefer_blt_fill(struct sna *sna,
