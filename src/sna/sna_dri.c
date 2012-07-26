@@ -546,6 +546,14 @@ sna_dri_copy_to_front(struct sna *sna, DrawablePtr draw, RegionPtr region,
 		}
 	}
 
+	if (!wedged(sna)) {
+		if (sync)
+			sync = sna_pixmap_is_scanout(sna, pixmap);
+
+		sna_dri_select_mode(sna, src_bo, sync);
+	} else
+		sync = false;
+
 	dx = dy = 0;
 	if (draw->type != DRAWABLE_PIXMAP) {
 		WindowPtr win = (WindowPtr)draw;
@@ -569,7 +577,7 @@ sna_dri_copy_to_front(struct sna *sna, DrawablePtr draw, RegionPtr region,
 			region = &clip;
 		}
 
-		if (sync && sna_pixmap_is_scanout(sna, pixmap)) {
+		if (sync) {
 			crtc = sna_covering_crtc(sna->scrn, &clip.extents, NULL);
 			if (crtc)
 				flush = sna_wait_for_scanline(sna, pixmap, crtc,
@@ -595,8 +603,6 @@ sna_dri_copy_to_front(struct sna *sna, DrawablePtr draw, RegionPtr region,
 				      dst_bo, dx, dy,
 				      boxes, n);
 	} else {
-		sna_dri_select_mode(sna, src_bo, flush);
-
 		sna->render.copy_boxes(sna, GXcopy,
 				       (PixmapPtr)draw, src_bo, -draw->x, -draw->y,
 				       pixmap, dst_bo, dx, dy,
