@@ -79,8 +79,8 @@
 #define URB_CS_ENTRY_SIZE     1
 #define URB_CS_ENTRIES	      0
 
-#define URB_VS_ENTRY_SIZE     1	// each 512-bit row
-#define URB_VS_ENTRIES	      32	// we needs at least 8 entries
+#define URB_VS_ENTRY_SIZE     1
+#define URB_VS_ENTRIES	      32
 
 #define URB_GS_ENTRY_SIZE     0
 #define URB_GS_ENTRIES	      0
@@ -89,25 +89,24 @@
 #define URB_CLIP_ENTRIES      0
 
 #define URB_SF_ENTRY_SIZE     2
-#define URB_SF_ENTRIES	      8
+#define URB_SF_ENTRIES	      64
 
 /*
  * this program computes dA/dx and dA/dy for the texture coordinates along
  * with the base texture coordinate. It was extracted from the Mesa driver
  */
 
-#define SF_KERNEL_NUM_GRF  16
-
-#define PS_KERNEL_NUM_GRF   32
+#define SF_KERNEL_NUM_GRF 16
+#define PS_KERNEL_NUM_GRF 32
 
 static const struct gt_info {
 	uint32_t max_sf_threads;
 	uint32_t max_wm_threads;
 	uint32_t urb_size;
 } gen4_gt_info = {
-	16, 32, 256,
+	24, 32, 256,
 }, g4x_gt_info = {
-	32, 50, 384,
+	24, 50, 384,
 };
 
 static const uint32_t sf_kernel[][4] = {
@@ -1455,10 +1454,10 @@ gen4_emit_state(struct sna *sna,
 		const struct sna_composite_op *op,
 		uint16_t wm_binding_table)
 {
+	gen4_emit_drawing_rectangle(sna, op);
 	gen4_emit_binding_table(sna, wm_binding_table);
 	gen4_emit_pipelined_pointers(sna, op, op->op, op->u.gen4.wm_kernel);
 	gen4_emit_vertex_elements(sna, op);
-	gen4_emit_drawing_rectangle(sna, op);
 
 	if (kgem_bo_is_dirty(op->src.bo) || kgem_bo_is_dirty(op->mask.bo)) {
 		DBG(("%s: flushing dirty (%d, %d)\n", __FUNCTION__,
