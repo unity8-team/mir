@@ -338,7 +338,8 @@ static void gen4_magic_ca_pass(struct sna *sna,
 
 static void gen4_vertex_flush(struct sna *sna)
 {
-	assert(sna->render_state.gen4.vertex_offset);
+	if (sna->render_state.gen4.vertex_offset == 0)
+		return;
 
 	DBG(("%s[%x] = %d\n", __FUNCTION__,
 	     4*sna->render_state.gen4.vertex_offset,
@@ -359,8 +360,7 @@ static int gen4_vertex_finish(struct sna *sna)
 
 	bo = sna->render.vbo;
 	if (bo) {
-		if (sna->render_state.gen4.vertex_offset)
-			gen4_vertex_flush(sna);
+		gen4_vertex_flush(sna);
 
 		for (i = 0; i < ARRAY_SIZE(sna->render.vertex_reloc); i++) {
 			if (sna->render.vertex_reloc[i]) {
@@ -1783,8 +1783,7 @@ gen4_render_video(struct sna *sna,
 	}
 	priv->clear = false;
 
-	if (sna->render_state.gen4.vertex_offset)
-		gen4_vertex_flush(sna);
+	gen4_vertex_flush(sna);
 	return true;
 }
 
@@ -2693,8 +2692,7 @@ fastcall static void
 gen4_render_composite_spans_done(struct sna *sna,
 				 const struct sna_composite_spans_op *op)
 {
-	if (sna->render_state.gen4.vertex_offset)
-		gen4_vertex_flush(sna);
+	gen4_vertex_flush(sna);
 
 	DBG(("%s()\n", __FUNCTION__));
 
@@ -3072,8 +3070,7 @@ gen4_render_copy_blt(struct sna *sna,
 static void
 gen4_render_copy_done(struct sna *sna, const struct sna_copy_op *op)
 {
-	if (sna->render_state.gen4.vertex_offset)
-		gen4_vertex_flush(sna);
+	gen4_vertex_flush(sna);
 }
 
 static bool
@@ -3366,8 +3363,7 @@ gen4_render_fill_op_boxes(struct sna *sna,
 static void
 gen4_render_fill_op_done(struct sna *sna, const struct sna_fill_op *op)
 {
-	if (sna->render_state.gen4.vertex_offset)
-		gen4_vertex_flush(sna);
+	gen4_vertex_flush(sna);
 	kgem_bo_destroy(&sna->kgem, op->base.src.bo);
 }
 
