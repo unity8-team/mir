@@ -1,3 +1,23 @@
+Release 2.20.2 (2012-07-27)
+===========================
+For the last 9 months, since 2.16.901, we have been shipping a driver that
+does not work on IvyBridge GT1 systems (HD2500 graphics); we were telling
+the GPU to use an invalid number of threads for the pixel shader and this
+in turned caused the GPU to hang.
+
+Also fixed since the last release just a few days ago:
+
+* Support for the gmux backlight controller on Apple laptops
+  https://bugs.freedesktop.org/show_bug.cgi?id=52423
+
+* Fix X -configure not to list this driver as matching any Intel device,
+  just the VGA class devices will do!
+
+* A crash in SNA when repeatedly switching xrandr rotations
+
+* Corruption in SNA observed in kwin on IvyBridge
+  https://bugs.freedesktop.org/show_bug.cgi?id=52473
+
 Release 2.20.1 (2012-07-22)
 ===========================
 A week in, grab the brown paper bags, for it is time to reveal a couple
