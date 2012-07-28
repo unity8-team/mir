@@ -508,7 +508,9 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 	/* Set display resolution */
 	xf86SetDpi(scrn, 0, 0);
 
-	sna->dri_available = !!xf86LoadSubModule(scrn, "dri2");
+	sna->dri_available = false;
+	if (xf86ReturnOptValBool(sna->Options, OPTION_DRI, TRUE))
+		sna->dri_available = !!xf86LoadSubModule(scrn, "dri2");
 
 	return TRUE;
 }
