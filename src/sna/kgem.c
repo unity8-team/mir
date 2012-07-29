@@ -2238,19 +2238,17 @@ void _kgem_submit(struct kgem *kgem)
 
 void kgem_throttle(struct kgem *kgem)
 {
-	static int warned;
+	kgem->need_throttle = 0;
+	if (kgem->wedged)
+		return;
 
-	kgem->wedged |= __kgem_throttle(kgem);
-	DBG(("%s: wedged=%d\n", __FUNCTION__, kgem->wedged));
-	if (kgem->wedged && !warned) {
+	kgem->wedged = __kgem_throttle(kgem);
+	if (kgem->wedged) {
 		xf86DrvMsg(kgem_get_screen_index(kgem), X_ERROR,
 			   "Detected a hung GPU, disabling acceleration.\n");
 		xf86DrvMsg(kgem_get_screen_index(kgem), X_ERROR,
 			   "When reporting this, please include i915_error_state from debugfs and the full dmesg.\n");
-		warned = 1;
 	}
-
-	kgem->need_throttle = 0;
 }
 
 void kgem_purge_cache(struct kgem *kgem)
