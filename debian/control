@@ -33,7 +33,7 @@ Build-Depends:
  libudev-dev [linux-any],
  quilt,
  xutils-dev (>= 1:7.5+4),
-Standards-Version: 3.9.1
+Standards-Version: 3.9.3
 Vcs-Git: git://git.debian.org/git/pkg-xorg/driver/xserver-xorg-video-intel
 Vcs-Browser: http://git.debian.org/?p=pkg-xorg/driver/xserver-xorg-video-intel.git
 

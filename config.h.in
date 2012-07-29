@@ -5,20 +5,38 @@
 /* Builder description */
 #undef BUILDER_DESCRIPTION
 
+/* Enable memory debugging */
+#undef DEBUG_MEMORY
+
+/* Enable pixmap debugging */
+#undef DEBUG_PIXMAP
+
+/* Default acceleration method */
+#undef DEFAULT_ACCEL_METHOD
+
 /* Enable XvMC support */
 #undef ENABLE_XVMC
 
 /* Enable all debugging */
 #undef HAS_DEBUG_FULL
 
-/* Enable additional debugging */
-#undef HAS_EXTRA_DEBUG
+/* Enable pixman glyph cache */
+#undef HAS_PIXMAN_GLYPHS
+
+/* Define to 1 if you have the <dgaproc.h> header file. */
+#undef HAVE_DGAPROC_H
 
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H
 
 /* Are we in a git checkout? */
 #undef HAVE_DOT_GIT
+
+/* Enable DRI driver support */
+#undef HAVE_DRI1
+
+/* Define to 1 if you have the <dri2.h> header file. */
+#undef HAVE_DRI2_H
 
 /* Define to 1 if you have the <dristruct.h> header file. */
 #undef HAVE_DRISTRUCT_H
@@ -53,9 +71,6 @@
 /* Define to 1 if you have the <sys/sysinfo.h> header file. */
 #undef HAVE_SYS_SYSINFO_H
 
-/* Define to 1 if you have the <sys/timerfd.h> header file. */
-#undef HAVE_SYS_TIMERFD_H
-
 /* Define to 1 if you have the <sys/types.h> header file. */
 #undef HAVE_SYS_TYPES_H
 
@@ -65,8 +80,11 @@
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
 
-/* Use valgrind intrinsics to suppress false warings */
+/* Use valgrind intrinsics to suppress false warnings */
 #undef HAVE_VALGRIND
+
+/* Define to 1 if you have the <xaa.h> header file. */
+#undef HAVE_XAA_H
 
 /* Assume KMS support */
 #undef KMS_ONLY
@@ -111,8 +129,8 @@
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
 
-/* Enable DRI2 driver support */
-#undef USE_DRI2
+/* Assume asynchronous swap support */
+#undef USE_ASYNC_SWAP
 
 /* Use automagic builder description */
 #undef USE_GIT_DESCRIBE
@@ -123,17 +141,22 @@
 /* Enable SNA support */
 #undef USE_SNA
 
+/* Assume USERPTR support */
+#undef USE_USERPTR
+
 /* Enable UXA support */
 #undef USE_UXA
-
-/* Assume VMAP support */
-#undef USE_VMAP
 
 /* Version number of package */
 #undef VERSION
 
-/* Enable DRI driver support */
-#undef XF86DRI
+/* Enable large inode numbers on Mac OS X 10.5.  */
+#ifndef _DARWIN_USE_64_BIT_INODE
+# define _DARWIN_USE_64_BIT_INODE 1
+#endif
 
-/* Enable developmental DRI driver support */
-#undef XF86DRI_DEVEL
+/* Number of bits in a file offset, on hosts where this is settable. */
+#undef _FILE_OFFSET_BITS
+
+/* Define for large files, on AIX-style hosts. */
+#undef _LARGE_FILES

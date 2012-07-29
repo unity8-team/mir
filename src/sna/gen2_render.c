@@ -38,11 +38,6 @@
 
 #include "gen2_render.h"
 
-#if DEBUG_RENDER
-#undef DBG
-#define DBG(x) ErrorF x
-#endif
-
 #define NO_COMPOSITE 0
 #define NO_COMPOSITE_SPANS 0
 #define NO_COPY 0
@@ -62,8 +57,8 @@
 #define VERTEX(v) batch_emit_float(sna, v)
 
 static const struct blendinfo {
-	Bool dst_alpha;
-	Bool src_alpha;
+	bool dst_alpha;
+	bool src_alpha;
 	uint32_t src_blend;
 	uint32_t dst_blend;
 } gen2_blend_op[] = {
@@ -153,7 +148,7 @@ gen2_get_dst_format(uint32_t format)
 #undef BIAS
 }
 
-static Bool
+static bool
 gen2_check_dst_format(uint32_t format)
 {
 	switch (format) {
@@ -165,9 +160,9 @@ gen2_check_dst_format(uint32_t format)
 	case PICT_a8:
 	case PICT_a4r4g4b4:
 	case PICT_x4r4g4b4:
-		return TRUE;
+		return true;
 	default:
-		return FALSE;
+		return false;
 	}
 }
 
@@ -234,32 +229,32 @@ gen2_sampler_tiling_bits(uint32_t tiling)
 	return bits;
 }
 
-static Bool
+static bool
 gen2_check_filter(PicturePtr picture)
 {
 	switch (picture->filter) {
 	case PictFilterNearest:
 	case PictFilterBilinear:
-		return TRUE;
+		return true;
 	default:
-		return FALSE;
+		return false;
 	}
 }
 
-static Bool
+static bool
 gen2_check_repeat(PicturePtr picture)
 {
 	if (!picture->repeat)
-		return TRUE;
+		return true;
 
 	switch (picture->repeatType) {
 	case RepeatNone:
 	case RepeatNormal:
 	case RepeatPad:
 	case RepeatReflect:
-		return TRUE;
+		return true;
 	default:
-		return FALSE;
+		return false;
 	}
 }
 
@@ -411,7 +406,7 @@ gen2_get_blend_factors(const struct sna_composite_op *op,
 }
 
 static uint32_t gen2_get_blend_cntl(int op,
-				    Bool has_component_alpha,
+				    bool has_component_alpha,
 				    uint32_t dst_format)
 {
 	uint32_t sblend, dblend;
@@ -508,7 +503,7 @@ static void gen2_emit_invariant(struct sna *sna)
 	      ENABLE_COLOR_WRITE |
 	      ENABLE_TEX_CACHE);
 
-	sna->render_state.gen2.need_invariant = FALSE;
+	sna->render_state.gen2.need_invariant = false;
 }
 
 static void
@@ -524,7 +519,7 @@ gen2_get_batch(struct sna *sna)
 		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	}
 
-	if (sna->kgem.nreloc + 3 > KGEM_RELOC_SIZE(&sna->kgem)) {
+	if (!kgem_check_reloc(&sna->kgem, 3)) {
 		DBG(("%s: flushing batch: reloc %d >= %d\n",
 		     __FUNCTION__,
 		     sna->kgem.nreloc + 3,
@@ -533,7 +528,7 @@ gen2_get_batch(struct sna *sna)
 		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	}
 
-	if (sna->kgem.nexec + 3 > KGEM_EXEC_SIZE(&sna->kgem)) {
+	if (!kgem_check_exec(&sna->kgem, 3)) {
 		DBG(("%s: flushing batch: exec %d >= %d\n",
 		     __FUNCTION__,
 		     sna->kgem.nexec + 1,
@@ -552,7 +547,7 @@ static void gen2_emit_target(struct sna *sna, const struct sna_composite_op *op)
 	assert(sna->render_state.gen2.vertex_offset == 0);
 
 	if (sna->render_state.gen2.target == op->dst.bo->unique_id) {
-		kgem_bo_mark_dirty(op->dst.bo);
+		kgem_bo_mark_dirty(&sna->kgem, op->dst.bo);
 		return;
 	}
 
@@ -977,7 +972,7 @@ static void gen2_vertex_flush(struct sna *sna,
 }
 
 inline static int gen2_get_rectangles(struct sna *sna,
-				      const const struct sna_composite_op *op,
+				      const struct sna_composite_op *op,
 				      int want)
 {
 	struct gen2_render_state *state = &sna->render_state.gen2;
@@ -1109,17 +1104,14 @@ static void gen2_render_composite_done(struct sna *sna,
 	sna_render_composite_redirect_done(sna, op);
 }
 
-static Bool
+static bool
 gen2_composite_solid_init(struct sna *sna,
 			  struct sna_composite_channel *channel,
 			  uint32_t color)
 {
 	channel->filter = PictFilterNearest;
 	channel->repeat = RepeatNormal;
-	channel->is_affine = TRUE;
-	channel->is_solid  = TRUE;
-	channel->is_linear = FALSE;
-	channel->transform = NULL;
+	channel->is_solid  = true;
 	channel->width  = 1;
 	channel->height = 1;
 	channel->pict_format = PICT_a8r8g8b8;
@@ -1129,12 +1121,12 @@ gen2_composite_solid_init(struct sna *sna,
 
 	channel->scale[0]  = channel->scale[1]  = 1;
 	channel->offset[0] = channel->offset[1] = 0;
-	return TRUE;
+	return true;
 }
 
 #define xFixedToDouble(f) pixman_fixed_to_double(f)
 
-static Bool
+static bool
 gen2_composite_linear_init(struct sna *sna,
 			   PicturePtr picture,
 			   struct sna_composite_channel *channel,
@@ -1169,11 +1161,7 @@ gen2_composite_linear_init(struct sna *sna,
 
 	channel->filter = PictFilterNearest;
 	channel->repeat = picture->repeat ? picture->repeatType : RepeatNone;
-	channel->is_affine = TRUE;
-	channel->is_opaque = FALSE;
-	channel->is_solid  = FALSE;
-	channel->is_linear = TRUE;
-	channel->transform = NULL;
+	channel->is_linear = true;
 	channel->width  = channel->bo->pitch / 4;
 	channel->height = 1;
 	channel->pict_format = PICT_a8r8g8b8;
@@ -1196,32 +1184,29 @@ gen2_composite_linear_init(struct sna *sna,
 		struct pixman_f_vector p1, p2;
 		struct pixman_f_transform m, inv;
 
+		pixman_f_transform_from_pixman_transform(&m, picture->transform);
 		DBG(("%s: transform = [%f %f %f, %f %f %f, %f %f %f]\n",
 		     __FUNCTION__,
-		     pixman_fixed_to_double(picture->transform->matrix[0][0]),
-		     pixman_fixed_to_double(picture->transform->matrix[0][1]),
-		     pixman_fixed_to_double(picture->transform->matrix[0][2]),
-		     pixman_fixed_to_double(picture->transform->matrix[1][0]),
-		     pixman_fixed_to_double(picture->transform->matrix[1][1]),
-		     pixman_fixed_to_double(picture->transform->matrix[1][2]),
-		     pixman_fixed_to_double(picture->transform->matrix[2][0]),
-		     pixman_fixed_to_double(picture->transform->matrix[2][1]),
-		     pixman_fixed_to_double(picture->transform->matrix[2][2])));
-
-		pixman_f_transform_from_pixman_transform(&m,
-							 picture->transform);
+		     m.m[0][0], m.m[0][1], m.m[0][2],
+		     m.m[1][0], m.m[1][1], m.m[1][2],
+		     m.m[2][0], m.m[2][1], m.m[2][2]));
 		if (!pixman_f_transform_invert(&inv, &m))
 			return 0;
 
-		p1.v[0] = linear->p1.x;
-		p1.v[1] = linear->p1.y;
-		p1.v[2] = pixman_fixed_1;
+		p1.v[0] = pixman_fixed_to_double(linear->p1.x);
+		p1.v[1] = pixman_fixed_to_double(linear->p1.y);
+		p1.v[2] = 1.;
 		pixman_f_transform_point(&inv, &p1);
 
-		p2.v[0] = linear->p2.x;
-		p2.v[1] = linear->p2.y;
-		p2.v[2] = pixman_fixed_1;
+		p2.v[0] = pixman_fixed_to_double(linear->p2.x);
+		p2.v[1] = pixman_fixed_to_double(linear->p2.y);
+		p2.v[2] = 1.;
 		pixman_f_transform_point(&inv, &p2);
+
+		DBG(("%s: untransformed: p1=(%f, %f, %f), p2=(%f, %f, %f)\n",
+		     __FUNCTION__,
+		     p1.v[0], p1.v[1], p1.v[2],
+		     p2.v[0], p2.v[1], p2.v[2]));
 
 		dx = p2.v[0] - p1.v[0];
 		dy = p2.v[1] - p1.v[1];
@@ -1236,7 +1221,7 @@ gen2_composite_linear_init(struct sna *sna,
 
 	channel->u.gen2.linear_dx = dx;
 	channel->u.gen2.linear_dy = dy;
-	channel->u.gen2.linear_offset = -dx*(x0+x-dst_x) + -dy*(y0+y-dst_y);
+	channel->u.gen2.linear_offset = -dx*(x0+dst_x-x) + -dy*(y0+dst_y-y);
 
 	DBG(("%s: dx=%f, dy=%f, offset=%f\n",
 	     __FUNCTION__, dx, dy, channel->u.gen2.linear_offset));
@@ -1244,17 +1229,17 @@ gen2_composite_linear_init(struct sna *sna,
 	return channel->bo != NULL;
 }
 
-static Bool source_is_covered(PicturePtr picture,
+static bool source_is_covered(PicturePtr picture,
 			      int x, int y,
 			      int width, int height)
 {
 	int x1, y1, x2, y2;
 
 	if (picture->repeat && picture->repeatType != RepeatNone)
-		return TRUE;
+		return true;
 
 	if (picture->pDrawable == NULL)
-		return FALSE;
+		return false;
 
 	if (picture->transform) {
 		pixman_box16_t sample;
@@ -1283,7 +1268,7 @@ static Bool source_is_covered(PicturePtr picture,
 		y2 <= picture->pDrawable->height;
 }
 
-static Bool
+static bool
 gen2_check_card_format(struct sna *sna,
 		       PicturePtr picture,
 		       struct sna_composite_channel *channel,
@@ -1294,24 +1279,24 @@ gen2_check_card_format(struct sna *sna,
 
 	for (i = 0; i < ARRAY_SIZE(i8xx_tex_formats); i++) {
 		if (i8xx_tex_formats[i].fmt == format)
-			return TRUE;
+			return true;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(i85x_tex_formats); i++) {
 		if (i85x_tex_formats[i].fmt == format) {
 			if (sna->kgem.gen >= 21)
-				return TRUE;
+				return true;
 
 			if (source_is_covered(picture, x, y, w,h)) {
 				channel->is_opaque = true;
-				return TRUE;
+				return true;
 			}
 
-			return FALSE;
+			return false;
 		}
 	}
 
-	return FALSE;
+	return false;
 }
 
 static int
@@ -1320,7 +1305,8 @@ gen2_composite_picture(struct sna *sna,
 		       struct sna_composite_channel *channel,
 		       int x, int y,
 		       int w, int h,
-		       int dst_x, int dst_y)
+		       int dst_x, int dst_y,
+		       bool precise)
 {
 	PixmapPtr pixmap;
 	uint32_t color;
@@ -1329,8 +1315,11 @@ gen2_composite_picture(struct sna *sna,
 	DBG(("%s: (%d, %d)x(%d, %d), dst=(%d, %d)\n",
 	     __FUNCTION__, x, y, w, h, dst_x, dst_y));
 
-	channel->is_solid = FALSE;
-	channel->is_linear = FALSE;
+	channel->is_solid = false;
+	channel->is_linear = false;
+	channel->is_opaque = false;
+	channel->is_affine = true;
+	channel->transform = NULL;
 
 	if (sna_picture_is_solid(picture, &color))
 		return gen2_composite_solid_init(sna, channel, color);
@@ -1350,6 +1339,8 @@ gen2_composite_picture(struct sna *sna,
 	}
 
 	if (picture->pDrawable == NULL) {
+		int ret;
+
 		if (picture->pSourcePict->type == SourcePictTypeLinear)
 			return gen2_composite_linear_init(sna, picture, channel,
 							  x, y,
@@ -1358,8 +1349,14 @@ gen2_composite_picture(struct sna *sna,
 
 		DBG(("%s -- fallback, unhandled source %d\n",
 		     __FUNCTION__, picture->pSourcePict->type));
-		return sna_render_picture_fixup(sna, picture, channel,
-						x, y, w, h, dst_x, dst_y);
+		ret = -1;
+		if (!precise)
+			ret = sna_render_picture_approximate_gradient(sna, picture, channel,
+								      x, y, w, h, dst_x, dst_y);
+		if (ret == -1)
+			ret = sna_render_picture_fixup(sna, picture, channel,
+						       x, y, w, h, dst_x, dst_y);
+		return ret;
 	}
 
 	if (picture->alphaMap) {
@@ -1401,7 +1398,7 @@ gen2_composite_picture(struct sna *sna,
 				    x, y, w, h, dst_x, dst_y);
 }
 
-static Bool
+static bool
 gen2_composite_set_target(struct sna *sna,
 			  struct sna_composite_op *op,
 			  PicturePtr dst)
@@ -1415,19 +1412,19 @@ gen2_composite_set_target(struct sna *sna,
 
 	priv = sna_pixmap_force_to_gpu(op->dst.pixmap, MOVE_WRITE | MOVE_READ);
 	if (priv == NULL)
-		return FALSE;
+		return false;
 
 	if (priv->gpu_bo->pitch < 8) {
 		struct kgem_bo *bo;
 
 		if (priv->pinned)
-			return FALSE;
+			return false;
 
 		bo = kgem_replace_bo(&sna->kgem, priv->gpu_bo,
 				     op->dst.width, op->dst.height, 8,
 				     op->dst.pixmap->drawable.bitsPerPixel);
 		if (bo == NULL)
-			return FALSE;
+			return false;
 
 		kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
 		priv->gpu_bo = bo;
@@ -1440,10 +1437,10 @@ gen2_composite_set_target(struct sna *sna,
 
 	get_drawable_deltas(dst->pDrawable, op->dst.pixmap,
 			    &op->dst.x, &op->dst.y);
-	return TRUE;
+	return true;
 }
 
-static Bool
+static bool
 try_blt(struct sna *sna,
 	PicturePtr dst,
 	PicturePtr src,
@@ -1453,34 +1450,34 @@ try_blt(struct sna *sna,
 
 	if (sna->kgem.mode != KGEM_RENDER) {
 		DBG(("%s: already performing BLT\n", __FUNCTION__));
-		return TRUE;
+		return true;
 	}
 
 	if (too_large(width, height)) {
 		DBG(("%s: operation too large for 3D pipe (%d, %d)\n",
 		     __FUNCTION__, width, height));
-		return TRUE;
+		return true;
 	}
 
 	if (too_large(dst->pDrawable->width, dst->pDrawable->height)) {
 		DBG(("%s: target too large for 3D pipe (%d, %d)\n",
 		     __FUNCTION__,
 		     dst->pDrawable->width, dst->pDrawable->height));
-		return TRUE;
+		return true;
 	}
 
 	/* If it is a solid, try to use the BLT paths */
 	if (sna_picture_is_solid(src, &color))
-		return TRUE;
+		return true;
 
 	if (!src->pDrawable)
-		return FALSE;
+		return false;
 
 	if (too_large(src->pDrawable->width, src->pDrawable->height)) {
 		DBG(("%s: source too large for 3D pipe (%d, %d)\n",
 		     __FUNCTION__,
 		     src->pDrawable->width, src->pDrawable->height));
-		return TRUE;
+		return true;
 	}
 	return is_cpu(src->pDrawable);
 }
@@ -1489,14 +1486,14 @@ static bool
 is_unhandled_gradient(PicturePtr picture)
 {
 	if (picture->pDrawable)
-		return FALSE;
+		return false;
 
 	switch (picture->pSourcePict->type) {
 	case SourcePictTypeSolidFill:
 	case SourcePictTypeLinear:
-		return FALSE;
+		return false;
 	default:
-		return TRUE;
+		return true;
 	}
 }
 
@@ -1519,16 +1516,37 @@ need_upload(PicturePtr p)
 }
 
 static bool
-source_fallback(PicturePtr p)
+source_is_busy(PixmapPtr pixmap)
+{
+	struct sna_pixmap *priv = sna_pixmap(pixmap);
+	if (priv == NULL)
+		return false;
+
+	if (priv->clear)
+		return false;
+
+	if (priv->gpu_bo && kgem_bo_is_busy(priv->gpu_bo))
+		return true;
+
+	if (priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo))
+		return true;
+
+	return priv->gpu_damage && !priv->cpu_damage;
+}
+
+static bool
+source_fallback(PicturePtr p, PixmapPtr pixmap)
 {
 	if (sna_picture_is_solid(p, NULL))
 		return false;
 
-	return (has_alphamap(p) ||
-		is_unhandled_gradient(p) ||
-		!gen2_check_filter(p) ||
-		!gen2_check_repeat(p) ||
-		need_upload(p));
+	if (is_unhandled_gradient(p) || !gen2_check_repeat(p))
+		return true;
+
+	if (pixmap && source_is_busy(pixmap))
+		return false;
+
+	return has_alphamap(p) || !gen2_check_filter(p) || need_upload(p);
 }
 
 static bool
@@ -1541,28 +1559,38 @@ gen2_composite_fallback(struct sna *sna,
 	PixmapPtr src_pixmap;
 	PixmapPtr mask_pixmap;
 	PixmapPtr dst_pixmap;
+	bool src_fallback, mask_fallback;
 
 	if (!gen2_check_dst_format(dst->format)) {
 		DBG(("%s: unknown destination format: %d\n",
 		     __FUNCTION__, dst->format));
-		return TRUE;
+		return true;
 	}
 
 	dst_pixmap = get_drawable_pixmap(dst->pDrawable);
+
 	src_pixmap = src->pDrawable ? get_drawable_pixmap(src->pDrawable) : NULL;
-	mask_pixmap = (mask && mask->pDrawable) ? get_drawable_pixmap(mask->pDrawable) : NULL;
+	src_fallback = source_fallback(src, src_pixmap);
+
+	if (mask) {
+		mask_pixmap = mask->pDrawable ? get_drawable_pixmap(mask->pDrawable) : NULL;
+		mask_fallback = source_fallback(mask, mask_pixmap);
+	} else {
+		mask_pixmap = NULL;
+		mask_fallback = NULL;
+	}
 
 	/* If we are using the destination as a source and need to
 	 * readback in order to upload the source, do it all
 	 * on the cpu.
 	 */
-	if (src_pixmap == dst_pixmap && source_fallback(src)) {
+	if (src_pixmap == dst_pixmap && src_fallback) {
 		DBG(("%s: src is dst and will fallback\n",__FUNCTION__));
-		return TRUE;
+		return true;
 	}
-	if (mask_pixmap == dst_pixmap && source_fallback(mask)) {
+	if (mask_pixmap == dst_pixmap && mask_fallback) {
 		DBG(("%s: mask is dst and will fallback\n",__FUNCTION__));
-		return TRUE;
+		return true;
 	}
 
 	/* If anything is on the GPU, push everything out to the GPU */
@@ -1570,45 +1598,46 @@ gen2_composite_fallback(struct sna *sna,
 	if (priv && priv->gpu_damage && !priv->clear) {
 		DBG(("%s: dst is already on the GPU, try to use GPU\n",
 		     __FUNCTION__));
-		return FALSE;
+		return false;
 	}
 
-	if (src_pixmap && !source_fallback(src)) {
-		priv = sna_pixmap(src_pixmap);
-		if (priv && priv->gpu_damage && !priv->cpu_damage) {
-			DBG(("%s: src is already on the GPU, try to use GPU\n",
-			     __FUNCTION__));
-			return FALSE;
-		}
+	if (src_pixmap && !src_fallback) {
+		DBG(("%s: src is already on the GPU, try to use GPU\n",
+		     __FUNCTION__));
+		return false;
 	}
-	if (mask_pixmap && !source_fallback(mask)) {
-		priv = sna_pixmap(mask_pixmap);
-		if (priv && priv->gpu_damage && !priv->cpu_damage) {
-			DBG(("%s: mask is already on the GPU, try to use GPU\n",
-			     __FUNCTION__));
-			return FALSE;
-		}
+	if (mask_pixmap && !mask_fallback) {
+		DBG(("%s: mask is already on the GPU, try to use GPU\n",
+		     __FUNCTION__));
+		return false;
 	}
 
 	/* However if the dst is not on the GPU and we need to
 	 * render one of the sources using the CPU, we may
 	 * as well do the entire operation in place onthe CPU.
 	 */
-	if (source_fallback(src)) {
+	if (src_fallback) {
 		DBG(("%s: dst is on the CPU and src will fallback\n",
 		     __FUNCTION__));
-		return TRUE;
+		return true;
 	}
 
-	if (mask && source_fallback(mask)) {
+	if (mask && mask_fallback) {
 		DBG(("%s: dst is on the CPU and mask will fallback\n",
 		     __FUNCTION__));
-		return TRUE;
+		return true;
+	}
+
+	if (too_large(dst_pixmap->drawable.width,
+		      dst_pixmap->drawable.height) &&
+	    (priv == NULL || DAMAGE_IS_ALL(priv->cpu_damage))) {
+		DBG(("%s: dst is on the CPU and too large\n", __FUNCTION__));
+		return true;
 	}
 
 	DBG(("%s: dst is not on the GPU and the operation should not fallback\n",
 	     __FUNCTION__));
-	return FALSE;
+	return false;
 }
 
 static int
@@ -1619,40 +1648,40 @@ reuse_source(struct sna *sna,
 	uint32_t color;
 
 	if (src_x != msk_x || src_y != msk_y)
-		return FALSE;
+		return false;
 
 	if (src == mask) {
 		DBG(("%s: mask is source\n", __FUNCTION__));
 		*mc = *sc;
 		mc->bo = kgem_bo_reference(mc->bo);
-		return TRUE;
+		return true;
 	}
 
 	if (sna_picture_is_solid(mask, &color))
 		return gen2_composite_solid_init(sna, mc, color);
 
 	if (sc->is_solid)
-		return FALSE;
+		return false;
 
 	if (src->pDrawable == NULL || mask->pDrawable != src->pDrawable)
-		return FALSE;
+		return false;
 
 	DBG(("%s: mask reuses source drawable\n", __FUNCTION__));
 
 	if (!sna_transform_equal(src->transform, mask->transform))
-		return FALSE;
+		return false;
 
 	if (!sna_picture_alphamap_equal(src, mask))
-		return FALSE;
+		return false;
 
 	if (!gen2_check_repeat(mask))
-		return FALSE;
+		return false;
 
 	if (!gen2_check_filter(mask))
-		return FALSE;
+		return false;
 
 	if (!gen2_check_format(sna, mask))
-		return FALSE;
+		return false;
 
 	DBG(("%s: reusing source channel for mask with a twist\n",
 	     __FUNCTION__));
@@ -1662,10 +1691,10 @@ reuse_source(struct sna *sna,
 	mc->filter = mask->filter;
 	mc->pict_format = mask->format;
 	mc->bo = kgem_bo_reference(mc->bo);
-	return TRUE;
+	return true;
 }
 
-static Bool
+static bool
 gen2_render_composite(struct sna *sna,
 		      uint8_t op,
 		      PicturePtr src,
@@ -1682,12 +1711,12 @@ gen2_render_composite(struct sna *sna,
 	if (op >= ARRAY_SIZE(gen2_blend_op)) {
 		DBG(("%s: fallback due to unhandled blend op: %d\n",
 		     __FUNCTION__, op));
-		return FALSE;
+		return false;
 	}
 
 #if NO_COMPOSITE
 	if (mask)
-		return FALSE;
+		return false;
 
 	return sna_blt_composite(sna, op,
 				 src, dst,
@@ -1707,10 +1736,10 @@ gen2_render_composite(struct sna *sna,
 			      dst_x, dst_y,
 			      width, height,
 			      tmp))
-		return TRUE;
+		return true;
 
 	if (gen2_composite_fallback(sna, src, mask, dst))
-		return FALSE;
+		return false;
 
 	if (need_tiling(sna, width, height))
 		return sna_tiling_composite(op, src, mask, dst,
@@ -1723,16 +1752,16 @@ gen2_render_composite(struct sna *sna,
 	if (!gen2_composite_set_target(sna, tmp, dst)) {
 		DBG(("%s: unable to set render target\n",
 		     __FUNCTION__));
-		return FALSE;
+		return false;
 	}
 
-	if (mask == NULL && sna->kgem.mode == KGEM_BLT  &&
+	if (mask == NULL && sna->kgem.mode == KGEM_BLT &&
 	    sna_blt_composite(sna, op,
 			      src, dst,
 			      src_x, src_y,
 			      dst_x, dst_y,
 			      width, height, tmp))
-		return TRUE;
+		return true;
 
 	sna_render_reduce_damage(tmp, dst_x, dst_y, width, height);
 
@@ -1741,13 +1770,14 @@ gen2_render_composite(struct sna *sna,
 	    tmp->dst.bo->pitch > MAX_3D_PITCH) {
 		if (!sna_render_composite_redirect(sna, tmp,
 						   dst_x, dst_y, width, height))
-			return FALSE;
+			return false;
 	}
 
 	switch (gen2_composite_picture(sna, src, &tmp->src,
 				       src_x, src_y,
 				       width, height,
-				       dst_x, dst_y)) {
+				       dst_x, dst_y,
+				       dst->polyMode == PolyModePrecise)) {
 	case -1:
 		goto cleanup_dst;
 	case 0:
@@ -1763,7 +1793,8 @@ gen2_render_composite(struct sna *sna,
 			switch (gen2_composite_picture(sna, mask, &tmp->mask,
 						       mask_x, mask_y,
 						       width,  height,
-						       dst_x,  dst_y)) {
+						       dst_x,  dst_y,
+						       dst->polyMode == PolyModePrecise)) {
 			case -1:
 				goto cleanup_src;
 			case 0:
@@ -1778,13 +1809,13 @@ gen2_render_composite(struct sna *sna,
 			 * and on the source value.  We can only get one of those
 			 * into the single source value that we get to blend with.
 			 */
-			tmp->has_component_alpha = TRUE;
+			tmp->has_component_alpha = true;
 			if (gen2_blend_op[op].src_alpha &&
 			    (gen2_blend_op[op].src_blend != BLENDFACTOR_ZERO)) {
 				if (op != PictOpOver)
-					return FALSE;
+					return false;
 
-				tmp->need_magic_ca_pass = TRUE;
+				tmp->need_magic_ca_pass = true;
 				tmp->op = PictOpOutReverse;
 			}
 		}
@@ -1834,7 +1865,7 @@ gen2_render_composite(struct sna *sna,
 	}
 
 	gen2_emit_composite_state(sna, tmp);
-	return TRUE;
+	return true;
 
 cleanup_mask:
 	if (tmp->mask.bo)
@@ -1845,7 +1876,7 @@ cleanup_src:
 cleanup_dst:
 	if (tmp->redirect.real_bo)
 		kgem_bo_destroy(&sna->kgem, tmp->dst.bo);
-	return FALSE;
+	return false;
 }
 
 fastcall static void
@@ -2063,7 +2094,7 @@ static void gen2_emit_composite_spans_state(struct sna *sna,
 	      I1_LOAD_S(2) | I1_LOAD_S(3) | I1_LOAD_S(8) | 2);
 	BATCH(!op->base.src.is_solid << 12);
 	BATCH(S3_CULLMODE_NONE | S3_VERTEXHAS_XY | S3_DIFFUSE_PRESENT);
-	BATCH(gen2_get_blend_cntl(op->base.op, FALSE, op->base.dst.format));
+	BATCH(gen2_get_blend_cntl(op->base.op, false, op->base.dst.format));
 	if (memcmp(sna->kgem.batch + sna->render_state.gen2.ls1 + 1,
 		   sna->kgem.batch + unwind + 1,
 		   3 * sizeof(uint32_t)) == 0)
@@ -2160,7 +2191,29 @@ gen2_render_composite_spans_done(struct sna *sna,
 	sna_render_composite_redirect_done(sna, &op->base);
 }
 
-static Bool
+static bool
+gen2_check_composite_spans(struct sna *sna,
+			   uint8_t op, PicturePtr src, PicturePtr dst,
+			   int16_t width, int16_t height, unsigned flags)
+{
+	if (op >= ARRAY_SIZE(gen2_blend_op))
+		return false;
+
+	if (gen2_composite_fallback(sna, src, NULL, dst))
+		return false;
+
+	if (need_tiling(sna, width, height)) {
+		if (!is_gpu(dst->pDrawable)) {
+			DBG(("%s: fallback, tiled operation not on GPU\n",
+			     __FUNCTION__));
+			return false;
+		}
+	}
+
+	return true;
+}
+
+static bool
 gen2_render_composite_spans(struct sna *sna,
 			    uint8_t op,
 			    PicturePtr src,
@@ -2174,29 +2227,19 @@ gen2_render_composite_spans(struct sna *sna,
 	DBG(("%s(src=(%d, %d), dst=(%d, %d), size=(%d, %d))\n", __FUNCTION__,
 	     src_x, src_y, dst_x, dst_y, width, height));
 
-#if NO_COMPOSITE_SPANS
-	return FALSE;
-#endif
-
-	if (op >= ARRAY_SIZE(gen2_blend_op)) {
-		DBG(("%s: fallback due to unhandled blend op: %d\n",
-		     __FUNCTION__, op));
-		return FALSE;
+	assert(gen2_check_composite_spans(sna, op, src, dst, width, height, flags));
+	if (need_tiling(sna, width, height)) {
+		DBG(("%s: tiling, operation (%dx%d) too wide for pipeline\n",
+		     __FUNCTION__, width, height));
+		return sna_tiling_composite_spans(op, src, dst,
+						  src_x, src_y, dst_x, dst_y,
+						  width, height, flags, tmp);
 	}
-
-	if (!gen2_check_dst_format(dst->format)) {
-		DBG(("%s: fallback due to unhandled dst format: %x\n",
-		     __FUNCTION__, dst->format));
-		return FALSE;
-	}
-
-	if (need_tiling(sna, width, height))
-		return FALSE;
 
 	if (!gen2_composite_set_target(sna, &tmp->base, dst)) {
 		DBG(("%s: unable to set render target\n",
 		     __FUNCTION__));
-		return FALSE;
+		return false;
 	}
 	sna_render_reduce_damage(&tmp->base, dst_x, dst_y, width, height);
 
@@ -2205,13 +2248,14 @@ gen2_render_composite_spans(struct sna *sna,
 	    tmp->base.dst.bo->pitch > MAX_3D_PITCH) {
 		if (!sna_render_composite_redirect(sna, &tmp->base,
 						   dst_x, dst_y, width, height))
-			return FALSE;
+			return false;
 	}
 
 	switch (gen2_composite_picture(sna, src, &tmp->base.src,
 				       src_x, src_y,
 				       width, height,
-				       dst_x, dst_y)) {
+				       dst_x, dst_y,
+				       dst->polyMode == PolyModePrecise)) {
 	case -1:
 		goto cleanup_dst;
 	case 0:
@@ -2253,7 +2297,7 @@ gen2_render_composite_spans(struct sna *sna,
 	}
 
 	gen2_emit_composite_spans_state(sna, tmp);
-	return TRUE;
+	return true;
 
 cleanup_src:
 	if (tmp->base.src.bo)
@@ -2261,7 +2305,7 @@ cleanup_src:
 cleanup_dst:
 	if (tmp->base.redirect.real_bo)
 		kgem_bo_destroy(&sna->kgem, tmp->base.dst.bo);
-	return FALSE;
+	return false;
 }
 
 static void
@@ -2306,7 +2350,7 @@ static void gen2_emit_fill_composite_state(struct sna *sna,
 	      I1_LOAD_S(2) | I1_LOAD_S(3) | I1_LOAD_S(8) | 2);
 	BATCH(0);
 	BATCH(S3_CULLMODE_NONE | S3_VERTEXHAS_XY);
-	BATCH(gen2_get_blend_cntl(op->op, FALSE, op->dst.format));
+	BATCH(gen2_get_blend_cntl(op->op, false, op->dst.format));
 	if (memcmp(sna->kgem.batch + sna->render_state.gen2.ls1 + 1,
 		   sna->kgem.batch + ls1 + 1,
 		   3 * sizeof(uint32_t)) == 0)
@@ -2323,44 +2367,38 @@ static void gen2_emit_fill_composite_state(struct sna *sna,
 	}
 }
 
-static Bool
+static bool
 gen2_render_fill_boxes_try_blt(struct sna *sna,
 			       CARD8 op, PictFormat format,
 			       const xRenderColor *color,
 			       PixmapPtr dst, struct kgem_bo *dst_bo,
 			       const BoxRec *box, int n)
 {
-	uint8_t alu = GXcopy;
+	uint8_t alu;
 	uint32_t pixel;
 
-	if (!sna_get_pixel_from_rgba(&pixel,
-				     color->red,
-				     color->green,
-				     color->blue,
-				     color->alpha,
-				     format))
-		return FALSE;
+	if (op > PictOpSrc)
+		return false;
 
 	if (op == PictOpClear) {
 		alu = GXclear;
 		pixel = 0;
-		op = PictOpSrc;
-	}
-
-	if (op == PictOpOver) {
-		if ((pixel & 0xff000000) == 0xff000000)
-			op = PictOpSrc;
-	}
-
-	if (op != PictOpSrc)
-		return FALSE;
+	} else if (!sna_get_pixel_from_rgba(&pixel,
+					    color->red,
+					    color->green,
+					    color->blue,
+					    color->alpha,
+					    format))
+		return false;
+	else
+		alu = GXcopy;
 
 	return sna_blt_fill_boxes(sna, alu,
 				  dst_bo, dst->drawable.bitsPerPixel,
 				  pixel, box, n);
 }
 
-static inline Bool prefer_blt_fill(struct sna *sna)
+static inline bool prefer_blt_fill(struct sna *sna)
 {
 #if PREFER_BLT_FILL
 	return true;
@@ -2369,7 +2407,7 @@ static inline Bool prefer_blt_fill(struct sna *sna)
 #endif
 }
 
-static inline Bool prefer_blt_copy(struct sna *sna)
+static inline bool prefer_blt_copy(struct sna *sna, unsigned flags)
 {
 #if PREFER_BLT_COPY
 	return true;
@@ -2378,7 +2416,7 @@ static inline Bool prefer_blt_copy(struct sna *sna)
 #endif
 }
 
-static Bool
+static bool
 gen2_render_fill_boxes(struct sna *sna,
 		       CARD8 op,
 		       PictFormat format,
@@ -2392,7 +2430,7 @@ gen2_render_fill_boxes(struct sna *sna,
 	if (op >= ARRAY_SIZE(gen2_blend_op)) {
 		DBG(("%s: fallback due to unhandled blend op: %d\n",
 		     __FUNCTION__, op));
-		return FALSE;
+		return false;
 	}
 
 #if NO_FILL_BOXES
@@ -2413,10 +2451,10 @@ gen2_render_fill_boxes(struct sna *sna,
 		if (gen2_render_fill_boxes_try_blt(sna, op, format, color,
 						   dst, dst_bo,
 						   box, n))
-			return TRUE;
+			return true;
 
 		if (!gen2_check_dst_format(format))
-			return FALSE;
+			return false;
 
 		assert(dst_bo->pitch >= 8);
 		return sna_tiling_fill_boxes(sna, op, format, color,
@@ -2427,7 +2465,7 @@ gen2_render_fill_boxes(struct sna *sna,
 	    gen2_render_fill_boxes_try_blt(sna, op, format, color,
 					   dst, dst_bo,
 					   box, n))
-		return TRUE;
+		return true;
 
 	if (op == PictOpClear)
 		pixel = 0;
@@ -2437,7 +2475,7 @@ gen2_render_fill_boxes(struct sna *sna,
 					  color->blue,
 					  color->alpha,
 					  PICT_a8r8g8b8))
-		return FALSE;
+		return false;
 
 	DBG(("%s: using shader for op=%d, format=%x, pixel=%x\n",
 	     __FUNCTION__, op, (int)format, pixel));
@@ -2481,7 +2519,7 @@ gen2_render_fill_boxes(struct sna *sna,
 	} while (n);
 
 	gen2_vertex_flush(sna, &tmp);
-	return TRUE;
+	return true;
 }
 
 static void gen2_emit_fill_state(struct sna *sna,
@@ -2586,7 +2624,7 @@ gen2_render_fill_op_done(struct sna *sna, const struct sna_fill_op *op)
 	gen2_vertex_flush(sna, &op->base);
 }
 
-static Bool
+static bool
 gen2_render_fill(struct sna *sna, uint8_t alu,
 		 PixmapPtr dst, struct kgem_bo *dst_bo,
 		 uint32_t color,
@@ -2605,7 +2643,7 @@ gen2_render_fill(struct sna *sna, uint8_t alu,
 			 dst_bo, dst->drawable.bitsPerPixel,
 			 color,
 			 tmp))
-		return TRUE;
+		return true;
 
 	/* Must use the BLT if we can't RENDER... */
 	if (too_large(dst->drawable.width, dst->drawable.height) ||
@@ -2642,10 +2680,10 @@ gen2_render_fill(struct sna *sna, uint8_t alu,
 	tmp->done  = gen2_render_fill_op_done;
 
 	gen2_emit_fill_state(sna, &tmp->base);
-	return TRUE;
+	return true;
 }
 
-static Bool
+static bool
 gen2_render_fill_one_try_blt(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 			     uint32_t color,
 			     int16_t x1, int16_t y1, int16_t x2, int16_t y2,
@@ -2663,7 +2701,7 @@ gen2_render_fill_one_try_blt(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 				  color, &box, 1);
 }
 
-static Bool
+static bool
 gen2_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 		     uint32_t color,
 		     int16_t x1, int16_t y1,
@@ -2681,7 +2719,7 @@ gen2_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 	if (prefer_blt_fill(sna) &&
 	    gen2_render_fill_one_try_blt(sna, dst, bo, color,
 					 x1, y1, x2, y2, alu))
-		return TRUE;
+		return true;
 
 	/* Must use the BLT if we can't RENDER... */
 	if (too_large(dst->drawable.width, dst->drawable.height) ||
@@ -2693,7 +2731,7 @@ gen2_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 		kgem_submit(&sna->kgem);
 		if (gen2_render_fill_one_try_blt(sna, dst, bo, color,
 						 x1, y1, x2, y2, alu))
-			return TRUE;
+			return true;
 		assert(kgem_check_bo(&sna->kgem, bo, NULL));
 	}
 
@@ -2722,7 +2760,7 @@ gen2_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 	VERTEX(y1);
 	gen2_vertex_flush(sna, &tmp);
 
-	return TRUE;
+	return true;
 }
 
 static void
@@ -2820,17 +2858,17 @@ static void gen2_emit_copy_state(struct sna *sna, const struct sna_composite_op 
 	gen2_emit_texture(sna, &op->src, 0);
 }
 
-static Bool
+static bool
 gen2_render_copy_boxes(struct sna *sna, uint8_t alu,
 		       PixmapPtr src, struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
 		       PixmapPtr dst, struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
-		       const BoxRec *box, int n)
+		       const BoxRec *box, int n, unsigned flags)
 {
 	struct sna_composite_op tmp;
 
 #if NO_COPY_BOXES
 	if (!sna_blt_compare_depth(&src->drawable, &dst->drawable))
-		return FALSE;
+		return false;
 
 	return sna_blt_copy_boxes(sna, alu,
 				  src_bo, src_dx, src_dy,
@@ -2842,14 +2880,14 @@ gen2_render_copy_boxes(struct sna *sna, uint8_t alu,
 	DBG(("%s (%d, %d)->(%d, %d) x %d\n",
 	     __FUNCTION__, src_dx, src_dy, dst_dx, dst_dy, n));
 
-	if (prefer_blt_copy(sna) &&
+	if (prefer_blt_copy(sna, flags) &&
 	    sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
 	    sna_blt_copy_boxes(sna, alu,
 			       src_bo, src_dx, src_dy,
 			       dst_bo, dst_dx, dst_dy,
 			       dst->drawable.bitsPerPixel,
 			       box, n))
-		return TRUE;
+		return true;
 
 	if (src_bo == dst_bo || /* XXX handle overlap using 3D ? */
 	    too_large(src->drawable.width, src->drawable.height) ||
@@ -2885,14 +2923,14 @@ fallback:
 		int i;
 
 		for (i = 1; i < n; i++) {
-			if (extents.x1 < box[i].x1)
+			if (box[i].x1 < extents.x1)
 				extents.x1 = box[i].x1;
-			if (extents.y1 < box[i].y1)
+			if (box[i].y1 < extents.y1)
 				extents.y1 = box[i].y1;
 
-			if (extents.x2 > box[i].x2)
+			if (box[i].x2 > extents.x2)
 				extents.x2 = box[i].x2;
-			if (extents.y2 > box[i].y2)
+			if (box[i].y2 > extents.y2)
 				extents.y2 = box[i].y2;
 		}
 		if (!sna_render_composite_redirect(sna, &tmp,
@@ -2948,7 +2986,7 @@ fallback:
 
 	gen2_vertex_flush(sna, &tmp);
 	sna_render_composite_redirect_done(sna, &tmp);
-	return TRUE;
+	return true;
 
 fallback_tiled:
 	return sna_tiling_copy_boxes(sna, alu,
@@ -2991,7 +3029,7 @@ gen2_render_copy_done(struct sna *sna, const struct sna_copy_op *op)
 	gen2_vertex_flush(sna, &op->base);
 }
 
-static Bool
+static bool
 gen2_render_copy(struct sna *sna, uint8_t alu,
 		 PixmapPtr src, struct kgem_bo *src_bo,
 		 PixmapPtr dst, struct kgem_bo *dst_bo,
@@ -2999,7 +3037,7 @@ gen2_render_copy(struct sna *sna, uint8_t alu,
 {
 #if NO_COPY
 	if (!sna_blt_compare_depth(&src->drawable, &dst->drawable))
-		return FALSE;
+		return false;
 
 	return sna_blt_copy(sna, alu,
 			    src_bo, dst_bo,
@@ -3008,13 +3046,13 @@ gen2_render_copy(struct sna *sna, uint8_t alu,
 #endif
 
 	/* Prefer to use the BLT */
-	if (prefer_blt_copy(sna) &&
+	if (prefer_blt_copy(sna, 0) &&
 	    sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
 	    sna_blt_copy(sna, alu,
 			 src_bo, dst_bo,
 			 dst->drawable.bitsPerPixel,
 			 tmp))
-		return TRUE;
+		return true;
 
 	/* Must use the BLT if we can't RENDER... */
 	if (too_large(src->drawable.width, src->drawable.height) ||
@@ -3023,7 +3061,7 @@ gen2_render_copy(struct sna *sna, uint8_t alu,
 	    dst_bo->pitch < 8 || dst_bo->pitch > MAX_3D_PITCH) {
 fallback:
 		if (!sna_blt_compare_depth(&src->drawable, &dst->drawable))
-			return FALSE;
+			return false;
 
 		return sna_blt_copy(sna, alu, src_bo, dst_bo,
 				    dst->drawable.bitsPerPixel,
@@ -3054,13 +3092,13 @@ fallback:
 	tmp->done = gen2_render_copy_done;
 
 	gen2_emit_composite_state(sna, &tmp->base);
-	return TRUE;
+	return true;
 }
 
 static void
 gen2_render_reset(struct sna *sna)
 {
-	sna->render_state.gen2.need_invariant = TRUE;
+	sna->render_state.gen2.need_invariant = true;
 	sna->render_state.gen2.logic_op_enabled = 0;
 	sna->render_state.gen2.vertex_offset = 0;
 	sna->render_state.gen2.target = 0;
@@ -3089,7 +3127,7 @@ gen2_render_context_switch(struct kgem *kgem,
 	sna->blt_state.fill_bo = 0;
 }
 
-Bool gen2_render_init(struct sna *sna)
+bool gen2_render_init(struct sna *sna)
 {
 	struct sna_render *render = &sna->render;
 
@@ -3099,7 +3137,10 @@ Bool gen2_render_init(struct sna *sna)
 	 * use the texture combiners.
 	 */
 	render->composite = gen2_render_composite;
+#if !NO_COMPOSITE_SPANS
+	render->check_composite_spans = gen2_check_composite_spans;
 	render->composite_spans = gen2_render_composite_spans;
+#endif
 	render->fill_boxes = gen2_render_fill_boxes;
 	render->fill = gen2_render_fill;
 	render->fill_one = gen2_render_fill_one;
@@ -3113,5 +3154,5 @@ Bool gen2_render_init(struct sna *sna)
 
 	render->max_3d_size = MAX_3D_SIZE;
 	render->max_3d_pitch = MAX_3D_PITCH;
-	return TRUE;
+	return true;
 }

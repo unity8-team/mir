@@ -42,7 +42,10 @@ NULL:=#
 
 intel_drv_la_SOURCES = \
 	intel_list.h \
+	intel_options.h \
+	intel_options.c \
 	intel_module.c \
+	compat-api.h \
 	$(NULL)
 
 if UXA
@@ -61,7 +64,6 @@ intel_drv_la_SOURCES += \
          intel_driver.h \
 	 intel_glamor.h \
          intel_memory.c \
-	 intel_shadow.c \
 	 intel_uxa.c \
          intel_video.c \
          intel_video.h \

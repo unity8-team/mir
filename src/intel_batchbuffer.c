@@ -114,29 +114,15 @@ void intel_batch_teardown(ScrnInfoPtr scrn)
 
 	while (!list_is_empty(&intel->batch_pixmaps))
 		list_del(intel->batch_pixmaps.next);
-
-	while (!list_is_empty(&intel->flush_pixmaps))
-		list_del(intel->flush_pixmaps.next);
-
-	while (!list_is_empty(&intel->in_flight)) {
-		struct intel_pixmap *entry;
-
-		entry = list_first_entry(&intel->in_flight,
-					 struct intel_pixmap,
-					 in_flight);
-
-		dri_bo_unreference(entry->bo);
-		list_del(&entry->in_flight);
-		free(entry);
-	}
 }
 
-void intel_batch_do_flush(ScrnInfoPtr scrn)
+static void intel_batch_do_flush(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
+	struct intel_pixmap *priv;
 
-	while (!list_is_empty(&intel->flush_pixmaps))
-		list_del(intel->flush_pixmaps.next);
+	list_for_each_entry(priv, &intel->batch_pixmaps, batch)
+		priv->dirty = 0;
 }
 
 static void intel_emit_post_sync_nonzero_flush(ScrnInfoPtr scrn)
@@ -260,7 +246,7 @@ void intel_batch_submit(ScrnInfoPtr scrn)
 			if (!once) {
 				xf86DrvMsg(scrn->scrnIndex, X_ERROR, "Detected a hung GPU, disabling acceleration.\n");
 				xf86DrvMsg(scrn->scrnIndex, X_ERROR, "When reporting this, please include i915_error_state from debugfs and the full dmesg.\n");
-				uxa_set_force_fallback(screenInfo.screens[scrn->scrnIndex], TRUE);
+				uxa_set_force_fallback(xf86ScrnToScreen(scrn), TRUE);
 				intel->force_fallback = TRUE;
 				once = 1;
 			}
@@ -280,23 +266,8 @@ void intel_batch_submit(ScrnInfoPtr scrn)
 					 batch);
 
 		entry->busy = -1;
-		entry->batch_write = 0;
+		entry->dirty = 0;
 		list_del(&entry->batch);
-	}
-
-	while (!list_is_empty(&intel->flush_pixmaps))
-		list_del(intel->flush_pixmaps.next);
-
-	while (!list_is_empty(&intel->in_flight)) {
-		struct intel_pixmap *entry;
-
-		entry = list_first_entry(&intel->in_flight,
-					 struct intel_pixmap,
-					 in_flight);
-
-		dri_bo_unreference(entry->bo);
-		list_del(&entry->in_flight);
-		free(entry);
 	}
 
 	if (intel->debug_flush & DEBUG_FLUSH_WAIT)

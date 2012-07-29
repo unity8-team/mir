@@ -1,5 +1,7 @@
 stress_TESTS = \
 	basic-fillrect \
+	basic-rectangle \
+	basic-string \
 	basic-copyarea \
 	basic-copyarea-size \
 	basic-putimage \
@@ -14,12 +16,13 @@ stress_TESTS = \
 	render-copyarea-size \
 	render-copy-alphaless \
 	mixed-stress \
+	dri2-swap \
 	$(NULL)
 
 check_PROGRAMS = $(stress_TESTS)
 
-AM_CFLAGS = @CWARNFLAGS@ @X11_CFLAGS@
-LDADD = libtest.la @X11_LIBS@
+AM_CFLAGS = @CWARNFLAGS@ @X11_CFLAGS@ @DRM_CFLAGS@
+LDADD = libtest.la @X11_LIBS@ -lXfixes @DRM_LIBS@ -lrt
 
 noinst_LTLIBRARIES = libtest.la
 libtest_la_SOURCES = \
@@ -28,6 +31,8 @@ libtest_la_SOURCES = \
 	test_image.c \
 	test_log.c \
 	test_render.c \
+	dri2.c \
+	dri2.h \
 	$(NULL)
 
 EXTRA_DIST = README

@@ -1,3 +1,32 @@
+xserver-xorg-video-intel (2:2.20.2-1) experimental; urgency=low
+
+  [ Maarten Lankhorst ]
+  * New upstream release:
+    - First official release with sna
+  * Update to 2.20.1 point release:
+    - A bug affecting gen4 handling of trapezoids was fixed, and CPU
+      overhead reduced.
+      https://bugs.freedesktop.org/show_bug.cgi?id=52158
+    - A fix for a bug causing corruption of a DRI2 unredirected client
+      window that was resized whilst under a compositor.
+    - Support for snoopable buffers on non-LLC architectures, coming to
+      a future kernel. The aim to accelerate transfers between the CPU
+      and the GPU, in particular to dramatically improve readback
+      performance, and to further minimise clflushes.
+    - Improvement to the composite performance on GT2 SandyBridge and
+      IvyBridge devices, in particular the render copy is significantly
+      improved.
+    - Improved handling for when acceleration is disabled, including
+      permitting DRI2 to remain supported even if the X server believes
+      the GPU wedged.
+    - Shadow support was dropped from UXA as it was neither complete nor
+      correct, use SNA instead.
+
+  [ Julien Danjou ]
+  * New upstream release (2.20.2)
+
+ -- Julien Danjou <acid@debian.org>  Sun, 29 Jul 2012 00:06:11 +0200
+
 xserver-xorg-video-intel (2:2.18.0-1+exp1) experimental; urgency=low
 
   * Enable SNA again, in experimental.

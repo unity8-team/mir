@@ -287,8 +287,8 @@ static void primitive_out(struct kgem *kgem, uint32_t *data)
 
 	assert((data[0] & (1<<15)) == 0); /* XXX index buffers */
 
-	for (n = 0; n < data[1]; n++) {
-		int v = data[2] + n;
+	for (n = 0; n < data[2]; n++) {
+		int v = data[3] + n;
 		ErrorF("	[%d:%d] = ", n, v);
 		indirect_vertex_out(kgem, v);
 		ErrorF("\n");
@@ -302,7 +302,7 @@ static void finish_state(struct kgem *kgem)
 
 static void
 state_base_out(uint32_t *data, uint32_t offset, unsigned int index,
-	       char *name)
+	       const char *name)
 {
     if (data[index] & 1)
 	kgem_debug_print(data, offset, index,
@@ -316,7 +316,7 @@ state_base_out(uint32_t *data, uint32_t offset, unsigned int index,
 
 static void
 state_max_out(uint32_t *data, uint32_t offset, unsigned int index,
-	      char *name)
+	      const char *name)
 {
 	if (data[index] == 1)
 		kgem_debug_print(data, offset, index,
@@ -358,7 +358,7 @@ get_965_depthformat(unsigned int depthformat)
 }
 
 static const char *
-get_965_element_component(uint32_t data, int component)
+get_element_component(uint32_t data, int component)
 {
 	uint32_t component_control = (data >> (16 + (3 - component) * 4)) & 0x7;
 
@@ -387,9 +387,9 @@ get_965_element_component(uint32_t data, int component)
 }
 
 static const char *
-get_965_prim_type(uint32_t data)
+get_prim_type(uint32_t data)
 {
-	uint32_t primtype = (data >> 10) & 0x1f;
+	uint32_t primtype = data & 0x1f;
 
 	switch (primtype) {
 	case 0x01: return "point list";
@@ -595,8 +595,7 @@ int kgem_gen7_decode_3d(struct kgem *kgem, uint32_t offset)
 	uint32_t *data = kgem->batch + offset;
 	uint32_t op;
 	unsigned int len;
-	int i, j;
-	char *desc1 = NULL;
+	int i;
 	const char *name;
 
 	len = (data[0] & 0xff) + 2;
@@ -656,10 +655,10 @@ int kgem_gen7_decode_3d(struct kgem *kgem, uint32_t offset)
 			i++;
 			kgem_debug_print(data, offset, i, "(%s, %s, %s, %s), "
 				  "dst offset 0x%02x bytes\n",
-				  get_965_element_component(data[i], 0),
-				  get_965_element_component(data[i], 1),
-				  get_965_element_component(data[i], 2),
-				  get_965_element_component(data[i], 3),
+				  get_element_component(data[i], 0),
+				  get_element_component(data[i], 1),
+				  get_element_component(data[i], 2),
+				  get_element_component(data[i], 3),
 				  (data[i] & 0xff) * 4);
 			i++;
 		}
@@ -673,16 +672,16 @@ int kgem_gen7_decode_3d(struct kgem *kgem, uint32_t offset)
 		return len;
 
 	case 0x7b00:
-		assert(len == 6);
-		kgem_debug_print(data, offset, 0,
-			  "3DPRIMITIVE: %s %s\n",
-			  get_965_prim_type(data[0]),
-			  (data[0] & (1 << 15)) ? "random" : "sequential");
-		kgem_debug_print(data, offset, 1, "vertex count\n");
-		kgem_debug_print(data, offset, 2, "start vertex\n");
-		kgem_debug_print(data, offset, 3, "instance count\n");
-		kgem_debug_print(data, offset, 4, "start instance\n");
-		kgem_debug_print(data, offset, 5, "index bias\n");
+		assert(len == 7);
+		kgem_debug_print(data, offset, 0, "3DPRIMITIVE\n");
+		kgem_debug_print(data, offset, 1, "type %s, %s\n",
+			  get_prim_type(data[1]),
+			  (data[1] & (1 << 15)) ? "random" : "sequential");
+		kgem_debug_print(data, offset, 2, "vertex count\n");
+		kgem_debug_print(data, offset, 3, "start vertex\n");
+		kgem_debug_print(data, offset, 4, "instance count\n");
+		kgem_debug_print(data, offset, 5, "start instance\n");
+		kgem_debug_print(data, offset, 6, "index bias\n");
 		primitive_out(kgem, data);
 		return len;
 	}

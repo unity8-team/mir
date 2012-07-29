@@ -36,7 +36,8 @@ static inline void sna_damage_combine(struct sna_damage **l,
 				      struct sna_damage *r,
 				      int dx, int dy)
 {
-	*l = _sna_damage_combine(*l, r, dx, dy);
+	assert(!DAMAGE_IS_ALL(*l));
+	*l = _sna_damage_combine(*l, DAMAGE_PTR(r), dx, dy);
 }
 
 fastcall struct sna_damage *_sna_damage_add(struct sna_damage *damage,
@@ -177,10 +178,10 @@ static inline void sna_damage_subtract_boxes(struct sna_damage **damage,
 	assert(*damage == NULL || (*damage)->mode != DAMAGE_ALL);
 }
 
-Bool _sna_damage_intersect(struct sna_damage *damage,
+bool _sna_damage_intersect(struct sna_damage *damage,
 			  RegionPtr region, RegionPtr result);
 
-static inline Bool sna_damage_intersect(struct sna_damage *damage,
+static inline bool sna_damage_intersect(struct sna_damage *damage,
 					RegionPtr region, RegionPtr result)
 {
 	assert(damage);
@@ -188,6 +189,21 @@ static inline Bool sna_damage_intersect(struct sna_damage *damage,
 	assert(!DAMAGE_IS_ALL(damage));
 
 	return _sna_damage_intersect(damage, region, result);
+}
+
+static inline bool
+sna_damage_overlaps_box(const struct sna_damage *damage,
+			const BoxRec *box)
+{
+	if (box->x2 <= damage->extents.x1 ||
+	    box->x1 >= damage->extents.x2)
+		return false;
+
+	if (box->y2 <= damage->extents.y1 ||
+	    box->y1 >= damage->extents.y2)
+		return false;
+
+	return true;
 }
 
 int _sna_damage_contains_box(struct sna_damage *damage,
@@ -269,7 +285,9 @@ static inline void sna_damage_destroy(struct sna_damage **damage)
 	*damage = NULL;
 }
 
-#if DEBUG_DAMAGE && TEST_DAMAGE
+void _sna_damage_debug_get_region(struct sna_damage *damage, RegionRec *r);
+
+#if HAS_DEBUG_FULL && TEST_DAMAGE
 void sna_damage_selftest(void);
 #else
 static inline void sna_damage_selftest(void) {}

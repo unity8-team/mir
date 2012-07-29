@@ -78,73 +78,16 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <xf86drmMode.h>
 
 #include "intel_glamor.h"
+#include "intel_options.h"
 
-/* *INDENT-OFF* */
-/*
- * Note: "ColorKey" is provided for compatibility with the i810 driver.
- * However, the correct option name is "VideoKey".  "ColorKey" usually
- * refers to the tranparency key for 8+24 overlays, not for video overlays.
- */
-
-typedef enum {
-   OPTION_DRI,
-   OPTION_VIDEO_KEY,
-   OPTION_COLOR_KEY,
-   OPTION_FALLBACKDEBUG,
-   OPTION_TILING_FB,
-   OPTION_TILING_2D,
-   OPTION_SHADOW,
-   OPTION_SWAPBUFFERS_WAIT,
-   OPTION_TRIPLE_BUFFER,
-#ifdef INTEL_XVMC
-   OPTION_XVMC,
-#endif
-   OPTION_PREFER_OVERLAY,
-   OPTION_DEBUG_FLUSH_BATCHES,
-   OPTION_DEBUG_FLUSH_CACHES,
-   OPTION_DEBUG_WAIT,
-   OPTION_HOTPLUG,
-   OPTION_RELAXED_FENCING,
-   OPTION_BUFFER_CACHE,
-} I830Opts;
-
-static OptionInfoRec I830Options[] = {
-   {OPTION_DRI,		"DRI",		OPTV_BOOLEAN,	{0},	TRUE},
-   {OPTION_COLOR_KEY,	"ColorKey",	OPTV_INTEGER,	{0},	FALSE},
-   {OPTION_VIDEO_KEY,	"VideoKey",	OPTV_INTEGER,	{0},	FALSE},
-   {OPTION_FALLBACKDEBUG, "FallbackDebug", OPTV_BOOLEAN, {0},	FALSE},
-   {OPTION_TILING_2D,	"Tiling",	OPTV_BOOLEAN,	{0},	TRUE},
-   {OPTION_TILING_FB,	"LinearFramebuffer",	OPTV_BOOLEAN,	{0},	FALSE},
-   {OPTION_SHADOW,	"Shadow",	OPTV_BOOLEAN,	{0},	FALSE},
-   {OPTION_SWAPBUFFERS_WAIT, "SwapbuffersWait", OPTV_BOOLEAN,	{0},	TRUE},
-   {OPTION_TRIPLE_BUFFER, "TripleBuffer", OPTV_BOOLEAN,	{0},	TRUE},
-#ifdef INTEL_XVMC
-   {OPTION_XVMC,	"XvMC",		OPTV_BOOLEAN,	{0},	TRUE},
-#endif
-   {OPTION_PREFER_OVERLAY, "XvPreferOverlay", OPTV_BOOLEAN, {0}, FALSE},
-   {OPTION_DEBUG_FLUSH_BATCHES, "DebugFlushBatches", OPTV_BOOLEAN, {0}, FALSE},
-   {OPTION_DEBUG_FLUSH_CACHES, "DebugFlushCaches", OPTV_BOOLEAN, {0}, FALSE},
-   {OPTION_DEBUG_WAIT, "DebugWait", OPTV_BOOLEAN, {0}, FALSE},
-   {OPTION_HOTPLUG,	"HotPlug",	OPTV_BOOLEAN,	{0},	TRUE},
-   {OPTION_RELAXED_FENCING,	"RelaxedFencing",	OPTV_BOOLEAN,	{0},	TRUE},
-   {OPTION_BUFFER_CACHE,	"BufferCache",	OPTV_BOOLEAN,	{0},	TRUE},
-   {-1,			NULL,		OPTV_NONE,	{0},	FALSE}
-};
-/* *INDENT-ON* */
-
-static void i830AdjustFrame(int scrnIndex, int x, int y, int flags);
-static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen);
-static Bool I830EnterVT(int scrnIndex, int flags);
+static void i830AdjustFrame(ADJUST_FRAME_ARGS_DECL);
+static Bool I830CloseScreen(CLOSE_SCREEN_ARGS_DECL);
+static Bool I830EnterVT(VT_FUNC_ARGS_DECL);
 
 /* temporary */
 extern void xf86SetCursor(ScreenPtr screen, CursorPtr pCurs, int x, int y);
 
 /* Export I830 options to i830 driver where necessary */
-const OptionInfoRec *intel_uxa_available_options(int chipid, int busid)
-{
-	return I830Options;
-}
-
 static void
 I830LoadPalette(ScrnInfoPtr scrn, int numColors, int *indices,
 		LOCO * colors, VisualPtr pVisual)
@@ -217,14 +160,18 @@ I830LoadPalette(ScrnInfoPtr scrn, int numColors, int *indices,
  */
 static Bool i830CreateScreenResources(ScreenPtr screen)
 {
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	screen->CreateScreenResources = intel->CreateScreenResources;
 	if (!(*screen->CreateScreenResources) (screen))
 		return FALSE;
 
-	return intel_uxa_create_screen_resources(screen);
+	if (!intel_uxa_create_screen_resources(screen))
+		return FALSE;
+
+	intel_copy_fb(scrn);
+	return TRUE;
 }
 
 static void PreInitCleanup(ScrnInfoPtr scrn)
@@ -239,37 +186,7 @@ static void PreInitCleanup(ScrnInfoPtr scrn)
 static void intel_check_chipset_option(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	MessageType from = X_PROBED;
-
-	intel_detect_chipset(scrn,
-			     intel->PciInfo,
-			     &intel->chipset);
-
-	/* Set the Chipset and ChipRev, allowing config file entries to override. */
-	if (intel->pEnt->device->chipset && *intel->pEnt->device->chipset) {
-		scrn->chipset = intel->pEnt->device->chipset;
-		from = X_CONFIG;
-	} else if (intel->pEnt->device->chipID >= 0) {
-		scrn->chipset = (char *)xf86TokenToString(intel_chipsets,
-							   intel->pEnt->device->chipID);
-		from = X_CONFIG;
-		xf86DrvMsg(scrn->scrnIndex, X_CONFIG,
-			   "ChipID override: 0x%04X\n",
-			   intel->pEnt->device->chipID);
-		DEVICE_ID(intel->PciInfo) = intel->pEnt->device->chipID;
-	} else {
-		from = X_PROBED;
-		scrn->chipset = (char *)xf86TokenToString(intel_chipsets,
-							   DEVICE_ID(intel->PciInfo));
-	}
-
-	if (intel->pEnt->device->chipRev >= 0) {
-		xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "ChipRev override: %d\n",
-			   intel->pEnt->device->chipRev);
-	}
-
-	xf86DrvMsg(scrn->scrnIndex, from, "Chipset: \"%s\"\n",
-		   (scrn->chipset != NULL) ? scrn->chipset : "Unknown i8xx");
+	intel->info = intel_detect_chipset(scrn, intel->pEnt, intel->PciInfo);
 }
 
 static Bool I830GetEarlyOptions(ScrnInfoPtr scrn)
@@ -277,11 +194,9 @@ static Bool I830GetEarlyOptions(ScrnInfoPtr scrn)
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	/* Process the options */
-	xf86CollectOptions(scrn, NULL);
-	if (!(intel->Options = malloc(sizeof(I830Options))))
+	intel->Options = intel_options_get(scrn);
+	if (!intel->Options)
 		return FALSE;
-	memcpy(intel->Options, I830Options, sizeof(I830Options));
-	xf86ProcessOptions(scrn->scrnIndex, scrn->options, intel->Options);
 
 	intel->fallback_debug = xf86ReturnOptValBool(intel->Options,
 						     OPTION_FALLBACKDEBUG,
@@ -402,8 +317,6 @@ static int intel_init_bufmgr(intel_screen_private *intel)
 	drm_intel_bufmgr_gem_enable_fenced_relocs(intel->bufmgr);
 
 	list_init(&intel->batch_pixmaps);
-	list_init(&intel->flush_pixmaps);
-	list_init(&intel->in_flight);
 
 	if ((INTEL_INFO(intel)->gen == 60)) {
 		intel->wa_scratch_bo =
@@ -474,6 +387,9 @@ static Bool has_relaxed_fencing(struct intel_screen_private *intel)
 
 static Bool can_accelerate_blt(struct intel_screen_private *intel)
 {
+	if (INTEL_INFO(intel)->gen == -1)
+		return FALSE;
+
 	if (0 && (IS_I830(intel) || IS_845G(intel))) {
 		/* These pair of i8xx chipsets have a crippling erratum
 		 * that prevents the use of a PTE entry by the BLT
@@ -489,6 +405,21 @@ static Bool can_accelerate_blt(struct intel_screen_private *intel)
 		return FALSE;
 	}
 
+	if (INTEL_INFO(intel)->gen == 60) {
+		struct pci_device *const device = intel->PciInfo;
+
+		/* Sandybridge rev07 locks up easily, even with the
+		 * BLT ring workaround in place.
+		 * Thus use shadowfb by default.
+		 */
+		if (device->revision < 8) {
+			xf86DrvMsg(intel->scrn->scrnIndex, X_WARNING,
+				   "Disabling hardware acceleration on this pre-production hardware.\n");
+
+			return FALSE;
+		}
+	}
+
 	if (INTEL_INFO(intel)->gen >= 60) {
 		drm_i915_getparam_t gp;
 		int value;
@@ -500,17 +431,6 @@ static Bool can_accelerate_blt(struct intel_screen_private *intel)
 		gp.param = I915_PARAM_HAS_BLT;
 		if (drmIoctl(intel->drmSubFD, DRM_IOCTL_I915_GETPARAM, &gp))
 			return FALSE;
-	}
-
-	if (INTEL_INFO(intel)->gen == 60) {
-		struct pci_device *const device = intel->PciInfo;
-
-		/* Sandybridge rev07 locks up easily, even with the
-		 * BLT ring workaround in place.
-		 * Thus use shadowfb by default.
-		 */
-		if (device->revision < 8)
-		    return FALSE;
 	}
 
 	return TRUE;
@@ -541,6 +461,8 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 		return FALSE;
 
 	pEnt = xf86GetEntityInfo(scrn->entityList[0]);
+	if (pEnt == NULL || pEnt->location.type != BUS_PCI)
+		return FALSE;
 
 	if (flags & PROBE_DETECT)
 		return TRUE;
@@ -557,9 +479,6 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 	intel->pEnt = pEnt;
 
 	scrn->displayWidth = 640;	/* default it */
-
-	if (intel->pEnt->location.type != BUS_PCI)
-		return FALSE;
 
 	intel->PciInfo = xf86GetPciInfoForEntity(intel->pEnt->index);
 
@@ -620,23 +539,12 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 		intel->tiling &= ~INTEL_TILING_2D;
 	if (xf86ReturnOptValBool(intel->Options, OPTION_TILING_FB, FALSE))
 		intel->tiling &= ~INTEL_TILING_FB;
+	if (!can_accelerate_blt(intel)) {
+		intel->force_fallback = TRUE;
+		intel->tiling &= ~INTEL_TILING_FB;
+	}
 
-	intel->can_blt = can_accelerate_blt(intel);
 	intel->has_kernel_flush = has_kernel_flush(intel);
-	intel->use_shadow = !intel->can_blt;
-
-	if (xf86IsOptionSet(intel->Options, OPTION_SHADOW)) {
-		intel->use_shadow =
-			xf86ReturnOptValBool(intel->Options,
-					     OPTION_SHADOW,
-					     FALSE);
-	}
-
-	if (intel->use_shadow) {
-		xf86DrvMsg(scrn->scrnIndex, X_CONFIG,
-			   "Shadow buffer enabled,"
-			   " 2D GPU acceleration disabled.\n");
-	}
 
 	intel->has_relaxed_fencing =
 		xf86ReturnOptValBool(intel->Options,
@@ -739,15 +647,15 @@ void IntelEmitInvarientState(ScrnInfoPtr scrn)
 }
 
 static void
-I830BlockHandler(int i, pointer blockData, pointer pTimeout, pointer pReadmask)
+I830BlockHandler(BLOCKHANDLER_ARGS_DECL)
 {
-	ScreenPtr screen = screenInfo.screens[i];
-	ScrnInfoPtr scrn = xf86Screens[i];
+	SCREEN_PTR(arg);
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	screen->BlockHandler = intel->BlockHandler;
 
-	(*screen->BlockHandler) (i, blockData, pTimeout, pReadmask);
+	(*screen->BlockHandler) (BLOCKHANDLER_ARGS);
 
 	intel->BlockHandler = screen->BlockHandler;
 	screen->BlockHandler = I830BlockHandler;
@@ -784,26 +692,6 @@ intel_init_initial_framebuffer(ScrnInfoPtr scrn)
 	return TRUE;
 }
 
-Bool intel_crtc_on(xf86CrtcPtr crtc)
-{
-	ScrnInfoPtr scrn = crtc->scrn;
-	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
-	int i;
-
-	if (!crtc->enabled)
-		return FALSE;
-
-	/* Kernel manages CRTC status based out output config */
-	for (i = 0; i < xf86_config->num_output; i++) {
-		xf86OutputPtr output = xf86_config->output[i];
-		if (output->crtc == crtc &&
-		    intel_output_dpms_status(output) == DPMSModeOn)
-			return TRUE;
-	}
-
-	return FALSE;
-}
-
 static void
 intel_flush_callback(CallbackListPtr *list,
 		     pointer user_data, pointer call_data)
@@ -831,7 +719,10 @@ I830HandleUEvents(int fd, void *closure)
 		return;
 
 	udev_devnum = udev_device_get_devnum(dev);
-	fstat(intel->drmSubFD, &s);
+	if (fstat(intel->drmSubFD, &s)) {
+		udev_device_unref(dev);
+		return;
+	}
 	/*
 	 * Check to make sure this event is directed at our
 	 * device (by comparing dev_t values), then make
@@ -842,7 +733,7 @@ I830HandleUEvents(int fd, void *closure)
 
 	if (memcmp(&s.st_rdev, &udev_devnum, sizeof (dev_t)) == 0 &&
 			hotplug && atoi(hotplug) == 1)
-		RRGetInfo(screenInfo.screens[scrn->scrnIndex], TRUE);
+		RRGetInfo(xf86ScrnToScreen(scrn), TRUE);
 
 	udev_device_unref(dev);
 }
@@ -919,9 +810,9 @@ I830UeventFini(ScrnInfoPtr scrn)
 #endif /* HAVE_UDEV */
 
 static Bool
-I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
+I830ScreenInit(SCREEN_INIT_ARGS_DECL)
 {
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	VisualPtr visual;
 #ifdef INTEL_XVMC
@@ -1000,7 +891,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 	miDCInitialize(screen, xf86GetPointerScreenFuncs());
 
 	xf86DrvMsg(scrn->scrnIndex, X_INFO, "Initializing HW Cursor\n");
-	if (!xf86_cursors_init(screen, I810_CURSOR_X, I810_CURSOR_Y,
+	if (!xf86_cursors_init(screen, 64, 64,
 			       (HARDWARE_CURSOR_TRUECOLOR_AT_8BPP |
 				HARDWARE_CURSOR_BIT_ORDER_MSBFIRST |
 				HARDWARE_CURSOR_INVERT_MASK |
@@ -1012,13 +903,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "Hardware cursor initialization failed\n");
 	}
-
-	/* Must force it before EnterVT, so we are in control of VT and
-	 * later memory should be bound when allocating, e.g rotate_mem */
-	scrn->vtSema = TRUE;
-
-	if (!I830EnterVT(scrnIndex, 0))
-		return FALSE;
 
 	intel->BlockHandler = screen->BlockHandler;
 	screen->BlockHandler = I830BlockHandler;
@@ -1092,16 +976,20 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 	I830UeventInit(scrn);
 #endif
 
-	return TRUE;
+	/* Must force it before EnterVT, so we are in control of VT and
+	 * later memory should be bound when allocating, e.g rotate_mem */
+	scrn->vtSema = TRUE;
+
+	return I830EnterVT(VT_FUNC_ARGS(0));
 }
 
-static void i830AdjustFrame(int scrnIndex, int x, int y, int flags)
+static void i830AdjustFrame(ADJUST_FRAME_ARGS_DECL)
 {
 }
 
-static void I830FreeScreen(int scrnIndex, int flags)
+static void I830FreeScreen(FREE_SCREEN_ARGS_DECL)
 {
-	ScrnInfoPtr scrn = xf86Screens[scrnIndex];
+	SCRN_INFO_PTR(arg);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	if (intel) {
@@ -1114,9 +1002,9 @@ static void I830FreeScreen(int scrnIndex, int flags)
 	}
 }
 
-static void I830LeaveVT(int scrnIndex, int flags)
+static void I830LeaveVT(VT_FUNC_ARGS_DECL)
 {
-	ScrnInfoPtr scrn = xf86Screens[scrnIndex];
+	SCRN_INFO_PTR(arg);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	int ret;
 
@@ -1133,9 +1021,9 @@ static void I830LeaveVT(int scrnIndex, int flags)
 /*
  * This gets called when gaining control of the VT, and from ScreenInit().
  */
-static Bool I830EnterVT(int scrnIndex, int flags)
+static Bool I830EnterVT(VT_FUNC_ARGS_DECL)
 {
-	ScrnInfoPtr scrn = xf86Screens[scrnIndex];
+	SCRN_INFO_PTR(arg);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	int ret;
 
@@ -1149,19 +1037,20 @@ static Bool I830EnterVT(int scrnIndex, int flags)
 	if (!xf86SetDesiredModes(scrn))
 		return FALSE;
 
+	intel_mode_disable_unused_functions(scrn);
 	return TRUE;
 }
 
-static Bool I830SwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
+static Bool I830SwitchMode(SWITCH_MODE_ARGS_DECL)
 {
-	ScrnInfoPtr scrn = xf86Screens[scrnIndex];
+	SCRN_INFO_PTR(arg);
 
 	return xf86SetSingleMode(scrn, mode, RR_Rotate_0);
 }
 
-static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen)
+static Bool I830CloseScreen(CLOSE_SCREEN_ARGS_DECL)
 {
-	ScrnInfoPtr scrn = xf86Screens[scrnIndex];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 #if HAVE_UDEV
@@ -1169,7 +1058,7 @@ static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen)
 #endif
 
 	if (scrn->vtSema == TRUE) {
-		I830LeaveVT(scrnIndex, 0);
+		I830LeaveVT(VT_FUNC_ARGS(0));
 	}
 
 	DeleteCallback(&FlushCallback, intel_flush_callback, scrn);
@@ -1196,24 +1085,9 @@ static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen)
 	}
 
 	if (intel->front_buffer) {
-		if (!intel->use_shadow)
-			intel_set_pixmap_bo(screen->GetScreenPixmap(screen),
-					    NULL);
 		intel_mode_remove_fb(intel);
 		drm_intel_bo_unreference(intel->front_buffer);
 		intel->front_buffer = NULL;
-	}
-
-	if (intel->shadow_buffer) {
-		free(intel->shadow_buffer);
-		intel->shadow_buffer = NULL;
-	}
-
-	if (intel->shadow_damage) {
-		DamageUnregister(&screen->GetScreenPixmap(screen)->drawable,
-				 intel->shadow_damage);
-		DamageDestroy(intel->shadow_damage);
-		intel->shadow_damage = NULL;
 	}
 
 	intel_batch_teardown(scrn);
@@ -1226,7 +1100,7 @@ static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen)
 	i965_free_video(scrn);
 
 	screen->CloseScreen = intel->CloseScreen;
-	(*screen->CloseScreen) (scrnIndex, screen);
+	(*screen->CloseScreen) (CLOSE_SCREEN_ARGS);
 
 	if (intel->directRenderingOpen
 	    && intel->directRenderingType == DRI_DRI2) {
@@ -1234,18 +1108,19 @@ static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen)
 		I830DRI2CloseScreen(screen);
 	}
 
-	xf86GARTCloseScreen(scrnIndex);
+	xf86GARTCloseScreen(scrn->scrnIndex);
 
 	scrn->vtSema = FALSE;
 	return TRUE;
 }
 
 static ModeStatus
-I830ValidMode(int scrnIndex, DisplayModePtr mode, Bool verbose, int flags)
+I830ValidMode(SCRN_ARG_TYPE arg, DisplayModePtr mode, Bool verbose, int flags)
 {
+	SCRN_INFO_PTR(arg);
 	if (mode->Flags & V_INTERLACE) {
 		if (verbose) {
-			xf86DrvMsg(scrnIndex, X_PROBED,
+			xf86DrvMsg(scrn->scrnIndex, X_PROBED,
 				   "Removing interlaced mode \"%s\"\n",
 				   mode->name);
 		}
@@ -1266,9 +1141,9 @@ I830ValidMode(int scrnIndex, DisplayModePtr mode, Bool verbose, int flags)
  * DoApmEvent() in common/xf86PM.c, including if we want to see events other
  * than suspend/resume.
  */
-static Bool I830PMEvent(int scrnIndex, pmEvent event, Bool undo)
+static Bool I830PMEvent(SCRN_ARG_TYPE arg, pmEvent event, Bool undo)
 {
-	ScrnInfoPtr scrn = xf86Screens[scrnIndex];
+	SCRN_INFO_PTR(arg);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	switch (event) {
@@ -1278,12 +1153,12 @@ static Bool I830PMEvent(int scrnIndex, pmEvent event, Bool undo)
 	case XF86_APM_SYS_STANDBY:
 	case XF86_APM_USER_STANDBY:
 		if (!undo && !intel->suspended) {
-			scrn->LeaveVT(scrnIndex, 0);
+			scrn->LeaveVT(VT_FUNC_ARGS(0));
 			intel->suspended = TRUE;
 			sleep(SUSPEND_SLEEP);
 		} else if (undo && intel->suspended) {
 			sleep(RESUME_SLEEP);
-			scrn->EnterVT(scrnIndex, 0);
+			scrn->EnterVT(VT_FUNC_ARGS(0));
 			intel->suspended = FALSE;
 		}
 		break;
@@ -1292,7 +1167,7 @@ static Bool I830PMEvent(int scrnIndex, pmEvent event, Bool undo)
 	case XF86_APM_CRITICAL_RESUME:
 		if (intel->suspended) {
 			sleep(RESUME_SLEEP);
-			scrn->EnterVT(scrnIndex, 0);
+			scrn->EnterVT(VT_FUNC_ARGS(0));
 			intel->suspended = FALSE;
 			/*
 			 * Turn the screen saver off when resuming.  This seems to be
@@ -1318,7 +1193,7 @@ static Bool I830PMEvent(int scrnIndex, pmEvent event, Bool undo)
 	return TRUE;
 }
 
-void intel_init_scrn(ScrnInfoPtr scrn)
+Bool intel_init_scrn(ScrnInfoPtr scrn)
 {
 	scrn->PreInit = I830PreInit;
 	scrn->ScreenInit = I830ScreenInit;
@@ -1329,4 +1204,5 @@ void intel_init_scrn(ScrnInfoPtr scrn)
 	scrn->FreeScreen = I830FreeScreen;
 	scrn->ValidMode = I830ValidMode;
 	scrn->PMEvent = I830PMEvent;
+	return TRUE;
 }
