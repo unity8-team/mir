@@ -390,18 +390,9 @@ static Bool can_accelerate_blt(struct intel_screen_private *intel)
 	if (INTEL_INFO(intel)->gen == -1)
 		return FALSE;
 
-	if (0 && (IS_I830(intel) || IS_845G(intel))) {
-		/* These pair of i8xx chipsets have a crippling erratum
-		 * that prevents the use of a PTE entry by the BLT
-		 * engine immediately following updating that
-		 * entry in the GATT.
-		 *
-		 * As the BLT is fundamental to our 2D acceleration,
-		 * and the workaround is lost in the midst of time,
-		 * fallback.
-		 *
-		 * XXX disabled for release as causes regressions in GL.
-		 */
+	if (xf86ReturnOptValBool(intel->Options, OPTION_ACCEL_DISABLE, FALSE)) {
+		xf86DrvMsg(intel->scrn->scrnIndex, X_CONFIG,
+			   "Disabling hardware acceleration.\n");
 		return FALSE;
 	}
 

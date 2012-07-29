@@ -652,8 +652,10 @@ static bool is_hw_supported(struct kgem *kgem,
 	if (kgem->gen == (unsigned)-1) /* unknown chipset, assume future gen */
 		return kgem->has_blt;
 
-	if (kgem->gen <= 20) /* dynamic GTT is fubar */
-		return false;
+	/* Although pre-855gm the GMCH is fubar, it works mostly. So
+	 * let the user decide through "NoAccel" whether or not to risk
+	 * hw acceleration.
+	 */
 
 	if (kgem->gen == 60 && dev->revision < 8) {
 		/* pre-production SNB with dysfunctional BLT */
