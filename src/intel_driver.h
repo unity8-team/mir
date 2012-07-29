@@ -190,6 +190,7 @@
 #define PCI_CHIP_IVYBRIDGE_D_GT1	0x0152
 #define PCI_CHIP_IVYBRIDGE_D_GT2	0x0162
 #define PCI_CHIP_IVYBRIDGE_S_GT1	0x015a
+#define PCI_CHIP_IVYBRIDGE_S_GT2	0x016a
 
 #endif
 
@@ -208,7 +209,7 @@
 #define SUBSYS_ID(p)      (p)->subdevice_id
 #define CHIP_REVISION(p)  (p)->revision
 
-#define INTEL_INFO(intel) ((intel)->chipset.info)
+#define INTEL_INFO(intel) ((intel)->info)
 #define IS_GENx(intel, X) (INTEL_INFO(intel)->gen >= 10*(X) && INTEL_INFO(intel)->gen < 10*((X)+1))
 #define IS_GEN1(intel) IS_GENx(intel, 1)
 #define IS_GEN2(intel) IS_GENx(intel, 2)
@@ -233,20 +234,13 @@
 #define HAS_BLT(pI810) (INTEL_INFO(intel)->gen >= 60)
 
 extern SymTabRec *intel_chipsets;
-
-struct intel_chipset {
-    const char *name;
-    int variant;
-    const struct intel_device_info {
-	    int gen;
-    } *info;
+struct intel_device_info {
+	int gen;
 };
 
-void intel_detect_chipset(ScrnInfoPtr scrn,
-			  struct pci_device *pci,
-			  struct intel_chipset *chipset);
-
-const OptionInfoRec *intel_uxa_available_options(int chipid, int busid);
+const struct intel_device_info *
+intel_detect_chipset(ScrnInfoPtr scrn,
+		     EntityInfoPtr ent, struct pci_device *pci);
 
 
 #endif /* INTEL_DRIVER_H */

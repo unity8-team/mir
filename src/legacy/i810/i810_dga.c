@@ -29,8 +29,6 @@
 #include "xf86.h"
 #include "xf86_OSproc.h"
 #include "xf86Pci.h"
-#include "xaa.h"
-#include "xaalocal.h"
 #include "i810.h"
 #include "i810_reg.h"
 #include "dgaproc.h"
@@ -39,11 +37,14 @@
 static Bool I810_OpenFramebuffer(ScrnInfoPtr, char **, unsigned char **,
 				 int *, int *, int *);
 static Bool I810_SetMode(ScrnInfoPtr, DGAModePtr);
-static void I810_Sync(ScrnInfoPtr);
 static int I810_GetViewport(ScrnInfoPtr);
 static void I810_SetViewport(ScrnInfoPtr, int, int, int);
+
+#ifdef HAVE_XAA_H
+static void I810_Sync(ScrnInfoPtr);
 static void I810_FillRect(ScrnInfoPtr, int, int, int, int, unsigned long);
 static void I810_BlitRect(ScrnInfoPtr, int, int, int, int, int, int);
+#endif
 
 #if 0
 static void I810_BlitTransRect(ScrnInfoPtr, int, int, int, int, int, int,
@@ -57,9 +58,15 @@ DGAFunctionRec I810DGAFuncs = {
    I810_SetMode,
    I810_SetViewport,
    I810_GetViewport,
+#ifdef HAVE_XAA_H
    I810_Sync,
    I810_FillRect,
    I810_BlitRect,
+#else
+   NULL,
+   NULL,
+   NULL,
+#endif
 #if 0
    I810_BlitTransRect
 #else
@@ -70,7 +77,7 @@ DGAFunctionRec I810DGAFuncs = {
 Bool
 I810DGAInit(ScreenPtr pScreen)
 {
-   ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+   ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
    I810Ptr pI810 = I810PTR(pScrn);
    DGAModePtr modes = NULL, newmodes = NULL, currentMode;
    DisplayModePtr pMode, firstMode;
@@ -148,8 +155,8 @@ I810_SetMode(ScrnInfoPtr pScrn, DGAModePtr pMode)
    if (!pMode) {			/* restore the original mode */
       if (pI810->DGAactive) {
 	 pScrn->currentMode = I810SavedDGAModes[index];
-	 pScrn->SwitchMode(index, pScrn->currentMode, 0);
-	 pScrn->AdjustFrame(index, 0, 0, 0);
+	 pScrn->SwitchMode(SWITCH_MODE_ARGS(pScrn, pScrn->currentMode));
+	 pScrn->AdjustFrame(ADJUST_FRAME_ARGS(pScrn, 0, 0));
 	 pI810->DGAactive = FALSE;
       }
    } else {
@@ -157,8 +164,7 @@ I810_SetMode(ScrnInfoPtr pScrn, DGAModePtr pMode)
 	 I810SavedDGAModes[index] = pScrn->currentMode;
 	 pI810->DGAactive = TRUE;
       }
-
-      pScrn->SwitchMode(index, pMode->mode, 0);
+      pScrn->SwitchMode(SWITCH_MODE_ARGS(pScrn, pMode->mode));
    }
 
    return TRUE;
@@ -178,7 +184,7 @@ I810_SetViewport(ScrnInfoPtr pScrn, int x, int y, int flags)
    I810Ptr pI810 = I810PTR(pScrn);
    vgaHWPtr hwp = VGAHWPTR(pScrn);
 
-   pScrn->AdjustFrame(pScrn->pScreen->myNum, x, y, flags);
+   pScrn->AdjustFrame(ADJUST_FRAME_ARGS(pScrn, x, y));
 
    /* wait for retrace */
    while ((hwp->readST01(hwp) & 0x08)) ;
@@ -187,6 +193,7 @@ I810_SetViewport(ScrnInfoPtr pScrn, int x, int y, int flags)
    pI810->DGAViewportStatus = 0;
 }
 
+#ifdef HAVE_XAA_H
 static void
 I810_FillRect(ScrnInfoPtr pScrn,
 	      int x, int y, int w, int h, unsigned long color)
@@ -227,6 +234,7 @@ I810_BlitRect(ScrnInfoPtr pScrn,
       SET_SYNC_FLAG(pI810->AccelInfoRec);
    }
 }
+#endif
 
 #if 0
 static void

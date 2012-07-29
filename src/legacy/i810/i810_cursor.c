@@ -63,7 +63,7 @@ I810CursorInit(ScreenPtr pScreen)
    I810Ptr pI810;
    xf86CursorInfoPtr infoPtr;
 
-   pScrn = xf86Screens[pScreen->myNum];
+   pScrn = xf86ScreenToScrn(pScreen);
    pI810 = I810PTR(pScrn);
    pI810->CursorInfoRec = infoPtr = xf86CreateCursorInfoRec();
    if (!infoPtr)
@@ -101,7 +101,7 @@ I810CursorInit(ScreenPtr pScreen)
 
 static Bool I810UseHWCursorARGB (ScreenPtr pScreen, CursorPtr pCurs)
 {
-   ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+   ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
    I810Ptr pI810 = I810PTR(pScrn);
 
    if (!pI810->CursorARGBPhysical)
@@ -144,7 +144,7 @@ static void I810LoadCursorARGB (ScrnInfoPtr pScrn, CursorPtr pCurs)
 static Bool
 I810UseHWCursor(ScreenPtr pScreen, CursorPtr pCurs)
 {
-   ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+   ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
    I810Ptr pI810 = I810PTR(pScrn);
 
    if (!pI810->CursorPhysical)

@@ -31,15 +31,13 @@
 #include "sna.h"
 #include "sna_video.h"
 
+#include <xf86drm.h>
 #include <xf86xv.h>
 #include <X11/extensions/Xv.h>
 #include <fourcc.h>
 #include <i915_drm.h>
 
-#if DEBUG_VIDEO_OVERLAY
-#undef DBG
-#define DBG(x) ErrorF x
-#endif
+#include "intel_options.h"
 
 #define MAKE_ATOM(a) MakeAtom(a, sizeof(a) - 1, TRUE)
 
@@ -102,21 +100,20 @@ static const XF86ImageRec Images[NUM_IMAGES] = {
 };
 
 /* kernel modesetting overlay functions */
-static Bool sna_has_overlay(struct sna *sna)
+static bool sna_has_overlay(struct sna *sna)
 {
 	struct drm_i915_getparam gp;
 	int has_overlay = 0;
 	int ret;
 
+	VG_CLEAR(gp);
 	gp.param = I915_PARAM_HAS_OVERLAY;
 	gp.value = &has_overlay;
-	ret = drmCommandWriteRead(sna->kgem.fd, DRM_I915_GETPARAM, &gp, sizeof(gp));
-
-	return !! has_overlay;
-	(void)ret;
+	ret = drmIoctl(sna->kgem.fd, DRM_IOCTL_I915_GETPARAM, &gp);
+	return ret == 0 && has_overlay;
 }
 
-static Bool sna_video_overlay_update_attrs(struct sna *sna,
+static bool sna_video_overlay_update_attrs(struct sna *sna,
 					   struct sna_video *video)
 {
 	struct drm_intel_overlay_attrs attrs;
@@ -135,22 +132,21 @@ static Bool sna_video_overlay_update_attrs(struct sna *sna,
 	attrs.gamma4 = video->gamma4;
 	attrs.gamma5 = video->gamma5;
 
-	return drmCommandWriteRead(sna->kgem.fd, DRM_I915_OVERLAY_ATTRS,
-				  &attrs, sizeof(attrs)) == 0;
+	return drmIoctl(sna->kgem.fd, DRM_IOCTL_I915_OVERLAY_ATTRS, &attrs) == 0;
 }
 
 static void sna_video_overlay_off(struct sna *sna)
 {
 	struct drm_intel_overlay_put_image request;
-	int ret;
 
 	DBG(("%s()\n", __FUNCTION__));
 
 	request.flags = 0;
 
-	ret = drmCommandWrite(sna->kgem.fd, DRM_I915_OVERLAY_PUT_IMAGE,
-			      &request, sizeof(request));
-	(void)ret;
+	/* Not much we can do if the hardware dies before we turn it off! */
+	(void)drmIoctl(sna->kgem.fd,
+		       DRM_IOCTL_I915_OVERLAY_PUT_IMAGE,
+		       &request);
 }
 
 static void sna_video_overlay_stop(ScrnInfoPtr scrn,
@@ -352,7 +348,7 @@ update_dst_box_to_crtc_coords(struct sna *sna, xf86CrtcPtr crtc, BoxPtr dstBox)
 	return;
 }
 
-static Bool
+static bool
 sna_video_overlay_show(struct sna *sna,
 		       struct sna_video *video,
 		       struct sna_video_frame *frame,
@@ -445,8 +441,7 @@ sna_video_overlay_show(struct sna *sna,
 
 	DBG(("%s: flags=%x\n", __FUNCTION__, request.flags));
 
-	return drmCommandWrite(sna->kgem.fd, DRM_I915_OVERLAY_PUT_IMAGE,
-			       &request, sizeof(request)) == 0;
+	return drmIoctl(sna->kgem.fd, DRM_IOCTL_I915_OVERLAY_PUT_IMAGE, &request) == 0;
 }
 
 static int
@@ -631,7 +626,6 @@ XF86VideoAdaptorPtr sna_video_overlay_setup(struct sna *sna,
 {
 	XF86VideoAdaptorPtr adaptor;
 	struct sna_video *video;
-	XF86AttributePtr att;
 
 	if (!sna_has_overlay(sna)) {
 		xf86DrvMsg(sna->scrn->scrnIndex, X_INFO,
@@ -668,17 +662,15 @@ XF86VideoAdaptorPtr sna_video_overlay_setup(struct sna *sna,
 	adaptor->nAttributes = NUM_ATTRIBUTES;
 	if (HAS_GAMMA(sna))
 		adaptor->nAttributes += GAMMA_ATTRIBUTES;
-	adaptor->pAttributes =
+
+	 adaptor->pAttributes =
 	    xnfalloc(sizeof(XF86AttributeRec) * adaptor->nAttributes);
 	/* Now copy the attributes */
-	att = adaptor->pAttributes;
-	memcpy(att, Attributes, sizeof(XF86AttributeRec) * NUM_ATTRIBUTES);
-	att += NUM_ATTRIBUTES;
-	if (HAS_GAMMA(sna)) {
-		memcpy(att, GammaAttributes,
+	memcpy(adaptor->pAttributes, Attributes, sizeof(XF86AttributeRec) * NUM_ATTRIBUTES);
+	if (HAS_GAMMA(sna))
+		memcpy(adaptor->pAttributes + NUM_ATTRIBUTES, GammaAttributes,
 		       sizeof(XF86AttributeRec) * GAMMA_ATTRIBUTES);
-		att += GAMMA_ATTRIBUTES;
-	}
+
 	adaptor->nImages = NUM_IMAGES;
 	adaptor->pImages = (XF86ImagePtr)Images;
 	adaptor->PutVideo = NULL;
@@ -692,7 +684,7 @@ XF86VideoAdaptorPtr sna_video_overlay_setup(struct sna *sna,
 	adaptor->PutImage = sna_video_overlay_put_image;
 	adaptor->QueryImageAttributes = sna_video_overlay_query_video_attributes;
 
-	video->textured = FALSE;
+	video->textured = false;
 	video->color_key = sna_video_overlay_color_key(sna);
 	video->brightness = -19;	/* (255/219) * -16 */
 	video->contrast = 75;	/* 255/219 * 64 */

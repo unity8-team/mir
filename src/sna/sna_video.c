@@ -57,6 +57,8 @@
 #include "sna_reg.h"
 #include "sna_video.h"
 
+#include "intel_options.h"
+
 #include <xf86xv.h>
 #include <X11/extensions/Xv.h>
 
@@ -64,17 +66,12 @@
 #define _SNA_XVMC_SERVER_
 #include "sna_video_hwmc.h"
 #else
-static inline Bool sna_video_xvmc_setup(struct sna *sna,
+static inline bool sna_video_xvmc_setup(struct sna *sna,
 					ScreenPtr ptr,
 					XF86VideoAdaptorPtr target)
 {
-	return FALSE;
+	return false;
 }
-#endif
-
-#if DEBUG_VIDEO_TEXTURED
-#undef DBG
-#define DBG(x) ErrorF x
 #endif
 
 void sna_video_free_buffers(struct sna *sna, struct sna_video *video)
@@ -83,12 +80,17 @@ void sna_video_free_buffers(struct sna *sna, struct sna_video *video)
 
 	for (i = 0; i < ARRAY_SIZE(video->old_buf); i++) {
 		if (video->old_buf[i]) {
+			if (video->old_buf[i]->unique_id)
+				drmModeRmFB(sna->kgem.fd,
+						video->old_buf[i]->unique_id);
 			kgem_bo_destroy(&sna->kgem, video->old_buf[i]);
 			video->old_buf[i] = NULL;
 		}
 	}
 
 	if (video->buf) {
+		if (video->buf->unique_id)
+			drmModeRmFB(sna->kgem.fd, video->buf->unique_id);
 		kgem_bo_destroy(&sna->kgem, video->buf);
 		video->buf = NULL;
 	}
@@ -100,11 +102,12 @@ sna_video_buffer(struct sna *sna,
 		 struct sna_video_frame *frame)
 {
 	/* Free the current buffer if we're going to have to reallocate */
-	if (video->buf && kgem_bo_size(video->buf) < frame->size)
+	if (video->buf && __kgem_bo_size(video->buf) < frame->size)
 		sna_video_free_buffers(sna, video);
 
 	if (video->buf == NULL)
-		video->buf = kgem_create_linear(&sna->kgem, frame->size);
+		video->buf = kgem_create_linear(&sna->kgem, frame->size,
+						CREATE_GTT_MAP);
 
 	return video->buf;
 }
@@ -120,7 +123,7 @@ void sna_video_buffer_fini(struct sna *sna,
 	video->buf = bo;
 }
 
-Bool
+bool
 sna_video_clip_helper(ScrnInfoPtr scrn,
 		      struct sna_video *video,
 		      struct sna_video_frame *frame,
@@ -132,10 +135,9 @@ sna_video_clip_helper(ScrnInfoPtr scrn,
 		      short drw_w, short drw_h,
 		      RegionPtr reg)
 {
-	Bool ret;
+	bool ret;
 	RegionRec crtc_region_local;
 	RegionPtr crtc_region = reg;
-	BoxRec crtc_box;
 	INT32 x1, x2, y1, y2;
 	xf86CrtcPtr crtc;
 
@@ -153,11 +155,12 @@ sna_video_clip_helper(ScrnInfoPtr scrn,
 	 * For overlay video, compute the relevant CRTC and
 	 * clip video to that
 	 */
-	crtc = sna_covering_crtc(scrn, dst, video->desired_crtc, &crtc_box);
+	crtc = sna_covering_crtc(scrn, dst, video->desired_crtc);
 
 	/* For textured video, we don't actually want to clip at all. */
 	if (crtc && !video->textured) {
-		RegionInit(&crtc_region_local, &crtc_box, 0);
+		crtc_region_local.extents = crtc->bounds;
+		crtc_region_local.data = NULL;
 		crtc_region = &crtc_region_local;
 		RegionIntersect(crtc_region, crtc_region, reg);
 	}
@@ -166,7 +169,7 @@ sna_video_clip_helper(ScrnInfoPtr scrn,
 	ret = xf86XVClipVideoHelper(dst, &x1, &x2, &y1, &y2,
 				    crtc_region, frame->width, frame->height);
 	if (crtc_region != reg)
-		RegionUninit(&crtc_region_local);
+		RegionUninit(crtc_region);
 
 	frame->top = y1 >> 16;
 	frame->left = (x1 >> 16) & ~1;
@@ -188,6 +191,7 @@ sna_video_frame_init(struct sna *sna,
 {
 	int align;
 
+	frame->bo = NULL;
 	frame->id = id;
 	frame->width = width;
 	frame->height = height;
@@ -428,7 +432,7 @@ sna_copy_packed_data(struct sna_video *video,
 	}
 }
 
-Bool
+bool
 sna_video_copy_data(struct sna *sna,
 		    struct sna_video *video,
 		    struct sna_video_frame *frame,
@@ -436,8 +440,10 @@ sna_video_copy_data(struct sna *sna,
 {
 	uint8_t *dst;
 
-	if (frame->bo == NULL)
-		return FALSE;
+	DBG(("%s: handle=%d, size=%dx%d, rotation=%d\n",
+	     __FUNCTION__, frame->bo ? frame->bo->handle : 0,
+	     frame->width, frame->height, video->rotation));
+	DBG(("%s: top=%d, left=%d\n", __FUNCTION__, frame->top, frame->left));
 
 	/* In the common case, we can simply the upload in a single pwrite */
 	if (video->rotation == RR_Rotate_0) {
@@ -449,39 +455,71 @@ sna_video_copy_data(struct sna *sna,
 			if (pitch[0] == frame->pitch[0] &&
 			    pitch[1] == frame->pitch[1] &&
 			    frame->top == 0 && frame->left == 0) {
-				kgem_bo_write(&sna->kgem, frame->bo,
-					      buf,
-					      pitch[1]*frame->height +
-					      pitch[0]*frame->height);
+				if (frame->bo) {
+					kgem_bo_write(&sna->kgem, frame->bo,
+						      buf,
+						      pitch[1]*frame->height +
+						      pitch[0]*frame->height);
+				} else {
+					frame->bo = kgem_create_buffer(&sna->kgem, frame->size,
+								       KGEM_BUFFER_WRITE | KGEM_BUFFER_WRITE_INPLACE,
+								       (void **)&dst);
+					if (frame->bo == NULL)
+						return false;
+
+					memcpy(dst, buf,
+					       pitch[1]*frame->height +
+					       pitch[0]*frame->height);
+				}
 				if (frame->id != FOURCC_I420) {
 					uint32_t tmp;
 					tmp = frame->VBufOffset;
 					frame->VBufOffset = frame->UBufOffset;
 					frame->UBufOffset = tmp;
 				}
-				return TRUE;
+				return true;
 			}
 		} else {
 			if (frame->width*2 == frame->pitch[0]) {
-				kgem_bo_write(&sna->kgem, frame->bo,
-					      buf + (frame->top * frame->width*2) + (frame->left << 1),
-					      frame->nlines*frame->width*2);
-				return TRUE;
+				if (frame->bo) {
+					kgem_bo_write(&sna->kgem, frame->bo,
+						      buf + (frame->top * frame->width*2) + (frame->left << 1),
+						      frame->nlines*frame->width*2);
+				} else {
+					frame->bo = kgem_create_buffer(&sna->kgem, frame->size,
+								       KGEM_BUFFER_WRITE | KGEM_BUFFER_WRITE_INPLACE,
+								       (void **)&dst);
+					if (frame->bo == NULL)
+						return false;
+
+					memcpy(dst,
+					       buf + (frame->top * frame->width*2) + (frame->left << 1),
+					       frame->nlines*frame->width*2);
+				}
+				return true;
 			}
 		}
 	}
 
-	/* copy data */
-	dst = kgem_bo_map(&sna->kgem, frame->bo);
-	if (dst == NULL)
-		return FALSE;
+	/* copy data, must use GTT so that we keep the overlay uncached */
+	if (frame->bo) {
+		dst = kgem_bo_map__gtt(&sna->kgem, frame->bo);
+		if (dst == NULL)
+			return false;
+	} else {
+		frame->bo = kgem_create_buffer(&sna->kgem, frame->size,
+					       KGEM_BUFFER_WRITE | KGEM_BUFFER_WRITE_INPLACE,
+					       (void **)&dst);
+		if (frame->bo == NULL)
+			return false;
+	}
 
 	if (is_planar_fourcc(frame->id))
 		sna_copy_planar_data(video, frame, buf, dst);
 	else
 		sna_copy_packed_data(video, frame, buf, dst);
 
-	return TRUE;
+	return true;
 }
 
 void sna_video_init(struct sna *sna, ScreenPtr screen)
@@ -490,26 +528,28 @@ void sna_video_init(struct sna *sna, ScreenPtr screen)
 	XF86VideoAdaptorPtr textured, overlay;
 	int num_adaptors;
 	int prefer_overlay =
-	    xf86ReturnOptValBool(sna->Options, OPTION_PREFER_OVERLAY, FALSE);
+	    xf86ReturnOptValBool(sna->Options, OPTION_PREFER_OVERLAY, false);
 
 	if (!xf86LoaderCheckSymbol("xf86XVListGenericAdaptors"))
 		return;
 
+	adaptors = NULL;
 	num_adaptors = xf86XVListGenericAdaptors(sna->scrn, &adaptors);
-	newAdaptors =
-	    malloc((num_adaptors + 2) * sizeof(XF86VideoAdaptorPtr *));
-	if (newAdaptors == NULL)
+	newAdaptors = realloc(adaptors,
+			      (num_adaptors + 2) * sizeof(XF86VideoAdaptorPtr));
+	if (newAdaptors == NULL) {
+		free(adaptors);
 		return;
-
-	memcpy(newAdaptors, adaptors,
-	       num_adaptors * sizeof(XF86VideoAdaptorPtr));
+	}
 	adaptors = newAdaptors;
 
 	/* Set up textured video if we can do it at this depth and we are on
 	 * supported hardware.
 	 */
 	textured = sna_video_textured_setup(sna, screen);
-	overlay = sna_video_overlay_setup(sna, screen);
+	overlay = sna_video_sprite_setup(sna, screen);
+	if (overlay == NULL)
+		overlay = sna_video_overlay_setup(sna, screen);
 
 	if (overlay && prefer_overlay)
 		adaptors[num_adaptors++] = overlay;

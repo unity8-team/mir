@@ -230,7 +230,7 @@ static void primitive_out(struct kgem *kgem, uint32_t *data)
 
 static void
 state_base_out(uint32_t *data, uint32_t offset, unsigned int index,
-	       char *name)
+	       const char *name)
 {
     if (data[index] & 1)
 	kgem_debug_print(data, offset, index,
@@ -244,7 +244,7 @@ state_base_out(uint32_t *data, uint32_t offset, unsigned int index,
 
 static void
 state_max_out(uint32_t *data, uint32_t offset, unsigned int index,
-	      char *name)
+	      const char *name)
 {
 	if (data[index] == 1)
 		kgem_debug_print(data, offset, index,
@@ -434,7 +434,7 @@ int kgem_gen5_decode_3d(struct kgem *kgem, uint32_t offset)
 	uint32_t op;
 	unsigned int len;
 	int i;
-	char *desc1 = NULL;
+	const char *desc1 = NULL;
 
 	len = (data[0] & 0xff) + 2;
 	op = (data[0] & 0xffff0000) >> 16;
