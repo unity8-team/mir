@@ -2069,6 +2069,7 @@ void _kgem_submit(struct kgem *kgem)
 	int size;
 
 	assert(!DBG_NO_HW);
+	assert(!kgem->wedged);
 
 	assert(kgem->nbatch);
 	assert(kgem->nbatch <= KGEM_BATCH_SIZE(kgem));
