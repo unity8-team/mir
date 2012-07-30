@@ -391,6 +391,7 @@ AC_CONFIG_FILES([
                 src/legacy/i810/Makefile
                 src/legacy/i810/xvmc/Makefile
                 src/sna/Makefile
+                src/sna/brw/Makefile
                 src/sna/fb/Makefile
                 man/Makefile
                 src/render_program/Makefile
