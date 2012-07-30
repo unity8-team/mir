@@ -40,6 +40,7 @@
 #include "sna_render_inline.h"
 #include "sna_video.h"
 
+#include "brw/brw.h"
 #include "gen4_render.h"
 
 /* gen4 has a serious issue with its shaders that we need to flush
@@ -109,88 +110,6 @@ static const struct gt_info {
 	24, 50, 384,
 };
 
-static const uint32_t sf_kernel[][4] = {
-#include "exa_sf.g4b"
-};
-
-static const uint32_t sf_kernel_mask[][4] = {
-#include "exa_sf_mask.g4b"
-};
-
-static const uint32_t ps_kernel_nomask_affine[][4] = {
-#include "exa_wm_xy.g4b"
-#include "exa_wm_src_affine.g4b"
-#include "exa_wm_src_sample_argb.g4b"
-#include "exa_wm_write.g4b"
-};
-
-static const uint32_t ps_kernel_nomask_projective[][4] = {
-#include "exa_wm_xy.g4b"
-#include "exa_wm_src_projective.g4b"
-#include "exa_wm_src_sample_argb.g4b"
-#include "exa_wm_write.g4b"
-};
-
-static const uint32_t ps_kernel_maskca_affine[][4] = {
-#include "exa_wm_xy.g4b"
-#include "exa_wm_src_affine.g4b"
-#include "exa_wm_src_sample_argb.g4b"
-#include "exa_wm_mask_affine.g4b"
-#include "exa_wm_mask_sample_argb.g4b"
-#include "exa_wm_ca.g4b"
-#include "exa_wm_write.g4b"
-};
-
-static const uint32_t ps_kernel_maskca_projective[][4] = {
-#include "exa_wm_xy.g4b"
-#include "exa_wm_src_projective.g4b"
-#include "exa_wm_src_sample_argb.g4b"
-#include "exa_wm_mask_projective.g4b"
-#include "exa_wm_mask_sample_argb.g4b"
-#include "exa_wm_ca.g4b"
-#include "exa_wm_write.g4b"
-};
-
-static const uint32_t ps_kernel_maskca_srcalpha_affine[][4] = {
-#include "exa_wm_xy.g4b"
-#include "exa_wm_src_affine.g4b"
-#include "exa_wm_src_sample_a.g4b"
-#include "exa_wm_mask_affine.g4b"
-#include "exa_wm_mask_sample_argb.g4b"
-#include "exa_wm_ca_srcalpha.g4b"
-#include "exa_wm_write.g4b"
-};
-
-static const uint32_t ps_kernel_maskca_srcalpha_projective[][4] = {
-#include "exa_wm_xy.g4b"
-#include "exa_wm_src_projective.g4b"
-#include "exa_wm_src_sample_a.g4b"
-#include "exa_wm_mask_projective.g4b"
-#include "exa_wm_mask_sample_argb.g4b"
-#include "exa_wm_ca_srcalpha.g4b"
-#include "exa_wm_write.g4b"
-};
-
-static const uint32_t ps_kernel_masknoca_affine[][4] = {
-#include "exa_wm_xy.g4b"
-#include "exa_wm_src_affine.g4b"
-#include "exa_wm_src_sample_argb.g4b"
-#include "exa_wm_mask_affine.g4b"
-#include "exa_wm_mask_sample_a.g4b"
-#include "exa_wm_noca.g4b"
-#include "exa_wm_write.g4b"
-};
-
-static const uint32_t ps_kernel_masknoca_projective[][4] = {
-#include "exa_wm_xy.g4b"
-#include "exa_wm_src_projective.g4b"
-#include "exa_wm_src_sample_argb.g4b"
-#include "exa_wm_mask_projective.g4b"
-#include "exa_wm_mask_sample_a.g4b"
-#include "exa_wm_noca.g4b"
-#include "exa_wm_write.g4b"
-};
-
 static const uint32_t ps_kernel_packed_static[][4] = {
 #include "exa_wm_xy.g4b"
 #include "exa_wm_src_affine.g4b"
@@ -207,6 +126,8 @@ static const uint32_t ps_kernel_planar_static[][4] = {
 #include "exa_wm_write.g4b"
 };
 
+#define NOKERNEL(kernel_enum, func, masked) \
+    [kernel_enum] = {func, 0, masked}
 #define KERNEL(kernel_enum, kernel, masked) \
     [kernel_enum] = {&kernel, sizeof(kernel), masked}
 static const struct wm_kernel_info {
@@ -214,19 +135,17 @@ static const struct wm_kernel_info {
 	unsigned int size;
 	bool has_mask;
 } wm_kernels[] = {
-	KERNEL(WM_KERNEL, ps_kernel_nomask_affine, false),
-	KERNEL(WM_KERNEL_PROJECTIVE, ps_kernel_nomask_projective, false),
+	NOKERNEL(WM_KERNEL, brw_wm_kernel__affine, false),
+	NOKERNEL(WM_KERNEL_P, brw_wm_kernel__projective, false),
 
-	KERNEL(WM_KERNEL_MASK, ps_kernel_masknoca_affine, true),
-	KERNEL(WM_KERNEL_MASK_PROJECTIVE, ps_kernel_masknoca_projective, true),
+	NOKERNEL(WM_KERNEL_MASK, brw_wm_kernel__affine_mask, true),
+	NOKERNEL(WM_KERNEL_MASK_P, brw_wm_kernel__projective_mask, true),
 
-	KERNEL(WM_KERNEL_MASKCA, ps_kernel_maskca_affine, true),
-	KERNEL(WM_KERNEL_MASKCA_PROJECTIVE, ps_kernel_maskca_projective, true),
+	NOKERNEL(WM_KERNEL_MASKCA, brw_wm_kernel__affine_mask_ca, true),
+	NOKERNEL(WM_KERNEL_MASKCA_P, brw_wm_kernel__projective_mask_ca, true),
 
-	KERNEL(WM_KERNEL_MASKCA_SRCALPHA,
-	       ps_kernel_maskca_srcalpha_affine, true),
-	KERNEL(WM_KERNEL_MASKCA_SRCALPHA_PROJECTIVE,
-	       ps_kernel_maskca_srcalpha_projective, true),
+	NOKERNEL(WM_KERNEL_MASKSA, brw_wm_kernel__affine_mask_sa, true),
+	NOKERNEL(WM_KERNEL_MASKSA_P, brw_wm_kernel__projective_mask_sa, true),
 
 	KERNEL(WM_KERNEL_VIDEO_PLANAR, ps_kernel_planar_static, false),
 	KERNEL(WM_KERNEL_VIDEO_PACKED, ps_kernel_packed_static, false),
@@ -292,7 +211,7 @@ gen4_choose_composite_kernel(int op, bool has_mask, bool is_ca, bool is_affine)
 	if (has_mask) {
 		if (is_ca) {
 			if (gen4_blend_op[op].src_alpha)
-				base = WM_KERNEL_MASKCA_SRCALPHA;
+				base = WM_KERNEL_MASKSA;
 			else
 				base = WM_KERNEL_MASKCA;
 		} else
@@ -1339,10 +1258,9 @@ gen4_emit_pipelined_pointers(struct sna *sna,
 			    kernel);
 	bp = gen4_get_blend(blend, op->has_component_alpha, op->dst.format);
 
-	key = op->mask.bo != NULL;
-	key |= sp << 1;
-	key |= bp << 16;
+	DBG(("%s: sp=%d, bp=%d\n", __FUNCTION__, sp, bp));
 
+	key = sp | bp << 16;
 	if (key == sna->render_state.gen4.last_pipelined_pointers)
 		return;
 
@@ -2017,6 +1935,10 @@ gen4_composite_picture(struct sna *sna,
 
 static void gen4_composite_channel_convert(struct sna_composite_channel *channel)
 {
+	DBG(("%s: repeat %d -> %d, filter %d -> %d\n",
+	     __FUNCTION__,
+	     channel->repeat, gen4_repeat(channel->repeat),
+	     channel->filter, gen4_repeat(channel->filter)));
 	channel->repeat = gen4_repeat(channel->repeat);
 	channel->filter = gen4_filter(channel->filter);
 	if (channel->card_format == (unsigned)-1)
@@ -3622,9 +3544,6 @@ static uint32_t gen4_create_sf_state(struct sna_static_stream *stream,
 
 	sf->thread0.grf_reg_count = GEN4_GRF_BLOCKS(SF_KERNEL_NUM_GRF);
 	sf->thread0.kernel_start_pointer = kernel >> 6;
-	sf->sf1.single_program_flow = 1;
-	/* scratch space is not used in our kernel */
-	sf->thread2.scratch_space_base_pointer = 0;
 	sf->thread3.const_urb_entry_read_length = 0;	/* no const URBs */
 	sf->thread3.const_urb_entry_read_offset = 0;	/* no const URBs */
 	sf->thread3.urb_entry_read_length = 1;	/* 1 URB per vertex */
@@ -3667,25 +3586,22 @@ static void gen4_init_wm_state(struct gen4_wm_unit_state *wm,
 			       uint32_t kernel,
 			       uint32_t sampler)
 {
-	wm->thread0.grf_reg_count = GEN4_GRF_BLOCKS(PS_KERNEL_NUM_GRF);
+	assert((kernel & 63) == 0);
 	wm->thread0.kernel_start_pointer = kernel >> 6;
+	wm->thread0.grf_reg_count = GEN4_GRF_BLOCKS(PS_KERNEL_NUM_GRF);
 
 	wm->thread1.single_program_flow = 0;
-
-	/* scratch space is not used in our kernel */
-	wm->thread2.scratch_space_base_pointer = 0;
-	wm->thread2.per_thread_scratch_space = 0;
 
 	wm->thread3.const_urb_entry_read_length = 0;
 	wm->thread3.const_urb_entry_read_offset = 0;
 
 	wm->thread3.urb_entry_read_offset = 0;
-	/* wm kernel use urb from 3, see wm_program in compiler module */
-	wm->thread3.dispatch_grf_start_reg = 3;	/* must match kernel */
+	wm->thread3.dispatch_grf_start_reg = 3;
 
-	wm->wm4.sampler_count = 1;	/* 1-4 samplers */
-
+	assert((sampler & 31) == 0);
 	wm->wm4.sampler_state_pointer = sampler >> 5;
+	wm->wm4.sampler_count = 1;
+
 	wm->wm5.max_threads = info->max_wm_threads - 1;
 	wm->wm5.transposed_urb_read = 0;
 	wm->wm5.thread_dispatch_enable = 1;
@@ -3698,10 +3614,10 @@ static void gen4_init_wm_state(struct gen4_wm_unit_state *wm,
 
 	/* Each pair of attributes (src/mask coords) is two URB entries */
 	if (has_mask) {
-		wm->thread1.binding_table_entry_count = 3;	/* 2 tex and fb */
+		wm->thread1.binding_table_entry_count = 3;
 		wm->thread3.urb_entry_read_length = 4;
 	} else {
-		wm->thread1.binding_table_entry_count = 2;	/* 1 tex and fb */
+		wm->thread1.binding_table_entry_count = 2;
 		wm->thread3.urb_entry_read_length = 2;
 	}
 }
@@ -3778,31 +3694,25 @@ static bool gen4_render_setup(struct sna *sna)
 	 */
 	null_create(&general);
 
-	/* Set up the two SF states (one for blending with a mask, one without) */
-	sf[0] = sna_static_stream_add(&general,
-				      sf_kernel,
-				      sizeof(sf_kernel),
-				      64);
-	sf[1] = sna_static_stream_add(&general,
-				      sf_kernel_mask,
-				      sizeof(sf_kernel_mask),
-				      64);
+	sf[0] = sna_static_stream_compile_sf(sna, &general, brw_sf_kernel__nomask);
+	sf[1] = sna_static_stream_compile_sf(sna, &general, brw_sf_kernel__mask);
 	for (m = 0; m < KERNEL_COUNT; m++) {
-		wm[m] = sna_static_stream_add(&general,
-					      wm_kernels[m].data,
-					      wm_kernels[m].size,
-					      64);
+		if (wm_kernels[m].size) {
+			wm[m] = sna_static_stream_add(&general,
+						      wm_kernels[m].data,
+						      wm_kernels[m].size,
+						      64);
+		} else {
+			wm[m] = sna_static_stream_compile_wm(sna, &general,
+							     wm_kernels[m].data,
+							     16);
+		}
 	}
 
 	state->vs = gen4_create_vs_unit_state(&general);
-
 	state->sf[0] = gen4_create_sf_state(&general, info, sf[0]);
 	state->sf[1] = gen4_create_sf_state(&general, info, sf[1]);
 
-
-	/* Set up the WM states: each filter/extend type for source and mask, per
-	 * kernel.
-	 */
 	wm_state = sna_static_stream_map(&general,
 					  sizeof(*wm_state) * KERNEL_COUNT *
 					  FILTER_COUNT * EXTEND_COUNT *
@@ -3823,8 +3733,7 @@ static bool gen4_render_setup(struct sna *sna)
 					for (m = 0; m < KERNEL_COUNT; m++) {
 						gen4_init_wm_state(&wm_state->state, info,
 								   wm_kernels[m].has_mask,
-								   wm[m],
-								   sampler_state);
+								   wm[m], sampler_state);
 						wm_state++;
 					}
 				}
