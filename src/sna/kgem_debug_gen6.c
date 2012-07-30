@@ -298,7 +298,7 @@ static void finish_state(struct kgem *kgem)
 
 static void
 state_base_out(uint32_t *data, uint32_t offset, unsigned int index,
-	       char *name)
+	       const char *name)
 {
     if (data[index] & 1)
 	kgem_debug_print(data, offset, index,
@@ -312,7 +312,7 @@ state_base_out(uint32_t *data, uint32_t offset, unsigned int index,
 
 static void
 state_max_out(uint32_t *data, uint32_t offset, unsigned int index,
-	      char *name)
+	      const char *name)
 {
 	if (data[index] == 1)
 		kgem_debug_print(data, offset, index,
@@ -555,6 +555,16 @@ gen6_blend_function_to_string(uint32_t v)
 	}
 }
 
+static float unpack_float(uint32_t dw)
+{
+	union {
+		float f;
+		uint32_t dw;
+	} u;
+	u.dw = dw;
+	return u.f;
+}
+
 static void
 gen6_decode_blend(struct kgem *kgem, const uint32_t *reloc)
 {
@@ -625,7 +635,7 @@ int kgem_gen6_decode_3d(struct kgem *kgem, uint32_t offset)
 	uint32_t op;
 	unsigned int len;
 	int i, j;
-	char *desc1 = NULL;
+	const char *desc1 = NULL;
 
 	len = (data[0] & 0xff) + 2;
 	op = (data[0] & 0xffff0000) >> 16;
@@ -883,9 +893,9 @@ int kgem_gen6_decode_3d(struct kgem *kgem, uint32_t offset)
 			  (data[4] & (1 << 31)) != 0 ? "en" : "dis",
 			  (data[4] & (1 << 12)) != 0 ? 4 : 8,
 			  (data[4] & (1 << 11)) != 0);
-		kgem_debug_print(data, offset, 5, "Global Depth Offset Constant %f\n", data[5]);
-		kgem_debug_print(data, offset, 6, "Global Depth Offset Scale %f\n", data[6]);
-		kgem_debug_print(data, offset, 7, "Global Depth Offset Clamp %f\n", data[7]);
+		kgem_debug_print(data, offset, 5, "Global Depth Offset Constant %f\n", unpack_float(data[5]));
+		kgem_debug_print(data, offset, 6, "Global Depth Offset Scale %f\n", unpack_float(data[6]));
+		kgem_debug_print(data, offset, 7, "Global Depth Offset Clamp %f\n", unpack_float(data[7]));
 		for (i = 0, j = 0; i < 8; i++, j+=2)
 			kgem_debug_print(data, offset, i+8, "Attrib %d (Override %s%s%s%s, Const Source %d, Swizzle Select %d, "
 				  "Source %d); Attrib %d (Override %s%s%s%s, Const Source %d, Swizzle Select %d, Source %d)\n",

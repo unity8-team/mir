@@ -39,12 +39,7 @@
 #include "sna_video_hwmc.h"
 #endif
 
-#if DEBUG_VIDEO_TEXTURED
-#undef DBG
-#define DBG(x) ErrorF x
-#endif
-
-#define MAKE_ATOM(a) MakeAtom(a, sizeof(a) - 1, TRUE)
+#define MAKE_ATOM(a) MakeAtom(a, sizeof(a) - 1, true)
 
 static Atom xvBrightness, xvContrast, xvSyncToVblank;
 
@@ -202,7 +197,7 @@ sna_video_textured_best_size(ScrnInfoPtr scrn,
  * id is a fourcc code for the format of the video.
  * buf is the pointer to the source data in system memory.
  * width and height are the w/h of the source data.
- * If "sync" is TRUE, then we must be finished with *buf at the point of return
+ * If "sync" is true, then we must be finished with *buf at the point of return
  * (which we always are).
  * clip is the clipping region in screen space.
  * data is a pointer to our port private.
@@ -226,8 +221,8 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
 	BoxRec dstBox;
 	xf86CrtcPtr crtc;
-	Bool flush = false;
-	Bool ret;
+	bool flush = false;
+	bool ret;
 
 	DBG(("%s: src=(%d, %d),(%d, %d), dst=(%d, %d),(%d, %d), id=%d, sizep=%dx%d, sync?=%d\n",
 	     __FUNCTION__,
@@ -240,7 +235,7 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 		return BadAlloc;
 	}
 
-	if (!sna_pixmap_force_to_gpu(pixmap, MOVE_READ | MOVE_WRITE)) {
+	if (!sna_pixmap_move_to_gpu(pixmap, MOVE_READ | MOVE_WRITE)) {
 		DBG(("%s: attempting to render to a non-GPU pixmap\n",
 		     __FUNCTION__));
 		return BadAlloc;
@@ -273,13 +268,6 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 
 		assert(kgem_bo_size(frame.bo) >= frame.size);
 	} else {
-		frame.bo = kgem_create_linear(&sna->kgem, frame.size,
-					      CREATE_GTT_MAP);
-		if (frame.bo == NULL) {
-			DBG(("%s: failed to allocate bo\n", __FUNCTION__));
-			return BadAlloc;
-		}
-
 		if (!sna_video_copy_data(sna, video, &frame, buf)) {
 			DBG(("%s: failed to copy frame\n", __FUNCTION__));
 			kgem_bo_destroy(&sna->kgem, frame.bo);
@@ -288,7 +276,7 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 	}
 
 	if (crtc && video->SyncToVblank != 0 &&
-	    pixmap == sna->front && !sna->shadow)
+	    sna_pixmap_is_scanout(sna, pixmap))
 		flush = sna_wait_for_scanline(sna, pixmap, crtc,
 					      &clip->extents);
 
@@ -307,11 +295,8 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 	/* Push the frame to the GPU as soon as possible so
 	 * we can hit the next vsync.
 	 */
-	if (flush) {
-		if (!sna_crtc_is_bound(sna, crtc))
-			sna->kgem.batch[sna->kgem.wait] = 0;
+	if (flush)
 		kgem_submit(&sna->kgem);
-	}
 
 	return ret;
 }
@@ -395,10 +380,10 @@ XF86VideoAdaptorPtr sna_video_textured_setup(struct sna *sna,
 		return NULL;
 	}
 
-	if (sna->kgem.wedged) {
+	if (wedged(sna)) {
 		xf86DrvMsg(sna->scrn->scrnIndex, X_WARNING,
 			   "cannot enable XVideo whilst the GPU is wedged\n");
-		return FALSE;
+		return NULL;
 	}
 
 	adaptor = calloc(1, sizeof(XF86VideoAdaptorRec));
@@ -461,7 +446,7 @@ XF86VideoAdaptorPtr sna_video_textured_setup(struct sna *sna,
 	for (i = 0; i < nports; i++) {
 		struct sna_video *v = &video[i];
 
-		v->textured = TRUE;
+		v->textured = true;
 		v->rotation = RR_Rotate_0;
 		v->SyncToVblank = 1;
 

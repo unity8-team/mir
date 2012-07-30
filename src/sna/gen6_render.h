@@ -1350,7 +1350,9 @@ struct gen6_sampler_state {
    } ss2;
 
    struct {
-      uint32_t pad:19;
+      uint32_t non_normalized_coord:1;
+      uint32_t pad:12;
+      uint32_t address_round:6;
       uint32_t max_aniso:3;
       uint32_t chroma_key_mode:1;
       uint32_t chroma_key_index:2;

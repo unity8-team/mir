@@ -27,8 +27,8 @@ THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef SNA_VIDEO_H
 #define SNA_VIDEO_H
 
-#include <xf86.h>
 #include <xf86_OSproc.h>
+#include <xf86xv.h>
 #include <fourcc.h>
 
 #if defined(XvMCExtension) && defined(ENABLE_XVMC)
@@ -57,7 +57,7 @@ struct sna_video {
 	struct kgem_bo *old_buf[2];
 	struct kgem_bo *buf;
 
-	Bool textured;
+	bool textured;
 	Rotation rotation;
 	int plane;
 
@@ -100,7 +100,7 @@ static inline int is_planar_fourcc(int id)
 	}
 }
 
-Bool
+bool
 sna_video_clip_helper(ScrnInfoPtr scrn,
 		      struct sna_video *adaptor_priv,
 		      struct sna_video_frame *frame,
@@ -123,7 +123,7 @@ sna_video_buffer(struct sna *sna,
 		 struct sna_video *video,
 		 struct sna_video_frame *frame);
 
-Bool
+bool
 sna_video_copy_data(struct sna *sna,
 		    struct sna_video *video,
 		    struct sna_video_frame *frame,

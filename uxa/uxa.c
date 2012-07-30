@@ -363,12 +363,11 @@ void uxa_set_force_fallback(ScreenPtr screen, Bool value)
  * uxa_close_screen() unwraps its wrapped screen functions and tears down UXA's
  * screen private, before calling down to the next CloseSccreen.
  */
-static Bool uxa_close_screen(int i, ScreenPtr pScreen)
+static Bool uxa_close_screen(CLOSE_SCREEN_ARGS_DECL)
 {
-	uxa_screen_t *uxa_screen = uxa_get_screen(pScreen);
-	ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
+	uxa_screen_t *uxa_screen = uxa_get_screen(screen);
 #ifdef RENDER
-	PictureScreenPtr ps = GetPictureScreenIfSet(pScreen);
+	PictureScreenPtr ps = GetPictureScreenIfSet(screen);
 #endif
 	int n;
 
@@ -381,29 +380,28 @@ static Bool uxa_close_screen(int i, ScreenPtr pScreen)
 	for (n = 0; n < uxa_screen->solid_cache_size; n++)
 		FreePicture(uxa_screen->solid_cache[n].picture, 0);
 
-	uxa_glyphs_fini(pScreen);
+	uxa_glyphs_fini(screen);
 
-	if (pScreen->devPrivate) {
+	if (screen->devPrivate) {
 		/* Destroy the pixmap created by miScreenInit() *before*
 		 * chaining up as we finalize ourselves here and so this
 		 * is the last chance we have of releasing our resources
 		 * associated with the Pixmap. So do it first.
 		 */
-		(void) (*pScreen->DestroyPixmap) (pScreen->devPrivate);
-		pScreen->devPrivate = NULL;
+		(void) (*screen->DestroyPixmap) (screen->devPrivate);
+		screen->devPrivate = NULL;
 	}
 
-	pScreen->CreateGC = uxa_screen->SavedCreateGC;
-	pScreen->CloseScreen = uxa_screen->SavedCloseScreen;
-	pScreen->GetImage = uxa_screen->SavedGetImage;
-	pScreen->GetSpans = uxa_screen->SavedGetSpans;
-	pScreen->CreatePixmap = uxa_screen->SavedCreatePixmap;
-	pScreen->DestroyPixmap = uxa_screen->SavedDestroyPixmap;
-	pScreen->CopyWindow = uxa_screen->SavedCopyWindow;
-	pScreen->ChangeWindowAttributes =
+	screen->CreateGC = uxa_screen->SavedCreateGC;
+	screen->CloseScreen = uxa_screen->SavedCloseScreen;
+	screen->GetImage = uxa_screen->SavedGetImage;
+	screen->GetSpans = uxa_screen->SavedGetSpans;
+	screen->CreatePixmap = uxa_screen->SavedCreatePixmap;
+	screen->DestroyPixmap = uxa_screen->SavedDestroyPixmap;
+	screen->CopyWindow = uxa_screen->SavedCopyWindow;
+	screen->ChangeWindowAttributes =
 	    uxa_screen->SavedChangeWindowAttributes;
-	pScreen->BitmapToRegion = uxa_screen->SavedBitmapToRegion;
-	scrn->EnableDisableFBAccess = uxa_screen->SavedEnableDisableFBAccess;
+	screen->BitmapToRegion = uxa_screen->SavedBitmapToRegion;
 #ifdef RENDER
 	if (ps) {
 		ps->Composite = uxa_screen->SavedComposite;
@@ -418,7 +416,7 @@ static Bool uxa_close_screen(int i, ScreenPtr pScreen)
 
 	free(uxa_screen);
 
-	return (*pScreen->CloseScreen) (i, pScreen);
+	return (*screen->CloseScreen) (CLOSE_SCREEN_ARGS);
 }
 
 /**
@@ -437,7 +435,7 @@ uxa_driver_t *uxa_driver_alloc(void)
 }
 
 /**
- * @param pScreen screen being initialized
+ * @param screen screen being initialized
  * @param pScreenInfo UXA driver record
  *
  * uxa_driver_init sets up UXA given a driver record filled in by the driver.

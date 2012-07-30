@@ -42,7 +42,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "compiler.h"
 #include "xf86Pci.h"
 #include "i810_reg.h"
+#ifdef HAVE_XAA_H
 #include "xaa.h"
+#endif
 #include "xf86Cursor.h"
 #include "xf86xv.h"
 #include "vbe.h"
@@ -51,6 +53,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xorg-server.h"
 #include <pciaccess.h>
 
+#include "compat-api.h"
 #ifdef HAVE_DRI1
 #include "xf86drm.h"
 #include "sarea.h"
@@ -201,7 +204,9 @@ typedef struct _I810Rec {
    I810RegRec SavedReg;
    I810RegRec ModeReg;
 
+#ifdef HAVE_XAA_H
    XAAInfoRecPtr AccelInfoRec;
+#endif
    xf86CursorInfoPtr CursorInfoRec;
    CloseScreenProcPtr CloseScreen;
    ScreenBlockHandlerProcPtr BlockHandler;
@@ -262,7 +267,11 @@ extern Bool I810CleanupDma(ScrnInfoPtr pScrn);
 #define I810REGPTR(p) (&(I810PTR(p)->ModeReg))
 
 extern Bool I810CursorInit(ScreenPtr pScreen);
+#ifdef HAVE_XAA_H
 extern Bool I810AccelInit(ScreenPtr pScreen);
+#else
+static inline  Bool I810AccelInit(ScreenPtr pScreen) { return TRUE; }
+#endif
 extern void I810SetPIOAccess(I810Ptr pI810);
 extern void I810SetMMIOAccess(I810Ptr pI810);
 extern unsigned int I810CalcWatermark(ScrnInfoPtr pScrn, double freq,
@@ -286,8 +295,8 @@ extern Bool I810UnbindGARTMemory(ScrnInfoPtr pScrn);
 
 extern int I810CheckAvailableMemory(ScrnInfoPtr pScrn);
 
-extern Bool I810SwitchMode(int scrnIndex, DisplayModePtr mode, int flags);
-extern void I810AdjustFrame(int scrnIndex, int x, int y, int flags);
+extern Bool I810SwitchMode(SWITCH_MODE_ARGS_DECL);
+extern void I810AdjustFrame(ADJUST_FRAME_ARGS_DECL);
 
 extern void I810SetupForScreenToScreenCopy(ScrnInfoPtr pScrn, int xdir,
 					   int ydir, int rop,
@@ -305,7 +314,6 @@ extern void I810SelectBuffer(ScrnInfoPtr pScrn, int buffer);
 
 extern void I810RefreshRing(ScrnInfoPtr pScrn);
 extern void I810EmitFlush(ScrnInfoPtr pScrn);
-extern void I810EmitInvarientState(ScrnInfoPtr pScrn);
 
 extern Bool I810DGAInit(ScreenPtr pScreen);
 
@@ -313,5 +321,8 @@ extern void I810InitVideo(ScreenPtr pScreen);
 extern void I810InitMC(ScreenPtr pScreen);
 
 extern const OptionInfoRec *I810AvailableOptions(int chipid, int busid);
+
+extern const int I810CopyROP[16];
+const int I810PatternROP[16];
 
 #endif /* _I810_H_ */

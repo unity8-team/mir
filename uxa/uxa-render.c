@@ -1064,10 +1064,25 @@ uxa_try_driver_composite(CARD8 op,
 		return 1;
 	}
 
-	if (localSrc->pDrawable) {
-		pSrcPix = uxa_get_offscreen_pixmap(localSrc->pDrawable,
-						   &src_off_x, &src_off_y);
-		if (!pSrcPix) {
+	pSrcPix = uxa_get_offscreen_pixmap(localSrc->pDrawable,
+					   &src_off_x, &src_off_y);
+	if (!pSrcPix) {
+		REGION_UNINIT(screen, &region);
+
+		if (localSrc != pSrc)
+			FreePicture(localSrc, 0);
+		if (localMask && localMask != pMask)
+			FreePicture(localMask, 0);
+		if (localDst != pDst)
+			FreePicture(localDst, 0);
+
+		return 0;
+	}
+
+	if (localMask) {
+		pMaskPix = uxa_get_offscreen_pixmap(localMask->pDrawable,
+						    &mask_off_x, &mask_off_y);
+		if (!pMaskPix) {
 			REGION_UNINIT(screen, &region);
 
 			if (localSrc != pSrc)
@@ -1078,29 +1093,6 @@ uxa_try_driver_composite(CARD8 op,
 				FreePicture(localDst, 0);
 
 			return 0;
-		}
-	} else {
-		pSrcPix = NULL;
-	}
-
-	if (localMask) {
-		if (localMask->pDrawable) {
-			pMaskPix = uxa_get_offscreen_pixmap(localMask->pDrawable,
-							    &mask_off_x, &mask_off_y);
-			if (!pMaskPix) {
-				REGION_UNINIT(screen, &region);
-
-				if (localSrc != pSrc)
-					FreePicture(localSrc, 0);
-				if (localMask && localMask != pMask)
-					FreePicture(localMask, 0);
-				if (localDst != pDst)
-					FreePicture(localDst, 0);
-
-				return 0;
-			}
-		} else {
-			pMaskPix = NULL;
 		}
 	}
 

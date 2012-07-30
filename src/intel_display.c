@@ -35,6 +35,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <poll.h>
+#include <sys/ioctl.h>
 
 #include "xorgVersion.h"
 
@@ -45,6 +46,8 @@
 #include "X11/Xatom.h"
 #include "X11/extensions/dpmsconst.h"
 #include "xf86DDC.h"
+#include "fb.h"
+#include "uxa.h"
 
 #include "intel_glamor.h"
 
@@ -124,7 +127,9 @@ intel_output_dpms_backlight(xf86OutputPtr output, int oldmode, int mode);
  * List of available kernel interfaces in priority order
  */
 static const char *backlight_interfaces[] = {
+	"gmux_backlight",
 	"asus-laptop",
+	"asus-nb-wmi",
 	"eeepc",
 	"thinkpad_screen",
 	"mbp_backlight",
@@ -329,9 +334,24 @@ mode_to_kmode(ScrnInfoPtr scrn,
 }
 
 static void
-intel_crtc_dpms(xf86CrtcPtr intel_crtc, int mode)
+intel_crtc_dpms(xf86CrtcPtr crtc, int mode)
 {
+}
 
+void
+intel_mode_disable_unused_functions(ScrnInfoPtr scrn)
+{
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
+	struct intel_mode *mode = intel_get_screen_private(scrn)->modes;
+	int i;
+
+	/* Force off for consistency between kernel and ddx */
+	for (i = 0; i < xf86_config->num_crtc; i++) {
+		xf86CrtcPtr crtc = xf86_config->crtc[i];
+		if (!crtc->enabled)
+			drmModeSetCrtc(mode->fd, crtc_id(crtc->driver_private),
+				       0, 0, 0, NULL, 0, NULL);
+	}
 }
 
 static Bool
@@ -615,7 +635,7 @@ intel_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *data)
 		intel_crtc->rotate_bo = NULL;
 	}
 
-	intel->shadow_present = intel->use_shadow;
+	intel->shadow_present = FALSE;
 }
 
 static void
@@ -680,6 +700,11 @@ intel_crtc_init(ScrnInfoPtr scrn, struct intel_mode *mode, int num)
 
 	intel_crtc->mode_crtc = drmModeGetCrtc(mode->fd,
 					       mode->mode_res->crtcs[num]);
+	if (intel_crtc->mode_crtc == NULL) {
+		free(intel_crtc);
+		return;
+	}
+
 	intel_crtc->mode = mode;
 	crtc->driver_private = intel_crtc;
 
@@ -687,8 +712,7 @@ intel_crtc_init(ScrnInfoPtr scrn, struct intel_mode *mode, int num)
 							   crtc_id(intel_crtc));
 
 	intel_crtc->cursor = drm_intel_bo_alloc(intel->bufmgr, "ARGB cursor",
-						HWCURSOR_SIZE_ARGB,
-						GTT_PAGE_SIZE);
+						4*64*64, 4096);
 
 	intel_crtc->crtc = crtc;
 	list_add(&intel_crtc->link, &mode->crtcs);
@@ -712,6 +736,12 @@ intel_output_detect(xf86OutputPtr output)
 	drmModeFreeConnector(intel_output->mode_output);
 	intel_output->mode_output =
 		drmModeGetConnector(mode->fd, intel_output->output_id);
+	if (intel_output->mode_output == NULL) {
+		/* and hope we are safe everywhere else */
+		xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
+			   "drmModeGetConnector failed, reporting output disconnected\n");
+		return XF86OutputStatusDisconnected;
+	}
 
 	switch (intel_output->mode_output->connection) {
 	case DRM_MODE_CONNECTED:
@@ -1176,6 +1206,8 @@ intel_output_set_property(xf86OutputPtr output, Atom property,
 				return FALSE;
 			memcpy(&atom, value->data, 4);
 			name = NameForAtom(atom);
+			if (name == NULL)
+				return FALSE;
 
 			/* search for matching name string, then set its value down */
 			for (j = 0; j < p->mode_prop->count_enums; j++) {
@@ -1614,6 +1646,10 @@ Bool intel_mode_pre_init(ScrnInfoPtr scrn, int fd, int cpp)
 
 	xf86InitialConfiguration(scrn, TRUE);
 
+	mode->event_context.version = DRM_EVENT_CONTEXT_VERSION;
+	mode->event_context.vblank_handler = intel_vblank_handler;
+	mode->event_context.page_flip_handler = intel_page_flip_handler;
+
 	has_flipping = 0;
 	gp.param = I915_PARAM_HAS_PAGEFLIPPING;
 	gp.value = &has_flipping;
@@ -1623,10 +1659,6 @@ Bool intel_mode_pre_init(ScrnInfoPtr scrn, int fd, int cpp)
 		xf86DrvMsg(scrn->scrnIndex, X_INFO,
 			   "Kernel page flipping support detected, enabling\n");
 		intel->use_pageflipping = TRUE;
-
-		mode->event_context.version = DRM_EVENT_CONTEXT_VERSION;
-		mode->event_context.vblank_handler = intel_vblank_handler;
-		mode->event_context.page_flip_handler = intel_page_flip_handler;
 	}
 
 	intel->modes = mode;
@@ -1636,18 +1668,16 @@ Bool intel_mode_pre_init(ScrnInfoPtr scrn, int fd, int cpp)
 void
 intel_mode_init(struct intel_screen_private *intel)
 {
-	if (intel->use_pageflipping) {
-		struct intel_mode *mode = intel->modes;
+	struct intel_mode *mode = intel->modes;
 
-		/* We need to re-register the mode->fd for the synchronisation
-		 * feedback on every server generation, so perform the
-		 * registration within ScreenInit and not PreInit.
-		 */
-		mode->flip_count = 0;
-		AddGeneralSocket(mode->fd);
-		RegisterBlockAndWakeupHandlers((BlockHandlerProcPtr)NoopDDA,
-					       drm_wakeup_handler, mode);
-	}
+	/* We need to re-register the mode->fd for the synchronisation
+	 * feedback on every server generation, so perform the
+	 * registration within ScreenInit and not PreInit.
+	 */
+	mode->flip_count = 0;
+	AddGeneralSocket(mode->fd);
+	RegisterBlockAndWakeupHandlers((BlockHandlerProcPtr)NoopDDA,
+				       drm_wakeup_handler, mode);
 }
 
 void
@@ -1698,4 +1728,166 @@ int intel_crtc_to_pipe(xf86CrtcPtr crtc)
 {
 	struct intel_crtc *intel_crtc = crtc->driver_private;
 	return intel_crtc->pipe;
+}
+
+Bool intel_crtc_on(xf86CrtcPtr crtc)
+{
+	struct intel_crtc *intel_crtc = crtc->driver_private;
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
+	drmModeCrtcPtr drm_crtc;
+	Bool ret;
+	int i;
+
+	if (!crtc->enabled)
+		return FALSE;
+
+	/* Kernel manages CRTC status based on output config */
+	ret = FALSE;
+	for (i = 0; i < xf86_config->num_output; i++) {
+		xf86OutputPtr output = xf86_config->output[i];
+		if (output->crtc == crtc &&
+		    intel_output_dpms_status(output) == DPMSModeOn) {
+			ret = TRUE;
+			break;
+		}
+	}
+	if (!ret)
+		return FALSE;
+
+	/* And finally check with the kernel that the fb is bound */
+	drm_crtc = drmModeGetCrtc(intel_crtc->mode->fd, crtc_id(intel_crtc));
+	if (drm_crtc == NULL)
+		return FALSE;
+
+	ret = (drm_crtc->mode_valid &&
+	       intel_crtc->mode->fb_id == drm_crtc->buffer_id);
+	free(drm_crtc);
+
+	return ret;
+}
+
+static PixmapPtr
+intel_create_pixmap_for_bo(ScreenPtr pScreen, dri_bo *bo,
+			   int width, int height,
+			   int depth, int bpp,
+			   int pitch)
+{
+	PixmapPtr pixmap;
+
+	pixmap = pScreen->CreatePixmap(pScreen, 0, 0, depth, 0);
+	if (pixmap == NullPixmap)
+		return pixmap;
+
+	if (!pScreen->ModifyPixmapHeader(pixmap,
+					 width, height,
+					 depth, bpp,
+					 pitch, NULL)) {
+		pScreen->DestroyPixmap(pixmap);
+		return NullPixmap;
+	}
+
+	intel_set_pixmap_bo(pixmap, bo);
+	return pixmap;
+}
+
+static PixmapPtr
+intel_create_pixmap_for_fbcon(ScrnInfoPtr scrn, int fbcon_id)
+{
+	ScreenPtr pScreen = xf86ScrnToScreen(scrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+	struct intel_mode *mode = intel->modes;
+	int fd = mode->fd;
+	drmModeFBPtr fbcon;
+	struct drm_gem_flink flink;
+	drm_intel_bo *bo;
+	PixmapPtr pixmap = NullPixmap;
+
+	fbcon = drmModeGetFB(fd, fbcon_id);
+	if (fbcon == NULL)
+		return NULL;
+
+	if (fbcon->depth != scrn->depth ||
+	    fbcon->width != scrn->virtualX ||
+	    fbcon->height != scrn->virtualY)
+		goto out_free_fb;
+
+	flink.handle = fbcon->handle;
+	if (ioctl(fd, DRM_IOCTL_GEM_FLINK, &flink) < 0) {
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+			   "Couldn't flink fbcon handle\n");
+		goto out_free_fb;
+	}
+
+	bo = drm_intel_bo_gem_create_from_name(intel->bufmgr,
+					       "fbcon", flink.name);
+	if (bo == NULL) {
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+			   "Couldn't allocate bo for fbcon handle\n");
+		goto out_free_fb;
+	}
+
+	pixmap = intel_create_pixmap_for_bo(pScreen, bo,
+					    fbcon->width, fbcon->height,
+					    fbcon->depth, fbcon->bpp,
+					    fbcon->pitch);
+	if (pixmap == NullPixmap)
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+			   "Couldn't allocate pixmap fbcon contents\n");
+	drm_intel_bo_unreference(bo);
+out_free_fb:
+	drmModeFreeFB(fbcon);
+
+	return pixmap;
+}
+
+void intel_copy_fb(ScrnInfoPtr scrn)
+{
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
+	ScreenPtr pScreen = xf86ScrnToScreen(scrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+	PixmapPtr src, dst;
+	unsigned int pitch = scrn->displayWidth * intel->cpp;
+	struct intel_crtc *intel_crtc;
+	int i, fbcon_id;
+
+	if (intel->force_fallback)
+		return;
+
+	fbcon_id = 0;
+	for (i = 0; i < xf86_config->num_crtc; i++) {
+		intel_crtc = xf86_config->crtc[i]->driver_private;
+		if (intel_crtc->mode_crtc->buffer_id)
+			fbcon_id = intel_crtc->mode_crtc->buffer_id;
+	}
+	if (!fbcon_id)
+		return;
+
+	src = intel_create_pixmap_for_fbcon(scrn, fbcon_id);
+	if (src == NULL)
+		return;
+
+	/* We dont have a screen Pixmap yet */
+	dst = intel_create_pixmap_for_bo(pScreen, intel->front_buffer,
+					 scrn->virtualX, scrn->virtualY,
+					 scrn->depth, scrn->bitsPerPixel,
+					 pitch);
+	if (dst == NullPixmap)
+		goto cleanup_src;
+
+	if (!intel->uxa_driver->prepare_copy(src, dst,
+					     -1, -1,
+					     GXcopy, FB_ALLONES))
+		goto cleanup_dst;
+
+	intel->uxa_driver->copy(dst,
+				0, 0,
+				0, 0,
+				scrn->virtualX, scrn->virtualY);
+	intel->uxa_driver->done_copy(dst);
+	pScreen->canDoBGNoneRoot = TRUE;
+
+cleanup_dst:
+	(*pScreen->DestroyPixmap)(dst);
+cleanup_src:
+	(*pScreen->DestroyPixmap)(src);
 }

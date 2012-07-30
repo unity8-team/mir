@@ -59,6 +59,8 @@
 #endif
 #include "damage.h"
 
+#include "../src/compat-api.h"
+
 /* Provide substitutes for gcc's __FUNCTION__ on other compilers */
 #if !defined(__GNUC__) && !defined(__FUNCTION__)
 # if defined(__STDC__) && (__STDC_VERSION__>=199901L)	/* C99 */
@@ -129,7 +131,6 @@ typedef struct {
 	AddTrapsProcPtr SavedAddTraps;
 	UnrealizeGlyphProcPtr SavedUnrealizeGlyph;
 #endif
-	EnableDisableFBAccessProcPtr SavedEnableDisableFBAccess;
 
 	Bool force_fallback;
 	Bool fallback_debug;

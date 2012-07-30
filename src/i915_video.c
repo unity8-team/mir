@@ -74,6 +74,8 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn,
 					      dstRegion->extents.y2 - dyo,
 					      pixmap->drawable.depth,
 					      CREATE_PIXMAP_USAGE_SCRATCH);
+		if (target == NULL)
+			return;
 
 		pix_xoff = -dxo;
 		pix_yoff = -dyo;

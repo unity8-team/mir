@@ -32,11 +32,6 @@
 #include "sna.h"
 #include "sna_render.h"
 
-#if DEBUG_GRADIENT
-#undef DBG
-#define DBG(x) ErrorF x
-#endif
-
 #define xFixedToDouble(f) pixman_fixed_to_double(f)
 
 static int
@@ -90,12 +85,12 @@ sna_gradient_sample_width(PictGradient *gradient)
 	return min(width, 1024);
 }
 
-static Bool
+static bool
 _gradient_color_stops_equal(PictGradient *pattern,
 			    struct sna_gradient_cache *cache)
 {
     if (cache->nstops != pattern->nstops)
-	    return FALSE;
+	    return false;
 
     return memcmp(cache->stops,
 		  pattern->stops,
@@ -235,6 +230,7 @@ static void
 sna_render_finish_solid(struct sna *sna, bool force)
 {
 	struct sna_solid_cache *cache = &sna->render.solid_cache;
+	struct kgem_bo *old;
 	int i;
 
 	DBG(("sna_render_finish_solid(force=%d, domain=%d, busy=%d, dirty=%d)\n",
@@ -253,15 +249,25 @@ sna_render_finish_solid(struct sna *sna, bool force)
 		kgem_bo_destroy(&sna->kgem, cache->bo[i]);
 		cache->bo[i] = NULL;
 	}
-	kgem_bo_destroy(&sna->kgem, cache->cache_bo);
+
+	old = cache->cache_bo;
 
 	DBG(("sna_render_finish_solid reset\n"));
 
 	cache->cache_bo = kgem_create_linear(&sna->kgem, sizeof(cache->color), 0);
-	cache->bo[0] = kgem_create_proxy(cache->cache_bo, 0, sizeof(uint32_t));
+	if (cache->cache_bo == NULL) {
+		cache->cache_bo = old;
+		old = NULL;
+	}
+
+	cache->bo[0] = kgem_create_proxy(&sna->kgem, cache->cache_bo,
+					 0, sizeof(uint32_t));
 	cache->bo[0]->pitch = 4;
 	if (force)
 		cache->size = 1;
+
+	if (old)
+		kgem_bo_destroy(&sna->kgem, old);
 }
 
 struct kgem_bo *
@@ -308,7 +314,7 @@ sna_render_get_solid(struct sna *sna, uint32_t color)
 	DBG(("sna_render_get_solid(%d) = %x (new)\n", i, color));
 
 create:
-	cache->bo[i] = kgem_create_proxy(cache->cache_bo,
+	cache->bo[i] = kgem_create_proxy(&sna->kgem, cache->cache_bo,
 					 i*sizeof(uint32_t), sizeof(uint32_t));
 	cache->bo[i]->pitch = 4;
 
@@ -317,7 +323,7 @@ done:
 	return kgem_bo_reference(cache->bo[i]);
 }
 
-static Bool sna_alpha_cache_init(struct sna *sna)
+static bool sna_alpha_cache_init(struct sna *sna)
 {
 	struct sna_alpha_cache *cache = &sna->render.alpha_cache;
 	uint32_t color[256];
@@ -327,20 +333,23 @@ static Bool sna_alpha_cache_init(struct sna *sna)
 
 	cache->cache_bo = kgem_create_linear(&sna->kgem, sizeof(color), 0);
 	if (!cache->cache_bo)
-		return FALSE;
+		return false;
 
 	for (i = 0; i < 256; i++) {
 		color[i] = i << 24;
-		cache->bo[i] = kgem_create_proxy(cache->cache_bo,
+		cache->bo[i] = kgem_create_proxy(&sna->kgem,
+						 cache->cache_bo,
 						 sizeof(uint32_t)*i,
 						 sizeof(uint32_t));
+		if (cache->bo[i] == NULL)
+			return false;
+
 		cache->bo[i]->pitch = 4;
 	}
-	kgem_bo_write(&sna->kgem, cache->cache_bo, color, sizeof(color));
-	return TRUE;
+	return kgem_bo_write(&sna->kgem, cache->cache_bo, color, sizeof(color));
 }
 
-static Bool sna_solid_cache_init(struct sna *sna)
+static bool sna_solid_cache_init(struct sna *sna)
 {
 	struct sna_solid_cache *cache = &sna->render.solid_cache;
 
@@ -349,33 +358,37 @@ static Bool sna_solid_cache_init(struct sna *sna)
 	cache->cache_bo =
 		kgem_create_linear(&sna->kgem, sizeof(cache->color), 0);
 	if (!cache->cache_bo)
-		return FALSE;
+		return false;
 
 	/*
 	 * Initialise [0] with white since it is very common and filling the
 	 * zeroth slot simplifies some of the checks.
 	 */
 	cache->color[0] = 0xffffffff;
-	cache->bo[0] = kgem_create_proxy(cache->cache_bo, 0, sizeof(uint32_t));
+	cache->bo[0] = kgem_create_proxy(&sna->kgem, cache->cache_bo,
+					 0, sizeof(uint32_t));
+	if (cache->bo[0] == NULL)
+		return false;
+
 	cache->bo[0]->pitch = 4;
 	cache->dirty = 1;
 	cache->size = 1;
 	cache->last = 0;
 
-	return TRUE;
+	return true;
 }
 
-Bool sna_gradients_create(struct sna *sna)
+bool sna_gradients_create(struct sna *sna)
 {
 	DBG(("%s\n", __FUNCTION__));
 
 	if (!sna_alpha_cache_init(sna))
-		return FALSE;
+		return false;
 
 	if (!sna_solid_cache_init(sna))
-		return FALSE;
+		return false;
 
-	return TRUE;
+	return true;
 }
 
 void sna_gradients_close(struct sna *sna)

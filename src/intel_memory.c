@@ -96,7 +96,7 @@ unsigned long intel_get_fence_size(intel_screen_private *intel, unsigned long si
 
 	if (INTEL_INFO(intel)->gen >= 40 || intel->has_relaxed_fencing) {
 		/* The 965 can have fences at any page boundary. */
-		return ALIGN(size, GTT_PAGE_SIZE);
+		return ALIGN(size, 4096);
 	} else {
 		/* Align the size to a power of two greater than the smallest fence
 		 * size.

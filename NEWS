@@ -1,3 +1,105 @@
+Release 2.20.2 (2012-07-27)
+===========================
+For the last 9 months, since 2.16.901, we have been shipping a driver that
+does not work on IvyBridge GT1 systems (HD2500 graphics); we were telling
+the GPU to use an invalid number of threads for the pixel shader and this
+in turned caused the GPU to hang.
+
+Also fixed since the last release just a few days ago:
+
+* Support for the gmux backlight controller on Apple laptops
+  https://bugs.freedesktop.org/show_bug.cgi?id=52423
+
+* Fix X -configure not to list this driver as matching any Intel device,
+  just the VGA class devices will do!
+
+* A crash in SNA when repeatedly switching xrandr rotations
+
+* Corruption in SNA observed in kwin on IvyBridge
+  https://bugs.freedesktop.org/show_bug.cgi?id=52473
+
+Release 2.20.1 (2012-07-22)
+===========================
+A week in, grab the brown paper bags, for it is time to reveal a couple
+of critical bugs that spoilt the 2.20.0 release.
+
+Firstly we have the restoration of DRI for i810. I am sure that the
+solitary user will be overjoyed in a couple of years when a new xserver
+is forced upon him. That enjoyment will be short-lived when as no actual
+acceleration remains, not even shadow, for the chipset.
+
+Perhaps a little more wildly felt, I hope!, will be that the SNA
+fallbacks were broken on 64-bit machines if they required clipping. One
+little misplaced cast of a pointer, and the screen is filled with
+corruption.
+
+Among the other tweaks this week:
+
+* A bug affecting gen4 handling of trapezoids was fixed, and CPU
+  overhead reduced.
+  https://bugs.freedesktop.org/show_bug.cgi?id=52158
+
+* A fix for a bug causing corruption of a DRI2 unredirected client
+  window that was resized whilst under a compositor.
+
+* Support for snoopable buffers on non-LLC architectures, coming to
+  a future kernel. The aim to accelerate transfers between the CPU
+  and the GPU, in particular to dramatically improve readback
+  performance, and to further minimise clflushes.
+
+* Improvement to the composite performance on GT2 SandyBridge and
+  IvyBridge devices, in particular the render copy is significantly
+  improved.
+
+* Improved handling for when acceleration is disabled, including
+  permitting DRI2 to remain supported even if the X server believes
+  the GPU wedged.
+
+* Shadow support was dropped from UXA as it was neither complete nor
+  correct, use SNA instead.
+
+Release 2.20.0 (2012-07-15)
+===========================
+First the big news, a new acceleration method that aims to be faster and
+consume far less CPU than UXA is now available for selection at runtime.
+This snazzy new architecture can be selected through use of
+  Option "AccelMethod" "sna"
+in your xorg.conf. Whilst it has been under development for some time, it
+has not yet had the same degree of widespread testing of UXA, so tread
+lightly. Try it and if you spot anything that can be improved, please do
+report a bug.
+
+Otherwise we have the usual smattering of bug fixes for UXA:
+
+ * Use a white source whilst adding glyphs to the glyph mask
+   (This fixes blank glyphs if using a font that mixes ARGB and A glyphs.)
+
+ * Avoid fallbacks for glyph-to-dst in e.g. gnome-terminal
+   https://bugs.freedesktop.org/show_bug.cgi?id=50508
+
+ * Force unused outputs off when VT switching
+   https://bugs.freedesktop.org/show_bug.cgi?id=50772
+
+ * Copy the fbcon across to the Screen pixmap at startup.
+   (This patch has been kicking around in the distributions for years.)
+
+ * Many missed malloc failures checks and forgotten frees found by a static
+   analyzer. Thanks Zdenek Kabelac!
+
+ * Leak of the back buffer when terminating an application after pageflipping
+   https://bugs.freedesktop.org/show_bug.cgi?id=50670
+
+ * Double check that the pipe is on before emitting a WAIT_ON_EVENT.
+   In conjunction with an uptodate kernel, this should eliminate any
+   hangs when changing resolutions or adding/removing displays.
+   https://bugs.freedesktop.org/show_bug.cgi?id=50668
+
+ * Update to new Xorg APIs. Future proofing for the next generation of
+   hotplug Xorg display servers.
+
+Many thanks to everyone who has reported a bug and otherwise helped to
+improve the driver.
+
 Release 2.19.0 (2012-04-29)
 ===========================
 More stability fixes for UXA and support for another variant of IvyBridge.

@@ -388,6 +388,7 @@ static void i965_create_dst_surface_state(ScrnInfoPtr scrn,
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct brw_surface_state dest_surf_state;
 	drm_intel_bo *pixmap_bo = intel_get_pixmap_bo(pixmap);
+	assert(pixmap_bo != NULL);
 
 	memset(&dest_surf_state, 0, sizeof(dest_surf_state));
 
@@ -484,6 +485,7 @@ static void gen7_create_dst_surface_state(ScrnInfoPtr scrn,
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct gen7_surface_state dest_surf_state;
 	drm_intel_bo *pixmap_bo = intel_get_pixmap_bo(pixmap);
+	assert(pixmap_bo != NULL);
 
 	memset(&dest_surf_state, 0, sizeof(dest_surf_state));
 
@@ -1656,7 +1658,7 @@ gen7_upload_wm_state(ScrnInfoPtr scrn, Bool is_packed)
 
 	OUT_BATCH(0); /* scratch space base offset */
 	OUT_BATCH(
-		((86 - 1) << GEN7_PS_MAX_THREADS_SHIFT) |
+		((48 - 1) << GEN7_PS_MAX_THREADS_SHIFT) |
 		GEN7_PS_ATTRIBUTE_ENABLE |
 		GEN7_PS_16_DISPATCH_ENABLE);
 	OUT_BATCH(
