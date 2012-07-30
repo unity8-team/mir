@@ -558,6 +558,11 @@ static inline bool wedged(struct sna *sna)
 	return unlikely(sna->kgem.wedged);
 }
 
+static inline bool can_render(struct sna *sna)
+{
+	return likely(!sna->kgem.wedged && sna->have_render);
+}
+
 static inline uint32_t pixmap_size(PixmapPtr pixmap)
 {
 	return (pixmap->drawable.height - 1) * pixmap->devKind +

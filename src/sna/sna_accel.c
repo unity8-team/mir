@@ -931,7 +931,7 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 		goto fallback;
 	}
 
-	if (wedged(sna))
+	if (!can_render(sna))
 		flags = 0;
 
 	if (usage == CREATE_PIXMAP_USAGE_SCRATCH) {
@@ -957,7 +957,6 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 	if (usage == CREATE_PIXMAP_USAGE_BACKING_PIXMAP)
 		usage = 0;
 
-force_create:
 	pad = PixmapBytePad(width, depth);
 	if (pad * height <= 4096) {
 		DBG(("%s: small buffer [%d], attaching to shadow pixmap\n",
