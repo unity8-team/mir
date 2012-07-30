@@ -60,6 +60,7 @@
 #define USE_INPLACE 1
 #define USE_WIDE_SPANS 0 /* -1 force CPU, 1 force GPU */
 #define USE_ZERO_SPANS 1 /* -1 force CPU, 1 force GPU */
+#define USE_INACTIVE 0
 
 #define MIGRATE_ALL 0
 #define DBG_NO_CPU_UPLOAD 0
@@ -2145,7 +2146,8 @@ static inline struct sna_pixmap *
 sna_pixmap_mark_active(struct sna *sna, struct sna_pixmap *priv)
 {
 	assert(priv->gpu_bo);
-	if (!priv->pinned && priv->gpu_bo->proxy == NULL &&
+	if (USE_INACTIVE &&
+	    !priv->pinned && priv->gpu_bo->proxy == NULL &&
 	    (priv->create & KGEM_CAN_CREATE_LARGE) == 0)
 		list_move(&priv->inactive, &sna->active_pixmaps);
 	priv->cpu = false;
@@ -2524,7 +2526,8 @@ use_gpu_bo:
 	assert(priv->gpu_bo->proxy == NULL);
 	priv->clear = false;
 	priv->cpu = false;
-	if (!priv->pinned && (priv->create & KGEM_CAN_CREATE_LARGE) == 0)
+	if (USE_INACTIVE &&
+	    !priv->pinned && (priv->create & KGEM_CAN_CREATE_LARGE) == 0)
 		list_move(&priv->inactive,
 			  &to_sna_from_pixmap(pixmap)->active_pixmaps);
 	*damage = NULL;
@@ -13450,6 +13453,9 @@ static bool sna_accel_do_expire(struct sna *sna)
 
 static bool sna_accel_do_inactive(struct sna *sna)
 {
+	if (!USE_INACTIVE)
+		return false;
+
 	if (sna->timer_active & (1<<(INACTIVE_TIMER))) {
 		int32_t delta = sna->timer_expire[INACTIVE_TIMER] - TIME;
 		if (delta <= 3) {
