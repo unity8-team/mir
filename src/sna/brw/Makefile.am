@@ -20,6 +20,7 @@
 #  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 noinst_LTLIBRARIES = libbrw.la
+noinst_PROGRAMS = brw_test
 
 AM_CFLAGS = \
 	@CWARNFLAGS@ \
@@ -35,8 +36,24 @@ AM_CFLAGS += @VALGRIND_CFLAGS@
 endif
 
 libbrw_la_SOURCES = \
+	brw.h \
 	brw_disasm.c \
 	brw_eu.h \
 	brw_eu.c \
 	brw_eu_emit.c \
+	brw_sf.c \
+	brw_wm.c \
+	$(NULL)
+
+brw_test_SOURCES = \
+	brw_test.c \
+	brw_test.h \
+	brw_test_gen4.c \
+	brw_test_gen5.c \
+	brw_test_gen6.c \
+	brw_test_gen7.c \
+	$(NULL)
+
+brw_test_LDADD = \
+	libbrw.la \
 	$(NULL)

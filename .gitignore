@@ -44,6 +44,7 @@ symlink-tree
 texinfo.tex
 ylwrap
 src/sna/git_version.h
+src/sna/brw/brw_test
 
 #	Do not edit the following section
 # 	Edit Compile Debug Document Distribute

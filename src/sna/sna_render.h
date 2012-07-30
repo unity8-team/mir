@@ -13,6 +13,7 @@ struct sna;
 struct sna_glyph;
 struct sna_video;
 struct sna_video_frame;
+struct brw_compile;
 
 struct sna_composite_rectangles {
 	struct sna_coordinate {
@@ -379,8 +380,8 @@ enum {
 	GEN6_WM_KERNEL_MASKCA,
 	GEN6_WM_KERNEL_MASKCA_PROJECTIVE,
 
-	GEN6_WM_KERNEL_MASKCA_SRCALPHA,
-	GEN6_WM_KERNEL_MASKCA_SRCALPHA_PROJECTIVE,
+	GEN6_WM_KERNEL_MASKSA,
+	GEN6_WM_KERNEL_MASKSA_PROJECTIVE,
 
 	GEN6_WM_KERNEL_VIDEO_PLANAR,
 	GEN6_WM_KERNEL_VIDEO_PACKED,
@@ -428,8 +429,8 @@ enum {
 	GEN7_WM_KERNEL_MASKCA,
 	GEN7_WM_KERNEL_MASKCA_PROJECTIVE,
 
-	GEN7_WM_KERNEL_MASKCA_SRCALPHA,
-	GEN7_WM_KERNEL_MASKCA_SRCALPHA_PROJECTIVE,
+	GEN7_WM_KERNEL_MASKSA,
+	GEN7_WM_KERNEL_MASKSA_PROJECTIVE,
 
 	GEN7_WM_KERNEL_VIDEO_PLANAR,
 	GEN7_WM_KERNEL_VIDEO_PACKED,
@@ -479,6 +480,14 @@ void *sna_static_stream_map(struct sna_static_stream *stream,
 			    uint32_t len, uint32_t align);
 uint32_t sna_static_stream_offsetof(struct sna_static_stream *stream,
 				    void *ptr);
+unsigned sna_static_stream_compile_sf(struct sna *sna,
+				      struct sna_static_stream *stream,
+				      void (*compile)(struct brw_compile *));
+
+unsigned sna_static_stream_compile_wm(struct sna *sna,
+				      struct sna_static_stream *stream,
+				      void (*compile)(struct brw_compile *, int),
+				      int width);
 struct kgem_bo *sna_static_stream_fini(struct sna *sna,
 				       struct sna_static_stream *stream);
 

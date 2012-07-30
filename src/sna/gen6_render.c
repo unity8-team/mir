@@ -179,8 +179,8 @@ static const struct wm_kernel_info {
 	KERNEL(MASKCA, ps_kernel_maskca_affine, 3, 2),
 	KERNEL(MASKCA_PROJECTIVE, ps_kernel_maskca_projective, 3, 2),
 
-	KERNEL(MASKCA_SRCALPHA, ps_kernel_maskca_srcalpha_affine, 3, 2),
-	KERNEL(MASKCA_SRCALPHA_PROJECTIVE, ps_kernel_maskca_srcalpha_projective, 3, 2),
+	KERNEL(MASKSA, ps_kernel_maskca_srcalpha_affine, 3, 2),
+	KERNEL(MASKSA_PROJECTIVE, ps_kernel_maskca_srcalpha_projective, 3, 2),
 
 	KERNEL(VIDEO_PLANAR, ps_kernel_planar, 7, 1),
 	KERNEL(VIDEO_PACKED, ps_kernel_packed, 2, 1),
@@ -431,7 +431,7 @@ gen6_choose_composite_kernel(int op, bool has_mask, bool is_ca, bool is_affine)
 	if (has_mask) {
 		if (is_ca) {
 			if (gen6_blend_op[op].src_alpha)
-				base = GEN6_WM_KERNEL_MASKCA_SRCALPHA;
+				base = GEN6_WM_KERNEL_MASKSA;
 			else
 				base = GEN6_WM_KERNEL_MASKCA;
 		} else
