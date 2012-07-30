@@ -112,6 +112,9 @@ static void uxa_unrealize_glyph_caches(ScreenPtr pScreen)
 	uxa_screen_t *uxa_screen = uxa_get_screen(pScreen);
 	int i;
 
+	if (uxa_screen->info->flags & UXA_USE_GLAMOR)
+		return;
+
 	if (!uxa_screen->glyph_cache_initialized)
 		return;
 
@@ -211,6 +214,11 @@ bail:
 
 Bool uxa_glyphs_init(ScreenPtr pScreen)
 {
+
+	uxa_screen_t *uxa_screen = uxa_get_screen(pScreen);
+
+	if (uxa_screen->info->flags & UXA_USE_GLAMOR)
+		return TRUE;
 #if HAS_DIXREGISTERPRIVATEKEY
 	if (!dixRegisterPrivateKey(&uxa_glyph_key, PRIVATE_GLYPH, 0))
 		return FALSE;
@@ -235,7 +243,7 @@ uxa_glyph_cache_upload_glyph(ScreenPtr screen,
 			     GlyphPtr glyph,
 			     int x, int y)
 {
-	PicturePtr pGlyphPicture = GlyphPicture(glyph)[screen->myNum];
+	PicturePtr pGlyphPicture = GetGlyphPicture(glyph, screen);
 	PixmapPtr pGlyphPixmap = (PixmapPtr) pGlyphPicture->pDrawable;
 	PixmapPtr pCachePixmap = (PixmapPtr) cache->picture->pDrawable;
 	PixmapPtr scratch;
@@ -307,8 +315,10 @@ uxa_glyph_unrealize(ScreenPtr screen,
 	struct uxa_glyph *priv;
 	uxa_screen_t *uxa_screen = uxa_get_screen(screen);
 
-	if (uxa_screen->info->flags & UXA_USE_GLAMOR)
+	if (uxa_screen->info->flags & UXA_USE_GLAMOR) {
 		glamor_glyph_unrealize(screen, glyph);
+		return;
+	}
 
 	/* Use Lookup in case we have not attached to this glyph. */
 	priv = dixLookupPrivate(&glyph->devPrivates, &uxa_glyph_key);
@@ -449,18 +459,19 @@ uxa_check_glyphs(CARD8 op,
 		 INT16 xSrc,
 		 INT16 ySrc, int nlist, GlyphListPtr list, GlyphPtr * glyphs)
 {
-	int screen = dst->pDrawable->pScreen->myNum;
 	pixman_image_t *image;
 	PixmapPtr scratch;
-	PicturePtr mask;
+	PicturePtr mask, mask_src = NULL, mask_dst = NULL, white = NULL;
 	int width = 0, height = 0;
 	int x, y, n;
 	int xDst = list->xOff, yDst = list->yOff;
 	BoxRec extents = { 0, 0, 0, 0 };
+	CARD8 mask_op = 0;
 
 	if (maskFormat) {
 		pixman_format_code_t format;
 		CARD32 component_alpha;
+		xRenderColor color;
 		int error;
 
 		uxa_glyph_extents(nlist, list, glyphs, &extents);
@@ -501,6 +512,18 @@ uxa_check_glyphs(CARD8 op,
 
 		x = -extents.x1;
 		y = -extents.y1;
+
+		color.red = color.green = color.blue = color.alpha = 0xffff;
+		white = CreateSolidPicture(0, &color, &error);
+
+		mask_op = op;
+		op = PictOpAdd;
+
+		mask_src = src;
+		src = white;
+
+		mask_dst = dst;
+		dst = mask;
 	} else {
 		mask = dst;
 		x = 0;
@@ -513,26 +536,16 @@ uxa_check_glyphs(CARD8 op,
 		n = list->len;
 		while (n--) {
 			GlyphPtr glyph = *glyphs++;
-			PicturePtr g = GlyphPicture(glyph)[screen];
+			PicturePtr g = GetGlyphPicture(glyph, dst->pDrawable->pScreen);
 			if (g) {
-				if (maskFormat) {
-					CompositePicture(PictOpAdd, g, NULL, mask,
-							 0, 0,
-							 0, 0,
-							 x - glyph->info.x,
-							 y - glyph->info.y,
-							 glyph->info.width,
-							 glyph->info.height);
-				} else {
-					CompositePicture(op, src, g, dst,
-							 xSrc + (x - glyph->info.x) - xDst,
-							 ySrc + (y - glyph->info.y) - yDst,
-							 0, 0,
-							 x - glyph->info.x,
-							 y - glyph->info.y,
-							 glyph->info.width,
-							 glyph->info.height);
-				}
+				CompositePicture(op, src, g, dst,
+						 xSrc + (x - glyph->info.x) - xDst,
+						 ySrc + (y - glyph->info.y) - yDst,
+						 0, 0,
+						 x - glyph->info.x,
+						 y - glyph->info.y,
+						 glyph->info.width,
+						 glyph->info.height);
 			}
 
 			x += glyph->info.xOff;
@@ -541,10 +554,13 @@ uxa_check_glyphs(CARD8 op,
 		list++;
 	}
 
+	if (white)
+		FreePicture(white, 0);
+
 	if (maskFormat) {
 		x = extents.x1;
 		y = extents.y1;
-		CompositePicture(op, src, mask, dst,
+		CompositePicture(mask_op, mask_src, mask, mask_dst,
 				 xSrc + x - xDst,
 				 ySrc + y - yDst,
 				 0, 0,
@@ -579,7 +595,7 @@ static PicturePtr
 uxa_glyph_cache(ScreenPtr screen, GlyphPtr glyph, int *out_x, int *out_y)
 {
 	uxa_screen_t *uxa_screen = uxa_get_screen(screen);
-	PicturePtr glyph_picture = GlyphPicture(glyph)[screen->myNum];
+	PicturePtr glyph_picture = GetGlyphPicture(glyph, screen);
 	uxa_glyph_cache_t *cache = &uxa_screen->glyphCaches[PICT_FORMAT_RGB(glyph_picture->format) != 0];
 	struct uxa_glyph *priv = NULL;
 	int size, mask, pos, s;
@@ -704,6 +720,23 @@ fallback:
 	}
 }
 
+static PicturePtr
+create_white_solid(ScreenPtr screen)
+{
+	PicturePtr white, ret = NULL;
+	xRenderColor color;
+	int error;
+
+	color.red = color.green = color.blue = color.alpha = 0xffff;
+	white = CreateSolidPicture(0, &color, &error);
+	if (white) {
+		ret = uxa_acquire_solid(screen, white->pSourcePict);
+		FreePicture(white, 0);
+	}
+
+	return ret;
+}
+
 static int
 uxa_glyphs_via_mask(CARD8 op,
 		    PicturePtr pSrc,
@@ -715,8 +748,8 @@ uxa_glyphs_via_mask(CARD8 op,
 	ScreenPtr screen = pDst->pDrawable->pScreen;
 	uxa_screen_t *uxa_screen = uxa_get_screen(screen);
 	CARD32 component_alpha;
-	PixmapPtr pixmap;
-	PicturePtr glyph_atlas, mask;
+	PixmapPtr pixmap, white_pixmap;
+	PicturePtr glyph_atlas, mask, white;
 	int xDst = list->xOff, yDst = list->yOff;
 	int x, y, width, height;
 	int dst_off_x, dst_off_y;
@@ -756,6 +789,17 @@ uxa_glyphs_via_mask(CARD8 op,
 		return -1;
 	}
 
+	white_pixmap = NULL;
+	white = create_white_solid(screen);
+	if (white)
+		white_pixmap = uxa_get_drawable_pixmap(white->pDrawable);
+	if (!white_pixmap) {
+		if (white)
+			FreePicture(white, 0);
+		screen->DestroyPixmap(pixmap);
+		return -1;
+	}
+
 	uxa_clear_pixmap(screen, uxa_screen, pixmap);
 
 	component_alpha = NeedsComponent(maskFormat->format);
@@ -764,8 +808,10 @@ uxa_glyphs_via_mask(CARD8 op,
 			      &component_alpha, serverClient, &error);
 	screen->DestroyPixmap(pixmap);
 
-	if (!mask)
+	if (!mask) {
+		FreePicture(white, 0);
 		return 1;
+	}
 
 	ValidatePicture(mask);
 
@@ -777,7 +823,7 @@ uxa_glyphs_via_mask(CARD8 op,
 		while (n--) {
 			GlyphPtr glyph = *glyphs++;
 			PicturePtr this_atlas;
-			int src_x, src_y;
+			int glyph_x, glyph_y;
 			struct uxa_glyph *priv;
 
 			if (glyph->info.width == 0 || glyph->info.height == 0)
@@ -785,34 +831,35 @@ uxa_glyphs_via_mask(CARD8 op,
 
 			priv = uxa_glyph_get_private(glyph);
 			if (priv != NULL) {
-				src_x = priv->x;
-				src_y = priv->y;
+				glyph_x = priv->x;
+				glyph_y = priv->y;
 				this_atlas = priv->cache->picture;
 			} else {
 				if (glyph_atlas) {
 					uxa_screen->info->done_composite(pixmap);
 					glyph_atlas = NULL;
 				}
-				this_atlas = uxa_glyph_cache(screen, glyph, &src_x, &src_y);
+				this_atlas = uxa_glyph_cache(screen, glyph, &glyph_x, &glyph_y);
 				if (this_atlas == NULL) {
 					/* no cache for this glyph */
-					this_atlas = GlyphPicture(glyph)[screen->myNum];
-					src_x = src_y = 0;
+					this_atlas = GetGlyphPicture(glyph, screen);
+					glyph_x = glyph_y = 0;
 				}
 			}
 
 			if (this_atlas != glyph_atlas) {
-				PixmapPtr src_pixmap;
+				PixmapPtr glyph_pixmap;
 
 				if (glyph_atlas)
 					uxa_screen->info->done_composite(pixmap);
 
-				src_pixmap =
+				glyph_pixmap =
 					uxa_get_drawable_pixmap(this_atlas->pDrawable);
-				if (!uxa_pixmap_is_offscreen(src_pixmap) ||
+				if (!uxa_pixmap_is_offscreen(glyph_pixmap) ||
 				    !uxa_screen->info->prepare_composite(PictOpAdd,
-									 this_atlas, NULL, mask,
-									 src_pixmap, NULL, pixmap)) {
+									 white, this_atlas, mask,
+									 white_pixmap, glyph_pixmap, pixmap)) {
+					FreePicture(white, 0);
 					FreePicture(mask, 0);
 					return -1;
 				}
@@ -821,8 +868,8 @@ uxa_glyphs_via_mask(CARD8 op,
 			}
 
 			uxa_screen->info->composite(pixmap,
-						    src_x, src_y,
 						    0, 0,
+						    glyph_x, glyph_y,
 						    x - glyph->info.x,
 						    y - glyph->info.y,
 						    glyph->info.width,
@@ -845,7 +892,67 @@ next_glyph:
 		      dst_off_x, dst_off_y,
 		      width, height);
 
+	FreePicture(white, 0);
 	FreePicture(mask, 0);
+	return 0;
+}
+
+static int
+uxa_glyphs_to_dst(CARD8 op,
+		  PicturePtr pSrc,
+		  PicturePtr pDst,
+		  INT16 xSrc, INT16 ySrc,
+		  int nlist, GlyphListPtr list, GlyphPtr * glyphs)
+{
+	ScreenPtr screen = pDst->pDrawable->pScreen;
+	int x, y, n;
+
+	xSrc -= list->xOff;
+	ySrc -= list->yOff;
+	x = y = 0;
+	while (nlist--) {
+		x += list->xOff;
+		y += list->yOff;
+		n = list->len;
+		while (n--) {
+			GlyphPtr glyph = *glyphs++;
+			PicturePtr glyph_atlas;
+			int glyph_x, glyph_y;
+			struct uxa_glyph *priv;
+
+			if (glyph->info.width == 0 || glyph->info.height == 0)
+				goto next_glyph;
+
+			priv = uxa_glyph_get_private(glyph);
+			if (priv != NULL) {
+				glyph_x = priv->x;
+				glyph_y = priv->y;
+				glyph_atlas = priv->cache->picture;
+			} else {
+				glyph_atlas = uxa_glyph_cache(screen, glyph, &glyph_x, &glyph_y);
+				if (glyph_atlas == NULL) {
+					/* no cache for this glyph */
+					glyph_atlas = GetGlyphPicture(glyph, screen);
+					glyph_x = glyph_y = 0;
+				}
+			}
+
+			uxa_composite(op,
+				      pSrc, glyph_atlas, pDst,
+				      xSrc + x - glyph->info.x,
+				      ySrc + y - glyph->info.y,
+				      glyph_x, glyph_y,
+				      x - glyph->info.x,
+				      y - glyph->info.y,
+				      glyph->info.width, glyph->info.height);
+
+next_glyph:
+			x += glyph->info.xOff;
+			y += glyph->info.yOff;
+		}
+		list++;
+	}
+
 	return 0;
 }
 
@@ -934,12 +1041,16 @@ fallback:
 		}
 	}
 
-	if (!maskFormat)
-		goto fallback;
-
-	if (uxa_glyphs_via_mask(op,
-				pSrc, pDst, maskFormat,
-				xSrc, ySrc,
-				nlist, list, glyphs))
-		goto fallback;
+	if (!maskFormat) {
+		if (uxa_glyphs_to_dst(op, pSrc, pDst,
+				      xSrc, ySrc,
+				      nlist, list, glyphs))
+			goto fallback;
+	} else {
+		if (uxa_glyphs_via_mask(op,
+					pSrc, pDst, maskFormat,
+					xSrc, ySrc,
+					nlist, list, glyphs))
+			goto fallback;
+	}
 }

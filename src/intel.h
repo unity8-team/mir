@@ -69,6 +69,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "intel_driver.h"
 #include "intel_list.h"
+#include "compat-api.h"
 
 #if HAVE_UDEV
 #include <libudev.h>
@@ -87,9 +88,9 @@ struct intel_pixmap {
 	uint16_t stride;
 	uint8_t tiling;
 	int8_t busy :2;
-	int8_t dirty :1;
-	int8_t offscreen :1;
-	int8_t pinned :1;
+	uint8_t dirty :1;
+	uint8_t offscreen :1;
+	uint8_t pinned :1;
 };
 
 #if HAS_DEVPRIVATEKEYREC
@@ -169,9 +170,6 @@ typedef struct intel_screen_private {
 	PixmapPtr back_pixmap;
 	unsigned int back_name;
 	long front_pitch, front_tiling;
-	void *shadow_buffer;
-	int shadow_stride;
-	DamagePtr shadow_damage;
 
 	dri_bufmgr *bufmgr;
 
@@ -214,7 +212,7 @@ typedef struct intel_screen_private {
 	int Chipset;
 	EntityInfoPtr pEnt;
 	struct pci_device *PciInfo;
-	struct intel_chipset chipset;
+	const struct intel_device_info *info;
 
 	unsigned int BR[20];
 
@@ -267,8 +265,6 @@ typedef struct intel_screen_private {
 
 	PixmapPtr render_source, render_mask, render_dest;
 	PicturePtr render_source_picture, render_mask_picture, render_dest_picture;
-	CARD32 render_source_solid;
-	Bool render_source_is_solid;
 	Bool needs_3d_invariant;
 	Bool needs_render_state_emit;
 	Bool needs_render_vertex_emit;
@@ -329,10 +325,8 @@ typedef struct intel_screen_private {
 	Bool use_pageflipping;
 	Bool use_triple_buffer;
 	Bool force_fallback;
-	Bool can_blt;
 	Bool has_kernel_flush;
 	Bool needs_flush;
-	Bool use_shadow;
 
 	struct _DRI2FrameEvent *pending_flip[2];
 
@@ -363,12 +357,14 @@ enum {
 
 extern Bool intel_mode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp);
 extern void intel_mode_init(struct intel_screen_private *intel);
+extern void intel_mode_disable_unused_functions(ScrnInfoPtr scrn);
 extern void intel_mode_remove_fb(intel_screen_private *intel);
 extern void intel_mode_fini(intel_screen_private *intel);
 
 extern int intel_get_pipe_from_crtc_id(drm_intel_bufmgr *bufmgr, xf86CrtcPtr crtc);
 extern int intel_crtc_id(xf86CrtcPtr crtc);
 extern int intel_output_dpms_status(xf86OutputPtr output);
+extern void intel_copy_fb(ScrnInfoPtr scrn);
 
 enum DRI2FrameEventType {
 	DRI2_SWAP,
@@ -412,9 +408,17 @@ intel_get_screen_private(ScrnInfoPtr scrn)
 	return (intel_screen_private *)(scrn->driverPrivate);
 }
 
+#ifndef ARRAY_SIZE
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
+#endif
+
+#ifndef ALIGN
 #define ALIGN(i,m)	(((i) + (m) - 1) & ~((m) - 1))
+#endif
+
+#ifndef MIN
 #define MIN(a,b)	((a) < (b) ? (a) : (b))
+#endif
 
 static inline unsigned long intel_pixmap_pitch(PixmapPtr pixmap)
 {
@@ -559,7 +563,7 @@ intel_check_pitch_2d(PixmapPtr pixmap)
 {
 	uint32_t pitch = intel_pixmap_pitch(pixmap);
 	if (pitch > KB(32)) {
-		ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
+		ScrnInfoPtr scrn = xf86ScreenToScrn(pixmap->drawable.pScreen);
 		intel_debug_fallback(scrn, "pitch exceeds 2d limit 32K\n");
 		return FALSE;
 	}
@@ -572,7 +576,7 @@ intel_check_pitch_3d(PixmapPtr pixmap)
 {
 	uint32_t pitch = intel_pixmap_pitch(pixmap);
 	if (pitch > KB(8)) {
-		ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
+		ScrnInfoPtr scrn = xf86ScreenToScrn(pixmap->drawable.pScreen);
 		intel_debug_fallback(scrn, "pitch exceeds 3d limit 8K\n");
 		return FALSE;
 	}
@@ -602,11 +606,16 @@ static inline drm_intel_bo *intel_bo_alloc_for_data(intel_screen_private *intel,
 						    const char *name)
 {
 	drm_intel_bo *bo;
+	int ret;
 
 	bo = drm_intel_bo_alloc(intel->bufmgr, name, size, 4096);
-	if (bo)
-		drm_intel_bo_subdata(bo, 0, size, data);
+	assert(bo);
+
+	ret = drm_intel_bo_subdata(bo, 0, size, data);
+	assert(ret == 0);
+
 	return bo;
+	(void)ret;
 }
 
 void intel_debug_flush(ScrnInfoPtr scrn);
@@ -633,10 +642,6 @@ Bool intel_uxa_create_screen_resources(ScreenPtr pScreen);
 void intel_uxa_block_handler(intel_screen_private *intel);
 Bool intel_get_aperture_space(ScrnInfoPtr scrn, drm_intel_bo ** bo_table,
 			      int num_bos);
-
-/* intel_shadow.c */
-void intel_shadow_blt(intel_screen_private *intel);
-void intel_shadow_create(struct intel_screen_private *intel);
 
 static inline Bool intel_pixmap_is_offscreen(PixmapPtr pixmap)
 {

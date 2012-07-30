@@ -245,14 +245,14 @@ decode_3d_1d(struct kgem *kgem, uint32_t offset)
 {
     uint32_t *data = kgem->batch + offset;
     unsigned int len, i, idx, word, map;
-    char *format, *zformat, *type;
+    const char *format, *zformat, *type;
     uint32_t opcode;
 
     static const struct {
 	uint32_t opcode;
 	int min_len;
 	int max_len;
-	char *name;
+	const char *name;
     } opcodes_3d_1d[] = {
 	{ 0x86, 4, 4, "3DSTATE_CHROMA_KEY" },
 	{ 0x88, 2, 2, "3DSTATE_CONSTANT_BLEND_COLOR" },

@@ -28,11 +28,6 @@
 #include "sna.h"
 #include "sna_render.h"
 
-#if DEBUG_STREAM
-#undef DBG
-#define DBG(x) ErrorF x
-#endif
-
 int sna_static_stream_init(struct sna_static_stream *stream)
 {
 	stream->used = 0;

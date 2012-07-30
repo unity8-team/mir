@@ -327,23 +327,20 @@ intel_overlay_put_image(intel_screen_private *intel,
 
 void I830InitVideo(ScreenPtr screen)
 {
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	XF86VideoAdaptorPtr *adaptors, *newAdaptors = NULL;
+	XF86VideoAdaptorPtr *adaptors = NULL, *newAdaptors = NULL;
 	XF86VideoAdaptorPtr overlayAdaptor = NULL, texturedAdaptor = NULL;
-	int num_adaptors;
-
-	num_adaptors = xf86XVListGenericAdaptors(scrn, &adaptors);
+	int num_adaptors = xf86XVListGenericAdaptors(scrn, &adaptors);
 	/* Give our adaptor list enough space for the overlay and/or texture video
 	 * adaptors.
 	 */
-	newAdaptors =
-	    malloc((num_adaptors + 2) * sizeof(XF86VideoAdaptorPtr *));
-	if (newAdaptors == NULL)
+	newAdaptors = realloc(adaptors,
+			      (num_adaptors + 2) * sizeof(XF86VideoAdaptorPtr));
+	if (newAdaptors == NULL) {
+		free(adaptors);
 		return;
-
-	memcpy(newAdaptors, adaptors,
-	       num_adaptors * sizeof(XF86VideoAdaptorPtr));
+	}
 	adaptors = newAdaptors;
 
 	/* Add the adaptors supported by our hardware.  First, set up the atoms
@@ -356,8 +353,7 @@ void I830InitVideo(ScreenPtr screen)
 	 * supported hardware.
 	 */
 	if (scrn->bitsPerPixel >= 16 &&
-	    INTEL_INFO(intel)->gen >= 30 &&
-	    !intel->use_shadow) {
+	    INTEL_INFO(intel)->gen >= 30) {
 		texturedAdaptor = I830SetupImageVideoTextured(screen);
 		if (texturedAdaptor != NULL) {
 			xf86DrvMsg(scrn->scrnIndex, X_INFO,
@@ -407,7 +403,7 @@ void I830InitVideo(ScreenPtr screen)
 
 static XF86VideoAdaptorPtr I830SetupImageVideoOverlay(ScreenPtr screen)
 {
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	XF86VideoAdaptorPtr adapt;
 	intel_adaptor_private *adaptor_priv;
@@ -452,7 +448,6 @@ static XF86VideoAdaptorPtr I830SetupImageVideoOverlay(ScreenPtr screen)
 	if (INTEL_INFO(intel)->gen >= 30) {
 		memcpy((char *)att, (char *)GammaAttributes,
 		       sizeof(XF86AttributeRec) * GAMMA_ATTRIBUTES);
-		att += GAMMA_ATTRIBUTES;
 	}
 	adapt->nImages = NUM_IMAGES - XVMC_IMAGE;
 
@@ -516,7 +511,7 @@ static XF86VideoAdaptorPtr I830SetupImageVideoOverlay(ScreenPtr screen)
 
 static XF86VideoAdaptorPtr I830SetupImageVideoTextured(ScreenPtr screen)
 {
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	XF86VideoAdaptorPtr adapt;
 	intel_adaptor_private *adaptor_privs;

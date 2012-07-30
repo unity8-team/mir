@@ -172,7 +172,7 @@ static Bool i915_get_dest_format(PicturePtr dest_picture, uint32_t * dst_format)
 		*dst_format = COLR_BUF_ARGB4444;
 		break;
 	default:
-		scrn = xf86Screens[dest_picture->pDrawable->pScreen->myNum];
+		scrn = xf86ScreenToScrn(dest_picture->pDrawable->pScreen);
 		intel_debug_fallback(scrn,
 				     "Unsupported dest format 0x%x\n",
 				     (int)dest_picture->format);
@@ -189,7 +189,7 @@ i915_check_composite(int op,
 		     PicturePtr dest_picture,
 		     int width, int height)
 {
-	ScrnInfoPtr scrn = xf86Screens[dest_picture->pDrawable->pScreen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(dest_picture->pDrawable->pScreen);
 	uint32_t tmp1;
 
 	/* Check for unsupported compositing operations. */
@@ -243,7 +243,7 @@ Bool
 i915_check_composite_texture(ScreenPtr screen, PicturePtr picture)
 {
 	if (picture->repeatType > RepeatReflect) {
-		ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+		ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 		intel_debug_fallback(scrn, "Unsupported picture repeat %d\n",
 			     picture->repeatType);
 		return FALSE;
@@ -251,7 +251,7 @@ i915_check_composite_texture(ScreenPtr screen, PicturePtr picture)
 
 	if (picture->filter != PictFilterNearest &&
 	    picture->filter != PictFilterBilinear) {
-		ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+		ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 		intel_debug_fallback(scrn, "Unsupported filter 0x%x\n",
 				     picture->filter);
 		return FALSE;
@@ -266,7 +266,7 @@ i915_check_composite_texture(ScreenPtr screen, PicturePtr picture)
 		w = picture->pDrawable->width;
 		h = picture->pDrawable->height;
 		if ((w > 2048) || (h > 2048)) {
-			ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+			ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 			intel_debug_fallback(scrn,
 					     "Picture w/h too large (%dx%d)\n",
 					     w, h);
@@ -281,7 +281,7 @@ i915_check_composite_texture(ScreenPtr screen, PicturePtr picture)
 		}
 		if (i == sizeof(i915_tex_formats) / sizeof(i915_tex_formats[0]))
 		{
-			ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+			ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 			intel_debug_fallback(scrn, "Unsupported picture format "
 					     "0x%x\n",
 					     (int)picture->format);
@@ -296,7 +296,7 @@ i915_check_composite_texture(ScreenPtr screen, PicturePtr picture)
 
 static Bool i915_texture_setup(PicturePtr picture, PixmapPtr pixmap, int unit)
 {
-	ScrnInfoPtr scrn = xf86Screens[picture->pDrawable->pScreen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(picture->pDrawable->pScreen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	uint32_t format, pitch, filter;
 	uint32_t wrap_mode, tiling_bits;
@@ -344,7 +344,6 @@ static Bool i915_texture_setup(PicturePtr picture, PixmapPtr pixmap, int unit)
 		    (FILTER_LINEAR << SS2_MIN_FILTER_SHIFT);
 		break;
 	default:
-		filter = 0;
 		intel_debug_fallback(scrn, "Bad filter 0x%x\n",
 				     picture->filter);
 		return FALSE;
@@ -486,12 +485,9 @@ i915_emit_composite_primitive(intel_screen_private *intel,
 			      int w, int h)
 {
 	Bool is_affine_src = TRUE, is_affine_mask = TRUE;
-	int per_vertex;
 	int tex_unit = 0;
 	int src_unit = -1, mask_unit = -1;
 	float src_x[3], src_y[3], src_w[3], mask_x[3], mask_y[3], mask_w[3];
-
-	per_vertex = 2;		/* dest x/y */
 
 	src_unit = tex_unit++;
 
@@ -517,8 +513,6 @@ i915_emit_composite_primitive(intel_screen_private *intel,
 						      &src_x[2],
 						      &src_y[2]))
 			return;
-
-		per_vertex += 2;	/* src x/y */
 	} else {
 		if (!intel_get_transformed_coordinates_3d(srcX, srcY,
 							 intel->
@@ -543,8 +537,6 @@ i915_emit_composite_primitive(intel_screen_private *intel,
 							 &src_y[2],
 							 &src_w[2]))
 			return;
-
-		per_vertex += 4;	/* src x/y/z/w */
 	}
 
 	if (intel->render_mask) {
@@ -572,8 +564,6 @@ i915_emit_composite_primitive(intel_screen_private *intel,
 							      &mask_x[2],
 							      &mask_y[2]))
 				return;
-
-			per_vertex += 2;	/* mask x/y */
 		} else {
 			if (!intel_get_transformed_coordinates_3d(maskX, maskY,
 								 intel->
@@ -598,8 +588,6 @@ i915_emit_composite_primitive(intel_screen_private *intel,
 								 &mask_y[2],
 								 &mask_w[2]))
 				return;
-
-			per_vertex += 4;	/* mask x/y/z/w */
 		}
 	}
 
@@ -660,12 +648,12 @@ i915_prepare_composite(int op, PicturePtr source_picture,
 		       PicturePtr mask_picture, PicturePtr dest_picture,
 		       PixmapPtr source, PixmapPtr mask, PixmapPtr dest)
 {
-	ScrnInfoPtr scrn = xf86Screens[dest_picture->pDrawable->pScreen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(dest_picture->pDrawable->pScreen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	drm_intel_bo *bo_table[] = {
 		NULL,		/* batch_bo */
 		intel_get_pixmap_bo(dest),
-		source ? intel_get_pixmap_bo(source) : NULL,
+		intel_get_pixmap_bo(source),
 		mask ? intel_get_pixmap_bo(mask) : NULL,
 	};
 	int tex_unit = 0;
@@ -723,7 +711,8 @@ i915_prepare_composite(int op, PicturePtr source_picture,
 	else
 		floats_per_vertex += 4;	/* src x/y/z/w */
 
-	if (mask != NULL) {
+	if (mask_picture != NULL) {
+		assert(mask != NULL);
 		if (!i915_texture_setup(mask_picture, mask, tex_unit++)) {
 			intel_debug_fallback(scrn,
 					     "fail to setup mask texture\n");
@@ -951,7 +940,7 @@ void
 i915_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 	       int dstX, int dstY, int w, int h)
 {
-	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
+	ScrnInfoPtr scrn = xf86ScreenToScrn(dest->drawable.pScreen);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	/* 28 + 16 + 10 + 20 + 32 + 16 */

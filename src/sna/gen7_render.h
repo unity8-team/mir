@@ -81,24 +81,46 @@
 # define GEN7_3DSTATE_SF_TRIFAN_PROVOKE_SHIFT		25
 
 #define GEN7_3DSTATE_WM				GEN7_3D(3, 0, 0x14)
+/* DW1 */
+# define GEN7_WM_STATISTICS_ENABLE                              (1 << 31)
+# define GEN7_WM_DEPTH_CLEAR                                    (1 << 30)
+# define GEN7_WM_DISPATCH_ENABLE                                (1 << 29)
+# define GEN7_WM_DEPTH_RESOLVE                                  (1 << 28)
+# define GEN7_WM_HIERARCHICAL_DEPTH_RESOLVE                     (1 << 27)
+# define GEN7_WM_KILL_ENABLE                                    (1 << 25)
+# define GEN7_WM_PSCDEPTH_OFF                                   (0 << 23)
+# define GEN7_WM_PSCDEPTH_ON                                    (1 << 23)
+# define GEN7_WM_PSCDEPTH_ON_GE                                 (2 << 23)
+# define GEN7_WM_PSCDEPTH_ON_LE                                 (3 << 23)
+# define GEN7_WM_USES_SOURCE_DEPTH                              (1 << 20)
+# define GEN7_WM_USES_SOURCE_W                                  (1 << 19)
+# define GEN7_WM_POSITION_ZW_PIXEL                              (0 << 17)
+# define GEN7_WM_POSITION_ZW_CENTROID                           (2 << 17)
+# define GEN7_WM_POSITION_ZW_SAMPLE                             (3 << 17)
+# define GEN7_WM_NONPERSPECTIVE_SAMPLE_BARYCENTRIC              (1 << 16)
+# define GEN7_WM_NONPERSPECTIVE_CENTROID_BARYCENTRIC            (1 << 15)
+# define GEN7_WM_NONPERSPECTIVE_PIXEL_BARYCENTRIC               (1 << 14)
+# define GEN7_WM_PERSPECTIVE_SAMPLE_BARYCENTRIC                 (1 << 13)
+# define GEN7_WM_PERSPECTIVE_CENTROID_BARYCENTRIC               (1 << 12)
+# define GEN7_WM_PERSPECTIVE_PIXEL_BARYCENTRIC                  (1 << 11)
+# define GEN7_WM_USES_INPUT_COVERAGE_MASK                       (1 << 10)
+# define GEN7_WM_LINE_END_CAP_AA_WIDTH_0_5                      (0 << 8)
+# define GEN7_WM_LINE_END_CAP_AA_WIDTH_1_0                      (1 << 8)
+# define GEN7_WM_LINE_END_CAP_AA_WIDTH_2_0                      (2 << 8)
+# define GEN7_WM_LINE_END_CAP_AA_WIDTH_4_0                      (3 << 8)
+# define GEN7_WM_LINE_AA_WIDTH_0_5                              (0 << 6)
+# define GEN7_WM_LINE_AA_WIDTH_1_0                              (1 << 6)
+# define GEN7_WM_LINE_AA_WIDTH_2_0                              (2 << 6)
+# define GEN7_WM_LINE_AA_WIDTH_4_0                              (3 << 6)
+# define GEN7_WM_POLYGON_STIPPLE_ENABLE                         (1 << 4)
+# define GEN7_WM_LINE_STIPPLE_ENABLE                            (1 << 3)
+# define GEN7_WM_POINT_RASTRULE_UPPER_RIGHT                     (1 << 2)
+# define GEN7_WM_MSRAST_OFF_PIXEL                               (0 << 0)
+# define GEN7_WM_MSRAST_OFF_PATTERN                             (1 << 0)
+# define GEN7_WM_MSRAST_ON_PIXEL                                (2 << 0)
+# define GEN7_WM_MSRAST_ON_PATTERN                              (3 << 0)
 /* DW2 */
-# define GEN7_3DSTATE_WM_SAMPLER_COUNT_SHIFT			27
-# define GEN7_3DSTATE_WM_BINDING_TABLE_ENTRY_COUNT_SHIFT	18
-/* DW4 */
-# define GEN7_3DSTATE_WM_DISPATCH_START_GRF_0_SHIFT		16
-/* DW5 */
-# define GEN7_3DSTATE_WM_MAX_THREADS_SHIFT			25
-# define GEN7_3DSTATE_WM_DISPATCH_ENABLE			(1 << 19)
-# define GEN7_3DSTATE_WM_16_DISPATCH_ENABLE			(1 << 1)
-# define GEN7_3DSTATE_WM_8_DISPATCH_ENABLE			(1 << 0)
-/* DW6 */
-# define GEN7_3DSTATE_WM_NUM_SF_OUTPUTS_SHIFT			20
-# define GEN7_3DSTATE_WM_NONPERSPECTIVE_SAMPLE_BARYCENTRIC	(1 << 15)
-# define GEN7_3DSTATE_WM_NONPERSPECTIVE_CENTROID_BARYCENTRIC	(1 << 14)
-# define GEN7_3DSTATE_WM_NONPERSPECTIVE_PIXEL_BARYCENTRIC	(1 << 13)
-# define GEN7_3DSTATE_WM_PERSPECTIVE_SAMPLE_BARYCENTRIC		(1 << 12)
-# define GEN7_3DSTATE_WM_PERSPECTIVE_CENTROID_BARYCENTRIC	(1 << 11)
-# define GEN7_3DSTATE_WM_PERSPECTIVE_PIXEL_BARYCENTRIC		(1 << 10)
+# define GEN7_WM_MSDISPMODE_PERPIXEL                            (1 << 31)
 
 
 #define GEN7_3DSTATE_CONSTANT_VS		GEN7_3D(3, 0, 0x15)
@@ -177,7 +199,7 @@
 #define GEN7_VF_CTL_SKIP_INITIAL_PRIMITIVES	   (1 << 3)
 #define GEN7_VF_CTL_MAX_PRIMITIVES_LIMIT_ENABLE	   (1 << 2)
 #define GEN7_VF_CTL_VERTEX_RANGE_LIMIT_ENABLE	   (1 << 1)
-#define GEN7_VF_CTL_SNAPSHOT_ENABLE	     	   (1 << 0)
+#define GEN7_VF_CTL_SNAPSHOT_ENABLE		   (1 << 0)
 
 #define GEN7_VF_STRG_VAL		       0x7504
 #define GEN7_VF_STR_VL_OVR	       0x7508
@@ -240,7 +262,7 @@
 #define GEN7_TS_CTL_SNAPSHOT_MESSAGE_ERROR	   (0 << 8)
 #define GEN7_TS_CTL_SNAPSHOT_INTERFACE_DESCRIPTOR   (3 << 8)
 #define GEN7_TS_CTL_SNAPSHOT_ALL_CHILD_THREADS	   (1 << 2)
-#define GEN7_TS_CTL_SNAPSHOT_ALL_ROOT_THREADS  	   (1 << 1)
+#define GEN7_TS_CTL_SNAPSHOT_ALL_ROOT_THREADS	   (1 << 1)
 #define GEN7_TS_CTL_SNAPSHOT_ENABLE		   (1 << 0)
 
 #define GEN7_TS_STRG_VAL		       0x7e04
@@ -287,119 +309,6 @@
 #define GEN7_EU_ATT_CLR_0	       0x8830
 #define GEN7_EU_ATT_CLR_1	       0x8834
 #define GEN7_EU_RDATA		       0x8840
-
-#define GEN7_3DPRIMITIVE				GEN7_3D(3, 3, 0)
-
-/* for GEN7+ */
-#define GEN7_3DSTATE_SAMPLER_STATE_POINTERS	GEN7_3D(3, 0, 0x02)
-# define GEN7_3DSTATE_SAMPLER_STATE_MODIFY_PS	(1 << 12)
-# define GEN7_3DSTATE_SAMPLER_STATE_MODIFY_GS	(1 << 9)
-# define GEN7_3DSTATE_SAMPLER_STATE_MODIFY_VS	(1 << 8)
-
-#define GEN7_3DSTATE_URB			GEN7_3D(3, 0, 0x05)
-/* DW1 */
-# define GEN7_3DSTATE_URB_VS_SIZE_SHIFT		16
-# define GEN7_3DSTATE_URB_VS_ENTRIES_SHIFT	0
-/* DW2 */
-# define GEN7_3DSTATE_URB_GS_ENTRIES_SHIFT	8
-# define GEN7_3DSTATE_URB_GS_SIZE_SHIFT		0
-
-#define GEN7_3DSTATE_VIEWPORT_STATE_POINTERS	GEN7_3D(3, 0, 0x0d)
-# define GEN7_3DSTATE_VIEWPORT_STATE_MODIFY_CC		(1 << 12)
-# define GEN7_3DSTATE_VIEWPORT_STATE_MODIFY_SF		(1 << 11)
-# define GEN7_3DSTATE_VIEWPORT_STATE_MODIFY_CLIP	(1 << 10)
-
-#define GEN7_3DSTATE_CC_STATE_POINTERS		GEN7_3D(3, 0, 0x0e)
-
-#define GEN7_3DSTATE_VS				GEN7_3D(3, 0, 0x10)
-
-#define GEN7_3DSTATE_GS				GEN7_3D(3, 0, 0x11)
-/* DW4 */
-# define GEN7_3DSTATE_GS_DISPATCH_START_GRF_SHIFT	0
-
-#define GEN7_3DSTATE_CLIP			GEN7_3D(3, 0, 0x12)
-
-#define GEN7_3DSTATE_SF				GEN7_3D(3, 0, 0x13)
-/* DW1 */
-# define GEN7_3DSTATE_SF_NUM_OUTPUTS_SHIFT		22
-# define GEN7_3DSTATE_SF_URB_ENTRY_READ_LENGTH_SHIFT	11
-# define GEN7_3DSTATE_SF_URB_ENTRY_READ_OFFSET_SHIFT	4
-/* DW2 */
-/* DW3 */
-# define GEN7_3DSTATE_SF_CULL_BOTH			(0 << 29)
-# define GEN7_3DSTATE_SF_CULL_NONE			(1 << 29)
-# define GEN7_3DSTATE_SF_CULL_FRONT			(2 << 29)
-# define GEN7_3DSTATE_SF_CULL_BACK			(3 << 29)
-/* DW4 */
-# define GEN7_3DSTATE_SF_TRI_PROVOKE_SHIFT		29
-# define GEN7_3DSTATE_SF_LINE_PROVOKE_SHIFT		27
-# define GEN7_3DSTATE_SF_TRIFAN_PROVOKE_SHIFT		25
-
-
-#define GEN7_3DSTATE_WM				GEN7_3D(3, 0, 0x14)
-/* DW2 */
-# define GEN7_3DSTATE_WM_SAMPLER_COUNT_SHITF			27
-# define GEN7_3DSTATE_WM_BINDING_TABLE_ENTRY_COUNT_SHIFT	18
-/* DW4 */
-# define GEN7_3DSTATE_WM_DISPATCH_START_GRF_0_SHIFT		16
-/* DW5 */
-# define GEN7_3DSTATE_WM_MAX_THREADS_SHIFT			25
-# define GEN7_3DSTATE_WM_DISPATCH_ENABLE			(1 << 19)
-# define GEN7_3DSTATE_WM_16_DISPATCH_ENABLE			(1 << 1)
-# define GEN7_3DSTATE_WM_8_DISPATCH_ENABLE			(1 << 0)
-/* DW6 */
-# define GEN7_3DSTATE_WM_NUM_SF_OUTPUTS_SHIFT			20
-# define GEN7_3DSTATE_WM_NONPERSPECTIVE_SAMPLE_BARYCENTRIC	(1 << 15)
-# define GEN7_3DSTATE_WM_NONPERSPECTIVE_CENTROID_BARYCENTRIC	(1 << 14)
-# define GEN7_3DSTATE_WM_NONPERSPECTIVE_PIXEL_BARYCENTRIC	(1 << 13)
-# define GEN7_3DSTATE_WM_PERSPECTIVE_SAMPLE_BARYCENTRIC		(1 << 12)
-# define GEN7_3DSTATE_WM_PERSPECTIVE_CENTROID_BARYCENTRIC	(1 << 11)
-# define GEN7_3DSTATE_WM_PERSPECTIVE_PIXEL_BARYCENTRIC		(1 << 10)
-
-
-#define GEN7_3DSTATE_CONSTANT_VS		GEN7_3D(3, 0, 0x15)
-#define GEN7_3DSTATE_CONSTANT_GS          	GEN7_3D(3, 0, 0x16)
-#define GEN7_3DSTATE_CONSTANT_PS          	GEN7_3D(3, 0, 0x17)
-
-#define GEN7_3DSTATE_SAMPLE_MASK		GEN7_3D(3, 0, 0x18)
-
-#define GEN7_3DSTATE_MULTISAMPLE		GEN7_3D(3, 1, 0x0d)
-/* DW1 */
-# define GEN7_3DSTATE_MULTISAMPLE_PIXEL_LOCATION_CENTER		(0 << 4)
-# define GEN7_3DSTATE_MULTISAMPLE_PIXEL_LOCATION_UPPER_LEFT	(1 << 4)
-# define GEN7_3DSTATE_MULTISAMPLE_NUMSAMPLES_1			(0 << 1)
-# define GEN7_3DSTATE_MULTISAMPLE_NUMSAMPLES_4			(2 << 1)
-# define GEN7_3DSTATE_MULTISAMPLE_NUMSAMPLES_8			(3 << 1)
-
-#define PIPELINE_SELECT_3D		0
-#define PIPELINE_SELECT_MEDIA		1
-
-#define UF0_CS_REALLOC			(1 << 13)
-#define UF0_VFE_REALLOC			(1 << 12)
-#define UF0_SF_REALLOC			(1 << 11)
-#define UF0_CLIP_REALLOC		(1 << 10)
-#define UF0_GS_REALLOC			(1 << 9)
-#define UF0_VS_REALLOC			(1 << 8)
-#define UF1_CLIP_FENCE_SHIFT		20
-#define UF1_GS_FENCE_SHIFT		10
-#define UF1_VS_FENCE_SHIFT		0
-#define UF2_CS_FENCE_SHIFT		20
-#define UF2_VFE_FENCE_SHIFT		10
-#define UF2_SF_FENCE_SHIFT		0
-
-/* for GEN7_STATE_BASE_ADDRESS */
-#define BASE_ADDRESS_MODIFY		(1 << 0)
-
-/* for GEN7_3DSTATE_PIPELINED_POINTERS */
-#define GEN7_GS_DISABLE		       0
-#define GEN7_GS_ENABLE		       1
-#define GEN7_CLIP_DISABLE	       0
-#define GEN7_CLIP_ENABLE		       1
-
-#define GEN7_SVG_RDATA		       0x7404
-#define GEN7_SVG_WORK_CTL	       0x7408
-
-#define GEN7_VF_CTL		       0x7500
 
 #define _3DPRIM_POINTLIST         0x01
 #define _3DPRIM_LINELIST          0x02
@@ -1336,48 +1245,6 @@ struct gen7_sampler_state {
 /* DW1 */
 # define GEN7_3DPRIM_VERTEXBUFFER_ACCESS_SEQUENTIAL     (0 << 8)
 # define GEN7_3DPRIM_VERTEXBUFFER_ACCESS_RANDOM         (1 << 8)
-
-/* 3DSTATE_WM on GEN7 */
-/* DW1 */
-# define GEN7_WM_STATISTICS_ENABLE                              (1 << 31)
-# define GEN7_WM_DEPTH_CLEAR                                    (1 << 30)
-# define GEN7_WM_DISPATCH_ENABLE                                (1 << 29)
-# define GEN6_WM_DEPTH_RESOLVE                                  (1 << 28)
-# define GEN7_WM_HIERARCHICAL_DEPTH_RESOLVE                     (1 << 27)
-# define GEN7_WM_KILL_ENABLE                                    (1 << 25)
-# define GEN7_WM_PSCDEPTH_OFF                                   (0 << 23)
-# define GEN7_WM_PSCDEPTH_ON                                    (1 << 23)
-# define GEN7_WM_PSCDEPTH_ON_GE                                 (2 << 23)
-# define GEN7_WM_PSCDEPTH_ON_LE                                 (3 << 23)
-# define GEN7_WM_USES_SOURCE_DEPTH                              (1 << 20)
-# define GEN7_WM_USES_SOURCE_W                                  (1 << 19)
-# define GEN7_WM_POSITION_ZW_PIXEL                              (0 << 17)
-# define GEN7_WM_POSITION_ZW_CENTROID                           (2 << 17)
-# define GEN7_WM_POSITION_ZW_SAMPLE                             (3 << 17)
-# define GEN7_WM_NONPERSPECTIVE_SAMPLE_BARYCENTRIC              (1 << 16)
-# define GEN7_WM_NONPERSPECTIVE_CENTROID_BARYCENTRIC            (1 << 15)
-# define GEN7_WM_NONPERSPECTIVE_PIXEL_BARYCENTRIC               (1 << 14)
-# define GEN7_WM_PERSPECTIVE_SAMPLE_BARYCENTRIC                 (1 << 13)
-# define GEN7_WM_PERSPECTIVE_CENTROID_BARYCENTRIC               (1 << 12)
-# define GEN7_WM_PERSPECTIVE_PIXEL_BARYCENTRIC                  (1 << 11)
-# define GEN7_WM_USES_INPUT_COVERAGE_MASK                       (1 << 10)
-# define GEN7_WM_LINE_END_CAP_AA_WIDTH_0_5                      (0 << 8)
-# define GEN7_WM_LINE_END_CAP_AA_WIDTH_1_0                      (1 << 8)
-# define GEN7_WM_LINE_END_CAP_AA_WIDTH_2_0                      (2 << 8)
-# define GEN7_WM_LINE_END_CAP_AA_WIDTH_4_0                      (3 << 8)
-# define GEN7_WM_LINE_AA_WIDTH_0_5                              (0 << 6)
-# define GEN7_WM_LINE_AA_WIDTH_1_0                              (1 << 6)
-# define GEN7_WM_LINE_AA_WIDTH_2_0                              (2 << 6)
-# define GEN7_WM_LINE_AA_WIDTH_4_0                              (3 << 6)
-# define GEN7_WM_POLYGON_STIPPLE_ENABLE                         (1 << 4)
-# define GEN7_WM_LINE_STIPPLE_ENABLE                            (1 << 3)
-# define GEN7_WM_POINT_RASTRULE_UPPER_RIGHT                     (1 << 2)
-# define GEN7_WM_MSRAST_OFF_PIXEL                               (0 << 0)
-# define GEN7_WM_MSRAST_OFF_PATTERN                             (1 << 0)
-# define GEN7_WM_MSRAST_ON_PIXEL                                (2 << 0)
-# define GEN7_WM_MSRAST_ON_PATTERN                              (3 << 0)
-/* DW2 */
-# define GEN7_WM_MSDISPMODE_PERPIXEL                            (1 << 31)
 
 #define GEN7_3DSTATE_CLEAR_PARAMS               GEN7_3D(3, 0, 0x04)
 #define GEN7_3DSTATE_DEPTH_BUFFER               GEN7_3D(3, 0, 0x05)

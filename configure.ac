@@ -23,7 +23,7 @@
 # Initialize Autoconf
 AC_PREREQ([2.60])
 AC_INIT([xf86-video-intel],
-        [2.19.0],
+        [2.20.2],
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
         [xf86-video-intel])
 AC_CONFIG_SRCDIR([Makefile.am])
@@ -115,30 +115,39 @@ AC_ARG_ENABLE(kms-only, AS_HELP_STRING([--enable-kms-only],
               [KMS_ONLY="$enableval"],
               [KMS_ONLY=no])
 
-AC_MSG_CHECKING([whether to include SNA support])
-AC_ARG_ENABLE(sna,
-	      AS_HELP_STRING([--enable-sna],
-			     [Enable SandyBridge's New Acceleration (SNA) [default=no]]),
-	      [SNA="$enableval"],
-	      [SNA=no])
-AM_CONDITIONAL(SNA, test x$SNA != xno)
 required_xorg_xserver_version=1.6
 required_pixman_version=0.24
+
+if pkg-config --exists 'pixman-1 >= 0.27.1'; then
+	AC_DEFINE([HAS_PIXMAN_GLYPHS], 1, [Enable pixman glyph cache])
+fi
+
+AC_ARG_ENABLE(sna,
+	      AS_HELP_STRING([--enable-sna],
+			     [Enable SandyBridge's New Acceleration (SNA) [default=auto]]),
+	      [SNA="$enableval"],
+	      [SNA=auto])
+
+AC_CHECK_HEADERS([sys/sysinfo.h], , SNA=no)
+if test "x$SNA" = "xauto" && pkg-config --exists "xorg-server >= 1.10"; then
+	SNA=yes
+fi
 if test "x$SNA" != "xno"; then
 	required_xorg_xserver_version=1.10
 	AC_DEFINE(USE_SNA, 1, [Enable SNA support])
-	AC_CHECK_HEADERS([sys/sysinfo.h])
 fi
+AC_MSG_CHECKING([whether to include SNA support])
+AM_CONDITIONAL(SNA, test x$SNA != xno)
 AC_MSG_RESULT([$SNA])
 
-AC_MSG_CHECKING([whether to include UXA support])
 AC_ARG_ENABLE(uxa,
 	      AS_HELP_STRING([--enable-uxa],
 			     [Enable Unified Acceleration Architecture (UXA) [default=yes]]),
 	      [UXA="$enableval"],
 	      [UXA=yes])
-AC_MSG_RESULT([$UXA])
+AC_MSG_CHECKING([whether to include UXA support])
 AM_CONDITIONAL(UXA, test x$UXA != xno)
+AC_MSG_RESULT([$UXA])
 if test "x$UXA" != "xno"; then
 	AC_DEFINE(USE_UXA, 1, [Enable UXA support])
 	PKG_CHECK_MODULES(DRMINTEL, [libdrm_intel >= 2.4.29])
@@ -158,23 +167,111 @@ if test "x$GLAMOR" != "xno"; then
 	AC_DEFINE(USE_GLAMOR, 1, [Enable glamor acceleration])
 fi
 
-AC_ARG_ENABLE(vmap,
-	      AS_HELP_STRING([--enable-vmap],
-			     [Enable use of vmap [default=no]]),
-	      [VMAP="$enableval"],
-	      [VMAP=no])
-AM_CONDITIONAL(USE_VMAP, test x$VMAP = xyes)
-if test "x$VMAP" = xyes; then
-	AC_DEFINE(USE_VMAP,1,[Assume VMAP support])
+
+PKG_CHECK_MODULES(XORG, [xorg-server >= $required_xorg_xserver_version xproto fontsproto pixman-1 >= $required_pixman_version $REQUIRED_MODULES])
+
+AC_ARG_ENABLE(xaa,
+	      AS_HELP_STRING([--enable-xaa],
+			     [Enable legacy X Acceleration Architecture (XAA) [default=auto]]),
+	      [XAA="$enableval"],
+	      [XAA=auto])
+if test "x$XAA" != xno; then
+        save_CFLAGS=$CFLAGS
+        CFLAGS=$XORG_CFLAGS
+	AC_CHECK_HEADERS([xaa.h], XAA=yes, XAA=no)
+        CFLAGS=$save_CFLAGS
+fi
+AC_MSG_CHECKING([whether to include XAA support])
+AM_CONDITIONAL(XAA, test "x$XAA" = xyes)
+AC_MSG_RESULT([$XAA])
+
+AC_ARG_ENABLE(dga,
+	      AS_HELP_STRING([--enable-dga],
+			     [Enable legacy Direct Graphics Access (DGA) [default=auto]]),
+	      [DGA="$enableval"],
+	      [DGA=auto])
+if test "x$DGA" != xno; then
+        save_CFLAGS=$CFLAGS
+        CFLAGS=$XORG_CFLAGS
+	AC_CHECK_HEADERS([dgaproc.h], DGA=yes, DGA=no, [#include <dixstruct.h>])
+        CFLAGS=$save_CFLAGS
+fi
+AC_MSG_CHECKING([whether to include DGA support])
+AM_CONDITIONAL(DGA, test "x$DGA" = xyes)
+AC_MSG_RESULT([$DGA])
+
+AC_ARG_WITH(default-accel,
+	    AS_HELP_STRING([--with-default-accel],
+			   [Select the default acceleration method [default=uxa if enabled, otherwise sna]]),
+			   [accel="$withval"],
+			   [accel=auto])
+if test "x$accel" = xyes; then
+	AC_MSG_WARN([No default acceleration specified, choosing automatic selection])
+	accel="auto"
 fi
 
+AC_MSG_CHECKING([which acceleration method to use by default])
+if test "x$accel" = xauto; then
+	if test "x$UXA" != "xno"; then
+		accel=uxa
+	else
+		if test "x$SNA" != "xno"; then
+			accel=sna
+		fi
+	fi
+	if test "x$accel" = xauto; then
+		AC_MSG_ERROR([No default acceleration option])
+	fi
+fi
+
+have_accel=no
+if test "x$accel" = xsna; then
+	if test "x$SNA" != "xno"; then
+		AC_DEFINE(DEFAULT_ACCEL_METHOD, SNA, [Default acceleration method])
+		have_accel=yes
+	else
+		AC_MSG_ERROR([SNA requested as default, but is not enabled])
+	fi
+fi
+
+if test "x$accel" = xuxa; then
+	if test "x$UXA" != "xno"; then
+		AC_DEFINE(DEFAULT_ACCEL_METHOD, UXA, [Default acceleration method])
+		have_accel=yes
+	else
+		AC_MSG_ERROR([UXA requested as default, but is not enabled])
+	fi
+fi
+AC_MSG_RESULT($accel)
+if test "x$accel" = xno; then
+	AC_MSG_ERROR([No default acceleration option])
+fi
+
+AC_ARG_ENABLE(userptr,
+	      AS_HELP_STRING([--enable-userptr],
+			     [Enable use of userptr (experimental) [default=no]]),
+	      [USERPTR="$enableval"],
+	      [USERPTR=no])
+AM_CONDITIONAL(USE_USERPTR, test x$USERPTR = xyes)
+if test "x$USERPTR" = xyes; then
+	AC_DEFINE(USE_USERPTR,1,[Assume USERPTR support])
+fi
+
+AC_ARG_ENABLE(async-swap,
+	      AS_HELP_STRING([--enable-async-swap],
+			     [Enable use of asynchronous swaps (experimental) [default=no]]),
+	      [ASYNC_SWAP="$enableval"],
+	      [ASYNC_SWAP=no])
+AM_CONDITIONAL(USE_ASYNC_SWAP, test x$ASYNC_SWAP = xyes)
+if test "x$ASYNC_SWAP" = xyes; then
+	AC_DEFINE(USE_ASYNC_SWAP,1,[Assume asynchronous swap support])
+fi
 
 AC_ARG_ENABLE(debug,
 	      AS_HELP_STRING([--enable-debug],
 			     [Enables internal debugging [default=no]]),
               [DEBUG="$enableval"],
               [DEBUG=no])
-
 # Store the list of server defined optional extensions in REQUIRED_MODULES
 XORG_DRIVER_CHECK_EXT(RANDR, randrproto)
 XORG_DRIVER_CHECK_EXT(RENDER, renderproto)
@@ -182,7 +279,6 @@ XORG_DRIVER_CHECK_EXT(XF86DRI, xextproto x11)
 XORG_DRIVER_CHECK_EXT(DPMSExtension, xextproto)
 
 # Obtain compiler/linker options for the driver dependencies
-PKG_CHECK_MODULES(XORG, [xorg-server >= $required_xorg_xserver_version xproto fontsproto pixman-1 >= $required_pixman_version $REQUIRED_MODULES])
 PKG_CHECK_MODULES(DRM, [libdrm >= 2.4.24]) # libdrm_intel is checked separately
 PKG_CHECK_MODULES(DRI, [xf86driproto], , DRI=no)
 PKG_CHECK_MODULES(DRI2, [dri2proto >= 2.6],, DRI2=no)
@@ -227,10 +323,16 @@ else
                 AC_MSG_ERROR([DRI requested but prerequisites not found])
         fi
 fi
-AM_CONDITIONAL(DRI2, test x$DRI2 != xno)
+
 if test "x$DRI2" != "xno"; then
-        AC_DEFINE(USE_DRI2,1,[Enable DRI2 driver support])
+	save_CFLAGS=$CFLAGS
+	CFLAGS="$XORG_CFLAGS $DRM_CFLAGS $DRI_CFLAGS $DRI2_CFLAGS"
+	AC_CHECK_HEADERS([dri2.h], DRI2=yes, DRI2=no, [#include <dixstruct.h>])
+	CFLAGS=$save_CFLAGS
 fi
+AC_MSG_CHECKING([whether to include DRI2 support])
+AM_CONDITIONAL(DRI2, test "x$DRI2" = xyes)
+AC_MSG_RESULT([$DRI2])
 
 if test "$XVMC" = yes; then
 	PKG_CHECK_MODULES(XVMCLIB,
@@ -250,22 +352,28 @@ if test "x$KMS_ONLY" = xyes; then
 fi
 
 AM_CONDITIONAL(DEBUG, test x$DEBUG != xno)
+AM_CONDITIONAL(FULL_DEBUG, test x$FULL_DEBUG == xfull)
 if test "x$DEBUG" = xno; then
 	AC_DEFINE(NDEBUG,1,[Disable internal debugging])
 fi
 if test "x$DEBUG" != xno; then
-	AC_DEFINE(HAS_EXTRA_DEBUG,1,[Enable additional debugging])
 	PKG_CHECK_MODULES(VALGRIND, [valgrind], have_valgrind=yes, have_valgrind=no)
 	if test x$have_valgrind = xyes; then
 		AC_DEFINE([HAVE_VALGRIND], 1, [Use valgrind intrinsics to suppress false warnings])
 	fi
 fi
+if test "x$DEBUG" = xmemory; then
+	AC_DEFINE(DEBUG_MEMORY,1,[Enable memory debugging])
+fi
+if test "x$DEBUG" = xpixmap; then
+	AC_DEFINE(DEBUG_PIXMAP,1,[Enable pixmap debugging])
+fi
 if test "x$DEBUG" = xfull; then
+	AC_DEFINE(DEBUG_MEMORY,1,[Enable memory debugging])
+	AC_DEFINE(DEBUG_PIXMAP,1,[Enable pixmap debugging])
 	AC_DEFINE(HAS_DEBUG_FULL,1,[Enable all debugging])
         CFLAGS="$CFLAGS -O0 -ggdb3"
 fi
-
-AC_CHECK_HEADERS([sys/timerfd.h])
 
 DRIVER_NAME=intel
 AC_SUBST([DRIVER_NAME])
@@ -283,6 +391,7 @@ AC_CONFIG_FILES([
                 src/legacy/i810/Makefile
                 src/legacy/i810/xvmc/Makefile
                 src/sna/Makefile
+                src/sna/fb/Makefile
                 man/Makefile
                 src/render_program/Makefile
 		test/Makefile

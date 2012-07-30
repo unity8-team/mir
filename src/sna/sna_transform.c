@@ -31,7 +31,6 @@
 #include "config.h"
 #endif
 
-#include "xf86.h"
 #include "sna.h"
 
 /**
@@ -39,22 +38,22 @@
  *
  * transform may be null.
  */
-Bool sna_transform_is_affine(const PictTransform *t)
+bool sna_transform_is_affine(const PictTransform *t)
 {
 	if (t == NULL)
-		return TRUE;
+		return true;
 
 	return t->matrix[2][0] == 0 && t->matrix[2][1] == 0;
 }
 
-Bool
+bool
 sna_transform_is_translation(const PictTransform *t,
 			     pixman_fixed_t *tx,
 			     pixman_fixed_t *ty)
 {
 	if (t == NULL) {
 		*tx = *ty = 0;
-		return TRUE;
+		return true;
 	}
 
 	if (t->matrix[0][0] != IntToxFixed(1) ||
@@ -64,19 +63,19 @@ sna_transform_is_translation(const PictTransform *t,
 	    t->matrix[2][0] != 0 ||
 	    t->matrix[2][1] != 0 ||
 	    t->matrix[2][2] != IntToxFixed(1))
-		return FALSE;
+		return false;
 
 	*tx = t->matrix[0][2];
 	*ty = t->matrix[1][2];
-	return TRUE;
+	return true;
 }
 
-Bool
+bool
 sna_transform_is_integer_translation(const PictTransform *t, int16_t *tx, int16_t *ty)
 {
 	if (t == NULL) {
 		*tx = *ty = 0;
-		return TRUE;
+		return true;
 	}
 
 	if (t->matrix[0][0] != IntToxFixed(1) ||
@@ -86,15 +85,15 @@ sna_transform_is_integer_translation(const PictTransform *t, int16_t *tx, int16_
 	    t->matrix[2][0] != 0 ||
 	    t->matrix[2][1] != 0 ||
 	    t->matrix[2][2] != IntToxFixed(1))
-		return FALSE;
+		return false;
 
 	if (pixman_fixed_fraction(t->matrix[0][2]) ||
 	    pixman_fixed_fraction(t->matrix[1][2]))
-		return FALSE;
+		return false;
 
 	*tx = pixman_fixed_to_int(t->matrix[0][2]);
 	*ty = pixman_fixed_to_int(t->matrix[1][2]);
-	return TRUE;
+	return true;
 }
 
 /**
@@ -115,7 +114,7 @@ sna_get_transformed_coordinates(int x, int y,
 /**
  * Returns the un-normalized floating-point coordinates transformed by the given transform.
  */
-Bool
+void
 sna_get_transformed_coordinates_3d(int x, int y,
 				   const PictTransform *transform,
 				   float *x_out, float *y_out, float *w_out)
@@ -127,13 +126,13 @@ sna_get_transformed_coordinates_3d(int x, int y,
 	} else {
 		int64_t result[3];
 
-		if (!_sna_transform_point(transform, x, y, result))
-			return FALSE;
-
-		*x_out = result[0] / 65536.;
-		*y_out = result[1] / 65536.;
-		*w_out = result[2] / 65536.;
+		if (_sna_transform_point(transform, x, y, result)) {
+			*x_out = result[0] / 65536.;
+			*y_out = result[1] / 65536.;
+			*w_out = result[2] / 65536.;
+		} else {
+			*x_out = *y_out = 0;
+			*w_out = 1.;
+		}
 	}
-
-	return TRUE;
 }

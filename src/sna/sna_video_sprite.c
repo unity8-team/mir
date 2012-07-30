@@ -31,21 +31,19 @@
 #include "sna.h"
 #include "sna_video.h"
 
+#include "intel_options.h"
+
+#include <xf86drm.h>
 #include <xf86xv.h>
 #include <X11/extensions/Xv.h>
 #include <fourcc.h>
 #include <drm_fourcc.h>
 #include <i915_drm.h>
 
-#if DEBUG_VIDEO_OVERLAY
-#undef DBG
-#define DBG(x) ErrorF x
-#endif
-
 #define IMAGE_MAX_WIDTH		2048
 #define IMAGE_MAX_HEIGHT	2048
 
-#define MAKE_ATOM(a) MakeAtom(a, sizeof(a) - 1, TRUE)
+#define MAKE_ATOM(a) MakeAtom(a, sizeof(a) - 1, true)
 
 static Atom xvColorKey;
 
@@ -87,7 +85,7 @@ static int sna_video_sprite_set_attr(ScrnInfoPtr scrn,
 	struct sna_video *video = data;
 
 	if (attribute == xvColorKey) {
-		video->color_key_changed = TRUE;
+		video->color_key_changed = true;
 		video->color_key = value;
 		DBG(("COLORKEY = %d\n", value));
 	} else
@@ -169,7 +167,7 @@ update_dst_box_to_crtc_coords(struct sna *sna, xf86CrtcPtr crtc, BoxPtr dstBox)
 	}
 }
 
-static Bool
+static bool
 sna_video_sprite_show(struct sna *sna,
 		      struct sna_video *video,
 		      struct sna_video_frame *frame,
@@ -195,13 +193,13 @@ sna_video_sprite_show(struct sna *sna,
 		set.plane_id = plane;
 		set.value = video->color_key;
 
-		if (drmCommandWrite(sna->kgem.fd,
-				    DRM_I915_SET_SPRITE_DESTKEY,
-				    &set, sizeof(set)))
+		if (drmIoctl(sna->kgem.fd,
+			     DRM_IOCTL_I915_SET_SPRITE_DESTKEY,
+			     &set))
 			xf86DrvMsg(sna->scrn->scrnIndex, X_ERROR,
 				   "failed to update color key\n");
 
-		video->color_key_changed = FALSE;
+		video->color_key_changed = false;
 	}
 #endif
 
@@ -408,9 +406,9 @@ XF86VideoAdaptorPtr sna_video_sprite_setup(struct sna *sna,
 	adaptor->PutImage = sna_video_sprite_put_image;
 	adaptor->QueryImageAttributes = sna_video_sprite_query_attrs;
 
-	video->textured = FALSE;
+	video->textured = false;
 	video->color_key = sna_video_sprite_color_key(sna);
-	video->color_key_changed = TRUE;
+	video->color_key_changed = true;
 	video->brightness = -19;	/* (255/219) * -16 */
 	video->contrast = 75;	/* 255/219 * 64 */
 	video->saturation = 146;	/* 128/112 * 128 */
