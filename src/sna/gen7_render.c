@@ -40,6 +40,7 @@
 #include "sna_render_inline.h"
 #include "sna_video.h"
 
+#include "brw/brw.h"
 #include "gen7_render.h"
 
 #define NO_COMPOSITE 0
@@ -52,6 +53,14 @@
 #define NO_FILL_CLEAR 0
 
 #define NO_RING_SWITCH 0
+
+#define USE_8_PIXEL_DISPATCH 0
+#define USE_16_PIXEL_DISPATCH 1
+#define USE_32_PIXEL_DISPATCH 0
+
+#if !USE_8_PIXEL_DISPATCH && !USE_16_PIXEL_DISPATCH && !USE_32_PIXEL_DISPATCH
+#error "Must select at least 8, 16 or 32 pixel dispatch"
+#endif
 
 #define GEN7_MAX_SIZE 16384
 
@@ -88,72 +97,6 @@ static const struct gt_info gt2_info = {
 	.urb = { 256, 704, 320 },
 };
 
-static const uint32_t ps_kernel_nomask_affine[][4] = {
-#include "exa_wm_src_affine.g7b"
-#include "exa_wm_src_sample_argb.g7b"
-#include "exa_wm_write.g7b"
-};
-
-static const uint32_t ps_kernel_nomask_projective[][4] = {
-#include "exa_wm_src_projective.g7b"
-#include "exa_wm_src_sample_argb.g7b"
-#include "exa_wm_write.g7b"
-};
-
-static const uint32_t ps_kernel_maskca_affine[][4] = {
-#include "exa_wm_src_affine.g7b"
-#include "exa_wm_src_sample_argb.g7b"
-#include "exa_wm_mask_affine.g7b"
-#include "exa_wm_mask_sample_argb.g7b"
-#include "exa_wm_ca.g6b" //#include "exa_wm_ca.g7b"
-#include "exa_wm_write.g7b"
-};
-
-static const uint32_t ps_kernel_maskca_projective[][4] = {
-#include "exa_wm_src_projective.g7b"
-#include "exa_wm_src_sample_argb.g7b"
-#include "exa_wm_mask_projective.g7b"
-#include "exa_wm_mask_sample_argb.g7b"
-#include "exa_wm_ca.g6b" //#include "exa_wm_ca.g7b"
-#include "exa_wm_write.g7b"
-};
-
-static const uint32_t ps_kernel_maskca_srcalpha_affine[][4] = {
-#include "exa_wm_src_affine.g7b"
-#include "exa_wm_src_sample_a.g7b"
-#include "exa_wm_mask_affine.g7b"
-#include "exa_wm_mask_sample_argb.g7b"
-#include "exa_wm_ca_srcalpha.g6b" //#include "exa_wm_ca_srcalpha.g7b"
-#include "exa_wm_write.g7b"
-};
-
-static const uint32_t ps_kernel_maskca_srcalpha_projective[][4] = {
-#include "exa_wm_src_projective.g7b"
-#include "exa_wm_src_sample_a.g7b"
-#include "exa_wm_mask_projective.g7b"
-#include "exa_wm_mask_sample_argb.g7b"
-#include "exa_wm_ca_srcalpha.g6b" //#include "exa_wm_ca_srcalpha.g7b"
-#include "exa_wm_write.g7b"
-};
-
-static const uint32_t ps_kernel_masknoca_affine[][4] = {
-#include "exa_wm_src_affine.g7b"
-#include "exa_wm_src_sample_argb.g7b"
-#include "exa_wm_mask_affine.g7b"
-#include "exa_wm_mask_sample_a.g7b"
-#include "exa_wm_noca.g6b"// #include "exa_wm_noca.g7b"
-#include "exa_wm_write.g7b"
-};
-
-static const uint32_t ps_kernel_masknoca_projective[][4] = {
-#include "exa_wm_src_projective.g7b"
-#include "exa_wm_src_sample_argb.g7b"
-#include "exa_wm_mask_projective.g7b"
-#include "exa_wm_mask_sample_a.g7b"
-#include "exa_wm_noca.g6b" //#include "exa_wm_noca.g7b"
-#include "exa_wm_write.g7b"
-};
-
 static const uint32_t ps_kernel_packed[][4] = {
 #include "exa_wm_src_affine.g7b"
 #include "exa_wm_src_sample_argb.g7b"
@@ -170,23 +113,25 @@ static const uint32_t ps_kernel_planar[][4] = {
 
 #define KERNEL(kernel_enum, kernel, num_surfaces) \
     [GEN7_WM_KERNEL_##kernel_enum] = {#kernel_enum, kernel, sizeof(kernel), num_surfaces}
+#define NOKERNEL(kernel_enum, func, num_surfaces) \
+    [GEN7_WM_KERNEL_##kernel_enum] = {#kernel_enum, (void *)func, 0, num_surfaces}
 static const struct wm_kernel_info {
 	const char *name;
 	const void *data;
 	unsigned int size;
 	int num_surfaces;
 } wm_kernels[] = {
-	KERNEL(NOMASK, ps_kernel_nomask_affine, 2),
-	KERNEL(NOMASK_PROJECTIVE, ps_kernel_nomask_projective, 2),
+	NOKERNEL(NOMASK, brw_wm_kernel__affine, 2),
+	NOKERNEL(NOMASK_P, brw_wm_kernel__projective, 2),
 
-	KERNEL(MASK, ps_kernel_masknoca_affine, 3),
-	KERNEL(MASK_PROJECTIVE, ps_kernel_masknoca_projective, 3),
+	NOKERNEL(MASK, brw_wm_kernel__affine_mask, 3),
+	NOKERNEL(MASK_P, brw_wm_kernel__projective_mask, 3),
 
-	KERNEL(MASKCA, ps_kernel_maskca_affine, 3),
-	KERNEL(MASKCA_PROJECTIVE, ps_kernel_maskca_projective, 3),
+	NOKERNEL(MASKCA, brw_wm_kernel__affine_mask_ca, 3),
+	NOKERNEL(MASKCA_P, brw_wm_kernel__projective_mask_ca, 3),
 
-	KERNEL(MASKSA, ps_kernel_maskca_srcalpha_affine, 3),
-	KERNEL(MASKSA_PROJECTIVE, ps_kernel_maskca_srcalpha_projective, 3),
+	NOKERNEL(MASKSA, brw_wm_kernel__affine_mask_sa, 3),
+	NOKERNEL(MASKSA_P, brw_wm_kernel__projective_mask_sa, 3),
 
 	KERNEL(VIDEO_PLANAR, ps_kernel_planar, 7),
 	KERNEL(VIDEO_PACKED, ps_kernel_packed, 2),
@@ -818,27 +763,35 @@ gen7_emit_sf(struct sna *sna, bool has_mask)
 static void
 gen7_emit_wm(struct sna *sna, int kernel)
 {
+	const uint32_t *kernels;
+
 	if (sna->render_state.gen7.kernel == kernel)
 		return;
 
 	sna->render_state.gen7.kernel = kernel;
+	kernels = sna->render_state.gen7.wm_kernel[kernel];
 
-	DBG(("%s: switching to %s, num_surfaces=%d\n",
+	DBG(("%s: switching to %s, num_surfaces=%d (8-wide? %d, 16-wide? %d, 32-wide? %d)\n",
 	     __FUNCTION__,
 	     wm_kernels[kernel].name,
-	     wm_kernels[kernel].num_surfaces));
+	     wm_kernels[kernel].num_surfaces,
+	     kernels[0], kernels[1], kernels[2]));
 
 	OUT_BATCH(GEN7_3DSTATE_PS | (8 - 2));
-	OUT_BATCH(sna->render_state.gen7.wm_kernel[kernel]);
+	OUT_BATCH(kernels[0] ?: kernels[1] ?: kernels[2]);
 	OUT_BATCH(1 << GEN7_PS_SAMPLER_COUNT_SHIFT |
 		  wm_kernels[kernel].num_surfaces << GEN7_PS_BINDING_TABLE_ENTRY_COUNT_SHIFT);
 	OUT_BATCH(0); /* scratch address */
 	OUT_BATCH(sna->render_state.gen7.info->max_wm_threads |
-		  GEN7_PS_ATTRIBUTE_ENABLE |
-		  GEN7_PS_16_DISPATCH_ENABLE);
-	OUT_BATCH(6 << GEN7_PS_DISPATCH_START_GRF_SHIFT_0);
-	OUT_BATCH(0); /* kernel 1 */
-	OUT_BATCH(0); /* kernel 2 */
+		  (kernels[0] ? GEN7_PS_8_DISPATCH_ENABLE : 0) |
+		  (kernels[1] ? GEN7_PS_16_DISPATCH_ENABLE : 0) |
+		  (kernels[2] ? GEN7_PS_32_DISPATCH_ENABLE : 0) |
+		  GEN7_PS_ATTRIBUTE_ENABLE);
+	OUT_BATCH((kernels[0] ? 4 : kernels[1] ? 6 : 8) << GEN7_PS_DISPATCH_START_GRF_SHIFT_0 |
+		  8 << GEN7_PS_DISPATCH_START_GRF_SHIFT_1 |
+		  6 << GEN7_PS_DISPATCH_START_GRF_SHIFT_2);
+	OUT_BATCH(kernels[2]);
+	OUT_BATCH(kernels[1]);
 }
 
 static bool
@@ -4285,12 +4238,34 @@ static bool gen7_render_setup(struct sna *sna)
 	 */
 	null_create(&general);
 
-	for (m = 0; m < GEN7_WM_KERNEL_COUNT; m++)
-		state->wm_kernel[m] =
-			sna_static_stream_add(&general,
-					       wm_kernels[m].data,
-					       wm_kernels[m].size,
-					       64);
+	for (m = 0; m < GEN7_WM_KERNEL_COUNT; m++) {
+		if (wm_kernels[m].size) {
+			state->wm_kernel[m][1] =
+				sna_static_stream_add(&general,
+						      wm_kernels[m].data,
+						      wm_kernels[m].size,
+						      64);
+		} else {
+			if (USE_8_PIXEL_DISPATCH) {
+				state->wm_kernel[m][0] =
+					sna_static_stream_compile_wm(sna, &general,
+								     wm_kernels[m].data, 8);
+			}
+
+			if (USE_16_PIXEL_DISPATCH) {
+				state->wm_kernel[m][1] =
+					sna_static_stream_compile_wm(sna, &general,
+								     wm_kernels[m].data, 16);
+			}
+
+			if (USE_32_PIXEL_DISPATCH) {
+				state->wm_kernel[m][2] =
+					sna_static_stream_compile_wm(sna, &general,
+								     wm_kernels[m].data, 32);
+			}
+		}
+		assert(state->wm_kernel[m][1]);
+	}
 
 	ss = sna_static_stream_map(&general,
 				   2 * sizeof(*ss) *
