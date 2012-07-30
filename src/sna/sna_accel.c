@@ -1396,50 +1396,6 @@ done:
 }
 
 static bool
-region_subsumes_drawable(RegionPtr region, DrawablePtr drawable)
-{
-	const BoxRec *extents;
-
-	if (region->data)
-		return false;
-
-	extents = RegionExtents(region);
-	return  extents->x1 <= 0 && extents->y1 <= 0 &&
-		extents->x2 >= drawable->width &&
-		extents->y2 >= drawable->height;
-}
-
-static bool
-region_subsumes_damage(const RegionRec *region, struct sna_damage *damage)
-{
-	const BoxRec *re, *de;
-
-	DBG(("%s?\n", __FUNCTION__));
-	assert(damage);
-
-	re = &region->extents;
-	de = &DAMAGE_PTR(damage)->extents;
-	DBG(("%s: region (%d, %d), (%d, %d), damage (%d, %d), (%d, %d)\n",
-	     __FUNCTION__,
-	     re->x1, re->y1, re->x2, re->y2,
-	     de->x1, de->y1, de->x2, de->y2));
-
-	if (re->x2 < de->x2 || re->x1 > de->x1 ||
-	    re->y2 < de->y2 || re->y1 > de->y1) {
-		DBG(("%s: not contained\n", __FUNCTION__));
-		return false;
-	}
-
-	if (region->data == NULL) {
-		DBG(("%s: singular region contains damage\n", __FUNCTION__));
-		return true;
-	}
-
-	return pixman_region_contains_rectangle((RegionPtr)region,
-						(BoxPtr)de) == PIXMAN_REGION_IN;
-}
-
-static bool
 region_overlaps_damage(const RegionRec *region,
 		       struct sna_damage *damage,
 		       int dx, int dy)
@@ -2134,13 +2090,6 @@ drawable_gc_flags(DrawablePtr draw, GCPtr gc, bool partial)
 	return (partial ? MOVE_READ : 0) | MOVE_WRITE | MOVE_INPLACE_HINT;
 }
 
-static inline bool
-box_inplace(PixmapPtr pixmap, const BoxRec *box)
-{
-	struct sna *sna = to_sna_from_pixmap(pixmap);
-	return ((int)(box->x2 - box->x1) * (int)(box->y2 - box->y1) * pixmap->drawable.bitsPerPixel >> 12) >= sna->kgem.half_cpu_cache_pages;
-}
-
 static inline struct sna_pixmap *
 sna_pixmap_mark_active(struct sna *sna, struct sna_pixmap *priv)
 {
@@ -2349,11 +2298,7 @@ done:
 	return sna_pixmap_mark_active(sna, priv) != NULL;
 }
 
-#define PREFER_GPU	0x1
-#define FORCE_GPU	0x2
-#define IGNORE_CPU	0x4
-
-static inline struct kgem_bo *
+struct kgem_bo *
 sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
 		    struct sna_damage ***damage)
 {
@@ -2391,7 +2336,7 @@ sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
 	if (priv->cpu && (flags & (IGNORE_CPU | FORCE_GPU)) == 0)
 		flags = 0;
 
-	if (!flags && (!priv->gpu_bo || !kgem_bo_is_busy(priv->gpu_bo)))
+	if (!flags && (!priv->gpu_damage || !kgem_bo_is_busy(priv->gpu_bo)))
 		goto use_cpu_bo;
 
 	if (DAMAGE_IS_ALL(priv->gpu_damage))
@@ -11467,8 +11412,10 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 			}
 			hint |= IGNORE_CPU;
 		}
-		if (priv->cpu_damage == NULL)
+		if (priv->cpu_damage == NULL) {
+			DBG(("%s: dropping last-cpu hint\n", __FUNCTION__));
 			priv->cpu = false;
+		}
 	}
 
 	/* If the source is already on the GPU, keep the operation on the GPU */
