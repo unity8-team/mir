@@ -2333,7 +2333,7 @@ sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
 		flags |= PREFER_GPU;
 	if (priv->shm)
 		flags = 0;
-	if (priv->cpu && (flags & (IGNORE_CPU | FORCE_GPU)) == 0)
+	if (priv->cpu && (flags & FORCE_GPU) == 0)
 		flags = 0;
 
 	if (!flags && (!priv->gpu_damage || !kgem_bo_is_busy(priv->gpu_bo)))
@@ -2395,7 +2395,7 @@ sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
 	     region.extents.x2, region.extents.y2));
 
 	if (priv->gpu_damage) {
-		if (flags & IGNORE_CPU || !priv->cpu_damage) {
+		if (!priv->cpu_damage) {
 			if (sna_damage_contains_box__no_reduce(priv->gpu_damage,
 							       &region.extents)) {
 				DBG(("%s: region wholly contained within GPU damage\n",
@@ -2444,7 +2444,7 @@ sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
 
 move_to_gpu:
 	if (!sna_pixmap_move_area_to_gpu(pixmap, &region.extents,
-					 MOVE_READ | MOVE_WRITE)) {
+					 flags & IGNORE_CPU ? MOVE_WRITE : MOVE_READ | MOVE_WRITE)) {
 		DBG(("%s: failed to move-to-gpu, fallback\n", __FUNCTION__));
 		assert(priv->gpu_bo == NULL);
 		goto use_cpu_bo;
@@ -11400,17 +11400,18 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 				sna_damage_destroy(&priv->cpu_damage);
 				list_del(&priv->list);
 			}
+			hint |= IGNORE_CPU;
 		}
-		if (region_subsumes_drawable(&region, &pixmap->drawable) ||
-		    box_inplace(pixmap, &region.extents)) {
+		if (priv->cpu_damage == NULL &&
+		    (region_subsumes_drawable(&region, &pixmap->drawable) ||
+		     box_inplace(pixmap, &region.extents))) {
 			DBG(("%s: promoting to full GPU\n", __FUNCTION__));
-			if (priv->gpu_bo && priv->cpu_damage == NULL) {
+			if (priv->gpu_bo) {
 				sna_damage_all(&priv->gpu_damage,
 					       pixmap->drawable.width,
 					       pixmap->drawable.height);
 				priv->undamaged = false;
 			}
-			hint |= IGNORE_CPU;
 		}
 		if (priv->cpu_damage == NULL) {
 			DBG(("%s: dropping last-cpu hint\n", __FUNCTION__));

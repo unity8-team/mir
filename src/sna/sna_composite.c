@@ -832,7 +832,8 @@ sna_composite_rectangles(CARD8		 op,
 			priv->cpu = false;
 		}
 
-		hint |= IGNORE_CPU;
+		if (region.data == NULL)
+			hint |= IGNORE_CPU;
 	}
 
 	bo = sna_drawable_use_bo(&pixmap->drawable, hint,
