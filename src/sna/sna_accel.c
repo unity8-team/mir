@@ -314,9 +314,12 @@ static void assert_pixmap_damage(PixmapPtr p)
 	if (priv == NULL)
 		return;
 
-	if (DAMAGE_IS_ALL(priv->gpu_damage) && DAMAGE_IS_ALL(priv->cpu_damage))
+	if (DAMAGE_IS_ALL(priv->gpu_damage) && DAMAGE_IS_ALL(priv->cpu_damage)) {
 		/* special upload buffer */
+		assert(priv->gpu_bo && priv->gpu_bo->proxy);
+		assert(priv->cpu_bo == NULL);
 		return;
+	}
 
 	assert(!DAMAGE_IS_ALL(priv->gpu_damage) || priv->cpu_damage == NULL);
 	assert(!DAMAGE_IS_ALL(priv->cpu_damage) || priv->gpu_damage == NULL);

@@ -855,25 +855,34 @@ sna_composite_rectangles(CARD8		 op,
 	/* Clearing a pixmap after creation is a common operation, so take
 	 * advantage and reduce further damage operations.
 	 */
-	if (op <= PictOpSrc &&
-	    region_subsumes_drawable(&region, &pixmap->drawable)) {
-		bool ok;
+	if (region_subsumes_drawable(&region, &pixmap->drawable)) {
+		if (damage) {
+			sna_damage_all(damage,
+				       pixmap->drawable.width,
+				       pixmap->drawable.height);
+			sna_damage_destroy(damage == &priv->gpu_damage ?
+					   &priv->cpu_damage : &priv->gpu_damage);
+			priv->undamaged = false;
+		}
 
-		assert(DAMAGE_IS_ALL(priv->gpu_damage));
+		if (op <= PictOpSrc && bo == priv->gpu_bo) {
+			bool ok;
 
-		priv->undamaged = false;
-		priv->clear_color = 0;
-		ok = true;
-		if (op == PictOpSrc)
-			ok = sna_get_pixel_from_rgba(&priv->clear_color,
-						     color->red,
-						     color->green,
-						     color->blue,
-						     color->alpha,
-						     dst->format);
-		priv->clear = ok;
-		DBG(("%s: marking clear [%08x]? %d\n",
-		     __FUNCTION__, priv->clear_color, ok));
+			assert(DAMAGE_IS_ALL(priv->gpu_damage));
+
+			priv->clear_color = 0;
+			ok = true;
+			if (op == PictOpSrc)
+				ok = sna_get_pixel_from_rgba(&priv->clear_color,
+							     color->red,
+							     color->green,
+							     color->blue,
+							     color->alpha,
+							     dst->format);
+			priv->clear = ok;
+			DBG(("%s: marking clear [%08x]? %d\n",
+			     __FUNCTION__, priv->clear_color, ok));
+		}
 	}
 	goto done;
 
