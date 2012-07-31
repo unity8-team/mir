@@ -396,7 +396,7 @@ struct gen6_render_state {
 	uint32_t sf_state;
 	uint32_t sf_mask_state;
 	uint32_t wm_state;
-	uint32_t wm_kernel[GEN6_KERNEL_COUNT];
+	uint32_t wm_kernel[GEN6_KERNEL_COUNT][3];
 
 	uint32_t cc_vp;
 	uint32_t cc_blend;

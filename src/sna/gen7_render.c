@@ -4277,7 +4277,7 @@ static bool gen7_render_setup(struct sna *sna)
 								     wm_kernels[m].data, 32);
 			}
 		}
-		assert(state->wm_kernel[m][1]);
+		assert(state->wm_kernel[m][0]|state->wm_kernel[m][1]|state->wm_kernel[m][2]);
 	}
 
 	ss = sna_static_stream_map(&general,

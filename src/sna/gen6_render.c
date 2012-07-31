@@ -55,6 +55,14 @@
 #define NO_RING_SWITCH 0
 #define PREFER_RENDER 0
 
+#define USE_8_PIXEL_DISPATCH 1
+#define USE_16_PIXEL_DISPATCH 1
+#define USE_32_PIXEL_DISPATCH 0
+
+#if !USE_8_PIXEL_DISPATCH && !USE_16_PIXEL_DISPATCH && !USE_32_PIXEL_DISPATCH
+#error "Must select at least 8, 16 or 32 pixel dispatch"
+#endif
+
 #define GEN6_MAX_SIZE 8192
 
 struct gt_info {
@@ -612,29 +620,36 @@ gen6_emit_sf(struct sna *sna, bool has_mask)
 static void
 gen6_emit_wm(struct sna *sna, unsigned int kernel)
 {
+	const uint32_t *kernels;
+
 	if (sna->render_state.gen6.kernel == kernel)
 		return;
 
 	sna->render_state.gen6.kernel = kernel;
+	kernels = sna->render_state.gen6.wm_kernel[kernel];
 
-	DBG(("%s: switching to %s, num_surfaces=%d\n",
+	DBG(("%s: switching to %s, num_surfaces=%d (8-pixel? %d, 16-pixel? %d,32-pixel? %d)\n",
 	     __FUNCTION__,
-	     wm_kernels[kernel].name,
-	     wm_kernels[kernel].num_surfaces));
+	     wm_kernels[kernel].name, wm_kernels[kernel].num_surfaces,
+	    kernels[0], kernels[1], kernels[2]));
 
 	OUT_BATCH(GEN6_3DSTATE_WM | (9 - 2));
-	OUT_BATCH(sna->render_state.gen6.wm_kernel[kernel]);
+	OUT_BATCH(kernels[0] ?: kernels[1] ?: kernels[2]);
 	OUT_BATCH(1 << GEN6_3DSTATE_WM_SAMPLER_COUNT_SHIFT |
 		  wm_kernels[kernel].num_surfaces << GEN6_3DSTATE_WM_BINDING_TABLE_ENTRY_COUNT_SHIFT);
-	OUT_BATCH(0);
-	OUT_BATCH(6 << GEN6_3DSTATE_WM_DISPATCH_START_GRF_0_SHIFT); /* DW4 */
+	OUT_BATCH(0); /* scratch space */
+	OUT_BATCH((kernels[0] ? 4 : kernels[1] ? 6 : 8) << GEN6_3DSTATE_WM_DISPATCH_0_START_GRF_SHIFT |
+		  8 << GEN6_3DSTATE_WM_DISPATCH_1_START_GRF_SHIFT |
+		  6 << GEN6_3DSTATE_WM_DISPATCH_2_START_GRF_SHIFT);
 	OUT_BATCH((sna->render_state.gen6.info->max_wm_threads - 1) << GEN6_3DSTATE_WM_MAX_THREADS_SHIFT |
-		  GEN6_3DSTATE_WM_DISPATCH_ENABLE |
-		  GEN6_3DSTATE_WM_16_DISPATCH_ENABLE);
+		  (kernels[0] ? GEN6_3DSTATE_WM_8_DISPATCH_ENABLE : 0) |
+		  (kernels[1] ? GEN6_3DSTATE_WM_16_DISPATCH_ENABLE : 0) |
+		  (kernels[2] ? GEN6_3DSTATE_WM_32_DISPATCH_ENABLE : 0) |
+		  GEN6_3DSTATE_WM_DISPATCH_ENABLE);
 	OUT_BATCH(wm_kernels[kernel].num_inputs << GEN6_3DSTATE_WM_NUM_SF_OUTPUTS_SHIFT |
 		  GEN6_3DSTATE_WM_PERSPECTIVE_PIXEL_BARYCENTRIC);
-	OUT_BATCH(0);
-	OUT_BATCH(0);
+	OUT_BATCH(kernels[2]);
+	OUT_BATCH(kernels[1]);
 }
 
 static bool
@@ -4156,18 +4171,31 @@ static bool gen6_render_setup(struct sna *sna)
 
 	for (m = 0; m < GEN6_KERNEL_COUNT; m++) {
 		if (wm_kernels[m].size) {
-			state->wm_kernel[m] =
+			state->wm_kernel[m][1] =
 				sna_static_stream_add(&general,
 						      wm_kernels[m].data,
 						      wm_kernels[m].size,
 						      64);
 		} else {
-			state->wm_kernel[m] =
-				sna_static_stream_compile_wm(sna, &general,
-							     wm_kernels[m].data,
-							     16);
+			if (USE_8_PIXEL_DISPATCH) {
+				state->wm_kernel[m][0] =
+					sna_static_stream_compile_wm(sna, &general,
+								     wm_kernels[m].data, 8);
+			}
+
+			if (USE_16_PIXEL_DISPATCH) {
+				state->wm_kernel[m][1] =
+					sna_static_stream_compile_wm(sna, &general,
+								     wm_kernels[m].data, 16);
+			}
+
+			if (USE_32_PIXEL_DISPATCH) {
+				state->wm_kernel[m][2] =
+					sna_static_stream_compile_wm(sna, &general,
+								     wm_kernels[m].data, 32);
+			}
 		}
-		assert(state->wm_kernel[m]);
+		assert(state->wm_kernel[m][0]|state->wm_kernel[m][1]|state->wm_kernel[m][2]);
 	}
 
 	ss = sna_static_stream_map(&general,
