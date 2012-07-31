@@ -55,7 +55,9 @@
 #define NO_COPY 0
 #define NO_COPY_BOXES 0
 #define NO_FILL 0
+#define NO_FILL_ONE 0
 #define NO_FILL_BOXES 0
+#define NO_VIDEO 0
 
 #if FLUSH_EVERY_VERTEX
 #define FLUSH(OP) do { \
@@ -1206,6 +1208,7 @@ gen4_get_batch(struct sna *sna)
 static void
 gen4_align_vertex(struct sna *sna, const struct sna_composite_op *op)
 {
+	assert(op->floats_per_rect == 3*op->floats_per_vertex);
 	if (op->floats_per_vertex != sna->render_state.gen4.floats_per_vertex) {
 		if (sna->render.vertex_size - sna->render.vertex_used < 2*op->floats_per_rect)
 			gen4_vertex_finish(sna);
@@ -2271,17 +2274,6 @@ gen4_render_composite(struct sna *sna,
 	if (op >= ARRAY_SIZE(gen4_blend_op))
 		return false;
 
-#if NO_COMPOSITE
-	if (mask)
-		return false;
-
-	return sna_blt_composite(sna, op,
-				 src, dst,
-				 src_x, src_y,
-				 dst_x, dst_y,
-				 width, height, tmp);
-#endif
-
 	if (mask == NULL &&
 	    try_blt(sna, dst, src, width, height) &&
 	    sna_blt_composite(sna, op,
@@ -2819,17 +2811,6 @@ gen4_render_copy_boxes(struct sna *sna, uint8_t alu,
 
 	DBG(("%s x %d\n", __FUNCTION__, n));
 
-#if NO_COPY_BOXES
-	if (!sna_blt_compare_depth(&src->drawable, &dst->drawable))
-		return false;
-
-	return sna_blt_copy_boxes(sna, alu,
-				  src_bo, src_dx, src_dy,
-				  dst_bo, dst_dx, dst_dy,
-				  dst->drawable.bitsPerPixel,
-				  box, n);
-#endif
-
 	if (prefer_blt_copy(sna, flags) &&
 	    sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
 	    sna_blt_copy_boxes(sna, alu,
@@ -3006,16 +2987,6 @@ gen4_render_copy(struct sna *sna, uint8_t alu,
 	     src->drawable.serialNumber,
 	     dst->drawable.serialNumber,
 	     alu));
-
-#if NO_COPY
-	if (!sna_blt_compare_depth(&src->drawable, &dst->drawable))
-		return false;
-
-	return sna_blt_copy(sna, alu,
-			    src_bo, dst_bo,
-			    dst->drawable.bitsPerPixel,
-			    op);
-#endif
 
 	if (prefer_blt(sna) &&
 	    sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
@@ -3194,18 +3165,15 @@ gen4_render_fill_boxes(struct sna *sna,
 						     dst, dst_bo, box, n);
 	}
 
-#if NO_FILL_BOXES
-	return false;
-#endif
-
-	if (op == PictOpClear)
+	if (op == PictOpClear) {
 		pixel = 0;
-	else if (!sna_get_pixel_from_rgba(&pixel,
-					  color->red,
-					  color->green,
-					  color->blue,
-					  color->alpha,
-					  PICT_a8r8g8b8))
+		op = PictOpSrc;
+	} else if (!sna_get_pixel_from_rgba(&pixel,
+					    color->red,
+					    color->green,
+					    color->blue,
+					    color->alpha,
+					    PICT_a8r8g8b8))
 		return false;
 
 	DBG(("%s(%08x x %d)\n", __FUNCTION__, pixel, n));
@@ -3295,13 +3263,6 @@ gen4_render_fill(struct sna *sna, uint8_t alu,
 		 uint32_t color,
 		 struct sna_fill_op *op)
 {
-#if NO_FILL
-	return sna_blt_fill(sna, alu,
-			    dst_bo, dst->drawable.bitsPerPixel,
-			    color,
-			    op);
-#endif
-
 	if (prefer_blt(sna) &&
 	    sna_blt_fill(sna, alu,
 			 dst_bo, dst->drawable.bitsPerPixel,
@@ -3391,11 +3352,6 @@ gen4_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 	struct sna_composite_op tmp;
 
 	DBG(("%s: color=%08x\n", __FUNCTION__, color));
-
-#if NO_FILL_ONE
-	return gen4_render_fill_one_try_blt(sna, dst, bo, color,
-					    x1, y1, x2, y2, alu);
-#endif
 
 	if (gen4_render_fill_one_try_blt(sna, dst, bo, color,
 					 x1, y1, x2, y2, alu))
@@ -3755,19 +3711,34 @@ bool gen4_render_init(struct sna *sna)
 	sna->kgem.retire = gen4_render_retire;
 	sna->kgem.expire = gen4_render_expire;
 
+#if !NO_COMPOSITE
 	sna->render.composite = gen4_render_composite;
+#endif
 #if !NO_COMPOSITE_SPANS
 	sna->render.check_composite_spans = gen4_check_composite_spans;
 	sna->render.composite_spans = gen4_render_composite_spans;
 #endif
+
+#if !NO_VIDEO
 	sna->render.video = gen4_render_video;
+#endif
 
+#if !NO_COPY_BOXES
 	sna->render.copy_boxes = gen4_render_copy_boxes;
+#endif
+#if !NO_COPY
 	sna->render.copy = gen4_render_copy;
+#endif
 
+#if !NO_FILL_BOXES
 	sna->render.fill_boxes = gen4_render_fill_boxes;
+#endif
+#if !NO_FILL
 	sna->render.fill = gen4_render_fill;
+#endif
+#if !NO_FILL_ONE
 	sna->render.fill_one = gen4_render_fill_one;
+#endif
 
 	sna->render.flush = gen4_render_flush;
 	sna->render.reset = gen4_render_reset;
