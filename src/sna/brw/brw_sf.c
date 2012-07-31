@@ -1,6 +1,6 @@
 #include "brw.h"
 
-void brw_sf_kernel__nomask(struct brw_compile *p)
+bool brw_sf_kernel__nomask(struct brw_compile *p)
 {
 	struct brw_reg inv, v0, v1, v2, delta;
 
@@ -23,10 +23,11 @@ void brw_sf_kernel__nomask(struct brw_compile *p)
 	brw_urb_WRITE(p, brw_null_reg(), 0, brw_vec8_grf(0 ,0),
 		      false, true, 4, 0, true, true, 0,
 		      BRW_URB_SWIZZLE_TRANSPOSE);
+
+	return true;
 }
 
-void
-brw_sf_kernel__mask(struct brw_compile *p)
+bool brw_sf_kernel__mask(struct brw_compile *p)
 {
 	struct brw_reg inv, v0, v1, v2;
 
@@ -48,4 +49,6 @@ brw_sf_kernel__mask(struct brw_compile *p)
 	brw_urb_WRITE(p, brw_null_reg(), 0, brw_vec8_grf(0 ,0),
 		      false, true, 4, 0, true, true, 0,
 		      BRW_URB_SWIZZLE_TRANSPOSE);
+
+	return true;
 }

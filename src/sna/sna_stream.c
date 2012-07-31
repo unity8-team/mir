@@ -97,7 +97,7 @@ struct kgem_bo *sna_static_stream_fini(struct sna *sna,
 unsigned
 sna_static_stream_compile_sf(struct sna *sna,
 			     struct sna_static_stream *stream,
-			     void (*compile)(struct brw_compile *))
+			     bool (*compile)(struct brw_compile *))
 {
 	struct brw_compile p;
 
@@ -105,7 +105,11 @@ sna_static_stream_compile_sf(struct sna *sna,
 			 sna_static_stream_map(stream,
 					       64*sizeof(uint32_t), 64));
 
-	compile(&p);
+	if (!compile(&p)) {
+		stream->used -= 64*sizeof(uint32_t);
+		return 0;
+	}
+
 	assert(p.nr_insn*sizeof(struct brw_instruction) <= 64*sizeof(uint32_t));
 
 	stream->used -= 64*sizeof(uint32_t) - p.nr_insn*sizeof(struct brw_instruction);
@@ -115,7 +119,7 @@ sna_static_stream_compile_sf(struct sna *sna,
 unsigned
 sna_static_stream_compile_wm(struct sna *sna,
 			     struct sna_static_stream *stream,
-			     void (*compile)(struct brw_compile *, int),
+			     bool (*compile)(struct brw_compile *, int),
 			     int dispatch_width)
 {
 	struct brw_compile p;
@@ -124,7 +128,11 @@ sna_static_stream_compile_wm(struct sna *sna,
 			 sna_static_stream_map(stream,
 					       256*sizeof(uint32_t), 64));
 
-	compile(&p, dispatch_width);
+	if (!compile(&p, dispatch_width)) {
+		stream->used -= 256*sizeof(uint32_t);
+		return 0;
+	}
+
 	assert(p.nr_insn*sizeof(struct brw_instruction) <= 256*sizeof(uint32_t));
 
 	stream->used -= 256*sizeof(uint32_t) - p.nr_insn*sizeof(struct brw_instruction);

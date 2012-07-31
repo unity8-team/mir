@@ -34,7 +34,8 @@ static void brw_wm_xy(struct brw_compile *p, int dw)
 	brw_ADD(p, brw_vec8_grf(Y16, 0), vec8(y_uw), brw_negate(__suboffset(r1, 1)));
 }
 
-static void brw_wm_affine_st(struct brw_compile *p, int dw, int channel, int msg)
+static void brw_wm_affine_st(struct brw_compile *p, int dw,
+			     int channel, int msg)
 {
 	int uv;
 
@@ -88,8 +89,8 @@ static inline struct brw_reg sample_result(int dw, int result)
 		       WRITEMASK_XYZW);
 }
 
-static void brw_wm_sample(struct brw_compile *p, int dw,
-			  int channel, int msg, int result)
+static int brw_wm_sample(struct brw_compile *p, int dw,
+			 int channel, int msg, int result)
 {
 	struct brw_reg src0;
 	bool header;
@@ -107,15 +108,24 @@ static void brw_wm_sample(struct brw_compile *p, int dw,
 	brw_SAMPLE(p, sample_result(dw, result), msg, src0,
 		   channel+1, channel, WRITEMASK_XYZW, 0,
 		   2*len, len+header, header, simd(dw));
+	return result;
 }
 
-static void brw_wm_sample__alpha(struct brw_compile *p, int dw,
-				 int channel, int msg, int result)
+static int brw_wm_sample__alpha(struct brw_compile *p, int dw,
+				int channel, int msg, int result)
 {
 	struct brw_reg src0;
-	int len;
+	int mlen, rlen;
 
-	len = dw == 16 ? 4 : 2;
+	if (dw == 8) {
+		/* SIMD8 sample return is not masked */
+		mlen = 3;
+		rlen = 4;
+	} else {
+		mlen = 5;
+		rlen = 2;
+	}
+
 	if (p->gen >= 60)
 		src0 = brw_message_reg(msg);
 	else
@@ -123,27 +133,31 @@ static void brw_wm_sample__alpha(struct brw_compile *p, int dw,
 
 	brw_SAMPLE(p, sample_result(dw, result), msg, src0,
 		   channel+1, channel, WRITEMASK_W, 0,
-		   len/2, len+1, true, simd(dw));
+		   rlen, mlen, true, simd(dw));
+
+	if (dw == 8)
+		result += 3;
+
+	return result;
 }
 
-static void brw_wm_affine(struct brw_compile *p, int dw,
-			  int channel, int msg, int result)
+static int brw_wm_affine(struct brw_compile *p, int dw,
+			 int channel, int msg, int result)
 {
 	brw_wm_affine_st(p, dw, channel, msg);
-	brw_wm_sample(p, dw, channel, msg, result);
+	return brw_wm_sample(p, dw, channel, msg, result);
 }
 
-static void brw_wm_affine__alpha(struct brw_compile *p, int dw,
-				 int channel, int msg, int result)
+static int brw_wm_affine__alpha(struct brw_compile *p, int dw,
+				int channel, int msg, int result)
 {
 	brw_wm_affine_st(p, dw, channel, msg);
-	brw_wm_sample__alpha(p, dw, channel, msg, result);
+	return brw_wm_sample__alpha(p, dw, channel, msg, result);
 }
 
 static inline struct brw_reg null_result(int dw)
 {
-	return brw_reg(BRW_ARCHITECTURE_REGISTER_FILE,
-		       BRW_ARF_NULL, 0,
+	return brw_reg(BRW_ARCHITECTURE_REGISTER_FILE, BRW_ARF_NULL, 0,
 		       BRW_REGISTER_TYPE_UW,
 		       dw == 16 ? BRW_VERTICAL_STRIDE_16 : BRW_VERTICAL_STRIDE_8,
 		       dw == 16 ? BRW_WIDTH_16 : BRW_WIDTH_8,
@@ -185,8 +199,8 @@ static void brw_fb_write(struct brw_compile *p, int dw)
 	insn->header.compression_control = BRW_COMPRESSION_NONE;
 
 	if (p->gen >= 60) {
-		src0 = brw_message_reg(2);
 		msg_type = GEN6_DATAPORT_WRITE_MESSAGE_RENDER_TARGET_WRITE;
+		src0 = brw_message_reg(2);
 		header = false;
 	} else {
 		insn->header.destreg__conditionalmod = 0;
@@ -206,13 +220,18 @@ static void brw_wm_write(struct brw_compile *p, int dw, int src)
 {
 	int n;
 
-	brw_set_compression_control(p, BRW_COMPRESSION_COMPRESSED);
-
 	if (dw == 8 && p->gen >= 60) {
-		brw_MOV(p, brw_message_reg(2), brw_vec8_grf(src, 0));
+		/* XXX pixel execution mask? */
+		brw_set_compression_control(p, BRW_COMPRESSION_NONE);
+
+		brw_MOV(p, brw_message_reg(2), brw_vec8_grf(src+0, 0));
+		brw_MOV(p, brw_message_reg(3), brw_vec8_grf(src+1, 0));
 		brw_MOV(p, brw_message_reg(4), brw_vec8_grf(src+2, 0));
+		brw_MOV(p, brw_message_reg(5), brw_vec8_grf(src+3, 0));
 		goto done;
 	}
+
+	brw_set_compression_control(p, BRW_COMPRESSION_COMPRESSED);
 
 	for (n = 0; n < 4; n++) {
 		if (p->gen >= 60) {
@@ -242,37 +261,35 @@ done:
 	brw_fb_write(p, dw);
 }
 
-static inline struct brw_reg mask_a8(int nr)
-{
-	return brw_reg(BRW_GENERAL_REGISTER_FILE,
-		       nr, 0,
-		       BRW_REGISTER_TYPE_F,
-		       BRW_VERTICAL_STRIDE_0,
-		       BRW_WIDTH_8,
-		       BRW_HORIZONTAL_STRIDE_1,
-		       BRW_SWIZZLE_XYZW,
-		       WRITEMASK_XYZW);
-}
-
-static void brw_wm_write__mask(struct brw_compile *p,
-			       int dw,
+static void brw_wm_write__mask(struct brw_compile *p, int dw,
 			       int src, int mask)
 {
 	int n;
 
-	brw_set_compression_control(p, BRW_COMPRESSION_COMPRESSED);
-
 	if (dw == 8 && p->gen >= 60) {
+		brw_set_compression_control(p, BRW_COMPRESSION_NONE);
+
 		brw_MUL(p,
 			brw_message_reg(2),
-			brw_vec8_grf(src, 0),
-			mask_a8(mask));
+			brw_vec8_grf(src+0, 0),
+			brw_vec8_grf(mask, 0));
+		brw_MUL(p,
+			brw_message_reg(3),
+			brw_vec8_grf(src+1, 0),
+			brw_vec8_grf(mask, 0));
 		brw_MUL(p,
 			brw_message_reg(4),
 			brw_vec8_grf(src+2, 0),
-			mask_a8(mask));
+			brw_vec8_grf(mask, 0));
+		brw_MUL(p,
+			brw_message_reg(5),
+			brw_vec8_grf(src+3, 0),
+			brw_vec8_grf(mask, 0));
+
 		goto done;
 	}
+
+	brw_set_compression_control(p, BRW_COMPRESSION_COMPRESSED);
 
 	for (n = 0; n < 4; n++) {
 		if (p->gen >= 60) {
@@ -306,24 +323,35 @@ done:
 	brw_fb_write(p, dw);
 }
 
-static void brw_wm_write__mask_ca(struct brw_compile *p,
-				  int dw, int src, int mask)
+static void brw_wm_write__mask_ca(struct brw_compile *p, int dw,
+				  int src, int mask)
 {
 	int n;
 
-	brw_set_compression_control(p, BRW_COMPRESSION_COMPRESSED);
-
 	if (dw == 8 && p->gen >= 60) {
+		brw_set_compression_control(p, BRW_COMPRESSION_NONE);
+
 		brw_MUL(p,
 			brw_message_reg(2),
-			brw_vec8_grf(src, 0),
-			brw_vec8_grf(mask, 0));
+			brw_vec8_grf(src  + 0, 0),
+			brw_vec8_grf(mask + 0, 0));
+		brw_MUL(p,
+			brw_message_reg(3),
+			brw_vec8_grf(src  + 1, 0),
+			brw_vec8_grf(mask + 1, 0));
 		brw_MUL(p,
 			brw_message_reg(4),
-			brw_vec8_grf(src + 2, 0),
+			brw_vec8_grf(src  + 2, 0),
 			brw_vec8_grf(mask + 2, 0));
+		brw_MUL(p,
+			brw_message_reg(5),
+			brw_vec8_grf(src  + 3, 0),
+			brw_vec8_grf(mask + 3, 0));
+
 		goto done;
 	}
+
+	brw_set_compression_control(p, BRW_COMPRESSION_COMPRESSED);
 
 	for (n = 0; n < 4; n++) {
 		if (p->gen >= 60) {
@@ -357,56 +385,71 @@ done:
 	brw_fb_write(p, dw);
 }
 
-void
+bool
 brw_wm_kernel__affine(struct brw_compile *p, int dispatch)
 {
-	int src = 12;
-
 	if (p->gen < 60)
 		brw_wm_xy(p, dispatch);
-	brw_wm_affine(p, dispatch, 0, 1, src);
-	brw_wm_write(p, dispatch, src);
+	brw_wm_write(p, dispatch, brw_wm_affine(p, dispatch, 0, 1, 12));
+
+	return true;
 }
 
-void
+bool
 brw_wm_kernel__affine_mask(struct brw_compile *p, int dispatch)
 {
-	int src = 12, mask = 20;
+	int src, mask;
+
+	if (dispatch == 8)
+		return false; /* XXX sampler alpha retuns all 0 */
 
 	if (p->gen < 60)
 		brw_wm_xy(p, dispatch);
-	brw_wm_affine(p, dispatch, 0, 1, src);
-	brw_wm_affine__alpha(p, dispatch, 1, 7, mask);
+
+	src = brw_wm_affine(p, dispatch, 0, 1, 12);
+	mask = brw_wm_affine__alpha(p, dispatch, 1, 6, 20);
 	brw_wm_write__mask(p, dispatch, src, mask);
+
+	return true;
 }
 
-void
+bool
 brw_wm_kernel__affine_mask_ca(struct brw_compile *p, int dispatch)
 {
-	int src = 12, mask = 20;
+	int src, mask;
 
 	if (p->gen < 60)
 		brw_wm_xy(p, dispatch);
-	brw_wm_affine(p, dispatch, 0, 1, src);
-	brw_wm_affine(p, dispatch, 1, 7, mask);
+
+	src = brw_wm_affine(p, dispatch, 0, 1, 12);
+	mask = brw_wm_affine(p, dispatch, 1, 6, 20);
 	brw_wm_write__mask_ca(p, dispatch, src, mask);
+
+	return true;
 }
 
-void
+bool
 brw_wm_kernel__affine_mask_sa(struct brw_compile *p, int dispatch)
 {
-	int src = 12, mask = 14;
+	int src, mask;
+
+	if (dispatch == 8)
+		return false; /* XXX sampler alpha retuns all 0 */
 
 	if (p->gen < 60)
 		brw_wm_xy(p, dispatch);
-	brw_wm_affine__alpha(p, dispatch, 0, 1, src);
-	brw_wm_affine(p, dispatch, 1, 7, mask);
+
+	src = brw_wm_affine__alpha(p, dispatch, 0, 1, 12);
+	mask = brw_wm_affine(p, dispatch, 1, 6, 16);
 	brw_wm_write__mask(p, dispatch, mask, src);
+
+	return true;
 }
 
 /* Projective variants */
 
-static void brw_wm_projective_st(struct brw_compile *p, int dw, int channel, int msg)
+static void brw_wm_projective_st(struct brw_compile *p, int dw,
+				 int channel, int msg)
 {
 	int uv;
 
@@ -480,63 +523,77 @@ static void brw_wm_projective_st(struct brw_compile *p, int dw, int channel, int
 	}
 }
 
-static void brw_wm_projective(struct brw_compile *p, int dw,
-			      int channel, int msg, int result)
+static int brw_wm_projective(struct brw_compile *p, int dw,
+			     int channel, int msg, int result)
 {
 	brw_wm_projective_st(p, dw, channel, msg);
-	brw_wm_sample(p, dw, channel, msg, result);
+	return brw_wm_sample(p, dw, channel, msg, result);
 }
 
-static void brw_wm_projective__alpha(struct brw_compile *p, int dw,
+static int brw_wm_projective__alpha(struct brw_compile *p, int dw,
 				     int channel, int msg, int result)
 {
 	brw_wm_projective_st(p, dw, channel, msg);
-	brw_wm_sample__alpha(p, dw, channel, msg, result);
+	return brw_wm_sample__alpha(p, dw, channel, msg, result);
 }
 
-void
+bool
 brw_wm_kernel__projective(struct brw_compile *p, int dispatch)
 {
-	int src = 12;
-
 	if (p->gen < 60)
 		brw_wm_xy(p, dispatch);
-	brw_wm_projective(p, dispatch, 0, 1, src);
-	brw_wm_write(p, dispatch, src);
+	brw_wm_write(p, dispatch, brw_wm_projective(p, dispatch, 0, 1, 12));
+
+	return true;
 }
 
-void
+bool
 brw_wm_kernel__projective_mask(struct brw_compile *p, int dispatch)
 {
-	int src = 12, mask = 20;
+	int src, mask;
+
+	if (dispatch == 8)
+		return false; /* XXX sampler alpha retuns all 0 */
 
 	if (p->gen < 60)
 		brw_wm_xy(p, dispatch);
-	brw_wm_projective(p, dispatch, 0, 1, src);
-	brw_wm_projective__alpha(p, dispatch, 1, 7, mask);
+
+	src = brw_wm_projective(p, dispatch, 0, 1, 12);
+	mask = brw_wm_projective__alpha(p, dispatch, 1, 6, 20);
 	brw_wm_write__mask(p, dispatch, src, mask);
+
+	return true;
 }
 
-void
+bool
 brw_wm_kernel__projective_mask_ca(struct brw_compile *p, int dispatch)
 {
-	int src = 12, mask = 20;
+	int src, mask;
 
 	if (p->gen < 60)
 		brw_wm_xy(p, dispatch);
-	brw_wm_projective(p, dispatch, 0, 1, src);
-	brw_wm_projective(p, dispatch, 1,7, mask);
+
+	src = brw_wm_projective(p, dispatch, 0, 1, 12);
+	mask = brw_wm_projective(p, dispatch, 1, 6, 20);
 	brw_wm_write__mask_ca(p, dispatch, src, mask);
+
+	return true;
 }
 
-void
+bool
 brw_wm_kernel__projective_mask_sa(struct brw_compile *p, int dispatch)
 {
-	int src = 12, mask = 14;
+	int src, mask;
+
+	if (dispatch == 8)
+		return false; /* XXX sampler alpha retuns all 0 */
 
 	if (p->gen < 60)
 		brw_wm_xy(p, dispatch);
-	brw_wm_projective__alpha(p, dispatch, 0, 1, src);
-	brw_wm_projective(p, dispatch, 1, 7, mask);
+
+	src = brw_wm_projective__alpha(p, dispatch, 0, 1, 12);
+	mask = brw_wm_projective(p, dispatch, 1, 6, 16);
 	brw_wm_write__mask(p, dispatch, mask, src);
+
+	return true;
 }

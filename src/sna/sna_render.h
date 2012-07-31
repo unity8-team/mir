@@ -482,11 +482,11 @@ uint32_t sna_static_stream_offsetof(struct sna_static_stream *stream,
 				    void *ptr);
 unsigned sna_static_stream_compile_sf(struct sna *sna,
 				      struct sna_static_stream *stream,
-				      void (*compile)(struct brw_compile *));
+				      bool (*compile)(struct brw_compile *));
 
 unsigned sna_static_stream_compile_wm(struct sna *sna,
 				      struct sna_static_stream *stream,
-				      void (*compile)(struct brw_compile *, int),
+				      bool (*compile)(struct brw_compile *, int),
 				      int width);
 struct kgem_bo *sna_static_stream_fini(struct sna *sna,
 				       struct sna_static_stream *stream);
