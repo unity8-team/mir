@@ -2470,13 +2470,6 @@ try_blt(struct sna *sna,
 	if (can_switch_rings(sna)) {
 		if (sna_picture_is_solid(src, NULL))
 			return true;
-
-		if (dst->pDrawable == src->pDrawable)
-			return true;
-
-		if (src->pDrawable &&
-		    get_drawable_pixmap(dst->pDrawable) == get_drawable_pixmap(src->pDrawable))
-			return true;
 	}
 
 	return false;
@@ -3318,8 +3311,7 @@ static inline bool prefer_blt_copy(struct sna *sna,
 }
 
 static inline bool
-overlaps(struct sna *sna,
-	 struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
+overlaps(struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
 	 struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
 	 const BoxRec *box, int n)
 {
@@ -3327,9 +3319,6 @@ overlaps(struct sna *sna,
 
 	if (src_bo != dst_bo)
 		return false;
-
-	if (can_switch_rings(sna))
-		return true;
 
 	extents = box[0];
 	while (--n) {
@@ -3363,8 +3352,7 @@ gen7_render_copy_boxes(struct sna *sna, uint8_t alu,
 	DBG(("%s (%d, %d)->(%d, %d) x %d, alu=%x, self-copy=%d, overlaps? %d\n",
 	     __FUNCTION__, src_dx, src_dy, dst_dx, dst_dy, n, alu,
 	     src_bo == dst_bo,
-	     overlaps(sna,
-		      src_bo, src_dx, src_dy,
+	     overlaps(src_bo, src_dx, src_dy,
 		      dst_bo, dst_dx, dst_dy,
 		      box, n)));
 
@@ -3403,8 +3391,7 @@ gen7_render_copy_boxes(struct sna *sna, uint8_t alu,
 	}
 
 	if (!(alu == GXcopy || alu == GXclear) ||
-	    overlaps(sna,
-		     src_bo, src_dx, src_dy,
+	    overlaps(src_bo, src_dx, src_dy,
 		     dst_bo, dst_dx, dst_dy,
 		     box, n)) {
 fallback_blt:
