@@ -388,6 +388,7 @@ sna_copy_init_blt(struct sna_copy_op *copy,
 static void sna_pixmap_free_gpu(struct sna *sna, struct sna_pixmap *priv)
 {
 	sna_damage_destroy(&priv->gpu_damage);
+	priv->clear = false;
 
 	if (priv->gpu_bo && !priv->pinned) {
 		kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
