@@ -323,6 +323,68 @@ done:
 	brw_fb_write(p, dw);
 }
 
+static void brw_wm_write__opacity(struct brw_compile *p, int dw,
+				  int src, int mask)
+{
+	int n;
+
+	if (dw == 8 && p->gen >= 60) {
+		brw_set_compression_control(p, BRW_COMPRESSION_NONE);
+
+		brw_MUL(p,
+			brw_message_reg(2),
+			brw_vec8_grf(src+0, 0),
+			brw_vec1_grf(mask, 3));
+		brw_MUL(p,
+			brw_message_reg(3),
+			brw_vec8_grf(src+1, 0),
+			brw_vec1_grf(mask, 3));
+		brw_MUL(p,
+			brw_message_reg(4),
+			brw_vec8_grf(src+2, 0),
+			brw_vec1_grf(mask, 3));
+		brw_MUL(p,
+			brw_message_reg(5),
+			brw_vec8_grf(src+3, 0),
+			brw_vec1_grf(mask, 3));
+
+		goto done;
+	}
+
+	brw_set_compression_control(p, BRW_COMPRESSION_COMPRESSED);
+
+	for (n = 0; n < 4; n++) {
+		if (p->gen >= 60) {
+			brw_MUL(p,
+				brw_message_reg(2 + 2*n),
+				brw_vec8_grf(src + 2*n, 0),
+				brw_vec1_grf(mask, 3));
+		} else if (p->gen >= 45 && dw == 16) {
+			brw_MUL(p,
+				brw_message_reg(2 + n + BRW_MRF_COMPR4),
+				brw_vec8_grf(src + 2*n, 0),
+				brw_vec1_grf(mask, 3));
+		} else {
+			brw_set_compression_control(p, BRW_COMPRESSION_NONE);
+			brw_MUL(p,
+				brw_message_reg(2 + n),
+				brw_vec8_grf(src + 2*n, 0),
+				brw_vec1_grf(mask, 3));
+
+			if (dw == 16) {
+				brw_set_compression_control(p, BRW_COMPRESSION_2NDHALF);
+				brw_MUL(p,
+					brw_message_reg(2 + n + 4),
+					brw_vec8_grf(src + 2*n+1, 0),
+					brw_vec1_grf(mask, 3));
+			}
+		}
+	}
+
+done:
+	brw_fb_write(p, dw);
+}
+
 static void brw_wm_write__mask_ca(struct brw_compile *p, int dw,
 				  int src, int mask)
 {
@@ -594,6 +656,40 @@ brw_wm_kernel__projective_mask_sa(struct brw_compile *p, int dispatch)
 	src = brw_wm_projective__alpha(p, dispatch, 0, 1, 12);
 	mask = brw_wm_projective(p, dispatch, 1, 6, 16);
 	brw_wm_write__mask(p, dispatch, mask, src);
+
+	return true;
+}
+
+bool
+brw_wm_kernel__affine_opacity(struct brw_compile *p, int dispatch)
+{
+	int src, mask;
+
+	if (p->gen < 60) {
+		brw_wm_xy(p, dispatch);
+		mask = 4;
+	} else
+		mask = dispatch == 16 ? 8 : 6;
+
+	src = brw_wm_affine(p, dispatch, 0, 1, 12);
+	brw_wm_write__opacity(p, dispatch, src, mask);
+
+	return true;
+}
+
+bool
+brw_wm_kernel__projective_opacity(struct brw_compile *p, int dispatch)
+{
+	int src, mask;
+
+	if (p->gen < 60) {
+		brw_wm_xy(p, dispatch);
+		mask = 4;
+	} else
+		mask = dispatch == 16 ? 8 : 6;
+
+	src = brw_wm_projective(p, dispatch, 0, 1, 12);
+	brw_wm_write__opacity(p, dispatch, src, mask);
 
 	return true;
 }

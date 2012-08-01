@@ -167,6 +167,17 @@ static void gen7_ps_nomask_projective(void)
 	compare(ps_kernel_nomask_projective);
 }
 
+static void gen7_ps_opacity(void)
+{
+	uint32_t store[1024];
+	struct brw_compile p;
+
+	brw_compile_init(&p, GEN, store);
+	brw_wm_kernel__affine_opacity(&p, 16);
+
+	compare(ps_kernel_nomask_affine);
+}
+
 void brw_test_gen7(void)
 {
 	gen7_ps_nomask_affine();
@@ -175,4 +186,6 @@ void brw_test_gen7(void)
 	gen7_ps_masksa_affine();
 
 	gen7_ps_nomask_projective();
+
+	gen7_ps_opacity();
 }

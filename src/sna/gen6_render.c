@@ -128,6 +128,9 @@ static const struct wm_kernel_info {
 	NOKERNEL(MASKSA, brw_wm_kernel__affine_mask_sa, 3, 2),
 	NOKERNEL(MASKSA_P, brw_wm_kernel__projective_mask_sa, 3, 2),
 
+	NOKERNEL(OPACITY, brw_wm_kernel__affine_opacity, 2, 2),
+	NOKERNEL(OPACITY_P, brw_wm_kernel__projective_opacity, 2, 2),
+
 	KERNEL(VIDEO_PLANAR, ps_kernel_planar, 7, 1),
 	KERNEL(VIDEO_PACKED, ps_kernel_packed, 2, 1),
 };
@@ -2788,28 +2791,7 @@ cleanup_dst:
 	return false;
 }
 
-/* A poor man's span interface. But better than nothing? */
 #if !NO_COMPOSITE_SPANS
-static bool
-gen6_composite_alpha_gradient_init(struct sna *sna,
-				   struct sna_composite_channel *channel)
-{
-	DBG(("%s\n", __FUNCTION__));
-
-	channel->is_affine = true;
-	channel->is_solid  = false;
-	channel->transform = NULL;
-	channel->width  = 256;
-	channel->height = 1;
-	channel->card_format = GEN6_SURFACEFORMAT_B8G8R8A8_UNORM;
-
-	channel->bo = sna_render_get_alpha_gradient(sna);
-
-	channel->scale[0]  = channel->scale[1]  = 1;
-	channel->offset[0] = channel->offset[1] = 0;
-	return channel->bo != NULL;
-}
-
 inline static void
 gen6_emit_composite_texcoord_affine(struct sna *sna,
 				    const struct sna_composite_channel *channel,
@@ -3040,6 +3022,7 @@ gen6_render_composite_spans_done(struct sna *sna,
 	if (sna->render_state.gen6.vertex_offset)
 		gen6_vertex_flush(sna);
 
+	kgem_bo_destroy(&sna->kgem, op->base.mask.bo);
 	if (op->base.src.bo)
 		kgem_bo_destroy(&sna->kgem, op->base.src.bo);
 
@@ -3120,12 +3103,12 @@ gen6_render_composite_spans(struct sna *sna,
 		gen6_composite_channel_convert(&tmp->base.src);
 		break;
 	}
+	tmp->base.mask.bo = sna_render_get_solid(sna, 0);
+	if (tmp->base.mask.bo == NULL)
+		goto cleanup_src;
 
 	tmp->base.is_affine = tmp->base.src.is_affine;
 	tmp->base.need_magic_ca_pass = false;
-
-	if (!gen6_composite_alpha_gradient_init(sna, &tmp->base.mask))
-		goto cleanup_src;
 
 	tmp->prim_emit = gen6_emit_composite_spans_primitive;
 	if (tmp->base.src.is_solid) {
@@ -3150,9 +3133,7 @@ gen6_render_composite_spans(struct sna *sna,
 					      SAMPLER_FILTER_NEAREST,
 					      SAMPLER_EXTEND_PAD),
 			       gen6_get_blend(tmp->base.op, false, tmp->base.dst.format),
-			       gen6_choose_composite_kernel(tmp->base.op,
-							    true, false,
-							    tmp->base.is_affine),
+			       GEN6_WM_KERNEL_OPACITY | !tmp->base.is_affine,
 			       1 << 1 | tmp->base.is_affine);
 
 	tmp->box   = gen6_render_composite_spans_box;

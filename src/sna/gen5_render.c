@@ -120,6 +120,9 @@ static const struct wm_kernel_info {
 	NOKERNEL(WM_KERNEL_MASKSA, brw_wm_kernel__affine_mask_sa, true),
 	NOKERNEL(WM_KERNEL_MASKSA_P, brw_wm_kernel__projective_mask_sa, true),
 
+	NOKERNEL(WM_KERNEL_OPACITY, brw_wm_kernel__affine_opacity, true),
+	NOKERNEL(WM_KERNEL_OPACITY_P, brw_wm_kernel__projective_opacity, true),
+
 	KERNEL(WM_KERNEL_VIDEO_PLANAR, ps_kernel_planar_static, false),
 	KERNEL(WM_KERNEL_VIDEO_PACKED, ps_kernel_packed_static, false),
 };
@@ -2439,30 +2442,7 @@ cleanup_dst:
 	return false;
 }
 
-/* A poor man's span interface. But better than nothing? */
 #if !NO_COMPOSITE_SPANS
-static bool
-gen5_composite_alpha_gradient_init(struct sna *sna,
-				   struct sna_composite_channel *channel)
-{
-	DBG(("%s\n", __FUNCTION__));
-
-	channel->filter = PictFilterNearest;
-	channel->repeat = RepeatPad;
-	channel->is_affine = true;
-	channel->is_solid  = false;
-	channel->transform = NULL;
-	channel->width  = 256;
-	channel->height = 1;
-	channel->card_format = GEN5_SURFACEFORMAT_B8G8R8A8_UNORM;
-
-	channel->bo = sna_render_get_alpha_gradient(sna);
-
-	channel->scale[0]  = channel->scale[1]  = 1;
-	channel->offset[0] = channel->offset[1] = 0;
-	return channel->bo != NULL;
-}
-
 inline static void
 gen5_emit_composite_texcoord(struct sna *sna,
 			     const struct sna_composite_channel *channel,
@@ -2639,6 +2619,7 @@ gen5_render_composite_spans_done(struct sna *sna,
 
 	DBG(("%s()\n", __FUNCTION__));
 
+	kgem_bo_destroy(&sna->kgem, op->base.mask.bo);
 	if (op->base.src.bo)
 		kgem_bo_destroy(&sna->kgem, op->base.src.bo);
 
@@ -2721,12 +2702,13 @@ gen5_render_composite_spans(struct sna *sna,
 		break;
 	}
 
-	tmp->base.mask.bo = NULL;
+	tmp->base.mask.bo = sna_render_get_solid(sna, 0);
+	if (tmp->base.mask.bo == NULL)
+		goto cleanup_src;
+
 	tmp->base.is_affine = tmp->base.src.is_affine;
 	tmp->base.has_component_alpha = false;
 	tmp->base.need_magic_ca_pass = false;
-
-	gen5_composite_alpha_gradient_init(sna, &tmp->base.mask);
 
 	tmp->prim_emit = gen5_emit_composite_spans_primitive;
 	if (tmp->base.src.is_solid)
@@ -2736,10 +2718,7 @@ gen5_render_composite_spans(struct sna *sna,
 	tmp->base.floats_per_vertex = 5 + 2*!tmp->base.is_affine;
 	tmp->base.floats_per_rect = 3 * tmp->base.floats_per_vertex;
 
-	tmp->base.u.gen5.wm_kernel =
-		gen5_choose_composite_kernel(tmp->base.op,
-					     true, false,
-					     tmp->base.is_affine);
+	tmp->base.u.gen5.wm_kernel = WM_KERNEL_OPACITY | !tmp->base.is_affine;
 	tmp->base.u.gen5.ve_id = 1 << 1 | tmp->base.is_affine;
 
 	tmp->box   = gen5_render_composite_spans_box;
