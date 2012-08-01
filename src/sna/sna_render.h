@@ -286,7 +286,8 @@ struct sna_render {
 	uint16_t vertex_index;
 	uint16_t vertex_used;
 	uint16_t vertex_size;
-	uint16_t vertex_reloc[8];
+	uint16_t vertex_reloc[16];
+	int nvertex_reloc;
 
 	struct kgem_bo *vbo;
 	float *vertices;

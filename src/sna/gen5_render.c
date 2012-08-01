@@ -246,6 +246,7 @@ static int gen5_vertex_finish(struct sna *sna)
 	unsigned int i;
 
 	assert(sna->render.vertex_used);
+	assert(sna->render.nvertex_reloc);
 
 	/* Note: we only need dword alignment (currently) */
 
@@ -254,27 +255,23 @@ static int gen5_vertex_finish(struct sna *sna)
 		if (sna->render_state.gen5.vertex_offset)
 			gen5_vertex_flush(sna);
 
-		for (i = 0; i < ARRAY_SIZE(sna->render.vertex_reloc); i++) {
-			if (sna->render.vertex_reloc[i]) {
-				DBG(("%s: reloc[%d] = %d\n", __FUNCTION__,
-				     i, sna->render.vertex_reloc[i]));
+		for (i = 0; i < sna->render.nvertex_reloc; i++) {
+			DBG(("%s: reloc[%d] = %d\n", __FUNCTION__,
+			     i, sna->render.vertex_reloc[i]));
 
-				sna->kgem.batch[sna->render.vertex_reloc[i]] =
-					kgem_add_reloc(&sna->kgem,
-						       sna->render.vertex_reloc[i],
-						       bo,
-						       I915_GEM_DOMAIN_VERTEX << 16,
-						       0);
-				sna->kgem.batch[sna->render.vertex_reloc[i]+1] =
-					kgem_add_reloc(&sna->kgem,
-						       sna->render.vertex_reloc[i]+1,
-						       bo,
-						       I915_GEM_DOMAIN_VERTEX << 16,
-						       sna->render.vertex_used * 4 - 1);
-				sna->render.vertex_reloc[i] = 0;
-			}
+			sna->kgem.batch[sna->render.vertex_reloc[i]] =
+				kgem_add_reloc(&sna->kgem,
+					       sna->render.vertex_reloc[i], bo,
+					       I915_GEM_DOMAIN_VERTEX << 16,
+					       0);
+			sna->kgem.batch[sna->render.vertex_reloc[i]+1] =
+				kgem_add_reloc(&sna->kgem,
+					       sna->render.vertex_reloc[i]+1, bo,
+					       I915_GEM_DOMAIN_VERTEX << 16,
+					       sna->render.vertex_used * 4 - 1);
 		}
 
+		sna->render.nvertex_reloc = 0;
 		sna->render.vertex_used = 0;
 		sna->render.vertex_index = 0;
 		sna->render_state.gen5.vb_id = 0;
@@ -309,12 +306,11 @@ static void gen5_vertex_close(struct sna *sna)
 	unsigned int i, delta = 0;
 
 	assert(sna->render_state.gen5.vertex_offset == 0);
+	if (!sna->render_state.gen5.vb_id)
+		return;
 
 	DBG(("%s: used=%d, vbo active? %d\n",
 	     __FUNCTION__, sna->render.vertex_used, sna->render.vbo != NULL));
-
-	if (!sna->render.vertex_used)
-		return;
 
 	bo = sna->render.vbo;
 	if (bo) {
@@ -360,26 +356,23 @@ static void gen5_vertex_close(struct sna *sna)
 		}
 	}
 
-	for (i = 0; i < ARRAY_SIZE(sna->render.vertex_reloc); i++) {
-		if (sna->render.vertex_reloc[i]) {
-			DBG(("%s: reloc[%d] = %d\n", __FUNCTION__,
-			     i, sna->render.vertex_reloc[i]));
+	assert(sna->render.nvertex_reloc);
+	for (i = 0; i < sna->render.nvertex_reloc; i++) {
+		DBG(("%s: reloc[%d] = %d\n", __FUNCTION__,
+		     i, sna->render.vertex_reloc[i]));
 
-			sna->kgem.batch[sna->render.vertex_reloc[i]] =
-				kgem_add_reloc(&sna->kgem,
-					       sna->render.vertex_reloc[i],
-					       bo,
-					       I915_GEM_DOMAIN_VERTEX << 16,
-					       delta);
-			sna->kgem.batch[sna->render.vertex_reloc[i]+1] =
-				kgem_add_reloc(&sna->kgem,
-					       sna->render.vertex_reloc[i]+1,
-					       bo,
-					       I915_GEM_DOMAIN_VERTEX << 16,
-					       delta + sna->render.vertex_used * 4 - 1);
-			sna->render.vertex_reloc[i] = 0;
-		}
+		sna->kgem.batch[sna->render.vertex_reloc[i]] =
+			kgem_add_reloc(&sna->kgem,
+				       sna->render.vertex_reloc[i], bo,
+				       I915_GEM_DOMAIN_VERTEX << 16,
+				       delta);
+		sna->kgem.batch[sna->render.vertex_reloc[i]+1] =
+			kgem_add_reloc(&sna->kgem,
+				       sna->render.vertex_reloc[i]+1, bo,
+				       I915_GEM_DOMAIN_VERTEX << 16,
+				       delta + sna->render.vertex_used * 4 - 1);
 	}
+	sna->render.nvertex_reloc = 0;
 
 	if (sna->render.vbo == NULL) {
 		sna->render.vertex_used = 0;
@@ -977,7 +970,7 @@ static void gen5_emit_vertex_buffer(struct sna *sna,
 	OUT_BATCH(GEN5_3DSTATE_VERTEX_BUFFERS | 3);
 	OUT_BATCH((id << VB0_BUFFER_INDEX_SHIFT) | VB0_VERTEXDATA |
 		  (4*op->floats_per_vertex << VB0_BUFFER_PITCH_SHIFT));
-	sna->render.vertex_reloc[id] = sna->kgem.nbatch;
+	sna->render.vertex_reloc[sna->render.nvertex_reloc++] = sna->kgem.nbatch;
 	OUT_BATCH(0);
 	OUT_BATCH(0);
 	OUT_BATCH(0);
