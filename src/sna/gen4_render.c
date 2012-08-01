@@ -61,17 +61,13 @@
 
 #if FLUSH_EVERY_VERTEX
 #define FLUSH(OP) do { \
-	gen4_vertex_flush(sna); \
-	gen4_magic_ca_pass(sna, OP); \
-	OUT_BATCH(MI_FLUSH | MI_INHIBIT_RENDER_CACHE_FLUSH); \
-} while (0)
-#define FLUSH_NOCA() do { \
-	gen4_vertex_flush(sna); \
-	OUT_BATCH(MI_FLUSH | MI_INHIBIT_RENDER_CACHE_FLUSH); \
+	if ((OP)->mask.bo == NULL) { \
+		gen4_vertex_flush(sna); \
+		OUT_BATCH(MI_FLUSH | MI_INHIBIT_RENDER_CACHE_FLUSH); \
+	} \
 } while (0)
 #else
 #define FLUSH(OP)
-#define FLUSH_NOCA()
 #endif
 
 #define GEN4_GRF_BLOCKS(nreg)    ((nreg + 15) / 16 - 1)
@@ -1373,6 +1369,9 @@ gen4_emit_state(struct sna *sna,
 		const struct sna_composite_op *op,
 		uint16_t wm_binding_table)
 {
+	if (FLUSH_EVERY_VERTEX)
+		OUT_BATCH(MI_FLUSH | MI_INHIBIT_RENDER_CACHE_FLUSH);
+
 	gen4_emit_drawing_rectangle(sna, op);
 	gen4_emit_binding_table(sna, wm_binding_table);
 	gen4_emit_pipelined_pointers(sna, op, op->op, op->u.gen4.wm_kernel);
@@ -1440,15 +1439,6 @@ gen4_render_composite_blt(struct sna *sna,
 	     r->mask.x, r->mask.y, op->mask.offset[0], op->mask.offset[1],
 	     r->dst.x, r->dst.y, op->dst.x, op->dst.y,
 	     r->width, r->height));
-
-	if (FLUSH_EVERY_VERTEX && op->need_magic_ca_pass) {
-		/* We have to reset the state after every FLUSH */
-		if (kgem_check_batch(&sna->kgem, 20)) {
-			gen4_emit_pipelined_pointers(sna, op, op->op,
-						     op->u.gen4.wm_kernel);
-		} else
-			gen4_bind_surfaces(sna, op);
-	}
 
 	gen4_get_rectangles(sna, op, 1, gen4_bind_surfaces);
 	op->prim_emit(sna, op, r);
@@ -1691,8 +1681,6 @@ gen4_render_video(struct sna *sna,
 		OUT_VERTEX(r.x1, r.y1);
 		OUT_VERTEX_F((box->x1 - dxo) * src_scale_x);
 		OUT_VERTEX_F((box->y1 - dyo) * src_scale_y);
-
-		FLUSH(&tmp);
 
 		if (!DAMAGE_IS_ALL(priv->gpu_damage)) {
 			sna_damage_add_box(&priv->gpu_damage, &r);
@@ -2558,7 +2546,6 @@ gen4_render_composite_spans_box(struct sna *sna,
 
 	gen4_get_rectangles(sna, &op->base, 1, gen4_bind_surfaces);
 	op->prim_emit(sna, op, box, opacity);
-	FLUSH_NOCA();
 }
 
 static void
@@ -2761,8 +2748,6 @@ gen4_render_copy_one(struct sna *sna,
 	OUT_VERTEX(dx, dy);
 	OUT_VERTEX_F(sx*op->src.scale[0]);
 	OUT_VERTEX_F(sy*op->src.scale[1]);
-
-	FLUSH(op);
 }
 
 static inline bool prefer_blt_copy(struct sna *sna, unsigned flags)
@@ -3088,8 +3073,6 @@ gen4_render_fill_rectangle(struct sna *sna,
 	OUT_VERTEX(x, y);
 	OUT_VERTEX_F(0);
 	OUT_VERTEX_F(0);
-
-	FLUSH(op);
 }
 
 static bool
