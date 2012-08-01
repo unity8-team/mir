@@ -1782,7 +1782,9 @@ static void gen7_emit_composite_state(struct sna *sna,
 	bool dirty;
 
 	gen7_get_batch(sna);
-	dirty = kgem_bo_is_dirty(op->dst.bo);
+	dirty = false;
+	if (op->dst.bo == op->src.bo || op->dst.bo == op->mask.bo)
+		dirty = kgem_bo_is_dirty(op->dst.bo);
 
 	binding_table = gen7_composite_get_binding_table(sna, &offset);
 
@@ -3676,7 +3678,6 @@ gen7_emit_fill_state(struct sna *sna, const struct sna_composite_op *op)
 {
 	uint32_t *binding_table;
 	uint16_t offset;
-	bool dirty;
 
 	/* XXX Render Target Fast Clear
 	 * Set RTFC Enable in PS and render a rectangle.
@@ -3685,7 +3686,6 @@ gen7_emit_fill_state(struct sna *sna, const struct sna_composite_op *op)
 	 */
 
 	gen7_get_batch(sna);
-	dirty = kgem_bo_is_dirty(op->dst.bo);
 
 	binding_table = gen7_composite_get_binding_table(sna, &offset);
 
@@ -3707,7 +3707,7 @@ gen7_emit_fill_state(struct sna *sna, const struct sna_composite_op *op)
 		offset = sna->render_state.gen7.surface_table;
 	}
 
-	gen7_emit_state(sna, op, offset | dirty);
+	gen7_emit_state(sna, op, offset);
 }
 
 static inline bool prefer_blt_fill(struct sna *sna,
