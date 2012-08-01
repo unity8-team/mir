@@ -42,12 +42,11 @@ static void brw_wm_affine_st(struct brw_compile *p, int dw,
 	if (dw == 16) {
 		brw_set_compression_control(p, BRW_COMPRESSION_COMPRESSED);
 		uv = p->gen >= 60 ? 6 : 3;
-		uv += 2*channel;
 	} else {
 		brw_set_compression_control(p, BRW_COMPRESSION_NONE);
 		uv = p->gen >= 60 ? 4 : 3;
-		uv += channel;
 	}
+	uv += 2*channel;
 
 	msg++;
 	if (p->gen >= 60) {
@@ -462,9 +461,6 @@ brw_wm_kernel__affine_mask(struct brw_compile *p, int dispatch)
 {
 	int src, mask;
 
-	if (dispatch == 8)
-		return false; /* XXX sampler alpha retuns all 0 */
-
 	if (p->gen < 60)
 		brw_wm_xy(p, dispatch);
 
@@ -495,9 +491,6 @@ brw_wm_kernel__affine_mask_sa(struct brw_compile *p, int dispatch)
 {
 	int src, mask;
 
-	if (dispatch == 8)
-		return false; /* XXX sampler alpha retuns all 0 */
-
 	if (p->gen < 60)
 		brw_wm_xy(p, dispatch);
 
@@ -518,12 +511,11 @@ static void brw_wm_projective_st(struct brw_compile *p, int dw,
 	if (dw == 16) {
 		brw_set_compression_control(p, BRW_COMPRESSION_COMPRESSED);
 		uv = p->gen >= 60 ? 6 : 3;
-		uv += 2*channel;
 	} else {
 		brw_set_compression_control(p, BRW_COMPRESSION_NONE);
 		uv = p->gen >= 60 ? 4 : 3;
-		uv += channel;
 	}
+	uv += 2*channel;
 
 	msg++;
 	if (p->gen >= 60) {
@@ -614,9 +606,6 @@ brw_wm_kernel__projective_mask(struct brw_compile *p, int dispatch)
 {
 	int src, mask;
 
-	if (dispatch == 8)
-		return false; /* XXX sampler alpha retuns all 0 */
-
 	if (p->gen < 60)
 		brw_wm_xy(p, dispatch);
 
@@ -646,9 +635,6 @@ bool
 brw_wm_kernel__projective_mask_sa(struct brw_compile *p, int dispatch)
 {
 	int src, mask;
-
-	if (dispatch == 8)
-		return false; /* XXX sampler alpha retuns all 0 */
 
 	if (p->gen < 60)
 		brw_wm_xy(p, dispatch);
