@@ -9035,7 +9035,6 @@ sna_poly_fill_rect_blt(DrawablePtr drawable,
 						sna_damage_all(damage,
 							       pixmap->drawable.width,
 							       pixmap->drawable.height);
-						sna_pixmap(pixmap)->undamaged = false;
 					} else
 						sna_damage_add_box(damage, &r);
 				}
@@ -9045,12 +9044,19 @@ sna_poly_fill_rect_blt(DrawablePtr drawable,
 				    r.x2 - r.x1 == pixmap->drawable.width &&
 				    r.y2 - r.y1 == pixmap->drawable.height) {
 					struct sna_pixmap *priv = sna_pixmap(pixmap);
+					if (bo == priv->gpu_bo) {
+						sna_damage_all(&priv->gpu_damage,
+							       pixmap->drawable.width,
+							       pixmap->drawable.height);
+						sna_damage_destroy(&priv->cpu_damage);
+						list_del(&priv->list);
+						priv->undamaged = false;
+						priv->clear = true;
+						priv->clear_color = gc->alu == GXcopy ? pixel : 0;
 
-					priv->clear = true;
-					priv->clear_color = gc->alu == GXcopy ? pixel : 0;
-
-					DBG(("%s: pixmap=%ld, marking clear [%08x]\n",
-					     __FUNCTION__, pixmap->drawable.serialNumber, priv->clear_color));
+						DBG(("%s: pixmap=%ld, marking clear [%08x]\n",
+						     __FUNCTION__, pixmap->drawable.serialNumber, priv->clear_color));
+					}
 				}
 			} else
 				success = false;
