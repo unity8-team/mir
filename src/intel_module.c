@@ -44,8 +44,6 @@
 #include "legacy/legacy.h"
 #include "sna/sna_module.h"
 
-static struct intel_device_info *chipset_info;
-
 static const struct intel_device_info intel_generic_info = {
 	.gen = -1,
 };
@@ -227,9 +225,10 @@ static const struct pci_id_match intel_device_match[] = {
 	{ 0, 0, 0 },
 };
 
-const struct intel_device_info *
+void
 intel_detect_chipset(ScrnInfoPtr scrn,
-		     EntityInfoPtr ent, struct pci_device *pci)
+		     EntityInfoPtr ent,
+		     struct pci_device *pci)
 {
 	MessageType from = X_PROBED;
 	const char *name = NULL;
@@ -258,7 +257,6 @@ intel_detect_chipset(ScrnInfoPtr scrn,
 	}
 
 	scrn->chipset = name;
-	return chipset_info;
 }
 
 /*
@@ -368,8 +366,6 @@ static Bool intel_pci_probe(DriverPtr		driver,
 	PciChipsets intel_pci_chipsets[NUM_CHIPSETS];
 	unsigned i;
 
-	chipset_info = (void *)match_data;
-
 	if (!has_kernel_mode_setting(device)) {
 #if KMS_ONLY
 		return FALSE;
@@ -404,6 +400,7 @@ static Bool intel_pci_probe(DriverPtr		driver,
 	scrn->driverVersion = INTEL_VERSION;
 	scrn->driverName = INTEL_DRIVER_NAME;
 	scrn->name = INTEL_NAME;
+	scrn->driverPrivate = (void *)(match_data | 1);
 	scrn->Probe = NULL;
 
 #if !KMS_ONLY

@@ -238,9 +238,9 @@ struct intel_device_info {
 	int gen;
 };
 
-const struct intel_device_info *
-intel_detect_chipset(ScrnInfoPtr scrn,
-		     EntityInfoPtr ent, struct pci_device *pci);
+void intel_detect_chipset(ScrnInfoPtr scrn,
+			  EntityInfoPtr ent,
+			  struct pci_device *pci);
 
 
 #endif /* INTEL_DRIVER_H */

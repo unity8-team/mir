@@ -186,7 +186,7 @@ static void PreInitCleanup(ScrnInfoPtr scrn)
 static void intel_check_chipset_option(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	intel->info = intel_detect_chipset(scrn, intel->pEnt, intel->PciInfo);
+	intel_detect_chipset(scrn, intel->pEnt, intel->PciInfo);
 }
 
 static Bool I830GetEarlyOptions(ScrnInfoPtr scrn)
@@ -458,14 +458,15 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 	if (flags & PROBE_DETECT)
 		return TRUE;
 
-	intel = intel_get_screen_private(scrn);
-	if (intel == NULL) {
-		intel = xnfcalloc(sizeof(intel_screen_private), 1);
+	if (((uintptr_t)scrn->driverPrivate) & 1) {
+		intel = xnfcalloc(sizeof(*intel), 1);
 		if (intel == NULL)
 			return FALSE;
 
+		intel->info = (void *)((uintptr_t)scrn->driverPrivate & ~1);
 		scrn->driverPrivate = intel;
 	}
+	intel = intel_get_screen_private(scrn);
 	intel->scrn = scrn;
 	intel->pEnt = pEnt;
 
