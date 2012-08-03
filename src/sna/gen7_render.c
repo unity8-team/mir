@@ -2086,7 +2086,7 @@ gen7_render_video(struct sna *sna,
 			       is_planar_fourcc(frame->id) ?
 			       GEN7_WM_KERNEL_VIDEO_PLANAR :
 			       GEN7_WM_KERNEL_VIDEO_PACKED,
-			       1);
+			       2);
 	tmp.priv = frame;
 
 	kgem_set_mode(&sna->kgem, KGEM_RENDER);
