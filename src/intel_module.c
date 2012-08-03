@@ -155,7 +155,7 @@ static const SymTabRec _intel_chipsets[] = {
 };
 #define NUM_CHIPSETS (sizeof(_intel_chipsets) / sizeof(_intel_chipsets[0]))
 
-SymTabRec *intel_chipsets = (SymTabRec *) _intel_chipsets;
+static SymTabRec *intel_chipsets = (SymTabRec *) _intel_chipsets;
 
 #define INTEL_DEVICE_MATCH(d,i) \
     { 0x8086, (d), PCI_MATCH_ANY, PCI_MATCH_ANY, 0x3 << 16, 0xff << 16, (intptr_t)(i) }

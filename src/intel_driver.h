@@ -234,7 +234,6 @@
 #define SUPPORTS_YTILING(pI810) (INTEL_INFO(intel)->gen >= 40)
 #define HAS_BLT(pI810) (INTEL_INFO(intel)->gen >= 60)
 
-extern SymTabRec *intel_chipsets;
 struct intel_device_info {
 	int gen;
 };
