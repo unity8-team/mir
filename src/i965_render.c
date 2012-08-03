@@ -1392,6 +1392,13 @@ gen7_set_picture_surface_state(intel_screen_private *intel,
 	ss->ss2.width = pixmap->drawable.width - 1;
 	ss->ss3.pitch = intel_pixmap_pitch(pixmap) - 1;
 
+	if (IS_HSW(intel)) {
+		ss->ss7.shader_chanel_select_r = HSW_SCS_RED;
+		ss->ss7.shader_chanel_select_g = HSW_SCS_GREEN;
+		ss->ss7.shader_chanel_select_b = HSW_SCS_BLUE;
+		ss->ss7.shader_chanel_select_a = HSW_SCS_ALPHA;
+	}
+
 	dri_bo_emit_reloc(intel->surface_bo,
 			  read_domains, write_domain,
 			  0,

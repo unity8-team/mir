@@ -510,6 +510,13 @@ static void gen7_create_dst_surface_state(ScrnInfoPtr scrn,
 
 	dest_surf_state.ss3.pitch = intel_pixmap_pitch(pixmap) - 1;
 
+	if (IS_HSW(intel)) {
+		dest_surf_state.ss7.shader_chanel_select_r = HSW_SCS_RED;
+		dest_surf_state.ss7.shader_chanel_select_g = HSW_SCS_GREEN;
+		dest_surf_state.ss7.shader_chanel_select_b = HSW_SCS_BLUE;
+		dest_surf_state.ss7.shader_chanel_select_a = HSW_SCS_ALPHA;
+	}
+
 	dri_bo_subdata(surf_bo,
 		       offset, sizeof(dest_surf_state),
 		       &dest_surf_state);
@@ -525,6 +532,7 @@ static void gen7_create_src_surface_state(ScrnInfoPtr scrn,
 					drm_intel_bo *surface_bo,
 					uint32_t offset)
 {
+	intel_screen_private * const intel = intel_get_screen_private(scrn);
 	struct gen7_surface_state src_surf_state;
 
 	memset(&src_surf_state, 0, sizeof(src_surf_state));
@@ -546,6 +554,13 @@ static void gen7_create_src_surface_state(ScrnInfoPtr scrn,
 	src_surf_state.ss2.height = src_height - 1;
 
 	src_surf_state.ss3.pitch = src_pitch - 1;
+
+	if (IS_HSW(intel)) {
+		src_surf_state.ss7.shader_chanel_select_r = HSW_SCS_RED;
+		src_surf_state.ss7.shader_chanel_select_g = HSW_SCS_GREEN;
+		src_surf_state.ss7.shader_chanel_select_b = HSW_SCS_BLUE;
+		src_surf_state.ss7.shader_chanel_select_a = HSW_SCS_ALPHA;
+	}
 
 	dri_bo_subdata(surface_bo,
 		       offset, sizeof(src_surf_state),
