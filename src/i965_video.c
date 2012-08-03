@@ -1641,9 +1641,11 @@ gen7_upload_wm_state(ScrnInfoPtr scrn, Bool is_packed)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	unsigned int max_threads_shift = GEN7_PS_MAX_THREADS_SHIFT_IVB;
+	unsigned int num_samples = 0;
 
 	if (IS_HSW(intel)) {
 		max_threads_shift = GEN7_PS_MAX_THREADS_SHIFT_HSW;
+		num_samples = 1 << GEN7_PS_SAMPLE_MASK_SHIFT_HSW;
 	}
 
 	/* disable WM constant buffer */
@@ -1678,7 +1680,7 @@ gen7_upload_wm_state(ScrnInfoPtr scrn, Bool is_packed)
 
 	OUT_BATCH(0); /* scratch space base offset */
 	OUT_BATCH(
-		((48 - 1) << max_threads_shift) |
+		((48 - 1) << max_threads_shift) | num_samples |
 		GEN7_PS_ATTRIBUTE_ENABLE |
 		GEN7_PS_16_DISPATCH_ENABLE);
 	OUT_BATCH(
