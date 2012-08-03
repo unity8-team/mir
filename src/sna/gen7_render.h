@@ -1237,6 +1237,17 @@ struct gen7_sampler_state {
 #define GEN7_SURFACE_DEPTH_SHIFT         21
 #define GEN7_SURFACE_PITCH_SHIFT         0
 
+#define HSW_SWIZZLE_ZERO		0
+#define HSW_SWIZZLE_ONE			1
+#define HSW_SWIZZLE_RED			4
+#define HSW_SWIZZLE_GREEN		5
+#define HSW_SWIZZLE_BLUE		6
+#define HSW_SWIZZLE_ALPHA		7
+#define __HSW_SURFACE_SWIZZLE(r,g,b,a) \
+	((a) << 16 | (b) << 19 | (g) << 22 | (r) << 25)
+#define HSW_SURFACE_SWIZZLE(r,g,b,a) \
+	__HSW_SURFACE_SWIZZLE(HSW_SWIZZLE_##r, HSW_SWIZZLE_##g, HSW_SWIZZLE_##b, HSW_SWIZZLE_##a)
+
 /* _3DSTATE_VERTEX_BUFFERS on GEN7*/
 /* DW1 */
 #define GEN7_VB0_ADDRESS_MODIFYENABLE   (1 << 14)
@@ -1281,7 +1292,9 @@ struct gen7_sampler_state {
 # define GEN7_PS_FLOATING_POINT_MODE_ALT                (1 << 16)
 /* DW3: scratch space */
 /* DW4 */
-# define GEN7_PS_MAX_THREADS_SHIFT                      24
+# define IVB_PS_MAX_THREADS_SHIFT                      24
+# define HSW_PS_MAX_THREADS_SHIFT                      23
+# define HSW_PS_SAMPLE_MASK_SHIFT                      12
 # define GEN7_PS_PUSH_CONSTANT_ENABLE                   (1 << 11)
 # define GEN7_PS_ATTRIBUTE_ENABLE                       (1 << 10)
 # define GEN7_PS_OMASK_TO_RENDER_TARGET                 (1 << 9)

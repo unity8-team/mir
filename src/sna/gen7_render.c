@@ -83,18 +83,27 @@ struct gt_info {
 	} urb;
 };
 
-static const struct gt_info gt1_info = {
+static const struct gt_info ivb_gt1_info = {
 	.max_vs_threads = 36,
 	.max_gs_threads = 36,
-	.max_wm_threads = (48-1) << GEN7_PS_MAX_THREADS_SHIFT,
+	.max_wm_threads = (48-1) << IVB_PS_MAX_THREADS_SHIFT,
 	.urb = { 128, 512, 192 },
 };
 
-static const struct gt_info gt2_info = {
+static const struct gt_info ivb_gt2_info = {
 	.max_vs_threads = 128,
 	.max_gs_threads = 128,
-	.max_wm_threads = (172-1) << GEN7_PS_MAX_THREADS_SHIFT,
+	.max_wm_threads = (172-1) << IVB_PS_MAX_THREADS_SHIFT,
 	.urb = { 256, 704, 320 },
+};
+
+static const struct gt_info hsw_gt_info = {
+	.max_vs_threads = 8,
+	.max_gs_threads = 8,
+	.max_wm_threads =
+		(8 - 1) << HSW_PS_MAX_THREADS_SHIFT |
+		1 << HSW_PS_SAMPLE_MASK_SHIFT,
+	.urb = { 128, 64, 64 },
 };
 
 static const uint32_t ps_kernel_packed[][4] = {
@@ -1363,6 +1372,8 @@ gen7_bind_bo(struct sna *sna,
 	ss[5] = 0;
 	ss[6] = 0;
 	ss[7] = 0;
+	if (sna->kgem.gen == 75)
+		ss[7] |= HSW_SURFACE_SWIZZLE(RED, GREEN, BLUE, ALPHA);
 
 	kgem_bo_set_binding(bo, format, offset);
 
@@ -4234,9 +4245,14 @@ static bool gen7_render_setup(struct sna *sna)
 	struct gen7_sampler_state *ss;
 	int i, j, k, l, m;
 
-	state->info = &gt1_info;
-	if (DEVICE_ID(sna->PciInfo) & 0x20)
-		state->info = &gt2_info; /* XXX requires GT_MODE WiZ disabled */
+	if (sna->kgem.gen == 70) {
+		state->info = &ivb_gt1_info;
+		if (DEVICE_ID(sna->PciInfo) & 0x20)
+			state->info = &ivb_gt2_info; /* XXX requires GT_MODE WiZ disabled */
+	} else if (sna->kgem.gen == 75) {
+		state->info = &hsw_gt_info;
+	} else
+		return false;
 
 	sna_static_stream_init(&general);
 
