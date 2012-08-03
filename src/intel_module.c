@@ -98,6 +98,10 @@ static const struct intel_device_info intel_ivybridge_info = {
 	.gen = 70,
 };
 
+static const struct intel_device_info intel_haswell_info = {
+	.gen = 75,
+};
+
 static const SymTabRec _intel_chipsets[] = {
 	{PCI_CHIP_I810,				"i810"},
 	{PCI_CHIP_I810_DC100,			"i810-dc100"},
