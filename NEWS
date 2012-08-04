@@ -1,3 +1,32 @@
+Release 2.20.3 (2012-08-04)
+===========================
+Just a minor bugfix for gen4 chipsets (965gm, gm45 and friends) that
+crept into 2.20.2. As an added bonus, the pessimistic workaround for a
+GPU hang on gen4 has been relaxed and the shaders have been overhauled
+which should pave the way to eliminating the last of the uncommon CPU
+operations, along with immediately realising a small perforamnce
+improvement.
+
+Bugs fixed since 2.20.2:
+
+ * Update DPMS bookkeeping after modeset
+   https://bugs.freedesktop.org/show_bug.cgi?id=52142
+
+ * Avoid overlapping gpu/cpu damage after ignoring cpu damage in the
+   consideration of placement for the operation.
+
+ * Enable acceleration by default on 830gm/845g. The GMCH on this pair
+   of chipsets is notoriously incoherent, so the GPU is almost certainly
+   going to hang at some point, though unlikely to hang the system and
+   should automatically disable acceleration (and thence behave
+   identically as if the acceleration was disabled from the start).
+   Option "NoAccel" can be used to disable all 2D acceleration and
+   Option "DRI" can be used to disable all 3D acceleration.
+   https://bugs.freedesktop.org/show_bug.cgi?id=52624
+
+ * Fix vertex bookkeeping for gen4 that was causing corruption in the
+   command stream.
+
 Release 2.20.2 (2012-07-27)
 ===========================
 For the last 9 months, since 2.16.901, we have been shipping a driver that
