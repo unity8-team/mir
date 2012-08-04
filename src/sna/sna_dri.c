@@ -488,7 +488,7 @@ static void sna_dri_select_mode(struct sna *sna, struct kgem_bo *src, bool sync)
 	 * the cost of the query.
 	 */
 	mode = KGEM_RENDER;
-	if (busy.busy & (1 << 16))
+	if (busy.busy & (1 << 17))
 		mode = KGEM_BLT;
 	_kgem_set_mode(&sna->kgem, mode);
 }
