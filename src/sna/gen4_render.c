@@ -1682,6 +1682,8 @@ gen4_render_video(struct sna *sna,
 		OUT_VERTEX_F((box->x1 - dxo) * src_scale_x);
 		OUT_VERTEX_F((box->y1 - dyo) * src_scale_y);
 
+		FLUSH(&tmp);
+
 		if (!DAMAGE_IS_ALL(priv->gpu_damage)) {
 			sna_damage_add_box(&priv->gpu_damage, &r);
 			sna_damage_subtract_box(&priv->cpu_damage, &r);
