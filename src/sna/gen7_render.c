@@ -3332,35 +3332,30 @@ static inline bool
 overlaps(struct sna *sna,
 	 struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
 	 struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
-	 const BoxRec *box, int n)
+	 const BoxRec *box, int n, BoxRec *extents)
 {
-	BoxRec extents;
-
 	if (src_bo != dst_bo)
 		return false;
 
-	if (can_switch_rings(sna))
-		return true;
-
-	extents = box[0];
+	*extents = box[0];
 	while (--n) {
 		box++;
 
-		if (box->x1 < extents.x1)
-			extents.x1 = box->x1;
-		if (box->x2 > extents.x2)
-			extents.x2 = box->x2;
+		if (box->x1 < extents->x1)
+			extents->x1 = box->x1;
+		if (box->x2 > extents->x2)
+			extents->x2 = box->x2;
 
-		if (box->y1 < extents.y1)
-			extents.y1 = box->y1;
-		if (box->y2 > extents.y2)
-			extents.y2 = box->y2;
+		if (box->y1 < extents->y1)
+			extents->y1 = box->y1;
+		if (box->y2 > extents->y2)
+			extents->y2 = box->y2;
 	}
 
-	return (extents.x2 + src_dx > extents.x1 + dst_dx &&
-		extents.x1 + src_dx < extents.x2 + dst_dx &&
-		extents.y2 + src_dy > extents.y1 + dst_dy &&
-		extents.y1 + src_dy < extents.y2 + dst_dy);
+	return (extents->x2 + src_dx > extents->x1 + dst_dx &&
+		extents->x1 + src_dx < extents->x2 + dst_dx &&
+		extents->y2 + src_dy > extents->y1 + dst_dy &&
+		extents->y1 + src_dy < extents->y2 + dst_dy);
 }
 
 static bool
@@ -3370,6 +3365,7 @@ gen7_render_copy_boxes(struct sna *sna, uint8_t alu,
 		       const BoxRec *box, int n, unsigned flags)
 {
 	struct sna_composite_op tmp;
+	BoxRec extents;
 
 	DBG(("%s (%d, %d)->(%d, %d) x %d, alu=%x, self-copy=%d, overlaps? %d\n",
 	     __FUNCTION__, src_dx, src_dy, dst_dx, dst_dy, n, alu,
@@ -3377,7 +3373,7 @@ gen7_render_copy_boxes(struct sna *sna, uint8_t alu,
 	     overlaps(sna,
 		      src_bo, src_dx, src_dy,
 		      dst_bo, dst_dx, dst_dy,
-		      box, n)));
+		      box, n, &extents)));
 
 	if (prefer_blt_copy(sna, src, src_bo, dst, dst_bo, flags) &&
 	    sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
@@ -3388,44 +3384,37 @@ gen7_render_copy_boxes(struct sna *sna, uint8_t alu,
 			       box, n))
 		return true;
 
-	if (too_large(dst->drawable.width, dst->drawable.height) ||
-	    sna_blt_compare_depth(&src->drawable, &dst->drawable)) {
-		BoxRec extents = box[0];
-		int i;
+	if (!(alu == GXcopy || alu == GXclear)) {
+fallback_blt:
+		if (!sna_blt_compare_depth(&src->drawable, &dst->drawable))
+			return false;
 
-		for (i = 1; i < n; i++) {
-			if (box[i].x1 < extents.x1)
-				extents.x1 = box[i].x1;
-			if (box[i].y1 < extents.y1)
-				extents.y1 = box[i].y1;
+		return sna_blt_copy_boxes_fallback(sna, alu,
+						   src, src_bo, src_dx, src_dy,
+						   dst, dst_bo, dst_dx, dst_dy,
+						   box, n);
+	}
 
-			if (box[i].x2 > extents.x2)
-				extents.x2 = box[i].x2;
-			if (box[i].y2 > extents.y2)
-				extents.y2 = box[i].y2;
-		}
-		if (too_large(extents.x2 - extents.x1, extents.y2 - extents.y1) &&
+	if (overlaps(sna,
+		     src_bo, src_dx, src_dy,
+		     dst_bo, dst_dx, dst_dy,
+		     box, n, &extents)) {
+		if (too_large(extents.x2-extents.x1, extents.y2-extents.y1))
+			goto fallback_blt;
+
+		if ((flags & COPY_LAST || can_switch_rings(sna)) &&
+		    sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
 		    sna_blt_copy_boxes(sna, alu,
 				       src_bo, src_dx, src_dy,
 				       dst_bo, dst_dx, dst_dy,
 				       dst->drawable.bitsPerPixel,
 				       box, n))
 			return true;
-	}
 
-	if (!(alu == GXcopy || alu == GXclear) ||
-	    overlaps(sna,
-		     src_bo, src_dx, src_dy,
-		     dst_bo, dst_dx, dst_dy,
-		     box, n)) {
-fallback_blt:
-		if (!sna_blt_compare_depth(&src->drawable, &dst->drawable))
-			return false;
-
-		return sna_blt_copy_boxes_fallback(sna, alu,
-						 src, src_bo, src_dx, src_dy,
-						 dst, dst_bo, dst_dx, dst_dy,
-						 box, n);
+		return sna_render_copy_boxes__overlap(sna, alu,
+						      src, src_bo, src_dx, src_dy,
+						      dst, dst_bo, dst_dx, dst_dy,
+						      box, n, &extents);
 	}
 
 	if (dst->drawable.depth == src->drawable.depth) {
@@ -3447,9 +3436,9 @@ fallback_blt:
 
 	sna_render_composite_redirect_init(&tmp);
 	if (too_large(tmp.dst.width, tmp.dst.height)) {
-		BoxRec extents = box[0];
 		int i;
 
+		extents = box[0];
 		for (i = 1; i < n; i++) {
 			if (box[i].x1 < extents.x1)
 				extents.x1 = box[i].x1;
@@ -3477,9 +3466,9 @@ fallback_blt:
 
 	tmp.src.card_format = gen7_get_card_format(tmp.src.pict_format);
 	if (too_large(src->drawable.width, src->drawable.height)) {
-		BoxRec extents = box[0];
 		int i;
 
+		extents = box[0];
 		for (i = 1; i < n; i++) {
 			if (extents.x1 < box[i].x1)
 				extents.x1 = box[i].x1;

@@ -704,6 +704,12 @@ sna_render_composite_redirect_done(struct sna *sna,
 				   const struct sna_composite_op *op);
 
 bool
+sna_render_copy_boxes__overlap(struct sna *sna, uint8_t alu,
+			       PixmapPtr src, struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
+			       PixmapPtr dst, struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
+			       const BoxRec *box, int n, const BoxRec *extents);
+
+bool
 sna_composite_mask_is_opaque(PicturePtr mask);
 
 #endif /* SNA_RENDER_H */
