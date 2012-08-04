@@ -1071,7 +1071,7 @@ Bool sna_init_scrn(ScrnInfoPtr scrn, int entity_num)
 #if defined(USE_GIT_DESCRIBE)
 	xf86DrvMsg(scrn->scrnIndex, X_INFO,
 		   "SNA compiled from %s\n", git_version);
-#elif BUILDER_DESCRIPTION
+#elif defined(BUILDER_DESCRIPTION)
 	xf86DrvMsg(scrn->scrnIndex, X_INFO,
 		   "SNA compiled: %s\n", BUILDER_DESCRIPTION);
 #endif
