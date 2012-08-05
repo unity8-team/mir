@@ -221,8 +221,8 @@ nvc0_xv_image_put(ScrnInfoPtr pScrn,
 	PUSH_DATAf(push, 1.0 / width);
 	PUSH_DATAf(push, 1.0 / height);
 
-	if (0 && pPriv->SyncToVBlank) {
-		NV50SyncToVBlank(ppix, dstBox);
+	if (pPriv->SyncToVBlank) {
+		NVC0SyncToVBlank(ppix, dstBox);
 	}
 
 	/* These are fixed point values in the 16.16 format. */

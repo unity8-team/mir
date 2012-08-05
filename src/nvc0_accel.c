@@ -25,6 +25,45 @@
 #include "nvc0_shader.h"
 #include "nve0_shader.h"
 
+void
+NVC0SyncToVBlank(PixmapPtr ppix, BoxPtr box)
+{
+	ScrnInfoPtr pScrn = xf86ScreenToScrn(ppix->drawable.pScreen);
+	NVPtr pNv = NVPTR(pScrn);
+	struct nouveau_pushbuf *push = pNv->pushbuf;
+	int crtcs;
+
+	if (!pNv->NvSW || !nouveau_exa_pixmap_is_onscreen(ppix))
+		return;
+
+	crtcs = nv_window_belongs_to_crtc(pScrn, box->x1, box->y1,
+					  box->x2 - box->x1,
+					  box->y2 - box->y1);
+	if (!crtcs)
+		return;
+
+	if (!PUSH_SPACE(push, 32))
+		return;
+
+	BEGIN_NVC0(push, NV01_SUBC(NVSW, OBJECT), 1);
+	PUSH_DATA (push, pNv->NvSW->handle);
+	BEGIN_NVC0(push, NV84_SUBC(NVSW, SEMAPHORE_ADDRESS_HIGH), 4);
+	PUSH_DATA (push, (pNv->scratch->offset + SEMA_OFFSET) >> 32);
+	PUSH_DATA (push, (pNv->scratch->offset + SEMA_OFFSET));
+	PUSH_DATA (push, 0x22222222);
+	PUSH_DATA (push, NV84_SUBCHAN_SEMAPHORE_TRIGGER_WRITE_LONG);
+	BEGIN_NVC0(push, SUBC_NVSW(0x0400), 4);
+	PUSH_DATA (push, (pNv->scratch->offset + SEMA_OFFSET) >> 32);
+	PUSH_DATA (push, (pNv->scratch->offset + SEMA_OFFSET));
+	PUSH_DATA (push, 0x11111111);
+	PUSH_DATA (push, ffs(crtcs) - 1);
+	BEGIN_NVC0(push, NV84_SUBC(NVSW, SEMAPHORE_ADDRESS_HIGH), 4);
+	PUSH_DATA (push, (pNv->scratch->offset + SEMA_OFFSET) >> 32);
+	PUSH_DATA (push, (pNv->scratch->offset + SEMA_OFFSET));
+	PUSH_DATA (push, 0x11111111);
+	PUSH_DATA (push, NV84_SUBCHAN_SEMAPHORE_TRIGGER_ACQUIRE_EQUAL);
+}
+
 Bool
 NVAccelInitM2MF_NVC0(ScrnInfoPtr pScrn)
 {
@@ -140,18 +179,28 @@ NVAccelInit3D_NVC0(ScrnInfoPtr pScrn)
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_pushbuf *push = pNv->pushbuf;
 	struct nouveau_bo *bo = pNv->scratch;
-	uint32_t class;
+	uint32_t class, handle;
 	int ret;
 
-	if (pNv->Architecture < NV_ARCH_E0)
-		class = 0x9097;
-	else
-		class = 0xa097;
+	if (pNv->Architecture < NV_ARCH_E0) {
+		class  = 0x9097;
+		handle = 0x001f906e;
+	} else {
+		class  = 0xa097;
+		handle = 0x0000906e;
+	}
 
 	ret = nouveau_object_new(pNv->channel, class, class,
 				 NULL, 0, &pNv->Nv3D);
 	if (ret)
 		return FALSE;
+
+	ret = nouveau_object_new(pNv->channel, handle, 0x906e,
+				 NULL, 0, &pNv->NvSW);
+	if (ret) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "DRM doesn't support sync-to-vblank\n");
+	}
 
 	if (nouveau_pushbuf_space(push, 512, 0, 0) ||
 	    nouveau_pushbuf_refn (push, &(struct nouveau_pushbuf_refn) {

@@ -149,6 +149,7 @@ Bool NVAccelInit2D_NV50(ScrnInfoPtr pScrn);
 Bool NVAccelInitNV50TCL(ScrnInfoPtr pScrn);
 
 /* in nvc0_accel.c */
+void NVC0SyncToVBlank(PixmapPtr ppix, BoxPtr box);
 Bool NVAccelInitM2MF_NVC0(ScrnInfoPtr pScrn);
 Bool NVAccelInitCopy_NVC0(ScrnInfoPtr pScrn);
 Bool NVAccelInitP2MF_NVE0(ScrnInfoPtr pScrn);

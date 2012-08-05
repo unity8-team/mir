@@ -250,6 +250,7 @@ BEGIN_1IC0(struct nouveau_pushbuf *push, int subc, int mthd, int size)
 
 #define NV01_SUBC(subc, mthd) SUBC_##subc((NV01_SUBCHAN_##mthd))
 #define NV11_SUBC(subc, mthd) SUBC_##subc((NV11_SUBCHAN_##mthd))
+#define NV84_SUBC(subc, mthd) SUBC_##subc((NV84_SUBCHAN_##mthd))
 
 #define NV04_GRAPH(subc, mthd) SUBC_##subc((NV04_GRAPH_##mthd))
 #define NV50_GRAPH(subc, mthd) SUBC_##subc((NV50_GRAPH_##mthd))

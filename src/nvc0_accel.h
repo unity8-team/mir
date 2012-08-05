@@ -30,6 +30,7 @@
 #define TSC_OFFSET  0x03000 /* Texture Sampler Control */
 #define SOLID(i)   (0x04000 + (i) * 0x100)
 #define NTFY_OFFSET 0x08000
+#define SEMA_OFFSET 0x08100
 #define MISC_OFFSET 0x10000
 
 /* vertex/fragment programs */
