@@ -415,6 +415,9 @@ static int string(FILE *file, const char *str)
 	return 0;
 }
 
+#if defined(__GNUC__) && (__GNUC__ > 2)
+__attribute__((format(printf, 2, 3)))
+#endif
 static int format(FILE *f, const char *fmt, ...)
 {
 	char buf[1024];
@@ -833,10 +836,10 @@ void brw_disasm(FILE *file, const struct brw_instruction *inst, int gen)
 	int space = 0;
 
 	format(file, "%08x %08x %08x %08x\n",
-	       ((uint32_t*)inst)[0],
-	       ((uint32_t*)inst)[1],
-	       ((uint32_t*)inst)[2],
-	       ((uint32_t*)inst)[3]);
+	       ((const uint32_t*)inst)[0],
+	       ((const uint32_t*)inst)[1],
+	       ((const uint32_t*)inst)[2],
+	       ((const uint32_t*)inst)[3]);
 
 	if (inst->header.predicate_control) {
 		string(file, "(");
