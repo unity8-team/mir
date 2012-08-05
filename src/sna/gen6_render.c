@@ -3284,7 +3284,8 @@ gen6_render_copy_boxes(struct sna *sna, uint8_t alu,
 	DBG(("%s (%d, %d)->(%d, %d) x %d, alu=%x, self-copy=%d, overlaps? %d\n",
 	     __FUNCTION__, src_dx, src_dy, dst_dx, dst_dy, n, alu,
 	     src_bo == dst_bo,
-	     overlaps(src_bo, src_dx, src_dy,
+	     overlaps(sna,
+		      src_bo, src_dx, src_dy,
 		      dst_bo, dst_dx, dst_dy,
 		      box, n, &extents)));
 
