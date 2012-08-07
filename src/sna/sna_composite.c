@@ -364,7 +364,14 @@ sna_compute_composite_extents(BoxPtr extents,
 		trim_source_extents(extents, mask,
 				    dst_x - mask_x, dst_y - mask_y);
 
-	return extents->x1 < extents->x2 && extents->y1 < extents->y2;
+	if (extents->x1 >= extents->x2 || extents->y1 >= extents->y2)
+		return false;
+
+	if (region_is_singular(dst->pCompositeClip))
+		return true;
+
+	return pixman_region_contains_rectangle(dst->pCompositeClip,
+						extents) != PIXMAN_REGION_OUT;
 }
 
 #if HAS_DEBUG_FULL
