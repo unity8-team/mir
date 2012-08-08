@@ -92,6 +92,8 @@ search_snoop_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags);
 #define IS_USER_MAP(ptr) ((uintptr_t)(ptr) & 2)
 #define __MAP_TYPE(ptr) ((uintptr_t)(ptr) & 3)
 
+#define LOCAL_I915_PARAM_HAS_SEMAPHORES	 20
+
 #define LOCAL_I915_GEM_USERPTR       0x32
 #define LOCAL_IOCTL_I915_GEM_USERPTR DRM_IOWR (DRM_COMMAND_BASE + LOCAL_I915_GEM_USERPTR, struct local_i915_gem_userptr)
 struct local_i915_gem_userptr {
@@ -616,13 +618,18 @@ static int gem_param(struct kgem *kgem, int name)
 	return v;
 }
 
-static bool test_has_semaphores_enabled(void)
+static bool test_has_semaphores_enabled(struct kgem *kgem)
 {
 	FILE *file;
 	bool detected = false;
+	int ret;
 
 	if (DBG_NO_SEMAPHORES)
 		return false;
+
+	ret = gem_param(kgem, LOCAL_I915_PARAM_HAS_SEMAPHORES);
+	if (ret != -1)
+		return ret > 0;
 
 	file = fopen("/sys/module/i915/parameters/semaphores", "r");
 	if (file) {
@@ -788,7 +795,7 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	     kgem->has_userptr));
 
 	kgem->has_semaphores = false;
-	if (kgem->has_blt && test_has_semaphores_enabled())
+	if (kgem->has_blt && test_has_semaphores_enabled(kgem))
 		kgem->has_semaphores = true;
 	DBG(("%s: semaphores enabled? %d\n", __FUNCTION__,
 	     kgem->has_semaphores));
