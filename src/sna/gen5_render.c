@@ -3123,8 +3123,10 @@ gen5_render_fill_boxes(struct sna *sna,
 	struct sna_composite_op tmp;
 	uint32_t pixel;
 
-	DBG(("%s op=%x, color=%08x, boxes=%d x [((%d, %d), (%d, %d))...]\n",
-	     __FUNCTION__, op, pixel, n, box->x1, box->y1, box->x2, box->y2));
+	DBG(("%s op=%x, color=(%04x,%04x,%04x,%04x), boxes=%d x [((%d, %d), (%d, %d))...]\n",
+	     __FUNCTION__, op,
+	     color->red, color->green, color->blue, color->alpha,
+	     n, box->x1, box->y1, box->x2, box->y2));
 
 	if (op >= ARRAY_SIZE(gen5_blend_op)) {
 		DBG(("%s: fallback due to unhandled blend op: %d\n",
