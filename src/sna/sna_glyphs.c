@@ -1347,8 +1347,10 @@ glyphs_fallback(CARD8 op,
 	RegionTranslate(&region, -dst->pDrawable->x, -dst->pDrawable->y);
 
 	if (mask_format &&
-	    can_discard_mask(op, src, mask_format, nlist, list, glyphs))
+	    can_discard_mask(op, src, mask_format, nlist, list, glyphs)) {
+		DBG(("%s: discarding mask\n", __FUNCTION__));
 		mask_format = NULL;
+	}
 
 	cache = sna->render.glyph_cache;
 	pixman_glyph_cache_freeze(cache);
