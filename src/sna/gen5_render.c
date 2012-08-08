@@ -3516,6 +3516,8 @@ gen5_render_context_switch(struct kgem *kgem,
 	 */
 	if (kgem->mode == KGEM_BLT) {
 		struct sna *sna = to_sna_from_kgem(kgem);
+		DBG(("%s: forcing drawrect on next state emission\n",
+		     __FUNCTION__));
 		sna->render_state.gen5.drawrect_limit = -1;
 	}
 }
