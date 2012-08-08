@@ -667,11 +667,13 @@ sna_composite_rectangles(CARD8		 op,
 	struct sna *sna = to_sna_from_drawable(dst->pDrawable);
 	PixmapPtr pixmap;
 	struct sna_pixmap *priv;
+	struct kgem_bo *bo;
+	struct sna_damage **damage;
 	pixman_region16_t region;
 	pixman_box16_t *boxes;
 	int16_t dst_x, dst_y;
-	int num_boxes;
-	int error;
+	int num_boxes, error;
+	unsigned hint;
 
 	DBG(("%s(op=%d, %08x x %d [(%d, %d)x(%d, %d) ...])\n",
 	     __FUNCTION__, op,
@@ -782,6 +784,7 @@ sna_composite_rectangles(CARD8		 op,
 	     __FUNCTION__, dst_x, dst_y,
 	     RegionExtents(&region)->x1, RegionExtents(&region)->y1,
 	     RegionExtents(&region)->x2, RegionExtents(&region)->y2));
+	assert_pixmap_contains_box(pixmap, RegionExtents(&region));
 
 	if (NO_COMPOSITE_RECTANGLES)
 		goto fallback;
@@ -794,54 +797,81 @@ sna_composite_rectangles(CARD8		 op,
 		goto fallback;
 	}
 
-	boxes = pixman_region_rectangles(&region, &num_boxes);
-
 	priv = sna_pixmap(pixmap);
-	if (priv == NULL) {
-		DBG(("%s: fallback, not attached\n", __FUNCTION__));
+	if (priv == NULL || too_small(priv)) {
+		DBG(("%s: fallback, too small or not attached\n", __FUNCTION__));
 		goto fallback;
 	}
 
-	if (use_cpu(pixmap, priv, op,
-		    region.extents.x2 - region.extents.x1,
-		    region.extents.y2 - region.extents.y1)) {
-		DBG(("%s: fallback, dst is too small (or completely damaged)\n", __FUNCTION__));
-		goto fallback;
-	}
+	boxes = pixman_region_rectangles(&region, &num_boxes);
 
 	/* If we going to be overwriting any CPU damage with a subsequent
 	 * operation, then we may as well delete it without moving it
 	 * first to the GPU.
 	 */
-	if (op <= PictOpSrc)
-		sna_damage_subtract(&priv->cpu_damage, &region);
+	hint = PREFER_GPU;
+	if (op <= PictOpSrc) {
+		if (priv->cpu_damage &&
+		    region_subsumes_damage(&region, priv->cpu_damage)) {
+			DBG(("%s: discarding existing CPU damage\n", __FUNCTION__));
+			sna_damage_destroy(&priv->cpu_damage);
+			list_del(&priv->list);
+		}
+		if (region_subsumes_drawable(&region, &pixmap->drawable) ||
+		    box_inplace(pixmap, &region.extents)) {
+			DBG(("%s: promoting to full GPU\n", __FUNCTION__));
+			if (priv->gpu_bo && priv->cpu_damage == NULL) {
+				sna_damage_all(&priv->gpu_damage,
+					       pixmap->drawable.width,
+					       pixmap->drawable.height);
+				priv->undamaged = false;
+			}
+		}
+		if (priv->cpu_damage == NULL) {
+			DBG(("%s: dropping last-cpu hint\n", __FUNCTION__));
+			priv->cpu = false;
+		}
 
-	priv = sna_pixmap_move_to_gpu(pixmap, MOVE_READ | MOVE_WRITE);
-	if (priv == NULL) {
+		if (region.data == NULL)
+			hint |= IGNORE_CPU;
+	}
+
+	bo = sna_drawable_use_bo(&pixmap->drawable, hint,
+				 &region.extents, &damage);
+	if (bo == NULL) {
 		DBG(("%s: fallback due to no GPU bo\n", __FUNCTION__));
 		goto fallback;
 	}
 
 	if (!sna->render.fill_boxes(sna, op, dst->format, color,
-				    pixmap, priv->gpu_bo,
-				    boxes, num_boxes)) {
+				    pixmap, bo, boxes, num_boxes)) {
 		DBG(("%s: fallback - acceleration failed\n", __FUNCTION__));
 		goto fallback;
 	}
 
+	if (damage)
+		sna_damage_add(damage, &region);
+
 	/* Clearing a pixmap after creation is a common operation, so take
 	 * advantage and reduce further damage operations.
 	 */
-	if (region.data == NULL &&
-	    region.extents.x2 - region.extents.x1 == pixmap->drawable.width &&
-	    region.extents.y2 - region.extents.y1 == pixmap->drawable.height) {
-		sna_damage_all(&priv->gpu_damage,
-			       pixmap->drawable.width, pixmap->drawable.height);
-		priv->undamaged = false;
-		if (op <= PictOpSrc) {
-			bool ok = true;
+	if (region_subsumes_drawable(&region, &pixmap->drawable)) {
+		if (damage) {
+			sna_damage_all(damage,
+				       pixmap->drawable.width,
+				       pixmap->drawable.height);
+			sna_damage_destroy(damage == &priv->gpu_damage ?
+					   &priv->cpu_damage : &priv->gpu_damage);
+			priv->undamaged = false;
+		}
+
+		if (op <= PictOpSrc && bo == priv->gpu_bo) {
+			bool ok;
+
+			assert(DAMAGE_IS_ALL(priv->gpu_damage));
 
 			priv->clear_color = 0;
+			ok = true;
 			if (op == PictOpSrc)
 				ok = sna_get_pixel_from_rgba(&priv->clear_color,
 							     color->red,
@@ -854,11 +884,6 @@ sna_composite_rectangles(CARD8		 op,
 			     __FUNCTION__, priv->clear_color, ok));
 		}
 	}
-	if (!DAMAGE_IS_ALL(priv->gpu_damage)) {
-		assert_pixmap_contains_box(pixmap, RegionExtents(&region));
-		sna_damage_add(&priv->gpu_damage, &region);
-	}
-
 	goto done;
 
 fallback:

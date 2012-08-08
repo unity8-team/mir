@@ -460,6 +460,65 @@ sna_drawable_move_to_gpu(DrawablePtr drawable, unsigned flags)
 
 struct kgem_bo *sna_pixmap_change_tiling(PixmapPtr pixmap, uint32_t tiling);
 
+#define PREFER_GPU	0x1
+#define FORCE_GPU	0x2
+#define IGNORE_CPU	0x4
+struct kgem_bo *
+sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
+		    struct sna_damage ***damage);
+
+static inline bool
+box_inplace(PixmapPtr pixmap, const BoxRec *box)
+{
+	struct sna *sna = to_sna_from_pixmap(pixmap);
+	return ((int)(box->x2 - box->x1) * (int)(box->y2 - box->y1) * pixmap->drawable.bitsPerPixel >> 12) >= sna->kgem.half_cpu_cache_pages;
+}
+
+static inline bool
+region_subsumes_drawable(RegionPtr region, DrawablePtr drawable)
+{
+	const BoxRec *extents;
+
+	if (region->data)
+		return false;
+
+	extents = RegionExtents(region);
+	return  extents->x1 <= 0 && extents->y1 <= 0 &&
+		extents->x2 >= drawable->width &&
+		extents->y2 >= drawable->height;
+}
+
+static inline bool
+region_subsumes_damage(const RegionRec *region, struct sna_damage *damage)
+{
+	const BoxRec *re, *de;
+
+	DBG(("%s?\n", __FUNCTION__));
+	assert(damage);
+
+	re = &region->extents;
+	de = &DAMAGE_PTR(damage)->extents;
+	DBG(("%s: region (%d, %d), (%d, %d), damage (%d, %d), (%d, %d)\n",
+	     __FUNCTION__,
+	     re->x1, re->y1, re->x2, re->y2,
+	     de->x1, de->y1, de->x2, de->y2));
+
+	if (re->x2 < de->x2 || re->x1 > de->x1 ||
+	    re->y2 < de->y2 || re->y1 > de->y1) {
+		DBG(("%s: not contained\n", __FUNCTION__));
+		return false;
+	}
+
+	if (region->data == NULL) {
+		DBG(("%s: singular region contains damage\n", __FUNCTION__));
+		return true;
+	}
+
+	return pixman_region_contains_rectangle((RegionPtr)region,
+						(BoxPtr)de) == PIXMAN_REGION_IN;
+}
+
+
 static inline bool
 sna_drawable_is_clear(DrawablePtr d)
 {
@@ -556,6 +615,11 @@ sna_picture_alphamap_equal(PicturePtr a, PicturePtr b)
 static inline bool wedged(struct sna *sna)
 {
 	return unlikely(sna->kgem.wedged);
+}
+
+static inline bool can_render(struct sna *sna)
+{
+	return likely(!sna->kgem.wedged && sna->have_render);
 }
 
 static inline uint32_t pixmap_size(PixmapPtr pixmap)

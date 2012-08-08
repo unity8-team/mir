@@ -383,14 +383,15 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 
 	sna_selftest();
 
-	sna = to_sna(scrn);
-	if (sna == NULL) {
+	if (((uintptr_t)scrn->driverPrivate) & 1) {
 		sna = xnfcalloc(sizeof(struct sna), 1);
 		if (sna == NULL)
 			return FALSE;
 
+		sna->info = (void *)((uintptr_t)scrn->driverPrivate & ~1);
 		scrn->driverPrivate = sna;
 	}
+	sna = to_sna(scrn);
 	sna->scrn = scrn;
 	sna->pEnt = pEnt;
 
@@ -438,8 +439,15 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 	if (sna->Options == NULL)
 		return FALSE;
 
-	sna->info = intel_detect_chipset(scrn, sna->pEnt, sna->PciInfo);
+	intel_detect_chipset(scrn, sna->pEnt, sna->PciInfo);
+
 	kgem_init(&sna->kgem, fd, sna->PciInfo, sna->info->gen);
+	if (xf86ReturnOptValBool(sna->Options, OPTION_ACCEL_DISABLE, FALSE)) {
+		xf86DrvMsg(sna->scrn->scrnIndex, X_CONFIG,
+			   "Disabling hardware acceleration.\n");
+		sna->kgem.wedged = true;
+	}
+
 	if (!xf86ReturnOptValBool(sna->Options,
 				  OPTION_RELAXED_FENCING,
 				  sna->kgem.has_relaxed_fencing)) {
@@ -508,7 +516,9 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 	/* Set display resolution */
 	xf86SetDpi(scrn, 0, 0);
 
-	sna->dri_available = !!xf86LoadSubModule(scrn, "dri2");
+	sna->dri_available = false;
+	if (xf86ReturnOptValBool(sna->Options, OPTION_DRI, TRUE))
+		sna->dri_available = !!xf86LoadSubModule(scrn, "dri2");
 
 	return TRUE;
 }

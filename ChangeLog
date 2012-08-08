@@ -1,3 +1,496 @@
+commit 5833ef173a01afb710acf10e806b83c5ca6efc09
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Aug 4 09:31:41 2012 +0100
+
+    2.20.3 release
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 036b90f099af21e60fb4c3684616daf1927f705e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Aug 3 21:41:59 2012 +0100
+
+    sna/gen7: Correct number of texture coordinates used for video
+    
+    Fixes regresion from
+    
+    commit 33c028f8be829caa4fdb9416ff177dc71f24b68e
+    Author: Chris Wilson <chris@chris-wilson.co.uk>
+    Date:   Wed Aug 1 01:17:50 2012 +0100
+    
+        sna/gen6+: Reduce floats-per-vertex for spans
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 05dcc5f1699ba90fc14c50882e8d4be89bc4a4f9
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Aug 3 15:08:45 2012 +0100
+
+    Pass the chipset info through driverPrivate rather than a global pointer
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2b3f4ca33a00440a7005fef69099f8dbaddbbad1
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Aug 3 14:27:51 2012 +0100
+
+    Unexport intel_chipsets
+    
+    Only used by the core module code, so make it static.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5ff749727d3590368806508ac0d0fa8efd1d1d51
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Jul 25 22:21:29 2012 +0100
+
+    sna/gen7: Add constant variations and hookup a basic GT descriptor for Haswell
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit cd028cad3dc9b059a3d83b818d581f86e16ec317
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jul 26 13:17:11 2012 +0100
+
+    sna: Limit the batch size on all gen7 variants
+    
+    Seems the limit on the surface state size is common across the family
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4cd9ec9d404d934268952a1058afa07741b09efe
+Author: Gwenole Beauchesne <gwenole.beauchesne@intel.com>
+Date:   Fri May 4 18:26:46 2012 +0200
+
+    uxa: fix 3DSTATE_PS to fill in number of samples for Haswell
+    
+    The sample mask value must match what is set for 3DSTATE_SAMPLE_MASK,
+    through gen6_upload_invariant_states().
+    
+    Signed-off-by: Gwenole Beauchesne <gwenole.beauchesne@intel.com>
+    Reviewed-by: Kenneth Graunke <kenneth@whitecape.org>
+
+commit 412668464cf9505629eac20001701af3402dc6e8
+Author: Gwenole Beauchesne <gwenole.beauchesne@intel.com>
+Date:   Fri May 4 17:55:10 2012 +0200
+
+    uxa: set "Shader Channel Select" fields in surface state for Haswell
+    
+    For normal behaviour, each Shader Channel Select should be set to the
+    value indicating that same channel. i.e. Shader Channel Select Red is
+    set to SCS_RED, Shader Channel Select Green is set to SCS_GREEN, etc.
+    
+    Signed-off-by: Gwenole Beauchesne <gwenole.beauchesne@intel.com>
+    Reviewed-by: Kenneth Graunke <kenneth@whitecape.org>
+
+commit a47ba68996f117fabcb601d35bcc5f99cbcd6122
+Author: Gwenole Beauchesne <gwenole.beauchesne@intel.com>
+Date:   Fri May 4 17:17:22 2012 +0200
+
+    uxa: fix max PS threads shift value for Haswell
+    
+    The maximum number of threads is now a 9-bit value. Thus, one more bit
+    towards LSB was re-used. i.e. bit position is now 23 instead of 24 on
+    Ivy Bridge.
+    
+    Signed-off-by: Gwenole Beauchesne <gwenole.beauchesne@intel.com>
+    Reviewed-by: Kenneth Graunke <kenneth@whitecape.org>
+
+commit ce4421e175ceb9259208c7c223af8d66282c3db3
+Author: Gwenole Beauchesne <gwenole.beauchesne@intel.com>
+Date:   Fri May 4 17:09:19 2012 +0200
+
+    uxa: use at least 64 URB entries for Haswell
+    
+    Signed-off-by: Gwenole Beauchesne <gwenole.beauchesne@intel.com>
+    Reviewed-by: Kenneth Graunke <kenneth@whitecape.org>
+
+commit 8c880aa34c522b0d67cbb932771f00c947d00dec
+Author: Gwenole Beauchesne <gwenole.beauchesne@intel.com>
+Date:   Fri May 4 17:43:19 2012 +0200
+
+    uxa: add IS_HSW() macro to distinguish Haswell from Ivybridge
+    
+    Signed-off-by: Gwenole Beauchesne <gwenole.beauchesne@intel.com>
+
+commit 0c0d1d956a8ba37d9e6f4a5e4f52018c8ce498e5
+Author: Gwenole Beauchesne <gwenole.beauchesne@intel.com>
+Date:   Fri Aug 3 12:03:00 2012 +0100
+
+    Introduce a chipset identifier for Haswell (Ivybridge successor)
+    
+    Signed-off-by: Gwenole Beauchesne <gwenole.beauchesne@intel.com>
+
+commit 146959dd5ef28384a3db4fce4bf7840f2b3ec58c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Aug 1 23:43:15 2012 +0100
+
+    sna: Drop the clear flag as we discard the GPU damage
+    
+    Hopefully only to keep the sanity checks happy...
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 7404e3085b2ee36fa24f77a02d156b4b1d2dff60
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Aug 1 23:37:35 2012 +0100
+
+    sna: Ensure we only mark a clear for a fill on the GPU bo
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit ca46d1c7a18596ea9fe2b0577ccf1d110e3e42ac
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Aug 1 20:20:29 2012 +0100
+
+    sna/gen7: Prefer the BLT for self-copies
+    
+    Looking at the test results for a third time, gives the edge to the BLT
+    again.
+
+commit e4a3cd3d16447b5d83d1c8c63c342f1240935267
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Aug 1 17:37:33 2012 +0100
+
+    sna: Add validation of the clear flag to pixmap debugging
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit eaeda34bef711cc566f51dee092a19a3c4ac1a16
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Aug 1 16:23:05 2012 +0100
+
+    sna: Fix computation of st values for SIMD8 dispatch
+    
+    Fixes regression with enabling 8-pixels.
+    
+    Reported-by: Mehran Kholdi <semekh.dev@gmail.com>
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=53044
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 55231eca818c82620c0146384b19b5d5659f6cd6
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Aug 1 16:22:23 2012 +0100
+
+    sna/gen6: Install a fallback 16-pixel shader
+    
+    In case the DBG options leave no shader compiled, make sure we always
+    supply one.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4e79c1fef064ce68914eb644edd7f588be3d7300
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Aug 1 15:58:43 2012 +0100
+
+    Revert "sna/gen7: Prefer the BLT for self-copies"
+    
+    This reverts commit 89e75dbcb6749bde7587ecc08abed276c255e7f9.
+    
+    Having removed the forced stall for a RENDER self-copy there is no
+    longer a need to encourage ring switching.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 85cef78a40c6a7a0254f8fba685f224eac6038e1
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Aug 1 13:39:36 2012 +0100
+
+    sna/gen7: Simplify the force-stall detection
+    
+    After reducing the number of conditions where we think we need to force
+    the stall on the results, we can then simplify the code to detect
+    that remaining case.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 9391a2c71f020541a2a62ae68eadd486216a38df
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Aug 1 12:50:32 2012 +0100
+
+    sna/gen7: Only force a stall for a dirty target if also used as a blend source
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0a4bb8663b9fa9b39d13bfb49aea30f2aaecce78
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Aug 1 11:19:27 2012 +0100
+
+    sna/gen4: Flush not required between fill vertices, only nomaskcomposite
+    
+    A small breakthrough... Still need to flush the primitive between state
+    changes though.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 33c028f8be829caa4fdb9416ff177dc71f24b68e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Aug 1 01:17:50 2012 +0100
+
+    sna/gen6+: Reduce floats-per-vertex for spans
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 9b2873d3d97b6780d878bd9b821fba0302470f9f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Aug 1 00:01:15 2012 +0100
+
+    sna/gen4+: Implement an opacity shader
+    
+    Avoid the cumbersome lookup through the alpha gradient texture and
+    simply multiply the incoming opacity value. The next step will be to
+    reduce the number of floats required per vertex.
+    
+    Now that we have removed the primary user of the alpha solid cache, it
+    may be time to retire that as well.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit fd3a1236051265fab700aad689a171de47d7338f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jul 31 10:20:51 2012 +0100
+
+    sna/gen6: Enable 8 pixel dispatch
+    
+    This gives a small performance increase when operating with rectangles,
+    which is reasonably frequent.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8922b804bc9ed27957c81f7cda4812ab4ecbd4de
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jul 31 10:20:51 2012 +0100
+
+    sna/gen7: Enable 8 pixel dispatch
+    
+    This gives a small performance increase when operating with rectangles,
+    which is reasonably frequent.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 492093d04b1486dd34aafe2f109a77ddeb836f18
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jul 31 18:39:17 2012 +0100
+
+    sna: Generate shaders for SNB+ 8-pixel dispatch
+    
+    Not ideal yet, sampling an alpha-only surface using SIMD8 only seems to
+    ever return 0...
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 6a5ed88f9fab654c9c11c566b841d42150d26c5d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Jul 30 17:08:20 2012 +0100
+
+    sna/gen4: Tidy debugging code
+    
+    Cluster the ifdefs together in the initialisation code.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 46ec9b0ed55d0fcade40f92206e59c02e402d870
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jul 31 17:41:34 2012 +0100
+
+    sna: Update DPMS mode on CRTC after forcing the outputs on
+    
+    If we forcibly update the outputs to be on, then the core will not issue
+    its on DPMS event and we miss out on updating the CRTC bookkeeping in
+    sna_crtc_dpms(). So we need to update the flag on the CRTC as we
+    manipulate the outputs during modesetting.
+    
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=52142
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8f166d26b8a93592939068c5a8d160981c724cfd
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jul 31 11:58:24 2012 +0100
+
+    sna: Be more careful with damage reduction during CompositeRectangles
+    
+    We actually need to force DAMAGE_ALL in case we are promoting the GPU
+    pixmap.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit e6cb5d93eaa01e7f4763f797bba341f3cc481d98
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Jul 30 11:14:58 2012 +0100
+
+    sna: Avoid overlapping gpu/cpu damage with IGNORE_CPU
+    
+    We cannot simply ignore the presence of CPU damage with IGNORE_CPU but
+    must remember to discard it.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit c9805ba98775bb1e969ff59c7044fe1a49673ca8
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jul 29 18:19:37 2012 +0100
+
+    sna: Export sna_drawable_use_bo() to select target for FillRectangles
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 89e75dbcb6749bde7587ecc08abed276c255e7f9
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jul 29 15:36:44 2012 +0100
+
+    sna/gen7: Prefer the BLT for self-copies
+    
+    If we are copying to ourselves, we have to regularly flush the render
+    cache at which point the RENDER pipeline is slower than the BLT
+    pipeline.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 33d6afda6cec124494f49b74152768da8a3fbdb5
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jul 29 09:51:16 2012 +0100
+
+    sna/gen7: Compile basic kernels at runtime
+
+commit eba8d3b3e14a5a16cea6cb8a89f12d3feb8f3d99
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jul 29 09:51:16 2012 +0100
+
+    sna/gen6: Compile basic kernels at runtime
+
+commit 8515ec90405912b3d776defcd6e81b1b5f699f1e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jul 29 09:51:16 2012 +0100
+
+    sna/gen5: Compile basic kernels at runtime
+
+commit 00c08b1842c9493ca918a868202946b2e7150de0
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jul 29 09:51:16 2012 +0100
+
+    sna/gen4: Compile basic kernels at runtime
+
+commit 7c9dbc980b760e0053d83ca2d7cb147613285680
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jul 29 09:50:39 2012 +0100
+
+    sna: Assemble SF and WM kernels using brw
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8ebafa0493c0fa08ab9d80eeb1191b7560dc0863
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Sep 21 19:06:07 2011 +0100
+
+    sna: Add the brw assembler
+    
+    In order to construct programs on the fly to cater for the combinatorial
+    number of possible shaders, we need an assembler, whilst also taking the
+    opportunity to remove some of the inefficiencies and mistakes from the
+    current shaders.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit ca9d9c02a260bf7930e04bf64e93cc051893c04e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Jul 28 23:08:07 2012 +0100
+
+    sna: Prefer not to create a GPU bo without RENDER acceleration
+    
+    Unless that bo happens to be used on a render chain to the scanout.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit eefbe5b6038424566faf7333bb09764b050dd6b4
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Jul 30 10:56:29 2012 +0100
+
+    sna: Debug option to test migration of inactive pixmaps
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d3499cacb59f19b5a3439a630ffbc3e105a27b75
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jul 29 23:00:15 2012 +0100
+
+    sna: Assert that we never attempt to submit a batch whilst wedged
+    
+    We should be asserting at the point that we insert the invalid operation
+    into the batch, but asserting upon submitting the batch is a useful
+    failsafe.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit cb4d789f98e6e05ec29e5242887018c7450ddf10
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jul 29 22:55:44 2012 +0100
+
+    sna: Disable the warning for a hung GPU is we manually set wedged
+    
+    Only warn about a hung GPU if we encounter an EIO during operation, but
+    don't warn if we set wedged during initialisation based on unsupported
+    hw or user request.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0fd680ff52f7ce0a101c617dfb8997c4e228e3ad
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jul 29 22:51:26 2012 +0100
+
+    Don't disable acceleration on 830/845g by default
+    
+    Run the risk of a GPU hang (it shouldn't endanger the entire machine
+    normally) and let the user elect to disable it through
+    
+      Option "NoAccel" "true"
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 3d45f0affe263985f440e144203ed7cbb3803696
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Jul 28 18:21:08 2012 +0100
+
+    sna: Honour the Option "DRI"
+    
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=52624
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit fb385745a2347f8966765567e78229d67ddc8d60
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jul 27 13:24:04 2012 +0100
+
+    sna/gen4: Move the common vertex_offset==0 check into the flush()
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 73ddd8b0decee444a57f10a11f05deebba686649
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jul 27 12:43:00 2012 +0100
+
+    sna/gen4: Further refinement to the GT allocation
+    
+    Still hunting for why gen4 fails utterly.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 717823a9f77cfedc50e03c5c31c1da44a396b561
+Author: Zhigang Gong <zhigang.gong@linux.intel.com>
+Date:   Fri Jul 27 18:12:26 2012 +0800
+
+    uxa/dri (glamor): Use exchange buffer in glamor fixup.
+    
+    The previous implementation is to create a new textured
+    pixmap based on the newly created pixmap's buffer object.
+    
+    This is not efficient, as we already created it when we
+    call CreatePixmap. We can just exchange the underlying
+    texture/image buffers by calling intel_glamor_exchange_buffers().
+    
+    And this commit seems also fix a weird rendering problem
+    when working with compiz/mutter.
+    
+    Signed-off-by: Zhigang Gong <zhigang.gong@linux.intel.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
 commit a8ee1406244d8b8399bf933d6b61bfd14374b5f9
 Author: Chris Wilson <chris@chris-wilson.co.uk>
 Date:   Fri Jul 27 09:07:16 2012 +0100

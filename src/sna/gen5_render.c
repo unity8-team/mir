@@ -40,6 +40,7 @@
 #include "sna_render_inline.h"
 #include "sna_video.h"
 
+#include "brw/brw.h"
 #include "gen5_render.h"
 
 #define NO_COMPOSITE_SPANS 0
@@ -82,88 +83,6 @@
 #define PS_KERNEL_NUM_GRF   32
 #define PS_MAX_THREADS	    72
 
-static const uint32_t sf_kernel[][4] = {
-#include "exa_sf.g5b"
-};
-
-static const uint32_t sf_kernel_mask[][4] = {
-#include "exa_sf_mask.g5b"
-};
-
-static const uint32_t ps_kernel_nomask_affine[][4] = {
-#include "exa_wm_xy.g5b"
-#include "exa_wm_src_affine.g5b"
-#include "exa_wm_src_sample_argb.g5b"
-#include "exa_wm_write.g5b"
-};
-
-static const uint32_t ps_kernel_nomask_projective[][4] = {
-#include "exa_wm_xy.g5b"
-#include "exa_wm_src_projective.g5b"
-#include "exa_wm_src_sample_argb.g5b"
-#include "exa_wm_write.g5b"
-};
-
-static const uint32_t ps_kernel_maskca_affine[][4] = {
-#include "exa_wm_xy.g5b"
-#include "exa_wm_src_affine.g5b"
-#include "exa_wm_src_sample_argb.g5b"
-#include "exa_wm_mask_affine.g5b"
-#include "exa_wm_mask_sample_argb.g5b"
-#include "exa_wm_ca.g5b"
-#include "exa_wm_write.g5b"
-};
-
-static const uint32_t ps_kernel_maskca_projective[][4] = {
-#include "exa_wm_xy.g5b"
-#include "exa_wm_src_projective.g5b"
-#include "exa_wm_src_sample_argb.g5b"
-#include "exa_wm_mask_projective.g5b"
-#include "exa_wm_mask_sample_argb.g5b"
-#include "exa_wm_ca.g5b"
-#include "exa_wm_write.g5b"
-};
-
-static const uint32_t ps_kernel_maskca_srcalpha_affine[][4] = {
-#include "exa_wm_xy.g5b"
-#include "exa_wm_src_affine.g5b"
-#include "exa_wm_src_sample_a.g5b"
-#include "exa_wm_mask_affine.g5b"
-#include "exa_wm_mask_sample_argb.g5b"
-#include "exa_wm_ca_srcalpha.g5b"
-#include "exa_wm_write.g5b"
-};
-
-static const uint32_t ps_kernel_maskca_srcalpha_projective[][4] = {
-#include "exa_wm_xy.g5b"
-#include "exa_wm_src_projective.g5b"
-#include "exa_wm_src_sample_a.g5b"
-#include "exa_wm_mask_projective.g5b"
-#include "exa_wm_mask_sample_argb.g5b"
-#include "exa_wm_ca_srcalpha.g5b"
-#include "exa_wm_write.g5b"
-};
-
-static const uint32_t ps_kernel_masknoca_affine[][4] = {
-#include "exa_wm_xy.g5b"
-#include "exa_wm_src_affine.g5b"
-#include "exa_wm_src_sample_argb.g5b"
-#include "exa_wm_mask_affine.g5b"
-#include "exa_wm_mask_sample_a.g5b"
-#include "exa_wm_noca.g5b"
-#include "exa_wm_write.g5b"
-};
-
-static const uint32_t ps_kernel_masknoca_projective[][4] = {
-#include "exa_wm_xy.g5b"
-#include "exa_wm_src_projective.g5b"
-#include "exa_wm_src_sample_argb.g5b"
-#include "exa_wm_mask_projective.g5b"
-#include "exa_wm_mask_sample_a.g5b"
-#include "exa_wm_noca.g5b"
-#include "exa_wm_write.g5b"
-};
-
 static const uint32_t ps_kernel_packed_static[][4] = {
 #include "exa_wm_xy.g5b"
 #include "exa_wm_src_affine.g5b"
@@ -180,6 +99,8 @@ static const uint32_t ps_kernel_planar_static[][4] = {
 #include "exa_wm_write.g5b"
 };
 
+#define NOKERNEL(kernel_enum, func, masked) \
+    [kernel_enum] = {func, 0, masked}
 #define KERNEL(kernel_enum, kernel, masked) \
     [kernel_enum] = {&kernel, sizeof(kernel), masked}
 static const struct wm_kernel_info {
@@ -187,19 +108,20 @@ static const struct wm_kernel_info {
 	unsigned int size;
 	bool has_mask;
 } wm_kernels[] = {
-	KERNEL(WM_KERNEL, ps_kernel_nomask_affine, false),
-	KERNEL(WM_KERNEL_PROJECTIVE, ps_kernel_nomask_projective, false),
+	NOKERNEL(WM_KERNEL, brw_wm_kernel__affine, false),
+	NOKERNEL(WM_KERNEL_P, brw_wm_kernel__projective, false),
 
-	KERNEL(WM_KERNEL_MASK, ps_kernel_masknoca_affine, true),
-	KERNEL(WM_KERNEL_MASK_PROJECTIVE, ps_kernel_masknoca_projective, true),
+	NOKERNEL(WM_KERNEL_MASK, brw_wm_kernel__affine_mask, true),
+	NOKERNEL(WM_KERNEL_MASK_P, brw_wm_kernel__projective_mask, true),
 
-	KERNEL(WM_KERNEL_MASKCA, ps_kernel_maskca_affine, true),
-	KERNEL(WM_KERNEL_MASKCA_PROJECTIVE, ps_kernel_maskca_projective, true),
+	NOKERNEL(WM_KERNEL_MASKCA, brw_wm_kernel__affine_mask_ca, true),
+	NOKERNEL(WM_KERNEL_MASKCA_P, brw_wm_kernel__projective_mask_ca, true),
 
-	KERNEL(WM_KERNEL_MASKCA_SRCALPHA,
-	       ps_kernel_maskca_srcalpha_affine, true),
-	KERNEL(WM_KERNEL_MASKCA_SRCALPHA_PROJECTIVE,
-	       ps_kernel_maskca_srcalpha_projective, true),
+	NOKERNEL(WM_KERNEL_MASKSA, brw_wm_kernel__affine_mask_sa, true),
+	NOKERNEL(WM_KERNEL_MASKSA_P, brw_wm_kernel__projective_mask_sa, true),
+
+	NOKERNEL(WM_KERNEL_OPACITY, brw_wm_kernel__affine_opacity, true),
+	NOKERNEL(WM_KERNEL_OPACITY_P, brw_wm_kernel__projective_opacity, true),
 
 	KERNEL(WM_KERNEL_VIDEO_PLANAR, ps_kernel_planar_static, false),
 	KERNEL(WM_KERNEL_VIDEO_PACKED, ps_kernel_packed_static, false),
@@ -263,7 +185,7 @@ gen5_choose_composite_kernel(int op, bool has_mask, bool is_ca, bool is_affine)
 	if (has_mask) {
 		if (is_ca) {
 			if (gen5_blend_op[op].src_alpha)
-				base = WM_KERNEL_MASKCA_SRCALPHA;
+				base = WM_KERNEL_MASKSA;
 			else
 				base = WM_KERNEL_MASKCA;
 		} else
@@ -324,6 +246,7 @@ static int gen5_vertex_finish(struct sna *sna)
 	unsigned int i;
 
 	assert(sna->render.vertex_used);
+	assert(sna->render.nvertex_reloc);
 
 	/* Note: we only need dword alignment (currently) */
 
@@ -332,27 +255,23 @@ static int gen5_vertex_finish(struct sna *sna)
 		if (sna->render_state.gen5.vertex_offset)
 			gen5_vertex_flush(sna);
 
-		for (i = 0; i < ARRAY_SIZE(sna->render.vertex_reloc); i++) {
-			if (sna->render.vertex_reloc[i]) {
-				DBG(("%s: reloc[%d] = %d\n", __FUNCTION__,
-				     i, sna->render.vertex_reloc[i]));
+		for (i = 0; i < sna->render.nvertex_reloc; i++) {
+			DBG(("%s: reloc[%d] = %d\n", __FUNCTION__,
+			     i, sna->render.vertex_reloc[i]));
 
-				sna->kgem.batch[sna->render.vertex_reloc[i]] =
-					kgem_add_reloc(&sna->kgem,
-						       sna->render.vertex_reloc[i],
-						       bo,
-						       I915_GEM_DOMAIN_VERTEX << 16,
-						       0);
-				sna->kgem.batch[sna->render.vertex_reloc[i]+1] =
-					kgem_add_reloc(&sna->kgem,
-						       sna->render.vertex_reloc[i]+1,
-						       bo,
-						       I915_GEM_DOMAIN_VERTEX << 16,
-						       sna->render.vertex_used * 4 - 1);
-				sna->render.vertex_reloc[i] = 0;
-			}
+			sna->kgem.batch[sna->render.vertex_reloc[i]] =
+				kgem_add_reloc(&sna->kgem,
+					       sna->render.vertex_reloc[i], bo,
+					       I915_GEM_DOMAIN_VERTEX << 16,
+					       0);
+			sna->kgem.batch[sna->render.vertex_reloc[i]+1] =
+				kgem_add_reloc(&sna->kgem,
+					       sna->render.vertex_reloc[i]+1, bo,
+					       I915_GEM_DOMAIN_VERTEX << 16,
+					       sna->render.vertex_used * 4 - 1);
 		}
 
+		sna->render.nvertex_reloc = 0;
 		sna->render.vertex_used = 0;
 		sna->render.vertex_index = 0;
 		sna->render_state.gen5.vb_id = 0;
@@ -387,12 +306,11 @@ static void gen5_vertex_close(struct sna *sna)
 	unsigned int i, delta = 0;
 
 	assert(sna->render_state.gen5.vertex_offset == 0);
+	if (!sna->render_state.gen5.vb_id)
+		return;
 
 	DBG(("%s: used=%d, vbo active? %d\n",
 	     __FUNCTION__, sna->render.vertex_used, sna->render.vbo != NULL));
-
-	if (!sna->render.vertex_used)
-		return;
 
 	bo = sna->render.vbo;
 	if (bo) {
@@ -438,26 +356,23 @@ static void gen5_vertex_close(struct sna *sna)
 		}
 	}
 
-	for (i = 0; i < ARRAY_SIZE(sna->render.vertex_reloc); i++) {
-		if (sna->render.vertex_reloc[i]) {
-			DBG(("%s: reloc[%d] = %d\n", __FUNCTION__,
-			     i, sna->render.vertex_reloc[i]));
+	assert(sna->render.nvertex_reloc);
+	for (i = 0; i < sna->render.nvertex_reloc; i++) {
+		DBG(("%s: reloc[%d] = %d\n", __FUNCTION__,
+		     i, sna->render.vertex_reloc[i]));
 
-			sna->kgem.batch[sna->render.vertex_reloc[i]] =
-				kgem_add_reloc(&sna->kgem,
-					       sna->render.vertex_reloc[i],
-					       bo,
-					       I915_GEM_DOMAIN_VERTEX << 16,
-					       delta);
-			sna->kgem.batch[sna->render.vertex_reloc[i]+1] =
-				kgem_add_reloc(&sna->kgem,
-					       sna->render.vertex_reloc[i]+1,
-					       bo,
-					       I915_GEM_DOMAIN_VERTEX << 16,
-					       delta + sna->render.vertex_used * 4 - 1);
-			sna->render.vertex_reloc[i] = 0;
-		}
+		sna->kgem.batch[sna->render.vertex_reloc[i]] =
+			kgem_add_reloc(&sna->kgem,
+				       sna->render.vertex_reloc[i], bo,
+				       I915_GEM_DOMAIN_VERTEX << 16,
+				       delta);
+		sna->kgem.batch[sna->render.vertex_reloc[i]+1] =
+			kgem_add_reloc(&sna->kgem,
+				       sna->render.vertex_reloc[i]+1, bo,
+				       I915_GEM_DOMAIN_VERTEX << 16,
+				       delta + sna->render.vertex_used * 4 - 1);
 	}
+	sna->render.nvertex_reloc = 0;
 
 	if (sna->render.vbo == NULL) {
 		sna->render.vertex_used = 0;
@@ -1055,7 +970,7 @@ static void gen5_emit_vertex_buffer(struct sna *sna,
 	OUT_BATCH(GEN5_3DSTATE_VERTEX_BUFFERS | 3);
 	OUT_BATCH((id << VB0_BUFFER_INDEX_SHIFT) | VB0_VERTEXDATA |
 		  (4*op->floats_per_vertex << VB0_BUFFER_PITCH_SHIFT));
-	sna->render.vertex_reloc[id] = sna->kgem.nbatch;
+	sna->render.vertex_reloc[sna->render.nvertex_reloc++] = sna->kgem.nbatch;
 	OUT_BATCH(0);
 	OUT_BATCH(0);
 	OUT_BATCH(0);
@@ -2520,30 +2435,7 @@ cleanup_dst:
 	return false;
 }
 
-/* A poor man's span interface. But better than nothing? */
 #if !NO_COMPOSITE_SPANS
-static bool
-gen5_composite_alpha_gradient_init(struct sna *sna,
-				   struct sna_composite_channel *channel)
-{
-	DBG(("%s\n", __FUNCTION__));
-
-	channel->filter = PictFilterNearest;
-	channel->repeat = RepeatPad;
-	channel->is_affine = true;
-	channel->is_solid  = false;
-	channel->transform = NULL;
-	channel->width  = 256;
-	channel->height = 1;
-	channel->card_format = GEN5_SURFACEFORMAT_B8G8R8A8_UNORM;
-
-	channel->bo = sna_render_get_alpha_gradient(sna);
-
-	channel->scale[0]  = channel->scale[1]  = 1;
-	channel->offset[0] = channel->offset[1] = 0;
-	return channel->bo != NULL;
-}
-
 inline static void
 gen5_emit_composite_texcoord(struct sna *sna,
 			     const struct sna_composite_channel *channel,
@@ -2720,6 +2612,7 @@ gen5_render_composite_spans_done(struct sna *sna,
 
 	DBG(("%s()\n", __FUNCTION__));
 
+	kgem_bo_destroy(&sna->kgem, op->base.mask.bo);
 	if (op->base.src.bo)
 		kgem_bo_destroy(&sna->kgem, op->base.src.bo);
 
@@ -2802,12 +2695,13 @@ gen5_render_composite_spans(struct sna *sna,
 		break;
 	}
 
-	tmp->base.mask.bo = NULL;
+	tmp->base.mask.bo = sna_render_get_solid(sna, 0);
+	if (tmp->base.mask.bo == NULL)
+		goto cleanup_src;
+
 	tmp->base.is_affine = tmp->base.src.is_affine;
 	tmp->base.has_component_alpha = false;
 	tmp->base.need_magic_ca_pass = false;
-
-	gen5_composite_alpha_gradient_init(sna, &tmp->base.mask);
 
 	tmp->prim_emit = gen5_emit_composite_spans_primitive;
 	if (tmp->base.src.is_solid)
@@ -2817,10 +2711,7 @@ gen5_render_composite_spans(struct sna *sna,
 	tmp->base.floats_per_vertex = 5 + 2*!tmp->base.is_affine;
 	tmp->base.floats_per_rect = 3 * tmp->base.floats_per_vertex;
 
-	tmp->base.u.gen5.wm_kernel =
-		gen5_choose_composite_kernel(tmp->base.op,
-					     true, false,
-					     tmp->base.is_affine);
+	tmp->base.u.gen5.wm_kernel = WM_KERNEL_OPACITY | !tmp->base.is_affine;
 	tmp->base.u.gen5.ve_id = 1 << 1 | tmp->base.is_affine;
 
 	tmp->box   = gen5_render_composite_spans_box;
@@ -3709,9 +3600,7 @@ static uint32_t gen5_create_sf_state(struct sna_static_stream *stream,
 
 	sf_state->thread0.grf_reg_count = GEN5_GRF_BLOCKS(SF_KERNEL_NUM_GRF);
 	sf_state->thread0.kernel_start_pointer = kernel >> 6;
-	sf_state->sf1.single_program_flow = 1;
-	/* scratch space is not used in our kernel */
-	sf_state->thread2.scratch_space_base_pointer = 0;
+
 	sf_state->thread3.const_urb_entry_read_length = 0;	/* no const URBs */
 	sf_state->thread3.const_urb_entry_read_offset = 0;	/* no const URBs */
 	sf_state->thread3.urb_entry_read_length = 1;	/* 1 URB per vertex */
@@ -3864,19 +3753,21 @@ static bool gen5_render_setup(struct sna *sna)
 	null_create(&general);
 
 	/* Set up the two SF states (one for blending with a mask, one without) */
-	sf[0] = sna_static_stream_add(&general,
-				      sf_kernel,
-				      sizeof(sf_kernel),
-				      64);
-	sf[1] = sna_static_stream_add(&general,
-				      sf_kernel_mask,
-				      sizeof(sf_kernel_mask),
-				      64);
+	sf[0] = sna_static_stream_compile_sf(sna, &general, brw_sf_kernel__nomask);
+	sf[1] = sna_static_stream_compile_sf(sna, &general, brw_sf_kernel__mask);
+
 	for (m = 0; m < KERNEL_COUNT; m++) {
-		wm[m] = sna_static_stream_add(&general,
-					      wm_kernels[m].data,
-					      wm_kernels[m].size,
-					      64);
+		if (wm_kernels[m].size) {
+			wm[m] = sna_static_stream_add(&general,
+						      wm_kernels[m].data,
+						      wm_kernels[m].size,
+						      64);
+		} else {
+			wm[m] = sna_static_stream_compile_wm(sna, &general,
+							     wm_kernels[m].data,
+							     16);
+		}
+		assert(wm[m]);
 	}
 
 	state->vs = gen5_create_vs_unit_state(&general);

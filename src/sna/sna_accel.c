@@ -60,6 +60,7 @@
 #define USE_INPLACE 1
 #define USE_WIDE_SPANS 0 /* -1 force CPU, 1 force GPU */
 #define USE_ZERO_SPANS 1 /* -1 force CPU, 1 force GPU */
+#define USE_INACTIVE 0
 
 #define MIGRATE_ALL 0
 #define DBG_NO_CPU_UPLOAD 0
@@ -313,9 +314,17 @@ static void assert_pixmap_damage(PixmapPtr p)
 	if (priv == NULL)
 		return;
 
-	if (DAMAGE_IS_ALL(priv->gpu_damage) && DAMAGE_IS_ALL(priv->cpu_damage))
+	if (priv->clear) {
+		assert(DAMAGE_IS_ALL(priv->gpu_damage));
+		assert(priv->cpu_damage == NULL);
+	}
+
+	if (DAMAGE_IS_ALL(priv->gpu_damage) && DAMAGE_IS_ALL(priv->cpu_damage)) {
 		/* special upload buffer */
+		assert(priv->gpu_bo && priv->gpu_bo->proxy);
+		assert(priv->cpu_bo == NULL);
 		return;
+	}
 
 	assert(!DAMAGE_IS_ALL(priv->gpu_damage) || priv->cpu_damage == NULL);
 	assert(!DAMAGE_IS_ALL(priv->cpu_damage) || priv->gpu_damage == NULL);
@@ -379,6 +388,7 @@ sna_copy_init_blt(struct sna_copy_op *copy,
 static void sna_pixmap_free_gpu(struct sna *sna, struct sna_pixmap *priv)
 {
 	sna_damage_destroy(&priv->gpu_damage);
+	priv->clear = false;
 
 	if (priv->gpu_bo && !priv->pinned) {
 		kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
@@ -930,7 +940,7 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 		goto fallback;
 	}
 
-	if (wedged(sna))
+	if (!can_render(sna))
 		flags = 0;
 
 	if (usage == CREATE_PIXMAP_USAGE_SCRATCH) {
@@ -956,7 +966,6 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 	if (usage == CREATE_PIXMAP_USAGE_BACKING_PIXMAP)
 		usage = 0;
 
-force_create:
 	pad = PixmapBytePad(width, depth);
 	if (pad * height <= 4096) {
 		DBG(("%s: small buffer [%d], attaching to shadow pixmap\n",
@@ -1393,50 +1402,6 @@ done:
 	assert(pixmap->devKind);
 	assert_pixmap_damage(pixmap);
 	return true;
-}
-
-static bool
-region_subsumes_drawable(RegionPtr region, DrawablePtr drawable)
-{
-	const BoxRec *extents;
-
-	if (region->data)
-		return false;
-
-	extents = RegionExtents(region);
-	return  extents->x1 <= 0 && extents->y1 <= 0 &&
-		extents->x2 >= drawable->width &&
-		extents->y2 >= drawable->height;
-}
-
-static bool
-region_subsumes_damage(const RegionRec *region, struct sna_damage *damage)
-{
-	const BoxRec *re, *de;
-
-	DBG(("%s?\n", __FUNCTION__));
-	assert(damage);
-
-	re = &region->extents;
-	de = &DAMAGE_PTR(damage)->extents;
-	DBG(("%s: region (%d, %d), (%d, %d), damage (%d, %d), (%d, %d)\n",
-	     __FUNCTION__,
-	     re->x1, re->y1, re->x2, re->y2,
-	     de->x1, de->y1, de->x2, de->y2));
-
-	if (re->x2 < de->x2 || re->x1 > de->x1 ||
-	    re->y2 < de->y2 || re->y1 > de->y1) {
-		DBG(("%s: not contained\n", __FUNCTION__));
-		return false;
-	}
-
-	if (region->data == NULL) {
-		DBG(("%s: singular region contains damage\n", __FUNCTION__));
-		return true;
-	}
-
-	return pixman_region_contains_rectangle((RegionPtr)region,
-						(BoxPtr)de) == PIXMAN_REGION_IN;
 }
 
 static bool
@@ -2134,18 +2099,12 @@ drawable_gc_flags(DrawablePtr draw, GCPtr gc, bool partial)
 	return (partial ? MOVE_READ : 0) | MOVE_WRITE | MOVE_INPLACE_HINT;
 }
 
-static inline bool
-box_inplace(PixmapPtr pixmap, const BoxRec *box)
-{
-	struct sna *sna = to_sna_from_pixmap(pixmap);
-	return ((int)(box->x2 - box->x1) * (int)(box->y2 - box->y1) * pixmap->drawable.bitsPerPixel >> 12) >= sna->kgem.half_cpu_cache_pages;
-}
-
 static inline struct sna_pixmap *
 sna_pixmap_mark_active(struct sna *sna, struct sna_pixmap *priv)
 {
 	assert(priv->gpu_bo);
-	if (!priv->pinned && priv->gpu_bo->proxy == NULL &&
+	if (USE_INACTIVE &&
+	    !priv->pinned && priv->gpu_bo->proxy == NULL &&
 	    (priv->create & KGEM_CAN_CREATE_LARGE) == 0)
 		list_move(&priv->inactive, &sna->active_pixmaps);
 	priv->cpu = false;
@@ -2348,11 +2307,7 @@ done:
 	return sna_pixmap_mark_active(sna, priv) != NULL;
 }
 
-#define PREFER_GPU	0x1
-#define FORCE_GPU	0x2
-#define IGNORE_CPU	0x4
-
-static inline struct kgem_bo *
+struct kgem_bo *
 sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
 		    struct sna_damage ***damage)
 {
@@ -2387,10 +2342,10 @@ sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
 		flags |= PREFER_GPU;
 	if (priv->shm)
 		flags = 0;
-	if (priv->cpu && (flags & (IGNORE_CPU | FORCE_GPU)) == 0)
+	if (priv->cpu && (flags & FORCE_GPU) == 0)
 		flags = 0;
 
-	if (!flags && (!priv->gpu_bo || !kgem_bo_is_busy(priv->gpu_bo)))
+	if (!flags && (!priv->gpu_damage || !kgem_bo_is_busy(priv->gpu_bo)))
 		goto use_cpu_bo;
 
 	if (DAMAGE_IS_ALL(priv->gpu_damage))
@@ -2449,7 +2404,7 @@ sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
 	     region.extents.x2, region.extents.y2));
 
 	if (priv->gpu_damage) {
-		if (flags & IGNORE_CPU || !priv->cpu_damage) {
+		if (!priv->cpu_damage) {
 			if (sna_damage_contains_box__no_reduce(priv->gpu_damage,
 							       &region.extents)) {
 				DBG(("%s: region wholly contained within GPU damage\n",
@@ -2498,7 +2453,7 @@ sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
 
 move_to_gpu:
 	if (!sna_pixmap_move_area_to_gpu(pixmap, &region.extents,
-					 MOVE_READ | MOVE_WRITE)) {
+					 flags & IGNORE_CPU ? MOVE_WRITE : MOVE_READ | MOVE_WRITE)) {
 		DBG(("%s: failed to move-to-gpu, fallback\n", __FUNCTION__));
 		assert(priv->gpu_bo == NULL);
 		goto use_cpu_bo;
@@ -2524,7 +2479,8 @@ use_gpu_bo:
 	assert(priv->gpu_bo->proxy == NULL);
 	priv->clear = false;
 	priv->cpu = false;
-	if (!priv->pinned && (priv->create & KGEM_CAN_CREATE_LARGE) == 0)
+	if (USE_INACTIVE &&
+	    !priv->pinned && (priv->create & KGEM_CAN_CREATE_LARGE) == 0)
 		list_move(&priv->inactive,
 			  &to_sna_from_pixmap(pixmap)->active_pixmaps);
 	*damage = NULL;
@@ -9080,7 +9036,6 @@ sna_poly_fill_rect_blt(DrawablePtr drawable,
 						sna_damage_all(damage,
 							       pixmap->drawable.width,
 							       pixmap->drawable.height);
-						sna_pixmap(pixmap)->undamaged = false;
 					} else
 						sna_damage_add_box(damage, &r);
 				}
@@ -9090,12 +9045,19 @@ sna_poly_fill_rect_blt(DrawablePtr drawable,
 				    r.x2 - r.x1 == pixmap->drawable.width &&
 				    r.y2 - r.y1 == pixmap->drawable.height) {
 					struct sna_pixmap *priv = sna_pixmap(pixmap);
+					if (bo == priv->gpu_bo) {
+						sna_damage_all(&priv->gpu_damage,
+							       pixmap->drawable.width,
+							       pixmap->drawable.height);
+						sna_damage_destroy(&priv->cpu_damage);
+						list_del(&priv->list);
+						priv->undamaged = false;
+						priv->clear = true;
+						priv->clear_color = gc->alu == GXcopy ? pixel : 0;
 
-					priv->clear = true;
-					priv->clear_color = gc->alu == GXcopy ? pixel : 0;
-
-					DBG(("%s: pixmap=%ld, marking clear [%08x]\n",
-					     __FUNCTION__, pixmap->drawable.serialNumber, priv->clear_color));
+						DBG(("%s: pixmap=%ld, marking clear [%08x]\n",
+						     __FUNCTION__, pixmap->drawable.serialNumber, priv->clear_color));
+					}
 				}
 			} else
 				success = false;
@@ -11453,20 +11415,23 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 				sna_damage_destroy(&priv->cpu_damage);
 				list_del(&priv->list);
 			}
+			hint |= IGNORE_CPU;
 		}
-		if (region_subsumes_drawable(&region, &pixmap->drawable) ||
-		    box_inplace(pixmap, &region.extents)) {
+		if (priv->cpu_damage == NULL &&
+		    (region_subsumes_drawable(&region, &pixmap->drawable) ||
+		     box_inplace(pixmap, &region.extents))) {
 			DBG(("%s: promoting to full GPU\n", __FUNCTION__));
-			if (priv->gpu_bo && priv->cpu_damage == NULL) {
+			if (priv->gpu_bo) {
 				sna_damage_all(&priv->gpu_damage,
 					       pixmap->drawable.width,
 					       pixmap->drawable.height);
 				priv->undamaged = false;
 			}
-			hint |= IGNORE_CPU;
 		}
-		if (priv->cpu_damage == NULL)
+		if (priv->cpu_damage == NULL) {
+			DBG(("%s: dropping last-cpu hint\n", __FUNCTION__));
 			priv->cpu = false;
+		}
 	}
 
 	/* If the source is already on the GPU, keep the operation on the GPU */
@@ -13450,6 +13415,9 @@ static bool sna_accel_do_expire(struct sna *sna)
 
 static bool sna_accel_do_inactive(struct sna *sna)
 {
+	if (!USE_INACTIVE)
+		return false;
+
 	if (sna->timer_active & (1<<(INACTIVE_TIMER))) {
 		int32_t delta = sna->timer_expire[INACTIVE_TIMER] - TIME;
 		if (delta <= 3) {

@@ -652,8 +652,10 @@ static bool is_hw_supported(struct kgem *kgem,
 	if (kgem->gen == (unsigned)-1) /* unknown chipset, assume future gen */
 		return kgem->has_blt;
 
-	if (kgem->gen <= 20) /* dynamic GTT is fubar */
-		return false;
+	/* Although pre-855gm the GMCH is fubar, it works mostly. So
+	 * let the user decide through "NoAccel" whether or not to risk
+	 * hw acceleration.
+	 */
 
 	if (kgem->gen == 60 && dev->revision < 8) {
 		/* pre-production SNB with dysfunctional BLT */
@@ -809,7 +811,7 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	if (gen == 22)
 		/* 865g cannot handle a batch spanning multiple pages */
 		kgem->batch_size = PAGE_SIZE / sizeof(uint32_t);
-	if (gen == 70)
+	if (gen >= 70 && gen < 80)
 		kgem->batch_size = 16*1024;
 	if (!kgem->has_relaxed_delta)
 		kgem->batch_size = 4*1024;
@@ -2067,6 +2069,7 @@ void _kgem_submit(struct kgem *kgem)
 	int size;
 
 	assert(!DBG_NO_HW);
+	assert(!kgem->wedged);
 
 	assert(kgem->nbatch);
 	assert(kgem->nbatch <= KGEM_BATCH_SIZE(kgem));
@@ -2236,19 +2239,17 @@ void _kgem_submit(struct kgem *kgem)
 
 void kgem_throttle(struct kgem *kgem)
 {
-	static int warned;
+	kgem->need_throttle = 0;
+	if (kgem->wedged)
+		return;
 
-	kgem->wedged |= __kgem_throttle(kgem);
-	DBG(("%s: wedged=%d\n", __FUNCTION__, kgem->wedged));
-	if (kgem->wedged && !warned) {
+	kgem->wedged = __kgem_throttle(kgem);
+	if (kgem->wedged) {
 		xf86DrvMsg(kgem_get_screen_index(kgem), X_ERROR,
 			   "Detected a hung GPU, disabling acceleration.\n");
 		xf86DrvMsg(kgem_get_screen_index(kgem), X_ERROR,
 			   "When reporting this, please include i915_error_state from debugfs and the full dmesg.\n");
-		warned = 1;
 	}
-
-	kgem->need_throttle = 0;
 }
 
 void kgem_purge_cache(struct kgem *kgem)

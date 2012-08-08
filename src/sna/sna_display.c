@@ -499,6 +499,8 @@ sna_crtc_force_outputs_on(xf86CrtcPtr crtc)
 
 		output->funcs->dpms(output, DPMSModeOn);
 	}
+
+	to_sna_crtc(crtc)->dpms_mode = DPMSModeOn;
 }
 
 static bool
@@ -663,14 +665,21 @@ static void update_flush_interval(struct sna *sna)
 	int i, max_vrefresh = 0;
 
 	for (i = 0; i < xf86_config->num_crtc; i++) {
-		if (!xf86_config->crtc[i]->enabled)
-			continue;
+		xf86CrtcPtr crtc = xf86_config->crtc[i];
 
-		if (to_sna_crtc(xf86_config->crtc[i])->dpms_mode != DPMSModeOn)
+		if (!crtc->enabled) {
+			DBG(("%s: CRTC:%d (pipe %d) disabled\n",
+			     __FUNCTION__,i, to_sna_crtc(crtc)->pipe));
 			continue;
+		}
 
-		max_vrefresh = max(max_vrefresh,
-				   xf86ModeVRefresh(&xf86_config->crtc[i]->mode));
+		if (to_sna_crtc(crtc)->dpms_mode != DPMSModeOn) {
+			DBG(("%s: CRTC:%d (pipe %d) turned off\n",
+			     __FUNCTION__,i, to_sna_crtc(crtc)->pipe));
+			continue;
+		}
+
+		max_vrefresh = max(max_vrefresh, xf86ModeVRefresh(&crtc->mode));
 	}
 
 	if (max_vrefresh == 0)

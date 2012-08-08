@@ -13,6 +13,7 @@ struct sna;
 struct sna_glyph;
 struct sna_video;
 struct sna_video_frame;
+struct brw_compile;
 
 struct sna_composite_rectangles {
 	struct sna_coordinate {
@@ -285,7 +286,8 @@ struct sna_render {
 	uint16_t vertex_index;
 	uint16_t vertex_used;
 	uint16_t vertex_size;
-	uint16_t vertex_reloc[8];
+	uint16_t vertex_reloc[16];
+	int nvertex_reloc;
 
 	struct kgem_bo *vbo;
 	float *vertices;
@@ -371,16 +373,19 @@ struct gen5_render_state {
 
 enum {
 	GEN6_WM_KERNEL_NOMASK = 0,
-	GEN6_WM_KERNEL_NOMASK_PROJECTIVE,
+	GEN6_WM_KERNEL_NOMASK_P,
 
 	GEN6_WM_KERNEL_MASK,
-	GEN6_WM_KERNEL_MASK_PROJECTIVE,
+	GEN6_WM_KERNEL_MASK_P,
 
 	GEN6_WM_KERNEL_MASKCA,
-	GEN6_WM_KERNEL_MASKCA_PROJECTIVE,
+	GEN6_WM_KERNEL_MASKCA_P,
 
-	GEN6_WM_KERNEL_MASKCA_SRCALPHA,
-	GEN6_WM_KERNEL_MASKCA_SRCALPHA_PROJECTIVE,
+	GEN6_WM_KERNEL_MASKSA,
+	GEN6_WM_KERNEL_MASKSA_P,
+
+	GEN6_WM_KERNEL_OPACITY,
+	GEN6_WM_KERNEL_OPACITY_P,
 
 	GEN6_WM_KERNEL_VIDEO_PLANAR,
 	GEN6_WM_KERNEL_VIDEO_PACKED,
@@ -395,7 +400,7 @@ struct gen6_render_state {
 	uint32_t sf_state;
 	uint32_t sf_mask_state;
 	uint32_t wm_state;
-	uint32_t wm_kernel[GEN6_KERNEL_COUNT];
+	uint32_t wm_kernel[GEN6_KERNEL_COUNT][3];
 
 	uint32_t cc_vp;
 	uint32_t cc_blend;
@@ -420,16 +425,19 @@ struct gen6_render_state {
 
 enum {
 	GEN7_WM_KERNEL_NOMASK = 0,
-	GEN7_WM_KERNEL_NOMASK_PROJECTIVE,
+	GEN7_WM_KERNEL_NOMASK_P,
 
 	GEN7_WM_KERNEL_MASK,
-	GEN7_WM_KERNEL_MASK_PROJECTIVE,
+	GEN7_WM_KERNEL_MASK_P,
 
 	GEN7_WM_KERNEL_MASKCA,
-	GEN7_WM_KERNEL_MASKCA_PROJECTIVE,
+	GEN7_WM_KERNEL_MASKCA_P,
 
-	GEN7_WM_KERNEL_MASKCA_SRCALPHA,
-	GEN7_WM_KERNEL_MASKCA_SRCALPHA_PROJECTIVE,
+	GEN7_WM_KERNEL_MASKSA,
+	GEN7_WM_KERNEL_MASKSA_P,
+
+	GEN7_WM_KERNEL_OPACITY,
+	GEN7_WM_KERNEL_OPACITY_P,
 
 	GEN7_WM_KERNEL_VIDEO_PLANAR,
 	GEN7_WM_KERNEL_VIDEO_PACKED,
@@ -444,7 +452,7 @@ struct gen7_render_state {
 	uint32_t sf_state;
 	uint32_t sf_mask_state;
 	uint32_t wm_state;
-	uint32_t wm_kernel[GEN7_WM_KERNEL_COUNT];
+	uint32_t wm_kernel[GEN7_WM_KERNEL_COUNT][3];
 
 	uint32_t cc_vp;
 	uint32_t cc_blend;
@@ -479,6 +487,14 @@ void *sna_static_stream_map(struct sna_static_stream *stream,
 			    uint32_t len, uint32_t align);
 uint32_t sna_static_stream_offsetof(struct sna_static_stream *stream,
 				    void *ptr);
+unsigned sna_static_stream_compile_sf(struct sna *sna,
+				      struct sna_static_stream *stream,
+				      bool (*compile)(struct brw_compile *));
+
+unsigned sna_static_stream_compile_wm(struct sna *sna,
+				      struct sna_static_stream *stream,
+				      bool (*compile)(struct brw_compile *, int),
+				      int width);
 struct kgem_bo *sna_static_stream_fini(struct sna *sna,
 				       struct sna_static_stream *stream);
 

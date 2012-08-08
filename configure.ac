@@ -23,7 +23,7 @@
 # Initialize Autoconf
 AC_PREREQ([2.60])
 AC_INIT([xf86-video-intel],
-        [2.20.2],
+        [2.20.3],
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
         [xf86-video-intel])
 AC_CONFIG_SRCDIR([Makefile.am])
@@ -391,6 +391,7 @@ AC_CONFIG_FILES([
                 src/legacy/i810/Makefile
                 src/legacy/i810/xvmc/Makefile
                 src/sna/Makefile
+                src/sna/brw/Makefile
                 src/sna/fb/Makefile
                 man/Makefile
                 src/render_program/Makefile

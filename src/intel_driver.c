@@ -186,7 +186,7 @@ static void PreInitCleanup(ScrnInfoPtr scrn)
 static void intel_check_chipset_option(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	intel->info = intel_detect_chipset(scrn, intel->pEnt, intel->PciInfo);
+	intel_detect_chipset(scrn, intel->pEnt, intel->PciInfo);
 }
 
 static Bool I830GetEarlyOptions(ScrnInfoPtr scrn)
@@ -390,18 +390,9 @@ static Bool can_accelerate_blt(struct intel_screen_private *intel)
 	if (INTEL_INFO(intel)->gen == -1)
 		return FALSE;
 
-	if (0 && (IS_I830(intel) || IS_845G(intel))) {
-		/* These pair of i8xx chipsets have a crippling erratum
-		 * that prevents the use of a PTE entry by the BLT
-		 * engine immediately following updating that
-		 * entry in the GATT.
-		 *
-		 * As the BLT is fundamental to our 2D acceleration,
-		 * and the workaround is lost in the midst of time,
-		 * fallback.
-		 *
-		 * XXX disabled for release as causes regressions in GL.
-		 */
+	if (xf86ReturnOptValBool(intel->Options, OPTION_ACCEL_DISABLE, FALSE)) {
+		xf86DrvMsg(intel->scrn->scrnIndex, X_CONFIG,
+			   "Disabling hardware acceleration.\n");
 		return FALSE;
 	}
 
@@ -467,14 +458,15 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 	if (flags & PROBE_DETECT)
 		return TRUE;
 
-	intel = intel_get_screen_private(scrn);
-	if (intel == NULL) {
-		intel = xnfcalloc(sizeof(intel_screen_private), 1);
+	if (((uintptr_t)scrn->driverPrivate) & 1) {
+		intel = xnfcalloc(sizeof(*intel), 1);
 		if (intel == NULL)
 			return FALSE;
 
+		intel->info = (void *)((uintptr_t)scrn->driverPrivate & ~1);
 		scrn->driverPrivate = intel;
 	}
+	intel = intel_get_screen_private(scrn);
 	intel->scrn = scrn;
 	intel->pEnt = pEnt;
 
