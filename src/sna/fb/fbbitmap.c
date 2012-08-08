@@ -58,6 +58,7 @@ RegionPtr
 fbBitmapToRegion(PixmapPtr pixmap)
 {
 	const register FbBits mask0 = FB_ALLONES & ~FbScrRight(FB_ALLONES, 1);
+	FbBits maskw;
 	register RegionPtr region;
 	const FbBits *bits, *line, *end;
 	int width, y1, y2, base, x1;
@@ -74,6 +75,9 @@ fbBitmapToRegion(PixmapPtr pixmap)
 	stride = pixmap->devKind >> (FB_SHIFT - 3);
 
 	width = pixmap->drawable.width;
+	maskw = 0;
+	if (width & 7)
+		maskw = FB_ALLONES & ~FbScrRight(FB_ALLONES, width & FB_MASK);
 	region->extents.x1 = width;
 	region->extents.x2 = 0;
 	y2 = 0;
@@ -82,7 +86,10 @@ fbBitmapToRegion(PixmapPtr pixmap)
 		bits = line;
 		line += stride;
 		while (y2 < pixmap->drawable.height &&
-		       memcmp(bits, line, (width+7)>>3) == 0)
+		       memcmp(bits, line, width >> 3) == 0 &&
+		       (maskw == 0 ||
+			(bits[width >> (FB_SHIFT - 3)] & maskw) ==
+			(line[width >> (FB_SHIFT - 3)] & maskw)))
 			line += stride, y2++;
 
 		if (READ(bits) & mask0)
