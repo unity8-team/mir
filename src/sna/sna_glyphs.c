@@ -75,6 +75,7 @@
 #define NO_GLYPHS_VIA_MASK 0
 #define NO_SMALL_MASK 0
 #define NO_GLYPHS_SLOW 0
+#define NO_DISCARD_MASK 0
 
 #define CACHE_PICTURE_SIZE 1024
 #define GLYPH_MIN_SIZE 8
@@ -1253,6 +1254,9 @@ static bool can_discard_mask(uint8_t op, PicturePtr src, PictFormatPtr mask,
 {
 	PictFormatPtr g;
 	uint32_t color;
+
+	if (NO_DISCARD_MASK)
+		return false;
 
 	if (nlist == 1 && list->len == 1)
 		return true;
