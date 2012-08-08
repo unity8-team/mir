@@ -44,8 +44,6 @@
 #include "legacy/legacy.h"
 #include "sna/sna_module.h"
 
-static struct intel_device_info *chipset_info;
-
 static const struct intel_device_info intel_generic_info = {
 	.gen = -1,
 };
@@ -96,6 +94,10 @@ static const struct intel_device_info intel_sandybridge_info = {
 
 static const struct intel_device_info intel_ivybridge_info = {
 	.gen = 70,
+};
+
+static const struct intel_device_info intel_haswell_info = {
+	.gen = 75,
 };
 
 static const SymTabRec _intel_chipsets[] = {
@@ -151,7 +153,7 @@ static const SymTabRec _intel_chipsets[] = {
 };
 #define NUM_CHIPSETS (sizeof(_intel_chipsets) / sizeof(_intel_chipsets[0]))
 
-SymTabRec *intel_chipsets = (SymTabRec *) _intel_chipsets;
+static SymTabRec *intel_chipsets = (SymTabRec *) _intel_chipsets;
 
 #define INTEL_DEVICE_MATCH(d,i) \
     { 0x8086, (d), PCI_MATCH_ANY, PCI_MATCH_ANY, 0x3 << 16, 0xff << 16, (intptr_t)(i) }
@@ -223,9 +225,10 @@ static const struct pci_id_match intel_device_match[] = {
 	{ 0, 0, 0 },
 };
 
-const struct intel_device_info *
+void
 intel_detect_chipset(ScrnInfoPtr scrn,
-		     EntityInfoPtr ent, struct pci_device *pci)
+		     EntityInfoPtr ent,
+		     struct pci_device *pci)
 {
 	MessageType from = X_PROBED;
 	const char *name = NULL;
@@ -254,7 +257,6 @@ intel_detect_chipset(ScrnInfoPtr scrn,
 	}
 
 	scrn->chipset = name;
-	return chipset_info;
 }
 
 /*
@@ -364,8 +366,6 @@ static Bool intel_pci_probe(DriverPtr		driver,
 	PciChipsets intel_pci_chipsets[NUM_CHIPSETS];
 	unsigned i;
 
-	chipset_info = (void *)match_data;
-
 	if (!has_kernel_mode_setting(device)) {
 #if KMS_ONLY
 		return FALSE;
@@ -400,6 +400,7 @@ static Bool intel_pci_probe(DriverPtr		driver,
 	scrn->driverVersion = INTEL_VERSION;
 	scrn->driverName = INTEL_DRIVER_NAME;
 	scrn->name = INTEL_NAME;
+	scrn->driverPrivate = (void *)(match_data | 1);
 	scrn->Probe = NULL;
 
 #if !KMS_ONLY

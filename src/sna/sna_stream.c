@@ -27,6 +27,7 @@
 
 #include "sna.h"
 #include "sna_render.h"
+#include "brw/brw.h"
 
 int sna_static_stream_init(struct sna_static_stream *stream)
 {
@@ -91,4 +92,49 @@ struct kgem_bo *sna_static_stream_fini(struct sna *sna,
 	free(stream->data);
 
 	return bo;
+}
+
+unsigned
+sna_static_stream_compile_sf(struct sna *sna,
+			     struct sna_static_stream *stream,
+			     bool (*compile)(struct brw_compile *))
+{
+	struct brw_compile p;
+
+	brw_compile_init(&p, sna->kgem.gen,
+			 sna_static_stream_map(stream,
+					       64*sizeof(uint32_t), 64));
+
+	if (!compile(&p)) {
+		stream->used -= 64*sizeof(uint32_t);
+		return 0;
+	}
+
+	assert(p.nr_insn*sizeof(struct brw_instruction) <= 64*sizeof(uint32_t));
+
+	stream->used -= 64*sizeof(uint32_t) - p.nr_insn*sizeof(struct brw_instruction);
+	return sna_static_stream_offsetof(stream, p.store);
+}
+
+unsigned
+sna_static_stream_compile_wm(struct sna *sna,
+			     struct sna_static_stream *stream,
+			     bool (*compile)(struct brw_compile *, int),
+			     int dispatch_width)
+{
+	struct brw_compile p;
+
+	brw_compile_init(&p, sna->kgem.gen,
+			 sna_static_stream_map(stream,
+					       256*sizeof(uint32_t), 64));
+
+	if (!compile(&p, dispatch_width)) {
+		stream->used -= 256*sizeof(uint32_t);
+		return 0;
+	}
+
+	assert(p.nr_insn*sizeof(struct brw_instruction) <= 256*sizeof(uint32_t));
+
+	stream->used -= 256*sizeof(uint32_t) - p.nr_insn*sizeof(struct brw_instruction);
+	return sna_static_stream_offsetof(stream, p.store);
 }

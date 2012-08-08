@@ -1392,6 +1392,13 @@ gen7_set_picture_surface_state(intel_screen_private *intel,
 	ss->ss2.width = pixmap->drawable.width - 1;
 	ss->ss3.pitch = intel_pixmap_pitch(pixmap) - 1;
 
+	if (IS_HSW(intel)) {
+		ss->ss7.shader_chanel_select_r = HSW_SCS_RED;
+		ss->ss7.shader_chanel_select_g = HSW_SCS_GREEN;
+		ss->ss7.shader_chanel_select_b = HSW_SCS_BLUE;
+		ss->ss7.shader_chanel_select_a = HSW_SCS_ALPHA;
+	}
+
 	dri_bo_emit_reloc(intel->surface_bo,
 			  read_domains, write_domain,
 			  0,
@@ -2687,6 +2694,13 @@ gen7_composite_wm_state(intel_screen_private *intel,
 			drm_intel_bo *bo)
 {
 	int num_surfaces = has_mask ? 3 : 2;
+	unsigned int max_threads_shift = GEN7_PS_MAX_THREADS_SHIFT_IVB;
+	unsigned int num_samples = 0;
+
+	if (IS_HSW(intel)) {
+		max_threads_shift = GEN7_PS_MAX_THREADS_SHIFT_HSW;
+		num_samples = 1 << GEN7_PS_SAMPLE_MASK_SHIFT_HSW;
+	}
 
 	if (intel->gen6_render_state.kernel == bo)
 		return;
@@ -2703,7 +2717,7 @@ gen7_composite_wm_state(intel_screen_private *intel,
 	OUT_BATCH((1 << GEN7_PS_SAMPLER_COUNT_SHIFT) |
 		  (num_surfaces << GEN7_PS_BINDING_TABLE_ENTRY_COUNT_SHIFT));
 	OUT_BATCH(0); /* scratch space base offset */
-	OUT_BATCH(((48 - 1) << GEN7_PS_MAX_THREADS_SHIFT) |
+	OUT_BATCH(((48 - 1) << max_threads_shift) | num_samples |
 		  GEN7_PS_ATTRIBUTE_ENABLE |
 		  GEN7_PS_16_DISPATCH_ENABLE);
 	OUT_BATCH((6 << GEN7_PS_DISPATCH_START_GRF_SHIFT_0));

@@ -188,7 +188,7 @@ bool sna_glyphs_create(struct sna *sna)
 	if (sna->render.white_image == NULL)
 		goto bail;
 
-	if (sna->kgem.wedged || !sna->have_render)
+	if (!can_render(sna))
 		return true;
 
 	for (i = 0; i < ARRAY_SIZE(formats); i++) {
@@ -1675,10 +1675,10 @@ sna_glyphs(CARD8 op,
 	if (REGION_NUM_RECTS(dst->pCompositeClip) == 0)
 		return;
 
-	if (FALLBACK || !sna->have_render)
+	if (FALLBACK)
 		goto fallback;
 
-	if (wedged(sna)) {
+	if (!can_render(sna)) {
 		DBG(("%s: wedged\n", __FUNCTION__));
 		goto fallback;
 	}

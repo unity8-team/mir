@@ -218,6 +218,7 @@
 #define IS_GEN5(intel) IS_GENx(intel, 5)
 #define IS_GEN6(intel) IS_GENx(intel, 6)
 #define IS_GEN7(intel) IS_GENx(intel, 7)
+#define IS_HSW(intel) (INTEL_INFO(intel)->gen == 75)
 
 /* Some chips have specific errata (or limits) that we need to workaround. */
 #define IS_I830(intel) (DEVICE_ID((intel)->PciInfo) == PCI_CHIP_I830_M)
@@ -233,14 +234,13 @@
 #define SUPPORTS_YTILING(pI810) (INTEL_INFO(intel)->gen >= 40)
 #define HAS_BLT(pI810) (INTEL_INFO(intel)->gen >= 60)
 
-extern SymTabRec *intel_chipsets;
 struct intel_device_info {
 	int gen;
 };
 
-const struct intel_device_info *
-intel_detect_chipset(ScrnInfoPtr scrn,
-		     EntityInfoPtr ent, struct pci_device *pci);
+void intel_detect_chipset(ScrnInfoPtr scrn,
+			  EntityInfoPtr ent,
+			  struct pci_device *pci);
 
 
 #endif /* INTEL_DRIVER_H */

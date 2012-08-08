@@ -510,6 +510,13 @@ static void gen7_create_dst_surface_state(ScrnInfoPtr scrn,
 
 	dest_surf_state.ss3.pitch = intel_pixmap_pitch(pixmap) - 1;
 
+	if (IS_HSW(intel)) {
+		dest_surf_state.ss7.shader_chanel_select_r = HSW_SCS_RED;
+		dest_surf_state.ss7.shader_chanel_select_g = HSW_SCS_GREEN;
+		dest_surf_state.ss7.shader_chanel_select_b = HSW_SCS_BLUE;
+		dest_surf_state.ss7.shader_chanel_select_a = HSW_SCS_ALPHA;
+	}
+
 	dri_bo_subdata(surf_bo,
 		       offset, sizeof(dest_surf_state),
 		       &dest_surf_state);
@@ -525,6 +532,7 @@ static void gen7_create_src_surface_state(ScrnInfoPtr scrn,
 					drm_intel_bo *surface_bo,
 					uint32_t offset)
 {
+	intel_screen_private * const intel = intel_get_screen_private(scrn);
 	struct gen7_surface_state src_surf_state;
 
 	memset(&src_surf_state, 0, sizeof(src_surf_state));
@@ -546,6 +554,13 @@ static void gen7_create_src_surface_state(ScrnInfoPtr scrn,
 	src_surf_state.ss2.height = src_height - 1;
 
 	src_surf_state.ss3.pitch = src_pitch - 1;
+
+	if (IS_HSW(intel)) {
+		src_surf_state.ss7.shader_chanel_select_r = HSW_SCS_RED;
+		src_surf_state.ss7.shader_chanel_select_g = HSW_SCS_GREEN;
+		src_surf_state.ss7.shader_chanel_select_b = HSW_SCS_BLUE;
+		src_surf_state.ss7.shader_chanel_select_a = HSW_SCS_ALPHA;
+	}
 
 	dri_bo_subdata(surface_bo,
 		       offset, sizeof(src_surf_state),
@@ -1625,6 +1640,13 @@ static void
 gen7_upload_wm_state(ScrnInfoPtr scrn, Bool is_packed)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
+	unsigned int max_threads_shift = GEN7_PS_MAX_THREADS_SHIFT_IVB;
+	unsigned int num_samples = 0;
+
+	if (IS_HSW(intel)) {
+		max_threads_shift = GEN7_PS_MAX_THREADS_SHIFT_HSW;
+		num_samples = 1 << GEN7_PS_SAMPLE_MASK_SHIFT_HSW;
+	}
 
 	/* disable WM constant buffer */
 	OUT_BATCH(GEN6_3DSTATE_CONSTANT_PS | (7 - 2));
@@ -1658,7 +1680,7 @@ gen7_upload_wm_state(ScrnInfoPtr scrn, Bool is_packed)
 
 	OUT_BATCH(0); /* scratch space base offset */
 	OUT_BATCH(
-		((48 - 1) << GEN7_PS_MAX_THREADS_SHIFT) |
+		((48 - 1) << max_threads_shift) | num_samples |
 		GEN7_PS_ATTRIBUTE_ENABLE |
 		GEN7_PS_16_DISPATCH_ENABLE);
 	OUT_BATCH(
