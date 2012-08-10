@@ -9403,7 +9403,7 @@ static bool
 sna_poly_fill_rect_tiled_8x8_blt(DrawablePtr drawable,
 				 struct kgem_bo *bo, struct sna_damage **damage,
 				 struct kgem_bo *tile_bo, GCPtr gc,
-				 int n, xRectangle *r,
+				 int n, const xRectangle *r,
 				 const BoxRec *extents, unsigned clipped)
 {
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
@@ -9417,7 +9417,7 @@ sna_poly_fill_rect_tiled_8x8_blt(DrawablePtr drawable,
 	if (NO_TILE_8x8)
 		return false;
 
-	DBG(("%s x %d [(%d, %d)+(%d, %d)...], clipped=%x\n",
+	DBG(("%s x %d [(%d, %d)x(%d, %d)...], clipped=%x\n",
 	     __FUNCTION__, n, r->x, r->y, r->width, r->height, clipped));
 
 	kgem_set_mode(&sna->kgem, KGEM_BLT);
@@ -9690,7 +9690,7 @@ static bool
 sna_poly_fill_rect_tiled_nxm_blt(DrawablePtr drawable,
 				 struct kgem_bo *bo,
 				 struct sna_damage **damage,
-				 GCPtr gc, int n, xRectangle *rect,
+				 GCPtr gc, int n, const xRectangle *rect,
 				 const BoxRec *extents, unsigned clipped)
 {
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
@@ -9758,7 +9758,7 @@ sna_poly_fill_rect_tiled_blt(DrawablePtr drawable,
 	int tile_width, tile_height;
 	int16_t dx, dy;
 
-	DBG(("%s x %d [(%d, %d)+(%d, %d)...]\n",
+	DBG(("%s x %d [(%d, %d)x(%d, %d)...]\n",
 	     __FUNCTION__, n, rect->x, rect->y, rect->width, rect->height));
 
 	tile_width = tile->drawable.width;
