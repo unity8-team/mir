@@ -2223,6 +2223,7 @@ bool sna_blt_copy_boxes(struct sna *sna, uint8_t alu,
 		kgem->nbatch += 3;
 	}
 
+	sna->blt_state.fill_bo = 0;
 	return true;
 }
 
