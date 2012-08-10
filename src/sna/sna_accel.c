@@ -9438,6 +9438,11 @@ sna_poly_fill_rect_tiled_8x8_blt(DrawablePtr drawable,
 	br13 |= fill_ROP[gc->alu] << 16;
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
+	assert(extents->x1 + dx >= 0);
+	assert(extents->y1 + dy >= 0);
+	assert(extents->x2 + dx <= pixmap->drawable.width);
+	assert(extents->y2 + dy <= pixmap->drawable.height);
+
 	if (!clipped) {
 		dx += drawable->x;
 		dy += drawable->y;
@@ -9450,6 +9455,11 @@ sna_poly_fill_rect_tiled_8x8_blt(DrawablePtr drawable,
 			ty = (r->y - origin->y) % 8;
 			if (ty < 8)
 				ty = 8 - ty;
+
+			assert(r->x + dx >= 0);
+			assert(r->y + dy >= 0);
+			assert(r->x + dx + r->width  <= pixmap->drawable.width);
+			assert(r->y + dy + r->height <= pixmap->drawable.height);
 
 			b = sna->kgem.batch + sna->kgem.nbatch;
 			b[0] = XY_PAT_BLT | tx << 12 | ty << 8 | 3 << 20 | (br00 & BLT_DST_TILED);
@@ -9580,6 +9590,11 @@ sna_poly_fill_rect_tiled_8x8_blt(DrawablePtr drawable,
 						sna->kgem.nbatch += 8;
 					}
 
+					assert(box.x1 + dx >= 0);
+					assert(box.y1 + dy >= 0);
+					assert(box.x2 + dx <= pixmap->drawable.width);
+					assert(box.y2 + dy <= pixmap->drawable.height);
+
 					ty = (box.y1 - drawable->y - origin->y) % 8;
 					if (ty < 0)
 						ty = 8 - ty;
@@ -9590,8 +9605,8 @@ sna_poly_fill_rect_tiled_8x8_blt(DrawablePtr drawable,
 
 					b = sna->kgem.batch + sna->kgem.nbatch;
 					b[0] = br00 | tx << 12 | ty << 8;
-					b[1] = box.y1 << 16 | box.x1;
-					b[2] = box.y2 << 16 | box.x2;
+					b[1] = (box.y1 + dy) << 16 | (box.x1 + dx);
+					b[2] = (box.y2 + dy) << 16 | (box.x2 + dx);
 					sna->kgem.nbatch += 3;
 				}
 			}
@@ -9642,6 +9657,11 @@ sna_poly_fill_rect_tiled_8x8_blt(DrawablePtr drawable,
 							sna->kgem.nbatch += 8;
 						}
 
+						assert(bb.x1 + dx >= 0);
+						assert(bb.y1 + dy >= 0);
+						assert(bb.x2 + dx <= pixmap->drawable.width);
+						assert(bb.y2 + dy <= pixmap->drawable.height);
+
 						ty = (bb.y1 - drawable->y - origin->y) % 8;
 						if (ty < 0)
 							ty = 8 - ty;
@@ -9652,8 +9672,8 @@ sna_poly_fill_rect_tiled_8x8_blt(DrawablePtr drawable,
 
 						b = sna->kgem.batch + sna->kgem.nbatch;
 						b[0] = br00 | tx << 12 | ty << 8;
-						b[1] = bb.y1 << 16 | bb.x1;
-						b[2] = bb.y2 << 16 | bb.x2;
+						b[1] = (bb.y1 + dy) << 16 | (bb.x1 + dx);
+						b[2] = (bb.y2 + dy) << 16 | (bb.x2 + dx);
 						sna->kgem.nbatch += 3;
 					}
 				}
@@ -9662,6 +9682,7 @@ sna_poly_fill_rect_tiled_8x8_blt(DrawablePtr drawable,
 	}
 done:
 	assert_pixmap_damage(pixmap);
+	sna->blt_state.fill_bo = 0;
 	return true;
 }
 
