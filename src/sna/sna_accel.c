@@ -88,6 +88,9 @@
 #define ACCEL_IMAGE_GLYPH 1
 #define ACCEL_PUSH_PIXELS 1
 
+#define NO_TILE_8x8 0
+#define NO_STIPPLE_8x8 0
+
 #if 0
 static void __sna_fallback_flush(DrawablePtr d)
 {
@@ -9411,6 +9414,9 @@ sna_poly_fill_rect_tiled_8x8_blt(DrawablePtr drawable,
 	int16_t dx, dy;
 	uint32_t *b;
 
+	if (NO_TILE_8x8)
+		return false;
+
 	DBG(("%s x %d [(%d, %d)+(%d, %d)...], clipped=%x\n",
 	     __FUNCTION__, n, r->x, r->y, r->width, r->height, clipped));
 
@@ -9990,6 +9996,9 @@ sna_poly_fill_rect_stippled_8x8_blt(DrawablePtr drawable,
 	uint32_t pat[2] = {0, 0}, br00, br13;
 	int16_t dx, dy;
 	uint32_t *b;
+
+	if (NO_STIPPLE_8x8)
+		return false;
 
 	DBG(("%s: alu=%d, upload (%d, %d), (%d, %d), origin (%d, %d)\n",
 	     __FUNCTION__, gc->alu,
