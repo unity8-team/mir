@@ -352,8 +352,11 @@ use_cpu_bo(struct sna *sna, PixmapPtr pixmap, const BoxRec *box, bool blt)
 			bool want_tiling;
 
 			if (priv->cpu_bo->pitch >= 4096) {
-				DBG(("%s: promoting snooped CPU bo due to TLB miss\n",
-				     __FUNCTION__));
+				DBG(("%s: size=%dx%d, promoting reused (%d) CPU bo due to TLB miss (%dx%d, pitch=%d)\n",
+				     __FUNCTION__, w, h, priv->source_count,
+				     pixmap->drawable.width,
+				     pixmap->drawable.height,
+				     priv->cpu_bo->pitch));
 				return NULL;
 			}
 
