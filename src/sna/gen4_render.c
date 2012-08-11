@@ -1913,6 +1913,7 @@ gen4_composite_picture(struct sna *sna,
 	} else
 		channel->transform = picture->transform;
 
+	channel->pict_format = picture->format;
 	channel->card_format = gen4_get_card_format(picture->format);
 	if (channel->card_format == -1)
 		return sna_render_picture_convert(sna, picture, channel, pixmap,
@@ -2305,6 +2306,14 @@ gen4_render_composite(struct sna *sna,
 		gen4_composite_solid_init(sna, &tmp->src, 0);
 		/* fall through to fixup */
 	case 1:
+		if (mask == NULL &&
+		    sna_blt_composite__convert(sna,
+					       src_x, src_y,
+					       width, height,
+					       dst_x, dst_y,
+					       tmp))
+			return true;
+
 		gen4_composite_channel_convert(&tmp->src);
 		break;
 	}

@@ -1923,6 +1923,7 @@ gen5_composite_picture(struct sna *sna,
 	} else
 		channel->transform = picture->transform;
 
+	channel->pict_format = picture->format;
 	channel->card_format = gen5_get_card_format(picture->format);
 	if (channel->card_format == -1)
 		return sna_render_picture_convert(sna, picture, channel, pixmap,
@@ -2302,14 +2303,6 @@ gen5_render_composite(struct sna *sna,
 		return false;
 	}
 
-	if (mask == NULL && sna->kgem.mode == KGEM_BLT &&
-	    sna_blt_composite(sna, op,
-			      src, dst,
-			      src_x, src_y,
-			      dst_x, dst_y,
-			      width, height, tmp))
-		return true;
-
 	sna_render_reduce_damage(tmp, dst_x, dst_y, width, height);
 
 	if (too_large(tmp->dst.width, tmp->dst.height) &&
@@ -2330,6 +2323,14 @@ gen5_render_composite(struct sna *sna,
 		gen5_composite_solid_init(sna, &tmp->src, 0);
 		/* fall through to fixup */
 	case 1:
+		if (mask == NULL &&
+		    sna_blt_composite__convert(sna,
+					       src_x, src_y,
+					       width, height,
+					       dst_x, dst_y,
+					       tmp))
+			return true;
+
 		gen5_composite_channel_convert(&tmp->src);
 		break;
 	}

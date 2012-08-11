@@ -2832,14 +2832,6 @@ gen3_render_composite(struct sna *sna,
 		return false;
 	}
 
-	if (mask == NULL && sna->kgem.mode != KGEM_RENDER &&
-	    sna_blt_composite(sna, op,
-			      src, dst,
-			      src_x, src_y,
-			      dst_x, dst_y,
-			      width, height, tmp))
-		return true;
-
 	sna_render_reduce_damage(tmp, dst_x, dst_y, width, height);
 
 	tmp->op = op;
@@ -2866,6 +2858,14 @@ gen3_render_composite(struct sna *sna,
 		tmp->src.u.gen3.type = SHADER_ZERO;
 		break;
 	case 1:
+		if (mask == NULL &&
+		    sna_blt_composite__convert(sna,
+					       src_x, src_y,
+					       width, height,
+					       dst_x, dst_y,
+					       tmp))
+			return true;
+
 		gen3_composite_channel_convert(&tmp->src);
 		break;
 	}
