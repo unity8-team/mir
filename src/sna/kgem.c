@@ -2190,7 +2190,7 @@ void _kgem_submit(struct kgem *kgem)
 					       i,
 					       kgem->exec[i].handle,
 					       (int)kgem->exec[i].offset,
-					       found ? bytes(found) : -1,
+					       found ? kgem_bo_size(found) : -1,
 					       found ? found->tiling : -1,
 					       (int)(kgem->exec[i].flags & EXEC_OBJECT_NEEDS_FENCE),
 					       found ? found->purged : -1);

@@ -754,9 +754,11 @@ sna_pixmap_create_shm(ScreenPtr screen,
 	struct sna_pixmap *priv;
 	PixmapPtr pixmap;
 
-	DBG(("%s(%d, %d, %d)\n", __FUNCTION__, width, height, depth));
+	DBG(("%s(%dx%d, depth=%d, bpp=%d, pitch=%d)\n",
+	     __FUNCTION__, width, height, depth, bpp, pitch));
 
-	if (wedged(sna)) {
+	if (wedged(sna) || bpp == 0) {
+fallback:
 		pixmap = sna_pixmap_create_unattached(screen, 0, 0, depth);
 		if (pixmap == NULL)
 			return NULL;
@@ -807,19 +809,20 @@ sna_pixmap_create_shm(ScreenPtr screen,
 		}
 	}
 
-	priv->cpu_bo = kgem_create_map(&sna->kgem, addr, pitch*height, false);
+	priv->cpu_bo = kgem_create_map(&sna->kgem,
+				       addr, pitch*(height-1)+width*bpp/8,
+				       false);
 	if (priv->cpu_bo == NULL) {
-		free(priv);
-		FreePixmap(pixmap);
-		return GetScratchPixmapHeader(screen, width, height, depth,
-					      bpp, pitch, addr);
+		priv->header = true;
+		sna_pixmap_destroy(pixmap);
+		goto fallback;
 	}
 	priv->cpu_bo->flush = true;
 	priv->cpu_bo->pitch = pitch;
 	sna_accel_watch_flush(sna, 1);
 
+	priv->cpu = true;
 	priv->shm = true;
-	priv->header = true;
 	sna_damage_all(&priv->cpu_damage, width, height);
 
 	pixmap->devKind = pitch;
