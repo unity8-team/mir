@@ -1400,9 +1400,13 @@ done:
 		assert(priv->gpu_bo == NULL || priv->gpu_bo->proxy == NULL);
 	}
 
-	if ((flags & MOVE_ASYNC_HINT) == 0 && priv->cpu_bo) {
-		DBG(("%s: syncing CPU bo\n", __FUNCTION__));
-		kgem_bo_sync__cpu(&sna->kgem, priv->cpu_bo);
+	if (priv->cpu_bo) {
+		if ((flags & MOVE_ASYNC_HINT) == 0) {
+			DBG(("%s: syncing CPU bo\n", __FUNCTION__));
+			kgem_bo_sync__cpu(&sna->kgem, priv->cpu_bo);
+		}
+		if (flags & MOVE_WRITE)
+			sna_pixmap_free_gpu(sna, priv);
 	}
 	priv->cpu = (flags & MOVE_ASYNC_HINT) == 0;
 	assert(pixmap->devPrivate.ptr);
