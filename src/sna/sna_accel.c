@@ -776,7 +776,7 @@ fallback:
 		pixmap = sna->freed_pixmap;
 		sna->freed_pixmap = pixmap->devPrivate.ptr;
 
-		pixmap->usage_hint = -1;
+		pixmap->usage_hint = 0;
 		pixmap->refcnt = 1;
 
 		pixmap->drawable.width = width;
@@ -793,7 +793,7 @@ fallback:
 
 		priv = _sna_pixmap_reset(pixmap);
 	} else {
-		pixmap = create_pixmap(sna, screen, 0, 0, depth, -1);
+		pixmap = create_pixmap(sna, screen, 0, 0, depth, 0);
 		if (pixmap == NullPixmap)
 			return NullPixmap;
 
