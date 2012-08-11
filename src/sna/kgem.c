@@ -3808,7 +3808,7 @@ struct kgem_bo *kgem_create_map(struct kgem *kgem,
 		return NULL;
 	}
 
-	bo->snoop = true;
+	bo->snoop = !kgem->has_llc;
 	debug_alloc__bo(kgem, bo);
 
 	DBG(("%s(ptr=%p, size=%d, pages=%d, read_only=%d) => handle=%d\n",
@@ -4010,6 +4010,8 @@ create_snoopable_buffer(struct kgem *kgem, unsigned alloc)
 {
 	struct kgem_buffer *bo;
 	uint32_t handle;
+
+	assert(!kgem->has_llc);
 
 	if (kgem->has_cacheing) {
 		struct kgem_bo *old;
