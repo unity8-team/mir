@@ -9458,10 +9458,10 @@ sna_poly_fill_rect_tiled_8x8_blt(DrawablePtr drawable,
 		sna_damage_add_rectangles(damage, r, n, dx, dy);
 		if (n == 1) {
 			tx = (r->x - origin->x) % 8;
-			if (tx < 8)
+			if (tx < 0)
 				tx = 8 - tx;
 			ty = (r->y - origin->y) % 8;
-			if (ty < 8)
+			if (ty < 0)
 				ty = 8 - ty;
 
 			assert(r->x + dx >= 0);
@@ -9520,10 +9520,10 @@ sna_poly_fill_rect_tiled_8x8_blt(DrawablePtr drawable,
 				assert(r->y + dy + r->height <= pixmap->drawable.height);
 
 				tx = (r->x - origin->x) % 8;
-				if (tx < 8)
+				if (tx < 0)
 					tx = 8 - tx;
 				ty = (r->y - origin->y) % 8;
-				if (ty < 8)
+				if (ty < 0)
 					ty = 8 - ty;
 
 				b[0] = br00 | tx << 12 | ty << 8;
