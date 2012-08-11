@@ -2367,6 +2367,7 @@ gen7_composite_picture(struct sna *sna,
 	} else
 		channel->transform = picture->transform;
 
+	channel->pict_format = picture->format;
 	channel->card_format = gen7_get_card_format(picture->format);
 	if (channel->card_format == (unsigned)-1)
 		return sna_render_picture_convert(sna, picture, channel, pixmap,
@@ -2455,6 +2456,16 @@ gen7_composite_set_target(struct sna *sna, struct sna_composite_op *op, PictureP
 inline static bool can_switch_rings(struct sna *sna)
 {
 	return sna->kgem.mode == KGEM_NONE && sna->kgem.has_semaphores && !NO_RING_SWITCH;
+}
+
+static inline bool untiled_tlb_miss(struct kgem_bo *bo)
+{
+	return bo->tiling == I915_TILING_NONE && bo->pitch >= 4096;
+}
+
+static bool prefer_blt_bo(struct sna *sna, struct kgem_bo *bo)
+{
+	return untiled_tlb_miss(bo) && kgem_bo_can_blt(&sna->kgem, bo);
 }
 
 inline static bool prefer_blt_ring(struct sna *sna)
@@ -2709,6 +2720,19 @@ reuse_source(struct sna *sna,
 }
 
 static bool
+prefer_blt_composite(struct sna *sna, struct sna_composite_op *tmp)
+{
+	if (sna->kgem.ring == KGEM_BLT)
+		return true;
+
+	if (!prefer_blt_ring(sna))
+		return false;
+
+	return (prefer_blt_bo(sna, tmp->dst.bo) ||
+		prefer_blt_bo(sna, tmp->src.bo));
+}
+
+static bool
 gen7_render_composite(struct sna *sna,
 		      uint8_t op,
 		      PicturePtr src,
@@ -2752,7 +2776,8 @@ gen7_render_composite(struct sna *sna,
 	if (!gen7_composite_set_target(sna, tmp, dst))
 		return false;
 
-	if (mask == NULL && sna->kgem.mode == KGEM_BLT &&
+	if (mask == NULL &&
+	    sna->kgem.mode == KGEM_BLT &&
 	    sna_blt_composite(sna, op,
 			      src, dst,
 			      src_x, src_y,
@@ -2779,21 +2804,18 @@ gen7_render_composite(struct sna *sna,
 		gen7_composite_solid_init(sna, &tmp->src, 0);
 		/* fall through to fixup */
 	case 1:
+		/* Did we just switch rings to prepare the source? */
+		if (mask == NULL &&
+		    prefer_blt_composite(sna, tmp) &&
+		    sna_blt_composite__convert(sna,
+					       src_x, src_y,
+					       width, height,
+					       dst_x, dst_y,
+					       tmp))
+			return true;
+
 		gen7_composite_channel_convert(&tmp->src);
 		break;
-	}
-
-	/* Did we just switch rings to prepare the source? */
-	if (sna->kgem.ring == KGEM_BLT && mask == NULL &&
-	    sna_blt_composite(sna, op,
-			      src, dst,
-			      src_x, src_y,
-			      dst_x, dst_y,
-			      width, height, tmp)) {
-		if (tmp->redirect.real_bo)
-			kgem_bo_destroy(&sna->kgem, tmp->redirect.real_bo);
-		kgem_bo_destroy(&sna->kgem, tmp->src.bo);
-		return true;
 	}
 
 	tmp->is_affine = tmp->src.is_affine;
@@ -3305,27 +3327,15 @@ gen7_emit_copy_state(struct sna *sna,
 	gen7_emit_state(sna, op, offset);
 }
 
-static inline bool untiled_tlb_miss(struct kgem_bo *bo)
-{
-	return bo->tiling == I915_TILING_NONE && bo->pitch >= 4096;
-}
-
-static bool prefer_blt_bo(struct sna *sna,
-			  PixmapPtr pixmap,
-			  struct kgem_bo *bo)
-{
-	return untiled_tlb_miss(bo) && kgem_bo_can_blt(&sna->kgem, bo);
-}
-
 static inline bool prefer_blt_copy(struct sna *sna,
-				   PixmapPtr src, struct kgem_bo *src_bo,
-				   PixmapPtr dst, struct kgem_bo *dst_bo,
+				   struct kgem_bo *src_bo,
+				   struct kgem_bo *dst_bo,
 				   unsigned flags)
 {
 	return (sna->kgem.ring == KGEM_BLT ||
 		(flags & COPY_LAST && sna->kgem.mode == KGEM_NONE) ||
-		prefer_blt_bo(sna, src, src_bo) ||
-		prefer_blt_bo(sna, dst, dst_bo));
+		prefer_blt_bo(sna, src_bo) ||
+		prefer_blt_bo(sna, dst_bo));
 }
 
 static inline bool
@@ -3375,7 +3385,7 @@ gen7_render_copy_boxes(struct sna *sna, uint8_t alu,
 		      dst_bo, dst_dx, dst_dy,
 		      box, n, &extents)));
 
-	if (prefer_blt_copy(sna, src, src_bo, dst, dst_bo, flags) &&
+	if (prefer_blt_copy(sna, src_bo, dst_bo, flags) &&
 	    sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
 	    sna_blt_copy_boxes(sna, alu,
 			       src_bo, src_dx, src_dy,
@@ -3604,7 +3614,7 @@ gen7_render_copy(struct sna *sna, uint8_t alu,
 	     src->drawable.width, src->drawable.height,
 	     dst->drawable.width, dst->drawable.height));
 
-	if (prefer_blt_copy(sna, src, src_bo, dst, dst_bo, 0) &&
+	if (prefer_blt_copy(sna, src_bo, dst_bo, 0) &&
 	    sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
 	    sna_blt_copy(sna, alu,
 			 src_bo, dst_bo,

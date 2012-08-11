@@ -1674,6 +1674,131 @@ clear:
 	return ret;
 }
 
+static void convert_done(struct sna *sna, const struct sna_composite_op *op)
+{
+	struct kgem *kgem = &sna->kgem;
+
+	if (kgem->gen >= 60 && kgem_check_batch(kgem, 3)) {
+		uint32_t *b = kgem->batch + kgem->nbatch;
+		b[0] = XY_SETUP_CLIP;
+		b[1] = b[2] = 0;
+		kgem->nbatch += 3;
+	}
+
+	kgem_bo_destroy(kgem, op->src.bo);
+	sna_render_composite_redirect_done(sna, op);
+}
+
+bool
+sna_blt_composite__convert(struct sna *sna,
+			   int x, int y,
+			   int width, int height,
+			   int dst_x, int dst_y,
+			   struct sna_composite_op *tmp)
+{
+	uint32_t alpha_fixup;
+	uint8_t op;
+
+#if DEBUG_NO_BLT || NO_BLT_COMPOSITE
+	return false;
+#endif
+
+	DBG(("%s\n", __FUNCTION__));
+
+	if (!kgem_bo_can_blt(&sna->kgem, tmp->dst.bo) ||
+	    !kgem_bo_can_blt(&sna->kgem, tmp->src.bo)) {
+		DBG(("%s: cannot blt from src or to dst\n", __FUNCTION__));
+		return false;
+	}
+
+	if (tmp->src.transform) {
+		DBG(("%s: transforms not handled by the BLT\n"));
+		return false;
+	}
+
+	if (tmp->src.filter == PictFilterConvolution) {
+		DBG(("%s: convolutions filters not handled\n",
+		     __FUNCTION__));
+		return false;
+	}
+
+	op = tmp->op;
+	if (op == PictOpOver && PICT_FORMAT_A(tmp->src.pict_format) == 0)
+		op = PictOpSrc;
+	if (op != PictOpSrc) {
+		DBG(("%s: unsuported op [%d] for blitting\n",
+		     __FUNCTION__, op));
+		return false;
+	}
+
+	alpha_fixup = 0;
+	if (!(tmp->dst.format == tmp->src.pict_format ||
+	      tmp->dst.format == alphaless(tmp->src.pict_format) ||
+	      (alphaless(tmp->dst.format) == alphaless(tmp->src.pict_format) &&
+	       sna_get_pixel_from_rgba(&alpha_fixup,
+				       0, 0, 0, 0xffff,
+				       tmp->dst.format)))) {
+		DBG(("%s: incompatible src/dst formats src=%08x, dst=%08x\n",
+		     __FUNCTION__,
+		     (unsigned)tmp->src.pict_format,
+		     tmp->dst.format));
+		return false;
+	}
+
+	x += tmp->src.offset[0];
+	y += tmp->src.offset[1];
+	if (x < 0 || y < 0 ||
+	    x + width  > tmp->src.width ||
+	    y + height > tmp->src.height) {
+		DBG(("%s: source extends outside (%d, %d), (%d, %d) of valid drawable %dx%d\n",
+		     __FUNCTION__,
+		     x, y, x+width, y+width, tmp->src.width, tmp->src.height));
+		return false;
+	}
+
+	if (!kgem_check_many_bo_fenced(&sna->kgem, tmp->dst.bo, tmp->src.bo, NULL)) {
+		_kgem_submit(&sna->kgem);
+		if (!kgem_check_many_bo_fenced(&sna->kgem,
+					       tmp->dst.bo, tmp->src.bo, NULL)) {
+			DBG(("%s: fallback -- no room in aperture\n", __FUNCTION__));
+			return false;
+		}
+		_kgem_set_mode(&sna->kgem, KGEM_BLT);
+	}
+
+	tmp->u.blt.src_pixmap = NULL;
+	tmp->u.blt.sx = x - dst_x;
+	tmp->u.blt.sy = y - dst_y;
+	DBG(("%s: blt dst offset (%d, %d), source offset (%d, %d), with alpha fixup? %x\n",
+	     __FUNCTION__,
+	     tmp->dst.x, tmp->dst.y, tmp->u.blt.sx, tmp->u.blt.sy, alpha_fixup));
+
+	if (alpha_fixup) {
+		tmp->blt   = blt_composite_copy_with_alpha;
+		tmp->box   = blt_composite_copy_box_with_alpha;
+		tmp->boxes = blt_composite_copy_boxes_with_alpha;
+
+		if (!sna_blt_alpha_fixup_init(sna, &tmp->u.blt,
+					      tmp->src.bo, tmp->dst.bo,
+					      PICT_FORMAT_BPP(tmp->src.pict_format),
+					      alpha_fixup))
+			return false;
+	} else {
+		tmp->blt   = blt_composite_copy;
+		tmp->box   = blt_composite_copy_box;
+		tmp->boxes = blt_composite_copy_boxes;
+
+		if (!sna_blt_copy_init(sna, &tmp->u.blt,
+				       tmp->src.bo, tmp->dst.bo,
+				       PICT_FORMAT_BPP(tmp->src.pict_format),
+				       GXcopy))
+			return false;
+	}
+
+	tmp->done = convert_done;
+	return true;
+}
+
 static void sna_blt_fill_op_blt(struct sna *sna,
 				const struct sna_fill_op *op,
 				int16_t x, int16_t y,
