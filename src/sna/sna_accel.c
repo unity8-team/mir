@@ -819,6 +819,7 @@ fallback:
 	}
 	priv->cpu_bo->flush = true;
 	priv->cpu_bo->pitch = pitch;
+	priv->cpu_bo->reusable = false;
 	sna_accel_watch_flush(sna, 1);
 
 	priv->cpu = true;
