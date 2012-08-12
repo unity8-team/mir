@@ -757,7 +757,7 @@ sna_pixmap_create_shm(ScreenPtr screen,
 	DBG(("%s(%dx%d, depth=%d, bpp=%d, pitch=%d)\n",
 	     __FUNCTION__, width, height, depth, bpp, pitch));
 
-	if (wedged(sna) || bpp == 0) {
+	if (wedged(sna) || bpp == 0 || pitch*height <= 4096) {
 fallback:
 		pixmap = sna_pixmap_create_unattached(screen, 0, 0, depth);
 		if (pixmap == NULL)
@@ -809,9 +809,7 @@ fallback:
 		}
 	}
 
-	priv->cpu_bo = kgem_create_map(&sna->kgem,
-				       addr, pitch*(height-1)+width*bpp/8,
-				       false);
+	priv->cpu_bo = kgem_create_map(&sna->kgem, addr, pitch*height, false);
 	if (priv->cpu_bo == NULL) {
 		priv->header = true;
 		sna_pixmap_destroy(pixmap);
