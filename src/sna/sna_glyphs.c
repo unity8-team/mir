@@ -1298,15 +1298,11 @@ glyphs_fallback(CARD8 op,
 		int nlist, GlyphListPtr list, GlyphPtr *glyphs)
 {
 	struct sna *sna = to_sna_from_drawable(dst->pDrawable);
-	pixman_glyph_t stack_glyphs[N_STACK_GLYPHS];
-	pixman_glyph_t *pglyphs = stack_glyphs;
 	pixman_image_t *src_image, *dst_image;
-	pixman_glyph_cache_t *cache;
-	int dst_x = list->xOff, dst_y = list->yOff;
-	int src_dx, src_dy, dst_dx, dst_dy;
+	int src_dx, src_dy;
 	ScreenPtr screen = dst->pDrawable->pScreen;
 	RegionRec region;
-	int x, y, count, n;
+	int x, y, n;
 
 	glyph_extents(nlist, list, glyphs, &region.extents);
 	if (region.extents.x2 <= region.extents.x1 ||
@@ -1356,7 +1352,12 @@ glyphs_fallback(CARD8 op,
 
 #if HAS_PIXMAN_GLYPHS
 	if (sna->render.glyph_cache) {
-		cache = sna->render.glyph_cache;
+		pixman_glyph_t stack_glyphs[N_STACK_GLYPHS];
+		pixman_glyph_t *pglyphs = stack_glyphs;
+		pixman_glyph_cache_t *cache = sna->render.glyph_cache;
+		int dst_x = list->xOff, dst_y = list->yOff;
+		int dst_dx, dst_dy, count;
+
 		pixman_glyph_cache_freeze(cache);
 
 		count = 0;
