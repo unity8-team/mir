@@ -675,7 +675,7 @@ I830SetPortAttributeOverlay(ScrnInfoPtr scrn,
 		adaptor_priv->saturation = value;
 	} else if (attribute == xvPipe) {
 		xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
-		if ((value < -1) || (value > xf86_config->num_crtc))
+		if ((value < -1) || (value >= xf86_config->num_crtc))
 			return BadValue;
 		if (value < 0)
 			adaptor_priv->desired_crtc = NULL;
