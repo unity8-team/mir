@@ -168,11 +168,7 @@ static Bool sna_create_screen_resources(ScreenPtr screen)
 	free(screen->devPrivate);
 	screen->devPrivate = NULL;
 
-	if (!sna_accel_create(screen, sna)) {
-		xf86DrvMsg(screen->myNum, X_ERROR,
-			   "[intel] Failed to initialise acceleration routines\n");
-		goto cleanup_front;
-	}
+	sna_accel_create(sna);
 
 	sna->front = screen->CreatePixmap(screen,
 					  screen->width,

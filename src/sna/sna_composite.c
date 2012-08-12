@@ -46,6 +46,9 @@ bool sna_composite_create(struct sna *sna)
 	xRenderColor color ={ 0 };
 	int error;
 
+	if (!can_render(sna))
+		return true;
+
 	sna->clear = CreateSolidPicture(0, &color, &error);
 	return sna->clear != NULL;
 }

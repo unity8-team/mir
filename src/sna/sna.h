@@ -629,13 +629,13 @@ static inline uint32_t pixmap_size(PixmapPtr pixmap)
 }
 
 bool sna_accel_init(ScreenPtr sreen, struct sna *sna);
+void sna_accel_create(struct sna *sna);
 void sna_accel_block_handler(struct sna *sna, struct timeval **tv);
 void sna_accel_wakeup_handler(struct sna *sna);
 void sna_accel_watch_flush(struct sna *sna, int enable);
 void sna_accel_close(struct sna *sna);
 void sna_accel_free(struct sna *sna);
 
-bool sna_accel_create(ScreenPtr screen, struct sna *sna);
 void sna_copy_fbcon(struct sna *sna);
 
 bool sna_composite_create(struct sna *sna);

@@ -13874,18 +13874,24 @@ bool sna_accel_init(ScreenPtr screen, struct sna *sna)
 	return true;
 }
 
-bool sna_accel_create(ScreenPtr screen, struct sna *sna)
+void sna_accel_create(struct sna *sna)
 {
 	if (!sna_glyphs_create(sna))
-		return false;
+		goto fail;
 
 	if (!sna_gradients_create(sna))
-		return false;
+		goto fail;
 
 	if (!sna_composite_create(sna))
-		return false;
+		goto fail;
 
-	return true;
+	return;
+
+fail:
+	xf86DrvMsg(sna->scrn->scrnIndex, X_ERROR,
+		   "Failed to allocate caches, disabling RENDER acceleration\n");
+	sna->have_render = false;
+	no_render_init(sna);
 }
 
 void sna_accel_watch_flush(struct sna *sna, int enable)
