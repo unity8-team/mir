@@ -81,10 +81,17 @@ PKG_CHECK_MODULES(XEXT, [xextproto >= 7.0.99.1],
                   HAVE_XEXTPROTO_71="no")
 AM_CONDITIONAL(HAVE_XEXTPROTO_71, [ test "$HAVE_XEXTPROTO_71" = "yes" ])
 
-
-PKG_CHECK_MODULES(LIBUDEV, [libudev], [LIBUDEV=yes], [LIBUDEV=no])
-if test "x$LIBUDEV" = xyes; then
-       AC_DEFINE(HAVE_LIBUDEV, 1,[libudev support])
+AC_ARG_ENABLE([udev],
+		AS_HELP_STRING([--disable-udev], [Disable libudev support [default=auto]]),
+		[enable_udev="$enableval"],
+		[enable_udev=auto])
+if test "x$enable_udev" != "xno"; then
+	PKG_CHECK_MODULES(LIBUDEV, [libudev], [LIBUDEV=yes], [LIBUDEV=no])
+	if test "x$LIBUDEV" = xyes; then
+		AC_DEFINE(HAVE_LIBUDEV, 1,[libudev support])
+	elif test "x$enable_udev" != "xauto"; then
+		AC_MSG_ERROR([Building with udev requested but libudev not found])
+	fi
 fi
 AM_CONDITIONAL(LIBUDEV, test x$LIBUDEV = xyes)
 
