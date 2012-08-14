@@ -1012,6 +1012,35 @@ fallback:
 	return create_pixmap(sna, screen, width, height, depth, usage);
 }
 
+static inline void add_flush_pixmap(struct sna *sna, struct sna_pixmap *priv)
+{
+	DBG(("%s: marking pixmap=%ld for flushing\n",
+	     __FUNCTION__, priv->pixmap->drawable.serialNumber));
+	list_move(&priv->list, &sna->flush_pixmaps);
+	sna->kgem.flush = true;
+}
+
+static void __sna_free_pixmap(struct sna *sna,
+			      PixmapPtr pixmap,
+			      struct sna_pixmap *priv)
+{
+	list_del(&priv->list);
+	list_del(&priv->inactive);
+
+	sna_damage_destroy(&priv->gpu_damage);
+	sna_damage_destroy(&priv->cpu_damage);
+
+	sna_pixmap_free_cpu(sna, priv);
+
+	if (priv->header) {
+		pixmap->devPrivate.ptr = sna->freed_pixmap;
+		sna->freed_pixmap = pixmap;
+	} else {
+		free(priv);
+		FreePixmap(pixmap);
+	}
+}
+
 static Bool sna_destroy_pixmap(PixmapPtr pixmap)
 {
 	struct sna *sna;
@@ -1027,29 +1056,16 @@ static Bool sna_destroy_pixmap(PixmapPtr pixmap)
 	}
 
 	assert_pixmap_damage(pixmap);
-
-	list_del(&priv->list);
-	list_del(&priv->inactive);
-
-	sna_damage_destroy(&priv->gpu_damage);
-	sna_damage_destroy(&priv->cpu_damage);
-
 	sna = to_sna_from_pixmap(pixmap);
 
 	/* Always release the gpu bo back to the lower levels of caching */
 	if (priv->gpu_bo)
 		kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
 
-	sna_pixmap_free_cpu(sna, priv);
-
-	if (priv->header) {
-		pixmap->devPrivate.ptr = sna->freed_pixmap;
-		sna->freed_pixmap = pixmap;
-	} else {
-		free(priv);
-		FreePixmap(pixmap);
-	}
-
+	if (priv->shm && priv->cpu_bo->rq)
+		add_flush_pixmap(sna, priv);
+	else
+		__sna_free_pixmap(sna, pixmap, priv);
 	return TRUE;
 }
 
@@ -1158,14 +1174,6 @@ static inline bool operate_inplace(struct sna_pixmap *priv, unsigned flags)
 		return false;
 
 	return priv->stride != 0;
-}
-
-static inline void add_flush_pixmap(struct sna *sna, struct sna_pixmap *priv)
-{
-	DBG(("%s: marking pixmap=%ld for flushing\n",
-	     __FUNCTION__, priv->pixmap->drawable.serialNumber));
-	list_move(&priv->list, &sna->flush_pixmaps);
-	sna->kgem.flush = true;
 }
 
 bool
@@ -13297,6 +13305,8 @@ sna_accel_flush_callback(CallbackListPtr *list,
 			     priv->pixmap->drawable.serialNumber));
 			ret = sna_pixmap_move_to_cpu(priv->pixmap,
 						     MOVE_READ | MOVE_WRITE);
+			if (priv->pixmap->refcnt == 0)
+				__sna_free_pixmap(sna, priv->pixmap, priv);
 		} else {
 			DBG(("%s: flushing DRI pixmap=%ld\n", __FUNCTION__,
 			     priv->pixmap->drawable.serialNumber));
