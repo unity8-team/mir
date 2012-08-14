@@ -2858,7 +2858,7 @@ gen3_render_composite(struct sna *sna,
 		tmp->src.u.gen3.type = SHADER_ZERO;
 		break;
 	case 1:
-		if (mask == NULL &&
+		if (mask == NULL && tmp->src.bo &&
 		    sna_blt_composite__convert(sna,
 					       src_x, src_y,
 					       width, height,

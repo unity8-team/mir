@@ -1775,7 +1775,7 @@ gen2_render_composite(struct sna *sna,
 	case 0:
 		gen2_composite_solid_init(sna, &tmp->src, 0);
 	case 1:
-		if (mask == NULL &&
+		if (mask == NULL && tmp->src.bo &&
 		    sna_blt_composite__convert(sna,
 					       src_x, src_y,
 					       width, height,
