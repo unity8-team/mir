@@ -2341,6 +2341,8 @@ sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
 	}
 
 	if (priv->gpu_bo && priv->gpu_bo->proxy) {
+		DBG(("%s: cached upload proxy, discard and revert to GPU\n",
+		     __FUNCTION__));
 		kgem_bo_destroy(&to_sna_from_pixmap(pixmap)->kgem,
 				priv->gpu_bo);
 		priv->gpu_bo = NULL;
@@ -2350,19 +2352,32 @@ sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
 	if (priv->flush)
 		flags |= PREFER_GPU;
 	if (priv->shm)
-		flags = 0;
+		flags &= ~PREFER_GPU;
 	if (priv->cpu && (flags & FORCE_GPU) == 0)
-		flags = 0;
+		flags &= ~PREFER_GPU;
 
-	if (!flags && (!priv->gpu_damage || !kgem_bo_is_busy(priv->gpu_bo)))
+	DBG(("%s: flush=%d, shm=%d, cpu=%d => flags=%x\n",
+	     __FUNCTION__, priv->flush, priv->shm, priv->cpu, flags));
+
+	if ((flags & PREFER_GPU) == 0 &&
+	    (!priv->gpu_damage || !kgem_bo_is_busy(priv->gpu_bo))) {
+		DBG(("%s: try cpu as GPU bo is idle\n", __FUNCTION__));
 		goto use_cpu_bo;
+	}
 
-	if (DAMAGE_IS_ALL(priv->gpu_damage))
+	if (DAMAGE_IS_ALL(priv->gpu_damage)) {
+		DBG(("%s: use GPU fast path (all-damaged)\n", __FUNCTION__));
 		goto use_gpu_bo;
+	}
 
-	if (DAMAGE_IS_ALL(priv->cpu_damage))
+	if (DAMAGE_IS_ALL(priv->cpu_damage)) {
+		DBG(("%s: use CPU fast path (all-damaged)\n", __FUNCTION__));
 		goto use_cpu_bo;
+	}
 
+	DBG(("%s: gpu? %d, damaged? %d; cpu? %d, damaged? %d\n", __FUNCTION__,
+	     priv->gpu_bo ? priv->gpu_bo->handle : 0, priv->gpu_damage != NULL,
+	     priv->cpu_bo ? priv->cpu_bo->handle : 0, priv->cpu_damage != NULL));
 	if (priv->gpu_bo == NULL) {
 		unsigned int move;
 
@@ -2502,7 +2517,7 @@ use_cpu_bo:
 	if (!to_sna_from_pixmap(pixmap)->kgem.can_blt_cpu)
 		return NULL;
 
-	if (flags == 0 && !kgem_bo_is_busy(priv->cpu_bo))
+	if ((flags & FORCE_GPU) == 0 && !kgem_bo_is_busy(priv->cpu_bo))
 		return NULL;
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
@@ -4007,6 +4022,9 @@ source_prefer_gpu(struct sna_pixmap *priv)
 		DBG(("%s: source has busy CPU bo, force gpu\n", __FUNCTION__));
 		return PREFER_GPU | FORCE_GPU;
 	}
+
+	if (DAMAGE_IS_ALL(priv->cpu_damage))
+		return 0;
 
 	DBG(("%s: source has GPU bo? %d\n",
 	     __FUNCTION__, priv->gpu_bo != NULL));
