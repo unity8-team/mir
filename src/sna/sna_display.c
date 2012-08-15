@@ -64,6 +64,7 @@ struct sna_crtc {
 	uint32_t cursor;
 	bool shadow;
 	bool fallback_shadow;
+	bool transform;
 	uint8_t id;
 	uint8_t pipe;
 	uint8_t plane;
@@ -536,7 +537,8 @@ sna_crtc_apply(xf86CrtcPtr crtc)
 	VG_CLEAR(arg);
 	arg.crtc_id = sna_crtc->id;
 	arg.fb_id = fb_id(sna_crtc->bo);
-	if (sna_crtc->shadow) {
+	if (sna_crtc->transform) {
+		assert(sna_crtc->shadow);
 		arg.x = 0;
 		arg.y = 0;
 	} else {
@@ -548,7 +550,7 @@ sna_crtc_apply(xf86CrtcPtr crtc)
 	arg.mode = sna_crtc->kmode;
 	arg.mode_valid = 1;
 
-	DBG(("%s: applying crtc [%d] mode=%dx%d+%d+%d@%d, fb=%d%s update to %d outputs\n",
+	DBG(("%s: applying crtc [%d] mode=%dx%d+%d+%d@%d, fb=%d%s%s update to %d outputs\n",
 	     __FUNCTION__, sna_crtc->id,
 	     arg.mode.hdisplay,
 	     arg.mode.vdisplay,
@@ -556,6 +558,7 @@ sna_crtc_apply(xf86CrtcPtr crtc)
 	     arg.mode.clock,
 	     arg.fb_id,
 	     sna_crtc->shadow ? " [shadow]" : "",
+	     sna_crtc->transform ? " [transformed]" : "",
 	     output_count));
 
 	if (drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_SETCRTC, &arg))
@@ -907,6 +910,7 @@ static struct kgem_bo *sna_crtc_attach(xf86CrtcPtr crtc)
 	struct sna *sna = to_sna(scrn);
 	struct kgem_bo *bo;
 
+	sna_crtc->transform = false;
 	if (use_shadow(sna, crtc)) {
 		if (!sna_crtc_enable_shadow(sna, sna_crtc))
 			return NULL;
@@ -926,6 +930,7 @@ static struct kgem_bo *sna_crtc_attach(xf86CrtcPtr crtc)
 			return NULL;
 		}
 
+		sna_crtc->transform = true;
 		return bo;
 	} else if (sna->flags & SNA_TEAR_FREE) {
 		DBG(("%s: tear-free updates requested\n", __FUNCTION__));
@@ -962,6 +967,7 @@ static struct kgem_bo *sna_crtc_attach(xf86CrtcPtr crtc)
 		if (!get_fb(sna, bo, scrn->virtualX, scrn->virtualY))
 			return NULL;
 
+		assert(!sna_crtc->shadow);
 		return kgem_bo_reference(bo);
 	}
 }
@@ -990,7 +996,7 @@ static void sna_crtc_randr(xf86CrtcPtr crtc)
 	filter = NULL;
 	params = NULL;
 	nparams = 0;
-	if (sna_crtc->shadow) {
+	if (sna_crtc->transform) {
 #ifdef RANDR_12_INTERFACE
 		if (transform) {
 			if (transform->nparams) {
@@ -1076,6 +1082,7 @@ sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	struct sna_crtc *sna_crtc = to_sna_crtc(crtc);
 	struct kgem_bo *saved_bo, *bo;
 	struct drm_mode_modeinfo saved_kmode;
+	bool saved_transform;
 
 	xf86DrvMsg(crtc->scrn->scrnIndex, X_INFO,
 		   "switch to mode %dx%d on crtc %d (pipe %d)\n",
@@ -1097,6 +1104,7 @@ sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 
 	saved_kmode = sna_crtc->kmode;
 	saved_bo = sna_crtc->bo;
+	saved_transform = sna_crtc->transform;
 
 	sna_crtc->fallback_shadow = false;
 retry: /* Attach per-crtc pixmap or direct */
@@ -1117,6 +1125,7 @@ retry: /* Attach per-crtc pixmap or direct */
 		xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
 			   "failed to set mode: %s\n", strerror(errno));
 
+		sna_crtc->transform = saved_transform;
 		sna_crtc->bo = saved_bo;
 		sna_crtc->kmode = saved_kmode;
 		return FALSE;
