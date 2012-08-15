@@ -48,6 +48,8 @@ static Bool    NVSaveScreen(ScreenPtr pScreen, int mode);
 static void    NVCloseDRM(ScrnInfoPtr);
 
 /* Optional functions */
+static Bool    NVDriverFunc(ScrnInfoPtr scrn, xorgDriverFuncOp op,
+			    void *data);
 static Bool    NVSwitchMode(SWITCH_MODE_ARGS_DECL);
 static void    NVAdjustFrame(ADJUST_FRAME_ARGS_DECL);
 static void    NVFreeScreen(FREE_SCREEN_ARGS_DECL);
@@ -88,7 +90,7 @@ _X_EXPORT DriverRec NV = {
 	NVAvailableOptions,
 	NULL,
 	0,
-	NULL,
+	NVDriverFunc,
 	nouveau_device_match,
 	NVPciProbe
 };
@@ -196,6 +198,21 @@ NVIdentify(int flags)
         }
         xf86ErrorF("(%s)\n", family->chipset);
         family++;
+    }
+}
+
+static Bool
+NVDriverFunc(ScrnInfoPtr scrn, xorgDriverFuncOp op, void *data)
+{
+    xorgHWFlags *flag;
+
+    switch (op) {
+	case GET_REQUIRED_HW_INTERFACES:
+	    flag = (CARD32 *)data;
+	    (*flag) = 0;
+	    return TRUE;
+	default:
+	    return FALSE;
     }
 }
 
