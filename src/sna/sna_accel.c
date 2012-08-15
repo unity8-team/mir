@@ -11387,23 +11387,60 @@ sna_poly_fill_rect_stippled_blt(DrawablePtr drawable,
 
 static unsigned
 sna_poly_fill_rect_extents(DrawablePtr drawable, GCPtr gc,
-			   int n, xRectangle *rect,
+			   int *_n, xRectangle **_r,
 			   BoxPtr out)
 {
+	int n;
+	xRectangle *r;
 	Box32Rec box;
 	bool clipped;
 
-	if (n == 0)
+	if (*_n == 0)
 		return 0;
 
 	DBG(("%s: [0] = (%d, %d)x(%d, %d)\n",
-	     __FUNCTION__, rect->x, rect->y, rect->width, rect->height));
-	box.x1 = rect->x;
-	box.x2 = box.x1 + rect->width;
-	box.y1 = rect->y;
-	box.y2 = box.y1 + rect->height;
-	while (--n)
-		box32_add_rect(&box, ++rect);
+	     __FUNCTION__, r->x, r->y, r->width, r->height));
+
+	/* Remove any zero-size rectangles from the array */
+	while (*_n && ((*_r)->width == 0 || (*_r)->height == 0))
+		--*_n, ++*_r;
+
+	if (*_n == 0)
+		return 0;
+
+	n = *_n;
+	r = *_r;
+
+	box.x1 = r->x;
+	box.x2 = box.x1 + r->width;
+	box.y1 = r->y;
+	box.y2 = box.y1 + r->height;
+	r++;
+
+	while (--n) {
+		int32_t v;
+
+		if (r->width == 0 || r->height == 0)
+			goto slow;
+
+		box32_add_rect(&box, r++);
+	}
+	goto done;
+slow:
+	{
+		xRectangle *rr = r;
+		do {
+			do {
+				--*_n, r++;
+			} while (--n && (r->width == 0 || r->height == 0));
+			while (n && r->width && r->height) {
+				box32_add_rect(&box, r);
+				*rr++ = *r++;
+				n--;
+			}
+		} while (n);
+	}
+done:
 
 	clipped = box32_trim_and_translate(&box, drawable, gc);
 	if (!box32_to_box16(&box, out))
@@ -11431,7 +11468,7 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 	     gc->fillStyle, gc->tileIsPixel,
 	     gc->alu));
 
-	flags = sna_poly_fill_rect_extents(draw, gc, n, rect, &region.extents);
+	flags = sna_poly_fill_rect_extents(draw, gc, &n, &rect, &region.extents);
 	if (flags == 0) {
 		DBG(("%s, nothing to do\n", __FUNCTION__));
 		return;
