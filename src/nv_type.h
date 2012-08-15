@@ -3,7 +3,6 @@
 
 #include "colormapst.h"
 #include "xf86Cursor.h"
-#include "xf86int10.h"
 #include "exa.h"
 #ifdef XF86DRI
 #define _XF86DRI_SERVER_

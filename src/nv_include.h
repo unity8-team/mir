@@ -30,8 +30,6 @@
 
 #include "xf86DDC.h"
 
-#include "vbe.h"
-
 #include "xf86RandR12.h"
 
 #include "nv_const.h"

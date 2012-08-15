@@ -25,7 +25,6 @@
 #include "nv_include.h"
 
 #include "xorg-server.h"
-#include "xf86int10.h"
 #include "xf86drm.h"
 #include "xf86drmMode.h"
 #include "nouveau_drm.h"
