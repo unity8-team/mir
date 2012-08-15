@@ -89,7 +89,6 @@
 #include "xf86Resources.h"
 #endif
 #include "xf86cmap.h"
-#include "vbe.h"
 
 #include "shadow.h"
 				/* vgaHW definitions */
