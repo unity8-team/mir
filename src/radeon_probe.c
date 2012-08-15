@@ -240,6 +240,21 @@ radeon_pci_probe(
 
 #endif /* XSERVER_LIBPCIACCESS */
 
+static Bool
+RADEONDriverFunc(ScrnInfoPtr scrn, xorgDriverFuncOp op, void *data)
+{
+    xorgHWFlags *flag;
+
+    switch (op) {
+	case GET_REQUIRED_HW_INTERFACES:
+	    flag = (CARD32 *)data;
+	    (*flag) = 0;
+	    return TRUE;
+	default:
+	    return FALSE;
+    }
+}
+
 _X_EXPORT DriverRec RADEON =
 {
     RADEON_VERSION_CURRENT,
@@ -253,7 +268,7 @@ _X_EXPORT DriverRec RADEON =
     RADEONAvailableOptions,
     NULL,
     0,
-    NULL,
+    RADEONDriverFunc,
 #ifdef XSERVER_LIBPCIACCESS
     radeon_device_match,
     radeon_pci_probe
