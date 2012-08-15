@@ -1264,8 +1264,7 @@ skip_inplace_map:
 
 			if (kgem_bo_is_busy(priv->cpu_bo)) {
 				DBG(("%s: discarding busy CPU bo\n", __FUNCTION__));
-				assert(priv->gpu_bo);
-				assert(priv->gpu_damage == NULL);
+				assert(priv->gpu_bo == NULL || priv->gpu_damage == NULL);
 
 				sna_damage_destroy(&priv->cpu_damage);
 				priv->undamaged = false;
@@ -2209,6 +2208,10 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 							    pixmap, priv->cpu_bo, 0, 0,
 							    pixmap, priv->gpu_bo, 0, 0,
 							    box, n, 0);
+				if (ok && priv->shm) {
+					assert(!priv->flush);
+					add_flush_pixmap(sna, priv);
+				}
 			}
 			if (!ok) {
 				if (pixmap->devPrivate.ptr == NULL) {
@@ -2249,6 +2252,10 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 						    pixmap, priv->cpu_bo, 0, 0,
 						    pixmap, priv->gpu_bo, 0, 0,
 						    box, 1, 0);
+			if (ok && priv->shm) {
+				assert(!priv->flush);
+				add_flush_pixmap(sna, priv);
+			}
 		}
 		if (!ok) {
 			if (pixmap->devPrivate.ptr == NULL) {
@@ -2280,6 +2287,10 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 						    pixmap, priv->cpu_bo, 0, 0,
 						    pixmap, priv->gpu_bo, 0, 0,
 						    box, n, 0);
+			if (ok && priv->shm) {
+				assert(!priv->flush);
+				add_flush_pixmap(sna, priv);
+			}
 		}
 		if (!ok) {
 			if (pixmap->devPrivate.ptr == NULL) {
@@ -2776,6 +2787,10 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 						    pixmap, priv->cpu_bo, 0, 0,
 						    pixmap, priv->gpu_bo, 0, 0,
 						    box, n, 0);
+			if (ok && priv->shm) {
+				assert(!priv->flush);
+				add_flush_pixmap(sna, priv);
+			}
 		}
 		if (!ok) {
 			if (pixmap->devPrivate.ptr == NULL) {
