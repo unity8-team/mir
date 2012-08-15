@@ -141,6 +141,7 @@ static unsigned get_fb(struct sna *sna, struct kgem_bo *bo,
 	     __FUNCTION__, width, height, scrn->depth, scrn->bitsPerPixel));
 
 	assert(bo->tiling != I915_TILING_Y);
+	assert((bo->pitch & 63) == 0);
 
 	VG_CLEAR(arg);
 	arg.width = width;
@@ -2943,38 +2944,42 @@ void sna_mode_redisplay(struct sna *sna)
 
 		for (i = 0; i < config->num_crtc; i++) {
 			struct sna_crtc *crtc = config->crtc[i]->driver_private;
-			struct drm_mode_crtc_page_flip arg;
 
-			DBG(("%s: crtc %d active? %d\n",
-			     __FUNCTION__, i, crtc->bo != NULL));
+			DBG(("%s: crtc %d [%d, pipe=%d] active? %d\n",
+			     __FUNCTION__, i, crtc->id, crtc->pipe, crtc->bo != NULL));
 			if (crtc->bo != old)
 				continue;
 
-			arg.crtc_id = crtc->id;
-			arg.fb_id = get_fb(sna, new,
-					   sna->scrn->virtualX,
-					   sna->scrn->virtualY);
-			if (arg.fb_id == 0)
-				goto disable;
+			assert(config->crtc[i]->enabled);
 
-			/* Only the reference crtc will finally deliver its page flip
-			 * completion event. All other crtc's events will be discarded.
-			 */
-			arg.user_data = 0;
-			arg.flags = DRM_MODE_PAGE_FLIP_EVENT;
-			arg.reserved = 0;
+			if (crtc->dpms_mode == DPMSModeOn) {
+				struct drm_mode_crtc_page_flip arg;
+				arg.crtc_id = crtc->id;
+				arg.fb_id = get_fb(sna, new,
+						   sna->scrn->virtualX,
+						   sna->scrn->virtualY);
+				if (arg.fb_id == 0)
+					goto disable;
 
-			if (drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_PAGE_FLIP, &arg)) {
-				DBG(("%s: flip [fb=%d] on crtc %d [%d] failed - %d\n",
-				     __FUNCTION__, arg.fb_id, i, crtc->id, errno));
+				/* Only the reference crtc will finally deliver its page flip
+				 * completion event. All other crtc's events will be discarded.
+				 */
+				arg.user_data = 0;
+				arg.flags = DRM_MODE_PAGE_FLIP_EVENT;
+				arg.reserved = 0;
+
+				if (drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_PAGE_FLIP, &arg)) {
+					DBG(("%s: flip [fb=%d] on crtc %d [%d, pipe=%d] failed - %d\n",
+					     __FUNCTION__, arg.fb_id, i, crtc->id, crtc->pipe, errno));
 disable:
-				sna_crtc_disable(config->crtc[i]);
-				continue;
+					sna_crtc_disable(config->crtc[i]);
+					continue;
+				}
+				sna->mode.shadow_flip++;
 			}
 
 			kgem_bo_destroy(&sna->kgem, old);
 			crtc->bo = kgem_bo_reference(new);
-			sna->mode.shadow_flip++;
 		}
 
 		if (sna->mode.shadow) {
