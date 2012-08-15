@@ -1033,6 +1033,7 @@ static void __sna_free_pixmap(struct sna *sna,
 	sna_pixmap_free_cpu(sna, priv);
 
 	if (priv->header) {
+		assert(!priv->shm);
 		pixmap->devPrivate.ptr = sna->freed_pixmap;
 		sna->freed_pixmap = pixmap;
 	} else {
@@ -1062,9 +1063,10 @@ static Bool sna_destroy_pixmap(PixmapPtr pixmap)
 	if (priv->gpu_bo)
 		kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
 
-	if (priv->shm && priv->cpu_bo->rq)
+	if (priv->shm && kgem_bo_is_busy(priv->cpu_bo)) {
+		kgem_bo_submit(&sna->kgem, priv->cpu_bo); /* XXX ShmDetach */
 		add_flush_pixmap(sna, priv);
-	else
+	} else
 		__sna_free_pixmap(sna, pixmap, priv);
 	return TRUE;
 }

@@ -2186,13 +2186,14 @@ void _kgem_submit(struct kgem *kgem)
 							break;
 						}
 					}
-					ErrorF("exec[%d] = handle:%d, presumed offset: %x, size: %d, tiling %d, fenced %d, deleted %d\n",
+					ErrorF("exec[%d] = handle:%d, presumed offset: %x, size: %d, tiling %d, fenced %d, snooped %d, deleted %d\n",
 					       i,
 					       kgem->exec[i].handle,
 					       (int)kgem->exec[i].offset,
 					       found ? kgem_bo_size(found) : -1,
 					       found ? found->tiling : -1,
 					       (int)(kgem->exec[i].flags & EXEC_OBJECT_NEEDS_FENCE),
+					       found ? found->snoop : -1,
 					       found ? found->purged : -1);
 				}
 				for (i = 0; i < kgem->nreloc; i++) {
