@@ -11416,7 +11416,7 @@ sna_poly_fill_rect_extents(DrawablePtr drawable, GCPtr gc,
 		return 0;
 
 	DBG(("%s: [0] = (%d, %d)x(%d, %d)\n",
-	     __FUNCTION__, r->x, r->y, r->width, r->height));
+	     __FUNCTION__, (*_r)->x, (*_r)->y, (*_r)->width, (*_r)->height));
 
 	/* Remove any zero-size rectangles from the array */
 	while (*_n && ((*_r)->width == 0 || (*_r)->height == 0))
