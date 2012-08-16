@@ -1173,8 +1173,10 @@ glyphs_format(int nlist, GlyphListPtr list, GlyphPtr * glyphs)
 		extents.x2 = 0;
 		extents.y2 = 0;
 
-		if (format->format != list->format->format)
-			return NULL;
+		if (format->format != list->format->format) {
+			format = NULL;
+			goto out;
+		}
 
 		x += list->xOff;
 		y += list->yOff;
