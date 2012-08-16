@@ -73,6 +73,39 @@ static Bool NVPciProbe (	DriverPtr 		drv,
 				struct pci_device	*dev,
 				intptr_t		match_data	);
 
+#ifdef XSERVER_PLATFORM_BUS
+static Bool
+NVPlatformProbe(DriverPtr driver,
+            int entity_num, int flags, struct xf86_platform_device *dev, intptr_t dev_match_data)
+{
+	ScrnInfoPtr scrn = NULL;
+	uint32_t scr_flags = 0;
+
+	if (!dev->pdev)
+		return FALSE;
+
+        if (flags & PLATFORM_PROBE_GPU_SCREEN)
+               scr_flags = XF86_ALLOCATE_GPU_SCREEN;
+
+	scrn = xf86AllocateScreen(driver, scr_flags);
+	xf86AddEntityToScreen(scrn, entity_num);
+
+	scrn->driverVersion    = NV_VERSION;
+	scrn->driverName       = NV_DRIVER_NAME;
+	scrn->name             = NV_NAME;
+
+	scrn->Probe            = NULL;
+	scrn->PreInit          = NVPreInit;
+	scrn->ScreenInit       = NVScreenInit;
+	scrn->SwitchMode       = NVSwitchMode;
+	scrn->AdjustFrame      = NVAdjustFrame;
+	scrn->EnterVT          = NVEnterVT;
+	scrn->LeaveVT          = NVLeaveVT;
+	scrn->FreeScreen       = NVFreeScreen;
+	return scrn != NULL;
+}
+#endif
+
 /*
  * This contains the functions needed by the server after loading the
  * driver module.  It must be supplied, and gets added the driver list by
@@ -91,7 +124,10 @@ _X_EXPORT DriverRec NV = {
 	0,
 	NVDriverFunc,
 	nouveau_device_match,
-	NVPciProbe
+	NVPciProbe,
+#ifdef XSERVER_PLATFORM_BUS
+	NVPlatformProbe,
+#endif
 };
 
 struct NvFamily
@@ -654,7 +690,11 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 
 	/* Get the entity, and make sure it is PCI. */
 	pNv->pEnt = xf86GetEntityInfo(pScrn->entityList[0]);
-	if (pNv->pEnt->location.type != BUS_PCI)
+	if (pNv->pEnt->location.type != BUS_PCI
+#ifdef XSERVER_PLATFORM_BUS
+		&& pNv->pEnt->location.type != BUS_PLATFORM
+#endif
+		)
 		return FALSE;
 
 	if (xf86IsEntityShared(pScrn->entityList[0])) {
