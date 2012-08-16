@@ -13899,7 +13899,7 @@ bool sna_accel_init(ScreenPtr screen, struct sna *sna)
 	screen->UninstallColormap = miUninstallColormap;
 	screen->ListInstalledColormaps = miListInstalledColormaps;
 	screen->ResolveColor = miResolveColor;
-	assert(screen->StoreColors == PictureStoreColors);
+	assert(screen->StoreColors == NULL);
 	screen->StoreColors = sna_store_colors;
 	screen->BitmapToRegion = fbBitmapToRegion;
 
