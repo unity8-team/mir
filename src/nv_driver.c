@@ -428,6 +428,39 @@ NVFlushCallback(CallbackListPtr *list, pointer user_data, pointer call_data)
 		nouveau_pushbuf_kick(pNv->pushbuf, pNv->pushbuf->channel);
 }
 
+#ifdef NOUVEAU_PIXMAP_SHARING
+static void
+redisplay_dirty(ScreenPtr screen, PixmapDirtyUpdatePtr dirty)
+{
+	RegionRec pixregion;
+
+	PixmapRegionInit(&pixregion, dirty->slave_dst->master_pixmap);
+
+	PixmapSyncDirtyHelper(dirty, &pixregion);
+
+	DamageRegionAppend(&dirty->slave_dst->drawable, &pixregion);
+	RegionUninit(&pixregion);
+}
+
+static void
+nouveau_dirty_update(ScreenPtr screen)
+{
+	RegionPtr region;
+	PixmapDirtyUpdatePtr ent;
+
+	if (xorg_list_is_empty(&screen->pixmap_dirty_list))
+		return;
+
+	xorg_list_for_each_entry(ent, &screen->pixmap_dirty_list, ent) {
+		region = DamageRegion(ent->damage);
+		if (RegionNotEmpty(region)) {
+			redisplay_dirty(screen, ent);
+			DamageEmpty(ent->damage);
+		}
+	}
+}
+#endif
+
 static void 
 NVBlockHandler (BLOCKHANDLER_ARGS_DECL)
 {
@@ -438,6 +471,10 @@ NVBlockHandler (BLOCKHANDLER_ARGS_DECL)
 	pScreen->BlockHandler = pNv->BlockHandler;
 	(*pScreen->BlockHandler) (BLOCKHANDLER_ARGS);
 	pScreen->BlockHandler = NVBlockHandler;
+
+#ifdef NOUVEAU_PIXMAP_SHARING
+	nouveau_dirty_update(pScreen);
+#endif
 
 	if (pScrn->vtSema && !pNv->NoAccel)
 		nouveau_pushbuf_kick(pNv->pushbuf, pNv->pushbuf->channel);
@@ -1277,6 +1314,11 @@ NVScreenInit(SCREEN_INIT_ARGS_DECL)
 	pScreen->CloseScreen = NVCloseScreen;
 	pNv->CreateScreenResources = pScreen->CreateScreenResources;
 	pScreen->CreateScreenResources = NVCreateScreenResources;
+
+#ifdef NOUVEAU_PIXMAP_SHARING
+	pScreen->StartPixmapTracking = PixmapStartDirtyTracking;
+	pScreen->StopPixmapTracking = PixmapStopDirtyTracking;
+#endif
 
 	if (!xf86CrtcScreenInit(pScreen))
 		return FALSE;
