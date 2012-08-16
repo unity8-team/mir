@@ -15,6 +15,10 @@
 #error "This driver requires a DRI-enabled X server"
 #endif
 
+#if XF86_CRTC_VERSION >= 5
+#define NOUVEAU_PIXMAP_SHARING 1
+#endif
+
 #define NV_ARCH_03  0x03
 #define NV_ARCH_04  0x04
 #define NV_ARCH_10  0x10
@@ -165,6 +169,7 @@ struct nouveau_pixmap {
 	struct nouveau_bo *bo;
 	void *linear;
 	unsigned size;
+	Bool shared;
 };
 
 static inline struct nouveau_pixmap *

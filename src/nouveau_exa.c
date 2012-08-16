@@ -154,6 +154,47 @@ nouveau_exa_destroy_pixmap(ScreenPtr pScreen, void *priv)
 	free(nvpix);
 }
 
+#ifdef NOUVEAU_PIXMAP_SHARING
+static Bool
+nouveau_exa_share_pixmap_backing(PixmapPtr ppix, ScreenPtr slave, void **handle_p)
+{
+	struct nouveau_bo *bo = nouveau_pixmap_bo(ppix);
+	struct nouveau_pixmap *nvpix = nouveau_pixmap(ppix);
+	int ret;
+	int handle;
+
+	ret = nouveau_bo_set_prime(bo, &handle);
+	if (ret != 0) {
+		ErrorF("%s: ret is %d errno is %d\n", __func__, ret, errno);
+		return FALSE;
+	}
+	nvpix->shared = TRUE;
+	*handle_p = (void *)(long)handle;
+	return TRUE;
+}
+
+static Bool
+nouveau_exa_set_shared_pixmap_backing(PixmapPtr ppix, void *handle)
+{
+	ScrnInfoPtr pScrn = xf86ScreenToScrn(ppix->drawable.pScreen);
+	NVPtr pNv = NVPTR(pScrn);
+	struct nouveau_bo *bo = nouveau_pixmap_bo(ppix);
+	struct nouveau_pixmap *nvpix = nouveau_pixmap(ppix);
+	int ret;
+	int ihandle = (int)(long)(handle);
+
+	ret = nouveau_bo_prime_handle_ref(pNv->dev, ihandle, &bo);
+	if (ret) {
+		ErrorF("failed to get BO with handle %d\n", ihandle);
+		return FALSE;
+	}
+	nvpix->bo = bo;
+	nvpix->shared = TRUE;
+	close(ihandle);
+	return TRUE;
+}
+#endif
+
 bool
 nv50_style_tiled_pixmap(PixmapPtr ppix)
 {
@@ -381,6 +422,10 @@ nouveau_exa_init(ScreenPtr pScreen)
 
 	exa->CreatePixmap2 = nouveau_exa_create_pixmap;
 	exa->DestroyPixmap = nouveau_exa_destroy_pixmap;
+#ifdef NOUVEAU_PIXMAP_SHARING
+	exa->SharePixmapBacking = nouveau_exa_share_pixmap_backing;
+	exa->SetSharedPixmapBacking = nouveau_exa_set_shared_pixmap_backing;
+#endif
 
 	if (pNv->Architecture >= NV_ARCH_50) {
 		exa->maxX = 8192;

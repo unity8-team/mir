@@ -95,10 +95,11 @@ NVC0EXAAcquireSurface2D(PixmapPtr ppix, int is_src, uint32_t fmt)
 {
 	NVC0EXA_LOCALS(ppix);
 	struct nouveau_bo *bo = nouveau_pixmap_bo(ppix);
+	struct nouveau_pixmap *nvpix = nouveau_pixmap(ppix);
 	int mthd = is_src ? NV50_2D_SRC_FORMAT : NV50_2D_DST_FORMAT;
 	uint32_t bo_flags;
 
-	bo_flags  = NOUVEAU_BO_VRAM;
+	bo_flags = nvpix->shared ? NOUVEAU_BO_GART : NOUVEAU_BO_VRAM;
 	bo_flags |= is_src ? NOUVEAU_BO_RD : NOUVEAU_BO_WR;
 
 	if (!nv50_style_tiled_pixmap(ppix)) {
