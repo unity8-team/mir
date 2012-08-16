@@ -1439,9 +1439,6 @@ prepare_blt_put(struct sna *sna,
 	assert(src->devKind);
 	assert(src->devPrivate.ptr);
 
-	if (alpha_fixup)
-		return false; /* XXX */
-
 	if (alpha_fixup) {
 		op->u.blt.pixel = alpha_fixup;
 		op->blt   = blt_put_composite_with_alpha;
