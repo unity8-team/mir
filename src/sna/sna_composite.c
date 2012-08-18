@@ -412,7 +412,12 @@ static void apply_damage(struct sna_composite_op *op, RegionPtr region)
 		RegionTranslate(region, op->dst.x, op->dst.y);
 
 	assert_pixmap_contains_box(op->dst.pixmap, RegionExtents(region));
-	sna_damage_add(op->damage, region);
+	if (region->data == NULL &&
+	    region->extents.x2 - region->extents.x1 == op->dst.width &&
+	    region->extents.y2 - region->extents.y1 == op->dst.height)
+		sna_damage_all(op->damage, op->dst.width, op->dst.height);
+	else
+		sna_damage_add(op->damage, region);
 }
 
 static inline bool use_cpu(PixmapPtr pixmap, struct sna_pixmap *priv,
