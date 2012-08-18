@@ -552,6 +552,8 @@ static void damage_union(struct sna_damage *damage, const BoxRec *box)
 		if (damage->extents.y2 < box->y2)
 			damage->extents.y2 = box->y2;
 	}
+	assert(damage->extents.x2 > damage->extents.x1);
+	assert(damage->extents.y2 > damage->extents.y1);
 }
 
 static void _pixman_region_union_box(RegionRec *region, const BoxRec *box)
@@ -581,6 +583,8 @@ static struct sna_damage *__sna_damage_add_box(struct sna_damage *damage,
 
 	if (REGION_NUM_RECTS(&damage->region) <= 1) {
 		_pixman_region_union_box(&damage->region, box);
+		assert(damage->region.extents.x2 > damage->region.extents.x1);
+		assert(damage->region.extents.y2 > damage->region.extents.y1);
 		damage_union(damage, box);
 		return damage;
 	}
@@ -616,6 +620,8 @@ inline static struct sna_damage *__sna_damage_add(struct sna_damage *damage,
 
 	if (REGION_NUM_RECTS(&damage->region) <= 1) {
 		pixman_region_union(&damage->region, &damage->region, region);
+		assert(damage->region.extents.x2 > damage->region.extents.x1);
+		assert(damage->region.extents.y2 > damage->region.extents.y1);
 		damage_union(damage, &region->extents);
 		return damage;
 	}
@@ -645,6 +651,8 @@ fastcall struct sna_damage *_sna_damage_add(struct sna_damage *damage,
 
 	ErrorF("  = %s\n",
 	       _debug_describe_damage(damage_buf, sizeof(damage_buf), damage));
+	assert(damage->region.extents.x2 > damage->region.extents.x1);
+	assert(damage->region.extents.y2 > damage->region.extents.y1);
 
 	return damage;
 }
@@ -726,6 +734,8 @@ struct sna_damage *_sna_damage_add_boxes(struct sna_damage *damage,
 
 	ErrorF("  = %s\n",
 	       _debug_describe_damage(damage_buf, sizeof(damage_buf), damage));
+	assert(damage->region.extents.x2 > damage->region.extents.x1);
+	assert(damage->region.extents.y2 > damage->region.extents.y1);
 
 	return damage;
 }
@@ -811,6 +821,8 @@ struct sna_damage *_sna_damage_add_rectangles(struct sna_damage *damage,
 
 	ErrorF("  = %s\n",
 	       _debug_describe_damage(damage_buf, sizeof(damage_buf), damage));
+	assert(damage->region.extents.x2 > damage->region.extents.x1);
+	assert(damage->region.extents.y2 > damage->region.extents.y1);
 
 	return damage;
 }
@@ -893,6 +905,8 @@ struct sna_damage *_sna_damage_add_points(struct sna_damage *damage,
 
 	ErrorF("  = %s\n",
 	       _debug_describe_damage(damage_buf, sizeof(damage_buf), damage));
+	assert(damage->region.extents.x2 > damage->region.extents.x1);
+	assert(damage->region.extents.y2 > damage->region.extents.y1);
 
 	return damage;
 }
@@ -919,6 +933,8 @@ fastcall struct sna_damage *_sna_damage_add_box(struct sna_damage *damage,
 
 	ErrorF("  = %s\n",
 	       _debug_describe_damage(damage_buf, sizeof(damage_buf), damage));
+	assert(damage->region.extents.x2 > damage->region.extents.x1);
+	assert(damage->region.extents.y2 > damage->region.extents.y1);
 
 	return damage;
 }
