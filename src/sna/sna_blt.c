@@ -1709,7 +1709,7 @@ sna_blt_composite__convert(struct sna *sna,
 	}
 
 	if (tmp->src.transform) {
-		DBG(("%s: transforms not handled by the BLT\n"));
+		DBG(("%s: transforms not handled by the BLT\n", __FUNCTION__));
 		return false;
 	}
 
@@ -1738,7 +1738,7 @@ sna_blt_composite__convert(struct sna *sna,
 		DBG(("%s: incompatible src/dst formats src=%08x, dst=%08x\n",
 		     __FUNCTION__,
 		     (unsigned)tmp->src.pict_format,
-		     tmp->dst.format));
+		     (unsigned)tmp->dst.format));
 		return false;
 	}
 

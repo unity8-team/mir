@@ -11435,8 +11435,6 @@ sna_poly_fill_rect_extents(DrawablePtr drawable, GCPtr gc,
 	r++;
 
 	while (--n) {
-		int32_t v;
-
 		if (r->width == 0 || r->height == 0)
 			goto slow;
 
