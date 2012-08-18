@@ -2739,18 +2739,14 @@ composite_unaligned_box(struct sna *sna,
 
 		pixman_region_init_rects(&region, box, 1);
 		RegionIntersect(&region, &region, clip);
-		if (REGION_NUM_RECTS(&region)) {
+		if (REGION_NUM_RECTS(&region))
 			tmp->boxes(sna, tmp,
 				   REGION_RECTS(&region),
 				   REGION_NUM_RECTS(&region),
 				   opacity);
-			apply_damage(&tmp->base, &region);
-		}
 		pixman_region_fini(&region);
-	} else {
+	} else
 		tmp->box(sna, tmp, box, opacity);
-		apply_damage_box(&tmp->base, box);
-	}
 }
 
 static void
@@ -2868,6 +2864,26 @@ composite_unaligned_trap(struct sna *sna,
 						     y2, y2 + 1,
 						     grid_coverage(SAMPLES_Y, trap->bottom),
 						     clip);
+	}
+
+	if (tmp->base.damage) {
+		BoxRec box;
+
+		box.x1 = dx + pixman_fixed_to_int(trap->left.p1.x);
+		box.x2 = dx + pixman_fixed_to_int(trap->right.p1.x);
+		box.y1 = y1;
+		box.y2 = y2 + (pixman_fixed_frac(trap->bottom) != 0);
+
+		if (clip) {
+			pixman_region16_t region;
+
+			pixman_region_init_rects(&region, &box, 1);
+			RegionIntersect(&region, &region, clip);
+			if (REGION_NUM_RECTS(&region))
+				apply_damage(&tmp->base, &region);
+			RegionUninit(&region);
+		} else
+			apply_damage_box(&tmp->base, &box);
 	}
 }
 
