@@ -84,20 +84,19 @@ no_render_composite(struct sna *sna,
 {
 	DBG(("%s (op=%d, mask? %d)\n", __FUNCTION__, op, mask != NULL));
 
+	if (mask)
+		return false;
+
 	if (!is_gpu(dst->pDrawable) &&
 	    (src->pDrawable == NULL || !is_gpu(src->pDrawable)))
 		return false;
 
-	if (mask == NULL &&
-	    sna_blt_composite(sna,
-			      op, src, dst,
-			      src_x, src_y,
-			      dst_x, dst_y,
-			      width, height,
-			      tmp))
-		return true;
-
-	return false;
+	return sna_blt_composite(sna,
+				 op, src, dst,
+				 src_x, src_y,
+				 dst_x, dst_y,
+				 width, height,
+				 tmp, true);
 	(void)mask_x;
 	(void)mask_y;
 }

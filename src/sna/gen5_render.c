@@ -2284,7 +2284,8 @@ gen5_render_composite(struct sna *sna,
 			      src, dst,
 			      src_x, src_y,
 			      dst_x, dst_y,
-			      width, height, tmp))
+			      width, height,
+			      tmp, false))
 		return true;
 
 	if (gen5_composite_fallback(sna, src, mask, dst))

@@ -2756,7 +2756,8 @@ gen7_render_composite(struct sna *sna,
 			      src, dst,
 			      src_x, src_y,
 			      dst_x, dst_y,
-			      width, height, tmp))
+			      width, height,
+			      tmp, false))
 		return true;
 
 	if (gen7_composite_fallback(sna, src, mask, dst))
@@ -2782,7 +2783,8 @@ gen7_render_composite(struct sna *sna,
 			      src, dst,
 			      src_x, src_y,
 			      dst_x, dst_y,
-			      width, height, tmp))
+			      width, height,
+			      tmp, false))
 		return true;
 
 	sna_render_reduce_damage(tmp, dst_x, dst_y, width, height);

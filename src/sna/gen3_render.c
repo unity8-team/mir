@@ -2812,7 +2812,7 @@ gen3_render_composite(struct sna *sna,
 			      src_x, src_y,
 			      dst_x, dst_y,
 			      width, height,
-			      tmp))
+			      tmp, false))
 		return true;
 
 	if (gen3_composite_fallback(sna, op, src, mask, dst))

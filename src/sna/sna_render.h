@@ -569,7 +569,8 @@ bool sna_blt_composite(struct sna *sna,
 		       int16_t src_x, int16_t src_y,
 		       int16_t dst_x, int16_t dst_y,
 		       int16_t width, int16_t height,
-		       struct sna_composite_op *tmp);
+		       struct sna_composite_op *tmp,
+		       bool fallback);
 bool sna_blt_composite__convert(struct sna *sna,
 				int x, int y,
 				int width, int height,

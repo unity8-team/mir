@@ -1722,7 +1722,7 @@ gen2_render_composite(struct sna *sna,
 				 src, dst,
 				 src_x, src_y,
 				 dst_x, dst_y,
-				 width, height, tmp);
+				 width, height, tmp, true);
 #endif
 
 	/* Try to use the BLT engine unless it implies a
@@ -1735,7 +1735,7 @@ gen2_render_composite(struct sna *sna,
 			      src_x, src_y,
 			      dst_x, dst_y,
 			      width, height,
-			      tmp))
+			      tmp, false))
 		return true;
 
 	if (gen2_composite_fallback(sna, src, mask, dst))

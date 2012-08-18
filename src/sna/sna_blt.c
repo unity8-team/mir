@@ -1494,7 +1494,8 @@ sna_blt_composite(struct sna *sna,
 		  int16_t x, int16_t y,
 		  int16_t dst_x, int16_t dst_y,
 		  int16_t width, int16_t height,
-		  struct sna_composite_op *tmp)
+		  struct sna_composite_op *tmp,
+		  bool fallback)
 {
 	PictFormat src_format = src->format;
 	PixmapPtr src_pixmap;
@@ -1665,7 +1666,7 @@ clear:
 	bo = __sna_render_pixmap_bo(sna, src_pixmap, &box, true);
 	if (bo)
 		ret = prepare_blt_copy(sna, tmp, bo, alpha_fixup);
-	if (!ret)
+	if (!ret && (bo == NULL || fallback))
 		ret = prepare_blt_put(sna, tmp, alpha_fixup);
 
 	return ret;
