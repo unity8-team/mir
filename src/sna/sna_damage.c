@@ -1019,6 +1019,7 @@ static struct sna_damage *__sna_damage_subtract(struct sna_damage *damage,
 		return NULL;
 
 	if (!RegionNotEmpty(&damage->region)) {
+no_damage:
 		__sna_damage_destroy(damage);
 		return NULL;
 	}
@@ -1029,15 +1030,17 @@ static struct sna_damage *__sna_damage_subtract(struct sna_damage *damage,
 		return damage;
 
 	if (region_is_singular(region) &&
-	    box_contains(&region->extents, &damage->extents)) {
-		__sna_damage_destroy(damage);
-		return NULL;
-	}
+	    box_contains(&region->extents, &damage->extents))
+		goto no_damage;
 
 	if (damage->mode == DAMAGE_ALL) {
 		pixman_region_subtract(&damage->region,
 				       &damage->region,
 				       region);
+		if (damage->region.extents.x2 <= damage->region.extents.x1 ||
+		    damage->region.extents.y2 <= damage->region.extents.y1)
+			goto no_damage;
+
 		damage->extents = damage->region.extents;
 		damage->mode = DAMAGE_ADD;
 		return damage;
@@ -1049,16 +1052,18 @@ static struct sna_damage *__sna_damage_subtract(struct sna_damage *damage,
 			assert(RegionNotEmpty(&damage->region));
 		}
 
-		if (pixman_region_equal(region, &damage->region)) {
-			__sna_damage_destroy(damage);
-			return NULL;
-		}
+		if (pixman_region_equal(region, &damage->region))
+			goto no_damage;
 
 		if (region_is_singular(&damage->region) &&
 		    region_is_singular(region)) {
 			pixman_region_subtract(&damage->region,
 					       &damage->region,
 					       region);
+			if (damage->region.extents.x2 <= damage->region.extents.x1 ||
+			    damage->region.extents.y2 <= damage->region.extents.y1)
+				goto no_damage;
+
 			damage->extents = damage->region.extents;
 			assert(pixman_region_not_empty(&damage->region));
 			return damage;
