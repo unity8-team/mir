@@ -592,14 +592,10 @@ sna_render_pixmap_bo(struct sna *sna,
 			if (box.y2 > pixmap->drawable.height)
 				box.y2 = pixmap->drawable.height;
 		} else {
-			if (box.x1 < 0 ||
-			    box.y1 < 0 ||
-			    box.x2 > pixmap->drawable.width ||
-			    box.y2 > pixmap->drawable.height) {
-				box.x1 = box.y1 = 0;
-				box.x2 = pixmap->drawable.width;
-				box.y2 = pixmap->drawable.height;
-			}
+			if (box.x1 < 0 || box.x2 > pixmap->drawable.width)
+				box.x1 = 0, box.x2 = pixmap->drawable.width;
+			if (box.y1 < 0 || box.y2 > pixmap->drawable.height)
+				box.y1 = 0, box.y2 = pixmap->drawable.height;
 		}
 	}
 
@@ -681,25 +677,12 @@ static int sna_render_picture_downsample(struct sna *sna,
 		if (box.y2 > pixmap->drawable.height)
 			box.y2 = pixmap->drawable.height;
 	} else {
-		if (box.x1 < 0 ||
-		    box.y1 < 0 ||
-		    box.x2 > pixmap->drawable.width ||
-		    box.y2 > pixmap->drawable.height) {
-			/* XXX tiled repeats? */
-			box.x1 = box.y1 = 0;
-			box.x2 = pixmap->drawable.width;
-			box.y2 = pixmap->drawable.height;
+		/* XXX tiled repeats? */
+		if (box.x1 < 0 || box.x2 > pixmap->drawable.width)
+			box.x1 = 0, box.x2 = pixmap->drawable.width;
+		if (box.y1 < 0 || box.y2 > pixmap->drawable.height)
+			box.y1 = 0, box.y2 = pixmap->drawable.height;
 
-			if (!channel->is_affine) {
-				DBG(("%s: fallback -- repeating project transform too large for texture\n",
-				     __FUNCTION__));
-				return sna_render_picture_fixup(sna,
-								picture,
-								channel,
-								x, y, w, h,
-								dst_x, dst_y);
-			}
-		}
 	}
 
 	sw = box.x2 - box.x1;
@@ -964,17 +947,10 @@ sna_render_picture_partial(struct sna *sna,
 		if (box.y2 > pixmap->drawable.height)
 			box.y2 = pixmap->drawable.height;
 	} else {
-		if (box.x1 < 0 ||
-		    box.y1 < 0 ||
-		    box.x2 > pixmap->drawable.width ||
-		    box.y2 > pixmap->drawable.height) {
-			box.x1 = box.y1 = 0;
-			box.x2 = pixmap->drawable.width;
-			box.y2 = pixmap->drawable.height;
-
-			if (!channel->is_affine)
-				return 0;
-		}
+		if (box.x1 < 0 || box.x2 > pixmap->drawable.width)
+			box.x1 = 0, box.x2 = pixmap->drawable.width;
+		if (box.y1 < 0 || box.y2 > pixmap->drawable.height)
+			box.y1 = 0, box.y2 = pixmap->drawable.height;
 	}
 
 	if (use_cpu_bo(sna, pixmap, &box, false)) {
@@ -1124,25 +1100,11 @@ sna_render_picture_extract(struct sna *sna,
 		if (box.y2 > pixmap->drawable.height)
 			box.y2 = pixmap->drawable.height;
 	} else {
-		if (box.x1 < 0 ||
-		    box.y1 < 0 ||
-		    box.x2 > pixmap->drawable.width ||
-		    box.y2 > pixmap->drawable.height) {
-			/* XXX tiled repeats? */
-			box.x1 = box.y1 = 0;
-			box.x2 = pixmap->drawable.width;
-			box.y2 = pixmap->drawable.height;
-
-			if (!channel->is_affine) {
-				DBG(("%s: fallback -- repeating project transform too large for texture\n",
-				     __FUNCTION__));
-				return sna_render_picture_fixup(sna,
-								picture,
-								channel,
-								x, y, ow, oh,
-								dst_x, dst_y);
-			}
-		}
+		/* XXX tiled repeats? */
+		if (box.x1 < 0 || box.x2 > pixmap->drawable.width)
+			box.x1 = 0, box.x2 = pixmap->drawable.width;
+		if (box.y1 < 0 || box.y2 > pixmap->drawable.height)
+			box.y1 = 0, box.y2 = pixmap->drawable.height;
 	}
 
 	w = box.x2 - box.x1;
