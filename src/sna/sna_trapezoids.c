@@ -4671,22 +4671,41 @@ trapezoid_spans_maybe_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 	if (is_mono(dst, maskFormat))
 		goto out;
 
-	if (!sna_picture_is_solid(src, NULL))
-		return false;
-
 	switch ((int)dst->format) {
 	case PICT_a8:
+		if (!sna_picture_is_solid(src, NULL))
+			return false;
+
+		switch (op) {
+		case PictOpIn:
+		case PictOpAdd:
+		case PictOpSrc:
+			break;
+		default:
+			return false;
+		}
+		break;
+
 	case PICT_x8r8g8b8:
 	case PICT_a8r8g8b8:
-		break;
-	default:
-		return false;
-	}
+		if (picture_is_gpu(src))
+			return false;
 
-	switch (op) {
-	case PictOpIn:
-	case PictOpAdd:
-	case PictOpSrc:
+		switch (op) {
+		case PictOpOver:
+		case PictOpAdd:
+		case PictOpOutReverse:
+			break;
+		case PictOpSrc:
+			if (sna_picture_is_solid(src, NULL))
+				break;
+
+			if (!sna_drawable_is_clear(dst->pDrawable))
+				return false;
+			break;
+		default:
+			return false;
+		}
 		break;
 	default:
 		return false;
