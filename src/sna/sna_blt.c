@@ -760,6 +760,65 @@ static void blt_composite_fill(struct sna *sna,
 	sna_blt_fill_one(sna, &op->u.blt, x1, y1, x2-x1, y2-y1);
 }
 
+fastcall
+static void blt_composite_fill__cpu(struct sna *sna,
+				    const struct sna_composite_op *op,
+				    const struct sna_composite_rectangles *r)
+{
+	int x1, x2, y1, y2;
+
+	x1 = r->dst.x + op->dst.x;
+	y1 = r->dst.y + op->dst.y;
+	x2 = x1 + r->width;
+	y2 = y1 + r->height;
+
+	if (x1 < 0)
+		x1 = 0;
+	if (y1 < 0)
+		y1 = 0;
+
+	if (x2 > op->dst.width)
+		x2 = op->dst.width;
+	if (y2 > op->dst.height)
+		y2 = op->dst.height;
+
+	if (x2 <= x1 || y2 <= y1)
+		return;
+
+	pixman_fill(op->dst.pixmap->devPrivate.ptr,
+		    op->dst.pixmap->devKind / sizeof(uint32_t),
+		    op->dst.pixmap->drawable.bitsPerPixel,
+		    x1, y1, x2-x1, y2-y1,
+		    op->u.blt.pixel);
+}
+
+fastcall static void
+blt_composite_fill_box__cpu(struct sna *sna,
+			    const struct sna_composite_op *op,
+			    const BoxRec *box)
+{
+	pixman_fill(op->dst.pixmap->devPrivate.ptr,
+		    op->dst.pixmap->devKind / sizeof(uint32_t),
+		    op->dst.pixmap->drawable.bitsPerPixel,
+		    box->x1, box->y1, box->x2-box->x1, box->y2-box->y1,
+		    op->u.blt.pixel);
+}
+
+static void
+blt_composite_fill_boxes__cpu(struct sna *sna,
+			      const struct sna_composite_op *op,
+			      const BoxRec *box, int n)
+{
+	do {
+		pixman_fill(op->dst.pixmap->devPrivate.ptr,
+			    op->dst.pixmap->devKind / sizeof(uint32_t),
+			    op->dst.pixmap->drawable.bitsPerPixel,
+			    box->x1, box->y1, box->x2-box->x1, box->y2-box->y1,
+			    op->u.blt.pixel);
+		box++;
+	} while (--n);
+}
+
 inline static void _sna_blt_fill_box(struct sna *sna,
 				     const struct sna_blt_state *blt,
 				     const BoxRec *box)
@@ -932,6 +991,15 @@ prepare_blt_clear(struct sna *sna,
 {
 	DBG(("%s\n", __FUNCTION__));
 
+	if (op->dst.bo == NULL) {
+		op->blt   = blt_composite_fill__cpu;
+		op->box   = blt_composite_fill_box__cpu;
+		op->boxes = blt_composite_fill_boxes__cpu;
+		op->done  = nop_done;
+		op->u.blt.pixel = 0;
+		return true;
+	}
+
 	op->blt = blt_composite_fill;
 	if (op->dst.x|op->dst.y) {
 		op->box   = blt_composite_fill_box;
@@ -957,6 +1025,15 @@ prepare_blt_fill(struct sna *sna,
 		 PicturePtr source)
 {
 	DBG(("%s\n", __FUNCTION__));
+
+	if (op->dst.bo == NULL) {
+		op->u.blt.pixel = get_solid_color(source, op->dst.format);
+		op->blt = blt_composite_fill__cpu;
+		op->box   = blt_composite_fill_box__cpu;
+		op->boxes = blt_composite_fill_boxes__cpu;
+		op->done = nop_done;
+		return true;
+	}
 
 	op->blt = blt_composite_fill;
 	if (op->dst.x|op->dst.y) {
@@ -1143,6 +1220,9 @@ prepare_blt_copy(struct sna *sna,
 {
 	PixmapPtr src = op->u.blt.src_pixmap;
 
+	assert(op->dst.bo);
+	assert(kgem_bo_can_blt(&sna->kgem, op->dst.bo));
+
 	if (!kgem_bo_can_blt(&sna->kgem, bo)) {
 		DBG(("%s: fallback -- can't blt from source\n", __FUNCTION__));
 		return false;
@@ -1186,6 +1266,100 @@ prepare_blt_copy(struct sna *sna,
 	}
 
 	return true;
+}
+
+fastcall static void
+blt_put_composite__cpu(struct sna *sna,
+		       const struct sna_composite_op *op,
+		       const struct sna_composite_rectangles *r)
+{
+	PixmapPtr dst = op->dst.pixmap;
+	PixmapPtr src = op->u.blt.src_pixmap;
+	memcpy_blt(src->devPrivate.ptr, dst->devPrivate.ptr,
+		   src->drawable.bitsPerPixel, src->devKind, dst->devKind,
+		   r->src.x + op->u.blt.sx, r->src.y + op->u.blt.sy,
+		   r->width, r->height,
+		   r->dst.x + op->dst.x, r->dst.y + op->dst.y);
+}
+
+fastcall static void
+blt_put_composite_box__cpu(struct sna *sna,
+			   const struct sna_composite_op *op,
+			   const BoxRec *box)
+{
+	PixmapPtr dst = op->dst.pixmap;
+	PixmapPtr src = op->u.blt.src_pixmap;
+	memcpy_blt(src->devPrivate.ptr, dst->devPrivate.ptr,
+		   src->drawable.bitsPerPixel, src->devKind, dst->devKind,
+		   box->x1 + op->u.blt.sx, box->y1 + op->u.blt.sy,
+		   box->x2-box->x1, box->y2-box->y1,
+		   box->x1 + op->dst.x, box->y1 + op->dst.y);
+}
+
+static void
+blt_put_composite_boxes__cpu(struct sna *sna,
+			     const struct sna_composite_op *op,
+			     const BoxRec *box, int n)
+{
+	PixmapPtr dst = op->dst.pixmap;
+	PixmapPtr src = op->u.blt.src_pixmap;
+	do {
+		memcpy_blt(src->devPrivate.ptr, dst->devPrivate.ptr,
+			   src->drawable.bitsPerPixel, src->devKind, dst->devKind,
+			   box->x1 + op->u.blt.sx, box->y1 + op->u.blt.sy,
+			   box->x2-box->x1, box->y2-box->y1,
+			   box->x1 + op->dst.x, box->y1 + op->dst.y);
+		box++;
+	} while (--n);
+}
+
+fastcall static void
+blt_put_composite_with_alpha__cpu(struct sna *sna,
+				  const struct sna_composite_op *op,
+				  const struct sna_composite_rectangles *r)
+{
+	PixmapPtr dst = op->dst.pixmap;
+	PixmapPtr src = op->u.blt.src_pixmap;
+	memcpy_xor(src->devPrivate.ptr, dst->devPrivate.ptr,
+		   src->drawable.bitsPerPixel, src->devKind, dst->devKind,
+		   r->src.x + op->u.blt.sx, r->src.y + op->u.blt.sy,
+		   r->width, r->height,
+		   r->dst.x + op->dst.x, r->dst.y + op->dst.y,
+		   0xffffffff, op->u.blt.pixel);
+
+}
+
+fastcall static void
+blt_put_composite_box_with_alpha__cpu(struct sna *sna,
+				      const struct sna_composite_op *op,
+				      const BoxRec *box)
+{
+	PixmapPtr dst = op->dst.pixmap;
+	PixmapPtr src = op->u.blt.src_pixmap;
+	memcpy_xor(src->devPrivate.ptr, dst->devPrivate.ptr,
+		   src->drawable.bitsPerPixel, src->devKind, dst->devKind,
+		   box->x1 + op->u.blt.sx, box->y1 + op->u.blt.sy,
+		   box->x2-box->x1, box->y2-box->y1,
+		   box->x1 + op->dst.x, box->y1 + op->dst.y,
+		   0xffffffff, op->u.blt.pixel);
+}
+
+static void
+blt_put_composite_boxes_with_alpha__cpu(struct sna *sna,
+					const struct sna_composite_op *op,
+					const BoxRec *box, int n)
+{
+	PixmapPtr dst = op->dst.pixmap;
+	PixmapPtr src = op->u.blt.src_pixmap;
+	do {
+		memcpy_xor(src->devPrivate.ptr, dst->devPrivate.ptr,
+			   src->drawable.bitsPerPixel, src->devKind, dst->devKind,
+			   box->x1 + op->u.blt.sx, box->y1 + op->u.blt.sy,
+			   box->x2-box->x1, box->y2-box->y1,
+			   box->x1 + op->dst.x, box->y1 + op->dst.y,
+			   0xffffffff, op->u.blt.pixel);
+		box++;
+	} while (--n);
 }
 
 fastcall static void
@@ -1439,44 +1613,32 @@ prepare_blt_put(struct sna *sna,
 	assert(src->devKind);
 	assert(src->devPrivate.ptr);
 
-	if (alpha_fixup) {
-		op->u.blt.pixel = alpha_fixup;
-		op->blt   = blt_put_composite_with_alpha;
-		op->box   = blt_put_composite_box_with_alpha;
-		op->boxes = blt_put_composite_boxes_with_alpha;
+	if (op->dst.bo) {
+		if (alpha_fixup) {
+			op->u.blt.pixel = alpha_fixup;
+			op->blt   = blt_put_composite_with_alpha;
+			op->box   = blt_put_composite_box_with_alpha;
+			op->boxes = blt_put_composite_boxes_with_alpha;
+		} else {
+			op->blt   = blt_put_composite;
+			op->box   = blt_put_composite_box;
+			op->boxes = blt_put_composite_boxes;
+		}
 	} else {
-		op->blt   = blt_put_composite;
-		op->box   = blt_put_composite_box;
-		op->boxes = blt_put_composite_boxes;
+		if (alpha_fixup) {
+			op->u.blt.pixel = alpha_fixup;
+			op->blt   = blt_put_composite_with_alpha__cpu;
+			op->box   = blt_put_composite_box_with_alpha__cpu;
+			op->boxes = blt_put_composite_boxes_with_alpha__cpu;
+		} else {
+			op->blt   = blt_put_composite__cpu;
+			op->box   = blt_put_composite_box__cpu;
+			op->boxes = blt_put_composite_boxes__cpu;
+		}
 	}
 	op->done = nop_done;
 
 	return true;
-}
-
-static void
-reduce_damage(struct sna_composite_op *op,
-	      int dst_x, int dst_y,
-	      int width, int height)
-{
-	BoxRec r;
-
-	if (op->damage == NULL || *op->damage == NULL)
-		return;
-
-	if ((*op->damage)->mode == DAMAGE_ALL) {
-		op->damage = NULL;
-		return;
-	}
-
-	r.x1 = dst_x + op->dst.x;
-	r.x2 = r.x1 + width;
-
-	r.y1 = dst_y + op->dst.y;
-	r.y2 = r.y1 + height;
-
-	if (sna_damage_contains_box__no_reduce(*op->damage, &r))
-		op->damage = NULL;
 }
 
 #define alphaless(format) PICT_FORMAT(PICT_FORMAT_BPP(format),		\
@@ -1499,10 +1661,9 @@ sna_blt_composite(struct sna *sna,
 {
 	PictFormat src_format = src->format;
 	PixmapPtr src_pixmap;
-	struct sna_pixmap *priv;
 	struct kgem_bo *bo;
 	int16_t tx, ty;
-	BoxRec box;
+	BoxRec dst_box, src_box;
 	uint32_t alpha_fixup;
 	bool was_clear;
 	bool ret;
@@ -1527,14 +1688,13 @@ sna_blt_composite(struct sna *sna,
 
 	was_clear = sna_drawable_is_clear(dst->pDrawable);
 	tmp->dst.pixmap = get_drawable_pixmap(dst->pDrawable);
-	priv = sna_pixmap_move_to_gpu(tmp->dst.pixmap, MOVE_WRITE | MOVE_READ);
-	if (priv == NULL) {
-		DBG(("%s: dst not attached\n", __FUNCTION__));
-		return false;
-	}
-	if (!kgem_bo_can_blt(&sna->kgem, priv->gpu_bo)) {
+
+	dst_box.x1 = dst_x; dst_box.x2 = dst_x + width;
+	dst_box.y1 = dst_y; dst_box.y2 = dst_y + height;
+	bo = sna_drawable_use_bo(dst->pDrawable, PREFER_GPU, &dst_box, &tmp->damage);
+	if (bo && !kgem_bo_can_blt(&sna->kgem, bo)) {
 		DBG(("%s: can not blit to dst, tiling? %d, pitch? %d\n",
-		     __FUNCTION__, priv->gpu_bo->tiling, priv->gpu_bo->pitch));
+		     __FUNCTION__, bo->tiling, bo->pitch));
 		return false;
 	}
 
@@ -1543,19 +1703,24 @@ sna_blt_composite(struct sna *sna,
 	tmp->dst.height = tmp->dst.pixmap->drawable.height;
 	get_drawable_deltas(dst->pDrawable, tmp->dst.pixmap,
 			    &tmp->dst.x, &tmp->dst.y);
-	tmp->dst.bo = priv->gpu_bo;
-	if (!sna_damage_is_all(&priv->gpu_damage,
-			       tmp->dst.width, tmp->dst.height))
-		tmp->damage = &priv->gpu_damage;
-	if (width && height)
-		reduce_damage(tmp, dst_x, dst_y, width, height);
+	tmp->dst.bo = bo;
 
 	if (op == PictOpClear) {
 clear:
 		if (was_clear)
 			return prepare_blt_nop(sna, tmp);
-		else
-			return prepare_blt_clear(sna, tmp);
+
+		if (!tmp->dst.bo) {
+			RegionRec region;
+
+			region.extents = dst_box;
+			region.data = NULL;
+
+			if (!sna_drawable_move_region_to_cpu(dst->pDrawable, &region,
+							     MOVE_INPLACE_HINT | MOVE_WRITE))
+				return false;
+		}
+		return prepare_blt_clear(sna, tmp);
 	}
 
 	if (is_solid(src)) {
@@ -1572,6 +1737,17 @@ clear:
 			DBG(("%s: unsuported op [%d] for blitting\n",
 			     __FUNCTION__, op));
 			return false;
+		}
+
+		if (!tmp->dst.bo) {
+			RegionRec region;
+
+			region.extents = dst_box;
+			region.data = NULL;
+
+			if (!sna_drawable_move_region_to_cpu(dst->pDrawable, &region,
+							MOVE_INPLACE_HINT | MOVE_WRITE))
+				return false;
 		}
 
 		return prepare_blt_fill(sna, tmp, src);
@@ -1659,15 +1835,44 @@ clear:
 	     tmp->dst.x, tmp->dst.y, tmp->u.blt.sx, tmp->u.blt.sy, alpha_fixup));
 
 	ret = false;
-	box.x1 = x;
-	box.y1 = y;
-	box.x2 = x + width;
-	box.y2 = y + height;
-	bo = __sna_render_pixmap_bo(sna, src_pixmap, &box, true);
-	if (bo)
-		ret = prepare_blt_copy(sna, tmp, bo, alpha_fixup);
-	if (!ret && (bo == NULL || fallback))
+	src_box.x1 = x;
+	src_box.y1 = y;
+	src_box.x2 = x + width;
+	src_box.y2 = y + height;
+	bo = __sna_render_pixmap_bo(sna, src_pixmap, &src_box, true);
+	if (bo) {
+		if (!tmp->dst.bo)
+			tmp->dst.bo = sna_drawable_use_bo(dst->pDrawable,
+							  FORCE_GPU | PREFER_GPU,
+							  &dst_box,
+							  &tmp->damage);
+
+		if (!tmp->dst.bo) {
+			DBG(("%s: fallback -- unaccelerated read back\n",
+			     __FUNCTION__));
+			kgem_bo_destroy(&sna->kgem, bo);
+		} else if (bo->snoop && tmp->dst.bo->snoop) {
+			DBG(("%s: fallback -- can not copy between snooped bo\n",
+			     __FUNCTION__));
+			kgem_bo_destroy(&sna->kgem, bo);
+		} else {
+			ret = prepare_blt_copy(sna, tmp, bo, alpha_fixup);
+			if (fallback)
+				ret = prepare_blt_put(sna, tmp, alpha_fixup);
+		}
+	} else {
+		if (!tmp->dst.bo) {
+			RegionRec region;
+
+			region.extents = dst_box;
+			region.data = NULL;
+
+			if (!sna_drawable_move_region_to_cpu(dst->pDrawable, &region,
+							MOVE_INPLACE_HINT | MOVE_WRITE))
+				return false;
+		}
 		ret = prepare_blt_put(sna, tmp, alpha_fixup);
+	}
 
 	return ret;
 }
@@ -2264,7 +2469,7 @@ bool sna_blt_copy_boxes(struct sna *sna, uint8_t alu,
 				assert(box->y1 >= 0);
 
 				*(uint64_t *)&b[0] = hdr;
-				*(uint64_t *)&b[2] = *(uint64_t *)box;
+				*(uint64_t *)&b[2] = *(const uint64_t *)box;
 				b[4] = kgem_add_reloc(kgem, kgem->nbatch + 4, dst_bo,
 						      I915_GEM_DOMAIN_RENDER << 16 |
 						      I915_GEM_DOMAIN_RENDER |
