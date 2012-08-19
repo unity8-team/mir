@@ -88,9 +88,7 @@ fbBitmapToRegion(PixmapPtr pixmap)
 		line += stride;
 		while (y2 < pixmap->drawable.height &&
 		       memcmp(bits, line, width >> 3) == 0 &&
-		       (maskw == 0 ||
-			(bits[width >> (FB_SHIFT - 3)] & maskw) ==
-			(line[width >> (FB_SHIFT - 3)] & maskw)))
+		       (maskw == 0 || (bits[width >> FB_SHIFT] & maskw) == (line[width >> FB_SHIFT] & maskw)))
 			line += stride, y2++;
 
 		if (READ(bits) & MASK_0)
