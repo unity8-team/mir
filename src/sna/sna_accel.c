@@ -3836,6 +3836,8 @@ move_to_gpu(PixmapPtr pixmap, struct sna_pixmap *priv,
 	} else {
 		if ((priv->create & KGEM_CAN_CREATE_GPU) == 0)
 			return false;
+		if (priv->shm)
+			return false;
 	}
 
 	count = priv->source_count++;
@@ -3947,7 +3949,7 @@ sna_self_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	if (priv == NULL || DAMAGE_IS_ALL(priv->cpu_damage))
 		goto fallback;
 
-	if (priv->gpu_bo) {
+	if (priv->gpu_damage) {
 		if (alu == GXcopy && priv->clear)
 			goto out;
 
