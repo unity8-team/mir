@@ -2572,8 +2572,11 @@ use_cpu_bo:
 		*damage = &priv->cpu_damage;
 
 	if (priv->shm) {
+		struct sna *sna = to_sna_from_pixmap(pixmap);
 		assert(!priv->flush);
-		add_flush_pixmap(to_sna_from_pixmap(pixmap), priv);
+		add_flush_pixmap(sna, priv);
+		if (!kgem_bo_is_busy(priv->cpu_bo))
+			kgem_submit(&sna->kgem);
 	}
 
 	DBG(("%s: using CPU bo with damage? %d\n",
