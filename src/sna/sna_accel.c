@@ -1126,6 +1126,9 @@ static inline bool use_cpu_bo_for_download(struct sna *sna,
 	if (DBG_NO_CPU_DOWNLOAD)
 		return false;
 
+	if (wedged(sna))
+		return false;
+
 	if (priv->cpu_bo == NULL || !sna->kgem.can_blt_cpu)
 		return false;
 
@@ -2144,6 +2147,7 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 
 	assert_pixmap_damage(pixmap);
 	assert_pixmap_contains_box(pixmap, box);
+	assert(!wedged(sna));
 
 	if (sna_damage_is_all(&priv->gpu_damage,
 			      pixmap->drawable.width,
