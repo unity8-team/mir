@@ -1326,7 +1326,6 @@ skip_inplace_map:
 			assert(!priv->shm);
 			sna_pixmap_free_cpu(sna, priv);
 		}
-		sna_damage_destroy(&priv->gpu_damage);
 	}
 
 	if (pixmap->devPrivate.ptr == NULL &&
@@ -1355,6 +1354,11 @@ skip_inplace_map:
 				    priv->clear_color);
 		}
 
+		sna_damage_all(&priv->cpu_damage,
+			       pixmap->drawable.width,
+			       pixmap->drawable.height);
+		sna_pixmap_free_gpu(sna, priv);
+		priv->undamaged = false;
 		priv->clear = false;
 	}
 
