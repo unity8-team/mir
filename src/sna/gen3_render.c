@@ -1652,6 +1652,7 @@ static int gen3_vertex_finish(struct sna *sna)
 		sna->render.vbo = NULL;
 		return 0;
 	}
+	assert(sna->render.vbo->snoop == false);
 
 	if (sna->render.vertex_used) {
 		memcpy(sna->render.vertices,
@@ -1710,10 +1711,12 @@ static void gen3_vertex_close(struct sna *sna)
 			     sna->render.vertex_used));
 			bo = kgem_create_linear(&sna->kgem,
 						4*sna->render.vertex_used, 0);
-			if (bo)
+			if (bo) {
+				assert(sna->render.vbo->snoop == false);
 				kgem_bo_write(&sna->kgem, bo,
 					      sna->render.vertex_data,
 					      4*sna->render.vertex_used);
+			}
 			free_bo = bo;
 		}
 	}
@@ -1967,9 +1970,10 @@ gen3_render_reset(struct sna *sna)
 	state->last_vertex_offset = 0;
 	state->vertex_offset = 0;
 
-	if (sna->render.vbo &&
+	if (sna->render.vbo != NULL &&
 	    !kgem_bo_is_mappable(&sna->kgem, sna->render.vbo)) {
-		DBG(("%s: discarding unmappable vbo\n", __FUNCTION__));
+		DBG(("%s: discarding vbo as next access will stall: %d\n",
+		     __FUNCTION__, sna->render.vbo->presumed_offset));
 		discard_vbo(sna);
 	}
 }
@@ -1980,7 +1984,8 @@ gen3_render_retire(struct kgem *kgem)
 	struct sna *sna;
 
 	sna = container_of(kgem, struct sna, kgem);
-	if (kgem->nbatch == 0 && sna->render.vbo && !kgem_bo_is_busy(sna->render.vbo)) {
+	if (sna->render.vertex_reloc[0] == 0 &&
+	    sna->render.vbo && !kgem_bo_is_busy(sna->render.vbo)) {
 		DBG(("%s: resetting idle vbo\n", __FUNCTION__));
 		sna->render.vertex_used = 0;
 		sna->render.vertex_index = 0;
