@@ -4674,8 +4674,14 @@ trapezoid_spans_maybe_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 	if (!sna_picture_is_solid(src, NULL))
 		return false;
 
-	if (dst->format != PICT_a8)
+	switch ((int)dst->format) {
+	case PICT_a8:
+	case PICT_x8r8g8b8:
+	case PICT_a8r8g8b8:
+		break;
+	default:
 		return false;
+	}
 
 	switch (op) {
 	case PictOpIn:
