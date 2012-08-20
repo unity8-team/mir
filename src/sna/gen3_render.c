@@ -1713,7 +1713,7 @@ static void gen3_vertex_close(struct sna *sna)
 			bo = kgem_create_linear(&sna->kgem,
 						4*sna->render.vertex_used, 0);
 			if (bo) {
-				assert(sna->render.vbo->snoop == false);
+				assert(bo->snoop == false);
 				kgem_bo_write(&sna->kgem, bo,
 					      sna->render.vertex_data,
 					      4*sna->render.vertex_used);
