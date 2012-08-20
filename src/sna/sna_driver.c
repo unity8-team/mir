@@ -259,7 +259,7 @@ static int sna_open_drm_master(ScrnInfoPtr scrn)
 	snprintf(busid, sizeof(busid), "pci:%04x:%02x:%02x.%d",
 		 pci->domain, pci->bus, pci->dev, pci->func);
 
-	fd = drmOpen("i915", busid);
+	fd = drmOpen(NULL, busid);
 	if (fd == -1) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[drm] Failed to open DRM device for %s: %s\n",

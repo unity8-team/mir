@@ -249,7 +249,7 @@ static Bool intel_open_drm_master(ScrnInfoPtr scrn)
 	snprintf(busid, sizeof(busid), "pci:%04x:%02x:%02x.%d",
 		 dev->domain, dev->bus, dev->dev, dev->func);
 
-	intel->drmSubFD = drmOpen("i915", busid);
+	intel->drmSubFD = drmOpen(NULL, busid);
 	if (intel->drmSubFD == -1) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[drm] Failed to open DRM device for %s: %s\n",
