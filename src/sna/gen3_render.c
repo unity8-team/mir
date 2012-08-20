@@ -2483,36 +2483,47 @@ gen3_align_vertex(struct sna *sna,
 static bool
 gen3_composite_set_target(struct sna *sna,
 			  struct sna_composite_op *op,
-			  PicturePtr dst)
+			  PicturePtr dst,
+			  int x, int y, int w, int h)
 {
-	struct sna_pixmap *priv;
+	BoxRec box;
 
 	op->dst.pixmap = get_drawable_pixmap(dst->pDrawable);
 	op->dst.format = dst->format;
 	op->dst.width = op->dst.pixmap->drawable.width;
 	op->dst.height = op->dst.pixmap->drawable.height;
 
-	op->dst.bo = NULL;
-	priv = sna_pixmap(op->dst.pixmap);
-	if (priv &&
-	    priv->gpu_bo == NULL &&
-	    priv->cpu_bo && priv->cpu_bo->domain != DOMAIN_CPU) {
-		op->dst.bo = priv->cpu_bo;
-		op->damage = &priv->cpu_damage;
+	if (w && h) {
+		box.x1 = x;
+		box.y1 = y;
+		box.x2 = x + w;
+		box.y2 = y + h;
+	} else {
+		box.x1 = dst->pDrawable->x;
+		box.y1 = dst->pDrawable->y;
+		box.x2 = box.x1 + dst->pDrawable->width;
+		box.y2 = box.y1 + dst->pDrawable->height;
 	}
-	if (op->dst.bo == NULL) {
-		priv = sna_pixmap_force_to_gpu(op->dst.pixmap, MOVE_READ | MOVE_WRITE);
-		if (priv == NULL)
+
+	op->dst.bo = sna_drawable_use_bo (dst->pDrawable,
+					  PREFER_GPU | FORCE_GPU | RENDER_GPU,
+					  &box, &op->damage);
+	if (op->dst.bo == NULL)
+		return false;
+
+	/* For single-stream mode there should be no minimum alignment
+	 * required, except that the width must be at least 2 elements.
+	 */
+	if (op->dst.bo->pitch < 2*op->dst.pixmap->drawable.bitsPerPixel) {
+		struct sna_pixmap *priv;
+
+		priv = sna_pixmap_move_to_gpu (op->dst.pixmap,
+					       MOVE_READ | MOVE_WRITE);
+		if (priv == NULL || priv->pinned)
 			return false;
 
-		/* For single-stream mode there should be no minimum alignment
-		 * required, except that the width must be at least 2 elements.
-		 */
 		if (priv->gpu_bo->pitch < 2*op->dst.pixmap->drawable.bitsPerPixel) {
 			struct kgem_bo *bo;
-
-			if (priv->pinned)
-				return false;
 
 			bo = kgem_replace_bo(&sna->kgem, priv->gpu_bo,
 					     op->dst.width, op->dst.height,
@@ -2524,13 +2535,13 @@ gen3_composite_set_target(struct sna *sna,
 			kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
 			priv->gpu_bo = bo;
 		}
-		assert(priv->gpu_bo->proxy == NULL);
 
 		op->dst.bo = priv->gpu_bo;
 		op->damage = &priv->gpu_damage;
+		if (sna_damage_is_all(op->damage,
+				      op->dst.width, op->dst.height))
+			op->damage = NULL;
 	}
-	if (sna_damage_is_all(op->damage, op->dst.width, op->dst.height))
-		op->damage = NULL;
 
 	get_drawable_deltas(dst->pDrawable, op->dst.pixmap,
 			    &op->dst.x, &op->dst.y);
@@ -2543,6 +2554,7 @@ gen3_composite_set_target(struct sna *sna,
 	     op->dst.x, op->dst.y,
 	     op->damage ? *op->damage : (void *)-1));
 
+	assert(op->dst.bo->proxy == NULL);
 	return true;
 }
 
@@ -2832,13 +2844,12 @@ gen3_render_composite(struct sna *sna,
 					    width,  height,
 					    tmp);
 
-	if (!gen3_composite_set_target(sna, tmp, dst)) {
+	if (!gen3_composite_set_target(sna, tmp, dst,
+				       dst_x, dst_y, width, height)) {
 		DBG(("%s: unable to set render target\n",
 		     __FUNCTION__));
 		return false;
 	}
-
-	sna_render_reduce_damage(tmp, dst_x, dst_y, width, height);
 
 	tmp->op = op;
 	tmp->rb_reversed = gen3_dst_rb_reversed(tmp->dst.format);
@@ -3421,12 +3432,12 @@ gen3_render_composite_spans(struct sna *sna,
 						  width, height, flags, tmp);
 	}
 
-	if (!gen3_composite_set_target(sna, &tmp->base, dst)) {
+	if (!gen3_composite_set_target(sna, &tmp->base, dst,
+				       dst_x, dst_y, width, height)) {
 		DBG(("%s: unable to set render target\n",
 		     __FUNCTION__));
 		return false;
 	}
-	sna_render_reduce_damage(&tmp->base, dst_x, dst_y, width, height);
 
 	tmp->base.op = op;
 	tmp->base.rb_reversed = gen3_dst_rb_reversed(tmp->base.dst.format);

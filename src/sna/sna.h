@@ -464,7 +464,8 @@ struct kgem_bo *sna_pixmap_change_tiling(PixmapPtr pixmap, uint32_t tiling);
 
 #define PREFER_GPU	0x1
 #define FORCE_GPU	0x2
-#define IGNORE_CPU	0x4
+#define RENDER_GPU	0x4
+#define IGNORE_CPU	0x8
 struct kgem_bo *
 sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
 		    struct sna_damage ***damage);

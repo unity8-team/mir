@@ -2570,6 +2570,14 @@ use_cpu_bo:
 	if (priv->gpu_bo && kgem_bo_is_busy(priv->gpu_bo))
 		goto move_to_gpu;
 
+	if (flags & RENDER_GPU) {
+		if (priv->gpu_bo && priv->gpu_bo->tiling)
+			goto move_to_gpu;
+
+		if (priv->cpu_bo->pitch >= 4096)
+			goto move_to_gpu;
+	}
+
 	if (!sna_drawable_move_region_to_cpu(&pixmap->drawable, &region,
 					     MOVE_READ | MOVE_ASYNC_HINT)) {
 		DBG(("%s: failed to move-to-cpu, fallback\n", __FUNCTION__));
