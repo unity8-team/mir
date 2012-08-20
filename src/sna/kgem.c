@@ -3309,6 +3309,7 @@ struct kgem_bo *kgem_create_cpu_2d(struct kgem *kgem,
 		assert(bo->snoop);
 		bo->refcnt = 1;
 		bo->pitch = stride;
+		bo->unique_id = kgem_get_unique_id(kgem);
 		return bo;
 	}
 
@@ -3331,6 +3332,7 @@ struct kgem_bo *kgem_create_cpu_2d(struct kgem *kgem,
 		}
 
 		bo->pitch = stride;
+		bo->unique_id = kgem_get_unique_id(kgem);
 		return bo;
 	}
 
@@ -3350,6 +3352,7 @@ struct kgem_bo *kgem_create_cpu_2d(struct kgem *kgem,
 
 		bo->map = MAKE_USER_MAP(ptr);
 		bo->pitch = stride;
+		bo->unique_id = kgem_get_unique_id(kgem);
 		return bo;
 	}
 
