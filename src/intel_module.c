@@ -31,6 +31,7 @@
 #include <xf86_OSproc.h>
 #include <xf86Parser.h>
 #include <xf86drmMode.h>
+#include <i915_drm.h>
 
 #include <xorgVersion.h>
 
@@ -369,20 +370,35 @@ static Bool intel_driver_func(ScrnInfoPtr pScrn,
 static Bool has_kernel_mode_setting(struct pci_device *dev)
 {
 	char id[20];
-	int ret;
+	int ret, fd;
 
 	snprintf(id, sizeof(id),
 		 "pci:%04x:%02x:%02x.%d",
 		 dev->domain, dev->bus, dev->dev, dev->func);
 
 	ret = drmCheckModesettingSupported(id);
-	if (ret && xf86LoadKernelModule("i915"))
-		ret = drmCheckModesettingSupported(id);
-	/* Be nice to the user and load fbcon too */
-	if (!ret)
+	if (ret) {
+		if (xf86LoadKernelModule("i915"))
+			ret = drmCheckModesettingSupported(id);
+		if (ret)
+			return FALSE;
+		/* Be nice to the user and load fbcon too */
 		(void)xf86LoadKernelModule("fbcon");
+	}
 
-	return ret == 0;
+	/* Confirm that this is a i915.ko device with GEM/KMS enabled */
+	ret = FALSE;
+	fd = drmOpen(NULL, id);
+	if (fd != -1) {
+		struct drm_i915_getparam gp;
+
+		gp.param = I915_PARAM_HAS_GEM;
+		gp.value = &ret;
+		(void)drmIoctl(fd, DRM_IOCTL_I915_GETPARAM, &gp, sizeof(gp));
+		close(fd);
+	}
+
+	return ret;
 }
 
 extern XF86ConfigPtr xf86configptr;
