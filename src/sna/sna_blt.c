@@ -1641,6 +1641,15 @@ prepare_blt_put(struct sna *sna,
 	return true;
 }
 
+static bool source_is_gpu(PixmapPtr pixmap, const BoxRec *box)
+{
+	struct sna_pixmap *priv = sna_pixmap(pixmap);
+	if (priv == NULL)
+		return false;
+	return sna_damage_contains_box(priv->gpu_damage,
+				       box) != PIXMAN_REGION_OUT;
+}
+
 #define alphaless(format) PICT_FORMAT(PICT_FORMAT_BPP(format),		\
 				      PICT_FORMAT_TYPE(format),		\
 				      0,				\
@@ -1839,7 +1848,9 @@ clear:
 	src_box.y1 = y;
 	src_box.x2 = x + width;
 	src_box.y2 = y + height;
-	bo = __sna_render_pixmap_bo(sna, src_pixmap, &src_box, true);
+	bo = NULL;
+	if (tmp->dst.bo || source_is_gpu(src_pixmap, &src_box))
+		bo = __sna_render_pixmap_bo(sna, src_pixmap, &src_box, true);
 	if (bo) {
 		if (!tmp->dst.bo)
 			tmp->dst.bo = sna_drawable_use_bo(dst->pDrawable,
