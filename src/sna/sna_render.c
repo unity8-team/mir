@@ -378,8 +378,7 @@ use_cpu_bo(struct sna *sna, PixmapPtr pixmap, const BoxRec *box, bool blt)
 
 	if (priv->shm) {
 		assert(!priv->flush);
-		list_move(&priv->list, &sna->flush_pixmaps);
-		sna->kgem.flush |= 1;
+		sna_add_flush_pixmap(sna, priv);
 	}
 
 	DBG(("%s for box=(%d, %d), (%d, %d)\n",
