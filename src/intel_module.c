@@ -28,8 +28,10 @@
 #include "config.h"
 #endif
 
+#include <unistd.h>
 #include <xf86_OSproc.h>
 #include <xf86Parser.h>
+#include <xf86drm.h>
 #include <xf86drmMode.h>
 #include <i915_drm.h>
 
@@ -394,7 +396,7 @@ static Bool has_kernel_mode_setting(struct pci_device *dev)
 
 		gp.param = I915_PARAM_HAS_GEM;
 		gp.value = &ret;
-		(void)drmIoctl(fd, DRM_IOCTL_I915_GETPARAM, &gp, sizeof(gp));
+		(void)drmIoctl(fd, DRM_IOCTL_I915_GETPARAM, &gp);
 		close(fd);
 	}
 
