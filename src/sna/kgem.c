@@ -1280,6 +1280,7 @@ inline static void kgem_bo_remove_from_inactive(struct kgem *kgem,
 
 	list_del(&bo->list);
 	assert(bo->rq == NULL);
+	assert(bo->exec == NULL);
 	if (bo->map) {
 		assert(!list_is_empty(&bo->vma));
 		list_del(&bo->vma);
@@ -1293,6 +1294,7 @@ inline static void kgem_bo_remove_from_active(struct kgem *kgem,
 	DBG(("%s: removing handle=%d from active\n", __FUNCTION__, bo->handle));
 
 	list_del(&bo->list);
+	assert(bo->rq != NULL);
 	if (bo->rq == &_kgem_static_request)
 		list_del(&bo->request);
 	assert(list_is_empty(&bo->vma));
@@ -1366,6 +1368,7 @@ search_snoop_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags)
 		assert(bo->proxy == NULL);
 		assert(bo->tiling == I915_TILING_NONE);
 		assert(bo->rq == NULL);
+		assert(bo->exec == NULL);
 
 		if (num_pages > num_pages(bo))
 			continue;
@@ -1753,6 +1756,7 @@ static void kgem_commit(struct kgem *kgem)
 		     (unsigned)bo->exec->offset));
 
 		assert(!bo->purged);
+		assert(bo->exec);
 		assert(bo->rq == rq || (bo->proxy->rq == rq));
 
 		bo->presumed_offset = bo->exec->offset;
@@ -2485,6 +2489,8 @@ search_linear_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags)
 			assert(IS_CPU_MAP(bo->map) == for_cpu);
 			assert(bucket(bo) == cache_bucket(num_pages));
 			assert(bo->proxy == NULL);
+			assert(bo->rq == NULL);
+			assert(bo->exec == NULL);
 
 			if (num_pages > num_pages(bo)) {
 				DBG(("inactive too small: %d < %d\n",
