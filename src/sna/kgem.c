@@ -1811,6 +1811,8 @@ static void kgem_commit(struct kgem *kgem)
 		}
 
 		kgem_retire(kgem);
+		assert(list_is_empty(&rq->buffers));
+
 		gem_close(kgem->fd, rq->bo->handle);
 	} else {
 		list_add_tail(&rq->list, &kgem->requests);
@@ -3551,6 +3553,7 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 
 		if (bo->exec == NULL)
 			_kgem_add_bo(kgem, bo);
+		assert(bo->rq == kgem->next_request);
 
 		if (kgem->gen < 40 && read_write_domain & KGEM_RELOC_FENCED) {
 			if (bo->tiling &&
@@ -3568,7 +3571,7 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 		kgem->reloc[index].presumed_offset = bo->presumed_offset;
 
 		if (read_write_domain & 0x7ff)
-			kgem_bo_mark_dirty(kgem, bo);
+			kgem_bo_mark_dirty(bo);
 
 		delta += bo->presumed_offset;
 	} else {

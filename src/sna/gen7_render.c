@@ -1047,7 +1047,7 @@ gen7_emit_state(struct sna *sna,
 			need_stall = GEN7_BLEND(op->u.gen7.flags) != NO_BLEND;
 		gen7_emit_pipe_invalidate(sna, need_stall);
 		kgem_clear_dirty(&sna->kgem);
-		kgem_bo_mark_dirty(&sna->kgem, op->dst.bo);
+		kgem_bo_mark_dirty(op->dst.bo);
 		need_stall = false;
 	}
 	if (need_stall)
@@ -1348,15 +1348,12 @@ gen7_bind_bo(struct sna *sna,
 	COMPILE_TIME_ASSERT(sizeof(struct gen7_surface_state) == 32);
 
 	/* After the first bind, we manage the cache domains within the batch */
-	if (is_dst) {
-		domains = I915_GEM_DOMAIN_RENDER << 16 |I915_GEM_DOMAIN_RENDER;
-		kgem_bo_mark_dirty(&sna->kgem, bo);
-	} else
-		domains = I915_GEM_DOMAIN_SAMPLER << 16;
-
 	offset = kgem_bo_get_binding(bo, format);
-	if (offset)
+	if (offset) {
+		if (is_dst)
+			kgem_bo_mark_dirty(bo);
 		return offset * sizeof(uint32_t);
+	}
 
 	offset = sna->kgem.surface -=
 		sizeof(struct gen7_surface_state) / sizeof(uint32_t);
@@ -1364,6 +1361,10 @@ gen7_bind_bo(struct sna *sna,
 	ss[0] = (GEN7_SURFACE_2D << GEN7_SURFACE_TYPE_SHIFT |
 		 gen7_tiling_bits(bo->tiling) |
 		 format << GEN7_SURFACE_FORMAT_SHIFT);
+	if (is_dst)
+		domains = I915_GEM_DOMAIN_RENDER << 16 |I915_GEM_DOMAIN_RENDER;
+	else
+		domains = I915_GEM_DOMAIN_SAMPLER << 16;
 	ss[1] = kgem_add_reloc(&sna->kgem, offset + 1, bo, domains, 0);
 	ss[2] = ((width - 1)  << GEN7_SURFACE_WIDTH_SHIFT |
 		 (height - 1) << GEN7_SURFACE_HEIGHT_SHIFT);

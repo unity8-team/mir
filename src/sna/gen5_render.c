@@ -639,16 +639,13 @@ gen5_bind_bo(struct sna *sna,
 	uint32_t *ss;
 
 	/* After the first bind, we manage the cache domains within the batch */
-	if (is_dst) {
-		domains = I915_GEM_DOMAIN_RENDER << 16 | I915_GEM_DOMAIN_RENDER;
-		kgem_bo_mark_dirty(&sna->kgem, bo);
-	} else
-		domains = I915_GEM_DOMAIN_SAMPLER << 16;
-
 	if (!DBG_NO_SURFACE_CACHE) {
 		offset = kgem_bo_get_binding(bo, format);
-		if (offset)
+		if (offset) {
+			if (is_dst)
+				kgem_bo_mark_dirty(bo);
 			return offset * sizeof(uint32_t);
+		}
 	}
 
 	offset = sna->kgem.surface -=
@@ -659,6 +656,10 @@ gen5_bind_bo(struct sna *sna,
 		 GEN5_SURFACE_BLEND_ENABLED |
 		 format << GEN5_SURFACE_FORMAT_SHIFT);
 
+	if (is_dst)
+		domains = I915_GEM_DOMAIN_RENDER << 16 | I915_GEM_DOMAIN_RENDER;
+	else
+		domains = I915_GEM_DOMAIN_SAMPLER << 16;
 	ss[1] = kgem_add_reloc(&sna->kgem, offset + 1, bo, domains, 0);
 
 	ss[2] = ((width - 1)  << GEN5_SURFACE_WIDTH_SHIFT |
@@ -1387,7 +1388,7 @@ gen5_emit_state(struct sna *sna,
 	if (kgem_bo_is_dirty(op->src.bo) || kgem_bo_is_dirty(op->mask.bo)) {
 		OUT_BATCH(MI_FLUSH);
 		kgem_clear_dirty(&sna->kgem);
-		kgem_bo_mark_dirty(&sna->kgem, op->dst.bo);
+		kgem_bo_mark_dirty(op->dst.bo);
 	}
 }
 

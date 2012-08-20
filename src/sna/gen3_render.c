@@ -1342,6 +1342,7 @@ static void gen3_emit_target(struct sna *sna,
 	struct gen3_render_state *state = &sna->render_state.gen3;
 
 	/* BUF_INFO is an implicit flush, so skip if the target is unchanged. */
+	assert(bo->unique_id != 0);
 	if (bo->unique_id != state->current_dst) {
 		uint32_t v;
 
@@ -1373,7 +1374,7 @@ static void gen3_emit_target(struct sna *sna,
 
 		state->current_dst = bo->unique_id;
 	}
-	kgem_bo_mark_dirty(&sna->kgem, bo);
+	kgem_bo_mark_dirty(bo);
 }
 
 static void gen3_emit_composite_state(struct sna *sna,

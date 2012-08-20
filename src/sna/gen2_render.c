@@ -547,7 +547,7 @@ static void gen2_emit_target(struct sna *sna, const struct sna_composite_op *op)
 	assert(sna->render_state.gen2.vertex_offset == 0);
 
 	if (sna->render_state.gen2.target == op->dst.bo->unique_id) {
-		kgem_bo_mark_dirty(&sna->kgem, op->dst.bo);
+		kgem_bo_mark_dirty(op->dst.bo);
 		return;
 	}
 
