@@ -1850,11 +1850,9 @@ clear:
 		if (!tmp->dst.bo) {
 			DBG(("%s: fallback -- unaccelerated read back\n",
 			     __FUNCTION__));
-			kgem_bo_destroy(&sna->kgem, bo);
 		} else if (bo->snoop && tmp->dst.bo->snoop) {
 			DBG(("%s: fallback -- can not copy between snooped bo\n",
 			     __FUNCTION__));
-			kgem_bo_destroy(&sna->kgem, bo);
 		} else {
 			ret = prepare_blt_copy(sna, tmp, bo, alpha_fixup);
 			if (fallback)
