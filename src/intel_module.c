@@ -392,11 +392,19 @@ static Bool has_kernel_mode_setting(struct pci_device *dev)
 	ret = FALSE;
 	fd = drmOpen(NULL, id);
 	if (fd != -1) {
-		struct drm_i915_getparam gp;
+		drmVersionPtr version = drmGetVersion(fd);
+		if (version) {
+			ret = strcmp ("i915", version->name) == 0;
+			drmFreeVersion(version);
+		}
+		if (ret) {
+			struct drm_i915_getparam gp;
+			gp.param = I915_PARAM_HAS_GEM;
+			gp.value = &ret;
+			if (drmIoctl(fd, DRM_IOCTL_I915_GETPARAM, &gp))
+				ret = FALSE;
+		}
 
-		gp.param = I915_PARAM_HAS_GEM;
-		gp.value = &ret;
-		(void)drmIoctl(fd, DRM_IOCTL_I915_GETPARAM, &gp);
 		close(fd);
 	}
 
