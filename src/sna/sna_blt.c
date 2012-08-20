@@ -1278,8 +1278,8 @@ blt_put_composite__cpu(struct sna *sna,
 	memcpy_blt(src->devPrivate.ptr, dst->devPrivate.ptr,
 		   src->drawable.bitsPerPixel, src->devKind, dst->devKind,
 		   r->src.x + op->u.blt.sx, r->src.y + op->u.blt.sy,
-		   r->width, r->height,
-		   r->dst.x + op->dst.x, r->dst.y + op->dst.y);
+		   r->dst.x + op->dst.x, r->dst.y + op->dst.y,
+		   r->width, r->height);
 }
 
 fastcall static void
@@ -1292,8 +1292,8 @@ blt_put_composite_box__cpu(struct sna *sna,
 	memcpy_blt(src->devPrivate.ptr, dst->devPrivate.ptr,
 		   src->drawable.bitsPerPixel, src->devKind, dst->devKind,
 		   box->x1 + op->u.blt.sx, box->y1 + op->u.blt.sy,
-		   box->x2-box->x1, box->y2-box->y1,
-		   box->x1 + op->dst.x, box->y1 + op->dst.y);
+		   box->x1 + op->dst.x, box->y1 + op->dst.y,
+		   box->x2-box->x1, box->y2-box->y1);
 }
 
 static void
@@ -1307,8 +1307,8 @@ blt_put_composite_boxes__cpu(struct sna *sna,
 		memcpy_blt(src->devPrivate.ptr, dst->devPrivate.ptr,
 			   src->drawable.bitsPerPixel, src->devKind, dst->devKind,
 			   box->x1 + op->u.blt.sx, box->y1 + op->u.blt.sy,
-			   box->x2-box->x1, box->y2-box->y1,
-			   box->x1 + op->dst.x, box->y1 + op->dst.y);
+			   box->x1 + op->dst.x, box->y1 + op->dst.y,
+			   box->x2-box->x1, box->y2-box->y1);
 		box++;
 	} while (--n);
 }
@@ -1323,8 +1323,8 @@ blt_put_composite_with_alpha__cpu(struct sna *sna,
 	memcpy_xor(src->devPrivate.ptr, dst->devPrivate.ptr,
 		   src->drawable.bitsPerPixel, src->devKind, dst->devKind,
 		   r->src.x + op->u.blt.sx, r->src.y + op->u.blt.sy,
-		   r->width, r->height,
 		   r->dst.x + op->dst.x, r->dst.y + op->dst.y,
+		   r->width, r->height,
 		   0xffffffff, op->u.blt.pixel);
 
 }
@@ -1339,8 +1339,8 @@ blt_put_composite_box_with_alpha__cpu(struct sna *sna,
 	memcpy_xor(src->devPrivate.ptr, dst->devPrivate.ptr,
 		   src->drawable.bitsPerPixel, src->devKind, dst->devKind,
 		   box->x1 + op->u.blt.sx, box->y1 + op->u.blt.sy,
-		   box->x2-box->x1, box->y2-box->y1,
 		   box->x1 + op->dst.x, box->y1 + op->dst.y,
+		   box->x2-box->x1, box->y2-box->y1,
 		   0xffffffff, op->u.blt.pixel);
 }
 
@@ -1355,8 +1355,8 @@ blt_put_composite_boxes_with_alpha__cpu(struct sna *sna,
 		memcpy_xor(src->devPrivate.ptr, dst->devPrivate.ptr,
 			   src->drawable.bitsPerPixel, src->devKind, dst->devKind,
 			   box->x1 + op->u.blt.sx, box->y1 + op->u.blt.sy,
-			   box->x2-box->x1, box->y2-box->y1,
 			   box->x1 + op->dst.x, box->y1 + op->dst.y,
+			   box->x2-box->x1, box->y2-box->y1,
 			   0xffffffff, op->u.blt.pixel);
 		box++;
 	} while (--n);
