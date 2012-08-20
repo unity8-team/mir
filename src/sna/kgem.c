@@ -1333,6 +1333,9 @@ static void _kgem_bo_delete_buffer(struct kgem *kgem, struct kgem_bo *bo)
 
 static void kgem_bo_move_to_snoop(struct kgem *kgem, struct kgem_bo *bo)
 {
+	assert(bo->refcnt == 0);
+	assert(bo->exec == NULL);
+
 	if (num_pages(bo) > kgem->max_cpu_size >> 13) {
 		DBG(("%s handle=%d discarding large CPU buffer (%d >%d pages)\n",
 		     __FUNCTION__, bo->handle, num_pages(bo), kgem->max_cpu_size >> 13));
@@ -1953,7 +1956,9 @@ static void kgem_cleanup(struct kgem *kgem)
 
 			list_del(&bo->request);
 			bo->rq = NULL;
+			bo->exec = NULL;
 			bo->domain = DOMAIN_NONE;
+			bo->dirty = false;
 			if (bo->refcnt == 0)
 				kgem_bo_free(kgem, bo);
 		}
