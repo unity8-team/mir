@@ -11512,11 +11512,10 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 	     region.extents.x2, region.extents.y2,
 	     flags));
 
-	if (FORCE_FALLBACK)
+	if (FORCE_FALLBACK || !ACCEL_POLY_FILL_RECT) {
+		DBG(("%s: fallback forced\n", __FUNCTION__));
 		goto fallback;
-
-	if (!ACCEL_POLY_FILL_RECT)
-		goto fallback;
+	}
 
 	if (priv == NULL) {
 		DBG(("%s: fallback -- unattached\n", __FUNCTION__));
@@ -11568,13 +11567,17 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 
 	/* If the source is already on the GPU, keep the operation on the GPU */
 	if (gc->fillStyle == FillTiled) {
-		if (!gc->tileIsPixel && sna_pixmap_is_gpu(gc->tile.pixmap))
+		if (!gc->tileIsPixel && sna_pixmap_is_gpu(gc->tile.pixmap)) {
+			DBG(("%s: source is already on the gpu\n"));
 			hint |= PREFER_GPU | FORCE_GPU;
+		}
 	}
 
 	bo = sna_drawable_use_bo(draw, hint, &region.extents, &damage);
-	if (bo == NULL)
+	if (bo == NULL) {
+		DBG(("%s: not using GPU, hint=%x\n", __FUNCTION__, hint));
 		goto fallback;
+	}
 
 	if (gc_is_solid(gc, &color)) {
 		DBG(("%s: solid fill [%08x], testing for blt\n",
