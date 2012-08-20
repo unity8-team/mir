@@ -4660,6 +4660,8 @@ static bool
 trapezoid_spans_maybe_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 			      PictFormatPtr maskFormat)
 {
+	struct sna_pixmap *priv;
+
 	if (NO_SCAN_CONVERTER)
 		return false;
 
@@ -4712,7 +4714,26 @@ trapezoid_spans_maybe_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 	}
 
 out:
-	return is_cpu(dst->pDrawable) ? true : dst->pDrawable->width <= TOR_INPLACE_SIZE;
+	priv = sna_pixmap_from_drawable(dst->pDrawable);
+	if (priv == NULL)
+		return true;
+
+	if (priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo))
+		return false;
+
+	if (DAMAGE_IS_ALL(priv->cpu_damage) || priv->gpu_damage == NULL)
+		return true;
+
+	if (priv->clear)
+		return dst->pDrawable->width <= TOR_INPLACE_SIZE;
+
+	if (kgem_bo_is_busy(priv->gpu_bo))
+		return false;
+
+	if (priv->cpu_damage)
+		return true;
+
+	return dst->pDrawable->width <= TOR_INPLACE_SIZE;
 }
 
 static bool
