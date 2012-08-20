@@ -536,15 +536,17 @@ static inline bool kgem_bo_is_dirty(struct kgem_bo *bo)
 
 static inline void kgem_bo_mark_dirty(struct kgem_bo *bo)
 {
-	if (bo->dirty)
-		return;
+	do {
+		if (bo->dirty)
+			return;
 
-	DBG(("%s: handle=%d\n", __FUNCTION__, bo->handle));
+		DBG(("%s: handle=%d\n", __FUNCTION__, bo->handle));
+		assert(bo->exec);
+		assert(bo->rq);
 
-	assert(bo->exec);
-	assert(bo->rq);
-	bo->needs_flush = bo->dirty = true;
-	list_move(&bo->request, &bo->rq->buffers);
+		bo->needs_flush = bo->dirty = true;
+		list_move(&bo->request, &bo->rq->buffers);
+	} while ((bo = bo->proxy));
 }
 
 #define KGEM_BUFFER_WRITE	0x1

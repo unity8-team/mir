@@ -1789,10 +1789,11 @@ static void kgem_commit(struct kgem *kgem)
 		bo->dirty = false;
 
 		if (bo->proxy) {
+			assert(bo->exec == &_kgem_dummy_exec);
 			/* proxies are not used for domain tracking */
 			list_del(&bo->request);
 			bo->rq = NULL;
-			bo->exec = &_kgem_dummy_exec;
+			bo->exec = NULL;
 		}
 	}
 
@@ -3546,13 +3547,17 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 			delta += bo->delta;
 			assert(bo->handle == bo->proxy->handle);
 			/* need to release the cache upon batch submit */
-			list_move_tail(&bo->request,
-				       &kgem->next_request->buffers);
-			bo->exec = &_kgem_dummy_exec;
-			bo = bo->proxy;
-		}
+			if (bo->exec == NULL) {
+				list_move_tail(&bo->request,
+					       &kgem->next_request->buffers);
+				bo->rq = kgem->next_request;
+				bo->exec = &_kgem_dummy_exec;
+			}
 
-		assert(!bo->purged);
+			bo = bo->proxy;
+			assert(bo->refcnt);
+			assert(!bo->purged);
+		}
 
 		if (bo->exec == NULL)
 			_kgem_add_bo(kgem, bo);
