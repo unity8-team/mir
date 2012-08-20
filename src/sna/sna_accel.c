@@ -2551,9 +2551,6 @@ use_cpu_bo:
 	if (priv->cpu_bo == NULL)
 		return NULL;
 
-	if (!to_sna_from_pixmap(pixmap)->kgem.can_blt_cpu)
-		return NULL;
-
 	if ((flags & FORCE_GPU) == 0 && !kgem_bo_is_busy(priv->cpu_bo))
 		return NULL;
 
@@ -2577,6 +2574,9 @@ use_cpu_bo:
 		if (priv->cpu_bo->pitch >= 4096)
 			goto move_to_gpu;
 	}
+
+	if (!to_sna_from_pixmap(pixmap)->kgem.can_blt_cpu)
+		return NULL;
 
 	if (!sna_drawable_move_region_to_cpu(&pixmap->drawable, &region,
 					     MOVE_READ | MOVE_ASYNC_HINT)) {
