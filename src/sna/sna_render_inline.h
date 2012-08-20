@@ -88,32 +88,6 @@ is_gpu(DrawablePtr drawable)
 }
 
 static inline bool
-is_cpu(DrawablePtr drawable)
-{
-	struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
-	if (priv == NULL || priv->clear)
-		return true;
-
-	if (priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo))
-		return false;
-
-	if (DAMAGE_IS_ALL(priv->cpu_damage))
-		return true;
-
-	if (priv->gpu_damage && kgem_bo_is_busy(priv->gpu_bo))
-		return false;
-
-	return true;
-}
-
-static inline bool
-is_dirty(DrawablePtr drawable)
-{
-	struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
-	return priv == NULL || kgem_bo_is_dirty(priv->gpu_bo);
-}
-
-static inline bool
 too_small(struct sna_pixmap *priv)
 {
 	assert(priv);

@@ -1996,7 +1996,7 @@ picture_is_cpu(PicturePtr picture)
 	if (!picture->pDrawable)
 		return false;
 
-	return is_cpu(picture->pDrawable) || is_dirty(picture->pDrawable);
+	return !is_gpu(picture->pDrawable);
 }
 
 static inline bool prefer_blt(struct sna *sna)
@@ -2063,7 +2063,7 @@ untransformed(PicturePtr p)
 static bool
 need_upload(PicturePtr p)
 {
-	return p->pDrawable && untransformed(p) && is_cpu(p->pDrawable);
+	return p->pDrawable && untransformed(p) && !is_gpu(p->pDrawable);
 }
 
 static bool

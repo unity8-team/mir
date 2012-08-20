@@ -1479,7 +1479,8 @@ try_blt(struct sna *sna,
 		     src->pDrawable->width, src->pDrawable->height));
 		return true;
 	}
-	return is_cpu(src->pDrawable);
+
+	return !is_gpu(src->pDrawable);
 }
 
 static bool
