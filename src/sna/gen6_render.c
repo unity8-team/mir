@@ -903,7 +903,8 @@ gen6_emit_state(struct sna *sna,
 	if (kgem_bo_is_dirty(op->src.bo) || kgem_bo_is_dirty(op->mask.bo)) {
 		gen6_emit_flush(sna);
 		kgem_clear_dirty(&sna->kgem);
-		kgem_bo_mark_dirty(op->dst.bo);
+		if (op->dst.bo->exec)
+			kgem_bo_mark_dirty(op->dst.bo);
 		need_stall = false;
 	}
 	if (need_stall) {

@@ -1047,7 +1047,8 @@ gen7_emit_state(struct sna *sna,
 			need_stall = GEN7_BLEND(op->u.gen7.flags) != NO_BLEND;
 		gen7_emit_pipe_invalidate(sna, need_stall);
 		kgem_clear_dirty(&sna->kgem);
-		kgem_bo_mark_dirty(op->dst.bo);
+		if (op->dst.bo->exec)
+			kgem_bo_mark_dirty(op->dst.bo);
 		need_stall = false;
 	}
 	if (need_stall)
