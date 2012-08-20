@@ -125,6 +125,7 @@ struct kgem_buffer {
 };
 
 static struct kgem_bo *__kgem_freed_bo;
+static struct kgem_request *__kgem_freed_request;
 static struct drm_i915_gem_exec_object2 _kgem_dummy_exec;
 
 static inline int bytes(struct kgem_bo *bo)
@@ -538,13 +539,26 @@ static struct kgem_request *__kgem_request_alloc(void)
 {
 	struct kgem_request *rq;
 
-	rq = malloc(sizeof(*rq));
-	if (rq == NULL)
-		rq = &_kgem_static_request;
+	rq = __kgem_freed_request;
+	if (rq) {
+		__kgem_freed_request = *(struct kgem_request **)rq;
+	} else {
+		rq = malloc(sizeof(*rq));
+		if (rq == NULL)
+			rq = &_kgem_static_request;
+	}
 
 	list_init(&rq->buffers);
+	rq->bo = NULL;
 
 	return rq;
+}
+
+static void __kgem_request_free(struct kgem_request *rq)
+{
+	_list_del(&rq->list);
+	*(struct kgem_request **)rq = __kgem_freed_request;
+	__kgem_freed_request = rq;
 }
 
 static struct list *inactive(struct kgem *kgem, int num_pages)
@@ -1699,8 +1713,7 @@ static bool kgem_retire__requests(struct kgem *kgem)
 			}
 		}
 
-		_list_del(&rq->list);
-		free(rq);
+		__kgem_request_free(rq);
 	}
 
 #if HAS_DEBUG_FULL
@@ -1963,8 +1976,7 @@ static void kgem_cleanup(struct kgem *kgem)
 				kgem_bo_free(kgem, bo);
 		}
 
-		_list_del(&rq->list);
-		free(rq);
+		__kgem_request_free(rq);
 	}
 
 	kgem_close_inactive(kgem);
@@ -2303,6 +2315,11 @@ bool kgem_expire_cache(struct kgem *kgem)
 		free(bo);
 	}
 
+	while (__kgem_freed_request) {
+		struct kgem_request *rq = __kgem_freed_request;
+		__kgem_freed_request = *(struct kgem_request **)rq;
+		free(rq);
+	}
 
 	expire = 0;
 	list_for_each_entry(bo, &kgem->snoop, list) {
