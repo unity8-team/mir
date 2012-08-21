@@ -473,8 +473,8 @@ static void sna_pixmap_free_cpu(struct sna *sna, struct sna_pixmap *priv)
 		sna->debug_memory.cpu_bo_bytes -= kgem_bo_size(priv->cpu_bo);
 #endif
 		if (priv->cpu_bo->flush) {
+			assert(priv->cpu_bo->reusable == false);
 			kgem_bo_sync__cpu(&sna->kgem, priv->cpu_bo);
-			priv->cpu_bo->reusable = false;
 			sna_accel_watch_flush(sna, -1);
 		}
 		kgem_bo_destroy(&sna->kgem, priv->cpu_bo);
@@ -819,6 +819,10 @@ fallback:
 	priv->cpu_bo->pitch = pitch;
 	priv->cpu_bo->reusable = false;
 	sna_accel_watch_flush(sna, 1);
+#ifdef DEBUG_MEMORY
+	sna->debug_memory.cpu_bo_allocs++;
+	sna->debug_memory.cpu_bo_bytes += kgem_bo_size(priv->cpu_bo);
+#endif
 
 	priv->cpu = true;
 	priv->shm = true;
