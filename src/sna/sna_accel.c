@@ -1426,6 +1426,12 @@ done:
 	if (flags & MOVE_WRITE) {
 		priv->source_count = SOURCE_BIAS;
 		assert(priv->gpu_bo == NULL || priv->gpu_bo->proxy == NULL);
+		if (priv->gpu_bo && priv->gpu_bo->domain != DOMAIN_GPU) {
+			DBG(("%s: discarding inactive GPU bo\n", __FUNCTION__));
+			assert(DAMAGE_IS_ALL(priv->cpu_damage));
+			sna_pixmap_free_gpu(sna, priv);
+			priv->undamaged = false;
+		}
 	}
 
 	if (priv->cpu_bo) {
