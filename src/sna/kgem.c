@@ -1773,6 +1773,7 @@ static void kgem_commit(struct kgem *kgem)
 
 		assert(!bo->purged);
 		assert(bo->exec);
+		assert(bo->proxy == NULL || bo->exec == &_kgem_dummy_exec);
 		assert(bo->rq == rq || (bo->proxy->rq == rq));
 
 		bo->presumed_offset = bo->exec->offset;
@@ -1789,7 +1790,6 @@ static void kgem_commit(struct kgem *kgem)
 		bo->dirty = false;
 
 		if (bo->proxy) {
-			assert(bo->exec == &_kgem_dummy_exec);
 			/* proxies are not used for domain tracking */
 			list_del(&bo->request);
 			bo->rq = NULL;
