@@ -2343,6 +2343,16 @@ bool kgem_expire_cache(struct kgem *kgem)
 			kgem_bo_free(kgem, bo);
 		}
 	}
+#ifdef DEBUG_MEMORY
+	{
+		long size = 0;
+		int count = 0;
+		list_for_each_entry(bo, &kgem->snoop, list)
+			count++, size += bytes(bo);
+		ErrorF("%s: still allocated %d bo, %ld bytes, in snoop cache\n",
+		       __FUNCTION__, count, size);
+	}
+#endif
 
 	kgem_retire(kgem);
 	if (kgem->wedged)
@@ -2407,6 +2417,18 @@ bool kgem_expire_cache(struct kgem *kgem)
 			preserve.next->prev = &kgem->inactive[i];
 		}
 	}
+
+#ifdef DEBUG_MEMORY
+	{
+		long size = 0;
+		int count = 0;
+		for (i = 0; i < ARRAY_SIZE(kgem->inactive); i++)
+			list_for_each_entry(bo, &kgem->inactive[i], list)
+				count++, size += bytes(bo);
+		ErrorF("%s: still allocated %d bo, %ld bytes, in inactive cache\n",
+		       __FUNCTION__, count, size);
+	}
+#endif
 
 	DBG(("%s: expired %d objects, %d bytes, idle? %d\n",
 	     __FUNCTION__, count, size, idle));
