@@ -1059,6 +1059,8 @@ static Bool sna_destroy_pixmap(PixmapPtr pixmap)
 		return TRUE;
 
 	priv = sna_pixmap(pixmap);
+	DBG(("%s: pixmap=%ld, attached?=%d\n",
+	     __FUNCTION__, pixmap->drawable.serialNumber, priv != NULL));
 	if (priv == NULL) {
 		FreePixmap(pixmap);
 		return TRUE;
