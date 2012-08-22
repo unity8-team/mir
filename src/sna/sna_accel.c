@@ -2561,6 +2561,7 @@ use_gpu_bo:
 	return priv->gpu_bo;
 
 use_cpu_bo:
+	assert(!priv->clear);
 	if (priv->cpu_bo == NULL)
 		return NULL;
 
