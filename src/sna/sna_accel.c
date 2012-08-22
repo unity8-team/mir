@@ -2536,9 +2536,10 @@ done:
 	assert(priv->gpu_bo != NULL);
 	if (sna_damage_is_all(&priv->gpu_damage,
 			      pixmap->drawable.width,
-			      pixmap->drawable.height))
+			      pixmap->drawable.height)) {
+		sna_damage_destroy(&priv->cpu_damage);
 		*damage = NULL;
-	else
+	} else
 		*damage = &priv->gpu_damage;
 
 	DBG(("%s: using GPU bo with damage? %d\n",
@@ -2579,6 +2580,8 @@ use_cpu_bo:
 	if (priv->gpu_bo && kgem_bo_is_busy(priv->gpu_bo))
 		goto move_to_gpu;
 
+	assert(priv->gpu_bo == NULL || priv->gpu_bo->proxy == NULL);
+
 	if (flags & RENDER_GPU) {
 		if (priv->gpu_bo && priv->gpu_bo->tiling)
 			goto move_to_gpu;
@@ -2598,9 +2601,10 @@ use_cpu_bo:
 
 	if (sna_damage_is_all(&priv->cpu_damage,
 			      pixmap->drawable.width,
-			      pixmap->drawable.height))
+			      pixmap->drawable.height)) {
+		sna_damage_destroy(&priv->gpu_damage);
 		*damage = NULL;
-	else
+	} else
 		*damage = &priv->cpu_damage;
 
 	if (priv->shm) {
@@ -2726,6 +2730,8 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 			      pixmap->drawable.width,
 			      pixmap->drawable.height)) {
 		DBG(("%s: already all-damaged\n", __FUNCTION__));
+		sna_damage_destroy(&priv->cpu_damage);
+		priv->undamaged = true;
 		goto active;
 	}
 
