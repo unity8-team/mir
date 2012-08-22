@@ -458,7 +458,9 @@ sna_drawable_move_to_gpu(DrawablePtr drawable, unsigned flags)
 	return sna_pixmap_move_to_gpu(get_drawable_pixmap(drawable), flags) != NULL;
 }
 
-void sna_add_flush_pixmap(struct sna *sna, struct sna_pixmap *priv);
+void sna_add_flush_pixmap(struct sna *sna,
+			  struct sna_pixmap *priv,
+			  struct kgem_bo *bo);
 
 struct kgem_bo *sna_pixmap_change_tiling(PixmapPtr pixmap, uint32_t tiling);
 

@@ -1016,16 +1016,18 @@ fallback:
 	return create_pixmap(sna, screen, width, height, depth, usage);
 }
 
-void sna_add_flush_pixmap(struct sna *sna, struct sna_pixmap *priv)
+void sna_add_flush_pixmap(struct sna *sna,
+			  struct sna_pixmap *priv,
+			  struct kgem_bo *bo)
 {
 	DBG(("%s: marking pixmap=%ld for flushing\n",
 	     __FUNCTION__, priv->pixmap->drawable.serialNumber));
 	list_move(&priv->list, &sna->flush_pixmaps);
 
-	if (sna->kgem.need_retire)
+	if (bo->exec == NULL && sna->kgem.need_retire)
 		kgem_retire(&sna->kgem);
-	if (!sna->kgem.need_retire || !sna->kgem.flush) {
-		DBG(("%s: GPU idle, flushing\n", __FUNCTION__));
+	if (bo->exec == NULL || !sna->kgem.need_retire) {
+		DBG(("%s: flush bo idle, flushing\n", __FUNCTION__));
 		kgem_submit(&sna->kgem);
 	}
 
@@ -1078,8 +1080,8 @@ static Bool sna_destroy_pixmap(PixmapPtr pixmap)
 		kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
 
 	if (priv->shm && kgem_bo_is_busy(priv->cpu_bo)) {
+		sna_add_flush_pixmap(sna, priv, priv->cpu_bo);
 		kgem_bo_submit(&sna->kgem, priv->cpu_bo); /* XXX ShmDetach */
-		sna_add_flush_pixmap(sna, priv);
 	} else
 		__sna_free_pixmap(sna, pixmap, priv);
 	return TRUE;
@@ -1419,7 +1421,7 @@ skip_inplace_map:
 
 		if (priv->flush) {
 			assert(!priv->shm);
-			sna_add_flush_pixmap(sna, priv);
+			sna_add_flush_pixmap(sna, priv, priv->gpu_bo);
 		}
 	}
 
@@ -2030,7 +2032,7 @@ done:
 		}
 		if (priv->flush) {
 			assert(!priv->shm);
-			sna_add_flush_pixmap(sna, priv);
+			sna_add_flush_pixmap(sna, priv, priv->gpu_bo);
 		}
 	}
 
@@ -2244,7 +2246,7 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 							    box, n, 0);
 				if (ok && priv->shm) {
 					assert(!priv->flush);
-					sna_add_flush_pixmap(sna, priv);
+					sna_add_flush_pixmap(sna, priv, priv->cpu_bo);
 				}
 			}
 			if (!ok) {
@@ -2288,7 +2290,7 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 						    box, 1, 0);
 			if (ok && priv->shm) {
 				assert(!priv->flush);
-				sna_add_flush_pixmap(sna, priv);
+				sna_add_flush_pixmap(sna, priv, priv->cpu_bo);
 			}
 		}
 		if (!ok) {
@@ -2323,7 +2325,7 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 						    box, n, 0);
 			if (ok && priv->shm) {
 				assert(!priv->flush);
-				sna_add_flush_pixmap(sna, priv);
+				sna_add_flush_pixmap(sna, priv, priv->cpu_bo);
 			}
 		}
 		if (!ok) {
@@ -2349,7 +2351,7 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 
 	if (priv->shm) {
 		assert(!priv->flush);
-		sna_add_flush_pixmap(sna, priv);
+		sna_add_flush_pixmap(sna, priv, priv->cpu_bo);
 	}
 
 done:
@@ -2623,7 +2625,7 @@ use_cpu_bo:
 
 	if (priv->shm) {
 		assert(!priv->flush);
-		sna_add_flush_pixmap(sna, priv);
+		sna_add_flush_pixmap(sna, priv, priv->cpu_bo);
 
 		/* As we may have flushed and retired,, recheck for busy bo */
 		if ((flags & FORCE_GPU) == 0 && !kgem_bo_is_busy(priv->cpu_bo))
@@ -2851,7 +2853,7 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 						    box, n, 0);
 			if (ok && priv->shm) {
 				assert(!priv->flush);
-				sna_add_flush_pixmap(sna, priv);
+				sna_add_flush_pixmap(sna, priv, priv->cpu_bo);
 			}
 		}
 		if (!ok) {
@@ -2886,7 +2888,7 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 
 	if (priv->shm) {
 		assert(!priv->flush);
-		sna_add_flush_pixmap(sna, priv);
+		sna_add_flush_pixmap(sna, priv, priv->cpu_bo);
 	}
 
 	/* For large bo, try to keep only a single copy around */
@@ -3441,7 +3443,7 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 		}
 		if (priv->flush) {
 			assert(!priv->shm);
-			sna_add_flush_pixmap(sna, priv);
+			sna_add_flush_pixmap(sna, priv, priv->gpu_bo);
 		}
 	}
 	priv->cpu = true;
@@ -4320,7 +4322,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 
 			if (src_priv->shm) {
 				assert(!src_priv->flush);
-				sna_add_flush_pixmap(sna, src_priv);
+				sna_add_flush_pixmap(sna, src_priv, src_priv->cpu_bo);
 			}
 
 			if (damage)
