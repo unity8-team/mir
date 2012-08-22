@@ -4113,6 +4113,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	struct sna *sna = to_sna_from_pixmap(src_pixmap);
 	struct sna_damage **damage;
 	struct kgem_bo *bo;
+	unsigned hint;
 	int16_t src_dx, src_dy;
 	int16_t dst_dx, dst_dy;
 	BoxPtr box = RegionRects(region);
@@ -4171,20 +4172,20 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	if (dst_priv == NULL)
 		goto fallback;
 
+	hint = source_prefer_gpu(src_priv) ?:
+		region_inplace(sna, dst_pixmap, region,
+			       dst_priv, alu_overwrites(alu));
 	if (dst_priv->cpu_damage && alu_overwrites(alu)) {
 		DBG(("%s: overwritting CPU damage\n", __FUNCTION__));
-		sna_damage_subtract(&dst_priv->cpu_damage, region);
-		if (dst_priv->cpu_damage == NULL) {
+		if (region_subsumes_damage(region, dst_priv->cpu_damage)) {
+			DBG(("%s: discarding existing CPU damage\n", __FUNCTION__));
+			sna_damage_destroy(&dst_priv->cpu_damage);
 			list_del(&dst_priv->list);
-			dst_priv->undamaged = false;
-			dst_priv->cpu = false;
 		}
+		hint |= IGNORE_CPU;
 	}
 
-	bo = sna_drawable_use_bo(&dst_pixmap->drawable,
-				 source_prefer_gpu(src_priv) ?:
-				 region_inplace(sna, dst_pixmap, region,
-						dst_priv, alu_overwrites(alu)),
+	bo = sna_drawable_use_bo(&dst_pixmap->drawable, hint,
 				 &region->extents, &damage);
 	if (bo) {
 		if (src_priv && src_priv->clear) {
