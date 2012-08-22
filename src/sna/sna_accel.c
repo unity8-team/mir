@@ -1339,7 +1339,8 @@ skip_inplace_map:
 	}
 
 	if (priv->clear) {
-		if (priv->cpu_bo && !priv->cpu_bo->flush && kgem_bo_is_busy(priv->cpu_bo)) {
+		if (priv->cpu_bo && !priv->cpu_bo->flush &&
+		    __kgem_bo_is_busy(&sna->kgem, priv->cpu_bo)) {
 			assert(!priv->shm);
 			sna_pixmap_free_cpu(sna, priv);
 		}
@@ -1439,8 +1440,11 @@ done:
 			DBG(("%s: syncing CPU bo\n", __FUNCTION__));
 			kgem_bo_sync__cpu(&sna->kgem, priv->cpu_bo);
 		}
-		if (flags & MOVE_WRITE)
+		if (flags & MOVE_WRITE) {
+			DBG(("%s: discarding GPU bo in favour of CPU bo\n", __FUNCTION__));
 			sna_pixmap_free_gpu(sna, priv);
+			priv->undamaged = false;
+		}
 	}
 	priv->cpu = (flags & MOVE_ASYNC_HINT) == 0;
 	assert(pixmap->devPrivate.ptr);
@@ -2371,6 +2375,7 @@ sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
 {
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
+	struct sna *sna;
 	RegionRec region;
 	int16_t dx, dy;
 	int ret;
@@ -2565,8 +2570,13 @@ use_cpu_bo:
 	if (priv->cpu_bo == NULL)
 		return NULL;
 
-	if ((flags & FORCE_GPU) == 0 && !kgem_bo_is_busy(priv->cpu_bo))
+	sna = to_sna_from_pixmap(pixmap);
+	if ((flags & FORCE_GPU) == 0 &&
+	    !__kgem_bo_is_busy(&sna->kgem, priv->cpu_bo)) {
+		DBG(("%s: has CPU bo, but is idle and acceleration not forced\n",
+		     __FUNCTION__));
 		return NULL;
+	}
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
 
@@ -2590,11 +2600,11 @@ use_cpu_bo:
 		if (priv->cpu_bo->pitch >= 4096)
 			goto move_to_gpu;
 
-		if (!to_sna_from_pixmap(pixmap)->kgem.can_blt_cpu)
+		if (!sna->kgem.can_blt_cpu)
 			goto move_to_gpu;
 	}
 
-	if (!to_sna_from_pixmap(pixmap)->kgem.can_blt_cpu)
+	if (!sna->kgem.can_blt_cpu)
 		return NULL;
 
 	if (!sna_drawable_move_region_to_cpu(&pixmap->drawable, &region,
@@ -2613,7 +2623,11 @@ use_cpu_bo:
 
 	if (priv->shm) {
 		assert(!priv->flush);
-		sna_add_flush_pixmap(to_sna_from_pixmap(pixmap), priv);
+		sna_add_flush_pixmap(sna, priv);
+
+		/* As we may have flushed and retired,, recheck for busy bo */
+		if ((flags & FORCE_GPU) == 0 && !kgem_bo_is_busy(priv->cpu_bo))
+			return NULL;
 	}
 
 	DBG(("%s: using CPU bo with damage? %d\n",
