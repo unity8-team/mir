@@ -2589,6 +2589,9 @@ use_cpu_bo:
 
 		if (priv->cpu_bo->pitch >= 4096)
 			goto move_to_gpu;
+
+		if (!to_sna_from_pixmap(pixmap)->kgem.can_blt_cpu)
+			goto move_to_gpu;
 	}
 
 	if (!to_sna_from_pixmap(pixmap)->kgem.can_blt_cpu)
