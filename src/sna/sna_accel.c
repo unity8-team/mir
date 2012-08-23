@@ -13427,7 +13427,7 @@ sna_accel_flush_callback(CallbackListPtr *list,
 	 * and doesn't appear to mitigate the performance loss.
 	 */
 	DBG(("%s: flush?=%d, dirty?=%d\n", __FUNCTION__,
-	     sna->kgem.flush, list_is_empty(&sna->flush_pixmap)));
+	     sna->kgem.flush, !list_is_empty(&sna->flush_pixmaps)));
 
 	/* flush any pending damage from shadow copies to tfp clients */
 	while (!list_is_empty(&sna->flush_pixmaps)) {

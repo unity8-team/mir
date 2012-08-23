@@ -1235,7 +1235,7 @@ gen6_bind_bo(struct sna *sna,
 	if (offset) {
 		DBG(("[%x]  bo(handle=%d), format=%d, reuse %s binding\n",
 		     offset, bo->handle, format,
-		     domains & 0xffff ? "render" : "sampler"));
+		     is_dst ? "render" : "sampler"));
 		if (is_dst)
 			kgem_bo_mark_dirty(bo);
 		return offset * sizeof(uint32_t);
