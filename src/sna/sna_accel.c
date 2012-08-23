@@ -1022,6 +1022,7 @@ void sna_add_flush_pixmap(struct sna *sna,
 {
 	DBG(("%s: marking pixmap=%ld for flushing\n",
 	     __FUNCTION__, priv->pixmap->drawable.serialNumber));
+	assert(bo);
 	list_move(&priv->list, &sna->flush_pixmaps);
 
 	if (bo->exec == NULL && sna->kgem.need_retire)
@@ -2630,6 +2631,10 @@ use_cpu_bo:
 		/* As we may have flushed and retired,, recheck for busy bo */
 		if ((flags & FORCE_GPU) == 0 && !kgem_bo_is_busy(priv->cpu_bo))
 			return NULL;
+	}
+	if (priv->flush) {
+		assert(!priv->shm);
+		sna_add_flush_pixmap(sna, priv, priv->gpu_bo);
 	}
 
 	DBG(("%s: using CPU bo with damage? %d\n",
