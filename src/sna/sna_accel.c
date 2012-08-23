@@ -4333,6 +4333,41 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			return;
 		}
 
+		if (src_priv == NULL &&
+		    sna->kgem.has_userptr &&
+		    __kgem_bo_is_busy(&sna->kgem, bo) &&
+		    box_inplace(src_pixmap, &region->extents)) {
+			struct kgem_bo *src_bo;
+			bool ok = false;
+
+			DBG(("%s: upload through a temporary map\n",
+			     __FUNCTION__));
+
+			src_bo = kgem_create_map(&sna->kgem,
+						 src_pixmap->devPrivate.ptr,
+						 src_pixmap->devKind * src_pixmap->drawable.height,
+						 true);
+			if (src_bo) {
+				src_bo->flush = true;
+				src_bo->pitch = src_pixmap->devKind;
+				src_bo->reusable = false;
+
+				ok = sna->render.copy_boxes(sna, alu,
+							    src_pixmap, src_bo, src_dx, src_dy,
+							    dst_pixmap, bo, 0, 0,
+							    box, n, COPY_LAST);
+
+				kgem_bo_sync__cpu(&sna->kgem, src_bo);
+				kgem_bo_destroy(&sna->kgem, src_bo);
+			}
+
+			if (ok) {
+				if (damage)
+					sna_damage_add(damage, region);
+				return;
+			}
+		}
+
 		if (alu != GXcopy) {
 			PixmapPtr tmp;
 			int i;
