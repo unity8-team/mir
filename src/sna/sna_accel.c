@@ -1231,11 +1231,8 @@ _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 			assert(!priv->shm);
 			DBG(("%s: write inplace\n", __FUNCTION__));
 			if (priv->gpu_bo) {
-				if (kgem_bo_is_busy(priv->gpu_bo) &&
-				    priv->gpu_bo->exec == NULL)
-					kgem_retire(&sna->kgem);
-
-				if (kgem_bo_is_busy(priv->gpu_bo)) {
+				if (__kgem_bo_is_busy(&sna->kgem,
+						      priv->gpu_bo)) {
 					if (priv->pinned)
 						goto skip_inplace_map;
 
@@ -1277,21 +1274,17 @@ _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 
 skip_inplace_map:
 		sna_damage_destroy(&priv->gpu_damage);
-		if (priv->cpu_bo && !priv->cpu_bo->flush && kgem_bo_is_busy(priv->cpu_bo)) {
+		if (priv->cpu_bo && !priv->cpu_bo->flush &&
+		    __kgem_bo_is_busy(&sna->kgem, priv->cpu_bo)) {
+			DBG(("%s: discarding busy CPU bo\n", __FUNCTION__));
 			assert(!priv->shm);
-			if (priv->cpu_bo->exec == NULL)
-				kgem_retire(&sna->kgem);
+			assert(priv->gpu_bo == NULL || priv->gpu_damage == NULL);
 
-			if (kgem_bo_is_busy(priv->cpu_bo)) {
-				DBG(("%s: discarding busy CPU bo\n", __FUNCTION__));
-				assert(priv->gpu_bo == NULL || priv->gpu_damage == NULL);
+			sna_damage_destroy(&priv->cpu_damage);
+			priv->undamaged = false;
 
-				sna_damage_destroy(&priv->cpu_damage);
-				priv->undamaged = false;
-
-				sna_pixmap_free_gpu(sna, priv);
-				sna_pixmap_free_cpu(sna, priv);
-			}
+			sna_pixmap_free_gpu(sna, priv);
+			sna_pixmap_free_cpu(sna, priv);
 		}
 	}
 
@@ -1495,11 +1488,6 @@ pixmap_contains_damage(PixmapPtr pixmap, struct sna_damage *damage)
 }
 #endif
 
-static bool sync_will_stall(struct kgem_bo *bo)
-{
-	return kgem_bo_is_busy(bo);
-}
-
 static inline bool region_inplace(struct sna *sna,
 				  PixmapPtr pixmap,
 				  RegionPtr region,
@@ -1629,11 +1617,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 		if (priv->stride && priv->gpu_bo &&
 		    region_inplace(sna, pixmap, region, priv, true)) {
 			assert(priv->gpu_bo->proxy == NULL);
-			if (sync_will_stall(priv->gpu_bo) &&
-			    priv->gpu_bo->exec == NULL)
-				kgem_retire(&sna->kgem);
-
-			if (!kgem_bo_is_busy(priv->gpu_bo)) {
+			if (!__kgem_bo_is_busy(&sna->kgem, priv->gpu_bo)) {
 				pixmap->devPrivate.ptr =
 					kgem_bo_map(&sna->kgem, priv->gpu_bo);
 				if (pixmap->devPrivate.ptr == NULL) {
@@ -1666,9 +1650,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 		}
 
 		if (priv->cpu_bo && !priv->cpu_bo->flush) {
-			if (sync_will_stall(priv->cpu_bo) && priv->cpu_bo->exec == NULL)
-				kgem_retire(&sna->kgem);
-			if (sync_will_stall(priv->cpu_bo)) {
+			if (__kgem_bo_is_busy(&sna->kgem, priv->cpu_bo)) {
 				sna_damage_subtract(&priv->cpu_damage, region);
 				if (!sna_pixmap_move_to_gpu(pixmap, MOVE_WRITE)) {
 					if (dx | dy)
@@ -3325,9 +3307,7 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 		 * However, we can queue some writes to the GPU bo to avoid
 		 * the wait. Or we can try to replace the CPU bo.
 		 */
-		if (sync_will_stall(priv->cpu_bo) && priv->cpu_bo->exec == NULL)
-			kgem_retire(&sna->kgem);
-		if (sync_will_stall(priv->cpu_bo)) {
+		if (__kgem_bo_is_busy(&sna->kgem, priv->cpu_bo)) {
 			if (priv->cpu_bo->flush) {
 				if (sna_put_image_upload_blt(drawable, gc, region,
 							     x, y, w, h, bits, stride)) {
