@@ -2057,6 +2057,7 @@ void kgem_reset(struct kgem *kgem)
 	kgem->nbatch = 0;
 	kgem->surface = kgem->batch_size;
 	kgem->mode = KGEM_NONE;
+	kgem->flush = 0;
 
 	kgem->next_request = __kgem_request_alloc();
 

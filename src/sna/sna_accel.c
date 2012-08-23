@@ -1031,8 +1031,6 @@ void sna_add_flush_pixmap(struct sna *sna,
 		DBG(("%s: flush bo idle, flushing\n", __FUNCTION__));
 		kgem_submit(&sna->kgem);
 	}
-
-	sna->kgem.flush = true;
 }
 
 static void __sna_free_pixmap(struct sna *sna,
@@ -13413,9 +13411,8 @@ sna_accel_flush_callback(CallbackListPtr *list,
 	 * by checking for outgoing damage events or sync replies. Tricky,
 	 * and doesn't appear to mitigate the performance loss.
 	 */
-	DBG(("%s: flush?=%d\n", __FUNCTION__, sna->kgem.flush));
-	if (!sna->kgem.flush)
-		return;
+	DBG(("%s: flush?=%d, dirty?=%d\n", __FUNCTION__,
+	     sna->kgem.flush, list_is_empty(&sna->flush_pixmap)));
 
 	/* flush any pending damage from shadow copies to tfp clients */
 	while (!list_is_empty(&sna->flush_pixmaps)) {
@@ -13435,14 +13432,14 @@ sna_accel_flush_callback(CallbackListPtr *list,
 		} else {
 			DBG(("%s: flushing DRI pixmap=%ld\n", __FUNCTION__,
 			     priv->pixmap->drawable.serialNumber));
-			if (sna_pixmap_move_to_gpu(priv->pixmap,
-						     MOVE_READ | __MOVE_FORCE))
-				kgem_bo_submit(&sna->kgem, priv->gpu_bo);
+			ret = sna_pixmap_move_to_gpu(priv->pixmap,
+						     MOVE_READ | __MOVE_FORCE);
 		}
 		(void)ret;
 	}
 
-	sna->kgem.flush = false;
+	if (sna->kgem.flush)
+		kgem_submit(&sna->kgem);
 }
 
 static struct sna_pixmap *sna_accel_scanout(struct sna *sna)
