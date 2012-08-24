@@ -1158,8 +1158,6 @@ void _kgem_add_bo(struct kgem *kgem, struct kgem_bo *bo)
 
 static uint32_t kgem_end_batch(struct kgem *kgem)
 {
-	kgem->context_switch(kgem, KGEM_NONE);
-
 	kgem->batch[kgem->nbatch++] = MI_BATCH_BUFFER_END;
 	if (kgem->nbatch & 1)
 		kgem->batch[kgem->nbatch++] = MI_NOOP;
@@ -1756,6 +1754,21 @@ bool kgem_retire(struct kgem *kgem)
 	kgem->retire(kgem);
 
 	return retired;
+}
+
+bool __kgem_is_idle(struct kgem *kgem)
+{
+	struct kgem_request *rq;
+
+	assert(!list_is_empty(&kgem->requests));
+
+	rq = list_last_entry(&kgem->requests, struct kgem_request, list);
+	if (kgem_busy(kgem, rq->bo->handle))
+		return false;
+
+	kgem_retire__requests(kgem);
+	assert(list_is_empty(&kgem->requests));
+	return true;
 }
 
 static void kgem_commit(struct kgem *kgem)

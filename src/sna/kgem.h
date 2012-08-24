@@ -258,15 +258,13 @@ void kgem_bo_set_binding(struct kgem_bo *bo, uint32_t format, uint16_t offset);
 
 void kgem_bo_retire(struct kgem *kgem, struct kgem_bo *bo);
 bool kgem_retire(struct kgem *kgem);
+bool __kgem_is_idle(struct kgem *kgem);
 static inline bool kgem_is_idle(struct kgem *kgem)
 {
 	if (list_is_empty(&kgem->requests))
 		return true;
 
-	if (!kgem_retire(kgem))
-		return false;
-
-	return list_is_empty(&kgem->requests);
+	return __kgem_is_idle(kgem);
 }
 struct kgem_bo *kgem_get_last_request(struct kgem *kgem);
 

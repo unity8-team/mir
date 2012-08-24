@@ -2366,9 +2366,18 @@ static bool prefer_blt_ring(struct sna *sna)
 	return sna->kgem.ring != KGEM_RENDER;
 }
 
-static bool can_switch_rings(struct sna *sna)
+static bool can_switch_to_blt(struct sna *sna)
 {
-	return sna->kgem.mode == KGEM_NONE && sna->kgem.has_semaphores && !NO_RING_SWITCH;
+	if (sna->kgem.ring == KGEM_BLT)
+		return true;
+
+	if (NO_RING_SWITCH)
+		return false;
+
+	if (!sna->kgem.has_semaphores)
+		return false;
+
+	return sna->kgem.mode == KGEM_NONE || kgem_is_idle(&sna->kgem);
 }
 
 static inline bool untiled_tlb_miss(struct kgem_bo *bo)
@@ -2397,7 +2406,7 @@ try_blt(struct sna *sna,
 		return true;
 	}
 
-	if (can_switch_rings(sna) && sna_picture_is_solid(src, NULL))
+	if (can_switch_to_blt(sna) && sna_picture_is_solid(src, NULL))
 		return true;
 
 	return false;
@@ -3328,7 +3337,7 @@ fallback_blt:
 		if (too_large(extents.x2-extents.x1, extents.y2-extents.y1))
 			goto fallback_blt;
 
-		if ((flags & COPY_LAST || can_switch_rings(sna)) &&
+		if ((flags & COPY_LAST || can_switch_to_blt(sna)) &&
 		    sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
 		    sna_blt_copy_boxes(sna, alu,
 				       src_bo, src_dx, src_dy,
@@ -3646,7 +3655,7 @@ static inline bool prefer_blt_fill(struct sna *sna,
 	if (PREFER_RENDER)
 		return PREFER_RENDER < 0;
 
-	return (can_switch_rings(sna) ||
+	return (can_switch_to_blt(sna) ||
 		prefer_blt_ring(sna) ||
 		untiled_tlb_miss(bo));
 }

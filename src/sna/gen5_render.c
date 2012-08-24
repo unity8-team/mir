@@ -3509,6 +3509,9 @@ static void
 gen5_render_context_switch(struct kgem *kgem,
 			   int new_mode)
 {
+	if (!kgem->mode)
+		return;
+
 	/* Ironlake has a limitation that a 3D or Media command can't
 	 * be the first command after a BLT, unless it's
 	 * non-pipelined.
@@ -3521,6 +3524,11 @@ gen5_render_context_switch(struct kgem *kgem,
 		DBG(("%s: forcing drawrect on next state emission\n",
 		     __FUNCTION__));
 		sna->render_state.gen5.drawrect_limit = -1;
+	}
+
+	if (kgem_is_idle(kgem)) {
+		DBG(("%s: GPU idle, flushing\n", __FUNCTION__));
+		_kgem_submit(kgem);
 	}
 }
 

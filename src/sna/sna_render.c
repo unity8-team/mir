@@ -246,6 +246,14 @@ static void
 no_render_context_switch(struct kgem *kgem,
 			 int new_mode)
 {
+	if (!kgem->mode)
+		return;
+
+	if (kgem_is_idle(kgem)) {
+		DBG(("%s: GPU idle, flushing\n", __FUNCTION__));
+		_kgem_submit(kgem);
+	}
+
 	(void)kgem;
 	(void)new_mode;
 }

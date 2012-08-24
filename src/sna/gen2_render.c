@@ -3124,8 +3124,16 @@ gen2_render_context_switch(struct kgem *kgem,
 {
 	struct sna *sna = container_of(kgem, struct sna, kgem);
 
+	if (!kgem->mode)
+		return;
+
 	/* Reload BLT registers following a lost context */
 	sna->blt_state.fill_bo = 0;
+
+	if (kgem_is_idle(kgem)) {
+		DBG(("%s: GPU idle, flushing\n", __FUNCTION__));
+		_kgem_submit(kgem);
+	}
 }
 
 bool gen2_render_init(struct sna *sna)
