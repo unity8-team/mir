@@ -13691,8 +13691,10 @@ static void sna_accel_throttle(struct sna *sna)
 {
 	DBG(("%s (time=%ld)\n", __FUNCTION__, (long)TIME));
 
-	if (sna->kgem.need_throttle)
+	if (sna->kgem.need_throttle) {
+		kgem_submit(&sna->kgem);
 		kgem_throttle(&sna->kgem);
+	}
 
 	if (!sna->kgem.need_retire)
 		sna_accel_disarm_timer(sna, THROTTLE_TIMER);
