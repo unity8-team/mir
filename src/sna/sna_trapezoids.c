@@ -1788,6 +1788,8 @@ struct mono {
 	struct sna_composite_op op;
 	pixman_region16_t clip;
 
+	fastcall void (*span)(struct mono *, int, int, BoxPtr);
+
 	struct mono_polygon polygon;
 };
 
@@ -2040,16 +2042,9 @@ mono_merge_edges(struct mono *c, struct mono_edge *edges)
 	c->head.next = mono_merge_unsorted_edges(c->head.next, edges);
 }
 
-inline static void
+fastcall static void
 mono_span(struct mono *c, int x1, int x2, BoxPtr box)
 {
-	if (x1 < c->clip.extents.x1)
-		x1 = c->clip.extents.x1;
-	if (x2 > c->clip.extents.x2)
-		x2 = c->clip.extents.x2;
-	if (x2 <= x1)
-		return;
-
 	__DBG(("%s [%d, %d]\n", __FUNCTION__, x1, x2));
 
 	box->x1 = x1;
@@ -2071,6 +2066,17 @@ mono_span(struct mono *c, int x1, int x2, BoxPtr box)
 		c->op.box(c->sna, &c->op, box);
 		apply_damage_box(&c->op, box);
 	}
+}
+
+fastcall static void
+mono_span__fast(struct mono *c, int x1, int x2, BoxPtr box)
+{
+	__DBG(("%s [%d, %d]\n", __FUNCTION__, x1, x2));
+
+	box->x1 = x1;
+	box->x2 = x2;
+
+	c->op.box(c->sna, &c->op, box);
 }
 
 inline static void
@@ -2124,7 +2130,12 @@ mono_row(struct mono *c, int16_t y, int16_t h)
 		if (winding == 0) {
 			assert(I(next->x.quo) >= xend);
 			if (I(next->x.quo) > xend + 1) {
-				mono_span(c, xstart, xend, &box);
+				if (xstart < c->clip.extents.x1)
+					xstart = c->clip.extents.x1;
+				if (xend > c->clip.extents.x2)
+					xend = c->clip.extents.x2;
+				if (xend > xstart)
+					c->span(c, xstart, xend, &box);
 				xstart = INT16_MIN;
 			}
 		} else if (xstart == INT16_MIN)
@@ -2184,6 +2195,11 @@ mono_render(struct mono *mono)
 {
 	struct mono_polygon *polygon = &mono->polygon;
 	int i, j, h = mono->clip.extents.y2 - mono->clip.extents.y1;
+
+	if (mono->clip.data == NULL && mono->op.damage == NULL)
+		mono->span = mono_span__fast;
+	else
+		mono->span = mono_span;
 
 	for (i = 0; i < h; i = j) {
 		j = i + 1;
