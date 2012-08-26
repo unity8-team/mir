@@ -261,8 +261,10 @@ bool kgem_retire(struct kgem *kgem);
 bool __kgem_is_idle(struct kgem *kgem);
 static inline bool kgem_is_idle(struct kgem *kgem)
 {
-	if (list_is_empty(&kgem->requests))
+	if (list_is_empty(&kgem->requests)) {
+		DBG(("%s: no outstanding requests\n", __FUNCTION__));
 		return true;
+	}
 
 	return __kgem_is_idle(kgem);
 }

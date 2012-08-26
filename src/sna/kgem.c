@@ -1763,9 +1763,13 @@ bool __kgem_is_idle(struct kgem *kgem)
 	assert(!list_is_empty(&kgem->requests));
 
 	rq = list_last_entry(&kgem->requests, struct kgem_request, list);
-	if (kgem_busy(kgem, rq->bo->handle))
+	if (kgem_busy(kgem, rq->bo->handle)) {
+		DBG(("%s: last requests handle=%d still busy\n",
+		     __FUNCTION__, rq->bo->handle));
 		return false;
+	}
 
+	DBG(("%s: gpu idle\n", __FUNCTION__));
 	kgem_retire__requests(kgem);
 	assert(list_is_empty(&kgem->requests));
 	return true;
