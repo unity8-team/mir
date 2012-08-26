@@ -2387,7 +2387,7 @@ static inline bool untiled_tlb_miss(struct kgem_bo *bo)
 
 static bool prefer_blt_bo(struct sna *sna, struct kgem_bo *bo)
 {
-	return untiled_tlb_miss(bo) && kgem_bo_can_blt(&sna->kgem, bo);
+	return untiled_tlb_miss(bo) && bo->pitch < MAXSHORT;
 }
 
 static bool
