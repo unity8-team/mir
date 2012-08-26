@@ -18,7 +18,7 @@
 #  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 #  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-SUBDIRS = fb
+SUBDIRS = brw fb
 
 AM_CFLAGS = \
 	@CWARNFLAGS@ \
@@ -34,7 +34,7 @@ AM_CFLAGS += @VALGRIND_CFLAGS@
 endif
 
 noinst_LTLIBRARIES = libsna.la
-libsna_la_LIBADD = @UDEV_LIBS@ -lm @DRM_LIBS@ fb/libfb.la
+libsna_la_LIBADD = @UDEV_LIBS@ -lm @DRM_LIBS@ brw/libbrw.la fb/libfb.la
 
 libsna_la_SOURCES = \
 	blt.c \

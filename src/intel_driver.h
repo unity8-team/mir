@@ -192,6 +192,43 @@
 #define PCI_CHIP_IVYBRIDGE_S_GT1	0x015a
 #define PCI_CHIP_IVYBRIDGE_S_GT2	0x016a
 
+#define PCI_CHIP_HASWELL_D_GT1		0x0402
+#define PCI_CHIP_HASWELL_D_GT2		0x0412
+#define PCI_CHIP_HASWELL_D_GT2_PLUS	0x0422
+#define PCI_CHIP_HASWELL_M_GT1		0x0406
+#define PCI_CHIP_HASWELL_M_GT2		0x0416
+#define PCI_CHIP_HASWELL_M_GT2_PLUS	0x0426
+#define PCI_CHIP_HASWELL_S_GT1		0x040A
+#define PCI_CHIP_HASWELL_S_GT2		0x041A
+#define PCI_CHIP_HASWELL_S_GT2_PLUS	0x042A
+#define PCI_CHIP_HASWELL_SDV_D_GT1	0x0C02
+#define PCI_CHIP_HASWELL_SDV_D_GT2	0x0C12
+#define PCI_CHIP_HASWELL_SDV_D_GT2_PLUS	0x0C22
+#define PCI_CHIP_HASWELL_SDV_M_GT1	0x0C06
+#define PCI_CHIP_HASWELL_SDV_M_GT2	0x0C16
+#define PCI_CHIP_HASWELL_SDV_M_GT2_PLUS	0x0C26
+#define PCI_CHIP_HASWELL_SDV_S_GT1	0x0C0A
+#define PCI_CHIP_HASWELL_SDV_S_GT2	0x0C1A
+#define PCI_CHIP_HASWELL_SDV_S_GT2_PLUS	0x0C2A
+#define PCI_CHIP_HASWELL_ULT_D_GT1	0x0A02
+#define PCI_CHIP_HASWELL_ULT_D_GT2	0x0A12
+#define PCI_CHIP_HASWELL_ULT_D_GT2_PLUS	0x0A22
+#define PCI_CHIP_HASWELL_ULT_M_GT1	0x0A06
+#define PCI_CHIP_HASWELL_ULT_M_GT2	0x0A16
+#define PCI_CHIP_HASWELL_ULT_M_GT2_PLUS	0x0A26
+#define PCI_CHIP_HASWELL_ULT_S_GT1	0x0A0A
+#define PCI_CHIP_HASWELL_ULT_S_GT2	0x0A1A
+#define PCI_CHIP_HASWELL_ULT_S_GT2_PLUS	0x0A2A
+#define PCI_CHIP_HASWELL_CRW_D_GT1	0x0D12
+#define PCI_CHIP_HASWELL_CRW_D_GT2	0x0D22
+#define PCI_CHIP_HASWELL_CRW_D_GT2_PLUS	0x0D32
+#define PCI_CHIP_HASWELL_CRW_M_GT1	0x0D16
+#define PCI_CHIP_HASWELL_CRW_M_GT2	0x0D26
+#define PCI_CHIP_HASWELL_CRW_M_GT2_PLUS	0x0D36
+#define PCI_CHIP_HASWELL_CRW_S_GT1	0x0D1A
+#define PCI_CHIP_HASWELL_CRW_S_GT2	0x0D2A
+#define PCI_CHIP_HASWELL_CRW_S_GT2_PLUS	0x0D3A
+
 #endif
 
 #define I85X_CAPID			0x44
@@ -218,6 +255,7 @@
 #define IS_GEN5(intel) IS_GENx(intel, 5)
 #define IS_GEN6(intel) IS_GENx(intel, 6)
 #define IS_GEN7(intel) IS_GENx(intel, 7)
+#define IS_HSW(intel) (INTEL_INFO(intel)->gen == 75)
 
 /* Some chips have specific errata (or limits) that we need to workaround. */
 #define IS_I830(intel) (DEVICE_ID((intel)->PciInfo) == PCI_CHIP_I830_M)
@@ -233,14 +271,13 @@
 #define SUPPORTS_YTILING(pI810) (INTEL_INFO(intel)->gen >= 40)
 #define HAS_BLT(pI810) (INTEL_INFO(intel)->gen >= 60)
 
-extern SymTabRec *intel_chipsets;
 struct intel_device_info {
 	int gen;
 };
 
-const struct intel_device_info *
-intel_detect_chipset(ScrnInfoPtr scrn,
-		     EntityInfoPtr ent, struct pci_device *pci);
+void intel_detect_chipset(ScrnInfoPtr scrn,
+			  EntityInfoPtr ent,
+			  struct pci_device *pci);
 
 
 #endif /* INTEL_DRIVER_H */

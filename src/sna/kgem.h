@@ -258,15 +258,13 @@ void kgem_bo_set_binding(struct kgem_bo *bo, uint32_t format, uint16_t offset);
 
 void kgem_bo_retire(struct kgem *kgem, struct kgem_bo *bo);
 bool kgem_retire(struct kgem *kgem);
+bool __kgem_is_idle(struct kgem *kgem);
 static inline bool kgem_is_idle(struct kgem *kgem)
 {
 	if (list_is_empty(&kgem->requests))
 		return true;
 
-	if (!kgem_retire(kgem))
-		return false;
-
-	return list_is_empty(&kgem->requests);
+	return __kgem_is_idle(kgem);
 }
 struct kgem_bo *kgem_get_last_request(struct kgem *kgem);
 
@@ -534,15 +532,19 @@ static inline bool kgem_bo_is_dirty(struct kgem_bo *bo)
 	return bo->dirty;
 }
 
-static inline void kgem_bo_mark_dirty(struct kgem *kgem, struct kgem_bo *bo)
+static inline void kgem_bo_mark_dirty(struct kgem_bo *bo)
 {
-	if (bo->dirty)
-		return;
+	do {
+		if (bo->dirty)
+			return;
 
-	DBG(("%s: handle=%d\n", __FUNCTION__, bo->handle));
+		DBG(("%s: handle=%d\n", __FUNCTION__, bo->handle));
+		assert(bo->exec);
+		assert(bo->rq);
 
-	bo->needs_flush = bo->dirty = true;
-	list_move(&bo->request, &kgem->next_request->buffers);
+		bo->needs_flush = bo->dirty = true;
+		list_move(&bo->request, &bo->rq->buffers);
+	} while ((bo = bo->proxy));
 }
 
 #define KGEM_BUFFER_WRITE	0x1

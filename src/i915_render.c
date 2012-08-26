@@ -779,12 +779,8 @@ i915_composite_emit_shader(intel_screen_private *intel, CARD8 op)
 		else
 			i915_fs_texldp(src_reg, FS_S0, FS_T0);
 
-		if (src_reg != FS_OC) {
-			if (dest_is_alpha)
-				i915_fs_mov(FS_OC, i915_fs_operand(src_reg, W, W, W, W));
-			else
-				i915_fs_mov(FS_OC, i915_fs_operand_reg(src_reg));
-		}
+		if (src_reg != FS_OC)
+			i915_fs_mov(FS_OC, i915_fs_operand(src_reg, W, W, W, W));
 	} else {
 		i915_fs_dcl(FS_T1);
 		i915_fs_dcl(FS_S1);

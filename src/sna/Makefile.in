@@ -104,7 +104,8 @@ CONFIG_CLEAN_VPATH_FILES =
 LTLIBRARIES = $(noinst_LTLIBRARIES)
 am__DEPENDENCIES_1 =
 @DRI2_TRUE@am__DEPENDENCIES_2 = $(am__DEPENDENCIES_1)
-libsna_la_DEPENDENCIES = fb/libfb.la $(am__DEPENDENCIES_2)
+libsna_la_DEPENDENCIES = brw/libbrw.la fb/libfb.la \
+	$(am__DEPENDENCIES_2)
 am__libsna_la_SOURCES_DIST = blt.c compiler.h kgem.c kgem.h rop.h \
 	sna.h sna_accel.c sna_blt.c sna_composite.c sna_damage.c \
 	sna_damage.h sna_display.c sna_driver.c sna_glyphs.c \
@@ -376,13 +377,13 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-SUBDIRS = fb
+SUBDIRS = brw fb
 AM_CFLAGS = @CWARNFLAGS@ -I$(top_srcdir)/src \
 	-I$(top_srcdir)/src/render_program @XORG_CFLAGS@ @UDEV_CFLAGS@ \
 	@DRM_CFLAGS@ $(NULL) $(am__append_1) $(am__append_2)
 noinst_LTLIBRARIES = libsna.la
-libsna_la_LIBADD = @UDEV_LIBS@ -lm @DRM_LIBS@ fb/libfb.la \
-	$(am__append_4)
+libsna_la_LIBADD = @UDEV_LIBS@ -lm @DRM_LIBS@ brw/libbrw.la \
+	fb/libfb.la $(am__append_4)
 libsna_la_SOURCES = blt.c compiler.h kgem.c kgem.h rop.h sna.h \
 	sna_accel.c sna_blt.c sna_composite.c sna_damage.c \
 	sna_damage.h sna_display.c sna_driver.c sna_glyphs.c \

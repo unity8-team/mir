@@ -1,3 +1,11 @@
+xserver-xorg-video-intel (2:2.20.5-1) experimental; urgency=low
+
+  * New upstream release.
+    - Remove patch to support passing a builder string, merged upstream
+      0001-Fix-build-failure-when-passing-with-builderstring.patch
+
+ -- Julien Danjou <acid@debian.org>  Sun, 26 Aug 2012 14:25:55 +0200
+
 xserver-xorg-video-intel (2:2.20.2-1) experimental; urgency=low
 
   [ Maarten Lankhorst ]
