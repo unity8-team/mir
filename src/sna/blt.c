@@ -153,6 +153,8 @@ memcpy_blt(const void *src, void *dst, int bpp,
 	assert(dst);
 	assert(width && height);
 	assert(bpp >= 8);
+	assert(width*bpp <= 8*src_stride);
+	assert(width*bpp <= 8*dst_stride);
 
 	DBG(("%s: src=(%d, %d), dst=(%d, %d), size=%dx%d, pitch=%d/%d\n",
 	     __FUNCTION__, src_x, src_y, dst_x, dst_y, width, height, src_stride, dst_stride));
@@ -245,6 +247,7 @@ memmove_box(const void *src, void *dst,
 
 	width = (box->x2 - box->x1) * bpp;
 	height = (box->y2 - box->y1);
+	assert(width <= 8*stride);
 	if (width == stride) {
 		width *= height;
 		height = 1;
@@ -372,6 +375,8 @@ memcpy_xor(const void *src, void *dst, int bpp,
 
 	assert(width && height);
 	assert(bpp >= 8);
+	assert(width*bpp <= 8*src_stride);
+	assert(width*bpp <= 8*dst_stride);
 
 	DBG(("%s: src=(%d, %d), dst=(%d, %d), size=%dx%d, pitch=%d/%d, bpp=%d, and=%x, xor=%x\n",
 	     __FUNCTION__,

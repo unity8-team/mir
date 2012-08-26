@@ -458,7 +458,71 @@ sna_drawable_move_to_gpu(DrawablePtr drawable, unsigned flags)
 	return sna_pixmap_move_to_gpu(get_drawable_pixmap(drawable), flags) != NULL;
 }
 
+void sna_add_flush_pixmap(struct sna *sna,
+			  struct sna_pixmap *priv,
+			  struct kgem_bo *bo);
+
 struct kgem_bo *sna_pixmap_change_tiling(PixmapPtr pixmap, uint32_t tiling);
+
+#define PREFER_GPU	0x1
+#define FORCE_GPU	0x2
+#define RENDER_GPU	0x4
+#define IGNORE_CPU	0x8
+struct kgem_bo *
+sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
+		    struct sna_damage ***damage);
+
+static inline bool
+box_inplace(PixmapPtr pixmap, const BoxRec *box)
+{
+	struct sna *sna = to_sna_from_pixmap(pixmap);
+	return ((int)(box->x2 - box->x1) * (int)(box->y2 - box->y1) * pixmap->drawable.bitsPerPixel >> 12) >= sna->kgem.half_cpu_cache_pages;
+}
+
+static inline bool
+region_subsumes_drawable(RegionPtr region, DrawablePtr drawable)
+{
+	const BoxRec *extents;
+
+	if (region->data)
+		return false;
+
+	extents = RegionExtents(region);
+	return  extents->x1 <= 0 && extents->y1 <= 0 &&
+		extents->x2 >= drawable->width &&
+		extents->y2 >= drawable->height;
+}
+
+static inline bool
+region_subsumes_damage(const RegionRec *region, struct sna_damage *damage)
+{
+	const BoxRec *re, *de;
+
+	DBG(("%s?\n", __FUNCTION__));
+	assert(damage);
+
+	re = &region->extents;
+	de = &DAMAGE_PTR(damage)->extents;
+	DBG(("%s: region (%d, %d), (%d, %d), damage (%d, %d), (%d, %d)\n",
+	     __FUNCTION__,
+	     re->x1, re->y1, re->x2, re->y2,
+	     de->x1, de->y1, de->x2, de->y2));
+
+	if (re->x2 < de->x2 || re->x1 > de->x1 ||
+	    re->y2 < de->y2 || re->y1 > de->y1) {
+		DBG(("%s: not contained\n", __FUNCTION__));
+		return false;
+	}
+
+	if (region->data == NULL) {
+		DBG(("%s: singular region contains damage\n", __FUNCTION__));
+		return true;
+	}
+
+	return pixman_region_contains_rectangle((RegionPtr)region,
+						(BoxPtr)de) == PIXMAN_REGION_IN;
+}
+
 
 static inline bool
 sna_drawable_is_clear(DrawablePtr d)
@@ -558,6 +622,11 @@ static inline bool wedged(struct sna *sna)
 	return unlikely(sna->kgem.wedged);
 }
 
+static inline bool can_render(struct sna *sna)
+{
+	return likely(!sna->kgem.wedged && sna->have_render);
+}
+
 static inline uint32_t pixmap_size(PixmapPtr pixmap)
 {
 	return (pixmap->drawable.height - 1) * pixmap->devKind +
@@ -565,13 +634,13 @@ static inline uint32_t pixmap_size(PixmapPtr pixmap)
 }
 
 bool sna_accel_init(ScreenPtr sreen, struct sna *sna);
+void sna_accel_create(struct sna *sna);
 void sna_accel_block_handler(struct sna *sna, struct timeval **tv);
 void sna_accel_wakeup_handler(struct sna *sna);
 void sna_accel_watch_flush(struct sna *sna, int enable);
 void sna_accel_close(struct sna *sna);
 void sna_accel_free(struct sna *sna);
 
-bool sna_accel_create(ScreenPtr screen, struct sna *sna);
 void sna_copy_fbcon(struct sna *sna);
 
 bool sna_composite_create(struct sna *sna);

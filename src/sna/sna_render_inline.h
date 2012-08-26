@@ -75,34 +75,16 @@ is_gpu(DrawablePtr drawable)
 	if (priv == NULL || priv->clear)
 		return false;
 
-	if (DAMAGE_IS_ALL(priv->gpu_damage) ||
-	    (priv->gpu_bo && kgem_bo_is_busy(priv->gpu_bo) && !priv->gpu_bo->proxy))
+	if (priv->cpu_damage == NULL)
 		return true;
 
-	return priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo);
-}
-
-static inline bool
-is_cpu(DrawablePtr drawable)
-{
-	struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
-	if (priv == NULL || priv->gpu_bo == NULL || priv->clear)
+	if (priv->gpu_damage && !priv->gpu_bo->proxy)
 		return true;
-
-	if (priv->gpu_damage && kgem_bo_is_busy(priv->gpu_bo))
-		return false;
 
 	if (priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo))
-		return false;
+		return true;
 
-	return true;
-}
-
-static inline bool
-is_dirty(DrawablePtr drawable)
-{
-	struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
-	return priv == NULL || kgem_bo_is_dirty(priv->gpu_bo);
+	return priv->gpu_bo && kgem_bo_is_busy(priv->gpu_bo);
 }
 
 static inline bool

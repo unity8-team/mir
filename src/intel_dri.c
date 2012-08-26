@@ -110,6 +110,7 @@ static PixmapPtr fixup_glamor(DrawablePtr drawable, PixmapPtr pixmap)
 {
 	ScreenPtr screen = drawable->pScreen;
 	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	PixmapPtr old = get_drawable_pixmap(drawable);
 	struct intel_pixmap *priv = intel_get_pixmap_private(pixmap);
 	GCPtr gc;
@@ -139,20 +140,12 @@ static PixmapPtr fixup_glamor(DrawablePtr drawable, PixmapPtr pixmap)
 	}
 
 	intel_set_pixmap_private(pixmap, NULL);
-	screen->DestroyPixmap(pixmap);
 
+	/* Exchange the underlying texture/image. */
+	intel_glamor_exchange_buffers(intel, old, pixmap);
 	/* And redirect the pixmap to the new bo (for 3D). */
 	intel_set_pixmap_private(old, priv);
 	old->refcnt++;
-
-	/* This creating should not fail, as we already created its
-	 * successfully. But if it happens, we put a warning indicator
-	 * here, and the old pixmap will still be a glamor pixmap, and
-	 * latter the pixmap_flink will get a 0 name, then the X server
-	 * will pass a BadAlloc to the client.*/
-	if (!intel_glamor_create_textured_pixmap(old))
-		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-			   "Failed to get DRI drawable for glamor pixmap.\n");
 
 	screen->ModifyPixmapHeader(old,
 				   drawable->width,
@@ -160,7 +153,7 @@ static PixmapPtr fixup_glamor(DrawablePtr drawable, PixmapPtr pixmap)
 				   0, 0,
 				   priv->stride,
 				   NULL);
-
+	screen->DestroyPixmap(pixmap);
 	intel_get_screen_private(xf86ScreenToScrn(screen))->needs_flush = TRUE;
 	return old;
 }
@@ -194,10 +187,9 @@ I830DRI2CreateBuffers(DrawablePtr drawable, unsigned int *attachments,
 		if (attachments[i] == DRI2BufferFrontLeft) {
 			pixmap = get_front_buffer(drawable);
 
-			if (pixmap && intel_get_pixmap_private(pixmap) == NULL) {
+			if (pixmap == NULL) {
+				drawable = &(get_drawable_pixmap(drawable)->drawable);
 				is_glamor_pixmap = TRUE;
-				drawable = &pixmap->drawable;
-				pixmap = NULL;
 			}
 		} else if (attachments[i] == DRI2BufferStencil && pDepthPixmap) {
 			pixmap = pDepthPixmap;
@@ -237,7 +229,7 @@ I830DRI2CreateBuffers(DrawablePtr drawable, unsigned int *attachments,
 				goto unwind;
 			}
 
-			if (attachment == DRI2BufferFrontLeft)
+			if (is_glamor_pixmap)
 				pixmap = fixup_glamor(drawable, pixmap);
 		}
 
@@ -314,10 +306,9 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 	if (attachment == DRI2BufferFrontLeft) {
 		pixmap = get_front_buffer(drawable);
 
-		if (pixmap && intel_get_pixmap_private(pixmap) == NULL) {
+		if (pixmap == NULL) {
+			drawable = &(get_drawable_pixmap(drawable)->drawable);
 			is_glamor_pixmap = TRUE;
-			drawable = &pixmap->drawable;
-			pixmap = NULL;
 		}
 	}
 
@@ -391,7 +382,7 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 			free(buffer);
 			return NULL;
 		}
-		if (attachment == DRI2BufferFrontLeft)
+		if (is_glamor_pixmap)
 			pixmap = fixup_glamor(drawable, pixmap);
 	}
 

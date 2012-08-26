@@ -382,6 +382,9 @@ bool sna_gradients_create(struct sna *sna)
 {
 	DBG(("%s\n", __FUNCTION__));
 
+	if (!can_render(sna))
+		return true;
+
 	if (!sna_alpha_cache_init(sna))
 		return false;
 

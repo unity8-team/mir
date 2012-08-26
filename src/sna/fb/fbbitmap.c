@@ -48,6 +48,8 @@ static inline void add(RegionPtr region,
 		region->extents.x2 = x2;
 }
 
+#define MASK_0 (FB_ALLONES & ~FbScrRight(FB_ALLONES, 1))
+
 /* Convert bitmap clip mask into clipping region.
  * First, goes through each line and makes boxes by noting the transitions
  * from 0 to 1 and 1 to 0.
@@ -57,7 +59,7 @@ static inline void add(RegionPtr region,
 RegionPtr
 fbBitmapToRegion(PixmapPtr pixmap)
 {
-	const register FbBits mask0 = FB_ALLONES & ~FbScrRight(FB_ALLONES, 1);
+	FbBits maskw;
 	register RegionPtr region;
 	const FbBits *bits, *line, *end;
 	int width, y1, y2, base, x1;
@@ -74,6 +76,9 @@ fbBitmapToRegion(PixmapPtr pixmap)
 	stride = pixmap->devKind >> (FB_SHIFT - 3);
 
 	width = pixmap->drawable.width;
+	maskw = 0;
+	if (width & 7)
+		maskw = FB_ALLONES & ~FbScrRight(FB_ALLONES, width & FB_MASK);
 	region->extents.x1 = width;
 	region->extents.x2 = 0;
 	y2 = 0;
@@ -82,10 +87,11 @@ fbBitmapToRegion(PixmapPtr pixmap)
 		bits = line;
 		line += stride;
 		while (y2 < pixmap->drawable.height &&
-		       memcmp(bits, line, (width+7)>>3) == 0)
+		       memcmp(bits, line, width >> 3) == 0 &&
+		       (maskw == 0 || (bits[width >> FB_SHIFT] & maskw) == (line[width >> FB_SHIFT] & maskw)))
 			line += stride, y2++;
 
-		if (READ(bits) & mask0)
+		if (READ(bits) & MASK_0)
 			x1 = 0;
 		else
 			x1 = -1;
@@ -102,7 +108,7 @@ fbBitmapToRegion(PixmapPtr pixmap)
 					continue;
 			}
 			for (i = 0; i < FB_UNIT; i++) {
-				if (w & mask0) {
+				if (w & MASK_0) {
 					if (x1 < 0)
 						x1 = base + i;
 				} else {
@@ -117,7 +123,7 @@ fbBitmapToRegion(PixmapPtr pixmap)
 		if (width & FB_MASK) {
 			FbBits w = READ(bits++);
 			for (i = 0; i < (width & FB_MASK); i++) {
-				if (w & mask0) {
+				if (w & MASK_0) {
 					if (x1 < 0)
 						x1 = base + i;
 				} else {

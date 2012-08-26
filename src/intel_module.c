@@ -28,9 +28,12 @@
 #include "config.h"
 #endif
 
+#include <unistd.h>
 #include <xf86_OSproc.h>
 #include <xf86Parser.h>
+#include <xf86drm.h>
 #include <xf86drmMode.h>
+#include <i915_drm.h>
 
 #include <xorgVersion.h>
 
@@ -43,8 +46,6 @@
 #include "intel_options.h"
 #include "legacy/legacy.h"
 #include "sna/sna_module.h"
-
-static struct intel_device_info *chipset_info;
 
 static const struct intel_device_info intel_generic_info = {
 	.gen = -1,
@@ -98,6 +99,10 @@ static const struct intel_device_info intel_ivybridge_info = {
 	.gen = 70,
 };
 
+static const struct intel_device_info intel_haswell_info = {
+	.gen = 75,
+};
+
 static const SymTabRec _intel_chipsets[] = {
 	{PCI_CHIP_I810,				"i810"},
 	{PCI_CHIP_I810_DC100,			"i810-dc100"},
@@ -147,11 +152,47 @@ static const SymTabRec _intel_chipsets[] = {
 	{PCI_CHIP_IVYBRIDGE_D_GT2,		"Ivybridge Desktop (GT2)" },
 	{PCI_CHIP_IVYBRIDGE_S_GT1,		"Ivybridge Server" },
 	{PCI_CHIP_IVYBRIDGE_S_GT2,		"Ivybridge Server (GT2)" },
+	{PCI_CHIP_HASWELL_D_GT1,		"Haswell Desktop (GT1)" },
+	{PCI_CHIP_HASWELL_D_GT2,		"Haswell Desktop (GT2)" },
+	{PCI_CHIP_HASWELL_D_GT2_PLUS,		"Haswell Desktop (GT2+)" },
+	{PCI_CHIP_HASWELL_M_GT1,		"Haswell Mobile (GT1)" },
+	{PCI_CHIP_HASWELL_M_GT2,		"Haswell Mobile (GT2)" },
+	{PCI_CHIP_HASWELL_M_GT2_PLUS,		"Haswell Mobile (GT2+)" },
+	{PCI_CHIP_HASWELL_S_GT1,		"Haswell Server (GT1)" },
+	{PCI_CHIP_HASWELL_S_GT2,		"Haswell Server (GT2)" },
+	{PCI_CHIP_HASWELL_S_GT2_PLUS,		"Haswell Server (GT2+)" },
+	{PCI_CHIP_HASWELL_SDV_D_GT1,		"Haswell SDV Desktop (GT1)" },
+	{PCI_CHIP_HASWELL_SDV_D_GT2,		"Haswell SDV Desktop (GT2)" },
+	{PCI_CHIP_HASWELL_SDV_D_GT2_PLUS,	"Haswell SDV Desktop (GT2+)" },
+	{PCI_CHIP_HASWELL_SDV_M_GT1,		"Haswell SDV Mobile (GT1)" },
+	{PCI_CHIP_HASWELL_SDV_M_GT2,		"Haswell SDV Mobile (GT2)" },
+	{PCI_CHIP_HASWELL_SDV_M_GT2_PLUS,	"Haswell SDV Mobile (GT2+)" },
+	{PCI_CHIP_HASWELL_SDV_S_GT1,		"Haswell SDV Server (GT1)" },
+	{PCI_CHIP_HASWELL_SDV_S_GT2,		"Haswell SDV Server (GT2)" },
+	{PCI_CHIP_HASWELL_SDV_S_GT2_PLUS,	"Haswell SDV Server (GT2+)" },
+	{PCI_CHIP_HASWELL_ULT_D_GT1,		"Haswell ULT Desktop (GT1)" },
+	{PCI_CHIP_HASWELL_ULT_D_GT2,		"Haswell ULT Desktop (GT2)" },
+	{PCI_CHIP_HASWELL_ULT_D_GT2_PLUS,	"Haswell ULT Desktop (GT2+)" },
+	{PCI_CHIP_HASWELL_ULT_M_GT1,		"Haswell ULT Mobile (GT1)" },
+	{PCI_CHIP_HASWELL_ULT_M_GT2,		"Haswell ULT Mobile (GT2)" },
+	{PCI_CHIP_HASWELL_ULT_M_GT2_PLUS,	"Haswell ULT Mobile (GT2+)" },
+	{PCI_CHIP_HASWELL_ULT_S_GT1,		"Haswell ULT Server (GT1)" },
+	{PCI_CHIP_HASWELL_ULT_S_GT2,		"Haswell ULT Server (GT2)" },
+	{PCI_CHIP_HASWELL_ULT_S_GT2_PLUS,	"Haswell ULT Server (GT2+)" },
+	{PCI_CHIP_HASWELL_CRW_D_GT1,		"Haswell CRW Desktop (GT1)" },
+	{PCI_CHIP_HASWELL_CRW_D_GT2,		"Haswell CRW Desktop (GT2)" },
+	{PCI_CHIP_HASWELL_CRW_D_GT2_PLUS,	"Haswell CRW Desktop (GT2+)" },
+	{PCI_CHIP_HASWELL_CRW_M_GT1,		"Haswell CRW Mobile (GT1)" },
+	{PCI_CHIP_HASWELL_CRW_M_GT2,		"Haswell CRW Mobile (GT2)" },
+	{PCI_CHIP_HASWELL_CRW_M_GT2_PLUS,	"Haswell CRW Mobile (GT2+)" },
+	{PCI_CHIP_HASWELL_CRW_S_GT1,		"Haswell CRW Server (GT1)" },
+	{PCI_CHIP_HASWELL_CRW_S_GT2,		"Haswell CRW Server (GT2)" },
+	{PCI_CHIP_HASWELL_CRW_S_GT2_PLUS,	"Haswell CRW Server (GT2+)" },
 	{-1,					NULL}
 };
 #define NUM_CHIPSETS (sizeof(_intel_chipsets) / sizeof(_intel_chipsets[0]))
 
-SymTabRec *intel_chipsets = (SymTabRec *) _intel_chipsets;
+static SymTabRec *intel_chipsets = (SymTabRec *) _intel_chipsets;
 
 #define INTEL_DEVICE_MATCH(d,i) \
     { 0x8086, (d), PCI_MATCH_ANY, PCI_MATCH_ANY, 0x3 << 16, 0xff << 16, (intptr_t)(i) }
@@ -219,13 +260,51 @@ static const struct pci_id_match intel_device_match[] = {
 	INTEL_DEVICE_MATCH (PCI_CHIP_IVYBRIDGE_S_GT1, &intel_ivybridge_info ),
 	INTEL_DEVICE_MATCH (PCI_CHIP_IVYBRIDGE_S_GT2, &intel_ivybridge_info ),
 
+	INTEL_DEVICE_MATCH (PCI_CHIP_HASWELL_D_GT1, &intel_haswell_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_HASWELL_D_GT2, &intel_haswell_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_HASWELL_D_GT2_PLUS, &intel_haswell_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_HASWELL_M_GT1, &intel_haswell_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_HASWELL_M_GT2, &intel_haswell_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_HASWELL_M_GT2_PLUS, &intel_haswell_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_HASWELL_S_GT1, &intel_haswell_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_HASWELL_S_GT2, &intel_haswell_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_HASWELL_S_GT2_PLUS, &intel_haswell_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_HASWELL_SDV_D_GT1, &intel_haswell_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_HASWELL_SDV_D_GT2, &intel_haswell_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_HASWELL_SDV_D_GT2_PLUS, &intel_haswell_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_HASWELL_SDV_M_GT1, &intel_haswell_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_HASWELL_SDV_M_GT2, &intel_haswell_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_HASWELL_SDV_M_GT2_PLUS, &intel_haswell_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_HASWELL_SDV_S_GT1, &intel_haswell_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_HASWELL_SDV_S_GT2, &intel_haswell_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_HASWELL_SDV_S_GT2_PLUS, &intel_haswell_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_HASWELL_ULT_D_GT1, &intel_haswell_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_HASWELL_ULT_D_GT2, &intel_haswell_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_HASWELL_ULT_D_GT2_PLUS, &intel_haswell_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_HASWELL_ULT_M_GT1, &intel_haswell_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_HASWELL_ULT_M_GT2, &intel_haswell_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_HASWELL_ULT_M_GT2_PLUS, &intel_haswell_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_HASWELL_ULT_S_GT1, &intel_haswell_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_HASWELL_ULT_S_GT2, &intel_haswell_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_HASWELL_ULT_S_GT2_PLUS, &intel_haswell_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_HASWELL_CRW_D_GT1, &intel_haswell_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_HASWELL_CRW_D_GT2, &intel_haswell_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_HASWELL_CRW_D_GT2_PLUS, &intel_haswell_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_HASWELL_CRW_M_GT1, &intel_haswell_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_HASWELL_CRW_M_GT2, &intel_haswell_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_HASWELL_CRW_M_GT2_PLUS, &intel_haswell_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_HASWELL_CRW_S_GT1, &intel_haswell_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_HASWELL_CRW_S_GT2, &intel_haswell_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_HASWELL_CRW_S_GT2_PLUS, &intel_haswell_info ),
+
 	INTEL_DEVICE_MATCH (PCI_MATCH_ANY, &intel_generic_info ),
 	{ 0, 0, 0 },
 };
 
-const struct intel_device_info *
+void
 intel_detect_chipset(ScrnInfoPtr scrn,
-		     EntityInfoPtr ent, struct pci_device *pci)
+		     EntityInfoPtr ent,
+		     struct pci_device *pci)
 {
 	MessageType from = X_PROBED;
 	const char *name = NULL;
@@ -254,7 +333,6 @@ intel_detect_chipset(ScrnInfoPtr scrn,
 	}
 
 	scrn->chipset = name;
-	return chipset_info;
 }
 
 /*
@@ -294,20 +372,43 @@ static Bool intel_driver_func(ScrnInfoPtr pScrn,
 static Bool has_kernel_mode_setting(struct pci_device *dev)
 {
 	char id[20];
-	int ret;
+	int ret, fd;
 
 	snprintf(id, sizeof(id),
 		 "pci:%04x:%02x:%02x.%d",
 		 dev->domain, dev->bus, dev->dev, dev->func);
 
 	ret = drmCheckModesettingSupported(id);
-	if (ret && xf86LoadKernelModule("i915"))
-		ret = drmCheckModesettingSupported(id);
-	/* Be nice to the user and load fbcon too */
-	if (!ret)
+	if (ret) {
+		if (xf86LoadKernelModule("i915"))
+			ret = drmCheckModesettingSupported(id);
+		if (ret)
+			return FALSE;
+		/* Be nice to the user and load fbcon too */
 		(void)xf86LoadKernelModule("fbcon");
+	}
 
-	return ret == 0;
+	/* Confirm that this is a i915.ko device with GEM/KMS enabled */
+	ret = FALSE;
+	fd = drmOpen(NULL, id);
+	if (fd != -1) {
+		drmVersionPtr version = drmGetVersion(fd);
+		if (version) {
+			ret = strcmp ("i915", version->name) == 0;
+			drmFreeVersion(version);
+		}
+		if (ret) {
+			struct drm_i915_getparam gp;
+			gp.param = I915_PARAM_HAS_GEM;
+			gp.value = &ret;
+			if (drmIoctl(fd, DRM_IOCTL_I915_GETPARAM, &gp))
+				ret = FALSE;
+		}
+
+		close(fd);
+	}
+
+	return ret;
 }
 
 extern XF86ConfigPtr xf86configptr;
@@ -364,8 +465,6 @@ static Bool intel_pci_probe(DriverPtr		driver,
 	PciChipsets intel_pci_chipsets[NUM_CHIPSETS];
 	unsigned i;
 
-	chipset_info = (void *)match_data;
-
 	if (!has_kernel_mode_setting(device)) {
 #if KMS_ONLY
 		return FALSE;
@@ -400,6 +499,7 @@ static Bool intel_pci_probe(DriverPtr		driver,
 	scrn->driverVersion = INTEL_VERSION;
 	scrn->driverName = INTEL_DRIVER_NAME;
 	scrn->name = INTEL_NAME;
+	scrn->driverPrivate = (void *)(match_data | 1);
 	scrn->Probe = NULL;
 
 #if !KMS_ONLY

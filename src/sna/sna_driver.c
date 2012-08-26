@@ -168,11 +168,7 @@ static Bool sna_create_screen_resources(ScreenPtr screen)
 	free(screen->devPrivate);
 	screen->devPrivate = NULL;
 
-	if (!sna_accel_create(screen, sna)) {
-		xf86DrvMsg(screen->myNum, X_ERROR,
-			   "[intel] Failed to initialise acceleration routines\n");
-		goto cleanup_front;
-	}
+	sna_accel_create(sna);
 
 	sna->front = screen->CreatePixmap(screen,
 					  screen->width,
@@ -263,7 +259,7 @@ static int sna_open_drm_master(ScrnInfoPtr scrn)
 	snprintf(busid, sizeof(busid), "pci:%04x:%02x:%02x.%d",
 		 pci->domain, pci->bus, pci->dev, pci->func);
 
-	fd = drmOpen("i915", busid);
+	fd = drmOpen(NULL, busid);
 	if (fd == -1) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[drm] Failed to open DRM device for %s: %s\n",
@@ -383,14 +379,15 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 
 	sna_selftest();
 
-	sna = to_sna(scrn);
-	if (sna == NULL) {
+	if (((uintptr_t)scrn->driverPrivate) & 1) {
 		sna = xnfcalloc(sizeof(struct sna), 1);
 		if (sna == NULL)
 			return FALSE;
 
+		sna->info = (void *)((uintptr_t)scrn->driverPrivate & ~1);
 		scrn->driverPrivate = sna;
 	}
+	sna = to_sna(scrn);
 	sna->scrn = scrn;
 	sna->pEnt = pEnt;
 
@@ -438,8 +435,15 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 	if (sna->Options == NULL)
 		return FALSE;
 
-	sna->info = intel_detect_chipset(scrn, sna->pEnt, sna->PciInfo);
+	intel_detect_chipset(scrn, sna->pEnt, sna->PciInfo);
+
 	kgem_init(&sna->kgem, fd, sna->PciInfo, sna->info->gen);
+	if (xf86ReturnOptValBool(sna->Options, OPTION_ACCEL_DISABLE, FALSE)) {
+		xf86DrvMsg(sna->scrn->scrnIndex, X_CONFIG,
+			   "Disabling hardware acceleration.\n");
+		sna->kgem.wedged = true;
+	}
+
 	if (!xf86ReturnOptValBool(sna->Options,
 				  OPTION_RELAXED_FENCING,
 				  sna->kgem.has_relaxed_fencing)) {
@@ -508,7 +512,9 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 	/* Set display resolution */
 	xf86SetDpi(scrn, 0, 0);
 
-	sna->dri_available = !!xf86LoadSubModule(scrn, "dri2");
+	sna->dri_available = false;
+	if (xf86ReturnOptValBool(sna->Options, OPTION_DRI, TRUE))
+		sna->dri_available = !!xf86LoadSubModule(scrn, "dri2");
 
 	return TRUE;
 }
@@ -1061,7 +1067,7 @@ Bool sna_init_scrn(ScrnInfoPtr scrn, int entity_num)
 #if defined(USE_GIT_DESCRIBE)
 	xf86DrvMsg(scrn->scrnIndex, X_INFO,
 		   "SNA compiled from %s\n", git_version);
-#elif BUILDER_DESCRIPTION
+#elif defined(BUILDER_DESCRIPTION)
 	xf86DrvMsg(scrn->scrnIndex, X_INFO,
 		   "SNA compiled: %s\n", BUILDER_DESCRIPTION);
 #endif

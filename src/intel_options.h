@@ -11,6 +11,7 @@
  */
 
 enum intel_options {
+	OPTION_ACCEL_DISABLE,
 	OPTION_ACCEL_METHOD,
 	OPTION_DRI,
 	OPTION_VIDEO_KEY,
