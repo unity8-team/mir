@@ -1,3 +1,18 @@
+Release 2.20.5 (2012-08-26)
+===========================
+Another silly bug found, another small bugfix release. The goal was for
+the driver to bind to all Intel devices supported by the kernel.
+Unfortunately we were too successful and started claiming Pouslbo,
+Medfield and Cedarview devices which are still encumbered by propietary
+IP and not supported by this driver.
+
+Bugs fixed since 2.20.4:
+
+ * Only bind to Intel devices using the i915 kernel module
+
+ * Regression in the bitmap-to-region code, e.g. icewm window buttons
+   https://bugs.freedesktop.org/show_bug.cgi?id=53699
+
 Release 2.20.4 (2012-08-18)
 ===========================
 Continuing the small bugfix releases, the only real feature is initial
