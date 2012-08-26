@@ -2721,8 +2721,10 @@ gen6_render_composite(struct sna *sna,
 					       src_x, src_y,
 					       width, height,
 					       dst_x, dst_y,
-					       tmp))
+					       tmp)) {
+			sna_render_composite_redirect_done(sna, tmp);
 			return true;
+		}
 
 		gen6_composite_channel_convert(&tmp->src);
 		break;
