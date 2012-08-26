@@ -1915,7 +1915,9 @@ sna_blt_composite__convert(struct sna *sna,
 	return false;
 #endif
 
-	DBG(("%s\n", __FUNCTION__));
+	DBG(("%s src=%d, dst=%d (redirect? %d)\n", __FUNCTION__,
+	     tmp->src.bo->handle, tmp->dst.bo->handle,
+	     tmp->redirect.real_bo ? tmp->redirect.real_bo->handle : 0));
 
 	if (!kgem_bo_can_blt(&sna->kgem, tmp->dst.bo) ||
 	    !kgem_bo_can_blt(&sna->kgem, tmp->src.bo)) {
