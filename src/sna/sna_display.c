@@ -290,6 +290,31 @@ enum {
 	NAMED,
 };
 
+static char *
+has_user_backlight_override(xf86OutputPtr output)
+{
+	struct sna_output *sna_output = output->driver_private;
+	struct sna *sna = to_sna(output->scrn);
+	char *str;
+	int max;
+
+	str = xf86GetOptValString(sna->Options, OPTION_BACKLIGHT);
+	if (str == NULL)
+		return NULL;
+
+	sna_output->backlight_iface = str;
+	max = sna_output_backlight_get_max(output);
+	sna_output->backlight_iface = NULL;
+	if (max <= 0) {
+		xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
+			   "unrecognised backlight control interface '%s'\n",
+			   str);
+		return NULL;
+	}
+
+	return str;
+}
+
 static void
 sna_output_backlight_init(xf86OutputPtr output)
 {
@@ -307,14 +332,17 @@ sna_output_backlight_init(xf86OutputPtr output)
 		"acpi_video0",
 		"intel_backlight",
 	};
+	MessageType from = X_PROBED;
 	struct sna_output *sna_output = output->driver_private;
 	char *best_iface;
 	int best_type;
 	DIR *dir;
 	struct dirent *de;
 
-	best_iface = NULL;
 	best_type = INT_MAX;
+	best_iface = has_user_backlight_override(output);
+	if (best_iface)
+		goto skip;
 
 	dir = opendir(BACKLIGHT_CLASS);
 	if (dir == NULL)
@@ -371,6 +399,7 @@ sna_output_backlight_init(xf86OutputPtr output)
 
 			sna_output->backlight_iface = de->d_name;
 			max = sna_output_backlight_get_max(output);
+			sna_output->backlight_iface = NULL;
 			if (max <= 0)
 				continue;
 
@@ -384,24 +413,23 @@ sna_output_backlight_init(xf86OutputPtr output)
 	}
 	closedir(dir);
 
-	sna_output->backlight_iface = NULL;
+	if (!best_iface)
+		return;
 
-	if (best_iface) {
-		const char *str;
-
-		sna_output->backlight_iface = best_iface;
-		sna_output->backlight_max = sna_output_backlight_get_max(output);
-		sna_output->backlight_active_level = sna_output_backlight_get(output);
-		switch (best_type) {
-		case FIRMWARE: str = "firmware"; break;
-		case PLATFORM: str = "platform"; break;
-		case RAW: str = "raw"; break;
-		default: str = "unknown"; break;
-		}
-		xf86DrvMsg(output->scrn->scrnIndex, X_INFO,
-			   "found backlight control interface %s (type '%s')\n",
-			   best_iface, str);
+skip:
+	sna_output->backlight_iface = best_iface;
+	sna_output->backlight_max = sna_output_backlight_get_max(output);
+	sna_output->backlight_active_level = sna_output_backlight_get(output);
+	switch (best_type) {
+	case INT_MAX: best_iface = "user"; from = X_CONFIG; break;
+	case FIRMWARE: best_iface = "firmware"; break;
+	case PLATFORM: best_iface = "platform"; break;
+	case RAW: best_iface = "raw"; break;
+	default: best_iface = "unknown"; break;
 	}
+	xf86DrvMsg(output->scrn->scrnIndex, from,
+		   "found backlight control interface %s (type '%s')\n",
+		   sna_output->backlight_iface, best_iface);
 }
 
 

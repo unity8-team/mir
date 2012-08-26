@@ -132,6 +132,15 @@ have options for selecting adaptors.
 .IP
 Default: Textured video adaptor is preferred.
 .TP
+.BI "Option \*Backlight\*q \*q" string \*q
+Override the probed backlight control interface. Sometimes the automatically
+selected backlight interface may not correspond to the correct, or simply
+most useful, interface available on the system. This allows you to override
+by specifying the entry under /sys/class/backlight to use.
+server log.
+.IP
+Default: Automatic selection.
+.TP
 .BI "Option \*qFallbackDebug\*q \*q" boolean \*q
 Enable printing of debugging information on acceleration fallbacks to the
 server log.
