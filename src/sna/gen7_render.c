@@ -2788,16 +2788,6 @@ gen7_render_composite(struct sna *sna,
 	if (!gen7_composite_set_target(sna, tmp, dst))
 		return false;
 
-	if (mask == NULL &&
-	    sna->kgem.mode == KGEM_BLT &&
-	    sna_blt_composite(sna, op,
-			      src, dst,
-			      src_x, src_y,
-			      dst_x, dst_y,
-			      width, height,
-			      tmp, false))
-		return true;
-
 	sna_render_reduce_damage(tmp, dst_x, dst_y, width, height);
 
 	if (too_large(tmp->dst.width, tmp->dst.height)) {
