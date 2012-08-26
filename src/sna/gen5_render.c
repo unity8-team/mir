@@ -1966,44 +1966,53 @@ gen5_render_composite_done(struct sna *sna,
 }
 
 static bool
-gen5_composite_set_target(PicturePtr dst, struct sna_composite_op *op)
+gen5_composite_set_target(struct sna *sna,
+			  struct sna_composite_op *op,
+			  PicturePtr dst,
+			  int x, int y, int w, int h)
 {
-	struct sna_pixmap *priv;
-
-	DBG(("%s: dst=%p\n", __FUNCTION__, dst));
-
-	assert(gen5_check_dst_format(dst->format));
+	BoxRec box;
 
 	op->dst.pixmap = get_drawable_pixmap(dst->pDrawable);
-	priv = sna_pixmap(op->dst.pixmap);
-
-	op->dst.width  = op->dst.pixmap->drawable.width;
-	op->dst.height = op->dst.pixmap->drawable.height;
 	op->dst.format = dst->format;
+	op->dst.width = op->dst.pixmap->drawable.width;
+	op->dst.height = op->dst.pixmap->drawable.height;
 
-	DBG(("%s: pixmap=%p, format=%08x\n", __FUNCTION__,
-	     op->dst.pixmap, (unsigned int)op->dst.format));
-
-	op->dst.bo = NULL;
-	if (priv && priv->gpu_bo == NULL) {
-		op->dst.bo = priv->cpu_bo;
-		op->damage = &priv->cpu_damage;
+	if (w && h) {
+		box.x1 = x;
+		box.y1 = y;
+		box.x2 = x + w;
+		box.y2 = y + h;
+	} else {
+		box.x1 = dst->pDrawable->x;
+		box.y1 = dst->pDrawable->y;
+		box.x2 = box.x1 + dst->pDrawable->width;
+		box.y2 = box.y1 + dst->pDrawable->height;
 	}
-	if (op->dst.bo == NULL) {
-		priv = sna_pixmap_force_to_gpu(op->dst.pixmap, MOVE_READ | MOVE_WRITE);
-		if (priv == NULL)
-			return false;
 
-		op->dst.bo = priv->gpu_bo;
-		op->damage = &priv->gpu_damage;
-	}
-	if (sna_damage_is_all(op->damage, op->dst.width, op->dst.height))
-		op->damage = NULL;
-
-	DBG(("%s: bo=%p, damage=%p\n", __FUNCTION__, op->dst.bo, op->damage));
+	op->dst.bo = sna_drawable_use_bo (dst->pDrawable,
+					  PREFER_GPU | FORCE_GPU | RENDER_GPU,
+					  &box, &op->damage);
+	if (op->dst.bo == NULL)
+		return false;
 
 	get_drawable_deltas(dst->pDrawable, op->dst.pixmap,
 			    &op->dst.x, &op->dst.y);
+
+	DBG(("%s: pixmap=%p, format=%08x, size=%dx%d, pitch=%d, delta=(%d,%d),damage=%p\n",
+	     __FUNCTION__,
+	     op->dst.pixmap, (int)op->dst.format,
+	     op->dst.width, op->dst.height,
+	     op->dst.bo->pitch,
+	     op->dst.x, op->dst.y,
+	     op->damage ? *op->damage : (void *)-1));
+
+	assert(op->dst.bo->proxy == NULL);
+
+	if (too_large(op->dst.width, op->dst.height) &&
+	    !sna_render_composite_redirect(sna, op, x, y, w, h))
+		return false;
+
 	return true;
 }
 
@@ -2299,17 +2308,11 @@ gen5_render_composite(struct sna *sna,
 					    width, height,
 					    tmp);
 
-	if (!gen5_composite_set_target(dst, tmp)) {
+	if (!gen5_composite_set_target(sna, tmp, dst,
+				       dst_x, dst_y, width, height)) {
 		DBG(("%s: failed to set composite target\n", __FUNCTION__));
 		return false;
 	}
-
-	sna_render_reduce_damage(tmp, dst_x, dst_y, width, height);
-
-	if (too_large(tmp->dst.width, tmp->dst.height) &&
-	    !sna_render_composite_redirect(sna, tmp,
-					   dst_x, dst_y, width, height))
-		return false;
 
 	DBG(("%s: preparing source\n", __FUNCTION__));
 	switch (gen5_composite_picture(sna, src, &tmp->src,
@@ -2676,15 +2679,9 @@ gen5_render_composite_spans(struct sna *sna,
 	}
 
 	tmp->base.op = op;
-	if (!gen5_composite_set_target(dst, &tmp->base))
+	if (!gen5_composite_set_target(sna, &tmp->base, dst,
+				       dst_x, dst_y, width, height))
 		return false;
-	sna_render_reduce_damage(&tmp->base, dst_x, dst_y, width, height);
-
-	if (too_large(tmp->base.dst.width, tmp->base.dst.height)) {
-		if (!sna_render_composite_redirect(sna, &tmp->base,
-						   dst_x, dst_y, width, height))
-			return false;
-	}
 
 	switch (gen5_composite_picture(sna, src, &tmp->base.src,
 				       src_x, src_y,
