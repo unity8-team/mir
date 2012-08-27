@@ -1782,10 +1782,8 @@ gen2_render_composite(struct sna *sna,
 					       src_x, src_y,
 					       width, height,
 					       dst_x, dst_y,
-					       tmp)) {
-			sna_render_composite_redirect_done(sna, tmp);
+					       tmp))
 			return true;
-		}
 		break;
 	}
 
