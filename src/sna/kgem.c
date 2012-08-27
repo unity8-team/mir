@@ -4377,6 +4377,9 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 		if (old) {
 			DBG(("%s: reusing handle=%d for buffer\n",
 			     __FUNCTION__, old->handle));
+			assert(kgem_bo_is_mappable(kgem, old));
+			assert(!old->snoop);
+			assert(old->rq == NULL);
 
 			bo = buffer_alloc();
 			if (bo == NULL)
@@ -4388,7 +4391,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			assert(bo->mmapped);
 			assert(bo->base.refcnt == 1);
 
-			bo->mem = kgem_bo_map(kgem, &bo->base);
+			bo->mem = kgem_bo_map__gtt(kgem, &bo->base);
 			if (bo->mem) {
 				alloc = num_pages(&bo->base);
 				goto init;
@@ -4398,6 +4401,8 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			}
 		}
 	}
+#else
+	flags &= ~KGEM_BUFFER_INPLACE;
 #endif
 	/* Be more parsimonious with pwrite/pread/cacheable buffers */
 	if ((flags & KGEM_BUFFER_INPLACE) == 0)
