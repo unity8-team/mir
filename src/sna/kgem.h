@@ -97,6 +97,7 @@ struct kgem_request {
 	struct list list;
 	struct kgem_bo *bo;
 	struct list buffers;
+	int ring;
 };
 
 enum {
@@ -126,8 +127,10 @@ struct kgem {
 	struct list inactive[NUM_CACHE_BUCKETS];
 	struct list snoop;
 	struct list batch_buffers, active_buffers;
-	struct list requests;
+
+	struct list requests[2];
 	struct kgem_request *next_request;
+	uint32_t num_requests;
 
 	struct {
 		struct list inactive[NUM_CACHE_BUCKETS];
@@ -261,14 +264,13 @@ bool kgem_retire(struct kgem *kgem);
 bool __kgem_is_idle(struct kgem *kgem);
 static inline bool kgem_is_idle(struct kgem *kgem)
 {
-	if (list_is_empty(&kgem->requests)) {
+	if (kgem->num_requests == 0) {
 		DBG(("%s: no outstanding requests\n", __FUNCTION__));
 		return true;
 	}
 
 	return __kgem_is_idle(kgem);
 }
-struct kgem_bo *kgem_get_last_request(struct kgem *kgem);
 
 void _kgem_submit(struct kgem *kgem);
 static inline void kgem_submit(struct kgem *kgem)
