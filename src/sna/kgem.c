@@ -2262,7 +2262,7 @@ void _kgem_submit(struct kgem *kgem)
 			if (DEBUG_FLUSH_SYNC) {
 				struct drm_i915_gem_set_domain set_domain;
 
-				DBG(("%s: debug sync\n", __FUNCTION__));
+				DBG(("%s: debug sync, starting\n", __FUNCTION__));
 
 				VG_CLEAR(set_domain);
 				set_domain.handle = handle;
@@ -2274,6 +2274,8 @@ void _kgem_submit(struct kgem *kgem)
 					DBG(("%s: sync: GPU hang detected\n", __FUNCTION__));
 					kgem_throttle(kgem);
 				}
+
+				DBG(("%s: debug sync, completed\n", __FUNCTION__));
 			}
 		}
 

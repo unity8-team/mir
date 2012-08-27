@@ -551,7 +551,8 @@ sna_render_pixmap_bo(struct sna *sna,
 	struct sna_pixmap *priv;
 	BoxRec box;
 
-	DBG(("%s (%d, %d)x(%d, %d)/(%d, %d)\n", __FUNCTION__,
+	DBG(("%s pixmap=%ld, (%d, %d)x(%d, %d)/(%d, %d)\n",
+	     __FUNCTION__, pixmap->drawable.serialNumber,
 	     x, y, w,h, pixmap->drawable.width, pixmap->drawable.height));
 
 	channel->width  = pixmap->drawable.width;
@@ -621,7 +622,6 @@ sna_render_pixmap_bo(struct sna *sna,
 	     __FUNCTION__,
 	     channel->offset[0], channel->offset[1],
 	     pixmap->drawable.width, pixmap->drawable.height));
-
 
 	channel->bo = __sna_render_pixmap_bo(sna, pixmap, &box, false);
 	if (channel->bo == NULL) {
