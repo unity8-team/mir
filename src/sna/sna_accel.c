@@ -1025,10 +1025,8 @@ void sna_add_flush_pixmap(struct sna *sna,
 	assert(bo);
 	list_move(&priv->list, &sna->flush_pixmaps);
 
-	if (bo->exec == NULL && sna->kgem.need_retire)
-		kgem_retire(&sna->kgem);
-	if (bo->exec == NULL || !sna->kgem.need_retire) {
-		DBG(("%s: flush bo idle, flushing\n", __FUNCTION__));
+	if (bo->exec == NULL) {
+		DBG(("%s: new flush bo, flushin before\n", __FUNCTION__));
 		kgem_submit(&sna->kgem);
 	}
 }

@@ -3438,6 +3438,8 @@ bool kgem_check_bo(struct kgem *kgem, ...)
 	int num_exec = 0;
 	int num_pages = 0;
 
+	kgem_flush(kgem);
+
 	va_start(ap, kgem);
 	while ((bo = va_arg(ap, struct kgem_bo *))) {
 		if (bo->exec)
@@ -3471,6 +3473,8 @@ bool kgem_check_bo(struct kgem *kgem, ...)
 bool kgem_check_bo_fenced(struct kgem *kgem, struct kgem_bo *bo)
 {
 	uint32_t size;
+
+	kgem_flush(kgem);
 
 	while (bo->proxy)
 		bo = bo->proxy;
@@ -3514,6 +3518,8 @@ bool kgem_check_many_bo_fenced(struct kgem *kgem, ...)
 	int num_exec = 0;
 	int num_pages = 0;
 	int fenced_size = 0;
+
+	kgem_flush(kgem);
 
 	va_start(ap, kgem);
 	while ((bo = va_arg(ap, struct kgem_bo *))) {
