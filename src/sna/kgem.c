@@ -353,6 +353,7 @@ kgem_busy(struct kgem *kgem, int handle)
 	busy.handle = handle;
 	busy.busy = !kgem->wedged;
 	(void)drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_BUSY, &busy);
+	DBG(("%s: handle=%d, busy=%d, wedged=%d\n", busy.busy, kgem->wedged));
 
 	return busy.busy;
 }
@@ -1769,7 +1770,7 @@ bool __kgem_is_idle(struct kgem *kgem)
 		return false;
 	}
 
-	DBG(("%s: gpu idle\n", __FUNCTION__));
+	DBG(("%s: gpu idle (handle=%d)\n", __FUNCTION__, rq->bo->handle));
 	kgem_retire__requests(kgem);
 	assert(list_is_empty(&kgem->requests));
 	return true;
