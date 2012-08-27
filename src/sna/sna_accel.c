@@ -3221,7 +3221,12 @@ static bool upload_inplace(struct sna *sna,
 		}
 	}
 
-	DBG(("%s? no\n", __FUNCTION__));
+	if (priv->create & (KGEM_CAN_CREATE_GPU | KGEM_CAN_CREATE_CPU) == KGEM_CAN_CREATE_GPU &&
+	    region_subsumes_drawable(region, &pixmap->drawable)) {
+		DBG(("%s? yes, will fill fresh GPU bo\n", __FUNCTION__));
+		return true;
+	}
+
 	return false;
 }
 
