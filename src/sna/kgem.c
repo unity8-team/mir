@@ -4625,8 +4625,9 @@ void kgem_buffer_read_sync(struct kgem *kgem, struct kgem_bo *_bo)
 	struct kgem_buffer *bo;
 	uint32_t offset = _bo->delta, length = _bo->size.bytes;
 
+	/* We expect the caller to have already submitted the batch */
 	assert(_bo->io);
-	assert(_bo->exec == &_kgem_dummy_exec);
+	assert(_bo->exec == NULL);
 	assert(_bo->rq == NULL);
 	assert(_bo->proxy);
 

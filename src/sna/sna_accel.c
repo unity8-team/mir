@@ -2022,6 +2022,7 @@ out:
 	if (flags & MOVE_WRITE) {
 		priv->source_count = SOURCE_BIAS;
 		assert(priv->gpu_bo == NULL || priv->gpu_bo->proxy == NULL);
+		assert(!priv->flush || !list_is_empty(&priv->list));
 	}
 	if ((flags & MOVE_ASYNC_HINT) == 0 && priv->cpu_bo) {
 		DBG(("%s: syncing cpu bo\n", __FUNCTION__));
@@ -3432,6 +3433,7 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 			sna_add_flush_pixmap(sna, priv, priv->gpu_bo);
 		}
 	}
+	assert(!priv->flush || !list_is_empty(&priv->list));
 	priv->cpu = true;
 
 blt:
