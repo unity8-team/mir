@@ -11638,7 +11638,7 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 	/* If the source is already on the GPU, keep the operation on the GPU */
 	if (gc->fillStyle == FillTiled) {
 		if (!gc->tileIsPixel && sna_pixmap_is_gpu(gc->tile.pixmap)) {
-			DBG(("%s: source is already on the gpu\n"));
+			DBG(("%s: source is already on the gpu\n", __FUNCTION__));
 			hint |= PREFER_GPU | FORCE_GPU;
 		}
 	}
