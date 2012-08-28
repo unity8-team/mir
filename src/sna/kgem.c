@@ -1910,13 +1910,18 @@ static void kgem_finish_buffers(struct kgem *kgem)
 		}
 
 		if (bo->mmapped) {
+			int used;
+
 			assert(!bo->need_io);
+
+			used = ALIGN(bo->used + PAGE_SIZE-1, PAGE_SIZE);
 			if (!DBG_NO_UPLOAD_ACTIVE &&
-			    bo->used + PAGE_SIZE <= bytes(&bo->base) &&
+			    used + PAGE_SIZE <= bytes(&bo->base) &&
 			    (kgem->has_llc || !IS_CPU_MAP(bo->base.map))) {
 				DBG(("%s: retaining upload buffer (%d/%d)\n",
 				     __FUNCTION__, bo->used, bytes(&bo->base)));
 				assert(!bo->base.snoop);
+				bo->used = used;
 				list_move(&bo->base.list,
 					  &kgem->active_buffers);
 				continue;
