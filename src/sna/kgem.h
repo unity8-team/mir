@@ -279,10 +279,9 @@ static inline void kgem_submit(struct kgem *kgem)
 		_kgem_submit(kgem);
 }
 
-static inline void kgem_flush(struct kgem *kgem)
+static inline bool kgem_flush(struct kgem *kgem)
 {
-	if (kgem->flush && kgem_is_idle(kgem))
-		_kgem_submit(kgem);
+	return kgem->flush && kgem_is_idle(kgem);
 }
 
 static inline void kgem_bo_submit(struct kgem *kgem, struct kgem_bo *bo)
