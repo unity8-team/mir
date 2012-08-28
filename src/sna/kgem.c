@@ -3905,6 +3905,8 @@ uint32_t kgem_bo_flink(struct kgem *kgem, struct kgem_bo *bo)
 
 	/* The bo is outside of our control, so presume it is written to */
 	bo->needs_flush = true;
+	if (bo->domain != DOMAIN_GPU)
+		bo->domain = DOMAIN_NONE;
 
 	/* Henceforth, we need to broadcast all updates to clients and
 	 * flush our rendering before doing so.

@@ -426,6 +426,8 @@ static void set_bo(PixmapPtr pixmap, struct kgem_bo *bo)
 
 	kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
 	priv->gpu_bo = ref(bo);
+	if (bo->domain != DOMAIN_GPU)
+		bo->domain = DOMAIN_NONE;
 
 	/* Post damage on the new front buffer so that listeners, such
 	 * as DisplayLink know take a copy and shove it over the USB.
