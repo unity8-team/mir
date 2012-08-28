@@ -4300,6 +4300,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			assert(bo->base.refcnt >= 1);
 			assert(bo->mmapped);
 			assert(!bo->base.snoop);
+			assert(!IS_CPU_MAP(bo->base.map) || kgem->has_llc);
 
 			if ((bo->write & ~flags) & KGEM_BUFFER_INPLACE) {
 				DBG(("%s: skip write %x buffer, need %x\n",
@@ -4435,9 +4436,11 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			assert(bo->mmapped);
 			assert(bo->base.refcnt == 1);
 
-			bo->mem = kgem_bo_map__gtt(kgem, &bo->base);
+			bo->mem = kgem_bo_map(kgem, &bo->base);
 			if (bo->mem) {
 				alloc = num_pages(&bo->base);
+				if (IS_CPU_MAP(bo->base.map))
+				    flags &= ~KGEM_BUFFER_INPLACE;
 				goto init;
 			} else {
 				bo->base.refcnt = 0;
