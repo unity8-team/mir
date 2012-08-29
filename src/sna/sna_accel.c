@@ -2379,6 +2379,7 @@ sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
 	if (priv->gpu_bo && priv->gpu_bo->proxy) {
 		DBG(("%s: cached upload proxy, discard and revert to GPU\n",
 		     __FUNCTION__));
+		assert(priv->gpu_damage == NULL);
 		kgem_bo_destroy(&to_sna_from_pixmap(pixmap)->kgem,
 				priv->gpu_bo);
 		priv->gpu_bo = NULL;
@@ -2548,7 +2549,6 @@ use_gpu_bo:
 	return priv->gpu_bo;
 
 use_cpu_bo:
-	assert(!priv->clear);
 	if (priv->cpu_bo == NULL)
 		return NULL;
 
