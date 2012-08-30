@@ -1206,24 +1206,21 @@ static void chain_swap(struct sna *sna,
 static bool sna_dri_blit_complete(struct sna *sna,
 				  struct sna_dri_frame_event *info)
 {
-	if (info->bo && kgem_bo_is_busy(info->bo)) {
-		kgem_retire(&sna->kgem);
-		if (kgem_bo_is_busy(info->bo)) {
-			drmVBlank vbl;
+	if (info->bo && __kgem_bo_is_busy(&sna->kgem, info->bo)) {
+		drmVBlank vbl;
 
-			DBG(("%s: vsync'ed blit is still busy, postponing\n",
-			     __FUNCTION__));
+		DBG(("%s: vsync'ed blit is still busy, postponing\n",
+		     __FUNCTION__));
 
-			VG_CLEAR(vbl);
-			vbl.request.type =
-				DRM_VBLANK_RELATIVE |
-				DRM_VBLANK_EVENT |
-				pipe_select(info->pipe);
-			vbl.request.sequence = 1;
-			vbl.request.signal = (unsigned long)info;
-			if (!sna_wait_vblank(sna, &vbl))
-				return false;
-		}
+		VG_CLEAR(vbl);
+		vbl.request.type =
+			DRM_VBLANK_RELATIVE |
+			DRM_VBLANK_EVENT |
+			pipe_select(info->pipe);
+		vbl.request.sequence = 1;
+		vbl.request.signal = (unsigned long)info;
+		if (!sna_wait_vblank(sna, &vbl))
+			return false;
 	}
 
 	return true;
