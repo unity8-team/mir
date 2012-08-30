@@ -1258,8 +1258,10 @@ inline static void kgem_bo_move_to_inactive(struct kgem *kgem,
 {
 	DBG(("%s: moving handle=%d to inactive\n", __FUNCTION__, bo->handle));
 
+	assert(bo->refcnt == 0);
 	assert(bo->reusable);
 	assert(bo->rq == NULL);
+	assert(bo->exec == NULL);
 	assert(bo->domain != DOMAIN_GPU);
 	assert(!kgem_busy(kgem, bo->handle));
 	assert(!bo->proxy);
@@ -1544,6 +1546,7 @@ destroy:
 
 static void kgem_bo_unref(struct kgem *kgem, struct kgem_bo *bo)
 {
+	assert(bo->refcnt);
 	if (--bo->refcnt == 0)
 		__kgem_bo_destroy(kgem, bo);
 }

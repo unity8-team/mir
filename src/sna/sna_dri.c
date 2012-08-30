@@ -616,7 +616,7 @@ sna_dri_copy_to_front(struct sna *sna, DrawablePtr draw, RegionPtr region,
 		if (flush) { /* STAT! */
 			struct kgem_request *rq = sna->kgem.next_request;
 			kgem_submit(&sna->kgem);
-			bo = rq->bo;
+			bo = kgem_bo_reference(rq->bo);
 		}
 	}
 
