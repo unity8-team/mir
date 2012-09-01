@@ -543,6 +543,7 @@ gen2_get_batch(struct sna *sna)
 
 static void gen2_emit_target(struct sna *sna, const struct sna_composite_op *op)
 {
+	assert(!too_large(op->dst.width, op->dst.height));
 	assert(op->dst.bo->pitch >= 8 && op->dst.bo->pitch <= MAX_3D_PITCH);
 	assert(sna->render_state.gen2.vertex_offset == 0);
 

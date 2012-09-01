@@ -1341,6 +1341,8 @@ static void gen3_emit_target(struct sna *sna,
 {
 	struct gen3_render_state *state = &sna->render_state.gen3;
 
+	assert(!too_large(width, height));
+
 	/* BUF_INFO is an implicit flush, so skip if the target is unchanged. */
 	assert(bo->unique_id != 0);
 	if (bo->unique_id != state->current_dst) {
