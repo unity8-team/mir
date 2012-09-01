@@ -4153,6 +4153,10 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 		DBG(("%s: overwritting CPU damage\n", __FUNCTION__));
 		if (region_subsumes_damage(region, dst_priv->cpu_damage)) {
 			DBG(("%s: discarding existing CPU damage\n", __FUNCTION__));
+			if (dst_priv->gpu_bo && dst_priv->gpu_bo->proxy) {
+				kgem_bo_destroy(&sna->kgem, dst_priv->gpu_bo);
+				dst_priv->gpu_bo = NULL;
+			}
 			sna_damage_destroy(&dst_priv->cpu_damage);
 			list_del(&dst_priv->list);
 		}
@@ -11580,6 +11584,10 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 		    region_is_singular(gc->pCompositeClip)) {
 			if (region_subsumes_damage(&region, priv->cpu_damage)) {
 				DBG(("%s: discarding existing CPU damage\n", __FUNCTION__));
+				if (priv->gpu_bo && priv->gpu_bo->proxy) {
+					kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
+					priv->gpu_bo = NULL;
+				}
 				sna_damage_destroy(&priv->cpu_damage);
 				list_del(&priv->list);
 			}
