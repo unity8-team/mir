@@ -1268,9 +1268,6 @@ void sna_dri_vblank_handler(struct sna *sna, struct drm_event_vblank *event)
 		break;
 
 	case DRI2_SWAP_THROTTLE:
-		if (!sna_dri_blit_complete(sna, info))
-			return;
-
 		DBG(("%s: %d complete, frame=%d tv=%d.%06d\n",
 		     __FUNCTION__, info->type,
 		     event->sequence, event->tv_sec, event->tv_usec));
