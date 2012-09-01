@@ -1073,8 +1073,10 @@ static Bool sna_destroy_pixmap(PixmapPtr pixmap)
 	sna = to_sna_from_pixmap(pixmap);
 
 	/* Always release the gpu bo back to the lower levels of caching */
-	if (priv->gpu_bo)
+	if (priv->gpu_bo) {
 		kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
+		priv->gpu_bo = NULL;
+	}
 
 	if (priv->shm && kgem_bo_is_busy(priv->cpu_bo)) {
 		sna_add_flush_pixmap(sna, priv, priv->cpu_bo);
