@@ -3889,6 +3889,9 @@ move_to_gpu(PixmapPtr pixmap, struct sna_pixmap *priv,
 
 		return count > SOURCE_BIAS;
 	} else {
+		if (w == pixmap->drawable.width && h == pixmap->drawable.height)
+			return count > SOURCE_BIAS;
+
 		return count * w*h >= (SOURCE_BIAS+2) * (int)pixmap->drawable.width * pixmap->drawable.height;
 	}
 }
@@ -4348,6 +4351,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 
 		if (alu != GXcopy) {
 			PixmapPtr tmp;
+			struct kgem_bo *src_bo;
 			int i;
 
 			assert(src_pixmap->drawable.depth != 1);
@@ -4362,6 +4366,9 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 						       KGEM_BUFFER_WRITE_INPLACE);
 			if (tmp == NullPixmap)
 				return;
+
+			src_bo = sna_pixmap_get_bo(tmp);
+			assert(src_bo != NULL);
 
 			dx = -region->extents.x1;
 			dy = -region->extents.y1;
@@ -4389,8 +4396,13 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 					   box[i].y2 - box[i].y1);
 			}
 
+			if (n == 1 &&
+			    tmp->drawable.width == src_pixmap->drawable.width &&
+			    tmp->drawable.height == src_pixmap->drawable.height)
+				kgem_proxy_bo_attach(src_bo, &src_priv->gpu_bo);
+
 			if (!sna->render.copy_boxes(sna, alu,
-						    tmp, sna_pixmap_get_bo(tmp), dx, dy,
+						    tmp, src_bo, dx, dy,
 						    dst_pixmap, bo, 0, 0,
 						    box, n, 0)) {
 				DBG(("%s: fallback - accelerated copy boxes failed\n",
