@@ -2427,23 +2427,43 @@ sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
 			goto use_cpu_bo;
 		}
 
-		if (priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo)) {
-			DBG(("%s: already using CPU bo, will not force allocation\n",
-			     __FUNCTION__));
-			goto use_cpu_bo;
+		if ((flags & IGNORE_CPU) == 0) {
+			if (priv->cpu_bo) {
+				if (to_sna_from_pixmap(pixmap)->kgem.can_blt_cpu) {
+					if (kgem_bo_is_busy(priv->cpu_bo)) {
+						DBG(("%s: already using CPU bo, will not force allocation\n",
+						     __FUNCTION__));
+						goto use_cpu_bo;
+					}
+
+					if ((flags & RENDER_GPU) == 0) {
+						DBG(("%s: prefer cpu", __FUNCTION__));
+						goto use_cpu_bo;
+					}
+				} else {
+					if (kgem_bo_is_busy(priv->cpu_bo)) {
+						DBG(("%s: CPU bo active, must force allocation\n",
+						     __FUNCTION__));
+						goto create_gpu_bo;
+					}
+				}
+			}
+
+			if (priv->cpu_damage) {
+				if ((flags & (PREFER_GPU | FORCE_GPU)) == 0) {
+					DBG(("%s: prefer cpu", __FUNCTION__));
+					goto use_cpu_bo;
+				}
+
+				if (!box_inplace(pixmap, box)) {
+					DBG(("%s: damaged with a small operation, will not force allocation\n",
+					     __FUNCTION__));
+					goto use_cpu_bo;
+				}
+			}
 		}
 
-		if (priv->cpu_damage && flags == 0) {
-			DBG(("%s: prefer cpu", __FUNCTION__));
-			goto use_cpu_bo;
-		}
-
-		if (priv->cpu_damage && !box_inplace(pixmap, box)) {
-			DBG(("%s: damaged with a small operation, will not force allocation\n",
-			     __FUNCTION__));
-			goto use_cpu_bo;
-		}
-
+create_gpu_bo:
 		move = MOVE_WRITE | MOVE_READ;
 		if (flags & FORCE_GPU)
 			move |= __MOVE_FORCE;
