@@ -1,3 +1,24 @@
+Release 2.20.6 (2012-09-02)
+===========================
+A serious bug that caused a crash on SandyBridge and IvyBridge when
+mixing CPU and GPU operations on the same buffer, and an annoyance from
+bad scheduling of windowed swapbuffer updates causing low framerates and
+jitter. Plus the usual smattering of assertion fixes and a long standing
+issue with incoherent page access to a streaming buffer.
+
+ * Low frame rates in Blobby Valley when "fullscreen"
+   https://bugs.freedesktop.org/show_bug.cgi?id=54274
+
+ * Incoherent concurrent access with the CPU and GPU
+   https://bugs.freedesktop.org/show_bug.cgi
+   https://bugs.freedesktop.org/show_bug.cgi
+
+ * Add Option "Backlight" to override automatic selection of the
+   backlight interface.
+
+ * Avoid overwriting the composite operation info when testing if we
+   can transfer the operation to the BLT.
+
 Release 2.20.5 (2012-08-26)
 ===========================
 Another silly bug found, another small bugfix release. The goal was for
