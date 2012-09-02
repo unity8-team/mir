@@ -1375,6 +1375,9 @@ search_snoop_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags)
 
 	DBG(("%s: num_pages=%d, flags=%x\n", __FUNCTION__, num_pages, flags));
 
+	if ((kgem->has_cacheing | kgem->has_userptr) == 0)
+		return NULL;
+
 	if (list_is_empty(&kgem->snoop)) {
 		DBG(("%s: inactive and cache empty\n", __FUNCTION__));
 		if (!__kgem_throttle_retire(kgem, flags)) {
