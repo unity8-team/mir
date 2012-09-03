@@ -698,7 +698,12 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
     info->IsSecondary  = FALSE;
     info->IsPrimary = FALSE;
     info->pEnt         = xf86GetEntityInfo(pScrn->entityList[pScrn->numEntities - 1]);
-    if (info->pEnt->location.type != BUS_PCI) goto fail;
+    if (info->pEnt->location.type != BUS_PCI
+#ifdef XSERVER_PLATFORM_BUS
+        && info->pEnt->location.type != BUS_PLATFORM
+#endif
+        )
+        goto fail;
 
     pPriv = xf86GetEntityPrivate(pScrn->entityList[0],
 				 getRADEONEntityIndex());
