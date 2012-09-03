@@ -47,6 +47,10 @@
 #include "legacy/legacy.h"
 #include "sna/sna_module.h"
 
+#ifdef XSERVER_PLATFORM_BUS
+#include <xf86platformBus.h>
+#endif
+
 static const struct intel_device_info intel_generic_info = {
 	.gen = -1,
 };
@@ -525,6 +529,47 @@ static Bool intel_pci_probe(DriverPtr		driver,
 	}
 }
 
+#ifdef XSERVER_PLATFORM_BUS
+static Bool
+intel_platform_probe(DriverPtr driver,
+		     int entity_num, int flags,
+		     struct xf86_platform_device *dev,
+		     intptr_t match_data)
+{
+	ScrnInfoPtr scrn = NULL;
+	char *path = xf86_get_platform_device_attrib(dev, ODEV_ATTRIB_PATH);
+
+	if (!dev->pdev)
+		return FALSE;
+	/* if we get any flags we don't understand fail to probe for now */
+	if (flags)
+		return FALSE;
+
+	scrn = xf86AllocateScreen(driver, 0);
+	xf86AddEntityToScreen(scrn, entity_num);
+
+	scrn->driverVersion = INTEL_VERSION;
+	scrn->driverName = INTEL_DRIVER_NAME;
+	scrn->name = INTEL_NAME;
+	scrn->driverPrivate = (void *)(match_data | 1);
+	scrn->Probe = NULL;
+	switch (get_accel_method()) {
+#if USE_SNA
+        case SNA: sna_init_scrn(scrn, entity_num); break;
+#endif
+
+#if USE_UXA
+        case UXA: intel_init_scrn(scrn); break;
+#endif
+	default: break;
+	}
+
+	xf86DrvMsg(scrn->scrnIndex, X_INFO,
+		   "using drv %s\n", path ? path : "Default device");
+	return scrn != NULL;
+}
+#endif
+
 #ifdef XFree86LOADER
 
 static MODULESETUPPROTO(intel_setup);
@@ -569,7 +614,10 @@ static DriverRec intel = {
 	0,
 	intel_driver_func,
 	intel_device_match,
-	intel_pci_probe
+	intel_pci_probe,
+#ifdef XSERVER_PLATFORM_BUS
+	intel_platform_probe
+#endif
 };
 
 static pointer intel_setup(pointer module,
