@@ -432,6 +432,25 @@ static Bool can_accelerate_blt(struct intel_screen_private *intel)
 	return TRUE;
 }
 
+static void intel_setup_capabilities(ScrnInfoPtr scrn)
+{
+#ifdef INTEL_PIXMAP_SHARING
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+	uint64_t value;
+	int ret;
+
+	scrn->capabilities = 0;
+
+	ret = drmGetCap(intel->drmSubFD, DRM_CAP_PRIME, &value);
+	if (ret == 0) {
+		if (value & DRM_PRIME_CAP_EXPORT)
+			scrn->capabilities |= RR_Capability_SourceOutput | RR_Capability_SinkOffload;
+		if (value & DRM_PRIME_CAP_IMPORT)
+			scrn->capabilities |= RR_Capability_SinkOutput;
+	}
+#endif
+}
+
 /**
  * This is called before ScreenInit to do any require probing of screen
  * configuration.
@@ -524,6 +543,7 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 	if (!I830GetEarlyOptions(scrn))
 		return FALSE;
 
+	intel_setup_capabilities(scrn);
 	intel_check_chipset_option(scrn);
 	intel_check_dri_option(scrn);
 
