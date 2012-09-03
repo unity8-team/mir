@@ -371,7 +371,14 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 		return FALSE;
 
 	pEnt = xf86GetEntityInfo(scrn->entityList[0]);
-	if (pEnt == NULL || pEnt->location.type != BUS_PCI)
+	if (pEnt == NULL)
+		return FALSE;
+
+	if (pEnt->location.type != BUS_PCI
+#ifdef XSERVER_PLATFORM_BUS
+	    && pEnt->location.type != BUS_PLATFORM
+#endif
+		)
 		return FALSE;
 
 	if (flags & PROBE_DETECT)
