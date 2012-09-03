@@ -73,7 +73,7 @@ radeon_alloc_pixmap_bo(ScrnInfoPtr pScrn, int width, int height, int depth,
     uint32_t tiling = 0;
     struct radeon_surface surface;
     struct radeon_bo *bo;
-
+    int domain = RADEON_GEM_DOMAIN_VRAM;
     if (usage_hint) {
 	if (info->allowColorTiling) {
 	    if (usage_hint & RADEON_CREATE_PIXMAP_TILING_MACRO)
@@ -84,6 +84,12 @@ radeon_alloc_pixmap_bo(ScrnInfoPtr pScrn, int width, int height, int depth,
 	if (usage_hint & RADEON_CREATE_PIXMAP_DEPTH)
 		tiling |= RADEON_TILING_MACRO | RADEON_TILING_MICRO;
 
+#ifdef CREATE_PIXMAP_USAGE_SHARED
+	if ((usage_hint & 0xffff) == CREATE_PIXMAP_USAGE_SHARED) {
+		tiling = 0;
+		domain = RADEON_GEM_DOMAIN_GTT;
+	}
+#endif
     }
 
     /* Small pixmaps must not be macrotiled on R300, hw cannot sample them
@@ -166,7 +172,7 @@ radeon_alloc_pixmap_bo(ScrnInfoPtr pScrn, int width, int height, int depth,
 	}
 
     bo = radeon_bo_open(info->bufmgr, 0, size, base_align,
-			RADEON_GEM_DOMAIN_VRAM, 0);
+			domain, 0);
 
     if (bo && tiling && radeon_bo_set_tiling(bo, tiling, pitch) == 0)
 	*new_tiling = tiling;
