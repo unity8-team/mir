@@ -80,7 +80,7 @@ static void Emit2DState(ScrnInfoPtr pScrn, int op)
     OUT_RING_REG(RADEON_DP_CNTL, info->state_2d.dp_cntl);
 
     OUT_RING_REG(RADEON_DST_PITCH_OFFSET, info->state_2d.dst_pitch_offset);
-    OUT_RING_RELOC(info->state_2d.dst_bo, 0, RADEON_GEM_DOMAIN_VRAM);
+    OUT_RING_RELOC(info->state_2d.dst_bo, 0, info->state_2d.dst_domain);
 
     if (has_src) {
 	OUT_RING_REG(RADEON_SRC_PITCH_OFFSET, info->state_2d.src_pitch_offset);
@@ -145,8 +145,10 @@ RADEONPrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
 	RADEON_FALLBACK(("Not enough RAM to hw accel solid operation\n"));
 
     driver_priv = exaGetPixmapDriverPrivate(pPix);
-    if (driver_priv)
+    if (driver_priv) {
 	info->state_2d.dst_bo = driver_priv->bo;
+ 	info->state_2d.dst_domain = driver_priv->shared ? RADEON_GEM_DOMAIN_GTT : RADEON_GEM_DOMAIN_VRAM;
+    }
 
     info->state_2d.default_sc_bottom_right = (RADEON_DEFAULT_SC_RIGHT_MAX |
 					       RADEON_DEFAULT_SC_BOTTOM_MAX);
@@ -258,8 +260,9 @@ RADEONPrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
     info->state_2d.src_bo = driver_priv->bo;
 
     driver_priv = exaGetPixmapDriverPrivate(pDst);
-    radeon_cs_space_add_persistent_bo(info->cs, driver_priv->bo, 0, RADEON_GEM_DOMAIN_VRAM);
     info->state_2d.dst_bo = driver_priv->bo;
+    info->state_2d.dst_domain = driver_priv->shared ? RADEON_GEM_DOMAIN_GTT : RADEON_GEM_DOMAIN_VRAM;
+    radeon_cs_space_add_persistent_bo(info->cs, driver_priv->bo, 0, info->state_2d.dst_domain);
 
     ret = radeon_cs_space_check(info->cs);
     if (ret)

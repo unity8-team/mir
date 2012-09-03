@@ -249,6 +249,7 @@ struct radeon_exa_pixmap_priv {
     uint32_t tiling_flags;
     struct radeon_surface surface;
     Bool bo_mapped;
+    Bool shared;
 };
 
 #define RADEON_2D_EXA_COPY 1
@@ -266,6 +267,7 @@ struct radeon_2d_state {
     uint32_t dp_src_frgd_clr;
     uint32_t dp_src_bkgd_clr;
     uint32_t default_sc_bottom_right;
+    uint32_t dst_domain;
     struct radeon_bo *dst_bo;
     struct radeon_bo *src_bo;
 };
@@ -624,6 +626,23 @@ static inline struct radeon_bo *radeon_get_pixmap_bo(PixmapPtr pPix)
     return NULL;
 }
 
+static inline Bool radeon_get_pixmap_shared(PixmapPtr pPix)
+{
+#ifdef USE_GLAMOR
+    RADEONInfoPtr info = RADEONPTR(xf86ScreenToScrn(pPix->drawable.pScreen));
+
+    if (info->use_glamor) {
+        ErrorF("glamor sharing todo\n");
+	return FALSE:
+    } else
+#endif
+    {
+	struct radeon_exa_pixmap_priv *driver_priv;
+	driver_priv = exaGetPixmapDriverPrivate(pPix);
+	return driver_priv->shared;
+    }
+    return FALSE;
+}
 
 #define CP_PACKET0(reg, n)						\
 	(RADEON_CP_PACKET0 | ((n) << 16) | ((reg) >> 2))

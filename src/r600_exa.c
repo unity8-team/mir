@@ -551,7 +551,10 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
     dst_obj.width = pDst->drawable.width;
     dst_obj.height = pDst->drawable.height;
     dst_obj.bpp = pDst->drawable.bitsPerPixel;
-    dst_obj.domain = RADEON_GEM_DOMAIN_VRAM;
+    if (radeon_get_pixmap_shared(pDst) == TRUE) {
+	dst_obj.domain = RADEON_GEM_DOMAIN_GTT;
+    } else
+	dst_obj.domain = RADEON_GEM_DOMAIN_VRAM;
 
     if (!R600SetAccelState(pScrn,
 			   &src_obj,
@@ -1203,7 +1206,10 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     dst_obj.width = pDst->drawable.width;
     dst_obj.height = pDst->drawable.height;
     dst_obj.bpp = pDst->drawable.bitsPerPixel;
-    dst_obj.domain = RADEON_GEM_DOMAIN_VRAM;
+    if (radeon_get_pixmap_shared(pDst) == TRUE)
+	dst_obj.domain = RADEON_GEM_DOMAIN_GTT;
+    else
+	dst_obj.domain = RADEON_GEM_DOMAIN_VRAM;
 
     if (pMaskPicture) {
 	if (!pMask) {
