@@ -102,6 +102,7 @@ ati_device_get_from_busid(int bus, int dev, int func)
                                    func);
 }
 
+#ifndef XSERVER_PLATFORM_BUS
 static struct pci_device*
 ati_device_get_primary(void)
 {
@@ -119,6 +120,26 @@ ati_device_get_primary(void)
 
     return device;
 }
+#else
+static struct pci_device *
+ati_device_get_indexed(int index)
+{
+    struct pci_device *device = NULL;
+    struct pci_device_iterator *device_iter;
+    int count = 0;
+
+    device_iter = pci_slot_match_iterator_create(NULL);
+
+    while ((device = pci_device_next(device_iter)) != NULL) {
+        if (device->vendor_id == PCI_VENDOR_ATI) {
+            if (count == index)
+                return device;
+            count++;
+        }
+    }
+    return NULL;
+}
+#endif
 
 #else /* XSERVER_LIBPCIACCESS */
 
@@ -197,9 +218,14 @@ ati_gdev_subdriver(pointer options)
 
             device = ati_device_get_from_busid(bus, dev, func);
         }
+#ifdef XSERVER_PLATFORM_BUS
+        else
+            device = ati_device_get_indexed(i);
+#else
         else {
             device = ati_device_get_primary();
         }
+#endif
 
         if (!device)
             continue;
