@@ -262,7 +262,7 @@ intel_output_backlight_init(xf86OutputPtr output)
 	int i;
 
 	str = xf86GetOptValString(intel->Options, OPTION_BACKLIGHT);
-	if (str == NULL) {
+	if (str != NULL) {
 		sprintf(path, "%s/%s", BACKLIGHT_CLASS, str);
 		if (!stat(path, &buf)) {
 			intel_output->backlight_iface = backlight_interfaces[i];
