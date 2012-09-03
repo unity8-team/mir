@@ -1549,6 +1549,10 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int cpp)
 	/* workout clones */
 	drmmode_clones_init(pScrn, drmmode);
 
+#ifdef RADEON_PIXMAP_SHARING
+	xf86ProviderSetup(pScrn, NULL, "radeon");
+#endif
+
 	xf86InitialConfiguration(pScrn, TRUE);
 
 	drmmode->event_context.version = DRM_EVENT_CONTEXT_VERSION;

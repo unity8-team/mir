@@ -715,6 +715,24 @@ static Bool r600_get_tile_config(ScrnInfoPtr pScrn)
 
 #endif /* EXA_MIXED_PIXMAPS */
 
+static void RADEONSetupCapabilities(ScrnInfoPtr pScrn)
+{
+#ifdef RADEON_PIXMAP_SHARING
+    RADEONInfoPtr  info = RADEONPTR(pScrn);
+    uint64_t value;
+    int ret;
+
+    pScrn->capabilities = 0;
+    ret = drmGetCap(info->dri2.drm_fd, DRM_CAP_PRIME, &value);
+    if (ret == 0) {
+	if (value & DRM_PRIME_CAP_EXPORT)
+	    pScrn->capabilities |= RR_Capability_SourceOutput | RR_Capability_SinkOffload;
+	if (value & DRM_PRIME_CAP_IMPORT)
+	    pScrn->capabilities |= RR_Capability_SourceOffload;
+    }
+#endif
+}
+
 Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 {
     RADEONInfoPtr     info;
@@ -797,6 +815,7 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 
     info->allowColorTiling2D = FALSE;
 
+    RADEONSetupCapabilities(pScrn);
 #ifdef EXA_MIXED_PIXMAPS
     /* don't enable tiling if accel is not enabled */
     if (!info->r600_shadow_fb) {
