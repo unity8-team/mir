@@ -477,7 +477,7 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 
 	pEnt = xf86GetEntityInfo(scrn->entityList[0]);
 	if (pEnt == NULL)
-		return NULL;
+		return FALSE;
 
 	if (pEnt->location.type != BUS_PCI
 #ifdef XSERVER_PLATFORM_BUS
