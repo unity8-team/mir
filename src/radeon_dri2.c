@@ -315,11 +315,11 @@ radeon_dri2_create_buffers(DrawablePtr drawable,
 }
 #else
 static BufferPtr
-radeon_dri2_create_buffer(DrawablePtr drawable,
-                          unsigned int attachment,
-                          unsigned int format)
+radeon_dri2_create_buffer2(ScreenPtr pScreen,
+			   DrawablePtr drawable,
+			   unsigned int attachment,
+			   unsigned int format)
 {
-    ScreenPtr pScreen = drawable->pScreen;
     ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
     RADEONInfoPtr info = RADEONPTR(pScrn);
     BufferPtr buffers;
@@ -340,7 +340,9 @@ radeon_dri2_create_buffer(DrawablePtr drawable,
 
     if (attachment == DRI2BufferFrontLeft) {
         pixmap = get_drawable_pixmap(drawable);
-	if (info->use_glamor && !radeon_get_pixmap_bo(pixmap)) {
+	if (pScreen != pixmap->drawable.pScreen)
+	    pixmap = NULL;
+	else if (info->use_glamor && !radeon_get_pixmap_bo(pixmap)) {
 	    is_glamor_pixmap = TRUE;
 	    aligned_width = pixmap->drawable.width;
 	    height = pixmap->drawable.height;
@@ -352,7 +354,7 @@ radeon_dri2_create_buffer(DrawablePtr drawable,
         pixmap->refcnt++;
     }
 
-    if (!pixmap) {
+    if (!pixmap && attachment != DRI2BufferFrontLeft) {
 	/* tile the back buffer */
 	switch(attachment) {
 	case DRI2BufferDepth:
@@ -425,9 +427,6 @@ radeon_dri2_create_buffer(DrawablePtr drawable,
 					      flags | RADEON_CREATE_PIXMAP_DRI2);
     }
 
-    if (!pixmap)
-        return NULL;
-
     buffers = calloc(1, sizeof *buffers);
     if (buffers == NULL)
         goto error;
@@ -435,24 +434,30 @@ radeon_dri2_create_buffer(DrawablePtr drawable,
     if (attachment == DRI2BufferDepth) {
         depth_pixmap = pixmap;
     }
-    if (!info->use_glamor) {
-	info->exa_force_create = TRUE;
-	exaMoveInPixmap(pixmap);
-	info->exa_force_create = FALSE;
+
+    if (pixmap) {
+	if (!info->use_glamor) {
+	    info->exa_force_create = TRUE;
+	    exaMoveInPixmap(pixmap);
+	    info->exa_force_create = FALSE;
+	}
+
+	if (is_glamor_pixmap)
+	    pixmap = fixup_glamor(drawable, pixmap);
+	bo = radeon_get_pixmap_bo(pixmap);
+	if (!bo || radeon_gem_get_kernel_name(bo, &buffers->name) != 0)
+	    goto error;
     }
-    if (is_glamor_pixmap)
-	pixmap = fixup_glamor(drawable, pixmap);
-    bo = radeon_get_pixmap_bo(pixmap);
-    if (!bo || radeon_gem_get_kernel_name(bo, &buffers->name) != 0)
-        goto error;
 
     privates = calloc(1, sizeof(struct dri2_buffer_priv));
     if (privates == NULL)
         goto error;
 
     buffers->attachment = attachment;
-    buffers->pitch = pixmap->devKind;
-    buffers->cpp = pixmap->drawable.bitsPerPixel / 8;
+    if (pixmap) {
+	buffers->pitch = pixmap->devKind;
+	buffers->cpp = pixmap->drawable.bitsPerPixel / 8;
+    }
     buffers->driverPrivate = privates;
     buffers->format = format;
     buffers->flags = 0; /* not tiled */
@@ -467,6 +472,14 @@ error:
     if (pixmap)
         (*pScreen->DestroyPixmap)(pixmap);
     return NULL;
+}
+
+DRI2BufferPtr
+radeon_dri2_create_buffer(DrawablePtr pDraw, unsigned int attachment,
+			   unsigned int format)
+{
+	return radeon_dri2_create_buffer2(pDraw->pScreen, pDraw,
+					  attachment, format);
 }
 #endif
 
@@ -491,11 +504,11 @@ radeon_dri2_destroy_buffers(DrawablePtr drawable,
 }
 #else
 static void
-radeon_dri2_destroy_buffer(DrawablePtr drawable, BufferPtr buffers)
+radeon_dri2_destroy_buffer2(ScreenPtr pScreen,
+			    DrawablePtr drawable, BufferPtr buffers)
 {
     if(buffers)
     {
-        ScreenPtr pScreen = drawable->pScreen;
         struct dri2_buffer_priv *private = buffers->driverPrivate;
 
         /* Trying to free an already freed buffer is unlikely to end well */
@@ -511,24 +524,41 @@ radeon_dri2_destroy_buffer(DrawablePtr drawable, BufferPtr buffers)
         private->refcnt--;
         if (private->refcnt == 0)
         {
-            (*pScreen->DestroyPixmap)(private->pixmap);
+	    if (private->pixmap)
+                (*pScreen->DestroyPixmap)(private->pixmap);
 
             free(buffers->driverPrivate);
             free(buffers);
         }
     }
 }
+
+void
+radeon_dri2_destroy_buffer(DrawablePtr pDraw, DRI2BufferPtr buf)
+{
+    radeon_dri2_destroy_buffer2(pDraw->pScreen, pDraw, buf);
+}
 #endif
 
+
+static inline PixmapPtr GetDrawablePixmap(DrawablePtr drawable)
+{
+    if (drawable->type == DRAWABLE_PIXMAP)
+        return (PixmapPtr)drawable;
+    else {
+        struct _Window *pWin = (struct _Window *)drawable;
+        return drawable->pScreen->GetWindowPixmap(pWin);
+    }
+}
 static void
-radeon_dri2_copy_region(DrawablePtr drawable,
-                        RegionPtr region,
-                        BufferPtr dest_buffer,
-                        BufferPtr src_buffer)
+radeon_dri2_copy_region2(ScreenPtr pScreen,
+			 DrawablePtr drawable,
+			 RegionPtr region,
+			 BufferPtr dest_buffer,
+			 BufferPtr src_buffer)
 {
     struct dri2_buffer_priv *src_private = src_buffer->driverPrivate;
     struct dri2_buffer_priv *dst_private = dest_buffer->driverPrivate;
-    ScreenPtr pScreen = drawable->pScreen;
     ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
     DrawablePtr src_drawable;
     DrawablePtr dst_drawable;
@@ -536,20 +566,42 @@ radeon_dri2_copy_region(DrawablePtr drawable,
     GCPtr gc;
     RADEONInfoPtr info = RADEONPTR(pScrn);
     Bool vsync;
+    Bool translate = FALSE;
+    int off_x = 0, off_y = 0;
+    PixmapPtr dst_ppix;
+
+    dst_ppix = dst_private->pixmap;
+    src_drawable = &src_private->pixmap->drawable;
+    dst_drawable = &dst_private->pixmap->drawable;
 
     if (src_private->attachment == DRI2BufferFrontLeft) {
         src_drawable = drawable;
-    } else {
-        src_drawable = &src_private->pixmap->drawable;
     }
     if (dst_private->attachment == DRI2BufferFrontLeft) {
-        dst_drawable = drawable;
-    } else {
-        dst_drawable = &dst_private->pixmap->drawable;
+	if (drawable->pScreen != pScreen) {
+	    dst_drawable = DRI2UpdatePrime(drawable, dest_buffer);
+	    if (!dst_drawable)
+		return;
+	    dst_ppix = (PixmapPtr)dst_drawable;
+	    if (dst_drawable != drawable)
+		translate = TRUE;
+	} else
+	    dst_drawable = drawable;
+    }
+
+    if (translate && drawable->type == DRAWABLE_WINDOW) {
+	WindowPtr pWin = (WindowPtr)drawable;
+	off_x = pWin->origin.x;
+	off_y = pWin->origin.y;
     }
     gc = GetScratchGC(dst_drawable->depth, pScreen);
     copy_clip = REGION_CREATE(pScreen, NULL, 0);
     REGION_COPY(pScreen, copy_clip, region);
+
+    if (translate) {
+	REGION_TRANSLATE(pScreen, copy_clip, off_x, off_y);
+    }
+
     (*gc->funcs->ChangeClip) (gc, CT_REGION, copy_clip, 0);
     ValidateGC(dst_drawable, gc);
 
@@ -563,7 +615,7 @@ radeon_dri2_copy_region(DrawablePtr drawable,
 	    if (extents->x1 == 0 && extents->y1 == 0 &&
 		extents->x2 == drawable->width &&
 		extents->y2 == drawable->height) {
-		struct radeon_bo *bo = radeon_get_pixmap_bo(dst_private->pixmap);
+		struct radeon_bo *bo = radeon_get_pixmap_bo(dst_ppix);
 
 		if (bo)
 		    radeon_bo_wait(bo);
@@ -577,13 +629,20 @@ radeon_dri2_copy_region(DrawablePtr drawable,
     info->accel_state->vsync = info->swapBuffersWait;
 
     (*gc->ops->CopyArea)(src_drawable, dst_drawable, gc,
-                         0, 0, drawable->width, drawable->height, 0, 0);
+                         0, 0, drawable->width, drawable->height, off_x, off_y);
 
     info->accel_state->vsync = vsync;
 
     FreeScratchGC(gc);
 }
 
+void
+radeon_dri2_copy_region(DrawablePtr pDraw, RegionPtr pRegion,
+			 DRI2BufferPtr pDstBuffer, DRI2BufferPtr pSrcBuffer)
+{
+    return radeon_dri2_copy_region2(pDraw->pScreen, pDraw, pRegion,
+				     pDstBuffer, pSrcBuffer);
+}
 
 #ifdef USE_DRI2_SCHEDULING
 
@@ -1498,6 +1557,13 @@ radeon_dri2_screen_init(ScreenPtr pScreen)
 
 	pRADEONEnt->dri2_info_cnt++;
     }
+#endif
+
+#if DRI2INFOREC_VERSION >= 9
+    dri2_info.version = 9;
+    dri2_info.CreateBuffer2 = radeon_dri2_create_buffer2;
+    dri2_info.DestroyBuffer2 = radeon_dri2_destroy_buffer2;
+    dri2_info.CopyRegion2 = radeon_dri2_copy_region2;
 #endif
 
     info->dri2.enabled = DRI2ScreenInit(pScreen, &dri2_info);
