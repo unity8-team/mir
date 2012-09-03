@@ -241,6 +241,40 @@ static Bool RADEONCreateScreenResources_KMS(ScreenPtr pScreen)
     return TRUE;
 }
 
+#ifdef RADEON_PIXMAP_SHARING
+static void
+redisplay_dirty(ScreenPtr screen, PixmapDirtyUpdatePtr dirty)
+{
+	ScrnInfoPtr pScrn = xf86ScreenToScrn(screen);
+	RegionRec pixregion;
+
+	PixmapRegionInit(&pixregion, dirty->slave_dst->master_pixmap);
+	PixmapSyncDirtyHelper(dirty, &pixregion);
+
+	radeon_cs_flush_indirect(pScrn);
+	DamageRegionAppend(&dirty->slave_dst->drawable, &pixregion);
+	RegionUninit(&pixregion);
+}
+
+static void
+radeon_dirty_update(ScreenPtr screen)
+{
+	RegionPtr region;
+	PixmapDirtyUpdatePtr ent;
+
+	if (xorg_list_is_empty(&screen->pixmap_dirty_list))
+		return;
+
+	xorg_list_for_each_entry(ent, &screen->pixmap_dirty_list, ent) {
+		region = DamageRegion(ent->damage);
+		if (RegionNotEmpty(region)) {
+			redisplay_dirty(screen, ent);
+			DamageEmpty(ent->damage);
+		}
+	}
+}
+#endif
+
 static void RADEONBlockHandler_KMS(BLOCKHANDLER_ARGS_DECL)
 {
     SCREEN_PTR(arg);
@@ -255,6 +289,7 @@ static void RADEONBlockHandler_KMS(BLOCKHANDLER_ARGS_DECL)
 	radeon_glamor_flush(pScrn);
 
     radeon_cs_flush_indirect(pScrn);
+    radeon_dirty_update(pScreen);
 }
 
 static void
@@ -1241,6 +1276,11 @@ Bool RADEONScreenInit_KMS(SCREEN_INIT_ARGS_DECL)
 
     info->CreateScreenResources = pScreen->CreateScreenResources;
     pScreen->CreateScreenResources = RADEONCreateScreenResources_KMS;
+
+#ifdef RADEON_PIXMAP_SHARING
+    pScreen->StartPixmapTracking = PixmapStartDirtyTracking;
+    pScreen->StopPixmapTracking = PixmapStopDirtyTracking;
+#endif
 
    if (!xf86CrtcScreenInit (pScreen))
        return FALSE;

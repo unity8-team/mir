@@ -1908,7 +1908,10 @@ EVERGREENDrawInit(ScreenPtr pScreen)
 #if (EXA_VERSION_MAJOR == 2 && EXA_VERSION_MINOR >= 5)
     info->accel_state->exa->CreatePixmap2 = RADEONEXACreatePixmap2;
 #endif
-
+#if (EXA_VERSION_MAJOR == 2 && EXA_VERSION_MINOR >= 6) 
+    info->accel_state->exa->SharePixmapBacking = RADEONEXASharePixmapBacking; 
+    info->accel_state->exa->SetSharedPixmapBacking = RADEONEXASetSharedPixmapBacking;
+#endif
     info->accel_state->exa->flags = EXA_OFFSCREEN_PIXMAPS;
 #ifdef EXA_SUPPORTS_PREPARE_AUX
     info->accel_state->exa->flags |= EXA_SUPPORTS_PREPARE_AUX;

@@ -1888,6 +1888,10 @@ R600DrawInit(ScreenPtr pScreen)
     info->accel_state->exa->DownloadFromScreen = R600DownloadFromScreenCS;
 #if (EXA_VERSION_MAJOR == 2 && EXA_VERSION_MINOR >= 5)
     info->accel_state->exa->CreatePixmap2 = RADEONEXACreatePixmap2;
+#if (EXA_VERSION_MAJOR == 2 && EXA_VERSION_MINOR >= 6) 
+    info->accel_state->exa->SharePixmapBacking = RADEONEXASharePixmapBacking; 
+    info->accel_state->exa->SetSharedPixmapBacking = RADEONEXASetSharedPixmapBacking;
+#endif
 #endif
 #endif
 

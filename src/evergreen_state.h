@@ -350,5 +350,7 @@ extern void *RADEONEXACreatePixmap2(ScreenPtr pScreen, int width, int height,
 extern void RADEONEXADestroyPixmap(ScreenPtr pScreen, void *driverPriv);
 extern struct radeon_bo *radeon_get_pixmap_bo(PixmapPtr pPix);
 extern Bool RADEONEXAPixmapIsOffscreen(PixmapPtr pPix);
+extern Bool RADEONEXASharePixmapBacking(PixmapPtr ppix, ScreenPtr slave, void **handle_p);
+extern Bool RADEONEXASetSharedPixmapBacking(PixmapPtr ppix, void *handle);
 
 #endif
