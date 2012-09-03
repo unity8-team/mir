@@ -385,6 +385,11 @@ static Bool has_relaxed_fencing(struct intel_screen_private *intel)
 	return drm_has_boolean_param(intel, I915_PARAM_HAS_RELAXED_FENCING);
 }
 
+static Bool has_prime_vmap_flush(struct intel_screen_private *intel)
+{
+	return drm_has_boolean_param(intel, I915_PARAM_HAS_PRIME_VMAP_FLUSH);
+}
+
 static Bool can_accelerate_blt(struct intel_screen_private *intel)
 {
 	if (INTEL_INFO(intel)->gen == -1)
@@ -545,6 +550,8 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 
 	intel->has_kernel_flush = has_kernel_flush(intel);
 
+	intel->has_prime_vmap_flush = has_prime_vmap_flush(intel);
+
 	intel->has_relaxed_fencing =
 		xf86ReturnOptValBool(intel->Options,
 				     OPTION_RELAXED_FENCING,
@@ -645,6 +652,51 @@ void IntelEmitInvarientState(ScrnInfoPtr scrn)
 		I915EmitInvarientState(scrn);
 }
 
+#ifdef INTEL_PIXMAP_SHARING
+static Bool
+redisplay_dirty(ScreenPtr screen, PixmapDirtyUpdatePtr dirty)
+{
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+	RegionRec pixregion;
+	int was_blocked;
+
+	PixmapRegionInit(&pixregion, dirty->slave_dst->master_pixmap);
+
+	PixmapSyncDirtyHelper(dirty, &pixregion);
+	intel_batch_submit(scrn);
+	if (!intel->has_prime_vmap_flush) {
+		drm_intel_bo *bo = intel_get_pixmap_bo(dirty->slave_dst->master_pixmap);
+		was_blocked = xf86BlockSIGIO();
+		drm_intel_bo_map(bo, FALSE);
+		drm_intel_bo_unmap(bo);
+		xf86UnblockSIGIO(was_blocked);
+        }
+        DamageRegionAppend(&dirty->slave_dst->drawable, &pixregion);
+        RegionUninit(&pixregion);
+	return 0;
+}
+
+static void
+intel_dirty_update(ScreenPtr screen)
+{
+	RegionPtr region;
+	PixmapDirtyUpdatePtr ent;
+
+	if (xorg_list_is_empty(&screen->pixmap_dirty_list))
+	    return;
+
+	ErrorF("list is not empty\n");
+	xorg_list_for_each_entry(ent, &screen->pixmap_dirty_list, ent) {
+		region = DamageRegion(ent->damage);
+		if (RegionNotEmpty(region)) {
+			redisplay_dirty(screen, ent);
+			DamageEmpty(ent->damage);
+		}
+	}
+}
+#endif
+
 static void
 I830BlockHandler(BLOCKHANDLER_ARGS_DECL)
 {
@@ -661,6 +713,9 @@ I830BlockHandler(BLOCKHANDLER_ARGS_DECL)
 
 	intel_uxa_block_handler(intel);
 	intel_video_block_handler(intel);
+#ifdef INTEL_PIXMAP_SHARING
+	intel_dirty_update(screen);
+#endif
 }
 
 static Bool
@@ -905,6 +960,11 @@ I830ScreenInit(SCREEN_INIT_ARGS_DECL)
 
 	intel->BlockHandler = screen->BlockHandler;
 	screen->BlockHandler = I830BlockHandler;
+
+#ifdef INTEL_PIXMAP_SHARING
+	screen->StartPixmapTracking = PixmapStartDirtyTracking;
+	screen->StopPixmapTracking = PixmapStopDirtyTracking;
+#endif
 
 	if (!AddCallback(&FlushCallback, intel_flush_callback, scrn))
 		return FALSE;
