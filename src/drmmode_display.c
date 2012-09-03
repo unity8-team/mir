@@ -1199,6 +1199,10 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp)
 	for (i = 0; i < drmmode->mode_res->count_connectors; i++)
 		drmmode_output_init(pScrn, drmmode, i);
 
+#ifdef NOUVEAU_PIXMAP_SHARING
+	xf86ProviderSetup(pScrn, NULL, "nouveau");
+#endif
+
 	xf86InitialConfiguration(pScrn, TRUE);
 
 	return TRUE;

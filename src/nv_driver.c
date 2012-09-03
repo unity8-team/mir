@@ -643,6 +643,25 @@ NVDRIGetVersion(ScrnInfoPtr pScrn)
 	return TRUE;
 }
 
+static void
+nouveau_setup_capabilities(ScrnInfoPtr pScrn)
+{
+#ifdef NOUVEAU_PIXMAP_SHARING
+	NVPtr pNv = NVPTR(pScrn);
+	uint64_t value;
+	int ret;
+
+	pScrn->capabilities = 0;
+	ret = drmGetCap(pNv->dev->fd, DRM_CAP_PRIME, &value);
+	if (ret == 0) {
+		if (value & DRM_PRIME_CAP_EXPORT)
+			pScrn->capabilities |= RR_Capability_SourceOutput;
+		if (value & DRM_PRIME_CAP_IMPORT)
+			pScrn->capabilities |= RR_Capability_SourceOffload;
+	}
+#endif
+}
+
 static Bool
 NVPreInitDRM(ScrnInfoPtr pScrn)
 {
@@ -750,6 +769,8 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	if (!NVPreInitDRM(pScrn))
 		NVPreInitFail("\n");
 	dev = pNv->dev;
+
+	nouveau_setup_capabilities(pScrn);
 
 	pScrn->chipset = malloc(sizeof(char) * 25);
 	sprintf(pScrn->chipset, "NVIDIA NV%02x", dev->chipset);
