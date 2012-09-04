@@ -2771,6 +2771,65 @@ struct kgem_bo *kgem_create_for_name(struct kgem *kgem, uint32_t name)
 	return bo;
 }
 
+struct kgem_bo *kgem_create_for_prime(struct kgem *kgem, int name, uint32_t size)
+{
+#ifdef DRM_IOCTL_PRIME_FD_TO_HANDLE
+	struct drm_prime_handle args;
+	struct drm_i915_gem_get_tiling tiling;
+	struct kgem_bo *bo;
+
+	DBG(("%s(name=%d)\n", __FUNCTION__, name));
+
+	VG_CLEAR(args);
+	args.fd = name;
+	args.flags = 0;
+	if (drmIoctl(kgem->fd, DRM_IOCTL_PRIME_FD_TO_HANDLE, &args))
+		return NULL;
+
+	VG_CLEAR(tiling);
+	tiling.handle = args.handle;
+	if (drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_GET_TILING, &tiling)) {
+		gem_close(kgem->fd, args.handle);
+		return NULL;
+	}
+
+	DBG(("%s: new handle=%d, tiling=%d\n", __FUNCTION__,
+	     args.handle, tiling.tiling_mode));
+	bo = __kgem_bo_alloc(args.handle, NUM_PAGES(size));
+	if (bo == NULL) {
+		gem_close(kgem->fd, args.handle);
+		return NULL;
+	}
+
+	bo->tiling = tiling.tiling_mode;
+	bo->reusable = false;
+
+	debug_alloc__bo(kgem, bo);
+	return bo;
+#else
+	return NULL;
+#endif
+}
+
+int kgem_bo_export_to_prime(struct kgem *kgem, struct kgem_bo *bo)
+{
+#ifdef DRM_IOCTL_PRIME_HANDLE_TO_PRIME
+	struct drm_prime_handle args;
+
+	VG_CLEAR(args);
+	args.handle = bo->handle;
+	args.flags = DRM_CLOEXEC;
+
+	if (drmIoctl(kgem->fd, DRM_IOCTL_PRIME_HANDLE_TO_FD, &args))
+		return -1;
+
+	bo->reusable = false;
+	return args.fd;
+#else
+	return -1;
+#endif
+}
+
 struct kgem_bo *kgem_create_linear(struct kgem *kgem, int size, unsigned flags)
 {
 	struct kgem_bo *bo;

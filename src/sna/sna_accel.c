@@ -601,11 +601,7 @@ struct kgem_bo *sna_pixmap_change_tiling(PixmapPtr pixmap, uint32_t tiling)
 
 static inline void sna_set_pixmap(PixmapPtr pixmap, struct sna_pixmap *sna)
 {
-#if 0
-	dixSetPrivate(&pixmap->devPrivates, &sna_private_index, sna);
-#else
-	((void **)pixmap->devPrivates)[1] = sna;
-#endif
+	((void **)dixGetPrivateAddr(&pixmap->devPrivates, &sna_pixmap_key))[1] = sna;
 	assert(sna_pixmap(pixmap) == sna);
 }
 
@@ -709,7 +705,8 @@ create_pixmap(struct sna *sna, ScreenPtr screen,
 	if (!pixmap)
 		return NullPixmap;
 
-	((void **)pixmap->devPrivates)[0] = sna;
+	((void **)dixGetPrivateAddr(&pixmap->devPrivates, &sna_pixmap_key))[0] = sna;
+	assert(to_sna_from_pixmap(pixmap) == sna);
 
 	pixmap->drawable.type = DRAWABLE_PIXMAP;
 	pixmap->drawable.class = 0;
@@ -924,6 +921,111 @@ sna_pixmap_create_scratch(ScreenPtr screen,
 	return pixmap;
 }
 
+#ifdef CREATE_PIXMAP_USAGE_SHARED
+static Bool
+sna_share_pixmap_backing(PixmapPtr pixmap, ScreenPtr slave, void **fd_handle)
+{
+	struct sna *sna = to_sna_from_pixmap(pixmap);
+	struct sna_pixmap *priv;
+	int fd;
+
+	priv = sna_pixmap_move_to_gpu(pixmap,
+				      MOVE_READ | MOVE_WRITE | __MOVE_DRI | __MOVE_FORCE);
+	if (priv == NULL)
+		return FALSE;
+
+	assert(priv->gpu_bo);
+
+	/* XXX */
+	if (priv->gpu_bo->tiling &&
+	    !sna_pixmap_change_tiling(pixmap, I915_TILING_NONE))
+		return FALSE;
+	assert(priv->gpu_bo->tiling == I915_TILING_NONE);
+
+	/* And export the bo->pitch via pixmap->devKind */
+	pixmap->devPrivate.ptr =
+		kgem_bo_map(&sna->kgem, priv->gpu_bo);
+	if (pixmap->devPrivate.ptr == NULL)
+		return FALSE;
+
+	pixmap->devKind = priv->gpu_bo->pitch;
+	priv->mapped = true;
+
+	fd = kgem_bo_export_to_prime(&sna->kgem, priv->gpu_bo);
+	if (fd == -1)
+		return FALSE;
+
+	priv->pinned = true;
+
+	*fd_handle = (void *)(intptr_t)fd;
+	return TRUE;
+}
+
+static Bool
+sna_set_shared_pixmap_backing(PixmapPtr pixmap, void *fd_handle)
+{
+	struct sna *sna = to_sna_from_pixmap(pixmap);
+	struct sna_pixmap *priv;
+	struct kgem_bo *bo;
+
+	priv = sna_pixmap(pixmap);
+	if (priv == NULL)
+		return FALSE;
+
+	assert(!priv->pinned);
+	assert(priv->gpu_bo == NULL);
+	assert(priv->cpu_bo == NULL);
+	assert(priv->cpu_damage == NULL);
+	assert(priv->gpu_damage == NULL);
+
+	bo = kgem_bo_create_for_prime(&sna->kgem,
+				      (intptr_t)fd_handle,
+				      pixmap->devKind * pixmap->drawable.height);
+	if (bo == NULL)
+		return FALSE;
+
+	sna_damage_all(&priv->gpu_damage,
+		       pixmap->drawable.width,
+		       pixmap->drawable.height);
+
+	bo->pitch = pixmap->devKind;
+	priv->stride = pixmap->devKind;
+
+	priv->gpu_bo = bo;
+	priv->pinned = true;
+
+	close((intptr_t)fd_handle);
+	return TRUE;
+}
+
+static PixmapPtr
+sna_create_pixmap_shared(struct sna *sna, ScreenPtr screen, int depth)
+{
+	PixmapPtr pixmap;
+	struct sna_pixmap *priv;
+
+	/* Create a stub to be attached later */
+	pixmap = create_pixmap(sna, screen, 0, 0, depth, 0);
+	if (pixmap == NullPixmap)
+		return NullPixmap;
+
+	pixmap->drawable.width = 0;
+	pixmap->drawable.height = 0;
+	pixmap->devKind = 0;
+	pixmap->devPrivate.ptr = NULL;
+
+	priv = sna_pixmap_attach(pixmap);
+	if (priv == NULL) {
+		free(pixmap);
+		return NullPixmap;
+	}
+
+	priv->stride = 0;
+	priv->create = 0;
+	return pixmap;
+}
+#endif
+
 static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 				   int width, int height, int depth,
 				   unsigned int usage)
@@ -935,6 +1037,13 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 
 	DBG(("%s(%d, %d, %d, usage=%x)\n", __FUNCTION__,
 	     width, height, depth, usage));
+
+#ifdef CREATE_PIXMAP_USAGE_SHARED
+	if (usage == CREATE_PIXMAP_USAGE_SHARED) {
+		assert((width|height) == 0);
+		return sna_create_pixmap_shared(sna, screen, depth);
+	}
+#endif
 
 	if ((width|height) == 0) {
 		usage = -1;
@@ -13675,6 +13784,31 @@ static int32_t sna_timeout(struct sna *sna)
 	return next;
 }
 
+static void sna_accel_post_damage(struct sna *sna)
+{
+#if HAS_PIXMAP_SHARING
+	ScreenPtr screen = sna->scrn->pScreen;
+	PixmapDirtyUpdatePtr dirty;
+
+	xorg_list_for_each_entry(dirty, &screen->pixmap_dirty_list, ent) {
+		RegionRec pixregion;
+
+		if (!RegionNotEmpty(DamageRegion(dirty->damage)))
+			continue;
+
+		PixmapRegionInit(&pixregion,
+				 dirty->slave_dst->master_pixmap);
+		PixmapSyncDirtyHelper(dirty, &pixregion);
+
+		DamageRegionAppend(&dirty->slave_dst->drawable,
+				   &pixregion);
+		RegionUninit(&pixregion);
+
+		DamageEmpty(dirty->damage);
+	}
+#endif
+}
+
 static void sna_accel_flush(struct sna *sna)
 {
 	struct sna_pixmap *priv = sna_accel_scanout(sna);
@@ -13699,6 +13833,7 @@ static void sna_accel_flush(struct sna *sna)
 	}
 
 	sna_mode_redisplay(sna);
+	sna_accel_post_damage(sna);
 }
 
 static void sna_accel_throttle(struct sna *sna)
@@ -13859,7 +13994,7 @@ sna_get_window_pixmap(WindowPtr window)
 static void
 sna_set_window_pixmap(WindowPtr window, PixmapPtr pixmap)
 {
-	*(PixmapPtr *)window->devPrivates = pixmap;
+	*(PixmapPtr *)dixGetPrivateAddr(&window->devPrivates, &sna_window_key) = pixmap;
 }
 
 static Bool
@@ -13988,6 +14123,10 @@ bool sna_accel_init(ScreenPtr screen, struct sna *sna)
 	screen->CreatePixmap = sna_create_pixmap;
 	assert(screen->DestroyPixmap == NULL);
 	screen->DestroyPixmap = sna_destroy_pixmap;
+#ifdef CREATE_PIXMAP_USAGE_SHARED
+	screen->SharePixmapBacking = sna_share_pixmap_backing;
+	screen->SetSharedPixmapBacking = sna_set_shared_pixmap_backing;
+#endif
 	screen->RealizeFont = sna_realize_font;
 	screen->UnrealizeFont = sna_unrealize_font;
 	assert(screen->CreateGC == NULL);
@@ -14001,6 +14140,11 @@ bool sna_accel_init(ScreenPtr screen, struct sna *sna)
 	assert(screen->StoreColors == NULL);
 	screen->StoreColors = sna_store_colors;
 	screen->BitmapToRegion = fbBitmapToRegion;
+
+#if HAS_PIXMAP_SHARING
+	screen->StartPixmapTracking = PixmapStartDirtyTracking;
+	screen->StopPixmapTracking = PixmapStopDirtyTracking;
+#endif
 
 	assert(screen->GetWindowPixmap == NULL);
 	screen->GetWindowPixmap = sna_get_window_pixmap;

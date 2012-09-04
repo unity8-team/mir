@@ -75,10 +75,10 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "git_version.h"
 #endif
 
-static DevPrivateKeyRec sna_pixmap_key;
-static DevPrivateKeyRec sna_gc_key;
-static DevPrivateKeyRec sna_glyph_key;
-static DevPrivateKeyRec sna_window_key;
+DevPrivateKeyRec sna_pixmap_key;
+DevPrivateKeyRec sna_gc_key;
+DevPrivateKeyRec sna_window_key;
+DevPrivateKeyRec sna_glyph_key;
 
 static Bool sna_enter_vt(VT_FUNC_ARGS_DECL);
 
@@ -343,6 +343,21 @@ static bool has_pageflipping(struct sna *sna)
 	return v > 0;
 }
 
+static void sna_setup_capabilities(ScrnInfoPtr scrn, int fd)
+{
+#if HAS_PIXMAP_SHARING && defined(DRM_CAP_PRIME)
+	uint64_t value;
+
+	scrn->capabilities = 0;
+	if (drmGetCap(fd, DRM_CAP_PRIME, &value) == 0) {
+		if (value & DRM_PRIME_CAP_EXPORT)
+			scrn->capabilities |= RR_Capability_SourceOutput | RR_Capability_SinkOffload;
+		if (value & DRM_PRIME_CAP_IMPORT)
+			scrn->capabilities |= RR_Capability_SinkOutput;
+	}
+#endif
+}
+
 /**
  * This is called before ScreenInit to do any require probing of screen
  * configuration.
@@ -441,6 +456,8 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 	sna->Options = intel_options_get(scrn);
 	if (sna->Options == NULL)
 		return FALSE;
+
+	sna_setup_capabilities(scrn, fd);
 
 	intel_detect_chipset(scrn, sna->pEnt, sna->PciInfo);
 
@@ -777,22 +794,18 @@ sna_register_all_privates(void)
 	if (!dixRegisterPrivateKey(&sna_pixmap_key, PRIVATE_PIXMAP,
 				   3*sizeof(void *)))
 		return FALSE;
-	assert(sna_pixmap_key.offset == 0);
 
 	if (!dixRegisterPrivateKey(&sna_gc_key, PRIVATE_GC,
 				   sizeof(FbGCPrivate)))
 		return FALSE;
-	assert(sna_gc_key.offset == 0);
 
 	if (!dixRegisterPrivateKey(&sna_glyph_key, PRIVATE_GLYPH,
 				   sizeof(struct sna_glyph)))
 		return FALSE;
-	assert(sna_glyph_key.offset == 0);
 
 	if (!dixRegisterPrivateKey(&sna_window_key, PRIVATE_WINDOW,
 				   2*sizeof(void *)))
 		return FALSE;
-	assert(sna_window_key.offset == 0);
 
 	return TRUE;
 }

@@ -104,9 +104,11 @@ static void _assert_pixmap_contains_box(PixmapPtr pixmap, BoxPtr box, const char
 #define assert_pixmap_contains_box(p, b)
 #endif
 
+extern DevPrivateKeyRec sna_glyph_key;
+
 static inline struct sna_glyph *sna_glyph(GlyphPtr glyph)
 {
-	return (struct sna_glyph *)glyph->devPrivates;
+	return dixGetPrivateAddr(&glyph->devPrivates, &sna_glyph_key);
 }
 
 #define NeedsComponent(f) (PICT_FORMAT_A(f) != 0 && PICT_FORMAT_RGB(f) != 0)

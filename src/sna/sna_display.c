@@ -60,6 +60,7 @@
 struct sna_crtc {
 	struct drm_mode_modeinfo kmode;
 	int dpms_mode;
+	PixmapPtr scanout_pixmap;
 	struct kgem_bo *bo;
 	uint32_t cursor;
 	bool shadow;
@@ -960,6 +961,22 @@ static struct kgem_bo *sna_crtc_attach(xf86CrtcPtr crtc)
 
 		sna_crtc->transform = true;
 		return bo;
+	} else if (sna_crtc->scanout_pixmap) {
+		DBG(("%s: attaching to scanout pixmap\n", __FUNCTION__));
+		if (!sna_crtc_enable_shadow(sna, sna_crtc))
+			return NULL;
+
+		bo = sna_pixmap_pin(sna_crtc->scanout_pixmap);
+		if (bo == NULL)
+			return NULL;
+
+		if (!get_fb(sna, bo,
+			    sna_crtc->scanout_pixmap->drawable.width,
+			    sna_crtc->scanout_pixmap->drawable.height))
+			return NULL;
+
+		sna_crtc->transform = true;
+		return kgem_bo_reference(bo);
 	} else if (sna->flags & SNA_TEAR_FREE) {
 		DBG(("%s: tear-free updates requested\n", __FUNCTION__));
 
@@ -1299,6 +1316,15 @@ sna_crtc_destroy(xf86CrtcPtr crtc)
 	crtc->driver_private = NULL;
 }
 
+#if HAS_PIXMAP_SHARING
+static Bool
+sna_set_scanout_pixmap(xf86CrtcPtr crtc, PixmapPtr pixmap)
+{
+	to_sna_crtc(crtc)->scanout_pixmap = pixmap;
+	return TRUE;
+}
+#endif
+
 static const xf86CrtcFuncsRec sna_crtc_funcs = {
 	.dpms = sna_crtc_dpms,
 	.set_mode_major = sna_crtc_set_mode_major,
@@ -1309,6 +1335,9 @@ static const xf86CrtcFuncsRec sna_crtc_funcs = {
 	.load_cursor_argb = sna_crtc_load_cursor_argb,
 	.gamma_set = sna_crtc_gamma_set,
 	.destroy = sna_crtc_destroy,
+#if HAS_PIXMAP_SHARING
+	.set_scanout_pixmap = sna_set_scanout_pixmap,
+#endif
 };
 
 static uint32_t
@@ -2412,6 +2441,9 @@ bool sna_mode_pre_init(ScrnInfoPtr scrn, struct sna *sna)
 	for (i = 0; i < mode->kmode->count_connectors; i++)
 		sna_output_init(scrn, mode, i);
 
+#if HAS_PIXMAP_SHARING
+	xf86ProviderSetup(scrn, NULL, "Intel");
+#endif
 	xf86InitialConfiguration(scrn, TRUE);
 
 	return true;
