@@ -60,6 +60,7 @@ search_snoop_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags);
 #define DBG_NO_TILING 0
 #define DBG_NO_CACHE 0
 #define DBG_NO_CACHE_LEVEL 0
+#define DBG_NO_CPU 0
 #define DBG_NO_USERPTR 0
 #define DBG_NO_LLC 0
 #define DBG_NO_SEMAPHORES 0
@@ -874,7 +875,7 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	kgem->next_request = __kgem_request_alloc();
 
 	DBG(("%s: cpu bo enabled %d: llc? %d, set-cache-level? %d, userptr? %d\n", __FUNCTION__,
-	     kgem->has_llc | kgem->has_userptr | kgem->has_cacheing,
+	     !DBG_NO_CPU && (kgem->has_llc | kgem->has_userptr | kgem->has_cacheing),
 	     kgem->has_llc, kgem->has_cacheing, kgem->has_userptr));
 
 	VG_CLEAR(aperture);
@@ -950,6 +951,8 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 		if (kgem->large_object_size > kgem->max_cpu_size)
 			kgem->large_object_size = kgem->max_cpu_size;
 	} else
+		kgem->max_cpu_size = 0;
+	if (DBG_NO_CPU)
 		kgem->max_cpu_size = 0;
 
 	DBG(("%s: maximum object size=%d\n",
@@ -3428,6 +3431,9 @@ struct kgem_bo *kgem_create_cpu_2d(struct kgem *kgem,
 {
 	struct kgem_bo *bo;
 	int stride, size;
+
+	if (DBG_NO_CPU)
+		return NULL;
 
 	DBG(("%s(%dx%d, bpp=%d)\n", __FUNCTION__, width, height, bpp));
 
