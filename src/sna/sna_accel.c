@@ -13819,6 +13819,7 @@ static void sna_accel_post_damage(struct sna *sna)
 #if HAS_PIXMAP_SHARING
 	ScreenPtr screen = sna->scrn->pScreen;
 	PixmapDirtyUpdatePtr dirty;
+	bool flush = false;
 
 	xorg_list_for_each_entry(dirty, &screen->pixmap_dirty_list, ent) {
 		RegionRec region, *damage;
@@ -13903,6 +13904,8 @@ fallback:
 						    dst, sna_pixmap_get_bo(dst), -dirty->x, -dirty->y,
 						    box, n, COPY_LAST))
 				goto fallback;
+
+			flush = true;
 		}
 
 		RegionTranslate(&region, -dirty->x, -dirty->y);
@@ -13912,6 +13915,8 @@ skip:
 		RegionUninit(&region);
 		DamageEmpty(dirty->damage);
 	}
+	if (flush)
+		kgem_submit(&sna->kgem);
 #endif
 }
 
