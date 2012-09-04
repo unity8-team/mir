@@ -255,7 +255,7 @@ retry_gtt:
 	VG_CLEAR(mmap_arg);
 	mmap_arg.handle = bo->handle;
 	if (drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_MMAP_GTT, &mmap_arg)) {
-		ErrorF("%s: failed to achieve GTT offset for handle=%d: %d\n",
+		ErrorF("%s: failed to retrieve GTT offset for handle=%d: %d\n",
 		       __FUNCTION__, bo->handle, errno);
 		(void)__kgem_throttle_retire(kgem, 0);
 		if (kgem_expire_cache(kgem))
