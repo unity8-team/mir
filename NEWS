@@ -10,8 +10,8 @@ issue with incoherent page access to a streaming buffer.
    https://bugs.freedesktop.org/show_bug.cgi?id=54274
 
  * Incoherent concurrent access with the CPU and GPU
-   https://bugs.freedesktop.org/show_bug.cgi
-   https://bugs.freedesktop.org/show_bug.cgi
+   https://bugs.freedesktop.org/show_bug.cgi?id=51422
+   https://bugs.freedesktop.org/show_bug.cgi?id=52299
 
  * Add Option "Backlight" to override automatic selection of the
    backlight interface.
