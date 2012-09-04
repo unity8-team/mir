@@ -3568,6 +3568,12 @@ bool kgem_check_bo(struct kgem *kgem, ...)
 	}
 	va_end(ap);
 
+	DBG(("%s: num_pages=+%d, num_exec=+%d\n",
+	     __FUNCTION__, num_pages, num_exec));
+
+	if (kgem->nexec && kgem_is_idle(kgem))
+		return false;
+
 	if (!num_pages)
 		return true;
 
