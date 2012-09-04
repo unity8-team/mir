@@ -2813,7 +2813,7 @@ struct kgem_bo *kgem_create_for_prime(struct kgem *kgem, int name, uint32_t size
 
 int kgem_bo_export_to_prime(struct kgem *kgem, struct kgem_bo *bo)
 {
-#ifdef DRM_IOCTL_PRIME_HANDLE_TO_PRIME
+#ifdef DRM_IOCTL_PRIME_HANDLE_TO_FD
 	struct drm_prime_handle args;
 
 	VG_CLEAR(args);
