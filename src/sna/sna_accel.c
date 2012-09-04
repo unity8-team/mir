@@ -943,8 +943,7 @@ sna_share_pixmap_backing(PixmapPtr pixmap, ScreenPtr slave, void **fd_handle)
 	assert(priv->gpu_bo->tiling == I915_TILING_NONE);
 
 	/* And export the bo->pitch via pixmap->devKind */
-	pixmap->devPrivate.ptr =
-		kgem_bo_map(&sna->kgem, priv->gpu_bo);
+	pixmap->devPrivate.ptr = kgem_bo_map__async(&sna->kgem, priv->gpu_bo);
 	if (pixmap->devPrivate.ptr == NULL)
 		return FALSE;
 
@@ -1038,18 +1037,22 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 	DBG(("%s(%d, %d, %d, usage=%x)\n", __FUNCTION__,
 	     width, height, depth, usage));
 
-#ifdef CREATE_PIXMAP_USAGE_SHARED
-	if (usage == CREATE_PIXMAP_USAGE_SHARED) {
-		assert((width|height) == 0);
-		return sna_create_pixmap_shared(sna, screen, depth);
-	}
-#endif
-
 	if ((width|height) == 0) {
+#ifdef CREATE_PIXMAP_USAGE_SHARED
+		if (usage == CREATE_PIXMAP_USAGE_SHARED)
+			return sna_create_pixmap_shared(sna, screen, depth);
+#endif
 		usage = -1;
 		goto fallback;
 	}
 	assert(width && height);
+
+#ifdef CREATE_PIXMAP_USAGE_SHARED
+	if (usage == CREATE_PIXMAP_USAGE_SHARED)
+		return sna_pixmap_create_scratch(screen,
+						 width, height, depth,
+						 I915_TILING_NONE);
+#endif
 
 	flags = kgem_can_create_2d(&sna->kgem, width, height, depth);
 	if (flags == 0) {
