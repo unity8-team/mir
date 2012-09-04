@@ -289,7 +289,9 @@ static void RADEONBlockHandler_KMS(BLOCKHANDLER_ARGS_DECL)
 	radeon_glamor_flush(pScrn);
 
     radeon_cs_flush_indirect(pScrn);
+#ifdef RADEON_PIXMAP_SHARING
     radeon_dirty_update(pScreen);
+#endif
 }
 
 static void
