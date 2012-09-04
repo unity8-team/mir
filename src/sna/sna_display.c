@@ -1320,6 +1320,9 @@ sna_crtc_destroy(xf86CrtcPtr crtc)
 static Bool
 sna_set_scanout_pixmap(xf86CrtcPtr crtc, PixmapPtr pixmap)
 {
+	DBG(("%s: CRTC:%d, pipe=%d setting scanout pixmap=%ld\n",
+	     __FUNCTION__,to_sna_crtc(crtc)->id, to_sna_crtc(crtc)->pipe,
+	     pixmap ? pixmap->drawable.serialNumber : 0));
 	to_sna_crtc(crtc)->scanout_pixmap = pixmap;
 	return TRUE;
 }

@@ -929,6 +929,8 @@ sna_share_pixmap_backing(PixmapPtr pixmap, ScreenPtr slave, void **fd_handle)
 	struct sna_pixmap *priv;
 	int fd;
 
+	DBG(("%s: pixmap=%ld\n", __FUNCTION__, pixmap->drawable.serialNumber));
+
 	priv = sna_pixmap_move_to_gpu(pixmap,
 				      MOVE_READ | MOVE_WRITE | __MOVE_DRI | __MOVE_FORCE);
 	if (priv == NULL)
@@ -936,7 +938,7 @@ sna_share_pixmap_backing(PixmapPtr pixmap, ScreenPtr slave, void **fd_handle)
 
 	assert(priv->gpu_bo);
 
-	/* XXX */
+	/* XXX negotiate format and stride restrictions */
 	if (priv->gpu_bo->tiling &&
 	    !sna_pixmap_change_tiling(pixmap, I915_TILING_NONE))
 		return FALSE;
@@ -967,6 +969,8 @@ sna_set_shared_pixmap_backing(PixmapPtr pixmap, void *fd_handle)
 	struct sna_pixmap *priv;
 	struct kgem_bo *bo;
 
+	DBG(("%s: pixmap=%ld\n", __FUNCTION__, pixmap->drawable.serialNumber));
+
 	priv = sna_pixmap(pixmap);
 	if (priv == NULL)
 		return FALSE;
@@ -977,9 +981,9 @@ sna_set_shared_pixmap_backing(PixmapPtr pixmap, void *fd_handle)
 	assert(priv->cpu_damage == NULL);
 	assert(priv->gpu_damage == NULL);
 
-	bo = kgem_bo_create_for_prime(&sna->kgem,
-				      (intptr_t)fd_handle,
-				      pixmap->devKind * pixmap->drawable.height);
+	bo = kgem_create_for_prime(&sna->kgem,
+				   (intptr_t)fd_handle,
+				   pixmap->devKind * pixmap->drawable.height);
 	if (bo == NULL)
 		return FALSE;
 
@@ -1002,6 +1006,8 @@ sna_create_pixmap_shared(struct sna *sna, ScreenPtr screen, int depth)
 {
 	PixmapPtr pixmap;
 	struct sna_pixmap *priv;
+
+	DBG(("%s: depth=%d\n", __FUNCTION__, depth));
 
 	/* Create a stub to be attached later */
 	pixmap = create_pixmap(sna, screen, 0, 0, depth, 0);
@@ -3356,7 +3362,7 @@ static bool upload_inplace(struct sna *sna,
 		}
 	}
 
-	if (priv->create & (KGEM_CAN_CREATE_GPU | KGEM_CAN_CREATE_CPU) == KGEM_CAN_CREATE_GPU &&
+	if ((priv->create & (KGEM_CAN_CREATE_GPU | KGEM_CAN_CREATE_CPU)) == KGEM_CAN_CREATE_GPU &&
 	    region_subsumes_drawable(region, &pixmap->drawable)) {
 		DBG(("%s? yes, will fill fresh GPU bo\n", __FUNCTION__));
 		return true;
