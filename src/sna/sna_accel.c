@@ -937,6 +937,7 @@ sna_share_pixmap_backing(PixmapPtr pixmap, ScreenPtr slave, void **fd_handle)
 		return FALSE;
 
 	assert(priv->gpu_bo);
+	assert(priv->stride);
 
 	/* XXX negotiate format and stride restrictions */
 	if (priv->gpu_bo->tiling &&
@@ -13607,6 +13608,20 @@ static void sna_accel_disarm_timer(struct sna *sna, int id)
 	sna->timer_active &= ~(1<<id);
 }
 
+static bool has_offload_slaves(struct sna *sna)
+{
+#if HAS_PIXMAP_SHARING
+	ScreenPtr screen = sna->scrn->pScreen;
+	PixmapDirtyUpdatePtr dirty;
+
+	xorg_list_for_each_entry(dirty, &screen->pixmap_dirty_list, ent) {
+		if (RegionNotEmpty(DamageRegion(dirty->damage)))
+			return true;
+	}
+#endif
+	return false;
+}
+
 static bool has_shadow(struct sna *sna)
 {
 	DamagePtr damage = sna->mode.shadow_damage;
@@ -13625,12 +13640,15 @@ static bool has_shadow(struct sna *sna)
 
 static bool start_flush(struct sna *sna, struct sna_pixmap *scanout)
 {
-	DBG(("%s: scanout=%d shadow?=%d, (cpu?=%d || gpu?=%d))\n",
+	DBG(("%s: scanout=%d shadow?=%d, slaves?=%d, (cpu?=%d || gpu?=%d))\n",
 	     __FUNCTION__,
 	     scanout && scanout->gpu_bo ? scanout->gpu_bo->handle : 0,
-	     has_shadow(sna),
+	     has_shadow(sna), has_offload_slaves(sna),
 	     scanout && scanout->cpu_damage != NULL,
 	     scanout && scanout->gpu_bo && scanout->gpu_bo->exec != NULL));
+
+	if (has_offload_slaves(sna))
+		return true;
 
 	if (has_shadow(sna))
 		return true;
@@ -13643,12 +13661,15 @@ static bool start_flush(struct sna *sna, struct sna_pixmap *scanout)
 
 static bool stop_flush(struct sna *sna, struct sna_pixmap *scanout)
 {
-	DBG(("%s: scanout=%d shadow?=%d, (cpu?=%d || gpu?=%d))\n",
+	DBG(("%s: scanout=%d shadow?=%d, slaves?=%d, (cpu?=%d || gpu?=%d))\n",
 	     __FUNCTION__,
 	     scanout && scanout->gpu_bo ? scanout->gpu_bo->handle : 0,
-	     has_shadow(sna),
+	     has_shadow(sna), has_offload_slaves(sna),
 	     scanout && scanout->cpu_damage != NULL,
 	     scanout && scanout->gpu_bo && scanout->gpu_bo->rq != NULL));
+
+	if (has_offload_slaves(sna))
+		return true;
 
 	if (has_shadow(sna))
 		return true;
@@ -13662,9 +13683,10 @@ static bool stop_flush(struct sna *sna, struct sna_pixmap *scanout)
 static bool sna_accel_do_flush(struct sna *sna)
 {
 	struct sna_pixmap *priv;
+	int interval;
 
 	priv = sna_accel_scanout(sna);
-	if (priv == NULL && !sna->mode.shadow_active) {
+	if (priv == NULL && !sna->mode.shadow_active && !has_offload_slaves(sna)) {
 		DBG(("%s -- no scanout attached\n", __FUNCTION__));
 		sna_accel_disarm_timer(sna, FLUSH_TIMER);
 		return false;
@@ -13673,14 +13695,14 @@ static bool sna_accel_do_flush(struct sna *sna)
 	if (sna->flags & SNA_NO_DELAYED_FLUSH)
 		return true;
 
+	interval = sna->vblank_interval ?: 20;
 	if (sna->timer_active & (1<<(FLUSH_TIMER))) {
 		int32_t delta = sna->timer_expire[FLUSH_TIMER] - TIME;
 		DBG(("%s: flush timer active: delta=%d\n",
 		     __FUNCTION__, delta));
 		if (delta <= 3) {
 			DBG(("%s (time=%ld), triggered\n", __FUNCTION__, (long)TIME));
-			sna->timer_expire[FLUSH_TIMER] =
-				TIME + sna->vblank_interval;
+			sna->timer_expire[FLUSH_TIMER] = TIME + interval;
 			return true;
 		}
 	} else {
@@ -13690,8 +13712,7 @@ static bool sna_accel_do_flush(struct sna *sna)
 				kgem_bo_flush(&sna->kgem, priv->gpu_bo);
 		} else {
 			sna->timer_active |= 1 << FLUSH_TIMER;
-			sna->timer_expire[FLUSH_TIMER] =
-				TIME + sna->vblank_interval / 2;
+			sna->timer_expire[FLUSH_TIMER] = TIME + interval / 2;
 			DBG(("%s (time=%ld), starting\n", __FUNCTION__, (long)TIME));
 		}
 	}
@@ -13800,19 +13821,95 @@ static void sna_accel_post_damage(struct sna *sna)
 	PixmapDirtyUpdatePtr dirty;
 
 	xorg_list_for_each_entry(dirty, &screen->pixmap_dirty_list, ent) {
-		RegionRec pixregion;
+		RegionRec region, *damage;
+		PixmapPtr src, dst;
+		BoxPtr box;
+		int n;
 
-		if (!RegionNotEmpty(DamageRegion(dirty->damage)))
+		damage = DamageRegion(dirty->damage);
+		if (!RegionNotEmpty(damage))
 			continue;
 
-		PixmapRegionInit(&pixregion,
-				 dirty->slave_dst->master_pixmap);
-		PixmapSyncDirtyHelper(dirty, &pixregion);
+		src = dirty->src;
+		dst = dirty->slave_dst->master_pixmap;
 
-		DamageRegionAppend(&dirty->slave_dst->drawable,
-				   &pixregion);
-		RegionUninit(&pixregion);
+		region.extents.x1 = dirty->x;
+		region.extents.x2 = dirty->x + dst->drawable.width;
+		region.extents.y1 = dirty->y;
+		region.extents.y2 = dirty->y + dst->drawable.height;
+		region.data = NULL;
 
+		DBG(("%s: pushing damage ((%d, %d), (%d, %d))x%d to slave pixmap=%ld, ((%d, %d), (%d, %d))\n", __FUNCTION__,
+		     damage->extents.x1, damage->extents.y1,
+		     damage->extents.x2, damage->extents.y2,
+		     RegionNumRects(damage),
+		     dst->drawable.serialNumber,
+		     region.extents.x1, region.extents.y1,
+		     region.extents.x2, region.extents.y2));
+
+		RegionIntersect(&region, &region, damage);
+
+		box = REGION_RECTS(&region);
+		n = REGION_NUM_RECTS(&region);
+		if (wedged(sna)) {
+fallback:
+			if (!sna_pixmap_move_to_cpu(src, MOVE_READ))
+				goto skip;
+
+			if (!sna_pixmap_move_to_cpu(dst, MOVE_READ | MOVE_WRITE | MOVE_INPLACE_HINT))
+				goto skip;
+
+			assert(src->drawable.bitsPerPixel == dst->drawable.bitsPerPixel);
+			do {
+				DBG(("%s: copy box (%d, %d)->(%d, %d)x(%d, %d)\n",
+				     __FUNCTION__,
+				     box->x1, box->y1,
+				     box->x1 - dirty->x, box->y1 - dirty->y,
+				     box->x2 - box->x1, box->y2 - box->y1));
+
+				assert(box->x2 > box->x1);
+				assert(box->y2 > box->y1);
+
+				assert(box->x1 >= 0);
+				assert(box->y1 >= 0);
+				assert(box->x2 <= src->drawable.width);
+				assert(box->y2 <= src->drawable.height);
+
+				assert(box->x1 - dirty->x >= 0);
+				assert(box->y1 - dirty->y >= 0);
+				assert(box->x2 - dirty->x <= src->drawable.width);
+				assert(box->y2 - dirty->y <= src->drawable.height);
+
+				memcpy_blt(src->devPrivate.ptr,
+					   dst->devPrivate.ptr,
+					   src->drawable.bitsPerPixel,
+					   src->devKind, dst->devKind,
+					   box->x1, box->y1,
+					   box->x1 - dirty->x,
+					   box->y1 - dirty->y,
+					   box->x2 - box->x1,
+					   box->y2 - box->y1);
+				box++;
+			} while (--n);
+		} else {
+			if (!sna_pixmap_move_to_gpu(src, MOVE_READ | __MOVE_FORCE))
+				goto fallback;
+
+			if (!sna_pixmap_move_to_gpu(dst, MOVE_READ | MOVE_WRITE | __MOVE_FORCE))
+				goto fallback;
+
+			if (!sna->render.copy_boxes(sna, GXcopy,
+						    src, sna_pixmap_get_bo(src), 0, 0,
+						    dst, sna_pixmap_get_bo(dst), -dirty->x, -dirty->y,
+						    box, n, COPY_LAST))
+				goto fallback;
+		}
+
+		RegionTranslate(&region, -dirty->x, -dirty->y);
+		DamageRegionAppend(&dirty->slave_dst->drawable, &region);
+
+skip:
+		RegionUninit(&region);
 		DamageEmpty(dirty->damage);
 	}
 #endif
