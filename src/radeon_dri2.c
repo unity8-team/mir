@@ -63,6 +63,10 @@
 #define USE_DRI2_SCHEDULING
 #endif
 
+#if DRI2INFOREC_VERSION >= 9
+#define USE_DRI2_PRIME
+#endif
+
 #if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,6,99,0, 0)
 typedef DRI2BufferPtr BufferPtr;
 #else
@@ -578,6 +582,7 @@ radeon_dri2_copy_region2(ScreenPtr pScreen,
         src_drawable = drawable;
     }
     if (dst_private->attachment == DRI2BufferFrontLeft) {
+#ifdef USE_DRI2_PRIME
 	if (drawable->pScreen != pScreen) {
 	    dst_drawable = DRI2UpdatePrime(drawable, dest_buffer);
 	    if (!dst_drawable)
@@ -586,6 +591,7 @@ radeon_dri2_copy_region2(ScreenPtr pScreen,
 	    if (dst_drawable != drawable)
 		translate = TRUE;
 	} else
+#endif
 	    dst_drawable = drawable;
     }
 
