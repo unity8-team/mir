@@ -561,7 +561,7 @@ intel_platform_probe(DriverPtr driver,
 #if USE_UXA
         case UXA: intel_init_scrn(scrn); break;
 #endif
-	default: break;
+	default: return FALSE;
 	}
 
 	xf86DrvMsg(scrn->scrnIndex, X_INFO,

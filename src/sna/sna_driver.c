@@ -230,6 +230,9 @@ static int sna_device_key;
 
 static inline struct sna_device *sna_device(ScrnInfoPtr scrn)
 {
+	if (scrn->entityList == NULL)
+		return NULL;
+
 	return xf86GetEntityPrivate(scrn->entityList[0], sna_device_key)->ptr;
 }
 
@@ -963,12 +966,11 @@ static void sna_free_screen(FREE_SCREEN_ARGS_DECL)
 
 	DBG(("%s\n", __FUNCTION__));
 
-	if (sna) {
+	if (sna && ((intptr_t)sna & 1) == 0) {
 		sna_mode_fini(sna);
-
 		free(sna);
-		scrn->driverPrivate = NULL;
 	}
+	scrn->driverPrivate = NULL;
 
 	sna_close_drm_master(scrn);
 }
@@ -1117,12 +1119,11 @@ Bool sna_init_scrn(ScrnInfoPtr scrn, int entity_num)
 
 	scrn->ModeSet = sna_mode_set;
 
-	xf86SetEntitySharable(scrn->entityList[0]);
-
 	entity = xf86GetEntityInfo(entity_num);
 	if (!entity)
 		return FALSE;
 
+	xf86SetEntitySharable(entity_num);
 	xf86SetEntityInstanceForScreen(scrn,
 				       entity->index,
 				       xf86GetNumEntityInstances(entity->index)-1);
