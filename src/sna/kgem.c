@@ -1331,6 +1331,7 @@ static void kgem_bo_clear_scanout(struct kgem *kgem, struct kgem_bo *bo)
 	DBG(("%s: handle=%d, fb=%d (reusable=%d)\n",
 	     __FUNCTION__, bo->handle, bo->delta, bo->reusable));
 	if (bo->delta) {
+		/* XXX will leak if we are not DRM_MASTER. *shrug* */
 		drmModeRmFB(kgem->fd, bo->delta);
 		bo->delta = 0;
 	}

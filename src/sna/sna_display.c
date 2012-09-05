@@ -153,6 +153,7 @@ static unsigned get_fb(struct sna *sna, struct kgem_bo *bo,
 	arg.depth = scrn->depth;
 	arg.handle = bo->handle;
 
+	assert(sna->scrn->vtSema); /* must be master */
 	if (drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_ADDFB, &arg)) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "%s: failed to add fb: %dx%d depth=%d, bpp=%d, pitch=%d: %d\n",
