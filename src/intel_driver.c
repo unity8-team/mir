@@ -1136,10 +1136,6 @@ static Bool I830CloseScreen(CLOSE_SCREEN_ARGS_DECL)
 	I830UeventFini(scrn);
 #endif
 
-	if (scrn->vtSema == TRUE) {
-		I830LeaveVT(VT_FUNC_ARGS(0));
-	}
-
 	DeleteCallback(&FlushCallback, intel_flush_callback, scrn);
 
 	intel_glamor_close_screen(screen);
@@ -1167,6 +1163,10 @@ static Bool I830CloseScreen(CLOSE_SCREEN_ARGS_DECL)
 		intel_mode_remove_fb(intel);
 		drm_intel_bo_unreference(intel->front_buffer);
 		intel->front_buffer = NULL;
+	}
+
+	if (scrn->vtSema == TRUE) {
+		I830LeaveVT(VT_FUNC_ARGS(0));
 	}
 
 	intel_batch_teardown(scrn);
