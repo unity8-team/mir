@@ -61,6 +61,7 @@
 #define USE_WIDE_SPANS 0 /* -1 force CPU, 1 force GPU */
 #define USE_ZERO_SPANS 1 /* -1 force CPU, 1 force GPU */
 #define USE_INACTIVE 0
+#define USE_CPU_BO 1
 
 #define MIGRATE_ALL 0
 #define DBG_NO_CPU_UPLOAD 0
@@ -2525,11 +2526,13 @@ sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
 
 	if (DAMAGE_IS_ALL(priv->gpu_damage)) {
 		DBG(("%s: use GPU fast path (all-damaged)\n", __FUNCTION__));
+		assert(priv->cpu_damage == NULL);
 		goto use_gpu_bo;
 	}
 
 	if (DAMAGE_IS_ALL(priv->cpu_damage)) {
 		DBG(("%s: use CPU fast path (all-damaged)\n", __FUNCTION__));
+		assert(priv->gpu_damage == NULL);
 		goto use_cpu_bo;
 	}
 
@@ -2579,6 +2582,20 @@ sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
 					     __FUNCTION__));
 					goto use_cpu_bo;
 				}
+			}
+		} else if (priv->cpu_damage) {
+			get_drawable_deltas(drawable, pixmap, &dx, &dy);
+
+			region.extents = *box;
+			region.extents.x1 += dx;
+			region.extents.x2 += dx;
+			region.extents.y1 += dy;
+			region.extents.y2 += dy;
+
+			sna_damage_subtract(&priv->cpu_damage, &region);
+			if (priv->cpu_damage == NULL) {
+				list_del(&priv->list);
+				priv->undamaged = false;
 			}
 		}
 
@@ -2690,6 +2707,9 @@ use_gpu_bo:
 	return priv->gpu_bo;
 
 use_cpu_bo:
+	if (!USE_CPU_BO)
+		return NULL;
+
 	if (priv->cpu_bo == NULL)
 		return NULL;
 
