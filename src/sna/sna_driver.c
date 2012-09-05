@@ -168,11 +168,7 @@ static Bool sna_create_screen_resources(ScreenPtr screen)
 	free(screen->devPrivate);
 	screen->devPrivate = NULL;
 
-	if (!sna_accel_create(screen, sna)) {
-		xf86DrvMsg(screen->myNum, X_ERROR,
-			   "[intel] Failed to initialise acceleration routines\n");
-		goto cleanup_front;
-	}
+	sna_accel_create(sna);
 
 	sna->front = screen->CreatePixmap(screen,
 					  screen->width,
@@ -263,7 +259,7 @@ static int sna_open_drm_master(ScrnInfoPtr scrn)
 	snprintf(busid, sizeof(busid), "pci:%04x:%02x:%02x.%d",
 		 pci->domain, pci->bus, pci->dev, pci->func);
 
-	fd = drmOpen("i915", busid);
+	fd = drmOpen(NULL, busid);
 	if (fd == -1) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[drm] Failed to open DRM device for %s: %s\n",
@@ -1071,7 +1067,7 @@ Bool sna_init_scrn(ScrnInfoPtr scrn, int entity_num)
 #if defined(USE_GIT_DESCRIBE)
 	xf86DrvMsg(scrn->scrnIndex, X_INFO,
 		   "SNA compiled from %s\n", git_version);
-#elif BUILDER_DESCRIPTION
+#elif defined(BUILDER_DESCRIPTION)
 	xf86DrvMsg(scrn->scrnIndex, X_INFO,
 		   "SNA compiled: %s\n", BUILDER_DESCRIPTION);
 #endif

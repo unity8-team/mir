@@ -1145,7 +1145,8 @@ Bool intel_uxa_create_screen_resources(ScreenPtr screen)
 	if (!uxa_resources_init(screen))
 		return FALSE;
 
-	drm_intel_gem_bo_map_gtt(bo);
+	if (drm_intel_gem_bo_map_gtt(bo))
+		return FALSE;
 
 	pixmap = screen->GetScreenPixmap(screen);
 	intel_set_pixmap_bo(pixmap, bo);

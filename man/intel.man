@@ -132,6 +132,15 @@ have options for selecting adaptors.
 .IP
 Default: Textured video adaptor is preferred.
 .TP
+.BI "Option \*Backlight\*q \*q" string \*q
+Override the probed backlight control interface. Sometimes the automatically
+selected backlight interface may not correspond to the correct, or simply
+most useful, interface available on the system. This allows you to override
+by specifying the entry under /sys/class/backlight to use.
+server log.
+.IP
+Default: Automatic selection.
+.TP
 .BI "Option \*qFallbackDebug\*q \*q" boolean \*q
 Enable printing of debugging information on acceleration fallbacks to the
 server log.
@@ -257,80 +266,73 @@ VGA output port (typically exposed via an HD15 connector).
 .SS "LVDS"
 Low Voltage Differential Signalling output (typically a laptop LCD panel).  Available properties:
 
-.PP
-.B BACKLIGHT
-- current backlight level (adjustable)
-.TP 2
-By adjusting the BACKLIGHT property, the brightness on the LVDS output can be adjusted.  In some cases, this property may be unavailable (for example if your platform uses an external microcontroller to control the backlight).
-
-.PP
-.B scaling mode
-- control LCD panel scaling mode
-.TP 2
-When the currently selected display mode differs from the native panel resolution, various scaling options are available. These include
+.TP
+\fBBACKLIGHT\fB - current backlight level (adjustable)
+By adjusting the BACKLIGHT property, the brightness on the LVDS output
+can be adjusted.  In some cases, this property may be unavailable (for
+example if your platform uses an external microcontroller to control
+the backlight).
+.TP
+\fBscaling mode\fP - control LCD panel scaling mode
+When the currently selected display mode differs from the native panel
+resolution, various scaling options are available. These include
 .RS
-.PP
+.TP
 .B Center
-.TP 4
-Simply center the image on-screen without scaling. This is the only scaling mode that guarantees a one-to-one correspondence between native and displayed pixels, but some portions of the panel may be unused (so-called "letterboxing").
-.PP
+Simply center the image on-screen without scaling. This is the only
+scaling mode that guarantees a one-to-one correspondence between
+native and displayed pixels, but some portions of the panel may be
+unused (so-called "letterboxing").
+.TP
 .B Full aspect
-.TP 4
-Scale the image as much as possible while preserving aspect ratio. Pixels may not be displayed one-to-one (there may be some blurriness). Some portions of the panel may be unused if the aspect ratio of the selected mode does not match that of the panel.
-.PP
+Scale the image as much as possible while preserving aspect
+ratio. Pixels may not be displayed one-to-one (there may be some
+blurriness). Some portions of the panel may be unused if the aspect
+ratio of the selected mode does not match that of the panel.
+.TP
 .B Full
-.TP 4
-Scale the image to the panel size without regard to aspect ratio. This is the only mode which guarantees that every pixel of the panel will be used. But the displayed image may be distorted by stretching either horizontally or vertically, and pixels may not be displayed one-to-one (there may be some blurriness).
+Scale the image to the panel size without regard to aspect ratio. This
+is the only mode which guarantees that every pixel of the panel will
+be used. But the displayed image may be distorted by stretching either
+horizontally or vertically, and pixels may not be displayed one-to-one
+(there may be some blurriness).
 .RE
 
 The precise names of these options may differ depending on the kernel
-video driver, (but the functionality should be similar). See the output of
+video driver, (but the functionality should be similar). See the
+output of
 .B xrandr \-\-prop
 for a list of currently available scaling modes.
 .SS "TV"
 Integrated TV output.  Available properties include:
-
-.PP
-.B BOTTOM, RIGHT, TOP, LEFT
-- margins
-.TP 2
-Adjusting these properties allows you to control the placement of your TV output buffer on the screen. The options with the same name can also be set in xorg.conf with integer value.
-
-.PP
-.B BRIGHTNESS
-- TV brightness, range 0-255
-.TP 2
+.TP
+\fBBOTTOM, RIGHT, TOP, LEFT\fP - margins
+Adjusting these properties allows you to control the placement of your
+TV output buffer on the screen. The options with the same name can
+also be set in xorg.conf with integer value.
+.TP
+\fBBRIGHTNESS\fP - TV brightness, range 0-255
 Adjust TV brightness, default value is 128.
-
-.PP
-.B CONTRAST
-- TV contrast, range 0-255
-.TP 2
+.TP
+\fBCONTRAST\fP - TV contrast, range 0-255
 Adjust TV contrast, default value is 1.0 in chipset specific format.
-
-.PP
-.B SATURATION
-- TV saturation, range 0-255
-.TP 2
+.TP
+\fBSATURATION\fP - TV saturation, range 0-255
 Adjust TV saturation, default value is 1.0 in chipset specific format.
-
-.PP
-.B HUE
-- TV hue, range 0-255
-.TP 2
+.TP
+\fBHUE\fP - TV hue, range 0-255
 Adjust TV hue, default value is 0.
-
-.PP
-.B TV_FORMAT
-- output standard
-.TP 2
-This property allows you to control the output standard used on your TV output port.  You can select between NTSC-M, NTSC-443, NTSC-J, PAL-M, PAL-N, and PAL.
-
-.PP
-.B TV_Connector
-- connector type
-.TP 2
-This config option should be added to xorg.conf TV monitor's section, it allows you to force the TV output connector type, which bypass load detect and TV will always be taken as connected. You can select between S-Video, Composite and Component.
+.TP
+\fBTV_FORMAT\fP - output standard
+This property allows you to control the output standard used on your
+TV output port.  You can select between NTSC-M, NTSC-443, NTSC-J,
+PAL-M, PAL-N, and PAL.
+.TP
+\fBTV_Connector\fP - connector type
+This config option should be added to xorg.conf TV monitor's section,
+it allows you to force the TV output connector type, which bypass load
+detect and TV will always be taken as connected. You can select
+between S-Video, Composite and Component.
 
 .SS "TMDS-1"
 First DVI SDVO output
@@ -340,15 +342,15 @@ Second DVI SDVO output
 
 .SS "TMDS-1", "TMDS-2", "HDMI-1", "HDMI-2"
 DVI/HDMI outputs. Avaliable common properties include:
-.PP
-.B BROADCAST_RGB
-- method used to set RGB color range(full range 0-255, not full range 16-235)
-.TP 2
-Adjusting this propertie allows you to set RGB color range on each channel in order to match HDTV requirment(default 0 for full range). Setting 1 means RGB color range is 16-235, 0 means RGB color range is 0-255 on each channel.
+.TP
+\fBBROADCAST_RGB\fP - method used to set RGB color range
+Adjusting this property allows you to set RGB color range on each
+channel in order to match HDTV requirment(default 0 for full
+range). Setting 1 means RGB color range is 16-235, 0 means RGB color
+range is 0-255 on each channel.  (Full range is 0-255, not 16-235)
 
 .PP
 SDVO and DVO TV outputs are not supported by the driver at this time.
-
 .PP
 See __xconfigfile__(__filemansuffix__) for information on associating Monitor
 sections with these outputs for configuration.  Associating Monitor sections

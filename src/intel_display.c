@@ -41,6 +41,7 @@
 
 #include "intel.h"
 #include "intel_bufmgr.h"
+#include "intel_options.h"
 #include "xf86drm.h"
 #include "xf86drmMode.h"
 #include "X11/Xatom.h"
@@ -252,19 +253,36 @@ static void
 intel_output_backlight_init(xf86OutputPtr output)
 {
 	struct intel_output *intel_output = output->driver_private;
+	intel_screen_private *intel = intel_get_screen_private(output->scrn);
+	char path[BACKLIGHT_PATH_LEN];
+	struct stat buf;
+	char *str;
 	int i;
 
-	for (i = 0; backlight_interfaces[i] != NULL; i++) {
-		char path[BACKLIGHT_PATH_LEN];
-		struct stat buf;
+	str = xf86GetOptValString(intel->Options, OPTION_BACKLIGHT);
+	if (str == NULL) {
+		sprintf(path, "%s/%s", BACKLIGHT_CLASS, str);
+		if (!stat(path, &buf)) {
+			intel_output->backlight_iface = backlight_interfaces[i];
+			intel_output->backlight_max = intel_output_backlight_get_max(output);
+			if (intel_output->backlight_max > 0) {
+				xf86DrvMsg(output->scrn->scrnIndex, X_CONFIG,
+					   "found backlight control interface %s\n", path);
+				return;
+			}
+		}
+		xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
+			   "unrecognised backlight control interface %s\n", str);
+	}
 
+	for (i = 0; backlight_interfaces[i] != NULL; i++) {
 		sprintf(path, "%s/%s", BACKLIGHT_CLASS, backlight_interfaces[i]);
 		if (!stat(path, &buf)) {
 			intel_output->backlight_iface = backlight_interfaces[i];
 			intel_output->backlight_max = intel_output_backlight_get_max(output);
 			if (intel_output->backlight_max > 0) {
 				intel_output->backlight_active_level = intel_output_backlight_get(output);
-				xf86DrvMsg(output->scrn->scrnIndex, X_INFO,
+				xf86DrvMsg(output->scrn->scrnIndex, X_PROBED,
 					   "found backlight control interface %s\n", path);
 				return;
 			}

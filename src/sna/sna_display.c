@@ -64,6 +64,7 @@ struct sna_crtc {
 	uint32_t cursor;
 	bool shadow;
 	bool fallback_shadow;
+	bool transform;
 	uint8_t id;
 	uint8_t pipe;
 	uint8_t plane;
@@ -141,6 +142,7 @@ static unsigned get_fb(struct sna *sna, struct kgem_bo *bo,
 	     __FUNCTION__, width, height, scrn->depth, scrn->bitsPerPixel));
 
 	assert(bo->tiling != I915_TILING_Y);
+	assert((bo->pitch & 63) == 0);
 
 	VG_CLEAR(arg);
 	arg.width = width;
@@ -288,6 +290,31 @@ enum {
 	NAMED,
 };
 
+static char *
+has_user_backlight_override(xf86OutputPtr output)
+{
+	struct sna_output *sna_output = output->driver_private;
+	struct sna *sna = to_sna(output->scrn);
+	char *str;
+	int max;
+
+	str = xf86GetOptValString(sna->Options, OPTION_BACKLIGHT);
+	if (str == NULL)
+		return NULL;
+
+	sna_output->backlight_iface = str;
+	max = sna_output_backlight_get_max(output);
+	sna_output->backlight_iface = NULL;
+	if (max <= 0) {
+		xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
+			   "unrecognised backlight control interface '%s'\n",
+			   str);
+		return NULL;
+	}
+
+	return str;
+}
+
 static void
 sna_output_backlight_init(xf86OutputPtr output)
 {
@@ -305,14 +332,17 @@ sna_output_backlight_init(xf86OutputPtr output)
 		"acpi_video0",
 		"intel_backlight",
 	};
+	MessageType from = X_PROBED;
 	struct sna_output *sna_output = output->driver_private;
 	char *best_iface;
 	int best_type;
 	DIR *dir;
 	struct dirent *de;
 
-	best_iface = NULL;
 	best_type = INT_MAX;
+	best_iface = has_user_backlight_override(output);
+	if (best_iface)
+		goto skip;
 
 	dir = opendir(BACKLIGHT_CLASS);
 	if (dir == NULL)
@@ -369,6 +399,7 @@ sna_output_backlight_init(xf86OutputPtr output)
 
 			sna_output->backlight_iface = de->d_name;
 			max = sna_output_backlight_get_max(output);
+			sna_output->backlight_iface = NULL;
 			if (max <= 0)
 				continue;
 
@@ -382,24 +413,23 @@ sna_output_backlight_init(xf86OutputPtr output)
 	}
 	closedir(dir);
 
-	sna_output->backlight_iface = NULL;
+	if (!best_iface)
+		return;
 
-	if (best_iface) {
-		const char *str;
-
-		sna_output->backlight_iface = best_iface;
-		sna_output->backlight_max = sna_output_backlight_get_max(output);
-		sna_output->backlight_active_level = sna_output_backlight_get(output);
-		switch (best_type) {
-		case FIRMWARE: str = "firmware"; break;
-		case PLATFORM: str = "platform"; break;
-		case RAW: str = "raw"; break;
-		default: str = "unknown"; break;
-		}
-		xf86DrvMsg(output->scrn->scrnIndex, X_INFO,
-			   "found backlight control interface %s (type '%s')\n",
-			   best_iface, str);
+skip:
+	sna_output->backlight_iface = best_iface;
+	sna_output->backlight_max = sna_output_backlight_get_max(output);
+	sna_output->backlight_active_level = sna_output_backlight_get(output);
+	switch (best_type) {
+	case INT_MAX: best_iface = "user"; from = X_CONFIG; break;
+	case FIRMWARE: best_iface = "firmware"; break;
+	case PLATFORM: best_iface = "platform"; break;
+	case RAW: best_iface = "raw"; break;
+	default: best_iface = "unknown"; break;
 	}
+	xf86DrvMsg(output->scrn->scrnIndex, from,
+		   "found backlight control interface %s (type '%s')\n",
+		   sna_output->backlight_iface, best_iface);
 }
 
 
@@ -535,7 +565,8 @@ sna_crtc_apply(xf86CrtcPtr crtc)
 	VG_CLEAR(arg);
 	arg.crtc_id = sna_crtc->id;
 	arg.fb_id = fb_id(sna_crtc->bo);
-	if (sna_crtc->shadow) {
+	if (sna_crtc->transform) {
+		assert(sna_crtc->shadow);
 		arg.x = 0;
 		arg.y = 0;
 	} else {
@@ -547,7 +578,7 @@ sna_crtc_apply(xf86CrtcPtr crtc)
 	arg.mode = sna_crtc->kmode;
 	arg.mode_valid = 1;
 
-	DBG(("%s: applying crtc [%d] mode=%dx%d+%d+%d@%d, fb=%d%s update to %d outputs\n",
+	DBG(("%s: applying crtc [%d] mode=%dx%d+%d+%d@%d, fb=%d%s%s update to %d outputs\n",
 	     __FUNCTION__, sna_crtc->id,
 	     arg.mode.hdisplay,
 	     arg.mode.vdisplay,
@@ -555,6 +586,7 @@ sna_crtc_apply(xf86CrtcPtr crtc)
 	     arg.mode.clock,
 	     arg.fb_id,
 	     sna_crtc->shadow ? " [shadow]" : "",
+	     sna_crtc->transform ? " [transformed]" : "",
 	     output_count));
 
 	if (drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_SETCRTC, &arg))
@@ -906,6 +938,7 @@ static struct kgem_bo *sna_crtc_attach(xf86CrtcPtr crtc)
 	struct sna *sna = to_sna(scrn);
 	struct kgem_bo *bo;
 
+	sna_crtc->transform = false;
 	if (use_shadow(sna, crtc)) {
 		if (!sna_crtc_enable_shadow(sna, sna_crtc))
 			return NULL;
@@ -925,6 +958,7 @@ static struct kgem_bo *sna_crtc_attach(xf86CrtcPtr crtc)
 			return NULL;
 		}
 
+		sna_crtc->transform = true;
 		return bo;
 	} else if (sna->flags & SNA_TEAR_FREE) {
 		DBG(("%s: tear-free updates requested\n", __FUNCTION__));
@@ -958,9 +992,13 @@ static struct kgem_bo *sna_crtc_attach(xf86CrtcPtr crtc)
 		DBG(("%s: attaching to framebuffer\n", __FUNCTION__));
 		sna_crtc_disable_shadow(sna, sna_crtc);
 		bo = sna_pixmap_pin(sna->front);
+		if (bo == NULL)
+			return NULL;
+
 		if (!get_fb(sna, bo, scrn->virtualX, scrn->virtualY))
 			return NULL;
 
+		assert(!sna_crtc->shadow);
 		return kgem_bo_reference(bo);
 	}
 }
@@ -989,7 +1027,7 @@ static void sna_crtc_randr(xf86CrtcPtr crtc)
 	filter = NULL;
 	params = NULL;
 	nparams = 0;
-	if (sna_crtc->shadow) {
+	if (sna_crtc->transform) {
 #ifdef RANDR_12_INTERFACE
 		if (transform) {
 			if (transform->nparams) {
@@ -1075,6 +1113,7 @@ sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	struct sna_crtc *sna_crtc = to_sna_crtc(crtc);
 	struct kgem_bo *saved_bo, *bo;
 	struct drm_mode_modeinfo saved_kmode;
+	bool saved_transform;
 
 	xf86DrvMsg(crtc->scrn->scrnIndex, X_INFO,
 		   "switch to mode %dx%d on crtc %d (pipe %d)\n",
@@ -1096,6 +1135,7 @@ sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 
 	saved_kmode = sna_crtc->kmode;
 	saved_bo = sna_crtc->bo;
+	saved_transform = sna_crtc->transform;
 
 	sna_crtc->fallback_shadow = false;
 retry: /* Attach per-crtc pixmap or direct */
@@ -1116,6 +1156,7 @@ retry: /* Attach per-crtc pixmap or direct */
 		xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
 			   "failed to set mode: %s\n", strerror(errno));
 
+		sna_crtc->transform = saved_transform;
 		sna_crtc->bo = saved_bo;
 		sna_crtc->kmode = saved_kmode;
 		return FALSE;
@@ -2943,57 +2984,63 @@ void sna_mode_redisplay(struct sna *sna)
 
 		for (i = 0; i < config->num_crtc; i++) {
 			struct sna_crtc *crtc = config->crtc[i]->driver_private;
-			struct drm_mode_crtc_page_flip arg;
 
-			DBG(("%s: crtc %d active? %d\n",
-			     __FUNCTION__, i, crtc->bo != NULL));
+			DBG(("%s: crtc %d [%d, pipe=%d] active? %d\n",
+			     __FUNCTION__, i, crtc->id, crtc->pipe, crtc->bo != NULL));
 			if (crtc->bo != old)
 				continue;
 
-			arg.crtc_id = crtc->id;
-			arg.fb_id = get_fb(sna, new,
-					   sna->scrn->virtualX,
-					   sna->scrn->virtualY);
-			if (arg.fb_id == 0)
-				goto disable;
+			assert(config->crtc[i]->enabled);
 
-			/* Only the reference crtc will finally deliver its page flip
-			 * completion event. All other crtc's events will be discarded.
-			 */
-			arg.user_data = 0;
-			arg.flags = DRM_MODE_PAGE_FLIP_EVENT;
-			arg.reserved = 0;
+			if (crtc->dpms_mode == DPMSModeOn) {
+				struct drm_mode_crtc_page_flip arg;
+				arg.crtc_id = crtc->id;
+				arg.fb_id = get_fb(sna, new,
+						   sna->scrn->virtualX,
+						   sna->scrn->virtualY);
+				if (arg.fb_id == 0)
+					goto disable;
 
-			if (drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_PAGE_FLIP, &arg)) {
-				DBG(("%s: flip [fb=%d] on crtc %d [%d] failed - %d\n",
-				     __FUNCTION__, arg.fb_id, i, crtc->id, errno));
+				/* Only the reference crtc will finally deliver its page flip
+				 * completion event. All other crtc's events will be discarded.
+				 */
+				arg.user_data = 0;
+				arg.flags = DRM_MODE_PAGE_FLIP_EVENT;
+				arg.reserved = 0;
+
+				if (drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_PAGE_FLIP, &arg)) {
+					DBG(("%s: flip [fb=%d] on crtc %d [%d, pipe=%d] failed - %d\n",
+					     __FUNCTION__, arg.fb_id, i, crtc->id, crtc->pipe, errno));
 disable:
-				sna_crtc_disable(config->crtc[i]);
-				continue;
+					sna_crtc_disable(config->crtc[i]);
+					continue;
+				}
+				sna->mode.shadow_flip++;
 			}
 
 			kgem_bo_destroy(&sna->kgem, old);
 			crtc->bo = kgem_bo_reference(new);
-			sna->mode.shadow_flip++;
 		}
 
-		/* XXX only works if the kernel stalls fwrites to the current
-		 * scanout whilst the flip is pending
-		 */
-		while (sna->mode.shadow_flip)
-			sna_mode_wakeup(sna);
-		(void)sna->render.copy_boxes(sna, GXcopy,
-					     sna->front, new, 0, 0,
-					     sna->front, old, 0, 0,
-					     REGION_RECTS(region),
-					     REGION_NUM_RECTS(region),
-					     COPY_LAST);
-		kgem_submit(&sna->kgem);
+		if (sna->mode.shadow) {
+			/* XXX only works if the kernel stalls fwrites to the current
+			 * scanout whilst the flip is pending
+			 */
+			while (sna->mode.shadow_flip)
+				sna_mode_wakeup(sna);
+			(void)sna->render.copy_boxes(sna, GXcopy,
+						     sna->front, new, 0, 0,
+						     sna->front, old, 0, 0,
+						     REGION_RECTS(region),
+						     REGION_NUM_RECTS(region),
+						     COPY_LAST);
+			kgem_submit(&sna->kgem);
 
-		sna_pixmap(sna->front)->gpu_bo = old;
-		sna->mode.shadow = new;
+			sna_pixmap(sna->front)->gpu_bo = old;
+			sna->mode.shadow = new;
 
-		new->flush = old->flush;
+			new->flush = old->flush;
+		}
 
 		RegionEmpty(region);
 	}

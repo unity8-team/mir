@@ -475,7 +475,7 @@ DRI2CopyRegion(Display * dpy, XID drawable, XserverRegion region,
    req->dest = dest;
    req->src = src;
 
-   _XReply(dpy, (xReply *) & rep, 0, xFalse);
+   (void) _XReply(dpy, (xReply *) & rep, 0, xFalse);
 
    UnlockDisplay(dpy);
    SyncHandle();
@@ -517,7 +517,7 @@ uint64_t DRI2SwapBuffers(Display *dpy, XID drawable,
     req->drawable = drawable;
     load_swap_req(req, target_msc, divisor, remainder);
 
-    _XReply(dpy, (xReply *)&rep, 0, xFalse);
+    (void) _XReply(dpy, (xReply *)&rep, 0, xFalse);
 
     count = vals_to_card64(rep.swap_lo, rep.swap_hi);
 

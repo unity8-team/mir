@@ -1,3 +1,69 @@
+Release 2.20.6 (2012-09-02)
+===========================
+A serious bug that caused a crash on SandyBridge and IvyBridge when
+mixing CPU and GPU operations on the same buffer, and an annoyance from
+bad scheduling of windowed swapbuffer updates causing low framerates and
+jitter. Plus the usual smattering of assertion fixes and a long standing
+issue with incoherent page access to a streaming buffer.
+
+ * Low frame rates in Blobby Valley when "fullscreen"
+   https://bugs.freedesktop.org/show_bug.cgi?id=54274
+
+ * Incoherent concurrent access with the CPU and GPU
+   https://bugs.freedesktop.org/show_bug.cgi
+   https://bugs.freedesktop.org/show_bug.cgi
+
+ * Add Option "Backlight" to override automatic selection of the
+   backlight interface.
+
+ * Avoid overwriting the composite operation info when testing if we
+   can transfer the operation to the BLT.
+
+Release 2.20.5 (2012-08-26)
+===========================
+Another silly bug found, another small bugfix release. The goal was for
+the driver to bind to all Intel devices supported by the kernel.
+Unfortunately we were too successful and started claiming Pouslbo,
+Medfield and Cedarview devices which are still encumbered by propietary
+IP and not supported by this driver.
+
+Bugs fixed since 2.20.4:
+
+ * Only bind to Intel devices using the i915 kernel module
+
+ * Regression in the bitmap-to-region code, e.g. icewm window buttons
+   https://bugs.freedesktop.org/show_bug.cgi?id=53699
+
+Release 2.20.4 (2012-08-18)
+===========================
+Continuing the small bugfix releases, the only real feature is initial
+enabling for Haswell for the purpose of rendering verification and
+validation - by no means is it complete!
+
+Bugs fixed since 2.20.3:
+
+  * Some potential errors along failure paths found by a static analyser
+  with the help of Zdenek Kablac.
+
+  * Eliminate zero-sized rectangles from PolyFillRectangles as the code
+  assumes that they did not exist and so caused corruption.
+
+  * Remove the UXA warning for failing to tile the front buffer if it is
+  disallowed by hardware, and so expected.
+
+  * Fix the validation of the XV pipe parameter.
+
+  * Fix 8x8 tiled pattern fills
+  https://bugs.freedesktop.org/show_bug.cgi?id=53353
+
+  * Fix compile failure when using --with-builderstring
+
+  * Restore w/a flush for gen4 fill/copy/video, fortunately rare
+  operations as at least for fill/copy we prefer to use the BLT.
+  https://bugs.freedesktop.org/show_bug.cgi?id=53119
+
+  * Restore preferred use of the RENDER ring for SNB+ DRI copies.
+
 Release 2.20.3 (2012-08-04)
 ===========================
 Just a minor bugfix for gen4 chipsets (965gm, gm45 and friends) that

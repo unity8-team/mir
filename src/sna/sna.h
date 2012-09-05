@@ -458,11 +458,16 @@ sna_drawable_move_to_gpu(DrawablePtr drawable, unsigned flags)
 	return sna_pixmap_move_to_gpu(get_drawable_pixmap(drawable), flags) != NULL;
 }
 
+void sna_add_flush_pixmap(struct sna *sna,
+			  struct sna_pixmap *priv,
+			  struct kgem_bo *bo);
+
 struct kgem_bo *sna_pixmap_change_tiling(PixmapPtr pixmap, uint32_t tiling);
 
 #define PREFER_GPU	0x1
 #define FORCE_GPU	0x2
-#define IGNORE_CPU	0x4
+#define RENDER_GPU	0x4
+#define IGNORE_CPU	0x8
 struct kgem_bo *
 sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
 		    struct sna_damage ***damage);
@@ -629,13 +634,13 @@ static inline uint32_t pixmap_size(PixmapPtr pixmap)
 }
 
 bool sna_accel_init(ScreenPtr sreen, struct sna *sna);
+void sna_accel_create(struct sna *sna);
 void sna_accel_block_handler(struct sna *sna, struct timeval **tv);
 void sna_accel_wakeup_handler(struct sna *sna);
 void sna_accel_watch_flush(struct sna *sna, int enable);
 void sna_accel_close(struct sna *sna);
 void sna_accel_free(struct sna *sna);
 
-bool sna_accel_create(ScreenPtr screen, struct sna *sna);
 void sna_copy_fbcon(struct sna *sna);
 
 bool sna_composite_create(struct sna *sna);

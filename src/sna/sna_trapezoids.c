@@ -1788,6 +1788,8 @@ struct mono {
 	struct sna_composite_op op;
 	pixman_region16_t clip;
 
+	fastcall void (*span)(struct mono *, int, int, BoxPtr);
+
 	struct mono_polygon polygon;
 };
 
@@ -2040,16 +2042,9 @@ mono_merge_edges(struct mono *c, struct mono_edge *edges)
 	c->head.next = mono_merge_unsorted_edges(c->head.next, edges);
 }
 
-inline static void
+fastcall static void
 mono_span(struct mono *c, int x1, int x2, BoxPtr box)
 {
-	if (x1 < c->clip.extents.x1)
-		x1 = c->clip.extents.x1;
-	if (x2 > c->clip.extents.x2)
-		x2 = c->clip.extents.x2;
-	if (x2 <= x1)
-		return;
-
 	__DBG(("%s [%d, %d]\n", __FUNCTION__, x1, x2));
 
 	box->x1 = x1;
@@ -2071,6 +2066,17 @@ mono_span(struct mono *c, int x1, int x2, BoxPtr box)
 		c->op.box(c->sna, &c->op, box);
 		apply_damage_box(&c->op, box);
 	}
+}
+
+fastcall static void
+mono_span__fast(struct mono *c, int x1, int x2, BoxPtr box)
+{
+	__DBG(("%s [%d, %d]\n", __FUNCTION__, x1, x2));
+
+	box->x1 = x1;
+	box->x2 = x2;
+
+	c->op.box(c->sna, &c->op, box);
 }
 
 inline static void
@@ -2124,7 +2130,12 @@ mono_row(struct mono *c, int16_t y, int16_t h)
 		if (winding == 0) {
 			assert(I(next->x.quo) >= xend);
 			if (I(next->x.quo) > xend + 1) {
-				mono_span(c, xstart, xend, &box);
+				if (xstart < c->clip.extents.x1)
+					xstart = c->clip.extents.x1;
+				if (xend > c->clip.extents.x2)
+					xend = c->clip.extents.x2;
+				if (xend > xstart)
+					c->span(c, xstart, xend, &box);
 				xstart = INT16_MIN;
 			}
 		} else if (xstart == INT16_MIN)
@@ -2184,6 +2195,11 @@ mono_render(struct mono *mono)
 {
 	struct mono_polygon *polygon = &mono->polygon;
 	int i, j, h = mono->clip.extents.y2 - mono->clip.extents.y1;
+
+	if (mono->clip.data == NULL && mono->op.damage == NULL)
+		mono->span = mono_span__fast;
+	else
+		mono->span = mono_span;
 
 	for (i = 0; i < h; i = j) {
 		j = i + 1;
@@ -2739,18 +2755,14 @@ composite_unaligned_box(struct sna *sna,
 
 		pixman_region_init_rects(&region, box, 1);
 		RegionIntersect(&region, &region, clip);
-		if (REGION_NUM_RECTS(&region)) {
+		if (REGION_NUM_RECTS(&region))
 			tmp->boxes(sna, tmp,
 				   REGION_RECTS(&region),
 				   REGION_NUM_RECTS(&region),
 				   opacity);
-			apply_damage(&tmp->base, &region);
-		}
 		pixman_region_fini(&region);
-	} else {
+	} else
 		tmp->box(sna, tmp, box, opacity);
-		apply_damage_box(&tmp->base, box);
-	}
 }
 
 static void
@@ -2868,6 +2880,26 @@ composite_unaligned_trap(struct sna *sna,
 						     y2, y2 + 1,
 						     grid_coverage(SAMPLES_Y, trap->bottom),
 						     clip);
+	}
+
+	if (tmp->base.damage) {
+		BoxRec box;
+
+		box.x1 = dx + pixman_fixed_to_int(trap->left.p1.x);
+		box.x2 = dx + pixman_fixed_to_int(trap->right.p1.x);
+		box.y1 = y1;
+		box.y2 = y2 + (pixman_fixed_frac(trap->bottom) != 0);
+
+		if (clip) {
+			pixman_region16_t region;
+
+			pixman_region_init_rects(&region, &box, 1);
+			RegionIntersect(&region, &region, clip);
+			if (REGION_NUM_RECTS(&region))
+				apply_damage(&tmp->base, &region);
+			RegionUninit(&region);
+		} else
+			apply_damage_box(&tmp->base, &box);
 	}
 }
 
@@ -4644,6 +4676,8 @@ static bool
 trapezoid_spans_maybe_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 			      PictFormatPtr maskFormat)
 {
+	struct sna_pixmap *priv;
+
 	if (NO_SCAN_CONVERTER)
 		return false;
 
@@ -4655,23 +4689,67 @@ trapezoid_spans_maybe_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 	if (is_mono(dst, maskFormat))
 		goto out;
 
-	if (!sna_picture_is_solid(src, NULL))
-		return false;
+	switch ((int)dst->format) {
+	case PICT_a8:
+		if (!sna_picture_is_solid(src, NULL))
+			return false;
 
-	if (dst->format != PICT_a8)
-		return false;
+		switch (op) {
+		case PictOpIn:
+		case PictOpAdd:
+		case PictOpSrc:
+			break;
+		default:
+			return false;
+		}
+		break;
 
-	switch (op) {
-	case PictOpIn:
-	case PictOpAdd:
-	case PictOpSrc:
+	case PICT_x8r8g8b8:
+	case PICT_a8r8g8b8:
+		if (picture_is_gpu(src))
+			return false;
+
+		switch (op) {
+		case PictOpOver:
+		case PictOpAdd:
+		case PictOpOutReverse:
+			break;
+		case PictOpSrc:
+			if (sna_picture_is_solid(src, NULL))
+				break;
+
+			if (!sna_drawable_is_clear(dst->pDrawable))
+				return false;
+			break;
+		default:
+			return false;
+		}
 		break;
 	default:
 		return false;
 	}
 
 out:
-	return is_cpu(dst->pDrawable) ? true : dst->pDrawable->width <= TOR_INPLACE_SIZE;
+	priv = sna_pixmap_from_drawable(dst->pDrawable);
+	if (priv == NULL)
+		return true;
+
+	if (priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo))
+		return false;
+
+	if (DAMAGE_IS_ALL(priv->cpu_damage) || priv->gpu_damage == NULL)
+		return true;
+
+	if (priv->clear)
+		return dst->pDrawable->width <= TOR_INPLACE_SIZE;
+
+	if (kgem_bo_is_busy(priv->gpu_bo))
+		return false;
+
+	if (priv->cpu_damage)
+		return true;
+
+	return dst->pDrawable->width <= TOR_INPLACE_SIZE;
 }
 
 static bool

@@ -92,6 +92,8 @@ search_snoop_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags);
 #define IS_USER_MAP(ptr) ((uintptr_t)(ptr) & 2)
 #define __MAP_TYPE(ptr) ((uintptr_t)(ptr) & 3)
 
+#define LOCAL_I915_PARAM_HAS_SEMAPHORES	 20
+
 #define LOCAL_I915_GEM_USERPTR       0x32
 #define LOCAL_IOCTL_I915_GEM_USERPTR DRM_IOWR (DRM_COMMAND_BASE + LOCAL_I915_GEM_USERPTR, struct local_i915_gem_userptr)
 struct local_i915_gem_userptr {
@@ -123,6 +125,7 @@ struct kgem_buffer {
 };
 
 static struct kgem_bo *__kgem_freed_bo;
+static struct kgem_request *__kgem_freed_request;
 static struct drm_i915_gem_exec_object2 _kgem_dummy_exec;
 
 static inline int bytes(struct kgem_bo *bo)
@@ -350,6 +353,8 @@ kgem_busy(struct kgem *kgem, int handle)
 	busy.handle = handle;
 	busy.busy = !kgem->wedged;
 	(void)drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_BUSY, &busy);
+	DBG(("%s: handle=%d, busy=%d, wedged=%d\n",
+	     __FUNCTION__, handle, busy.busy, kgem->wedged));
 
 	return busy.busy;
 }
@@ -536,13 +541,27 @@ static struct kgem_request *__kgem_request_alloc(void)
 {
 	struct kgem_request *rq;
 
-	rq = malloc(sizeof(*rq));
-	if (rq == NULL)
-		rq = &_kgem_static_request;
+	rq = __kgem_freed_request;
+	if (rq) {
+		__kgem_freed_request = *(struct kgem_request **)rq;
+	} else {
+		rq = malloc(sizeof(*rq));
+		if (rq == NULL)
+			rq = &_kgem_static_request;
+	}
 
 	list_init(&rq->buffers);
+	rq->bo = NULL;
+	rq->ring = 0;
 
 	return rq;
+}
+
+static void __kgem_request_free(struct kgem_request *rq)
+{
+	_list_del(&rq->list);
+	*(struct kgem_request **)rq = __kgem_freed_request;
+	__kgem_freed_request = rq;
 }
 
 static struct list *inactive(struct kgem *kgem, int num_pages)
@@ -616,13 +635,18 @@ static int gem_param(struct kgem *kgem, int name)
 	return v;
 }
 
-static bool test_has_semaphores_enabled(void)
+static bool test_has_semaphores_enabled(struct kgem *kgem)
 {
 	FILE *file;
 	bool detected = false;
+	int ret;
 
 	if (DBG_NO_SEMAPHORES)
 		return false;
+
+	ret = gem_param(kgem, LOCAL_I915_PARAM_HAS_SEMAPHORES);
+	if (ret != -1)
+		return ret > 0;
 
 	file = fopen("/sys/module/i915/parameters/semaphores", "r");
 	if (file) {
@@ -788,7 +812,7 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	     kgem->has_userptr));
 
 	kgem->has_semaphores = false;
-	if (kgem->has_blt && test_has_semaphores_enabled())
+	if (kgem->has_blt && test_has_semaphores_enabled(kgem))
 		kgem->has_semaphores = true;
 	DBG(("%s: semaphores enabled? %d\n", __FUNCTION__,
 	     kgem->has_semaphores));
@@ -827,9 +851,10 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	DBG(("%s: half cpu cache %d pages\n", __FUNCTION__,
 	     kgem->half_cpu_cache_pages));
 
+	list_init(&kgem->requests[0]);
+	list_init(&kgem->requests[1]);
 	list_init(&kgem->batch_buffers);
 	list_init(&kgem->active_buffers);
-	list_init(&kgem->requests);
 	list_init(&kgem->flushing);
 	list_init(&kgem->large);
 	list_init(&kgem->snoop);
@@ -1137,8 +1162,6 @@ void _kgem_add_bo(struct kgem *kgem, struct kgem_bo *bo)
 
 static uint32_t kgem_end_batch(struct kgem *kgem)
 {
-	kgem->context_switch(kgem, KGEM_NONE);
-
 	kgem->batch[kgem->nbatch++] = MI_BATCH_BUFFER_END;
 	if (kgem->nbatch & 1)
 		kgem->batch[kgem->nbatch++] = MI_NOOP;
@@ -1235,8 +1258,10 @@ inline static void kgem_bo_move_to_inactive(struct kgem *kgem,
 {
 	DBG(("%s: moving handle=%d to inactive\n", __FUNCTION__, bo->handle));
 
+	assert(bo->refcnt == 0);
 	assert(bo->reusable);
 	assert(bo->rq == NULL);
+	assert(bo->exec == NULL);
 	assert(bo->domain != DOMAIN_GPU);
 	assert(!kgem_busy(kgem, bo->handle));
 	assert(!bo->proxy);
@@ -1273,6 +1298,7 @@ inline static void kgem_bo_remove_from_inactive(struct kgem *kgem,
 
 	list_del(&bo->list);
 	assert(bo->rq == NULL);
+	assert(bo->exec == NULL);
 	if (bo->map) {
 		assert(!list_is_empty(&bo->vma));
 		list_del(&bo->vma);
@@ -1286,6 +1312,7 @@ inline static void kgem_bo_remove_from_active(struct kgem *kgem,
 	DBG(("%s: removing handle=%d from active\n", __FUNCTION__, bo->handle));
 
 	list_del(&bo->list);
+	assert(bo->rq != NULL);
 	if (bo->rq == &_kgem_static_request)
 		list_del(&bo->request);
 	assert(list_is_empty(&bo->vma));
@@ -1324,6 +1351,9 @@ static void _kgem_bo_delete_buffer(struct kgem *kgem, struct kgem_bo *bo)
 
 static void kgem_bo_move_to_snoop(struct kgem *kgem, struct kgem_bo *bo)
 {
+	assert(bo->refcnt == 0);
+	assert(bo->exec == NULL);
+
 	if (num_pages(bo) > kgem->max_cpu_size >> 13) {
 		DBG(("%s handle=%d discarding large CPU buffer (%d >%d pages)\n",
 		     __FUNCTION__, bo->handle, num_pages(bo), kgem->max_cpu_size >> 13));
@@ -1359,6 +1389,7 @@ search_snoop_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags)
 		assert(bo->proxy == NULL);
 		assert(bo->tiling == I915_TILING_NONE);
 		assert(bo->rq == NULL);
+		assert(bo->exec == NULL);
 
 		if (num_pages > num_pages(bo))
 			continue;
@@ -1515,6 +1546,7 @@ destroy:
 
 static void kgem_bo_unref(struct kgem *kgem, struct kgem_bo *bo)
 {
+	assert(bo->refcnt);
 	if (--bo->refcnt == 0)
 		__kgem_bo_destroy(kgem, bo);
 }
@@ -1604,107 +1636,122 @@ static bool kgem_retire__requests(struct kgem *kgem)
 {
 	struct kgem_bo *bo;
 	bool retired = false;
+	int n;
 
-	while (!list_is_empty(&kgem->requests)) {
-		struct kgem_request *rq;
+	for (n = 0; n < ARRAY_SIZE(kgem->requests); n++) {
+		while (!list_is_empty(&kgem->requests[n])) {
+			struct kgem_request *rq;
 
-		rq = list_first_entry(&kgem->requests,
-				      struct kgem_request,
-				      list);
-		if (kgem_busy(kgem, rq->bo->handle))
-			break;
+			rq = list_first_entry(&kgem->requests[n],
+					      struct kgem_request,
+					      list);
+			if (kgem_busy(kgem, rq->bo->handle))
+				break;
 
-		DBG(("%s: request %d complete\n",
-		     __FUNCTION__, rq->bo->handle));
+			DBG(("%s: request %d complete\n",
+			     __FUNCTION__, rq->bo->handle));
 
-		while (!list_is_empty(&rq->buffers)) {
-			bo = list_first_entry(&rq->buffers,
-					      struct kgem_bo,
-					      request);
+			while (!list_is_empty(&rq->buffers)) {
+				bo = list_first_entry(&rq->buffers,
+						      struct kgem_bo,
+						      request);
 
-			assert(bo->rq == rq);
-			assert(bo->exec == NULL);
-			assert(bo->domain == DOMAIN_GPU);
+				assert(bo->rq == rq);
+				assert(bo->exec == NULL);
+				assert(bo->domain == DOMAIN_GPU);
 
-			list_del(&bo->request);
+				list_del(&bo->request);
 
-			if (bo->needs_flush)
-				bo->needs_flush = kgem_busy(kgem, bo->handle);
-			if (bo->needs_flush) {
-				DBG(("%s: moving %d to flushing\n",
-				     __FUNCTION__, bo->handle));
-				list_add(&bo->request, &kgem->flushing);
-				bo->rq = &_kgem_static_request;
-			} else {
-				bo->domain = DOMAIN_NONE;
-				bo->rq = NULL;
-			}
-
-			if (bo->refcnt)
-				continue;
-
-			if (bo->snoop) {
+				if (bo->needs_flush)
+					bo->needs_flush = kgem_busy(kgem, bo->handle);
 				if (bo->needs_flush) {
+					DBG(("%s: moving %d to flushing\n",
+					     __FUNCTION__, bo->handle));
 					list_add(&bo->request, &kgem->flushing);
 					bo->rq = &_kgem_static_request;
 				} else {
-					kgem_bo_move_to_snoop(kgem, bo);
+					bo->domain = DOMAIN_NONE;
+					bo->rq = NULL;
 				}
-				continue;
-			}
 
-			if (!bo->reusable) {
-				DBG(("%s: closing %d\n",
-				     __FUNCTION__, bo->handle));
-				kgem_bo_free(kgem, bo);
-				continue;
-			}
+				if (bo->refcnt)
+					continue;
 
-			if (!bo->needs_flush) {
-				if (kgem_bo_set_purgeable(kgem, bo)) {
-					kgem_bo_move_to_inactive(kgem, bo);
-					retired = true;
-				} else {
+				if (bo->snoop) {
+					if (bo->needs_flush) {
+						list_add(&bo->request, &kgem->flushing);
+						bo->rq = &_kgem_static_request;
+					} else {
+						kgem_bo_move_to_snoop(kgem, bo);
+					}
+					continue;
+				}
+
+				if (!bo->reusable) {
 					DBG(("%s: closing %d\n",
 					     __FUNCTION__, bo->handle));
 					kgem_bo_free(kgem, bo);
+					continue;
+				}
+
+				if (!bo->needs_flush) {
+					if (kgem_bo_set_purgeable(kgem, bo)) {
+						kgem_bo_move_to_inactive(kgem, bo);
+						retired = true;
+					} else {
+						DBG(("%s: closing %d\n",
+						     __FUNCTION__, bo->handle));
+						kgem_bo_free(kgem, bo);
+					}
 				}
 			}
-		}
 
-		assert(rq->bo->rq == NULL);
-		assert(list_is_empty(&rq->bo->request));
+			assert(rq->bo->rq == NULL);
+			assert(list_is_empty(&rq->bo->request));
 
-		if (--rq->bo->refcnt == 0) {
-			if (kgem_bo_set_purgeable(kgem, rq->bo)) {
-				kgem_bo_move_to_inactive(kgem, rq->bo);
-				retired = true;
-			} else {
-				DBG(("%s: closing %d\n",
-				     __FUNCTION__, rq->bo->handle));
-				kgem_bo_free(kgem, rq->bo);
+			if (--rq->bo->refcnt == 0) {
+				if (kgem_bo_set_purgeable(kgem, rq->bo)) {
+					kgem_bo_move_to_inactive(kgem, rq->bo);
+					retired = true;
+				} else {
+					DBG(("%s: closing %d\n",
+					     __FUNCTION__, rq->bo->handle));
+					kgem_bo_free(kgem, rq->bo);
+				}
 			}
+
+			__kgem_request_free(rq);
+			kgem->num_requests--;
 		}
 
-		_list_del(&rq->list);
-		free(rq);
+#if HAS_DEBUG_FULL
+		{
+			int count = 0;
+
+			list_for_each_entry(bo, &kgem->requests[n], request)
+				count++;
+
+			bo = NULL;
+			if (!list_is_empty(&kgem->requests[n]))
+				bo = list_first_entry(&kgem->requests[n],
+						      struct kgem_request,
+						      list)->bo;
+
+			ErrorF("%s: ring=%d, %d outstanding requests, oldest=%d\n",
+			       __FUNCTION__, n, count, bo ? bo->handle : 0);
+		}
+#endif
 	}
 
 #if HAS_DEBUG_FULL
 	{
 		int count = 0;
 
-		list_for_each_entry(bo, &kgem->requests, request)
-			count++;
+		for (n = 0; n < ARRAY_SIZE(kgem->requests); n++)
+			list_for_each_entry(bo, &kgem->requests[n], request)
+				count++;
 
-		bo = NULL;
-		if (!list_is_empty(&kgem->requests))
-			bo = list_first_entry(&kgem->requests,
-					      struct kgem_request,
-					      list)->bo;
-
-		ErrorF("%s: %d outstanding requests, oldest=%d\n",
-		       __FUNCTION__, count, bo ? bo->handle : 0);
+		assert(count == kgem->num_requests);
 	}
 #endif
 
@@ -1718,11 +1765,12 @@ bool kgem_retire(struct kgem *kgem)
 	DBG(("%s\n", __FUNCTION__));
 
 	retired |= kgem_retire__flushing(kgem);
-	retired |= kgem_retire__requests(kgem);
+	if (kgem->num_requests)
+		retired |= kgem_retire__requests(kgem);
 	retired |= kgem_retire__buffers(kgem);
 
 	kgem->need_retire =
-		!list_is_empty(&kgem->requests) ||
+		kgem->num_requests ||
 		!list_is_empty(&kgem->flushing);
 	DBG(("%s -- retired=%d, need_retire=%d\n",
 	     __FUNCTION__, retired, kgem->need_retire));
@@ -1730,6 +1778,34 @@ bool kgem_retire(struct kgem *kgem)
 	kgem->retire(kgem);
 
 	return retired;
+}
+
+bool __kgem_is_idle(struct kgem *kgem)
+{
+	int n;
+
+	assert(kgem->num_requests);
+
+	for (n = 0; n < ARRAY_SIZE(kgem->requests); n++) {
+		struct kgem_request *rq;
+
+		if (list_is_empty(&kgem->requests[n]))
+			continue;
+
+		rq = list_last_entry(&kgem->requests[n],
+				     struct kgem_request, list);
+		if (kgem_busy(kgem, rq->bo->handle)) {
+			DBG(("%s: last requests handle=%d still busy\n",
+			     __FUNCTION__, rq->bo->handle));
+			return false;
+		}
+
+		DBG(("%s: ring=%d idle (handle=%d)\n",
+		     __FUNCTION__, n, rq->bo->handle));
+	}
+	kgem_retire__requests(kgem);
+	assert(kgem->num_requests == 0);
+	return true;
 }
 
 static void kgem_commit(struct kgem *kgem)
@@ -1746,6 +1822,8 @@ static void kgem_commit(struct kgem *kgem)
 		     (unsigned)bo->exec->offset));
 
 		assert(!bo->purged);
+		assert(bo->exec);
+		assert(bo->proxy == NULL || bo->exec == &_kgem_dummy_exec);
 		assert(bo->rq == rq || (bo->proxy->rq == rq));
 
 		bo->presumed_offset = bo->exec->offset;
@@ -1765,7 +1843,7 @@ static void kgem_commit(struct kgem *kgem)
 			/* proxies are not used for domain tracking */
 			list_del(&bo->request);
 			bo->rq = NULL;
-			bo->exec = &_kgem_dummy_exec;
+			bo->exec = NULL;
 		}
 	}
 
@@ -1784,10 +1862,13 @@ static void kgem_commit(struct kgem *kgem)
 		}
 
 		kgem_retire(kgem);
+		assert(list_is_empty(&rq->buffers));
+
 		gem_close(kgem->fd, rq->bo->handle);
 	} else {
-		list_add_tail(&rq->list, &kgem->requests);
+		list_add_tail(&rq->list, &kgem->requests[rq->ring]);
 		kgem->need_throttle = kgem->need_retire = 1;
+		kgem->num_requests++;
 	}
 
 	kgem->next_request = NULL;
@@ -1832,13 +1913,18 @@ static void kgem_finish_buffers(struct kgem *kgem)
 		}
 
 		if (bo->mmapped) {
+			int used;
+
 			assert(!bo->need_io);
+
+			used = ALIGN(bo->used + PAGE_SIZE-1, PAGE_SIZE);
 			if (!DBG_NO_UPLOAD_ACTIVE &&
-			    bo->used + PAGE_SIZE <= bytes(&bo->base) &&
+			    used + PAGE_SIZE <= bytes(&bo->base) &&
 			    (kgem->has_llc || !IS_CPU_MAP(bo->base.map))) {
 				DBG(("%s: retaining upload buffer (%d/%d)\n",
 				     __FUNCTION__, bo->used, bytes(&bo->base)));
 				assert(!bo->base.snoop);
+				bo->used = used;
 				list_move(&bo->base.list,
 					  &kgem->active_buffers);
 				continue;
@@ -1927,30 +2013,36 @@ decouple:
 
 static void kgem_cleanup(struct kgem *kgem)
 {
-	while (!list_is_empty(&kgem->requests)) {
-		struct kgem_request *rq;
+	int n;
 
-		rq = list_first_entry(&kgem->requests,
-				      struct kgem_request,
-				      list);
-		while (!list_is_empty(&rq->buffers)) {
-			struct kgem_bo *bo;
+	for (n = 0; n < ARRAY_SIZE(kgem->requests); n++) {
+		while (!list_is_empty(&kgem->requests[n])) {
+			struct kgem_request *rq;
 
-			bo = list_first_entry(&rq->buffers,
-					      struct kgem_bo,
-					      request);
+			rq = list_first_entry(&kgem->requests[n],
+					      struct kgem_request,
+					      list);
+			while (!list_is_empty(&rq->buffers)) {
+				struct kgem_bo *bo;
 
-			list_del(&bo->request);
-			bo->rq = NULL;
-			bo->domain = DOMAIN_NONE;
-			if (bo->refcnt == 0)
-				kgem_bo_free(kgem, bo);
+				bo = list_first_entry(&rq->buffers,
+						      struct kgem_bo,
+						      request);
+
+				list_del(&bo->request);
+				bo->rq = NULL;
+				bo->exec = NULL;
+				bo->domain = DOMAIN_NONE;
+				bo->dirty = false;
+				if (bo->refcnt == 0)
+					kgem_bo_free(kgem, bo);
+			}
+
+			__kgem_request_free(rq);
 		}
-
-		_list_del(&rq->list);
-		free(rq);
 	}
 
+	kgem->num_requests = 0;
 	kgem_close_inactive(kgem);
 }
 
@@ -2026,6 +2118,7 @@ void kgem_reset(struct kgem *kgem)
 	kgem->nbatch = 0;
 	kgem->surface = kgem->batch_size;
 	kgem->mode = KGEM_NONE;
+	kgem->flush = 0;
 
 	kgem->next_request = __kgem_request_alloc();
 
@@ -2119,6 +2212,7 @@ void _kgem_submit(struct kgem *kgem)
 		rq->bo->exec = &kgem->exec[i];
 		rq->bo->rq = rq; /* useful sanity check */
 		list_add(&rq->bo->request, &rq->buffers);
+		rq->ring = kgem->ring == KGEM_BLT;
 
 		kgem_fixup_self_relocs(kgem, rq->bo);
 
@@ -2179,13 +2273,14 @@ void _kgem_submit(struct kgem *kgem)
 							break;
 						}
 					}
-					ErrorF("exec[%d] = handle:%d, presumed offset: %x, size: %d, tiling %d, fenced %d, deleted %d\n",
+					ErrorF("exec[%d] = handle:%d, presumed offset: %x, size: %d, tiling %d, fenced %d, snooped %d, deleted %d\n",
 					       i,
 					       kgem->exec[i].handle,
 					       (int)kgem->exec[i].offset,
-					       found ? bytes(found) : -1,
+					       found ? kgem_bo_size(found) : -1,
 					       found ? found->tiling : -1,
 					       (int)(kgem->exec[i].flags & EXEC_OBJECT_NEEDS_FENCE),
+					       found ? found->snoop : -1,
 					       found ? found->purged : -1);
 				}
 				for (i = 0; i < kgem->nreloc; i++) {
@@ -2212,7 +2307,7 @@ void _kgem_submit(struct kgem *kgem)
 			if (DEBUG_FLUSH_SYNC) {
 				struct drm_i915_gem_set_domain set_domain;
 
-				DBG(("%s: debug sync\n", __FUNCTION__));
+				DBG(("%s: debug sync, starting\n", __FUNCTION__));
 
 				VG_CLEAR(set_domain);
 				set_domain.handle = handle;
@@ -2224,6 +2319,8 @@ void _kgem_submit(struct kgem *kgem)
 					DBG(("%s: sync: GPU hang detected\n", __FUNCTION__));
 					kgem_throttle(kgem);
 				}
+
+				DBG(("%s: debug sync, completed\n", __FUNCTION__));
 			}
 		}
 
@@ -2286,6 +2383,11 @@ bool kgem_expire_cache(struct kgem *kgem)
 		free(bo);
 	}
 
+	while (__kgem_freed_request) {
+		struct kgem_request *rq = __kgem_freed_request;
+		__kgem_freed_request = *(struct kgem_request **)rq;
+		free(rq);
+	}
 
 	expire = 0;
 	list_for_each_entry(bo, &kgem->snoop, list) {
@@ -2306,6 +2408,16 @@ bool kgem_expire_cache(struct kgem *kgem)
 			kgem_bo_free(kgem, bo);
 		}
 	}
+#ifdef DEBUG_MEMORY
+	{
+		long snoop_size = 0;
+		int snoop_count = 0;
+		list_for_each_entry(bo, &kgem->snoop, list)
+			snoop_count++, snoop_size += bytes(bo);
+		ErrorF("%s: still allocated %d bo, %ld bytes, in snoop cache\n",
+		       __FUNCTION__, snoop_count, snoop_size);
+	}
+#endif
 
 	kgem_retire(kgem);
 	if (kgem->wedged)
@@ -2371,6 +2483,18 @@ bool kgem_expire_cache(struct kgem *kgem)
 		}
 	}
 
+#ifdef DEBUG_MEMORY
+	{
+		long inactive_size = 0;
+		int inactive_count = 0;
+		for (i = 0; i < ARRAY_SIZE(kgem->inactive); i++)
+			list_for_each_entry(bo, &kgem->inactive[i], list)
+				inactive_count++, inactive_size += bytes(bo);
+		ErrorF("%s: still allocated %d bo, %ld bytes, in inactive cache\n",
+		       __FUNCTION__, inactive_count, inactive_size);
+	}
+#endif
+
 	DBG(("%s: expired %d objects, %d bytes, idle? %d\n",
 	     __FUNCTION__, count, size, idle));
 
@@ -2383,25 +2507,28 @@ bool kgem_expire_cache(struct kgem *kgem)
 void kgem_cleanup_cache(struct kgem *kgem)
 {
 	unsigned int i;
+	int n;
 
 	/* sync to the most recent request */
-	if (!list_is_empty(&kgem->requests)) {
-		struct kgem_request *rq;
-		struct drm_i915_gem_set_domain set_domain;
+	for (n = 0; n < ARRAY_SIZE(kgem->requests); n++) {
+		if (!list_is_empty(&kgem->requests[n])) {
+			struct kgem_request *rq;
+			struct drm_i915_gem_set_domain set_domain;
 
-		rq = list_first_entry(&kgem->requests,
-				      struct kgem_request,
-				      list);
+			rq = list_first_entry(&kgem->requests[n],
+					      struct kgem_request,
+					      list);
 
-		DBG(("%s: sync on cleanup\n", __FUNCTION__));
+			DBG(("%s: sync on cleanup\n", __FUNCTION__));
 
-		VG_CLEAR(set_domain);
-		set_domain.handle = rq->bo->handle;
-		set_domain.read_domains = I915_GEM_DOMAIN_GTT;
-		set_domain.write_domain = I915_GEM_DOMAIN_GTT;
-		(void)drmIoctl(kgem->fd,
-			       DRM_IOCTL_I915_GEM_SET_DOMAIN,
-			       &set_domain);
+			VG_CLEAR(set_domain);
+			set_domain.handle = rq->bo->handle;
+			set_domain.read_domains = I915_GEM_DOMAIN_GTT;
+			set_domain.write_domain = I915_GEM_DOMAIN_GTT;
+			(void)drmIoctl(kgem->fd,
+				       DRM_IOCTL_I915_GEM_SET_DOMAIN,
+				       &set_domain);
+		}
 	}
 
 	kgem_retire(kgem);
@@ -2477,6 +2604,8 @@ search_linear_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags)
 			assert(IS_CPU_MAP(bo->map) == for_cpu);
 			assert(bucket(bo) == cache_bucket(num_pages));
 			assert(bo->proxy == NULL);
+			assert(bo->rq == NULL);
+			assert(bo->exec == NULL);
 
 			if (num_pages > num_pages(bo)) {
 				DBG(("inactive too small: %d < %d\n",
@@ -3271,6 +3400,7 @@ struct kgem_bo *kgem_create_cpu_2d(struct kgem *kgem,
 		assert(bo->snoop);
 		bo->refcnt = 1;
 		bo->pitch = stride;
+		bo->unique_id = kgem_get_unique_id(kgem);
 		return bo;
 	}
 
@@ -3293,6 +3423,7 @@ struct kgem_bo *kgem_create_cpu_2d(struct kgem *kgem,
 		}
 
 		bo->pitch = stride;
+		bo->unique_id = kgem_get_unique_id(kgem);
 		return bo;
 	}
 
@@ -3312,6 +3443,7 @@ struct kgem_bo *kgem_create_cpu_2d(struct kgem *kgem,
 
 		bo->map = MAKE_USER_MAP(ptr);
 		bo->pitch = stride;
+		bo->unique_id = kgem_get_unique_id(kgem);
 		return bo;
 	}
 
@@ -3356,6 +3488,9 @@ bool kgem_check_bo(struct kgem *kgem, ...)
 	int num_exec = 0;
 	int num_pages = 0;
 
+	if (kgem_flush(kgem))
+		return false;
+
 	va_start(ap, kgem);
 	while ((bo = va_arg(ap, struct kgem_bo *))) {
 		if (bo->exec)
@@ -3389,6 +3524,9 @@ bool kgem_check_bo(struct kgem *kgem, ...)
 bool kgem_check_bo_fenced(struct kgem *kgem, struct kgem_bo *bo)
 {
 	uint32_t size;
+
+	if (kgem_flush(kgem))
+		return false;
 
 	while (bo->proxy)
 		bo = bo->proxy;
@@ -3432,6 +3570,9 @@ bool kgem_check_many_bo_fenced(struct kgem *kgem, ...)
 	int num_exec = 0;
 	int num_pages = 0;
 	int fenced_size = 0;
+
+	if (kgem_flush(kgem))
+		return false;
 
 	va_start(ap, kgem);
 	while ((bo = va_arg(ap, struct kgem_bo *))) {
@@ -3505,16 +3646,21 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 			delta += bo->delta;
 			assert(bo->handle == bo->proxy->handle);
 			/* need to release the cache upon batch submit */
-			list_move_tail(&bo->request,
-				       &kgem->next_request->buffers);
-			bo->exec = &_kgem_dummy_exec;
-			bo = bo->proxy;
-		}
+			if (bo->exec == NULL) {
+				list_move_tail(&bo->request,
+					       &kgem->next_request->buffers);
+				bo->rq = kgem->next_request;
+				bo->exec = &_kgem_dummy_exec;
+			}
 
-		assert(!bo->purged);
+			bo = bo->proxy;
+			assert(bo->refcnt);
+			assert(!bo->purged);
+		}
 
 		if (bo->exec == NULL)
 			_kgem_add_bo(kgem, bo);
+		assert(bo->rq == kgem->next_request);
 
 		if (kgem->gen < 40 && read_write_domain & KGEM_RELOC_FENCED) {
 			if (bo->tiling &&
@@ -3532,7 +3678,7 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 		kgem->reloc[index].presumed_offset = bo->presumed_offset;
 
 		if (read_write_domain & 0x7ff)
-			kgem_bo_mark_dirty(kgem, bo);
+			kgem_bo_mark_dirty(bo);
 
 		delta += bo->presumed_offset;
 	} else {
@@ -3770,6 +3916,8 @@ uint32_t kgem_bo_flink(struct kgem *kgem, struct kgem_bo *bo)
 
 	/* The bo is outside of our control, so presume it is written to */
 	bo->needs_flush = true;
+	if (bo->domain != DOMAIN_GPU)
+		bo->domain = DOMAIN_NONE;
 
 	/* Henceforth, we need to broadcast all updates to clients and
 	 * flush our rendering before doing so.
@@ -3801,7 +3949,7 @@ struct kgem_bo *kgem_create_map(struct kgem *kgem,
 		return NULL;
 	}
 
-	bo->snoop = true;
+	bo->snoop = !kgem->has_llc;
 	debug_alloc__bo(kgem, bo);
 
 	DBG(("%s(ptr=%p, size=%d, pages=%d, read_only=%d) => handle=%d\n",
@@ -4004,6 +4152,8 @@ create_snoopable_buffer(struct kgem *kgem, unsigned alloc)
 	struct kgem_buffer *bo;
 	uint32_t handle;
 
+	assert(!kgem->has_llc);
+
 	if (kgem->has_cacheing) {
 		struct kgem_bo *old;
 
@@ -4158,6 +4308,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			assert(bo->base.refcnt >= 1);
 			assert(bo->mmapped);
 			assert(!bo->base.snoop);
+			assert(!IS_CPU_MAP(bo->base.map) || kgem->has_llc);
 
 			if ((bo->write & ~flags) & KGEM_BUFFER_INPLACE) {
 				DBG(("%s: skip write %x buffer, need %x\n",
@@ -4279,6 +4430,9 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 		if (old) {
 			DBG(("%s: reusing handle=%d for buffer\n",
 			     __FUNCTION__, old->handle));
+			assert(kgem_bo_is_mappable(kgem, old));
+			assert(!old->snoop);
+			assert(old->rq == NULL);
 
 			bo = buffer_alloc();
 			if (bo == NULL)
@@ -4293,6 +4447,8 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			bo->mem = kgem_bo_map(kgem, &bo->base);
 			if (bo->mem) {
 				alloc = num_pages(&bo->base);
+				if (IS_CPU_MAP(bo->base.map))
+				    flags &= ~KGEM_BUFFER_INPLACE;
 				goto init;
 			} else {
 				bo->base.refcnt = 0;
@@ -4300,6 +4456,8 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			}
 		}
 	}
+#else
+	flags &= ~KGEM_BUFFER_INPLACE;
 #endif
 	/* Be more parsimonious with pwrite/pread/cacheable buffers */
 	if ((flags & KGEM_BUFFER_INPLACE) == 0)
@@ -4530,8 +4688,9 @@ void kgem_buffer_read_sync(struct kgem *kgem, struct kgem_bo *_bo)
 	struct kgem_buffer *bo;
 	uint32_t offset = _bo->delta, length = _bo->size.bytes;
 
+	/* We expect the caller to have already submitted the batch */
 	assert(_bo->io);
-	assert(_bo->exec == &_kgem_dummy_exec);
+	assert(_bo->exec == NULL);
 	assert(_bo->rq == NULL);
 	assert(_bo->proxy);
 
@@ -4697,18 +4856,4 @@ kgem_replace_bo(struct kgem *kgem,
 	kgem->nbatch += 8;
 
 	return dst;
-}
-
-struct kgem_bo *kgem_get_last_request(struct kgem *kgem)
-{
-	struct kgem_request *rq;
-
-	if (list_is_empty(&kgem->requests))
-		return NULL;
-
-	rq = list_last_entry(&kgem->requests,
-			     struct kgem_request,
-			     list);
-
-	return kgem_bo_reference(rq->bo);
 }

@@ -1283,7 +1283,7 @@ I810GetSurfaceAttribute(
     Atom attribute,
     INT32 *value
 ){
-    return I810GetPortAttribute(pScrn, attribute, value, NULL);
+    return I810GetPortAttribute(pScrn, attribute, value, GET_PORT_PRIVATE(pScrn));
 }
 
 static int
@@ -1292,7 +1292,7 @@ I810SetSurfaceAttribute(
     Atom attribute,
     INT32 value
 ){
-    return I810SetPortAttribute(pScrn, attribute, value, NULL);
+    return I810SetPortAttribute(pScrn, attribute, value, GET_PORT_PRIVATE(pScrn));
 }
 
 
