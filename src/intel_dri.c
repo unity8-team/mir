@@ -540,6 +540,11 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 			  0, 0);
 
 	FreeScratchGC(gc);
+
+	/* And make sure the WAIT_FOR_EVENT is queued before any
+	 * modesetting/dpms operations on the pipe.
+	 */
+	intel_batch_submit(scrn);
 }
 
 #if DRI2INFOREC_VERSION >= 4
