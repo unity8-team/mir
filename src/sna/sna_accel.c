@@ -2590,6 +2590,7 @@ sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
 			region.extents.x2 += dx;
 			region.extents.y1 += dy;
 			region.extents.y2 += dy;
+			region.data = NULL;
 
 			sna_damage_subtract(&priv->cpu_damage, &region);
 			if (priv->cpu_damage == NULL) {
