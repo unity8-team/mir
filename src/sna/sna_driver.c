@@ -701,15 +701,12 @@ static void sna_leave_vt(VT_FUNC_ARGS_DECL)
 {
 	SCRN_INFO_PTR(arg);
 	struct sna *sna = to_sna(scrn);
-	int ret;
 
 	DBG(("%s\n", __FUNCTION__));
 
-	xf86RotateFreeShadow(scrn);
 	xf86_hide_cursors(scrn);
 
-	ret = drmDropMaster(sna->kgem.fd);
-	if (ret)
+	if (drmDropMaster(sna->kgem.fd))
 		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 			   "drmDropMaster failed: %s\n", strerror(errno));
 }
@@ -739,15 +736,13 @@ static Bool sna_early_close_screen(CLOSE_SCREEN_ARGS_DECL)
 	if (sna_mode_has_pending_events(sna))
 		sna_mode_wakeup(sna);
 
-	if (scrn->vtSema == TRUE) {
-		sna_leave_vt(VT_FUNC_ARGS(0));
-		scrn->vtSema = FALSE;
-	}
-
 	if (sna->dri_open) {
 		sna_dri_close(sna, screen);
 		sna->dri_open = false;
 	}
+
+	xf86_hide_cursors(scrn);
+	scrn->vtSema = FALSE;
 
 	xf86_cursors_fini(screen);
 
@@ -769,6 +764,7 @@ static Bool sna_late_close_screen(CLOSE_SCREEN_ARGS_DECL)
 	}
 
 	sna_accel_close(sna);
+	drmDropMaster(sna->kgem.fd);
 
 	depths = screen->allowedDepths;
 	for (d = 0; d < screen->numDepths; d++)
