@@ -170,6 +170,7 @@ static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 		return NULL;
 	}
 
+	assert(priv->cpu_damage == NULL);
 	if (priv->flush++)
 		return priv->gpu_bo;
 
@@ -188,13 +189,6 @@ static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 
 	/* Don't allow this named buffer to be replaced */
 	priv->pinned = 1;
-
-	if (priv->gpu_bo->exec || priv->cpu_damage) {
-		DBG(("%s: marking pixmap=%ld for flushing\n",
-		     __FUNCTION__, pixmap->drawable.serialNumber));
-		list_move(&priv->list, &sna->flush_pixmaps);
-		sna->kgem.flush = true;
-	}
 
 	return priv->gpu_bo;
 }
@@ -340,6 +334,8 @@ sna_dri_create_buffer(DrawablePtr draw,
 		pixmap->refcnt++;
 	}
 
+	assert(bo->flush == true);
+
 	return buffer;
 
 err:
@@ -430,6 +426,8 @@ static void set_bo(PixmapPtr pixmap, struct kgem_bo *bo)
 
 	kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
 	priv->gpu_bo = ref(bo);
+	if (bo->domain != DOMAIN_GPU)
+		bo->domain = DOMAIN_NONE;
 
 	/* Post damage on the new front buffer so that listeners, such
 	 * as DisplayLink know take a copy and shove it over the USB.
@@ -461,6 +459,12 @@ static void sna_dri_select_mode(struct sna *sna, struct kgem_bo *src, bool sync)
 		return;
 	}
 
+	if (sna->kgem.has_semaphores) {
+		DBG(("%s: have sempahores, prefering RENDER\n", __FUNCTION__));
+		kgem_set_mode(&sna->kgem, KGEM_RENDER);
+		return;
+	}
+
 	VG_CLEAR(busy);
 	busy.handle = src->handle;
 	if (drmIoctl(sna->kgem.fd, DRM_IOCTL_I915_GEM_BUSY, &busy))
@@ -488,7 +492,7 @@ static void sna_dri_select_mode(struct sna *sna, struct kgem_bo *src, bool sync)
 	 * the cost of the query.
 	 */
 	mode = KGEM_RENDER;
-	if (busy.busy & (1 << 16))
+	if (busy.busy & (1 << 17))
 		mode = KGEM_BLT;
 	_kgem_set_mode(&sna->kgem, mode);
 }
@@ -610,8 +614,9 @@ sna_dri_copy_to_front(struct sna *sna, DrawablePtr draw, RegionPtr region,
 
 		DBG(("%s: flushing? %d\n", __FUNCTION__, flush));
 		if (flush) { /* STAT! */
+			struct kgem_request *rq = sna->kgem.next_request;
 			kgem_submit(&sna->kgem);
-			bo = kgem_get_last_request(&sna->kgem);
+			bo = kgem_bo_reference(rq->bo);
 		}
 	}
 
@@ -1201,24 +1206,21 @@ static void chain_swap(struct sna *sna,
 static bool sna_dri_blit_complete(struct sna *sna,
 				  struct sna_dri_frame_event *info)
 {
-	if (info->bo && kgem_bo_is_busy(info->bo)) {
-		kgem_retire(&sna->kgem);
-		if (kgem_bo_is_busy(info->bo)) {
-			drmVBlank vbl;
+	if (info->bo && __kgem_bo_is_busy(&sna->kgem, info->bo)) {
+		drmVBlank vbl;
 
-			DBG(("%s: vsync'ed blit is still busy, postponing\n",
-			     __FUNCTION__));
+		DBG(("%s: vsync'ed blit is still busy, postponing\n",
+		     __FUNCTION__));
 
-			VG_CLEAR(vbl);
-			vbl.request.type =
-				DRM_VBLANK_RELATIVE |
-				DRM_VBLANK_EVENT |
-				pipe_select(info->pipe);
-			vbl.request.sequence = 1;
-			vbl.request.signal = (unsigned long)info;
-			if (!sna_wait_vblank(sna, &vbl))
-				return false;
-		}
+		VG_CLEAR(vbl);
+		vbl.request.type =
+			DRM_VBLANK_RELATIVE |
+			DRM_VBLANK_EVENT |
+			pipe_select(info->pipe);
+		vbl.request.sequence = 1;
+		vbl.request.signal = (unsigned long)info;
+		if (!sna_wait_vblank(sna, &vbl))
+			return false;
 	}
 
 	return true;
@@ -1266,9 +1268,6 @@ void sna_dri_vblank_handler(struct sna *sna, struct drm_event_vblank *event)
 		break;
 
 	case DRI2_SWAP_THROTTLE:
-		if (!sna_dri_blit_complete(sna, info))
-			return;
-
 		DBG(("%s: %d complete, frame=%d tv=%d.%06d\n",
 		     __FUNCTION__, info->type,
 		     event->sequence, event->tv_sec, event->tv_usec));

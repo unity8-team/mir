@@ -264,10 +264,12 @@ retry:
 		return NULL;
 	}
 
-	if ((intel->tiling & INTEL_TILING_FB) && tiling_mode != I915_TILING_X) {
+	/* If we could have used tiling but failed, warn */
+	if (intel->tiling & INTEL_TILING_FB &&
+	    tiling_mode != I915_TILING_X &&
+	    intel_check_display_stride(scrn, pitch, I915_TILING_X))
 		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 			   "Failed to set tiling on frontbuffer.\n");
-	}
 
 	xf86DrvMsg(scrn->scrnIndex, X_INFO,
 		   "Allocated new frame buffer %dx%d stride %ld, %s\n",

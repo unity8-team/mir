@@ -52,12 +52,13 @@ uxa_fill_spans(DrawablePtr pDrawable, GCPtr pGC, int n,
 	int off_x, off_y;
 
 	if (uxa_screen->info->flags & UXA_USE_GLAMOR) {
-		int ok;
+		int ok = 0;
 
-		uxa_prepare_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
-		ok = glamor_fill_spans_nf(pDrawable,
-					  pGC, n, ppt, pwidth, fSorted);
-		uxa_finish_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
+		if (uxa_prepare_access(pDrawable, UXA_GLAMOR_ACCESS_RW)) {
+			ok = glamor_fill_spans_nf(pDrawable,
+						  pGC, n, ppt, pwidth, fSorted);
+			uxa_finish_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
+		}
 
 		if (!ok)
 			goto fallback;
@@ -213,14 +214,14 @@ uxa_put_image(DrawablePtr pDrawable, GCPtr pGC, int depth, int x, int y,
 	uxa_screen_t *uxa_screen = uxa_get_screen(pDrawable->pScreen);
 
 	if (uxa_screen->info->flags & UXA_USE_GLAMOR) {
-		int ok;
+		int ok = 0;
 
-		uxa_prepare_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
-		ok = glamor_put_image_nf(pDrawable,
-					 pGC, depth, x, y, w, h,
-					 leftPad, format, bits);
-		uxa_finish_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
-
+		if (uxa_prepare_access(pDrawable, UXA_GLAMOR_ACCESS_RW)) {
+			ok = glamor_put_image_nf(pDrawable,
+						 pGC, depth, x, y, w, h,
+						 leftPad, format, bits);
+			uxa_finish_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
+		}
 		if (!ok)
 			goto fallback;
 
@@ -375,16 +376,18 @@ uxa_copy_n_to_n(DrawablePtr pSrcDrawable,
 	PixmapPtr pSrcPixmap, pDstPixmap;
 
 	if (uxa_screen->info->flags & UXA_USE_GLAMOR) {
-		int ok;
+		int ok = 0;
 
-		uxa_prepare_access(pSrcDrawable, UXA_GLAMOR_ACCESS_RO);
-		uxa_prepare_access(pDstDrawable, UXA_GLAMOR_ACCESS_RW);
-		ok = glamor_copy_n_to_n_nf(pSrcDrawable, pDstDrawable,
-					   pGC, pbox, nbox, dx, dy,
-					   reverse, upsidedown, bitplane,
-					   closure);
-		uxa_finish_access(pDstDrawable, UXA_GLAMOR_ACCESS_RW);
-		uxa_finish_access(pSrcDrawable, UXA_GLAMOR_ACCESS_RO);
+		if (uxa_prepare_access(pSrcDrawable, UXA_GLAMOR_ACCESS_RO)) {
+			if (uxa_prepare_access(pDstDrawable, UXA_GLAMOR_ACCESS_RW)) {
+				ok = glamor_copy_n_to_n_nf(pSrcDrawable, pDstDrawable,
+							   pGC, pbox, nbox, dx, dy,
+							   reverse, upsidedown, bitplane,
+							   closure);
+				uxa_finish_access(pDstDrawable, UXA_GLAMOR_ACCESS_RW);
+			}
+			uxa_finish_access(pSrcDrawable, UXA_GLAMOR_ACCESS_RO);
+		}
 
 		if (!ok)
 			goto fallback;
@@ -561,11 +564,12 @@ uxa_poly_point(DrawablePtr pDrawable, GCPtr pGC, int mode, int npt,
 	uxa_screen_t *uxa_screen = uxa_get_screen(pDrawable->pScreen);
 
 	if (uxa_screen->info->flags & UXA_USE_GLAMOR) {
-		int ok;
+		int ok = 0;
 
-		uxa_prepare_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
-		ok = glamor_poly_point_nf(pDrawable, pGC, mode, npt, ppt);
-		uxa_finish_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
+		if (uxa_prepare_access(pDrawable, UXA_GLAMOR_ACCESS_RW)) {
+			ok = glamor_poly_point_nf(pDrawable, pGC, mode, npt, ppt);
+			uxa_finish_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
+		}
 
 		if (ok)
 			return;
@@ -611,11 +615,12 @@ uxa_poly_lines(DrawablePtr pDrawable, GCPtr pGC, int mode, int npt,
 	uxa_screen_t *uxa_screen = uxa_get_screen(pDrawable->pScreen);
 
 	if (uxa_screen->info->flags & UXA_USE_GLAMOR) {
-		int ok;
+		int ok = 0;
 
-		uxa_prepare_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
-		ok = glamor_poly_lines_nf(pDrawable, pGC, mode, npt, ppt);
-		uxa_finish_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
+		if (uxa_prepare_access(pDrawable, UXA_GLAMOR_ACCESS_RW)) {
+			ok = glamor_poly_lines_nf(pDrawable, pGC, mode, npt, ppt);
+			uxa_finish_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
+		}
 
 		if (ok)
 			return;
@@ -684,11 +689,12 @@ uxa_poly_segment(DrawablePtr pDrawable, GCPtr pGC, int nseg, xSegment * pSeg)
 	uxa_screen_t *uxa_screen = uxa_get_screen(pDrawable->pScreen);
 
 	if (uxa_screen->info->flags & UXA_USE_GLAMOR) {
-		int ok;
+		int ok = 0;
 
-		uxa_prepare_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
-		ok = glamor_poly_segment_nf(pDrawable, pGC, nseg, pSeg);
-		uxa_finish_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
+		if (uxa_prepare_access(pDrawable, UXA_GLAMOR_ACCESS_RW)) {
+			ok = glamor_poly_segment_nf(pDrawable, pGC, nseg, pSeg);
+			uxa_finish_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
+		}
 
 		if (ok)
 			return;
@@ -758,11 +764,12 @@ uxa_poly_fill_rect(DrawablePtr pDrawable,
 	int n;
 
 	if (uxa_screen->info->flags & UXA_USE_GLAMOR) {
-		int ok;
+		int ok = 0;
 
-		uxa_prepare_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
-		ok = glamor_poly_fill_rect_nf(pDrawable, pGC, nrect, prect);
-		uxa_finish_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
+		if (uxa_prepare_access(pDrawable, UXA_GLAMOR_ACCESS_RW)) {
+			ok = glamor_poly_fill_rect_nf(pDrawable, pGC, nrect, prect);
+			uxa_finish_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
+		}
 
 		if (!ok)
 			uxa_check_poly_fill_rect(pDrawable, pGC, nrect, prect);
@@ -883,12 +890,13 @@ uxa_get_spans(DrawablePtr pDrawable,
 	uxa_screen_t *uxa_screen = uxa_get_screen(screen);
 
 	if (uxa_screen->info->flags & UXA_USE_GLAMOR) {
-		int ok;
+		int ok = 0;
 
-		uxa_prepare_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
-		ok = glamor_get_spans_nf(pDrawable, wMax, ppt,
-					 pwidth, nspans, pdstStart);
-		uxa_finish_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
+		if (uxa_prepare_access(pDrawable, UXA_GLAMOR_ACCESS_RW)) {
+			ok = glamor_get_spans_nf(pDrawable, wMax, ppt,
+						 pwidth, nspans, pdstStart);
+			uxa_finish_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
+		}
 
 		if (!ok)
 			goto fallback;
@@ -908,12 +916,13 @@ uxa_set_spans(DrawablePtr pDrawable, GCPtr gc, char *src,
 	uxa_screen_t *uxa_screen = uxa_get_screen(screen);
 
 	if (uxa_screen->info->flags & UXA_USE_GLAMOR) {
-		int ok;
+		int ok = 0;
 
-		uxa_prepare_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
-		ok = glamor_set_spans_nf(pDrawable, gc, src,
-					 points, widths, n, sorted);
-		uxa_finish_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
+		if (uxa_prepare_access(pDrawable, UXA_GLAMOR_ACCESS_RW)) {
+			ok = glamor_set_spans_nf(pDrawable, gc, src,
+						 points, widths, n, sorted);
+			uxa_finish_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
+		}
 
 		if (!ok)
 			goto fallback;
@@ -934,15 +943,17 @@ uxa_copy_plane(DrawablePtr pSrc, DrawablePtr pDst, GCPtr pGC,
 	uxa_screen_t *uxa_screen = uxa_get_screen(screen);
 
 	if (uxa_screen->info->flags & UXA_USE_GLAMOR) {
-		int ok;
+		int ok = 0;
 		RegionPtr region;
 
-		uxa_prepare_access(pDst, UXA_GLAMOR_ACCESS_RW);
-		uxa_prepare_access(pSrc, UXA_GLAMOR_ACCESS_RO);
-		ok = glamor_copy_plane_nf(pSrc, pDst, pGC, srcx, srcy, w, h,
-					   dstx, dsty, bitPlane, &region);
-		uxa_finish_access(pSrc, UXA_GLAMOR_ACCESS_RO);
-		uxa_finish_access(pDst, UXA_GLAMOR_ACCESS_RW);
+		if (uxa_prepare_access(pDst, UXA_GLAMOR_ACCESS_RW)) {
+			if (uxa_prepare_access(pSrc, UXA_GLAMOR_ACCESS_RO)) {
+				ok = glamor_copy_plane_nf(pSrc, pDst, pGC, srcx, srcy, w, h,
+							  dstx, dsty, bitPlane, &region);
+				uxa_finish_access(pSrc, UXA_GLAMOR_ACCESS_RO);
+			}
+			uxa_finish_access(pDst, UXA_GLAMOR_ACCESS_RW);
+		}
 		if (!ok)
 			goto fallback;
 		return region;
@@ -962,11 +973,12 @@ uxa_image_glyph_blt(DrawablePtr pDrawable, GCPtr pGC,
 	uxa_screen_t *uxa_screen = uxa_get_screen(screen);
 
 	if (uxa_screen->info->flags & UXA_USE_GLAMOR) {
-		int ok;
+		int ok = 0;
 
-		uxa_prepare_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
-		ok = glamor_image_glyph_blt_nf(pDrawable, pGC, x, y, nglyph, ppci, pglyphBase);
-		uxa_finish_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
+		if (uxa_prepare_access(pDrawable, UXA_GLAMOR_ACCESS_RW)) {
+			ok = glamor_image_glyph_blt_nf(pDrawable, pGC, x, y, nglyph, ppci, pglyphBase);
+			uxa_finish_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
+		}
 		if (!ok)
 			goto fallback;
 		return;
@@ -985,11 +997,12 @@ uxa_poly_glyph_blt(DrawablePtr pDrawable, GCPtr pGC,
 	uxa_screen_t *uxa_screen = uxa_get_screen(screen);
 
 	if (uxa_screen->info->flags & UXA_USE_GLAMOR) {
-		int ok;
+		int ok = 0;
 
-		uxa_prepare_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
-		ok = glamor_poly_glyph_blt_nf(pDrawable, pGC, x, y, nglyph, ppci, pglyphBase);
-		uxa_finish_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
+		if (uxa_prepare_access(pDrawable, UXA_GLAMOR_ACCESS_RW)) {
+			ok = glamor_poly_glyph_blt_nf(pDrawable, pGC, x, y, nglyph, ppci, pglyphBase);
+			uxa_finish_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
+		}
 		if (!ok)
 			goto fallback;
 		return;
@@ -1007,13 +1020,15 @@ uxa_push_pixels(GCPtr pGC, PixmapPtr pBitmap,
 	uxa_screen_t *uxa_screen = uxa_get_screen(screen);
 
 	if (uxa_screen->info->flags & UXA_USE_GLAMOR) {
-		int ok;
+		int ok = 0;
 
-		uxa_prepare_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
-		uxa_prepare_access(&pBitmap->drawable, UXA_GLAMOR_ACCESS_RO);
-		ok = glamor_push_pixels_nf(pGC, pBitmap, pDrawable, w, h, x, y);
-		uxa_finish_access(&pBitmap->drawable, UXA_GLAMOR_ACCESS_RO);
-		uxa_prepare_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
+		if (uxa_prepare_access(pDrawable, UXA_GLAMOR_ACCESS_RW)) {
+			if (uxa_prepare_access(&pBitmap->drawable, UXA_GLAMOR_ACCESS_RO)) {
+				ok = glamor_push_pixels_nf(pGC, pBitmap, pDrawable, w, h, x, y);
+				uxa_finish_access(&pBitmap->drawable, UXA_GLAMOR_ACCESS_RO);
+			}
+			uxa_prepare_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
+		}
 		if (!ok)
 			goto fallback;
 		return;
@@ -1231,10 +1246,12 @@ uxa_get_image(DrawablePtr pDrawable, int x, int y, int w, int h,
 	Box.y2 = Box.y1 + h;
 
 	if (uxa_screen->info->flags & UXA_USE_GLAMOR) {
-		uxa_prepare_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
-		ok = glamor_get_image_nf(pDrawable, x, y, w, h,
-					format, planeMask, d);
-		uxa_finish_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
+		ok = 0;
+		if (uxa_prepare_access(pDrawable, UXA_GLAMOR_ACCESS_RW)) {
+			ok = glamor_get_image_nf(pDrawable, x, y, w, h,
+						 format, planeMask, d);
+			uxa_finish_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
+		}
 
 		if (!ok)
 			goto fallback;

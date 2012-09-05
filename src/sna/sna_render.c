@@ -84,20 +84,19 @@ no_render_composite(struct sna *sna,
 {
 	DBG(("%s (op=%d, mask? %d)\n", __FUNCTION__, op, mask != NULL));
 
+	if (mask)
+		return false;
+
 	if (!is_gpu(dst->pDrawable) &&
 	    (src->pDrawable == NULL || !is_gpu(src->pDrawable)))
 		return false;
 
-	if (mask == NULL &&
-	    sna_blt_composite(sna,
-			      op, src, dst,
-			      src_x, src_y,
-			      dst_x, dst_y,
-			      width, height,
-			      tmp))
-		return true;
-
-	return false;
+	return sna_blt_composite(sna,
+				 op, src, dst,
+				 src_x, src_y,
+				 dst_x, dst_y,
+				 width, height,
+				 tmp, true);
 	(void)mask_x;
 	(void)mask_y;
 }
@@ -247,6 +246,14 @@ static void
 no_render_context_switch(struct kgem *kgem,
 			 int new_mode)
 {
+	if (!kgem->mode)
+		return;
+
+	if (kgem_is_idle(kgem)) {
+		DBG(("%s: GPU idle, flushing\n", __FUNCTION__));
+		_kgem_submit(kgem);
+	}
+
 	(void)kgem;
 	(void)new_mode;
 }
@@ -352,8 +359,11 @@ use_cpu_bo(struct sna *sna, PixmapPtr pixmap, const BoxRec *box, bool blt)
 			bool want_tiling;
 
 			if (priv->cpu_bo->pitch >= 4096) {
-				DBG(("%s: promoting snooped CPU bo due to TLB miss\n",
-				     __FUNCTION__));
+				DBG(("%s: size=%dx%d, promoting reused (%d) CPU bo due to TLB miss (%dx%d, pitch=%d)\n",
+				     __FUNCTION__, w, h, priv->source_count,
+				     pixmap->drawable.width,
+				     pixmap->drawable.height,
+				     priv->cpu_bo->pitch));
 				return NULL;
 			}
 
@@ -376,8 +386,7 @@ use_cpu_bo(struct sna *sna, PixmapPtr pixmap, const BoxRec *box, bool blt)
 
 	if (priv->shm) {
 		assert(!priv->flush);
-		list_move(&priv->list, &sna->flush_pixmaps);
-		sna->kgem.flush |= 1;
+		sna_add_flush_pixmap(sna, priv, priv->cpu_bo);
 	}
 
 	DBG(("%s for box=(%d, %d), (%d, %d)\n",
@@ -542,7 +551,8 @@ sna_render_pixmap_bo(struct sna *sna,
 	struct sna_pixmap *priv;
 	BoxRec box;
 
-	DBG(("%s (%d, %d)x(%d, %d)/(%d, %d)\n", __FUNCTION__,
+	DBG(("%s pixmap=%ld, (%d, %d)x(%d, %d)/(%d, %d)\n",
+	     __FUNCTION__, pixmap->drawable.serialNumber,
 	     x, y, w,h, pixmap->drawable.width, pixmap->drawable.height));
 
 	channel->width  = pixmap->drawable.width;
@@ -590,14 +600,10 @@ sna_render_pixmap_bo(struct sna *sna,
 			if (box.y2 > pixmap->drawable.height)
 				box.y2 = pixmap->drawable.height;
 		} else {
-			if (box.x1 < 0 ||
-			    box.y1 < 0 ||
-			    box.x2 > pixmap->drawable.width ||
-			    box.y2 > pixmap->drawable.height) {
-				box.x1 = box.y1 = 0;
-				box.x2 = pixmap->drawable.width;
-				box.y2 = pixmap->drawable.height;
-			}
+			if (box.x1 < 0 || box.x2 > pixmap->drawable.width)
+				box.x1 = 0, box.x2 = pixmap->drawable.width;
+			if (box.y1 < 0 || box.y2 > pixmap->drawable.height)
+				box.y1 = 0, box.y2 = pixmap->drawable.height;
 		}
 	}
 
@@ -616,7 +622,6 @@ sna_render_pixmap_bo(struct sna *sna,
 	     __FUNCTION__,
 	     channel->offset[0], channel->offset[1],
 	     pixmap->drawable.width, pixmap->drawable.height));
-
 
 	channel->bo = __sna_render_pixmap_bo(sna, pixmap, &box, false);
 	if (channel->bo == NULL) {
@@ -679,25 +684,12 @@ static int sna_render_picture_downsample(struct sna *sna,
 		if (box.y2 > pixmap->drawable.height)
 			box.y2 = pixmap->drawable.height;
 	} else {
-		if (box.x1 < 0 ||
-		    box.y1 < 0 ||
-		    box.x2 > pixmap->drawable.width ||
-		    box.y2 > pixmap->drawable.height) {
-			/* XXX tiled repeats? */
-			box.x1 = box.y1 = 0;
-			box.x2 = pixmap->drawable.width;
-			box.y2 = pixmap->drawable.height;
+		/* XXX tiled repeats? */
+		if (box.x1 < 0 || box.x2 > pixmap->drawable.width)
+			box.x1 = 0, box.x2 = pixmap->drawable.width;
+		if (box.y1 < 0 || box.y2 > pixmap->drawable.height)
+			box.y1 = 0, box.y2 = pixmap->drawable.height;
 
-			if (!channel->is_affine) {
-				DBG(("%s: fallback -- repeating project transform too large for texture\n",
-				     __FUNCTION__));
-				return sna_render_picture_fixup(sna,
-								picture,
-								channel,
-								x, y, w, h,
-								dst_x, dst_y);
-			}
-		}
 	}
 
 	sw = box.x2 - box.x1;
@@ -962,17 +954,10 @@ sna_render_picture_partial(struct sna *sna,
 		if (box.y2 > pixmap->drawable.height)
 			box.y2 = pixmap->drawable.height;
 	} else {
-		if (box.x1 < 0 ||
-		    box.y1 < 0 ||
-		    box.x2 > pixmap->drawable.width ||
-		    box.y2 > pixmap->drawable.height) {
-			box.x1 = box.y1 = 0;
-			box.x2 = pixmap->drawable.width;
-			box.y2 = pixmap->drawable.height;
-
-			if (!channel->is_affine)
-				return 0;
-		}
+		if (box.x1 < 0 || box.x2 > pixmap->drawable.width)
+			box.x1 = 0, box.x2 = pixmap->drawable.width;
+		if (box.y1 < 0 || box.y2 > pixmap->drawable.height)
+			box.y1 = 0, box.y2 = pixmap->drawable.height;
 	}
 
 	if (use_cpu_bo(sna, pixmap, &box, false)) {
@@ -1122,25 +1107,11 @@ sna_render_picture_extract(struct sna *sna,
 		if (box.y2 > pixmap->drawable.height)
 			box.y2 = pixmap->drawable.height;
 	} else {
-		if (box.x1 < 0 ||
-		    box.y1 < 0 ||
-		    box.x2 > pixmap->drawable.width ||
-		    box.y2 > pixmap->drawable.height) {
-			/* XXX tiled repeats? */
-			box.x1 = box.y1 = 0;
-			box.x2 = pixmap->drawable.width;
-			box.y2 = pixmap->drawable.height;
-
-			if (!channel->is_affine) {
-				DBG(("%s: fallback -- repeating project transform too large for texture\n",
-				     __FUNCTION__));
-				return sna_render_picture_fixup(sna,
-								picture,
-								channel,
-								x, y, ow, oh,
-								dst_x, dst_y);
-			}
-		}
+		/* XXX tiled repeats? */
+		if (box.x1 < 0 || box.x2 > pixmap->drawable.width)
+			box.x1 = 0, box.x2 = pixmap->drawable.width;
+		if (box.y1 < 0 || box.y2 > pixmap->drawable.height)
+			box.y1 = 0, box.y2 = pixmap->drawable.height;
 	}
 
 	w = box.x2 - box.x1;
@@ -1949,4 +1920,41 @@ sna_render_composite_redirect_done(struct sna *sna,
 
 		kgem_bo_destroy(&sna->kgem, op->dst.bo);
 	}
+}
+
+bool
+sna_render_copy_boxes__overlap(struct sna *sna, uint8_t alu,
+			       PixmapPtr src, struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
+			       PixmapPtr dst, struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
+			       const BoxRec *box, int n, const BoxRec *extents)
+{
+	ScreenPtr screen = dst->drawable.pScreen;
+	struct kgem_bo *bo;
+	PixmapPtr tmp;
+	bool ret = false;
+
+	tmp = screen->CreatePixmap(screen,
+				   extents->x2 - extents->x1,
+				   extents->y2 - extents->y1,
+				   dst->drawable.depth,
+				   SNA_CREATE_SCRATCH);
+	if (tmp == NULL)
+		return false;
+
+	bo = sna_pixmap_get_bo(tmp);
+	if (bo == NULL)
+		goto out;
+
+	ret = (sna->render.copy_boxes(sna, alu,
+				      src, src_bo, src_dx, src_dy,
+				      tmp, bo, -extents->x1, -extents->y1,
+				      box, n , 0) &&
+	       sna->render.copy_boxes(sna, alu,
+				      tmp, bo, -extents->x1, -extents->y1,
+				      dst, dst_bo, dst_dx, dst_dy,
+				      box, n , 0));
+
+out:
+	screen->DestroyPixmap(tmp);
+	return ret;
 }

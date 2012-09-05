@@ -46,6 +46,9 @@ bool sna_composite_create(struct sna *sna)
 	xRenderColor color ={ 0 };
 	int error;
 
+	if (!can_render(sna))
+		return true;
+
 	sna->clear = CreateSolidPicture(0, &color, &error);
 	return sna->clear != NULL;
 }
@@ -364,7 +367,14 @@ sna_compute_composite_extents(BoxPtr extents,
 		trim_source_extents(extents, mask,
 				    dst_x - mask_x, dst_y - mask_y);
 
-	return extents->x1 < extents->x2 && extents->y1 < extents->y2;
+	if (extents->x1 >= extents->x2 || extents->y1 >= extents->y2)
+		return false;
+
+	if (region_is_singular(dst->pCompositeClip))
+		return true;
+
+	return pixman_region_contains_rectangle(dst->pCompositeClip,
+						extents) != PIXMAN_REGION_OUT;
 }
 
 #if HAS_DEBUG_FULL
@@ -402,7 +412,12 @@ static void apply_damage(struct sna_composite_op *op, RegionPtr region)
 		RegionTranslate(region, op->dst.x, op->dst.y);
 
 	assert_pixmap_contains_box(op->dst.pixmap, RegionExtents(region));
-	sna_damage_add(op->damage, region);
+	if (region->data == NULL &&
+	    region->extents.x2 - region->extents.x1 == op->dst.width &&
+	    region->extents.y2 - region->extents.y1 == op->dst.height)
+		sna_damage_all(op->damage, op->dst.width, op->dst.height);
+	else
+		sna_damage_add(op->damage, region);
 }
 
 static inline bool use_cpu(PixmapPtr pixmap, struct sna_pixmap *priv,
@@ -814,6 +829,10 @@ sna_composite_rectangles(CARD8		 op,
 		if (priv->cpu_damage &&
 		    region_subsumes_damage(&region, priv->cpu_damage)) {
 			DBG(("%s: discarding existing CPU damage\n", __FUNCTION__));
+			if (priv->gpu_bo && priv->gpu_bo->proxy) {
+				kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
+				priv->gpu_bo = NULL;
+			}
 			sna_damage_destroy(&priv->cpu_damage);
 			list_del(&priv->list);
 		}
