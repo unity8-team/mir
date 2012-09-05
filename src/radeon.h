@@ -637,7 +637,7 @@ static inline Bool radeon_get_pixmap_shared(PixmapPtr pPix)
 
     if (info->use_glamor) {
         ErrorF("glamor sharing todo\n");
-	return FALSE:
+	return FALSE;
     } else
 #endif
     {
