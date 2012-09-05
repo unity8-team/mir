@@ -546,6 +546,14 @@ intel_platform_probe(DriverPtr driver,
 		return FALSE;
 
 	scrn = xf86AllocateScreen(driver, 0);
+	if (scrn == NULL)
+		return FALSE;
+
+	xf86DrvMsg(scrn->scrnIndex, X_INFO,
+		   "using device path '%s'\n", path ? path : "Default device");
+
+	if (xf86IsEntitySharable(entity_num))
+		xf86SetEntityShared(entity_num);
 	xf86AddEntityToScreen(scrn, entity_num);
 
 	scrn->driverVersion = INTEL_VERSION;
@@ -553,20 +561,16 @@ intel_platform_probe(DriverPtr driver,
 	scrn->name = INTEL_NAME;
 	scrn->driverPrivate = (void *)(match_data | 1);
 	scrn->Probe = NULL;
+
 	switch (get_accel_method()) {
 #if USE_SNA
-        case SNA: sna_init_scrn(scrn, entity_num); break;
+        case SNA: return sna_init_scrn(scrn, entity_num);
 #endif
-
 #if USE_UXA
-        case UXA: intel_init_scrn(scrn); break;
+        case UXA: return intel_init_scrn(scrn);
 #endif
 	default: return FALSE;
 	}
-
-	xf86DrvMsg(scrn->scrnIndex, X_INFO,
-		   "using drv %s\n", path ? path : "Default device");
-	return scrn != NULL;
 }
 #endif
 

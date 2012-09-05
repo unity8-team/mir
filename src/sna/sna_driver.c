@@ -226,7 +226,7 @@ struct sna_device {
 	int fd;
 	int open_count;
 };
-static int sna_device_key;
+static int sna_device_key = -1;
 
 static inline struct sna_device *sna_device(ScrnInfoPtr scrn)
 {
@@ -1080,8 +1080,6 @@ static Bool sna_pm_event(SCRN_ARG_TYPE arg, pmEvent event, Bool undo)
 
 Bool sna_init_scrn(ScrnInfoPtr scrn, int entity_num)
 {
-	EntityInfoPtr entity;
-
 #if defined(USE_GIT_DESCRIBE)
 	xf86DrvMsg(scrn->scrnIndex, X_INFO,
 		   "SNA compiled from %s\n", git_version);
@@ -1105,7 +1103,8 @@ Bool sna_init_scrn(ScrnInfoPtr scrn, int entity_num)
 	DBG(("%s\n", __FUNCTION__));
 	DBG(("pixman version: %s\n", pixman_version_string()));
 
-	sna_device_key = xf86AllocateEntityPrivateIndex();
+	if (sna_device_key == -1)
+		sna_device_key = xf86AllocateEntityPrivateIndex();
 
 	scrn->PreInit = sna_pre_init;
 	scrn->ScreenInit = sna_screen_init;
@@ -1119,15 +1118,9 @@ Bool sna_init_scrn(ScrnInfoPtr scrn, int entity_num)
 
 	scrn->ModeSet = sna_mode_set;
 
-	entity = xf86GetEntityInfo(entity_num);
-	if (!entity)
-		return FALSE;
-
 	xf86SetEntitySharable(entity_num);
-	xf86SetEntityInstanceForScreen(scrn,
-				       entity->index,
-				       xf86GetNumEntityInstances(entity->index)-1);
-	free(entity);
+	xf86SetEntityInstanceForScreen(scrn, entity_num,
+				       xf86GetNumEntityInstances(entity_num)-1);
 
 	return TRUE;
 }
