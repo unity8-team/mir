@@ -265,7 +265,7 @@ intel_output_backlight_init(xf86OutputPtr output)
 	if (str != NULL) {
 		sprintf(path, "%s/%s", BACKLIGHT_CLASS, str);
 		if (!stat(path, &buf)) {
-			intel_output->backlight_iface = backlight_interfaces[i];
+			intel_output->backlight_iface = str;
 			intel_output->backlight_max = intel_output_backlight_get_max(output);
 			if (intel_output->backlight_max > 0) {
 				xf86DrvMsg(output->scrn->scrnIndex, X_CONFIG,
