@@ -1452,12 +1452,11 @@ skip_inplace_map:
 		priv->mapped = false;
 	}
 
-	if (priv->clear) {
-		if (priv->cpu_bo && !priv->cpu_bo->flush &&
-		    __kgem_bo_is_busy(&sna->kgem, priv->cpu_bo)) {
-			assert(!priv->shm);
-			sna_pixmap_free_cpu(sna, priv);
-		}
+	if (priv->clear && priv->cpu_bo && !priv->cpu_bo->flush &&
+	    __kgem_bo_is_busy(&sna->kgem, priv->cpu_bo)) {
+		assert(!priv->shm);
+		assert(DAMAGE_IS_ALL(priv->gpu_damage));
+		sna_pixmap_free_cpu(sna, priv);
 	}
 
 	if (pixmap->devPrivate.ptr == NULL &&
@@ -3462,36 +3461,33 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 		priv->gpu_bo = NULL;
 	}
 
-	if (priv->cpu_bo) {
-		/* If the GPU is currently accessing the CPU pixmap, then
-		 * we will need to wait for that to finish before we can
-		 * modify the memory.
-		 *
-		 * However, we can queue some writes to the GPU bo to avoid
-		 * the wait. Or we can try to replace the CPU bo.
-		 */
-		if (!priv->shm && __kgem_bo_is_busy(&sna->kgem, priv->cpu_bo)) {
-			assert(!priv->cpu_bo->flush);
-			DBG(("%s: cpu bo will stall, upload damage and discard\n",
-			     __FUNCTION__));
-			if (priv->cpu_damage) {
-				if (!region_subsumes_drawable(region, &pixmap->drawable)) {
-					sna_damage_subtract(&priv->cpu_damage, region);
-					if (!sna_pixmap_move_to_gpu(pixmap,
-								    MOVE_WRITE))
-						return false;
-				} else {
-					sna_damage_destroy(&priv->cpu_damage);
-					priv->undamaged = false;
-				}
-				assert(priv->cpu_damage == NULL);
+	/* If the GPU is currently accessing the CPU pixmap, then
+	 * we will need to wait for that to finish before we can
+	 * modify the memory.
+	 *
+	 * However, we can queue some writes to the GPU bo to avoid
+	 * the wait. Or we can try to replace the CPU bo.
+	 */
+	if (!priv->shm && priv->cpu_bo && __kgem_bo_is_busy(&sna->kgem, priv->cpu_bo)) {
+		assert(!priv->cpu_bo->flush);
+		DBG(("%s: cpu bo will stall, upload damage and discard\n",
+		     __FUNCTION__));
+		if (priv->cpu_damage) {
+			if (!region_subsumes_drawable(region, &pixmap->drawable)) {
+				sna_damage_subtract(&priv->cpu_damage, region);
+				if (!sna_pixmap_move_to_gpu(pixmap,
+							    MOVE_WRITE))
+					return false;
+			} else {
+				sna_damage_destroy(&priv->cpu_damage);
+				priv->undamaged = false;
 			}
-			if (!priv->undamaged)
-				sna_damage_all(&priv->gpu_damage,
-					       pixmap->drawable.width,
-					       pixmap->drawable.height);
-			sna_pixmap_free_cpu(sna, priv);
+			assert(priv->cpu_damage == NULL);
 		}
+		sna_damage_all(&priv->gpu_damage,
+			       pixmap->drawable.width,
+			       pixmap->drawable.height);
+		sna_pixmap_free_cpu(sna, priv);
 	}
 
 	if (priv->mapped) {
