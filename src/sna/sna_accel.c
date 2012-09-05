@@ -2986,7 +2986,7 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 		assert(pixmap_contains_damage(pixmap, priv->cpu_damage));
 		DBG(("%s: uploading %d damage boxes\n", __FUNCTION__, n));
 
-		if (DAMAGE_IS_ALL(priv->cpu_damage))
+		if (!priv->cpu)
 			flags |= MOVE_ASYNC_HINT;
 
 		ok = false;
