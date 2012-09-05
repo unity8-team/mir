@@ -2996,10 +2996,6 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 						    pixmap, priv->cpu_bo, 0, 0,
 						    pixmap, priv->gpu_bo, 0, 0,
 						    box, n, 0);
-			if (ok && priv->shm) {
-				assert(!priv->flush);
-				sna_add_flush_pixmap(sna, priv, priv->cpu_bo);
-			}
 		}
 		if (!ok) {
 			if (pixmap->devPrivate.ptr == NULL) {
@@ -3037,10 +3033,12 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 	}
 
 	/* For large bo, try to keep only a single copy around */
-	if (priv->create & KGEM_CAN_CREATE_LARGE)
+	if (priv->create & KGEM_CAN_CREATE_LARGE) {
 		sna_damage_all(&priv->gpu_damage,
 			       pixmap->drawable.width,
 			       pixmap->drawable.height);
+		sna_pixmap_free_cpu(sna, priv);
+	}
 done:
 	list_del(&priv->list);
 
