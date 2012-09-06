@@ -942,20 +942,29 @@ sna_share_pixmap_backing(PixmapPtr pixmap, ScreenPtr slave, void **fd_handle)
 
 	/* XXX negotiate format and stride restrictions */
 	if (priv->gpu_bo->tiling &&
-	    !sna_pixmap_change_tiling(pixmap, I915_TILING_NONE))
+	    !sna_pixmap_change_tiling(pixmap, I915_TILING_NONE)) {
+		DBG(("%s: failed to change tiling for export\n", __FUNCTION__));
 		return FALSE;
+	}
 
 	/* nvidia requires a minimum pitch alignment of 256 */
 	if (priv->gpu_bo->pitch & 255) {
 		struct kgem_bo *bo;
+
+		if (priv->pinned) {
+			DBG(("%s: failed to change pitch for export, pinned!\n", __FUNCTION__));
+			return FALSE;
+		}
 
 		bo = kgem_replace_bo(&sna->kgem, priv->gpu_bo,
 				     pixmap->drawable.width,
 				     pixmap->drawable.height,
 				     ALIGN(priv->gpu_bo->pitch, 256),
 				     pixmap->drawable.bitsPerPixel);
-		if (bo == NULL)
+		if (bo == NULL) {
+			DBG(("%s: failed to change pitch for export\n", __FUNCTION__));
 			return FALSE;
+		}
 
 		kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
 		priv->gpu_bo = bo;

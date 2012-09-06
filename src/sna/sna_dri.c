@@ -362,6 +362,10 @@ static void _sna_dri_destroy_buffer(struct sna *sna, DRI2Buffer2Ptr buffer)
 
 			/* Undo the DRI markings on this pixmap */
 			if (priv->flush && --priv->flush == 0) {
+				DBG(("%s: releasing last DRI pixmap=%ld, scanout?=%d\n",
+				     __FUNCTION__,
+				     pixmap->drawable.serialNumber,
+				     pixmap == sna->front));
 				list_del(&priv->list);
 				sna_accel_watch_flush(sna, -1);
 				priv->pinned = pixmap == sna->front;
