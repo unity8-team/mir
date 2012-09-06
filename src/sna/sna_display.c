@@ -967,7 +967,7 @@ static struct kgem_bo *sna_crtc_attach(xf86CrtcPtr crtc)
 		if (!sna_crtc_enable_shadow(sna, sna_crtc))
 			return NULL;
 
-		bo = sna_pixmap_pin(sna_crtc->scanout_pixmap);
+		bo = sna_pixmap_pin(sna_crtc->scanout_pixmap, PIN_SCANOUT);
 		if (bo == NULL)
 			return NULL;
 
@@ -1009,7 +1009,7 @@ static struct kgem_bo *sna_crtc_attach(xf86CrtcPtr crtc)
 	} else {
 		DBG(("%s: attaching to framebuffer\n", __FUNCTION__));
 		sna_crtc_disable_shadow(sna, sna_crtc);
-		bo = sna_pixmap_pin(sna->front);
+		bo = sna_pixmap_pin(sna->front, PIN_SCANOUT);
 		if (bo == NULL)
 			return NULL;
 

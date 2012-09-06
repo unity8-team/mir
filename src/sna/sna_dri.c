@@ -188,7 +188,7 @@ static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 	sna_accel_watch_flush(sna, 1);
 
 	/* Don't allow this named buffer to be replaced */
-	priv->pinned = 1;
+	priv->pinned |= PIN_DRI;
 
 	return priv->gpu_bo;
 }
@@ -368,7 +368,7 @@ static void _sna_dri_destroy_buffer(struct sna *sna, DRI2Buffer2Ptr buffer)
 				     pixmap == sna->front));
 				list_del(&priv->list);
 				sna_accel_watch_flush(sna, -1);
-				priv->pinned = pixmap == sna->front;
+				priv->pinned &= ~PIN_DRI;
 			}
 
 			sna_pixmap_set_buffer(pixmap, NULL);

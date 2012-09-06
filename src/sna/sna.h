@@ -123,7 +123,10 @@ struct sna_pixmap {
 
 #define SOURCE_BIAS 4
 	uint16_t source_count;
-	uint8_t pinned :1;
+	uint8_t pinned :3;
+#define PIN_SCANOUT 0x1
+#define PIN_DRI 0x2
+#define PIN_PRIME 0x4
 	uint8_t mapped :1;
 	uint8_t shm :1;
 	uint8_t clear :1;
@@ -542,7 +545,7 @@ static inline struct kgem_bo *sna_pixmap_get_bo(PixmapPtr pixmap)
 	return sna_pixmap(pixmap)->gpu_bo;
 }
 
-static inline struct kgem_bo *sna_pixmap_pin(PixmapPtr pixmap)
+static inline struct kgem_bo *sna_pixmap_pin(PixmapPtr pixmap, unsigned flags)
 {
 	struct sna_pixmap *priv;
 
@@ -550,7 +553,7 @@ static inline struct kgem_bo *sna_pixmap_pin(PixmapPtr pixmap)
 	if (!priv)
 		return NULL;
 
-	priv->pinned = 1;
+	priv->pinned |= flags;
 	return priv->gpu_bo;
 }
 

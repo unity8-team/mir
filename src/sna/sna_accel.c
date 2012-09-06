@@ -937,39 +937,63 @@ sna_share_pixmap_backing(PixmapPtr pixmap, ScreenPtr slave, void **fd_handle)
 	if (priv == NULL)
 		return FALSE;
 
+	assert(!priv->shm);
 	assert(priv->gpu_bo);
 	assert(priv->stride);
 
 	/* XXX negotiate format and stride restrictions */
-	if (priv->gpu_bo->tiling &&
-	    !sna_pixmap_change_tiling(pixmap, I915_TILING_NONE)) {
-		DBG(("%s: failed to change tiling for export\n", __FUNCTION__));
-		return FALSE;
-	}
-
-	/* nvidia requires a minimum pitch alignment of 256 */
-	if (priv->gpu_bo->pitch & 255) {
+	if (priv->gpu_bo->tiling != I915_TILING_NONE ||
+	    priv->gpu_bo->pitch & 255) {
 		struct kgem_bo *bo;
+		BoxRec box;
 
-		if (priv->pinned) {
-			DBG(("%s: failed to change pitch for export, pinned!\n", __FUNCTION__));
+		DBG(("%s: removing tiling %d, and aligning pitch  for %dx%d pixmap=%ld\n",
+		     __FUNCTION__, priv->gpu_bo->tiling,
+		     pixmap->drawable.width, pixmap->drawable.height,
+		     pixmap->drawable.serialNumber));
+
+		if (priv->pinned & ~(PIN_DRI | PIN_PRIME)) {
+			DBG(("%s: can't convert pinned bo\n", __FUNCTION__));
 			return FALSE;
 		}
 
-		bo = kgem_replace_bo(&sna->kgem, priv->gpu_bo,
-				     pixmap->drawable.width,
-				     pixmap->drawable.height,
-				     ALIGN(priv->gpu_bo->pitch, 256),
-				     pixmap->drawable.bitsPerPixel);
+		assert_pixmap_damage(pixmap);
+
+		bo = kgem_create_2d(&sna->kgem,
+				    pixmap->drawable.width,
+				    pixmap->drawable.height,
+				    pixmap->drawable.bitsPerPixel,
+				    I915_TILING_NONE,
+				    CREATE_GTT_MAP | CREATE_PRIME);
 		if (bo == NULL) {
-			DBG(("%s: failed to change pitch for export\n", __FUNCTION__));
+			DBG(("%s: allocation failed\n", __FUNCTION__));
+			return FALSE;
+		}
+
+		box.x1 = box.y1 = 0;
+		box.x2 = pixmap->drawable.width;
+		box.y2 = pixmap->drawable.height;
+
+		assert(!wedged(sna)); /* XXX */
+		if (!sna->render.copy_boxes(sna, GXcopy,
+					    pixmap, priv->gpu_bo, 0, 0,
+					    pixmap, bo, 0, 0,
+					    &box, 1, 0)) {
+			DBG(("%s: copy failed\n", __FUNCTION__));
+			kgem_bo_destroy(&sna->kgem, bo);
 			return FALSE;
 		}
 
 		kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
 		priv->gpu_bo = bo;
+
+		if (priv->mapped) {
+			pixmap->devPrivate.ptr = NULL;
+			priv->mapped = false;
+		}
 	}
 	assert(priv->gpu_bo->tiling == I915_TILING_NONE);
+	assert((priv->gpu_bo->pitch & 255) == 0);
 
 	/* And export the bo->pitch via pixmap->devKind */
 	pixmap->devPrivate.ptr = kgem_bo_map__async(&sna->kgem, priv->gpu_bo);
@@ -983,7 +1007,7 @@ sna_share_pixmap_backing(PixmapPtr pixmap, ScreenPtr slave, void **fd_handle)
 	if (fd == -1)
 		return FALSE;
 
-	priv->pinned = true;
+	priv->pinned |= PIN_PRIME;
 
 	*fd_handle = (void *)(intptr_t)fd;
 	return TRUE;
@@ -1022,7 +1046,7 @@ sna_set_shared_pixmap_backing(PixmapPtr pixmap, void *fd_handle)
 	priv->stride = pixmap->devKind;
 
 	priv->gpu_bo = bo;
-	priv->pinned = true;
+	priv->pinned |= PIN_DRI;
 
 	close((intptr_t)fd_handle);
 	return TRUE;

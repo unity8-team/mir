@@ -219,7 +219,7 @@ bool sna_glyphs_create(struct sna *sna)
 		priv = sna_pixmap(pixmap);
 		if (priv != NULL) {
 			/* Prevent the cache from ever being paged out */
-			priv->pinned = true;
+			priv->pinned = PIN_SCANOUT;
 
 			component_alpha = NeedsComponent(pPictFormat->format);
 			picture = CreatePicture(0, &pixmap->drawable, pPictFormat,
