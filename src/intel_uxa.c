@@ -228,11 +228,14 @@ intel_uxa_pixmap_compute_size(PixmapPtr pixmap,
 	}
 
 	if (*tiling == I915_TILING_NONE) {
+		/* We only require a 64 byte alignment for scanouts, but
+		 * a 256 byte alignment for sharing with PRIME.
+		 */
+		*stride = ALIGN(pitch, 256);
 		/* Round the height up so that the GPU's access to a 2x2 aligned
 		 * subspan doesn't address an invalid page offset beyond the
 		 * end of the GTT.
 		 */
-		*stride = ALIGN(pitch, 64);
 		size = *stride * ALIGN(h, 2);
 	}
 

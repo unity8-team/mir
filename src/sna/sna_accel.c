@@ -944,6 +944,22 @@ sna_share_pixmap_backing(PixmapPtr pixmap, ScreenPtr slave, void **fd_handle)
 	if (priv->gpu_bo->tiling &&
 	    !sna_pixmap_change_tiling(pixmap, I915_TILING_NONE))
 		return FALSE;
+
+	/* nvidia requires a minimum pitch alignment of 256 */
+	if (priv->gpu_bo->pitch & 255) {
+		struct kgem_bo *bo;
+
+		bo = kgem_replace_bo(&sna->kgem, priv->gpu_bo,
+				     pixmap->drawable.width,
+				     pixmap->drawable.height,
+				     ALIGN(priv->gpu_bo->pitch, 256),
+				     pixmap->drawable.bitsPerPixel);
+		if (bo == NULL)
+			return FALSE;
+
+		kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
+		priv->gpu_bo = bo;
+	}
 	assert(priv->gpu_bo->tiling == I915_TILING_NONE);
 
 	/* And export the bo->pitch via pixmap->devKind */
