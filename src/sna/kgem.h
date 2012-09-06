@@ -242,9 +242,10 @@ enum {
 	CREATE_CPU_MAP = 0x4,
 	CREATE_GTT_MAP = 0x8,
 	CREATE_SCANOUT = 0x10,
-	CREATE_TEMPORARY = 0x20,
-	CREATE_NO_RETIRE = 0x40,
-	CREATE_NO_THROTTLE = 0x40,
+	CREATE_PRIME = 0x20,
+	CREATE_TEMPORARY = 0x40,
+	CREATE_NO_RETIRE = 0x80,
+	CREATE_NO_THROTTLE = 0x100,
 };
 struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 			       int width,

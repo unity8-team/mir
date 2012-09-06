@@ -984,12 +984,21 @@ static uint32_t kgem_get_unique_id(struct kgem *kgem)
 	return id;
 }
 
+inline static uint32_t kgem_pitch_alignment(struct kgem *kgem, unsigned flags)
+{
+	if (flags & CREATE_PRIME)
+		return 256;
+	if (flags & CREATE_SCANOUT)
+		return 64;
+	return kgem->min_alignment;
+}
+
 static uint32_t kgem_untiled_pitch(struct kgem *kgem,
 				   uint32_t width, uint32_t bpp,
-				   bool scanout)
+				   unsigned flags)
 {
 	width = ALIGN(width, 2) * bpp >> 3;
-	return ALIGN(width, scanout ? 64 : kgem->min_alignment);
+	return ALIGN(width, kgem_pitch_alignment(kgem, flags));
 }
 
 void kgem_get_tile_size(struct kgem *kgem, int tiling,
@@ -1033,7 +1042,7 @@ void kgem_get_tile_size(struct kgem *kgem, int tiling,
 
 static uint32_t kgem_surface_size(struct kgem *kgem,
 				  bool relaxed_fencing,
-				  bool scanout,
+				  unsigned flags,
 				  uint32_t width,
 				  uint32_t height,
 				  uint32_t bpp,
@@ -1058,7 +1067,7 @@ static uint32_t kgem_surface_size(struct kgem *kgem,
 		} else {
 			tile_width = 2 * bpp >> 3;
 			tile_width = ALIGN(tile_width,
-					   scanout ? 64 : kgem->min_alignment);
+					   kgem_pitch_alignment(kgem, flags));
 			tile_height = 2;
 		}
 	} else switch (tiling) {
@@ -1066,7 +1075,7 @@ static uint32_t kgem_surface_size(struct kgem *kgem,
 	case I915_TILING_NONE:
 		tile_width = 2 * bpp >> 3;
 		tile_width = ALIGN(tile_width,
-				   scanout ? 64 : kgem->min_alignment);
+				   kgem_pitch_alignment(kgem, flags));
 		tile_height = 2;
 		break;
 	case I915_TILING_X:
@@ -2991,7 +3000,7 @@ unsigned kgem_can_create_2d(struct kgem *kgem,
 		return 0;
 	}
 
-	size = kgem_surface_size(kgem, false, false,
+	size = kgem_surface_size(kgem, false, 0,
 				 width, height, bpp,
 				 I915_TILING_NONE, &pitch);
 	if (size > 0 && size <= kgem->max_cpu_size)
@@ -3006,7 +3015,7 @@ unsigned kgem_can_create_2d(struct kgem *kgem,
 		return 0;
 	}
 
-	size = kgem_surface_size(kgem, false, false,
+	size = kgem_surface_size(kgem, false, 0,
 				 width, height, bpp,
 				 kgem_choose_tiling(kgem, I915_TILING_X,
 						    width, height, bpp),
@@ -3059,18 +3068,17 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 	if (tiling < 0)
 		tiling = -tiling, flags |= CREATE_EXACT;
 
-	DBG(("%s(%dx%d, bpp=%d, tiling=%d, exact=%d, inactive=%d, cpu-mapping=%d, gtt-mapping=%d, scanout?=%d, temp?=%d)\n", __FUNCTION__,
+	DBG(("%s(%dx%d, bpp=%d, tiling=%d, exact=%d, inactive=%d, cpu-mapping=%d, gtt-mapping=%d, scanout?=%d, prime?=%d, temp?=%d)\n", __FUNCTION__,
 	     width, height, bpp, tiling,
 	     !!(flags & CREATE_EXACT),
 	     !!(flags & CREATE_INACTIVE),
 	     !!(flags & CREATE_CPU_MAP),
 	     !!(flags & CREATE_GTT_MAP),
 	     !!(flags & CREATE_SCANOUT),
+	     !!(flags & CREATE_PRIME),
 	     !!(flags & CREATE_TEMPORARY)));
 
-	size = kgem_surface_size(kgem,
-				 kgem->has_relaxed_fencing,
-				 flags & CREATE_SCANOUT,
+	size = kgem_surface_size(kgem, kgem->has_relaxed_fencing, flags,
 				 width, height, bpp, tiling, &pitch);
 	assert(size && size <= kgem->max_object_size);
 	size /= PAGE_SIZE;
@@ -3084,9 +3092,7 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 			goto create;
 
 		tiled_height = kgem_aligned_height(kgem, height, I915_TILING_Y);
-		untiled_pitch = kgem_untiled_pitch(kgem,
-						   width, bpp,
-						   flags & CREATE_SCANOUT);
+		untiled_pitch = kgem_untiled_pitch(kgem, width, bpp, flags);
 
 		list_for_each_entry(bo, &kgem->large, list) {
 			assert(!bo->purged);
@@ -3289,14 +3295,10 @@ search_again:
 	}
 
 	if ((flags & CREATE_EXACT) == 0) { /* allow an active near-miss? */
-		untiled_pitch = kgem_untiled_pitch(kgem,
-						   width, bpp,
-						   flags & CREATE_SCANOUT);
+		untiled_pitch = kgem_untiled_pitch(kgem, width, bpp, flags);
 		i = tiling;
 		while (--i >= 0) {
-			tiled_height = kgem_surface_size(kgem,
-							 kgem->has_relaxed_fencing,
-							 flags & CREATE_SCANOUT,
+			tiled_height = kgem_surface_size(kgem, kgem->has_relaxed_fencing, flags,
 							 width, height, bpp, tiling, &pitch);
 			cache = active(kgem, tiled_height / PAGE_SIZE, i);
 			tiled_height = kgem_aligned_height(kgem, height, i);

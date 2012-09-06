@@ -1020,7 +1020,8 @@ sna_set_shared_pixmap_backing(PixmapPtr pixmap, void *fd_handle)
 }
 
 static PixmapPtr
-sna_create_pixmap_shared(struct sna *sna, ScreenPtr screen, int depth)
+sna_create_pixmap_shared(struct sna *sna, ScreenPtr screen,
+			 int width, int height, int depth)
 {
 	PixmapPtr pixmap;
 	struct sna_pixmap *priv;
@@ -1032,8 +1033,6 @@ sna_create_pixmap_shared(struct sna *sna, ScreenPtr screen, int depth)
 	if (pixmap == NullPixmap)
 		return NullPixmap;
 
-	pixmap->drawable.width = 0;
-	pixmap->drawable.height = 0;
 	pixmap->devKind = 0;
 	pixmap->devPrivate.ptr = NULL;
 
@@ -1045,6 +1044,42 @@ sna_create_pixmap_shared(struct sna *sna, ScreenPtr screen, int depth)
 
 	priv->stride = 0;
 	priv->create = 0;
+
+	if (width|height) {
+		int bpp = bits_per_pixel(depth);
+
+		priv->gpu_bo = kgem_create_2d(&sna->kgem,
+					      width, height, bpp,
+					      I915_TILING_NONE,
+					      CREATE_GTT_MAP | CREATE_PRIME);
+		if (priv->gpu_bo == NULL) {
+			free(priv);
+			FreePixmap(pixmap);
+			return NullPixmap;
+		}
+
+		/* minimal interface for sharing is linear, 256 byte pitch */
+		assert(priv->gpu_bo->tiling == I915_TILING_NONE);
+		assert((priv->gpu_bo->pitch & 255) == 0);
+
+		pixmap->devPrivate.ptr =
+			kgem_bo_map__async(&sna->kgem, priv->gpu_bo);
+		if (pixmap->devPrivate.ptr == NULL) {
+			free(priv);
+			FreePixmap(pixmap);
+			return FALSE;
+		}
+
+		pixmap->devKind = priv->gpu_bo->pitch;
+		pixmap->drawable.width = width;
+		pixmap->drawable.height = height;
+
+		priv->stride = priv->gpu_bo->pitch;
+		priv->mapped = true;
+
+		sna_damage_all(&priv->gpu_damage, width, height);
+	}
+
 	return pixmap;
 }
 #endif
@@ -1061,22 +1096,17 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 	DBG(("%s(%d, %d, %d, usage=%x)\n", __FUNCTION__,
 	     width, height, depth, usage));
 
-	if ((width|height) == 0) {
 #ifdef CREATE_PIXMAP_USAGE_SHARED
-		if (usage == CREATE_PIXMAP_USAGE_SHARED)
-			return sna_create_pixmap_shared(sna, screen, depth);
+	if (usage == CREATE_PIXMAP_USAGE_SHARED)
+		return sna_create_pixmap_shared(sna, screen,
+						width, height, depth);
 #endif
+
+	if ((width|height) == 0) {
 		usage = -1;
 		goto fallback;
 	}
 	assert(width && height);
-
-#ifdef CREATE_PIXMAP_USAGE_SHARED
-	if (usage == CREATE_PIXMAP_USAGE_SHARED)
-		return sna_pixmap_create_scratch(screen,
-						 width, height, depth,
-						 I915_TILING_NONE);
-#endif
 
 	flags = kgem_can_create_2d(&sna->kgem, width, height, depth);
 	if (flags == 0) {
