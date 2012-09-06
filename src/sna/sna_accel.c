@@ -1046,7 +1046,7 @@ sna_set_shared_pixmap_backing(PixmapPtr pixmap, void *fd_handle)
 	priv->stride = pixmap->devKind;
 
 	priv->gpu_bo = bo;
-	priv->pinned |= PIN_DRI;
+	priv->pinned |= PIN_PRIME;
 
 	close((intptr_t)fd_handle);
 	return TRUE;
