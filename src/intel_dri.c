@@ -90,7 +90,7 @@ static uint32_t pixmap_flink(PixmapPtr pixmap)
 	if (dri_bo_flink(priv->bo, &name) != 0)
 		return 0;
 
-	priv->pinned = 1;
+	priv->pinned |= PIN_DRI;
 	return name;
 }
 

@@ -94,7 +94,10 @@ struct intel_pixmap {
 	int8_t busy :2;
 	uint8_t dirty :1;
 	uint8_t offscreen :1;
-	uint8_t pinned :1;
+	uint8_t pinned :3;
+#define PIN_SCANOUT 0x1
+#define PIN_DRI 0x2
+#define PIN_GLAMOR 0x4
 };
 
 #if HAS_DEVPRIVATEKEYREC

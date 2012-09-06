@@ -1158,7 +1158,7 @@ Bool intel_uxa_create_screen_resources(ScreenPtr screen)
 
 	pixmap = screen->GetScreenPixmap(screen);
 	intel_set_pixmap_bo(pixmap, bo);
-	intel_get_pixmap_private(pixmap)->pinned = 1;
+	intel_get_pixmap_private(pixmap)->pinned |= PIN_SCANOUT;
 	screen->ModifyPixmapHeader(pixmap,
 				   scrn->virtualX,
 				   scrn->virtualY,
@@ -1191,7 +1191,7 @@ intel_uxa_share_pixmap_backing(PixmapPtr ppix, ScreenPtr slave, void **fd_handle
 	drm_intel_bo_get_tiling(bo, &tiling, &swizzle);
 
 	if (tiling == I915_TILING_X) {
-		if (priv->pinned)
+		if (priv->pinned & ~PIN_DRI)
 			return FALSE;
 
 	        tiling = I915_TILING_NONE;
@@ -1215,7 +1215,7 @@ intel_uxa_share_pixmap_backing(PixmapPtr ppix, ScreenPtr slave, void **fd_handle
 	}
 	drm_intel_bo_get_tiling(bo, &tiling, &swizzle);
 	drm_intel_bo_gem_export_to_prime(bo, &handle);
-	priv->pinned = 1;
+	priv->pinned |= PIN_DRI;
 
 	*fd_handle = (void *)(long)handle;
 	return TRUE;
