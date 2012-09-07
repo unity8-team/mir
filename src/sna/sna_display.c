@@ -569,7 +569,6 @@ sna_crtc_apply(xf86CrtcPtr crtc)
 	arg.crtc_id = sna_crtc->id;
 	arg.fb_id = fb_id(sna_crtc->bo);
 	if (sna_crtc->transform) {
-		assert(sna_crtc->shadow);
 		arg.x = 0;
 		arg.y = 0;
 	} else {
@@ -714,6 +713,9 @@ static void update_flush_interval(struct sna *sna)
 			continue;
 		}
 
+		DBG(("%s: CRTC:%d (pipe %d) vrefresh=%d\n",
+		     __FUNCTION__,i, to_sna_crtc(crtc)->pipe,
+		     xf86ModeVRefresh(&crtc->mode)));
 		max_vrefresh = max(max_vrefresh, xf86ModeVRefresh(&crtc->mode));
 	}
 
@@ -942,7 +944,21 @@ static struct kgem_bo *sna_crtc_attach(xf86CrtcPtr crtc)
 	struct kgem_bo *bo;
 
 	sna_crtc->transform = false;
-	if (use_shadow(sna, crtc)) {
+	if (sna_crtc->scanout_pixmap) {
+		DBG(("%s: attaching to scanout pixmap\n", __FUNCTION__));
+
+		bo = sna_pixmap_pin(sna_crtc->scanout_pixmap, PIN_SCANOUT);
+		if (bo == NULL)
+			return NULL;
+
+		if (!get_fb(sna, bo,
+			    sna_crtc->scanout_pixmap->drawable.width,
+			    sna_crtc->scanout_pixmap->drawable.height))
+			return NULL;
+
+		sna_crtc->transform = true;
+		return kgem_bo_reference(bo);
+	} else if (use_shadow(sna, crtc)) {
 		if (!sna_crtc_enable_shadow(sna, sna_crtc))
 			return NULL;
 
@@ -963,22 +979,6 @@ static struct kgem_bo *sna_crtc_attach(xf86CrtcPtr crtc)
 
 		sna_crtc->transform = true;
 		return bo;
-	} else if (sna_crtc->scanout_pixmap) {
-		DBG(("%s: attaching to scanout pixmap\n", __FUNCTION__));
-		if (!sna_crtc_enable_shadow(sna, sna_crtc))
-			return NULL;
-
-		bo = sna_pixmap_pin(sna_crtc->scanout_pixmap, PIN_SCANOUT);
-		if (bo == NULL)
-			return NULL;
-
-		if (!get_fb(sna, bo,
-			    sna_crtc->scanout_pixmap->drawable.width,
-			    sna_crtc->scanout_pixmap->drawable.height))
-			return NULL;
-
-		sna_crtc->transform = true;
-		return kgem_bo_reference(bo);
 	} else if (sna->flags & SNA_TEAR_FREE) {
 		DBG(("%s: tear-free updates requested\n", __FUNCTION__));
 

@@ -1020,7 +1020,11 @@ sna_set_shared_pixmap_backing(PixmapPtr pixmap, void *fd_handle)
 	struct sna_pixmap *priv;
 	struct kgem_bo *bo;
 
-	DBG(("%s: pixmap=%ld\n", __FUNCTION__, pixmap->drawable.serialNumber));
+	DBG(("%s: pixmap=%ld, size=%dx%d, depth=%d/%d, stride=%d\n",
+	     __FUNCTION__, pixmap->drawable.serialNumber,
+	     pixmap->drawable.width, pixmap->drawable.height,
+	     pixmap->drawable.depth, pixmap->drawable.bitsPerPixel,
+	     pixmap->devKind));
 
 	priv = sna_pixmap(pixmap);
 	if (priv == NULL)
@@ -13689,6 +13693,9 @@ static struct sna_pixmap *sna_accel_scanout(struct sna *sna)
 	struct sna_pixmap *priv;
 
 	if (sna->vblank_interval == 0)
+		return NULL;
+
+	if (sna->front == NULL)
 		return NULL;
 
 	priv = sna_pixmap(sna->front);
