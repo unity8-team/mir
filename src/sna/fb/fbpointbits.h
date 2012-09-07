@@ -38,14 +38,13 @@ DOTS(FbBits * dst,
 	BITS band = (BITS) and;
 	FbStride bitsStride = dstStride * (sizeof(FbBits) / sizeof(BITS));
 
-	bits += bitsStride * (yorg + yoff) + (xorg + xoff);
-
 	if (region->data == NULL) {
 		INT32 ul = coordToInt(region->extents.x1 - xorg,
 				      region->extents.y1 - yorg);
 		INT32 lr = coordToInt(region->extents.x2 - xorg - 1,
 				      region->extents.y2 - yorg - 1);
 
+		bits += bitsStride * (yorg + yoff) + (xorg + xoff);
 		if (and == 0) {
 			while (npt >= 2) {
 				union {
@@ -82,23 +81,24 @@ DOTS(FbBits * dst,
 			}
 		}
 	} else {
+		bits += bitsStride * yoff + xoff;
 		if (and == 0) {
 			while (npt--) {
 				uint32_t pt = *pts++;
-				if (RegionContainsPoint(region,
-							intToX(pt), intToY(pt),
-							NULL)) {
-					BITS *point = bits + intToY(pt) * bitsStride + intToX(pt);
+				int x = intToX(pt) + xorg;
+				int y = intToY(pt) + yorg;
+				if (RegionContainsPoint(region, x, y, NULL)) {
+					BITS *point = bits + y * bitsStride + x;
 					WRITE(point, bxor);
 				}
 			}
 		} else {
 			while (npt--) {
 				uint32_t pt = *pts++;
-				if (RegionContainsPoint(region,
-							intToX(pt), intToY(pt),
-							NULL)) {
-					BITS *point = bits + intToY(pt) * bitsStride + intToX(pt);
+				int x = intToX(pt) + xorg;
+				int y = intToY(pt) + yorg;
+				if (RegionContainsPoint(region, x, y, NULL)) {
+					BITS *point = bits + y * bitsStride + x;
 					RROP(point, band, bxor);
 				}
 			}
