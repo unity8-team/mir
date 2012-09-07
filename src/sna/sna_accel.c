@@ -5088,6 +5088,13 @@ struct sna_fill_spans {
 };
 
 static void
+sna_poly_point__cpu(DrawablePtr drawable, GCPtr gc,
+		    int mode, int n, DDXPointPtr pt)
+{
+	fbPolyPoint(drawable, gc, mode, n, pt, -1);
+}
+
+static void
 sna_poly_point__fill(DrawablePtr drawable, GCPtr gc,
 		     int mode, int n, DDXPointPtr pt)
 {
@@ -5120,6 +5127,52 @@ sna_poly_point__fill(DrawablePtr drawable, GCPtr gc,
 		} while (--nbox);
 		op->boxes(data->sna, op, box, b - box);
 	}
+}
+
+static void
+sna_poly_point__gpu(DrawablePtr drawable, GCPtr gc,
+		     int mode, int n, DDXPointPtr pt)
+{
+	struct sna_fill_spans *data = sna_gc(gc)->priv;
+	struct sna_fill_op fill;
+	BoxRec box[512];
+	DDXPointRec last;
+
+	if (!sna_fill_init_blt(&fill,
+			       data->sna, data->pixmap,
+			       data->bo, gc->alu, gc->fgPixel))
+		return;
+
+	DBG(("%s: count=%d\n", __FUNCTION__, n));
+
+	last.x = drawable->x;
+	last.y = drawable->y;
+	while (n) {
+		BoxRec *b = box;
+		unsigned nbox = n;
+		if (nbox > ARRAY_SIZE(box))
+			nbox = ARRAY_SIZE(box);
+		n -= nbox;
+		do {
+			*(DDXPointRec *)b = *pt++;
+
+			b->x1 += last.x;
+			b->y1 += last.y;
+			if (mode == CoordModePrevious)
+				last = *(DDXPointRec *)b;
+
+			if (RegionContainsPoint(&data->region,
+						b->x1, b->y1, NULL)) {
+				b->x1 += data->dx;
+				b->y1 += data->dy;
+				b->x2 = b->x1 + 1;
+				b->y2 = b->y1 + 1;
+				b++;
+			}
+		} while (--nbox);
+		fill.boxes(data->sna, &fill, box, b - box);
+	}
+	fill.done(data->sna, &fill);
 }
 
 static void
@@ -9275,45 +9328,64 @@ sna_poly_arc(DrawablePtr drawable, GCPtr gc, int n, xArc *arc)
 		get_drawable_deltas(drawable, data.pixmap, &data.dx, &data.dy);
 
 		if (gc_is_solid(gc, &color)) {
-			struct sna_fill_op fill;
-
-			if (!sna_fill_init_blt(&fill,
-					       data.sna, data.pixmap,
-					       data.bo, gc->alu, color))
-				goto fallback;
-
-			data.op = &fill;
 			sna_gc(gc)->priv = &data;
 
-			if ((data.flags & 2) == 0) {
-				if (data.dx | data.dy)
-					sna_gc_ops__tmp.FillSpans = sna_fill_spans__fill_offset;
+			assert(gc->miTranslate);
+			if (gc->lineStyle == LineSolid) {
+				struct sna_fill_op fill;
+
+				if (!sna_fill_init_blt(&fill,
+						       data.sna, data.pixmap,
+						       data.bo, gc->alu, color))
+					goto fallback;
+
+				if ((data.flags & 2) == 0) {
+					if (data.dx | data.dy)
+						sna_gc_ops__tmp.FillSpans = sna_fill_spans__fill_offset;
+					else
+						sna_gc_ops__tmp.FillSpans = sna_fill_spans__fill;
+					sna_gc_ops__tmp.PolyPoint = sna_poly_point__fill;
+				} else {
+					region_maybe_clip(&data.region,
+							  gc->pCompositeClip);
+					if (!RegionNotEmpty(&data.region))
+						return;
+
+					if (region_is_singular(&data.region)) {
+						sna_gc_ops__tmp.FillSpans = sna_fill_spans__fill_clip_extents;
+						sna_gc_ops__tmp.PolyPoint = sna_poly_point__fill_clip_extents;
+					} else {
+						sna_gc_ops__tmp.FillSpans = sna_fill_spans__fill_clip_boxes;
+						sna_gc_ops__tmp.PolyPoint = sna_poly_point__fill_clip_boxes;
+					}
+				}
+
+				data.op = &fill;
+				gc->ops = &sna_gc_ops__tmp;
+				if (gc->lineWidth == 0)
+					miZeroPolyArc(drawable, gc, n, arc);
 				else
-					sna_gc_ops__tmp.FillSpans = sna_fill_spans__fill;
-				sna_gc_ops__tmp.PolyPoint = sna_poly_point__fill;
+					miPolyArc(drawable, gc, n, arc);
+				gc->ops = (GCOps *)&sna_gc_ops;
+
+				fill.done(data.sna, &fill);
 			} else {
 				region_maybe_clip(&data.region,
 						  gc->pCompositeClip);
 				if (!RegionNotEmpty(&data.region))
 					return;
 
-				if (region_is_singular(&data.region)) {
-					sna_gc_ops__tmp.FillSpans = sna_fill_spans__fill_clip_extents;
-					sna_gc_ops__tmp.PolyPoint = sna_poly_point__fill_clip_extents;
-				} else {
-					sna_gc_ops__tmp.FillSpans = sna_fill_spans__fill_clip_boxes;
-					sna_gc_ops__tmp.PolyPoint = sna_poly_point__fill_clip_boxes;
-				}
-			}
-			assert(gc->miTranslate);
-			gc->ops = &sna_gc_ops__tmp;
-			if (gc->lineWidth == 0)
-				miZeroPolyArc(drawable, gc, n, arc);
-			else
-				miPolyArc(drawable, gc, n, arc);
-			gc->ops = (GCOps *)&sna_gc_ops;
+				sna_gc_ops__tmp.FillSpans = sna_fill_spans__gpu;
+				sna_gc_ops__tmp.PolyPoint = sna_poly_point__gpu;
 
-			fill.done(data.sna, &fill);
+				gc->ops = &sna_gc_ops__tmp;
+				if (gc->lineWidth == 0)
+					miZeroPolyArc(drawable, gc, n, arc);
+				else
+					miPolyArc(drawable, gc, n, arc);
+				gc->ops = (GCOps *)&sna_gc_ops;
+			}
+
 			if (data.damage) {
 				if (data.dx | data.dy)
 					pixman_region_translate(&data.region, data.dx, data.dy);
@@ -13431,7 +13503,7 @@ static const GCOps sna_gc_ops__cpu = {
 	fbPutImage,
 	fbCopyArea,
 	fbCopyPlane,
-	fbPolyPoint,
+	sna_poly_point__cpu,
 	fbPolyLine,
 	fbPolySegment,
 	miPolyRectangle,
