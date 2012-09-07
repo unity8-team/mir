@@ -538,14 +538,22 @@ intel_platform_probe(DriverPtr driver,
 {
 	ScrnInfoPtr scrn = NULL;
 	char *path = xf86_get_platform_device_attrib(dev, ODEV_ATTRIB_PATH);
+	unsigned scrn_flags = 0;
 
 	if (!dev->pdev)
 		return FALSE;
+
+	/* Allow ourselves to act as a slaved output if not primary */
+	if (flags & PLATFORM_PROBE_GPU_SCREEN) {
+		flags &= ~PLATFORM_PROBE_GPU_SCREEN;
+		scrn_flags |= XF86_ALLOCATE_GPU_SCREEN;
+	}
+
 	/* if we get any flags we don't understand fail to probe for now */
 	if (flags)
 		return FALSE;
 
-	scrn = xf86AllocateScreen(driver, 0);
+	scrn = xf86AllocateScreen(driver, scrn_flags);
 	if (scrn == NULL)
 		return FALSE;
 
