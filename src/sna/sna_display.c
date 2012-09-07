@@ -2266,24 +2266,24 @@ sna_crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	PixmapPtr old_front, new_front;
 	int i;
 
-	DBG(("%s (%d, %d) -> (%d, %d)\n",
-	     __FUNCTION__,
+	DBG(("%s (%d, %d) -> (%d, %d)\n", __FUNCTION__,
 	     scrn->virtualX, scrn->virtualY,
 	     width, height));
 
 	if (scrn->virtualX == width && scrn->virtualY == height)
 		return TRUE;
 
+	assert(sna->front);
 	assert(scrn->pScreen->GetScreenPixmap(scrn->pScreen) == sna->front);
-	assert(scrn->pScreen->GetWindowPixmap(scrn->pScreen->root) == sna->front);
+
 	DBG(("%s: creating new framebuffer %dx%d\n",
 	     __FUNCTION__, width, height));
 
 	old_front = sna->front;
 	new_front = scrn->pScreen->CreatePixmap(scrn->pScreen,
-						 width, height,
-						 scrn->depth,
-						 SNA_CREATE_FB);
+						width, height,
+						scrn->depth,
+						SNA_CREATE_FB);
 	if (!new_front)
 		return FALSE;
 
@@ -2312,9 +2312,11 @@ sna_crtc_resize(ScrnInfoPtr scrn, int width, int height)
 			sna_crtc_disable(crtc);
 	}
 
-	sna_redirect_screen_pixmap(scrn, old_front, sna->front);
-	assert(scrn->pScreen->GetScreenPixmap(scrn->pScreen) == sna->front);
-	assert(scrn->pScreen->GetWindowPixmap(scrn->pScreen->root) == sna->front);
+	if (scrn->pScreen->root) {
+		sna_redirect_screen_pixmap(scrn, old_front, sna->front);
+		assert(scrn->pScreen->GetScreenPixmap(scrn->pScreen) == sna->front);
+		assert(scrn->pScreen->GetWindowPixmap(scrn->pScreen->root) == sna->front);
+	}
 
 	scrn->pScreen->DestroyPixmap(old_front);
 
