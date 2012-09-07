@@ -1567,6 +1567,10 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 					 DRI2_EXCHANGE_COMPLETE,
 					 info->event_complete,
 					 info->event_data);
+		} else {
+			info->back->name = info->old_front.name;
+			get_private(info->back)->bo = info->old_front.bo;
+			info->old_front.bo = NULL;
 		}
 	} else {
 		info = calloc(1, sizeof(struct sna_dri_frame_event));

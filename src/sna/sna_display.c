@@ -132,6 +132,7 @@ static unsigned get_fb(struct sna *sna, struct kgem_bo *bo,
 	ScrnInfoPtr scrn = sna->scrn;
 	struct drm_mode_fb_cmd arg;
 
+	assert(bo->refcnt);
 	assert(bo->proxy == NULL);
 	if (bo->delta) {
 		DBG(("%s: reusing fb=%d for handle=%d\n",
@@ -2371,8 +2372,10 @@ disable:
 			continue;
 		}
 
-		kgem_bo_destroy(&sna->kgem, crtc->bo);
-		crtc->bo = kgem_bo_reference(bo);
+		if (crtc->bo != bo) {
+			kgem_bo_destroy(&sna->kgem, crtc->bo);
+			crtc->bo = kgem_bo_reference(bo);
+		}
 
 		count++;
 	}
