@@ -2178,19 +2178,6 @@ sna_visit_set_window_pixmap(WindowPtr window, pointer data)
     return WT_DONTWALKCHILDREN;
 }
 
-static void
-sna_redirect_screen_pixmap(ScrnInfoPtr scrn, PixmapPtr old, PixmapPtr new)
-{
-	ScreenPtr screen = scrn->pScreen;
-	struct sna_visit_set_pixmap_window visit;
-
-	visit.old = old;
-	visit.new = new;
-	TraverseTree(screen->root, sna_visit_set_window_pixmap, &visit);
-
-	screen->SetScreenPixmap(new);
-}
-
 static void copy_front(struct sna *sna, PixmapPtr old, PixmapPtr new)
 {
 	struct sna_pixmap *old_priv, *new_priv;
@@ -2263,6 +2250,7 @@ sna_crtc_resize(ScrnInfoPtr scrn, int width, int height)
 {
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
 	struct sna *sna = to_sna(scrn);
+	ScreenPtr screen = scrn->pScreen;
 	PixmapPtr old_front, new_front;
 	int i;
 
@@ -2274,16 +2262,15 @@ sna_crtc_resize(ScrnInfoPtr scrn, int width, int height)
 		return TRUE;
 
 	assert(sna->front);
-	assert(scrn->pScreen->GetScreenPixmap(scrn->pScreen) == sna->front);
+	assert(screen->GetScreenPixmap(screen) == sna->front);
 
 	DBG(("%s: creating new framebuffer %dx%d\n",
 	     __FUNCTION__, width, height));
 
 	old_front = sna->front;
-	new_front = scrn->pScreen->CreatePixmap(scrn->pScreen,
-						width, height,
-						scrn->depth,
-						SNA_CREATE_FB);
+	new_front = screen->CreatePixmap(screen,
+					 width, height, scrn->depth,
+					 SNA_CREATE_FB);
 	if (!new_front)
 		return FALSE;
 
@@ -2312,13 +2299,18 @@ sna_crtc_resize(ScrnInfoPtr scrn, int width, int height)
 			sna_crtc_disable(crtc);
 	}
 
-	if (scrn->pScreen->root) {
-		sna_redirect_screen_pixmap(scrn, old_front, sna->front);
-		assert(scrn->pScreen->GetScreenPixmap(scrn->pScreen) == sna->front);
-		assert(scrn->pScreen->GetWindowPixmap(scrn->pScreen->root) == sna->front);
-	}
+	if (screen->root) {
+		struct sna_visit_set_pixmap_window visit;
 
-	scrn->pScreen->DestroyPixmap(old_front);
+		visit.old = old_front;
+		visit.new = sna->front;
+		TraverseTree(screen->root, sna_visit_set_window_pixmap, &visit);
+		assert(screen->GetWindowPixmap(screen->root) == sna->front);
+	}
+	screen->SetScreenPixmap(sna->front);
+	assert(screen->GetScreenPixmap(screen) == sna->front);
+
+	screen->DestroyPixmap(old_front);
 
 	return TRUE;
 }
