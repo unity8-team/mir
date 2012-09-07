@@ -318,8 +318,84 @@ has_user_backlight_override(xf86OutputPtr output)
 	return str;
 }
 
-static void
-sna_output_backlight_init(xf86OutputPtr output)
+static char *
+has_device_backlight(xf86OutputPtr output, int *best_type)
+{
+	struct sna_output *sna_output = output->driver_private;
+	struct sna *sna = to_sna(output->scrn);
+	struct pci_device *pci = sna->PciInfo;
+	char path[1024];
+	char *best_iface = NULL;
+	DIR *dir;
+	struct dirent *de;
+
+	snprintf(path, sizeof(path),
+		 "/sys/bus/pci/devices/%04x:%02x:%02x.%d/backlight",
+		 pci->domain, pci->bus, pci->dev, pci->func);
+
+	DBG(("%s: scanning %s\n", __FUNCTION__, path));
+	dir = opendir(path);
+	if (dir == NULL)
+		return NULL;
+
+	while ((de = readdir(dir))) {
+		char buf[100];
+		int fd, v;
+
+		if (*de->d_name == '.')
+			continue;
+
+		DBG(("%s: %s\n", __FUNCTION__, de->d_name));
+		snprintf(path, sizeof(path), "%s/%s/type",
+			 BACKLIGHT_CLASS, de->d_name);
+
+		v = -1;
+		fd = open(path, O_RDONLY);
+		if (fd >= 0) {
+			v = read(fd, buf, sizeof(buf)-1);
+			close(fd);
+		}
+		if (v > 0) {
+			while (v > 0 && isspace(buf[v-1]))
+				v--;
+			buf[v] = '\0';
+
+			if (strcmp(buf, "raw") == 0)
+				v = RAW;
+			else if (strcmp(buf, "platform") == 0)
+				v = PLATFORM;
+			else if (strcmp(buf, "firmware") == 0)
+				v = FIRMWARE;
+			else
+				v = INT_MAX;
+		} else
+			v = INT_MAX;
+
+		if (v < *best_type) {
+			char *copy;
+			int max;
+
+			sna_output->backlight_iface = de->d_name;
+			max = sna_output_backlight_get_max(output);
+			sna_output->backlight_iface = NULL;
+			if (max <= 0)
+				continue;
+
+			copy = strdup(de->d_name);
+			if (copy) {
+				free(best_iface);
+				best_iface = copy;
+				*best_type = v;
+			}
+		}
+	}
+	closedir(dir);
+
+	return best_iface;
+}
+
+static char *
+has_backlight(xf86OutputPtr output, int *best_type)
 {
 	static const char *known_interfaces[] = {
 		"gmux_backlight",
@@ -335,21 +411,14 @@ sna_output_backlight_init(xf86OutputPtr output)
 		"acpi_video0",
 		"intel_backlight",
 	};
-	MessageType from = X_PROBED;
 	struct sna_output *sna_output = output->driver_private;
-	char *best_iface;
-	int best_type;
+	char *best_iface = NULL;
 	DIR *dir;
 	struct dirent *de;
 
-	best_type = INT_MAX;
-	best_iface = has_user_backlight_override(output);
-	if (best_iface)
-		goto skip;
-
 	dir = opendir(BACKLIGHT_CLASS);
 	if (dir == NULL)
-		return;
+		return NULL;
 
 	while ((de = readdir(dir))) {
 		char path[1024];
@@ -394,7 +463,7 @@ sna_output_backlight_init(xf86OutputPtr output)
 			v += i;
 		}
 
-		if (v < best_type) {
+		if (v < *best_type) {
 			char *copy;
 			int max;
 
@@ -410,16 +479,39 @@ sna_output_backlight_init(xf86OutputPtr output)
 			if (copy) {
 				free(best_iface);
 				best_iface = copy;
-				best_type = v;
+				*best_type = v;
 			}
 		}
 	}
 	closedir(dir);
 
-	if (!best_iface)
-		return;
+	return best_iface;
+}
 
-skip:
+static void
+sna_output_backlight_init(xf86OutputPtr output)
+{
+	struct sna_output *sna_output = output->driver_private;
+	MessageType from = X_PROBED;
+	char *best_iface;
+	int best_type;
+
+	best_type = INT_MAX;
+	best_iface = has_user_backlight_override(output);
+	if (best_iface)
+		goto done;
+
+	best_iface = has_device_backlight(output, &best_type);
+	if (best_iface)
+		goto done;
+
+	best_iface = has_backlight(output, &best_type);
+	if (best_iface)
+		goto done;
+
+	return;
+
+done:
 	sna_output->backlight_iface = best_iface;
 	sna_output->backlight_max = sna_output_backlight_get_max(output);
 	sna_output->backlight_active_level = sna_output_backlight_get(output);
@@ -434,7 +526,6 @@ skip:
 		   "found backlight control interface %s (type '%s')\n",
 		   sna_output->backlight_iface, best_iface);
 }
-
 
 static void
 mode_from_kmode(ScrnInfoPtr scrn,
