@@ -257,7 +257,7 @@ sna_dri_create_buffer(DrawablePtr draw,
 				    draw->height,
 				    draw->bitsPerPixel,
 				    color_tiling(sna, draw),
-				    CREATE_EXACT);
+				    CREATE_SCANOUT | CREATE_EXACT);
 		break;
 
 	case DRI2BufferStencil:
@@ -1558,7 +1558,7 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 					       draw->height,
 					       draw->bitsPerPixel,
 					       get_private(info->front)->bo->tiling,
-					       CREATE_EXACT);
+					       CREATE_SCANOUT | CREATE_EXACT);
 			info->back->name = kgem_bo_flink(&sna->kgem,
 							 get_private(info->back)->bo);
 			sna->dri.flip_pending = info;
@@ -2023,7 +2023,8 @@ blit:
 				    draw->width,
 				    draw->height,
 				    draw->bitsPerPixel,
-				    I915_TILING_X, CREATE_EXACT);
+				    get_private(info->front)->bo->tiling,
+				    CREATE_SCANOUT | CREATE_EXACT);
 		name = kgem_bo_flink(&sna->kgem, bo);
 	}
 	get_private(info->back)->bo = bo;
