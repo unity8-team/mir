@@ -515,7 +515,9 @@ extern RegionPtr
 fbBitmapToRegion(PixmapPtr pixmap);
 
 extern void
-fbPolyPoint(DrawablePtr drawable, GCPtr gc, int mode, int n, xPoint *pt);
+fbPolyPoint(DrawablePtr drawable, GCPtr gc,
+	    int mode, int n, xPoint *pt,
+	    unsigned flags);
 
 extern void
 fbPushImage(DrawablePtr drawable, GCPtr gc,

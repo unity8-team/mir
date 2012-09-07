@@ -106,5 +106,43 @@ DOTS(FbBits * dst,
 	}
 }
 
+static void
+DOTS__SIMPLE(FbBits * dst,
+	     FbStride dstStride,
+	     int dstBpp,
+	     RegionPtr region,
+	     xPoint * ptsOrig,
+	     int npt, int xorg, int yorg, int xoff, int yoff,
+	     FbBits and, FbBits xor)
+{
+	uint32_t *pts = (uint32_t *) ptsOrig;
+	BITS *bits = (BITS *) dst, *p;
+	BITS bxor = (BITS) xor;
+	FbStride bitsStride = dstStride * (sizeof(FbBits) / sizeof(BITS));
+
+	bits += bitsStride * (yorg + yoff) + (xorg + xoff);
+	while (npt >= 2) {
+		union {
+			uint32_t pt32[2];
+			uint64_t pt64;
+		} pt;
+		pt.pt64 = *(uint64_t *)pts;
+
+		p = bits + intToY(pt.pt32[0]) * bitsStride + intToX(pt.pt32[0]);
+		WRITE(p, bxor);
+
+		p = bits + intToY(pt.pt32[1]) * bitsStride + intToX(pt.pt32[1]);
+		WRITE(p, bxor);
+
+		pts += 2;
+		npt -= 2;
+	}
+	if (npt) {
+		uint32_t pt = *pts;
+		p = bits + intToY(pt) * bitsStride + intToX(pt);
+		WRITE(p, bxor);
+	}
+}
+
 #undef RROP
 #undef isClipped

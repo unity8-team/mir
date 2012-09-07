@@ -25,21 +25,27 @@
 #include <micoord.h>
 
 #define DOTS	    fbDots8
+#define DOTS__SIMPLE fbDots8__simple
 #define BITS	    BYTE
 #include "fbpointbits.h"
 #undef BITS
+#undef DOTS__SIMPLE
 #undef DOTS
 
 #define DOTS	    fbDots16
+#define DOTS__SIMPLE fbDots16__simple
 #define BITS	    CARD16
 #include "fbpointbits.h"
 #undef BITS
+#undef DOTS__SIMPLE
 #undef DOTS
 
 #define DOTS	    fbDots32
+#define DOTS__SIMPLE fbDots32__simple
 #define BITS	    CARD32
 #include "fbpointbits.h"
 #undef BITS
+#undef DOTS__SIMPLE
 #undef DOTS
 
 static void
@@ -74,7 +80,7 @@ fbDots(FbBits *dstOrig, FbStride dstStride, int dstBpp,
 
 void
 fbPolyPoint(DrawablePtr drawable, GCPtr gc,
-	    int mode, int n, xPoint *pt)
+	    int mode, int n, xPoint *pt, unsigned flags)
 {
 	FbBits *dst;
 	FbStride dstStride;
@@ -97,16 +103,30 @@ fbPolyPoint(DrawablePtr drawable, GCPtr gc,
 
 	fbGetDrawable(drawable, dst, dstStride, dstBpp, dstXoff, dstYoff);
 	dots = fbDots;
-	switch (dstBpp) {
-	case 8:
-		dots = fbDots8;
-		break;
-	case 16:
-		dots = fbDots16;
-		break;
-	case 32:
-		dots = fbDots32;
-		break;
+	if ((flags & 2) == 0 && fb_gc(gc)->and == 0) {
+		switch (dstBpp) {
+		case 8:
+			dots = fbDots8__simple;
+			break;
+		case 16:
+			dots = fbDots16__simple;
+			break;
+		case 32:
+			dots = fbDots32__simple;
+			break;
+		}
+	} else {
+		switch (dstBpp) {
+		case 8:
+			dots = fbDots8;
+			break;
+		case 16:
+			dots = fbDots16;
+			break;
+		case 32:
+			dots = fbDots32;
+			break;
+		}
 	}
 	dots(dst, dstStride, dstBpp, gc->pCompositeClip, pt, n,
 	     drawable->x, drawable->y, dstXoff, dstYoff,

@@ -6696,7 +6696,7 @@ fallback:
 		goto out_gc;
 
 	DBG(("%s: fbPolyPoint\n", __FUNCTION__));
-	fbPolyPoint(drawable, gc, mode, n, pt);
+	fbPolyPoint(drawable, gc, mode, n, pt, flags);
 	FALLBACK_FLUSH(drawable);
 out_gc:
 	sna_gc_move_to_gpu(gc);
