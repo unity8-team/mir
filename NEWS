@@ -7,7 +7,7 @@ light of that advance, this release includes the support code by Dave
 Airlie to integrate PRIME into xf86-video-intel and make those new
 features available.
 
-Aside from landing PRIME, a few other bugs were fixed since 2.20.5:
+Aside from landing PRIME, a few other bugs were fixed since 2.20.6:
 
  * Fix framebuffer leak on server regeneration
 
