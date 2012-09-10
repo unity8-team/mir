@@ -954,7 +954,11 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 	if (!xf86LoadSubModule(pScrn, "ramdac")) return FALSE;
     }
 
-    if (!pScrn->is_gpu && pScrn->modes == NULL) {
+    if (pScrn->modes == NULL
+#ifdef XSERVER_PLATFORM_BUS
+        && !pScrn->is_gpu
+#endif
+        ) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No modes.\n");
       goto fail;
    }
