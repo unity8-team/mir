@@ -256,12 +256,15 @@ static int sna_open_drm_master(ScrnInfoPtr scrn)
 	dev = sna_device(scrn);
 	if (dev) {
 		dev->open_count++;
+		DBG(("%s: reusing device, count=%d\n",
+		     __FUNCTION__, dev->open_count));
 		return dev->fd;
 	}
 
 	snprintf(busid, sizeof(busid), "pci:%04x:%02x:%02x.%d",
 		 pci->domain, pci->bus, pci->dev, pci->func);
 
+	DBG(("%s: opening device '%s'\n",  __FUNCTION__, busid));
 	fd = drmOpen(NULL, busid);
 	if (fd == -1) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
@@ -1080,6 +1083,7 @@ static Bool sna_pm_event(SCRN_ARG_TYPE arg, pmEvent event, Bool undo)
 
 Bool sna_init_scrn(ScrnInfoPtr scrn, int entity_num)
 {
+	DBG(("%s: entity_num=%d\n", __FUNCTION__, entity_num));
 #if defined(USE_GIT_DESCRIBE)
 	xf86DrvMsg(scrn->scrnIndex, X_INFO,
 		   "SNA compiled from %s\n", git_version);
@@ -1099,8 +1103,6 @@ Bool sna_init_scrn(ScrnInfoPtr scrn, int entity_num)
 	xf86DrvMsg(scrn->scrnIndex, X_INFO,
 		   "SNA compiled with extra pixmap/damage validation\n");
 #endif
-
-	DBG(("%s\n", __FUNCTION__));
 	DBG(("pixman version: %s\n", pixman_version_string()));
 
 	if (sna_device_key == -1)
