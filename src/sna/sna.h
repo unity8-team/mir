@@ -709,6 +709,12 @@ void sna_glyphs(CARD8 op,
 		int nlist,
 		GlyphListPtr list,
 		GlyphPtr *glyphs);
+void sna_glyphs__shared(CARD8 op,
+			PicturePtr src,
+			PicturePtr dst,
+			PictFormatPtr mask,
+			INT16 src_x, INT16 src_y,
+			int nlist, GlyphListPtr list, GlyphPtr *glyphs);
 void sna_glyph_unrealize(ScreenPtr screen, GlyphPtr glyph);
 void sna_glyphs_close(struct sna *sna);
 

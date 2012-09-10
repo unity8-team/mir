@@ -14357,6 +14357,8 @@ static bool sna_picture_init(ScreenPtr screen)
 	ps->Composite = sna_composite;
 	ps->CompositeRects = sna_composite_rectangles;
 	ps->Glyphs = sna_glyphs;
+	if (xf86IsEntityShared(xf86ScreenToScrn(screen)->entityList[0]))
+		ps->Glyphs = sna_glyphs__shared;
 	ps->UnrealizeGlyph = sna_glyph_unrealize;
 	ps->AddTraps = sna_add_traps;
 	ps->Trapezoids = sna_composite_trapezoids;
