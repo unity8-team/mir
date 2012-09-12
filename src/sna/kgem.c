@@ -947,6 +947,12 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	kgem->large_object_size = MAX_CACHE_SIZE;
 	if (kgem->large_object_size > kgem->max_gpu_size)
 		kgem->large_object_size = kgem->max_gpu_size;
+
+	if (kgem->max_upload_tile_size > kgem->large_object_size)
+		kgem->max_upload_tile_size = kgem->large_object_size;
+	if (kgem->max_copy_tile_size > kgem->large_object_size)
+		kgem->max_copy_tile_size = kgem->large_object_size;
+
 	if (kgem->has_llc | kgem->has_cacheing | kgem->has_userptr) {
 		if (kgem->large_object_size > kgem->max_cpu_size)
 			kgem->large_object_size = kgem->max_cpu_size;
