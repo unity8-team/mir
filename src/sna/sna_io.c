@@ -80,6 +80,9 @@ static void read_boxes_inplace(struct kgem *kgem,
 
 	DBG(("%s x %d, tiling=%d\n", __FUNCTION__, n, bo->tiling));
 
+	if (!kgem_bo_can_map(kgem, bo))
+		return false;
+
 	kgem_bo_submit(kgem, bo);
 
 	src = kgem_bo_map(kgem, bo);
@@ -114,6 +117,9 @@ static void read_boxes_inplace(struct kgem *kgem,
 
 static bool download_inplace(struct kgem *kgem, struct kgem_bo *bo)
 {
+	if (!kgem_bo_can_map(kgem, bo))
+		return false;
+
 	if (FORCE_INPLACE)
 		return FORCE_INPLACE > 0;
 
@@ -531,11 +537,11 @@ static bool upload_inplace(struct kgem *kgem,
 			   const BoxRec *box,
 			   int n, int bpp)
 {
-	if (FORCE_INPLACE)
-		return FORCE_INPLACE > 0;
-
 	if (!kgem_bo_can_map(kgem, bo))
 		return false;
+
+	if (FORCE_INPLACE)
+		return FORCE_INPLACE > 0;
 
 	/* If we are writing through the GTT, check first if we might be
 	 * able to almagamate a series of small writes into a single
