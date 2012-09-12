@@ -188,19 +188,19 @@ static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 	sna_accel_watch_flush(sna, 1);
 
 	/* Don't allow this named buffer to be replaced */
-	priv->pinned = 1;
+	priv->pinned |= PIN_DRI;
 
 	return priv->gpu_bo;
 }
 
 constant static inline void *sna_pixmap_get_buffer(PixmapPtr pixmap)
 {
-	return ((void **)pixmap->devPrivates)[2];
+	return ((void **)dixGetPrivateAddr(&pixmap->devPrivates, &sna_pixmap_key))[2];
 }
 
 static inline void sna_pixmap_set_buffer(PixmapPtr pixmap, void *ptr)
 {
-	((void **)pixmap->devPrivates)[2] = ptr;
+	((void **)dixGetPrivateAddr(&pixmap->devPrivates, &sna_pixmap_key))[2] = ptr;
 }
 
 static DRI2Buffer2Ptr
@@ -257,7 +257,7 @@ sna_dri_create_buffer(DrawablePtr draw,
 				    draw->height,
 				    draw->bitsPerPixel,
 				    color_tiling(sna, draw),
-				    CREATE_EXACT);
+				    CREATE_SCANOUT | CREATE_EXACT);
 		break;
 
 	case DRI2BufferStencil:
@@ -362,9 +362,13 @@ static void _sna_dri_destroy_buffer(struct sna *sna, DRI2Buffer2Ptr buffer)
 
 			/* Undo the DRI markings on this pixmap */
 			if (priv->flush && --priv->flush == 0) {
+				DBG(("%s: releasing last DRI pixmap=%ld, scanout?=%d\n",
+				     __FUNCTION__,
+				     pixmap->drawable.serialNumber,
+				     pixmap == sna->front));
 				list_del(&priv->list);
 				sna_accel_watch_flush(sna, -1);
-				priv->pinned = pixmap == sna->front;
+				priv->pinned &= ~PIN_DRI;
 			}
 
 			sna_pixmap_set_buffer(pixmap, NULL);
@@ -841,7 +845,7 @@ sna_dri_get_pipe(DrawablePtr pDraw)
 static struct sna_dri_frame_event *
 sna_dri_window_get_chain(WindowPtr win)
 {
-	return ((void **)win->devPrivates)[1];
+	return ((void **)dixGetPrivateAddr(&win->devPrivates, &sna_window_key))[1];
 }
 
 static void
@@ -850,7 +854,7 @@ sna_dri_window_set_chain(WindowPtr win,
 {
 	DBG(("%s: head now %p\n", __FUNCTION__, chain));
 	assert(win->drawable.type == DRAWABLE_WINDOW);
-	((void **)win->devPrivates)[1] = chain;
+	((void **)dixGetPrivateAddr(&win->devPrivates, &sna_window_key))[1] = chain;
 }
 
 static void
@@ -1554,7 +1558,7 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 					       draw->height,
 					       draw->bitsPerPixel,
 					       get_private(info->front)->bo->tiling,
-					       CREATE_EXACT);
+					       CREATE_SCANOUT | CREATE_EXACT);
 			info->back->name = kgem_bo_flink(&sna->kgem,
 							 get_private(info->back)->bo);
 			sna->dri.flip_pending = info;
@@ -1563,6 +1567,10 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 					 DRI2_EXCHANGE_COMPLETE,
 					 info->event_complete,
 					 info->event_data);
+		} else {
+			info->back->name = info->old_front.name;
+			get_private(info->back)->bo = info->old_front.bo;
+			info->old_front.bo = NULL;
 		}
 	} else {
 		info = calloc(1, sizeof(struct sna_dri_frame_event));
@@ -2019,7 +2027,8 @@ blit:
 				    draw->width,
 				    draw->height,
 				    draw->bitsPerPixel,
-				    I915_TILING_X, CREATE_EXACT);
+				    get_private(info->front)->bo->tiling,
+				    CREATE_SCANOUT | CREATE_EXACT);
 		name = kgem_bo_flink(&sna->kgem, bo);
 	}
 	get_private(info->back)->bo = bo;

@@ -287,19 +287,18 @@ fbBlt(FbBits *srcLine, FbStride srcStride, int srcX,
 
 		DBG(("%s fast blt, src_stride=%d, dst_stride=%d, width=%d (offset=%d)\n",
 		     __FUNCTION__,
-		     srcStride, dstStride, width,
-		     srcLine - dstLine));
+		     srcStride, dstStride, width, s - d));
 
-		if ((srcLine < dstLine && srcLine + width > dstLine) ||
-		    (dstLine < srcLine && dstLine + width > srcLine))
+		if (width == srcStride && width == dstStride) {
+			width *= height;
+			height = 1;
+		}
+
+		if ((s < d && s + width > d) || (d < s && d + width > s))
 			func = memmove;
 		else
 			func = memcpy;
 		if (!upsidedown) {
-			if (srcStride == dstStride && srcStride == width) {
-				width *= height;
-				height = 1;
-			}
 			for (i = 0; i < height; i++)
 				func(d + i * dstStride,
 				     s + i * srcStride,

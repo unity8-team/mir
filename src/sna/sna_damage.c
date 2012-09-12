@@ -658,6 +658,7 @@ fastcall struct sna_damage *_sna_damage_add(struct sna_damage *damage,
 
 	ErrorF("  = %s\n",
 	       _debug_describe_damage(damage_buf, sizeof(damage_buf), damage));
+	assert(RegionNumRects(&damage->region));
 	assert(damage->region.extents.x2 > damage->region.extents.x1);
 	assert(damage->region.extents.y2 > damage->region.extents.y1);
 
@@ -741,8 +742,10 @@ struct sna_damage *_sna_damage_add_boxes(struct sna_damage *damage,
 
 	ErrorF("  = %s\n",
 	       _debug_describe_damage(damage_buf, sizeof(damage_buf), damage));
-	assert(damage->region.extents.x2 > damage->region.extents.x1);
-	assert(damage->region.extents.y2 > damage->region.extents.y1);
+	if (RegionNumRects(&damage->region)) {
+		assert(damage->region.extents.x2 > damage->region.extents.x1);
+		assert(damage->region.extents.y2 > damage->region.extents.y1);
+	}
 
 	return damage;
 }
@@ -828,8 +831,10 @@ struct sna_damage *_sna_damage_add_rectangles(struct sna_damage *damage,
 
 	ErrorF("  = %s\n",
 	       _debug_describe_damage(damage_buf, sizeof(damage_buf), damage));
-	assert(damage->region.extents.x2 > damage->region.extents.x1);
-	assert(damage->region.extents.y2 > damage->region.extents.y1);
+	if (RegionNumRects(&damage->region)) {
+		assert(damage->region.extents.x2 > damage->region.extents.x1);
+		assert(damage->region.extents.y2 > damage->region.extents.y1);
+	}
 
 	return damage;
 }
@@ -912,8 +917,10 @@ struct sna_damage *_sna_damage_add_points(struct sna_damage *damage,
 
 	ErrorF("  = %s\n",
 	       _debug_describe_damage(damage_buf, sizeof(damage_buf), damage));
-	assert(damage->region.extents.x2 > damage->region.extents.x1);
-	assert(damage->region.extents.y2 > damage->region.extents.y1);
+	if (RegionNumRects(&damage->region)) {
+		assert(damage->region.extents.x2 > damage->region.extents.x1);
+		assert(damage->region.extents.y2 > damage->region.extents.y1);
+	}
 
 	return damage;
 }
@@ -940,6 +947,7 @@ fastcall struct sna_damage *_sna_damage_add_box(struct sna_damage *damage,
 
 	ErrorF("  = %s\n",
 	       _debug_describe_damage(damage_buf, sizeof(damage_buf), damage));
+	assert(RegionNumRects(&damage->region));
 	assert(damage->region.extents.x2 > damage->region.extents.x1);
 	assert(damage->region.extents.y2 > damage->region.extents.y1);
 

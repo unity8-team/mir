@@ -75,10 +75,10 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "git_version.h"
 #endif
 
-static DevPrivateKeyRec sna_pixmap_key;
-static DevPrivateKeyRec sna_gc_key;
-static DevPrivateKeyRec sna_glyph_key;
-static DevPrivateKeyRec sna_window_key;
+DevPrivateKeyRec sna_pixmap_key;
+DevPrivateKeyRec sna_gc_key;
+DevPrivateKeyRec sna_window_key;
+DevPrivateKeyRec sna_glyph_key;
 
 static Bool sna_enter_vt(VT_FUNC_ARGS_DECL);
 
@@ -226,10 +226,13 @@ struct sna_device {
 	int fd;
 	int open_count;
 };
-static int sna_device_key;
+static int sna_device_key = -1;
 
 static inline struct sna_device *sna_device(ScrnInfoPtr scrn)
 {
+	if (scrn->entityList == NULL)
+		return NULL;
+
 	return xf86GetEntityPrivate(scrn->entityList[0], sna_device_key)->ptr;
 }
 
@@ -343,6 +346,21 @@ static bool has_pageflipping(struct sna *sna)
 	return v > 0;
 }
 
+static void sna_setup_capabilities(ScrnInfoPtr scrn, int fd)
+{
+#if HAS_PIXMAP_SHARING && defined(DRM_CAP_PRIME)
+	uint64_t value;
+
+	scrn->capabilities = 0;
+	if (drmGetCap(fd, DRM_CAP_PRIME, &value) == 0) {
+		if (value & DRM_PRIME_CAP_EXPORT)
+			scrn->capabilities |= RR_Capability_SourceOutput | RR_Capability_SinkOffload;
+		if (value & DRM_PRIME_CAP_IMPORT)
+			scrn->capabilities |= RR_Capability_SinkOutput;
+	}
+#endif
+}
+
 /**
  * This is called before ScreenInit to do any require probing of screen
  * configuration.
@@ -371,7 +389,14 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 		return FALSE;
 
 	pEnt = xf86GetEntityInfo(scrn->entityList[0]);
-	if (pEnt == NULL || pEnt->location.type != BUS_PCI)
+	if (pEnt == NULL)
+		return FALSE;
+
+	if (pEnt->location.type != BUS_PCI
+#ifdef XSERVER_PLATFORM_BUS
+	    && pEnt->location.type != BUS_PLATFORM
+#endif
+		)
 		return FALSE;
 
 	if (flags & PROBE_DETECT)
@@ -434,6 +459,8 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 	sna->Options = intel_options_get(scrn);
 	if (sna->Options == NULL)
 		return FALSE;
+
+	sna_setup_capabilities(scrn, fd);
 
 	intel_detect_chipset(scrn, sna->pEnt, sna->PciInfo);
 
@@ -677,15 +704,12 @@ static void sna_leave_vt(VT_FUNC_ARGS_DECL)
 {
 	SCRN_INFO_PTR(arg);
 	struct sna *sna = to_sna(scrn);
-	int ret;
 
 	DBG(("%s\n", __FUNCTION__));
 
-	xf86RotateFreeShadow(scrn);
 	xf86_hide_cursors(scrn);
 
-	ret = drmDropMaster(sna->kgem.fd);
-	if (ret)
+	if (drmDropMaster(sna->kgem.fd))
 		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 			   "drmDropMaster failed: %s\n", strerror(errno));
 }
@@ -715,15 +739,13 @@ static Bool sna_early_close_screen(CLOSE_SCREEN_ARGS_DECL)
 	if (sna_mode_has_pending_events(sna))
 		sna_mode_wakeup(sna);
 
-	if (scrn->vtSema == TRUE) {
-		sna_leave_vt(VT_FUNC_ARGS(0));
-		scrn->vtSema = FALSE;
-	}
-
 	if (sna->dri_open) {
 		sna_dri_close(sna, screen);
 		sna->dri_open = false;
 	}
+
+	xf86_hide_cursors(scrn);
+	scrn->vtSema = FALSE;
 
 	xf86_cursors_fini(screen);
 
@@ -745,6 +767,7 @@ static Bool sna_late_close_screen(CLOSE_SCREEN_ARGS_DECL)
 	}
 
 	sna_accel_close(sna);
+	drmDropMaster(sna->kgem.fd);
 
 	depths = screen->allowedDepths;
 	for (d = 0; d < screen->numDepths; d++)
@@ -770,22 +793,18 @@ sna_register_all_privates(void)
 	if (!dixRegisterPrivateKey(&sna_pixmap_key, PRIVATE_PIXMAP,
 				   3*sizeof(void *)))
 		return FALSE;
-	assert(sna_pixmap_key.offset == 0);
 
 	if (!dixRegisterPrivateKey(&sna_gc_key, PRIVATE_GC,
 				   sizeof(FbGCPrivate)))
 		return FALSE;
-	assert(sna_gc_key.offset == 0);
 
 	if (!dixRegisterPrivateKey(&sna_glyph_key, PRIVATE_GLYPH,
 				   sizeof(struct sna_glyph)))
 		return FALSE;
-	assert(sna_glyph_key.offset == 0);
 
 	if (!dixRegisterPrivateKey(&sna_window_key, PRIVATE_WINDOW,
 				   2*sizeof(void *)))
 		return FALSE;
-	assert(sna_window_key.offset == 0);
 
 	return TRUE;
 }
@@ -947,12 +966,11 @@ static void sna_free_screen(FREE_SCREEN_ARGS_DECL)
 
 	DBG(("%s\n", __FUNCTION__));
 
-	if (sna) {
+	if (sna && ((intptr_t)sna & 1) == 0) {
 		sna_mode_fini(sna);
-
 		free(sna);
-		scrn->driverPrivate = NULL;
 	}
+	scrn->driverPrivate = NULL;
 
 	sna_close_drm_master(scrn);
 }
@@ -1062,8 +1080,6 @@ static Bool sna_pm_event(SCRN_ARG_TYPE arg, pmEvent event, Bool undo)
 
 Bool sna_init_scrn(ScrnInfoPtr scrn, int entity_num)
 {
-	EntityInfoPtr entity;
-
 #if defined(USE_GIT_DESCRIBE)
 	xf86DrvMsg(scrn->scrnIndex, X_INFO,
 		   "SNA compiled from %s\n", git_version);
@@ -1087,7 +1103,8 @@ Bool sna_init_scrn(ScrnInfoPtr scrn, int entity_num)
 	DBG(("%s\n", __FUNCTION__));
 	DBG(("pixman version: %s\n", pixman_version_string()));
 
-	sna_device_key = xf86AllocateEntityPrivateIndex();
+	if (sna_device_key == -1)
+		sna_device_key = xf86AllocateEntityPrivateIndex();
 
 	scrn->PreInit = sna_pre_init;
 	scrn->ScreenInit = sna_screen_init;
@@ -1101,16 +1118,9 @@ Bool sna_init_scrn(ScrnInfoPtr scrn, int entity_num)
 
 	scrn->ModeSet = sna_mode_set;
 
-	xf86SetEntitySharable(scrn->entityList[0]);
-
-	entity = xf86GetEntityInfo(entity_num);
-	if (!entity)
-		return FALSE;
-
-	xf86SetEntityInstanceForScreen(scrn,
-				       entity->index,
-				       xf86GetNumEntityInstances(entity->index)-1);
-	free(entity);
+	xf86SetEntitySharable(entity_num);
+	xf86SetEntityInstanceForScreen(scrn, entity_num,
+				       xf86GetNumEntityInstances(entity_num)-1);
 
 	return TRUE;
 }

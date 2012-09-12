@@ -207,6 +207,8 @@ struct kgem_bo *kgem_create_map(struct kgem *kgem,
 				bool read_only);
 
 struct kgem_bo *kgem_create_for_name(struct kgem *kgem, uint32_t name);
+struct kgem_bo *kgem_create_for_prime(struct kgem *kgem, int name, uint32_t size);
+int kgem_bo_export_to_prime(struct kgem *kgem, struct kgem_bo *bo);
 
 struct kgem_bo *kgem_create_linear(struct kgem *kgem, int size, unsigned flags);
 struct kgem_bo *kgem_create_proxy(struct kgem *kgem,
@@ -240,9 +242,10 @@ enum {
 	CREATE_CPU_MAP = 0x4,
 	CREATE_GTT_MAP = 0x8,
 	CREATE_SCANOUT = 0x10,
-	CREATE_TEMPORARY = 0x20,
-	CREATE_NO_RETIRE = 0x40,
-	CREATE_NO_THROTTLE = 0x40,
+	CREATE_PRIME = 0x20,
+	CREATE_TEMPORARY = 0x40,
+	CREATE_NO_RETIRE = 0x80,
+	CREATE_NO_THROTTLE = 0x100,
 };
 struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 			       int width,
@@ -408,6 +411,7 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 			uint32_t delta);
 
 void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo);
+void *kgem_bo_map__async(struct kgem *kgem, struct kgem_bo *bo);
 void *kgem_bo_map__gtt(struct kgem *kgem, struct kgem_bo *bo);
 void kgem_bo_sync__gtt(struct kgem *kgem, struct kgem_bo *bo);
 void *kgem_bo_map__debug(struct kgem *kgem, struct kgem_bo *bo);

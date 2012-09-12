@@ -86,6 +86,8 @@ struct intel_crtc {
 	uint32_t rotate_fb_id;
 	xf86CrtcPtr crtc;
 	struct list link;
+	PixmapPtr scanout_pixmap;
+	uint32_t scanout_fb_id;
 };
 
 struct intel_property {
@@ -260,10 +262,10 @@ intel_output_backlight_init(xf86OutputPtr output)
 	int i;
 
 	str = xf86GetOptValString(intel->Options, OPTION_BACKLIGHT);
-	if (str == NULL) {
+	if (str != NULL) {
 		sprintf(path, "%s/%s", BACKLIGHT_CLASS, str);
 		if (!stat(path, &buf)) {
-			intel_output->backlight_iface = backlight_interfaces[i];
+			intel_output->backlight_iface = str;
 			intel_output->backlight_max = intel_output_backlight_get_max(output);
 			if (intel_output->backlight_max > 0) {
 				xf86DrvMsg(output->scrn->scrnIndex, X_CONFIG,
@@ -378,6 +380,7 @@ intel_crtc_apply(xf86CrtcPtr crtc)
 	ScrnInfoPtr scrn = crtc->scrn;
 	struct intel_crtc *intel_crtc = crtc->driver_private;
 	struct intel_mode *mode = intel_crtc->mode;
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
 	uint32_t *output_ids;
 	int output_count = 0;
@@ -401,13 +404,15 @@ intel_crtc_apply(xf86CrtcPtr crtc)
 		output_count++;
 	}
 
+	if (!intel_crtc->scanout_fb_id) {
 #if XORG_VERSION_CURRENT < XORG_VERSION_NUMERIC(1,5,99,0,0)
-	if (!xf86CrtcRotate(crtc, mode, rotation))
-		goto done;
+		if (!xf86CrtcRotate(crtc, mode, rotation))
+			goto done;
 #else
-	if (!xf86CrtcRotate(crtc))
-		goto done;
+		if (!xf86CrtcRotate(crtc))
+			goto done;
 #endif
+	}
 
 #if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,7,0,0,0)
 	crtc->funcs->gamma_set(crtc, crtc->gamma_red, crtc->gamma_green,
@@ -419,6 +424,10 @@ intel_crtc_apply(xf86CrtcPtr crtc)
 	fb_id = mode->fb_id;
 	if (intel_crtc->rotate_fb_id) {
 		fb_id = intel_crtc->rotate_fb_id;
+		x = 0;
+		y = 0;
+	} else if (intel_crtc->scanout_fb_id && intel_crtc->scanout_pixmap->drawable.width >= crtc->mode.HDisplay && intel_crtc->scanout_pixmap->drawable.height >= crtc->mode.VDisplay) {
+		fb_id = intel_crtc->scanout_fb_id;
 		x = 0;
 		y = 0;
 	}
@@ -684,6 +693,42 @@ intel_crtc_destroy(xf86CrtcPtr crtc)
 	crtc->driver_private = NULL;
 }
 
+#ifdef INTEL_PIXMAP_SHARING
+static Bool
+intel_set_scanout_pixmap(xf86CrtcPtr crtc, PixmapPtr ppix)
+{
+	struct intel_crtc *intel_crtc = crtc->driver_private;
+	ScrnInfoPtr scrn = crtc->scrn;
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+	dri_bo *bo;
+	int ret;
+
+	if (ppix == intel_crtc->scanout_pixmap)
+		return TRUE;
+
+	if (!ppix) {
+		intel_crtc->scanout_pixmap = NULL;
+		if (intel_crtc->scanout_fb_id) {
+			drmModeRmFB(intel->drmSubFD, intel_crtc->scanout_fb_id);
+			intel_crtc->scanout_fb_id = 0;
+		}
+		return TRUE;
+	}
+
+	bo = intel_get_pixmap_bo(ppix);
+	if (intel->front_buffer) {
+		ErrorF("have front buffer\n");
+	}
+
+	intel_crtc->scanout_pixmap = ppix;
+	ret = drmModeAddFB(intel->drmSubFD, ppix->drawable.width,
+			   ppix->drawable.height, ppix->drawable.depth,
+			   ppix->drawable.bitsPerPixel, ppix->devKind,
+			   bo->handle, &intel_crtc->scanout_fb_id);
+	return TRUE;
+}
+#endif
+
 static const xf86CrtcFuncsRec intel_crtc_funcs = {
 	.dpms = intel_crtc_dpms,
 	.set_mode_major = intel_crtc_set_mode_major,
@@ -697,6 +742,9 @@ static const xf86CrtcFuncsRec intel_crtc_funcs = {
 	.shadow_destroy = intel_crtc_shadow_destroy,
 	.gamma_set = intel_crtc_gamma_set,
 	.destroy = intel_crtc_destroy,
+#ifdef INTEL_PIXMAP_SHARING
+	.set_scanout_pixmap = intel_set_scanout_pixmap,
+#endif
 };
 
 static void
@@ -1661,6 +1709,10 @@ Bool intel_mode_pre_init(ScrnInfoPtr scrn, int fd, int cpp)
 
 	for (i = 0; i < mode->mode_res->count_connectors; i++)
 		intel_output_init(scrn, mode, i);
+
+#ifdef INTEL_PIXMAP_SHARING
+	xf86ProviderSetup(scrn, NULL, "Intel");
+#endif
 
 	xf86InitialConfiguration(scrn, TRUE);
 

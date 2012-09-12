@@ -60,6 +60,7 @@
 struct sna_crtc {
 	struct drm_mode_modeinfo kmode;
 	int dpms_mode;
+	PixmapPtr scanout_pixmap;
 	struct kgem_bo *bo;
 	uint32_t cursor;
 	bool shadow;
@@ -131,6 +132,7 @@ static unsigned get_fb(struct sna *sna, struct kgem_bo *bo,
 	ScrnInfoPtr scrn = sna->scrn;
 	struct drm_mode_fb_cmd arg;
 
+	assert(bo->refcnt);
 	assert(bo->proxy == NULL);
 	if (bo->delta) {
 		DBG(("%s: reusing fb=%d for handle=%d\n",
@@ -152,6 +154,7 @@ static unsigned get_fb(struct sna *sna, struct kgem_bo *bo,
 	arg.depth = scrn->depth;
 	arg.handle = bo->handle;
 
+	assert(sna->scrn->vtSema); /* must be master */
 	if (drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_ADDFB, &arg)) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "%s: failed to add fb: %dx%d depth=%d, bpp=%d, pitch=%d: %d\n",
@@ -315,8 +318,84 @@ has_user_backlight_override(xf86OutputPtr output)
 	return str;
 }
 
-static void
-sna_output_backlight_init(xf86OutputPtr output)
+static char *
+has_device_backlight(xf86OutputPtr output, int *best_type)
+{
+	struct sna_output *sna_output = output->driver_private;
+	struct sna *sna = to_sna(output->scrn);
+	struct pci_device *pci = sna->PciInfo;
+	char path[1024];
+	char *best_iface = NULL;
+	DIR *dir;
+	struct dirent *de;
+
+	snprintf(path, sizeof(path),
+		 "/sys/bus/pci/devices/%04x:%02x:%02x.%d/backlight",
+		 pci->domain, pci->bus, pci->dev, pci->func);
+
+	DBG(("%s: scanning %s\n", __FUNCTION__, path));
+	dir = opendir(path);
+	if (dir == NULL)
+		return NULL;
+
+	while ((de = readdir(dir))) {
+		char buf[100];
+		int fd, v;
+
+		if (*de->d_name == '.')
+			continue;
+
+		DBG(("%s: %s\n", __FUNCTION__, de->d_name));
+		snprintf(path, sizeof(path), "%s/%s/type",
+			 BACKLIGHT_CLASS, de->d_name);
+
+		v = -1;
+		fd = open(path, O_RDONLY);
+		if (fd >= 0) {
+			v = read(fd, buf, sizeof(buf)-1);
+			close(fd);
+		}
+		if (v > 0) {
+			while (v > 0 && isspace(buf[v-1]))
+				v--;
+			buf[v] = '\0';
+
+			if (strcmp(buf, "raw") == 0)
+				v = RAW;
+			else if (strcmp(buf, "platform") == 0)
+				v = PLATFORM;
+			else if (strcmp(buf, "firmware") == 0)
+				v = FIRMWARE;
+			else
+				v = INT_MAX;
+		} else
+			v = INT_MAX;
+
+		if (v < *best_type) {
+			char *copy;
+			int max;
+
+			sna_output->backlight_iface = de->d_name;
+			max = sna_output_backlight_get_max(output);
+			sna_output->backlight_iface = NULL;
+			if (max <= 0)
+				continue;
+
+			copy = strdup(de->d_name);
+			if (copy) {
+				free(best_iface);
+				best_iface = copy;
+				*best_type = v;
+			}
+		}
+	}
+	closedir(dir);
+
+	return best_iface;
+}
+
+static char *
+has_backlight(xf86OutputPtr output, int *best_type)
 {
 	static const char *known_interfaces[] = {
 		"gmux_backlight",
@@ -332,21 +411,14 @@ sna_output_backlight_init(xf86OutputPtr output)
 		"acpi_video0",
 		"intel_backlight",
 	};
-	MessageType from = X_PROBED;
 	struct sna_output *sna_output = output->driver_private;
-	char *best_iface;
-	int best_type;
+	char *best_iface = NULL;
 	DIR *dir;
 	struct dirent *de;
 
-	best_type = INT_MAX;
-	best_iface = has_user_backlight_override(output);
-	if (best_iface)
-		goto skip;
-
 	dir = opendir(BACKLIGHT_CLASS);
 	if (dir == NULL)
-		return;
+		return NULL;
 
 	while ((de = readdir(dir))) {
 		char path[1024];
@@ -391,7 +463,7 @@ sna_output_backlight_init(xf86OutputPtr output)
 			v += i;
 		}
 
-		if (v < best_type) {
+		if (v < *best_type) {
 			char *copy;
 			int max;
 
@@ -407,16 +479,39 @@ sna_output_backlight_init(xf86OutputPtr output)
 			if (copy) {
 				free(best_iface);
 				best_iface = copy;
-				best_type = v;
+				*best_type = v;
 			}
 		}
 	}
 	closedir(dir);
 
-	if (!best_iface)
-		return;
+	return best_iface;
+}
 
-skip:
+static void
+sna_output_backlight_init(xf86OutputPtr output)
+{
+	struct sna_output *sna_output = output->driver_private;
+	MessageType from = X_PROBED;
+	char *best_iface;
+	int best_type;
+
+	best_type = INT_MAX;
+	best_iface = has_user_backlight_override(output);
+	if (best_iface)
+		goto done;
+
+	best_iface = has_device_backlight(output, &best_type);
+	if (best_iface)
+		goto done;
+
+	best_iface = has_backlight(output, &best_type);
+	if (best_iface)
+		goto done;
+
+	return;
+
+done:
 	sna_output->backlight_iface = best_iface;
 	sna_output->backlight_max = sna_output_backlight_get_max(output);
 	sna_output->backlight_active_level = sna_output_backlight_get(output);
@@ -431,7 +526,6 @@ skip:
 		   "found backlight control interface %s (type '%s')\n",
 		   sna_output->backlight_iface, best_iface);
 }
-
 
 static void
 mode_from_kmode(ScrnInfoPtr scrn,
@@ -566,7 +660,6 @@ sna_crtc_apply(xf86CrtcPtr crtc)
 	arg.crtc_id = sna_crtc->id;
 	arg.fb_id = fb_id(sna_crtc->bo);
 	if (sna_crtc->transform) {
-		assert(sna_crtc->shadow);
 		arg.x = 0;
 		arg.y = 0;
 	} else {
@@ -711,6 +804,9 @@ static void update_flush_interval(struct sna *sna)
 			continue;
 		}
 
+		DBG(("%s: CRTC:%d (pipe %d) vrefresh=%d\n",
+		     __FUNCTION__,i, to_sna_crtc(crtc)->pipe,
+		     xf86ModeVRefresh(&crtc->mode)));
 		max_vrefresh = max(max_vrefresh, xf86ModeVRefresh(&crtc->mode));
 	}
 
@@ -939,7 +1035,21 @@ static struct kgem_bo *sna_crtc_attach(xf86CrtcPtr crtc)
 	struct kgem_bo *bo;
 
 	sna_crtc->transform = false;
-	if (use_shadow(sna, crtc)) {
+	if (sna_crtc->scanout_pixmap) {
+		DBG(("%s: attaching to scanout pixmap\n", __FUNCTION__));
+
+		bo = sna_pixmap_pin(sna_crtc->scanout_pixmap, PIN_SCANOUT);
+		if (bo == NULL)
+			return NULL;
+
+		if (!get_fb(sna, bo,
+			    sna_crtc->scanout_pixmap->drawable.width,
+			    sna_crtc->scanout_pixmap->drawable.height))
+			return NULL;
+
+		sna_crtc->transform = true;
+		return kgem_bo_reference(bo);
+	} else if (use_shadow(sna, crtc)) {
 		if (!sna_crtc_enable_shadow(sna, sna_crtc))
 			return NULL;
 
@@ -991,7 +1101,7 @@ static struct kgem_bo *sna_crtc_attach(xf86CrtcPtr crtc)
 	} else {
 		DBG(("%s: attaching to framebuffer\n", __FUNCTION__));
 		sna_crtc_disable_shadow(sna, sna_crtc);
-		bo = sna_pixmap_pin(sna->front);
+		bo = sna_pixmap_pin(sna->front, PIN_SCANOUT);
 		if (bo == NULL)
 			return NULL;
 
@@ -1299,6 +1409,18 @@ sna_crtc_destroy(xf86CrtcPtr crtc)
 	crtc->driver_private = NULL;
 }
 
+#if HAS_PIXMAP_SHARING
+static Bool
+sna_set_scanout_pixmap(xf86CrtcPtr crtc, PixmapPtr pixmap)
+{
+	DBG(("%s: CRTC:%d, pipe=%d setting scanout pixmap=%ld\n",
+	     __FUNCTION__,to_sna_crtc(crtc)->id, to_sna_crtc(crtc)->pipe,
+	     pixmap ? pixmap->drawable.serialNumber : 0));
+	to_sna_crtc(crtc)->scanout_pixmap = pixmap;
+	return TRUE;
+}
+#endif
+
 static const xf86CrtcFuncsRec sna_crtc_funcs = {
 	.dpms = sna_crtc_dpms,
 	.set_mode_major = sna_crtc_set_mode_major,
@@ -1309,6 +1431,9 @@ static const xf86CrtcFuncsRec sna_crtc_funcs = {
 	.load_cursor_argb = sna_crtc_load_cursor_argb,
 	.gamma_set = sna_crtc_gamma_set,
 	.destroy = sna_crtc_destroy,
+#if HAS_PIXMAP_SHARING
+	.set_scanout_pixmap = sna_set_scanout_pixmap,
+#endif
 };
 
 static uint32_t
@@ -2144,19 +2269,6 @@ sna_visit_set_window_pixmap(WindowPtr window, pointer data)
     return WT_DONTWALKCHILDREN;
 }
 
-static void
-sna_redirect_screen_pixmap(ScrnInfoPtr scrn, PixmapPtr old, PixmapPtr new)
-{
-	ScreenPtr screen = scrn->pScreen;
-	struct sna_visit_set_pixmap_window visit;
-
-	visit.old = old;
-	visit.new = new;
-	TraverseTree(screen->root, sna_visit_set_window_pixmap, &visit);
-
-	screen->SetScreenPixmap(new);
-}
-
 static void copy_front(struct sna *sna, PixmapPtr old, PixmapPtr new)
 {
 	struct sna_pixmap *old_priv, *new_priv;
@@ -2229,27 +2341,27 @@ sna_crtc_resize(ScrnInfoPtr scrn, int width, int height)
 {
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
 	struct sna *sna = to_sna(scrn);
+	ScreenPtr screen = scrn->pScreen;
 	PixmapPtr old_front, new_front;
 	int i;
 
-	DBG(("%s (%d, %d) -> (%d, %d)\n",
-	     __FUNCTION__,
+	DBG(("%s (%d, %d) -> (%d, %d)\n", __FUNCTION__,
 	     scrn->virtualX, scrn->virtualY,
 	     width, height));
 
 	if (scrn->virtualX == width && scrn->virtualY == height)
 		return TRUE;
 
-	assert(scrn->pScreen->GetScreenPixmap(scrn->pScreen) == sna->front);
-	assert(scrn->pScreen->GetWindowPixmap(scrn->pScreen->root) == sna->front);
+	assert(sna->front);
+	assert(screen->GetScreenPixmap(screen) == sna->front);
+
 	DBG(("%s: creating new framebuffer %dx%d\n",
 	     __FUNCTION__, width, height));
 
 	old_front = sna->front;
-	new_front = scrn->pScreen->CreatePixmap(scrn->pScreen,
-						 width, height,
-						 scrn->depth,
-						 SNA_CREATE_FB);
+	new_front = screen->CreatePixmap(screen,
+					 width, height, scrn->depth,
+					 SNA_CREATE_FB);
 	if (!new_front)
 		return FALSE;
 
@@ -2278,11 +2390,18 @@ sna_crtc_resize(ScrnInfoPtr scrn, int width, int height)
 			sna_crtc_disable(crtc);
 	}
 
-	sna_redirect_screen_pixmap(scrn, old_front, sna->front);
-	assert(scrn->pScreen->GetScreenPixmap(scrn->pScreen) == sna->front);
-	assert(scrn->pScreen->GetWindowPixmap(scrn->pScreen->root) == sna->front);
+	if (screen->root) {
+		struct sna_visit_set_pixmap_window visit;
 
-	scrn->pScreen->DestroyPixmap(old_front);
+		visit.old = old_front;
+		visit.new = sna->front;
+		TraverseTree(screen->root, sna_visit_set_window_pixmap, &visit);
+		assert(screen->GetWindowPixmap(screen->root) == sna->front);
+	}
+	screen->SetScreenPixmap(sna->front);
+	assert(screen->GetScreenPixmap(screen) == sna->front);
+
+	screen->DestroyPixmap(old_front);
 
 	return TRUE;
 }
@@ -2338,8 +2457,10 @@ disable:
 			continue;
 		}
 
-		kgem_bo_destroy(&sna->kgem, crtc->bo);
-		crtc->bo = kgem_bo_reference(bo);
+		if (crtc->bo != bo) {
+			kgem_bo_destroy(&sna->kgem, crtc->bo);
+			crtc->bo = kgem_bo_reference(bo);
+		}
 
 		count++;
 	}
@@ -2412,6 +2533,9 @@ bool sna_mode_pre_init(ScrnInfoPtr scrn, struct sna *sna)
 	for (i = 0; i < mode->kmode->count_connectors; i++)
 		sna_output_init(scrn, mode, i);
 
+#if HAS_PIXMAP_SHARING
+	xf86ProviderSetup(scrn, NULL, "Intel");
+#endif
 	xf86InitialConfiguration(scrn, TRUE);
 
 	return true;

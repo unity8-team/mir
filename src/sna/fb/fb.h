@@ -28,14 +28,14 @@
 #include "config.h"
 #endif
 
-#include <stdbool.h>
-#include <pixman.h>
-
 #include <xorg-server.h>
 #include <servermd.h>
 #include <gcstruct.h>
 #include <colormap.h>
 #include <windowstr.h>
+
+#include <stdbool.h>
+#include <pixman.h>
 
 #if HAS_DEBUG_FULL
 #define DBG(x) ErrorF x
@@ -288,13 +288,17 @@ typedef struct {
 	unsigned char bpp;          /* current drawable bpp */
 } FbGCPrivate, *FbGCPrivPtr;
 
+extern DevPrivateKeyRec sna_gc_key;
+extern DevPrivateKeyRec sna_window_key;
+
 static inline FbGCPrivate *fb_gc(GCPtr gc)
 {
-	return (FbGCPrivate *)gc->devPrivates;
+	return dixGetPrivateAddr(&gc->devPrivates, &sna_gc_key);
 }
+
 static inline PixmapPtr fbGetWindowPixmap(WindowPtr window)
 {
-	return *(void **)window->devPrivates;
+	return *(PixmapPtr *)dixGetPrivateAddr(&window->devPrivates, &sna_window_key);
 }
 
 #ifdef ROOTLESS
@@ -511,7 +515,9 @@ extern RegionPtr
 fbBitmapToRegion(PixmapPtr pixmap);
 
 extern void
-fbPolyPoint(DrawablePtr drawable, GCPtr gc, int mode, int n, xPoint *pt);
+fbPolyPoint(DrawablePtr drawable, GCPtr gc,
+	    int mode, int n, xPoint *pt,
+	    unsigned flags);
 
 extern void
 fbPushImage(DrawablePtr drawable, GCPtr gc,

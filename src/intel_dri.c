@@ -90,7 +90,7 @@ static uint32_t pixmap_flink(PixmapPtr pixmap)
 	if (dri_bo_flink(priv->bo, &name) != 0)
 		return 0;
 
-	priv->pinned = 1;
+	priv->pinned |= PIN_DRI;
 	return name;
 }
 
@@ -540,6 +540,11 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 			  0, 0);
 
 	FreeScratchGC(gc);
+
+	/* And make sure the WAIT_FOR_EVENT is queued before any
+	 * modesetting/dpms operations on the pipe.
+	 */
+	intel_batch_submit(scrn);
 }
 
 #if DRI2INFOREC_VERSION >= 4

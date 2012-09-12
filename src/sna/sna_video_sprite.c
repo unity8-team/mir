@@ -203,7 +203,7 @@ sna_video_sprite_show(struct sna *sna,
 	}
 #endif
 
-	if (frame->bo->unique_id == 0) {
+	if (frame->bo->delta == 0) {
 		uint32_t offsets[4], pitches[4], handles[4];
 		uint32_t pixel_format;
 
@@ -227,19 +227,24 @@ sna_video_sprite_show(struct sna *sna,
 		if (drmModeAddFB2(sna->kgem.fd,
 				  frame->width, frame->height, pixel_format,
 				  handles, pitches, offsets,
-				  &frame->bo->unique_id, 0)) {
+				  &frame->bo->delta, 0)) {
 			xf86DrvMsg(sna->scrn->scrnIndex,
 				   X_ERROR, "failed to add fb\n");
 			return false;
 		}
+
+		frame->bo->scanout = true;
 	}
 
 	DBG(("%s: updating plane=%d, handle=%d [fb %d], dst=(%d,%d)x(%d,%d)\n",
-	     __FUNCTION__, plane, frame->bo->handle, frame->bo->unique_id,
+	     __FUNCTION__, plane, frame->bo->handle, frame->bo->delta,
 	     dstBox->x1, dstBox->y1,
 	     dstBox->x2 - dstBox->x1, dstBox->y2 - dstBox->y1));
+	assert(frame->bo->scanout);
+	assert(frame->bo->delta);
+
 	if (drmModeSetPlane(sna->kgem.fd,
-			    plane, sna_crtc_id(crtc), frame->bo->unique_id, 0,
+			    plane, sna_crtc_id(crtc), frame->bo->delta, 0,
 			    dstBox->x1, dstBox->y1,
 			    dstBox->x2 - dstBox->x1, dstBox->y2 - dstBox->y1,
 			    0, 0, frame->width << 16, frame->height << 16))

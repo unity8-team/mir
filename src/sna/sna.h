@@ -47,6 +47,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <xorg-server.h>
 
 #include <xf86Crtc.h>
+#if XF86_CRTC_VERSION >= 5
+#define HAS_PIXMAP_SHARING 1
+#endif
+
 #include <xf86str.h>
 #include <windowstr.h>
 #include <glyphstr.h>
@@ -119,7 +123,10 @@ struct sna_pixmap {
 
 #define SOURCE_BIAS 4
 	uint16_t source_count;
-	uint8_t pinned :1;
+	uint8_t pinned :3;
+#define PIN_SCANOUT 0x1
+#define PIN_DRI 0x2
+#define PIN_PRIME 0x4
 	uint8_t mapped :1;
 	uint8_t shm :1;
 	uint8_t clear :1;
@@ -149,9 +156,11 @@ static inline PixmapPtr get_drawable_pixmap(DrawablePtr drawable)
 		return get_window_pixmap((WindowPtr)drawable);
 }
 
+extern DevPrivateKeyRec sna_pixmap_key;
+
 constant static inline struct sna_pixmap *sna_pixmap(PixmapPtr pixmap)
 {
-	return ((void **)pixmap->devPrivates)[1];
+	return ((void **)dixGetPrivateAddr(&pixmap->devPrivates, &sna_pixmap_key))[1];
 }
 
 static inline struct sna_pixmap *sna_pixmap_from_drawable(DrawablePtr drawable)
@@ -167,7 +176,7 @@ struct sna_gc {
 
 static inline struct sna_gc *sna_gc(GCPtr gc)
 {
-	return (struct sna_gc *)gc->devPrivates;
+	return dixGetPrivateAddr(&gc->devPrivates, &sna_gc_key);
 }
 
 enum {
@@ -309,7 +318,7 @@ to_sna_from_screen(ScreenPtr screen)
 constant static inline struct sna *
 to_sna_from_pixmap(PixmapPtr pixmap)
 {
-	return *(void **)pixmap->devPrivates;
+	return ((void **)dixGetPrivateAddr(&pixmap->devPrivates, &sna_pixmap_key))[0];
 }
 
 constant static inline struct sna *
@@ -536,7 +545,7 @@ static inline struct kgem_bo *sna_pixmap_get_bo(PixmapPtr pixmap)
 	return sna_pixmap(pixmap)->gpu_bo;
 }
 
-static inline struct kgem_bo *sna_pixmap_pin(PixmapPtr pixmap)
+static inline struct kgem_bo *sna_pixmap_pin(PixmapPtr pixmap, unsigned flags)
 {
 	struct sna_pixmap *priv;
 
@@ -544,7 +553,7 @@ static inline struct kgem_bo *sna_pixmap_pin(PixmapPtr pixmap)
 	if (!priv)
 		return NULL;
 
-	priv->pinned = 1;
+	priv->pinned |= flags;
 	return priv->gpu_bo;
 }
 

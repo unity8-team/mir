@@ -1,3 +1,29 @@
+Release 2.20.7 (2012-09-08)
+===========================
+Continuing the flurry of releases, this week saw the release of
+xorg-1.13 bringing with it the first steps towards hotpluggable gpu
+support and the ability to offload DRI rendering onto other GPUs. In
+light of that advance, this release includes the support code by Dave
+Airlie to integrate PRIME into xf86-video-intel and make those new
+features available.
+
+Aside from landing PRIME, a few other bugs were fixed since 2.20.5:
+
+ * Fix framebuffer leak on server regeneration
+
+ * Fix texture cache flushing on IvyBridge and Kwin with plastique
+   https://bugs.freedesktop.org/show_bug.cgi?id=54488
+
+ * Redirect large solid fills on SandyBridge+. By large I mean greater
+   than 8192 or 16384 pixels on SandyBridge and IvyBridge respectively.
+   https://bugs.freedesktop.org/show_bug.cgi?id=54134
+
+ * Fix up backlight option handling in the manpage and uxa.
+   https://bugs.freedesktop.org/show_bug.cgi?id=54397
+
+ * Unbreak ZaphodHeads.
+   https://bugs.freedesktop.org/show_bug.cgi?id=52438
+
 Release 2.20.6 (2012-09-02)
 ===========================
 A serious bug that caused a crash on SandyBridge and IvyBridge when
@@ -10,8 +36,8 @@ issue with incoherent page access to a streaming buffer.
    https://bugs.freedesktop.org/show_bug.cgi?id=54274
 
  * Incoherent concurrent access with the CPU and GPU
-   https://bugs.freedesktop.org/show_bug.cgi
-   https://bugs.freedesktop.org/show_bug.cgi
+   https://bugs.freedesktop.org/show_bug.cgi?id=51422
+   https://bugs.freedesktop.org/show_bug.cgi?id=52299
 
  * Add Option "Backlight" to override automatic selection of the
    backlight interface.
