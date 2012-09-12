@@ -3595,14 +3595,23 @@ bool kgem_check_bo(struct kgem *kgem, ...)
 	if (!num_pages)
 		return true;
 
-	if (kgem->aperture > kgem->aperture_low)
+	if (kgem->aperture > kgem->aperture_low && kgem_is_idle(kgem)) {
+		DBG(("%s: current aperture usage (%d) is greater than low water mark (%d)\n",
+		     __FUNCTION__, kgem->aperture, kgem->aperture_low));
 		return false;
+	}
 
-	if (num_pages + kgem->aperture > kgem->aperture_high)
+	if (num_pages + kgem->aperture > kgem->aperture_high) {
+		DBG(("%s: final aperture usage (%d) is greater than high water mark (%d)\n",
+		     __FUNCTION__, num_pages + kgem->aperture, kgem->aperture_high));
 		return false;
+	}
 
-	if (kgem->nexec + num_exec >= KGEM_EXEC_SIZE(kgem))
+	if (kgem->nexec + num_exec >= KGEM_EXEC_SIZE(kgem)) {
+		DBG(("%s: out of exec slots (%d + %d / %d)\n", __FUNCTION__,
+		     kgem->nexec, num_exec, KGEM_EXEC_SIZE(kgem)));
 		return false;
+	}
 
 	return true;
 }
