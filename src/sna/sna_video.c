@@ -80,17 +80,12 @@ void sna_video_free_buffers(struct sna *sna, struct sna_video *video)
 
 	for (i = 0; i < ARRAY_SIZE(video->old_buf); i++) {
 		if (video->old_buf[i]) {
-			if (video->old_buf[i]->unique_id)
-				drmModeRmFB(sna->kgem.fd,
-						video->old_buf[i]->unique_id);
 			kgem_bo_destroy(&sna->kgem, video->old_buf[i]);
 			video->old_buf[i] = NULL;
 		}
 	}
 
 	if (video->buf) {
-		if (video->buf->unique_id)
-			drmModeRmFB(sna->kgem.fd, video->buf->unique_id);
 		kgem_bo_destroy(&sna->kgem, video->buf);
 		video->buf = NULL;
 	}

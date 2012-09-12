@@ -994,12 +994,12 @@ gen7_emit_vertex_elements(struct sna *sna,
 }
 
 inline static void
-gen7_emit_pipe_invalidate(struct sna *sna, bool stall)
+gen7_emit_pipe_invalidate(struct sna *sna)
 {
 	OUT_BATCH(GEN7_PIPE_CONTROL | (4 - 2));
 	OUT_BATCH(GEN7_PIPE_CONTROL_WC_FLUSH |
 		  GEN7_PIPE_CONTROL_TC_FLUSH |
-		  (stall ? GEN7_PIPE_CONTROL_CS_STALL : 0));
+		  GEN7_PIPE_CONTROL_CS_STALL);
 	OUT_BATCH(0);
 	OUT_BATCH(0);
 }
@@ -1043,9 +1043,7 @@ gen7_emit_state(struct sna *sna,
 	need_stall &= gen7_emit_drawing_rectangle(sna, op);
 
 	if (kgem_bo_is_dirty(op->src.bo) || kgem_bo_is_dirty(op->mask.bo)) {
-		if (op->dst.bo == op->src.bo || op->dst.bo == op->mask.bo)
-			need_stall = GEN7_BLEND(op->u.gen7.flags) != NO_BLEND;
-		gen7_emit_pipe_invalidate(sna, need_stall);
+		gen7_emit_pipe_invalidate(sna);
 		kgem_clear_dirty(&sna->kgem);
 		if (op->dst.bo->exec)
 			kgem_bo_mark_dirty(op->dst.bo);
@@ -1069,7 +1067,7 @@ static void gen7_magic_ca_pass(struct sna *sna,
 	DBG(("%s: CA fixup (%d -> %d)\n", __FUNCTION__,
 	     sna->render.vertex_start, sna->render.vertex_index));
 
-	gen7_emit_pipe_invalidate(sna, true);
+	gen7_emit_pipe_invalidate(sna);
 
 	gen7_emit_cc(sna, gen7_get_blend(PictOpAdd, true, op->dst.format));
 	gen7_emit_wm(sna,
@@ -1401,7 +1399,8 @@ gen7_emit_composite_primitive_solid(struct sna *sna,
 	v = sna->render.vertices + sna->render.vertex_used;
 	sna->render.vertex_used += 9;
 	assert(sna->render.vertex_used <= sna->render.vertex_size);
-	assert(!too_large(r->dst.x + r->width, r->dst.y + r->height));
+	assert(!too_large(op->dst.x + r->dst.x + r->width,
+			  op->dst.y + r->dst.y + r->height));
 
 	dst.p.x = r->dst.x + r->width;
 	dst.p.y = r->dst.y + r->height;
@@ -3338,15 +3337,8 @@ static inline bool prefer_blt_copy(struct sna *sna,
 		prefer_blt_bo(sna, dst_bo));
 }
 
-static inline bool
-overlaps(struct sna *sna,
-	 struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
-	 struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
-	 const BoxRec *box, int n, BoxRec *extents)
+inline static void boxes_extents(const BoxRec *box, int n, BoxRec *extents)
 {
-	if (src_bo != dst_bo)
-		return false;
-
 	*extents = box[0];
 	while (--n) {
 		box++;
@@ -3361,7 +3353,18 @@ overlaps(struct sna *sna,
 		if (box->y2 > extents->y2)
 			extents->y2 = box->y2;
 	}
+}
 
+static inline bool
+overlaps(struct sna *sna,
+	 struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
+	 struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
+	 const BoxRec *box, int n, BoxRec *extents)
+{
+	if (src_bo != dst_bo)
+		return false;
+
+	boxes_extents(box, n, extents);
 	return (extents->x2 + src_dx > extents->x1 + dst_dx &&
 		extents->x1 + src_dx < extents->x2 + dst_dx &&
 		extents->y2 + src_dy > extents->y1 + dst_dy &&
@@ -3742,22 +3745,21 @@ gen7_render_fill_boxes(struct sna *sna,
 		return false;
 	}
 
-	if (op <= PictOpSrc &&
-	    (prefer_blt_fill(sna, dst_bo) ||
-	     too_large(dst->drawable.width, dst->drawable.height) ||
-	     !gen7_check_dst_format(format))) {
+	if (prefer_blt_fill(sna, dst_bo) || !gen7_check_dst_format(format)) {
 		uint8_t alu = GXinvalid;
 
-		pixel = 0;
-		if (op == PictOpClear)
-			alu = GXclear;
-		else if (sna_get_pixel_from_rgba(&pixel,
-						 color->red,
-						 color->green,
-						 color->blue,
-						 color->alpha,
-						 format))
-			alu = GXcopy;
+		if (op <= PictOpSrc) {
+			pixel = 0;
+			if (op == PictOpClear)
+				alu = GXclear;
+			else if (sna_get_pixel_from_rgba(&pixel,
+							 color->red,
+							 color->green,
+							 color->blue,
+							 color->alpha,
+							 format))
+				alu = GXcopy;
+		}
 
 		if (alu != GXinvalid &&
 		    sna_blt_fill_boxes(sna, alu,
@@ -3767,10 +3769,6 @@ gen7_render_fill_boxes(struct sna *sna,
 
 		if (!gen7_check_dst_format(format))
 			return false;
-
-		if (too_large(dst->drawable.width, dst->drawable.height))
-			return sna_tiling_fill_boxes(sna, op, format, color,
-						     dst, dst_bo, box, n);
 	}
 
 	if (op == PictOpClear) {
@@ -3794,6 +3792,19 @@ gen7_render_fill_boxes(struct sna *sna,
 	tmp.dst.format = format;
 	tmp.dst.bo = dst_bo;
 	tmp.dst.x = tmp.dst.y = 0;
+
+	sna_render_composite_redirect_init(&tmp);
+	if (too_large(dst->drawable.width, dst->drawable.height)) {
+		BoxRec extents;
+
+		boxes_extents(box, n, &extents);
+		if (!sna_render_composite_redirect(sna, &tmp,
+						   extents.x1, extents.y1,
+						   extents.x2 - extents.x1,
+						   extents.y2 - extents.y1))
+			return sna_tiling_fill_boxes(sna, op, format, color,
+						     dst, dst_bo, box, n);
+	}
 
 	tmp.src.bo = sna_render_get_solid(sna, pixel);
 	tmp.mask.bo = NULL;
@@ -3839,6 +3850,7 @@ gen7_render_fill_boxes(struct sna *sna,
 
 	gen7_vertex_flush(sna);
 	kgem_bo_destroy(&sna->kgem, tmp.src.bo);
+	sna_render_composite_redirect_done(sna, &tmp);
 	return true;
 }
 

@@ -25,28 +25,27 @@
 #include <micoord.h>
 
 #define DOTS	    fbDots8
+#define DOTS__SIMPLE fbDots8__simple
 #define BITS	    BYTE
-#define BITS2	    CARD16
-#define BITS4	    CARD32
 #include "fbpointbits.h"
 #undef BITS
-#undef BITS2
-#undef BITS4
+#undef DOTS__SIMPLE
 #undef DOTS
 
 #define DOTS	    fbDots16
+#define DOTS__SIMPLE fbDots16__simple
 #define BITS	    CARD16
-#define BITS2	    CARD32
 #include "fbpointbits.h"
 #undef BITS
-#undef BITS2
+#undef DOTS__SIMPLE
 #undef DOTS
 
 #define DOTS	    fbDots32
+#define DOTS__SIMPLE fbDots32__simple
 #define BITS	    CARD32
 #include "fbpointbits.h"
-#undef ARC
 #undef BITS
+#undef DOTS__SIMPLE
 #undef DOTS
 
 static void
@@ -81,7 +80,7 @@ fbDots(FbBits *dstOrig, FbStride dstStride, int dstBpp,
 
 void
 fbPolyPoint(DrawablePtr drawable, GCPtr gc,
-	    int mode, int n, xPoint *pt)
+	    int mode, int n, xPoint *pt, unsigned flags)
 {
 	FbBits *dst;
 	FbStride dstStride;
@@ -93,28 +92,43 @@ fbPolyPoint(DrawablePtr drawable, GCPtr gc,
 		     int xorg, int yorg,
 		     int xoff, int yoff,
 		     FbBits and, FbBits xor);
-	FbBits and, xor;
 
-	DBG(("%s x %d\n", __FUNCTION__, n));
+	DBG(("%s x %d, clip=[(%d, %d), (%d, %d)]x%d\n", __FUNCTION__, n,
+	     gc->pCompositeClip->extents.x1, gc->pCompositeClip->extents.y1,
+	     gc->pCompositeClip->extents.x2, gc->pCompositeClip->extents.y2,
+	     RegionNumRects(gc->pCompositeClip)));
 
 	if (mode == CoordModePrevious)
 		fbFixCoordModePrevious(n, pt);
 
 	fbGetDrawable(drawable, dst, dstStride, dstBpp, dstXoff, dstYoff);
-	and = fb_gc(gc)->and;
-	xor = fb_gc(gc)->xor;
 	dots = fbDots;
-	switch (dstBpp) {
-	case 8:
-		dots = fbDots8;
-		break;
-	case 16:
-		dots = fbDots16;
-		break;
-	case 32:
-		dots = fbDots32;
-		break;
+	if ((flags & 2) == 0 && fb_gc(gc)->and == 0) {
+		switch (dstBpp) {
+		case 8:
+			dots = fbDots8__simple;
+			break;
+		case 16:
+			dots = fbDots16__simple;
+			break;
+		case 32:
+			dots = fbDots32__simple;
+			break;
+		}
+	} else {
+		switch (dstBpp) {
+		case 8:
+			dots = fbDots8;
+			break;
+		case 16:
+			dots = fbDots16;
+			break;
+		case 32:
+			dots = fbDots32;
+			break;
+		}
 	}
 	dots(dst, dstStride, dstBpp, gc->pCompositeClip, pt, n,
-	     drawable->x, drawable->y, dstXoff, dstYoff, and, xor);
+	     drawable->x, drawable->y, dstXoff, dstYoff,
+	     fb_gc(gc)->and, fb_gc(gc)->xor);
 }

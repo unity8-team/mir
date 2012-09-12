@@ -80,6 +80,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define MONITOR_EDID_COMPLETE_RAWDATA EDID_COMPLETE_RAWDATA
 #endif
 
+#if XF86_CRTC_VERSION >= 5
+#define INTEL_PIXMAP_SHARING 1
+#endif
+
 struct intel_pixmap {
 	dri_bo *bo;
 
@@ -90,7 +94,10 @@ struct intel_pixmap {
 	int8_t busy :2;
 	uint8_t dirty :1;
 	uint8_t offscreen :1;
-	uint8_t pinned :1;
+	uint8_t pinned :3;
+#define PIN_SCANOUT 0x1
+#define PIN_DRI 0x2
+#define PIN_GLAMOR 0x4
 };
 
 #if HAS_DEVPRIVATEKEYREC
@@ -347,7 +354,12 @@ typedef struct intel_screen_private {
 	struct udev_monitor *uevent_monitor;
 	InputHandlerProc uevent_handler;
 #endif
+	Bool has_prime_vmap_flush;
 } intel_screen_private;
+
+#ifndef I915_PARAM_HAS_PRIME_VMAP_FLUSH
+#define I915_PARAM_HAS_PRIME_VMAP_FLUSH 21
+#endif
 
 enum {
 	DEBUG_FLUSH_BATCHES = 0x1,

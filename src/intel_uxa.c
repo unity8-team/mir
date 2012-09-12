@@ -36,6 +36,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <xaarop.h>
 #include <string.h>
 #include <errno.h>
+#include <unistd.h>
 
 #include "intel.h"
 #include "intel_glamor.h"
@@ -227,11 +228,14 @@ intel_uxa_pixmap_compute_size(PixmapPtr pixmap,
 	}
 
 	if (*tiling == I915_TILING_NONE) {
+		/* We only require a 64 byte alignment for scanouts, but
+		 * a 256 byte alignment for sharing with PRIME.
+		 */
+		*stride = ALIGN(pitch, 256);
 		/* Round the height up so that the GPU's access to a 2x2 aligned
 		 * subspan doesn't address an invalid page offset beyond the
 		 * end of the GTT.
 		 */
-		*stride = ALIGN(pitch, 64);
 		size = *stride * ALIGN(h, 2);
 	}
 
@@ -1040,6 +1044,10 @@ intel_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 		if (usage == UXA_CREATE_PIXMAP_FOR_MAP || usage & INTEL_CREATE_PIXMAP_TILING_NONE)
 			tiling = I915_TILING_NONE;
 
+#ifdef CREATE_PIXMAP_USAGE_SHARED
+		if (usage == CREATE_PIXMAP_USAGE_SHARED)
+			tiling = I915_TILING_NONE;
+#endif
 		/* if tiling is off force to none */
 		if (!intel->tiling)
 			tiling = I915_TILING_NONE;
@@ -1138,7 +1146,7 @@ static Bool intel_uxa_destroy_pixmap(PixmapPtr pixmap)
 Bool intel_uxa_create_screen_resources(ScreenPtr screen)
 {
 	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
-	PixmapPtr pixmap = screen->GetScreenPixmap(screen);
+	PixmapPtr pixmap;
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	dri_bo *bo = intel->front_buffer;
 
@@ -1150,7 +1158,7 @@ Bool intel_uxa_create_screen_resources(ScreenPtr screen)
 
 	pixmap = screen->GetScreenPixmap(screen);
 	intel_set_pixmap_bo(pixmap, bo);
-	intel_get_pixmap_private(pixmap)->pinned = 1;
+	intel_get_pixmap_private(pixmap)->pinned |= PIN_SCANOUT;
 	screen->ModifyPixmapHeader(pixmap,
 				   scrn->virtualX,
 				   scrn->virtualY,
@@ -1164,6 +1172,73 @@ Bool intel_uxa_create_screen_resources(ScreenPtr screen)
 
 	return TRUE;
 }
+
+#ifdef CREATE_PIXMAP_USAGE_SHARED
+static Bool
+intel_uxa_share_pixmap_backing(PixmapPtr ppix, ScreenPtr slave, void **fd_handle)
+{
+	ScrnInfoPtr scrn = xf86ScreenToScrn(ppix->drawable.pScreen);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+	struct intel_pixmap *priv = intel_get_pixmap_private(ppix);
+	unsigned int size, tiling, swizzle;
+	dri_bo *bo = intel_get_pixmap_bo(ppix), *newbo;
+	int stride;
+	int handle;
+
+	if (drm_intel_bo_references(intel->batch_bo, bo))
+		intel_batch_submit(intel->scrn);
+
+	drm_intel_bo_get_tiling(bo, &tiling, &swizzle);
+
+	if (tiling == I915_TILING_X) {
+		if (priv->pinned & ~PIN_DRI)
+			return FALSE;
+
+	        tiling = I915_TILING_NONE;
+
+		size = intel_uxa_pixmap_compute_size(ppix, ppix->drawable.width, ppix->drawable.height, &tiling, &stride, INTEL_CREATE_PIXMAP_DRI2);
+
+		newbo = drm_intel_bo_alloc_for_render(intel->bufmgr,
+						      "pixmap",
+						      size, 0);
+
+		if (tiling != I915_TILING_NONE)
+			drm_intel_bo_set_tiling(newbo, &tiling, stride);
+		priv->stride = stride;
+		priv->tiling = tiling;
+		intel_set_pixmap_bo(ppix, newbo);
+
+		ppix->drawable.pScreen->ModifyPixmapHeader(ppix, ppix->drawable.width,
+					   ppix->drawable.height, 0, 0,
+					   stride, NULL);
+		bo = newbo;
+	}
+	drm_intel_bo_get_tiling(bo, &tiling, &swizzle);
+	drm_intel_bo_gem_export_to_prime(bo, &handle);
+	priv->pinned |= PIN_DRI;
+
+	*fd_handle = (void *)(long)handle;
+	return TRUE;
+}
+
+static Bool
+intel_uxa_set_shared_pixmap_backing(PixmapPtr ppix, void *fd_handle)
+{
+	ScrnInfoPtr scrn = xf86ScreenToScrn(ppix->drawable.pScreen);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+	dri_bo *bo;
+	int ihandle = (int)(long)fd_handle;
+
+	/* force untiled for now */
+	bo = drm_intel_bo_gem_create_from_prime(intel->bufmgr, ihandle, 0);
+	if (!bo)
+		return FALSE;
+
+	intel_set_pixmap_bo(ppix, bo);
+	close(ihandle);
+	return TRUE;
+}
+#endif
 
 static void
 intel_limits_init(intel_screen_private *intel)
@@ -1313,6 +1388,11 @@ Bool intel_uxa_init(ScreenPtr screen)
 
 	screen->CreatePixmap = intel_uxa_create_pixmap;
 	screen->DestroyPixmap = intel_uxa_destroy_pixmap;
+
+#ifdef CREATE_PIXMAP_USAGE_SHARED
+	screen->SharePixmapBacking = intel_uxa_share_pixmap_backing;
+	screen->SetSharedPixmapBacking = intel_uxa_set_shared_pixmap_backing;
+#endif
 
 	if (!uxa_driver_init(screen, intel->uxa_driver)) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,

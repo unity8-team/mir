@@ -1,3 +1,551 @@
+commit 0659711dfa9c9fc52adeaba766049887d5b6f040
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Sep 8 20:01:32 2012 +0100
+
+    2.20.7 release
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2c8e48f8149499040342836491333402fd05b762
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Sep 7 23:00:47 2012 +0100
+
+    sna: Remember that LineDoubleDash involves updating the GC between segments
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit ed7b8db24921dc0bb6ea59dacf35ea41a61d59bf
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Sep 7 22:12:17 2012 +0100
+
+    sna: Pass the hints down to the PolyPoint fallback
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 6c9df48fa8f1ac93103ce771ae28f47faa321619
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Sep 7 22:05:19 2012 +0100
+
+    sna: Fix PolyPoint fallback through a complex clip
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 7d76eb155ed78343abfa15b7c8af87fc3d4211e4
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Sep 7 18:06:25 2012 +0100
+
+    sna: First scan for a backlight associated with the device
+    
+    The goal is to find the right interface in a multi-GPU system.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2de7d2d8150d648815feb74a3ae2239b908b971e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Sep 7 16:56:33 2012 +0100
+
+    sna/prime: Fixup attaching the randr14 scanout pixmap
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 448808d8a4e78afa7fe90e318d6d7afdbff66190
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Sep 7 14:31:52 2012 +0100
+
+    prime: Allocate a GPU_SCREEN when not primary to fulfil the output sink role
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 3dce661ef3df5558fe9c9d85324ab3395a37b7ea
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Sep 7 13:48:12 2012 +0100
+
+    sna: And remember to update the ScreenPixmap after resize
+    
+    Fixes the regression from the previous commit
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0c39c363d7235d03f27337c731c0ffe3369bf713
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Sep 7 13:07:52 2012 +0100
+
+    sna: Protect sna_crtc_resize() against early invocation with no RootWindow
+    
+    If the outputs are resized very early on, in CreateScreenResources, then
+    we will not yet have created a RootWindow and so trying to change its
+    pixmap is a futile effort.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d7879a5939cabcd8b804e19fc422d2022ab7e3a4
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Sep 7 12:18:08 2012 +0100
+
+    sna/dri: Fix the double-buffer pageflipping path
+    
+    Notably, we need to remember to exchange the front/back buffers after
+    flipping!
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2630c81937115602faa352fca369d89fbb926b33
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Sep 7 11:23:02 2012 +0100
+
+    sna/dri: Make sure we set the SCANOUT flag when creating bo for pageflips
+    
+    In case we should be creating an untiled framebuffer, we need to make
+    sure we honour the scanout alignment.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit aeef03520f1b2a4b8638ff1ed4fbf19c9b35e7c8
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Sep 6 11:46:53 2012 +0100
+
+    sna/prime: Correct the pinning flag when importing the prime bo
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 9bdf46d6c1a29b7b9e3d35e39a2e789334c0e1be
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Sep 6 11:38:08 2012 +0100
+
+    sna/prime: Distinguish forms of pinned pixmap
+    
+    So that we can allow prime to replace the backing bo of currently
+    exported pixmaps through DRI2.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 39c4be2b0be66ed83bf059d3007f4143325e340d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Sep 6 11:28:49 2012 +0100
+
+    uxa: Distinguish forms of pinning
+    
+    This allows us to replace the prime bo to meet sharing requirements, but
+    still maintain the integrity with other users.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 031fa1c1c1129e486a02ffb5b3b9071f03b60048
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Sep 6 11:08:23 2012 +0100
+
+    uxa/prime: Mark the pixmap as pinned once exported (similar to flink)
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit e5d3f3818660cb875ce2ef4721c51bc95317b78d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Sep 6 10:54:57 2012 +0100
+
+    sna: Add is-pinned checks to changing the pitch on an existing bo
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f2affe403baea78b9c94e3d726d1b9d8a0004f35
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Sep 6 10:24:04 2012 +0100
+
+    sna: Apply the minimum 256 pitch to CREATE_USAGE_SHARED pixmaps as well
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit fbe4080816191ee97347128444f56bcc34858481
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Sep 6 08:57:34 2012 +0100
+
+    prime: Align pitch of shared untiled buffers to 256 bytes
+    
+    In order for nvidia to handle the buffers we are currently generating,
+    they need to have a pitch alignment of 256 bytes. Make it so.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit c5fb025267bf1019907dfcc60f0efef2691be436
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Sep 6 08:55:46 2012 +0100
+
+    sna: Correct assertions for adding damage that bypasses the region
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 1f5d5a37e57e63fa6e5b336a4847ce4422b89044
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Sep 5 17:17:58 2012 +0100
+
+    Add PlatformProbe to handle sharing of device entities
+    
+    Reported-by: Nick Bowler <nbowler@draconx.ca>
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=54561
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit ddde40afc081f47a3b6b694aeb21682c240c9562
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Sep 5 16:48:01 2012 +0100
+
+    sna: Harden against initialisation failures
+    
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=54561
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4627dc36fa56ab971cd90088bd29a597dd12dc02
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Sep 5 16:17:17 2012 +0100
+
+    Revert "sna: Flush the batch before a render operation if the GPU is idle"
+    
+    This reverts commit ad57ac07a273bf376b74884de47d8ee1e7129fb8.
+    
+    These checks end up being too frequent and not allowing us to batch
+    sufficient commands to offset the overhead of batch submission. Hmm.
+
+commit 886f3cef4101a674bb62656cf7f3046643cae4b1
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Sep 5 15:27:21 2012 +0100
+
+    uxa: Fix cut'n'paste error in Option "Backlight"
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 6211d0914e2ed1cdd4cc2e170ee16129fc9f0d73
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Sep 5 12:33:08 2012 +0100
+
+    uxa: Flush batch immediately after queuing a WAIT_FOR_EVENT
+    
+    We still encounter hangs with kernel-3.5 with the culprit being a wait
+    on a disabled pipe. As we thoroughly check before that the pipe is still
+    disabled and flush before a modeset, the only possibility that remains
+    is that DPMS is disabling the pipe before we submit. Close that race by
+    always submitting the batch immediately after a WAIT_FOR_EVENT.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 6a1423547769c24d15f6475628981d14a76a4bb2
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Sep 5 12:15:52 2012 +0100
+
+    sna: Initialise the empty boxes field of the region before subtracting it
+    
+    Fixes regression from commit 38fb77af757318e5fb6f605b37306ce4585b11a5
+    Author: Chris Wilson <chris@chris-wilson.co.uk>
+    Date:   Wed Sep 5 08:23:34 2012 +0100
+    
+        sna: Don't upload ignored cpu damage
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit dff25e5ec4071a0404f82760e8deec3f99f4a0a9
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Sep 5 11:05:28 2012 +0100
+
+    sna: Drop master after discarding framebuffers
+    
+    As Imre Deak pointed out in the previous patch, drmModeRmFB only works
+    when we hold the DRM master, therefore to prevent a leak of the
+    framebuffer across server reset we need to defer dropping master until
+    after we release our scanouts and modes.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 46981d01700c1159bfb6bc0aebc938ff1d447a0f
+Author: Imre Deak <imre.deak@intel.com>
+Date:   Fri Aug 31 14:31:51 2012 +0300
+
+    uxa: fix leakage of FB when closing the screen
+    
+    Calling drmModeRmFB is only allowed in DRM master mode. Since leaving
+    the VT also drops master mode we need to remove the FB before calling
+    I830LeaveVT.
+    
+    This is only a real leak in case of a server reset, otherwise the server
+    process will exit anyway and the kernel will clean up the FB.
+    
+    Signed-off-by: Imre Deak <imre.deak@intel.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 55cef974a5dad3fda1922648fa27bcf5bb32ea03
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Sep 5 09:38:47 2012 +0100
+
+    sna: Review validity of damage when discarding CPU bo
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 587499bbf55b7eb0e1848822a792d535a8a3db1b
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Sep 5 10:56:18 2012 +0100
+
+    sna/video: Use the scanout flag and FB id for sprite framebuffers
+    
+    So that we can use the same teardown path as normal scanouts.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 913adacc5400f94bc754f22375447e6f90ccd510
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Sep 5 09:20:55 2012 +0100
+
+    sna/gen7: Always emit a stall when flushing the texture cache
+    
+    Reported-by: Reinhard Karcher <reinhard.karcher@gmx.net>
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=54488
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit bdfedb46bd5bb3b96543a3ff553abd8ed0774fad
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Sep 5 09:15:12 2012 +0100
+
+    sna: Use async upload only if the last render was not CPU
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 67b75ae6f66e2d8e97b0aaf70d66b6de30f9e67e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Sep 5 08:46:39 2012 +0100
+
+    sna: Tweak upload path to remove redundant code
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 38fb77af757318e5fb6f605b37306ce4585b11a5
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Sep 5 08:23:34 2012 +0100
+
+    sna: Don't upload ignored cpu damage
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2eb32f711ddd65a55c3c21f813b41aca49635a22
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Sep 5 00:22:04 2012 +0100
+
+    sna: Add DBG control to disable CPU bo
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 19e170aa6fd3652cc2e983a291f82350dca27e52
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Sep 4 23:52:42 2012 +0100
+
+    sna: Fix comparison of memcpy overlap to include x-offsets
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 7895416eabfc5bd361d0d0ff92c570e2f6af47e0
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Sep 4 20:30:53 2012 +0100
+
+    sna: Rearrange use_cpu() tests for composite ops to avoid syncing CPU bo
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit ad57ac07a273bf376b74884de47d8ee1e7129fb8
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Sep 4 20:06:49 2012 +0100
+
+    sna: Flush the batch before a render operation if the GPU is idle
+    
+    Experiment with pushing those first commands earlier.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 6325d7e29a8bacede321362c20bf3acd33c48651
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Sep 4 14:51:54 2012 +0100
+
+    NEWS: fixup missing links to bugs referenced in 2.20.6 release notes
+    
+    Reported-by: Adam Jackson <ajax@redhat.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit bc309bad39035649ee377c1d5af9099491a8ea43
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Sep 4 14:22:15 2012 +0100
+
+    sna: And remember to flush the damage to the output slaves...
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 68d207588a177afa4e999260bfddb4d6dba1029b
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Sep 4 13:20:21 2012 +0100
+
+    sna: Improve handling of output offloading
+    
+    In particular, don't forget to flush when we only have offload slaves
+    and no native pixmaps.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8cf7ac776b9b47dabd5ab141e5a5385c44d3f309
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Sep 4 13:55:34 2012 +0100
+
+    sna: Fix a typo in an error message
+    
+    s/achieve/retrieve/ otherwise it is nonsense.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit be83b98d299c74101357e7bf170b1451aec2e1f2
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Sep 4 11:23:58 2012 +0100
+
+    sna: Add some DBG to the prime paths
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d0684d55e3a62c231c92a68403cf100c9e18351b
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Sep 4 11:05:43 2012 +0100
+
+    sna: Fixup CREATE_USAGE_SHARED
+    
+    The DRI2 code tries to create pixmaps with non-zero width/height,
+    whoops.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit b6ced7a2267f9429ad38949dda39c843e2119e99
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Sep 4 10:05:46 2012 +0100
+
+    sna: Fix typo for detecting prime ioctls
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit df68723baae71498de95924c72d4f23fa7fc7fdf
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Sep 3 20:43:48 2012 +0100
+
+    sna: Port prime interfacing
+    
+    Preliminary prime support.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit e3ad18036b4dca29744ecfa4694006f01dd3fd18
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Sep 3 20:53:30 2012 +0100
+
+    sna: Enable platform probing
+    
+    Completing commit 0768ac4d195214825137152893deb74a87fcd11e
+    Author: Dave Airlie <airlied@redhat.com>
+    Date:   Wed Jul 25 16:11:23 2012 +1000
+    
+        intel: add platform probing support.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 3dc644b2a959fc559e1138b332ed42d7235de42f
+Author: Сковорода Никита Андреевич <chalkerx@gmail.com>
+Date:   Mon Sep 3 13:44:21 2012 +0400
+
+    uxa: Fix Backlight option support.
+    
+    Signed-off-by: Сковорода Никита Андреевич <chalkerx@gmail.com>
+
+commit a972affe0c78b23a119d5dd14bb4446c89122af1
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Sep 2 17:43:33 2012 +0100
+
+    sna/gen6+: Redirect fills if the destination is too large for 3D
+    
+    Reported-by: Clemens Eisserer <linuxhippy@gmail.com>
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=54134
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 18d26076c778c20eb589b638fc47fa847793f149
+Author: Dave Airlie <airlied@gmail.com>
+Date:   Tue Sep 4 07:19:12 2012 +1000
+
+    intel: fix return value for no pEnt
+    
+    Probably never gets hit but shuold return FALSE,
+    
+    pointed out on irc by Lekensteyn
+    
+    Signed-off-by: Dave Airlie <airlied@redhat.com>
+
+commit d14ff42f2a205542df2ef723c6151d18db2bea8b
+Author: Dave Airlie <airlied@redhat.com>
+Date:   Thu Jul 26 10:43:29 2012 +1000
+
+    intel: query kernel for caps to setup scrn capabilities.
+    
+    This queries the kernel for prime support before advertising
+    the capabilities.
+    
+    Signed-off-by: Dave Airlie <airlied@redhat.com>
+
+commit 6705d8237aca90964449e4dbee97b4f62b87c28b
+Author: Dave Airlie <airlied@redhat.com>
+Date:   Thu Jul 26 10:37:04 2012 +1000
+
+    intel: add pixmap tracking and scanout support. (v2)
+    
+    This adds support for pixmap tracking and scanout of
+    alternate pixmaps.
+    
+    v2: do dirty updates after uxa block handler, check if kernel
+    can flush vmap for us so we don't have to.
+    
+    Signed-off-by: Dave Airlie <airlied@redhat.com>
+
+commit 69827126abdfa289417b55fe7db8ae0535037185
+Author: Dave Airlie <airlied@redhat.com>
+Date:   Wed Jul 25 16:22:57 2012 +1000
+
+    intel/uxa: add pixmap sharing support.
+    
+    Signed-off-by: Dave Airlie <airlied@redhat.com>
+
+commit 0768ac4d195214825137152893deb74a87fcd11e
+Author: Dave Airlie <airlied@redhat.com>
+Date:   Wed Jul 25 16:11:23 2012 +1000
+
+    intel: add platform probing support.
+    
+    This allows the driver to be loaded by the platform loading code.
+    
+    Signed-off-by: Dave Airlie <airlied@redhat.com>
+
+commit 164ae7a4f9fd3e538f1b506031d297088fc0c659
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Sep 2 17:19:12 2012 +0100
+
+    man: Malformed "Backlight" section
+    
+    Reported-by: Matthew Monaco <dgbaley27@0x01b.net>
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=54397
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 67b44104168650473a24e69056707e0b35f1713e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Sep 2 12:47:36 2012 +0100
+
+    sna: Cache the temporary upload buffer when copying boxes
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4b558281e04e4d4febfc361632a90f8a45080c49
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Sep 2 12:23:59 2012 +0100
+
+    sna: Don't retire when searching for a snoopable buffer without hw support
+    
+    If the hw/kernel doesn't support snoopable buffers, then it makes little
+    sense to search for one, and force a retire in the certainty of not
+    finding any.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
 commit d933f3a7965c9aa70f70477be3bfe94d5ded948b
 Author: Chris Wilson <chris@chris-wilson.co.uk>
 Date:   Sun Sep 2 10:29:49 2012 +0100

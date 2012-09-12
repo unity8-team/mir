@@ -423,8 +423,8 @@ static void apply_damage(struct sna_composite_op *op, RegionPtr region)
 static inline bool use_cpu(PixmapPtr pixmap, struct sna_pixmap *priv,
 			   CARD8 op, INT16 width, INT16 height)
 {
-	if (too_small(priv))
-		return true;
+	if (priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo))
+		return false;
 
 	if (DAMAGE_IS_ALL(priv->cpu_damage) &&
 	    (op > PictOpSrc ||
@@ -432,7 +432,10 @@ static inline bool use_cpu(PixmapPtr pixmap, struct sna_pixmap *priv,
 	     height < pixmap->drawable.height))
 		return true;
 
-	return false;
+	if (priv->gpu_bo)
+		return false;
+
+	return (priv->create & KGEM_CAN_CREATE_GPU) == 0;
 }
 
 void
@@ -501,14 +504,15 @@ sna_composite(CARD8 op,
 
 	priv = sna_pixmap(pixmap);
 	if (priv == NULL) {
-		DBG(("%s: fallback as destination is unattached\n",
-		     __FUNCTION__));
+		DBG(("%s: fallback as destination pixmap=%ld is unattached\n",
+		     __FUNCTION__, pixmap->drawable.serialNumber));
 		goto fallback;
 	}
 
 	if (use_cpu(pixmap, priv, op, width, height) &&
 	    !picture_is_gpu(src) && !picture_is_gpu(mask)) {
-		DBG(("%s: fallback, dst is too small (or completely damaged)\n", __FUNCTION__));
+		DBG(("%s: fallback, dst pixmap=%ld is too small (or completely damaged)\n",
+		     __FUNCTION__, pixmap->drawable.serialNumber));
 		goto fallback;
 	}
 
@@ -814,7 +818,8 @@ sna_composite_rectangles(CARD8		 op,
 
 	priv = sna_pixmap(pixmap);
 	if (priv == NULL || too_small(priv)) {
-		DBG(("%s: fallback, too small or not attached\n", __FUNCTION__));
+		DBG(("%s: fallback, dst pixmap=%ld too small or not attached\n",
+		     __FUNCTION__, pixmap->drawable.serialNumber));
 		goto fallback;
 	}
 
