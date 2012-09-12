@@ -4178,6 +4178,13 @@ struct kgem_bo *kgem_create_proxy(struct kgem *kgem,
 
 	bo->proxy = kgem_bo_reference(target);
 	bo->delta = offset;
+
+	if (target->exec) {
+		list_move_tail(&bo->request, &kgem->next_request->buffers);
+		bo->exec = &_kgem_dummy_exec;
+	}
+	bo->rq = target->rq;
+
 	return bo;
 }
 
