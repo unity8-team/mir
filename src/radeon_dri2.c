@@ -358,7 +358,7 @@ radeon_dri2_create_buffer2(ScreenPtr pScreen,
         pixmap->refcnt++;
     }
 
-    if (!pixmap && attachment != DRI2BufferFrontLeft) {
+    if (!pixmap && (is_glamor_pixmap || attachment != DRI2BufferFrontLeft)) {
 	/* tile the back buffer */
 	switch(attachment) {
 	case DRI2BufferDepth:
