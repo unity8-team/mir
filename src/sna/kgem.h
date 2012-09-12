@@ -123,6 +123,7 @@ struct kgem {
 
 	struct list flushing;
 	struct list large;
+	struct list large_inactive;
 	struct list active[NUM_CACHE_BUCKETS][3];
 	struct list inactive[NUM_CACHE_BUCKETS];
 	struct list snoop;

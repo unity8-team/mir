@@ -858,6 +858,7 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	list_init(&kgem->active_buffers);
 	list_init(&kgem->flushing);
 	list_init(&kgem->large);
+	list_init(&kgem->large_inactive);
 	list_init(&kgem->snoop);
 	for (i = 0; i < ARRAY_SIZE(kgem->inactive); i++)
 		list_init(&kgem->inactive[i]);
@@ -1287,8 +1288,10 @@ inline static void kgem_bo_move_to_inactive(struct kgem *kgem,
 	assert(!bo->needs_flush);
 	assert(list_is_empty(&bo->vma));
 
+	kgem->need_expire = true;
+
 	if (bucket(bo) >= NUM_CACHE_BUCKETS) {
-		kgem_bo_free(kgem, bo);
+		list_move(&bo->list, &kgem->large_inactive);
 		return;
 	}
 
@@ -1306,8 +1309,6 @@ inline static void kgem_bo_move_to_inactive(struct kgem *kgem,
 			kgem->vma[type].count++;
 		}
 	}
-
-	kgem->need_expire = true;
 }
 
 inline static void kgem_bo_remove_from_inactive(struct kgem *kgem,
@@ -2411,6 +2412,13 @@ bool kgem_expire_cache(struct kgem *kgem)
 		free(rq);
 	}
 
+	while (!list_is_empty(&kgem->large_inactive)) {
+		kgem_bo_free(kgem,
+			     list_first_entry(&kgem->large_inactive,
+					      struct kgem_bo, list));
+
+	}
+
 	expire = 0;
 	list_for_each_entry(bo, &kgem->snoop, list) {
 		if (bo->delta) {
@@ -3095,9 +3103,9 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 		     __FUNCTION__, size, bucket));
 
 		if (flags & CREATE_INACTIVE)
-			goto create;
+			goto large_inactive;
 
-		tiled_height = kgem_aligned_height(kgem, height, I915_TILING_Y);
+		tiled_height = kgem_aligned_height(kgem, height, tiling);
 		untiled_pitch = kgem_untiled_pitch(kgem, width, bpp, flags);
 
 		list_for_each_entry(bo, &kgem->large, list) {
@@ -3105,24 +3113,67 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 			assert(bo->refcnt == 0);
 			assert(bo->reusable);
 
-			if (bo->tiling) {
+			if (kgem->gen < 40) {
 				if (bo->pitch < pitch) {
 					DBG(("tiled and pitch too small: tiling=%d, (want %d), pitch=%d, need %d\n",
 					     bo->tiling, tiling,
 					     bo->pitch, pitch));
 					continue;
 				}
-			} else
-				bo->pitch = untiled_pitch;
 
-			if (bo->pitch * tiled_height > bytes(bo))
-				continue;
+				if (bo->pitch * tiled_height > bytes(bo))
+					continue;
+			} else {
+				if (num_pages(bo) < size)
+					continue;
+
+				if (bo->pitch != pitch || bo->tiling != tiling) {
+					if (gem_set_tiling(kgem->fd, bo->handle,
+							   tiling, pitch) != tiling)
+						continue;
+
+					bo->pitch = pitch;
+				}
+			}
 
 			kgem_bo_remove_from_active(kgem, bo);
 
 			bo->unique_id = kgem_get_unique_id(kgem);
 			bo->delta = 0;
 			DBG(("  1:from active: pitch=%d, tiling=%d, handle=%d, id=%d\n",
+			     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
+			assert(bo->pitch*kgem_aligned_height(kgem, height, bo->tiling) <= kgem_bo_size(bo));
+			bo->refcnt = 1;
+			return bo;
+		}
+
+large_inactive:
+		list_for_each_entry(bo, &kgem->large_inactive, list) {
+			assert(bo->refcnt == 0);
+			assert(bo->reusable);
+
+			if (size > num_pages(bo))
+				continue;
+
+			if (bo->tiling != tiling ||
+			    (tiling != I915_TILING_NONE && bo->pitch != pitch)) {
+				if (tiling != gem_set_tiling(kgem->fd,
+							     bo->handle,
+							     tiling, pitch))
+					continue;
+			}
+
+			if (bo->purged && !kgem_bo_clear_purgeable(kgem, bo)) {
+				kgem_bo_free(kgem, bo);
+				break;
+			}
+
+			list_del(&bo->list);
+
+			bo->unique_id = kgem_get_unique_id(kgem);
+			bo->pitch = pitch;
+			bo->delta = 0;
+			DBG(("  1:from large inactive: pitch=%d, tiling=%d, handle=%d, id=%d\n",
 			     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
 			assert(bo->pitch*kgem_aligned_height(kgem, height, bo->tiling) <= kgem_bo_size(bo));
 			bo->refcnt = 1;
@@ -3407,6 +3458,8 @@ search_inactive:
 	}
 
 create:
+	if (bucket >= NUM_CACHE_BUCKETS)
+		size = ALIGN(size, 1024);
 	handle = gem_create(kgem->fd, size);
 	if (handle == 0)
 		return NULL;
