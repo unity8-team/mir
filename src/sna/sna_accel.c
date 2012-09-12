@@ -3524,10 +3524,9 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 		}
 
 		/* And mark as having a valid GTT mapping for future uploads */
-		if (priv->stride &&
-		    !kgem_bo_is_busy(priv->gpu_bo)) {
+		if (priv->stride && kgem_bo_can_map(&sna->kgem, priv->gpu_bo)) {
 			pixmap->devPrivate.ptr =
-				kgem_bo_map(&sna->kgem, priv->gpu_bo);
+				kgem_bo_map__async(&sna->kgem, priv->gpu_bo);
 			if (pixmap->devPrivate.ptr) {
 				priv->mapped = true;
 				pixmap->devKind = priv->gpu_bo->pitch;

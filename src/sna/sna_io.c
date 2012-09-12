@@ -1165,7 +1165,6 @@ bool sna_replace(struct sna *sna,
 	     pixmap->drawable.height,
 	     pixmap->drawable.bitsPerPixel,
 	     bo->tiling, busy));
-	assert(!bo->flush);
 
 	if ((busy || !kgem_bo_can_map(kgem, bo)) &&
 	    indirect_replace(sna, pixmap, bo, src, stride))

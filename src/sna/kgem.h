@@ -532,6 +532,8 @@ static inline bool __kgem_bo_is_busy(struct kgem *kgem, struct kgem_bo *bo)
 {
 	DBG(("%s: handle=%d, domain: %d exec? %d, rq? %d\n", __FUNCTION__,
 	     bo->handle, bo->domain, bo->exec != NULL, bo->rq != NULL));
+	if (kgem_flush(kgem))
+		kgem_submit(kgem);
 	if (bo->rq && !bo->exec)
 		kgem_retire(kgem);
 	return kgem_bo_is_busy(bo);

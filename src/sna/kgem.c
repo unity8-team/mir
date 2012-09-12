@@ -1286,6 +1286,7 @@ inline static void kgem_bo_move_to_inactive(struct kgem *kgem,
 		return;
 	}
 
+	assert(bo->flush == false);
 	list_move(&bo->list, &kgem->inactive[bucket(bo)]);
 	if (bo->map) {
 		int type = IS_CPU_MAP(bo->map);
@@ -1504,7 +1505,6 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 	assert(bo->snoop == false);
 	assert(bo->io == false);
 	assert(bo->scanout == false);
-	assert(bo->flush == false);
 
 	if (bo->rq) {
 		struct list *cache;
@@ -3416,13 +3416,19 @@ create:
 	bo->pitch = pitch;
 	if (tiling != I915_TILING_NONE)
 		bo->tiling = gem_set_tiling(kgem->fd, handle, tiling, pitch);
+	if (bucket >= NUM_CACHE_BUCKETS) {
+		DBG(("%s: marking large bo for automatic flushing\n",
+		     __FUNCTION__));
+		bo->flush = true;
+	}
 
 	assert(bytes(bo) >= bo->pitch * kgem_aligned_height(kgem, height, bo->tiling));
 
 	debug_alloc__bo(kgem, bo);
 
-	DBG(("  new pitch=%d, tiling=%d, handle=%d, id=%d\n",
-	     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
+	DBG(("  new pitch=%d, tiling=%d, handle=%d, id=%d, num_pages=%d [%d], bucket=%d\n",
+	     bo->pitch, bo->tiling, bo->handle, bo->unique_id,
+	     size, num_pages(bo), bucket(bo)));
 	return bo;
 }
 
