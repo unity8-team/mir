@@ -1246,7 +1246,6 @@ struct kgem_bo *sna_replace__xor(struct sna *sna,
 	     pixmap->drawable.height,
 	     pixmap->drawable.bitsPerPixel,
 	     bo->tiling));
-	assert(!bo->flush);
 
 	if (kgem_bo_is_busy(bo)) {
 		struct kgem_bo *new_bo;
