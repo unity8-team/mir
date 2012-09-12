@@ -2613,9 +2613,12 @@ sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
 	}
 
 	if (DAMAGE_IS_ALL(priv->cpu_damage)) {
-		DBG(("%s: use CPU fast path (all-damaged)\n", __FUNCTION__));
-		assert(priv->gpu_damage == NULL);
-		goto use_cpu_bo;
+		if ((flags & FORCE_GPU) == 0 || priv->cpu_bo) {
+			DBG(("%s: use CPU fast path (all-damaged), and not forced-gpu\n",
+			     __FUNCTION__));
+			assert(priv->gpu_damage == NULL);
+			goto use_cpu_bo;
+		}
 	}
 
 	DBG(("%s: gpu? %d, damaged? %d; cpu? %d, damaged? %d\n", __FUNCTION__,
@@ -2653,9 +2656,10 @@ sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
 				}
 			}
 
-			if (priv->cpu_damage) {
-				if ((flags & (PREFER_GPU | FORCE_GPU)) == 0) {
-					DBG(("%s: prefer cpu", __FUNCTION__));
+			if ((flags & FORCE_GPU) == 0 && priv->cpu_damage) {
+				if ((flags & PREFER_GPU) == 0) {
+					DBG(("%s: already damaged and prefer cpu",
+					     __FUNCTION__));
 					goto use_cpu_bo;
 				}
 
