@@ -402,6 +402,7 @@ struct radeon_accel_state {
     int               vline_y1;
     int               vline_y2;
 
+    Bool              force;
 };
 
 typedef struct {

@@ -151,8 +151,12 @@ Bool radeon_glamor_prepare_access(PixmapPtr pixmap, glamor_access_t access)
 	struct radeon_bo *bo;
 	int ret;
 
-	if (access == GLAMOR_GPU_ACCESS_RW || access == GLAMOR_GPU_ACCESS_RO)
-		return info->ChipFamily < CHIP_FAMILY_TAHITI;
+	if (access == GLAMOR_GPU_ACCESS_RW || access == GLAMOR_GPU_ACCESS_RO) {
+		if (info->ChipFamily < CHIP_FAMILY_TAHITI)
+			return TRUE;
+
+		return info->accel_state->force;
+	}
 
 	bo = radeon_get_pixmap_bo(pixmap);
 	if (bo) {

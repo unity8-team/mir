@@ -633,10 +633,12 @@ radeon_dri2_copy_region2(ScreenPtr pScreen,
 
     /* Driver option "SwapbuffersWait" defines if we vsync DRI2 copy-swaps. */ 
     info->accel_state->vsync = info->swapBuffersWait;
+    info->accel_state->force = TRUE;
 
     (*gc->ops->CopyArea)(src_drawable, dst_drawable, gc,
                          0, 0, drawable->width, drawable->height, off_x, off_y);
 
+    info->accel_state->force = FALSE;
     info->accel_state->vsync = vsync;
 
     FreeScratchGC(gc);
