@@ -1990,8 +1990,8 @@ sna_blt_composite__convert(struct sna *sna,
 	}
 
 	tmp->u.blt.src_pixmap = NULL;
-	tmp->u.blt.sx = x - dst_x;
-	tmp->u.blt.sy = y - dst_y;
+	tmp->u.blt.sx = tmp->src.offset[0];
+	tmp->u.blt.sy = tmp->src.offset[1];
 	DBG(("%s: blt dst offset (%d, %d), source offset (%d, %d), with alpha fixup? %x\n",
 	     __FUNCTION__,
 	     tmp->dst.x, tmp->dst.y, tmp->u.blt.sx, tmp->u.blt.sy, alpha_fixup));
