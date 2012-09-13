@@ -537,6 +537,8 @@ static bool upload_inplace(struct kgem *kgem,
 			   const BoxRec *box,
 			   int n, int bpp)
 {
+	unsigned int bytes;
+
 	if (!kgem_bo_can_map(kgem, bo))
 		return false;
 
@@ -547,16 +549,15 @@ static bool upload_inplace(struct kgem *kgem,
 	 * able to almagamate a series of small writes into a single
 	 * operation.
 	 */
-	if (__kgem_bo_is_busy(kgem, bo)) {
-		unsigned int bytes = 0;
-		while (n--) {
-			bytes += (box->x2 - box->x1) * (box->y2 - box->y1);
-			box++;
-		}
-		return bytes * bpp >> 12 >= kgem->half_cpu_cache_pages;
+	bytes = 0;
+	while (n--) {
+		bytes += (box->x2 - box->x1) * (box->y2 - box->y1);
+		box++;
 	}
-
-	return true;
+	if (__kgem_bo_is_busy(kgem, bo))
+		return bytes * bpp >> 12 >= kgem->half_cpu_cache_pages;
+	else
+		return bytes * bpp >> 12;
 }
 
 bool sna_write_boxes(struct sna *sna, PixmapPtr dst,
