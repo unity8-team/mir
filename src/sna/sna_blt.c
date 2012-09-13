@@ -1866,10 +1866,11 @@ clear:
 			     __FUNCTION__));
 		} else {
 			ret = prepare_blt_copy(sna, tmp, bo, alpha_fixup);
-			if (fallback)
-				ret = prepare_blt_put(sna, tmp, alpha_fixup);
+			if (fallback && !ret)
+				goto put;
 		}
 	} else {
+put:
 		if (!tmp->dst.bo) {
 			RegionRec region;
 
@@ -1879,6 +1880,14 @@ clear:
 			if (!sna_drawable_move_region_to_cpu(dst->pDrawable, &region,
 							MOVE_INPLACE_HINT | MOVE_WRITE))
 				return false;
+		} else {
+			if (tmp->dst.bo == sna_pixmap(tmp->dst.pixmap)->cpu_bo) {
+				assert(kgem_bo_is_busy(tmp->dst.bo));
+				tmp->dst.bo = sna_drawable_use_bo(dst->pDrawable,
+								  FORCE_GPU | PREFER_GPU,
+								  &dst_box,
+								  &tmp->damage);
+			}
 		}
 		ret = prepare_blt_put(sna, tmp, alpha_fixup);
 	}
