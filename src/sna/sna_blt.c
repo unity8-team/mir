@@ -1914,7 +1914,6 @@ bool
 sna_blt_composite__convert(struct sna *sna,
 			   int x, int y,
 			   int width, int height,
-			   int dst_x, int dst_y,
 			   struct sna_composite_op *tmp)
 {
 	uint32_t alpha_fixup;
