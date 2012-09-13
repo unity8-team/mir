@@ -564,6 +564,11 @@ struct kgem_bo *sna_pixmap_change_tiling(PixmapPtr pixmap, uint32_t tiling)
 		return NULL;
 	}
 
+	if (wedged(sna)) {
+		DBG(("%s: can't convert bo, wedged\n", __FUNCTION__));
+		return NULL;
+	}
+
 	assert_pixmap_damage(pixmap);
 
 	bo = kgem_create_2d(&sna->kgem,
