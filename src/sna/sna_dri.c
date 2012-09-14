@@ -1417,7 +1417,9 @@ static void sna_dri_flip_event(struct sna *sna,
 		     __FUNCTION__, flip->pipe,
 		     sna->dri.flip_pending != NULL,
 		     flip->front->name != flip->old_front.name));
-		assert(sna->dri.flip_pending == flip);
+
+		if (sna->dri.flip_pending)
+			goto finish_async_flip;
 
 		if (flip->front->name != flip->next_front.name) {
 			DBG(("%s: async flip continuing\n", __FUNCTION__));
@@ -1435,6 +1437,8 @@ static void sna_dri_flip_event(struct sna *sna,
 			flip->next_front.bo = get_private(flip->front)->bo;
 			flip->next_front.name = flip->front->name;
 			flip->off_delay = 5;
+
+			sna->dri.flip_pending = flip;
 		} else if (--flip->off_delay) {
 			DBG(("%s: queuing no-flip [delay=%d]\n",
 			     __FUNCTION__, flip->off_delay));
@@ -1444,12 +1448,13 @@ static void sna_dri_flip_event(struct sna *sna,
 						    flip, flip->pipe);
 			if (flip->count == 0)
 				goto finish_async_flip;
+
+			sna->dri.flip_pending = flip;
 		} else {
 finish_async_flip:
 			flip->next_front.bo = NULL;
 
 			DBG(("%s: async flip completed\n", __FUNCTION__));
-			sna->dri.flip_pending = NULL;
 			sna_dri_frame_event_info_free(sna, draw, flip);
 		}
 		break;
@@ -1992,6 +1997,7 @@ blit:
 			goto blit;
 
 		info->client = client;
+		info->draw = draw;
 		info->type = DRI2_ASYNC_FLIP;
 		info->pipe = pipe;
 		info->front = front;
