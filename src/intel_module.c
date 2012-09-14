@@ -103,6 +103,10 @@ static const struct intel_device_info intel_ivybridge_info = {
 	.gen = 70,
 };
 
+static const struct intel_device_info intel_valleyview_info = {
+	.gen = 70,
+};
+
 static const struct intel_device_info intel_haswell_info = {
 	.gen = 75,
 };
@@ -192,6 +196,7 @@ static const SymTabRec _intel_chipsets[] = {
 	{PCI_CHIP_HASWELL_CRW_S_GT1,		"Haswell CRW Server (GT1)" },
 	{PCI_CHIP_HASWELL_CRW_S_GT2,		"Haswell CRW Server (GT2)" },
 	{PCI_CHIP_HASWELL_CRW_S_GT2_PLUS,	"Haswell CRW Server (GT2+)" },
+	{PCI_CHIP_VALLEYVIEW_PO,		"ValleyView PO board" },
 	{-1,					NULL}
 };
 #define NUM_CHIPSETS (sizeof(_intel_chipsets) / sizeof(_intel_chipsets[0]))
@@ -300,6 +305,8 @@ static const struct pci_id_match intel_device_match[] = {
 	INTEL_DEVICE_MATCH (PCI_CHIP_HASWELL_CRW_S_GT1, &intel_haswell_info ),
 	INTEL_DEVICE_MATCH (PCI_CHIP_HASWELL_CRW_S_GT2, &intel_haswell_info ),
 	INTEL_DEVICE_MATCH (PCI_CHIP_HASWELL_CRW_S_GT2_PLUS, &intel_haswell_info ),
+
+	INTEL_DEVICE_MATCH (PCI_CHIP_VALLEYVIEW_PO, &intel_valleyview_info ),
 
 	INTEL_DEVICE_MATCH (PCI_MATCH_ANY, &intel_generic_info ),
 	{ 0, 0, 0 },
