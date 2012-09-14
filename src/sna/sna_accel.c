@@ -4410,7 +4410,8 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			sna_damage_destroy(&dst_priv->cpu_damage);
 			list_del(&dst_priv->list);
 		}
-		hint |= IGNORE_CPU;
+		if (region->data == NULL)
+			hint |= IGNORE_CPU;
 	}
 
 	bo = sna_drawable_use_bo(&dst_pixmap->drawable, hint,
