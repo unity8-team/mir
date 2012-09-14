@@ -2495,6 +2495,7 @@ sna_page_flip(struct sna *sna,
 	int count;
 
 	DBG(("%s: handle %d attached\n", __FUNCTION__, bo->handle));
+	assert(bo->refcnt);
 
 	kgem_submit(&sna->kgem);
 

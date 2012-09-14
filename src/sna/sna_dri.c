@@ -115,6 +115,7 @@ get_private(DRI2Buffer2Ptr buffer)
 
 static inline struct kgem_bo *ref(struct kgem_bo *bo)
 {
+	assert(bo->refcnt);
 	bo->refcnt++;
 	return bo;
 }
@@ -877,6 +878,8 @@ sna_dri_remove_frame_event(WindowPtr win,
 
 	while (chain->chain != info)
 		chain = chain->chain;
+	assert(chain != info);
+	assert(info->chain != chain);
 	chain->chain = info->chain;
 }
 
@@ -912,8 +915,11 @@ sna_dri_add_frame_event(DrawablePtr draw, struct sna_dri_frame_event *info)
 		return;
 	}
 
+	assert(chain != info);
 	while (chain->chain != NULL)
 		chain = chain->chain;
+
+	assert(chain != info);
 	chain->chain = info;
 }
 
@@ -2031,6 +2037,7 @@ blit:
 				    CREATE_SCANOUT | CREATE_EXACT);
 		name = kgem_bo_flink(&sna->kgem, bo);
 	}
+	assert(bo->refcnt);
 	get_private(info->back)->bo = bo;
 	info->back->name = name;
 
