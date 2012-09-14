@@ -50,7 +50,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #error DRI2 version supported by the Xserver is too old
 #endif
 
-#if DRI2INFOREC_VERSION < 9
+#if DRI2INFOREC_VERSION < 10
 #define USE_ASYNC_SWAP 0
 #endif
 
@@ -2250,7 +2250,7 @@ bool sna_dri_open(struct sna *sna, ScreenPtr screen)
 #endif
 
 #if USE_ASYNC_SWAP
-	info.version = 9;
+	info.version = 10;
 	info.AsyncSwap = sna_dri_async_swap;
 #endif
 
