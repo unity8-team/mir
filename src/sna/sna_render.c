@@ -1500,7 +1500,7 @@ sna_render_picture_fixup(struct sna *sna,
 		DBG(("%s: alphamap\n", __FUNCTION__));
 		if (is_gpu(picture->pDrawable) || is_gpu(picture->alphaMap->pDrawable)) {
 			return sna_render_picture_flatten(sna, picture, channel,
-							  x, y, w, y, dst_x, dst_y);
+							  x, y, w, h, dst_x, dst_y);
 		}
 
 		goto do_fixup;
