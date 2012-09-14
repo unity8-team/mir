@@ -51,6 +51,8 @@
 
 #include "intel_options.h"
 
+#define KNOWN_MODE_FLAGS ((1<<14)-1)
+
 #if 0
 #define __DBG DBG
 #else
@@ -549,13 +551,16 @@ mode_from_kmode(ScrnInfoPtr scrn,
 	mode->VTotal = kmode->vtotal;
 	mode->VScan = kmode->vscan;
 
-	mode->Flags = kmode->flags; //& FLAG_BITS;
+	mode->Flags = kmode->flags;
 	mode->name = strdup(kmode->name);
 
 	if (kmode->type & DRM_MODE_TYPE_DRIVER)
 		mode->type = M_T_DRIVER;
 	if (kmode->type & DRM_MODE_TYPE_PREFERRED)
 		mode->type |= M_T_PREFERRED;
+
+	if (mode->status == MODE_OK && kmode->flags & ~KNOWN_MODE_FLAGS)
+		mode->status = MODE_BAD; /* unknown flags => unhandled */
 
 	xf86SetModeCrtc (mode, scrn->adjustFlags);
 }
@@ -578,7 +583,7 @@ mode_to_kmode(struct drm_mode_modeinfo *kmode, DisplayModePtr mode)
 	kmode->vtotal = mode->VTotal;
 	kmode->vscan = mode->VScan;
 
-	kmode->flags = mode->Flags; //& FLAG_BITS;
+	kmode->flags = mode->Flags;
 	if (mode->name)
 		strncpy(kmode->name, mode->name, DRM_DISPLAY_MODE_LEN);
 	kmode->name[DRM_DISPLAY_MODE_LEN-1] = 0;
