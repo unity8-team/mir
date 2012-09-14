@@ -941,9 +941,6 @@ sna_dri_frame_event_info_free(struct sna *sna,
 	if (info->old_front.bo)
 		kgem_bo_destroy(&sna->kgem, info->old_front.bo);
 
-	if (info->next_front.bo)
-		kgem_bo_destroy(&sna->kgem, info->next_front.bo);
-
 	if (info->cache.bo)
 		kgem_bo_destroy(&sna->kgem, info->cache.bo);
 
@@ -1431,7 +1428,6 @@ static void sna_dri_flip_event(struct sna *sna,
 
 			flip->cache = flip->old_front;
 			flip->old_front = flip->next_front;
-			flip->next_front.bo = NULL;
 
 			flip->count = sna_page_flip(sna,
 						    get_private(flip->front)->bo,
@@ -1457,8 +1453,6 @@ static void sna_dri_flip_event(struct sna *sna,
 			sna->dri.flip_pending = flip;
 		} else {
 finish_async_flip:
-			flip->next_front.bo = NULL;
-
 			DBG(("%s: async flip completed\n", __FUNCTION__));
 			sna_dri_frame_event_info_free(sna, draw, flip);
 		}
