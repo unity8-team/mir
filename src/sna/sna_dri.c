@@ -196,11 +196,13 @@ static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 
 constant static inline void *sna_pixmap_get_buffer(PixmapPtr pixmap)
 {
+	assert(pixmap->refcnt);
 	return ((void **)dixGetPrivateAddr(&pixmap->devPrivates, &sna_pixmap_key))[2];
 }
 
 static inline void sna_pixmap_set_buffer(PixmapPtr pixmap, void *ptr)
 {
+	assert(pixmap->refcnt);
 	((void **)dixGetPrivateAddr(&pixmap->devPrivates, &sna_pixmap_key))[2] = ptr;
 }
 
@@ -429,8 +431,11 @@ static void set_bo(PixmapPtr pixmap, struct kgem_bo *bo)
 	sna_damage_destroy(&priv->cpu_damage);
 	priv->undamaged = false;
 
-	kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
-	priv->gpu_bo = ref(bo);
+	assert(bo->refcnt);
+	if (priv->gpu_bo != bo) {
+		kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
+		priv->gpu_bo = ref(bo);
+	}
 	if (bo->domain != DOMAIN_GPU)
 		bo->domain = DOMAIN_NONE;
 
