@@ -880,8 +880,10 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	     kgem->has_llc, kgem->has_cacheing, kgem->has_userptr));
 
 	VG_CLEAR(aperture);
-	aperture.aper_size = 64*1024*1024;
+	aperture.aper_size = 0;
 	(void)drmIoctl(fd, DRM_IOCTL_I915_GEM_GET_APERTURE, &aperture);
+	if (aperture.aper_size == 0)
+		aperture.aper_size = 64*1024*1024;
 
 	kgem->aperture_total = aperture.aper_size;
 	kgem->aperture_high = aperture.aper_size * 3/4;
@@ -948,11 +950,6 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	kgem->large_object_size = MAX_CACHE_SIZE;
 	if (kgem->large_object_size > kgem->max_gpu_size)
 		kgem->large_object_size = kgem->max_gpu_size;
-
-	if (kgem->max_upload_tile_size > kgem->large_object_size)
-		kgem->max_upload_tile_size = kgem->large_object_size;
-	if (kgem->max_copy_tile_size > kgem->large_object_size)
-		kgem->max_copy_tile_size = kgem->large_object_size;
 
 	if (kgem->has_llc | kgem->has_cacheing | kgem->has_userptr) {
 		if (kgem->large_object_size > kgem->max_cpu_size)
