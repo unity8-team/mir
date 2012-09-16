@@ -1,3 +1,10 @@
+xserver-xorg-video-intel (2:2.19.0-6) unstable; urgency=low
+
+  * Stop installing i915-kms.conf.  It's not necessary with the wheezy kernel.
+    Keep it around on upgrade, though, to allow booting on the squeeze kernel.
+
+ -- Julien Cristau <jcristau@debian.org>  Sun, 16 Sep 2012 20:46:52 +0200
+
 xserver-xorg-video-intel (2:2.19.0-5) unstable; urgency=high
 
   * Reduce maximum thread count for IVB GT1 to avoid spontaneous combustion
