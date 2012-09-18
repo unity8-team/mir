@@ -1,3 +1,49 @@
+Release 2.20.8 (2012-09-16)
+===========================
+Another new small feature, another new release. And a few more bugs
+fixed as well! But what is this new feature, do I hear you ask? Why, it
+is nothing less than enabling the ValleyView SDV! The lucky person to
+have their hands on one will now be able to enjoy X in full TechniColor.
+
+For the rest of us, a few more bugs were fixed with interesting
+combinations of software and rendering patterns.
+
+ * Add an extra layer of defence against trying to use a non-GEM device
+   with UXA. This should already be taken care of with the new probe,
+   but the extra sanity check already existed in the code but was doing
+   nothing.
+   https://bugs.launchpad.net/ubuntu/+source/xserver-xorg-video-intel/+bug/962892
+
+ * Fix computation of valid CRTCs bitmask for ZaphodHead
+   Some systems can only handle certain outputs on certain pipes
+   (Screens), and this information was not being propagated through to X
+   and randr correctly, breaking valid configurations and not detecting
+   invalid configurations correctly.
+
+ * Disable global glyph caching with ZaphodHeads.
+   The glyph privates need to be Screen private, but at the moment are
+   global leading to conflicts and invalid rendering with multiple heads.
+   https://bugs.freedesktop.org/show_bug.cgi?id=54707
+
+ * Prevent direct read back of unmappable buffers
+   https://bugs.freedesktop.org/show_bug.cgi?id=54808
+
+ * Tile large uploads whilst replacing the alpha channel
+   https://bugs.freedesktop.org/show_bug.cgi?id=54808
+
+ * Correct the source offset when converting a RENDER composite
+   operation into a BLT composite operation.
+   https://bugs.freedesktop.org/show_bug.cgi?id=54868
+
+ * Correct a minor typo in flattening alphamaps which caused the
+   replacement pixmap to often end up with a height of zero.
+   https://bugs.gentoo.org/show_bug.cgi?id=434860
+
+ * Don't discard the CPU damage if only part of is being replaced.
+   This is most evident when combining software renders like Opera with
+   accelerated rendering.
+   https://bugs.freedesktop.org/show_bug.cgi?id=54937
+
 Release 2.20.7 (2012-09-08)
 ===========================
 Continuing the flurry of releases, this week saw the release of
@@ -7,7 +53,7 @@ light of that advance, this release includes the support code by Dave
 Airlie to integrate PRIME into xf86-video-intel and make those new
 features available.
 
-Aside from landing PRIME, a few other bugs were fixed since 2.20.5:
+Aside from landing PRIME, a few other bugs were fixed since 2.20.6:
 
  * Fix framebuffer leak on server regeneration
 

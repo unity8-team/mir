@@ -123,6 +123,7 @@ struct kgem {
 
 	struct list flushing;
 	struct list large;
+	struct list large_inactive;
 	struct list active[NUM_CACHE_BUCKETS][3];
 	struct list inactive[NUM_CACHE_BUCKETS];
 	struct list snoop;
@@ -532,6 +533,8 @@ static inline bool __kgem_bo_is_busy(struct kgem *kgem, struct kgem_bo *bo)
 {
 	DBG(("%s: handle=%d, domain: %d exec? %d, rq? %d\n", __FUNCTION__,
 	     bo->handle, bo->domain, bo->exec != NULL, bo->rq != NULL));
+	if (kgem_flush(kgem))
+		kgem_submit(kgem);
 	if (bo->rq && !bo->exec)
 		kgem_retire(kgem);
 	return kgem_bo_is_busy(bo);

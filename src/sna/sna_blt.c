@@ -1866,10 +1866,11 @@ clear:
 			     __FUNCTION__));
 		} else {
 			ret = prepare_blt_copy(sna, tmp, bo, alpha_fixup);
-			if (fallback)
-				ret = prepare_blt_put(sna, tmp, alpha_fixup);
+			if (fallback && !ret)
+				goto put;
 		}
 	} else {
+put:
 		if (!tmp->dst.bo) {
 			RegionRec region;
 
@@ -1879,6 +1880,14 @@ clear:
 			if (!sna_drawable_move_region_to_cpu(dst->pDrawable, &region,
 							MOVE_INPLACE_HINT | MOVE_WRITE))
 				return false;
+		} else {
+			if (tmp->dst.bo == sna_pixmap(tmp->dst.pixmap)->cpu_bo) {
+				assert(kgem_bo_is_busy(tmp->dst.bo));
+				tmp->dst.bo = sna_drawable_use_bo(dst->pDrawable,
+								  FORCE_GPU | PREFER_GPU,
+								  &dst_box,
+								  &tmp->damage);
+			}
 		}
 		ret = prepare_blt_put(sna, tmp, alpha_fixup);
 	}
@@ -1905,7 +1914,6 @@ bool
 sna_blt_composite__convert(struct sna *sna,
 			   int x, int y,
 			   int width, int height,
-			   int dst_x, int dst_y,
 			   struct sna_composite_op *tmp)
 {
 	uint32_t alpha_fixup;
@@ -1981,8 +1989,8 @@ sna_blt_composite__convert(struct sna *sna,
 	}
 
 	tmp->u.blt.src_pixmap = NULL;
-	tmp->u.blt.sx = x - dst_x;
-	tmp->u.blt.sy = y - dst_y;
+	tmp->u.blt.sx = tmp->src.offset[0];
+	tmp->u.blt.sy = tmp->src.offset[1];
 	DBG(("%s: blt dst offset (%d, %d), source offset (%d, %d), with alpha fixup? %x\n",
 	     __FUNCTION__,
 	     tmp->dst.x, tmp->dst.y, tmp->u.blt.sx, tmp->u.blt.sy, alpha_fixup));

@@ -83,6 +83,13 @@ struct gt_info {
 	} urb;
 };
 
+static const struct gt_info ivb_gt_info = {
+	.max_vs_threads = 16,
+	.max_gs_threads = 16,
+	.max_wm_threads = (16-1) << IVB_PS_MAX_THREADS_SHIFT,
+	.urb = { 128, 64, 64 },
+};
+
 static const struct gt_info ivb_gt1_info = {
 	.max_vs_threads = 36,
 	.max_gs_threads = 36,
@@ -2811,9 +2818,7 @@ gen7_render_composite(struct sna *sna,
 		if (mask == NULL &&
 		    prefer_blt_composite(sna, tmp) &&
 		    sna_blt_composite__convert(sna,
-					       src_x, src_y,
-					       width, height,
-					       dst_x, dst_y,
+					       dst_x, dst_y, width, height,
 					       tmp))
 			return true;
 
@@ -4257,9 +4262,12 @@ static bool gen7_render_setup(struct sna *sna)
 	int i, j, k, l, m;
 
 	if (sna->kgem.gen == 70) {
-		state->info = &ivb_gt1_info;
-		if (DEVICE_ID(sna->PciInfo) & 0x20)
-			state->info = &ivb_gt2_info; /* XXX requires GT_MODE WiZ disabled */
+		state->info = &ivb_gt_info;
+		if (DEVICE_ID(sna->PciInfo) & 0xf) {
+			state->info = &ivb_gt1_info;
+			if (DEVICE_ID(sna->PciInfo) & 0x20)
+				state->info = &ivb_gt2_info; /* XXX requires GT_MODE WiZ disabled */
+		}
 	} else if (sna->kgem.gen == 75) {
 		state->info = &hsw_gt_info;
 	} else

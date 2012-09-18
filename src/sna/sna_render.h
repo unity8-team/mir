@@ -574,7 +574,6 @@ bool sna_blt_composite(struct sna *sna,
 bool sna_blt_composite__convert(struct sna *sna,
 				int x, int y,
 				int width, int height,
-				int dst_x, int dst_y,
 				struct sna_composite_op *tmp);
 
 bool sna_blt_fill(struct sna *sna, uint8_t alu,

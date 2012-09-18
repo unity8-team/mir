@@ -50,7 +50,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #error DRI2 version supported by the Xserver is too old
 #endif
 
-#if DRI2INFOREC_VERSION < 9
+#if DRI2INFOREC_VERSION < 10
 #define USE_ASYNC_SWAP 0
 #endif
 
@@ -115,6 +115,7 @@ get_private(DRI2Buffer2Ptr buffer)
 
 static inline struct kgem_bo *ref(struct kgem_bo *bo)
 {
+	assert(bo->refcnt);
 	bo->refcnt++;
 	return bo;
 }
@@ -195,11 +196,13 @@ static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 
 constant static inline void *sna_pixmap_get_buffer(PixmapPtr pixmap)
 {
+	assert(pixmap->refcnt);
 	return ((void **)dixGetPrivateAddr(&pixmap->devPrivates, &sna_pixmap_key))[2];
 }
 
 static inline void sna_pixmap_set_buffer(PixmapPtr pixmap, void *ptr)
 {
+	assert(pixmap->refcnt);
 	((void **)dixGetPrivateAddr(&pixmap->devPrivates, &sna_pixmap_key))[2] = ptr;
 }
 
@@ -428,8 +431,11 @@ static void set_bo(PixmapPtr pixmap, struct kgem_bo *bo)
 	sna_damage_destroy(&priv->cpu_damage);
 	priv->undamaged = false;
 
-	kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
-	priv->gpu_bo = ref(bo);
+	assert(bo->refcnt);
+	if (priv->gpu_bo != bo) {
+		kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
+		priv->gpu_bo = ref(bo);
+	}
 	if (bo->domain != DOMAIN_GPU)
 		bo->domain = DOMAIN_NONE;
 
@@ -877,6 +883,8 @@ sna_dri_remove_frame_event(WindowPtr win,
 
 	while (chain->chain != info)
 		chain = chain->chain;
+	assert(chain != info);
+	assert(info->chain != chain);
 	chain->chain = info->chain;
 }
 
@@ -912,8 +920,11 @@ sna_dri_add_frame_event(DrawablePtr draw, struct sna_dri_frame_event *info)
 		return;
 	}
 
+	assert(chain != info);
 	while (chain->chain != NULL)
 		chain = chain->chain;
+
+	assert(chain != info);
 	chain->chain = info;
 }
 
@@ -929,9 +940,6 @@ sna_dri_frame_event_info_free(struct sna *sna,
 
 	if (info->old_front.bo)
 		kgem_bo_destroy(&sna->kgem, info->old_front.bo);
-
-	if (info->next_front.bo)
-		kgem_bo_destroy(&sna->kgem, info->next_front.bo);
 
 	if (info->cache.bo)
 		kgem_bo_destroy(&sna->kgem, info->cache.bo);
@@ -1411,14 +1419,15 @@ static void sna_dri_flip_event(struct sna *sna,
 		     __FUNCTION__, flip->pipe,
 		     sna->dri.flip_pending != NULL,
 		     flip->front->name != flip->old_front.name));
-		assert(sna->dri.flip_pending == flip);
+
+		if (sna->dri.flip_pending)
+			goto finish_async_flip;
 
 		if (flip->front->name != flip->next_front.name) {
 			DBG(("%s: async flip continuing\n", __FUNCTION__));
 
 			flip->cache = flip->old_front;
 			flip->old_front = flip->next_front;
-			flip->next_front.bo = NULL;
 
 			flip->count = sna_page_flip(sna,
 						    get_private(flip->front)->bo,
@@ -1429,6 +1438,8 @@ static void sna_dri_flip_event(struct sna *sna,
 			flip->next_front.bo = get_private(flip->front)->bo;
 			flip->next_front.name = flip->front->name;
 			flip->off_delay = 5;
+
+			sna->dri.flip_pending = flip;
 		} else if (--flip->off_delay) {
 			DBG(("%s: queuing no-flip [delay=%d]\n",
 			     __FUNCTION__, flip->off_delay));
@@ -1438,12 +1449,11 @@ static void sna_dri_flip_event(struct sna *sna,
 						    flip, flip->pipe);
 			if (flip->count == 0)
 				goto finish_async_flip;
+
+			sna->dri.flip_pending = flip;
 		} else {
 finish_async_flip:
-			flip->next_front.bo = NULL;
-
 			DBG(("%s: async flip completed\n", __FUNCTION__));
-			sna->dri.flip_pending = NULL;
 			sna_dri_frame_event_info_free(sna, draw, flip);
 		}
 		break;
@@ -1986,6 +1996,7 @@ blit:
 			goto blit;
 
 		info->client = client;
+		info->draw = draw;
 		info->type = DRI2_ASYNC_FLIP;
 		info->pipe = pipe;
 		info->front = front;
@@ -2031,6 +2042,7 @@ blit:
 				    CREATE_SCANOUT | CREATE_EXACT);
 		name = kgem_bo_flink(&sna->kgem, bo);
 	}
+	assert(bo->refcnt);
 	get_private(info->back)->bo = bo;
 	info->back->name = name;
 
@@ -2250,7 +2262,7 @@ bool sna_dri_open(struct sna *sna, ScreenPtr screen)
 #endif
 
 #if USE_ASYNC_SWAP
-	info.version = 9;
+	info.version = 10;
 	info.AsyncSwap = sna_dri_async_swap;
 #endif
 
