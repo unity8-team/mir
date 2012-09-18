@@ -5281,6 +5281,10 @@ sna_fill_spans__fill(DrawablePtr drawable,
 			b->y2 = b->y1 + 1;
 			DBG(("%s: (%d, %d), (%d, %d)\n",
 			     __FUNCTION__, b->x1, b->y1, b->x2, b->y2));
+			assert(b->x1 >= drawable->x);
+			assert(b->x2 <= drawable->x + drawable->width);
+			assert(b->y1 >= drawable->y);
+			assert(b->y2 <= drawable->y + drawable->height);
 			if (b->x2 > b->x1) {
 				if (b != box &&
 				    b->y1 == b[-1].y2 &&
