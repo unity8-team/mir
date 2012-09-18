@@ -1784,9 +1784,12 @@ gen7_get_batch(struct sna *sna)
 		DBG(("%s: flushing batch: %d < %d+%d\n",
 		     __FUNCTION__, sna->kgem.surface - sna->kgem.nbatch,
 		     150, 4*8));
-		kgem_submit(&sna->kgem);
+		_kgem_submit(&sna->kgem);
 		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	}
+
+	assert(sna->kgem.mode == KGEM_RENDER);
+	assert(sna->kgem.ring == KGEM_RENDER);
 
 	if (sna->render_state.gen7.needs_invariant)
 		gen7_emit_invariant(sna);

@@ -386,7 +386,8 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 	Gamma zeros = { 0.0, 0.0, 0.0 };
 	int fd;
 
-	DBG(("%s\n", __FUNCTION__));
+	DBG(("%s flags=%x, numEntities=%d\n",
+	     __FUNCTION__, flags, scrn->numEntities));
 
 	if (scrn->numEntities != 1)
 		return FALSE;
