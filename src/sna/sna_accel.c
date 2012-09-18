@@ -12552,9 +12552,6 @@ sna_poly_text8(DrawablePtr drawable, GCPtr gc,
 	long unsigned i, n;
 	uint32_t fg;
 
-	if (drawable->depth < 8)
-		goto fallback;
-
 	for (i = n = 0; i < count; i++) {
 		if (sna_get_glyph8(gc->font, priv, chars[i], &info[n]))
 			n++;
@@ -12579,22 +12576,22 @@ sna_poly_text8(DrawablePtr drawable, GCPtr gc,
 		return x + extents.overallRight;
 
 	if (FORCE_FALLBACK)
-		goto force_fallback;
+		goto fallback;
 
 	if (!ACCEL_POLY_TEXT8)
-		goto force_fallback;
+		goto fallback;
 
 	if (sna_font_too_large(gc->font))
-		goto force_fallback;
+		goto fallback;
 
 	if (!PM_IS_SOLID(drawable, gc->planemask))
-		goto force_fallback;
+		goto fallback;
 
 	if (!gc_is_solid(gc, &fg))
-		goto force_fallback;
+		goto fallback;
 
 	if (!sna_glyph_blt(drawable, gc, x, y, n, info, &region, fg, -1, true)) {
-force_fallback:
+fallback:
 		DBG(("%s: fallback\n", __FUNCTION__));
 		gc->font->get_glyphs(gc->font, count, (unsigned char *)chars,
 				     Linear8Bit, &n, info);
@@ -12615,22 +12612,6 @@ out_gc:
 out:
 	RegionUninit(&region);
 	return x + extents.overallRight;
-
-fallback:
-	DBG(("%s: fallback -- depth=%d\n", __FUNCTION__, drawable->depth));
-	gc->font->get_glyphs(gc->font, count, (unsigned char *)chars,
-			     Linear8Bit, &n, info);
-	if (n == 0)
-		return x;
-
-	extents.overallWidth = x;
-	for (i = 0; i < n; i++)
-		extents.overallWidth += info[i]->metrics.characterWidth;
-
-	DBG(("%s: fallback -- fbPolyGlyphBlt\n", __FUNCTION__));
-	fbPolyGlyphBlt(drawable, gc, x, y, n, info, FONTGLYPHS(gc->font));
-
-	return extents.overallWidth;
 }
 
 static int
@@ -12645,9 +12626,6 @@ sna_poly_text16(DrawablePtr drawable, GCPtr gc,
 	long unsigned i, n;
 	uint32_t fg;
 
-	if (drawable->depth < 8)
-		goto fallback;
-
 	for (i = n = 0; i < count; i++) {
 		if (sna_get_glyph16(gc->font, priv, chars[i], &info[n]))
 			n++;
@@ -12672,22 +12650,22 @@ sna_poly_text16(DrawablePtr drawable, GCPtr gc,
 		return x + extents.overallRight;
 
 	if (FORCE_FALLBACK)
-		goto force_fallback;
+		goto fallback;
 
 	if (!ACCEL_POLY_TEXT16)
-		goto force_fallback;
+		goto fallback;
 
 	if (sna_font_too_large(gc->font))
-		goto force_fallback;
+		goto fallback;
 
 	if (!PM_IS_SOLID(drawable, gc->planemask))
-		goto force_fallback;
+		goto fallback;
 
 	if (!gc_is_solid(gc, &fg))
-		goto force_fallback;
+		goto fallback;
 
 	if (!sna_glyph_blt(drawable, gc, x, y, n, info, &region, fg, -1, true)) {
-force_fallback:
+fallback:
 		DBG(("%s: fallback\n", __FUNCTION__));
 		gc->font->get_glyphs(gc->font, count, (unsigned char *)chars,
 				     FONTLASTROW(gc->font) ? TwoD16Bit : Linear16Bit,
@@ -12709,23 +12687,6 @@ out_gc:
 out:
 	RegionUninit(&region);
 	return x + extents.overallRight;
-
-fallback:
-	DBG(("%s: fallback -- depth=%d\n", __FUNCTION__, drawable->depth));
-	gc->font->get_glyphs(gc->font, count, (unsigned char *)chars,
-			     FONTLASTROW(gc->font) ? TwoD16Bit : Linear16Bit,
-			     &n, info);
-	if (n == 0)
-		return x;
-
-	extents.overallWidth = x;
-	for (i = 0; i < n; i++)
-		extents.overallWidth += info[i]->metrics.characterWidth;
-
-	DBG(("%s: fallback -- fbPolyGlyphBlt\n", __FUNCTION__));
-	fbPolyGlyphBlt(drawable, gc, x, y, n, info, FONTGLYPHS(gc->font));
-
-	return extents.overallWidth;
 }
 
 static void
@@ -12738,9 +12699,6 @@ sna_image_text8(DrawablePtr drawable, GCPtr gc,
 	ExtentInfoRec extents;
 	RegionRec region;
 	long unsigned i, n;
-
-	if (drawable->depth < 8)
-		goto fallback;
 
 	for (i = n = 0; i < count; i++) {
 		if (sna_get_glyph8(gc->font, priv, chars[i], &info[n]))
@@ -12778,20 +12736,20 @@ sna_image_text8(DrawablePtr drawable, GCPtr gc,
 	     region.extents.x2, region.extents.y2));
 
 	if (FORCE_FALLBACK)
-		goto force_fallback;
+		goto fallback;
 
 	if (!ACCEL_IMAGE_TEXT8)
-		goto force_fallback;
+		goto fallback;
 
 	if (sna_font_too_large(gc->font))
-		goto force_fallback;
+		goto fallback;
 
 	if (!PM_IS_SOLID(drawable, gc->planemask))
-		goto force_fallback;
+		goto fallback;
 
 	if (!sna_glyph_blt(drawable, gc, x, y, n, info, &region,
 			   gc->fgPixel, gc->bgPixel, false)) {
-force_fallback:
+fallback:
 		DBG(("%s: fallback\n", __FUNCTION__));
 		gc->font->get_glyphs(gc->font, count, (unsigned char *)chars,
 				     Linear8Bit, &n, info);
@@ -12811,16 +12769,6 @@ out_gc:
 	}
 out:
 	RegionUninit(&region);
-	return;
-
-fallback:
-	DBG(("%s: fallback, depth=%d\n", __FUNCTION__, drawable->depth));
-	gc->font->get_glyphs(gc->font, count, (unsigned char *)chars,
-			     Linear8Bit, &n, info);
-	if (n) {
-		DBG(("%s: fallback -- fbImageGlyphBlt\n", __FUNCTION__));
-		fbImageGlyphBlt(drawable, gc, x, y, n, info, FONTGLYPHS(gc->font));
-	}
 }
 
 static void
@@ -12833,9 +12781,6 @@ sna_image_text16(DrawablePtr drawable, GCPtr gc,
 	ExtentInfoRec extents;
 	RegionRec region;
 	long unsigned i, n;
-
-	if (drawable->depth < 8)
-		goto fallback;
 
 	for (i = n = 0; i < count; i++) {
 		if (sna_get_glyph16(gc->font, priv, chars[i], &info[n]))
@@ -12873,20 +12818,20 @@ sna_image_text16(DrawablePtr drawable, GCPtr gc,
 	     region.extents.x2, region.extents.y2));
 
 	if (FORCE_FALLBACK)
-		goto force_fallback;
+		goto fallback;
 
 	if (!ACCEL_IMAGE_TEXT16)
-		goto force_fallback;
+		goto fallback;
 
 	if (sna_font_too_large(gc->font))
-		goto force_fallback;
+		goto fallback;
 
 	if (!PM_IS_SOLID(drawable, gc->planemask))
-		goto force_fallback;
+		goto fallback;
 
 	if (!sna_glyph_blt(drawable, gc, x, y, n, info, &region,
 			   gc->fgPixel, gc->bgPixel, false)) {
-force_fallback:
+fallback:
 		DBG(("%s: fallback\n", __FUNCTION__));
 		gc->font->get_glyphs(gc->font, count, (unsigned char *)chars,
 				     FONTLASTROW(gc->font) ? TwoD16Bit : Linear16Bit,
@@ -12907,17 +12852,6 @@ out_gc:
 	}
 out:
 	RegionUninit(&region);
-	return;
-
-fallback:
-	DBG(("%s: fallback -- depth=%d\n", __FUNCTION__, drawable->depth));
-	gc->font->get_glyphs(gc->font, count, (unsigned char *)chars,
-			     FONTLASTROW(gc->font) ? TwoD16Bit : Linear16Bit,
-			     &n, info);
-	if (n) {
-		DBG(("%s: fallback -- fbImageGlyphBlt\n", __FUNCTION__));
-		fbImageGlyphBlt(drawable, gc, x, y, n, info, FONTGLYPHS(gc->font));
-	}
 }
 
 /* XXX Damage bypasses the Text interface and so we lose our custom gluphs */
