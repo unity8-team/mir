@@ -13754,6 +13754,7 @@ sna_accel_flush_callback(CallbackListPtr *list,
 			     priv->pixmap->drawable.serialNumber));
 			ret = sna_pixmap_move_to_cpu(priv->pixmap,
 						     MOVE_READ | MOVE_WRITE);
+			assert(!ret || priv->gpu_bo == NULL);
 			if (priv->pixmap->refcnt == 0)
 				__sna_free_pixmap(sna, priv->pixmap, priv);
 		} else {
