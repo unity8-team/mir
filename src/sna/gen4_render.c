@@ -2315,9 +2315,7 @@ gen4_render_composite(struct sna *sna,
 	case 1:
 		if (mask == NULL &&
 		    sna_blt_composite__convert(sna,
-					       src_x, src_y,
-					       width, height,
-					       dst_x, dst_y,
+					       dst_x, dst_y, width, height,
 					       tmp))
 			return true;
 

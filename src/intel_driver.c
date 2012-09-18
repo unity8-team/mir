@@ -505,9 +505,11 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 
 	intel->PciInfo = xf86GetPciInfoForEntity(intel->pEnt->index);
 
-	if (!intel_open_drm_master(scrn))
+	if (!intel_open_drm_master(scrn)) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "Failed to become DRM master.\n");
+		return FALSE;
+	}
 
 	scrn->monitor = scrn->confScreen->monitor;
 	scrn->progClock = TRUE;

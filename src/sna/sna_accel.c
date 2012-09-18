@@ -564,6 +564,11 @@ struct kgem_bo *sna_pixmap_change_tiling(PixmapPtr pixmap, uint32_t tiling)
 		return NULL;
 	}
 
+	if (wedged(sna)) {
+		DBG(("%s: can't convert bo, wedged\n", __FUNCTION__));
+		return NULL;
+	}
+
 	assert_pixmap_damage(pixmap);
 
 	bo = kgem_create_2d(&sna->kgem,
@@ -2613,9 +2618,12 @@ sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
 	}
 
 	if (DAMAGE_IS_ALL(priv->cpu_damage)) {
-		DBG(("%s: use CPU fast path (all-damaged)\n", __FUNCTION__));
-		assert(priv->gpu_damage == NULL);
-		goto use_cpu_bo;
+		if ((flags & FORCE_GPU) == 0 || priv->cpu_bo) {
+			DBG(("%s: use CPU fast path (all-damaged), and not forced-gpu\n",
+			     __FUNCTION__));
+			assert(priv->gpu_damage == NULL);
+			goto use_cpu_bo;
+		}
 	}
 
 	DBG(("%s: gpu? %d, damaged? %d; cpu? %d, damaged? %d\n", __FUNCTION__,
@@ -2653,9 +2661,10 @@ sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
 				}
 			}
 
-			if (priv->cpu_damage) {
-				if ((flags & (PREFER_GPU | FORCE_GPU)) == 0) {
-					DBG(("%s: prefer cpu", __FUNCTION__));
+			if ((flags & FORCE_GPU) == 0 && priv->cpu_damage) {
+				if ((flags & PREFER_GPU) == 0) {
+					DBG(("%s: already damaged and prefer cpu",
+					     __FUNCTION__));
 					goto use_cpu_bo;
 				}
 
@@ -3524,10 +3533,9 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 		}
 
 		/* And mark as having a valid GTT mapping for future uploads */
-		if (priv->stride &&
-		    !kgem_bo_is_busy(priv->gpu_bo)) {
+		if (priv->stride && kgem_bo_can_map(&sna->kgem, priv->gpu_bo)) {
 			pixmap->devPrivate.ptr =
-				kgem_bo_map(&sna->kgem, priv->gpu_bo);
+				kgem_bo_map__async(&sna->kgem, priv->gpu_bo);
 			if (pixmap->devPrivate.ptr) {
 				priv->mapped = true;
 				pixmap->devKind = priv->gpu_bo->pitch;
@@ -4402,7 +4410,8 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			sna_damage_destroy(&dst_priv->cpu_damage);
 			list_del(&dst_priv->list);
 		}
-		hint |= IGNORE_CPU;
+		if (region->data == NULL)
+			hint |= IGNORE_CPU;
 	}
 
 	bo = sna_drawable_use_bo(&dst_pixmap->drawable, hint,
@@ -14357,6 +14366,8 @@ static bool sna_picture_init(ScreenPtr screen)
 	ps->Composite = sna_composite;
 	ps->CompositeRects = sna_composite_rectangles;
 	ps->Glyphs = sna_glyphs;
+	if (xf86IsEntityShared(xf86ScreenToScrn(screen)->entityList[0]))
+		ps->Glyphs = sna_glyphs__shared;
 	ps->UnrealizeGlyph = sna_glyph_unrealize;
 	ps->AddTraps = sna_add_traps;
 	ps->Trapezoids = sna_composite_trapezoids;

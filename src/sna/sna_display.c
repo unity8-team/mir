@@ -51,6 +51,8 @@
 
 #include "intel_options.h"
 
+#define KNOWN_MODE_FLAGS ((1<<14)-1)
+
 #if 0
 #define __DBG DBG
 #else
@@ -549,13 +551,16 @@ mode_from_kmode(ScrnInfoPtr scrn,
 	mode->VTotal = kmode->vtotal;
 	mode->VScan = kmode->vscan;
 
-	mode->Flags = kmode->flags; //& FLAG_BITS;
+	mode->Flags = kmode->flags;
 	mode->name = strdup(kmode->name);
 
 	if (kmode->type & DRM_MODE_TYPE_DRIVER)
 		mode->type = M_T_DRIVER;
 	if (kmode->type & DRM_MODE_TYPE_PREFERRED)
 		mode->type |= M_T_PREFERRED;
+
+	if (mode->status == MODE_OK && kmode->flags & ~KNOWN_MODE_FLAGS)
+		mode->status = MODE_BAD; /* unknown flags => unhandled */
 
 	xf86SetModeCrtc (mode, scrn->adjustFlags);
 }
@@ -578,7 +583,7 @@ mode_to_kmode(struct drm_mode_modeinfo *kmode, DisplayModePtr mode)
 	kmode->vtotal = mode->VTotal;
 	kmode->vscan = mode->VScan;
 
-	kmode->flags = mode->Flags; //& FLAG_BITS;
+	kmode->flags = mode->Flags;
 	if (mode->name)
 		strncpy(kmode->name, mode->name, DRM_DISPLAY_MODE_LEN);
 	kmode->name[DRM_DISPLAY_MODE_LEN-1] = 0;
@@ -804,8 +809,8 @@ static void update_flush_interval(struct sna *sna)
 			continue;
 		}
 
-		DBG(("%s: CRTC:%d (pipe %d) vrefresh=%d\n",
-		     __FUNCTION__,i, to_sna_crtc(crtc)->pipe,
+		DBG(("%s: CRTC:%d (pipe %d) vrefresh=%f\n",
+		     __FUNCTION__, i, to_sna_crtc(crtc)->pipe,
 		     xf86ModeVRefresh(&crtc->mode)));
 		max_vrefresh = max(max_vrefresh, xf86ModeVRefresh(&crtc->mode));
 	}
@@ -2192,7 +2197,6 @@ sna_output_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 	struct drm_mode_get_encoder enc;
 	struct sna_output *sna_output;
 	const char *output_name;
-	const char *s;
 	char name[32];
 
 	koutput = drmModeGetConnector(sna->kgem.fd,
@@ -2212,9 +2216,23 @@ sna_output_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 	snprintf(name, 32, "%s%d", output_name, koutput->connector_type_id);
 
 	if (xf86IsEntityShared(scrn->entityList[0])) {
-		s = xf86GetOptValString(sna->Options, OPTION_ZAPHOD);
-		if (s && !sna_zaphod_match(s, name))
+		const char *str;
+
+		str = xf86GetOptValString(sna->Options, OPTION_ZAPHOD);
+		if (str && !sna_zaphod_match(str, name))
 			goto cleanup_connector;
+
+		if ((enc.possible_crtcs & (1 << scrn->confScreen->device->screen)) == 0) {
+			if (str) {
+				xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+					   "%s is an invalid output for screen (pipe) %d\n",
+					   name, scrn->confScreen->device->screen);
+			}
+			goto cleanup_connector;
+		}
+
+		enc.possible_crtcs = 1;
+		enc.possible_clones = 0;
 	}
 
 	output = xf86OutputCreate(scrn, &sna_output_funcs, name);
@@ -2477,6 +2495,7 @@ sna_page_flip(struct sna *sna,
 	int count;
 
 	DBG(("%s: handle %d attached\n", __FUNCTION__, bo->handle));
+	assert(bo->refcnt);
 
 	kgem_submit(&sna->kgem);
 

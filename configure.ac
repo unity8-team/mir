@@ -23,7 +23,7 @@
 # Initialize Autoconf
 AC_PREREQ([2.60])
 AC_INIT([xf86-video-intel],
-        [2.20.7],
+        [2.20.8],
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
         [xf86-video-intel])
 AC_CONFIG_SRCDIR([Makefile.am])
@@ -85,9 +85,20 @@ fi
 PKG_CHECK_MODULES(GEN4ASM, [intel-gen4asm >= 1.2], [gen4asm=yes], [gen4asm=no])
 AM_CONDITIONAL(HAVE_GEN4ASM, test x$gen4asm = xyes)
 
-PKG_CHECK_MODULES(UDEV, [libudev], [udev=yes], [udev=no])
-if test x"$udev" = xyes; then
-	AC_DEFINE(HAVE_UDEV,1,[Enable udev-based monitor hotplug detection])
+AC_ARG_ENABLE(udev,
+              AS_HELP_STRING([--disable-udev],
+                             [Disable udev-based monitor hotplug detection [default=auto]]),
+              [UDEV="$enableval"],
+              [UDEV=auto])
+
+if test x$UDEV != "xno"; then
+	PKG_CHECK_MODULES(UDEV, [libudev], [udev=yes], [udev=no])
+	if test x$UDEV == xyes -a x$udev != xyes; then
+		AC_MSG_ERROR([udev support requested but not found (libudev)])
+	fi
+	if test x$udev = xyes; then
+		AC_DEFINE(HAVE_UDEV,1,[Enable udev-based monitor hotplug detection])
+	fi
 fi
 
 PKG_CHECK_MODULES(X11, [x11 xrender xext pixman-1], [x11=yes], [x11=no])

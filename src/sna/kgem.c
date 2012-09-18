@@ -858,6 +858,7 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	list_init(&kgem->active_buffers);
 	list_init(&kgem->flushing);
 	list_init(&kgem->large);
+	list_init(&kgem->large_inactive);
 	list_init(&kgem->snoop);
 	for (i = 0; i < ARRAY_SIZE(kgem->inactive); i++)
 		list_init(&kgem->inactive[i]);
@@ -879,8 +880,10 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	     kgem->has_llc, kgem->has_cacheing, kgem->has_userptr));
 
 	VG_CLEAR(aperture);
-	aperture.aper_size = 64*1024*1024;
+	aperture.aper_size = 0;
 	(void)drmIoctl(fd, DRM_IOCTL_I915_GEM_GET_APERTURE, &aperture);
+	if (aperture.aper_size == 0)
+		aperture.aper_size = 64*1024*1024;
 
 	kgem->aperture_total = aperture.aper_size;
 	kgem->aperture_high = aperture.aper_size * 3/4;
@@ -947,6 +950,7 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	kgem->large_object_size = MAX_CACHE_SIZE;
 	if (kgem->large_object_size > kgem->max_gpu_size)
 		kgem->large_object_size = kgem->max_gpu_size;
+
 	if (kgem->has_llc | kgem->has_cacheing | kgem->has_userptr) {
 		if (kgem->large_object_size > kgem->max_cpu_size)
 			kgem->large_object_size = kgem->max_cpu_size;
@@ -1281,11 +1285,14 @@ inline static void kgem_bo_move_to_inactive(struct kgem *kgem,
 	assert(!bo->needs_flush);
 	assert(list_is_empty(&bo->vma));
 
+	kgem->need_expire = true;
+
 	if (bucket(bo) >= NUM_CACHE_BUCKETS) {
-		kgem_bo_free(kgem, bo);
+		list_move(&bo->list, &kgem->large_inactive);
 		return;
 	}
 
+	assert(bo->flush == false);
 	list_move(&bo->list, &kgem->inactive[bucket(bo)]);
 	if (bo->map) {
 		int type = IS_CPU_MAP(bo->map);
@@ -1299,8 +1306,6 @@ inline static void kgem_bo_move_to_inactive(struct kgem *kgem,
 			kgem->vma[type].count++;
 		}
 	}
-
-	kgem->need_expire = true;
 }
 
 inline static void kgem_bo_remove_from_inactive(struct kgem *kgem,
@@ -1504,7 +1509,6 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 	assert(bo->snoop == false);
 	assert(bo->io == false);
 	assert(bo->scanout == false);
-	assert(bo->flush == false);
 
 	if (bo->rq) {
 		struct list *cache;
@@ -2405,6 +2409,13 @@ bool kgem_expire_cache(struct kgem *kgem)
 		free(rq);
 	}
 
+	while (!list_is_empty(&kgem->large_inactive)) {
+		kgem_bo_free(kgem,
+			     list_first_entry(&kgem->large_inactive,
+					      struct kgem_bo, list));
+
+	}
+
 	expire = 0;
 	list_for_each_entry(bo, &kgem->snoop, list) {
 		if (bo->delta) {
@@ -3089,9 +3100,9 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 		     __FUNCTION__, size, bucket));
 
 		if (flags & CREATE_INACTIVE)
-			goto create;
+			goto large_inactive;
 
-		tiled_height = kgem_aligned_height(kgem, height, I915_TILING_Y);
+		tiled_height = kgem_aligned_height(kgem, height, tiling);
 		untiled_pitch = kgem_untiled_pitch(kgem, width, bpp, flags);
 
 		list_for_each_entry(bo, &kgem->large, list) {
@@ -3099,24 +3110,67 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 			assert(bo->refcnt == 0);
 			assert(bo->reusable);
 
-			if (bo->tiling) {
+			if (kgem->gen < 40) {
 				if (bo->pitch < pitch) {
 					DBG(("tiled and pitch too small: tiling=%d, (want %d), pitch=%d, need %d\n",
 					     bo->tiling, tiling,
 					     bo->pitch, pitch));
 					continue;
 				}
-			} else
-				bo->pitch = untiled_pitch;
 
-			if (bo->pitch * tiled_height > bytes(bo))
-				continue;
+				if (bo->pitch * tiled_height > bytes(bo))
+					continue;
+			} else {
+				if (num_pages(bo) < size)
+					continue;
+
+				if (bo->pitch != pitch || bo->tiling != tiling) {
+					if (gem_set_tiling(kgem->fd, bo->handle,
+							   tiling, pitch) != tiling)
+						continue;
+
+					bo->pitch = pitch;
+				}
+			}
 
 			kgem_bo_remove_from_active(kgem, bo);
 
 			bo->unique_id = kgem_get_unique_id(kgem);
 			bo->delta = 0;
 			DBG(("  1:from active: pitch=%d, tiling=%d, handle=%d, id=%d\n",
+			     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
+			assert(bo->pitch*kgem_aligned_height(kgem, height, bo->tiling) <= kgem_bo_size(bo));
+			bo->refcnt = 1;
+			return bo;
+		}
+
+large_inactive:
+		list_for_each_entry(bo, &kgem->large_inactive, list) {
+			assert(bo->refcnt == 0);
+			assert(bo->reusable);
+
+			if (size > num_pages(bo))
+				continue;
+
+			if (bo->tiling != tiling ||
+			    (tiling != I915_TILING_NONE && bo->pitch != pitch)) {
+				if (tiling != gem_set_tiling(kgem->fd,
+							     bo->handle,
+							     tiling, pitch))
+					continue;
+			}
+
+			if (bo->purged && !kgem_bo_clear_purgeable(kgem, bo)) {
+				kgem_bo_free(kgem, bo);
+				break;
+			}
+
+			list_del(&bo->list);
+
+			bo->unique_id = kgem_get_unique_id(kgem);
+			bo->pitch = pitch;
+			bo->delta = 0;
+			DBG(("  1:from large inactive: pitch=%d, tiling=%d, handle=%d, id=%d\n",
 			     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
 			assert(bo->pitch*kgem_aligned_height(kgem, height, bo->tiling) <= kgem_bo_size(bo));
 			bo->refcnt = 1;
@@ -3401,6 +3455,8 @@ search_inactive:
 	}
 
 create:
+	if (bucket >= NUM_CACHE_BUCKETS)
+		size = ALIGN(size, 1024);
 	handle = gem_create(kgem->fd, size);
 	if (handle == 0)
 		return NULL;
@@ -3416,13 +3472,19 @@ create:
 	bo->pitch = pitch;
 	if (tiling != I915_TILING_NONE)
 		bo->tiling = gem_set_tiling(kgem->fd, handle, tiling, pitch);
+	if (bucket >= NUM_CACHE_BUCKETS) {
+		DBG(("%s: marking large bo for automatic flushing\n",
+		     __FUNCTION__));
+		bo->flush = true;
+	}
 
 	assert(bytes(bo) >= bo->pitch * kgem_aligned_height(kgem, height, bo->tiling));
 
 	debug_alloc__bo(kgem, bo);
 
-	DBG(("  new pitch=%d, tiling=%d, handle=%d, id=%d\n",
-	     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
+	DBG(("  new pitch=%d, tiling=%d, handle=%d, id=%d, num_pages=%d [%d], bucket=%d\n",
+	     bo->pitch, bo->tiling, bo->handle, bo->unique_id,
+	     size, num_pages(bo), bucket(bo)));
 	return bo;
 }
 
@@ -3583,14 +3645,23 @@ bool kgem_check_bo(struct kgem *kgem, ...)
 	if (!num_pages)
 		return true;
 
-	if (kgem->aperture > kgem->aperture_low)
+	if (kgem->aperture > kgem->aperture_low && kgem_is_idle(kgem)) {
+		DBG(("%s: current aperture usage (%d) is greater than low water mark (%d)\n",
+		     __FUNCTION__, kgem->aperture, kgem->aperture_low));
 		return false;
+	}
 
-	if (num_pages + kgem->aperture > kgem->aperture_high)
+	if (num_pages + kgem->aperture > kgem->aperture_high) {
+		DBG(("%s: final aperture usage (%d) is greater than high water mark (%d)\n",
+		     __FUNCTION__, num_pages + kgem->aperture, kgem->aperture_high));
 		return false;
+	}
 
-	if (kgem->nexec + num_exec >= KGEM_EXEC_SIZE(kgem))
+	if (kgem->nexec + num_exec >= KGEM_EXEC_SIZE(kgem)) {
+		DBG(("%s: out of exec slots (%d + %d / %d)\n", __FUNCTION__,
+		     kgem->nexec, num_exec, KGEM_EXEC_SIZE(kgem)));
 		return false;
+	}
 
 	return true;
 }
@@ -4157,6 +4228,13 @@ struct kgem_bo *kgem_create_proxy(struct kgem *kgem,
 
 	bo->proxy = kgem_bo_reference(target);
 	bo->delta = offset;
+
+	if (target->exec) {
+		list_move_tail(&bo->request, &kgem->next_request->buffers);
+		bo->exec = &_kgem_dummy_exec;
+	}
+	bo->rq = target->rq;
+
 	return bo;
 }
 

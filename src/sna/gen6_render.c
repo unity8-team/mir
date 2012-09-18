@@ -2708,9 +2708,7 @@ gen6_render_composite(struct sna *sna,
 		if (mask == NULL &&
 		    prefer_blt_composite(sna, tmp) &&
 		    sna_blt_composite__convert(sna,
-					       src_x, src_y,
-					       width, height,
-					       dst_x, dst_y,
+					       dst_x, dst_y, width, height,
 					       tmp))
 			return true;
 

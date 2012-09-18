@@ -2811,17 +2811,6 @@ gen3_render_composite(struct sna *sna,
 		return false;
 	}
 
-#if NO_COMPOSITE
-	if (mask)
-		return false;
-
-	return sna_blt_composite(sna, op,
-				 src, dst,
-				 src_x, src_y,
-				 dst_x, dst_y,
-				 width, height, tmp);
-#endif
-
 	/* Try to use the BLT engine unless it implies a
 	 * 3D -> 2D context switch.
 	 */
@@ -2879,9 +2868,7 @@ gen3_render_composite(struct sna *sna,
 	case 1:
 		if (mask == NULL && tmp->src.bo &&
 		    sna_blt_composite__convert(sna,
-					       src_x, src_y,
-					       width, height,
-					       dst_x, dst_y,
+					       dst_x, dst_y, width, height,
 					       tmp))
 			return true;
 
@@ -4688,7 +4675,9 @@ bool gen3_render_init(struct sna *sna)
 {
 	struct sna_render *render = &sna->render;
 
+#if !NO_COMPOSITE
 	render->composite = gen3_render_composite;
+#endif
 #if !NO_COMPOSITE_SPANS
 	render->check_composite_spans = gen3_check_composite_spans;
 	render->composite_spans = gen3_render_composite_spans;
