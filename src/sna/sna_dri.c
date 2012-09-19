@@ -227,11 +227,15 @@ sna_dri_create_buffer(DrawablePtr draw,
 		pixmap = get_drawable_pixmap(draw);
 		buffer = sna_pixmap_get_buffer(pixmap);
 		if (buffer) {
-			DBG(("%s: reusing front buffer attachment\n",
-			     __FUNCTION__));
-
 			private = get_private(buffer);
+
+			DBG(("%s: reusing front buffer attachment, pixmap=%ld, handle=%d, name=%d\n",
+			     __FUNCTION__, pixmap->drawable.serialNumber,
+			     private->bo->handle, buffer->name));
+
 			assert(private->pixmap == pixmap);
+			assert(sna_pixmap(pixmap)->gpu_bo == private->bo);
+			assert(kgem_bo_flink(&sna->kgem, private->bo) == buffer->name);
 
 			private->refcnt++;
 			return buffer;
@@ -429,6 +433,8 @@ static void set_bo(PixmapPtr pixmap, struct kgem_bo *bo)
 		       pixmap->drawable.width,
 		       pixmap->drawable.height);
 	sna_damage_destroy(&priv->cpu_damage);
+	list_del(&priv->list);
+	priv->cpu = false;
 	priv->undamaged = false;
 
 	assert(bo->refcnt);
@@ -957,6 +963,8 @@ sna_dri_page_flip(struct sna *sna, struct sna_dri_frame_event *info)
 
 	DBG(("%s()\n", __FUNCTION__));
 
+	assert(sna_pixmap_get_buffer(sna->front) == info->front);
+
 	info->count = sna_page_flip(sna, bo, info, info->pipe);
 	if (info->count == 0)
 		return false;
@@ -1152,6 +1160,7 @@ sna_dri_exchange_buffers(DrawablePtr draw,
 	DBG(("%s: front_bo pitch=%d, size=%d\n",
 	     __FUNCTION__, front_bo->pitch, kgem_bo_size(front_bo)));
 
+	assert(sna_pixmap_get_buffer(pixmap) == front);
 	assert(pixmap->drawable.height * back_bo->pitch <= kgem_bo_size(back_bo));
 	assert(pixmap->drawable.height * front_bo->pitch <= kgem_bo_size(front_bo));
 
@@ -1321,6 +1330,8 @@ sna_dri_flip_continue(struct sna *sna,
 	int name;
 
 	DBG(("%s()\n", __FUNCTION__));
+
+	assert(sna_pixmap_get_buffer(get_drawable_pixmap(draw)) == info->front);
 
 	name = info->back->name;
 	bo = get_private(info->back)->bo;
