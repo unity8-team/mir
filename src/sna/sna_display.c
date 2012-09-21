@@ -1630,9 +1630,12 @@ sna_output_attach_edid(xf86OutputPtr output)
 		if (strcmp(prop.name, "EDID"))
 			continue;
 
+		if (koutput->prop_values[i] == 0)
+			continue;
+
 		VG_CLEAR(blob);
 		blob.length = 0;
-		blob.data =0;
+		blob.data = 0;
 		blob.blob_id = koutput->prop_values[i];
 
 		if (drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_GETPROPBLOB, &blob))
