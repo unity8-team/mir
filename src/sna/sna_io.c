@@ -587,6 +587,9 @@ static bool upload_inplace(struct kgem *kgem,
 {
 	unsigned int bytes;
 
+	if (kgem->wedged)
+		return true;
+
 	if (!kgem_bo_can_map(kgem, bo) && !upload_inplace__tiled(kgem, bo))
 		return false;
 
