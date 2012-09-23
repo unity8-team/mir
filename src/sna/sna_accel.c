@@ -3332,6 +3332,16 @@ static int16_t bound(int16_t a, uint16_t b)
 	return v;
 }
 
+static int16_t clamp(int16_t a, int16_t b)
+{
+	int v = (int)a + (int)b;
+	if (v > MAXSHORT)
+		return MAXSHORT;
+	if (v < MINSHORT)
+		return MINSHORT;
+	return v;
+}
+
 static inline bool box32_to_box16(const Box32Rec *b32, BoxRec *b16)
 {
 	b16->x1 = b32->x1;
@@ -4880,10 +4890,10 @@ sna_do_copy(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 		return NULL;
 	}
 
-	region.extents.x1 += sx - dx;
-	region.extents.x2 += sx - dx;
-	region.extents.y1 += sy - dy;
-	region.extents.y2 += sy - dy;
+	region.extents.x1 = clamp(region.extents.x1, sx - dx);
+	region.extents.x2 = clamp(region.extents.x2, sx - dx);
+	region.extents.y1 = clamp(region.extents.y1, sy - dy);
+	region.extents.y2 = clamp(region.extents.y2, sy - dy);
 
 	/* Compute source clip region */
 	clip = NULL;
