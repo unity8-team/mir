@@ -1875,7 +1875,7 @@ clear:
 
 put:
 		priv = sna_pixmap(tmp->dst.pixmap);
-		if (tmp->dst.bo == priv->cpu_bo) {
+		if (priv->cpu_bo && tmp->dst.bo == priv->cpu_bo) {
 			assert(kgem_bo_is_busy(tmp->dst.bo));
 			tmp->dst.bo = sna_drawable_use_bo(dst->pDrawable,
 							  FORCE_GPU | PREFER_GPU,
