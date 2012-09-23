@@ -4867,8 +4867,8 @@ sna_do_copy(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 
 	region.extents.x1 = dx;
 	region.extents.y1 = dy;
-	region.extents.x2 = dx + width;
-	region.extents.y2 = dy + height;
+	region.extents.x2 = bound(dx, width);
+	region.extents.y2 = bound(dy, height);
 	region.data = NULL;
 
 	DBG(("%s: dst extents (%d, %d), (%d, %d)\n", __FUNCTION__,
