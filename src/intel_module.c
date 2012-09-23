@@ -537,6 +537,8 @@ static Bool intel_pci_probe(DriverPtr		driver,
 #if USE_UXA
 	case UXA: return intel_init_scrn(scrn);
 #endif
+
+	default: break;
 	}
 #endif
 
@@ -592,6 +594,8 @@ intel_platform_probe(DriverPtr driver,
 #if USE_UXA
         case UXA: return intel_init_scrn(scrn);
 #endif
+
+	default: break;
 	}
 #endif
 
