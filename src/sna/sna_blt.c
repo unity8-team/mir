@@ -1871,19 +1871,19 @@ clear:
 				goto put;
 		}
 	} else {
-		struct sna_pixmap *priv;
-
 put:
-		priv = sna_pixmap(tmp->dst.pixmap);
-		if (priv->cpu_bo && tmp->dst.bo == priv->cpu_bo) {
-			assert(kgem_bo_is_busy(tmp->dst.bo));
-			tmp->dst.bo = sna_drawable_use_bo(dst->pDrawable,
-							  FORCE_GPU | PREFER_GPU,
-							  &dst_box,
-							  &tmp->damage);
+		if (tmp->dst.bo) {
+			struct sna_pixmap *priv = sna_pixmap(tmp->dst.pixmap);
 			if (tmp->dst.bo == priv->cpu_bo) {
-				DBG(("%s: forcing the stall to overwrite a busy CPU bo\n", __FUNCTION__));
-				tmp->dst.bo = NULL;
+				assert(kgem_bo_is_busy(tmp->dst.bo));
+				tmp->dst.bo = sna_drawable_use_bo(dst->pDrawable,
+								  FORCE_GPU | PREFER_GPU,
+								  &dst_box,
+								  &tmp->damage);
+				if (tmp->dst.bo == priv->cpu_bo) {
+					DBG(("%s: forcing the stall to overwrite a busy CPU bo\n", __FUNCTION__));
+					tmp->dst.bo = NULL;
+				}
 			}
 		}
 
