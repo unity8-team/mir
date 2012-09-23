@@ -68,6 +68,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i915_drm.h"
 
 #include "intel_driver.h"
+#include "intel_options.h"
 #include "intel_list.h"
 #include "compat-api.h"
 
@@ -141,12 +142,6 @@ dri_bo *intel_get_pixmap_bo(PixmapPtr pixmap);
 void intel_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo);
 
 #include "common.h"
-
-#ifdef XvMCExtension
-#ifdef ENABLE_XVMC
-#define INTEL_XVMC 1
-#endif
-#endif
 
 #define PITCH_NONE 0
 
