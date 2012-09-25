@@ -3178,12 +3178,13 @@ static bool must_check sna_gc_move_to_cpu(GCPtr gc,
 	DBG(("%s, changes=%lx\n", __FUNCTION__, changes));
 
 	assert(gc->ops == (GCOps *)&sna_gc_ops);
-	assert(gc->funcs == (GCFuncs *)&sna_gc_funcs);
+	gc->ops = (GCOps *)&sna_gc_ops__cpu;
+
+	sgc->old_funcs = gc->funcs;
+	gc->funcs = (GCFuncs *)&sna_gc_funcs__cpu;
 
 	sgc->priv = gc->pCompositeClip;
 	gc->pCompositeClip = region;
-	gc->ops = (GCOps *)&sna_gc_ops__cpu;
-	gc->funcs = (GCFuncs *)&sna_gc_funcs__cpu;
 
 	if (gc->clientClipType == CT_PIXMAP) {
 		PixmapPtr clip = gc->clientClip;
@@ -3238,7 +3239,7 @@ static void sna_gc_move_to_gpu(GCPtr gc)
 	assert(gc->funcs == (GCFuncs *)&sna_gc_funcs__cpu);
 
 	gc->ops = (GCOps *)&sna_gc_ops;
-	gc->funcs = (GCFuncs *)&sna_gc_funcs;
+	gc->funcs = sna_gc(gc)->old_funcs;
 	gc->pCompositeClip = sna_gc(gc)->priv;
 }
 

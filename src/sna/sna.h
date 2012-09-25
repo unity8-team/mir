@@ -171,6 +171,8 @@ static inline struct sna_pixmap *sna_pixmap_from_drawable(DrawablePtr drawable)
 struct sna_gc {
 	long changes;
 	long serial;
+
+	GCFuncs *old_funcs;
 	void *priv;
 };
 
