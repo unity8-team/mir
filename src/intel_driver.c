@@ -50,7 +50,6 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xf86cmap.h"
 #include "xf86drm.h"
 #include "compiler.h"
-#include "mibstore.h"
 #include "mipointer.h"
 #include "micmap.h"
 #include "shadowfb.h"
