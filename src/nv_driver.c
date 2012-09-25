@@ -1283,7 +1283,6 @@ NVScreenInit(SCREEN_INIT_ARGS_DECL)
 	if (!pNv->NoAccel && !nouveau_exa_init(pScreen))
 		return FALSE;
 
-	miInitializeBackingStore(pScreen);
 	xf86SetBackingStore(pScreen);
 	xf86SetSilkenMouse(pScreen);
 
