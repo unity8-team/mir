@@ -51,7 +51,6 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <mi.h>
 #include <micmap.h>
 #include <mipict.h>
-#include <mibstore.h>
 
 #include "compiler.h"
 #include "sna.h"
