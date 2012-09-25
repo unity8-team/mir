@@ -1817,6 +1817,9 @@ sna_output_dpms(xf86OutputPtr output, int dpms)
 
 	DBG(("%s: dpms=%d\n", __FUNCTION__, dpms));
 
+	if (dpms != DPMSModeOn)
+		kgem_submit(&sna->kgem);
+
 	for (i = 0; i < koutput->count_props; i++) {
 		struct drm_mode_get_property prop;
 
