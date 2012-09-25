@@ -3506,7 +3506,9 @@ gen5_render_context_switch(struct kgem *kgem,
 	if (!kgem->mode)
 		return;
 
-	/* Ironlake has a limitation that a 3D or Media command can't
+	/* WaNonPipelinedStateCommandFlush
+	 *
+	 * Ironlake has a limitation that a 3D or Media command can't
 	 * be the first command after a BLT, unless it's
 	 * non-pipelined.
 	 *
