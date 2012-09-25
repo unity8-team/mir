@@ -1147,7 +1147,7 @@ sna_dri_exchange_buffers(DrawablePtr draw,
 	back_bo = get_private(back)->bo;
 	front_bo = get_private(front)->bo;
 
-	DBG(("%s: exchange front=%d/%d and back=%d/%d, pixmap=%ld %x%d\n",
+	DBG(("%s: exchange front=%d/%d and back=%d/%d, pixmap=%ld %dx%d\n",
 	     __FUNCTION__,
 	     front_bo->handle, front->name,
 	     back_bo->handle, back->name,
