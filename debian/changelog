@@ -1,3 +1,11 @@
+xserver-xorg-video-intel (2:2.20.8-0ubuntu2) quantal; urgency=low
+
+  * dont-run-intel-mode-fini-before-preinit.diff, don't crash if
+    Screen is deleted before the driver has fully initialized.
+    (LP: #1053836)
+
+ -- Timo Aaltonen <tjaalton@ubuntu.com>  Wed, 26 Sep 2012 15:14:07 +0300
+
 xserver-xorg-video-intel (2:2.20.8-0ubuntu1) quantal; urgency=low
 
   * Merge from unreleased debian git.
