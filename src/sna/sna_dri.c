@@ -1322,20 +1322,18 @@ done:
 }
 
 static int
-sna_dri_flip_continue(struct sna *sna,
-		      DrawablePtr draw,
-		      struct sna_dri_frame_event *info)
+sna_dri_flip_continue(struct sna *sna, struct sna_dri_frame_event *info)
 {
 	struct kgem_bo *bo;
 	int name;
 
 	DBG(("%s()\n", __FUNCTION__));
 
-	assert(sna_pixmap_get_buffer(get_drawable_pixmap(draw)) == info->front);
+	assert(sna_pixmap_get_buffer(get_drawable_pixmap(info->draw)) == info->front);
 
 	name = info->back->name;
 	bo = get_private(info->back)->bo;
-	assert(get_drawable_pixmap(draw)->drawable.height * bo->pitch <= kgem_bo_size(bo));
+	assert(get_drawable_pixmap(info->draw)->drawable.height * bo->pitch <= kgem_bo_size(bo));
 
 	info->count = sna_page_flip(sna, bo, info, info->pipe);
 	if (info->count == 0)
@@ -1362,8 +1360,6 @@ sna_dri_flip_continue(struct sna *sna,
 static void sna_dri_flip_event(struct sna *sna,
 			       struct sna_dri_frame_event *flip)
 {
-	DrawablePtr draw;
-
 	DBG(("%s(frame=%d, tv=%d.%06d, type=%d)\n",
 	     __FUNCTION__,
 	     flip->fe_frame,
@@ -1374,35 +1370,31 @@ static void sna_dri_flip_event(struct sna *sna,
 	if (sna->dri.flip_pending == flip)
 		sna->dri.flip_pending = NULL;
 
-	draw = flip->draw;
-	if (draw == NULL) {
-		DBG(("%s: drawable already gone\n", __FUNCTION__));
-		sna_dri_frame_event_info_free(sna, draw, flip);
-		return;
-	}
-
 	/* We assume our flips arrive in order, so we don't check the frame */
 	switch (flip->type) {
 	case DRI2_FLIP:
-		DBG(("%s: flip complete\n", __FUNCTION__));
-		DRI2SwapComplete(flip->client, draw,
-				 flip->fe_frame,
-				 flip->fe_tv_sec,
-				 flip->fe_tv_usec,
-				 DRI2_FLIP_COMPLETE,
-				 flip->client ? flip->event_complete : NULL,
-				 flip->event_data);
+		DBG(("%s: flip complete (drawable gone? %d)\n"
+		     , __FUNCTION__, flp->draw == NULL));
+		if (flip->draw)
+			DRI2SwapComplete(flip->client, flip->draw,
+					 flip->fe_frame,
+					 flip->fe_tv_sec,
+					 flip->fe_tv_usec,
+					 DRI2_FLIP_COMPLETE,
+					 flip->client ? flip->event_complete : NULL,
+					 flip->event_data);
 
-		sna_dri_frame_event_info_free(sna, draw, flip);
+		sna_dri_frame_event_info_free(sna, flip->draw, flip);
 		break;
 
 	case DRI2_FLIP_THROTTLE:
 		if (!flip->next_front.name) {
 			DBG(("%s: flip chain complete\n", __FUNCTION__));
-			sna_dri_frame_event_info_free(sna, draw, flip);
-		} else if (can_flip(sna, draw, flip->front, flip->back) &&
-			   sna_dri_flip_continue(sna, draw, flip)) {
-			DRI2SwapComplete(flip->client, draw,
+			sna_dri_frame_event_info_free(sna, flip->draw, flip);
+		} else if (flip->draw &&
+			   can_flip(sna, flip->draw, flip->front, flip->back) &&
+			   sna_dri_flip_continue(sna, flip)) {
+			DRI2SwapComplete(flip->client, flip->draw,
 					 0, 0, 0,
 					 DRI2_FLIP_COMPLETE,
 					 flip->client ? flip->event_complete : NULL,
@@ -1410,17 +1402,19 @@ static void sna_dri_flip_event(struct sna *sna,
 		} else {
 			DBG(("%s: no longer able to flip\n", __FUNCTION__));
 
-			flip->bo = sna_dri_copy_to_front(sna, draw, NULL,
-							 get_private(flip->front)->bo,
-							 get_private(flip->back)->bo,
-							 false);
-			DRI2SwapComplete(flip->client, draw,
-					 0, 0, 0,
-					 DRI2_BLIT_COMPLETE,
-					 flip->client ? flip->event_complete : NULL,
-					 flip->event_data);
+			if (flip->draw) {
+				flip->bo = sna_dri_copy_to_front(sna, flip->draw, NULL,
+								 get_private(flip->front)->bo,
+								 get_private(flip->back)->bo,
+								 false);
+				DRI2SwapComplete(flip->client, flip->draw,
+						 0, 0, 0,
+						 DRI2_BLIT_COMPLETE,
+						 flip->client ? flip->event_complete : NULL,
+						 flip->event_data);
+			}
 
-			sna_dri_frame_event_info_free(sna, draw, flip);
+			sna_dri_frame_event_info_free(sna, flip->draw, flip);
 		}
 		break;
 
@@ -1451,7 +1445,7 @@ static void sna_dri_flip_event(struct sna *sna,
 			flip->off_delay = 5;
 
 			sna->dri.flip_pending = flip;
-		} else if (--flip->off_delay) {
+		} else if (flip->draw && --flip->off_delay) {
 			DBG(("%s: queuing no-flip [delay=%d]\n",
 			     __FUNCTION__, flip->off_delay));
 			/* Just queue a no-op flip to trigger another event */
@@ -1465,7 +1459,7 @@ static void sna_dri_flip_event(struct sna *sna,
 		} else {
 finish_async_flip:
 			DBG(("%s: async flip completed\n", __FUNCTION__));
-			sna_dri_frame_event_info_free(sna, draw, flip);
+			sna_dri_frame_event_info_free(sna, flip->draw, flip);
 		}
 		break;
 #endif
