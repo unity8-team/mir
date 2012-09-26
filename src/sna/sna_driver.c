@@ -884,7 +884,6 @@ sna_screen_init(SCREEN_INIT_ARGS_DECL)
 
 	xf86SetBlackWhitePixels(screen);
 
-	miInitializeBackingStore(screen);
 	xf86SetBackingStore(screen);
 	xf86SetSilkenMouse(screen);
 	if (!miDCInitialize(screen, xf86GetPointerScreenFuncs()))

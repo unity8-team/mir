@@ -960,7 +960,6 @@ I830ScreenInit(SCREEN_INIT_ARGS_DECL)
 		return FALSE;
 	}
 
-	miInitializeBackingStore(screen);
 	xf86SetBackingStore(screen);
 	xf86SetSilkenMouse(screen);
 	miDCInitialize(screen, xf86GetPointerScreenFuncs());

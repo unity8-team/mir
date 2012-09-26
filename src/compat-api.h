@@ -103,10 +103,4 @@
 
 #endif
 
-#if ABI_VIDEODRV_VERSION >= SET_ABI_VERSION(13, 0)
-#define miInitializeBackingStore(x) do {} while (0)
-#else
-#include "mibstore.h"
-#endif
-
 #endif
