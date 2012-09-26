@@ -1770,6 +1770,9 @@ intel_mode_fini(intel_screen_private *intel)
 {
 	struct intel_mode *mode = intel->modes;
 
+	if (mode == NULL)
+		return;
+
 	while(!list_is_empty(&mode->crtcs)) {
 		xf86CrtcDestroy(list_first_entry(&mode->crtcs,
 						 struct intel_crtc,
