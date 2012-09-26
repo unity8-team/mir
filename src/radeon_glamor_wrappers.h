@@ -42,7 +42,6 @@
 #include "pixmapstr.h"
 #include "windowstr.h"
 #include "servermd.h"
-#include "mibstore.h"
 #include "colormapst.h"
 #include "gcstruct.h"
 #include "input.h"

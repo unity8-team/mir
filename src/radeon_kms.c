@@ -1215,12 +1215,7 @@ Bool RADEONScreenInit_KMS(SCREEN_INIT_ARGS_DECL)
 #endif
 
     pScrn->vtSema = TRUE;
-    /* Backing store setup */
-    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
-		   "Initializing backing store\n");
-    miInitializeBackingStore(pScreen);
     xf86SetBackingStore(pScreen);
-
 
     if (info->directRenderingEnabled) {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Direct rendering enabled\n");
