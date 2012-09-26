@@ -260,9 +260,9 @@ NV40EXAPictTexture(NVPtr pNv, PixmapPtr pPix, PicturePtr pPict, int unit)
 	if (pPict->repeat) {
 		switch(pPict->repeatType) {
 		case RepeatPad:
-			PUSH_DATA (push, NV30_3D_TEX_WRAP_S_CLAMP | 
-					 NV30_3D_TEX_WRAP_T_CLAMP |
-					 NV30_3D_TEX_WRAP_R_CLAMP);
+			PUSH_DATA (push, NV30_3D_TEX_WRAP_S_CLAMP_TO_EDGE |
+					 NV30_3D_TEX_WRAP_T_CLAMP_TO_EDGE |
+					 NV30_3D_TEX_WRAP_R_CLAMP_TO_EDGE);
 			break;
 		case RepeatReflect:
 			PUSH_DATA (push, NV30_3D_TEX_WRAP_S_MIRRORED_REPEAT |

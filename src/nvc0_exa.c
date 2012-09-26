@@ -659,9 +659,9 @@ NVC0EXAPictTexture(NVPtr pNv, PixmapPtr ppix, PicturePtr ppict, unsigned unit)
 		switch (ppict->repeatType) {
 		case RepeatPad:
 			PUSH_DATA (push, 0x00024000 |
-					 NV50TSC_1_0_WRAPS_CLAMP |
-					 NV50TSC_1_0_WRAPT_CLAMP |
-					 NV50TSC_1_0_WRAPR_CLAMP);
+					 NV50TSC_1_0_WRAPS_CLAMP_TO_EDGE |
+					 NV50TSC_1_0_WRAPT_CLAMP_TO_EDGE |
+					 NV50TSC_1_0_WRAPR_CLAMP_TO_EDGE);
 			break;
 		case RepeatReflect:
 			PUSH_DATA (push, 0x00024000 |
