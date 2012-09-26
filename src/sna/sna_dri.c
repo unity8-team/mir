@@ -1373,8 +1373,8 @@ static void sna_dri_flip_event(struct sna *sna,
 	/* We assume our flips arrive in order, so we don't check the frame */
 	switch (flip->type) {
 	case DRI2_FLIP:
-		DBG(("%s: flip complete (drawable gone? %d)\n"
-		     , __FUNCTION__, flp->draw == NULL));
+		DBG(("%s: flip complete (drawable gone? %d)\n",
+		     __FUNCTION__, flip->draw == NULL));
 		if (flip->draw)
 			DRI2SwapComplete(flip->client, flip->draw,
 					 flip->fe_frame,

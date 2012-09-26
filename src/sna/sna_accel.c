@@ -2571,7 +2571,7 @@ sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
 	int16_t dx, dy;
 	int ret;
 
-	DBG(("%s pixmap=%ld, box=((%d, %d), (%d, %d)), flagss=%x...\n",
+	DBG(("%s pixmap=%ld, box=((%d, %d), (%d, %d)), flags=%x...\n",
 	     __FUNCTION__,
 	     pixmap->drawable.serialNumber,
 	     box->x1, box->y1, box->x2, box->y2,
