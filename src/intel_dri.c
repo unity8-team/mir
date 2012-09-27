@@ -932,6 +932,9 @@ can_exchange(DrawablePtr drawable, DRI2BufferPtr front, DRI2BufferPtr back)
 	struct intel_pixmap *front_intel = intel_get_pixmap_private(front_pixmap);
 	struct intel_pixmap *back_intel = intel_get_pixmap_private(back_pixmap);
 
+	if (!pScrn->vtSema)
+		return FALSE;
+
 	if (I830DRI2DrawablePipe(draw) < 0)
 		return FALSE;
 
