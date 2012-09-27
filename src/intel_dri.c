@@ -455,7 +455,7 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 		BoxPtr box;
 		BoxRec crtcbox;
 		int y1, y2;
-		int pipe = -1, event, load_scan_lines_pipe;
+		int event, load_scan_lines_pipe;
 		xf86CrtcPtr crtc;
 		Bool full_height = FALSE;
 
@@ -467,7 +467,7 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 		 * buffer
 		 */
 		if (crtc != NULL && !crtc->rotatedData) {
-			pipe = intel_crtc_to_pipe(crtc);
+			int pipe = intel_crtc_to_pipe(crtc);
 
 			/*
 			 * Make sure we don't wait for a scanline that will
@@ -931,6 +931,9 @@ can_exchange(DrawablePtr drawable, DRI2BufferPtr front, DRI2BufferPtr back)
 	PixmapPtr back_pixmap = back_priv->pixmap;
 	struct intel_pixmap *front_intel = intel_get_pixmap_private(front_pixmap);
 	struct intel_pixmap *back_intel = intel_get_pixmap_private(back_pixmap);
+
+	if (I830DRI2DrawablePipe(draw) < 0)
+		return FALSE;
 
 	if (!DRI2CanFlip(drawable))
 		return FALSE;
