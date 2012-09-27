@@ -87,7 +87,7 @@ struct sna_dri_frame_event {
 	unsigned int fe_tv_sec;
 	unsigned int fe_tv_usec;
 
-	struct {
+	struct dri_bo {
 		struct kgem_bo *bo;
 		uint32_t name;
 	} old_front, next_front, cache;
@@ -956,7 +956,7 @@ sna_dri_frame_event_info_free(struct sna *sna,
 	free(info);
 }
 
-static bool
+static void
 sna_dri_page_flip(struct sna *sna, struct sna_dri_frame_event *info)
 {
 	struct kgem_bo *bo = get_private(info->back)->bo;
@@ -964,10 +964,9 @@ sna_dri_page_flip(struct sna *sna, struct sna_dri_frame_event *info)
 	DBG(("%s()\n", __FUNCTION__));
 
 	assert(sna_pixmap_get_buffer(sna->front) == info->front);
+	assert(get_drawable_pixmap(info->draw)->drawable.height * bo->pitch <= kgem_bo_size(bo));
 
 	info->count = sna_page_flip(sna, bo, info, info->pipe);
-	if (info->count == 0)
-		return false;
 
 	info->old_front.name = info->front->name;
 	info->old_front.bo = get_private(info->front)->bo;
@@ -976,7 +975,6 @@ sna_dri_page_flip(struct sna *sna, struct sna_dri_frame_event *info)
 
 	info->front->name = info->back->name;
 	get_private(info->front)->bo = bo;
-	return true;
 }
 
 static bool
@@ -1261,8 +1259,8 @@ void sna_dri_vblank_handler(struct sna *sna, struct drm_event_vblank *event)
 	switch (info->type) {
 	case DRI2_FLIP:
 		/* If we can still flip... */
-		if (can_flip(sna, draw, info->front, info->back) &&
-		    sna_dri_page_flip(sna, info)) {
+		if (can_flip(sna, draw, info->front, info->back)) {
+			sna_dri_page_flip(sna, info);
 			info->back->name = info->old_front.name;
 			get_private(info->back)->bo = info->old_front.bo;
 			info->old_front.bo = NULL;
@@ -1321,40 +1319,23 @@ done:
 	sna_dri_frame_event_info_free(sna, draw, info);
 }
 
-static int
+static void
 sna_dri_flip_continue(struct sna *sna, struct sna_dri_frame_event *info)
 {
-	struct kgem_bo *bo;
-	int name;
+	struct dri_bo tmp;
 
 	DBG(("%s()\n", __FUNCTION__));
 
 	assert(sna_pixmap_get_buffer(get_drawable_pixmap(info->draw)) == info->front);
 
-	name = info->back->name;
-	bo = get_private(info->back)->bo;
-	assert(get_drawable_pixmap(info->draw)->drawable.height * bo->pitch <= kgem_bo_size(bo));
+	tmp = info->old_front;
 
-	info->count = sna_page_flip(sna, bo, info, info->pipe);
-	if (info->count == 0)
-		return false;
+	sna_dri_page_flip(sna, info);
 
-	set_bo(sna->front, bo);
-
-	get_private(info->back)->bo = info->old_front.bo;
-	info->back->name = info->old_front.name;
-
-	info->old_front.name = info->front->name;
-	info->old_front.bo = get_private(info->front)->bo;
-
-	info->front->name = name;
-	get_private(info->front)->bo = bo;
+	get_private(info->back)->bo = tmp.bo;
+	info->back->name = tmp.name;
 
 	info->next_front.name = 0;
-
-	sna->dri.flip_pending = info;
-
-	return true;
 }
 
 static void sna_dri_flip_event(struct sna *sna,
@@ -1392,13 +1373,17 @@ static void sna_dri_flip_event(struct sna *sna,
 			DBG(("%s: flip chain complete\n", __FUNCTION__));
 			sna_dri_frame_event_info_free(sna, flip->draw, flip);
 		} else if (flip->draw &&
-			   can_flip(sna, flip->draw, flip->front, flip->back) &&
-			   sna_dri_flip_continue(sna, flip)) {
+			   can_flip(sna, flip->draw, flip->front, flip->back)) {
+			sna_dri_flip_continue(sna, flip);
 			DRI2SwapComplete(flip->client, flip->draw,
 					 0, 0, 0,
 					 DRI2_FLIP_COMPLETE,
 					 flip->client ? flip->event_complete : NULL,
 					 flip->event_data);
+			if (flip->count)
+				sna->dri.flip_pending = flip;
+			else
+				sna_dri_frame_event_info_free(sna, flip->draw, flip);
 		} else {
 			DBG(("%s: no longer able to flip\n", __FUNCTION__));
 
@@ -1513,8 +1498,16 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	VG_CLEAR(vbl);
 
 	pipe = sna_dri_get_pipe(draw);
-	if (pipe == -1)
-		return false;
+	if (pipe == -1) {
+		/* XXX WARN_ON(sna->dri.flip_pending) ? */
+		if (sna->dri.flip_pending == NULL) {
+			sna_dri_exchange_buffers(draw, front, back);
+			DRI2SwapComplete(client, draw, 0, 0, 0,
+					DRI2_EXCHANGE_COMPLETE, func, data);
+			return true;
+		} else
+			return false;
+	}
 
 	/* Truncate to match kernel interfaces; means occasional overflow
 	 * misses, but that's generally not a big deal */
@@ -1560,13 +1553,19 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		sna_dri_reference_buffer(front);
 		sna_dri_reference_buffer(back);
 
-		if (!sna_dri_page_flip(sna, info)) {
-			DBG(("%s: failed to queue page flip\n", __FUNCTION__));
-			sna_dri_frame_event_info_free(sna, draw, info);
-			return false;
-		}
+		sna_dri_page_flip(sna, info);
 
-		if (type != DRI2_FLIP) {
+		if (info->count == 0) {
+			info->back->name = info->old_front.name;
+			get_private(info->back)->bo = info->old_front.bo;
+			info->old_front.bo = NULL;
+
+			DRI2SwapComplete(info->client, draw, 0, 0, 0,
+					 DRI2_EXCHANGE_COMPLETE,
+					 info->event_complete,
+					 info->event_data);
+			sna_dri_frame_event_info_free(sna, draw, info);
+		} else if (type != DRI2_FLIP) {
 			get_private(info->back)->bo =
 				kgem_create_2d(&sna->kgem,
 					       draw->width,
@@ -2011,10 +2010,7 @@ blit:
 		sna_dri_reference_buffer(front);
 		sna_dri_reference_buffer(back);
 
-		if (!sna_dri_page_flip(sna, info)) {
-			sna_dri_frame_event_info_free(sna, draw, info);
-			goto blit;
-		}
+		sna_dri_page_flip(sna, info);
 
 		info->next_front.name = info->front->name;
 		info->next_front.bo = get_private(info->front)->bo;
