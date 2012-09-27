@@ -1575,7 +1575,7 @@ intel_do_pageflip(intel_screen_private *intel,
 	mode->fe_tv_usec = 0;
 
 	for (i = 0; i < config->num_crtc; i++) {
-		if (!config->crtc[i]->enabled)
+		if (!intel_crtc_on(config->crtc[i]))
 			continue;
 
 		mode->flip_info = flip_info;
