@@ -705,7 +705,6 @@ intel_set_scanout_pixmap(xf86CrtcPtr crtc, PixmapPtr ppix)
 	ScrnInfoPtr scrn = crtc->scrn;
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	dri_bo *bo;
-	int ret;
 
 	if (ppix == intel_crtc->scanout_pixmap)
 		return TRUE;
@@ -725,11 +724,10 @@ intel_set_scanout_pixmap(xf86CrtcPtr crtc, PixmapPtr ppix)
 	}
 
 	intel_crtc->scanout_pixmap = ppix;
-	ret = drmModeAddFB(intel->drmSubFD, ppix->drawable.width,
+	return drmModeAddFB(intel->drmSubFD, ppix->drawable.width,
 			   ppix->drawable.height, ppix->drawable.depth,
 			   ppix->drawable.bitsPerPixel, ppix->devKind,
-			   bo->handle, &intel_crtc->scanout_fb_id);
-	return TRUE;
+			   bo->handle, &intel_crtc->scanout_fb_id) == 0;
 }
 #endif
 
@@ -1547,15 +1545,15 @@ intel_do_pageflip(intel_screen_private *intel,
 	struct intel_mode *mode = crtc->mode;
 	unsigned int pitch = scrn->displayWidth * intel->cpp;
 	struct intel_pageflip *flip;
-	int i, old_fb_id;
+	uint32_t new_fb_id;
+	int i;
 
 	/*
 	 * Create a new handle for the back buffer
 	 */
-	old_fb_id = mode->fb_id;
 	if (drmModeAddFB(mode->fd, scrn->virtualX, scrn->virtualY,
 			 scrn->depth, scrn->bitsPerPixel, pitch,
-			 new_front->handle, &mode->fb_id))
+			 new_front->handle, &new_fb_id))
 		goto error_out;
 
 	intel_glamor_flush(intel);
@@ -1598,7 +1596,7 @@ intel_do_pageflip(intel_screen_private *intel,
 
 		if (drmModePageFlip(mode->fd,
 				    crtc_id(crtc),
-				    mode->fb_id,
+				    new_fb_id,
 				    DRM_MODE_PAGE_FLIP_EVENT, flip)) {
 			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 				   "flip queue failed: %s\n", strerror(errno));
@@ -1607,12 +1605,16 @@ intel_do_pageflip(intel_screen_private *intel,
 		}
 	}
 
-	mode->old_fb_id = old_fb_id;
+	mode->old_fb_id = mode->fb_id;
+	mode->fb_id = new_fb_id;
 	return TRUE;
 
 error_undo:
-	drmModeRmFB(mode->fd, mode->fb_id);
-	mode->fb_id = old_fb_id;
+	drmModeRmFB(mode->fd, new_fb_id);
+	for (i = 0; i < config->num_crtc; i++) {
+		if (config->crtc[i]->enabled)
+			intel_crtc_apply(config->crtc[i]);
+	}
 
 error_out:
 	xf86DrvMsg(scrn->scrnIndex, X_WARNING, "Page flip failed: %s\n",
