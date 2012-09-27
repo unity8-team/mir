@@ -924,7 +924,8 @@ I830DRI2ScheduleFlip(struct intel_screen_private *intel,
 static Bool
 can_exchange(DrawablePtr drawable, DRI2BufferPtr front, DRI2BufferPtr back)
 {
-	struct intel_screen_private *intel = intel_get_screen_private(xf86ScreenToScrn(drawable->pScreen));
+	ScrnInfoPtr pScrn = xf86ScreenToScrn(drawable->pScreen);
+	struct intel_screen_private *intel = intel_get_screen_private(pScrn);
 	I830DRI2BufferPrivatePtr front_priv = front->driverPrivate;
 	I830DRI2BufferPrivatePtr back_priv = back->driverPrivate;
 	PixmapPtr front_pixmap = front_priv->pixmap;
@@ -935,7 +936,7 @@ can_exchange(DrawablePtr drawable, DRI2BufferPtr front, DRI2BufferPtr back)
 	if (!pScrn->vtSema)
 		return FALSE;
 
-	if (I830DRI2DrawablePipe(draw) < 0)
+	if (I830DRI2DrawablePipe(drawable) < 0)
 		return FALSE;
 
 	if (!DRI2CanFlip(drawable))
