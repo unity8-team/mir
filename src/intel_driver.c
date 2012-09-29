@@ -328,6 +328,9 @@ static int intel_init_bufmgr(intel_screen_private *intel)
 
 static void intel_bufmgr_fini(intel_screen_private *intel)
 {
+	if (intel->bufmgr == NULL)
+		return;
+
 	drm_intel_bo_unreference(intel->wa_scratch_bo);
 	drm_intel_bufmgr_destroy(intel->bufmgr);
 }
