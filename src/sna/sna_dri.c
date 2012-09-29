@@ -2065,30 +2065,29 @@ sna_dri_get_msc(DrawablePtr draw, CARD64 *ust, CARD64 *msc)
 {
 	struct sna *sna = to_sna_from_drawable(draw);
 	drmVBlank vbl;
-	int pipe = sna_dri_get_pipe(draw);
+	int pipe;
 
 	DBG(("%s(pipe=%d)\n", __FUNCTION__, pipe));
+	*ust = *msc = 0;
 
 	/* Drawable not displayed, make up a value */
-	if (pipe == -1) {
-		*ust = 0;
-		*msc = 0;
+	pipe = sna_dri_get_pipe(draw);
+	if (pipe == -1)
 		return TRUE;
-	}
 
 	VG_CLEAR(vbl);
 	vbl.request.type = DRM_VBLANK_RELATIVE | pipe_select(pipe);
 	vbl.request.sequence = 0;
-	if (sna_wait_vblank(sna, &vbl)) {
+	if (sna_wait_vblank(sna, &vbl) == 0) {
+		*ust = ((CARD64)vbl.reply.tval_sec * 1000000) + vbl.reply.tval_usec;
+		*msc = vbl.reply.sequence;
+		DBG(("%s: msc=%llu, ust=%llu\n", __FUNCTION__,
+		     (long long)*msc, (long long)*ust));
+	} else {
 		DBG(("%s: query failed on pipe %d, ret=%d\n",
 		     __FUNCTION__, pipe, errno));
-		return FALSE;
 	}
 
-	*ust = ((CARD64)vbl.reply.tval_sec * 1000000) + vbl.reply.tval_usec;
-	*msc = vbl.reply.sequence;
-	DBG(("%s: msc=%llu, ust=%llu\n", __FUNCTION__,
-	     (long long)*msc, (long long)*ust));
 	return TRUE;
 }
 
