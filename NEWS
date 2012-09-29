@@ -1,3 +1,31 @@
+Release 2.20.9 (2012-09-29)
+===========================
+And so it came to pass that a critical bug was uncovered in UXA. The
+kernel does not like to pageflip when the pipe is off, yet due to the
+delayed nature of a pageflip and the relaxed checking performed by UXA,
+we could request a pageflip after turning off the display (DPMS). The
+kernel rejected that pageflip and the error handling path failed to
+restore sanity, and when the screen came back it was stuck on the image
+seen before it went to sleep. (Note that there are also some related
+kernel bugs, but this update should prevent the most conspicious of the
+freezes.) Many thanks to Timo Aaltonen for his efforts in tracking down
+the issue.
+
+In other news:
+
+  * Prepare for xorg-1.4, the api is being tweaked again.
+
+  * Handle early FreeScreen in UXA.
+    https://bugs.freedesktop.org/show_bug.cgi?id=55346
+
+  * Reenable XvMC support
+
+  * Do not replace the GPU bo when uploading into the shadow/CPU copy
+    https://bugs.freedesktop.org/show_bug.cgi?id=54978
+
+  * Fix use of an uninitialised GC when drawing glyphs to a depth=1 pixmap
+
+
 Release 2.20.8 (2012-09-16)
 ===========================
 Another new small feature, another new release. And a few more bugs

@@ -129,6 +129,9 @@
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
 
+/* Assume only UMS (no KMS) support */
+#undef UMS_ONLY
+
 /* Assume asynchronous swap support */
 #undef USE_ASYNC_SWAP
 

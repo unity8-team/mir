@@ -1,3 +1,418 @@
+commit a192f8cbc238d84e058b01b7682abe7ef09d3508
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Sep 29 10:51:00 2012 +0100
+
+    2.20.9 release
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 16860d448f11ba405050bd1ff02dc63a4b26280c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Sep 29 10:40:51 2012 +0100
+
+    uxa: Only destroy the bufmgr if it exists
+    
+    Be wary in case the Screen is destroy before we initialise bufmgr.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 13f7a9e267fbefd3326569e89b840bef31d77996
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Sep 28 09:25:12 2012 +0100
+
+    sna: Restore LLC cache level after using a buffer for scanout (uncached)
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8bfd31e9bb13bcb7f12e4147bec0da87b8e87dde
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Sep 27 18:12:11 2012 +0100
+
+    sna/dri: Improve handling of flipping with no outputs
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit dddb6e4e63d5cc8b2a1f2ae3ff287922d30460b9
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Sep 27 17:17:30 2012 +0100
+
+    sna: Attempt to restore the current mode if pipe is disabled on DPMS on
+    
+    If we attempt to power up the pipe through a DPMS request, but it was
+    previously disabled due to an error, first try re-enabling.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 88cfd23379950d1fe4e682519c48ef6e3091c2f3
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Sep 27 16:16:39 2012 +0100
+
+    uxa: Update mode->fb_id after completing pageflips
+    
+    As intel_crtc_on() depends upon the current value for determining if the
+    pipe is active, we can only change the value afterwards.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 83990c649cbd3cb563d08f04e1c02232c44997aa
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Sep 27 14:58:26 2012 +0100
+
+    Remove the last couple of references to mibstore
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit cb0b72c4fbb7b1bc941522d8679fef856f2f8936
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Sep 27 14:53:46 2012 +0100
+
+    uxa: Fixup the last couple of commits after realising I didn't have uxa enabled
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit feef53005b57d6b4489a15f8d0db8245dcb0cfaa
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Sep 27 13:36:55 2012 +0100
+
+    uxa: Do not attempt to pageflip whilst not master
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5a45cbacb777e478d8fbda9223b0fb5c705d7249
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Sep 27 13:31:27 2012 +0100
+
+    uxa: Confirm the pipe is alive before flipping
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit edc5b7f741a4bb8e9a58b5eb2201fa9304f94ef7
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Sep 27 13:27:20 2012 +0100
+
+    uxa/dri: Confirm Drawable is still attached to an active pipe before flipping
+    
+    If we schedule a flip to happen on a far distant vblank, it is possible
+    for us to disable the pipes with a modeset, whilst maintaining the fb
+    size, or with a DPMS command. If the pipe is disabled and we still try
+    to flip, then we trigger an EINVAL error from the kernel.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit eb667378543f97d7c7e7767daddbd9b39e07c1f8
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Sep 26 15:12:57 2012 +0100
+
+    sna: Typo in DBG
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 557ad78d02dfff3db9e7fc21f05230a8fe482f7c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Sep 26 15:02:17 2012 +0100
+
+    Kill mibstore pretend backwards compatibility
+    
+    Adam Jackson was kind enough to point out that mibstore had been a no-op
+    since xorg-1.4 and the earliest we claim to support is xorg-1.6.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 367f57faf2c422da026a25c099426dc750cf3759
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Sep 26 14:06:18 2012 +0100
+
+    sna/video: Force integer promotion to avoid u16 overflow for frame size
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 34772cb0e724a880a8c6db936c0bb5dd129398f2
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Sep 26 12:09:39 2012 +0100
+
+    sna/dri: Handle pending flips when drawable disappears.
+    
+    The async case needs special handling as the current front buffer may be
+    pending a flip onto the scanout which needs to be completed even if the
+    Drawable is destroyed.
+    
+    Fixes regression from commit ad877abdc70b842afd202b2f97892d97a0b8d151
+    Author: Chris Wilson <chris@chris-wilson.co.uk>
+    Date:   Sat Jul 7 17:48:52 2012 +0100
+    
+        sna/dri: Attach the chain of frame events to the Window, not pixmap
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit addfa653cf51fa45c7eae49be1fd722aaadf97d6
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Sep 26 08:59:18 2012 +0100
+
+    uxa: Prevent attempting to call intel_mode_fini() before PreInit runs
+    
+    In the Ubuntu xserver it is apparently possible for the Screen to be
+    deleted prior to being fully initialised. Make sure we don't crash in
+    that situation!
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=55346
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit b880d8e0a9a32acd50333f72d695268c4819c29e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Sep 25 16:59:20 2012 +0100
+
+    sna/gen5: Add WA reference
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 74f930fd80c3f97a1b6213e9e79e02f8f51c64b9
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Sep 25 15:41:51 2012 +0100
+
+    sna: Make sure the batch is flushed before setting DPMS
+    
+    Just in case on the off-chance that the kernel modifies the pipe and we
+    had a pipe-dependent operation in the batch.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0a00c3765c3ba464bb4e9cde12e964c979421ed6
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Sep 25 13:50:33 2012 +0100
+
+    sna: Accommodate changes to the Damage extension not unwrapping the GC
+    
+    commit 4dc2a76740d921c824a4d8193f39dd373475f02a
+    Author: Adam Jackson <ajax@redhat.com>
+    Date:   Thu Sep 20 17:57:00 2012 -0400
+    
+        miext/damage: Only wrap into the GC ops chain if there's a listener (v3)
+    
+    leaves the GC->funcs still pointing to the damage layer as it calls into
+    the driver functions, so we need to be careful to restore the correct
+    function table after we manipulate the GC for fallbacks.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8f5a6d107bb30fa218ff3c1d07532ca834b82edc
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Sep 25 13:36:12 2012 +0100
+
+    Add miInitializeBackingStore() to compat-api.h
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit dee133a722fb137767a78b244a312620f52a51b1
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Sep 25 13:22:40 2012 +0100
+
+    sna: Remove unused reference to mibstore.h, removed in future Xorg
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f0dbfc20aaa9b47329438ce42150770d4d7934c3
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Sep 25 13:22:21 2012 +0100
+
+    sna/dri: Fixup a DBG statement not to print gibberish
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit c6008068372709c73034163eddc902b47bf87d24
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Sep 23 21:42:31 2012 +0100
+
+    sna: Check against op->dst.bo rather than priv->cpu_bo for composite upload
+    
+    In this case, we may also be handling an unattached pixmap, so avoid the
+    deferences of the sna_pixmap unless we are sure it will exist.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5ed840881c26e90eb8e00521b6d77b0ea514de5e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Sep 23 20:29:21 2012 +0100
+
+    sna: Check that the CPU bo exists before declaring it is busy along upload
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=55251
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a858afc66c1fa2eec65a7041e991f2266f82deca
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Sep 23 13:49:40 2012 +0100
+
+    Silence a couple of potential compiler warnings
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 9326acc2917109f06dda809107c8fa5a2273c3d2
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Sep 23 13:40:04 2012 +0100
+
+    Allow compilation of a separate i810 driver
+    
+    Allow --enable-ums-only as a counter-option to --enable-kms-only in case
+    the distribution wishes to enable a non-root KMS driver but also offer
+    a separate UMS driver for i81x.
+    
+    On the second pass, use "--enable-ums-only --disable-uxa --disable-sna"
+    to get the trimmed down unaccelerated i810 support.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0afb7efe8c48b5fc839e2137e870bea0f5fb3c9c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Sep 23 09:41:59 2012 +0100
+
+    sna: Avoid overflows when translating the box16 extents during a copy
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0fc6e5820e4543d52bcf8d0285ca6f69b5213831
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Sep 23 09:32:49 2012 +0100
+
+    sna: Add missing protection against int16 overflow when copying
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit c2ca1c5abca687adb08d6e137bc3b70bdecb083d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Sep 23 08:56:50 2012 +0100
+
+    Reorder INTEL_XVMC define so that we pick up Option "XvMC"
+    
+    Otherwise it will remain disabled.
+    
+    Reported-by: Giacomo Comes <comes@naic.edu>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 92dbedc6138b923aa473935013ecb0346280c4d3
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Sep 22 08:56:49 2012 +0100
+
+    sna: Force the stall before trying to upload into a busy CPU bo
+    
+    Under the circumstances where we can not instead stream the write into
+    the GPU bo, we need to use the busy CPU bo.
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=54978
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 3e1be265cf950976b5929b14a9dad0664deaa2c1
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Sep 21 17:37:58 2012 +0100
+
+    sna: Force an inplace upload if already wedged
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit b8967aff382c1b6bef2335dea51c979a3f0800c7
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Sep 21 12:16:27 2012 +0100
+
+    sna: Do not query for the NULL edid property
+    
+    If the EDID blob id is set to 0, that means that it does not exist and
+    so we can safely skip it.
+    
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=55193
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0be1d964713ca407f029278a8256d02d925dc9da
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Sep 11 21:48:24 2012 +0100
+
+    sna: Use inplace X tiling for LLC uploads
+    
+    Based on a suggestion by Chad Versace (taken from a patch for mesa).
+    
+    This allows for a faster upload of pixel data through a ShmImage, or for
+    complete replacement of a GPU bo.
+    
+    Using a modified version of x11perf to upload to a pixmap rather than
+    scanout on an IVB i7-3720qm:
+    
+    Before:
+    40000000 trep @   0.0007 msec (1410000.0/sec): ShmPutImage 10x10 square
+     4000000 trep @   0.0110 msec (  90700.0/sec): ShmPutImage 100x100 square
+      160000 trep @   0.1689 msec (   5920.0/sec): ShmPutImage 500x500 square
+    
+    After:
+    40000000 trep @   0.0007 msec (1450000.0/sec): ShmPutImage 10x10 square
+     6000000 trep @   0.0061 msec ( 164000.0/sec): ShmPutImage 100x100 square
+      400000 trep @   0.1126 msec (   8880.0/sec): ShmPutImage 500x500 square
+    
+    However, the real takeaway from this is that the overheads for
+    ShmPutImage are substantial, only hitting around 70% expected efficiency,
+    and overshadowed by PutImage, which for reference is
+    
+    60000000 trep @   0.0006 msec (1800000.0/sec): PutImage 10x10 square
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d853064e7eebc5719645c12605782f995131a6fe
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Sep 20 22:43:26 2012 +0100
+
+    sna/gen3+: Trim the target extents to the CompositeClip
+    
+    When computing the active region with of a composite operation with
+    unknown extents we try to simply use the whole Drawable. However, this
+    needs to be clipped otherwise it may trigger assertion failure with an
+    offscreen pixmap.
+    
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=55164
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 853beff4306d5a168e310af82d0ddf9db319fdce
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Sep 19 08:30:59 2012 +0100
+
+    sna/dri:Add some DBG and assertions to validate names passed back to clients
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8c1e60a15431b193b57d94a27b8e8de7c5a7e683
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Sep 18 15:01:52 2012 +0100
+
+    sna: Add some asserts useful for tracking an xserver drawing bug
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit cd23ac69ffb670468b2993242ce0d596081bbca4
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Sep 18 13:39:33 2012 +0100
+
+    sna/gen7: Add some ring switching sanity checks
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 22c84d02ade83c39940d76fc616a9122e535606a
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Sep 18 12:01:49 2012 +0100
+
+    sna: Remove special casing of drawing depth=1 glyphs
+    
+    It turns out that they were not so special after all, and the "fast
+    path" was missing the important handling such as validating the GC. As a
+    result we ended up trying to render the glyphs through a planemask of 0
+    and similar garbage resulting in corruption. An example given by Kaus
+    Dittrich was the use of rotated glyphs in gnuplot.
+    
+    Reported-by: Klaus Dittrich
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 71fa350325bb06a6141f89ef14431d96f0c4956a
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Sep 17 13:40:24 2012 +0100
+
+    sna: Check that we do not keep a GPU bo around after flushing a ShmPixmap
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
 commit 88502b32d5d2b826fc08344392c98300341410e1
 Author: Chris Wilson <chris@chris-wilson.co.uk>
 Date:   Sun Sep 16 09:02:46 2012 +0100

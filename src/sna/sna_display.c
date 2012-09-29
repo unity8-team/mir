@@ -787,6 +787,8 @@ sna_crtc_disable(xf86CrtcPtr crtc)
 		kgem_bo_destroy(&sna->kgem, sna_crtc->bo);
 		sna_crtc->bo = NULL;
 	}
+
+	sna_crtc->dpms_mode = DPMSModeOff;
 }
 
 static void update_flush_interval(struct sna *sna)
@@ -822,15 +824,6 @@ static void update_flush_interval(struct sna *sna)
 
 	DBG(("max_vrefresh=%d, vblank_interval=%d ms\n",
 	       max_vrefresh, sna->vblank_interval));
-}
-
-static void
-sna_crtc_dpms(xf86CrtcPtr crtc, int mode)
-{
-	DBG(("%s(pipe %d, dpms mode -> %d):= active=%d\n",
-	     __FUNCTION__, to_sna_crtc(crtc)->pipe, mode, mode == DPMSModeOn));
-	to_sna_crtc(crtc)->dpms_mode = mode;
-	update_flush_interval(to_sna(crtc->scrn));
 }
 
 void sna_mode_disable_unused(struct sna *sna)
@@ -1289,6 +1282,28 @@ retry: /* Attach per-crtc pixmap or direct */
 	return TRUE;
 }
 
+static void
+sna_crtc_dpms(xf86CrtcPtr crtc, int mode)
+{
+	struct sna_crtc *priv = to_sna_crtc(crtc);
+
+	DBG(("%s(pipe %d, dpms mode -> %d):= active=%d\n",
+	     __FUNCTION__, priv->pipe, mode, mode == DPMSModeOn));
+	if (mode == DPMSModeOn) {
+		if (priv->bo == NULL &&
+		    !sna_crtc_set_mode_major(crtc,
+					     &crtc->mode, crtc->rotation,
+					     crtc->x, crtc->y))
+			sna_crtc_disable(crtc);
+	} else
+		sna_crtc_disable(crtc);
+
+	if (priv->bo != NULL) {
+		priv->dpms_mode = mode;
+		update_flush_interval(to_sna(crtc->scrn));
+	}
+}
+
 void sna_mode_adjust_frame(struct sna *sna, int x, int y)
 {
 	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(sna->scrn);
@@ -1497,6 +1512,7 @@ sna_crtc_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 		return;
 
 	sna_crtc->id = mode->kmode->crtcs[num];
+	sna_crtc->dpms_mode = DPMSModeOff;
 
 	VG_CLEAR(get_pipe);
 	get_pipe.pipe = 0;
@@ -1630,9 +1646,12 @@ sna_output_attach_edid(xf86OutputPtr output)
 		if (strcmp(prop.name, "EDID"))
 			continue;
 
+		if (koutput->prop_values[i] == 0)
+			continue;
+
 		VG_CLEAR(blob);
 		blob.length = 0;
-		blob.data =0;
+		blob.data = 0;
 		blob.blob_id = koutput->prop_values[i];
 
 		if (drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_GETPROPBLOB, &blob))
@@ -1813,6 +1832,9 @@ sna_output_dpms(xf86OutputPtr output, int dpms)
 	int i;
 
 	DBG(("%s: dpms=%d\n", __FUNCTION__, dpms));
+
+	if (dpms != DPMSModeOn)
+		kgem_submit(&sna->kgem);
 
 	for (i = 0; i < koutput->count_props; i++) {
 		struct drm_mode_get_property prop;

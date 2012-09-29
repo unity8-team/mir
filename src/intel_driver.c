@@ -50,7 +50,6 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xf86cmap.h"
 #include "xf86drm.h"
 #include "compiler.h"
-#include "mibstore.h"
 #include "mipointer.h"
 #include "micmap.h"
 #include "shadowfb.h"
@@ -329,6 +328,9 @@ static int intel_init_bufmgr(intel_screen_private *intel)
 
 static void intel_bufmgr_fini(intel_screen_private *intel)
 {
+	if (intel->bufmgr == NULL)
+		return;
+
 	drm_intel_bo_unreference(intel->wa_scratch_bo);
 	drm_intel_bufmgr_destroy(intel->bufmgr);
 }
@@ -961,7 +963,6 @@ I830ScreenInit(SCREEN_INIT_ARGS_DECL)
 		return FALSE;
 	}
 
-	miInitializeBackingStore(screen);
 	xf86SetBackingStore(screen);
 	xf86SetSilkenMouse(screen);
 	miDCInitialize(screen, xf86GetPointerScreenFuncs());

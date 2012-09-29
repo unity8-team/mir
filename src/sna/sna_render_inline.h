@@ -140,6 +140,25 @@ sna_render_get_alpha_gradient(struct sna *sna)
 }
 
 static inline void
+sna_render_picture_extents(PicturePtr p, BoxRec *box)
+{
+	box->x1 = p->pDrawable->x;
+	box->y1 = p->pDrawable->y;
+	box->x2 = p->pDrawable->x + p->pDrawable->width;
+	box->y2 = p->pDrawable->y + p->pDrawable->height;
+
+	if (box->x1 < p->pCompositeClip->extents.x1)
+		box->x1 = p->pCompositeClip->extents.x1;
+	if (box->y1 < p->pCompositeClip->extents.y1)
+		box->y1 = p->pCompositeClip->extents.y1;
+
+	if (box->x2 > p->pCompositeClip->extents.x2)
+		box->x2 = p->pCompositeClip->extents.x2;
+	if (box->y2 > p->pCompositeClip->extents.y2)
+		box->y2 = p->pCompositeClip->extents.y2;
+}
+
+static inline void
 sna_render_reduce_damage(struct sna_composite_op *op,
 			 int dst_x, int dst_y,
 			 int width, int height)

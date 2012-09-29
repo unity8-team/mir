@@ -278,6 +278,7 @@ typedef int FbStride;
 typedef struct {
 	long changes;
 	long serial;
+	GCFuncs *old_funcs;
 	void *priv;
 
 	FbBits and, xor;            /* reduced rop values */

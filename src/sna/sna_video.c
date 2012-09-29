@@ -225,31 +225,31 @@ sna_video_frame_init(struct sna *sna,
 		if (video->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
 			frame->pitch[0] = ALIGN((height / 2), align);
 			frame->pitch[1] = ALIGN(height, align);
-			frame->size = frame->pitch[0] * width * 3;
+			frame->size = 3U * frame->pitch[0] * width;
 		} else {
 			frame->pitch[0] = ALIGN((width / 2), align);
 			frame->pitch[1] = ALIGN(width, align);
-			frame->size = frame->pitch[0] * height * 3;
+			frame->size = 3U * frame->pitch[0] * height;
 		}
 	} else {
 		if (video->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
 			frame->pitch[0] = ALIGN((height << 1), align);
-			frame->size = frame->pitch[0] * width;
+			frame->size = (int)frame->pitch[0] * width;
 		} else {
 			frame->pitch[0] = ALIGN((width << 1), align);
-			frame->size = frame->pitch[0] * height;
+			frame->size = (int)frame->pitch[0] * height;
 		}
 		frame->pitch[1] = 0;
 	}
 
 	if (video->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
-		frame->UBufOffset = frame->pitch[1] * width;
+		frame->UBufOffset = (int)frame->pitch[1] * width;
 		frame->VBufOffset =
-			frame->UBufOffset + frame->pitch[0] * width / 2;
+			frame->UBufOffset + (int)frame->pitch[0] * width / 2;
 	} else {
-		frame->UBufOffset = frame->pitch[1] * height;
+		frame->UBufOffset = (int)frame->pitch[1] * height;
 		frame->VBufOffset =
-			frame->UBufOffset + frame->pitch[0] * height / 2;
+			frame->UBufOffset + (int)frame->pitch[0] * height / 2;
 	}
 }
 
@@ -450,11 +450,12 @@ sna_video_copy_data(struct sna *sna,
 			if (pitch[0] == frame->pitch[0] &&
 			    pitch[1] == frame->pitch[1] &&
 			    frame->top == 0 && frame->left == 0) {
+				uint32_t len =
+					(uint32_t)pitch[1]*frame->height +
+					(uint32_t)pitch[0]*frame->height;
 				if (frame->bo) {
 					kgem_bo_write(&sna->kgem, frame->bo,
-						      buf,
-						      pitch[1]*frame->height +
-						      pitch[0]*frame->height);
+						      buf, len);
 				} else {
 					frame->bo = kgem_create_buffer(&sna->kgem, frame->size,
 								       KGEM_BUFFER_WRITE | KGEM_BUFFER_WRITE_INPLACE,
@@ -462,9 +463,7 @@ sna_video_copy_data(struct sna *sna,
 					if (frame->bo == NULL)
 						return false;
 
-					memcpy(dst, buf,
-					       pitch[1]*frame->height +
-					       pitch[0]*frame->height);
+					memcpy(dst, buf, len);
 				}
 				if (frame->id != FOURCC_I420) {
 					uint32_t tmp;
@@ -478,8 +477,8 @@ sna_video_copy_data(struct sna *sna,
 			if (frame->width*2 == frame->pitch[0]) {
 				if (frame->bo) {
 					kgem_bo_write(&sna->kgem, frame->bo,
-						      buf + (frame->top * frame->width*2) + (frame->left << 1),
-						      frame->nlines*frame->width*2);
+						      buf + (2U*frame->top * frame->width) + (frame->left << 1),
+						      2U*frame->nlines*frame->width);
 				} else {
 					frame->bo = kgem_create_buffer(&sna->kgem, frame->size,
 								       KGEM_BUFFER_WRITE | KGEM_BUFFER_WRITE_INPLACE,
@@ -489,7 +488,7 @@ sna_video_copy_data(struct sna *sna,
 
 					memcpy(dst,
 					       buf + (frame->top * frame->width*2) + (frame->left << 1),
-					       frame->nlines*frame->width*2);
+					       2U*frame->nlines*frame->width);
 				}
 				return true;
 			}

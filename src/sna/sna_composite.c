@@ -527,7 +527,7 @@ sna_composite(CARD8 op,
 	     get_drawable_dx(dst->pDrawable),
 	     get_drawable_dy(dst->pDrawable)));
 
-	if (op <= PictOpSrc) {
+	if (op <= PictOpSrc && priv->cpu_damage) {
 		int16_t x, y;
 
 		get_drawable_deltas(dst->pDrawable, pixmap, &x, &y);
@@ -535,6 +535,10 @@ sna_composite(CARD8 op,
 			pixman_region_translate(&region, x, y);
 
 		sna_damage_subtract(&priv->cpu_damage, &region);
+		if (priv->cpu_damage == NULL) {
+			list_del(&priv->list);
+			priv->cpu = false;
+		}
 
 		if (x|y)
 			pixman_region_translate(&region, -x, -y);
