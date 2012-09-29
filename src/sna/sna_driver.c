@@ -736,6 +736,7 @@ static Bool sna_early_close_screen(CLOSE_SCREEN_ARGS_DECL)
 
 	DBG(("%s\n", __FUNCTION__));
 
+	xf86_hide_cursors(scrn);
 	sna_uevent_fini(scrn);
 
 	/* drain the event queues */
@@ -747,7 +748,12 @@ static Bool sna_early_close_screen(CLOSE_SCREEN_ARGS_DECL)
 		sna->dri_open = false;
 	}
 
-	xf86_hide_cursors(scrn);
+	if (sna->front) {
+		screen->DestroyPixmap(sna->front);
+		sna->front = NULL;
+	}
+
+	drmDropMaster(sna->kgem.fd);
 	scrn->vtSema = FALSE;
 
 	xf86_cursors_fini(screen);
@@ -764,13 +770,7 @@ static Bool sna_late_close_screen(CLOSE_SCREEN_ARGS_DECL)
 
 	DBG(("%s\n", __FUNCTION__));
 
-	if (sna->front) {
-		screen->DestroyPixmap(sna->front);
-		sna->front = NULL;
-	}
-
 	sna_accel_close(sna);
-	drmDropMaster(sna->kgem.fd);
 
 	depths = screen->allowedDepths;
 	for (d = 0; d < screen->numDepths; d++)
