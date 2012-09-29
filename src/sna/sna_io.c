@@ -482,6 +482,49 @@ fallback:
 	sna->blt_state.fill_bo = 0;
 }
 
+static bool upload_inplace__tiled(struct kgem *kgem, struct kgem_bo *bo)
+{
+	if (kgem->gen < 50) /* bit17 swizzling :( */
+		return false;
+
+	if (bo->tiling != I915_TILING_X)
+		return false;
+
+	if (bo->scanout)
+		return false;
+
+	return bo->domain == DOMAIN_CPU || kgem->has_llc;
+}
+
+static bool
+write_boxes_inplace__tiled(struct kgem *kgem,
+                           const uint8_t *src, int stride, int bpp, int16_t src_dx, int16_t src_dy,
+                           struct kgem_bo *bo, int16_t dst_dx, int16_t dst_dy,
+                           const BoxRec *box, int n)
+{
+	uint8_t *dst;
+	int swizzle;
+
+	assert(bo->tiling == I915_TILING_X);
+
+	dst = __kgem_bo_map__cpu(kgem, bo);
+	if (dst == NULL)
+		return false;
+
+	kgem_bo_sync__cpu(kgem, bo);
+	swizzle = kgem_bo_get_swizzling(kgem, bo);
+	do {
+		memcpy_to_tiled_x(src, dst, bpp, swizzle, stride, bo->pitch,
+				  box->x1 + src_dx, box->y1 + src_dy,
+				  box->x1 + dst_dx, box->y1 + dst_dy,
+				  box->x2 - box->x1, box->y2 - box->y1);
+		box++;
+	} while (--n);
+	__kgem_bo_unmap__cpu(kgem, bo, dst);
+
+	return true;
+}
+
 static bool write_boxes_inplace(struct kgem *kgem,
 				const void *src, int stride, int bpp, int16_t src_dx, int16_t src_dy,
 				struct kgem_bo *bo, int16_t dst_dx, int16_t dst_dy,
@@ -491,6 +534,11 @@ static bool write_boxes_inplace(struct kgem *kgem,
 
 	DBG(("%s x %d, handle=%d, tiling=%d\n",
 	     __FUNCTION__, n, bo->handle, bo->tiling));
+
+	if (upload_inplace__tiled(kgem, bo) &&
+	    write_boxes_inplace__tiled(kgem, src, stride, bpp, src_dx, src_dy,
+				       bo, dst_dx, dst_dy, box, n))
+		return true;
 
 	if (!kgem_bo_can_map(kgem, bo))
 		return false;
@@ -539,7 +587,10 @@ static bool upload_inplace(struct kgem *kgem,
 {
 	unsigned int bytes;
 
-	if (!kgem_bo_can_map(kgem, bo))
+	if (kgem->wedged)
+		return true;
+
+	if (!kgem_bo_can_map(kgem, bo) && !upload_inplace__tiled(kgem, bo))
 		return false;
 
 	if (FORCE_INPLACE)
@@ -871,8 +922,6 @@ write_boxes_inplace__xor(struct kgem *kgem,
 			 const BoxRec *box, int n,
 			 uint32_t and, uint32_t or)
 {
-	int dst_pitch = bo->pitch;
-	int src_pitch = stride;
 	void *dst;
 
 	DBG(("%s x %d, tiling=%d\n", __FUNCTION__, n, bo->tiling));
@@ -888,10 +937,22 @@ write_boxes_inplace__xor(struct kgem *kgem,
 		     box->x1 + src_dx, box->y1 + src_dy,
 		     box->x1 + dst_dx, box->y1 + dst_dy,
 		     box->x2 - box->x1, box->y2 - box->y1,
-		     bpp, src_pitch, dst_pitch));
+		     bpp, stride, bo->pitch));
+
+		assert(box->x2 > box->x1);
+		assert(box->y2 > box->y1);
+
+		assert(box->x1 + dst_dx >= 0);
+		assert((box->x2 + dst_dx)*bpp <= 8*bo->pitch);
+		assert(box->y1 + dst_dy >= 0);
+		assert((box->y2 + dst_dy)*bo->pitch <= kgem_bo_size(bo));
+
+		assert(box->x1 + src_dx >= 0);
+		assert((box->x2 + src_dx)*bpp <= 8*stride);
+		assert(box->y1 + src_dy >= 0);
 
 		memcpy_xor(src, dst, bpp,
-			   src_pitch, dst_pitch,
+			   stride, bo->pitch,
 			   box->x1 + src_dx, box->y1 + src_dy,
 			   box->x1 + dst_dx, box->y1 + dst_dy,
 			   box->x2 - box->x1, box->y2 - box->y1,
@@ -1282,6 +1343,19 @@ bool sna_replace(struct sna *sna,
 	     pixmap->drawable.bitsPerPixel,
 	     bo->tiling, busy));
 
+	if (!busy && upload_inplace__tiled(kgem, bo)) {
+		BoxRec box;
+
+		box.x1 = box.y1 = 0;
+		box.x2 = pixmap->drawable.width;
+		box.y2 = pixmap->drawable.height;
+
+		if (write_boxes_inplace__tiled(kgem, src,
+					       stride, pixmap->drawable.bitsPerPixel, 0, 0,
+					       bo, 0, 0, &box, 1))
+			return true;
+	}
+
 	if ((busy || !kgem_bo_can_map(kgem, bo)) &&
 	    indirect_replace(sna, pixmap, bo, src, stride))
 		return true;
@@ -1304,6 +1378,19 @@ bool sna_replace(struct sna *sna,
 				   (pixmap->drawable.height-1)*stride + pixmap->drawable.width*pixmap->drawable.bitsPerPixel/8))
 			goto err;
 	} else {
+		if (upload_inplace__tiled(kgem, bo)) {
+			BoxRec box;
+
+			box.x1 = box.y1 = 0;
+			box.x2 = pixmap->drawable.width;
+			box.y2 = pixmap->drawable.height;
+
+			if (write_boxes_inplace__tiled(kgem, src,
+						       stride, pixmap->drawable.bitsPerPixel, 0, 0,
+						       bo, 0, 0, &box, 1))
+				goto done;
+		}
+
 		if (kgem_bo_is_mappable(kgem, bo)) {
 			dst = kgem_bo_map(kgem, bo);
 			if (!dst)
@@ -1330,6 +1417,7 @@ bool sna_replace(struct sna *sna,
 		}
 	}
 
+done:
 	if (bo != *_bo)
 		kgem_bo_destroy(kgem, *_bo);
 	*_bo = bo;

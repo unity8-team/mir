@@ -1614,6 +1614,7 @@ prepare_blt_put(struct sna *sna,
 	assert(src->devPrivate.ptr);
 
 	if (op->dst.bo) {
+		assert(op->dst.bo == sna_pixmap(op->dst.pixmap)->gpu_bo);
 		if (alpha_fixup) {
 			op->u.blt.pixel = alpha_fixup;
 			op->blt   = blt_put_composite_with_alpha;
@@ -1871,24 +1872,32 @@ clear:
 		}
 	} else {
 put:
-		if (!tmp->dst.bo) {
+		if (tmp->dst.bo) {
+			struct sna_pixmap *priv = sna_pixmap(tmp->dst.pixmap);
+			if (tmp->dst.bo == priv->cpu_bo) {
+				assert(kgem_bo_is_busy(tmp->dst.bo));
+				tmp->dst.bo = sna_drawable_use_bo(dst->pDrawable,
+								  FORCE_GPU | PREFER_GPU,
+								  &dst_box,
+								  &tmp->damage);
+				if (tmp->dst.bo == priv->cpu_bo) {
+					DBG(("%s: forcing the stall to overwrite a busy CPU bo\n", __FUNCTION__));
+					tmp->dst.bo = NULL;
+				}
+			}
+		}
+
+		if (tmp->dst.bo == NULL) {
 			RegionRec region;
 
 			region.extents = dst_box;
 			region.data = NULL;
 
 			if (!sna_drawable_move_region_to_cpu(dst->pDrawable, &region,
-							MOVE_INPLACE_HINT | MOVE_WRITE))
+							MOVE_INPLACE_HINT | MOVE_READ | MOVE_WRITE))
 				return false;
-		} else {
-			if (tmp->dst.bo == sna_pixmap(tmp->dst.pixmap)->cpu_bo) {
-				assert(kgem_bo_is_busy(tmp->dst.bo));
-				tmp->dst.bo = sna_drawable_use_bo(dst->pDrawable,
-								  FORCE_GPU | PREFER_GPU,
-								  &dst_box,
-								  &tmp->damage);
-			}
 		}
+
 		ret = prepare_blt_put(sna, tmp, alpha_fixup);
 	}
 

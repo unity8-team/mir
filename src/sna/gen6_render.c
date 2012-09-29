@@ -2331,12 +2331,8 @@ gen6_composite_set_target(struct sna *sna,
 		box.y1 = y;
 		box.x2 = x + w;
 		box.y2 = y + h;
-	} else {
-		box.x1 = dst->pDrawable->x;
-		box.y1 = dst->pDrawable->y;
-		box.x2 = box.x1 + dst->pDrawable->width;
-		box.y2 = box.y1 + dst->pDrawable->height;
-	}
+	} else
+		sna_render_picture_extents(dst, &box);
 
 	op->dst.bo = sna_drawable_use_bo (dst->pDrawable,
 					  PREFER_GPU | FORCE_GPU | RENDER_GPU,

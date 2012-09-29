@@ -1784,9 +1784,12 @@ gen7_get_batch(struct sna *sna)
 		DBG(("%s: flushing batch: %d < %d+%d\n",
 		     __FUNCTION__, sna->kgem.surface - sna->kgem.nbatch,
 		     150, 4*8));
-		kgem_submit(&sna->kgem);
+		_kgem_submit(&sna->kgem);
 		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	}
+
+	assert(sna->kgem.mode == KGEM_RENDER);
+	assert(sna->kgem.ring == KGEM_RENDER);
 
 	if (sna->render_state.gen7.needs_invariant)
 		gen7_emit_invariant(sna);
@@ -2435,12 +2438,8 @@ gen7_composite_set_target(struct sna *sna,
 		box.y1 = y;
 		box.x2 = x + w;
 		box.y2 = y + h;
-	} else {
-		box.x1 = dst->pDrawable->x;
-		box.y1 = dst->pDrawable->y;
-		box.x2 = box.x1 + dst->pDrawable->width;
-		box.y2 = box.y1 + dst->pDrawable->height;
-	}
+	} else
+		sna_render_picture_extents(dst, &box);
 
 	op->dst.bo = sna_drawable_use_bo (dst->pDrawable,
 					  PREFER_GPU | FORCE_GPU | RENDER_GPU,

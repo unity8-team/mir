@@ -214,6 +214,123 @@ memcpy_blt(const void *src, void *dst, int bpp,
 }
 
 void
+memcpy_to_tiled_x(const void *src, void *dst, int bpp, int swizzling,
+		  int32_t src_stride, int32_t dst_stride,
+		  int16_t src_x, int16_t src_y,
+		  int16_t dst_x, int16_t dst_y,
+		  uint16_t width, uint16_t height)
+{
+	const unsigned tile_width = 512;
+	const unsigned tile_height = 8;
+	const unsigned tile_size = 4096;
+
+	const unsigned cpp = bpp / 8;
+	const unsigned stride_tiles = dst_stride / tile_width;
+	const unsigned swizzle_pixels = (swizzling ? 64 : tile_width) / cpp;
+	const unsigned tile_pixels = ffs(tile_width / cpp) - 1;
+	const unsigned tile_mask = (1 << tile_pixels) - 1;
+
+	unsigned x, y;
+
+	DBG(("%s(bpp=%d, swizzling=%d): src=(%d, %d), dst=(%d, %d), size=%dx%d, pitch=%d/%d\n",
+	     __FUNCTION__, bpp, swizzling, src_x, src_y, dst_x, dst_y, width, height, src_stride, dst_stride));
+
+	src = (const uint8_t *)src + src_y * src_stride + src_x * cpp;
+
+	for (y = 0; y < height; ++y) {
+		const uint32_t dy = y + dst_y;
+		const uint32_t tile_row =
+			(dy / tile_height * stride_tiles * tile_size +
+			 (dy & (tile_height-1)) * tile_width);
+		const uint8_t *src_row = (const uint8_t *)src + src_stride * y;
+		uint32_t dx = dst_x, offset;
+
+		x = width * cpp;
+		if (dx & (swizzle_pixels - 1)) {
+			const uint32_t swizzle_bound_pixels = ALIGN(dx + 1, swizzle_pixels);
+			const uint32_t length = min(dst_x + width, swizzle_bound_pixels) - dx;
+			offset = tile_row +
+				(dx >> tile_pixels) * tile_size +
+				(dx & tile_mask) * cpp;
+			switch (swizzling) {
+			case I915_BIT_6_SWIZZLE_NONE:
+				break;
+			case I915_BIT_6_SWIZZLE_9:
+				offset ^= (offset >> 3) & 64;
+				break;
+			case I915_BIT_6_SWIZZLE_9_10:
+				offset ^= ((offset ^ (offset >> 1)) >> 3) & 64;
+				break;
+			case I915_BIT_6_SWIZZLE_9_11:
+				offset ^= ((offset ^ (offset >> 2)) >> 3) & 64;
+				break;
+			}
+
+			memcpy((char *)dst + offset, src_row, length * cpp);
+
+			src_row += length * cpp;
+			x -= length * cpp;
+			dx += length;
+		}
+		if (swizzling) {
+			while (x >= 64) {
+				offset = tile_row +
+					(dx >> tile_pixels) * tile_size +
+					(dx & tile_mask) * cpp;
+				switch (swizzling) {
+				case I915_BIT_6_SWIZZLE_9:
+					offset ^= (offset >> 3) & 64;
+					break;
+				case I915_BIT_6_SWIZZLE_9_10:
+					offset ^= ((offset ^ (offset >> 1)) >> 3) & 64;
+					break;
+				case I915_BIT_6_SWIZZLE_9_11:
+					offset ^= ((offset ^ (offset >> 2)) >> 3) & 64;
+					break;
+				}
+
+				memcpy((char *)dst + offset, src_row, 64);
+
+				src_row += 64;
+				x -= 64;
+				dx += swizzle_pixels;
+			}
+		} else {
+			while (x >= 512) {
+				assert((dx & tile_mask) == 0);
+				offset = tile_row + (dx >> tile_pixels) * tile_size;
+
+				memcpy((char *)dst + offset, src_row, 512);
+
+				src_row += 512;
+				x -= 512;
+				dx += swizzle_pixels;
+			}
+		}
+		if (x) {
+			offset = tile_row +
+				(dx >> tile_pixels) * tile_size +
+				(dx & tile_mask) * cpp;
+			switch (swizzling) {
+			case I915_BIT_6_SWIZZLE_NONE:
+				break;
+			case I915_BIT_6_SWIZZLE_9:
+				offset ^= (offset >> 3) & 64;
+				break;
+			case I915_BIT_6_SWIZZLE_9_10:
+				offset ^= ((offset ^ (offset >> 1)) >> 3) & 64;
+				break;
+			case I915_BIT_6_SWIZZLE_9_11:
+				offset ^= ((offset ^ (offset >> 2)) >> 3) & 64;
+				break;
+			}
+
+			memcpy((char *)dst + offset, src_row, x);
+		}
+	}
+}
+
+void
 memmove_box(const void *src, void *dst,
 	    int bpp, int32_t stride,
 	    const BoxRec *box,

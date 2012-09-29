@@ -51,7 +51,6 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <mi.h>
 #include <micmap.h>
 #include <mipict.h>
-#include <mibstore.h>
 
 #include "compiler.h"
 #include "sna.h"
@@ -386,7 +385,8 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 	Gamma zeros = { 0.0, 0.0, 0.0 };
 	int fd;
 
-	DBG(("%s\n", __FUNCTION__));
+	DBG(("%s flags=%x, numEntities=%d\n",
+	     __FUNCTION__, flags, scrn->numEntities));
 
 	if (scrn->numEntities != 1)
 		return FALSE;
@@ -884,7 +884,6 @@ sna_screen_init(SCREEN_INIT_ARGS_DECL)
 
 	xf86SetBlackWhitePixels(screen);
 
-	miInitializeBackingStore(screen);
 	xf86SetBackingStore(screen);
 	xf86SetSilkenMouse(screen);
 	if (!miDCInitialize(screen, xf86GetPointerScreenFuncs()))

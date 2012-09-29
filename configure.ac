@@ -23,7 +23,7 @@
 # Initialize Autoconf
 AC_PREREQ([2.60])
 AC_INIT([xf86-video-intel],
-        [2.20.8],
+        [2.20.9],
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
         [xf86-video-intel])
 AC_CONFIG_SRCDIR([Makefile.am])
@@ -125,6 +125,10 @@ AC_ARG_ENABLE(kms-only, AS_HELP_STRING([--enable-kms-only],
                                   [Assume KMS support [[default=no]]]),
               [KMS_ONLY="$enableval"],
               [KMS_ONLY=no])
+AC_ARG_ENABLE(ums-only, AS_HELP_STRING([--enable-ums-only],
+                                  [Assume only UMS (no KMS) support [[default=no]]]),
+              [UMS_ONLY="$enableval"],
+              [UMS_ONLY=no])
 
 required_xorg_xserver_version=1.6
 required_pixman_version=0.24
@@ -230,12 +234,12 @@ if test "x$accel" = xauto; then
 			accel=sna
 		fi
 	fi
-	if test "x$accel" = xauto; then
+	if test "x$accel" = xauto -a "x$UMS_ONLY" != "xyes"; then
 		AC_MSG_ERROR([No default acceleration option])
 	fi
 fi
 
-have_accel=no
+have_accel=none
 if test "x$accel" = xsna; then
 	if test "x$SNA" != "xno"; then
 		AC_DEFINE(DEFAULT_ACCEL_METHOD, SNA, [Default acceleration method])
@@ -254,7 +258,7 @@ if test "x$accel" = xuxa; then
 	fi
 fi
 AC_MSG_RESULT($accel)
-if test "x$accel" = xno; then
+if test "x$accel" = xnone -a "x$UMS_ONLY" != "xyes"; then
 	AC_MSG_ERROR([No default acceleration option])
 fi
 
@@ -360,6 +364,10 @@ fi
 AM_CONDITIONAL(KMS_ONLY, test x$KMS_ONLY = xyes)
 if test "x$KMS_ONLY" = xyes; then
 	AC_DEFINE(KMS_ONLY,1,[Assume KMS support])
+fi
+AM_CONDITIONAL(UMS_ONLY, test x$UMS_ONLY = xyes)
+if test "x$UMS_ONLY" = xyes; then
+	AC_DEFINE(UMS_ONLY,1,[Assume only UMS (no KMS) support])
 fi
 
 AM_CONDITIONAL(DEBUG, test x$DEBUG != xno)

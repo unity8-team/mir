@@ -214,6 +214,7 @@ static const struct pci_id_match intel_device_match[] = {
 	INTEL_DEVICE_MATCH (PCI_CHIP_I815, &intel_i81x_info ),
 #endif
 
+#if !UMS_ONLY
 	INTEL_DEVICE_MATCH (PCI_CHIP_I830_M, &intel_i830_info ),
 	INTEL_DEVICE_MATCH (PCI_CHIP_845_G, &intel_i845_info ),
 	INTEL_DEVICE_MATCH (PCI_CHIP_I854, &intel_i855_info ),
@@ -309,6 +310,8 @@ static const struct pci_id_match intel_device_match[] = {
 	INTEL_DEVICE_MATCH (PCI_CHIP_VALLEYVIEW_PO, &intel_valleyview_info ),
 
 	INTEL_DEVICE_MATCH (PCI_MATCH_ANY, &intel_generic_info ),
+#endif
+
 	{ 0, 0, 0 },
 };
 
@@ -422,6 +425,7 @@ static Bool has_kernel_mode_setting(struct pci_device *dev)
 	return ret;
 }
 
+#if !UMS_ONLY
 extern XF86ConfigPtr xf86configptr;
 
 static XF86ConfDevicePtr
@@ -459,6 +463,7 @@ static enum accel_method { UXA, SNA } get_accel_method(void)
 
 	return accel_method;
 }
+#endif
 
 /*
  * intel_pci_probe --
@@ -523,6 +528,7 @@ static Bool intel_pci_probe(DriverPtr		driver,
 	}
 #endif
 
+#if !UMS_ONLY
 	switch (get_accel_method()) {
 #if USE_SNA
 	case SNA: return sna_init_scrn(scrn, entity_num);
@@ -532,8 +538,11 @@ static Bool intel_pci_probe(DriverPtr		driver,
 	case UXA: return intel_init_scrn(scrn);
 #endif
 
-	default: return FALSE;
+	default: break;
 	}
+#endif
+
+	return FALSE;
 }
 
 #ifdef XSERVER_PLATFORM_BUS
@@ -577,6 +586,7 @@ intel_platform_probe(DriverPtr driver,
 	xf86DrvMsg(scrn->scrnIndex, X_INFO,
 		   "using device path '%s'\n", path ? path : "Default device");
 
+#if !UMS_ONLY
 	switch (get_accel_method()) {
 #if USE_SNA
         case SNA: return sna_init_scrn(scrn, entity_num);
@@ -584,8 +594,12 @@ intel_platform_probe(DriverPtr driver,
 #if USE_UXA
         case UXA: return intel_init_scrn(scrn);
 #endif
-	default: return FALSE;
+
+	default: break;
 	}
+#endif
+
+	return FALSE;
 }
 #endif
 

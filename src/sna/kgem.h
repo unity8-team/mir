@@ -262,6 +262,7 @@ struct kgem_bo *kgem_create_cpu_2d(struct kgem *kgem,
 
 uint32_t kgem_bo_get_binding(struct kgem_bo *bo, uint32_t format);
 void kgem_bo_set_binding(struct kgem_bo *bo, uint32_t format, uint16_t offset);
+int kgem_bo_get_swizzling(struct kgem *kgem, struct kgem_bo *bo);
 
 void kgem_bo_retire(struct kgem *kgem, struct kgem_bo *bo);
 bool kgem_retire(struct kgem *kgem);
@@ -344,6 +345,7 @@ static inline void kgem_set_mode(struct kgem *kgem, enum kgem_mode mode)
 static inline void _kgem_set_mode(struct kgem *kgem, enum kgem_mode mode)
 {
 	assert(kgem->mode == KGEM_NONE);
+	assert(kgem->nbatch == 0);
 	kgem->context_switch(kgem, mode);
 	kgem->mode = mode;
 }
@@ -418,6 +420,8 @@ void kgem_bo_sync__gtt(struct kgem *kgem, struct kgem_bo *bo);
 void *kgem_bo_map__debug(struct kgem *kgem, struct kgem_bo *bo);
 void *kgem_bo_map__cpu(struct kgem *kgem, struct kgem_bo *bo);
 void kgem_bo_sync__cpu(struct kgem *kgem, struct kgem_bo *bo);
+void *__kgem_bo_map__cpu(struct kgem *kgem, struct kgem_bo *bo);
+void __kgem_bo_unmap__cpu(struct kgem *kgem, struct kgem_bo *bo, void *ptr);
 uint32_t kgem_bo_flink(struct kgem *kgem, struct kgem_bo *bo);
 
 bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,
@@ -493,7 +497,7 @@ static inline bool kgem_bo_is_mappable(struct kgem *kgem,
 	return bo->presumed_offset + kgem_bo_size(bo) <= kgem->aperture_mappable;
 }
 
-static inline bool kgem_bo_mapped(struct kgem_bo *bo)
+static inline bool kgem_bo_mapped(struct kgem *kgem, struct kgem_bo *bo)
 {
 	DBG(("%s: map=%p, tiling=%d, domain=%d\n",
 	     __FUNCTION__, bo->map, bo->tiling, bo->domain));
@@ -501,12 +505,15 @@ static inline bool kgem_bo_mapped(struct kgem_bo *bo)
 	if (bo->map == NULL)
 		return bo->tiling == I915_TILING_NONE && bo->domain == DOMAIN_CPU;
 
+	if (bo->tiling == I915_TILING_X && !bo->scanout && kgem->has_llc)
+		return IS_CPU_MAP(bo->map);
+
 	return IS_CPU_MAP(bo->map) == !bo->tiling;
 }
 
 static inline bool kgem_bo_can_map(struct kgem *kgem, struct kgem_bo *bo)
 {
-	if (kgem_bo_mapped(bo))
+	if (kgem_bo_mapped(kgem, bo))
 		return true;
 
 	if (!bo->tiling && kgem->has_llc)

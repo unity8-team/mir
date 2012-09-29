@@ -1354,6 +1354,10 @@ static void kgem_bo_clear_scanout(struct kgem *kgem, struct kgem_bo *bo)
 	bo->needs_flush = true;
 	bo->flush = false;
 	bo->reusable = true;
+
+	if (kgem->has_llc &&
+	    gem_set_cacheing(kgem->fd, bo->handle, SNOOPED))
+		bo->reusable = false;
 }
 
 static void _kgem_bo_delete_buffer(struct kgem *kgem, struct kgem_bo *bo)
@@ -4082,6 +4086,56 @@ retry:
 	return (void *)(uintptr_t)mmap_arg.addr_ptr;
 }
 
+void *__kgem_bo_map__cpu(struct kgem *kgem, struct kgem_bo *bo)
+{
+	struct drm_i915_gem_mmap mmap_arg;
+
+	DBG(("%s(handle=%d, size=%d, mapped? %d)\n",
+	     __FUNCTION__, bo->handle, bytes(bo), (int)__MAP_TYPE(bo->map)));
+        assert(bo->refcnt);
+	assert(!bo->purged);
+	assert(list_is_empty(&bo->list));
+	assert(bo->proxy == NULL);
+
+	if (IS_CPU_MAP(bo->map))
+		return MAP(bo->map);
+
+retry:
+	VG_CLEAR(mmap_arg);
+	mmap_arg.handle = bo->handle;
+	mmap_arg.offset = 0;
+	mmap_arg.size = bytes(bo);
+	if (drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_MMAP, &mmap_arg)) {
+		ErrorF("%s: failed to mmap %d, %d bytes, into CPU domain: %d\n",
+		       __FUNCTION__, bo->handle, bytes(bo), errno);
+		if (__kgem_throttle_retire(kgem, 0))
+			goto retry;
+
+		return NULL;
+	}
+
+	VG(VALGRIND_MAKE_MEM_DEFINED(mmap_arg.addr_ptr, bytes(bo)));
+	if (bo->map == NULL) {
+		DBG(("%s: caching CPU vma for %d\n", __FUNCTION__, bo->handle));
+		bo->map = MAKE_CPU_MAP(mmap_arg.addr_ptr);
+	}
+	return (void *)(uintptr_t)mmap_arg.addr_ptr;
+}
+
+void __kgem_bo_unmap__cpu(struct kgem *kgem, struct kgem_bo *bo, void *ptr)
+{
+	DBG(("%s(handle=%d, size=%d)\n",
+	     __FUNCTION__, bo->handle, bytes(bo)));
+        assert(bo->refcnt);
+
+	if (IS_CPU_MAP(bo->map)) {
+                assert(ptr == MAP(bo->map));
+                return;
+        }
+
+	munmap(ptr, bytes(bo));
+}
+
 uint32_t kgem_bo_flink(struct kgem *kgem, struct kgem_bo *bo)
 {
 	struct drm_gem_flink flink;
@@ -4959,6 +5013,19 @@ void kgem_bo_set_binding(struct kgem_bo *bo, uint32_t format, uint16_t offset)
 		b->offset = offset;
 		bo->binding.next = b;
 	}
+}
+
+int kgem_bo_get_swizzling(struct kgem *kgem, struct kgem_bo *bo)
+{
+	struct drm_i915_gem_get_tiling tiling;
+
+	VG_CLEAR(tiling);
+	tiling.handle = bo->handle;
+	if (drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_GET_TILING, &tiling))
+		return 0;
+
+	assert(bo->tiling == tiling.tiling_mode);
+	return tiling.swizzle_mode;
 }
 
 struct kgem_bo *

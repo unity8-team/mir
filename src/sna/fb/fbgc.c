@@ -159,6 +159,9 @@ fbValidateGC(GCPtr gc, unsigned long changes, DrawablePtr drawable)
 		mask = FbFullMask(drawable->bitsPerPixel);
 		depthMask = FbFullMask(drawable->depth);
 
+		DBG(("%s: computing rrop mask=%08x, depthMask=%08x, fg=%08x, bg=%08x, planemask=%08x\n",
+		     __FUNCTION__, mask, depthMask, (int)gc->fgPixel, (int)gc->bgPixel, (int)gc->planemask));
+
 		pgc->fg = gc->fgPixel & mask;
 		pgc->bg = gc->bgPixel & mask;
 
@@ -178,6 +181,9 @@ fbValidateGC(GCPtr gc, unsigned long changes, DrawablePtr drawable)
 		pgc->xor = fbXor(gc->alu, pgc->fg, pgc->pm);
 		pgc->bgand = fbAnd(gc->alu, pgc->bg, pgc->pm);
 		pgc->bgxor = fbXor(gc->alu, pgc->bg, pgc->pm);
+
+		DBG(("%s: rrop fg=%08x, bg=%08x, pm=%08x, and=%08x, xor=%08x, bgand=%08x, bgxor=%08x\n",
+		     __FUNCTION__, pgc->fg, pgc->bg, pgc->pm, pgc->and, pgc->xor, pgc->bgand, pgc->bgxor));
 	}
 
 	if (changes & GCDashList) {

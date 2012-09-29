@@ -171,6 +171,8 @@ static inline struct sna_pixmap *sna_pixmap_from_drawable(DrawablePtr drawable)
 struct sna_gc {
 	long changes;
 	long serial;
+
+	GCFuncs *old_funcs;
 	void *priv;
 };
 
@@ -763,6 +765,12 @@ memcpy_blt(const void *src, void *dst, int bpp,
 	   int16_t src_x, int16_t src_y,
 	   int16_t dst_x, int16_t dst_y,
 	   uint16_t width, uint16_t height);
+void
+memcpy_to_tiled_x(const void *src, void *dst, int bpp, int swizzling,
+		  int32_t src_stride, int32_t dst_stride,
+		  int16_t src_x, int16_t src_y,
+		  int16_t dst_x, int16_t dst_y,
+		  uint16_t width, uint16_t height);
 void
 memmove_box(const void *src, void *dst,
 	    int bpp, int32_t stride,
