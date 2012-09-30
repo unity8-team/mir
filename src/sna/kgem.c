@@ -4115,6 +4115,10 @@ retry:
 	}
 
 	VG(VALGRIND_MAKE_MEM_DEFINED(mmap_arg.addr_ptr, bytes(bo)));
+	if (bo->domain == DOMAIN_CPU) {
+		DBG(("%s: discarding GTT vma for %d\n", __FUNCTION__, bo->handle));
+		kgem_bo_release_map(kgem, bo);
+	}
 	if (bo->map == NULL) {
 		DBG(("%s: caching CPU vma for %d\n", __FUNCTION__, bo->handle));
 		bo->map = MAKE_CPU_MAP(mmap_arg.addr_ptr);
