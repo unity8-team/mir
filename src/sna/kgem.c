@@ -1356,7 +1356,7 @@ static void kgem_bo_clear_scanout(struct kgem *kgem, struct kgem_bo *bo)
 	bo->reusable = true;
 
 	if (kgem->has_llc &&
-	    gem_set_cacheing(kgem->fd, bo->handle, SNOOPED))
+	    !gem_set_cacheing(kgem->fd, bo->handle, SNOOPED))
 		bo->reusable = false;
 }
 
