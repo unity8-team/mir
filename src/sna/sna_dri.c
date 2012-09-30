@@ -1091,14 +1091,14 @@ can_exchange(struct sna * sna,
 	WindowPtr win = (WindowPtr)draw;
 	PixmapPtr pixmap;
 
-	if (draw->type == DRAWABLE_PIXMAP)
-		return true;
-
 	if (front->format != back->format) {
 		DBG(("%s: no, format mismatch, front = %d, back = %d\n",
 		     __FUNCTION__, front->format, back->format));
 		return false;
 	}
+
+	if (draw->type == DRAWABLE_PIXMAP)
+		return true;
 
 	pixmap = get_window_pixmap(win);
 	if (pixmap == sna->front) {
