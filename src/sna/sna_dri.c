@@ -1585,7 +1585,7 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		     __FUNCTION__, pipe, sna->dri.flip_pending != NULL));
 
 		info = sna->dri.flip_pending;
-		if (info && info->draw == draw) {
+		if (info && info->draw == draw && info->type == DRI2_FLIP_THROTTLE) {
 			DBG(("%s: chaining flip\n", __FUNCTION__));
 			info->next_front.name = 1;
 			return true;
@@ -1872,12 +1872,10 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 
 	if (can_flip(sna, draw, front, back)) {
 		DBG(("%s: try flip\n", __FUNCTION__));
-		if (!sna_dri_schedule_flip(client, draw, front, back,
-					   target_msc, divisor, remainder,
-					   func, data))
-			goto blit_fallback;
-
-		return TRUE;
+		if (sna_dri_schedule_flip(client, draw, front, back,
+					  target_msc, divisor, remainder,
+					  func, data))
+			return TRUE;
 	}
 
 	/* Drawable not displayed... just complete the swap */
