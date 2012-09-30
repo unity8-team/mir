@@ -435,15 +435,19 @@ sna_pixmap_alloc_cpu(struct sna *sna,
 						  pixmap->drawable.bitsPerPixel,
 						  from_gpu ? 0 : CREATE_CPU_MAP | CREATE_INACTIVE);
 		if (priv->cpu_bo) {
-			DBG(("%s: allocated CPU handle=%d (snooped? %d)\n", __FUNCTION__,
-			     priv->cpu_bo->handle, priv->cpu_bo->snoop));
-
 			priv->ptr = kgem_bo_map__cpu(&sna->kgem, priv->cpu_bo);
 			priv->stride = priv->cpu_bo->pitch;
+			if (priv->ptr) {
+				DBG(("%s: allocated CPU handle=%d (snooped? %d)\n", __FUNCTION__,
+				     priv->cpu_bo->handle, priv->cpu_bo->snoop));
 #ifdef DEBUG_MEMORY
-			sna->debug_memory.cpu_bo_allocs++;
-			sna->debug_memory.cpu_bo_bytes += kgem_bo_size(priv->cpu_bo);
+				sna->debug_memory.cpu_bo_allocs++;
+				sna->debug_memory.cpu_bo_bytes += kgem_bo_size(priv->cpu_bo);
+			} else {
+				kgem_bo_destroy(&sna->kgem, priv->cpu_bo);
+				priv->cpu_bo = NULL;
 #endif
+			}
 		}
 	}
 
