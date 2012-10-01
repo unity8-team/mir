@@ -503,6 +503,8 @@ static void gen2_emit_invariant(struct sna *sna)
 	      ENABLE_COLOR_WRITE |
 	      ENABLE_TEX_CACHE);
 
+	BATCH(_3DSTATE_STIPPLE);
+
 	sna->render_state.gen2.need_invariant = false;
 }
 
