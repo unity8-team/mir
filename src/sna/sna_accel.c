@@ -2351,7 +2351,6 @@ sna_pixmap_mark_active(struct sna *sna, struct sna_pixmap *priv)
 	    !priv->pinned && priv->gpu_bo->proxy == NULL &&
 	    (priv->create & KGEM_CAN_CREATE_LARGE) == 0)
 		list_move(&priv->inactive, &sna->active_pixmaps);
-	priv->cpu = false;
 	return priv;
 }
 
@@ -2416,12 +2415,6 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 		pixmap->devPrivate.ptr = NULL;
 		priv->mapped = false;
 	}
-	if (pixmap->devPrivate.ptr == NULL) {
-		assert(priv->stride);
-		pixmap->devPrivate.ptr = priv->ptr;
-		pixmap->devKind = priv->stride;
-	}
-	assert(pixmap->devPrivate.ptr != NULL);
 
 	region_set(&r, box);
 	if (MIGRATE_ALL || region_subsumes_damage(&r, priv->cpu_damage)) {
@@ -2511,7 +2504,7 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 		box = REGION_RECTS(&i);
 		ok = false;
 		if (use_cpu_bo_for_upload(priv, 0)) {
-			DBG(("%s: using CPU bo for upload to GPU\n", __FUNCTION__));
+			DBG(("%s: using CPU bo for upload to GPU, %d boxes\n", __FUNCTION__, n));
 			ok = sna->render.copy_boxes(sna, GXcopy,
 						    pixmap, priv->cpu_bo, 0, 0,
 						    pixmap, priv->gpu_bo, 0, 0,
@@ -2550,6 +2543,7 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 done:
 	if (flags & MOVE_WRITE) {
 		priv->clear = false;
+		priv->cpu = false;
 		if (priv->cpu_damage == NULL && box_inplace(pixmap, box)) {
 			DBG(("%s: large operation on undamaged, promoting to full GPU\n",
 			     __FUNCTION__));
@@ -2728,7 +2722,7 @@ create_gpu_bo:
 			} else {
 				DBG(("%s: partial GPU damage with no CPU damage, continuing to use GPU\n",
 				     __FUNCTION__));
-				goto move_to_gpu;
+				goto done;
 			}
 		}
 
@@ -3159,8 +3153,10 @@ done:
 	}
 
 active:
-	if (flags & MOVE_WRITE)
+	if (flags & MOVE_WRITE) {
 		priv->clear = false;
+		priv->cpu = false;
+	}
 	assert(!priv->gpu_bo->proxy || (flags & MOVE_WRITE) == 0);
 	return sna_pixmap_mark_active(sna, priv);
 }

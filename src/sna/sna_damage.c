@@ -1350,6 +1350,8 @@ static bool __sna_damage_intersect(struct sna_damage *damage,
 				   RegionPtr region, RegionPtr result)
 {
 	assert(damage && damage->mode != DAMAGE_ALL);
+	assert(RegionNotEmpty(region));
+
 	if (region->extents.x2 <= damage->extents.x1 ||
 	    region->extents.x1 >= damage->extents.x2)
 		return false;
