@@ -2988,6 +2988,9 @@ sna_crtc_redisplay__composite(xf86CrtcPtr crtc, RegionPtr region)
 	if (!dst)
 		goto free_src;
 
+	ValidatePicture(src);
+	ValidatePicture(dst);
+
 	if (!sna->render.composite(sna,
 				   PictOpSrc, src, NULL, dst,
 				   0, 0,
