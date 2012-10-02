@@ -2622,10 +2622,10 @@ sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
 	}
 
 	if (DAMAGE_IS_ALL(priv->cpu_damage)) {
+		assert(priv->gpu_damage == NULL);
 		if ((flags & FORCE_GPU) == 0 || priv->cpu_bo) {
 			DBG(("%s: use CPU fast path (all-damaged), and not forced-gpu\n",
 			     __FUNCTION__));
-			assert(priv->gpu_damage == NULL);
 			goto use_cpu_bo;
 		}
 	}
@@ -2787,6 +2787,8 @@ done:
 	DBG(("%s: using GPU bo with damage? %d\n",
 	     __FUNCTION__, *damage != NULL));
 	assert(priv->gpu_bo->proxy == NULL);
+	assert(priv->clear == false);
+	assert(priv->cpu == false);
 	return priv->gpu_bo;
 
 use_gpu_bo:
@@ -2857,8 +2859,13 @@ use_cpu_bo:
 			      pixmap->drawable.height)) {
 		sna_damage_destroy(&priv->gpu_damage);
 		*damage = NULL;
-	} else
-		*damage = &priv->cpu_damage;
+	} else {
+		if (sna_damage_contains_box__no_reduce(priv->cpu_damage,
+						       &region.extents))
+			*damage = NULL;
+		else
+			*damage = &priv->cpu_damage;
+	}
 
 	if (priv->shm) {
 		assert(!priv->flush);
@@ -2875,6 +2882,7 @@ use_cpu_bo:
 
 	DBG(("%s: using CPU bo with damage? %d\n",
 	     __FUNCTION__, *damage != NULL));
+	assert(priv->clear == false);
 	return priv->cpu_bo;
 }
 
@@ -4424,6 +4432,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			}
 			sna_damage_destroy(&dst_priv->cpu_damage);
 			list_del(&dst_priv->list);
+			dst_priv->cpu = false;
 		}
 		if (region->data == NULL)
 			hint |= IGNORE_CPU;
