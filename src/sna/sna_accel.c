@@ -2240,6 +2240,7 @@ out:
 	if ((flags & MOVE_ASYNC_HINT) == 0 && priv->cpu_bo) {
 		DBG(("%s: syncing cpu bo\n", __FUNCTION__));
 		kgem_bo_sync__cpu(&sna->kgem, priv->cpu_bo);
+		assert(!kgem_bo_is_busy(priv->cpu_bo));
 	}
 	priv->cpu = (flags & MOVE_ASYNC_HINT) == 0;
 	assert(pixmap->devPrivate.ptr);
@@ -3447,6 +3448,12 @@ static bool upload_inplace(struct sna *sna,
 		}
 	}
 
+	if (priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo) &&
+	    !(priv->gpu_bo && kgem_bo_is_busy(priv->gpu_bo))) {
+		DBG(("%s: yes, CPU bo is busy, but the GPU bo is not\n", __FUNCTION__));
+		return true;
+	}
+
 	if (!region_inplace(sna, pixmap, region, priv, true)) {
 		DBG(("%s? no, region not suitable\n", __FUNCTION__));
 		return false;
@@ -3572,6 +3579,12 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 		priv->gpu_bo = NULL;
 	}
 
+	if (priv->mapped) {
+		assert(!priv->shm);
+		pixmap->devPrivate.ptr = NULL;
+		priv->mapped = false;
+	}
+
 	/* If the GPU is currently accessing the CPU pixmap, then
 	 * we will need to wait for that to finish before we can
 	 * modify the memory.
@@ -3586,25 +3599,19 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 		if (priv->cpu_damage) {
 			if (!region_subsumes_drawable(region, &pixmap->drawable)) {
 				sna_damage_subtract(&priv->cpu_damage, region);
-				if (!sna_pixmap_move_to_gpu(pixmap,
-							    MOVE_WRITE))
+				if (!sna_pixmap_move_to_gpu(pixmap, MOVE_READ | MOVE_ASYNC_HINT))
 					return false;
 			} else {
 				sna_damage_destroy(&priv->cpu_damage);
 				priv->undamaged = false;
 			}
-			assert(priv->cpu_damage == NULL);
 		}
+		assert(priv->cpu_damage == NULL);
 		sna_damage_all(&priv->gpu_damage,
 			       pixmap->drawable.width,
 			       pixmap->drawable.height);
 		sna_pixmap_free_cpu(sna, priv);
-	}
-
-	if (priv->mapped) {
-		assert(!priv->shm);
-		pixmap->devPrivate.ptr = NULL;
-		priv->mapped = false;
+		assert(pixmap->devPrivate.ptr == NULL);
 	}
 
 	if (pixmap->devPrivate.ptr == NULL &&
@@ -3649,6 +3656,7 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 				       pixmap->drawable.height);
 			sna_pixmap_free_gpu(sna, priv);
 			priv->undamaged = false;
+			assert(priv->gpu_damage == NULL);
 		} else {
 			sna_damage_subtract(&priv->gpu_damage, region);
 			sna_damage_add(&priv->cpu_damage, region);
