@@ -2855,7 +2855,8 @@ use_cpu_bo:
 		sna_damage_destroy(&priv->gpu_damage);
 		*damage = NULL;
 	} else {
-		if (sna_damage_contains_box__no_reduce(priv->cpu_damage,
+		if (priv->cpu_damage &&
+		    sna_damage_contains_box__no_reduce(priv->cpu_damage,
 						       &region.extents))
 			*damage = NULL;
 		else
