@@ -2687,6 +2687,7 @@ sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
 			if (priv->cpu_damage == NULL) {
 				list_del(&priv->list);
 				priv->undamaged = false;
+				priv->cpu = false;
 			}
 		}
 
@@ -2715,6 +2716,7 @@ create_gpu_bo:
 
 	if (priv->gpu_damage) {
 		if (!priv->cpu_damage) {
+			assert(priv->cpu == false);
 			if (sna_damage_contains_box__no_reduce(priv->gpu_damage,
 							       &region.extents)) {
 				DBG(("%s: region wholly contained within GPU damage\n",
@@ -2997,6 +2999,7 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 		DBG(("%s: already all-damaged\n", __FUNCTION__));
 		sna_damage_destroy(&priv->cpu_damage);
 		priv->undamaged = true;
+		assert(priv->cpu == false);
 		goto active;
 	}
 
@@ -3126,6 +3129,7 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 	__sna_damage_destroy(DAMAGE_PTR(priv->cpu_damage));
 	priv->cpu_damage = NULL;
 	priv->undamaged = true;
+	priv->cpu = false;
 
 	if (priv->shm) {
 		assert(!priv->flush);
@@ -3155,10 +3159,9 @@ done:
 	}
 
 active:
-	if (flags & MOVE_WRITE) {
+	if (flags & MOVE_WRITE)
 		priv->clear = false;
-		priv->cpu = false;
-	}
+	assert(priv->cpu == false);
 	assert(!priv->gpu_bo->proxy || (flags & MOVE_WRITE) == 0);
 	return sna_pixmap_mark_active(sna, priv);
 }
@@ -14088,7 +14091,8 @@ static void sna_accel_flush(struct sna *sna)
 	sna->kgem.busy = busy;
 
 	if (priv) {
-		sna_pixmap_force_to_gpu(priv->pixmap, MOVE_READ);
+		sna_pixmap_force_to_gpu(priv->pixmap,
+					MOVE_READ | MOVE_ASYNC_HINT);
 		kgem_bo_flush(&sna->kgem, priv->gpu_bo);
 		assert(!priv->cpu);
 	}
