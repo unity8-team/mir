@@ -2777,6 +2777,8 @@ done:
 			      pixmap->drawable.width,
 			      pixmap->drawable.height)) {
 		sna_damage_destroy(&priv->cpu_damage);
+		list_del(&priv->list);
+		priv->undamaged = false;
 		*damage = NULL;
 	} else
 		*damage = &priv->gpu_damage;
@@ -2998,7 +3000,8 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 			      pixmap->drawable.height)) {
 		DBG(("%s: already all-damaged\n", __FUNCTION__));
 		sna_damage_destroy(&priv->cpu_damage);
-		priv->undamaged = true;
+		list_del(&priv->list);
+		priv->undamaged = false;
 		assert(priv->cpu == false);
 		goto active;
 	}
