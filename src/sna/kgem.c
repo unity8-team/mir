@@ -2841,12 +2841,12 @@ struct kgem_bo *kgem_create_for_prime(struct kgem *kgem, int name, uint32_t size
 
 int kgem_bo_export_to_prime(struct kgem *kgem, struct kgem_bo *bo)
 {
-#ifdef DRM_IOCTL_PRIME_HANDLE_TO_FD
+#if defined(DRM_IOCTL_PRIME_HANDLE_TO_FD) && defined(O_CLOEXEC)
 	struct drm_prime_handle args;
 
 	VG_CLEAR(args);
 	args.handle = bo->handle;
-	args.flags = DRM_CLOEXEC;
+	args.flags = O_CLOEXEC;
 
 	if (drmIoctl(kgem->fd, DRM_IOCTL_PRIME_HANDLE_TO_FD, &args))
 		return -1;
