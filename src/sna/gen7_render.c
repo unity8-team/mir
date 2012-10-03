@@ -2430,10 +2430,11 @@ gen7_composite_set_target(struct sna *sna,
 
 	op->dst.pixmap = get_drawable_pixmap(dst->pDrawable);
 	op->dst.format = dst->format;
-	op->dst.width = op->dst.pixmap->drawable.width;
+	op->dst.width  = op->dst.pixmap->drawable.width;
 	op->dst.height = op->dst.pixmap->drawable.height;
 
-	if (w && h) {
+	if (w | h) {
+		assert(w && h);
 		box.x1 = x;
 		box.y1 = y;
 		box.x2 = x + w;
@@ -2441,9 +2442,9 @@ gen7_composite_set_target(struct sna *sna,
 	} else
 		sna_render_picture_extents(dst, &box);
 
-	op->dst.bo = sna_drawable_use_bo (dst->pDrawable,
-					  PREFER_GPU | FORCE_GPU | RENDER_GPU,
-					  &box, &op->damage);
+	op->dst.bo = sna_drawable_use_bo(dst->pDrawable,
+					 PREFER_GPU | FORCE_GPU | RENDER_GPU,
+					 &box, &op->damage);
 	if (op->dst.bo == NULL)
 		return false;
 
