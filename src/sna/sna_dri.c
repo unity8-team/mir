@@ -55,6 +55,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 
 #define COLOR_PREFER_TILING_Y 0
+#define FLIP_OFF_DELAY 5
 
 enum frame_event_type {
 	DRI2_SWAP,
@@ -1431,8 +1432,22 @@ static void sna_dri_flip_event(struct sna *sna,
 			sna_dri_frame_event_info_free(sna, flip->draw, flip);
 			chain_flip(sna);
 		} else if (!flip->next_front.name) {
-			DBG(("%s: flip chain complete\n", __FUNCTION__));
-			sna_dri_frame_event_info_free(sna, flip->draw, flip);
+			/* Keep the pageflipping running for a couple of frames
+			 * so we keep the uncached scanouts alive.
+			 */
+			DBG(("%s: flip chain complete, off-delay=%d\n",
+			     __FUNCTION__, flip->off_delay));
+			if (flip->off_delay-- && flip->draw &&
+			    can_flip(sna, flip->draw, flip->front, flip->front) &&
+			    (flip->count = sna_page_flip(sna,
+							 get_private(flip->front)->bo,
+							 flip, flip->pipe))) {
+				assert(flip == sna_dri_window_get_chain((WindowPtr)flip->draw));
+				sna->dri.flip_pending = flip;
+			} else {
+				DBG(("%s: flip chain complete, off\n", __FUNCTION__));
+				sna_dri_frame_event_info_free(sna, flip->draw, flip);
+			}
 		} else if (flip->draw &&
 			   can_flip(sna, flip->draw, flip->front, flip->back)) {
 			sna_dri_flip_continue(sna, flip);
@@ -1445,6 +1460,7 @@ static void sna_dri_flip_event(struct sna *sna,
 				sna->dri.flip_pending = flip;
 			else
 				sna_dri_frame_event_info_free(sna, flip->draw, flip);
+			flip->off_delay = FLIP_OFF_DELAY;
 		} else {
 			DBG(("%s: no longer able to flip\n", __FUNCTION__));
 
@@ -1488,12 +1504,12 @@ static void sna_dri_flip_event(struct sna *sna,
 
 			flip->next_front.bo = get_private(flip->front)->bo;
 			flip->next_front.name = flip->front->name;
-			flip->off_delay = 5;
+			flip->off_delay = FLIP_OFF_DELAY;
 
 			sna->dri.flip_pending = flip;
 		} else if (flip->draw &&
 			   can_flip(sna, flip->draw, flip->front, flip->back) &&
-			   --flip->off_delay) {
+			   flip->off_delay--) {
 			assert(flip == sna_dri_window_get_chain((WindowPtr)flip->draw));
 			DBG(("%s: queuing no-flip [delay=%d]\n",
 			     __FUNCTION__, flip->off_delay));
@@ -1643,6 +1659,7 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 					       CREATE_SCANOUT | CREATE_EXACT);
 			info->back->name = kgem_bo_flink(&sna->kgem,
 							 get_private(info->back)->bo);
+			info->off_delay = FLIP_OFF_DELAY;
 			sna->dri.flip_pending = info;
 
 			DRI2SwapComplete(info->client, draw, 0, 0, 0,
@@ -2080,7 +2097,7 @@ blit:
 
 		info->next_front.name = info->front->name;
 		info->next_front.bo = get_private(info->front)->bo;
-		info->off_delay = 5;
+		info->off_delay = FLIP_OFF_DELAY;
 	} else if (info->type != DRI2_ASYNC_FLIP) {
 		/* A normal vsync'ed client is finishing, wait for it
 		 * to unpin the old framebuffer before taking over.
