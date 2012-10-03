@@ -505,6 +505,31 @@ static void gen2_emit_invariant(struct sna *sna)
 
 	BATCH(_3DSTATE_STIPPLE);
 
+	BATCH(_3DSTATE_MAP_BLEND_OP_CMD(0) |
+	      TEXPIPE_COLOR |
+	      ENABLE_TEXOUTPUT_WRT_SEL |
+	      TEXOP_OUTPUT_CURRENT |
+	      DISABLE_TEX_CNTRL_STAGE |
+	      TEXOP_SCALE_1X |
+	      TEXOP_MODIFY_PARMS | TEXOP_LAST_STAGE |
+	      TEXBLENDOP_ARG1);
+	BATCH(_3DSTATE_MAP_BLEND_OP_CMD(0) |
+	      TEXPIPE_ALPHA |
+	      ENABLE_TEXOUTPUT_WRT_SEL |
+	      TEXOP_OUTPUT_CURRENT |
+	      TEXOP_SCALE_1X | TEXOP_MODIFY_PARMS |
+	      TEXBLENDOP_ARG1);
+	BATCH(_3DSTATE_MAP_BLEND_ARG_CMD(0) |
+	      TEXPIPE_COLOR |
+	      TEXBLEND_ARG1 |
+	      TEXBLENDARG_MODIFY_PARMS |
+	      TEXBLENDARG_DIFFUSE);
+	BATCH(_3DSTATE_MAP_BLEND_ARG_CMD(0) |
+	      TEXPIPE_ALPHA |
+	      TEXBLEND_ARG1 |
+	      TEXBLENDARG_MODIFY_PARMS |
+	      TEXBLENDARG_DIFFUSE);
+
 	sna->render_state.gen2.need_invariant = false;
 }
 
@@ -513,9 +538,9 @@ gen2_get_batch(struct sna *sna)
 {
 	kgem_set_mode(&sna->kgem, KGEM_RENDER);
 
-	if (!kgem_check_batch(&sna->kgem, 30+40)) {
+	if (!kgem_check_batch(&sna->kgem, 40+40)) {
 		DBG(("%s: flushing batch: size %d > %d\n",
-		     __FUNCTION__, 30+40,
+		     __FUNCTION__, 40+40,
 		     sna->kgem.surface-sna->kgem.nbatch));
 		kgem_submit(&sna->kgem);
 		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
