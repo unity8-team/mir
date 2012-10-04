@@ -2722,7 +2722,6 @@ create_gpu_bo:
 
 	if (priv->gpu_damage) {
 		if (!priv->cpu_damage) {
-			assert(priv->cpu == false);
 			if (sna_damage_contains_box__no_reduce(priv->gpu_damage,
 							       &region.extents)) {
 				DBG(("%s: region wholly contained within GPU damage\n",
@@ -2731,6 +2730,7 @@ create_gpu_bo:
 			} else {
 				DBG(("%s: partial GPU damage with no CPU damage, continuing to use GPU\n",
 				     __FUNCTION__));
+				priv->cpu = false;
 				goto done;
 			}
 		}
