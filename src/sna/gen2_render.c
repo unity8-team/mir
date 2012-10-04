@@ -1769,17 +1769,6 @@ gen2_render_composite(struct sna *sna,
 		return false;
 	}
 
-#if NO_COMPOSITE
-	if (mask)
-		return false;
-
-	return sna_blt_composite(sna, op,
-				 src, dst,
-				 src_x, src_y,
-				 dst_x, dst_y,
-				 width, height, tmp, true);
-#endif
-
 	/* Try to use the BLT engine unless it implies a
 	 * 3D -> 2D context switch.
 	 */
@@ -3196,7 +3185,9 @@ bool gen2_render_init(struct sna *sna)
 	/* Use the BLT (and overlay) for everything except when forced to
 	 * use the texture combiners.
 	 */
+#if !NO_COMPOSITE
 	render->composite = gen2_render_composite;
+#endif
 #if !NO_COMPOSITE_SPANS
 	render->check_composite_spans = gen2_check_composite_spans;
 	render->composite_spans = gen2_render_composite_spans;
