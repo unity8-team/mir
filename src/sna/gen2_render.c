@@ -1429,25 +1429,40 @@ gen2_composite_picture(struct sna *sna,
 static bool
 gen2_composite_set_target(struct sna *sna,
 			  struct sna_composite_op *op,
-			  PicturePtr dst)
+			  PicturePtr dst,
+			  int x, int y, int w, int h)
 {
-	struct sna_pixmap *priv;
+	BoxRec box;
 
 	op->dst.pixmap = get_drawable_pixmap(dst->pDrawable);
 	op->dst.format = dst->format;
-	op->dst.width  = op->dst.pixmap->drawable.width;
+	op->dst.width = op->dst.pixmap->drawable.width;
 	op->dst.height = op->dst.pixmap->drawable.height;
 
-	priv = sna_pixmap_force_to_gpu(op->dst.pixmap, MOVE_WRITE | MOVE_READ);
-	if (priv == NULL)
+	if (w && h) {
+		box.x1 = x;
+		box.y1 = y;
+		box.x2 = x + w;
+		box.y2 = y + h;
+	} else
+		sna_render_picture_extents(dst, &box);
+
+	op->dst.bo = sna_drawable_use_bo (dst->pDrawable,
+					  PREFER_GPU | FORCE_GPU | RENDER_GPU,
+					  &box, &op->damage);
+	if (op->dst.bo == NULL)
 		return false;
 
-	if (priv->gpu_bo->pitch < 8) {
+	if (op->dst.bo->pitch < 8) {
+		struct sna_pixmap *priv;
 		struct kgem_bo *bo;
 
-		if (priv->pinned)
+		priv = sna_pixmap_move_to_gpu (op->dst.pixmap,
+					       MOVE_READ | MOVE_WRITE);
+		if (priv == NULL || priv->pinned)
 			return false;
 
+		assert(op->dst.bo == priv->gpu_bo);
 		bo = kgem_replace_bo(&sna->kgem, priv->gpu_bo,
 				     op->dst.width, op->dst.height, 8,
 				     op->dst.pixmap->drawable.bitsPerPixel);
@@ -1456,15 +1471,26 @@ gen2_composite_set_target(struct sna *sna,
 
 		kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
 		priv->gpu_bo = bo;
-	}
 
-	op->dst.bo = priv->gpu_bo;
-	op->damage = &priv->gpu_damage;
-	if (sna_damage_is_all(&priv->gpu_damage, op->dst.width, op->dst.height))
-		op->damage = NULL;
+		op->dst.bo = priv->gpu_bo;
+		op->damage = &priv->gpu_damage;
+		if (sna_damage_is_all(op->damage,
+				      op->dst.width, op->dst.height))
+			op->damage = NULL;
+	}
 
 	get_drawable_deltas(dst->pDrawable, op->dst.pixmap,
 			    &op->dst.x, &op->dst.y);
+
+	DBG(("%s: pixmap=%p, format=%08x, size=%dx%d, pitch=%d, delta=(%d,%d),damage=%p\n",
+	     __FUNCTION__,
+	     op->dst.pixmap, (int)op->dst.format,
+	     op->dst.width, op->dst.height,
+	     op->dst.bo->pitch,
+	     op->dst.x, op->dst.y,
+	     op->damage ? *op->damage : (void *)-1));
+
+	assert(op->dst.bo->proxy == NULL);
 	return true;
 }
 
@@ -1778,13 +1804,12 @@ gen2_render_composite(struct sna *sna,
 					    width,  height,
 					    tmp);
 
-	if (!gen2_composite_set_target(sna, tmp, dst)) {
+	if (!gen2_composite_set_target(sna, tmp, dst,
+				       dst_x, dst_y, width, height)) {
 		DBG(("%s: unable to set render target\n",
 		     __FUNCTION__));
 		return false;
 	}
-
-	sna_render_reduce_damage(tmp, dst_x, dst_y, width, height);
 
 	tmp->op = op;
 	if (too_large(tmp->dst.width, tmp->dst.height) ||
@@ -2263,12 +2288,12 @@ gen2_render_composite_spans(struct sna *sna,
 						  width, height, flags, tmp);
 	}
 
-	if (!gen2_composite_set_target(sna, &tmp->base, dst)) {
+	if (!gen2_composite_set_target(sna, &tmp->base, dst,
+				       dst_x, dst_y, width, height)) {
 		DBG(("%s: unable to set render target\n",
 		     __FUNCTION__));
 		return false;
 	}
-	sna_render_reduce_damage(&tmp->base, dst_x, dst_y, width, height);
 
 	tmp->base.op = op;
 	if (too_large(tmp->base.dst.width, tmp->base.dst.height) ||
