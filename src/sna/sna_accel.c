@@ -1377,10 +1377,14 @@ static inline bool use_cpu_bo_for_download(struct sna *sna,
 	return true;
 }
 
-static inline bool use_cpu_bo_for_upload(struct sna_pixmap *priv,
+static inline bool use_cpu_bo_for_upload(struct sna *sna,
+					 struct sna_pixmap *priv,
 					 unsigned flags)
 {
 	if (DBG_NO_CPU_UPLOAD)
+		return false;
+
+	if (wedged(sna))
 		return false;
 
 	if (priv->cpu_bo == NULL)
@@ -2425,7 +2429,7 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 		if (n) {
 			bool ok = false;
 
-			if (use_cpu_bo_for_upload(priv, 0)) {
+			if (use_cpu_bo_for_upload(sna, priv, 0)) {
 				DBG(("%s: using CPU bo for upload to GPU\n", __FUNCTION__));
 				ok = sna->render.copy_boxes(sna, GXcopy,
 							    pixmap, priv->cpu_bo, 0, 0,
@@ -2469,7 +2473,7 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 	} else if (DAMAGE_IS_ALL(priv->cpu_damage) ||
 		   sna_damage_contains_box__no_reduce(priv->cpu_damage, box)) {
 		bool ok = false;
-		if (use_cpu_bo_for_upload(priv, 0)) {
+		if (use_cpu_bo_for_upload(sna, priv, 0)) {
 			DBG(("%s: using CPU bo for upload to GPU\n", __FUNCTION__));
 			ok = sna->render.copy_boxes(sna, GXcopy,
 						    pixmap, priv->cpu_bo, 0, 0,
@@ -2504,7 +2508,7 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 
 		box = REGION_RECTS(&i);
 		ok = false;
-		if (use_cpu_bo_for_upload(priv, 0)) {
+		if (use_cpu_bo_for_upload(sna, priv, 0)) {
 			DBG(("%s: using CPU bo for upload to GPU, %d boxes\n", __FUNCTION__, n));
 			ok = sna->render.copy_boxes(sna, GXcopy,
 						    pixmap, priv->cpu_bo, 0, 0,
@@ -3099,7 +3103,7 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 			flags |= MOVE_ASYNC_HINT;
 
 		ok = false;
-		if (use_cpu_bo_for_upload(priv, flags)) {
+		if (use_cpu_bo_for_upload(sna, priv, flags)) {
 			DBG(("%s: using CPU bo for upload to GPU\n", __FUNCTION__));
 			ok = sna->render.copy_boxes(sna, GXcopy,
 						    pixmap, priv->cpu_bo, 0, 0,
