@@ -3016,10 +3016,8 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 		priv->gpu_bo = NULL;
 	}
 
-	if ((flags & MOVE_READ) == 0) {
+	if ((flags & MOVE_READ) == 0)
 		sna_damage_destroy(&priv->cpu_damage);
-		priv->cpu = false;
-	}
 
 	sna_damage_reduce(&priv->cpu_damage);
 	assert_pixmap_damage(pixmap);
@@ -3071,7 +3069,6 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 				       pixmap->drawable.height);
 			DBG(("%s: marking as all-damaged for GPU\n",
 			     __FUNCTION__));
-			assert(priv->cpu == false);
 			goto active;
 		}
 	}
@@ -3139,7 +3136,6 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 	__sna_damage_destroy(DAMAGE_PTR(priv->cpu_damage));
 	priv->cpu_damage = NULL;
 	priv->undamaged = true;
-	priv->cpu = false;
 
 	if (priv->shm) {
 		assert(!priv->flush);
@@ -3171,7 +3167,7 @@ done:
 active:
 	if (flags & MOVE_WRITE)
 		priv->clear = false;
-	assert(priv->cpu == false);
+	priv->cpu = false;
 	assert(!priv->gpu_bo->proxy || (flags & MOVE_WRITE) == 0);
 	return sna_pixmap_mark_active(sna, priv);
 }
