@@ -3826,8 +3826,10 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 		kgem->reloc[index].target_handle = bo->handle;
 		kgem->reloc[index].presumed_offset = bo->presumed_offset;
 
-		if (read_write_domain & 0x7ff)
+		if (read_write_domain & 0x7ff) {
+			assert(!bo->snoop || kgem->can_blt_cpu);
 			kgem_bo_mark_dirty(bo);
+		}
 
 		delta += bo->presumed_offset;
 	} else {
@@ -3964,6 +3966,7 @@ void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo)
 	ptr = bo->map;
 	if (ptr == NULL) {
 		assert(kgem_bo_size(bo) <= kgem->aperture_mappable / 2);
+		assert(kgem->gen != 21 || bo->tiling != I915_TILING_Y);
 
 		kgem_trim_vma_cache(kgem, MAP_GTT, bucket(bo));
 

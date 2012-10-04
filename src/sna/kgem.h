@@ -519,6 +519,9 @@ static inline bool kgem_bo_can_map(struct kgem *kgem, struct kgem_bo *bo)
 	if (!bo->tiling && kgem->has_llc)
 		return true;
 
+	if (kgem->gen == 21 && bo->tiling == I915_TILING_Y)
+		return false;
+
 	return kgem_bo_size(bo) <= kgem->aperture_mappable / 4;
 }
 

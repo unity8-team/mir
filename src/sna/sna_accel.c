@@ -1830,6 +1830,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 		assert(flags & MOVE_WRITE);
 
 		if (priv->stride && priv->gpu_bo &&
+		    kgem_bo_can_map(&sna->kgem, priv->gpu_bo) &&
 		    region_inplace(sna, pixmap, region, priv, true)) {
 			assert(priv->gpu_bo->proxy == NULL);
 			if (!__kgem_bo_is_busy(&sna->kgem, priv->gpu_bo)) {
@@ -1913,6 +1914,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 	}
 
 	if (operate_inplace(priv, flags) &&
+	    kgem_bo_can_map(&sna->kgem, priv->gpu_bo) &&
 	    region_inplace(sna, pixmap, region, priv, (flags & MOVE_READ) == 0)) {
 		kgem_bo_submit(&sna->kgem, priv->gpu_bo);
 
