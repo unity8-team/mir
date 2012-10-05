@@ -4755,6 +4755,8 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 		init_buffer_from_bo(bo, old);
 		bo->need_io = flags & KGEM_BUFFER_WRITE;
 	} else {
+		unsigned hint;
+
 		if (use_snoopable_buffer(kgem, flags)) {
 			bo = create_snoopable_buffer(kgem, alloc);
 			if (bo)
@@ -4765,10 +4767,12 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 		if (bo == NULL)
 			return NULL;
 
-		old = search_linear_cache(kgem, alloc,
-					  CREATE_INACTIVE | CREATE_CPU_MAP);
+		hint = CREATE_INACTIVE;
+		if (flags & KGEM_BUFFER_WRITE)
+			hint |= CREATE_CPU_MAP;
+		old = search_linear_cache(kgem, alloc, hint);
 		if (old) {
-			DBG(("%s: reusing cpu map handle=%d for buffer\n",
+			DBG(("%s: reusing handle=%d for buffer\n",
 			     __FUNCTION__, old->handle));
 
 			alloc = num_pages(old);
@@ -4791,9 +4795,9 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 		assert(!bo->need_io);
 		assert(bo->base.refcnt == 1);
 
-		bo->mem = kgem_bo_map__cpu(kgem, &bo->base);
-		if (bo->mem != NULL) {
-			if (flags & KGEM_BUFFER_WRITE)
+		if (flags & KGEM_BUFFER_WRITE) {
+			bo->mem = kgem_bo_map__cpu(kgem, &bo->base);
+			if (bo->mem != NULL)
 				kgem_bo_sync__cpu(kgem, &bo->base);
 			goto init;
 		}
@@ -4966,6 +4970,8 @@ void kgem_buffer_read_sync(struct kgem *kgem, struct kgem_bo *_bo)
 		     bo->base.needs_flush,
 		     bo->base.domain,
 		     kgem_busy(kgem, bo->base.handle)));
+
+		assert(!IS_CPU_MAP(bo->base.map) || bo->base.snoop || kgem->has_llc);
 
 		VG_CLEAR(set_domain);
 		set_domain.handle = bo->base.handle;
