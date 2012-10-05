@@ -250,6 +250,17 @@ AC_DEFINE_DIR(DEMOS_DATA_DIR, demos_data_dir, [Data dir for demos])
 AC_DEFINE_UNQUOTED([DEMOS_DATA_DIR], "$DEMOS_DATA_DIR",
 		   [Directory for demos data files])
 
+
+AC_ARG_ENABLE([mir],
+    [AS_HELP_STRING([--enable-mir],
+        [enable support for mir @<:@default=no@:>@])],
+    [mir_enabled="$enableval"],
+    [mir_enabled=no])
+
+if test "x$mir_enabled" != "xno"; then
+    PKG_CHECK_MODULES(MIR, [mirclient], [mir_enabled=yes], [mir_enabled=no])
+fi
+
 dnl
 dnl Program library dependencies
 dnl    Only libm is added here if necessary as the libraries should
@@ -286,6 +297,8 @@ AC_SUBST([OSMESA32_LIBS])
 AC_SUBST([MESA_GLAPI])
 AC_SUBST([WAYLAND_CFLAGS])
 AC_SUBST([WAYLAND_LIBS])
+AC_SUBST([MIR_CFLAGS])
+AC_SUBST([MIR_LIBS])
 
 
 AM_CONDITIONAL(HAVE_EGL, test "x$egl_enabled" = "xyes")
@@ -301,6 +314,7 @@ AM_CONDITIONAL(HAVE_DRM, test "x$drm_enabled" = "xyes")
 AM_CONDITIONAL(BUILD_GLTRACE, false)
 AM_CONDITIONAL(HAVE_MESA_SOURCE, test "x$mesa_source_enabled" = "xyes")
 AM_CONDITIONAL(HAVE_WAYLAND, test "x$wayland_enabled" = "xyes")
+AM_CONDITIONAL(HAVE_MIR, test "x$mir_enabled" = "xyes")
 
 AC_OUTPUT([
 	Makefile

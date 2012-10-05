@@ -32,8 +32,11 @@ endif
 if HAVE_WAYLAND
 eglut_wayland = libeglut_wayland.la
 endif
+if HAVE_MIR
+eglut_mir = libeglut_mir.la
+endif
 
-noinst_LTLIBRARIES = libeglut_screen.la $(eglut_x11) $(eglut_wayland)
+noinst_LTLIBRARIES = libeglut_screen.la $(eglut_x11) $(eglut_wayland) $(eglut_mir)
 endif
 
 libeglut_screen_la_SOURCES = \
@@ -57,3 +60,11 @@ libeglut_wayland_la_SOURCES = \
 
 libeglut_wayland_la_CFLAGS = $(WAYLAND_CFLAGS) $(EGL_CFLAGS)
 libeglut_wayland_la_LIBADD = $(WAYLAND_LIBS) $(EGL_LIBS)
+
+libeglut_mir_la_SOURCES = \
+	eglut.c \
+	eglutint.h \
+	eglut_mir.c
+
+libeglut_mir_la_CFLAGS = $(MIR_CFLAGS) $(EGL_CFLAGS)
+libeglut_mir_la_LIBADD = $(MIR_LIBS) $(EGL_LIBS)
