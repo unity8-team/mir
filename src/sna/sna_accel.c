@@ -5000,6 +5000,43 @@ sna_do_copy(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	return clip;
 }
 
+static void
+sna_fallback_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
+			RegionPtr region, int dx, int dy,
+			Pixel bitplane, void *closure)
+{
+	DBG(("%s (boxes=%dx[(%d, %d), (%d, %d)...], src=+(%d, %d), alu=%d\n",
+	     __FUNCTION__, RegionNumRects(region),
+	     region->extents.x1, region->extents.y1,
+	     region->extents.x2, region->extents.y2,
+	     dx, dy, gc->alu));
+
+	if (!sna_gc_move_to_cpu(gc, dst, &region))
+		return;
+
+	if (src == dst ||
+	    get_drawable_pixmap(src) == get_drawable_pixmap(dst)) {
+		if (!sna_drawable_move_to_cpu(dst, MOVE_WRITE | MOVE_READ))
+			goto out_gc;
+	} else {
+		RegionTranslate(region, dx, dy);
+		if (!sna_drawable_move_region_to_cpu(src, region, MOVE_READ))
+			goto out_gc;
+		RegionTranslate(region, -dx, -dy);
+
+		if (!sna_drawable_move_region_to_cpu(dst, region,
+						     drawable_gc_flags(dst, gc, false)))
+			goto out_gc;
+	}
+
+	miCopyRegion(src, dst, gc,
+		     region, dx, dy,
+		     fbCopyNtoN, 0, NULL);
+	FALLBACK_FLUSH(dst);
+out_gc:
+	sna_gc_move_to_gpu(gc);
+}
+
 static RegionPtr
 sna_copy_area(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	      int src_x, int src_y,
@@ -5007,6 +5044,7 @@ sna_copy_area(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	      int dst_x, int dst_y)
 {
 	struct sna *sna = to_sna_from_drawable(dst);
+	sna_copy_func copy;
 
 	if (gc->planemask == 0)
 		return NULL;
@@ -5017,86 +5055,18 @@ sna_copy_area(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	     dst_x, dst_y, dst->x, dst->y));
 
 	if (FORCE_FALLBACK || !ACCEL_COPY_AREA || wedged(sna) ||
-	    !PM_IS_SOLID(dst, gc->planemask)) {
-		RegionRec region, *ret;
-
-		DBG(("%s: fallback -- wedged=%d, solid=%d [%x]\n",
-		     __FUNCTION__, sna->kgem.wedged,
-		     PM_IS_SOLID(dst, gc->planemask),
-		     (unsigned)gc->planemask));
-
-		region.extents.x1 = dst_x + dst->x;
-		region.extents.y1 = dst_y + dst->y;
-		region.extents.x2 = region.extents.x1 + width;
-		region.extents.y2 = region.extents.y1 + height;
-		region.data = NULL;
-		RegionIntersect(&region, &region, gc->pCompositeClip);
-
-		DBG(("%s: dst extents (%d, %d), (%d, %d)\n",
-		     __FUNCTION__,
-		     region.extents.x1, region.extents.y1,
-		     region.extents.x2, region.extents.y2));
-
-		{
-			RegionRec clip;
-
-			clip.extents.x1 = src->x - (src->x + src_x) + (dst->x + dst_x);
-			clip.extents.y1 = src->y - (src->y + src_y) + (dst->y + dst_y);
-			clip.extents.x2 = clip.extents.x1 + src->width;
-			clip.extents.y2 = clip.extents.y1 + src->height;
-			clip.data = NULL;
-
-			DBG(("%s: src extents (%d, %d), (%d, %d)\n",
-			     __FUNCTION__,
-			     clip.extents.x1, clip.extents.y1,
-			     clip.extents.x2, clip.extents.y2));
-
-			RegionIntersect(&region, &region, &clip);
-		}
-		DBG(("%s: dst^src extents (%d, %d), (%d, %d)\n",
-		     __FUNCTION__,
-		     region.extents.x1, region.extents.y1,
-		     region.extents.x2, region.extents.y2));
-
-		if (!RegionNotEmpty(&region))
-			return NULL;
-
-		ret = NULL;
-		if (!sna_gc_move_to_cpu(gc, dst, &region))
-			goto out;
-
-		if (!sna_drawable_move_region_to_cpu(dst, &region,
-						     drawable_gc_flags(dst, gc, false)))
-			goto out_gc;
-
-		RegionTranslate(&region,
-				src_x - dst_x - dst->x + src->x,
-				src_y - dst_y - dst->y + src->y);
-		if (!sna_drawable_move_region_to_cpu(src, &region, MOVE_READ))
-			goto out_gc;
-		RegionTranslate(&region,
-				-(src_x - dst_x - dst->x + src->x),
-				-(src_y - dst_y - dst->y + src->y));
-
-		ret = miDoCopy(src, dst, gc,
-			       src_x, src_y,
-			       width, height,
-			       dst_x, dst_y,
-			       fbCopyNtoN, 0, 0);
-		FALLBACK_FLUSH(dst);
-out_gc:
-		sna_gc_move_to_gpu(gc);
-out:
-		RegionUninit(&region);
-		return ret;
-	}
+	    !PM_IS_SOLID(dst, gc->planemask))
+		copy = sna_fallback_copy_boxes;
+	else if (src == dst)
+		copy = sna_self_copy_boxes;
+	else
+		copy = sna_copy_boxes;
 
 	return sna_do_copy(src, dst, gc,
 			   src_x, src_y,
 			   width, height,
 			   dst_x, dst_y,
-			   src == dst ? sna_self_copy_boxes : sna_copy_boxes,
-			   0, NULL);
+			   copy, 0, NULL);
 }
 
 static const BoxRec *
