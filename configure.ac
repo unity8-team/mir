@@ -81,8 +81,19 @@ else
   fi
 fi
 
+AC_ARG_ENABLE(gen4asm,
+              AS_HELP_STRING([--enable-gen4asm],
+			     [Enable rebuilding the gen4 assembly files [default=no]]),
+              [ASM="$enableval"],
+              [ASM=no])
 
-PKG_CHECK_MODULES(GEN4ASM, [intel-gen4asm >= 1.2], [gen4asm=yes], [gen4asm=no])
+gen4asm=no
+if test x$ASM != "xno"; then
+	PKG_CHECK_MODULES(GEN4ASM, [intel-gen4asm >= 1.2], [gen4asm=yes], [gen4asm=no])
+	if test x$ASM = "xyes" -a x$gen4asm != "xyes"; then
+		AC_MSG_ERROR([intel-gen4asm support requested but not found])
+	fi
+fi
 AM_CONDITIONAL(HAVE_GEN4ASM, test x$gen4asm = xyes)
 
 AC_ARG_ENABLE(udev,
