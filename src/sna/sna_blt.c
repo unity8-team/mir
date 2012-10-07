@@ -435,18 +435,23 @@ static void sna_blt_copy_one(struct sna *sna,
 	    kgem->batch[kgem->nbatch-3] == ((uint32_t)(dst_y+height) << 16 | (uint16_t)(dst_x+width)) &&
 	    kgem->reloc[kgem->nreloc-1].target_handle == blt->bo[1]->handle) {
 		DBG(("%s: replacing last fill\n", __FUNCTION__));
-		b = kgem->batch + kgem->nbatch - 6;
-		b[0] = blt->cmd;
-		b[1] = blt->br13;
-		b[5] = (src_y << 16) | src_x;
-		b[6] = blt->pitch[0];
-		b[7] = kgem_add_reloc(kgem, kgem->nbatch + 7 - 6,
-				      blt->bo[0],
-				      I915_GEM_DOMAIN_RENDER << 16 |
-				      KGEM_RELOC_FENCED,
-				      0);
-		kgem->nbatch += 8 - 6;
-		return;
+		if (kgem_check_batch(kgem, 8-6)) {
+			b = kgem->batch + kgem->nbatch - 6;
+			b[0] = blt->cmd;
+			b[1] = blt->br13;
+			b[5] = (src_y << 16) | src_x;
+			b[6] = blt->pitch[0];
+			b[7] = kgem_add_reloc(kgem, kgem->nbatch + 7 - 6,
+					      blt->bo[0],
+					      I915_GEM_DOMAIN_RENDER << 16 |
+					      KGEM_RELOC_FENCED,
+					      0);
+			kgem->nbatch += 8 - 6;
+			assert(kgem->nbatch < kgem->surface);
+			return;
+		}
+		kgem->nbatch -= 6;
+		kgem->nreloc--;
 	}
 
 	if (!kgem_check_batch(kgem, 8) ||
