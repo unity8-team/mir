@@ -838,7 +838,7 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 		kgem->batch_size = PAGE_SIZE / sizeof(uint32_t);
 	if (gen >= 70 && gen < 80)
 		kgem->batch_size = 16*1024;
-	if (!kgem->has_relaxed_delta)
+	if (!kgem->has_relaxed_delta && kgem->batch_size > 4*1024)
 		kgem->batch_size = 4*1024;
 
 	DBG(("%s: maximum batch size? %d\n", __FUNCTION__,
