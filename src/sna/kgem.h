@@ -352,16 +352,21 @@ static inline void _kgem_set_mode(struct kgem *kgem, enum kgem_mode mode)
 
 static inline bool kgem_check_batch(struct kgem *kgem, int num_dwords)
 {
+	assert(num_dwords > 0);
+	assert(kgem->nbatch < kgem->surface);
+	assert(kgem->surface <= kgem->batch_size);
 	return likely(kgem->nbatch + num_dwords + KGEM_BATCH_RESERVED <= kgem->surface);
 }
 
 static inline bool kgem_check_reloc(struct kgem *kgem, int n)
 {
+	assert(kgem->nreloc <= KGEM_RELOC_SIZE(kgem));
 	return likely(kgem->nreloc + n <= KGEM_RELOC_SIZE(kgem));
 }
 
 static inline bool kgem_check_exec(struct kgem *kgem, int n)
 {
+	assert(kgem->nexec <= KGEM_EXEC_SIZE(kgem));
 	return likely(kgem->nexec + n <= KGEM_EXEC_SIZE(kgem));
 }
 
