@@ -530,6 +530,8 @@ static void gen2_emit_invariant(struct sna *sna)
 	      TEXBLENDARG_MODIFY_PARMS |
 	      TEXBLENDARG_DIFFUSE);
 
+#define INVARIANT_SIZE 35
+
 	sna->render_state.gen2.need_invariant = false;
 }
 
@@ -538,9 +540,9 @@ gen2_get_batch(struct sna *sna)
 {
 	kgem_set_mode(&sna->kgem, KGEM_RENDER);
 
-	if (!kgem_check_batch(&sna->kgem, 40+40)) {
+	if (!kgem_check_batch(&sna->kgem, INVARIANT_SIZE+40)) {
 		DBG(("%s: flushing batch: size %d > %d\n",
-		     __FUNCTION__, 40+40,
+		     __FUNCTION__, INVARIANT_SIZE+40,
 		     sna->kgem.surface-sna->kgem.nbatch));
 		kgem_submit(&sna->kgem);
 		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
@@ -1011,6 +1013,7 @@ inline static int gen2_get_rectangles(struct sna *sna,
 	     __FUNCTION__, want, op->floats_per_vertex, rem));
 
 	assert(op->floats_per_vertex);
+	assert(op->floats_per_rect == 3 * op->floats_per_vertex);
 
 	need = 1;
 	size = op->floats_per_rect;
