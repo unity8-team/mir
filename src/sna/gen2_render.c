@@ -980,7 +980,7 @@ static void gen2_magic_ca_pass(struct sna *sna,
 	dst = sna->kgem.batch + sna->kgem.nbatch;
 	n = 1 + sna->render.vertex_index;
 	sna->kgem.nbatch += n;
-	assert(sna->kgem.nbatch <= KGEM_BATCH_SIZE(kgem));
+	assert(sna->kgem.nbatch <= KGEM_BATCH_SIZE(&sna->kgem));
 	while (n--)
 		*dst++ = *src++;
 }
