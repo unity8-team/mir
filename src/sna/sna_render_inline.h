@@ -47,6 +47,8 @@ static inline float pack_2s(int16_t x, int16_t y)
 
 static inline int batch_space(struct sna *sna)
 {
+	assert(sna->kgem.nbatch <= KGEM_BATCH_SIZE(kgem));
+	assert(sna->kgem.nbatch + KGEM_BATCH_RESERVED < sna->kgem.surface);
 	return sna->kgem.surface - sna->kgem.nbatch - KGEM_BATCH_RESERVED;
 }
 
