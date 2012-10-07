@@ -191,16 +191,16 @@ if HAVE_GEN4ASM
 
 SUFFIXES = .g4a .g4b .g5a .g5b .g6a .g6b .g7a .g7b
 .g4a.g4b:
-	m4 -I$(srcdir) -s $< > $*.g4m && intel-gen4asm -o $@ $*.g4m && intel-gen4asm -g 5 -o $@.gen5 $*.g4m && rm $*.g4m
+	m4 -I$(srcdir) -s $< > $*.g4m && @INTEL_GEN4ASM@ -o $@ $*.g4m && @INTEL_GEN4ASM@ -g 5 -o $@.gen5 $*.g4m && rm $*.g4m
 
 .g5a.g5b:
-	m4 -I$(srcdir) -s $< > $*.g5m && intel-gen4asm -g 5 -o $@ $*.g5m && rm $*.g5m
+	m4 -I$(srcdir) -s $< > $*.g5m && @INTEL_GEN4ASM@ -g 5 -o $@ $*.g5m && rm $*.g5m
 
 .g6a.g6b:
-	m4 -I$(srcdir) -s $< > $*.g6m && intel-gen4asm -g 6 -o $@ $*.g6m && rm $*.g6m
+	m4 -I$(srcdir) -s $< > $*.g6m && @INTEL_GEN4ASM@ -g 6 -o $@ $*.g6m && rm $*.g6m
 
 .g7a.g7b:
-	m4 -I$(srcdir) -s $< > $*.g7m && intel-gen4asm -g 7 -o $@ $*.g7m && rm $*.g7m
+	m4 -I$(srcdir) -s $< > $*.g7m && @INTEL_GEN4ASM@ -g 7 -o $@ $*.g7m && rm $*.g7m
 
 $(INTEL_G4B): $(INTEL_G4I)
 $(INTEL_G5B): $(INTEL_G4I)

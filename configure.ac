@@ -93,6 +93,15 @@ if test x$ASM != "xno"; then
 	if test x$ASM = "xyes" -a x$gen4asm != "xyes"; then
 		AC_MSG_ERROR([intel-gen4asm support requested but not found])
 	fi
+	if test x$gen4asm = "xyes"; then
+		AC_MSG_CHECKING([path to use for intel-gen4asm])
+		INTEL_GEN4ASM="`pkg-config intel-gen4asm --variable=exec_prefix`/bin/intel-gen4asm"
+		if ! test -e "$INTEL_GEN4ASM"; then
+			AC_MSG_ERROR([intel-gen4asm enabled, but not found. Tried '$INTEL_GEN4ASM'.])
+		fi
+		AC_MSG_RESULT([$INTEL_GEN4ASM])
+		AC_SUBST([INTEL_GEN4ASM])
+	fi
 fi
 AM_CONDITIONAL(HAVE_GEN4ASM, test x$gen4asm = xyes)
 
