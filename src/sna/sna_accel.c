@@ -5011,7 +5011,7 @@ sna_fallback_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	     region->extents.x2, region->extents.y2,
 	     dx, dy, gc->alu));
 
-	if (!sna_gc_move_to_cpu(gc, dst, &region))
+	if (!sna_gc_move_to_cpu(gc, dst, region))
 		return;
 
 	if (src == dst ||
