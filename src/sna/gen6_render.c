@@ -3713,6 +3713,7 @@ gen6_render_fill_boxes(struct sna *sna,
 	tmp.dst.format = format;
 	tmp.dst.bo = dst_bo;
 	tmp.dst.x = tmp.dst.y = 0;
+	tmp.damage = NULL;
 
 	sna_render_composite_redirect_init(&tmp);
 	if (too_large(dst->drawable.width, dst->drawable.height)) {

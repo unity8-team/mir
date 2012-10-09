@@ -4397,6 +4397,7 @@ gen3_render_fill_boxes(struct sna *sna,
 	tmp.dst.height = dst->drawable.height;
 	tmp.dst.format = format;
 	tmp.dst.bo = dst_bo;
+	tmp.damage = NULL;
 	tmp.floats_per_vertex = 2;
 	tmp.floats_per_rect = 6;
 	tmp.rb_reversed = 0;
