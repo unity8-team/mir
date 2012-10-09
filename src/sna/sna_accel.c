@@ -2338,7 +2338,7 @@ drawable_gc_flags(DrawablePtr draw, GCPtr gc, bool partial)
 		return MOVE_READ | MOVE_WRITE;
 	}
 
-	if (fb_gc(gc)->and) {
+	if (fb_gc(gc)->and | fb_gc(gc)->bgand) {
 		DBG(("%s: read due to rrop %d:%x\n",
 		     __FUNCTION__, gc->alu, (unsigned)fb_gc(gc)->and));
 		return MOVE_READ | MOVE_WRITE;
