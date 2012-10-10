@@ -6318,7 +6318,7 @@ sna_copy_plane_blt(DrawablePtr source, DrawablePtr drawable, GCPtr gc,
 		case 32:
 			{
 				uint32_t *src = src_pixmap->devPrivate.ptr;
-				uint32_t src_stride = src_pixmap->devKind/sizeof(uint32_t);
+				int src_stride = src_pixmap->devKind/sizeof(uint32_t);
 				uint8_t *dst = ptr;
 
 				src += (box->y1 + sy) * src_stride;
@@ -6351,7 +6351,7 @@ sna_copy_plane_blt(DrawablePtr source, DrawablePtr drawable, GCPtr gc,
 		case 16:
 			{
 				uint16_t *src = src_pixmap->devPrivate.ptr;
-				uint16_t src_stride = src_pixmap->devKind/sizeof(uint16_t);
+				int src_stride = src_pixmap->devKind/sizeof(uint16_t);
 				uint8_t *dst = ptr;
 
 				src += (box->y1 + sy) * src_stride;
@@ -6384,7 +6384,7 @@ sna_copy_plane_blt(DrawablePtr source, DrawablePtr drawable, GCPtr gc,
 		case 8:
 			{
 				uint8_t *src = src_pixmap->devPrivate.ptr;
-				uint8_t src_stride = src_pixmap->devKind/sizeof(uint8_t);
+				int src_stride = src_pixmap->devKind/sizeof(uint8_t);
 				uint8_t *dst = ptr;
 
 				src += (box->y1 + sy) * src_stride;
