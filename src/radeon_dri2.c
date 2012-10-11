@@ -907,7 +907,14 @@ radeon_dri2_exchange_buffers(DrawablePtr draw, DRI2BufferPtr front, DRI2BufferPt
     struct radeon_bo *front_bo, *back_bo;
     ScreenPtr screen;
     RADEONInfoPtr info;
+    RegionRec region;
     int tmp;
+
+    region.extents.x1 = region.extents.y1 = 0;
+    region.extents.x2 = front_priv->pixmap->drawable.width;
+    region.extents.y2 = front_priv->pixmap->drawable.width;
+    region.data = NULL;
+    DamageRegionAppend(&front_priv->pixmap->drawable, &region);
 
     /* Swap BO names so DRI works */
     tmp = front->name;
@@ -932,15 +939,7 @@ radeon_dri2_exchange_buffers(DrawablePtr draw, DRI2BufferPtr front, DRI2BufferPt
 
     radeon_glamor_exchange_buffers(front_priv->pixmap, back_priv->pixmap);
 
-    {
-        RegionRec region;
-	region.extents.x1 = region.extents.y1 = 0;
-	region.extents.x2 = front_priv->pixmap->drawable.width;
-	region.extents.y2 = front_priv->pixmap->drawable.width;
-	region.data = NULL;
-	DamageRegionAppend(&front_priv->pixmap->drawable, &region);
-	DamageRegionProcessPending(&front_priv->pixmap->drawable);
-    }
+    DamageRegionProcessPending(&front_priv->pixmap->drawable);
 }
 
 void radeon_dri2_frame_event_handler(unsigned int frame, unsigned int tv_sec,
