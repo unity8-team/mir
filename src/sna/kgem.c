@@ -3688,27 +3688,36 @@ bool kgem_check_bo_fenced(struct kgem *kgem, struct kgem_bo *bo)
 
 			size = kgem->aperture_fenced;
 			size += kgem_bo_fenced_size(kgem, bo);
-			if (size > kgem->aperture_mappable)
+			if (4*size > 3*kgem->aperture_mappable)
 				return false;
 		}
 
 		return true;
 	}
 
-	if (kgem->aperture > kgem->aperture_low)
-		return false;
-
 	if (kgem->nexec >= KGEM_EXEC_SIZE(kgem) - 1)
 		return false;
 
-	if (kgem->gen < 40 &&
-	    bo->tiling != I915_TILING_NONE &&
-	    kgem->nfence >= kgem->fence_max)
+	if (kgem->aperture > kgem->aperture_low)
 		return false;
 
-	size = kgem->aperture;
-	size += num_pages(bo);
-	return size <= kgem->aperture_high;
+	if (kgem->aperture + num_pages(bo) > kgem->aperture_high)
+		return false;
+
+	if (kgem->gen < 40 && bo->tiling != I915_TILING_NONE) {
+		if (kgem->nfence >= kgem->fence_max)
+			return false;
+
+		if (2*kgem->aperture_fenced > kgem->aperture_mappable)
+			return false;
+
+		size = kgem->aperture_fenced;
+		size += kgem_bo_fenced_size(kgem, bo);
+		if (4*size > 3*kgem->aperture_mappable)
+			return false;
+	}
+
+	return true;
 }
 
 bool kgem_check_many_bo_fenced(struct kgem *kgem, ...)
@@ -3748,23 +3757,27 @@ bool kgem_check_many_bo_fenced(struct kgem *kgem, ...)
 	}
 	va_end(ap);
 
-	if (fenced_size + kgem->aperture_fenced > kgem->aperture_mappable)
-		return false;
+	if (num_fence) {
+		if (kgem->nfence + num_fence > kgem->fence_max)
+			return false;
 
-	if (kgem->nfence + num_fence > kgem->fence_max)
-		return false;
+		if (2*kgem->aperture_fenced > kgem->aperture_mappable)
+			return false;
 
-	if (!num_pages)
-		return true;
+		if (4*(fenced_size + kgem->aperture_fenced) > 3*kgem->aperture_mappable)
+			return false;
+	}
 
-	if (kgem->aperture > kgem->aperture_low)
-		return false;
+	if (num_pages) {
+		if (kgem->aperture > kgem->aperture_low)
+			return false;
 
-	if (num_pages + kgem->aperture > kgem->aperture_high)
-		return false;
+		if (num_pages + kgem->aperture > kgem->aperture_high)
+			return false;
 
-	if (kgem->nexec + num_exec >= KGEM_EXEC_SIZE(kgem))
-		return false;
+		if (kgem->nexec + num_exec >= KGEM_EXEC_SIZE(kgem))
+			return false;
+	}
 
 	return true;
 }
