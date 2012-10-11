@@ -189,7 +189,8 @@ static const struct blendinfo {
 #define GEN7_BLEND_STATE_PADDED_SIZE	ALIGN(sizeof(struct gen7_blend_state), 64)
 
 #define BLEND_OFFSET(s, d) \
-	(((s) * GEN7_BLENDFACTOR_COUNT + (d)) * GEN7_BLEND_STATE_PADDED_SIZE)
+	((d != GEN7_BLENDFACTOR_ZERO) << 15 | \
+	 (((s) * GEN7_BLENDFACTOR_COUNT + (d)) * GEN7_BLEND_STATE_PADDED_SIZE))
 
 #define NO_BLEND BLEND_OFFSET(GEN7_BLENDFACTOR_ONE, GEN7_BLENDFACTOR_ZERO)
 #define CLEAR BLEND_OFFSET(GEN7_BLENDFACTOR_ZERO, GEN7_BLENDFACTOR_ZERO)
@@ -213,7 +214,8 @@ static const struct blendinfo {
 		       SAMPLER_FILTER_NEAREST, SAMPLER_EXTEND_NONE)
 
 #define GEN7_SAMPLER(f) (((f) >> 16) & 0xfff0)
-#define GEN7_BLEND(f) (((f) >> 0) & 0xfff0)
+#define GEN7_BLEND(f) (((f) >> 0) & 0x7ff0)
+#define GEN7_READS_DST(f) (((f) >> 15) & 1)
 #define GEN7_KERNEL(f) (((f) >> 16) & 0xf)
 #define GEN7_VERTEX(f) (((f) >> 0) & 0xf)
 #define GEN7_SET_FLAGS(S, B, K, V)  (((S) | (K)) << 16 | ((B) | (V)))
@@ -1059,8 +1061,7 @@ gen7_emit_state(struct sna *sna,
 	if (need_stall)
 		gen7_emit_pipe_stall(sna);
 
-	sna->render_state.gen7.emit_flush =
-		GEN7_BLEND(op->u.gen7.flags) != NO_BLEND;
+	sna->render_state.gen7.emit_flush = GEN7_READS_DST(op->u.gen7.flags);
 }
 
 static void gen7_magic_ca_pass(struct sna *sna,
@@ -3327,7 +3328,7 @@ gen7_emit_copy_state(struct sna *sna,
 		offset = sna->render_state.gen7.surface_table;
 	}
 
-	assert(GEN7_BLEND(op->u.gen7.flags) == NO_BLEND);
+	assert(!GEN7_READS_DST(op->u.gen7.flags));
 	gen7_emit_state(sna, op, offset);
 }
 
