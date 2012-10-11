@@ -3553,7 +3553,6 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	if (upload_inplace(sna, pixmap, priv, region) &&
 	    sna_put_image_upload_blt(drawable, gc, region,
 				     x, y, w, h, bits, stride)) {
-		assert(priv->cpu == false);
 		if (!DAMAGE_IS_ALL(priv->gpu_damage)) {
 			DBG(("%s: marking damage\n", __FUNCTION__));
 			if (region_subsumes_drawable(region, &pixmap->drawable))
@@ -3582,6 +3581,7 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 
 		assert_pixmap_damage(pixmap);
 		priv->clear = false;
+		priv->cpu = false;
 		return true;
 	}
 
