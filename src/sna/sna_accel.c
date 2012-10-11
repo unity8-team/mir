@@ -6381,6 +6381,8 @@ sna_copy_plane_blt(DrawablePtr source, DrawablePtr drawable, GCPtr gc,
 				} while (--bh);
 				break;
 			}
+		default:
+			assert(0);
 		case 8:
 			{
 				uint8_t *src = src_pixmap->devPrivate.ptr;
@@ -6414,9 +6416,6 @@ sna_copy_plane_blt(DrawablePtr source, DrawablePtr drawable, GCPtr gc,
 				} while (--bh);
 				break;
 			}
-		default:
-			assert(0);
-			return;
 		}
 
 		b = sna->kgem.batch + sna->kgem.nbatch;
