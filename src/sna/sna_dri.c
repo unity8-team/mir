@@ -430,6 +430,16 @@ static void set_bo(PixmapPtr pixmap, struct kgem_bo *bo)
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
 	RegionRec region;
 
+	/* Post damage on the new front buffer so that listeners, such
+	 * as DisplayLink know take a copy and shove it over the USB,
+	 * also for software cursors and the like.
+	 */
+	region.extents.x1 = region.extents.y1 = 0;
+	region.extents.x2 = pixmap->drawable.width;
+	region.extents.y2 = pixmap->drawable.height;
+	region.data = NULL;
+	DamageRegionAppend(&pixmap->drawable, &region);
+
 	sna_damage_all(&priv->gpu_damage,
 		       pixmap->drawable.width,
 		       pixmap->drawable.height);
@@ -446,14 +456,6 @@ static void set_bo(PixmapPtr pixmap, struct kgem_bo *bo)
 	if (bo->domain != DOMAIN_GPU)
 		bo->domain = DOMAIN_NONE;
 
-	/* Post damage on the new front buffer so that listeners, such
-	 * as DisplayLink know take a copy and shove it over the USB.
-	 */
-	region.extents.x1 = region.extents.y1 = 0;
-	region.extents.x2 = pixmap->drawable.width;
-	region.extents.y2 = pixmap->drawable.height;
-	region.data = NULL;
-	DamageRegionAppend(&pixmap->drawable, &region);
 	DamageRegionProcessPending(&pixmap->drawable);
 }
 
@@ -618,15 +620,17 @@ sna_dri_copy_to_front(struct sna *sna, DrawablePtr draw, RegionPtr region,
 		boxes = &clip.extents;
 		n = 1;
 	}
+	pixman_region_translate(region, dx, dy);
+	DamageRegionAppend(&pixmap->drawable, region);
 	if (wedged(sna)) {
 		sna_dri_copy_fallback(sna, draw->bitsPerPixel,
-				      src_bo, -draw->x, -draw->y,
-				      dst_bo, dx, dy,
+				      src_bo, -draw->x-dx, -draw->y-dy,
+				      dst_bo, 0, 0,
 				      boxes, n);
 	} else {
 		sna->render.copy_boxes(sna, GXcopy,
-				       (PixmapPtr)draw, src_bo, -draw->x, -draw->y,
-				       pixmap, dst_bo, dx, dy,
+				       (PixmapPtr)draw, src_bo, -draw->x-dx, -draw->y-dy,
+				       pixmap, dst_bo, 0, 0,
 				       boxes, n, COPY_LAST);
 
 		DBG(("%s: flushing? %d\n", __FUNCTION__, flush));
@@ -637,8 +641,6 @@ sna_dri_copy_to_front(struct sna *sna, DrawablePtr draw, RegionPtr region,
 		}
 	}
 
-	pixman_region_translate(region, dx, dy);
-	DamageRegionAppend(&pixmap->drawable, region);
 	DamageRegionProcessPending(&pixmap->drawable);
 
 	if (clip.data)

@@ -725,6 +725,17 @@ static struct intel_pixmap *
 intel_exchange_pixmap_buffers(struct intel_screen_private *intel, PixmapPtr front, PixmapPtr back)
 {
 	struct intel_pixmap *new_front, *new_back;
+	RegionRec region;
+
+	/* Post damage on the front buffer so that listeners, such
+	 * as DisplayLink know take a copy and shove it over the USB.
+	 * also for sw cursors.
+	 */
+	region.extents.x1 = region.extents.y1 = 0;
+	region.extents.x2 = front->drawable.width;
+	region.extents.y2 = front->drawable.height;
+	region.data = NULL;
+	DamageRegionAppend(&front->drawable, &region);
 
 	new_front = intel_get_pixmap_private(back);
 	new_back = intel_get_pixmap_private(front);
@@ -735,19 +746,7 @@ intel_exchange_pixmap_buffers(struct intel_screen_private *intel, PixmapPtr fron
 
 	intel_glamor_exchange_buffers(intel, front, back);
 
-	/* Post damage on the new front buffer so that listeners, such
-	 * as DisplayLink know take a copy and shove it over the USB.
-	 */
-	{
-		RegionRec region;
-
-		region.extents.x1 = region.extents.y1 = 0;
-		region.extents.x2 = front->drawable.width;
-		region.extents.y2 = front->drawable.height;
-		region.data = NULL;
-		DamageRegionAppend(&front->drawable, &region);
-		DamageRegionProcessPending(&front->drawable);
-	}
+	DamageRegionProcessPending(&front->drawable);
 
 	return new_front;
 }
