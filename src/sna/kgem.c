@@ -888,6 +888,11 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	kgem->aperture_total = aperture.aper_size;
 	kgem->aperture_high = aperture.aper_size * 3/4;
 	kgem->aperture_low = aperture.aper_size * 1/3;
+	if (gen < 33) {
+		/* Severe alignment penalties */
+		kgem->aperture_high /= 2;
+		kgem->aperture_low /= 2;
+	}
 	DBG(("%s: aperture low=%d [%d], high=%d [%d]\n", __FUNCTION__,
 	     kgem->aperture_low, kgem->aperture_low / (1024*1024),
 	     kgem->aperture_high, kgem->aperture_high / (1024*1024)));
