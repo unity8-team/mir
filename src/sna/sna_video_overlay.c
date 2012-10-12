@@ -285,12 +285,29 @@ sna_video_overlay_query_best_size(ScrnInfoPtr scrn,
 				  Bool motion,
 				  short vid_w, short vid_h,
 				  short drw_w, short drw_h,
-				  unsigned int *p_w, unsigned int *p_h, pointer data)
+				  unsigned int *p_w, unsigned int *p_h,
+				  pointer data)
 {
-	if (vid_w > (drw_w << 1))
+	struct sna *sna = to_sna(scrn);
+	short max_w, max_h;
+
+	if (vid_w > (drw_w << 1) || vid_h > (drw_h << 1)){
 		drw_w = vid_w >> 1;
-	if (vid_h > (drw_h << 1))
 		drw_h = vid_h >> 1;
+	}
+
+	if (sna->kgem.gen < 21) {
+		max_w = IMAGE_MAX_WIDTH_LEGACY;
+		max_h = IMAGE_MAX_HEIGHT_LEGACY;
+	} else {
+		max_w = IMAGE_MAX_WIDTH;
+		max_h = IMAGE_MAX_HEIGHT;
+	}
+
+	while (drw_w > max_w || drw_h > max_h) {
+		drw_w >>= 1;
+		drw_h >>= 1;
+	}
 
 	*p_w = drw_w;
 	*p_h = drw_h;
