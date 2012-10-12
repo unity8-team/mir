@@ -2291,6 +2291,35 @@ cleanup_connector:
 	drmModeFreeConnector(koutput);
 }
 
+/* The kernel reports possible encoder clones, whereas X uses a list of
+ * possible connector clones. This is works when we have a 1:1 mapping
+ * between encoders and connectors, but breaks for Haswell which has a pair
+ * of DP/HDMI connectors hanging off a single encoder.
+ */
+static void
+sna_mode_compute_possible_clones(ScrnInfoPtr scrn)
+{
+	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(scrn);
+	unsigned clones[32] = { 0 };
+	int i, j;
+
+	assert(config->num_output <= 32);
+
+	/* Convert from encoder numbering to output numbering */
+	for (i = 0; i < config->num_output; i++) {
+		unsigned mask = config->output[i]->possible_clones;
+		for (j = 0; mask != 0; j++, mask >>= 1) {
+			if ((mask & 1) == 0)
+				continue;
+
+			clones[j] |= 1 << i;
+		}
+	}
+
+	for (i = 0; i < config->num_output; i++)
+		config->output[i]->possible_clones = clones[i];
+}
+
 struct sna_visit_set_pixmap_window {
 	PixmapPtr old, new;
 };
@@ -2573,6 +2602,9 @@ bool sna_mode_pre_init(ScrnInfoPtr scrn, struct sna *sna)
 
 	for (i = 0; i < mode->kmode->count_connectors; i++)
 		sna_output_init(scrn, mode, i);
+
+	if (!xf86IsEntityShared(scrn->entityList[0]))
+		sna_mode_compute_possible_clones(scrn);
 
 #if HAS_PIXMAP_SHARING
 	xf86ProviderSetup(scrn, NULL, "Intel");
