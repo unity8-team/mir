@@ -596,9 +596,10 @@ radeon_dri2_copy_region2(ScreenPtr pScreen,
     }
 
     if (translate && drawable->type == DRAWABLE_WINDOW) {
-	WindowPtr pWin = (WindowPtr)drawable;
-	off_x = pWin->origin.x;
-	off_y = pWin->origin.y;
+	PixmapPtr pPix = GetDrawablePixmap(drawable);
+
+	off_x = drawable->x - pPix->screen_x;
+	off_y = drawable->y - pPix->screen_y;
     }
     gc = GetScratchGC(dst_drawable->depth, pScreen);
     copy_clip = REGION_CREATE(pScreen, NULL, 0);
