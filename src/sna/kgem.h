@@ -510,9 +510,6 @@ static inline bool kgem_bo_mapped(struct kgem *kgem, struct kgem_bo *bo)
 	if (bo->map == NULL)
 		return bo->tiling == I915_TILING_NONE && bo->domain == DOMAIN_CPU;
 
-	if (bo->tiling == I915_TILING_X && !bo->scanout && kgem->has_llc)
-		return IS_CPU_MAP(bo->map);
-
 	return IS_CPU_MAP(bo->map) == !bo->tiling;
 }
 
