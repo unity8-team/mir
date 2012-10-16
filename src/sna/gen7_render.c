@@ -1077,7 +1077,9 @@ static void gen7_magic_ca_pass(struct sna *sna,
 
 	gen7_emit_pipe_invalidate(sna);
 
-	gen7_emit_cc(sna, gen7_get_blend(PictOpAdd, true, op->dst.format));
+	gen7_emit_cc(sna,
+		     GEN7_BLEND(gen7_get_blend(PictOpAdd, true,
+					       op->dst.format)));
 	gen7_emit_wm(sna,
 		     gen7_choose_composite_kernel(PictOpAdd,
 						  true, true,
