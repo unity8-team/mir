@@ -138,6 +138,9 @@ struct kgem {
 		int16_t count;
 	} vma[NUM_MAP_TYPES];
 
+	uint32_t batch_flags;
+#define I915_EXEC_SECURE (1<<9)
+
 	uint16_t nbatch;
 	uint16_t surface;
 	uint16_t nexec;
@@ -158,6 +161,7 @@ struct kgem {
 	uint32_t has_relaxed_fencing :1;
 	uint32_t has_relaxed_delta :1;
 	uint32_t has_semaphores :1;
+	uint32_t has_secure_batches :1;
 	uint32_t has_cacheing :1;
 	uint32_t has_llc :1;
 

@@ -69,7 +69,13 @@ search_snoop_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags);
 #define DBG_NO_UPLOAD_ACTIVE 0
 #define DBG_NO_MAP_UPLOAD 0
 #define DBG_NO_RELAXED_FENCING 0
+#define DBG_NO_SECURE_BATCHES 0
 #define DBG_DUMP 0
+
+#ifndef USE_SECURE_BATCHES
+#undef DBG_NO_SECURE_BATCHES
+#define DBG_NO_SECURE_BATCHES 1
+#endif
 
 #define SHOW_BATCH 0
 
@@ -93,7 +99,8 @@ search_snoop_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags);
 #define IS_USER_MAP(ptr) ((uintptr_t)(ptr) & 2)
 #define __MAP_TYPE(ptr) ((uintptr_t)(ptr) & 3)
 
-#define LOCAL_I915_PARAM_HAS_SEMAPHORES	 20
+#define LOCAL_I915_PARAM_HAS_SEMAPHORES	 	20
+#define LOCAL_I915_PARAM_HAS_SECURE_BATCHES	23
 
 #define LOCAL_I915_GEM_USERPTR       0x32
 #define LOCAL_IOCTL_I915_GEM_USERPTR DRM_IOWR (DRM_COMMAND_BASE + LOCAL_I915_GEM_USERPTR, struct local_i915_gem_userptr)
@@ -767,6 +774,14 @@ static bool test_has_userptr(struct kgem *kgem)
 #endif
 }
 
+static bool test_has_secure_batches(struct kgem *kgem)
+{
+	if (DBG_NO_SECURE_BATCHES)
+		return false;
+
+	return gem_param(kgem, LOCAL_I915_PARAM_HAS_SECURE_BATCHES) > 0;
+}
+
 static int kgem_get_screen_index(struct kgem *kgem)
 {
 	struct sna *sna = container_of(kgem, struct sna, kgem);
@@ -821,6 +836,10 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	kgem->can_blt_cpu = gen >= 30;
 	DBG(("%s: can blt to cpu? %d\n", __FUNCTION__,
 	     kgem->can_blt_cpu));
+
+	kgem->has_secure_batches = test_has_secure_batches(kgem);
+	DBG(("%s: can use privileged batchbuffers? %d\n", __FUNCTION__,
+	     kgem->has_secure_batches));
 
 	if (!is_hw_supported(kgem, dev)) {
 		xf86DrvMsg(kgem_get_screen_index(kgem), X_WARNING,
@@ -2147,6 +2166,7 @@ void kgem_reset(struct kgem *kgem)
 	kgem->nbatch = 0;
 	kgem->surface = kgem->batch_size;
 	kgem->mode = KGEM_NONE;
+	kgem->batch_flags = 0;
 	kgem->flush = 0;
 
 	kgem->next_request = __kgem_request_alloc();
@@ -2258,7 +2278,7 @@ void _kgem_submit(struct kgem *kgem)
 			execbuf.num_cliprects = 0;
 			execbuf.DR1 = 0;
 			execbuf.DR4 = 0;
-			execbuf.flags = kgem->ring;
+			execbuf.flags = kgem->ring | kgem->batch_flags;
 			execbuf.rsvd1 = 0;
 			execbuf.rsvd2 = 0;
 

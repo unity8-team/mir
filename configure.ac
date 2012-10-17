@@ -292,6 +292,15 @@ if test "x$USERPTR" = xyes; then
 	AC_DEFINE(USE_USERPTR,1,[Assume USERPTR support])
 fi
 
+AC_ARG_ENABLE(secure-batches,
+	      AS_HELP_STRING([--enable-secure-batches],
+			     [Enable use of secure batches (experimental) [default=no]]),
+	      [SECURE_BATCHES="$enableval"],
+	      [SECURE_BATCHES=no])
+if test "x$SECURE_BATCHES" = xyes; then
+	AC_DEFINE(USE_SECURE_BATCHES,1,[Test for kernel support of secure batches])
+fi
+
 AC_ARG_ENABLE(async-swap,
 	      AS_HELP_STRING([--enable-async-swap],
 			     [Enable use of asynchronous swaps (experimental) [default=no]]),
