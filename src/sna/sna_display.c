@@ -2717,41 +2717,75 @@ sna_covering_crtc(ScrnInfoPtr scrn,
 	return best_crtc;
 }
 
-/* Gen6 wait for scan line support */
 #define MI_LOAD_REGISTER_IMM			(0x22<<23)
 
-/* gen6: Scan lines register */
-#define GEN6_PIPEA_SLC			(0x70004)
-#define GEN6_PIPEB_SLC			(0x71004)
-
-static void sna_emit_wait_for_scanline_gen6(struct sna *sna,
+static bool sna_emit_wait_for_scanline_gen7(struct sna *sna,
 					    int pipe, int y1, int y2,
 					    bool full_height)
 {
-	uint32_t event;
 	uint32_t *b;
 
-	assert (y2 > 0);
+	if (!sna->kgem.has_secure_batches)
+		return false;
 
-	/* We just wait until the trace passes the roi */
-	if (pipe == 0) {
-		pipe = GEN6_PIPEA_SLC;
-		event = MI_WAIT_FOR_PIPEA_SCAN_LINE_WINDOW;
-	} else {
-		pipe = GEN6_PIPEB_SLC;
-		event = MI_WAIT_FOR_PIPEB_SCAN_LINE_WINDOW;
-	}
+	assert(y1 >= 0);
+	assert(y2 > y1);
+	assert(sna->kgem.mode);
 
-	kgem_set_mode(&sna->kgem, KGEM_RENDER);
-	b = kgem_get_batch(&sna->kgem, 4);
+	b = kgem_get_batch(&sna->kgem, 16);
 	b[0] = MI_LOAD_REGISTER_IMM | 1;
-	b[1] = pipe;
-	b[2] = y2 - 1;
-	b[3] = MI_WAIT_FOR_EVENT | event;
-	kgem_advance_batch(&sna->kgem, 4);
+	b[1] = 0x44050; /* DERRMR */
+	b[2] = ~(1 << (3*full_height + pipe*8));
+	b[3] = MI_LOAD_REGISTER_IMM | 1;
+	b[4] = 0xa188; /* FORCEWAKE_MT */
+	b[5] = 2 << 16 | 2;
+	b[6] = MI_LOAD_REGISTER_IMM | 1;
+	b[7] = 0x70068 + 0x1000 * pipe;
+	b[8] = (1 << 31) | (1 << 30) | (y1 << 16) | (y2 - 1);
+	b[9] = MI_WAIT_FOR_EVENT | 1 << (3*full_height + pipe*5);
+	b[10] = MI_LOAD_REGISTER_IMM | 1;
+	b[11] = 0xa188; /* FORCEWAKE_MT */
+	b[12] = 2 << 16;
+	b[13] = MI_LOAD_REGISTER_IMM | 1;
+	b[14] = 0x44050; /* DERRMR */
+	b[15] = ~0;
+	kgem_advance_batch(&sna->kgem, 16);
+
+	sna->kgem.batch_flags |= I915_EXEC_SECURE;
+	return true;
 }
 
-static void sna_emit_wait_for_scanline_gen4(struct sna *sna,
+static bool sna_emit_wait_for_scanline_gen6(struct sna *sna,
+					    int pipe, int y1, int y2,
+					    bool full_height)
+{
+	uint32_t *b;
+
+	if (!sna->kgem.has_secure_batches)
+		return false;
+
+	assert(y1 >= 0);
+	assert(y2 > y1);
+	assert(sna->kgem.mode);
+
+	b = kgem_get_batch(&sna->kgem, 10);
+	b[0] = MI_LOAD_REGISTER_IMM | 1;
+	b[1] = 0x44050; /* DERRMR */
+	b[2] = ~(1 << (3*full_height + pipe*8));
+	b[3] = MI_LOAD_REGISTER_IMM | 1;
+	b[4] = 0x4f100; /* magic */
+	b[5] = (1 << 31) | (1 << 30) | pipe << 29 | (y1 << 16) | (y2 - 1);
+	b[6] = MI_WAIT_FOR_EVENT | 1 << (3*full_height + pipe*5);
+	b[7] = MI_LOAD_REGISTER_IMM | 1;
+	b[8] = 0x44050; /* DERRMR */
+	b[9] = ~0;
+	kgem_advance_batch(&sna->kgem, 10);
+
+	sna->kgem.batch_flags |= I915_EXEC_SECURE;
+	return true;
+}
+
+static bool sna_emit_wait_for_scanline_gen4(struct sna *sna,
 					    int pipe, int y1, int y2,
 					    bool full_height)
 {
@@ -2778,9 +2812,11 @@ static void sna_emit_wait_for_scanline_gen4(struct sna *sna,
 	b[3] = b[1] = (y1 << 16) | (y2-1);
 	b[4] = MI_WAIT_FOR_EVENT | event;
 	kgem_advance_batch(&sna->kgem, 5);
+
+	return true;
 }
 
-static void sna_emit_wait_for_scanline_gen2(struct sna *sna,
+static bool sna_emit_wait_for_scanline_gen2(struct sna *sna,
 					    int pipe, int y1, int y2,
 					    bool full_height)
 {
@@ -2805,6 +2841,8 @@ static void sna_emit_wait_for_scanline_gen2(struct sna *sna,
 	else
 		b[4] = MI_WAIT_FOR_EVENT | MI_WAIT_FOR_PIPEB_SCAN_LINE_WINDOW;
 	kgem_advance_batch(&sna->kgem, 5);
+
+	return true;
 }
 
 bool
@@ -2815,14 +2853,11 @@ sna_wait_for_scanline(struct sna *sna,
 {
 	bool full_height;
 	int y1, y2, pipe;
+	bool ret;
 
 	assert(crtc);
 	assert(to_sna_crtc(crtc)->bo != NULL);
 	assert(pixmap == sna->front);
-
-	/* XXX WAIT_EVENT is still causing hangs on SNB */
-	if (sna->kgem.gen >= 60)
-		return false;
 
 	/*
 	 * Make sure we don't wait for a scanline that will
@@ -2850,14 +2885,18 @@ sna_wait_for_scanline(struct sna *sna,
 	DBG(("%s: pipe=%d, y1=%d, y2=%d, full_height?=%d\n",
 	     __FUNCTION__, pipe, y1, y2, full_height));
 
-	if (sna->kgem.gen >= 60)
-		sna_emit_wait_for_scanline_gen6(sna, pipe, y1, y2, full_height);
+	if (sna->kgem.gen >= 80)
+		ret = false;
+	else if (sna->kgem.gen >= 70)
+		ret = sna_emit_wait_for_scanline_gen7(sna, pipe, y1, y2, full_height);
+	else if (sna->kgem.gen >= 60)
+		ret =sna_emit_wait_for_scanline_gen6(sna, pipe, y1, y2, full_height);
 	else if (sna->kgem.gen >= 40)
-		sna_emit_wait_for_scanline_gen4(sna, pipe, y1, y2, full_height);
+		ret = sna_emit_wait_for_scanline_gen4(sna, pipe, y1, y2, full_height);
 	else
-		sna_emit_wait_for_scanline_gen2(sna, pipe, y1, y2, full_height);
+		ret = sna_emit_wait_for_scanline_gen2(sna, pipe, y1, y2, full_height);
 
-	return true;
+	return ret;
 }
 
 void sna_mode_update(struct sna *sna)
