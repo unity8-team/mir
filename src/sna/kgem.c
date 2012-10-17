@@ -72,11 +72,6 @@ search_snoop_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags);
 #define DBG_NO_SECURE_BATCHES 0
 #define DBG_DUMP 0
 
-#ifndef USE_SECURE_BATCHES
-#undef DBG_NO_SECURE_BATCHES
-#define DBG_NO_SECURE_BATCHES 1
-#endif
-
 #define SHOW_BATCH 0
 
 /* Worst case seems to be 965gm where we cannot write within a cacheline that
