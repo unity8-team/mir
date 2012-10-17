@@ -532,6 +532,7 @@ sna_video_overlay_put_image(ScrnInfoPtr scrn,
 		return BadAlloc;
 	}
 
+	frame.bo->domain = DOMAIN_NONE;
 	sna_video_buffer_fini(sna, video);
 
 	/* update cliplist */

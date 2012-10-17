@@ -250,6 +250,7 @@ sna_video_sprite_show(struct sna *sna,
 			    0, 0, frame->width << 16, frame->height << 16))
 		return false;
 
+	frame->bo->domain = DOMAIN_NONE;
 	video->plane = plane;
 	return true;
 }
