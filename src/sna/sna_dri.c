@@ -525,6 +525,9 @@ sna_dri_copy_fallback(struct sna *sna, int bpp,
 	void *dst = kgem_bo_map__gtt(&sna->kgem, dst_bo);
 	void *src = kgem_bo_map__gtt(&sna->kgem, src_bo);
 
+	if (dst == NULL || src == NULL)
+		return;
+
 	DBG(("%s: src(%d, %d), dst(%d, %d) x %d\n",
 	     __FUNCTION__, sx, sy, dx, dy, n));
 
