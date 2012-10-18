@@ -190,7 +190,7 @@ static const struct blendinfo {
 #define SAMPLER_OFFSET(sf, se, mf, me, k) \
 	((((((sf) * EXTEND_COUNT + (se)) * FILTER_COUNT + (mf)) * EXTEND_COUNT + (me)) * KERNEL_COUNT + (k)) * 64)
 
-static void
+static bool
 gen4_emit_pipelined_pointers(struct sna *sna,
 			     const struct sna_composite_op *op,
 			     int blend, int kernel);
@@ -243,6 +243,7 @@ static void gen4_magic_ca_pass(struct sna *sna,
 	gen4_emit_pipelined_pointers(sna, op, PictOpAdd,
 				     gen4_choose_composite_kernel(PictOpAdd,
 								  true, true, op->is_affine));
+	OUT_BATCH(MI_FLUSH);
 
 	OUT_BATCH(GEN4_3DPRIMITIVE |
 		  GEN4_3DPRIMITIVE_VERTEX_SEQUENTIAL |
@@ -1222,11 +1223,11 @@ gen4_align_vertex(struct sna *sna, const struct sna_composite_op *op)
 	}
 }
 
-static void
+static bool
 gen4_emit_binding_table(struct sna *sna, uint16_t offset)
 {
 	if (sna->render_state.gen4.surface_table == offset)
-		return;
+		return false;
 
 	sna->render_state.gen4.surface_table = offset;
 
@@ -1238,9 +1239,11 @@ gen4_emit_binding_table(struct sna *sna, uint16_t offset)
 	OUT_BATCH(0);		/* sf */
 	/* Only the PS uses the binding table */
 	OUT_BATCH(offset*4);
+
+	return true;
 }
 
-static void
+static bool
 gen4_emit_pipelined_pointers(struct sna *sna,
 			     const struct sna_composite_op *op,
 			     int blend, int kernel)
@@ -1263,7 +1266,7 @@ gen4_emit_pipelined_pointers(struct sna *sna,
 
 	key = sp | bp << 16;
 	if (key == sna->render_state.gen4.last_pipelined_pointers)
-		return;
+		return true;
 
 	OUT_BATCH(GEN4_3DSTATE_PIPELINED_POINTERS | 5);
 	OUT_BATCH(sna->render_state.gen4.vs);
@@ -1275,6 +1278,7 @@ gen4_emit_pipelined_pointers(struct sna *sna,
 
 	sna->render_state.gen4.last_pipelined_pointers = key;
 	gen4_emit_urb(sna);
+	return false;
 }
 
 static void
@@ -1376,18 +1380,21 @@ gen4_emit_state(struct sna *sna,
 		const struct sna_composite_op *op,
 		uint16_t wm_binding_table)
 {
+	bool flush = false;
+
 	if (FLUSH_EVERY_VERTEX)
 		OUT_BATCH(MI_FLUSH | MI_INHIBIT_RENDER_CACHE_FLUSH);
 
 	gen4_emit_drawing_rectangle(sna, op);
-	gen4_emit_binding_table(sna, wm_binding_table);
-	gen4_emit_pipelined_pointers(sna, op, op->op, op->u.gen4.wm_kernel);
+	flush |= gen4_emit_binding_table(sna, wm_binding_table);
+	flush |= gen4_emit_pipelined_pointers(sna, op, op->op, op->u.gen4.wm_kernel);
 	gen4_emit_vertex_elements(sna, op);
 
-	if (kgem_bo_is_dirty(op->src.bo) || kgem_bo_is_dirty(op->mask.bo)) {
-		DBG(("%s: flushing dirty (%d, %d)\n", __FUNCTION__,
+	if (flush || kgem_bo_is_dirty(op->src.bo) || kgem_bo_is_dirty(op->mask.bo)) {
+		DBG(("%s: flushing dirty (%d, %d), forced? %d\n", __FUNCTION__,
 		     kgem_bo_is_dirty(op->src.bo),
-		     kgem_bo_is_dirty(op->mask.bo)));
+		     kgem_bo_is_dirty(op->mask.bo),
+		     flush));
 		OUT_BATCH(MI_FLUSH);
 		kgem_clear_dirty(&sna->kgem);
 		kgem_bo_mark_dirty(op->dst.bo);
