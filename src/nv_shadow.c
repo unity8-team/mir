@@ -32,19 +32,18 @@ void
 NVRefreshArea(ScrnInfoPtr pScrn, int num, BoxPtr pbox)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	int x1, y1, x2, y2, width, height, cpp, FBPitch, max_height;
+	int x1, y1, x2, y2, width, height, cpp, FBPitch;
 	unsigned char *src, *dst;
    
 	cpp = pScrn->bitsPerPixel >> 3;
 	FBPitch = pScrn->displayWidth * cpp;
-	max_height = pNv->scanout->size/FBPitch;
 
 	nouveau_bo_map(pNv->scanout, NOUVEAU_BO_WR, pNv->client);
 	while(num--) {
 		x1 = MAX(pbox->x1, 0);
 		y1 = MAX(pbox->y1, 0);
-		x2 = MIN(pbox->x2, pScrn->displayWidth);
-		y2 = MIN(pbox->y2, max_height);
+		x2 = MIN(pbox->x2, pScrn->virtualX);
+		y2 = MIN(pbox->y2, pScrn->virtualY);
 		width = (x2 - x1) * cpp;
 		height = y2 - y1;
 
