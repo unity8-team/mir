@@ -2791,6 +2791,7 @@ done:
 
 	DBG(("%s: using GPU bo with damage? %d\n",
 	     __FUNCTION__, *damage != NULL));
+	assert(damage == NULL || !DAMAGE_IS_ALL(*damage));
 	assert(priv->gpu_bo->proxy == NULL);
 	assert(priv->clear == false);
 	assert(priv->cpu == false);
@@ -2859,6 +2860,19 @@ use_cpu_bo:
 		return NULL;
 	}
 
+	if (priv->shm) {
+		assert(!priv->flush);
+		sna_add_flush_pixmap(sna, priv, priv->cpu_bo);
+
+		/* As we may have flushed and retired,, recheck for busy bo */
+		if ((flags & FORCE_GPU) == 0 && !kgem_bo_is_busy(priv->cpu_bo))
+			return NULL;
+	}
+	if (priv->flush) {
+		assert(!priv->shm);
+		sna_add_flush_pixmap(sna, priv, priv->gpu_bo);
+	}
+
 	if (sna_damage_is_all(&priv->cpu_damage,
 			      pixmap->drawable.width,
 			      pixmap->drawable.height)) {
@@ -2873,21 +2887,9 @@ use_cpu_bo:
 			*damage = &priv->cpu_damage;
 	}
 
-	if (priv->shm) {
-		assert(!priv->flush);
-		sna_add_flush_pixmap(sna, priv, priv->cpu_bo);
-
-		/* As we may have flushed and retired,, recheck for busy bo */
-		if ((flags & FORCE_GPU) == 0 && !kgem_bo_is_busy(priv->cpu_bo))
-			return NULL;
-	}
-	if (priv->flush) {
-		assert(!priv->shm);
-		sna_add_flush_pixmap(sna, priv, priv->gpu_bo);
-	}
-
 	DBG(("%s: using CPU bo with damage? %d\n",
 	     __FUNCTION__, *damage != NULL));
+	assert(damage == NULL || !DAMAGE_IS_ALL(*damage));
 	assert(priv->clear == false);
 	return priv->cpu_bo;
 }
