@@ -1899,6 +1899,7 @@ put:
 				if (tmp->dst.bo == priv->cpu_bo) {
 					DBG(("%s: forcing the stall to overwrite a busy CPU bo\n", __FUNCTION__));
 					tmp->dst.bo = NULL;
+					tmp->damage = NULL;
 				}
 			}
 		}
