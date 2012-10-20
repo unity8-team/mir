@@ -5016,16 +5016,17 @@ sna_fallback_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	if (!sna_gc_move_to_cpu(gc, dst, region))
 		return;
 
+	RegionTranslate(region, dx, dy);
+	if (!sna_drawable_move_region_to_cpu(src, region, MOVE_READ))
+		goto out_gc;
+	RegionTranslate(region, -dx, -dy);
+
 	if (src == dst ||
 	    get_drawable_pixmap(src) == get_drawable_pixmap(dst)) {
+		DBG(("%s: self-copy\n", __FUNCTION__));
 		if (!sna_drawable_move_to_cpu(dst, MOVE_WRITE | MOVE_READ))
 			goto out_gc;
 	} else {
-		RegionTranslate(region, dx, dy);
-		if (!sna_drawable_move_region_to_cpu(src, region, MOVE_READ))
-			goto out_gc;
-		RegionTranslate(region, -dx, -dy);
-
 		if (!sna_drawable_move_region_to_cpu(dst, region,
 						     drawable_gc_flags(dst, gc, false)))
 			goto out_gc;
@@ -5051,10 +5052,11 @@ sna_copy_area(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	if (gc->planemask == 0)
 		return NULL;
 
-	DBG(("%s: src=(%d, %d)x(%d, %d)+(%d, %d) -> dst=(%d, %d)+(%d, %d)\n",
+	DBG(("%s: src=(%d, %d)x(%d, %d)+(%d, %d) -> dst=(%d, %d)+(%d, %d); alu=%d, pm=%lx\n",
 	     __FUNCTION__,
 	     src_x, src_y, width, height, src->x, src->y,
-	     dst_x, dst_y, dst->x, dst->y));
+	     dst_x, dst_y, dst->x, dst->y,
+	     gc->alu, gc->planemask));
 
 	if (FORCE_FALLBACK || !ACCEL_COPY_AREA || wedged(sna) ||
 	    !PM_IS_SOLID(dst, gc->planemask))
