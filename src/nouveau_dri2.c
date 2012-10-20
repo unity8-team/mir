@@ -479,6 +479,7 @@ nouveau_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
 {
 	struct nouveau_dri2_vblank_state *s;
 	CARD64 current_msc, expect_msc;
+	CARD64 current_ust;
 	int ret;
 
 	/* Initialize a swap structure */
@@ -490,9 +491,9 @@ nouveau_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
 		{ SWAP, client, draw->id, dst, src, func, data, 0 };
 
 	if (can_sync_to_vblank(draw)) {
-		/* Get current sequence */
+		/* Get current sequence and vblank time*/
 		ret = nouveau_wait_vblank(draw, DRM_VBLANK_RELATIVE, 0,
-					  &current_msc, NULL, NULL);
+					  &current_msc, &current_ust, NULL);
 		if (ret)
 			goto fail;
 
@@ -512,24 +513,48 @@ nouveau_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
 		if (*target_msc == 0)
 			*target_msc = 1;
 
+		/* Swap at next possible vblank requested? */
+		if (current_msc >= *target_msc - 1) {
+			/* Special case: Need to swap at next vblank.
+			 * Schedule swap immediately, bypassing the kernel
+			 * vblank event mechanism to avoid a dangerous race
+			 * between the client and the x-server vblank event
+			 * dispatch in the main x-server dispatch loop when
+			 * the swap_limit is set to 2 for triple-buffering.
+			 *
+			 * This also optimizes for the common case of swap
+			 * at next vblank, avoiding vblank dispatch delay.
+			 */
+			s->frame = 1 + ((unsigned int) current_msc & 0xffffffff);
+			*target_msc = 1 + current_msc;
+			nouveau_dri2_finish_swap(draw, current_msc,
+						 (unsigned int) (current_ust / 1000000),
+						 (unsigned int) (current_ust % 1000000),
+						 s);
+			return TRUE;
+		}
+
+		/* This is a swap in the future, ie. the vblank event will
+		 * only get dispatched at least 2 vblanks into the future.
+		 */
+
 #if DRI2INFOREC_VERSION >= 6
-		/* Is this a swap in the future, ie. the vblank event will
-		 * not be immediately dispatched, but only at a future vblank?
-		 * If so, we need to temporarily lower the swaplimit to 1, so
-		 * that DRI2GetBuffersWithFormat() requests from the client get
+		/* On XOrg 1.12+ we need to temporarily lower the swaplimit to 1,
+		 * so that DRI2GetBuffersWithFormat() requests from the client get
 		 * deferred in the x-server until the vblank event has been
 		 * dispatched to us and nouveau_dri2_finish_swap() is done. If
 		 * we wouldn't do this, DRI2GetBuffersWithFormat() would operate
 		 * on wrong (pre-swap) buffers, and cause a segfault later on in
-		 * nouveau_dri2_finish_swap(). Our vblank event handler restores
+		 * nouveau_dri2_finish_swap(). Our vblank event handler will restore
 		 * the old swaplimit immediately after nouveau_dri2_finish_swap()
-		 * is done, so we still get 1 video refresh cycle worth of
-		 * triple-buffering. For a swap at next vblank, dispatch of the
-		 * vblank event happens immediately, so there isn't any need
-		 * for this lowered swaplimit.
+		 * is done, so we still get 1 video refresh cycle worth of triple-
+		 * buffering, because the client can start rendering again 1 cycle
+		 * before the pending swap is completed.
+		 *
+		 * The same race would happen for the "swap at next vblank" case,
+		 * but the special case "swap immediately" code above prevents this.
 		 */
-		if (current_msc < *target_msc - 1)
-			DRI2SwapLimit(draw, 1);
+		DRI2SwapLimit(draw, 1);
 #endif
 
 		/* Request a vblank event one frame before the target */
