@@ -493,6 +493,8 @@ intel_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 			ErrorF("failed to add fb\n");
 			return FALSE;
 		}
+
+		drm_intel_gem_bo_disable_resuse(intel->front_buffer);
 	}
 
 	saved_mode = crtc->mode;
@@ -596,6 +598,8 @@ intel_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 		drm_intel_bo_unreference(intel_crtc->rotate_bo);
 		return NULL;
 	}
+
+	drm_intel_gem_bo_disable_resuse(intel_crtc->rotate_bo);
 
 	intel_crtc->rotate_pitch = rotate_pitch;
 	return intel_crtc->rotate_bo;
@@ -722,6 +726,8 @@ intel_set_scanout_pixmap(xf86CrtcPtr crtc, PixmapPtr ppix)
 	if (intel->front_buffer) {
 		ErrorF("have front buffer\n");
 	}
+
+	drm_intel_gem_bo_disable_resuse(bo);
 
 	intel_crtc->scanout_pixmap = ppix;
 	return drmModeAddFB(intel->drmSubFD, ppix->drawable.width,
@@ -1494,6 +1500,7 @@ intel_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	if (ret)
 		goto fail;
 
+	drm_intel_gem_bo_disable_resuse(intel->front_buffer);
 	intel->front_pitch = pitch;
 	intel->front_tiling = tiling;
 
@@ -1555,6 +1562,7 @@ intel_do_pageflip(intel_screen_private *intel,
 			 new_front->handle, &new_fb_id))
 		goto error_out;
 
+	drm_intel_gem_bo_disable_resuse(new_front);
 	intel_glamor_flush(intel);
 	intel_batch_submit(scrn);
 
