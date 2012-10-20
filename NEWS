@@ -1,3 +1,26 @@
+Release 2.20.11 (2012-10-20)
+============================
+More bug reports, more bug fixes! Perhaps the headline feature is
+that with a secure batches, coming to a 3.8 kernel near you, we may
+finally have the ability to perform updates to the scanout synchronized
+to the refresh rate on later SandyBridge and IvyBridge chipsets. It comes
+at quite a power cost as we need to keep the GPU out of its power saving
+modes, but it should allow legacy vsync to function at last. But this
+should allow us to address a longstanding issue with tearing on
+SandyBridge+.
+
+ * Fix component-alpha rendering on IvyBridge, for example subpixel
+   antialiased glyphs.
+   https://bugs.freedesktop.org/show_bug.cgi?id=56037
+
+ * Flush before some "pipelined" state changes on gen4. The evidence is
+   that the same flushes as required on gen5+ are also required for gen4.
+   https://bugs.freedesktop.org/show_bug.cgi?id=55627
+
+ * Prevent a potential crash when forcing a stall on a busy CPU bo
+   https://bugs.freedesktop.org/show_bug.cgi?id=56180
+
+
 Release 2.20.10 (2012-10-14)
 ============================
 The last couple of weeks have been fairly retrospective, a dive into
