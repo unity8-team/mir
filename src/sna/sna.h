@@ -114,7 +114,6 @@ struct sna_pixmap {
 	void *ptr;
 
 	struct list list;
-	struct list inactive;
 
 	uint32_t stride;
 	uint32_t clear_color;
@@ -185,7 +184,6 @@ enum {
 	FLUSH_TIMER = 0,
 	THROTTLE_TIMER,
 	EXPIRE_TIMER,
-	INACTIVE_TIMER,
 #if DEBUG_MEMORY
 	DEBUG_MEMORY_TIMER,
 #endif
@@ -213,7 +211,6 @@ struct sna {
 
 	struct list flush_pixmaps;
 	struct list active_pixmaps;
-	struct list inactive_clock[2];
 
 	PixmapPtr front;
 	PixmapPtr freed_pixmap;

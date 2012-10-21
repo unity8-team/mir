@@ -60,7 +60,6 @@
 #define USE_INPLACE 1
 #define USE_WIDE_SPANS 0 /* -1 force CPU, 1 force GPU */
 #define USE_ZERO_SPANS 1 /* -1 force CPU, 1 force GPU */
-#define USE_INACTIVE 0
 #define USE_CPU_BO 1
 
 #define MIGRATE_ALL 0
@@ -405,8 +404,6 @@ static void sna_pixmap_free_gpu(struct sna *sna, struct sna_pixmap *priv)
 		priv->mapped = false;
 	}
 
-	list_del(&priv->inactive);
-
 	/* and reset the upload counter */
 	priv->source_count = SOURCE_BIAS;
 }
@@ -619,7 +616,6 @@ static struct sna_pixmap *
 _sna_pixmap_init(struct sna_pixmap *priv, PixmapPtr pixmap)
 {
 	list_init(&priv->list);
-	list_init(&priv->inactive);
 	priv->source_count = SOURCE_BIAS;
 	priv->pixmap = pixmap;
 
@@ -1248,7 +1244,6 @@ static void __sna_free_pixmap(struct sna *sna,
 			      struct sna_pixmap *priv)
 {
 	list_del(&priv->list);
-	list_del(&priv->inactive);
 
 	sna_damage_destroy(&priv->gpu_damage);
 	sna_damage_destroy(&priv->cpu_damage);
@@ -2354,10 +2349,6 @@ static inline struct sna_pixmap *
 sna_pixmap_mark_active(struct sna *sna, struct sna_pixmap *priv)
 {
 	assert(priv->gpu_bo);
-	if (USE_INACTIVE &&
-	    !priv->pinned && priv->gpu_bo->proxy == NULL &&
-	    (priv->create & KGEM_CAN_CREATE_LARGE) == 0)
-		list_move(&priv->inactive, &sna->active_pixmaps);
 	return priv;
 }
 
@@ -2803,10 +2794,6 @@ use_gpu_bo:
 	assert(priv->gpu_bo->proxy == NULL);
 	priv->clear = false;
 	priv->cpu = false;
-	if (USE_INACTIVE &&
-	    !priv->pinned && (priv->create & KGEM_CAN_CREATE_LARGE) == 0)
-		list_move(&priv->inactive,
-			  &to_sna_from_pixmap(pixmap)->active_pixmaps);
 	*damage = NULL;
 	return priv->gpu_bo;
 
@@ -13901,31 +13888,6 @@ static bool sna_accel_do_expire(struct sna *sna)
 	return false;
 }
 
-static bool sna_accel_do_inactive(struct sna *sna)
-{
-	if (!USE_INACTIVE)
-		return false;
-
-	if (sna->timer_active & (1<<(INACTIVE_TIMER))) {
-		int32_t delta = sna->timer_expire[INACTIVE_TIMER] - TIME;
-		if (delta <= 3) {
-			sna->timer_expire[INACTIVE_TIMER] =
-				TIME + 120 * 1000;
-			DBG(("%s (time=%ld), triggered\n", __FUNCTION__, (long)TIME));
-			return true;
-		}
-	} else {
-		if (!list_is_empty(&sna->active_pixmaps)) {
-			sna->timer_active |= 1 << INACTIVE_TIMER;
-			sna->timer_expire[INACTIVE_TIMER] =
-				TIME + 120 * 1000;
-			DBG(("%s (time=%ld), starting\n", __FUNCTION__, (long)TIME));
-		}
-	}
-
-	return false;
-}
-
 static int32_t sna_timeout(struct sna *sna)
 {
 	int32_t now = TIME, next = 0;
@@ -14103,105 +14065,6 @@ static void sna_accel_expire(struct sna *sna)
 		sna_accel_disarm_timer(sna, EXPIRE_TIMER);
 }
 
-static void sna_accel_inactive(struct sna *sna)
-{
-	struct sna_pixmap *priv;
-	struct list preserve;
-
-	DBG(("%s (time=%ld)\n", __FUNCTION__, (long)TIME));
-
-#if HAS_FULL_DEBUG
-	{
-		unsigned count, bytes;
-
-		count = bytes = 0;
-		list_for_each_entry(priv, &sna->inactive_clock[1], inactive)
-			if (!priv->pinned)
-				count++, bytes += kgem_bo_size(priv->gpu_bo);
-
-		DBG(("%s: trimming %d inactive GPU buffers, %d bytes\n",
-		    __FUNCTION__, count, bytes));
-
-		count = bytes = 0;
-		list_for_each_entry(priv, &sna->active_pixmaps, inactive) {
-			if (priv->ptr &&
-			    sna_damage_is_all(&priv->gpu_damage,
-					      priv->pixmap->drawable.width,
-					      priv->pixmap->drawable.height)) {
-				count++, bytes += priv->pixmap->devKind * priv->pixmap->drawable.height;
-			}
-		}
-
-		DBG(("%s: trimming %d inactive CPU buffers, %d bytes\n",
-		    __FUNCTION__, count, bytes));
-	}
-#endif
-
-	/* clear out the oldest inactive pixmaps */
-	list_init(&preserve);
-	while (!list_is_empty(&sna->inactive_clock[1])) {
-		priv = list_first_entry(&sna->inactive_clock[1],
-					struct sna_pixmap,
-					inactive);
-		assert((priv->create & KGEM_CAN_CREATE_LARGE) == 0);
-		assert(priv->gpu_bo);
-		assert(!priv->gpu_bo->proxy);
-
-		/* XXX Rather than discarding the GPU buffer here, we
-		 * could mark it purgeable and allow the shrinker to
-		 * reap its storage only under memory pressure.
-		 */
-		list_del(&priv->inactive);
-		if (priv->pinned)
-			continue;
-
-		if (priv->ptr &&
-		    sna_damage_is_all(&priv->gpu_damage,
-				      priv->pixmap->drawable.width,
-				      priv->pixmap->drawable.height)) {
-			DBG(("%s: discarding inactive CPU shadow\n",
-			     __FUNCTION__));
-			sna_damage_destroy(&priv->cpu_damage);
-			list_del(&priv->list);
-
-			assert(priv->cpu_bo == NULL || !priv->cpu_bo->flush);
-			assert(!priv->shm);
-			sna_pixmap_free_cpu(sna, priv);
-			priv->undamaged = false;
-			priv->cpu = false;
-
-			list_add(&priv->inactive, &preserve);
-		} else {
-			DBG(("%s: discarding inactive GPU bo handle=%d\n",
-			     __FUNCTION__, priv->gpu_bo->handle));
-			if (!sna_pixmap_move_to_cpu(priv->pixmap,
-						    MOVE_READ | MOVE_WRITE | MOVE_ASYNC_HINT))
-				list_add(&priv->inactive, &preserve);
-		}
-	}
-
-	/* Age the current inactive pixmaps */
-	sna->inactive_clock[1].next = sna->inactive_clock[0].next;
-	sna->inactive_clock[0].next->prev = &sna->inactive_clock[1];
-	sna->inactive_clock[0].prev->next = &sna->inactive_clock[1];
-	sna->inactive_clock[1].prev = sna->inactive_clock[0].prev;
-
-	sna->inactive_clock[0].next = sna->active_pixmaps.next;
-	sna->active_pixmaps.next->prev = &sna->inactive_clock[0];
-	sna->active_pixmaps.prev->next = &sna->inactive_clock[0];
-	sna->inactive_clock[0].prev = sna->active_pixmaps.prev;
-
-	sna->active_pixmaps.next = preserve.next;
-	preserve.next->prev = &sna->active_pixmaps;
-	preserve.prev->next = &sna->active_pixmaps;
-	sna->active_pixmaps.prev = preserve.prev;
-
-	if (list_is_empty(&sna->inactive_clock[1]) &&
-	    list_is_empty(&sna->inactive_clock[0]) &&
-	    list_is_empty(&sna->active_pixmaps))
-		sna_accel_disarm_timer(sna, INACTIVE_TIMER);
-}
-
 #ifdef DEBUG_MEMORY
 static bool sna_accel_do_debug_memory(struct sna *sna)
 {
@@ -14341,8 +14204,6 @@ bool sna_accel_init(ScreenPtr screen, struct sna *sna)
 
 	list_init(&sna->flush_pixmaps);
 	list_init(&sna->active_pixmaps);
-	list_init(&sna->inactive_clock[0]);
-	list_init(&sna->inactive_clock[1]);
 
 	AddGeneralSocket(sna->kgem.fd);
 
@@ -14528,9 +14389,6 @@ void sna_accel_block_handler(struct sna *sna, struct timeval **tv)
 		sna_accel_expire(sna);
 	assert(!sna->kgem.need_expire ||
 	       sna->timer_active & (1<<(EXPIRE_TIMER)));
-
-	if (sna_accel_do_inactive(sna))
-		sna_accel_inactive(sna);
 
 	if (sna_accel_do_debug_memory(sna))
 		sna_accel_debug_memory(sna);
