@@ -13888,28 +13888,6 @@ static bool sna_accel_do_expire(struct sna *sna)
 	return false;
 }
 
-static int32_t sna_timeout(struct sna *sna)
-{
-	int32_t now = TIME, next = 0;
-	int i;
-
-	DBG(("%s: now=%d, active=%08x\n",
-	     __FUNCTION__, (int)now, sna->timer_active));
-	for (i = 0; i < NUM_TIMERS; i++) {
-		if (sna->timer_active & (1 << i)) {
-			int32_t delta = sna->timer_expire[i] - now;
-			DBG(("%s: timer[%d] expires in %d [%d]\n",
-			     __FUNCTION__, i, delta, sna->timer_expire[i]));
-			if (next == 0 || delta < next)
-				next = delta;
-		}
-	}
-
-	DBG(("%s: active=%08x, next=+%d\n",
-	     __FUNCTION__, sna->timer_active, next));
-	return next;
-}
-
 static void sna_accel_post_damage(struct sna *sna)
 {
 #if HAS_PIXMAP_SHARING
@@ -14399,22 +14377,24 @@ void sna_accel_block_handler(struct sna *sna, struct timeval **tv)
 		sna->watch_flush = 0;
 	}
 
-	if (sna->timer_active) {
+	if (sna->timer_active & 1) {
 		int32_t timeout;
 
 		DBG(("%s: evaluating timers, active=%x\n",
 		     __FUNCTION__, sna->timer_active));
-		timeout = sna_timeout(sna);
-		if (timeout) {
-			if (*tv == NULL) {
-				*tv = &sna->timer_tv;
-				goto set_tv;
-			}
-			if ((*tv)->tv_sec * 1000 + (*tv)->tv_usec / 1000 > timeout) {
+
+		timeout = sna->timer_expire[0] - TIME;
+		DBG(("%s: flush timer expires in %d [%d]\n",
+		     __FUNCTION__, timeout, sna->timer_expire[0]));
+
+		if (*tv == NULL) {
+			*tv = &sna->timer_tv;
+			goto set_tv;
+		}
+		if ((*tv)->tv_sec * 1000 + (*tv)->tv_usec / 1000 > timeout) {
 set_tv:
-				(*tv)->tv_sec = timeout / 1000;
-				(*tv)->tv_usec = timeout % 1000 * 1000;
-			}
+			(*tv)->tv_sec = timeout / 1000;
+			(*tv)->tv_usec = timeout % 1000 * 1000;
 		}
 	}
 }
