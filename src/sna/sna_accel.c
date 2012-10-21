@@ -13832,6 +13832,8 @@ static bool sna_accel_do_flush(struct sna *sna)
 			if (priv)
 				kgem_bo_flush(&sna->kgem, priv->gpu_bo);
 		} else {
+			if (!sna->timer_active)
+				UpdateCurrentTimeIf();
 			sna->timer_active |= 1 << FLUSH_TIMER;
 			sna->timer_expire[FLUSH_TIMER] = TIME + interval / 2;
 			DBG(("%s (time=%ld), starting\n", __FUNCTION__, (long)TIME));
@@ -13858,6 +13860,8 @@ static bool sna_accel_do_throttle(struct sna *sna)
 			DBG(("%s -- no pending activity\n", __FUNCTION__));
 		} else {
 			DBG(("%s (time=%ld), starting\n", __FUNCTION__, (long)TIME));
+			if (!sna->timer_active)
+				UpdateCurrentTimeIf();
 			sna->timer_active |= 1 << THROTTLE_TIMER;
 			sna->timer_expire[THROTTLE_TIMER] = TIME + 20;
 		}
@@ -13878,6 +13882,8 @@ static bool sna_accel_do_expire(struct sna *sna)
 		}
 	} else {
 		if (sna->kgem.need_expire) {
+			if (!sna->timer_active)
+				UpdateCurrentTimeIf();
 			sna->timer_active |= 1 << EXPIRE_TIMER;
 			sna->timer_expire[EXPIRE_TIMER] =
 				TIME + MAX_INACTIVE_TIME * 1000;
@@ -14343,7 +14349,8 @@ void sna_accel_close(struct sna *sna)
 
 void sna_accel_block_handler(struct sna *sna, struct timeval **tv)
 {
-	UpdateCurrentTimeIf();
+	if (sna->timer_active)
+		UpdateCurrentTimeIf();
 
 	if (sna->kgem.nbatch && kgem_is_idle(&sna->kgem)) {
 		DBG(("%s: GPU idle, flushing\n", __FUNCTION__));
