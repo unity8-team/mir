@@ -13801,6 +13801,15 @@ static bool stop_flush(struct sna *sna, struct sna_pixmap *scanout)
 	return scanout->cpu_damage || scanout->gpu_bo->needs_flush;
 }
 
+static void timer_enable(struct sna *sna, int whom, int interval)
+{
+	if (!sna->timer_active)
+		UpdateCurrentTimeIf();
+	sna->timer_active |= 1 << whom;
+	sna->timer_expire[whom] = TIME + interval;
+	DBG(("%s (time=%ld), starting timer %d\n", __FUNCTION__, (long)TIME, whom));
+}
+
 static bool sna_accel_do_flush(struct sna *sna)
 {
 	struct sna_pixmap *priv;
@@ -13826,19 +13835,12 @@ static bool sna_accel_do_flush(struct sna *sna)
 			sna->timer_expire[FLUSH_TIMER] = TIME + interval;
 			return true;
 		}
-	} else {
-		if (!start_flush(sna, priv)) {
-			DBG(("%s -- no pending write to scanout\n", __FUNCTION__));
-			if (priv)
-				kgem_bo_flush(&sna->kgem, priv->gpu_bo);
-		} else {
-			if (!sna->timer_active)
-				UpdateCurrentTimeIf();
-			sna->timer_active |= 1 << FLUSH_TIMER;
-			sna->timer_expire[FLUSH_TIMER] = TIME + interval / 2;
-			DBG(("%s (time=%ld), starting\n", __FUNCTION__, (long)TIME));
-		}
-	}
+	} else if (!start_flush(sna, priv)) {
+		DBG(("%s -- no pending write to scanout\n", __FUNCTION__));
+		if (priv)
+			kgem_bo_flush(&sna->kgem, priv->gpu_bo);
+	} else
+		timer_enable(sna, FLUSH_TIMER, interval/2);
 
 	return false;
 }
@@ -13855,17 +13857,10 @@ static bool sna_accel_do_throttle(struct sna *sna)
 			sna->timer_expire[THROTTLE_TIMER] = TIME + 20;
 			return true;
 		}
-	} else {
-		if (!sna->kgem.need_retire) {
-			DBG(("%s -- no pending activity\n", __FUNCTION__));
-		} else {
-			DBG(("%s (time=%ld), starting\n", __FUNCTION__, (long)TIME));
-			if (!sna->timer_active)
-				UpdateCurrentTimeIf();
-			sna->timer_active |= 1 << THROTTLE_TIMER;
-			sna->timer_expire[THROTTLE_TIMER] = TIME + 20;
-		}
-	}
+	} else if (!sna->kgem.need_retire) {
+		DBG(("%s -- no pending activity\n", __FUNCTION__));
+	} else
+		timer_enable(sna, THROTTLE_TIMER, 20);
 
 	return false;
 }
@@ -13880,16 +13875,8 @@ static bool sna_accel_do_expire(struct sna *sna)
 				TIME + MAX_INACTIVE_TIME * 1000;
 			return true;
 		}
-	} else {
-		if (sna->kgem.need_expire) {
-			if (!sna->timer_active)
-				UpdateCurrentTimeIf();
-			sna->timer_active |= 1 << EXPIRE_TIMER;
-			sna->timer_expire[EXPIRE_TIMER] =
-				TIME + MAX_INACTIVE_TIME * 1000;
-			DBG(("%s (time=%ld), starting\n", __FUNCTION__, (long)TIME));
-		}
-	}
+	} else if (sna->kgem.need_expire)
+		timer_enable(sna, EXPIRE_TIMER, MAX_INACTIVE_TIME * 1000);
 
 	return false;
 }
