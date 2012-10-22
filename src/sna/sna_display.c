@@ -3223,6 +3223,7 @@ void sna_mode_redisplay(struct sna *sna)
 
 		for (i = 0; i < config->num_crtc; i++) {
 			struct sna_crtc *crtc = config->crtc[i]->driver_private;
+			struct drm_mode_crtc_page_flip arg;
 
 			DBG(("%s: crtc %d [%d, pipe=%d] active? %d\n",
 			     __FUNCTION__, i, crtc->id, crtc->pipe, crtc->bo != NULL));
@@ -3230,41 +3231,33 @@ void sna_mode_redisplay(struct sna *sna)
 				continue;
 
 			assert(config->crtc[i]->enabled);
+			assert(crtc->dpms_mode == DPMSModeOn);
 
-			if (crtc->dpms_mode == DPMSModeOn) {
-				struct drm_mode_crtc_page_flip arg;
-				arg.crtc_id = crtc->id;
-				arg.fb_id = get_fb(sna, new,
-						   sna->scrn->virtualX,
-						   sna->scrn->virtualY);
-				if (arg.fb_id == 0)
-					goto disable;
+			arg.crtc_id = crtc->id;
+			arg.fb_id = get_fb(sna, new,
+					   sna->scrn->virtualX,
+					   sna->scrn->virtualY);
+			if (arg.fb_id == 0)
+				goto disable;
 
-				/* Only the reference crtc will finally deliver its page flip
-				 * completion event. All other crtc's events will be discarded.
-				 */
-				arg.user_data = 0;
-				arg.flags = DRM_MODE_PAGE_FLIP_EVENT;
-				arg.reserved = 0;
+			arg.user_data = 0;
+			arg.flags = DRM_MODE_PAGE_FLIP_EVENT;
+			arg.reserved = 0;
 
-				if (drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_PAGE_FLIP, &arg)) {
-					DBG(("%s: flip [fb=%d] on crtc %d [%d, pipe=%d] failed - %d\n",
-					     __FUNCTION__, arg.fb_id, i, crtc->id, crtc->pipe, errno));
+			if (drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_PAGE_FLIP, &arg)) {
+				DBG(("%s: flip [fb=%d] on crtc %d [%d, pipe=%d] failed - %d\n",
+				     __FUNCTION__, arg.fb_id, i, crtc->id, crtc->pipe, errno));
 disable:
-					sna_crtc_disable(config->crtc[i]);
-					continue;
-				}
-				sna->mode.shadow_flip++;
+				sna_crtc_disable(config->crtc[i]);
+				continue;
 			}
+			sna->mode.shadow_flip++;
 
 			kgem_bo_destroy(&sna->kgem, old);
 			crtc->bo = kgem_bo_reference(new);
 		}
 
 		if (sna->mode.shadow) {
-			/* XXX only works if the kernel stalls fwrites to the current
-			 * scanout whilst the flip is pending
-			 */
 			while (sna->mode.shadow_flip)
 				sna_mode_wakeup(sna);
 			(void)sna->render.copy_boxes(sna, GXcopy,
@@ -3276,8 +3269,9 @@ disable:
 			kgem_submit(&sna->kgem);
 
 			sna_pixmap(sna->front)->gpu_bo = old;
-			sna->mode.shadow = new;
+			sna_dri_pixmap_update_bo(sna, sna->front);
 
+			sna->mode.shadow = new;
 			new->flush = old->flush;
 		}
 

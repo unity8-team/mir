@@ -207,6 +207,27 @@ static inline void sna_pixmap_set_buffer(PixmapPtr pixmap, void *ptr)
 	((void **)dixGetPrivateAddr(&pixmap->devPrivates, &sna_pixmap_key))[2] = ptr;
 }
 
+void
+sna_dri_pixmap_update_bo(struct sna *sna, PixmapPtr pixmap)
+{
+	DRI2Buffer2Ptr buffer;
+	struct sna_dri_private *private;
+	struct kgem_bo *bo;
+
+	buffer = sna_pixmap_get_buffer(pixmap);
+	if (buffer == NULL)
+		return;
+
+	private = get_private(buffer);
+	assert(private->pixmap == pixmap);
+
+	bo = sna_pixmap(pixmap)->gpu_bo;
+	buffer->name = kgem_bo_flink(&sna->kgem, bo);
+	private->bo = bo;
+
+	/* XXX DRI2InvalidateDrawable(&pixmap->drawable); */
+}
+
 static DRI2Buffer2Ptr
 sna_dri_create_buffer(DrawablePtr draw,
 		      unsigned int attachment,
