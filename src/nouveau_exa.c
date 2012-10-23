@@ -321,20 +321,17 @@ nouveau_exa_upload_to_screen(PixmapPtr pdpix, int x, int y, int w, int h,
 		if (pNv->Architecture < NV_ARCH_50) {
 			if (NV04EXAUploadIFC(pScrn, src, src_pitch, pdpix,
 					     x, y, w, h, cpp)) {
-				exaMarkSync(pdpix->drawable.pScreen);
 				return TRUE;
 			}
 		} else
 		if (pNv->Architecture < NV_ARCH_C0) {
 			if (NV50EXAUploadSIFC(src, src_pitch, pdpix,
 					      x, y, w, h, cpp)) {
-				exaMarkSync(pdpix->drawable.pScreen);
 				return TRUE;
 			}
 		} else {
 			if (NVC0EXAUploadSIFC(src, src_pitch, pdpix,
 					      x, y, w, h, cpp)) {
-				exaMarkSync(pdpix->drawable.pScreen);
 				return TRUE;
 			}
 		}
@@ -372,7 +369,6 @@ nouveau_exa_upload_to_screen(PixmapPtr pdpix, int x, int y, int w, int h,
 		y += lines;
 	}
 
-	exaMarkSync(pdpix->drawable.pScreen);
 	return TRUE;
 
 	/* fallback to memcpy-based transfer */
@@ -386,8 +382,6 @@ memcpy:
 		return FALSE;
 	dst = (char *)bo->map + (y * dst_pitch) + (x * cpp);
 	ret = NVAccelMemcpyRect(dst, src, h, dst_pitch, src_pitch, w*cpp);
-	if (ret)
-		exaMarkSync(pdpix->drawable.pScreen);
 	return ret;
 }
 
