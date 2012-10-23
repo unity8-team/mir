@@ -269,7 +269,7 @@ nouveau_exa_download_from_screen(PixmapPtr pspix, int x, int y, int w, int h,
 			goto memcpy;
 
 		nouveau_bo_wait(tmp, NOUVEAU_BO_RD, pNv->client);
-		if (src_pitch == tmp_pitch) {
+		if (dst_pitch == tmp_pitch) {
 			memcpy(dst, tmp->map + tmp_offset, dst_pitch * lines);
 			dst += dst_pitch * lines;
 		} else {
