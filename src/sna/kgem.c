@@ -4934,10 +4934,10 @@ struct kgem_bo *kgem_create_buffer_2d(struct kgem *kgem,
 
 struct kgem_bo *kgem_upload_source_image(struct kgem *kgem,
 					 const void *data,
-					 BoxPtr box,
+					 const BoxRec *box,
 					 int stride, int bpp)
 {
-	int width = box->x2 - box->x1;
+	int width  = box->x2 - box->x1;
 	int height = box->y2 - box->y1;
 	struct kgem_bo *bo;
 	void *dst;

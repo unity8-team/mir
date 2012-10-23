@@ -38,6 +38,14 @@
 #define DBG_FORCE_UPLOAD 0
 #define DBG_NO_CPU_BO 0
 
+inline static int16_t bound(int16_t a, uint16_t b)
+{
+	int v = (int)a + (int)b;
+	if (v > MAXSHORT)
+		return MAXSHORT;
+	return v;
+}
+
 CARD32
 sna_format_for_depth(int depth)
 {
@@ -474,7 +482,7 @@ move_to_gpu(PixmapPtr pixmap, const BoxRec *box, bool blt)
 static struct kgem_bo *upload(struct sna *sna,
 			      struct sna_composite_channel *channel,
 			      PixmapPtr pixmap,
-			      BoxPtr box)
+			      const BoxRec *box)
 {
 	struct sna_pixmap *priv;
 	struct kgem_bo *bo;
@@ -587,8 +595,8 @@ sna_render_pixmap_bo(struct sna *sna,
 	} else {
 		box.x1 = x;
 		box.y1 = y;
-		box.x2 = x + w;
-		box.y2 = y + h;
+		box.x2 = bound(x, w);
+		box.y2 = bound(y, h);
 
 		if (channel->repeat == RepeatNone || channel->repeat == RepeatPad) {
 			if (box.x1 < 0)
@@ -661,8 +669,8 @@ static int sna_render_picture_downsample(struct sna *sna,
 
 	box.x1 = x;
 	box.y1 = y;
-	box.x2 = x + w;
-	box.y2 = y + h;
+	box.x2 = bound(x, w);
+	box.y2 = bound(y, h);
 	if (channel->transform) {
 		pixman_vector_t v;
 
@@ -843,8 +851,8 @@ sna_render_pixmap_partial(struct sna *sna,
 
 	box.x1 = x;
 	box.y1 = y;
-	box.x2 = x + w;
-	box.y2 = y + h;
+	box.x2 = bound(x, w);
+	box.y2 = bound(y, h);
 	DBG(("%s: unaligned box (%d, %d), (%d, %d)\n",
 	     __FUNCTION__, box.x1, box.y1, box.x2, box.y2));
 
@@ -934,8 +942,8 @@ sna_render_picture_partial(struct sna *sna,
 
 	box.x1 = x;
 	box.y1 = y;
-	box.x2 = x + w;
-	box.y2 = y + h;
+	box.x2 = bound(x, w);
+	box.y2 = bound(y, h);
 	if (channel->transform)
 		pixman_transform_bounds(channel->transform, &box);
 
@@ -1077,8 +1085,8 @@ sna_render_picture_extract(struct sna *sna,
 
 	ox = box.x1 = x;
 	oy = box.y1 = y;
-	box.x2 = x + w;
-	box.y2 = y + h;
+	box.x2 = bound(x, w);
+	box.y2 = bound(y, h);
 	if (channel->transform) {
 		pixman_vector_t v;
 
@@ -1627,8 +1635,8 @@ sna_render_picture_convert(struct sna *sna,
 	if (w != 0 && h != 0) {
 		box.x1 = x;
 		box.y1 = y;
-		box.x2 = x + w;
-		box.y2 = y + h;
+		box.x2 = bound(x, w);
+		box.y2 = bound(y, h);
 
 		if (channel->transform) {
 			DBG(("%s: has transform, converting whole surface\n",
@@ -1764,9 +1772,9 @@ sna_render_composite_redirect(struct sna *sna,
 		     __FUNCTION__, op->dst.bo->pitch, sna->render.max_3d_pitch));
 
 		box.x1 = x;
-		box.x2 = x + width;
+		box.x2 = bound(x, width);
 		box.y1 = y;
-		box.y2 = y + height;
+		box.y2 = bound(y, height);
 
 		/* Ensure we align to an even tile row */
 		if (op->dst.bo->tiling) {
@@ -1860,8 +1868,8 @@ sna_render_composite_redirect(struct sna *sna,
 
 	t->box.x1 = x + op->dst.x;
 	t->box.y1 = y + op->dst.y;
-	t->box.x2 = t->box.x1 + width;
-	t->box.y2 = t->box.y1 + height;
+	t->box.x2 = bound(t->box.x1, width);
+	t->box.y2 = bound(t->box.y1, height);
 
 	DBG(("%s: original box (%d, %d), (%d, %d)\n",
 	     __FUNCTION__, t->box.x1, t->box.y1, t->box.x2, t->box.y2));

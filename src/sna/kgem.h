@@ -222,7 +222,7 @@ struct kgem_bo *kgem_create_proxy(struct kgem *kgem,
 
 struct kgem_bo *kgem_upload_source_image(struct kgem *kgem,
 					 const void *data,
-					 BoxPtr box,
+					 const BoxRec *box,
 					 int stride, int bpp);
 void kgem_proxy_bo_attach(struct kgem_bo *bo, struct kgem_bo **ptr);
 
