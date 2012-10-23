@@ -285,9 +285,14 @@ nouveau_exa_download_from_screen(PixmapPtr pspix, int x, int y, int w, int h,
 		h -= lines;
 		y += lines;
 	}
+	return TRUE;
 
 memcpy:
 	bo = nouveau_pixmap_bo(pspix);
+	if (nv50_style_tiled_pixmap(pspix))
+		ErrorF("%s:%d - falling back to memcpy ignores tiling\n",
+		       __func__, __LINE__);
+
 	if (nouveau_bo_map(bo, NOUVEAU_BO_RD, pNv->client))
 		return FALSE;
 	src = (char *)bo->map + (y * src_pitch) + (x * cpp);
@@ -373,10 +378,16 @@ nouveau_exa_upload_to_screen(PixmapPtr pdpix, int x, int y, int w, int h,
 	/* fallback to memcpy-based transfer */
 memcpy:
 	bo = nouveau_pixmap_bo(pdpix);
+	if (nv50_style_tiled_pixmap(pdpix))
+		ErrorF("%s:%d - falling back to memcpy ignores tiling\n",
+		       __func__, __LINE__);
+
 	if (nouveau_bo_map(bo, NOUVEAU_BO_WR, pNv->client))
 		return FALSE;
 	dst = (char *)bo->map + (y * dst_pitch) + (x * cpp);
 	ret = NVAccelMemcpyRect(dst, src, h, dst_pitch, src_pitch, w*cpp);
+	if (ret)
+		exaMarkSync(pdpix->drawable.pScreen);
 	return ret;
 }
 
