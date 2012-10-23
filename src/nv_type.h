@@ -167,8 +167,6 @@ typedef struct _NVPortPrivRec {
 
 struct nouveau_pixmap {
 	struct nouveau_bo *bo;
-	void *linear;
-	unsigned size;
 	Bool shared;
 };
 
