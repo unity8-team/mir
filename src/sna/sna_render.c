@@ -1342,6 +1342,7 @@ sna_render_picture_flatten(struct sna *sna,
 	assert(w <= sna->render.max_3d_size && h <= sna->render.max_3d_size);
 
 	/* XXX shortcut a8? */
+	DBG(("%s: %dx%d\n", __FUNCION__, w, h));
 
 	pixmap = screen->CreatePixmap(screen, w, h, 32, SNA_CREATE_SCRATCH);
 	if (pixmap == NullPixmap)
@@ -1353,6 +1354,8 @@ sna_render_picture_flatten(struct sna *sna,
 	screen->DestroyPixmap(pixmap);
 	if (tmp == NULL)
 		return 0;
+
+	ValidatePicture(tmp);
 
 	old_format = picture->format;
 	picture->format = PICT_FORMAT(PICT_FORMAT_BPP(picture->format),
