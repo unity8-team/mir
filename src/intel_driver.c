@@ -1139,6 +1139,8 @@ static Bool I830CloseScreen(CLOSE_SCREEN_ARGS_DECL)
 	I830UeventFini(scrn);
 #endif
 
+	intel_mode_close(intel);
+
 	DeleteCallback(&FlushCallback, intel_flush_callback, scrn);
 
 	intel_glamor_close_screen(screen);

@@ -31,6 +31,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/poll.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
@@ -1828,6 +1829,26 @@ intel_mode_remove_fb(intel_screen_private *intel)
 		drmModeRmFB(mode->fd, mode->fb_id);
 		mode->fb_id = 0;
 	}
+}
+
+static Bool has_pending_events(int fd)
+{
+	struct pollfd pfd;
+	pfd.fd = fd;
+	pfd.events = POLLIN;
+	return poll(&pfd, 1, 0) == 1;
+}
+
+void
+intel_mode_close(intel_screen_private *intel)
+{
+	struct intel_mode *mode = intel->modes;
+
+	if (mode == NULL)
+		return;
+
+	while (has_pending_events(mode->fd))
+		drmHandleEvent(mode->fd, &mode->event_context);
 }
 
 void
