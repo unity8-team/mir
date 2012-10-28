@@ -860,6 +860,8 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	 "KMS Color Tiling: %sabled\n", info->allowColorTiling ? "en" : "dis");
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	 "KMS Color Tiling 2D: %sabled\n", info->allowColorTiling2D ? "en" : "dis");
 
     if (info->dri2.pKernelDRMVersion->version_minor >= 8) {
 	info->allowPageFlip = xf86ReturnOptValBool(info->Options,
