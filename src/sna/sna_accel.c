@@ -1390,6 +1390,9 @@ static inline bool use_cpu_bo_for_upload(struct sna *sna,
 	     kgem_bo_is_busy(priv->gpu_bo),
 	     kgem_bo_is_busy(priv->cpu_bo)));
 
+	if (!priv->cpu)
+		return true;
+
 	if (flags & (MOVE_WRITE | MOVE_ASYNC_HINT))
 		return true;
 
@@ -3090,9 +3093,6 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 
 		assert(pixmap_contains_damage(pixmap, priv->cpu_damage));
 		DBG(("%s: uploading %d damage boxes\n", __FUNCTION__, n));
-
-		if (!priv->cpu)
-			flags |= MOVE_ASYNC_HINT;
 
 		ok = false;
 		if (use_cpu_bo_for_upload(sna, priv, flags)) {
