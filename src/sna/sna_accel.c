@@ -14130,6 +14130,8 @@ static bool sna_picture_init(ScreenPtr screen)
 {
 	PictureScreenPtr ps;
 
+	DBG(("%s\n", __FUNCTION__));
+
 	if (!miPictureInit(screen, NULL, 0))
 		return false;
 
@@ -14156,6 +14158,8 @@ static bool sna_picture_init(ScreenPtr screen)
 bool sna_accel_init(ScreenPtr screen, struct sna *sna)
 {
 	const char *backend;
+
+	DBG(("%s\n", __FUNCTION__));
 
 	sna_font_key = AllocateFontPrivateIndex();
 
@@ -14265,6 +14269,8 @@ bool sna_accel_init(ScreenPtr screen, struct sna *sna)
 
 void sna_accel_create(struct sna *sna)
 {
+	DBG(("%s\n", __FUNCTION__));
+
 	if (!sna_glyphs_create(sna))
 		goto fail;
 
@@ -14303,6 +14309,8 @@ void sna_accel_watch_flush(struct sna *sna, int enable)
 
 void sna_accel_close(struct sna *sna)
 {
+	DBG(("%s\n", __FUNCTION__));
+
 	sna_composite_close(sna);
 	sna_gradients_close(sna);
 	sna_glyphs_close(sna);
@@ -14395,4 +14403,5 @@ void sna_accel_wakeup_handler(struct sna *sna)
 
 void sna_accel_free(struct sna *sna)
 {
+	DBG(("%s\n", __FUNCTION__));
 }
