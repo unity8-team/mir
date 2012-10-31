@@ -390,8 +390,11 @@ static inline bool kgem_check_batch_with_surfaces(struct kgem *kgem,
 
 static inline uint32_t *kgem_get_batch(struct kgem *kgem, int num_dwords)
 {
-	if (!kgem_check_batch(kgem, num_dwords))
+	if (!kgem_check_batch(kgem, num_dwords)) {
+		unsigned mode = kgem->mode;
 		_kgem_submit(kgem);
+		_kgem_set_mode(kgem, mode);
+	}
 
 	return kgem->batch + kgem->nbatch;
 }

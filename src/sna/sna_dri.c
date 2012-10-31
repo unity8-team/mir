@@ -485,8 +485,10 @@ static void sna_dri_select_mode(struct sna *sna, struct kgem_bo *src, bool sync)
 	struct drm_i915_gem_busy busy;
 	int mode;
 
-	if (sna->kgem.gen < 60)
+	if (sna->kgem.gen < 60) {
+		kgem_set_mode(&sna->kgem, KGEM_BLT);
 		return;
+	}
 
 	if (sync) {
 		DBG(("%s: sync, force RENDER ring\n", __FUNCTION__));

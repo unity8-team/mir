@@ -2792,6 +2792,8 @@ static bool sna_emit_wait_for_scanline_gen4(struct sna *sna,
 	uint32_t event;
 	uint32_t *b;
 
+	assert(sna->kgem.mode != KGEM_NONE);
+
 	if (pipe == 0) {
 		if (full_height)
 			event = MI_WAIT_FOR_PIPEA_SVBLANK;
@@ -2804,7 +2806,6 @@ static bool sna_emit_wait_for_scanline_gen4(struct sna *sna,
 			event = MI_WAIT_FOR_PIPEB_SCAN_LINE_WINDOW;
 	}
 
-	kgem_set_mode(&sna->kgem, KGEM_BLT);
 	b = kgem_get_batch(&sna->kgem, 5);
 	/* The documentation says that the LOAD_SCAN_LINES command
 	 * always comes in pairs. Don't ask me why. */
@@ -2822,6 +2823,8 @@ static bool sna_emit_wait_for_scanline_gen2(struct sna *sna,
 {
 	uint32_t *b;
 
+	assert(sna->kgem.mode != KGEM_NONE);
+
 	/*
 	 * Pre-965 doesn't have SVBLANK, so we need a bit
 	 * of extra time for the blitter to start up and
@@ -2830,7 +2833,6 @@ static bool sna_emit_wait_for_scanline_gen2(struct sna *sna,
 	if (full_height)
 		y2 -= 2;
 
-	kgem_set_mode(&sna->kgem, KGEM_BLT);
 	b = kgem_get_batch(&sna->kgem, 5);
 	/* The documentation says that the LOAD_SCAN_LINES command
 	 * always comes in pairs. Don't ask me why. */
