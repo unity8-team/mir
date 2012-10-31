@@ -2359,7 +2359,7 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
 	RegionRec i, r;
 
-	DBG(("%s: pixmap=%ld box=(%d, %d), (%d, %d), flags=%lx\n",
+	DBG(("%s: pixmap=%ld box=(%d, %d), (%d, %d), flags=%x\n",
 	     __FUNCTION__, pixmap->drawable.serialNumber,
 	     box->x1, box->y1, box->x2, box->y2, flags));
 
