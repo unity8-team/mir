@@ -481,6 +481,24 @@ struct kgem_bo *
 sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
 		    struct sna_damage ***damage);
 
+inline static int16_t bound(int16_t a, uint16_t b)
+{
+	int v = (int)a + (int)b;
+	if (v > MAXSHORT)
+		return MAXSHORT;
+	return v;
+}
+
+inline static int16_t clamp(int16_t a, int16_t b)
+{
+	int v = (int)a + (int)b;
+	if (v > MAXSHORT)
+		return MAXSHORT;
+	if (v < MINSHORT)
+		return MINSHORT;
+	return v;
+}
+
 static inline bool
 box_inplace(PixmapPtr pixmap, const BoxRec *box)
 {

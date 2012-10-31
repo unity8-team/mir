@@ -38,14 +38,6 @@
 #define DBG_FORCE_UPLOAD 0
 #define DBG_NO_CPU_BO 0
 
-inline static int16_t bound(int16_t a, uint16_t b)
-{
-	int v = (int)a + (int)b;
-	if (v > MAXSHORT)
-		return MAXSHORT;
-	return v;
-}
-
 CARD32
 sna_format_for_depth(int depth)
 {

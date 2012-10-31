@@ -2359,8 +2359,11 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
 	RegionRec i, r;
 
-	DBG(("%s()\n", __FUNCTION__));
+	DBG(("%s: pixmap=%ld box=(%d, %d), (%d, %d), flags=%lx\n",
+	     __FUNCTION__, pixmap->drawable.serialNumber,
+	     box->x1, box->y1, box->x2, box->y2, flags));
 
+	assert(box->x2 > box->x1 && box->y2 > box->y1);
 	assert_pixmap_damage(pixmap);
 	assert_pixmap_contains_box(pixmap, box);
 	assert(!wedged(sna));
@@ -2573,6 +2576,7 @@ sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
 	     box->x1, box->y1, box->x2, box->y2,
 	     flags));
 
+	assert(box->x2 > box->x1 && box->y2 > box->y1);
 	assert_pixmap_damage(pixmap);
 	assert_drawable_contains_box(drawable, box);
 
@@ -3333,24 +3337,6 @@ static inline void box_add_pt(BoxPtr box, int16_t x, int16_t y)
 		box->y1 = y;
 	else if (box->y2 < y)
 		box->y2 = y;
-}
-
-static int16_t bound(int16_t a, uint16_t b)
-{
-	int v = (int)a + (int)b;
-	if (v > MAXSHORT)
-		return MAXSHORT;
-	return v;
-}
-
-static int16_t clamp(int16_t a, int16_t b)
-{
-	int v = (int)a + (int)b;
-	if (v > MAXSHORT)
-		return MAXSHORT;
-	if (v < MINSHORT)
-		return MINSHORT;
-	return v;
 }
 
 static inline bool box32_to_box16(const Box32Rec *b32, BoxRec *b16)

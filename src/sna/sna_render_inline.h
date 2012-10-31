@@ -146,8 +146,8 @@ sna_render_picture_extents(PicturePtr p, BoxRec *box)
 {
 	box->x1 = p->pDrawable->x;
 	box->y1 = p->pDrawable->y;
-	box->x2 = p->pDrawable->x + p->pDrawable->width;
-	box->y2 = p->pDrawable->y + p->pDrawable->height;
+	box->x2 = bound(box->x1, p->pDrawable->width);
+	box->y2 = bound(box->y1, p->pDrawable->height);
 
 	if (box->x1 < p->pCompositeClip->extents.x1)
 		box->x1 = p->pCompositeClip->extents.x1;
@@ -158,6 +158,8 @@ sna_render_picture_extents(PicturePtr p, BoxRec *box)
 		box->x2 = p->pCompositeClip->extents.x2;
 	if (box->y2 > p->pCompositeClip->extents.y2)
 		box->y2 = p->pCompositeClip->extents.y2;
+
+	assert(box->x2 > box->x1 && box->y2 > box->y1);
 }
 
 static inline void

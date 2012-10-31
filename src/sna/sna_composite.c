@@ -619,14 +619,6 @@ out:
 	REGION_UNINIT(NULL, &region);
 }
 
-static int16_t bound(int16_t a, uint16_t b)
-{
-	int v = (int)a + (int)b;
-	if (v > MAXSHORT)
-		return MAXSHORT;
-	return v;
-}
-
 static bool
 _pixman_region_init_clipped_rectangles(pixman_region16_t *region,
 				       unsigned int num_rects,
