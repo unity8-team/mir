@@ -220,4 +220,23 @@ color_convert(uint32_t pixel,
 	return pixel;
 }
 
+inline static bool dst_use_gpu(PixmapPtr pixmap)
+{
+	struct sna_pixmap *priv = sna_pixmap(pixmap);
+	if (priv == NULL)
+		return false;
+
+	if (priv->gpu_damage && !priv->clear &&
+	    (!priv->cpu || !priv->cpu_damage || kgem_bo_is_busy(priv->gpu_bo)))
+		return true;
+
+	return priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo);
+}
+
+inline static bool dst_is_cpu(PixmapPtr pixmap)
+{
+	struct sna_pixmap *priv = sna_pixmap(pixmap);
+	return priv == NULL || DAMAGE_IS_ALL(priv->cpu_damage);
+}
+
 #endif /* SNA_RENDER_INLINE_H */
