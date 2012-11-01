@@ -159,10 +159,9 @@ nouveau_dri2_copy_region2(ScreenPtr pScreen, DrawablePtr pDraw, RegionPtr pRegio
 		else
 #endif
 			dst_draw = pDraw;
+		if (dst_draw != pDraw)
+			translate = TRUE;
 	}
-
-	if (dst_draw != pDraw)
-		translate = TRUE;
 
 	if (translate && pDraw->type == DRAWABLE_WINDOW) {
 		PixmapPtr pPix = get_drawable_pixmap(pDraw);
