@@ -278,6 +278,7 @@ radeon_platform_probe(DriverPtr pDriver,
 	scr_flags = XF86_ALLOCATE_GPU_SCREEN;
 
     pScrn = xf86AllocateScreen(pDriver, scr_flags);
+    xf86SetEntityShared(entity_num);
     xf86AddEntityToScreen(pScrn, entity_num);
 
     if (!radeon_kernel_mode_enabled(pScrn, dev->pdev))
