@@ -995,10 +995,13 @@ static Bool sna_enter_vt(VT_FUNC_ARGS_DECL)
 	DBG(("%s\n", __FUNCTION__));
 
 	if (drmSetMaster(sna->kgem.fd)) {
-		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-			   "drmSetMaster failed: %s\n",
-			   strerror(errno));
-		return FALSE;
+		sleep(2); /* XXX wait for the current master to decease */
+		if (drmSetMaster(sna->kgem.fd)) {
+			xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+					"drmSetMaster failed: %s\n",
+					strerror(errno));
+			return FALSE;
+		}
 	}
 
 	if (!xf86SetDesiredModes(scrn))
