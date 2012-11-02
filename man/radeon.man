@@ -234,7 +234,8 @@ for R/RV/RS1XX, R/RV/RS2XX, and RS3XX.
 The framebuffer can be addressed either in linear, 1D, or 2D tiled modes. 2D tiled mode can
 provide significant performance benefits over 1D tiling with 3D applications.  Tiling
 will be disabled if the drm module is too old or if the current display configuration
-does not support it. KMS ColorTiling2D is only supported on R600 and newer chips.
+does not support it. KMS ColorTiling2D is only supported on R600 and newer chips and requires
+Mesa 9.0 or newer.
 .br
 The default value is
 .B on
