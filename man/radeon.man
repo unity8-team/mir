@@ -237,7 +237,7 @@ will be disabled if the drm module is too old or if the current display configur
 does not support it. KMS ColorTiling2D is only supported on R600 and newer chips.
 .br
 The default value is
-.B off
+.B on
 for R/RV6XX, R/RV7XX, RS780, RS880, EVERGREEN, and CAYMAN.
 .TP
 .BI "Option \*qEnablePageFlip\*q \*q" boolean \*q
