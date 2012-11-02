@@ -226,7 +226,7 @@ this enables 1D tiling mode.
 The default value is
 .B on
 for R/RV3XX, R/RV4XX, R/RV5XX, RS6XX, RS740, R/RV6XX, R/RV7XX, RS780, RS880,
-EVERGREEN, and CAYMAN and
+EVERGREEN, CAYMAN, and ARUBA and
 .B off
 for R/RV/RS1XX, R/RV/RS2XX, and RS3XX.
 .TP
@@ -238,7 +238,7 @@ does not support it. KMS ColorTiling2D is only supported on R600 and newer chips
 .br
 The default value is
 .B on
-for R/RV6XX, R/RV7XX, RS780, RS880, EVERGREEN, and CAYMAN.
+for R/RV6XX, R/RV7XX, RS780, RS880, EVERGREEN, CAYMAN, and ARUBA.
 .TP
 .BI "Option \*qEnablePageFlip\*q \*q" boolean \*q
 Enable DRI2 page flipping.  The default is
