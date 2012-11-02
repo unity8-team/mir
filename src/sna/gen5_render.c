@@ -2631,21 +2631,35 @@ gen5_check_composite_spans(struct sna *sna,
 			   int16_t width, int16_t height,
 			   unsigned flags)
 {
-	if ((flags & COMPOSITE_SPANS_RECTILINEAR) == 0)
-		return false;
+	DBG(("%s: op=%d, width=%d, height=%d, flags=%x\n",
+	     __FUNCTION__, op, width, height, flags));
 
 	if (op >= ARRAY_SIZE(gen5_blend_op))
 		return false;
 
-	if (gen5_composite_fallback(sna, src, NULL, dst))
+	if (gen5_composite_fallback(sna, src, NULL, dst)) {
+		DBG(("%s: operation would fallback\n", __FUNCTION__));
 		return false;
+	}
 
-	if (need_tiling(sna, width, height)) {
-		if (!is_gpu(dst->pDrawable)) {
-			DBG(("%s: fallback, tiled operation not on GPU\n",
-			     __FUNCTION__));
-			return false;
+	if (need_tiling(sna, width, height) && !is_gpu(dst->pDrawable)) {
+		DBG(("%s: fallback, tiled operation not on GPU\n",
+		     __FUNCTION__));
+		return false;
+	}
+
+	if ((flags & (COMPOSITE_SPANS_RECTILINEAR | COMPOSITE_SPANS_INPLACE_HINT)) == 0) {
+		struct sna_pixmap *priv = sna_pixmap_from_drawable(dst->pDrawable);
+		assert(priv);
+
+		if ((priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo)) ||
+		    (priv->gpu_bo && kgem_bo_is_busy(priv->gpu_bo))) {
+			return true;
 		}
+
+		DBG(("%s: fallback, non-rectilinear spans to idle bo\n",
+		     __FUNCTION__));
+		return false;
 	}
 
 	return true;

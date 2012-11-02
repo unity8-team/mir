@@ -507,6 +507,7 @@ static void __sna_damage_reduce(struct sna_damage *damage)
 	} else {
 		pixman_region16_t tmp;
 
+		assert(n == nboxes);
 		pixman_region_init_rects(&tmp, boxes, nboxes);
 		pixman_region_subtract(region, region, &tmp);
 		pixman_region_fini(&tmp);
