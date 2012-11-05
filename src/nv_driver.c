@@ -247,19 +247,12 @@ NVInitScrn(ScrnInfoPtr pScrn, int entity_num)
 }
 
 static Bool
-NVPciProbe(DriverPtr drv, int entity_num, struct pci_device *pci_dev,
-	   intptr_t match_data)
+NVHasKMS(struct pci_device *pci_dev)
 {
-	PciChipsets NVChipsets[] = {
-		{ pci_dev->device_id,
-		  (pci_dev->vendor_id << 16) | pci_dev->device_id, NULL },
-		{ -1, -1, NULL }
-	};
 	struct nouveau_device *dev = NULL;
-	ScrnInfoPtr pScrn = NULL;
 	drmVersion *version;
-	int chipset, ret;
 	char *busid;
+	int chipset, ret;
 
 	if (!xf86LoaderCheckSymbol("DRICreatePCIBusID")) {
 		xf86DrvMsg(-1, X_ERROR, "[drm] No DRICreatePCIBusID symbol\n");
@@ -267,10 +260,17 @@ NVPciProbe(DriverPtr drv, int entity_num, struct pci_device *pci_dev,
 	}
 	busid = DRICreatePCIBusID(pci_dev);
 
+	ret = drmCheckModesettingSupported(busid);
+	if (ret) {
+		xf86DrvMsg(-1, X_ERROR, "[drm] KMS not enabled\n");
+		free(busid);
+		return FALSE;
+	}
+
 	ret = nouveau_device_open(busid, &dev);
+	free(busid);
 	if (ret) {
 		xf86DrvMsg(-1, X_ERROR, "[drm] failed to open device\n");
-		free(busid);
 		return FALSE;
 	}
 
@@ -288,12 +288,6 @@ NVPciProbe(DriverPtr drv, int entity_num, struct pci_device *pci_dev,
 	chipset = dev->chipset;
 	nouveau_device_del(&dev);
 
-	ret = drmCheckModesettingSupported(busid);
-	free(busid);
-	if (ret) {
-		xf86DrvMsg(-1, X_ERROR, "[drm] KMS not enabled\n");
-		return FALSE;
-	}
 
 	switch (chipset & 0xf0) {
 	case 0x00:
@@ -314,6 +308,22 @@ NVPciProbe(DriverPtr drv, int entity_num, struct pci_device *pci_dev,
 		xf86DrvMsg(-1, X_ERROR, "Unknown chipset: NV%02x\n", chipset);
 		return FALSE;
 	}
+	return TRUE;
+}
+
+static Bool
+NVPciProbe(DriverPtr drv, int entity_num, struct pci_device *pci_dev,
+	   intptr_t match_data)
+{
+	PciChipsets NVChipsets[] = {
+		{ pci_dev->device_id,
+		  (pci_dev->vendor_id << 16) | pci_dev->device_id, NULL },
+		{ -1, -1, NULL }
+	};
+	ScrnInfoPtr pScrn = NULL;
+
+	if (!NVHasKMS(pci_dev))
+		return FALSE;
 
 	pScrn = xf86ConfigPciEntity(pScrn, 0, entity_num, NVChipsets,
 				    NULL, NULL, NULL, NULL, NULL);
@@ -334,6 +344,9 @@ NVPlatformProbe(DriverPtr driver,
 	uint32_t scr_flags = 0;
 
 	if (!dev->pdev)
+		return FALSE;
+
+	if (!NVHasKMS(dev->pdev))
 		return FALSE;
 
 	if (flags & PLATFORM_PROBE_GPU_SCREEN)
