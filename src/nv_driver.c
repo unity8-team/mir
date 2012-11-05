@@ -261,7 +261,6 @@ NVPciProbe(DriverPtr drv, int entity_num, struct pci_device *pci_dev,
 		{ -1, -1, NULL }
 	};
 	struct nouveau_device *dev = NULL;
-	EntityInfoPtr pEnt = NULL;
 	ScrnInfoPtr pScrn = NULL;
 	drmVersion *version;
 	int chipset, ret;
@@ -340,10 +339,8 @@ NVPciProbe(DriverPtr drv, int entity_num, struct pci_device *pci_dev,
 	pScrn->FreeScreen       = NVFreeScreen;
 
 	xf86SetEntitySharable(entity_num);
-
-	pEnt = xf86GetEntityInfo(entity_num);
-	xf86SetEntityInstanceForScreen(pScrn, pEnt->index, xf86GetNumEntityInstances(pEnt->index) - 1);
-	free(pEnt);
+	xf86SetEntityInstanceForScreen(pScrn, entity_num,
+					xf86GetNumEntityInstances(entity_num) - 1);
 
 	return TRUE;
 }
