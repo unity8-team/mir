@@ -74,36 +74,10 @@ static Bool NVPciProbe (	DriverPtr 		drv,
 				intptr_t		match_data	);
 
 #ifdef XSERVER_PLATFORM_BUS
-static Bool
-NVPlatformProbe(DriverPtr driver,
-            int entity_num, int flags, struct xf86_platform_device *dev, intptr_t dev_match_data)
-{
-	ScrnInfoPtr scrn = NULL;
-	uint32_t scr_flags = 0;
-
-	if (!dev->pdev)
-		return FALSE;
-
-        if (flags & PLATFORM_PROBE_GPU_SCREEN)
-               scr_flags = XF86_ALLOCATE_GPU_SCREEN;
-
-	scrn = xf86AllocateScreen(driver, scr_flags);
-	xf86AddEntityToScreen(scrn, entity_num);
-
-	scrn->driverVersion    = NV_VERSION;
-	scrn->driverName       = NV_DRIVER_NAME;
-	scrn->name             = NV_NAME;
-
-	scrn->Probe            = NULL;
-	scrn->PreInit          = NVPreInit;
-	scrn->ScreenInit       = NVScreenInit;
-	scrn->SwitchMode       = NVSwitchMode;
-	scrn->AdjustFrame      = NVAdjustFrame;
-	scrn->EnterVT          = NVEnterVT;
-	scrn->LeaveVT          = NVLeaveVT;
-	scrn->FreeScreen       = NVFreeScreen;
-	return scrn != NULL;
-}
+static Bool NVPlatformProbe(DriverPtr driver,
+				int entity_num, int flags,
+				struct xf86_platform_device *dev,
+				intptr_t dev_match_data);
 #endif
 
 /*
@@ -251,6 +225,27 @@ NVDriverFunc(ScrnInfoPtr scrn, xorgDriverFuncOp op, void *data)
     }
 }
 
+static void
+NVInitScrn(ScrnInfoPtr pScrn, int entity_num)
+{
+	pScrn->driverVersion    = NV_VERSION;
+	pScrn->driverName       = NV_DRIVER_NAME;
+	pScrn->name             = NV_NAME;
+
+	pScrn->Probe            = NULL;
+	pScrn->PreInit          = NVPreInit;
+	pScrn->ScreenInit       = NVScreenInit;
+	pScrn->SwitchMode       = NVSwitchMode;
+	pScrn->AdjustFrame      = NVAdjustFrame;
+	pScrn->EnterVT          = NVEnterVT;
+	pScrn->LeaveVT          = NVLeaveVT;
+	pScrn->FreeScreen       = NVFreeScreen;
+
+	xf86SetEntitySharable(entity_num);
+	xf86SetEntityInstanceForScreen(pScrn, entity_num,
+					xf86GetNumEntityInstances(entity_num) - 1);
+}
+
 static Bool
 NVPciProbe(DriverPtr drv, int entity_num, struct pci_device *pci_dev,
 	   intptr_t match_data)
@@ -325,25 +320,33 @@ NVPciProbe(DriverPtr drv, int entity_num, struct pci_device *pci_dev,
 	if (!pScrn)
 		return FALSE;
 
-	pScrn->driverVersion    = NV_VERSION;
-	pScrn->driverName       = NV_DRIVER_NAME;
-	pScrn->name             = NV_NAME;
-
-	pScrn->Probe            = NULL;
-	pScrn->PreInit          = NVPreInit;
-	pScrn->ScreenInit       = NVScreenInit;
-	pScrn->SwitchMode       = NVSwitchMode;
-	pScrn->AdjustFrame      = NVAdjustFrame;
-	pScrn->EnterVT          = NVEnterVT;
-	pScrn->LeaveVT          = NVLeaveVT;
-	pScrn->FreeScreen       = NVFreeScreen;
-
-	xf86SetEntitySharable(entity_num);
-	xf86SetEntityInstanceForScreen(pScrn, entity_num,
-					xf86GetNumEntityInstances(entity_num) - 1);
+	NVInitScrn(pScrn, entity_num);
 
 	return TRUE;
 }
+
+#ifdef XSERVER_PLATFORM_BUS
+static Bool
+NVPlatformProbe(DriverPtr driver,
+            int entity_num, int flags, struct xf86_platform_device *dev, intptr_t dev_match_data)
+{
+	ScrnInfoPtr scrn = NULL;
+	uint32_t scr_flags = 0;
+
+	if (!dev->pdev)
+		return FALSE;
+
+	if (flags & PLATFORM_PROBE_GPU_SCREEN)
+		scr_flags = XF86_ALLOCATE_GPU_SCREEN;
+
+	scrn = xf86AllocateScreen(driver, scr_flags);
+	xf86AddEntityToScreen(scrn, entity_num);
+
+	NVInitScrn(scrn, entity_num);
+
+	return TRUE;
+}
+#endif
 
 #define MAX_CHIPS MAXSCREENS
 
