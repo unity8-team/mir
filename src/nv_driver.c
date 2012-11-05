@@ -353,6 +353,11 @@ NVPlatformProbe(DriverPtr driver,
 		scr_flags = XF86_ALLOCATE_GPU_SCREEN;
 
 	scrn = xf86AllocateScreen(driver, scr_flags);
+	if (!scrn)
+		return FALSE;
+
+	if (xf86IsEntitySharable(entity_num))
+		xf86SetEntityShared(entity_num);
 	xf86AddEntityToScreen(scrn, entity_num);
 
 	NVInitScrn(scrn, entity_num);
