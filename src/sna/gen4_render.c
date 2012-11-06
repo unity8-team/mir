@@ -237,9 +237,6 @@ static void gen4_magic_ca_pass(struct sna *sna,
 	assert(op->mask.bo != NULL);
 	assert(op->has_component_alpha);
 
-	if (FLUSH_EVERY_VERTEX)
-		OUT_BATCH(MI_FLUSH | MI_INHIBIT_RENDER_CACHE_FLUSH);
-
 	gen4_emit_pipelined_pointers(sna, op, PictOpAdd,
 				     gen4_choose_composite_kernel(PictOpAdd,
 								  true, true, op->is_affine));
@@ -1381,9 +1378,6 @@ gen4_emit_state(struct sna *sna,
 		uint16_t wm_binding_table)
 {
 	bool flush = false;
-
-	if (FLUSH_EVERY_VERTEX)
-		OUT_BATCH(MI_FLUSH | MI_INHIBIT_RENDER_CACHE_FLUSH);
 
 	gen4_emit_drawing_rectangle(sna, op);
 	flush |= gen4_emit_binding_table(sna, wm_binding_table);
