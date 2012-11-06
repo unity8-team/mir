@@ -1266,7 +1266,7 @@ gen4_emit_pipelined_pointers(struct sna *sna,
 
 	key = sp | bp << 16;
 	if (key == sna->render_state.gen4.last_pipelined_pointers)
-		return true;
+		return false;
 
 	OUT_BATCH(GEN4_3DSTATE_PIPELINED_POINTERS | 5);
 	OUT_BATCH(sna->render_state.gen4.vs);
@@ -1278,7 +1278,7 @@ gen4_emit_pipelined_pointers(struct sna *sna,
 
 	sna->render_state.gen4.last_pipelined_pointers = key;
 	gen4_emit_urb(sna);
-	return false;
+	return true;
 }
 
 static void
