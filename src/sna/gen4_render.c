@@ -2564,6 +2564,8 @@ gen4_render_composite_spans_box(struct sna *sna,
 
 	gen4_get_rectangles(sna, &op->base, 1, gen4_bind_surfaces);
 	op->prim_emit(sna, op, box, opacity);
+
+	_FLUSH();
 }
 
 static void
