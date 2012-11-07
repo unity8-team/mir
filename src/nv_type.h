@@ -69,9 +69,7 @@ typedef struct _NVRec {
 
     CARD32              currentRop;
 
-    DRIInfoPtr          pDRIInfo;
     drmVersionPtr       pLibDRMVersion;
-    drmVersionPtr       pKernelDRMVersion;
 
 	void *drmmode; /* for KMS */
 
