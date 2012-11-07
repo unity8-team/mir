@@ -680,31 +680,61 @@ nouveau_setup_capabilities(ScrnInfoPtr pScrn)
 #endif
 }
 
+static Bool NVOpenDRMMaster(ScrnInfoPtr pScrn)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	struct pci_device *dev = pNv->PciInfo;
+	char *busid;
+	drmSetVersion sv;
+	int err;
+	int ret;
+
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,9,99,901,0)
+	XNFasprintf(&busid, "pci:%04x:%02x:%02x.%d",
+		    dev->domain, dev->bus, dev->dev, dev->func);
+#else
+	busid = XNFprintf("pci:%04x:%02x:%02x.%d",
+			  dev->domain, dev->bus, dev->dev, dev->func);
+#endif
+
+	ret = nouveau_device_open(busid, &pNv->dev);
+	if (ret) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "[drm] Failed to open DRM device for %s: %d\n",
+			   busid, ret);
+		free(busid);
+		return FALSE;
+	}
+	free(busid);
+
+	sv.drm_di_major = 1;
+	sv.drm_di_minor = 1;
+	sv.drm_dd_major = -1;
+	sv.drm_dd_minor = -1;
+	err = drmSetInterfaceVersion(pNv->dev->fd, &sv);
+	if (err != 0) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "[drm] failed to set drm interface version.\n");
+		nouveau_device_del(&pNv->dev);
+		return FALSE;
+	}
+	return TRUE;
+}
+
 static Bool
 NVPreInitDRM(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	char *bus_id;
 	int ret;
 
 	if (!NVDRIGetVersion(pScrn))
 		return FALSE;
 
 	/* Load the kernel module, and open the DRM */
-	bus_id = DRICreatePCIBusID(pNv->PciInfo);
-	ret = DRIOpenDRMMaster(pScrn, SAREA_MAX, bus_id, "nouveau");
-	free(bus_id);
+	ret = NVOpenDRMMaster(pScrn);
 	if (!ret) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "[drm] error opening the drm\n");
-		return FALSE;
-	}
-
-	/* Initialise libdrm_nouveau */
-	ret = nouveau_device_wrap(DRIMasterFD(pScrn), 1, &pNv->dev);
-	if (ret) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "[drm] error creating device\n");
 		return FALSE;
 	}
 
@@ -712,7 +742,7 @@ NVPreInitDRM(ScrnInfoPtr pScrn)
 	if (ret)
 		return FALSE;
 
-	pNv->drm_device_name = drmGetDeviceNameFromFd(DRIMasterFD(pScrn));
+	pNv->drm_device_name = drmGetDeviceNameFromFd(pNv->dev->fd);
 
 	return TRUE;
 }
