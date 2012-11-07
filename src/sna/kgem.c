@@ -94,7 +94,7 @@ search_snoop_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags);
 #define IS_USER_MAP(ptr) ((uintptr_t)(ptr) & 2)
 #define __MAP_TYPE(ptr) ((uintptr_t)(ptr) & 3)
 
-#define LOCAL_I915_PARAM_HAS_SEMAPHORES	 	20
+#define LOCAL_I915_PARAM_HAS_SEMAPHORES		20
 #define LOCAL_I915_PARAM_HAS_SECURE_BATCHES	23
 
 #define LOCAL_I915_GEM_USERPTR       0x32
@@ -638,6 +638,19 @@ static int gem_param(struct kgem *kgem, int name)
 	return v;
 }
 
+static bool test_has_execbuffer2(struct kgem *kgem)
+{
+	struct drm_i915_gem_execbuffer2 execbuf;
+
+	memset(&execbuf, 0, sizeof(execbuf));
+	execbuf.buffer_count = 1;
+
+	return (drmIoctl(kgem->fd,
+			 DRM_IOCTL_I915_GEM_EXECBUFFER2,
+			 &execbuf) == -1 &&
+		errno == EFAULT);
+}
+
 static bool test_has_semaphores_enabled(struct kgem *kgem)
 {
 	FILE *file;
@@ -674,6 +687,9 @@ static bool is_hw_supported(struct kgem *kgem,
 			    struct pci_device *dev)
 {
 	if (DBG_NO_HW)
+		return false;
+
+	if (!test_has_execbuffer2(kgem))
 		return false;
 
 	if (kgem->gen == (unsigned)-1) /* unknown chipset, assume future gen */
