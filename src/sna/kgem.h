@@ -64,6 +64,7 @@ struct kgem_bo {
 	uint32_t unique_id;
 	uint32_t refcnt;
 	uint32_t handle;
+	uint32_t target_handle;
 	uint32_t presumed_offset;
 	uint32_t delta;
 	union {
@@ -165,6 +166,7 @@ struct kgem {
 	uint32_t has_cacheing :1;
 	uint32_t has_llc :1;
 	uint32_t has_no_reloc :1;
+	uint32_t has_handle_lut :1;
 
 	uint32_t can_blt_cpu :1;
 
