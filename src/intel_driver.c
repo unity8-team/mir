@@ -221,11 +221,19 @@ static Bool I830GetEarlyOptions(ScrnInfoPtr scrn)
 	return TRUE;
 }
 
+static Bool intel_option_cast_string_to_bool(intel_screen_private *intel,
+					     int id, Bool val)
+{
+	xf86getBoolValue(&val, xf86GetOptValString(intel->Options, id));
+	return val;
+}
+
 static void intel_check_dri_option(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
+
 	intel->directRenderingType = DRI_NONE;
-	if (!xf86ReturnOptValBool(intel->Options, OPTION_DRI, TRUE))
+	if (!intel_option_cast_string_to_bool(intel, OPTION_DRI, TRUE))
 		intel->directRenderingType = DRI_DISABLED;
 
 	if (scrn->depth != 16 && scrn->depth != 24 && scrn->depth != 30) {

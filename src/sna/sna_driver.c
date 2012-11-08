@@ -363,6 +363,12 @@ static void sna_setup_capabilities(ScrnInfoPtr scrn, int fd)
 #endif
 }
 
+static Bool sna_option_cast_to_bool(struct sna *sna, int id, Bool val)
+{
+	xf86getBoolValue(&val, xf86GetOptValString(sna->Options, id));
+	return val;
+}
+
 /**
  * This is called before ScreenInit to do any require probing of screen
  * configuration.
@@ -543,7 +549,7 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 	xf86SetDpi(scrn, 0, 0);
 
 	sna->dri_available = false;
-	if (xf86ReturnOptValBool(sna->Options, OPTION_DRI, TRUE))
+	if (sna_option_cast_to_bool(sna, OPTION_DRI, TRUE))
 		sna->dri_available = !!xf86LoadSubModule(scrn, "dri2");
 
 	return TRUE;

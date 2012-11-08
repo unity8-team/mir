@@ -1515,6 +1515,17 @@ out_complete:
 static int dri2_server_generation;
 #endif
 
+static const char *dri_driver_name(intel_screen_private *intel)
+{
+	const char *s = xf86GetOptValString(intel->Options, OPTION_DRI);
+	Bool dummy;
+
+	if (s == NULL || xf86getBoolValue(&dummy, s))
+		return INTEL_INFO(intel)->gen < 40 ? "i915" : "i965";
+
+	return s;
+}
+
 Bool I830DRI2ScreenInit(ScreenPtr screen)
 {
 	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
@@ -1564,7 +1575,7 @@ Bool I830DRI2ScreenInit(ScreenPtr screen)
 	intel->deviceName = drmGetDeviceNameFromFd(intel->drmSubFD);
 	memset(&info, '\0', sizeof(info));
 	info.fd = intel->drmSubFD;
-	info.driverName = INTEL_INFO(intel)->gen < 40 ? "i915" : "i965";
+	info.driverName = dri_driver_name(intel);
 	info.deviceName = intel->deviceName;
 
 #if DRI2INFOREC_VERSION == 1

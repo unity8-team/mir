@@ -41,6 +41,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "sna.h"
 #include "sna_reg.h"
+#include "intel_options.h"
 
 #include <xf86drm.h>
 #include <i915_drm.h>
@@ -2317,6 +2318,17 @@ out_complete:
 }
 #endif
 
+static const char *dri_driver_name(struct sna *sna)
+{
+	const char *s = xf86GetOptValString(sna->Options, OPTION_DRI);
+	Bool dummy;
+
+	if (s == NULL || xf86getBoolValue(&dummy, s))
+		return (sna->kgem.gen && sna->kgem.gen < 40) ? "i915" : "i965";
+
+	return s;
+}
+
 bool sna_dri_open(struct sna *sna, ScreenPtr screen)
 {
 	DRI2InfoRec info;
@@ -2344,8 +2356,7 @@ bool sna_dri_open(struct sna *sna, ScreenPtr screen)
 	sna->deviceName = drmGetDeviceNameFromFd(sna->kgem.fd);
 	memset(&info, '\0', sizeof(info));
 	info.fd = sna->kgem.fd;
-	info.driverName =
-		(sna->kgem.gen && sna->kgem.gen < 40) ? "i915" : "i965";
+	info.driverName = dri_driver_name(sna);
 	info.deviceName = sna->deviceName;
 
 	DBG(("%s: loading dri driver '%s' [gen=%d] for device '%s'\n",
