@@ -70,9 +70,15 @@ search_snoop_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags);
 #define DBG_NO_MAP_UPLOAD 0
 #define DBG_NO_RELAXED_FENCING 0
 #define DBG_NO_SECURE_BATCHES 0
+#define DBG_NO_FAST_RELOC 0
 #define DBG_DUMP 0
 
 #define SHOW_BATCH 0
+
+#ifndef USE_FASTRELOC
+#undef DBG_NO_FAST_RELOC
+#define DBG_NO_FAST_RELOC 1
+#endif
 
 /* Worst case seems to be 965gm where we cannot write within a cacheline that
  * is being simultaneously being read by the GPU, or within the sampler
@@ -96,6 +102,9 @@ search_snoop_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags);
 
 #define LOCAL_I915_PARAM_HAS_SEMAPHORES		20
 #define LOCAL_I915_PARAM_HAS_SECURE_BATCHES	23
+#define LOCAL_I915_PARAM_HAS_NO_RELOC		24
+
+#define LOCAL_I915_EXEC_NO_RELOC		(1<<10)
 
 #define LOCAL_I915_GEM_USERPTR       0x32
 #define LOCAL_IOCTL_I915_GEM_USERPTR DRM_IOWR (DRM_COMMAND_BASE + LOCAL_I915_GEM_USERPTR, struct local_i915_gem_userptr)
@@ -651,6 +660,14 @@ static bool test_has_execbuffer2(struct kgem *kgem)
 		errno == EFAULT);
 }
 
+static bool test_has_no_reloc(struct kgem *kgem)
+{
+	if (DBG_NO_FAST_RELOC)
+		return false;
+
+	return gem_param(kgem, LOCAL_I915_PARAM_HAS_NO_RELOC) > 0;
+}
+
 static bool test_has_semaphores_enabled(struct kgem *kgem)
 {
 	FILE *file;
@@ -837,6 +854,10 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	kgem->has_userptr = test_has_userptr(kgem);
 	DBG(("%s: has userptr? %d\n", __FUNCTION__,
 	     kgem->has_userptr));
+
+	kgem->has_no_reloc = test_has_no_reloc(kgem);
+	DBG(("%s: has no-reloc? %d\n", __FUNCTION__,
+	     kgem->has_no_reloc));
 
 	kgem->has_semaphores = false;
 	if (kgem->has_blt && test_has_semaphores_enabled(kgem))
@@ -2177,8 +2198,10 @@ void kgem_reset(struct kgem *kgem)
 	kgem->nbatch = 0;
 	kgem->surface = kgem->batch_size;
 	kgem->mode = KGEM_NONE;
-	kgem->batch_flags = 0;
 	kgem->flush = 0;
+	kgem->batch_flags = 0;
+	if (kgem->has_no_reloc)
+		kgem->batch_flags |= LOCAL_I915_EXEC_NO_RELOC;
 
 	kgem->next_request = __kgem_request_alloc();
 

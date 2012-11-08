@@ -164,6 +164,7 @@ struct kgem {
 	uint32_t has_secure_batches :1;
 	uint32_t has_cacheing :1;
 	uint32_t has_llc :1;
+	uint32_t has_no_reloc :1;
 
 	uint32_t can_blt_cpu :1;
 
