@@ -2287,7 +2287,7 @@ void _kgem_submit(struct kgem *kgem)
 		kgem->exec[i].relocation_count = kgem->nreloc;
 		kgem->exec[i].relocs_ptr = (uintptr_t)kgem->reloc;
 		kgem->exec[i].alignment = 0;
-		kgem->exec[i].offset = 0;
+		kgem->exec[i].offset = rq->bo->presumed_offset;
 		kgem->exec[i].flags = 0;
 		kgem->exec[i].rsvd1 = 0;
 		kgem->exec[i].rsvd2 = 0;
