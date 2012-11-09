@@ -649,7 +649,7 @@ gen4_bind_bo(struct sna *sna,
 	uint32_t domains;
 	uint16_t offset;
 
-	assert(!kgem_bo_is_snoop(bo));
+	assert(sna->kgem.gen != 40 || !kgem_bo_is_snoop(bo));
 
 	/* After the first bind, we manage the cache domains within the batch */
 	offset = kgem_bo_get_binding(bo, format);
