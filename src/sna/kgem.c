@@ -114,6 +114,8 @@ search_snoop_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags);
 #define LOCAL_I915_EXEC_NO_RELOC		(1<<10)
 #define LOCAL_I915_EXEC_HANDLE_LUT		(1<<11)
 
+#define LOCAL_EXEC_OBJECT_WRITE			(1<<1)
+
 #define LOCAL_I915_GEM_USERPTR       0x32
 #define LOCAL_IOCTL_I915_GEM_USERPTR DRM_IOWR (DRM_COMMAND_BASE + LOCAL_I915_GEM_USERPTR, struct local_i915_gem_userptr)
 struct local_i915_gem_userptr {
@@ -3926,6 +3928,7 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 
 		if (read_write_domain & 0x7ff) {
 			assert(!bo->snoop || kgem->can_blt_cpu);
+			bo->exec->flags |= LOCAL_EXEC_OBJECT_WRITE;
 			kgem_bo_mark_dirty(bo);
 		}
 
