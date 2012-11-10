@@ -1816,6 +1816,8 @@ gen2_render_composite(struct sna *sna,
 				       dst_x, dst_y,
 				       dst->polyMode == PolyModePrecise)) {
 	case -1:
+		DBG(("%s: fallback -- unable to prepare source\n",
+		     __FUNCTION__));
 		goto cleanup_dst;
 	case 0:
 		gen2_composite_solid_init(sna, &tmp->src, 0);
@@ -1839,6 +1841,8 @@ gen2_render_composite(struct sna *sna,
 						       dst_x,  dst_y,
 						       dst->polyMode == PolyModePrecise)) {
 			case -1:
+				DBG(("%s: fallback -- unable to prepare mask\n",
+				     __FUNCTION__));
 				goto cleanup_src;
 			case 0:
 				gen2_composite_solid_init(sna, &tmp->mask, 0);
@@ -1855,8 +1859,12 @@ gen2_render_composite(struct sna *sna,
 			tmp->has_component_alpha = true;
 			if (gen2_blend_op[op].src_alpha &&
 			    (gen2_blend_op[op].src_blend != BLENDFACTOR_ZERO)) {
-				if (op != PictOpOver)
-					return false;
+				if (op != PictOpOver) {
+					DBG(("%s: fallback -- unsupported CA blend (src_blend=%d)\n",
+					     __FUNCTION__,
+					     gen2_blend_op[op].src_blend));
+					goto cleanup_dst;
+				}
 
 				tmp->need_magic_ca_pass = true;
 				tmp->op = PictOpOutReverse;
@@ -1903,8 +1911,11 @@ gen2_render_composite(struct sna *sna,
 		kgem_submit(&sna->kgem);
 		if (!kgem_check_bo(&sna->kgem,
 				   tmp->dst.bo, tmp->src.bo, tmp->mask.bo,
-				   NULL))
+				   NULL)) {
+			DBG(("%s: fallback, operation does not fit into GTT\n",
+			     __FUNCTION__));
 			goto cleanup_mask;
+		}
 	}
 
 	gen2_emit_composite_state(sna, tmp);
