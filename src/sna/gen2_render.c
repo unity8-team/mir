@@ -1803,6 +1803,8 @@ gen2_render_composite(struct sna *sna,
 	}
 
 	tmp->op = op;
+
+	sna_render_composite_redirect_init(tmp);
 	if (too_large(tmp->dst.width, tmp->dst.height) ||
 	    tmp->dst.bo->pitch > MAX_3D_PITCH) {
 		if (!sna_render_composite_redirect(sna, tmp,
@@ -2298,6 +2300,8 @@ gen2_render_composite_spans(struct sna *sna,
 	}
 
 	tmp->base.op = op;
+
+	sna_render_composite_redirect_init(&tmp->base);
 	if (too_large(tmp->base.dst.width, tmp->base.dst.height) ||
 	    tmp->base.dst.bo->pitch > MAX_3D_PITCH) {
 		if (!sna_render_composite_redirect(sna, &tmp->base,
