@@ -114,8 +114,6 @@ search_snoop_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags);
 #define LOCAL_I915_EXEC_NO_RELOC		(1<<10)
 #define LOCAL_I915_EXEC_HANDLE_LUT		(1<<11)
 
-#define LOCAL_EXEC_OBJECT_WRITE			(1<<1)
-
 #define LOCAL_I915_GEM_USERPTR       0x32
 #define LOCAL_IOCTL_I915_GEM_USERPTR DRM_IOWR (DRM_COMMAND_BASE + LOCAL_I915_GEM_USERPTR, struct local_i915_gem_userptr)
 struct local_i915_gem_userptr {
@@ -2315,7 +2313,9 @@ void _kgem_submit(struct kgem *kgem)
 		kgem->exec[i].alignment = 0;
 		kgem->exec[i].offset = rq->bo->presumed_offset;
 		kgem->exec[i].flags = 0;
-		kgem->exec[i].rsvd1 = 0;
+		kgem->exec[i].rsvd1 = (I915_GEM_DOMAIN_COMMAND |
+				       I915_GEM_DOMAIN_INSTRUCTION |
+				       I915_GEM_DOMAIN_VERTEX);
 		kgem->exec[i].rsvd2 = 0;
 
 		rq->bo->target_handle = kgem->has_handle_lut ? i : handle;
@@ -3925,9 +3925,10 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 		kgem->reloc[index].target_handle = bo->target_handle;
 		kgem->reloc[index].presumed_offset = bo->presumed_offset;
 
-		if (read_write_domain & 0x7ff) {
+		bo->exec->rsvd1 |= read_write_domain >> 16;
+		if (read_write_domain & 0x7fff) {
 			assert(!bo->snoop || kgem->can_blt_cpu);
-			bo->exec->flags |= LOCAL_EXEC_OBJECT_WRITE;
+			bo->exec->rsvd1 |= (uint64_t)(read_write_domain & 0x7fff) << 32;
 			kgem_bo_mark_dirty(bo);
 		}
 
@@ -4353,10 +4354,10 @@ void kgem_bo_sync__gtt(struct kgem *kgem, struct kgem_bo *bo)
 
 void kgem_clear_dirty(struct kgem *kgem)
 {
-	struct kgem_request *rq = kgem->next_request;
+	struct list * const buffers = &kgem->next_request->buffers;
 	struct kgem_bo *bo;
 
-	list_for_each_entry(bo, &rq->buffers, request) {
+	list_for_each_entry(bo, buffers, request) {
 		if (!bo->dirty)
 			break;
 
