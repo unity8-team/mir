@@ -1251,6 +1251,8 @@ retry: /* Attach per-crtc pixmap or direct */
 	if (bo == NULL)
 		return FALSE;
 
+	kgem_bo_submit(&sna->kgem, bo);
+
 	sna_crtc->bo = bo;
 	mode_to_kmode(&sna_crtc->kmode, mode);
 	if (!sna_crtc_apply(crtc)) {
