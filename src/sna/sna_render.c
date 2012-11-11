@@ -1914,11 +1914,13 @@ sna_render_composite_redirect_done(struct sna *sna,
 			assert(ok);
 		}
 		if (t->damage) {
-			DBG(("%s: combining damage, offset=(%d, %d)\n",
-			     __FUNCTION__, t->box.x1, t->box.y1));
-			sna_damage_combine(t->real_damage, t->damage,
+			DBG(("%s: combining damage (all? %d), offset=(%d, %d)\n",
+			     __FUNCTION__, DAMAGE_IS_ALL(t->damage),
+			     t->box.x1, t->box.y1));
+			sna_damage_combine(t->real_damage,
+					   DAMAGE_PTR(t->damage),
 					   t->box.x1, t->box.y1);
-			__sna_damage_destroy(t->damage);
+			__sna_damage_destroy(DAMAGE_PTR(t->damage));
 		}
 
 		kgem_bo_destroy(&sna->kgem, op->dst.bo);
