@@ -1,3 +1,45 @@
+Release 2.20.13 (2012-11-11)
+============================
+Nothing but bug fixes. Many thanks to everyone who took the time to
+report their issues, and for their help in improving the driver.
+
+ * Sanity check the platform probe points to our expected i915 device
+   https://bugs.launchpad.net/ubuntu/+source/xserver-xorg-video-intel/+bug/1069031
+
+ * Prevent 16-bit overflow for computing the sample area to upload of
+   sources for render operations
+   https://bugs.freedesktop.org/show_bug.cgi?id=56324
+
+ * Clamp the drawable box for migration to prevent 16-bit overflow
+   https://bugs.freedesktop.org/show_bug.cgi?id=56591
+
+ * Disable RandR hotplug events if Xinerama is enabled and thereby prevent
+   a crash upon hotplug
+   https://bugs.freedesktop.org/show_bug.cgi?id=55260
+
+ * Call ValidatePicture before attempting to flatten the alphamaps
+   https://bugs.freedesktop.org/show_bug.cgi?id=56367
+
+ * Clip the trapezoid correctly if it ends on the boundary pixel
+   https://bugs.freedesktop.org/show_bug.cgi?id=56395
+
+ * Make sure the pipeline choice is propagated to the scanline wait
+   across a batch flush
+   https://bugs.freedesktop.org/show_bug.cgi?id=47597
+
+ * Set the valid drawable box when choosing placement of BLT composite ops
+   https://bugs.freedesktop.org/show_bug.cgi?id=47597
+
+ * Prevent use-after-free when promoting a partial-GPU bo to a full-GPU bo
+   https://bugs.freedesktop.org/show_bug.cgi?id=56591
+
+ * gen4 opacity spans require the per-rectangle workaround
+   https://bugs.freedesktop.org/show_bug.cgi?id=55500
+
+ * Prevent use of invalid damage pointers when redirecting rendering
+   https://bugs.freedesktop.org/show_bug.cgi?id=56785
+
+
 Release 2.20.12 (2012-10-20)
 ============================
 More bug reports, more bug fixes! Perhaps the headline feature is
