@@ -5066,8 +5066,8 @@ trapezoid_span_inplace__x8r8g8b8(CARD8 op,
 		pixmap = get_drawable_pixmap(dst->pDrawable);
 		get_drawable_deltas(dst->pDrawable, pixmap, &dst_x, &dst_y);
 
-		DBG(("%s: format=%x, op=%d, color=%x\n",
-		     __FUNCTION__, dst->format, op, color));
+		DBG(("%s: format=%x, op=%d, lerp?=%d\n",
+		     __FUNCTION__, dst->format, op, lerp));
 
 		if (lerp) {
 			struct inplace inplace;
