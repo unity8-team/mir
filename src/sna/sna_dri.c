@@ -808,6 +808,22 @@ sna_dri_copy(struct sna *sna, DrawablePtr draw, RegionPtr region,
 		pixman_region_fini(&clip);
 }
 
+static bool
+can_blit(struct sna * sna,
+	 DrawablePtr draw,
+	 DRI2BufferPtr front,
+	 DRI2BufferPtr back)
+{
+	PixmapPtr pixmap;
+
+	if (draw->type == DRAWABLE_PIXMAP)
+		return true;
+
+	pixmap = get_drawable_pixmap(draw);
+	return (get_private(front)->serial == pixmap->drawable.serialNumber &&
+		get_private(back)->serial  == pixmap->drawable.serialNumber);
+}
+
 static void
 sna_dri_copy_region(DrawablePtr draw,
 		    RegionPtr region,
@@ -819,6 +835,9 @@ sna_dri_copy_region(DrawablePtr draw,
 	struct kgem_bo *src, *dst;
 	void (*copy)(struct sna *, DrawablePtr, RegionPtr,
 		     struct kgem_bo *, struct kgem_bo *, bool) = sna_dri_copy;
+
+	if (!can_blit(sna, draw, dst_buffer, src_buffer))
+		return;
 
 	if (dst_buffer->attachment == DRI2BufferFrontLeft) {
 		dst = sna_pixmap_get_bo(pixmap);
@@ -1177,22 +1196,6 @@ can_exchange(struct sna * sna,
 	}
 
 	return true;
-}
-
-static bool
-can_blit(struct sna * sna,
-	 DrawablePtr draw,
-	 DRI2BufferPtr front,
-	 DRI2BufferPtr back)
-{
-	PixmapPtr pixmap;
-
-	if (draw->type == DRAWABLE_PIXMAP)
-		return true;
-
-	pixmap = get_drawable_pixmap(draw);
-	return (get_private(front)->serial == pixmap->drawable.serialNumber &&
-		get_private(back)->serial  == pixmap->drawable.serialNumber);
 }
 
 inline static uint32_t pipe_select(int pipe)
