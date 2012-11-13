@@ -2545,20 +2545,17 @@ gen5_emit_composite_spans_affine(struct sna *sna,
 	OUT_VERTEX(box->x2, box->y2);
 	gen5_emit_composite_texcoord_affine(sna, &op->base.src,
 					    box->x2, box->y2);
-	OUT_VERTEX_F(opacity);
-	OUT_VERTEX_F(1);
+	OUT_VERTEX_F(opacity); OUT_VERTEX_F(1);
 
 	OUT_VERTEX(box->x1, box->y2);
 	gen5_emit_composite_texcoord_affine(sna, &op->base.src,
 					    box->x1, box->y2);
-	OUT_VERTEX_F(opacity);
-	OUT_VERTEX_F(1);
+	OUT_VERTEX_F(opacity); OUT_VERTEX_F(1);
 
 	OUT_VERTEX(box->x1, box->y1);
 	gen5_emit_composite_texcoord_affine(sna, &op->base.src,
 					    box->x1, box->y1);
-	OUT_VERTEX_F(opacity);
-	OUT_VERTEX_F(0);
+	OUT_VERTEX_F(opacity); OUT_VERTEX_F(0);
 }
 
 fastcall static void

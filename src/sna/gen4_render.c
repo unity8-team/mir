@@ -2534,20 +2534,17 @@ gen4_emit_composite_spans_affine(struct sna *sna,
 	OUT_VERTEX(box->x2, box->y2);
 	gen4_emit_composite_texcoord_affine(sna, &op->base.src,
 					    box->x2, box->y2);
-	OUT_VERTEX_F(opacity);
-	OUT_VERTEX_F(1);
+	OUT_VERTEX_F(opacity); OUT_VERTEX_F(1);
 
 	OUT_VERTEX(box->x1, box->y2);
 	gen4_emit_composite_texcoord_affine(sna, &op->base.src,
 					    box->x1, box->y2);
-	OUT_VERTEX_F(opacity);
-	OUT_VERTEX_F(1);
+	OUT_VERTEX_F(opacity); OUT_VERTEX_F(1);
 
 	OUT_VERTEX(box->x1, box->y1);
 	gen4_emit_composite_texcoord_affine(sna, &op->base.src,
 					    box->x1, box->y1);
-	OUT_VERTEX_F(opacity);
-	OUT_VERTEX_F(0);
+	OUT_VERTEX_F(opacity); OUT_VERTEX_F(0);
 }
 
 fastcall static void
@@ -2697,11 +2694,16 @@ gen4_render_composite_spans(struct sna *sna,
 	tmp->base.has_component_alpha = false;
 	tmp->base.need_magic_ca_pass = false;
 
-	tmp->prim_emit = gen4_emit_composite_spans_primitive;
-	if (tmp->base.src.is_solid)
+	if (tmp->base.src.is_solid) {
+		DBG(("%s: using solid fast emitter\n", __FUNCTION__));
 		tmp->prim_emit = gen4_emit_composite_spans_solid;
-	else if (tmp->base.is_affine)
+	} else if (tmp->base.is_affine) {
+		DBG(("%s: using affine fast emitter\n", __FUNCTION__));
 		tmp->prim_emit = gen4_emit_composite_spans_affine;
+	} else {
+		DBG(("%s: using general emitter\n", __FUNCTION__));
+		tmp->prim_emit = gen4_emit_composite_spans_primitive;
+	}
 	tmp->base.floats_per_vertex = 5 + 2*!tmp->base.is_affine;
 	tmp->base.floats_per_rect = 3 * tmp->base.floats_per_vertex;
 
