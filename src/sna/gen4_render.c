@@ -2294,6 +2294,7 @@ gen4_render_composite(struct sna *sna,
 		return false;
 	sna_render_reduce_damage(tmp, dst_x, dst_y, width, height);
 
+	sna_render_composite_redirect_init(tmp);
 	if (too_large(tmp->dst.width, tmp->dst.height) &&
 	    !sna_render_composite_redirect(sna, tmp,
 					   dst_x, dst_y, width, height))
@@ -2669,6 +2670,7 @@ gen4_render_composite_spans(struct sna *sna,
 		return false;
 	sna_render_reduce_damage(&tmp->base, dst_x, dst_y, width, height);
 
+	sna_render_composite_redirect_init(&tmp->base);
 	if (too_large(tmp->base.dst.width, tmp->base.dst.height)) {
 		if (!sna_render_composite_redirect(sna, &tmp->base,
 						   dst_x, dst_y, width, height))
