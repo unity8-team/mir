@@ -444,6 +444,10 @@ radeon_dri2_create_buffer2(ScreenPtr pScreen,
 	    info->exa_force_create = TRUE;
 	    exaMoveInPixmap(pixmap);
 	    info->exa_force_create = FALSE;
+	    if (exaGetPixmapDriverPrivate(pixmap) == NULL) {
+		/* this happen if pixmap is non accelerable */
+		goto error;
+	    }
 	}
 
 	if (is_glamor_pixmap)
