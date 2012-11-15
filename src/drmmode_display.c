@@ -640,9 +640,12 @@ drmmode_output_get_modes(xf86OutputPtr output)
 		drmModeFreeProperty(props);
 	}
 
-	if (drmmode_output->edid_blob)
+	if (drmmode_output->edid_blob) {
 		ddc_mon = xf86InterpretEDID(output->scrn->scrnIndex,
 					    drmmode_output->edid_blob->data);
+		if (ddc_mon && drmmode_output->edid_blob->length > 128)
+			ddc_mon->flags |= MONITOR_EDID_COMPLETE_RAWDATA;
+	}
 	xf86OutputSetEDID(output, ddc_mon);
 
 	/* modes should already be available */
