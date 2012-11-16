@@ -448,6 +448,7 @@ damage_all:
 			goto damage_all;
 		sna_damage_add(&priv->gpu_damage, region);
 	}
+	priv->cpu = false;
 }
 
 static void set_bo(PixmapPtr pixmap, struct kgem_bo *bo)
