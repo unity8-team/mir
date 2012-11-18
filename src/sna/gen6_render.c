@@ -3249,8 +3249,13 @@ static inline bool prefer_blt_copy(struct sna *sna,
 	if (PREFER_RENDER)
 		return PREFER_RENDER > 0;
 
-	return (sna->kgem.ring == KGEM_BLT ||
-		(flags & COPY_LAST && sna->kgem.mode == KGEM_NONE) ||
+	if (sna->kgem.ring == KGEM_BLT)
+		return true;
+
+	if (src_bo == dst_bo && can_switch_to_blt(sna))
+		return true;
+
+	return ((flags & COPY_LAST && sna->kgem.ring != KGEM_RENDER) ||
 		prefer_blt_bo(sna, src_bo) ||
 		prefer_blt_bo(sna, dst_bo));
 }
