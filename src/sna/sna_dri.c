@@ -1539,11 +1539,11 @@ static void sna_dri_flip_event(struct sna *sna,
 					 DRI2_FLIP_COMPLETE,
 					 flip->client ? flip->event_complete : NULL,
 					 flip->event_data);
-			if (flip->count)
+			if (flip->count) {
+				flip->off_delay = FLIP_OFF_DELAY;
 				sna->dri.flip_pending = flip;
-			else
+			} else
 				sna_dri_frame_event_info_free(sna, flip->draw, flip);
-			flip->off_delay = FLIP_OFF_DELAY;
 		} else {
 			DBG(("%s: no longer able to flip\n", __FUNCTION__));
 
