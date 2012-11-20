@@ -1261,7 +1261,7 @@ sna_dri_exchange_buffers(DrawablePtr draw,
 
 static void chain_swap(struct sna *sna,
 		       DrawablePtr draw,
-		       struct drm_event_vblank *event,
+		       int frame, unsigned int tv_sec, unsigned int tv_usec,
 		       struct sna_dri_frame_event *chain)
 {
 	drmVBlank vbl;
@@ -1300,7 +1300,7 @@ static void chain_swap(struct sna *sna,
 	}
 
 	DRI2SwapComplete(chain->client, draw,
-			 event->sequence, event->tv_sec, event->tv_usec,
+			 frame, tv_sec, tv_usec,
 			 type, chain->client ? chain->event_complete : NULL, chain->event_data);
 
 	VG_CLEAR(vbl);
@@ -1405,7 +1405,9 @@ void sna_dri_vblank_handler(struct sna *sna, struct drm_event_vblank *event)
 
 	if (info->chain) {
 		sna_dri_remove_frame_event((WindowPtr)draw, info);
-		chain_swap(sna, draw, event, info->chain);
+		chain_swap(sna, draw,
+			   event->sequence, event->tv_sec, event->tv_usec,
+			   info->chain);
 		draw = NULL;
 	}
 
@@ -1521,6 +1523,17 @@ static void sna_dri_flip_event(struct sna *sna,
 			 */
 			DBG(("%s: flip chain complete, off-delay=%d\n",
 			     __FUNCTION__, flip->off_delay));
+			if (flip->chain) {
+				sna_dri_remove_frame_event((WindowPtr)flip->draw,
+							   flip);
+				chain_swap(sna, flip->draw,
+					   flip->fe_frame,
+					   flip->fe_tv_sec,
+					   flip->fe_tv_usec,
+					   flip->chain);
+				flip->draw = NULL;
+			}
+
 			if (flip->off_delay-- && flip->draw &&
 			    can_flip(sna, flip->draw, flip->front, flip->front) &&
 			    (flip->count = sna_page_flip(sna,
@@ -1585,36 +1598,54 @@ static void sna_dri_flip_event(struct sna *sna,
 			flip->count = sna_page_flip(sna,
 						    get_private(flip->front)->bo,
 						    flip, flip->pipe);
-			if (flip->count == 0)
-				goto finish_async_flip;
+			if (flip->count == 0) {
+				if (flip->chain)
+					goto chain_async_flip;
+				else
+					goto finish_async_flip;
+			}
 
 			flip->next_front.bo = get_private(flip->front)->bo;
 			flip->next_front.name = flip->front->name;
 			flip->off_delay = FLIP_OFF_DELAY;
 
 			sna->dri.flip_pending = flip;
-		} else if (flip->draw &&
-			   can_flip(sna, flip->draw, flip->front, flip->back) &&
-			   flip->off_delay--) {
-			assert(flip == sna_dri_window_get_chain((WindowPtr)flip->draw));
-			DBG(("%s: queuing no-flip [delay=%d]\n",
-			     __FUNCTION__, flip->off_delay));
-			/* Just queue a no-op flip to trigger another event */
-			flip->count = sna_page_flip(sna,
-						    get_private(flip->front)->bo,
-						    flip, flip->pipe);
-			if (flip->count == 0)
-				goto finish_async_flip;
-
-			assert(flip->next_front.bo == get_private(flip->front)->bo);
-			assert(flip->next_front.name == flip->front->name);
-
-			sna->dri.flip_pending = flip;
 		} else {
+			if (flip->chain) {
+chain_async_flip:
+				sna_dri_remove_frame_event((WindowPtr)flip->draw,
+							   flip);
+				chain_swap(sna, flip->draw,
+					   flip->fe_frame,
+					   flip->fe_tv_sec,
+					   flip->fe_tv_usec,
+					   flip->chain);
+				flip->draw = NULL;
+			}
+
+			if (flip->draw &&
+			    can_flip(sna, flip->draw, flip->front, flip->back) &&
+			    flip->off_delay--) {
+				assert(flip == sna_dri_window_get_chain((WindowPtr)flip->draw));
+				DBG(("%s: queuing no-flip [delay=%d]\n",
+				     __FUNCTION__, flip->off_delay));
+				/* Just queue a no-op flip to trigger another event */
+				flip->count = sna_page_flip(sna,
+							    get_private(flip->front)->bo,
+							    flip, flip->pipe);
+				if (flip->count == 0)
+					goto finish_async_flip;
+
+				assert(flip->next_front.bo == get_private(flip->front)->bo);
+				assert(flip->next_front.name == flip->front->name);
+
+				sna->dri.flip_pending = flip;
+			} else {
 finish_async_flip:
-			DBG(("%s: async flip completed (drawable gone? %d)\n",
-			     __FUNCTION__, flip->draw == NULL));
-			sna_dri_frame_event_info_free(sna, flip->draw, flip);
+				DBG(("%s: async flip completed (drawable gone? %d)\n",
+				     __FUNCTION__, flip->draw == NULL));
+				sna_dri_frame_event_info_free(sna, flip->draw, flip);
+			}
 		}
 		break;
 #endif
@@ -1890,14 +1921,13 @@ sna_dri_immediate_blit(struct sna *sna,
 		       DrawablePtr draw,
 		       struct sna_dri_frame_event *info)
 {
-	drmVBlank vbl;
-
 	DBG(("%s: emitting immediate blit, throttling client\n", __FUNCTION__));
-	VG_CLEAR(vbl);
 
 	if ((sna->flags & SNA_NO_WAIT) == 0) {
 		info->type = DRI2_SWAP_THROTTLE;
 		if (sna_dri_window_get_chain((WindowPtr)draw) == info) {
+			drmVBlank vbl;
+
 			DBG(("%s: no pending blit, starting chain\n",
 			     __FUNCTION__));
 
@@ -1910,6 +1940,7 @@ sna_dri_immediate_blit(struct sna *sna,
 					 info->event_complete,
 					 info->event_data);
 
+			VG_CLEAR(vbl);
 			vbl.request.type =
 				DRM_VBLANK_RELATIVE |
 				DRM_VBLANK_NEXTONMISS |
