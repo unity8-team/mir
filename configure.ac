@@ -113,7 +113,7 @@ AC_ARG_ENABLE(udev,
 
 if test x$UDEV != "xno"; then
 	PKG_CHECK_MODULES(UDEV, [libudev], [udev=yes], [udev=no])
-	if test x$UDEV == xyes -a x$udev != xyes; then
+	if test x$UDEV = xyes -a x$udev != xyes; then
 		AC_MSG_ERROR([udev support requested but not found (libudev)])
 	fi
 	if test x$udev = xyes; then
@@ -409,7 +409,7 @@ if test "x$UMS_ONLY" = xyes; then
 fi
 
 AM_CONDITIONAL(DEBUG, test x$DEBUG != xno)
-AM_CONDITIONAL(FULL_DEBUG, test x$FULL_DEBUG == xfull)
+AM_CONDITIONAL(FULL_DEBUG, test x$FULL_DEBUG = xfull)
 if test "x$DEBUG" = xno; then
 	AC_DEFINE(NDEBUG,1,[Disable internal debugging])
 fi
