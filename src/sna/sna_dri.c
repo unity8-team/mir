@@ -1086,7 +1086,7 @@ can_flip(struct sna * sna,
 	if (sna_pixmap_get_buffer(pixmap) != front) {
 		DBG(("%s: no, DRI2 drawable is no longer attached (old name=%d, new name=%d) to pixmap=%ld\n",
 		     __FUNCTION__, front->name,
-		     ((DRI2BufferPtr)sna_pixmap_get_buffer(pixmap))->name,
+		     sna_pixmap_get_buffer(pixmap) ? ((DRI2BufferPtr)sna_pixmap_get_buffer(pixmap))->name : 0,
 		     pixmap->drawable.serialNumber));
 		return false;
 	}
