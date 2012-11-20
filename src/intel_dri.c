@@ -547,6 +547,23 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 	intel_batch_submit(scrn);
 }
 
+static void
+I830DRI2FallbackBlitSwap(DrawablePtr drawable,
+			 DRI2BufferPtr dst,
+			 DRI2BufferPtr src)
+{
+	BoxRec box;
+	RegionRec region;
+
+	box.x1 = 0;
+	box.y1 = 0;
+	box.x2 = drawable->width;
+	box.y2 = drawable->height;
+	REGION_INIT(pScreen, &region, &box, 0);
+
+	I830DRI2CopyRegion(drawable, &region, dst, src);
+}
+
 #if DRI2INFOREC_VERSION >= 4
 
 static void I830DRI2ReferenceBuffer(DRI2Buffer2Ptr buffer)
@@ -996,17 +1013,8 @@ void I830DRI2FrameEventHandler(unsigned int frame, unsigned int tv_sec,
 
 		/* else fall through to exchange/blit */
 	case DRI2_SWAP: {
-		BoxRec box;
-		RegionRec region;
-
-		box.x1 = 0;
-		box.y1 = 0;
-		box.x2 = drawable->width;
-		box.y2 = drawable->height;
-		REGION_INIT(pScreen, &region, &box, 0);
-
-		I830DRI2CopyRegion(drawable,
-				   &region, swap_info->front, swap_info->back);
+		I830DRI2FallbackBlitSwap(drawable,
+					 swap_info->front, swap_info->back);
 		DRI2SwapComplete(swap_info->client, drawable, frame, tv_sec, tv_usec,
 				 DRI2_BLIT_COMPLETE,
 				 swap_info->client ? swap_info->event_complete : NULL,
@@ -1089,17 +1097,10 @@ void I830DRI2FlipEventHandler(unsigned int frame, unsigned int tv_sec,
 				i830_dri2_del_frame_event(chain_drawable, chain);
 			} else if (!can_exchange(chain_drawable, chain->front, chain->back) ||
 				   !I830DRI2ScheduleFlip(intel, chain_drawable, chain)) {
-				BoxRec box;
-				RegionRec region;
+				I830DRI2FallbackBlitSwap(drawable,
+							 chain->front,
+							 chain->back);
 
-				box.x1 = 0;
-				box.y1 = 0;
-				box.x2 = chain_drawable->width;
-				box.y2 = chain_drawable->height;
-				REGION_INIT(pScreen, &region, &box, 0);
-
-				I830DRI2CopyRegion(chain_drawable, &region,
-						   chain->front, chain->back);
 				DRI2SwapComplete(chain->client, chain_drawable, frame, tv_sec, tv_usec,
 						 DRI2_BLIT_COMPLETE,
 						 chain->client ? chain->event_complete : NULL,
@@ -1162,8 +1163,6 @@ I830DRI2ScheduleSwap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	DRI2FrameEventPtr swap_info = NULL;
 	enum DRI2FrameEventType swap_type = DRI2_SWAP;
 	CARD64 current_msc;
-	BoxRec box;
-	RegionRec region;
 
 	/* Drawable not displayed... just complete the swap */
 	if (pipe == -1)
@@ -1313,14 +1312,7 @@ I830DRI2ScheduleSwap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	return TRUE;
 
 blit_fallback:
-	box.x1 = 0;
-	box.y1 = 0;
-	box.x2 = draw->width;
-	box.y2 = draw->height;
-	REGION_INIT(pScreen, &region, &box, 0);
-
-	I830DRI2CopyRegion(draw, &region, front, back);
-
+	I830DRI2FallbackBlitSwap(draw, front, back);
 	DRI2SwapComplete(client, draw, 0, 0, 0, DRI2_BLIT_COMPLETE, func, data);
 	if (swap_info)
 	    i830_dri2_del_frame_event(draw, swap_info);
