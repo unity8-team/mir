@@ -259,6 +259,7 @@ sna_dri_create_buffer(DrawablePtr draw,
 
 			assert(private->pixmap == pixmap);
 			assert(sna_pixmap(pixmap)->gpu_bo == private->bo);
+			assert(sna_pixmap(pixmap)->pinned & PIN_DRI);
 			assert(kgem_bo_flink(&sna->kgem, private->bo) == buffer->name);
 			assert(8*private->bo->pitch >= pixmap->drawable.width * pixmap->drawable.bitsPerPixel);
 			assert(private->bo->pitch * pixmap->drawable.height <= kgem_bo_size(private->bo));
