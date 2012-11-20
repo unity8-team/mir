@@ -660,6 +660,7 @@ bool sna_pixmap_attach_to_bo(PixmapPtr pixmap, struct kgem_bo *bo)
 		return false;
 
 	priv->gpu_bo = kgem_bo_reference(bo);
+	assert(priv->gpu_bo->proxy == NULL);
 	sna_damage_all(&priv->gpu_damage,
 		       pixmap->drawable.width,
 		       pixmap->drawable.height);
@@ -1468,6 +1469,7 @@ _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 			}
 			pixmap->devKind = priv->gpu_bo->pitch;
 
+			assert(priv->gpu_bo->proxy == NULL);
 			sna_damage_all(&priv->gpu_damage,
 				       pixmap->drawable.width,
 				       pixmap->drawable.height);
@@ -1523,6 +1525,7 @@ skip_inplace_map:
 			priv->mapped = true;
 			pixmap->devKind = priv->gpu_bo->pitch;
 			if (flags & MOVE_WRITE) {
+				assert(priv->gpu_bo->proxy == NULL);
 				sna_damage_all(&priv->gpu_damage,
 					       pixmap->drawable.width,
 					       pixmap->drawable.height);
@@ -2555,6 +2558,7 @@ done:
 		    box_inplace(pixmap, &r.extents)) {
 			DBG(("%s: large operation on undamaged, promoting to full GPU\n",
 			     __FUNCTION__));
+			assert(priv->gpu_bo->proxy == NULL);
 			sna_damage_all(&priv->gpu_damage,
 				       pixmap->drawable.width,
 				       pixmap->drawable.height);
@@ -3014,6 +3018,7 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 
 	if (flags & MOVE_WRITE && priv->gpu_bo && priv->gpu_bo->proxy) {
 		DBG(("%s: discarding cached upload buffer\n", __FUNCTION__));
+		assert(priv->gpu_damage == NULL);
 		kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
 		priv->gpu_bo = NULL;
 	}
@@ -3066,6 +3071,7 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 			 * synchronisation that takes the most time. This is
 			 * mitigated by avoiding fallbacks in the first place.
 			 */
+			assert(priv->gpu_bo->proxy == NULL);
 			sna_damage_all(&priv->gpu_damage,
 				       pixmap->drawable.width,
 				       pixmap->drawable.height);
@@ -3078,6 +3084,7 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 	if (priv->gpu_bo->proxy) {
 		DBG(("%s: reusing cached upload\n", __FUNCTION__));
 		assert((flags & MOVE_WRITE) == 0);
+		assert(priv->gpu_damage == NULL);
 		return priv;
 	}
 
@@ -3144,6 +3151,7 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 
 	/* For large bo, try to keep only a single copy around */
 	if (priv->create & KGEM_CAN_CREATE_LARGE) {
+		assert(priv->gpu_bo->proxy == NULL);
 		sna_damage_all(&priv->gpu_damage,
 			       pixmap->drawable.width,
 			       pixmap->drawable.height);
@@ -3540,6 +3548,7 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 			else
 				sna_damage_subtract(&priv->cpu_damage, region);
 			if (priv->cpu_damage == NULL) {
+				assert(priv->gpu_bo->proxy == NULL);
 				sna_damage_all(&priv->gpu_damage,
 					       pixmap->drawable.width,
 					       pixmap->drawable.height);
@@ -3599,6 +3608,7 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 			}
 		}
 		assert(priv->cpu_damage == NULL);
+		assert(priv->gpu_bo->proxy == NULL);
 		sna_damage_all(&priv->gpu_damage,
 			       pixmap->drawable.width,
 			       pixmap->drawable.height);
@@ -4644,8 +4654,10 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 
 			if (n == 1 &&
 			    tmp->drawable.width == src_pixmap->drawable.width &&
-			    tmp->drawable.height == src_pixmap->drawable.height)
+			    tmp->drawable.height == src_pixmap->drawable.height) {
+				assert(src_priv->gpu_damage);
 				kgem_proxy_bo_attach(src_bo, &src_priv->gpu_bo);
+			}
 
 			if (!sna->render.copy_boxes(sna, alu,
 						    tmp, src_bo, dx, dy,
@@ -4703,6 +4715,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 
 			dst_priv->cpu = false;
 			if (damage) {
+				assert(dst_priv->gpu_bo->proxy == NULL);
 				if (replaces) {
 					sna_damage_destroy(&dst_priv->cpu_damage);
 					sna_damage_all(&dst_priv->gpu_damage,
@@ -9484,6 +9497,7 @@ sna_poly_fill_rect_blt(DrawablePtr drawable,
 				    r.y2 - r.y1 == pixmap->drawable.height) {
 					struct sna_pixmap *priv = sna_pixmap(pixmap);
 					if (bo == priv->gpu_bo) {
+						assert(priv->gpu_bo->proxy == NULL);
 						sna_damage_all(&priv->gpu_damage,
 							       pixmap->drawable.width,
 							       pixmap->drawable.height);
@@ -11925,6 +11939,7 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 		     box_inplace(pixmap, &region.extents))) {
 			DBG(("%s: promoting to full GPU\n", __FUNCTION__));
 			if (priv->gpu_bo) {
+				assert(priv->gpu_bo->proxy == NULL);
 				sna_damage_all(&priv->gpu_damage,
 					       pixmap->drawable.width,
 					       pixmap->drawable.height);

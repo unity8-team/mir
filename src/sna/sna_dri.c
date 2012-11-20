@@ -175,6 +175,7 @@ static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 	}
 
 	assert(priv->cpu_damage == NULL);
+	assert(priv->gpu_bo->proxy == NULL);
 	if (priv->flush++)
 		return priv->gpu_bo;
 
@@ -460,6 +461,7 @@ static void set_bo(PixmapPtr pixmap, struct kgem_bo *bo)
 
 	assert(pixmap->drawable.width * pixmap->drawable.bitsPerPixel <= 8*bo->pitch);
 	assert(pixmap->drawable.height * bo->pitch <= kgem_bo_size(bo));
+	assert(bo->proxy == NULL);
 
 	/* Post damage on the new front buffer so that listeners, such
 	 * as DisplayLink know take a copy and shove it over the USB,

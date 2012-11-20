@@ -515,8 +515,10 @@ static struct kgem_bo *upload(struct sna *sna,
 		if (priv &&
 		    pixmap->usage_hint == 0 &&
 		    channel->width  == pixmap->drawable.width &&
-		    channel->height == pixmap->drawable.height)
+		    channel->height == pixmap->drawable.height) {
+			assert(priv->gpu_damage == NULL);
 			kgem_proxy_bo_attach(bo, &priv->gpu_bo);
+		}
 	}
 
 	return bo;
@@ -1147,8 +1149,10 @@ sna_render_picture_extract(struct sna *sna,
 			    box.x2 - box.x1 == pixmap->drawable.width &&
 			    box.y2 - box.y1 == pixmap->drawable.height) {
 				struct sna_pixmap *priv = sna_pixmap(pixmap);
-				if (priv)
+				if (priv) {
+					assert(priv->gpu_damage == NULL);
 					kgem_proxy_bo_attach(bo, &priv->gpu_bo);
+				}
 			}
 		}
 	}
