@@ -383,7 +383,7 @@ static Bool intel_driver_func(ScrnInfoPtr pScrn,
 	}
 }
 
-static Bool has_kernel_mode_setting(struct pci_device *dev)
+static Bool has_kernel_mode_setting(const struct pci_device *dev)
 {
 	char id[20];
 	int ret, fd;
@@ -418,7 +418,6 @@ static Bool has_kernel_mode_setting(struct pci_device *dev)
 			if (drmIoctl(fd, DRM_IOCTL_I915_GETPARAM, &gp))
 				ret = FALSE;
 		}
-
 		close(fd);
 	}
 
@@ -557,6 +556,9 @@ intel_platform_probe(DriverPtr driver,
 	unsigned scrn_flags = 0;
 
 	if (!dev->pdev)
+		return FALSE;
+
+	if (!has_kernel_mode_setting(dev->pdev))
 		return FALSE;
 
 	/* Allow ourselves to act as a slaved output if not primary */

@@ -1251,6 +1251,8 @@ retry: /* Attach per-crtc pixmap or direct */
 	if (bo == NULL)
 		return FALSE;
 
+	kgem_bo_submit(&sna->kgem, bo);
+
 	sna_crtc->bo = bo;
 	mode_to_kmode(&sna_crtc->kmode, mode);
 	if (!sna_crtc_apply(crtc)) {
@@ -2291,6 +2293,35 @@ cleanup_connector:
 	drmModeFreeConnector(koutput);
 }
 
+/* The kernel reports possible encoder clones, whereas X uses a list of
+ * possible connector clones. This is works when we have a 1:1 mapping
+ * between encoders and connectors, but breaks for Haswell which has a pair
+ * of DP/HDMI connectors hanging off a single encoder.
+ */
+static void
+sna_mode_compute_possible_clones(ScrnInfoPtr scrn)
+{
+	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(scrn);
+	unsigned clones[32] = { 0 };
+	int i, j;
+
+	assert(config->num_output <= 32);
+
+	/* Convert from encoder numbering to output numbering */
+	for (i = 0; i < config->num_output; i++) {
+		unsigned mask = config->output[i]->possible_clones;
+		for (j = 0; mask != 0; j++, mask >>= 1) {
+			if ((mask & 1) == 0)
+				continue;
+
+			clones[j] |= 1 << i;
+		}
+	}
+
+	for (i = 0; i < config->num_output; i++)
+		config->output[i]->possible_clones = clones[i];
+}
+
 struct sna_visit_set_pixmap_window {
 	PixmapPtr old, new;
 };
@@ -2574,6 +2605,9 @@ bool sna_mode_pre_init(ScrnInfoPtr scrn, struct sna *sna)
 	for (i = 0; i < mode->kmode->count_connectors; i++)
 		sna_output_init(scrn, mode, i);
 
+	if (!xf86IsEntityShared(scrn->entityList[0]))
+		sna_mode_compute_possible_clones(scrn);
+
 #if HAS_PIXMAP_SHARING
 	xf86ProviderSetup(scrn, NULL, "Intel");
 #endif
@@ -2685,46 +2719,82 @@ sna_covering_crtc(ScrnInfoPtr scrn,
 	return best_crtc;
 }
 
-/* Gen6 wait for scan line support */
 #define MI_LOAD_REGISTER_IMM			(0x22<<23)
 
-/* gen6: Scan lines register */
-#define GEN6_PIPEA_SLC			(0x70004)
-#define GEN6_PIPEB_SLC			(0x71004)
-
-static void sna_emit_wait_for_scanline_gen6(struct sna *sna,
+static bool sna_emit_wait_for_scanline_gen7(struct sna *sna,
 					    int pipe, int y1, int y2,
 					    bool full_height)
 {
-	uint32_t event;
 	uint32_t *b;
 
-	assert (y2 > 0);
+	if (!sna->kgem.has_secure_batches)
+		return false;
 
-	/* We just wait until the trace passes the roi */
-	if (pipe == 0) {
-		pipe = GEN6_PIPEA_SLC;
-		event = MI_WAIT_FOR_PIPEA_SCAN_LINE_WINDOW;
-	} else {
-		pipe = GEN6_PIPEB_SLC;
-		event = MI_WAIT_FOR_PIPEB_SCAN_LINE_WINDOW;
-	}
+	assert(y1 >= 0);
+	assert(y2 > y1);
+	assert(sna->kgem.mode);
 
-	kgem_set_mode(&sna->kgem, KGEM_RENDER);
-	b = kgem_get_batch(&sna->kgem, 4);
+	b = kgem_get_batch(&sna->kgem, 16);
 	b[0] = MI_LOAD_REGISTER_IMM | 1;
-	b[1] = pipe;
-	b[2] = y2 - 1;
-	b[3] = MI_WAIT_FOR_EVENT | event;
-	kgem_advance_batch(&sna->kgem, 4);
+	b[1] = 0x44050; /* DERRMR */
+	b[2] = ~(1 << (3*full_height + pipe*8));
+	b[3] = MI_LOAD_REGISTER_IMM | 1;
+	b[4] = 0xa188; /* FORCEWAKE_MT */
+	b[5] = 2 << 16 | 2;
+	b[6] = MI_LOAD_REGISTER_IMM | 1;
+	b[7] = 0x70068 + 0x1000 * pipe;
+	b[8] = (1 << 31) | (1 << 30) | (y1 << 16) | (y2 - 1);
+	b[9] = MI_WAIT_FOR_EVENT | 1 << (3*full_height + pipe*5);
+	b[10] = MI_LOAD_REGISTER_IMM | 1;
+	b[11] = 0xa188; /* FORCEWAKE_MT */
+	b[12] = 2 << 16;
+	b[13] = MI_LOAD_REGISTER_IMM | 1;
+	b[14] = 0x44050; /* DERRMR */
+	b[15] = ~0;
+	kgem_advance_batch(&sna->kgem, 16);
+
+	sna->kgem.batch_flags |= I915_EXEC_SECURE;
+	return true;
 }
 
-static void sna_emit_wait_for_scanline_gen4(struct sna *sna,
+static bool sna_emit_wait_for_scanline_gen6(struct sna *sna,
+					    int pipe, int y1, int y2,
+					    bool full_height)
+{
+	uint32_t *b;
+
+	if (!sna->kgem.has_secure_batches)
+		return false;
+
+	assert(y1 >= 0);
+	assert(y2 > y1);
+	assert(sna->kgem.mode);
+
+	b = kgem_get_batch(&sna->kgem, 10);
+	b[0] = MI_LOAD_REGISTER_IMM | 1;
+	b[1] = 0x44050; /* DERRMR */
+	b[2] = ~(1 << (3*full_height + pipe*8));
+	b[3] = MI_LOAD_REGISTER_IMM | 1;
+	b[4] = 0x4f100; /* magic */
+	b[5] = (1 << 31) | (1 << 30) | pipe << 29 | (y1 << 16) | (y2 - 1);
+	b[6] = MI_WAIT_FOR_EVENT | 1 << (3*full_height + pipe*5);
+	b[7] = MI_LOAD_REGISTER_IMM | 1;
+	b[8] = 0x44050; /* DERRMR */
+	b[9] = ~0;
+	kgem_advance_batch(&sna->kgem, 10);
+
+	sna->kgem.batch_flags |= I915_EXEC_SECURE;
+	return true;
+}
+
+static bool sna_emit_wait_for_scanline_gen4(struct sna *sna,
 					    int pipe, int y1, int y2,
 					    bool full_height)
 {
 	uint32_t event;
 	uint32_t *b;
+
+	assert(sna->kgem.mode != KGEM_NONE);
 
 	if (pipe == 0) {
 		if (full_height)
@@ -2738,7 +2808,6 @@ static void sna_emit_wait_for_scanline_gen4(struct sna *sna,
 			event = MI_WAIT_FOR_PIPEB_SCAN_LINE_WINDOW;
 	}
 
-	kgem_set_mode(&sna->kgem, KGEM_BLT);
 	b = kgem_get_batch(&sna->kgem, 5);
 	/* The documentation says that the LOAD_SCAN_LINES command
 	 * always comes in pairs. Don't ask me why. */
@@ -2746,13 +2815,17 @@ static void sna_emit_wait_for_scanline_gen4(struct sna *sna,
 	b[3] = b[1] = (y1 << 16) | (y2-1);
 	b[4] = MI_WAIT_FOR_EVENT | event;
 	kgem_advance_batch(&sna->kgem, 5);
+
+	return true;
 }
 
-static void sna_emit_wait_for_scanline_gen2(struct sna *sna,
+static bool sna_emit_wait_for_scanline_gen2(struct sna *sna,
 					    int pipe, int y1, int y2,
 					    bool full_height)
 {
 	uint32_t *b;
+
+	assert(sna->kgem.mode != KGEM_NONE);
 
 	/*
 	 * Pre-965 doesn't have SVBLANK, so we need a bit
@@ -2762,7 +2835,6 @@ static void sna_emit_wait_for_scanline_gen2(struct sna *sna,
 	if (full_height)
 		y2 -= 2;
 
-	kgem_set_mode(&sna->kgem, KGEM_BLT);
 	b = kgem_get_batch(&sna->kgem, 5);
 	/* The documentation says that the LOAD_SCAN_LINES command
 	 * always comes in pairs. Don't ask me why. */
@@ -2773,6 +2845,8 @@ static void sna_emit_wait_for_scanline_gen2(struct sna *sna,
 	else
 		b[4] = MI_WAIT_FOR_EVENT | MI_WAIT_FOR_PIPEB_SCAN_LINE_WINDOW;
 	kgem_advance_batch(&sna->kgem, 5);
+
+	return true;
 }
 
 bool
@@ -2783,14 +2857,11 @@ sna_wait_for_scanline(struct sna *sna,
 {
 	bool full_height;
 	int y1, y2, pipe;
+	bool ret;
 
 	assert(crtc);
 	assert(to_sna_crtc(crtc)->bo != NULL);
 	assert(pixmap == sna->front);
-
-	/* XXX WAIT_EVENT is still causing hangs on SNB */
-	if (sna->kgem.gen >= 60)
-		return false;
 
 	/*
 	 * Make sure we don't wait for a scanline that will
@@ -2818,14 +2889,18 @@ sna_wait_for_scanline(struct sna *sna,
 	DBG(("%s: pipe=%d, y1=%d, y2=%d, full_height?=%d\n",
 	     __FUNCTION__, pipe, y1, y2, full_height));
 
-	if (sna->kgem.gen >= 60)
-		sna_emit_wait_for_scanline_gen6(sna, pipe, y1, y2, full_height);
+	if (sna->kgem.gen >= 80)
+		ret = false;
+	else if (sna->kgem.gen >= 70)
+		ret = sna_emit_wait_for_scanline_gen7(sna, pipe, y1, y2, full_height);
+	else if (sna->kgem.gen >= 60)
+		ret =sna_emit_wait_for_scanline_gen6(sna, pipe, y1, y2, full_height);
 	else if (sna->kgem.gen >= 40)
-		sna_emit_wait_for_scanline_gen4(sna, pipe, y1, y2, full_height);
+		ret = sna_emit_wait_for_scanline_gen4(sna, pipe, y1, y2, full_height);
 	else
-		sna_emit_wait_for_scanline_gen2(sna, pipe, y1, y2, full_height);
+		ret = sna_emit_wait_for_scanline_gen2(sna, pipe, y1, y2, full_height);
 
-	return true;
+	return ret;
 }
 
 void sna_mode_update(struct sna *sna)
@@ -2988,6 +3063,9 @@ sna_crtc_redisplay__composite(xf86CrtcPtr crtc, RegionPtr region)
 	if (!dst)
 		goto free_src;
 
+	ValidatePicture(src);
+	ValidatePicture(dst);
+
 	if (!sna->render.composite(sna,
 				   PictOpSrc, src, NULL, dst,
 				   0, 0,
@@ -3149,6 +3227,7 @@ void sna_mode_redisplay(struct sna *sna)
 
 		for (i = 0; i < config->num_crtc; i++) {
 			struct sna_crtc *crtc = config->crtc[i]->driver_private;
+			struct drm_mode_crtc_page_flip arg;
 
 			DBG(("%s: crtc %d [%d, pipe=%d] active? %d\n",
 			     __FUNCTION__, i, crtc->id, crtc->pipe, crtc->bo != NULL));
@@ -3156,41 +3235,33 @@ void sna_mode_redisplay(struct sna *sna)
 				continue;
 
 			assert(config->crtc[i]->enabled);
+			assert(crtc->dpms_mode == DPMSModeOn);
 
-			if (crtc->dpms_mode == DPMSModeOn) {
-				struct drm_mode_crtc_page_flip arg;
-				arg.crtc_id = crtc->id;
-				arg.fb_id = get_fb(sna, new,
-						   sna->scrn->virtualX,
-						   sna->scrn->virtualY);
-				if (arg.fb_id == 0)
-					goto disable;
+			arg.crtc_id = crtc->id;
+			arg.fb_id = get_fb(sna, new,
+					   sna->scrn->virtualX,
+					   sna->scrn->virtualY);
+			if (arg.fb_id == 0)
+				goto disable;
 
-				/* Only the reference crtc will finally deliver its page flip
-				 * completion event. All other crtc's events will be discarded.
-				 */
-				arg.user_data = 0;
-				arg.flags = DRM_MODE_PAGE_FLIP_EVENT;
-				arg.reserved = 0;
+			arg.user_data = 0;
+			arg.flags = DRM_MODE_PAGE_FLIP_EVENT;
+			arg.reserved = 0;
 
-				if (drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_PAGE_FLIP, &arg)) {
-					DBG(("%s: flip [fb=%d] on crtc %d [%d, pipe=%d] failed - %d\n",
-					     __FUNCTION__, arg.fb_id, i, crtc->id, crtc->pipe, errno));
+			if (drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_PAGE_FLIP, &arg)) {
+				DBG(("%s: flip [fb=%d] on crtc %d [%d, pipe=%d] failed - %d\n",
+				     __FUNCTION__, arg.fb_id, i, crtc->id, crtc->pipe, errno));
 disable:
-					sna_crtc_disable(config->crtc[i]);
-					continue;
-				}
-				sna->mode.shadow_flip++;
+				sna_crtc_disable(config->crtc[i]);
+				continue;
 			}
+			sna->mode.shadow_flip++;
 
 			kgem_bo_destroy(&sna->kgem, old);
 			crtc->bo = kgem_bo_reference(new);
 		}
 
 		if (sna->mode.shadow) {
-			/* XXX only works if the kernel stalls fwrites to the current
-			 * scanout whilst the flip is pending
-			 */
 			while (sna->mode.shadow_flip)
 				sna_mode_wakeup(sna);
 			(void)sna->render.copy_boxes(sna, GXcopy,
@@ -3202,8 +3273,9 @@ disable:
 			kgem_submit(&sna->kgem);
 
 			sna_pixmap(sna->front)->gpu_bo = old;
-			sna->mode.shadow = new;
+			sna_dri_pixmap_update_bo(sna, sna->front);
 
+			sna->mode.shadow = new;
 			new->flush = old->flush;
 		}
 

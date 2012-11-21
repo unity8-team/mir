@@ -114,8 +114,15 @@ static void sna_video_sprite_best_size(ScrnInfoPtr scrn, Bool motion,
 				       unsigned int *p_w, unsigned int *p_h,
 				       pointer data)
 {
-	*p_w = vid_w;
-	*p_h = vid_h;
+	struct sna *sna = to_sna(scrn);
+
+	if (sna->kgem.gen == 75) {
+		*p_w = vid_w;
+		*p_h = vid_h;
+	} else {
+		*p_w = drw_w;
+		*p_h = drw_h;
+	}
 }
 
 static void
@@ -250,6 +257,7 @@ sna_video_sprite_show(struct sna *sna,
 			    0, 0, frame->width << 16, frame->height << 16))
 		return false;
 
+	frame->bo->domain = DOMAIN_NONE;
 	video->plane = plane;
 	return true;
 }

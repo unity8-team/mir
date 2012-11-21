@@ -64,6 +64,7 @@ struct kgem_bo {
 	uint32_t unique_id;
 	uint32_t refcnt;
 	uint32_t handle;
+	uint32_t target_handle;
 	uint32_t presumed_offset;
 	uint32_t delta;
 	union {
@@ -138,6 +139,9 @@ struct kgem {
 		int16_t count;
 	} vma[NUM_MAP_TYPES];
 
+	uint32_t batch_flags;
+#define I915_EXEC_SECURE (1<<9)
+
 	uint16_t nbatch;
 	uint16_t surface;
 	uint16_t nexec;
@@ -158,8 +162,11 @@ struct kgem {
 	uint32_t has_relaxed_fencing :1;
 	uint32_t has_relaxed_delta :1;
 	uint32_t has_semaphores :1;
+	uint32_t has_secure_batches :1;
 	uint32_t has_cacheing :1;
 	uint32_t has_llc :1;
+	uint32_t has_no_reloc :1;
+	uint32_t has_handle_lut :1;
 
 	uint32_t can_blt_cpu :1;
 
@@ -218,7 +225,7 @@ struct kgem_bo *kgem_create_proxy(struct kgem *kgem,
 
 struct kgem_bo *kgem_upload_source_image(struct kgem *kgem,
 					 const void *data,
-					 BoxPtr box,
+					 const BoxRec *box,
 					 int stride, int bpp);
 void kgem_proxy_bo_attach(struct kgem_bo *bo, struct kgem_bo **ptr);
 
@@ -352,16 +359,21 @@ static inline void _kgem_set_mode(struct kgem *kgem, enum kgem_mode mode)
 
 static inline bool kgem_check_batch(struct kgem *kgem, int num_dwords)
 {
+	assert(num_dwords > 0);
+	assert(kgem->nbatch < kgem->surface);
+	assert(kgem->surface <= kgem->batch_size);
 	return likely(kgem->nbatch + num_dwords + KGEM_BATCH_RESERVED <= kgem->surface);
 }
 
 static inline bool kgem_check_reloc(struct kgem *kgem, int n)
 {
+	assert(kgem->nreloc <= KGEM_RELOC_SIZE(kgem));
 	return likely(kgem->nreloc + n <= KGEM_RELOC_SIZE(kgem));
 }
 
 static inline bool kgem_check_exec(struct kgem *kgem, int n)
 {
+	assert(kgem->nexec <= KGEM_EXEC_SIZE(kgem));
 	return likely(kgem->nexec + n <= KGEM_EXEC_SIZE(kgem));
 }
 
@@ -381,8 +393,11 @@ static inline bool kgem_check_batch_with_surfaces(struct kgem *kgem,
 
 static inline uint32_t *kgem_get_batch(struct kgem *kgem, int num_dwords)
 {
-	if (!kgem_check_batch(kgem, num_dwords))
+	if (!kgem_check_batch(kgem, num_dwords)) {
+		unsigned mode = kgem->mode;
 		_kgem_submit(kgem);
+		_kgem_set_mode(kgem, mode);
+	}
 
 	return kgem->batch + kgem->nbatch;
 }
@@ -505,9 +520,6 @@ static inline bool kgem_bo_mapped(struct kgem *kgem, struct kgem_bo *bo)
 	if (bo->map == NULL)
 		return bo->tiling == I915_TILING_NONE && bo->domain == DOMAIN_CPU;
 
-	if (bo->tiling == I915_TILING_X && !bo->scanout && kgem->has_llc)
-		return IS_CPU_MAP(bo->map);
-
 	return IS_CPU_MAP(bo->map) == !bo->tiling;
 }
 
@@ -518,6 +530,9 @@ static inline bool kgem_bo_can_map(struct kgem *kgem, struct kgem_bo *bo)
 
 	if (!bo->tiling && kgem->has_llc)
 		return true;
+
+	if (kgem->gen == 21 && bo->tiling == I915_TILING_Y)
+		return false;
 
 	return kgem_bo_size(bo) <= kgem->aperture_mappable / 4;
 }

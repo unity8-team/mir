@@ -3073,13 +3073,13 @@ lerp32_unaligned_box_row(PixmapPtr scratch, uint32_t color,
 			 uint8_t covered)
 {
 	int16_t x1 = pixman_fixed_to_int(trap->left.p1.x) + dx;
-	int16_t fx1 = grid_coverage(SAMPLES_X, trap->left.p1.x);
+	uint16_t fx1 = grid_coverage(SAMPLES_X, trap->left.p1.x);
 	int16_t x2 = pixman_fixed_to_int(trap->right.p2.x) + dx;
-	int16_t fx2 = grid_coverage(SAMPLES_X, trap->right.p2.x);
+	uint16_t fx2 = grid_coverage(SAMPLES_X, trap->right.p2.x);
 
 	if (x1 < extents->x1)
 		x1 = extents->x1, fx1 = 0;
-	if (x2 > extents->x2)
+	if (x2 >= extents->x2)
 		x2 = extents->x2, fx2 = 0;
 
 	DBG(("%s: x=(%d.%d, %d.%d), y=%dx%d, covered=%d\n", __FUNCTION__,
@@ -3171,13 +3171,13 @@ pixsolid_unaligned_box_row(struct pixman_inplace *pi,
 			   uint8_t covered)
 {
 	int16_t x1 = pixman_fixed_to_int(trap->left.p1.x);
-	int16_t fx1 = grid_coverage(SAMPLES_X, trap->left.p1.x);
+	uint16_t fx1 = grid_coverage(SAMPLES_X, trap->left.p1.x);
 	int16_t x2 = pixman_fixed_to_int(trap->right.p1.x);
-	int16_t fx2 = grid_coverage(SAMPLES_X, trap->right.p1.x);
+	uint16_t fx2 = grid_coverage(SAMPLES_X, trap->right.p1.x);
 
 	if (x1 < extents->x1)
 		x1 = extents->x1, fx1 = 0;
-	if (x2 > extents->x2)
+	if (x2 >= extents->x2)
 		x2 = extents->x2, fx2 = 0;
 
 	if (x1 < x2) {
@@ -3276,9 +3276,9 @@ composite_unaligned_boxes_inplace__solid(CARD8 op, uint32_t color,
 		extents = REGION_RECTS(&clip);
 		while (count--) {
 			int16_t y1 = dy + pixman_fixed_to_int(t->top);
-			int16_t fy1 = pixman_fixed_frac(t->top);
+			uint16_t fy1 = pixman_fixed_frac(t->top);
 			int16_t y2 = dy + pixman_fixed_to_int(t->bottom);
-			int16_t fy2 = pixman_fixed_frac(t->bottom);
+			uint16_t fy2 = pixman_fixed_frac(t->bottom);
 
 			DBG(("%s: t=(%d, %d), (%d, %d), extents (%d, %d), (%d, %d)\n",
 			     __FUNCTION__,
@@ -3291,7 +3291,7 @@ composite_unaligned_boxes_inplace__solid(CARD8 op, uint32_t color,
 
 			if (y1 < extents->y1)
 				y1 = extents->y1, fy1 = 0;
-			if (y2 > extents->y2)
+			if (y2 >= extents->y2)
 				y2 = extents->y2, fy2 = 0;
 
 			if (y1 < y2) {
@@ -3363,13 +3363,13 @@ pixman:
 		extents = REGION_RECTS(&clip);
 		while (count--) {
 			int16_t y1 = pixman_fixed_to_int(t->top);
-			int16_t fy1 = pixman_fixed_frac(t->top);
+			uint16_t fy1 = pixman_fixed_frac(t->top);
 			int16_t y2 = pixman_fixed_to_int(t->bottom);
-			int16_t fy2 = pixman_fixed_frac(t->bottom);
+			uint16_t fy2 = pixman_fixed_frac(t->bottom);
 
 			if (y1 < extents->y1)
 				y1 = extents->y1, fy1 = 0;
-			if (y2 > extents->y2)
+			if (y2 >= extents->y2)
 				y2 = extents->y2, fy2 = 0;
 			if (y1 < y2) {
 				if (fy1) {
@@ -3429,13 +3429,13 @@ pixmask_unaligned_box_row(struct pixman_inplace *pi,
 			  uint8_t covered)
 {
 	int16_t x1 = pixman_fixed_to_int(trap->left.p1.x);
-	int16_t fx1 = grid_coverage(SAMPLES_X, trap->left.p1.x);
+	uint16_t fx1 = grid_coverage(SAMPLES_X, trap->left.p1.x);
 	int16_t x2 = pixman_fixed_to_int(trap->right.p1.x);
-	int16_t fx2 = grid_coverage(SAMPLES_X, trap->right.p1.x);
+	uint16_t fx2 = grid_coverage(SAMPLES_X, trap->right.p1.x);
 
 	if (x1 < extents->x1)
 		x1 = extents->x1, fx1 = 0;
-	if (x2 > extents->x2)
+	if (x2 >= extents->x2)
 		x2 = extents->x2, fx2 = 0;
 
 	if (x1 < x2) {
@@ -3526,9 +3526,9 @@ composite_unaligned_boxes_inplace(CARD8 op,
 		extents = REGION_RECTS(&clip);
 		while (count--) {
 			int16_t y1 = pixman_fixed_to_int(t->top);
-			int16_t fy1 = pixman_fixed_frac(t->top);
+			uint16_t fy1 = pixman_fixed_frac(t->top);
 			int16_t y2 = pixman_fixed_to_int(t->bottom);
-			int16_t fy2 = pixman_fixed_frac(t->bottom);
+			uint16_t fy2 = pixman_fixed_frac(t->bottom);
 
 			if (y1 < extents->y1)
 				y1 = extents->y1, fy1 = 0;
@@ -5066,8 +5066,8 @@ trapezoid_span_inplace__x8r8g8b8(CARD8 op,
 		pixmap = get_drawable_pixmap(dst->pDrawable);
 		get_drawable_deltas(dst->pDrawable, pixmap, &dst_x, &dst_y);
 
-		DBG(("%s: format=%x, op=%d, color=%x\n",
-		     __FUNCTION__, dst->format, op, color));
+		DBG(("%s: format=%x, op=%d, lerp?=%d\n",
+		     __FUNCTION__, dst->format, op, lerp));
 
 		if (lerp) {
 			struct inplace inplace;

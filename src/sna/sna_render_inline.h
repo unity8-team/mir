@@ -47,6 +47,8 @@ static inline float pack_2s(int16_t x, int16_t y)
 
 static inline int batch_space(struct sna *sna)
 {
+	assert(sna->kgem.nbatch <= KGEM_BATCH_SIZE(&sna->kgem));
+	assert(sna->kgem.nbatch + KGEM_BATCH_RESERVED <= sna->kgem.surface);
 	return sna->kgem.surface - sna->kgem.nbatch - KGEM_BATCH_RESERVED;
 }
 
@@ -144,8 +146,8 @@ sna_render_picture_extents(PicturePtr p, BoxRec *box)
 {
 	box->x1 = p->pDrawable->x;
 	box->y1 = p->pDrawable->y;
-	box->x2 = p->pDrawable->x + p->pDrawable->width;
-	box->y2 = p->pDrawable->y + p->pDrawable->height;
+	box->x2 = bound(box->x1, p->pDrawable->width);
+	box->y2 = bound(box->y1, p->pDrawable->height);
 
 	if (box->x1 < p->pCompositeClip->extents.x1)
 		box->x1 = p->pCompositeClip->extents.x1;
@@ -156,6 +158,8 @@ sna_render_picture_extents(PicturePtr p, BoxRec *box)
 		box->x2 = p->pCompositeClip->extents.x2;
 	if (box->y2 > p->pCompositeClip->extents.y2)
 		box->y2 = p->pCompositeClip->extents.y2;
+
+	assert(box->x2 > box->x1 && box->y2 > box->y1);
 }
 
 static inline void
@@ -214,6 +218,25 @@ color_convert(uint32_t pixel,
 
 	DBG(("%s: dst=%08x [%08x]\n", __FUNCTION__, pixel, dst_format));
 	return pixel;
+}
+
+inline static bool dst_use_gpu(PixmapPtr pixmap)
+{
+	struct sna_pixmap *priv = sna_pixmap(pixmap);
+	if (priv == NULL)
+		return false;
+
+	if (priv->gpu_damage && !priv->clear &&
+	    (!priv->cpu || !priv->cpu_damage || kgem_bo_is_busy(priv->gpu_bo)))
+		return true;
+
+	return priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo);
+}
+
+inline static bool dst_is_cpu(PixmapPtr pixmap)
+{
+	struct sna_pixmap *priv = sna_pixmap(pixmap);
+	return priv == NULL || DAMAGE_IS_ALL(priv->cpu_damage);
 }
 
 #endif /* SNA_RENDER_INLINE_H */

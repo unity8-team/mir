@@ -1,3 +1,129 @@
+Release 2.20.13 (2012-11-11)
+============================
+Nothing but bug fixes. Many thanks to everyone who took the time to
+report their issues, and for their help in improving the driver.
+
+ * Sanity check the platform probe points to our expected i915 device
+   https://bugs.launchpad.net/ubuntu/+source/xserver-xorg-video-intel/+bug/1069031
+
+ * Prevent 16-bit overflow for computing the sample area to upload of
+   sources for render operations
+   https://bugs.freedesktop.org/show_bug.cgi?id=56324
+
+ * Clamp the drawable box for migration to prevent 16-bit overflow
+   https://bugs.freedesktop.org/show_bug.cgi?id=56591
+
+ * Disable RandR hotplug events if Xinerama is enabled and thereby prevent
+   a crash upon hotplug
+   https://bugs.freedesktop.org/show_bug.cgi?id=55260
+
+ * Call ValidatePicture before attempting to flatten the alphamaps
+   https://bugs.freedesktop.org/show_bug.cgi?id=56367
+
+ * Clip the trapezoid correctly if it ends on the boundary pixel
+   https://bugs.freedesktop.org/show_bug.cgi?id=56395
+
+ * Make sure the pipeline choice is propagated to the scanline wait
+   across a batch flush
+   https://bugs.freedesktop.org/show_bug.cgi?id=47597
+
+ * Set the valid drawable box when choosing placement of BLT composite ops
+   https://bugs.freedesktop.org/show_bug.cgi?id=47597
+
+ * Prevent use-after-free when promoting a partial-GPU bo to a full-GPU bo
+   https://bugs.freedesktop.org/show_bug.cgi?id=56591
+
+ * gen4 opacity spans require the per-rectangle workaround
+   https://bugs.freedesktop.org/show_bug.cgi?id=55500
+
+ * Prevent use of invalid damage pointers when redirecting rendering
+   https://bugs.freedesktop.org/show_bug.cgi?id=56785
+
+
+Release 2.20.12 (2012-10-20)
+============================
+More bug reports, more bug fixes! Perhaps the headline feature is
+that with a secure batches, coming to a 3.8 kernel near you, we may
+finally have the ability to perform updates to the scanout synchronized
+to the refresh rate on later SandyBridge and IvyBridge chipsets. It comes
+at quite a power cost as we need to keep the GPU out of its power saving
+modes, but it should allow legacy vsync to function at last. But this
+should allow us to address a longstanding issue with tearing on
+SandyBridge+.
+
+ * Fix component-alpha rendering on IvyBridge, for example subpixel
+   antialiased glyphs.
+   https://bugs.freedesktop.org/show_bug.cgi?id=56037
+
+ * Flush before some "pipelined" state changes on gen4. The evidence is
+   that the same flushes as required on gen5+ are also required for gen4.
+   https://bugs.freedesktop.org/show_bug.cgi?id=55627
+
+ * Prevent a potential crash when forcing a stall on a busy CPU bo
+   https://bugs.freedesktop.org/show_bug.cgi?id=56180
+
+[Release 2.20.11 contained a typo causing UXA to fail immediately.]
+
+Release 2.20.10 (2012-10-14)
+============================
+The last couple of weeks have been fairly retrospective, a dive into
+prehistory tidying up the earlier generations which lay languishing as
+the core progressed and lead to a number of annoying core bugs being
+fixed.
+
+ * Release DRM master earlier during shutdown so switching between
+   multiple X servers works automatically.
+   https://bugs.freedesktop.org/show_bug.cgi?id=55446
+
+ * Suppress error propagation from DRI2GetMSC and behave as if the pipe
+   was simply off to avoid unexpected errors in the clients
+   https://bugs.freedesktop.org/show_bug.cgi?id=55395
+
+ * A few fixes to i8xx batch emission, ensuring that the GPU is always
+   in a valid state.
+   https://bugs.freedesktop.org/show_bug.cgi?id=55455
+
+ * Prevent a use-after-free during UXA shutdown due to inspecting
+   the glamor flags after the glamor interface had been freed.
+
+ * Prevent a crash combining TearFree and rotations.
+   https://bugs.freedesktop.org/show_bug.cgi?id=55527
+
+ * Correct a missing damage upload along PutImage after using the CPU bo
+   as a source for the GPU.
+   https://bugs.freedesktop.org/show_bug.cgi?id=55508
+
+ * Fix compilation for older glibc without O_CLOEXEC
+   https://bugs.freedesktop.org/show_bug.cgi?id=55577
+
+ * Fix out-of-tree builds failing to recompile the gen4 assemblies
+   https://bugs.freedesktop.org/show_bug.cgi?id=55645
+
+ * Fix non-standard build host configuration handling for intel-gen4asm
+   https://bugs.freedesktop.org/show_bug.cgi?id=55646
+
+ * Fix a potential batch buffer overflow when replacing the last BLT fill
+   operation with a copy
+   https://bugs.freedesktop.org/show_bug.cgi?id=55700
+
+ * Flush the render pipeline more frequently on Ironlake as not all
+   pipelined state changes are.
+   https://bugs.freedesktop.org/show_bug.cgi?id=51422
+
+ * Detect when we need to read the destination for the background raster
+   op during fallbacks.
+   https://bugs.freedesktop.org/show_bug.cgi?id=55810
+
+ * Avoid a potential deference of an invalid CPU mmap after doing an
+   inplace tiled upload.
+   https://bugs.freedesktop.org/show_bug.cgi?id=55812
+
+ * Prevent sign extension when packing the upload data for CopyPlane
+   https://bugs.freedesktop.org/show_bug.cgi?id=55823
+
+ * Fix some render corruption with a UDL slave output and pageflipping
+
+
 Release 2.20.9 (2012-09-29)
 ===========================
 And so it came to pass that a critical bug was uncovered in UXA. The
@@ -13,7 +139,7 @@ the issue.
 
 In other news:
 
-  * Prepare for xorg-1.4, the api is being tweaked again.
+  * Prepare for xorg-1.14, the api is being tweaked again.
 
   * Handle early FreeScreen in UXA.
     https://bugs.freedesktop.org/show_bug.cgi?id=55346

@@ -507,6 +507,7 @@ static void __sna_damage_reduce(struct sna_damage *damage)
 	} else {
 		pixman_region16_t tmp;
 
+		assert(n == nboxes);
 		pixman_region_init_rects(&tmp, boxes, nboxes);
 		pixman_region_subtract(region, region, &tmp);
 		pixman_region_fini(&tmp);
@@ -1350,6 +1351,8 @@ static bool __sna_damage_intersect(struct sna_damage *damage,
 				   RegionPtr region, RegionPtr result)
 {
 	assert(damage && damage->mode != DAMAGE_ALL);
+	assert(RegionNotEmpty(region));
+
 	if (region->extents.x2 <= damage->extents.x1 ||
 	    region->extents.x1 >= damage->extents.x2)
 		return false;
