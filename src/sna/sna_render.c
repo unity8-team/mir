@@ -530,6 +530,7 @@ static struct kgem_bo *upload(struct sna *sna,
 		    channel->height == pixmap->drawable.height) {
 			assert(priv->gpu_damage == NULL);
 			assert(DAMAGE_IS_ALL(priv->cpu_damage));
+			assert(priv->gpu_bo == NULL);
 			kgem_proxy_bo_attach(bo, &priv->gpu_bo);
 		}
 	}
@@ -1165,6 +1166,7 @@ sna_render_picture_extract(struct sna *sna,
 				if (priv) {
 					assert(priv->gpu_damage == NULL);
 					assert(DAMAGE_IS_ALL(priv->cpu_damage));
+					assert(priv->gpu_bo == NULL);
 					kgem_proxy_bo_attach(bo, &priv->gpu_bo);
 				}
 			}

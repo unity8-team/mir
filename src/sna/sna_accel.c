@@ -4668,6 +4668,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 				DBG(("%s: caching upload for src bo\n",
 				     __FUNCTION__));
 				assert(src_priv->gpu_damage == NULL);
+				assert(src_priv->gpu_bo == NULL);
 				kgem_proxy_bo_attach(src_bo, &src_priv->gpu_bo);
 			}
 
