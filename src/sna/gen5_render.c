@@ -1215,12 +1215,12 @@ gen5_align_vertex(struct sna *sna, const struct sna_composite_op *op)
 	}
 }
 
-static void
+static bool
 gen5_emit_binding_table(struct sna *sna, uint16_t offset)
 {
 	if (!DBG_NO_STATE_CACHE &&
 	    sna->render_state.gen5.surface_table == offset)
-		return;
+		return false;
 
 	sna->render_state.gen5.surface_table = offset;
 
@@ -1232,6 +1232,8 @@ gen5_emit_binding_table(struct sna *sna, uint16_t offset)
 	OUT_BATCH(0);		/* sf */
 	/* Only the PS uses the binding table */
 	OUT_BATCH(offset*4);
+
+	return true;
 }
 
 static bool
@@ -1281,6 +1283,7 @@ gen5_emit_drawing_rectangle(struct sna *sna, const struct sna_composite_op *op)
 	    sna->render_state.gen5.drawrect_limit == limit &&
 	    sna->render_state.gen5.drawrect_offset == offset)
 		return;
+
 	sna->render_state.gen5.drawrect_offset = offset;
 	sna->render_state.gen5.drawrect_limit = limit;
 
@@ -1377,15 +1380,19 @@ gen5_emit_state(struct sna *sna,
 		const struct sna_composite_op *op,
 		uint16_t offset)
 {
+	bool flush;
+
 	/* drawrect must be first for Ironlake BLT workaround */
 	gen5_emit_drawing_rectangle(sna, op);
 
-	gen5_emit_binding_table(sna, offset);
-	if (gen5_emit_pipelined_pointers(sna, op, op->op, op->u.gen5.wm_kernel))
+	flush = gen5_emit_binding_table(sna, offset);
+	if (gen5_emit_pipelined_pointers(sna, op, op->op, op->u.gen5.wm_kernel)) {
 		gen5_emit_urb(sna);
+		flush = true;
+	}
 	gen5_emit_vertex_elements(sna, op);
 
-	if (kgem_bo_is_dirty(op->src.bo) || kgem_bo_is_dirty(op->mask.bo)) {
+	if (flush || kgem_bo_is_dirty(op->src.bo) || kgem_bo_is_dirty(op->mask.bo)) {
 		OUT_BATCH(MI_FLUSH);
 		kgem_clear_dirty(&sna->kgem);
 		kgem_bo_mark_dirty(op->dst.bo);
@@ -2123,7 +2130,6 @@ gen5_composite_fallback(struct sna *sna,
 			PicturePtr mask,
 			PicturePtr dst)
 {
-	struct sna_pixmap *priv;
 	PixmapPtr src_pixmap;
 	PixmapPtr mask_pixmap;
 	PixmapPtr dst_pixmap;
@@ -2162,8 +2168,7 @@ gen5_composite_fallback(struct sna *sna,
 	}
 
 	/* If anything is on the GPU, push everything out to the GPU */
-	priv = sna_pixmap(dst_pixmap);
-	if (priv && priv->gpu_damage && !priv->clear) {
+	if (dst_use_gpu(dst_pixmap)) {
 		DBG(("%s: dst is already on the GPU, try to use GPU\n",
 		     __FUNCTION__));
 		return false;
@@ -2198,7 +2203,7 @@ gen5_composite_fallback(struct sna *sna,
 
 	if (too_large(dst_pixmap->drawable.width,
 		      dst_pixmap->drawable.height) &&
-	    (priv == NULL || DAMAGE_IS_ALL(priv->cpu_damage))) {
+	    dst_is_cpu(dst_pixmap)) {
 		DBG(("%s: dst is on the CPU and too large\n", __FUNCTION__));
 		return true;
 	}
@@ -2626,21 +2631,35 @@ gen5_check_composite_spans(struct sna *sna,
 			   int16_t width, int16_t height,
 			   unsigned flags)
 {
-	if ((flags & COMPOSITE_SPANS_RECTILINEAR) == 0)
-		return false;
+	DBG(("%s: op=%d, width=%d, height=%d, flags=%x\n",
+	     __FUNCTION__, op, width, height, flags));
 
 	if (op >= ARRAY_SIZE(gen5_blend_op))
 		return false;
 
-	if (gen5_composite_fallback(sna, src, NULL, dst))
+	if (gen5_composite_fallback(sna, src, NULL, dst)) {
+		DBG(("%s: operation would fallback\n", __FUNCTION__));
 		return false;
+	}
 
-	if (need_tiling(sna, width, height)) {
-		if (!is_gpu(dst->pDrawable)) {
-			DBG(("%s: fallback, tiled operation not on GPU\n",
-			     __FUNCTION__));
-			return false;
+	if (need_tiling(sna, width, height) && !is_gpu(dst->pDrawable)) {
+		DBG(("%s: fallback, tiled operation not on GPU\n",
+		     __FUNCTION__));
+		return false;
+	}
+
+	if ((flags & (COMPOSITE_SPANS_RECTILINEAR | COMPOSITE_SPANS_INPLACE_HINT)) == 0) {
+		struct sna_pixmap *priv = sna_pixmap_from_drawable(dst->pDrawable);
+		assert(priv);
+
+		if ((priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo)) ||
+		    (priv->gpu_bo && kgem_bo_is_busy(priv->gpu_bo))) {
+			return true;
 		}
+
+		DBG(("%s: fallback, non-rectilinear spans to idle bo\n",
+		     __FUNCTION__));
+		return false;
 	}
 
 	return true;

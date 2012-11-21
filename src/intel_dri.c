@@ -725,6 +725,17 @@ static struct intel_pixmap *
 intel_exchange_pixmap_buffers(struct intel_screen_private *intel, PixmapPtr front, PixmapPtr back)
 {
 	struct intel_pixmap *new_front, *new_back;
+	RegionRec region;
+
+	/* Post damage on the front buffer so that listeners, such
+	 * as DisplayLink know take a copy and shove it over the USB.
+	 * also for sw cursors.
+	 */
+	region.extents.x1 = region.extents.y1 = 0;
+	region.extents.x2 = front->drawable.width;
+	region.extents.y2 = front->drawable.height;
+	region.data = NULL;
+	DamageRegionAppend(&front->drawable, &region);
 
 	new_front = intel_get_pixmap_private(back);
 	new_back = intel_get_pixmap_private(front);
@@ -735,19 +746,7 @@ intel_exchange_pixmap_buffers(struct intel_screen_private *intel, PixmapPtr fron
 
 	intel_glamor_exchange_buffers(intel, front, back);
 
-	/* Post damage on the new front buffer so that listeners, such
-	 * as DisplayLink know take a copy and shove it over the USB.
-	 */
-	{
-		RegionRec region;
-
-		region.extents.x1 = region.extents.y1 = 0;
-		region.extents.x2 = front->drawable.width;
-		region.extents.y2 = front->drawable.height;
-		region.data = NULL;
-		DamageRegionAppend(&front->drawable, &region);
-		DamageRegionProcessPending(&front->drawable);
-	}
+	DamageRegionProcessPending(&front->drawable);
 
 	return new_front;
 }
@@ -1516,6 +1515,17 @@ out_complete:
 static int dri2_server_generation;
 #endif
 
+static const char *dri_driver_name(intel_screen_private *intel)
+{
+	const char *s = xf86GetOptValString(intel->Options, OPTION_DRI);
+	Bool dummy;
+
+	if (s == NULL || xf86getBoolValue(&dummy, s))
+		return INTEL_INFO(intel)->gen < 40 ? "i915" : "i965";
+
+	return s;
+}
+
 Bool I830DRI2ScreenInit(ScreenPtr screen)
 {
 	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
@@ -1565,7 +1575,7 @@ Bool I830DRI2ScreenInit(ScreenPtr screen)
 	intel->deviceName = drmGetDeviceNameFromFd(intel->drmSubFD);
 	memset(&info, '\0', sizeof(info));
 	info.fd = intel->drmSubFD;
-	info.driverName = INTEL_INFO(intel)->gen < 40 ? "i915" : "i965";
+	info.driverName = dri_driver_name(intel);
 	info.deviceName = intel->deviceName;
 
 #if DRI2INFOREC_VERSION == 1

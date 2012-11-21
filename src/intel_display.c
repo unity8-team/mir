@@ -31,6 +31,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/poll.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
@@ -493,6 +494,8 @@ intel_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 			ErrorF("failed to add fb\n");
 			return FALSE;
 		}
+
+		drm_intel_bo_disable_reuse(intel->front_buffer);
 	}
 
 	saved_mode = crtc->mode;
@@ -596,6 +599,8 @@ intel_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 		drm_intel_bo_unreference(intel_crtc->rotate_bo);
 		return NULL;
 	}
+
+	drm_intel_bo_disable_reuse(intel_crtc->rotate_bo);
 
 	intel_crtc->rotate_pitch = rotate_pitch;
 	return intel_crtc->rotate_bo;
@@ -722,6 +727,8 @@ intel_set_scanout_pixmap(xf86CrtcPtr crtc, PixmapPtr ppix)
 	if (intel->front_buffer) {
 		ErrorF("have front buffer\n");
 	}
+
+	drm_intel_bo_disable_reuse(bo);
 
 	intel_crtc->scanout_pixmap = ppix;
 	return drmModeAddFB(intel->drmSubFD, ppix->drawable.width,
@@ -1435,7 +1442,6 @@ intel_output_init(ScrnInfoPtr scrn, struct intel_mode *mode, int num)
 		intel_output_backlight_init(output);
 
 	output->possible_crtcs = kencoder->possible_crtcs;
-	output->possible_clones = kencoder->possible_clones;
 	output->interlaceAllowed = TRUE;
 
 	intel_output->output = output;
@@ -1495,6 +1501,7 @@ intel_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	if (ret)
 		goto fail;
 
+	drm_intel_bo_disable_reuse(intel->front_buffer);
 	intel->front_pitch = pitch;
 	intel->front_tiling = tiling;
 
@@ -1556,6 +1563,7 @@ intel_do_pageflip(intel_screen_private *intel,
 			 new_front->handle, &new_fb_id))
 		goto error_out;
 
+	drm_intel_bo_disable_reuse(new_front);
 	intel_glamor_flush(intel);
 	intel_batch_submit(scrn);
 
@@ -1680,6 +1688,60 @@ drm_wakeup_handler(pointer data, int err, pointer p)
 		drmHandleEvent(mode->fd, &mode->event_context);
 }
 
+static drmModeEncoderPtr
+intel_get_kencoder(struct intel_mode *mode, int num)
+{
+	struct intel_output *iterator;
+	int id = mode->mode_res->encoders[num];
+
+	list_for_each_entry(iterator, &mode->outputs, link)
+		if (iterator->mode_encoder->encoder_id == id)
+			return iterator->mode_encoder;
+
+	return NULL;
+}
+
+/*
+ * Libdrm's possible_clones is a mask of encoders, Xorg's possible_clones is a
+ * mask of outputs. This function sets Xorg's possible_clones based on the
+ * values read from libdrm.
+ */
+static void
+intel_compute_possible_clones(ScrnInfoPtr scrn, struct intel_mode *mode)
+{
+	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(scrn);
+	struct intel_output *intel_output, *clone;
+	drmModeEncoderPtr cloned_encoder;
+	uint32_t mask;
+	int i, j, k;
+	CARD32 possible_clones;
+
+	for (i = 0; i < config->num_output; i++) {
+		possible_clones = 0;
+		intel_output = config->output[i]->driver_private;
+
+		mask = intel_output->mode_encoder->possible_clones;
+		for (j = 0; mask != 0; j++, mask >>= 1) {
+
+			if ((mask & 1) == 0)
+				continue;
+
+			cloned_encoder = intel_get_kencoder(mode, j);
+			if (!cloned_encoder)
+				continue;
+
+			for (k = 0; k < config->num_output; k++) {
+				clone = config->output[k]->driver_private;
+				if (clone->mode_encoder->encoder_id ==
+				    cloned_encoder->encoder_id)
+					possible_clones |= (1 << k);
+			}
+		}
+
+		config->output[i]->possible_clones = possible_clones;
+	}
+}
+
 Bool intel_mode_pre_init(ScrnInfoPtr scrn, int fd, int cpp)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
@@ -1715,6 +1777,8 @@ Bool intel_mode_pre_init(ScrnInfoPtr scrn, int fd, int cpp)
 
 	for (i = 0; i < mode->mode_res->count_connectors; i++)
 		intel_output_init(scrn, mode, i);
+
+	intel_compute_possible_clones(scrn, mode);
 
 #ifdef INTEL_PIXMAP_SHARING
 	xf86ProviderSetup(scrn, NULL, "Intel");
@@ -1765,6 +1829,26 @@ intel_mode_remove_fb(intel_screen_private *intel)
 		drmModeRmFB(mode->fd, mode->fb_id);
 		mode->fb_id = 0;
 	}
+}
+
+static Bool has_pending_events(int fd)
+{
+	struct pollfd pfd;
+	pfd.fd = fd;
+	pfd.events = POLLIN;
+	return poll(&pfd, 1, 0) == 1;
+}
+
+void
+intel_mode_close(intel_screen_private *intel)
+{
+	struct intel_mode *mode = intel->modes;
+
+	if (mode == NULL)
+		return;
+
+	while (has_pending_events(mode->fd))
+		drmHandleEvent(mode->fd, &mode->event_context);
 }
 
 void

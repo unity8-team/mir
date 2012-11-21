@@ -474,7 +474,7 @@ move_to_gpu(PixmapPtr pixmap, const BoxRec *box, bool blt)
 static struct kgem_bo *upload(struct sna *sna,
 			      struct sna_composite_channel *channel,
 			      PixmapPtr pixmap,
-			      BoxPtr box)
+			      const BoxRec *box)
 {
 	struct sna_pixmap *priv;
 	struct kgem_bo *bo;
@@ -587,8 +587,8 @@ sna_render_pixmap_bo(struct sna *sna,
 	} else {
 		box.x1 = x;
 		box.y1 = y;
-		box.x2 = x + w;
-		box.y2 = y + h;
+		box.x2 = bound(x, w);
+		box.y2 = bound(y, h);
 
 		if (channel->repeat == RepeatNone || channel->repeat == RepeatPad) {
 			if (box.x1 < 0)
@@ -661,8 +661,8 @@ static int sna_render_picture_downsample(struct sna *sna,
 
 	box.x1 = x;
 	box.y1 = y;
-	box.x2 = x + w;
-	box.y2 = y + h;
+	box.x2 = bound(x, w);
+	box.y2 = bound(y, h);
 	if (channel->transform) {
 		pixman_vector_t v;
 
@@ -843,8 +843,8 @@ sna_render_pixmap_partial(struct sna *sna,
 
 	box.x1 = x;
 	box.y1 = y;
-	box.x2 = x + w;
-	box.y2 = y + h;
+	box.x2 = bound(x, w);
+	box.y2 = bound(y, h);
 	DBG(("%s: unaligned box (%d, %d), (%d, %d)\n",
 	     __FUNCTION__, box.x1, box.y1, box.x2, box.y2));
 
@@ -934,8 +934,8 @@ sna_render_picture_partial(struct sna *sna,
 
 	box.x1 = x;
 	box.y1 = y;
-	box.x2 = x + w;
-	box.y2 = y + h;
+	box.x2 = bound(x, w);
+	box.y2 = bound(y, h);
 	if (channel->transform)
 		pixman_transform_bounds(channel->transform, &box);
 
@@ -1077,8 +1077,8 @@ sna_render_picture_extract(struct sna *sna,
 
 	ox = box.x1 = x;
 	oy = box.y1 = y;
-	box.x2 = x + w;
-	box.y2 = y + h;
+	box.x2 = bound(x, w);
+	box.y2 = bound(y, h);
 	if (channel->transform) {
 		pixman_vector_t v;
 
@@ -1334,6 +1334,7 @@ sna_render_picture_flatten(struct sna *sna,
 	assert(w <= sna->render.max_3d_size && h <= sna->render.max_3d_size);
 
 	/* XXX shortcut a8? */
+	DBG(("%s: %dx%d\n", __FUNCTION__, w, h));
 
 	pixmap = screen->CreatePixmap(screen, w, h, 32, SNA_CREATE_SCRATCH);
 	if (pixmap == NullPixmap)
@@ -1345,6 +1346,8 @@ sna_render_picture_flatten(struct sna *sna,
 	screen->DestroyPixmap(pixmap);
 	if (tmp == NULL)
 		return 0;
+
+	ValidatePicture(tmp);
 
 	old_format = picture->format;
 	picture->format = PICT_FORMAT(PICT_FORMAT_BPP(picture->format),
@@ -1627,8 +1630,8 @@ sna_render_picture_convert(struct sna *sna,
 	if (w != 0 && h != 0) {
 		box.x1 = x;
 		box.y1 = y;
-		box.x2 = x + w;
-		box.y2 = y + h;
+		box.x2 = bound(x, w);
+		box.y2 = bound(y, h);
 
 		if (channel->transform) {
 			DBG(("%s: has transform, converting whole surface\n",
@@ -1764,9 +1767,9 @@ sna_render_composite_redirect(struct sna *sna,
 		     __FUNCTION__, op->dst.bo->pitch, sna->render.max_3d_pitch));
 
 		box.x1 = x;
-		box.x2 = x + width;
+		box.x2 = bound(x, width);
 		box.y1 = y;
-		box.y2 = y + height;
+		box.y2 = bound(y, height);
 
 		/* Ensure we align to an even tile row */
 		if (op->dst.bo->tiling) {
@@ -1860,8 +1863,8 @@ sna_render_composite_redirect(struct sna *sna,
 
 	t->box.x1 = x + op->dst.x;
 	t->box.y1 = y + op->dst.y;
-	t->box.x2 = t->box.x1 + width;
-	t->box.y2 = t->box.y1 + height;
+	t->box.x2 = bound(t->box.x1, width);
+	t->box.y2 = bound(t->box.y1, height);
 
 	DBG(("%s: original box (%d, %d), (%d, %d)\n",
 	     __FUNCTION__, t->box.x1, t->box.y1, t->box.x2, t->box.y2));
@@ -1911,11 +1914,13 @@ sna_render_composite_redirect_done(struct sna *sna,
 			assert(ok);
 		}
 		if (t->damage) {
-			DBG(("%s: combining damage, offset=(%d, %d)\n",
-			     __FUNCTION__, t->box.x1, t->box.y1));
-			sna_damage_combine(t->real_damage, t->damage,
+			DBG(("%s: combining damage (all? %d), offset=(%d, %d)\n",
+			     __FUNCTION__, DAMAGE_IS_ALL(t->damage),
+			     t->box.x1, t->box.y1));
+			sna_damage_combine(t->real_damage,
+					   DAMAGE_PTR(t->damage),
 					   t->box.x1, t->box.y1);
-			__sna_damage_destroy(t->damage);
+			__sna_damage_destroy(DAMAGE_PTR(t->damage));
 		}
 
 		kgem_bo_destroy(&sna->kgem, op->dst.bo);

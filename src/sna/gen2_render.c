@@ -503,6 +503,35 @@ static void gen2_emit_invariant(struct sna *sna)
 	      ENABLE_COLOR_WRITE |
 	      ENABLE_TEX_CACHE);
 
+	BATCH(_3DSTATE_STIPPLE);
+
+	BATCH(_3DSTATE_MAP_BLEND_OP_CMD(0) |
+	      TEXPIPE_COLOR |
+	      ENABLE_TEXOUTPUT_WRT_SEL |
+	      TEXOP_OUTPUT_CURRENT |
+	      DISABLE_TEX_CNTRL_STAGE |
+	      TEXOP_SCALE_1X |
+	      TEXOP_MODIFY_PARMS | TEXOP_LAST_STAGE |
+	      TEXBLENDOP_ARG1);
+	BATCH(_3DSTATE_MAP_BLEND_OP_CMD(0) |
+	      TEXPIPE_ALPHA |
+	      ENABLE_TEXOUTPUT_WRT_SEL |
+	      TEXOP_OUTPUT_CURRENT |
+	      TEXOP_SCALE_1X | TEXOP_MODIFY_PARMS |
+	      TEXBLENDOP_ARG1);
+	BATCH(_3DSTATE_MAP_BLEND_ARG_CMD(0) |
+	      TEXPIPE_COLOR |
+	      TEXBLEND_ARG1 |
+	      TEXBLENDARG_MODIFY_PARMS |
+	      TEXBLENDARG_DIFFUSE);
+	BATCH(_3DSTATE_MAP_BLEND_ARG_CMD(0) |
+	      TEXPIPE_ALPHA |
+	      TEXBLEND_ARG1 |
+	      TEXBLENDARG_MODIFY_PARMS |
+	      TEXBLENDARG_DIFFUSE);
+
+#define INVARIANT_SIZE 35
+
 	sna->render_state.gen2.need_invariant = false;
 }
 
@@ -511,9 +540,9 @@ gen2_get_batch(struct sna *sna)
 {
 	kgem_set_mode(&sna->kgem, KGEM_RENDER);
 
-	if (!kgem_check_batch(&sna->kgem, 30+40)) {
+	if (!kgem_check_batch(&sna->kgem, INVARIANT_SIZE+40)) {
 		DBG(("%s: flushing batch: size %d > %d\n",
-		     __FUNCTION__, 30+40,
+		     __FUNCTION__, INVARIANT_SIZE+40,
 		     sna->kgem.surface-sna->kgem.nbatch));
 		kgem_submit(&sna->kgem);
 		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
@@ -953,6 +982,7 @@ static void gen2_magic_ca_pass(struct sna *sna,
 	dst = sna->kgem.batch + sna->kgem.nbatch;
 	n = 1 + sna->render.vertex_index;
 	sna->kgem.nbatch += n;
+	assert(sna->kgem.nbatch <= KGEM_BATCH_SIZE(&sna->kgem));
 	while (n--)
 		*dst++ = *src++;
 }
@@ -983,6 +1013,7 @@ inline static int gen2_get_rectangles(struct sna *sna,
 	     __FUNCTION__, want, op->floats_per_vertex, rem));
 
 	assert(op->floats_per_vertex);
+	assert(op->floats_per_rect == 3 * op->floats_per_vertex);
 
 	need = 1;
 	size = op->floats_per_rect;
@@ -1402,25 +1433,40 @@ gen2_composite_picture(struct sna *sna,
 static bool
 gen2_composite_set_target(struct sna *sna,
 			  struct sna_composite_op *op,
-			  PicturePtr dst)
+			  PicturePtr dst,
+			  int x, int y, int w, int h)
 {
-	struct sna_pixmap *priv;
+	BoxRec box;
 
 	op->dst.pixmap = get_drawable_pixmap(dst->pDrawable);
 	op->dst.format = dst->format;
-	op->dst.width  = op->dst.pixmap->drawable.width;
+	op->dst.width = op->dst.pixmap->drawable.width;
 	op->dst.height = op->dst.pixmap->drawable.height;
 
-	priv = sna_pixmap_force_to_gpu(op->dst.pixmap, MOVE_WRITE | MOVE_READ);
-	if (priv == NULL)
+	if (w && h) {
+		box.x1 = x;
+		box.y1 = y;
+		box.x2 = x + w;
+		box.y2 = y + h;
+	} else
+		sna_render_picture_extents(dst, &box);
+
+	op->dst.bo = sna_drawable_use_bo (dst->pDrawable,
+					  PREFER_GPU | FORCE_GPU | RENDER_GPU,
+					  &box, &op->damage);
+	if (op->dst.bo == NULL)
 		return false;
 
-	if (priv->gpu_bo->pitch < 8) {
+	if (op->dst.bo->pitch < 8) {
+		struct sna_pixmap *priv;
 		struct kgem_bo *bo;
 
-		if (priv->pinned)
+		priv = sna_pixmap_move_to_gpu (op->dst.pixmap,
+					       MOVE_READ | MOVE_WRITE);
+		if (priv == NULL || priv->pinned)
 			return false;
 
+		assert(op->dst.bo == priv->gpu_bo);
 		bo = kgem_replace_bo(&sna->kgem, priv->gpu_bo,
 				     op->dst.width, op->dst.height, 8,
 				     op->dst.pixmap->drawable.bitsPerPixel);
@@ -1429,15 +1475,26 @@ gen2_composite_set_target(struct sna *sna,
 
 		kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
 		priv->gpu_bo = bo;
-	}
 
-	op->dst.bo = priv->gpu_bo;
-	op->damage = &priv->gpu_damage;
-	if (sna_damage_is_all(&priv->gpu_damage, op->dst.width, op->dst.height))
-		op->damage = NULL;
+		op->dst.bo = priv->gpu_bo;
+		op->damage = &priv->gpu_damage;
+		if (sna_damage_is_all(op->damage,
+				      op->dst.width, op->dst.height))
+			op->damage = NULL;
+	}
 
 	get_drawable_deltas(dst->pDrawable, op->dst.pixmap,
 			    &op->dst.x, &op->dst.y);
+
+	DBG(("%s: pixmap=%p, format=%08x, size=%dx%d, pitch=%d, delta=(%d,%d),damage=%p\n",
+	     __FUNCTION__,
+	     op->dst.pixmap, (int)op->dst.format,
+	     op->dst.width, op->dst.height,
+	     op->dst.bo->pitch,
+	     op->dst.x, op->dst.y,
+	     op->damage ? *op->damage : (void *)-1));
+
+	assert(op->dst.bo->proxy == NULL);
 	return true;
 }
 
@@ -1557,7 +1614,6 @@ gen2_composite_fallback(struct sna *sna,
 			PicturePtr mask,
 			PicturePtr dst)
 {
-	struct sna_pixmap *priv;
 	PixmapPtr src_pixmap;
 	PixmapPtr mask_pixmap;
 	PixmapPtr dst_pixmap;
@@ -1596,8 +1652,7 @@ gen2_composite_fallback(struct sna *sna,
 	}
 
 	/* If anything is on the GPU, push everything out to the GPU */
-	priv = sna_pixmap(dst_pixmap);
-	if (priv && priv->gpu_damage && !priv->clear) {
+	if (dst_use_gpu(dst_pixmap)) {
 		DBG(("%s: dst is already on the GPU, try to use GPU\n",
 		     __FUNCTION__));
 		return false;
@@ -1632,7 +1687,7 @@ gen2_composite_fallback(struct sna *sna,
 
 	if (too_large(dst_pixmap->drawable.width,
 		      dst_pixmap->drawable.height) &&
-	    (priv == NULL || DAMAGE_IS_ALL(priv->cpu_damage))) {
+	    dst_is_cpu(dst_pixmap)) {
 		DBG(("%s: dst is on the CPU and too large\n", __FUNCTION__));
 		return true;
 	}
@@ -1716,17 +1771,6 @@ gen2_render_composite(struct sna *sna,
 		return false;
 	}
 
-#if NO_COMPOSITE
-	if (mask)
-		return false;
-
-	return sna_blt_composite(sna, op,
-				 src, dst,
-				 src_x, src_y,
-				 dst_x, dst_y,
-				 width, height, tmp, true);
-#endif
-
 	/* Try to use the BLT engine unless it implies a
 	 * 3D -> 2D context switch.
 	 */
@@ -1751,15 +1795,16 @@ gen2_render_composite(struct sna *sna,
 					    width,  height,
 					    tmp);
 
-	if (!gen2_composite_set_target(sna, tmp, dst)) {
+	if (!gen2_composite_set_target(sna, tmp, dst,
+				       dst_x, dst_y, width, height)) {
 		DBG(("%s: unable to set render target\n",
 		     __FUNCTION__));
 		return false;
 	}
 
-	sna_render_reduce_damage(tmp, dst_x, dst_y, width, height);
-
 	tmp->op = op;
+
+	sna_render_composite_redirect_init(tmp);
 	if (too_large(tmp->dst.width, tmp->dst.height) ||
 	    tmp->dst.bo->pitch > MAX_3D_PITCH) {
 		if (!sna_render_composite_redirect(sna, tmp,
@@ -1773,6 +1818,8 @@ gen2_render_composite(struct sna *sna,
 				       dst_x, dst_y,
 				       dst->polyMode == PolyModePrecise)) {
 	case -1:
+		DBG(("%s: fallback -- unable to prepare source\n",
+		     __FUNCTION__));
 		goto cleanup_dst;
 	case 0:
 		gen2_composite_solid_init(sna, &tmp->src, 0);
@@ -1796,6 +1843,8 @@ gen2_render_composite(struct sna *sna,
 						       dst_x,  dst_y,
 						       dst->polyMode == PolyModePrecise)) {
 			case -1:
+				DBG(("%s: fallback -- unable to prepare mask\n",
+				     __FUNCTION__));
 				goto cleanup_src;
 			case 0:
 				gen2_composite_solid_init(sna, &tmp->mask, 0);
@@ -1812,8 +1861,12 @@ gen2_render_composite(struct sna *sna,
 			tmp->has_component_alpha = true;
 			if (gen2_blend_op[op].src_alpha &&
 			    (gen2_blend_op[op].src_blend != BLENDFACTOR_ZERO)) {
-				if (op != PictOpOver)
-					return false;
+				if (op != PictOpOver) {
+					DBG(("%s: fallback -- unsupported CA blend (src_blend=%d)\n",
+					     __FUNCTION__,
+					     gen2_blend_op[op].src_blend));
+					goto cleanup_dst;
+				}
 
 				tmp->need_magic_ca_pass = true;
 				tmp->op = PictOpOutReverse;
@@ -1860,8 +1913,11 @@ gen2_render_composite(struct sna *sna,
 		kgem_submit(&sna->kgem);
 		if (!kgem_check_bo(&sna->kgem,
 				   tmp->dst.bo, tmp->src.bo, tmp->mask.bo,
-				   NULL))
+				   NULL)) {
+			DBG(("%s: fallback, operation does not fit into GTT\n",
+			     __FUNCTION__));
 			goto cleanup_mask;
+		}
 	}
 
 	gen2_emit_composite_state(sna, tmp);
@@ -2236,14 +2292,16 @@ gen2_render_composite_spans(struct sna *sna,
 						  width, height, flags, tmp);
 	}
 
-	if (!gen2_composite_set_target(sna, &tmp->base, dst)) {
+	if (!gen2_composite_set_target(sna, &tmp->base, dst,
+				       dst_x, dst_y, width, height)) {
 		DBG(("%s: unable to set render target\n",
 		     __FUNCTION__));
 		return false;
 	}
-	sna_render_reduce_damage(&tmp->base, dst_x, dst_y, width, height);
 
 	tmp->base.op = op;
+
+	sna_render_composite_redirect_init(&tmp->base);
 	if (too_large(tmp->base.dst.width, tmp->base.dst.height) ||
 	    tmp->base.dst.bo->pitch > MAX_3D_PITCH) {
 		if (!sna_render_composite_redirect(sna, &tmp->base,
@@ -3144,7 +3202,9 @@ bool gen2_render_init(struct sna *sna)
 	/* Use the BLT (and overlay) for everything except when forced to
 	 * use the texture combiners.
 	 */
+#if !NO_COMPOSITE
 	render->composite = gen2_render_composite;
+#endif
 #if !NO_COMPOSITE_SPANS
 	render->check_composite_spans = gen2_check_composite_spans;
 	render->composite_spans = gen2_render_composite_spans;

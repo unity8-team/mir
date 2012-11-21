@@ -112,9 +112,6 @@ static void uxa_unrealize_glyph_caches(ScreenPtr pScreen)
 	uxa_screen_t *uxa_screen = uxa_get_screen(pScreen);
 	int i;
 
-	if (uxa_screen->info->flags & UXA_USE_GLAMOR)
-		return;
-
 	if (!uxa_screen->glyph_cache_initialized)
 		return;
 

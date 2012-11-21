@@ -23,7 +23,7 @@
 # Initialize Autoconf
 AC_PREREQ([2.60])
 AC_INIT([xf86-video-intel],
-        [2.20.9],
+        [2.20.13],
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
         [xf86-video-intel])
 AC_CONFIG_SRCDIR([Makefile.am])
@@ -81,8 +81,28 @@ else
   fi
 fi
 
+AC_ARG_ENABLE(gen4asm,
+              AS_HELP_STRING([--enable-gen4asm],
+			     [Enable rebuilding the gen4 assembly files [default=no]]),
+              [ASM="$enableval"],
+              [ASM=no])
 
-PKG_CHECK_MODULES(GEN4ASM, [intel-gen4asm >= 1.2], [gen4asm=yes], [gen4asm=no])
+gen4asm=no
+if test x$ASM != "xno"; then
+	PKG_CHECK_MODULES(GEN4ASM, [intel-gen4asm >= 1.2], [gen4asm=yes], [gen4asm=no])
+	if test x$ASM = "xyes" -a x$gen4asm != "xyes"; then
+		AC_MSG_ERROR([intel-gen4asm support requested but not found])
+	fi
+	if test x$gen4asm = "xyes"; then
+		AC_MSG_CHECKING([path to use for intel-gen4asm])
+		INTEL_GEN4ASM="`pkg-config intel-gen4asm --variable=exec_prefix`/bin/intel-gen4asm"
+		if ! test -e "$INTEL_GEN4ASM"; then
+			AC_MSG_ERROR([intel-gen4asm enabled, but not found. Tried '$INTEL_GEN4ASM'.])
+		fi
+		AC_MSG_RESULT([$INTEL_GEN4ASM])
+		AC_SUBST([INTEL_GEN4ASM])
+	fi
+fi
 AM_CONDITIONAL(HAVE_GEN4ASM, test x$gen4asm = xyes)
 
 AC_ARG_ENABLE(udev,
@@ -270,6 +290,24 @@ AC_ARG_ENABLE(userptr,
 AM_CONDITIONAL(USE_USERPTR, test x$USERPTR = xyes)
 if test "x$USERPTR" = xyes; then
 	AC_DEFINE(USE_USERPTR,1,[Assume USERPTR support])
+fi
+
+AC_ARG_ENABLE(fast-reloc,
+	      AS_HELP_STRING([--enable-fast-reloc],
+			     [Enable use of "fast reloc" (experimental) [default=no]]),
+	      [FASTRELOC="$enableval"],
+	      [FASTRELOC=no])
+if test "x$FASTRELOC" = xyes; then
+	AC_DEFINE(USE_FASTRELOC,1,[Assume "fast reloc" support])
+fi
+
+AC_ARG_ENABLE(handle-lut,
+	      AS_HELP_STRING([--enable-handle-lut],
+			     [Enable use of "handle LUT" (experimental) [default=no]]),
+	      [HANDLE_LUT="$enableval"],
+	      [HANDLE_LUT=no])
+if test "x$HANDLE_LUT" = xyes; then
+	AC_DEFINE(USE_HANDLE_LUT,1,[Assume "handle LUT" support])
 fi
 
 AC_ARG_ENABLE(async-swap,

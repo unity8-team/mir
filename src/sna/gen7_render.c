@@ -189,7 +189,8 @@ static const struct blendinfo {
 #define GEN7_BLEND_STATE_PADDED_SIZE	ALIGN(sizeof(struct gen7_blend_state), 64)
 
 #define BLEND_OFFSET(s, d) \
-	(((s) * GEN7_BLENDFACTOR_COUNT + (d)) * GEN7_BLEND_STATE_PADDED_SIZE)
+	((d != GEN7_BLENDFACTOR_ZERO) << 15 | \
+	 (((s) * GEN7_BLENDFACTOR_COUNT + (d)) * GEN7_BLEND_STATE_PADDED_SIZE))
 
 #define NO_BLEND BLEND_OFFSET(GEN7_BLENDFACTOR_ONE, GEN7_BLENDFACTOR_ZERO)
 #define CLEAR BLEND_OFFSET(GEN7_BLENDFACTOR_ZERO, GEN7_BLENDFACTOR_ZERO)
@@ -213,7 +214,8 @@ static const struct blendinfo {
 		       SAMPLER_FILTER_NEAREST, SAMPLER_EXTEND_NONE)
 
 #define GEN7_SAMPLER(f) (((f) >> 16) & 0xfff0)
-#define GEN7_BLEND(f) (((f) >> 0) & 0xfff0)
+#define GEN7_BLEND(f) (((f) >> 0) & 0x7ff0)
+#define GEN7_READS_DST(f) (((f) >> 15) & 1)
 #define GEN7_KERNEL(f) (((f) >> 16) & 0xf)
 #define GEN7_VERTEX(f) (((f) >> 0) & 0xf)
 #define GEN7_SET_FLAGS(S, B, K, V)  (((S) | (K)) << 16 | ((B) | (V)))
@@ -1059,8 +1061,7 @@ gen7_emit_state(struct sna *sna,
 	if (need_stall)
 		gen7_emit_pipe_stall(sna);
 
-	sna->render_state.gen7.emit_flush =
-		GEN7_BLEND(op->u.gen7.flags) != NO_BLEND;
+	sna->render_state.gen7.emit_flush = GEN7_READS_DST(op->u.gen7.flags);
 }
 
 static void gen7_magic_ca_pass(struct sna *sna,
@@ -1076,7 +1077,9 @@ static void gen7_magic_ca_pass(struct sna *sna,
 
 	gen7_emit_pipe_invalidate(sna);
 
-	gen7_emit_cc(sna, gen7_get_blend(PictOpAdd, true, op->dst.format));
+	gen7_emit_cc(sna,
+		     GEN7_BLEND(gen7_get_blend(PictOpAdd, true,
+					       op->dst.format)));
 	gen7_emit_wm(sna,
 		     gen7_choose_composite_kernel(PictOpAdd,
 						  true, true,
@@ -2430,10 +2433,11 @@ gen7_composite_set_target(struct sna *sna,
 
 	op->dst.pixmap = get_drawable_pixmap(dst->pDrawable);
 	op->dst.format = dst->format;
-	op->dst.width = op->dst.pixmap->drawable.width;
+	op->dst.width  = op->dst.pixmap->drawable.width;
 	op->dst.height = op->dst.pixmap->drawable.height;
 
-	if (w && h) {
+	if (w | h) {
+		assert(w && h);
 		box.x1 = x;
 		box.y1 = y;
 		box.x2 = x + w;
@@ -2441,9 +2445,9 @@ gen7_composite_set_target(struct sna *sna,
 	} else
 		sna_render_picture_extents(dst, &box);
 
-	op->dst.bo = sna_drawable_use_bo (dst->pDrawable,
-					  PREFER_GPU | FORCE_GPU | RENDER_GPU,
-					  &box, &op->damage);
+	op->dst.bo = sna_drawable_use_bo(dst->pDrawable,
+					 PREFER_GPU | FORCE_GPU | RENDER_GPU,
+					 &box, &op->damage);
 	if (op->dst.bo == NULL)
 		return false;
 
@@ -2600,7 +2604,6 @@ gen7_composite_fallback(struct sna *sna,
 			PicturePtr mask,
 			PicturePtr dst)
 {
-	struct sna_pixmap *priv;
 	PixmapPtr src_pixmap;
 	PixmapPtr mask_pixmap;
 	PixmapPtr dst_pixmap;
@@ -2639,10 +2642,7 @@ gen7_composite_fallback(struct sna *sna,
 	}
 
 	/* If anything is on the GPU, push everything out to the GPU */
-	priv = sna_pixmap(dst_pixmap);
-	if (priv &&
-	    ((priv->gpu_damage && !priv->clear) ||
-	     (priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo)))) {
+	if (dst_use_gpu(dst_pixmap)) {
 		DBG(("%s: dst is already on the GPU, try to use GPU\n",
 		     __FUNCTION__));
 		return false;
@@ -2677,7 +2677,7 @@ gen7_composite_fallback(struct sna *sna,
 
 	if (too_large(dst_pixmap->drawable.width,
 		      dst_pixmap->drawable.height) &&
-	    (priv == NULL || DAMAGE_IS_ALL(priv->cpu_damage))) {
+	    dst_is_cpu(dst_pixmap)) {
 		DBG(("%s: dst is on the CPU and too large\n", __FUNCTION__));
 		return true;
 	}
@@ -3326,7 +3326,7 @@ gen7_emit_copy_state(struct sna *sna,
 		offset = sna->render_state.gen7.surface_table;
 	}
 
-	assert(GEN7_BLEND(op->u.gen7.flags) == NO_BLEND);
+	assert(!GEN7_READS_DST(op->u.gen7.flags));
 	gen7_emit_state(sna, op, offset);
 }
 
@@ -3796,6 +3796,7 @@ gen7_render_fill_boxes(struct sna *sna,
 	tmp.dst.format = format;
 	tmp.dst.bo = dst_bo;
 	tmp.dst.x = tmp.dst.y = 0;
+	tmp.damage = NULL;
 
 	sna_render_composite_redirect_init(&tmp);
 	if (too_large(dst->drawable.width, dst->drawable.height)) {

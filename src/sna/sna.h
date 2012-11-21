@@ -114,7 +114,6 @@ struct sna_pixmap {
 	void *ptr;
 
 	struct list list;
-	struct list inactive;
 
 	uint32_t stride;
 	uint32_t clear_color;
@@ -185,7 +184,6 @@ enum {
 	FLUSH_TIMER = 0,
 	THROTTLE_TIMER,
 	EXPIRE_TIMER,
-	INACTIVE_TIMER,
 #if DEBUG_MEMORY
 	DEBUG_MEMORY_TIMER,
 #endif
@@ -213,7 +211,6 @@ struct sna {
 
 	struct list flush_pixmaps;
 	struct list active_pixmaps;
-	struct list inactive_clock[2];
 
 	PixmapPtr front;
 	PixmapPtr freed_pixmap;
@@ -371,6 +368,7 @@ static inline void sna_dri_vblank_handler(struct sna *sna, struct drm_event_vbla
 static inline void sna_dri_destroy_window(WindowPtr win) { }
 static inline void sna_dri_close(struct sna *sna, ScreenPtr pScreen) { }
 #endif
+void sna_dri_pixmap_update_bo(struct sna *sna, PixmapPtr pixmap);
 
 extern int sna_crtc_to_pipe(xf86CrtcPtr crtc);
 extern int sna_crtc_to_plane(xf86CrtcPtr crtc);
@@ -482,6 +480,24 @@ struct kgem_bo *sna_pixmap_change_tiling(PixmapPtr pixmap, uint32_t tiling);
 struct kgem_bo *
 sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
 		    struct sna_damage ***damage);
+
+inline static int16_t bound(int16_t a, uint16_t b)
+{
+	int v = (int)a + (int)b;
+	if (v > MAXSHORT)
+		return MAXSHORT;
+	return v;
+}
+
+inline static int16_t clamp(int16_t a, int16_t b)
+{
+	int v = (int)a + (int)b;
+	if (v > MAXSHORT)
+		return MAXSHORT;
+	if (v < MINSHORT)
+		return MINSHORT;
+	return v;
+}
 
 static inline bool
 box_inplace(PixmapPtr pixmap, const BoxRec *box)

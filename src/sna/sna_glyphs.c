@@ -819,6 +819,7 @@ glyphs_via_mask(struct sna *sna,
 	PicturePtr glyph_atlas, mask;
 	int16_t x, y, width, height;
 	int error;
+	bool ret = false;
 	BoxRec box;
 
 	if (NO_GLYPHS_VIA_MASK)
@@ -1141,11 +1142,12 @@ next_glyph:
 		      0, 0,
 		      box.x1, box.y1,
 		      width, height);
+	ret = true;
 err_mask:
 	FreePicture(mask, 0);
 err_pixmap:
 	sna_pixmap_destroy(pixmap);
-	return TRUE;
+	return ret;
 }
 
 static PictFormatPtr
@@ -1716,6 +1718,7 @@ glyphs_via_image(struct sna *sna,
 	int16_t x, y, width, height;
 	pixman_image_t *mask_image;
 	int error;
+	bool ret = false;
 	BoxRec box;
 
 	if (NO_GLYPHS_VIA_MASK)
@@ -1929,9 +1932,10 @@ next_image:
 		      box.x1, box.y1,
 		      width, height);
 	FreePicture(mask, 0);
+	ret = true;
 err_pixmap:
 	sna_pixmap_destroy(pixmap);
-	return TRUE;
+	return ret;
 }
 
 void

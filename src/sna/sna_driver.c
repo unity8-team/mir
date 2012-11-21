@@ -363,6 +363,12 @@ static void sna_setup_capabilities(ScrnInfoPtr scrn, int fd)
 #endif
 }
 
+static Bool sna_option_cast_to_bool(struct sna *sna, int id, Bool val)
+{
+	xf86getBoolValue(&val, xf86GetOptValString(sna->Options, id));
+	return val;
+}
+
 /**
  * This is called before ScreenInit to do any require probing of screen
  * configuration.
@@ -543,7 +549,7 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 	xf86SetDpi(scrn, 0, 0);
 
 	sna->dri_available = false;
-	if (xf86ReturnOptValBool(sna->Options, OPTION_DRI, TRUE))
+	if (sna_option_cast_to_bool(sna, OPTION_DRI, TRUE))
 		sna->dri_available = !!xf86LoadSubModule(scrn, "dri2");
 
 	return TRUE;
@@ -639,11 +645,14 @@ sna_uevent_init(ScrnInfoPtr scrn)
 
 	DBG(("%s\n", __FUNCTION__));
 
-	if (!xf86GetOptValBool(sna->Options, OPTION_HOTPLUG, &hotplug)) {
-		from = X_DEFAULT;
-		hotplug = TRUE;
-	}
+	/* RandR will be disabled if Xinerama is active, and so generating
+	 * RR hotplug events is then verboten.
+	 */
+	if (!dixPrivateKeyRegistered(rrPrivKey))
+		return;
 
+	if (!xf86GetOptValBool(sna->Options, OPTION_HOTPLUG, &hotplug))
+		from = X_DEFAULT, hotplug = TRUE;
 	xf86DrvMsg(scrn->scrnIndex, from, "hotplug detection: \"%s\"\n",
 			hotplug ? "enabled" : "disabled");
 	if (!hotplug)
@@ -654,16 +663,14 @@ sna_uevent_init(ScrnInfoPtr scrn)
 		return;
 
 	mon = udev_monitor_new_from_netlink(u, "udev");
-
 	if (!mon) {
 		udev_unref(u);
 		return;
 	}
 
 	if (udev_monitor_filter_add_match_subsystem_devtype(mon,
-				"drm",
-				"drm_minor") < 0 ||
-			udev_monitor_enable_receiving(mon) < 0)
+				"drm", "drm_minor") < 0 ||
+	    udev_monitor_enable_receiving(mon) < 0)
 	{
 		udev_monitor_unref(mon);
 		udev_unref(u);
@@ -681,23 +688,29 @@ sna_uevent_init(ScrnInfoPtr scrn)
 	}
 
 	sna->uevent_monitor = mon;
+
+	DBG(("%s: installed uvent handler\n", __FUNCTION__));
 }
 
 static void
 sna_uevent_fini(ScrnInfoPtr scrn)
 {
 	struct sna *sna = to_sna(scrn);
+	struct udev *u;
 
-	if (sna->uevent_handler) {
-		struct udev *u = udev_monitor_get_udev(sna->uevent_monitor);
+	if (sna->uevent_handler == NULL)
+		return;
 
-		xf86RemoveGeneralHandler(sna->uevent_handler);
+	xf86RemoveGeneralHandler(sna->uevent_handler);
 
-		udev_monitor_unref(sna->uevent_monitor);
-		udev_unref(u);
-		sna->uevent_handler = NULL;
-		sna->uevent_monitor = NULL;
-	}
+	u = udev_monitor_get_udev(sna->uevent_monitor);
+	udev_monitor_unref(sna->uevent_monitor);
+	udev_unref(u);
+
+	sna->uevent_handler = NULL;
+	sna->uevent_monitor = NULL;
+
+	DBG(("%s: removed uvent handler\n", __FUNCTION__));
 }
 #else
 static void sna_uevent_fini(ScrnInfoPtr scrn) { }
@@ -736,6 +749,7 @@ static Bool sna_early_close_screen(CLOSE_SCREEN_ARGS_DECL)
 
 	DBG(("%s\n", __FUNCTION__));
 
+	xf86_hide_cursors(scrn);
 	sna_uevent_fini(scrn);
 
 	/* drain the event queues */
@@ -747,7 +761,12 @@ static Bool sna_early_close_screen(CLOSE_SCREEN_ARGS_DECL)
 		sna->dri_open = false;
 	}
 
-	xf86_hide_cursors(scrn);
+	if (sna->front) {
+		screen->DestroyPixmap(sna->front);
+		sna->front = NULL;
+	}
+
+	drmDropMaster(sna->kgem.fd);
 	scrn->vtSema = FALSE;
 
 	xf86_cursors_fini(screen);
@@ -764,13 +783,7 @@ static Bool sna_late_close_screen(CLOSE_SCREEN_ARGS_DECL)
 
 	DBG(("%s\n", __FUNCTION__));
 
-	if (sna->front) {
-		screen->DestroyPixmap(sna->front);
-		sna->front = NULL;
-	}
-
 	sna_accel_close(sna);
-	drmDropMaster(sna->kgem.fd);
 
 	depths = screen->allowedDepths;
 	for (d = 0; d < screen->numDepths; d++)
@@ -988,10 +1001,13 @@ static Bool sna_enter_vt(VT_FUNC_ARGS_DECL)
 	DBG(("%s\n", __FUNCTION__));
 
 	if (drmSetMaster(sna->kgem.fd)) {
-		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-			   "drmSetMaster failed: %s\n",
-			   strerror(errno));
-		return FALSE;
+		sleep(2); /* XXX wait for the current master to decease */
+		if (drmSetMaster(sna->kgem.fd)) {
+			xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+					"drmSetMaster failed: %s\n",
+					strerror(errno));
+			return FALSE;
+		}
 	}
 
 	if (!xf86SetDesiredModes(scrn))
