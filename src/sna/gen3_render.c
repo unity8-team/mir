@@ -1640,6 +1640,7 @@ static int gen3_vertex_finish(struct sna *sna)
 		sna->render.vertex_reloc[0] = 0;
 		sna->render.vertex_used = 0;
 		sna->render.vertex_index = 0;
+		sna->render.vbo = NULL;
 
 		kgem_bo_destroy(&sna->kgem, bo);
 	}

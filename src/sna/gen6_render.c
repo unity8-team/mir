@@ -999,6 +999,7 @@ static int gen6_vertex_finish(struct sna *sna)
 		sna->render.nvertex_reloc = 0;
 		sna->render.vertex_used = 0;
 		sna->render.vertex_index = 0;
+		sna->render.vbo = NULL;
 		sna->render_state.gen6.vb_id = 0;
 
 		kgem_bo_destroy(&sna->kgem, bo);

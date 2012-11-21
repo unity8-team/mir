@@ -295,6 +295,7 @@ static int gen4_vertex_finish(struct sna *sna)
 					       0);
 		}
 
+		sna->render.vbo = NULL;
 		sna->render.nvertex_reloc = 0;
 		sna->render.vertex_used = 0;
 		sna->render.vertex_index = 0;
