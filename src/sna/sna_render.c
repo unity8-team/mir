@@ -497,6 +497,9 @@ static struct kgem_bo *upload(struct sna *sna,
 
 	priv = sna_pixmap(pixmap);
 	if (priv) {
+		if (priv->cpu_damage == NULL)
+			return NULL;
+
 		/* As we know this box is on the CPU just fixup the shadow */
 		if (priv->mapped) {
 			pixmap->devPrivate.ptr = NULL;
