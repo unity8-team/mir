@@ -2588,6 +2588,7 @@ sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
 	     flags));
 
 	assert(box->x2 > box->x1 && box->y2 > box->y1);
+	assert(pixmap->refcnt);
 	assert_pixmap_damage(pixmap);
 	assert_drawable_contains_box(drawable, box);
 
@@ -2785,6 +2786,7 @@ move_to_gpu:
 
 done:
 	assert(priv->gpu_bo != NULL);
+	assert(priv->gpu_bo->refcnt);
 	if (sna_damage_is_all(&priv->gpu_damage,
 			      pixmap->drawable.width,
 			      pixmap->drawable.height)) {
@@ -2806,6 +2808,7 @@ done:
 use_gpu_bo:
 	DBG(("%s: using whole GPU bo\n", __FUNCTION__));
 	assert(priv->gpu_bo != NULL);
+	assert(priv->gpu_bo->refcnt);
 	assert(priv->gpu_bo->proxy == NULL);
 	assert(priv->gpu_damage);
 	priv->clear = false;
@@ -2819,6 +2822,8 @@ use_cpu_bo:
 
 	if (priv->cpu_bo == NULL)
 		return NULL;
+
+	assert(priv->cpu_bo->refcnt);
 
 	sna = to_sna_from_pixmap(pixmap);
 	if ((flags & FORCE_GPU) == 0 &&

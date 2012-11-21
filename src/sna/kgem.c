@@ -1242,7 +1242,7 @@ kgem_add_handle(struct kgem *kgem, struct kgem_bo *bo)
 	return exec;
 }
 
-void _kgem_add_bo(struct kgem *kgem, struct kgem_bo *bo)
+static void kgem_add_bo(struct kgem *kgem, struct kgem_bo *bo)
 {
 	bo->exec = kgem_add_handle(kgem, bo);
 	bo->rq = kgem->next_request;
@@ -3907,7 +3907,7 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 		}
 
 		if (bo->exec == NULL)
-			_kgem_add_bo(kgem, bo);
+			kgem_add_bo(kgem, bo);
 		assert(bo->rq == kgem->next_request);
 
 		if (kgem->gen < 40 && read_write_domain & KGEM_RELOC_FENCED) {
