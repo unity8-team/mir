@@ -423,6 +423,12 @@ move_to_gpu(PixmapPtr pixmap, const BoxRec *box, bool blt)
 		return priv->gpu_bo;
 	}
 
+	if (priv->cpu_damage == NULL) {
+		DBG(("%s: not migrating uninitialised pixmap\n",
+		     __FUNCTION__));
+		return NULL;
+	}
+
 	if (pixmap->usage_hint) {
 		DBG(("%s: not migrating pixmap due to usage_hint=%d\n",
 		     __FUNCTION__, pixmap->usage_hint));
@@ -520,6 +526,7 @@ static struct kgem_bo *upload(struct sna *sna,
 		    channel->width  == pixmap->drawable.width &&
 		    channel->height == pixmap->drawable.height) {
 			assert(priv->gpu_damage == NULL);
+			assert(DAMAGE_IS_ALL(priv->cpu_damage));
 			kgem_proxy_bo_attach(bo, &priv->gpu_bo);
 		}
 	}
@@ -1154,6 +1161,7 @@ sna_render_picture_extract(struct sna *sna,
 				struct sna_pixmap *priv = sna_pixmap(pixmap);
 				if (priv) {
 					assert(priv->gpu_damage == NULL);
+					assert(DAMAGE_IS_ALL(priv->cpu_damage));
 					kgem_proxy_bo_attach(bo, &priv->gpu_bo);
 				}
 			}
