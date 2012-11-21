@@ -429,6 +429,9 @@ move_to_gpu(PixmapPtr pixmap, const BoxRec *box, bool blt)
 		return NULL;
 	}
 
+	if (priv->shm)
+		blt = true;
+
 	if (DBG_FORCE_UPLOAD < 0) {
 		if (!sna_pixmap_force_to_gpu(pixmap,
 					     blt ? MOVE_READ : MOVE_SOURCE_HINT | MOVE_READ))
