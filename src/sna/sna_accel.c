@@ -4659,7 +4659,9 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			if (n == 1 &&
 			    tmp->drawable.width == src_pixmap->drawable.width &&
 			    tmp->drawable.height == src_pixmap->drawable.height) {
-				assert(src_priv->gpu_damage);
+				DBG(("%s: caching upload for src bo\n",
+				     __FUNCTION__));
+				assert(src_priv->gpu_damage == NULL);
 				kgem_proxy_bo_attach(src_bo, &src_priv->gpu_bo);
 			}
 
