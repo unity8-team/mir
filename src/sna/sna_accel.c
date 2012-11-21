@@ -2797,7 +2797,7 @@ done:
 
 	DBG(("%s: using GPU bo with damage? %d\n",
 	     __FUNCTION__, *damage != NULL));
-	assert(damage == NULL || !DAMAGE_IS_ALL(*damage));
+	assert(*damage == NULL || !DAMAGE_IS_ALL(*damage));
 	assert(priv->gpu_bo->proxy == NULL);
 	assert(priv->clear == false);
 	assert(priv->cpu == false);
@@ -2807,6 +2807,7 @@ use_gpu_bo:
 	DBG(("%s: using whole GPU bo\n", __FUNCTION__));
 	assert(priv->gpu_bo != NULL);
 	assert(priv->gpu_bo->proxy == NULL);
+	assert(priv->gpu_damage);
 	priv->clear = false;
 	priv->cpu = false;
 	*damage = NULL;
