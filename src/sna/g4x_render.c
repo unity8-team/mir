@@ -48,7 +48,6 @@
  * the BLT engine.
  */
 #define PREFER_BLT 1
-#define FLUSH_EVERY_VERTEX 1
 #define FORCE_SPANS 0
 
 #define NO_COMPOSITE 0
@@ -59,15 +58,6 @@
 #define NO_FILL_ONE 0
 #define NO_FILL_BOXES 0
 #define NO_VIDEO 0
-
-#if FLUSH_EVERY_VERTEX
-#define _FLUSH() do { \
-	g4x_vertex_flush(sna); \
-	OUT_BATCH(MI_FLUSH | MI_INHIBIT_RENDER_CACHE_FLUSH); \
-} while (0)
-#else
-#define _FLUSH()
-#endif
 
 #define GEN4_GRF_BLOCKS(nreg)    ((nreg + 15) / 16 - 1)
 
@@ -695,23 +685,23 @@ g4x_emit_composite_primitive_solid(struct sna *sna,
 	} dst;
 
 	v = sna->render.vertices + sna->render.vertex_used;
-	sna->render.vertex_used += 15;
+	sna->render.vertex_used += 9;
 
 	dst.p.x = r->dst.x + r->width;
 	dst.p.y = r->dst.y + r->height;
 	v[0] = dst.f;
-	v[3] = v[1] = 1.;
-	v[4] = v[2] = 1.;
+	v[1] = 1.;
+	v[2] = 1.;
 
 	dst.p.x = r->dst.x;
-	v[5] = dst.f;
-	v[8] = v[6] = 0.;
-	v[9] = v[7] = 1.;
+	v[3] = dst.f;
+	v[4] = 0.;
+	v[5] = 1.;
 
 	dst.p.y = r->dst.y;
-	v[10] = dst.f;
-	v[13] = v[11] = 0.;
-	v[14] = v[12] = 0.;
+	v[6] = dst.f;
+	v[7] = 0.;
+	v[8] = 0.;
 }
 
 fastcall static void
@@ -727,7 +717,7 @@ g4x_emit_composite_primitive_identity_source(struct sna *sna,
 	} dst;
 
 	v = sna->render.vertices + sna->render.vertex_used;
-	sna->render.vertex_used += 15;
+	sna->render.vertex_used += 9;
 
 	sx = r->src.x + op->src.offset[0];
 	sy = r->src.y + op->src.offset[1];
@@ -737,22 +727,16 @@ g4x_emit_composite_primitive_identity_source(struct sna *sna,
 	v[0] = dst.f;
 	v[1] = (sx + r->width) * sf[0];
 	v[2] = (sy + r->height) * sf[1];
-	v[3] = 1.;
-	v[4] = 1.;
 
 	dst.p.x = r->dst.x;
-	v[5] = dst.f;
-	v[6] = sx * sf[0];
-	v[7] = v[2];
-	v[8] = 0.;
-	v[9] = 1.;
+	v[3] = dst.f;
+	v[4] = sx * sf[0];
+	v[5] = v[2];
 
 	dst.p.y = r->dst.y;
-	v[10] = dst.f;
-	v[11] = v[6];
-	v[12] = sy * sf[1];
-	v[13] = 0.;
-	v[14] = 0.;
+	v[6] = dst.f;
+	v[7] = v[4];
+	v[8] = sy * sf[1];
 }
 
 fastcall static void
@@ -767,7 +751,7 @@ g4x_emit_composite_primitive_affine_source(struct sna *sna,
 	float *v;
 
 	v = sna->render.vertices + sna->render.vertex_used;
-	sna->render.vertex_used += 15;
+	sna->render.vertex_used += 9;
 
 	dst.p.x = r->dst.x + r->width;
 	dst.p.y = r->dst.y + r->height;
@@ -778,30 +762,24 @@ g4x_emit_composite_primitive_affine_source(struct sna *sna,
 					 &v[1], &v[2]);
 	v[1] *= op->src.scale[0];
 	v[2] *= op->src.scale[1];
-	v[3] = 1.;
-	v[4] = 1.;
 
 	dst.p.x = r->dst.x;
-	v[5] = dst.f;
+	v[3] = dst.f;
 	_sna_get_transformed_coordinates(op->src.offset[0] + r->src.x,
 					 op->src.offset[1] + r->src.y + r->height,
 					 op->src.transform,
-					 &v[6], &v[7]);
-	v[6] *= op->src.scale[0];
-	v[7] *= op->src.scale[1];
-	v[8] = 0.;
-	v[9] = 1.;
+					 &v[4], &v[5]);
+	v[4] *= op->src.scale[0];
+	v[5] *= op->src.scale[1];
 
 	dst.p.y = r->dst.y;
-	v[10] = dst.f;
+	v[6] = dst.f;
 	_sna_get_transformed_coordinates(op->src.offset[0] + r->src.x,
 					 op->src.offset[1] + r->src.y,
 					 op->src.transform,
-					 &v[11], &v[12]);
-	v[11] *= op->src.scale[0];
-	v[12] *= op->src.scale[1];
-	v[13] = 0.;
-	v[14] = 0.;
+					 &v[7], &v[8]);
+	v[7] *= op->src.scale[0];
+	v[8] *= op->src.scale[1];
 }
 
 fastcall static void
@@ -1026,8 +1004,6 @@ static bool g4x_rectangle_begin(struct sna *sna,
 
 	/* 7xpipelined pointers + 6xprimitive + 1xflush */
 	ndwords = op->need_magic_ca_pass? 20 : 6;
-	if (FLUSH_EVERY_VERTEX)
-		ndwords += 1;
 	if ((sna->render_state.gen4.vb_id & (1 << id)) == 0)
 		ndwords += 5;
 
@@ -1045,7 +1021,7 @@ static bool g4x_rectangle_begin(struct sna *sna,
 static int g4x_get_rectangles__flush(struct sna *sna,
 				     const struct sna_composite_op *op)
 {
-	if (!kgem_check_batch(&sna->kgem, (FLUSH_EVERY_VERTEX || op->need_magic_ca_pass) ? 25 : 6))
+	if (!kgem_check_batch(&sna->kgem, op->need_magic_ca_pass ? 25 : 6))
 		return 0;
 	if (!kgem_check_reloc_and_exec(&sna->kgem, 1))
 		return 0;
@@ -1273,7 +1249,7 @@ g4x_emit_pipelined_pointers(struct sna *sna,
 	OUT_BATCH(sna->render_state.gen4.vs);
 	OUT_BATCH(GEN4_GS_DISABLE); /* passthrough */
 	OUT_BATCH(GEN4_CLIP_DISABLE); /* passthrough */
-	OUT_BATCH(sna->render_state.gen4.sf[!!(op->u.gen4.ve_id & 2)]);
+	OUT_BATCH(sna->render_state.gen4.sf[1]);
 	OUT_BATCH(sna->render_state.gen4.wm + sp);
 	OUT_BATCH(sna->render_state.gen4.cc + bp);
 
@@ -1315,9 +1291,9 @@ g4x_emit_vertex_elements(struct sna *sna,
 	 */
 	struct gen4_render_state *render = &sna->render_state.gen4;
 	int id = op->u.gen4.ve_id;
-	int selem, nelem;
 	uint32_t w_component;
 	uint32_t src_format;
+	int selem;
 
 	if (render->ve_id == id)
 		return;
@@ -1333,14 +1309,13 @@ g4x_emit_vertex_elements(struct sna *sna,
 		w_component = GEN4_VFCOMPONENT_STORE_SRC;
 		selem = 3;
 	}
-	nelem = id & 2 ? 2 : 1;
 
 	/* The VUE layout
 	 *    dword 0-3: position (x, y, 1.0, 1.0),
 	 *    dword 4-7: texture coordinate 0 (u0, v0, w0, 1.0)
 	 *    [optional] dword 8-11: texture coordinate 1 (u1, v1, w1, 1.0)
 	 */
-	OUT_BATCH(GEN4_3DSTATE_VERTEX_ELEMENTS | (2 * (1 + nelem) - 1));
+	OUT_BATCH(GEN4_3DSTATE_VERTEX_ELEMENTS | (2 * (1 + 2) - 1));
 
 	/* x,y */
 	OUT_BATCH(id << VE0_VERTEX_BUFFER_INDEX_SHIFT | VE0_VALID |
@@ -1363,13 +1338,19 @@ g4x_emit_vertex_elements(struct sna *sna,
 		  (2*4) << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT);       /* VUE offset in dwords */
 
 	/* u1, v1, w1 */
+	OUT_BATCH(id << VE0_VERTEX_BUFFER_INDEX_SHIFT | VE0_VALID |
+		  src_format << VE0_FORMAT_SHIFT |
+		  ((1 + selem) * 4) << VE0_OFFSET_SHIFT); /* vb offset in bytes */
 	if (id & 2) {
-		OUT_BATCH(id << VE0_VERTEX_BUFFER_INDEX_SHIFT | VE0_VALID |
-			  src_format << VE0_FORMAT_SHIFT |
-			  ((1 + selem) * 4) << VE0_OFFSET_SHIFT); /* vb offset in bytes */
 		OUT_BATCH(GEN4_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT |
 			  GEN4_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT |
 			  w_component << VE1_VFCOMPONENT_2_SHIFT |
+			  GEN4_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT |
+			  (3*4) << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT);       /* VUE offset in dwords */
+	} else {
+		OUT_BATCH(GEN4_VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_0_SHIFT |
+			  GEN4_VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_1_SHIFT |
+			  GEN4_VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_2_SHIFT |
 			  GEN4_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT |
 			  (3*4) << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT);       /* VUE offset in dwords */
 	}
@@ -1714,8 +1695,6 @@ g4x_render_video(struct sna *sna,
 		OUT_VERTEX(r.x1, r.y1);
 		OUT_VERTEX_F((box->x1 - dxo) * src_scale_x);
 		OUT_VERTEX_F((box->y1 - dyo) * src_scale_y);
-
-		_FLUSH();
 
 		if (!DAMAGE_IS_ALL(priv->gpu_damage)) {
 			sna_damage_add_box(&priv->gpu_damage, &r);
@@ -2392,6 +2371,7 @@ g4x_render_composite(struct sna *sna,
 		if (tmp->src.transform == NULL && tmp->mask.transform == NULL)
 			tmp->prim_emit = g4x_emit_composite_primitive_identity_source_mask;
 
+		tmp->floats_per_vertex = 5 + 2 * !tmp->is_affine;
 	} else {
 		if (tmp->src.is_solid)
 			tmp->prim_emit = g4x_emit_composite_primitive_solid;
@@ -2399,16 +2379,17 @@ g4x_render_composite(struct sna *sna,
 			tmp->prim_emit = g4x_emit_composite_primitive_identity_source;
 		else if (tmp->src.is_affine)
 			tmp->prim_emit = g4x_emit_composite_primitive_affine_source;
+
+		tmp->floats_per_vertex = 3 + !tmp->is_affine;
 	}
-	tmp->floats_per_vertex = 5 + 2 * !tmp->is_affine;
 	tmp->floats_per_rect = 3*tmp->floats_per_vertex;
 
 	tmp->u.gen4.wm_kernel =
 		g4x_choose_composite_kernel(tmp->op,
-					     mask != NULL,
-					     tmp->has_component_alpha,
-					     tmp->is_affine);
-	tmp->u.gen4.ve_id = 1 << 1 | tmp->is_affine;
+					    tmp->mask.bo != NULL,
+					    tmp->has_component_alpha,
+					    tmp->is_affine);
+	tmp->u.gen4.ve_id = (tmp->mask.bo != NULL) << 1 | tmp->is_affine;
 
 	tmp->blt   = g4x_render_composite_blt;
 	tmp->box   = g4x_render_composite_box;
@@ -2796,8 +2777,6 @@ g4x_render_copy_one(struct sna *sna,
 	OUT_VERTEX(dx, dy);
 	OUT_VERTEX_F(sx*op->src.scale[0]);
 	OUT_VERTEX_F(sy*op->src.scale[1]);
-
-	_FLUSH();
 }
 
 static inline bool prefer_blt_copy(struct sna *sna, unsigned flags)
@@ -3094,18 +3073,12 @@ g4x_render_fill_rectangle(struct sna *sna,
 	OUT_VERTEX(x+w, y+h);
 	OUT_VERTEX_F(1);
 	OUT_VERTEX_F(1);
-	OUT_VERTEX_F(1);
-	OUT_VERTEX_F(1);
 
 	OUT_VERTEX(x, y+h);
 	OUT_VERTEX_F(0);
 	OUT_VERTEX_F(1);
-	OUT_VERTEX_F(0);
-	OUT_VERTEX_F(1);
 
 	OUT_VERTEX(x, y);
-	OUT_VERTEX_F(0);
-	OUT_VERTEX_F(0);
 	OUT_VERTEX_F(0);
 	OUT_VERTEX_F(0);
 }
@@ -3184,10 +3157,10 @@ g4x_render_fill_boxes(struct sna *sna,
 	g4x_composite_solid_init(sna, &tmp.src, pixel);
 
 	tmp.is_affine = true;
-	tmp.floats_per_vertex = 5;
-	tmp.floats_per_rect = 15;
+	tmp.floats_per_vertex = 3;
+	tmp.floats_per_rect = 9;
 	tmp.u.gen4.wm_kernel = WM_KERNEL;
-	tmp.u.gen4.ve_id = 1 | 1 << 1;
+	tmp.u.gen4.ve_id = 1;
 
 	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL)) {
 		kgem_submit(&sna->kgem);
@@ -3289,10 +3262,10 @@ g4x_render_fill(struct sna *sna, uint8_t alu,
 	op->base.mask.bo = NULL;
 
 	op->base.is_affine = true;
-	op->base.floats_per_vertex = 5;
-	op->base.floats_per_rect = 15;
+	op->base.floats_per_vertex = 3;
+	op->base.floats_per_rect = 9;
 	op->base.u.gen4.wm_kernel = WM_KERNEL;
-	op->base.u.gen4.ve_id = 1 | 1 << 1;
+	op->base.u.gen4.ve_id = 1;
 
 	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL)) {
 		kgem_submit(&sna->kgem);
@@ -3365,13 +3338,13 @@ g4x_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 	tmp.mask.bo = NULL;
 
 	tmp.is_affine = true;
-	tmp.floats_per_vertex = 5;
-	tmp.floats_per_rect = 15;
-	tmp.has_component_alpha = 0;
+	tmp.floats_per_vertex = 3;
+	tmp.floats_per_rect = 9;
+	tmp.has_component_alpha = false;
 	tmp.need_magic_ca_pass = false;
 
 	tmp.u.gen4.wm_kernel = WM_KERNEL;
-	tmp.u.gen4.ve_id = 1 | 1 << 1;
+	tmp.u.gen4.ve_id = 1;
 
 	if (!kgem_check_bo(&sna->kgem, bo, NULL)) {
 		_kgem_submit(&sna->kgem);
