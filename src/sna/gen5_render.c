@@ -2317,6 +2317,7 @@ gen5_render_composite(struct sna *sna,
 	}
 
 	DBG(("%s: preparing source\n", __FUNCTION__));
+	tmp->op = op;
 	switch (gen5_composite_picture(sna, src, &tmp->src,
 				       src_x, src_y,
 				       width, height,
@@ -2340,7 +2341,6 @@ gen5_render_composite(struct sna *sna,
 		break;
 	}
 
-	tmp->op = op;
 	tmp->is_affine = tmp->src.is_affine;
 	tmp->has_component_alpha = false;
 	tmp->need_magic_ca_pass = false;

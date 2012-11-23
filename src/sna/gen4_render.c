@@ -2332,6 +2332,7 @@ gen4_render_composite(struct sna *sna,
 					   dst_x, dst_y, width, height))
 		return false;
 
+	tmp->op = op;
 	switch (gen4_composite_picture(sna, src, &tmp->src,
 				       src_x, src_y,
 				       width, height,
@@ -2355,7 +2356,6 @@ gen4_render_composite(struct sna *sna,
 		break;
 	}
 
-	tmp->op = op;
 	tmp->is_affine = tmp->src.is_affine;
 	tmp->has_component_alpha = false;
 	tmp->need_magic_ca_pass = false;
