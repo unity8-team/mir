@@ -65,12 +65,8 @@
 	gen4_vertex_flush(sna); \
 	OUT_BATCH(MI_FLUSH | MI_INHIBIT_RENDER_CACHE_FLUSH); \
 } while (0)
-#define FLUSH(OP) do { \
-	if ((OP)->mask.bo == NULL) _FLUSH(); \
-} while (0)
 #else
 #define _FLUSH()
-#define FLUSH(OP)
 #endif
 
 #define GEN4_GRF_BLOCKS(nreg)    ((nreg + 15) / 16 - 1)
@@ -706,23 +702,23 @@ gen4_emit_composite_primitive_solid(struct sna *sna,
 	} dst;
 
 	v = sna->render.vertices + sna->render.vertex_used;
-	sna->render.vertex_used += 9;
+	sna->render.vertex_used += 15;
 
 	dst.p.x = r->dst.x + r->width;
 	dst.p.y = r->dst.y + r->height;
 	v[0] = dst.f;
-	v[1] = 1.;
-	v[2] = 1.;
+	v[3] = v[1] = 1.;
+	v[4] = v[2] = 1.;
 
 	dst.p.x = r->dst.x;
-	v[3] = dst.f;
-	v[4] = 0.;
-	v[5] = 1.;
+	v[5] = dst.f;
+	v[8] = v[6] = 0.;
+	v[9] = v[7] = 1.;
 
 	dst.p.y = r->dst.y;
-	v[6] = dst.f;
-	v[7] = 0.;
-	v[8] = 0.;
+	v[10] = dst.f;
+	v[13] = v[11] = 0.;
+	v[14] = v[12] = 0.;
 }
 
 fastcall static void
@@ -738,7 +734,7 @@ gen4_emit_composite_primitive_identity_source(struct sna *sna,
 	} dst;
 
 	v = sna->render.vertices + sna->render.vertex_used;
-	sna->render.vertex_used += 9;
+	sna->render.vertex_used += 15;
 
 	sx = r->src.x + op->src.offset[0];
 	sy = r->src.y + op->src.offset[1];
@@ -748,16 +744,22 @@ gen4_emit_composite_primitive_identity_source(struct sna *sna,
 	v[0] = dst.f;
 	v[1] = (sx + r->width) * sf[0];
 	v[2] = (sy + r->height) * sf[1];
+	v[3] = 1.;
+	v[4] = 1.;
 
 	dst.p.x = r->dst.x;
-	v[3] = dst.f;
-	v[4] = sx * sf[0];
-	v[5] = v[2];
+	v[5] = dst.f;
+	v[6] = sx * sf[0];
+	v[7] = v[2];
+	v[8] = 0.;
+	v[9] = 1.;
 
 	dst.p.y = r->dst.y;
-	v[6] = dst.f;
-	v[7] = v[4];
-	v[8] = sy * sf[1];
+	v[10] = dst.f;
+	v[11] = v[6];
+	v[12] = sy * sf[1];
+	v[13] = 0.;
+	v[14] = 0.;
 }
 
 fastcall static void
@@ -772,7 +774,7 @@ gen4_emit_composite_primitive_affine_source(struct sna *sna,
 	float *v;
 
 	v = sna->render.vertices + sna->render.vertex_used;
-	sna->render.vertex_used += 9;
+	sna->render.vertex_used += 15;
 
 	dst.p.x = r->dst.x + r->width;
 	dst.p.y = r->dst.y + r->height;
@@ -783,24 +785,30 @@ gen4_emit_composite_primitive_affine_source(struct sna *sna,
 					 &v[1], &v[2]);
 	v[1] *= op->src.scale[0];
 	v[2] *= op->src.scale[1];
+	v[3] = 1.;
+	v[4] = 1.;
 
 	dst.p.x = r->dst.x;
-	v[3] = dst.f;
+	v[5] = dst.f;
 	_sna_get_transformed_coordinates(op->src.offset[0] + r->src.x,
 					 op->src.offset[1] + r->src.y + r->height,
 					 op->src.transform,
-					 &v[4], &v[5]);
-	v[4] *= op->src.scale[0];
-	v[5] *= op->src.scale[1];
+					 &v[6], &v[7]);
+	v[6] *= op->src.scale[0];
+	v[7] *= op->src.scale[1];
+	v[8] = 0.;
+	v[9] = 1.;
 
 	dst.p.y = r->dst.y;
-	v[6] = dst.f;
+	v[10] = dst.f;
 	_sna_get_transformed_coordinates(op->src.offset[0] + r->src.x,
 					 op->src.offset[1] + r->src.y,
 					 op->src.transform,
-					 &v[7], &v[8]);
-	v[7] *= op->src.scale[0];
-	v[8] *= op->src.scale[1];
+					 &v[11], &v[12]);
+	v[11] *= op->src.scale[0];
+	v[12] *= op->src.scale[1];
+	v[13] = 0.;
+	v[14] = 0.;
 }
 
 fastcall static void
@@ -1312,19 +1320,17 @@ gen4_emit_vertex_elements(struct sna *sna,
 	 *    texture coordinate 1 if (has_mask is true): same as above
 	 */
 	struct gen4_render_state *render = &sna->render_state.gen4;
-	bool has_mask = op->mask.bo != NULL;
-	int nelem = has_mask ? 2 : 1;
-	int selem;
+	int id = op->u.gen4.ve_id;
+	int selem, nelem;
 	uint32_t w_component;
 	uint32_t src_format;
-	int id = op->u.gen4.ve_id;
 
 	if (render->ve_id == id)
 		return;
 
 	render->ve_id = id;
 
-	if (op->is_affine) {
+	if (id & 1) {
 		src_format = GEN4_SURFACEFORMAT_R32G32_FLOAT;
 		w_component = GEN4_VFCOMPONENT_STORE_1_FLT;
 		selem = 2;
@@ -1333,6 +1339,7 @@ gen4_emit_vertex_elements(struct sna *sna,
 		w_component = GEN4_VFCOMPONENT_STORE_SRC;
 		selem = 3;
 	}
+	nelem = id & 2 ? 2 : 1;
 
 	/* The VUE layout
 	 *    dword 0-3: position (x, y, 1.0, 1.0),
@@ -1362,7 +1369,7 @@ gen4_emit_vertex_elements(struct sna *sna,
 		  (2*4) << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT);       /* VUE offset in dwords */
 
 	/* u1, v1, w1 */
-	if (has_mask) {
+	if (id & 2) {
 		OUT_BATCH(id << VE0_VERTEX_BUFFER_INDEX_SHIFT | VE0_VALID |
 			  src_format << VE0_FORMAT_SHIFT |
 			  ((1 + selem) * 4) << VE0_OFFSET_SHIFT); /* vb offset in bytes */
@@ -1452,9 +1459,6 @@ gen4_render_composite_blt(struct sna *sna,
 
 	gen4_get_rectangles(sna, op, 1, gen4_bind_surfaces);
 	op->prim_emit(sna, op, r);
-
-	/* XXX are the shaders fubar? */
-	FLUSH(op);
 }
 
 fastcall static void
@@ -2379,25 +2383,27 @@ gen4_render_composite(struct sna *sna,
 		if (tmp->src.transform == NULL && tmp->mask.transform == NULL)
 			tmp->prim_emit = gen4_emit_composite_primitive_identity_source_mask;
 
-		tmp->floats_per_vertex = 5 + 2 * !tmp->is_affine;
 	} else {
+		/* Use a dummy mask to w/a the flushing issues */
+		if (!gen4_composite_solid_init(sna, &tmp->mask, 0))
+			goto cleanup_src;
+
 		if (tmp->src.is_solid)
 			tmp->prim_emit = gen4_emit_composite_primitive_solid;
 		else if (tmp->src.transform == NULL)
 			tmp->prim_emit = gen4_emit_composite_primitive_identity_source;
 		else if (tmp->src.is_affine)
 			tmp->prim_emit = gen4_emit_composite_primitive_affine_source;
-
-		tmp->floats_per_vertex = 3 + !tmp->is_affine;
 	}
+	tmp->floats_per_vertex = 5 + 2 * !tmp->is_affine;
 	tmp->floats_per_rect = 3*tmp->floats_per_vertex;
 
 	tmp->u.gen4.wm_kernel =
 		gen4_choose_composite_kernel(tmp->op,
-					     tmp->mask.bo != NULL,
+					     mask != NULL,
 					     tmp->has_component_alpha,
 					     tmp->is_affine);
-	tmp->u.gen4.ve_id = (tmp->mask.bo != NULL) << 1 | tmp->is_affine;
+	tmp->u.gen4.ve_id = 1 << 1 | tmp->is_affine;
 
 	tmp->blt   = gen4_render_composite_blt;
 	tmp->box   = gen4_render_composite_box;
