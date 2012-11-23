@@ -2030,22 +2030,12 @@ picture_is_cpu(PicturePtr picture)
 	return !is_gpu(picture->pDrawable);
 }
 
-static inline bool prefer_blt(struct sna *sna)
-{
-#if PREFER_BLT
-	return true;
-	(void)sna;
-#else
-	return sna->kgem.mode != KGEM_RENDER;
-#endif
-}
-
 static bool
 try_blt(struct sna *sna,
 	PicturePtr dst, PicturePtr src,
 	int width, int height)
 {
-	if (prefer_blt(sna)) {
+	if (sna->kgem.mode != KGEM_RENDER) {
 		DBG(("%s: already performing BLT\n", __FUNCTION__));
 		return true;
 	}
@@ -2996,6 +2986,16 @@ g4x_render_copy_done(struct sna *sna, const struct sna_copy_op *op)
 	g4x_vertex_flush(sna);
 }
 
+static inline bool prefer_blt_fill(struct sna *sna)
+{
+#if PREFER_BLT
+	return true;
+	(void)sna;
+#else
+	return sna->kgem.mode != KGEM_RENDER;
+#endif
+}
+
 static bool
 g4x_render_copy(struct sna *sna, uint8_t alu,
 		PixmapPtr src, struct kgem_bo *src_bo,
@@ -3008,7 +3008,7 @@ g4x_render_copy(struct sna *sna, uint8_t alu,
 	     dst->drawable.serialNumber,
 	     alu));
 
-	if (prefer_blt(sna) &&
+	if (prefer_blt_fill(sna) &&
 	    sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
 	    sna_blt_copy(sna, alu,
 			 src_bo, dst_bo,
@@ -3128,7 +3128,7 @@ g4x_render_fill_boxes(struct sna *sna,
 	}
 
 	if (op <= PictOpSrc &&
-	    (prefer_blt(sna) ||
+	    (prefer_blt_fill(sna) ||
 	     too_large(dst->drawable.width, dst->drawable.height) ||
 	     !g4x_check_dst_format(format))) {
 		uint8_t alu = GXinvalid;
@@ -3254,7 +3254,7 @@ g4x_render_fill(struct sna *sna, uint8_t alu,
 		uint32_t color,
 		struct sna_fill_op *op)
 {
-	if (prefer_blt(sna) &&
+	if (prefer_blt_fill(sna) &&
 	    sna_blt_fill(sna, alu,
 			 dst_bo, dst->drawable.bitsPerPixel,
 			 color,
