@@ -867,6 +867,7 @@ gen4_emit_composite_primitive(struct sna *sna,
 	bool is_affine = op->is_affine;
 	const float *src_sf = op->src.scale;
 	const float *mask_sf = op->mask.scale;
+	bool has_mask = op->u.gen4.ve_id & 2;
 
 	if (is_affine) {
 		sna_get_transformed_coordinates(r->src.x + op->src.offset[0],
@@ -907,7 +908,7 @@ gen4_emit_composite_primitive(struct sna *sna,
 						   &src_w[2]);
 	}
 
-	if (op->mask.bo) {
+	if (has_mask) {
 		if (is_affine) {
 			sna_get_transformed_coordinates(r->mask.x + op->mask.offset[0],
 							r->mask.y + op->mask.offset[1],
@@ -953,7 +954,7 @@ gen4_emit_composite_primitive(struct sna *sna,
 	OUT_VERTEX_F(src_y[2] * src_sf[1]);
 	if (!is_affine)
 		OUT_VERTEX_F(src_w[2]);
-	if (op->mask.bo) {
+	if (has_mask) {
 		OUT_VERTEX_F(mask_x[2] * mask_sf[0]);
 		OUT_VERTEX_F(mask_y[2] * mask_sf[1]);
 		if (!is_affine)
@@ -965,7 +966,7 @@ gen4_emit_composite_primitive(struct sna *sna,
 	OUT_VERTEX_F(src_y[1] * src_sf[1]);
 	if (!is_affine)
 		OUT_VERTEX_F(src_w[1]);
-	if (op->mask.bo) {
+	if (has_mask) {
 		OUT_VERTEX_F(mask_x[1] * mask_sf[0]);
 		OUT_VERTEX_F(mask_y[1] * mask_sf[1]);
 		if (!is_affine)
@@ -977,7 +978,7 @@ gen4_emit_composite_primitive(struct sna *sna,
 	OUT_VERTEX_F(src_y[0] * src_sf[1]);
 	if (!is_affine)
 		OUT_VERTEX_F(src_w[0]);
-	if (op->mask.bo) {
+	if (has_mask) {
 		OUT_VERTEX_F(mask_x[0] * mask_sf[0]);
 		OUT_VERTEX_F(mask_y[0] * mask_sf[1]);
 		if (!is_affine)
@@ -1259,7 +1260,7 @@ gen4_emit_pipelined_pointers(struct sna *sna,
 	uint16_t sp, bp;
 
 	DBG(("%s: has_mask=%d, src=(%d, %d), mask=(%d, %d),kernel=%d, blend=%d, ca=%d, format=%x\n",
-	     __FUNCTION__, op->mask.bo != NULL,
+	     __FUNCTION__, op->u.gen4.ve_id & 2,
 	     op->src.filter, op->src.repeat,
 	     op->mask.filter, op->mask.repeat,
 	     kernel, blend, op->has_component_alpha, (int)op->dst.format));
@@ -1279,7 +1280,7 @@ gen4_emit_pipelined_pointers(struct sna *sna,
 	OUT_BATCH(sna->render_state.gen4.vs);
 	OUT_BATCH(GEN4_GS_DISABLE); /* passthrough */
 	OUT_BATCH(GEN4_CLIP_DISABLE); /* passthrough */
-	OUT_BATCH(sna->render_state.gen4.sf[op->mask.bo != NULL]);
+	OUT_BATCH(sna->render_state.gen4.sf[!!(op->u.gen4.ve_id & 2)]);
 	OUT_BATCH(sna->render_state.gen4.wm + sp);
 	OUT_BATCH(sna->render_state.gen4.cc + bp);
 
@@ -1429,7 +1430,8 @@ gen4_bind_surfaces(struct sna *sna,
 			     op->src.bo, op->src.width, op->src.height,
 			     op->src.card_format,
 			     false);
-	if (op->mask.bo)
+	if (op->mask.bo) {
+		assert(op->u.gen4.ve_id & 2);
 		binding_table[2] =
 			gen4_bind_bo(sna,
 				     op->mask.bo,
@@ -1437,6 +1439,7 @@ gen4_bind_surfaces(struct sna *sna,
 				     op->mask.height,
 				     op->mask.card_format,
 				     false);
+	}
 
 	if (sna->kgem.surface == offset &&
 	    *(uint64_t *)(sna->kgem.batch + sna->render_state.gen4.surface_table) == *(uint64_t*)binding_table &&
@@ -2407,10 +2410,6 @@ gen4_render_composite(struct sna *sna,
 			tmp->prim_emit = gen4_emit_composite_primitive_identity_source_mask;
 
 	} else {
-		/* Use a dummy mask to w/a the flushing issues */
-		if (!gen4_composite_solid_init(sna, &tmp->mask, 0))
-			goto cleanup_src;
-
 		if (tmp->src.is_solid)
 			tmp->prim_emit = gen4_emit_composite_primitive_solid;
 		else if (tmp->src.transform == NULL)
@@ -2620,7 +2619,6 @@ gen4_render_composite_spans_done(struct sna *sna,
 
 	DBG(("%s()\n", __FUNCTION__));
 
-	kgem_bo_destroy(&sna->kgem, op->base.mask.bo);
 	if (op->base.src.bo)
 		kgem_bo_destroy(&sna->kgem, op->base.src.bo);
 
@@ -2714,8 +2712,7 @@ gen4_render_composite_spans(struct sna *sna,
 		break;
 	}
 
-	if (!gen4_composite_solid_init(sna, &tmp->base.mask, 0))
-		goto cleanup_src;
+	tmp->base.mask.bo = NULL;
 
 	tmp->base.is_affine = tmp->base.src.is_affine;
 	tmp->base.has_component_alpha = false;
@@ -3192,7 +3189,6 @@ gen4_render_fill_boxes(struct sna *sna,
 	tmp.dst.bo = dst_bo;
 
 	gen4_composite_solid_init(sna, &tmp.src, pixel);
-	gen4_composite_solid_init(sna, &tmp.mask, 0);
 
 	tmp.is_affine = true;
 	tmp.floats_per_vertex = 5;
@@ -3218,7 +3214,6 @@ gen4_render_fill_boxes(struct sna *sna,
 
 	gen4_vertex_flush(sna);
 	kgem_bo_destroy(&sna->kgem, tmp.src.bo);
-	kgem_bo_destroy(&sna->kgem, tmp.mask.bo);
 	return true;
 }
 
@@ -3258,7 +3253,6 @@ gen4_render_fill_op_done(struct sna *sna, const struct sna_fill_op *op)
 {
 	gen4_vertex_flush(sna);
 	kgem_bo_destroy(&sna->kgem, op->base.src.bo);
-	kgem_bo_destroy(&sna->kgem, op->base.mask.bo);
 }
 
 static bool
@@ -3299,7 +3293,7 @@ gen4_render_fill(struct sna *sna, uint8_t alu,
 	gen4_composite_solid_init(sna, &op->base.src,
 				  sna_rgba_for_color(color,
 						     dst->drawable.depth));
-	gen4_composite_solid_init(sna, &op->base.mask, 0);
+	op->base.mask.bo = NULL;
 
 	op->base.is_affine = true;
 	op->base.floats_per_vertex = 5;
@@ -3375,7 +3369,7 @@ gen4_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 	gen4_composite_solid_init(sna, &tmp.src,
 				  sna_rgba_for_color(color,
 						     dst->drawable.depth));
-	gen4_composite_solid_init(sna, &tmp.mask, 0);
+	tmp.mask.bo = NULL;
 
 	tmp.is_affine = true;
 	tmp.floats_per_vertex = 5;
@@ -3398,7 +3392,6 @@ gen4_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 
 	gen4_vertex_flush(sna);
 	kgem_bo_destroy(&sna->kgem, tmp.src.bo);
-	kgem_bo_destroy(&sna->kgem, tmp.mask.bo);
 
 	return true;
 }
