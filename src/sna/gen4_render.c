@@ -1468,13 +1468,19 @@ gen4_render_composite_box(struct sna *sna,
 {
 	struct sna_composite_rectangles r;
 
+	DBG(("  %s: (%d, %d), (%d, %d)\n",
+	     __FUNCTION__,
+	     box->x1, box->y1, box->x2, box->y2));
+
+	gen4_get_rectangles(sna, op, 1, gen4_bind_surfaces);
+
 	r.dst.x = box->x1;
 	r.dst.y = box->y1;
 	r.width  = box->x2 - box->x1;
 	r.height = box->y2 - box->y1;
 	r.mask = r.src = r.dst;
 
-	gen4_render_composite_blt(sna, op, &r);
+	op->prim_emit(sna, op, &r);
 }
 
 static void
@@ -1490,16 +1496,28 @@ gen4_render_composite_boxes(struct sna *sna,
 	     op->mask.width, op->mask.height));
 
 	do {
-		struct sna_composite_rectangles r;
+		int nbox_this_time;
 
-		r.dst.x = box->x1;
-		r.dst.y = box->y1;
-		r.width  = box->x2 - box->x1;
-		r.height = box->y2 - box->y1;
-		r.mask = r.src = r.dst;
-		gen4_render_composite_blt(sna, op, &r);
-		box++;
-	} while (--nbox);
+		nbox_this_time = gen4_get_rectangles(sna, op, nbox,
+						     gen4_bind_surfaces);
+		nbox -= nbox_this_time;
+
+		do {
+			struct sna_composite_rectangles r;
+
+			DBG(("  %s: (%d, %d), (%d, %d)\n",
+			     __FUNCTION__,
+			     box->x1, box->y1, box->x2, box->y2));
+
+			r.dst.x = box->x1;
+			r.dst.y = box->y1;
+			r.width  = box->x2 - box->x1;
+			r.height = box->y2 - box->y1;
+			r.mask = r.src = r.dst;
+			op->prim_emit(sna, op, &r);
+			box++;
+		} while (--nbox_this_time);
+	} while (nbox);
 }
 
 #ifndef MAX
