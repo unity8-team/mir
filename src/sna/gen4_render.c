@@ -2714,8 +2714,7 @@ gen4_render_composite_spans(struct sna *sna,
 		break;
 	}
 
-	tmp->base.mask.bo = sna_render_get_solid(sna, 0);
-	if (tmp->base.mask.bo == NULL)
+	if (!gen4_composite_solid_init(sna, &tmp->base.mask, 0))
 		goto cleanup_src;
 
 	tmp->base.is_affine = tmp->base.src.is_affine;
@@ -3096,57 +3095,29 @@ fallback:
 }
 
 static void
-gen4_fill_bind_surfaces(struct sna *sna, const struct sna_composite_op *op)
-{
-	bool dirty = kgem_bo_is_dirty(op->dst.bo);
-	uint32_t *binding_table;
-	uint16_t offset;
-
-	gen4_get_batch(sna);
-
-	binding_table = gen4_composite_get_binding_table(sna, &offset);
-
-	binding_table[0] =
-		gen4_bind_bo(sna,
-			     op->dst.bo, op->dst.width, op->dst.height,
-			     gen4_get_dest_format(op->dst.format),
-			     true);
-	binding_table[1] =
-		gen4_bind_bo(sna,
-			     op->src.bo, 1, 1,
-			     GEN4_SURFACEFORMAT_B8G8R8A8_UNORM,
-			     false);
-
-	if (sna->kgem.surface == offset &&
-	    *(uint64_t *)(sna->kgem.batch + sna->render_state.gen4.surface_table) == *(uint64_t*)binding_table) {
-		sna->kgem.surface +=
-			sizeof(struct gen4_surface_state_padded)/sizeof(uint32_t);
-		offset = sna->render_state.gen4.surface_table;
-	}
-
-	gen4_emit_state(sna, op, offset | dirty);
-}
-
-static void
 gen4_render_fill_rectangle(struct sna *sna,
 			   const struct sna_composite_op *op,
 			   int x, int y, int w, int h)
 {
-	gen4_get_rectangles(sna, op, 1, gen4_fill_bind_surfaces);
+	gen4_get_rectangles(sna, op, 1, gen4_bind_surfaces);
 
 	OUT_VERTEX(x+w, y+h);
+	OUT_VERTEX_F(1);
+	OUT_VERTEX_F(1);
 	OUT_VERTEX_F(1);
 	OUT_VERTEX_F(1);
 
 	OUT_VERTEX(x, y+h);
 	OUT_VERTEX_F(0);
 	OUT_VERTEX_F(1);
+	OUT_VERTEX_F(0);
+	OUT_VERTEX_F(1);
 
 	OUT_VERTEX(x, y);
 	OUT_VERTEX_F(0);
 	OUT_VERTEX_F(0);
-
-	_FLUSH();
+	OUT_VERTEX_F(0);
+	OUT_VERTEX_F(0);
 }
 
 static bool
@@ -3220,22 +3191,21 @@ gen4_render_fill_boxes(struct sna *sna,
 	tmp.dst.format = format;
 	tmp.dst.bo = dst_bo;
 
-	tmp.src.bo = sna_render_get_solid(sna, pixel);
-	tmp.src.filter = SAMPLER_FILTER_NEAREST;
-	tmp.src.repeat = SAMPLER_EXTEND_REPEAT;
+	gen4_composite_solid_init(sna, &tmp.src, pixel);
+	gen4_composite_solid_init(sna, &tmp.mask, 0);
 
 	tmp.is_affine = true;
-	tmp.floats_per_vertex = 3;
-	tmp.floats_per_rect = 9;
+	tmp.floats_per_vertex = 5;
+	tmp.floats_per_rect = 15;
 	tmp.u.gen4.wm_kernel = WM_KERNEL;
-	tmp.u.gen4.ve_id = 1;
+	tmp.u.gen4.ve_id = 1 | 1 << 1;
 
 	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL)) {
 		kgem_submit(&sna->kgem);
 		assert(kgem_check_bo(&sna->kgem, dst_bo, NULL));
 	}
 
-	gen4_fill_bind_surfaces(sna, &tmp);
+	gen4_bind_surfaces(sna, &tmp);
 	gen4_align_vertex(sna, &tmp);
 
 	do {
@@ -3248,6 +3218,7 @@ gen4_render_fill_boxes(struct sna *sna,
 
 	gen4_vertex_flush(sna);
 	kgem_bo_destroy(&sna->kgem, tmp.src.bo);
+	kgem_bo_destroy(&sna->kgem, tmp.mask.bo);
 	return true;
 }
 
@@ -3287,6 +3258,7 @@ gen4_render_fill_op_done(struct sna *sna, const struct sna_fill_op *op)
 {
 	gen4_vertex_flush(sna);
 	kgem_bo_destroy(&sna->kgem, op->base.src.bo);
+	kgem_bo_destroy(&sna->kgem, op->base.mask.bo);
 }
 
 static bool
@@ -3324,29 +3296,23 @@ gen4_render_fill(struct sna *sna, uint8_t alu,
 	op->base.need_magic_ca_pass = 0;
 	op->base.has_component_alpha = 0;
 
-	op->base.src.bo =
-		sna_render_get_solid(sna,
-				     sna_rgba_for_color(color,
-							dst->drawable.depth));
-	op->base.src.filter = SAMPLER_FILTER_NEAREST;
-	op->base.src.repeat = SAMPLER_EXTEND_REPEAT;
-
-	op->base.mask.bo = NULL;
-	op->base.mask.filter = SAMPLER_FILTER_NEAREST;
-	op->base.mask.repeat = SAMPLER_EXTEND_NONE;
+	gen4_composite_solid_init(sna, &op->base.src,
+				  sna_rgba_for_color(color,
+						     dst->drawable.depth));
+	gen4_composite_solid_init(sna, &op->base.mask, 0);
 
 	op->base.is_affine = true;
-	op->base.floats_per_vertex = 3;
-	op->base.floats_per_rect = 9;
+	op->base.floats_per_vertex = 5;
+	op->base.floats_per_rect = 15;
 	op->base.u.gen4.wm_kernel = WM_KERNEL;
-	op->base.u.gen4.ve_id = 1;
+	op->base.u.gen4.ve_id = 1 | 1 << 1;
 
 	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL)) {
 		kgem_submit(&sna->kgem);
 		assert(kgem_check_bo(&sna->kgem, dst_bo, NULL));
 	}
 
-	gen4_fill_bind_surfaces(sna, &op->base);
+	gen4_bind_surfaces(sna, &op->base);
 	gen4_align_vertex(sna, &op->base);
 
 	op->blt   = gen4_render_fill_op_blt;
@@ -3406,38 +3372,33 @@ gen4_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 	tmp.dst.bo = bo;
 	tmp.dst.x = tmp.dst.y = 0;
 
-	tmp.src.bo =
-		sna_render_get_solid(sna,
-				     sna_rgba_for_color(color,
-							dst->drawable.depth));
-	tmp.src.filter = SAMPLER_FILTER_NEAREST;
-	tmp.src.repeat = SAMPLER_EXTEND_REPEAT;
-
-	tmp.mask.bo = NULL;
-	tmp.mask.filter = SAMPLER_FILTER_NEAREST;
-	tmp.mask.repeat = SAMPLER_EXTEND_NONE;
+	gen4_composite_solid_init(sna, &tmp.src,
+				  sna_rgba_for_color(color,
+						     dst->drawable.depth));
+	gen4_composite_solid_init(sna, &tmp.mask, 0);
 
 	tmp.is_affine = true;
-	tmp.floats_per_vertex = 3;
-	tmp.floats_per_rect = 9;
+	tmp.floats_per_vertex = 5;
+	tmp.floats_per_rect = 15;
 	tmp.has_component_alpha = 0;
 	tmp.need_magic_ca_pass = false;
 
 	tmp.u.gen4.wm_kernel = WM_KERNEL;
-	tmp.u.gen4.ve_id = 1;
+	tmp.u.gen4.ve_id = 1 | 1 << 1;
 
 	if (!kgem_check_bo(&sna->kgem, bo, NULL)) {
 		_kgem_submit(&sna->kgem);
 		assert(kgem_check_bo(&sna->kgem, bo, NULL));
 	}
 
-	gen4_fill_bind_surfaces(sna, &tmp);
+	gen4_bind_surfaces(sna, &tmp);
 	gen4_align_vertex(sna, &tmp);
 
 	gen4_render_fill_rectangle(sna, &tmp, x1, y1, x2 - x1, y2 - y1);
 
 	gen4_vertex_flush(sna);
 	kgem_bo_destroy(&sna->kgem, tmp.src.bo);
+	kgem_bo_destroy(&sna->kgem, tmp.mask.bo);
 
 	return true;
 }
