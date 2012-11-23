@@ -237,7 +237,7 @@ static void gen4_magic_ca_pass(struct sna *sna,
 	gen4_emit_pipelined_pointers(sna, op, PictOpAdd,
 				     gen4_choose_composite_kernel(PictOpAdd,
 								  true, true, op->is_affine));
-	OUT_BATCH(MI_FLUSH);
+	OUT_BATCH(MI_FLUSH | MI_INHIBIT_RENDER_CACHE_FLUSH);
 
 	OUT_BATCH(GEN4_3DPRIMITIVE |
 		  GEN4_3DPRIMITIVE_VERTEX_SEQUENTIAL |
