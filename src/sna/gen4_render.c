@@ -1404,7 +1404,7 @@ gen4_emit_state(struct sna *sna,
 		kgem_bo_mark_dirty(op->dst.bo);
 		flush = false;
 	}
-	if (flush)
+	if (flush && op->op > PictOpSrc)
 		OUT_BATCH(MI_FLUSH | MI_INHIBIT_RENDER_CACHE_FLUSH);
 }
 
