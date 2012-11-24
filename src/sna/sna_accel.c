@@ -14429,9 +14429,9 @@ void sna_accel_wakeup_handler(struct sna *sna)
 
 	if (sna->kgem.need_retire)
 		kgem_retire(&sna->kgem);
-	if (!sna->mode.shadow_active && !sna->kgem.need_retire) {
+	if (sna->kgem.nbatch && kgem_is_idle(&sna->kgem)) {
 		DBG(("%s: GPU idle, flushing\n", __FUNCTION__));
-		kgem_submit(&sna->kgem);
+		_kgem_submit(&sna->kgem);
 	}
 	if (sna->kgem.need_purge)
 		kgem_purge_cache(&sna->kgem);
