@@ -691,7 +691,8 @@ sna_render_picture_convert(struct sna *sna,
 			   PixmapPtr pixmap,
 			   int16_t x, int16_t y,
 			   int16_t w, int16_t h,
-			   int16_t dst_x, int16_t dst_y);
+			   int16_t dst_x, int16_t dst_y,
+			   bool fixup_alpha);
 
 inline static void sna_render_composite_redirect_init(struct sna_composite_op *op)
 {

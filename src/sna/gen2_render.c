@@ -1304,7 +1304,8 @@ static bool
 gen2_check_card_format(struct sna *sna,
 		       PicturePtr picture,
 		       struct sna_composite_channel *channel,
-		       int x, int y, int w, int h)
+		       int x, int y, int w, int h,
+		       bool *fixup_alpha)
 {
 	uint32_t format = picture->format;
 	unsigned int i;
@@ -1324,10 +1325,12 @@ gen2_check_card_format(struct sna *sna,
 				return true;
 			}
 
+			*fixup_alpha = true;
 			return false;
 		}
 	}
 
+	*fixup_alpha = false;
 	return false;
 }
 
@@ -1343,6 +1346,7 @@ gen2_composite_picture(struct sna *sna,
 	PixmapPtr pixmap;
 	uint32_t color;
 	int16_t dx, dy;
+	bool fixup_alpha;
 
 	DBG(("%s: (%d, %d)x(%d, %d), dst=(%d, %d)\n",
 	     __FUNCTION__, x, y, w, h, dst_x, dst_y));
@@ -1417,9 +1421,9 @@ gen2_composite_picture(struct sna *sna,
 	} else
 		channel->transform = picture->transform;
 
-	if (!gen2_check_card_format(sna, picture, channel, x,  y, w ,h))
+	if (!gen2_check_card_format(sna, picture, channel, x,  y, w ,h, &fixup_alpha))
 		return sna_render_picture_convert(sna, picture, channel, pixmap,
-						  x, y, w, h, dst_x, dst_y);
+						  x, y, w, h, dst_x, dst_y, fixup_alpha);
 
 	channel->pict_format = picture->format;
 	if (too_large(pixmap->drawable.width, pixmap->drawable.height))
