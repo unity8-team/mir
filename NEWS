@@ -1,3 +1,26 @@
+Release 2.20.14 (2012-11-26)
+============================
+The highlight of this release is gen4, from 965g to gm45. Quite an old
+bug surfaced in the shader assembly, sparking a chance to review a few
+design choices within that backend and experiment on fresh ways to
+workaround the remaining issues.
+
+ * Avoid using inplace XOR'ed uploads for very large buffers
+   https://bugs.freedesktop.org/show_bug.cgi?id=57031
+
+ * Fix the gen4/5 opacity shader
+   https://bugs.freedesktop.org/show_bug.cgi?id=57054
+
+ * Queue a pending vblank request after flip completion
+   https://bugs.freedesktop.org/show_bug.cgi?id=56423
+
+ * Avoid migrating an uninitialised pixmap for use as a render source
+   https://bugs.freedesktop.org/show_bug.cgi?id=47597
+
+ * Improve handing of texture fallbacks for 830/845.
+   https://bugs.freedesktop.org/show_bug.cgi?id=57392
+
+
 Release 2.20.13 (2012-11-11)
 ============================
 Nothing but bug fixes. Many thanks to everyone who took the time to
