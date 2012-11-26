@@ -62,7 +62,6 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <sys/ioctl.h>
 #include <sys/fcntl.h>
-#include <sys/poll.h>
 #include "i915_drm.h"
 
 #ifdef HAVE_VALGRIND
@@ -730,18 +729,6 @@ static void sna_leave_vt(VT_FUNC_ARGS_DECL)
 			   "drmDropMaster failed: %s\n", strerror(errno));
 }
 
-/* In order to workaround a kernel bug in not honouring O_NONBLOCK,
- * check that the fd is readable before attempting to read the next
- * event from drm.
- */
-static Bool sna_mode_has_pending_events(struct sna *sna)
-{
-	struct pollfd pfd;
-	pfd.fd = sna->kgem.fd;
-	pfd.events = POLLIN;
-	return poll(&pfd, 1, 0) == 1;
-}
-
 static Bool sna_early_close_screen(CLOSE_SCREEN_ARGS_DECL)
 {
 	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
@@ -752,9 +739,7 @@ static Bool sna_early_close_screen(CLOSE_SCREEN_ARGS_DECL)
 	xf86_hide_cursors(scrn);
 	sna_uevent_fini(scrn);
 
-	/* drain the event queues */
-	if (sna_mode_has_pending_events(sna))
-		sna_mode_wakeup(sna);
+	sna_mode_close(sna);
 
 	if (sna->dri_open) {
 		sna_dri_close(sna, screen);

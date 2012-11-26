@@ -295,6 +295,7 @@ extern void sna_mode_update(struct sna *sna);
 extern void sna_mode_disable_unused(struct sna *sna);
 extern void sna_mode_wakeup(struct sna *sna);
 extern void sna_mode_redisplay(struct sna *sna);
+extern void sna_mode_close(struct sna *sna);
 extern void sna_mode_fini(struct sna *sna);
 
 extern int sna_page_flip(struct sna *sna,

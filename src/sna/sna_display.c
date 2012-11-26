@@ -2621,6 +2621,31 @@ bool sna_mode_pre_init(ScrnInfoPtr scrn, struct sna *sna)
 	return true;
 }
 
+static Bool sna_mode_has_pending_events(struct sna *sna)
+{
+	struct pollfd pfd;
+	pfd.fd = sna->kgem.fd;
+	pfd.events = POLLIN;
+	return poll(&pfd, 1, 0) == 1;
+}
+
+void
+sna_mode_close(struct sna *sna)
+{
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(sna->scrn);
+	int i;
+
+	/* In order to workaround a kernel bug in not honouring O_NONBLOCK,
+	 * check that the fd is readable before attempting to read the next
+	 * event from drm.
+	 */
+	if (sna_mode_has_pending_events(sna))
+		sna_mode_wakeup(sna);
+
+	for (i = 0; i < xf86_config->num_crtc; i++)
+		sna_crtc_disable_shadow(sna, to_sna_crtc(xf86_config->crtc[i]));
+}
+
 void
 sna_mode_fini(struct sna *sna)
 {
