@@ -111,6 +111,7 @@ search_snoop_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags);
 #define LOCAL_I915_PARAM_HAS_NO_RELOC		24
 #define LOCAL_I915_PARAM_HAS_HANDLE_LUT		25
 
+#define LOCAL_EXEC_OBJECT_WRITE			(1<<2)
 #define LOCAL_I915_EXEC_NO_RELOC		(1<<10)
 #define LOCAL_I915_EXEC_HANDLE_LUT		(1<<11)
 
@@ -2313,9 +2314,7 @@ void _kgem_submit(struct kgem *kgem)
 		kgem->exec[i].alignment = 0;
 		kgem->exec[i].offset = rq->bo->presumed_offset;
 		kgem->exec[i].flags = 0;
-		kgem->exec[i].rsvd1 = (I915_GEM_DOMAIN_COMMAND |
-				       I915_GEM_DOMAIN_INSTRUCTION |
-				       I915_GEM_DOMAIN_VERTEX);
+		kgem->exec[i].rsvd1 = 0;
 		kgem->exec[i].rsvd2 = 0;
 
 		rq->bo->target_handle = kgem->has_handle_lut ? i : handle;
@@ -3925,10 +3924,9 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 		kgem->reloc[index].target_handle = bo->target_handle;
 		kgem->reloc[index].presumed_offset = bo->presumed_offset;
 
-		bo->exec->rsvd1 |= read_write_domain >> 16;
 		if (read_write_domain & 0x7fff) {
 			assert(!bo->snoop || kgem->can_blt_cpu);
-			bo->exec->rsvd1 |= (uint64_t)(read_write_domain & 0x7fff) << 32;
+			bo->exec->flags |= LOCAL_EXEC_OBJECT_WRITE;
 			kgem_bo_mark_dirty(bo);
 		}
 
