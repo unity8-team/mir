@@ -1961,6 +1961,7 @@ sna_blt_composite__convert(struct sna *sna,
 			   struct sna_composite_op *tmp)
 {
 	uint32_t alpha_fixup;
+	int sx, sy;
 	uint8_t op;
 
 #if DEBUG_NO_BLT || NO_BLT_COMPOSITE
@@ -2011,12 +2012,11 @@ sna_blt_composite__convert(struct sna *sna,
 		return false;
 	}
 
-	tmp->u.blt.src_pixmap = NULL;
-	tmp->u.blt.sx = tmp->src.offset[0];
-	tmp->u.blt.sy = tmp->src.offset[1];
+	sx = tmp->src.offset[0];
+	sy = tmp->src.offset[1];
 
-	x += tmp->src.offset[0];
-	y += tmp->src.offset[1];
+	x += sx;
+	y += sy;
 	if (x < 0 || y < 0 ||
 	    x + width  > tmp->src.width ||
 	    y + height > tmp->src.height) {
@@ -2034,8 +2034,8 @@ sna_blt_composite__convert(struct sna *sna,
 			    yy + height > tmp->src.height)
 				return false;
 
-			tmp->u.blt.sx += xx - x;
-			tmp->u.blt.sy += yy - y;
+			sx += xx - x;
+			sy += yy - y;
 		} else
 			return false;
 	}
@@ -2053,6 +2053,10 @@ sna_blt_composite__convert(struct sna *sna,
 	DBG(("%s: blt dst offset (%d, %d), source offset (%d, %d), with alpha fixup? %x\n",
 	     __FUNCTION__,
 	     tmp->dst.x, tmp->dst.y, tmp->u.blt.sx, tmp->u.blt.sy, alpha_fixup));
+
+	tmp->u.blt.src_pixmap = NULL;
+	tmp->u.blt.sx = sx;
+	tmp->u.blt.sy = sy;
 
 	if (alpha_fixup) {
 		tmp->blt   = blt_composite_copy_with_alpha;
