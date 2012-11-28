@@ -264,11 +264,6 @@ static int gen5_vertex_finish(struct sna *sna)
 					       sna->render.vertex_reloc[i], bo,
 					       I915_GEM_DOMAIN_VERTEX << 16,
 					       0);
-			sna->kgem.batch[sna->render.vertex_reloc[i]+1] =
-				kgem_add_reloc(&sna->kgem,
-					       sna->render.vertex_reloc[i]+1, bo,
-					       I915_GEM_DOMAIN_VERTEX << 16,
-					       sna->render.vertex_used * 4 - 1);
 		}
 
 		sna->render.nvertex_reloc = 0;
@@ -367,11 +362,6 @@ static void gen5_vertex_close(struct sna *sna)
 				       sna->render.vertex_reloc[i], bo,
 				       I915_GEM_DOMAIN_VERTEX << 16,
 				       delta);
-		sna->kgem.batch[sna->render.vertex_reloc[i]+1] =
-			kgem_add_reloc(&sna->kgem,
-				       sna->render.vertex_reloc[i]+1, bo,
-				       I915_GEM_DOMAIN_VERTEX << 16,
-				       delta + sna->render.vertex_used * 4 - 1);
 	}
 	sna->render.nvertex_reloc = 0;
 
@@ -974,7 +964,7 @@ static void gen5_emit_vertex_buffer(struct sna *sna,
 		  (4*op->floats_per_vertex << VB0_BUFFER_PITCH_SHIFT));
 	sna->render.vertex_reloc[sna->render.nvertex_reloc++] = sna->kgem.nbatch;
 	OUT_BATCH(0);
-	OUT_BATCH(0);
+	OUT_BATCH(~0); /* max address: disabled */
 	OUT_BATCH(0);
 
 	sna->render_state.gen5.vb_id |= 1 << id;
