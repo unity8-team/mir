@@ -111,7 +111,7 @@ static const struct intel_device_info intel_haswell_info = {
 	.gen = 75,
 };
 
-static const SymTabRec _intel_chipsets[] = {
+static const SymTabRec intel_chipsets[] = {
 	{PCI_CHIP_I810,				"i810"},
 	{PCI_CHIP_I810_DC100,			"i810-dc100"},
 	{PCI_CHIP_I810_E,			"i810e"},
@@ -199,9 +199,7 @@ static const SymTabRec _intel_chipsets[] = {
 	{PCI_CHIP_VALLEYVIEW_PO,		"ValleyView PO board" },
 	{-1,					NULL}
 };
-#define NUM_CHIPSETS (sizeof(_intel_chipsets) / sizeof(_intel_chipsets[0]))
-
-static SymTabRec *intel_chipsets = (SymTabRec *) _intel_chipsets;
+#define NUM_CHIPSETS (sizeof(intel_chipsets) / sizeof(intel_chipsets[0]))
 
 #define INTEL_DEVICE_MATCH(d,i) \
     { 0x8086, (d), PCI_MATCH_ANY, PCI_MATCH_ANY, 0x3 << 16, 0xff << 16, (intptr_t)(i) }

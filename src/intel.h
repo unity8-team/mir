@@ -553,6 +553,9 @@ intel_get_transformed_coordinates_3d(int x, int y, PictTransformPtr transform,
 				    float *x_out, float *y_out, float *z_out);
 
 static inline void
+intel_debug_fallback(ScrnInfoPtr scrn, const char *format, ...) _X_ATTRIBUTE_PRINTF(2, 3);
+
+static inline void
 intel_debug_fallback(ScrnInfoPtr scrn, const char *format, ...)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);

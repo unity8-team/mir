@@ -999,6 +999,7 @@ static int gen6_vertex_finish(struct sna *sna)
 		sna->render.nvertex_reloc = 0;
 		sna->render.vertex_used = 0;
 		sna->render.vertex_index = 0;
+		sna->render.vbo = NULL;
 		sna->render_state.gen6.vb_id = 0;
 
 		kgem_bo_destroy(&sna->kgem, bo);
@@ -2273,7 +2274,8 @@ gen6_composite_picture(struct sna *sna,
 	channel->card_format = gen6_get_card_format(picture->format);
 	if (channel->card_format == (unsigned)-1)
 		return sna_render_picture_convert(sna, picture, channel, pixmap,
-						  x, y, w, h, dst_x, dst_y);
+						  x, y, w, h, dst_x, dst_y,
+						  false);
 
 	if (too_large(pixmap->drawable.width, pixmap->drawable.height)) {
 		DBG(("%s: extracting from pixmap %dx%d\n", __FUNCTION__,
@@ -3249,8 +3251,13 @@ static inline bool prefer_blt_copy(struct sna *sna,
 	if (PREFER_RENDER)
 		return PREFER_RENDER > 0;
 
-	return (sna->kgem.ring == KGEM_BLT ||
-		(flags & COPY_LAST && sna->kgem.mode == KGEM_NONE) ||
+	if (sna->kgem.ring == KGEM_BLT)
+		return true;
+
+	if (src_bo == dst_bo && can_switch_to_blt(sna))
+		return true;
+
+	return ((flags & COPY_LAST && sna->kgem.ring != KGEM_RENDER) ||
 		prefer_blt_bo(sna, src_bo) ||
 		prefer_blt_bo(sna, dst_bo));
 }

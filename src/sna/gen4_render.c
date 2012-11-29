@@ -49,6 +49,7 @@
  */
 #define PREFER_BLT 1
 #define FLUSH_EVERY_VERTEX 1
+#define FORCE_SPANS 0
 
 #define NO_COMPOSITE 0
 #define NO_COMPOSITE_SPANS 0
@@ -100,15 +101,8 @@
 #define SF_KERNEL_NUM_GRF 16
 #define PS_KERNEL_NUM_GRF 32
 
-static const struct gt_info {
-	uint32_t max_sf_threads;
-	uint32_t max_wm_threads;
-	uint32_t urb_size;
-} gen4_gt_info = {
-	24, 32, 256,
-}, g4x_gt_info = {
-	24, 50, 384,
-};
+#define GEN4_MAX_SF_THREADS 24
+#define GEN4_MAX_WM_THREADS 32
 
 static const uint32_t ps_kernel_packed_static[][4] = {
 #include "exa_wm_xy.g4b"
@@ -294,6 +288,7 @@ static int gen4_vertex_finish(struct sna *sna)
 					       0);
 		}
 
+		sna->render.vbo = NULL;
 		sna->render.nvertex_reloc = 0;
 		sna->render.vertex_used = 0;
 		sna->render.vertex_index = 0;
@@ -1923,7 +1918,8 @@ gen4_composite_picture(struct sna *sna,
 	channel->card_format = gen4_get_card_format(picture->format);
 	if (channel->card_format == -1)
 		return sna_render_picture_convert(sna, picture, channel, pixmap,
-						  x, y, w, h, dst_x, dst_y);
+						  x, y, w, h, dst_x, dst_y,
+						  false);
 
 	if (too_large(pixmap->drawable.width, pixmap->drawable.height))
 		return sna_render_picture_extract(sna, picture, channel,
@@ -2294,6 +2290,7 @@ gen4_render_composite(struct sna *sna,
 		return false;
 	sna_render_reduce_damage(tmp, dst_x, dst_y, width, height);
 
+	sna_render_composite_redirect_init(tmp);
 	if (too_large(tmp->dst.width, tmp->dst.height) &&
 	    !sna_render_composite_redirect(sna, tmp,
 					   dst_x, dst_y, width, height))
@@ -2532,20 +2529,17 @@ gen4_emit_composite_spans_affine(struct sna *sna,
 	OUT_VERTEX(box->x2, box->y2);
 	gen4_emit_composite_texcoord_affine(sna, &op->base.src,
 					    box->x2, box->y2);
-	OUT_VERTEX_F(opacity);
-	OUT_VERTEX_F(1);
+	OUT_VERTEX_F(opacity); OUT_VERTEX_F(1);
 
 	OUT_VERTEX(box->x1, box->y2);
 	gen4_emit_composite_texcoord_affine(sna, &op->base.src,
 					    box->x1, box->y2);
-	OUT_VERTEX_F(opacity);
-	OUT_VERTEX_F(1);
+	OUT_VERTEX_F(opacity); OUT_VERTEX_F(1);
 
 	OUT_VERTEX(box->x1, box->y1);
 	gen4_emit_composite_texcoord_affine(sna, &op->base.src,
 					    box->x1, box->y1);
-	OUT_VERTEX_F(opacity);
-	OUT_VERTEX_F(0);
+	OUT_VERTEX_F(opacity); OUT_VERTEX_F(0);
 }
 
 fastcall static void
@@ -2623,16 +2617,11 @@ gen4_check_composite_spans(struct sna *sna,
 		return false;
 	}
 
-	if ((flags & (COMPOSITE_SPANS_RECTILINEAR | COMPOSITE_SPANS_INPLACE_HINT)) == 0) {
-		struct sna_pixmap *priv = sna_pixmap_from_drawable(dst->pDrawable);
-		assert(priv);
+	if (FORCE_SPANS)
+		return FORCE_SPANS > 0;
 
-		if ((priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo)) ||
-		    (priv->gpu_bo && kgem_bo_is_busy(priv->gpu_bo))) {
-			return true;
-		}
-
-		DBG(("%s: fallback, non-rectilinear spans to idle bo\n",
+	if ((flags & COMPOSITE_SPANS_RECTILINEAR) == 0) {
+		DBG(("%s: fallback, non-rectilinear spans\n",
 		     __FUNCTION__));
 		return false;
 	}
@@ -2669,6 +2658,7 @@ gen4_render_composite_spans(struct sna *sna,
 		return false;
 	sna_render_reduce_damage(&tmp->base, dst_x, dst_y, width, height);
 
+	sna_render_composite_redirect_init(&tmp->base);
 	if (too_large(tmp->base.dst.width, tmp->base.dst.height)) {
 		if (!sna_render_composite_redirect(sna, &tmp->base,
 						   dst_x, dst_y, width, height))
@@ -2699,11 +2689,16 @@ gen4_render_composite_spans(struct sna *sna,
 	tmp->base.has_component_alpha = false;
 	tmp->base.need_magic_ca_pass = false;
 
-	tmp->prim_emit = gen4_emit_composite_spans_primitive;
-	if (tmp->base.src.is_solid)
+	if (tmp->base.src.is_solid) {
+		DBG(("%s: using solid fast emitter\n", __FUNCTION__));
 		tmp->prim_emit = gen4_emit_composite_spans_solid;
-	else if (tmp->base.is_affine)
+	} else if (tmp->base.is_affine) {
+		DBG(("%s: using affine fast emitter\n", __FUNCTION__));
 		tmp->prim_emit = gen4_emit_composite_spans_affine;
+	} else {
+		DBG(("%s: using general emitter\n", __FUNCTION__));
+		tmp->prim_emit = gen4_emit_composite_spans_primitive;
+	}
 	tmp->base.floats_per_vertex = 5 + 2*!tmp->base.is_affine;
 	tmp->base.floats_per_rect = 3 * tmp->base.floats_per_vertex;
 
@@ -3493,7 +3488,6 @@ static uint32_t gen4_create_vs_unit_state(struct sna_static_stream *stream)
 }
 
 static uint32_t gen4_create_sf_state(struct sna_static_stream *stream,
-				     const struct gt_info *info,
 				     uint32_t kernel)
 {
 	struct gen4_sf_unit_state *sf;
@@ -3508,7 +3502,7 @@ static uint32_t gen4_create_sf_state(struct sna_static_stream *stream,
 	/* don't smash vertex header, read start from dw8 */
 	sf->thread3.urb_entry_read_offset = 1;
 	sf->thread3.dispatch_grf_start_reg = 3;
-	sf->thread4.max_threads = info->max_sf_threads - 1;
+	sf->thread4.max_threads = GEN4_MAX_SF_THREADS - 1;
 	sf->thread4.urb_entry_allocation_size = URB_SF_ENTRY_SIZE - 1;
 	sf->thread4.nr_urb_entries = URB_SF_ENTRIES;
 	sf->sf5.viewport_transform = false;	/* skip viewport */
@@ -3539,7 +3533,6 @@ static uint32_t gen4_create_sampler_state(struct sna_static_stream *stream,
 }
 
 static void gen4_init_wm_state(struct gen4_wm_unit_state *wm,
-			       const struct gt_info *info,
 			       bool has_mask,
 			       uint32_t kernel,
 			       uint32_t sampler)
@@ -3560,7 +3553,7 @@ static void gen4_init_wm_state(struct gen4_wm_unit_state *wm,
 	wm->wm4.sampler_state_pointer = sampler >> 5;
 	wm->wm4.sampler_count = 1;
 
-	wm->wm5.max_threads = info->max_wm_threads - 1;
+	wm->wm5.max_threads = GEN4_MAX_WM_THREADS - 1;
 	wm->wm5.transposed_urb_read = 0;
 	wm->wm5.thread_dispatch_enable = 1;
 	/* just use 16-pixel dispatch (4 subspans), don't need to change kernel
@@ -3636,14 +3629,8 @@ static bool gen4_render_setup(struct sna *sna)
 	struct gen4_render_state *state = &sna->render_state.gen4;
 	struct sna_static_stream general;
 	struct gen4_wm_unit_state_padded *wm_state;
-	const struct gt_info *info;
 	uint32_t sf[2], wm[KERNEL_COUNT];
 	int i, j, k, l, m;
-
-	if (sna->kgem.gen == 45)
-		info = &g4x_gt_info;
-	else
-		info = &gen4_gt_info;
 
 	sna_static_stream_init(&general);
 
@@ -3668,8 +3655,8 @@ static bool gen4_render_setup(struct sna *sna)
 	}
 
 	state->vs = gen4_create_vs_unit_state(&general);
-	state->sf[0] = gen4_create_sf_state(&general, info, sf[0]);
-	state->sf[1] = gen4_create_sf_state(&general, info, sf[1]);
+	state->sf[0] = gen4_create_sf_state(&general, sf[0]);
+	state->sf[1] = gen4_create_sf_state(&general, sf[1]);
 
 	wm_state = sna_static_stream_map(&general,
 					  sizeof(*wm_state) * KERNEL_COUNT *
@@ -3689,7 +3676,7 @@ static bool gen4_render_setup(struct sna *sna)
 									  k, l);
 
 					for (m = 0; m < KERNEL_COUNT; m++) {
-						gen4_init_wm_state(&wm_state->state, info,
+						gen4_init_wm_state(&wm_state->state,
 								   wm_kernels[m].has_mask,
 								   wm[m], sampler_state);
 						wm_state++;

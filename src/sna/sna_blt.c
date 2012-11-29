@@ -1840,10 +1840,21 @@ clear:
 	if (x < 0 || y < 0 ||
 	    x + width > src->pDrawable->width ||
 	    y + height > src->pDrawable->height) {
-		DBG(("%s: source extends outside (%d, %d), (%d, %d) of valid drawable %dx%d\n",
+		DBG(("%s: source extends outside (%d, %d), (%d, %d) of valid drawable %dx%d, repeat=%d\n",
 		     __FUNCTION__,
-		     x, y, x+width, y+width, src->pDrawable->width, src->pDrawable->height));
-		return false;
+		     x, y, x+width, y+width, src->pDrawable->width, src->pDrawable->height, src->repeatType));
+		if (src->repeat && src->repeatType == RepeatNormal) {
+			x = x % src->pDrawable->width;
+			y = y % src->pDrawable->height;
+			if (x < 0)
+				x += src->pDrawable->width;
+			if (y < 0)
+				y += src->pDrawable->height;
+			if (x + width  > src->pDrawable->width ||
+			    y + height > src->pDrawable->height)
+				return false;
+		} else
+			return false;
 	}
 
 	src_pixmap = get_drawable_pixmap(src->pDrawable);
@@ -2000,6 +2011,10 @@ sna_blt_composite__convert(struct sna *sna,
 		return false;
 	}
 
+	tmp->u.blt.src_pixmap = NULL;
+	tmp->u.blt.sx = tmp->src.offset[0];
+	tmp->u.blt.sy = tmp->src.offset[1];
+
 	x += tmp->src.offset[0];
 	y += tmp->src.offset[1];
 	if (x < 0 || y < 0 ||
@@ -2008,7 +2023,21 @@ sna_blt_composite__convert(struct sna *sna,
 		DBG(("%s: source extends outside (%d, %d), (%d, %d) of valid drawable %dx%d\n",
 		     __FUNCTION__,
 		     x, y, x+width, y+width, tmp->src.width, tmp->src.height));
-		return false;
+		if (tmp->src.repeat == RepeatNormal) {
+			int xx = x % tmp->src.width;
+			int yy = y % tmp->src.height;
+			if (xx < 0)
+				xx += tmp->src.width;
+			if (yy < 0)
+				yy += tmp->src.height;
+			if (xx + width  > tmp->src.width ||
+			    yy + height > tmp->src.height)
+				return false;
+
+			tmp->u.blt.sx += xx - x;
+			tmp->u.blt.sy += yy - y;
+		} else
+			return false;
 	}
 
 	if (!kgem_check_many_bo_fenced(&sna->kgem, tmp->dst.bo, tmp->src.bo, NULL)) {
@@ -2021,9 +2050,6 @@ sna_blt_composite__convert(struct sna *sna,
 		_kgem_set_mode(&sna->kgem, KGEM_BLT);
 	}
 
-	tmp->u.blt.src_pixmap = NULL;
-	tmp->u.blt.sx = tmp->src.offset[0];
-	tmp->u.blt.sy = tmp->src.offset[1];
 	DBG(("%s: blt dst offset (%d, %d), source offset (%d, %d), with alpha fixup? %x\n",
 	     __FUNCTION__,
 	     tmp->dst.x, tmp->dst.y, tmp->u.blt.sx, tmp->u.blt.sy, alpha_fixup));

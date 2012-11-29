@@ -579,18 +579,12 @@ static bool write_boxes_inplace(struct kgem *kgem,
 	return true;
 }
 
-static bool upload_inplace(struct kgem *kgem,
-			   struct kgem_bo *bo,
-			   const BoxRec *box,
-			   int n, int bpp)
+static bool __upload_inplace(struct kgem *kgem,
+			     struct kgem_bo *bo,
+			     const BoxRec *box,
+			     int n, int bpp)
 {
 	unsigned int bytes;
-
-	if (kgem->wedged)
-		return true;
-
-	if (!kgem_bo_can_map(kgem, bo) && !upload_inplace__tiled(kgem, bo))
-		return false;
 
 	if (FORCE_INPLACE)
 		return FORCE_INPLACE > 0;
@@ -608,6 +602,20 @@ static bool upload_inplace(struct kgem *kgem,
 		return bytes * bpp >> 12 >= kgem->half_cpu_cache_pages;
 	else
 		return bytes * bpp >> 12;
+}
+
+static bool upload_inplace(struct kgem *kgem,
+			   struct kgem_bo *bo,
+			   const BoxRec *box,
+			   int n, int bpp)
+{
+	if (kgem->wedged)
+		return true;
+
+	if (!kgem_bo_can_map(kgem, bo) && !upload_inplace__tiled(kgem, bo))
+		return false;
+
+	return __upload_inplace(kgem, bo, box, n,bpp);
 }
 
 bool sna_write_boxes(struct sna *sna, PixmapPtr dst,
@@ -960,6 +968,20 @@ write_boxes_inplace__xor(struct kgem *kgem,
 	} while (--n);
 }
 
+static bool upload_inplace__xor(struct kgem *kgem,
+				struct kgem_bo *bo,
+				const BoxRec *box,
+				int n, int bpp)
+{
+	if (kgem->wedged)
+		return true;
+
+	if (!kgem_bo_can_map(kgem, bo))
+		return false;
+
+	return __upload_inplace(kgem, bo, box, n, bpp);
+}
+
 void sna_write_boxes__xor(struct sna *sna, PixmapPtr dst,
 			  struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
 			  const void *src, int stride, int16_t src_dx, int16_t src_dy,
@@ -976,7 +998,7 @@ void sna_write_boxes__xor(struct sna *sna, PixmapPtr dst,
 
 	DBG(("%s x %d\n", __FUNCTION__, nbox));
 
-	if (upload_inplace(kgem, dst_bo, box, nbox, dst->drawable.bitsPerPixel)) {
+	if (upload_inplace__xor(kgem, dst_bo, box, nbox, dst->drawable.bitsPerPixel)) {
 fallback:
 		write_boxes_inplace__xor(kgem,
 					 src, stride, dst->drawable.bitsPerPixel, src_dx, src_dy,

@@ -114,10 +114,10 @@ am__libsna_la_SOURCES_DIST = blt.c compiler.h kgem.c kgem.h rop.h \
 	sna_tiling.c sna_transform.c sna_video.c sna_video.h \
 	sna_video_overlay.c sna_video_sprite.c sna_video_textured.c \
 	gen2_render.c gen2_render.h gen3_render.c gen3_render.h \
-	gen4_render.c gen4_render.h gen5_render.c gen5_render.h \
-	gen6_render.c gen6_render.h gen7_render.c gen7_render.h \
-	sna_dri.c sna_video_hwmc.h sna_video_hwmc.c kgem_debug.c \
-	kgem_debug.h kgem_debug_gen2.c kgem_debug_gen3.c \
+	gen4_render.c g4x_render.c gen4_render.h gen5_render.c \
+	gen5_render.h gen6_render.c gen6_render.h gen7_render.c \
+	gen7_render.h sna_dri.c sna_video_hwmc.h sna_video_hwmc.c \
+	kgem_debug.c kgem_debug.h kgem_debug_gen2.c kgem_debug_gen3.c \
 	kgem_debug_gen4.c kgem_debug_gen5.c kgem_debug_gen6.c \
 	kgem_debug_gen7.c
 @DRI2_TRUE@am__objects_1 = sna_dri.lo
@@ -132,8 +132,9 @@ am_libsna_la_OBJECTS = blt.lo kgem.lo sna_accel.lo sna_blt.lo \
 	sna_stream.lo sna_trapezoids.lo sna_tiling.lo sna_transform.lo \
 	sna_video.lo sna_video_overlay.lo sna_video_sprite.lo \
 	sna_video_textured.lo gen2_render.lo gen3_render.lo \
-	gen4_render.lo gen5_render.lo gen6_render.lo gen7_render.lo \
-	$(am__objects_1) $(am__objects_2) $(am__objects_3)
+	gen4_render.lo g4x_render.lo gen5_render.lo gen6_render.lo \
+	gen7_render.lo $(am__objects_1) $(am__objects_2) \
+	$(am__objects_3)
 libsna_la_OBJECTS = $(am_libsna_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -393,9 +394,10 @@ libsna_la_SOURCES = blt.c compiler.h kgem.c kgem.h rop.h sna.h \
 	sna_tiling.c sna_transform.c sna_video.c sna_video.h \
 	sna_video_overlay.c sna_video_sprite.c sna_video_textured.c \
 	gen2_render.c gen2_render.h gen3_render.c gen3_render.h \
-	gen4_render.c gen4_render.h gen5_render.c gen5_render.h \
-	gen6_render.c gen6_render.h gen7_render.c gen7_render.h \
-	$(NULL) $(am__append_3) $(am__append_5) $(am__append_6)
+	gen4_render.c g4x_render.c gen4_render.h gen5_render.c \
+	gen5_render.h gen6_render.c gen6_render.h gen7_render.c \
+	gen7_render.h $(NULL) $(am__append_3) $(am__append_5) \
+	$(am__append_6)
 all: all-recursive
 
 .SUFFIXES:
@@ -449,6 +451,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/blt.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/g4x_render.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gen2_render.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gen3_render.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gen4_render.Plo@am__quote@
