@@ -1,3 +1,486 @@
+commit 7a904ce839933d57176e013cdad147533c33ca2f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Nov 26 08:48:31 2012 +0000
+
+    2.20.14 release
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 1367e3f9ef5f606c8927cbde441a2ea41fa6d025
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Nov 25 00:24:45 2012 +0000
+
+    sna: Exploit the alpha-fixup of the BLT for texture format conversions
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 6d6399f97cf7cb91dcf89e9a5cd1243f761e4314
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Nov 25 00:05:44 2012 +0000
+
+    sna: Transform a simple repeat pattern into range of the BLT
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 39f1e228b74e98d3d87157cf093fc56ca31e6b13
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Nov 24 20:16:29 2012 +0000
+
+    sna: Make GPU idle more consistent during wakeup
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 40b6121746c55153de444ccb753df80706ff3a69
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Nov 23 18:21:41 2012 +0000
+
+    sna/g4x: Refine the w/a for the broken sf shader
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit e0b906b09697b5fe7a5be2fdc52abd9b1c73f96d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Nov 23 18:01:25 2012 +0000
+
+    sna/g4x: Use the render pipeline more often for composite operations
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 54d8968da5ae39bfbcad511322926931bce2bda3
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Nov 23 17:47:49 2012 +0000
+
+    sna/gen4: Revert changes to 965g[m]
+    
+    The changes tested on g45/gm45 prove to be highly unstable on 965gm,
+    suggesting a radical difference in the nature of the bugs between the
+    two generations. In theory, g4x has additional features that could be
+    exploited over and above gen4 which may prove interesting in the future.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d560296561f68c3ac841345c0f4ce2c8e7381156
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Nov 23 16:35:06 2012 +0000
+
+    sna/gen4: Don't force a flush for the dirty target if the we do not read back
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4023b2044757a9a67d564be0c8adf4885973a6e3
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Nov 23 15:42:18 2012 +0000
+
+    sna/gen4: Force composite(WHITE, glyph) for building the glyphstring mask
+    
+    For reasons that are not apparent, if we don't composite with
+    source/mask for the glyph strings, there appears to be some cache
+    corruption. About as bizarre as the rest of gen4 idiosynacracies.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f74b62755c6e41097c23cc506984859e556a3415
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Nov 23 14:59:42 2012 +0000
+
+    sna/gen4: Set composite op before testing for a BLT compatible op
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4c922eb52cadb867a0a15929e5a214c84a5992f3
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Nov 23 14:19:59 2012 +0000
+
+    sna/gen4: Pass the mask channel explicitly rather than through a dummy mask
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2e68efa8ec66b4c89e9816bfa15067b398da5e3e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Nov 23 14:04:51 2012 +0000
+
+    sna/gen4: Reduce the flush before performing the CA pass
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 43aff6708fe97aa2fae0e30f98fc7cd9d7311b75
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Nov 23 13:37:44 2012 +0000
+
+    sna/gen4: Update render fill routines to use the dummy mask
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 352910712266202ef017066891ec383fd037fc4a
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Nov 23 13:29:01 2012 +0000
+
+    sna/gen4: Move the flush from inside the spans to emit_state()
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 217f3e835b99002669999f818afa0d5c3a1cc852
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Nov 23 12:32:14 2012 +0000
+
+    sna/gen4: Backport the more efficient composite box emitters
+    
+    Now that we aren't flushing after every single rectangle, we can strive
+    for a little efficiency.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d3145e3f8146e7d864d32aec49c44c04d619e56a
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Nov 23 12:28:21 2012 +0000
+
+    sna/gen4: Use a dummy white mask to avoid the flush w/a when compositing
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 65d530b59b957cc5f303ae819baad8075a555ac0
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Nov 22 08:18:38 2012 +0000
+
+    Revert "uxa: Refactor early-exit paths of uxa_try_driver_composite()."
+    
+    This reverts commit fa5c573455cf63090dbb6d167d4e5f1cb23daf72 as it
+    causes a SIGSEGV.
+    
+    Reported-by: lu hua <huax.lu@intel.com>
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=57389
+
+commit d3a49f36395d737698616fe8ba9da7b74cd2d89a
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Nov 21 18:41:00 2012 +0000
+
+    sna/gen3+: Clear the render.vbo when replacing it for vertex upload
+    
+    As we may trigger a flush and a retire when searching for a vertex
+    buffer for the new vertices, we need to be careful to decouple the
+    destroyed vbo in order to avoid a use-after-free when inspecting the
+    state.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 1c57a52a1f46e8401429955d8c96fd5095c9012a
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Nov 21 18:17:31 2012 +0000
+
+    sna: Assert that we do not replace a GPU bo with a proxy
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8da12a00ee653510e1f1a6fecb28dbb36faa8400
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Nov 21 17:28:46 2012 +0000
+
+    sna: Skip uploading unintialiased pixmap data
+    
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=47597
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0696ea4bd601ed823dbded03eaef6f316df2a5e8
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Nov 21 17:25:33 2012 +0000
+
+    sna: Add the missing assertion for !proxy
+    
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=47597
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit ee72375ecd4f6d6e756bc361fa512b6675309540
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Nov 21 17:08:53 2012 +0000
+
+    sna: Do not migrate uninitialised pixmaps
+    
+    Reported-by: Jiri Slaby <jirislaby@gmail.com>
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=47597
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 44dad490140d85a4c0dcb916030c36a838670c01
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Nov 21 16:22:35 2012 +0000
+
+    sna: Do not dispose of a shadow pixmap
+    
+    Fixes regression from 2249e9edc37811c07e2807d6b4def05585b44c22
+    
+    Reported-by: Jiri Slaby <jirislaby@gmail.com>
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=47597
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 9c627a05247690891062a2c0c1c8f7bbc0273104
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Nov 21 16:03:02 2012 +0000
+
+    sna: Remove the kgem_bo_is_mappable refcnt assertion from freed paths
+    
+    A few callers of kgem_bo_is_mappable operate on freed bo, and so need to
+    avoid the assert(bo->refcnt).
+    
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=47597
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit c0c48c7a5aca4d24936efbeaefc7674ada2ef87f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Nov 21 14:46:45 2012 +0000
+
+    sna: Add a few refcnt assertions
+    
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=47597
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0884777c33d20dbc329b98ad0db5ffb0df93ac8c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Nov 21 14:31:44 2012 +0000
+
+    sna: Fix bogus assertion from 03fb9ded43
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2249e9edc37811c07e2807d6b4def05585b44c22
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Nov 21 13:05:36 2012 +0000
+
+    sna: Dispose of local copy for render sources
+    
+    If we transfer the pixmap to the GPU to use as a render source, presume
+    that we will not need to then touch the local copy (at least for a
+    while) and so return that memory to the system.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 736bb0f7058bf05ef48cdfe6a30d880de817aff9
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Nov 21 12:16:46 2012 +0000
+
+    sna: Tighten a couple of assertions for damage with use_bo
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 03fb9ded43f9bf8b73f99d5b3a8dc592fe22b523
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Nov 20 21:13:07 2012 +0000
+
+    sna: Assert that we do not create a proxy with existent GPU damage
+    
+    References: http://bugs.freedesktop.org/show_bug.cgi?id=47597
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 9ab1d1f94e502e5fde87e7c171f3502f8a55f22b
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Nov 20 18:42:58 2012 +0000
+
+    sna/dri: Queue a vblank-continuation after flip-completion
+    
+    If a vblank request was delayed due to a pending flip, we need to make
+    sure that we then queue it after that flip or else progress ceases.
+    
+    Reported-by: Jiri Slaby <jirislaby@gmail.com>
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=56423
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=57156
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 7a7a76b359f73a4c4bcda0d88004f4dd5e94a186
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Nov 20 16:05:32 2012 +0000
+
+    sna/dri: Avoid a NULL dereference inside a DBG
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit fa5c573455cf63090dbb6d167d4e5f1cb23daf72
+Author: Eric Anholt <eric@anholt.net>
+Date:   Sat Nov 17 13:11:13 2012 -0800
+
+    uxa: Refactor early-exit paths of uxa_try_driver_composite().
+    
+    Saves 200b of code at -O2.
+
+commit edefb64d2b1c95b0b678cb222273ab64b2e6db2a
+Author: Eric Anholt <eric@anholt.net>
+Date:   Sat Nov 17 13:11:12 2012 -0800
+
+    uxa: Work around uninitialized-value warning.
+    
+    The compiler isn't noticing that localDst only diverges from pDst when
+    the _copy variables have also been set.
+
+commit 18b2e2a82724407196001ca853bd83150c66c5bd
+Author: Eric Anholt <eric@anholt.net>
+Date:   Sat Nov 17 13:11:10 2012 -0800
+
+    uxa: Add printf attribute to intel_debug_fallback().
+    
+    Shuts up a bunch of warnings with xorg's shared warning flags, and
+    should give us more informative warnings in our code.
+
+commit 2d1e267e662505ca0dd318765464a24739dc5bd8
+Author: Eric Anholt <eric@anholt.net>
+Date:   Sat Nov 17 13:11:09 2012 -0800
+
+    uxa/dri: Factor out the repeated swap fallback code.
+
+commit cd2f373da7a14e004c999f9f0efaf88c785d3d3f
+Author: Eric Anholt <eric@anholt.net>
+Date:   Sat Nov 17 13:11:08 2012 -0800
+
+    configure.ac: Fix bad syntax for test calls
+
+commit b8c01d9bd7ce5656706ebebd16e5a8c5ca0ba487
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Nov 19 15:20:10 2012 +0000
+
+    sna/dri: Add an assert that the cached DRI2 buffer is pinned for DRI
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 84b1a02fa9fde02366e0384044526982e70d0e8d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Nov 19 13:41:28 2012 +0000
+
+    sna/dri: Avoid setting off-delay after a failed flip (use-after-free)
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit b4dd1103a55406bcd65f137c668701074a5c41b6
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Nov 18 12:21:49 2012 +0000
+
+    sna/gen6+: Tweak prefer-blt to offset latency when in rc6
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0cb8544dc16d4c1e9ae7f1ee74ee26c7501a9ed7
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Nov 18 12:13:46 2012 +0000
+
+    Remove useless indirection of intel_chipsets
+    
+    Once upon a time this was used to hide a compiler warning about a
+    pointer mismatch, now the compiler still warns about the cast, making
+    the indirect moot.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8509e474f57533fc6afcf213165f4c8633631fb5
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Nov 16 23:02:44 2012 +0000
+
+    sna/dri: Clear the last-used-cpu flag when performing CopyRegion
+    
+    Keeps the internal bookkeeping intact after the small bypass.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 866ed4a26cbbb29ef3845b0aa56383c4d951c65a
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Nov 15 15:13:14 2012 +0000
+
+    sna/dri: Add a couple of more asserts to track injection of a rogue bo
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d2897cb0136ffec83365c7530ed544b562cac478
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Nov 13 12:43:44 2012 +0000
+
+    sna/gen4,5: Fix the opacity shader to use the right vertex attribute
+    
+    Reported-by: Edward Sheldrake <ejsheldrake@gmail.com>
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=57054
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 440eaa049756e5266f3bd80e2751f1fd0d5f9890
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Nov 13 12:42:58 2012 +0000
+
+    sna/gen4: Tidy emission of opacity vertex attribute
+    
+    Just make it more consistent between the various emitters
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit b6d2bb961517623d46aa6944307cb998ee125459
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Nov 13 10:05:56 2012 +0000
+
+    sna/gen4: Do not prefer inplace non-rectilinear spans
+    
+    As gen4 requires the per-rectangle vertex flush, emitting spans on the
+    GPU is inefficient and so we prefer to composite the mask instead.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit ae293609c7400cd3c753ed3762772264c4741df5
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Nov 13 10:21:29 2012 +0000
+
+    sna/gen4: Always initialise redirect
+    
+    Do not assume the caller cleared the composite-op structure for us.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2954f15e2bcb590a90c2cb6077c0843ee25a4413
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Nov 13 09:46:19 2012 +0000
+
+    sna: Specialise the decision for inplace xor uploads
+    
+    Fixes a regression from
+    
+    commit 0be1d964713ca407f029278a8256d02d925dc9da
+    Author: Chris Wilson <chris@chris-wilson.co.uk>
+    Date:   Tue Sep 11 21:48:24 2012 +0100
+    
+        sna: Use inplace X tiling for LLC uploads
+    
+    which introduced the ability to swizzle into CPU maps, but also
+    convinced the xorg path to the same - which for large images blows up.
+    
+    Reported-by: Michael Laß <bevan@bi-co.net>
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=57031
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 66eb0adffa63ef8ece7621ba90dc96af91549612
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Nov 12 14:45:56 2012 +0000
+
+    sna/dri: Apply the can_blit() check for CopyRegion
+    
+    CopyRegion() also needs to check for stale bo in case the pixmap
+    dimensions have changed size and so may cause out-of-bounds read/writes.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit b27ecf3059bc066ef59f2a71c1d8d8f0ffec7191
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Nov 12 14:06:06 2012 +0000
+
+    sna/dri: Prevent scheduling a swap on stale buffers
+    
+    If the screen has been reconfigured and the DRI client tries to swap the
+    old buffers (having not processed the invalidate event and retrieved the
+    current names), quietly drop the request. If we try to obey the request,
+    we will end up attaching a back buffer that is the wrong size to the
+    scanout...
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 34aa1e3b2702a55799a5655a3ba10bce4cc2065a
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Nov 12 11:22:53 2012 +0000
+
+    sna: Compile against ancient libdrm
+    
+    We need to trim the sprite video overlays if the prototypes are not
+    known.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
 commit 8f1afde57dca27e6542b0b8e7c87750f3d6367bf
 Author: Chris Wilson <chris@chris-wilson.co.uk>
 Date:   Sun Nov 11 16:16:20 2012 +0000

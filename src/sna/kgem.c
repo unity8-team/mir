@@ -1242,7 +1242,7 @@ kgem_add_handle(struct kgem *kgem, struct kgem_bo *bo)
 	return exec;
 }
 
-void _kgem_add_bo(struct kgem *kgem, struct kgem_bo *bo)
+static void kgem_add_bo(struct kgem *kgem, struct kgem_bo *bo)
 {
 	bo->exec = kgem_add_handle(kgem, bo);
 	bo->rq = kgem->next_request;
@@ -1374,7 +1374,7 @@ inline static void kgem_bo_move_to_inactive(struct kgem *kgem,
 	if (bo->map) {
 		int type = IS_CPU_MAP(bo->map);
 		if (bucket(bo) >= NUM_CACHE_BUCKETS ||
-		    (!type && !kgem_bo_is_mappable(kgem, bo))) {
+		    (!type && !__kgem_bo_is_mappable(kgem, bo))) {
 			munmap(MAP(bo->map), bytes(bo));
 			bo->map = NULL;
 		}
@@ -3907,7 +3907,7 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 		}
 
 		if (bo->exec == NULL)
-			_kgem_add_bo(kgem, bo);
+			kgem_add_bo(kgem, bo);
 		assert(bo->rq == kgem->next_request);
 
 		if (kgem->gen < 40 && read_write_domain & KGEM_RELOC_FENCED) {
@@ -4777,7 +4777,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 						  CREATE_EXACT | CREATE_INACTIVE | CREATE_GTT_MAP);
 		if (old == NULL) {
 			old = search_linear_cache(kgem, alloc, CREATE_INACTIVE);
-			if (old && !kgem_bo_is_mappable(kgem, old)) {
+			if (old && !__kgem_bo_is_mappable(kgem, old)) {
 				_kgem_bo_destroy(kgem, old);
 				old = NULL;
 			}
@@ -4785,7 +4785,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 		if (old) {
 			DBG(("%s: reusing handle=%d for buffer\n",
 			     __FUNCTION__, old->handle));
-			assert(kgem_bo_is_mappable(kgem, old));
+			assert(__kgem_bo_is_mappable(kgem, old));
 			assert(!old->snoop);
 			assert(old->rq == NULL);
 

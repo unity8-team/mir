@@ -962,7 +962,7 @@ uxa_try_driver_composite(CARD8 op,
 	RegionRec region;
 	BoxPtr pbox;
 	int nbox;
-	int xDst_copy, yDst_copy;
+	int xDst_copy = 0, yDst_copy = 0;
 	int src_off_x, src_off_y, mask_off_x, mask_off_y, dst_off_x, dst_off_y;
 	PixmapPtr pSrcPix, pMaskPix = NULL, pDstPix;
 	PicturePtr localSrc, localMask = NULL;

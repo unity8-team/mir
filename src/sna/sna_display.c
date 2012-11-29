@@ -113,7 +113,7 @@ static inline uint32_t fb_id(struct kgem_bo *bo)
 	return bo->delta;
 }
 
-int sna_crtc_id(xf86CrtcPtr crtc)
+uint32_t sna_crtc_id(xf86CrtcPtr crtc)
 {
 	return to_sna_crtc(crtc)->id;
 }
@@ -123,7 +123,7 @@ int sna_crtc_to_pipe(xf86CrtcPtr crtc)
 	return to_sna_crtc(crtc)->pipe;
 }
 
-int sna_crtc_to_plane(xf86CrtcPtr crtc)
+uint32_t sna_crtc_to_plane(xf86CrtcPtr crtc)
 {
 	return to_sna_crtc(crtc)->plane;
 }
@@ -1458,9 +1458,10 @@ static const xf86CrtcFuncsRec sna_crtc_funcs = {
 #endif
 };
 
-static uint32_t
+static int
 sna_crtc_find_plane(struct sna *sna, int pipe)
 {
+#ifdef DRM_IOCTL_MODE_GETPLANERESOURCES
 	struct drm_mode_get_plane_res r;
 	uint32_t *planes, id = 0;
 	int i;
@@ -1496,7 +1497,11 @@ sna_crtc_find_plane(struct sna *sna, int pipe)
 	}
 	free(planes);
 
+	assert(id);
 	return id;
+#else
+	return 0;
+#endif
 }
 
 static void

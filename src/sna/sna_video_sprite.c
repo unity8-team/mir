@@ -37,8 +37,10 @@
 #include <xf86xv.h>
 #include <X11/extensions/Xv.h>
 #include <fourcc.h>
-#include <drm_fourcc.h>
 #include <i915_drm.h>
+
+#ifdef  DRM_IOCTL_MODE_GETPLANERESOURCES
+#include <drm_fourcc.h>
 
 #define IMAGE_MAX_WIDTH		2048
 #define IMAGE_MAX_HEIGHT	2048
@@ -181,7 +183,7 @@ sna_video_sprite_show(struct sna *sna,
 		      xf86CrtcPtr crtc,
 		      BoxPtr dstBox)
 {
-	int plane = sna_crtc_to_plane(crtc);
+	uint32_t plane = sna_crtc_to_plane(crtc);
 
 	update_dst_box_to_crtc_coords(sna, crtc, dstBox);
 	if (crtc->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
@@ -286,7 +288,7 @@ static int sna_video_sprite_put_image(ScrnInfoPtr scrn,
 				   clip))
 		return Success;
 
-	if (!crtc || !sna_crtc_to_plane(crtc)) {
+	if (!crtc || sna_crtc_to_plane(crtc) == 0) {
 		/* If the video isn't visible on any CRTC, turn it off */
 		sna_video_sprite_off(sna, video);
 		return Success;
@@ -441,3 +443,9 @@ XF86VideoAdaptorPtr sna_video_sprite_setup(struct sna *sna,
 
 	return adaptor;
 }
+#else
+XF86VideoAdaptorPtr sna_video_sprite_setup(struct sna *sna, ScreenPtr screen)
+{
+	return NULL;
+}
+#endif

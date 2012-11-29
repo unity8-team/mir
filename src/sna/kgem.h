@@ -411,16 +411,6 @@ bool kgem_check_bo(struct kgem *kgem, ...) __attribute__((sentinel(0)));
 bool kgem_check_bo_fenced(struct kgem *kgem, struct kgem_bo *bo);
 bool kgem_check_many_bo_fenced(struct kgem *kgem, ...) __attribute__((sentinel(0)));
 
-void _kgem_add_bo(struct kgem *kgem, struct kgem_bo *bo);
-static inline void kgem_add_bo(struct kgem *kgem, struct kgem_bo *bo)
-{
-	if (bo->proxy)
-		bo = bo->proxy;
-
-	if (bo->exec == NULL)
-		_kgem_add_bo(kgem, bo);
-}
-
 #define KGEM_RELOC_FENCED 0x8000
 uint32_t kgem_add_reloc(struct kgem *kgem,
 			uint32_t pos,
@@ -493,12 +483,9 @@ static inline bool kgem_bo_can_blt(struct kgem *kgem,
 	return kgem_bo_blt_pitch_is_ok(kgem, bo);
 }
 
-static inline bool kgem_bo_is_mappable(struct kgem *kgem,
-				       struct kgem_bo *bo)
+static inline bool __kgem_bo_is_mappable(struct kgem *kgem,
+					 struct kgem_bo *bo)
 {
-	DBG(("%s: domain=%d, offset: %d size: %d\n",
-	     __FUNCTION__, bo->domain, bo->presumed_offset, kgem_bo_size(bo)));
-
 	if (bo->domain == DOMAIN_GTT)
 		return true;
 
@@ -512,10 +499,20 @@ static inline bool kgem_bo_is_mappable(struct kgem *kgem,
 	return bo->presumed_offset + kgem_bo_size(bo) <= kgem->aperture_mappable;
 }
 
+static inline bool kgem_bo_is_mappable(struct kgem *kgem,
+				       struct kgem_bo *bo)
+{
+	DBG(("%s: domain=%d, offset: %d size: %d\n",
+	     __FUNCTION__, bo->domain, bo->presumed_offset, kgem_bo_size(bo)));
+	assert(bo->refcnt);
+	return __kgem_bo_is_mappable(kgem, bo);
+}
+
 static inline bool kgem_bo_mapped(struct kgem *kgem, struct kgem_bo *bo)
 {
 	DBG(("%s: map=%p, tiling=%d, domain=%d\n",
 	     __FUNCTION__, bo->map, bo->tiling, bo->domain));
+	assert(bo->refcnt);
 
 	if (bo->map == NULL)
 		return bo->tiling == I915_TILING_NONE && bo->domain == DOMAIN_CPU;
@@ -539,6 +536,7 @@ static inline bool kgem_bo_can_map(struct kgem *kgem, struct kgem_bo *bo)
 
 static inline bool kgem_bo_is_snoop(struct kgem_bo *bo)
 {
+	assert(bo->refcnt);
 	while (bo->proxy)
 		bo = bo->proxy;
 	return bo->snoop;
@@ -548,6 +546,7 @@ static inline bool kgem_bo_is_busy(struct kgem_bo *bo)
 {
 	DBG(("%s: handle=%d, domain: %d exec? %d, rq? %d\n", __FUNCTION__,
 	     bo->handle, bo->domain, bo->exec != NULL, bo->rq != NULL));
+	assert(bo->refcnt);
 	return bo->rq;
 }
 
@@ -555,6 +554,7 @@ static inline bool __kgem_bo_is_busy(struct kgem *kgem, struct kgem_bo *bo)
 {
 	DBG(("%s: handle=%d, domain: %d exec? %d, rq? %d\n", __FUNCTION__,
 	     bo->handle, bo->domain, bo->exec != NULL, bo->rq != NULL));
+	assert(bo->refcnt);
 	if (kgem_flush(kgem))
 		kgem_submit(kgem);
 	if (bo->rq && !bo->exec)
@@ -567,11 +567,13 @@ static inline bool kgem_bo_is_dirty(struct kgem_bo *bo)
 	if (bo == NULL)
 		return false;
 
+	assert(bo->refcnt);
 	return bo->dirty;
 }
 
 static inline void kgem_bo_mark_dirty(struct kgem_bo *bo)
 {
+	assert(bo->refcnt);
 	do {
 		if (bo->dirty)
 			return;

@@ -660,6 +660,7 @@ bool sna_pixmap_attach_to_bo(PixmapPtr pixmap, struct kgem_bo *bo)
 		return false;
 
 	priv->gpu_bo = kgem_bo_reference(bo);
+	assert(priv->gpu_bo->proxy == NULL);
 	sna_damage_all(&priv->gpu_damage,
 		       pixmap->drawable.width,
 		       pixmap->drawable.height);
@@ -1468,6 +1469,7 @@ _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 			}
 			pixmap->devKind = priv->gpu_bo->pitch;
 
+			assert(priv->gpu_bo->proxy == NULL);
 			sna_damage_all(&priv->gpu_damage,
 				       pixmap->drawable.width,
 				       pixmap->drawable.height);
@@ -1523,6 +1525,7 @@ skip_inplace_map:
 			priv->mapped = true;
 			pixmap->devKind = priv->gpu_bo->pitch;
 			if (flags & MOVE_WRITE) {
+				assert(priv->gpu_bo->proxy == NULL);
 				sna_damage_all(&priv->gpu_damage,
 					       pixmap->drawable.width,
 					       pixmap->drawable.height);
@@ -2555,6 +2558,7 @@ done:
 		    box_inplace(pixmap, &r.extents)) {
 			DBG(("%s: large operation on undamaged, promoting to full GPU\n",
 			     __FUNCTION__));
+			assert(priv->gpu_bo->proxy == NULL);
 			sna_damage_all(&priv->gpu_damage,
 				       pixmap->drawable.width,
 				       pixmap->drawable.height);
@@ -2584,6 +2588,7 @@ sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
 	     flags));
 
 	assert(box->x2 > box->x1 && box->y2 > box->y1);
+	assert(pixmap->refcnt);
 	assert_pixmap_damage(pixmap);
 	assert_drawable_contains_box(drawable, box);
 
@@ -2781,6 +2786,7 @@ move_to_gpu:
 
 done:
 	assert(priv->gpu_bo != NULL);
+	assert(priv->gpu_bo->refcnt);
 	if (sna_damage_is_all(&priv->gpu_damage,
 			      pixmap->drawable.width,
 			      pixmap->drawable.height)) {
@@ -2793,7 +2799,7 @@ done:
 
 	DBG(("%s: using GPU bo with damage? %d\n",
 	     __FUNCTION__, *damage != NULL));
-	assert(damage == NULL || !DAMAGE_IS_ALL(*damage));
+	assert(*damage == NULL || !DAMAGE_IS_ALL(*damage));
 	assert(priv->gpu_bo->proxy == NULL);
 	assert(priv->clear == false);
 	assert(priv->cpu == false);
@@ -2802,7 +2808,9 @@ done:
 use_gpu_bo:
 	DBG(("%s: using whole GPU bo\n", __FUNCTION__));
 	assert(priv->gpu_bo != NULL);
+	assert(priv->gpu_bo->refcnt);
 	assert(priv->gpu_bo->proxy == NULL);
+	assert(priv->gpu_damage);
 	priv->clear = false;
 	priv->cpu = false;
 	*damage = NULL;
@@ -2814,6 +2822,8 @@ use_cpu_bo:
 
 	if (priv->cpu_bo == NULL)
 		return NULL;
+
+	assert(priv->cpu_bo->refcnt);
 
 	sna = to_sna_from_pixmap(pixmap);
 	if ((flags & FORCE_GPU) == 0 &&
@@ -3014,6 +3024,7 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 
 	if (flags & MOVE_WRITE && priv->gpu_bo && priv->gpu_bo->proxy) {
 		DBG(("%s: discarding cached upload buffer\n", __FUNCTION__));
+		assert(priv->gpu_damage == NULL);
 		kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
 		priv->gpu_bo = NULL;
 	}
@@ -3066,6 +3077,7 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 			 * synchronisation that takes the most time. This is
 			 * mitigated by avoiding fallbacks in the first place.
 			 */
+			assert(priv->gpu_bo->proxy == NULL);
 			sna_damage_all(&priv->gpu_damage,
 				       pixmap->drawable.width,
 				       pixmap->drawable.height);
@@ -3078,6 +3090,7 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 	if (priv->gpu_bo->proxy) {
 		DBG(("%s: reusing cached upload\n", __FUNCTION__));
 		assert((flags & MOVE_WRITE) == 0);
+		assert(priv->gpu_damage == NULL);
 		return priv;
 	}
 
@@ -3143,7 +3156,12 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 	}
 
 	/* For large bo, try to keep only a single copy around */
-	if (priv->create & KGEM_CAN_CREATE_LARGE) {
+	if (priv->create & KGEM_CAN_CREATE_LARGE ||
+	    (priv->stride && flags & MOVE_SOURCE_HINT)) {
+		DBG(("%s: disposing of system copy for large/source\n",
+		     __FUNCTION__));
+		assert(!priv->shm);
+		assert(priv->gpu_bo->proxy == NULL);
 		sna_damage_all(&priv->gpu_damage,
 			       pixmap->drawable.width,
 			       pixmap->drawable.height);
@@ -3540,6 +3558,7 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 			else
 				sna_damage_subtract(&priv->cpu_damage, region);
 			if (priv->cpu_damage == NULL) {
+				assert(priv->gpu_bo->proxy == NULL);
 				sna_damage_all(&priv->gpu_damage,
 					       pixmap->drawable.width,
 					       pixmap->drawable.height);
@@ -3599,6 +3618,7 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 			}
 		}
 		assert(priv->cpu_damage == NULL);
+		assert(priv->gpu_bo->proxy == NULL);
 		sna_damage_all(&priv->gpu_damage,
 			       pixmap->drawable.width,
 			       pixmap->drawable.height);
@@ -4644,8 +4664,13 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 
 			if (n == 1 &&
 			    tmp->drawable.width == src_pixmap->drawable.width &&
-			    tmp->drawable.height == src_pixmap->drawable.height)
+			    tmp->drawable.height == src_pixmap->drawable.height) {
+				DBG(("%s: caching upload for src bo\n",
+				     __FUNCTION__));
+				assert(src_priv->gpu_damage == NULL);
+				assert(src_priv->gpu_bo == NULL);
 				kgem_proxy_bo_attach(src_bo, &src_priv->gpu_bo);
+			}
 
 			if (!sna->render.copy_boxes(sna, alu,
 						    tmp, src_bo, dx, dy,
@@ -4703,6 +4728,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 
 			dst_priv->cpu = false;
 			if (damage) {
+				assert(dst_priv->gpu_bo->proxy == NULL);
 				if (replaces) {
 					sna_damage_destroy(&dst_priv->cpu_damage);
 					sna_damage_all(&dst_priv->gpu_damage,
@@ -9484,6 +9510,7 @@ sna_poly_fill_rect_blt(DrawablePtr drawable,
 				    r.y2 - r.y1 == pixmap->drawable.height) {
 					struct sna_pixmap *priv = sna_pixmap(pixmap);
 					if (bo == priv->gpu_bo) {
+						assert(priv->gpu_bo->proxy == NULL);
 						sna_damage_all(&priv->gpu_damage,
 							       pixmap->drawable.width,
 							       pixmap->drawable.height);
@@ -11925,6 +11952,7 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 		     box_inplace(pixmap, &region.extents))) {
 			DBG(("%s: promoting to full GPU\n", __FUNCTION__));
 			if (priv->gpu_bo) {
+				assert(priv->gpu_bo->proxy == NULL);
 				sna_damage_all(&priv->gpu_damage,
 					       pixmap->drawable.width,
 					       pixmap->drawable.height);
@@ -14249,9 +14277,12 @@ bool sna_accel_init(ScreenPtr screen, struct sna *sna)
 	} else if (sna->info->gen >= 50) {
 		if ((sna->have_render = gen5_render_init(sna)))
 			backend = "Ironlake";
+	} else if (sna->info->gen >= 45) {
+		if ((sna->have_render = g4x_render_init(sna)))
+			backend = "Eaglelake/Cantiga";
 	} else if (sna->info->gen >= 40) {
 		if ((sna->have_render = gen4_render_init(sna)))
-			backend = "Broadwater";
+			backend = "Broadwater/Crestline";
 	} else if (sna->info->gen >= 30) {
 		if ((sna->have_render = gen3_render_init(sna)))
 			backend = "gen3";
@@ -14398,9 +14429,9 @@ void sna_accel_wakeup_handler(struct sna *sna)
 
 	if (sna->kgem.need_retire)
 		kgem_retire(&sna->kgem);
-	if (!sna->mode.shadow_active && !sna->kgem.need_retire) {
+	if (sna->kgem.nbatch && kgem_is_idle(&sna->kgem)) {
 		DBG(("%s: GPU idle, flushing\n", __FUNCTION__));
-		kgem_submit(&sna->kgem);
+		_kgem_submit(&sna->kgem);
 	}
 	if (sna->kgem.need_purge)
 		kgem_purge_cache(&sna->kgem);
