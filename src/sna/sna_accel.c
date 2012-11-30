@@ -14285,9 +14285,6 @@ bool sna_accel_init(ScreenPtr screen, struct sna *sna)
 	} else if (sna->info->gen >= 050) {
 		if ((sna->have_render = gen5_render_init(sna)))
 			backend = "Ironlake";
-	} else if (sna->info->gen >= 045) {
-		if ((sna->have_render = g4x_render_init(sna)))
-			backend = "Eaglelake/Cantiga";
 	} else if (sna->info->gen >= 040) {
 		if ((sna->have_render = gen4_render_init(sna)))
 			backend = "Broadwater/Crestline";
