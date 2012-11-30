@@ -1159,13 +1159,15 @@ static uint32_t kgem_surface_size(struct kgem *kgem,
 				   kgem_pitch_alignment(kgem, flags));
 		tile_height = 2;
 		break;
+
+		/* XXX align to an even tile row */
 	case I915_TILING_X:
 		tile_width = 512;
-		tile_height = 8;
+		tile_height = 16;
 		break;
 	case I915_TILING_Y:
 		tile_width = 128;
-		tile_height = 32;
+		tile_height = 64;
 		break;
 	}
 
@@ -1209,15 +1211,16 @@ static uint32_t kgem_aligned_height(struct kgem *kgem,
 	if (kgem->gen <= 30) {
 		tile_height = tiling ? kgem->gen < 30 ? 16 : 8 : 1;
 	} else switch (tiling) {
+		/* XXX align to an even tile row */
 	default:
 	case I915_TILING_NONE:
 		tile_height = 2;
 		break;
 	case I915_TILING_X:
-		tile_height = 8;
+		tile_height = 16;
 		break;
 	case I915_TILING_Y:
-		tile_height = 32;
+		tile_height = 64;
 		break;
 	}
 
@@ -3007,9 +3010,9 @@ int kgem_choose_tiling(struct kgem *kgem, int tiling, int width, int height, int
 	if (tiling < 0)
 		return tiling;
 
-	if (tiling && height == 1) {
-		DBG(("%s: disabling tiling [%d] for single row\n",
-		     __FUNCTION__,height));
+	if (tiling && (height == 1 || width == 1)) {
+		DBG(("%s: disabling tiling [%dx%d] for single row/col\n",
+		     __FUNCTION__,width, height));
 		tiling = I915_TILING_NONE;
 		goto done;
 	}
