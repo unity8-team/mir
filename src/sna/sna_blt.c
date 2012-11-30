@@ -1256,7 +1256,7 @@ prepare_blt_copy(struct sna *sna,
 
 	DBG(("%s\n", __FUNCTION__));
 
-	if (sna->kgem.gen >= 060)
+	if (sna->kgem.gen >= 060 && op->dst.bo == bo)
 		op->done = gen6_blt_copy_done;
 	else
 		op->done = nop_done;
@@ -1942,7 +1942,7 @@ static void convert_done(struct sna *sna, const struct sna_composite_op *op)
 {
 	struct kgem *kgem = &sna->kgem;
 
-	if (kgem->gen >= 060 && kgem_check_batch(kgem, 3)) {
+	if (kgem->gen >= 060 && op->src.bo == op->dst.bo && kgem_check_batch(kgem, 3)) {
 		uint32_t *b = kgem->batch + kgem->nbatch;
 		b[0] = XY_SETUP_CLIP;
 		b[1] = b[2] = 0;
@@ -2185,7 +2185,7 @@ bool sna_blt_copy(struct sna *sna, uint8_t alu,
 		return false;
 
 	op->blt  = sna_blt_copy_op_blt;
-	if (sna->kgem.gen >= 060)
+	if (sna->kgem.gen >= 060 && src == dst)
 		op->done = gen6_blt_copy_op_done;
 	else
 		op->done = sna_blt_copy_op_done;
