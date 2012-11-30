@@ -170,7 +170,7 @@ static const struct blendinfo {
 #define SAMPLER_OFFSET(sf, se, mf, me, k) \
 	((((((sf) * EXTEND_COUNT + (se)) * FILTER_COUNT + (mf)) * EXTEND_COUNT + (me)) * KERNEL_COUNT + (k)) * 64)
 
-static bool
+static void
 g4x_emit_pipelined_pointers(struct sna *sna,
 			    const struct sna_composite_op *op,
 			    int blend, int kernel);
@@ -217,10 +217,10 @@ static void g4x_magic_ca_pass(struct sna *sna,
 	assert(op->mask.bo != NULL);
 	assert(op->has_component_alpha);
 
+	OUT_BATCH(MI_FLUSH | MI_INHIBIT_RENDER_CACHE_FLUSH);
 	g4x_emit_pipelined_pointers(sna, op, PictOpAdd,
 				     g4x_choose_composite_kernel(PictOpAdd,
 								  true, true, op->is_affine));
-	OUT_BATCH(MI_FLUSH | MI_INHIBIT_RENDER_CACHE_FLUSH);
 
 	OUT_BATCH(GEN4_3DPRIMITIVE |
 		  GEN4_3DPRIMITIVE_VERTEX_SEQUENTIAL |
@@ -1200,11 +1200,11 @@ g4x_align_vertex(struct sna *sna, const struct sna_composite_op *op)
 	}
 }
 
-static bool
+static void
 g4x_emit_binding_table(struct sna *sna, uint16_t offset)
 {
 	if (sna->render_state.gen4.surface_table == offset)
-		return false;
+		return;
 
 	sna->render_state.gen4.surface_table = offset;
 
@@ -1216,17 +1216,28 @@ g4x_emit_binding_table(struct sna *sna, uint16_t offset)
 	OUT_BATCH(0);		/* sf */
 	/* Only the PS uses the binding table */
 	OUT_BATCH(offset*4);
-
-	return true;
 }
 
-static bool
+static uint32_t
+g4x_sampler_key(const struct sna_composite_op *op, int blend, int kernel)
+{
+	uint16_t sp, bp;
+
+	sp = SAMPLER_OFFSET(op->src.filter, op->src.repeat,
+			    op->mask.filter, op->mask.repeat,
+			    kernel);
+	bp = g4x_get_blend(blend, op->has_component_alpha, op->dst.format);
+
+	return sp | (uint32_t)bp << 16;
+}
+
+static void
 g4x_emit_pipelined_pointers(struct sna *sna,
 			    const struct sna_composite_op *op,
 			    int blend, int kernel)
 {
-	uint32_t key;
 	uint16_t sp, bp;
+	uint32_t key;
 
 	DBG(("%s: has_mask=%d, src=(%d, %d), mask=(%d, %d),kernel=%d, blend=%d, ca=%d, format=%x\n",
 	     __FUNCTION__, op->u.gen4.ve_id & 2,
@@ -1234,16 +1245,16 @@ g4x_emit_pipelined_pointers(struct sna *sna,
 	     op->mask.filter, op->mask.repeat,
 	     kernel, blend, op->has_component_alpha, (int)op->dst.format));
 
+	/* g4x_sampler_key() */
 	sp = SAMPLER_OFFSET(op->src.filter, op->src.repeat,
 			    op->mask.filter, op->mask.repeat,
 			    kernel);
 	bp = g4x_get_blend(blend, op->has_component_alpha, op->dst.format);
 
 	DBG(("%s: sp=%d, bp=%d\n", __FUNCTION__, sp, bp));
-
-	key = sp | bp << 16;
+	key = sp | (uint32_t)bp << 16;
 	if (key == sna->render_state.gen4.last_pipelined_pointers)
-		return false;
+		return;
 
 	OUT_BATCH(GEN4_3DSTATE_PIPELINED_POINTERS | 5);
 	OUT_BATCH(sna->render_state.gen4.vs);
@@ -1255,10 +1266,9 @@ g4x_emit_pipelined_pointers(struct sna *sna,
 
 	sna->render_state.gen4.last_pipelined_pointers = key;
 	g4x_emit_urb(sna);
-	return true;
 }
 
-static void
+static bool
 g4x_emit_drawing_rectangle(struct sna *sna, const struct sna_composite_op *op)
 {
 	uint32_t limit = (op->dst.height - 1) << 16 | (op->dst.width - 1);
@@ -1269,7 +1279,8 @@ g4x_emit_drawing_rectangle(struct sna *sna, const struct sna_composite_op *op)
 
 	if (sna->render_state.gen4.drawrect_limit == limit &&
 	    sna->render_state.gen4.drawrect_offset == offset)
-		return;
+		return true;
+
 	sna->render_state.gen4.drawrect_offset = offset;
 	sna->render_state.gen4.drawrect_limit = limit;
 
@@ -1277,6 +1288,7 @@ g4x_emit_drawing_rectangle(struct sna *sna, const struct sna_composite_op *op)
 	OUT_BATCH(0);
 	OUT_BATCH(limit);
 	OUT_BATCH(offset);
+	return false;
 }
 
 static void
@@ -1361,13 +1373,11 @@ g4x_emit_state(struct sna *sna,
 	       const struct sna_composite_op *op,
 	       uint16_t wm_binding_table)
 {
-	bool flush = wm_binding_table & 1;
+	bool flush;
 
-	g4x_emit_drawing_rectangle(sna, op);
-	flush |= g4x_emit_binding_table(sna, wm_binding_table & ~1);
-	flush |= g4x_emit_pipelined_pointers(sna, op, op->op, op->u.gen4.wm_kernel);
-	g4x_emit_vertex_elements(sna, op);
-
+	flush = wm_binding_table & 1;
+	flush |= sna->render_state.gen4.surface_table != (wm_binding_table & ~1);
+	flush |= g4x_sampler_key(op, op->op, op->u.gen4.wm_kernel) != sna->render_state.gen4.last_pipelined_pointers;
 	if (kgem_bo_is_dirty(op->src.bo) || kgem_bo_is_dirty(op->mask.bo)) {
 		DBG(("%s: flushing dirty (%d, %d), forced? %d\n", __FUNCTION__,
 		     kgem_bo_is_dirty(op->src.bo),
@@ -1378,8 +1388,13 @@ g4x_emit_state(struct sna *sna,
 		kgem_bo_mark_dirty(op->dst.bo);
 		flush = false;
 	}
+	flush &= g4x_emit_drawing_rectangle(sna, op);
 	if (flush && op->op > PictOpSrc)
 		OUT_BATCH(MI_FLUSH | MI_INHIBIT_RENDER_CACHE_FLUSH);
+
+	g4x_emit_binding_table(sna, wm_binding_table & ~1);
+	g4x_emit_pipelined_pointers(sna, op, op->op, op->u.gen4.wm_kernel);
+	g4x_emit_vertex_elements(sna, op);
 }
 
 static void
