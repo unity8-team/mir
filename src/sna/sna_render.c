@@ -1865,7 +1865,7 @@ sna_render_composite_redirect(struct sna *sna,
 
 			offset = box.x1 * op->dst.pixmap->drawable.bitsPerPixel / 8 / tile_width * tile_size;
 		} else {
-			if (sna->kgem.gen < 40) {
+			if (sna->kgem.gen < 040) {
 				box.y1 = box.y1 & ~3;
 				box.y2 = ALIGN(box.y2, 4);
 

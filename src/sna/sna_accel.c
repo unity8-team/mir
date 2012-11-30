@@ -496,14 +496,14 @@ static inline uint32_t default_tiling(PixmapPtr pixmap,
 	struct sna *sna = to_sna_from_pixmap(pixmap);
 
 	/* Try to avoid hitting the Y-tiling GTT mapping bug on 855GM */
-	if (sna->kgem.gen == 21)
+	if (sna->kgem.gen == 021)
 		return I915_TILING_X;
 
 	/* Only on later generations was the render pipeline
 	 * more flexible than the BLT. So on gen2/3, prefer to
 	 * keep large objects accessible through the BLT.
 	 */
-	if (sna->kgem.gen < 40 &&
+	if (sna->kgem.gen < 040 &&
 	    (pixmap->drawable.width  > sna->render.max_3d_size ||
 	     pixmap->drawable.height > sna->render.max_3d_size))
 		return I915_TILING_X;
@@ -3848,7 +3848,7 @@ sna_put_xybitmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 		b[0] = XY_MONO_SRC_COPY | 3 << 20;
 		b[0] |= ((box->x1 - x) & 7) << 17;
 		b[1] = bo->pitch;
-		if (sna->kgem.gen >= 40 && bo->tiling) {
+		if (sna->kgem.gen >= 040 && bo->tiling) {
 			b[0] |= BLT_DST_TILED;
 			b[1] >>= 2;
 		}
@@ -3976,7 +3976,7 @@ sna_put_xypixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 			b[0] = XY_FULL_MONO_PATTERN_MONO_SRC_BLT | 3 << 20;
 			b[0] |= ((box->x1 - x) & 7) << 17;
 			b[1] = bo->pitch;
-			if (sna->kgem.gen >= 40 && bo->tiling) {
+			if (sna->kgem.gen >= 040 && bo->tiling) {
 				b[0] |= BLT_DST_TILED;
 				b[1] >>= 2;
 			}
@@ -6128,7 +6128,7 @@ sna_copy_bitmap_blt(DrawablePtr _bitmap, DrawablePtr drawable, GCPtr gc,
 
 	br00 = 3 << 20;
 	br13 = arg->bo->pitch;
-	if (sna->kgem.gen >= 40 && arg->bo->tiling) {
+	if (sna->kgem.gen >= 040 && arg->bo->tiling) {
 		br00 |= BLT_DST_TILED;
 		br13 >>= 2;
 	}
@@ -6292,7 +6292,7 @@ sna_copy_plane_blt(DrawablePtr source, DrawablePtr drawable, GCPtr gc,
 
 	br00 = XY_MONO_SRC_COPY | 3 << 20;
 	br13 = arg->bo->pitch;
-	if (sna->kgem.gen >= 40 && arg->bo->tiling) {
+	if (sna->kgem.gen >= 040 && arg->bo->tiling) {
 		br00 |= BLT_DST_TILED;
 		br13 >>= 2;
 	}
@@ -9900,7 +9900,7 @@ sna_poly_fill_rect_tiled_8x8_blt(DrawablePtr drawable,
 
 	br00 = XY_SCANLINE_BLT;
 	br13 = bo->pitch;
-	if (sna->kgem.gen >= 40 && bo->tiling) {
+	if (sna->kgem.gen >= 040 && bo->tiling) {
 		br00 |= BLT_DST_TILED;
 		br13 >>= 2;
 	}
@@ -10504,7 +10504,7 @@ sna_poly_fill_rect_stippled_8x8_blt(DrawablePtr drawable,
 		DBG(("%s: pat offset (%d, %d)\n", __FUNCTION__ ,px, py));
 		br00 = XY_SCANLINE_BLT | px << 12 | py << 8 | 3 << 20;
 		br13 = bo->pitch;
-		if (sna->kgem.gen >= 40 && bo->tiling) {
+		if (sna->kgem.gen >= 040 && bo->tiling) {
 			br00 |= BLT_DST_TILED;
 			br13 >>= 2;
 		}
@@ -10804,7 +10804,7 @@ sna_poly_fill_rect_stippled_1_blt(DrawablePtr drawable,
 
 	br00 = 3 << 20;
 	br13 = bo->pitch;
-	if (sna->kgem.gen >= 40 && bo->tiling) {
+	if (sna->kgem.gen >= 040 && bo->tiling) {
 		br00 |= BLT_DST_TILED;
 		br13 >>= 2;
 	}
@@ -11500,7 +11500,7 @@ sna_poly_fill_rect_stippled_n_blt__imm(DrawablePtr drawable,
 
 	br00 = XY_MONO_SRC_COPY_IMM | 3 << 20;
 	br13 = bo->pitch;
-	if (sna->kgem.gen >= 40 && bo->tiling) {
+	if (sna->kgem.gen >= 040 && bo->tiling) {
 		br00 |= BLT_DST_TILED;
 		br13 >>= 2;
 	}
@@ -11645,7 +11645,7 @@ sna_poly_fill_rect_stippled_n_blt(DrawablePtr drawable,
 
 	br00 = XY_MONO_SRC_COPY | 3 << 20;
 	br13 = bo->pitch;
-	if (sna->kgem.gen >= 40 && bo->tiling) {
+	if (sna->kgem.gen >= 040 && bo->tiling) {
 		br00 |= BLT_DST_TILED;
 		br13 >>= 2;
 	}
@@ -12298,7 +12298,7 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 	b = sna->kgem.batch + sna->kgem.nbatch;
 	b[0] = XY_SETUP_BLT | 3 << 20;
 	b[1] = bo->pitch;
-	if (sna->kgem.gen >= 40 && bo->tiling) {
+	if (sna->kgem.gen >= 040 && bo->tiling) {
 		b[0] |= BLT_DST_TILED;
 		b[1] >>= 2;
 	}
@@ -12316,7 +12316,7 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 	sna->kgem.nbatch += 8;
 
 	br00 = XY_TEXT_IMMEDIATE_BLT;
-	if (bo->tiling && sna->kgem.gen >= 40)
+	if (bo->tiling && sna->kgem.gen >= 040)
 		br00 |= BLT_DST_TILED;
 
 	do {
@@ -12361,7 +12361,7 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 				b = sna->kgem.batch + sna->kgem.nbatch;
 				b[0] = XY_SETUP_BLT | 3 << 20;
 				b[1] = bo->pitch;
-				if (sna->kgem.gen >= 40 && bo->tiling) {
+				if (sna->kgem.gen >= 040 && bo->tiling) {
 					b[0] |= BLT_DST_TILED;
 					b[1] >>= 2;
 				}
@@ -12942,7 +12942,7 @@ sna_reversed_glyph_blt(DrawablePtr drawable, GCPtr gc,
 	b = sna->kgem.batch + sna->kgem.nbatch;
 	b[0] = XY_SETUP_BLT | 1 << 20;
 	b[1] = bo->pitch;
-	if (sna->kgem.gen >= 40 && bo->tiling) {
+	if (sna->kgem.gen >= 040 && bo->tiling) {
 		b[0] |= BLT_DST_TILED;
 		b[1] >>= 2;
 	}
@@ -13023,7 +13023,7 @@ sna_reversed_glyph_blt(DrawablePtr drawable, GCPtr gc,
 				b = sna->kgem.batch + sna->kgem.nbatch;
 				b[0] = XY_SETUP_BLT | 1 << 20;
 				b[1] = bo->pitch;
-				if (sna->kgem.gen >= 40 && bo->tiling) {
+				if (sna->kgem.gen >= 040 && bo->tiling) {
 					b[0] |= BLT_DST_TILED;
 					b[1] >>= 2;
 				}
@@ -13046,7 +13046,7 @@ sna_reversed_glyph_blt(DrawablePtr drawable, GCPtr gc,
 			sna->kgem.nbatch += 3 + len;
 
 			b[0] = XY_TEXT_IMMEDIATE_BLT | (1 + len);
-			if (bo->tiling && sna->kgem.gen >= 40)
+			if (bo->tiling && sna->kgem.gen >= 040)
 				b[0] |= BLT_DST_TILED;
 			b[1] = (uint16_t)y1 << 16 | (uint16_t)x1;
 			b[2] = (uint16_t)(y1+h) << 16 | (uint16_t)(x1+w);
@@ -13358,7 +13358,7 @@ sna_push_pixels_solid_blt(GCPtr gc,
 		b[0] = XY_MONO_SRC_COPY | 3 << 20;
 		b[0] |= ((box->x1 - region->extents.x1) & 7) << 17;
 		b[1] = bo->pitch;
-		if (sna->kgem.gen >= 40 && bo->tiling) {
+		if (sna->kgem.gen >= 040 && bo->tiling) {
 			b[0] |= BLT_DST_TILED;
 			b[1] >>= 2;
 		}
@@ -14275,26 +14275,26 @@ bool sna_accel_init(ScreenPtr screen, struct sna *sna)
 	no_render_init(sna);
 
 #if !DEBUG_NO_RENDER
-	if (sna->info->gen >= 80) {
-	} else if (sna->info->gen >= 70) {
+	if (sna->info->gen >= 0100) {
+	} else if (sna->info->gen >= 070) {
 		if ((sna->have_render = gen7_render_init(sna)))
 			backend = "IvyBridge";
-	} else if (sna->info->gen >= 60) {
+	} else if (sna->info->gen >= 060) {
 		if ((sna->have_render = gen6_render_init(sna)))
 			backend = "SandyBridge";
-	} else if (sna->info->gen >= 50) {
+	} else if (sna->info->gen >= 050) {
 		if ((sna->have_render = gen5_render_init(sna)))
 			backend = "Ironlake";
-	} else if (sna->info->gen >= 45) {
+	} else if (sna->info->gen >= 045) {
 		if ((sna->have_render = g4x_render_init(sna)))
 			backend = "Eaglelake/Cantiga";
-	} else if (sna->info->gen >= 40) {
+	} else if (sna->info->gen >= 040) {
 		if ((sna->have_render = gen4_render_init(sna)))
 			backend = "Broadwater/Crestline";
-	} else if (sna->info->gen >= 30) {
+	} else if (sna->info->gen >= 030) {
 		if ((sna->have_render = gen3_render_init(sna)))
 			backend = "gen3";
-	} else if (sna->info->gen >= 20) {
+	} else if (sna->info->gen >= 020) {
 		if ((sna->have_render = gen2_render_init(sna)))
 			backend = "gen2";
 	}

@@ -643,7 +643,7 @@ int kgem_gen6_decode_3d(struct kgem *kgem, uint32_t offset)
 	case 0x6101:
 		i = 0;
 		kgem_debug_print(data, offset, i++, "STATE_BASE_ADDRESS\n");
-		if (kgem->gen >= 60) {
+		if (kgem->gen >= 060) {
 			assert(len == 10);
 
 			state_base_out(data, offset, i++, "general");
@@ -658,7 +658,7 @@ int kgem_gen6_decode_3d(struct kgem *kgem, uint32_t offset)
 			state_max_out(data, offset, i++, "instruction");
 
 			gen6_update_dynamic_buffer(kgem, offset + 3);
-		} else if (kgem->gen >= 50) {
+		} else if (kgem->gen >= 050) {
 			assert(len == 8);
 
 			state_base_out(data, offset, i++, "general");
@@ -674,7 +674,7 @@ int kgem_gen6_decode_3d(struct kgem *kgem, uint32_t offset)
 		return len;
 
 	case 0x7801:
-		if (kgem->gen >= 60) {
+		if (kgem->gen >= 060) {
 			assert(len == 4);
 
 			kgem_debug_print(data, offset, 0,
@@ -686,7 +686,7 @@ int kgem_gen6_decode_3d(struct kgem *kgem, uint32_t offset)
 			kgem_debug_print(data, offset, 1, "VS binding table\n");
 			kgem_debug_print(data, offset, 2, "GS binding table\n");
 			kgem_debug_print(data, offset, 3, "WM binding table\n");
-		} else if (kgem->gen >= 40) {
+		} else if (kgem->gen >= 040) {
 			assert(len == 6);
 
 			kgem_debug_print(data, offset, 0,

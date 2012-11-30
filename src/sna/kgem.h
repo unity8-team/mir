@@ -460,7 +460,7 @@ static inline bool kgem_bo_blt_pitch_is_ok(struct kgem *kgem,
 					   struct kgem_bo *bo)
 {
 	int pitch = bo->pitch;
-	if (kgem->gen >= 40 && bo->tiling)
+	if (kgem->gen >= 040 && bo->tiling)
 		pitch /= 4;
 	if (pitch > MAXSHORT) {
 		DBG(("%s: can not blt to handle=%d, adjusted pitch=%d\n",
@@ -489,7 +489,7 @@ static inline bool __kgem_bo_is_mappable(struct kgem *kgem,
 	if (bo->domain == DOMAIN_GTT)
 		return true;
 
-	if (kgem->gen < 40 && bo->tiling &&
+	if (kgem->gen < 040 && bo->tiling &&
 	    bo->presumed_offset & (kgem_bo_fenced_size(kgem, bo) - 1))
 		return false;
 
@@ -528,7 +528,7 @@ static inline bool kgem_bo_can_map(struct kgem *kgem, struct kgem_bo *bo)
 	if (!bo->tiling && kgem->has_llc)
 		return true;
 
-	if (kgem->gen == 21 && bo->tiling == I915_TILING_Y)
+	if (kgem->gen == 021 && bo->tiling == I915_TILING_Y)
 		return false;
 
 	return kgem_bo_size(bo) <= kgem->aperture_mappable / 4;

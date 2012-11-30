@@ -1862,7 +1862,7 @@ static inline void brw_set_saturate(struct brw_compile *p, unsigned value)
 
 static inline void brw_set_acc_write_control(struct brw_compile *p, unsigned value)
 {
-	if (p->gen >= 60)
+	if (p->gen >= 060)
 		p->current->header.acc_wr_control = value;
 }
 
@@ -1938,7 +1938,7 @@ static inline void brw_##OP(struct brw_compile *p,			\
 	rnd = brw_next_insn(p, BRW_OPCODE_##OP);			\
 	brw_set_dest(p, rnd, dest);					\
 	brw_set_src0(p, rnd, src);					\
-	if (p->gen < 60) {						\
+	if (p->gen < 060) {						\
 		/* turn on round-increments */				\
 		rnd->header.destreg__conditionalmod = BRW_CONDITIONAL_R; \
 		add = brw_ADD(p, dest, dest, brw_imm_f(1.0f));		\

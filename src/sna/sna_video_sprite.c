@@ -118,7 +118,7 @@ static void sna_video_sprite_best_size(ScrnInfoPtr scrn, Bool motion,
 {
 	struct sna *sna = to_sna(scrn);
 
-	if (sna->kgem.gen == 75) {
+	if (sna->kgem.gen == 075) {
 		*p_w = vid_w;
 		*p_h = vid_h;
 	} else {

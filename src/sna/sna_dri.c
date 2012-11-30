@@ -497,7 +497,7 @@ static void sna_dri_select_mode(struct sna *sna, struct kgem_bo *src, bool sync)
 	struct drm_i915_gem_busy busy;
 	int mode;
 
-	if (sna->kgem.gen < 60) {
+	if (sna->kgem.gen < 060) {
 		kgem_set_mode(&sna->kgem, KGEM_BLT);
 		return;
 	}
@@ -2419,7 +2419,7 @@ static const char *dri_driver_name(struct sna *sna)
 	Bool dummy;
 
 	if (s == NULL || xf86getBoolValue(&dummy, s))
-		return (sna->kgem.gen && sna->kgem.gen < 40) ? "i915" : "i965";
+		return (sna->kgem.gen && sna->kgem.gen < 040) ? "i915" : "i965";
 
 	return s;
 }

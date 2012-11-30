@@ -1373,7 +1373,7 @@ gen7_bind_bo(struct sna *sna,
 	ss[5] = is_dst && bo->scanout ? 0 : 3 << 16;
 	ss[6] = 0;
 	ss[7] = 0;
-	if (sna->kgem.gen == 75)
+	if (sna->kgem.gen == 075)
 		ss[7] |= HSW_SURFACE_SWIZZLE(RED, GREEN, BLUE, ALPHA);
 
 	kgem_bo_set_binding(bo, format, offset);
@@ -4258,14 +4258,14 @@ static bool gen7_render_setup(struct sna *sna)
 	struct gen7_sampler_state *ss;
 	int i, j, k, l, m;
 
-	if (sna->kgem.gen == 70) {
+	if (sna->kgem.gen == 070) {
 		state->info = &ivb_gt_info;
 		if (DEVICE_ID(sna->PciInfo) & 0xf) {
 			state->info = &ivb_gt1_info;
 			if (DEVICE_ID(sna->PciInfo) & 0x20)
 				state->info = &ivb_gt2_info; /* XXX requires GT_MODE WiZ disabled */
 		}
-	} else if (sna->kgem.gen == 75) {
+	} else if (sna->kgem.gen == 075) {
 		state->info = &hsw_gt_info;
 	} else
 		return false;

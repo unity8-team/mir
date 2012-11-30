@@ -875,16 +875,17 @@ void brw_disasm(FILE *file, const struct brw_instruction *inst, int gen)
 		string(file, ")");
 	}
 
-	if (inst->header.opcode == BRW_OPCODE_SEND && gen < 60)
+	if (inst->header.opcode == BRW_OPCODE_SEND && gen < 060)
 		format(file, " %d", inst->header.destreg__conditionalmod);
 
 	if (opcode[inst->header.opcode].ndst > 0) {
 		pad(file, 16);
 		dest(file, inst);
-	} else if (gen >= 60 && (inst->header.opcode == BRW_OPCODE_IF ||
-				 inst->header.opcode == BRW_OPCODE_ELSE ||
-				 inst->header.opcode == BRW_OPCODE_ENDIF ||
-				 inst->header.opcode == BRW_OPCODE_WHILE)) {
+	} else if (gen >= 060 &&
+		   (inst->header.opcode == BRW_OPCODE_IF ||
+		    inst->header.opcode == BRW_OPCODE_ELSE ||
+		    inst->header.opcode == BRW_OPCODE_ENDIF ||
+		    inst->header.opcode == BRW_OPCODE_WHILE)) {
 		format(file, " %d", inst->bits1.branch_gen6.jump_count);
 	}
 
@@ -901,9 +902,9 @@ void brw_disasm(FILE *file, const struct brw_instruction *inst, int gen)
 	    inst->header.opcode == BRW_OPCODE_SENDC) {
 		enum brw_message_target target;
 
-		if (gen >= 60)
+		if (gen >= 060)
 			target = inst->header.destreg__conditionalmod;
-		else if (gen >= 50)
+		else if (gen >= 050)
 			target = inst->bits2.send_gen5.sfid;
 		else
 			target = inst->bits3.generic.msg_target;
@@ -912,7 +913,7 @@ void brw_disasm(FILE *file, const struct brw_instruction *inst, int gen)
 		pad (file, 16);
 		space = 0;
 
-		if (gen >= 60) {
+		if (gen >= 060) {
 			control (file, "target function", target_function_gen6,
 				 target, &space);
 		} else {
@@ -934,19 +935,19 @@ void brw_disasm(FILE *file, const struct brw_instruction *inst, int gen)
 				 inst->bits3.math.precision, &space);
 			break;
 		case BRW_SFID_SAMPLER:
-			if (gen >= 70) {
+			if (gen >= 070) {
 				format (file, " (%d, %d, %d, %d)",
 					inst->bits3.sampler_gen7.binding_table_index,
 					inst->bits3.sampler_gen7.sampler,
 					inst->bits3.sampler_gen7.msg_type,
 					inst->bits3.sampler_gen7.simd_mode);
-			} else if (gen >= 50) {
+			} else if (gen >= 050) {
 				format (file, " (%d, %d, %d, %d)",
 					inst->bits3.sampler_gen5.binding_table_index,
 					inst->bits3.sampler_gen5.sampler,
 					inst->bits3.sampler_gen5.msg_type,
 					inst->bits3.sampler_gen5.simd_mode);
-			} else if (gen >= 45) {
+			} else if (gen >= 045) {
 				format (file, " (%d, %d)",
 					inst->bits3.sampler_g4x.binding_table_index,
 					inst->bits3.sampler_g4x.sampler);
@@ -961,13 +962,13 @@ void brw_disasm(FILE *file, const struct brw_instruction *inst, int gen)
 			}
 			break;
 		case BRW_SFID_DATAPORT_READ:
-			if (gen >= 60) {
+			if (gen >= 060) {
 				format (file, " (%d, %d, %d, %d)",
 					inst->bits3.gen6_dp.binding_table_index,
 					inst->bits3.gen6_dp.msg_control,
 					inst->bits3.gen6_dp.msg_type,
 					inst->bits3.gen6_dp.send_commit_msg);
-			} else if (gen >= 45) {
+			} else if (gen >= 045) {
 				format (file, " (%d, %d, %d)",
 					inst->bits3.dp_read_gen5.binding_table_index,
 					inst->bits3.dp_read_gen5.msg_control,
@@ -981,7 +982,7 @@ void brw_disasm(FILE *file, const struct brw_instruction *inst, int gen)
 			break;
 
 		case BRW_SFID_DATAPORT_WRITE:
-			if (gen >= 70) {
+			if (gen >= 070) {
 				format (file, " (");
 
 				control (file, "DP rc message type",
@@ -992,7 +993,7 @@ void brw_disasm(FILE *file, const struct brw_instruction *inst, int gen)
 					inst->bits3.gen7_dp.binding_table_index,
 					inst->bits3.gen7_dp.msg_control,
 					inst->bits3.gen7_dp.msg_type);
-			} else if (gen >= 60) {
+			} else if (gen >= 060) {
 				format (file, " (");
 
 				control (file, "DP rc message type",
@@ -1015,14 +1016,14 @@ void brw_disasm(FILE *file, const struct brw_instruction *inst, int gen)
 			break;
 
 		case BRW_SFID_URB:
-			if (gen >= 50) {
+			if (gen >= 050) {
 				format (file, " %d", inst->bits3.urb_gen5.offset);
 			} else {
 				format (file, " %d", inst->bits3.urb.offset);
 			}
 
 			space = 1;
-			if (gen >= 50) {
+			if (gen >= 050) {
 				control (file, "urb opcode", urb_opcode,
 					 inst->bits3.urb_gen5.opcode, &space);
 			}
@@ -1051,7 +1052,7 @@ void brw_disasm(FILE *file, const struct brw_instruction *inst, int gen)
 		}
 		if (space)
 			string (file, " ");
-		if (gen >= 50) {
+		if (gen >= 050) {
 			format (file, "mlen %d",
 				inst->bits3.generic_gen5.msg_length);
 			format (file, " rlen %d",
@@ -1068,13 +1069,13 @@ void brw_disasm(FILE *file, const struct brw_instruction *inst, int gen)
 		string(file, "{");
 		space = 1;
 		control(file, "access mode", access_mode, inst->header.access_mode, &space);
-		if (gen >= 60)
+		if (gen >= 060)
 			control(file, "write enable control", wectrl, inst->header.mask_control, &space);
 		else
 			control(file, "mask control", mask_ctrl, inst->header.mask_control, &space);
 		control(file, "dependency control", dep_ctrl, inst->header.dependency_control, &space);
 
-		if (gen >= 60)
+		if (gen >= 060)
 			qtr_ctrl(file, inst);
 		else {
 			if (inst->header.compression_control == BRW_COMPRESSION_COMPRESSED &&
@@ -1089,7 +1090,7 @@ void brw_disasm(FILE *file, const struct brw_instruction *inst, int gen)
 		}
 
 		control(file, "thread control", thread_ctrl, inst->header.thread_control, &space);
-		if (gen >= 60)
+		if (gen >= 060)
 			control(file, "acc write control", accwr, inst->header.acc_wr_control, &space);
 		if (inst->header.opcode == BRW_OPCODE_SEND ||
 		    inst->header.opcode == BRW_OPCODE_SENDC)

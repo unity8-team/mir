@@ -254,7 +254,7 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 		DBG(("%s: using passthough, name=%d\n",
 		     __FUNCTION__, *(uint32_t *)buf));
 
-		if (sna->kgem.gen < 31) {
+		if (sna->kgem.gen < 031) {
 			/* XXX: i915 is not support and needs some
 			 * serious care.  grep for KMS in i915_hwmc.c */
 			return BadAlloc;

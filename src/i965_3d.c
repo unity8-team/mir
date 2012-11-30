@@ -35,7 +35,7 @@
 void
 gen6_upload_invariant_states(intel_screen_private *intel)
 {
-	Bool ivb = INTEL_INFO(intel)->gen >= 70;
+	Bool ivb = INTEL_INFO(intel)->gen >= 070;
 
 	OUT_BATCH(BRW_PIPE_CONTROL | (4 - 2));
 	OUT_BATCH(BRW_PIPE_CONTROL_IS_FLUSH |
@@ -280,7 +280,7 @@ gen7_upload_bypass_states(intel_screen_private *intel)
 void
 gen6_upload_vs_state(intel_screen_private *intel)
 {
-	Bool ivb = INTEL_INFO(intel)->gen >= 70;
+	Bool ivb = INTEL_INFO(intel)->gen >= 070;
 	/* disable VS constant buffer */
 	OUT_BATCH(GEN6_3DSTATE_CONSTANT_VS | ((ivb ? 7 : 5) - 2));
 	OUT_BATCH(0);

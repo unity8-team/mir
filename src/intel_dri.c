@@ -451,7 +451,7 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 	/* Wait for the scanline to be outside the region to be copied */
 	if (scrn->vtSema &&
 	    pixmap_is_scanout(get_drawable_pixmap(dst)) &&
-	    intel->swapbuffers_wait && INTEL_INFO(intel)->gen < 60) {
+	    intel->swapbuffers_wait && INTEL_INFO(intel)->gen < 060) {
 		BoxPtr box;
 		BoxRec crtcbox;
 		int y1, y2;
@@ -485,20 +485,20 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 			 * of extra time for the blitter to start up and
 			 * do its job for a full height blit
 			 */
-			if (full_height && INTEL_INFO(intel)->gen < 40)
+			if (full_height && INTEL_INFO(intel)->gen < 040)
 			    y2 -= 2;
 
 			if (pipe == 0) {
 				event = MI_WAIT_FOR_PIPEA_SCAN_LINE_WINDOW;
 				load_scan_lines_pipe =
 				    MI_LOAD_SCAN_LINES_DISPLAY_PIPEA;
-				if (full_height && INTEL_INFO(intel)->gen >= 40)
+				if (full_height && INTEL_INFO(intel)->gen >= 040)
 				    event = MI_WAIT_FOR_PIPEA_SVBLANK;
 			} else {
 				event = MI_WAIT_FOR_PIPEB_SCAN_LINE_WINDOW;
 				load_scan_lines_pipe =
 				    MI_LOAD_SCAN_LINES_DISPLAY_PIPEB;
-				if (full_height && INTEL_INFO(intel)->gen >= 40)
+				if (full_height && INTEL_INFO(intel)->gen >= 040)
 				    event = MI_WAIT_FOR_PIPEB_SVBLANK;
 			}
 
@@ -1513,7 +1513,7 @@ static const char *dri_driver_name(intel_screen_private *intel)
 	Bool dummy;
 
 	if (s == NULL || xf86getBoolValue(&dummy, s))
-		return INTEL_INFO(intel)->gen < 40 ? "i915" : "i965";
+		return INTEL_INFO(intel)->gen < 040 ? "i915" : "i965";
 
 	return s;
 }

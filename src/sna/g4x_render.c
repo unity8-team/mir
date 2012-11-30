@@ -629,7 +629,7 @@ g4x_bind_bo(struct sna *sna,
 	uint32_t domains;
 	uint16_t offset;
 
-	assert(sna->kgem.gen != 40 || !kgem_bo_is_snoop(bo));
+	assert(sna->kgem.gen != 040 || !kgem_bo_is_snoop(bo));
 
 	/* After the first bind, we manage the cache domains within the batch */
 	offset = kgem_bo_get_binding(bo, format);
@@ -1153,7 +1153,7 @@ g4x_emit_invariant(struct sna *sna)
 {
 	assert(sna->kgem.surface == sna->kgem.batch_size);
 
-	if (sna->kgem.gen >= 45)
+	if (sna->kgem.gen >= 045)
 		OUT_BATCH(NEW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
 	else
 		OUT_BATCH(GEN4_PIPELINE_SELECT | PIPELINE_SELECT_3D);

@@ -2919,13 +2919,13 @@ sna_wait_for_scanline(struct sna *sna,
 	DBG(("%s: pipe=%d, y1=%d, y2=%d, full_height?=%d\n",
 	     __FUNCTION__, pipe, y1, y2, full_height));
 
-	if (sna->kgem.gen >= 80)
+	if (sna->kgem.gen >= 0100)
 		ret = false;
-	else if (sna->kgem.gen >= 70)
+	else if (sna->kgem.gen >= 070)
 		ret = sna_emit_wait_for_scanline_gen7(sna, pipe, y1, y2, full_height);
-	else if (sna->kgem.gen >= 60)
+	else if (sna->kgem.gen >= 060)
 		ret =sna_emit_wait_for_scanline_gen6(sna, pipe, y1, y2, full_height);
-	else if (sna->kgem.gen >= 40)
+	else if (sna->kgem.gen >= 040)
 		ret = sna_emit_wait_for_scanline_gen4(sna, pipe, y1, y2, full_height);
 	else
 		ret = sna_emit_wait_for_scanline_gen2(sna, pipe, y1, y2, full_height);

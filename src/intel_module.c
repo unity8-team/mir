@@ -56,59 +56,59 @@ static const struct intel_device_info intel_generic_info = {
 };
 
 static const struct intel_device_info intel_i81x_info = {
-	.gen = 10,
+	.gen = 010,
 };
 
 static const struct intel_device_info intel_i830_info = {
-	.gen = 20,
+	.gen = 020,
 };
 static const struct intel_device_info intel_i845_info = {
-	.gen = 20,
+	.gen = 020,
 };
 static const struct intel_device_info intel_i855_info = {
-	.gen = 21,
+	.gen = 021,
 };
 static const struct intel_device_info intel_i865_info = {
-	.gen = 22,
+	.gen = 022,
 };
 
 static const struct intel_device_info intel_i915_info = {
-	.gen = 30,
+	.gen = 030,
 };
 static const struct intel_device_info intel_i945_info = {
-	.gen = 31,
+	.gen = 031,
 };
 
 static const struct intel_device_info intel_g33_info = {
-	.gen = 33,
+	.gen = 033,
 };
 
 static const struct intel_device_info intel_i965_info = {
-	.gen = 40,
+	.gen = 040,
 };
 
 static const struct intel_device_info intel_g4x_info = {
-	.gen = 45,
+	.gen = 045,
 };
 
 static const struct intel_device_info intel_ironlake_info = {
-	.gen = 50,
+	.gen = 050,
 };
 
 static const struct intel_device_info intel_sandybridge_info = {
-	.gen = 60,
+	.gen = 060,
 };
 
 static const struct intel_device_info intel_ivybridge_info = {
-	.gen = 70,
+	.gen = 070,
 };
 
 static const struct intel_device_info intel_valleyview_info = {
-	.gen = 70,
+	.gen = 070,
 };
 
 static const struct intel_device_info intel_haswell_info = {
-	.gen = 75,
+	.gen = 075,
 };
 
 static const SymTabRec intel_chipsets[] = {

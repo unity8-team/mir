@@ -119,7 +119,7 @@ static bool sna_blt_fill_init(struct sna *sna,
 
 	blt->br13 = bo->pitch;
 	blt->cmd = XY_SCANLINE_BLT;
-	if (kgem->gen >= 40 && bo->tiling) {
+	if (kgem->gen >= 040 && bo->tiling) {
 		blt->cmd |= BLT_DST_TILED;
 		blt->br13 >>= 2;
 	}
@@ -267,14 +267,14 @@ static bool sna_blt_copy_init(struct sna *sna,
 		blt->cmd |= BLT_WRITE_ALPHA | BLT_WRITE_RGB;
 
 	blt->pitch[0] = src->pitch;
-	if (kgem->gen >= 40 && src->tiling) {
+	if (kgem->gen >= 040 && src->tiling) {
 		blt->cmd |= BLT_SRC_TILED;
 		blt->pitch[0] >>= 2;
 	}
 	assert(blt->pitch[0] <= MAXSHORT);
 
 	blt->pitch[1] = dst->pitch;
-	if (kgem->gen >= 40 && dst->tiling) {
+	if (kgem->gen >= 040 && dst->tiling) {
 		blt->cmd |= BLT_DST_TILED;
 		blt->pitch[1] >>= 2;
 	}
@@ -317,14 +317,14 @@ static bool sna_blt_alpha_fixup_init(struct sna *sna,
 
 	blt->cmd = XY_FULL_MONO_PATTERN_BLT;
 	blt->pitch[0] = src->pitch;
-	if (kgem->gen >= 40 && src->tiling) {
+	if (kgem->gen >= 040 && src->tiling) {
 		blt->cmd |= BLT_SRC_TILED;
 		blt->pitch[0] >>= 2;
 	}
 	assert(blt->pitch[0] <= MAXSHORT);
 
 	blt->pitch[1] = dst->pitch;
-	if (kgem->gen >= 40 && dst->tiling) {
+	if (kgem->gen >= 040 && dst->tiling) {
 		blt->cmd |= BLT_DST_TILED;
 		blt->pitch[1] >>= 2;
 	}
@@ -1256,7 +1256,7 @@ prepare_blt_copy(struct sna *sna,
 
 	DBG(("%s\n", __FUNCTION__));
 
-	if (sna->kgem.gen >= 60)
+	if (sna->kgem.gen >= 060)
 		op->done = gen6_blt_copy_done;
 	else
 		op->done = nop_done;
@@ -1942,7 +1942,7 @@ static void convert_done(struct sna *sna, const struct sna_composite_op *op)
 {
 	struct kgem *kgem = &sna->kgem;
 
-	if (kgem->gen >= 60 && kgem_check_batch(kgem, 3)) {
+	if (kgem->gen >= 060 && kgem_check_batch(kgem, 3)) {
 		uint32_t *b = kgem->batch + kgem->nbatch;
 		b[0] = XY_SETUP_CLIP;
 		b[1] = b[2] = 0;
@@ -2185,7 +2185,7 @@ bool sna_blt_copy(struct sna *sna, uint8_t alu,
 		return false;
 
 	op->blt  = sna_blt_copy_op_blt;
-	if (sna->kgem.gen >= 60)
+	if (sna->kgem.gen >= 060)
 		op->done = gen6_blt_copy_op_done;
 	else
 		op->done = sna_blt_copy_op_done;
@@ -2211,7 +2211,7 @@ static bool sna_blt_fill_box(struct sna *sna, uint8_t alu,
 
 	cmd = XY_COLOR_BLT;
 	br13 = bo->pitch;
-	if (kgem->gen >= 40 && bo->tiling) {
+	if (kgem->gen >= 040 && bo->tiling) {
 		cmd |= BLT_DST_TILED;
 		br13 >>= 2;
 	}
@@ -2325,7 +2325,7 @@ bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
 
 	br13 = bo->pitch;
 	cmd = XY_SCANLINE_BLT;
-	if (kgem->gen >= 40 && bo->tiling) {
+	if (kgem->gen >= 040 && bo->tiling) {
 		cmd |= 1 << 11;
 		br13 >>= 2;
 	}
@@ -2479,14 +2479,14 @@ bool sna_blt_copy_boxes(struct sna *sna, uint8_t alu,
 		cmd |= BLT_WRITE_ALPHA | BLT_WRITE_RGB;
 
 	src_pitch = src_bo->pitch;
-	if (kgem->gen >= 40 && src_bo->tiling) {
+	if (kgem->gen >= 040 && src_bo->tiling) {
 		cmd |= BLT_SRC_TILED;
 		src_pitch >>= 2;
 	}
 	assert(src_pitch <= MAXSHORT);
 
 	br13 = dst_bo->pitch;
-	if (kgem->gen >= 40 && dst_bo->tiling) {
+	if (kgem->gen >= 040 && dst_bo->tiling) {
 		cmd |= BLT_DST_TILED;
 		br13 >>= 2;
 	}
@@ -2632,7 +2632,7 @@ bool sna_blt_copy_boxes(struct sna *sna, uint8_t alu,
 		} while (1);
 	}
 
-	if (kgem->gen >= 60 && kgem_check_batch(kgem, 3)) {
+	if (kgem->gen >= 060 && kgem_check_batch(kgem, 3)) {
 		uint32_t *b = kgem->batch + kgem->nbatch;
 		b[0] = XY_SETUP_CLIP;
 		b[1] = b[2] = 0;
