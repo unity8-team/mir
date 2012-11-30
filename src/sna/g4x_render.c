@@ -217,7 +217,6 @@ static void g4x_magic_ca_pass(struct sna *sna,
 	assert(op->mask.bo != NULL);
 	assert(op->has_component_alpha);
 
-	OUT_BATCH(MI_FLUSH | MI_INHIBIT_RENDER_CACHE_FLUSH);
 	g4x_emit_pipelined_pointers(sna, op, PictOpAdd,
 				     g4x_choose_composite_kernel(PictOpAdd,
 								  true, true, op->is_affine));
@@ -1218,19 +1217,6 @@ g4x_emit_binding_table(struct sna *sna, uint16_t offset)
 	OUT_BATCH(offset*4);
 }
 
-static uint32_t
-g4x_sampler_key(const struct sna_composite_op *op, int blend, int kernel)
-{
-	uint16_t sp, bp;
-
-	sp = SAMPLER_OFFSET(op->src.filter, op->src.repeat,
-			    op->mask.filter, op->mask.repeat,
-			    kernel);
-	bp = g4x_get_blend(blend, op->has_component_alpha, op->dst.format);
-
-	return sp | (uint32_t)bp << 16;
-}
-
 static void
 g4x_emit_pipelined_pointers(struct sna *sna,
 			    const struct sna_composite_op *op,
@@ -1245,7 +1231,6 @@ g4x_emit_pipelined_pointers(struct sna *sna,
 	     op->mask.filter, op->mask.repeat,
 	     kernel, blend, op->has_component_alpha, (int)op->dst.format));
 
-	/* g4x_sampler_key() */
 	sp = SAMPLER_OFFSET(op->src.filter, op->src.repeat,
 			    op->mask.filter, op->mask.repeat,
 			    kernel);
@@ -1377,7 +1362,6 @@ g4x_emit_state(struct sna *sna,
 
 	flush = wm_binding_table & 1;
 	flush |= sna->render_state.gen4.surface_table != (wm_binding_table & ~1);
-	flush |= g4x_sampler_key(op, op->op, op->u.gen4.wm_kernel) != sna->render_state.gen4.last_pipelined_pointers;
 	if (kgem_bo_is_dirty(op->src.bo) || kgem_bo_is_dirty(op->mask.bo)) {
 		DBG(("%s: flushing dirty (%d, %d), forced? %d\n", __FUNCTION__,
 		     kgem_bo_is_dirty(op->src.bo),
