@@ -2993,6 +2993,10 @@ int kgem_choose_tiling(struct kgem *kgem, int tiling, int width, int height, int
 			goto done;
 		}
 	} else {
+		/* XXX rendering to I915_TILING_Y seems broken? */
+		if (kgem->gen < 50 && tiling == I915_TILING_Y)
+			tiling = I915_TILING_X;
+
 		if (width*bpp > (MAXSHORT-512) * 8) {
 			DBG(("%s: large pitch [%d], forcing TILING_X\n",
 			     __FUNCTION__, width*bpp/8));

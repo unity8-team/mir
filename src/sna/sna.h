@@ -804,6 +804,7 @@ memcpy_xor(const void *src, void *dst, int bpp,
 
 #define SNA_CREATE_FB 0x10
 #define SNA_CREATE_SCRATCH 0x11
+#define SNA_CREATE_GLYPHS 0x12
 
 inline static bool is_power_of_two(unsigned x)
 {
