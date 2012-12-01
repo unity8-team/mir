@@ -1206,12 +1206,12 @@ gen5_align_vertex(struct sna *sna, const struct sna_composite_op *op)
 	}
 }
 
-static bool
+static void
 gen5_emit_binding_table(struct sna *sna, uint16_t offset)
 {
 	if (!DBG_NO_STATE_CACHE &&
 	    sna->render_state.gen5.surface_table == offset)
-		return false;
+		return;
 
 	sna->render_state.gen5.surface_table = offset;
 
@@ -1223,8 +1223,6 @@ gen5_emit_binding_table(struct sna *sna, uint16_t offset)
 	OUT_BATCH(0);		/* sf */
 	/* Only the PS uses the binding table */
 	OUT_BATCH(offset*4);
-
-	return true;
 }
 
 static bool
@@ -1371,23 +1369,21 @@ gen5_emit_state(struct sna *sna,
 		const struct sna_composite_op *op,
 		uint16_t offset)
 {
-	bool flush;
-
-	/* drawrect must be first for Ironlake BLT workaround */
-	gen5_emit_drawing_rectangle(sna, op);
-
-	flush = gen5_emit_binding_table(sna, offset);
-	if (gen5_emit_pipelined_pointers(sna, op, op->op, op->u.gen5.wm_kernel)) {
-		gen5_emit_urb(sna);
-		flush = true;
-	}
-	gen5_emit_vertex_elements(sna, op);
-
-	if (flush || kgem_bo_is_dirty(op->src.bo) || kgem_bo_is_dirty(op->mask.bo)) {
+	if (kgem_bo_is_dirty(op->src.bo) || kgem_bo_is_dirty(op->mask.bo)) {
+		DBG(("%s: flushing dirty (%d, %d)\n", __FUNCTION__,
+		     kgem_bo_is_dirty(op->src.bo),
+		     kgem_bo_is_dirty(op->mask.bo)));
 		OUT_BATCH(MI_FLUSH);
 		kgem_clear_dirty(&sna->kgem);
 		kgem_bo_mark_dirty(op->dst.bo);
 	}
+
+	/* drawrect must be first for Ironlake BLT workaround */
+	gen5_emit_drawing_rectangle(sna, op);
+	gen5_emit_binding_table(sna, offset);
+	if (gen5_emit_pipelined_pointers(sna, op, op->op, op->u.gen5.wm_kernel))
+		gen5_emit_urb(sna);
+	gen5_emit_vertex_elements(sna, op);
 }
 
 static void gen5_bind_surfaces(struct sna *sna,
