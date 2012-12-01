@@ -2419,7 +2419,7 @@ static const char *dri_driver_name(struct sna *sna)
 	Bool dummy;
 
 	if (s == NULL || xf86getBoolValue(&dummy, s))
-		return (sna->kgem.gen && sna->kgem.gen < 040) ? "i915" : "i965";
+		return sna->kgem.gen < 040 ? "i915" : "i965";
 
 	return s;
 }
