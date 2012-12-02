@@ -275,6 +275,7 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 		}
 	}
 
+	kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	if (crtc && video->SyncToVblank != 0 &&
 	    sna_pixmap_is_scanout(sna, pixmap))
 		flush = sna_wait_for_scanline(sna, pixmap, crtc,

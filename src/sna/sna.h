@@ -47,6 +47,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <xorg-server.h>
 
 #include <xf86Crtc.h>
+#if XF86_CRTC_VERSION >= 5
+#define HAS_PIXMAP_SHARING 1
+#endif
+
 #include <xf86str.h>
 #include <windowstr.h>
 #include <glyphstr.h>
@@ -110,7 +114,6 @@ struct sna_pixmap {
 	void *ptr;
 
 	struct list list;
-	struct list inactive;
 
 	uint32_t stride;
 	uint32_t clear_color;
@@ -119,7 +122,10 @@ struct sna_pixmap {
 
 #define SOURCE_BIAS 4
 	uint16_t source_count;
-	uint8_t pinned :1;
+	uint8_t pinned :3;
+#define PIN_SCANOUT 0x1
+#define PIN_DRI 0x2
+#define PIN_PRIME 0x4
 	uint8_t mapped :1;
 	uint8_t shm :1;
 	uint8_t clear :1;
@@ -149,9 +155,11 @@ static inline PixmapPtr get_drawable_pixmap(DrawablePtr drawable)
 		return get_window_pixmap((WindowPtr)drawable);
 }
 
+extern DevPrivateKeyRec sna_pixmap_key;
+
 constant static inline struct sna_pixmap *sna_pixmap(PixmapPtr pixmap)
 {
-	return ((void **)pixmap->devPrivates)[1];
+	return ((void **)dixGetPrivateAddr(&pixmap->devPrivates, &sna_pixmap_key))[1];
 }
 
 static inline struct sna_pixmap *sna_pixmap_from_drawable(DrawablePtr drawable)
@@ -162,19 +170,20 @@ static inline struct sna_pixmap *sna_pixmap_from_drawable(DrawablePtr drawable)
 struct sna_gc {
 	long changes;
 	long serial;
+
+	GCFuncs *old_funcs;
 	void *priv;
 };
 
 static inline struct sna_gc *sna_gc(GCPtr gc)
 {
-	return (struct sna_gc *)gc->devPrivates;
+	return dixGetPrivateAddr(&gc->devPrivates, &sna_gc_key);
 }
 
 enum {
 	FLUSH_TIMER = 0,
 	THROTTLE_TIMER,
 	EXPIRE_TIMER,
-	INACTIVE_TIMER,
 #if DEBUG_MEMORY
 	DEBUG_MEMORY_TIMER,
 #endif
@@ -202,7 +211,6 @@ struct sna {
 
 	struct list flush_pixmaps;
 	struct list active_pixmaps;
-	struct list inactive_clock[2];
 
 	PixmapPtr front;
 	PixmapPtr freed_pixmap;
@@ -309,7 +317,7 @@ to_sna_from_screen(ScreenPtr screen)
 constant static inline struct sna *
 to_sna_from_pixmap(PixmapPtr pixmap)
 {
-	return *(void **)pixmap->devPrivates;
+	return ((void **)dixGetPrivateAddr(&pixmap->devPrivates, &sna_pixmap_key))[0];
 }
 
 constant static inline struct sna *
@@ -360,10 +368,11 @@ static inline void sna_dri_vblank_handler(struct sna *sna, struct drm_event_vbla
 static inline void sna_dri_destroy_window(WindowPtr win) { }
 static inline void sna_dri_close(struct sna *sna, ScreenPtr pScreen) { }
 #endif
+void sna_dri_pixmap_update_bo(struct sna *sna, PixmapPtr pixmap);
 
 extern int sna_crtc_to_pipe(xf86CrtcPtr crtc);
-extern int sna_crtc_to_plane(xf86CrtcPtr crtc);
-extern int sna_crtc_id(xf86CrtcPtr crtc);
+extern uint32_t sna_crtc_to_plane(xf86CrtcPtr crtc);
+extern uint32_t sna_crtc_id(xf86CrtcPtr crtc);
 
 CARD32 sna_format_for_depth(int depth);
 CARD32 sna_render_format_for_depth(int depth);
@@ -472,6 +481,24 @@ struct kgem_bo *
 sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
 		    struct sna_damage ***damage);
 
+inline static int16_t bound(int16_t a, uint16_t b)
+{
+	int v = (int)a + (int)b;
+	if (v > MAXSHORT)
+		return MAXSHORT;
+	return v;
+}
+
+inline static int16_t clamp(int16_t a, int16_t b)
+{
+	int v = (int)a + (int)b;
+	if (v > MAXSHORT)
+		return MAXSHORT;
+	if (v < MINSHORT)
+		return MINSHORT;
+	return v;
+}
+
 static inline bool
 box_inplace(PixmapPtr pixmap, const BoxRec *box)
 {
@@ -536,7 +563,7 @@ static inline struct kgem_bo *sna_pixmap_get_bo(PixmapPtr pixmap)
 	return sna_pixmap(pixmap)->gpu_bo;
 }
 
-static inline struct kgem_bo *sna_pixmap_pin(PixmapPtr pixmap)
+static inline struct kgem_bo *sna_pixmap_pin(PixmapPtr pixmap, unsigned flags)
 {
 	struct sna_pixmap *priv;
 
@@ -544,7 +571,7 @@ static inline struct kgem_bo *sna_pixmap_pin(PixmapPtr pixmap)
 	if (!priv)
 		return NULL;
 
-	priv->pinned = 1;
+	priv->pinned |= flags;
 	return priv->gpu_bo;
 }
 
@@ -700,6 +727,12 @@ void sna_glyphs(CARD8 op,
 		int nlist,
 		GlyphListPtr list,
 		GlyphPtr *glyphs);
+void sna_glyphs__shared(CARD8 op,
+			PicturePtr src,
+			PicturePtr dst,
+			PictFormatPtr mask,
+			INT16 src_x, INT16 src_y,
+			int nlist, GlyphListPtr list, GlyphPtr *glyphs);
 void sna_glyph_unrealize(ScreenPtr screen, GlyphPtr glyph);
 void sna_glyphs_close(struct sna *sna);
 
@@ -748,6 +781,12 @@ memcpy_blt(const void *src, void *dst, int bpp,
 	   int16_t src_x, int16_t src_y,
 	   int16_t dst_x, int16_t dst_y,
 	   uint16_t width, uint16_t height);
+void
+memcpy_to_tiled_x(const void *src, void *dst, int bpp, int swizzling,
+		  int32_t src_stride, int32_t dst_stride,
+		  int16_t src_x, int16_t src_y,
+		  int16_t dst_x, int16_t dst_y,
+		  uint16_t width, uint16_t height);
 void
 memmove_box(const void *src, void *dst,
 	    int bpp, int32_t stride,

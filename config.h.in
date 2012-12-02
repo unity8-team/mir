@@ -129,14 +129,23 @@
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
 
+/* Assume only UMS (no KMS) support */
+#undef UMS_ONLY
+
 /* Assume asynchronous swap support */
 #undef USE_ASYNC_SWAP
+
+/* Assume "fast reloc" support */
+#undef USE_FASTRELOC
 
 /* Use automagic builder description */
 #undef USE_GIT_DESCRIBE
 
 /* Enable glamor acceleration */
 #undef USE_GLAMOR
+
+/* Assume "handle LUT" support */
+#undef USE_HANDLE_LUT
 
 /* Enable SNA support */
 #undef USE_SNA

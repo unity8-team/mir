@@ -102,4 +102,5 @@
 #define XF86_ENABLEDISABLEFB_ARG(x) (x)
 
 #endif
+
 #endif

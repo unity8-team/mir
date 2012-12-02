@@ -23,7 +23,7 @@
 # Initialize Autoconf
 AC_PREREQ([2.60])
 AC_INIT([xf86-video-intel],
-        [2.20.5],
+        [2.20.14],
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
         [xf86-video-intel])
 AC_CONFIG_SRCDIR([Makefile.am])
@@ -81,13 +81,44 @@ else
   fi
 fi
 
+AC_ARG_ENABLE(gen4asm,
+              AS_HELP_STRING([--enable-gen4asm],
+			     [Enable rebuilding the gen4 assembly files [default=no]]),
+              [ASM="$enableval"],
+              [ASM=no])
 
-PKG_CHECK_MODULES(GEN4ASM, [intel-gen4asm >= 1.2], [gen4asm=yes], [gen4asm=no])
+gen4asm=no
+if test x$ASM != "xno"; then
+	PKG_CHECK_MODULES(GEN4ASM, [intel-gen4asm >= 1.2], [gen4asm=yes], [gen4asm=no])
+	if test x$ASM = "xyes" -a x$gen4asm != "xyes"; then
+		AC_MSG_ERROR([intel-gen4asm support requested but not found])
+	fi
+	if test x$gen4asm = "xyes"; then
+		AC_MSG_CHECKING([path to use for intel-gen4asm])
+		INTEL_GEN4ASM="`pkg-config intel-gen4asm --variable=exec_prefix`/bin/intel-gen4asm"
+		if ! test -e "$INTEL_GEN4ASM"; then
+			AC_MSG_ERROR([intel-gen4asm enabled, but not found. Tried '$INTEL_GEN4ASM'.])
+		fi
+		AC_MSG_RESULT([$INTEL_GEN4ASM])
+		AC_SUBST([INTEL_GEN4ASM])
+	fi
+fi
 AM_CONDITIONAL(HAVE_GEN4ASM, test x$gen4asm = xyes)
 
-PKG_CHECK_MODULES(UDEV, [libudev], [udev=yes], [udev=no])
-if test x"$udev" = xyes; then
-	AC_DEFINE(HAVE_UDEV,1,[Enable udev-based monitor hotplug detection])
+AC_ARG_ENABLE(udev,
+              AS_HELP_STRING([--disable-udev],
+                             [Disable udev-based monitor hotplug detection [default=auto]]),
+              [UDEV="$enableval"],
+              [UDEV=auto])
+
+if test x$UDEV != "xno"; then
+	PKG_CHECK_MODULES(UDEV, [libudev], [udev=yes], [udev=no])
+	if test x$UDEV = xyes -a x$udev != xyes; then
+		AC_MSG_ERROR([udev support requested but not found (libudev)])
+	fi
+	if test x$udev = xyes; then
+		AC_DEFINE(HAVE_UDEV,1,[Enable udev-based monitor hotplug detection])
+	fi
 fi
 
 PKG_CHECK_MODULES(X11, [x11 xrender xext pixman-1], [x11=yes], [x11=no])
@@ -114,6 +145,10 @@ AC_ARG_ENABLE(kms-only, AS_HELP_STRING([--enable-kms-only],
                                   [Assume KMS support [[default=no]]]),
               [KMS_ONLY="$enableval"],
               [KMS_ONLY=no])
+AC_ARG_ENABLE(ums-only, AS_HELP_STRING([--enable-ums-only],
+                                  [Assume only UMS (no KMS) support [[default=no]]]),
+              [UMS_ONLY="$enableval"],
+              [UMS_ONLY=no])
 
 required_xorg_xserver_version=1.6
 required_pixman_version=0.24
@@ -219,12 +254,12 @@ if test "x$accel" = xauto; then
 			accel=sna
 		fi
 	fi
-	if test "x$accel" = xauto; then
+	if test "x$accel" = xauto -a "x$UMS_ONLY" != "xyes"; then
 		AC_MSG_ERROR([No default acceleration option])
 	fi
 fi
 
-have_accel=no
+have_accel=none
 if test "x$accel" = xsna; then
 	if test "x$SNA" != "xno"; then
 		AC_DEFINE(DEFAULT_ACCEL_METHOD, SNA, [Default acceleration method])
@@ -243,7 +278,7 @@ if test "x$accel" = xuxa; then
 	fi
 fi
 AC_MSG_RESULT($accel)
-if test "x$accel" = xno; then
+if test "x$accel" = xnone -a "x$UMS_ONLY" != "xyes"; then
 	AC_MSG_ERROR([No default acceleration option])
 fi
 
@@ -255,6 +290,24 @@ AC_ARG_ENABLE(userptr,
 AM_CONDITIONAL(USE_USERPTR, test x$USERPTR = xyes)
 if test "x$USERPTR" = xyes; then
 	AC_DEFINE(USE_USERPTR,1,[Assume USERPTR support])
+fi
+
+AC_ARG_ENABLE(fast-reloc,
+	      AS_HELP_STRING([--enable-fast-reloc],
+			     [Enable use of "fast reloc" (experimental) [default=no]]),
+	      [FASTRELOC="$enableval"],
+	      [FASTRELOC=no])
+if test "x$FASTRELOC" = xyes; then
+	AC_DEFINE(USE_FASTRELOC,1,[Assume "fast reloc" support])
+fi
+
+AC_ARG_ENABLE(handle-lut,
+	      AS_HELP_STRING([--enable-handle-lut],
+			     [Enable use of "handle LUT" (experimental) [default=no]]),
+	      [HANDLE_LUT="$enableval"],
+	      [HANDLE_LUT=no])
+if test "x$HANDLE_LUT" = xyes; then
+	AC_DEFINE(USE_HANDLE_LUT,1,[Assume "handle LUT" support])
 fi
 
 AC_ARG_ENABLE(async-swap,
@@ -350,9 +403,13 @@ AM_CONDITIONAL(KMS_ONLY, test x$KMS_ONLY = xyes)
 if test "x$KMS_ONLY" = xyes; then
 	AC_DEFINE(KMS_ONLY,1,[Assume KMS support])
 fi
+AM_CONDITIONAL(UMS_ONLY, test x$UMS_ONLY = xyes)
+if test "x$UMS_ONLY" = xyes; then
+	AC_DEFINE(UMS_ONLY,1,[Assume only UMS (no KMS) support])
+fi
 
 AM_CONDITIONAL(DEBUG, test x$DEBUG != xno)
-AM_CONDITIONAL(FULL_DEBUG, test x$FULL_DEBUG == xfull)
+AM_CONDITIONAL(FULL_DEBUG, test x$FULL_DEBUG = xfull)
 if test "x$DEBUG" = xno; then
 	AC_DEFINE(NDEBUG,1,[Disable internal debugging])
 fi

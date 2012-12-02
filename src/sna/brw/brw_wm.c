@@ -653,7 +653,7 @@ brw_wm_kernel__affine_opacity(struct brw_compile *p, int dispatch)
 
 	if (p->gen < 60) {
 		brw_wm_xy(p, dispatch);
-		mask = 4;
+		mask = 5;
 	} else
 		mask = dispatch == 16 ? 8 : 6;
 
@@ -670,7 +670,7 @@ brw_wm_kernel__projective_opacity(struct brw_compile *p, int dispatch)
 
 	if (p->gen < 60) {
 		brw_wm_xy(p, dispatch);
-		mask = 4;
+		mask = 5;
 	} else
 		mask = dispatch == 16 ? 8 : 6;
 

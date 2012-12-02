@@ -47,6 +47,10 @@
 #include "legacy/legacy.h"
 #include "sna/sna_module.h"
 
+#ifdef XSERVER_PLATFORM_BUS
+#include <xf86platformBus.h>
+#endif
+
 static const struct intel_device_info intel_generic_info = {
 	.gen = -1,
 };
@@ -99,11 +103,15 @@ static const struct intel_device_info intel_ivybridge_info = {
 	.gen = 70,
 };
 
+static const struct intel_device_info intel_valleyview_info = {
+	.gen = 70,
+};
+
 static const struct intel_device_info intel_haswell_info = {
 	.gen = 75,
 };
 
-static const SymTabRec _intel_chipsets[] = {
+static const SymTabRec intel_chipsets[] = {
 	{PCI_CHIP_I810,				"i810"},
 	{PCI_CHIP_I810_DC100,			"i810-dc100"},
 	{PCI_CHIP_I810_E,			"i810e"},
@@ -188,11 +196,10 @@ static const SymTabRec _intel_chipsets[] = {
 	{PCI_CHIP_HASWELL_CRW_S_GT1,		"Haswell CRW Server (GT1)" },
 	{PCI_CHIP_HASWELL_CRW_S_GT2,		"Haswell CRW Server (GT2)" },
 	{PCI_CHIP_HASWELL_CRW_S_GT2_PLUS,	"Haswell CRW Server (GT2+)" },
+	{PCI_CHIP_VALLEYVIEW_PO,		"ValleyView PO board" },
 	{-1,					NULL}
 };
-#define NUM_CHIPSETS (sizeof(_intel_chipsets) / sizeof(_intel_chipsets[0]))
-
-static SymTabRec *intel_chipsets = (SymTabRec *) _intel_chipsets;
+#define NUM_CHIPSETS (sizeof(intel_chipsets) / sizeof(intel_chipsets[0]))
 
 #define INTEL_DEVICE_MATCH(d,i) \
     { 0x8086, (d), PCI_MATCH_ANY, PCI_MATCH_ANY, 0x3 << 16, 0xff << 16, (intptr_t)(i) }
@@ -205,6 +212,7 @@ static const struct pci_id_match intel_device_match[] = {
 	INTEL_DEVICE_MATCH (PCI_CHIP_I815, &intel_i81x_info ),
 #endif
 
+#if !UMS_ONLY
 	INTEL_DEVICE_MATCH (PCI_CHIP_I830_M, &intel_i830_info ),
 	INTEL_DEVICE_MATCH (PCI_CHIP_845_G, &intel_i845_info ),
 	INTEL_DEVICE_MATCH (PCI_CHIP_I854, &intel_i855_info ),
@@ -297,7 +305,11 @@ static const struct pci_id_match intel_device_match[] = {
 	INTEL_DEVICE_MATCH (PCI_CHIP_HASWELL_CRW_S_GT2, &intel_haswell_info ),
 	INTEL_DEVICE_MATCH (PCI_CHIP_HASWELL_CRW_S_GT2_PLUS, &intel_haswell_info ),
 
+	INTEL_DEVICE_MATCH (PCI_CHIP_VALLEYVIEW_PO, &intel_valleyview_info ),
+
 	INTEL_DEVICE_MATCH (PCI_MATCH_ANY, &intel_generic_info ),
+#endif
+
 	{ 0, 0, 0 },
 };
 
@@ -369,7 +381,7 @@ static Bool intel_driver_func(ScrnInfoPtr pScrn,
 	}
 }
 
-static Bool has_kernel_mode_setting(struct pci_device *dev)
+static Bool has_kernel_mode_setting(const struct pci_device *dev)
 {
 	char id[20];
 	int ret, fd;
@@ -404,13 +416,13 @@ static Bool has_kernel_mode_setting(struct pci_device *dev)
 			if (drmIoctl(fd, DRM_IOCTL_I915_GETPARAM, &gp))
 				ret = FALSE;
 		}
-
 		close(fd);
 	}
 
 	return ret;
 }
 
+#if !UMS_ONLY
 extern XF86ConfigPtr xf86configptr;
 
 static XF86ConfDevicePtr
@@ -448,6 +460,7 @@ static enum accel_method { UXA, SNA } get_accel_method(void)
 
 	return accel_method;
 }
+#endif
 
 /*
  * intel_pci_probe --
@@ -512,6 +525,7 @@ static Bool intel_pci_probe(DriverPtr		driver,
 	}
 #endif
 
+#if !UMS_ONLY
 	switch (get_accel_method()) {
 #if USE_SNA
 	case SNA: return sna_init_scrn(scrn, entity_num);
@@ -521,9 +535,73 @@ static Bool intel_pci_probe(DriverPtr		driver,
 	case UXA: return intel_init_scrn(scrn);
 #endif
 
-	default: return FALSE;
+	default: break;
 	}
+#endif
+
+	return FALSE;
 }
+
+#ifdef XSERVER_PLATFORM_BUS
+static Bool
+intel_platform_probe(DriverPtr driver,
+		     int entity_num, int flags,
+		     struct xf86_platform_device *dev,
+		     intptr_t match_data)
+{
+	ScrnInfoPtr scrn = NULL;
+	char *path = xf86_get_platform_device_attrib(dev, ODEV_ATTRIB_PATH);
+	unsigned scrn_flags = 0;
+
+	if (!dev->pdev)
+		return FALSE;
+
+	if (!has_kernel_mode_setting(dev->pdev))
+		return FALSE;
+
+	/* Allow ourselves to act as a slaved output if not primary */
+	if (flags & PLATFORM_PROBE_GPU_SCREEN) {
+		flags &= ~PLATFORM_PROBE_GPU_SCREEN;
+		scrn_flags |= XF86_ALLOCATE_GPU_SCREEN;
+	}
+
+	/* if we get any flags we don't understand fail to probe for now */
+	if (flags)
+		return FALSE;
+
+	scrn = xf86AllocateScreen(driver, scrn_flags);
+	if (scrn == NULL)
+		return FALSE;
+
+	scrn->driverVersion = INTEL_VERSION;
+	scrn->driverName = INTEL_DRIVER_NAME;
+	scrn->name = INTEL_NAME;
+	scrn->driverPrivate = (void *)(match_data | 1);
+	scrn->Probe = NULL;
+
+	if (xf86IsEntitySharable(entity_num))
+		xf86SetEntityShared(entity_num);
+	xf86AddEntityToScreen(scrn, entity_num);
+
+	xf86DrvMsg(scrn->scrnIndex, X_INFO,
+		   "using device path '%s'\n", path ? path : "Default device");
+
+#if !UMS_ONLY
+	switch (get_accel_method()) {
+#if USE_SNA
+        case SNA: return sna_init_scrn(scrn, entity_num);
+#endif
+#if USE_UXA
+        case UXA: return intel_init_scrn(scrn);
+#endif
+
+	default: break;
+	}
+#endif
+
+	return FALSE;
+}
+#endif
 
 #ifdef XFree86LOADER
 
@@ -569,7 +647,10 @@ static DriverRec intel = {
 	0,
 	intel_driver_func,
 	intel_device_match,
-	intel_pci_probe
+	intel_pci_probe,
+#ifdef XSERVER_PLATFORM_BUS
+	intel_platform_probe
+#endif
 };
 
 static pointer intel_setup(pointer module,

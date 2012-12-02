@@ -37,8 +37,10 @@
 #include <xf86xv.h>
 #include <X11/extensions/Xv.h>
 #include <fourcc.h>
-#include <drm_fourcc.h>
 #include <i915_drm.h>
+
+#ifdef  DRM_IOCTL_MODE_GETPLANERESOURCES
+#include <drm_fourcc.h>
 
 #define IMAGE_MAX_WIDTH		2048
 #define IMAGE_MAX_HEIGHT	2048
@@ -114,8 +116,15 @@ static void sna_video_sprite_best_size(ScrnInfoPtr scrn, Bool motion,
 				       unsigned int *p_w, unsigned int *p_h,
 				       pointer data)
 {
-	*p_w = vid_w;
-	*p_h = vid_h;
+	struct sna *sna = to_sna(scrn);
+
+	if (sna->kgem.gen == 75) {
+		*p_w = vid_w;
+		*p_h = vid_h;
+	} else {
+		*p_w = drw_w;
+		*p_h = drw_h;
+	}
 }
 
 static void
@@ -174,7 +183,7 @@ sna_video_sprite_show(struct sna *sna,
 		      xf86CrtcPtr crtc,
 		      BoxPtr dstBox)
 {
-	int plane = sna_crtc_to_plane(crtc);
+	uint32_t plane = sna_crtc_to_plane(crtc);
 
 	update_dst_box_to_crtc_coords(sna, crtc, dstBox);
 	if (crtc->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
@@ -203,7 +212,7 @@ sna_video_sprite_show(struct sna *sna,
 	}
 #endif
 
-	if (frame->bo->unique_id == 0) {
+	if (frame->bo->delta == 0) {
 		uint32_t offsets[4], pitches[4], handles[4];
 		uint32_t pixel_format;
 
@@ -227,24 +236,30 @@ sna_video_sprite_show(struct sna *sna,
 		if (drmModeAddFB2(sna->kgem.fd,
 				  frame->width, frame->height, pixel_format,
 				  handles, pitches, offsets,
-				  &frame->bo->unique_id, 0)) {
+				  &frame->bo->delta, 0)) {
 			xf86DrvMsg(sna->scrn->scrnIndex,
 				   X_ERROR, "failed to add fb\n");
 			return false;
 		}
+
+		frame->bo->scanout = true;
 	}
 
 	DBG(("%s: updating plane=%d, handle=%d [fb %d], dst=(%d,%d)x(%d,%d)\n",
-	     __FUNCTION__, plane, frame->bo->handle, frame->bo->unique_id,
+	     __FUNCTION__, plane, frame->bo->handle, frame->bo->delta,
 	     dstBox->x1, dstBox->y1,
 	     dstBox->x2 - dstBox->x1, dstBox->y2 - dstBox->y1));
+	assert(frame->bo->scanout);
+	assert(frame->bo->delta);
+
 	if (drmModeSetPlane(sna->kgem.fd,
-			    plane, sna_crtc_id(crtc), frame->bo->unique_id, 0,
+			    plane, sna_crtc_id(crtc), frame->bo->delta, 0,
 			    dstBox->x1, dstBox->y1,
 			    dstBox->x2 - dstBox->x1, dstBox->y2 - dstBox->y1,
 			    0, 0, frame->width << 16, frame->height << 16))
 		return false;
 
+	frame->bo->domain = DOMAIN_NONE;
 	video->plane = plane;
 	return true;
 }
@@ -273,7 +288,7 @@ static int sna_video_sprite_put_image(ScrnInfoPtr scrn,
 				   clip))
 		return Success;
 
-	if (!crtc || !sna_crtc_to_plane(crtc)) {
+	if (!crtc || sna_crtc_to_plane(crtc) == 0) {
 		/* If the video isn't visible on any CRTC, turn it off */
 		sna_video_sprite_off(sna, video);
 		return Success;
@@ -428,3 +443,9 @@ XF86VideoAdaptorPtr sna_video_sprite_setup(struct sna *sna,
 
 	return adaptor;
 }
+#else
+XF86VideoAdaptorPtr sna_video_sprite_setup(struct sna *sna, ScreenPtr screen)
+{
+	return NULL;
+}
+#endif

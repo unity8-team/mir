@@ -1341,6 +1341,8 @@ static void gen3_emit_target(struct sna *sna,
 {
 	struct gen3_render_state *state = &sna->render_state.gen3;
 
+	assert(!too_large(width, height));
+
 	/* BUF_INFO is an implicit flush, so skip if the target is unchanged. */
 	assert(bo->unique_id != 0);
 	if (bo->unique_id != state->current_dst) {
@@ -1638,6 +1640,7 @@ static int gen3_vertex_finish(struct sna *sna)
 		sna->render.vertex_reloc[0] = 0;
 		sna->render.vertex_used = 0;
 		sna->render.vertex_index = 0;
+		sna->render.vbo = NULL;
 
 		kgem_bo_destroy(&sna->kgem, bo);
 	}
@@ -2399,7 +2402,8 @@ gen3_composite_picture(struct sna *sna,
 	if (!gen3_composite_channel_set_format(channel, picture->format) &&
 	    !gen3_composite_channel_set_xformat(picture, channel, x, y, w, h))
 		return sna_render_picture_convert(sna, picture, channel, pixmap,
-						  x, y, w, h, dst_x, dst_y);
+						  x, y, w, h, dst_x, dst_y,
+						  false);
 
 	if (too_large(pixmap->drawable.width, pixmap->drawable.height)) {
 		DBG(("%s: pixmap too large (%dx%d), extracting (%d, %d)x(%d,%d)\n",
@@ -2498,12 +2502,8 @@ gen3_composite_set_target(struct sna *sna,
 		box.y1 = y;
 		box.x2 = x + w;
 		box.y2 = y + h;
-	} else {
-		box.x1 = dst->pDrawable->x;
-		box.y1 = dst->pDrawable->y;
-		box.x2 = box.x1 + dst->pDrawable->width;
-		box.y2 = box.y1 + dst->pDrawable->height;
-	}
+	} else
+		sna_render_picture_extents(dst, &box);
 
 	op->dst.bo = sna_drawable_use_bo (dst->pDrawable,
 					  PREFER_GPU | FORCE_GPU | RENDER_GPU,
@@ -2643,7 +2643,6 @@ gen3_composite_fallback(struct sna *sna,
 			PicturePtr mask,
 			PicturePtr dst)
 {
-	struct sna_pixmap *priv;
 	PixmapPtr src_pixmap;
 	PixmapPtr mask_pixmap;
 	PixmapPtr dst_pixmap;
@@ -2692,8 +2691,7 @@ gen3_composite_fallback(struct sna *sna,
 	}
 
 	/* If anything is on the GPU, push everything out to the GPU */
-	priv = sna_pixmap(dst_pixmap);
-	if (priv && priv->gpu_damage && !priv->clear) {
+	if (dst_use_gpu(dst_pixmap)) {
 		DBG(("%s: dst is already on the GPU, try to use GPU\n",
 		     __FUNCTION__));
 		return false;
@@ -2728,7 +2726,7 @@ gen3_composite_fallback(struct sna *sna,
 
 	if (too_large(dst_pixmap->drawable.width,
 		      dst_pixmap->drawable.height) &&
-	    (priv == NULL || DAMAGE_IS_ALL(priv->cpu_damage))) {
+	    dst_is_cpu(dst_pixmap)) {
 		DBG(("%s: dst is on the CPU and too large\n", __FUNCTION__));
 		return true;
 	}
@@ -2809,17 +2807,6 @@ gen3_render_composite(struct sna *sna,
 		return false;
 	}
 
-#if NO_COMPOSITE
-	if (mask)
-		return false;
-
-	return sna_blt_composite(sna, op,
-				 src, dst,
-				 src_x, src_y,
-				 dst_x, dst_y,
-				 width, height, tmp);
-#endif
-
 	/* Try to use the BLT engine unless it implies a
 	 * 3D -> 2D context switch.
 	 */
@@ -2877,9 +2864,7 @@ gen3_render_composite(struct sna *sna,
 	case 1:
 		if (mask == NULL && tmp->src.bo &&
 		    sna_blt_composite__convert(sna,
-					       src_x, src_y,
-					       width, height,
-					       dst_x, dst_y,
+					       dst_x, dst_y, width, height,
 					       tmp))
 			return true;
 
@@ -4412,6 +4397,7 @@ gen3_render_fill_boxes(struct sna *sna,
 	tmp.dst.height = dst->drawable.height;
 	tmp.dst.format = format;
 	tmp.dst.bo = dst_bo;
+	tmp.damage = NULL;
 	tmp.floats_per_vertex = 2;
 	tmp.floats_per_rect = 6;
 	tmp.rb_reversed = 0;
@@ -4686,7 +4672,9 @@ bool gen3_render_init(struct sna *sna)
 {
 	struct sna_render *render = &sna->render;
 
+#if !NO_COMPOSITE
 	render->composite = gen3_render_composite;
+#endif
 #if !NO_COMPOSITE_SPANS
 	render->check_composite_spans = gen3_check_composite_spans;
 	render->composite_spans = gen3_render_composite_spans;

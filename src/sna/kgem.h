@@ -64,6 +64,7 @@ struct kgem_bo {
 	uint32_t unique_id;
 	uint32_t refcnt;
 	uint32_t handle;
+	uint32_t target_handle;
 	uint32_t presumed_offset;
 	uint32_t delta;
 	union {
@@ -97,6 +98,7 @@ struct kgem_request {
 	struct list list;
 	struct kgem_bo *bo;
 	struct list buffers;
+	int ring;
 };
 
 enum {
@@ -122,17 +124,23 @@ struct kgem {
 
 	struct list flushing;
 	struct list large;
+	struct list large_inactive;
 	struct list active[NUM_CACHE_BUCKETS][3];
 	struct list inactive[NUM_CACHE_BUCKETS];
 	struct list snoop;
 	struct list batch_buffers, active_buffers;
-	struct list requests;
+
+	struct list requests[2];
 	struct kgem_request *next_request;
+	uint32_t num_requests;
 
 	struct {
 		struct list inactive[NUM_CACHE_BUCKETS];
 		int16_t count;
 	} vma[NUM_MAP_TYPES];
+
+	uint32_t batch_flags;
+#define I915_EXEC_SECURE (1<<9)
 
 	uint16_t nbatch;
 	uint16_t surface;
@@ -154,8 +162,11 @@ struct kgem {
 	uint32_t has_relaxed_fencing :1;
 	uint32_t has_relaxed_delta :1;
 	uint32_t has_semaphores :1;
+	uint32_t has_secure_batches :1;
 	uint32_t has_cacheing :1;
 	uint32_t has_llc :1;
+	uint32_t has_no_reloc :1;
+	uint32_t has_handle_lut :1;
 
 	uint32_t can_blt_cpu :1;
 
@@ -204,6 +215,8 @@ struct kgem_bo *kgem_create_map(struct kgem *kgem,
 				bool read_only);
 
 struct kgem_bo *kgem_create_for_name(struct kgem *kgem, uint32_t name);
+struct kgem_bo *kgem_create_for_prime(struct kgem *kgem, int name, uint32_t size);
+int kgem_bo_export_to_prime(struct kgem *kgem, struct kgem_bo *bo);
 
 struct kgem_bo *kgem_create_linear(struct kgem *kgem, int size, unsigned flags);
 struct kgem_bo *kgem_create_proxy(struct kgem *kgem,
@@ -212,7 +225,7 @@ struct kgem_bo *kgem_create_proxy(struct kgem *kgem,
 
 struct kgem_bo *kgem_upload_source_image(struct kgem *kgem,
 					 const void *data,
-					 BoxPtr box,
+					 const BoxRec *box,
 					 int stride, int bpp);
 void kgem_proxy_bo_attach(struct kgem_bo *bo, struct kgem_bo **ptr);
 
@@ -237,9 +250,10 @@ enum {
 	CREATE_CPU_MAP = 0x4,
 	CREATE_GTT_MAP = 0x8,
 	CREATE_SCANOUT = 0x10,
-	CREATE_TEMPORARY = 0x20,
-	CREATE_NO_RETIRE = 0x40,
-	CREATE_NO_THROTTLE = 0x40,
+	CREATE_PRIME = 0x20,
+	CREATE_TEMPORARY = 0x40,
+	CREATE_NO_RETIRE = 0x80,
+	CREATE_NO_THROTTLE = 0x100,
 };
 struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 			       int width,
@@ -255,24 +269,31 @@ struct kgem_bo *kgem_create_cpu_2d(struct kgem *kgem,
 
 uint32_t kgem_bo_get_binding(struct kgem_bo *bo, uint32_t format);
 void kgem_bo_set_binding(struct kgem_bo *bo, uint32_t format, uint16_t offset);
+int kgem_bo_get_swizzling(struct kgem *kgem, struct kgem_bo *bo);
 
 void kgem_bo_retire(struct kgem *kgem, struct kgem_bo *bo);
 bool kgem_retire(struct kgem *kgem);
 bool __kgem_is_idle(struct kgem *kgem);
 static inline bool kgem_is_idle(struct kgem *kgem)
 {
-	if (list_is_empty(&kgem->requests))
+	if (kgem->num_requests == 0) {
+		DBG(("%s: no outstanding requests\n", __FUNCTION__));
 		return true;
+	}
 
 	return __kgem_is_idle(kgem);
 }
-struct kgem_bo *kgem_get_last_request(struct kgem *kgem);
 
 void _kgem_submit(struct kgem *kgem);
 static inline void kgem_submit(struct kgem *kgem)
 {
 	if (kgem->nbatch)
 		_kgem_submit(kgem);
+}
+
+static inline bool kgem_flush(struct kgem *kgem)
+{
+	return kgem->flush && kgem_is_idle(kgem);
 }
 
 static inline void kgem_bo_submit(struct kgem *kgem, struct kgem_bo *bo)
@@ -331,22 +352,28 @@ static inline void kgem_set_mode(struct kgem *kgem, enum kgem_mode mode)
 static inline void _kgem_set_mode(struct kgem *kgem, enum kgem_mode mode)
 {
 	assert(kgem->mode == KGEM_NONE);
+	assert(kgem->nbatch == 0);
 	kgem->context_switch(kgem, mode);
 	kgem->mode = mode;
 }
 
 static inline bool kgem_check_batch(struct kgem *kgem, int num_dwords)
 {
+	assert(num_dwords > 0);
+	assert(kgem->nbatch < kgem->surface);
+	assert(kgem->surface <= kgem->batch_size);
 	return likely(kgem->nbatch + num_dwords + KGEM_BATCH_RESERVED <= kgem->surface);
 }
 
 static inline bool kgem_check_reloc(struct kgem *kgem, int n)
 {
+	assert(kgem->nreloc <= KGEM_RELOC_SIZE(kgem));
 	return likely(kgem->nreloc + n <= KGEM_RELOC_SIZE(kgem));
 }
 
 static inline bool kgem_check_exec(struct kgem *kgem, int n)
 {
+	assert(kgem->nexec <= KGEM_EXEC_SIZE(kgem));
 	return likely(kgem->nexec + n <= KGEM_EXEC_SIZE(kgem));
 }
 
@@ -366,8 +393,11 @@ static inline bool kgem_check_batch_with_surfaces(struct kgem *kgem,
 
 static inline uint32_t *kgem_get_batch(struct kgem *kgem, int num_dwords)
 {
-	if (!kgem_check_batch(kgem, num_dwords))
+	if (!kgem_check_batch(kgem, num_dwords)) {
+		unsigned mode = kgem->mode;
 		_kgem_submit(kgem);
+		_kgem_set_mode(kgem, mode);
+	}
 
 	return kgem->batch + kgem->nbatch;
 }
@@ -381,16 +411,6 @@ bool kgem_check_bo(struct kgem *kgem, ...) __attribute__((sentinel(0)));
 bool kgem_check_bo_fenced(struct kgem *kgem, struct kgem_bo *bo);
 bool kgem_check_many_bo_fenced(struct kgem *kgem, ...) __attribute__((sentinel(0)));
 
-void _kgem_add_bo(struct kgem *kgem, struct kgem_bo *bo);
-static inline void kgem_add_bo(struct kgem *kgem, struct kgem_bo *bo)
-{
-	if (bo->proxy)
-		bo = bo->proxy;
-
-	if (bo->exec == NULL)
-		_kgem_add_bo(kgem, bo);
-}
-
 #define KGEM_RELOC_FENCED 0x8000
 uint32_t kgem_add_reloc(struct kgem *kgem,
 			uint32_t pos,
@@ -399,11 +419,14 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 			uint32_t delta);
 
 void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo);
+void *kgem_bo_map__async(struct kgem *kgem, struct kgem_bo *bo);
 void *kgem_bo_map__gtt(struct kgem *kgem, struct kgem_bo *bo);
 void kgem_bo_sync__gtt(struct kgem *kgem, struct kgem_bo *bo);
 void *kgem_bo_map__debug(struct kgem *kgem, struct kgem_bo *bo);
 void *kgem_bo_map__cpu(struct kgem *kgem, struct kgem_bo *bo);
 void kgem_bo_sync__cpu(struct kgem *kgem, struct kgem_bo *bo);
+void *__kgem_bo_map__cpu(struct kgem *kgem, struct kgem_bo *bo);
+void __kgem_bo_unmap__cpu(struct kgem *kgem, struct kgem_bo *bo, void *ptr);
 uint32_t kgem_bo_flink(struct kgem *kgem, struct kgem_bo *bo);
 
 bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,
@@ -460,12 +483,9 @@ static inline bool kgem_bo_can_blt(struct kgem *kgem,
 	return kgem_bo_blt_pitch_is_ok(kgem, bo);
 }
 
-static inline bool kgem_bo_is_mappable(struct kgem *kgem,
-				       struct kgem_bo *bo)
+static inline bool __kgem_bo_is_mappable(struct kgem *kgem,
+					 struct kgem_bo *bo)
 {
-	DBG(("%s: domain=%d, offset: %d size: %d\n",
-	     __FUNCTION__, bo->domain, bo->presumed_offset, kgem_bo_size(bo)));
-
 	if (bo->domain == DOMAIN_GTT)
 		return true;
 
@@ -479,10 +499,20 @@ static inline bool kgem_bo_is_mappable(struct kgem *kgem,
 	return bo->presumed_offset + kgem_bo_size(bo) <= kgem->aperture_mappable;
 }
 
-static inline bool kgem_bo_mapped(struct kgem_bo *bo)
+static inline bool kgem_bo_is_mappable(struct kgem *kgem,
+				       struct kgem_bo *bo)
+{
+	DBG(("%s: domain=%d, offset: %d size: %d\n",
+	     __FUNCTION__, bo->domain, bo->presumed_offset, kgem_bo_size(bo)));
+	assert(bo->refcnt);
+	return __kgem_bo_is_mappable(kgem, bo);
+}
+
+static inline bool kgem_bo_mapped(struct kgem *kgem, struct kgem_bo *bo)
 {
 	DBG(("%s: map=%p, tiling=%d, domain=%d\n",
 	     __FUNCTION__, bo->map, bo->tiling, bo->domain));
+	assert(bo->refcnt);
 
 	if (bo->map == NULL)
 		return bo->tiling == I915_TILING_NONE && bo->domain == DOMAIN_CPU;
@@ -492,17 +522,21 @@ static inline bool kgem_bo_mapped(struct kgem_bo *bo)
 
 static inline bool kgem_bo_can_map(struct kgem *kgem, struct kgem_bo *bo)
 {
-	if (kgem_bo_mapped(bo))
+	if (kgem_bo_mapped(kgem, bo))
 		return true;
 
 	if (!bo->tiling && kgem->has_llc)
 		return true;
+
+	if (kgem->gen == 21 && bo->tiling == I915_TILING_Y)
+		return false;
 
 	return kgem_bo_size(bo) <= kgem->aperture_mappable / 4;
 }
 
 static inline bool kgem_bo_is_snoop(struct kgem_bo *bo)
 {
+	assert(bo->refcnt);
 	while (bo->proxy)
 		bo = bo->proxy;
 	return bo->snoop;
@@ -512,6 +546,7 @@ static inline bool kgem_bo_is_busy(struct kgem_bo *bo)
 {
 	DBG(("%s: handle=%d, domain: %d exec? %d, rq? %d\n", __FUNCTION__,
 	     bo->handle, bo->domain, bo->exec != NULL, bo->rq != NULL));
+	assert(bo->refcnt);
 	return bo->rq;
 }
 
@@ -519,6 +554,9 @@ static inline bool __kgem_bo_is_busy(struct kgem *kgem, struct kgem_bo *bo)
 {
 	DBG(("%s: handle=%d, domain: %d exec? %d, rq? %d\n", __FUNCTION__,
 	     bo->handle, bo->domain, bo->exec != NULL, bo->rq != NULL));
+	assert(bo->refcnt);
+	if (kgem_flush(kgem))
+		kgem_submit(kgem);
 	if (bo->rq && !bo->exec)
 		kgem_retire(kgem);
 	return kgem_bo_is_busy(bo);
@@ -529,11 +567,13 @@ static inline bool kgem_bo_is_dirty(struct kgem_bo *bo)
 	if (bo == NULL)
 		return false;
 
+	assert(bo->refcnt);
 	return bo->dirty;
 }
 
 static inline void kgem_bo_mark_dirty(struct kgem_bo *bo)
 {
+	assert(bo->refcnt);
 	do {
 		if (bo->dirty)
 			return;

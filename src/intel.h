@@ -68,6 +68,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i915_drm.h"
 
 #include "intel_driver.h"
+#include "intel_options.h"
 #include "intel_list.h"
 #include "compat-api.h"
 
@@ -80,6 +81,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define MONITOR_EDID_COMPLETE_RAWDATA EDID_COMPLETE_RAWDATA
 #endif
 
+#if XF86_CRTC_VERSION >= 5
+#define INTEL_PIXMAP_SHARING 1
+#endif
+
 struct intel_pixmap {
 	dri_bo *bo;
 
@@ -90,7 +95,10 @@ struct intel_pixmap {
 	int8_t busy :2;
 	uint8_t dirty :1;
 	uint8_t offscreen :1;
-	uint8_t pinned :1;
+	uint8_t pinned :3;
+#define PIN_SCANOUT 0x1
+#define PIN_DRI 0x2
+#define PIN_GLAMOR 0x4
 };
 
 #if HAS_DEVPRIVATEKEYREC
@@ -134,12 +142,6 @@ dri_bo *intel_get_pixmap_bo(PixmapPtr pixmap);
 void intel_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo);
 
 #include "common.h"
-
-#ifdef XvMCExtension
-#ifdef ENABLE_XVMC
-#define INTEL_XVMC 1
-#endif
-#endif
 
 #define PITCH_NONE 0
 
@@ -347,7 +349,12 @@ typedef struct intel_screen_private {
 	struct udev_monitor *uevent_monitor;
 	InputHandlerProc uevent_handler;
 #endif
+	Bool has_prime_vmap_flush;
 } intel_screen_private;
+
+#ifndef I915_PARAM_HAS_PRIME_VMAP_FLUSH
+#define I915_PARAM_HAS_PRIME_VMAP_FLUSH 21
+#endif
 
 enum {
 	DEBUG_FLUSH_BATCHES = 0x1,
@@ -359,6 +366,7 @@ extern Bool intel_mode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp);
 extern void intel_mode_init(struct intel_screen_private *intel);
 extern void intel_mode_disable_unused_functions(ScrnInfoPtr scrn);
 extern void intel_mode_remove_fb(intel_screen_private *intel);
+extern void intel_mode_close(intel_screen_private *intel);
 extern void intel_mode_fini(intel_screen_private *intel);
 
 extern int intel_get_pipe_from_crtc_id(drm_intel_bufmgr *bufmgr, xf86CrtcPtr crtc);
@@ -543,6 +551,9 @@ intel_get_transformed_coordinates(int x, int y, PictTransformPtr transform,
 Bool
 intel_get_transformed_coordinates_3d(int x, int y, PictTransformPtr transform,
 				    float *x_out, float *y_out, float *z_out);
+
+static inline void
+intel_debug_fallback(ScrnInfoPtr scrn, const char *format, ...) _X_ATTRIBUTE_PRINTF(2, 3);
 
 static inline void
 intel_debug_fallback(ScrnInfoPtr scrn, const char *format, ...)

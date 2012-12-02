@@ -423,8 +423,8 @@ static void apply_damage(struct sna_composite_op *op, RegionPtr region)
 static inline bool use_cpu(PixmapPtr pixmap, struct sna_pixmap *priv,
 			   CARD8 op, INT16 width, INT16 height)
 {
-	if (too_small(priv))
-		return true;
+	if (priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo))
+		return false;
 
 	if (DAMAGE_IS_ALL(priv->cpu_damage) &&
 	    (op > PictOpSrc ||
@@ -432,7 +432,10 @@ static inline bool use_cpu(PixmapPtr pixmap, struct sna_pixmap *priv,
 	     height < pixmap->drawable.height))
 		return true;
 
-	return false;
+	if (priv->gpu_bo)
+		return false;
+
+	return (priv->create & KGEM_CAN_CREATE_GPU) == 0;
 }
 
 void
@@ -501,14 +504,15 @@ sna_composite(CARD8 op,
 
 	priv = sna_pixmap(pixmap);
 	if (priv == NULL) {
-		DBG(("%s: fallback as destination is unattached\n",
-		     __FUNCTION__));
+		DBG(("%s: fallback as destination pixmap=%ld is unattached\n",
+		     __FUNCTION__, pixmap->drawable.serialNumber));
 		goto fallback;
 	}
 
 	if (use_cpu(pixmap, priv, op, width, height) &&
 	    !picture_is_gpu(src) && !picture_is_gpu(mask)) {
-		DBG(("%s: fallback, dst is too small (or completely damaged)\n", __FUNCTION__));
+		DBG(("%s: fallback, dst pixmap=%ld is too small (or completely damaged)\n",
+		     __FUNCTION__, pixmap->drawable.serialNumber));
 		goto fallback;
 	}
 
@@ -523,7 +527,7 @@ sna_composite(CARD8 op,
 	     get_drawable_dx(dst->pDrawable),
 	     get_drawable_dy(dst->pDrawable)));
 
-	if (op <= PictOpSrc) {
+	if (op <= PictOpSrc && priv->cpu_damage) {
 		int16_t x, y;
 
 		get_drawable_deltas(dst->pDrawable, pixmap, &x, &y);
@@ -531,6 +535,10 @@ sna_composite(CARD8 op,
 			pixman_region_translate(&region, x, y);
 
 		sna_damage_subtract(&priv->cpu_damage, &region);
+		if (priv->cpu_damage == NULL) {
+			list_del(&priv->list);
+			priv->cpu = false;
+		}
 
 		if (x|y)
 			pixman_region_translate(&region, -x, -y);
@@ -609,14 +617,6 @@ fallback:
 		    width,  height);
 out:
 	REGION_UNINIT(NULL, &region);
-}
-
-static int16_t bound(int16_t a, uint16_t b)
-{
-	int v = (int)a + (int)b;
-	if (v > MAXSHORT)
-		return MAXSHORT;
-	return v;
 }
 
 static bool
@@ -814,10 +814,15 @@ sna_composite_rectangles(CARD8		 op,
 
 	priv = sna_pixmap(pixmap);
 	if (priv == NULL || too_small(priv)) {
-		DBG(("%s: fallback, too small or not attached\n", __FUNCTION__));
+		DBG(("%s: fallback, dst pixmap=%ld too small or not attached\n",
+		     __FUNCTION__, pixmap->drawable.serialNumber));
 		goto fallback;
 	}
 
+	/* XXX xserver-1.8: CompositeRects is not tracked by Damage, so we must
+	 * manually append the damaged regions ourselves.
+	 */
+	DamageRegionAppend(&pixmap->drawable, &region);
 	boxes = pixman_region_rectangles(&region, &num_boxes);
 
 	/* If we going to be overwriting any CPU damage with a subsequent
@@ -829,6 +834,10 @@ sna_composite_rectangles(CARD8		 op,
 		if (priv->cpu_damage &&
 		    region_subsumes_damage(&region, priv->cpu_damage)) {
 			DBG(("%s: discarding existing CPU damage\n", __FUNCTION__));
+			if (priv->gpu_bo && priv->gpu_bo->proxy) {
+				kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
+				priv->gpu_bo = NULL;
+			}
 			sna_damage_destroy(&priv->cpu_damage);
 			list_del(&priv->list);
 		}
@@ -836,6 +845,7 @@ sna_composite_rectangles(CARD8		 op,
 		    box_inplace(pixmap, &region.extents)) {
 			DBG(("%s: promoting to full GPU\n", __FUNCTION__));
 			if (priv->gpu_bo && priv->cpu_damage == NULL) {
+				assert(priv->gpu_bo->proxy == NULL);
 				sna_damage_all(&priv->gpu_damage,
 					       pixmap->drawable.width,
 					       pixmap->drawable.height);
@@ -971,10 +981,6 @@ fallback_composite:
 	}
 
 done:
-	/* XXX xserver-1.8: CompositeRects is not tracked by Damage, so we must
-	 * manually append the damaged regions ourselves.
-	 */
-	DamageRegionAppend(&pixmap->drawable, &region);
 	DamageRegionProcessPending(&pixmap->drawable);
 
 	pixman_region_fini(&region);

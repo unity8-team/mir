@@ -524,6 +524,7 @@ void no_render_init(struct sna *sna);
 bool gen2_render_init(struct sna *sna);
 bool gen3_render_init(struct sna *sna);
 bool gen4_render_init(struct sna *sna);
+bool g4x_render_init(struct sna *sna);
 bool gen5_render_init(struct sna *sna);
 bool gen6_render_init(struct sna *sna);
 bool gen7_render_init(struct sna *sna);
@@ -574,7 +575,6 @@ bool sna_blt_composite(struct sna *sna,
 bool sna_blt_composite__convert(struct sna *sna,
 				int x, int y,
 				int width, int height,
-				int dst_x, int dst_y,
 				struct sna_composite_op *tmp);
 
 bool sna_blt_fill(struct sna *sna, uint8_t alu,
@@ -691,7 +691,8 @@ sna_render_picture_convert(struct sna *sna,
 			   PixmapPtr pixmap,
 			   int16_t x, int16_t y,
 			   int16_t w, int16_t h,
-			   int16_t dst_x, int16_t dst_y);
+			   int16_t dst_x, int16_t dst_y,
+			   bool fixup_alpha);
 
 inline static void sna_render_composite_redirect_init(struct sna_composite_op *op)
 {

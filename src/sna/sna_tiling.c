@@ -648,7 +648,6 @@ sna_tiling_fill_boxes(struct sna *sna,
 				int16_t dy = this.extents.y1;
 
 				assert(kgem_bo_can_blt(&sna->kgem, bo));
-				assert(bo->pitch <= 8192);
 
 				if (!sna->render.copy_boxes(sna, GXcopy,
 							     dst, dst_bo, 0, 0,

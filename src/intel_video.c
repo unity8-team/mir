@@ -1585,6 +1585,11 @@ I830PutImageTextured(ScrnInfoPtr scrn,
 	intel_get_screen_private(scrn)->needs_flush = TRUE;
 	DamageDamageRegion(drawable, clipBoxes);
 
+	/* And make sure the WAIT_FOR_EVENT is queued before any
+	 * modesetting/dpms operations on the pipe.
+	 */
+	intel_batch_submit(scrn);
+
 	return Success;
 }
 

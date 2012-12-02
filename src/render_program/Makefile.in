@@ -128,6 +128,7 @@ INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
+INTEL_GEN4ASM = @INTEL_GEN4ASM@
 LD = @LD@
 LDFLAGS = @LDFLAGS@
 LIBGLAMOR_CFLAGS = @LIBGLAMOR_CFLAGS@
@@ -626,16 +627,16 @@ uninstall-am:
 	uninstall uninstall-am
 
 @HAVE_GEN4ASM_TRUE@.g4a.g4b:
-@HAVE_GEN4ASM_TRUE@	m4 -I$(srcdir) -s $< > $*.g4m && intel-gen4asm -o $@ $*.g4m && intel-gen4asm -g 5 -o $@.gen5 $*.g4m && rm $*.g4m
+@HAVE_GEN4ASM_TRUE@	m4 -I$(srcdir) -s $< > $*.g4m && @INTEL_GEN4ASM@ -o $@ $*.g4m && @INTEL_GEN4ASM@ -g 5 -o $@.gen5 $*.g4m && rm $*.g4m
 
 @HAVE_GEN4ASM_TRUE@.g5a.g5b:
-@HAVE_GEN4ASM_TRUE@	m4 -I$(srcdir) -s $< > $*.g5m && intel-gen4asm -g 5 -o $@ $*.g5m && rm $*.g5m
+@HAVE_GEN4ASM_TRUE@	m4 -I$(srcdir) -s $< > $*.g5m && @INTEL_GEN4ASM@ -g 5 -o $@ $*.g5m && rm $*.g5m
 
 @HAVE_GEN4ASM_TRUE@.g6a.g6b:
-@HAVE_GEN4ASM_TRUE@	m4 -I$(srcdir) -s $< > $*.g6m && intel-gen4asm -g 6 -o $@ $*.g6m && rm $*.g6m
+@HAVE_GEN4ASM_TRUE@	m4 -I$(srcdir) -s $< > $*.g6m && @INTEL_GEN4ASM@ -g 6 -o $@ $*.g6m && rm $*.g6m
 
 @HAVE_GEN4ASM_TRUE@.g7a.g7b:
-@HAVE_GEN4ASM_TRUE@	m4 -I$(srcdir) -s $< > $*.g7m && intel-gen4asm -g 7 -o $@ $*.g7m && rm $*.g7m
+@HAVE_GEN4ASM_TRUE@	m4 -I$(srcdir) -s $< > $*.g7m && @INTEL_GEN4ASM@ -g 7 -o $@ $*.g7m && rm $*.g7m
 
 @HAVE_GEN4ASM_TRUE@$(INTEL_G4B): $(INTEL_G4I)
 @HAVE_GEN4ASM_TRUE@$(INTEL_G5B): $(INTEL_G4I)
