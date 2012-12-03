@@ -1698,41 +1698,40 @@ static DisplayModePtr
 sna_output_panel_edid(xf86OutputPtr output, DisplayModePtr modes)
 {
 	xf86MonPtr mon = output->MonInfo;
+	DisplayModePtr i, m, preferred = NULL;
+	int max_x = 0, max_y = 0;
+	float max_vrefresh = 0.0;
 
-	if (!mon || !GTF_SUPPORTED(mon->features.msc)) {
-		DisplayModePtr i, m, p = NULL;
-		int max_x = 0, max_y = 0;
-		float max_vrefresh = 0.0;
+	if (mon && GTF_SUPPORTED(mon->features.msc))
+		return modes;
 
-		for (m = modes; m; m = m->next) {
-			if (m->type & M_T_PREFERRED)
-				p = m;
-			max_x = max(max_x, m->HDisplay);
-			max_y = max(max_y, m->VDisplay);
-			max_vrefresh = max(max_vrefresh, xf86ModeVRefresh(m));
-		}
-
-		max_vrefresh = max(max_vrefresh, 60.0);
-		max_vrefresh *= (1 + SYNC_TOLERANCE);
-
-		m = xf86GetDefaultModes();
-		xf86ValidateModesSize(output->scrn, m, max_x, max_y, 0);
-
-		for (i = m; i; i = i->next) {
-			if (xf86ModeVRefresh(i) > max_vrefresh)
-				i->status = MODE_VSYNC;
-			if (p && i->HDisplay >= p->HDisplay &&
-			    i->VDisplay >= p->VDisplay &&
-			    xf86ModeVRefresh(i) >= xf86ModeVRefresh(p))
-				i->status = MODE_VSYNC;
-		}
-
-		xf86PruneInvalidModes(output->scrn, &m, FALSE);
-
-		modes = xf86ModesAdd(modes, m);
+	for (m = modes; m; m = m->next) {
+		if (m->type & M_T_PREFERRED)
+			preferred = m;
+		max_x = max(max_x, m->HDisplay);
+		max_y = max(max_y, m->VDisplay);
+		max_vrefresh = max(max_vrefresh, xf86ModeVRefresh(m));
 	}
 
-	return modes;
+	max_vrefresh = max(max_vrefresh, 60.0);
+	max_vrefresh *= (1 + SYNC_TOLERANCE);
+
+	m = xf86GetDefaultModes();
+	xf86ValidateModesSize(output->scrn, m, max_x, max_y, 0);
+
+	for (i = m; i; i = i->next) {
+		if (xf86ModeVRefresh(i) > max_vrefresh)
+			i->status = MODE_VSYNC;
+		if (preferred &&
+		    i->HDisplay >= preferred->HDisplay &&
+		    i->VDisplay >= preferred->VDisplay &&
+		    xf86ModeVRefresh(i) >= xf86ModeVRefresh(preferred))
+			i->status = MODE_PANEL;
+	}
+
+	xf86PruneInvalidModes(output->scrn, &m, FALSE);
+
+	return xf86ModesAdd(modes, m);
 }
 
 static DisplayModePtr
@@ -1766,6 +1765,7 @@ sna_output_get_modes(xf86OutputPtr output)
 	 */
 	sna_output->has_panel_limits = false;
 	if (is_panel(koutput->connector_type)) {
+		sna_output->panel_hdisplay = sna_output->panel_vdisplay = 0;
 		for (i = 0; i < koutput->count_modes; i++) {
 			drmModeModeInfo *mode_ptr;
 
@@ -1775,7 +1775,6 @@ sna_output_get_modes(xf86OutputPtr output)
 			if (mode_ptr->vdisplay > sna_output->panel_vdisplay)
 				sna_output->panel_vdisplay = mode_ptr->vdisplay;
 		}
-
 		sna_output->has_panel_limits =
 			sna_output->panel_hdisplay &&
 			sna_output->panel_vdisplay;
