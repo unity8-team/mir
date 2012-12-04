@@ -119,6 +119,7 @@ struct sna_composite_op {
 		struct {
 			int wm_kernel;
 			int ve_id;
+			int sf;
 		} gen4;
 
 		struct {
