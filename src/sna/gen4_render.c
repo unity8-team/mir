@@ -3531,23 +3531,11 @@ static void gen4_init_wm_state(struct gen4_wm_unit_state *wm,
 	}
 }
 
-static uint32_t gen4_create_cc_viewport(struct sna_static_stream *stream)
-{
-	struct gen4_cc_viewport vp;
-
-	vp.min_depth = -1.e35;
-	vp.max_depth = 1.e35;
-
-	return sna_static_stream_add(stream, &vp, sizeof(vp), 32);
-}
-
 static uint32_t gen4_create_cc_unit_state(struct sna_static_stream *stream)
 {
 	uint8_t *ptr, *base;
-	uint32_t vp;
 	int i, j;
 
-	vp = gen4_create_cc_viewport(stream);
 	base = ptr =
 		sna_static_stream_map(stream,
 				      GEN4_BLENDFACTOR_COUNT*GEN4_BLENDFACTOR_COUNT*64,
@@ -3560,7 +3548,6 @@ static uint32_t gen4_create_cc_unit_state(struct sna_static_stream *stream)
 
 			state->cc3.blend_enable =
 				!(j == GEN4_BLENDFACTOR_ZERO && i == GEN4_BLENDFACTOR_ONE);
-			state->cc4.cc_viewport_state_offset = vp >> 5;
 
 			state->cc5.logicop_func = 0xc;	/* COPY */
 			state->cc5.ia_blend_function = GEN4_BLENDFUNCTION_ADD;
