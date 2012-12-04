@@ -834,7 +834,15 @@ gen5_emit_composite_primitive(struct sna *sna,
 	const float *src_sf = op->src.scale;
 	const float *mask_sf = op->mask.scale;
 
-	if (is_affine) {
+	if (op->src.is_solid) {
+		src_x[0] = 0;
+		src_y[0] = 0;
+		src_x[1] = 0;
+		src_y[1] = 1;
+		src_x[2] = 1;
+		src_y[2] = 1;
+		src_w[0] = src_w[1] = src_w[2] = 1;
+	} else if (is_affine) {
 		sna_get_transformed_coordinates(r->src.x + op->src.offset[0],
 						r->src.y + op->src.offset[1],
 						op->src.transform,
@@ -874,7 +882,15 @@ gen5_emit_composite_primitive(struct sna *sna,
 	}
 
 	if (op->mask.bo) {
-		if (is_affine) {
+		if (op->mask.is_solid) {
+			mask_x[0] = 0;
+			mask_y[0] = 0;
+			mask_x[1] = 0;
+			mask_y[1] = 1;
+			mask_x[2] = 1;
+			mask_y[2] = 1;
+			mask_w[0] = mask_w[1] = mask_w[2] = 1;
+		} else if (is_affine) {
 			sna_get_transformed_coordinates(r->mask.x + op->mask.offset[0],
 							r->mask.y + op->mask.offset[1],
 							op->mask.transform,
