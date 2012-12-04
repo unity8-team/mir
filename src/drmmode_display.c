@@ -292,6 +292,15 @@ void drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 	if (!fbcon_id)
 		goto fallback;
 
+	if (fbcon_id == drmmode->fb_id) {
+		/* in some rare case there might be no fbcon and we might already
+		 * be the one with the current fb to avoid a false deadlck in
+		 * kernel ttm code just do nothing as anyway there is nothing
+		 * to do
+		 */
+		return;
+	}
+
 	src = create_pixmap_for_fbcon(drmmode, pScrn, fbcon_id);
 	if (!src)
 		goto fallback;
