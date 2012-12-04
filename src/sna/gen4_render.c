@@ -1106,6 +1106,9 @@ gen4_emit_urb(struct sna *sna)
 	urb_cs_start = urb_sf_start + urb_sf_size;
 	urb_cs_size = URB_CS_ENTRIES * URB_CS_ENTRY_SIZE;
 
+	while ((sna->kgem.nbatch & 15) > 12)
+		OUT_BATCH(MI_NOOP);
+
 	OUT_BATCH(GEN4_URB_FENCE |
 		  UF0_CS_REALLOC |
 		  UF0_SF_REALLOC |
