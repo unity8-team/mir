@@ -1158,27 +1158,29 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 		goto fallback;
 	}
 
-	if (!can_render(sna))
+	if (unlikely(!sna->have_render))
+		flags &= ~KGEM_CAN_CREATE_GPU;
+	if (wedged(sna))
 		flags = 0;
 
-	if (usage == CREATE_PIXMAP_USAGE_SCRATCH) {
+	switch (usage) {
+	case CREATE_PIXMAP_USAGE_SCRATCH:
 		if (flags & KGEM_CAN_CREATE_GPU)
 			return sna_pixmap_create_scratch(screen,
 							 width, height, depth,
 							 I915_TILING_X);
 		else
 			goto fallback;
-	}
 
-	if (usage == SNA_CREATE_GLYPHS) {
+	case SNA_CREATE_GLYPHS:
 		if (flags & KGEM_CAN_CREATE_GPU)
 			return sna_pixmap_create_scratch(screen,
 							 width, height, depth,
 							 -I915_TILING_Y);
 		else
 			goto fallback;
-	}
-	if (usage == SNA_CREATE_SCRATCH) {
+
+	case SNA_CREATE_SCRATCH:
 		if (flags & KGEM_CAN_CREATE_GPU)
 			return sna_pixmap_create_scratch(screen,
 							 width, height, depth,
