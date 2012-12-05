@@ -833,7 +833,7 @@ static int kgem_get_screen_index(struct kgem *kgem)
 	return sna->scrn->scrnIndex;
 }
 
-void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
+void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, unsigned gen)
 {
 	struct drm_i915_gem_get_aperture aperture;
 	size_t totalram;
@@ -1008,7 +1008,7 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 		kgem->max_gpu_size = totalram / 4;
 
 	half_gpu_max = kgem->max_gpu_size / 2;
-	if (kgem->gen >= 040)
+	if (gen >= 040)
 		kgem->max_cpu_size = half_gpu_max;
 	else
 		kgem->max_cpu_size = kgem->max_object_size;
