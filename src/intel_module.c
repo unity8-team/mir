@@ -562,9 +562,6 @@ intel_platform_probe(DriverPtr driver,
 	if (flags)
 		return FALSE;
 
-	xf86DrvMsg(scrn->scrnIndex, X_INFO,
-		   "using device path '%s'\n", path ? path : "Default device");
-
 	return intel_scrn_create(driver, entity_num, match_data, scrn_flags);
 }
 #endif
