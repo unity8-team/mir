@@ -485,13 +485,8 @@ intel_scrn_create(DriverPtr		driver,
 	xf86AddEntityToScreen(scrn, entity_num);
 
 #if !KMS_ONLY
-	switch (DEVICE_ID(device)) {
-	case PCI_CHIP_I810:
-	case PCI_CHIP_I810_DC100:
-	case PCI_CHIP_I810_E:
-	case PCI_CHIP_I815:
+	if (((struct intel_device_info *)match_data)->gen < 020)
 		return lg_i810_init(scrn);
-	}
 #endif
 
 #if !UMS_ONLY
