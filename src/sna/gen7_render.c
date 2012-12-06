@@ -1527,6 +1527,45 @@ gen7_emit_composite_primitive_affine_source(struct sna *sna,
 }
 
 fastcall static void
+gen7_emit_composite_primitive_identity_mask(struct sna *sna,
+					    const struct sna_composite_op *op,
+					    const struct sna_composite_rectangles *r)
+{
+	union {
+		struct sna_coordinate p;
+		float f;
+	} dst;
+	float msk_x, msk_y;
+	float w, h;
+	float *v;
+
+	msk_x = r->mask.x + op->mask.offset[0];
+	msk_y = r->mask.y + op->mask.offset[1];
+	w = r->width;
+	h = r->height;
+
+	v = sna->render.vertices + sna->render.vertex_used;
+	sna->render.vertex_used += 15;
+
+	dst.p.x = r->dst.x + r->width;
+	dst.p.y = r->dst.y + r->height;
+	v[0] = dst.f;
+	v[3] = (msk_x + w) * op->mask.scale[0];
+	v[9] = v[4] = (msk_y + h) * op->mask.scale[1];
+
+	dst.p.x = r->dst.x;
+	v[5] = dst.f;
+	v[13] = v[8] = msk_x * op->mask.scale[0];
+
+	dst.p.y = r->dst.y;
+	v[10] = dst.f;
+	v[14] = msk_y * op->mask.scale[1];
+
+	v[7] = v[2] = v[1] = 1;
+	v[12] = v[11] = v[6] = 0;
+}
+
+fastcall static void
 gen7_emit_composite_primitive_identity_source_mask(struct sna *sna,
 						   const struct sna_composite_op *op,
 						   const struct sna_composite_rectangles *r)
@@ -2867,8 +2906,12 @@ gen7_render_composite(struct sna *sna,
 
 		tmp->is_affine &= tmp->mask.is_affine;
 
-		if (tmp->src.transform == NULL && tmp->mask.transform == NULL)
-			tmp->prim_emit = gen7_emit_composite_primitive_identity_source_mask;
+		if (tmp->src.transform == NULL && tmp->mask.transform == NULL) {
+			if (tmp->src.is_solid)
+				tmp->prim_emit = gen7_emit_composite_primitive_identity_mask;
+			else
+				tmp->prim_emit = gen7_emit_composite_primitive_identity_source_mask;
+		}
 
 		tmp->floats_per_vertex = 5 + 2 * !tmp->is_affine;
 	} else {
