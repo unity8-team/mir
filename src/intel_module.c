@@ -462,50 +462,15 @@ static enum accel_method { UXA, SNA } get_accel_method(void)
 }
 #endif
 
-/*
- * intel_pci_probe --
- *
- * Look through the PCI bus to find cards that are intel boards.
- * Setup the dispatch table for the rest of the driver functions.
- *
- */
-static Bool intel_pci_probe(DriverPtr		driver,
-			    int			entity_num,
-			    struct pci_device	*device,
-			    intptr_t		match_data)
+static Bool
+intel_scrn_create(DriverPtr		driver,
+		  int			entity_num,
+		  intptr_t		match_data,
+		  unsigned		flags)
 {
 	ScrnInfoPtr scrn;
-	PciChipsets intel_pci_chipsets[NUM_CHIPSETS];
-	unsigned i;
 
-	if (!has_kernel_mode_setting(device)) {
-#if KMS_ONLY
-		return FALSE;
-#else
-		switch (DEVICE_ID(device)) {
-		case PCI_CHIP_I810:
-		case PCI_CHIP_I810_DC100:
-		case PCI_CHIP_I810_E:
-		case PCI_CHIP_I815:
-			break;
-		default:
-			return FALSE;
-		}
-#endif
-	}
-
-	for (i = 0; i < NUM_CHIPSETS; i++) {
-		intel_pci_chipsets[i].numChipset = intel_chipsets[i].token;
-		intel_pci_chipsets[i].PCIid = intel_chipsets[i].token;
-#if XORG_VERSION_CURRENT < XORG_VERSION_NUMERIC(1,6,99,0,0)
-		intel_pci_chipsets[i].resList = RES_SHARED_VGA;
-#else
-		intel_pci_chipsets[i].dummy = NULL;
-#endif
-	}
-
-	scrn = xf86ConfigPciEntity(NULL, 0, entity_num, intel_pci_chipsets,
-				   NULL, NULL, NULL, NULL, NULL);
+	scrn = xf86AllocateScreen(driver, flags);
 	if (scrn == NULL)
 		return FALSE;
 
@@ -514,6 +479,10 @@ static Bool intel_pci_probe(DriverPtr		driver,
 	scrn->name = INTEL_NAME;
 	scrn->driverPrivate = (void *)(match_data | 1);
 	scrn->Probe = NULL;
+
+	if (xf86IsEntitySharable(entity_num))
+		xf86SetEntityShared(entity_num);
+	xf86AddEntityToScreen(scrn, entity_num);
 
 #if !KMS_ONLY
 	switch (DEVICE_ID(device)) {
@@ -530,7 +499,6 @@ static Bool intel_pci_probe(DriverPtr		driver,
 #if USE_SNA
 	case SNA: return sna_init_scrn(scrn, entity_num);
 #endif
-
 #if USE_UXA
 	case UXA: return intel_init_scrn(scrn);
 #endif
@@ -542,6 +510,37 @@ static Bool intel_pci_probe(DriverPtr		driver,
 	return FALSE;
 }
 
+/*
+ * intel_pci_probe --
+ *
+ * Look through the PCI bus to find cards that are intel boards.
+ * Setup the dispatch table for the rest of the driver functions.
+ *
+ */
+static Bool intel_pci_probe(DriverPtr		driver,
+			    int			entity_num,
+			    struct pci_device	*device,
+			    intptr_t		match_data)
+{
+	if (!has_kernel_mode_setting(device)) {
+#if KMS_ONLY
+		return FALSE;
+#else
+		switch (DEVICE_ID(device)) {
+		case PCI_CHIP_I810:
+		case PCI_CHIP_I810_DC100:
+		case PCI_CHIP_I810_E:
+		case PCI_CHIP_I815:
+			break;
+		default:
+			return FALSE;
+		}
+#endif
+	}
+
+	return intel_scrn_create(driver, entity_num, match_data, 0);
+}
+
 #ifdef XSERVER_PLATFORM_BUS
 static Bool
 intel_platform_probe(DriverPtr driver,
@@ -549,7 +548,6 @@ intel_platform_probe(DriverPtr driver,
 		     struct xf86_platform_device *dev,
 		     intptr_t match_data)
 {
-	ScrnInfoPtr scrn = NULL;
 	char *path = xf86_get_platform_device_attrib(dev, ODEV_ATTRIB_PATH);
 	unsigned scrn_flags = 0;
 
@@ -569,37 +567,10 @@ intel_platform_probe(DriverPtr driver,
 	if (flags)
 		return FALSE;
 
-	scrn = xf86AllocateScreen(driver, scrn_flags);
-	if (scrn == NULL)
-		return FALSE;
-
-	scrn->driverVersion = INTEL_VERSION;
-	scrn->driverName = INTEL_DRIVER_NAME;
-	scrn->name = INTEL_NAME;
-	scrn->driverPrivate = (void *)(match_data | 1);
-	scrn->Probe = NULL;
-
-	if (xf86IsEntitySharable(entity_num))
-		xf86SetEntityShared(entity_num);
-	xf86AddEntityToScreen(scrn, entity_num);
-
 	xf86DrvMsg(scrn->scrnIndex, X_INFO,
 		   "using device path '%s'\n", path ? path : "Default device");
 
-#if !UMS_ONLY
-	switch (get_accel_method()) {
-#if USE_SNA
-        case SNA: return sna_init_scrn(scrn, entity_num);
-#endif
-#if USE_UXA
-        case UXA: return intel_init_scrn(scrn);
-#endif
-
-	default: break;
-	}
-#endif
-
-	return FALSE;
+	return intel_scrn_create(driver, entity_num, match_data, scrn_flags);
 }
 #endif
 
