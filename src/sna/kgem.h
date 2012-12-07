@@ -274,6 +274,7 @@ int kgem_bo_get_swizzling(struct kgem *kgem, struct kgem_bo *bo);
 
 void kgem_bo_retire(struct kgem *kgem, struct kgem_bo *bo);
 bool kgem_retire(struct kgem *kgem);
+
 bool __kgem_is_idle(struct kgem *kgem);
 static inline bool kgem_is_idle(struct kgem *kgem)
 {
@@ -285,6 +286,15 @@ static inline bool kgem_is_idle(struct kgem *kgem)
 	return __kgem_is_idle(kgem);
 }
 
+bool __kgem_ring_is_idle(struct kgem *kgem, int ring);
+static inline bool kgem_ring_is_idle(struct kgem *kgem, int ring)
+{
+	if (list_is_empty(&kgem->requests[ring]))
+		return true;
+
+	return __kgem_ring_is_idle(kgem, ring);
+}
+
 void _kgem_submit(struct kgem *kgem);
 static inline void kgem_submit(struct kgem *kgem)
 {
@@ -294,7 +304,7 @@ static inline void kgem_submit(struct kgem *kgem)
 
 static inline bool kgem_flush(struct kgem *kgem)
 {
-	return kgem->flush && list_is_empty(&kgem->requests[kgem->ring]);
+	return kgem->flush && kgem_ring_is_idle(kgem, kgem->ring);
 }
 
 static inline void kgem_bo_submit(struct kgem *kgem, struct kgem_bo *bo)

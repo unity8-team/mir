@@ -1736,116 +1736,126 @@ static bool kgem_retire__flushing(struct kgem *kgem)
 	return retired;
 }
 
-static bool kgem_retire__requests(struct kgem *kgem)
+static bool kgem_retire__requests_ring(struct kgem *kgem, int ring)
 {
-	struct kgem_bo *bo;
 	bool retired = false;
-	int n;
 
-	for (n = 0; n < ARRAY_SIZE(kgem->requests); n++) {
-		while (!list_is_empty(&kgem->requests[n])) {
-			struct kgem_request *rq;
+	while (!list_is_empty(&kgem->requests[ring])) {
+		struct kgem_request *rq;
 
-			rq = list_first_entry(&kgem->requests[n],
-					      struct kgem_request,
-					      list);
-			if (kgem_busy(kgem, rq->bo->handle))
-				break;
+		rq = list_first_entry(&kgem->requests[ring],
+				      struct kgem_request,
+				      list);
+		if (kgem_busy(kgem, rq->bo->handle))
+			break;
 
-			DBG(("%s: request %d complete\n",
-			     __FUNCTION__, rq->bo->handle));
+		DBG(("%s: request %d complete\n",
+		     __FUNCTION__, rq->bo->handle));
 
-			while (!list_is_empty(&rq->buffers)) {
-				bo = list_first_entry(&rq->buffers,
-						      struct kgem_bo,
-						      request);
+		while (!list_is_empty(&rq->buffers)) {
+			struct kgem_bo *bo;
 
-				assert(bo->rq == rq);
-				assert(bo->exec == NULL);
-				assert(bo->domain == DOMAIN_GPU);
+			bo = list_first_entry(&rq->buffers,
+					      struct kgem_bo,
+					      request);
 
-				list_del(&bo->request);
+			assert(bo->rq == rq);
+			assert(bo->exec == NULL);
+			assert(bo->domain == DOMAIN_GPU);
 
-				if (bo->needs_flush)
-					bo->needs_flush = kgem_busy(kgem, bo->handle);
+			list_del(&bo->request);
+
+			if (bo->needs_flush)
+				bo->needs_flush = kgem_busy(kgem, bo->handle);
+			if (bo->needs_flush) {
+				DBG(("%s: moving %d to flushing\n",
+				     __FUNCTION__, bo->handle));
+				list_add(&bo->request, &kgem->flushing);
+				bo->rq = &_kgem_static_request;
+			} else {
+				bo->domain = DOMAIN_NONE;
+				bo->rq = NULL;
+			}
+
+			if (bo->refcnt)
+				continue;
+
+			if (bo->snoop) {
 				if (bo->needs_flush) {
-					DBG(("%s: moving %d to flushing\n",
-					     __FUNCTION__, bo->handle));
 					list_add(&bo->request, &kgem->flushing);
 					bo->rq = &_kgem_static_request;
 				} else {
-					bo->domain = DOMAIN_NONE;
-					bo->rq = NULL;
+					kgem_bo_move_to_snoop(kgem, bo);
 				}
-
-				if (bo->refcnt)
-					continue;
-
-				if (bo->snoop) {
-					if (bo->needs_flush) {
-						list_add(&bo->request, &kgem->flushing);
-						bo->rq = &_kgem_static_request;
-					} else {
-						kgem_bo_move_to_snoop(kgem, bo);
-					}
-					continue;
-				}
-
-				if (!bo->reusable) {
-					DBG(("%s: closing %d\n",
-					     __FUNCTION__, bo->handle));
-					kgem_bo_free(kgem, bo);
-					continue;
-				}
-
-				if (!bo->needs_flush) {
-					if (kgem_bo_set_purgeable(kgem, bo)) {
-						kgem_bo_move_to_inactive(kgem, bo);
-						retired = true;
-					} else {
-						DBG(("%s: closing %d\n",
-						     __FUNCTION__, bo->handle));
-						kgem_bo_free(kgem, bo);
-					}
-				}
+				continue;
 			}
 
-			assert(rq->bo->rq == NULL);
-			assert(list_is_empty(&rq->bo->request));
+			if (!bo->reusable) {
+				DBG(("%s: closing %d\n",
+				     __FUNCTION__, bo->handle));
+				kgem_bo_free(kgem, bo);
+				continue;
+			}
 
-			if (--rq->bo->refcnt == 0) {
-				if (kgem_bo_set_purgeable(kgem, rq->bo)) {
-					kgem_bo_move_to_inactive(kgem, rq->bo);
+			if (!bo->needs_flush) {
+				if (kgem_bo_set_purgeable(kgem, bo)) {
+					kgem_bo_move_to_inactive(kgem, bo);
 					retired = true;
 				} else {
 					DBG(("%s: closing %d\n",
-					     __FUNCTION__, rq->bo->handle));
-					kgem_bo_free(kgem, rq->bo);
+					     __FUNCTION__, bo->handle));
+					kgem_bo_free(kgem, bo);
 				}
 			}
-
-			__kgem_request_free(rq);
-			kgem->num_requests--;
 		}
+
+		assert(rq->bo->rq == NULL);
+		assert(list_is_empty(&rq->bo->request));
+
+		if (--rq->bo->refcnt == 0) {
+			if (kgem_bo_set_purgeable(kgem, rq->bo)) {
+				kgem_bo_move_to_inactive(kgem, rq->bo);
+				retired = true;
+			} else {
+				DBG(("%s: closing %d\n",
+				     __FUNCTION__, rq->bo->handle));
+				kgem_bo_free(kgem, rq->bo);
+			}
+		}
+
+		__kgem_request_free(rq);
+		kgem->num_requests--;
+	}
 
 #if HAS_DEBUG_FULL
-		{
-			int count = 0;
+	{
+		struct kgem_bo *bo;
+		int count = 0;
 
-			list_for_each_entry(bo, &kgem->requests[n], request)
-				count++;
+		list_for_each_entry(bo, &kgem->requests[ring], request)
+			count++;
 
-			bo = NULL;
-			if (!list_is_empty(&kgem->requests[n]))
-				bo = list_first_entry(&kgem->requests[n],
-						      struct kgem_request,
-						      list)->bo;
+		bo = NULL;
+		if (!list_is_empty(&kgem->requests[ring]))
+			bo = list_first_entry(&kgem->requests[ring],
+					      struct kgem_request,
+					      list)->bo;
 
-			ErrorF("%s: ring=%d, %d outstanding requests, oldest=%d\n",
-			       __FUNCTION__, n, count, bo ? bo->handle : 0);
-		}
-#endif
+		ErrorF("%s: ring=%d, %d outstanding requests, oldest=%d\n",
+		       __FUNCTION__, ring, count, bo ? bo->handle : 0);
 	}
+#endif
+
+	return retired;
+}
+
+static bool kgem_retire__requests(struct kgem *kgem)
+{
+	bool retired = false;
+	int n;
+
+	for (n = 0; n < ARRAY_SIZE(kgem->requests); n++)
+		retired |= kgem_retire__requests_ring(kgem, n);
 
 #if HAS_DEBUG_FULL
 	{
@@ -1909,6 +1919,29 @@ bool __kgem_is_idle(struct kgem *kgem)
 	}
 	kgem_retire__requests(kgem);
 	assert(kgem->num_requests == 0);
+	return true;
+}
+
+bool __kgem_ring_is_idle(struct kgem *kgem, int ring)
+{
+	struct kgem_request *rq;
+
+	assert(kgem->num_requests);
+	assert(!list_is_empty(&kgem->requests[ring]));
+
+	rq = list_last_entry(&kgem->requests[ring],
+			     struct kgem_request, list);
+	if (kgem_busy(kgem, rq->bo->handle)) {
+		DBG(("%s: last requests handle=%d still busy\n",
+		     __FUNCTION__, rq->bo->handle));
+		return false;
+	}
+
+	DBG(("%s: ring=%d idle (handle=%d)\n",
+	     __FUNCTION__, ring, rq->bo->handle));
+
+	kgem_retire__requests_ring(kgem, ring);
+	assert(list_is_empty(&kgem->requests[ring]));
 	return true;
 }
 
@@ -3740,7 +3773,8 @@ bool kgem_check_bo(struct kgem *kgem, ...)
 	if (kgem_flush(kgem))
 		return false;
 
-	if (kgem->aperture > kgem->aperture_low && kgem_is_idle(kgem)) {
+	if (kgem->aperture > kgem->aperture_low &&
+	    kgem_ring_is_idle(kgem, kgem->ring)) {
 		DBG(("%s: current aperture usage (%d) is greater than low water mark (%d)\n",
 		     __FUNCTION__, kgem->aperture, kgem->aperture_low));
 		return false;
@@ -3789,7 +3823,8 @@ bool kgem_check_bo_fenced(struct kgem *kgem, struct kgem_bo *bo)
 	if (kgem->nexec >= KGEM_EXEC_SIZE(kgem) - 1)
 		return false;
 
-	if (kgem->aperture > kgem->aperture_low && kgem_is_idle(kgem))
+	if (kgem->aperture > kgem->aperture_low &&
+	    kgem_ring_is_idle(kgem, kgem->ring))
 		return false;
 
 	if (kgem->aperture + num_pages(bo) > kgem->aperture_high)
@@ -3860,7 +3895,8 @@ bool kgem_check_many_bo_fenced(struct kgem *kgem, ...)
 		if (kgem_flush(kgem))
 			return false;
 
-		if (kgem->aperture > kgem->aperture_low && kgem_is_idle(kgem))
+		if (kgem->aperture > kgem->aperture_low &&
+		    kgem_ring_is_idle(kgem, kgem->ring))
 			return false;
 
 		if (num_pages + kgem->aperture > kgem->aperture_high)

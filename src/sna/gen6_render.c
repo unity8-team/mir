@@ -2411,7 +2411,8 @@ static bool can_switch_to_blt(struct sna *sna)
 	if (!sna->kgem.has_semaphores)
 		return false;
 
-	return sna->kgem.mode == KGEM_NONE || kgem_is_idle(&sna->kgem);
+	return (sna->kgem.mode == KGEM_NONE ||
+		kgem_ring_is_idle(&sna->kgem, KGEM_BLT));
 }
 
 static inline bool untiled_tlb_miss(struct kgem_bo *bo)
