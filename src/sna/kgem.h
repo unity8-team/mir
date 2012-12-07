@@ -289,6 +289,8 @@ static inline bool kgem_is_idle(struct kgem *kgem)
 bool __kgem_ring_is_idle(struct kgem *kgem, int ring);
 static inline bool kgem_ring_is_idle(struct kgem *kgem, int ring)
 {
+	ring = ring == KGEM_BLT;
+
 	if (list_is_empty(&kgem->requests[ring]))
 		return true;
 
