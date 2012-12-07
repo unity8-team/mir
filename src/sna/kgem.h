@@ -141,6 +141,7 @@ struct kgem {
 
 	uint32_t batch_flags;
 #define I915_EXEC_SECURE (1<<9)
+#define LOCAL_EXEC_OBJECT_WRITE (1<<2)
 
 	uint16_t nbatch;
 	uint16_t surface;
@@ -571,19 +572,27 @@ static inline bool kgem_bo_is_dirty(struct kgem_bo *bo)
 	return bo->dirty;
 }
 
+static inline void __kgem_bo_mark_dirty(struct kgem_bo *bo)
+{
+	DBG(("%s: handle=%d (proxy? %d)\n", __FUNCTION__,
+	     bo->handle, bo->proxy != NULL));
+
+	bo->exec->flags |= LOCAL_EXEC_OBJECT_WRITE;
+	bo->needs_flush = bo->dirty = true;
+	list_move(&bo->request, &bo->rq->buffers);
+}
+
 static inline void kgem_bo_mark_dirty(struct kgem_bo *bo)
 {
 	assert(bo->refcnt);
 	do {
-		if (bo->dirty)
-			return;
-
-		DBG(("%s: handle=%d\n", __FUNCTION__, bo->handle));
 		assert(bo->exec);
 		assert(bo->rq);
 
-		bo->needs_flush = bo->dirty = true;
-		list_move(&bo->request, &bo->rq->buffers);
+		if (bo->dirty)
+			return;
+
+		__kgem_bo_mark_dirty(bo);
 	} while ((bo = bo->proxy));
 }
 
