@@ -3789,7 +3789,7 @@ bool kgem_check_bo_fenced(struct kgem *kgem, struct kgem_bo *bo)
 	if (kgem->nexec >= KGEM_EXEC_SIZE(kgem) - 1)
 		return false;
 
-	if (kgem->aperture > kgem->aperture_low)
+	if (kgem->aperture > kgem->aperture_low && kgem_is_idle(kgem))
 		return false;
 
 	if (kgem->aperture + num_pages(bo) > kgem->aperture_high)
@@ -3860,7 +3860,7 @@ bool kgem_check_many_bo_fenced(struct kgem *kgem, ...)
 	}
 
 	if (num_pages) {
-		if (kgem->aperture > kgem->aperture_low)
+		if (kgem->aperture > kgem->aperture_low && kgem_is_idle(kgem))
 			return false;
 
 		if (num_pages + kgem->aperture > kgem->aperture_high)
