@@ -3716,9 +3716,6 @@ bool kgem_check_bo(struct kgem *kgem, ...)
 	int num_exec = 0;
 	int num_pages = 0;
 
-	if (kgem_flush(kgem))
-		return false;
-
 	va_start(ap, kgem);
 	while ((bo = va_arg(ap, struct kgem_bo *))) {
 		if (bo->exec)
@@ -3739,6 +3736,9 @@ bool kgem_check_bo(struct kgem *kgem, ...)
 
 	if (!num_pages)
 		return true;
+
+	if (kgem_flush(kgem))
+		return false;
 
 	if (kgem->aperture > kgem->aperture_low && kgem_is_idle(kgem)) {
 		DBG(("%s: current aperture usage (%d) is greater than low water mark (%d)\n",
@@ -3765,9 +3765,6 @@ bool kgem_check_bo_fenced(struct kgem *kgem, struct kgem_bo *bo)
 {
 	uint32_t size;
 
-	if (kgem_flush(kgem))
-		return false;
-
 	while (bo->proxy)
 		bo = bo->proxy;
 	if (bo->exec) {
@@ -3785,6 +3782,9 @@ bool kgem_check_bo_fenced(struct kgem *kgem, struct kgem_bo *bo)
 
 		return true;
 	}
+
+	if (kgem_flush(kgem))
+		return false;
 
 	if (kgem->nexec >= KGEM_EXEC_SIZE(kgem) - 1)
 		return false;
@@ -3819,9 +3819,6 @@ bool kgem_check_many_bo_fenced(struct kgem *kgem, ...)
 	int num_exec = 0;
 	int num_pages = 0;
 	int fenced_size = 0;
-
-	if (kgem_flush(kgem))
-		return false;
 
 	va_start(ap, kgem);
 	while ((bo = va_arg(ap, struct kgem_bo *))) {
@@ -3860,6 +3857,9 @@ bool kgem_check_many_bo_fenced(struct kgem *kgem, ...)
 	}
 
 	if (num_pages) {
+		if (kgem_flush(kgem))
+			return false;
+
 		if (kgem->aperture > kgem->aperture_low && kgem_is_idle(kgem))
 			return false;
 

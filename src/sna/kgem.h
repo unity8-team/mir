@@ -294,7 +294,7 @@ static inline void kgem_submit(struct kgem *kgem)
 
 static inline bool kgem_flush(struct kgem *kgem)
 {
-	return kgem->flush && kgem_is_idle(kgem);
+	return kgem->flush && list_is_empty(&kgem->requests[kgem->ring]);
 }
 
 static inline void kgem_bo_submit(struct kgem *kgem, struct kgem_bo *bo)
