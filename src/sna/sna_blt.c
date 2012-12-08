@@ -145,7 +145,7 @@ static bool sna_blt_fill_init(struct sna *sna,
 	blt->pixel = pixel;
 	blt->bpp = bpp;
 
-	kgem_set_mode(kgem, KGEM_BLT);
+	kgem_set_mode(kgem, KGEM_BLT, bo);
 	if (!kgem_check_batch(kgem, 12) ||
 	    !kgem_check_bo_fenced(kgem, bo)) {
 		_kgem_submit(kgem);
@@ -289,7 +289,7 @@ static bool sna_blt_copy_init(struct sna *sna,
 	case 8: break;
 	}
 
-	kgem_set_mode(kgem, KGEM_BLT);
+	kgem_set_mode(kgem, KGEM_BLT, dst);
 	if (!kgem_check_many_bo_fenced(kgem, src, dst, NULL)) {
 		_kgem_submit(kgem);
 		if (!kgem_check_many_bo_fenced(kgem, src, dst, NULL))
@@ -341,7 +341,7 @@ static bool sna_blt_alpha_fixup_init(struct sna *sna,
 	}
 	blt->pixel = alpha;
 
-	kgem_set_mode(kgem, KGEM_BLT);
+	kgem_set_mode(kgem, KGEM_BLT, dst);
 	if (!kgem_check_many_bo_fenced(kgem, src, dst, NULL)) {
 		_kgem_submit(kgem);
 		if (!kgem_check_many_bo_fenced(kgem, src, dst, NULL))
@@ -2263,7 +2263,7 @@ static bool sna_blt_fill_box(struct sna *sna, uint8_t alu,
 		return false;
 	}
 
-	kgem_set_mode(kgem, KGEM_BLT);
+	kgem_set_mode(kgem, KGEM_BLT, bo);
 	if (!kgem_check_batch(kgem, 6) ||
 	    !kgem_check_reloc(kgem, 1) ||
 	    !kgem_check_bo_fenced(kgem, bo)) {
@@ -2339,7 +2339,7 @@ bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
 	case 8: break;
 	}
 
-	kgem_set_mode(kgem, KGEM_BLT);
+	kgem_set_mode(kgem, KGEM_BLT, bo);
 	if (!kgem_check_batch(kgem, 12) ||
 	    !kgem_check_bo_fenced(kgem, bo)) {
 		_kgem_submit(kgem);
@@ -2512,7 +2512,7 @@ bool sna_blt_copy_boxes(struct sna *sna, uint8_t alu,
 		kgem->nreloc--;
 	}
 
-	kgem_set_mode(kgem, KGEM_BLT);
+	kgem_set_mode(kgem, KGEM_BLT, dst_bo);
 	if (!kgem_check_batch(kgem, 8) ||
 	    !kgem_check_reloc(kgem, 2) ||
 	    !kgem_check_many_bo_fenced(kgem, dst_bo, src_bo, NULL)) {

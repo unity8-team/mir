@@ -5228,7 +5228,7 @@ kgem_replace_bo(struct kgem *kgem,
 	dst->unique_id = kgem_get_unique_id(kgem);
 	dst->refcnt = 1;
 
-	kgem_set_mode(kgem, KGEM_BLT);
+	kgem_set_mode(kgem, KGEM_BLT, dst);
 	if (!kgem_check_batch(kgem, 8) ||
 	    !kgem_check_reloc(kgem, 2) ||
 	    !kgem_check_many_bo_fenced(kgem, src, dst, NULL)) {

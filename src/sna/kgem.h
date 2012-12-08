@@ -347,13 +347,18 @@ static inline void kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 
 void kgem_clear_dirty(struct kgem *kgem);
 
-static inline void kgem_set_mode(struct kgem *kgem, enum kgem_mode mode)
+static inline void kgem_set_mode(struct kgem *kgem,
+				 enum kgem_mode mode,
+				 struct kgem_bo *bo)
 {
 	assert(!kgem->wedged);
 
 #if DEBUG_FLUSH_BATCH
 	kgem_submit(kgem);
 #endif
+
+	if (kgem->mode && bo->exec == NULL && kgem_ring_is_idle(kgem, kgem->ring))
+		kgem_submit(kgem);
 
 	if (kgem->mode == mode)
 		return;

@@ -1298,9 +1298,9 @@ static void gen3_emit_invariant(struct sna *sna)
 #define MAX_OBJECTS 3 /* worst case: dst + src + mask  */
 
 static void
-gen3_get_batch(struct sna *sna)
+gen3_get_batch(struct sna *sna, const struct sna_composite_op *op)
 {
-	kgem_set_mode(&sna->kgem, KGEM_RENDER);
+	kgem_set_mode(&sna->kgem, KGEM_RENDER, op->dst.bo);
 
 	if (!kgem_check_batch(&sna->kgem, 200)) {
 		DBG(("%s: flushing batch: size %d > %d\n",
@@ -1389,7 +1389,7 @@ static void gen3_emit_composite_state(struct sna *sna,
 	unsigned int tex_count, n;
 	uint32_t ss2;
 
-	gen3_get_batch(sna);
+	gen3_get_batch(sna, op);
 
 	if (kgem_bo_is_dirty(op->src.bo) || kgem_bo_is_dirty(op->mask.bo)) {
 		if (op->src.bo == op->dst.bo || op->mask.bo == op->dst.bo)
@@ -3841,9 +3841,9 @@ gen3_emit_video_state(struct sna *sna,
 }
 
 static void
-gen3_video_get_batch(struct sna *sna)
+gen3_video_get_batch(struct sna *sna, struct kgem_bo *bo)
 {
-	kgem_set_mode(&sna->kgem, KGEM_RENDER);
+	kgem_set_mode(&sna->kgem, KGEM_RENDER, bo);
 
 	if (!kgem_check_batch(&sna->kgem, 120) ||
 	    !kgem_check_reloc(&sna->kgem, 4) ||
@@ -3934,13 +3934,13 @@ gen3_render_video(struct sna *sna,
 	     __FUNCTION__,
 	     dxo, dyo, src_scale_x, src_scale_y, pix_xoff, pix_yoff));
 
-	gen3_video_get_batch(sna);
+	gen3_video_get_batch(sna, dst_bo);
 	gen3_emit_video_state(sna, video, frame, pixmap,
 			      dst_bo, width, height);
 	do {
 		int nbox_this_time = gen3_get_inline_rectangles(sna, nbox, 4);
 		if (nbox_this_time == 0) {
-			gen3_video_get_batch(sna);
+			gen3_video_get_batch(sna, dst_bo);
 			gen3_emit_video_state(sna, video, frame, pixmap,
 					      dst_bo, width, height);
 			nbox_this_time = gen3_get_inline_rectangles(sna, nbox, 4);

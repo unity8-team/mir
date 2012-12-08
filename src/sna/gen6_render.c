@@ -1694,10 +1694,10 @@ gen6_choose_composite_vertex_buffer(const struct sna_composite_op *op)
 	return id;
 }
 
-static void
-gen6_get_batch(struct sna *sna)
+static bool
+gen6_get_batch(struct sna *sna, const struct sna_composite_op *op)
 {
-	kgem_set_mode(&sna->kgem, KGEM_RENDER);
+	kgem_set_mode(&sna->kgem, KGEM_RENDER, op->dst.bo);
 
 	if (!kgem_check_batch_with_surfaces(&sna->kgem, 150, 4)) {
 		DBG(("%s: flushing batch: %d < %d+%d\n",
@@ -1709,6 +1709,8 @@ gen6_get_batch(struct sna *sna)
 
 	if (sna->render_state.gen6.needs_invariant)
 		gen6_emit_invariant(sna);
+
+	return kgem_bo_is_dirty(op->dst.bo);
 }
 
 static void gen6_emit_composite_state(struct sna *sna,
@@ -1718,8 +1720,7 @@ static void gen6_emit_composite_state(struct sna *sna,
 	uint16_t offset;
 	bool dirty;
 
-	gen6_get_batch(sna);
-	dirty = kgem_bo_is_dirty(op->dst.bo);
+	dirty = gen6_get_batch(sna, op);
 
 	binding_table = gen6_composite_get_binding_table(sna, &offset);
 
@@ -1918,8 +1919,7 @@ static void gen6_emit_video_state(struct sna *sna,
 	bool dirty;
 	int n_src, n;
 
-	gen6_get_batch(sna);
-	dirty = kgem_bo_is_dirty(op->dst.bo);
+	dirty = gen6_get_batch(sna, op);
 
 	src_surf_base[0] = 0;
 	src_surf_base[1] = 0;
@@ -2022,7 +2022,7 @@ gen6_render_video(struct sna *sna,
 			       2);
 	tmp.priv = frame;
 
-	kgem_set_mode(&sna->kgem, KGEM_RENDER);
+	kgem_set_mode(&sna->kgem, KGEM_RENDER, tmp.dst.bo);
 	if (!kgem_check_bo(&sna->kgem, tmp.dst.bo, frame->bo, NULL)) {
 		kgem_submit(&sna->kgem);
 		assert(kgem_check_bo(&sna->kgem, tmp.dst.bo, frame->bo, NULL));
@@ -2847,7 +2847,7 @@ gen6_render_composite(struct sna *sna,
 	tmp->boxes = gen6_render_composite_boxes;
 	tmp->done  = gen6_render_composite_done;
 
-	kgem_set_mode(&sna->kgem, KGEM_RENDER);
+	kgem_set_mode(&sna->kgem, KGEM_RENDER, tmp->dst.bo);
 	if (!kgem_check_bo(&sna->kgem,
 			   tmp->dst.bo, tmp->src.bo, tmp->mask.bo,
 			   NULL)) {
@@ -3219,7 +3219,7 @@ gen6_render_composite_spans(struct sna *sna,
 	tmp->boxes = gen6_render_composite_spans_boxes;
 	tmp->done  = gen6_render_composite_spans_done;
 
-	kgem_set_mode(&sna->kgem, KGEM_RENDER);
+	kgem_set_mode(&sna->kgem, KGEM_RENDER, tmp->base.dst.bo);
 	if (!kgem_check_bo(&sna->kgem,
 			   tmp->base.dst.bo, tmp->base.src.bo,
 			   NULL)) {
@@ -3253,8 +3253,7 @@ gen6_emit_copy_state(struct sna *sna,
 	uint16_t offset;
 	bool dirty;
 
-	gen6_get_batch(sna);
-	dirty = kgem_bo_is_dirty(op->dst.bo);
+	dirty = gen6_get_batch(sna, op);
 
 	binding_table = gen6_composite_get_binding_table(sna, &offset);
 
@@ -3482,7 +3481,7 @@ fallback_blt:
 	assert(GEN6_SAMPLER(tmp.u.gen6.flags) == COPY_SAMPLER);
 	assert(GEN6_VERTEX(tmp.u.gen6.flags) == COPY_VERTEX);
 
-	kgem_set_mode(&sna->kgem, KGEM_RENDER);
+	kgem_set_mode(&sna->kgem, KGEM_RENDER, tmp.dst.bo);
 	if (!kgem_check_bo(&sna->kgem, tmp.dst.bo, tmp.src.bo, NULL)) {
 		kgem_submit(&sna->kgem);
 		if (!kgem_check_bo(&sna->kgem, tmp.dst.bo, tmp.src.bo, NULL)) {
@@ -3638,7 +3637,7 @@ fallback:
 	assert(GEN6_SAMPLER(op->base.u.gen6.flags) == COPY_SAMPLER);
 	assert(GEN6_VERTEX(op->base.u.gen6.flags) == COPY_VERTEX);
 
-	kgem_set_mode(&sna->kgem, KGEM_RENDER);
+	kgem_set_mode(&sna->kgem, KGEM_RENDER, dst_bo);
 	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL)) {
 		kgem_submit(&sna->kgem);
 		if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
@@ -3661,8 +3660,7 @@ gen6_emit_fill_state(struct sna *sna, const struct sna_composite_op *op)
 	uint16_t offset;
 	bool dirty;
 
-	gen6_get_batch(sna);
-	dirty = kgem_bo_is_dirty(op->dst.bo);
+	dirty = gen6_get_batch(sna, op);
 
 	binding_table = gen6_composite_get_binding_table(sna, &offset);
 

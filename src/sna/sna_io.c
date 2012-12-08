@@ -378,9 +378,9 @@ fallback:
 	case 1: break;
 	}
 
-	kgem_set_mode(kgem, KGEM_BLT);
-	if (!kgem_check_reloc_and_exec(kgem, 2) ||
-	    !kgem_check_batch(kgem, 8) ||
+	kgem_set_mode(kgem, KGEM_BLT, dst_bo);
+	if (!kgem_check_batch(kgem, 8) ||
+	    !kgem_check_reloc_and_exec(kgem, 2) ||
 	    !kgem_check_many_bo_fenced(kgem, dst_bo, src_bo, NULL)) {
 		_kgem_submit(kgem);
 		_kgem_set_mode(kgem, KGEM_BLT);
@@ -824,7 +824,7 @@ tile:
 	case 8: break;
 	}
 
-	kgem_set_mode(kgem, KGEM_BLT);
+	kgem_set_mode(kgem, KGEM_BLT, dst_bo);
 	if (!kgem_check_batch(kgem, 8) ||
 	    !kgem_check_reloc_and_exec(kgem, 2) ||
 	    !kgem_check_bo_fenced(kgem, dst_bo)) {
@@ -1193,9 +1193,9 @@ tile:
 	case 8: break;
 	}
 
-	kgem_set_mode(kgem, KGEM_BLT);
-	if (!kgem_check_reloc_and_exec(kgem, 2) ||
-	    !kgem_check_batch(kgem, 8) ||
+	kgem_set_mode(kgem, KGEM_BLT, dst_bo);
+	if (!kgem_check_batch(kgem, 8) ||
+	    !kgem_check_reloc_and_exec(kgem, 2) ||
 	    !kgem_check_bo_fenced(kgem, dst_bo)) {
 		_kgem_submit(kgem);
 		_kgem_set_mode(kgem, KGEM_BLT);

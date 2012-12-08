@@ -492,19 +492,17 @@ static void set_bo(PixmapPtr pixmap, struct kgem_bo *bo)
 	DamageRegionProcessPending(&pixmap->drawable);
 }
 
-static void sna_dri_select_mode(struct sna *sna, struct kgem_bo *src, bool sync)
+static void sna_dri_select_mode(struct sna *sna, struct kgem_bo *dst, struct kgem_bo *src, bool sync)
 {
 	struct drm_i915_gem_busy busy;
 	int mode;
 
-	if (sna->kgem.gen < 060) {
-		kgem_set_mode(&sna->kgem, KGEM_BLT);
+	if (sna->kgem.gen < 060)
 		return;
-	}
 
 	if (sync) {
 		DBG(("%s: sync, force RENDER ring\n", __FUNCTION__));
-		kgem_set_mode(&sna->kgem, KGEM_RENDER);
+		kgem_set_mode(&sna->kgem, KGEM_RENDER, dst);
 		return;
 	}
 
@@ -515,7 +513,7 @@ static void sna_dri_select_mode(struct sna *sna, struct kgem_bo *src, bool sync)
 
 	if (sna->kgem.has_semaphores) {
 		DBG(("%s: have sempahores, prefering RENDER\n", __FUNCTION__));
-		kgem_set_mode(&sna->kgem, KGEM_RENDER);
+		kgem_set_mode(&sna->kgem, KGEM_RENDER, dst);
 		return;
 	}
 
@@ -526,8 +524,14 @@ static void sna_dri_select_mode(struct sna *sna, struct kgem_bo *src, bool sync)
 
 	DBG(("%s: src busy?=%x\n", __FUNCTION__, busy.busy));
 	if (busy.busy == 0) {
-		DBG(("%s: src is idle, using defaults\n", __FUNCTION__));
-		return;
+		busy.handle = dst->handle;
+		if (drmIoctl(sna->kgem.fd, DRM_IOCTL_I915_GEM_BUSY, &busy))
+			return;
+		DBG(("%s: dst busy?=%x\n", __FUNCTION__, busy.busy));
+		if (busy.busy == 0) {
+			DBG(("%s: src/dst is idle, using defaults\n", __FUNCTION__));
+			return;
+		}
 	}
 
 	/* Sandybridge introduced a separate ring which it uses to
@@ -611,7 +615,7 @@ sna_dri_copy_to_front(struct sna *sna, DrawablePtr draw, RegionPtr region,
 		if (sync)
 			sync = sna_pixmap_is_scanout(sna, pixmap);
 
-		sna_dri_select_mode(sna, src_bo, sync);
+		sna_dri_select_mode(sna, dst_bo, src_bo, sync);
 	} else
 		sync = false;
 
@@ -755,7 +759,7 @@ sna_dri_copy_from_front(struct sna *sna, DrawablePtr draw, RegionPtr region,
 				      dst_bo, -draw->x, -draw->y,
 				      boxes, n);
 	} else {
-		sna_dri_select_mode(sna, src_bo, false);
+		sna_dri_select_mode(sna, dst_bo, src_bo, false);
 		sna->render.copy_boxes(sna, GXcopy,
 				       pixmap, src_bo, dx, dy,
 				       (PixmapPtr)draw, dst_bo, -draw->x, -draw->y,
@@ -804,7 +808,7 @@ sna_dri_copy(struct sna *sna, DrawablePtr draw, RegionPtr region,
 				      dst_bo, 0, 0,
 				      boxes, n);
 	} else {
-		sna_dri_select_mode(sna, src_bo, false);
+		sna_dri_select_mode(sna, dst_bo, src_bo, false);
 		sna->render.copy_boxes(sna, GXcopy,
 				       (PixmapPtr)draw, src_bo, 0, 0,
 				       (PixmapPtr)draw, dst_bo, 0, 0,

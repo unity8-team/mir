@@ -3800,7 +3800,7 @@ sna_put_xybitmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	x += dx + drawable->x;
 	y += dy + drawable->y;
 
-	kgem_set_mode(&sna->kgem, KGEM_BLT);
+	kgem_set_mode(&sna->kgem, KGEM_BLT, bo);
 
 	/* Region is pre-clipped and translated into pixmap space */
 	box = REGION_RECTS(region);
@@ -3922,7 +3922,7 @@ sna_put_xypixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	x += dx + drawable->x;
 	y += dy + drawable->y;
 
-	kgem_set_mode(&sna->kgem, KGEM_BLT);
+	kgem_set_mode(&sna->kgem, KGEM_BLT, bo);
 
 	skip = h * BitmapBytePad(w + left);
 	for (i = 1 << (gc->depth-1); i; i >>= 1, bits += skip) {
@@ -6137,7 +6137,7 @@ sna_copy_bitmap_blt(DrawablePtr _bitmap, DrawablePtr drawable, GCPtr gc,
 	br13 |= blt_depth(drawable->depth) << 24;
 	br13 |= copy_ROP[gc->alu] << 16;
 
-	kgem_set_mode(&sna->kgem, KGEM_BLT);
+	kgem_set_mode(&sna->kgem, KGEM_BLT, arg->bo);
 	do {
 		int bx1 = (box->x1 + sx) & ~7;
 		int bx2 = (box->x2 + sx + 7) & ~7;
@@ -6301,7 +6301,7 @@ sna_copy_plane_blt(DrawablePtr source, DrawablePtr drawable, GCPtr gc,
 	br13 |= blt_depth(drawable->depth) << 24;
 	br13 |= copy_ROP[gc->alu] << 16;
 
-	kgem_set_mode(&sna->kgem, KGEM_BLT);
+	kgem_set_mode(&sna->kgem, KGEM_BLT, arg->bo);
 	do {
 		int bx1 = (box->x1 + sx) & ~7;
 		int bx2 = (box->x2 + sx + 7) & ~7;
@@ -9892,7 +9892,7 @@ sna_poly_fill_rect_tiled_8x8_blt(DrawablePtr drawable,
 	DBG(("%s x %d [(%d, %d)x(%d, %d)...], clipped=%x\n",
 	     __FUNCTION__, n, r->x, r->y, r->width, r->height, clipped));
 
-	kgem_set_mode(&sna->kgem, KGEM_BLT);
+	kgem_set_mode(&sna->kgem, KGEM_BLT, bo);
 	if (!kgem_check_batch(&sna->kgem, 8+2*3) ||
 	    !kgem_check_reloc(&sna->kgem, 2) ||
 	    !kgem_check_bo_fenced(&sna->kgem, bo)) {
@@ -10526,7 +10526,7 @@ sna_poly_fill_rect_stippled_8x8_blt(DrawablePtr drawable,
 		} while (--j);
 	}
 
-	kgem_set_mode(&sna->kgem, KGEM_BLT);
+	kgem_set_mode(&sna->kgem, KGEM_BLT, bo);
 	if (!kgem_check_batch(&sna->kgem, 9 + 2*3) ||
 	    !kgem_check_bo_fenced(&sna->kgem, bo) ||
 	    !kgem_check_reloc(&sna->kgem, 1)) {
@@ -10802,7 +10802,7 @@ sna_poly_fill_rect_stippled_1_blt(DrawablePtr drawable,
 	     origin->x, origin->y));
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
-	kgem_set_mode(&sna->kgem, KGEM_BLT);
+	kgem_set_mode(&sna->kgem, KGEM_BLT, bo);
 
 	br00 = 3 << 20;
 	br13 = bo->pitch;
@@ -11498,7 +11498,7 @@ sna_poly_fill_rect_stippled_n_blt__imm(DrawablePtr drawable,
 	     clipped, gc->alu, gc->fillStyle == FillOpaqueStippled));
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
-	kgem_set_mode(&sna->kgem, KGEM_BLT);
+	kgem_set_mode(&sna->kgem, KGEM_BLT, bo);
 
 	br00 = XY_MONO_SRC_COPY_IMM | 3 << 20;
 	br13 = bo->pitch;
@@ -11643,7 +11643,7 @@ sna_poly_fill_rect_stippled_n_blt(DrawablePtr drawable,
 							      extents, clipped);
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
-	kgem_set_mode(&sna->kgem, KGEM_BLT);
+	kgem_set_mode(&sna->kgem, KGEM_BLT, bo);
 
 	br00 = XY_MONO_SRC_COPY | 3 << 20;
 	br13 = bo->pitch;
@@ -12284,7 +12284,7 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 				   bo, drawable->bitsPerPixel,
 				   bg, extents, REGION_NUM_RECTS(clip));
 
-	kgem_set_mode(&sna->kgem, KGEM_BLT);
+	kgem_set_mode(&sna->kgem, KGEM_BLT, bo);
 	if (!kgem_check_batch(&sna->kgem, 16) ||
 	    !kgem_check_bo_fenced(&sna->kgem, bo) ||
 	    !kgem_check_reloc(&sna->kgem, 1)) {
@@ -12929,7 +12929,7 @@ sna_reversed_glyph_blt(DrawablePtr drawable, GCPtr gc,
 				   bo, drawable->bitsPerPixel,
 				   bg, extents, REGION_NUM_RECTS(clip));
 
-	kgem_set_mode(&sna->kgem, KGEM_BLT);
+	kgem_set_mode(&sna->kgem, KGEM_BLT, bo);
 	if (!kgem_check_batch(&sna->kgem, 16) ||
 	    !kgem_check_bo_fenced(&sna->kgem, bo) ||
 	    !kgem_check_reloc(&sna->kgem, 1)) {
@@ -13309,7 +13309,7 @@ sna_push_pixels_solid_blt(GCPtr gc,
 	     region->extents.x1, region->extents.y1,
 	     region->extents.x2, region->extents.y2));
 
-	kgem_set_mode(&sna->kgem, KGEM_BLT);
+	kgem_set_mode(&sna->kgem, KGEM_BLT, bo);
 
 	/* Region is pre-clipped and translated into pixmap space */
 	box = REGION_RECTS(region);

@@ -1810,9 +1810,9 @@ gen7_choose_composite_vertex_buffer(const struct sna_composite_op *op)
 }
 
 static void
-gen7_get_batch(struct sna *sna)
+gen7_get_batch(struct sna *sna, const struct sna_composite_op *op)
 {
-	kgem_set_mode(&sna->kgem, KGEM_RENDER);
+	kgem_set_mode(&sna->kgem, KGEM_RENDER, op->dst.bo);
 
 	if (!kgem_check_batch_with_surfaces(&sna->kgem, 150, 4)) {
 		DBG(("%s: flushing batch: %d < %d+%d\n",
@@ -1835,7 +1835,7 @@ static void gen7_emit_composite_state(struct sna *sna,
 	uint32_t *binding_table;
 	uint16_t offset;
 
-	gen7_get_batch(sna);
+	gen7_get_batch(sna, op);
 
 	binding_table = gen7_composite_get_binding_table(sna, &offset);
 
@@ -2031,7 +2031,7 @@ static void gen7_emit_video_state(struct sna *sna,
 	uint16_t offset;
 	int n_src, n;
 
-	gen7_get_batch(sna);
+	gen7_get_batch(sna, op);
 
 	src_surf_base[0] = 0;
 	src_surf_base[1] = 0;
@@ -2134,7 +2134,7 @@ gen7_render_video(struct sna *sna,
 			       2);
 	tmp.priv = frame;
 
-	kgem_set_mode(&sna->kgem, KGEM_RENDER);
+	kgem_set_mode(&sna->kgem, KGEM_RENDER, tmp.dst.bo);
 	if (!kgem_check_bo(&sna->kgem, tmp.dst.bo, frame->bo, NULL)) {
 		kgem_submit(&sna->kgem);
 		assert(kgem_check_bo(&sna->kgem, tmp.dst.bo, frame->bo, NULL));
@@ -2955,7 +2955,7 @@ gen7_render_composite(struct sna *sna,
 	tmp->boxes = gen7_render_composite_boxes;
 	tmp->done  = gen7_render_composite_done;
 
-	kgem_set_mode(&sna->kgem, KGEM_RENDER);
+	kgem_set_mode(&sna->kgem, KGEM_RENDER, tmp->dst.bo);
 	if (!kgem_check_bo(&sna->kgem,
 			   tmp->dst.bo, tmp->src.bo, tmp->mask.bo,
 			   NULL)) {
@@ -3309,7 +3309,7 @@ gen7_render_composite_spans(struct sna *sna,
 	tmp->boxes = gen7_render_composite_spans_boxes;
 	tmp->done  = gen7_render_composite_spans_done;
 
-	kgem_set_mode(&sna->kgem, KGEM_RENDER);
+	kgem_set_mode(&sna->kgem, KGEM_RENDER, tmp->base.dst.bo);
 	if (!kgem_check_bo(&sna->kgem,
 			   tmp->base.dst.bo, tmp->base.src.bo,
 			   NULL)) {
@@ -3342,7 +3342,7 @@ gen7_emit_copy_state(struct sna *sna,
 	uint32_t *binding_table;
 	uint16_t offset;
 
-	gen7_get_batch(sna);
+	gen7_get_batch(sna, op);
 
 	binding_table = gen7_composite_get_binding_table(sna, &offset);
 
@@ -3563,7 +3563,7 @@ fallback_blt:
 
 	tmp.u.gen7.flags = COPY_FLAGS(alu);
 
-	kgem_set_mode(&sna->kgem, KGEM_RENDER);
+	kgem_set_mode(&sna->kgem, KGEM_RENDER, tmp.dst.bo);
 	if (!kgem_check_bo(&sna->kgem, tmp.dst.bo, tmp.src.bo, NULL)) {
 		kgem_submit(&sna->kgem);
 		if (!kgem_check_bo(&sna->kgem, tmp.dst.bo, tmp.src.bo, NULL))
@@ -3711,7 +3711,7 @@ fallback:
 
 	op->base.u.gen7.flags = COPY_FLAGS(alu);
 
-	kgem_set_mode(&sna->kgem, KGEM_RENDER);
+	kgem_set_mode(&sna->kgem, KGEM_RENDER, dst_bo);
 	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL)) {
 		kgem_submit(&sna->kgem);
 		if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
@@ -3739,7 +3739,7 @@ gen7_emit_fill_state(struct sna *sna, const struct sna_composite_op *op)
 	 * specific kernel.
 	 */
 
-	gen7_get_batch(sna);
+	gen7_get_batch(sna, op);
 
 	binding_table = gen7_composite_get_binding_table(sna, &offset);
 

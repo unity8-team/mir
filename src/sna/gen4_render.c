@@ -1222,9 +1222,9 @@ gen4_emit_invariant(struct sna *sna)
 }
 
 static void
-gen4_get_batch(struct sna *sna)
+gen4_get_batch(struct sna *sna, const struct sna_composite_op *op)
 {
-	kgem_set_mode(&sna->kgem, KGEM_RENDER);
+	kgem_set_mode(&sna->kgem, KGEM_RENDER, op->dst.bo);
 
 	if (!kgem_check_batch_with_surfaces(&sna->kgem, 150, 4)) {
 		DBG(("%s: flushing batch: %d < %d+%d\n",
@@ -1446,7 +1446,7 @@ gen4_bind_surfaces(struct sna *sna,
 	uint32_t *binding_table;
 	uint16_t offset;
 
-	gen4_get_batch(sna);
+	gen4_get_batch(sna, op);
 
 	binding_table = gen4_composite_get_binding_table(sna, &offset);
 
@@ -1637,7 +1637,7 @@ static void gen4_video_bind_surfaces(struct sna *sna,
 		n_src = 1;
 	}
 
-	gen4_get_batch(sna);
+	gen4_get_batch(sna, op);
 
 	binding_table = gen4_composite_get_binding_table(sna, &offset);
 
@@ -2798,7 +2798,7 @@ gen4_copy_bind_surfaces(struct sna *sna, const struct sna_composite_op *op)
 	uint32_t *binding_table;
 	uint16_t offset;
 
-	gen4_get_batch(sna);
+	gen4_get_batch(sna, op);
 
 	binding_table = gen4_composite_get_binding_table(sna, &offset);
 

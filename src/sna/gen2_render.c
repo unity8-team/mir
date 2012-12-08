@@ -536,9 +536,9 @@ static void gen2_emit_invariant(struct sna *sna)
 }
 
 static void
-gen2_get_batch(struct sna *sna)
+gen2_get_batch(struct sna *sna, const struct sna_composite_op *op)
 {
-	kgem_set_mode(&sna->kgem, KGEM_RENDER);
+	kgem_set_mode(&sna->kgem, KGEM_RENDER, op->dst.bo);
 
 	if (!kgem_check_batch(&sna->kgem, INVARIANT_SIZE+40)) {
 		DBG(("%s: flushing batch: size %d > %d\n",
@@ -662,7 +662,7 @@ static void gen2_emit_composite_state(struct sna *sna,
 	uint32_t cblend, ablend;
 	int tex;
 
-	gen2_get_batch(sna);
+	gen2_get_batch(sna, op);
 
 	if (kgem_bo_is_dirty(op->src.bo) || kgem_bo_is_dirty(op->mask.bo)) {
 		if (op->src.bo == op->dst.bo || op->mask.bo == op->dst.bo)
@@ -2146,7 +2146,7 @@ static void gen2_emit_composite_spans_state(struct sna *sna,
 {
 	uint32_t unwind;
 
-	gen2_get_batch(sna);
+	gen2_get_batch(sna, &op->base);
 	gen2_emit_target(sna, &op->base);
 
 	unwind = sna->kgem.nbatch;
@@ -2404,7 +2404,7 @@ static void gen2_emit_fill_composite_state(struct sna *sna,
 {
 	uint32_t ls1;
 
-	gen2_get_batch(sna);
+	gen2_get_batch(sna, op);
 	gen2_emit_target(sna, op);
 
 	ls1 = sna->kgem.nbatch;
@@ -2589,7 +2589,7 @@ static void gen2_emit_fill_state(struct sna *sna,
 {
 	uint32_t ls1;
 
-	gen2_get_batch(sna);
+	gen2_get_batch(sna, op);
 	gen2_emit_target(sna, op);
 
 	ls1 = sna->kgem.nbatch;
@@ -2882,7 +2882,7 @@ static void gen2_emit_copy_state(struct sna *sna, const struct sna_composite_op 
 {
 	uint32_t ls1, v;
 
-	gen2_get_batch(sna);
+	gen2_get_batch(sna, op);
 
 	if (kgem_bo_is_dirty(op->src.bo)) {
 		if (op->src.bo == op->dst.bo)
