@@ -380,6 +380,7 @@ XF86VideoAdaptorPtr sna_video_sprite_setup(struct sna *sna,
 	memset(&r, 0, sizeof(struct drm_mode_get_plane_res));
 	if (drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_GETPLANERESOURCES, &r))
 		return NULL;
+	DBG(("%s: %d sprite planes\n", __FUNCTION__, r.count_planes));
 	if (r.count_planes == 0)
 		return NULL;
 
