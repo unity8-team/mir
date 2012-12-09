@@ -4736,6 +4736,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 					goto fallback;
 			}
 
+			assert(dst_priv->clear == false);
 			dst_priv->cpu = false;
 			if (damage) {
 				assert(dst_priv->gpu_bo->proxy == NULL);

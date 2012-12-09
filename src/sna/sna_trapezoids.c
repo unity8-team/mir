@@ -4855,6 +4855,20 @@ unbounded_pass:
 
 		op = 0;
 	} else {
+		if (src->pDrawable) {
+			if (!sna_drawable_move_to_cpu(src->pDrawable,
+						      MOVE_READ)) {
+				mono_fini(&mono);
+				return false;
+			}
+			if (src->alphaMap &&
+			    !sna_drawable_move_to_cpu(src->alphaMap->pDrawable,
+						      MOVE_READ)) {
+				mono_fini(&mono);
+				return false;
+			}
+		}
+
 		inplace.composite.dst = image_from_pict(dst, false,
 							&inplace.composite.dx,
 							&inplace.composite.dy);
@@ -5090,6 +5104,20 @@ trapezoid_span_inplace__x8r8g8b8(CARD8 op,
 			tor_fini(&tor);
 		} else {
 			struct pixman_inplace pi;
+
+			if (src->pDrawable) {
+				if (!sna_drawable_move_to_cpu(src->pDrawable,
+							MOVE_READ)) {
+					tor_fini(&tor);
+					return false;
+				}
+				if (src->alphaMap &&
+				    !sna_drawable_move_to_cpu(src->alphaMap->pDrawable,
+							      MOVE_READ)) {
+					tor_fini(&tor);
+					return false;
+				}
+			}
 
 			pi.image = image_from_pict(dst, false, &pi.dx, &pi.dy);
 			pi.source = image_from_pict(src, false, &pi.sx, &pi.sy);
@@ -5519,10 +5547,13 @@ sna_composite_trapezoids(CARD8 op,
 	force_fallback = FORCE_FALLBACK > 0;
 	if ((too_small(priv) || DAMAGE_IS_ALL(priv->cpu_damage)) &&
 	    !picture_is_gpu(src)) {
-		DBG(("%s: force fallbacks -- dst is too small, %dx%d\n",
+		DBG(("%s: force fallbacks --too small, %dx%d? %d, all-cpu? %d, src-is-cpu? %d\n",
 		     __FUNCTION__,
 		     dst->pDrawable->width,
-		     dst->pDrawable->height));
+		     dst->pDrawable->height,
+		     too_small(priv),
+		     DAMAGE_IS_ALL(priv->cpu_damage),
+		     !picture_is_gpu(src)));
 		force_fallback = true;
 	}
 	if (FORCE_FALLBACK < 0)
