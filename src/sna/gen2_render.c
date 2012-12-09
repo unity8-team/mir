@@ -3191,7 +3191,7 @@ gen2_render_context_switch(struct kgem *kgem,
 	/* Reload BLT registers following a lost context */
 	sna->blt_state.fill_bo = 0;
 
-	if (kgem_is_idle(kgem)) {
+	if (kgem_ring_is_idle(kgem, kgem->ring)) {
 		DBG(("%s: GPU idle, flushing\n", __FUNCTION__));
 		_kgem_submit(kgem);
 	}

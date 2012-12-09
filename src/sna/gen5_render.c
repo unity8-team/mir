@@ -3585,7 +3585,7 @@ gen5_render_context_switch(struct kgem *kgem,
 		sna->render_state.gen5.drawrect_limit = -1;
 	}
 
-	if (kgem_is_idle(kgem)) {
+	if (kgem_ring_is_idle(kgem, kgem->ring)) {
 		DBG(("%s: GPU idle, flushing\n", __FUNCTION__));
 		_kgem_submit(kgem);
 	}

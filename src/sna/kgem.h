@@ -132,7 +132,6 @@ struct kgem {
 
 	struct list requests[2];
 	struct kgem_request *next_request;
-	uint32_t num_requests;
 
 	struct {
 		struct list inactive[NUM_CACHE_BUCKETS];
@@ -274,17 +273,6 @@ int kgem_bo_get_swizzling(struct kgem *kgem, struct kgem_bo *bo);
 
 void kgem_bo_retire(struct kgem *kgem, struct kgem_bo *bo);
 bool kgem_retire(struct kgem *kgem);
-
-bool __kgem_is_idle(struct kgem *kgem);
-static inline bool kgem_is_idle(struct kgem *kgem)
-{
-	if (kgem->num_requests == 0) {
-		DBG(("%s: no outstanding requests\n", __FUNCTION__));
-		return true;
-	}
-
-	return __kgem_is_idle(kgem);
-}
 
 bool __kgem_ring_is_idle(struct kgem *kgem, int ring);
 static inline bool kgem_ring_is_idle(struct kgem *kgem, int ring)

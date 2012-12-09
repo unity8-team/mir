@@ -14376,7 +14376,7 @@ void sna_accel_block_handler(struct sna *sna, struct timeval **tv)
 	if (sna->timer_active)
 		UpdateCurrentTimeIf();
 
-	if (sna->kgem.nbatch && kgem_is_idle(&sna->kgem)) {
+	if (sna->kgem.nbatch && kgem_ring_is_idle(&sna->kgem, sna->kgem.ring)) {
 		DBG(("%s: GPU idle, flushing\n", __FUNCTION__));
 		_kgem_submit(&sna->kgem);
 	}
@@ -14436,7 +14436,7 @@ void sna_accel_wakeup_handler(struct sna *sna)
 
 	if (sna->kgem.need_retire)
 		kgem_retire(&sna->kgem);
-	if (sna->kgem.nbatch && kgem_is_idle(&sna->kgem)) {
+	if (sna->kgem.nbatch && !sna->kgem.need_retire) {
 		DBG(("%s: GPU idle, flushing\n", __FUNCTION__));
 		_kgem_submit(&sna->kgem);
 	}

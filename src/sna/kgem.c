@@ -1733,6 +1733,8 @@ static bool kgem_retire__flushing(struct kgem *kgem)
 	}
 #endif
 
+	kgem->need_retire |= !list_is_empty(&kgem->flushing);
+
 	return retired;
 }
 
@@ -1824,7 +1826,6 @@ static bool kgem_retire__requests_ring(struct kgem *kgem, int ring)
 		}
 
 		__kgem_request_free(rq);
-		kgem->num_requests--;
 	}
 
 #if HAS_DEBUG_FULL
@@ -1854,20 +1855,10 @@ static bool kgem_retire__requests(struct kgem *kgem)
 	bool retired = false;
 	int n;
 
-	for (n = 0; n < ARRAY_SIZE(kgem->requests); n++)
+	for (n = 0; n < ARRAY_SIZE(kgem->requests); n++) {
 		retired |= kgem_retire__requests_ring(kgem, n);
-
-#if HAS_DEBUG_FULL
-	{
-		int count = 0;
-
-		for (n = 0; n < ARRAY_SIZE(kgem->requests); n++)
-			list_for_each_entry(bo, &kgem->requests[n], request)
-				count++;
-
-		assert(count == kgem->num_requests);
+		kgem->need_retire |= !list_is_empty(&kgem->requests[n]);
 	}
-#endif
 
 	return retired;
 }
@@ -1878,14 +1869,12 @@ bool kgem_retire(struct kgem *kgem)
 
 	DBG(("%s\n", __FUNCTION__));
 
+	kgem->need_retire = false;
+
 	retired |= kgem_retire__flushing(kgem);
-	if (kgem->num_requests)
-		retired |= kgem_retire__requests(kgem);
+	retired |= kgem_retire__requests(kgem);
 	retired |= kgem_retire__buffers(kgem);
 
-	kgem->need_retire =
-		kgem->num_requests ||
-		!list_is_empty(&kgem->flushing);
 	DBG(("%s -- retired=%d, need_retire=%d\n",
 	     __FUNCTION__, retired, kgem->need_retire));
 
@@ -1894,39 +1883,10 @@ bool kgem_retire(struct kgem *kgem)
 	return retired;
 }
 
-bool __kgem_is_idle(struct kgem *kgem)
-{
-	int n;
-
-	assert(kgem->num_requests);
-
-	for (n = 0; n < ARRAY_SIZE(kgem->requests); n++) {
-		struct kgem_request *rq;
-
-		if (list_is_empty(&kgem->requests[n]))
-			continue;
-
-		rq = list_last_entry(&kgem->requests[n],
-				     struct kgem_request, list);
-		if (kgem_busy(kgem, rq->bo->handle)) {
-			DBG(("%s: last requests handle=%d still busy\n",
-			     __FUNCTION__, rq->bo->handle));
-			return false;
-		}
-
-		DBG(("%s: ring=%d idle (handle=%d)\n",
-		     __FUNCTION__, n, rq->bo->handle));
-	}
-	kgem_retire__requests(kgem);
-	assert(kgem->num_requests == 0);
-	return true;
-}
-
 bool __kgem_ring_is_idle(struct kgem *kgem, int ring)
 {
 	struct kgem_request *rq;
 
-	assert(kgem->num_requests);
 	assert(!list_is_empty(&kgem->requests[ring]));
 
 	rq = list_last_entry(&kgem->requests[ring],
@@ -2005,7 +1965,6 @@ static void kgem_commit(struct kgem *kgem)
 	} else {
 		list_add_tail(&rq->list, &kgem->requests[rq->ring]);
 		kgem->need_throttle = kgem->need_retire = 1;
-		kgem->num_requests++;
 	}
 
 	kgem->next_request = NULL;
@@ -2180,7 +2139,6 @@ static void kgem_cleanup(struct kgem *kgem)
 		}
 	}
 
-	kgem->num_requests = 0;
 	kgem_close_inactive(kgem);
 }
 
