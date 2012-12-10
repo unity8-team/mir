@@ -1230,7 +1230,13 @@ I830DRI2ScheduleSwap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	 * the swap.
 	 */
 	if (divisor == 0 || current_msc < *target_msc) {
-		if (flip && I830DRI2ScheduleFlip(intel, draw, swap_info))
+		/*
+		 * If we can, schedule the flip directly from here rather
+		 * than waiting for an event from the kernel for the current
+		 * (or a past) MSC.
+		 */
+		if (flip && divisor == 0 && current_msc >= *target_msc &&
+		    I830DRI2ScheduleFlip(intel, draw, swap_info))
 			return TRUE;
 
 		vbl.request.type =
