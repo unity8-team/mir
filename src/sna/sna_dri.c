@@ -1164,6 +1164,12 @@ can_exchange(struct sna * sna,
 	WindowPtr win = (WindowPtr)draw;
 	PixmapPtr pixmap;
 
+	/* XXX There is an inherent race between the DRI2 client and the DRI2
+	 * compositor which is only masked if we force a blit and serialise
+	 * the operations through the kernel command queue. Hopeless.
+	 */
+	return false;
+
 	if (front->format != back->format) {
 		DBG(("%s: no, format mismatch, front = %d, back = %d\n",
 		     __FUNCTION__, front->format, back->format));
