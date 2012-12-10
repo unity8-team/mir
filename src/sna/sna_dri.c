@@ -1719,7 +1719,7 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	/* Truncate to match kernel interfaces; means occasional overflow
 	 * misses, but that's generally not a big deal */
 	divisor &= 0xffffffff;
-	if (divisor == 0) {
+	if (divisor == 0 && current_msc <= *target_msc) {
 		DBG(("%s: performing immediate swap on pipe %d, pending? %d\n",
 		     __FUNCTION__, pipe, sna->dri.flip_pending != NULL));
 
@@ -1847,6 +1847,9 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 			     (int)current_msc,
 			     (int)*target_msc,
 			     (int)divisor));
+
+			if (divisor == 0)
+				divisor = 1;
 
 			vbl.request.sequence = current_msc - current_msc % divisor + remainder;
 
@@ -2059,7 +2062,7 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	sna_dri_reference_buffer(back);
 
 	info->type = swap_type;
-	if (divisor == 0) {
+	if (divisor == 0 && current_msc <= *target_msc) {
 		if (can_exchange(sna, draw, front, back)) {
 			sna_dri_immediate_xchg(sna, draw, info);
 		} else if (can_blit(sna, draw, front, back)) {
@@ -2116,6 +2119,9 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	     (int)current_msc,
 	     (int)*target_msc,
 	     (int)divisor));
+
+	if (divisor == 0)
+		divisor = 1;
 
 	vbl.request.type =
 		DRM_VBLANK_ABSOLUTE |
