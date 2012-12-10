@@ -14380,7 +14380,8 @@ void sna_accel_block_handler(struct sna *sna, struct timeval **tv)
 		UpdateCurrentTimeIf();
 
 	if (sna->kgem.nbatch &&
-	    (sna->kgem.busy || kgem_ring_is_idle(&sna->kgem, sna->kgem.ring))) {
+	    (sna->kgem.scanout_busy ||
+	     kgem_ring_is_idle(&sna->kgem, sna->kgem.ring))) {
 		DBG(("%s: GPU idle, flushing\n", __FUNCTION__));
 		_kgem_submit(&sna->kgem);
 	}
@@ -14433,7 +14434,7 @@ set_tv:
 		}
 	}
 
-	sna->kgem.busy = false;
+	sna->kgem.scanout_busy = false;
 }
 
 void sna_accel_wakeup_handler(struct sna *sna)

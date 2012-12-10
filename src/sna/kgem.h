@@ -155,6 +155,7 @@ struct kgem {
 	uint32_t need_purge:1;
 	uint32_t need_retire:1;
 	uint32_t need_throttle:1;
+	uint32_t scanout_busy:1;
 	uint32_t busy:1;
 
 	uint32_t has_userptr :1;

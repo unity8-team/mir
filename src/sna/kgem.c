@@ -1254,7 +1254,6 @@ static void kgem_add_bo(struct kgem *kgem, struct kgem_bo *bo)
 
 	/* XXX is it worth working around gcc here? */
 	kgem->flush |= bo->flush;
-	kgem->busy |= bo->scanout;
 }
 
 static uint32_t kgem_end_batch(struct kgem *kgem)
@@ -1943,6 +1942,8 @@ static void kgem_commit(struct kgem *kgem)
 			bo->rq = NULL;
 			bo->exec = NULL;
 		}
+
+		kgem->scanout_busy |= bo->scanout;
 	}
 
 	if (rq == &_kgem_static_request) {
