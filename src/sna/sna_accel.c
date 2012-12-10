@@ -14181,6 +14181,8 @@ static bool sna_picture_init(ScreenPtr screen)
 
 	ps = GetPictureScreen(screen);
 	assert(ps != NULL);
+	assert(ps->CreatePicture != NULL);
+	assert(ps->DestroyPicture != NULL);
 
 	ps->Composite = sna_composite;
 	ps->CompositeRects = sna_composite_rectangles;
@@ -14377,7 +14379,8 @@ void sna_accel_block_handler(struct sna *sna, struct timeval **tv)
 	if (sna->timer_active)
 		UpdateCurrentTimeIf();
 
-	if (sna->kgem.nbatch && kgem_ring_is_idle(&sna->kgem, sna->kgem.ring)) {
+	if (sna->kgem.nbatch &&
+	    (sna->kgem.busy || kgem_ring_is_idle(&sna->kgem, sna->kgem.ring))) {
 		DBG(("%s: GPU idle, flushing\n", __FUNCTION__));
 		_kgem_submit(&sna->kgem);
 	}
@@ -14429,6 +14432,8 @@ set_tv:
 			(*tv)->tv_usec = timeout % 1000 * 1000;
 		}
 	}
+
+	sna->kgem.busy = false;
 }
 
 void sna_accel_wakeup_handler(struct sna *sna)

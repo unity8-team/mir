@@ -1968,6 +1968,7 @@ static void kgem_commit(struct kgem *kgem)
 	}
 
 	kgem->next_request = NULL;
+	kgem->busy = true;
 }
 
 static void kgem_close_list(struct kgem *kgem, struct list *head)
