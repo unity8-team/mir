@@ -975,6 +975,50 @@ static void sna_free_screen(FREE_SCREEN_ARGS_DECL)
 	sna_close_drm_master(scrn);
 }
 
+static void
+sna_set_fallback_mode(ScrnInfoPtr scrn)
+{
+	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(scrn);
+	xf86OutputPtr output;
+	xf86CrtcPtr crtc;
+	DisplayModePtr mode;
+	int n;
+
+	output = xf86CompatOutput(scrn);
+	crtc = xf86CompatCrtc(scrn);
+	if (output == NULL || crtc == NULL)
+		return;
+
+	for (n = 0; n < config->num_output; n++)
+		config->output[n]->crtc = NULL;
+	for (n = 0; n < config->num_crtc; n++)
+		config->crtc[n]->enabled = FALSE;
+
+	output->crtc = crtc;
+
+	mode = xf86OutputFindClosestMode(output, scrn->currentMode);
+	if (mode &&
+	    xf86CrtcSetModeTransform(crtc, mode, RR_Rotate_0, NULL, 0, 0)) {
+		crtc->desiredMode = *mode;
+		crtc->desiredMode.prev = crtc->desiredMode.next = NULL;
+		crtc->desiredMode.name = NULL;
+		crtc->desiredMode.PrivSize = 0;
+		crtc->desiredMode.PrivFlags = 0;
+		crtc->desiredMode.Private = NULL;
+		crtc->desiredRotation = RR_Rotate_0;
+		crtc->desiredTransformPresent = FALSE;
+		crtc->desiredX = 0;
+		crtc->desiredY = 0;
+		crtc->enabled = TRUE;
+	}
+
+	xf86DisableUnusedFunctions(scrn);
+#ifdef RANDR_12_INTERFACE
+	if (scrn->pScreen->root)
+		xf86RandR12TellChanged(scrn->pScreen);
+#endif
+}
+
 /*
  * This gets called when gaining control of the VT, and from ScreenInit().
  */
@@ -995,9 +1039,11 @@ static Bool sna_enter_vt(VT_FUNC_ARGS_DECL)
 		}
 	}
 
-	if (!xf86SetDesiredModes(scrn))
+	if (!xf86SetDesiredModes(scrn)) {
 		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 			   "failed to restore desired modes on VT switch\n");
+		sna_set_fallback_mode(scrn);
+	}
 
 	sna_mode_disable_unused(sna);
 
