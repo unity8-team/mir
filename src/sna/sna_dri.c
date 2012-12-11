@@ -1722,6 +1722,13 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 			return false;
 	}
 
+	/* Get current count */
+	vbl.request.type = DRM_VBLANK_RELATIVE | pipe_select(pipe);
+	vbl.request.sequence = 0;
+	if (sna_wait_vblank(sna, &vbl))
+		return false;
+	current_msc = vbl.reply.sequence;
+
 	/* Truncate to match kernel interfaces; means occasional overflow
 	 * misses, but that's generally not a big deal */
 	divisor &= 0xffffffff;
@@ -1818,15 +1825,6 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		sna_dri_reference_buffer(front);
 		sna_dri_reference_buffer(back);
 
-		/* Get current count */
-		vbl.request.type = DRM_VBLANK_RELATIVE | pipe_select(pipe);
-		vbl.request.sequence = 0;
-		if (sna_wait_vblank(sna, &vbl)) {
-			sna_dri_frame_event_info_free(sna, draw, info);
-			return false;
-		}
-
-		current_msc = vbl.reply.sequence;
 		*target_msc &= 0xffffffff;
 		remainder &= 0xffffffff;
 
@@ -2068,6 +2066,14 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	sna_dri_reference_buffer(back);
 
 	info->type = swap_type;
+
+	/* Get current count */
+	vbl.request.type = DRM_VBLANK_RELATIVE | pipe_select(pipe);
+	vbl.request.sequence = 0;
+	if (sna_wait_vblank(sna, &vbl))
+		goto blit_fallback;
+	current_msc = vbl.reply.sequence;
+
 	if (divisor == 0 && current_msc <= *target_msc) {
 		if (can_exchange(sna, draw, front, back)) {
 			sna_dri_immediate_xchg(sna, draw, info);
@@ -2080,14 +2086,6 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		}
 		return TRUE;
 	}
-
-	/* Get current count */
-	vbl.request.type = DRM_VBLANK_RELATIVE | pipe_select(pipe);
-	vbl.request.sequence = 0;
-	if (sna_wait_vblank(sna, &vbl))
-		goto blit_fallback;
-
-	current_msc = vbl.reply.sequence;
 
 	/*
 	 * If divisor is zero, or current_msc is smaller than target_msc
