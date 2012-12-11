@@ -267,7 +267,6 @@ radeon_platform_probe(DriverPtr pDriver,
 		      intptr_t match_data)
 {
     ScrnInfoPtr pScrn;
-    char *path = xf86_get_platform_device_attrib(dev, ODEV_ATTRIB_PATH);
     int scr_flags = 0;
     EntityInfoPtr pEnt;
 
