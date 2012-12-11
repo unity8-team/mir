@@ -1403,7 +1403,6 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
     int cpp = info->pixel_bytes;
     int screen_size;
     int pitch, base_align;
-    int total_size_bytes = 0;
     uint32_t tiling_flags = 0;
     struct radeon_surface surface;
 
@@ -1511,14 +1510,11 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
                 }
 
                 drmmode_set_cursor(pScrn, &info->drmmode, c, info->cursor_bo[c]);
-                total_size_bytes += cursor_size;
             }
         }
     }
 
     screen_size = RADEON_ALIGN(screen_size, RADEON_GPU_PAGE_SIZE);
-    /* keep area front front buffer - but don't allocate it yet */
-    total_size_bytes += screen_size;
 
     if (info->front_bo == NULL) {
         info->front_bo = radeon_bo_open(info->bufmgr, 0, screen_size,
@@ -1554,16 +1550,14 @@ void radeon_kms_update_vram_limit(ScrnInfoPtr pScrn, int new_fb_size)
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     RADEONInfoPtr info = RADEONPTR(pScrn);
     int remain_size_bytes;
-    int total_size_bytes;
     int c;
 
     for (c = 0; c < xf86_config->num_crtc; c++) {
 	if (info->cursor_bo[c] != NULL) {
-	    total_size_bytes += (64 * 4 * 64);
+	    new_fb_size += (64 * 4 * 64);
 	}
     }
 
-    total_size_bytes += new_fb_size;
     remain_size_bytes = info->vram_size - new_fb_size;
     remain_size_bytes = (remain_size_bytes / 10) * 9;
     radeon_cs_set_limit(info->cs, RADEON_GEM_DOMAIN_VRAM, remain_size_bytes);
