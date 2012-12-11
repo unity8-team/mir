@@ -1723,16 +1723,19 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	}
 
 	/* Get current count */
-	vbl.request.type = DRM_VBLANK_RELATIVE | pipe_select(pipe);
-	vbl.request.sequence = 0;
-	if (sna_wait_vblank(sna, &vbl))
-		return false;
-	current_msc = vbl.reply.sequence;
+	if (*target_msc) {
+		vbl.request.type = DRM_VBLANK_RELATIVE | pipe_select(pipe);
+		vbl.request.sequence = 0;
+		if (sna_wait_vblank(sna, &vbl))
+			return false;
+		current_msc = vbl.reply.sequence;
+	} else
+		current_msc = 0;
 
 	/* Truncate to match kernel interfaces; means occasional overflow
 	 * misses, but that's generally not a big deal */
 	divisor &= 0xffffffff;
-	if (divisor == 0 && current_msc <= *target_msc) {
+	if (divisor == 0 && current_msc >= *target_msc) {
 		DBG(("%s: performing immediate swap on pipe %d, pending? %d\n",
 		     __FUNCTION__, pipe, sna->dri.flip_pending != NULL));
 
@@ -2067,14 +2070,17 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 
 	info->type = swap_type;
 
-	/* Get current count */
-	vbl.request.type = DRM_VBLANK_RELATIVE | pipe_select(pipe);
-	vbl.request.sequence = 0;
-	if (sna_wait_vblank(sna, &vbl))
-		goto blit_fallback;
-	current_msc = vbl.reply.sequence;
+	if (*target_msc) {
+		/* Get current count */
+		vbl.request.type = DRM_VBLANK_RELATIVE | pipe_select(pipe);
+		vbl.request.sequence = 0;
+		if (sna_wait_vblank(sna, &vbl))
+			goto blit_fallback;
+		current_msc = vbl.reply.sequence;
+	} else
+		current_msc = 0;
 
-	if (divisor == 0 && current_msc <= *target_msc) {
+	if (divisor == 0 && current_msc >= *target_msc) {
 		if (can_exchange(sna, draw, front, back)) {
 			sna_dri_immediate_xchg(sna, draw, info);
 		} else if (can_blit(sna, draw, front, back)) {
