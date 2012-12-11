@@ -1535,11 +1535,9 @@ drm_wakeup_handler(pointer data, int err, pointer p)
 
 Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int cpp)
 {
-	xf86CrtcConfigPtr xf86_config;
 	int i, num_dvi = 0, num_hdmi = 0;
 
 	xf86CrtcConfigInit(pScrn, &drmmode_xf86crtc_config_funcs);
-	xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 
 	drmmode->scrn = pScrn;
 	drmmode->cpp = cpp;

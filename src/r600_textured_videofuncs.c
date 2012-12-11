@@ -106,7 +106,6 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     float uco[3], vco[3], off[3];
     float bright, cont, gamma;
     int ref = pPriv->transform_index;
-    Bool needgamma = FALSE;
     float ps_alu_consts[12];
     float vs_alu_consts[4];
 
@@ -130,17 +129,6 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 
     // XXX
     gamma = 1.0;
-
-    if (gamma != 1.0) {
-	needgamma = TRUE;
-	/* note: gamma correction is out = in ^ gamma;
-	   gpu can only do LG2/EX2 therefore we transform into
-	   in ^ gamma = 2 ^ (log2(in) * gamma).
-	   Lots of scalar ops, unfortunately (better solution?) -
-	   without gamma that's 3 inst, with gamma it's 10...
-	   could use different gamma factors per channel,
-	   if that's of any use. */
-    }
 
     /* setup the ps consts */
     ps_alu_consts[0] = off[0];

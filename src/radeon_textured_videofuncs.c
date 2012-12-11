@@ -3248,7 +3248,6 @@ R500PrepareTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	float uco[3], vco[3], off[3];
 	float bright, cont, gamma;
 	int ref = pPriv->transform_index;
-	Bool needgamma = FALSE;
 
 	cont = RTFContrast(pPriv->contrast);
 	bright = RTFBrightness(pPriv->brightness);
@@ -3269,17 +3268,6 @@ R500PrepareTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	off[2] = Loff * yco + Coff * (uco[2] + vco[2]) + bright;
 
 	//XXX gamma
-
-	if (gamma != 1.0) {
-	    needgamma = TRUE;
-	    /* note: gamma correction is out = in ^ gamma;
-	       gpu can only do LG2/EX2 therefore we transform into
-	       in ^ gamma = 2 ^ (log2(in) * gamma).
-	       Lots of scalar ops, unfortunately (better solution?) -
-	       without gamma that's 3 inst, with gamma it's 10...
-	       could use different gamma factors per channel,
-	       if that's of any use. */
-	}
 
 	if (pPriv->is_planar) {
 	    BEGIN_RING(2*56);
