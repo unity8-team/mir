@@ -869,7 +869,6 @@ static bool kgem_init_pinned_batches(struct kgem *kgem)
 			bo->presumed_offset = pin.offset;
 			debug_alloc__bo(kgem, bo);
 			list_add(&bo->list, &kgem->pinned_batches[n]);
-			bo->refcnt = 1;
 		}
 	}
 
@@ -882,6 +881,25 @@ err:
 					list_first_entry(&kgem->pinned_batches[n],
 							 struct kgem_bo, list));
 		}
+	}
+
+	/* For simplicity populate the lists with a single unpinned bo */
+	for (n = 0; n < ARRAY_SIZE(count); n++) {
+		struct kgem_bo *bo;
+		uint32_t handle;
+
+		handle = gem_create(kgem->fd, size[n]);
+		if (handle == 0)
+			break;
+
+		bo = __kgem_bo_alloc(handle, size[n]);
+		if (bo == NULL) {
+			gem_close(kgem->fd, handle);
+			break;
+		}
+
+		debug_alloc__bo(kgem, bo);
+		list_add(&bo->list, &kgem->pinned_batches[n]);
 	}
 	return false;
 }
