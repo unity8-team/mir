@@ -846,6 +846,8 @@ static bool kgem_init_pinned_batches(struct kgem *kgem)
 			struct drm_i915_gem_pin pin;
 			struct kgem_bo *bo;
 
+			VG_CLEAR(pin);
+
 			pin.handle = gem_create(kgem->fd, size[n]);
 			if (pin.handle == 0)
 				goto err;
@@ -875,9 +877,9 @@ static bool kgem_init_pinned_batches(struct kgem *kgem)
 
 err:
 	for (n = 0; n < ARRAY_SIZE(kgem->pinned_batches); n++) {
-		while (!list_is_empty(&kgem->pinned_batches[i])) {
+		while (!list_is_empty(&kgem->pinned_batches[n])) {
 			kgem_bo_destroy(kgem,
-					list_first_entry(&kgem->pinned_batches[i],
+					list_first_entry(&kgem->pinned_batches[n],
 							 struct kgem_bo, list));
 		}
 	}
