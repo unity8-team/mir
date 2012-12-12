@@ -3528,7 +3528,8 @@ gen3_emit_video_state(struct sna *sna,
 		      struct sna_video_frame *frame,
 		      PixmapPtr pixmap,
 		      struct kgem_bo *dst_bo,
-		      int width, int height)
+		      int width, int height,
+		      bool bilinear)
 {
 	struct gen3_render_state *state = &sna->render_state.gen3;
 	uint32_t id, ms3, rewind;
@@ -3887,6 +3888,7 @@ gen3_render_video(struct sna *sna,
 	float src_scale_x, src_scale_y;
 	int pix_xoff, pix_yoff;
 	struct kgem_bo *dst_bo;
+	bool bilinear;
 	int copy = 0;
 
 	DBG(("%s: %dx%d -> %dx%d\n", __FUNCTION__, src_w, src_h, drw_w, drw_h));
@@ -3927,6 +3929,8 @@ gen3_render_video(struct sna *sna,
 #endif
 	}
 
+	bilinear = src_w != drw_w || src_h != drw_h;
+
 	src_scale_x = ((float)src_w / frame->width) / drw_w;
 	src_scale_y = ((float)src_h / frame->height) / drw_h;
 
@@ -3936,13 +3940,13 @@ gen3_render_video(struct sna *sna,
 
 	gen3_video_get_batch(sna, dst_bo);
 	gen3_emit_video_state(sna, video, frame, pixmap,
-			      dst_bo, width, height);
+			      dst_bo, width, height, bilinear);
 	do {
 		int nbox_this_time = gen3_get_inline_rectangles(sna, nbox, 4);
 		if (nbox_this_time == 0) {
 			gen3_video_get_batch(sna, dst_bo);
 			gen3_emit_video_state(sna, video, frame, pixmap,
-					      dst_bo, width, height);
+					      dst_bo, width, height, bilinear);
 			nbox_this_time = gen3_get_inline_rectangles(sna, nbox, 4);
 		}
 		nbox -= nbox_this_time;

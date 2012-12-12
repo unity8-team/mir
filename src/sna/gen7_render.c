@@ -209,10 +209,6 @@ static const struct blendinfo {
 #define FILL_FLAGS(op, format) GEN7_SET_FLAGS(FILL_SAMPLER, gen7_get_blend((op), false, (format)), GEN7_WM_KERNEL_NOMASK, FILL_VERTEX)
 #define FILL_FLAGS_NOBLEND GEN7_SET_FLAGS(FILL_SAMPLER, NO_BLEND, GEN7_WM_KERNEL_NOMASK, FILL_VERTEX)
 
-#define VIDEO_SAMPLER \
-	SAMPLER_OFFSET(SAMPLER_FILTER_BILINEAR, SAMPLER_EXTEND_PAD, \
-		       SAMPLER_FILTER_NEAREST, SAMPLER_EXTEND_NONE)
-
 #define GEN7_SAMPLER(f) (((f) >> 16) & 0xfff0)
 #define GEN7_BLEND(f) (((f) >> 0) & 0x7ff0)
 #define GEN7_READS_DST(f) (((f) >> 15) & 1)
@@ -2098,6 +2094,7 @@ gen7_render_video(struct sna *sna,
 	int nbox, dxo, dyo, pix_xoff, pix_yoff;
 	float src_scale_x, src_scale_y;
 	struct sna_pixmap *priv;
+	unsigned filter;
 	BoxPtr box;
 
 	DBG(("%s: src=(%d, %d), dst=(%d, %d), %dx[(%d, %d), (%d, %d)...]\n",
@@ -2126,8 +2123,15 @@ gen7_render_video(struct sna *sna,
 	tmp.floats_per_vertex = 3;
 	tmp.floats_per_rect = 9;
 
+	if (src_w == drw_w && src_h == drw_h)
+		filter = SAMPLER_FILTER_NEAREST;
+	else
+		filter = SAMPLER_FILTER_BILINEAR;
+
 	tmp.u.gen7.flags =
-		GEN7_SET_FLAGS(VIDEO_SAMPLER, NO_BLEND,
+		GEN7_SET_FLAGS(SAMPLER_OFFSET(filter, SAMPLER_EXTEND_PAD,
+					      SAMPLER_FILTER_NEAREST, SAMPLER_EXTEND_NONE),
+			       NO_BLEND,
 			       is_planar_fourcc(frame->id) ?
 			       GEN7_WM_KERNEL_VIDEO_PLANAR :
 			       GEN7_WM_KERNEL_VIDEO_PACKED,
