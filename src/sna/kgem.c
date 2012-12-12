@@ -832,6 +832,58 @@ static int kgem_get_screen_index(struct kgem *kgem)
 	return sna->scrn->scrnIndex;
 }
 
+static bool kgem_init_pinned_batches(struct kgem *kgem)
+{
+	int count[2] = { 16, 4 };
+	int size[2] = { 1, 4 };
+	int n, i;
+
+	if (kgem->wedged)
+		return true;
+
+	for (n = 0; n < ARRAY_SIZE(count); n++) {
+		for (i = 0; i < count[n]; i++) {
+			struct drm_i915_gem_pin pin;
+			struct kgem_bo *bo;
+
+			pin.handle = gem_create(kgem->fd, size[n]);
+			if (pin.handle == 0)
+				goto err;
+
+			DBG(("%s: new handle=%d, num_pages=%d\n",
+			     __FUNCTION__, pin.handle, size[n]));
+
+			bo = __kgem_bo_alloc(pin.handle, size[n]);
+			if (bo == NULL) {
+				gem_close(kgem->fd, pin.handle);
+				goto err;
+			}
+
+			pin.alignment = 0;
+			if (drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_PIN, &pin)) {
+				gem_close(kgem->fd, pin.handle);
+				goto err;
+			}
+			bo->presumed_offset = pin.offset;
+			debug_alloc__bo(kgem, bo);
+			list_add(&bo->list, &kgem->pinned_batches[n]);
+			bo->refcnt = 1;
+		}
+	}
+
+	return true;
+
+err:
+	for (n = 0; n < ARRAY_SIZE(kgem->pinned_batches); n++) {
+		while (!list_is_empty(&kgem->pinned_batches[i])) {
+			kgem_bo_destroy(kgem,
+					list_first_entry(&kgem->pinned_batches[i],
+							 struct kgem_bo, list));
+		}
+	}
+	return false;
+}
+
 void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, unsigned gen)
 {
 	struct drm_i915_gem_get_aperture aperture;
@@ -845,6 +897,30 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, unsigned gen)
 
 	kgem->fd = fd;
 	kgem->gen = gen;
+
+	list_init(&kgem->requests[0]);
+	list_init(&kgem->requests[1]);
+	list_init(&kgem->batch_buffers);
+	list_init(&kgem->active_buffers);
+	list_init(&kgem->flushing);
+	list_init(&kgem->large);
+	list_init(&kgem->large_inactive);
+	list_init(&kgem->snoop);
+	for (i = 0; i < ARRAY_SIZE(kgem->pinned_batches); i++)
+		list_init(&kgem->pinned_batches[i]);
+	for (i = 0; i < ARRAY_SIZE(kgem->inactive); i++)
+		list_init(&kgem->inactive[i]);
+	for (i = 0; i < ARRAY_SIZE(kgem->active); i++) {
+		for (j = 0; j < ARRAY_SIZE(kgem->active[i]); j++)
+			list_init(&kgem->active[i][j]);
+	}
+	for (i = 0; i < ARRAY_SIZE(kgem->vma); i++) {
+		for (j = 0; j < ARRAY_SIZE(kgem->vma[i].inactive); j++)
+			list_init(&kgem->vma[i].inactive[j]);
+	}
+	kgem->vma[MAP_GTT].count = -MAX_GTT_VMA_CACHE;
+	kgem->vma[MAP_CPU].count = -MAX_CPU_VMA_CACHE;
+
 
 	kgem->has_blt = gem_param(kgem, I915_PARAM_HAS_BLT) > 0;
 	DBG(("%s: has BLT ring? %d\n", __FUNCTION__,
@@ -904,6 +980,9 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, unsigned gen)
 	}
 
 	kgem->batch_size = ARRAY_SIZE(kgem->batch);
+	if (gen == 020)
+		/* Limited to what we can pin */
+		kgem->batch_size = 4*1024;
 	if (gen == 022)
 		/* 865g cannot handle a batch spanning multiple pages */
 		kgem->batch_size = PAGE_SIZE / sizeof(uint32_t);
@@ -911,6 +990,12 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, unsigned gen)
 		kgem->batch_size = 16*1024;
 	if (!kgem->has_relaxed_delta && kgem->batch_size > 4*1024)
 		kgem->batch_size = 4*1024;
+
+	if (!kgem_init_pinned_batches(kgem) && gen == 020) {
+		xf86DrvMsg(kgem_get_screen_index(kgem), X_WARNING,
+			   "Unable to reserve memory for GPU, disabling acceleration.\n");
+		kgem->wedged = 1;
+	}
 
 	DBG(("%s: maximum batch size? %d\n", __FUNCTION__,
 	     kgem->batch_size));
@@ -922,27 +1007,6 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, unsigned gen)
 	kgem->half_cpu_cache_pages = cpu_cache_size() >> 13;
 	DBG(("%s: half cpu cache %d pages\n", __FUNCTION__,
 	     kgem->half_cpu_cache_pages));
-
-	list_init(&kgem->requests[0]);
-	list_init(&kgem->requests[1]);
-	list_init(&kgem->batch_buffers);
-	list_init(&kgem->active_buffers);
-	list_init(&kgem->flushing);
-	list_init(&kgem->large);
-	list_init(&kgem->large_inactive);
-	list_init(&kgem->snoop);
-	for (i = 0; i < ARRAY_SIZE(kgem->inactive); i++)
-		list_init(&kgem->inactive[i]);
-	for (i = 0; i < ARRAY_SIZE(kgem->active); i++) {
-		for (j = 0; j < ARRAY_SIZE(kgem->active[i]); j++)
-			list_init(&kgem->active[i][j]);
-	}
-	for (i = 0; i < ARRAY_SIZE(kgem->vma); i++) {
-		for (j = 0; j < ARRAY_SIZE(kgem->vma[i].inactive); j++)
-			list_init(&kgem->vma[i].inactive[j]);
-	}
-	kgem->vma[MAP_GTT].count = -MAX_GTT_VMA_CACHE;
-	kgem->vma[MAP_CPU].count = -MAX_CPU_VMA_CACHE;
 
 	kgem->next_request = __kgem_request_alloc();
 
@@ -2258,6 +2322,60 @@ static int compact_batch_surface(struct kgem *kgem)
 	return size * sizeof(uint32_t);
 }
 
+static struct kgem_bo *
+kgem_create_batch(struct kgem *kgem, int size)
+{
+	struct drm_i915_gem_set_domain set_domain;
+	struct kgem_bo *bo;
+
+	if (size <= 4096) {
+		bo = list_first_entry(&kgem->pinned_batches[0],
+				      struct kgem_bo,
+				      list);
+		if (!bo->rq) {
+			list_move_tail(&bo->list, &kgem->pinned_batches[0]);
+			return kgem_bo_reference(bo);
+		}
+	}
+
+	if (size <= 16384) {
+		bo = list_first_entry(&kgem->pinned_batches[1],
+				      struct kgem_bo,
+				      list);
+		if (!bo->rq) {
+			list_move_tail(&bo->list, &kgem->pinned_batches[1]);
+			return kgem_bo_reference(bo);
+		}
+	}
+
+	if (kgem->gen == 20) {
+		assert(size <= 16384);
+
+		bo = list_first_entry(&kgem->pinned_batches[size > 4096],
+				      struct kgem_bo,
+				      list);
+		list_move_tail(&bo->list, &kgem->pinned_batches[size > 4096]);
+
+		DBG(("%s: syncing due to busy batches\n", __FUNCTION__));
+
+		VG_CLEAR(set_domain);
+		set_domain.handle = bo->handle;
+		set_domain.read_domains = I915_GEM_DOMAIN_GTT;
+		set_domain.write_domain = I915_GEM_DOMAIN_GTT;
+		if (drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_SET_DOMAIN, &set_domain)) {
+			DBG(("%s: sync: GPU hang detected\n", __FUNCTION__));
+			kgem_throttle(kgem);
+			return NULL;
+		}
+
+		kgem_retire(kgem);
+		assert(bo->rq == NULL);
+		return kgem_bo_reference(bo);
+	}
+
+	return kgem_create_linear(kgem, size, CREATE_NO_THROTTLE);
+}
+
 void _kgem_submit(struct kgem *kgem)
 {
 	struct kgem_request *rq;
@@ -2295,7 +2413,7 @@ void _kgem_submit(struct kgem *kgem)
 		size = compact_batch_surface(kgem);
 	else
 		size = kgem->nbatch * sizeof(kgem->batch[0]);
-	rq->bo = kgem_create_linear(kgem, size, CREATE_NO_THROTTLE);
+	rq->bo = kgem_create_batch(kgem, size);
 	if (rq->bo) {
 		uint32_t handle = rq->bo->handle;
 		int i;

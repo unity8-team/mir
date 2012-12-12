@@ -127,6 +127,7 @@ struct kgem {
 	struct list large_inactive;
 	struct list active[NUM_CACHE_BUCKETS][3];
 	struct list inactive[NUM_CACHE_BUCKETS];
+	struct list pinned_batches[2];
 	struct list snoop;
 	struct list batch_buffers, active_buffers;
 
