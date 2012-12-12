@@ -2756,9 +2756,11 @@ gen4_render_composite_spans(struct sna *sna,
 	tmp->base.has_component_alpha = false;
 	tmp->base.need_magic_ca_pass = false;
 
+	tmp->base.u.gen4.sf = 1;
 	if (tmp->base.src.is_solid) {
 		DBG(("%s: using solid fast emitter\n", __FUNCTION__));
 		tmp->prim_emit = gen4_emit_composite_spans_solid;
+		tmp->base.u.gen4.sf = 0;
 	} else if (tmp->base.is_affine) {
 		DBG(("%s: using affine fast emitter\n", __FUNCTION__));
 		tmp->prim_emit = gen4_emit_composite_spans_affine;
@@ -2771,7 +2773,6 @@ gen4_render_composite_spans(struct sna *sna,
 
 	tmp->base.u.gen4.wm_kernel = WM_KERNEL_OPACITY | !tmp->base.is_affine;
 	tmp->base.u.gen4.ve_id = 1 << 1 | tmp->base.is_affine;
-	tmp->base.u.gen4.sf = 0;
 
 	tmp->box   = gen4_render_composite_spans_box;
 	tmp->boxes = gen4_render_composite_spans_boxes;
