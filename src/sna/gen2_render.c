@@ -504,6 +504,7 @@ static void gen2_emit_invariant(struct sna *sna)
 	      ENABLE_TEX_CACHE);
 
 	BATCH(_3DSTATE_STIPPLE);
+	BATCH(0);
 
 	BATCH(_3DSTATE_MAP_BLEND_OP_CMD(0) |
 	      TEXPIPE_COLOR |
