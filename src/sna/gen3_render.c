@@ -929,13 +929,6 @@ gen3_composite_emit_shader(struct sna *sna,
 	if (mask->u.gen3.type == SHADER_NONE)
 		mask = NULL;
 
-	if (mask && src->is_opaque &&
-	    gen3_blend_op[blend].src_alpha &&
-	    op->has_component_alpha) {
-		src = mask;
-		mask = NULL;
-	}
-
 	id = (src->u.gen3.type |
 	      src->is_affine << 4 |
 	      src->alpha_fixup << 5 |
