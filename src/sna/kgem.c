@@ -1223,10 +1223,10 @@ static uint32_t kgem_surface_size(struct kgem *kgem,
 		if (tiling) {
 			if (kgem->gen < 030) {
 				tile_width = 128;
-				tile_height = 16;
+				tile_height = 32;
 			} else {
 				tile_width = 512;
-				tile_height =  8;
+				tile_height = 16;
 			}
 		} else {
 			tile_width = 2 * bpp >> 3;
@@ -1292,12 +1292,12 @@ static uint32_t kgem_aligned_height(struct kgem *kgem,
 	uint32_t tile_height;
 
 	if (kgem->gen <= 030) {
-		tile_height = tiling ? kgem->gen < 030 ? 16 : 8 : 1;
+		tile_height = tiling ? kgem->gen < 030 ? 32 : 16 : 1;
 	} else switch (tiling) {
 		/* XXX align to an even tile row */
 	default:
 	case I915_TILING_NONE:
-		tile_height = 2;
+		tile_height = 1;
 		break;
 	case I915_TILING_X:
 		tile_height = 16;
