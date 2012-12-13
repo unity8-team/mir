@@ -1729,18 +1729,18 @@ reuse_source(struct sna *sna,
 	if (src_x != msk_x || src_y != msk_y)
 		return false;
 
+	if (sna_picture_is_solid(mask, &color))
+		return gen2_composite_solid_init(sna, mc, color);
+
+	if (sc->is_solid)
+		return false;
+
 	if (src == mask) {
 		DBG(("%s: mask is source\n", __FUNCTION__));
 		*mc = *sc;
 		mc->bo = kgem_bo_reference(mc->bo);
 		return true;
 	}
-
-	if (sna_picture_is_solid(mask, &color))
-		return gen2_composite_solid_init(sna, mc, color);
-
-	if (sc->is_solid)
-		return false;
 
 	if (src->pDrawable == NULL || mask->pDrawable != src->pDrawable)
 		return false;
