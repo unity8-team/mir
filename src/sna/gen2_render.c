@@ -1050,6 +1050,7 @@ inline static int gen2_get_rectangles(struct sna *sna,
 		if ((sna->kgem.batch[sna->kgem.nbatch-1] & ~0xffff) ==
 		    (PRIM3D_INLINE | PRIM3D_RECTLIST)) {
 			uint32_t *b = &sna->kgem.batch[sna->kgem.nbatch-1];
+			assert(*b & 0xffff);
 			sna->render.vertex_index = 1 + (*b & 0xffff);
 			*b = PRIM3D_INLINE | PRIM3D_RECTLIST;
 			state->vertex_offset = sna->kgem.nbatch - 1;
@@ -1885,7 +1886,7 @@ gen2_render_composite(struct sna *sna,
 					DBG(("%s: fallback -- unsupported CA blend (src_blend=%d)\n",
 					     __FUNCTION__,
 					     gen2_blend_op[op].src_blend));
-					goto cleanup_dst;
+					goto cleanup_src;
 				}
 
 				tmp->need_magic_ca_pass = true;
@@ -1894,8 +1895,12 @@ gen2_render_composite(struct sna *sna,
 		}
 
 		/* convert solid to a texture (pure convenience) */
-		if (tmp->mask.is_solid && tmp->src.is_solid)
+		if (tmp->mask.is_solid && tmp->src.is_solid) {
+			assert(tmp->mask.is_affine);
 			tmp->mask.bo = sna_render_get_solid(sna, tmp->mask.u.gen2.pixel);
+			if (!tmp->mask.bo)
+				goto cleanup_src;
+		}
 	}
 
 	tmp->floats_per_vertex = 2;
@@ -1908,18 +1913,25 @@ gen2_render_composite(struct sna *sna,
 	tmp->prim_emit = gen2_emit_composite_primitive;
 	if (tmp->mask.bo) {
 		if (tmp->mask.transform == NULL) {
-			if (tmp->src.is_solid)
+			if (tmp->src.is_solid) {
+				assert(tmp->floats_per_rect == 12);
 				tmp->prim_emit = gen2_emit_composite_primitive_constant_identity_mask;
+			}
 		}
 	} else {
-		if (tmp->src.is_solid)
+		if (tmp->src.is_solid) {
+			assert(tmp->floats_per_rect == 6);
 			tmp->prim_emit = gen2_emit_composite_primitive_constant;
-		else if (tmp->src.is_linear)
+		} else if (tmp->src.is_linear) {
+			assert(tmp->floats_per_rect == 12);
 			tmp->prim_emit = gen2_emit_composite_primitive_linear;
-		else if (tmp->src.transform == NULL)
+		} else if (tmp->src.transform == NULL) {
+			assert(tmp->floats_per_rect == 12);
 			tmp->prim_emit = gen2_emit_composite_primitive_identity;
-		else if (tmp->src.is_affine)
+		} else if (tmp->src.is_affine) {
+			assert(tmp->floats_per_rect == 12);
 			tmp->prim_emit = gen2_emit_composite_primitive_affine;
+		}
 	}
 
 	tmp->blt   = gen2_render_composite_blt;
