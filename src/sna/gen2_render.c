@@ -1161,6 +1161,7 @@ gen2_composite_solid_init(struct sna *sna,
 	channel->filter = PictFilterNearest;
 	channel->repeat = RepeatNormal;
 	channel->is_solid  = true;
+	channel->is_affine = true;
 	channel->width  = 1;
 	channel->height = 1;
 	channel->pict_format = PICT_a8r8g8b8;
