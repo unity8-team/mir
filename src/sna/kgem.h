@@ -347,7 +347,7 @@ static inline void kgem_set_mode(struct kgem *kgem,
 	kgem_submit(kgem);
 #endif
 
-	if (kgem->mode && bo->exec == NULL && kgem_ring_is_idle(kgem, kgem->ring))
+	if (kgem->nexec && bo->exec == NULL && kgem_ring_is_idle(kgem, kgem->ring))
 		kgem_submit(kgem);
 
 	if (kgem->mode == mode)
