@@ -2368,7 +2368,7 @@ kgem_create_batch(struct kgem *kgem, int size)
 		}
 	}
 
-	if (kgem->gen == 20) {
+	if (kgem->gen == 020) {
 		assert(size <= 16384);
 
 		bo = list_first_entry(&kgem->pinned_batches[size > 4096],
