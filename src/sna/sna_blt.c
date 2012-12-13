@@ -433,7 +433,7 @@ static void sna_blt_copy_one(struct sna *sna,
 	    kgem->batch[kgem->nbatch-6] == (XY_COLOR_BLT | (blt->cmd & (BLT_WRITE_ALPHA | BLT_WRITE_RGB))) &&
 	    kgem->batch[kgem->nbatch-4] == ((uint32_t)dst_y << 16 | (uint16_t)dst_x) &&
 	    kgem->batch[kgem->nbatch-3] == ((uint32_t)(dst_y+height) << 16 | (uint16_t)(dst_x+width)) &&
-	    kgem->reloc[kgem->nreloc-1].target_handle == blt->bo[1]->handle) {
+	    kgem->reloc[kgem->nreloc-1].target_handle == blt->bo[1]->target_handle) {
 		DBG(("%s: replacing last fill\n", __FUNCTION__));
 		if (kgem_check_batch(kgem, 8-6)) {
 			b = kgem->batch + kgem->nbatch - 6;
@@ -2231,7 +2231,7 @@ static bool sna_blt_fill_box(struct sna *sna, uint8_t alu,
 	if (overwrites && kgem->nbatch >= 6 &&
 	    kgem->batch[kgem->nbatch-6] == cmd &&
 	    *(uint64_t *)&kgem->batch[kgem->nbatch-4] == *(const uint64_t *)box &&
-	    kgem->reloc[kgem->nreloc-1].target_handle == bo->handle) {
+	    kgem->reloc[kgem->nreloc-1].target_handle == bo->target_handle) {
 		DBG(("%s: replacing last fill\n", __FUNCTION__));
 		kgem->batch[kgem->nbatch-5] = br13;
 		kgem->batch[kgem->nbatch-1] = color;
@@ -2240,7 +2240,7 @@ static bool sna_blt_fill_box(struct sna *sna, uint8_t alu,
 	if (overwrites && kgem->nbatch >= 8 &&
 	    (kgem->batch[kgem->nbatch-8] & 0xffc0000f) == XY_SRC_COPY_BLT_CMD &&
 	    *(uint64_t *)&kgem->batch[kgem->nbatch-6] == *(const uint64_t *)box &&
-	    kgem->reloc[kgem->nreloc-2].target_handle == bo->handle) {
+	    kgem->reloc[kgem->nreloc-2].target_handle == bo->target_handle) {
 		DBG(("%s: replacing last copy\n", __FUNCTION__));
 		kgem->batch[kgem->nbatch-8] = cmd;
 		kgem->batch[kgem->nbatch-7] = br13;
@@ -2503,7 +2503,7 @@ bool sna_blt_copy_boxes(struct sna *sna, uint8_t alu,
 	/* Compare first box against a previous fill */
 	if (kgem->nbatch >= 6 &&
 	    (alu == GXcopy || alu == GXclear || alu == GXset) &&
-	    kgem->reloc[kgem->nreloc-1].target_handle == dst_bo->handle &&
+	    kgem->reloc[kgem->nreloc-1].target_handle == dst_bo->target_handle &&
 	    kgem->batch[kgem->nbatch-6] == ((cmd & ~XY_SRC_COPY_BLT_CMD) | XY_COLOR_BLT) &&
 	    kgem->batch[kgem->nbatch-4] == ((uint32_t)(box->y1 + dst_dy) << 16 | (uint16_t)(box->x1 + dst_dx)) &&
 	    kgem->batch[kgem->nbatch-3] == ((uint32_t)(box->y2 + dst_dy) << 16 | (uint16_t)(box->x2 + dst_dx))) {
