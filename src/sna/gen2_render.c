@@ -396,6 +396,15 @@ gen2_get_blend_factors(const struct sna_composite_op *op,
 
 		cblend |= TB0C_OP_MODULATE;
 		ablend |= TB0A_OP_MODULATE;
+	} else if (op->mask.is_solid) {
+		cblend |= TB0C_ARG2_SEL_DIFFUSE;
+		ablend |= TB0A_ARG2_SEL_DIFFUSE;
+
+		if (op->dst.format == PICT_a8 || !op->has_component_alpha)
+			cblend |= TB0C_ARG2_REPLICATE_ALPHA;
+
+		cblend |= TB0C_OP_MODULATE;
+		ablend |= TB0A_OP_MODULATE;
 	} else {
 		cblend |= TB0C_OP_ARG1;
 		ablend |= TB0A_OP_ARG1;
@@ -727,6 +736,12 @@ static void gen2_emit_composite_state(struct sna *sna,
 		else
 			texcoordfmt |= TEXCOORDFMT_3D << (2*tex);
 		gen2_emit_texture(sna, &op->mask, tex++);
+	} else if (op->mask.is_solid) {
+		if (op->mask.u.gen2.pixel != sna->render_state.gen2.diffuse) {
+			BATCH(_3DSTATE_DFLT_DIFFUSE_CMD);
+			BATCH(op->mask.u.gen2.pixel);
+			sna->render_state.gen2.diffuse = op->mask.u.gen2.pixel;
+		}
 	}
 
 	v = _3DSTATE_VERTEX_FORMAT_2_CMD | texcoordfmt;
@@ -1879,7 +1894,7 @@ gen2_render_composite(struct sna *sna,
 		}
 
 		/* convert solid to a texture (pure convenience) */
-		if (tmp->mask.is_solid)
+		if (tmp->mask.is_solid && tmp->src.is_solid)
 			tmp->mask.bo = sna_render_get_solid(sna, tmp->mask.u.gen2.pixel);
 	}
 
