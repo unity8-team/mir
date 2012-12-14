@@ -1768,7 +1768,8 @@ static bool gen3_rectangle_begin(struct sna *sna,
 		}
 	}
 
-	if (sna->kgem.nbatch == 2 + state->last_vertex_offset) {
+	if (sna->kgem.nbatch == 2 + state->last_vertex_offset &&
+	    !op->need_magic_ca_pass) {
 		state->vertex_offset = state->last_vertex_offset;
 	} else {
 		state->vertex_offset = sna->kgem.nbatch;
