@@ -100,7 +100,8 @@ struct sna_dri_frame_event {
 struct sna_dri_private {
 	PixmapPtr pixmap;
 	struct kgem_bo *bo;
-	unsigned long serial;
+	bool scanout;
+	uint32_t size;
 	int refcnt;
 };
 
@@ -241,12 +242,15 @@ sna_dri_create_buffer(DrawablePtr draw,
 	struct sna_dri_private *private;
 	PixmapPtr pixmap;
 	struct kgem_bo *bo;
+	unsigned flags = CREATE_EXACT;
+	uint32_t size;
 	int bpp;
 
 	DBG(("%s(attachment=%d, format=%d, drawable=%dx%d)\n",
 	     __FUNCTION__, attachment, format, draw->width, draw->height));
 
 	pixmap = NULL;
+	size = (uint32_t)draw->height << 16 | draw->width;
 	switch (attachment) {
 	case DRI2BufferFrontLeft:
 		pixmap = get_drawable_pixmap(draw);
@@ -279,6 +283,9 @@ sna_dri_create_buffer(DrawablePtr draw,
 		     __FUNCTION__,
 		     pixmap->drawable.width, pixmap->drawable.height,
 		     pixmap, pixmap->refcnt));
+		if (pixmap == sna->front)
+			flags |= CREATE_SCANOUT;
+		size = (uint32_t)pixmap->drawable.height << 16 | pixmap->drawable.width;
 		break;
 
 	case DRI2BufferBackLeft:
@@ -287,12 +294,15 @@ sna_dri_create_buffer(DrawablePtr draw,
 	case DRI2BufferFakeFrontLeft:
 	case DRI2BufferFakeFrontRight:
 		bpp = draw->bitsPerPixel;
+		if (draw->width  == sna->front->drawable.width &&
+		    draw->height == sna->front->drawable.height)
+			flags |= CREATE_SCANOUT;
 		bo = kgem_create_2d(&sna->kgem,
 				    draw->width,
 				    draw->height,
 				    draw->bitsPerPixel,
 				    color_tiling(sna, draw),
-				    CREATE_SCANOUT | CREATE_EXACT);
+				    flags);
 		break;
 
 	case DRI2BufferStencil:
@@ -323,7 +333,7 @@ sna_dri_create_buffer(DrawablePtr draw,
 		bo = kgem_create_2d(&sna->kgem,
 				    ALIGN(draw->width, 64),
 				    ALIGN((draw->height + 1) / 2, 64),
-				    bpp, I915_TILING_NONE, CREATE_EXACT);
+				    bpp, I915_TILING_NONE, flags);
 		break;
 
 	case DRI2BufferDepth:
@@ -334,7 +344,7 @@ sna_dri_create_buffer(DrawablePtr draw,
 		bo = kgem_create_2d(&sna->kgem,
 				    draw->width, draw->height, bpp,
 				    other_tiling(sna, draw),
-				    CREATE_EXACT);
+				    flags);
 		break;
 
 	default:
@@ -358,7 +368,8 @@ sna_dri_create_buffer(DrawablePtr draw,
 	private->refcnt = 1;
 	private->bo = bo;
 	private->pixmap = pixmap;
-	private->serial = get_drawable_pixmap(draw)->drawable.serialNumber;
+	private->scanout = !!(flags & CREATE_SCANOUT);
+	private->size = size;
 
 	if (buffer->name == 0)
 		goto err;
@@ -825,14 +836,14 @@ can_blit(struct sna * sna,
 	 DRI2BufferPtr front,
 	 DRI2BufferPtr back)
 {
-	PixmapPtr pixmap;
+	uint32_t f, b;
 
 	if (draw->type == DRAWABLE_PIXMAP)
 		return true;
 
-	pixmap = get_drawable_pixmap(draw);
-	return (get_private(front)->serial == pixmap->drawable.serialNumber &&
-		get_private(back)->serial  == pixmap->drawable.serialNumber);
+	f = get_private(front)->size;
+	b = get_private(back)->size;
+	return (f >> 16) >= (b >> 16) && (f & 0xffff) >= (b & 0xffff);
 }
 
 static void
@@ -1097,16 +1108,19 @@ can_flip(struct sna * sna,
 		return false;
 	}
 
-	assert(get_private(front)->pixmap == sna->front);
-	assert(get_private(front)->serial == pixmap->drawable.serialNumber);
-
-	if (get_private(back)->serial != pixmap->drawable.serialNumber) {
-		DBG(("%s: no, DRI2 drawable has a stale reference to the pixmap (DRI2 pixmap=%ld, X pixmap=%ld)\n",
-		     __FUNCTION__,
-		     get_private(back)->serial,
-		     pixmap->drawable.serialNumber));
+	if (!get_private(front)->scanout) {
+		DBG(("%s: no, DRI2 drawable not attached at time of creation)\n",
+		     __FUNCTION__));
 		return false;
 	}
+	assert(get_private(front)->pixmap == sna->front);
+
+	if (!get_private(back)->scanout) {
+		DBG(("%s: no, DRI2 drawable was too small at time of creation)\n",
+		     __FUNCTION__));
+		return false;
+	}
+	assert(get_private(back)->size == get_private(front)->size);
 
 	DBG(("%s: window size: %dx%d, clip=(%d, %d), (%d, %d) x %d\n",
 	     __FUNCTION__,
@@ -1203,14 +1217,19 @@ can_exchange(struct sna * sna,
 		return false;
 	}
 
-	assert(get_private(front)->serial == pixmap->drawable.serialNumber);
-	if (get_private(back)->serial != pixmap->drawable.serialNumber) {
-		DBG(("%s: no, DRI2 drawable has a stale reference to the pixmap (DRI2 pixmap=%ld, X pixmap=%ld)\n",
-		     __FUNCTION__,
-		     get_private(back)->serial,
-		     pixmap->drawable.serialNumber));
+	if (!get_private(front)->scanout) {
+		DBG(("%s: no, DRI2 drawable not attached at time of creation)\n",
+		     __FUNCTION__));
 		return false;
 	}
+	assert(get_private(front)->pixmap == sna->front);
+
+	if (!get_private(back)->scanout) {
+		DBG(("%s: no, DRI2 drawable was too small at time of creation)\n",
+		     __FUNCTION__));
+		return false;
+	}
+	assert(get_private(back)->size == get_private(front)->size);
 
 	return true;
 }
