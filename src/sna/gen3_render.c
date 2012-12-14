@@ -2676,9 +2676,9 @@ gen3_composite_fallback(struct sna *sna,
 
 	if (mask &&
 	    mask->componentAlpha && PICT_FORMAT_RGB(mask->format) &&
-	    op != PictOpOver &&
-	    gen3_blend_op[op].src_blend != BLENDFACT_ZERO)
-	{
+	    gen3_blend_op[op].src_alpha &&
+	    gen3_blend_op[op].src_blend != BLENDFACT_ZERO &&
+	    op != PictOpOver) {
 		DBG(("%s: component-alpha mask with op=%d, should fallback\n",
 		     __FUNCTION__, op));
 		return true;
@@ -2725,9 +2725,9 @@ gen3_composite_fallback(struct sna *sna,
 		return true;
 	}
 
-	DBG(("%s: dst is not on the GPU and the operation should not fallback\n",
-	     __FUNCTION__));
-	return false;
+	DBG(("%s: dst is not on the GPU and the operation should not fallback: use-cpu? %d\n",
+	     __FUNCTION__, dst_use_cpu(dst_pixmap)));
+	return dst_use_cpu(dst_pixmap);
 }
 
 static int
@@ -2916,7 +2916,7 @@ gen3_render_composite(struct sna *sna,
 					tmp->mask.u.gen3.type = SHADER_NONE;
 					tmp->has_component_alpha = false;
 				} else if (gen3_blend_op[op].src_alpha &&
-					   (gen3_blend_op[op].src_blend != BLENDFACT_ZERO)) {
+					   gen3_blend_op[op].src_blend != BLENDFACT_ZERO) {
 					if (op != PictOpOver)
 						goto cleanup_mask;
 

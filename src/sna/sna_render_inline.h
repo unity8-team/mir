@@ -233,6 +233,15 @@ inline static bool dst_use_gpu(PixmapPtr pixmap)
 	return priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo);
 }
 
+inline static bool dst_use_cpu(PixmapPtr pixmap)
+{
+	struct sna_pixmap *priv = sna_pixmap(pixmap);
+	if (priv == NULL)
+		return true;
+
+	return priv->cpu_damage && priv->cpu;
+}
+
 inline static bool dst_is_cpu(PixmapPtr pixmap)
 {
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
