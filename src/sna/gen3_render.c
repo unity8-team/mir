@@ -2921,7 +2921,6 @@ gen3_render_composite(struct sna *sna,
 
 					tmp->need_magic_ca_pass = true;
 					tmp->op = PictOpOutReverse;
-					sna->render.vertex_start = sna->render.vertex_index;
 				}
 			} else {
 				if (tmp->mask.is_opaque) {
