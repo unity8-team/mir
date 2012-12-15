@@ -1798,15 +1798,8 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		sna_dri_page_flip(sna, info);
 
 		if (info->count == 0) {
-			info->back->name = info->old_front.name;
-			get_private(info->back)->bo = info->old_front.bo;
-			info->old_front.bo = NULL;
-
-			DRI2SwapComplete(info->client, draw, 0, 0, 0,
-					 DRI2_EXCHANGE_COMPLETE,
-					 info->event_complete,
-					 info->event_data);
 			sna_dri_frame_event_info_free(sna, draw, info);
+			return false;
 		} else if (info->type != DRI2_FLIP) {
 			get_private(info->back)->bo =
 				kgem_create_2d(&sna->kgem,
