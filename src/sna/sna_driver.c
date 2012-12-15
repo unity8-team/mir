@@ -504,6 +504,8 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 		sna->flags |= SNA_NO_DELAYED_FLUSH;
 	if (!xf86ReturnOptValBool(sna->Options, OPTION_SWAPBUFFERS_WAIT, TRUE))
 		sna->flags |= SNA_NO_WAIT;
+	if (xf86ReturnOptValBool(sna->Options, OPTION_TRIPLE_BUFFER, TRUE))
+		sna->flags |= SNA_TRIPLE_BUFFER;
 	if (has_pageflipping(sna)) {
 		if (xf86ReturnOptValBool(sna->Options, OPTION_TEAR_FREE, FALSE))
 			sna->flags |= SNA_TEAR_FREE;

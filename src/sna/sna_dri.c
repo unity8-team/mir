@@ -1769,7 +1769,7 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		if (info == NULL)
 			return false;
 
-		info->type = DRI2_FLIP_THROTTLE;
+		info->type = sna->flags & SNA_TRIPLE_BUFFER ? DRI2_FLIP_THROTTLE: DRI2_FLIP;
 
 		info->draw = draw;
 		info->client = client;

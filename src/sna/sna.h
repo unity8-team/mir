@@ -200,6 +200,7 @@ struct sna {
 #define SNA_NO_FLIP		0x8
 #define SNA_TEAR_FREE		0x10
 #define SNA_FORCE_SHADOW	0x20
+#define SNA_TRIPLE_BUFFER	0x40
 
 	unsigned watch_flush;
 
