@@ -471,7 +471,7 @@ cell_list_reset(struct cell_list *cells)
 	pool_reset(cells->cell_pool.base);
 }
 
-static struct cell *
+inline static struct cell *
 cell_list_alloc(struct cell_list *cells,
 		struct cell *tail,
 		int x)
