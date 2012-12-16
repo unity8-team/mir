@@ -1373,7 +1373,7 @@ gen7_bind_bo(struct sna *sna,
 	if (sna->kgem.gen == 075)
 		ss[7] |= HSW_SURFACE_SWIZZLE(RED, GREEN, BLUE, ALPHA);
 
-	kgem_bo_set_binding(bo, format, offset | is_scanout << 31);
+	kgem_bo_set_binding(bo, format | is_scanout << 31, offset);
 
 	DBG(("[%x] bind bo(handle=%d, addr=%d), format=%d, width=%d, height=%d, pitch=%d, tiling=%d -> %s\n",
 	     offset, bo->handle, ss[1],

@@ -1248,7 +1248,7 @@ gen6_bind_bo(struct sna *sna,
 	ss[4] = 0;
 	ss[5] = is_scanout ? 0 : 3 << 16;
 
-	kgem_bo_set_binding(bo, format, offset | is_scanout << 31);
+	kgem_bo_set_binding(bo, format | is_scanout << 31, offset);
 
 	DBG(("[%x] bind bo(handle=%d, addr=%d), format=%d, width=%d, height=%d, pitch=%d, tiling=%d -> %s\n",
 	     offset, bo->handle, ss[1],
