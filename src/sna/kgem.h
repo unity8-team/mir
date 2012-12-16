@@ -144,6 +144,7 @@ struct kgem {
 	} vma[NUM_MAP_TYPES];
 
 	uint32_t batch_flags;
+	uint32_t batch_flags_base;
 #define I915_EXEC_SECURE (1<<9)
 #define LOCAL_EXEC_OBJECT_WRITE (1<<2)
 

@@ -1138,6 +1138,12 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, unsigned gen)
 	if ((int)kgem->fence_max < 0)
 		kgem->fence_max = 5; /* minimum safe value for all hw */
 	DBG(("%s: max fences=%d\n", __FUNCTION__, kgem->fence_max));
+
+	kgem->batch_flags_base = 0;
+	if (kgem->has_no_reloc)
+		kgem->batch_flags_base |= LOCAL_I915_EXEC_NO_RELOC;
+	if (kgem->has_handle_lut)
+		kgem->batch_flags_base |= LOCAL_I915_EXEC_HANDLE_LUT;
 }
 
 /* XXX hopefully a good approximation */
@@ -2303,11 +2309,7 @@ void kgem_reset(struct kgem *kgem)
 	kgem->surface = kgem->batch_size;
 	kgem->mode = KGEM_NONE;
 	kgem->flush = 0;
-	kgem->batch_flags = 0;
-	if (kgem->has_no_reloc)
-		kgem->batch_flags |= LOCAL_I915_EXEC_NO_RELOC;
-	if (kgem->has_handle_lut)
-		kgem->batch_flags |= LOCAL_I915_EXEC_HANDLE_LUT;
+	kgem->batch_flags = kgem->batch_flags_base;
 
 	kgem->next_request = __kgem_request_alloc();
 
