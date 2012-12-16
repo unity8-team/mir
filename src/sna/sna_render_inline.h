@@ -226,17 +226,22 @@ inline static bool dst_use_gpu(PixmapPtr pixmap)
 	if (priv == NULL)
 		return false;
 
-	if (priv->gpu_damage && !priv->clear &&
-	    (!priv->cpu || !priv->cpu_damage || kgem_bo_is_busy(priv->gpu_bo)))
+	if (priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo))
 		return true;
 
-	return priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo);
+	if (priv->clear)
+		return false;
+
+	if (priv->gpu_bo && kgem_bo_is_busy(priv->gpu_bo))
+		return true;
+
+	return priv->gpu_damage && (!priv->cpu || !priv->cpu_damage);
 }
 
 inline static bool dst_use_cpu(PixmapPtr pixmap)
 {
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
-	if (priv == NULL)
+	if (priv == NULL || priv->shm)
 		return true;
 
 	return priv->cpu_damage && priv->cpu;
