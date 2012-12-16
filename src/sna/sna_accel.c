@@ -4567,7 +4567,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			    alu == GXcopy &&
 			    DAMAGE_IS_ALL(src_priv->cpu_damage) &&
 			    !__kgem_bo_is_busy(&sna->kgem, src_priv->cpu_bo) &&
-			    !__kgem_bo_is_busy(&sna->kgem, bo))
+			    (replaces || !__kgem_bo_is_busy(&sna->kgem, bo)))
 				goto fallback;
 
 			RegionTranslate(region, src_dx, src_dy);
