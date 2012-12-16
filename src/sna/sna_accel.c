@@ -4258,7 +4258,7 @@ sna_self_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	if (dst != src)
 		get_drawable_deltas(dst, pixmap, &tx, &ty);
 
-	if (priv == NULL || DAMAGE_IS_ALL(priv->cpu_damage))
+	if (priv == NULL || DAMAGE_IS_ALL(priv->cpu_damage) || priv->shm)
 		goto fallback;
 
 	if (priv->gpu_damage) {
@@ -4562,6 +4562,13 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			     __FUNCTION__));
 
 			assert(bo != dst_priv->cpu_bo);
+
+			if (src_priv->shm &&
+			    alu == GXcopy &&
+			    DAMAGE_IS_ALL(src_priv->cpu_damage) &&
+			    !__kgem_bo_is_busy(&sna->kgem, src_priv->cpu_bo) &&
+			    !__kgem_bo_is_busy(&sna->kgem, bo))
+				goto fallback;
 
 			RegionTranslate(region, src_dx, src_dy);
 			ret = sna_drawable_move_region_to_cpu(&src_pixmap->drawable,
