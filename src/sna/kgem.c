@@ -3908,7 +3908,8 @@ bool kgem_check_bo_fenced(struct kgem *kgem, struct kgem_bo *bo)
 			if (kgem->nfence >= kgem->fence_max)
 				return false;
 
-			if (3*kgem->aperture_fenced > kgem->aperture_mappable)
+			if (3*kgem->aperture_fenced > kgem->aperture_mappable &&
+			    kgem_ring_is_idle(kgem, kgem->ring))
 				return false;
 
 			size = kgem->aperture_fenced;
@@ -3937,7 +3938,8 @@ bool kgem_check_bo_fenced(struct kgem *kgem, struct kgem_bo *bo)
 		if (kgem->nfence >= kgem->fence_max)
 			return false;
 
-		if (3*kgem->aperture_fenced > kgem->aperture_mappable)
+		if (3*kgem->aperture_fenced > kgem->aperture_mappable &&
+		    kgem_ring_is_idle(kgem, kgem->ring))
 			return false;
 
 		size = kgem->aperture_fenced;
@@ -3987,7 +3989,8 @@ bool kgem_check_many_bo_fenced(struct kgem *kgem, ...)
 		if (kgem->nfence + num_fence > kgem->fence_max)
 			return false;
 
-		if (3*kgem->aperture_fenced > kgem->aperture_mappable)
+		if (3*kgem->aperture_fenced > kgem->aperture_mappable &&
+		    kgem_ring_is_idle(kgem, kgem->ring))
 			return false;
 
 		if (3*(fenced_size + kgem->aperture_fenced) > 2*kgem->aperture_mappable)
