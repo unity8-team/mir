@@ -2423,12 +2423,12 @@ static inline bool untiled_tlb_miss(struct kgem_bo *bo)
 	return bo->tiling == I915_TILING_NONE && bo->pitch >= 4096;
 }
 
-static bool prefer_blt_bo(struct sna *sna, struct kgem_bo *bo)
+static int prefer_blt_bo(struct sna *sna, struct kgem_bo *bo)
 {
-	if (RQ_IS_BLT(bo->rq))
-		return true;
+	if (bo->rq)
+		return RQ_IS_BLT(bo->rq) ? 1 : -1;
 
-	return untiled_tlb_miss(bo) && bo->pitch < MAXSHORT;
+	return bo->tiling == I915_TILING_NONE;
 }
 
 static bool
@@ -2670,11 +2670,15 @@ prefer_blt_composite(struct sna *sna, struct sna_composite_op *tmp)
 	if (sna->kgem.ring == KGEM_BLT)
 		return true;
 
+	if (untiled_tlb_miss(tmp->dst.bo) ||
+	    untiled_tlb_miss(tmp->src.bo))
+		return true;
+
 	if (!prefer_blt_ring(sna))
 		return false;
 
-	return (prefer_blt_bo(sna, tmp->dst.bo) ||
-		prefer_blt_bo(sna, tmp->src.bo));
+	return (prefer_blt_bo(sna, tmp->dst.bo) >= 0 &&
+		prefer_blt_bo(sna, tmp->src.bo) >= 0);
 }
 
 static bool
@@ -3299,9 +3303,15 @@ static inline bool prefer_blt_copy(struct sna *sna,
 	if (src_bo == dst_bo && can_switch_to_blt(sna))
 		return true;
 
-	return ((flags & COPY_LAST && sna->kgem.ring != KGEM_RENDER) ||
-		prefer_blt_bo(sna, src_bo) ||
-		prefer_blt_bo(sna, dst_bo));
+	if ((flags & COPY_LAST && sna->kgem.ring != KGEM_RENDER))
+		return true;
+
+	if (untiled_tlb_miss(src_bo) ||
+	    untiled_tlb_miss(dst_bo))
+		return true;
+
+	return (prefer_blt_bo(sna, src_bo) >= 0 &&
+		prefer_blt_bo(sna, dst_bo) >= 0);
 }
 
 inline static void boxes_extents(const BoxRec *box, int n, BoxRec *extents)
@@ -3699,9 +3709,12 @@ static inline bool prefer_blt_fill(struct sna *sna,
 	if (PREFER_RENDER)
 		return PREFER_RENDER < 0;
 
+	if (untiled_tlb_miss(bo))
+		return true;
+
 	return (can_switch_to_blt(sna) ||
 		prefer_blt_ring(sna) ||
-		untiled_tlb_miss(bo));
+		prefer_blt_bo(sna, bo) >= 0);
 }
 
 static bool
