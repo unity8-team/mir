@@ -170,6 +170,7 @@ struct kgem {
 	uint32_t has_relaxed_delta :1;
 	uint32_t has_semaphores :1;
 	uint32_t has_secure_batches :1;
+	uint32_t has_pinned_batches :1;
 	uint32_t has_cacheing :1;
 	uint32_t has_llc :1;
 	uint32_t has_no_reloc :1;

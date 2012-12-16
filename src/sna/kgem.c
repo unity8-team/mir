@@ -70,11 +70,17 @@ search_snoop_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags);
 #define DBG_NO_MAP_UPLOAD 0
 #define DBG_NO_RELAXED_FENCING 0
 #define DBG_NO_SECURE_BATCHES 0
+#define DBG_NO_PINNED_BATCHES 0
 #define DBG_NO_FAST_RELOC 0
 #define DBG_NO_HANDLE_LUT 0
 #define DBG_DUMP 0
 
 #define SHOW_BATCH 0
+
+#ifndef USE_PINNED_BATCHES
+#undef DBG_NO_PINNED_BATCHES
+#define DBG_NO_PINNED_BATCHES 1
+#endif
 
 #ifndef USE_FASTRELOC
 #undef DBG_NO_FAST_RELOC
@@ -110,11 +116,13 @@ search_snoop_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags);
 
 #define LOCAL_I915_PARAM_HAS_SEMAPHORES		20
 #define LOCAL_I915_PARAM_HAS_SECURE_BATCHES	23
-#define LOCAL_I915_PARAM_HAS_NO_RELOC		24
-#define LOCAL_I915_PARAM_HAS_HANDLE_LUT		25
+#define LOCAL_I915_PARAM_HAS_PINNED_BATCHES	24
+#define LOCAL_I915_PARAM_HAS_NO_RELOC		25
+#define LOCAL_I915_PARAM_HAS_HANDLE_LUT		26
 
-#define LOCAL_I915_EXEC_NO_RELOC		(1<<10)
-#define LOCAL_I915_EXEC_HANDLE_LUT		(1<<11)
+#define LOCAL_I915_EXEC_IS_PINNED		(1<<10)
+#define LOCAL_I915_EXEC_NO_RELOC		(1<<11)
+#define LOCAL_I915_EXEC_HANDLE_LUT		(1<<12)
 
 #define LOCAL_I915_GEM_USERPTR       0x32
 #define LOCAL_IOCTL_I915_GEM_USERPTR DRM_IOWR (DRM_COMMAND_BASE + LOCAL_I915_GEM_USERPTR, struct local_i915_gem_userptr)
@@ -828,6 +836,14 @@ static bool test_has_secure_batches(struct kgem *kgem)
 	return gem_param(kgem, LOCAL_I915_PARAM_HAS_SECURE_BATCHES) > 0;
 }
 
+static bool test_has_pinned_batches(struct kgem *kgem)
+{
+	if (DBG_NO_PINNED_BATCHES)
+		return false;
+
+	return gem_param(kgem, LOCAL_I915_PARAM_HAS_PINNED_BATCHES) > 0;
+}
+
 static int kgem_get_screen_index(struct kgem *kgem)
 {
 	struct sna *sna = container_of(kgem, struct sna, kgem);
@@ -943,7 +959,6 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, unsigned gen)
 	kgem->vma[MAP_GTT].count = -MAX_GTT_VMA_CACHE;
 	kgem->vma[MAP_CPU].count = -MAX_CPU_VMA_CACHE;
 
-
 	kgem->has_blt = gem_param(kgem, I915_PARAM_HAS_BLT) > 0;
 	DBG(("%s: has BLT ring? %d\n", __FUNCTION__,
 	     kgem->has_blt));
@@ -991,6 +1006,10 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, unsigned gen)
 	DBG(("%s: can use privileged batchbuffers? %d\n", __FUNCTION__,
 	     kgem->has_secure_batches));
 
+	kgem->has_pinned_batches = test_has_pinned_batches(kgem);
+	DBG(("%s: can use pinned batchbuffers (to avoid CS w/a)? %d\n", __FUNCTION__,
+	     kgem->has_pinned_batches));
+
 	if (!is_hw_supported(kgem, dev)) {
 		xf86DrvMsg(kgem_get_screen_index(kgem), X_WARNING,
 			   "Detected unsupported/dysfunctional hardware, disabling acceleration.\n");
@@ -1002,7 +1021,7 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, unsigned gen)
 	}
 
 	kgem->batch_size = ARRAY_SIZE(kgem->batch);
-	if (gen == 020)
+	if (gen == 020 && !kgem->has_pinned_batches)
 		/* Limited to what we can pin */
 		kgem->batch_size = 4*1024;
 	if (gen == 022)
@@ -1144,6 +1163,8 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, unsigned gen)
 		kgem->batch_flags_base |= LOCAL_I915_EXEC_NO_RELOC;
 	if (kgem->has_handle_lut)
 		kgem->batch_flags_base |= LOCAL_I915_EXEC_HANDLE_LUT;
+	if (kgem->has_pinned_batches)
+		kgem->batch_flags_base |= LOCAL_I915_EXEC_IS_PINNED;
 }
 
 /* XXX hopefully a good approximation */
@@ -2395,7 +2416,7 @@ out_16384:
 		}
 	}
 
-	if (kgem->gen == 020) {
+	if (kgem->gen == 020 && !kgem->has_pinned_batches) {
 		assert(size <= 16384);
 
 		bo = list_first_entry(&kgem->pinned_batches[size > 4096],
