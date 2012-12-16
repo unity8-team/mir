@@ -2406,7 +2406,7 @@ static bool prefer_blt_ring(struct sna *sna)
 
 static bool can_switch_to_blt(struct sna *sna)
 {
-	if (sna->kgem.ring == KGEM_BLT)
+	if (sna->kgem.ring != KGEM_RENDER)
 		return true;
 
 	if (NO_RING_SWITCH)
@@ -2415,8 +2415,7 @@ static bool can_switch_to_blt(struct sna *sna)
 	if (!sna->kgem.has_semaphores)
 		return false;
 
-	return (sna->kgem.mode == KGEM_NONE ||
-		kgem_ring_is_idle(&sna->kgem, KGEM_BLT));
+	return kgem_ring_is_idle(&sna->kgem, KGEM_BLT);
 }
 
 static inline bool untiled_tlb_miss(struct kgem_bo *bo)
@@ -2426,6 +2425,9 @@ static inline bool untiled_tlb_miss(struct kgem_bo *bo)
 
 static bool prefer_blt_bo(struct sna *sna, struct kgem_bo *bo)
 {
+	if (RQ_IS_BLT(bo->rq))
+		return true;
+
 	return untiled_tlb_miss(bo) && bo->pitch < MAXSHORT;
 }
 

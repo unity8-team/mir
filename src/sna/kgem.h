@@ -53,6 +53,10 @@ struct kgem_bo {
 #define IS_CPU_MAP(ptr) ((uintptr_t)(ptr) & 1)
 #define IS_GTT_MAP(ptr) (ptr && ((uintptr_t)(ptr) & 1) == 0)
 	struct kgem_request *rq;
+#define RQ(rq) ((struct kgem_request *)((uintptr_t)(rq) & ~3))
+#define RQ_RING(rq) ((uintptr_t)(rq) & 3)
+#define RQ_IS_BLT(rq) (RQ_RING(rq) == KGEM_BLT)
+
 	struct drm_i915_gem_exec_object2 *exec;
 
 	struct kgem_bo_binding {
@@ -586,7 +590,7 @@ static inline void __kgem_bo_mark_dirty(struct kgem_bo *bo)
 
 	bo->exec->flags |= LOCAL_EXEC_OBJECT_WRITE;
 	bo->needs_flush = bo->dirty = true;
-	list_move(&bo->request, &bo->rq->buffers);
+	list_move(&bo->request, &RQ(bo->rq)->buffers);
 }
 
 static inline void kgem_bo_mark_dirty(struct kgem_bo *bo)

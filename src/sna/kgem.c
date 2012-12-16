@@ -106,6 +106,8 @@ search_snoop_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags);
 #define IS_USER_MAP(ptr) ((uintptr_t)(ptr) & 2)
 #define __MAP_TYPE(ptr) ((uintptr_t)(ptr) & 3)
 
+#define MAKE_REQUEST(rq, ring) ((struct kgem_request *)((uintptr_t)(rq) | (ring)))
+
 #define LOCAL_I915_PARAM_HAS_SEMAPHORES		20
 #define LOCAL_I915_PARAM_HAS_SECURE_BATCHES	23
 #define LOCAL_I915_PARAM_HAS_NO_RELOC		24
@@ -1332,7 +1334,7 @@ kgem_add_handle(struct kgem *kgem, struct kgem_bo *bo)
 static void kgem_add_bo(struct kgem *kgem, struct kgem_bo *bo)
 {
 	bo->exec = kgem_add_handle(kgem, bo);
-	bo->rq = kgem->next_request;
+	bo->rq = MAKE_REQUEST(kgem->next_request, kgem->ring);
 
 	list_move_tail(&bo->request, &kgem->next_request->buffers);
 
@@ -1845,7 +1847,7 @@ static bool kgem_retire__requests_ring(struct kgem *kgem, int ring)
 					      struct kgem_bo,
 					      request);
 
-			assert(bo->rq == rq);
+			assert(RQ(bo->rq) == rq);
 			assert(bo->exec == NULL);
 			assert(bo->domain == DOMAIN_GPU);
 
@@ -2005,7 +2007,7 @@ static void kgem_commit(struct kgem *kgem)
 		assert(!bo->purged);
 		assert(bo->exec);
 		assert(bo->proxy == NULL || bo->exec == &_kgem_dummy_exec);
-		assert(bo->rq == rq || (bo->proxy->rq == rq));
+		assert(RQ(bo->rq) == rq || (RQ(bo->proxy->rq) == rq));
 
 		bo->presumed_offset = bo->exec->offset;
 		bo->exec = NULL;
@@ -2125,7 +2127,7 @@ static void kgem_finish_buffers(struct kgem *kgem)
 		}
 
 		assert(bo->need_io);
-		assert(bo->base.rq == kgem->next_request);
+		assert(bo->base.rq == MAKE_REQUEST(kgem->next_request, kgem->ring));
 		assert(bo->base.domain != DOMAIN_GPU);
 
 		if (bo->base.refcnt == 1 &&
@@ -2452,7 +2454,7 @@ void _kgem_submit(struct kgem *kgem)
 
 		rq->bo->target_handle = kgem->has_handle_lut ? i : handle;
 		rq->bo->exec = &kgem->exec[i];
-		rq->bo->rq = rq; /* useful sanity check */
+		rq->bo->rq = MAKE_REQUEST(rq, kgem->ring); /* useful sanity check */
 		list_add(&rq->bo->request, &rq->buffers);
 		rq->ring = kgem->ring == KGEM_BLT;
 
@@ -4039,7 +4041,8 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 			if (bo->exec == NULL) {
 				list_move_tail(&bo->request,
 					       &kgem->next_request->buffers);
-				bo->rq = kgem->next_request;
+				bo->rq = MAKE_REQUEST(kgem->next_request,
+						      kgem->ring);
 				bo->exec = &_kgem_dummy_exec;
 			}
 
@@ -4053,7 +4056,8 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 
 		if (bo->exec == NULL)
 			kgem_add_bo(kgem, bo);
-		assert(bo->rq == kgem->next_request);
+		assert(bo->rq == MAKE_REQUEST(kgem->next_request, kgem->ring));
+		assert(RQ_RING(bo->rq) == kgem->ring);
 
 		if (kgem->gen < 040 && read_write_domain & KGEM_RELOC_FENCED) {
 			if (bo->tiling &&
