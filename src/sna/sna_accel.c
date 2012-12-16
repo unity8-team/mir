@@ -29,6 +29,7 @@
 #include "config.h"
 #endif
 
+#include "intel_options.h"
 #include "sna.h"
 #include "sna_reg.h"
 #include "rop.h"
@@ -14208,6 +14209,17 @@ static bool sna_picture_init(ScreenPtr screen)
 	return true;
 }
 
+static bool sna_option_accel_blt(struct sna *sna)
+{
+	const char *s;
+
+	s = xf86GetOptValString(sna->Options, OPTION_ACCEL_METHOD);
+	if (s == NULL)
+		return false;
+
+	return strcasecmp(s, "blt") == 0;
+}
+
 bool sna_accel_init(ScreenPtr screen, struct sna *sna)
 {
 	const char *backend;
@@ -14286,8 +14298,7 @@ bool sna_accel_init(ScreenPtr screen, struct sna *sna)
 	sna->have_render = false;
 	no_render_init(sna);
 
-#if !DEBUG_NO_RENDER
-	if (sna->info->gen >= 0100) {
+	if (sna_option_accel_blt(sna) || sna->info->gen >= 0100) {
 	} else if (sna->info->gen >= 070) {
 		if ((sna->have_render = gen7_render_init(sna)))
 			backend = "IvyBridge";
@@ -14307,7 +14318,6 @@ bool sna_accel_init(ScreenPtr screen, struct sna *sna)
 		if ((sna->have_render = gen2_render_init(sna)))
 			backend = "gen2";
 	}
-#endif
 	DBG(("%s(backend=%s, have_render=%d)\n",
 	     __FUNCTION__, backend, sna->have_render));
 
