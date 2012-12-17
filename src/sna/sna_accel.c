@@ -496,14 +496,14 @@ static inline uint32_t default_tiling(PixmapPtr pixmap,
 	struct sna *sna = to_sna_from_pixmap(pixmap);
 
 	/* Try to avoid hitting the Y-tiling GTT mapping bug on 855GM */
-	if (sna->kgem.gen == 21)
+	if (sna->kgem.gen == 021)
 		return I915_TILING_X;
 
 	/* Only on later generations was the render pipeline
 	 * more flexible than the BLT. So on gen2/3, prefer to
 	 * keep large objects accessible through the BLT.
 	 */
-	if (sna->kgem.gen < 40 &&
+	if (sna->kgem.gen < 040 &&
 	    (pixmap->drawable.width  > sna->render.max_3d_size ||
 	     pixmap->drawable.height > sna->render.max_3d_size))
 		return I915_TILING_X;
@@ -1158,19 +1158,29 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 		goto fallback;
 	}
 
-	if (!can_render(sna))
+	if (unlikely(!sna->have_render))
+		flags &= ~KGEM_CAN_CREATE_GPU;
+	if (wedged(sna))
 		flags = 0;
 
-	if (usage == CREATE_PIXMAP_USAGE_SCRATCH) {
+	switch (usage) {
+	case CREATE_PIXMAP_USAGE_SCRATCH:
 		if (flags & KGEM_CAN_CREATE_GPU)
 			return sna_pixmap_create_scratch(screen,
 							 width, height, depth,
 							 I915_TILING_X);
 		else
 			goto fallback;
-	}
 
-	if (usage == SNA_CREATE_SCRATCH) {
+	case SNA_CREATE_GLYPHS:
+		if (flags & KGEM_CAN_CREATE_GPU)
+			return sna_pixmap_create_scratch(screen,
+							 width, height, depth,
+							 -I915_TILING_Y);
+		else
+			goto fallback;
+
+	case SNA_CREATE_SCRATCH:
 		if (flags & KGEM_CAN_CREATE_GPU)
 			return sna_pixmap_create_scratch(screen,
 							 width, height, depth,
@@ -3790,7 +3800,7 @@ sna_put_xybitmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	x += dx + drawable->x;
 	y += dy + drawable->y;
 
-	kgem_set_mode(&sna->kgem, KGEM_BLT);
+	kgem_set_mode(&sna->kgem, KGEM_BLT, bo);
 
 	/* Region is pre-clipped and translated into pixmap space */
 	box = REGION_RECTS(region);
@@ -3840,7 +3850,7 @@ sna_put_xybitmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 		b[0] = XY_MONO_SRC_COPY | 3 << 20;
 		b[0] |= ((box->x1 - x) & 7) << 17;
 		b[1] = bo->pitch;
-		if (sna->kgem.gen >= 40 && bo->tiling) {
+		if (sna->kgem.gen >= 040 && bo->tiling) {
 			b[0] |= BLT_DST_TILED;
 			b[1] >>= 2;
 		}
@@ -3912,7 +3922,7 @@ sna_put_xypixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	x += dx + drawable->x;
 	y += dy + drawable->y;
 
-	kgem_set_mode(&sna->kgem, KGEM_BLT);
+	kgem_set_mode(&sna->kgem, KGEM_BLT, bo);
 
 	skip = h * BitmapBytePad(w + left);
 	for (i = 1 << (gc->depth-1); i; i >>= 1, bits += skip) {
@@ -3968,7 +3978,7 @@ sna_put_xypixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 			b[0] = XY_FULL_MONO_PATTERN_MONO_SRC_BLT | 3 << 20;
 			b[0] |= ((box->x1 - x) & 7) << 17;
 			b[1] = bo->pitch;
-			if (sna->kgem.gen >= 40 && bo->tiling) {
+			if (sna->kgem.gen >= 040 && bo->tiling) {
 				b[0] |= BLT_DST_TILED;
 				b[1] >>= 2;
 			}
@@ -4726,6 +4736,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 					goto fallback;
 			}
 
+			assert(dst_priv->clear == false);
 			dst_priv->cpu = false;
 			if (damage) {
 				assert(dst_priv->gpu_bo->proxy == NULL);
@@ -6120,14 +6131,14 @@ sna_copy_bitmap_blt(DrawablePtr _bitmap, DrawablePtr drawable, GCPtr gc,
 
 	br00 = 3 << 20;
 	br13 = arg->bo->pitch;
-	if (sna->kgem.gen >= 40 && arg->bo->tiling) {
+	if (sna->kgem.gen >= 040 && arg->bo->tiling) {
 		br00 |= BLT_DST_TILED;
 		br13 >>= 2;
 	}
 	br13 |= blt_depth(drawable->depth) << 24;
 	br13 |= copy_ROP[gc->alu] << 16;
 
-	kgem_set_mode(&sna->kgem, KGEM_BLT);
+	kgem_set_mode(&sna->kgem, KGEM_BLT, arg->bo);
 	do {
 		int bx1 = (box->x1 + sx) & ~7;
 		int bx2 = (box->x2 + sx + 7) & ~7;
@@ -6284,14 +6295,14 @@ sna_copy_plane_blt(DrawablePtr source, DrawablePtr drawable, GCPtr gc,
 
 	br00 = XY_MONO_SRC_COPY | 3 << 20;
 	br13 = arg->bo->pitch;
-	if (sna->kgem.gen >= 40 && arg->bo->tiling) {
+	if (sna->kgem.gen >= 040 && arg->bo->tiling) {
 		br00 |= BLT_DST_TILED;
 		br13 >>= 2;
 	}
 	br13 |= blt_depth(drawable->depth) << 24;
 	br13 |= copy_ROP[gc->alu] << 16;
 
-	kgem_set_mode(&sna->kgem, KGEM_BLT);
+	kgem_set_mode(&sna->kgem, KGEM_BLT, arg->bo);
 	do {
 		int bx1 = (box->x1 + sx) & ~7;
 		int bx2 = (box->x2 + sx + 7) & ~7;
@@ -9882,7 +9893,7 @@ sna_poly_fill_rect_tiled_8x8_blt(DrawablePtr drawable,
 	DBG(("%s x %d [(%d, %d)x(%d, %d)...], clipped=%x\n",
 	     __FUNCTION__, n, r->x, r->y, r->width, r->height, clipped));
 
-	kgem_set_mode(&sna->kgem, KGEM_BLT);
+	kgem_set_mode(&sna->kgem, KGEM_BLT, bo);
 	if (!kgem_check_batch(&sna->kgem, 8+2*3) ||
 	    !kgem_check_reloc(&sna->kgem, 2) ||
 	    !kgem_check_bo_fenced(&sna->kgem, bo)) {
@@ -9892,7 +9903,7 @@ sna_poly_fill_rect_tiled_8x8_blt(DrawablePtr drawable,
 
 	br00 = XY_SCANLINE_BLT;
 	br13 = bo->pitch;
-	if (sna->kgem.gen >= 40 && bo->tiling) {
+	if (sna->kgem.gen >= 040 && bo->tiling) {
 		br00 |= BLT_DST_TILED;
 		br13 >>= 2;
 	}
@@ -10496,7 +10507,7 @@ sna_poly_fill_rect_stippled_8x8_blt(DrawablePtr drawable,
 		DBG(("%s: pat offset (%d, %d)\n", __FUNCTION__ ,px, py));
 		br00 = XY_SCANLINE_BLT | px << 12 | py << 8 | 3 << 20;
 		br13 = bo->pitch;
-		if (sna->kgem.gen >= 40 && bo->tiling) {
+		if (sna->kgem.gen >= 040 && bo->tiling) {
 			br00 |= BLT_DST_TILED;
 			br13 >>= 2;
 		}
@@ -10516,7 +10527,7 @@ sna_poly_fill_rect_stippled_8x8_blt(DrawablePtr drawable,
 		} while (--j);
 	}
 
-	kgem_set_mode(&sna->kgem, KGEM_BLT);
+	kgem_set_mode(&sna->kgem, KGEM_BLT, bo);
 	if (!kgem_check_batch(&sna->kgem, 9 + 2*3) ||
 	    !kgem_check_bo_fenced(&sna->kgem, bo) ||
 	    !kgem_check_reloc(&sna->kgem, 1)) {
@@ -10792,11 +10803,11 @@ sna_poly_fill_rect_stippled_1_blt(DrawablePtr drawable,
 	     origin->x, origin->y));
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
-	kgem_set_mode(&sna->kgem, KGEM_BLT);
+	kgem_set_mode(&sna->kgem, KGEM_BLT, bo);
 
 	br00 = 3 << 20;
 	br13 = bo->pitch;
-	if (sna->kgem.gen >= 40 && bo->tiling) {
+	if (sna->kgem.gen >= 040 && bo->tiling) {
 		br00 |= BLT_DST_TILED;
 		br13 >>= 2;
 	}
@@ -11488,11 +11499,11 @@ sna_poly_fill_rect_stippled_n_blt__imm(DrawablePtr drawable,
 	     clipped, gc->alu, gc->fillStyle == FillOpaqueStippled));
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
-	kgem_set_mode(&sna->kgem, KGEM_BLT);
+	kgem_set_mode(&sna->kgem, KGEM_BLT, bo);
 
 	br00 = XY_MONO_SRC_COPY_IMM | 3 << 20;
 	br13 = bo->pitch;
-	if (sna->kgem.gen >= 40 && bo->tiling) {
+	if (sna->kgem.gen >= 040 && bo->tiling) {
 		br00 |= BLT_DST_TILED;
 		br13 >>= 2;
 	}
@@ -11633,11 +11644,11 @@ sna_poly_fill_rect_stippled_n_blt(DrawablePtr drawable,
 							      extents, clipped);
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
-	kgem_set_mode(&sna->kgem, KGEM_BLT);
+	kgem_set_mode(&sna->kgem, KGEM_BLT, bo);
 
 	br00 = XY_MONO_SRC_COPY | 3 << 20;
 	br13 = bo->pitch;
-	if (sna->kgem.gen >= 40 && bo->tiling) {
+	if (sna->kgem.gen >= 040 && bo->tiling) {
 		br00 |= BLT_DST_TILED;
 		br13 >>= 2;
 	}
@@ -12274,7 +12285,7 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 				   bo, drawable->bitsPerPixel,
 				   bg, extents, REGION_NUM_RECTS(clip));
 
-	kgem_set_mode(&sna->kgem, KGEM_BLT);
+	kgem_set_mode(&sna->kgem, KGEM_BLT, bo);
 	if (!kgem_check_batch(&sna->kgem, 16) ||
 	    !kgem_check_bo_fenced(&sna->kgem, bo) ||
 	    !kgem_check_reloc(&sna->kgem, 1)) {
@@ -12290,7 +12301,7 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 	b = sna->kgem.batch + sna->kgem.nbatch;
 	b[0] = XY_SETUP_BLT | 3 << 20;
 	b[1] = bo->pitch;
-	if (sna->kgem.gen >= 40 && bo->tiling) {
+	if (sna->kgem.gen >= 040 && bo->tiling) {
 		b[0] |= BLT_DST_TILED;
 		b[1] >>= 2;
 	}
@@ -12308,7 +12319,7 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 	sna->kgem.nbatch += 8;
 
 	br00 = XY_TEXT_IMMEDIATE_BLT;
-	if (bo->tiling && sna->kgem.gen >= 40)
+	if (bo->tiling && sna->kgem.gen >= 040)
 		br00 |= BLT_DST_TILED;
 
 	do {
@@ -12353,7 +12364,7 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 				b = sna->kgem.batch + sna->kgem.nbatch;
 				b[0] = XY_SETUP_BLT | 3 << 20;
 				b[1] = bo->pitch;
-				if (sna->kgem.gen >= 40 && bo->tiling) {
+				if (sna->kgem.gen >= 040 && bo->tiling) {
 					b[0] |= BLT_DST_TILED;
 					b[1] >>= 2;
 				}
@@ -12919,7 +12930,7 @@ sna_reversed_glyph_blt(DrawablePtr drawable, GCPtr gc,
 				   bo, drawable->bitsPerPixel,
 				   bg, extents, REGION_NUM_RECTS(clip));
 
-	kgem_set_mode(&sna->kgem, KGEM_BLT);
+	kgem_set_mode(&sna->kgem, KGEM_BLT, bo);
 	if (!kgem_check_batch(&sna->kgem, 16) ||
 	    !kgem_check_bo_fenced(&sna->kgem, bo) ||
 	    !kgem_check_reloc(&sna->kgem, 1)) {
@@ -12934,7 +12945,7 @@ sna_reversed_glyph_blt(DrawablePtr drawable, GCPtr gc,
 	b = sna->kgem.batch + sna->kgem.nbatch;
 	b[0] = XY_SETUP_BLT | 1 << 20;
 	b[1] = bo->pitch;
-	if (sna->kgem.gen >= 40 && bo->tiling) {
+	if (sna->kgem.gen >= 040 && bo->tiling) {
 		b[0] |= BLT_DST_TILED;
 		b[1] >>= 2;
 	}
@@ -13015,7 +13026,7 @@ sna_reversed_glyph_blt(DrawablePtr drawable, GCPtr gc,
 				b = sna->kgem.batch + sna->kgem.nbatch;
 				b[0] = XY_SETUP_BLT | 1 << 20;
 				b[1] = bo->pitch;
-				if (sna->kgem.gen >= 40 && bo->tiling) {
+				if (sna->kgem.gen >= 040 && bo->tiling) {
 					b[0] |= BLT_DST_TILED;
 					b[1] >>= 2;
 				}
@@ -13038,7 +13049,7 @@ sna_reversed_glyph_blt(DrawablePtr drawable, GCPtr gc,
 			sna->kgem.nbatch += 3 + len;
 
 			b[0] = XY_TEXT_IMMEDIATE_BLT | (1 + len);
-			if (bo->tiling && sna->kgem.gen >= 40)
+			if (bo->tiling && sna->kgem.gen >= 040)
 				b[0] |= BLT_DST_TILED;
 			b[1] = (uint16_t)y1 << 16 | (uint16_t)x1;
 			b[2] = (uint16_t)(y1+h) << 16 | (uint16_t)(x1+w);
@@ -13299,7 +13310,7 @@ sna_push_pixels_solid_blt(GCPtr gc,
 	     region->extents.x1, region->extents.y1,
 	     region->extents.x2, region->extents.y2));
 
-	kgem_set_mode(&sna->kgem, KGEM_BLT);
+	kgem_set_mode(&sna->kgem, KGEM_BLT, bo);
 
 	/* Region is pre-clipped and translated into pixmap space */
 	box = REGION_RECTS(region);
@@ -13350,7 +13361,7 @@ sna_push_pixels_solid_blt(GCPtr gc,
 		b[0] = XY_MONO_SRC_COPY | 3 << 20;
 		b[0] |= ((box->x1 - region->extents.x1) & 7) << 17;
 		b[1] = bo->pitch;
-		if (sna->kgem.gen >= 40 && bo->tiling) {
+		if (sna->kgem.gen >= 040 && bo->tiling) {
 			b[0] |= BLT_DST_TILED;
 			b[1] >>= 2;
 		}
@@ -14170,6 +14181,8 @@ static bool sna_picture_init(ScreenPtr screen)
 
 	ps = GetPictureScreen(screen);
 	assert(ps != NULL);
+	assert(ps->CreatePicture != NULL);
+	assert(ps->DestroyPicture != NULL);
 
 	ps->Composite = sna_composite;
 	ps->CompositeRects = sna_composite_rectangles;
@@ -14267,26 +14280,23 @@ bool sna_accel_init(ScreenPtr screen, struct sna *sna)
 	no_render_init(sna);
 
 #if !DEBUG_NO_RENDER
-	if (sna->info->gen >= 80) {
-	} else if (sna->info->gen >= 70) {
+	if (sna->info->gen >= 0100) {
+	} else if (sna->info->gen >= 070) {
 		if ((sna->have_render = gen7_render_init(sna)))
 			backend = "IvyBridge";
-	} else if (sna->info->gen >= 60) {
+	} else if (sna->info->gen >= 060) {
 		if ((sna->have_render = gen6_render_init(sna)))
 			backend = "SandyBridge";
-	} else if (sna->info->gen >= 50) {
+	} else if (sna->info->gen >= 050) {
 		if ((sna->have_render = gen5_render_init(sna)))
 			backend = "Ironlake";
-	} else if (sna->info->gen >= 45) {
-		if ((sna->have_render = g4x_render_init(sna)))
-			backend = "Eaglelake/Cantiga";
-	} else if (sna->info->gen >= 40) {
+	} else if (sna->info->gen >= 040) {
 		if ((sna->have_render = gen4_render_init(sna)))
 			backend = "Broadwater/Crestline";
-	} else if (sna->info->gen >= 30) {
+	} else if (sna->info->gen >= 030) {
 		if ((sna->have_render = gen3_render_init(sna)))
 			backend = "gen3";
-	} else if (sna->info->gen >= 20) {
+	} else if (sna->info->gen >= 020) {
 		if ((sna->have_render = gen2_render_init(sna)))
 			backend = "gen2";
 	}
@@ -14369,7 +14379,9 @@ void sna_accel_block_handler(struct sna *sna, struct timeval **tv)
 	if (sna->timer_active)
 		UpdateCurrentTimeIf();
 
-	if (sna->kgem.nbatch && kgem_is_idle(&sna->kgem)) {
+	if (sna->kgem.nbatch &&
+	    (sna->kgem.scanout_busy ||
+	     kgem_ring_is_idle(&sna->kgem, sna->kgem.ring))) {
 		DBG(("%s: GPU idle, flushing\n", __FUNCTION__));
 		_kgem_submit(&sna->kgem);
 	}
@@ -14421,6 +14433,8 @@ set_tv:
 			(*tv)->tv_usec = timeout % 1000 * 1000;
 		}
 	}
+
+	sna->kgem.scanout_busy = false;
 }
 
 void sna_accel_wakeup_handler(struct sna *sna)
@@ -14429,7 +14443,7 @@ void sna_accel_wakeup_handler(struct sna *sna)
 
 	if (sna->kgem.need_retire)
 		kgem_retire(&sna->kgem);
-	if (sna->kgem.nbatch && kgem_is_idle(&sna->kgem)) {
+	if (sna->kgem.nbatch && !sna->kgem.need_retire) {
 		DBG(("%s: GPU idle, flushing\n", __FUNCTION__));
 		_kgem_submit(&sna->kgem);
 	}

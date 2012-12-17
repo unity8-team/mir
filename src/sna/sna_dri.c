@@ -100,7 +100,8 @@ struct sna_dri_frame_event {
 struct sna_dri_private {
 	PixmapPtr pixmap;
 	struct kgem_bo *bo;
-	unsigned long serial;
+	bool scanout;
+	uint32_t size;
 	int refcnt;
 };
 
@@ -241,12 +242,15 @@ sna_dri_create_buffer(DrawablePtr draw,
 	struct sna_dri_private *private;
 	PixmapPtr pixmap;
 	struct kgem_bo *bo;
+	unsigned flags = CREATE_EXACT;
+	uint32_t size;
 	int bpp;
 
 	DBG(("%s(attachment=%d, format=%d, drawable=%dx%d)\n",
 	     __FUNCTION__, attachment, format, draw->width, draw->height));
 
 	pixmap = NULL;
+	size = (uint32_t)draw->height << 16 | draw->width;
 	switch (attachment) {
 	case DRI2BufferFrontLeft:
 		pixmap = get_drawable_pixmap(draw);
@@ -279,6 +283,9 @@ sna_dri_create_buffer(DrawablePtr draw,
 		     __FUNCTION__,
 		     pixmap->drawable.width, pixmap->drawable.height,
 		     pixmap, pixmap->refcnt));
+		if (pixmap == sna->front)
+			flags |= CREATE_SCANOUT;
+		size = (uint32_t)pixmap->drawable.height << 16 | pixmap->drawable.width;
 		break;
 
 	case DRI2BufferBackLeft:
@@ -287,12 +294,15 @@ sna_dri_create_buffer(DrawablePtr draw,
 	case DRI2BufferFakeFrontLeft:
 	case DRI2BufferFakeFrontRight:
 		bpp = draw->bitsPerPixel;
+		if (draw->width  == sna->front->drawable.width &&
+		    draw->height == sna->front->drawable.height)
+			flags |= CREATE_SCANOUT;
 		bo = kgem_create_2d(&sna->kgem,
 				    draw->width,
 				    draw->height,
 				    draw->bitsPerPixel,
 				    color_tiling(sna, draw),
-				    CREATE_SCANOUT | CREATE_EXACT);
+				    flags);
 		break;
 
 	case DRI2BufferStencil:
@@ -323,7 +333,7 @@ sna_dri_create_buffer(DrawablePtr draw,
 		bo = kgem_create_2d(&sna->kgem,
 				    ALIGN(draw->width, 64),
 				    ALIGN((draw->height + 1) / 2, 64),
-				    bpp, I915_TILING_NONE, CREATE_EXACT);
+				    bpp, I915_TILING_NONE, flags);
 		break;
 
 	case DRI2BufferDepth:
@@ -334,7 +344,7 @@ sna_dri_create_buffer(DrawablePtr draw,
 		bo = kgem_create_2d(&sna->kgem,
 				    draw->width, draw->height, bpp,
 				    other_tiling(sna, draw),
-				    CREATE_EXACT);
+				    flags);
 		break;
 
 	default:
@@ -358,7 +368,8 @@ sna_dri_create_buffer(DrawablePtr draw,
 	private->refcnt = 1;
 	private->bo = bo;
 	private->pixmap = pixmap;
-	private->serial = get_drawable_pixmap(draw)->drawable.serialNumber;
+	private->scanout = !!(flags & CREATE_SCANOUT);
+	private->size = size;
 
 	if (buffer->name == 0)
 		goto err;
@@ -492,19 +503,17 @@ static void set_bo(PixmapPtr pixmap, struct kgem_bo *bo)
 	DamageRegionProcessPending(&pixmap->drawable);
 }
 
-static void sna_dri_select_mode(struct sna *sna, struct kgem_bo *src, bool sync)
+static void sna_dri_select_mode(struct sna *sna, struct kgem_bo *dst, struct kgem_bo *src, bool sync)
 {
 	struct drm_i915_gem_busy busy;
 	int mode;
 
-	if (sna->kgem.gen < 60) {
-		kgem_set_mode(&sna->kgem, KGEM_BLT);
+	if (sna->kgem.gen < 060)
 		return;
-	}
 
 	if (sync) {
 		DBG(("%s: sync, force RENDER ring\n", __FUNCTION__));
-		kgem_set_mode(&sna->kgem, KGEM_RENDER);
+		kgem_set_mode(&sna->kgem, KGEM_RENDER, dst);
 		return;
 	}
 
@@ -515,7 +524,7 @@ static void sna_dri_select_mode(struct sna *sna, struct kgem_bo *src, bool sync)
 
 	if (sna->kgem.has_semaphores) {
 		DBG(("%s: have sempahores, prefering RENDER\n", __FUNCTION__));
-		kgem_set_mode(&sna->kgem, KGEM_RENDER);
+		kgem_set_mode(&sna->kgem, KGEM_RENDER, dst);
 		return;
 	}
 
@@ -526,8 +535,14 @@ static void sna_dri_select_mode(struct sna *sna, struct kgem_bo *src, bool sync)
 
 	DBG(("%s: src busy?=%x\n", __FUNCTION__, busy.busy));
 	if (busy.busy == 0) {
-		DBG(("%s: src is idle, using defaults\n", __FUNCTION__));
-		return;
+		busy.handle = dst->handle;
+		if (drmIoctl(sna->kgem.fd, DRM_IOCTL_I915_GEM_BUSY, &busy))
+			return;
+		DBG(("%s: dst busy?=%x\n", __FUNCTION__, busy.busy));
+		if (busy.busy == 0) {
+			DBG(("%s: src/dst is idle, using defaults\n", __FUNCTION__));
+			return;
+		}
 	}
 
 	/* Sandybridge introduced a separate ring which it uses to
@@ -611,7 +626,7 @@ sna_dri_copy_to_front(struct sna *sna, DrawablePtr draw, RegionPtr region,
 		if (sync)
 			sync = sna_pixmap_is_scanout(sna, pixmap);
 
-		sna_dri_select_mode(sna, src_bo, sync);
+		sna_dri_select_mode(sna, dst_bo, src_bo, sync);
 	} else
 		sync = false;
 
@@ -755,7 +770,7 @@ sna_dri_copy_from_front(struct sna *sna, DrawablePtr draw, RegionPtr region,
 				      dst_bo, -draw->x, -draw->y,
 				      boxes, n);
 	} else {
-		sna_dri_select_mode(sna, src_bo, false);
+		sna_dri_select_mode(sna, dst_bo, src_bo, false);
 		sna->render.copy_boxes(sna, GXcopy,
 				       pixmap, src_bo, dx, dy,
 				       (PixmapPtr)draw, dst_bo, -draw->x, -draw->y,
@@ -804,7 +819,7 @@ sna_dri_copy(struct sna *sna, DrawablePtr draw, RegionPtr region,
 				      dst_bo, 0, 0,
 				      boxes, n);
 	} else {
-		sna_dri_select_mode(sna, src_bo, false);
+		sna_dri_select_mode(sna, dst_bo, src_bo, false);
 		sna->render.copy_boxes(sna, GXcopy,
 				       (PixmapPtr)draw, src_bo, 0, 0,
 				       (PixmapPtr)draw, dst_bo, 0, 0,
@@ -821,14 +836,14 @@ can_blit(struct sna * sna,
 	 DRI2BufferPtr front,
 	 DRI2BufferPtr back)
 {
-	PixmapPtr pixmap;
+	uint32_t f, b;
 
 	if (draw->type == DRAWABLE_PIXMAP)
 		return true;
 
-	pixmap = get_drawable_pixmap(draw);
-	return (get_private(front)->serial == pixmap->drawable.serialNumber &&
-		get_private(back)->serial  == pixmap->drawable.serialNumber);
+	f = get_private(front)->size;
+	b = get_private(back)->size;
+	return (f >> 16) >= (b >> 16) && (f & 0xffff) >= (b & 0xffff);
 }
 
 static void
@@ -1093,16 +1108,19 @@ can_flip(struct sna * sna,
 		return false;
 	}
 
-	assert(get_private(front)->pixmap == sna->front);
-	assert(get_private(front)->serial == pixmap->drawable.serialNumber);
-
-	if (get_private(back)->serial != pixmap->drawable.serialNumber) {
-		DBG(("%s: no, DRI2 drawable has a stale reference to the pixmap (DRI2 pixmap=%ld, X pixmap=%ld)\n",
-		     __FUNCTION__,
-		     get_private(back)->serial,
-		     pixmap->drawable.serialNumber));
+	if (!get_private(front)->scanout) {
+		DBG(("%s: no, DRI2 drawable not attached at time of creation)\n",
+		     __FUNCTION__));
 		return false;
 	}
+	assert(get_private(front)->pixmap == sna->front);
+
+	if (!get_private(back)->scanout) {
+		DBG(("%s: no, DRI2 drawable was too small at time of creation)\n",
+		     __FUNCTION__));
+		return false;
+	}
+	assert(get_private(back)->size == get_private(front)->size);
 
 	DBG(("%s: window size: %dx%d, clip=(%d, %d), (%d, %d) x %d\n",
 	     __FUNCTION__,
@@ -1160,6 +1178,12 @@ can_exchange(struct sna * sna,
 	WindowPtr win = (WindowPtr)draw;
 	PixmapPtr pixmap;
 
+	/* XXX There is an inherent race between the DRI2 client and the DRI2
+	 * compositor which is only masked if we force a blit and serialise
+	 * the operations through the kernel command queue. Hopeless.
+	 */
+	return false;
+
 	if (front->format != back->format) {
 		DBG(("%s: no, format mismatch, front = %d, back = %d\n",
 		     __FUNCTION__, front->format, back->format));
@@ -1193,14 +1217,19 @@ can_exchange(struct sna * sna,
 		return false;
 	}
 
-	assert(get_private(front)->serial == pixmap->drawable.serialNumber);
-	if (get_private(back)->serial != pixmap->drawable.serialNumber) {
-		DBG(("%s: no, DRI2 drawable has a stale reference to the pixmap (DRI2 pixmap=%ld, X pixmap=%ld)\n",
-		     __FUNCTION__,
-		     get_private(back)->serial,
-		     pixmap->drawable.serialNumber));
+	if (!get_private(front)->scanout) {
+		DBG(("%s: no, DRI2 drawable not attached at time of creation)\n",
+		     __FUNCTION__));
 		return false;
 	}
+	assert(get_private(front)->pixmap == sna->front);
+
+	if (!get_private(back)->scanout) {
+		DBG(("%s: no, DRI2 drawable was too small at time of creation)\n",
+		     __FUNCTION__));
+		return false;
+	}
+	assert(get_private(back)->size == get_private(front)->size);
 
 	return true;
 }
@@ -1712,10 +1741,20 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 			return false;
 	}
 
+	/* Get current count */
+	if (*target_msc) {
+		vbl.request.type = DRM_VBLANK_RELATIVE | pipe_select(pipe);
+		vbl.request.sequence = 0;
+		if (sna_wait_vblank(sna, &vbl))
+			return false;
+		current_msc = vbl.reply.sequence;
+	} else
+		current_msc = 0;
+
 	/* Truncate to match kernel interfaces; means occasional overflow
 	 * misses, but that's generally not a big deal */
 	divisor &= 0xffffffff;
-	if (divisor == 0) {
+	if (divisor == 0 && current_msc >= *target_msc) {
 		DBG(("%s: performing immediate swap on pipe %d, pending? %d\n",
 		     __FUNCTION__, pipe, sna->dri.flip_pending != NULL));
 
@@ -1730,7 +1769,7 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		if (info == NULL)
 			return false;
 
-		info->type = DRI2_FLIP_THROTTLE;
+		info->type = sna->flags & SNA_TRIPLE_BUFFER ? DRI2_FLIP_THROTTLE: DRI2_FLIP;
 
 		info->draw = draw;
 		info->client = client;
@@ -1759,15 +1798,8 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		sna_dri_page_flip(sna, info);
 
 		if (info->count == 0) {
-			info->back->name = info->old_front.name;
-			get_private(info->back)->bo = info->old_front.bo;
-			info->old_front.bo = NULL;
-
-			DRI2SwapComplete(info->client, draw, 0, 0, 0,
-					 DRI2_EXCHANGE_COMPLETE,
-					 info->event_complete,
-					 info->event_data);
 			sna_dri_frame_event_info_free(sna, draw, info);
+			return false;
 		} else if (info->type != DRI2_FLIP) {
 			get_private(info->back)->bo =
 				kgem_create_2d(&sna->kgem,
@@ -1808,15 +1840,6 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		sna_dri_reference_buffer(front);
 		sna_dri_reference_buffer(back);
 
-		/* Get current count */
-		vbl.request.type = DRM_VBLANK_RELATIVE | pipe_select(pipe);
-		vbl.request.sequence = 0;
-		if (sna_wait_vblank(sna, &vbl)) {
-			sna_dri_frame_event_info_free(sna, draw, info);
-			return false;
-		}
-
-		current_msc = vbl.reply.sequence;
 		*target_msc &= 0xffffffff;
 		remainder &= 0xffffffff;
 
@@ -1843,6 +1866,9 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 			     (int)current_msc,
 			     (int)*target_msc,
 			     (int)divisor));
+
+			if (divisor == 0)
+				divisor = 1;
 
 			vbl.request.sequence = current_msc - current_msc % divisor + remainder;
 
@@ -2055,7 +2081,18 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	sna_dri_reference_buffer(back);
 
 	info->type = swap_type;
-	if (divisor == 0) {
+
+	if (*target_msc) {
+		/* Get current count */
+		vbl.request.type = DRM_VBLANK_RELATIVE | pipe_select(pipe);
+		vbl.request.sequence = 0;
+		if (sna_wait_vblank(sna, &vbl))
+			goto blit_fallback;
+		current_msc = vbl.reply.sequence;
+	} else
+		current_msc = 0;
+
+	if (divisor == 0 && current_msc >= *target_msc) {
 		if (can_exchange(sna, draw, front, back)) {
 			sna_dri_immediate_xchg(sna, draw, info);
 		} else if (can_blit(sna, draw, front, back)) {
@@ -2067,14 +2104,6 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		}
 		return TRUE;
 	}
-
-	/* Get current count */
-	vbl.request.type = DRM_VBLANK_RELATIVE | pipe_select(pipe);
-	vbl.request.sequence = 0;
-	if (sna_wait_vblank(sna, &vbl))
-		goto blit_fallback;
-
-	current_msc = vbl.reply.sequence;
 
 	/*
 	 * If divisor is zero, or current_msc is smaller than target_msc
@@ -2112,6 +2141,9 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	     (int)current_msc,
 	     (int)*target_msc,
 	     (int)divisor));
+
+	if (divisor == 0)
+		divisor = 1;
 
 	vbl.request.type =
 		DRM_VBLANK_ABSOLUTE |
@@ -2419,7 +2451,7 @@ static const char *dri_driver_name(struct sna *sna)
 	Bool dummy;
 
 	if (s == NULL || xf86getBoolValue(&dummy, s))
-		return (sna->kgem.gen && sna->kgem.gen < 40) ? "i915" : "i965";
+		return sna->kgem.gen < 040 ? "i915" : "i965";
 
 	return s;
 }

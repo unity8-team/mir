@@ -929,13 +929,6 @@ gen3_composite_emit_shader(struct sna *sna,
 	if (mask->u.gen3.type == SHADER_NONE)
 		mask = NULL;
 
-	if (mask && src->is_opaque &&
-	    gen3_blend_op[blend].src_alpha &&
-	    op->has_component_alpha) {
-		src = mask;
-		mask = NULL;
-	}
-
 	id = (src->u.gen3.type |
 	      src->is_affine << 4 |
 	      src->alpha_fixup << 5 |
@@ -1298,9 +1291,9 @@ static void gen3_emit_invariant(struct sna *sna)
 #define MAX_OBJECTS 3 /* worst case: dst + src + mask  */
 
 static void
-gen3_get_batch(struct sna *sna)
+gen3_get_batch(struct sna *sna, const struct sna_composite_op *op)
 {
-	kgem_set_mode(&sna->kgem, KGEM_RENDER);
+	kgem_set_mode(&sna->kgem, KGEM_RENDER, op->dst.bo);
 
 	if (!kgem_check_batch(&sna->kgem, 200)) {
 		DBG(("%s: flushing batch: size %d > %d\n",
@@ -1389,7 +1382,7 @@ static void gen3_emit_composite_state(struct sna *sna,
 	unsigned int tex_count, n;
 	uint32_t ss2;
 
-	gen3_get_batch(sna);
+	gen3_get_batch(sna, op);
 
 	if (kgem_bo_is_dirty(op->src.bo) || kgem_bo_is_dirty(op->mask.bo)) {
 		if (op->src.bo == op->dst.bo || op->mask.bo == op->dst.bo)
@@ -1775,7 +1768,8 @@ static bool gen3_rectangle_begin(struct sna *sna,
 		}
 	}
 
-	if (sna->kgem.nbatch == 2 + state->last_vertex_offset) {
+	if (sna->kgem.nbatch == 2 + state->last_vertex_offset &&
+	    !op->need_magic_ca_pass) {
 		state->vertex_offset = state->last_vertex_offset;
 	} else {
 		state->vertex_offset = sna->kgem.nbatch;
@@ -2682,9 +2676,9 @@ gen3_composite_fallback(struct sna *sna,
 
 	if (mask &&
 	    mask->componentAlpha && PICT_FORMAT_RGB(mask->format) &&
-	    op != PictOpOver &&
-	    gen3_blend_op[op].src_blend != BLENDFACT_ZERO)
-	{
+	    gen3_blend_op[op].src_alpha &&
+	    gen3_blend_op[op].src_blend != BLENDFACT_ZERO &&
+	    op != PictOpOver) {
 		DBG(("%s: component-alpha mask with op=%d, should fallback\n",
 		     __FUNCTION__, op));
 		return true;
@@ -2731,9 +2725,9 @@ gen3_composite_fallback(struct sna *sna,
 		return true;
 	}
 
-	DBG(("%s: dst is not on the GPU and the operation should not fallback\n",
-	     __FUNCTION__));
-	return false;
+	DBG(("%s: dst is not on the GPU and the operation should not fallback: use-cpu? %d\n",
+	     __FUNCTION__, dst_use_cpu(dst_pixmap)));
+	return dst_use_cpu(dst_pixmap);
 }
 
 static int
@@ -2922,13 +2916,12 @@ gen3_render_composite(struct sna *sna,
 					tmp->mask.u.gen3.type = SHADER_NONE;
 					tmp->has_component_alpha = false;
 				} else if (gen3_blend_op[op].src_alpha &&
-					   (gen3_blend_op[op].src_blend != BLENDFACT_ZERO)) {
+					   gen3_blend_op[op].src_blend != BLENDFACT_ZERO) {
 					if (op != PictOpOver)
 						goto cleanup_mask;
 
 					tmp->need_magic_ca_pass = true;
 					tmp->op = PictOpOutReverse;
-					sna->render.vertex_start = sna->render.vertex_index;
 				}
 			} else {
 				if (tmp->mask.is_opaque) {
@@ -3528,7 +3521,8 @@ gen3_emit_video_state(struct sna *sna,
 		      struct sna_video_frame *frame,
 		      PixmapPtr pixmap,
 		      struct kgem_bo *dst_bo,
-		      int width, int height)
+		      int width, int height,
+		      bool bilinear)
 {
 	struct gen3_render_state *state = &sna->render_state.gen3;
 	uint32_t id, ms3, rewind;
@@ -3841,9 +3835,9 @@ gen3_emit_video_state(struct sna *sna,
 }
 
 static void
-gen3_video_get_batch(struct sna *sna)
+gen3_video_get_batch(struct sna *sna, struct kgem_bo *bo)
 {
-	kgem_set_mode(&sna->kgem, KGEM_RENDER);
+	kgem_set_mode(&sna->kgem, KGEM_RENDER, bo);
 
 	if (!kgem_check_batch(&sna->kgem, 120) ||
 	    !kgem_check_reloc(&sna->kgem, 4) ||
@@ -3887,6 +3881,7 @@ gen3_render_video(struct sna *sna,
 	float src_scale_x, src_scale_y;
 	int pix_xoff, pix_yoff;
 	struct kgem_bo *dst_bo;
+	bool bilinear;
 	int copy = 0;
 
 	DBG(("%s: %dx%d -> %dx%d\n", __FUNCTION__, src_w, src_h, drw_w, drw_h));
@@ -3927,6 +3922,8 @@ gen3_render_video(struct sna *sna,
 #endif
 	}
 
+	bilinear = src_w != drw_w || src_h != drw_h;
+
 	src_scale_x = ((float)src_w / frame->width) / drw_w;
 	src_scale_y = ((float)src_h / frame->height) / drw_h;
 
@@ -3934,15 +3931,15 @@ gen3_render_video(struct sna *sna,
 	     __FUNCTION__,
 	     dxo, dyo, src_scale_x, src_scale_y, pix_xoff, pix_yoff));
 
-	gen3_video_get_batch(sna);
+	gen3_video_get_batch(sna, dst_bo);
 	gen3_emit_video_state(sna, video, frame, pixmap,
-			      dst_bo, width, height);
+			      dst_bo, width, height, bilinear);
 	do {
 		int nbox_this_time = gen3_get_inline_rectangles(sna, nbox, 4);
 		if (nbox_this_time == 0) {
-			gen3_video_get_batch(sna);
+			gen3_video_get_batch(sna, dst_bo);
 			gen3_emit_video_state(sna, video, frame, pixmap,
-					      dst_bo, width, height);
+					      dst_bo, width, height, bilinear);
 			nbox_this_time = gen3_get_inline_rectangles(sna, nbox, 4);
 		}
 		nbox -= nbox_this_time;

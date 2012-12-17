@@ -1,3 +1,60 @@
+Release 2.20.16 (2012-12-15)
+============================
+Rejoice! We have found a trick to make 830gm/845g stable at long last.
+Ever since the switch to GEM and dynamic video memory, those early
+second generation chipsets have been plagued by instability. The lack of
+flushing cachelines from the CPU to GMCH was eventually solved by using
+an undocmented bit, but 830/845 were still hanging under memory pressure.
+These deaths were all due to garbage finding its way into the command
+streamer, and they go away if we take a leaf out of the original driver
+and never reuse those pages for anything else. So for the first time
+ever, I have been able to complete running the test suite on an 845g,
+even whilst thrashing the page and buffer caches!
+
+ * Run the SF stage as single-threaded on gen4 to workaround a few issues
+   https://bugs.freedesktop.org/show_bug.cgi?id=57410
+
+ * Keep the scanout SURFACE_STATE separate to avoid overriding its
+   memory access control on gen6/7 (i.e. writes to the scanout need to
+   be kept out of the render cache)
+
+ * Tune batch flushing after an operation to an exported surface under a
+   compositor.
+
+ * Make sure the source is on the CPU for inplace composition of trapezoids
+   using the CPU
+   https://bugs.freedesktop.org/show_bug.cgi?id=56825
+
+ * Immediately flush in the block hander after a split batch to reduce
+   latency between the two halves of an operation.
+   https://bugs.freedesktop.org/show_bug.cgi?id=51718
+
+ * Install a fallback config if we fail to install the desired config
+   at VT switch (i.e. booting, after resume with 3 incompatible pipes on
+   Ivybridge)
+
+ * Pin batches to avoid CS incoherence on 830/845
+   https://bugs.freedesktop.org/show_bug.cgi?id=26345
+
+
+Release 2.20.15 (2012-12-03)
+============================
+And lo, enabling more of the common acceleration paths for gen4 revealed
+another lurking bug - something is wrong with how we prepare Y-tiling
+surfaces for rendering. For the time being, we can surreptiously disable
+them for gen4 and avoid hitting GPU hangs.
+
+ * Avoid clobbering the render state after failing to convert the
+   operation to use the blitter.
+   https://bugs.freedesktop.org/show_bug.cgi?id=57601
+
+ * Disable shadow tracking upon server regeneration, and so fix a crash
+   if you restart the server whilst a RandR transform (e.g. rotation) is
+   in effect.
+   https://bugs.freedesktop.org/show_bug.cgi?id=52255
+   https://bugs.freedesktop.org/show_bug.cgi?id=56608
+
+
 Release 2.20.14 (2012-11-26)
 ============================
 The highlight of this release is gen4, from 965g to gm45. Quite an old

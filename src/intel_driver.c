@@ -325,7 +325,7 @@ static int intel_init_bufmgr(intel_screen_private *intel)
 
 	list_init(&intel->batch_pixmaps);
 
-	if ((INTEL_INFO(intel)->gen == 60)) {
+	if ((INTEL_INFO(intel)->gen == 060)) {
 		intel->wa_scratch_bo =
 			drm_intel_bo_alloc(intel->bufmgr, "wa scratch",
 					   4096, 4096);
@@ -411,7 +411,7 @@ static Bool can_accelerate_blt(struct intel_screen_private *intel)
 		return FALSE;
 	}
 
-	if (INTEL_INFO(intel)->gen == 60) {
+	if (INTEL_INFO(intel)->gen == 060) {
 		struct pci_device *const device = intel->PciInfo;
 
 		/* Sandybridge rev07 locks up easily, even with the
@@ -426,7 +426,7 @@ static Bool can_accelerate_blt(struct intel_screen_private *intel)
 		}
 	}
 
-	if (INTEL_INFO(intel)->gen >= 60) {
+	if (INTEL_INFO(intel)->gen >= 060) {
 		drm_i915_getparam_t gp;
 		int value;
 
@@ -587,7 +587,7 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 	intel->has_relaxed_fencing =
 		xf86ReturnOptValBool(intel->Options,
 				     OPTION_RELAXED_FENCING,
-				     INTEL_INFO(intel)->gen >= 33);
+				     INTEL_INFO(intel)->gen >= 033);
 	/* And override the user if there is no kernel support */
 	if (intel->has_relaxed_fencing)
 		intel->has_relaxed_fencing = has_relaxed_fencing(intel);
@@ -929,7 +929,7 @@ I830ScreenInit(SCREEN_INIT_ARGS_DECL)
 
 	intel_batch_init(scrn);
 
-	if (INTEL_INFO(intel)->gen >= 40)
+	if (INTEL_INFO(intel)->gen >= 040)
 		gen4_render_state_init(scrn);
 
 	miClearVisualTypes();
@@ -1022,7 +1022,7 @@ I830ScreenInit(SCREEN_INIT_ARGS_DECL)
 	xf86DPMSInit(screen, xf86DPMSSet, 0);
 
 #ifdef INTEL_XVMC
-	if (INTEL_INFO(intel)->gen >= 40)
+	if (INTEL_INFO(intel)->gen >= 040)
 		intel->XvMCEnabled = TRUE;
 	from = ((intel->directRenderingType == DRI_DRI2) &&
 		xf86GetOptValBool(intel->Options, OPTION_XVMC,
@@ -1184,7 +1184,7 @@ static Bool I830CloseScreen(CLOSE_SCREEN_ARGS_DECL)
 
 	intel_batch_teardown(scrn);
 
-	if (INTEL_INFO(intel)->gen >= 40)
+	if (INTEL_INFO(intel)->gen >= 040)
 		gen4_render_state_cleanup(scrn);
 
 	xf86_cursors_fini(screen);

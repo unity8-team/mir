@@ -71,14 +71,14 @@ static int create_context(ScrnInfoPtr scrn, XvMCContextPtr pContext,
 
 	*num_priv = sizeof(struct sna_xvmc_hw_context) >> 2;
 
-	if (sna->kgem.gen >= 40) {
-		if (sna->kgem.gen >= 45)
+	if (sna->kgem.gen >= 040) {
+		if (sna->kgem.gen >= 045)
 			contextRec->type = XVMC_I965_MPEG2_VLD;
 		else
 			contextRec->type = XVMC_I965_MPEG2_MC;
-		contextRec->i965.is_g4x = sna->kgem.gen == 45;
+		contextRec->i965.is_g4x = sna->kgem.gen == 045;
 		contextRec->i965.is_965_q = IS_965_Q(sna);
-		contextRec->i965.is_igdng = sna->kgem.gen == 50;
+		contextRec->i965.is_igdng = sna->kgem.gen == 050;
 	} else {
 		contextRec->type = XVMC_I915_MPEG2_MC;
 		contextRec->i915.use_phys_addr = 0;
@@ -196,11 +196,11 @@ Bool sna_video_xvmc_setup(struct sna *sna,
 	char buf[64];
 
 	/* Needs KMS support. */
-	if (sna->kgem.gen < 31)
+	if (sna->kgem.gen < 031)
 		return FALSE;
 
 	/* Not implemented */
-	if (sna->kgem.gen >= 60)
+	if (sna->kgem.gen >= 060)
 		return FALSE;
 
 	pAdapt = calloc(1, sizeof(XF86MCAdaptorRec));
@@ -217,11 +217,11 @@ Bool sna_video_xvmc_setup(struct sna *sna,
 	pAdapt->CreateSubpicture =  create_subpicture;
 	pAdapt->DestroySubpicture = destroy_subpicture;
 
-	if (sna->kgem.gen >= 45) {
+	if (sna->kgem.gen >= 045) {
 		name = "xvmc_vld",
 		pAdapt->num_surfaces = ARRAY_SIZE(surface_info_vld);
 		pAdapt->surfaces = surface_info_vld;
-	} else if (sna->kgem.gen >= 40) {
+	} else if (sna->kgem.gen >= 040) {
 		name = "i965_xvmc",
 		pAdapt->num_surfaces = ARRAY_SIZE(surface_info_i965);
 		pAdapt->surfaces = surface_info_i965;

@@ -273,7 +273,7 @@ decode_2d(struct kgem *kgem, uint32_t offset)
 				 kgem_debug_handle_is_fenced(kgem, reloc->target_handle),
 				 kgem_debug_handle_tiling(kgem, reloc->target_handle));
 		kgem_debug_print(data, offset, 5, "color\n");
-		assert(kgem->gen >= 40 ||
+		assert(kgem->gen >= 040 ||
 		       kgem_debug_handle_is_fenced(kgem, reloc->target_handle));
 		return len;
 
@@ -321,7 +321,7 @@ decode_2d(struct kgem *kgem, uint32_t offset)
 				 reloc->read_domains, reloc->write_domain,
 				 kgem_debug_handle_is_fenced(kgem, reloc->target_handle),
 				 kgem_debug_handle_tiling(kgem, reloc->target_handle));
-		assert(kgem->gen >= 40 ||
+		assert(kgem->gen >= 040 ||
 		       kgem_debug_handle_is_fenced(kgem, reloc->target_handle));
 
 		kgem_debug_print(data, offset, 5, "src (%d,%d)\n",
@@ -336,7 +336,7 @@ decode_2d(struct kgem *kgem, uint32_t offset)
 				 reloc->read_domains, reloc->write_domain,
 				 kgem_debug_handle_is_fenced(kgem, reloc->target_handle),
 				 kgem_debug_handle_tiling(kgem, reloc->target_handle));
-		assert(kgem->gen >= 40 ||
+		assert(kgem->gen >= 040 ||
 		       kgem_debug_handle_is_fenced(kgem, reloc->target_handle));
 
 		return len;
@@ -368,18 +368,18 @@ decode_2d(struct kgem *kgem, uint32_t offset)
 
 static int (*decode_3d(int gen))(struct kgem*, uint32_t)
 {
-	if (gen >= 80) {
-	} else if (gen >= 70) {
+	if (gen >= 0100) {
+	} else if (gen >= 070) {
 		return kgem_gen7_decode_3d;
-	} else if (gen >= 60) {
+	} else if (gen >= 060) {
 		return kgem_gen6_decode_3d;
-	} else if (gen >= 50) {
+	} else if (gen >= 050) {
 		return kgem_gen5_decode_3d;
-	} else if (gen >= 40) {
+	} else if (gen >= 040) {
 		return kgem_gen4_decode_3d;
-	} else if (gen >= 30) {
+	} else if (gen >= 030) {
 		return kgem_gen3_decode_3d;
-	} else if (gen >= 20) {
+	} else if (gen >= 020) {
 		return kgem_gen2_decode_3d;
 	}
 	assert(0);
@@ -387,18 +387,18 @@ static int (*decode_3d(int gen))(struct kgem*, uint32_t)
 
 static void (*finish_state(int gen))(struct kgem*)
 {
-	if (gen >= 80) {
-	} else if (gen >= 70) {
+	if (gen >= 0100) {
+	} else if (gen >= 070) {
 		return kgem_gen7_finish_state;
-	} else if (gen >= 60) {
+	} else if (gen >= 060) {
 		return kgem_gen6_finish_state;
-	} else if (gen >= 50) {
+	} else if (gen >= 050) {
 		return kgem_gen5_finish_state;
-	} else if (gen >= 40) {
+	} else if (gen >= 040) {
 		return kgem_gen4_finish_state;
-	} else if (gen >= 30) {
+	} else if (gen >= 030) {
 		return kgem_gen3_finish_state;
-	} else if (gen >= 20) {
+	} else if (gen >= 020) {
 		return kgem_gen2_finish_state;
 	}
 	assert(0);

@@ -197,12 +197,12 @@ sna_video_frame_init(struct sna *sna,
 	if (video->textured) {
 		align = 4;
 	} else {
-		if (sna->kgem.gen >= 40)
+		if (sna->kgem.gen >= 040)
 			/* Actually the alignment is 64 bytes, too. But the
 			 * stride must be at least 512 bytes. Take the easy fix
 			 * and align on 512 bytes unconditionally. */
 			align = 512;
-		else if (sna->kgem.gen < 21)
+		else if (sna->kgem.gen < 021)
 			/* Harsh, errata on these chipsets limit the stride
 			 * to be a multiple of 256 bytes.
 			 */
@@ -213,7 +213,7 @@ sna_video_frame_init(struct sna *sna,
 
 #if SNA_XVMC
 	/* for i915 xvmc, hw requires 1kb aligned surfaces */
-	if (id == FOURCC_XVMC && sna->kgem.gen < 40)
+	if (id == FOURCC_XVMC && sna->kgem.gen < 040)
 		align = 1024;
 #endif
 

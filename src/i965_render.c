@@ -1054,7 +1054,7 @@ i965_create_sampler_state(intel_screen_private *intel,
 			  sampler_state_extend_t mask_extend,
 			  drm_intel_bo * border_color_bo)
 {
-	if (INTEL_INFO(intel)->gen < 70)
+	if (INTEL_INFO(intel)->gen < 070)
 		return gen4_create_sampler_state(intel, src_filter, src_extend,
 						 mask_filter, mask_extend,
 						 border_color_bo);
@@ -1417,7 +1417,7 @@ i965_set_picture_surface_state(intel_screen_private *intel,
 			       PicturePtr picture, PixmapPtr pixmap,
 			       Bool is_dst)
 {
-    if (INTEL_INFO(intel)->gen < 70)
+    if (INTEL_INFO(intel)->gen < 070)
         return gen4_set_picture_surface_state(intel, picture, pixmap, is_dst);
     return gen7_set_picture_surface_state(intel, picture, pixmap, is_dst);
 }
@@ -1571,7 +1571,7 @@ static void i965_emit_composite_state(struct intel_screen_private *intel)
 		}
 
 		/* Match Mesa driver setup */
-		if (INTEL_INFO(intel)->gen >= 45)
+		if (INTEL_INFO(intel)->gen >= 045)
 			OUT_BATCH(NEW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
 		else
 			OUT_BATCH(BRW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
@@ -1751,7 +1751,7 @@ static Bool i965_composite_check_aperture(intel_screen_private *intel)
 		render_state->gen6_depth_stencil_bo,
 	};
 
-	if (INTEL_INFO(intel)->gen >= 60)
+	if (INTEL_INFO(intel)->gen >= 060)
 		return drm_intel_bufmgr_check_aperture_space(gen6_bo_table,
 							ARRAY_SIZE(gen6_bo_table)) == 0;
 	else
@@ -2181,7 +2181,7 @@ static void i965_select_vertex_buffer(struct intel_screen_private *intel)
 	if (intel->vertex_id & (1 << id))
 		return;
 
-	if (INTEL_INFO(intel)->gen >= 70)
+	if (INTEL_INFO(intel)->gen >= 070)
 		modifyenable = GEN7_VB0_ADDRESS_MODIFYENABLE;
 
 	/* Set up the pointer to our (single) vertex buffer */
@@ -2190,7 +2190,7 @@ static void i965_select_vertex_buffer(struct intel_screen_private *intel)
 	/* XXX could use multiple vbo to reduce relocations if
 	 * frequently switching between vertex sizes, like rgb10text.
 	 */
-	if (INTEL_INFO(intel)->gen >= 60) {
+	if (INTEL_INFO(intel)->gen >= 060) {
 		OUT_BATCH((id << GEN6_VB0_BUFFER_INDEX_SHIFT) |
 			  GEN6_VB0_VERTEXDATA |
 			  modifyenable |
@@ -2201,7 +2201,7 @@ static void i965_select_vertex_buffer(struct intel_screen_private *intel)
 			  (4*intel->floats_per_vertex << VB0_BUFFER_PITCH_SHIFT));
 	}
 	OUT_RELOC(intel->vertex_bo, I915_GEM_DOMAIN_VERTEX, 0, 0);
-	if (INTEL_INFO(intel)->gen >= 50)
+	if (INTEL_INFO(intel)->gen >= 050)
 		OUT_RELOC(intel->vertex_bo,
 			  I915_GEM_DOMAIN_VERTEX, 0,
 			  sizeof(intel->vertex_ptr) - 1);
@@ -2252,7 +2252,7 @@ i965_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 	if (intel->needs_render_state_emit) {
 		i965_bind_surfaces(intel);
 
-		if (INTEL_INFO(intel)->gen >= 60)
+		if (INTEL_INFO(intel)->gen >= 060)
 			gen6_emit_composite_state(intel);
 		else
 			i965_emit_composite_state(intel);
@@ -2271,7 +2271,7 @@ i965_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 	i965_select_vertex_buffer(intel);
 
 	if (intel->vertex_offset == 0) {
-		if (INTEL_INFO(intel)->gen >= 70) {
+		if (INTEL_INFO(intel)->gen >= 070) {
 			OUT_BATCH(BRW_3DPRIMITIVE | (7 - 2));
 			OUT_BATCH(BRW_3DPRIMITIVE_VERTEX_SEQUENTIAL |
 				  _3DPRIM_RECTLIST);
@@ -2298,7 +2298,7 @@ i965_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 			 w, h);
 	intel->vertex_index += 3;
 
-	if (INTEL_INFO(intel)->gen < 50) {
+	if (INTEL_INFO(intel)->gen < 050) {
 	    /* XXX OMG! */
 	    i965_vertex_flush(intel);
 	    OUT_BATCH(MI_FLUSH | MI_INHIBIT_RENDER_CACHE_FLUSH);
@@ -2355,7 +2355,7 @@ void gen4_render_state_init(ScrnInfoPtr scrn)
 		assert(intel->gen4_render_state != NULL);
 	}
 
-	if (INTEL_INFO(intel)->gen >= 60)
+	if (INTEL_INFO(intel)->gen >= 060)
 		return gen6_render_state_init(scrn);
 
 	render = intel->gen4_render_state;
@@ -2601,7 +2601,7 @@ gen6_composite_cc_state_pointers(intel_screen_private *intel,
 		cc_bo = render_state->cc_state_bo;
 		depth_stencil_bo = render_state->gen6_depth_stencil_bo;
 	}
-	if (INTEL_INFO(intel)->gen >= 70) {
+	if (INTEL_INFO(intel)->gen >= 070) {
 		gen7_upload_cc_state_pointers(intel, render_state->gen6_blend_bo, cc_bo, depth_stencil_bo, blend_offset);
 	} else {
 		gen6_upload_cc_state_pointers(intel, render_state->gen6_blend_bo, cc_bo, depth_stencil_bo, blend_offset);
@@ -2619,7 +2619,7 @@ gen6_composite_sampler_state_pointers(intel_screen_private *intel,
 
 	intel->gen6_render_state.samplers = bo;
 
-	if (INTEL_INFO(intel)->gen >= 70)
+	if (INTEL_INFO(intel)->gen >= 070)
 		gen7_upload_sampler_state_pointers(intel, bo);
 	else
 		gen6_upload_sampler_state_pointers(intel, bo);
@@ -2628,7 +2628,7 @@ gen6_composite_sampler_state_pointers(intel_screen_private *intel,
 static void
 gen6_composite_wm_constants(intel_screen_private *intel)
 {
-	Bool ivb = INTEL_INFO(intel)->gen >= 70;
+	Bool ivb = INTEL_INFO(intel)->gen >= 070;
 	/* disable WM constant buffer */
 	OUT_BATCH(GEN6_3DSTATE_CONSTANT_PS | ((ivb ? 7 : 5) - 2));
 	OUT_BATCH(0);
@@ -2652,7 +2652,7 @@ gen6_composite_sf_state(intel_screen_private *intel,
 
 	intel->gen6_render_state.num_sf_outputs = num_sf_outputs;
 
-	if (INTEL_INFO(intel)->gen >= 70)
+	if (INTEL_INFO(intel)->gen >= 070)
 		gen7_upload_sf_state(intel, num_sf_outputs, 1);
 	else
 		gen6_upload_sf_state(intel, num_sf_outputs, 1);
@@ -2839,7 +2839,7 @@ gen6_emit_composite_state(struct intel_screen_private *intel)
 	sampler_state_extend_t mask_extend = composite_op->mask_extend;
 	Bool is_affine = composite_op->is_affine;
 	Bool has_mask = intel->render_mask != NULL;
-	Bool ivb = INTEL_INFO(intel)->gen >= 70;
+	Bool ivb = INTEL_INFO(intel)->gen >= 070;
 	uint32_t src, dst;
 	drm_intel_bo *ps_sampler_state_bo = render->ps_sampler_state_bo[src_filter][src_extend][mask_filter][mask_extend];
 

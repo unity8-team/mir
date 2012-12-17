@@ -353,7 +353,7 @@ void I830InitVideo(ScreenPtr screen)
 	 * supported hardware.
 	 */
 	if (scrn->bitsPerPixel >= 16 &&
-	    INTEL_INFO(intel)->gen >= 30) {
+	    INTEL_INFO(intel)->gen >= 030) {
 		texturedAdaptor = I830SetupImageVideoTextured(screen);
 		if (texturedAdaptor != NULL) {
 			xf86DrvMsg(scrn->scrnIndex, X_INFO,
@@ -436,7 +436,7 @@ static XF86VideoAdaptorPtr I830SetupImageVideoOverlay(ScreenPtr screen)
 
 	adapt->pPortPrivates[0].ptr = (pointer) (adaptor_priv);
 	adapt->nAttributes = NUM_ATTRIBUTES;
-	if (INTEL_INFO(intel)->gen >= 30)
+	if (INTEL_INFO(intel)->gen >= 030)
 		adapt->nAttributes += GAMMA_ATTRIBUTES;	/* has gamma */
 	adapt->pAttributes =
 	    xnfalloc(sizeof(XF86AttributeRec) * adapt->nAttributes);
@@ -445,7 +445,7 @@ static XF86VideoAdaptorPtr I830SetupImageVideoOverlay(ScreenPtr screen)
 	memcpy((char *)att, (char *)Attributes,
 	       sizeof(XF86AttributeRec) * NUM_ATTRIBUTES);
 	att += NUM_ATTRIBUTES;
-	if (INTEL_INFO(intel)->gen >= 30) {
+	if (INTEL_INFO(intel)->gen >= 030) {
 		memcpy((char *)att, (char *)GammaAttributes,
 		       sizeof(XF86AttributeRec) * GAMMA_ATTRIBUTES);
 	}
@@ -495,7 +495,7 @@ static XF86VideoAdaptorPtr I830SetupImageVideoOverlay(ScreenPtr screen)
 	/* Allow the pipe to be switched from pipe A to B when in clone mode */
 	xvPipe = MAKE_ATOM("XV_PIPE");
 
-	if (INTEL_INFO(intel)->gen >= 30) {
+	if (INTEL_INFO(intel)->gen >= 030) {
 		xvGamma0 = MAKE_ATOM("XV_GAMMA0");
 		xvGamma1 = MAKE_ATOM("XV_GAMMA1");
 		xvGamma2 = MAKE_ATOM("XV_GAMMA2");
@@ -681,17 +681,17 @@ I830SetPortAttributeOverlay(ScrnInfoPtr scrn,
 			adaptor_priv->desired_crtc = NULL;
 		else
 			adaptor_priv->desired_crtc = xf86_config->crtc[value];
-	} else if (attribute == xvGamma0 && (INTEL_INFO(intel)->gen >= 30)) {
+	} else if (attribute == xvGamma0 && (INTEL_INFO(intel)->gen >= 030)) {
 		adaptor_priv->gamma0 = value;
-	} else if (attribute == xvGamma1 && (INTEL_INFO(intel)->gen >= 30)) {
+	} else if (attribute == xvGamma1 && (INTEL_INFO(intel)->gen >= 030)) {
 		adaptor_priv->gamma1 = value;
-	} else if (attribute == xvGamma2 && (INTEL_INFO(intel)->gen >= 30)) {
+	} else if (attribute == xvGamma2 && (INTEL_INFO(intel)->gen >= 030)) {
 		adaptor_priv->gamma2 = value;
-	} else if (attribute == xvGamma3 && (INTEL_INFO(intel)->gen >= 30)) {
+	} else if (attribute == xvGamma3 && (INTEL_INFO(intel)->gen >= 030)) {
 		adaptor_priv->gamma3 = value;
-	} else if (attribute == xvGamma4 && (INTEL_INFO(intel)->gen >= 30)) {
+	} else if (attribute == xvGamma4 && (INTEL_INFO(intel)->gen >= 030)) {
 		adaptor_priv->gamma4 = value;
-	} else if (attribute == xvGamma5 && (INTEL_INFO(intel)->gen >= 30)) {
+	} else if (attribute == xvGamma5 && (INTEL_INFO(intel)->gen >= 030)) {
 		adaptor_priv->gamma5 = value;
 	} else if (attribute == xvColorKey) {
 		adaptor_priv->colorKey = value;
@@ -704,7 +704,7 @@ I830SetPortAttributeOverlay(ScrnInfoPtr scrn,
 	     attribute == xvGamma2 ||
 	     attribute == xvGamma3 ||
 	     attribute == xvGamma4 ||
-	     attribute == xvGamma5) && (INTEL_INFO(intel)->gen >= 30)) {
+	     attribute == xvGamma5) && (INTEL_INFO(intel)->gen >= 030)) {
 		OVERLAY_DEBUG("GAMMA\n");
 	}
 
@@ -739,17 +739,17 @@ I830GetPortAttribute(ScrnInfoPtr scrn,
 		if (c == xf86_config->num_crtc)
 			c = -1;
 		*value = c;
-	} else if (attribute == xvGamma0 && (INTEL_INFO(intel)->gen >= 30)) {
+	} else if (attribute == xvGamma0 && (INTEL_INFO(intel)->gen >= 030)) {
 		*value = adaptor_priv->gamma0;
-	} else if (attribute == xvGamma1 && (INTEL_INFO(intel)->gen >= 30)) {
+	} else if (attribute == xvGamma1 && (INTEL_INFO(intel)->gen >= 030)) {
 		*value = adaptor_priv->gamma1;
-	} else if (attribute == xvGamma2 && (INTEL_INFO(intel)->gen >= 30)) {
+	} else if (attribute == xvGamma2 && (INTEL_INFO(intel)->gen >= 030)) {
 		*value = adaptor_priv->gamma2;
-	} else if (attribute == xvGamma3 && (INTEL_INFO(intel)->gen >= 30)) {
+	} else if (attribute == xvGamma3 && (INTEL_INFO(intel)->gen >= 030)) {
 		*value = adaptor_priv->gamma3;
-	} else if (attribute == xvGamma4 && (INTEL_INFO(intel)->gen >= 30)) {
+	} else if (attribute == xvGamma4 && (INTEL_INFO(intel)->gen >= 030)) {
 		*value = adaptor_priv->gamma4;
-	} else if (attribute == xvGamma5 && (INTEL_INFO(intel)->gen >= 30)) {
+	} else if (attribute == xvGamma5 && (INTEL_INFO(intel)->gen >= 030)) {
 		*value = adaptor_priv->gamma5;
 	} else if (attribute == xvColorKey) {
 		*value = adaptor_priv->colorKey;
@@ -1313,18 +1313,18 @@ intel_wait_for_scanline(ScrnInfoPtr scrn, PixmapPtr pixmap,
 	 * of extra time for the blitter to start up and
 	 * do its job for a full height blit
 	 */
-	if (full_height && INTEL_INFO(intel)->gen < 40)
+	if (full_height && INTEL_INFO(intel)->gen < 040)
 		y2 -= 2;
 
 	if (pipe == 0) {
 		pipe = MI_LOAD_SCAN_LINES_DISPLAY_PIPEA;
 		event = MI_WAIT_FOR_PIPEA_SCAN_LINE_WINDOW;
-		if (full_height && INTEL_INFO(intel)->gen >= 40)
+		if (full_height && INTEL_INFO(intel)->gen >= 040)
 			event = MI_WAIT_FOR_PIPEA_SVBLANK;
 	} else {
 		pipe = MI_LOAD_SCAN_LINES_DISPLAY_PIPEB;
 		event = MI_WAIT_FOR_PIPEB_SCAN_LINE_WINDOW;
-		if (full_height && INTEL_INFO(intel)->gen >= 40)
+		if (full_height && INTEL_INFO(intel)->gen >= 040)
 			event = MI_WAIT_FOR_PIPEB_SVBLANK;
 	}
 
@@ -1381,7 +1381,7 @@ intel_setup_dst_params(ScrnInfoPtr scrn, intel_adaptor_private *adaptor_priv, sh
 	if (adaptor_priv->textured) {
 		pitchAlign = 4;
 	} else {
-		if (INTEL_INFO(intel)->gen >= 40)
+		if (INTEL_INFO(intel)->gen >= 040)
 			/* Actually the alignment is 64 bytes, too. But the
 			 * stride must be at least 512 bytes. Take the easy fix
 			 * and align on 512 bytes unconditionally. */
@@ -1561,16 +1561,16 @@ I830PutImageTextured(ScrnInfoPtr scrn,
 			return BadAlloc;
 	}
 
-	if (crtc && adaptor_priv->SyncToVblank != 0 && INTEL_INFO(intel)->gen < 60) {
+	if (crtc && adaptor_priv->SyncToVblank != 0 && INTEL_INFO(intel)->gen < 060) {
 		intel_wait_for_scanline(scrn, pixmap, crtc, clipBoxes);
 	}
 
-	if (INTEL_INFO(intel)->gen >= 60) {
+	if (INTEL_INFO(intel)->gen >= 060) {
 		Gen6DisplayVideoTextured(scrn, adaptor_priv, id, clipBoxes,
 					 width, height, dstPitch, dstPitch2,
 					 src_w, src_h,
 					 drw_w, drw_h, pixmap);
-	} else if (INTEL_INFO(intel)->gen >= 40) {
+	} else if (INTEL_INFO(intel)->gen >= 040) {
 		I965DisplayVideoTextured(scrn, adaptor_priv, id, clipBoxes,
 					 width, height, dstPitch, dstPitch2,
 					 src_w, src_h,

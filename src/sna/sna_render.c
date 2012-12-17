@@ -249,7 +249,7 @@ no_render_context_switch(struct kgem *kgem,
 	if (!kgem->mode)
 		return;
 
-	if (kgem_is_idle(kgem)) {
+	if (kgem_ring_is_idle(kgem, kgem->ring)) {
 		DBG(("%s: GPU idle, flushing\n", __FUNCTION__));
 		_kgem_submit(kgem);
 	}
@@ -1865,7 +1865,7 @@ sna_render_composite_redirect(struct sna *sna,
 
 			offset = box.x1 * op->dst.pixmap->drawable.bitsPerPixel / 8 / tile_width * tile_size;
 		} else {
-			if (sna->kgem.gen < 40) {
+			if (sna->kgem.gen < 040) {
 				box.y1 = box.y1 & ~3;
 				box.y2 = ALIGN(box.y2, 4);
 

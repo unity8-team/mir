@@ -94,7 +94,7 @@ unsigned long intel_get_fence_size(intel_screen_private *intel, unsigned long si
 	unsigned long i;
 	unsigned long start;
 
-	if (INTEL_INFO(intel)->gen >= 40 || intel->has_relaxed_fencing) {
+	if (INTEL_INFO(intel)->gen >= 040 || intel->has_relaxed_fencing) {
 		/* The 965 can have fences at any page boundary. */
 		return ALIGN(size, 4096);
 	} else {
@@ -127,7 +127,7 @@ intel_get_fence_pitch(intel_screen_private *intel, unsigned long pitch,
 		return pitch;
 
 	/* 965+ is flexible */
-	if (INTEL_INFO(intel)->gen >= 40)
+	if (INTEL_INFO(intel)->gen >= 040)
 		return ALIGN(pitch, tile_width);
 
 	/* Pre-965 needs power of two tile width */
@@ -173,7 +173,7 @@ static inline int intel_pad_drawable_width(int width)
 static size_t
 agp_aperture_size(struct pci_device *dev, int gen)
 {
-	return dev->regions[gen < 30 ? 0 : 2].size;
+	return dev->regions[gen < 030 ? 0 : 2].size;
 }
 
 static void intel_set_gem_max_sizes(ScrnInfoPtr scrn)

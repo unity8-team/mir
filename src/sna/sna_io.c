@@ -364,7 +364,7 @@ fallback:
 
 	cmd = XY_SRC_COPY_BLT_CMD;
 	src_pitch = src_bo->pitch;
-	if (kgem->gen >= 40 && src_bo->tiling) {
+	if (kgem->gen >= 040 && src_bo->tiling) {
 		cmd |= BLT_SRC_TILED;
 		src_pitch >>= 2;
 	}
@@ -378,9 +378,9 @@ fallback:
 	case 1: break;
 	}
 
-	kgem_set_mode(kgem, KGEM_BLT);
-	if (!kgem_check_reloc_and_exec(kgem, 2) ||
-	    !kgem_check_batch(kgem, 8) ||
+	kgem_set_mode(kgem, KGEM_BLT, dst_bo);
+	if (!kgem_check_batch(kgem, 8) ||
+	    !kgem_check_reloc_and_exec(kgem, 2) ||
 	    !kgem_check_many_bo_fenced(kgem, dst_bo, src_bo, NULL)) {
 		_kgem_submit(kgem);
 		_kgem_set_mode(kgem, KGEM_BLT);
@@ -483,7 +483,7 @@ fallback:
 
 static bool upload_inplace__tiled(struct kgem *kgem, struct kgem_bo *bo)
 {
-	if (kgem->gen < 50) /* bit17 swizzling :( */
+	if (kgem->gen < 050) /* bit17 swizzling :( */
 		return false;
 
 	if (bo->tiling != I915_TILING_X)
@@ -811,7 +811,7 @@ tile:
 
 	cmd = XY_SRC_COPY_BLT_CMD;
 	br13 = dst_bo->pitch;
-	if (kgem->gen >= 40 && dst_bo->tiling) {
+	if (kgem->gen >= 040 && dst_bo->tiling) {
 		cmd |= BLT_DST_TILED;
 		br13 >>= 2;
 	}
@@ -824,7 +824,7 @@ tile:
 	case 8: break;
 	}
 
-	kgem_set_mode(kgem, KGEM_BLT);
+	kgem_set_mode(kgem, KGEM_BLT, dst_bo);
 	if (!kgem_check_batch(kgem, 8) ||
 	    !kgem_check_reloc_and_exec(kgem, 2) ||
 	    !kgem_check_bo_fenced(kgem, dst_bo)) {
@@ -1180,7 +1180,7 @@ tile:
 
 	cmd = XY_SRC_COPY_BLT_CMD;
 	br13 = dst_bo->pitch;
-	if (kgem->gen >= 40 && dst_bo->tiling) {
+	if (kgem->gen >= 040 && dst_bo->tiling) {
 		cmd |= BLT_DST_TILED;
 		br13 >>= 2;
 	}
@@ -1193,9 +1193,9 @@ tile:
 	case 8: break;
 	}
 
-	kgem_set_mode(kgem, KGEM_BLT);
-	if (!kgem_check_reloc_and_exec(kgem, 2) ||
-	    !kgem_check_batch(kgem, 8) ||
+	kgem_set_mode(kgem, KGEM_BLT, dst_bo);
+	if (!kgem_check_batch(kgem, 8) ||
+	    !kgem_check_reloc_and_exec(kgem, 2) ||
 	    !kgem_check_bo_fenced(kgem, dst_bo)) {
 		_kgem_submit(kgem);
 		_kgem_set_mode(kgem, KGEM_BLT);
