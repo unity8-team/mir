@@ -79,7 +79,7 @@ void brw_set_compression_control(struct brw_compile *p,
 {
 	p->compressed = (compression_control == BRW_COMPRESSION_COMPRESSED);
 
-	if (p->gen >= 60) {
+	if (p->gen >= 060) {
 		/* Since we don't use the 32-wide support in gen6, we translate
 		 * the pre-gen6 compression control here.
 		 */

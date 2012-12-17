@@ -127,12 +127,12 @@ struct kgem {
 	struct list large_inactive;
 	struct list active[NUM_CACHE_BUCKETS][3];
 	struct list inactive[NUM_CACHE_BUCKETS];
+	struct list pinned_batches[2];
 	struct list snoop;
 	struct list batch_buffers, active_buffers;
 
 	struct list requests[2];
 	struct kgem_request *next_request;
-	uint32_t num_requests;
 
 	struct {
 		struct list inactive[NUM_CACHE_BUCKETS];
@@ -141,6 +141,7 @@ struct kgem {
 
 	uint32_t batch_flags;
 #define I915_EXEC_SECURE (1<<9)
+#define LOCAL_EXEC_OBJECT_WRITE (1<<2)
 
 	uint16_t nbatch;
 	uint16_t surface;
@@ -155,6 +156,7 @@ struct kgem {
 	uint32_t need_purge:1;
 	uint32_t need_retire:1;
 	uint32_t need_throttle:1;
+	uint32_t scanout_busy:1;
 	uint32_t busy:1;
 
 	uint32_t has_userptr :1;
@@ -207,7 +209,7 @@ struct kgem {
 #define KGEM_EXEC_SIZE(K) (int)(ARRAY_SIZE((K)->exec)-KGEM_EXEC_RESERVED)
 #define KGEM_RELOC_SIZE(K) (int)(ARRAY_SIZE((K)->reloc)-KGEM_RELOC_RESERVED)
 
-void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen);
+void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, unsigned gen);
 void kgem_reset(struct kgem *kgem);
 
 struct kgem_bo *kgem_create_map(struct kgem *kgem,
@@ -273,15 +275,16 @@ int kgem_bo_get_swizzling(struct kgem *kgem, struct kgem_bo *bo);
 
 void kgem_bo_retire(struct kgem *kgem, struct kgem_bo *bo);
 bool kgem_retire(struct kgem *kgem);
-bool __kgem_is_idle(struct kgem *kgem);
-static inline bool kgem_is_idle(struct kgem *kgem)
-{
-	if (kgem->num_requests == 0) {
-		DBG(("%s: no outstanding requests\n", __FUNCTION__));
-		return true;
-	}
 
-	return __kgem_is_idle(kgem);
+bool __kgem_ring_is_idle(struct kgem *kgem, int ring);
+static inline bool kgem_ring_is_idle(struct kgem *kgem, int ring)
+{
+	ring = ring == KGEM_BLT;
+
+	if (list_is_empty(&kgem->requests[ring]))
+		return true;
+
+	return __kgem_ring_is_idle(kgem, ring);
 }
 
 void _kgem_submit(struct kgem *kgem);
@@ -293,7 +296,7 @@ static inline void kgem_submit(struct kgem *kgem)
 
 static inline bool kgem_flush(struct kgem *kgem)
 {
-	return kgem->flush && kgem_is_idle(kgem);
+	return kgem->flush && kgem_ring_is_idle(kgem, kgem->ring);
 }
 
 static inline void kgem_bo_submit(struct kgem *kgem, struct kgem_bo *bo)
@@ -334,13 +337,18 @@ static inline void kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 
 void kgem_clear_dirty(struct kgem *kgem);
 
-static inline void kgem_set_mode(struct kgem *kgem, enum kgem_mode mode)
+static inline void kgem_set_mode(struct kgem *kgem,
+				 enum kgem_mode mode,
+				 struct kgem_bo *bo)
 {
 	assert(!kgem->wedged);
 
 #if DEBUG_FLUSH_BATCH
 	kgem_submit(kgem);
 #endif
+
+	if (kgem->nexec && bo->exec == NULL && kgem_ring_is_idle(kgem, kgem->ring))
+		kgem_submit(kgem);
 
 	if (kgem->mode == mode)
 		return;
@@ -460,7 +468,7 @@ static inline bool kgem_bo_blt_pitch_is_ok(struct kgem *kgem,
 					   struct kgem_bo *bo)
 {
 	int pitch = bo->pitch;
-	if (kgem->gen >= 40 && bo->tiling)
+	if (kgem->gen >= 040 && bo->tiling)
 		pitch /= 4;
 	if (pitch > MAXSHORT) {
 		DBG(("%s: can not blt to handle=%d, adjusted pitch=%d\n",
@@ -489,7 +497,7 @@ static inline bool __kgem_bo_is_mappable(struct kgem *kgem,
 	if (bo->domain == DOMAIN_GTT)
 		return true;
 
-	if (kgem->gen < 40 && bo->tiling &&
+	if (kgem->gen < 040 && bo->tiling &&
 	    bo->presumed_offset & (kgem_bo_fenced_size(kgem, bo) - 1))
 		return false;
 
@@ -528,7 +536,7 @@ static inline bool kgem_bo_can_map(struct kgem *kgem, struct kgem_bo *bo)
 	if (!bo->tiling && kgem->has_llc)
 		return true;
 
-	if (kgem->gen == 21 && bo->tiling == I915_TILING_Y)
+	if (kgem->gen == 021 && bo->tiling == I915_TILING_Y)
 		return false;
 
 	return kgem_bo_size(bo) <= kgem->aperture_mappable / 4;
@@ -571,19 +579,27 @@ static inline bool kgem_bo_is_dirty(struct kgem_bo *bo)
 	return bo->dirty;
 }
 
+static inline void __kgem_bo_mark_dirty(struct kgem_bo *bo)
+{
+	DBG(("%s: handle=%d (proxy? %d)\n", __FUNCTION__,
+	     bo->handle, bo->proxy != NULL));
+
+	bo->exec->flags |= LOCAL_EXEC_OBJECT_WRITE;
+	bo->needs_flush = bo->dirty = true;
+	list_move(&bo->request, &bo->rq->buffers);
+}
+
 static inline void kgem_bo_mark_dirty(struct kgem_bo *bo)
 {
 	assert(bo->refcnt);
 	do {
-		if (bo->dirty)
-			return;
-
-		DBG(("%s: handle=%d\n", __FUNCTION__, bo->handle));
 		assert(bo->exec);
 		assert(bo->rq);
 
-		bo->needs_flush = bo->dirty = true;
-		list_move(&bo->request, &bo->rq->buffers);
+		if (bo->dirty)
+			return;
+
+		__kgem_bo_mark_dirty(bo);
 	} while ((bo = bo->proxy));
 }
 

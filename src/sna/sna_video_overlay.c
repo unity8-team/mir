@@ -41,7 +41,7 @@
 
 #define MAKE_ATOM(a) MakeAtom(a, sizeof(a) - 1, TRUE)
 
-#define HAS_GAMMA(sna) ((sna)->kgem.gen >= 30)
+#define HAS_GAMMA(sna) ((sna)->kgem.gen >= 030)
 
 static Atom xvBrightness, xvContrast, xvSaturation, xvColorKey, xvPipe;
 static Atom xvGamma0, xvGamma1, xvGamma2, xvGamma3, xvGamma4, xvGamma5;
@@ -296,7 +296,7 @@ sna_video_overlay_query_best_size(ScrnInfoPtr scrn,
 		drw_h = vid_h >> 1;
 	}
 
-	if (sna->kgem.gen < 21) {
+	if (sna->kgem.gen < 021) {
 		max_w = IMAGE_MAX_WIDTH_LEGACY;
 		max_h = IMAGE_MAX_HEIGHT_LEGACY;
 	} else {
@@ -555,7 +555,7 @@ sna_video_overlay_query_video_attributes(ScrnInfoPtr scrn,
 
 	DBG(("%s: w is %d, h is %d\n", __FUNCTION__, *w, *h));
 
-	if (sna->kgem.gen < 21) {
+	if (sna->kgem.gen < 021) {
 		if (*w > IMAGE_MAX_WIDTH_LEGACY)
 			*w = IMAGE_MAX_WIDTH_LEGACY;
 		if (*h > IMAGE_MAX_HEIGHT_LEGACY)
@@ -665,7 +665,7 @@ XF86VideoAdaptorPtr sna_video_overlay_setup(struct sna *sna,
 	adaptor->nEncodings = 1;
 	adaptor->pEncodings = xnfalloc(sizeof(DummyEncoding));
 	memcpy(adaptor->pEncodings, DummyEncoding, sizeof(DummyEncoding));
-	if (sna->kgem.gen < 21) {
+	if (sna->kgem.gen < 021) {
 		adaptor->pEncodings->width = IMAGE_MAX_WIDTH_LEGACY;
 		adaptor->pEncodings->height = IMAGE_MAX_HEIGHT_LEGACY;
 	}

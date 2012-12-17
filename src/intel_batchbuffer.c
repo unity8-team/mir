@@ -162,7 +162,7 @@ void intel_batch_emit_flush(ScrnInfoPtr scrn)
 	assert (!intel->in_batch_atomic);
 
 	/* Big hammer, look to the pipelined flushes in future. */
-	if ((INTEL_INFO(intel)->gen >= 60)) {
+	if ((INTEL_INFO(intel)->gen >= 060)) {
 		if (intel->current_batch == BLT_BATCH) {
 			BEGIN_BATCH_BLT(4);
 			OUT_BATCH(MI_FLUSH_DW | 2);
@@ -171,7 +171,7 @@ void intel_batch_emit_flush(ScrnInfoPtr scrn)
 			OUT_BATCH(0);
 			ADVANCE_BATCH();
 		} else  {
-			if ((INTEL_INFO(intel)->gen == 60)) {
+			if ((INTEL_INFO(intel)->gen == 060)) {
 				/* HW-Workaround for Sandybdrige */
 				intel_emit_post_sync_nonzero_flush(scrn);
 			} else {
@@ -187,7 +187,7 @@ void intel_batch_emit_flush(ScrnInfoPtr scrn)
 		}
 	} else {
 		flags = MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE;
-		if (INTEL_INFO(intel)->gen >= 40)
+		if (INTEL_INFO(intel)->gen >= 040)
 			flags = 0;
 
 		BEGIN_BATCH(1);

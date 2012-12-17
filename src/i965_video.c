@@ -897,7 +897,7 @@ i965_emit_video_setup(ScrnInfoPtr scrn, drm_intel_bo * surface_state_binding_tab
 
 	/* brw_debug (scrn, "before base address modify"); */
 	/* Match Mesa driver setup */
-	if (INTEL_INFO(intel)->gen >= 45)
+	if (INTEL_INFO(intel)->gen >= 045)
 		OUT_BATCH(NEW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
 	else
 		OUT_BATCH(BRW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
@@ -1428,7 +1428,7 @@ gen6_create_vidoe_objects(ScrnInfoPtr scrn)
 	const uint32_t *packed_ps_kernel, *planar_ps_kernel;
 	unsigned int packed_ps_size, planar_ps_size;
 	
-	if (INTEL_INFO(intel)->gen >= 70) {
+	if (INTEL_INFO(intel)->gen >= 070) {
 		create_sampler_state = gen7_create_sampler_state;
 		packed_ps_kernel = &ps_kernel_packed_static_gen7[0][0];
 		packed_ps_size = sizeof(ps_kernel_packed_static_gen7);
@@ -1787,7 +1787,7 @@ void Gen6DisplayVideoTextured(ScrnInfoPtr scrn,
 				PixmapPtr,
 				drm_intel_bo *, uint32_t);
 
-	if (INTEL_INFO(intel)->gen >= 70) {
+	if (INTEL_INFO(intel)->gen >= 070) {
 		create_dst_surface_state = gen7_create_dst_surface_state;
 		create_src_surface_state = gen7_create_src_surface_state;
 		emit_video_setup = gen7_emit_video_setup;

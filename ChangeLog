@@ -1,3 +1,686 @@
+commit a467102a9539c7f4fa8d0700ecdcaba49d77b3f7
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Dec 15 10:00:48 2012 +0000
+
+    2.20.16 release
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit b0f8c823b6cafdfdd064c09d58174f946e290541
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Dec 15 09:28:04 2012 +0000
+
+    sna/dri: Fallback to a blit after a failed flip
+    
+    ...rather than force the exchange.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2c71a8e08abce74b269687d3a6c1edd7f9d643d3
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Dec 15 09:27:07 2012 +0000
+
+    sna/dri: Honour TripleBuffer Option
+    
+    In case anyone ever wants to disable the default.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 6593ad3fecb3d044ee5ca161176d8ecaa0b4126a
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 14 23:48:00 2012 +0000
+
+    sna/dri: Store and check size of front/back bo attached to a DRI2 drawable
+    
+    So that we can prevent feeding back a stale bo when the DRI2 client
+    tries to swap an old buffer.
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=57212
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 9df9585cb00958b42461b3139bb7aec32090a869
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 14 15:37:56 2012 +0000
+
+    sna: Reduce fence watermarks
+    
+    Further restrict the amount of fenced bo we try to fit into the batch to
+    make it easier for the kernel to accommodate the request.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0d3ba44e448c152a570cc469d289ab057fa7be5c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 14 12:47:46 2012 +0000
+
+    sna/gen2+: Experiment with not forcing migration to GPU after CPU rasterisation
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d867fd01cb0060342102a79600daf43e3dc44a07
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 14 13:10:54 2012 +0000
+
+    sna/gen3: Don't combine primitives if beginning a ca 2-pass
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 3ca503dac2ea6c036e7ebe878b41923541daf225
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 14 12:49:14 2012 +0000
+
+    sna/gen3: Remove stray setting of vertex_start
+    
+    It is always done at the beginning of vertex emission.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 7f76f100e8033497620ee46548df45afff41064a
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Dec 13 23:12:42 2012 +0000
+
+    sna/gen2: Reorder reuse_source() to avoid NULL dereference for solids
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 044a54c23384756a5dc1895473abf34f7abb3d83
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Dec 13 23:05:30 2012 +0000
+
+    sna/gen2: Initialise channel->is_affine for solid
+    
+    In case we hit a path were we avoid reusing the source for the mask and
+    leave is_affine unset for a solid mask.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 29afd0dc8e893cc4110ee0d70546775dae86ddb3
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Dec 13 22:53:18 2012 +0000
+
+    sna/gen2: Assertions
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4d2abe1e3daac74747535d88dff34b024b87bbe9
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Dec 13 22:09:37 2012 +0000
+
+    sna/gen3: Remove incorrect optimisation of an opaque source for CA
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d428dbf7ad7c246acb1c301b73b9df4a1309de03
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Dec 13 14:53:50 2012 +0000
+
+    sna/gen2: Program solid mask using the DIFFUSE component
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 9e7311516da81ab45484b291ec668503c5ded0bb
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Dec 13 14:40:25 2012 +0000
+
+    sna/gen2: Align surface sizes to an even tile
+    
+    Makes this 855gm much happier.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit e646047a563598948206167765eaaf4192cfd77f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Dec 13 14:23:54 2012 +0000
+
+    sna: Fix up BLT overwrite detection to use target_handle
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4f96439e39a4bf4b127af9ccfdc09d061caff9bd
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Dec 13 13:15:52 2012 +0000
+
+    sna: Fix typo for 830/845 gen
+    
+    Must remember, its octal not decimal.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f631a56bcb3ff1ce1942b828325a157cef1e0880
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Dec 13 00:55:45 2012 +0000
+
+    sna: Only flush the batch after an actual relocation
+    
+    As we may write preparatory instructions into the batch before checking
+    for a flush.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 74bbf20e6e652cba55d6d0bc17066f4112f8548c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Dec 12 21:56:22 2012 +0000
+
+    sna: Improve the initialisation failure path for pinned batches
+    
+    Simplify the later checks by always populating the lists with a single,
+    albeit unpinned, bo in the case we fail to create pinned batches.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 52c8c9218c8f28fb049b02214d833912a803f911
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Dec 12 21:19:02 2012 +0000
+
+    sna: Fix the error path in kgem_init_pinned_batches() to use the right iter
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit c7f7dd61fd07dbf938fc6ba711de07986d35ce1f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Dec 12 19:43:19 2012 +0000
+
+    sna: Pin some batches to avoid CS incoherence on 830/845
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=26345
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit b154d0dc404a152e1283a013a78be06b8d734867
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Dec 12 18:34:54 2012 +0000
+
+    sna/gen2: STIPPLE requires an argument
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 9001263b32efde1361555432914d9ac3ee780511
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Dec 12 12:03:40 2012 +0000
+
+    sna/gen3+: Use nearest for unscaled videos
+    
+    If the output is unscaled, then we do not require pixel interpolation
+    (and planar formats are exactly subsampled).
+    
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=58185
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2dbe7d91a7f15a3a9ddad696c5088ca98898fca2
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Dec 12 09:50:34 2012 +0000
+
+    sna/gen4: Use the single-threaded SF w/a for spans as well
+    
+    Fixes the flickering seen in the fishtank demo, for example.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2502218a9340044bb660be68f059971119077e29
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Dec 11 17:47:09 2012 +0000
+
+    sna/dri: Fix handling of current_msc > target_msc
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 39d6c65f437d7877c1647b7ecf45e76daabc76a6
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Dec 11 15:30:54 2012 +0000
+
+    sna/dri: Query current msc before use
+    
+    Might be worth caching the last-known-value so we can skip the query for
+    an old swap request.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 162e9a2bfc693db186aa481551cf76b3dc5ee55c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Dec 10 23:11:48 2012 +0000
+
+    sna/dri: Disable name exchanges for SwapBuffers
+    
+    The DRI2 protocol is inherently racy. Fortuituously, this can be swept
+    under the carpet by forcing the serialisation between the DRI2 clients
+    by using a blit for the SwapBuffers.
+    
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=58005
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0c2287c735f990a98b39d00f28168d7a5df25aba
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Dec 10 20:09:22 2012 +0000
+
+    sna/dri: Only special case 'divisor && msc-passed' for immediate flipping
+    
+    As Jesse pointed out, it is legal for the client to request that the
+    flip be some frame in the future even with no divisor.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2ab29a1688cd313768d928e87e145570f35b4a70
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Mon Dec 10 14:55:32 2012 -0800
+
+    dri2: don't schedule a flip prematurely at ScheduleSwap time
+    
+    If divisor is 0 but the current MSC is behind the target, we shouldn't
+    schedule a flip (which will occur at the next vblank) or we'll end up
+    displaying it early and returning the wrong timestamp.
+    
+    Preserve the optimization though by allowing us to schedule a flip if
+    both the divisor is 0 and the current MSC is equal to or ahead of the
+    target; this avoids a round trip through the kernel.
+    
+    Reported-by: Mario Kleiner <mario.kleiner@tuebingen.mpg.de>
+    Signed-off-by: Jesse Barnes <jbarnes@virtuousgeek.org>
+
+commit 986e13a56a8544d5b32dbcaacbc0ee9cf5d47e27
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Dec 10 17:29:08 2012 +0000
+
+    sna: Try installing a fallback config on VT enter in case full desiredMode fails
+    
+    This can happen naturally for 3-pipe config on Ivybridge or if the
+    outputs are rearranged whilst we slept. Instead of failing to change the
+    display on the VT, install at least a fb on the CompatOutput so that
+    hopefully the DE can take over, or give some control to the user.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8c3b82f207bc8cf697646d3324cb4103da3b7856
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Dec 10 16:20:52 2012 +0000
+
+    sna: Avoid reusing the same 'busy' bit for two different meanings.
+    
+    Oops, I thought the 'busy' bit was now used and apparently forgot it is
+    used to control the periodic flushing...
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d1b479a3404e6b52a23e0443c36d0682cbaf3c2f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Dec 10 11:16:04 2012 +0000
+
+    sna: Compromise and only flush a split batch if writing to scanout
+    
+    A compromise between not flushing quick enough and flushing too often,
+    hopefully.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 3e9120d73c6f0c0e06b617da91cc2edce4434bc3
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Dec 10 11:05:16 2012 +0000
+
+    sna: Immediately flush a split batch
+    
+    If we submit a batch early (for example if the GPU is idle), then submit
+    whatever else the client drew immediately upon completion of its
+    blockhandler. This is required to prevent flashing due to visible delay
+    between the clear at the start of the cycle and then the overdraw later.
+    
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=51718
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit aa8c5d8201006397bb32ed6bc28618f9aa77a68a
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Dec 6 22:08:08 2012 +0000
+
+    sna/sprite: Add a DBG to report whether the kernel supports sprites
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 25c0d440dee45c03f5e45b8e0e45071c0c32f507
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Dec 9 12:11:53 2012 +0000
+
+    sna: Move source to CPU prior to referencing for inplace trapezoids
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=56825
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 3e82fcc8d243b7ffe1a3d3249a5cdb5fd068093f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Dec 9 11:19:13 2012 +0000
+
+    sna/gen4+: Refine test for preferring GPU spans
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit c8f622726a4463b419d032b379576cfb3bc492df
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Dec 9 09:26:03 2012 +0000
+
+    sna: Replace remaining kgem_is_idle() with kgem_ring_is_idle()
+    
+    Further experimentation...
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4e4e10935d2815fb62aeaedbfffe10aad115ec0b
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Dec 8 22:39:32 2012 +0000
+
+    sna: Flush upon change of target if GPU is idle
+    
+    The aim is to improve GPU concurrency by keeping it busy. The possible
+    complication is that we incur more overhead due to small batches.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit cef11795f627a393d4254845b0a19eefbf6c782c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 7 17:40:37 2012 +0000
+
+    sna: Convert the ring from BLT/3D to the internal index for kgem_ring_is_idle()
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 52405b2aed492dc7f76fbf082122842f621e7c06
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 7 17:24:42 2012 +0000
+
+    sna: Only inspect the target ring for busyness
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4b7bbb2a23b03bac63f864c33f47fab88dedbf67
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 7 16:43:32 2012 +0000
+
+    sna: Only flush before adding fresh surfaces to the batch
+    
+    Previously, before every operation we would look to see if the GPU was
+    idle and we were running under a DRI compositor. If the GPU was idle, we
+    would flush the batch in the hope that we reduce the cost of the context
+    switch and copy from the compositor (by completing the work earlier).
+    However, we would complete the work far too earlier and as a result
+    would need to flush the batch before every single operation resulting in
+    extra overhead and reduced performance. For example, the gtkperf
+    circles benchmark under gnome-shell/compiz would be 2x slower on
+    Ivybridge.
+    
+    Reported-by: Michael Larabel <michael@phoronix.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 65a8c23ca1bc8e2ebd087027a30358704d4bf11c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 7 14:56:18 2012 +0000
+
+    sna: Only flush at the low apeture watermark if idle
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4bfc5e90f54be1b0997dec9e81796d67b376a01f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Nov 8 23:42:10 2012 +0000
+
+    sna: Mark proxies as dirty on first relocation
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 1d2fa5731b7ecfe34a8af809e45bcd3b0b70c890
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Dec 6 22:15:09 2012 +0000
+
+    Remove the default log message
+    
+    Breaks compilation with xorg-1.13
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 7f4d4afa629bd18be89d7270e6178a865cf9586e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Dec 6 17:08:15 2012 +0000
+
+    Fix compilation of UMS probe following 13f47008ec
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d733f7d1f1dc343ac34c4a27ac99d71fc0572bc2
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Dec 6 16:55:00 2012 +0000
+
+    sna/gen4+: Add common glyph-to-dst emitters
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 13f47008ec411609968c40b8ec34dd495f14c50b
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Dec 6 14:05:33 2012 +0000
+
+    Refactor the common probe methods for scrn construction
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0040eb84c9187476a75202ebb251dd74354e4fc7
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Dec 5 09:25:17 2012 +0000
+
+    sna: Don't disable CPU bo if supported on unknown hw
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 14069f48645867a735ebdccb1e27a62364643c38
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Dec 5 09:24:02 2012 +0000
+
+    sna: Assume that future hardware only gets more flexible
+    
+    E.g. that BLT can always write to cacheable memory, inflexible fences
+    are a thing of the past, etc.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit b82bfcb54a6af0d1ee17806ef94d9da504cad606
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Dec 4 17:26:47 2012 +0000
+
+    sna/gen6+: Cache the scanout targets separately to avoid override PTE caching
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 626dd1324dd2c5b14ca4aff598b5eb1e45550e69
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Dec 4 12:52:50 2012 +0000
+
+    sna/gen4: Workaround render corruption with multiple SF threads
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=57410
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit dbdb8fabfbade3f19fd8af3524468b5e6668bb66
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Dec 4 12:37:23 2012 +0000
+
+    sna/gen4: Special case solids through the general vertex emitter
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a17354d5ce6aeeab3f6e42aba63fce06ad18c526
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Dec 4 12:01:26 2012 +0000
+
+    sna/gen4: Remove unused CC viewport
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit b9afb9cb614d2ad44330eed03b3f577a35184a88
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Dec 4 11:14:58 2012 +0000
+
+    sna/gen4: Avoid emitting URB_FENCE across a cache-line
+    
+    Old erratum.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 08c30c48bdd0db500498bd9617c15f37bacd8de9
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Dec 3 13:23:33 2012 +0000
+
+    sna: Tidy addition of fake GTF modes for panels
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 6f675eeaeade4728af566891b2afbe5b44fbdc2e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Dec 3 10:47:35 2012 +0000
+
+    2.20.15 release
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 37eb7343be1aeeb90a860096756603a577df1a77
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Dec 1 09:40:11 2012 +0000
+
+    sna/gen5: Inspired by gen4, reorder the flushing
+    
+    This may not be totally safe, but it is a nicer explanation for random
+    single character corruption.
+    
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=51422
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a8a99428c14c8aed2082853cc60d0f98a1fa2d86
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Dec 1 09:44:49 2012 +0000
+
+    sna/dri: Unknown generations are given the max value and presume i965_dri.so
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 382bb7bf77fca412fdefd7c304f395d1fe9483b5
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Nov 30 16:24:30 2012 +0000
+
+    sna/gen6+: Only apply the BLT w/a for self-copies
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 1aee8acacfe5869a072d9f20f3b8290b16683260
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Nov 30 12:17:25 2012 +0000
+
+    sna: Unify gen4 acceleration again
+    
+    After disabling render-to-Y, 965g seems just as happy with the new code
+    paths as g4x.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5d6dd9c5a7eeb1f879525430ad89ab74d427e469
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Nov 30 12:12:49 2012 +0000
+
+    Convert generation counter to octal
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 131600020638ef15166361214cd5e1a0c08c2ea6
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Nov 30 11:43:56 2012 +0000
+
+    sna: Prevent gen4 from rendering to I915_TILING_Y
+    
+    It always seems to end up in a hang...
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit ee4d1873ff504c2150b51d13864164b02b85dd53
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Nov 30 09:52:49 2012 +0000
+
+    sna/g4x: And remove one more flush point
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 1b6c1a30723b1d13e9bd3df0b59a8d75639c89be
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Nov 30 09:27:57 2012 +0000
+
+    sna: Increase tiling alignment to an even tile
+    
+    Seems to help g4x.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 6aeb6fdf75fa322d8f5ffe393337d8195d7a6a62
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Nov 30 09:03:53 2012 +0000
+
+    sna/g4x: Remove the flush before the pipelined pointer changes
+    
+    This one appears unneeded. Hopefully.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8be2c6695509809c0ab0c5c014e11dc733f73006
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Nov 29 19:56:15 2012 +0000
+
+    sna/g4x: Emit the flush prior to changing pipelined state
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2d5d55702bb8eced32d5b8cb3c0cd125fd99d6dc
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Nov 28 15:46:29 2012 +0000
+
+    sna/gen6+: Override PTE cacheability bits for reads
+    
+    This is primarily useful for enabling the render cache for reads from
+    scanouts.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 3ed87945c9e83fefcbda053b616856658bf2ac8e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Nov 28 11:05:40 2012 +0000
+
+    sna/gen5+: Disable max-vbo address
+    
+    As we do not use this feature, disable it and save the relocation.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit b2c9e9da639a134577485f83e0f66f54e2371b98
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Nov 27 11:32:11 2012 +0000
+
+    sna/blt: Avoid clobbering common state before converting to a BLT
+    
+    In case we need to continue on with the render operation, we need to
+    preserve the existing state.
+    
+    Reported-by: Jiri Slaby <jirislaby@gmail.com>
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=57601
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 1e06d19a00f5a5a05369deeb3c5ae15b282c0f92
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Nov 26 15:30:09 2012 +0000
+
+    sna: Disable shadow tracking upon regen
+    
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=56608
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=52255
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d21ed3a6aba5ae227cc5ecd164f3c18bc48c69af
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Nov 26 10:34:28 2012 +0000
+
+    sna: Use a single execobject flag to mark read/write domains
+    
+    Slight modification to the proposed API to only pass the simplified
+    domain tracking now performed by the kernel.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
 commit 7a904ce839933d57176e013cdad147533c33ca2f
 Author: Chris Wilson <chris@chris-wilson.co.uk>
 Date:   Mon Nov 26 08:48:31 2012 +0000

@@ -62,7 +62,6 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <sys/ioctl.h>
 #include <sys/fcntl.h>
-#include <sys/poll.h>
 #include "i915_drm.h"
 
 #ifdef HAVE_VALGRIND
@@ -505,6 +504,8 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 		sna->flags |= SNA_NO_DELAYED_FLUSH;
 	if (!xf86ReturnOptValBool(sna->Options, OPTION_SWAPBUFFERS_WAIT, TRUE))
 		sna->flags |= SNA_NO_WAIT;
+	if (xf86ReturnOptValBool(sna->Options, OPTION_TRIPLE_BUFFER, TRUE))
+		sna->flags |= SNA_TRIPLE_BUFFER;
 	if (has_pageflipping(sna)) {
 		if (xf86ReturnOptValBool(sna->Options, OPTION_TEAR_FREE, FALSE))
 			sna->flags |= SNA_TEAR_FREE;
@@ -730,18 +731,6 @@ static void sna_leave_vt(VT_FUNC_ARGS_DECL)
 			   "drmDropMaster failed: %s\n", strerror(errno));
 }
 
-/* In order to workaround a kernel bug in not honouring O_NONBLOCK,
- * check that the fd is readable before attempting to read the next
- * event from drm.
- */
-static Bool sna_mode_has_pending_events(struct sna *sna)
-{
-	struct pollfd pfd;
-	pfd.fd = sna->kgem.fd;
-	pfd.events = POLLIN;
-	return poll(&pfd, 1, 0) == 1;
-}
-
 static Bool sna_early_close_screen(CLOSE_SCREEN_ARGS_DECL)
 {
 	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
@@ -752,9 +741,7 @@ static Bool sna_early_close_screen(CLOSE_SCREEN_ARGS_DECL)
 	xf86_hide_cursors(scrn);
 	sna_uevent_fini(scrn);
 
-	/* drain the event queues */
-	if (sna_mode_has_pending_events(sna))
-		sna_mode_wakeup(sna);
+	sna_mode_close(sna);
 
 	if (sna->dri_open) {
 		sna_dri_close(sna, screen);
@@ -828,7 +815,7 @@ sna_register_all_privates(void)
 static size_t
 agp_aperture_size(struct pci_device *dev, int gen)
 {
-	return dev->regions[gen < 30 ? 0 : 2].size;
+	return dev->regions[gen < 030 ? 0 : 2].size;
 }
 
 static Bool
@@ -990,6 +977,50 @@ static void sna_free_screen(FREE_SCREEN_ARGS_DECL)
 	sna_close_drm_master(scrn);
 }
 
+static void
+sna_set_fallback_mode(ScrnInfoPtr scrn)
+{
+	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(scrn);
+	xf86OutputPtr output;
+	xf86CrtcPtr crtc;
+	DisplayModePtr mode;
+	int n;
+
+	output = xf86CompatOutput(scrn);
+	crtc = xf86CompatCrtc(scrn);
+	if (output == NULL || crtc == NULL)
+		return;
+
+	for (n = 0; n < config->num_output; n++)
+		config->output[n]->crtc = NULL;
+	for (n = 0; n < config->num_crtc; n++)
+		config->crtc[n]->enabled = FALSE;
+
+	output->crtc = crtc;
+
+	mode = xf86OutputFindClosestMode(output, scrn->currentMode);
+	if (mode &&
+	    xf86CrtcSetModeTransform(crtc, mode, RR_Rotate_0, NULL, 0, 0)) {
+		crtc->desiredMode = *mode;
+		crtc->desiredMode.prev = crtc->desiredMode.next = NULL;
+		crtc->desiredMode.name = NULL;
+		crtc->desiredMode.PrivSize = 0;
+		crtc->desiredMode.PrivFlags = 0;
+		crtc->desiredMode.Private = NULL;
+		crtc->desiredRotation = RR_Rotate_0;
+		crtc->desiredTransformPresent = FALSE;
+		crtc->desiredX = 0;
+		crtc->desiredY = 0;
+		crtc->enabled = TRUE;
+	}
+
+	xf86DisableUnusedFunctions(scrn);
+#ifdef RANDR_12_INTERFACE
+	if (scrn->pScreen->root)
+		xf86RandR12TellChanged(scrn->pScreen);
+#endif
+}
+
 /*
  * This gets called when gaining control of the VT, and from ScreenInit().
  */
@@ -1010,9 +1041,11 @@ static Bool sna_enter_vt(VT_FUNC_ARGS_DECL)
 		}
 	}
 
-	if (!xf86SetDesiredModes(scrn))
+	if (!xf86SetDesiredModes(scrn)) {
 		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 			   "failed to restore desired modes on VT switch\n");
+		sna_set_fallback_mode(scrn);
+	}
 
 	sna_mode_disable_unused(sna);
 

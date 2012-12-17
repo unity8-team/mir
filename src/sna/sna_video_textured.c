@@ -254,7 +254,7 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 		DBG(("%s: using passthough, name=%d\n",
 		     __FUNCTION__, *(uint32_t *)buf));
 
-		if (sna->kgem.gen < 31) {
+		if (sna->kgem.gen < 031) {
 			/* XXX: i915 is not support and needs some
 			 * serious care.  grep for KMS in i915_hwmc.c */
 			return BadAlloc;
@@ -275,11 +275,12 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 		}
 	}
 
-	kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	if (crtc && video->SyncToVblank != 0 &&
-	    sna_pixmap_is_scanout(sna, pixmap))
+	    sna_pixmap_is_scanout(sna, pixmap)) {
+		kgem_set_mode(&sna->kgem, KGEM_RENDER, sna_pixmap(pixmap)->gpu_bo);
 		flush = sna_wait_for_scanline(sna, pixmap, crtc,
 					      &clip->extents);
+	}
 
 	ret = Success;
 	if (!sna->render.video(sna, video, &frame, clip,

@@ -41,15 +41,15 @@ static void brw_wm_affine_st(struct brw_compile *p, int dw,
 
 	if (dw == 16) {
 		brw_set_compression_control(p, BRW_COMPRESSION_COMPRESSED);
-		uv = p->gen >= 60 ? 6 : 3;
+		uv = p->gen >= 060 ? 6 : 3;
 	} else {
 		brw_set_compression_control(p, BRW_COMPRESSION_NONE);
-		uv = p->gen >= 60 ? 4 : 3;
+		uv = p->gen >= 060 ? 4 : 3;
 	}
 	uv += 2*channel;
 
 	msg++;
-	if (p->gen >= 60) {
+	if (p->gen >= 060) {
 		brw_PLN(p,
 			brw_message_reg(msg),
 			brw_vec1_grf(uv, 0),
@@ -96,7 +96,7 @@ static int brw_wm_sample(struct brw_compile *p, int dw,
 	int len;
 
 	len = dw == 16 ? 4 : 2;
-	if (p->gen >= 60) {
+	if (p->gen >= 060) {
 		header = false;
 		src0 = brw_message_reg(++msg);
 	} else {
@@ -125,7 +125,7 @@ static int brw_wm_sample__alpha(struct brw_compile *p, int dw,
 		rlen = 2;
 	}
 
-	if (p->gen >= 60)
+	if (p->gen >= 060)
 		src0 = brw_message_reg(msg);
 	else
 		src0 = brw_vec8_grf(0, 0);
@@ -182,7 +182,7 @@ static void brw_fb_write(struct brw_compile *p, int dw)
 		msg_len = 4;
 	}
 
-	if (p->gen < 60) {
+	if (p->gen < 060) {
 		brw_push_insn_state(p);
 		brw_set_compression_control(p, BRW_COMPRESSION_NONE);
 		brw_set_mask_control(p, BRW_MASK_DISABLE);
@@ -197,7 +197,7 @@ static void brw_fb_write(struct brw_compile *p, int dw)
 	insn->header.predicate_control = 0;
 	insn->header.compression_control = BRW_COMPRESSION_NONE;
 
-	if (p->gen >= 60) {
+	if (p->gen >= 060) {
 		msg_type = GEN6_DATAPORT_WRITE_MESSAGE_RENDER_TARGET_WRITE;
 		src0 = brw_message_reg(2);
 		header = false;
@@ -219,7 +219,7 @@ static void brw_wm_write(struct brw_compile *p, int dw, int src)
 {
 	int n;
 
-	if (dw == 8 && p->gen >= 60) {
+	if (dw == 8 && p->gen >= 060) {
 		/* XXX pixel execution mask? */
 		brw_set_compression_control(p, BRW_COMPRESSION_NONE);
 
@@ -233,11 +233,11 @@ static void brw_wm_write(struct brw_compile *p, int dw, int src)
 	brw_set_compression_control(p, BRW_COMPRESSION_COMPRESSED);
 
 	for (n = 0; n < 4; n++) {
-		if (p->gen >= 60) {
+		if (p->gen >= 060) {
 			brw_MOV(p,
 				brw_message_reg(2 + 2*n),
 				brw_vec8_grf(src + 2*n, 0));
-		} else if (p->gen >= 45 && dw == 16) {
+		} else if (p->gen >= 045 && dw == 16) {
 			brw_MOV(p,
 				brw_message_reg(2 + n + BRW_MRF_COMPR4),
 				brw_vec8_grf(src + 2*n, 0));
@@ -265,7 +265,7 @@ static void brw_wm_write__mask(struct brw_compile *p, int dw,
 {
 	int n;
 
-	if (dw == 8 && p->gen >= 60) {
+	if (dw == 8 && p->gen >= 060) {
 		brw_set_compression_control(p, BRW_COMPRESSION_NONE);
 
 		brw_MUL(p,
@@ -291,12 +291,12 @@ static void brw_wm_write__mask(struct brw_compile *p, int dw,
 	brw_set_compression_control(p, BRW_COMPRESSION_COMPRESSED);
 
 	for (n = 0; n < 4; n++) {
-		if (p->gen >= 60) {
+		if (p->gen >= 060) {
 			brw_MUL(p,
 				brw_message_reg(2 + 2*n),
 				brw_vec8_grf(src + 2*n, 0),
 				brw_vec8_grf(mask, 0));
-		} else if (p->gen >= 45 && dw == 16) {
+		} else if (p->gen >= 045 && dw == 16) {
 			brw_MUL(p,
 				brw_message_reg(2 + n + BRW_MRF_COMPR4),
 				brw_vec8_grf(src + 2*n, 0),
@@ -327,7 +327,7 @@ static void brw_wm_write__opacity(struct brw_compile *p, int dw,
 {
 	int n;
 
-	if (dw == 8 && p->gen >= 60) {
+	if (dw == 8 && p->gen >= 060) {
 		brw_set_compression_control(p, BRW_COMPRESSION_NONE);
 
 		brw_MUL(p,
@@ -353,12 +353,12 @@ static void brw_wm_write__opacity(struct brw_compile *p, int dw,
 	brw_set_compression_control(p, BRW_COMPRESSION_COMPRESSED);
 
 	for (n = 0; n < 4; n++) {
-		if (p->gen >= 60) {
+		if (p->gen >= 060) {
 			brw_MUL(p,
 				brw_message_reg(2 + 2*n),
 				brw_vec8_grf(src + 2*n, 0),
 				brw_vec1_grf(mask, 3));
-		} else if (p->gen >= 45 && dw == 16) {
+		} else if (p->gen >= 045 && dw == 16) {
 			brw_MUL(p,
 				brw_message_reg(2 + n + BRW_MRF_COMPR4),
 				brw_vec8_grf(src + 2*n, 0),
@@ -389,7 +389,7 @@ static void brw_wm_write__mask_ca(struct brw_compile *p, int dw,
 {
 	int n;
 
-	if (dw == 8 && p->gen >= 60) {
+	if (dw == 8 && p->gen >= 060) {
 		brw_set_compression_control(p, BRW_COMPRESSION_NONE);
 
 		brw_MUL(p,
@@ -415,12 +415,12 @@ static void brw_wm_write__mask_ca(struct brw_compile *p, int dw,
 	brw_set_compression_control(p, BRW_COMPRESSION_COMPRESSED);
 
 	for (n = 0; n < 4; n++) {
-		if (p->gen >= 60) {
+		if (p->gen >= 060) {
 			brw_MUL(p,
 				brw_message_reg(2 + 2*n),
 				brw_vec8_grf(src + 2*n, 0),
 				brw_vec8_grf(mask + 2*n, 0));
-		} else if (p->gen >= 45 && dw == 16) {
+		} else if (p->gen >= 045 && dw == 16) {
 			brw_MUL(p,
 				brw_message_reg(2 + n + BRW_MRF_COMPR4),
 				brw_vec8_grf(src + 2*n, 0),
@@ -449,7 +449,7 @@ done:
 bool
 brw_wm_kernel__affine(struct brw_compile *p, int dispatch)
 {
-	if (p->gen < 60)
+	if (p->gen < 060)
 		brw_wm_xy(p, dispatch);
 	brw_wm_write(p, dispatch, brw_wm_affine(p, dispatch, 0, 1, 12));
 
@@ -461,7 +461,7 @@ brw_wm_kernel__affine_mask(struct brw_compile *p, int dispatch)
 {
 	int src, mask;
 
-	if (p->gen < 60)
+	if (p->gen < 060)
 		brw_wm_xy(p, dispatch);
 
 	src = brw_wm_affine(p, dispatch, 0, 1, 12);
@@ -476,7 +476,7 @@ brw_wm_kernel__affine_mask_ca(struct brw_compile *p, int dispatch)
 {
 	int src, mask;
 
-	if (p->gen < 60)
+	if (p->gen < 060)
 		brw_wm_xy(p, dispatch);
 
 	src = brw_wm_affine(p, dispatch, 0, 1, 12);
@@ -491,7 +491,7 @@ brw_wm_kernel__affine_mask_sa(struct brw_compile *p, int dispatch)
 {
 	int src, mask;
 
-	if (p->gen < 60)
+	if (p->gen < 060)
 		brw_wm_xy(p, dispatch);
 
 	src = brw_wm_affine__alpha(p, dispatch, 0, 1, 12);
@@ -510,15 +510,15 @@ static void brw_wm_projective_st(struct brw_compile *p, int dw,
 
 	if (dw == 16) {
 		brw_set_compression_control(p, BRW_COMPRESSION_COMPRESSED);
-		uv = p->gen >= 60 ? 6 : 3;
+		uv = p->gen >= 060 ? 6 : 3;
 	} else {
 		brw_set_compression_control(p, BRW_COMPRESSION_NONE);
-		uv = p->gen >= 60 ? 4 : 3;
+		uv = p->gen >= 060 ? 4 : 3;
 	}
 	uv += 2*channel;
 
 	msg++;
-	if (p->gen >= 60) {
+	if (p->gen >= 060) {
 		/* First compute 1/z */
 		brw_PLN(p,
 			brw_message_reg(msg),
@@ -594,7 +594,7 @@ static int brw_wm_projective__alpha(struct brw_compile *p, int dw,
 bool
 brw_wm_kernel__projective(struct brw_compile *p, int dispatch)
 {
-	if (p->gen < 60)
+	if (p->gen < 060)
 		brw_wm_xy(p, dispatch);
 	brw_wm_write(p, dispatch, brw_wm_projective(p, dispatch, 0, 1, 12));
 
@@ -606,7 +606,7 @@ brw_wm_kernel__projective_mask(struct brw_compile *p, int dispatch)
 {
 	int src, mask;
 
-	if (p->gen < 60)
+	if (p->gen < 060)
 		brw_wm_xy(p, dispatch);
 
 	src = brw_wm_projective(p, dispatch, 0, 1, 12);
@@ -621,7 +621,7 @@ brw_wm_kernel__projective_mask_ca(struct brw_compile *p, int dispatch)
 {
 	int src, mask;
 
-	if (p->gen < 60)
+	if (p->gen < 060)
 		brw_wm_xy(p, dispatch);
 
 	src = brw_wm_projective(p, dispatch, 0, 1, 12);
@@ -636,7 +636,7 @@ brw_wm_kernel__projective_mask_sa(struct brw_compile *p, int dispatch)
 {
 	int src, mask;
 
-	if (p->gen < 60)
+	if (p->gen < 060)
 		brw_wm_xy(p, dispatch);
 
 	src = brw_wm_projective__alpha(p, dispatch, 0, 1, 12);
@@ -651,7 +651,7 @@ brw_wm_kernel__affine_opacity(struct brw_compile *p, int dispatch)
 {
 	int src, mask;
 
-	if (p->gen < 60) {
+	if (p->gen < 060) {
 		brw_wm_xy(p, dispatch);
 		mask = 5;
 	} else
@@ -668,7 +668,7 @@ brw_wm_kernel__projective_opacity(struct brw_compile *p, int dispatch)
 {
 	int src, mask;
 
-	if (p->gen < 60) {
+	if (p->gen < 060) {
 		brw_wm_xy(p, dispatch);
 		mask = 5;
 	} else

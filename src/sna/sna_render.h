@@ -119,6 +119,7 @@ struct sna_composite_op {
 		struct {
 			int wm_kernel;
 			int ve_id;
+			int sf;
 		} gen4;
 
 		struct {
@@ -524,7 +525,6 @@ void no_render_init(struct sna *sna);
 bool gen2_render_init(struct sna *sna);
 bool gen3_render_init(struct sna *sna);
 bool gen4_render_init(struct sna *sna);
-bool g4x_render_init(struct sna *sna);
 bool gen5_render_init(struct sna *sna);
 bool gen6_render_init(struct sna *sna);
 bool gen7_render_init(struct sna *sna);
