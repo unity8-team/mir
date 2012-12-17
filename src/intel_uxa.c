@@ -1298,7 +1298,7 @@ static Bool intel_option_accel_blt(intel_screen_private *intel)
 
 	s = xf86GetOptValString(intel->Options, OPTION_ACCEL_METHOD);
 	if (s == NULL)
-		return false;
+		return FALSE;
 
 	return strcasecmp(s, "blt") == 0;
 }
