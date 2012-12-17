@@ -2088,6 +2088,7 @@ gen7_render_video(struct sna *sna,
 		  RegionPtr dstRegion,
 		  short src_w, short src_h,
 		  short drw_w, short drw_h,
+		  short dx, short dy,
 		  PixmapPtr pixmap)
 {
 	struct sna_composite_op tmp;
@@ -2159,8 +2160,8 @@ gen7_render_video(struct sna *sna,
 	pix_yoff = 0;
 #endif
 
-	dxo = dstRegion->extents.x1;
-	dyo = dstRegion->extents.y1;
+	dxo = dstRegion->extents.x1 + dx;
+	dyo = dstRegion->extents.y1 + dy;
 
 	/* Use normalized texture coordinates */
 	src_scale_x = ((float)src_w / frame->width) / (float)drw_w;

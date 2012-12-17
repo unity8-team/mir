@@ -75,8 +75,8 @@ struct sna_video_frame {
 	uint16_t pitch[2];
 
 	/* extents */
-	uint16_t top, left;
-	uint16_t npixels, nlines;
+	BoxRec image;
+	BoxRec src;
 };
 
 void sna_video_init(struct sna *sna, ScreenPtr screen);

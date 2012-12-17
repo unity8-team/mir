@@ -166,14 +166,20 @@ sna_video_clip_helper(ScrnInfoPtr scrn,
 	if (crtc_region != reg)
 		RegionUninit(crtc_region);
 
-	frame->top = y1 >> 16;
-	frame->left = (x1 >> 16) & ~1;
-	frame->npixels = ALIGN(((x2 + 0xffff) >> 16), 2) - frame->left;
+	frame->src.x1 = x1 >> 16;
+	frame->src.y1 = y1 >> 16;
+	frame->src.x2 = (x2 + 0xffff) >> 16;
+	frame->src.y2 = (y2 + 0xffff) >> 16;
+
+	frame->image.x1 = frame->src.x1 & ~1;
+	frame->image.x2 = ALIGN(frame->src.x1, 2);
 	if (is_planar_fourcc(frame->id)) {
-		frame->top &= ~1;
-		frame->nlines = ALIGN(((y2 + 0xffff) >> 16), 2) - frame->top;
-	} else
-		frame->nlines = ((y2 + 0xffff) >> 16) - frame->top;
+		frame->image.y1 = frame->src.y1 & ~1;
+		frame->image.y2 = ALIGN(frame->src.y2, 2);
+	} else {
+		frame->image.y1 = frame->src.y1;
+		frame->image.y1 = frame->src.y2;
+	}
 
 	return ret;
 }
@@ -309,19 +315,19 @@ sna_copy_planar_data(struct sna_video *video,
 		     const uint8_t *src, uint8_t *dst)
 {
 	uint8_t *d;
-	int w = frame->npixels;
-	int h = frame->nlines;
+	int w = frame->image.x2 - frame->image.x1;
+	int h = frame->image.y2 - frame->image.y1;
 	int pitch;
 
 	pitch = ALIGN(frame->width, 4);
-	sna_memcpy_plane(dst, src + frame->top * pitch + frame->left,
+	sna_memcpy_plane(dst, src + frame->image.y1 * pitch + frame->image.x1,
 			 h, w, frame->pitch[1], pitch, video->rotation);
 
 	src += frame->height * pitch; /* move over Luma plane */
 
 	/* align to beginning of chroma planes */
 	pitch = ALIGN((frame->width >> 1), 0x4);
-	src += (frame->top >> 1) * pitch + (frame->left >> 1);
+	src += (frame->image.y1 >> 1) * pitch + (frame->image.x1 >> 1);
 	w >>= 1;
 	h >>= 1;
 
@@ -349,11 +355,11 @@ sna_copy_packed_data(struct sna_video *video,
 {
 	int pitch = frame->width << 1;
 	const uint8_t *src, *s;
-	int w = frame->npixels;
-	int h = frame->nlines;
+	int w = frame->image.x2 - frame->image.x1;
+	int h = frame->image.y2 - frame->image.y1;
 	int i, j;
 
-	src = buf + (frame->top * pitch) + (frame->left << 1);
+	src = buf + (frame->image.y1 * pitch) + (frame->image.x1 << 1);
 
 	switch (video->rotation) {
 	case RR_Rotate_0:
@@ -376,7 +382,7 @@ sna_copy_packed_data(struct sna_video *video,
 			src += pitch;
 		}
 		h >>= 1;
-		src = buf + (frame->top * pitch) + (frame->left << 1);
+		src = buf + (frame->image.y1 * pitch) + (frame->image.x1 << 1);
 		for (i = 0; i < h; i += 2) {
 			for (j = 0; j < w; j += 2) {
 				/* Copy U */
@@ -412,7 +418,7 @@ sna_copy_packed_data(struct sna_video *video,
 			src += pitch;
 		}
 		h >>= 1;
-		src = buf + (frame->top * pitch) + (frame->left << 1);
+		src = buf + (frame->image.y1 * pitch) + (frame->image.x1 << 1);
 		for (i = 0; i < h; i += 2) {
 			for (j = 0; j < w; j += 2) {
 				/* Copy U */
@@ -449,7 +455,7 @@ sna_video_copy_data(struct sna *sna,
 			};
 			if (pitch[0] == frame->pitch[0] &&
 			    pitch[1] == frame->pitch[1] &&
-			    frame->top == 0 && frame->left == 0) {
+			    (frame->image.y1 | frame->image.x1) == 0) {
 				uint32_t len =
 					(uint32_t)pitch[1]*frame->height +
 					(uint32_t)pitch[0]*frame->height;
@@ -477,8 +483,8 @@ sna_video_copy_data(struct sna *sna,
 			if (frame->width*2 == frame->pitch[0]) {
 				if (frame->bo) {
 					kgem_bo_write(&sna->kgem, frame->bo,
-						      buf + (2U*frame->top * frame->width) + (frame->left << 1),
-						      2U*frame->nlines*frame->width);
+						      buf + (2U*frame->image.y1 * frame->width) + (frame->image.x1 << 1),
+						      2U*(frame->image.y2-frame->image.y1)*frame->width);
 				} else {
 					frame->bo = kgem_create_buffer(&sna->kgem, frame->size,
 								       KGEM_BUFFER_WRITE | KGEM_BUFFER_WRITE_INPLACE,
@@ -487,8 +493,8 @@ sna_video_copy_data(struct sna *sna,
 						return false;
 
 					memcpy(dst,
-					       buf + (frame->top * frame->width*2) + (frame->left << 1),
-					       2U*frame->nlines*frame->width);
+					       buf + (frame->image.y1 * frame->width*2) + (frame->image.x1 << 1),
+					       2U*(frame->image.y2-frame->image.y1)*frame->width);
 				}
 				return true;
 			}

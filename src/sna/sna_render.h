@@ -215,6 +215,7 @@ struct sna_render {
 		      RegionPtr dstRegion,
 		      short src_w, short src_h,
 		      short drw_w, short drw_h,
+		      short dx, short dy,
 		      PixmapPtr pixmap);
 
 	bool (*fill_boxes)(struct sna *sna,
