@@ -194,13 +194,13 @@ static void kgem_sna_flush(struct kgem *kgem)
 		sna_render_flush_solid(sna);
 }
 
-static int gem_set_tiling(int fd, uint32_t handle, int tiling, int stride)
+static bool gem_set_tiling(int fd, uint32_t handle, int tiling, int stride)
 {
 	struct drm_i915_gem_set_tiling set_tiling;
 	int ret;
 
 	if (DBG_NO_TILING)
-		return I915_TILING_NONE;
+		return false;
 
 	VG_CLEAR(set_tiling);
 	do {
@@ -210,7 +210,7 @@ static int gem_set_tiling(int fd, uint32_t handle, int tiling, int stride)
 
 		ret = ioctl(fd, DRM_IOCTL_I915_GEM_SET_TILING, &set_tiling);
 	} while (ret == -1 && (errno == EINTR || errno == EAGAIN));
-	return set_tiling.tiling_mode;
+	return ret == 0;
 }
 
 static bool gem_set_cacheing(int fd, uint32_t handle, int cacheing)
@@ -2913,8 +2913,8 @@ search_linear_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags)
 			}
 
 			if (I915_TILING_NONE != bo->tiling &&
-			    gem_set_tiling(kgem->fd, bo->handle,
-					   I915_TILING_NONE, 0) != I915_TILING_NONE)
+			    !gem_set_tiling(kgem->fd, bo->handle,
+					    I915_TILING_NONE, 0))
 				continue;
 
 			kgem_bo_remove_from_inactive(kgem, bo);
@@ -2961,11 +2961,12 @@ search_linear_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags)
 			if (first)
 				continue;
 
-			if (gem_set_tiling(kgem->fd, bo->handle,
-					   I915_TILING_NONE, 0) != I915_TILING_NONE)
+			if (!gem_set_tiling(kgem->fd, bo->handle,
+					    I915_TILING_NONE, 0))
 				continue;
 
 			bo->tiling = I915_TILING_NONE;
+			bo->pitch = 0;
 		}
 
 		if (bo->map) {
@@ -3380,6 +3381,7 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 			assert(!bo->purged);
 			assert(bo->refcnt == 0);
 			assert(bo->reusable);
+			assert(bo->flush == true);
 
 			if (kgem->gen < 040) {
 				if (bo->pitch < pitch) {
@@ -3396,11 +3398,12 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 					continue;
 
 				if (bo->pitch != pitch || bo->tiling != tiling) {
-					if (gem_set_tiling(kgem->fd, bo->handle,
-							   tiling, pitch) != tiling)
+					if (!gem_set_tiling(kgem->fd, bo->handle,
+							    tiling, pitch))
 						continue;
 
 					bo->pitch = pitch;
+					bo->tiling = tiling;
 				}
 			}
 
@@ -3425,10 +3428,12 @@ large_inactive:
 
 			if (bo->tiling != tiling ||
 			    (tiling != I915_TILING_NONE && bo->pitch != pitch)) {
-				if (tiling != gem_set_tiling(kgem->fd,
-							     bo->handle,
-							     tiling, pitch))
+				if (!gem_set_tiling(kgem->fd, bo->handle,
+						    tiling, pitch))
 					continue;
+
+				bo->tiling = tiling;
+				bo->pitch = pitch;
 			}
 
 			if (bo->purged && !kgem_bo_clear_purgeable(kgem, bo)) {
@@ -3467,6 +3472,7 @@ large_inactive:
 				assert(IS_CPU_MAP(bo->map) == for_cpu);
 				assert(bo->rq == NULL);
 				assert(list_is_empty(&bo->request));
+				assert(bo->flush == false);
 
 				if (size > num_pages(bo)) {
 					DBG(("inactive too small: %d < %d\n",
@@ -3522,6 +3528,7 @@ search_again:
 			assert(bucket(bo) == bucket);
 			assert(bo->reusable);
 			assert(bo->tiling == tiling);
+			assert(bo->flush == false);
 
 			if (kgem->gen < 040) {
 				if (bo->pitch < pitch) {
@@ -3538,9 +3545,10 @@ search_again:
 					continue;
 
 				if (bo->pitch != pitch) {
-					gem_set_tiling(kgem->fd,
-						       bo->handle,
-						       tiling, pitch);
+					if (!gem_set_tiling(kgem->fd,
+							    bo->handle,
+							    tiling, pitch))
+						continue;
 
 					bo->pitch = pitch;
 				}
@@ -3563,6 +3571,7 @@ search_again:
 			assert(bo->refcnt == 0);
 			assert(bo->reusable);
 			assert(bo->tiling == tiling);
+			assert(bo->flush == false);
 
 			if (num_pages(bo) < size)
 				continue;
@@ -3591,13 +3600,14 @@ search_again:
 					assert(!bo->purged);
 					assert(bo->refcnt == 0);
 					assert(bo->reusable);
+					assert(bo->flush == false);
 
 					if (num_pages(bo) < size)
 						continue;
 
-					if (tiling != gem_set_tiling(kgem->fd,
-								     bo->handle,
-								     tiling, pitch))
+					if (!gem_set_tiling(kgem->fd,
+							    bo->handle,
+							    tiling, pitch))
 						continue;
 
 					kgem_bo_remove_from_active(kgem, bo);
@@ -3631,6 +3641,7 @@ search_again:
 				assert(!bo->purged);
 				assert(bo->refcnt == 0);
 				assert(bo->reusable);
+				assert(bo->flush == false);
 
 				if (bo->tiling) {
 					if (bo->pitch < pitch) {
@@ -3670,6 +3681,7 @@ search_inactive:
 	list_for_each_entry(bo, cache, list) {
 		assert(bucket(bo) == bucket);
 		assert(bo->reusable);
+		assert(bo->flush == false);
 
 		if (size > num_pages(bo)) {
 			DBG(("inactive too small: %d < %d\n",
@@ -3679,9 +3691,8 @@ search_inactive:
 
 		if (bo->tiling != tiling ||
 		    (tiling != I915_TILING_NONE && bo->pitch != pitch)) {
-			if (tiling != gem_set_tiling(kgem->fd,
-						     bo->handle,
-						     tiling, pitch))
+			if (!gem_set_tiling(kgem->fd, bo->handle,
+					    tiling, pitch))
 				continue;
 
 			if (bo->map)
@@ -3741,8 +3752,9 @@ create:
 	bo->domain = DOMAIN_CPU;
 	bo->unique_id = kgem_get_unique_id(kgem);
 	bo->pitch = pitch;
-	if (tiling != I915_TILING_NONE)
-		bo->tiling = gem_set_tiling(kgem->fd, handle, tiling, pitch);
+	if (tiling != I915_TILING_NONE &&
+	    gem_set_tiling(kgem->fd, handle, tiling, pitch))
+		bo->tiling = tiling;
 	if (bucket >= NUM_CACHE_BUCKETS) {
 		DBG(("%s: marking large bo for automatic flushing\n",
 		     __FUNCTION__));
