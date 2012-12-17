@@ -77,11 +77,6 @@ search_snoop_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags);
 
 #define SHOW_BATCH 0
 
-#ifndef USE_PINNED_BATCHES
-#undef DBG_NO_PINNED_BATCHES
-#define DBG_NO_PINNED_BATCHES 1
-#endif
-
 #ifndef USE_FASTRELOC
 #undef DBG_NO_FAST_RELOC
 #define DBG_NO_FAST_RELOC 1

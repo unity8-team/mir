@@ -282,15 +282,6 @@ if test "x$accel" = xnone -a "x$UMS_ONLY" != "xyes"; then
 	AC_MSG_ERROR([No default acceleration option])
 fi
 
-AC_ARG_ENABLE(pinned-batches,
-	      AS_HELP_STRING([--enable-pinned-batches],
-			     [Enable use of "pinned batches" (experimental) [default=no]]),
-	      [PINNED="$enableval"],
-	      [PINNED=no])
-if test "x$PINNED" = xyes; then
-	AC_DEFINE(USE_PINNED_BATCHES,1,[Assume "pinned batches" support])
-fi
-
 AC_ARG_ENABLE(userptr,
 	      AS_HELP_STRING([--enable-userptr],
 			     [Enable use of userptr (experimental) [default=no]]),
