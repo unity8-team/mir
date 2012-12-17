@@ -246,7 +246,7 @@ static void
 no_render_context_switch(struct kgem *kgem,
 			 int new_mode)
 {
-	if (!kgem->mode)
+	if (!kgem->nbatch)
 		return;
 
 	if (kgem_ring_is_idle(kgem, kgem->ring)) {
@@ -254,7 +254,6 @@ no_render_context_switch(struct kgem *kgem,
 		_kgem_submit(kgem);
 	}
 
-	(void)kgem;
 	(void)new_mode;
 }
 

@@ -3571,7 +3571,7 @@ static void
 gen5_render_context_switch(struct kgem *kgem,
 			   int new_mode)
 {
-	if (!kgem->mode)
+	if (!kgem->nbatch)
 		return;
 
 	/* WaNonPipelinedStateCommandFlush

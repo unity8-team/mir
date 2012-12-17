@@ -2405,7 +2405,7 @@ static bool prefer_blt_ring(struct sna *sna)
 	return sna->kgem.ring != KGEM_RENDER;
 }
 
-static bool can_switch_to_blt(struct sna *sna)
+inline static bool can_switch_to_blt(struct sna *sna)
 {
 	if (sna->kgem.ring != KGEM_RENDER)
 		return true;
@@ -4191,13 +4191,10 @@ static void
 gen6_render_context_switch(struct kgem *kgem,
 			   int new_mode)
 {
-	if (!new_mode)
-		return;
-
-	 DBG(("%s: from %d to %d\n", __FUNCTION__, kgem->mode, new_mode));
-
-	if (kgem->mode)
-		kgem_submit(kgem);
+	if (kgem->nbatch) {
+		DBG(("%s: from %d to %d\n", __FUNCTION__, kgem->mode, new_mode));
+		_kgem_submit(kgem);
+	}
 
 	kgem->ring = new_mode;
 }
