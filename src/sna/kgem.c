@@ -1083,6 +1083,8 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, unsigned gen)
 	kgem->buffer_size = 64 * 1024;
 	while (kgem->buffer_size < kgem->aperture_mappable >> 10)
 		kgem->buffer_size *= 2;
+	if (kgem->buffer_size >> 12 > kgem->half_cpu_cache_pages)
+		kgem->buffer_size = kgem->half_cpu_cache_pages << 12;
 	DBG(("%s: buffer size=%d [%d KiB]\n", __FUNCTION__,
 	     kgem->buffer_size, kgem->buffer_size / 1024));
 
