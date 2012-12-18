@@ -2535,7 +2535,6 @@ static int prefer_blt_bo(struct sna *sna, struct kgem_bo *bo)
 	return bo->tiling == I915_TILING_NONE;
 }
 
-
 inline static bool prefer_blt_ring(struct sna *sna)
 {
 	return sna->kgem.ring != KGEM_RENDER || can_switch_to_blt(sna);
@@ -3885,6 +3884,7 @@ gen7_render_fill_boxes(struct sna *sna,
 
 	tmp.u.gen7.flags = FILL_FLAGS(op, format);
 
+	kgem_set_mode(&sna->kgem, KGEM_RENDER, dst_bo);
 	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL)) {
 		kgem_submit(&sna->kgem);
 		assert(kgem_check_bo(&sna->kgem, dst_bo, NULL));
@@ -4058,6 +4058,7 @@ gen7_render_fill(struct sna *sna, uint8_t alu,
 
 	op->base.u.gen7.flags = FILL_FLAGS_NOBLEND;
 
+	kgem_set_mode(&sna->kgem, KGEM_RENDER, dst_bo);
 	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL)) {
 		kgem_submit(&sna->kgem);
 		assert(kgem_check_bo(&sna->kgem, dst_bo, NULL));
@@ -4135,6 +4136,7 @@ gen7_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 
 	tmp.u.gen7.flags = FILL_FLAGS_NOBLEND;
 
+	kgem_set_mode(&sna->kgem, KGEM_RENDER, bo);
 	if (!kgem_check_bo(&sna->kgem, bo, NULL)) {
 		_kgem_submit(&sna->kgem);
 		assert(kgem_check_bo(&sna->kgem, bo, NULL));
@@ -4215,6 +4217,7 @@ gen7_render_clear(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo)
 
 	tmp.u.gen7.flags = FILL_FLAGS_NOBLEND;
 
+	kgem_set_mode(&sna->kgem, KGEM_RENDER, bo);
 	if (!kgem_check_bo(&sna->kgem, bo, NULL)) {
 		_kgem_submit(&sna->kgem);
 		assert(kgem_check_bo(&sna->kgem, bo, NULL));
