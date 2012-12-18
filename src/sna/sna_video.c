@@ -259,49 +259,64 @@ sna_video_frame_init(struct sna *sna,
 	}
 }
 
-static void sna_memcpy_plane(uint8_t *dst, const uint8_t *src,
-			     int height, int width,
-			     int dstPitch, int srcPitch,
-			     Rotation rotation)
+static void sna_memcpy_plane(struct sna_video *video,
+			     uint8_t *dst, const uint8_t *src,
+			     const struct sna_video_frame *frame, int sub)
 {
+	int dstPitch = frame->pitch[!sub], srcPitch;
 	const uint8_t *s;
 	int i, j = 0;
+	int x, y, w, h;
 
-	switch (rotation) {
+	x = frame->image.x1;
+	y = frame->image.y1;
+	w = frame->image.x2 - frame->image.x1;
+	h = frame->image.y2 - frame->image.y1;
+	if (sub) {
+		x >>= 1; w >>= 1;
+		y >>= 1; h >>= 1;
+		srcPitch = ALIGN((frame->width >> 1), 4);
+	} else
+		srcPitch = ALIGN(frame->width, 4);
+
+	src += y * srcPitch + x;
+	if (!video->textured)
+		x = y = 0;
+
+	switch (video->rotation) {
 	case RR_Rotate_0:
-		/* optimise for the case of no clipping */
-		if (srcPitch == dstPitch && srcPitch == width)
-			memcpy(dst, src, srcPitch * height);
-		else while (height--) {
-			memcpy(dst, src, width);
+		dst += y * dstPitch + x;
+		if (srcPitch == dstPitch && srcPitch == w)
+			memcpy(dst, src, srcPitch * h);
+		else while (h--) {
+			memcpy(dst, src, w);
 			src += srcPitch;
 			dst += dstPitch;
 		}
 		break;
 	case RR_Rotate_90:
-		for (i = 0; i < height; i++) {
+		for (i = 0; i < h; i++) {
 			s = src;
-			for (j = 0; j < width; j++) {
-				dst[(i) + ((width - j - 1) * dstPitch)] = *s++;
-			}
+			for (j = 0; j < w; j++)
+				dst[i + ((x + w - j - 1) * dstPitch)] = *s++;
 			src += srcPitch;
 		}
 		break;
 	case RR_Rotate_180:
-		for (i = 0; i < height; i++) {
+		for (i = 0; i < h; i++) {
 			s = src;
-			for (j = 0; j < width; j++) {
-				dst[(width - j - 1) +
-				    ((height - i - 1) * dstPitch)] = *s++;
+			for (j = 0; j < w; j++) {
+				dst[(x + w - j - 1) +
+				    ((h - i - 1) * dstPitch)] = *s++;
 			}
 			src += srcPitch;
 		}
 		break;
 	case RR_Rotate_270:
-		for (i = 0; i < height; i++) {
+		for (i = 0; i < h; i++) {
 			s = src;
-			for (j = 0; j < width; j++) {
-				dst[(height - i - 1) + (j * dstPitch)] = *s++;
+			for (j = 0; j < w; j++) {
+				dst[(h - i - 1) + (x + j * dstPitch)] = *s++;
 			}
 			src += srcPitch;
 		}
@@ -315,36 +330,22 @@ sna_copy_planar_data(struct sna_video *video,
 		     const uint8_t *src, uint8_t *dst)
 {
 	uint8_t *d;
-	int w = frame->image.x2 - frame->image.x1;
-	int h = frame->image.y2 - frame->image.y1;
-	int pitch;
 
-	pitch = ALIGN(frame->width, 4);
-	sna_memcpy_plane(dst, src + frame->image.y1 * pitch + frame->image.x1,
-			 h, w, frame->pitch[1], pitch, video->rotation);
-
-	src += frame->height * pitch; /* move over Luma plane */
-
-	/* align to beginning of chroma planes */
-	pitch = ALIGN((frame->width >> 1), 0x4);
-	src += (frame->image.y1 >> 1) * pitch + (frame->image.x1 >> 1);
-	w >>= 1;
-	h >>= 1;
+	sna_memcpy_plane(video, dst, src, frame, 0);
+	src += frame->height * ALIGN(frame->width, 4);
 
 	if (frame->id == FOURCC_I420)
 		d = dst + frame->UBufOffset;
 	else
 		d = dst + frame->VBufOffset;
-
-	sna_memcpy_plane(d, src, h, w, frame->pitch[0], pitch, video->rotation);
-	src += (frame->height >> 1) * pitch; /* move over Chroma plane */
+	sna_memcpy_plane(video, d, src, frame, 1);
+	src += (frame->height >> 1) * ALIGN(frame->width >> 1, 4);
 
 	if (frame->id == FOURCC_I420)
 		d = dst + frame->VBufOffset;
 	else
 		d = dst + frame->UBufOffset;
-
-	sna_memcpy_plane(d, src, h, w, frame->pitch[0], pitch, video->rotation);
+	sna_memcpy_plane(video, d, src, frame, 1);
 }
 
 static void
