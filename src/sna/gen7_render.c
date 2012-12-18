@@ -2092,7 +2092,7 @@ gen7_render_video(struct sna *sna,
 		  PixmapPtr pixmap)
 {
 	struct sna_composite_op tmp;
-	int nbox, dxo, dyo, pix_xoff, pix_yoff;
+	int nbox, pix_xoff, pix_yoff;
 	float src_scale_x, src_scale_y;
 	struct sna_pixmap *priv;
 	unsigned filter;
@@ -2160,9 +2160,6 @@ gen7_render_video(struct sna *sna,
 	pix_yoff = 0;
 #endif
 
-	dxo = dstRegion->extents.x1 + dx;
-	dyo = dstRegion->extents.y1 + dy;
-
 	/* Use normalized texture coordinates */
 	src_scale_x = ((float)src_w / frame->width) / (float)drw_w;
 	src_scale_y = ((float)src_h / frame->height) / (float)drw_h;
@@ -2180,16 +2177,16 @@ gen7_render_video(struct sna *sna,
 		gen7_get_rectangles(sna, &tmp, 1, gen7_emit_video_state);
 
 		OUT_VERTEX(r.x2, r.y2);
-		OUT_VERTEX_F((box->x2 - dxo) * src_scale_x);
-		OUT_VERTEX_F((box->y2 - dyo) * src_scale_y);
+		OUT_VERTEX_F((box->x2 - dx) * src_scale_x);
+		OUT_VERTEX_F((box->y2 - dy) * src_scale_y);
 
 		OUT_VERTEX(r.x1, r.y2);
-		OUT_VERTEX_F((box->x1 - dxo) * src_scale_x);
-		OUT_VERTEX_F((box->y2 - dyo) * src_scale_y);
+		OUT_VERTEX_F((box->x1 - dx) * src_scale_x);
+		OUT_VERTEX_F((box->y2 - dy) * src_scale_y);
 
 		OUT_VERTEX(r.x1, r.y1);
-		OUT_VERTEX_F((box->x1 - dxo) * src_scale_x);
-		OUT_VERTEX_F((box->y1 - dyo) * src_scale_y);
+		OUT_VERTEX_F((box->x1 - dx) * src_scale_x);
+		OUT_VERTEX_F((box->y1 - dy) * src_scale_y);
 
 		if (!DAMAGE_IS_ALL(priv->gpu_damage)) {
 			sna_damage_add_box(&priv->gpu_damage, &r);

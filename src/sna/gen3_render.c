@@ -3875,10 +3875,8 @@ gen3_render_video(struct sna *sna,
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
 	BoxPtr pbox = REGION_RECTS(dstRegion);
 	int nbox = REGION_NUM_RECTS(dstRegion);
-	int dxo = dstRegion->extents.x1 + dx;
-	int dyo = dstRegion->extents.y1 + dy;
-	int width = dstRegion->extents.x2 - dxo;
-	int height = dstRegion->extents.y2 - dyo;
+	int width = dstRegion->extents.x2 - dstRegion->extents.x1;
+	int height = dstRegion->extents.y2 - dstRegion->extents.y1;
 	float src_scale_x, src_scale_y;
 	int pix_xoff, pix_yoff;
 	struct kgem_bo *dst_bo;
@@ -3904,8 +3902,8 @@ gen3_render_video(struct sna *sna,
 		if (!dst_bo)
 			return false;
 
-		pix_xoff = -dxo;
-		pix_yoff = -dyo;
+		pix_xoff = -dstRegion->extents.x1;
+		pix_yoff = -dstRegion->extents.y1;
 		copy = 1;
 	} else {
 		width = pixmap->drawable.width;
@@ -3930,7 +3928,7 @@ gen3_render_video(struct sna *sna,
 
 	DBG(("%s: src offset=(%d, %d), scale=(%f, %f), dst offset=(%d, %d)\n",
 	     __FUNCTION__,
-	     dxo, dyo, src_scale_x, src_scale_y, pix_xoff, pix_yoff));
+	     dx, dy, src_scale_x, src_scale_y, pix_xoff, pix_yoff));
 
 	gen3_video_get_batch(sna, dst_bo);
 	gen3_emit_video_state(sna, video, frame, pixmap,
@@ -3960,20 +3958,20 @@ gen3_render_video(struct sna *sna,
 			/* bottom right */
 			OUT_BATCH_F(box_x2 + pix_xoff);
 			OUT_BATCH_F(box_y2 + pix_yoff);
-			OUT_BATCH_F((box_x2 - dxo) * src_scale_x);
-			OUT_BATCH_F((box_y2 - dyo) * src_scale_y);
+			OUT_BATCH_F((box_x2 - dx) * src_scale_x);
+			OUT_BATCH_F((box_y2 - dy) * src_scale_y);
 
 			/* bottom left */
 			OUT_BATCH_F(box_x1 + pix_xoff);
 			OUT_BATCH_F(box_y2 + pix_yoff);
-			OUT_BATCH_F((box_x1 - dxo) * src_scale_x);
-			OUT_BATCH_F((box_y2 - dyo) * src_scale_y);
+			OUT_BATCH_F((box_x1 - dx) * src_scale_x);
+			OUT_BATCH_F((box_y2 - dy) * src_scale_y);
 
 			/* top left */
 			OUT_BATCH_F(box_x1 + pix_xoff);
 			OUT_BATCH_F(box_y1 + pix_yoff);
-			OUT_BATCH_F((box_x1 - dxo) * src_scale_x);
-			OUT_BATCH_F((box_y1 - dyo) * src_scale_y);
+			OUT_BATCH_F((box_x1 - dx) * src_scale_x);
+			OUT_BATCH_F((box_y1 - dy) * src_scale_y);
 		}
 	} while (nbox);
 
@@ -3986,7 +3984,7 @@ gen3_render_video(struct sna *sna,
 		pix_yoff = 0;
 #endif
 		sna_blt_copy_boxes(sna, GXcopy,
-				   dst_bo, -dxo, -dyo,
+				   dst_bo, -dstRegion->extents.x1, -dstRegion->extents.y1,
 				   priv->gpu_bo, pix_xoff, pix_yoff,
 				   pixmap->drawable.bitsPerPixel,
 				   REGION_RECTS(dstRegion),
