@@ -362,7 +362,7 @@ sna_video_textured_query(ScrnInfoPtr scrn,
 #ifdef SNA_XVMC
 	case FOURCC_XVMC:
 		*h = (*h + 1) & ~1;
-		size = sizeof(struct sna_xvmc_command);
+		size = sizeof(uint32_t);
 		if (pitches)
 			pitches[0] = size;
 		break;
