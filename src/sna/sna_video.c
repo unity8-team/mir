@@ -172,7 +172,7 @@ sna_video_clip_helper(ScrnInfoPtr scrn,
 	frame->src.y2 = (y2 + 0xffff) >> 16;
 
 	frame->image.x1 = frame->src.x1 & ~1;
-	frame->image.x2 = ALIGN(frame->src.x1, 2);
+	frame->image.x2 = ALIGN(frame->src.x2, 2);
 	if (is_planar_fourcc(frame->id)) {
 		frame->image.y1 = frame->src.y1 & ~1;
 		frame->image.y2 = ALIGN(frame->src.y2, 2);
@@ -449,19 +449,14 @@ sna_video_copy_data(struct sna *sna,
 	/* In the common case, we can simply the upload in a single pwrite */
 	if (video->rotation == RR_Rotate_0) {
 		if (is_planar_fourcc(frame->id)) {
-			uint16_t pitch[2] = {
-				ALIGN((frame->width >> 1), 0x4),
-				ALIGN(frame->width, 0x4),
-			};
-			if (pitch[0] == frame->pitch[0] &&
-			    pitch[1] == frame->pitch[1] &&
-			    (frame->image.y1 | frame->image.x1) == 0) {
-				uint32_t len =
-					(uint32_t)pitch[1]*frame->height +
-					(uint32_t)pitch[0]*frame->height;
+			int w = frame->image.x2 - frame->image.x1;
+			int h = frame->image.y2 - frame->image.y1;
+			if (ALIGN(h, 2) == frame->height &&
+			    ALIGN(w >> 1, 4) == frame->pitch[0] &&
+			    ALIGN(w, 4) == frame->pitch[1]) {
 				if (frame->bo) {
 					kgem_bo_write(&sna->kgem, frame->bo,
-						      buf, len);
+						      buf, frame->size);
 				} else {
 					frame->bo = kgem_create_buffer(&sna->kgem, frame->size,
 								       KGEM_BUFFER_WRITE | KGEM_BUFFER_WRITE_INPLACE,
@@ -469,7 +464,7 @@ sna_video_copy_data(struct sna *sna,
 					if (frame->bo == NULL)
 						return false;
 
-					memcpy(dst, buf, len);
+					memcpy(dst, buf, frame->size);
 				}
 				if (frame->id != FOURCC_I420) {
 					uint32_t tmp;
