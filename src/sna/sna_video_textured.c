@@ -453,6 +453,7 @@ XF86VideoAdaptorPtr sna_video_textured_setup(struct sna *sna,
 		struct sna_video *v = &video[i];
 
 		v->textured = true;
+		video->alignment = 4;
 		v->rotation = RR_Rotate_0;
 		v->SyncToVblank = 1;
 

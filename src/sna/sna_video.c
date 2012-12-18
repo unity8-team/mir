@@ -100,9 +100,17 @@ sna_video_buffer(struct sna *sna,
 	if (video->buf && __kgem_bo_size(video->buf) < frame->size)
 		sna_video_free_buffers(sna, video);
 
-	if (video->buf == NULL)
-		video->buf = kgem_create_linear(&sna->kgem, frame->size,
-						CREATE_GTT_MAP);
+	if (video->buf == NULL) {
+		if (video->tiled) {
+			video->buf = kgem_create_2d(&sna->kgem,
+						    frame->width, frame->height, 32,
+						    I915_TILING_X,
+						    CREATE_EXACT | CREATE_SCANOUT);
+		} else {
+			video->buf = kgem_create_linear(&sna->kgem, frame->size,
+							CREATE_GTT_MAP);
+		}
+	}
 
 	return video->buf;
 }
@@ -178,7 +186,7 @@ sna_video_clip_helper(ScrnInfoPtr scrn,
 		frame->image.y2 = ALIGN(frame->src.y2, 2);
 	} else {
 		frame->image.y1 = frame->src.y1;
-		frame->image.y1 = frame->src.y2;
+		frame->image.y2 = frame->src.y2;
 	}
 
 	return ret;
@@ -197,29 +205,10 @@ sna_video_frame_init(struct sna *sna,
 	frame->width = width;
 	frame->height = height;
 
-	/* Only needs to be DWORD-aligned for textured on i915, but overlay has
-	 * stricter requirements.
-	 */
-	if (video->textured) {
-		align = 4;
-	} else {
-		if (sna->kgem.gen >= 040)
-			/* Actually the alignment is 64 bytes, too. But the
-			 * stride must be at least 512 bytes. Take the easy fix
-			 * and align on 512 bytes unconditionally. */
-			align = 512;
-		else if (sna->kgem.gen < 021)
-			/* Harsh, errata on these chipsets limit the stride
-			 * to be a multiple of 256 bytes.
-			 */
-			align = 256;
-		else
-			align = 64;
-	}
-
+	align = video->alignment;
 #if SNA_XVMC
 	/* for i915 xvmc, hw requires 1kb aligned surfaces */
-	if (id == FOURCC_XVMC && sna->kgem.gen < 040)
+	if (id == FOURCC_XVMC && sna->kgem.gen < 040 && align < 1024)
 		align = 1024;
 #endif
 
@@ -453,13 +442,16 @@ sna_video_copy_data(struct sna *sna,
 {
 	uint8_t *dst;
 
-	DBG(("%s: handle=%d, size=%dx%d, rotation=%d\n",
+	DBG(("%s: handle=%d, size=%dx%d, rotation=%d, is-texture=%d\n",
 	     __FUNCTION__, frame->bo ? frame->bo->handle : 0,
-	     frame->width, frame->height, video->rotation));
-	DBG(("%s: top=%d, left=%d\n", __FUNCTION__, frame->top, frame->left));
+	     frame->width, frame->height, video->rotation, video->textured));
+	DBG(("%s: image=(%d, %d), (%d, %d), source=(%d, %d), (%d, %d)\n",
+	     __FUNCTION__,
+	     frame->image.x1, frame->image.y1, frame->image.x2, frame->image.y2,
+	     frame->src.x1, frame->src.y1, frame->src.x2, frame->src.y2));
 
 	/* In the common case, we can simply the upload in a single pwrite */
-	if (video->rotation == RR_Rotate_0) {
+	if (video->rotation == RR_Rotate_0 && !video->tiled) {
 		if (is_planar_fourcc(frame->id)) {
 			int w = frame->image.x2 - frame->image.x1;
 			int h = frame->image.y2 - frame->image.y1;

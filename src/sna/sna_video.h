@@ -57,6 +57,8 @@ struct sna_video {
 	struct kgem_bo *old_buf[2];
 	struct kgem_bo *buf;
 
+	int alignment;
+	bool tiled;
 	bool textured;
 	Rotation rotation;
 	int plane;
