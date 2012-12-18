@@ -356,11 +356,22 @@ sna_copy_packed_data(struct sna_video *video,
 {
 	int pitch = frame->width << 1;
 	const uint8_t *src, *s;
-	int w = frame->image.x2 - frame->image.x1;
-	int h = frame->image.y2 - frame->image.y1;
+	int x, y, w, h;
 	int i, j;
 
-	src = buf + (frame->image.y1 * pitch) + (frame->image.x1 << 1);
+	if (video->textured) {
+		/* XXX support copying cropped extents */
+		x = y = 0;
+		w = frame->width;
+		h = frame->height;
+	} else {
+		x = frame->image.x1;
+		y = frame->image.y1;
+		w = frame->image.x2 - frame->image.x1;
+		h = frame->image.y2 - frame->image.y1;
+	}
+
+	src = buf + (y * pitch) + (x << 1);
 
 	switch (video->rotation) {
 	case RR_Rotate_0:
@@ -383,7 +394,7 @@ sna_copy_packed_data(struct sna_video *video,
 			src += pitch;
 		}
 		h >>= 1;
-		src = buf + (frame->image.y1 * pitch) + (frame->image.x1 << 1);
+		src = buf + (y * pitch) + (x << 1);
 		for (i = 0; i < h; i += 2) {
 			for (j = 0; j < w; j += 2) {
 				/* Copy U */
@@ -419,7 +430,7 @@ sna_copy_packed_data(struct sna_video *video,
 			src += pitch;
 		}
 		h >>= 1;
-		src = buf + (frame->image.y1 * pitch) + (frame->image.x1 << 1);
+		src = buf + (y * pitch) + (x << 1);
 		for (i = 0; i < h; i += 2) {
 			for (j = 0; j < w; j += 2) {
 				/* Copy U */
