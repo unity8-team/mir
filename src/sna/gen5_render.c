@@ -2693,15 +2693,15 @@ gen5_check_composite_spans(struct sna *sna,
 	}
 
 	if ((flags & COMPOSITE_SPANS_RECTILINEAR) == 0) {
-		if ((flags & COMPOSITE_SPANS_INPLACE_HINT) == 0) {
-			struct sna_pixmap *priv = sna_pixmap_from_drawable(dst->pDrawable);
-			assert(priv);
+		struct sna_pixmap *priv = sna_pixmap_from_drawable(dst->pDrawable);
+		assert(priv);
 
-			if ((priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo)) ||
-			    (priv->gpu_bo && kgem_bo_is_busy(priv->gpu_bo))) {
-				return true;
-			}
-		}
+		if (priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo))
+			return true;
+
+		if ((flags & COMPOSITE_SPANS_INPLACE_HINT) == 0 &&
+		    priv->gpu_bo && kgem_bo_is_busy(priv->gpu_bo))
+			return true;
 
 		DBG(("%s: fallback, non-rectilinear spans to idle bo\n",
 		     __FUNCTION__));
