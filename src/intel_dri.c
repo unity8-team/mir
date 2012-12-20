@@ -1097,7 +1097,7 @@ void I830DRI2FlipEventHandler(unsigned int frame, unsigned int tv_sec,
 				i830_dri2_del_frame_event(chain_drawable, chain);
 			} else if (!can_exchange(chain_drawable, chain->front, chain->back) ||
 				   !I830DRI2ScheduleFlip(intel, chain_drawable, chain)) {
-				I830DRI2FallbackBlitSwap(drawable,
+				I830DRI2FallbackBlitSwap(chain_drawable,
 							 chain->front,
 							 chain->back);
 
