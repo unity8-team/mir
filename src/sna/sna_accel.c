@@ -431,7 +431,7 @@ sna_pixmap_alloc_cpu(struct sna *sna,
 						  pixmap->drawable.width,
 						  pixmap->drawable.height,
 						  pixmap->drawable.bitsPerPixel,
-						  from_gpu ? 0 : CREATE_CPU_MAP | CREATE_INACTIVE);
+						  from_gpu ? 0 : CREATE_CPU_MAP | CREATE_INACTIVE | CREATE_NO_THROTTLE);
 		if (priv->cpu_bo) {
 			priv->ptr = kgem_bo_map__cpu(&sna->kgem, priv->cpu_bo);
 			priv->stride = priv->cpu_bo->pitch;
