@@ -1704,7 +1704,7 @@ sna_render_picture_convert(struct sna *sna,
 						   PICT_FORMAT_B(picture->format));
 
 		DBG(("%s: converting to %08x from %08x using composite alpha-fixup\n",
-		     __FUNCTION__, picture->format));
+		     __FUNCTION__, (unsigned)picture->format));
 
 		tmp = screen->CreatePixmap(screen, w, h, pixmap->drawable.bitsPerPixel, 0);
 		if (tmp == NULL)
@@ -1993,7 +1993,7 @@ sna_render_composite_redirect_done(struct sna *sna,
 		}
 		if (t->damage) {
 			DBG(("%s: combining damage (all? %d), offset=(%d, %d)\n",
-			     __FUNCTION__, DAMAGE_IS_ALL(t->damage),
+			     __FUNCTION__, (int)DAMAGE_IS_ALL(t->damage),
 			     t->box.x1, t->box.y1));
 			sna_damage_combine(t->real_damage,
 					   DAMAGE_PTR(t->damage),

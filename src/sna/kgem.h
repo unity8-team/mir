@@ -260,8 +260,9 @@ enum {
 	CREATE_SCANOUT = 0x10,
 	CREATE_PRIME = 0x20,
 	CREATE_TEMPORARY = 0x40,
-	CREATE_NO_RETIRE = 0x80,
-	CREATE_NO_THROTTLE = 0x100,
+	CREATE_CACHED = 0x80,
+	CREATE_NO_RETIRE = 0x100,
+	CREATE_NO_THROTTLE = 0x200,
 };
 struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 			       int width,
@@ -631,7 +632,7 @@ bool kgem_expire_cache(struct kgem *kgem);
 void kgem_purge_cache(struct kgem *kgem);
 void kgem_cleanup_cache(struct kgem *kgem);
 
-#if HAS_EXTRA_DEBUG
+#if HAS_DEBUG_FULL
 void __kgem_batch_debug(struct kgem *kgem, uint32_t nbatch);
 #else
 static inline void __kgem_batch_debug(struct kgem *kgem, uint32_t nbatch)

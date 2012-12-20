@@ -533,6 +533,7 @@ static struct kgem_bo *__kgem_bo_init(struct kgem_bo *bo,
 
 	bo->refcnt = 1;
 	bo->handle = handle;
+	bo->target_handle = -1;
 	num_pages(bo) = num_pages;
 	bucket(bo) = cache_bucket(num_pages);
 	bo->reusable = true;
@@ -2044,6 +2045,7 @@ static void kgem_commit(struct kgem *kgem)
 
 		bo->presumed_offset = bo->exec->offset;
 		bo->exec = NULL;
+		bo->target_handle = -1;
 
 		if (!bo->refcnt && !bo->reusable) {
 			assert(!bo->snoop);
@@ -2312,6 +2314,7 @@ void kgem_reset(struct kgem *kgem)
 
 			bo->binding.offset = 0;
 			bo->exec = NULL;
+			bo->target_handle = -1;
 			bo->dirty = false;
 			bo->rq = NULL;
 			bo->domain = DOMAIN_NONE;
@@ -2469,7 +2472,7 @@ void _kgem_submit(struct kgem *kgem)
 
 	kgem_finish_buffers(kgem);
 
-#if HAS_DEBUG_FULL && SHOW_BATCH
+#if SHOW_BATCH
 	__kgem_batch_debug(kgem, batch_end);
 #endif
 
@@ -3137,9 +3140,13 @@ struct kgem_bo *kgem_create_linear(struct kgem *kgem, int size, unsigned flags)
 	size = (size + PAGE_SIZE - 1) / PAGE_SIZE;
 	bo = search_linear_cache(kgem, size, CREATE_INACTIVE | flags);
 	if (bo) {
+		assert(!kgem_busy(kgem, bo->handle));
 		bo->refcnt = 1;
 		return bo;
 	}
+
+	if (flags & CREATE_CACHED)
+		return NULL;
 
 	handle = gem_create(kgem->fd, size);
 	if (handle == 0)

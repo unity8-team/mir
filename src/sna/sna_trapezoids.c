@@ -5552,7 +5552,7 @@ sna_composite_trapezoids(CARD8 op,
 		     dst->pDrawable->width,
 		     dst->pDrawable->height,
 		     too_small(priv),
-		     DAMAGE_IS_ALL(priv->cpu_damage),
+		     (int)DAMAGE_IS_ALL(priv->cpu_damage),
 		     !picture_is_gpu(src)));
 		force_fallback = true;
 	}

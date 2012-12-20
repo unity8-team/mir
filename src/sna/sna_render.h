@@ -5,6 +5,9 @@
 
 #include <picturestr.h>
 
+#include <stdbool.h>
+#include <stdint.h>
+
 #define GRADIENT_CACHE_SIZE 16
 
 #define GXinvalid 0xff
@@ -284,6 +287,8 @@ struct sna_render {
 	pixman_glyph_cache_t *glyph_cache;
 #endif
 
+	uint16_t vb_id;
+	uint16_t vertex_offset;
 	uint16_t vertex_start;
 	uint16_t vertex_index;
 	uint16_t vertex_used;
@@ -341,9 +346,7 @@ struct gen4_render_state {
 	int ve_id;
 	uint32_t drawrect_offset;
 	uint32_t drawrect_limit;
-	uint32_t vb_id;
 	uint32_t last_pipelined_pointers;
-	uint16_t vertex_offset;
 	uint16_t last_primitive;
 	int16_t floats_per_vertex;
 	uint16_t surface_table;
@@ -363,8 +366,6 @@ struct gen5_render_state {
 	int ve_id;
 	uint32_t drawrect_offset;
 	uint32_t drawrect_limit;
-	uint32_t vb_id;
-	uint16_t vertex_offset;
 	uint16_t last_primitive;
 	int16_t floats_per_vertex;
 	uint16_t surface_table;
@@ -414,9 +415,7 @@ struct gen6_render_state {
 	uint32_t kernel;
 
 	uint16_t num_sf_outputs;
-	uint16_t vb_id;
 	uint16_t ve_id;
-	uint16_t vertex_offset;
 	uint16_t last_primitive;
 	int16_t floats_per_vertex;
 	uint16_t surface_table;
@@ -466,9 +465,7 @@ struct gen7_render_state {
 	uint32_t kernel;
 
 	uint16_t num_sf_outputs;
-	uint16_t vb_id;
 	uint16_t ve_id;
-	uint16_t vertex_offset;
 	uint16_t last_primitive;
 	int16_t floats_per_vertex;
 	uint16_t surface_table;

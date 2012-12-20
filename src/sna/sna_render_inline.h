@@ -17,6 +17,17 @@ static inline bool need_redirect(struct sna *sna, PixmapPtr dst)
 		dst->drawable.height > sna->render.max_3d_size);
 }
 
+static inline float pack_2s(int16_t x, int16_t y)
+{
+	union {
+		struct sna_coordinate p;
+		float f;
+	} u;
+	u.p.x = x;
+	u.p.y = y;
+	return u.f;
+}
+
 static inline int vertex_space(struct sna *sna)
 {
 	return sna->render.vertex_size - sna->render.vertex_used;
@@ -28,21 +39,7 @@ static inline void vertex_emit(struct sna *sna, float v)
 }
 static inline void vertex_emit_2s(struct sna *sna, int16_t x, int16_t y)
 {
-	int16_t *v = (int16_t *)&sna->render.vertices[sna->render.vertex_used++];
-	assert(sna->render.vertex_used <= sna->render.vertex_size);
-	v[0] = x;
-	v[1] = y;
-}
-
-static inline float pack_2s(int16_t x, int16_t y)
-{
-	union {
-		struct sna_coordinate p;
-		float f;
-	} u;
-	u.p.x = x;
-	u.p.y = y;
-	return u.f;
+	vertex_emit(sna, pack_2s(x, y));
 }
 
 static inline int batch_space(struct sna *sna)
