@@ -246,6 +246,8 @@ sna_video_frame_init(struct sna *sna,
 		frame->VBufOffset =
 			frame->UBufOffset + (int)frame->pitch[0] * height / 2;
 	}
+
+	assert(frame->size);
 }
 
 static void sna_memcpy_plane(struct sna_video *video,
@@ -442,13 +444,16 @@ sna_video_copy_data(struct sna *sna,
 {
 	uint8_t *dst;
 
-	DBG(("%s: handle=%d, size=%dx%d, rotation=%d, is-texture=%d\n",
+	DBG(("%s: handle=%d, size=%dx%d [%d], rotation=%d, is-texture=%d\n",
 	     __FUNCTION__, frame->bo ? frame->bo->handle : 0,
-	     frame->width, frame->height, video->rotation, video->textured));
+	     frame->width, frame->height, frame->size
+	     video->rotation, video->textured));
 	DBG(("%s: image=(%d, %d), (%d, %d), source=(%d, %d), (%d, %d)\n",
 	     __FUNCTION__,
 	     frame->image.x1, frame->image.y1, frame->image.x2, frame->image.y2,
 	     frame->src.x1, frame->src.y1, frame->src.x2, frame->src.y2));
+	assert(frame->width && frame->height);
+	assert(frame->size);
 
 	/* In the common case, we can simply the upload in a single pwrite */
 	if (video->rotation == RR_Rotate_0 && !video->tiled) {
