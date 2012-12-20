@@ -543,7 +543,6 @@ intel_platform_probe(DriverPtr driver,
 		     struct xf86_platform_device *dev,
 		     intptr_t match_data)
 {
-	char *path = xf86_get_platform_device_attrib(dev, ODEV_ATTRIB_PATH);
 	unsigned scrn_flags = 0;
 
 	if (!dev->pdev)
