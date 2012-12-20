@@ -1707,7 +1707,8 @@ static void gen3_vertex_close(struct sna *sna)
 			DBG(("%s: new vbo: %d\n", __FUNCTION__,
 			     sna->render.vertex_used));
 			bo = kgem_create_linear(&sna->kgem,
-						4*sna->render.vertex_used, 0);
+						4*sna->render.vertex_used,
+						CREATE_NO_THROTTLE);
 			if (bo) {
 				assert(bo->snoop == false);
 				kgem_bo_write(&sna->kgem, bo,

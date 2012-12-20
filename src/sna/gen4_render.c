@@ -347,7 +347,8 @@ static void gen4_vertex_close(struct sna *sna)
 			sna->kgem.nbatch += sna->render.vertex_used;
 		} else {
 			bo = kgem_create_linear(&sna->kgem,
-						4*sna->render.vertex_used, 0);
+						4*sna->render.vertex_used,
+						CREATE_NO_THROTTLE);
 			if (bo && !kgem_bo_write(&sna->kgem, bo,
 						 sna->render.vertex_data,
 						 4*sna->render.vertex_used)) {

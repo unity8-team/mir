@@ -2877,7 +2877,7 @@ search_linear_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags)
 			return NULL;
 		}
 
-		if (!__kgem_throttle_retire(kgem, 0)) {
+		if (!__kgem_throttle_retire(kgem, flags)) {
 			DBG(("%s: nothing retired\n", __FUNCTION__));
 			return NULL;
 		}
