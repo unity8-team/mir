@@ -206,7 +206,7 @@ Bool sna_video_xvmc_setup(struct sna *sna,
 	char bus[64];
 	int i;
 
-	if (!XvMCScreenInitProc)
+	if (!xf86LoaderCheckSymbol("XvMCScreenInit"))
 		return FALSE;
 
 	/* Needs KMS support. */
@@ -253,7 +253,7 @@ Bool sna_video_xvmc_setup(struct sna *sna,
 		adaptors->surfaces = surface_info_i915;
 	}
 
-	if (XvMCScreenInitProc(screen, 1, adaptors) != Success) {
+	if (XvMCScreenInit(screen, 1, adaptors) != Success) {
 		xf86DrvMsg(sna->scrn->scrnIndex, X_INFO,
 			   "[XvMC] Failed to initialize XvMC.\n");
 		free(adaptors);
