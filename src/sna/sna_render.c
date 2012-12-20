@@ -1725,7 +1725,7 @@ sna_render_picture_convert(struct sna *sna,
 						       pixmap->drawable.depth,
 						       picture->format),
 				    0, NULL, serverClient, &error);
-		if (dst == NULL) {
+		if (src == NULL) {
 			FreePicture(dst, 0);
 			screen->DestroyPixmap(tmp);
 			return 0;
