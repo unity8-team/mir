@@ -2090,10 +2090,10 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 			goto blit_fallback;
 		current_msc = vbl.reply.sequence;
 	} else
-		current_msc = 0;
+		current_msc = -1;
 
-	DBG(("%s: target_msc=%u, current_msc=%u, divisor=%u\n",
-	     __FUNCTION__, *target_msc, current_msc, divisor));
+	DBG(("%s: target_msc=%u, current_msc=%u, divisor=%u\n", __FUNCTION__,
+	     (uint32_t)*target_msc, (uint32_t)current_msc, (uint32_t)divisor));
 
 	if (divisor == 0 && current_msc >= *target_msc) {
 		if (can_exchange(sna, draw, front, back)) {
