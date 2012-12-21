@@ -200,6 +200,10 @@ sna_video_frame_init(struct sna *sna,
 {
 	int align;
 
+	DBG(("%s: id=%d [planar? %d], width=%d, height=%d, align=%d\n",
+	     __FUNCTION__, id, is_planar_fourcc(id), width, height, video->alignment));
+	assert(width && height);
+
 	frame->bo = NULL;
 	frame->id = id;
 	frame->width = width;
@@ -211,7 +215,6 @@ sna_video_frame_init(struct sna *sna,
 	if (id == FOURCC_XVMC && sna->kgem.gen < 040 && align < 1024)
 		align = 1024;
 #endif
-
 
 	/* Determine the desired destination pitch (representing the chroma's pitch,
 	 * in the planar case.
