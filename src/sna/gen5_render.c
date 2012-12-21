@@ -211,6 +211,8 @@ static void gen5_magic_ca_pass(struct sna *sna,
 	assert(sna->render.vertex_index > sna->render.vertex_start);
 
 	DBG(("%s: CA fixup\n", __FUNCTION__));
+	assert(op->mask.bo != NULL);
+	assert(op->has_component_alpha);
 
 	gen5_emit_pipelined_pointers
 		(sna, op, PictOpAdd,
@@ -595,9 +597,7 @@ static int gen5_get_rectangles__flush(struct sna *sna,
 {
 	if (!kgem_check_batch(&sna->kgem, op->need_magic_ca_pass ? 20 : 6))
 		return 0;
-	if (!kgem_check_exec(&sna->kgem, 1))
-		return 0;
-	if (!kgem_check_reloc(&sna->kgem, 2))
+	if (!kgem_check_reloc_and_exec(&sna->kgem, 1))
 		return 0;
 
 	if (op->need_magic_ca_pass && sna->render.vbo)
@@ -628,7 +628,7 @@ start:
 		     !gen5_rectangle_begin(sna, op)))
 		goto flush;
 
-	if (want * op->floats_per_rect > rem)
+	if (want > 1 && want * op->floats_per_rect > rem)
 		want = rem / op->floats_per_rect;
 
 	sna->render.vertex_index += 3*want;
@@ -648,18 +648,15 @@ static uint32_t *
 gen5_composite_get_binding_table(struct sna *sna,
 				 uint16_t *offset)
 {
-	uint32_t *table;
-
 	sna->kgem.surface -=
 		sizeof(struct gen5_surface_state_padded) / sizeof(uint32_t);
-	/* Clear all surplus entries to zero in case of prefetch */
-	table = memset(sna->kgem.batch + sna->kgem.surface,
-		       0, sizeof(struct gen5_surface_state_padded));
-	*offset = sna->kgem.surface;
 
 	DBG(("%s(%x)\n", __FUNCTION__, 4*sna->kgem.surface));
 
-	return table;
+	/* Clear all surplus entries to zero in case of prefetch */
+	*offset = sna->kgem.surface;
+	return memset(sna->kgem.batch + sna->kgem.surface,
+		      0, sizeof(struct gen5_surface_state_padded));
 }
 
 static void
@@ -765,6 +762,7 @@ gen5_get_batch(struct sna *sna, const struct sna_composite_op *op)
 static void
 gen5_align_vertex(struct sna *sna, const struct sna_composite_op *op)
 {
+	assert(op->floats_per_rect == 3*op->floats_per_vertex);
 	if (op->floats_per_vertex != sna->render_state.gen5.floats_per_vertex) {
 		if (sna->render.vertex_size - sna->render.vertex_used < 2*op->floats_per_rect)
 			gen4_vertex_finish(sna);
@@ -804,33 +802,36 @@ gen5_emit_pipelined_pointers(struct sna *sna,
 			     const struct sna_composite_op *op,
 			     int blend, int kernel)
 {
-	uint16_t offset = sna->kgem.nbatch, last;
+	uint16_t sp, bp;
+	uint32_t key;
+
+	DBG(("%s: has_mask=%d, src=(%d, %d), mask=(%d, %d),kernel=%d, blend=%d, ca=%d, format=%x\n",
+	     __FUNCTION__, op->u.gen4.ve_id & 2,
+	     op->src.filter, op->src.repeat,
+	     op->mask.filter, op->mask.repeat,
+	     kernel, blend, op->has_component_alpha, (int)op->dst.format));
+
+	sp = SAMPLER_OFFSET(op->src.filter, op->src.repeat,
+			    op->mask.filter, op->mask.repeat,
+			    kernel);
+	bp = gen5_get_blend(blend, op->has_component_alpha, op->dst.format);
+
+	DBG(("%s: sp=%d, bp=%d\n", __FUNCTION__, sp, bp));
+	key = sp | (uint32_t)bp << 16 | (op->mask.bo != NULL) << 31;
+	if (key == sna->render_state.gen5.last_pipelined_pointers)
+		return false;
+
 
 	OUT_BATCH(GEN5_3DSTATE_PIPELINED_POINTERS | 5);
 	OUT_BATCH(sna->render_state.gen5.vs);
 	OUT_BATCH(GEN5_GS_DISABLE); /* passthrough */
 	OUT_BATCH(GEN5_CLIP_DISABLE); /* passthrough */
 	OUT_BATCH(sna->render_state.gen5.sf[op->mask.bo != NULL]);
-	OUT_BATCH(sna->render_state.gen5.wm +
-		  SAMPLER_OFFSET(op->src.filter, op->src.repeat,
-				 op->mask.filter, op->mask.repeat,
-				 kernel));
-	OUT_BATCH(sna->render_state.gen5.cc +
-		  gen5_get_blend(blend, op->has_component_alpha, op->dst.format));
+	OUT_BATCH(sna->render_state.gen5.wm + sp);
+	OUT_BATCH(sna->render_state.gen5.cc + bp);
 
-	last = sna->render_state.gen5.last_pipelined_pointers;
-	if (!DBG_NO_STATE_CACHE && last &&
-	    sna->kgem.batch[offset + 1] == sna->kgem.batch[last + 1] &&
-	    sna->kgem.batch[offset + 3] == sna->kgem.batch[last + 3] &&
-	    sna->kgem.batch[offset + 4] == sna->kgem.batch[last + 4] &&
-	    sna->kgem.batch[offset + 5] == sna->kgem.batch[last + 5] &&
-	    sna->kgem.batch[offset + 6] == sna->kgem.batch[last + 6]) {
-		sna->kgem.nbatch = offset;
-		return false;
-	} else {
-		sna->render_state.gen5.last_pipelined_pointers = offset;
-		return true;
-	}
+	sna->render_state.gen5.last_pipelined_pointers = key;
+	return true;
 }
 
 static void
@@ -911,7 +912,6 @@ gen5_emit_vertex_elements(struct sna *sna,
 			  VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT);
 		return;
 	}
-
 
 	/* The VUE layout
 	 *    dword 0-3: pad (0.0, 0.0, 0.0. 0.0)
@@ -1048,7 +1048,8 @@ static void gen5_bind_surfaces(struct sna *sna,
 			     op->src.bo, op->src.width, op->src.height,
 			     op->src.card_format,
 			     false);
-	if (op->mask.bo)
+	if (op->mask.bo) {
+		assert(op->u.gen4.ve_id >> 2);
 		binding_table[2] =
 			gen5_bind_bo(sna,
 				     op->mask.bo,
@@ -1056,6 +1057,7 @@ static void gen5_bind_surfaces(struct sna *sna,
 				     op->mask.height,
 				     op->mask.card_format,
 				     false);
+	}
 
 	if (sna->kgem.surface == offset &&
 	    *(uint64_t *)(sna->kgem.batch + sna->render_state.gen5.surface_table) == *(uint64_t*)binding_table &&
@@ -1188,8 +1190,8 @@ static void gen5_video_bind_surfaces(struct sna *sna,
 	int src_height[6];
 	int src_pitch[6];
 	uint32_t *binding_table;
-	int n_src, n;
 	uint16_t offset;
+	int n_src, n;
 
 	src_surf_base[0] = 0;
 	src_surf_base[1] = 0;
@@ -1223,8 +1225,8 @@ static void gen5_video_bind_surfaces(struct sna *sna,
 	}
 
 	gen5_get_batch(sna, op);
-	binding_table = gen5_composite_get_binding_table(sna, &offset);
 
+	binding_table = gen5_composite_get_binding_table(sna, &offset);
 	binding_table[0] =
 		gen5_bind_bo(sna,
 			     op->dst.bo, op->dst.width, op->dst.height,
@@ -1349,7 +1351,7 @@ gen5_render_video(struct sna *sna,
 	return true;
 }
 
-static int
+static bool
 gen5_composite_solid_init(struct sna *sna,
 			  struct sna_composite_channel *channel,
 			  uint32_t color)
@@ -1611,10 +1613,9 @@ gen5_composite_set_target(struct sna *sna,
 	BoxRec box;
 
 	op->dst.pixmap = get_drawable_pixmap(dst->pDrawable);
-	op->dst.format = dst->format;
-	op->dst.width = op->dst.pixmap->drawable.width;
+	op->dst.width  = op->dst.pixmap->drawable.width;
 	op->dst.height = op->dst.pixmap->drawable.height;
-
+	op->dst.format = dst->format;
 	if (w && h) {
 		box.x1 = x;
 		box.y1 = y;
@@ -2345,7 +2346,6 @@ fallback_blt:
 			if (box[i].y2 > extents.y2)
 				extents.y2 = box[i].y2;
 		}
-
 		if (!sna_render_composite_redirect(sna, &tmp,
 						   extents.x1 + dst_dx,
 						   extents.y1 + dst_dy,
@@ -2539,7 +2539,7 @@ fallback:
 	op->base.u.gen5.wm_kernel = WM_KERNEL;
 	op->base.u.gen5.ve_id = VERTEX_2s2s;
 
-	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))  {
+	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL)) {
 		kgem_submit(&sna->kgem);
 		if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
 			goto fallback;
@@ -2656,15 +2656,18 @@ gen5_render_fill_boxes(struct sna *sna,
 						     dst, dst_bo, box, n);
 	}
 
-	if (op == PictOpClear)
+	if (op == PictOpClear) {
 		pixel = 0;
-	else if (!sna_get_pixel_from_rgba(&pixel,
-					  color->red,
-					  color->green,
-					  color->blue,
-					  color->alpha,
-					  PICT_a8r8g8b8))
+		op = PictOpSrc;
+	} else if (!sna_get_pixel_from_rgba(&pixel,
+					    color->red,
+					    color->green,
+					    color->blue,
+					    color->alpha,
+					    PICT_a8r8g8b8))
 		return false;
+
+	DBG(("%s(%08x x %d)\n", __FUNCTION__, pixel, n));
 
 	memset(&tmp, 0, sizeof(tmp));
 
@@ -3178,23 +3181,11 @@ static void gen5_init_wm_state(struct gen5_wm_unit_state *state,
 	state->thread1.binding_table_entry_count = 0;
 }
 
-static uint32_t gen5_create_cc_viewport(struct sna_static_stream *stream)
-{
-	struct gen5_cc_viewport vp;
-
-	vp.min_depth = -1.e35;
-	vp.max_depth = 1.e35;
-
-	return sna_static_stream_add(stream, &vp, sizeof(vp), 32);
-}
-
 static uint32_t gen5_create_cc_unit_state(struct sna_static_stream *stream)
 {
 	uint8_t *ptr, *base;
-	uint32_t vp;
 	int i, j;
 
-	vp = gen5_create_cc_viewport(stream);
 	base = ptr =
 		sna_static_stream_map(stream,
 				      GEN5_BLENDFACTOR_COUNT*GEN5_BLENDFACTOR_COUNT*64,
@@ -3207,7 +3198,6 @@ static uint32_t gen5_create_cc_unit_state(struct sna_static_stream *stream)
 
 			state->cc3.blend_enable =
 				!(j == GEN5_BLENDFACTOR_ZERO && i == GEN5_BLENDFACTOR_ONE);
-			state->cc4.cc_viewport_state_offset = vp >> 5;
 
 			state->cc5.logicop_func = 0xc;	/* COPY */
 			state->cc5.ia_blend_function = GEN5_BLENDFUNCTION_ADD;
@@ -3291,8 +3281,7 @@ static bool gen5_render_setup(struct sna *sna)
 					for (m = 0; m < KERNEL_COUNT; m++) {
 						gen5_init_wm_state(&wm_state->state,
 								   wm_kernels[m].has_mask,
-								   wm[m],
-								   sampler_state);
+								   wm[m], sampler_state);
 						wm_state++;
 					}
 				}

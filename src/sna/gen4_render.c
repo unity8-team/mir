@@ -215,6 +215,8 @@ static void gen4_magic_ca_pass(struct sna *sna,
 	if (!op->need_magic_ca_pass)
 		return;
 
+	assert(sna->render.vertex_index > sna->render.vertex_start);
+
 	DBG(("%s: CA fixup\n", __FUNCTION__));
 	assert(op->mask.bo != NULL);
 	assert(op->has_component_alpha);
@@ -468,6 +470,17 @@ static bool gen4_check_repeat(PicturePtr picture)
 	}
 }
 
+static uint32_t
+gen4_tiling_bits(uint32_t tiling)
+{
+	switch (tiling) {
+	default: assert(0);
+	case I915_TILING_NONE: return 0;
+	case I915_TILING_X: return GEN4_SURFACE_TILED;
+	case I915_TILING_Y: return GEN4_SURFACE_TILED | GEN4_SURFACE_TILED_Y;
+	}
+}
+
 /**
  * Sets up the common fields for a surface state buffer for the given
  * picture in the given surface state buffer.
@@ -480,9 +493,9 @@ gen4_bind_bo(struct sna *sna,
 	     uint32_t format,
 	     bool is_dst)
 {
-	struct gen4_surface_state *ss;
 	uint32_t domains;
 	uint16_t offset;
+	uint32_t *ss;
 
 	assert(sna->kgem.gen != 040 || !kgem_bo_is_snoop(bo));
 
@@ -496,32 +509,30 @@ gen4_bind_bo(struct sna *sna,
 
 	offset = sna->kgem.surface -=
 		sizeof(struct gen4_surface_state_padded) / sizeof(uint32_t);
-	ss = memset(sna->kgem.batch + offset, 0, sizeof(*ss));
+	ss = sna->kgem.batch + offset;
 
-	ss->ss0.surface_type = GEN4_SURFACE_2D;
-	ss->ss0.surface_format = format;
+	ss[0] = (GEN4_SURFACE_2D << GEN4_SURFACE_TYPE_SHIFT |
+		 GEN4_SURFACE_BLEND_ENABLED |
+		 format << GEN4_SURFACE_FORMAT_SHIFT);
 
 	if (is_dst)
 		domains = I915_GEM_DOMAIN_RENDER << 16 | I915_GEM_DOMAIN_RENDER;
 	else
 		domains = I915_GEM_DOMAIN_SAMPLER << 16;
+	ss[1] = kgem_add_reloc(&sna->kgem, offset + 1, bo, domains, 0);
 
-	ss->ss0.data_return_format = GEN4_SURFACERETURNFORMAT_FLOAT32;
-	ss->ss0.color_blend = 1;
-	ss->ss1.base_addr =
-		kgem_add_reloc(&sna->kgem, offset + 1, bo, domains, 0);
-
-	ss->ss2.height = height - 1;
-	ss->ss2.width  = width - 1;
-	ss->ss3.pitch  = bo->pitch - 1;
-	ss->ss3.tiled_surface = bo->tiling != I915_TILING_NONE;
-	ss->ss3.tile_walk     = bo->tiling == I915_TILING_Y;
+	ss[2] = ((width - 1)  << GEN4_SURFACE_WIDTH_SHIFT |
+		 (height - 1) << GEN4_SURFACE_HEIGHT_SHIFT);
+	ss[3] = (gen4_tiling_bits(bo->tiling) |
+		 (bo->pitch - 1) << GEN4_SURFACE_PITCH_SHIFT);
+	ss[4] = 0;
+	ss[5] = 0;
 
 	kgem_bo_set_binding(bo, format, offset);
 
 	DBG(("[%x] bind bo(handle=%d, addr=%d), format=%d, width=%d, height=%d, pitch=%d, tiling=%d -> %s\n",
-	     offset, bo->handle, ss->ss1.base_addr,
-	     ss->ss0.surface_format, width, height, bo->pitch, bo->tiling,
+	     offset, bo->handle, ss[1],
+	     format, width, height, bo->pitch, bo->tiling,
 	     domains & 0xffff ? "render" : "sampler"));
 
 	return offset * sizeof(uint32_t);
@@ -532,9 +543,12 @@ static void gen4_emit_vertex_buffer(struct sna *sna,
 {
 	int id = op->u.gen4.ve_id;
 
+	assert((sna->render.vb_id & (1 << id)) == 0);
+
 	OUT_BATCH(GEN4_3DSTATE_VERTEX_BUFFERS | 3);
 	OUT_BATCH((id << VB0_BUFFER_INDEX_SHIFT) | VB0_VERTEXDATA |
 		  (4*op->floats_per_vertex << VB0_BUFFER_PITCH_SHIFT));
+	assert(sna->render.nvertex_reloc < ARRAY_SIZE(sna->render.vertex_reloc));
 	sna->render.vertex_reloc[sna->render.nvertex_reloc++] = sna->kgem.nbatch;
 	OUT_BATCH(0);
 	OUT_BATCH(0);
@@ -897,7 +911,7 @@ gen4_emit_vertex_elements(struct sna *sna,
 		src_format = GEN4_SURFACEFORMAT_R32_FLOAT;
 		dw |= VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT;
 		dw |= VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_1_SHIFT;
-		dw |= VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_2_SHIFT;
+		dw |= VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_2_SHIFT;
 		break;
 	default:
 		assert(0);
@@ -905,7 +919,7 @@ gen4_emit_vertex_elements(struct sna *sna,
 		src_format = GEN4_SURFACEFORMAT_R32G32_FLOAT;
 		dw |= VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT;
 		dw |= VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT;
-		dw |= VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_2_SHIFT;
+		dw |= VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_2_SHIFT;
 		break;
 	case 3:
 		src_format = GEN4_SURFACEFORMAT_R32G32B32_FLOAT;
@@ -931,7 +945,7 @@ gen4_emit_vertex_elements(struct sna *sna,
 			src_format = GEN4_SURFACEFORMAT_R32_FLOAT;
 			dw |= VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT;
 			dw |= VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_1_SHIFT;
-			dw |= VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_2_SHIFT;
+			dw |= VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_2_SHIFT;
 			break;
 		default:
 			assert(0);
@@ -939,7 +953,7 @@ gen4_emit_vertex_elements(struct sna *sna,
 			src_format = GEN4_SURFACEFORMAT_R32G32_FLOAT;
 			dw |= VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT;
 			dw |= VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT;
-			dw |= VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_2_SHIFT;
+			dw |= VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_2_SHIFT;
 			break;
 		case 3:
 			src_format = GEN4_SURFACEFORMAT_R32G32B32_FLOAT;
@@ -1014,7 +1028,7 @@ gen4_bind_surfaces(struct sna *sna,
 			     op->src.card_format,
 			     false);
 	if (op->mask.bo) {
-		assert(op->u.gen4.ve_id & 2);
+		assert(op->u.gen4.ve_id >> 2);
 		binding_table[2] =
 			gen4_bind_bo(sna,
 				     op->mask.bo,
@@ -1193,7 +1207,6 @@ static void gen4_video_bind_surfaces(struct sna *sna,
 	gen4_get_batch(sna, op);
 
 	binding_table = gen4_composite_get_binding_table(sna, &offset);
-
 	binding_table[0] =
 		gen4_bind_bo(sna,
 			     op->dst.bo, op->dst.width, op->dst.height,
@@ -1580,34 +1593,48 @@ gen4_render_composite_done(struct sna *sna,
 }
 
 static bool
-gen4_composite_set_target(PicturePtr dst, struct sna_composite_op *op)
+gen4_composite_set_target(struct sna *sna,
+			  struct sna_composite_op *op,
+			  PicturePtr dst,
+			  int x, int y, int w, int h)
 {
-	struct sna_pixmap *priv;
-
-	if (!gen4_check_dst_format(dst->format)) {
-		DBG(("%s: incompatible render target format %08x\n",
-		     __FUNCTION__, dst->format));
-		return false;
-	}
+	BoxRec box;
 
 	op->dst.pixmap = get_drawable_pixmap(dst->pDrawable);
 	op->dst.width  = op->dst.pixmap->drawable.width;
 	op->dst.height = op->dst.pixmap->drawable.height;
 	op->dst.format = dst->format;
-	priv = sna_pixmap_force_to_gpu(op->dst.pixmap, MOVE_READ | MOVE_WRITE);
-	if (priv == NULL)
-		return false;
+	if (w && h) {
+		box.x1 = x;
+		box.y1 = y;
+		box.x2 = x + w;
+		box.y2 = y + h;
+	} else
+		sna_render_picture_extents(dst, &box);
 
-	op->dst.bo = priv->gpu_bo;
-	op->damage = &priv->gpu_damage;
-	if (sna_damage_is_all(&priv->gpu_damage, op->dst.width, op->dst.height))
-		op->damage = NULL;
-	DBG(("%s: all-damaged=%d, damage=%p\n", __FUNCTION__,
-	     sna_damage_is_all(&priv->gpu_damage, op->dst.width, op->dst.height),
-	    op->damage));
+	op->dst.bo = sna_drawable_use_bo (dst->pDrawable,
+					  PREFER_GPU | FORCE_GPU | RENDER_GPU,
+					  &box, &op->damage);
+	if (op->dst.bo == NULL)
+		return false;
 
 	get_drawable_deltas(dst->pDrawable, op->dst.pixmap,
 			    &op->dst.x, &op->dst.y);
+
+	DBG(("%s: pixmap=%p, format=%08x, size=%dx%d, pitch=%d, delta=(%d,%d),damage=%p\n",
+	     __FUNCTION__,
+	     op->dst.pixmap, (int)op->dst.format,
+	     op->dst.width, op->dst.height,
+	     op->dst.bo->pitch,
+	     op->dst.x, op->dst.y,
+	     op->damage ? *op->damage : (void *)-1));
+
+	assert(op->dst.bo->proxy == NULL);
+
+	if (too_large(op->dst.width, op->dst.height) &&
+	    !sna_render_composite_redirect(sna, op, x, y, w, h))
+		return false;
+
 	return true;
 }
 
@@ -1688,6 +1715,9 @@ source_is_busy(PixmapPtr pixmap)
 		return false;
 
 	if (priv->gpu_bo && kgem_bo_is_busy(priv->gpu_bo))
+		return true;
+
+	if (priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo))
 		return true;
 
 	return priv->gpu_damage && !priv->cpu_damage;
@@ -1895,15 +1925,11 @@ gen4_render_composite(struct sna *sna,
 					    width, height,
 					    tmp);
 
-	if (!gen4_composite_set_target(dst, tmp))
+	if (!gen4_composite_set_target(sna, tmp, dst,
+				       dst_x, dst_y, width, height)) {
+		DBG(("%s: failed to set composite target\n", __FUNCTION__));
 		return false;
-	sna_render_reduce_damage(tmp, dst_x, dst_y, width, height);
-
-	sna_render_composite_redirect_init(tmp);
-	if (too_large(tmp->dst.width, tmp->dst.height) &&
-	    !sna_render_composite_redirect(sna, tmp,
-					   dst_x, dst_y, width, height))
-		return false;
+	}
 
 	tmp->op = op;
 	switch (gen4_composite_picture(sna, src, &tmp->src,
@@ -2023,7 +2049,6 @@ cleanup_dst:
 	return false;
 }
 
-/* A poor man's span interface. But better than nothing? */
 #if !NO_COMPOSITE_SPANS
 fastcall static void
 gen4_render_composite_spans_box(struct sna *sna,
@@ -2056,21 +2081,33 @@ gen4_render_composite_spans_boxes(struct sna *sna,
 	     op->base.dst.x, op->base.dst.y));
 
 	do {
-		gen4_render_composite_spans_box(sna, op, box++, opacity);
-	} while (--nbox);
+		int nbox_this_time;
+
+		nbox_this_time = gen4_get_rectangles(sna, &op->base, nbox,
+						     gen4_bind_surfaces);
+		nbox -= nbox_this_time;
+
+		do {
+			DBG(("  %s: (%d, %d) x (%d, %d)\n", __FUNCTION__,
+			     box->x1, box->y1,
+			     box->x2 - box->x1,
+			     box->y2 - box->y1));
+
+			op->prim_emit(sna, op, box++, opacity);
+		} while (--nbox_this_time);
+	} while (nbox);
 }
 
 fastcall static void
 gen4_render_composite_spans_done(struct sna *sna,
 				 const struct sna_composite_spans_op *op)
 {
-	gen4_vertex_flush(sna);
+	if (sna->render.vertex_offset)
+		gen4_vertex_flush(sna);
 
 	DBG(("%s()\n", __FUNCTION__));
 
-	if (op->base.src.bo)
-		kgem_bo_destroy(&sna->kgem, op->base.src.bo);
-
+	kgem_bo_destroy(&sna->kgem, op->base.src.bo);
 	sna_render_composite_redirect_done(sna, &op->base);
 }
 
@@ -2144,16 +2181,9 @@ gen4_render_composite_spans(struct sna *sna,
 	}
 
 	tmp->base.op = op;
-	if (!gen4_composite_set_target(dst, &tmp->base))
+	if (!gen4_composite_set_target(sna, &tmp->base, dst,
+				       dst_x, dst_y, width, height))
 		return false;
-	sna_render_reduce_damage(&tmp->base, dst_x, dst_y, width, height);
-
-	sna_render_composite_redirect_init(&tmp->base);
-	if (too_large(tmp->base.dst.width, tmp->base.dst.height)) {
-		if (!sna_render_composite_redirect(sna, &tmp->base,
-						   dst_x, dst_y, width, height))
-			return false;
-	}
 
 	switch (gen4_composite_picture(sna, src, &tmp->base.src,
 				       src_x, src_y,
@@ -2448,7 +2478,8 @@ gen4_render_copy_blt(struct sna *sna,
 static void
 gen4_render_copy_done(struct sna *sna, const struct sna_copy_op *op)
 {
-	gen4_vertex_flush(sna);
+	if (sna->render.vertex_offset)
+		gen4_vertex_flush(sna);
 }
 
 static inline bool prefer_blt_fill(struct sna *sna)
@@ -2705,7 +2736,8 @@ gen4_render_fill_op_boxes(struct sna *sna,
 static void
 gen4_render_fill_op_done(struct sna *sna, const struct sna_fill_op *op)
 {
-	gen4_vertex_flush(sna);
+	if (sna->render.vertex_offset)
+		gen4_vertex_flush(sna);
 	kgem_bo_destroy(&sna->kgem, op->base.src.bo);
 }
 
