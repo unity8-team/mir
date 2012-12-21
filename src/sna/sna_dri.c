@@ -2082,7 +2082,7 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 
 	info->type = swap_type;
 
-	if (*target_msc) {
+	if (*target_msc && (sna->flags & SNA_NO_WAIT) == 0) {
 		/* Get current count */
 		vbl.request.type = DRM_VBLANK_RELATIVE | pipe_select(pipe);
 		vbl.request.sequence = 0;
@@ -2091,6 +2091,9 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		current_msc = vbl.reply.sequence;
 	} else
 		current_msc = 0;
+
+	DBG(("%s: target_msc=%u, current_msc=%u, divisor=%u\n",
+	     __FUNCTION__, *target_msc, current_msc, divisor));
 
 	if (divisor == 0 && current_msc >= *target_msc) {
 		if (can_exchange(sna, draw, front, back)) {
