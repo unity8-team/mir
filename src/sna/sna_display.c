@@ -2823,8 +2823,6 @@ static bool sna_emit_wait_for_scanline_gen4(struct sna *sna,
 	uint32_t event;
 	uint32_t *b;
 
-	assert(sna->kgem.mode != KGEM_NONE);
-
 	if (pipe == 0) {
 		if (full_height)
 			event = MI_WAIT_FOR_PIPEA_SVBLANK;
@@ -2853,8 +2851,6 @@ static bool sna_emit_wait_for_scanline_gen2(struct sna *sna,
 					    bool full_height)
 {
 	uint32_t *b;
-
-	assert(sna->kgem.mode != KGEM_NONE);
 
 	/*
 	 * Pre-965 doesn't have SVBLANK, so we need a bit
