@@ -619,6 +619,12 @@ bool sna_transform_is_integer_translation(const PictTransform *t,
 					  int16_t *tx, int16_t *ty);
 bool sna_transform_is_translation(const PictTransform *t,
 				  pixman_fixed_t *tx, pixman_fixed_t *ty);
+static inline bool
+sna_affine_transform_is_rotation(const PictTransform *t)
+{
+	assert(sna_transform_is_affine(t));
+	return t->matrix[0][1] | t->matrix[1][0];
+}
 
 static inline bool
 sna_transform_equal(const PictTransform *a, const PictTransform *b)

@@ -691,8 +691,7 @@ void gen4_choose_composite_emitter(struct sna_composite_op *tmp)
 				DBG(("%s: identity source, identity mask\n", __FUNCTION__));
 				tmp->prim_emit = emit_primitive_identity_source_mask;
 			} else if (tmp->src.is_affine) {
-				if (tmp->src.transform->matrix[0][1] == 0 &&
-				    tmp->src.transform->matrix[1][0] == 0) {
+				if (!sna_affine_transform_is_rotation(tmp->src.transform)) {
 					DBG(("%s: simple src, identity mask\n", __FUNCTION__));
 					tmp->src.scale[0] /= tmp->src.transform->matrix[2][2];
 					tmp->src.scale[1] /= tmp->src.transform->matrix[2][2];
@@ -713,8 +712,7 @@ void gen4_choose_composite_emitter(struct sna_composite_op *tmp)
 			DBG(("%s: identity src, no mask\n", __FUNCTION__));
 			tmp->prim_emit = emit_primitive_identity_source;
 		} else if (tmp->src.is_affine) {
-			if (tmp->src.transform->matrix[0][1] == 0 &&
-			    tmp->src.transform->matrix[1][0] == 0) {
+			if (!sna_affine_transform_is_rotation(tmp->src.transform)) {
 				DBG(("%s: simple src, no mask\n", __FUNCTION__));
 				tmp->src.scale[0] /= tmp->src.transform->matrix[2][2];
 				tmp->src.scale[1] /= tmp->src.transform->matrix[2][2];
@@ -883,8 +881,7 @@ void gen4_choose_spans_emitter(struct sna_composite_spans_op *tmp)
 	} else if (tmp->base.src.transform == NULL) {
 		tmp->prim_emit = emit_spans_identity;
 	} else if (tmp->base.is_affine) {
-		if (tmp->base.src.transform->matrix[0][1] == 0 &&
-		    tmp->base.src.transform->matrix[1][0] == 0) {
+		if (!sna_affine_transform_is_rotation(tmp->base.src.transform)) {
 			tmp->base.src.scale[0] /= tmp->base.src.transform->matrix[2][2];
 			tmp->base.src.scale[1] /= tmp->base.src.transform->matrix[2][2];
 			tmp->prim_emit = emit_spans_simple;
