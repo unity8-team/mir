@@ -1380,14 +1380,30 @@ static void kgem_fixup_self_relocs(struct kgem *kgem, struct kgem_bo *bo)
 {
 	int n;
 
-	for (n = 0; n < kgem->nreloc; n++) {
-		if (kgem->reloc[n].target_handle == ~0U) {
-			kgem->reloc[n].target_handle = bo->target_handle;
-			kgem->reloc[n].presumed_offset = bo->presumed_offset;
-			kgem->batch[kgem->reloc[n].offset/sizeof(kgem->batch[0])] =
-				kgem->reloc[n].delta + bo->presumed_offset;
-		}
+	if (kgem->nreloc__self == 0)
+		return;
+
+	for (n = 0; n < kgem->nreloc__self; n++) {
+		int i = kgem->reloc__self[n];
+		assert(kgem->reloc[i].target_handle == ~0U);
+		kgem->reloc[i].target_handle = bo->target_handle;
+		kgem->reloc[i].presumed_offset = bo->presumed_offset;
+		kgem->batch[kgem->reloc[i].offset/sizeof(kgem->batch[0])] =
+			kgem->reloc[i].delta + bo->presumed_offset;
 	}
+
+	if (n == 256) {
+		for (n = kgem->reloc__self[255]; n < kgem->nreloc; n++) {
+			if (kgem->reloc[n].target_handle == ~0U) {
+				kgem->reloc[n].target_handle = bo->target_handle;
+				kgem->reloc[n].presumed_offset = bo->presumed_offset;
+				kgem->batch[kgem->reloc[n].offset/sizeof(kgem->batch[0])] =
+					kgem->reloc[n].delta + bo->presumed_offset;
+			}
+		}
+
+	}
+
 }
 
 static void kgem_bo_binding_free(struct kgem *kgem, struct kgem_bo *bo)
@@ -2333,6 +2349,7 @@ void kgem_reset(struct kgem *kgem)
 	kgem->nfence = 0;
 	kgem->nexec = 0;
 	kgem->nreloc = 0;
+	kgem->nreloc__self = 0;
 	kgem->aperture = 0;
 	kgem->aperture_fenced = 0;
 	kgem->nbatch = 0;
@@ -4149,6 +4166,8 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 		kgem->reloc[index].delta = delta;
 		kgem->reloc[index].target_handle = ~0U;
 		kgem->reloc[index].presumed_offset = 0;
+		if (kgem->nreloc__self < 256)
+			kgem->reloc__self[kgem->nreloc__self++] = index;
 	}
 	kgem->reloc[index].read_domains = read_write_domain >> 16;
 	kgem->reloc[index].write_domain = read_write_domain & 0x7fff;

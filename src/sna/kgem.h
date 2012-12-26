@@ -152,6 +152,7 @@ struct kgem {
 	uint16_t surface;
 	uint16_t nexec;
 	uint16_t nreloc;
+	uint16_t nreloc__self;
 	uint16_t nfence;
 	uint16_t batch_size;
 	uint16_t min_alignment;
@@ -194,6 +195,7 @@ struct kgem {
 	uint32_t batch[64*1024-8];
 	struct drm_i915_gem_exec_object2 exec[256];
 	struct drm_i915_gem_relocation_entry reloc[4096];
+	uint16_t reloc__self[256];
 
 #ifdef DEBUG_MEMORY
 	struct {
