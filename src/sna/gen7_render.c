@@ -2072,7 +2072,8 @@ gen7_composite_set_target(struct sna *sna,
 	return true;
 }
 
-inline static bool can_switch_to_blt(struct sna *sna)
+inline static bool can_switch_to_blt(struct sna *sna,
+				     struct kgem_bo *bo)
 {
 	if (sna->kgem.ring != KGEM_RENDER)
 		return true;
@@ -2082,6 +2083,9 @@ inline static bool can_switch_to_blt(struct sna *sna)
 
 	if (!sna->kgem.has_semaphores)
 		return false;
+
+	if (bo && RQ_IS_BLT(bo->rq))
+		return true;
 
 	return kgem_ring_is_idle(&sna->kgem, KGEM_BLT);
 }
@@ -2099,9 +2103,10 @@ static int prefer_blt_bo(struct sna *sna, struct kgem_bo *bo)
 	return bo->tiling == I915_TILING_NONE;
 }
 
-inline static bool prefer_blt_ring(struct sna *sna)
+inline static bool prefer_blt_ring(struct sna *sna,
+				   struct kgem_bo *bo)
 {
-	return sna->kgem.ring != KGEM_RENDER || can_switch_to_blt(sna);
+	return sna->kgem.ring != KGEM_RENDER || can_switch_to_blt(sna, bo);
 }
 
 static bool
@@ -2120,17 +2125,8 @@ try_blt(struct sna *sna,
 		return true;
 	}
 
-	if (can_switch_to_blt(sna)) {
-		if (sna_picture_is_solid(src, NULL))
-			return true;
-
-		if (dst->pDrawable == src->pDrawable)
-			return true;
-
-		if (src->pDrawable &&
-		    get_drawable_pixmap(dst->pDrawable) == get_drawable_pixmap(src->pDrawable))
-			return true;
-	}
+	if (can_switch_to_blt(sna, NULL) && sna_picture_is_solid(src, NULL))
+		return true;
 
 	return false;
 }
@@ -2356,11 +2352,10 @@ prefer_blt_composite(struct sna *sna, struct sna_composite_op *tmp)
 	    untiled_tlb_miss(tmp->src.bo))
 		return true;
 
-	if (!prefer_blt_ring(sna))
+	if (!prefer_blt_ring(sna, tmp->dst.bo))
 		return false;
 
-	return (prefer_blt_bo(sna, tmp->dst.bo) >= 0 &&
-		prefer_blt_bo(sna, tmp->src.bo) >= 0);
+	return (prefer_blt_bo(sna, tmp->dst.bo) | prefer_blt_bo(sna, tmp->src.bo)) > 0;
 }
 
 static bool
@@ -2747,7 +2742,7 @@ static inline bool prefer_blt_copy(struct sna *sna,
 	if (sna->kgem.ring == KGEM_BLT)
 		return true;
 
-	if (src_bo == dst_bo && can_switch_to_blt(sna))
+	if (src_bo == dst_bo && can_switch_to_blt(sna, dst_bo))
 		return true;
 
 	if ((flags & COPY_LAST && sna->kgem.ring != KGEM_RENDER))
@@ -2757,8 +2752,11 @@ static inline bool prefer_blt_copy(struct sna *sna,
 	    untiled_tlb_miss(dst_bo))
 		return true;
 
+	if (!prefer_blt_ring(sna, dst_bo))
+		return false;
+
 	return (prefer_blt_bo(sna, src_bo) >= 0 &&
-		prefer_blt_bo(sna, dst_bo) >= 0);
+		prefer_blt_bo(sna, dst_bo) > 0);
 }
 
 inline static void boxes_extents(const BoxRec *box, int n, BoxRec *extents)
@@ -2839,7 +2837,7 @@ fallback_blt:
 		if (too_large(extents.x2-extents.x1, extents.y2-extents.y1))
 			goto fallback_blt;
 
-		if ((flags & COPY_LAST || can_switch_to_blt(sna)) &&
+		if ((flags & COPY_LAST || can_switch_to_blt(sna, dst_bo)) &&
 		    sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
 		    sna_blt_copy_boxes(sna, alu,
 				       src_bo, src_dx, src_dy,
@@ -3148,8 +3146,8 @@ static inline bool prefer_blt_fill(struct sna *sna,
 	if (untiled_tlb_miss(bo))
 		return true;
 
-	return (can_switch_to_blt(sna) ||
-		prefer_blt_ring(sna) ||
+	return (can_switch_to_blt(sna, bo) ||
+		prefer_blt_ring(sna, bo) ||
 		prefer_blt_bo(sna, bo) >= 0);
 }
 
