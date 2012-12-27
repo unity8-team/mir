@@ -2106,7 +2106,7 @@ static int prefer_blt_bo(struct sna *sna, struct kgem_bo *bo)
 inline static bool prefer_blt_ring(struct sna *sna,
 				   struct kgem_bo *bo)
 {
-	return sna->kgem.ring != KGEM_RENDER || can_switch_to_blt(sna, bo);
+	return can_switch_to_blt(sna, bo);
 }
 
 static bool
@@ -2125,7 +2125,7 @@ try_blt(struct sna *sna,
 		return true;
 	}
 
-	if (can_switch_to_blt(sna, NULL) && sna_picture_is_solid(src, NULL))
+	if (sna_picture_is_solid(src, NULL) && can_switch_to_blt(sna, NULL))
 		return true;
 
 	return false;
@@ -3146,9 +3146,7 @@ static inline bool prefer_blt_fill(struct sna *sna,
 	if (untiled_tlb_miss(bo))
 		return true;
 
-	return (can_switch_to_blt(sna, bo) ||
-		prefer_blt_ring(sna, bo) ||
-		prefer_blt_bo(sna, bo) >= 0);
+	return prefer_blt_ring(sna, bo) || prefer_blt_bo(sna, bo) >= 0;
 }
 
 static bool
