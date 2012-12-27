@@ -949,7 +949,7 @@ glamor_push_pixels(GCPtr pGC, PixmapPtr pBitmap,
 	ok = glamor_push_pixels_nf(pGC, pBitmap, pDrawable, w, h, x, y);
 	glamor_finish_access(&pBitmap->drawable, GLAMOR_GPU_ACCESS_RO);
 finish_drawable:
-	glamor_prepare_access(pDrawable, GLAMOR_GPU_ACCESS_RW);
+	glamor_finish_access(pDrawable, GLAMOR_GPU_ACCESS_RW);
 
 	if (ok)
 	  return;
