@@ -584,7 +584,7 @@ static void gen2_emit_target(struct sna *sna, const struct sna_composite_op *op)
 {
 	assert(!too_large(op->dst.width, op->dst.height));
 	assert(op->dst.bo->pitch >= 8 && op->dst.bo->pitch <= MAX_3D_PITCH);
-	assert(sna->render_state.gen2.vertex_offset == 0);
+	assert(sna->render.vertex_offset == 0);
 
 	if (sna->render_state.gen2.target == op->dst.bo->unique_id) {
 		kgem_bo_mark_dirty(op->dst.bo);
@@ -975,7 +975,7 @@ static void gen2_magic_ca_pass(struct sna *sna,
 		return;
 
 	DBG(("%s: batch=%x, vertex=%x\n", __FUNCTION__,
-	     sna->kgem.nbatch, sna->render_state.gen2.vertex_offset));
+	     sna->kgem.nbatch, sna->render.vertex_offset));
 
 	assert(op->mask.bo);
 	assert(op->has_component_alpha);
@@ -994,7 +994,7 @@ static void gen2_magic_ca_pass(struct sna *sna,
 	BATCH(ablend);
 	sna->render_state.gen2.ls2 = 0;
 
-	src = sna->kgem.batch + sna->render_state.gen2.vertex_offset;
+	src = sna->kgem.batch + sna->render.vertex_offset;
 	dst = sna->kgem.batch + sna->kgem.nbatch;
 	n = 1 + sna->render.vertex_index;
 	sna->kgem.nbatch += n;
@@ -1009,12 +1009,12 @@ static void gen2_vertex_flush(struct sna *sna,
 	if (sna->render.vertex_index == 0)
 		return;
 
-	sna->kgem.batch[sna->render_state.gen2.vertex_offset] |=
+	sna->kgem.batch[sna->render.vertex_offset] |=
 		sna->render.vertex_index - 1;
 
 	gen2_magic_ca_pass(sna, op);
 
-	sna->render_state.gen2.vertex_offset = 0;
+	sna->render.vertex_offset = 0;
 	sna->render.vertex_index = 0;
 }
 
@@ -1022,7 +1022,6 @@ inline static int gen2_get_rectangles(struct sna *sna,
 				      const struct sna_composite_op *op,
 				      int want)
 {
-	struct gen2_render_state *state = &sna->render_state.gen2;
 	int rem = batch_space(sna), size, need;
 
 	DBG(("%s: want=%d, floats_per_vertex=%d, rem=%d\n",
@@ -1046,17 +1045,17 @@ inline static int gen2_get_rectangles(struct sna *sna,
 	}
 
 	rem -= need;
-	if (state->vertex_offset == 0) {
+	if (sna->render.vertex_offset == 0) {
 		if ((sna->kgem.batch[sna->kgem.nbatch-1] & ~0xffff) ==
 		    (PRIM3D_INLINE | PRIM3D_RECTLIST)) {
 			uint32_t *b = &sna->kgem.batch[sna->kgem.nbatch-1];
 			assert(*b & 0xffff);
 			sna->render.vertex_index = 1 + (*b & 0xffff);
 			*b = PRIM3D_INLINE | PRIM3D_RECTLIST;
-			state->vertex_offset = sna->kgem.nbatch - 1;
+			sna->render.vertex_offset = sna->kgem.nbatch - 1;
 			assert(!op->need_magic_ca_pass);
 		} else {
-			state->vertex_offset = sna->kgem.nbatch;
+			sna->render.vertex_offset = sna->kgem.nbatch;
 			BATCH(PRIM3D_INLINE | PRIM3D_RECTLIST);
 		}
 	}
@@ -3191,7 +3190,6 @@ gen2_render_reset(struct sna *sna)
 {
 	sna->render_state.gen2.need_invariant = true;
 	sna->render_state.gen2.logic_op_enabled = 0;
-	sna->render_state.gen2.vertex_offset = 0;
 	sna->render_state.gen2.target = 0;
 
 	sna->render_state.gen2.ls1 = 0;
@@ -3206,6 +3204,7 @@ static void
 gen2_render_flush(struct sna *sna)
 {
 	assert(sna->render.vertex_index == 0);
+	assert(sna->render.vertex_offset == 0);
 }
 
 static void

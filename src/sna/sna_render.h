@@ -309,7 +309,6 @@ struct gen2_render_state {
 	uint32_t ls1, ls2, vft;
 	uint32_t diffuse;
 	uint32_t specular;
-	uint16_t vertex_offset;
 };
 
 struct gen3_render_state {
@@ -325,7 +324,6 @@ struct gen3_render_state {
 	uint32_t last_diffuse;
 	uint32_t last_specular;
 
-	uint16_t vertex_offset;
 	uint16_t last_vertex_offset;
 	uint16_t floats_per_vertex;
 	uint16_t last_floats_per_vertex;
