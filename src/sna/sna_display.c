@@ -1223,6 +1223,9 @@ sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	struct drm_mode_modeinfo saved_kmode;
 	bool saved_transform;
 
+	if (mode->HDisplay == 0 || mode->VDisplay == 0)
+		return FALSE;
+
 	xf86DrvMsg(crtc->scrn->scrnIndex, X_INFO,
 		   "switch to mode %dx%d on crtc %d (pipe %d)\n",
 		   mode->HDisplay, mode->VDisplay,
