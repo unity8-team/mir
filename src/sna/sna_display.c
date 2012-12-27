@@ -1312,9 +1312,12 @@ sna_crtc_dpms(xf86CrtcPtr crtc, int mode)
 void sna_mode_adjust_frame(struct sna *sna, int x, int y)
 {
 	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(sna->scrn);
-	xf86OutputPtr output = config->output[config->compat_output];
-	xf86CrtcPtr crtc = output->crtc;
+	xf86CrtcPtr crtc;
 
+	if ((unsigned)config->compat_output >= config->num_output)
+		return;
+
+	crtc = config->output[config->compat_output]->crtc;
 	if (crtc && crtc->enabled) {
 		int saved_x = crtc->x;
 		int saved_y = crtc->y;
