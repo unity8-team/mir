@@ -68,7 +68,6 @@ if GLAMOR
 AM_CFLAGS += @LIBGLAMOR_CFLAGS@
 radeon_drv_la_LIBADD += @LIBGLAMOR_LIBS@
 radeon_drv_la_SOURCES += \
-	 radeon_glamor_wrappers.c \
 	 radeon_glamor.c
 endif
 
@@ -97,7 +96,6 @@ EXTRA_DIST = \
 	radeon_exa_funcs.c \
 	radeon_exa_shared.h \
 	radeon_glamor.h \
-	radeon_glamor_wrappers.h \
 	radeon.h \
 	radeon_probe.h \
 	radeon_reg.h \
