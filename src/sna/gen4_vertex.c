@@ -751,24 +751,23 @@ emit_spans_solid(struct sna *sna,
 		float f;
 	} dst;
 
-	assert(op->base.floats_per_rect == 12);
-	assert((sna->render.vertex_used % 4) == 0);
+	assert(op->base.floats_per_rect == 9);
+	assert((sna->render.vertex_used % 3) == 0);
 	v = sna->render.vertices + sna->render.vertex_used;
-	sna->render.vertex_used += 3*4;
+	sna->render.vertex_used += 3*3;
 
 	dst.p.x = box->x2;
 	dst.p.y = box->y2;
 	v[0] = dst.f;
 
 	dst.p.x = box->x1;
-	v[4] = dst.f;
+	v[3] = dst.f;
 
 	dst.p.y = box->y1;
-	v[8] = dst.f;
+	v[6] = dst.f;
 
-	v[9] = v[5] = 0.;
-	v[10] = v[6] = v[1] = v[2] = 1.;
-	v[3] = v[7] = v[11] = opacity;
+	v[7] = v[4] = v[1] = .5;
+	v[8] = v[5] = v[2] = opacity;
 }
 
 fastcall static void
@@ -905,8 +904,10 @@ void gen4_choose_spans_emitter(struct sna_composite_spans_op *tmp)
 	tmp->prim_emit = emit_composite_spans_primitive;
 	if (tmp->base.src.is_solid) {
 		tmp->prim_emit = emit_spans_solid;
+		tmp->base.floats_per_vertex = 3;
 	} else if (tmp->base.src.transform == NULL) {
 		tmp->prim_emit = emit_spans_identity;
+		tmp->base.floats_per_vertex = 4;
 	} else if (tmp->base.is_affine) {
 		if (!sna_affine_transform_is_rotation(tmp->base.src.transform)) {
 			tmp->base.src.scale[0] /= tmp->base.src.transform->matrix[2][2];
@@ -914,7 +915,8 @@ void gen4_choose_spans_emitter(struct sna_composite_spans_op *tmp)
 			tmp->prim_emit = emit_spans_simple;
 		} else
 			tmp->prim_emit = emit_spans_affine;
-	}
-	tmp->base.floats_per_vertex = 4 + !tmp->base.is_affine;
+		tmp->base.floats_per_vertex = 4;
+	} else
+		tmp->base.floats_per_vertex = 5;
 	tmp->base.floats_per_rect = 3 * tmp->base.floats_per_vertex;
 }

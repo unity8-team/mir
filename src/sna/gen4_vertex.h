@@ -26,10 +26,9 @@ gen4_choose_composite_vertex_buffer(const struct sna_composite_op *op)
 inline inline static uint32_t
 gen4_choose_spans_vertex_buffer(const struct sna_composite_op *op)
 {
-	DBG(("%s: id=%x (%d, 1)\n", __FUNCTION__,
-	     1 << 2 | (2+!op->src.is_affine),
-	     2 + !op->src.is_affine));
-	return 1 << 2 | (2+!op->src.is_affine);
+	int id = op->src.is_solid ? 1 : 2 + !op->src.is_affine;
+	DBG(("%s: id=%x (%d, 1)\n", __FUNCTION__, 1 << 2 | id, id));
+	return 1 << 2 | id;
 }
 
 void gen4_choose_composite_emitter(struct sna_composite_op *tmp);
