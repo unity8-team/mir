@@ -757,17 +757,30 @@ emit_spans_solid(struct sna *sna,
 		 const BoxRec *box,
 		 float opacity)
 {
-	OUT_VERTEX(box->x2, box->y2);
-	OUT_VERTEX_F(1); OUT_VERTEX_F(1);
-	OUT_VERTEX_F(opacity);
+	float *v;
+	union {
+		struct sna_coordinate p;
+		float f;
+	} dst;
 
-	OUT_VERTEX(box->x1, box->y2);
-	OUT_VERTEX_F(0); OUT_VERTEX_F(1);
-	OUT_VERTEX_F(opacity);
+	assert(op->base.floats_per_rect == 12);
+	assert((sna->render.vertex_used % 4) == 0);
+	v = sna->render.vertices + sna->render.vertex_used;
+	sna->render.vertex_used += 3*4;
 
-	OUT_VERTEX(box->x1, box->y1);
-	OUT_VERTEX_F(0); OUT_VERTEX_F(0);
-	OUT_VERTEX_F(opacity);
+	dst.p.x = box->x2;
+	dst.p.y = box->y2;
+	v[0] = dst.f;
+
+	dst.p.x = box->x1;
+	v[4] = dst.f;
+
+	dst.p.y = box->y1;
+	v[8] = dst.f;
+
+	v[9] = v[5] = 0.;
+	v[10] = v[6] = v[1] = v[2] = 1.;
+	v[3] = v[7] = v[11] = opacity;
 }
 
 fastcall static void
