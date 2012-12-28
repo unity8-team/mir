@@ -886,6 +886,9 @@ void sna_copy_fbcon(struct sna *sna)
 
 	DBG(("%s\n", __FUNCTION__));
 
+	priv = sna_pixmap(sna->front);
+	assert(priv && priv->gpu_bo);
+
 	/* Scan the connectors for a framebuffer and assume that is the fbcon */
 	VG_CLEAR(fbcon);
 	fbcon.fb_id = 0;
@@ -912,6 +915,11 @@ void sna_copy_fbcon(struct sna *sna)
 		return;
 	}
 
+	if (fbcon.fb_id == priv->gpu_bo->delta) {
+		DBG(("%s: fb already installed as scanout\n", __FUNCTION__));
+		return;
+	}
+
 	/* Wrap the fbcon in a pixmap so that we select the right formats
 	 * in the render copy in case we need to preserve the fbcon
 	 * across a depth change upon starting X.
@@ -932,9 +940,6 @@ void sna_copy_fbcon(struct sna *sna)
 		goto cleanup_scratch;
 
 	DBG(("%s: fbcon handle=%d\n", __FUNCTION__, bo->handle));
-
-	priv = sna_pixmap(sna->front);
-	assert(priv && priv->gpu_bo);
 
 	sx = dx = 0;
 	if (box.x2 < (uint16_t)fbcon.width)
