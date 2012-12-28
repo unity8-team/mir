@@ -437,30 +437,24 @@ emit_primitive_affine_source(struct sna *sna,
 	dst.p.x = r->dst.x + r->width;
 	dst.p.y = r->dst.y + r->height;
 	v[0] = dst.f;
-	_sna_get_transformed_coordinates(op->src.offset[0] + r->src.x + r->width,
-					 op->src.offset[1] + r->src.y + r->height,
-					 op->src.transform,
-					 &v[1], &v[2]);
-	v[1] *= op->src.scale[0];
-	v[2] *= op->src.scale[1];
+	_sna_get_transformed_scaled(op->src.offset[0] + r->src.x + r->width,
+				    op->src.offset[1] + r->src.y + r->height,
+				    op->src.transform, op->src.scale,
+				    &v[1], &v[2]);
 
 	dst.p.x = r->dst.x;
 	v[3] = dst.f;
-	_sna_get_transformed_coordinates(op->src.offset[0] + r->src.x,
-					 op->src.offset[1] + r->src.y + r->height,
-					 op->src.transform,
-					 &v[4], &v[5]);
-	v[4] *= op->src.scale[0];
-	v[5] *= op->src.scale[1];
+	_sna_get_transformed_scaled(op->src.offset[0] + r->src.x,
+				    op->src.offset[1] + r->src.y + r->height,
+				    op->src.transform, op->src.scale,
+				    &v[4], &v[5]);
 
 	dst.p.y = r->dst.y;
 	v[6] = dst.f;
-	_sna_get_transformed_coordinates(op->src.offset[0] + r->src.x,
-					 op->src.offset[1] + r->src.y,
-					 op->src.transform,
-					 &v[7], &v[8]);
-	v[7] *= op->src.scale[0];
-	v[8] *= op->src.scale[1];
+	_sna_get_transformed_scaled(op->src.offset[0] + r->src.x,
+				    op->src.offset[1] + r->src.y,
+				    op->src.transform, op->src.scale,
+				    &v[7], &v[8]);
 }
 
 fastcall static void
@@ -629,34 +623,28 @@ emit_primitive_affine_source_identity(struct sna *sna,
 	dst.p.x = r->dst.x + r->width;
 	dst.p.y = r->dst.y + r->height;
 	v[0] = dst.f;
-	_sna_get_transformed_coordinates(op->src.offset[0] + r->src.x + r->width,
-					 op->src.offset[1] + r->src.y + r->height,
-					 op->src.transform,
-					 &v[1], &v[2]);
-	v[1] *= op->src.scale[0];
-	v[2] *= op->src.scale[1];
+	_sna_get_transformed_scaled(op->src.offset[0] + r->src.x + r->width,
+				    op->src.offset[1] + r->src.y + r->height,
+				    op->src.transform, op->src.scale,
+				    &v[1], &v[2]);
 	v[3] = (msk_x + w) * op->mask.scale[0];
 	v[4] = (msk_y + h) * op->mask.scale[1];
 
 	dst.p.x = r->dst.x;
 	v[5] = dst.f;
-	_sna_get_transformed_coordinates(op->src.offset[0] + r->src.x,
-					 op->src.offset[1] + r->src.y + r->height,
-					 op->src.transform,
-					 &v[6], &v[7]);
-	v[6] *= op->src.scale[0];
-	v[7] *= op->src.scale[1];
+	_sna_get_transformed_scaled(op->src.offset[0] + r->src.x,
+				    op->src.offset[1] + r->src.y + r->height,
+				    op->src.transform, op->src.scale,
+				    &v[6], &v[7]);
 	v[8] = msk_x * op->mask.scale[0];
 	v[9] = v[4];
 
 	dst.p.y = r->dst.y;
 	v[10] = dst.f;
-	_sna_get_transformed_coordinates(op->src.offset[0] + r->src.x,
-					 op->src.offset[1] + r->src.y,
-					 op->src.transform,
-					 &v[11], &v[12]);
-	v[11] *= op->src.scale[0];
-	v[12] *= op->src.scale[1];
+	_sna_get_transformed_scaled(op->src.offset[0] + r->src.x,
+				    op->src.offset[1] + r->src.y,
+				    op->src.transform, op->src.scale,
+				    &v[11], &v[12]);
 	v[13] = v[8];
 	v[14] = msk_y * op->mask.scale[1];
 }
@@ -873,17 +861,43 @@ emit_spans_affine(struct sna *sna,
 		  const BoxRec *box,
 		  float opacity)
 {
-	OUT_VERTEX(box->x2, box->y2);
-	emit_composite_texcoord_affine(sna, &op->base.src, box->x2, box->y2);
-	OUT_VERTEX_F(opacity);
+	union {
+		struct sna_coordinate p;
+		float f;
+	} dst;
+	float *v;
 
-	OUT_VERTEX(box->x1, box->y2);
-	emit_composite_texcoord_affine(sna, &op->base.src, box->x1, box->y2);
-	OUT_VERTEX_F(opacity);
+	assert(op->base.floats_per_rect == 12);
+	assert((sna->render.vertex_used % 4) == 0);
+	v = sna->render.vertices + sna->render.vertex_used;
+	sna->render.vertex_used += 12;
 
-	OUT_VERTEX(box->x1, box->y1);
-	emit_composite_texcoord_affine(sna, &op->base.src, box->x1, box->y1);
-	OUT_VERTEX_F(opacity);
+	dst.p.x = box->x2;
+	dst.p.y = box->y2;
+	v[0] = dst.f;
+	_sna_get_transformed_scaled(op->base.src.offset[0] + box->x2,
+				    op->base.src.offset[1] + box->y2,
+				    op->base.src.transform,
+				    op->base.src.scale,
+				    &v[1], &v[2]);
+
+	dst.p.x = box->x1;
+	v[4] = dst.f;
+	_sna_get_transformed_scaled(op->base.src.offset[0] + box->x1,
+				    op->base.src.offset[1] + box->y2,
+				    op->base.src.transform,
+				    op->base.src.scale,
+				    &v[5], &v[6]);
+
+	dst.p.y = box->y1;
+	v[8] = dst.f;
+	_sna_get_transformed_scaled(op->base.src.offset[0] + box->x1,
+				    op->base.src.offset[1] + box->y1,
+				    op->base.src.transform,
+				    op->base.src.scale,
+				    &v[9], &v[10]);
+
+	v[11] = v[7] = v[3] = opacity;
 }
 
 void gen4_choose_spans_emitter(struct sna_composite_spans_op *tmp)

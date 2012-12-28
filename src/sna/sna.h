@@ -604,6 +604,19 @@ _sna_get_transformed_coordinates(int x, int y,
 	*y_out = result[1] / (double)result[2];
 }
 
+static inline void
+_sna_get_transformed_scaled(int x, int y,
+			    const PictTransform *transform, const float *sf,
+			    float *x_out, float *y_out)
+{
+
+	int64_t result[3];
+
+	_sna_transform_point(transform, x, y, result);
+	*x_out = result[0] * sf[0] / (double)result[2];
+	*y_out = result[1] * sf[1] / (double)result[2];
+}
+
 void
 sna_get_transformed_coordinates(int x, int y,
 				const PictTransform *transform,
