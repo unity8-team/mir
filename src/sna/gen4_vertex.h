@@ -17,7 +17,7 @@ gen4_choose_composite_vertex_buffer(const struct sna_composite_op *op)
 	if (op->mask.bo)
 		id |= (2 + !op->mask.is_affine) << 2;
 	DBG(("%s: id=%x (%d, %d)\n", __FUNCTION__, id,
-	     op->src.is_solid ? 1 : 2 + !op->src.is_affine;
+	     op->src.is_solid ? 1 : 2 + !op->src.is_affine,
 	     op->mask.bo ?  2 + !op->mask.is_affine : 0));
 	assert(id > 0 && id < 16);
 	return id;

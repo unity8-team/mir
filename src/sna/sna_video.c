@@ -449,7 +449,7 @@ sna_video_copy_data(struct sna *sna,
 
 	DBG(("%s: handle=%d, size=%dx%d [%d], rotation=%d, is-texture=%d\n",
 	     __FUNCTION__, frame->bo ? frame->bo->handle : 0,
-	     frame->width, frame->height, frame->size
+	     frame->width, frame->height, frame->size,
 	     video->rotation, video->textured));
 	DBG(("%s: image=(%d, %d), (%d, %d), source=(%d, %d), (%d, %d)\n",
 	     __FUNCTION__,
