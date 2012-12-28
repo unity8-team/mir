@@ -1568,7 +1568,7 @@ skip_inplace_map:
 	}
 
 	if (pixmap->devPrivate.ptr == NULL &&
-	    !sna_pixmap_alloc_cpu(sna, pixmap, priv, priv->gpu_damage != NULL))
+	    !sna_pixmap_alloc_cpu(sna, pixmap, priv, priv->gpu_damage != NULL && !priv->clear))
 		return false;
 
 	if (priv->clear) {
