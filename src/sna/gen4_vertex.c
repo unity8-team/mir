@@ -230,7 +230,6 @@ emit_texcoord(struct sna *sna,
 {
 	if (channel->is_solid) {
 		OUT_VERTEX_F(x);
-		OUT_VERTEX_F(y);
 		return;
 	}
 
@@ -329,22 +328,21 @@ emit_primitive_solid(struct sna *sna,
 		float f;
 	} dst;
 
-	assert(op->floats_per_rect == 9);
-	assert((sna->render.vertex_used % 3) == 0);
+	assert(op->floats_per_rect == 6);
+	assert((sna->render.vertex_used % 2) == 0);
 	v = sna->render.vertices + sna->render.vertex_used;
-	sna->render.vertex_used += 9;
+	sna->render.vertex_used += 6;
 	assert(sna->render.vertex_used <= sna->render.vertex_size);
 
 	dst.p.x = r->dst.x + r->width;
 	dst.p.y = r->dst.y + r->height;
 	v[0] = dst.f;
 	dst.p.x = r->dst.x;
-	v[3] = dst.f;
+	v[2] = dst.f;
 	dst.p.y = r->dst.y;
-	v[6] = dst.f;
+	v[4] = dst.f;
 
-	v[5] = v[2] = v[1] = 1.;
-	v[8] = v[7] = v[4] = 0.;
+	v[5] = v[3] = v[1] = .5;
 }
 
 fastcall static void
@@ -478,27 +476,26 @@ emit_primitive_identity_mask(struct sna *sna,
 	DBG(("%s: dst=(%d, %d), mask=(%f, %f) x (%f, %f)\n",
 	     __FUNCTION__, r->dst.x, r->dst.y, msk_x, msk_y, w, h));
 
-	assert(op->floats_per_rect == 15);
-	assert((sna->render.vertex_used % 5) == 0);
+	assert(op->floats_per_rect == 12);
+	assert((sna->render.vertex_used % 4) == 0);
 	v = sna->render.vertices + sna->render.vertex_used;
-	sna->render.vertex_used += 15;
+	sna->render.vertex_used += 12;
 
 	dst.p.x = r->dst.x + r->width;
 	dst.p.y = r->dst.y + r->height;
 	v[0] = dst.f;
-	v[3] = (msk_x + w) * op->mask.scale[0];
-	v[9] = v[4] = (msk_y + h) * op->mask.scale[1];
+	v[2] = (msk_x + w) * op->mask.scale[0];
+	v[7] = v[3] = (msk_y + h) * op->mask.scale[1];
 
 	dst.p.x = r->dst.x;
-	v[5] = dst.f;
-	v[13] = v[8] = msk_x * op->mask.scale[0];
+	v[4] = dst.f;
+	v[10] = v[6] = msk_x * op->mask.scale[0];
 
 	dst.p.y = r->dst.y;
-	v[10] = dst.f;
-	v[14] = msk_y * op->mask.scale[1];
+	v[8] = dst.f;
+	v[11] = msk_y * op->mask.scale[1];
 
-	v[7] = v[2] = v[1] = 1;
-	v[12] = v[11] = v[6] = 0;
+	v[9] = v[5] = v[1] = .5;
 }
 
 fastcall static void
@@ -667,7 +664,7 @@ emit_composite_texcoord_affine(struct sna *sna,
 void gen4_choose_composite_emitter(struct sna_composite_op *tmp)
 {
 	tmp->prim_emit = emit_primitive;
-	tmp->floats_per_vertex = 1 + 2 + !tmp->src.is_affine;
+	tmp->floats_per_vertex = 1 + (tmp->src.is_solid ? 1 : 2 + !tmp->src.is_affine);
 	if (tmp->mask.bo) {
 		tmp->floats_per_vertex += 2 + !tmp->mask.is_affine;
 		tmp->prim_emit = emit_primitive_mask;
