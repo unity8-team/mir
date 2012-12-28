@@ -1306,9 +1306,7 @@ static int gen7_get_rectangles__flush(struct sna *sna,
 {
 	if (!kgem_check_batch(&sna->kgem, op->need_magic_ca_pass ? 65 : 6))
 		return 0;
-	if (!kgem_check_exec(&sna->kgem, 1))
-		return 0;
-	if (!kgem_check_reloc(&sna->kgem, 2))
+	if (!kgem_check_reloc_and_exec(&sna->kgem, 2))
 		return 0;
 
 	if (op->need_magic_ca_pass && sna->render.vbo)
