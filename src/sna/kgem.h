@@ -282,7 +282,6 @@ uint32_t kgem_bo_get_binding(struct kgem_bo *bo, uint32_t format);
 void kgem_bo_set_binding(struct kgem_bo *bo, uint32_t format, uint16_t offset);
 int kgem_bo_get_swizzling(struct kgem *kgem, struct kgem_bo *bo);
 
-void kgem_bo_retire(struct kgem *kgem, struct kgem_bo *bo);
 bool kgem_retire(struct kgem *kgem);
 
 bool __kgem_ring_is_idle(struct kgem *kgem, int ring);

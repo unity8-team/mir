@@ -384,26 +384,25 @@ kgem_busy(struct kgem *kgem, int handle)
 	return busy.busy;
 }
 
-void kgem_bo_retire(struct kgem *kgem, struct kgem_bo *bo)
+static void kgem_bo_retire(struct kgem *kgem, struct kgem_bo *bo)
 {
 	DBG(("%s: handle=%d, domain=%d\n",
 	     __FUNCTION__, bo->handle, bo->domain));
 	assert(bo->flush || !kgem_busy(kgem, bo->handle));
+	assert(bo->exec == NULL);
 
-	if (bo->rq)
+	DBG(("%s: retiring bo handle=%d (needed flush? %d), rq? %d\n",
+	     __FUNCTION__, bo->handle, bo->needs_flush, bo->rq != NULL));
+
+	if (bo->rq) {
 		kgem_retire(kgem);
-
-	if (bo->exec == NULL) {
-		DBG(("%s: retiring bo handle=%d (needed flush? %d), rq? %d\n",
-		     __FUNCTION__, bo->handle, bo->needs_flush, bo->rq != NULL));
-		assert(list_is_empty(&bo->vma));
 		bo->rq = NULL;
-		list_del(&bo->request);
-
-		bo->needs_flush = false;
 	}
 
-	bo->domain = DOMAIN_NONE;
+	assert(list_is_empty(&bo->vma));
+	list_del(&bo->request);
+
+	bo->needs_flush = false;
 }
 
 bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,
@@ -419,7 +418,10 @@ bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,
 		return false;
 
 	DBG(("%s: flush=%d, domain=%d\n", __FUNCTION__, bo->flush, bo->domain));
-	kgem_bo_retire(kgem, bo);
+	if (bo->exec == NULL) {
+		kgem_bo_retire(kgem, bo);
+		bo->domain = DOMAIN_NONE;
+	}
 	return true;
 }
 
@@ -5320,6 +5322,7 @@ void kgem_buffer_read_sync(struct kgem *kgem, struct kgem_bo *_bo)
 			return;
 	}
 	kgem_bo_retire(kgem, &bo->base);
+	bo->base.domain = DOMAIN_NONE;
 }
 
 uint32_t kgem_bo_get_binding(struct kgem_bo *bo, uint32_t format)
