@@ -254,7 +254,7 @@ struct sna_render {
 
 	struct sna_alpha_cache {
 		struct kgem_bo *cache_bo;
-		struct kgem_bo *bo[256];
+		struct kgem_bo *bo[256+7];
 	} alpha_cache;
 
 	struct sna_solid_cache {

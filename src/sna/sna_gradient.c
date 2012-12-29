@@ -260,11 +260,8 @@ sna_render_finish_solid(struct sna *sna, bool force)
 		old = NULL;
 	}
 
-	cache->bo[0] = kgem_create_proxy(&sna->kgem, cache->cache_bo,
-					 0, sizeof(uint32_t));
-	cache->bo[0]->pitch = 4;
 	if (force)
-		cache->size = 1;
+		cache->size = 0;
 
 	if (old)
 		kgem_bo_destroy(&sna->kgem, old);
@@ -283,7 +280,38 @@ sna_render_get_solid(struct sna *sna, uint32_t color)
 
 	if (color == 0xffffffff) {
 		DBG(("%s(white)\n", __FUNCTION__));
-		return kgem_bo_reference(cache->bo[0]);
+		return kgem_bo_reference(sna->render.alpha_cache.bo[255+7]);
+	}
+
+	if ((color >> 24) == 0xff) {
+		int v = 0;
+
+		if (((color >> 16) & 0xff) == 0)
+			v |= 0;
+		else if (((color >> 16) & 0xff) == 0xff)
+			v |= 1 << 2;
+		else
+			v = -1;
+
+		if (((color >> 8) & 0xff) == 0)
+			v |= 0;
+		else if (((color >> 8) & 0xff) == 0xff)
+			v |= 1 << 1;
+		else
+			v = -1;
+
+		if (((color >> 0) & 0xff) == 0)
+			v |= 0;
+		else if (((color >> 0) & 0xff) == 0xff)
+			v |= 1 << 0;
+		else
+			v = -1;
+
+		if (v >= 0) {
+			DBG(("%s(primary (%d,%d,%d): %d)\n",
+			     __FUNCTION__, v & 4, v & 2, v & 1, v));
+			return kgem_bo_reference(sna->render.alpha_cache.bo[255+v]);
+		}
 	}
 
 	if (cache->color[cache->last] == color) {
@@ -292,7 +320,7 @@ sna_render_get_solid(struct sna *sna, uint32_t color)
 		return kgem_bo_reference(cache->bo[cache->last]);
 	}
 
-	for (i = 1; i < cache->size; i++) {
+	for (i = 0; i < cache->size; i++) {
 		if (cache->color[i] == color) {
 			if (cache->bo[i] == NULL) {
 				DBG(("sna_render_get_solid(%d) = %x (recreate)\n",
@@ -326,7 +354,7 @@ done:
 static bool sna_alpha_cache_init(struct sna *sna)
 {
 	struct sna_alpha_cache *cache = &sna->render.alpha_cache;
-	uint32_t color[256];
+	uint32_t color[256 + 7];
 	int i;
 
 	DBG(("%s\n", __FUNCTION__));
@@ -346,6 +374,28 @@ static bool sna_alpha_cache_init(struct sna *sna)
 
 		cache->bo[i]->pitch = 4;
 	}
+
+	/* primary */
+	for (i = 1; i < 8; i++) {
+		int j = 255+i;
+
+		color[j] = 0xff << 24;
+		if (i & 1)
+			color[j] |= 0xff << 0;
+		if (i & 2)
+			color[j] |= 0xff << 8;
+		if (i & 4)
+			color[j] |= 0xff << 16;
+		cache->bo[j] = kgem_create_proxy(&sna->kgem,
+						 cache->cache_bo,
+						 sizeof(uint32_t)*j,
+						 sizeof(uint32_t));
+		if (cache->bo[j] == NULL)
+			return false;
+
+		cache->bo[j]->pitch = 4;
+	}
+
 	return kgem_bo_write(&sna->kgem, cache->cache_bo, color, sizeof(color));
 }
 
@@ -360,19 +410,9 @@ static bool sna_solid_cache_init(struct sna *sna)
 	if (!cache->cache_bo)
 		return false;
 
-	/*
-	 * Initialise [0] with white since it is very common and filling the
-	 * zeroth slot simplifies some of the checks.
-	 */
-	cache->color[0] = 0xffffffff;
-	cache->bo[0] = kgem_create_proxy(&sna->kgem, cache->cache_bo,
-					 0, sizeof(uint32_t));
-	if (cache->bo[0] == NULL)
-		return false;
-
-	cache->bo[0]->pitch = 4;
-	cache->dirty = 1;
-	cache->size = 1;
+	cache->color[0] = 0;
+	cache->dirty = 0;
+	cache->size = 0;
 	cache->last = 0;
 
 	return true;
