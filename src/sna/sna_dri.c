@@ -1031,7 +1031,7 @@ sna_dri_frame_event_info_free(struct sna *sna,
 	free(info);
 }
 
-static void
+static bool
 sna_dri_page_flip(struct sna *sna, struct sna_dri_frame_event *info)
 {
 	struct kgem_bo *bo = get_private(info->back)->bo;
@@ -1042,6 +1042,8 @@ sna_dri_page_flip(struct sna *sna, struct sna_dri_frame_event *info)
 	assert(get_drawable_pixmap(info->draw)->drawable.height * bo->pitch <= kgem_bo_size(bo));
 
 	info->count = sna_page_flip(sna, bo, info, info->pipe);
+	if (!info->count)
+		return false;
 
 	info->old_front.name = info->front->name;
 	info->old_front.bo = get_private(info->front)->bo;
@@ -1050,6 +1052,7 @@ sna_dri_page_flip(struct sna *sna, struct sna_dri_frame_event *info)
 
 	info->front->name = info->back->name;
 	get_private(info->front)->bo = bo;
+	return true;
 }
 
 static bool
@@ -1383,8 +1386,8 @@ void sna_dri_vblank_handler(struct sna *sna, struct drm_event_vblank *event)
 	switch (info->type) {
 	case DRI2_FLIP:
 		/* If we can still flip... */
-		if (can_flip(sna, draw, info->front, info->back)) {
-			sna_dri_page_flip(sna, info);
+		if (can_flip(sna, draw, info->front, info->back) &&
+		    sna_dri_page_flip(sna, info)) {
 			info->back->name = info->old_front.name;
 			get_private(info->back)->bo = info->old_front.bo;
 			info->old_front.bo = NULL;
@@ -1446,7 +1449,7 @@ done:
 	sna_dri_frame_event_info_free(sna, draw, info);
 }
 
-static void
+static bool
 sna_dri_flip_continue(struct sna *sna, struct sna_dri_frame_event *info)
 {
 	struct dri_bo tmp;
@@ -1457,12 +1460,14 @@ sna_dri_flip_continue(struct sna *sna, struct sna_dri_frame_event *info)
 
 	tmp = info->old_front;
 
-	sna_dri_page_flip(sna, info);
+	if (!sna_dri_page_flip(sna, info))
+		return false;
 
 	get_private(info->back)->bo = tmp.bo;
 	info->back->name = tmp.name;
 
 	info->next_front.name = 0;
+	return true;
 }
 
 static void chain_flip(struct sna *sna)
@@ -1480,9 +1485,9 @@ static void chain_flip(struct sna *sna)
 	}
 
 	if (chain->type == DRI2_FLIP &&
-	    can_flip(sna, chain->draw, chain->front, chain->back)) {
+	    can_flip(sna, chain->draw, chain->front, chain->back) &&
+	    sna_dri_page_flip(sna, chain)) {
 		DBG(("%s: performing chained flip\n", __FUNCTION__));
-		sna_dri_page_flip(sna, chain);
 
 		chain->back->name = chain->old_front.name;
 		get_private(chain->back)->bo = chain->old_front.bo;
@@ -1577,8 +1582,8 @@ static void sna_dri_flip_event(struct sna *sna,
 				sna_dri_frame_event_info_free(sna, flip->draw, flip);
 			}
 		} else if (flip->draw &&
-			   can_flip(sna, flip->draw, flip->front, flip->back)) {
-			sna_dri_flip_continue(sna, flip);
+			   can_flip(sna, flip->draw, flip->front, flip->back) &&
+			   sna_dri_flip_continue(sna, flip)) {
 			DRI2SwapComplete(flip->client, flip->draw,
 					 0, 0, 0,
 					 DRI2_FLIP_COMPLETE,
@@ -1805,9 +1810,7 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 			return true;
 		}
 
-		sna_dri_page_flip(sna, info);
-
-		if (info->count == 0) {
+		if (!sna_dri_page_flip(sna, info)) {
 			sna_dri_frame_event_info_free(sna, draw, info);
 			return false;
 		} else if (info->type != DRI2_FLIP) {
@@ -2253,7 +2256,8 @@ blit:
 		sna_dri_reference_buffer(front);
 		sna_dri_reference_buffer(back);
 
-		sna_dri_page_flip(sna, info);
+		if (!sna_dri_page_flip(sna, info))
+			goto blit;
 
 		info->next_front.name = info->front->name;
 		info->next_front.bo = get_private(info->front)->bo;
