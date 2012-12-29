@@ -2443,6 +2443,14 @@ fallback_tiled_dst:
 	if (tmp.redirect.real_bo)
 		kgem_bo_destroy(&sna->kgem, tmp.dst.bo);
 fallback_tiled:
+	if (sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
+	    sna_blt_copy_boxes(sna, alu,
+			       src_bo, src_dx, src_dy,
+			       dst_bo, dst_dx, dst_dy,
+			       dst->drawable.bitsPerPixel,
+			       box, n))
+		return true;
+
 	return sna_tiling_copy_boxes(sna, alu,
 				     src, src_bo, src_dx, src_dy,
 				     dst, dst_bo, dst_dx, dst_dy,
