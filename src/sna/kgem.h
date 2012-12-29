@@ -302,9 +302,12 @@ static inline void kgem_submit(struct kgem *kgem)
 		_kgem_submit(kgem);
 }
 
-static inline bool kgem_flush(struct kgem *kgem)
+static inline bool kgem_flush(struct kgem *kgem, bool flush)
 {
-	return kgem->flush && kgem_ring_is_idle(kgem, kgem->ring);
+	if (kgem->nexec == 0)
+		return false;
+
+	return (kgem->flush ^ flush) && kgem_ring_is_idle(kgem, kgem->ring);
 }
 
 static inline void kgem_bo_submit(struct kgem *kgem, struct kgem_bo *bo)
@@ -571,7 +574,7 @@ static inline bool __kgem_bo_is_busy(struct kgem *kgem, struct kgem_bo *bo)
 	DBG(("%s: handle=%d, domain: %d exec? %d, rq? %d\n", __FUNCTION__,
 	     bo->handle, bo->domain, bo->exec != NULL, bo->rq != NULL));
 	assert(bo->refcnt);
-	if (kgem_flush(kgem))
+	if (kgem_flush(kgem, bo->flush))
 		kgem_submit(kgem);
 	if (bo->rq && !bo->exec)
 		kgem_retire(kgem);
