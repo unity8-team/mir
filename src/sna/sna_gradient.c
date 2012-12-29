@@ -219,11 +219,11 @@ sna_render_flush_solid(struct sna *sna)
 	DBG(("sna_render_flush_solid(size=%d)\n", cache->size));
 	assert(cache->dirty);
 	assert(cache->size);
+	assert(cache->size <= 1024);
 
 	kgem_bo_write(&sna->kgem, cache->cache_bo,
 		      cache->color, cache->size*sizeof(uint32_t));
 	cache->dirty = 0;
-	cache->last = 0;
 }
 
 static void
@@ -250,10 +250,8 @@ sna_render_finish_solid(struct sna *sna, bool force)
 		cache->bo[i] = NULL;
 	}
 
-	old = cache->cache_bo;
-
 	DBG(("sna_render_finish_solid reset\n"));
-
+	old = cache->cache_bo;
 	cache->cache_bo = kgem_create_linear(&sna->kgem, sizeof(cache->color), 0);
 	if (cache->cache_bo == NULL) {
 		cache->cache_bo = old;
@@ -262,6 +260,14 @@ sna_render_finish_solid(struct sna *sna, bool force)
 
 	if (force)
 		cache->size = 0;
+	if (cache->last < cache->size) {
+		cache->bo[cache->last] = kgem_create_proxy(&sna->kgem, cache->cache_bo,
+							   cache->last*sizeof(uint32_t), sizeof(uint32_t));
+		if (cache->bo[cache->last])
+			cache->bo[cache->last]->pitch = 4;
+		else
+			cache->last = 1024;
+	}
 
 	if (old)
 		kgem_bo_destroy(&sna->kgem, old);
@@ -334,7 +340,7 @@ sna_render_get_solid(struct sna *sna, uint32_t color)
 		}
 	}
 
-	sna_render_finish_solid(sna, i == ARRAY_SIZE(cache->color));
+	sna_render_finish_solid(sna, i == 1024);
 
 	i = cache->size++;
 	cache->color[i] = color;
@@ -406,14 +412,14 @@ static bool sna_solid_cache_init(struct sna *sna)
 	DBG(("%s\n", __FUNCTION__));
 
 	cache->cache_bo =
-		kgem_create_linear(&sna->kgem, sizeof(cache->color), 0);
+		kgem_create_linear(&sna->kgem, 4096, 0);
 	if (!cache->cache_bo)
 		return false;
 
-	cache->color[0] = 0;
+	cache->last = 1024;
+	cache->color[cache->last] = 0;
 	cache->dirty = 0;
 	cache->size = 0;
-	cache->last = 0;
 
 	return true;
 }

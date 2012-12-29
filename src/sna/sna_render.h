@@ -259,8 +259,8 @@ struct sna_render {
 
 	struct sna_solid_cache {
 		struct kgem_bo *cache_bo;
-		uint32_t color[1024];
 		struct kgem_bo *bo[1024];
+		uint32_t color[1025];
 		int last;
 		int size;
 		int dirty;
