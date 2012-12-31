@@ -522,8 +522,7 @@ static void sna_dri_select_mode(struct sna *sna, struct kgem_bo *dst, struct kge
 	}
 
 	if (sna->kgem.has_semaphores) {
-		DBG(("%s: have sempahores, prefering RENDER\n", __FUNCTION__));
-		kgem_set_mode(&sna->kgem, KGEM_RENDER, dst);
+		DBG(("%s: have sempahores, prefering defaults\n", __FUNCTION__));
 		return;
 	}
 
