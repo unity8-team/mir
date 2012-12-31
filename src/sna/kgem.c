@@ -942,6 +942,7 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, unsigned gen)
 	list_init(&kgem->large);
 	list_init(&kgem->large_inactive);
 	list_init(&kgem->snoop);
+	list_init(&kgem->scanout);
 	for (i = 0; i < ARRAY_SIZE(kgem->pinned_batches); i++)
 		list_init(&kgem->pinned_batches[i]);
 	for (i = 0; i < ARRAY_SIZE(kgem->inactive); i++)
@@ -1666,7 +1667,6 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 	assert(bo->proxy == NULL);
 
 	bo->binding.offset = 0;
-	kgem_bo_clear_scanout(kgem, bo);
 
 	if (DBG_NO_CACHE)
 		goto destroy;
@@ -1706,6 +1706,12 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 			bo = base;
 		} else
 			bo->reusable = false;
+	}
+
+	if (bo->scanout) {
+		DBG(("%s: handle=%d -> scanout\n", __FUNCTION__, bo->handle));
+		list_add(&bo->list, &kgem->scanout);
+		return;
 	}
 
 	if (!bo->reusable) {
@@ -2705,6 +2711,13 @@ bool kgem_expire_cache(struct kgem *kgem)
 
 	}
 
+	while (!list_is_empty(&kgem->scanout)) {
+		bo = list_first_entry(&kgem->scanout, struct kgem_bo, list);
+		list_del(&bo->list);
+		kgem_bo_clear_scanout(kgem, bo);
+		__kgem_bo_destroy(kgem, bo);
+	}
+
 	expire = 0;
 	list_for_each_entry(bo, &kgem->snoop, list) {
 		if (bo->delta) {
@@ -3392,6 +3405,36 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 	assert(size && size <= kgem->max_object_size);
 	size /= PAGE_SIZE;
 	bucket = cache_bucket(size);
+
+	if (flags & CREATE_SCANOUT) {
+		list_for_each_entry(bo, &kgem->scanout, list) {
+			assert(bo->scanout);
+			assert(bo->delta);
+			assert(!bo->purged);
+
+			if (size > num_pages(bo) || num_pages(bo) > 2*size)
+				continue;
+
+			if (bo->tiling != tiling ||
+			    (tiling != I915_TILING_NONE && bo->pitch != pitch)) {
+				if (!gem_set_tiling(kgem->fd, bo->handle,
+						    tiling, pitch))
+					continue;
+
+				bo->tiling = tiling;
+				bo->pitch = pitch;
+			}
+
+			list_del(&bo->list);
+
+			bo->unique_id = kgem_get_unique_id(kgem);
+			DBG(("  1:from scanout: pitch=%d, tiling=%d, handle=%d, id=%d\n",
+			     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
+			assert(bo->pitch*kgem_aligned_height(kgem, height, bo->tiling) <= kgem_bo_size(bo));
+			bo->refcnt = 1;
+			return bo;
+		}
+	}
 
 	if (bucket >= NUM_CACHE_BUCKETS) {
 		DBG(("%s: large bo num pages=%d, bucket=%d\n",
