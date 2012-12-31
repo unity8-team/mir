@@ -1997,7 +1997,6 @@ gen4_render_composite(struct sna *sna,
 	tmp->is_affine = tmp->src.is_affine;
 	tmp->has_component_alpha = false;
 	tmp->need_magic_ca_pass = false;
-	tmp->u.gen4.sf = 0;
 
 	if (mask) {
 		if (mask->componentAlpha && PICT_FORMAT_RGB(mask->format)) {
@@ -2046,9 +2045,10 @@ gen4_render_composite(struct sna *sna,
 	}
 	gen4_choose_composite_emitter(tmp);
 
-	if (tmp->mask.bo == NULL && tmp->src.transform == NULL)
-		/* XXX using more then one thread causes corruption? */
-		tmp->u.gen4.sf = 1;
+	/* XXX using more then one thread causes corruption? */
+	tmp->u.gen4.sf = (tmp->mask.bo == NULL &&
+			  tmp->src.transform == NULL &&
+			  !tmp->src.is_solid);
 
 	tmp->u.gen4.wm_kernel =
 		gen4_choose_composite_kernel(tmp->op,
