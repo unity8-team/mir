@@ -1975,7 +1975,7 @@ static int prefer_blt_bo(struct sna *sna, struct kgem_bo *bo)
 	if (bo->rq)
 		return RQ_IS_BLT(bo->rq) ? 1 : -1;
 
-	return bo->tiling == I915_TILING_NONE;
+	return bo->tiling == I915_TILING_NONE || bo->scanout;
 }
 
 inline static bool prefer_blt_ring(struct sna *sna,
