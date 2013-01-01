@@ -911,33 +911,30 @@ gen2_emit_composite_primitive_affine(struct sna *sna,
 				     const struct sna_composite_rectangles *r)
 {
 	PictTransform *transform = op->src.transform;
-	int16_t dst_x = r->dst.x + op->dst.x;
-	int16_t dst_y = r->dst.y + op->dst.y;
 	int src_x = r->src.x + (int)op->src.offset[0];
 	int src_y = r->src.y + (int)op->src.offset[1];
-	float sx, sy;
+	float *v;
 
-	_sna_get_transformed_coordinates(src_x + r->width, src_y + r->height,
-					 transform,
-					 &sx, &sy);
+	v = (float *)sna->kgem.batch + sna->kgem.nbatch;
+	sna->kgem.nbatch += 12;
 
-	gen2_emit_composite_dstcoord(sna, dst_x + r->width, dst_y + r->height);
-	VERTEX(sx * op->src.scale[0]);
-	VERTEX(sy * op->src.scale[1]);
+	v[8] = v[4] = r->dst.x + op->dst.x;
+	v[0] = v[4] + r->width;
 
-	_sna_get_transformed_coordinates(src_x, src_y + r->height,
-					 transform,
-					 &sx, &sy);
-	gen2_emit_composite_dstcoord(sna, dst_x, dst_y + r->height);
-	VERTEX(sx * op->src.scale[0]);
-	VERTEX(sy * op->src.scale[1]);
+	v[9] = r->dst.y + op->dst.y;
+	v[5] = v[1] = v[9] + r->height;
 
-	_sna_get_transformed_coordinates(src_x, src_y,
-					 transform,
-					 &sx, &sy);
-	gen2_emit_composite_dstcoord(sna, dst_x, dst_y);
-	VERTEX(sx * op->src.scale[0]);
-	VERTEX(sy * op->src.scale[1]);
+	_sna_get_transformed_scaled(src_x + r->width, src_y + r->height,
+				    transform, op->src.scale,
+				    &v[2], &v[3]);
+
+	_sna_get_transformed_scaled(src_x, src_y + r->height,
+				    transform, op->src.scale,
+				    &v[6], &v[7]);
+
+	_sna_get_transformed_scaled(src_x, src_y,
+				    transform, op->src.scale,
+				    &v[10], &v[11]);
 }
 
 fastcall static void
@@ -2059,8 +2056,8 @@ gen2_emit_composite_spans_primitive_affine_source(struct sna *sna,
 {
 	PictTransform *transform = op->base.src.transform;
 	uint32_t alpha = (uint8_t)(255 * opacity) << 24;
-	float x, y, *v;
-       
+	float *v;
+
 	v = (float *)sna->kgem.batch + sna->kgem.nbatch;
 	sna->kgem.nbatch += 15;
 
@@ -2072,26 +2069,20 @@ gen2_emit_composite_spans_primitive_affine_source(struct sna *sna,
 	*((uint32_t *)v + 7) = alpha;
 	*((uint32_t *)v + 12) = alpha;
 
-	_sna_get_transformed_coordinates((int)op->base.src.offset[0] + box->x2,
-					 (int)op->base.src.offset[1] + box->y2,
-					 transform,
-					 &x, &y);
-	v[3] = x * op->base.src.scale[0];
-	v[4] = y * op->base.src.scale[1];
+	_sna_get_transformed_scaled((int)op->base.src.offset[0] + box->x2,
+				    (int)op->base.src.offset[1] + box->y2,
+				    transform, op->base.src.scale,
+				    &v[3], &v[4]);
 
-	_sna_get_transformed_coordinates((int)op->base.src.offset[0] + box->x1,
-					 (int)op->base.src.offset[1] + box->y2,
-					 transform,
-					 &x, &y);
-	v[8] = x * op->base.src.scale[0];
-	v[9] = y * op->base.src.scale[1];
+	_sna_get_transformed_scaled((int)op->base.src.offset[0] + box->x1,
+				    (int)op->base.src.offset[1] + box->y2,
+				    transform, op->base.src.scale,
+				    &v[8], &v[9]);
 
-	_sna_get_transformed_coordinates((int)op->base.src.offset[0] + box->x1,
-					 (int)op->base.src.offset[1] + box->y1,
-					 transform,
-					 &x, &y);
-	v[13] = x * op->base.src.scale[0];
-	v[14] = y * op->base.src.scale[1];
+	_sna_get_transformed_scaled((int)op->base.src.offset[0] + box->x1,
+				    (int)op->base.src.offset[1] + box->y1,
+				    transform, op->base.src.scale,
+				    &v[13], &v[14]);
 }
 
 static void
