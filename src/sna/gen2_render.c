@@ -46,9 +46,6 @@
 #define NO_FILL_ONE 0
 #define NO_FILL_BOXES 0
 
-#define PREFER_BLT_FILL 1
-#define PREFER_BLT_COPY 1
-
 #define MAX_3D_SIZE 2048
 #define MAX_3D_PITCH 8192
 
@@ -1517,49 +1514,6 @@ gen2_composite_set_target(struct sna *sna,
 }
 
 static bool
-try_blt(struct sna *sna,
-	PicturePtr dst,
-	PicturePtr src,
-	int width, int height)
-{
-	uint32_t color;
-
-	if (sna->kgem.mode != KGEM_RENDER) {
-		DBG(("%s: already performing BLT\n", __FUNCTION__));
-		return true;
-	}
-
-	if (too_large(width, height)) {
-		DBG(("%s: operation too large for 3D pipe (%d, %d)\n",
-		     __FUNCTION__, width, height));
-		return true;
-	}
-
-	if (too_large(dst->pDrawable->width, dst->pDrawable->height)) {
-		DBG(("%s: target too large for 3D pipe (%d, %d)\n",
-		     __FUNCTION__,
-		     dst->pDrawable->width, dst->pDrawable->height));
-		return true;
-	}
-
-	/* If it is a solid, try to use the BLT paths */
-	if (sna_picture_is_solid(src, &color))
-		return true;
-
-	if (!src->pDrawable)
-		return false;
-
-	if (too_large(src->pDrawable->width, src->pDrawable->height)) {
-		DBG(("%s: source too large for 3D pipe (%d, %d)\n",
-		     __FUNCTION__,
-		     src->pDrawable->width, src->pDrawable->height));
-		return true;
-	}
-
-	return !is_gpu(src->pDrawable);
-}
-
-static bool
 is_unhandled_gradient(PicturePtr picture)
 {
 	if (picture->pDrawable)
@@ -1789,13 +1743,8 @@ gen2_render_composite(struct sna *sna,
 		return false;
 	}
 
-	/* Try to use the BLT engine unless it implies a
-	 * 3D -> 2D context switch.
-	 */
 	if (mask == NULL &&
-	    try_blt(sna, dst, src, width, height) &&
-	    sna_blt_composite(sna,
-			      op, src, dst,
+	    sna_blt_composite(sna, op, src, dst,
 			      src_x, src_y,
 			      dst_x, dst_y,
 			      width, height,
@@ -2479,24 +2428,6 @@ gen2_render_fill_boxes_try_blt(struct sna *sna,
 				  pixel, box, n);
 }
 
-static inline bool prefer_blt_fill(struct sna *sna)
-{
-#if PREFER_BLT_FILL
-	return true;
-#else
-	return sna->kgem.mode != KGEM_RENDER;
-#endif
-}
-
-static inline bool prefer_blt_copy(struct sna *sna, unsigned flags)
-{
-#if PREFER_BLT_COPY
-	return true;
-#else
-	return sna->kgem.mode != KGEM_RENDER;
-#endif
-}
-
 static bool
 gen2_render_fill_boxes(struct sna *sna,
 		       CARD8 op,
@@ -2519,6 +2450,11 @@ gen2_render_fill_boxes(struct sna *sna,
 					      dst, dst_bo,
 					      box, n);
 #endif
+	if (gen2_render_fill_boxes_try_blt(sna, op, format, color,
+					   dst, dst_bo,
+					   box, n))
+		return true;
+
 
 	DBG(("%s (op=%d, format=%x, color=(%04x,%04x,%04x, %04x))\n",
 	     __FUNCTION__, op, (int)format,
@@ -2529,11 +2465,6 @@ gen2_render_fill_boxes(struct sna *sna,
 	    !gen2_check_dst_format(format)) {
 		DBG(("%s: try blt, too large or incompatible destination\n",
 		     __FUNCTION__));
-		if (gen2_render_fill_boxes_try_blt(sna, op, format, color,
-						   dst, dst_bo,
-						   box, n))
-			return true;
-
 		if (!gen2_check_dst_format(format))
 			return false;
 
@@ -2541,12 +2472,6 @@ gen2_render_fill_boxes(struct sna *sna,
 		return sna_tiling_fill_boxes(sna, op, format, color,
 					     dst, dst_bo, box, n);
 	}
-
-	if (prefer_blt_fill(sna) &&
-	    gen2_render_fill_boxes_try_blt(sna, op, format, color,
-					   dst, dst_bo,
-					   box, n))
-		return true;
 
 	if (op == PictOpClear)
 		pixel = 0;
@@ -2719,8 +2644,7 @@ gen2_render_fill(struct sna *sna, uint8_t alu,
 #endif
 
 	/* Prefer to use the BLT if already engaged */
-	if (prefer_blt_fill(sna) &&
-	    sna_blt_fill(sna, alu,
+	if (sna_blt_fill(sna, alu,
 			 dst_bo, dst->drawable.bitsPerPixel,
 			 color,
 			 tmp))
@@ -2729,10 +2653,7 @@ gen2_render_fill(struct sna *sna, uint8_t alu,
 	/* Must use the BLT if we can't RENDER... */
 	if (too_large(dst->drawable.width, dst->drawable.height) ||
 	    dst_bo->pitch < 8 || dst_bo->pitch > MAX_3D_PITCH)
-		return sna_blt_fill(sna, alu,
-				    dst_bo, dst->drawable.bitsPerPixel,
-				    color,
-				    tmp);
+		return false;
 
 	tmp->base.op = alu;
 	tmp->base.dst.pixmap = dst;
@@ -2797,16 +2718,14 @@ gen2_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 #endif
 
 	/* Prefer to use the BLT if already engaged */
-	if (prefer_blt_fill(sna) &&
-	    gen2_render_fill_one_try_blt(sna, dst, bo, color,
+	if (gen2_render_fill_one_try_blt(sna, dst, bo, color,
 					 x1, y1, x2, y2, alu))
 		return true;
 
 	/* Must use the BLT if we can't RENDER... */
 	if (too_large(dst->drawable.width, dst->drawable.height) ||
 	    bo->pitch < 8 || bo->pitch > MAX_3D_PITCH)
-		return gen2_render_fill_one_try_blt(sna, dst, bo, color,
-						    x1, y1, x2, y2, alu);
+		return false;
 
 	if (!kgem_check_bo(&sna->kgem, bo, NULL)) {
 		kgem_submit(&sna->kgem);
@@ -2961,8 +2880,7 @@ gen2_render_copy_boxes(struct sna *sna, uint8_t alu,
 	DBG(("%s (%d, %d)->(%d, %d) x %d\n",
 	     __FUNCTION__, src_dx, src_dy, dst_dx, dst_dy, n));
 
-	if (prefer_blt_copy(sna, flags) &&
-	    sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
+	if (sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
 	    sna_blt_copy_boxes(sna, alu,
 			       src_bo, src_dx, src_dy,
 			       dst_bo, dst_dx, dst_dy,
@@ -3127,8 +3045,7 @@ gen2_render_copy(struct sna *sna, uint8_t alu,
 #endif
 
 	/* Prefer to use the BLT */
-	if (prefer_blt_copy(sna, 0) &&
-	    sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
+	if (sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
 	    sna_blt_copy(sna, alu,
 			 src_bo, dst_bo,
 			 dst->drawable.bitsPerPixel,
