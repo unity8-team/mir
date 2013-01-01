@@ -563,10 +563,6 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 		sna->tiling &= ~SNA_TILING_FB;
 
 	sna->flags = 0;
-	if (!xf86ReturnOptValBool(sna->Options, OPTION_THROTTLE, TRUE))
-		sna->flags |= SNA_NO_THROTTLE;
-	if (!xf86ReturnOptValBool(sna->Options, OPTION_DELAYED_FLUSH, TRUE))
-		sna->flags |= SNA_NO_DELAYED_FLUSH;
 	if (!xf86ReturnOptValBool(sna->Options, OPTION_SWAPBUFFERS_WAIT, TRUE))
 		sna->flags |= SNA_NO_WAIT;
 	if (xf86ReturnOptValBool(sna->Options, OPTION_TRIPLE_BUFFER, TRUE))
@@ -583,12 +579,6 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 		   sna->tiling & SNA_TILING_FB ? "tiled" : "linear");
 	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Pixmaps %s\n",
 		   sna->tiling & SNA_TILING_2D ? "tiled" : "linear");
-	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "3D buffers %s\n",
-		   sna->tiling & SNA_TILING_3D ? "tiled" : "linear");
-	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Throttling %sabled\n",
-		   sna->flags & SNA_NO_THROTTLE ? "dis" : "en");
-	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Delayed flush %sabled\n",
-		   sna->flags & SNA_NO_DELAYED_FLUSH ? "dis" : "en");
 	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "\"Tear free\" %sabled\n",
 		   sna->flags & SNA_TEAR_FREE ? "en" : "dis");
 	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Forcing per-crtc-pixmaps? %s\n",

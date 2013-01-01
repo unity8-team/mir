@@ -13860,9 +13860,6 @@ static bool sna_accel_do_flush(struct sna *sna)
 		return false;
 	}
 
-	if (sna->flags & SNA_NO_DELAYED_FLUSH)
-		return true;
-
 	interval = sna->vblank_interval ?: 20;
 	if (sna->timer_active & (1<<(FLUSH_TIMER))) {
 		int32_t delta = sna->timer_expire[FLUSH_TIMER] - TIME;
@@ -13885,9 +13882,6 @@ static bool sna_accel_do_flush(struct sna *sna)
 
 static bool sna_accel_do_throttle(struct sna *sna)
 {
-	if (sna->flags & SNA_NO_THROTTLE)
-		return false;
-
 	if (sna->timer_active & (1<<(THROTTLE_TIMER))) {
 		int32_t delta = sna->timer_expire[THROTTLE_TIMER] - TIME;
 		if (delta <= 3) {
@@ -14405,15 +14399,13 @@ void sna_accel_block_handler(struct sna *sna, struct timeval **tv)
 
 	if (sna_accel_do_flush(sna))
 		sna_accel_flush(sna);
-	assert(sna->flags & SNA_NO_DELAYED_FLUSH ||
-	       sna_accel_scanout(sna) == NULL ||
+	assert(sna_accel_scanout(sna) == NULL ||
 	       sna_accel_scanout(sna)->gpu_bo->exec == NULL ||
 	       sna->timer_active & (1<<(FLUSH_TIMER)));
 
 	if (sna_accel_do_throttle(sna))
 		sna_accel_throttle(sna);
-	assert(sna->flags & SNA_NO_THROTTLE ||
-	       !sna->kgem.need_retire ||
+	assert(!sna->kgem.need_retire ||
 	       sna->timer_active & (1<<(THROTTLE_TIMER)));
 
 	if (sna_accel_do_expire(sna))

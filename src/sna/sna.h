@@ -193,13 +193,11 @@ struct sna {
 	ScrnInfoPtr scrn;
 
 	unsigned flags;
-#define SNA_NO_THROTTLE		0x1
-#define SNA_NO_DELAYED_FLUSH	0x2
-#define SNA_NO_WAIT		0x4
-#define SNA_NO_FLIP		0x8
+#define SNA_NO_WAIT		0x1
+#define SNA_NO_FLIP		0x2
+#define SNA_TRIPLE_BUFFER	0x4
 #define SNA_TEAR_FREE		0x10
 #define SNA_FORCE_SHADOW	0x20
-#define SNA_TRIPLE_BUFFER	0x40
 
 	unsigned watch_flush;
 
@@ -234,7 +232,6 @@ struct sna {
 	unsigned int tiling;
 #define SNA_TILING_FB		0x1
 #define SNA_TILING_2D		0x2
-#define SNA_TILING_3D		0x4
 #define SNA_TILING_ALL (~0)
 
 	EntityInfoPtr pEnt;
