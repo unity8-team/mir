@@ -624,9 +624,9 @@ gen7_emit_cc_invariant(struct sna *sna)
 	OUT_BATCH(0);
 #endif
 
-	assert(is_aligned(sna->render_state.gen7.cc_vp, 32));
+	/* XXX clear to be safe */
 	OUT_BATCH(GEN7_3DSTATE_VIEWPORT_STATE_POINTERS_CC | (2 - 2));
-	OUT_BATCH(sna->render_state.gen7.cc_vp);
+	OUT_BATCH(0);
 }
 
 static void
@@ -1163,16 +1163,6 @@ sampler_fill_init(struct gen7_sampler_state *ss)
 	ss->ss3.non_normalized_coord = 1;
 
 	sampler_state_init(ss+1, SAMPLER_FILTER_NEAREST, SAMPLER_EXTEND_NONE);
-}
-
-static uint32_t gen7_create_cc_viewport(struct sna_static_stream *stream)
-{
-	struct gen7_cc_viewport vp;
-
-	vp.min_depth = -1.e35;
-	vp.max_depth = 1.e35;
-
-	return sna_static_stream_add(stream, &vp, sizeof(vp), 32);
 }
 
 static uint32_t
@@ -3753,7 +3743,6 @@ static bool gen7_render_setup(struct sna *sna)
 		}
 	}
 
-	state->cc_vp = gen7_create_cc_viewport(&general);
 	state->cc_blend = gen7_composite_create_blend_state(&general);
 
 	state->general_bo = sna_static_stream_fini(sna, &general);

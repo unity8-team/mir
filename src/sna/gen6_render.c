@@ -434,7 +434,7 @@ gen6_emit_viewports(struct sna *sna)
 		  (4 - 2));
 	OUT_BATCH(0);
 	OUT_BATCH(0);
-	OUT_BATCH(sna->render_state.gen6.cc_vp);
+	OUT_BATCH(0);
 }
 
 static void
@@ -1031,16 +1031,6 @@ sampler_fill_init(struct gen6_sampler_state *ss)
 	ss->ss3.non_normalized_coord = 1;
 
 	sampler_state_init(ss+1, SAMPLER_FILTER_NEAREST, SAMPLER_EXTEND_NONE);
-}
-
-static uint32_t gen6_create_cc_viewport(struct sna_static_stream *stream)
-{
-	struct gen6_cc_viewport vp;
-
-	vp.min_depth = -1.e35;
-	vp.max_depth = 1.e35;
-
-	return sna_static_stream_add(stream, &vp, sizeof(vp), 32);
 }
 
 static uint32_t
@@ -3669,7 +3659,6 @@ static bool gen6_render_setup(struct sna *sna)
 		}
 	}
 
-	state->cc_vp = gen6_create_cc_viewport(&general);
 	state->cc_blend = gen6_composite_create_blend_state(&general);
 
 	state->general_bo = sna_static_stream_fini(sna, &general);

@@ -403,7 +403,6 @@ struct gen6_render_state {
 	uint32_t wm_state;
 	uint32_t wm_kernel[GEN6_KERNEL_COUNT][3];
 
-	uint32_t cc_vp;
 	uint32_t cc_blend;
 
 	uint32_t drawrect_offset;
@@ -453,7 +452,6 @@ struct gen7_render_state {
 	uint32_t wm_state;
 	uint32_t wm_kernel[GEN7_WM_KERNEL_COUNT][3];
 
-	uint32_t cc_vp;
 	uint32_t cc_blend;
 
 	uint32_t drawrect_offset;
