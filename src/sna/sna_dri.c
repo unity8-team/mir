@@ -521,11 +521,6 @@ static void sna_dri_select_mode(struct sna *sna, struct kgem_bo *dst, struct kge
 		return;
 	}
 
-	if (sna->kgem.has_semaphores) {
-		DBG(("%s: have sempahores, prefering defaults\n", __FUNCTION__));
-		return;
-	}
-
 	VG_CLEAR(busy);
 	busy.handle = src->handle;
 	if (drmIoctl(sna->kgem.fd, DRM_IOCTL_I915_GEM_BUSY, &busy))
@@ -561,6 +556,7 @@ static void sna_dri_select_mode(struct sna *sna, struct kgem_bo *dst, struct kge
 	mode = KGEM_RENDER;
 	if (busy.busy & (1 << 17))
 		mode = KGEM_BLT;
+	kgem_bo_mark_busy(dst, mode);
 	_kgem_set_mode(&sna->kgem, mode);
 }
 

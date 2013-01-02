@@ -562,6 +562,11 @@ static inline bool kgem_bo_is_snoop(struct kgem_bo *bo)
 	return bo->snoop;
 }
 
+static inline void kgem_bo_mark_busy(struct kgem_bo *bo, int ring)
+{
+	bo->rq = (struct kgem_request *)((uintptr_t)bo->rq | ring);
+}
+
 static inline bool kgem_bo_is_busy(struct kgem_bo *bo)
 {
 	DBG(("%s: handle=%d, domain: %d exec? %d, rq? %d\n", __FUNCTION__,
