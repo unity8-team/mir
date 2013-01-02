@@ -250,4 +250,11 @@ inline static bool dst_is_cpu(PixmapPtr pixmap)
 	return priv == NULL || DAMAGE_IS_ALL(priv->cpu_damage);
 }
 
+inline static bool
+untransformed(PicturePtr p)
+{
+	return !p->transform || pixman_transform_is_int_translate(p->transform);
+}
+
+
 #endif /* SNA_RENDER_INLINE_H */

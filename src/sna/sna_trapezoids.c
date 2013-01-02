@@ -4936,6 +4936,45 @@ unbounded_pass:
 }
 
 static void
+pixmask_span_solid(struct sna *sna,
+		   struct sna_composite_spans_op *op,
+		   pixman_region16_t *clip,
+		   const BoxRec *box,
+		   int coverage)
+{
+	struct pixman_inplace *pi = (struct pixman_inplace *)op;
+	if (coverage != FAST_SAMPLES_XY) {
+		coverage = coverage * 256 / FAST_SAMPLES_XY;
+		coverage -= coverage >> 8;
+		*pi->bits = mul_4x8_8(pi->color, coverage);
+	} else
+		*pi->bits = pi->color;
+	pixman_image_composite(pi->op, pi->source, NULL, pi->image,
+			       box->x1, box->y1,
+			       0, 0,
+			       pi->dx + box->x1, pi->dy + box->y1,
+			       box->x2 - box->x1, box->y2 - box->y1);
+}
+static void
+pixmask_span_solid__clipped(struct sna *sna,
+			    struct sna_composite_spans_op *op,
+			    pixman_region16_t *clip,
+			    const BoxRec *box,
+			    int coverage)
+{
+	pixman_region16_t region;
+	int n;
+
+	pixman_region_init_rects(&region, box, 1);
+	RegionIntersect(&region, &region, clip);
+	n = REGION_NUM_RECTS(&region);
+	box = REGION_RECTS(&region);
+	while (n--)
+		pixmask_span_solid(sna, op, NULL, box++, coverage);
+	pixman_region_fini(&region);
+}
+
+static void
 pixmask_span(struct sna *sna,
 	     struct sna_composite_spans_op *op,
 	     pixman_region16_t *clip,
@@ -5102,6 +5141,29 @@ trapezoid_span_inplace__x8r8g8b8(CARD8 op,
 			tor_render(NULL, &tor, (void*)&inplace,
 				   dst->pCompositeClip, span, false);
 			tor_fini(&tor);
+		} else if (sna_picture_is_solid(src, &color)) {
+			struct pixman_inplace pi;
+
+			pi.image = image_from_pict(dst, false, &pi.dx, &pi.dy);
+			pi.op = op;
+			pi.color = color;
+
+			pi.source = pixman_image_create_bits(PIXMAN_a8r8g8b8, 1, 1, NULL, 0);
+			pixman_image_set_repeat(pi.source, PIXMAN_REPEAT_NORMAL);
+			pi.bits = pixman_image_get_data(pi.source);
+
+			if (dst->pCompositeClip->data)
+				span = pixmask_span_solid__clipped;
+			else
+				span = pixmask_span_solid;
+
+			tor_render(NULL, &tor, (void*)&pi,
+				   dst->pCompositeClip, span,
+				   false);
+			tor_fini(&tor);
+
+			pixman_image_unref(pi.source);
+			pixman_image_unref(pi.image);
 		} else {
 			struct pixman_inplace pi;
 
@@ -5546,7 +5608,7 @@ sna_composite_trapezoids(CARD8 op,
 
 	force_fallback = FORCE_FALLBACK > 0;
 	if ((too_small(priv) || DAMAGE_IS_ALL(priv->cpu_damage)) &&
-	    !picture_is_gpu(src)) {
+	    !picture_is_gpu(src) && untransformed(src)) {
 		DBG(("%s: force fallbacks --too small, %dx%d? %d, all-cpu? %d, src-is-cpu? %d\n",
 		     __FUNCTION__,
 		     dst->pDrawable->width,
