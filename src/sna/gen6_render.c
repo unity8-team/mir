@@ -42,6 +42,7 @@
 
 #include "brw/brw.h"
 #include "gen6_render.h"
+#include "gen4_source.h"
 #include "gen4_vertex.h"
 
 #define NO_COMPOSITE 0
@@ -1602,144 +1603,6 @@ gen6_render_video(struct sna *sna,
 	return true;
 }
 
-static bool
-gen6_composite_solid_init(struct sna *sna,
-			  struct sna_composite_channel *channel,
-			  uint32_t color)
-{
-	DBG(("%s: color=%x\n", __FUNCTION__, color));
-
-	channel->filter = PictFilterNearest;
-	channel->repeat = RepeatNormal;
-	channel->is_affine = true;
-	channel->is_solid  = true;
-	channel->is_opaque = (color >> 24) == 0xff;
-	channel->transform = NULL;
-	channel->width  = 1;
-	channel->height = 1;
-	channel->card_format = GEN6_SURFACEFORMAT_B8G8R8A8_UNORM;
-
-	channel->bo = sna_render_get_solid(sna, color);
-
-	channel->scale[0]  = channel->scale[1]  = 1;
-	channel->offset[0] = channel->offset[1] = 0;
-	return channel->bo != NULL;
-}
-
-static bool
-gen6_composite_linear_init(struct sna *sna,
-			   PicturePtr picture,
-			   struct sna_composite_channel *channel,
-			   int x, int y,
-			   int w, int h,
-			   int dst_x, int dst_y)
-{
-	PictLinearGradient *linear =
-		(PictLinearGradient *)picture->pSourcePict;
-	pixman_fixed_t tx, ty;
-	float x0, y0, sf;
-	float dx, dy;
-
-	DBG(("%s: p1=(%f, %f), p2=(%f, %f), src=(%d, %d), dst=(%d, %d), size=(%d, %d)\n",
-	     __FUNCTION__,
-	     pixman_fixed_to_double(linear->p1.x), pixman_fixed_to_double(linear->p1.y),
-	     pixman_fixed_to_double(linear->p2.x), pixman_fixed_to_double(linear->p2.y),
-	     x, y, dst_x, dst_y, w, h));
-
-	if (linear->p2.x == linear->p1.x && linear->p2.y == linear->p1.y)
-		return 0;
-
-	if (!sna_transform_is_affine(picture->transform)) {
-		DBG(("%s: fallback due to projective transform\n",
-		     __FUNCTION__));
-		return sna_render_picture_fixup(sna, picture, channel,
-						x, y, w, h, dst_x, dst_y);
-	}
-
-	channel->bo = sna_render_get_gradient(sna, (PictGradient *)linear);
-	if (!channel->bo)
-		return 0;
-
-	channel->filter = PictFilterNearest;
-	channel->repeat = picture->repeat ? picture->repeatType : RepeatNone;
-	channel->width  = channel->bo->pitch / 4;
-	channel->height = 1;
-	channel->pict_format = PICT_a8r8g8b8;
-
-	channel->scale[0]  = channel->scale[1]  = 1;
-	channel->offset[0] = channel->offset[1] = 0;
-
-	if (sna_transform_is_translation(picture->transform, &tx, &ty)) {
-		dx = pixman_fixed_to_double(linear->p2.x - linear->p1.x);
-		dy = pixman_fixed_to_double(linear->p2.y - linear->p1.y);
-
-		x0 = pixman_fixed_to_double(linear->p1.x);
-		y0 = pixman_fixed_to_double(linear->p1.y);
-
-		if (tx | ty) {
-			x0 -= pixman_fixed_to_double(tx);
-			y0 -= pixman_fixed_to_double(ty);
-		}
-	} else {
-		struct pixman_f_vector p1, p2;
-		struct pixman_f_transform m, inv;
-
-		pixman_f_transform_from_pixman_transform(&m, picture->transform);
-		DBG(("%s: transform = [%f %f %f, %f %f %f, %f %f %f]\n",
-		     __FUNCTION__,
-		     m.m[0][0], m.m[0][1], m.m[0][2],
-		     m.m[1][0], m.m[1][1], m.m[1][2],
-		     m.m[2][0], m.m[2][1], m.m[2][2]));
-		if (!pixman_f_transform_invert(&inv, &m))
-			return 0;
-
-		p1.v[0] = pixman_fixed_to_double(linear->p1.x);
-		p1.v[1] = pixman_fixed_to_double(linear->p1.y);
-		p1.v[2] = 1.;
-		pixman_f_transform_point(&inv, &p1);
-
-		p2.v[0] = pixman_fixed_to_double(linear->p2.x);
-		p2.v[1] = pixman_fixed_to_double(linear->p2.y);
-		p2.v[2] = 1.;
-		pixman_f_transform_point(&inv, &p2);
-
-		DBG(("%s: untransformed: p1=(%f, %f, %f), p2=(%f, %f, %f)\n",
-		     __FUNCTION__,
-		     p1.v[0], p1.v[1], p1.v[2],
-		     p2.v[0], p2.v[1], p2.v[2]));
-
-		dx = p2.v[0] - p1.v[0];
-		dy = p2.v[1] - p1.v[1];
-
-		x0 = p1.v[0];
-		y0 = p1.v[1];
-	}
-
-	sf = dx*dx + dy*dy;
-	dx /= sf;
-	dy /= sf;
-
-	channel->embedded_transform.matrix[0][0] = pixman_double_to_fixed(dx);
-	channel->embedded_transform.matrix[0][1] = pixman_double_to_fixed(dy);
-	channel->embedded_transform.matrix[0][2] = -pixman_double_to_fixed(dx*(x0+dst_x-x) + dy*(y0+dst_y-y));
-
-	channel->embedded_transform.matrix[1][0] = 0;
-	channel->embedded_transform.matrix[1][1] = 0;
-	channel->embedded_transform.matrix[1][2] = pixman_double_to_fixed(.5);
-
-	channel->embedded_transform.matrix[2][0] = 0;
-	channel->embedded_transform.matrix[2][1] = 0;
-	channel->embedded_transform.matrix[2][2] = pixman_fixed_1;
-
-	channel->transform = &channel->embedded_transform;
-	channel->is_affine = 1;
-
-	DBG(("%s: dx=%f, dy=%f, offset=%f\n",
-	     __FUNCTION__, dx, dy, -dx*(x0-x+dst_x) + -dy*(y0-y+dst_y)));
-
-	return channel->bo != NULL;
-}
-
 static int
 gen6_composite_picture(struct sna *sna,
 		       PicturePtr picture,
@@ -1760,16 +1623,16 @@ gen6_composite_picture(struct sna *sna,
 	channel->card_format = -1;
 
 	if (sna_picture_is_solid(picture, &color))
-		return gen6_composite_solid_init(sna, channel, color);
+		return gen4_channel_init_solid(sna, channel, color);
 
 	if (picture->pDrawable == NULL) {
 		int ret;
 
 		if (picture->pSourcePict->type == SourcePictTypeLinear)
-			return gen6_composite_linear_init(sna, picture, channel,
-							  x, y,
-							  w, h,
-							  dst_x, dst_y);
+			return gen4_channel_init_linear(sna, picture, channel,
+							x, y,
+							w, h,
+							dst_x, dst_y);
 
 		DBG(("%s -- fixup, gradient\n", __FUNCTION__));
 		ret = -1;
@@ -2135,7 +1998,7 @@ reuse_source(struct sna *sna,
 	}
 
 	if (sna_picture_is_solid(mask, &color))
-		return gen6_composite_solid_init(sna, mc, color);
+		return gen4_channel_init_solid(sna, mc, color);
 
 	if (sc->is_solid)
 		return false;
@@ -2242,7 +2105,7 @@ gen6_render_composite(struct sna *sna,
 	case -1:
 		goto cleanup_dst;
 	case 0:
-		if (!gen6_composite_solid_init(sna, &tmp->src, 0))
+		if (!gen4_channel_init_solid(sna, &tmp->src, 0))
 			goto cleanup_dst;
 		/* fall through to fixup */
 	case 1:
@@ -2295,7 +2158,7 @@ gen6_render_composite(struct sna *sna,
 			case -1:
 				goto cleanup_src;
 			case 0:
-				if (!gen6_composite_solid_init(sna, &tmp->mask, 0))
+				if (!gen4_channel_init_solid(sna, &tmp->mask, 0))
 					goto cleanup_src;
 				/* fall through to fixup */
 			case 1:
@@ -2306,7 +2169,6 @@ gen6_render_composite(struct sna *sna,
 
 		tmp->is_affine &= tmp->mask.is_affine;
 	}
-	gen4_choose_composite_emitter(tmp);
 
 	tmp->u.gen6.flags =
 		GEN6_SET_FLAGS(SAMPLER_OFFSET(tmp->src.filter,
@@ -2320,7 +2182,7 @@ gen6_render_composite(struct sna *sna,
 							    tmp->mask.bo != NULL,
 							    tmp->has_component_alpha,
 							    tmp->is_affine),
-			       gen4_choose_composite_vertex_buffer(tmp));
+			       gen4_choose_composite_emitter(tmp));
 
 	tmp->blt   = gen6_render_composite_blt;
 	tmp->box   = gen6_render_composite_box;
@@ -2498,7 +2360,7 @@ gen6_render_composite_spans(struct sna *sna,
 	case -1:
 		goto cleanup_dst;
 	case 0:
-		if (!gen6_composite_solid_init(sna, &tmp->base.src, 0))
+		if (!gen4_channel_init_solid(sna, &tmp->base.src, 0))
 			goto cleanup_dst;
 		/* fall through to fixup */
 	case 1:
@@ -2510,8 +2372,6 @@ gen6_render_composite_spans(struct sna *sna,
 	tmp->base.is_affine = tmp->base.src.is_affine;
 	tmp->base.need_magic_ca_pass = false;
 
-	gen4_choose_spans_emitter(tmp);
-
 	tmp->base.u.gen6.flags =
 		GEN6_SET_FLAGS(SAMPLER_OFFSET(tmp->base.src.filter,
 					      tmp->base.src.repeat,
@@ -2519,7 +2379,7 @@ gen6_render_composite_spans(struct sna *sna,
 					      SAMPLER_EXTEND_PAD),
 			       gen6_get_blend(tmp->base.op, false, tmp->base.dst.format),
 			       GEN6_WM_KERNEL_OPACITY | !tmp->base.is_affine,
-			       gen4_choose_spans_vertex_buffer(&tmp->base));
+			       gen4_choose_spans_emitter(tmp));
 
 	tmp->box   = gen6_render_composite_spans_box;
 	tmp->boxes = gen6_render_composite_spans_boxes;

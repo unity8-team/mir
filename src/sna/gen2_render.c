@@ -762,9 +762,9 @@ gen2_emit_composite_linear(struct sna *sna,
 {
 	float v;
 
-	v = (x * channel->u.gen2.linear_dx +
-	     y * channel->u.gen2.linear_dy +
-	     channel->u.gen2.linear_offset);
+	v = (x * channel->u.linear.dx +
+	     y * channel->u.linear.dy +
+	     channel->u.linear.offset);
 	DBG(("%s: (%d, %d) -> %f\n", __FUNCTION__, x, y, v));
 	VERTEX(v);
 	VERTEX(v);
@@ -1262,12 +1262,12 @@ gen2_composite_linear_init(struct sna *sna,
 	dx /= sf;
 	dy /= sf;
 
-	channel->u.gen2.linear_dx = dx;
-	channel->u.gen2.linear_dy = dy;
-	channel->u.gen2.linear_offset = -dx*(x0+dst_x-x) + -dy*(y0+dst_y-y);
+	channel->u.linear.dx = dx;
+	channel->u.linear.dy = dy;
+	channel->u.linear.offset = -dx*(x0+dst_x-x) + -dy*(y0+dst_y-y);
 
 	DBG(("%s: dx=%f, dy=%f, offset=%f\n",
-	     __FUNCTION__, dx, dy, channel->u.gen2.linear_offset));
+	     __FUNCTION__, dx, dy, channel->u.linear.offset));
 
 	return channel->bo != NULL;
 }

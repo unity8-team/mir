@@ -69,10 +69,10 @@ struct sna_composite_op {
 
 		union {
 			struct {
+				float dx, dy, offset;
+			} linear;
+			struct {
 				uint32_t pixel;
-				float linear_dx;
-				float linear_dy;
-				float linear_offset;
 			} gen2;
 			struct gen3_shader_channel {
 				int type;
