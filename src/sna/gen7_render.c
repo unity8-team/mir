@@ -862,7 +862,7 @@ gen7_emit_vertex_elements(struct sna *sna,
 	 *    texture coordinate 1 if (has_mask is true): same as above
 	 */
 	struct gen7_render_state *render = &sna->render_state.gen7;
-	uint32_t src_format, dw, offset;
+	uint32_t src_format, dw;
 	int id = GEN7_VERTEX(op->u.gen7.flags);
 	bool has_mask;
 
@@ -871,39 +871,6 @@ gen7_emit_vertex_elements(struct sna *sna,
 	if (render->ve_id == id)
 		return;
 	render->ve_id = id;
-
-	if (id == VERTEX_2s2s) {
-		DBG(("%s: setup COPY\n", __FUNCTION__));
-
-		OUT_BATCH(GEN7_3DSTATE_VERTEX_ELEMENTS |
-			  ((2 * (1 + 2)) + 1 - 2));
-
-		OUT_BATCH(VERTEX_2s2s << GEN7_VE0_VERTEX_BUFFER_INDEX_SHIFT | GEN7_VE0_VALID |
-			  GEN7_SURFACEFORMAT_R32G32B32A32_FLOAT << GEN7_VE0_FORMAT_SHIFT |
-			  0 << GEN7_VE0_OFFSET_SHIFT);
-		OUT_BATCH(GEN7_VFCOMPONENT_STORE_0 << GEN7_VE1_VFCOMPONENT_0_SHIFT |
-			  GEN7_VFCOMPONENT_STORE_0 << GEN7_VE1_VFCOMPONENT_1_SHIFT |
-			  GEN7_VFCOMPONENT_STORE_0 << GEN7_VE1_VFCOMPONENT_2_SHIFT |
-			  GEN7_VFCOMPONENT_STORE_0 << GEN7_VE1_VFCOMPONENT_3_SHIFT);
-
-		/* x,y */
-		OUT_BATCH(VERTEX_2s2s << GEN7_VE0_VERTEX_BUFFER_INDEX_SHIFT | GEN7_VE0_VALID |
-			  GEN7_SURFACEFORMAT_R16G16_SSCALED << GEN7_VE0_FORMAT_SHIFT |
-			  0 << GEN7_VE0_OFFSET_SHIFT); /* offsets vb in bytes */
-		OUT_BATCH(GEN7_VFCOMPONENT_STORE_SRC << GEN7_VE1_VFCOMPONENT_0_SHIFT |
-			  GEN7_VFCOMPONENT_STORE_SRC << GEN7_VE1_VFCOMPONENT_1_SHIFT |
-			  GEN7_VFCOMPONENT_STORE_0 << GEN7_VE1_VFCOMPONENT_2_SHIFT |
-			  GEN7_VFCOMPONENT_STORE_1_FLT << GEN7_VE1_VFCOMPONENT_3_SHIFT);
-
-		OUT_BATCH(VERTEX_2s2s << GEN7_VE0_VERTEX_BUFFER_INDEX_SHIFT | GEN7_VE0_VALID |
-			  GEN7_SURFACEFORMAT_R16G16_SSCALED << GEN7_VE0_FORMAT_SHIFT |
-			  4 << GEN7_VE0_OFFSET_SHIFT);	/* offset vb in bytes */
-		OUT_BATCH(GEN7_VFCOMPONENT_STORE_SRC << GEN7_VE1_VFCOMPONENT_0_SHIFT |
-			  GEN7_VFCOMPONENT_STORE_SRC << GEN7_VE1_VFCOMPONENT_1_SHIFT |
-			  GEN7_VFCOMPONENT_STORE_0 << GEN7_VE1_VFCOMPONENT_2_SHIFT |
-			  GEN7_VFCOMPONENT_STORE_1_FLT << GEN7_VE1_VFCOMPONENT_3_SHIFT);
-		return;
-	}
 
 	/* The VUE layout
 	 *    dword 0-3: pad (0.0, 0.0, 0.0. 0.0)
@@ -933,20 +900,25 @@ gen7_emit_vertex_elements(struct sna *sna,
 		  GEN7_VFCOMPONENT_STORE_SRC << GEN7_VE1_VFCOMPONENT_1_SHIFT |
 		  GEN7_VFCOMPONENT_STORE_0 << GEN7_VE1_VFCOMPONENT_2_SHIFT |
 		  GEN7_VFCOMPONENT_STORE_1_FLT << GEN7_VE1_VFCOMPONENT_3_SHIFT);
-	offset = 4;
 
 	/* u0, v0, w0 */
-	DBG(("%s: first channel %d floats, offset=%d\n", __FUNCTION__, id & 3, offset));
+	DBG(("%s: first channel %d floats, offset=4b\n", __FUNCTION__, id & 3));
 	dw = GEN7_VFCOMPONENT_STORE_1_FLT << GEN7_VE1_VFCOMPONENT_3_SHIFT;
 	switch (id & 3) {
+	default:
+		assert(0);
+	case 0:
+		src_format = GEN7_SURFACEFORMAT_R16G16_SSCALED;
+		dw |= GEN7_VFCOMPONENT_STORE_SRC << GEN7_VE1_VFCOMPONENT_0_SHIFT;
+		dw |= GEN7_VFCOMPONENT_STORE_SRC << GEN7_VE1_VFCOMPONENT_1_SHIFT;
+		dw |= GEN7_VFCOMPONENT_STORE_0 << GEN7_VE1_VFCOMPONENT_2_SHIFT;
+		break;
 	case 1:
 		src_format = GEN7_SURFACEFORMAT_R32_FLOAT;
 		dw |= GEN7_VFCOMPONENT_STORE_SRC << GEN7_VE1_VFCOMPONENT_0_SHIFT;
 		dw |= GEN7_VFCOMPONENT_STORE_0 << GEN7_VE1_VFCOMPONENT_1_SHIFT;
 		dw |= GEN7_VFCOMPONENT_STORE_0 << GEN7_VE1_VFCOMPONENT_2_SHIFT;
 		break;
-	default:
-		assert(0);
 	case 2:
 		src_format = GEN7_SURFACEFORMAT_R32G32_FLOAT;
 		dw |= GEN7_VFCOMPONENT_STORE_SRC << GEN7_VE1_VFCOMPONENT_0_SHIFT;
@@ -962,15 +934,15 @@ gen7_emit_vertex_elements(struct sna *sna,
 	}
 	OUT_BATCH(id << GEN7_VE0_VERTEX_BUFFER_INDEX_SHIFT | GEN7_VE0_VALID |
 		  src_format << GEN7_VE0_FORMAT_SHIFT |
-		  offset << GEN7_VE0_OFFSET_SHIFT);
+		  4 << GEN7_VE0_OFFSET_SHIFT);
 	OUT_BATCH(dw);
-	offset += (id & 3) * sizeof(float);
 
 	/* u1, v1, w1 */
 	if (has_mask) {
-		DBG(("%s: second channel %d floats, offset=%d\n", __FUNCTION__, (id >> 2) & 3, offset));
+		unsigned offset = 4 + ((id & 3) ?: 1) * sizeof(float);
+		DBG(("%s: second channel %d floats, offset=%db\n", __FUNCTION__, id >> 2, offset));
 		dw = GEN7_VFCOMPONENT_STORE_1_FLT << GEN7_VE1_VFCOMPONENT_3_SHIFT;
-		switch ((id >> 2) & 3) {
+		switch (id >> 2) {
 		case 1:
 			src_format = GEN7_SURFACEFORMAT_R32_FLOAT;
 			dw |= GEN7_VFCOMPONENT_STORE_SRC << GEN7_VE1_VFCOMPONENT_0_SHIFT;

@@ -876,50 +876,11 @@ gen4_emit_vertex_elements(struct sna *sna,
 	 */
 	struct gen4_render_state *render = &sna->render_state.gen4;
 	uint32_t src_format, dw;
-	int src_offset, dst_offset;
 	int id = op->u.gen4.ve_id;
 
 	if (render->ve_id == id)
 		return;
 	render->ve_id = id;
-
-	if (id == VERTEX_2s2s) {
-		DBG(("%s: setup COPY\n", __FUNCTION__));
-		assert(op->floats_per_rect == 6);
-
-		OUT_BATCH(GEN4_3DSTATE_VERTEX_ELEMENTS | ((2 * (1 + 2)) + 1 - 2));
-
-		/* x,y */
-		OUT_BATCH(id << VE0_VERTEX_BUFFER_INDEX_SHIFT | VE0_VALID |
-			  GEN4_SURFACEFORMAT_R16G16_SSCALED << VE0_FORMAT_SHIFT |
-			  0 << VE0_OFFSET_SHIFT);
-		OUT_BATCH(VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT |
-			  VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT |
-			  VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_2_SHIFT |
-			  VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT |
-			  4 << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT);
-
-		/* s,t */
-		OUT_BATCH(id << VE0_VERTEX_BUFFER_INDEX_SHIFT | VE0_VALID |
-			  GEN4_SURFACEFORMAT_R16G16_SSCALED << VE0_FORMAT_SHIFT |
-			  4 << VE0_OFFSET_SHIFT);
-		OUT_BATCH(VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT |
-			  VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT |
-			  VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_2_SHIFT |
-			  VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT |
-			  8 << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT);
-
-		/* magic */
-		OUT_BATCH(id << VE0_VERTEX_BUFFER_INDEX_SHIFT | VE0_VALID |
-			  GEN4_SURFACEFORMAT_R32G32B32A32_FLOAT << VE0_FORMAT_SHIFT |
-			  0 << VE0_OFFSET_SHIFT);
-		OUT_BATCH(VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_0_SHIFT |
-			  VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_1_SHIFT |
-			  VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_2_SHIFT |
-			  VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_3_SHIFT |
-			  12 << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT);
-		return;
-	}
 
 	/* The VUE layout
 	 *    dword 0-3: position (x, y, 1.0, 1.0),
@@ -937,23 +898,26 @@ gen4_emit_vertex_elements(struct sna *sna,
 		  VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_2_SHIFT |
 		  VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT |
 		  (1*4) << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT);
-	src_offset = 4;
-	dst_offset = 8;
 
 	/* u0, v0, w0 */
 	/* u0, v0, w0 */
-	DBG(("%s: first channel %d floats, offset=%d\n", __FUNCTION__,
-	     id & 3, src_offset));
+	DBG(("%s: first channel %d floats, offset=4b\n", __FUNCTION__, id & 3));
 	dw = VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT;
 	switch (id & 3) {
+	default:
+		assert(0);
+	case 0:
+		src_format = GEN4_SURFACEFORMAT_R16G16_SSCALED;
+		dw |= VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT;
+		dw |= VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT;
+		dw |= VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_2_SHIFT;
+		break;
 	case 1:
 		src_format = GEN4_SURFACEFORMAT_R32_FLOAT;
 		dw |= VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT;
 		dw |= VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_1_SHIFT;
 		dw |= VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_2_SHIFT;
 		break;
-	default:
-		assert(0);
 	case 2:
 		src_format = GEN4_SURFACEFORMAT_R32G32_FLOAT;
 		dw |= VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT;
@@ -969,17 +933,16 @@ gen4_emit_vertex_elements(struct sna *sna,
 	}
 	OUT_BATCH(id << VE0_VERTEX_BUFFER_INDEX_SHIFT | VE0_VALID |
 		  src_format << VE0_FORMAT_SHIFT |
-		  src_offset << VE0_OFFSET_SHIFT);
-	OUT_BATCH(dw | dst_offset << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT);
-	src_offset += (id & 3) * sizeof(float);
-	dst_offset += 4;
+		  4 << VE0_OFFSET_SHIFT);
+	OUT_BATCH(dw | 8 << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT);
 
 	/* u1, v1, w1 */
 	if (id >> 2) {
-		DBG(("%s: second channel %d floats, offset=%d\n", __FUNCTION__,
-		     (id >> 2) & 3, src_offset));
+		unsigned src_offset = 4 + ((id & 3) ?: 1) * sizeof(float);
+		DBG(("%s: second channel %d floats, offset=%db\n", __FUNCTION__,
+		     id >> 2, src_offset));
 		dw = VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT;
-		switch ((id >> 2) & 3) {
+		switch (id >> 2) {
 		case 1:
 			src_format = GEN4_SURFACEFORMAT_R32_FLOAT;
 			dw |= VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT;
@@ -1004,7 +967,7 @@ gen4_emit_vertex_elements(struct sna *sna,
 		OUT_BATCH(id << VE0_VERTEX_BUFFER_INDEX_SHIFT | VE0_VALID |
 			  src_format << VE0_FORMAT_SHIFT |
 			  src_offset << VE0_OFFSET_SHIFT);
-		OUT_BATCH(dw | dst_offset << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT);
+		OUT_BATCH(dw | 12 << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT);
 	} else {
 		OUT_BATCH(id << VE0_VERTEX_BUFFER_INDEX_SHIFT | VE0_VALID |
 			  GEN4_SURFACEFORMAT_R16G16_SSCALED << VE0_FORMAT_SHIFT |
@@ -1013,7 +976,7 @@ gen4_emit_vertex_elements(struct sna *sna,
 			  VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_1_SHIFT |
 			  VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_2_SHIFT |
 			  VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT |
-			  dst_offset << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT);
+			  12 << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT);
 	}
 }
 
