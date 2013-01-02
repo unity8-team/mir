@@ -676,10 +676,10 @@ void gen4_choose_composite_emitter(struct sna_composite_op *tmp)
 				DBG(("%s: identity source, identity mask\n", __FUNCTION__));
 				tmp->prim_emit = emit_primitive_identity_source_mask;
 			} else if (tmp->src.is_affine) {
+				tmp->src.scale[0] /= tmp->src.transform->matrix[2][2];
+				tmp->src.scale[1] /= tmp->src.transform->matrix[2][2];
 				if (!sna_affine_transform_is_rotation(tmp->src.transform)) {
 					DBG(("%s: simple src, identity mask\n", __FUNCTION__));
-					tmp->src.scale[0] /= tmp->src.transform->matrix[2][2];
-					tmp->src.scale[1] /= tmp->src.transform->matrix[2][2];
 					tmp->prim_emit = emit_primitive_simple_source_identity;
 				} else {
 					DBG(("%s: affine src, identity mask\n", __FUNCTION__));
@@ -697,10 +697,10 @@ void gen4_choose_composite_emitter(struct sna_composite_op *tmp)
 			DBG(("%s: identity src, no mask\n", __FUNCTION__));
 			tmp->prim_emit = emit_primitive_identity_source;
 		} else if (tmp->src.is_affine) {
+			tmp->src.scale[0] /= tmp->src.transform->matrix[2][2];
+			tmp->src.scale[1] /= tmp->src.transform->matrix[2][2];
 			if (!sna_affine_transform_is_rotation(tmp->src.transform)) {
 				DBG(("%s: simple src, no mask\n", __FUNCTION__));
-				tmp->src.scale[0] /= tmp->src.transform->matrix[2][2];
-				tmp->src.scale[1] /= tmp->src.transform->matrix[2][2];
 				tmp->prim_emit = emit_primitive_simple_source;
 			} else {
 				DBG(("%s: affine src, no mask\n", __FUNCTION__));
@@ -906,11 +906,11 @@ void gen4_choose_spans_emitter(struct sna_composite_spans_op *tmp)
 		tmp->prim_emit = emit_spans_identity;
 		tmp->base.floats_per_vertex = 4;
 	} else if (tmp->base.is_affine) {
-		if (!sna_affine_transform_is_rotation(tmp->base.src.transform)) {
-			tmp->base.src.scale[0] /= tmp->base.src.transform->matrix[2][2];
-			tmp->base.src.scale[1] /= tmp->base.src.transform->matrix[2][2];
+		tmp->base.src.scale[0] /= tmp->base.src.transform->matrix[2][2];
+		tmp->base.src.scale[1] /= tmp->base.src.transform->matrix[2][2];
+		if (!sna_affine_transform_is_rotation(tmp->base.src.transform))
 			tmp->prim_emit = emit_spans_simple;
-		} else
+		else
 			tmp->prim_emit = emit_spans_affine;
 		tmp->base.floats_per_vertex = 4;
 	} else

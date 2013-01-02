@@ -606,12 +606,13 @@ _sna_get_transformed_scaled(int x, int y,
 			    const PictTransform *transform, const float *sf,
 			    float *x_out, float *y_out)
 {
+	*x_out = sf[0] * (transform->matrix[0][0] * x +
+			  transform->matrix[0][1] * y +
+			  transform->matrix[0][2]);
 
-	int64_t result[3];
-
-	_sna_transform_point(transform, x, y, result);
-	*x_out = result[0] * sf[0] / (double)result[2];
-	*y_out = result[1] * sf[1] / (double)result[2];
+	*y_out = sf[1] * (transform->matrix[1][0] * x +
+			  transform->matrix[1][1] * y +
+			  transform->matrix[1][2]);
 }
 
 void

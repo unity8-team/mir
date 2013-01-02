@@ -1870,6 +1870,8 @@ gen2_render_composite(struct sna *sna,
 			tmp->prim_emit = gen2_emit_composite_primitive_identity;
 		} else if (tmp->src.is_affine) {
 			assert(tmp->floats_per_rect == 12);
+			tmp->src.scale[0] /= tmp->src.transform->matrix[2][2];
+			tmp->src.scale[1] /= tmp->src.transform->matrix[2][2];
 			tmp->prim_emit = gen2_emit_composite_primitive_affine;
 		}
 	}
@@ -2300,8 +2302,11 @@ gen2_render_composite_spans(struct sna *sna,
 		tmp->base.floats_per_vertex += tmp->base.src.is_affine ? 2 : 3;
 		if (tmp->base.src.transform == NULL)
 			tmp->prim_emit = gen2_emit_composite_spans_primitive_identity_source;
-		else if (tmp->base.src.is_affine)
+		else if (tmp->base.src.is_affine) {
+			tmp->base.src.scale[0] /= tmp->base.src.transform->matrix[2][2];
+			tmp->base.src.scale[1] /= tmp->base.src.transform->matrix[2][2];
 			tmp->prim_emit = gen2_emit_composite_spans_primitive_affine_source;
+		}
 	}
 	tmp->base.mask.bo = NULL;
 	tmp->base.floats_per_rect = 3*tmp->base.floats_per_vertex;

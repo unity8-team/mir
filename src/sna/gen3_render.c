@@ -2977,8 +2977,11 @@ gen3_render_composite(struct sna *sna,
 					tmp->prim_emit = gen3_emit_composite_primitive_identity_source_no_offset;
 				else
 					tmp->prim_emit = gen3_emit_composite_primitive_identity_source;
-			} else if (tmp->src.is_affine)
+			} else if (tmp->src.is_affine) {
+				tmp->src.scale[0] /= tmp->src.transform->matrix[2][2];
+				tmp->src.scale[1] /= tmp->src.transform->matrix[2][2];
 				tmp->prim_emit = gen3_emit_composite_primitive_affine_source;
+			}
 			break;
 		}
 	} else if (tmp->mask.u.gen3.type == SHADER_TEXTURE) {
@@ -3462,8 +3465,11 @@ gen3_render_composite_spans(struct sna *sna,
 	case SHADER_TEXTURE:
 		if (tmp->base.src.transform == NULL)
 			tmp->prim_emit = gen3_emit_composite_spans_primitive_identity_source;
-		else if (tmp->base.src.is_affine)
+		else if (tmp->base.src.is_affine) {
+			tmp->base.src.scale[0] /= tmp->base.src.transform->matrix[2][2];
+			tmp->base.src.scale[1] /= tmp->base.src.transform->matrix[2][2];
 			tmp->prim_emit = gen3_emit_composite_spans_primitive_affine_source;
+		}
 		break;
 	}
 
