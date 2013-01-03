@@ -603,11 +603,15 @@ static void __kgem_request_free(struct kgem_request *rq)
 
 static struct list *inactive(struct kgem *kgem, int num_pages)
 {
+	assert(num_pages < MAX_CACHE_SIZE / PAGE_SIZE);
+	assert(cache_bucket(num_pages) < NUM_CACHE_BUCKETS);
 	return &kgem->inactive[cache_bucket(num_pages)];
 }
 
 static struct list *active(struct kgem *kgem, int num_pages, int tiling)
 {
+	assert(num_pages < MAX_CACHE_SIZE / PAGE_SIZE);
+	assert(cache_bucket(num_pages) < NUM_CACHE_BUCKETS);
 	return &kgem->active[cache_bucket(num_pages)][tiling];
 }
 
