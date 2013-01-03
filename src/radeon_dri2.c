@@ -31,6 +31,7 @@
 
 #include "radeon.h"
 #include "radeon_dri2.h"
+#include "radeon_video.h"
 
 #ifdef DRI2
 
@@ -66,6 +67,8 @@
 #if DRI2INFOREC_VERSION >= 9
 #define USE_DRI2_PRIME
 #endif
+
+#define FALLBACK_SWAP_DELAY 16
 
 #if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,6,99,0, 0)
 typedef DRI2BufferPtr BufferPtr;
@@ -1263,6 +1266,14 @@ void radeon_dri2_flip_event_handler(unsigned int frame, unsigned int tv_sec,
     free(flip);
 }
 
+static
+CARD32 radeon_dri2_deferred_swap(OsTimerPtr timer, CARD32 now, pointer data)
+{
+    TimerFree(timer);
+    radeon_dri2_frame_event_handler(0, 0, 0, data);
+    return 0;
+}
+
 /*
  * ScheduleSwap is responsible for requesting a DRM vblank event for the
  * appropriate frame.
@@ -1292,7 +1303,7 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
     ScreenPtr screen = draw->pScreen;
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
     RADEONInfoPtr info = RADEONPTR(scrn);
-    xf86CrtcPtr crtc = radeon_dri2_drawable_crtc(draw, FALSE);
+    xf86CrtcPtr crtc = radeon_dri2_drawable_crtc(draw, TRUE);
     drmVBlank vbl;
     int ret, flip = 0;
     DRI2FrameEventPtr swap_info = NULL;
@@ -1314,7 +1325,7 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
     radeon_dri2_ref_buffer(front);
     radeon_dri2_ref_buffer(back);
 
-    /* Drawable not displayed... just complete the swap */
+    /* either off-screen or CRTC not usable... just complete the swap */
     if (crtc == NULL)
         goto blit_fallback;
 
@@ -1337,6 +1348,18 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
         goto blit_fallback;
     }
 
+    /*
+     * CRTC is in DPMS off state, fallback to blit, but pace the
+     * application at the rate that roughly approximates the
+     * nominal frame rate of the relevant CRTC
+     */
+    if (!radeon_crtc_is_enabled(crtc)) {
+	TimerSet(NULL, 0, FALLBACK_SWAP_DELAY, radeon_dri2_deferred_swap,
+		 swap_info);
+	*target_msc = 0;
+	return TRUE;
+    }
+
     /* Get current count */
     vbl.request.type = DRM_VBLANK_RELATIVE;
     vbl.request.type |= populate_vbl_request_type(info, crtc);
@@ -1346,7 +1369,10 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
         xf86DrvMsg(scrn->scrnIndex, X_WARNING,
                 "first get vblank counter failed: %s\n",
                 strerror(errno));
-        goto blit_fallback;
+	TimerSet(NULL, 0, FALLBACK_SWAP_DELAY, radeon_dri2_deferred_swap,
+		 swap_info);
+	*target_msc = 0;
+	return TRUE;
     }
 
     current_msc = vbl.reply.sequence;
@@ -1395,7 +1421,10 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
             xf86DrvMsg(scrn->scrnIndex, X_WARNING,
                     "divisor 0 get vblank counter failed: %s\n",
                     strerror(errno));
-            goto blit_fallback;
+	    TimerSet(NULL, 0, FALLBACK_SWAP_DELAY, radeon_dri2_deferred_swap,
+		     swap_info);
+	    *target_msc = 0;
+            return TRUE;
         }
 
         *target_msc = vbl.reply.sequence + flip;
@@ -1440,7 +1469,10 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
         xf86DrvMsg(scrn->scrnIndex, X_WARNING,
                 "final get vblank counter failed: %s\n",
                 strerror(errno));
-        goto blit_fallback;
+	TimerSet(NULL, 0, FALLBACK_SWAP_DELAY, radeon_dri2_deferred_swap,
+		 swap_info);
+	*target_msc = 0;
+	return TRUE;
     }
 
     /* Adjust returned value for 1 fame pageflip offset of flip > 0 */

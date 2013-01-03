@@ -100,4 +100,6 @@ RADEONCopyMungedData(ScrnInfoPtr pScrn,
 		     unsigned int srcPitch, unsigned int srcPitch2,
 		     unsigned int dstPitch, unsigned int h, unsigned int w);
 
+Bool radeon_crtc_is_enabled(xf86CrtcPtr crtc);
+
 #endif
