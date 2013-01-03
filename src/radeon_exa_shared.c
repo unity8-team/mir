@@ -63,7 +63,8 @@ void RADEONVlineHelperSet(ScrnInfoPtr pScrn, int x1, int y1, int x2, int y2)
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_accel_state *accel_state = info->accel_state;
 
-    accel_state->vline_crtc = radeon_pick_best_crtc(pScrn, x1, x2, y1, y2);
+    accel_state->vline_crtc =
+	radeon_pick_best_crtc(pScrn, FALSE, x1, x2, y1, y2);
     if (accel_state->vline_y1 == -1)
 	accel_state->vline_y1 = y1;
     if (y1 < accel_state->vline_y1)

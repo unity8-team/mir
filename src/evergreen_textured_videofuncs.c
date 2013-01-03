@@ -452,7 +452,7 @@ EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	if (pPriv->desired_crtc)
 	    crtc = pPriv->desired_crtc;
 	else
-	    crtc = radeon_pick_best_crtc(pScrn,
+	    crtc = radeon_pick_best_crtc(pScrn, FALSE,
 					 pPriv->drw_x,
 					 pPriv->drw_x + pPriv->dst_w,
 					 pPriv->drw_y,

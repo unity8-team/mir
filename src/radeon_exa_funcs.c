@@ -190,7 +190,7 @@ RADEONSolid(PixmapPtr pPix, int x1, int y1, int x2, int y2)
 
     if (info->accel_state->vsync)
 	RADEONWaitForVLine(pScrn, pPix,
-			   radeon_pick_best_crtc(pScrn, x1, x2, y1, y2),
+			   radeon_pick_best_crtc(pScrn, FALSE, x1, x2, y1, y2),
 			   y1, y2);
 
     BEGIN_RING(2*2);
@@ -304,7 +304,7 @@ RADEONCopy(PixmapPtr pDst,
 
     if (info->accel_state->vsync)
 	RADEONWaitForVLine(pScrn, pDst,
-			   radeon_pick_best_crtc(pScrn, dstX, dstX + w, dstY, dstY + h),
+			   radeon_pick_best_crtc(pScrn, FALSE, dstX, dstX + w, dstY, dstY + h),
 			   dstY, dstY + h);
 
     BEGIN_RING(2*3);

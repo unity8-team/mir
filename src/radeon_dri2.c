@@ -781,7 +781,7 @@ static int radeon_dri2_drawable_crtc(DrawablePtr pDraw)
     xf86CrtcPtr crtc;
     int crtc_id = -1;
 
-    crtc = radeon_pick_best_crtc(pScrn,
+    crtc = radeon_pick_best_crtc(pScrn, FALSE,
 				 pDraw->x,
 				 pDraw->x + pDraw->width,
 				 pDraw->y,

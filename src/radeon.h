@@ -516,6 +516,7 @@ extern void RADEONInitVideo(ScreenPtr pScreen);
 extern void RADEONResetVideo(ScrnInfoPtr pScrn);
 extern Bool radeon_load_bicubic_texture(ScrnInfoPtr pScrn);
 extern xf86CrtcPtr radeon_pick_best_crtc(ScrnInfoPtr pScrn,
+					 Bool consider_disabled,
 					 int x1, int x2, int y1, int y2);
 
 extern void radeon_cs_flush_indirect(ScrnInfoPtr pScrn);

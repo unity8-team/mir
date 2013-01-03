@@ -75,7 +75,7 @@ radeon_crtc_is_enabled(xf86CrtcPtr crtc)
 }
 
 xf86CrtcPtr
-radeon_pick_best_crtc(ScrnInfoPtr pScrn,
+radeon_pick_best_crtc(ScrnInfoPtr pScrn, Bool consider_disabled,
 		      int x1, int x2, int y1, int y2)
 {
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
@@ -103,11 +103,28 @@ radeon_pick_best_crtc(ScrnInfoPtr pScrn,
     if (primary_output && primary_output->crtc)
 	primary_crtc = primary_output->crtc->devPrivate;
 
+    /* first consider only enabled CRTCs */
     for (c = 0; c < xf86_config->num_crtc; c++) {
 	xf86CrtcPtr crtc = xf86_config->crtc[c];
 
 	if (!radeon_crtc_is_enabled(crtc))
 	    continue;
+
+	radeon_crtc_box(crtc, &crtc_box);
+	radeon_box_intersect(&cover_box, &crtc_box, &box);
+	coverage = radeon_box_area(&cover_box);
+	if (coverage > best_coverage ||
+	    (coverage == best_coverage && crtc == primary_crtc)) {
+	    best_crtc = crtc;
+	    best_coverage = coverage;
+	}
+    }
+    if (best_crtc || !consider_disabled)
+	return best_crtc;
+
+    /* if we found nothing, repeat the search including disabled CRTCs */
+    for (c = 0; c < xf86_config->num_crtc; c++) {
+	xf86CrtcPtr crtc = xf86_config->crtc[c];
 
 	radeon_crtc_box(crtc, &crtc_box);
 	radeon_box_intersect(&cover_box, &crtc_box, &box);

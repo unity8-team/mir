@@ -2261,7 +2261,7 @@ static void RadeonCompositeTile(ScrnInfoPtr pScrn,
 
     if (info->accel_state->vsync)
         RADEONWaitForVLine(pScrn, pDst,
-			   radeon_pick_best_crtc(pScrn, dstX, dstX + w, dstY, dstY + h),
+			   radeon_pick_best_crtc(pScrn, FALSE, dstX, dstX + w, dstY, dstY + h),
 			   dstY, dstY + h);
 
     if (info->ChipFamily < CHIP_FAMILY_R200) {
