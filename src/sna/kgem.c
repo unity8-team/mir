@@ -516,7 +516,7 @@ static void gem_close(int fd, uint32_t handle)
 
 constant inline static unsigned long __fls(unsigned long word)
 {
-#if defined(__GNUC__) && (defined(__x86__) || defined(__x86_64__))
+#if defined(__GNUC__) && (defined(__i386__) || defined(__x86__) || defined(__x86_64__))
 	asm("bsr %1,%0"
 	    : "=r" (word)
 	    : "rm" (word));
