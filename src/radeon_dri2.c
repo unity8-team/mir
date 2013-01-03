@@ -774,24 +774,24 @@ radeon_dri2_client_state_changed(CallbackListPtr *ClientStateCallback, pointer d
     }
 }
 
-static int radeon_dri2_drawable_crtc(DrawablePtr pDraw)
+static
+xf86CrtcPtr radeon_dri2_drawable_crtc(DrawablePtr pDraw, Bool consider_disabled)
 {
     ScreenPtr pScreen = pDraw->pScreen;
     ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
     xf86CrtcPtr crtc;
-    int crtc_id = -1;
 
-    crtc = radeon_pick_best_crtc(pScrn, FALSE,
+    crtc = radeon_pick_best_crtc(pScrn, consider_disabled,
 				 pDraw->x,
 				 pDraw->x + pDraw->width,
 				 pDraw->y,
 				 pDraw->y + pDraw->height);
 
     /* Make sure the CRTC is valid and this is the real front buffer */
-    if (crtc != NULL && !crtc->rotatedData) {
-        crtc_id = drmmode_get_crtc_id(crtc);
-    }
-    return crtc_id;
+    if (crtc != NULL && !crtc->rotatedData)
+	return crtc;
+    else
+	return NULL;
 }
 
 static Bool
@@ -803,9 +803,9 @@ radeon_dri2_schedule_flip(ScrnInfoPtr scrn, ClientPtr client,
     struct dri2_buffer_priv *back_priv;
     struct radeon_bo *bo;
     DRI2FrameEventPtr flip_info;
-
     /* Main crtc for this drawable shall finally deliver pageflip event. */
-    int ref_crtc_hw_id = radeon_dri2_drawable_crtc(draw);
+    xf86CrtcPtr crtc = radeon_dri2_drawable_crtc(draw, FALSE);
+    int ref_crtc_hw_id = crtc ? drmmode_get_crtc_id(crtc) : -1;
 
     flip_info = calloc(1, sizeof(DRI2FrameEventRec));
     if (!flip_info)
@@ -1023,20 +1023,22 @@ cleanup:
     free(event);
 }
 
-static drmVBlankSeqType populate_vbl_request_type(RADEONInfoPtr info, int crtc)
+static
+drmVBlankSeqType populate_vbl_request_type(RADEONInfoPtr info, xf86CrtcPtr crtc)
 {
     drmVBlankSeqType type = 0;
+    int crtc_id = drmmode_get_crtc_id(crtc);
 
-    if (crtc == 1)
+    if (crtc_id == 1)
         type |= DRM_VBLANK_SECONDARY;
-    else if (crtc > 1)
+    else if (crtc_id > 1)
 #ifdef DRM_VBLANK_HIGH_CRTC_SHIFT
-	type |= (crtc << DRM_VBLANK_HIGH_CRTC_SHIFT) &
+	type |= (crtc_id << DRM_VBLANK_HIGH_CRTC_SHIFT) &
 		DRM_VBLANK_HIGH_CRTC_MASK;
 #else
 	ErrorF("radeon driver bug: %s called for CRTC %d > 1, but "
 	       "DRM_VBLANK_HIGH_CRTC_MASK not defined at build time\n",
-	       __func__, crtc);
+	       __func__, crtc_id);
 #endif
 
     return type; 
@@ -1053,10 +1055,10 @@ static int radeon_dri2_get_msc(DrawablePtr draw, CARD64 *ust, CARD64 *msc)
     RADEONInfoPtr info = RADEONPTR(scrn);
     drmVBlank vbl;
     int ret;
-    int crtc = radeon_dri2_drawable_crtc(draw);
+    xf86CrtcPtr crtc = radeon_dri2_drawable_crtc(draw, FALSE);
 
     /* Drawable not displayed, make up a value */
-    if (crtc == -1) {
+    if (crtc == NULL) {
         *ust = 0;
         *msc = 0;
         return TRUE;
@@ -1092,8 +1094,9 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
     RADEONInfoPtr info = RADEONPTR(scrn);
     DRI2FrameEventPtr wait_info = NULL;
+    xf86CrtcPtr crtc = radeon_dri2_drawable_crtc(draw, FALSE);
     drmVBlank vbl;
-    int ret, crtc = radeon_dri2_drawable_crtc(draw);
+    int ret;
     CARD64 current_msc;
 
     /* Truncate to match kernel interfaces; means occasional overflow
@@ -1103,7 +1106,7 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
     remainder &= 0xffffffff;
 
     /* Drawable not visible, return immediately */
-    if (crtc == -1)
+    if (crtc == NULL)
         goto out_complete;
 
     wait_info = calloc(1, sizeof(DRI2FrameEventRec));
@@ -1289,8 +1292,9 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
     ScreenPtr screen = draw->pScreen;
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
     RADEONInfoPtr info = RADEONPTR(scrn);
+    xf86CrtcPtr crtc = radeon_dri2_drawable_crtc(draw, FALSE);
     drmVBlank vbl;
-    int ret, crtc= radeon_dri2_drawable_crtc(draw), flip = 0;
+    int ret, flip = 0;
     DRI2FrameEventPtr swap_info = NULL;
     enum DRI2FrameEventType swap_type = DRI2_SWAP;
     CARD64 current_msc;
@@ -1311,7 +1315,7 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
     radeon_dri2_ref_buffer(back);
 
     /* Drawable not displayed... just complete the swap */
-    if (crtc == -1)
+    if (crtc == NULL)
         goto blit_fallback;
 
     swap_info = calloc(1, sizeof(DRI2FrameEventRec));
