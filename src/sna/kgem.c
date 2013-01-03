@@ -2206,9 +2206,58 @@ static void kgem_finish_buffers(struct kgem *kgem)
 		    bo->base.size.pages.count > 1 &&
 		    bo->used < bytes(&bo->base) / 2) {
 			struct kgem_bo *shrink;
+			unsigned alloc = NUM_PAGES(bo->used);
 
-			shrink = search_linear_cache(kgem,
-						     PAGE_ALIGN(bo->used),
+			shrink = search_snoop_cache(kgem, alloc,
+						    CREATE_INACTIVE | CREATE_NO_RETIRE);
+			if (shrink) {
+				void *map;
+				int n;
+
+				DBG(("%s: used=%d, shrinking %d to %d, handle %d to %d\n",
+				     __FUNCTION__,
+				     bo->used, bytes(&bo->base), bytes(shrink),
+				     bo->base.handle, shrink->handle));
+
+				assert(bo->used <= bytes(shrink));
+				map = kgem_bo_map__cpu(kgem, shrink);
+				if (map) {
+					kgem_bo_sync__cpu(kgem, shrink);
+					memcpy(map, bo->mem, bo->used);
+
+					shrink->target_handle =
+						kgem->has_handle_lut ? bo->base.target_handle : shrink->handle;
+					for (n = 0; n < kgem->nreloc; n++) {
+						if (kgem->reloc[n].target_handle == bo->base.target_handle) {
+							kgem->reloc[n].target_handle = shrink->target_handle;
+							kgem->reloc[n].presumed_offset = shrink->presumed_offset;
+							kgem->batch[kgem->reloc[n].offset/sizeof(kgem->batch[0])] =
+								kgem->reloc[n].delta + shrink->presumed_offset;
+						}
+					}
+
+					bo->base.exec->handle = shrink->handle;
+					bo->base.exec->offset = shrink->presumed_offset;
+					shrink->exec = bo->base.exec;
+					shrink->rq = bo->base.rq;
+					list_replace(&bo->base.request,
+						     &shrink->request);
+					list_init(&bo->base.request);
+					shrink->needs_flush = bo->base.dirty;
+
+					bo->base.exec = NULL;
+					bo->base.rq = NULL;
+					bo->base.dirty = false;
+					bo->base.needs_flush = false;
+					bo->used = 0;
+
+					goto decouple;
+				}
+
+				__kgem_bo_destroy(kgem, shrink);
+			}
+
+			shrink = search_linear_cache(kgem, alloc,
 						     CREATE_INACTIVE | CREATE_NO_RETIRE);
 			if (shrink) {
 				int n;
@@ -2219,36 +2268,38 @@ static void kgem_finish_buffers(struct kgem *kgem)
 				     bo->base.handle, shrink->handle));
 
 				assert(bo->used <= bytes(shrink));
-				gem_write(kgem->fd, shrink->handle,
-					  0, bo->used, bo->mem);
-
-				shrink->target_handle =
-					kgem->has_handle_lut ? bo->base.target_handle : shrink->handle;
-				for (n = 0; n < kgem->nreloc; n++) {
-					if (kgem->reloc[n].target_handle == bo->base.target_handle) {
-						kgem->reloc[n].target_handle = shrink->target_handle;
-						kgem->reloc[n].presumed_offset = shrink->presumed_offset;
-						kgem->batch[kgem->reloc[n].offset/sizeof(kgem->batch[0])] =
-							kgem->reloc[n].delta + shrink->presumed_offset;
+				if (gem_write(kgem->fd, shrink->handle,
+					      0, bo->used, bo->mem) == 0) {
+					shrink->target_handle =
+						kgem->has_handle_lut ? bo->base.target_handle : shrink->handle;
+					for (n = 0; n < kgem->nreloc; n++) {
+						if (kgem->reloc[n].target_handle == bo->base.target_handle) {
+							kgem->reloc[n].target_handle = shrink->target_handle;
+							kgem->reloc[n].presumed_offset = shrink->presumed_offset;
+							kgem->batch[kgem->reloc[n].offset/sizeof(kgem->batch[0])] =
+								kgem->reloc[n].delta + shrink->presumed_offset;
+						}
 					}
+
+					bo->base.exec->handle = shrink->handle;
+					bo->base.exec->offset = shrink->presumed_offset;
+					shrink->exec = bo->base.exec;
+					shrink->rq = bo->base.rq;
+					list_replace(&bo->base.request,
+						     &shrink->request);
+					list_init(&bo->base.request);
+					shrink->needs_flush = bo->base.dirty;
+
+					bo->base.exec = NULL;
+					bo->base.rq = NULL;
+					bo->base.dirty = false;
+					bo->base.needs_flush = false;
+					bo->used = 0;
+
+					goto decouple;
 				}
 
-				bo->base.exec->handle = shrink->handle;
-				bo->base.exec->offset = shrink->presumed_offset;
-				shrink->exec = bo->base.exec;
-				shrink->rq = bo->base.rq;
-				list_replace(&bo->base.request,
-					     &shrink->request);
-				list_init(&bo->base.request);
-				shrink->needs_flush = bo->base.dirty;
-
-				bo->base.exec = NULL;
-				bo->base.rq = NULL;
-				bo->base.dirty = false;
-				bo->base.needs_flush = false;
-				bo->used = 0;
-
-				goto decouple;
+				__kgem_bo_destroy(kgem, shrink);
 			}
 		}
 
