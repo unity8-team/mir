@@ -522,7 +522,7 @@ constant inline static unsigned long __fls(unsigned long word)
 	    : "rm" (word));
 	return word;
 #else
-	unsigned int v = 1;
+	unsigned int v = 0;
 
 	while (word >>= 1)
 		v++;
