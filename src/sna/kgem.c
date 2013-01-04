@@ -4030,6 +4030,11 @@ bool __kgem_flush(struct kgem *kgem, struct kgem_bo *bo)
 	return bo->needs_flush;
 }
 
+inline static bool needs_semaphore(struct kgem *kgem, struct kgem_bo *bo)
+{
+	return kgem->nreloc && bo->rq && RQ_RING(bo->rq) != kgem->ring;
+}
+
 bool kgem_check_bo(struct kgem *kgem, ...)
 {
 	va_list ap;
@@ -4044,6 +4049,9 @@ bool kgem_check_bo(struct kgem *kgem, ...)
 			bo = bo->proxy;
 		if (bo->exec)
 			continue;
+
+		if (needs_semaphore(kgem, bo))
+			return false;
 
 		num_pages += num_pages(bo);
 		num_exec++;
@@ -4109,6 +4117,9 @@ bool kgem_check_bo_fenced(struct kgem *kgem, struct kgem_bo *bo)
 		return true;
 	}
 
+	if (needs_semaphore(kgem, bo))
+		return false;
+
 	if (kgem_flush(kgem, bo->flush))
 		return false;
 
@@ -4164,6 +4175,9 @@ bool kgem_check_many_bo_fenced(struct kgem *kgem, ...)
 
 			continue;
 		}
+
+		if (needs_semaphore(kgem, bo))
+			return false;
 
 		num_pages += num_pages(bo);
 		num_exec++;

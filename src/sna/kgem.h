@@ -305,7 +305,7 @@ static inline void kgem_submit(struct kgem *kgem)
 
 static inline bool kgem_flush(struct kgem *kgem, bool flush)
 {
-	if (kgem->nexec == 0)
+	if (kgem->nreloc == 0)
 		return false;
 
 	return (kgem->flush ^ flush) && kgem_ring_is_idle(kgem, kgem->ring);
@@ -359,7 +359,7 @@ static inline void kgem_set_mode(struct kgem *kgem,
 	kgem_submit(kgem);
 #endif
 
-	if (kgem->nexec && bo->exec == NULL && kgem_ring_is_idle(kgem, kgem->ring))
+	if (kgem->nreloc && bo->exec == NULL && kgem_ring_is_idle(kgem, kgem->ring))
 		_kgem_submit(kgem);
 
 	if (kgem->mode == mode)
