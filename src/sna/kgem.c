@@ -2120,6 +2120,7 @@ static void kgem_commit(struct kgem *kgem)
 		assert(list_is_empty(&rq->buffers));
 
 		gem_close(kgem->fd, rq->bo->handle);
+		kgem_cleanup_cache(kgem);
 	} else {
 		list_add_tail(&rq->list, &kgem->requests[rq->ring]);
 		kgem->need_throttle = kgem->need_retire = 1;
