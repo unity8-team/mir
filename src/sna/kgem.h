@@ -138,6 +138,7 @@ struct kgem {
 
 	struct list requests[2];
 	struct kgem_request *next_request;
+	struct kgem_request static_request;
 
 	struct {
 		struct list inactive[NUM_CACHE_BUCKETS];

@@ -572,9 +572,7 @@ static struct kgem_bo *__kgem_bo_alloc(int handle, int num_pages)
 	return __kgem_bo_init(bo, handle, num_pages);
 }
 
-static struct kgem_request _kgem_static_request;
-
-static struct kgem_request *__kgem_request_alloc(void)
+static struct kgem_request *__kgem_request_alloc(struct kgem *kgem)
 {
 	struct kgem_request *rq;
 
@@ -584,7 +582,7 @@ static struct kgem_request *__kgem_request_alloc(void)
 	} else {
 		rq = malloc(sizeof(*rq));
 		if (rq == NULL)
-			rq = &_kgem_static_request;
+			rq = &kgem->static_request;
 	}
 
 	list_init(&rq->buffers);
@@ -1061,7 +1059,7 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, unsigned gen)
 	DBG(("%s: half cpu cache %d pages\n", __FUNCTION__,
 	     kgem->half_cpu_cache_pages));
 
-	kgem->next_request = __kgem_request_alloc();
+	kgem->next_request = __kgem_request_alloc(kgem);
 
 	DBG(("%s: cpu bo enabled %d: llc? %d, set-cache-level? %d, userptr? %d\n", __FUNCTION__,
 	     !DBG_NO_CPU && (kgem->has_llc | kgem->has_userptr | kgem->has_cacheing),
@@ -1553,7 +1551,7 @@ inline static void kgem_bo_remove_from_active(struct kgem *kgem,
 
 	list_del(&bo->list);
 	assert(bo->rq != NULL);
-	if (bo->rq == &_kgem_static_request)
+	if (bo->rq == (void *)kgem)
 		list_del(&bo->request);
 	assert(list_is_empty(&bo->vma));
 }
@@ -1693,7 +1691,7 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 				DBG(("%s: handle=%d is snooped, tracking until free\n",
 				     __FUNCTION__, bo->handle));
 				list_add(&bo->request, &kgem->flushing);
-				bo->rq = &_kgem_static_request;
+				bo->rq = (void *)kgem;
 			}
 		}
 		if (bo->rq == NULL)
@@ -1770,7 +1768,7 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 			else
 				cache = &kgem->large;
 			list_add(&bo->list, cache);
-			bo->rq = &_kgem_static_request;
+			bo->rq = (void *)kgem;
 			return;
 		}
 
@@ -1850,7 +1848,7 @@ static bool kgem_retire__flushing(struct kgem *kgem)
 	bool retired = false;
 
 	list_for_each_entry_safe(bo, next, &kgem->flushing, request) {
-		assert(bo->rq == &_kgem_static_request);
+		assert(bo->rq == (void *)kgem);
 		assert(bo->exec == NULL);
 
 		if (kgem_busy(kgem, bo->handle))
@@ -1913,7 +1911,7 @@ static bool __kgem_retire_rq(struct kgem *kgem, struct kgem_request *rq)
 			DBG(("%s: moving %d to flushing\n",
 			     __FUNCTION__, bo->handle));
 			list_add(&bo->request, &kgem->flushing);
-			bo->rq = &_kgem_static_request;
+			bo->rq = (void *)kgem;
 		} else {
 			bo->domain = DOMAIN_NONE;
 			bo->rq = NULL;
@@ -1925,7 +1923,7 @@ static bool __kgem_retire_rq(struct kgem *kgem, struct kgem_request *rq)
 		if (bo->snoop) {
 			if (bo->needs_flush) {
 				list_add(&bo->request, &kgem->flushing);
-				bo->rq = &_kgem_static_request;
+				bo->rq = (void *)kgem;
 			} else {
 				kgem_bo_move_to_snoop(kgem, bo);
 			}
@@ -2104,7 +2102,7 @@ static void kgem_commit(struct kgem *kgem)
 		kgem->scanout_busy |= bo->scanout;
 	}
 
-	if (rq == &_kgem_static_request) {
+	if (rq == &kgem->static_request) {
 		struct drm_i915_gem_set_domain set_domain;
 
 		DBG(("%s: syncing due to allocation failure\n", __FUNCTION__));
@@ -2414,7 +2412,7 @@ void kgem_reset(struct kgem *kgem)
 			}
 		}
 
-		if (kgem->next_request != &_kgem_static_request)
+		if (kgem->next_request != &kgem->static_request)
 			free(kgem->next_request);
 	}
 
@@ -2430,7 +2428,7 @@ void kgem_reset(struct kgem *kgem)
 	kgem->flush = 0;
 	kgem->batch_flags = kgem->batch_flags_base;
 
-	kgem->next_request = __kgem_request_alloc();
+	kgem->next_request = __kgem_request_alloc(kgem);
 
 	kgem_sna_reset(kgem);
 }
