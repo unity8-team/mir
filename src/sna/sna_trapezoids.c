@@ -532,6 +532,9 @@ cell_list_add_subspan(struct cell_list *cells,
 	int ix1, fx1;
 	int ix2, fx2;
 
+	if (x1 == x2)
+		return;
+
 	FAST_SAMPLES_X_TO_INT_FRAC(x1, ix1, fx1);
 	FAST_SAMPLES_X_TO_INT_FRAC(x2, ix2, fx2);
 
@@ -892,7 +895,8 @@ can_full_step(struct active_list *active)
 		for (e = active->head.next; &active->tail != e; e = e->next) {
 			if (e->height_left < min_height)
 				min_height = e->height_left;
-			is_vertical &= e->dy == 0;
+			if (is_vertical)
+				is_vertical = e->dy == 0;
 		}
 
 		active->is_vertical = is_vertical;
@@ -929,7 +933,8 @@ fill_buckets(struct active_list *active,
 		*b = edge;
 		if (edge->height_left < min_height)
 			min_height = edge->height_left;
-		is_vertical &= edge->dy == 0;
+		if (is_vertical)
+			is_vertical = edge->dy == 0;
 		edge = next;
 	}
 
