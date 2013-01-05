@@ -800,6 +800,9 @@ merge_sorted_edges(struct edge *head_a, struct edge *head_b)
 	struct edge *head, **next, *prev;
 	int32_t x;
 
+	if (head_b == NULL)
+		return head_a;
+
 	prev = head_a->prev;
 	next = &head;
 	if (head_a->x.quo <= head_b->x.quo) {
@@ -872,11 +875,39 @@ sort_edges(struct edge  *list,
 	return remaining;
 }
 
+static struct edge *filter(struct edge *edges)
+{
+	struct edge *e;
+
+	e = edges;
+	do {
+		struct edge *n = e->next;
+		if (e->dir == -n->dir &&
+		    e->height_left == n->height_left &&
+		    *(uint64_t *)&e->x == *(uint64_t *)&n->x &&
+		    *(uint64_t *)&e->dxdy == *(uint64_t *)&n->dxdy) {
+			if (e->prev)
+				e->prev->next = n->next;
+			else
+				edges = n->next;
+			if (n->next)
+				n->next->prev = e->prev;
+			else
+				break;
+
+			e = n->next;
+		} else
+			e = e->next;
+	} while (e->next);
+
+	return edges;
+}
+
 static struct edge *
 merge_unsorted_edges (struct edge *head, struct edge *unsorted)
 {
 	sort_edges (unsorted, UINT_MAX, &unsorted);
-	return merge_sorted_edges (head, unsorted);
+	return merge_sorted_edges (head, filter(unsorted));
 }
 
 /* Test if the edges on the active list can be safely advanced by a
@@ -884,11 +915,10 @@ merge_unsorted_edges (struct edge *head, struct edge *unsorted)
 inline static bool
 can_full_step(struct active_list *active)
 {
-	const struct edge *e;
-
 	/* Recomputes the minimum height of all edges on the active
 	 * list if we have been dropping edges. */
 	if (active->min_height <= 0) {
+		const struct edge *e;
 		int min_height = INT_MAX;
 		int is_vertical = 1;
 
@@ -1922,6 +1952,9 @@ mono_merge_sorted_edges(struct mono_edge *head_a, struct mono_edge *head_b)
 	struct mono_edge *head, **next, *prev;
 	int32_t x;
 
+	if (head_b == NULL)
+		return head_a;
+
 	prev = head_a->prev;
 	next = &head;
 	if (head_a->x.quo <= head_b->x.quo) {
@@ -1995,11 +2028,39 @@ mono_sort_edges(struct mono_edge *list,
 	return remaining;
 }
 
+static struct mono_edge *mono_filter(struct mono_edge *edges)
+{
+	struct mono_edge *e;
+
+	e = edges;
+	do {
+		struct mono_edge *n = e->next;
+		if (e->dir == -n->dir &&
+		    e->height_left == n->height_left &&
+		    *(uint64_t *)&e->x == *(uint64_t *)&n->x &&
+		    *(uint64_t *)&e->dxdy == *(uint64_t *)&n->dxdy) {
+			if (e->prev)
+				e->prev->next = n->next;
+			else
+				edges = n->next;
+			if (n->next)
+				n->next->prev = e->prev;
+			else
+				break;
+
+			e = n->next;
+		} else
+			e = e->next;
+	} while (e->next);
+
+	return edges;
+}
+
 static struct mono_edge *
 mono_merge_unsorted_edges(struct mono_edge *head, struct mono_edge *unsorted)
 {
 	mono_sort_edges(unsorted, UINT_MAX, &unsorted);
-	return mono_merge_sorted_edges(head, unsorted);
+	return mono_merge_sorted_edges(head, mono_filter(unsorted));
 }
 
 #if 0
