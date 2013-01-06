@@ -125,7 +125,8 @@ struct local_i915_gem_userptr {
 	uint64_t user_ptr;
 	uint32_t user_size;
 	uint32_t flags;
-#define I915_USERPTR_READ_ONLY 0x1
+#define I915_USERPTR_READ_ONLY (1<<0)
+#define I915_USERPTR_UNSYNCHRONIZED (1<<31)
 	uint32_t handle;
 };
 
@@ -230,14 +231,17 @@ static uint32_t gem_userptr(int fd, void *ptr, int size, int read_only)
 	VG_CLEAR(arg);
 	arg.user_ptr = (uintptr_t)ptr;
 	arg.user_size = size;
-	arg.flags = 0;
+	arg.flags = I915_USERPTR_UNSYNCHRONIZED;
 	if (read_only)
 		arg.flags |= I915_USERPTR_READ_ONLY;
 
 	if (drmIoctl(fd, LOCAL_IOCTL_I915_GEM_USERPTR, &arg)) {
-		DBG(("%s: failed to map %p + %d bytes: %d\n",
-		     __FUNCTION__, ptr, size, errno));
-		return 0;
+		arg.flags &= ~I915_USERPTR_UNSYNCHRONIZED;
+		if (drmIoctl(fd, LOCAL_IOCTL_I915_GEM_USERPTR, &arg)) {
+			DBG(("%s: failed to map %p + %d bytes: %d\n",
+			     __FUNCTION__, ptr, size, errno));
+			return 0;
+		}
 	}
 
 	return arg.handle;
