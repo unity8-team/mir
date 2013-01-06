@@ -44,6 +44,7 @@ gen4_channel_init_solid(struct sna *sna,
 	channel->repeat = RepeatNormal;
 	channel->is_affine = true;
 	channel->is_solid  = true;
+	channel->is_opaque = (color >> 24) == 0xff;
 	channel->transform = NULL;
 	channel->width  = 1;
 	channel->height = 1;
@@ -56,7 +57,6 @@ gen4_channel_init_solid(struct sna *sna,
 	channel->offset[0] = channel->offset[1] = 0;
 	return channel->bo != NULL;
 }
-
 
 bool
 gen4_channel_init_linear(struct sna *sna,

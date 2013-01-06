@@ -780,6 +780,7 @@ unsigned gen4_choose_composite_emitter(struct sna_composite_op *tmp)
 				tmp->floats_per_vertex = 5;
 				vb = 2 << 2 | 2;
 			} else {
+				DBG(("%s: projective source, identity mask\n", __FUNCTION__));
 				tmp->prim_emit = emit_primitive_mask;
 				tmp->floats_per_vertex = 6;
 				vb = 2 << 2 | 3;
@@ -787,9 +788,29 @@ unsigned gen4_choose_composite_emitter(struct sna_composite_op *tmp)
 		} else {
 			tmp->prim_emit = emit_primitive_mask;
 			tmp->floats_per_vertex = 1;
-			tmp->floats_per_vertex += 2 + !tmp->mask.is_affine;
-			tmp->floats_per_vertex += 2 + !tmp->src.is_affine;
-			vb = (2 + !tmp->src.is_affine) | (2 + !tmp->mask.is_affine) << 2;
+			vb = 0;
+			if (tmp->mask.is_solid) {
+				tmp->floats_per_vertex += 1;
+				vb |= 1 << 2;
+			} else if (tmp->mask.is_affine) {
+				tmp->floats_per_vertex += 2;
+				vb |= 2 << 2;
+			}else {
+				tmp->floats_per_vertex += 3;
+				vb |= 3 << 2;
+			}
+			if (tmp->src.is_solid) {
+				tmp->floats_per_vertex += 1;
+				vb |= 1;
+			} else if (tmp->src.is_affine) {
+				tmp->floats_per_vertex += 2;
+				vb |= 2 ;
+			}else {
+				tmp->floats_per_vertex += 3;
+				vb |= 3;
+			}
+			DBG(("%s: general mask: floats-per-vertex=%d, vb=%x\n",
+			     __FUNCTION__,tmp->floats_per_vertex, vb));
 		}
 	} else {
 		if (tmp->src.is_solid) {
@@ -800,6 +821,7 @@ unsigned gen4_choose_composite_emitter(struct sna_composite_op *tmp)
 			tmp->floats_per_vertex = 2;
 			vb = 1;
 		} else if (tmp->src.is_linear) {
+			DBG(("%s: linear, no mask\n", __FUNCTION__));
 			tmp->prim_emit = emit_primitive_linear;
 			tmp->floats_per_vertex = 2;
 			vb = 1;
@@ -821,6 +843,8 @@ unsigned gen4_choose_composite_emitter(struct sna_composite_op *tmp)
 			tmp->floats_per_vertex = 3;
 			vb = 2;
 		} else {
+			DBG(("%s: projective src, no mask\n", __FUNCTION__));
+			assert(!tmp->src.is_solid);
 			tmp->prim_emit = emit_primitive;
 			tmp->floats_per_vertex = 4;
 			vb = 3;
