@@ -2539,6 +2539,12 @@ static int do_page_flip(struct sna *sna, struct kgem_bo *bo,
 			DBG(("%s: flip [fb=%d] on crtc %d [%d] failed - %d\n",
 			     __FUNCTION__, arg.fb_id, i, crtc->id, errno));
 disable:
+			if (count == 0)
+				return 0;
+
+			xf86DrvMsg(sna->scrn->scrnIndex, X_ERROR,
+				   "%s: page flipping failed, disabling CRTC:%d (pipe=%d)\n",
+				   __FUNCTION__, crtc->id, crtc->pipe);
 			sna_crtc_disable(config->crtc[i]);
 			continue;
 		}
@@ -3288,6 +3294,9 @@ void sna_mode_redisplay(struct sna *sna)
 				DBG(("%s: flip [fb=%d] on crtc %d [%d, pipe=%d] failed - %d\n",
 				     __FUNCTION__, arg.fb_id, i, crtc->id, crtc->pipe, errno));
 disable:
+				xf86DrvMsg(sna->scrn->scrnIndex, X_ERROR,
+					   "%s: page flipping failed, disabling CRTC:%d (pipe=%d)\n",
+					   __FUNCTION__, crtc->id, crtc->pipe);
 				sna_crtc_disable(config->crtc[i]);
 				continue;
 			}
