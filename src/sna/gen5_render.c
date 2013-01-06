@@ -166,8 +166,6 @@ static const struct blendinfo {
 #define SAMPLER_OFFSET(sf, se, mf, me, k) \
 	((((((sf) * EXTEND_COUNT + (se)) * FILTER_COUNT + (mf)) * EXTEND_COUNT + (me)) * KERNEL_COUNT + (k)) * 64)
 
-#define VERTEX_2s2s 0
-
 static bool
 gen5_emit_pipelined_pointers(struct sna *sna,
 			     const struct sna_composite_op *op,
@@ -807,7 +805,7 @@ gen5_emit_pipelined_pointers(struct sna *sna,
 	uint32_t key;
 
 	DBG(("%s: has_mask=%d, src=(%d, %d), mask=(%d, %d),kernel=%d, blend=%d, ca=%d, format=%x\n",
-	     __FUNCTION__, op->u.gen4.ve_id & 2,
+	     __FUNCTION__, op->u.gen5.ve_id & 2,
 	     op->src.filter, op->src.repeat,
 	     op->mask.filter, op->mask.repeat,
 	     kernel, blend, op->has_component_alpha, (int)op->dst.format));
@@ -1020,7 +1018,7 @@ static void gen5_bind_surfaces(struct sna *sna,
 			     op->src.card_format,
 			     false);
 	if (op->mask.bo) {
-		assert(op->u.gen4.ve_id >> 2);
+		assert(op->u.gen5.ve_id >> 2);
 		binding_table[2] =
 			gen5_bind_bo(sna,
 				     op->mask.bo,
@@ -2206,20 +2204,20 @@ fallback_blt:
 					       extents.x2 - extents.x1,
 					       extents.y2 - extents.y1))
 			goto fallback_tiled_dst;
-
-		src_dx += tmp.src.offset[0];
-		src_dy += tmp.src.offset[1];
 	} else {
 		tmp.src.bo = kgem_bo_reference(src_bo);
 		tmp.src.width  = src->drawable.width;
 		tmp.src.height = src->drawable.height;
+		tmp.src.offset[0] = tmp.src.offset[1] = 0;
+		tmp.src.scale[0] = 1.f/src->drawable.width;
+		tmp.src.scale[1] = 1.f/src->drawable.height;
 	}
 
 	tmp.is_affine = true;
-	tmp.floats_per_vertex = 2;
-	tmp.floats_per_rect = 6;
+	tmp.floats_per_vertex = 3;
+	tmp.floats_per_rect = 9;
 	tmp.u.gen5.wm_kernel = WM_KERNEL;
-	tmp.u.gen5.ve_id = VERTEX_2s2s;
+	tmp.u.gen5.ve_id = 2;
 
 	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL)) {
 		kgem_submit(&sna->kgem);
@@ -2230,6 +2228,9 @@ fallback_blt:
 	dst_dx += tmp.dst.x;
 	dst_dy += tmp.dst.y;
 	tmp.dst.x = tmp.dst.y = 0;
+
+	src_dx += tmp.src.offset[0];
+	src_dy += tmp.src.offset[1];
 
 	gen5_copy_bind_surfaces(sna, &tmp);
 	gen5_align_vertex(sna, &tmp);
@@ -2247,13 +2248,16 @@ fallback_blt:
 			     box->x1 + dst_dx, box->y1 + dst_dy,
 			     box->x2 - box->x1, box->y2 - box->y1));
 			OUT_VERTEX(box->x2 + dst_dx, box->y2 + dst_dy);
-			OUT_VERTEX(box->x2 + src_dx, box->y2 + src_dy);
+			OUT_VERTEX_F((box->x2 + src_dx) * tmp.src.scale[0]);
+			OUT_VERTEX_F((box->y2 + src_dy) * tmp.src.scale[1]);
 
 			OUT_VERTEX(box->x1 + dst_dx, box->y2 + dst_dy);
-			OUT_VERTEX(box->x1 + src_dx, box->y2 + src_dy);
+			OUT_VERTEX_F((box->x1 + src_dx) * tmp.src.scale[0]);
+			OUT_VERTEX_F((box->y2 + src_dy) * tmp.src.scale[1]);
 
 			OUT_VERTEX(box->x1 + dst_dx, box->y1 + dst_dy);
-			OUT_VERTEX(box->x1 + src_dx, box->y1 + src_dy);
+			OUT_VERTEX_F((box->x1 + src_dx) * tmp.src.scale[0]);
+			OUT_VERTEX_F((box->y1 + src_dy) * tmp.src.scale[1]);
 
 			box++;
 		} while (--n_this_time);
@@ -2297,13 +2301,16 @@ gen5_render_copy_blt(struct sna *sna,
 	gen5_get_rectangles(sna, &op->base, 1, gen5_copy_bind_surfaces);
 
 	OUT_VERTEX(dx+w, dy+h);
-	OUT_VERTEX(sx+w, sy+h);
+	OUT_VERTEX_F((sx+w)*op->base.src.scale[0]);
+	OUT_VERTEX_F((sy+h)*op->base.src.scale[1]);
 
 	OUT_VERTEX(dx, dy+h);
-	OUT_VERTEX(sx, sy+h);
+	OUT_VERTEX_F(sx*op->base.src.scale[0]);
+	OUT_VERTEX_F((sy+h)*op->base.src.scale[1]);
 
 	OUT_VERTEX(dx, dy);
-	OUT_VERTEX(sx, sy);
+	OUT_VERTEX_F(sx*op->base.src.scale[0]);
+	OUT_VERTEX_F(sy*op->base.src.scale[1]);
 }
 
 static void
@@ -2365,14 +2372,16 @@ fallback:
 		gen5_get_card_format(op->base.src.pict_format);
 	op->base.src.width  = src->drawable.width;
 	op->base.src.height = src->drawable.height;
+	op->base.src.scale[0] = 1.f/src->drawable.width;
+	op->base.src.scale[1] = 1.f/src->drawable.height;
 	op->base.src.filter = SAMPLER_FILTER_NEAREST;
 	op->base.src.repeat = SAMPLER_EXTEND_NONE;
 
 	op->base.is_affine = true;
-	op->base.floats_per_vertex = 2;
-	op->base.floats_per_rect = 6;
+	op->base.floats_per_vertex = 3;
+	op->base.floats_per_rect = 9;
 	op->base.u.gen5.wm_kernel = WM_KERNEL;
-	op->base.u.gen5.ve_id = VERTEX_2s2s;
+	op->base.u.gen5.ve_id = 2;
 
 	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL)) {
 		kgem_submit(&sna->kgem);
@@ -2519,10 +2528,10 @@ gen5_render_fill_boxes(struct sna *sna,
 	tmp.src.repeat = SAMPLER_EXTEND_REPEAT;
 
 	tmp.is_affine = true;
-	tmp.floats_per_vertex = 2;
-	tmp.floats_per_rect = 6;
+	tmp.floats_per_vertex = 3;
+	tmp.floats_per_rect = 9;
 	tmp.u.gen5.wm_kernel = WM_KERNEL;
-	tmp.u.gen5.ve_id = VERTEX_2s2s;
+	tmp.u.gen5.ve_id = 2;
 
 	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL)) {
 		kgem_submit(&sna->kgem);
@@ -2543,13 +2552,16 @@ gen5_render_fill_boxes(struct sna *sna,
 			DBG(("	(%d, %d), (%d, %d)\n",
 			     box->x1, box->y1, box->x2, box->y2));
 			OUT_VERTEX(box->x2, box->y2);
-			OUT_VERTEX(1, 1);
+			OUT_VERTEX_F(1);
+			OUT_VERTEX_F(1);
 
 			OUT_VERTEX(box->x1, box->y2);
-			OUT_VERTEX(0, 1);
+			OUT_VERTEX_F(0);
+			OUT_VERTEX_F(1);
 
 			OUT_VERTEX(box->x1, box->y1);
-			OUT_VERTEX(0, 0);
+			OUT_VERTEX_F(0);
+			OUT_VERTEX_F(0);
 
 			box++;
 		} while (--n_this_time);
@@ -2570,13 +2582,16 @@ gen5_render_fill_op_blt(struct sna *sna,
 	gen5_get_rectangles(sna, &op->base, 1, gen5_fill_bind_surfaces);
 
 	OUT_VERTEX(x+w, y+h);
-	OUT_VERTEX(1, 1);
+	OUT_VERTEX_F(1);
+	OUT_VERTEX_F(1);
 
 	OUT_VERTEX(x, y+h);
-	OUT_VERTEX(0, 1);
+	OUT_VERTEX_F(0);
+	OUT_VERTEX_F(1);
 
 	OUT_VERTEX(x, y);
-	OUT_VERTEX(0, 0);
+	OUT_VERTEX_F(0);
+	OUT_VERTEX_F(0);
 }
 
 fastcall static void
@@ -2590,13 +2605,16 @@ gen5_render_fill_op_box(struct sna *sna,
 	gen5_get_rectangles(sna, &op->base, 1, gen5_fill_bind_surfaces);
 
 	OUT_VERTEX(box->x2, box->y2);
-	OUT_VERTEX(1, 1);
+	OUT_VERTEX_F(1);
+	OUT_VERTEX_F(1);
 
 	OUT_VERTEX(box->x1, box->y2);
-	OUT_VERTEX(0, 1);
+	OUT_VERTEX_F(0);
+	OUT_VERTEX_F(1);
 
 	OUT_VERTEX(box->x1, box->y1);
-	OUT_VERTEX(0, 0);
+	OUT_VERTEX_F(0);
+	OUT_VERTEX_F(0);
 }
 
 fastcall static void
@@ -2617,13 +2635,16 @@ gen5_render_fill_op_boxes(struct sna *sna,
 
 		do {
 			OUT_VERTEX(box->x2, box->y2);
-			OUT_VERTEX(1, 1);
+			OUT_VERTEX_F(1);
+			OUT_VERTEX_F(1);
 
 			OUT_VERTEX(box->x1, box->y2);
-			OUT_VERTEX(0, 1);
+			OUT_VERTEX_F(0);
+			OUT_VERTEX_F(1);
 
 			OUT_VERTEX(box->x1, box->y1);
-			OUT_VERTEX(0, 0);
+			OUT_VERTEX_F(0);
+			OUT_VERTEX_F(0);
 			box++;
 		} while (--nbox_this_time);
 	} while (nbox);
@@ -2689,10 +2710,10 @@ gen5_render_fill(struct sna *sna, uint8_t alu,
 	op->base.mask.repeat = SAMPLER_EXTEND_NONE;
 
 	op->base.is_affine = true;
-	op->base.floats_per_vertex = 2;
-	op->base.floats_per_rect = 6;
+	op->base.floats_per_vertex = 3;
+	op->base.floats_per_rect = 9;
 	op->base.u.gen5.wm_kernel = WM_KERNEL;
-	op->base.u.gen5.ve_id = VERTEX_2s2s;
+	op->base.u.gen5.ve_id = 2;
 
 	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL)) {
 		kgem_submit(&sna->kgem);
@@ -2777,13 +2798,13 @@ gen5_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 	tmp.mask.repeat = SAMPLER_EXTEND_NONE;
 
 	tmp.is_affine = true;
-	tmp.floats_per_vertex = 2;
-	tmp.floats_per_rect = 6;
+	tmp.floats_per_vertex = 3;
+	tmp.floats_per_rect = 9;
 	tmp.has_component_alpha = 0;
 	tmp.need_magic_ca_pass = false;
 
 	tmp.u.gen5.wm_kernel = WM_KERNEL;
-	tmp.u.gen5.ve_id = VERTEX_2s2s;
+	tmp.u.gen5.ve_id = 2;
 
 	if (!kgem_check_bo(&sna->kgem, bo, NULL)) {
 		_kgem_submit(&sna->kgem);
@@ -2797,13 +2818,16 @@ gen5_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 
 	DBG(("	(%d, %d), (%d, %d)\n", x1, y1, x2, y2));
 	OUT_VERTEX(x2, y2);
-	OUT_VERTEX(1, 1);
+	OUT_VERTEX_F(1);
+	OUT_VERTEX_F(1);
 
 	OUT_VERTEX(x1, y2);
-	OUT_VERTEX(0, 1);
+	OUT_VERTEX_F(0);
+	OUT_VERTEX_F(1);
 
 	OUT_VERTEX(x1, y1);
-	OUT_VERTEX(0, 0);
+	OUT_VERTEX_F(0);
+	OUT_VERTEX_F(0);
 
 	gen4_vertex_flush(sna);
 	kgem_bo_destroy(&sna->kgem, tmp.src.bo);
@@ -2890,7 +2914,7 @@ static void gen5_render_reset(struct sna *sna)
 	sna->render_state.gen5.needs_invariant = true;
 	sna->render_state.gen5.ve_id = -1;
 	sna->render_state.gen5.last_primitive = -1;
-	sna->render_state.gen5.last_pipelined_pointers = -1;
+	sna->render_state.gen5.last_pipelined_pointers = 0;
 
 	sna->render_state.gen5.drawrect_offset = -1;
 	sna->render_state.gen5.drawrect_limit = -1;

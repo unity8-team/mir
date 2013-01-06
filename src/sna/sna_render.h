@@ -126,8 +126,8 @@ struct sna_composite_op {
 		} gen4;
 
 		struct {
-			int wm_kernel;
-			int ve_id;
+			int16_t wm_kernel;
+			int16_t ve_id;
 		} gen5;
 
 		struct {
