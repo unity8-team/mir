@@ -719,7 +719,6 @@ intel_dirty_update(ScreenPtr screen)
 	if (xorg_list_is_empty(&screen->pixmap_dirty_list))
 	    return;
 
-	ErrorF("list is not empty\n");
 	xorg_list_for_each_entry(ent, &screen->pixmap_dirty_list, ent) {
 		region = DamageRegion(ent->damage);
 		if (RegionNotEmpty(region)) {
