@@ -454,9 +454,10 @@ redisplay_dirty(ScreenPtr screen, PixmapDirtyUpdatePtr dirty)
 
 	PixmapRegionInit(&pixregion, dirty->slave_dst->master_pixmap);
 
+	DamageRegionAppend(&dirty->slave_dst->drawable, &pixregion);
 	PixmapSyncDirtyHelper(dirty, &pixregion);
 
-	DamageRegionAppend(&dirty->slave_dst->drawable, &pixregion);
+	DamageRegionProcessPending(&dirty->slave_dst->drawable);
 	RegionUninit(&pixregion);
 }
 
