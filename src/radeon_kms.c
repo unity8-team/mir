@@ -245,10 +245,11 @@ redisplay_dirty(ScreenPtr screen, PixmapDirtyUpdatePtr dirty)
 	RegionRec pixregion;
 
 	PixmapRegionInit(&pixregion, dirty->slave_dst->master_pixmap);
+	DamageRegionAppend(&dirty->slave_dst->drawable, &pixregion);
 	PixmapSyncDirtyHelper(dirty, &pixregion);
 
 	radeon_cs_flush_indirect(pScrn);
-	DamageRegionAppend(&dirty->slave_dst->drawable, &pixregion);
+	DamageRegionProcessPending(&dirty->slave_dst->drawable);
 	RegionUninit(&pixregion);
 }
 
