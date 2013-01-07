@@ -13948,6 +13948,8 @@ static void sna_accel_post_damage(struct sna *sna)
 		     region.extents.x2, region.extents.y2));
 
 		RegionIntersect(&region, &region, damage);
+		RegionTranslate(&region, -dirty->x, -dirty->y);
+		DamageRegionAppend(&dirty->slave_dst->drawable, &region);
 
 		box = REGION_RECTS(&region);
 		n = REGION_NUM_RECTS(&region);
@@ -13963,30 +13965,31 @@ fallback:
 			do {
 				DBG(("%s: copy box (%d, %d)->(%d, %d)x(%d, %d)\n",
 				     __FUNCTION__,
+				     box->x1 + dirty->x, box->y1 + dirty->y,
 				     box->x1, box->y1,
-				     box->x1 - dirty->x, box->y1 - dirty->y,
 				     box->x2 - box->x1, box->y2 - box->y1));
 
 				assert(box->x2 > box->x1);
 				assert(box->y2 > box->y1);
+
+				assert(box->x1 + dirty->x >= 0);
+				assert(box->y1 + dirty->y >= 0);
+				assert(box->x2 + dirty->x <= src->drawable.width);
+				assert(box->y2 + dirty->y <= src->drawable.height);
 
 				assert(box->x1 >= 0);
 				assert(box->y1 >= 0);
 				assert(box->x2 <= src->drawable.width);
 				assert(box->y2 <= src->drawable.height);
 
-				assert(box->x1 - dirty->x >= 0);
-				assert(box->y1 - dirty->y >= 0);
-				assert(box->x2 - dirty->x <= src->drawable.width);
-				assert(box->y2 - dirty->y <= src->drawable.height);
-
 				memcpy_blt(src->devPrivate.ptr,
 					   dst->devPrivate.ptr,
 					   src->drawable.bitsPerPixel,
 					   src->devKind, dst->devKind,
-					   box->x1, box->y1,
-					   box->x1 - dirty->x,
-					   box->y1 - dirty->y,
+					   box->x1 + dirty->x,
+					   box->y1 + dirty->y,
+					   box->x1,
+					   box->y1,
 					   box->x2 - box->x1,
 					   box->y2 - box->y1);
 				box++;
@@ -13999,17 +14002,15 @@ fallback:
 				goto fallback;
 
 			if (!sna->render.copy_boxes(sna, GXcopy,
-						    src, sna_pixmap_get_bo(src), 0, 0,
-						    dst, sna_pixmap_get_bo(dst), -dirty->x, -dirty->y,
+						    src, sna_pixmap_get_bo(src), dirty->x, dirty->y,
+						    dst, sna_pixmap_get_bo(dst),0, 0,
 						    box, n, COPY_LAST))
 				goto fallback;
 
 			flush = true;
 		}
 
-		RegionTranslate(&region, -dirty->x, -dirty->y);
-		DamageRegionAppend(&dirty->slave_dst->drawable, &region);
-
+		DamageRegionProcessPending(&dirty->slave_dst->drawable);
 skip:
 		RegionUninit(&region);
 		DamageEmpty(dirty->damage);
