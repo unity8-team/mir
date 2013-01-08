@@ -29,6 +29,7 @@
 #include "config.h"
 #endif
 
+#include "intel_options.h"
 #include "sna.h"
 #include "sna_reg.h"
 #include "rop.h"
@@ -430,7 +431,7 @@ sna_pixmap_alloc_cpu(struct sna *sna,
 						  pixmap->drawable.width,
 						  pixmap->drawable.height,
 						  pixmap->drawable.bitsPerPixel,
-						  from_gpu ? 0 : CREATE_CPU_MAP | CREATE_INACTIVE);
+						  from_gpu ? 0 : CREATE_CPU_MAP | CREATE_INACTIVE | CREATE_NO_THROTTLE);
 		if (priv->cpu_bo) {
 			priv->ptr = kgem_bo_map__cpu(&sna->kgem, priv->cpu_bo);
 			priv->stride = priv->cpu_bo->pitch;
@@ -474,8 +475,8 @@ static void sna_pixmap_free_cpu(struct sna *sna, struct sna_pixmap *priv)
 		sna->debug_memory.cpu_bo_allocs--;
 		sna->debug_memory.cpu_bo_bytes -= kgem_bo_size(priv->cpu_bo);
 #endif
-		if (priv->cpu_bo->flush) {
-			assert(priv->cpu_bo->reusable == false);
+		if (!priv->cpu_bo->reusable) {
+			assert(priv->cpu_bo->flush == true);
 			kgem_bo_sync__cpu(&sna->kgem, priv->cpu_bo);
 			sna_accel_watch_flush(sna, -1);
 		}
@@ -4258,7 +4259,7 @@ sna_self_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	if (dst != src)
 		get_drawable_deltas(dst, pixmap, &tx, &ty);
 
-	if (priv == NULL || DAMAGE_IS_ALL(priv->cpu_damage))
+	if (priv == NULL || DAMAGE_IS_ALL(priv->cpu_damage) || priv->shm)
 		goto fallback;
 
 	if (priv->gpu_damage) {
@@ -4562,6 +4563,13 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			     __FUNCTION__));
 
 			assert(bo != dst_priv->cpu_bo);
+
+			if (src_priv->shm &&
+			    alu == GXcopy &&
+			    DAMAGE_IS_ALL(src_priv->cpu_damage) &&
+			    !__kgem_bo_is_busy(&sna->kgem, src_priv->cpu_bo) &&
+			    (replaces || !__kgem_bo_is_busy(&sna->kgem, bo)))
+				goto fallback;
 
 			RegionTranslate(region, src_dx, src_dy);
 			ret = sna_drawable_move_region_to_cpu(&src_pixmap->drawable,
@@ -6769,7 +6777,7 @@ sna_poly_point(DrawablePtr drawable, GCPtr gc,
 		DBG(("%s: trying solid fill [%08lx] blt paths\n",
 		     __FUNCTION__, gc->fgPixel));
 
-		if ((bo = sna_drawable_use_bo(drawable, 0,
+		if ((bo = sna_drawable_use_bo(drawable, PREFER_GPU,
 					      &region.extents, &damage)) &&
 		    sna_poly_point_blt(drawable, bo, damage,
 				       gc, mode, n, pt, flags & 2))
@@ -14201,6 +14209,17 @@ static bool sna_picture_init(ScreenPtr screen)
 	return true;
 }
 
+static bool sna_option_accel_blt(struct sna *sna)
+{
+	const char *s;
+
+	s = xf86GetOptValString(sna->Options, OPTION_ACCEL_METHOD);
+	if (s == NULL)
+		return false;
+
+	return strcasecmp(s, "blt") == 0;
+}
+
 bool sna_accel_init(ScreenPtr screen, struct sna *sna)
 {
 	const char *backend;
@@ -14279,8 +14298,7 @@ bool sna_accel_init(ScreenPtr screen, struct sna *sna)
 	sna->have_render = false;
 	no_render_init(sna);
 
-#if !DEBUG_NO_RENDER
-	if (sna->info->gen >= 0100) {
+	if (sna_option_accel_blt(sna) || sna->info->gen >= 0100) {
 	} else if (sna->info->gen >= 070) {
 		if ((sna->have_render = gen7_render_init(sna)))
 			backend = "IvyBridge";
@@ -14300,7 +14318,6 @@ bool sna_accel_init(ScreenPtr screen, struct sna *sna)
 		if ((sna->have_render = gen2_render_init(sna)))
 			backend = "gen2";
 	}
-#endif
 	DBG(("%s(backend=%s, have_render=%d)\n",
 	     __FUNCTION__, backend, sna->have_render));
 

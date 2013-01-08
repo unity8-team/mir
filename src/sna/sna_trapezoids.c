@@ -471,7 +471,7 @@ cell_list_reset(struct cell_list *cells)
 	pool_reset(cells->cell_pool.base);
 }
 
-static struct cell *
+inline static struct cell *
 cell_list_alloc(struct cell_list *cells,
 		struct cell *tail,
 		int x)
@@ -5552,7 +5552,7 @@ sna_composite_trapezoids(CARD8 op,
 		     dst->pDrawable->width,
 		     dst->pDrawable->height,
 		     too_small(priv),
-		     DAMAGE_IS_ALL(priv->cpu_damage),
+		     (int)DAMAGE_IS_ALL(priv->cpu_damage),
 		     !picture_is_gpu(src)));
 		force_fallback = true;
 	}

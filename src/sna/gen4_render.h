@@ -25,8 +25,8 @@
  *
  **************************************************************************/
 
-#ifndef GEN5_RENDER_H
-#define GEN5_RENDER_H
+#ifndef GEN4_RENDER_H
+#define GEN4_RENDER_H
 
 #define GEN4_3D(Pipeline,Opcode,Subopcode) ((3 << 29) | \
 					   ((Pipeline) << 27) | \
@@ -661,15 +661,14 @@
 #define GEN4_VERTEXBUFFER_ACCESS_VERTEXDATA     0
 #define GEN4_VERTEXBUFFER_ACCESS_INSTANCEDATA   1
 
-#define GEN4_VFCOMPONENT_NOSTORE      0
-#define GEN4_VFCOMPONENT_STORE_SRC    1
-#define GEN4_VFCOMPONENT_STORE_0      2
-#define GEN4_VFCOMPONENT_STORE_1_FLT  3
-#define GEN4_VFCOMPONENT_STORE_1_INT  4
-#define GEN4_VFCOMPONENT_STORE_VID    5
-#define GEN4_VFCOMPONENT_STORE_IID    6
-#define GEN4_VFCOMPONENT_STORE_PID    7
-
+#define VFCOMPONENT_NOSTORE      0
+#define VFCOMPONENT_STORE_SRC    1
+#define VFCOMPONENT_STORE_0      2
+#define VFCOMPONENT_STORE_1_FLT  3
+#define VFCOMPONENT_STORE_1_INT  4
+#define VFCOMPONENT_STORE_VID    5
+#define VFCOMPONENT_STORE_IID    6
+#define VFCOMPONENT_STORE_PID    7
 
 
 /* Execution Unit (EU) defines
@@ -725,8 +724,8 @@
 #define GEN4_INSTRUCTION_NORMAL    0
 #define GEN4_INSTRUCTION_SATURATE  1
 
-#define GEN4_MASK_ENABLE   0
-#define GEN4_MASK_DISABLE  1
+#define _MASK_ENABLE   0
+#define _MASK_DISABLE  1
 
 #define GEN4_OPCODE_MOV        1
 #define GEN4_OPCODE_SEL        2
@@ -2043,6 +2042,54 @@ struct gen4_surface_state
    } ss5;
 };
 
+/* Surface state DW0 */
+#define GEN4_SURFACE_RC_READ_WRITE       (1 << 8)
+#define GEN4_SURFACE_MIPLAYOUT_SHIFT     10
+#define GEN4_SURFACE_MIPMAPLAYOUT_BELOW   0
+#define GEN4_SURFACE_MIPMAPLAYOUT_RIGHT   1
+#define GEN4_SURFACE_CUBEFACE_ENABLES    0x3f
+#define GEN4_SURFACE_BLEND_ENABLED       (1 << 13)
+#define GEN4_SURFACE_WRITEDISABLE_B_SHIFT        14
+#define GEN4_SURFACE_WRITEDISABLE_G_SHIFT        15
+#define GEN4_SURFACE_WRITEDISABLE_R_SHIFT        16
+#define GEN4_SURFACE_WRITEDISABLE_A_SHIFT        17
+#define GEN4_SURFACE_FORMAT_SHIFT        18
+#define GEN4_SURFACE_FORMAT_MASK         _MASK(26, 18)
+
+#define GEN4_SURFACE_TYPE_SHIFT          29
+#define GEN4_SURFACE_TYPE_MASK           _MASK(31, 29)
+#define GEN4_SURFACE_1D      0
+#define GEN4_SURFACE_2D      1
+#define GEN4_SURFACE_3D      2
+#define GEN4_SURFACE_CUBE    3
+#define GEN4_SURFACE_BUFFER  4
+#define GEN4_SURFACE_NULL    7
+
+/* Surface state DW2 */
+#define GEN4_SURFACE_HEIGHT_SHIFT        19
+#define GEN4_SURFACE_HEIGHT_MASK         _MASK(31, 19)
+#define GEN4_SURFACE_WIDTH_SHIFT         6
+#define GEN4_SURFACE_WIDTH_MASK          _MASK(18, 6)
+#define GEN4_SURFACE_LOD_SHIFT           2
+#define GEN4_SURFACE_LOD_MASK            _MASK(5, 2)
+
+/* Surface state DW3 */
+#define GEN4_SURFACE_DEPTH_SHIFT         21
+#define GEN4_SURFACE_DEPTH_MASK          _MASK(31, 21)
+#define GEN4_SURFACE_PITCH_SHIFT         3
+#define GEN4_SURFACE_PITCH_MASK          _MASK(19, 3)
+#define GEN4_SURFACE_TILED               (1 << 1)
+#define GEN4_SURFACE_TILED_Y             (1 << 0)
+
+/* Surface state DW4 */
+#define GEN4_SURFACE_MIN_LOD_SHIFT       28
+#define GEN4_SURFACE_MIN_LOD_MASK        _MASK(31, 28)
+
+/* Surface state DW5 */
+#define GEN4_SURFACE_X_OFFSET_SHIFT      25
+#define GEN4_SURFACE_X_OFFSET_MASK       _MASK(31, 25)
+#define GEN4_SURFACE_Y_OFFSET_SHIFT      20
+#define GEN4_SURFACE_Y_OFFSET_MASK       _MASK(23, 20)
 
 
 struct gen4_vertex_buffer_state

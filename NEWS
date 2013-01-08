@@ -1,3 +1,23 @@
+Release 2.20.17 (2012-12-26)
+============================
+A minor update to prepare for co-operating with the kernel over managing
+stability on 830gm/845g. On this pair of chipsets, the kernel will perform
+an extra copy of the batchbuffer into reserved memory, which prevents them
+from randomly dying. However, that extra copy does have a noticeable
+impact upon throughput, so we also have a mechanism for userspace to
+opt-out of the kernel workaround and take responsibility for ensuring its
+batches are coherent.
+
+ * Build fixes against xorg-1.14
+   https://bugs.freedesktop.org/show_bug.cgi?id=58552
+   https://bugs.freedesktop.org/show_bug.cgi?id=58406
+
+ * Fixed the origin of cropped (textured) video windows (Xv and XvMC)
+   https://bugs.freedesktop.org/show_bug.cgi?id=23033
+
+ * Fix potential corruption when using images larger than ~1GiB
+
+
 Release 2.20.16 (2012-12-15)
 ============================
 Rejoice! We have found a trick to make 830gm/845g stable at long last.

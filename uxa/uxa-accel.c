@@ -1027,7 +1027,7 @@ uxa_push_pixels(GCPtr pGC, PixmapPtr pBitmap,
 				ok = glamor_push_pixels_nf(pGC, pBitmap, pDrawable, w, h, x, y);
 				uxa_finish_access(&pBitmap->drawable, UXA_GLAMOR_ACCESS_RO);
 			}
-			uxa_prepare_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
+			uxa_finish_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
 		}
 		if (!ok)
 			goto fallback;

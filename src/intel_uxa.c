@@ -1292,6 +1292,17 @@ intel_limits_init(intel_screen_private *intel)
 	}
 }
 
+static Bool intel_option_accel_blt(intel_screen_private *intel)
+{
+	const char *s;
+
+	s = xf86GetOptValString(intel->Options, OPTION_ACCEL_METHOD);
+	if (s == NULL)
+		return FALSE;
+
+	return strcasecmp(s, "blt") == 0;
+}
+
 Bool intel_uxa_init(ScreenPtr screen)
 {
 	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
@@ -1338,7 +1349,8 @@ Bool intel_uxa_init(ScreenPtr screen)
 	intel->uxa_driver->done_copy = intel_uxa_done;
 
 	/* Composite */
-	if (IS_GEN2(intel)) {
+	if (intel_option_accel_blt(intel)) {
+	} else if (IS_GEN2(intel)) {
 		intel->uxa_driver->check_composite = i830_check_composite;
 		intel->uxa_driver->check_composite_target = i830_check_composite_target;
 		intel->uxa_driver->check_composite_texture = i830_check_composite_texture;

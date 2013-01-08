@@ -405,7 +405,8 @@ static Bool can_accelerate_blt(struct intel_screen_private *intel)
 	if (INTEL_INFO(intel)->gen == -1)
 		return FALSE;
 
-	if (xf86ReturnOptValBool(intel->Options, OPTION_ACCEL_DISABLE, FALSE)) {
+	if (xf86ReturnOptValBool(intel->Options, OPTION_ACCEL_DISABLE, FALSE) ||
+	    !intel_option_cast_string_to_bool(intel, OPTION_ACCEL_METHOD, TRUE)) {
 		xf86DrvMsg(intel->scrn->scrnIndex, X_CONFIG,
 			   "Disabling hardware acceleration.\n");
 		return FALSE;

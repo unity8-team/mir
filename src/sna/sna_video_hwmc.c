@@ -36,63 +36,72 @@
 #include <X11/extensions/XvMC.h>
 #include <fourcc.h>
 
-static int create_subpicture(ScrnInfoPtr scrn, XvMCSubpicturePtr subpicture,
-			     int *num_priv, CARD32 ** priv)
+extern DevPrivateKey XF86XvScreenKey;
+
+static int create_subpicture(XvMCSubpicturePtr sub, int *size, CARD32 **priv)
 {
 	return Success;
 }
 
-static void destroy_subpicture(ScrnInfoPtr scrn, XvMCSubpicturePtr subpicture)
+static void destroy_subpicture(XvMCSubpicturePtr sub)
 {
 }
 
-static int create_surface(ScrnInfoPtr scrn, XvMCSurfacePtr surface,
-			  int *num_priv, CARD32 ** priv)
+static int create_surface(XvMCSurfacePtr surface, int *size, CARD32 **priv)
 {
 	return Success;
 }
 
-static void destroy_surface(ScrnInfoPtr scrn, XvMCSurfacePtr surface)
+static void destroy_surface(XvMCSurfacePtr surface)
 {
 }
 
-static int create_context(ScrnInfoPtr scrn, XvMCContextPtr pContext,
-				    int *num_priv, CARD32 **priv)
+static int create_context(XvPortPtr port, XvMCContextPtr ctx,
+			  int *size, CARD32 **out)
 {
-	struct sna *sna = to_sna(scrn);
-	struct sna_xvmc_hw_context *contextRec;
+	struct sna *sna = to_sna_from_screen(ctx->pScreen);
+	struct intel_xvmc_hw_context {
+		unsigned int type;
+		union {
+			struct {
+				unsigned int use_phys_addr : 1;
+			} i915;
+			struct {
+				unsigned int is_g4x:1;
+				unsigned int is_965_q:1;
+				unsigned int is_igdng:1;
+			} i965;
+		};
+	} *priv;
 
-	*priv = calloc(1, sizeof(struct sna_xvmc_hw_context));
-	contextRec = (struct sna_xvmc_hw_context *) *priv;
-	if (!contextRec) {
-		*num_priv = 0;
+	ctx->port_priv = port->devPriv.ptr;
+
+	priv = calloc(1, sizeof(*priv));
+	if (priv == NULL)
 		return BadAlloc;
-	}
-
-	*num_priv = sizeof(struct sna_xvmc_hw_context) >> 2;
 
 	if (sna->kgem.gen >= 040) {
 		if (sna->kgem.gen >= 045)
-			contextRec->type = XVMC_I965_MPEG2_VLD;
+			priv->type = XVMC_I965_MPEG2_VLD;
 		else
-			contextRec->type = XVMC_I965_MPEG2_MC;
-		contextRec->i965.is_g4x = sna->kgem.gen == 045;
-		contextRec->i965.is_965_q = IS_965_Q(sna);
-		contextRec->i965.is_igdng = sna->kgem.gen == 050;
-	} else {
-		contextRec->type = XVMC_I915_MPEG2_MC;
-		contextRec->i915.use_phys_addr = 0;
-	}
+			priv->type = XVMC_I965_MPEG2_MC;
+		priv->i965.is_g4x = sna->kgem.gen == 045;
+		priv->i965.is_965_q = IS_965_Q(sna);
+		priv->i965.is_igdng = sna->kgem.gen == 050;
+	} else
+		priv->type = XVMC_I915_MPEG2_MC;
 
+	*size = sizeof(*priv) >> 2;
+	*out = priv;
 	return Success;
 }
 
-static void destroy_context(ScrnInfoPtr scrn, XvMCContextPtr context)
+static void destroy_context(XvMCContextPtr ctx)
 {
 }
 
 /* i915 hwmc support */
-static XF86MCSurfaceInfoRec i915_YV12_mpg2_surface = {
+static XvMCSurfaceInfoRec i915_YV12_mpg2_surface = {
 	FOURCC_YV12,
 	XVMC_CHROMA_FORMAT_420,
 	0,
@@ -107,7 +116,7 @@ static XF86MCSurfaceInfoRec i915_YV12_mpg2_surface = {
 	NULL,
 };
 
-static XF86MCSurfaceInfoRec i915_YV12_mpg1_surface = {
+static XvMCSurfaceInfoRec i915_YV12_mpg1_surface = {
 	FOURCC_YV12,
 	XVMC_CHROMA_FORMAT_420,
 	0,
@@ -121,9 +130,9 @@ static XF86MCSurfaceInfoRec i915_YV12_mpg1_surface = {
 	NULL,
 };
 
-static XF86MCSurfaceInfoPtr surface_info_i915[2] = {
-	(XF86MCSurfaceInfoPtr) & i915_YV12_mpg2_surface,
-	(XF86MCSurfaceInfoPtr) & i915_YV12_mpg1_surface
+static XvMCSurfaceInfoPtr surface_info_i915[2] = {
+	&i915_YV12_mpg2_surface,
+	&i915_YV12_mpg1_surface
 };
 
 /* i965 and later hwmc support */
@@ -131,7 +140,7 @@ static XF86MCSurfaceInfoPtr surface_info_i915[2] = {
 #define XVMC_VLD  0x00020000
 #endif
 
-static XF86MCSurfaceInfoRec yv12_mpeg2_vld_surface = {
+static XvMCSurfaceInfoRec yv12_mpeg2_vld_surface = {
 	FOURCC_YV12,
 	XVMC_CHROMA_FORMAT_420,
 	0,
@@ -144,7 +153,7 @@ static XF86MCSurfaceInfoRec yv12_mpeg2_vld_surface = {
 	NULL
 };
 
-static XF86MCSurfaceInfoRec yv12_mpeg2_i965_surface = {
+static XvMCSurfaceInfoRec yv12_mpeg2_i965_surface = {
 	FOURCC_YV12,
 	XVMC_CHROMA_FORMAT_420,
 	0,
@@ -159,7 +168,7 @@ static XF86MCSurfaceInfoRec yv12_mpeg2_i965_surface = {
 	NULL
 };
 
-static XF86MCSurfaceInfoRec yv12_mpeg1_i965_surface = {
+static XvMCSurfaceInfoRec yv12_mpeg1_i965_surface = {
 	FOURCC_YV12,
 	XVMC_CHROMA_FORMAT_420,
 	0,
@@ -176,12 +185,12 @@ static XF86MCSurfaceInfoRec yv12_mpeg1_i965_surface = {
 	NULL
 };
 
-static XF86MCSurfaceInfoPtr surface_info_i965[] = {
+static XvMCSurfaceInfoPtr surface_info_i965[] = {
 	&yv12_mpeg2_i965_surface,
 	&yv12_mpeg1_i965_surface
 };
 
-static XF86MCSurfaceInfoPtr surface_info_vld[] = {
+static XvMCSurfaceInfoPtr surface_info_vld[] = {
 	&yv12_mpeg2_vld_surface,
 	&yv12_mpeg2_i965_surface,
 };
@@ -191,9 +200,14 @@ Bool sna_video_xvmc_setup(struct sna *sna,
 			  ScreenPtr screen,
 			  XF86VideoAdaptorPtr target)
 {
-	XF86MCAdaptorRec *pAdapt;
+	XvMCAdaptorRec *adaptors;
+	XvScreenPtr xv;
 	const char *name;
-	char buf[64];
+	char bus[64];
+	int i;
+
+	if (!xf86LoaderCheckSymbol("XvMCScreenInit"))
+		return FALSE;
 
 	/* Needs KMS support. */
 	if (sna->kgem.gen < 031)
@@ -203,51 +217,59 @@ Bool sna_video_xvmc_setup(struct sna *sna,
 	if (sna->kgem.gen >= 060)
 		return FALSE;
 
-	pAdapt = calloc(1, sizeof(XF86MCAdaptorRec));
-	if (!pAdapt)
+	adaptors = calloc(1, sizeof(XvMCAdaptorRec));
+	if (adaptors == NULL)
 		return FALSE;
 
-	pAdapt->name = target->name;
-	pAdapt->num_subpictures = 0;
-	pAdapt->subpictures = NULL;
-	pAdapt->CreateContext = create_context;
-	pAdapt->DestroyContext = destroy_context;
-	pAdapt->CreateSurface = create_surface;
-	pAdapt->DestroySurface = destroy_surface;
-	pAdapt->CreateSubpicture =  create_subpicture;
-	pAdapt->DestroySubpicture = destroy_subpicture;
+	xv = dixLookupPrivate(&screen->devPrivates, XF86XvScreenKey);
+	for (i = 0; i< xv->nAdaptors;i++) {
+		if (strcmp(xv->pAdaptors[i].name, target->name) == 0) {
+			adaptors->xv_adaptor = &xv->pAdaptors[i];
+			break;
+		}
+	}
+	assert(adaptors->xv_adaptor);
+
+	adaptors->num_subpictures = 0;
+	adaptors->subpictures = NULL;
+	adaptors->CreateContext = create_context;
+	adaptors->DestroyContext = destroy_context;
+	adaptors->CreateSurface = create_surface;
+	adaptors->DestroySurface = destroy_surface;
+	adaptors->CreateSubpicture =  create_subpicture;
+	adaptors->DestroySubpicture = destroy_subpicture;
 
 	if (sna->kgem.gen >= 045) {
 		name = "xvmc_vld",
-		pAdapt->num_surfaces = ARRAY_SIZE(surface_info_vld);
-		pAdapt->surfaces = surface_info_vld;
+		adaptors->num_surfaces = ARRAY_SIZE(surface_info_vld);
+		adaptors->surfaces = surface_info_vld;
 	} else if (sna->kgem.gen >= 040) {
 		name = "i965_xvmc",
-		pAdapt->num_surfaces = ARRAY_SIZE(surface_info_i965);
-		pAdapt->surfaces = surface_info_i965;
+		adaptors->num_surfaces = ARRAY_SIZE(surface_info_i965);
+		adaptors->surfaces = surface_info_i965;
 	} else {
 		name = "i915_xvmc",
-		pAdapt->num_surfaces = ARRAY_SIZE(surface_info_i915);
-		pAdapt->surfaces = surface_info_i915;
+		adaptors->num_surfaces = ARRAY_SIZE(surface_info_i915);
+		adaptors->surfaces = surface_info_i915;
 	}
 
-	if (xf86XvMCScreenInit(screen, 1, &pAdapt)) {
-		xf86DrvMsg(sna->scrn->scrnIndex, X_INFO,
-			   "[XvMC] %s driver initialized.\n",
-			   name);
-	} else {
+	if (XvMCScreenInit(screen, 1, adaptors) != Success) {
 		xf86DrvMsg(sna->scrn->scrnIndex, X_INFO,
 			   "[XvMC] Failed to initialize XvMC.\n");
+		free(adaptors);
 		return FALSE;
 	}
 
-	sprintf(buf, "pci:%04x:%02x:%02x.%d",
+	sprintf(bus, "pci:%04x:%02x:%02x.%d",
 		sna->PciInfo->domain,
 		sna->PciInfo->bus, sna->PciInfo->dev, sna->PciInfo->func);
 
-	xf86XvMCRegisterDRInfo(screen, SNA_XVMC_LIBNAME,
-			       buf,
+	xf86XvMCRegisterDRInfo(screen, SNA_XVMC_LIBNAME, bus,
 			       SNA_XVMC_MAJOR, SNA_XVMC_MINOR,
 			       SNA_XVMC_PATCHLEVEL);
+
+	xf86DrvMsg(sna->scrn->scrnIndex, X_INFO,
+		   "[XvMC] %s driver initialized.\n",
+		   name);
 	return TRUE;
 }
