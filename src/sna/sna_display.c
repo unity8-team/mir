@@ -886,6 +886,9 @@ void sna_copy_fbcon(struct sna *sna)
 
 	DBG(("%s\n", __FUNCTION__));
 
+	priv = sna_pixmap(sna->front);
+	assert(priv && priv->gpu_bo);
+
 	/* Scan the connectors for a framebuffer and assume that is the fbcon */
 	VG_CLEAR(fbcon);
 	fbcon.fb_id = 0;
@@ -912,6 +915,11 @@ void sna_copy_fbcon(struct sna *sna)
 		return;
 	}
 
+	if (fbcon.fb_id == priv->gpu_bo->delta) {
+		DBG(("%s: fb already installed as scanout\n", __FUNCTION__));
+		return;
+	}
+
 	/* Wrap the fbcon in a pixmap so that we select the right formats
 	 * in the render copy in case we need to preserve the fbcon
 	 * across a depth change upon starting X.
@@ -932,9 +940,6 @@ void sna_copy_fbcon(struct sna *sna)
 		goto cleanup_scratch;
 
 	DBG(("%s: fbcon handle=%d\n", __FUNCTION__, bo->handle));
-
-	priv = sna_pixmap(sna->front);
-	assert(priv && priv->gpu_bo);
 
 	sx = dx = 0;
 	if (box.x2 < (uint16_t)fbcon.width)
@@ -1223,6 +1228,9 @@ sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	struct drm_mode_modeinfo saved_kmode;
 	bool saved_transform;
 
+	if (mode->HDisplay == 0 || mode->VDisplay == 0)
+		return FALSE;
+
 	xf86DrvMsg(crtc->scrn->scrnIndex, X_INFO,
 		   "switch to mode %dx%d on crtc %d (pipe %d)\n",
 		   mode->HDisplay, mode->VDisplay,
@@ -1309,9 +1317,12 @@ sna_crtc_dpms(xf86CrtcPtr crtc, int mode)
 void sna_mode_adjust_frame(struct sna *sna, int x, int y)
 {
 	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(sna->scrn);
-	xf86OutputPtr output = config->output[config->compat_output];
-	xf86CrtcPtr crtc = output->crtc;
+	xf86CrtcPtr crtc;
 
+	if ((unsigned)config->compat_output >= config->num_output)
+		return;
+
+	crtc = config->output[config->compat_output]->crtc;
 	if (crtc && crtc->enabled) {
 		int saved_x = crtc->x;
 		int saved_y = crtc->y;
@@ -2528,6 +2539,12 @@ static int do_page_flip(struct sna *sna, struct kgem_bo *bo,
 			DBG(("%s: flip [fb=%d] on crtc %d [%d] failed - %d\n",
 			     __FUNCTION__, arg.fb_id, i, crtc->id, errno));
 disable:
+			if (count == 0)
+				return 0;
+
+			xf86DrvMsg(sna->scrn->scrnIndex, X_ERROR,
+				   "%s: page flipping failed, disabling CRTC:%d (pipe=%d)\n",
+				   __FUNCTION__, crtc->id, crtc->pipe);
 			sna_crtc_disable(config->crtc[i]);
 			continue;
 		}
@@ -3277,6 +3294,9 @@ void sna_mode_redisplay(struct sna *sna)
 				DBG(("%s: flip [fb=%d] on crtc %d [%d, pipe=%d] failed - %d\n",
 				     __FUNCTION__, arg.fb_id, i, crtc->id, crtc->pipe, errno));
 disable:
+				xf86DrvMsg(sna->scrn->scrnIndex, X_ERROR,
+					   "%s: page flipping failed, disabling CRTC:%d (pipe=%d)\n",
+					   __FUNCTION__, crtc->id, crtc->pipe);
 				sna_crtc_disable(config->crtc[i]);
 				continue;
 			}

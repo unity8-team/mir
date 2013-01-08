@@ -52,18 +52,17 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 
 #if DRI2INFOREC_VERSION < 10
+#undef USE_ASYNC_SWAP
 #define USE_ASYNC_SWAP 0
 #endif
 
 #define COLOR_PREFER_TILING_Y 0
-#define FLIP_OFF_DELAY 5
 
 enum frame_event_type {
 	DRI2_SWAP,
 	DRI2_SWAP_WAIT,
 	DRI2_SWAP_THROTTLE,
 	DRI2_XCHG_THROTTLE,
-	DRI2_ASYNC_FLIP,
 	DRI2_FLIP,
 	DRI2_FLIP_THROTTLE,
 	DRI2_WAITMSC,
@@ -92,9 +91,9 @@ struct sna_dri_frame_event {
 	struct dri_bo {
 		struct kgem_bo *bo;
 		uint32_t name;
-	} old_front, next_front, cache;
+	} scanout[2], cache;
 
-	int off_delay;
+	int mode;
 };
 
 struct sna_dri_private {
@@ -226,8 +225,12 @@ sna_dri_pixmap_update_bo(struct sna *sna, PixmapPtr pixmap)
 	assert(private->pixmap == pixmap);
 
 	bo = sna_pixmap(pixmap)->gpu_bo;
+	if (private->bo == bo)
+		return;
+
+	kgem_bo_destroy(&sna->kgem, private->bo);
 	buffer->name = kgem_bo_flink(&sna->kgem, bo);
-	private->bo = bo;
+	private->bo = ref(bo);
 
 	/* XXX DRI2InvalidateDrawable(&pixmap->drawable); */
 }
@@ -522,23 +525,17 @@ static void sna_dri_select_mode(struct sna *sna, struct kgem_bo *dst, struct kge
 		return;
 	}
 
-	if (sna->kgem.has_semaphores) {
-		DBG(("%s: have sempahores, prefering RENDER\n", __FUNCTION__));
-		kgem_set_mode(&sna->kgem, KGEM_RENDER, dst);
-		return;
-	}
-
 	VG_CLEAR(busy);
-	busy.handle = src->handle;
+	busy.handle = dst->handle;
 	if (drmIoctl(sna->kgem.fd, DRM_IOCTL_I915_GEM_BUSY, &busy))
 		return;
 
-	DBG(("%s: src busy?=%x\n", __FUNCTION__, busy.busy));
+	DBG(("%s: dst busy?=%x\n", __FUNCTION__, busy.busy));
 	if (busy.busy == 0) {
-		busy.handle = dst->handle;
+		busy.handle = src->handle;
 		if (drmIoctl(sna->kgem.fd, DRM_IOCTL_I915_GEM_BUSY, &busy))
 			return;
-		DBG(("%s: dst busy?=%x\n", __FUNCTION__, busy.busy));
+		DBG(("%s: src busy?=%x\n", __FUNCTION__, busy.busy));
 		if (busy.busy == 0) {
 			DBG(("%s: src/dst is idle, using defaults\n", __FUNCTION__));
 			return;
@@ -563,6 +560,7 @@ static void sna_dri_select_mode(struct sna *sna, struct kgem_bo *dst, struct kge
 	mode = KGEM_RENDER;
 	if (busy.busy & (1 << 17))
 		mode = KGEM_BLT;
+	kgem_bo_mark_busy(dst, mode);
 	_kgem_set_mode(&sna->kgem, mode);
 }
 
@@ -1019,8 +1017,10 @@ sna_dri_frame_event_info_free(struct sna *sna,
 	_sna_dri_destroy_buffer(sna, info->front);
 	_sna_dri_destroy_buffer(sna, info->back);
 
-	if (info->old_front.bo)
-		kgem_bo_destroy(&sna->kgem, info->old_front.bo);
+	assert(info->scanout[1].bo == NULL);
+
+	if (info->scanout[0].bo)
+		kgem_bo_destroy(&sna->kgem, info->scanout[0].bo);
 
 	if (info->cache.bo)
 		kgem_bo_destroy(&sna->kgem, info->cache.bo);
@@ -1031,25 +1031,39 @@ sna_dri_frame_event_info_free(struct sna *sna,
 	free(info);
 }
 
-static void
+static bool
 sna_dri_page_flip(struct sna *sna, struct sna_dri_frame_event *info)
 {
 	struct kgem_bo *bo = get_private(info->back)->bo;
+	struct dri_bo tmp;
 
 	DBG(("%s()\n", __FUNCTION__));
 
 	assert(sna_pixmap_get_buffer(sna->front) == info->front);
 	assert(get_drawable_pixmap(info->draw)->drawable.height * bo->pitch <= kgem_bo_size(bo));
+	assert(info->scanout[0].bo);
 
 	info->count = sna_page_flip(sna, bo, info, info->pipe);
+	if (!info->count)
+		return false;
 
-	info->old_front.name = info->front->name;
-	info->old_front.bo = get_private(info->front)->bo;
+	info->scanout[1] = info->scanout[0];
+	info->scanout[0].bo = ref(bo);
+	info->scanout[0].name = info->back->name;
+
+	tmp.bo = get_private(info->front)->bo;
+	tmp.name = info->front->name;
 
 	set_bo(sna->front, bo);
 
 	info->front->name = info->back->name;
 	get_private(info->front)->bo = bo;
+
+	info->back->name = tmp.name;
+	get_private(info->back)->bo = tmp.bo;
+
+	sna->dri.flip_pending = info;
+	return true;
 }
 
 static bool
@@ -1114,6 +1128,7 @@ can_flip(struct sna * sna,
 		return false;
 	}
 	assert(get_private(front)->pixmap == sna->front);
+	assert(sna_pixmap(sna->front)->gpu_bo == get_private(front)->bo);
 
 	if (!get_private(back)->scanout) {
 		DBG(("%s: no, DRI2 drawable was too small at time of creation)\n",
@@ -1271,10 +1286,12 @@ sna_dri_exchange_buffers(DrawablePtr draw,
 	     pixmap->drawable.width,
 	     pixmap->drawable.height));
 
-	DBG(("%s: back_bo pitch=%d, size=%d\n",
-	     __FUNCTION__, back_bo->pitch, kgem_bo_size(back_bo)));
-	DBG(("%s: front_bo pitch=%d, size=%d\n",
-	     __FUNCTION__, front_bo->pitch, kgem_bo_size(front_bo)));
+	DBG(("%s: back_bo pitch=%d, size=%d, ref=%d\n",
+	     __FUNCTION__, back_bo->pitch, kgem_bo_size(back_bo), back_bo->refcnt));
+	DBG(("%s: front_bo pitch=%d, size=%d, ref=%d\n",
+	     __FUNCTION__, front_bo->pitch, kgem_bo_size(front_bo), front_bo->refcnt));
+	assert(front_bo->refcnt);
+	assert(back_bo->refcnt);
 
 	assert(sna_pixmap_get_buffer(pixmap) == front);
 	assert(pixmap->drawable.height * back_bo->pitch <= kgem_bo_size(back_bo));
@@ -1383,13 +1400,10 @@ void sna_dri_vblank_handler(struct sna *sna, struct drm_event_vblank *event)
 	switch (info->type) {
 	case DRI2_FLIP:
 		/* If we can still flip... */
-		if (can_flip(sna, draw, info->front, info->back)) {
-			sna_dri_page_flip(sna, info);
-			info->back->name = info->old_front.name;
-			get_private(info->back)->bo = info->old_front.bo;
-			info->old_front.bo = NULL;
+		if (can_flip(sna, draw, info->front, info->back) &&
+		    sna_dri_page_flip(sna, info))
 			return;
-		}
+
 		/* else fall through to blit */
 	case DRI2_SWAP:
 		if (can_blit(sna, draw, info->front, info->back))
@@ -1447,22 +1461,91 @@ done:
 }
 
 static void
+sna_dri_flip_get_back(struct sna *sna, struct sna_dri_frame_event *info)
+{
+	struct kgem_bo *bo;
+	uint32_t name;
+
+	DBG(("%s: scanout=(%d, %d), back=%d, cache=%d\n",
+	     __FUNCTION__,
+	     info->scanout[0].bo ? info->scanout[0].bo->handle : 0,
+	     info->scanout[1].bo ? info->scanout[1].bo->handle : 0,
+	     get_private(info->back)->bo->handle,
+	     info->cache.bo ? info->cache.bo->handle : 0));
+
+	bo = get_private(info->back)->bo;
+	if (!(bo == info->scanout[0].bo || bo == info->scanout[1].bo))
+		return;
+
+	bo = info->cache.bo;
+	name = info->cache.name;
+	if (bo == NULL ||
+	    bo == info->scanout[0].bo ||
+	    bo == info->scanout[1].bo) {
+		if (bo) {
+			DBG(("%s: discarding old backbuffer\n", __FUNCTION__));
+			kgem_bo_destroy(&sna->kgem, bo);
+		}
+		DBG(("%s: allocating new backbuffer\n", __FUNCTION__));
+		bo = kgem_create_2d(&sna->kgem,
+				    info->draw->width,
+				    info->draw->height,
+				    info->draw->bitsPerPixel,
+				    get_private(info->front)->bo->tiling,
+				    CREATE_SCANOUT | CREATE_EXACT);
+		name = kgem_bo_flink(&sna->kgem, bo);
+	}
+
+	info->cache.bo = get_private(info->back)->bo;
+	info->cache.name = info->back->name;
+
+	get_private(info->back)->bo = bo;
+	info->back->name = name;
+
+	assert(get_private(info->back)->bo != info->scanout[0].bo);
+	assert(get_private(info->back)->bo != info->scanout[1].bo);
+}
+
+static bool
 sna_dri_flip_continue(struct sna *sna, struct sna_dri_frame_event *info)
 {
-	struct dri_bo tmp;
+	DBG(("%s(mode=%d)\n", __FUNCTION__, info->mode));
 
-	DBG(("%s()\n", __FUNCTION__));
+	if (info->mode > 1){
+		if (get_private(info->front)->bo != sna_pixmap(sna->front)->gpu_bo)
+			return false;
 
-	assert(sna_pixmap_get_buffer(get_drawable_pixmap(info->draw)) == info->front);
+		info->count = sna_page_flip(sna,
+					    get_private(info->front)->bo,
+					    info, info->pipe);
+		if (!info->count)
+			return false;
 
-	tmp = info->old_front;
+		info->scanout[1] = info->scanout[0];
+		info->scanout[0].bo = ref(get_private(info->front)->bo);
+		info->scanout[0].name = info->front->name;
+		sna->dri.flip_pending = info;
+	} else {
+		if (!info->draw)
+			return false;
 
-	sna_dri_page_flip(sna, info);
+		assert(sna_pixmap_get_buffer(get_drawable_pixmap(info->draw)) == info->front);
+		if (!can_flip(sna, info->draw, info->front, info->back))
+			return false;
 
-	get_private(info->back)->bo = tmp.bo;
-	info->back->name = tmp.name;
+		if (!sna_dri_page_flip(sna, info))
+			return false;
 
-	info->next_front.name = 0;
+		sna_dri_flip_get_back(sna, info);
+		DRI2SwapComplete(info->client, info->draw,
+				 0, 0, 0,
+				 DRI2_FLIP_COMPLETE,
+				 info->client ? info->event_complete : NULL,
+				 info->event_data);
+	}
+
+	info->mode = 0;
+	return true;
 }
 
 static void chain_flip(struct sna *sna)
@@ -1480,26 +1563,12 @@ static void chain_flip(struct sna *sna)
 	}
 
 	if (chain->type == DRI2_FLIP &&
-	    can_flip(sna, chain->draw, chain->front, chain->back)) {
+	    can_flip(sna, chain->draw, chain->front, chain->back) &&
+	    sna_dri_page_flip(sna, chain)) {
 		DBG(("%s: performing chained flip\n", __FUNCTION__));
-		sna_dri_page_flip(sna, chain);
-
-		chain->back->name = chain->old_front.name;
-		get_private(chain->back)->bo = chain->old_front.bo;
-		chain->old_front.bo = NULL;
-
-		if (chain->count == 0) {
-			DRI2SwapComplete(chain->client, chain->draw, 0, 0, 0,
-					 DRI2_EXCHANGE_COMPLETE,
-					 chain->event_complete,
-					 chain->event_data);
-			sna_dri_frame_event_info_free(sna, chain->draw, chain);
-		} else
-			sna->dri.flip_pending = chain;
 	} else {
 		if (can_blit(sna, chain->draw, chain->front, chain->back)) {
 			DBG(("%s: emitting chained vsync'ed blit\n", __FUNCTION__));
-
 			chain->bo = sna_dri_copy_to_front(sna, chain->draw, NULL,
 							  get_private(chain->front)->bo,
 							  get_private(chain->back)->bo,
@@ -1521,6 +1590,14 @@ static void sna_dri_flip_event(struct sna *sna,
 	     flip->fe_tv_usec,
 	     flip->type));
 
+	if (flip->cache.bo == NULL) {
+		flip->cache = flip->scanout[1];
+		flip->scanout[1].bo = NULL;
+	}
+	if (flip->scanout[1].bo) {
+		kgem_bo_destroy(&sna->kgem, flip->scanout[1].bo);
+		flip->scanout[1].bo = NULL;
+	}
 	if (sna->dri.flip_pending == flip)
 		sna->dri.flip_pending = NULL;
 
@@ -1548,12 +1625,9 @@ static void sna_dri_flip_event(struct sna *sna,
 		if (sna->dri.flip_pending) {
 			sna_dri_frame_event_info_free(sna, flip->draw, flip);
 			chain_flip(sna);
-		} else if (!flip->next_front.name) {
-			/* Keep the pageflipping running for a couple of frames
-			 * so we keep the uncached scanouts alive.
-			 */
-			DBG(("%s: flip chain complete, off-delay=%d\n",
-			     __FUNCTION__, flip->off_delay));
+		} else if (!flip->mode) {
+			DBG(("%s: flip chain complete\n", __FUNCTION__));
+
 			if (flip->chain) {
 				sna_dri_remove_frame_event((WindowPtr)flip->draw,
 							   flip);
@@ -1565,31 +1639,8 @@ static void sna_dri_flip_event(struct sna *sna,
 				flip->draw = NULL;
 			}
 
-			if (flip->off_delay-- && flip->draw &&
-			    can_flip(sna, flip->draw, flip->front, flip->front) &&
-			    (flip->count = sna_page_flip(sna,
-							 get_private(flip->front)->bo,
-							 flip, flip->pipe))) {
-				assert(flip == sna_dri_window_get_chain((WindowPtr)flip->draw));
-				sna->dri.flip_pending = flip;
-			} else {
-				DBG(("%s: flip chain complete, off\n", __FUNCTION__));
-				sna_dri_frame_event_info_free(sna, flip->draw, flip);
-			}
-		} else if (flip->draw &&
-			   can_flip(sna, flip->draw, flip->front, flip->back)) {
-			sna_dri_flip_continue(sna, flip);
-			DRI2SwapComplete(flip->client, flip->draw,
-					 0, 0, 0,
-					 DRI2_FLIP_COMPLETE,
-					 flip->client ? flip->event_complete : NULL,
-					 flip->event_data);
-			if (flip->count) {
-				flip->off_delay = FLIP_OFF_DELAY;
-				sna->dri.flip_pending = flip;
-			} else
-				sna_dri_frame_event_info_free(sna, flip->draw, flip);
-		} else {
+			sna_dri_frame_event_info_free(sna, flip->draw, flip);
+		} else if (!sna_dri_flip_continue(sna, flip)) {
 			DBG(("%s: no longer able to flip\n", __FUNCTION__));
 
 			if (flip->draw) {
@@ -1609,77 +1660,6 @@ static void sna_dri_flip_event(struct sna *sna,
 			sna_dri_frame_event_info_free(sna, flip->draw, flip);
 		}
 		break;
-
-#if USE_ASYNC_SWAP
-	case DRI2_ASYNC_FLIP:
-		DBG(("%s: async swap flip completed on pipe %d, pending? %d, new? %d\n",
-		     __FUNCTION__, flip->pipe,
-		     sna->dri.flip_pending != NULL,
-		     flip->front->name != flip->next_front.name));
-
-		if (sna->dri.flip_pending) {
-			chain_flip(sna);
-			goto finish_async_flip;
-		} else if (flip->front->name != flip->next_front.name) {
-			DBG(("%s: async flip continuing\n", __FUNCTION__));
-
-			flip->cache = flip->old_front;
-			flip->old_front = flip->next_front;
-
-			flip->count = sna_page_flip(sna,
-						    get_private(flip->front)->bo,
-						    flip, flip->pipe);
-			if (flip->count == 0) {
-				if (flip->chain)
-					goto chain_async_flip;
-				else
-					goto finish_async_flip;
-			}
-
-			flip->next_front.bo = get_private(flip->front)->bo;
-			flip->next_front.name = flip->front->name;
-			flip->off_delay = FLIP_OFF_DELAY;
-
-			sna->dri.flip_pending = flip;
-		} else {
-			if (flip->chain) {
-chain_async_flip:
-				sna_dri_remove_frame_event((WindowPtr)flip->draw,
-							   flip);
-				chain_swap(sna, flip->draw,
-					   flip->fe_frame,
-					   flip->fe_tv_sec,
-					   flip->fe_tv_usec,
-					   flip->chain);
-				flip->draw = NULL;
-			}
-
-			if (flip->draw &&
-			    can_flip(sna, flip->draw, flip->front, flip->back) &&
-			    flip->off_delay--) {
-				assert(flip == sna_dri_window_get_chain((WindowPtr)flip->draw));
-				DBG(("%s: queuing no-flip [delay=%d]\n",
-				     __FUNCTION__, flip->off_delay));
-				/* Just queue a no-op flip to trigger another event */
-				flip->count = sna_page_flip(sna,
-							    get_private(flip->front)->bo,
-							    flip, flip->pipe);
-				if (flip->count == 0)
-					goto finish_async_flip;
-
-				assert(flip->next_front.bo == get_private(flip->front)->bo);
-				assert(flip->next_front.name == flip->front->name);
-
-				sna->dri.flip_pending = flip;
-			} else {
-finish_async_flip:
-				DBG(("%s: async flip completed (drawable gone? %d)\n",
-				     __FUNCTION__, flip->draw == NULL));
-				sna_dri_frame_event_info_free(sna, flip->draw, flip);
-			}
-		}
-		break;
-#endif
 
 	default:
 		xf86DrvMsg(sna->scrn->scrnIndex, X_WARNING,
@@ -1710,220 +1690,22 @@ sna_dri_page_flip_handler(struct sna *sna,
 	sna_dri_flip_event(sna, info);
 }
 
-static CARD64
-get_current_msc_for_target(struct sna *sna, CARD64 target_msc, int pipe)
-{
-	CARD64 ret = -1;
-
-	if (target_msc && (sna->flags & SNA_NO_WAIT) == 0) {
-		drmVBlank vbl;
-
-		VG_CLEAR(vbl);
-		vbl.request.type = DRM_VBLANK_RELATIVE | pipe_select(pipe);
-		vbl.request.sequence = 0;
-		if (sna_wait_vblank(sna, &vbl) == 0)
-			ret = vbl.reply.sequence;
-	}
-
-	return ret;
-}
-
-static bool
-sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
-		      DRI2BufferPtr back, CARD64 *target_msc, CARD64 divisor,
-		      CARD64 remainder, DRI2SwapEventPtr func, void *data)
-{
-	struct sna *sna = to_sna_from_drawable(draw);
-	struct sna_dri_frame_event *info;
-	drmVBlank vbl;
-	int pipe;
-	CARD64 current_msc;
-
-	DBG(("%s(target_msc=%llu, divisor=%llu, remainder=%llu)\n",
-	     __FUNCTION__,
-	     (long long)*target_msc,
-	     (long long)divisor,
-	     (long long)remainder));
-
-	VG_CLEAR(vbl);
-
-	pipe = sna_dri_get_pipe(draw);
-	if (pipe == -1) {
-		/* XXX WARN_ON(sna->dri.flip_pending) ? */
-		if (sna->dri.flip_pending == NULL) {
-			sna_dri_exchange_buffers(draw, front, back);
-			DRI2SwapComplete(client, draw, 0, 0, 0,
-					DRI2_EXCHANGE_COMPLETE, func, data);
-			return true;
-		} else
-			return false;
-	}
-
-	current_msc = get_current_msc_for_target(sna, *target_msc, pipe);
-
-	DBG(("%s: target_msc=%u, current_msc=%u, divisor=%u\n", __FUNCTION__,
-	     (uint32_t)*target_msc, (uint32_t)current_msc, (uint32_t)divisor));
-
-	if (divisor == 0 && current_msc >= *target_msc) {
-		DBG(("%s: performing immediate swap on pipe %d, pending? %d\n",
-		     __FUNCTION__, pipe, sna->dri.flip_pending != NULL));
-
-		info = sna->dri.flip_pending;
-		if (info && info->draw == draw && info->type == DRI2_FLIP_THROTTLE) {
-			DBG(("%s: chaining flip\n", __FUNCTION__));
-			info->next_front.name = 1;
-			return true;
-		}
-
-		info = calloc(1, sizeof(struct sna_dri_frame_event));
-		if (info == NULL)
-			return false;
-
-		info->type = sna->flags & SNA_TRIPLE_BUFFER ? DRI2_FLIP_THROTTLE: DRI2_FLIP;
-
-		info->draw = draw;
-		info->client = client;
-		info->event_complete = func;
-		info->event_data = data;
-		info->front = front;
-		info->back = back;
-		info->pipe = pipe;
-
-		sna_dri_add_frame_event(draw, info);
-		sna_dri_reference_buffer(front);
-		sna_dri_reference_buffer(back);
-
-		if (sna->dri.flip_pending) {
-			/* We need to first wait (one vblank) for the
-			 * async flips to complete before this client
-			 * can take over.
-			 */
-			DBG(("%s: queueing flip after pending completion\n",
-			     __FUNCTION__));
-			info->type = DRI2_FLIP;
-			sna->dri.flip_pending = info;
-			return true;
-		}
-
-		sna_dri_page_flip(sna, info);
-
-		if (info->count == 0) {
-			sna_dri_frame_event_info_free(sna, draw, info);
-			return false;
-		} else if (info->type != DRI2_FLIP) {
-			get_private(info->back)->bo =
-				kgem_create_2d(&sna->kgem,
-					       draw->width,
-					       draw->height,
-					       draw->bitsPerPixel,
-					       get_private(info->front)->bo->tiling,
-					       CREATE_SCANOUT | CREATE_EXACT);
-			info->back->name = kgem_bo_flink(&sna->kgem,
-							 get_private(info->back)->bo);
-			info->off_delay = FLIP_OFF_DELAY;
-			sna->dri.flip_pending = info;
-
-			DRI2SwapComplete(info->client, draw, 0, 0, 0,
-					 DRI2_EXCHANGE_COMPLETE,
-					 info->event_complete,
-					 info->event_data);
-		} else {
-			info->back->name = info->old_front.name;
-			get_private(info->back)->bo = info->old_front.bo;
-			info->old_front.bo = NULL;
-		}
-	} else {
-		info = calloc(1, sizeof(struct sna_dri_frame_event));
-		if (info == NULL)
-			return false;
-
-		info->draw = draw;
-		info->client = client;
-		info->event_complete = func;
-		info->event_data = data;
-		info->front = front;
-		info->back = back;
-		info->pipe = pipe;
-		info->type = DRI2_FLIP;
-
-		sna_dri_add_frame_event(draw, info);
-		sna_dri_reference_buffer(front);
-		sna_dri_reference_buffer(back);
-
-		*target_msc &= 0xffffffff;
-		remainder &= 0xffffffff;
-
-		vbl.request.type =
-			DRM_VBLANK_ABSOLUTE |
-			DRM_VBLANK_EVENT |
-			pipe_select(pipe);
-
-		/*
-		 * If divisor is zero, or current_msc is smaller than target_msc
-		 * we just need to make sure target_msc passes before initiating
-		 * the swap.
-		 */
-		if (current_msc < *target_msc) {
-			DBG(("%s: waiting for swap: current=%d, target=%d, divisor=%d\n",
-			     __FUNCTION__,
-			     (int)current_msc,
-			     (int)*target_msc,
-			     (int)divisor));
-			vbl.request.sequence = *target_msc;
-		} else {
-			DBG(("%s: missed target, queueing event for next: current=%d, target=%d, divisor=%d\n",
-			     __FUNCTION__,
-			     (int)current_msc,
-			     (int)*target_msc,
-			     (int)divisor));
-
-			if (divisor == 0)
-				divisor = 1;
-
-			vbl.request.sequence = current_msc - current_msc % divisor + remainder;
-
-			/*
-			 * If the calculated deadline vbl.request.sequence is
-			 * smaller than or equal to current_msc, it means
-			 * we've passed the last point when effective onset
-			 * frame seq could satisfy *seq % divisor == remainder,
-			 * so we need to wait for the next time this will
-			 * happen.
-			 *
-			 * This comparison takes the 1 frame swap delay
-			 * in pageflipping mode into account.
-			 */
-			if (vbl.request.sequence <= current_msc)
-				vbl.request.sequence += divisor;
-
-			/* Adjust returned value for 1 frame pageflip offset */
-			*target_msc = vbl.reply.sequence + 1;
-		}
-
-		/* Account for 1 frame extra pageflip delay */
-		vbl.request.sequence -= 1;
-		vbl.request.signal = (unsigned long)info;
-		if (sna_wait_vblank(sna, &vbl)) {
-			sna_dri_frame_event_info_free(sna, draw, info);
-			return false;
-		}
-	}
-
-	return true;
-}
-
 static void
 sna_dri_immediate_xchg(struct sna *sna,
 		       DrawablePtr draw,
-		       struct sna_dri_frame_event *info)
+		       struct sna_dri_frame_event *info,
+		       bool sync)
 {
 	drmVBlank vbl;
 
-	DBG(("%s: emitting immediate exchange, throttling client\n",
-	     __FUNCTION__));
+	if (sna->flags & SNA_NO_WAIT)
+		sync = false;
+
+	DBG(("%s: emitting immediate exchange, throttling client, synced? %d\n",
+	     __FUNCTION__, sync));
 	VG_CLEAR(vbl);
 
-	if ((sna->flags & SNA_NO_WAIT) == 0) {
+	if (sync) {
 		info->type = DRI2_XCHG_THROTTLE;
 		if (sna_dri_window_get_chain((WindowPtr)draw) == info) {
 			DBG(("%s: no pending xchg, starting chain\n",
@@ -1957,11 +1739,16 @@ sna_dri_immediate_xchg(struct sna *sna,
 static void
 sna_dri_immediate_blit(struct sna *sna,
 		       DrawablePtr draw,
-		       struct sna_dri_frame_event *info)
+		       struct sna_dri_frame_event *info,
+		       bool sync)
 {
-	DBG(("%s: emitting immediate blit, throttling client\n", __FUNCTION__));
+	if (sna->flags & SNA_NO_WAIT)
+		sync = false;
 
-	if ((sna->flags & SNA_NO_WAIT) == 0) {
+	DBG(("%s: emitting immediate blit, throttling client, synced? %d\n",
+	     __FUNCTION__, sync));
+
+	if (sync) {
 		info->type = DRI2_SWAP_THROTTLE;
 		if (sna_dri_window_get_chain((WindowPtr)draw) == info) {
 			drmVBlank vbl;
@@ -2000,6 +1787,199 @@ sna_dri_immediate_blit(struct sna *sna,
 				 info->event_data);
 		sna_dri_frame_event_info_free(sna, draw, info);
 	}
+}
+
+static CARD64
+get_current_msc_for_target(struct sna *sna, CARD64 target_msc, int pipe)
+{
+	CARD64 ret = -1;
+
+	if (target_msc && (sna->flags & SNA_NO_WAIT) == 0) {
+		drmVBlank vbl;
+
+		VG_CLEAR(vbl);
+		vbl.request.type = DRM_VBLANK_RELATIVE | pipe_select(pipe);
+		vbl.request.sequence = 0;
+		if (sna_wait_vblank(sna, &vbl) == 0)
+			ret = vbl.reply.sequence;
+	}
+
+	return ret;
+}
+
+static bool
+sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw,
+		      DRI2BufferPtr front, DRI2BufferPtr back, int pipe,
+		      CARD64 *target_msc, CARD64 divisor, CARD64 remainder,
+		      DRI2SwapEventPtr func, void *data)
+{
+	struct sna *sna = to_sna_from_drawable(draw);
+	struct sna_dri_frame_event *info;
+	drmVBlank vbl;
+	CARD64 current_msc;
+
+	current_msc = get_current_msc_for_target(sna, *target_msc, pipe);
+
+	DBG(("%s: target_msc=%u, current_msc=%u, divisor=%u\n", __FUNCTION__,
+	     (uint32_t)*target_msc, (uint32_t)current_msc, (uint32_t)divisor));
+
+	if (divisor == 0 && current_msc >= *target_msc - 1) {
+		info = sna->dri.flip_pending;
+
+		DBG(("%s: performing immediate swap on pipe %d, pending? %d, mode: %d\n",
+		     __FUNCTION__, pipe, info != NULL, info ? info->mode : 0));
+
+		if (info && info->draw == draw) {
+			assert(info->type == DRI2_FLIP_THROTTLE);
+			assert(info->front == front);
+			assert(info->back == back);
+			if (current_msc >= *target_msc) {
+				DBG(("%s: executing xchg of pending flip\n",
+				     __FUNCTION__));
+				sna_dri_exchange_buffers(draw, front, back);
+				info->mode = 2;
+				goto new_back;
+			} else {
+				DBG(("%s: chaining flip\n", __FUNCTION__));
+				info->mode = 1;
+				current_msc++;
+				goto out;
+			}
+		}
+
+		info = calloc(1, sizeof(struct sna_dri_frame_event));
+		if (info == NULL)
+			return false;
+
+		info->type = sna->flags & SNA_TRIPLE_BUFFER ? DRI2_FLIP_THROTTLE: DRI2_FLIP;
+
+		info->draw = draw;
+		info->client = client;
+		info->event_complete = func;
+		info->event_data = data;
+		info->front = front;
+		info->back = back;
+		info->pipe = pipe;
+
+		info->scanout[0].bo = ref(get_private(front)->bo);
+		info->scanout[0].name = info->front->name;
+
+		sna_dri_add_frame_event(draw, info);
+		sna_dri_reference_buffer(front);
+		sna_dri_reference_buffer(back);
+
+		if (sna->dri.flip_pending) {
+			/* We need to first wait (one vblank) for the
+			 * async flips to complete before this client
+			 * can take over.
+			 */
+			DBG(("%s: queueing flip after pending completion\n",
+			     __FUNCTION__));
+			info->type = DRI2_FLIP;
+			sna->dri.flip_pending = info;
+			*target_msc = current_msc + 1;
+			return true;
+		}
+
+		if (!sna_dri_page_flip(sna, info)) {
+			sna_dri_frame_event_info_free(sna, draw, info);
+			return false;
+		}
+
+		if (info->type != DRI2_FLIP) {
+			current_msc++;
+new_back:
+			sna_dri_flip_get_back(sna, info);
+			DRI2SwapComplete(client, draw, 0, 0, 0,
+					 DRI2_EXCHANGE_COMPLETE,
+					 func, data);
+		}
+out:
+		*target_msc = current_msc;
+		return true;
+	}
+
+	info = calloc(1, sizeof(struct sna_dri_frame_event));
+	if (info == NULL)
+		return false;
+
+	info->draw = draw;
+	info->client = client;
+	info->event_complete = func;
+	info->event_data = data;
+	info->front = front;
+	info->back = back;
+	info->pipe = pipe;
+	info->type = DRI2_FLIP;
+
+	info->scanout[0].bo = ref(get_private(front)->bo);
+	info->scanout[0].name = info->front->name;
+
+	sna_dri_add_frame_event(draw, info);
+	sna_dri_reference_buffer(front);
+	sna_dri_reference_buffer(back);
+
+	*target_msc &= 0xffffffff;
+	remainder &= 0xffffffff;
+
+	VG_CLEAR(vbl);
+
+	vbl.request.type =
+		DRM_VBLANK_ABSOLUTE |
+		DRM_VBLANK_EVENT |
+		pipe_select(pipe);
+
+	/*
+	 * If divisor is zero, or current_msc is smaller than target_msc
+	 * we just need to make sure target_msc passes before initiating
+	 * the swap.
+	 */
+	if (current_msc <= *target_msc - 1) {
+		DBG(("%s: waiting for swap: current=%d, target=%d, divisor=%d\n",
+		     __FUNCTION__,
+		     (int)current_msc,
+		     (int)*target_msc,
+		     (int)divisor));
+		vbl.request.sequence = *target_msc;
+	} else {
+		DBG(("%s: missed target, queueing event for next: current=%d, target=%d, divisor=%d\n",
+		     __FUNCTION__,
+		     (int)current_msc,
+		     (int)*target_msc,
+		     (int)divisor));
+
+		if (divisor == 0)
+			divisor = 1;
+
+		vbl.request.sequence = current_msc - current_msc % divisor + remainder;
+
+		/*
+		 * If the calculated deadline vbl.request.sequence is
+		 * smaller than or equal to current_msc, it means
+		 * we've passed the last point when effective onset
+		 * frame seq could satisfy *seq % divisor == remainder,
+		 * so we need to wait for the next time this will
+		 * happen.
+		 *
+		 * This comparison takes the 1 frame swap delay
+		 * in pageflipping mode into account.
+		 */
+		if (vbl.request.sequence <= current_msc)
+			vbl.request.sequence += divisor;
+
+		/* Adjust returned value for 1 frame pageflip offset */
+		*target_msc = vbl.reply.sequence;
+	}
+
+	/* Account for 1 frame extra pageflip delay */
+	vbl.request.sequence -= 1;
+	vbl.request.signal = (unsigned long)info;
+	if (sna_wait_vblank(sna, &vbl)) {
+		sna_dri_frame_event_info_free(sna, draw, info);
+		return false;
+	}
+
+	return true;
 }
 
 /*
@@ -2048,29 +2028,18 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	divisor &= 0xffffffff;
 	remainder &= 0xffffffff;
 
-	if (can_flip(sna, draw, front, back)) {
-		DBG(("%s: try flip\n", __FUNCTION__));
-		if (sna_dri_schedule_flip(client, draw, front, back,
-					  target_msc, divisor, remainder,
-					  func, data))
-			return TRUE;
-	}
-
 	/* Drawable not displayed... just complete the swap */
 	pipe = sna_dri_get_pipe(draw);
 	if (pipe == -1) {
-		if (can_exchange(sna, draw, front, back)) {
-			DBG(("%s: unattached, exchange pixmaps\n", __FUNCTION__));
-			sna_dri_exchange_buffers(draw, front, back);
-
-			DRI2SwapComplete(client, draw, 0, 0, 0,
-					 DRI2_EXCHANGE_COMPLETE, func, data);
-			return TRUE;
-		}
-
 		DBG(("%s: off-screen, immediate update\n", __FUNCTION__));
 		goto blit_fallback;
 	}
+
+	if (can_flip(sna, draw, front, back) &&
+	    sna_dri_schedule_flip(client, draw, front, back, pipe,
+				  target_msc, divisor, remainder,
+				  func, data))
+		return TRUE;
 
 	VG_CLEAR(vbl);
 
@@ -2096,16 +2065,19 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	DBG(("%s: target_msc=%u, current_msc=%u, divisor=%u\n", __FUNCTION__,
 	     (uint32_t)*target_msc, (uint32_t)current_msc, (uint32_t)divisor));
 
-	if (divisor == 0 && current_msc >= *target_msc) {
+	if (divisor == 0 && current_msc >= *target_msc - 1) {
 		if (can_exchange(sna, draw, front, back)) {
-			sna_dri_immediate_xchg(sna, draw, info);
+			sna_dri_immediate_xchg(sna, draw, info,
+					       current_msc < *target_msc);
 		} else if (can_blit(sna, draw, front, back)) {
-			sna_dri_immediate_blit(sna, draw, info);
+			sna_dri_immediate_blit(sna, draw, info,
+					       current_msc < *target_msc);
 		} else {
 			DRI2SwapComplete(client, draw, 0, 0, 0,
 					 DRI2_BLIT_COMPLETE, func, data);
 			sna_dri_frame_event_info_free(sna, draw, info);
 		}
+		*target_msc = current_msc + 1;
 		return TRUE;
 	}
 
@@ -2165,13 +2137,13 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	 */
 	if (vbl.request.sequence < current_msc)
 		vbl.request.sequence += divisor;
-	vbl.request.sequence -= 1;
+	*target_msc = vbl.reply.sequence;
 
+	vbl.request.sequence -= 1;
 	vbl.request.signal = (unsigned long)info;
 	if (sna_wait_vblank(sna, &vbl))
 		goto blit_fallback;
 
-	*target_msc = vbl.reply.sequence;
 	return TRUE;
 
 blit_fallback:
@@ -2201,19 +2173,20 @@ sna_dri_async_swap(ClientPtr client, DrawablePtr draw,
 		   DRI2SwapEventPtr func, void *data)
 {
 	struct sna *sna = to_sna_from_drawable(draw);
-	struct sna_dri_frame_event *info;
-	struct kgem_bo *bo;
-	int name;
+	CARD64 target_msc = 0;
+	int pipe;
 
 	DBG(("%s()\n", __FUNCTION__));
 
-	if (!can_flip(sna, draw, front, back)) {
-blit:
-		name = DRI2_BLIT_COMPLETE;
+	if (!can_flip(sna, draw, front, back) ||
+	    (pipe = sna_dri_get_pipe(draw)) < 0 ||
+	    !sna_dri_schedule_flip(client, draw, front, back, pipe,
+				   &target_msc, 0, 0, func, data)) {
+		pipe = DRI2_BLIT_COMPLETE;
 		if (can_exchange(sna, draw, front, back)) {
 			DBG(("%s: unable to flip, so xchg\n", __FUNCTION__));
 			sna_dri_exchange_buffers(draw, front, back);
-			name = DRI2_EXCHANGE_COMPLETE;
+			pipe = DRI2_EXCHANGE_COMPLETE;
 		} else if (can_blit(sna, draw, front, back)) {
 			DBG(("%s: unable to flip, so blit\n", __FUNCTION__));
 			sna_dri_copy_to_front(sna, draw, NULL,
@@ -2222,79 +2195,9 @@ blit:
 					      false);
 		}
 
-		DRI2SwapComplete(client, draw, 0, 0, 0, name, func, data);
-		return name == DRI2_EXCHANGE_COMPLETE;
+		DRI2SwapComplete(client, draw, 0, 0, 0, pipe, func, data);
+		return pipe == DRI2_EXCHANGE_COMPLETE;
 	}
-
-	bo = NULL;
-	name = 0;
-
-	info = sna->dri.flip_pending;
-	if (info == NULL) {
-		int pipe = sna_dri_get_pipe(draw);
-		if (pipe == -1)
-			goto blit;
-
-		DBG(("%s: no pending flip, so updating scanout\n",
-		     __FUNCTION__));
-
-		info = calloc(1, sizeof(struct sna_dri_frame_event));
-		if (!info)
-			goto blit;
-
-		info->client = client;
-		info->draw = draw;
-		info->type = DRI2_ASYNC_FLIP;
-		info->pipe = pipe;
-		info->front = front;
-		info->back = back;
-
-		sna_dri_add_frame_event(draw, info);
-		sna_dri_reference_buffer(front);
-		sna_dri_reference_buffer(back);
-
-		sna_dri_page_flip(sna, info);
-
-		info->next_front.name = info->front->name;
-		info->next_front.bo = get_private(info->front)->bo;
-		info->off_delay = FLIP_OFF_DELAY;
-	} else if (info->type != DRI2_ASYNC_FLIP) {
-		/* A normal vsync'ed client is finishing, wait for it
-		 * to unpin the old framebuffer before taking over.
-		 */
-		goto blit;
-	} else {
-		DBG(("%s: pending flip, chaining next\n", __FUNCTION__));
-		if (info->next_front.name == info->front->name) {
-			name = info->cache.name;
-			bo = info->cache.bo;
-		} else {
-			name = info->front->name;
-			bo = get_private(info->front)->bo;
-		}
-		info->front->name = info->back->name;
-		get_private(info->front)->bo = get_private(info->back)->bo;
-	}
-
-	if (bo == NULL) {
-		DBG(("%s: creating new back buffer\n", __FUNCTION__));
-		bo = kgem_create_2d(&sna->kgem,
-				    draw->width,
-				    draw->height,
-				    draw->bitsPerPixel,
-				    get_private(info->front)->bo->tiling,
-				    CREATE_SCANOUT | CREATE_EXACT);
-		name = kgem_bo_flink(&sna->kgem, bo);
-	}
-	assert(bo->refcnt);
-	get_private(info->back)->bo = bo;
-	info->back->name = name;
-
-	set_bo(sna->front, get_private(info->front)->bo);
-	sna->dri.flip_pending = info;
-
-	DRI2SwapComplete(client, draw, 0, 0, 0,
-			 DRI2_EXCHANGE_COMPLETE, func, data);
 	return TRUE;
 }
 #endif

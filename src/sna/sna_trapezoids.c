@@ -532,6 +532,9 @@ cell_list_add_subspan(struct cell_list *cells,
 	int ix1, fx1;
 	int ix2, fx2;
 
+	if (x1 == x2)
+		return;
+
 	FAST_SAMPLES_X_TO_INT_FRAC(x1, ix1, fx1);
 	FAST_SAMPLES_X_TO_INT_FRAC(x2, ix2, fx2);
 
@@ -797,6 +800,9 @@ merge_sorted_edges(struct edge *head_a, struct edge *head_b)
 	struct edge *head, **next, *prev;
 	int32_t x;
 
+	if (head_b == NULL)
+		return head_a;
+
 	prev = head_a->prev;
 	next = &head;
 	if (head_a->x.quo <= head_b->x.quo) {
@@ -869,11 +875,39 @@ sort_edges(struct edge  *list,
 	return remaining;
 }
 
+static struct edge *filter(struct edge *edges)
+{
+	struct edge *e;
+
+	e = edges;
+	do {
+		struct edge *n = e->next;
+		if (e->dir == -n->dir &&
+		    e->height_left == n->height_left &&
+		    *(uint64_t *)&e->x == *(uint64_t *)&n->x &&
+		    *(uint64_t *)&e->dxdy == *(uint64_t *)&n->dxdy) {
+			if (e->prev)
+				e->prev->next = n->next;
+			else
+				edges = n->next;
+			if (n->next)
+				n->next->prev = e->prev;
+			else
+				break;
+
+			e = n->next;
+		} else
+			e = e->next;
+	} while (e->next);
+
+	return edges;
+}
+
 static struct edge *
 merge_unsorted_edges (struct edge *head, struct edge *unsorted)
 {
 	sort_edges (unsorted, UINT_MAX, &unsorted);
-	return merge_sorted_edges (head, unsorted);
+	return merge_sorted_edges (head, filter(unsorted));
 }
 
 /* Test if the edges on the active list can be safely advanced by a
@@ -881,18 +915,18 @@ merge_unsorted_edges (struct edge *head, struct edge *unsorted)
 inline static bool
 can_full_step(struct active_list *active)
 {
-	const struct edge *e;
-
 	/* Recomputes the minimum height of all edges on the active
 	 * list if we have been dropping edges. */
 	if (active->min_height <= 0) {
+		const struct edge *e;
 		int min_height = INT_MAX;
 		int is_vertical = 1;
 
 		for (e = active->head.next; &active->tail != e; e = e->next) {
 			if (e->height_left < min_height)
 				min_height = e->height_left;
-			is_vertical &= e->dy == 0;
+			if (is_vertical)
+				is_vertical = e->dy == 0;
 		}
 
 		active->is_vertical = is_vertical;
@@ -929,7 +963,8 @@ fill_buckets(struct active_list *active,
 		*b = edge;
 		if (edge->height_left < min_height)
 			min_height = edge->height_left;
-		is_vertical &= edge->dy == 0;
+		if (is_vertical)
+			is_vertical = edge->dy == 0;
 		edge = next;
 	}
 
@@ -1917,6 +1952,9 @@ mono_merge_sorted_edges(struct mono_edge *head_a, struct mono_edge *head_b)
 	struct mono_edge *head, **next, *prev;
 	int32_t x;
 
+	if (head_b == NULL)
+		return head_a;
+
 	prev = head_a->prev;
 	next = &head;
 	if (head_a->x.quo <= head_b->x.quo) {
@@ -1990,11 +2028,39 @@ mono_sort_edges(struct mono_edge *list,
 	return remaining;
 }
 
+static struct mono_edge *mono_filter(struct mono_edge *edges)
+{
+	struct mono_edge *e;
+
+	e = edges;
+	do {
+		struct mono_edge *n = e->next;
+		if (e->dir == -n->dir &&
+		    e->height_left == n->height_left &&
+		    *(uint64_t *)&e->x == *(uint64_t *)&n->x &&
+		    *(uint64_t *)&e->dxdy == *(uint64_t *)&n->dxdy) {
+			if (e->prev)
+				e->prev->next = n->next;
+			else
+				edges = n->next;
+			if (n->next)
+				n->next->prev = e->prev;
+			else
+				break;
+
+			e = n->next;
+		} else
+			e = e->next;
+	} while (e->next);
+
+	return edges;
+}
+
 static struct mono_edge *
 mono_merge_unsorted_edges(struct mono_edge *head, struct mono_edge *unsorted)
 {
 	mono_sort_edges(unsorted, UINT_MAX, &unsorted);
-	return mono_merge_sorted_edges(head, unsorted);
+	return mono_merge_sorted_edges(head, mono_filter(unsorted));
 }
 
 #if 0
@@ -4351,7 +4417,8 @@ struct inplace {
 static force_inline uint8_t coverage_opacity(int coverage, uint8_t opacity)
 {
 	coverage = coverage * 256 / FAST_SAMPLES_XY;
-	return mul_8_8(coverage - (coverage >> 8), opacity);
+	coverage -= coverage >> 8;
+	return opacity == 255 ? coverage : mul_8_8(coverage, opacity);
 }
 
 static void
@@ -4936,6 +5003,45 @@ unbounded_pass:
 }
 
 static void
+pixmask_span_solid(struct sna *sna,
+		   struct sna_composite_spans_op *op,
+		   pixman_region16_t *clip,
+		   const BoxRec *box,
+		   int coverage)
+{
+	struct pixman_inplace *pi = (struct pixman_inplace *)op;
+	if (coverage != FAST_SAMPLES_XY) {
+		coverage = coverage * 256 / FAST_SAMPLES_XY;
+		coverage -= coverage >> 8;
+		*pi->bits = mul_4x8_8(pi->color, coverage);
+	} else
+		*pi->bits = pi->color;
+	pixman_image_composite(pi->op, pi->source, NULL, pi->image,
+			       box->x1, box->y1,
+			       0, 0,
+			       pi->dx + box->x1, pi->dy + box->y1,
+			       box->x2 - box->x1, box->y2 - box->y1);
+}
+static void
+pixmask_span_solid__clipped(struct sna *sna,
+			    struct sna_composite_spans_op *op,
+			    pixman_region16_t *clip,
+			    const BoxRec *box,
+			    int coverage)
+{
+	pixman_region16_t region;
+	int n;
+
+	pixman_region_init_rects(&region, box, 1);
+	RegionIntersect(&region, &region, clip);
+	n = REGION_NUM_RECTS(&region);
+	box = REGION_RECTS(&region);
+	while (n--)
+		pixmask_span_solid(sna, op, NULL, box++, coverage);
+	pixman_region_fini(&region);
+}
+
+static void
 pixmask_span(struct sna *sna,
 	     struct sna_composite_spans_op *op,
 	     pixman_region16_t *clip,
@@ -5102,6 +5208,30 @@ trapezoid_span_inplace__x8r8g8b8(CARD8 op,
 			tor_render(NULL, &tor, (void*)&inplace,
 				   dst->pCompositeClip, span, false);
 			tor_fini(&tor);
+		} else if (sna_picture_is_solid(src, &color)) {
+			struct pixman_inplace pi;
+
+			pi.image = image_from_pict(dst, false, &pi.dx, &pi.dy);
+			pi.op = op;
+			pi.color = color;
+
+			pi.bits = (uint32_t *)&pi.sx;
+			pi.source = pixman_image_create_bits(PIXMAN_a8r8g8b8,
+							     1, 1, pi.bits, 0);
+			pixman_image_set_repeat(pi.source, PIXMAN_REPEAT_NORMAL);
+
+			if (dst->pCompositeClip->data)
+				span = pixmask_span_solid__clipped;
+			else
+				span = pixmask_span_solid;
+
+			tor_render(NULL, &tor, (void*)&pi,
+				   dst->pCompositeClip, span,
+				   false);
+			tor_fini(&tor);
+
+			pixman_image_unref(pi.source);
+			pixman_image_unref(pi.image);
 		} else {
 			struct pixman_inplace pi;
 
@@ -5546,7 +5676,7 @@ sna_composite_trapezoids(CARD8 op,
 
 	force_fallback = FORCE_FALLBACK > 0;
 	if ((too_small(priv) || DAMAGE_IS_ALL(priv->cpu_damage)) &&
-	    !picture_is_gpu(src)) {
+	    !picture_is_gpu(src) && untransformed(src)) {
 		DBG(("%s: force fallbacks --too small, %dx%d? %d, all-cpu? %d, src-is-cpu? %d\n",
 		     __FUNCTION__,
 		     dst->pDrawable->width,

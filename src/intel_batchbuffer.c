@@ -67,17 +67,26 @@ void intel_next_vertex(intel_screen_private *intel)
 		dri_bo_alloc(intel->bufmgr, "vertex", sizeof (intel->vertex_ptr), 4096);
 }
 
-static void intel_next_batch(ScrnInfoPtr scrn)
+static dri_bo *bo_alloc(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-
+	int size = 4 * 4096;
 	/* The 865 has issues with larger-than-page-sized batch buffers. */
 	if (IS_I865G(intel))
-		intel->batch_bo =
-		    dri_bo_alloc(intel->bufmgr, "batch", 4096, 4096);
-	else
-		intel->batch_bo =
-		    dri_bo_alloc(intel->bufmgr, "batch", 4096 * 4, 4096);
+		size = 4096;
+	return dri_bo_alloc(intel->bufmgr, "batch", size, 4096);
+}
+
+static void intel_next_batch(ScrnInfoPtr scrn, int mode)
+{
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+	dri_bo *tmp;
+
+	drm_intel_gem_bo_clear_relocs(intel->batch_bo, 0);
+
+	tmp = intel->last_batch_bo[mode];
+	intel->last_batch_bo[mode] = intel->batch_bo;
+	intel->batch_bo = tmp;
 
 	intel->batch_used = 0;
 
@@ -95,12 +104,25 @@ void intel_batch_init(ScrnInfoPtr scrn)
 	intel->batch_emitting = 0;
 	intel->vertex_id = 0;
 
-	intel_next_batch(scrn);
+	intel->last_batch_bo[0] = bo_alloc(scrn);
+	intel->last_batch_bo[1] = bo_alloc(scrn);
+
+	intel->batch_bo = bo_alloc(scrn);
+	intel->batch_used = 0;
+	intel->last_3d = LAST_3D_OTHER;
 }
 
 void intel_batch_teardown(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(intel->last_batch_bo); i++) {
+		if (intel->last_batch_bo[i] != NULL) {
+			dri_bo_unreference(intel->last_batch_bo[i]);
+			intel->last_batch_bo[i] = NULL;
+		}
+	}
 
 	if (intel->batch_bo != NULL) {
 		dri_bo_unreference(intel->batch_bo);
@@ -273,8 +295,7 @@ void intel_batch_submit(ScrnInfoPtr scrn)
 	if (intel->debug_flush & DEBUG_FLUSH_WAIT)
 		drm_intel_bo_wait_rendering(intel->batch_bo);
 
-	dri_bo_unreference(intel->batch_bo);
-	intel_next_batch(scrn);
+	intel_next_batch(scrn, intel->current_batch == I915_EXEC_BLT);
 
 	if (intel->batch_commit_notify)
 		intel->batch_commit_notify(intel);

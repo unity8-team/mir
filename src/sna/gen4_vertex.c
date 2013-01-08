@@ -223,6 +223,15 @@ void gen4_vertex_close(struct sna *sna)
 #define OUT_VERTEX(x,y) vertex_emit_2s(sna, x,y) /* XXX assert(!too_large(x, y)); */
 #define OUT_VERTEX_F(v) vertex_emit(sna, v)
 
+inline static float
+compute_linear(const struct sna_composite_channel *channel,
+	       int16_t x, int16_t y)
+{
+	return ((x+channel->offset[0]) * channel->u.linear.dx +
+		(y+channel->offset[1]) * channel->u.linear.dy +
+		channel->u.linear.offset);
+}
+
 inline static void
 emit_texcoord(struct sna *sna,
 	      const struct sna_composite_channel *channel,
@@ -230,7 +239,6 @@ emit_texcoord(struct sna *sna,
 {
 	if (channel->is_solid) {
 		OUT_VERTEX_F(x);
-		OUT_VERTEX_F(y);
 		return;
 	}
 
@@ -329,22 +337,51 @@ emit_primitive_solid(struct sna *sna,
 		float f;
 	} dst;
 
-	assert(op->floats_per_rect == 9);
-	assert((sna->render.vertex_used % 3) == 0);
+	assert(op->floats_per_rect == 6);
+	assert((sna->render.vertex_used % 2) == 0);
 	v = sna->render.vertices + sna->render.vertex_used;
-	sna->render.vertex_used += 9;
+	sna->render.vertex_used += 6;
 	assert(sna->render.vertex_used <= sna->render.vertex_size);
 
 	dst.p.x = r->dst.x + r->width;
 	dst.p.y = r->dst.y + r->height;
 	v[0] = dst.f;
 	dst.p.x = r->dst.x;
-	v[3] = dst.f;
+	v[2] = dst.f;
 	dst.p.y = r->dst.y;
-	v[6] = dst.f;
+	v[4] = dst.f;
 
-	v[5] = v[2] = v[1] = 1.;
-	v[8] = v[7] = v[4] = 0.;
+	v[5] = v[3] = v[1] = .5;
+}
+
+fastcall static void
+emit_primitive_linear(struct sna *sna,
+		      const struct sna_composite_op *op,
+		      const struct sna_composite_rectangles *r)
+{
+	float *v;
+	union {
+		struct sna_coordinate p;
+		float f;
+	} dst;
+
+	assert(op->floats_per_rect == 6);
+	assert((sna->render.vertex_used % 2) == 0);
+	v = sna->render.vertices + sna->render.vertex_used;
+	sna->render.vertex_used += 6;
+	assert(sna->render.vertex_used <= sna->render.vertex_size);
+
+	dst.p.x = r->dst.x + r->width;
+	dst.p.y = r->dst.y + r->height;
+	v[0] = dst.f;
+	dst.p.x = r->dst.x;
+	v[2] = dst.f;
+	dst.p.y = r->dst.y;
+	v[4] = dst.f;
+
+	v[1] = compute_linear(&op->src, r->src.x+r->width, r->src.y+r->height);
+	v[3] = compute_linear(&op->src, r->src.x, r->src.y+r->height);
+	v[5] = compute_linear(&op->src, r->src.x, r->src.y);
 }
 
 fastcall static void
@@ -437,30 +474,24 @@ emit_primitive_affine_source(struct sna *sna,
 	dst.p.x = r->dst.x + r->width;
 	dst.p.y = r->dst.y + r->height;
 	v[0] = dst.f;
-	_sna_get_transformed_coordinates(op->src.offset[0] + r->src.x + r->width,
-					 op->src.offset[1] + r->src.y + r->height,
-					 op->src.transform,
-					 &v[1], &v[2]);
-	v[1] *= op->src.scale[0];
-	v[2] *= op->src.scale[1];
+	_sna_get_transformed_scaled(op->src.offset[0] + r->src.x + r->width,
+				    op->src.offset[1] + r->src.y + r->height,
+				    op->src.transform, op->src.scale,
+				    &v[1], &v[2]);
 
 	dst.p.x = r->dst.x;
 	v[3] = dst.f;
-	_sna_get_transformed_coordinates(op->src.offset[0] + r->src.x,
-					 op->src.offset[1] + r->src.y + r->height,
-					 op->src.transform,
-					 &v[4], &v[5]);
-	v[4] *= op->src.scale[0];
-	v[5] *= op->src.scale[1];
+	_sna_get_transformed_scaled(op->src.offset[0] + r->src.x,
+				    op->src.offset[1] + r->src.y + r->height,
+				    op->src.transform, op->src.scale,
+				    &v[4], &v[5]);
 
 	dst.p.y = r->dst.y;
 	v[6] = dst.f;
-	_sna_get_transformed_coordinates(op->src.offset[0] + r->src.x,
-					 op->src.offset[1] + r->src.y,
-					 op->src.transform,
-					 &v[7], &v[8]);
-	v[7] *= op->src.scale[0];
-	v[8] *= op->src.scale[1];
+	_sna_get_transformed_scaled(op->src.offset[0] + r->src.x,
+				    op->src.offset[1] + r->src.y,
+				    op->src.transform, op->src.scale,
+				    &v[7], &v[8]);
 }
 
 fastcall static void
@@ -484,27 +515,71 @@ emit_primitive_identity_mask(struct sna *sna,
 	DBG(("%s: dst=(%d, %d), mask=(%f, %f) x (%f, %f)\n",
 	     __FUNCTION__, r->dst.x, r->dst.y, msk_x, msk_y, w, h));
 
-	assert(op->floats_per_rect == 15);
-	assert((sna->render.vertex_used % 5) == 0);
+	assert(op->floats_per_rect == 12);
+	assert((sna->render.vertex_used % 4) == 0);
 	v = sna->render.vertices + sna->render.vertex_used;
-	sna->render.vertex_used += 15;
+	sna->render.vertex_used += 12;
 
 	dst.p.x = r->dst.x + r->width;
 	dst.p.y = r->dst.y + r->height;
 	v[0] = dst.f;
-	v[3] = (msk_x + w) * op->mask.scale[0];
-	v[9] = v[4] = (msk_y + h) * op->mask.scale[1];
+	v[2] = (msk_x + w) * op->mask.scale[0];
+	v[7] = v[3] = (msk_y + h) * op->mask.scale[1];
 
 	dst.p.x = r->dst.x;
-	v[5] = dst.f;
-	v[13] = v[8] = msk_x * op->mask.scale[0];
+	v[4] = dst.f;
+	v[10] = v[6] = msk_x * op->mask.scale[0];
 
 	dst.p.y = r->dst.y;
-	v[10] = dst.f;
-	v[14] = msk_y * op->mask.scale[1];
+	v[8] = dst.f;
+	v[11] = msk_y * op->mask.scale[1];
 
-	v[7] = v[2] = v[1] = 1;
-	v[12] = v[11] = v[6] = 0;
+	v[9] = v[5] = v[1] = .5;
+}
+
+fastcall static void
+emit_primitive_linear_identity_mask(struct sna *sna,
+				    const struct sna_composite_op *op,
+				    const struct sna_composite_rectangles *r)
+{
+	union {
+		struct sna_coordinate p;
+		float f;
+	} dst;
+	float msk_x, msk_y;
+	float w, h;
+	float *v;
+
+	msk_x = r->mask.x + op->mask.offset[0];
+	msk_y = r->mask.y + op->mask.offset[1];
+	w = r->width;
+	h = r->height;
+
+	DBG(("%s: dst=(%d, %d), mask=(%f, %f) x (%f, %f)\n",
+	     __FUNCTION__, r->dst.x, r->dst.y, msk_x, msk_y, w, h));
+
+	assert(op->floats_per_rect == 12);
+	assert((sna->render.vertex_used % 4) == 0);
+	v = sna->render.vertices + sna->render.vertex_used;
+	sna->render.vertex_used += 12;
+
+	dst.p.x = r->dst.x + r->width;
+	dst.p.y = r->dst.y + r->height;
+	v[0] = dst.f;
+	v[2] = (msk_x + w) * op->mask.scale[0];
+	v[7] = v[3] = (msk_y + h) * op->mask.scale[1];
+
+	dst.p.x = r->dst.x;
+	v[4] = dst.f;
+	v[10] = v[6] = msk_x * op->mask.scale[0];
+
+	dst.p.y = r->dst.y;
+	v[8] = dst.f;
+	v[11] = msk_y * op->mask.scale[1];
+
+	v[1] = compute_linear(&op->src, r->src.x+r->width, r->src.y+r->height);
+	v[5] = compute_linear(&op->src, r->src.x, r->src.y+r->height);
+	v[9] = compute_linear(&op->src, r->src.x, r->src.y);
 }
 
 fastcall static void
@@ -629,34 +704,28 @@ emit_primitive_affine_source_identity(struct sna *sna,
 	dst.p.x = r->dst.x + r->width;
 	dst.p.y = r->dst.y + r->height;
 	v[0] = dst.f;
-	_sna_get_transformed_coordinates(op->src.offset[0] + r->src.x + r->width,
-					 op->src.offset[1] + r->src.y + r->height,
-					 op->src.transform,
-					 &v[1], &v[2]);
-	v[1] *= op->src.scale[0];
-	v[2] *= op->src.scale[1];
+	_sna_get_transformed_scaled(op->src.offset[0] + r->src.x + r->width,
+				    op->src.offset[1] + r->src.y + r->height,
+				    op->src.transform, op->src.scale,
+				    &v[1], &v[2]);
 	v[3] = (msk_x + w) * op->mask.scale[0];
 	v[4] = (msk_y + h) * op->mask.scale[1];
 
 	dst.p.x = r->dst.x;
 	v[5] = dst.f;
-	_sna_get_transformed_coordinates(op->src.offset[0] + r->src.x,
-					 op->src.offset[1] + r->src.y + r->height,
-					 op->src.transform,
-					 &v[6], &v[7]);
-	v[6] *= op->src.scale[0];
-	v[7] *= op->src.scale[1];
+	_sna_get_transformed_scaled(op->src.offset[0] + r->src.x,
+				    op->src.offset[1] + r->src.y + r->height,
+				    op->src.transform, op->src.scale,
+				    &v[6], &v[7]);
 	v[8] = msk_x * op->mask.scale[0];
 	v[9] = v[4];
 
 	dst.p.y = r->dst.y;
 	v[10] = dst.f;
-	_sna_get_transformed_coordinates(op->src.offset[0] + r->src.x,
-					 op->src.offset[1] + r->src.y,
-					 op->src.transform,
-					 &v[11], &v[12]);
-	v[11] *= op->src.scale[0];
-	v[12] *= op->src.scale[1];
+	_sna_get_transformed_scaled(op->src.offset[0] + r->src.x,
+				    op->src.offset[1] + r->src.y,
+				    op->src.transform, op->src.scale,
+				    &v[11], &v[12]);
 	v[13] = v[8];
 	v[14] = msk_y * op->mask.scale[1];
 }
@@ -676,31 +745,72 @@ emit_composite_texcoord_affine(struct sna *sna,
 	OUT_VERTEX_F(t[1] * channel->scale[1]);
 }
 
-void gen4_choose_composite_emitter(struct sna_composite_op *tmp)
+
+unsigned gen4_choose_composite_emitter(struct sna_composite_op *tmp)
 {
-	tmp->prim_emit = emit_primitive;
-	tmp->floats_per_vertex = 1 + 2 + !tmp->src.is_affine;
+	unsigned vb;
+
 	if (tmp->mask.bo) {
-		tmp->floats_per_vertex += 2 + !tmp->mask.is_affine;
-		tmp->prim_emit = emit_primitive_mask;
 		if (tmp->mask.transform == NULL) {
 			if (tmp->src.is_solid) {
 				DBG(("%s: solid, identity mask\n", __FUNCTION__));
 				tmp->prim_emit = emit_primitive_identity_mask;
+				tmp->floats_per_vertex = 4;
+				vb = 1 | 2 << 2;
+			} else if (tmp->src.is_linear) {
+				DBG(("%s: linear, identity mask\n", __FUNCTION__));
+				tmp->prim_emit = emit_primitive_linear_identity_mask;
+				tmp->floats_per_vertex = 4;
+				vb = 1 | 2 << 2;
 			} else if (tmp->src.transform == NULL) {
 				DBG(("%s: identity source, identity mask\n", __FUNCTION__));
 				tmp->prim_emit = emit_primitive_identity_source_mask;
+				tmp->floats_per_vertex = 5;
+				vb = 2 << 2 | 2;
 			} else if (tmp->src.is_affine) {
+				tmp->src.scale[0] /= tmp->src.transform->matrix[2][2];
+				tmp->src.scale[1] /= tmp->src.transform->matrix[2][2];
 				if (!sna_affine_transform_is_rotation(tmp->src.transform)) {
 					DBG(("%s: simple src, identity mask\n", __FUNCTION__));
-					tmp->src.scale[0] /= tmp->src.transform->matrix[2][2];
-					tmp->src.scale[1] /= tmp->src.transform->matrix[2][2];
 					tmp->prim_emit = emit_primitive_simple_source_identity;
 				} else {
 					DBG(("%s: affine src, identity mask\n", __FUNCTION__));
 					tmp->prim_emit = emit_primitive_affine_source_identity;
 				}
+				tmp->floats_per_vertex = 5;
+				vb = 2 << 2 | 2;
+			} else {
+				DBG(("%s: projective source, identity mask\n", __FUNCTION__));
+				tmp->prim_emit = emit_primitive_mask;
+				tmp->floats_per_vertex = 6;
+				vb = 2 << 2 | 3;
 			}
+		} else {
+			tmp->prim_emit = emit_primitive_mask;
+			tmp->floats_per_vertex = 1;
+			vb = 0;
+			if (tmp->mask.is_solid) {
+				tmp->floats_per_vertex += 1;
+				vb |= 1 << 2;
+			} else if (tmp->mask.is_affine) {
+				tmp->floats_per_vertex += 2;
+				vb |= 2 << 2;
+			}else {
+				tmp->floats_per_vertex += 3;
+				vb |= 3 << 2;
+			}
+			if (tmp->src.is_solid) {
+				tmp->floats_per_vertex += 1;
+				vb |= 1;
+			} else if (tmp->src.is_affine) {
+				tmp->floats_per_vertex += 2;
+				vb |= 2 ;
+			}else {
+				tmp->floats_per_vertex += 3;
+				vb |= 3;
+			}
+			DBG(("%s: general mask: floats-per-vertex=%d, vb=%x\n",
+			     __FUNCTION__,tmp->floats_per_vertex, vb));
 		}
 	} else {
 		if (tmp->src.is_solid) {
@@ -708,22 +818,41 @@ void gen4_choose_composite_emitter(struct sna_composite_op *tmp)
 			tmp->prim_emit = emit_primitive_solid;
 			if (tmp->src.is_opaque && tmp->op == PictOpOver)
 				tmp->op = PictOpSrc;
+			tmp->floats_per_vertex = 2;
+			vb = 1;
+		} else if (tmp->src.is_linear) {
+			DBG(("%s: linear, no mask\n", __FUNCTION__));
+			tmp->prim_emit = emit_primitive_linear;
+			tmp->floats_per_vertex = 2;
+			vb = 1;
 		} else if (tmp->src.transform == NULL) {
 			DBG(("%s: identity src, no mask\n", __FUNCTION__));
 			tmp->prim_emit = emit_primitive_identity_source;
+			tmp->floats_per_vertex = 3;
+			vb = 2;
 		} else if (tmp->src.is_affine) {
+			tmp->src.scale[0] /= tmp->src.transform->matrix[2][2];
+			tmp->src.scale[1] /= tmp->src.transform->matrix[2][2];
 			if (!sna_affine_transform_is_rotation(tmp->src.transform)) {
 				DBG(("%s: simple src, no mask\n", __FUNCTION__));
-				tmp->src.scale[0] /= tmp->src.transform->matrix[2][2];
-				tmp->src.scale[1] /= tmp->src.transform->matrix[2][2];
 				tmp->prim_emit = emit_primitive_simple_source;
 			} else {
 				DBG(("%s: affine src, no mask\n", __FUNCTION__));
 				tmp->prim_emit = emit_primitive_affine_source;
 			}
+			tmp->floats_per_vertex = 3;
+			vb = 2;
+		} else {
+			DBG(("%s: projective src, no mask\n", __FUNCTION__));
+			assert(!tmp->src.is_solid);
+			tmp->prim_emit = emit_primitive;
+			tmp->floats_per_vertex = 4;
+			vb = 3;
 		}
 	}
 	tmp->floats_per_rect = 3 * tmp->floats_per_vertex;
+
+	return vb;
 }
 
 inline static void
@@ -757,17 +886,29 @@ emit_spans_solid(struct sna *sna,
 		 const BoxRec *box,
 		 float opacity)
 {
-	OUT_VERTEX(box->x2, box->y2);
-	OUT_VERTEX_F(1); OUT_VERTEX_F(1);
-	OUT_VERTEX_F(opacity);
+	float *v;
+	union {
+		struct sna_coordinate p;
+		float f;
+	} dst;
 
-	OUT_VERTEX(box->x1, box->y2);
-	OUT_VERTEX_F(0); OUT_VERTEX_F(1);
-	OUT_VERTEX_F(opacity);
+	assert(op->base.floats_per_rect == 9);
+	assert((sna->render.vertex_used % 3) == 0);
+	v = sna->render.vertices + sna->render.vertex_used;
+	sna->render.vertex_used += 3*3;
 
-	OUT_VERTEX(box->x1, box->y1);
-	OUT_VERTEX_F(0); OUT_VERTEX_F(0);
-	OUT_VERTEX_F(opacity);
+	dst.p.x = box->x2;
+	dst.p.y = box->y2;
+	v[0] = dst.f;
+
+	dst.p.x = box->x1;
+	v[3] = dst.f;
+
+	dst.p.y = box->y1;
+	v[6] = dst.f;
+
+	v[7] = v[4] = v[1] = .5;
+	v[8] = v[5] = v[2] = opacity;
 }
 
 fastcall static void
@@ -860,34 +1001,116 @@ emit_spans_affine(struct sna *sna,
 		  const BoxRec *box,
 		  float opacity)
 {
-	OUT_VERTEX(box->x2, box->y2);
-	emit_composite_texcoord_affine(sna, &op->base.src, box->x2, box->y2);
-	OUT_VERTEX_F(opacity);
+	union {
+		struct sna_coordinate p;
+		float f;
+	} dst;
+	float *v;
 
-	OUT_VERTEX(box->x1, box->y2);
-	emit_composite_texcoord_affine(sna, &op->base.src, box->x1, box->y2);
-	OUT_VERTEX_F(opacity);
+	assert(op->base.floats_per_rect == 12);
+	assert((sna->render.vertex_used % 4) == 0);
+	v = sna->render.vertices + sna->render.vertex_used;
+	sna->render.vertex_used += 12;
 
-	OUT_VERTEX(box->x1, box->y1);
-	emit_composite_texcoord_affine(sna, &op->base.src, box->x1, box->y1);
-	OUT_VERTEX_F(opacity);
+	dst.p.x = box->x2;
+	dst.p.y = box->y2;
+	v[0] = dst.f;
+	_sna_get_transformed_scaled(op->base.src.offset[0] + box->x2,
+				    op->base.src.offset[1] + box->y2,
+				    op->base.src.transform,
+				    op->base.src.scale,
+				    &v[1], &v[2]);
+
+	dst.p.x = box->x1;
+	v[4] = dst.f;
+	_sna_get_transformed_scaled(op->base.src.offset[0] + box->x1,
+				    op->base.src.offset[1] + box->y2,
+				    op->base.src.transform,
+				    op->base.src.scale,
+				    &v[5], &v[6]);
+
+	dst.p.y = box->y1;
+	v[8] = dst.f;
+	_sna_get_transformed_scaled(op->base.src.offset[0] + box->x1,
+				    op->base.src.offset[1] + box->y1,
+				    op->base.src.transform,
+				    op->base.src.scale,
+				    &v[9], &v[10]);
+
+	v[11] = v[7] = v[3] = opacity;
 }
 
-void gen4_choose_spans_emitter(struct sna_composite_spans_op *tmp)
+fastcall static void
+emit_spans_linear(struct sna *sna,
+		  const struct sna_composite_spans_op *op,
+		  const BoxRec *box,
+		  float opacity)
 {
-	tmp->prim_emit = emit_composite_spans_primitive;
+	union {
+		struct sna_coordinate p;
+		float f;
+	} dst;
+	float *v;
+
+	assert(op->base.floats_per_rect == 9);
+	assert((sna->render.vertex_used % 3) == 0);
+	v = sna->render.vertices + sna->render.vertex_used;
+	sna->render.vertex_used += 9;
+
+	dst.p.x = box->x2;
+	dst.p.y = box->y2;
+	v[0] = dst.f;
+	dst.p.x = box->x1;
+	v[3] = dst.f;
+	dst.p.y = box->y1;
+	v[6] = dst.f;
+
+	v[1] = compute_linear(&op->base.src, box->x2, box->y2);
+	v[4] = compute_linear(&op->base.src, box->x1, box->y2);
+	v[7] = compute_linear(&op->base.src, box->x1, box->y1);
+
+	v[8] = v[5] = v[2] = opacity;
+}
+
+inline inline static uint32_t
+gen4_choose_spans_vertex_buffer(const struct sna_composite_op *op)
+{
+	int id = op->src.is_solid ? 1 : 2 + !op->src.is_affine;
+	DBG(("%s: id=%x (%d, 1)\n", __FUNCTION__, 1 << 2 | id, id));
+	return 1 << 2 | id;
+}
+
+
+unsigned gen4_choose_spans_emitter(struct sna_composite_spans_op *tmp)
+{
+	unsigned vb;
+
 	if (tmp->base.src.is_solid) {
 		tmp->prim_emit = emit_spans_solid;
+		tmp->base.floats_per_vertex = 3;
+		vb = 1 << 2 | 1;
+	} else if (tmp->base.src.is_linear) {
+		tmp->prim_emit = emit_spans_linear;
+		tmp->base.floats_per_vertex = 3;
+		vb = 1 << 2 | 1;
 	} else if (tmp->base.src.transform == NULL) {
 		tmp->prim_emit = emit_spans_identity;
+		tmp->base.floats_per_vertex = 4;
+		vb = 1 << 2 | 2;
 	} else if (tmp->base.is_affine) {
-		if (!sna_affine_transform_is_rotation(tmp->base.src.transform)) {
-			tmp->base.src.scale[0] /= tmp->base.src.transform->matrix[2][2];
-			tmp->base.src.scale[1] /= tmp->base.src.transform->matrix[2][2];
+		tmp->base.src.scale[0] /= tmp->base.src.transform->matrix[2][2];
+		tmp->base.src.scale[1] /= tmp->base.src.transform->matrix[2][2];
+		if (!sna_affine_transform_is_rotation(tmp->base.src.transform))
 			tmp->prim_emit = emit_spans_simple;
-		} else
+		else
 			tmp->prim_emit = emit_spans_affine;
+		tmp->base.floats_per_vertex = 4;
+		vb = 1 << 2 | 2;
+	} else {
+		tmp->prim_emit = emit_composite_spans_primitive;
+		tmp->base.floats_per_vertex = 5;
+		vb = 1 << 2 | 3;
 	}
-	tmp->base.floats_per_vertex = 4 + !tmp->base.is_affine;
 	tmp->base.floats_per_rect = 3 * tmp->base.floats_per_vertex;
+	return vb;
 }

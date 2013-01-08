@@ -1,10 +1,10 @@
-xserver-xorg-video-intel (2:2.20.17-0ubuntu1) raring; urgency=low
+xserver-xorg-video-intel (2:2.20.18-0ubuntu1) raring; urgency=low
 
   * Merge from unreleased debian git.
 
  -- Timo Aaltonen <tjaalton@ubuntu.com>  Tue, 08 Jan 2013 17:58:48 +0200
 
-xserver-xorg-video-intel (2:2.20.17-1) UNRELEASED; urgency=low
+xserver-xorg-video-intel (2:2.20.18-1) UNRELEASED; urgency=low
 
   * New upstream release.
 
