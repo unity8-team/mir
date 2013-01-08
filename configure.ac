@@ -23,7 +23,7 @@
 # Initialize Autoconf
 AC_PREREQ([2.60])
 AC_INIT([xf86-video-intel],
-        [2.20.16],
+        [2.20.17],
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
         [xf86-video-intel])
 AC_CONFIG_SRCDIR([Makefile.am])
@@ -409,7 +409,7 @@ if test "x$UMS_ONLY" = xyes; then
 fi
 
 AM_CONDITIONAL(DEBUG, test x$DEBUG != xno)
-AM_CONDITIONAL(FULL_DEBUG, test x$FULL_DEBUG = xfull)
+AM_CONDITIONAL(FULL_DEBUG, test x$DEBUG = xfull)
 if test "x$DEBUG" = xno; then
 	AC_DEFINE(NDEBUG,1,[Disable internal debugging])
 fi

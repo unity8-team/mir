@@ -38,6 +38,7 @@
 #include <X11/extensions/Xv.h>
 #include <fourcc.h>
 #include <i915_drm.h>
+#include <errno.h>
 
 #ifdef  DRM_IOCTL_MODE_GETPLANERESOURCES
 #include <drm_fourcc.h>
@@ -62,13 +63,14 @@ static XF86AttributeRec attribs[] = {
 
 static void sna_video_sprite_off(struct sna *sna, struct sna_video *video)
 {
+	struct drm_mode_set_plane s;
+
 	if (video->plane == 0)
 		return;
 
-	if (drmModeSetPlane(sna->kgem.fd,
-			    video->plane, 0, 0, 0,
-			    0, 0, 0, 0,
-			    0, 0, 0, 0))
+	memset(&s, 0, sizeof(s));
+	s.plane_id = video->plane;
+	if (drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_SETPLANE, &s))
 		xf86DrvMsg(sna->scrn->scrnIndex, X_ERROR,
 			   "failed to disable plane\n");
 
@@ -183,7 +185,10 @@ sna_video_sprite_show(struct sna *sna,
 		      xf86CrtcPtr crtc,
 		      BoxPtr dstBox)
 {
-	uint32_t plane = sna_crtc_to_plane(crtc);
+	struct drm_mode_set_plane s;
+
+	VG_CLEAR(s);
+	s.plane_id = sna_crtc_to_plane(crtc);
 
 	update_dst_box_to_crtc_coords(sna, crtc, dstBox);
 	if (crtc->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
@@ -193,13 +198,13 @@ sna_video_sprite_show(struct sna *sna,
 	}
 
 #if defined(DRM_I915_SET_SPRITE_DESTKEY)
-	if (video->color_key_changed || video->plane != plane) {
+	if (video->color_key_changed || video->plane != s.plane_id) {
 		struct drm_intel_set_sprite_destkey set;
 
 		DBG(("%s: updating color key: %x\n",
 		     __FUNCTION__, video->color_key));
 
-		set.plane_id = plane;
+		set.plane_id = s.plane_id;
 		set.value = video->color_key;
 
 		if (drmIoctl(sna->kgem.fd,
@@ -230,8 +235,9 @@ sna_video_sprite_show(struct sna *sna,
 		pitches[0] = frame->pitch[0];
 		offsets[0] = 0;
 
-		DBG(("%s: creating new fb for handle=%d\n",
-		     __FUNCTION__, frame->bo->handle));
+		DBG(("%s: creating new fb for handle=%d, width=%d, height=%d, stride=%d\n",
+		     __FUNCTION__, frame->bo->handle,
+		     frame->width, frame->height, frame->pitch[0]));
 
 		if (drmModeAddFB2(sna->kgem.fd,
 				  frame->width, frame->height, pixel_format,
@@ -245,22 +251,33 @@ sna_video_sprite_show(struct sna *sna,
 		frame->bo->scanout = true;
 	}
 
-	DBG(("%s: updating plane=%d, handle=%d [fb %d], dst=(%d,%d)x(%d,%d)\n",
-	     __FUNCTION__, plane, frame->bo->handle, frame->bo->delta,
-	     dstBox->x1, dstBox->y1,
-	     dstBox->x2 - dstBox->x1, dstBox->y2 - dstBox->y1));
 	assert(frame->bo->scanout);
 	assert(frame->bo->delta);
 
-	if (drmModeSetPlane(sna->kgem.fd,
-			    plane, sna_crtc_id(crtc), frame->bo->delta, 0,
-			    dstBox->x1, dstBox->y1,
-			    dstBox->x2 - dstBox->x1, dstBox->y2 - dstBox->y1,
-			    0, 0, frame->width << 16, frame->height << 16))
+	s.crtc_id = sna_crtc_id(crtc);
+	s.fb_id = frame->bo->delta;
+	s.flags = 0;
+	s.crtc_x = dstBox->x1;
+	s.crtc_y = dstBox->y1;
+	s.crtc_w = dstBox->x2 - dstBox->x1;
+	s.crtc_h = dstBox->y2 - dstBox->y1;
+	s.src_x = 0;
+	s.src_y = 0;
+	s.src_w = (frame->image.x2 - frame->image.x1) << 16;
+	s.src_h = (frame->image.y2 - frame->image.y1) << 16;
+
+	DBG(("%s: updating crtc=%d, plane=%d, handle=%d [fb %d], dst=(%d,%d)x(%d,%d), src=(%d,%d)x(%d,%d)\n",
+	     __FUNCTION__, s.crtc_id, s.plane_id, frame->bo->handle, s.fb_id,
+	     s.crtc_x, s.crtc_y, s.crtc_w, s.crtc_h,
+	     s.src_x >> 16, s.src_y >> 16, s.src_w >> 16, s.src_h >> 16));
+
+	if (drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_SETPLANE, &s)) {
+		DBG(("SET_PLANE failed: ret=%d\n", errno));
 		return false;
+	}
 
 	frame->bo->domain = DOMAIN_NONE;
-	video->plane = plane;
+	video->plane = s.plane_id;
 	return true;
 }
 
@@ -422,7 +439,7 @@ XF86VideoAdaptorPtr sna_video_sprite_setup(struct sna *sna,
 	adaptor->PutImage = sna_video_sprite_put_image;
 	adaptor->QueryImageAttributes = sna_video_sprite_query_attrs;
 
-	video->textured = false;
+	video->alignment = 64;
 	video->color_key = sna_video_sprite_color_key(sna);
 	video->color_key_changed = true;
 	video->brightness = -19;	/* (255/219) * -16 */

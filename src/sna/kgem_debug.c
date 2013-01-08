@@ -62,7 +62,7 @@ kgem_debug_get_bo_for_reloc_entry(struct kgem *kgem,
 		return NULL;
 
 	list_for_each_entry(bo, &kgem->next_request->buffers, request)
-		if (bo->handle == reloc->target_handle && bo->proxy == NULL)
+		if (bo->target_handle == reloc->target_handle && bo->proxy == NULL)
 			break;
 
 	assert(&bo->request != &kgem->next_request->buffers);
@@ -73,6 +73,9 @@ kgem_debug_get_bo_for_reloc_entry(struct kgem *kgem,
 static int kgem_debug_handle_is_fenced(struct kgem *kgem, uint32_t handle)
 {
 	int i;
+
+	if (kgem->has_handle_lut)
+		return kgem->exec[handle].flags & EXEC_OBJECT_NEEDS_FENCE;
 
 	for (i = 0; i < kgem->nexec; i++)
 		if (kgem->exec[i].handle == handle)
@@ -86,7 +89,7 @@ static int kgem_debug_handle_tiling(struct kgem *kgem, uint32_t handle)
 	struct kgem_bo *bo;
 
 	list_for_each_entry(bo, &kgem->next_request->buffers, request)
-		if (bo->handle == handle)
+		if (bo->target_handle == handle)
 			return bo->tiling;
 
 	return 0;
@@ -95,7 +98,7 @@ static int kgem_debug_handle_tiling(struct kgem *kgem, uint32_t handle)
 void
 kgem_debug_print(const uint32_t *data,
 		 uint32_t offset, unsigned int index,
-		 char *fmt, ...)
+		 const char *fmt, ...)
 {
 	va_list va;
 	char buf[240];

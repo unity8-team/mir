@@ -1710,6 +1710,24 @@ sna_dri_page_flip_handler(struct sna *sna,
 	sna_dri_flip_event(sna, info);
 }
 
+static CARD64
+get_current_msc_for_target(struct sna *sna, CARD64 target_msc, int pipe)
+{
+	CARD64 ret = -1;
+
+	if (target_msc && (sna->flags & SNA_NO_WAIT) == 0) {
+		drmVBlank vbl;
+
+		VG_CLEAR(vbl);
+		vbl.request.type = DRM_VBLANK_RELATIVE | pipe_select(pipe);
+		vbl.request.sequence = 0;
+		if (sna_wait_vblank(sna, &vbl) == 0)
+			ret = vbl.reply.sequence;
+	}
+
+	return ret;
+}
+
 static bool
 sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		      DRI2BufferPtr back, CARD64 *target_msc, CARD64 divisor,
@@ -1741,19 +1759,11 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 			return false;
 	}
 
-	/* Get current count */
-	if (*target_msc) {
-		vbl.request.type = DRM_VBLANK_RELATIVE | pipe_select(pipe);
-		vbl.request.sequence = 0;
-		if (sna_wait_vblank(sna, &vbl))
-			return false;
-		current_msc = vbl.reply.sequence;
-	} else
-		current_msc = 0;
+	current_msc = get_current_msc_for_target(sna, *target_msc, pipe);
 
-	/* Truncate to match kernel interfaces; means occasional overflow
-	 * misses, but that's generally not a big deal */
-	divisor &= 0xffffffff;
+	DBG(("%s: target_msc=%u, current_msc=%u, divisor=%u\n", __FUNCTION__,
+	     (uint32_t)*target_msc, (uint32_t)current_msc, (uint32_t)divisor));
+
 	if (divisor == 0 && current_msc >= *target_msc) {
 		DBG(("%s: performing immediate swap on pipe %d, pending? %d\n",
 		     __FUNCTION__, pipe, sna->dri.flip_pending != NULL));
@@ -2032,6 +2042,12 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	     (long long)divisor,
 	     (long long)remainder));
 
+	/* Truncate to match kernel interfaces; means occasional overflow
+	 * misses, but that's generally not a big deal */
+	*target_msc &= 0xffffffff;
+	divisor &= 0xffffffff;
+	remainder &= 0xffffffff;
+
 	if (can_flip(sna, draw, front, back)) {
 		DBG(("%s: try flip\n", __FUNCTION__));
 		if (sna_dri_schedule_flip(client, draw, front, back,
@@ -2058,12 +2074,6 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 
 	VG_CLEAR(vbl);
 
-	/* Truncate to match kernel interfaces; means occasional overflow
-	 * misses, but that's generally not a big deal */
-	*target_msc &= 0xffffffff;
-	divisor &= 0xffffffff;
-	remainder &= 0xffffffff;
-
 	info = calloc(1, sizeof(struct sna_dri_frame_event));
 	if (!info)
 		goto blit_fallback;
@@ -2082,15 +2092,9 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 
 	info->type = swap_type;
 
-	if (*target_msc) {
-		/* Get current count */
-		vbl.request.type = DRM_VBLANK_RELATIVE | pipe_select(pipe);
-		vbl.request.sequence = 0;
-		if (sna_wait_vblank(sna, &vbl))
-			goto blit_fallback;
-		current_msc = vbl.reply.sequence;
-	} else
-		current_msc = 0;
+	current_msc = get_current_msc_for_target(sna, *target_msc, pipe);
+	DBG(("%s: target_msc=%u, current_msc=%u, divisor=%u\n", __FUNCTION__,
+	     (uint32_t)*target_msc, (uint32_t)current_msc, (uint32_t)divisor));
 
 	if (divisor == 0 && current_msc >= *target_msc) {
 		if (can_exchange(sna, draw, front, back)) {

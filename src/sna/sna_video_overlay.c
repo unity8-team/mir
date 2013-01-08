@@ -702,6 +702,18 @@ XF86VideoAdaptorPtr sna_video_overlay_setup(struct sna *sna,
 	adaptor->PutImage = sna_video_overlay_put_image;
 	adaptor->QueryImageAttributes = sna_video_overlay_query_video_attributes;
 
+	if (sna->kgem.gen >= 040)
+		/* Actually the alignment is 64 bytes, too. But the
+		 * stride must be at least 512 bytes. Take the easy fix
+		 * and align on 512 bytes unconditionally. */
+		video->alignment = 512;
+	else if (sna->kgem.gen < 021)
+		/* Harsh, errata on these chipsets limit the stride
+		 * to be a multiple of 256 bytes.
+		 */
+		video->alignment = 256;
+	else
+		video->alignment = 64;
 	video->textured = false;
 	video->color_key = sna_video_overlay_color_key(sna);
 	video->brightness = -19;	/* (255/219) * -16 */

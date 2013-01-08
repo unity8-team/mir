@@ -3214,7 +3214,7 @@ gen2_render_context_switch(struct kgem *kgem,
 {
 	struct sna *sna = container_of(kgem, struct sna, kgem);
 
-	if (!kgem->mode)
+	if (!kgem->nbatch)
 		return;
 
 	/* Reload BLT registers following a lost context */

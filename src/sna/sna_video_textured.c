@@ -267,6 +267,10 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 		}
 
 		assert(kgem_bo_size(frame.bo) >= frame.size);
+		frame.image.x1 = 0;
+		frame.image.y1 = 0;
+		frame.image.x2 = frame.width;
+		frame.image.y2 = frame.height;
 	} else {
 		if (!sna_video_copy_data(sna, video, &frame, buf)) {
 			DBG(("%s: failed to copy frame\n", __FUNCTION__));
@@ -284,9 +288,9 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 
 	ret = Success;
 	if (!sna->render.video(sna, video, &frame, clip,
-			      src_w, src_h,
-			      drw_w, drw_h,
-			      pixmap)) {
+			       src_w, src_h, drw_w, drw_h,
+			       drw_x - src_x, drw_y - src_y,
+			       pixmap)) {
 		DBG(("%s: failed to render video\n", __FUNCTION__));
 		ret = BadAlloc;
 	} else
@@ -357,7 +361,7 @@ sna_video_textured_query(ScrnInfoPtr scrn,
 #ifdef SNA_XVMC
 	case FOURCC_XVMC:
 		*h = (*h + 1) & ~1;
-		size = sizeof(struct sna_xvmc_command);
+		size = sizeof(uint32_t);
 		if (pitches)
 			pitches[0] = size;
 		break;
@@ -449,6 +453,7 @@ XF86VideoAdaptorPtr sna_video_textured_setup(struct sna *sna,
 		struct sna_video *v = &video[i];
 
 		v->textured = true;
+		v->alignment = 4;
 		v->rotation = RR_Rotate_0;
 		v->SyncToVblank = 1;
 

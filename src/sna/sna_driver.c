@@ -473,7 +473,8 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 	intel_detect_chipset(scrn, sna->pEnt, sna->PciInfo);
 
 	kgem_init(&sna->kgem, fd, sna->PciInfo, sna->info->gen);
-	if (xf86ReturnOptValBool(sna->Options, OPTION_ACCEL_DISABLE, FALSE)) {
+	if (xf86ReturnOptValBool(sna->Options, OPTION_ACCEL_DISABLE, FALSE) ||
+	    !sna_option_cast_to_bool(sna, OPTION_ACCEL_METHOD, TRUE)) {
 		xf86DrvMsg(sna->scrn->scrnIndex, X_CONFIG,
 			   "Disabling hardware acceleration.\n");
 		sna->kgem.wedged = true;

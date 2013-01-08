@@ -32,37 +32,11 @@
 #define SNA_XVMC_MINOR	1
 #define SNA_XVMC_PATCHLEVEL	0
 
-/*
- * Commands that client submits through XvPutImage:
- */
-
-#define SNA_XVMC_COMMAND_DISPLAY      0x00
-#define SNA_XVMC_COMMAND_UNDISPLAY    0x01
-
 /* hw xvmc support type */
 #define XVMC_I915_MPEG2_MC	0x01
 #define XVMC_I965_MPEG2_MC	0x02
 #define XVMC_I945_MPEG2_VLD	0x04
 #define XVMC_I965_MPEG2_VLD	0x08
-
-struct sna_xvmc_hw_context {
-	unsigned int type;
-	union {
-		struct {
-			unsigned int use_phys_addr : 1;
-		} i915;
-		struct {
-			unsigned int is_g4x:1;
-			unsigned int is_965_q:1;
-			unsigned int is_igdng:1;
-		} i965;
-	};
-};
-
-/* Intel private XvMC command to DDX driver */
-struct sna_xvmc_command {
-	uint32_t handle;
-};
 
 #ifdef _SNA_XVMC_SERVER_
 #include <xf86xvmc.h>

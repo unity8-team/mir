@@ -53,6 +53,10 @@ struct kgem_bo {
 #define IS_CPU_MAP(ptr) ((uintptr_t)(ptr) & 1)
 #define IS_GTT_MAP(ptr) (ptr && ((uintptr_t)(ptr) & 1) == 0)
 	struct kgem_request *rq;
+#define RQ(rq) ((struct kgem_request *)((uintptr_t)(rq) & ~3))
+#define RQ_RING(rq) ((uintptr_t)(rq) & 3)
+#define RQ_IS_BLT(rq) (RQ_RING(rq) == KGEM_BLT)
+
 	struct drm_i915_gem_exec_object2 *exec;
 
 	struct kgem_bo_binding {
@@ -140,6 +144,7 @@ struct kgem {
 	} vma[NUM_MAP_TYPES];
 
 	uint32_t batch_flags;
+	uint32_t batch_flags_base;
 #define I915_EXEC_SECURE (1<<9)
 #define LOCAL_EXEC_OBJECT_WRITE (1<<2)
 
@@ -165,6 +170,7 @@ struct kgem {
 	uint32_t has_relaxed_delta :1;
 	uint32_t has_semaphores :1;
 	uint32_t has_secure_batches :1;
+	uint32_t has_pinned_batches :1;
 	uint32_t has_cacheing :1;
 	uint32_t has_llc :1;
 	uint32_t has_no_reloc :1;
@@ -254,8 +260,9 @@ enum {
 	CREATE_SCANOUT = 0x10,
 	CREATE_PRIME = 0x20,
 	CREATE_TEMPORARY = 0x40,
-	CREATE_NO_RETIRE = 0x80,
-	CREATE_NO_THROTTLE = 0x100,
+	CREATE_CACHED = 0x80,
+	CREATE_NO_RETIRE = 0x100,
+	CREATE_NO_THROTTLE = 0x200,
 };
 struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 			       int width,
@@ -348,7 +355,7 @@ static inline void kgem_set_mode(struct kgem *kgem,
 #endif
 
 	if (kgem->nexec && bo->exec == NULL && kgem_ring_is_idle(kgem, kgem->ring))
-		kgem_submit(kgem);
+		_kgem_submit(kgem);
 
 	if (kgem->mode == mode)
 		return;
@@ -586,7 +593,7 @@ static inline void __kgem_bo_mark_dirty(struct kgem_bo *bo)
 
 	bo->exec->flags |= LOCAL_EXEC_OBJECT_WRITE;
 	bo->needs_flush = bo->dirty = true;
-	list_move(&bo->request, &bo->rq->buffers);
+	list_move(&bo->request, &RQ(bo->rq)->buffers);
 }
 
 static inline void kgem_bo_mark_dirty(struct kgem_bo *bo)
@@ -625,7 +632,7 @@ bool kgem_expire_cache(struct kgem *kgem);
 void kgem_purge_cache(struct kgem *kgem);
 void kgem_cleanup_cache(struct kgem *kgem);
 
-#if HAS_EXTRA_DEBUG
+#if HAS_DEBUG_FULL
 void __kgem_batch_debug(struct kgem *kgem, uint32_t nbatch);
 #else
 static inline void __kgem_batch_debug(struct kgem *kgem, uint32_t nbatch)

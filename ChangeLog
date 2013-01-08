@@ -1,3 +1,500 @@
+commit 90b1b220ee7a3c543301956b01c54a4a04632db4
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Dec 26 12:51:58 2012 +0000
+
+    2.20.17 release
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 52fd223fc970118cbdcb31f9574414debc905e9c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 21 21:36:30 2012 +0000
+
+    sna/video: Initialise alignment for video ports > 0
+    
+    We repeatedly set the alignment value on the first port, rather than
+    once for each.
+    
+    Reported-by: Jiri Slaby <jirislaby@gmail.com>
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=47597
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 3793ccf7804cfc870b46c623dfeefbe0c381c1d4
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 21 14:48:07 2012 +0000
+
+    sna: Remove assertions that the pixmap is wholly defined when uploading
+    
+    As the user may only write to a portion of a pixmap (thus only creating
+    a small amount of damage) and then attempt to use the whole as a source,
+    we run the risk of triggering an assertion that the whole was defined.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 07dde33a4f51941b4f612823ea6ea7ca01a6efbc
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 21 14:35:32 2012 +0000
+
+    sna: Remove a pair of stale assertions
+    
+    For gen2-5, it does not matter what mode the batch is in when we
+    insert the scanline wait. With the more aggressive batch flushing, and
+    relaxed assigned of mode for those generations, we are likely to see
+    that the batch is idle when we go to insert the waits.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit bdd0cca4e1192df0038621925c4e6243ba419a81
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 21 14:20:23 2012 +0000
+
+    sna: Refactor test for a rotation matrix
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 347c5a7b33729f1bedd408d2ef24756d51b66f1d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 21 10:40:47 2012 +0000
+
+    sna/dri: Refactor get_current_msc between blit/flip paths
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8a67d3f808fcc7c8c51553b1703e8312f28b87a1
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 21 10:21:06 2012 +0000
+
+    sna/dri: Set the correct current_msc for the no readback path
+    
+    If we are asked to render immediately, then in order to pass the tests
+    when comparing it to target, we need to set the current_msc to the
+    ultimate future value, -1.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 48e4dc4bd4b2980f0f804f572d0e3fc1bb4bc21e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Dec 20 21:54:25 2012 +0000
+
+    sna/gen4: Backport tight vertex packing of renderblits
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 08d2b073692836aa22f65f8ba30db5d14550c03e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Dec 20 21:30:32 2012 +0000
+
+    sna/gen4: Backport more recent state tracking tweaks
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8ff76fad1fadc5e309f9a12c30f883460a432049
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Dec 20 20:57:40 2012 +0000
+
+    sna/gen5: Backport tight vertex packing for simple renderblits
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 9144c951915a1e0c1899a72161f9f0f1ab9b9ac4
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 21 09:44:52 2012 +0000
+
+    sna/dri: Avoid querying the current-msc with swapbbufers wait disabled
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 84c327e17f68c4a56fcb76be1f45ab6d35291b5d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Dec 20 19:44:46 2012 +0000
+
+    sna/video: Assert that the frame is initialised
+    
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=47597
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4d750219925cb3199ebc6751cdbd2862dfb4cdfe
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Dec 20 19:34:41 2012 +0000
+
+    uxa/dri: Correct the destination of the blit after chained flip is broken
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit ca5c028c2b4d9bf02002acd484054fe427ea8d09
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Dec 20 19:31:44 2012 +0000
+
+    glamor: Release the drawable after passing to glamor_push_pixels
+    
+    An unlikely path, but a double prepare instead of a prepare/finish.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit de2de36049e2958a60f63fadffe8f54de8da1e56
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Dec 20 19:29:31 2012 +0000
+
+    sna: Check the correct variable for a failed allocation
+    
+    Having already checked 'dst' and just allocated 'src', that is who we
+    should be checking.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit deb908fda74541fba649349db279715b05d0554e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Dec 20 19:22:32 2012 +0000
+
+    intel: ODEV_ATTRIB_PATH is no longer printed, so kill the temporary variable
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0f84ecfc3cd7dfe7f43ff99a6498d2ceccd90225
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Dec 20 12:00:00 2012 +0000
+
+    sna/gen4+: Amalgamate all the gen4-7 vertex buffer emission
+    
+    Having reduced all the vb code for these generations to the same set of
+    routines, we can refactor them into a single set of functions.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 1f4ede0ef8f8a8d07e11781ad05617ecdfcd3faf
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Dec 19 20:39:10 2012 +0000
+
+    sna: Do not throttle before move-to-cpu
+    
+    The idea being that when creating a surface to perform inplace
+    rasterisation, we won't be using the GPU for a while and so give it time
+    to naturally throttle.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5deba2832dc42072d9abaeaa7934bc0e1b28b3ed
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Dec 19 20:03:33 2012 +0000
+
+    sna: Ignore throttling during vertex close
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f91a24fdba517c8e9df5a074db2c789fbf066bb3
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Dec 20 09:46:32 2012 +0000
+
+    sna/video: Remove XvMCScreenInitProc
+    
+    The symbols disappears without warning in xorg-1.14
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=58552
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit ee99511846a0f10abeeba8d25d8fb5bf59621b02
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Dec 19 18:02:50 2012 +0000
+
+    sna/gen4+: Tweak preference of GPU placement for spans
+    
+    If the CPU bo is busy, make sure we do not stall for an inplace
+    operation.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit bfd96b092db5e4e0fc2446752deafd1156cf37b3
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Dec 18 20:54:33 2012 +0000
+
+    sna/video: Fix presentation of cropped sprites
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2df1b1abf0728f28d2803a096f945779cbe7c70b
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Dec 18 16:07:26 2012 +0000
+
+    sna/video: Fix up copying cropped textured video packed data
+    
+    Simply ignore the cropping and copy the whole plane rather than
+    complicate the computation of the packed destination pixels.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8d523fa824dcb1987557164d048711c1745de378
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Dec 18 16:07:26 2012 +0000
+
+    sna/video: Fix up destination offset for copying cropped textured video planes
+    
+    Oh fun. Textured video expects the source content to be relative to the
+    origin, whereas overlay video expects the source at the origin.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 7bb4573fcc2cf1b8b6bff5d885a2fa81200d2fd7
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Dec 18 15:48:21 2012 +0000
+
+    sna/video: Fix up the image size for copying
+    
+    Yikes, setting image.x2 == image.x1 meant no data was copied whilst the
+    video was clipped.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 551b400377ddc5eb1e89b8b5827a42e810c8d23d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Dec 18 15:14:00 2012 +0000
+
+    sna/video: Amalgamate the computation of source vs dest offsets
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d96a226cc59c641c10153ae3a086a5138c852423
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Dec 18 14:26:18 2012 +0000
+
+    sna/video: Fix adjustment of drawable vs source origin wrt to clip
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 79cb6304e983514dd754065e65e2381a903f9bd6
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Dec 18 13:49:59 2012 +0000
+
+    sna/xvmc: Clean up to avoid crash'n'burn
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0d26082303f3f4006ce4974d402c560613081b23
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Dec 18 10:54:28 2012 +0000
+
+    sna: Prefer the GPU once again for PolyPoint
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0e0a2d300633122d6d0f6f82ff110f513b4e64d7
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Dec 18 10:27:04 2012 +0000
+
+    sna/gen7: Mark the ring switch before checking bo
+    
+    As we may do a batch submission due to the change of mode.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f522fbe7c98ffad86126c3666b2d9f7e616480b8
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Dec 17 23:04:25 2012 +0000
+
+    sna: Refine check for an unset context switch
+    
+    So it appears that we end up performing a context switch on an empty
+    batch, but already has a mode. This is caught later, too late, by
+    assertions. However, we can change the guards slightly to prevent those
+    assertions without altering the code too greatly. And I can then think
+    how to detect where we are setting a mode on the batch but doing no
+    work - which is likely masking a bigger bug.
+    
+    Reported-by: Jiri Slaby <jirislaby@gmail.com>
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=47597
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 6c50cf4809816dbbd93d54f589a79b0dab996180
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Dec 17 22:27:14 2012 +0000
+
+    sna: Untangle the confusion of caching large LLC bo
+    
+    We only use a single cache for very large buffers, so we need to be
+    careful that we set the tiling on them. More so, we need to take extra
+    care when allocating large CPU bo from that cache to be sure that they
+    are untiled and the flags are true.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit e474abea7cf761e78e777db07b41ec99c0b6f59f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Dec 17 15:38:04 2012 +0000
+
+    sna: Promote pinned-batches to run-time detection
+    
+    Now that the feature has been committed upstream, we can rely on the
+    runtime detection.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4d7e3a9123cf41d2dd97c0a8a0d461c189064822
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Dec 17 12:34:05 2012 +0000
+
+    uxa: Fix copy'n'paste of false not FALSE
+    
+    Bugzilla; https://bugs.freedesktop.org/show_bug.cgi?id=58406
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 7a4d1136bd09bfd4d2657c0b1b64d553eeb6ed4f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Dec 17 09:41:47 2012 +0000
+
+    sna/video: Pass along the video source offset
+    
+    Fortunately nobody had yet noticed that all videos were assumed to play
+    with a matching src/dst origin.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit dfe9d18f9f97a77ceeb410307010424c789c8bd1
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Dec 17 01:06:57 2012 +0000
+
+    sna: Limit the default upload buffer size to half the cpu cache
+    
+    This seems to help with small slow caches.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5b0572503eab235bc7eff20d369241330c41e630
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Dec 16 23:04:55 2012 +0000
+
+    sna: Enable support for opting out of the kernel CS workaround
+    
+    Keeping a set of pinned batches in userspace is considerably faster as
+    we can avoid the blit overhead. However, combining the two approaches
+    yields even greater performance, as fast as without either w/a, and yet
+    stable.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 805f78addf3ffb36c736df680806cf722b18fea9
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Dec 16 22:04:54 2012 +0000
+
+    sna: Try to reuse pinned batches by inspecting the kernel busy status
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f1aec676810c4a4c180b342d9a83254e08dd55da
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Dec 16 17:37:32 2012 +0000
+
+    sna: Precompute the base set of batch-flags
+    
+    This is to make it easier to extend in future.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit c7ac12003bd0c7d85fa47d43ee2734b222d84a61
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Dec 16 15:28:24 2012 +0000
+
+    sna: Only flush at the low fence wm if idle
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4580bbeac0051417cb03f272112b0cfe697e31b3
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Dec 16 15:00:21 2012 +0000
+
+    intel: Support debugging through AccelMethod
+    
+    Ease debugging by allowing all acceleration or render acceleration to be
+    disabled through AccelMethod:
+    
+    Option "AccelMethod" "off" -> disable all acceleration
+    Option "AccelMethod" "blt" -> disable render acceleration (only use BLT)
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 58770b7d6401d2d81f7fee1c8c0e788d44149712
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Dec 16 14:59:03 2012 +0000
+
+    man: Describe Option "AccelMethod"
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 83609af3681fad58af88387077bf7ce0c001a1da
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Dec 16 10:53:26 2012 +0000
+
+    sna: Tweak the idle SHM CopyArea path to also replace a busy GPU bo
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 6490585f65bde487da7bc41fa5cb1c5a028d0bf4
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Dec 15 23:26:30 2012 +0000
+
+    sna: Do not force use of the GPU for a copy from a SHM pixmap
+    
+    As we will undoubtably flush and sync upon the SHM request very shortly
+    afterwards, we only want to use the GPU for the SHM upload iff it is
+    currently busy.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 3a08f091875f2f0f49697ba9852077094b3a704b
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Dec 15 22:53:44 2012 +0000
+
+    sna/gen6+: Tweak prefer-blt-bo
+    
+    Split the decision between where it is imperative to use the BLT to
+    avoid TLB misses and the second case where it is merely preferential to
+    witch.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit ac9ef1fc606e87b48baa47be22bf828dcfe6659f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Dec 15 20:49:56 2012 +0000
+
+    sna/gen6+: Keep the bo on its current ring
+    
+    Track the most recent ring each bo is executed on, and prefer to keep it
+    on that ring for the next operation.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 15ccb7148d15d776a661c1b8c5b9b2360fcae4ad
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Dec 15 20:07:56 2012 +0000
+
+    sna/gen6+: Apply the is_scanout to the key not value in the binding cache
+    
+    Oops, we never managed to reuse the cached location of the target
+    surface as we entered it into the cache with the wrong key.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit fde25b08922d97ca0d4a69c654bf690edbd53b3d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Dec 15 18:59:53 2012 +0000
+
+    sna/trapezoids: Add another inline hint
+    
+    cell_list_alloc() is only called from one place, and the compiler should
+    already be inlining it - but does not appear to be. Hint harder.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2a21c8b351052be9c32c5669264fb05a8510c957
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Dec 15 17:56:27 2012 +0000
+
+    sna: Include shm hint in render placement
+    
+    The goal is to reduce the preference of rendering to a SHM pixmap - only
+    if it is already active, will we consider continuing to use it on the
+    GPU.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
 commit a467102a9539c7f4fa8d0700ecdcaba49d77b3f7
 Author: Chris Wilson <chris@chris-wilson.co.uk>
 Date:   Sat Dec 15 10:00:48 2012 +0000

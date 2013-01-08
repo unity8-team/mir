@@ -100,9 +100,17 @@ sna_video_buffer(struct sna *sna,
 	if (video->buf && __kgem_bo_size(video->buf) < frame->size)
 		sna_video_free_buffers(sna, video);
 
-	if (video->buf == NULL)
-		video->buf = kgem_create_linear(&sna->kgem, frame->size,
-						CREATE_GTT_MAP);
+	if (video->buf == NULL) {
+		if (video->tiled) {
+			video->buf = kgem_create_2d(&sna->kgem,
+						    frame->width, frame->height, 32,
+						    I915_TILING_X,
+						    CREATE_EXACT | CREATE_SCANOUT);
+		} else {
+			video->buf = kgem_create_linear(&sna->kgem, frame->size,
+							CREATE_GTT_MAP);
+		}
+	}
 
 	return video->buf;
 }
@@ -166,14 +174,20 @@ sna_video_clip_helper(ScrnInfoPtr scrn,
 	if (crtc_region != reg)
 		RegionUninit(crtc_region);
 
-	frame->top = y1 >> 16;
-	frame->left = (x1 >> 16) & ~1;
-	frame->npixels = ALIGN(((x2 + 0xffff) >> 16), 2) - frame->left;
+	frame->src.x1 = x1 >> 16;
+	frame->src.y1 = y1 >> 16;
+	frame->src.x2 = (x2 + 0xffff) >> 16;
+	frame->src.y2 = (y2 + 0xffff) >> 16;
+
+	frame->image.x1 = frame->src.x1 & ~1;
+	frame->image.x2 = ALIGN(frame->src.x2, 2);
 	if (is_planar_fourcc(frame->id)) {
-		frame->top &= ~1;
-		frame->nlines = ALIGN(((y2 + 0xffff) >> 16), 2) - frame->top;
-	} else
-		frame->nlines = ((y2 + 0xffff) >> 16) - frame->top;
+		frame->image.y1 = frame->src.y1 & ~1;
+		frame->image.y2 = ALIGN(frame->src.y2, 2);
+	} else {
+		frame->image.y1 = frame->src.y1;
+		frame->image.y2 = frame->src.y2;
+	}
 
 	return ret;
 }
@@ -186,37 +200,21 @@ sna_video_frame_init(struct sna *sna,
 {
 	int align;
 
+	DBG(("%s: id=%d [planar? %d], width=%d, height=%d, align=%d\n",
+	     __FUNCTION__, id, is_planar_fourcc(id), width, height, video->alignment));
+	assert(width && height);
+
 	frame->bo = NULL;
 	frame->id = id;
 	frame->width = width;
 	frame->height = height;
 
-	/* Only needs to be DWORD-aligned for textured on i915, but overlay has
-	 * stricter requirements.
-	 */
-	if (video->textured) {
-		align = 4;
-	} else {
-		if (sna->kgem.gen >= 040)
-			/* Actually the alignment is 64 bytes, too. But the
-			 * stride must be at least 512 bytes. Take the easy fix
-			 * and align on 512 bytes unconditionally. */
-			align = 512;
-		else if (sna->kgem.gen < 021)
-			/* Harsh, errata on these chipsets limit the stride
-			 * to be a multiple of 256 bytes.
-			 */
-			align = 256;
-		else
-			align = 64;
-	}
-
+	align = video->alignment;
 #if SNA_XVMC
 	/* for i915 xvmc, hw requires 1kb aligned surfaces */
-	if (id == FOURCC_XVMC && sna->kgem.gen < 040)
+	if (id == FOURCC_XVMC && sna->kgem.gen < 040 && align < 1024)
 		align = 1024;
 #endif
-
 
 	/* Determine the desired destination pitch (representing the chroma's pitch,
 	 * in the planar case.
@@ -251,51 +249,68 @@ sna_video_frame_init(struct sna *sna,
 		frame->VBufOffset =
 			frame->UBufOffset + (int)frame->pitch[0] * height / 2;
 	}
+
+	assert(frame->size);
 }
 
-static void sna_memcpy_plane(uint8_t *dst, const uint8_t *src,
-			     int height, int width,
-			     int dstPitch, int srcPitch,
-			     Rotation rotation)
+static void sna_memcpy_plane(struct sna_video *video,
+			     uint8_t *dst, const uint8_t *src,
+			     const struct sna_video_frame *frame, int sub)
 {
+	int dstPitch = frame->pitch[!sub], srcPitch;
 	const uint8_t *s;
 	int i, j = 0;
+	int x, y, w, h;
 
-	switch (rotation) {
+	x = frame->image.x1;
+	y = frame->image.y1;
+	w = frame->image.x2 - frame->image.x1;
+	h = frame->image.y2 - frame->image.y1;
+	if (sub) {
+		x >>= 1; w >>= 1;
+		y >>= 1; h >>= 1;
+		srcPitch = ALIGN((frame->width >> 1), 4);
+	} else
+		srcPitch = ALIGN(frame->width, 4);
+
+	src += y * srcPitch + x;
+	if (!video->textured)
+		x = y = 0;
+
+	switch (video->rotation) {
 	case RR_Rotate_0:
-		/* optimise for the case of no clipping */
-		if (srcPitch == dstPitch && srcPitch == width)
-			memcpy(dst, src, srcPitch * height);
-		else while (height--) {
-			memcpy(dst, src, width);
+		dst += y * dstPitch + x;
+		if (srcPitch == dstPitch && srcPitch == w)
+			memcpy(dst, src, srcPitch * h);
+		else while (h--) {
+			memcpy(dst, src, w);
 			src += srcPitch;
 			dst += dstPitch;
 		}
 		break;
 	case RR_Rotate_90:
-		for (i = 0; i < height; i++) {
+		for (i = 0; i < h; i++) {
 			s = src;
-			for (j = 0; j < width; j++) {
-				dst[(i) + ((width - j - 1) * dstPitch)] = *s++;
-			}
+			for (j = 0; j < w; j++)
+				dst[i + ((x + w - j - 1) * dstPitch)] = *s++;
 			src += srcPitch;
 		}
 		break;
 	case RR_Rotate_180:
-		for (i = 0; i < height; i++) {
+		for (i = 0; i < h; i++) {
 			s = src;
-			for (j = 0; j < width; j++) {
-				dst[(width - j - 1) +
-				    ((height - i - 1) * dstPitch)] = *s++;
+			for (j = 0; j < w; j++) {
+				dst[(x + w - j - 1) +
+				    ((h - i - 1) * dstPitch)] = *s++;
 			}
 			src += srcPitch;
 		}
 		break;
 	case RR_Rotate_270:
-		for (i = 0; i < height; i++) {
+		for (i = 0; i < h; i++) {
 			s = src;
-			for (j = 0; j < width; j++) {
-				dst[(height - i - 1) + (j * dstPitch)] = *s++;
+			for (j = 0; j < w; j++) {
+				dst[(h - i - 1) + (x + j * dstPitch)] = *s++;
 			}
 			src += srcPitch;
 		}
@@ -309,36 +324,22 @@ sna_copy_planar_data(struct sna_video *video,
 		     const uint8_t *src, uint8_t *dst)
 {
 	uint8_t *d;
-	int w = frame->npixels;
-	int h = frame->nlines;
-	int pitch;
 
-	pitch = ALIGN(frame->width, 4);
-	sna_memcpy_plane(dst, src + frame->top * pitch + frame->left,
-			 h, w, frame->pitch[1], pitch, video->rotation);
-
-	src += frame->height * pitch; /* move over Luma plane */
-
-	/* align to beginning of chroma planes */
-	pitch = ALIGN((frame->width >> 1), 0x4);
-	src += (frame->top >> 1) * pitch + (frame->left >> 1);
-	w >>= 1;
-	h >>= 1;
+	sna_memcpy_plane(video, dst, src, frame, 0);
+	src += frame->height * ALIGN(frame->width, 4);
 
 	if (frame->id == FOURCC_I420)
 		d = dst + frame->UBufOffset;
 	else
 		d = dst + frame->VBufOffset;
-
-	sna_memcpy_plane(d, src, h, w, frame->pitch[0], pitch, video->rotation);
-	src += (frame->height >> 1) * pitch; /* move over Chroma plane */
+	sna_memcpy_plane(video, d, src, frame, 1);
+	src += (frame->height >> 1) * ALIGN(frame->width >> 1, 4);
 
 	if (frame->id == FOURCC_I420)
 		d = dst + frame->VBufOffset;
 	else
 		d = dst + frame->UBufOffset;
-
-	sna_memcpy_plane(d, src, h, w, frame->pitch[0], pitch, video->rotation);
+	sna_memcpy_plane(video, d, src, frame, 1);
 }
 
 static void
@@ -349,11 +350,22 @@ sna_copy_packed_data(struct sna_video *video,
 {
 	int pitch = frame->width << 1;
 	const uint8_t *src, *s;
-	int w = frame->npixels;
-	int h = frame->nlines;
+	int x, y, w, h;
 	int i, j;
 
-	src = buf + (frame->top * pitch) + (frame->left << 1);
+	if (video->textured) {
+		/* XXX support copying cropped extents */
+		x = y = 0;
+		w = frame->width;
+		h = frame->height;
+	} else {
+		x = frame->image.x1;
+		y = frame->image.y1;
+		w = frame->image.x2 - frame->image.x1;
+		h = frame->image.y2 - frame->image.y1;
+	}
+
+	src = buf + (y * pitch) + (x << 1);
 
 	switch (video->rotation) {
 	case RR_Rotate_0:
@@ -376,7 +388,7 @@ sna_copy_packed_data(struct sna_video *video,
 			src += pitch;
 		}
 		h >>= 1;
-		src = buf + (frame->top * pitch) + (frame->left << 1);
+		src = buf + (y * pitch) + (x << 1);
 		for (i = 0; i < h; i += 2) {
 			for (j = 0; j < w; j += 2) {
 				/* Copy U */
@@ -412,7 +424,7 @@ sna_copy_packed_data(struct sna_video *video,
 			src += pitch;
 		}
 		h >>= 1;
-		src = buf + (frame->top * pitch) + (frame->left << 1);
+		src = buf + (y * pitch) + (x << 1);
 		for (i = 0; i < h; i += 2) {
 			for (j = 0; j < w; j += 2) {
 				/* Copy U */
@@ -435,27 +447,28 @@ sna_video_copy_data(struct sna *sna,
 {
 	uint8_t *dst;
 
-	DBG(("%s: handle=%d, size=%dx%d, rotation=%d\n",
+	DBG(("%s: handle=%d, size=%dx%d [%d], rotation=%d, is-texture=%d\n",
 	     __FUNCTION__, frame->bo ? frame->bo->handle : 0,
-	     frame->width, frame->height, video->rotation));
-	DBG(("%s: top=%d, left=%d\n", __FUNCTION__, frame->top, frame->left));
+	     frame->width, frame->height, frame->size
+	     video->rotation, video->textured));
+	DBG(("%s: image=(%d, %d), (%d, %d), source=(%d, %d), (%d, %d)\n",
+	     __FUNCTION__,
+	     frame->image.x1, frame->image.y1, frame->image.x2, frame->image.y2,
+	     frame->src.x1, frame->src.y1, frame->src.x2, frame->src.y2));
+	assert(frame->width && frame->height);
+	assert(frame->size);
 
 	/* In the common case, we can simply the upload in a single pwrite */
-	if (video->rotation == RR_Rotate_0) {
+	if (video->rotation == RR_Rotate_0 && !video->tiled) {
 		if (is_planar_fourcc(frame->id)) {
-			uint16_t pitch[2] = {
-				ALIGN((frame->width >> 1), 0x4),
-				ALIGN(frame->width, 0x4),
-			};
-			if (pitch[0] == frame->pitch[0] &&
-			    pitch[1] == frame->pitch[1] &&
-			    frame->top == 0 && frame->left == 0) {
-				uint32_t len =
-					(uint32_t)pitch[1]*frame->height +
-					(uint32_t)pitch[0]*frame->height;
+			int w = frame->image.x2 - frame->image.x1;
+			int h = frame->image.y2 - frame->image.y1;
+			if (ALIGN(h, 2) == frame->height &&
+			    ALIGN(w >> 1, 4) == frame->pitch[0] &&
+			    ALIGN(w, 4) == frame->pitch[1]) {
 				if (frame->bo) {
 					kgem_bo_write(&sna->kgem, frame->bo,
-						      buf, len);
+						      buf, frame->size);
 				} else {
 					frame->bo = kgem_create_buffer(&sna->kgem, frame->size,
 								       KGEM_BUFFER_WRITE | KGEM_BUFFER_WRITE_INPLACE,
@@ -463,7 +476,7 @@ sna_video_copy_data(struct sna *sna,
 					if (frame->bo == NULL)
 						return false;
 
-					memcpy(dst, buf, len);
+					memcpy(dst, buf, frame->size);
 				}
 				if (frame->id != FOURCC_I420) {
 					uint32_t tmp;
@@ -477,8 +490,8 @@ sna_video_copy_data(struct sna *sna,
 			if (frame->width*2 == frame->pitch[0]) {
 				if (frame->bo) {
 					kgem_bo_write(&sna->kgem, frame->bo,
-						      buf + (2U*frame->top * frame->width) + (frame->left << 1),
-						      2U*frame->nlines*frame->width);
+						      buf + (2U*frame->image.y1 * frame->width) + (frame->image.x1 << 1),
+						      2U*(frame->image.y2-frame->image.y1)*frame->width);
 				} else {
 					frame->bo = kgem_create_buffer(&sna->kgem, frame->size,
 								       KGEM_BUFFER_WRITE | KGEM_BUFFER_WRITE_INPLACE,
@@ -487,8 +500,8 @@ sna_video_copy_data(struct sna *sna,
 						return false;
 
 					memcpy(dst,
-					       buf + (frame->top * frame->width*2) + (frame->left << 1),
-					       2U*frame->nlines*frame->width);
+					       buf + (frame->image.y1 * frame->width*2) + (frame->image.x1 << 1),
+					       2U*(frame->image.y2-frame->image.y1)*frame->width);
 				}
 				return true;
 			}

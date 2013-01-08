@@ -4,7 +4,7 @@
 void
 kgem_debug_print(const uint32_t *data,
 		 uint32_t offset, unsigned int index,
-		 char *fmt, ...);
+		 const char *fmt, ...);
 
 struct drm_i915_gem_relocation_entry *
 kgem_debug_get_reloc_entry(struct kgem *kgem, uint32_t offset);
