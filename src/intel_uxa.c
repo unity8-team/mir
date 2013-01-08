@@ -209,7 +209,7 @@ intel_uxa_pixmap_compute_size(PixmapPtr pixmap,
 			tile_height = 8;
 		else
 			tile_height = 32;
-		aligned_h = ALIGN(h, tile_height);
+		aligned_h = ALIGN(h, 2*tile_height);
 
 		*stride = intel_get_fence_pitch(intel,
 						ALIGN(pitch, 512),

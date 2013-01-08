@@ -696,6 +696,7 @@ redisplay_dirty(ScreenPtr screen, PixmapDirtyUpdatePtr dirty)
 
 	PixmapRegionInit(&pixregion, dirty->slave_dst->master_pixmap);
 
+	DamageRegionAppend(&dirty->slave_dst->drawable, &pixregion);
 	PixmapSyncDirtyHelper(dirty, &pixregion);
 	intel_batch_submit(scrn);
 	if (!intel->has_prime_vmap_flush) {
@@ -704,9 +705,10 @@ redisplay_dirty(ScreenPtr screen, PixmapDirtyUpdatePtr dirty)
 		drm_intel_bo_map(bo, FALSE);
 		drm_intel_bo_unmap(bo);
 		xf86UnblockSIGIO(was_blocked);
-        }
-        DamageRegionAppend(&dirty->slave_dst->drawable, &pixregion);
-        RegionUninit(&pixregion);
+	}
+	DamageRegionProcessPending(&dirty->slave_dst->drawable);
+
+	RegionUninit(&pixregion);
 	return 0;
 }
 
@@ -719,7 +721,6 @@ intel_dirty_update(ScreenPtr screen)
 	if (xorg_list_is_empty(&screen->pixmap_dirty_list))
 	    return;
 
-	ErrorF("list is not empty\n");
 	xorg_list_for_each_entry(ent, &screen->pixmap_dirty_list, ent) {
 		region = DamageRegion(ent->damage);
 		if (RegionNotEmpty(region)) {

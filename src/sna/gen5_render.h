@@ -1989,50 +1989,43 @@ struct gen5_sampler_legacy_border_color {
    uint8_t color[4];
 };
 
-struct gen5_sampler_state
-{
-   
-   struct
-   {
-      unsigned int shadow_function:3; 
-      unsigned int lod_bias:11; 
-      unsigned int min_filter:3; 
-      unsigned int mag_filter:3; 
-      unsigned int mip_filter:2; 
-      unsigned int base_level:5; 
+struct gen5_sampler_state {
+   struct {
+      unsigned int shadow_function:3;
+      unsigned int lod_bias:11;
+      unsigned int min_filter:3;
+      unsigned int mag_filter:3;
+      unsigned int mip_filter:2;
+      unsigned int base_level:5;
       unsigned int pad:1;
-      unsigned int lod_preclamp:1; 
-      unsigned int border_color_mode:1; 
+      unsigned int lod_preclamp:1;
+      unsigned int border_color_mode:1;
       unsigned int pad0:1;
-      unsigned int disable:1; 
+      unsigned int disable:1;
    } ss0;
 
-   struct
-   {
-      unsigned int r_wrap_mode:3; 
-      unsigned int t_wrap_mode:3; 
-      unsigned int s_wrap_mode:3; 
+   struct {
+      unsigned int r_wrap_mode:3;
+      unsigned int t_wrap_mode:3;
+      unsigned int s_wrap_mode:3;
       unsigned int pad:3;
-      unsigned int max_lod:10; 
-      unsigned int min_lod:10; 
+      unsigned int max_lod:10;
+      unsigned int min_lod:10;
    } ss1;
 
-   
-   struct
-   {
+   struct {
       unsigned int pad:5;
-      unsigned int border_color_pointer:27; 
+      unsigned int border_color_pointer:27;
    } ss2;
-   
-   struct
-   {
-      unsigned int pad:19;
-      unsigned int max_aniso:3; 
-      unsigned int chroma_key_mode:1; 
-      unsigned int chroma_key_index:2; 
-      unsigned int chroma_key_enable:1; 
-      unsigned int monochrome_filter_width:3; 
-      unsigned int monochrome_filter_height:3; 
+
+   struct {
+      uint32_t pad:13;
+      uint32_t address_round:6;
+      uint32_t max_aniso:3;
+      uint32_t chroma_key_mode:1;
+      uint32_t chroma_key_index:2;
+      uint32_t chroma_key_enable:1;
+      uint32_t mbz:6;
    } ss3;
 };
 

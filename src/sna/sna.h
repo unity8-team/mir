@@ -111,6 +111,7 @@ struct sna_pixmap {
 	struct kgem_bo *gpu_bo, *cpu_bo;
 	struct sna_damage *gpu_damage, *cpu_damage;
 	void *ptr;
+#define PTR(ptr) ((void*)((uintptr_t)(ptr) & ~1))
 
 	struct list list;
 
@@ -125,11 +126,11 @@ struct sna_pixmap {
 #define PIN_SCANOUT 0x1
 #define PIN_DRI 0x2
 #define PIN_PRIME 0x4
+	uint8_t create :4;
 	uint8_t mapped :1;
 	uint8_t shm :1;
 	uint8_t clear :1;
 	uint8_t undamaged :1;
-	uint8_t create :3;
 	uint8_t header :1;
 	uint8_t cpu :1;
 };
@@ -193,13 +194,11 @@ struct sna {
 	ScrnInfoPtr scrn;
 
 	unsigned flags;
-#define SNA_NO_THROTTLE		0x1
-#define SNA_NO_DELAYED_FLUSH	0x2
-#define SNA_NO_WAIT		0x4
-#define SNA_NO_FLIP		0x8
+#define SNA_NO_WAIT		0x1
+#define SNA_NO_FLIP		0x2
+#define SNA_TRIPLE_BUFFER	0x4
 #define SNA_TEAR_FREE		0x10
 #define SNA_FORCE_SHADOW	0x20
-#define SNA_TRIPLE_BUFFER	0x40
 
 	unsigned watch_flush;
 
@@ -234,7 +233,6 @@ struct sna {
 	unsigned int tiling;
 #define SNA_TILING_FB		0x1
 #define SNA_TILING_2D		0x2
-#define SNA_TILING_3D		0x4
 #define SNA_TILING_ALL (~0)
 
 	EntityInfoPtr pEnt;
@@ -602,6 +600,20 @@ _sna_get_transformed_coordinates(int x, int y,
 	_sna_transform_point(transform, x, y, result);
 	*x_out = result[0] / (double)result[2];
 	*y_out = result[1] / (double)result[2];
+}
+
+static inline void
+_sna_get_transformed_scaled(int x, int y,
+			    const PictTransform *transform, const float *sf,
+			    float *x_out, float *y_out)
+{
+	*x_out = sf[0] * (transform->matrix[0][0] * x +
+			  transform->matrix[0][1] * y +
+			  transform->matrix[0][2]);
+
+	*y_out = sf[1] * (transform->matrix[1][0] * x +
+			  transform->matrix[1][1] * y +
+			  transform->matrix[1][2]);
 }
 
 void

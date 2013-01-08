@@ -104,8 +104,7 @@ sna_video_buffer(struct sna *sna,
 		if (video->tiled) {
 			video->buf = kgem_create_2d(&sna->kgem,
 						    frame->width, frame->height, 32,
-						    I915_TILING_X,
-						    CREATE_EXACT | CREATE_SCANOUT);
+						    I915_TILING_X, CREATE_EXACT);
 		} else {
 			video->buf = kgem_create_linear(&sna->kgem, frame->size,
 							CREATE_GTT_MAP);
@@ -449,7 +448,7 @@ sna_video_copy_data(struct sna *sna,
 
 	DBG(("%s: handle=%d, size=%dx%d [%d], rotation=%d, is-texture=%d\n",
 	     __FUNCTION__, frame->bo ? frame->bo->handle : 0,
-	     frame->width, frame->height, frame->size
+	     frame->width, frame->height, frame->size,
 	     video->rotation, video->textured));
 	DBG(("%s: image=(%d, %d), (%d, %d), source=(%d, %d), (%d, %d)\n",
 	     __FUNCTION__,

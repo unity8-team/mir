@@ -71,7 +71,7 @@ is_gpu(DrawablePtr drawable)
 {
 	struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
 
-	if (priv == NULL || priv->clear)
+	if (priv == NULL || priv->clear || priv->cpu)
 		return false;
 
 	if (priv->cpu_damage == NULL)
@@ -249,5 +249,12 @@ inline static bool dst_is_cpu(PixmapPtr pixmap)
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
 	return priv == NULL || DAMAGE_IS_ALL(priv->cpu_damage);
 }
+
+inline static bool
+untransformed(PicturePtr p)
+{
+	return !p->transform || pixman_transform_is_int_translate(p->transform);
+}
+
 
 #endif /* SNA_RENDER_INLINE_H */

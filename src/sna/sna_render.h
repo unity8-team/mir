@@ -69,10 +69,10 @@ struct sna_composite_op {
 
 		union {
 			struct {
+				float dx, dy, offset;
+			} linear;
+			struct {
 				uint32_t pixel;
-				float linear_dx;
-				float linear_dy;
-				float linear_offset;
 			} gen2;
 			struct gen3_shader_channel {
 				int type;
@@ -126,8 +126,8 @@ struct sna_composite_op {
 		} gen4;
 
 		struct {
-			int wm_kernel;
-			int ve_id;
+			int16_t wm_kernel;
+			int16_t ve_id;
 		} gen5;
 
 		struct {
@@ -254,13 +254,13 @@ struct sna_render {
 
 	struct sna_alpha_cache {
 		struct kgem_bo *cache_bo;
-		struct kgem_bo *bo[256];
+		struct kgem_bo *bo[256+7];
 	} alpha_cache;
 
 	struct sna_solid_cache {
 		struct kgem_bo *cache_bo;
-		uint32_t color[1024];
 		struct kgem_bo *bo[1024];
+		uint32_t color[1025];
 		int last;
 		int size;
 		int dirty;
@@ -309,7 +309,6 @@ struct gen2_render_state {
 	uint32_t ls1, ls2, vft;
 	uint32_t diffuse;
 	uint32_t specular;
-	uint16_t vertex_offset;
 };
 
 struct gen3_render_state {
@@ -325,7 +324,6 @@ struct gen3_render_state {
 	uint32_t last_diffuse;
 	uint32_t last_specular;
 
-	uint16_t vertex_offset;
 	uint16_t last_vertex_offset;
 	uint16_t floats_per_vertex;
 	uint16_t last_floats_per_vertex;
@@ -405,7 +403,6 @@ struct gen6_render_state {
 	uint32_t wm_state;
 	uint32_t wm_kernel[GEN6_KERNEL_COUNT][3];
 
-	uint32_t cc_vp;
 	uint32_t cc_blend;
 
 	uint32_t drawrect_offset;
@@ -455,7 +452,6 @@ struct gen7_render_state {
 	uint32_t wm_state;
 	uint32_t wm_kernel[GEN7_WM_KERNEL_COUNT][3];
 
-	uint32_t cc_vp;
 	uint32_t cc_blend;
 
 	uint32_t drawrect_offset;

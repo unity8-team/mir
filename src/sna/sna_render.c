@@ -508,7 +508,7 @@ static struct kgem_bo *upload(struct sna *sna,
 			if (priv->ptr == NULL) /* uninitialised */
 				return NULL;
 			assert(priv->stride);
-			pixmap->devPrivate.ptr = priv->ptr;
+			pixmap->devPrivate.ptr = PTR(priv->ptr);
 			pixmap->devKind = priv->stride;
 		}
 	}

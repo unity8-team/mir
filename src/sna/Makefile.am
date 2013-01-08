@@ -73,6 +73,8 @@ libsna_la_SOURCES = \
 	gen3_render.h \
 	gen4_render.c \
 	gen4_render.h \
+	gen4_source.c \
+	gen4_source.h \
 	gen4_vertex.c \
 	gen4_vertex.h \
 	gen5_render.c \

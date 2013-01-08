@@ -148,8 +148,9 @@ static bool sna_blt_fill_init(struct sna *sna,
 	kgem_set_mode(kgem, KGEM_BLT, bo);
 	if (!kgem_check_batch(kgem, 12) ||
 	    !kgem_check_bo_fenced(kgem, bo)) {
-		_kgem_submit(kgem);
-		assert(kgem_check_bo_fenced(kgem, bo));
+		kgem_submit(kgem);
+		if (!kgem_check_bo_fenced(kgem, bo))
+			return false;
 		_kgem_set_mode(kgem, KGEM_BLT);
 	}
 
@@ -291,7 +292,7 @@ static bool sna_blt_copy_init(struct sna *sna,
 
 	kgem_set_mode(kgem, KGEM_BLT, dst);
 	if (!kgem_check_many_bo_fenced(kgem, src, dst, NULL)) {
-		_kgem_submit(kgem);
+		kgem_submit(kgem);
 		if (!kgem_check_many_bo_fenced(kgem, src, dst, NULL))
 			return false;
 		_kgem_set_mode(kgem, KGEM_BLT);
@@ -343,7 +344,7 @@ static bool sna_blt_alpha_fixup_init(struct sna *sna,
 
 	kgem_set_mode(kgem, KGEM_BLT, dst);
 	if (!kgem_check_many_bo_fenced(kgem, src, dst, NULL)) {
-		_kgem_submit(kgem);
+		kgem_submit(kgem);
 		if (!kgem_check_many_bo_fenced(kgem, src, dst, NULL))
 			return false;
 		_kgem_set_mode(kgem, KGEM_BLT);
@@ -980,8 +981,10 @@ begin_blt(struct sna *sna,
 	  struct sna_composite_op *op)
 {
 	if (!kgem_check_bo_fenced(&sna->kgem, op->dst.bo)) {
-		_kgem_submit(&sna->kgem);
-		assert(kgem_check_bo_fenced(&sna->kgem, op->dst.bo));
+		kgem_submit(&sna->kgem);
+		if (!kgem_check_bo_fenced(&sna->kgem, op->dst.bo))
+			return false;
+
 		_kgem_set_mode(&sna->kgem, KGEM_BLT);
 	}
 
@@ -1245,7 +1248,7 @@ prepare_blt_copy(struct sna *sna,
 	}
 
 	if (!kgem_check_many_bo_fenced(&sna->kgem, op->dst.bo, bo, NULL)) {
-		_kgem_submit(&sna->kgem);
+		kgem_submit(&sna->kgem);
 		if (!kgem_check_many_bo_fenced(&sna->kgem,
 					       op->dst.bo, bo, NULL)) {
 			DBG(("%s: fallback -- no room in aperture\n", __FUNCTION__));
@@ -2041,7 +2044,7 @@ sna_blt_composite__convert(struct sna *sna,
 	}
 
 	if (!kgem_check_many_bo_fenced(&sna->kgem, tmp->dst.bo, tmp->src.bo, NULL)) {
-		_kgem_submit(&sna->kgem);
+		kgem_submit(&sna->kgem);
 		if (!kgem_check_many_bo_fenced(&sna->kgem,
 					       tmp->dst.bo, tmp->src.bo, NULL)) {
 			DBG(("%s: fallback -- no room in aperture\n", __FUNCTION__));
@@ -2267,7 +2270,7 @@ static bool sna_blt_fill_box(struct sna *sna, uint8_t alu,
 	if (!kgem_check_batch(kgem, 6) ||
 	    !kgem_check_reloc(kgem, 1) ||
 	    !kgem_check_bo_fenced(kgem, bo)) {
-		_kgem_submit(kgem);
+		kgem_submit(kgem);
 		assert(kgem_check_bo_fenced(&sna->kgem, bo));
 		_kgem_set_mode(kgem, KGEM_BLT);
 	}
@@ -2342,8 +2345,9 @@ bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
 	kgem_set_mode(kgem, KGEM_BLT, bo);
 	if (!kgem_check_batch(kgem, 12) ||
 	    !kgem_check_bo_fenced(kgem, bo)) {
-		_kgem_submit(kgem);
-		assert(kgem_check_bo_fenced(&sna->kgem, bo));
+		kgem_submit(kgem);
+		if (!kgem_check_bo_fenced(&sna->kgem, bo))
+			return false;
 		_kgem_set_mode(kgem, KGEM_BLT);
 	}
 
@@ -2516,7 +2520,7 @@ bool sna_blt_copy_boxes(struct sna *sna, uint8_t alu,
 	if (!kgem_check_batch(kgem, 8) ||
 	    !kgem_check_reloc(kgem, 2) ||
 	    !kgem_check_many_bo_fenced(kgem, dst_bo, src_bo, NULL)) {
-		_kgem_submit(kgem);
+		kgem_submit(kgem);
 		if (!kgem_check_many_bo_fenced(kgem, dst_bo, src_bo, NULL))
 			return sna_tiling_blt_copy_boxes(sna, alu,
 							 src_bo, src_dx, src_dy,

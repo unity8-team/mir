@@ -42,6 +42,7 @@
 
 #include "brw/brw.h"
 #include "gen5_render.h"
+#include "gen4_source.h"
 #include "gen4_vertex.h"
 
 #define NO_COMPOSITE 0
@@ -164,8 +165,6 @@ static const struct blendinfo {
 
 #define SAMPLER_OFFSET(sf, se, mf, me, k) \
 	((((((sf) * EXTEND_COUNT + (se)) * FILTER_COUNT + (mf)) * EXTEND_COUNT + (me)) * KERNEL_COUNT + (k)) * 64)
-
-#define VERTEX_2s2s 0
 
 static bool
 gen5_emit_pipelined_pointers(struct sna *sna,
@@ -597,7 +596,7 @@ static int gen5_get_rectangles__flush(struct sna *sna,
 {
 	if (!kgem_check_batch(&sna->kgem, op->need_magic_ca_pass ? 20 : 6))
 		return 0;
-	if (!kgem_check_reloc_and_exec(&sna->kgem, 1))
+	if (!kgem_check_reloc_and_exec(&sna->kgem, 2))
 		return 0;
 
 	if (op->need_magic_ca_pass && sna->render.vbo)
@@ -806,7 +805,7 @@ gen5_emit_pipelined_pointers(struct sna *sna,
 	uint32_t key;
 
 	DBG(("%s: has_mask=%d, src=(%d, %d), mask=(%d, %d),kernel=%d, blend=%d, ca=%d, format=%x\n",
-	     __FUNCTION__, op->u.gen4.ve_id & 2,
+	     __FUNCTION__, op->u.gen5.ve_id & 2,
 	     op->src.filter, op->src.repeat,
 	     op->mask.filter, op->mask.repeat,
 	     kernel, blend, op->has_component_alpha, (int)op->dst.format));
@@ -871,47 +870,12 @@ gen5_emit_vertex_elements(struct sna *sna,
 	int id = op->u.gen5.ve_id;
 	bool has_mask = id >> 2;
 	uint32_t format, dw;
-	int offset;
 
 	if (!DBG_NO_STATE_CACHE && render->ve_id == id)
 		return;
 
 	DBG(("%s: changing %d -> %d\n", __FUNCTION__, render->ve_id, id));
 	render->ve_id = id;
-
-	if (id == VERTEX_2s2s) {
-		DBG(("%s: setup COPY\n", __FUNCTION__));
-		assert(op->floats_per_rect == 6);
-
-		OUT_BATCH(GEN5_3DSTATE_VERTEX_ELEMENTS | ((2 * (1 + 2)) + 1 - 2));
-
-		OUT_BATCH(id << VE0_VERTEX_BUFFER_INDEX_SHIFT | VE0_VALID |
-			  GEN5_SURFACEFORMAT_R32G32B32A32_FLOAT << VE0_FORMAT_SHIFT |
-			  0 << VE0_OFFSET_SHIFT);
-		OUT_BATCH(VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_0_SHIFT |
-			  VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_1_SHIFT |
-			  VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_2_SHIFT |
-			  VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_3_SHIFT);
-
-		/* x,y */
-		OUT_BATCH(id << VE0_VERTEX_BUFFER_INDEX_SHIFT | VE0_VALID |
-			  GEN5_SURFACEFORMAT_R16G16_SSCALED << VE0_FORMAT_SHIFT |
-			  0 << VE0_OFFSET_SHIFT);
-		OUT_BATCH(VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT |
-			  VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT |
-			  VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_2_SHIFT |
-			  VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT);
-
-		/* s,t */
-		OUT_BATCH(id << VE0_VERTEX_BUFFER_INDEX_SHIFT | VE0_VALID |
-			  GEN5_SURFACEFORMAT_R16G16_SSCALED << VE0_FORMAT_SHIFT |
-			  4 << VE0_OFFSET_SHIFT);
-		OUT_BATCH(VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT |
-			  VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT |
-			  VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_2_SHIFT |
-			  VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT);
-		return;
-	}
 
 	/* The VUE layout
 	 *    dword 0-3: pad (0.0, 0.0, 0.0. 0.0)
@@ -940,21 +904,26 @@ gen5_emit_vertex_elements(struct sna *sna,
 		  VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT |
 		  VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_2_SHIFT |
 		  VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT);
-	offset = 4;
 
 	/* u0, v0, w0 */
-	DBG(("%s: id=%d, first channel %d floats, offset=%d\n", __FUNCTION__,
-	     id, id & 3, offset));
+	DBG(("%s: id=%d, first channel %d floats, offset=4b\n", __FUNCTION__,
+	     id, id & 3));
 	dw = VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT;
 	switch (id & 3) {
+	default:
+		assert(0);
+	case 0:
+		format = GEN5_SURFACEFORMAT_R16G16_SSCALED << VE0_FORMAT_SHIFT;
+		dw |= VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT;
+		dw |= VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT;
+		dw |= VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_2_SHIFT;
+		break;
 	case 1:
 		format = GEN5_SURFACEFORMAT_R32_FLOAT << VE0_FORMAT_SHIFT;
 		dw |= VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT;
 		dw |= VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_1_SHIFT;
 		dw |= VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_2_SHIFT;
 		break;
-	default:
-		assert(0);
 	case 2:
 		format = GEN5_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT;
 		dw |= VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT;
@@ -969,16 +938,16 @@ gen5_emit_vertex_elements(struct sna *sna,
 		break;
 	}
 	OUT_BATCH(id << VE0_VERTEX_BUFFER_INDEX_SHIFT | VE0_VALID |
-		  format | offset << VE0_OFFSET_SHIFT);
+		  format | 4 << VE0_OFFSET_SHIFT);
 	OUT_BATCH(dw);
 
 	/* u1, v1, w1 */
 	if (has_mask) {
-		offset += (id & 3) * sizeof(float);
-		DBG(("%s: id=%x, second channel %d floats, offset=%d\n", __FUNCTION__,
-		     id, (id >> 2) & 3, offset));
+		unsigned offset = 4 + ((id & 3) ?: 1) * sizeof(float);
+		DBG(("%s: id=%x, second channel %d floats, offset=%db\n", __FUNCTION__,
+		     id, id >> 2, offset));
 		dw = VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT;
-		switch ((id >> 2) & 3) {
+		switch (id >> 2) {
 		case 1:
 			format = GEN5_SURFACEFORMAT_R32_FLOAT << VE0_FORMAT_SHIFT;
 			dw |= VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT;
@@ -1049,7 +1018,7 @@ static void gen5_bind_surfaces(struct sna *sna,
 			     op->src.card_format,
 			     false);
 	if (op->mask.bo) {
-		assert(op->u.gen4.ve_id >> 2);
+		assert(op->u.gen5.ve_id >> 2);
 		binding_table[2] =
 			gen5_bind_bo(sna,
 				     op->mask.bo,
@@ -1351,141 +1320,6 @@ gen5_render_video(struct sna *sna,
 	return true;
 }
 
-static bool
-gen5_composite_solid_init(struct sna *sna,
-			  struct sna_composite_channel *channel,
-			  uint32_t color)
-{
-	channel->filter = PictFilterNearest;
-	channel->repeat = RepeatNormal;
-	channel->is_affine = true;
-	channel->is_solid  = true;
-	channel->transform = NULL;
-	channel->width  = 1;
-	channel->height = 1;
-	channel->card_format = GEN5_SURFACEFORMAT_B8G8R8A8_UNORM;
-
-	channel->bo = sna_render_get_solid(sna, color);
-
-	channel->scale[0]  = channel->scale[1]  = 1;
-	channel->offset[0] = channel->offset[1] = 0;
-	return channel->bo != NULL;
-}
-
-static bool
-gen5_composite_linear_init(struct sna *sna,
-			   PicturePtr picture,
-			   struct sna_composite_channel *channel,
-			   int x, int y,
-			   int w, int h,
-			   int dst_x, int dst_y)
-{
-	PictLinearGradient *linear =
-		(PictLinearGradient *)picture->pSourcePict;
-	pixman_fixed_t tx, ty;
-	float x0, y0, sf;
-	float dx, dy;
-
-	DBG(("%s: p1=(%f, %f), p2=(%f, %f), src=(%d, %d), dst=(%d, %d), size=(%d, %d)\n",
-	     __FUNCTION__,
-	     pixman_fixed_to_double(linear->p1.x), pixman_fixed_to_double(linear->p1.y),
-	     pixman_fixed_to_double(linear->p2.x), pixman_fixed_to_double(linear->p2.y),
-	     x, y, dst_x, dst_y, w, h));
-
-	if (linear->p2.x == linear->p1.x && linear->p2.y == linear->p1.y)
-		return 0;
-
-	if (!sna_transform_is_affine(picture->transform)) {
-		DBG(("%s: fallback due to projective transform\n",
-		     __FUNCTION__));
-		return sna_render_picture_fixup(sna, picture, channel,
-						x, y, w, h, dst_x, dst_y);
-	}
-
-	channel->bo = sna_render_get_gradient(sna, (PictGradient *)linear);
-	if (!channel->bo)
-		return 0;
-
-	channel->filter = PictFilterNearest;
-	channel->repeat = picture->repeat ? picture->repeatType : RepeatNone;
-	channel->width  = channel->bo->pitch / 4;
-	channel->height = 1;
-	channel->pict_format = PICT_a8r8g8b8;
-
-	channel->scale[0]  = channel->scale[1]  = 1;
-	channel->offset[0] = channel->offset[1] = 0;
-
-	if (sna_transform_is_translation(picture->transform, &tx, &ty)) {
-		dx = pixman_fixed_to_double(linear->p2.x - linear->p1.x);
-		dy = pixman_fixed_to_double(linear->p2.y - linear->p1.y);
-
-		x0 = pixman_fixed_to_double(linear->p1.x);
-		y0 = pixman_fixed_to_double(linear->p1.y);
-
-		if (tx | ty) {
-			x0 -= pixman_fixed_to_double(tx);
-			y0 -= pixman_fixed_to_double(ty);
-		}
-	} else {
-		struct pixman_f_vector p1, p2;
-		struct pixman_f_transform m, inv;
-
-		pixman_f_transform_from_pixman_transform(&m, picture->transform);
-		DBG(("%s: transform = [%f %f %f, %f %f %f, %f %f %f]\n",
-		     __FUNCTION__,
-		     m.m[0][0], m.m[0][1], m.m[0][2],
-		     m.m[1][0], m.m[1][1], m.m[1][2],
-		     m.m[2][0], m.m[2][1], m.m[2][2]));
-		if (!pixman_f_transform_invert(&inv, &m))
-			return 0;
-
-		p1.v[0] = pixman_fixed_to_double(linear->p1.x);
-		p1.v[1] = pixman_fixed_to_double(linear->p1.y);
-		p1.v[2] = 1.;
-		pixman_f_transform_point(&inv, &p1);
-
-		p2.v[0] = pixman_fixed_to_double(linear->p2.x);
-		p2.v[1] = pixman_fixed_to_double(linear->p2.y);
-		p2.v[2] = 1.;
-		pixman_f_transform_point(&inv, &p2);
-
-		DBG(("%s: untransformed: p1=(%f, %f, %f), p2=(%f, %f, %f)\n",
-		     __FUNCTION__,
-		     p1.v[0], p1.v[1], p1.v[2],
-		     p2.v[0], p2.v[1], p2.v[2]));
-
-		dx = p2.v[0] - p1.v[0];
-		dy = p2.v[1] - p1.v[1];
-
-		x0 = p1.v[0];
-		y0 = p1.v[1];
-	}
-
-	sf = dx*dx + dy*dy;
-	dx /= sf;
-	dy /= sf;
-
-	channel->embedded_transform.matrix[0][0] = pixman_double_to_fixed(dx);
-	channel->embedded_transform.matrix[0][1] = pixman_double_to_fixed(dy);
-	channel->embedded_transform.matrix[0][2] = -pixman_double_to_fixed(dx*(x0+dst_x-x) + dy*(y0+dst_y-y));
-
-	channel->embedded_transform.matrix[1][0] = 0;
-	channel->embedded_transform.matrix[1][1] = 0;
-	channel->embedded_transform.matrix[1][2] = pixman_double_to_fixed(.5);
-
-	channel->embedded_transform.matrix[2][0] = 0;
-	channel->embedded_transform.matrix[2][1] = 0;
-	channel->embedded_transform.matrix[2][2] = pixman_fixed_1;
-
-	channel->transform = &channel->embedded_transform;
-	channel->is_affine = 1;
-
-	DBG(("%s: dx=%f, dy=%f, offset=%f\n",
-	     __FUNCTION__, dx, dy, -dx*(x0-x+dst_x) + -dy*(y0-y+dst_y)));
-
-	return channel->bo != NULL;
-}
-
 static int
 gen5_composite_picture(struct sna *sna,
 		       PicturePtr picture,
@@ -1506,16 +1340,16 @@ gen5_composite_picture(struct sna *sna,
 	channel->card_format = -1;
 
 	if (sna_picture_is_solid(picture, &color))
-		return gen5_composite_solid_init(sna, channel, color);
+		return gen4_channel_init_solid(sna, channel, color);
 
 	if (picture->pDrawable == NULL) {
 		int ret;
 
 		if (picture->pSourcePict->type == SourcePictTypeLinear)
-			return gen5_composite_linear_init(sna, picture, channel,
-							  x, y,
-							  w, h,
-							  dst_x, dst_y);
+			return gen4_channel_init_linear(sna, picture, channel,
+							x, y,
+							w, h,
+							dst_x, dst_y);
 
 		DBG(("%s -- fixup, gradient\n", __FUNCTION__));
 		ret = -1;
@@ -1708,12 +1542,6 @@ has_alphamap(PicturePtr p)
 }
 
 static bool
-untransformed(PicturePtr p)
-{
-	return !p->transform || pixman_transform_is_int_translate(p->transform);
-}
-
-static bool
 need_upload(PicturePtr p)
 {
 	return p->pDrawable && untransformed(p) && !is_gpu(p->pDrawable);
@@ -1862,7 +1690,7 @@ reuse_source(struct sna *sna,
 	}
 
 	if (sna_picture_is_solid(mask, &color))
-		return gen5_composite_solid_init(sna, mc, color);
+		return gen4_channel_init_solid(sna, mc, color);
 
 	if (sc->is_solid)
 		return false;
@@ -1957,7 +1785,7 @@ gen5_render_composite(struct sna *sna,
 		DBG(("%s: failed to prepare source picture\n", __FUNCTION__));
 		goto cleanup_dst;
 	case 0:
-		if (!gen5_composite_solid_init(sna, &tmp->src, 0))
+		if (!gen4_channel_init_solid(sna, &tmp->src, 0))
 			goto cleanup_dst;
 		/* fall through to fixup */
 	case 1:
@@ -2008,7 +1836,7 @@ gen5_render_composite(struct sna *sna,
 				DBG(("%s: failed to prepare mask picture\n", __FUNCTION__));
 				goto cleanup_src;
 			case 0:
-				if (!gen5_composite_solid_init(sna, &tmp->mask, 0))
+				if (!gen4_channel_init_solid(sna, &tmp->mask, 0))
 					goto cleanup_src;
 				/* fall through to fixup */
 			case 1:
@@ -2019,14 +1847,13 @@ gen5_render_composite(struct sna *sna,
 
 		tmp->is_affine &= tmp->mask.is_affine;
 	}
-	gen4_choose_composite_emitter(tmp);
 
 	tmp->u.gen5.wm_kernel =
 		gen5_choose_composite_kernel(tmp->op,
 					     tmp->mask.bo != NULL,
 					     tmp->has_component_alpha,
 					     tmp->is_affine);
-	tmp->u.gen5.ve_id = gen4_choose_composite_vertex_buffer(tmp);
+	tmp->u.gen5.ve_id = gen4_choose_composite_emitter(tmp);
 
 	tmp->blt   = gen5_render_composite_blt;
 	tmp->box   = gen5_render_composite_box;
@@ -2198,7 +2025,7 @@ gen5_render_composite_spans(struct sna *sna,
 	case -1:
 		goto cleanup_dst;
 	case 0:
-		if (!gen5_composite_solid_init(sna, &tmp->base.src, 0))
+		if (!gen4_channel_init_solid(sna, &tmp->base.src, 0))
 			goto cleanup_dst;
 		/* fall through to fixup */
 	case 1:
@@ -2212,10 +2039,8 @@ gen5_render_composite_spans(struct sna *sna,
 	tmp->base.has_component_alpha = false;
 	tmp->base.need_magic_ca_pass = false;
 
-	gen4_choose_spans_emitter(tmp);
-
+	tmp->base.u.gen5.ve_id = gen4_choose_spans_emitter(tmp);
 	tmp->base.u.gen5.wm_kernel = WM_KERNEL_OPACITY | !tmp->base.is_affine;
-	tmp->base.u.gen5.ve_id = gen4_choose_spans_vertex_buffer(&tmp->base);
 
 	tmp->box   = gen5_render_composite_spans_box;
 	tmp->boxes = gen5_render_composite_spans_boxes;
@@ -2379,20 +2204,20 @@ fallback_blt:
 					       extents.x2 - extents.x1,
 					       extents.y2 - extents.y1))
 			goto fallback_tiled_dst;
-
-		src_dx += tmp.src.offset[0];
-		src_dy += tmp.src.offset[1];
 	} else {
 		tmp.src.bo = kgem_bo_reference(src_bo);
 		tmp.src.width  = src->drawable.width;
 		tmp.src.height = src->drawable.height;
+		tmp.src.offset[0] = tmp.src.offset[1] = 0;
+		tmp.src.scale[0] = 1.f/src->drawable.width;
+		tmp.src.scale[1] = 1.f/src->drawable.height;
 	}
 
 	tmp.is_affine = true;
-	tmp.floats_per_vertex = 2;
-	tmp.floats_per_rect = 6;
+	tmp.floats_per_vertex = 3;
+	tmp.floats_per_rect = 9;
 	tmp.u.gen5.wm_kernel = WM_KERNEL;
-	tmp.u.gen5.ve_id = VERTEX_2s2s;
+	tmp.u.gen5.ve_id = 2;
 
 	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL)) {
 		kgem_submit(&sna->kgem);
@@ -2403,6 +2228,9 @@ fallback_blt:
 	dst_dx += tmp.dst.x;
 	dst_dy += tmp.dst.y;
 	tmp.dst.x = tmp.dst.y = 0;
+
+	src_dx += tmp.src.offset[0];
+	src_dy += tmp.src.offset[1];
 
 	gen5_copy_bind_surfaces(sna, &tmp);
 	gen5_align_vertex(sna, &tmp);
@@ -2420,13 +2248,16 @@ fallback_blt:
 			     box->x1 + dst_dx, box->y1 + dst_dy,
 			     box->x2 - box->x1, box->y2 - box->y1));
 			OUT_VERTEX(box->x2 + dst_dx, box->y2 + dst_dy);
-			OUT_VERTEX(box->x2 + src_dx, box->y2 + src_dy);
+			OUT_VERTEX_F((box->x2 + src_dx) * tmp.src.scale[0]);
+			OUT_VERTEX_F((box->y2 + src_dy) * tmp.src.scale[1]);
 
 			OUT_VERTEX(box->x1 + dst_dx, box->y2 + dst_dy);
-			OUT_VERTEX(box->x1 + src_dx, box->y2 + src_dy);
+			OUT_VERTEX_F((box->x1 + src_dx) * tmp.src.scale[0]);
+			OUT_VERTEX_F((box->y2 + src_dy) * tmp.src.scale[1]);
 
 			OUT_VERTEX(box->x1 + dst_dx, box->y1 + dst_dy);
-			OUT_VERTEX(box->x1 + src_dx, box->y1 + src_dy);
+			OUT_VERTEX_F((box->x1 + src_dx) * tmp.src.scale[0]);
+			OUT_VERTEX_F((box->y1 + src_dy) * tmp.src.scale[1]);
 
 			box++;
 		} while (--n_this_time);
@@ -2443,6 +2274,14 @@ fallback_tiled_dst:
 	if (tmp.redirect.real_bo)
 		kgem_bo_destroy(&sna->kgem, tmp.dst.bo);
 fallback_tiled:
+	if (sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
+	    sna_blt_copy_boxes(sna, alu,
+			       src_bo, src_dx, src_dy,
+			       dst_bo, dst_dx, dst_dy,
+			       dst->drawable.bitsPerPixel,
+			       box, n))
+		return true;
+
 	return sna_tiling_copy_boxes(sna, alu,
 				     src, src_bo, src_dx, src_dy,
 				     dst, dst_bo, dst_dx, dst_dy,
@@ -2462,13 +2301,16 @@ gen5_render_copy_blt(struct sna *sna,
 	gen5_get_rectangles(sna, &op->base, 1, gen5_copy_bind_surfaces);
 
 	OUT_VERTEX(dx+w, dy+h);
-	OUT_VERTEX(sx+w, sy+h);
+	OUT_VERTEX_F((sx+w)*op->base.src.scale[0]);
+	OUT_VERTEX_F((sy+h)*op->base.src.scale[1]);
 
 	OUT_VERTEX(dx, dy+h);
-	OUT_VERTEX(sx, sy+h);
+	OUT_VERTEX_F(sx*op->base.src.scale[0]);
+	OUT_VERTEX_F((sy+h)*op->base.src.scale[1]);
 
 	OUT_VERTEX(dx, dy);
-	OUT_VERTEX(sx, sy);
+	OUT_VERTEX_F(sx*op->base.src.scale[0]);
+	OUT_VERTEX_F(sy*op->base.src.scale[1]);
 }
 
 static void
@@ -2530,14 +2372,16 @@ fallback:
 		gen5_get_card_format(op->base.src.pict_format);
 	op->base.src.width  = src->drawable.width;
 	op->base.src.height = src->drawable.height;
+	op->base.src.scale[0] = 1.f/src->drawable.width;
+	op->base.src.scale[1] = 1.f/src->drawable.height;
 	op->base.src.filter = SAMPLER_FILTER_NEAREST;
 	op->base.src.repeat = SAMPLER_EXTEND_NONE;
 
 	op->base.is_affine = true;
-	op->base.floats_per_vertex = 2;
-	op->base.floats_per_rect = 6;
+	op->base.floats_per_vertex = 3;
+	op->base.floats_per_rect = 9;
 	op->base.u.gen5.wm_kernel = WM_KERNEL;
-	op->base.u.gen5.ve_id = VERTEX_2s2s;
+	op->base.u.gen5.ve_id = 2;
 
 	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL)) {
 		kgem_submit(&sna->kgem);
@@ -2687,7 +2531,7 @@ gen5_render_fill_boxes(struct sna *sna,
 	tmp.floats_per_vertex = 2;
 	tmp.floats_per_rect = 6;
 	tmp.u.gen5.wm_kernel = WM_KERNEL;
-	tmp.u.gen5.ve_id = VERTEX_2s2s;
+	tmp.u.gen5.ve_id = 1;
 
 	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL)) {
 		kgem_submit(&sna->kgem);
@@ -2708,13 +2552,13 @@ gen5_render_fill_boxes(struct sna *sna,
 			DBG(("	(%d, %d), (%d, %d)\n",
 			     box->x1, box->y1, box->x2, box->y2));
 			OUT_VERTEX(box->x2, box->y2);
-			OUT_VERTEX(1, 1);
+			OUT_VERTEX_F(.5);
 
 			OUT_VERTEX(box->x1, box->y2);
-			OUT_VERTEX(0, 1);
+			OUT_VERTEX_F(.5);
 
 			OUT_VERTEX(box->x1, box->y1);
-			OUT_VERTEX(0, 0);
+			OUT_VERTEX_F(.5);
 
 			box++;
 		} while (--n_this_time);
@@ -2735,13 +2579,13 @@ gen5_render_fill_op_blt(struct sna *sna,
 	gen5_get_rectangles(sna, &op->base, 1, gen5_fill_bind_surfaces);
 
 	OUT_VERTEX(x+w, y+h);
-	OUT_VERTEX(1, 1);
+	OUT_VERTEX_F(.5);
 
 	OUT_VERTEX(x, y+h);
-	OUT_VERTEX(0, 1);
+	OUT_VERTEX_F(.5);
 
 	OUT_VERTEX(x, y);
-	OUT_VERTEX(0, 0);
+	OUT_VERTEX_F(.5);
 }
 
 fastcall static void
@@ -2755,13 +2599,13 @@ gen5_render_fill_op_box(struct sna *sna,
 	gen5_get_rectangles(sna, &op->base, 1, gen5_fill_bind_surfaces);
 
 	OUT_VERTEX(box->x2, box->y2);
-	OUT_VERTEX(1, 1);
+	OUT_VERTEX_F(.5);
 
 	OUT_VERTEX(box->x1, box->y2);
-	OUT_VERTEX(0, 1);
+	OUT_VERTEX_F(.5);
 
 	OUT_VERTEX(box->x1, box->y1);
-	OUT_VERTEX(0, 0);
+	OUT_VERTEX_F(.5);
 }
 
 fastcall static void
@@ -2782,13 +2626,13 @@ gen5_render_fill_op_boxes(struct sna *sna,
 
 		do {
 			OUT_VERTEX(box->x2, box->y2);
-			OUT_VERTEX(1, 1);
+			OUT_VERTEX_F(.5);
 
 			OUT_VERTEX(box->x1, box->y2);
-			OUT_VERTEX(0, 1);
+			OUT_VERTEX_F(.5);
 
 			OUT_VERTEX(box->x1, box->y1);
-			OUT_VERTEX(0, 0);
+			OUT_VERTEX_F(.5);
 			box++;
 		} while (--nbox_this_time);
 	} while (nbox);
@@ -2857,7 +2701,7 @@ gen5_render_fill(struct sna *sna, uint8_t alu,
 	op->base.floats_per_vertex = 2;
 	op->base.floats_per_rect = 6;
 	op->base.u.gen5.wm_kernel = WM_KERNEL;
-	op->base.u.gen5.ve_id = VERTEX_2s2s;
+	op->base.u.gen5.ve_id = 1;
 
 	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL)) {
 		kgem_submit(&sna->kgem);
@@ -2948,10 +2792,14 @@ gen5_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 	tmp.need_magic_ca_pass = false;
 
 	tmp.u.gen5.wm_kernel = WM_KERNEL;
-	tmp.u.gen5.ve_id = VERTEX_2s2s;
+	tmp.u.gen5.ve_id = 1;
 
 	if (!kgem_check_bo(&sna->kgem, bo, NULL)) {
-		_kgem_submit(&sna->kgem);
+		kgem_submit(&sna->kgem);
+		if (!kgem_check_bo(&sna->kgem, bo, NULL)) {
+			kgem_bo_destroy(&sna->kgem, tmp.src.bo);
+			return false;
+		}
 		assert(kgem_check_bo(&sna->kgem, bo, NULL));
 	}
 
@@ -2962,13 +2810,13 @@ gen5_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 
 	DBG(("	(%d, %d), (%d, %d)\n", x1, y1, x2, y2));
 	OUT_VERTEX(x2, y2);
-	OUT_VERTEX(1, 1);
+	OUT_VERTEX_F(.5);
 
 	OUT_VERTEX(x1, y2);
-	OUT_VERTEX(0, 1);
+	OUT_VERTEX_F(.5);
 
 	OUT_VERTEX(x1, y1);
-	OUT_VERTEX(0, 0);
+	OUT_VERTEX_F(.5);
 
 	gen4_vertex_flush(sna);
 	kgem_bo_destroy(&sna->kgem, tmp.src.bo);
@@ -3055,7 +2903,7 @@ static void gen5_render_reset(struct sna *sna)
 	sna->render_state.gen5.needs_invariant = true;
 	sna->render_state.gen5.ve_id = -1;
 	sna->render_state.gen5.last_primitive = -1;
-	sna->render_state.gen5.last_pipelined_pointers = -1;
+	sna->render_state.gen5.last_pipelined_pointers = 0;
 
 	sna->render_state.gen5.drawrect_offset = -1;
 	sna->render_state.gen5.drawrect_limit = -1;

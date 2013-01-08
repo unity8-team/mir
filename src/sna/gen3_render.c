@@ -553,29 +553,27 @@ gen3_emit_composite_primitive_affine_source(struct sna *sna,
 	int16_t dst_y = r->dst.y + op->dst.y;
 	int src_x = r->src.x + (int)op->src.offset[0];
 	int src_y = r->src.y + (int)op->src.offset[1];
-	float sx, sy;
+	float *v;
 
-	_sna_get_transformed_coordinates(src_x + r->width, src_y + r->height,
-					 transform,
-					 &sx, &sy);
+	v = sna->render.vertices + sna->render.vertex_used;
+	sna->render.vertex_used += 12;
 
-	gen3_emit_composite_dstcoord(sna, dst_x + r->width, dst_y + r->height);
-	OUT_VERTEX(sx * op->src.scale[0]);
-	OUT_VERTEX(sy * op->src.scale[1]);
+	v[0] = dst_x + r->width;
+	v[5] = v[1] = dst_y + r->height;
+	v[8] = v[4] = dst_x;
+	v[9] = dst_y;
 
-	_sna_get_transformed_coordinates(src_x, src_y + r->height,
-					 transform,
-					 &sx, &sy);
-	gen3_emit_composite_dstcoord(sna, dst_x, dst_y + r->height);
-	OUT_VERTEX(sx * op->src.scale[0]);
-	OUT_VERTEX(sy * op->src.scale[1]);
+	_sna_get_transformed_scaled(src_x + r->width, src_y + r->height,
+				    transform, op->src.scale,
+				    &v[2], &v[3]);
 
-	_sna_get_transformed_coordinates(src_x, src_y,
-					 transform,
-					 &sx, &sy);
-	gen3_emit_composite_dstcoord(sna, dst_x, dst_y);
-	OUT_VERTEX(sx * op->src.scale[0]);
-	OUT_VERTEX(sy * op->src.scale[1]);
+	_sna_get_transformed_scaled(src_x, src_y + r->height,
+				    transform, op->src.scale,
+				    &v[6], &v[7]);
+
+	_sna_get_transformed_scaled(src_x, src_y,
+				    transform, op->src.scale,
+				    &v[10], &v[11]);
 }
 
 fastcall static void
@@ -1593,19 +1591,19 @@ static void gen3_magic_ca_pass(struct sna *sna,
 
 static void gen3_vertex_flush(struct sna *sna)
 {
-	assert(sna->render_state.gen3.vertex_offset);
+	assert(sna->render.vertex_offset);
 
 	DBG(("%s[%x] = %d\n", __FUNCTION__,
-	     4*sna->render_state.gen3.vertex_offset,
+	     4*sna->render.vertex_offset,
 	     sna->render.vertex_index - sna->render.vertex_start));
 
-	sna->kgem.batch[sna->render_state.gen3.vertex_offset] =
+	sna->kgem.batch[sna->render.vertex_offset] =
 		PRIM3D_RECTLIST | PRIM3D_INDIRECT_SEQUENTIAL |
 		(sna->render.vertex_index - sna->render.vertex_start);
-	sna->kgem.batch[sna->render_state.gen3.vertex_offset + 1] =
+	sna->kgem.batch[sna->render.vertex_offset + 1] =
 		sna->render.vertex_start;
 
-	sna->render_state.gen3.vertex_offset = 0;
+	sna->render.vertex_offset = 0;
 }
 
 static int gen3_vertex_finish(struct sna *sna)
@@ -1620,7 +1618,7 @@ static int gen3_vertex_finish(struct sna *sna)
 
 	bo = sna->render.vbo;
 	if (bo) {
-		if (sna->render_state.gen3.vertex_offset)
+		if (sna->render.vertex_offset)
 			gen3_vertex_flush(sna);
 
 		DBG(("%s: reloc = %d\n", __FUNCTION__,
@@ -1665,7 +1663,7 @@ static void gen3_vertex_close(struct sna *sna)
 	struct kgem_bo *bo, *free_bo = NULL;
 	unsigned int delta = 0;
 
-	assert(sna->render_state.gen3.vertex_offset == 0);
+	assert(sna->render.vertex_offset == 0);
 
 	DBG(("%s: used=%d/%d, vbo active? %d\n",
 	     __FUNCTION__, sna->render.vertex_used, sna->render.vertex_size,
@@ -1771,13 +1769,13 @@ static bool gen3_rectangle_begin(struct sna *sna,
 
 	if (sna->kgem.nbatch == 2 + state->last_vertex_offset &&
 	    !op->need_magic_ca_pass) {
-		state->vertex_offset = state->last_vertex_offset;
+		sna->render.vertex_offset = state->last_vertex_offset;
 	} else {
-		state->vertex_offset = sna->kgem.nbatch;
+		sna->render.vertex_offset = sna->kgem.nbatch;
 		OUT_BATCH(MI_NOOP); /* to be filled later */
 		OUT_BATCH(MI_NOOP);
 		sna->render.vertex_start = sna->render.vertex_index;
-		state->last_vertex_offset = state->vertex_offset;
+		state->last_vertex_offset = sna->render.vertex_offset;
 	}
 
 	return true;
@@ -1818,7 +1816,7 @@ start:
 			goto flush;
 	}
 
-	if (unlikely(sna->render_state.gen3.vertex_offset == 0 &&
+	if (unlikely(sna->render.vertex_offset == 0 &&
 		     !gen3_rectangle_begin(sna, op)))
 		goto flush;
 
@@ -1832,7 +1830,7 @@ start:
 
 flush:
 	DBG(("%s: flushing batch\n", __FUNCTION__));
-	if (sna->render_state.gen3.vertex_offset) {
+	if (sna->render.vertex_offset) {
 		gen3_vertex_flush(sna);
 		gen3_magic_ca_pass(sna, op);
 	}
@@ -1923,7 +1921,7 @@ gen3_render_composite_done(struct sna *sna,
 {
 	DBG(("%s()\n", __FUNCTION__));
 
-	if (sna->render_state.gen3.vertex_offset) {
+	if (sna->render.vertex_offset) {
 		gen3_vertex_flush(sna);
 		gen3_magic_ca_pass(sna, op);
 	}
@@ -1967,7 +1965,6 @@ gen3_render_reset(struct sna *sna)
 	state->floats_per_vertex = 0;
 	state->last_floats_per_vertex = 0;
 	state->last_vertex_offset = 0;
-	state->vertex_offset = 0;
 
 	if (sna->render.vbo != NULL &&
 	    !kgem_bo_is_mappable(&sna->kgem, sna->render.vbo)) {
@@ -2586,12 +2583,6 @@ has_alphamap(PicturePtr p)
 }
 
 static bool
-untransformed(PicturePtr p)
-{
-	return !p->transform || pixman_transform_is_int_translate(p->transform);
-}
-
-static bool
 need_upload(PicturePtr p)
 {
 	return p->pDrawable && unattached(p->pDrawable) && untransformed(p);
@@ -2986,8 +2977,11 @@ gen3_render_composite(struct sna *sna,
 					tmp->prim_emit = gen3_emit_composite_primitive_identity_source_no_offset;
 				else
 					tmp->prim_emit = gen3_emit_composite_primitive_identity_source;
-			} else if (tmp->src.is_affine)
+			} else if (tmp->src.is_affine) {
+				tmp->src.scale[0] /= tmp->src.transform->matrix[2][2];
+				tmp->src.scale[1] /= tmp->src.transform->matrix[2][2];
 				tmp->prim_emit = gen3_emit_composite_primitive_affine_source;
+			}
 			break;
 		}
 	} else if (tmp->mask.u.gen3.type == SHADER_TEXTURE) {
@@ -3159,7 +3153,7 @@ gen3_emit_composite_spans_primitive_affine_source(struct sna *sna,
 						  float opacity)
 {
 	PictTransform *transform = op->base.src.transform;
-	float x, y, *v;
+	float *v;
 
 	v = sna->render.vertices + sna->render.vertex_used;
 	sna->render.vertex_used += 15;
@@ -3168,30 +3162,22 @@ gen3_emit_composite_spans_primitive_affine_source(struct sna *sna,
 	v[6]  = v[1] = op->base.dst.y + box->y2;
 	v[10] = v[5] = op->base.dst.x + box->x1;
 	v[11] = op->base.dst.y + box->y1;
-	v[4]  = opacity;
-	v[9]  = opacity;
-	v[14] = opacity;
+	v[14] = v[9] = v[4]  = opacity;
 
-	_sna_get_transformed_coordinates((int)op->base.src.offset[0] + box->x2,
-					 (int)op->base.src.offset[1] + box->y2,
-					 transform,
-					 &x, &y);
-	v[2] = x * op->base.src.scale[0];
-	v[3] = y * op->base.src.scale[1];
+	_sna_get_transformed_scaled((int)op->base.src.offset[0] + box->x2,
+				    (int)op->base.src.offset[1] + box->y2,
+				    transform, op->base.src.scale,
+				    &v[2], &v[3]);
 
-	_sna_get_transformed_coordinates((int)op->base.src.offset[0] + box->x1,
-					 (int)op->base.src.offset[1] + box->y2,
-					 transform,
-					 &x, &y);
-	v[7] = x * op->base.src.scale[0];
-	v[8] = y * op->base.src.scale[1];
+	_sna_get_transformed_scaled((int)op->base.src.offset[0] + box->x1,
+				    (int)op->base.src.offset[1] + box->y2,
+				    transform, op->base.src.scale,
+				    &v[7], &v[8]);
 
-	_sna_get_transformed_coordinates((int)op->base.src.offset[0] + box->x1,
-					 (int)op->base.src.offset[1] + box->y1,
-					 transform,
-					 &x, &y);
-	v[12] = x * op->base.src.scale[0];
-	v[13] = y * op->base.src.scale[1];
+	_sna_get_transformed_scaled((int)op->base.src.offset[0] + box->x1,
+				    (int)op->base.src.offset[1] + box->y1,
+				    transform, op->base.src.scale,
+				    &v[12], &v[13]);
 }
 
 fastcall static void
@@ -3352,7 +3338,7 @@ fastcall static void
 gen3_render_composite_spans_done(struct sna *sna,
 				 const struct sna_composite_spans_op *op)
 {
-	if (sna->render_state.gen3.vertex_offset)
+	if (sna->render.vertex_offset)
 		gen3_vertex_flush(sna);
 
 	DBG(("%s()\n", __FUNCTION__));
@@ -3479,8 +3465,11 @@ gen3_render_composite_spans(struct sna *sna,
 	case SHADER_TEXTURE:
 		if (tmp->base.src.transform == NULL)
 			tmp->prim_emit = gen3_emit_composite_spans_primitive_identity_source;
-		else if (tmp->base.src.is_affine)
+		else if (tmp->base.src.is_affine) {
+			tmp->base.src.scale[0] /= tmp->base.src.transform->matrix[2][2];
+			tmp->base.src.scale[1] /= tmp->base.src.transform->matrix[2][2];
 			tmp->prim_emit = gen3_emit_composite_spans_primitive_affine_source;
+		}
 		break;
 	}
 
@@ -4204,7 +4193,7 @@ gen3_render_copy_blt(struct sna *sna,
 static void
 gen3_render_copy_done(struct sna *sna, const struct sna_copy_op *op)
 {
-	if (sna->render_state.gen3.vertex_offset)
+	if (sna->render.vertex_offset)
 		gen3_vertex_flush(sna);
 }
 
@@ -4497,7 +4486,7 @@ gen3_render_fill_op_boxes(struct sna *sna,
 static void
 gen3_render_fill_op_done(struct sna *sna, const struct sna_fill_op *op)
 {
-	if (sna->render_state.gen3.vertex_offset)
+	if (sna->render.vertex_offset)
 		gen3_vertex_flush(sna);
 }
 
