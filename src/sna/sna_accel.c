@@ -2622,7 +2622,7 @@ sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
 		flags |= PREFER_GPU;
 	if (priv->shm)
 		flags &= ~PREFER_GPU;
-	if (priv->cpu && (flags & FORCE_GPU) == 0)
+	if (priv->cpu && (flags & (FORCE_GPU | IGNORE_CPU)) == 0)
 		flags &= ~PREFER_GPU;
 
 	DBG(("%s: flush=%d, shm=%d, cpu=%d => flags=%x\n",
@@ -4484,6 +4484,8 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 		if (region->data == NULL)
 			hint |= IGNORE_CPU;
 	}
+	if (replaces)
+		hint |= IGNORE_CPU;
 
 	bo = sna_drawable_use_bo(&dst_pixmap->drawable, hint,
 				 &region->extents, &damage);
