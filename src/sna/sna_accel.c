@@ -4392,7 +4392,7 @@ static bool use_shm_bo(struct sna *sna,
 	if (kgem_bo_is_busy(bo))
 		return true;
 
-	return __kgem_bo_is_busy(&sna->kgem, priv->cpu_bo);
+	return bo->tiling || __kgem_bo_is_busy(&sna->kgem, priv->cpu_bo);
 }
 
 static void
