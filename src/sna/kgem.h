@@ -297,6 +297,14 @@ static inline bool kgem_ring_is_idle(struct kgem *kgem, int ring)
 	return __kgem_ring_is_idle(kgem, ring);
 }
 
+static inline bool kgem_is_idle(struct kgem *kgem)
+{
+	if (!kgem->need_retire)
+		return true;
+
+	return kgem_ring_is_idle(kgem, kgem->ring);
+}
+
 void _kgem_submit(struct kgem *kgem);
 static inline void kgem_submit(struct kgem *kgem)
 {

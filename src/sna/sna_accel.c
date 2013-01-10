@@ -4345,7 +4345,7 @@ sna_pixmap_is_gpu(PixmapPtr pixmap)
 }
 
 static int
-source_prefer_gpu(struct sna_pixmap *priv)
+source_prefer_gpu(struct sna *sna, struct sna_pixmap *priv)
 {
 	if (priv == NULL) {
 		DBG(("%s: source unattached, use cpu\n", __FUNCTION__));
@@ -4368,7 +4368,7 @@ source_prefer_gpu(struct sna_pixmap *priv)
 	}
 
 	if (DAMAGE_IS_ALL(priv->cpu_damage))
-		return 0;
+		return priv->cpu_bo && kgem_is_idle(&sna->kgem);
 
 	DBG(("%s: source has GPU bo? %d\n",
 	     __FUNCTION__, priv->gpu_bo != NULL));
@@ -4466,7 +4466,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	if (dst_priv == NULL)
 		goto fallback;
 
-	hint = source_prefer_gpu(src_priv) ?:
+	hint = source_prefer_gpu(sna, src_priv) ?:
 		region_inplace(sna, dst_pixmap, region,
 			       dst_priv, alu_overwrites(alu));
 	if (dst_priv->cpu_damage && alu_overwrites(alu)) {
