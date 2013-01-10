@@ -26,7 +26,8 @@
 # _ladir passes a dummy rpath to libtool so the thing will actually link
 # TODO: -nostdlib/-Bstatic/-lgcc platform magic, not installing the .a, etc.
 
-radeon_drv_la_LIBADD = $(LIBDRM_RADEON_LIBS)
+ati_drv_la_LIBADD = $(PCIACCESS_LIBS)
+radeon_drv_la_LIBADD = $(LIBDRM_RADEON_LIBS) $(PCIACCESS_LIBS)
 
 RADEON_KMS_SRCS=radeon_dri2.c radeon_kms.c drmmode_display.c radeon_vbo.c \
 	radeon_bo_helper.c
@@ -38,11 +39,6 @@ AM_CFLAGS = \
             @LIBDRM_RADEON_CFLAGS@ \
             @XORG_CFLAGS@ \
             @LIBUDEV_CFLAGS@
-
-if XSERVER_LIBPCIACCESS
-ati_drv_la_LIBADD = $(PCIACCESS_LIBS)
-radeon_drv_la_LIBADD += $(PCIACCESS_LIBS)
-endif
 
 if LIBUDEV
 radeon_drv_la_LIBADD += $(LIBUDEV_LIBS)

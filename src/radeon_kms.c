@@ -599,8 +599,6 @@ static Bool radeon_open_drm_master(ScrnInfoPtr pScrn)
     return TRUE;
 }
 
-#ifdef EXA_MIXED_PIXMAPS
-
 static Bool r600_get_tile_config(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info   = RADEONPTR(pScrn);
@@ -712,8 +710,6 @@ static Bool r600_get_tile_config(ScrnInfoPtr pScrn)
     return TRUE;
 }
 
-#endif /* EXA_MIXED_PIXMAPS */
-
 static void RADEONSetupCapabilities(ScrnInfoPtr pScrn)
 {
 #ifdef RADEON_PIXMAP_SHARING
@@ -815,7 +811,7 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
     info->allowColorTiling2D = FALSE;
 
     RADEONSetupCapabilities(pScrn);
-#ifdef EXA_MIXED_PIXMAPS
+
     /* don't enable tiling if accel is not enabled */
     if (!info->r600_shadow_fb) {
 	Bool colorTilingDefault =
@@ -850,10 +846,6 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 	    info->allowColorTiling = xf86ReturnOptValBool(info->Options,
 							  OPTION_COLOR_TILING, colorTilingDefault);
     } else
-#else
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	       "KMS Color Tiling requires xserver which supports EXA_MIXED_PIXMAPS\n");
-#endif
 	info->allowColorTiling = FALSE;
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -1362,9 +1354,7 @@ void RADEONLeaveVT_KMS(VT_FUNC_ARGS_DECL)
 
     drmDropMaster(info->dri2.drm_fd);
 
-#ifdef HAVE_FREE_SHADOW
     xf86RotateFreeShadow(pScrn);
-#endif
 
     xf86_hide_cursors (pScrn);
     info->accel_state->XInited3D = FALSE;
@@ -1589,24 +1579,3 @@ ModeStatus RADEONValidMode(SCRN_ARG_TYPE arg, DisplayModePtr mode,
    }
     return MODE_OK;
 }
-
-#ifndef HAVE_XF86MODEBANDWIDTH
-/** Calculates the memory bandwidth (in MiB/sec) of a mode. */
-_X_HIDDEN unsigned int
-xf86ModeBandwidth(DisplayModePtr mode, int depth)
-{
-    float a_active, a_total, active_percent, pixels_per_second;
-    int bytes_per_pixel = (depth + 7) / 8;
-
-    if (!mode->HTotal || !mode->VTotal || !mode->Clock)
-	return 0;
-
-    a_active = mode->HDisplay * mode->VDisplay;
-    a_total = mode->HTotal * mode->VTotal;
-    active_percent = a_active / a_total;
-    pixels_per_second = active_percent * mode->Clock * 1000.0;
-
-    return (unsigned int)(pixels_per_second * bytes_per_pixel / (1024 * 1024));
-}
-#endif
-

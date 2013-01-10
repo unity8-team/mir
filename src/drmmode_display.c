@@ -412,9 +412,7 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		crtc->x = x;
 		crtc->y = y;
 		crtc->rotation = rotation;
-#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,5,99,0,0)
 		crtc->transformPresent = FALSE;
-#endif
 	}
 
 	output_ids = calloc(sizeof(uint32_t), xf86_config->num_output);
@@ -439,10 +437,8 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		if (!xf86CrtcRotate(crtc)) {
 			goto done;
 		}
-#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,7,0,0,0)
 		crtc->funcs->gamma_set(crtc, crtc->gamma_red, crtc->gamma_green,
 				       crtc->gamma_blue, crtc->gamma_size);
-#endif
 		
 		drmmode_ConvertToKMode(crtc->scrn, &kmode, mode);
 
@@ -976,10 +972,8 @@ drmmode_output_get_property(xf86OutputPtr output, Atom property)
 static const xf86OutputFuncsRec drmmode_output_funcs = {
     .dpms = drmmode_output_dpms,
     .create_resources = drmmode_output_create_resources,
-#ifdef RANDR_12_INTERFACE
     .set_property = drmmode_output_set_property,
     .get_property = drmmode_output_get_property,
-#endif
 #if 0
 
     .save = drmmode_crt_save,
@@ -1724,11 +1718,9 @@ static void drmmode_load_palette(ScrnInfoPtr pScrn, int numColors,
           }
 
     /* Make the change through RandR */
-#ifdef RANDR_12_INTERFACE
         if (crtc->randr_crtc)
             RRCrtcGammaSet(crtc->randr_crtc, lut_r, lut_g, lut_b);
         else
-#endif
             crtc->funcs->gamma_set(crtc, lut_r, lut_g, lut_b, 256);
      }
 }

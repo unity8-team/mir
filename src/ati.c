@@ -57,9 +57,7 @@
 #include "config.h"
 #endif
 
-#ifdef XSERVER_LIBPCIACCESS
 #include <pciaccess.h>
-#endif
 #include "atipcirename.h"
 
 #include "ati.h"
@@ -80,8 +78,6 @@ enum
 };
 
 static int ATIChipID(const uint16_t);
-
-#ifdef XSERVER_LIBPCIACCESS
 
 /* domain defines (stolen from xserver) */
 #if (defined(__alpha__) || defined(__ia64__)) && defined (linux)
@@ -140,51 +136,6 @@ ati_device_get_indexed(int index)
     return NULL;
 }
 #endif
-
-#else /* XSERVER_LIBPCIACCESS */
-
-static pciVideoPtr
-ati_device_get_from_busid(int bus, int dev, int func)
-{
-    pciVideoPtr  pVideo = NULL;
-    pciVideoPtr *xf86PciVideoInfo;
-
-    xf86PciVideoInfo = xf86GetPciVideoInfo();
-
-    if (xf86PciVideoInfo == NULL)
-        return NULL;
-
-    while ((pVideo = *xf86PciVideoInfo++) != NULL)
-    {
-        if ((pVideo->bus == bus) && (pVideo->device == dev) &&
-            (pVideo->func == func))
-            break;
-    }
-
-    return pVideo;
-}
-
-static pciVideoPtr
-ati_device_get_primary()
-{
-    pciVideoPtr  pVideo = NULL;
-    pciVideoPtr *xf86PciVideoInfo;
-
-    xf86PciVideoInfo = xf86GetPciVideoInfo();
-
-    if (xf86PciVideoInfo == NULL)
-        return NULL;
-
-    while ((pVideo = *xf86PciVideoInfo++) != NULL)
-    {
-        if (xf86IsPrimaryPci(pVideo))
-            break;
-    }
-
-    return pVideo;
-}
-
-#endif /* XSERVER_LIBPCIACCESS */
 
 void
 ati_gdev_subdriver(pointer options)

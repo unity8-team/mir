@@ -599,23 +599,10 @@ Bool RADEONDrawInit(ScreenPtr pScreen)
     info->accel_state->exa->UploadToScreen = &RADEONUploadToScreenCS;
     info->accel_state->exa->DownloadFromScreen = &RADEONDownloadFromScreenCS;
 
-    info->accel_state->exa->flags = EXA_OFFSCREEN_PIXMAPS;
-#ifdef EXA_SUPPORTS_PREPARE_AUX
-    info->accel_state->exa->flags |= EXA_SUPPORTS_PREPARE_AUX;
-#endif
-#ifdef EXA_SUPPORTS_OFFSCREEN_OVERLAPS
-    /* The 2D engine supports overlapping memory areas */
-    info->accel_state->exa->flags |= EXA_SUPPORTS_OFFSCREEN_OVERLAPS;
-#endif
+    info->accel_state->exa->flags = EXA_OFFSCREEN_PIXMAPS | EXA_SUPPORTS_PREPARE_AUX |
+	EXA_SUPPORTS_OFFSCREEN_OVERLAPS | EXA_HANDLES_PIXMAPS | EXA_MIXED_PIXMAPS;
     info->accel_state->exa->pixmapOffsetAlign = RADEON_GPU_PAGE_SIZE;
     info->accel_state->exa->pixmapPitchAlign = 64;
-
-#ifdef EXA_HANDLES_PIXMAPS
-    info->accel_state->exa->flags |= EXA_HANDLES_PIXMAPS;
-#ifdef EXA_MIXED_PIXMAPS
-    info->accel_state->exa->flags |= EXA_MIXED_PIXMAPS;
-#endif
-#endif
 
 #ifdef RENDER
     if (info->RenderAccel) {
@@ -647,30 +634,20 @@ Bool RADEONDrawInit(ScreenPtr pScreen)
     }
 #endif
 
-#if (EXA_VERSION_MAJOR == 2 && EXA_VERSION_MINOR >= 4)
     info->accel_state->exa->CreatePixmap = RADEONEXACreatePixmap;
     info->accel_state->exa->DestroyPixmap = RADEONEXADestroyPixmap;
     info->accel_state->exa->PixmapIsOffscreen = RADEONEXAPixmapIsOffscreen;
     info->accel_state->exa->PrepareAccess = RADEONPrepareAccess_CS;
     info->accel_state->exa->FinishAccess = RADEONFinishAccess_CS;
-#if (EXA_VERSION_MAJOR == 2 && EXA_VERSION_MINOR >= 5)
     info->accel_state->exa->CreatePixmap2 = RADEONEXACreatePixmap2;
 #if (EXA_VERSION_MAJOR == 2 && EXA_VERSION_MINOR >= 6) 
     info->accel_state->exa->SharePixmapBacking = RADEONEXASharePixmapBacking; 
     info->accel_state->exa->SetSharedPixmapBacking = RADEONEXASetSharedPixmapBacking;
 #endif
-#endif
-#endif
 
-
-#if EXA_VERSION_MAJOR > 2 || (EXA_VERSION_MAJOR == 2 && EXA_VERSION_MINOR >= 3)
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Setting EXA maxPitchBytes\n");
 
     info->accel_state->exa->maxPitchBytes = 16320;
     info->accel_state->exa->maxX = 8191;
-#else
-    info->accel_state->exa->maxX = 16320 / 4;
-#endif
     info->accel_state->exa->maxY = 8191;
 
     if (xf86ReturnOptValBool(info->Options, OPTION_EXA_VSYNC, FALSE)) {

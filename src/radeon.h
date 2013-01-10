@@ -134,11 +134,6 @@
 # define __FUNCTION__ __func__		/* C99 */
 #endif
 
-#ifndef HAVE_XF86MODEBANDWIDTH
-extern unsigned int xf86ModeBandwidth(DisplayModePtr mode, int depth);
-#define MODE_BANDWIDTH MODE_BAD
-#endif
-
 typedef enum {
     OPTION_NOACCEL,
     OPTION_SW_CURSOR,
@@ -404,9 +399,6 @@ struct radeon_accel_state {
 typedef struct {
     EntityInfoPtr     pEnt;
     pciVideoPtr       PciInfo;
-#ifndef XSERVER_LIBPCIACCESS
-    PCITAG            PciTag;
-#endif
     int               Chipset;
     RADEONChipFamily  ChipFamily;
 

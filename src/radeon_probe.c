@@ -46,9 +46,6 @@
 #include "atipcirename.h"
 
 #include "xf86.h"
-#if GET_ABI_MAJOR(ABI_VIDEODRV_VERSION) < 6
-#include "xf86Resources.h"
-#endif
 
 #include "xf86drmMode.h"
 #include "dri.h"
@@ -61,13 +58,7 @@
 
 #include "radeon_pci_chipset_gen.h"
 
-#ifdef XSERVER_LIBPCIACCESS
 #include "radeon_pci_device_match_gen.h"
-#endif
-
-#ifndef XSERVER_LIBPCIACCESS
-static Bool RADEONProbe(DriverPtr drv, int flags);
-#endif
 
 _X_EXPORT int gRADEONEntityIndex = -1;
 
@@ -135,11 +126,7 @@ radeon_get_scrninfo(int entity_num, void *pci_dev)
     pScrn->driverVersion = RADEON_VERSION_CURRENT;
     pScrn->driverName    = RADEON_DRIVER_NAME;
     pScrn->name          = RADEON_NAME;
-#ifdef XSERVER_LIBPCIACCESS
     pScrn->Probe         = NULL;
-#else
-    pScrn->Probe         = RADEONProbe;
-#endif
 
     pScrn->PreInit       = RADEONPreInit_KMS;
     pScrn->ScreenInit    = RADEONScreenInit_KMS;
@@ -184,53 +171,6 @@ radeon_get_scrninfo(int entity_num, void *pci_dev)
     return TRUE;
 }
 
-#ifndef XSERVER_LIBPCIACCESS
-
-/* Return TRUE if chipset is present; FALSE otherwise. */
-static Bool
-RADEONProbe(DriverPtr drv, int flags)
-{
-    int      numUsed;
-    int      numDevSections;
-    int     *usedChips;
-    GDevPtr *devSections;
-    Bool     foundScreen = FALSE;
-    int      i;
-
-    if (!xf86GetPciVideoInfo()) return FALSE;
-
-    numDevSections = xf86MatchDevice(RADEON_NAME, &devSections);
-
-    if (!numDevSections) return FALSE;
-
-    numUsed = xf86MatchPciInstances(RADEON_NAME,
-				    PCI_VENDOR_ATI,
-				    RADEONChipsets,
-				    RADEONPciChipsets,
-				    devSections,
-				    numDevSections,
-				    drv,
-				    &usedChips);
-
-    if (numUsed <= 0) return FALSE;
-
-    if (flags & PROBE_DETECT) {
-	foundScreen = TRUE;
-    } else {
-	for (i = 0; i < numUsed; i++) {
-	    if (radeon_get_scrninfo(usedChips[i], NULL))
-		foundScreen = TRUE;
-	}
-    }
-
-    free(usedChips);
-    free(devSections);
-
-    return foundScreen;
-}
-
-#else /* XSERVER_LIBPCIACCESS */
-
 static Bool
 radeon_pci_probe(
     DriverPtr          pDriver,
@@ -241,8 +181,6 @@ radeon_pci_probe(
 {
     return radeon_get_scrninfo(entity_num, (void *)device);
 }
-
-#endif /* XSERVER_LIBPCIACCESS */
 
 static Bool
 RADEONDriverFunc(ScrnInfoPtr scrn, xorgDriverFuncOp op, void *data)
@@ -337,19 +275,13 @@ _X_EXPORT DriverRec RADEON =
     RADEON_VERSION_CURRENT,
     RADEON_DRIVER_NAME,
     RADEONIdentify,
-#ifdef XSERVER_LIBPCIACCESS
     NULL,
-#else
-    RADEONProbe,
-#endif
     RADEONAvailableOptions,
     NULL,
     0,
     RADEONDriverFunc,
-#ifdef XSERVER_LIBPCIACCESS
     radeon_device_match,
     radeon_pci_probe,
-#endif
 #ifdef XSERVER_PLATFORM_BUS
     radeon_platform_probe
 #endif

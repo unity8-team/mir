@@ -56,10 +56,6 @@
 
 #include "radeon_bo_gem.h"
 
-#if DRI2INFOREC_VERSION >= 1
-#define USE_DRI2_1_1_0
-#endif
-
 #if DRI2INFOREC_VERSION >= 4 && HAVE_LIST_H
 #define USE_DRI2_SCHEDULING
 #endif
@@ -70,11 +66,7 @@
 
 #define FALLBACK_SWAP_DELAY 16
 
-#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,6,99,0, 0)
 typedef DRI2BufferPtr BufferPtr;
-#else
-typedef DRI2Buffer2Ptr BufferPtr;
-#endif
 
 struct dri2_buffer_priv {
     PixmapPtr   pixmap;
@@ -154,173 +146,6 @@ static PixmapPtr fixup_glamor(DrawablePtr drawable, PixmapPtr pixmap)
 }
 
 
-#ifndef USE_DRI2_1_1_0
-static BufferPtr
-radeon_dri2_create_buffers(DrawablePtr drawable,
-                           unsigned int *attachments,
-                           int count)
-{
-    ScreenPtr pScreen = drawable->pScreen;
-    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
-    RADEONInfoPtr info = RADEONPTR(pScrn);
-    BufferPtr buffers;
-    struct dri2_buffer_priv *privates;
-    PixmapPtr pixmap, depth_pixmap;
-    struct radeon_bo *bo;
-    int i, r, need_enlarge = 0;
-    int flags = 0;
-    unsigned front_width;
-    uint32_t tiling = 0;
-
-    pixmap = pScreen->GetScreenPixmap(pScreen);
-    front_width = pixmap->drawable.width;
-
-    buffers = calloc(count, sizeof *buffers);
-    if (buffers == NULL) {
-        return NULL;
-    }
-    privates = calloc(count, sizeof(struct dri2_buffer_priv));
-    if (privates == NULL) {
-        free(buffers);
-        return NULL;
-    }
-
-    depth_pixmap = NULL;
-    for (i = 0; i < count; i++) {
-	Bool is_glamor_pixmap = FALSE;
-	unsigned aligned_width = drawable->width;
-	unsigned aligned_height = drawable->height;
-
-        if (attachments[i] == DRI2BufferFrontLeft) {
-            pixmap = get_drawable_pixmap(drawable);
-	    if (info->use_glamor && !radeon_get_pixmap_bo(pixmap)) {
-		is_glamor_pixmap = TRUE;
-		aligned_width = pixmap->drawable.width;
-		aligned_height = pixmap->drawable.height;
-		pixmap = NULL;
-	    } else
-		pixmap->refcnt++;
-        } else if (attachments[i] == DRI2BufferStencil && depth_pixmap) {
-            pixmap = depth_pixmap;
-            pixmap->refcnt++;
-        }
-
-	if (!pixmap) {
-	    /* tile the back buffer */
-	    switch(attachments[i]) {
-	    case DRI2BufferDepth:
-		if (info->ChipFamily >= CHIP_FAMILY_R600)
-		    /* macro is the preferred setting, but the 2D detiling for software
-		     * fallbacks in mesa still has issues on some configurations
-		     */
-		    flags = RADEON_CREATE_PIXMAP_TILING_MICRO;
-		else
-		    flags = RADEON_CREATE_PIXMAP_TILING_MACRO | RADEON_CREATE_PIXMAP_TILING_MICRO;
-		if (IS_R200_3D || info->ChipFamily == CHIP_FAMILY_RV200 || info->ChipFamily == CHIP_FAMILY_RADEON)
-		    flags |= RADEON_CREATE_PIXMAP_DEPTH;
-		break;
-	    case DRI2BufferDepthStencil:
-		if (info->ChipFamily >= CHIP_FAMILY_R600) {
-		    /* macro is the preferred setting, but the 2D detiling for software
-		     * fallbacks in mesa still has issues on some configurations
-		     */
-		    flags = RADEON_CREATE_PIXMAP_TILING_MICRO;
-		    if (info->ChipFamily >= CHIP_FAMILY_CEDAR)
-			need_enlarge = 1;
-		} else
-		    flags = RADEON_CREATE_PIXMAP_TILING_MACRO | RADEON_CREATE_PIXMAP_TILING_MICRO;
-		if (IS_R200_3D || info->ChipFamily == CHIP_FAMILY_RV200 || info->ChipFamily == CHIP_FAMILY_RADEON)
-		    flags |= RADEON_CREATE_PIXMAP_DEPTH;
-		break;
-	    case DRI2BufferBackLeft:
-	    case DRI2BufferBackRight:
-	    case DRI2BufferFrontLeft:
-	    case DRI2BufferFrontRight:
-	    case DRI2BufferFakeFrontLeft:
-	    case DRI2BufferFakeFrontRight:
-		if (info->ChipFamily >= CHIP_FAMILY_R600)
-		    /* macro is the preferred setting, but the 2D detiling for software
-		     * fallbacks in mesa still has issues on some configurations
-		     */
-		    flags = RADEON_CREATE_PIXMAP_TILING_MICRO;
-		else
-		    flags = RADEON_CREATE_PIXMAP_TILING_MACRO;
-		break;
-	    default:
-		flags = 0;
-	    }
-
-	    if (flags & RADEON_CREATE_PIXMAP_TILING_MICRO)
-		tiling |= RADEON_TILING_MICRO;
-	    if (flags & RADEON_CREATE_PIXMAP_TILING_MACRO)
-		tiling |= RADEON_TILING_MACRO;
-
-	    if (aligned_width == front_width)
-		aligned_width = pScrn->virtualX;
-
-	    if (need_enlarge) {
-		/* evergreen uses separate allocations for depth and stencil
-		 * so we make an extra large depth buffer to cover stencil
-		 * as well.
-		 */
-		unsigned width_align = drmmode_get_pitch_align(pScrn, drawable->depth / 8, tiling);
-		unsigned height_align = drmmode_get_height_align(pScrn, tiling);
-		unsigned base_align = drmmode_get_base_align(pScrn, drawable->depth / 8, tiling);
-		unsigned pitch_bytes;
-		unsigned size;
-
-		if (aligned_width == front_width)
-		    aligned_width = pScrn->virtualX;
-		aligned_width = RADEON_ALIGN(aligned_width, width_align);
-		pitch_bytes = aligned_width * (drawable->depth / 8);
-		aligned_height = RADEON_ALIGN(aligned_height, height_align);
-		size = pitch_bytes * aligned_height;
-		size = RADEON_ALIGN(size, base_align);
-		/* add additional size for stencil */
-		size += aligned_width * aligned_height;
-		aligned_height = RADEON_ALIGN(size / pitch_bytes, height_align);
-	    }
-
-	    pixmap = (*pScreen->CreatePixmap)(pScreen,
-					      aligned_width,
-					      aligned_height,
-					      drawable->depth,
-					      flags | RADEON_CREATE_PIXMAP_DRI2);
-        }
-
-        if (attachments[i] == DRI2BufferDepth) {
-            depth_pixmap = pixmap;
-        }
-	if (!info->use_glamor) {
-	    info->exa_force_create = TRUE;
-	    exaMoveInPixmap(pixmap);
-	    info->exa_force_create = FALSE;
-	}
-	if (is_glamor_pixmap)
-	    pixmap = fixup_glamor(drawable, pixmap);
-	bo = radeon_get_pixmap_bo(pixmap);
-	if (!bo || radeon_gem_get_kernel_name(bo, &buffers[i].name) != 0) {
-	    int j;
-
-	    for (j = 0; j < i; j++)
-		(*pScreen->DestroyPixmap)(privates[j].pixmap);
-	    (*pScreen->DestroyPixmap)(pixmap);
-	    free(privates);
-	    free(buffers);
-	    return NULL;
-	}
-
-        buffers[i].attachment = attachments[i];
-        buffers[i].pitch = pixmap->devKind;
-        buffers[i].cpp = pixmap->drawable.bitsPerPixel / 8;
-        buffers[i].driverPrivate = &privates[i];
-        buffers[i].flags = 0;
-        privates[i].pixmap = pixmap;
-        privates[i].attachment = attachments[i];
-    }
-    return buffers;
-}
-#else
 static BufferPtr
 radeon_dri2_create_buffer2(ScreenPtr pScreen,
 			   DrawablePtr drawable,
@@ -492,28 +317,7 @@ radeon_dri2_create_buffer(DrawablePtr pDraw, unsigned int attachment,
 	return radeon_dri2_create_buffer2(pDraw->pScreen, pDraw,
 					  attachment, format);
 }
-#endif
 
-#ifndef USE_DRI2_1_1_0
-static void
-radeon_dri2_destroy_buffers(DrawablePtr drawable,
-                            BufferPtr buffers,
-                            int count)
-{
-    ScreenPtr pScreen = drawable->pScreen;
-    struct dri2_buffer_priv *private;
-    int i;
-
-    for (i = 0; i < count; i++) {
-        private = buffers[i].driverPrivate;
-        (*pScreen->DestroyPixmap)(private->pixmap);
-    }
-    if (buffers) {
-        free(buffers[0].driverPrivate);
-        free(buffers);
-    }
-}
-#else
 static void
 radeon_dri2_destroy_buffer2(ScreenPtr pScreen,
 			    DrawablePtr drawable, BufferPtr buffers)
@@ -549,7 +353,6 @@ radeon_dri2_destroy_buffer(DrawablePtr pDraw, DRI2BufferPtr buf)
 {
     radeon_dri2_destroy_buffer2(pDraw->pScreen, pDraw, buf);
 }
-#endif
 
 
 static inline PixmapPtr GetDrawablePixmap(DrawablePtr drawable)
@@ -1536,15 +1339,9 @@ radeon_dri2_screen_init(ScreenPtr pScreen)
     }
     dri2_info.fd = info->dri2.drm_fd;
     dri2_info.deviceName = info->dri2.device_name;
-#ifndef USE_DRI2_1_1_0
-    dri2_info.version = 1;
-    dri2_info.CreateBuffers = radeon_dri2_create_buffers;
-    dri2_info.DestroyBuffers = radeon_dri2_destroy_buffers;
-#else
     dri2_info.version = DRI2INFOREC_VERSION;
     dri2_info.CreateBuffer = radeon_dri2_create_buffer;
     dri2_info.DestroyBuffer = radeon_dri2_destroy_buffer;
-#endif
     dri2_info.CopyRegion = radeon_dri2_copy_region;
 
 #ifdef USE_DRI2_SCHEDULING

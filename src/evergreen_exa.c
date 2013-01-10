@@ -664,10 +664,8 @@ static struct formatinfo EVERGREENTexFormats[] = {
     {PICT_x8r8g8b8,	FMT_8_8_8_8},
     {PICT_a8b8g8r8,	FMT_8_8_8_8},
     {PICT_x8b8g8r8,	FMT_8_8_8_8},
-#ifdef PICT_TYPE_BGRA
     {PICT_b8g8r8a8,	FMT_8_8_8_8},
     {PICT_b8g8r8x8,	FMT_8_8_8_8},
-#endif
     {PICT_r5g6b5,	FMT_5_6_5},
     {PICT_a1r5g5b5,	FMT_1_5_5_5},
     {PICT_x1r5g5b5,     FMT_1_5_5_5},
@@ -713,10 +711,8 @@ static Bool EVERGREENGetDestFormat(PicturePtr pDstPicture, uint32_t *dst_format)
     case PICT_x8r8g8b8:
     case PICT_a8b8g8r8:
     case PICT_x8b8g8r8:
-#ifdef PICT_TYPE_BGRA
     case PICT_b8g8r8a8:
     case PICT_b8g8r8x8:
-#endif
 	*dst_format = COLOR_8_8_8_8;
 	break;
     case PICT_r5g6b5:
@@ -899,7 +895,6 @@ static Bool EVERGREENTextureSetup(PicturePtr pPict, PixmapPtr pPix,
 	pix_b = SQ_SEL_Z; /* B */
 	pix_a = SQ_SEL_1; /* A */
 	break;
-#ifdef PICT_TYPE_BGRA
     case PICT_b8g8r8a8:
 	pix_r = SQ_SEL_Y; /* R */
 	pix_g = SQ_SEL_Z; /* G */
@@ -912,7 +907,6 @@ static Bool EVERGREENTextureSetup(PicturePtr pPict, PixmapPtr pPix,
 	pix_b = SQ_SEL_W; /* B */
 	pix_a = SQ_SEL_1; /* A */
 	break;
-#endif
     case PICT_x1r5g5b5:
     case PICT_x8r8g8b8:
     case PICT_r5g6b5:
@@ -1299,12 +1293,10 @@ static Bool EVERGREENPrepareComposite(int op, PicturePtr pSrcPicture,
     case PICT_x8b8g8r8:
 	cb_conf.comp_swap = 0; /* ABGR */
 	break;
-#ifdef PICT_TYPE_BGRA
     case PICT_b8g8r8a8:
     case PICT_b8g8r8x8:
 	cb_conf.comp_swap = 3; /* BGRA */
 	break;
-#endif
     case PICT_r5g6b5:
 	cb_conf.comp_swap = 2; /* RGB */
 	break;
@@ -1905,24 +1897,13 @@ EVERGREENDrawInit(ScreenPtr pScreen)
     info->accel_state->exa->FinishAccess = RADEONFinishAccess_CS;
     info->accel_state->exa->UploadToScreen = EVERGREENUploadToScreen;
     info->accel_state->exa->DownloadFromScreen = EVERGREENDownloadFromScreen;
-#if (EXA_VERSION_MAJOR == 2 && EXA_VERSION_MINOR >= 5)
     info->accel_state->exa->CreatePixmap2 = RADEONEXACreatePixmap2;
-#endif
 #if (EXA_VERSION_MAJOR == 2 && EXA_VERSION_MINOR >= 6) 
     info->accel_state->exa->SharePixmapBacking = RADEONEXASharePixmapBacking; 
     info->accel_state->exa->SetSharedPixmapBacking = RADEONEXASetSharedPixmapBacking;
 #endif
-    info->accel_state->exa->flags = EXA_OFFSCREEN_PIXMAPS;
-#ifdef EXA_SUPPORTS_PREPARE_AUX
-    info->accel_state->exa->flags |= EXA_SUPPORTS_PREPARE_AUX;
-#endif
-
-#ifdef EXA_HANDLES_PIXMAPS
-    info->accel_state->exa->flags |= EXA_HANDLES_PIXMAPS;
-#ifdef EXA_MIXED_PIXMAPS
-    info->accel_state->exa->flags |= EXA_MIXED_PIXMAPS;
-#endif
-#endif
+    info->accel_state->exa->flags = EXA_OFFSCREEN_PIXMAPS | EXA_SUPPORTS_PREPARE_AUX |
+	EXA_HANDLES_PIXMAPS | EXA_MIXED_PIXMAPS;
     info->accel_state->exa->pixmapOffsetAlign = 256;
     info->accel_state->exa->pixmapPitchAlign = 256;
 
@@ -1931,14 +1912,8 @@ EVERGREENDrawInit(ScreenPtr pScreen)
     info->accel_state->exa->Composite = EVERGREENComposite;
     info->accel_state->exa->DoneComposite = EVERGREENDoneComposite;
 
-#if EXA_VERSION_MAJOR > 2 || (EXA_VERSION_MAJOR == 2 && EXA_VERSION_MINOR >= 3)
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Setting EXA maxPitchBytes\n");
-
     info->accel_state->exa->maxPitchBytes = 32768;
     info->accel_state->exa->maxX = 8192;
-#else
-    info->accel_state->exa->maxX = 8192;
-#endif
     info->accel_state->exa->maxY = 8192;
 
     /* not supported yet */

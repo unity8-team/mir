@@ -75,7 +75,7 @@ PKG_CHECK_MODULES(LIBDRM, [libdrm >= 2.4.36])
 PKG_CHECK_MODULES(LIBDRM_RADEON, [libdrm_radeon])
 
 # Obtain compiler/linker options for the driver dependencies
-PKG_CHECK_MODULES(XORG, [xorg-server >= 1.6.2 xproto fontsproto xf86driproto $REQUIRED_MODULES])
+PKG_CHECK_MODULES(XORG, [xorg-server >= 1.7 xproto fontsproto xf86driproto $REQUIRED_MODULES])
 PKG_CHECK_MODULES(XEXT, [xextproto >= 7.0.99.1],
                   HAVE_XEXTPROTO_71="yes"; AC_DEFINE(HAVE_XEXTPROTO_71, 1, [xextproto 7.1 available]),
                   HAVE_XEXTPROTO_71="no")
@@ -112,36 +112,6 @@ if test "x$GLAMOR" != "xno"; then
 	AC_DEFINE(USE_GLAMOR, 1, [Enable glamor acceleration])
 fi
 
-AC_CHECK_DECL(xf86ModeBandwidth,
-	      [AC_DEFINE(HAVE_XF86MODEBANDWIDTH, 1, [Have xf86ModeBandwidth prototype])],
-	      [],
-	      [#include "xorg-server.h"
-	       #include "xf86Modes.h"])
-
-AC_CHECK_DECL(xf86_crtc_clip_video_helper,
-	      [AC_DEFINE(HAVE_XF86CRTCCLIPVIDEOHELPER, 1, [Have xf86_crtc_clip_video_helper prototype])],
-	      [],
-	      [#include <X11/Xmd.h>
-	       #include "xorg-server.h"
-	       #include "xf86i2c.h"
-	       #include "xf86Crtc.h"])
-
-AC_CHECK_DECL(xf86RotateFreeShadow,
-	      [AC_DEFINE(HAVE_FREE_SHADOW, 1, [have new FreeShadow API])],
-	      [],
-	      [#include <xorg-server.h>
-               #include <windowstr.h>
-	       #include <xf86Crtc.h>])
-
-AC_CHECK_DECL(pci_device_enable,
-	      [AC_DEFINE(HAVE_PCI_DEVICE_ENABLE, 1, [Have pci_device_enable prototype])],
-	      [],
-	      [#include <pciaccess.h>])
-
-AC_CHECK_DECL(XSERVER_LIBPCIACCESS,
-	      [XSERVER_LIBPCIACCESS=yes],[XSERVER_LIBPCIACCESS=no],
-	      [#include "xorg-server.h"])
-
 AC_CHECK_HEADERS([list.h],
 		 [have_list_h="yes"], [have_list_h="no"],
 		 [#include <X11/Xdefs.h>
@@ -157,11 +127,8 @@ fi
 
 CPPFLAGS="$SAVE_CPPFLAGS"
 
-if test "x$XSERVER_LIBPCIACCESS" = xyes; then
-    PKG_CHECK_MODULES([PCIACCESS], [pciaccess >= 0.8.0])
-    XORG_CFLAGS="$XORG_CFLAGS $PCIACCESS_CFLAGS"
-fi
-AM_CONDITIONAL(XSERVER_LIBPCIACCESS, test "x$XSERVER_LIBPCIACCESS" = xyes)
+PKG_CHECK_MODULES([PCIACCESS], [pciaccess >= 0.8.0])
+XORG_CFLAGS="$XORG_CFLAGS $PCIACCESS_CFLAGS"
 
 # Checks for headers/macros for byte swapping
 # Known variants:

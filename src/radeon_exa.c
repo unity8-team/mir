@@ -166,13 +166,8 @@ Bool RADEONPrepareAccess_CS(PixmapPtr pPix, int index)
     struct radeon_exa_pixmap_priv *driver_priv;
     uint32_t possible_domains = ~0U;
     uint32_t current_domain = 0;
-#ifdef EXA_MIXED_PIXMAPS
     Bool can_fail = !(pPix->drawable.bitsPerPixel < 8) &&
-	pPix != pScreen->GetScreenPixmap(pScreen) &&
-        (info->accel_state->exa->flags & EXA_MIXED_PIXMAPS);
-#else
-    Bool can_fail = FALSE;
-#endif
+	pPix != pScreen->GetScreenPixmap(pScreen);
     Bool flush = FALSE;
     int ret;
 
@@ -248,13 +243,9 @@ void *RADEONEXACreatePixmap(ScreenPtr pScreen, int size, int align)
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_exa_pixmap_priv *new_priv;
 
-#ifdef EXA_MIXED_PIXMAPS
-    if (info->accel_state->exa->flags & EXA_MIXED_PIXMAPS) {
-        if (size != 0 && !info->exa_force_create &&
-	    info->exa_pixmaps == FALSE)
-            return NULL;
-    }
-#endif
+    if (size != 0 && !info->exa_force_create &&
+	info->exa_pixmaps == FALSE)
+        return NULL;
 	    
     new_priv = calloc(1, sizeof(struct radeon_exa_pixmap_priv));
     if (!new_priv)
@@ -283,13 +274,9 @@ void *RADEONEXACreatePixmap2(ScreenPtr pScreen, int width, int height,
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_exa_pixmap_priv *new_priv;
 
-#ifdef EXA_MIXED_PIXMAPS
-    if (info->accel_state->exa->flags & EXA_MIXED_PIXMAPS) {
-	if (width != 0 && height != 0 && !info->exa_force_create &&
-	    info->exa_pixmaps == FALSE)
-            return NULL;
-    }
-#endif
+    if (width != 0 && height != 0 && !info->exa_force_create &&
+	info->exa_pixmaps == FALSE)
+        return NULL;
 
     new_priv = calloc(1, sizeof(struct radeon_exa_pixmap_priv));
     if (!new_priv) {
