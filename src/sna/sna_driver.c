@@ -153,10 +153,11 @@ sna_set_fallback_mode(ScrnInfoPtr scrn)
 	DisplayModePtr mode;
 	int n;
 
-	output = xf86CompatOutput(scrn);
-	crtc = xf86CompatCrtc(scrn);
-	if (output == NULL || crtc == NULL)
+	if ((unsigned)config->compat_output >= config->num_output)
 		return;
+
+	output = config->output[config->compat_output];
+	crtc = output->crtc;
 
 	for (n = 0; n < config->num_output; n++)
 		config->output[n]->crtc = NULL;
