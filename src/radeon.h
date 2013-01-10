@@ -87,6 +87,13 @@
 #include "picturestr.h"
 #endif
 
+#ifdef XMIR
+#include "xmir.h"
+#include "xf86Priv.h"
+#else
+typedef struct xmir_screen xmir_screen;
+#endif
+
 #include "compat-api.h"
 
 #include "simple_list.h"
@@ -480,9 +487,12 @@ typedef struct {
     /* Perform vsync'ed SwapBuffers? */
     Bool swapBuffersWait;
 
+
     /* cursor size */
     int cursor_w;
     int cursor_h;
+
+    xmir_screen *xmir;
 } RADEONInfoRec, *RADEONInfoPtr;
 
 /* radeon_accel.c */

@@ -220,7 +220,11 @@ static Bool RADEONCreateScreenResources_KMS(ScreenPtr pScreen)
 	return FALSE;
     pScreen->CreateScreenResources = RADEONCreateScreenResources_KMS;
 
-    if (!drmmode_set_desired_modes(pScrn, &info->drmmode))
+    if (xorgMir) {
+	if (!xf86SetDesiredModes(pScrn))
+	    return FALSE;
+    }
+    else if (!drmmode_set_desired_modes(pScrn, &info->drmmode))
 	return FALSE;
 
     drmmode_uevent_init(pScrn, &info->drmmode);
@@ -285,6 +289,181 @@ radeon_dirty_update(ScreenPtr screen)
 }
 #endif
 
+#ifdef XMIR
+//static struct radeon_surface *
+//radeon_calculate_surface_from_bo(struct radeon_bo *bo, ScreenPtr pScreen, int w, int h, int cpp)
+//{
+//    RADEONInfoPtr info = RADEONPTR(xf86ScreenToScrn(pScreen));
+//    struct radeon_surface *surface;
+//    uint32_t tiling_flags;
+//    uint32_t pitch;
+//
+//    if (!info->surf_man)
+//	return NULL;
+//
+//    surface = calloc(sizeof *surface, 1);
+//    
+//    if (!surface)
+//	return NULL;
+//
+//    /* TODO: Do we care about the return value here? */
+//    radeon_bo_get_tiling(bo, &tiling_flags, &pitch);
+//    
+//    surface->npix_x = w;
+//    surface->npix_y = h;
+//    surface->npix_z = 1;
+//    surface->blk_w = 1;
+//    surface->blk_h = 1;
+//    surface->blk_d = 1;
+//    surface->array_size = 1;
+//    surface->last_level = 0;
+//    surface->bpe = cpp;
+//    surface->nsamples = 1;
+//    surface->flags = RADEON_SURF_SCANOUT;
+//    surface->flags |= RADEON_SURF_SET(RADEON_SURF_TYPE_2D, TYPE);
+//    surface->flags |= RADEON_SURF_SET(RADEON_SURF_MODE_LINEAR_ALIGNED, MODE);
+//    if (tiling_flags & RADEON_TILING_MICRO) {
+//	surface->flags = RADEON_SURF_CLR(surface->flags, MODE);
+//	surface->flags |= RADEON_SURF_SET(RADEON_SURF_MODE_1D, MODE);
+//    }
+//    if (tiling_flags & RADEON_TILING_MACRO) {
+//	surface->flags = RADEON_SURF_CLR(surface->flags, MODE);
+//	surface->flags |= RADEON_SURF_SET(RADEON_SURF_MODE_2D, MODE);
+//	surface->bankw = (tiling_flags >> RADEON_TILING_EG_BANKW_SHIFT) & RADEON_TILING_EG_BANKW_MASK;
+//	surface->bankh = (tiling_flags >> RADEON_TILING_EG_BANKH_SHIFT) & RADEON_TILING_EG_BANKH_MASK;
+//	surface->mtilea  = (tiling_flags >> RADEON_TILING_EG_MACRO_TILE_ASPECT_SHIFT) & RADEON_TILING_EG_MACRO_TILE_ASPECT_MASK;
+//	surface->tile_split = 64 << ((tiling_flags >> RADEON_TILING_EG_TILE_SPLIT_SHIFT) & RADEON_TILING_EG_TILE_SPLIT_MASK);
+//    }
+//    if (radeon_surface_best(info->surf_man, surface)) {
+//	xf86DrvMsg(pScreen->myNum, X_ERROR,
+//		   "radeon_surface_best failed\n");
+//	free(surface);
+//	return NULL;
+//    }
+//    if (radeon_surface_init(info->surf_man, surface)) {
+//	xf86DrvMsg(pScreen->myNum, X_ERROR,
+//		   "radeon_surface_init failed\n");
+//	free(surface);
+//	return NULL;
+//    }
+//    if (pitch != surface->level[0].pitch_bytes) {
+//        xf86DrvMsg(pScreen->myNum, X_ERROR,
+//                   "Whoops! Misunderstanding about pitch vs pitch_bytes\n");
+//    }
+//    return surface;
+//}
+
+static void
+radeon_xmir_copy_pixmap_to_mir(PixmapPtr src, xmir_buffer_info *buffer)
+{
+    ScreenPtr pScreen = src->drawable.pScreen;
+    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    if (info->accel_state->exa) {
+	PixmapPtr dst;
+	struct radeon_bo *bo_dst = radeon_bo_open(info->bufmgr, buffer->name, 0, 0, 0, 0);
+	int ret;
+/*	struct radeon_surface *surface_dst = radeon_calculate_surface_from_bo(bo_dst,
+									      pScreen,
+									      src->drawable.width, src->drawable.height,
+									      src->drawable.bitsPerPixel / 8);
+	int ret;
+	
+	dst = pScreen->CreatePixmap(pScreen, 0, 0, pScrn->depth, 0);
+
+	if (dst == NullPixmap)
+	    goto cleanup_bo;
+
+	ret = pScreen->ModifyPixmapHeader(dst,
+					  pScrn->virtualX, pScrn->virtualY,
+					  pScrn->depth, pScrn->bitsPerPixel,
+					  surface_dst->level[0].pitch_bytes, NULL);
+
+	if (!ret)
+	    goto cleanup_dst;
+*/
+	/* Just allocate a bo. TODO: Create this scratch pixmap once to avoid allocation overhead */
+	dst = pScreen->CreatePixmap(pScreen, pScrn->virtualX, pScrn->virtualY, pScrn->depth, 0);
+	if (dst == NullPixmap)
+	    goto cleanup_bo;
+
+	exaMoveInPixmap(dst);
+	radeon_set_pixmap_bo(dst, bo_dst);
+
+	ret = info->accel_state->exa->PrepareCopy (src, dst,
+						   -1, -1, GXcopy, FB_ALLONES);
+	if (!ret)
+	    goto cleanup_dst;
+	info->accel_state->exa->Copy (dst, 0, 0, 0, 0,
+				      pScrn->virtualX, pScrn->virtualY);
+	info->accel_state->exa->DoneCopy (dst);
+	radeon_cs_flush_indirect(pScrn);
+	
+cleanup_dst:
+	pScreen->DestroyPixmap(dst);
+cleanup_bo:
+	radeon_bo_unref(bo_dst);
+    } else if (0) {
+	/* TODO: glamor accel */
+    } else {
+	/* Hideously bad software copy */
+	struct radeon_bo *bo_src = radeon_get_pixmap_bo(src);
+	struct radeon_bo *bo_dst = radeon_bo_open(info->bufmgr, buffer->name, 0, 0, 0, 0);
+
+	radeon_bo_map(bo_src, FALSE);
+	radeon_bo_map(bo_dst, TRUE);
+
+	memcpy(bo_dst->ptr, bo_src->ptr, bo_dst->size);
+
+	radeon_bo_unmap(bo_src);
+	radeon_bo_unmap(bo_dst);
+
+	radeon_bo_unref(bo_dst);
+    }	
+}
+
+static void
+radeon_xmir_buffer_available(WindowPtr win)
+{
+    xmir_buffer_info buffer_info;
+    PixmapPtr window_pixmap;
+
+    if(!xmir_window_is_dirty(win))
+	return;
+
+    xmir_populate_buffers_for_window(win, &buffer_info);
+
+    window_pixmap = (*win->drawable.pScreen->GetWindowPixmap)(win);
+    radeon_xmir_copy_pixmap_to_mir(window_pixmap, &buffer_info);
+
+    xmir_submit_rendering_for_window(win, NULL);
+}
+
+static void
+radeon_submit_dirty_window(WindowPtr win, DamagePtr damage)
+{
+    xmir_buffer_info buffer_info;
+    PixmapPtr window_pixmap;
+
+    if(!xmir_window_has_free_buffer(win))
+	return;
+
+    xmir_populate_buffers_for_window(win, &buffer_info);
+
+    window_pixmap = (*win->drawable.pScreen->GetWindowPixmap)(win);
+    radeon_xmir_copy_pixmap_to_mir(window_pixmap, &buffer_info);
+
+    xmir_submit_rendering_for_window(win, DamageRegion(damage));
+
+    DamageEmpty(damage);
+}
+
+static xmir_driver xmir_radeon_driver = {
+    XMIR_DRIVER_VERSION,
+    radeon_xmir_buffer_available
+};
+#endif
+
 static void RADEONBlockHandler_KMS(BLOCKHANDLER_ARGS_DECL)
 {
     SCREEN_PTR(arg);
@@ -302,6 +481,8 @@ static void RADEONBlockHandler_KMS(BLOCKHANDLER_ARGS_DECL)
 #ifdef RADEON_PIXMAP_SHARING
     radeon_dirty_update(pScreen);
 #endif
+    if(info->xmir)
+    	xmir_screen_for_each_damaged_window(info->xmir, radeon_submit_dirty_window);
 }
 
 static void
@@ -598,6 +779,15 @@ static Bool radeon_open_drm_master(ScrnInfoPtr pScrn)
 	goto out;
     }
 
+#ifdef XMIR
+    if (xorgMir) {
+	info->dri2.drm_fd = xmir_get_drm_fd(info->xmir);
+	/* TODO: Work out what to do about the crazy multihead involved in
+	   pRADEONEnt->fd */
+	goto out;
+    }
+#endif
+
 #if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,9,99,901,0)
     XNFasprintf(&busid, "pci:%04x:%02x:%02x.%d",
                 dev->domain, dev->bus, dev->dev, dev->func);
@@ -835,6 +1025,14 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
     if (!RADEONPreInitChipType_KMS(pScrn))
         goto fail;
 
+#ifdef XMIR
+    if (xorgMir) {
+	info->xmir = xmir_screen_create(pScrn);
+	if (info->xmir == NULL)
+	    goto fail;
+    }
+#endif
+
     if (radeon_open_drm_master(pScrn) == FALSE) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Kernel modesetting setup failed\n");
 	goto fail;
@@ -913,6 +1111,10 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	       "SwapBuffers wait for vsync: %sabled\n", info->swapBuffersWait ? "en" : "dis");
 
+
+#ifdef XMIR
+    if(!info->xmir) {
+#endif    	
     if (drmmode_pre_init(pScrn, &info->drmmode, pScrn->bitsPerPixel / 8) == FALSE) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Kernel modesetting setup failed\n");
 	goto fail;
@@ -922,7 +1124,10 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
         pRADEONEnt->HasCRTC2 = FALSE;
     else
         pRADEONEnt->HasCRTC2 = TRUE;
-
+#ifdef XMIR
+    } else if (!xmir_screen_pre_init(pScrn, info->xmir, &xmir_radeon_driver))
+	goto fail;
+#endif
 
     /* fix up cloning on rn50 cards
      * since they only have one crtc sometimes the xserver doesn't assign
@@ -1122,6 +1327,11 @@ static Bool RADEONCloseScreen_KMS(CLOSE_SCREEN_ARGS_DECL)
     if (info->accel_state->use_vbos)
         radeon_vbo_free_lists(pScrn);
 
+#ifdef XMIR
+    if (info->xmir) {
+/*	xmir_screen_close(pScreen, info->xmir);*/
+    } else
+#endif
     drmDropMaster(info->dri2.drm_fd);
 
     drmmode_fini(pScrn, &info->drmmode);
@@ -1185,7 +1395,8 @@ Bool RADEONScreenInit_KMS(SCREEN_INIT_ARGS_DECL)
 		   "failed to initialise GEM buffer manager");
 	return FALSE;
     }
-    drmmode_set_bufmgr(pScrn, &info->drmmode, info->bufmgr);
+    if (!info->xmir)
+	drmmode_set_bufmgr(pScrn, &info->drmmode, info->bufmgr);
 
     if (!info->csm)
         info->csm = radeon_cs_manager_gem_ctor(info->dri2.drm_fd);
@@ -1259,6 +1470,9 @@ Bool RADEONScreenInit_KMS(SCREEN_INIT_ARGS_DECL)
     /* Must be after RGB order fixed */
     fbPictureInit (pScreen, 0, 0);
 
+    if (info->xmir)
+    	xmir_screen_init(pScreen, info->xmir);
+
 #ifdef RENDER
     if ((s = xf86GetOptValString(info->Options, OPTION_SUBPIXEL_ORDER))) {
 	if (strcmp(s, "RGB") == 0) subPixelOrder = SubPixelHorizontalRGB;
@@ -1309,7 +1523,7 @@ Bool RADEONScreenInit_KMS(SCREEN_INIT_ARGS_DECL)
     /* Cursor setup */
     miDCInitialize(pScreen, xf86GetPointerScreenFuncs());
 
-    if (!xf86ReturnOptValBool(info->Options, OPTION_SW_CURSOR, FALSE)) {
+    if (!info->xmir && !xf86ReturnOptValBool(info->Options, OPTION_SW_CURSOR, FALSE)) {
 	if (RADEONCursorInit_KMS(pScreen)) {
 	}
     }
@@ -1399,7 +1613,9 @@ Bool RADEONEnterVT_KMS(VT_FUNC_ARGS_DECL)
 
     pScrn->vtSema = TRUE;
 
-    if (!drmmode_set_desired_modes(pScrn, &info->drmmode))
+    if (xorgMir)
+        return xf86SetDesiredModes(pScrn);
+    else if (!drmmode_set_desired_modes(pScrn, &info->drmmode))
 	return FALSE;
 
     return TRUE;
@@ -1540,6 +1756,7 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
 		}
 		info->front_surface = surface;
 	}
+    if(!xorgMir)
     {
 	int cursor_size;
 	int c;

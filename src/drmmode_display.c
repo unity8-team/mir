@@ -1852,7 +1852,7 @@ Bool drmmode_setup_colormap(ScreenPtr pScreen, ScrnInfoPtr pScrn)
     if (!miCreateDefColormap(pScreen))
         return FALSE;
     /* all radeons support 10 bit CLUTs */
-    if (!xf86HandleColormaps(pScreen, 256, 10,
+    if (!xorgMir && !xf86HandleColormaps(pScreen, 256, 10,
                              drmmode_load_palette, NULL,
                              CMAP_PALETTED_TRUECOLOR
 #if 0 /* This option messes up text mode! (eich@suse.de) */

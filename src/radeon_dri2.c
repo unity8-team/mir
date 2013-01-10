@@ -1535,6 +1535,18 @@ blit_fallback:
 
 #endif /* USE_DRI2_SCHEDULING */
 
+#if DRI2INFOREC_VERSION >= 8 && defined(XMIR)
+static int radeon_dri2_auth_magic(ScreenPtr pScreen, uint32_t magic)
+{
+    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+
+    if (xorgMir)
+	return xmir_auth_drm_magic(info->xmir, magic);
+    else
+	return drmAuthMagic(info->dri2.drm_fd, magic);
+}
+#endif
 
 Bool
 radeon_dri2_screen_init(ScreenPtr pScreen)
@@ -1545,7 +1557,7 @@ radeon_dri2_screen_init(ScreenPtr pScreen)
 #ifdef USE_DRI2_SCHEDULING
     RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
     const char *driverNames[2];
-    Bool scheduling_works = TRUE;
+    Bool scheduling_works = !xorgMir;
 #endif
 
     if (!info->dri2.available)
@@ -1629,6 +1641,11 @@ radeon_dri2_screen_init(ScreenPtr pScreen)
 
 	pRADEONEnt->dri2_info_cnt++;
     }
+#endif
+
+#if DRI2INFOREC_VERSION >= 9 && defined(XMIR)
+    dri2_info.version = 8;
+    dri2_info.AuthMagic2 = radeon_dri2_auth_magic;
 #endif
 
 #if DRI2INFOREC_VERSION >= 9

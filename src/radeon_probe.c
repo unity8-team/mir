@@ -40,6 +40,7 @@
  * KMS support - Dave Airlie <airlied@redhat.com>
  */
 
+#include "radeon.h"
 #include "radeon_probe.h"
 #include "radeon_version.h"
 #include "atipciids.h"
@@ -118,7 +119,11 @@ radeon_get_scrninfo(int entity_num, void *pci_dev)
         return FALSE;
 
     if (pci_dev) {
+#ifdef XMIR
+      if (!xorgMir && !radeon_kernel_mode_enabled(pScrn, pci_dev)) {
+#else
       if (!radeon_kernel_mode_enabled(pScrn, pci_dev)) {
+#endif
 	return FALSE;
       }
     }
@@ -191,6 +196,12 @@ RADEONDriverFunc(ScrnInfoPtr scrn, xorgDriverFuncOp op, void *data)
 	case GET_REQUIRED_HW_INTERFACES:
 	    flag = (CARD32 *)data;
 	    (*flag) = 0;
+
+#ifdef XMIR
+        if (xorgMir)
+            (*flag) |= HW_SKIP_CONSOLE;
+#endif
+
 	    return TRUE;
 	default:
 	    return FALSE;

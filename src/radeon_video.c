@@ -70,7 +70,10 @@ radeon_box_area(BoxPtr box)
 Bool radeon_crtc_is_enabled(xf86CrtcPtr crtc)
 {
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-    return drmmode_crtc->dpms_mode == DPMSModeOn;
+    if (drmmode_crtc != NULL)
+	return drmmode_crtc->dpms_mode == DPMSModeOn;
+    else /* We're not in control; bail */
+	return FALSE;
 }
 
 uint32_t radeon_get_interpolated_vblanks(xf86CrtcPtr crtc)
