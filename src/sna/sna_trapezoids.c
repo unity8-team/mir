@@ -5214,9 +5214,10 @@ trapezoid_span_inplace__x8r8g8b8(CARD8 op,
 			pi.op = op;
 			pi.color = color;
 
-			pi.source = pixman_image_create_bits(PIXMAN_a8r8g8b8, 1, 1, NULL, 0);
+			pi.bits = (uint32_t *)&pi.sx;
+			pi.source = pixman_image_create_bits(PIXMAN_a8r8g8b8,
+							     1, 1, pi.bits, 0);
 			pixman_image_set_repeat(pi.source, PIXMAN_REPEAT_NORMAL);
-			pi.bits = pixman_image_get_data(pi.source);
 
 			if (dst->pCompositeClip->data)
 				span = pixmask_span_solid__clipped;
