@@ -4375,6 +4375,26 @@ source_prefer_gpu(struct sna_pixmap *priv)
 	return priv->gpu_bo != NULL;
 }
 
+static bool use_shm_bo(struct sna *sna,
+		       struct kgem_bo *bo,
+		       struct sna_pixmap *priv,
+		       int alu)
+{
+	if (priv == NULL || priv->cpu_bo == NULL)
+		return false;
+
+	if (!priv->shm)
+		return true;
+
+	if (alu != GXcopy)
+		return true;
+
+	if (kgem_bo_is_busy(bo))
+		return true;
+
+	return __kgem_bo_is_busy(&sna->kgem, priv->cpu_bo);
+}
+
 static void
 sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	       RegionPtr region, int dx, int dy,
@@ -4556,20 +4576,13 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 		if (bo != dst_priv->gpu_bo)
 			goto fallback;
 
-		if (src_priv && src_priv->cpu_bo) {
+		if (use_shm_bo(sna, bo, src_priv, alu)) {
 			bool ret;
 
 			DBG(("%s: region overlaps CPU damage, copy from CPU bo\n",
 			     __FUNCTION__));
 
 			assert(bo != dst_priv->cpu_bo);
-
-			if (src_priv->shm &&
-			    alu == GXcopy &&
-			    DAMAGE_IS_ALL(src_priv->cpu_damage) &&
-			    !__kgem_bo_is_busy(&sna->kgem, src_priv->cpu_bo) &&
-			    (replaces || !__kgem_bo_is_busy(&sna->kgem, bo)))
-				goto fallback;
 
 			RegionTranslate(region, src_dx, src_dy);
 			ret = sna_drawable_move_region_to_cpu(&src_pixmap->drawable,
