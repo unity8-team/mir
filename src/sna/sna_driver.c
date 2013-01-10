@@ -148,38 +148,40 @@ static void
 sna_set_fallback_mode(ScrnInfoPtr scrn)
 {
 	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(scrn);
-	xf86OutputPtr output;
-	xf86CrtcPtr crtc;
-	DisplayModePtr mode;
+	xf86OutputPtr output = NULL;
+	xf86CrtcPtr crtc = NULL;
 	int n;
 
-	if ((unsigned)config->compat_output >= config->num_output)
-		return;
-
-	output = config->output[config->compat_output];
-	crtc = output->crtc;
+	if ((unsigned)config->compat_output < config->num_output) {
+		output = config->output[config->compat_output];
+		crtc = output->crtc;
+	}
 
 	for (n = 0; n < config->num_output; n++)
 		config->output[n]->crtc = NULL;
 	for (n = 0; n < config->num_crtc; n++)
 		config->crtc[n]->enabled = FALSE;
 
-	output->crtc = crtc;
+	if (output && crtc) {
+		DisplayModePtr mode;
 
-	mode = xf86OutputFindClosestMode(output, scrn->currentMode);
-	if (mode &&
-	    xf86CrtcSetModeTransform(crtc, mode, RR_Rotate_0, NULL, 0, 0)) {
-		crtc->desiredMode = *mode;
-		crtc->desiredMode.prev = crtc->desiredMode.next = NULL;
-		crtc->desiredMode.name = NULL;
-		crtc->desiredMode.PrivSize = 0;
-		crtc->desiredMode.PrivFlags = 0;
-		crtc->desiredMode.Private = NULL;
-		crtc->desiredRotation = RR_Rotate_0;
-		crtc->desiredTransformPresent = FALSE;
-		crtc->desiredX = 0;
-		crtc->desiredY = 0;
-		crtc->enabled = TRUE;
+		output->crtc = crtc;
+
+		mode = xf86OutputFindClosestMode(output, scrn->currentMode);
+		if (mode &&
+		    xf86CrtcSetModeTransform(crtc, mode, RR_Rotate_0, NULL, 0, 0)) {
+			crtc->desiredMode = *mode;
+			crtc->desiredMode.prev = crtc->desiredMode.next = NULL;
+			crtc->desiredMode.name = NULL;
+			crtc->desiredMode.PrivSize = 0;
+			crtc->desiredMode.PrivFlags = 0;
+			crtc->desiredMode.Private = NULL;
+			crtc->desiredRotation = RR_Rotate_0;
+			crtc->desiredTransformPresent = FALSE;
+			crtc->desiredX = 0;
+			crtc->desiredY = 0;
+			crtc->enabled = TRUE;
+		}
 	}
 
 	xf86DisableUnusedFunctions(scrn);
