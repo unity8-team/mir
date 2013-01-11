@@ -55,8 +55,8 @@ RADEONPrepareTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     uint32_t dst_pitch, dst_format;
     uint32_t colorpitch;
     int pixel_shift;
-    int scissor_w = MIN(pPixmap->drawable.width, 2047);
-    int scissor_h = MIN(pPixmap->drawable.height, 2047);
+    int scissor_w = MIN(pPixmap->drawable.width, 2048) - 1;
+    int scissor_h = MIN(pPixmap->drawable.height, 2048) - 1;
     int ret;
 
     radeon_cs_space_reset_bos(info->cs);
@@ -416,8 +416,8 @@ R200PrepareTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     uint32_t dst_pitch, dst_format;
     uint32_t colorpitch;
     int pixel_shift;
-    int scissor_w = MIN(pPixmap->drawable.width, 2047);
-    int scissor_h = MIN(pPixmap->drawable.height, 2047);
+    int scissor_w = MIN(pPixmap->drawable.width, 2048) - 1;
+    int scissor_h = MIN(pPixmap->drawable.height, 2048) - 1;
     /* note: in contrast to r300, use input biasing on uv components */
     const float Loff = -0.0627;
     float uvcosf, uvsinf;
