@@ -80,7 +80,7 @@ static inline void radeon_glamor_free_screen(int scrnIndex, int flags) { }
 
 static inline void radeon_glamor_flush(ScrnInfoPtr pScrn) { }
 
-static inline Bool radeon_glamor_create_textured_pixmap(PixmapPtr pixmap) { return FALSE; }
+static inline Bool radeon_glamor_create_textured_pixmap(PixmapPtr pixmap) { return TRUE; }
 
 static inline void radeon_glamor_exchange_buffers(PixmapPtr src, PixmapPtr dst) {}
 
