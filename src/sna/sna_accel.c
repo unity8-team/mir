@@ -1408,6 +1408,9 @@ static inline bool use_cpu_bo_for_upload(struct sna *sna,
 	if (flags & (MOVE_WRITE | MOVE_ASYNC_HINT))
 		return true;
 
+	if (priv->gpu_bo->tiling)
+		return true;
+
 	return kgem_bo_is_busy(priv->gpu_bo) || kgem_bo_is_busy(priv->cpu_bo);
 }
 
