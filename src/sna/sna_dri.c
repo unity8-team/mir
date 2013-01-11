@@ -526,16 +526,16 @@ static void sna_dri_select_mode(struct sna *sna, struct kgem_bo *dst, struct kge
 	}
 
 	VG_CLEAR(busy);
-	busy.handle = src->handle;
+	busy.handle = dst->handle;
 	if (drmIoctl(sna->kgem.fd, DRM_IOCTL_I915_GEM_BUSY, &busy))
 		return;
 
-	DBG(("%s: src busy?=%x\n", __FUNCTION__, busy.busy));
+	DBG(("%s: dst busy?=%x\n", __FUNCTION__, busy.busy));
 	if (busy.busy == 0) {
-		busy.handle = dst->handle;
+		busy.handle = src->handle;
 		if (drmIoctl(sna->kgem.fd, DRM_IOCTL_I915_GEM_BUSY, &busy))
 			return;
-		DBG(("%s: dst busy?=%x\n", __FUNCTION__, busy.busy));
+		DBG(("%s: src busy?=%x\n", __FUNCTION__, busy.busy));
 		if (busy.busy == 0) {
 			DBG(("%s: src/dst is idle, using defaults\n", __FUNCTION__));
 			return;
