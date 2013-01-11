@@ -483,6 +483,15 @@ fallback:
 
 static bool upload_inplace__tiled(struct kgem *kgem, struct kgem_bo *bo)
 {
+#ifndef __x86_64__
+	/* Between a register starved compiler emitting attrocious code
+	 * and the extra overhead in the kernel for managing the tight
+	 * 32-bit address space, unless we have a 64-bit system,
+	 * using memcpy_to_tiled_x() is extremely slow.
+	 */
+	return false;
+#endif
+
 	if (kgem->gen < 050) /* bit17 swizzling :( */
 		return false;
 
