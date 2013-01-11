@@ -164,6 +164,26 @@ radeon_dri2_create_buffer2(ScreenPtr pScreen,
     unsigned aligned_width = drawable->width;
     unsigned height = drawable->height;
     Bool is_glamor_pixmap = FALSE;
+    int depth;
+    int cpp;
+
+    if (format) {
+	depth = format;
+
+	switch (depth) {
+	case 15:
+	    cpp = 2;
+	    break;
+	case 24:
+	    cpp = 4;
+	    break;
+	default:
+	    cpp = depth / 8;
+	}
+    } else {
+	depth = drawable->depth;
+	cpp = drawable->bitsPerPixel / 8;
+    }
 
     pixmap = pScreen->GetScreenPixmap(pScreen);
     front_width = pixmap->drawable.width;
@@ -248,14 +268,13 @@ radeon_dri2_create_buffer2(ScreenPtr pScreen,
 	if (flags & RADEON_CREATE_PIXMAP_TILING_MACRO)
 	    tiling |= RADEON_TILING_MACRO;
 
-
 	    if (aligned_width == front_width)
 		aligned_width = pScrn->virtualX;
 
 	    pixmap = (*pScreen->CreatePixmap)(pScreen,
 					      aligned_width,
 					      height,
-					      (format != 0)?format:drawable->depth,
+					      depth,
 					      flags | RADEON_CREATE_PIXMAP_DRI2);
     }
 
@@ -292,7 +311,7 @@ radeon_dri2_create_buffer2(ScreenPtr pScreen,
     buffers->attachment = attachment;
     if (pixmap) {
 	buffers->pitch = pixmap->devKind;
-	buffers->cpp = pixmap->drawable.bitsPerPixel / 8;
+	buffers->cpp = cpp;
     }
     buffers->driverPrivate = privates;
     buffers->format = format;
