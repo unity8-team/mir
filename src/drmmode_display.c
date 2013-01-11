@@ -1205,7 +1205,9 @@ int drmmode_get_height_align(ScrnInfoPtr scrn, uint32_t tiling)
 		else
 			height_align = 8;
 	} else {
-		if (tiling)
+		if (tiling & RADEON_TILING_MICRO_SQUARE)
+			height_align =  32;
+		else if (tiling)
 			height_align = 16;
 		else
 			height_align = 1;

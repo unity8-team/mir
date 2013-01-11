@@ -221,7 +221,9 @@ radeon_dri2_create_buffer2(ScreenPtr pScreen,
 		}
 		if (info->ChipFamily >= CHIP_FAMILY_CEDAR)
 		    flags |= RADEON_CREATE_PIXMAP_SZBUFFER;
-	    } else
+	    } else if (cpp == 2 && info->ChipFamily >= CHIP_FAMILY_R300)
+		flags = RADEON_CREATE_PIXMAP_TILING_MACRO | RADEON_CREATE_PIXMAP_TILING_MICRO_SQUARE;
+	    else
 		flags = RADEON_CREATE_PIXMAP_TILING_MACRO | RADEON_CREATE_PIXMAP_TILING_MICRO;
 	    if (IS_R200_3D || info->ChipFamily == CHIP_FAMILY_RV200 || info->ChipFamily == CHIP_FAMILY_RADEON)
 		flags |= RADEON_CREATE_PIXMAP_DEPTH;
@@ -238,7 +240,9 @@ radeon_dri2_create_buffer2(ScreenPtr pScreen,
 		}
 		if (info->ChipFamily >= CHIP_FAMILY_CEDAR)
 		    flags |= RADEON_CREATE_PIXMAP_SZBUFFER;
-	    } else
+	    } else if (cpp == 2 && info->ChipFamily >= CHIP_FAMILY_R300)
+		flags = RADEON_CREATE_PIXMAP_TILING_MACRO | RADEON_CREATE_PIXMAP_TILING_MICRO_SQUARE;
+	    else
 		flags = RADEON_CREATE_PIXMAP_TILING_MACRO | RADEON_CREATE_PIXMAP_TILING_MICRO;
 	    if (IS_R200_3D || info->ChipFamily == CHIP_FAMILY_RV200 || info->ChipFamily == CHIP_FAMILY_RADEON)
 		flags |= RADEON_CREATE_PIXMAP_DEPTH;
@@ -265,6 +269,8 @@ radeon_dri2_create_buffer2(ScreenPtr pScreen,
 
 	if (flags & RADEON_CREATE_PIXMAP_TILING_MICRO)
 	    tiling |= RADEON_TILING_MICRO;
+	if (flags & RADEON_CREATE_PIXMAP_TILING_MICRO_SQUARE)
+	    tiling |= RADEON_TILING_MICRO_SQUARE;
 	if (flags & RADEON_CREATE_PIXMAP_TILING_MACRO)
 	    tiling |= RADEON_TILING_MACRO;
 
