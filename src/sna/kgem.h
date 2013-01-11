@@ -43,6 +43,12 @@
 #endif
 
 struct kgem_bo {
+	struct kgem_request *rq;
+#define RQ(rq) ((struct kgem_request *)((uintptr_t)(rq) & ~3))
+#define RQ_RING(rq) ((uintptr_t)(rq) & 3)
+#define RQ_IS_BLT(rq) (RQ_RING(rq) == KGEM_BLT)
+	struct drm_i915_gem_exec_object2 *exec;
+
 	struct kgem_bo *proxy;
 
 	struct list list;
@@ -52,12 +58,6 @@ struct kgem_bo {
 	void *map;
 #define IS_CPU_MAP(ptr) ((uintptr_t)(ptr) & 1)
 #define IS_GTT_MAP(ptr) (ptr && ((uintptr_t)(ptr) & 1) == 0)
-	struct kgem_request *rq;
-#define RQ(rq) ((struct kgem_request *)((uintptr_t)(rq) & ~3))
-#define RQ_RING(rq) ((uintptr_t)(rq) & 3)
-#define RQ_IS_BLT(rq) (RQ_RING(rq) == KGEM_BLT)
-
-	struct drm_i915_gem_exec_object2 *exec;
 
 	struct kgem_bo_binding {
 		struct kgem_bo_binding *next;
