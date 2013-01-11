@@ -140,6 +140,11 @@ static PixmapPtr drmmode_create_bo_pixmap(ScrnInfoPtr pScrn,
 		}
 	}
 
+	if (!radeon_glamor_create_textured_pixmap(pixmap)) {
+		pScreen->DestroyPixmap(pixmap);
+	  	return NULL;
+	}
+
 	return pixmap;
 }
 

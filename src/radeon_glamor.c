@@ -131,6 +131,8 @@ radeon_glamor_create_textured_pixmap(PixmapPtr pixmap)
 		return TRUE;
 
 	priv = radeon_get_pixmap_private(pixmap);
+	if (!priv->stride)
+		priv->stride = pixmap->devKind;
 	if (glamor_egl_create_textured_pixmap(pixmap, priv->bo->handle,
 					      priv->stride))
 		return TRUE;
