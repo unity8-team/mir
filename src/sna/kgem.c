@@ -4678,6 +4678,29 @@ void kgem_bo_sync__cpu(struct kgem *kgem, struct kgem_bo *bo)
 	}
 }
 
+void kgem_bo_sync__cpu_full(struct kgem *kgem, struct kgem_bo *bo, bool write)
+{
+	assert(bo->proxy == NULL);
+	kgem_bo_submit(kgem, bo);
+
+	if (bo->domain != DOMAIN_CPU) {
+		struct drm_i915_gem_set_domain set_domain;
+
+		DBG(("%s: SYNC: needs_flush? %d, domain? %d, busy? %d\n", __FUNCTION__,
+		     bo->needs_flush, bo->domain, kgem_busy(kgem, bo->handle)));
+
+		VG_CLEAR(set_domain);
+		set_domain.handle = bo->handle;
+		set_domain.read_domains = I915_GEM_DOMAIN_CPU;
+		set_domain.write_domain = write ? I915_GEM_DOMAIN_CPU : 0;
+
+		if (drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_SET_DOMAIN, &set_domain) == 0) {
+			kgem_bo_retire(kgem, bo);
+			bo->domain = write ? DOMAIN_CPU : DOMAIN_NONE;
+		}
+	}
+}
+
 void kgem_bo_sync__gtt(struct kgem *kgem, struct kgem_bo *bo)
 {
 	assert(bo->proxy == NULL);
