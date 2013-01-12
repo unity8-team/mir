@@ -2795,7 +2795,11 @@ gen5_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 	tmp.u.gen5.ve_id = 1;
 
 	if (!kgem_check_bo(&sna->kgem, bo, NULL)) {
-		_kgem_submit(&sna->kgem);
+		kgem_submit(&sna->kgem);
+		if (!kgem_check_bo(&sna->kgem, bo, NULL)) {
+			kgem_bo_destroy(&sna->kgem, tmp.src.bo);
+			return false;
+		}
 		assert(kgem_check_bo(&sna->kgem, bo, NULL));
 	}
 

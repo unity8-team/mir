@@ -382,7 +382,9 @@ fallback:
 	if (!kgem_check_batch(kgem, 8) ||
 	    !kgem_check_reloc_and_exec(kgem, 2) ||
 	    !kgem_check_many_bo_fenced(kgem, dst_bo, src_bo, NULL)) {
-		_kgem_submit(kgem);
+		kgem_submit(kgem);
+		if (!kgem_check_many_bo_fenced(kgem, dst_bo, src_bo, NULL))
+			goto fallback;
 		_kgem_set_mode(kgem, KGEM_BLT);
 	}
 
@@ -837,7 +839,9 @@ tile:
 	if (!kgem_check_batch(kgem, 8) ||
 	    !kgem_check_reloc_and_exec(kgem, 2) ||
 	    !kgem_check_bo_fenced(kgem, dst_bo)) {
-		_kgem_submit(kgem);
+		kgem_submit(kgem);
+		if (!kgem_check_bo_fenced(kgem, dst_bo))
+			goto fallback;
 		_kgem_set_mode(kgem, KGEM_BLT);
 	}
 
@@ -1206,7 +1210,9 @@ tile:
 	if (!kgem_check_batch(kgem, 8) ||
 	    !kgem_check_reloc_and_exec(kgem, 2) ||
 	    !kgem_check_bo_fenced(kgem, dst_bo)) {
-		_kgem_submit(kgem);
+		kgem_submit(kgem);
+		if (!kgem_check_bo_fenced(kgem, dst_bo))
+			goto fallback;
 		_kgem_set_mode(kgem, KGEM_BLT);
 	}
 

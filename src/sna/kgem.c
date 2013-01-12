@@ -5551,7 +5551,11 @@ kgem_replace_bo(struct kgem *kgem,
 	if (!kgem_check_batch(kgem, 8) ||
 	    !kgem_check_reloc(kgem, 2) ||
 	    !kgem_check_many_bo_fenced(kgem, src, dst, NULL)) {
-		_kgem_submit(kgem);
+		kgem_submit(kgem);
+		if (!kgem_check_many_bo_fenced(kgem, src, dst, NULL)) {
+			kgem_bo_destroy(kgem, dst);
+			return NULL;
+		}
 		_kgem_set_mode(kgem, KGEM_BLT);
 	}
 
