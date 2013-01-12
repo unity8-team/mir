@@ -1102,18 +1102,10 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, unsigned gen)
 	DBG(("%s: buffer size=%d [%d KiB]\n", __FUNCTION__,
 	     kgem->buffer_size, kgem->buffer_size / 1024));
 
-	kgem->max_object_size = 2 * aperture.aper_size / 3;
+	kgem->max_object_size = 2 * kgem->aperture_high / 3;
 	kgem->max_gpu_size = kgem->max_object_size;
 	if (!kgem->has_llc)
 		kgem->max_gpu_size = MAX_CACHE_SIZE;
-	if (gen < 040) {
-		/* If we have to use fences for blitting, we have to make
-		 * sure we can fit them into the aperture.
-		 */
-		kgem->max_gpu_size = kgem->aperture_mappable / 2;
-		if (kgem->max_gpu_size > kgem->aperture_low)
-			kgem->max_gpu_size = kgem->aperture_low;
-	}
 
 	totalram = total_ram_size();
 	if (totalram == 0) {
@@ -1128,10 +1120,7 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, unsigned gen)
 		kgem->max_gpu_size = totalram / 4;
 
 	half_gpu_max = kgem->max_gpu_size / 2;
-	if (gen >= 040)
-		kgem->max_cpu_size = half_gpu_max;
-	else
-		kgem->max_cpu_size = kgem->max_object_size;
+	kgem->max_cpu_size = half_gpu_max;
 
 	kgem->max_copy_tile_size = (MAX_CACHE_SIZE + 1)/2;
 	if (kgem->max_copy_tile_size > half_gpu_max)
