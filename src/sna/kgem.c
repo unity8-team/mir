@@ -1894,7 +1894,7 @@ static bool __kgem_retire_rq(struct kgem *kgem, struct kgem_request *rq)
 
 		assert(RQ(bo->rq) == rq);
 		assert(bo->exec == NULL);
-		assert(bo->domain == DOMAIN_GPU);
+		assert(bo->domain == DOMAIN_GPU || bo->domain == DOMAIN_NONE);
 
 		list_del(&bo->request);
 
@@ -4695,8 +4695,11 @@ void kgem_bo_sync__cpu_full(struct kgem *kgem, struct kgem_bo *bo, bool write)
 		set_domain.write_domain = write ? I915_GEM_DOMAIN_CPU : 0;
 
 		if (drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_SET_DOMAIN, &set_domain) == 0) {
-			kgem_bo_retire(kgem, bo);
-			bo->domain = write ? DOMAIN_CPU : DOMAIN_NONE;
+			if (write) {
+				kgem_bo_retire(kgem, bo);
+				bo->domain = DOMAIN_CPU;
+			} else
+				bo->domain = DOMAIN_NONE;
 		}
 	}
 }
