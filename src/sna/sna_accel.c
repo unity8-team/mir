@@ -3703,6 +3703,64 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 		return true;
 	}
 
+	if (sna->kgem.has_userptr &&
+	    box_inplace(pixmap, &region->extents)) {
+		struct kgem_bo *src_bo;
+		bool ok = false;
+
+		DBG(("%s: upload through a temporary map\n",
+		     __FUNCTION__));
+
+		if (priv->gpu_bo == NULL)
+			priv->gpu_bo = kgem_create_2d(&sna->kgem,
+						      pixmap->drawable.width,
+						      pixmap->drawable.height,
+						      pixmap->drawable.bitsPerPixel,
+						      sna_pixmap_choose_tiling(pixmap, DEFAULT_TILING),
+						      pixmap->usage_hint == SNA_CREATE_FB ?  CREATE_EXACT | CREATE_SCANOUT : 0);
+
+		if (priv->gpu_bo)
+			src_bo = kgem_create_map(&sna->kgem, bits, stride * h, true);
+		if (src_bo) {
+			src_bo->flush = true;
+			src_bo->pitch = stride;
+			src_bo->reusable = false;
+
+			get_drawable_deltas(drawable, pixmap, &dx, &dy);
+			ok = sna->render.copy_boxes(sna, GXcopy,
+						    pixmap, src_bo,
+						    -(x + dx + drawable->x),
+						    -(y + dy + drawable->y),
+						    pixmap, priv->gpu_bo, 0, 0,
+						    REGION_RECTS(region),
+						    REGION_NUM_RECTS(region),
+						    COPY_LAST);
+
+			kgem_bo_sync__cpu(&sna->kgem, src_bo);
+			kgem_bo_destroy(&sna->kgem, src_bo);
+		}
+
+		if (ok) {
+			if (!DAMAGE_IS_ALL(priv->gpu_damage)) {
+				DBG(("%s: marking damage\n", __FUNCTION__));
+				if (region_subsumes_drawable(region, &pixmap->drawable))
+					sna_damage_destroy(&priv->cpu_damage);
+				else
+					sna_damage_subtract(&priv->cpu_damage, region);
+				if (priv->cpu_damage == NULL) {
+					assert(priv->gpu_bo->proxy == NULL);
+					sna_damage_all(&priv->gpu_damage,
+						       pixmap->drawable.width,
+						       pixmap->drawable.height);
+					list_del(&priv->list);
+					priv->undamaged = false;
+				} else
+					sna_damage_add(&priv->gpu_damage, region);
+			}
+			return true;
+		}
+	}
+
 	flags = MOVE_WRITE;
 	flags |= MOVE_INPLACE_HINT;
 	if (w == drawable->width)
