@@ -3763,8 +3763,11 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 
 	flags = MOVE_WRITE;
 	flags |= MOVE_INPLACE_HINT;
-	if (w == drawable->width)
+	if (w == pixmap->drawable.width) {
 		flags |= MOVE_WHOLE_HINT;
+		if (h != pixmap->drawable.height)
+			flags |= MOVE_READ;
+	}
 
 	if (!sna_drawable_move_region_to_cpu(drawable, region, flags))
 		return false;
