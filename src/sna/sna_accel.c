@@ -3710,7 +3710,7 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	if (USE_USERPTR_UPLOADS &&
 	    sna->kgem.has_userptr &&
 	    box_inplace(pixmap, &region->extents)) {
-		struct kgem_bo *src_bo;
+		struct kgem_bo *src_bo = NULL;
 		bool ok = false;
 
 		DBG(("%s: upload through a temporary map\n",
