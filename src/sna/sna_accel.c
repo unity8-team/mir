@@ -62,6 +62,7 @@
 #define USE_WIDE_SPANS 0 /* -1 force CPU, 1 force GPU */
 #define USE_ZERO_SPANS 1 /* -1 force CPU, 1 force GPU */
 #define USE_CPU_BO 1
+#define USE_USERPTR_UPLOADS 1
 
 #define MIGRATE_ALL 0
 #define DBG_NO_CPU_UPLOAD 0
@@ -3703,7 +3704,8 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 		return true;
 	}
 
-	if (sna->kgem.has_userptr &&
+	if (USE_USERPTR_UPLOADS &&
+	    sna->kgem.has_userptr &&
 	    box_inplace(pixmap, &region->extents)) {
 		struct kgem_bo *src_bo;
 		bool ok = false;
@@ -4689,7 +4691,8 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			return;
 		}
 
-		if (src_priv == NULL &&
+		if (USE_USERPTR_UPLOADS &&
+		    src_priv == NULL &&
 		    sna->kgem.has_userptr &&
 		    ((bo->tiling && !bo->scanout) || __kgem_bo_is_busy(&sna->kgem, bo)) &&
 		    box_inplace(src_pixmap, &region->extents)) {
