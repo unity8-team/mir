@@ -71,7 +71,7 @@ is_gpu(DrawablePtr drawable)
 {
 	struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
 
-	if (priv == NULL || priv->clear)
+	if (priv == NULL || priv->clear || priv->cpu)
 		return false;
 
 	if (priv->cpu_damage == NULL)
@@ -97,7 +97,7 @@ too_small(struct sna_pixmap *priv)
 	if (priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo))
 		return false;
 
-	return (priv->create & KGEM_CAN_CREATE_GPU) == 0;
+	return priv->create & KGEM_CAN_CREATE_SMALL;
 }
 
 static inline bool

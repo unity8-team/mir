@@ -92,6 +92,10 @@
 #define NO_TILE_8x8 0
 #define NO_STIPPLE_8x8 0
 
+#define IS_STATIC_PTR(ptr) ((uintptr_t)(ptr) & 1)
+#define MAKE_STATIC_PTR(ptr) ((void*)((uintptr_t)(ptr) | 1))
+#define PTR(ptr) ((void*)((uintptr_t)(ptr) & ~1))
+
 #if 0
 static void __sna_fallback_flush(DrawablePtr d)
 {
@@ -457,9 +461,9 @@ sna_pixmap_alloc_cpu(struct sna *sna,
 
 	assert(priv->ptr);
 done:
-	pixmap->devPrivate.ptr = priv->ptr;
-	pixmap->devKind = priv->stride;
 	assert(priv->stride);
+	pixmap->devPrivate.ptr = PTR(priv->ptr);
+	pixmap->devKind = priv->stride;
 	return priv->ptr != NULL;
 }
 
@@ -467,6 +471,9 @@ static void sna_pixmap_free_cpu(struct sna *sna, struct sna_pixmap *priv)
 {
 	assert(priv->cpu_damage == NULL);
 	assert(list_is_empty(&priv->list));
+
+	if (IS_STATIC_PTR(priv->ptr))
+		return;
 
 	if (priv->cpu_bo) {
 		DBG(("%s: discarding CPU buffer, handle=%d, size=%d\n",
@@ -484,8 +491,8 @@ static void sna_pixmap_free_cpu(struct sna *sna, struct sna_pixmap *priv)
 		priv->cpu_bo = NULL;
 	} else
 		free(priv->ptr);
-
 	priv->ptr = NULL;
+
 	if (!priv->mapped)
 		priv->pixmap->devPrivate.ptr = NULL;
 }
@@ -762,7 +769,7 @@ sna_pixmap_create_shm(ScreenPtr screen,
 	DBG(("%s(%dx%d, depth=%d, bpp=%d, pitch=%d)\n",
 	     __FUNCTION__, width, height, depth, bpp, pitch));
 
-	if (wedged(sna) || bpp == 0 || pitch*height <= 4096) {
+	if (wedged(sna) || bpp == 0 || pitch*height < 4096) {
 fallback:
 		pixmap = sna_pixmap_create_unattached(screen, 0, 0, depth);
 		if (pixmap == NULL)
@@ -831,6 +838,8 @@ fallback:
 
 	priv->cpu = true;
 	priv->shm = true;
+	priv->stride = pitch;
+	priv->ptr = MAKE_STATIC_PTR(addr);
 	sna_damage_all(&priv->cpu_damage, width, height);
 
 	pixmap->devKind = pitch;
@@ -1134,8 +1143,10 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 {
 	struct sna *sna = to_sna_from_screen(screen);
 	PixmapPtr pixmap;
+	struct sna_pixmap *priv;
 	unsigned flags;
 	int pad;
+	void *ptr;
 
 	DBG(("%s(%d, %d, %d, usage=%x)\n", __FUNCTION__,
 	     width, height, depth, usage));
@@ -1196,7 +1207,7 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 		usage = 0;
 
 	pad = PixmapBytePad(width, depth);
-	if (pad * height <= 4096) {
+	if (pad * height < 4096) {
 		DBG(("%s: small buffer [%d], attaching to shadow pixmap\n",
 		     __FUNCTION__, pad * height));
 		pixmap = create_pixmap(sna, screen,
@@ -1204,10 +1215,10 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 		if (pixmap == NullPixmap)
 			return NullPixmap;
 
-		sna_pixmap_attach(pixmap);
+		ptr = MAKE_STATIC_PTR(pixmap->devPrivate.ptr);
+		pad = pixmap->devKind;
+		flags |= KGEM_CAN_CREATE_SMALL;
 	} else {
-		struct sna_pixmap *priv;
-
 		DBG(("%s: creating GPU pixmap %dx%d, stride=%d, flags=%x\n",
 		     __FUNCTION__, width, height, pad, flags));
 
@@ -1220,15 +1231,18 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 		pixmap->devKind = pad;
 		pixmap->devPrivate.ptr = NULL;
 
-		priv = sna_pixmap_attach(pixmap);
-		if (priv == NULL) {
-			free(pixmap);
-			goto fallback;
-		}
-
-		priv->stride = pad;
-		priv->create = flags;
+		ptr = NULL;
 	}
+
+	priv = sna_pixmap_attach(pixmap);
+	if (priv == NULL) {
+		free(pixmap);
+		goto fallback;
+	}
+
+	priv->stride = pad;
+	priv->create = flags;
+	priv->ptr = ptr;
 
 	return pixmap;
 
@@ -1422,7 +1436,7 @@ static inline bool operate_inplace(struct sna_pixmap *priv, unsigned flags)
 	if (flags & MOVE_WRITE && kgem_bo_is_busy(priv->gpu_bo))
 		return false;
 
-	return priv->stride != 0;
+	return true;
 }
 
 bool
@@ -1540,6 +1554,7 @@ skip_inplace_map:
 			pixmap->devKind = priv->gpu_bo->pitch;
 			if (flags & MOVE_WRITE) {
 				assert(priv->gpu_bo->proxy == NULL);
+				sna_pixmap_free_cpu(sna, priv);
 				sna_damage_all(&priv->gpu_damage,
 					       pixmap->drawable.width,
 					       pixmap->drawable.height);
@@ -1563,11 +1578,10 @@ skip_inplace_map:
 		priv->mapped = false;
 	}
 
-	if (priv->gpu_bo &&
+	if (priv->gpu_damage &&
 	    priv->gpu_bo->tiling == I915_TILING_NONE &&
 	    sna_pixmap_move_to_gpu(pixmap, flags)) {
 		kgem_bo_submit(&sna->kgem, priv->gpu_bo);
-		sna_pixmap_free_cpu(sna, priv);
 
 		DBG(("%s: try to operate inplace (CPU)\n", __FUNCTION__));
 
@@ -1579,6 +1593,7 @@ skip_inplace_map:
 			pixmap->devKind = priv->gpu_bo->pitch;
 			if (flags & MOVE_WRITE) {
 				assert(priv->gpu_bo->proxy == NULL);
+				sna_pixmap_free_cpu(sna, priv);
 				sna_damage_all(&priv->gpu_damage,
 					       pixmap->drawable.width,
 					       pixmap->drawable.height);
@@ -1876,7 +1891,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 		     __FUNCTION__));
 		assert(flags & MOVE_WRITE);
 
-		if (priv->stride && priv->gpu_bo &&
+		if (priv->gpu_bo &&
 		    kgem_bo_can_map(&sna->kgem, priv->gpu_bo) &&
 		    region_inplace(sna, pixmap, region, priv, true)) {
 			assert(priv->gpu_bo->proxy == NULL);
@@ -1926,7 +1941,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 			}
 		}
 
-		if (priv->gpu_bo == NULL && priv->stride &&
+		if (priv->gpu_bo == NULL &&
 		    sna_pixmap_choose_tiling(pixmap, DEFAULT_TILING) != I915_TILING_NONE &&
 		    region_inplace(sna, pixmap, region, priv, true) &&
 		    sna_pixmap_create_mappable_gpu(pixmap)) {
@@ -2490,8 +2505,8 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 			}
 			if (!ok) {
 				if (pixmap->devPrivate.ptr == NULL) {
-					assert(priv->stride && priv->ptr);
-					pixmap->devPrivate.ptr = priv->ptr;
+					assert(priv->ptr);
+					pixmap->devPrivate.ptr = PTR(priv->ptr);
 					pixmap->devKind = priv->stride;
 				}
 				assert(!priv->mapped);
@@ -2535,8 +2550,8 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 		}
 		if (!ok) {
 			if (pixmap->devPrivate.ptr == NULL) {
-				assert(priv->stride && priv->ptr);
-				pixmap->devPrivate.ptr = priv->ptr;
+				assert(priv->ptr);
+				pixmap->devPrivate.ptr = PTR(priv->ptr);
 				pixmap->devKind = priv->stride;
 			}
 			assert(!priv->mapped);
@@ -2571,8 +2586,8 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 		}
 		if (!ok) {
 			if (pixmap->devPrivate.ptr == NULL) {
-				assert(priv->stride && priv->ptr);
-				pixmap->devPrivate.ptr = priv->ptr;
+				assert(priv->ptr);
+				pixmap->devPrivate.ptr = PTR(priv->ptr);
 				pixmap->devKind = priv->stride;
 			}
 			assert(!priv->mapped);
@@ -3064,7 +3079,7 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 		sna_damage_destroy(&priv->cpu_damage);
 		list_del(&priv->list);
 		priv->undamaged = false;
-		assert(priv->cpu == false);
+		assert(priv->cpu == false || IS_CPU_MAP(priv->gpu_bo->map));
 		goto active;
 	}
 
@@ -3145,7 +3160,7 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 
 	if (priv->mapped) {
 		assert(priv->stride);
-		pixmap->devPrivate.ptr = priv->ptr;
+		pixmap->devPrivate.ptr = PTR(priv->ptr);
 		pixmap->devKind = priv->stride;
 		priv->mapped = false;
 	}
@@ -3167,8 +3182,8 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 		}
 		if (!ok) {
 			if (pixmap->devPrivate.ptr == NULL) {
-				assert(priv->stride && priv->ptr);
-				pixmap->devPrivate.ptr = priv->ptr;
+				assert(priv->ptr);
+				pixmap->devPrivate.ptr = PTR(priv->ptr);
 				pixmap->devKind = priv->stride;
 			}
 			assert(!priv->mapped);
@@ -3203,7 +3218,7 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 
 	/* For large bo, try to keep only a single copy around */
 	if (priv->create & KGEM_CAN_CREATE_LARGE ||
-	    (priv->stride && flags & MOVE_SOURCE_HINT)) {
+	    flags & MOVE_SOURCE_HINT) {
 		DBG(("%s: disposing of system copy for large/source\n",
 		     __FUNCTION__));
 		assert(!priv->shm);
@@ -3619,7 +3634,7 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 		}
 
 		/* And mark as having a valid GTT mapping for future uploads */
-		if (priv->stride && kgem_bo_can_map(&sna->kgem, priv->gpu_bo)) {
+		if ( kgem_bo_can_map(&sna->kgem, priv->gpu_bo)) {
 			pixmap->devPrivate.ptr =
 				kgem_bo_map__async(&sna->kgem, priv->gpu_bo);
 			if (pixmap->devPrivate.ptr) {
@@ -4679,8 +4694,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 				if (src_pixmap->devPrivate.ptr == NULL) {
 					if (!src_priv->ptr) /* uninitialised!*/
 						return;
-					assert(src_priv->stride);
-					src_pixmap->devPrivate.ptr = src_priv->ptr;
+					src_pixmap->devPrivate.ptr = PTR(src_priv->ptr);
 					src_pixmap->devKind = src_priv->stride;
 				}
 			}

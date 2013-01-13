@@ -3362,6 +3362,7 @@ unsigned kgem_can_create_2d(struct kgem *kgem,
 {
 	uint32_t pitch, size;
 	unsigned flags = 0;
+	int tiling;
 	int bpp;
 
 	DBG(("%s: %dx%d @ %d\n", __FUNCTION__, width, height, depth));
@@ -3381,33 +3382,41 @@ unsigned kgem_can_create_2d(struct kgem *kgem,
 	size = kgem_surface_size(kgem, false, 0,
 				 width, height, bpp,
 				 I915_TILING_NONE, &pitch);
-	if (size > 0 && size <= kgem->max_cpu_size)
-		flags |= KGEM_CAN_CREATE_CPU | KGEM_CAN_CREATE_GPU;
-	if (size > 0 && size <= kgem->aperture_mappable/4)
-		flags |= KGEM_CAN_CREATE_GTT;
-	if (size > kgem->large_object_size)
-		flags |= KGEM_CAN_CREATE_LARGE;
-	if (size > kgem->max_object_size) {
-		DBG(("%s: too large (untiled) %d > %d\n",
-		     __FUNCTION__, size, kgem->max_object_size));
-		return 0;
+	if (size > 0) {
+		if (size < 4096)
+			flags |= KGEM_CAN_CREATE_SMALL;
+		if (size <= kgem->max_cpu_size)
+			flags |= KGEM_CAN_CREATE_CPU;
+		if (size <= kgem->max_gpu_size)
+			flags |= KGEM_CAN_CREATE_GPU;
+		if (size <= kgem->aperture_mappable/4)
+			flags |= KGEM_CAN_CREATE_GTT;
+		if (size > kgem->large_object_size)
+			flags |= KGEM_CAN_CREATE_LARGE;
+		if (size > kgem->max_object_size) {
+			DBG(("%s: too large (untiled) %d > %d\n",
+			     __FUNCTION__, size, kgem->max_object_size));
+			return 0;
+		}
 	}
 
-	size = kgem_surface_size(kgem, false, 0,
-				 width, height, bpp,
-				 kgem_choose_tiling(kgem, I915_TILING_X,
-						    width, height, bpp),
-				 &pitch);
-	if (size > 0 && size <= kgem->max_gpu_size)
-		flags |= KGEM_CAN_CREATE_GPU;
-	if (size > 0 && size <= kgem->aperture_mappable/4)
-		flags |= KGEM_CAN_CREATE_GTT;
-	if (size > kgem->large_object_size)
-		flags |= KGEM_CAN_CREATE_LARGE;
-	if (size > kgem->max_object_size) {
-		DBG(("%s: too large (tiled) %d > %d\n",
-		     __FUNCTION__, size, kgem->max_object_size));
-		return 0;
+	tiling = kgem_choose_tiling(kgem, I915_TILING_X,
+				    width, height, bpp);
+	if (tiling != I915_TILING_NONE) {
+		size = kgem_surface_size(kgem, false, 0,
+					 width, height, bpp, tiling,
+					 &pitch);
+		if (size > 0 && size <= kgem->max_gpu_size)
+			flags |= KGEM_CAN_CREATE_GPU;
+		if (size > 0 && size <= kgem->aperture_mappable/4)
+			flags |= KGEM_CAN_CREATE_GTT;
+		if (size > kgem->large_object_size)
+			flags |= KGEM_CAN_CREATE_LARGE;
+		if (size > kgem->max_object_size) {
+			DBG(("%s: too large (tiled) %d > %d\n",
+			     __FUNCTION__, size, kgem->max_object_size));
+			return 0;
+		}
 	}
 
 	return flags;
