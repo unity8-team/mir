@@ -438,17 +438,17 @@ sna_pixmap_alloc_cpu(struct sna *sna,
 						  from_gpu ? 0 : CREATE_CPU_MAP | CREATE_INACTIVE | CREATE_NO_THROTTLE);
 		if (priv->cpu_bo) {
 			priv->ptr = kgem_bo_map__cpu(&sna->kgem, priv->cpu_bo);
-			priv->stride = priv->cpu_bo->pitch;
 			if (priv->ptr) {
 				DBG(("%s: allocated CPU handle=%d (snooped? %d)\n", __FUNCTION__,
 				     priv->cpu_bo->handle, priv->cpu_bo->snoop));
+				priv->stride = priv->cpu_bo->pitch;
 #ifdef DEBUG_MEMORY
 				sna->debug_memory.cpu_bo_allocs++;
 				sna->debug_memory.cpu_bo_bytes += kgem_bo_size(priv->cpu_bo);
+#endif
 			} else {
 				kgem_bo_destroy(&sna->kgem, priv->cpu_bo);
 				priv->cpu_bo = NULL;
-#endif
 			}
 		}
 	}
@@ -1506,11 +1506,10 @@ _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 			priv->clear = false;
 			priv->cpu = false;
 			list_del(&priv->list);
-			if (priv->cpu_bo) {
-				assert(!priv->shm);
-				assert(!priv->cpu_bo->flush);
-				sna_pixmap_free_cpu(sna, priv);
-			}
+
+			assert(!priv->shm);
+			assert(priv->cpu_bo == NULL || !priv->cpu_bo->flush);
+			sna_pixmap_free_cpu(sna, priv);
 
 			assert_pixmap_damage(pixmap);
 			return true;
@@ -1541,7 +1540,7 @@ skip_inplace_map:
 
 	if (operate_inplace(priv, flags) &&
 	    pixmap_inplace(sna, pixmap, priv) &&
-	    sna_pixmap_move_to_gpu(pixmap, flags)) {
+	    sna_pixmap_move_to_gpu(pixmap, flags | MOVE_INPLACE_HINT)) {
 		kgem_bo_submit(&sna->kgem, priv->gpu_bo);
 
 		DBG(("%s: try to operate inplace (GTT)\n", __FUNCTION__));
@@ -1554,11 +1553,11 @@ skip_inplace_map:
 			pixmap->devKind = priv->gpu_bo->pitch;
 			if (flags & MOVE_WRITE) {
 				assert(priv->gpu_bo->proxy == NULL);
-				sna_pixmap_free_cpu(sna, priv);
 				sna_damage_all(&priv->gpu_damage,
 					       pixmap->drawable.width,
 					       pixmap->drawable.height);
 				sna_damage_destroy(&priv->cpu_damage);
+				sna_pixmap_free_cpu(sna, priv);
 				list_del(&priv->list);
 				priv->undamaged = false;
 				priv->clear = false;
@@ -1593,11 +1592,11 @@ skip_inplace_map:
 			pixmap->devKind = priv->gpu_bo->pitch;
 			if (flags & MOVE_WRITE) {
 				assert(priv->gpu_bo->proxy == NULL);
-				sna_pixmap_free_cpu(sna, priv);
 				sna_damage_all(&priv->gpu_damage,
 					       pixmap->drawable.width,
 					       pixmap->drawable.height);
 				sna_damage_destroy(&priv->cpu_damage);
+				sna_pixmap_free_cpu(sna, priv);
 				list_del(&priv->list);
 				priv->undamaged = false;
 				priv->clear = false;
@@ -1615,6 +1614,59 @@ skip_inplace_map:
 		assert(!priv->shm);
 		assert(DAMAGE_IS_ALL(priv->gpu_damage));
 		sna_pixmap_free_cpu(sna, priv);
+	}
+
+	if (priv->ptr == NULL &&
+	    (flags & MOVE_READ) == 0 &&
+	    sna_pixmap_choose_tiling(pixmap, DEFAULT_TILING) == I915_TILING_NONE) {
+		assert(flags & MOVE_WRITE);
+		assert(priv->gpu_bo == NULL || priv->gpu_bo->proxy == NULL);
+
+		DBG(("%s: uninitialised, try to create inplace (CPU)\n",
+		     __FUNCTION__));
+
+		assert(pixmap->devPrivate.ptr == NULL);
+		assert(pixmap->usage_hint != SNA_CREATE_FB);
+
+		if (priv->gpu_bo && priv->gpu_bo->domain != DOMAIN_CPU) {
+			kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
+			priv->gpu_bo = NULL;
+		}
+
+		if (priv->gpu_bo == NULL)
+			priv->gpu_bo = kgem_create_2d(&sna->kgem,
+						      pixmap->drawable.width,
+						      pixmap->drawable.height,
+						      pixmap->drawable.bitsPerPixel,
+						      I915_TILING_NONE,
+						      CREATE_CPU_MAP | CREATE_INACTIVE);
+		if (priv->gpu_bo)
+			pixmap->devPrivate.ptr =
+				kgem_bo_map__cpu(&sna->kgem, priv->gpu_bo);
+		if (pixmap->devPrivate.ptr != NULL) {
+			priv->clear = false;
+			priv->cpu = true;
+			priv->mapped = true;
+			pixmap->devKind = priv->gpu_bo->pitch;
+
+			sna_damage_all(&priv->gpu_damage,
+				       pixmap->drawable.width,
+				       pixmap->drawable.height);
+			sna_damage_destroy(&priv->cpu_damage);
+			sna_pixmap_free_cpu(sna, priv);
+			list_del(&priv->list);
+			priv->undamaged = false;
+
+			kgem_bo_sync__cpu(&sna->kgem, priv->gpu_bo);
+			assert_pixmap_damage(pixmap);
+			DBG(("%s: operate inplace (CPU)\n", __FUNCTION__));
+			return true;
+		}
+
+		if (priv->gpu_bo) {
+			kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
+			priv->gpu_bo = NULL;
+		}
 	}
 
 	if (pixmap->devPrivate.ptr == NULL &&
@@ -3117,6 +3169,8 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 			create = 0;
 			if (priv->cpu_damage && priv->cpu_bo == NULL)
 				create = CREATE_GTT_MAP | CREATE_INACTIVE;
+			if (flags & MOVE_INPLACE_HINT)
+				create = CREATE_GTT_MAP | CREATE_INACTIVE;
 
 			priv->gpu_bo =
 				kgem_create_2d(&sna->kgem,
@@ -3634,7 +3688,7 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 		}
 
 		/* And mark as having a valid GTT mapping for future uploads */
-		if ( kgem_bo_can_map(&sna->kgem, priv->gpu_bo)) {
+		if (kgem_bo_can_map(&sna->kgem, priv->gpu_bo)) {
 			pixmap->devPrivate.ptr =
 				kgem_bo_map__async(&sna->kgem, priv->gpu_bo);
 			if (pixmap->devPrivate.ptr) {

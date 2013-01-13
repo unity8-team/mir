@@ -3023,6 +3023,9 @@ search_linear_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags)
 
 		if (flags & CREATE_EXACT)
 			return NULL;
+
+		if (flags & CREATE_CPU_MAP && !kgem->has_llc)
+			return NULL;
 	}
 
 	cache = use_active ? active(kgem, num_pages, I915_TILING_NONE) : inactive(kgem, num_pages);
@@ -3642,6 +3645,9 @@ large_inactive:
 			}
 		} while (!list_is_empty(cache) &&
 			 __kgem_throttle_retire(kgem, flags));
+
+		if (flags & CREATE_CPU_MAP && !kgem->has_llc)
+			goto create;
 	}
 
 	if (flags & CREATE_INACTIVE)
