@@ -1431,10 +1431,13 @@ static inline bool use_cpu_bo_for_upload(struct sna *sna,
 
 static inline bool operate_inplace(struct sna_pixmap *priv, unsigned flags)
 {
-	if ((flags & MOVE_INPLACE_HINT) == 0 || priv->gpu_bo == NULL)
+	if ((priv->create & KGEM_CAN_CREATE_GTT) == 0)
 		return false;
 
-	if (flags & MOVE_WRITE && kgem_bo_is_busy(priv->gpu_bo))
+	if ((flags & MOVE_INPLACE_HINT) == 0)
+		return false;
+
+	if (priv->gpu_damage && kgem_bo_is_busy(priv->gpu_bo))
 		return false;
 
 	return true;
@@ -1541,7 +1544,7 @@ skip_inplace_map:
 
 	if (operate_inplace(priv, flags) &&
 	    pixmap_inplace(sna, pixmap, priv) &&
-	    sna_pixmap_move_to_gpu(pixmap, flags | MOVE_INPLACE_HINT)) {
+	    sna_pixmap_move_to_gpu(pixmap, flags)) {
 		kgem_bo_submit(&sna->kgem, priv->gpu_bo);
 
 		DBG(("%s: try to operate inplace (GTT)\n", __FUNCTION__));
@@ -2029,8 +2032,8 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 	}
 
 	if (operate_inplace(priv, flags) &&
-	    kgem_bo_can_map(&sna->kgem, priv->gpu_bo) &&
-	    region_inplace(sna, pixmap, region, priv, (flags & MOVE_READ) == 0)) {
+	    region_inplace(sna, pixmap, region, priv, (flags & MOVE_READ) == 0) &&
+	    sna_pixmap_move_to_gpu(pixmap, flags | MOVE_READ)) {
 		kgem_bo_submit(&sna->kgem, priv->gpu_bo);
 
 		DBG(("%s: try to operate inplace\n", __FUNCTION__));
