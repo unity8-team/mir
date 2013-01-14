@@ -4363,8 +4363,9 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 		if (USE_USERPTR_UPLOADS &&
 		    src_priv == NULL &&
 		    sna->kgem.has_userptr &&
-		    ((bo->tiling && !bo->scanout) || __kgem_bo_is_busy(&sna->kgem, bo)) &&
-		    box_inplace(src_pixmap, &region->extents)) {
+		    box_inplace(src_pixmap, &region->extents) &&
+		    ((sna->kgem.has_llc && bo->tiling && !bo->scanout) ||
+		     __kgem_bo_is_busy(&sna->kgem, bo))) {
 			struct kgem_bo *src_bo;
 			bool ok = false;
 
