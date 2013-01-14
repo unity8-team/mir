@@ -3385,6 +3385,7 @@ unsigned kgem_can_create_2d(struct kgem *kgem,
 	size = kgem_surface_size(kgem, false, 0,
 				 width, height, bpp,
 				 I915_TILING_NONE, &pitch);
+	DBG(("%s: untiled size=%d\n", __FUNCTION__, size));
 	if (size > 0) {
 		if (size < 4096)
 			flags |= KGEM_CAN_CREATE_SMALL;
@@ -3409,6 +3410,7 @@ unsigned kgem_can_create_2d(struct kgem *kgem,
 		size = kgem_surface_size(kgem, false, 0,
 					 width, height, bpp, tiling,
 					 &pitch);
+		DBG(("%s: tiled[%d] size=%d\n", __FUNCTION__, tiling, size));
 		if (size > 0 && size <= kgem->max_gpu_size)
 			flags |= KGEM_CAN_CREATE_GPU;
 		if (size > 0 && size <= kgem->aperture_mappable/4)

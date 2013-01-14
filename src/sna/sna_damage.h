@@ -259,20 +259,22 @@ static inline void sna_damage_reduce_all(struct sna_damage **_damage,
 	if (damage == NULL || DAMAGE_IS_ALL(damage))
 		return;
 
-	if (damage->mode == DAMAGE_ADD &&
-	    damage->extents.x1 <= 0 &&
-	    damage->extents.y1 <= 0 &&
-	    damage->extents.x2 >= width &&
-	    damage->extents.y2 >= height) {
-		if (damage->dirty) {
-			damage = *_damage = _sna_damage_reduce(damage);
-			if (damage == NULL)
-				return;
-		}
+	if (damage->mode == DAMAGE_ADD) {
+		if (damage->extents.x1 <= 0 &&
+		    damage->extents.y1 <= 0 &&
+		    damage->extents.x2 >= width &&
+		    damage->extents.y2 >= height) {
+			if (damage->dirty) {
+				damage = *_damage = _sna_damage_reduce(damage);
+				if (damage == NULL)
+					return;
+			}
 
-		if (damage->region.data == NULL)
-			*_damage = _sna_damage_all(damage, width, height);
-	}
+			if (damage->region.data == NULL)
+				*_damage = _sna_damage_all(damage, width, height);
+		}
+	} else
+		*_damage = _sna_damage_reduce(damage);
 }
 
 void __sna_damage_destroy(struct sna_damage *damage);

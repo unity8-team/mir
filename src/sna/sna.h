@@ -111,6 +111,7 @@ struct sna_pixmap {
 	struct kgem_bo *gpu_bo, *cpu_bo;
 	struct sna_damage *gpu_damage, *cpu_damage;
 	void *ptr;
+#define PTR(ptr) ((void*)((uintptr_t)(ptr) & ~1))
 
 	struct list list;
 
@@ -125,11 +126,11 @@ struct sna_pixmap {
 #define PIN_SCANOUT 0x1
 #define PIN_DRI 0x2
 #define PIN_PRIME 0x4
+	uint8_t create :5;
 	uint8_t mapped :1;
 	uint8_t shm :1;
 	uint8_t clear :1;
 	uint8_t undamaged :1;
-	uint8_t create :3;
 	uint8_t header :1;
 	uint8_t cpu :1;
 };
