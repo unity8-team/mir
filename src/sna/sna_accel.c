@@ -63,6 +63,7 @@
 #define USE_ZERO_SPANS 1 /* -1 force CPU, 1 force GPU */
 #define USE_CPU_BO 1
 #define USE_USERPTR_UPLOADS 1
+#define USE_USERPTR_DOWNLOADS 1
 
 #define MIGRATE_ALL 0
 #define DBG_NO_CPU_UPLOAD 0
@@ -13701,6 +13702,62 @@ static int sna_create_gc(GCPtr gc)
 	return true;
 }
 
+static bool
+sna_get_image_blt(DrawablePtr drawable,
+		  RegionPtr region,
+		  char *dst)
+{
+	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	struct sna_pixmap *priv = sna_pixmap(pixmap);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
+	struct kgem_bo *dst_bo;
+	bool ok = false;
+	int pitch;
+
+	if (!USE_USERPTR_DOWNLOADS)
+		return false;
+
+	if (priv == NULL)
+		return false;
+
+	if (!sna->kgem.has_userptr)
+		return false;
+
+	if (!DAMAGE_IS_ALL(priv->gpu_damage) ||
+	    !__kgem_bo_is_busy(&sna->kgem, priv->gpu_bo))
+		return false;
+
+	DBG(("%s: download through a temporary map\n", __FUNCTION__));
+
+	pitch = PixmapBytePad(region->extents.x2 - region->extents.x1,
+			      drawable->depth);
+	dst_bo = kgem_create_map(&sna->kgem, dst,
+				 pitch * (region->extents.y2 - region->extents.y1),
+				 false);
+	if (dst_bo) {
+		int16_t dx, dy;
+
+		dst_bo->flush = true;
+		dst_bo->pitch = pitch;
+		dst_bo->reusable = false;
+
+		get_drawable_deltas(drawable, pixmap, &dx, &dy);
+
+		ok = sna->render.copy_boxes(sna, GXcopy,
+					    pixmap, priv->gpu_bo, dx, dy,
+					    pixmap, dst_bo,
+					    -region->extents.x1,
+					    -region->extents.y1,
+					    &region->extents, 1,
+					    COPY_LAST);
+
+		kgem_bo_sync__cpu(&sna->kgem, dst_bo);
+		kgem_bo_destroy(&sna->kgem, dst_bo);
+	}
+
+	return ok;
+}
+
 static void
 sna_get_image(DrawablePtr drawable,
 	      int x, int y, int w, int h,
@@ -13709,6 +13766,7 @@ sna_get_image(DrawablePtr drawable,
 {
 	RegionRec region;
 	unsigned int flags;
+	bool can_blt;
 
 	if (!fbDrawableEnabled(drawable))
 		return;
@@ -13721,6 +13779,13 @@ sna_get_image(DrawablePtr drawable,
 	region.extents.y2 = region.extents.y1 + h;
 	region.data = NULL;
 
+	can_blt = format == ZPixmap &&
+		drawable->bitsPerPixel >= 8 &&
+		PM_IS_SOLID(drawable, mask);
+
+	if (can_blt && sna_get_image_blt(drawable, &region, dst))
+		return;
+
 	flags = MOVE_READ;
 	if ((w | h) == 1)
 		flags |= MOVE_INPLACE_HINT;
@@ -13729,9 +13794,7 @@ sna_get_image(DrawablePtr drawable,
 	if (!sna_drawable_move_region_to_cpu(drawable, &region, flags))
 		return;
 
-	if (format == ZPixmap &&
-	    drawable->bitsPerPixel >= 8 &&
-	    PM_IS_SOLID(drawable, mask)) {
+	if (can_blt) {
 		PixmapPtr pixmap = get_drawable_pixmap(drawable);
 		int16_t dx, dy;
 
