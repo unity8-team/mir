@@ -1974,8 +1974,8 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 	if ((priv->clear || (flags & MOVE_READ) == 0) &&
 	    priv->cpu_bo && !priv->cpu_bo->flush &&
 	    __kgem_bo_is_busy(&sna->kgem, priv->cpu_bo)) {
-		sna_damage_subtract(&priv->gpu_damage, region);
-		if (sna_pixmap_move_to_gpu(pixmap, MOVE_READ)) {
+		sna_damage_subtract(&priv->cpu_damage, region);
+		if (sna_pixmap_move_to_gpu(pixmap, MOVE_READ | MOVE_ASYNC_HINT)) {
 			sna_damage_all(&priv->gpu_damage,
 				       pixmap->drawable.width,
 				       pixmap->drawable.height);
@@ -4015,7 +4015,7 @@ sna_self_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			goto out;
 
 		assert(priv->gpu_bo->proxy == NULL);
-		if (!sna_pixmap_move_to_gpu(pixmap, MOVE_WRITE | MOVE_READ)) {
+		if (!sna_pixmap_move_to_gpu(pixmap, MOVE_WRITE | MOVE_READ | MOVE_ASYNC_HINT)) {
 			DBG(("%s: fallback - not a pure copy and failed to move dst to GPU\n",
 			     __FUNCTION__));
 			goto fallback;
@@ -4274,7 +4274,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 
 		if (src_priv &&
 		    move_to_gpu(src_pixmap, src_priv, &region->extents, alu) &&
-		    sna_pixmap_move_to_gpu(src_pixmap, MOVE_READ)) {
+		    sna_pixmap_move_to_gpu(src_pixmap, MOVE_READ | MOVE_ASYNC_HINT)) {
 			DBG(("%s: move whole src_pixmap to GPU and copy\n",
 			     __FUNCTION__));
 			if (!sna->render.copy_boxes(sna, alu,
@@ -9629,7 +9629,8 @@ sna_pixmap_get_source_bo(PixmapPtr pixmap)
 		return upload;
 	}
 
-	if (priv->gpu_damage && !sna_pixmap_move_to_gpu(pixmap, MOVE_READ))
+	if (priv->gpu_damage &&
+	    !sna_pixmap_move_to_gpu(pixmap, MOVE_READ | MOVE_ASYNC_HINT))
 		return NULL;
 
 	if (priv->cpu_damage && priv->cpu_bo)
@@ -13853,10 +13854,10 @@ fallback:
 				box++;
 			} while (--n);
 		} else {
-			if (!sna_pixmap_move_to_gpu(src, MOVE_READ | __MOVE_FORCE))
+			if (!sna_pixmap_move_to_gpu(src, MOVE_READ | MOVE_ASYNC_HINT | __MOVE_FORCE))
 				goto fallback;
 
-			if (!sna_pixmap_move_to_gpu(dst, MOVE_READ | MOVE_WRITE | __MOVE_FORCE))
+			if (!sna_pixmap_move_to_gpu(dst, MOVE_READ | MOVE_WRITE | MOVE_ASYNC_HINT | __MOVE_FORCE))
 				goto fallback;
 
 			if (!sna->render.copy_boxes(sna, GXcopy,
