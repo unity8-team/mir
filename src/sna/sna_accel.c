@@ -1615,6 +1615,8 @@ skip_inplace_map:
 	}
 
 	if (priv->gpu_damage &&
+	    ((flags & MOVE_ASYNC_HINT) == 0 ||
+	     !__kgem_bo_is_busy(&sna->kgem, priv->gpu_bo)) &&
 	    priv->gpu_bo->tiling == I915_TILING_NONE &&
 	    sna_pixmap_move_to_gpu(pixmap, MOVE_READ)) {
 		kgem_bo_submit(&sna->kgem, priv->gpu_bo);
