@@ -13411,6 +13411,26 @@ sna_get_image_blt(DrawablePtr drawable,
 	if (priv == NULL)
 		return false;
 
+	if (priv->clear) {
+		int w = region->extents.x2 - region->extents.x1;
+		int h = region->extents.y2 - region->extents.y1;
+
+		pitch = PixmapBytePad(w, pixmap->drawable.depth);
+		if (priv->clear_color == 0 ||
+		    pixmap->drawable.bitsPerPixel == 8) {
+			memset(dst, priv->clear_color, pitch * h);
+		} else {
+			pixman_fill((uint32_t *)dst,
+				    pitch/sizeof(uint32_t),
+				    pixmap->drawable.bitsPerPixel,
+				    0, 0,
+				    w, h,
+				    priv->clear_color);
+		}
+
+		return true;
+	}
+
 	if (!sna->kgem.has_userptr)
 		return false;
 
