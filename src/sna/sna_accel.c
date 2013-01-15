@@ -468,14 +468,8 @@ done:
 	return priv->ptr != NULL;
 }
 
-static void sna_pixmap_free_cpu(struct sna *sna, struct sna_pixmap *priv)
+static void __sna_pixmap_free_cpu(struct sna *sna, struct sna_pixmap *priv)
 {
-	assert(priv->cpu_damage == NULL);
-	assert(list_is_empty(&priv->list));
-
-	if (IS_STATIC_PTR(priv->ptr))
-		return;
-
 	if (priv->cpu_bo) {
 		DBG(("%s: discarding CPU buffer, handle=%d, size=%d\n",
 		     __FUNCTION__, priv->cpu_bo->handle, kgem_bo_size(priv->cpu_bo)));
@@ -489,9 +483,21 @@ static void sna_pixmap_free_cpu(struct sna *sna, struct sna_pixmap *priv)
 			sna_accel_watch_flush(sna, -1);
 		}
 		kgem_bo_destroy(&sna->kgem, priv->cpu_bo);
-		priv->cpu_bo = NULL;
-	} else
+	} else if (!IS_STATIC_PTR(priv->ptr))
 		free(priv->ptr);
+}
+
+static void sna_pixmap_free_cpu(struct sna *sna, struct sna_pixmap *priv)
+{
+	assert(priv->cpu_damage == NULL);
+	assert(list_is_empty(&priv->list));
+
+	if (IS_STATIC_PTR(priv->ptr))
+		return;
+
+	__sna_pixmap_free_cpu(sna, priv);
+
+	priv->cpu_bo = NULL;
 	priv->ptr = NULL;
 
 	if (!priv->mapped)
@@ -1275,7 +1281,7 @@ static void __sna_free_pixmap(struct sna *sna,
 	sna_damage_destroy(&priv->gpu_damage);
 	sna_damage_destroy(&priv->cpu_damage);
 
-	sna_pixmap_free_cpu(sna, priv);
+	__sna_pixmap_free_cpu(sna, priv);
 
 	if (priv->header) {
 		assert(!priv->shm);
@@ -13585,8 +13591,10 @@ sna_accel_flush_callback(CallbackListPtr *list,
 
 		list_del(&priv->list);
 		if (priv->shm) {
-			DBG(("%s: syncing SHM pixmap=%ld\n", __FUNCTION__,
-			     priv->pixmap->drawable.serialNumber));
+			DBG(("%s: syncing SHM pixmap=%ld (refcnt=%d)\n",
+			     __FUNCTION__,
+			     priv->pixmap->drawable.serialNumber,
+			     priv->pixmap->refcnt));
 			ret = sna_pixmap_move_to_cpu(priv->pixmap,
 						     MOVE_READ | MOVE_WRITE);
 			assert(!ret || priv->gpu_bo == NULL);
