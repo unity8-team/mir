@@ -4312,7 +4312,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			area.y2 += src_dy;
 
 			if (!sna_pixmap_move_area_to_gpu(src_pixmap, &area,
-							 MOVE_READ))
+							 MOVE_READ | MOVE_ASYNC_HINT))
 				goto fallback;
 
 			if (!sna->render.copy_boxes(sna, alu,
