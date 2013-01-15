@@ -2617,8 +2617,8 @@ gen7_render_copy_boxes(struct sna *sna, uint8_t alu,
 	struct sna_composite_op tmp;
 	BoxRec extents;
 
-	DBG(("%s (%d, %d)->(%d, %d) x %d, alu=%x, self-copy=%d, overlaps? %d\n",
-	     __FUNCTION__, src_dx, src_dy, dst_dx, dst_dy, n, alu,
+	DBG(("%s (%d, %d)->(%d, %d) x %d, alu=%x, flags=%x, self-copy=%d, overlaps? %d\n",
+	     __FUNCTION__, src_dx, src_dy, dst_dx, dst_dy, n, alu, flags,
 	     src_bo == dst_bo,
 	     overlaps(sna,
 		      src_bo, src_dx, src_dy,

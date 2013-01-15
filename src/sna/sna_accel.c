@@ -4134,19 +4134,36 @@ static bool use_shm_bo(struct sna *sna,
 		       struct sna_pixmap *priv,
 		       int alu)
 {
-	if (priv == NULL || priv->cpu_bo == NULL)
+	if (priv == NULL || priv->cpu_bo == NULL) {
+		DBG(("%s: no, not attached\n", __FUNCTION__));
 		return false;
+	}
 
-	if (!priv->shm)
+	if (!priv->shm) {
+		DBG(("%s: yes, ordinary CPU bo\n", __FUNCTION__));
 		return true;
+	}
 
-	if (alu != GXcopy)
+	if (alu != GXcopy) {
+		DBG(("%s: yes, complex alu=%d\n", __FUNCTION__, alu));
 		return true;
-
-	if (kgem_bo_is_busy(bo))
+	}
+	if (bo->tiling) {
+		DBG(("%s:, yes, dst tiled=%d\n", __FUNCTION__, bo->tiling));
 		return true;
+	}
 
-	return bo->tiling || __kgem_bo_is_busy(&sna->kgem, priv->cpu_bo);
+	if (__kgem_bo_is_busy(&sna->kgem, bo)) {
+		DBG(("%s: yes, dst is busy\n", __FUNCTION__));
+		return true;
+	}
+
+	if (__kgem_bo_is_busy(&sna->kgem, priv->cpu_bo)) {
+		DBG(("%s: yes, src is busy\n", __FUNCTION__));
+		return true;
+	}
+
+	return false;
 }
 
 static void
@@ -4335,8 +4352,8 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 		if (use_shm_bo(sna, bo, src_priv, alu)) {
 			bool ret;
 
-			DBG(("%s: region overlaps CPU damage, copy from CPU bo\n",
-			     __FUNCTION__));
+			DBG(("%s: region overlaps CPU damage, copy from CPU bo (shm? %d)\n",
+			     __FUNCTION__, src_priv->shm));
 
 			assert(bo != dst_priv->cpu_bo);
 
