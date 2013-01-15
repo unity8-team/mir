@@ -4351,7 +4351,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			if (!sna->render.copy_boxes(sna, alu,
 						    src_pixmap, src_priv->cpu_bo, src_dx, src_dy,
 						    dst_pixmap, bo, 0, 0,
-						    box, n, 0)) {
+						    box, n, src_priv->shm ? COPY_LAST : 0)) {
 				DBG(("%s: fallback - accelerated copy boxes failed\n",
 				     __FUNCTION__));
 				goto fallback;
