@@ -1645,7 +1645,8 @@ skip_inplace_map:
 	}
 
 	if (pixmap->devPrivate.ptr == NULL &&
-	    !sna_pixmap_alloc_cpu(sna, pixmap, priv, priv->gpu_damage != NULL && !priv->clear))
+	    !sna_pixmap_alloc_cpu(sna, pixmap, priv,
+				  flags & MOVE_READ ? priv->gpu_damage && !priv->clear : 0))
 		return false;
 
 	if (priv->clear) {
@@ -1985,7 +1986,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 
 	if (pixmap->devPrivate.ptr == NULL &&
 	    !sna_pixmap_alloc_cpu(sna, pixmap, priv,
-				  priv->gpu_damage && !priv->clear)) {
+				  flags & MOVE_READ ? priv->gpu_damage && !priv->clear : 0)) {
 		if (dx | dy)
 			RegionTranslate(region, -dx, -dy);
 		return false;
