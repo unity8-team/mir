@@ -4417,7 +4417,8 @@ struct inplace {
 static force_inline uint8_t coverage_opacity(int coverage, uint8_t opacity)
 {
 	coverage = coverage * 256 / FAST_SAMPLES_XY;
-	return mul_8_8(coverage - (coverage >> 8), opacity);
+	coverage -= coverage >> 8;
+	return opacity == 255 ? coverage : mul_8_8(coverage, opacity);
 }
 
 static void
