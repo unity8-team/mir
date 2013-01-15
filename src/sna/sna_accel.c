@@ -1444,13 +1444,15 @@ static inline bool use_cpu_bo_for_upload(struct sna *sna,
 
 static inline bool operate_inplace(struct sna_pixmap *priv, unsigned flags)
 {
-	if ((priv->create & KGEM_CAN_CREATE_GTT) == 0) {
-		DBG(("%s: no, not accessible via GTT\n", __FUNCTION__));
+	if ((flags & MOVE_INPLACE_HINT) == 0) {
+		DBG(("%s: no, inplace operation not suitable\n", __FUNCTION__));
 		return false;
 	}
 
-	if ((flags & MOVE_INPLACE_HINT) == 0) {
-		DBG(("%s: no, inplace operation not suitable\n", __FUNCTION__));
+	assert((flags & MOVE_ASYNC_HINT) == 0);
+
+	if ((priv->create & KGEM_CAN_CREATE_GTT) == 0) {
+		DBG(("%s: no, not accessible via GTT\n", __FUNCTION__));
 		return false;
 	}
 
