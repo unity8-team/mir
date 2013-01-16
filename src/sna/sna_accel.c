@@ -1906,8 +1906,11 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 
 	if (USE_INPLACE &&
 	    (flags & MOVE_READ) == 0 &&
-	    (priv->flush || box_inplace(pixmap, &region->extents)))
+	    (priv->flush || box_inplace(pixmap, &region->extents))) {
+		DBG(("%s: marking for inplace hint (%d, %d)\n",
+		     __FUNCTION__, priv->flush, box_inplace(pixmap, &region->extents)));
 		flags |= MOVE_INPLACE_HINT;
+	}
 
 	if (flags & MOVE_WHOLE_HINT)
 		return _sna_pixmap_move_to_cpu(pixmap, flags);
