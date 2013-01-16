@@ -97,7 +97,7 @@ too_small(struct sna_pixmap *priv)
 	if (priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo))
 		return false;
 
-	return priv->create & KGEM_CAN_CREATE_SMALL;
+	return (priv->create & KGEM_CAN_CREATE_GPU) == 0;
 }
 
 static inline bool

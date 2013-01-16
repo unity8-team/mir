@@ -1102,7 +1102,7 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, unsigned gen)
 	DBG(("%s: buffer size=%d [%d KiB]\n", __FUNCTION__,
 	     kgem->buffer_size, kgem->buffer_size / 1024));
 
-	kgem->max_object_size = 2 * kgem->aperture_high / 3;
+	kgem->max_object_size = 3 * kgem->aperture_high / 4;
 	kgem->max_gpu_size = kgem->max_object_size;
 	if (!kgem->has_llc)
 		kgem->max_gpu_size = MAX_CACHE_SIZE;
@@ -3387,8 +3387,6 @@ unsigned kgem_can_create_2d(struct kgem *kgem,
 				 I915_TILING_NONE, &pitch);
 	DBG(("%s: untiled size=%d\n", __FUNCTION__, size));
 	if (size > 0) {
-		if (size < 4096)
-			flags |= KGEM_CAN_CREATE_SMALL;
 		if (size <= kgem->max_cpu_size)
 			flags |= KGEM_CAN_CREATE_CPU;
 		if (size <= kgem->max_gpu_size)

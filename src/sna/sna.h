@@ -126,7 +126,7 @@ struct sna_pixmap {
 #define PIN_SCANOUT 0x1
 #define PIN_DRI 0x2
 #define PIN_PRIME 0x4
-	uint8_t create :5;
+	uint8_t create :4;
 	uint8_t mapped :1;
 	uint8_t shm :1;
 	uint8_t clear :1;

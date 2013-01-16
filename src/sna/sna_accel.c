@@ -1224,7 +1224,7 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 
 		ptr = MAKE_STATIC_PTR(pixmap->devPrivate.ptr);
 		pad = pixmap->devKind;
-		flags |= KGEM_CAN_CREATE_SMALL;
+		flags &= ~(KGEM_CAN_CREATE_GPU | KGEM_CAN_CREATE_CPU);
 	} else {
 		DBG(("%s: creating GPU pixmap %dx%d, stride=%d, flags=%x\n",
 		     __FUNCTION__, width, height, pad, flags));
