@@ -1075,6 +1075,11 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, unsigned gen)
 	if (aperture.aper_size == 0)
 		aperture.aper_size = 64*1024*1024;
 
+	DBG(("%s: aperture size %lld, available now %lld\n",
+	     __FUNCTION__,
+	     (long long)aperture.aper_size,
+	     (long long)aperture.aper_available_size));
+
 	kgem->aperture_total = aperture.aper_size;
 	kgem->aperture_high = aperture.aper_size * 3/4;
 	kgem->aperture_low = aperture.aper_size * 1/3;
@@ -1102,7 +1107,7 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, unsigned gen)
 	DBG(("%s: buffer size=%d [%d KiB]\n", __FUNCTION__,
 	     kgem->buffer_size, kgem->buffer_size / 1024));
 
-	kgem->max_object_size = 3 * kgem->aperture_high / 4;
+	kgem->max_object_size = 3 * (kgem->aperture_high >> 12) << 10;
 	kgem->max_gpu_size = kgem->max_object_size;
 	if (!kgem->has_llc)
 		kgem->max_gpu_size = MAX_CACHE_SIZE;
@@ -1119,9 +1124,9 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, unsigned gen)
 	if (kgem->max_gpu_size > totalram / 4)
 		kgem->max_gpu_size = totalram / 4;
 
-	half_gpu_max = kgem->max_gpu_size / 2;
-	kgem->max_cpu_size = half_gpu_max;
+	kgem->max_cpu_size = kgem->max_object_size;
 
+	half_gpu_max = kgem->max_gpu_size / 2;
 	kgem->max_copy_tile_size = (MAX_CACHE_SIZE + 1)/2;
 	if (kgem->max_copy_tile_size > half_gpu_max)
 		kgem->max_copy_tile_size = half_gpu_max;
