@@ -1,3 +1,30 @@
+Release 2.20.18 (2013-01-16)
+============================
+A bunch of miscellaneous fixes for assertion failures and various
+performance regressions when mixing new methods for offloads, along with
+a couple of improvements for rendering with gen4.
+
+ * Remove use of packed unnormalized texture coordinates on gen4/5 as
+   these GPUs do not support unnormalized coordinates in the sampler.
+
+ * Remove dependency upon x86 asm for cross-building to unsupported
+   architectures.
+   https://bugs.gentoo.org/show_bug.cgi?id=448570
+
+ * Apply damage around PRIME updates in the correct order.
+
+ * Correctly read the initial backlight level for when the user
+   overrides UXA's choice of backlight controller.
+
+ * Throttle UXA and prevent it queuing work much faster than the GPU can
+   complete it. This realised itself in impossible performance figures and
+   the entire display freezing for several seconds whlist the GPU caught
+   up. One side effect is that it also caused the DDX to consume more
+   memory than was required as it could not recycle buffers quick
+   enough, and in some cases this produces a marked improvement in
+   performance. Also note on gen2/3 this requires a new libdrm [2.4.41]
+   in order to prevent a bug causing the DDX to fallback to swrast.
+
 Release 2.20.17 (2012-12-26)
 ============================
 A minor update to prepare for co-operating with the kernel over managing
