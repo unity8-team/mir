@@ -1738,6 +1738,18 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 	assert(bo->io == false);
 	assert(bo->scanout == false);
 
+	if (bo->exec && kgem->nexec == 1) {
+		DBG(("%s: only handle in batch, discarding last operations\n",
+		     __FUNCTION__));
+		assert(bo->exec == &kgem->exec[0]);
+		assert(kgem->exec[0].handle == bo->handle);
+		assert(RQ(bo->rq) == kgem->next_request);
+		bo->refcnt = 1;
+		kgem_reset(kgem);
+		assert(bo->rq == NULL);
+		bo->refcnt = 0;
+	}
+
 	if (bo->rq) {
 		struct list *cache;
 
@@ -2397,6 +2409,8 @@ void kgem_reset(struct kgem *kgem)
 						 request);
 			list_del(&bo->request);
 
+			assert(RQ(bo->rq) == rq);
+
 			bo->binding.offset = 0;
 			bo->exec = NULL;
 			bo->target_handle = -1;
@@ -2411,8 +2425,10 @@ void kgem_reset(struct kgem *kgem)
 			}
 		}
 
-		if (kgem->next_request != &kgem->static_request)
-			free(kgem->next_request);
+		if (rq != &kgem->static_request) {
+			list_init(&rq->list);
+			__kgem_request_free(rq);
+		}
 	}
 
 	kgem->nfence = 0;
