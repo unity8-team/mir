@@ -3293,12 +3293,12 @@ int kgem_choose_tiling(struct kgem *kgem, int tiling, int width, int height, int
 			tiling = I915_TILING_X;
 
 		if (width*bpp > (MAXSHORT-512) * 8) {
-			DBG(("%s: large pitch [%d], forcing TILING_X\n",
-			     __FUNCTION__, width*bpp/8));
 			if (tiling > 0)
 				tiling = -tiling;
 			else if (tiling == 0)
 				tiling = -I915_TILING_X;
+			DBG(("%s: large pitch [%d], forcing TILING [%d]\n",
+			     __FUNCTION__, width*bpp/8, tiling));
 		} else if (tiling && (width|height) > 8192) {
 			DBG(("%s: large tiled buffer [%dx%d], forcing TILING_X\n",
 			     __FUNCTION__, width, height));
