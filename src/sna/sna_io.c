@@ -691,13 +691,17 @@ fallback:
 		     sna->render.max_3d_size, sna->render.max_3d_size));
 		if (must_tile(sna, tmp.drawable.width, tmp.drawable.height)) {
 			BoxRec tile, stack[64], *clipped, *c;
-			int step;
+			int cpp, step;
 
 tile:
-			step = MIN(sna->render.max_3d_size - 4096 / dst->drawable.bitsPerPixel,
-				   8*(MAXSHORT&~63) / dst->drawable.bitsPerPixel);
-			while (step * step * 4 > sna->kgem.max_upload_tile_size)
+			cpp = dst->drawable.bitsPerPixel / 8;
+			step = MIN(sna->render.max_3d_size,
+				   (MAXSHORT&~63) / cpp);
+			while (step * step * cpp > sna->kgem.max_upload_tile_size)
 				step /= 2;
+
+			if (step * cpp > 4096)
+				step = 4096 / cpp;
 
 			DBG(("%s: tiling upload, using %dx%d tiles\n",
 			     __FUNCTION__, step, step));
