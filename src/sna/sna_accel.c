@@ -1607,7 +1607,8 @@ skip_inplace_map:
 
 	if (priv->mapped) {
 		assert(!priv->shm);
-		pixmap->devPrivate.ptr = NULL;
+		pixmap->devPrivate.ptr = PTR(priv->ptr);
+		pixmap->devKind = priv->stride;
 		priv->mapped = false;
 	}
 
@@ -1637,7 +1638,8 @@ skip_inplace_map:
 				priv->clear = false;
 			}
 
-			kgem_bo_sync__cpu_full(&sna->kgem, priv->gpu_bo, flags & MOVE_WRITE);
+			kgem_bo_sync__cpu_full(&sna->kgem,
+					       priv->gpu_bo, flags & MOVE_WRITE);
 			assert_pixmap_damage(pixmap);
 			DBG(("%s: operate inplace (CPU)\n", __FUNCTION__));
 			return true;
@@ -1729,11 +1731,11 @@ skip_inplace_map:
 
 done:
 	if (flags & MOVE_WRITE) {
+		assert(DAMAGE_IS_ALL(priv->cpu_damage));
 		priv->source_count = SOURCE_BIAS;
 		assert(priv->gpu_bo == NULL || priv->gpu_bo->proxy == NULL);
 		if (priv->gpu_bo && priv->gpu_bo->domain != DOMAIN_GPU) {
 			DBG(("%s: discarding inactive GPU bo\n", __FUNCTION__));
-			assert(DAMAGE_IS_ALL(priv->cpu_damage));
 			sna_pixmap_free_gpu(sna, priv);
 		}
 	}
@@ -1741,7 +1743,8 @@ done:
 	if (priv->cpu_bo) {
 		if ((flags & MOVE_ASYNC_HINT) == 0) {
 			DBG(("%s: syncing CPU bo\n", __FUNCTION__));
-			kgem_bo_sync__cpu(&sna->kgem, priv->cpu_bo);
+			kgem_bo_sync__cpu_full(&sna->kgem,
+					       priv->cpu_bo, flags & MOVE_WRITE);
 		}
 		if (flags & MOVE_WRITE) {
 			DBG(("%s: discarding GPU bo in favour of CPU bo\n", __FUNCTION__));
@@ -2263,7 +2266,8 @@ out:
 	}
 	if ((flags & MOVE_ASYNC_HINT) == 0 && priv->cpu_bo) {
 		DBG(("%s: syncing cpu bo\n", __FUNCTION__));
-		kgem_bo_sync__cpu(&sna->kgem, priv->cpu_bo);
+		kgem_bo_sync__cpu_full(&sna->kgem,
+				       priv->cpu_bo, flags & MOVE_WRITE);
 		assert(!kgem_bo_is_busy(priv->cpu_bo));
 	}
 	priv->cpu = (flags & MOVE_ASYNC_HINT) == 0;
