@@ -5193,7 +5193,7 @@ trapezoid_span_inplace__x8r8g8b8(CARD8 op,
 			struct inplace inplace;
 
 			inplace.ptr = pixmap->devPrivate.ptr;
-			inplace.ptr += dst_y * pixmap->devKind + dst_x;
+			inplace.ptr += dst_y * pixmap->devKind + dst_x * 4;
 			inplace.stride = pixmap->devKind;
 			inplace.color = color;
 
