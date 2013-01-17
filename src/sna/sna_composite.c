@@ -849,7 +849,6 @@ sna_composite_rectangles(CARD8		 op,
 				sna_damage_all(&priv->gpu_damage,
 					       pixmap->drawable.width,
 					       pixmap->drawable.height);
-				priv->undamaged = false;
 			}
 		}
 		if (priv->cpu_damage == NULL) {
@@ -887,7 +886,6 @@ sna_composite_rectangles(CARD8		 op,
 				       pixmap->drawable.height);
 			sna_damage_destroy(damage == &priv->gpu_damage ?
 					   &priv->cpu_damage : &priv->gpu_damage);
-			priv->undamaged = false;
 		}
 
 		if (op <= PictOpSrc && bo == priv->gpu_bo) {

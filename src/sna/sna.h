@@ -130,7 +130,6 @@ struct sna_pixmap {
 	uint8_t mapped :1;
 	uint8_t shm :1;
 	uint8_t clear :1;
-	uint8_t undamaged :1;
 	uint8_t header :1;
 	uint8_t cpu :1;
 };

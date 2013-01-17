@@ -457,7 +457,6 @@ damage_all:
 						   pixmap->drawable.width,
 						   pixmap->drawable.height);
 		sna_damage_destroy(&priv->cpu_damage);
-		priv->undamaged = false;
 	} else {
 		sna_damage_subtract(&priv->cpu_damage, region);
 		if (priv->cpu_damage == NULL)
@@ -493,7 +492,6 @@ static void set_bo(PixmapPtr pixmap, struct kgem_bo *bo)
 	sna_damage_destroy(&priv->cpu_damage);
 	list_del(&priv->list);
 	priv->cpu = false;
-	priv->undamaged = false;
 
 	assert(bo->refcnt);
 	if (priv->gpu_bo != bo) {
