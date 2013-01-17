@@ -8481,6 +8481,7 @@ sna_poly_rectangle_extents(DrawablePtr drawable, GCPtr gc,
 	Box32Rec box;
 	int extra = gc->lineWidth >> 1;
 	bool clipped;
+	bool zero = false;
 
 	if (n == 0)
 		return 0;
@@ -8489,9 +8490,13 @@ sna_poly_rectangle_extents(DrawablePtr drawable, GCPtr gc,
 	box.y1 = r->y;
 	box.x2 = box.x1 + r->width;
 	box.y2 = box.y1 + r->height;
+	zero |= (r->width | r->height) == 0;
 
-	while (--n)
-		box32_add_rect(&box, ++r);
+	while (--n) {
+		r++;
+		zero |= (r->width | r->height) == 0;
+		box32_add_rect(&box, r);
+	}
 
 	box.x2++;
 	box.y2++;
@@ -8501,13 +8506,15 @@ sna_poly_rectangle_extents(DrawablePtr drawable, GCPtr gc,
 		box.x2 += extra;
 		box.y1 -= extra;
 		box.y2 += extra;
-	}
+		zero = !zero;
+	} else
+		zero = true;
 
 	clipped = box32_trim_and_translate(&box, drawable, gc);
 	if (!box32_to_box16(&box, out))
 		return 0;
 
-	return 1 | clipped << 1;
+	return 1 | clipped << 1 | zero << 2;
 }
 
 static bool
@@ -8546,7 +8553,7 @@ zero:
 		xRectangle rr = *r++;
 
 		if ((rr.width | rr.height) == 0)
-			continue;
+			continue; /* XXX -> PolyLine */
 
 		DBG(("%s - zero : r[%d] = (%d, %d) x (%d, %d)\n", __FUNCTION__,
 		     n, rr.x, rr.y, rr.width, rr.height));
@@ -8615,7 +8622,7 @@ zero_clipped:
 				     n, rr.x, rr.y, rr.width, rr.height));
 
 				if ((rr.width | rr.height) == 0)
-					continue;
+					continue; /* XXX -> PolyLine */
 
 				rr.x += drawable->x;
 				rr.y += drawable->y;
@@ -8679,7 +8686,7 @@ zero_clipped:
 				     n, rr.x, rr.y, rr.width, rr.height));
 
 				if ((rr.width | rr.height) == 0)
-					continue;
+					continue; /* XXX -> PolyLine */
 
 				rr.x += drawable->x;
 				rr.y += drawable->y;
@@ -8759,7 +8766,7 @@ wide_clipped:
 				int count;
 
 				if ((rr.width | rr.height) == 0)
-					continue;
+					continue; /* XXX -> PolyLine */
 
 				rr.x += drawable->x;
 				rr.y += drawable->y;
@@ -8924,7 +8931,7 @@ wide:
 			xRectangle rr = *r++;
 
 			if ((rr.width | rr.height) == 0)
-				continue;
+				continue; /* XXX -> PolyLine */
 
 			rr.x += dx;
 			rr.y += dy;
@@ -9022,8 +9029,9 @@ sna_poly_rectangle(DrawablePtr drawable, GCPtr gc, int n, xRectangle *r)
 		goto fallback;
 	}
 
-	DBG(("%s: line=%d [%d], join=%d [%d], mask=%lu [%d]\n",
+	DBG(("%s: fill=_%d [%d], line=%d [%d], join=%d [%d], mask=%lu [%d]\n",
 	     __FUNCTION__,
+	     gc->fillStyle, gc->fillStyle == FillSolid,
 	     gc->lineStyle, gc->lineStyle == LineSolid,
 	     gc->joinStyle, gc->joinStyle == JoinMiter,
 	     gc->planemask, PM_IS_SOLID(drawable, gc->planemask)));
@@ -9031,7 +9039,7 @@ sna_poly_rectangle(DrawablePtr drawable, GCPtr gc, int n, xRectangle *r)
 	if (!PM_IS_SOLID(drawable, gc->planemask))
 		goto fallback;
 
-	if (gc->lineStyle == LineSolid && gc->joinStyle == JoinMiter) {
+	if (flags & 4 && gc->fillStyle == FillSolid && gc->lineStyle == LineSolid && gc->joinStyle == JoinMiter) {
 		DBG(("%s: trying blt solid fill [%08lx] paths\n",
 		     __FUNCTION__, gc->fgPixel));
 		if ((bo = sna_drawable_use_bo(drawable, PREFER_GPU,
