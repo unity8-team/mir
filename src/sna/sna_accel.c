@@ -3428,7 +3428,6 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
 	struct sna *sna = to_sna_from_pixmap(pixmap);
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
-	unsigned flags;
 	char *dst_bits;
 	int dst_stride;
 	BoxRec *box;
@@ -3440,24 +3439,22 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	if (gc->alu != GXcopy)
 		return false;
 
-	if (!priv) {
+	if (priv) {
+		unsigned flags = MOVE_WRITE;
+		if (w == pixmap->drawable.width) {
+			flags |= MOVE_WHOLE_HINT;
+			if (h != pixmap->drawable.height)
+				flags |= MOVE_READ;
+		}
+
+		if (!sna_drawable_move_region_to_cpu(&pixmap->drawable,
+						     region, flags))
+			return false;
+	} else {
 		if (drawable->depth < 8)
 			return false;
-
-		goto blt;
 	}
 
-	flags = MOVE_WRITE;
-	if (w == pixmap->drawable.width) {
-		flags |= MOVE_WHOLE_HINT;
-		if (h != pixmap->drawable.height)
-			flags |= MOVE_READ;
-	}
-
-	if (!sna_drawable_move_region_to_cpu(&pixmap->drawable, region, flags))
-		return false;
-
-blt:
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
 	x += dx + drawable->x;
 	y += dy + drawable->y;
