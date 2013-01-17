@@ -677,10 +677,15 @@ sna_dri_copy_to_front(struct sna *sna, DrawablePtr draw, RegionPtr region,
 				      dst_bo, 0, 0,
 				      boxes, n);
 	} else {
+		unsigned flags;
+
+		flags = COPY_LAST;
+		if (flush)
+			flags |= COPY_SYNC;
 		sna->render.copy_boxes(sna, GXcopy,
 				       (PixmapPtr)draw, src_bo, -draw->x-dx, -draw->y-dy,
 				       pixmap, dst_bo, 0, 0,
-				       boxes, n, COPY_LAST);
+				       boxes, n, flags);
 
 		DBG(("%s: flushing? %d\n", __FUNCTION__, flush));
 		if (flush) { /* STAT! */
