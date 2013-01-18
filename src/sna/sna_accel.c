@@ -350,7 +350,7 @@ static void assert_pixmap_damage(PixmapPtr p)
 		_sna_damage_debug_get_region(DAMAGE_PTR(priv->cpu_damage), &cpu);
 
 	RegionIntersect(&reg, &cpu, &gpu);
-	assert(!RegionNotEmpty(&reg));
+	assert(RegionNil(&reg));
 
 	RegionUninit(&reg);
 	RegionUninit(&gpu);
@@ -3766,7 +3766,7 @@ sna_put_image(DrawablePtr drawable, GCPtr gc, int depth,
 	    gc->pCompositeClip->extents.x2 < region.extents.x2 ||
 	    gc->pCompositeClip->extents.y2 < region.extents.y2) {
 		RegionIntersect(&region, &region, gc->pCompositeClip);
-		if (!RegionNotEmpty(&region))
+		if (RegionNil(&region))
 			return;
 	}
 
@@ -4713,7 +4713,7 @@ sna_do_copy(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 		 * VT is inactive, make sure the region isn't empty
 		 */
 		if (((WindowPtr)src)->parent ||
-		    !RegionNotEmpty(&((WindowPtr)src)->borderClip)) {
+		    RegionNil(&((WindowPtr)src)->borderClip)) {
 			DBG(("%s: include inferiors\n", __FUNCTION__));
 			free_clip = clip = NotClippedByChildren((WindowPtr)src);
 		}
@@ -5376,7 +5376,7 @@ no_damage_clipped:
 
 		region_set(&clip, extents);
 		region_maybe_clip(&clip, gc->pCompositeClip);
-		if (!RegionNotEmpty(&clip))
+		if (RegionNil(&clip))
 			return true;
 
 		assert(dx + clip.extents.x1 >= 0);
@@ -5477,7 +5477,7 @@ damage_clipped:
 
 		region_set(&clip, extents);
 		region_maybe_clip(&clip, gc->pCompositeClip);
-		if (!RegionNotEmpty(&clip))
+		if (RegionNil(&clip))
 			return true;
 
 		assert(dx + clip.extents.x1 >= 0);
@@ -5798,7 +5798,7 @@ fallback:
 	DBG(("%s: fallback\n", __FUNCTION__));
 	region.data = NULL;
 	region_maybe_clip(&region, gc->pCompositeClip);
-	if (!RegionNotEmpty(&region))
+	if (RegionNil(&region))
 		return;
 
 	if (!sna_gc_move_to_cpu(gc, drawable, &region))
@@ -5838,7 +5838,7 @@ sna_set_spans(DrawablePtr drawable, GCPtr gc, char *src,
 fallback:
 	region.data = NULL;
 	region_maybe_clip(&region, gc->pCompositeClip);
-	if (!RegionNotEmpty(&region))
+	if (RegionNil(&region))
 		return;
 
 	if (!sna_gc_move_to_cpu(gc, drawable, &region))
@@ -6287,7 +6287,7 @@ sna_copy_plane(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	     __FUNCTION__,
 	     region.extents.x1, region.extents.y1,
 	     region.extents.x2, region.extents.y2));
-	if (!RegionNotEmpty(&region))
+	if (RegionNil(&region))
 		goto empty;
 
 	RegionTranslate(&region,
@@ -6544,7 +6544,7 @@ fallback:
 	DBG(("%s: fallback\n", __FUNCTION__));
 	region.data = NULL;
 	region_maybe_clip(&region, gc->pCompositeClip);
-	if (!RegionNotEmpty(&region))
+	if (RegionNil(&region))
 		return;
 
 	if (!sna_gc_move_to_cpu(gc, drawable, &region))
@@ -6599,7 +6599,7 @@ sna_poly_zero_line_blt(DrawablePtr drawable,
 	region_set(&clip, extents);
 	if (clipped) {
 		region_maybe_clip(&clip, gc->pCompositeClip);
-		if (!RegionNotEmpty(&clip))
+		if (RegionNil(&clip))
 			return true;
 	}
 
@@ -7024,7 +7024,7 @@ sna_poly_line_blt(DrawablePtr drawable,
 
 		region_set(&clip, extents);
 		region_maybe_clip(&clip, gc->pCompositeClip);
-		if (!RegionNotEmpty(&clip))
+		if (RegionNil(&clip))
 			return true;
 
 		last.x = pt->x + drawable->x;
@@ -7466,7 +7466,7 @@ spans_fallback:
 				} else {
 					region_maybe_clip(&data.region,
 							  gc->pCompositeClip);
-					if (!RegionNotEmpty(&data.region))
+					if (RegionNil(&data.region))
 						return;
 
 					if (region_is_singular(&data.region))
@@ -7491,7 +7491,7 @@ spans_fallback:
 				} else {
 					region_maybe_clip(&data.region,
 							  gc->pCompositeClip);
-					if (!RegionNotEmpty(&data.region))
+					if (RegionNil(&data.region))
 						return;
 
 					if (region_is_singular(&data.region))
@@ -7568,7 +7568,7 @@ spans_fallback:
 fallback:
 	DBG(("%s: fallback\n", __FUNCTION__));
 	region_maybe_clip(&data.region, gc->pCompositeClip);
-	if (!RegionNotEmpty(&data.region))
+	if (RegionNil(&data.region))
 		return;
 
 	if (!sna_gc_move_to_cpu(gc, drawable, &data.region))
@@ -7698,7 +7698,7 @@ sna_poly_segment_blt(DrawablePtr drawable,
 
 		region_set(&clip, extents);
 		region_maybe_clip(&clip, gc->pCompositeClip);
-		if (!RegionNotEmpty(&clip))
+		if (RegionNil(&clip))
 			goto done;
 
 		if (clip.data) {
@@ -7805,7 +7805,7 @@ sna_poly_zero_segment_blt(DrawablePtr drawable,
 	region_set(&clip, extents);
 	if (clipped) {
 		region_maybe_clip(&clip, gc->pCompositeClip);
-		if (!RegionNotEmpty(&clip))
+		if (RegionNil(&clip))
 			return true;
 	}
 	DBG(("%s: [clipped] extents=(%d, %d), (%d, %d), delta=(%d, %d)\n",
@@ -8373,7 +8373,7 @@ spans_fallback:
 			} else {
 				region_maybe_clip(&data.region,
 						  gc->pCompositeClip);
-				if (!RegionNotEmpty(&data.region))
+				if (RegionNil(&data.region))
 					return;
 
 				if (region_is_singular(&data.region))
@@ -8412,7 +8412,7 @@ spans_fallback:
 fallback:
 	DBG(("%s: fallback\n", __FUNCTION__));
 	region_maybe_clip(&data.region, gc->pCompositeClip);
-	if (!RegionNotEmpty(&data.region))
+	if (RegionNil(&data.region))
 		return;
 
 	if (!sna_gc_move_to_cpu(gc, drawable, &data.region))
@@ -8567,7 +8567,7 @@ zero_clipped:
 
 		region_set(&clip, extents);
 		region_maybe_clip(&clip, gc->pCompositeClip);
-		if (!RegionNotEmpty(&clip))
+		if (RegionNil(&clip))
 			goto done;
 
 		if (clip.data) {
@@ -8713,7 +8713,7 @@ wide_clipped:
 		     __FUNCTION__,
 		     clip.extents.x1, clip.extents.y1,
 		     clip.extents.x2, clip.extents.y2));
-		if (!RegionNotEmpty(&clip))
+		if (RegionNil(&clip))
 			goto done;
 
 		if (clip.data) {
@@ -9022,7 +9022,7 @@ fallback:
 
 	region.data = NULL;
 	region_maybe_clip(&region, gc->pCompositeClip);
-	if (!RegionNotEmpty(&region))
+	if (RegionNil(&region))
 		return;
 
 	if (!sna_gc_move_to_cpu(gc, drawable, &region))
@@ -9161,7 +9161,7 @@ sna_poly_arc(DrawablePtr drawable, GCPtr gc, int n, xArc *arc)
 				} else {
 					region_maybe_clip(&data.region,
 							  gc->pCompositeClip);
-					if (!RegionNotEmpty(&data.region))
+					if (RegionNil(&data.region))
 						return;
 
 					if (region_is_singular(&data.region)) {
@@ -9185,7 +9185,7 @@ sna_poly_arc(DrawablePtr drawable, GCPtr gc, int n, xArc *arc)
 			} else {
 				region_maybe_clip(&data.region,
 						  gc->pCompositeClip);
-				if (!RegionNotEmpty(&data.region))
+				if (RegionNil(&data.region))
 					return;
 
 				sna_gc_ops__tmp.FillSpans = sna_fill_spans__gpu;
@@ -9221,7 +9221,7 @@ sna_poly_arc(DrawablePtr drawable, GCPtr gc, int n, xArc *arc)
 fallback:
 	DBG(("%s -- fallback\n", __FUNCTION__));
 	region_maybe_clip(&data.region, gc->pCompositeClip);
-	if (!RegionNotEmpty(&data.region))
+	if (RegionNil(&data.region))
 		return;
 
 	if (!sna_gc_move_to_cpu(gc, drawable, &data.region))
@@ -9364,7 +9364,7 @@ sna_poly_fill_rect_blt(DrawablePtr drawable,
 
 		region_set(&clip, extents);
 		region_maybe_clip(&clip, gc->pCompositeClip);
-		if (!RegionNotEmpty(&clip))
+		if (RegionNil(&clip))
 			goto done;
 
 		if (clip.data == NULL) {
@@ -9535,7 +9535,7 @@ sna_poly_fill_polygon(DrawablePtr draw, GCPtr gc,
 			} else {
 				region_maybe_clip(&data.region,
 						  gc->pCompositeClip);
-				if (!RegionNotEmpty(&data.region))
+				if (RegionNil(&data.region))
 					return;
 
 				if (region_is_singular(&data.region))
@@ -9572,7 +9572,7 @@ fallback:
 	     data.region.extents.x1, data.region.extents.y1,
 	     data.region.extents.x2, data.region.extents.y2));
 	region_maybe_clip(&data.region, gc->pCompositeClip);
-	if (!RegionNotEmpty(&data.region)) {
+	if (RegionNil(&data.region)) {
 		DBG(("%s: nothing to do, all clipped\n", __FUNCTION__));
 		return;
 	}
@@ -9782,7 +9782,7 @@ sna_poly_fill_rect_tiled_8x8_blt(DrawablePtr drawable,
 
 		region_set(&clip, extents);
 		region_maybe_clip(&clip, gc->pCompositeClip);
-		if (!RegionNotEmpty(&clip))
+		if (RegionNil(&clip))
 			goto done;
 
 		b = sna->kgem.batch + sna->kgem.nbatch;
@@ -10109,7 +10109,7 @@ sna_poly_fill_rect_tiled_blt(DrawablePtr drawable,
 
 		region_set(&clip, extents);
 		region_maybe_clip(&clip, gc->pCompositeClip);
-		if (!RegionNotEmpty(&clip))
+		if (RegionNil(&clip))
 			goto done;
 
 		if (clip.data == NULL) {
@@ -10388,7 +10388,7 @@ sna_poly_fill_rect_stippled_8x8_blt(DrawablePtr drawable,
 
 		region_set(&clip, extents);
 		region_maybe_clip(&clip, gc->pCompositeClip);
-		if (!RegionNotEmpty(&clip))
+		if (RegionNil(&clip))
 			return true;
 
 		b = sna->kgem.batch + sna->kgem.nbatch;
@@ -10720,7 +10720,7 @@ sna_poly_fill_rect_stippled_1_blt(DrawablePtr drawable,
 
 		region_set(&clip, extents);
 		region_maybe_clip(&clip, gc->pCompositeClip);
-		if (!RegionNotEmpty(&clip))
+		if (RegionNil(&clip))
 			return true;
 
 		pat.x = origin->x + drawable->x;
@@ -11329,7 +11329,7 @@ sna_poly_fill_rect_stippled_n_blt__imm(DrawablePtr drawable,
 
 		region_set(&clip, extents);
 		region_maybe_clip(&clip, gc->pCompositeClip);
-		if (!RegionNotEmpty(&clip)) {
+		if (RegionNil(&clip)) {
 			DBG(("%s: all clipped\n", __FUNCTION__));
 			return true;
 		}
@@ -11474,7 +11474,7 @@ sna_poly_fill_rect_stippled_n_blt(DrawablePtr drawable,
 
 		region_set(&clip, extents);
 		region_maybe_clip(&clip, gc->pCompositeClip);
-		if (!RegionNotEmpty(&clip)) {
+		if (RegionNil(&clip)) {
 			DBG(("%s: all clipped\n", __FUNCTION__));
 			return true;
 		}
@@ -11812,7 +11812,7 @@ fallback:
 	     region.extents.x2, region.extents.y2));
 	region.data = NULL;
 	region_maybe_clip(&region, gc->pCompositeClip);
-	if (!RegionNotEmpty(&region)) {
+	if (RegionNil(&region)) {
 		DBG(("%s: nothing to do, all clipped\n", __FUNCTION__));
 		return;
 	}
@@ -11905,7 +11905,7 @@ sna_poly_fill_arc(DrawablePtr draw, GCPtr gc, int n, xArc *arc)
 			} else {
 				region_maybe_clip(&data.region,
 						  gc->pCompositeClip);
-				if (!RegionNotEmpty(&data.region))
+				if (RegionNil(&data.region))
 					return;
 
 				if (region_is_singular(&data.region))
@@ -11942,7 +11942,7 @@ fallback:
 	     data.region.extents.x1, data.region.extents.y1,
 	     data.region.extents.x2, data.region.extents.y2));
 	region_maybe_clip(&data.region, gc->pCompositeClip);
-	if (!RegionNotEmpty(&data.region)) {
+	if (RegionNil(&data.region)) {
 		DBG(("%s: nothing to do, all clipped\n", __FUNCTION__));
 		return;
 	}
@@ -12399,7 +12399,7 @@ sna_poly_text8(DrawablePtr drawable, GCPtr gc,
 
 	region.data = NULL;
 	region_maybe_clip(&region, gc->pCompositeClip);
-	if (!RegionNotEmpty(&region))
+	if (RegionNil(&region))
 		return x + extents.overallRight;
 
 	if (FORCE_FALLBACK)
@@ -12473,7 +12473,7 @@ sna_poly_text16(DrawablePtr drawable, GCPtr gc,
 
 	region.data = NULL;
 	region_maybe_clip(&region, gc->pCompositeClip);
-	if (!RegionNotEmpty(&region))
+	if (RegionNil(&region))
 		return x + extents.overallRight;
 
 	if (FORCE_FALLBACK)
@@ -12554,7 +12554,7 @@ sna_image_text8(DrawablePtr drawable, GCPtr gc,
 
 	region.data = NULL;
 	region_maybe_clip(&region, gc->pCompositeClip);
-	if (!RegionNotEmpty(&region))
+	if (RegionNil(&region))
 		return;
 
 	DBG(("%s: clipped extents (%d, %d), (%d, %d)\n",
@@ -12636,7 +12636,7 @@ sna_image_text16(DrawablePtr drawable, GCPtr gc,
 
 	region.data = NULL;
 	region_maybe_clip(&region, gc->pCompositeClip);
-	if (!RegionNotEmpty(&region))
+	if (RegionNil(&region))
 		return;
 
 	DBG(("%s: clipped extents (%d, %d), (%d, %d)\n",
@@ -12938,7 +12938,7 @@ sna_image_glyph(DrawablePtr drawable, GCPtr gc,
 
 	region.data = NULL;
 	region_maybe_clip(&region, gc->pCompositeClip);
-	if (!RegionNotEmpty(&region))
+	if (RegionNil(&region))
 		return;
 
 	if (FORCE_FALLBACK)
@@ -13016,7 +13016,7 @@ sna_poly_glyph(DrawablePtr drawable, GCPtr gc,
 
 	region.data = NULL;
 	region_maybe_clip(&region, gc->pCompositeClip);
-	if (!RegionNotEmpty(&region))
+	if (RegionNil(&region))
 		return;
 
 	if (FORCE_FALLBACK)
@@ -13217,7 +13217,7 @@ sna_push_pixels(GCPtr gc, PixmapPtr bitmap, DrawablePtr drawable,
 
 	region.data = NULL;
 	region_maybe_clip(&region, gc->pCompositeClip);
-	if (!RegionNotEmpty(&region))
+	if (RegionNil(&region))
 		return;
 
 	switch (gc->fillStyle) {
@@ -13529,7 +13529,7 @@ sna_copy_window(WindowPtr win, DDXPointRec origin, RegionPtr src)
 
 	RegionNull(&dst);
 	RegionIntersect(&dst, &win->borderClip, src);
-	if (!RegionNotEmpty(&dst))
+	if (RegionNil(&dst))
 		return;
 
 #ifdef COMPOSITE
@@ -13800,7 +13800,7 @@ static void sna_accel_post_damage(struct sna *sna)
 		int n;
 
 		damage = DamageRegion(dirty->damage);
-		if (!RegionNotEmpty(damage))
+		if (RegionNil(damage))
 			continue;
 
 		src = dirty->src;
@@ -13821,7 +13821,7 @@ static void sna_accel_post_damage(struct sna *sna)
 		     region.extents.x2, region.extents.y2));
 
 		RegionIntersect(&region, &region, damage);
-		if (!RegionNotEmpty(&region))
+		if (RegionNil(&region))
 			continue;
 
 		RegionTranslate(&region, -dirty->x, -dirty->y);
