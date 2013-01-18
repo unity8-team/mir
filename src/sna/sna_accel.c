@@ -2268,7 +2268,6 @@ out:
 		DBG(("%s: syncing cpu bo\n", __FUNCTION__));
 		kgem_bo_sync__cpu_full(&sna->kgem,
 				       priv->cpu_bo, flags & MOVE_WRITE);
-		assert(!kgem_bo_is_busy(priv->cpu_bo));
 	}
 	priv->cpu = (flags & MOVE_ASYNC_HINT) == 0;
 	assert(pixmap->devPrivate.ptr);
