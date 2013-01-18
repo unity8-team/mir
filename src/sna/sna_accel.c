@@ -13822,7 +13822,7 @@ static void sna_accel_post_damage(struct sna *sna)
 
 		RegionIntersect(&region, &region, damage);
 		if (RegionNil(&region))
-			continue;
+			goto skip;
 
 		RegionTranslate(&region, -dirty->x, -dirty->y);
 		DamageRegionAppend(&dirty->slave_dst->drawable, &region);
