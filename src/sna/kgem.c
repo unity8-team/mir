@@ -2648,16 +2648,8 @@ void _kgem_submit(struct kgem *kgem)
 					       DRM_IOCTL_I915_GEM_EXECBUFFER2,
 					       &execbuf);
 			}
-			if (ret == -1 && (errno == EIO || errno == EBUSY)) {
-				DBG(("%s: GPU hang detected\n", __FUNCTION__));
-				kgem_throttle(kgem);
-				ret = 0;
-			}
-
 			if (DEBUG_SYNC && ret == 0) {
 				struct drm_i915_gem_set_domain set_domain;
-
-				DBG(("%s: debug sync, starting\n", __FUNCTION__));
 
 				VG_CLEAR(set_domain);
 				set_domain.handle = handle;
@@ -2665,16 +2657,14 @@ void _kgem_submit(struct kgem *kgem)
 				set_domain.write_domain = I915_GEM_DOMAIN_GTT;
 
 				ret = drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_SET_DOMAIN, &set_domain);
-				if (ret == -1) {
-					DBG(("%s: sync: GPU hang detected\n", __FUNCTION__));
-					kgem_throttle(kgem);
-				}
-
-				DBG(("%s: debug sync, completed\n", __FUNCTION__));
 			}
+			if (ret == -1) {
+				DBG(("%s: GPU hang detected [%d]\n",
+				     __FUNCTION__, errno));
+				kgem_throttle(kgem);
+				kgem->wedged = true;
 
 #if !NDEBUG
-			if (ret < 0) {
 				ret = errno;
 				ErrorF("batch[%d/%d]: %d %d %d, nreloc=%d, nexec=%d, nfence=%d, aperture=%d: errno=%d\n",
 				       kgem->mode, kgem->ring, batch_end, kgem->nbatch, kgem->surface,
@@ -2710,15 +2700,17 @@ void _kgem_submit(struct kgem *kgem)
 					       (int)kgem->reloc[i].presumed_offset);
 				}
 
-				i = open("/tmp/batchbuffer", O_WRONLY | O_CREAT | O_APPEND, 0666);
-				if (i != -1) {
-					i = write(i, kgem->batch, batch_end*sizeof(uint32_t));
-					(void)i;
-				}
+				if (DEBUG_SYNC) {
+					int fd = open("/tmp/batchbuffer", O_WRONLY | O_CREAT | O_APPEND, 0666);
+					if (fd != -1) {
+						write(fd, kgem->batch, batch_end*sizeof(uint32_t));
+						close(fd);
+					}
 
-				FatalError("SNA: failed to submit batchbuffer, errno=%d\n", ret);
-			}
+					FatalError("SNA: failed to submit batchbuffer, errno=%d\n", ret);
+				}
 #endif
+			}
 		}
 
 		kgem_commit(kgem);
