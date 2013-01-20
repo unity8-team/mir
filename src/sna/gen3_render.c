@@ -1617,18 +1617,19 @@ static int gen3_vertex_finish(struct sna *sna)
 	assert(sna->render.vertex_offset == 0);
 	assert(sna->render.vertex_used);
 	assert(sna->render.vertex_used <= sna->render.vertex_size);
-	assert(sna->render.vertex_reloc[0]);
 
 	bo = sna->render.vbo;
 	if (bo) {
 		DBG(("%s: reloc = %d\n", __FUNCTION__,
 		     sna->render.vertex_reloc[0]));
 
-		sna->kgem.batch[sna->render.vertex_reloc[0]] =
-			kgem_add_reloc(&sna->kgem, sna->render.vertex_reloc[0],
-				       bo, I915_GEM_DOMAIN_VERTEX << 16, 0);
+		if (sna->render.vertex_reloc[0]) {
+			sna->kgem.batch[sna->render.vertex_reloc[0]] =
+				kgem_add_reloc(&sna->kgem, sna->render.vertex_reloc[0],
+					       bo, I915_GEM_DOMAIN_VERTEX << 16, 0);
 
-		sna->render.vertex_reloc[0] = 0;
+			sna->render.vertex_reloc[0] = 0;
+		}
 		sna->render.vertex_used = 0;
 		sna->render.vertex_index = 0;
 		sna->render.vbo = NULL;

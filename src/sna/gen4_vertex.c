@@ -57,7 +57,6 @@ int gen4_vertex_finish(struct sna *sna)
 	     sna->render.vertex_used, sna->render.vertex_size));
 	assert(sna->render.vertex_offset == 0);
 	assert(sna->render.vertex_used);
-	assert(sna->render.nvertex_reloc);
 
 	/* Note: we only need dword alignment (currently) */
 
