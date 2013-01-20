@@ -1,3 +1,24 @@
+Release 2.20.19 (2013-01-20)
+============================
+A quick release as the last broke USB DisplayLink slave outputs badly. The
+performance of those displays was unusable due to a inadvertent change that
+caused us to flush the entire scanout over the USB for every drawing
+operation.
+
+ * Implement the GNOME Build API. A couple of minor changes to make
+   integrators and distributors lives a little easier, or at least more
+   consistent.
+
+ * Correctly offset inplace trapezoids for subwindows, such as the GTK+
+   close button after it has a background image uploaded.
+
+ * Explicitly prevent ring-switching for synchronized rendering to
+   scanouts (for vsync).
+
+ * Clip dirty region to slave pixmaps (otherwise UDL is nigh unusuable)
+   https://bugs.freedesktop.org/show_bug.cgi?id=59539
+
+
 Release 2.20.18 (2013-01-16)
 ============================
 A bunch of miscellaneous fixes for assertion failures and various
