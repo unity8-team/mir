@@ -3424,6 +3424,10 @@ static void gen6_render_reset(struct sna *sna)
 	sna->render_state.gen6.drawrect_offset = -1;
 	sna->render_state.gen6.drawrect_limit = -1;
 	sna->render_state.gen6.surface_table = -1;
+
+	sna->render.vertex_offset = 0;
+	sna->render.nvertex_reloc = 0;
+	sna->render.vb_id = 0;
 }
 
 static void gen6_render_fini(struct sna *sna)

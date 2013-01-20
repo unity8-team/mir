@@ -2789,6 +2789,10 @@ static void gen4_render_reset(struct sna *sna)
 		DBG(("%s: discarding unmappable vbo\n", __FUNCTION__));
 		discard_vbo(sna);
 	}
+
+	sna->render.vertex_offset = 0;
+	sna->render.nvertex_reloc = 0;
+	sna->render.vb_id = 0;
 }
 
 static void gen4_render_fini(struct sna *sna)

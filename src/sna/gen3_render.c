@@ -1970,6 +1970,9 @@ gen3_render_reset(struct sna *sna)
 		     __FUNCTION__, sna->render.vbo->presumed_offset));
 		discard_vbo(sna);
 	}
+
+	sna->render.vertex_reloc[0] = 0;
+	sna->render.vertex_offset = 0;
 }
 
 static void
