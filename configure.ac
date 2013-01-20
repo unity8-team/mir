@@ -418,6 +418,9 @@ if test "x$DEBUG" != xno; then
 		AC_DEFINE([HAVE_VALGRIND], 1, [Use valgrind intrinsics to suppress false warnings])
 	fi
 fi
+if test "x$DEBUG" = xsync; then
+	AC_DEFINE(DEBUG_SYNC,1,[Enable synchronous rendering for debugging])
+fi
 if test "x$DEBUG" = xmemory; then
 	AC_DEFINE(DEBUG_MEMORY,1,[Enable memory debugging])
 fi

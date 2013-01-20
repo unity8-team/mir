@@ -75,6 +75,10 @@ search_snoop_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags);
 #define DBG_NO_HANDLE_LUT 0
 #define DBG_DUMP 0
 
+#ifndef DEBUG_SYNC
+#define DEBUG_SYNC 0
+#endif
+
 #define SHOW_BATCH 0
 
 #ifndef USE_FASTRELOC
@@ -2650,7 +2654,7 @@ void _kgem_submit(struct kgem *kgem)
 				ret = 0;
 			}
 
-			if (DEBUG_FLUSH_SYNC && ret == 0) {
+			if (DEBUG_SYNC && ret == 0) {
 				struct drm_i915_gem_set_domain set_domain;
 
 				DBG(("%s: debug sync, starting\n", __FUNCTION__));
