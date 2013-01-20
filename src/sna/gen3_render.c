@@ -1615,6 +1615,7 @@ static int gen3_vertex_finish(struct sna *sna)
 	     sna->render.vbo ? sna->render.vbo->handle : 0));
 	assert(sna->render.vertex_used);
 	assert(sna->render.vertex_used <= sna->render.vertex_size);
+	assert(sna->render.vertex_reloc[0]);
 
 	bo = sna->render.vbo;
 	if (bo) {
@@ -1664,13 +1665,12 @@ static void gen3_vertex_close(struct sna *sna)
 	unsigned int delta = 0;
 
 	assert(sna->render.vertex_offset == 0);
+	if (sna->render.vertex_reloc[0] == 0)
+		return;
 
 	DBG(("%s: used=%d/%d, vbo active? %d\n",
 	     __FUNCTION__, sna->render.vertex_used, sna->render.vertex_size,
 	     sna->render.vbo ? sna->render.vbo->handle : 0));
-
-	if (sna->render.vertex_used == 0)
-		return;
 
 	bo = sna->render.vbo;
 	if (bo) {
@@ -1717,15 +1717,11 @@ static void gen3_vertex_close(struct sna *sna)
 		}
 	}
 
-	DBG(("%s: reloc = %d\n", __FUNCTION__,
-	     sna->render.vertex_reloc[0]));
-
-	if (sna->render.vertex_reloc[0]) {
-		sna->kgem.batch[sna->render.vertex_reloc[0]] =
-			kgem_add_reloc(&sna->kgem, sna->render.vertex_reloc[0],
-				       bo, I915_GEM_DOMAIN_VERTEX << 16, delta);
-		sna->render.vertex_reloc[0] = 0;
-	}
+	DBG(("%s: reloc = %d\n", __FUNCTION__, sna->render.vertex_reloc[0]));
+	sna->kgem.batch[sna->render.vertex_reloc[0]] =
+		kgem_add_reloc(&sna->kgem, sna->render.vertex_reloc[0],
+			       bo, I915_GEM_DOMAIN_VERTEX << 16, delta);
+	sna->render.vertex_reloc[0] = 0;
 
 	if (sna->render.vbo == NULL) {
 		DBG(("%s: resetting vbo\n", __FUNCTION__));
@@ -4647,6 +4643,9 @@ gen3_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 static void gen3_render_flush(struct sna *sna)
 {
 	gen3_vertex_close(sna);
+
+	assert(sna->render.vertex_reloc[0] == 0);
+	assert(sna->render.vertex_offset == 0);
 }
 
 static void
