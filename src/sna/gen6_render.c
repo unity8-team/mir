@@ -886,13 +886,13 @@ gen6_emit_state(struct sna *sna,
 	sna->render_state.gen6.first_state_packet = false;
 }
 
-static void gen6_magic_ca_pass(struct sna *sna,
+static bool gen6_magic_ca_pass(struct sna *sna,
 			       const struct sna_composite_op *op)
 {
 	struct gen6_render_state *state = &sna->render_state.gen6;
 
 	if (!op->need_magic_ca_pass)
-		return;
+		return false;
 
 	DBG(("%s: CA fixup (%d -> %d)\n", __FUNCTION__,
 	     sna->render.vertex_start, sna->render.vertex_index));
@@ -918,6 +918,7 @@ static void gen6_magic_ca_pass(struct sna *sna,
 	OUT_BATCH(0);	/* index buffer offset, ignored */
 
 	state->last_primitive = sna->kgem.nbatch;
+	return true;
 }
 
 typedef struct gen6_surface_state_padded {
@@ -1147,7 +1148,13 @@ static int gen6_get_rectangles__flush(struct sna *sna,
 
 	if (sna->render.vertex_offset) {
 		gen4_vertex_flush(sna);
-		gen6_magic_ca_pass(sna, op);
+		if (gen6_magic_ca_pass(sna, op)) {
+			gen6_emit_flush(sna);
+			gen6_emit_cc(sna, GEN6_BLEND(op->u.gen6.flags));
+			gen6_emit_wm(sna,
+				     GEN6_KERNEL(op->u.gen6.flags),
+				     GEN6_VERTEX(op->u.gen6.flags) >> 2);
+		}
 	}
 
 	return gen4_vertex_finish(sna);

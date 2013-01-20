@@ -1034,13 +1034,13 @@ gen7_emit_state(struct sna *sna,
 	sna->render_state.gen7.emit_flush = GEN7_READS_DST(op->u.gen7.flags);
 }
 
-static void gen7_magic_ca_pass(struct sna *sna,
+static bool gen7_magic_ca_pass(struct sna *sna,
 			       const struct sna_composite_op *op)
 {
 	struct gen7_render_state *state = &sna->render_state.gen7;
 
 	if (!op->need_magic_ca_pass)
-		return;
+		return true;
 
 	DBG(("%s: CA fixup (%d -> %d)\n", __FUNCTION__,
 	     sna->render.vertex_start, sna->render.vertex_index));
@@ -1064,6 +1064,7 @@ static void gen7_magic_ca_pass(struct sna *sna,
 	OUT_BATCH(0);	/* index buffer offset, ignored */
 
 	state->last_primitive = sna->kgem.nbatch;
+	return false;
 }
 
 static void null_create(struct sna_static_stream *stream)
@@ -1274,7 +1275,11 @@ static int gen7_get_rectangles__flush(struct sna *sna,
 
 	if (sna->render.vertex_offset) {
 		gen4_vertex_flush(sna);
-		gen7_magic_ca_pass(sna, op);
+		if (gen7_magic_ca_pass(sna, op)) {
+			gen7_emit_pipe_invalidate(sna);
+			gen7_emit_cc(sna, GEN7_BLEND(op->u.gen7.flags));
+			gen7_emit_wm(sna, GEN7_KERNEL(op->u.gen7.flags));
+		}
 	}
 
 	return gen4_vertex_finish(sna);

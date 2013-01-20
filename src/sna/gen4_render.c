@@ -207,13 +207,13 @@ gen4_choose_composite_kernel(int op, bool has_mask, bool is_ca, bool is_affine)
 	return base + !is_affine;
 }
 
-static void gen4_magic_ca_pass(struct sna *sna,
+static bool gen4_magic_ca_pass(struct sna *sna,
 			       const struct sna_composite_op *op)
 {
 	struct gen4_render_state *state = &sna->render_state.gen4;
 
 	if (!op->need_magic_ca_pass)
-		return;
+		return false;
 
 	assert(sna->render.vertex_index > sna->render.vertex_start);
 
@@ -237,6 +237,7 @@ static void gen4_magic_ca_pass(struct sna *sna,
 	OUT_BATCH(0);	/* index buffer offset, ignored */
 
 	state->last_primitive = sna->kgem.nbatch;
+	return true;
 }
 
 static uint32_t gen4_get_blend(int op,
@@ -615,7 +616,9 @@ static int gen4_get_rectangles__flush(struct sna *sna,
 
 	if (sna->render.vertex_offset) {
 		gen4_vertex_flush(sna);
-		gen4_magic_ca_pass(sna, op);
+		if (gen4_magic_ca_pass(sna, op))
+			gen4_emit_pipelined_pointers(sna, op, op->op,
+						     op->u.gen4.wm_kernel);
 	}
 
 	return gen4_vertex_finish(sna);

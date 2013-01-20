@@ -1569,11 +1569,11 @@ static void gen3_emit_composite_state(struct sna *sna,
 	gen3_composite_emit_shader(sna, op, op->op);
 }
 
-static void gen3_magic_ca_pass(struct sna *sna,
+static bool gen3_magic_ca_pass(struct sna *sna,
 			       const struct sna_composite_op *op)
 {
 	if (!op->need_magic_ca_pass)
-		return;
+		return false;
 
 	DBG(("%s(%d)\n", __FUNCTION__,
 	     sna->render.vertex_index - sna->render.vertex_start));
@@ -1587,6 +1587,7 @@ static void gen3_magic_ca_pass(struct sna *sna,
 	OUT_BATCH(sna->render.vertex_start);
 
 	sna->render_state.gen3.last_blend = 0;
+	return true;
 }
 
 static void gen3_vertex_flush(struct sna *sna)
@@ -1785,7 +1786,13 @@ static int gen3_get_rectangles__flush(struct sna *sna,
 
 	if (sna->render.vertex_offset) {
 		gen3_vertex_flush(sna);
-		gen3_magic_ca_pass(sna, op);
+		if (gen3_magic_ca_pass(sna, op)) {
+			OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(6) | 0);
+			OUT_BATCH(gen3_get_blend_cntl(op->op,
+						      op->has_component_alpha,
+						      op->dst.format));
+			gen3_composite_emit_shader(sna, op, op->op);
+		}
 	}
 
 	return gen3_vertex_finish(sna);
