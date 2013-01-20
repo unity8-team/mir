@@ -2768,6 +2768,7 @@ sna_covering_crtc(ScrnInfoPtr scrn,
 #define MI_LOAD_REGISTER_IMM			(0x22<<23)
 
 static bool sna_emit_wait_for_scanline_gen7(struct sna *sna,
+					    xf86CrtcPtr crtc,
 					    int pipe, int y1, int y2,
 					    bool full_height)
 {
@@ -2804,6 +2805,7 @@ static bool sna_emit_wait_for_scanline_gen7(struct sna *sna,
 }
 
 static bool sna_emit_wait_for_scanline_gen6(struct sna *sna,
+					    xf86CrtcPtr crtc,
 					    int pipe, int y1, int y2,
 					    bool full_height)
 {
@@ -2816,13 +2818,24 @@ static bool sna_emit_wait_for_scanline_gen6(struct sna *sna,
 	assert(y2 > y1);
 	assert(sna->kgem.mode);
 
+	/* Always program one less than the desired value */
+	if (--y1 < 0)
+		y1 = crtc->bounds.y2;
+	y2--;
+
+	/* The scanline granularity is 3 bits */
+	y1 &= ~7;
+	y2 &= ~7;
+	if (y2 == y1)
+		return false;
+
 	b = kgem_get_batch(&sna->kgem, 10);
 	b[0] = MI_LOAD_REGISTER_IMM | 1;
 	b[1] = 0x44050; /* DERRMR */
 	b[2] = ~(1 << (3*full_height + pipe*8));
 	b[3] = MI_LOAD_REGISTER_IMM | 1;
 	b[4] = 0x4f100; /* magic */
-	b[5] = (1 << 31) | (1 << 30) | pipe << 29 | (y1 << 16) | (y2 - 1);
+	b[5] = (1 << 31) | (1 << 30) | pipe << 29 | (y1 << 16) | y2;
 	b[6] = MI_WAIT_FOR_EVENT | 1 << (3*full_height + pipe*5);
 	b[7] = MI_LOAD_REGISTER_IMM | 1;
 	b[8] = 0x44050; /* DERRMR */
@@ -2834,6 +2847,7 @@ static bool sna_emit_wait_for_scanline_gen6(struct sna *sna,
 }
 
 static bool sna_emit_wait_for_scanline_gen4(struct sna *sna,
+					    xf86CrtcPtr crtc,
 					    int pipe, int y1, int y2,
 					    bool full_height)
 {
@@ -2864,6 +2878,7 @@ static bool sna_emit_wait_for_scanline_gen4(struct sna *sna,
 }
 
 static bool sna_emit_wait_for_scanline_gen2(struct sna *sna,
+					    xf86CrtcPtr crtc,
 					    int pipe, int y1, int y2,
 					    bool full_height)
 {
@@ -2934,13 +2949,13 @@ sna_wait_for_scanline(struct sna *sna,
 	if (sna->kgem.gen >= 0100)
 		ret = false;
 	else if (sna->kgem.gen >= 070)
-		ret = sna_emit_wait_for_scanline_gen7(sna, pipe, y1, y2, full_height);
+		ret = sna_emit_wait_for_scanline_gen7(sna, crtc, pipe, y1, y2, full_height);
 	else if (sna->kgem.gen >= 060)
-		ret =sna_emit_wait_for_scanline_gen6(sna, pipe, y1, y2, full_height);
+		ret =sna_emit_wait_for_scanline_gen6(sna, crtc, pipe, y1, y2, full_height);
 	else if (sna->kgem.gen >= 040)
-		ret = sna_emit_wait_for_scanline_gen4(sna, pipe, y1, y2, full_height);
+		ret = sna_emit_wait_for_scanline_gen4(sna, crtc, pipe, y1, y2, full_height);
 	else
-		ret = sna_emit_wait_for_scanline_gen2(sna, pipe, y1, y2, full_height);
+		ret = sna_emit_wait_for_scanline_gen2(sna, crtc, pipe, y1, y2, full_height);
 
 	return ret;
 }
