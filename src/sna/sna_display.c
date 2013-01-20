@@ -2781,6 +2781,11 @@ static bool sna_emit_wait_for_scanline_gen7(struct sna *sna,
 	assert(y2 > y1);
 	assert(sna->kgem.mode);
 
+	/* Always program one less than the desired value */
+	if (--y1 < 0)
+		y1 = crtc->bounds.y2;
+	y2--;
+
 	b = kgem_get_batch(&sna->kgem, 16);
 	b[0] = MI_LOAD_REGISTER_IMM | 1;
 	b[1] = 0x44050; /* DERRMR */
@@ -2790,7 +2795,7 @@ static bool sna_emit_wait_for_scanline_gen7(struct sna *sna,
 	b[5] = 2 << 16 | 2;
 	b[6] = MI_LOAD_REGISTER_IMM | 1;
 	b[7] = 0x70068 + 0x1000 * pipe;
-	b[8] = (1 << 31) | (1 << 30) | (y1 << 16) | (y2 - 1);
+	b[8] = (1 << 31) | (1 << 30) | (y1 << 16) | y2;
 	b[9] = MI_WAIT_FOR_EVENT | 1 << (3*full_height + pipe*5);
 	b[10] = MI_LOAD_REGISTER_IMM | 1;
 	b[11] = 0xa188; /* FORCEWAKE_MT */
