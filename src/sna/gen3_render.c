@@ -1613,15 +1613,13 @@ static int gen3_vertex_finish(struct sna *sna)
 	DBG(("%s: used=%d/%d, vbo active? %d\n",
 	     __FUNCTION__, sna->render.vertex_used, sna->render.vertex_size,
 	     sna->render.vbo ? sna->render.vbo->handle : 0));
+	assert(sna->render.vertex_offset == 0);
 	assert(sna->render.vertex_used);
 	assert(sna->render.vertex_used <= sna->render.vertex_size);
 	assert(sna->render.vertex_reloc[0]);
 
 	bo = sna->render.vbo;
 	if (bo) {
-		if (sna->render.vertex_offset)
-			gen3_vertex_flush(sna);
-
 		DBG(("%s: reloc = %d\n", __FUNCTION__,
 		     sna->render.vertex_reloc[0]));
 
@@ -1785,8 +1783,10 @@ static int gen3_get_rectangles__flush(struct sna *sna,
 	if (!kgem_check_reloc_and_exec(&sna->kgem, 1))
 		return 0;
 
-	if (op->need_magic_ca_pass && sna->render.vbo)
-		return 0;
+	if (sna->render.vertex_offset) {
+		gen3_vertex_flush(sna);
+		gen3_magic_ca_pass(sna, op);
+	}
 
 	return gen3_vertex_finish(sna);
 }
@@ -1832,6 +1832,8 @@ flush:
 	}
 	_kgem_submit(&sna->kgem);
 	gen3_emit_composite_state(sna, op);
+	assert(sna->render.vertex_offset == 0);
+	assert(sna->render.vertex_reloc[0] == 0);
 	goto start;
 }
 

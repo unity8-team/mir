@@ -55,6 +55,7 @@ int gen4_vertex_finish(struct sna *sna)
 
 	DBG(("%s: used=%d / %d\n", __FUNCTION__,
 	     sna->render.vertex_used, sna->render.vertex_size));
+	assert(sna->render.vertex_offset == 0);
 	assert(sna->render.vertex_used);
 	assert(sna->render.nvertex_reloc);
 
@@ -62,9 +63,6 @@ int gen4_vertex_finish(struct sna *sna)
 
 	bo = sna->render.vbo;
 	if (bo) {
-		if (sna->render.vertex_offset)
-			gen4_vertex_flush(sna);
-
 		for (i = 0; i < sna->render.nvertex_reloc; i++) {
 			DBG(("%s: reloc[%d] = %d\n", __FUNCTION__,
 			     i, sna->render.vertex_reloc[i]));
