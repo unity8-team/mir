@@ -2649,6 +2649,26 @@ void _kgem_submit(struct kgem *kgem)
 				kgem_throttle(kgem);
 				ret = 0;
 			}
+
+			if (DEBUG_FLUSH_SYNC && ret == 0) {
+				struct drm_i915_gem_set_domain set_domain;
+
+				DBG(("%s: debug sync, starting\n", __FUNCTION__));
+
+				VG_CLEAR(set_domain);
+				set_domain.handle = handle;
+				set_domain.read_domains = I915_GEM_DOMAIN_GTT;
+				set_domain.write_domain = I915_GEM_DOMAIN_GTT;
+
+				ret = drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_SET_DOMAIN, &set_domain);
+				if (ret == -1) {
+					DBG(("%s: sync: GPU hang detected\n", __FUNCTION__));
+					kgem_throttle(kgem);
+				}
+
+				DBG(("%s: debug sync, completed\n", __FUNCTION__));
+			}
+
 #if !NDEBUG
 			if (ret < 0) {
 				ret = errno;
@@ -2695,25 +2715,6 @@ void _kgem_submit(struct kgem *kgem)
 				FatalError("SNA: failed to submit batchbuffer, errno=%d\n", ret);
 			}
 #endif
-
-			if (DEBUG_FLUSH_SYNC) {
-				struct drm_i915_gem_set_domain set_domain;
-
-				DBG(("%s: debug sync, starting\n", __FUNCTION__));
-
-				VG_CLEAR(set_domain);
-				set_domain.handle = handle;
-				set_domain.read_domains = I915_GEM_DOMAIN_GTT;
-				set_domain.write_domain = I915_GEM_DOMAIN_GTT;
-
-				ret = drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_SET_DOMAIN, &set_domain);
-				if (ret == -1) {
-					DBG(("%s: sync: GPU hang detected\n", __FUNCTION__));
-					kgem_throttle(kgem);
-				}
-
-				DBG(("%s: debug sync, completed\n", __FUNCTION__));
-			}
 		}
 
 		kgem_commit(kgem);
