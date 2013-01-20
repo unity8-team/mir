@@ -420,20 +420,15 @@ static inline bool kgem_check_batch_with_surfaces(struct kgem *kgem,
 		kgem_check_exec(kgem, num_surfaces);
 }
 
-static inline uint32_t *kgem_get_batch(struct kgem *kgem, int num_dwords)
+static inline uint32_t *kgem_get_batch(struct kgem *kgem)
 {
-	if (!kgem_check_batch(kgem, num_dwords)) {
+	if (kgem->nreloc) {
 		unsigned mode = kgem->mode;
 		_kgem_submit(kgem);
 		_kgem_set_mode(kgem, mode);
 	}
 
 	return kgem->batch + kgem->nbatch;
-}
-
-static inline void kgem_advance_batch(struct kgem *kgem, int num_dwords)
-{
-	kgem->nbatch += num_dwords;
 }
 
 bool kgem_check_bo(struct kgem *kgem, ...) __attribute__((sentinel(0)));

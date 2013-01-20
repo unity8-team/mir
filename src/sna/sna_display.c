@@ -2786,7 +2786,16 @@ static bool sna_emit_wait_for_scanline_gen7(struct sna *sna,
 		y1 = crtc->bounds.y2;
 	y2--;
 
-	b = kgem_get_batch(&sna->kgem, 16);
+	b = kgem_get_batch(&sna->kgem);
+
+	/* Both the LRI and WAIT_FOR_EVENT must be in the same cacheline */
+	if (((sna->kgem.nbatch + 6) >> 4) != (sna->kgem.nbatch + 10) >> 4) {
+		int dw = sna->kgem.nbatch + 6;
+		dw = ALIGN(dw, 16) - dw;
+		while (dw--)
+			*b++ = MI_NOOP;
+	}
+
 	b[0] = MI_LOAD_REGISTER_IMM | 1;
 	b[1] = 0x44050; /* DERRMR */
 	b[2] = ~(1 << (3*full_height + pipe*8));
@@ -2803,7 +2812,8 @@ static bool sna_emit_wait_for_scanline_gen7(struct sna *sna,
 	b[13] = MI_LOAD_REGISTER_IMM | 1;
 	b[14] = 0x44050; /* DERRMR */
 	b[15] = ~0;
-	kgem_advance_batch(&sna->kgem, 16);
+
+	sna->kgem.nbatch = b - sna->kgem.batch + 16;
 
 	sna->kgem.batch_flags |= I915_EXEC_SECURE;
 	return true;
@@ -2834,7 +2844,9 @@ static bool sna_emit_wait_for_scanline_gen6(struct sna *sna,
 	if (y2 == y1)
 		return false;
 
-	b = kgem_get_batch(&sna->kgem, 10);
+	b = kgem_get_batch(&sna->kgem);
+	sna->kgem.nbatch += 10;
+
 	b[0] = MI_LOAD_REGISTER_IMM | 1;
 	b[1] = 0x44050; /* DERRMR */
 	b[2] = ~(1 << (3*full_height + pipe*8));
@@ -2845,7 +2857,6 @@ static bool sna_emit_wait_for_scanline_gen6(struct sna *sna,
 	b[7] = MI_LOAD_REGISTER_IMM | 1;
 	b[8] = 0x44050; /* DERRMR */
 	b[9] = ~0;
-	kgem_advance_batch(&sna->kgem, 10);
 
 	sna->kgem.batch_flags |= I915_EXEC_SECURE;
 	return true;
@@ -2871,13 +2882,14 @@ static bool sna_emit_wait_for_scanline_gen4(struct sna *sna,
 			event = MI_WAIT_FOR_PIPEB_SCAN_LINE_WINDOW;
 	}
 
-	b = kgem_get_batch(&sna->kgem, 5);
+	b = kgem_get_batch(&sna->kgem);
+	sna->kgem.nbatch += 5;
+
 	/* The documentation says that the LOAD_SCAN_LINES command
 	 * always comes in pairs. Don't ask me why. */
 	b[2] = b[0] = MI_LOAD_SCAN_LINES_INCL | pipe << 20;
 	b[3] = b[1] = (y1 << 16) | (y2-1);
 	b[4] = MI_WAIT_FOR_EVENT | event;
-	kgem_advance_batch(&sna->kgem, 5);
 
 	return true;
 }
@@ -2897,7 +2909,9 @@ static bool sna_emit_wait_for_scanline_gen2(struct sna *sna,
 	if (full_height)
 		y2 -= 2;
 
-	b = kgem_get_batch(&sna->kgem, 5);
+	b = kgem_get_batch(&sna->kgem);
+	sna->kgem.nbatch += 5;
+
 	/* The documentation says that the LOAD_SCAN_LINES command
 	 * always comes in pairs. Don't ask me why. */
 	b[2] = b[0] = MI_LOAD_SCAN_LINES_INCL | pipe << 20;
@@ -2906,7 +2920,6 @@ static bool sna_emit_wait_for_scanline_gen2(struct sna *sna,
 		b[4] = MI_WAIT_FOR_EVENT | MI_WAIT_FOR_PIPEA_SCAN_LINE_WINDOW;
 	else
 		b[4] = MI_WAIT_FOR_EVENT | MI_WAIT_FOR_PIPEB_SCAN_LINE_WINDOW;
-	kgem_advance_batch(&sna->kgem, 5);
 
 	return true;
 }
