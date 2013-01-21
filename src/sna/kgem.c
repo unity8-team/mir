@@ -1766,6 +1766,7 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 			DBG(("%s: handle=%d -> flushing\n",
 			     __FUNCTION__, bo->handle));
 
+			assert(bo->reusable);
 			list_add(&bo->request, &kgem->flushing);
 			if (bucket(bo) < NUM_CACHE_BUCKETS)
 				cache = &kgem->active[bucket(bo)][bo->tiling];
@@ -1866,8 +1867,8 @@ static bool kgem_retire__flushing(struct kgem *kgem)
 		if (!bo->refcnt) {
 			if (bo->snoop) {
 				kgem_bo_move_to_snoop(kgem, bo);
-			} else if (kgem_bo_set_purgeable(kgem, bo)) {
-				assert(bo->reusable);
+			} else if (bo->reusable &&
+				   kgem_bo_set_purgeable(kgem, bo)) {
 				kgem_bo_move_to_inactive(kgem, bo);
 				retired = true;
 			} else
@@ -1925,12 +1926,8 @@ static bool __kgem_retire_rq(struct kgem *kgem, struct kgem_request *rq)
 			continue;
 
 		if (bo->snoop) {
-			if (bo->needs_flush) {
-				list_add(&bo->request, &kgem->flushing);
-				bo->rq = (void *)kgem;
-			} else {
+			if (!bo->needs_flush)
 				kgem_bo_move_to_snoop(kgem, bo);
-			}
 			continue;
 		}
 
@@ -2412,7 +2409,8 @@ void kgem_reset(struct kgem *kgem)
 			bo->rq = NULL;
 			bo->domain = DOMAIN_NONE;
 
-			if (!bo->refcnt) {
+			if (!bo->refcnt && !bo->reusable) {
+				assert(!bo->snoop);
 				DBG(("%s: discarding handle=%d\n",
 				     __FUNCTION__, bo->handle));
 				kgem_bo_free(kgem, bo);
