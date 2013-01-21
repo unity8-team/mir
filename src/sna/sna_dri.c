@@ -457,7 +457,6 @@ damage_all:
 						   pixmap->drawable.width,
 						   pixmap->drawable.height);
 		sna_damage_destroy(&priv->cpu_damage);
-		priv->undamaged = false;
 	} else {
 		sna_damage_subtract(&priv->cpu_damage, region);
 		if (priv->cpu_damage == NULL)
@@ -493,7 +492,6 @@ static void set_bo(PixmapPtr pixmap, struct kgem_bo *bo)
 	sna_damage_destroy(&priv->cpu_damage);
 	list_del(&priv->list);
 	priv->cpu = false;
-	priv->undamaged = false;
 
 	assert(bo->refcnt);
 	if (priv->gpu_bo != bo) {
@@ -679,10 +677,15 @@ sna_dri_copy_to_front(struct sna *sna, DrawablePtr draw, RegionPtr region,
 				      dst_bo, 0, 0,
 				      boxes, n);
 	} else {
+		unsigned flags;
+
+		flags = COPY_LAST;
+		if (flush)
+			flags |= COPY_SYNC;
 		sna->render.copy_boxes(sna, GXcopy,
 				       (PixmapPtr)draw, src_bo, -draw->x-dx, -draw->y-dy,
 				       pixmap, dst_bo, 0, 0,
-				       boxes, n, COPY_LAST);
+				       boxes, n, flags);
 
 		DBG(("%s: flushing? %d\n", __FUNCTION__, flush));
 		if (flush) { /* STAT! */

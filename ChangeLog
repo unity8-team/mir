@@ -1,3 +1,191 @@
+commit a88a9b9a59fa2d5fd427fa6e1f74fb9844379264
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jan 20 12:06:09 2013 +0000
+
+    2.20.19 release
+
+commit 7822bbacbece6fcb2e12863cd6c7a53ab614c37c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jan 20 11:43:49 2013 +0000
+
+    test: Add script to generate source file for testing vsync
+    
+    Courtesy of an original script by Mark Schreiber,
+    https://bugs.freedesktop.org/show_bug.cgi?id=59606
+
+commit 9329d8755981989ccbe66df6085fbab7c809a2c6
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jan 20 10:14:21 2013 +0000
+
+    sna: Make DEBUG_SYNC a configure option
+    
+    As it is advisable to combined the synchronous rendering debug option
+    with other debugging options, it is more convenient to make it into a
+    configure option: --enable-debug=sync
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit c9263f192e2f85dd961bc1c4e9ca8180db874517
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jan 20 01:39:12 2013 +0000
+
+    sna: Apply DEBUG_SYNC prior to emitting error report
+    
+    This is handy for the case where the batch triggers a GPU hang rather
+    than being rejected by the kernel.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 42ab789cce8423d99864776c6d5ba759c4129b54
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jan 18 13:56:53 2013 +0000
+
+    sna: Clear the non-intersecting damage after skipping the slave update
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 828a3a80aa3f0692e7be2831d58bccf02e2c481d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jan 18 13:16:23 2013 +0000
+
+    uxa: Clip dirty region to slave pixmap before appending damage
+    
+    Fixes regression from
+    
+    commit c789d06cf8a0debc67058d7be1483f5b542e2baa
+    Author: Dave Airlie <airlied@redhat.com>
+    Date:   Mon Jan 7 13:57:21 2013 +1000
+    
+        intel: fixup damage posting to be done correctly around slave pixmap
+    
+    which causes the entire slave scanout to be readback from uncached
+    memory every time a pixel is modified.
+    
+    Reported-by: Stephen Liang <inteldriver@angrywalls.com>
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=59539
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit e17eaf540b614cdcb8f7349dd01852c3afc5ab05
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jan 18 13:09:36 2013 +0000
+
+    sna: Replace double negative '!RegionNotEmpty' with the equivalent RegionNil
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2de43a0164ba5364ffd7cb48f0bccc9873e87332
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jan 18 12:01:54 2013 +0000
+
+    sna: Skip an empty slave update
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 38de17f80d780bf219fc3c4018ad9cc8808ba50f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jan 18 10:16:42 2013 +0000
+
+    sna: Remove bogus assertion invalidated by 'read-read' sync
+    
+    If we perform a read-read synchronisation, the kernel may still believe
+    that the bo is busy as it remains on the active lists being read by the
+    GPU.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 9f68ac60ae37cc72503ec40691d1ae43a476f8e7
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 17 20:00:34 2013 +0000
+
+    sna/dri: Explicitly flag sync copies for the backends
+    
+    As gen6/7 need to prevent ring switching and perform a rendercopy if we
+    need to perform a vsync'ed copy.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 1ee00c408d8142cfaf4202393c2364c9ae73cb6e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 17 13:09:47 2013 +0000
+
+    sna/trapezoids: Fix horizontal offset for inplace operation
+    
+    Remember that for an inplace operation we are not dealing with an a8
+    mask, but rather a x8r8g8b8 surface and so need to step accordingly.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0d749f93ea52161e59da1adca1a22e96ba293551
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 17 12:28:18 2013 +0000
+
+    sna: Drop the MOVE_WHOLE_HINT for PutImage
+    
+    It is not as clearly beneficial as for GetImage, as for example toolkits
+    may only push the shadows around a window.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit dc643ef753bcfb69685f1eb10828d0c8f830c30e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 17 12:27:55 2013 +0000
+
+    sna: Apply read-only synchronization hints for move-to-cpu
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 18035a21e147788bea03ab2175ca03ae951701ce
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 17 11:52:10 2013 +0000
+
+    sna: Remove the confusion of the pixmap->undamaged
+    
+    This was to track a pixmap that had been used for migration (i.e had in
+    the past been used for mixed rendering). It is no longer used so remove
+    it.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 46141d277f326ae78f7b0e927a500e0eb1987f1b
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 17 10:16:24 2013 +0000
+
+    sna: Consider fill style for XPolyRectangle
+    
+    The rectangle outline is not always solid...
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d5c8d38afaba04281157bafe212e93f010ae00f5
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 17 10:10:54 2013 +0000
+
+    sna: Refactor to remove a goto from sna_put_zpixmap_blt()
+    
+    The complexity of the function has been moved to move-to-cpu so we can
+    take further advantage of the simplified logic in put_zpixmap to clean
+    up the code by removing an unwanted goto.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 9552438caa4d295c99a9b8821cf2644739861c6a
+Author: Colin Walters <walters@verbum.org>
+Date:   Wed Jan 4 17:37:06 2012 -0500
+
+    autogen.sh: Implement GNOME Build API
+    
+    http://people.gnome.org/~walters/docs/build-api.txt
+    
+    Signed-off-by: Adam Jackson <ajax@redhat.com>
+
+commit 87d773249af18ae8722aacb7306b0eee51a90dbc
+Author: Adam Jackson <ajax@redhat.com>
+Date:   Wed Jan 16 13:18:23 2013 -0500
+
+    configure: Drop AM_MAINTAINER_MODE
+    
+    Signed-off-by: Adam Jackson <ajax@redhat.com>
+
 commit dbf1cfec9cd4e9efe7650f2940c92b4e51214288
 Author: Chris Wilson <chris@chris-wilson.co.uk>
 Date:   Wed Jan 16 12:20:48 2013 +0000

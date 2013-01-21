@@ -3203,7 +3203,7 @@ void sna_mode_redisplay(struct sna *sna)
 	assert(sna->mode.shadow_active);
 
 	region = DamageRegion(sna->mode.shadow_damage);
-	if (!RegionNotEmpty(region))
+	if (RegionNil(region))
 		return;
 
 	if (!sna_pixmap_move_to_gpu(sna->front, MOVE_READ)) {

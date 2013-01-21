@@ -1034,7 +1034,7 @@ static struct sna_damage *__sna_damage_subtract(struct sna_damage *damage,
 	if (damage == NULL)
 		return NULL;
 
-	if (!RegionNotEmpty(&damage->region)) {
+	if (RegionNil(&damage->region)) {
 no_damage:
 		__sna_damage_destroy(damage);
 		return NULL;
@@ -1127,7 +1127,7 @@ inline static struct sna_damage *__sna_damage_subtract_box(struct sna_damage *da
 	if (damage == NULL)
 		return NULL;
 
-	if (!RegionNotEmpty(&damage->region)) {
+	if (RegionNil(&damage->region)) {
 		__sna_damage_destroy(damage);
 		return NULL;
 	}
@@ -1199,7 +1199,7 @@ static struct sna_damage *__sna_damage_subtract_boxes(struct sna_damage *damage,
 	if (damage == NULL)
 		return NULL;
 
-	if (!RegionNotEmpty(&damage->region)) {
+	if (RegionNil(&damage->region)) {
 		__sna_damage_destroy(damage);
 		return NULL;
 	}

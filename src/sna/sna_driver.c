@@ -1141,6 +1141,10 @@ Bool sna_init_scrn(ScrnInfoPtr scrn, int entity_num)
 	xf86DrvMsg(scrn->scrnIndex, X_INFO,
 		   "SNA compiled with assertions enabled\n");
 #endif
+#if DEBUG_SYNC
+	xf86DrvMsg(scrn->scrnIndex, X_INFO,
+		   "SNA compiled with synchronous rendering\n");
+#endif
 #if DEBUG_MEMORY
 	xf86DrvMsg(scrn->scrnIndex, X_INFO,
 		   "SNA compiled with memory allocation reporting enabled\n");

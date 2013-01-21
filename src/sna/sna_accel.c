@@ -350,7 +350,7 @@ static void assert_pixmap_damage(PixmapPtr p)
 		_sna_damage_debug_get_region(DAMAGE_PTR(priv->cpu_damage), &cpu);
 
 	RegionIntersect(&reg, &cpu, &gpu);
-	assert(!RegionNotEmpty(&reg));
+	assert(RegionNil(&reg));
 
 	RegionUninit(&reg);
 	RegionUninit(&gpu);
@@ -530,7 +530,6 @@ static inline uint32_t default_tiling(PixmapPtr pixmap,
 		DBG(("%s: entire source is damaged, using Y-tiling\n",
 		     __FUNCTION__));
 		sna_damage_destroy(&priv->gpu_damage);
-		priv->undamaged = false;
 
 		return I915_TILING_Y;
 	}
@@ -1532,7 +1531,6 @@ _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 				       pixmap->drawable.width,
 				       pixmap->drawable.height);
 			sna_damage_destroy(&priv->cpu_damage);
-			priv->undamaged = false;
 			priv->clear = false;
 			priv->cpu = false;
 			list_del(&priv->list);
@@ -1547,6 +1545,7 @@ _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 
 skip_inplace_map:
 		sna_damage_destroy(&priv->gpu_damage);
+		priv->clear = false;
 		if (priv->cpu_bo && !priv->cpu_bo->flush &&
 		    __kgem_bo_is_busy(&sna->kgem, priv->cpu_bo)) {
 			DBG(("%s: discarding busy CPU bo\n", __FUNCTION__));
@@ -1554,7 +1553,6 @@ skip_inplace_map:
 			assert(priv->gpu_bo == NULL || priv->gpu_damage == NULL);
 
 			sna_damage_destroy(&priv->cpu_damage);
-			priv->undamaged = false;
 
 			sna_pixmap_free_gpu(sna, priv);
 			sna_pixmap_free_cpu(sna, priv);
@@ -1596,7 +1594,6 @@ skip_inplace_map:
 				sna_damage_destroy(&priv->cpu_damage);
 				sna_pixmap_free_cpu(sna, priv);
 				list_del(&priv->list);
-				priv->undamaged = false;
 				priv->clear = false;
 			}
 
@@ -1610,7 +1607,8 @@ skip_inplace_map:
 
 	if (priv->mapped) {
 		assert(!priv->shm);
-		pixmap->devPrivate.ptr = NULL;
+		pixmap->devPrivate.ptr = PTR(priv->ptr);
+		pixmap->devKind = priv->stride;
 		priv->mapped = false;
 	}
 
@@ -1637,18 +1635,19 @@ skip_inplace_map:
 				sna_damage_destroy(&priv->cpu_damage);
 				sna_pixmap_free_cpu(sna, priv);
 				list_del(&priv->list);
-				priv->undamaged = false;
 				priv->clear = false;
 			}
 
-			kgem_bo_sync__cpu_full(&sna->kgem, priv->gpu_bo, flags & MOVE_WRITE);
+			kgem_bo_sync__cpu_full(&sna->kgem,
+					       priv->gpu_bo, flags & MOVE_WRITE);
 			assert_pixmap_damage(pixmap);
 			DBG(("%s: operate inplace (CPU)\n", __FUNCTION__));
 			return true;
 		}
 	}
 
-	if (priv->clear && priv->cpu_bo && !priv->cpu_bo->flush &&
+	if (((flags & MOVE_READ) == 0 || priv->clear) &&
+	    priv->cpu_bo && !priv->cpu_bo->flush &&
 	    __kgem_bo_is_busy(&sna->kgem, priv->cpu_bo)) {
 		assert(!priv->shm);
 		sna_pixmap_free_cpu(sna, priv);
@@ -1685,7 +1684,7 @@ skip_inplace_map:
 			       pixmap->drawable.width,
 			       pixmap->drawable.height);
 		sna_pixmap_free_gpu(sna, priv);
-		priv->undamaged = false;
+		assert(priv->gpu_damage == NULL);
 		priv->clear = false;
 	}
 
@@ -1715,7 +1714,6 @@ skip_inplace_map:
 
 		__sna_damage_destroy(DAMAGE_PTR(priv->gpu_damage));
 		priv->gpu_damage = NULL;
-		priv->undamaged = true;
 	}
 
 	if (flags & MOVE_WRITE || priv->create & KGEM_CAN_CREATE_LARGE) {
@@ -1724,7 +1722,6 @@ skip_inplace_map:
 			       pixmap->drawable.width,
 			       pixmap->drawable.height);
 		sna_pixmap_free_gpu(sna, priv);
-		priv->undamaged = false;
 
 		if (priv->flush) {
 			assert(!priv->shm);
@@ -1734,25 +1731,24 @@ skip_inplace_map:
 
 done:
 	if (flags & MOVE_WRITE) {
+		assert(DAMAGE_IS_ALL(priv->cpu_damage));
 		priv->source_count = SOURCE_BIAS;
 		assert(priv->gpu_bo == NULL || priv->gpu_bo->proxy == NULL);
 		if (priv->gpu_bo && priv->gpu_bo->domain != DOMAIN_GPU) {
 			DBG(("%s: discarding inactive GPU bo\n", __FUNCTION__));
-			assert(DAMAGE_IS_ALL(priv->cpu_damage));
 			sna_pixmap_free_gpu(sna, priv);
-			priv->undamaged = false;
 		}
 	}
 
 	if (priv->cpu_bo) {
 		if ((flags & MOVE_ASYNC_HINT) == 0) {
 			DBG(("%s: syncing CPU bo\n", __FUNCTION__));
-			kgem_bo_sync__cpu(&sna->kgem, priv->cpu_bo);
+			kgem_bo_sync__cpu_full(&sna->kgem,
+					       priv->cpu_bo, flags & MOVE_WRITE);
 		}
 		if (flags & MOVE_WRITE) {
 			DBG(("%s: discarding GPU bo in favour of CPU bo\n", __FUNCTION__));
 			sna_pixmap_free_gpu(sna, priv);
-			priv->undamaged = false;
 		}
 	}
 	priv->cpu = (flags & MOVE_ASYNC_HINT) == 0;
@@ -1892,7 +1888,6 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 		     __FUNCTION__, pixmap->drawable.serialNumber));
 
 		sna_damage_destroy(&priv->gpu_damage);
-		priv->undamaged = false;
 
 		if (flags & MOVE_WRITE)
 			sna_pixmap_free_gpu(sna, priv);
@@ -1953,7 +1948,6 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 					DBG(("%s: replaced entire pixmap, destroying CPU shadow\n",
 					     __FUNCTION__));
 					sna_damage_destroy(&priv->cpu_damage);
-					priv->undamaged = false;
 					list_del(&priv->list);
 				} else
 					sna_damage_subtract(&priv->cpu_damage,
@@ -1992,7 +1986,6 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 			sna_damage_all(&priv->gpu_damage,
 				       pixmap->drawable.width,
 				       pixmap->drawable.height);
-			priv->undamaged = false;
 			sna_pixmap_free_cpu(sna, priv);
 		}
 	}
@@ -2071,7 +2064,6 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 					       box, n);
 		}
 		sna_damage_destroy(&priv->gpu_damage);
-		priv->undamaged = true;
 	}
 
 	if (priv->gpu_damage &&
@@ -2183,7 +2175,6 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 				}
 
 				sna_damage_destroy(&priv->gpu_damage);
-				priv->undamaged = true;
 			} else if (DAMAGE_IS_ALL(priv->gpu_damage) ||
 				   sna_damage_contains_box__no_reduce(priv->gpu_damage,
 								      &r->extents)) {
@@ -2208,7 +2199,6 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 						       box, n);
 
 				sna_damage_subtract(&priv->gpu_damage, r);
-				priv->undamaged = true;
 			} else {
 				RegionRec need;
 
@@ -2235,7 +2225,6 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 							       box, n);
 
 					sna_damage_subtract(&priv->gpu_damage, r);
-					priv->undamaged = true;
 					RegionUninit(&need);
 				}
 			}
@@ -2259,7 +2248,6 @@ done:
 				     __FUNCTION__));
 				sna_pixmap_free_gpu(sna, priv);
 			}
-			priv->undamaged = false;
 		}
 		if (priv->flush) {
 			assert(!priv->shm);
@@ -2278,8 +2266,8 @@ out:
 	}
 	if ((flags & MOVE_ASYNC_HINT) == 0 && priv->cpu_bo) {
 		DBG(("%s: syncing cpu bo\n", __FUNCTION__));
-		kgem_bo_sync__cpu(&sna->kgem, priv->cpu_bo);
-		assert(!kgem_bo_is_busy(priv->cpu_bo));
+		kgem_bo_sync__cpu_full(&sna->kgem,
+				       priv->cpu_bo, flags & MOVE_WRITE);
 	}
 	priv->cpu = (flags & MOVE_ASYNC_HINT) == 0;
 	assert(pixmap->devPrivate.ptr);
@@ -2410,7 +2398,6 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 			      pixmap->drawable.width,
 			      pixmap->drawable.height)) {
 		sna_damage_destroy(&priv->cpu_damage);
-		priv->undamaged = false;
 		list_del(&priv->list);
 		goto done;
 	}
@@ -2422,7 +2409,6 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 	assert_pixmap_damage(pixmap);
 
 	if (priv->cpu_damage == NULL) {
-		priv->undamaged = false;
 		list_del(&priv->list);
 		return sna_pixmap_move_to_gpu(pixmap, flags);
 	}
@@ -2504,7 +2490,6 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 
 		sna_damage_destroy(&priv->cpu_damage);
 		list_del(&priv->list);
-		priv->undamaged = true;
 	} else if (DAMAGE_IS_ALL(priv->cpu_damage) ||
 		   sna_damage_contains_box__no_reduce(priv->cpu_damage, box)) {
 		bool ok = false;
@@ -2537,7 +2522,6 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 			return false;
 
 		sna_damage_subtract(&priv->cpu_damage, &r);
-		priv->undamaged = true;
 	} else if (sna_damage_intersect(priv->cpu_damage, &r, &i)) {
 		int n = REGION_NUM_RECTS(&i);
 		bool ok;
@@ -2573,7 +2557,6 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 			return false;
 
 		sna_damage_subtract(&priv->cpu_damage, &r);
-		priv->undamaged = true;
 		RegionUninit(&i);
 	}
 
@@ -2594,7 +2577,6 @@ done:
 			sna_damage_all(&priv->gpu_damage,
 				       pixmap->drawable.width,
 				       pixmap->drawable.height);
-			priv->undamaged = false;
 		}
 	}
 
@@ -2731,7 +2713,6 @@ sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
 			sna_damage_subtract(&priv->cpu_damage, &region);
 			if (priv->cpu_damage == NULL) {
 				list_del(&priv->list);
-				priv->undamaged = false;
 				priv->cpu = false;
 			}
 		}
@@ -2824,7 +2805,6 @@ done:
 			      pixmap->drawable.height)) {
 		sna_damage_destroy(&priv->cpu_damage);
 		list_del(&priv->list);
-		priv->undamaged = false;
 		*damage = NULL;
 	} else
 		*damage = &priv->gpu_damage;
@@ -3049,7 +3029,6 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 		DBG(("%s: already all-damaged\n", __FUNCTION__));
 		sna_damage_destroy(&priv->cpu_damage);
 		list_del(&priv->list);
-		priv->undamaged = false;
 		assert(priv->cpu == false || IS_CPU_MAP(priv->gpu_bo->map));
 		goto active;
 	}
@@ -3182,7 +3161,6 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 
 	__sna_damage_destroy(DAMAGE_PTR(priv->cpu_damage));
 	priv->cpu_damage = NULL;
-	priv->undamaged = true;
 
 	if (priv->shm) {
 		assert(!priv->flush);
@@ -3207,10 +3185,8 @@ done:
 	sna_damage_reduce_all(&priv->gpu_damage,
 			      pixmap->drawable.width,
 			      pixmap->drawable.height);
-	if (DAMAGE_IS_ALL(priv->gpu_damage)) {
-		priv->undamaged = false;
+	if (DAMAGE_IS_ALL(priv->gpu_damage))
 		sna_pixmap_free_cpu(sna, priv);
-	}
 
 active:
 	if (flags & MOVE_WRITE)
@@ -3426,11 +3402,6 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 		    int x, int y, int w, int  h, char *bits, int stride)
 {
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
-	struct sna *sna = to_sna_from_pixmap(pixmap);
-	struct sna_pixmap *priv = sna_pixmap(pixmap);
-	unsigned flags;
-	char *dst_bits;
-	int dst_stride;
 	BoxRec *box;
 	int16_t dx, dy;
 	int n;
@@ -3440,32 +3411,18 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	if (gc->alu != GXcopy)
 		return false;
 
-	if (!priv) {
-		if (drawable->depth < 8)
-			return false;
-
-		goto blt;
-	}
-
-	flags = MOVE_WRITE;
-	if (w == pixmap->drawable.width) {
-		flags |= MOVE_WHOLE_HINT;
-		if (h != pixmap->drawable.height)
-			flags |= MOVE_READ;
-	}
-
-	if (!sna_drawable_move_region_to_cpu(&pixmap->drawable, region, flags))
+	if (drawable->depth < 8)
 		return false;
 
-blt:
+	if (!sna_drawable_move_region_to_cpu(&pixmap->drawable,
+					     region, MOVE_WRITE))
+		return false;
+
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
 	x += dx + drawable->x;
 	y += dy + drawable->y;
 
 	DBG(("%s: upload(%d, %d, %d, %d)\n", __FUNCTION__, x, y, w, h));
-
-	dst_stride = pixmap->devKind;
-	dst_bits = pixmap->devPrivate.ptr;
 
 	/* Region is pre-clipped and translated into pixmap space */
 	box = REGION_RECTS(region);
@@ -3490,9 +3447,9 @@ blt:
 		assert(box->x2 - x <= w);
 		assert(box->y2 - y <= h);
 
-		memcpy_blt(bits, dst_bits,
+		memcpy_blt(bits, pixmap->devPrivate.ptr,
 			   pixmap->drawable.bitsPerPixel,
-			   stride, dst_stride,
+			   stride, pixmap->devKind,
 			   box->x1 - x, box->y1 - y,
 			   box->x1, box->y1,
 			   box->x2 - box->x1, box->y2 - box->y1);
@@ -3809,7 +3766,7 @@ sna_put_image(DrawablePtr drawable, GCPtr gc, int depth,
 	    gc->pCompositeClip->extents.x2 < region.extents.x2 ||
 	    gc->pCompositeClip->extents.y2 < region.extents.y2) {
 		RegionIntersect(&region, &region, gc->pCompositeClip);
-		if (!RegionNotEmpty(&region))
+		if (RegionNil(&region))
 			return;
 	}
 
@@ -4548,7 +4505,6 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 						       dst_pixmap->drawable.width,
 						       dst_pixmap->drawable.height);
 					list_del(&dst_priv->list);
-					dst_priv->undamaged = false;
 				} else
 					sna_damage_add(&dst_priv->gpu_damage,
 						       region);
@@ -4757,7 +4713,7 @@ sna_do_copy(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 		 * VT is inactive, make sure the region isn't empty
 		 */
 		if (((WindowPtr)src)->parent ||
-		    !RegionNotEmpty(&((WindowPtr)src)->borderClip)) {
+		    RegionNil(&((WindowPtr)src)->borderClip)) {
 			DBG(("%s: include inferiors\n", __FUNCTION__));
 			free_clip = clip = NotClippedByChildren((WindowPtr)src);
 		}
@@ -5420,7 +5376,7 @@ no_damage_clipped:
 
 		region_set(&clip, extents);
 		region_maybe_clip(&clip, gc->pCompositeClip);
-		if (!RegionNotEmpty(&clip))
+		if (RegionNil(&clip))
 			return true;
 
 		assert(dx + clip.extents.x1 >= 0);
@@ -5521,7 +5477,7 @@ damage_clipped:
 
 		region_set(&clip, extents);
 		region_maybe_clip(&clip, gc->pCompositeClip);
-		if (!RegionNotEmpty(&clip))
+		if (RegionNil(&clip))
 			return true;
 
 		assert(dx + clip.extents.x1 >= 0);
@@ -5842,7 +5798,7 @@ fallback:
 	DBG(("%s: fallback\n", __FUNCTION__));
 	region.data = NULL;
 	region_maybe_clip(&region, gc->pCompositeClip);
-	if (!RegionNotEmpty(&region))
+	if (RegionNil(&region))
 		return;
 
 	if (!sna_gc_move_to_cpu(gc, drawable, &region))
@@ -5882,7 +5838,7 @@ sna_set_spans(DrawablePtr drawable, GCPtr gc, char *src,
 fallback:
 	region.data = NULL;
 	region_maybe_clip(&region, gc->pCompositeClip);
-	if (!RegionNotEmpty(&region))
+	if (RegionNil(&region))
 		return;
 
 	if (!sna_gc_move_to_cpu(gc, drawable, &region))
@@ -6331,7 +6287,7 @@ sna_copy_plane(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	     __FUNCTION__,
 	     region.extents.x1, region.extents.y1,
 	     region.extents.x2, region.extents.y2));
-	if (!RegionNotEmpty(&region))
+	if (RegionNil(&region))
 		goto empty;
 
 	RegionTranslate(&region,
@@ -6588,7 +6544,7 @@ fallback:
 	DBG(("%s: fallback\n", __FUNCTION__));
 	region.data = NULL;
 	region_maybe_clip(&region, gc->pCompositeClip);
-	if (!RegionNotEmpty(&region))
+	if (RegionNil(&region))
 		return;
 
 	if (!sna_gc_move_to_cpu(gc, drawable, &region))
@@ -6643,7 +6599,7 @@ sna_poly_zero_line_blt(DrawablePtr drawable,
 	region_set(&clip, extents);
 	if (clipped) {
 		region_maybe_clip(&clip, gc->pCompositeClip);
-		if (!RegionNotEmpty(&clip))
+		if (RegionNil(&clip))
 			return true;
 	}
 
@@ -7068,7 +7024,7 @@ sna_poly_line_blt(DrawablePtr drawable,
 
 		region_set(&clip, extents);
 		region_maybe_clip(&clip, gc->pCompositeClip);
-		if (!RegionNotEmpty(&clip))
+		if (RegionNil(&clip))
 			return true;
 
 		last.x = pt->x + drawable->x;
@@ -7510,7 +7466,7 @@ spans_fallback:
 				} else {
 					region_maybe_clip(&data.region,
 							  gc->pCompositeClip);
-					if (!RegionNotEmpty(&data.region))
+					if (RegionNil(&data.region))
 						return;
 
 					if (region_is_singular(&data.region))
@@ -7535,7 +7491,7 @@ spans_fallback:
 				} else {
 					region_maybe_clip(&data.region,
 							  gc->pCompositeClip);
-					if (!RegionNotEmpty(&data.region))
+					if (RegionNil(&data.region))
 						return;
 
 					if (region_is_singular(&data.region))
@@ -7612,7 +7568,7 @@ spans_fallback:
 fallback:
 	DBG(("%s: fallback\n", __FUNCTION__));
 	region_maybe_clip(&data.region, gc->pCompositeClip);
-	if (!RegionNotEmpty(&data.region))
+	if (RegionNil(&data.region))
 		return;
 
 	if (!sna_gc_move_to_cpu(gc, drawable, &data.region))
@@ -7742,7 +7698,7 @@ sna_poly_segment_blt(DrawablePtr drawable,
 
 		region_set(&clip, extents);
 		region_maybe_clip(&clip, gc->pCompositeClip);
-		if (!RegionNotEmpty(&clip))
+		if (RegionNil(&clip))
 			goto done;
 
 		if (clip.data) {
@@ -7849,7 +7805,7 @@ sna_poly_zero_segment_blt(DrawablePtr drawable,
 	region_set(&clip, extents);
 	if (clipped) {
 		region_maybe_clip(&clip, gc->pCompositeClip);
-		if (!RegionNotEmpty(&clip))
+		if (RegionNil(&clip))
 			return true;
 	}
 	DBG(("%s: [clipped] extents=(%d, %d), (%d, %d), delta=(%d, %d)\n",
@@ -8417,7 +8373,7 @@ spans_fallback:
 			} else {
 				region_maybe_clip(&data.region,
 						  gc->pCompositeClip);
-				if (!RegionNotEmpty(&data.region))
+				if (RegionNil(&data.region))
 					return;
 
 				if (region_is_singular(&data.region))
@@ -8456,7 +8412,7 @@ spans_fallback:
 fallback:
 	DBG(("%s: fallback\n", __FUNCTION__));
 	region_maybe_clip(&data.region, gc->pCompositeClip);
-	if (!RegionNotEmpty(&data.region))
+	if (RegionNil(&data.region))
 		return;
 
 	if (!sna_gc_move_to_cpu(gc, drawable, &data.region))
@@ -8484,6 +8440,7 @@ sna_poly_rectangle_extents(DrawablePtr drawable, GCPtr gc,
 	Box32Rec box;
 	int extra = gc->lineWidth >> 1;
 	bool clipped;
+	bool zero = false;
 
 	if (n == 0)
 		return 0;
@@ -8492,9 +8449,13 @@ sna_poly_rectangle_extents(DrawablePtr drawable, GCPtr gc,
 	box.y1 = r->y;
 	box.x2 = box.x1 + r->width;
 	box.y2 = box.y1 + r->height;
+	zero |= (r->width | r->height) == 0;
 
-	while (--n)
-		box32_add_rect(&box, ++r);
+	while (--n) {
+		r++;
+		zero |= (r->width | r->height) == 0;
+		box32_add_rect(&box, r);
+	}
 
 	box.x2++;
 	box.y2++;
@@ -8504,13 +8465,15 @@ sna_poly_rectangle_extents(DrawablePtr drawable, GCPtr gc,
 		box.x2 += extra;
 		box.y1 -= extra;
 		box.y2 += extra;
-	}
+		zero = !zero;
+	} else
+		zero = true;
 
 	clipped = box32_trim_and_translate(&box, drawable, gc);
 	if (!box32_to_box16(&box, out))
 		return 0;
 
-	return 1 | clipped << 1;
+	return 1 | clipped << 1 | zero << 2;
 }
 
 static bool
@@ -8549,7 +8512,7 @@ zero:
 		xRectangle rr = *r++;
 
 		if ((rr.width | rr.height) == 0)
-			continue;
+			continue; /* XXX -> PolyLine */
 
 		DBG(("%s - zero : r[%d] = (%d, %d) x (%d, %d)\n", __FUNCTION__,
 		     n, rr.x, rr.y, rr.width, rr.height));
@@ -8604,7 +8567,7 @@ zero_clipped:
 
 		region_set(&clip, extents);
 		region_maybe_clip(&clip, gc->pCompositeClip);
-		if (!RegionNotEmpty(&clip))
+		if (RegionNil(&clip))
 			goto done;
 
 		if (clip.data) {
@@ -8618,7 +8581,7 @@ zero_clipped:
 				     n, rr.x, rr.y, rr.width, rr.height));
 
 				if ((rr.width | rr.height) == 0)
-					continue;
+					continue; /* XXX -> PolyLine */
 
 				rr.x += drawable->x;
 				rr.y += drawable->y;
@@ -8682,7 +8645,7 @@ zero_clipped:
 				     n, rr.x, rr.y, rr.width, rr.height));
 
 				if ((rr.width | rr.height) == 0)
-					continue;
+					continue; /* XXX -> PolyLine */
 
 				rr.x += drawable->x;
 				rr.y += drawable->y;
@@ -8750,7 +8713,7 @@ wide_clipped:
 		     __FUNCTION__,
 		     clip.extents.x1, clip.extents.y1,
 		     clip.extents.x2, clip.extents.y2));
-		if (!RegionNotEmpty(&clip))
+		if (RegionNil(&clip))
 			goto done;
 
 		if (clip.data) {
@@ -8762,7 +8725,7 @@ wide_clipped:
 				int count;
 
 				if ((rr.width | rr.height) == 0)
-					continue;
+					continue; /* XXX -> PolyLine */
 
 				rr.x += drawable->x;
 				rr.y += drawable->y;
@@ -8927,7 +8890,7 @@ wide:
 			xRectangle rr = *r++;
 
 			if ((rr.width | rr.height) == 0)
-				continue;
+				continue; /* XXX -> PolyLine */
 
 			rr.x += dx;
 			rr.y += dy;
@@ -9025,8 +8988,9 @@ sna_poly_rectangle(DrawablePtr drawable, GCPtr gc, int n, xRectangle *r)
 		goto fallback;
 	}
 
-	DBG(("%s: line=%d [%d], join=%d [%d], mask=%lu [%d]\n",
+	DBG(("%s: fill=_%d [%d], line=%d [%d], join=%d [%d], mask=%lu [%d]\n",
 	     __FUNCTION__,
+	     gc->fillStyle, gc->fillStyle == FillSolid,
 	     gc->lineStyle, gc->lineStyle == LineSolid,
 	     gc->joinStyle, gc->joinStyle == JoinMiter,
 	     gc->planemask, PM_IS_SOLID(drawable, gc->planemask)));
@@ -9034,7 +8998,7 @@ sna_poly_rectangle(DrawablePtr drawable, GCPtr gc, int n, xRectangle *r)
 	if (!PM_IS_SOLID(drawable, gc->planemask))
 		goto fallback;
 
-	if (gc->lineStyle == LineSolid && gc->joinStyle == JoinMiter) {
+	if (flags & 4 && gc->fillStyle == FillSolid && gc->lineStyle == LineSolid && gc->joinStyle == JoinMiter) {
 		DBG(("%s: trying blt solid fill [%08lx] paths\n",
 		     __FUNCTION__, gc->fgPixel));
 		if ((bo = sna_drawable_use_bo(drawable, PREFER_GPU,
@@ -9058,7 +9022,7 @@ fallback:
 
 	region.data = NULL;
 	region_maybe_clip(&region, gc->pCompositeClip);
-	if (!RegionNotEmpty(&region))
+	if (RegionNil(&region))
 		return;
 
 	if (!sna_gc_move_to_cpu(gc, drawable, &region))
@@ -9197,7 +9161,7 @@ sna_poly_arc(DrawablePtr drawable, GCPtr gc, int n, xArc *arc)
 				} else {
 					region_maybe_clip(&data.region,
 							  gc->pCompositeClip);
-					if (!RegionNotEmpty(&data.region))
+					if (RegionNil(&data.region))
 						return;
 
 					if (region_is_singular(&data.region)) {
@@ -9221,7 +9185,7 @@ sna_poly_arc(DrawablePtr drawable, GCPtr gc, int n, xArc *arc)
 			} else {
 				region_maybe_clip(&data.region,
 						  gc->pCompositeClip);
-				if (!RegionNotEmpty(&data.region))
+				if (RegionNil(&data.region))
 					return;
 
 				sna_gc_ops__tmp.FillSpans = sna_fill_spans__gpu;
@@ -9257,7 +9221,7 @@ sna_poly_arc(DrawablePtr drawable, GCPtr gc, int n, xArc *arc)
 fallback:
 	DBG(("%s -- fallback\n", __FUNCTION__));
 	region_maybe_clip(&data.region, gc->pCompositeClip);
-	if (!RegionNotEmpty(&data.region))
+	if (RegionNil(&data.region))
 		return;
 
 	if (!sna_gc_move_to_cpu(gc, drawable, &data.region))
@@ -9335,7 +9299,6 @@ sna_poly_fill_rect_blt(DrawablePtr drawable,
 							       pixmap->drawable.height);
 						sna_damage_destroy(&priv->cpu_damage);
 						list_del(&priv->list);
-						priv->undamaged = false;
 						priv->clear = true;
 						priv->clear_color = gc->alu == GXcopy ? pixel : 0;
 
@@ -9401,7 +9364,7 @@ sna_poly_fill_rect_blt(DrawablePtr drawable,
 
 		region_set(&clip, extents);
 		region_maybe_clip(&clip, gc->pCompositeClip);
-		if (!RegionNotEmpty(&clip))
+		if (RegionNil(&clip))
 			goto done;
 
 		if (clip.data == NULL) {
@@ -9572,7 +9535,7 @@ sna_poly_fill_polygon(DrawablePtr draw, GCPtr gc,
 			} else {
 				region_maybe_clip(&data.region,
 						  gc->pCompositeClip);
-				if (!RegionNotEmpty(&data.region))
+				if (RegionNil(&data.region))
 					return;
 
 				if (region_is_singular(&data.region))
@@ -9609,7 +9572,7 @@ fallback:
 	     data.region.extents.x1, data.region.extents.y1,
 	     data.region.extents.x2, data.region.extents.y2));
 	region_maybe_clip(&data.region, gc->pCompositeClip);
-	if (!RegionNotEmpty(&data.region)) {
+	if (RegionNil(&data.region)) {
 		DBG(("%s: nothing to do, all clipped\n", __FUNCTION__));
 		return;
 	}
@@ -9819,7 +9782,7 @@ sna_poly_fill_rect_tiled_8x8_blt(DrawablePtr drawable,
 
 		region_set(&clip, extents);
 		region_maybe_clip(&clip, gc->pCompositeClip);
-		if (!RegionNotEmpty(&clip))
+		if (RegionNil(&clip))
 			goto done;
 
 		b = sna->kgem.batch + sna->kgem.nbatch;
@@ -10146,7 +10109,7 @@ sna_poly_fill_rect_tiled_blt(DrawablePtr drawable,
 
 		region_set(&clip, extents);
 		region_maybe_clip(&clip, gc->pCompositeClip);
-		if (!RegionNotEmpty(&clip))
+		if (RegionNil(&clip))
 			goto done;
 
 		if (clip.data == NULL) {
@@ -10425,7 +10388,7 @@ sna_poly_fill_rect_stippled_8x8_blt(DrawablePtr drawable,
 
 		region_set(&clip, extents);
 		region_maybe_clip(&clip, gc->pCompositeClip);
-		if (!RegionNotEmpty(&clip))
+		if (RegionNil(&clip))
 			return true;
 
 		b = sna->kgem.batch + sna->kgem.nbatch;
@@ -10757,7 +10720,7 @@ sna_poly_fill_rect_stippled_1_blt(DrawablePtr drawable,
 
 		region_set(&clip, extents);
 		region_maybe_clip(&clip, gc->pCompositeClip);
-		if (!RegionNotEmpty(&clip))
+		if (RegionNil(&clip))
 			return true;
 
 		pat.x = origin->x + drawable->x;
@@ -11366,7 +11329,7 @@ sna_poly_fill_rect_stippled_n_blt__imm(DrawablePtr drawable,
 
 		region_set(&clip, extents);
 		region_maybe_clip(&clip, gc->pCompositeClip);
-		if (!RegionNotEmpty(&clip)) {
+		if (RegionNil(&clip)) {
 			DBG(("%s: all clipped\n", __FUNCTION__));
 			return true;
 		}
@@ -11511,7 +11474,7 @@ sna_poly_fill_rect_stippled_n_blt(DrawablePtr drawable,
 
 		region_set(&clip, extents);
 		region_maybe_clip(&clip, gc->pCompositeClip);
-		if (!RegionNotEmpty(&clip)) {
+		if (RegionNil(&clip)) {
 			DBG(("%s: all clipped\n", __FUNCTION__));
 			return true;
 		}
@@ -11796,7 +11759,6 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 				sna_damage_all(&priv->gpu_damage,
 					       pixmap->drawable.width,
 					       pixmap->drawable.height);
-				priv->undamaged = false;
 			}
 		}
 		if (priv->cpu_damage == NULL) {
@@ -11850,7 +11812,7 @@ fallback:
 	     region.extents.x2, region.extents.y2));
 	region.data = NULL;
 	region_maybe_clip(&region, gc->pCompositeClip);
-	if (!RegionNotEmpty(&region)) {
+	if (RegionNil(&region)) {
 		DBG(("%s: nothing to do, all clipped\n", __FUNCTION__));
 		return;
 	}
@@ -11943,7 +11905,7 @@ sna_poly_fill_arc(DrawablePtr draw, GCPtr gc, int n, xArc *arc)
 			} else {
 				region_maybe_clip(&data.region,
 						  gc->pCompositeClip);
-				if (!RegionNotEmpty(&data.region))
+				if (RegionNil(&data.region))
 					return;
 
 				if (region_is_singular(&data.region))
@@ -11980,7 +11942,7 @@ fallback:
 	     data.region.extents.x1, data.region.extents.y1,
 	     data.region.extents.x2, data.region.extents.y2));
 	region_maybe_clip(&data.region, gc->pCompositeClip);
-	if (!RegionNotEmpty(&data.region)) {
+	if (RegionNil(&data.region)) {
 		DBG(("%s: nothing to do, all clipped\n", __FUNCTION__));
 		return;
 	}
@@ -12437,7 +12399,7 @@ sna_poly_text8(DrawablePtr drawable, GCPtr gc,
 
 	region.data = NULL;
 	region_maybe_clip(&region, gc->pCompositeClip);
-	if (!RegionNotEmpty(&region))
+	if (RegionNil(&region))
 		return x + extents.overallRight;
 
 	if (FORCE_FALLBACK)
@@ -12511,7 +12473,7 @@ sna_poly_text16(DrawablePtr drawable, GCPtr gc,
 
 	region.data = NULL;
 	region_maybe_clip(&region, gc->pCompositeClip);
-	if (!RegionNotEmpty(&region))
+	if (RegionNil(&region))
 		return x + extents.overallRight;
 
 	if (FORCE_FALLBACK)
@@ -12592,7 +12554,7 @@ sna_image_text8(DrawablePtr drawable, GCPtr gc,
 
 	region.data = NULL;
 	region_maybe_clip(&region, gc->pCompositeClip);
-	if (!RegionNotEmpty(&region))
+	if (RegionNil(&region))
 		return;
 
 	DBG(("%s: clipped extents (%d, %d), (%d, %d)\n",
@@ -12674,7 +12636,7 @@ sna_image_text16(DrawablePtr drawable, GCPtr gc,
 
 	region.data = NULL;
 	region_maybe_clip(&region, gc->pCompositeClip);
-	if (!RegionNotEmpty(&region))
+	if (RegionNil(&region))
 		return;
 
 	DBG(("%s: clipped extents (%d, %d), (%d, %d)\n",
@@ -12976,7 +12938,7 @@ sna_image_glyph(DrawablePtr drawable, GCPtr gc,
 
 	region.data = NULL;
 	region_maybe_clip(&region, gc->pCompositeClip);
-	if (!RegionNotEmpty(&region))
+	if (RegionNil(&region))
 		return;
 
 	if (FORCE_FALLBACK)
@@ -13054,7 +13016,7 @@ sna_poly_glyph(DrawablePtr drawable, GCPtr gc,
 
 	region.data = NULL;
 	region_maybe_clip(&region, gc->pCompositeClip);
-	if (!RegionNotEmpty(&region))
+	if (RegionNil(&region))
 		return;
 
 	if (FORCE_FALLBACK)
@@ -13255,7 +13217,7 @@ sna_push_pixels(GCPtr gc, PixmapPtr bitmap, DrawablePtr drawable,
 
 	region.data = NULL;
 	region_maybe_clip(&region, gc->pCompositeClip);
-	if (!RegionNotEmpty(&region))
+	if (RegionNil(&region))
 		return;
 
 	switch (gc->fillStyle) {
@@ -13567,7 +13529,7 @@ sna_copy_window(WindowPtr win, DDXPointRec origin, RegionPtr src)
 
 	RegionNull(&dst);
 	RegionIntersect(&dst, &win->borderClip, src);
-	if (!RegionNotEmpty(&dst))
+	if (RegionNil(&dst))
 		return;
 
 #ifdef COMPOSITE
@@ -13838,7 +13800,7 @@ static void sna_accel_post_damage(struct sna *sna)
 		int n;
 
 		damage = DamageRegion(dirty->damage);
-		if (!RegionNotEmpty(damage))
+		if (RegionNil(damage))
 			continue;
 
 		src = dirty->src;
@@ -13859,6 +13821,9 @@ static void sna_accel_post_damage(struct sna *sna)
 		     region.extents.x2, region.extents.y2));
 
 		RegionIntersect(&region, &region, damage);
+		if (RegionNil(&region))
+			goto skip;
+
 		RegionTranslate(&region, -dirty->x, -dirty->y);
 		DamageRegionAppend(&dirty->slave_dst->drawable, &region);
 

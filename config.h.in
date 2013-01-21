@@ -11,6 +11,9 @@
 /* Enable pixmap debugging */
 #undef DEBUG_PIXMAP
 
+/* Enable synchronous rendering for debugging */
+#undef DEBUG_SYNC
+
 /* Default acceleration method */
 #undef DEFAULT_ACCEL_METHOD
 

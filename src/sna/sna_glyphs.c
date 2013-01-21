@@ -1357,7 +1357,7 @@ glyphs_fallback(CARD8 op,
 	     __FUNCTION__,
 	     RegionExtents(&region)->x1, RegionExtents(&region)->y1,
 	     RegionExtents(&region)->x2, RegionExtents(&region)->y2));
-	if (!RegionNotEmpty(&region))
+	if (RegionNil(&region))
 		return;
 
 	if (!sna_drawable_move_region_to_cpu(dst->pDrawable, &region,
