@@ -197,12 +197,14 @@ sna_output_backlight_set(xf86OutputPtr output, int level)
 	char path[1024], val[BACKLIGHT_VALUE_LEN];
 	int fd, len, ret;
 
-	DBG(("%s: level=%d\n", __FUNCTION__, level));
+	DBG(("%s: level=%d, max=%d\n", __FUNCTION__,
+	     level, sna_output->backlight_max));
 
-	if (level > sna_output->backlight_max)
-		level = sna_output->backlight_max;
-	if (!sna_output->backlight_iface || level < 0)
+	if (!sna_output->backlight_iface)
 		return;
+
+	if ((unsigned)level > sna_output->backlight_max)
+		level = sna_output->backlight_max;
 
 	len = snprintf(val, BACKLIGHT_VALUE_LEN, "%d\n", level);
 	sprintf(path, "%s/%s/brightness",
