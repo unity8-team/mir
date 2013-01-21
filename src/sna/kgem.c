@@ -1710,14 +1710,11 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 	}
 
 	if (bo->scanout) {
-		if (bo->delta) {
-			DBG(("%s: handle=%d -> scanout\n",
-			     __FUNCTION__, bo->handle));
-			list_add(&bo->list, &kgem->scanout);
-			return;
-		}
-
-		kgem_bo_clear_scanout(kgem, bo);
+		assert (bo->delta);
+		DBG(("%s: handle=%d -> scanout\n",
+		     __FUNCTION__, bo->handle));
+		list_add(&bo->list, &kgem->scanout);
+		return;
 	}
 
 	if (!bo->reusable) {
