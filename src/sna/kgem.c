@@ -81,16 +81,6 @@ search_snoop_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags);
 
 #define SHOW_BATCH 0
 
-#ifndef USE_FASTRELOC
-#undef DBG_NO_FAST_RELOC
-#define DBG_NO_FAST_RELOC 1
-#endif
-
-#ifndef USE_HANDLE_LUT
-#undef DBG_NO_HANDLE_LUT
-#define DBG_NO_HANDLE_LUT 1
-#endif
-
 /* Worst case seems to be 965gm where we cannot write within a cacheline that
  * is being simultaneously being read by the GPU, or within the sampler
  * prefetch. In general, the chipsets seem to have a requirement that sampler
