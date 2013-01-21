@@ -1550,9 +1550,7 @@ inline static void kgem_bo_remove_from_active(struct kgem *kgem,
 
 static void kgem_bo_clear_scanout(struct kgem *kgem, struct kgem_bo *bo)
 {
-	if (!bo->scanout)
-		return;
-
+	assert(bo->scanout);
 	assert(bo->proxy == NULL);
 
 	DBG(("%s: handle=%d, fb=%d (reusable=%d)\n",
@@ -1712,9 +1710,14 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 	}
 
 	if (bo->scanout) {
-		DBG(("%s: handle=%d -> scanout\n", __FUNCTION__, bo->handle));
-		list_add(&bo->list, &kgem->scanout);
-		return;
+		if (bo->delta) {
+			DBG(("%s: handle=%d -> scanout\n",
+			     __FUNCTION__, bo->handle));
+			list_add(&bo->list, &kgem->scanout);
+			return;
+		}
+
+		kgem_bo_clear_scanout(kgem, bo);
 	}
 
 	if (!bo->reusable) {
