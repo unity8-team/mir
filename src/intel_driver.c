@@ -686,7 +686,7 @@ void IntelEmitInvarientState(ScrnInfoPtr scrn)
 }
 
 #ifdef INTEL_PIXMAP_SHARING
-static Bool
+static void
 redisplay_dirty(ScreenPtr screen, PixmapDirtyUpdatePtr dirty)
 {
 	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
@@ -695,9 +695,19 @@ redisplay_dirty(ScreenPtr screen, PixmapDirtyUpdatePtr dirty)
 	int was_blocked;
 
 	PixmapRegionInit(&pixregion, dirty->slave_dst->master_pixmap);
-
+	RegionTranslate(&pixregion, dirty->x, dirty->y);
+	RegionIntersect(&pixregion, &pixregion, DamageRegion(dirty->damage));
+	RegionTranslate(&pixregion, -dirty->x, -dirty->y);
+	was_blocked = RegionNil(&pixregion);
 	DamageRegionAppend(&dirty->slave_dst->drawable, &pixregion);
+	RegionUninit(&pixregion);
+	if (was_blocked)
+		return;
+
+	PixmapRegionInit(&pixregion, dirty->slave_dst->master_pixmap);
 	PixmapSyncDirtyHelper(dirty, &pixregion);
+	RegionUninit(&pixregion);
+
 	intel_batch_submit(scrn);
 	if (!intel->has_prime_vmap_flush) {
 		drm_intel_bo *bo = intel_get_pixmap_bo(dirty->slave_dst->master_pixmap);
@@ -706,10 +716,9 @@ redisplay_dirty(ScreenPtr screen, PixmapDirtyUpdatePtr dirty)
 		drm_intel_bo_unmap(bo);
 		xf86UnblockSIGIO(was_blocked);
 	}
-	DamageRegionProcessPending(&dirty->slave_dst->drawable);
 
-	RegionUninit(&pixregion);
-	return 0;
+	DamageRegionProcessPending(&dirty->slave_dst->drawable);
+	return;
 }
 
 static void

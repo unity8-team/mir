@@ -624,7 +624,7 @@ sna_tiling_fill_boxes(struct sna *sna,
 
 			RegionNull(&this);
 			RegionIntersect(&this, &region, &tile);
-			if (!RegionNotEmpty(&this))
+			if (RegionNil(&this))
 				continue;
 
 			tmp.drawable.width  = this.extents.x2 - this.extents.x1;
@@ -737,7 +737,7 @@ bool sna_tiling_blt_copy_boxes(struct sna *sna, uint8_t alu,
 
 			RegionNull(&this);
 			RegionIntersect(&this, &region, &tile);
-			if (!RegionNotEmpty(&this))
+			if (RegionNil(&this))
 				continue;
 
 			w = this.extents.x2 - this.extents.x1;

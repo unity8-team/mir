@@ -2453,6 +2453,9 @@ static inline bool prefer_blt_copy(struct sna *sna,
 				   struct kgem_bo *dst_bo,
 				   unsigned flags)
 {
+	if (flags & COPY_SYNC)
+		return false;
+
 	if (PREFER_RENDER)
 		return PREFER_RENDER > 0;
 

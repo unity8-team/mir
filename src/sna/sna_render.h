@@ -242,6 +242,7 @@ struct sna_render {
 			   PixmapPtr dst, struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
 			   const BoxRec *box, int n, unsigned flags);
 #define COPY_LAST 0x1
+#define COPY_SYNC 0x2
 
 	bool (*copy)(struct sna *sna, uint8_t alu,
 		     PixmapPtr src, struct kgem_bo *src_bo,

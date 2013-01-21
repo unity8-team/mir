@@ -35,4 +35,11 @@ libtest_la_SOURCES = \
 	dri2.h \
 	$(NULL)
 
-EXTRA_DIST = README
+vsync.avi: mkvsync.sh
+	./mkvsync.sh $@
+
+clean-vsync-avi:
+	rm -rf vsync.avi .build.tmp
+
+EXTRA_DIST = README mkvsync.sh
+clean-local: clean-vsync-avi
