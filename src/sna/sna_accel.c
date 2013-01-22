@@ -7006,6 +7006,8 @@ sna_poly_line_blt(DrawablePtr drawable,
 				b->y1 = p.y;
 				b->y2 = last.y;
 			}
+			b->y2 += last.x == p.x;
+			b->x2 += last.y == p.y;
 			DBG(("%s: blt (%d, %d), (%d, %d)\n",
 			     __FUNCTION__,
 			     b->x1, b->y1, b->x2, b->y2));
@@ -7063,6 +7065,8 @@ sna_poly_line_blt(DrawablePtr drawable,
 					b->y1 = p.y;
 					b->y2 = last.y;
 				}
+				b->y2 += last.x == p.x;
+				b->x2 += last.y == p.y;
 				DBG(("%s: blt (%d, %d), (%d, %d)\n",
 				     __FUNCTION__,
 				     b->x1, b->y1, b->x2, b->y2));
@@ -7119,6 +7123,8 @@ sna_poly_line_blt(DrawablePtr drawable,
 					box.y1 = p.y;
 					box.y2 = last.y;
 				}
+				b->y2 += last.x == p.x;
+				b->x2 += last.y == p.y;
 				DBG(("%s: blt (%d, %d), (%d, %d)\n",
 				     __FUNCTION__,
 				     box.x1, box.y1, box.x2, box.y2));
