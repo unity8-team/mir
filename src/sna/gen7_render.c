@@ -1040,7 +1040,7 @@ static bool gen7_magic_ca_pass(struct sna *sna,
 	struct gen7_render_state *state = &sna->render_state.gen7;
 
 	if (!op->need_magic_ca_pass)
-		return true;
+		return false;
 
 	DBG(("%s: CA fixup (%d -> %d)\n", __FUNCTION__,
 	     sna->render.vertex_start, sna->render.vertex_index));
@@ -1064,7 +1064,7 @@ static bool gen7_magic_ca_pass(struct sna *sna,
 	OUT_BATCH(0);	/* index buffer offset, ignored */
 
 	state->last_primitive = sna->kgem.nbatch;
-	return false;
+	return true;
 }
 
 static void null_create(struct sna_static_stream *stream)
