@@ -2840,6 +2840,7 @@ static bool sna_emit_wait_for_scanline_gen6(struct sna *sna,
 					    bool full_height)
 {
 	uint32_t *b;
+	uint32_t event;
 
 	if (!sna->kgem.has_secure_batches)
 		return false;
@@ -2859,16 +2860,18 @@ static bool sna_emit_wait_for_scanline_gen6(struct sna *sna,
 	if (y2 == y1)
 		return false;
 
+	event = 1 << (3*full_height + pipe*8);
+
 	b = kgem_get_batch(&sna->kgem);
 	sna->kgem.nbatch += 10;
 
 	b[0] = MI_LOAD_REGISTER_IMM | 1;
 	b[1] = 0x44050; /* DERRMR */
-	b[2] = ~(1 << (3*full_height + pipe*8));
+	b[2] = ~event;
 	b[3] = MI_LOAD_REGISTER_IMM | 1;
 	b[4] = 0x4f100; /* magic */
 	b[5] = (1 << 31) | (1 << 30) | pipe << 29 | (y1 << 16) | y2;
-	b[6] = MI_WAIT_FOR_EVENT | 1 << (3*full_height + pipe*5);
+	b[6] = MI_WAIT_FOR_EVENT | event;
 	b[7] = MI_LOAD_REGISTER_IMM | 1;
 	b[8] = 0x44050; /* DERRMR */
 	b[9] = ~0;
