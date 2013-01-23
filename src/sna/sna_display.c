@@ -2775,6 +2775,7 @@ static bool sna_emit_wait_for_scanline_gen7(struct sna *sna,
 					    bool full_height)
 {
 	uint32_t *b;
+	uint32_t event;
 
 	if (!sna->kgem.has_secure_batches)
 		return false;
@@ -2788,6 +2789,18 @@ static bool sna_emit_wait_for_scanline_gen7(struct sna *sna,
 		y1 = crtc->bounds.y2;
 	y2--;
 
+	switch (pipe) {
+	case 0:
+		event = 1 << (full_height ? 3 : 0);
+		break;
+	case 1:
+		event = 1 << (full_height ? 11 : 8);
+		break;
+	case 2:
+		event = 1 << (full_height ? 21 : 14);
+		break;
+	}
+
 	b = kgem_get_batch(&sna->kgem);
 
 	/* Both the LRI and WAIT_FOR_EVENT must be in the same cacheline */
@@ -2800,14 +2813,14 @@ static bool sna_emit_wait_for_scanline_gen7(struct sna *sna,
 
 	b[0] = MI_LOAD_REGISTER_IMM | 1;
 	b[1] = 0x44050; /* DERRMR */
-	b[2] = ~(1 << (3*full_height + pipe*8));
+	b[2] = ~event;
 	b[3] = MI_LOAD_REGISTER_IMM | 1;
 	b[4] = 0xa188; /* FORCEWAKE_MT */
 	b[5] = 2 << 16 | 2;
 	b[6] = MI_LOAD_REGISTER_IMM | 1;
 	b[7] = 0x70068 + 0x1000 * pipe;
 	b[8] = (1 << 31) | (1 << 30) | (y1 << 16) | y2;
-	b[9] = MI_WAIT_FOR_EVENT | 1 << (3*full_height + pipe*5);
+	b[9] = MI_WAIT_FOR_EVENT | event;
 	b[10] = MI_LOAD_REGISTER_IMM | 1;
 	b[11] = 0xa188; /* FORCEWAKE_MT */
 	b[12] = 2 << 16;
