@@ -146,7 +146,8 @@ static uint32_t color_tiling(struct sna *sna, DrawablePtr draw)
 static uint32_t other_tiling(struct sna *sna, DrawablePtr draw)
 {
 	/* XXX Can mix color X / depth Y? */
-	return kgem_choose_tiling(&sna->kgem, -I915_TILING_Y,
+	return kgem_choose_tiling(&sna->kgem,
+				  sna->kgem.gen >=40 ? -I915_TILING_Y : -I915_TILING_X,
 				  draw->width,
 				  draw->height,
 				  draw->bitsPerPixel);
