@@ -513,8 +513,11 @@ static void sna_dri_select_mode(struct sna *sna, struct kgem_bo *dst, struct kge
 		return;
 
 	if (sync) {
-		DBG(("%s: sync, force RENDER ring\n", __FUNCTION__));
-		kgem_set_mode(&sna->kgem, KGEM_RENDER, dst);
+		DBG(("%s: sync, force %s ring\n", __FUNCTION__,
+		     sna->kgem.gen >= 070 ? "BLT" : "RENDER"));
+		kgem_set_mode(&sna->kgem,
+			      sna->kgem.gen >= 070 ? KGEM_BLT : KGEM_RENDER,
+			      dst);
 		return;
 	}
 

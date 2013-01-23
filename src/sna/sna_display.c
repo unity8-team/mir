@@ -2847,7 +2847,7 @@ static bool sna_emit_wait_for_scanline_gen6(struct sna *sna,
 
 	assert(y1 >= 0);
 	assert(y2 > y1);
-	assert(sna->kgem.mode);
+	assert(sna->kgem.mode == KGEM_RENDER);
 
 	/* Always program one less than the desired value */
 	if (--y1 < 0)
