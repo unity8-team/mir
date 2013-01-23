@@ -2082,18 +2082,17 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	     (uint32_t)*target_msc, (uint32_t)current_msc, (uint32_t)divisor));
 
 	if (divisor == 0 && current_msc >= *target_msc - 1) {
+		bool sync = current_msc < *target_msc;
 		if (can_exchange(sna, draw, front, back)) {
-			sna_dri_immediate_xchg(sna, draw, info,
-					       current_msc < *target_msc);
+			sna_dri_immediate_xchg(sna, draw, info, sync);
 		} else if (can_blit(sna, draw, front, back)) {
-			sna_dri_immediate_blit(sna, draw, info,
-					       current_msc < *target_msc);
+			sna_dri_immediate_blit(sna, draw, info, sync);
 		} else {
 			DRI2SwapComplete(client, draw, 0, 0, 0,
 					 DRI2_BLIT_COMPLETE, func, data);
 			sna_dri_frame_event_info_free(sna, draw, info);
 		}
-		*target_msc = current_msc + 1;
+		*target_msc = current_msc + sync;
 		return TRUE;
 	}
 
