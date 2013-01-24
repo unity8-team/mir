@@ -842,20 +842,31 @@ can_blit(struct sna * sna,
 	 DRI2BufferPtr back)
 {
 	RegionPtr clip;
+	int w, h;
 	uint32_t s;
 
 	if (draw->type == DRAWABLE_PIXMAP)
 		return true;
 
 	clip = &((WindowPtr)draw)->clipList;
+	w = clip->extents.x2 - draw->x;
+	h = clip->extents.y2 - draw->y;
+	if ((w|h) < 0)
+		return false;
 
 	s = get_private(front)->size;
-	if ((s>>16) < clip->extents.y2 || (s&0xffff) < clip->extents.x2)
+	if ((s>>16) < h || (s&0xffff) < w) {
+		DBG(("%s: reject front size (%dx%d) < (%dx%d)\n", __func__,
+		       s&0xffff, s>>16, w, h));
 		return false;
+	}
 
 	s = get_private(back)->size;
-	if ((s>>16) < clip->extents.y2 || (s&0xffff) < clip->extents.x2)
+	if ((s>>16) < h || (s&0xffff) < w) {
+		DBG(("%s:reject back size (%dx%d) < (%dx%d)\n", __func__,
+		     s&0xffff, s>>16, w, h));
 		return false;
+	}
 
 	return true;
 }
