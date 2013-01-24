@@ -845,6 +845,10 @@ inline static bool is_clipped(const RegionRec *r,
 }
 
 void sna_threads_init(void);
+int sna_use_threads (int width, int height, int threshold);
+void sna_threads_run(void (*func)(void *arg), void *arg);
+void sna_threads_wait(void);
+
 void sna_image_composite(pixman_op_t        op,
 			 pixman_image_t    *src,
 			 pixman_image_t    *mask,

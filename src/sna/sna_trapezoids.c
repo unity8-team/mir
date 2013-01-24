@@ -5277,13 +5277,53 @@ trapezoid_span_inplace__x8r8g8b8(CARD8 op,
 	return true;
 }
 
+struct inplace_thread {
+	xTrapezoid *traps;
+	RegionPtr clip;
+	span_func_t span;
+	struct inplace inplace;
+	BoxRec extents;
+	int dx, dy;
+	int draw_x, draw_y;
+	bool unbounded;
+	int ntrap;
+};
+
+static void inplace_thread(void *arg)
+{
+	struct inplace_thread *thread = arg;
+	struct tor tor;
+	int n;
+
+	if (tor_init(&tor, &thread->extents, 2*thread->ntrap))
+		return;
+
+	for (n = 0; n < thread->ntrap; n++) {
+		xTrapezoid t;
+
+		if (!project_trapezoid_onto_grid(&thread->traps[n], thread->dx, thread->dy, &t))
+			continue;
+
+		if (pixman_fixed_to_int(thread->traps[n].top) >= thread->extents.y2 - thread->draw_y ||
+		    pixman_fixed_to_int(thread->traps[n].bottom) < thread->extents.y1 - thread->draw_y)
+			continue;
+
+		tor_add_edge(&tor, &t, &t.left, 1);
+		tor_add_edge(&tor, &t, &t.right, -1);
+	}
+
+	tor_render(NULL, &tor, (void*)&thread->inplace,
+		   thread->clip, thread->span, thread->unbounded);
+
+	tor_fini(&tor);
+}
+
 static bool
 trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 		       PictFormatPtr maskFormat, INT16 src_x, INT16 src_y,
 		       int ntrap, xTrapezoid *traps,
 		       bool fallback)
 {
-	struct tor tor;
 	struct inplace inplace;
 	span_func_t span;
 	PixmapPtr pixmap;
@@ -5293,7 +5333,7 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 	bool unbounded;
 	int16_t dst_x, dst_y;
 	int dx, dy;
-	int n;
+	int num_threads, n;
 
 	if (NO_SCAN_CONVERTER)
 		return false;
@@ -5424,26 +5464,6 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 	     region.extents.x1, region.extents.y1,
 	     region.extents.x2, region.extents.y2));
 
-	if (tor_init(&tor, &region.extents, 2*ntrap))
-		return true;
-
-	dx = dst->pDrawable->x * FAST_SAMPLES_X;
-	dy = dst->pDrawable->y * FAST_SAMPLES_Y;
-
-	for (n = 0; n < ntrap; n++) {
-		xTrapezoid t;
-
-		if (!project_trapezoid_onto_grid(&traps[n], dx, dy, &t))
-			continue;
-
-		if (pixman_fixed_to_int(traps[n].top) >= region.extents.y2 - dst->pDrawable->y ||
-		    pixman_fixed_to_int(traps[n].bottom) < region.extents.y1 - dst->pDrawable->y)
-			continue;
-
-		tor_add_edge(&tor, &t, &t.left, 1);
-		tor_add_edge(&tor, &t, &t.right, -1);
-	}
-
 	if (op == PictOpSrc) {
 		if (dst->pCompositeClip->data)
 			span = tor_blt_src_clipped;
@@ -5468,6 +5488,9 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 					     op == PictOpSrc ? MOVE_WRITE | MOVE_INPLACE_HINT : MOVE_WRITE | MOVE_READ))
 		return true;
 
+	dx = dst->pDrawable->x * FAST_SAMPLES_X;
+	dy = dst->pDrawable->y * FAST_SAMPLES_Y;
+
 	get_drawable_deltas(dst->pDrawable, pixmap, &dst_x, &dst_y);
 
 	inplace.ptr = pixmap->devPrivate.ptr;
@@ -5475,10 +5498,76 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 	inplace.stride = pixmap->devKind;
 	inplace.opacity = color >> 24;
 
-	tor_render(NULL, &tor, (void*)&inplace,
-		   dst->pCompositeClip, span, unbounded);
+	num_threads = sna_use_threads(region.extents.x2 - region.extents.x1,
+				      region.extents.y2 - region.extents.y1,
+				      8);
+	if (num_threads == 1) {
+		struct tor tor;
 
-	tor_fini(&tor);
+		if (tor_init(&tor, &region.extents, 2*ntrap))
+			return true;
+
+		for (n = 0; n < ntrap; n++) {
+			xTrapezoid t;
+
+			if (!project_trapezoid_onto_grid(&traps[n], dx, dy, &t))
+				continue;
+
+			if (pixman_fixed_to_int(traps[n].top) >= region.extents.y2 - dst->pDrawable->y ||
+			    pixman_fixed_to_int(traps[n].bottom) < region.extents.y1 - dst->pDrawable->y)
+				continue;
+
+			tor_add_edge(&tor, &t, &t.left, 1);
+			tor_add_edge(&tor, &t, &t.right, -1);
+		}
+
+		tor_render(NULL, &tor, (void*)&inplace,
+			   dst->pCompositeClip, span, unbounded);
+
+		tor_fini(&tor);
+	} else {
+		struct inplace_thread threads[num_threads];
+		int y, h;
+
+		DBG(("%s: using %d threads for inplace compositing %dx%d\n",
+		     __FUNCTION__, num_threads,
+		     region.extents.x2 - region.extents.x1,
+		     region.extents.y2 - region.extents.y1));
+
+		threads[0].traps = traps;
+		threads[0].ntrap = ntrap;
+		threads[0].inplace = inplace;
+		threads[0].extents = region.extents;
+		threads[0].clip = dst->pCompositeClip;
+		threads[0].span = span;
+		threads[0].unbounded = unbounded;
+		threads[0].dx = dx;
+		threads[0].dy = dy;
+		threads[0].draw_x = dst->pDrawable->x;
+		threads[0].draw_y = dst->pDrawable->y;
+
+		y = region.extents.y1;
+		h = region.extents.y2 - region.extents.y1;
+		h = (h + num_threads - 1) / num_threads;
+
+		for (n = 0; n < num_threads - 1; n++) {
+			threads[n] = threads[0];
+			threads[n].extents.y1 = y;
+			threads[n].extents.y2 = y += h;
+
+			sna_threads_run(inplace_thread, &threads[n]);
+		}
+
+		if (y + h > region.extents.y2)
+			h = region.extents.y2 - y;
+
+		threads[n] = threads[0];
+		threads[n].extents.y1 = y;
+		threads[n].extents.y2 = y + h;
+		inplace_thread(&threads[n]);
+
+		sna_threads_wait();
+	}
 
 	return true;
 }

@@ -97,8 +97,7 @@ bail:
 	max_threads = 0;
 }
 
-static void
-threads_run(void (*func)(void *arg), void *arg)
+void sna_threads_run(void (*func)(void *arg), void *arg)
 {
 	int n;
 
@@ -129,7 +128,7 @@ execute:
 	pthread_mutex_unlock(&threads[n].mutex);
 }
 
-static void threads_wait(void)
+void sna_threads_wait(void)
 {
 	int n;
 
@@ -146,8 +145,7 @@ static void threads_wait(void)
 	}
 }
 
-static int
-use_threads (int width, int height, int threshold)
+int sna_use_threads(int width, int height, int threshold)
 {
 	int num_threads;
 
@@ -197,14 +195,13 @@ void sna_image_composite(pixman_op_t        op,
 {
 	int num_threads;
 
-	num_threads = use_threads(width, height, 16);
+	num_threads = sna_use_threads(width, height, 16);
 	if (num_threads <= 1) {
 		pixman_image_composite(op, src, mask, dst,
 				       src_x, src_y,
 				       mask_x, mask_y,
 				       dst_x, dst_y,
 				       width, height);
-		return;
 	} else {
 		struct thread_composite threads[num_threads];
 		int y, dy, n;
@@ -225,12 +222,12 @@ void sna_image_composite(pixman_op_t        op,
 			threads[n].width = width;
 			threads[n].height = dy;
 
-			threads_run(thread_composite, &threads[n]);
+			sna_threads_run(thread_composite, &threads[n]);
 
 			y += dy;
 			if (y + dy > dst_y + height)
 				dy = dst_y + height - y;
 		}
-		threads_wait();
+		sna_threads_wait();
 	}
 }
