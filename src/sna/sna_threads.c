@@ -63,6 +63,54 @@ static void *__run__(void *arg)
 	return NULL;
 }
 
+#if defined(__GNUC__)
+#define popcount(x) __builtin_popcount(x)
+#else
+static int popcount(unsigned int x)
+{
+	int count = 0;
+
+	while (x) {
+		count += x&1;
+		x >>= 1;
+	}
+
+	return count;
+}
+#endif
+
+static int
+num_cores(void)
+{
+	FILE *file = fopen("/proc/cpuinfo", "r");
+	int count = 0;
+	if (file) {
+		size_t len = 0;
+		char *line = NULL;
+		uint32_t processors = 0, cores = 0;
+		while (getline(&line, &len, file) != -1) {
+			int id;
+			if (sscanf(line, "physical id : %d", &id) == 1) {
+				if (id >= 32)
+					return 0;
+				processors |= 1 << id;
+			} else if (sscanf(line, "core id : %d", &id) == 1) {
+				if (id >= 32)
+					return 0;
+				cores |= 1 << id;
+			}
+		}
+		free(line);
+		fclose(file);
+
+		DBG(("%s: processors=0x%08x, cores=0x%08x\n",
+		     __FUNCTION__, processors, cores));
+
+		count = popcount(processors) * popcount(cores);
+	}
+	return count;
+}
+
 void sna_threads_init(void)
 {
 	int n;
@@ -70,7 +118,9 @@ void sna_threads_init(void)
 	if (max_threads != -1)
 		return;
 
-	max_threads = sysconf (_SC_NPROCESSORS_ONLN) / 2;
+	max_threads = num_cores();
+	if (max_threads == 0)
+		max_threads = sysconf(_SC_NPROCESSORS_ONLN) / 2;
 	if (max_threads <= 1)
 		goto bail;
 
