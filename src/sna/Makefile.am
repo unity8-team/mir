@@ -34,6 +34,7 @@ AM_CFLAGS += @VALGRIND_CFLAGS@
 endif
 
 noinst_LTLIBRARIES = libsna.la
+libsna_la_LDFLAGS = -pthread
 libsna_la_LIBADD = @UDEV_LIBS@ -lm @DRM_LIBS@ brw/libbrw.la fb/libfb.la
 
 libsna_la_SOURCES = \
@@ -62,6 +63,7 @@ libsna_la_SOURCES = \
 	sna_trapezoids.c \
 	sna_tiling.c \
 	sna_transform.c \
+	sna_threads.c \
 	sna_video.c \
 	sna_video.h \
 	sna_video_overlay.c \

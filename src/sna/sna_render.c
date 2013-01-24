@@ -1465,11 +1465,11 @@ sna_render_picture_approximate_gradient(struct sna *sna,
 		pixman_transform_multiply(&t, picture->transform, &t);
 	pixman_image_set_transform(src, &t);
 
-	pixman_image_composite(PictOpSrc, src, NULL, dst,
-			       x + dx, y + dy,
-			       0, 0,
-			       0, 0,
-			       w2, h2);
+	sna_image_composite(PictOpSrc, src, NULL, dst,
+			    x+dx, y+dy,
+			    0, 0,
+			    0, 0,
+			    w2, h2);
 	free_pixman_pict(picture, src);
 	pixman_image_unref(dst);
 
@@ -1580,11 +1580,11 @@ do_fixup:
 
 	DBG(("%s: compositing tmp=(%d+%d, %d+%d)x(%d, %d)\n",
 	     __FUNCTION__, x, dx, y, dy, w, h));
-	pixman_image_composite(PictOpSrc, src, NULL, dst,
-			       x + dx, y + dy,
-			       0, 0,
-			       0, 0,
-			       w, h);
+	sna_image_composite(PictOpSrc, src, NULL, dst,
+			    x + dx, y + dy,
+			    0, 0,
+			    0, 0,
+			    w, h);
 	free_pixman_pict(picture, src);
 
 	/* Then convert to card format */

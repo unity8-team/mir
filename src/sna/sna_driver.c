@@ -1174,5 +1174,7 @@ Bool sna_init_scrn(ScrnInfoPtr scrn, int entity_num)
 	xf86SetEntityInstanceForScreen(scrn, entity_num,
 				       xf86GetNumEntityInstances(entity_num)-1);
 
+	sna_threads_init();
+
 	return TRUE;
 }

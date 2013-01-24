@@ -835,4 +835,18 @@ inline static bool is_clipped(const RegionRec *r,
 		r->extents.y2 - r->extents.y1 != d->height);
 }
 
+void sna_threads_init(void);
+void sna_image_composite(pixman_op_t        op,
+			 pixman_image_t    *src,
+			 pixman_image_t    *mask,
+			 pixman_image_t    *dst,
+			 int16_t            src_x,
+			 int16_t            src_y,
+			 int16_t            mask_x,
+			 int16_t            mask_y,
+			 int16_t            dst_x,
+			 int16_t            dst_y,
+			 uint16_t           width,
+			 uint16_t           height);
+
 #endif /* _SNA_H */
