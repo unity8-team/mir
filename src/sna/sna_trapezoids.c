@@ -5599,32 +5599,14 @@ trapezoid_span_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 		region.extents.y2 = region.extents.y1 + extents.y2;
 		region.data = NULL;
 
-		DBG(("%s: move-to-cpu\n", __FUNCTION__));
-		if (!sna_drawable_move_region_to_cpu(dst->pDrawable, &region,
-						     MOVE_READ | MOVE_WRITE))
-			goto done;
-		if (dst->alphaMap  &&
-		    !sna_drawable_move_to_cpu(dst->alphaMap->pDrawable,
-					      MOVE_READ | MOVE_WRITE))
-			goto done;
-		if (src->pDrawable) {
-			if (!sna_drawable_move_to_cpu(src->pDrawable,
-						      MOVE_READ))
-				goto done;
-			if (src->alphaMap &&
-			    !sna_drawable_move_to_cpu(src->alphaMap->pDrawable,
-						      MOVE_READ))
-				goto done;
-		}
-
 		DBG(("%s: fbComposite()\n", __FUNCTION__));
-		fbComposite(op, src, mask, dst,
-			    src_x + dst_x - pixman_fixed_to_int(traps[0].left.p1.x),
-			    src_y + dst_y - pixman_fixed_to_int(traps[0].left.p1.y),
-			    0, 0,
-			    dst_x, dst_y,
-			    extents.x2, extents.y2);
-done:
+		sna_composite_fb(op, src, mask, dst, &region,
+				 src_x + dst_x - pixman_fixed_to_int(traps[0].left.p1.x),
+				 src_y + dst_y - pixman_fixed_to_int(traps[0].left.p1.y),
+				 0, 0,
+				 dst_x, dst_y,
+				 extents.x2, extents.y2);
+
 		FreePicture(mask, 0);
 	}
 	sna_pixmap_destroy(scratch);
