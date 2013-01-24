@@ -1,3 +1,10 @@
+xserver-xorg-video-intel (2:2.20.19-0ubuntu2) raring; urgency=low
+
+  * upstream-snapshot-778dba90c.diff: Patch to update to current git
+    master (LP: #1102390).
+
+ -- Timo Aaltonen <tjaalton@ubuntu.com>  Thu, 24 Jan 2013 10:22:41 +0200
+
 xserver-xorg-video-intel (2:2.20.19-0ubuntu1) raring; urgency=low
 
   * Merge from unreleased debian git
