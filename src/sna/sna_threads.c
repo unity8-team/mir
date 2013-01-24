@@ -294,7 +294,7 @@ void sna_image_composite(pixman_op_t        op,
 		data[n].dst_y = y;
 		data[n].height = dy;
 
-		sna_threads_run(thread_composite, &data[n]);
+		thread_composite(&data[n]);
 
 		sna_threads_wait();
 	}
