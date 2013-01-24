@@ -203,31 +203,49 @@ void sna_image_composite(pixman_op_t        op,
 				       dst_x, dst_y,
 				       width, height);
 	} else {
-		struct thread_composite threads[num_threads];
+		struct thread_composite data[num_threads];
 		int y, dy, n;
+
+		DBG(("%s: using %d threads for compositing %dx%d\n",
+		     __FUNCTION__, num_threads, width, height));
 
 		y = dst_y;
 		dy = (height + num_threads - 1) / num_threads;
-		for (n = 0; n < num_threads; n++) {
-			threads[n].op = op;
-			threads[n].src = src;
-			threads[n].mask = mask;
-			threads[n].dst = dst;
-			threads[n].src_x = src_x;
-			threads[n].src_y = src_y + y - dst_y;
-			threads[n].mask_x = mask_x;
-			threads[n].mask_y = mask_y + y - dst_y;
-			threads[n].dst_x = dst_x;
-			threads[n].dst_y = y;
-			threads[n].width = width;
-			threads[n].height = dy;
 
-			sna_threads_run(thread_composite, &threads[n]);
+		data[0].op = op;
+		data[0].src = src;
+		data[0].mask = mask;
+		data[0].dst = dst;
+		data[0].src_x = src_x;
+		data[0].src_y = src_y;
+		data[0].mask_x = mask_x;
+		data[0].mask_y = mask_y;
+		data[0].dst_x = dst_x;
+		data[0].dst_y = y;
+		data[0].width = width;
+		data[0].height = dy;
 
+		for (n = 0; n < num_threads - 1; n++) {
+			data[n] = data[0];
+			data[n].src_y += y - dst_y;
+			data[n].mask_y += y - dst_y;
+			data[n].dst_y = y;
 			y += dy;
-			if (y + dy > dst_y + height)
-				dy = dst_y + height - y;
+
+			sna_threads_run(thread_composite, &data[n]);
 		}
+
+		if (y + dy > dst_y + height)
+			dy = dst_y + height - y;
+
+		data[n] = data[0];
+		data[n].src_y += y - dst_y;
+		data[n].mask_y += y - dst_y;
+		data[n].dst_y = y;
+		data[n].height = dy;
+
+		sna_threads_run(thread_composite, &data[n]);
+
 		sna_threads_wait();
 	}
 }
