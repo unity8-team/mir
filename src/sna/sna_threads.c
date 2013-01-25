@@ -275,7 +275,7 @@ void sna_image_composite(pixman_op_t        op,
 		data[0].width = width;
 		data[0].height = dy;
 
-		for (n = 0; n < num_threads - 1; n++) {
+		for (n = 1; n < num_threads; n++) {
 			data[n] = data[0];
 			data[n].src_y += y - dst_y;
 			data[n].mask_y += y - dst_y;
@@ -288,13 +288,12 @@ void sna_image_composite(pixman_op_t        op,
 		if (y + dy > dst_y + height)
 			dy = dst_y + height - y;
 
-		data[n] = data[0];
-		data[n].src_y += y - dst_y;
-		data[n].mask_y += y - dst_y;
-		data[n].dst_y = y;
-		data[n].height = dy;
+		data[0].src_y += y - dst_y;
+		data[0].mask_y += y - dst_y;
+		data[0].dst_y = y;
+		data[0].height = dy;
 
-		thread_composite(&data[n]);
+		thread_composite(&data[0]);
 
 		sna_threads_wait();
 	}

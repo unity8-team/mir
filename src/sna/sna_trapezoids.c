@@ -2464,6 +2464,63 @@ trapezoids_inplace_fallback(CARD8 op,
 	return true;
 }
 
+struct rasterize_traps_thread {
+	xTrapezoid *traps;
+	char *ptr;
+	int stride;
+	BoxRec bounds;
+	pixman_format_code_t format;
+	int ntrap, y1, y2;
+};
+
+static void rasterize_traps_thread(void *arg)
+{
+	struct rasterize_traps_thread *thread = arg;
+	pixman_image_t *image;
+	int width, height, n;
+
+	width = thread->bounds.x2 - thread->bounds.x1;
+	height = thread->bounds.y2 - thread->bounds.y1;
+
+	memset(thread->ptr, 0, thread->stride*height);
+	if (PIXMAN_FORMAT_DEPTH(thread->format) < 8)
+		image = pixman_image_create_bits(thread->format,
+						 width, height,
+						 NULL, 0);
+	else
+		image = pixman_image_create_bits(thread->format,
+						 width, height,
+						 (uint32_t *)thread->ptr,
+						 thread->stride);
+	if (image == NULL)
+		return;
+
+	for (n = 0; n < thread->ntrap; n++)
+		pixman_rasterize_trapezoid(image,
+					   (pixman_trapezoid_t *)&thread->traps[n],
+					   -thread->bounds.x1, -thread->bounds.y1);
+
+	if (PIXMAN_FORMAT_DEPTH(thread->format) < 8) {
+		pixman_image_t *a8;
+
+		a8 = pixman_image_create_bits(PIXMAN_a8,
+					      width, height,
+					      (uint32_t *)thread->ptr,
+					      thread->stride);
+		if (a8) {
+			pixman_image_composite(PIXMAN_OP_SRC,
+					       image, NULL, a8,
+					       0, 0,
+					       0, 0,
+					       0, 0,
+					       width, height);
+			pixman_image_unref(a8);
+		}
+	}
+
+	pixman_image_unref(image);
+}
+
 static void
 trapezoids_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 		    PictFormatPtr maskFormat, INT16 xSrc, INT16 ySrc,
@@ -2519,50 +2576,88 @@ trapezoids_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 		DBG(("%s: mask (%dx%d) depth=%d, format=%08x\n",
 		     __FUNCTION__, width, height, depth, format));
 		if (is_gpu(dst->pDrawable) || picture_is_gpu(src)) {
+			int num_threads;
+
 			scratch = sna_pixmap_create_upload(screen,
 							   width, height, 8,
 							   KGEM_BUFFER_WRITE);
 			if (!scratch)
 				return;
 
-			if (depth < 8) {
-				image = pixman_image_create_bits(format, width, height,
-								 NULL, 0);
-			} else {
-				memset(scratch->devPrivate.ptr, 0, scratch->devKind*height);
-				image = pixman_image_create_bits(format, width, height,
-								 scratch->devPrivate.ptr,
-								 scratch->devKind);
-			}
-			if (image) {
-				for (; ntrap; ntrap--, traps++)
-					pixman_rasterize_trapezoid(image,
-								   (pixman_trapezoid_t *)traps,
-								   -bounds.x1, -bounds.y1);
+			num_threads = sna_use_threads(width, height, 4);
+			if (num_threads == 1) {
 				if (depth < 8) {
-					pixman_image_t *a8;
+					image = pixman_image_create_bits(format, width, height,
+									 NULL, 0);
+				} else {
+					memset(scratch->devPrivate.ptr, 0, scratch->devKind*height);
 
-					a8 = pixman_image_create_bits(PIXMAN_a8, width, height,
-								      scratch->devPrivate.ptr,
-								      scratch->devKind);
-					if (a8) {
-						pixman_image_composite(PIXMAN_OP_SRC,
-								       image, NULL, a8,
-								       0, 0,
-								       0, 0,
-								       0, 0,
-								       width, height);
-						format = PIXMAN_a8;
-						depth = 8;
-						pixman_image_unref (a8);
+					image = pixman_image_create_bits(format, width, height,
+									 scratch->devPrivate.ptr,
+									 scratch->devKind);
+				}
+				if (image) {
+					for (; ntrap; ntrap--, traps++)
+						pixman_rasterize_trapezoid(image,
+									   (pixman_trapezoid_t *)traps,
+									   -bounds.x1, -bounds.y1);
+					if (depth < 8) {
+						pixman_image_t *a8;
+
+						a8 = pixman_image_create_bits(PIXMAN_a8, width, height,
+									      scratch->devPrivate.ptr,
+									      scratch->devKind);
+						if (a8) {
+							pixman_image_composite(PIXMAN_OP_SRC,
+									       image, NULL, a8,
+									       0, 0,
+									       0, 0,
+									       0, 0,
+									       width, height);
+							format = PIXMAN_a8;
+							depth = 8;
+							pixman_image_unref(a8);
+						}
 					}
+
+					pixman_image_unref(image);
+				}
+				if (format != PIXMAN_a8) {
+					sna_pixmap_destroy(scratch);
+					return;
+				}
+			} else {
+				struct rasterize_traps_thread threads[num_threads];
+				int y, dy, n;
+
+				threads[0].ptr = scratch->devPrivate.ptr;
+				threads[0].stride = scratch->devKind;
+				threads[0].traps = traps;
+				threads[0].ntrap = ntrap;
+				threads[0].bounds = bounds;
+				threads[0].format = format;
+
+				y = bounds.y1;
+				dy = (height + num_threads - 1) / num_threads;
+
+				for (n = 1; n < num_threads; n++) {
+					threads[n] = threads[0];
+					threads[n].ptr += (y - bounds.y1) * threads[n].stride;
+					threads[n].bounds.y1 = y;
+					threads[n].bounds.y2 = y += dy;
+
+					sna_threads_run(rasterize_traps_thread, &threads[n]);
 				}
 
-				pixman_image_unref(image);
-			}
-			if (format != PIXMAN_a8) {
-				sna_pixmap_destroy(scratch);
-				return;
+				threads[0].ptr += (y - bounds.y1) * threads[0].stride;
+				threads[0].bounds.y1 = y;
+				threads[0].bounds.y2 = bounds.y2;
+				rasterize_traps_thread(&threads[0]);
+
+				sna_threads_wait();
+
+				format = PIXMAN_a8;
+				depth = 8;
 			}
 		} else {
 			scratch = sna_pixmap_create_unattached(screen,
@@ -5412,7 +5507,7 @@ trapezoid_span_inplace__x8r8g8b8(CARD8 op,
 		h = region.extents.y2 - region.extents.y1;
 		h = (h + num_threads - 1) / num_threads;
 
-		for (n = 0; n < num_threads - 1; n++) {
+		for (n = 1; n < num_threads; n++) {
 			threads[n] = threads[0];
 			threads[n].extents.y1 = y;
 			threads[n].extents.y2 = y += h;
@@ -5420,10 +5515,9 @@ trapezoid_span_inplace__x8r8g8b8(CARD8 op,
 			sna_threads_run(inplace_x8r8g8b8_thread, &threads[n]);
 		}
 
-		threads[n] = threads[0];
-		threads[n].extents.y1 = y;
-		threads[n].extents.y2 = region.extents.y2;
-		inplace_x8r8g8b8_thread(&threads[n]);
+		threads[0].extents.y1 = y;
+		threads[0].extents.y2 = region.extents.y2;
+		inplace_x8r8g8b8_thread(&threads[0]);
 
 		sna_threads_wait();
 	}
@@ -5704,7 +5798,7 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 		h = region.extents.y2 - region.extents.y1;
 		h = (h + num_threads - 1) / num_threads;
 
-		for (n = 0; n < num_threads - 1; n++) {
+		for (n = 1; n < num_threads; n++) {
 			threads[n] = threads[0];
 			threads[n].extents.y1 = y;
 			threads[n].extents.y2 = y += h;
@@ -5712,10 +5806,9 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 			sna_threads_run(inplace_thread, &threads[n]);
 		}
 
-		threads[n] = threads[0];
-		threads[n].extents.y1 = y;
-		threads[n].extents.y2 = region.extents.y2;
-		inplace_thread(&threads[n]);
+		threads[0].extents.y1 = y;
+		threads[0].extents.y2 = region.extents.y2;
+		inplace_thread(&threads[0]);
 
 		sna_threads_wait();
 	}
