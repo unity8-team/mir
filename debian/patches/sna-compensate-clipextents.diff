@@ -1,0 +1,52 @@
+commit d60128c55e8f5f69476d42c20f2fd62ccc0f411e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 24 15:41:29 2013 +0000
+
+    sna/dri: Compensate clipExtents for drawable offset
+    
+    The clipExtents is in screen coordinates whereas we just want to confirm
+    that the maximum pixel to be copied lies with the DRI2 buffer, which is
+    relative to the drawable.
+    
+    Reported-by: Matthieu Baerts <matttbe@gmail.com>
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=59806
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+diff --git a/src/sna/sna_dri.c b/src/sna/sna_dri.c
+index 9d249e3..15b87dd 100644
+--- a/src/sna/sna_dri.c
++++ b/src/sna/sna_dri.c
+@@ -842,20 +842,31 @@ can_blit(struct sna * sna,
+ 	 DRI2BufferPtr back)
+ {
+ 	RegionPtr clip;
++	int w, h;
+ 	uint32_t s;
+ 
+ 	if (draw->type == DRAWABLE_PIXMAP)
+ 		return true;
+ 
+ 	clip = &((WindowPtr)draw)->clipList;
++	w = clip->extents.x2 - draw->x;
++	h = clip->extents.y2 - draw->y;
++	if ((w|h) < 0)
++		return false;
+ 
+ 	s = get_private(front)->size;
+-	if ((s>>16) < clip->extents.y2 || (s&0xffff) < clip->extents.x2)
++	if ((s>>16) < h || (s&0xffff) < w) {
++		DBG(("%s: reject front size (%dx%d) < (%dx%d)\n", __func__,
++		       s&0xffff, s>>16, w, h));
+ 		return false;
++	}
+ 
+ 	s = get_private(back)->size;
+-	if ((s>>16) < clip->extents.y2 || (s&0xffff) < clip->extents.x2)
++	if ((s>>16) < h || (s&0xffff) < w) {
++		DBG(("%s:reject back size (%dx%d) < (%dx%d)\n", __func__,
++		     s&0xffff, s>>16, w, h));
+ 		return false;
++	}
+ 
+ 	return true;
+ }

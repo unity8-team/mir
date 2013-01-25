@@ -1,3 +1,10 @@
+xserver-xorg-video-intel (2:2.20.19-0ubuntu3) raring; urgency=low
+
+  * sna-compensate-clipextents.diff: Compensate clipExtents for drawable
+    offset (LP: #1104041). Thanks Matthieu Baerts!
+
+ -- Timo Aaltonen <tjaalton@ubuntu.com>  Fri, 25 Jan 2013 09:44:38 +0200
+
 xserver-xorg-video-intel (2:2.20.19-0ubuntu2) raring; urgency=low
 
   * upstream-snapshot-778dba90c.diff: Patch to update to current git
