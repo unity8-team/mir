@@ -1553,16 +1553,12 @@ skip_inplace_map:
 			assert(priv->gpu_bo == NULL || priv->gpu_damage == NULL);
 
 			sna_damage_destroy(&priv->cpu_damage);
-
-			sna_pixmap_free_gpu(sna, priv);
 			sna_pixmap_free_cpu(sna, priv);
 
 			if (!sna_pixmap_alloc_cpu(sna, pixmap, priv, false))
 				return false;
 
-			sna_damage_all(&priv->cpu_damage,
-					pixmap->drawable.width,
-					pixmap->drawable.height);
+			goto mark_damage;
 		}
 	}
 
@@ -1717,6 +1713,7 @@ skip_inplace_map:
 	}
 
 	if (flags & MOVE_WRITE || priv->create & KGEM_CAN_CREATE_LARGE) {
+mark_damage:
 		DBG(("%s: marking as damaged\n", __FUNCTION__));
 		sna_damage_all(&priv->cpu_damage,
 			       pixmap->drawable.width,
