@@ -35,6 +35,8 @@ struct sna_composite_op {
 			     const BoxRec *box);
 	void (*boxes)(struct sna *sna, const struct sna_composite_op *op,
 		      const BoxRec *box, int nbox);
+	void (*thread_boxes)(struct sna *sna, const struct sna_composite_op *op,
+			     const BoxRec *box, int nbox);
 	void (*done)(struct sna *sna, const struct sna_composite_op *op);
 
 	struct sna_damage **damage;
@@ -93,6 +95,9 @@ struct sna_composite_op {
 	fastcall void (*prim_emit)(struct sna *sna,
 				   const struct sna_composite_op *op,
 				   const struct sna_composite_rectangles *r);
+	fastcall void (*emit_boxes)(const struct sna_composite_op *op,
+				    const BoxRec *box, int nbox,
+				    float *v);
 
 	struct sna_composite_redirect {
 		struct kgem_bo *real_bo;

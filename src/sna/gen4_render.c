@@ -1109,9 +1109,9 @@ gen4_render_composite_box(struct sna *sna,
 }
 
 static void
-gen4_render_composite_boxes(struct sna *sna,
-			    const struct sna_composite_op *op,
-			    const BoxRec *box, int nbox)
+gen4_render_composite_boxes__blt(struct sna *sna,
+				 const struct sna_composite_op *op,
+				 const BoxRec *box, int nbox)
 {
 	DBG(("%s(%d) delta=(%d, %d), src=(%d, %d)/(%d, %d), mask=(%d, %d)/(%d, %d)\n",
 	     __FUNCTION__, nbox, op->dst.x, op->dst.y,
@@ -1143,6 +1143,62 @@ gen4_render_composite_boxes(struct sna *sna,
 			box++;
 		} while (--nbox_this_time);
 	} while (nbox);
+}
+
+static void
+gen4_render_composite_boxes(struct sna *sna,
+			    const struct sna_composite_op *op,
+			    const BoxRec *box, int nbox)
+{
+	DBG(("%s: nbox=%d\n", nbox));
+
+	do {
+		int nbox_this_time;
+		float *v;
+
+		nbox_this_time = gen4_get_rectangles(sna, op, nbox,
+						     gen4_bind_surfaces);
+		assert(nbox_this_time);
+		nbox -= nbox_this_time;
+
+		v = sna->render.vertices + sna->render.vertex_used;
+		sna->render.vertex_used += nbox_this_time * op->floats_per_rect;
+
+		op->emit_boxes(op, box, nbox_this_time, v);
+		box += nbox_this_time;
+	} while (nbox);
+}
+
+static void
+gen4_render_composite_boxes__thread(struct sna *sna,
+				    const struct sna_composite_op *op,
+				    const BoxRec *box, int nbox)
+{
+	DBG(("%s: nbox=%d\n", nbox));
+
+	sna_vertex_lock(&sna->render);
+	do {
+		int nbox_this_time;
+		float *v;
+
+		nbox_this_time = gen4_get_rectangles(sna, op, nbox,
+						     gen4_bind_surfaces);
+		assert(nbox_this_time);
+		nbox -= nbox_this_time;
+
+		v = sna->render.vertices + sna->render.vertex_used;
+		sna->render.vertex_used += nbox_this_time * op->floats_per_rect;
+
+		sna_vertex_acquire__locked(&sna->render);
+		sna_vertex_unlock(&sna->render);
+
+		op->emit_boxes(op, box, nbox_this_time, v);
+		box += nbox_this_time;
+
+		sna_vertex_lock(&sna->render);
+		sna_vertex_release__locked(&sna->render);
+	} while (nbox);
+	sna_vertex_unlock(&sna->render);
 }
 
 #ifndef MAX
@@ -1899,7 +1955,11 @@ gen4_render_composite(struct sna *sna,
 
 	tmp->blt   = gen4_render_composite_blt;
 	tmp->box   = gen4_render_composite_box;
-	tmp->boxes = gen4_render_composite_boxes;
+	tmp->boxes = gen4_render_composite_boxes__blt;
+	if (tmp->emit_boxes) {
+		tmp->boxes = gen4_render_composite_boxes;
+		tmp->thread_boxes = gen4_render_composite_boxes__thread;
+	}
 	tmp->done  = gen4_render_composite_done;
 
 	if (!kgem_check_bo(&sna->kgem,

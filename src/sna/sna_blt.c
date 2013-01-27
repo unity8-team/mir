@@ -934,6 +934,76 @@ static void blt_composite_fill_boxes_no_offset(struct sna *sna,
 	_sna_blt_fill_boxes(sna, &op->u.blt, box, n);
 }
 
+static void blt_composite_fill_boxes_no_offset__thread(struct sna *sna,
+						       const struct sna_composite_op *op,
+						       const BoxRec *box, int nbox)
+{
+	struct kgem *kgem = &sna->kgem;
+	const struct sna_blt_state *blt = &op->u.blt;
+	uint32_t cmd = blt->cmd;
+
+	DBG(("%s: %08x x %d\n", __FUNCTION__, blt->pixel, nbox));
+
+	sna_vertex_lock(&sna->render);
+	if (!kgem_check_batch(kgem, 3)) {
+		sna_vertex_wait__locked(&sna->render);
+		sna_blt_fill_begin(sna, blt);
+	}
+
+	do {
+		uint32_t *b = kgem->batch + kgem->nbatch;
+		int nbox_this_time;
+
+		nbox_this_time = nbox;
+		if (3*nbox_this_time > kgem->surface - kgem->nbatch - KGEM_BATCH_RESERVED)
+			nbox_this_time = (kgem->surface - kgem->nbatch - KGEM_BATCH_RESERVED) / 3;
+		assert(nbox_this_time);
+		nbox -= nbox_this_time;
+
+		kgem->nbatch += 3 * nbox_this_time;
+		assert(kgem->nbatch < kgem->surface);
+		sna_vertex_acquire__locked(&sna->render);
+		sna_vertex_unlock(&sna->render);
+
+		while (nbox_this_time >= 8) {
+			b[0] = cmd; *(uint64_t *)(b+1) = *(const uint64_t *)box++;
+			b[3] = cmd; *(uint64_t *)(b+4) = *(const uint64_t *)box++;
+			b[6] = cmd; *(uint64_t *)(b+7) = *(const uint64_t *)box++;
+			b[9] = cmd; *(uint64_t *)(b+10) = *(const uint64_t *)box++;
+			b[12] = cmd; *(uint64_t *)(b+13) = *(const uint64_t *)box++;
+			b[15] = cmd; *(uint64_t *)(b+16) = *(const uint64_t *)box++;
+			b[18] = cmd; *(uint64_t *)(b+19) = *(const uint64_t *)box++;
+			b[21] = cmd; *(uint64_t *)(b+22) = *(const uint64_t *)box++;
+			b += 24;
+			nbox_this_time -= 8;
+		}
+		if (nbox_this_time & 4) {
+			b[0] = cmd; *(uint64_t *)(b+1) = *(const uint64_t *)box++;
+			b[3] = cmd; *(uint64_t *)(b+4) = *(const uint64_t *)box++;
+			b[6] = cmd; *(uint64_t *)(b+7) = *(const uint64_t *)box++;
+			b[9] = cmd; *(uint64_t *)(b+10) = *(const uint64_t *)box++;
+			b += 12;
+		}
+		if (nbox_this_time & 2) {
+			b[0] = cmd; *(uint64_t *)(b+1) = *(const uint64_t *)box++;
+			b[3] = cmd; *(uint64_t *)(b+4) = *(const uint64_t *)box++;
+			b += 6;
+		}
+		if (nbox_this_time & 1) {
+			b[0] = cmd; *(uint64_t *)(b+1) = *(const uint64_t *)box++;
+		}
+
+		sna_vertex_lock(&sna->render);
+		sna_vertex_release__locked(&sna->render);
+		if (!nbox)
+			break;
+
+		sna_vertex_wait__locked(&sna->render);
+		sna_blt_fill_begin(sna, blt);
+	} while (1);
+	sna_vertex_unlock(&sna->render);
+}
+
 fastcall static void blt_composite_fill_box(struct sna *sna,
 					    const struct sna_composite_op *op,
 					    const BoxRec *box)
@@ -955,6 +1025,92 @@ static void blt_composite_fill_boxes(struct sna *sna,
 				 box->x2 - box->x1, box->y2 - box->y1);
 		box++;
 	} while (--n);
+}
+
+static inline uint64_t add4(const BoxRec *b, int16_t x, int16_t y)
+{
+	union {
+		uint64_t v;
+		int16_t i[4];
+	} vi;
+	vi.v = *(uint64_t *)b;
+	vi.i[0] += x;
+	vi.i[1] += y;
+	vi.i[2] += x;
+	vi.i[3] += y;
+	return vi.v;
+}
+
+static void blt_composite_fill_boxes__thread(struct sna *sna,
+					     const struct sna_composite_op *op,
+					     const BoxRec *box, int nbox)
+{
+	struct kgem *kgem = &sna->kgem;
+	const struct sna_blt_state *blt = &op->u.blt;
+	uint32_t cmd = blt->cmd;
+	int16_t dx = op->dst.x;
+	int16_t dy = op->dst.y;
+
+	DBG(("%s: %08x x %d\n", __FUNCTION__, blt->pixel, nbox));
+
+	sna_vertex_lock(&sna->render);
+	if (!kgem_check_batch(kgem, 3)) {
+		sna_vertex_wait__locked(&sna->render);
+		sna_blt_fill_begin(sna, blt);
+	}
+
+	do {
+		uint32_t *b = kgem->batch + kgem->nbatch;
+		int nbox_this_time;
+
+		nbox_this_time = nbox;
+		if (3*nbox_this_time > kgem->surface - kgem->nbatch - KGEM_BATCH_RESERVED)
+			nbox_this_time = (kgem->surface - kgem->nbatch - KGEM_BATCH_RESERVED) / 3;
+		assert(nbox_this_time);
+		nbox -= nbox_this_time;
+
+		kgem->nbatch += 3 * nbox_this_time;
+		assert(kgem->nbatch < kgem->surface);
+		sna_vertex_acquire__locked(&sna->render);
+		sna_vertex_unlock(&sna->render);
+
+		while (nbox_this_time >= 8) {
+			b[0] = cmd; *(uint64_t *)(b+1) = add4(box++, dx, dy);
+			b[3] = cmd; *(uint64_t *)(b+4) = add4(box++, dx, dy);
+			b[6] = cmd; *(uint64_t *)(b+7) = add4(box++, dx, dy);
+			b[9] = cmd; *(uint64_t *)(b+10) = add4(box++, dx, dy);
+			b[12] = cmd; *(uint64_t *)(b+13) = add4(box++, dx, dy);
+			b[15] = cmd; *(uint64_t *)(b+16) = add4(box++, dx, dy);
+			b[18] = cmd; *(uint64_t *)(b+19) = add4(box++, dx, dy);
+			b[21] = cmd; *(uint64_t *)(b+22) = add4(box++, dx, dy);
+			b += 24;
+			nbox_this_time -= 8;
+		}
+		if (nbox_this_time & 4) {
+			b[0] = cmd; *(uint64_t *)(b+1) = add4(box++, dx, dy);
+			b[3] = cmd; *(uint64_t *)(b+4) = add4(box++, dx, dy);
+			b[6] = cmd; *(uint64_t *)(b+7) = add4(box++, dx, dy);
+			b[9] = cmd; *(uint64_t *)(b+10) = add4(box++, dx, dy);
+			b += 12;
+		}
+		if (nbox_this_time & 2) {
+			b[0] = cmd; *(uint64_t *)(b+1) = add4(box++, dx, dy);
+			b[3] = cmd; *(uint64_t *)(b+4) = add4(box++, dx, dy);
+			b += 6;
+		}
+		if (nbox_this_time & 1) {
+			b[0] = cmd; *(uint64_t *)(b+1) = add4(box++, dx, dy);
+		}
+
+		sna_vertex_lock(&sna->render);
+		sna_vertex_release__locked(&sna->render);
+		if (!nbox)
+			break;
+
+		sna_vertex_wait__locked(&sna->render);
+		sna_blt_fill_begin(sna, blt);
+	} while (1);
+	sna_vertex_unlock(&sna->render);
 }
 
 fastcall
@@ -1014,6 +1170,7 @@ prepare_blt_clear(struct sna *sna,
 		op->blt   = blt_composite_fill__cpu;
 		op->box   = blt_composite_fill_box__cpu;
 		op->boxes = blt_composite_fill_boxes__cpu;
+		op->thread_boxes = blt_composite_fill_boxes__cpu;
 		op->done  = nop_done;
 		op->u.blt.pixel = 0;
 		return true;
@@ -1023,9 +1180,11 @@ prepare_blt_clear(struct sna *sna,
 	if (op->dst.x|op->dst.y) {
 		op->box   = blt_composite_fill_box;
 		op->boxes = blt_composite_fill_boxes;
+		op->thread_boxes = blt_composite_fill_boxes__thread;
 	} else {
 		op->box   = blt_composite_fill_box_no_offset;
 		op->boxes = blt_composite_fill_boxes_no_offset;
+		op->thread_boxes = blt_composite_fill_boxes_no_offset__thread;
 	}
 	op->done = nop_done;
 
@@ -1050,6 +1209,7 @@ prepare_blt_fill(struct sna *sna,
 		op->blt = blt_composite_fill__cpu;
 		op->box   = blt_composite_fill_box__cpu;
 		op->boxes = blt_composite_fill_boxes__cpu;
+		op->thread_boxes = blt_composite_fill_boxes__cpu;
 		op->done = nop_done;
 		return true;
 	}
@@ -1058,9 +1218,11 @@ prepare_blt_fill(struct sna *sna,
 	if (op->dst.x|op->dst.y) {
 		op->box   = blt_composite_fill_box;
 		op->boxes = blt_composite_fill_boxes;
+		op->thread_boxes = blt_composite_fill_boxes__thread;
 	} else {
 		op->box   = blt_composite_fill_box_no_offset;
 		op->boxes = blt_composite_fill_boxes_no_offset;
+		op->thread_boxes = blt_composite_fill_boxes_no_offset__thread;
 	}
 	op->done = nop_done;
 
@@ -1149,6 +1311,141 @@ static void blt_composite_copy_boxes(struct sna *sna,
 				 box->x1 + op->dst.x, box->y1 + op->dst.y);
 		box++;
 	} while(--nbox);
+}
+
+static inline uint32_t add2(uint32_t v, int16_t x, int16_t y)
+{
+	x += v & 0xffff;
+	y += v >> 16;
+	return (uint16_t)y << 16 | x;
+}
+
+static void blt_composite_copy_boxes__thread(struct sna *sna,
+					     const struct sna_composite_op *op,
+					     const BoxRec *box, int nbox)
+{
+	struct kgem *kgem = &sna->kgem;
+	int dst_dx = op->dst.x;
+	int dst_dy = op->dst.y;
+	int src_dx = op->src.offset[0];
+	int src_dy = op->src.offset[1];
+	uint32_t cmd = op->u.blt.cmd;
+	uint32_t br13 = op->u.blt.br13;
+	struct kgem_bo *src_bo = op->u.blt.bo[0];
+	struct kgem_bo *dst_bo = op->u.blt.bo[1];
+	int src_pitch = op->u.blt.pitch[0];
+
+	DBG(("%s: nbox=%d\n", __FUNCTION__, nbox));
+
+	sna_vertex_lock(&sna->render);
+
+	if ((dst_dx | dst_dy) == 0) {
+		uint64_t hdr = (uint64_t)br13 << 32 | cmd;
+		do {
+			int nbox_this_time;
+
+			nbox_this_time = nbox;
+			if (8*nbox_this_time > kgem->surface - kgem->nbatch - KGEM_BATCH_RESERVED)
+				nbox_this_time = (kgem->surface - kgem->nbatch - KGEM_BATCH_RESERVED) / 8;
+			if (2*nbox_this_time > KGEM_RELOC_SIZE(kgem) - kgem->nreloc)
+				nbox_this_time = (KGEM_RELOC_SIZE(kgem) - kgem->nreloc)/2;
+			assert(nbox_this_time);
+			nbox -= nbox_this_time;
+
+			do {
+				uint32_t *b = kgem->batch + kgem->nbatch;
+
+				DBG(("  %s: box=(%d, %d)x(%d, %d)\n",
+				     __FUNCTION__,
+				     box->x1, box->y1,
+				     box->x2 - box->x1, box->y2 - box->y1));
+
+				assert(box->x1 + src_dx >= 0);
+				assert(box->y1 + src_dy >= 0);
+				assert(box->x1 + src_dx <= INT16_MAX);
+				assert(box->y1 + src_dy <= INT16_MAX);
+
+				assert(box->x1 >= 0);
+				assert(box->y1 >= 0);
+
+				*(uint64_t *)&b[0] = hdr;
+				*(uint64_t *)&b[2] = *(const uint64_t *)box;
+				b[4] = kgem_add_reloc(kgem, kgem->nbatch + 4, dst_bo,
+						      I915_GEM_DOMAIN_RENDER << 16 |
+						      I915_GEM_DOMAIN_RENDER |
+						      KGEM_RELOC_FENCED,
+						      0);
+				b[5] = add2(b[2], src_dx, src_dy);
+				b[6] = src_pitch;
+				b[7] = kgem_add_reloc(kgem, kgem->nbatch + 7, src_bo,
+						      I915_GEM_DOMAIN_RENDER << 16 |
+						      KGEM_RELOC_FENCED,
+						      0);
+				kgem->nbatch += 8;
+				assert(kgem->nbatch < kgem->surface);
+				box++;
+			} while (--nbox_this_time);
+
+			if (!nbox)
+				break;
+
+			_kgem_submit(kgem);
+			_kgem_set_mode(kgem, KGEM_BLT);
+		} while (1);
+	} else {
+		do {
+			int nbox_this_time;
+
+			nbox_this_time = nbox;
+			if (8*nbox_this_time > kgem->surface - kgem->nbatch - KGEM_BATCH_RESERVED)
+				nbox_this_time = (kgem->surface - kgem->nbatch - KGEM_BATCH_RESERVED) / 8;
+			if (2*nbox_this_time > KGEM_RELOC_SIZE(kgem) - kgem->nreloc)
+				nbox_this_time = (KGEM_RELOC_SIZE(kgem) - kgem->nreloc)/2;
+			assert(nbox_this_time);
+			nbox -= nbox_this_time;
+
+			do {
+				uint32_t *b = kgem->batch + kgem->nbatch;
+
+				DBG(("  %s: box=(%d, %d)x(%d, %d)\n",
+				     __FUNCTION__,
+				     box->x1, box->y1,
+				     box->x2 - box->x1, box->y2 - box->y1));
+
+				assert(box->x1 + src_dx >= 0);
+				assert(box->y1 + src_dy >= 0);
+
+				assert(box->x1 + dst_dx >= 0);
+				assert(box->y1 + dst_dy >= 0);
+
+				b[0] = cmd;
+				b[1] = br13;
+				b[2] = ((box->y1 + dst_dy) << 16) | (box->x1 + dst_dx);
+				b[3] = ((box->y2 + dst_dy) << 16) | (box->x2 + dst_dx);
+				b[4] = kgem_add_reloc(kgem, kgem->nbatch + 4, dst_bo,
+						      I915_GEM_DOMAIN_RENDER << 16 |
+						      I915_GEM_DOMAIN_RENDER |
+						      KGEM_RELOC_FENCED,
+						      0);
+				b[5] = ((box->y1 + src_dy) << 16) | (box->x1 + src_dx);
+				b[6] = src_pitch;
+				b[7] = kgem_add_reloc(kgem, kgem->nbatch + 7, src_bo,
+						      I915_GEM_DOMAIN_RENDER << 16 |
+						      KGEM_RELOC_FENCED,
+						      0);
+				kgem->nbatch += 8;
+				assert(kgem->nbatch < kgem->surface);
+				box++;
+			} while (--nbox_this_time);
+
+			if (!nbox)
+				break;
+
+			_kgem_submit(kgem);
+			_kgem_set_mode(kgem, KGEM_BLT);
+		} while (1);
+	}
+	sna_vertex_unlock(&sna->render);
 }
 
 fastcall static void
@@ -1277,6 +1574,7 @@ prepare_blt_copy(struct sna *sna,
 		op->blt   = blt_composite_copy;
 		op->box   = blt_composite_copy_box;
 		op->boxes = blt_composite_copy_boxes;
+		op->thread_boxes = blt_composite_copy_boxes__thread;
 
 		if (!sna_blt_copy_init(sna, &op->u.blt, bo, op->dst.bo,
 				       src->drawable.bitsPerPixel,
@@ -2075,6 +2373,7 @@ sna_blt_composite__convert(struct sna *sna,
 		tmp->blt   = blt_composite_copy;
 		tmp->box   = blt_composite_copy_box;
 		tmp->boxes = blt_composite_copy_boxes;
+		tmp->thread_boxes = blt_composite_copy_boxes__thread;
 
 		if (!sna_blt_copy_init(sna, &tmp->u.blt,
 				       tmp->src.bo, tmp->dst.bo,
@@ -2444,13 +2743,6 @@ bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
 	} while (nbox);
 
 	return true;
-}
-
-static inline uint32_t add2(uint32_t v, int16_t x, int16_t y)
-{
-	x += v & 0xffff;
-	y += v >> 16;
-	return (uint16_t)y << 16 | x;
 }
 
 bool sna_blt_copy_boxes(struct sna *sna, uint8_t alu,

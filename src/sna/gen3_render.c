@@ -431,6 +431,26 @@ gen3_emit_composite_primitive_constant(struct sna *sna,
 }
 
 fastcall static void
+gen3_emit_composite_boxes_constant(const struct sna_composite_op *op,
+				   const BoxRec *box, int nbox,
+				   float *v)
+{
+	do {
+		v[0] = box->x2;
+		v[1] = box->y2;
+
+		v[2] = box->x1;
+		v[3] = box->y2;
+
+		v[4] = box->x1;
+		v[5] = box->y1;
+
+		box++;
+		v += 6;
+	} while (--nbox);
+}
+
+fastcall static void
 gen3_emit_composite_primitive_identity_gradient(struct sna *sna,
 						const struct sna_composite_op *op,
 						const struct sna_composite_rectangles *r)
@@ -454,6 +474,32 @@ gen3_emit_composite_primitive_identity_gradient(struct sna *sna,
 	gen3_emit_composite_dstcoord(sna, dst_x, dst_y);
 	OUT_VERTEX(src_x);
 	OUT_VERTEX(src_y);
+}
+
+fastcall static void
+gen3_emit_composite_boxes_identity_gradient(const struct sna_composite_op *op,
+					    const BoxRec *box, int nbox,
+					    float *v)
+{
+	do {
+		v[0] = box->x2;
+		v[1] = box->y2;
+		v[2] = box->x2 + op->src.offset[0];
+		v[3] = box->y2 + op->src.offset[1];
+
+		v[4] = box->x1;
+		v[5] = box->y2;
+		v[6] = box->x1 + op->src.offset[0];
+		v[7] = box->y2 + op->src.offset[1];
+
+		v[8] = box->x1;
+		v[9] = box->y1;
+		v[10] = box->x1 + op->src.offset[0];
+		v[11] = box->y1 + op->src.offset[1];
+
+		v += 12;
+		box++;
+	} while (--nbox);
 }
 
 fastcall static void
@@ -494,6 +540,40 @@ gen3_emit_composite_primitive_affine_gradient(struct sna *sna,
 }
 
 fastcall static void
+gen3_emit_composite_boxes_affine_gradient(const struct sna_composite_op *op,
+					  const BoxRec *box, int nbox,
+					  float *v)
+{
+	const PictTransform *transform = op->src.transform;
+
+	do {
+		v[0] = box->x2;
+		v[1] = box->y2;
+		sna_get_transformed_coordinates(box->x2 + op->src.offset[0],
+						box->y2 + op->src.offset[1],
+						transform,
+						&v[2], &v[3]);
+
+		v[4] = box->x1;
+		v[5] = box->y2;
+		sna_get_transformed_coordinates(box->x1 + op->src.offset[0],
+						box->y2 + op->src.offset[1],
+						transform,
+						&v[6], &v[7]);
+
+		v[8] = box->x1;
+		v[9] = box->y1;
+		sna_get_transformed_coordinates(box->x1 + op->src.offset[0],
+						box->y1 + op->src.offset[1],
+						transform,
+						&v[10], &v[11]);
+
+		box++;
+		v += 12;
+	} while (--nbox);
+}
+
+fastcall static void
 gen3_emit_composite_primitive_identity_source(struct sna *sna,
 					      const struct sna_composite_op *op,
 					      const struct sna_composite_rectangles *r)
@@ -519,6 +599,28 @@ gen3_emit_composite_primitive_identity_source(struct sna *sna,
 }
 
 fastcall static void
+gen3_emit_composite_boxes_identity_source(const struct sna_composite_op *op,
+					  const BoxRec *box, int nbox,
+					  float *v)
+{
+	do {
+		v[0] = box->x2 + op->dst.x;
+		v[8] = v[4] = box->x1 + op->dst.x;
+		v[5] = v[1] = box->y2 + op->dst.y;
+		v[9] = box->y1 + op->dst.y;
+
+		v[10] = v[6] = (box->x1 + op->src.offset[0]) * op->src.scale[0];
+		v[2] = (box->x2 + op->src.offset[0]) * op->src.scale[0];
+
+		v[11] = (box->y1 + op->src.offset[1]) * op->src.scale[1];
+		v[7] = v[3] = (box->y2 + op->src.offset[1]) * op->src.scale[1];
+
+		v += 12;
+		box++;
+	} while (--nbox);
+}
+
+fastcall static void
 gen3_emit_composite_primitive_identity_source_no_offset(struct sna *sna,
 							const struct sna_composite_op *op,
 							const struct sna_composite_rectangles *r)
@@ -541,6 +643,28 @@ gen3_emit_composite_primitive_identity_source_no_offset(struct sna *sna,
 
 	v[2] = v[6] + w * op->src.scale[0];
 	v[7] = v[3] = v[11] + h * op->src.scale[1];
+}
+
+fastcall static void
+gen3_emit_composite_boxes_identity_source_no_offset(const struct sna_composite_op *op,
+						    const BoxRec *box, int nbox,
+						    float *v)
+{
+	do {
+		v[0] = box->x2;
+		v[8] = v[4] = box->x1;
+		v[5] = v[1] = box->y2;
+		v[9] = box->y1;
+
+		v[10] = v[6] = box->x1 * op->src.scale[0];
+		v[2] = box->x2 * op->src.scale[0];
+
+		v[11] = box->y1 * op->src.scale[1];
+		v[7] = v[3] = box->y2 * op->src.scale[1];
+
+		v += 12;
+		box++;
+	} while (--nbox);
 }
 
 fastcall static void
@@ -574,6 +698,39 @@ gen3_emit_composite_primitive_affine_source(struct sna *sna,
 	_sna_get_transformed_scaled(src_x, src_y,
 				    transform, op->src.scale,
 				    &v[10], &v[11]);
+}
+
+fastcall static void
+gen3_emit_composite_boxes_affine_source(const struct sna_composite_op *op,
+					const BoxRec *box, int nbox,
+					float *v)
+{
+	const PictTransform *transform = op->src.transform;
+
+	do {
+		v[0] = box->x2;
+		v[5] = v[1] = box->y2;
+		v[8] = v[4] = box->x1;
+		v[9] = box->y1;
+
+		_sna_get_transformed_scaled(box->x2 + op->src.offset[0],
+					    box->y2 + op->src.offset[1],
+					    transform, op->src.scale,
+					    &v[2], &v[3]);
+
+		_sna_get_transformed_scaled(box->x1 + op->src.offset[0],
+					    box->y2 + op->src.offset[1],
+					    transform, op->src.scale,
+					    &v[6], &v[7]);
+
+		_sna_get_transformed_scaled(box->x1 + op->src.offset[0],
+					    box->y1 + op->src.offset[1],
+					    transform, op->src.scale,
+					    &v[10], &v[11]);
+
+		v += 12;
+		box++;
+	} while (--nbox);
 }
 
 fastcall static void
@@ -1900,9 +2057,9 @@ gen3_render_composite_box(struct sna *sna,
 }
 
 static void
-gen3_render_composite_boxes(struct sna *sna,
-			    const struct sna_composite_op *op,
-			    const BoxRec *box, int nbox)
+gen3_render_composite_boxes__blt(struct sna *sna,
+				 const struct sna_composite_op *op,
+				 const BoxRec *box, int nbox)
 {
 	DBG(("%s: nbox=%d, src=+(%d, %d), mask=+(%d, %d), dst=+(%d, %d)\n",
 	     __FUNCTION__, nbox,
@@ -1933,6 +2090,60 @@ gen3_render_composite_boxes(struct sna *sna,
 			box++;
 		} while (--nbox_this_time);
 	} while (nbox);
+}
+
+static void
+gen3_render_composite_boxes(struct sna *sna,
+			    const struct sna_composite_op *op,
+			    const BoxRec *box, int nbox)
+{
+	DBG(("%s: nbox=%d\n", nbox));
+
+	do {
+		int nbox_this_time;
+		float *v;
+
+		nbox_this_time = gen3_get_rectangles(sna, op, nbox);
+		assert(nbox_this_time);
+		nbox -= nbox_this_time;
+
+		v = sna->render.vertices + sna->render.vertex_used;
+		sna->render.vertex_used += nbox_this_time * op->floats_per_rect;
+
+		op->emit_boxes(op, box, nbox_this_time, v);
+		box += nbox_this_time;
+	} while (nbox);
+}
+
+static void
+gen3_render_composite_boxes__thread(struct sna *sna,
+				    const struct sna_composite_op *op,
+				    const BoxRec *box, int nbox)
+{
+	DBG(("%s: nbox=%d\n", nbox));
+
+	sna_vertex_lock(&sna->render);
+	do {
+		int nbox_this_time;
+		float *v;
+
+		nbox_this_time = gen3_get_rectangles(sna, op, nbox);
+		assert(nbox_this_time);
+		nbox -= nbox_this_time;
+
+		v = sna->render.vertices + sna->render.vertex_used;
+		sna->render.vertex_used += nbox_this_time * op->floats_per_rect;
+
+		sna_vertex_acquire__locked(&sna->render);
+		sna_vertex_unlock(&sna->render);
+
+		op->emit_boxes(op, box, nbox_this_time, v);
+		box += nbox_this_time;
+
+		sna_vertex_lock(&sna->render);
+		sna_vertex_release__locked(&sna->render);
+	} while (nbox);
+	sna_vertex_unlock(&sna->render);
 }
 
 static void
@@ -2986,24 +3197,32 @@ gen3_render_composite(struct sna *sna,
 		case SHADER_WHITE:
 		case SHADER_CONSTANT:
 			tmp->prim_emit = gen3_emit_composite_primitive_constant;
+			tmp->emit_boxes = gen3_emit_composite_boxes_constant;
 			break;
 		case SHADER_LINEAR:
 		case SHADER_RADIAL:
-			if (tmp->src.transform == NULL)
+			if (tmp->src.transform == NULL) {
 				tmp->prim_emit = gen3_emit_composite_primitive_identity_gradient;
-			else if (tmp->src.is_affine)
+				tmp->emit_boxes = gen3_emit_composite_boxes_identity_gradient;
+			} else if (tmp->src.is_affine) {
 				tmp->prim_emit = gen3_emit_composite_primitive_affine_gradient;
+				tmp->emit_boxes = gen3_emit_composite_boxes_affine_gradient;
+			}
 			break;
 		case SHADER_TEXTURE:
 			if (tmp->src.transform == NULL) {
-				if ((tmp->src.offset[0]|tmp->src.offset[1]|tmp->dst.x|tmp->dst.y) == 0)
+				if ((tmp->src.offset[0]|tmp->src.offset[1]|tmp->dst.x|tmp->dst.y) == 0) {
 					tmp->prim_emit = gen3_emit_composite_primitive_identity_source_no_offset;
-				else
+					tmp->emit_boxes = gen3_emit_composite_boxes_identity_source_no_offset;
+				} else {
 					tmp->prim_emit = gen3_emit_composite_primitive_identity_source;
+					tmp->emit_boxes = gen3_emit_composite_boxes_identity_source;
+				}
 			} else if (tmp->src.is_affine) {
 				tmp->src.scale[0] /= tmp->src.transform->matrix[2][2];
 				tmp->src.scale[1] /= tmp->src.transform->matrix[2][2];
 				tmp->prim_emit = gen3_emit_composite_primitive_affine_source;
+				tmp->emit_boxes = gen3_emit_composite_boxes_affine_source;
 			}
 			break;
 		}
@@ -3035,7 +3254,11 @@ gen3_render_composite(struct sna *sna,
 
 	tmp->blt   = gen3_render_composite_blt;
 	tmp->box   = gen3_render_composite_box;
-	tmp->boxes = gen3_render_composite_boxes;
+	tmp->boxes = gen3_render_composite_boxes__blt;
+	if (tmp->emit_boxes) {
+		tmp->boxes = gen3_render_composite_boxes;
+		tmp->thread_boxes = gen3_render_composite_boxes__thread;
+	}
 	tmp->done  = gen3_render_composite_done;
 
 	if (!kgem_check_bo(&sna->kgem,
