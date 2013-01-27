@@ -29,6 +29,7 @@
 
 #include <unistd.h>
 #include <pthread.h>
+#include <signal.h>
 
 static int max_threads = -1;
 
@@ -44,6 +45,11 @@ static struct thread {
 static void *__run__(void *arg)
 {
 	struct thread *t = arg;
+	sigset_t signals;
+
+	/* Disable all signals in the slave threads as X uses them for IO */
+	sigfillset(&signals);
+	pthread_sigmask(SIG_BLOCK, &signals, NULL);
 
 	pthread_mutex_lock(&t->mutex);
 	while (1) {
