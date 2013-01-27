@@ -42,6 +42,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 
 #include <stdint.h>
+
 #include "compiler.h"
 
 #include <xorg-server.h>

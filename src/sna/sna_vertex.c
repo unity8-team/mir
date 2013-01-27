@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011 Intel Corporation
+ * Copyright © 2013 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,37 +25,13 @@
  *
  */
 
-#ifndef _SNA_COMPILER_H_
-#define _SNA_COMPILER_H_
+#include "sna.h"
 
-#if defined(__GNUC__) && (__GNUC__ > 2) && defined(__OPTIMIZE__)
-#define likely(expr) (__builtin_expect (!!(expr), 1))
-#define unlikely(expr) (__builtin_expect (!!(expr), 0))
-#define noinline __attribute__((noinline))
-#define force_inline inline __attribute__((always_inline))
-#define fastcall __attribute__((regparm(3)))
-#define must_check __attribute__((warn_unused_result))
-#define constant __attribute__((const))
-#define __packed__ __attribute__((__packed__))
-#else
-#define likely(expr) (expr)
-#define unlikely(expr) (expr)
-#define noinline
-#define force_inline
-#define fastcall
-#define must_check
-#define constant
-#define __packed__
-#endif
+#include <unistd.h>
 
-#ifdef HAVE_VALGRIND
-#define VG(x) x
-#else
-#define VG(x)
-#endif
-
-#define VG_CLEAR(s) VG(memset(&s, 0, sizeof(s)))
-
-#define COMPILE_TIME_ASSERT(E) ((void)sizeof(char[1 - 2*!(E)]))
-
-#endif /* _SNA_COMPILER_H_ */
+void sna_vertex_init(struct sna *sna)
+{
+	pthread_mutex_init(&sna->render.lock, NULL);
+	pthread_cond_init(&sna->render.wait, NULL);
+	sna->render.active = 0;
+}

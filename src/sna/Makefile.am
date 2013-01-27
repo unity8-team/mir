@@ -38,6 +38,7 @@ libsna_la_LDFLAGS = -pthread
 libsna_la_LIBADD = @UDEV_LIBS@ -lm @DRM_LIBS@ brw/libbrw.la fb/libfb.la
 
 libsna_la_SOURCES = \
+	atomic.h \
 	blt.c \
 	compiler.h \
 	kgem.c \
@@ -64,6 +65,7 @@ libsna_la_SOURCES = \
 	sna_tiling.c \
 	sna_transform.c \
 	sna_threads.c \
+	sna_vertex.c \
 	sna_video.c \
 	sna_video.h \
 	sna_video_overlay.c \

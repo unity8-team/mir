@@ -1282,6 +1282,17 @@ static int gen7_get_rectangles__flush(struct sna *sna,
 		}
 	}
 
+	/* Preventing discarding new vbo after lock contention */
+	if (sna->render.active) {
+		int rem;
+
+		sna_vertex_wait__locked(&sna->render);
+
+		rem = vertex_space(sna);
+		if (rem > op->floats_per_rect)
+			return rem;
+	}
+
 	return gen4_vertex_finish(sna);
 }
 
@@ -1318,6 +1329,7 @@ flush:
 		gen4_vertex_flush(sna);
 		gen7_magic_ca_pass(sna, op);
 	}
+	gen4_vertex_finish(sna);
 	_kgem_submit(&sna->kgem);
 	emit_state(sna, op);
 	goto start;
@@ -2403,6 +2415,42 @@ gen7_render_composite_spans_boxes(struct sna *sna,
 }
 
 fastcall static void
+gen7_render_composite_spans_boxes__thread(struct sna *sna,
+					  const struct sna_composite_spans_op *op,
+					  const struct sna_opacity_box *box,
+					  int nbox)
+{
+	DBG(("%s: nbox=%d, src=+(%d, %d), dst=+(%d, %d)\n",
+	     __FUNCTION__, nbox,
+	     op->base.src.offset[0], op->base.src.offset[1],
+	     op->base.dst.x, op->base.dst.y));
+
+	sna_vertex_lock(&sna->render);
+	do {
+		int nbox_this_time;
+		float *v;
+
+		nbox_this_time = gen7_get_rectangles(sna, &op->base, nbox,
+						     gen7_emit_composite_state);
+		assert(nbox_this_time);
+		nbox -= nbox_this_time;
+
+		v = sna->render.vertices + sna->render.vertex_used;
+		sna->render.vertex_used += nbox_this_time * op->base.floats_per_rect;
+
+		sna_vertex_acquire__locked(&sna->render);
+		sna_vertex_unlock(&sna->render);
+
+		op->emit_boxes(op, box, nbox_this_time, v);
+		box += nbox_this_time;
+
+		sna_vertex_lock(&sna->render);
+		sna_vertex_release__locked(&sna->render);
+	} while (nbox);
+	sna_vertex_unlock(&sna->render);
+}
+
+fastcall static void
 gen7_render_composite_spans_done(struct sna *sna,
 				 const struct sna_composite_spans_op *op)
 {
@@ -2499,6 +2547,8 @@ gen7_render_composite_spans(struct sna *sna,
 
 	tmp->box   = gen7_render_composite_spans_box;
 	tmp->boxes = gen7_render_composite_spans_boxes;
+	if (tmp->emit_boxes)
+		tmp->thread_boxes = gen7_render_composite_spans_boxes__thread;
 	tmp->done  = gen7_render_composite_spans_done;
 
 	kgem_set_mode(&sna->kgem, KGEM_RENDER, tmp->base.dst.bo);

@@ -1618,6 +1618,8 @@ static int gen3_vertex_finish(struct sna *sna)
 	assert(sna->render.vertex_used);
 	assert(sna->render.vertex_used <= sna->render.vertex_size);
 
+	sna_vertex_wait__locked(&sna->render);
+
 	bo = sna->render.vbo;
 	if (bo) {
 		DBG(("%s: reloc = %d\n", __FUNCTION__,
@@ -1796,6 +1798,17 @@ static int gen3_get_rectangles__flush(struct sna *sna,
 		}
 	}
 
+	/* Preventing discarding new vbo after lock contention */
+	if (sna->render.active) {
+		int rem;
+
+		sna_vertex_wait__locked(&sna->render);
+
+		rem = vertex_space(sna);
+		if (rem > op->floats_per_rect)
+			return rem;
+	}
+
 	return gen3_vertex_finish(sna);
 }
 
@@ -1838,6 +1851,7 @@ flush:
 		gen3_vertex_flush(sna);
 		gen3_magic_ca_pass(sna, op);
 	}
+	gen3_vertex_finish(sna);
 	_kgem_submit(&sna->kgem);
 	gen3_emit_composite_state(sna, op);
 	assert(sna->render.vertex_offset == 0);
@@ -3081,6 +3095,26 @@ gen3_emit_composite_spans_primitive_zero(struct sna *sna,
 }
 
 fastcall static void
+gen3_emit_composite_spans_primitive_zero__boxes(const struct sna_composite_spans_op *op,
+						const struct sna_opacity_box *b,
+						int nbox, float *v)
+{
+	do {
+		v[0] = op->base.dst.x + b->box.x2;
+		v[1] = op->base.dst.y + b->box.y2;
+
+		v[2] = op->base.dst.x + b->box.x1;
+		v[3] = v[1];
+
+		v[4] = v[2];
+		v[5] = op->base.dst.x + b->box.y1;
+
+		v += 6;
+		b++;
+	} while (--nbox);
+}
+
+fastcall static void
 gen3_emit_composite_spans_primitive_zero_no_offset(struct sna *sna,
 						   const struct sna_composite_spans_op *op,
 						   const BoxRec *box,
@@ -3093,6 +3127,22 @@ gen3_emit_composite_spans_primitive_zero_no_offset(struct sna *sna,
 	v[3] = v[1] = box->y2;
 	v[4] = v[2] = box->x1;
 	v[5] = box->y1;
+}
+
+fastcall static void
+gen3_emit_composite_spans_primitive_zero_no_offset__boxes(const struct sna_composite_spans_op *op,
+							  const struct sna_opacity_box *b,
+							  int nbox, float *v)
+{
+	do {
+		v[0] = b->box.x2;
+		v[3] = v[1] = b->box.y2;
+		v[4] = v[2] = b->box.x1;
+		v[5] = b->box.y1;
+
+		b++;
+		v += 6;
+	} while (--nbox);
 }
 
 fastcall static void
@@ -3112,6 +3162,24 @@ gen3_emit_composite_spans_primitive_constant(struct sna *sna,
 }
 
 fastcall static void
+gen3_emit_composite_spans_primitive_constant__boxes(const struct sna_composite_spans_op *op,
+						    const struct sna_opacity_box *b,
+						    int nbox,
+						    float *v)
+{
+	do {
+		v[0] = op->base.dst.x + b->box.x2;
+		v[6] = v[3] = op->base.dst.x + b->box.x1;
+		v[4] = v[1] = op->base.dst.y + b->box.y2;
+		v[7] = op->base.dst.y + b->box.y1;
+		v[8] = v[5] = v[2] = b->alpha;
+
+		v += 9;
+		b++;
+	} while (--nbox);
+}
+
+fastcall static void
 gen3_emit_composite_spans_primitive_constant_no_offset(struct sna *sna,
 						       const struct sna_composite_spans_op *op,
 						       const BoxRec *box,
@@ -3125,6 +3193,23 @@ gen3_emit_composite_spans_primitive_constant_no_offset(struct sna *sna,
 	v[4] = v[1] = box->y2;
 	v[7] = box->y1;
 	v[8] = v[5] = v[2] = opacity;
+}
+
+fastcall static void
+gen3_emit_composite_spans_primitive_constant_no_offset__boxes(const struct sna_composite_spans_op *op,
+							      const struct sna_opacity_box *b,
+							      int nbox, float *v)
+{
+	do {
+		v[0] = b->box.x2;
+		v[6] = v[3] = b->box.x1;
+		v[4] = v[1] = b->box.y2;
+		v[7] = b->box.y1;
+		v[8] = v[5] = v[2] = b->alpha;
+
+		v += 9;
+		b++;
+	} while (--nbox);
 }
 
 fastcall static void
@@ -3153,6 +3238,36 @@ gen3_emit_composite_spans_primitive_identity_source(struct sna *sna,
 	v[12] = v[7];
 	v[13] = (op->base.src.offset[1] + box->y1) * op->base.src.scale[1];
 	v[14] = opacity;
+}
+
+fastcall static void
+gen3_emit_composite_spans_primitive_identity_source__boxes(const struct sna_composite_spans_op *op,
+							   const struct sna_opacity_box *b,
+							   int nbox,
+							   float *v)
+{
+	do {
+		v[0] = op->base.dst.x + b->box.x2;
+		v[1] = op->base.dst.y + b->box.y2;
+		v[2] = (op->base.src.offset[0] + b->box.x2) * op->base.src.scale[0];
+		v[3] = (op->base.src.offset[1] + b->box.y2) * op->base.src.scale[1];
+		v[4] = b->alpha;
+
+		v[5] = op->base.dst.x + b->box.x1;
+		v[6] = v[1];
+		v[7] = (op->base.src.offset[0] + b->box.x1) * op->base.src.scale[0];
+		v[8] = v[3];
+		v[9] = b->alpha;
+
+		v[10] = v[5];
+		v[11] = op->base.dst.y + b->box.y1;
+		v[12] = v[7];
+		v[13] = (op->base.src.offset[1] + b->box.y1) * op->base.src.scale[1];
+		v[14] = b->alpha;
+
+		v += 15;
+		b++;
+	} while (--nbox);
 }
 
 fastcall static void
@@ -3190,6 +3305,40 @@ gen3_emit_composite_spans_primitive_affine_source(struct sna *sna,
 }
 
 fastcall static void
+gen3_emit_composite_spans_primitive_affine_source__boxes(const struct sna_composite_spans_op *op,
+							 const struct sna_opacity_box *b,
+							 int nbox,
+							 float *v)
+{
+	PictTransform *transform = op->base.src.transform;
+
+	do {
+		v[0]  = op->base.dst.x + b->box.x2;
+		v[6]  = v[1] = op->base.dst.y + b->box.y2;
+		v[10] = v[5] = op->base.dst.x + b->box.x1;
+		v[11] = op->base.dst.y + b->box.y1;
+		v[14] = v[9] = v[4]  = b->alpha;
+
+		_sna_get_transformed_scaled((int)op->base.src.offset[0] + b->box.x2,
+					    (int)op->base.src.offset[1] + b->box.y2,
+					    transform, op->base.src.scale,
+					    &v[2], &v[3]);
+
+		_sna_get_transformed_scaled((int)op->base.src.offset[0] + b->box.x1,
+					    (int)op->base.src.offset[1] + b->box.y2,
+					    transform, op->base.src.scale,
+					    &v[7], &v[8]);
+
+		_sna_get_transformed_scaled((int)op->base.src.offset[0] + b->box.x1,
+					    (int)op->base.src.offset[1] + b->box.y1,
+					    transform, op->base.src.scale,
+					    &v[12], &v[13]);
+		v += 15;
+		b++;
+	} while (--nbox);
+}
+
+fastcall static void
 gen3_emit_composite_spans_primitive_identity_gradient(struct sna *sna,
 						      const struct sna_composite_spans_op *op,
 						      const BoxRec *box,
@@ -3215,6 +3364,36 @@ gen3_emit_composite_spans_primitive_identity_gradient(struct sna *sna,
 	v[12] = v[7];
 	v[13] = op->base.src.offset[1] + box->y1;
 	v[14] = opacity;
+}
+
+fastcall static void
+gen3_emit_composite_spans_primitive_identity_gradient__boxes(const struct sna_composite_spans_op *op,
+							     const struct sna_opacity_box *b,
+							     int nbox,
+							     float *v)
+{
+	do {
+		v[0] = op->base.dst.x + b->box.x2;
+		v[1] = op->base.dst.y + b->box.y2;
+		v[2] = op->base.src.offset[0] + b->box.x2;
+		v[3] = op->base.src.offset[1] + b->box.y2;
+		v[4] = b->alpha;
+
+		v[5] = op->base.dst.x + b->box.x1;
+		v[6] = v[1];
+		v[7] = op->base.src.offset[0] + b->box.x1;
+		v[8] = v[3];
+		v[9] = b->alpha;
+
+		v[10] = v[5];
+		v[11] = op->base.dst.y + b->box.y1;
+		v[12] = v[7];
+		v[13] = op->base.src.offset[1] + b->box.y1;
+		v[14] = b->alpha;
+
+		v += 15;
+		b++;
+	} while (--nbox);
 }
 
 fastcall static void
@@ -3250,6 +3429,43 @@ gen3_emit_composite_spans_primitive_affine_gradient(struct sna *sna,
 					 transform,
 					 &v[12], &v[13]);
 	v[14] = opacity;
+}
+
+fastcall static void
+gen3_emit_composite_spans_primitive_affine_gradient__boxes(const struct sna_composite_spans_op *op,
+							   const struct sna_opacity_box *b,
+							   int nbox,
+							   float *v)
+{
+	PictTransform *transform = op->base.src.transform;
+
+	do {
+		v[0] = op->base.dst.x + b->box.x2;
+		v[1] = op->base.dst.y + b->box.y2;
+		_sna_get_transformed_coordinates((int)op->base.src.offset[0] + b->box.x2,
+						 (int)op->base.src.offset[1] + b->box.y2,
+						 transform,
+						 &v[2], &v[3]);
+		v[4] = b->alpha;
+
+		v[5] = op->base.dst.x + b->box.x1;
+		v[6] = v[1];
+		_sna_get_transformed_coordinates((int)op->base.src.offset[0] + b->box.x1,
+						 (int)op->base.src.offset[1] + b->box.y2,
+						 transform,
+						 &v[7], &v[8]);
+		v[9] = b->alpha;
+
+		v[10] = v[5];
+		v[11] = op->base.dst.y + b->box.y1;
+		_sna_get_transformed_coordinates((int)op->base.src.offset[0] + b->box.x1,
+						 (int)op->base.src.offset[1] + b->box.y1,
+						 transform,
+						 &v[12], &v[13]);
+		v[14] = b->alpha;
+		v += 15;
+		b++;
+	} while (--nbox);
 }
 
 fastcall static void
@@ -3297,6 +3513,48 @@ gen3_render_composite_spans_constant_box(struct sna *sna,
 }
 
 fastcall static void
+gen3_render_composite_spans_constant_thread_boxes(struct sna *sna,
+						  const struct sna_composite_spans_op *op,
+						  const struct sna_opacity_box *box,
+						  int nbox)
+{
+	DBG(("%s: nbox=%d, src=+(%d, %d), dst=+(%d, %d)\n",
+	     __FUNCTION__, nbox,
+	     op->base.src.offset[0], op->base.src.offset[1],
+	     op->base.dst.x, op->base.dst.y));
+
+	sna_vertex_lock(&sna->render);
+	do {
+		int nbox_this_time;
+		float *v;
+
+		nbox_this_time = gen3_get_rectangles(sna, &op->base, nbox);
+		assert(nbox_this_time);
+		nbox -= nbox_this_time;
+
+		v = sna->render.vertices + sna->render.vertex_used;
+		sna->render.vertex_used += nbox_this_time * 9;
+
+		sna_vertex_acquire__locked(&sna->render);
+		sna_vertex_unlock(&sna->render);
+
+		do {
+			v[0] = box->box.x2;
+			v[6] = v[3] = box->box.x1;
+			v[4] = v[1] = box->box.y2;
+			v[7] = box->box.y1;
+			v[8] = v[5] = v[2] = box->alpha;
+			v += 9;
+			box++;
+		} while (--nbox_this_time);
+
+		sna_vertex_lock(&sna->render);
+		sna_vertex_release__locked(&sna->render);
+	} while (nbox);
+	sna_vertex_unlock(&sna->render);
+}
+
+fastcall static void
 gen3_render_composite_spans_box(struct sna *sna,
 				const struct sna_composite_spans_op *op,
 				const BoxRec *box, float opacity)
@@ -3341,6 +3599,41 @@ gen3_render_composite_spans_boxes(struct sna *sna,
 			op->prim_emit(sna, op, box++, opacity);
 		} while (--nbox_this_time);
 	} while (nbox);
+}
+
+fastcall static void
+gen3_render_composite_spans_boxes__thread(struct sna *sna,
+					  const struct sna_composite_spans_op *op,
+					  const struct sna_opacity_box *box,
+					  int nbox)
+{
+	DBG(("%s: nbox=%d, src=+(%d, %d), dst=+(%d, %d)\n",
+	     __FUNCTION__, nbox,
+	     op->base.src.offset[0], op->base.src.offset[1],
+	     op->base.dst.x, op->base.dst.y));
+
+	sna_vertex_lock(&sna->render);
+	do {
+		int nbox_this_time;
+		float *v;
+
+		nbox_this_time = gen3_get_rectangles(sna, &op->base, nbox);
+		assert(nbox_this_time);
+		nbox -= nbox_this_time;
+
+		v = sna->render.vertices + sna->render.vertex_used;
+		sna->render.vertex_used += nbox_this_time * op->base.floats_per_rect;
+
+		sna_vertex_acquire__locked(&sna->render);
+		sna_vertex_unlock(&sna->render);
+
+		op->emit_boxes(op, box, nbox_this_time, v);
+		box += nbox_this_time;
+
+		sna_vertex_lock(&sna->render);
+		sna_vertex_release__locked(&sna->render);
+	} while (nbox);
+	sna_vertex_unlock(&sna->render);
 }
 
 fastcall static void
@@ -3447,40 +3740,58 @@ gen3_render_composite_spans(struct sna *sna,
 	no_offset = tmp->base.dst.x == 0 && tmp->base.dst.y == 0;
 	tmp->box   = gen3_render_composite_spans_box;
 	tmp->boxes = gen3_render_composite_spans_boxes;
+	tmp->thread_boxes = gen3_render_composite_spans_boxes__thread;
 	tmp->done  = gen3_render_composite_spans_done;
 	tmp->prim_emit = gen3_emit_composite_spans_primitive;
 	switch (tmp->base.src.u.gen3.type) {
 	case SHADER_NONE:
 		assert(0);
 	case SHADER_ZERO:
-		tmp->prim_emit = no_offset ? gen3_emit_composite_spans_primitive_zero_no_offset : gen3_emit_composite_spans_primitive_zero;
+		if (no_offset) {
+			tmp->prim_emit = gen3_emit_composite_spans_primitive_zero_no_offset;
+			tmp->emit_boxes = gen3_emit_composite_spans_primitive_zero_no_offset__boxes;
+		} else {
+			tmp->prim_emit = gen3_emit_composite_spans_primitive_zero;
+			tmp->emit_boxes = gen3_emit_composite_spans_primitive_zero__boxes;
+		}
 		break;
 	case SHADER_BLACK:
 	case SHADER_WHITE:
 	case SHADER_CONSTANT:
 		if (no_offset) {
 			tmp->box = gen3_render_composite_spans_constant_box;
+			tmp->thread_boxes = gen3_render_composite_spans_constant_thread_boxes;
 			tmp->prim_emit = gen3_emit_composite_spans_primitive_constant_no_offset;
-		} else
+			tmp->emit_boxes = gen3_emit_composite_spans_primitive_constant_no_offset__boxes;
+		} else {
 			tmp->prim_emit = gen3_emit_composite_spans_primitive_constant;
+			tmp->emit_boxes = gen3_emit_composite_spans_primitive_constant__boxes;
+		}
 		break;
 	case SHADER_LINEAR:
 	case SHADER_RADIAL:
-		if (tmp->base.src.transform == NULL)
+		if (tmp->base.src.transform == NULL) {
 			tmp->prim_emit = gen3_emit_composite_spans_primitive_identity_gradient;
-		else if (tmp->base.src.is_affine)
+			tmp->emit_boxes = gen3_emit_composite_spans_primitive_identity_gradient__boxes;
+		} else if (tmp->base.src.is_affine) {
 			tmp->prim_emit = gen3_emit_composite_spans_primitive_affine_gradient;
+			tmp->emit_boxes = gen3_emit_composite_spans_primitive_affine_gradient__boxes;
+		}
 		break;
 	case SHADER_TEXTURE:
-		if (tmp->base.src.transform == NULL)
+		if (tmp->base.src.transform == NULL) {
 			tmp->prim_emit = gen3_emit_composite_spans_primitive_identity_source;
-		else if (tmp->base.src.is_affine) {
+			tmp->emit_boxes = gen3_emit_composite_spans_primitive_identity_source__boxes;
+		} else if (tmp->base.src.is_affine) {
 			tmp->base.src.scale[0] /= tmp->base.src.transform->matrix[2][2];
 			tmp->base.src.scale[1] /= tmp->base.src.transform->matrix[2][2];
 			tmp->prim_emit = gen3_emit_composite_spans_primitive_affine_source;
+			tmp->emit_boxes = gen3_emit_composite_spans_primitive_affine_source__boxes;
 		}
 		break;
 	}
+	if (tmp->emit_boxes == NULL)
+		tmp->thread_boxes = NULL;
 
 	tmp->base.mask.bo = NULL;
 

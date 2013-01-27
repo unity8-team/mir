@@ -304,6 +304,8 @@ void no_render_init(struct sna *sna)
 	sna->kgem.expire = no_render_expire;
 	if (sna->kgem.has_blt)
 		sna->kgem.ring = KGEM_BLT;
+
+	sna_vertex_init(sna);
 }
 
 static struct kgem_bo *

@@ -1157,6 +1157,17 @@ static int gen6_get_rectangles__flush(struct sna *sna,
 		}
 	}
 
+	/* Preventing discarding new vbo after lock contention */
+	if (sna->render.active) {
+		int rem;
+
+		sna_vertex_wait__locked(&sna->render);
+
+		rem = vertex_space(sna);
+		if (rem > op->floats_per_rect)
+			return rem;
+	}
+
 	return gen4_vertex_finish(sna);
 }
 
@@ -1193,6 +1204,7 @@ flush:
 		gen4_vertex_flush(sna);
 		gen6_magic_ca_pass(sna, op);
 	}
+	gen4_vertex_finish(sna);
 	_kgem_submit(&sna->kgem);
 	emit_state(sna, op);
 	goto start;
@@ -1293,6 +1305,7 @@ gen6_align_vertex(struct sna *sna, const struct sna_composite_op *op)
 		sna->render.vertex_used = sna->render.vertex_index * op->floats_per_vertex;
 		sna->render_state.gen6.floats_per_vertex = op->floats_per_vertex;
 	}
+	assert((sna->render.vertex_used % op->floats_per_vertex) == 0);
 }
 
 fastcall static void
@@ -1720,6 +1733,7 @@ static void gen6_render_composite_done(struct sna *sna,
 {
 	DBG(("%s\n", __FUNCTION__));
 
+	assert(!sna->render.active);
 	if (sna->render.vertex_offset) {
 		gen4_vertex_flush(sna);
 		gen6_magic_ca_pass(sna, op);
@@ -2281,10 +2295,47 @@ gen6_render_composite_spans_boxes(struct sna *sna,
 }
 
 fastcall static void
+gen6_render_composite_spans_boxes__thread(struct sna *sna,
+					  const struct sna_composite_spans_op *op,
+					  const struct sna_opacity_box *box,
+					  int nbox)
+{
+	DBG(("%s: nbox=%d, src=+(%d, %d), dst=+(%d, %d)\n",
+	     __FUNCTION__, nbox,
+	     op->base.src.offset[0], op->base.src.offset[1],
+	     op->base.dst.x, op->base.dst.y));
+
+	sna_vertex_lock(&sna->render);
+	do {
+		int nbox_this_time;
+		float *v;
+
+		nbox_this_time = gen6_get_rectangles(sna, &op->base, nbox,
+						     gen6_emit_composite_state);
+		assert(nbox_this_time);
+		nbox -= nbox_this_time;
+
+		v = sna->render.vertices + sna->render.vertex_used;
+		sna->render.vertex_used += nbox_this_time * op->base.floats_per_rect;
+
+		sna_vertex_acquire__locked(&sna->render);
+		sna_vertex_unlock(&sna->render);
+
+		op->emit_boxes(op, box, nbox_this_time, v);
+		box += nbox_this_time;
+
+		sna_vertex_lock(&sna->render);
+		sna_vertex_release__locked(&sna->render);
+	} while (nbox);
+	sna_vertex_unlock(&sna->render);
+}
+
+fastcall static void
 gen6_render_composite_spans_done(struct sna *sna,
 				 const struct sna_composite_spans_op *op)
 {
 	DBG(("%s()\n", __FUNCTION__));
+	assert(!sna->render.active);
 
 	if (sna->render.vertex_offset)
 		gen4_vertex_flush(sna);
@@ -2397,6 +2448,8 @@ gen6_render_composite_spans(struct sna *sna,
 
 	tmp->box   = gen6_render_composite_spans_box;
 	tmp->boxes = gen6_render_composite_spans_boxes;
+	if (tmp->emit_boxes)
+		tmp->thread_boxes = gen6_render_composite_spans_boxes__thread;
 	tmp->done  = gen6_render_composite_spans_done;
 
 	kgem_set_mode(&sna->kgem, KGEM_RENDER, tmp->base.dst.bo);
@@ -2768,6 +2821,7 @@ gen6_render_copy_done(struct sna *sna, const struct sna_copy_op *op)
 {
 	DBG(("%s()\n", __FUNCTION__));
 
+	assert(!sna->render.active);
 	if (sna->render.vertex_offset)
 		gen4_vertex_flush(sna);
 }
@@ -3115,6 +3169,7 @@ gen6_render_op_fill_done(struct sna *sna, const struct sna_fill_op *op)
 {
 	DBG(("%s()\n", __FUNCTION__));
 
+	assert(!sna->render.active);
 	if (sna->render.vertex_offset)
 		gen4_vertex_flush(sna);
 	kgem_bo_destroy(&sna->kgem, op->base.src.bo);
@@ -3409,6 +3464,7 @@ gen6_render_expire(struct kgem *kgem)
 	if (sna->render.vbo && !sna->render.vertex_used) {
 		DBG(("%s: discarding vbo handle=%d\n", __FUNCTION__, sna->render.vbo->handle));
 		kgem_bo_destroy(kgem, sna->render.vbo);
+		assert(!sna->render.active);
 		sna->render.vbo = NULL;
 		sna->render.vertices = sna->render.vertex_data;
 		sna->render.vertex_size = ARRAY_SIZE(sna->render.vertex_data);

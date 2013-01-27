@@ -36,12 +36,13 @@
 
 void gen4_vertex_flush(struct sna *sna)
 {
-	assert(sna->render.vertex_offset);
-	assert(sna->render.vertex_index > sna->render.vertex_start);
-
 	DBG(("%s[%x] = %d\n", __FUNCTION__,
 	     4*sna->render.vertex_offset,
 	     sna->render.vertex_index - sna->render.vertex_start));
+
+	assert(sna->render.vertex_offset);
+	assert(sna->render.vertex_index > sna->render.vertex_start);
+
 	sna->kgem.batch[sna->render.vertex_offset] =
 		sna->render.vertex_index - sna->render.vertex_start;
 	sna->render.vertex_offset = 0;
@@ -58,6 +59,8 @@ int gen4_vertex_finish(struct sna *sna)
 	assert(sna->render.vertex_offset == 0);
 	assert(sna->render.vertex_used);
 
+	sna_vertex_wait__locked(&sna->render);
+
 	/* Note: we only need dword alignment (currently) */
 
 	bo = sna->render.vbo;
@@ -73,6 +76,7 @@ int gen4_vertex_finish(struct sna *sna)
 					       0);
 		}
 
+		assert(!sna->render.active);
 		sna->render.nvertex_reloc = 0;
 		sna->render.vertex_used = 0;
 		sna->render.vertex_index = 0;
@@ -87,6 +91,7 @@ int gen4_vertex_finish(struct sna *sna)
 		hint |= CREATE_CACHED | CREATE_NO_THROTTLE;
 
 	size = 256*1024;
+	assert(!sna->render.active);
 	sna->render.vertices = NULL;
 	sna->render.vbo = kgem_create_linear(&sna->kgem, size, hint);
 	while (sna->render.vbo == NULL && size > 16*1024) {
@@ -143,6 +148,8 @@ void gen4_vertex_close(struct sna *sna)
 	DBG(("%s: used=%d, vbo active? %d, vb=%x, nreloc=%d\n",
 	     __FUNCTION__, sna->render.vertex_used, sna->render.vbo ? sna->render.vbo->handle : 0,
 	     sna->render.vb_id, sna->render.nvertex_reloc));
+
+	assert(!sna->render.active);
 
 	bo = sna->render.vbo;
 	if (bo) {
@@ -205,6 +212,7 @@ void gen4_vertex_close(struct sna *sna)
 	sna->render.vb_id = 0;
 
 	if (sna->render.vbo == NULL) {
+		assert(!sna->render.active);
 		sna->render.vertex_used = 0;
 		sna->render.vertex_index = 0;
 		assert(sna->render.vertices == sna->render.vertex_data);
@@ -853,7 +861,7 @@ unsigned gen4_choose_composite_emitter(struct sna_composite_op *tmp)
 }
 
 inline static void
-emit_spans_vertex(struct sna *sna,
+emit_span_vertex(struct sna *sna,
 		  const struct sna_composite_spans_op *op,
 		  int16_t x, int16_t y)
 {
@@ -867,18 +875,18 @@ emit_composite_spans_primitive(struct sna *sna,
 			       const BoxRec *box,
 			       float opacity)
 {
-	emit_spans_vertex(sna, op, box->x2, box->y2);
+	emit_span_vertex(sna, op, box->x2, box->y2);
 	OUT_VERTEX_F(opacity);
 
-	emit_spans_vertex(sna, op, box->x1, box->y2);
+	emit_span_vertex(sna, op, box->x1, box->y2);
 	OUT_VERTEX_F(opacity);
 
-	emit_spans_vertex(sna, op, box->x1, box->y1);
+	emit_span_vertex(sna, op, box->x1, box->y1);
 	OUT_VERTEX_F(opacity);
 }
 
 fastcall static void
-emit_spans_solid(struct sna *sna,
+emit_span_solid(struct sna *sna,
 		 const struct sna_composite_spans_op *op,
 		 const BoxRec *box,
 		 float opacity)
@@ -909,7 +917,36 @@ emit_spans_solid(struct sna *sna,
 }
 
 fastcall static void
-emit_spans_identity(struct sna *sna,
+emit_span_boxes_solid(const struct sna_composite_spans_op *op,
+		      const struct sna_opacity_box *b,
+		      int nbox, float *v)
+{
+	do {
+		union {
+			struct sna_coordinate p;
+			float f;
+		} dst;
+
+		dst.p.x = b->box.x2;
+		dst.p.y = b->box.y2;
+		v[0] = dst.f;
+
+		dst.p.x = b->box.x1;
+		v[3] = dst.f;
+
+		dst.p.y = b->box.y1;
+		v[6] = dst.f;
+
+		v[7] = v[4] = v[1] = .5;
+		v[8] = v[5] = v[2] = b->alpha;
+
+		v += 9;
+		b++;
+	} while (--nbox);
+}
+
+fastcall static void
+emit_span_identity(struct sna *sna,
 		    const struct sna_composite_spans_op *op,
 		    const BoxRec *box,
 		    float opacity)
@@ -949,7 +986,43 @@ emit_spans_identity(struct sna *sna,
 }
 
 fastcall static void
-emit_spans_simple(struct sna *sna,
+emit_span_boxes_identity(const struct sna_composite_spans_op *op,
+			 const struct sna_opacity_box *b, int nbox,
+			 float *v)
+{
+	do {
+		union {
+			struct sna_coordinate p;
+			float f;
+		} dst;
+
+		float sx = op->base.src.scale[0];
+		float sy = op->base.src.scale[1];
+		int16_t tx = op->base.src.offset[0];
+		int16_t ty = op->base.src.offset[1];
+
+		dst.p.x = b->box.x2;
+		dst.p.y = b->box.y2;
+		v[0] = dst.f;
+		v[1] = (b->box.x2 + tx) * sx;
+		v[6] = v[2] = (b->box.y2 + ty) * sy;
+
+		dst.p.x = b->box.x1;
+		v[4] = dst.f;
+		v[9] = v[5] = (b->box.x1 + tx) * sx;
+
+		dst.p.y = b->box.y1;
+		v[8] = dst.f;
+		v[10] = (b->box.y1 + ty) * sy;
+
+		v[11] = v[7] = v[3] = b->alpha;
+		v += 12;
+		b++;
+	} while (--nbox);
+}
+
+fastcall static void
+emit_span_simple(struct sna *sna,
 		  const struct sna_composite_spans_op *op,
 		  const BoxRec *box,
 		  float opacity)
@@ -993,7 +1066,47 @@ emit_spans_simple(struct sna *sna,
 }
 
 fastcall static void
-emit_spans_affine(struct sna *sna,
+emit_span_boxes_simple(const struct sna_composite_spans_op *op,
+		       const struct sna_opacity_box *b, int nbox,
+		       float *v)
+{
+	do {
+		union {
+			struct sna_coordinate p;
+			float f;
+		} dst;
+
+		float xx = op->base.src.transform->matrix[0][0];
+		float x0 = op->base.src.transform->matrix[0][2];
+		float yy = op->base.src.transform->matrix[1][1];
+		float y0 = op->base.src.transform->matrix[1][2];
+		float sx = op->base.src.scale[0];
+		float sy = op->base.src.scale[1];
+		int16_t tx = op->base.src.offset[0];
+		int16_t ty = op->base.src.offset[1];
+
+		dst.p.x = b->box.x2;
+		dst.p.y = b->box.y2;
+		v[0] = dst.f;
+		v[1] = ((b->box.x2 + tx) * xx + x0) * sx;
+		v[6] = v[2] = ((b->box.y2 + ty) * yy + y0) * sy;
+
+		dst.p.x = b->box.x1;
+		v[4] = dst.f;
+		v[9] = v[5] = ((b->box.x1 + tx) * xx + x0) * sx;
+
+		dst.p.y = b->box.y1;
+		v[8] = dst.f;
+		v[10] = ((b->box.y1 + ty) * yy + y0) * sy;
+
+		v[11] = v[7] = v[3] = b->alpha;
+		v += 9;
+		b++;
+	} while (--nbox);
+}
+
+fastcall static void
+emit_span_affine(struct sna *sna,
 		  const struct sna_composite_spans_op *op,
 		  const BoxRec *box,
 		  float opacity)
@@ -1038,7 +1151,50 @@ emit_spans_affine(struct sna *sna,
 }
 
 fastcall static void
-emit_spans_linear(struct sna *sna,
+emit_span_boxes_affine(const struct sna_composite_spans_op *op,
+		       const struct sna_opacity_box *b, int nbox,
+		       float *v)
+{
+	do {
+		union {
+			struct sna_coordinate p;
+			float f;
+		} dst;
+
+		dst.p.x = b->box.x2;
+		dst.p.y = b->box.y2;
+		v[0] = dst.f;
+		_sna_get_transformed_scaled(op->base.src.offset[0] + b->box.x2,
+					    op->base.src.offset[1] + b->box.y2,
+					    op->base.src.transform,
+					    op->base.src.scale,
+					    &v[1], &v[2]);
+
+		dst.p.x = b->box.x1;
+		v[4] = dst.f;
+		_sna_get_transformed_scaled(op->base.src.offset[0] + b->box.x1,
+					    op->base.src.offset[1] + b->box.y2,
+					    op->base.src.transform,
+					    op->base.src.scale,
+					    &v[5], &v[6]);
+
+		dst.p.y = b->box.y1;
+		v[8] = dst.f;
+		_sna_get_transformed_scaled(op->base.src.offset[0] + b->box.x1,
+					    op->base.src.offset[1] + b->box.y1,
+					    op->base.src.transform,
+					    op->base.src.scale,
+					    &v[9], &v[10]);
+
+		v[11] = v[7] = v[3] = b->alpha;
+
+		v += 12;
+		b++;
+	} while (--nbox);
+}
+
+fastcall static void
+emit_span_linear(struct sna *sna,
 		  const struct sna_composite_spans_op *op,
 		  const BoxRec *box,
 		  float opacity)
@@ -1069,6 +1225,35 @@ emit_spans_linear(struct sna *sna,
 	v[8] = v[5] = v[2] = opacity;
 }
 
+fastcall static void
+emit_span_boxes_linear(const struct sna_composite_spans_op *op,
+		       const struct sna_opacity_box *b, int nbox,
+		       float *v)
+{
+	do {
+		union {
+			struct sna_coordinate p;
+			float f;
+		} dst;
+
+		dst.p.x = b->box.x2;
+		dst.p.y = b->box.y2;
+		v[0] = dst.f;
+		dst.p.x = b->box.x1;
+		v[3] = dst.f;
+		dst.p.y = b->box.y1;
+		v[6] = dst.f;
+
+		v[1] = compute_linear(&op->base.src, b->box.x2, b->box.y2);
+		v[4] = compute_linear(&op->base.src, b->box.x1, b->box.y2);
+		v[7] = compute_linear(&op->base.src, b->box.x1, b->box.y1);
+
+		v[8] = v[5] = v[2] = b->alpha;
+		v += 9;
+		b++;
+	} while (--nbox);
+}
+
 inline inline static uint32_t
 gen4_choose_spans_vertex_buffer(const struct sna_composite_op *op)
 {
@@ -1083,24 +1268,30 @@ unsigned gen4_choose_spans_emitter(struct sna_composite_spans_op *tmp)
 	unsigned vb;
 
 	if (tmp->base.src.is_solid) {
-		tmp->prim_emit = emit_spans_solid;
+		tmp->prim_emit = emit_span_solid;
+		tmp->emit_boxes = emit_span_boxes_solid;
 		tmp->base.floats_per_vertex = 3;
 		vb = 1 << 2 | 1;
 	} else if (tmp->base.src.is_linear) {
-		tmp->prim_emit = emit_spans_linear;
+		tmp->prim_emit = emit_span_linear;
+		tmp->emit_boxes = emit_span_boxes_linear;
 		tmp->base.floats_per_vertex = 3;
 		vb = 1 << 2 | 1;
 	} else if (tmp->base.src.transform == NULL) {
-		tmp->prim_emit = emit_spans_identity;
+		tmp->prim_emit = emit_span_identity;
+		tmp->emit_boxes = emit_span_boxes_identity;
 		tmp->base.floats_per_vertex = 4;
 		vb = 1 << 2 | 2;
 	} else if (tmp->base.is_affine) {
 		tmp->base.src.scale[0] /= tmp->base.src.transform->matrix[2][2];
 		tmp->base.src.scale[1] /= tmp->base.src.transform->matrix[2][2];
-		if (!sna_affine_transform_is_rotation(tmp->base.src.transform))
-			tmp->prim_emit = emit_spans_simple;
-		else
-			tmp->prim_emit = emit_spans_affine;
+		if (!sna_affine_transform_is_rotation(tmp->base.src.transform)) {
+			tmp->prim_emit = emit_span_simple;
+			tmp->emit_boxes = emit_span_boxes_simple;
+		} else {
+			tmp->prim_emit = emit_span_affine;
+			tmp->emit_boxes = emit_span_boxes_affine;
+		}
 		tmp->base.floats_per_vertex = 4;
 		vb = 1 << 2 | 2;
 	} else {
