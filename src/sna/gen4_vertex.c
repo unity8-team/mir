@@ -1253,6 +1253,7 @@ emit_span_boxes_identity(const struct sna_composite_spans_op *op,
 		v[10] = (b->box.y1 + ty) * sy;
 
 		v[11] = v[7] = v[3] = b->alpha;
+
 		v += 12;
 		b++;
 	} while (--nbox);
@@ -1307,20 +1308,20 @@ emit_span_boxes_simple(const struct sna_composite_spans_op *op,
 		       const struct sna_opacity_box *b, int nbox,
 		       float *v)
 {
+	float xx = op->base.src.transform->matrix[0][0];
+	float x0 = op->base.src.transform->matrix[0][2];
+	float yy = op->base.src.transform->matrix[1][1];
+	float y0 = op->base.src.transform->matrix[1][2];
+	float sx = op->base.src.scale[0];
+	float sy = op->base.src.scale[1];
+	int16_t tx = op->base.src.offset[0];
+	int16_t ty = op->base.src.offset[1];
+
 	do {
 		union {
 			struct sna_coordinate p;
 			float f;
 		} dst;
-
-		float xx = op->base.src.transform->matrix[0][0];
-		float x0 = op->base.src.transform->matrix[0][2];
-		float yy = op->base.src.transform->matrix[1][1];
-		float y0 = op->base.src.transform->matrix[1][2];
-		float sx = op->base.src.scale[0];
-		float sy = op->base.src.scale[1];
-		int16_t tx = op->base.src.offset[0];
-		int16_t ty = op->base.src.offset[1];
 
 		dst.p.x = b->box.x2;
 		dst.p.y = b->box.y2;
@@ -1337,7 +1338,8 @@ emit_span_boxes_simple(const struct sna_composite_spans_op *op,
 		v[10] = ((b->box.y1 + ty) * yy + y0) * sy;
 
 		v[11] = v[7] = v[3] = b->alpha;
-		v += 9;
+
+		v += 12;
 		b++;
 	} while (--nbox);
 }
@@ -1486,6 +1488,7 @@ emit_span_boxes_linear(const struct sna_composite_spans_op *op,
 		v[7] = compute_linear(&op->base.src, b->box.x1, b->box.y1);
 
 		v[8] = v[5] = v[2] = b->alpha;
+
 		v += 9;
 		b++;
 	} while (--nbox);
@@ -1498,7 +1501,6 @@ gen4_choose_spans_vertex_buffer(const struct sna_composite_op *op)
 	DBG(("%s: id=%x (%d, 1)\n", __FUNCTION__, 1 << 2 | id, id));
 	return 1 << 2 | id;
 }
-
 
 unsigned gen4_choose_spans_emitter(struct sna_composite_spans_op *tmp)
 {
