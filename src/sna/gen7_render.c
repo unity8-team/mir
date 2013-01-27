@@ -1329,7 +1329,7 @@ flush:
 		gen4_vertex_flush(sna);
 		gen7_magic_ca_pass(sna, op);
 	}
-	gen4_vertex_finish(sna);
+	sna_vertex_wait__locked(&sna->render);
 	_kgem_submit(&sna->kgem);
 	emit_state(sna, op);
 	goto start;

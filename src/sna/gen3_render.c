@@ -2008,7 +2008,7 @@ flush:
 		gen3_vertex_flush(sna);
 		gen3_magic_ca_pass(sna, op);
 	}
-	gen3_vertex_finish(sna);
+	sna_vertex_wait__locked(&sna->render);
 	_kgem_submit(&sna->kgem);
 	gen3_emit_composite_state(sna, op);
 	assert(sna->render.vertex_offset == 0);
