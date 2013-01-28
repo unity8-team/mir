@@ -996,6 +996,8 @@ fallback:
 	    !sna_drawable_move_to_cpu(dst->alphaMap->pDrawable, error))
 		goto done;
 
+	assert(pixmap->devPrivate.ptr);
+
 	if (op <= PictOpSrc) {
 		int nbox = REGION_NUM_RECTS(&region);
 		BoxPtr box = REGION_RECTS(&region);

@@ -1653,6 +1653,7 @@ skip_inplace_map:
 	    !sna_pixmap_alloc_cpu(sna, pixmap, priv,
 				  flags & MOVE_READ ? priv->gpu_damage && !priv->clear : 0))
 		return false;
+	assert(pixmap->devPrivate.ptr);
 
 	if (priv->clear) {
 		DBG(("%s: applying clear [%08x]\n",
@@ -1994,6 +1995,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 			RegionTranslate(region, -dx, -dy);
 		return false;
 	}
+	assert(pixmap->devPrivate.ptr);
 
 	if (priv->gpu_bo == NULL) {
 		assert(priv->gpu_damage == NULL);
@@ -4524,6 +4526,7 @@ fallback:
 				return;
 		}
 
+		assert(dst_pixmap->devPrivate.ptr);
 		do {
 			pixman_fill(dst_pixmap->devPrivate.ptr,
 				    dst_pixmap->devKind/sizeof(uint32_t),
