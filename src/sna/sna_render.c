@@ -594,6 +594,10 @@ sna_render_pixmap_bo(struct sna *sna,
 		    !priv->cpu_bo->snoop && priv->cpu_bo->pitch < 4096) {
 			DBG(("%s: CPU all damaged\n", __FUNCTION__));
 			channel->bo = priv->cpu_bo;
+			if (priv->shm) {
+				assert(!priv->flush);
+				sna_add_flush_pixmap(sna, priv, priv->cpu_bo);
+			}
 			goto done;
 		}
 	}

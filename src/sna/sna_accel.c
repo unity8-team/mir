@@ -1263,9 +1263,10 @@ void sna_add_flush_pixmap(struct sna *sna,
 	DBG(("%s: marking pixmap=%ld for flushing\n",
 	     __FUNCTION__, priv->pixmap->drawable.serialNumber));
 	assert(bo);
+	assert(bo->flush);
 	list_move(&priv->list, &sna->flush_pixmaps);
 
-	if (bo->exec == NULL) {
+	if (bo->exec == NULL && kgem_is_idle(&sna->kgem)) {
 		DBG(("%s: new flush bo, flushin before\n", __FUNCTION__));
 		kgem_submit(&sna->kgem);
 	}
@@ -1743,6 +1744,7 @@ done:
 			DBG(("%s: syncing CPU bo\n", __FUNCTION__));
 			kgem_bo_sync__cpu_full(&sna->kgem,
 					       priv->cpu_bo, flags & MOVE_WRITE);
+			assert(!priv->shm || !kgem_bo_is_busy(priv->cpu_bo));
 		}
 		if (flags & MOVE_WRITE) {
 			DBG(("%s: discarding GPU bo in favour of CPU bo\n", __FUNCTION__));
@@ -2440,6 +2442,11 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 		priv->mapped = false;
 	}
 
+	if (priv->shm) {
+		assert(!priv->flush);
+		sna_add_flush_pixmap(sna, priv, priv->cpu_bo);
+	}
+
 	region_set(&r, box);
 	if (MIGRATE_ALL || region_subsumes_damage(&r, priv->cpu_damage)) {
 		int n;
@@ -2454,10 +2461,6 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 							    pixmap, priv->cpu_bo, 0, 0,
 							    pixmap, priv->gpu_bo, 0, 0,
 							    box, n, 0);
-				if (ok && priv->shm) {
-					assert(!priv->flush);
-					sna_add_flush_pixmap(sna, priv, priv->cpu_bo);
-				}
 			}
 			if (!ok) {
 				if (pixmap->devPrivate.ptr == NULL) {
@@ -2498,10 +2501,6 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 						    pixmap, priv->cpu_bo, 0, 0,
 						    pixmap, priv->gpu_bo, 0, 0,
 						    box, 1, 0);
-			if (ok && priv->shm) {
-				assert(!priv->flush);
-				sna_add_flush_pixmap(sna, priv, priv->cpu_bo);
-			}
 		}
 		if (!ok) {
 			if (pixmap->devPrivate.ptr == NULL) {
@@ -2533,10 +2532,6 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 						    pixmap, priv->cpu_bo, 0, 0,
 						    pixmap, priv->gpu_bo, 0, 0,
 						    box, n, 0);
-			if (ok && priv->shm) {
-				assert(!priv->flush);
-				sna_add_flush_pixmap(sna, priv, priv->cpu_bo);
-			}
 		}
 		if (!ok) {
 			if (pixmap->devPrivate.ptr == NULL) {
@@ -2557,11 +2552,6 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 
 		sna_damage_subtract(&priv->cpu_damage, &r);
 		RegionUninit(&i);
-	}
-
-	if (priv->shm) {
-		assert(!priv->flush);
-		sna_add_flush_pixmap(sna, priv, priv->cpu_bo);
 	}
 
 done:
@@ -3116,6 +3106,11 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 		priv->mapped = false;
 	}
 
+	if (priv->shm) {
+		assert(!priv->flush);
+		sna_add_flush_pixmap(sna, priv, priv->cpu_bo);
+	}
+
 	n = sna_damage_get_boxes(priv->cpu_damage, &box);
 	if (n) {
 		bool ok;
@@ -3160,11 +3155,6 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 
 	__sna_damage_destroy(DAMAGE_PTR(priv->cpu_damage));
 	priv->cpu_damage = NULL;
-
-	if (priv->shm) {
-		assert(!priv->flush);
-		sna_add_flush_pixmap(sna, priv, priv->cpu_bo);
-	}
 
 	/* For large bo, try to keep only a single copy around */
 	if (priv->create & KGEM_CAN_CREATE_LARGE ||
@@ -4328,6 +4318,11 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			if (!ret)
 				goto fallback;
 
+			if (src_priv->shm) {
+				assert(!src_priv->flush);
+				sna_add_flush_pixmap(sna, src_priv, src_priv->cpu_bo);
+			}
+
 			if (!sna->render.copy_boxes(sna, alu,
 						    src_pixmap, src_priv->cpu_bo, src_dx, src_dy,
 						    dst_pixmap, bo, 0, 0,
@@ -4335,11 +4330,6 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 				DBG(("%s: fallback - accelerated copy boxes failed\n",
 				     __FUNCTION__));
 				goto fallback;
-			}
-
-			if (src_priv->shm) {
-				assert(!src_priv->flush);
-				sna_add_flush_pixmap(sna, src_priv, src_priv->cpu_bo);
 			}
 
 			if (damage)
