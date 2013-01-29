@@ -1150,7 +1150,7 @@ gen4_render_composite_boxes(struct sna *sna,
 			    const struct sna_composite_op *op,
 			    const BoxRec *box, int nbox)
 {
-	DBG(("%s: nbox=%d\n", nbox));
+	DBG(("%s: nbox=%d\n", __FUNCTION__, nbox));
 
 	do {
 		int nbox_this_time;
@@ -1174,7 +1174,7 @@ gen4_render_composite_boxes__thread(struct sna *sna,
 				    const struct sna_composite_op *op,
 				    const BoxRec *box, int nbox)
 {
-	DBG(("%s: nbox=%d\n", nbox));
+	DBG(("%s: nbox=%d\n", __FUNCTION__, nbox));
 
 	sna_vertex_lock(&sna->render);
 	do {
