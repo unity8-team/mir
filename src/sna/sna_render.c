@@ -477,9 +477,15 @@ move_to_gpu(PixmapPtr pixmap, const BoxRec *box, bool blt)
 		migrate = count*w*h > pixmap->drawable.width * pixmap->drawable.height;
 	}
 
-	if (migrate && !sna_pixmap_force_to_gpu(pixmap,
-						blt ? MOVE_READ : MOVE_SOURCE_HINT | MOVE_READ))
-		return NULL;
+	if (migrate) {
+		if (blt) {
+			if (!sna_pixmap_move_area_to_gpu(pixmap, box, MOVE_READ))
+				return NULL;
+		} else {
+			if (!sna_pixmap_force_to_gpu(pixmap, MOVE_SOURCE_HINT | MOVE_READ))
+				return NULL;
+		}
+	}
 
 	return priv->gpu_bo;
 }

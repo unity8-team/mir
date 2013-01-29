@@ -434,6 +434,9 @@ void sna_pixmap_destroy(PixmapPtr pixmap);
 #define __MOVE_FORCE 0x40
 #define __MOVE_DRI 0x80
 
+bool
+sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int flags);
+
 struct sna_pixmap *sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags);
 static inline struct sna_pixmap *
 sna_pixmap_force_to_gpu(PixmapPtr pixmap, unsigned flags)

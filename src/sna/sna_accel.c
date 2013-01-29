@@ -2379,7 +2379,7 @@ sna_pixmap_mark_active(struct sna *sna, struct sna_pixmap *priv)
 	return priv;
 }
 
-static bool
+bool
 sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int flags)
 {
 	struct sna *sna = to_sna_from_pixmap(pixmap);
