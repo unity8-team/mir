@@ -115,6 +115,24 @@ static const struct gt_info hsw_gt_info = {
 	.urb = { 128, 64, 64 },
 };
 
+static const struct gt_info hsw_gt1_info = {
+	.max_vs_threads = 70,
+	.max_gs_threads = 70,
+	.max_wm_threads =
+		(102 - 1) << HSW_PS_MAX_THREADS_SHIFT |
+		1 << HSW_PS_SAMPLE_MASK_SHIFT,
+	.urb = { 128, 640, 256 },
+};
+
+static const struct gt_info hsw_gt2_info = {
+	.max_vs_threads = 280,
+	.max_gs_threads = 280,
+	.max_wm_threads =
+		(204 - 1) << HSW_PS_MAX_THREADS_SHIFT |
+		1 << HSW_PS_SAMPLE_MASK_SHIFT,
+	.urb = { 256, 1664, 640 },
+};
+
 static const uint32_t ps_kernel_packed[][4] = {
 #include "exa_wm_src_affine.g7b"
 #include "exa_wm_src_sample_argb.g7b"
@@ -3646,6 +3664,11 @@ static bool gen7_render_setup(struct sna *sna)
 		}
 	} else if (sna->kgem.gen == 075) {
 		state->info = &hsw_gt_info;
+		if (DEVICE_ID(sna->PciInfo) & 0xf) {
+			state->info = &hsw_gt1_info;
+			if (DEVICE_ID(sna->PciInfo) & 0x20)
+				state->info = &hsw_gt2_info;
+		}
 	} else
 		return false;
 
