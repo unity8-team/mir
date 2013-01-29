@@ -134,6 +134,7 @@ nouveau_dri2_copy_region2(ScreenPtr pScreen, DrawablePtr pDraw, RegionPtr pRegio
 {
 	struct nouveau_dri2_buffer *src = nouveau_dri2_buffer(pSrcBuffer);
 	struct nouveau_dri2_buffer *dst = nouveau_dri2_buffer(pDstBuffer);
+	NVPtr pNv = NVPTR(xf86ScreenToScrn(pScreen));
 	RegionPtr pCopyClip;
 	GCPtr pGC;
 	DrawablePtr src_draw, dst_draw;
@@ -178,6 +179,22 @@ nouveau_dri2_copy_region2(ScreenPtr pScreen, DrawablePtr pDraw, RegionPtr pRegio
 	}
 	pGC->funcs->ChangeClip(pGC, CT_REGION, pCopyClip, 0);
 	ValidateGC(dst_draw, pGC);
+
+	/* If this is a full buffer swap or frontbuffer flush, throttle on
+	 * the previous one.
+	 */
+	if (dst->base.attachment == DRI2BufferFrontLeft &&
+	    REGION_NUM_RECTS(pRegion) == 1) {
+		BoxPtr extents = REGION_EXTENTS(pScreen, pRegion);
+		if (extents->x1 == 0 && extents->y1 == 0 &&
+		    extents->x2 == pDraw->width &&
+		    extents->y2 == pDraw->height) {
+			struct nouveau_bo *bo = nouveau_pixmap_bo(dst->ppix);
+			if (bo)
+				nouveau_bo_wait(bo, NOUVEAU_BO_RD, pNv->client);
+		}
+	}
+
 	pGC->ops->CopyArea(src_draw, dst_draw, pGC, 0, 0,
 			   pDraw->width, pDraw->height, off_x, off_y);
 
