@@ -1019,7 +1019,6 @@ sna_share_pixmap_backing(PixmapPtr pixmap, ScreenPtr slave, void **fd_handle)
 	assert((priv->gpu_bo->pitch & 255) == 0);
 
 	/* And export the bo->pitch via pixmap->devKind */
-	assert(!priv->mapped);
 	pixmap->devPrivate.ptr = kgem_bo_map__async(&sna->kgem, priv->gpu_bo);
 	if (pixmap->devPrivate.ptr == NULL)
 		return FALSE;
@@ -13818,6 +13817,11 @@ static void sna_accel_post_damage(struct sna *sna)
 
 		RegionTranslate(&region, -dirty->x, -dirty->y);
 		DamageRegionAppend(&dirty->slave_dst->drawable, &region);
+
+		DBG(("%s: slave:  ((%d, %d), (%d, %d))x%d\n", __FUNCTION__,
+		     region.extents.x1, region.extents.y1,
+		     region.extents.x2, region.extents.y2,
+		     RegionNumRects(&region.extents)));
 
 		box = REGION_RECTS(&region);
 		n = REGION_NUM_RECTS(&region);
