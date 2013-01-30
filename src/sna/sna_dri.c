@@ -1862,10 +1862,15 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw,
 		DBG(("%s: performing immediate swap on pipe %d, pending? %d, mode: %d\n",
 		     __FUNCTION__, pipe, info != NULL, info ? info->mode : 0));
 
-		if (info && info->draw == draw) {
+		if (info &&
+		    info->draw == draw) {
 			assert(info->type == DRI2_FLIP_THROTTLE);
 			assert(info->front == front);
-			assert(info->back == back);
+			if (info->back != back) {
+				_sna_dri_destroy_buffer(sna, info->back);
+				info->back = back;
+				sna_dri_reference_buffer(back);
+			}
 			if (current_msc >= *target_msc) {
 				DBG(("%s: executing xchg of pending flip\n",
 				     __FUNCTION__));
