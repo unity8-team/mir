@@ -4713,11 +4713,9 @@ void kgem_bo_sync__cpu_full(struct kgem *kgem, struct kgem_bo *bo, bool write)
 		set_domain.write_domain = write ? I915_GEM_DOMAIN_CPU : 0;
 
 		if (drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_SET_DOMAIN, &set_domain) == 0) {
-			if (write) {
+			if (write || bo->needs_flush)
 				kgem_bo_retire(kgem, bo);
-				bo->domain = DOMAIN_CPU;
-			} else
-				bo->domain = DOMAIN_NONE;
+			bo->domain = write ? DOMAIN_CPU : DOMAIN_NONE;
 		}
 	}
 }
