@@ -3105,13 +3105,6 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 	if (priv->cpu_damage == NULL)
 		goto done;
 
-	if (priv->mapped) {
-		assert(priv->stride && priv->stride);
-		pixmap->devPrivate.ptr = PTR(priv->ptr);
-		pixmap->devKind = priv->stride;
-		priv->mapped = false;
-	}
-
 	if (priv->shm) {
 		assert(!priv->flush);
 		sna_add_flush_pixmap(sna, priv, priv->cpu_bo);
@@ -3133,7 +3126,12 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 						    box, n, 0);
 		}
 		if (!ok) {
-			assert(!priv->mapped);
+			if (priv->mapped) {
+				assert(priv->stride && priv->stride);
+				pixmap->devPrivate.ptr = PTR(priv->ptr);
+				pixmap->devKind = priv->stride;
+				priv->mapped = false;
+			}
 			if (pixmap->devPrivate.ptr == NULL) {
 				assert(priv->ptr && priv->stride);
 				pixmap->devPrivate.ptr = PTR(priv->ptr);
