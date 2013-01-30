@@ -164,6 +164,7 @@ static unsigned get_fb(struct sna *sna, struct kgem_bo *bo,
 			   scrn->depth, scrn->bitsPerPixel, bo->pitch, errno);
 		return 0;
 	}
+	assert(arg.fb_id != 0);
 
 	bo->scanout = true;
 	return bo->delta = arg.fb_id;

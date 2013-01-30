@@ -1619,6 +1619,7 @@ search_snoop_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags)
 	list_for_each_entry(bo, &kgem->snoop, list) {
 		assert(bo->refcnt == 0);
 		assert(bo->snoop);
+		assert(!bo->scanout);
 		assert(bo->proxy == NULL);
 		assert(bo->tiling == I915_TILING_NONE);
 		assert(bo->rq == NULL);
@@ -1707,7 +1708,7 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 	}
 
 	if (bo->scanout) {
-		assert (bo->delta);
+		assert(bo->delta);
 		DBG(("%s: handle=%d -> scanout\n",
 		     __FUNCTION__, bo->handle));
 		list_add(&bo->list, &kgem->scanout);
@@ -2994,6 +2995,7 @@ search_linear_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags)
 			assert(bo->proxy == NULL);
 			assert(bo->rq == NULL);
 			assert(bo->exec == NULL);
+			assert(!bo->scanout);
 
 			if (num_pages > num_pages(bo)) {
 				DBG(("inactive too small: %d < %d\n",
@@ -3037,6 +3039,7 @@ search_linear_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags)
 		assert(bo->reusable);
 		assert(!!bo->rq == !!use_active);
 		assert(bo->proxy == NULL);
+		assert(!bo->scanout);
 
 		if (num_pages > num_pages(bo))
 			continue;
@@ -3519,6 +3522,7 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 
 		list_for_each_entry(bo, &kgem->large, list) {
 			assert(!bo->purged);
+			assert(!bo->scanout);
 			assert(bo->refcnt == 0);
 			assert(bo->reusable);
 			assert(bo->flush == true);
@@ -3562,6 +3566,7 @@ large_inactive:
 		list_for_each_entry(bo, &kgem->large_inactive, list) {
 			assert(bo->refcnt == 0);
 			assert(bo->reusable);
+			assert(!bo->scanout);
 
 			if (size > num_pages(bo))
 				continue;
@@ -3608,6 +3613,7 @@ large_inactive:
 			list_for_each_entry(bo, cache, vma) {
 				assert(bucket(bo) == bucket);
 				assert(bo->refcnt == 0);
+				assert(!bo->scanout);
 				assert(bo->map);
 				assert(IS_CPU_MAP(bo->map) == for_cpu);
 				assert(bo->rq == NULL);
@@ -3672,6 +3678,7 @@ search_again:
 			assert(bo->reusable);
 			assert(bo->tiling == tiling);
 			assert(bo->flush == false);
+			assert(!bo->scanout);
 
 			if (kgem->gen < 040) {
 				if (bo->pitch < pitch) {
@@ -3713,6 +3720,7 @@ search_again:
 			assert(!bo->purged);
 			assert(bo->refcnt == 0);
 			assert(bo->reusable);
+			assert(!bo->scanout);
 			assert(bo->tiling == tiling);
 			assert(bo->flush == false);
 
@@ -3743,6 +3751,7 @@ search_again:
 					assert(!bo->purged);
 					assert(bo->refcnt == 0);
 					assert(bo->reusable);
+					assert(!bo->scanout);
 					assert(bo->flush == false);
 
 					if (num_pages(bo) < size)
@@ -3784,6 +3793,7 @@ search_again:
 				assert(!bo->purged);
 				assert(bo->refcnt == 0);
 				assert(bo->reusable);
+				assert(!bo->scanout);
 				assert(bo->flush == false);
 
 				if (bo->tiling) {
@@ -3824,6 +3834,7 @@ search_inactive:
 	list_for_each_entry(bo, cache, list) {
 		assert(bucket(bo) == bucket);
 		assert(bo->reusable);
+		assert(!bo->scanout);
 		assert(bo->flush == false);
 
 		if (size > num_pages(bo)) {
@@ -4779,6 +4790,7 @@ struct kgem_bo *kgem_create_proxy(struct kgem *kgem,
 	bo->tiling = target->tiling;
 	bo->pitch = target->pitch;
 
+	assert(!bo->scanout);
 	bo->proxy = kgem_bo_reference(target);
 	bo->delta = offset;
 
