@@ -1579,8 +1579,7 @@ skip_inplace_map:
 		DBG(("%s: try to operate inplace (GTT)\n", __FUNCTION__));
 		assert(priv->cpu == false);
 
-		pixmap->devPrivate.ptr =
-			kgem_bo_map(&sna->kgem, priv->gpu_bo);
+		pixmap->devPrivate.ptr = kgem_bo_map(&sna->kgem, priv->gpu_bo);
 		priv->mapped = pixmap->devPrivate.ptr != NULL;
 		if (priv->mapped) {
 			pixmap->devKind = priv->gpu_bo->pitch;
@@ -1820,11 +1819,6 @@ static inline bool region_inplace(struct sna *sna,
 		return false;
 	}
 
-	if (priv->flush) {
-		DBG(("%s: yes, exported via dri, will flush\n", __FUNCTION__));
-		return true;
-	}
-
 	if (priv->cpu) {
 		DBG(("%s: no, preferring last action of CPU\n", __FUNCTION__));
 		return false;
@@ -1833,6 +1827,11 @@ static inline bool region_inplace(struct sna *sna,
 	if (priv->mapped) {
 		DBG(("%s: yes, already mapped, continuiung\n", __FUNCTION__));
 		return !IS_CPU_MAP(priv->gpu_bo->map);
+	}
+
+	if (priv->flush) {
+		DBG(("%s: yes, exported via dri, will flush\n", __FUNCTION__));
+		return true;
 	}
 
 	if (DAMAGE_IS_ALL(priv->gpu_damage)) {
