@@ -2233,7 +2233,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 	}
 
 done:
-	if (flags & MOVE_WRITE) {
+	if ((flags & (MOVE_WRITE | MOVE_ASYNC_HINT)) == MOVE_WRITE) {
 		DBG(("%s: applying cpu damage\n", __FUNCTION__));
 		assert(!DAMAGE_IS_ALL(priv->cpu_damage));
 		assert_pixmap_contains_box(pixmap, RegionExtents(region));
@@ -2862,7 +2862,7 @@ use_cpu_bo:
 		return NULL;
 
 	if (!sna_drawable_move_region_to_cpu(&pixmap->drawable, &region,
-					     MOVE_READ | MOVE_ASYNC_HINT)) {
+					     (flags & IGNORE_CPU ? MOVE_READ : 0) | MOVE_WRITE | MOVE_ASYNC_HINT)) {
 		DBG(("%s: failed to move-to-cpu, fallback\n", __FUNCTION__));
 		return NULL;
 	}
