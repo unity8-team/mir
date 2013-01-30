@@ -1934,27 +1934,27 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 
 		DBG(("%s: try to operate inplace\n", __FUNCTION__));
 
-		pixmap->devPrivate.ptr =
-			kgem_bo_map(&sna->kgem, priv->gpu_bo);
+		pixmap->devPrivate.ptr = kgem_bo_map(&sna->kgem, priv->gpu_bo);
 		priv->mapped = pixmap->devPrivate.ptr != NULL;
 		if (priv->mapped) {
 			pixmap->devKind = priv->gpu_bo->pitch;
-			if (flags & MOVE_WRITE &&
-			    !DAMAGE_IS_ALL(priv->gpu_damage)) {
-				sna_damage_add(&priv->gpu_damage, region);
-				if (sna_damage_is_all(&priv->gpu_damage,
-						      pixmap->drawable.width,
-						      pixmap->drawable.height)) {
-					DBG(("%s: replaced entire pixmap, destroying CPU shadow\n",
-					     __FUNCTION__));
-					sna_damage_destroy(&priv->cpu_damage);
-					list_del(&priv->list);
-				} else
-					sna_damage_subtract(&priv->cpu_damage,
-							    region);
+			if (flags & MOVE_WRITE) {
+				if (!DAMAGE_IS_ALL(priv->gpu_damage)) {
+					sna_damage_add(&priv->gpu_damage, region);
+					if (sna_damage_is_all(&priv->gpu_damage,
+							      pixmap->drawable.width,
+							      pixmap->drawable.height)) {
+						DBG(("%s: replaced entire pixmap, destroying CPU shadow\n",
+						     __FUNCTION__));
+						sna_damage_destroy(&priv->cpu_damage);
+						list_del(&priv->list);
+					} else
+						sna_damage_subtract(&priv->cpu_damage,
+								    region);
+				}
+				priv->clear = false;
 			}
 			assert_pixmap_damage(pixmap);
-			priv->clear = false;
 			priv->cpu = false;
 			if (dx | dy)
 				RegionTranslate(region, -dx, -dy);
