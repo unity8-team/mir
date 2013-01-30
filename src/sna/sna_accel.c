@@ -1520,14 +1520,12 @@ _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 			    !sna_pixmap_create_mappable_gpu(pixmap))
 				goto skip_inplace_map;
 
-			if (!priv->mapped) {
-				pixmap->devPrivate.ptr =
-					kgem_bo_map(&sna->kgem, priv->gpu_bo);
-				if (pixmap->devPrivate.ptr == NULL)
-					goto skip_inplace_map;
+			pixmap->devPrivate.ptr =
+				kgem_bo_map(&sna->kgem, priv->gpu_bo);
+			priv->mapped = pixmap->devPrivate.ptr != NULL;
+			if (!priv->mapped)
+				goto skip_inplace_map;
 
-				priv->mapped = true;
-			}
 			pixmap->devKind = priv->gpu_bo->pitch;
 
 			assert(priv->gpu_bo->proxy == NULL);
@@ -1581,11 +1579,10 @@ skip_inplace_map:
 		DBG(("%s: try to operate inplace (GTT)\n", __FUNCTION__));
 		assert(priv->cpu == false);
 
-		assert(!priv->mapped);
 		pixmap->devPrivate.ptr =
 			kgem_bo_map(&sna->kgem, priv->gpu_bo);
-		if (pixmap->devPrivate.ptr != NULL) {
-			priv->mapped = true;
+		priv->mapped = pixmap->devPrivate.ptr != NULL;
+		if (priv->mapped) {
 			pixmap->devKind = priv->gpu_bo->pitch;
 			if (flags & MOVE_WRITE) {
 				assert(priv->gpu_bo->proxy == NULL);
@@ -1602,8 +1599,6 @@ skip_inplace_map:
 			DBG(("%s: operate inplace (GTT)\n", __FUNCTION__));
 			return true;
 		}
-
-		priv->mapped = false;
 	}
 
 	if (priv->mapped) {
@@ -1660,6 +1655,7 @@ skip_inplace_map:
 				  flags & MOVE_READ ? priv->gpu_damage && !priv->clear : 0))
 		return false;
 	assert(pixmap->devPrivate.ptr);
+	assert(!priv->mapped);
 
 	if (priv->clear) {
 		DBG(("%s: applying clear [%08x]\n",
@@ -1939,11 +1935,10 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 
 		DBG(("%s: try to operate inplace\n", __FUNCTION__));
 
-		assert(!priv->mapped);
 		pixmap->devPrivate.ptr =
 			kgem_bo_map(&sna->kgem, priv->gpu_bo);
-		if (pixmap->devPrivate.ptr != NULL) {
-			priv->mapped = true;
+		priv->mapped = pixmap->devPrivate.ptr != NULL;
+		if (priv->mapped) {
 			pixmap->devKind = priv->gpu_bo->pitch;
 			if (flags & MOVE_WRITE &&
 			    !DAMAGE_IS_ALL(priv->gpu_damage)) {
@@ -1967,8 +1962,6 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 			DBG(("%s: operate inplace\n", __FUNCTION__));
 			return true;
 		}
-
-		priv->mapped = false;
 	}
 
 	if (priv->clear && flags & MOVE_WRITE) {
