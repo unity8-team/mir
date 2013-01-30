@@ -384,13 +384,10 @@ kgem_busy(struct kgem *kgem, int handle)
 
 static void kgem_bo_retire(struct kgem *kgem, struct kgem_bo *bo)
 {
-	DBG(("%s: handle=%d, domain=%d\n",
-	     __FUNCTION__, bo->handle, bo->domain));
-	assert(bo->flush || !kgem_busy(kgem, bo->handle));
+	DBG(("%s: retiring bo handle=%d (needed flush? %d), rq? %d [busy?=%d]\n",
+	     __FUNCTION__, bo->handle, bo->needs_flush, bo->rq != NULL,
+	     kgem_busy(kgem, bo->handle)));
 	assert(bo->exec == NULL);
-
-	DBG(("%s: retiring bo handle=%d (needed flush? %d), rq? %d\n",
-	     __FUNCTION__, bo->handle, bo->needs_flush, bo->rq != NULL));
 
 	if (bo->rq) {
 		kgem_retire(kgem);
