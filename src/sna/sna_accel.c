@@ -463,6 +463,7 @@ sna_pixmap_alloc_cpu(struct sna *sna,
 	assert(priv->ptr);
 done:
 	assert(priv->stride);
+	assert(!priv->mapped);
 	pixmap->devPrivate.ptr = PTR(priv->ptr);
 	pixmap->devKind = priv->stride;
 	return priv->ptr != NULL;
@@ -1018,6 +1019,7 @@ sna_share_pixmap_backing(PixmapPtr pixmap, ScreenPtr slave, void **fd_handle)
 	assert((priv->gpu_bo->pitch & 255) == 0);
 
 	/* And export the bo->pitch via pixmap->devKind */
+	assert(!priv->mapped);
 	pixmap->devPrivate.ptr = kgem_bo_map__async(&sna->kgem, priv->gpu_bo);
 	if (pixmap->devPrivate.ptr == NULL)
 		return FALSE;
@@ -1121,6 +1123,7 @@ sna_create_pixmap_shared(struct sna *sna, ScreenPtr screen,
 		assert(priv->gpu_bo->tiling == I915_TILING_NONE);
 		assert((priv->gpu_bo->pitch & 255) == 0);
 
+		assert(!priv->mapped);
 		pixmap->devPrivate.ptr =
 			kgem_bo_map__async(&sna->kgem, priv->gpu_bo);
 		if (pixmap->devPrivate.ptr == NULL) {
@@ -1578,6 +1581,7 @@ skip_inplace_map:
 		DBG(("%s: try to operate inplace (GTT)\n", __FUNCTION__));
 		assert(priv->cpu == false);
 
+		assert(!priv->mapped);
 		pixmap->devPrivate.ptr =
 			kgem_bo_map(&sna->kgem, priv->gpu_bo);
 		if (pixmap->devPrivate.ptr != NULL) {
@@ -1603,7 +1607,7 @@ skip_inplace_map:
 	}
 
 	if (priv->mapped) {
-		assert(!priv->shm);
+		assert(!priv->shm && priv->stride);
 		pixmap->devPrivate.ptr = PTR(priv->ptr);
 		pixmap->devKind = priv->stride;
 		priv->mapped = false;
@@ -1618,6 +1622,7 @@ skip_inplace_map:
 
 		DBG(("%s: try to operate inplace (CPU)\n", __FUNCTION__));
 
+		assert(!priv->mapped);
 		pixmap->devPrivate.ptr =
 			kgem_bo_map__cpu(&sna->kgem, priv->gpu_bo);
 		if (pixmap->devPrivate.ptr != NULL) {
@@ -1934,6 +1939,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 
 		DBG(("%s: try to operate inplace\n", __FUNCTION__));
 
+		assert(!priv->mapped);
 		pixmap->devPrivate.ptr =
 			kgem_bo_map(&sna->kgem, priv->gpu_bo);
 		if (pixmap->devPrivate.ptr != NULL) {
@@ -2463,12 +2469,12 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 							    box, n, 0);
 			}
 			if (!ok) {
+				assert(!priv->mapped);
 				if (pixmap->devPrivate.ptr == NULL) {
-					assert(priv->ptr);
+					assert(priv->ptr && priv->stride);
 					pixmap->devPrivate.ptr = PTR(priv->ptr);
 					pixmap->devKind = priv->stride;
 				}
-				assert(!priv->mapped);
 				if (n == 1 && !priv->pinned &&
 				    box->x1 <= 0 && box->y1 <= 0 &&
 				    box->x2 >= pixmap->drawable.width &&
@@ -2503,12 +2509,12 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 						    box, 1, 0);
 		}
 		if (!ok) {
+			assert(!priv->mapped);
 			if (pixmap->devPrivate.ptr == NULL) {
-				assert(priv->ptr);
+				assert(priv->ptr && priv->stride);
 				pixmap->devPrivate.ptr = PTR(priv->ptr);
 				pixmap->devKind = priv->stride;
 			}
-			assert(!priv->mapped);
 			ok = sna_write_boxes(sna, pixmap,
 					     priv->gpu_bo, 0, 0,
 					     pixmap->devPrivate.ptr,
@@ -2534,12 +2540,12 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 						    box, n, 0);
 		}
 		if (!ok) {
+			assert(!priv->mapped);
 			if (pixmap->devPrivate.ptr == NULL) {
-				assert(priv->ptr);
+				assert(priv->ptr && priv->stride);
 				pixmap->devPrivate.ptr = PTR(priv->ptr);
 				pixmap->devKind = priv->stride;
 			}
-			assert(!priv->mapped);
 			ok = sna_write_boxes(sna, pixmap,
 					     priv->gpu_bo, 0, 0,
 					     pixmap->devPrivate.ptr,
@@ -3100,7 +3106,7 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 		goto done;
 
 	if (priv->mapped) {
-		assert(priv->stride);
+		assert(priv->stride && priv->stride);
 		pixmap->devPrivate.ptr = PTR(priv->ptr);
 		pixmap->devKind = priv->stride;
 		priv->mapped = false;
@@ -3127,12 +3133,12 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 						    box, n, 0);
 		}
 		if (!ok) {
+			assert(!priv->mapped);
 			if (pixmap->devPrivate.ptr == NULL) {
-				assert(priv->ptr);
+				assert(priv->ptr && priv->stride);
 				pixmap->devPrivate.ptr = PTR(priv->ptr);
 				pixmap->devKind = priv->stride;
 			}
-			assert(!priv->mapped);
 			if (n == 1 && !priv->pinned &&
 			    (box->x2 - box->x1) >= pixmap->drawable.width &&
 			    (box->y2 - box->y1) >= pixmap->drawable.height) {
