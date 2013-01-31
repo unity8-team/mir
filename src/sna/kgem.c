@@ -396,17 +396,23 @@ static void kgem_bo_retire(struct kgem *kgem, struct kgem_bo *bo)
 	     __FUNCTION__, bo->handle, bo->needs_flush, bo->rq != NULL,
 	     kgem_busy(kgem, bo->handle)));
 	assert(bo->exec == NULL);
-	ASSERT_IDLE(kgem, bo->handle);
+	assert(list_is_empty(&bo->vma));
 
 	if (bo->rq) {
-		kgem_retire(kgem);
-		bo->rq = NULL;
+		if (bo->needs_flush)
+			bo->needs_flush = kgem_busy(kgem, bo->handle);
+		if (bo->needs_flush) {
+			list_move(&bo->request, &kgem->flushing);
+			bo->rq = (void *)kgem;
+		} else {
+			bo->rq = NULL;
+			list_del(&bo->request);
+			kgem_retire(kgem);
+		}
+	} else {
+		assert(!bo->needs_flush);
+		ASSERT_IDLE(kgem, bo->handle);
 	}
-
-	assert(list_is_empty(&bo->vma));
-	list_del(&bo->request);
-
-	bo->needs_flush = false;
 }
 
 bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,
