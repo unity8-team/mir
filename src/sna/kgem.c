@@ -81,6 +81,14 @@ search_snoop_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags);
 
 #define SHOW_BATCH 0
 
+#if 0
+#define ASSERT_IDLE(kgem__, handle__) assert(!kgem_busy(kgem__, handle__))
+#define ASSERT_MAYBE_IDLE(kgem__, handle__, expect__) assert(!(expect__) || !kgem_busy(kgem__, handle__))
+#else
+#define ASSERT_IDLE(kgem__, handle__)
+#define ASSERT_MAYBE_IDLE(kgem__, handle__, expect__)
+#endif
+
 /* Worst case seems to be 965gm where we cannot write within a cacheline that
  * is being simultaneously being read by the GPU, or within the sampler
  * prefetch. In general, the chipsets seem to have a requirement that sampler
@@ -388,6 +396,7 @@ static void kgem_bo_retire(struct kgem *kgem, struct kgem_bo *bo)
 	     __FUNCTION__, bo->handle, bo->needs_flush, bo->rq != NULL,
 	     kgem_busy(kgem, bo->handle)));
 	assert(bo->exec == NULL);
+	ASSERT_IDLE(kgem, bo->handle);
 
 	if (bo->rq) {
 		kgem_retire(kgem);
@@ -405,8 +414,8 @@ bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,
 {
 	assert(bo->refcnt);
 	assert(!bo->purged);
-	assert(bo->flush || !kgem_busy(kgem, bo->handle));
 	assert(bo->proxy == NULL);
+	ASSERT_IDLE(kgem, bo->handle);
 
 	assert(length <= bytes(bo));
 	if (gem_write(kgem->fd, bo->handle, 0, length, data))
@@ -1489,11 +1498,11 @@ inline static void kgem_bo_move_to_inactive(struct kgem *kgem,
 	assert(bo->rq == NULL);
 	assert(bo->exec == NULL);
 	assert(bo->domain != DOMAIN_GPU);
-	assert(!kgem_busy(kgem, bo->handle));
 	assert(!bo->proxy);
 	assert(!bo->io);
 	assert(!bo->needs_flush);
 	assert(list_is_empty(&bo->vma));
+	ASSERT_IDLE(kgem, bo->handle);
 
 	kgem->need_expire = true;
 
@@ -2303,7 +2312,7 @@ static void kgem_finish_buffers(struct kgem *kgem)
 
 		DBG(("%s: handle=%d, uploading %d/%d\n",
 		     __FUNCTION__, bo->base.handle, bo->used, bytes(&bo->base)));
-		assert(!kgem_busy(kgem, bo->base.handle));
+		ASSERT_IDLE(kgem, bo->base.handle);
 		assert(bo->used <= bytes(&bo->base));
 		gem_write(kgem->fd, bo->base.handle,
 			  0, bo->used, bo->mem);
@@ -2355,7 +2364,7 @@ static int kgem_batch_write(struct kgem *kgem, uint32_t handle, uint32_t size)
 {
 	int ret;
 
-	assert(!kgem_busy(kgem, handle));
+	ASSERT_IDLE(kgem, handle);
 
 	/* If there is no surface data, just upload the batch */
 	if (kgem->surface == kgem->batch_size)
@@ -3022,7 +3031,7 @@ search_linear_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags)
 			     __FUNCTION__, bo->handle, num_pages(bo)));
 			assert(use_active || bo->domain != DOMAIN_GPU);
 			assert(!bo->needs_flush);
-			//assert(!kgem_busy(kgem, bo->handle));
+			ASSERT_MAYBE_IDLE(kgem, bo->handle, !use_active);
 			return bo;
 		}
 
@@ -3110,7 +3119,7 @@ search_linear_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags)
 		assert(list_is_empty(&bo->list));
 		assert(use_active || bo->domain != DOMAIN_GPU);
 		assert(!bo->needs_flush || use_active);
-		//assert(use_active || !kgem_busy(kgem, bo->handle));
+		ASSERT_MAYBE_IDLE(kgem, bo->handle, !use_active);
 		return bo;
 	}
 
@@ -3130,7 +3139,7 @@ search_linear_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags)
 		assert(list_is_empty(&first->list));
 		assert(use_active || first->domain != DOMAIN_GPU);
 		assert(!first->needs_flush || use_active);
-		//assert(use_active || !kgem_busy(kgem, first->handle));
+		ASSERT_MAYBE_IDLE(kgem, first->handle, !use_active);
 		return first;
 	}
 
@@ -3237,7 +3246,8 @@ struct kgem_bo *kgem_create_linear(struct kgem *kgem, int size, unsigned flags)
 	size = (size + PAGE_SIZE - 1) / PAGE_SIZE;
 	bo = search_linear_cache(kgem, size, CREATE_INACTIVE | flags);
 	if (bo) {
-		assert(!kgem_busy(kgem, bo->handle));
+		assert(bo->domain != DOMAIN_GPU);
+		ASSERT_IDLE(kgem, bo->handle);
 		bo->refcnt = 1;
 		return bo;
 	}
@@ -3647,7 +3657,8 @@ large_inactive:
 				DBG(("  from inactive vma: pitch=%d, tiling=%d: handle=%d, id=%d\n",
 				     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
 				assert(bo->reusable);
-				assert(bo->domain != DOMAIN_GPU && !kgem_busy(kgem, bo->handle));
+				assert(bo->domain != DOMAIN_GPU);
+				ASSERT_IDLE(kgem, bo->handle);
 				assert(bo->pitch*kgem_aligned_height(kgem, height, bo->tiling) <= kgem_bo_size(bo));
 				bo->refcnt = 1;
 				return bo;
@@ -3871,7 +3882,7 @@ search_inactive:
 		assert(bo->refcnt == 0);
 		assert(bo->reusable);
 		assert((flags & CREATE_INACTIVE) == 0 || bo->domain != DOMAIN_GPU);
-		assert((flags & CREATE_INACTIVE) == 0 || !kgem_busy(kgem, bo->handle));
+		ASSERT_MAYBE_IDLE(kgem, bo->handle, flags & CREATE_INACTIVE);
 		assert(bo->pitch*kgem_aligned_height(kgem, height, bo->tiling) <= kgem_bo_size(bo));
 		bo->refcnt = 1;
 		return bo;
