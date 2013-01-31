@@ -2526,7 +2526,7 @@ struct rasterize_traps_thread {
 	int stride;
 	BoxRec bounds;
 	pixman_format_code_t format;
-	int ntrap, y1, y2;
+	int ntrap;
 };
 
 static void rasterize_traps_thread(void *arg)
@@ -2620,6 +2620,8 @@ trapezoids_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 		height = bounds.y2 - bounds.y1;
 		bounds.x1 -= dst->pDrawable->x;
 		bounds.y1 -= dst->pDrawable->y;
+		bounds.x2 -= dst->pDrawable->x;
+		bounds.y2 -= dst->pDrawable->y;
 		depth = maskFormat->depth;
 		if (depth == 1) {
 			format = PIXMAN_a1;
