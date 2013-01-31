@@ -82,8 +82,8 @@ search_snoop_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags);
 #define SHOW_BATCH 0
 
 #if 0
-#define ASSERT_IDLE(kgem__, handle__) assert(!kgem_busy(kgem__, handle__))
-#define ASSERT_MAYBE_IDLE(kgem__, handle__, expect__) assert(!(expect__) || !kgem_busy(kgem__, handle__))
+#define ASSERT_IDLE(kgem__, handle__) assert(!__kgem_busy(kgem__, handle__))
+#define ASSERT_MAYBE_IDLE(kgem__, handle__, expect__) assert(!(expect__) || !__kgem_busy(kgem__, handle__))
 #else
 #define ASSERT_IDLE(kgem__, handle__)
 #define ASSERT_MAYBE_IDLE(kgem__, handle__, expect__)
@@ -375,8 +375,7 @@ static int gem_read(int fd, uint32_t handle, const void *dst,
 	return 0;
 }
 
-static bool
-kgem_busy(struct kgem *kgem, int handle)
+bool __kgem_busy(struct kgem *kgem, int handle)
 {
 	struct drm_i915_gem_busy busy;
 
@@ -394,19 +393,14 @@ static void kgem_bo_retire(struct kgem *kgem, struct kgem_bo *bo)
 {
 	DBG(("%s: retiring bo handle=%d (needed flush? %d), rq? %d [busy?=%d]\n",
 	     __FUNCTION__, bo->handle, bo->needs_flush, bo->rq != NULL,
-	     kgem_busy(kgem, bo->handle)));
+	     __kgem_busy(kgem, bo->handle)));
+	assert(bo->refcnt);
 	assert(bo->exec == NULL);
 	assert(list_is_empty(&bo->vma));
 
 	if (bo->rq) {
-		if (bo->needs_flush)
-			bo->needs_flush = kgem_busy(kgem, bo->handle);
-		if (bo->needs_flush) {
-			list_move(&bo->request, &kgem->flushing);
-			bo->rq = (void *)kgem;
-		} else {
-			bo->rq = NULL;
-			list_del(&bo->request);
+		if (!__kgem_busy(kgem, bo->handle)) {
+			__kgem_bo_clear_busy(bo);
 			kgem_retire(kgem);
 		}
 	} else {
@@ -1575,7 +1569,6 @@ static void kgem_bo_clear_scanout(struct kgem *kgem, struct kgem_bo *bo)
 	}
 
 	bo->scanout = false;
-	bo->needs_flush = true;
 	bo->flush = false;
 	bo->reusable = true;
 
@@ -1702,16 +1695,12 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 		DBG(("%s: handle=%d is snooped\n", __FUNCTION__, bo->handle));
 		assert(!bo->flush);
 		assert(list_is_empty(&bo->list));
+		if (bo->exec == NULL && bo->rq && !__kgem_busy(kgem, bo->handle))
+			__kgem_bo_clear_busy(bo);
 		if (bo->rq == NULL) {
-			if (bo->needs_flush && kgem_busy(kgem, bo->handle)) {
-				DBG(("%s: handle=%d is snooped, tracking until free\n",
-				     __FUNCTION__, bo->handle));
-				list_add(&bo->request, &kgem->flushing);
-				bo->rq = (void *)kgem;
-			}
-		}
-		if (bo->rq == NULL)
+			assert(!bo->needs_flush);
 			kgem_bo_move_to_snoop(kgem, bo);
+		}
 		return;
 	}
 
@@ -1766,6 +1755,9 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 		bo->refcnt = 0;
 	}
 
+	if (bo->rq && bo->exec == NULL && !__kgem_busy(kgem, bo->handle))
+		__kgem_bo_clear_busy(bo);
+
 	if (bo->rq) {
 		struct list *cache;
 
@@ -1780,27 +1772,6 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 
 	assert(bo->exec == NULL);
 	assert(list_is_empty(&bo->request));
-
-	if (bo->needs_flush) {
-		if ((bo->needs_flush = kgem_busy(kgem, bo->handle))) {
-			struct list *cache;
-
-			DBG(("%s: handle=%d -> flushing\n",
-			     __FUNCTION__, bo->handle));
-
-			assert(bo->reusable);
-			list_add(&bo->request, &kgem->flushing);
-			if (bucket(bo) < NUM_CACHE_BUCKETS)
-				cache = &kgem->active[bucket(bo)][bo->tiling];
-			else
-				cache = &kgem->large;
-			list_add(&bo->list, cache);
-			bo->rq = (void *)kgem;
-			return;
-		}
-
-		bo->domain = DOMAIN_NONE;
-	}
 
 	if (!IS_CPU_MAP(bo->map)) {
 		if (!kgem_bo_set_purgeable(kgem, bo))
@@ -1878,26 +1849,23 @@ static bool kgem_retire__flushing(struct kgem *kgem)
 		assert(bo->rq == (void *)kgem);
 		assert(bo->exec == NULL);
 
-		if (kgem_busy(kgem, bo->handle))
+		if (__kgem_busy(kgem, bo->handle))
 			break;
 
-		bo->needs_flush = false;
-		bo->domain = DOMAIN_NONE;
-		bo->rq = NULL;
-		list_del(&bo->request);
+		__kgem_bo_clear_busy(bo);
 
-		if (!bo->refcnt) {
-			if (bo->snoop) {
-				kgem_bo_move_to_snoop(kgem, bo);
-			} else if (bo->scanout) {
-				kgem_bo_move_to_scanout(kgem, bo);
-			} else if (bo->reusable &&
-				   kgem_bo_set_purgeable(kgem, bo)) {
-				kgem_bo_move_to_inactive(kgem, bo);
-				retired = true;
-			} else
-				kgem_bo_free(kgem, bo);
-		}
+		if (bo->refcnt)
+			continue;
+
+		if (bo->snoop) {
+			kgem_bo_move_to_snoop(kgem, bo);
+		} else if (bo->scanout) {
+			kgem_bo_move_to_scanout(kgem, bo);
+		} else if (bo->reusable && kgem_bo_set_purgeable(kgem, bo)) {
+			kgem_bo_move_to_inactive(kgem, bo);
+			retired = true;
+		} else
+			kgem_bo_free(kgem, bo);
 	}
 #if HAS_DEBUG_FULL
 	{
@@ -1935,44 +1903,31 @@ static bool __kgem_retire_rq(struct kgem *kgem, struct kgem_request *rq)
 		list_del(&bo->request);
 
 		if (bo->needs_flush)
-			bo->needs_flush = kgem_busy(kgem, bo->handle);
+			bo->needs_flush = __kgem_busy(kgem, bo->handle);
 		if (bo->needs_flush) {
 			DBG(("%s: moving %d to flushing\n",
 			     __FUNCTION__, bo->handle));
 			list_add(&bo->request, &kgem->flushing);
 			bo->rq = (void *)kgem;
-		} else {
-			bo->domain = DOMAIN_NONE;
-			bo->rq = NULL;
+			continue;
 		}
 
+		bo->domain = DOMAIN_NONE;
+		bo->rq = NULL;
 		if (bo->refcnt)
 			continue;
 
 		if (bo->snoop) {
-			if (!bo->needs_flush)
-				kgem_bo_move_to_snoop(kgem, bo);
-			continue;
-		}
-
-		if (!bo->reusable) {
+			kgem_bo_move_to_snoop(kgem, bo);
+		} else if (bo->scanout) {
+			kgem_bo_move_to_scanout(kgem, bo);
+		} else if (bo->reusable && kgem_bo_set_purgeable(kgem, bo)) {
+			kgem_bo_move_to_inactive(kgem, bo);
+			retired = true;
+		} else {
 			DBG(("%s: closing %d\n",
 			     __FUNCTION__, bo->handle));
 			kgem_bo_free(kgem, bo);
-			continue;
-		}
-
-		if (!bo->needs_flush) {
-			if (bo->scanout) {
-				kgem_bo_move_to_scanout(kgem, bo);
-			} else if (kgem_bo_set_purgeable(kgem, bo)) {
-				kgem_bo_move_to_inactive(kgem, bo);
-				retired = true;
-			} else {
-				DBG(("%s: closing %d\n",
-				     __FUNCTION__, bo->handle));
-				kgem_bo_free(kgem, bo);
-			}
 		}
 	}
 
@@ -2004,7 +1959,7 @@ static bool kgem_retire__requests_ring(struct kgem *kgem, int ring)
 		rq = list_first_entry(&kgem->requests[ring],
 				      struct kgem_request,
 				      list);
-		if (kgem_busy(kgem, rq->bo->handle))
+		if (__kgem_busy(kgem, rq->bo->handle))
 			break;
 
 		retired |= __kgem_retire_rq(kgem, rq);
@@ -2073,7 +2028,7 @@ bool __kgem_ring_is_idle(struct kgem *kgem, int ring)
 
 	rq = list_last_entry(&kgem->requests[ring],
 			     struct kgem_request, list);
-	if (kgem_busy(kgem, rq->bo->handle)) {
+	if (__kgem_busy(kgem, rq->bo->handle)) {
 		DBG(("%s: last requests handle=%d still busy\n",
 		     __FUNCTION__, rq->bo->handle));
 		return false;
@@ -2121,10 +2076,8 @@ static void kgem_commit(struct kgem *kgem)
 
 		if (bo->proxy) {
 			/* proxies are not used for domain tracking */
-			list_del(&bo->request);
-			bo->rq = NULL;
 			bo->exec = NULL;
-			bo->needs_flush = false;
+			__kgem_bo_clear_busy(bo);
 		}
 
 		kgem->scanout_busy |= bo->scanout;
@@ -2272,6 +2225,7 @@ static void kgem_finish_buffers(struct kgem *kgem)
 					list_init(&bo->base.request);
 					shrink->needs_flush = bo->base.dirty;
 
+					assert(bo->base.domain == DOMAIN_NONE);
 					bo->base.exec = NULL;
 					bo->base.rq = NULL;
 					bo->base.dirty = false;
@@ -2317,6 +2271,7 @@ static void kgem_finish_buffers(struct kgem *kgem)
 					list_init(&bo->base.request);
 					shrink->needs_flush = bo->base.dirty;
 
+					assert(bo->base.domain == DOMAIN_NONE);
 					bo->base.exec = NULL;
 					bo->base.rq = NULL;
 					bo->base.dirty = false;
@@ -2364,12 +2319,9 @@ static void kgem_cleanup(struct kgem *kgem)
 						      struct kgem_bo,
 						      request);
 
-				list_del(&bo->request);
-				bo->rq = NULL;
 				bo->exec = NULL;
-				bo->domain = DOMAIN_NONE;
 				bo->dirty = false;
-				bo->needs_flush = false;
+				__kgem_bo_clear_busy(bo);
 				if (bo->refcnt == 0)
 					kgem_bo_free(kgem, bo);
 			}
@@ -2434,15 +2386,12 @@ void kgem_reset(struct kgem *kgem)
 			bo->exec = NULL;
 			bo->target_handle = -1;
 			bo->dirty = false;
-			bo->domain = DOMAIN_NONE;
 
-			if (bo->needs_flush && kgem_busy(kgem, bo->handle)) {
+			if (bo->needs_flush && __kgem_busy(kgem, bo->handle)) {
 				list_add(&bo->request, &kgem->flushing);
 				bo->rq = (void *)kgem;
-			} else {
-				bo->rq = NULL;
-				bo->needs_flush = false;
-			}
+			} else
+				__kgem_bo_clear_busy(bo);
 
 			if (!bo->refcnt && !bo->reusable) {
 				assert(!bo->snoop);
@@ -2521,7 +2470,7 @@ out_4096:
 			return kgem_bo_reference(bo);
 		}
 
-		if (!kgem_busy(kgem, bo->handle)) {
+		if (!__kgem_busy(kgem, bo->handle)) {
 			assert(RQ(bo->rq)->bo == bo);
 			__kgem_retire_rq(kgem, RQ(bo->rq));
 			goto out_4096;
@@ -2538,7 +2487,7 @@ out_16384:
 			return kgem_bo_reference(bo);
 		}
 
-		if (!kgem_busy(kgem, bo->handle)) {
+		if (!__kgem_busy(kgem, bo->handle)) {
 			assert(RQ(bo->rq)->bo == bo);
 			__kgem_retire_rq(kgem, RQ(bo->rq));
 			goto out_16384;
@@ -4078,16 +4027,18 @@ void _kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 	__kgem_bo_destroy(kgem, bo);
 }
 
-bool __kgem_flush(struct kgem *kgem, struct kgem_bo *bo)
+void __kgem_flush(struct kgem *kgem, struct kgem_bo *bo)
 {
-	/* The kernel will emit a flush *and* update its own flushing lists. */
-	if (!bo->needs_flush)
-		return false;
+	assert(bo->rq);
+	assert(bo->exec == NULL);
+	assert(bo->needs_flush);
 
-	bo->needs_flush = kgem_busy(kgem, bo->handle);
+	/* The kernel will emit a flush *and* update its own flushing lists. */
+	if (!__kgem_busy(kgem, bo->handle))
+		__kgem_bo_clear_busy(bo);
+
 	DBG(("%s: handle=%d, busy?=%d\n",
-	     __FUNCTION__, bo->handle, bo->needs_flush));
-	return bo->needs_flush;
+	     __FUNCTION__, bo->handle, bo->rq != NULL));
 }
 
 inline static bool needs_semaphore(struct kgem *kgem, struct kgem_bo *bo)
@@ -4505,7 +4456,7 @@ void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo)
 		struct drm_i915_gem_set_domain set_domain;
 
 		DBG(("%s: sync: needs_flush? %d, domain? %d, busy? %d\n", __FUNCTION__,
-		     bo->needs_flush, bo->domain, kgem_busy(kgem, bo->handle)));
+		     bo->needs_flush, bo->domain, __kgem_busy(kgem, bo->handle)));
 
 		/* XXX use PROT_READ to avoid the write flush? */
 
@@ -4680,10 +4631,7 @@ uint32_t kgem_bo_flink(struct kgem *kgem, struct kgem_bo *bo)
 	 */
 	bo->reusable = false;
 
-	/* The bo is outside of our control, so presume it is written to */
-	bo->needs_flush = true;
-	if (bo->domain != DOMAIN_GPU)
-		bo->domain = DOMAIN_NONE;
+	kgem_bo_unclean(kgem, bo);
 
 	/* Henceforth, we need to broadcast all updates to clients and
 	 * flush our rendering before doing so.
@@ -4732,7 +4680,7 @@ void kgem_bo_sync__cpu(struct kgem *kgem, struct kgem_bo *bo)
 		struct drm_i915_gem_set_domain set_domain;
 
 		DBG(("%s: SYNC: needs_flush? %d, domain? %d, busy? %d\n", __FUNCTION__,
-		     bo->needs_flush, bo->domain, kgem_busy(kgem, bo->handle)));
+		     bo->needs_flush, bo->domain, __kgem_busy(kgem, bo->handle)));
 
 		VG_CLEAR(set_domain);
 		set_domain.handle = bo->handle;
@@ -4755,7 +4703,7 @@ void kgem_bo_sync__cpu_full(struct kgem *kgem, struct kgem_bo *bo, bool write)
 		struct drm_i915_gem_set_domain set_domain;
 
 		DBG(("%s: SYNC: needs_flush? %d, domain? %d, busy? %d\n", __FUNCTION__,
-		     bo->needs_flush, bo->domain, kgem_busy(kgem, bo->handle)));
+		     bo->needs_flush, bo->domain, __kgem_busy(kgem, bo->handle)));
 
 		VG_CLEAR(set_domain);
 		set_domain.handle = bo->handle;
@@ -4779,7 +4727,7 @@ void kgem_bo_sync__gtt(struct kgem *kgem, struct kgem_bo *bo)
 		struct drm_i915_gem_set_domain set_domain;
 
 		DBG(("%s: SYNC: needs_flush? %d, domain? %d, busy? %d\n", __FUNCTION__,
-		     bo->needs_flush, bo->domain, kgem_busy(kgem, bo->handle)));
+		     bo->needs_flush, bo->domain, __kgem_busy(kgem, bo->handle)));
 
 		VG_CLEAR(set_domain);
 		set_domain.handle = bo->handle;
@@ -5511,7 +5459,7 @@ void kgem_buffer_read_sync(struct kgem *kgem, struct kgem_bo *_bo)
 		     __FUNCTION__,
 		     bo->base.needs_flush,
 		     bo->base.domain,
-		     kgem_busy(kgem, bo->base.handle)));
+		     __kgem_busy(kgem, bo->base.handle)));
 
 		assert(!IS_CPU_MAP(bo->base.map) || bo->base.snoop || kgem->has_llc);
 

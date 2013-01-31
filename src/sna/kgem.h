@@ -326,7 +326,7 @@ static inline void kgem_bo_submit(struct kgem *kgem, struct kgem_bo *bo)
 		_kgem_submit(kgem);
 }
 
-bool __kgem_flush(struct kgem *kgem, struct kgem_bo *bo);
+void __kgem_flush(struct kgem *kgem, struct kgem_bo *bo);
 static inline void kgem_bo_flush(struct kgem *kgem, struct kgem_bo *bo)
 {
 	kgem_bo_submit(kgem, bo);
@@ -338,7 +338,7 @@ static inline void kgem_bo_flush(struct kgem *kgem, struct kgem_bo *bo)
 	 * we assume direct access. And as the useual failure is EIO, we do
 	 * not actualy care.
 	 */
-	(void)__kgem_flush(kgem, bo);
+	__kgem_flush(kgem, bo);
 }
 
 static inline struct kgem_bo *kgem_bo_reference(struct kgem_bo *bo)
@@ -567,9 +567,19 @@ static inline bool kgem_bo_is_snoop(struct kgem_bo *bo)
 	return bo->snoop;
 }
 
+bool __kgem_busy(struct kgem *kgem, int handle);
+
 static inline void kgem_bo_mark_busy(struct kgem_bo *bo, int ring)
 {
 	bo->rq = (struct kgem_request *)((uintptr_t)bo->rq | ring);
+}
+
+inline static void __kgem_bo_clear_busy(struct kgem_bo *bo)
+{
+	bo->needs_flush = false;
+	list_del(&bo->request);
+	bo->rq = NULL;
+	bo->domain = DOMAIN_NONE;
 }
 
 static inline bool kgem_bo_is_busy(struct kgem_bo *bo)
@@ -585,10 +595,16 @@ static inline bool __kgem_bo_is_busy(struct kgem *kgem, struct kgem_bo *bo)
 	DBG(("%s: handle=%d, domain: %d exec? %d, rq? %d\n", __FUNCTION__,
 	     bo->handle, bo->domain, bo->exec != NULL, bo->rq != NULL));
 	assert(bo->refcnt);
+
+	if (bo->exec)
+		return true;
+
 	if (kgem_flush(kgem, bo->flush))
 		kgem_submit(kgem);
-	if (bo->rq && !bo->exec)
-		kgem_retire(kgem);
+
+	if (bo->rq && !__kgem_busy(kgem, bo->handle))
+		__kgem_bo_clear_busy(bo);
+
 	return kgem_bo_is_busy(bo);
 }
 
@@ -599,6 +615,17 @@ static inline bool kgem_bo_is_dirty(struct kgem_bo *bo)
 
 	assert(bo->refcnt);
 	return bo->dirty;
+}
+
+static inline void kgem_bo_unclean(struct kgem *kgem, struct kgem_bo *bo)
+{
+	/* The bo is outside of our control, so presume it is written to */
+	bo->needs_flush = true;
+	if (bo->rq == NULL)
+		bo->rq = (void *)kgem;
+
+	if (bo->domain != DOMAIN_GPU)
+		bo->domain = DOMAIN_NONE;
 }
 
 static inline void __kgem_bo_mark_dirty(struct kgem_bo *bo)
