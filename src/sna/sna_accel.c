@@ -2815,11 +2815,23 @@ use_gpu_bo:
 	return priv->gpu_bo;
 
 use_cpu_bo:
-	if (!USE_CPU_BO)
-		return NULL;
+	if (!USE_CPU_BO || priv->cpu_bo == NULL) {
+cpu_fail:
+		if ((flags & FORCE_GPU) && priv->gpu_bo) {
+			get_drawable_deltas(drawable, pixmap, &dx, &dy);
 
-	if (priv->cpu_bo == NULL)
+			region.extents = *box;
+			region.extents.x1 += dx;
+			region.extents.x2 += dx;
+			region.extents.y1 += dy;
+			region.extents.y2 += dy;
+			region.data = NULL;
+
+			goto move_to_gpu;
+		}
+
 		return NULL;
+	}
 
 	assert(priv->cpu_bo->refcnt);
 
@@ -2858,12 +2870,12 @@ use_cpu_bo:
 	}
 
 	if (!sna->kgem.can_blt_cpu)
-		return NULL;
+		goto cpu_fail;
 
 	if (!sna_drawable_move_region_to_cpu(&pixmap->drawable, &region,
 					     (flags & IGNORE_CPU ? MOVE_READ : 0) | MOVE_WRITE | MOVE_ASYNC_HINT)) {
 		DBG(("%s: failed to move-to-cpu, fallback\n", __FUNCTION__));
-		return NULL;
+		goto cpu_fail;
 	}
 
 	if (priv->shm) {
