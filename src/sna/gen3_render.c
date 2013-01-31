@@ -1900,6 +1900,9 @@ static bool gen3_rectangle_begin(struct sna *sna,
 	struct gen3_render_state *state = &sna->render_state.gen3;
 	int ndwords, i1_cmd = 0, i1_len = 0;
 
+	if (sna_vertex_wait__locked(&sna->render) && sna->render.vertex_offset)
+		return true;
+
 	ndwords = 2;
 	if (op->need_magic_ca_pass)
 		ndwords += 100;
@@ -1939,6 +1942,13 @@ static bool gen3_rectangle_begin(struct sna *sna,
 static int gen3_get_rectangles__flush(struct sna *sna,
 				      const struct sna_composite_op *op)
 {
+	/* Preventing discarding new vbo after lock contention */
+	if (sna_vertex_wait__locked(&sna->render)) {
+		int rem = vertex_space(sna);
+		if (rem > op->floats_per_rect)
+			return rem;
+	}
+
 	if (!kgem_check_batch(&sna->kgem, op->need_magic_ca_pass ? 105: 5))
 		return 0;
 	if (!kgem_check_reloc_and_exec(&sna->kgem, 1))
@@ -1953,17 +1963,6 @@ static int gen3_get_rectangles__flush(struct sna *sna,
 						      op->dst.format));
 			gen3_composite_emit_shader(sna, op, op->op);
 		}
-	}
-
-	/* Preventing discarding new vbo after lock contention */
-	if (sna->render.active) {
-		int rem;
-
-		sna_vertex_wait__locked(&sna->render);
-
-		rem = vertex_space(sna);
-		if (rem > op->floats_per_rect)
-			return rem;
 	}
 
 	return gen3_vertex_finish(sna);

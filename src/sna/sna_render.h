@@ -763,10 +763,12 @@ static inline void sna_vertex_release__locked(struct sna_render *r)
 		pthread_cond_signal(&r->wait);
 }
 
-static inline void sna_vertex_wait__locked(struct sna_render *r)
+static inline bool sna_vertex_wait__locked(struct sna_render *r)
 {
+	bool was_active = r->active;
 	while (r->active)
 		pthread_cond_wait(&r->wait, &r->lock);
+	return was_active;
 }
 
 #endif /* SNA_RENDER_H */

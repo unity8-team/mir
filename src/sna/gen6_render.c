@@ -1125,6 +1125,9 @@ static bool gen6_rectangle_begin(struct sna *sna,
 	int id = 1 << GEN6_VERTEX(op->u.gen6.flags);
 	int ndwords;
 
+	if (sna_vertex_wait__locked(&sna->render) && sna->render.vertex_offset)
+		return true;
+
 	ndwords = op->need_magic_ca_pass ? 60 : 6;
 	if ((sna->render.vb_id & id) == 0)
 		ndwords += 5;
@@ -1141,6 +1144,13 @@ static bool gen6_rectangle_begin(struct sna *sna,
 static int gen6_get_rectangles__flush(struct sna *sna,
 				      const struct sna_composite_op *op)
 {
+	/* Preventing discarding new vbo after lock contention */
+	if (sna_vertex_wait__locked(&sna->render)) {
+		int rem = vertex_space(sna);
+		if (rem > op->floats_per_rect)
+			return rem;
+	}
+
 	if (!kgem_check_batch(&sna->kgem, op->need_magic_ca_pass ? 65 : 5))
 		return 0;
 	if (!kgem_check_reloc_and_exec(&sna->kgem, 2))
@@ -1157,17 +1167,6 @@ static int gen6_get_rectangles__flush(struct sna *sna,
 		}
 	}
 
-	/* Preventing discarding new vbo after lock contention */
-	if (sna->render.active) {
-		int rem;
-
-		sna_vertex_wait__locked(&sna->render);
-
-		rem = vertex_space(sna);
-		if (rem > op->floats_per_rect)
-			return rem;
-	}
-
 	return gen4_vertex_finish(sna);
 }
 
@@ -1180,7 +1179,7 @@ inline static int gen6_get_rectangles(struct sna *sna,
 
 start:
 	rem = vertex_space(sna);
-	if (rem < op->floats_per_rect) {
+	if (unlikely(rem < op->floats_per_rect)) {
 		DBG(("flushing vbo for %s: %d < %d\n",
 		     __FUNCTION__, rem, op->floats_per_rect));
 		rem = gen6_get_rectangles__flush(sna, op);

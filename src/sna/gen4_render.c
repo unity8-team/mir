@@ -587,6 +587,9 @@ static bool gen4_rectangle_begin(struct sna *sna,
 	int id = op->u.gen4.ve_id;
 	int ndwords;
 
+	if (sna_vertex_wait__locked(&sna->render) && sna->render.vertex_offset)
+		return true;
+
 	/* 7xpipelined pointers + 6xprimitive + 1xflush */
 	ndwords = op->need_magic_ca_pass? 20 : 6;
 	if ((sna->render.vb_id & (1 << id)) == 0)
@@ -606,6 +609,13 @@ static bool gen4_rectangle_begin(struct sna *sna,
 static int gen4_get_rectangles__flush(struct sna *sna,
 				      const struct sna_composite_op *op)
 {
+	/* Preventing discarding new vbo after lock contention */
+	if (sna_vertex_wait__locked(&sna->render)) {
+		int rem = vertex_space(sna);
+		if (rem > op->floats_per_rect)
+			return rem;
+	}
+
 	if (!kgem_check_batch(&sna->kgem, op->need_magic_ca_pass ? 25 : 6))
 		return 0;
 	if (!kgem_check_reloc_and_exec(&sna->kgem, 2))
@@ -621,17 +631,6 @@ static int gen4_get_rectangles__flush(struct sna *sna,
 						     op->u.gen4.wm_kernel);
 	}
 
-	/* Preventing discarding new vbo after lock contention */
-	if (sna->render.active) {
-		int rem;
-
-		sna_vertex_wait__locked(&sna->render);
-
-		rem = vertex_space(sna);
-		if (rem > op->floats_per_rect)
-			return rem;
-	}
-
 	return gen4_vertex_finish(sna);
 }
 
@@ -644,7 +643,7 @@ inline static int gen4_get_rectangles(struct sna *sna,
 
 start:
 	rem = vertex_space(sna);
-	if (rem < op->floats_per_rect) {
+	if (unlikely(rem < op->floats_per_rect)) {
 		DBG(("flushing vbo for %s: %d < %d\n",
 		     __FUNCTION__, rem, op->floats_per_rect));
 		rem = gen4_get_rectangles__flush(sna, op);
