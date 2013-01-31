@@ -3680,7 +3680,8 @@ composite_unaligned_boxes_inplace(CARD8 op,
 				  PicturePtr dst, int n, xTrapezoid *t,
 				  bool force_fallback)
 {
-	if (!force_fallback) {
+	if (!force_fallback &&
+	    (is_gpu(dst->pDrawable) || picture_is_gpu(src))) {
 		DBG(("%s: fallback -- not forcing\n", __FUNCTION__));
 		return false;
 	}
