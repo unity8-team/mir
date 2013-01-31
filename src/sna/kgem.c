@@ -1763,7 +1763,6 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 		assert(RQ(bo->rq) == kgem->next_request);
 		bo->refcnt = 1;
 		kgem_reset(kgem);
-		assert(bo->rq == NULL);
 		bo->refcnt = 0;
 	}
 
