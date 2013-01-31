@@ -2111,6 +2111,7 @@ static void kgem_commit(struct kgem *kgem)
 			list_del(&bo->request);
 			bo->rq = NULL;
 			bo->exec = NULL;
+			bo->needs_flush = false;
 		}
 
 		kgem->scanout_busy |= bo->scanout;
@@ -2355,6 +2356,7 @@ static void kgem_cleanup(struct kgem *kgem)
 				bo->exec = NULL;
 				bo->domain = DOMAIN_NONE;
 				bo->dirty = false;
+				bo->needs_flush = false;
 				if (bo->refcnt == 0)
 					kgem_bo_free(kgem, bo);
 			}
@@ -2419,8 +2421,15 @@ void kgem_reset(struct kgem *kgem)
 			bo->exec = NULL;
 			bo->target_handle = -1;
 			bo->dirty = false;
-			bo->rq = NULL;
 			bo->domain = DOMAIN_NONE;
+
+			if (bo->needs_flush && kgem_busy(kgem, bo->handle)) {
+				list_add(&bo->request, &kgem->flushing);
+				bo->rq = (void *)kgem;
+			} else {
+				bo->rq = NULL;
+				bo->needs_flush = false;
+			}
 
 			if (!bo->refcnt && !bo->reusable) {
 				assert(!bo->snoop);
