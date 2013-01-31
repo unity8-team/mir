@@ -1506,6 +1506,7 @@ inline static void kgem_bo_move_to_inactive(struct kgem *kgem,
 	assert(bo->domain != DOMAIN_GPU);
 	assert(!bo->proxy);
 	assert(!bo->io);
+	assert(!bo->scanout);
 	assert(!bo->needs_flush);
 	assert(list_is_empty(&bo->vma));
 	ASSERT_IDLE(kgem, bo->handle);
@@ -1592,6 +1593,18 @@ static void _kgem_bo_delete_buffer(struct kgem *kgem, struct kgem_bo *bo)
 
 	if (ALIGN(bo->delta + bo->size.bytes, UPLOAD_ALIGNMENT) == io->used)
 		io->used = bo->delta;
+}
+
+static void kgem_bo_move_to_scanout(struct kgem *kgem, struct kgem_bo *bo)
+{
+	assert(bo->refcnt == 0);
+	assert(bo->exec == NULL);
+	assert(bo->scanout);
+	assert(bo->delta);
+
+	DBG(("%s: moving %d [fb %d] to scanout cachee\n", __FUNCTION__,
+	     bo->handle, bo->delta));
+	list_move(&bo->list, &kgem->scanout);
 }
 
 static void kgem_bo_move_to_snoop(struct kgem *kgem, struct kgem_bo *bo)
@@ -1723,10 +1736,7 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 	}
 
 	if (bo->scanout) {
-		assert(bo->delta);
-		DBG(("%s: handle=%d -> scanout\n",
-		     __FUNCTION__, bo->handle));
-		list_add(&bo->list, &kgem->scanout);
+		kgem_bo_move_to_scanout(kgem, bo);
 		return;
 	}
 
@@ -1880,6 +1890,8 @@ static bool kgem_retire__flushing(struct kgem *kgem)
 		if (!bo->refcnt) {
 			if (bo->snoop) {
 				kgem_bo_move_to_snoop(kgem, bo);
+			} else if (bo->scanout) {
+				kgem_bo_move_to_scanout(kgem, bo);
 			} else if (bo->reusable &&
 				   kgem_bo_set_purgeable(kgem, bo)) {
 				kgem_bo_move_to_inactive(kgem, bo);
@@ -1952,7 +1964,9 @@ static bool __kgem_retire_rq(struct kgem *kgem, struct kgem_request *rq)
 		}
 
 		if (!bo->needs_flush) {
-			if (kgem_bo_set_purgeable(kgem, bo)) {
+			if (bo->scanout) {
+				kgem_bo_move_to_scanout(kgem, bo);
+			} else if (kgem_bo_set_purgeable(kgem, bo)) {
 				kgem_bo_move_to_inactive(kgem, bo);
 				retired = true;
 			} else {
