@@ -69,6 +69,9 @@
 #define FAST_SAMPLES_Y (1<<FAST_SAMPLES_shift)
 #define FAST_SAMPLES_mask ((1<<FAST_SAMPLES_shift)-1)
 
+#define region_count(r) ((r)->data ? (r)->data->numRects : 1)
+#define region_boxes(r) ((r)->data ? (BoxPtr)((r)->data + 1) : &(r)->extents)
+
 typedef void (*span_func_t)(struct sna *sna,
 			    struct sna_composite_spans_op *op,
 			    pixman_region16_t *clip,
@@ -3643,7 +3646,7 @@ pixmask_opacity(struct pixman_inplace *pi,
 static void
 pixmask_unaligned_box_row(struct pixman_inplace *pi,
 			  const BoxRec *extents,
-			  xTrapezoid *trap,
+			  const xTrapezoid *trap,
 			  int16_t y, int16_t h,
 			  uint8_t covered)
 {
@@ -3674,6 +3677,72 @@ pixmask_unaligned_box_row(struct pixman_inplace *pi,
 	}
 }
 
+struct rectilinear_inplace_thread {
+	pixman_image_t *dst, *src;
+	const RegionRec *clip;
+	const xTrapezoid *trap;
+	int dx, dy, sx, sy;
+	int y1, y2;
+	CARD8 op;
+};
+
+static void rectilinear_inplace_thread(void *arg)
+{
+	struct rectilinear_inplace_thread *thread = arg;
+	const xTrapezoid *t = thread->trap;
+	struct pixman_inplace pi;
+	const BoxRec *extents;
+	int count;
+
+	pi.image = thread->dst;
+	pi.dx = thread->dx;
+	pi.dy = thread->dy;
+
+	pi.source = thread->src;
+	pi.sx = thread->sx;
+	pi.sy = thread->sy;
+
+	pi.mask = pixman_image_create_bits(PIXMAN_a8, 1, 1, &pi.color, 4);
+	pixman_image_set_repeat(pi.mask, PIXMAN_REPEAT_NORMAL);
+	pi.bits = pixman_image_get_data(pi.mask);
+	pi.op = thread->op;
+
+	count = region_count(thread->clip);
+	extents = region_boxes(thread->clip);
+	while (count--) {
+		int16_t y1 = pixman_fixed_to_int(t->top);
+		uint16_t fy1 = pixman_fixed_frac(t->top);
+		int16_t y2 = pixman_fixed_to_int(t->bottom);
+		uint16_t fy2 = pixman_fixed_frac(t->bottom);
+
+		if (y1 < MAX(thread->y1, extents->y1))
+			y1 = MAX(thread->y1, extents->y1), fy1 = 0;
+		if (y2 > MIN(thread->y2, extents->y2))
+			y2 = MIN(thread->y2, extents->y2), fy2 = 0;
+		if (y1 < y2) {
+			if (fy1) {
+				pixmask_unaligned_box_row(&pi, extents, t, y1, 1,
+							  SAMPLES_Y - grid_coverage(SAMPLES_Y, fy1));
+				y1++;
+			}
+
+			if (y2 > y1)
+				pixmask_unaligned_box_row(&pi, extents, t, y1, y2 - y1,
+							  SAMPLES_Y);
+
+			if (fy2)
+				pixmask_unaligned_box_row(&pi, extents, t, y2, 1,
+							  grid_coverage(SAMPLES_Y, fy2));
+		} else if (y1 == y2 && fy2 > fy1) {
+			pixmask_unaligned_box_row(&pi, extents, t, y1, 1,
+						  grid_coverage(SAMPLES_Y, fy2) - grid_coverage(SAMPLES_Y, fy1));
+		}
+		extents++;
+	}
+
+	pixman_image_unref(pi.mask);
+}
+
 static bool
 composite_unaligned_boxes_inplace(CARD8 op,
 				  PicturePtr src, int16_t src_x, int16_t src_y,
@@ -3691,10 +3760,10 @@ composite_unaligned_boxes_inplace(CARD8 op,
 	src_x -= pixman_fixed_to_int(t[0].left.p1.x);
 	src_y -= pixman_fixed_to_int(t[0].left.p1.y);
 	do {
-		struct pixman_inplace pi;
 		RegionRec clip;
 		BoxPtr extents;
 		int count;
+		int num_threads;
 
 		clip.extents.x1 = pixman_fixed_to_int(t->left.p1.x);
 		clip.extents.x2 = pixman_fixed_to_int(t->right.p1.x + pixman_fixed_1_minus_e);
@@ -3733,52 +3802,92 @@ composite_unaligned_boxes_inplace(CARD8 op,
 			}
 		}
 
-		pi.image = image_from_pict(dst, false, &pi.dx, &pi.dy);
-		pi.source = image_from_pict(src, false, &pi.sx, &pi.sy);
-		pi.sx += src_x;
-		pi.sy += src_y;
-		pi.mask = pixman_image_create_bits(PIXMAN_a8, 1, 1, NULL, 0);
-		pixman_image_set_repeat(pi.mask, PIXMAN_REPEAT_NORMAL);
-		pi.bits = pixman_image_get_data(pi.mask);
-		pi.op = op;
+		num_threads = sna_use_threads(clip.extents.x2 - clip.extents.x1,
+					      clip.extents.y2 - clip.extents.y1,
+					      32);
+		if (num_threads == 1) {
+			struct pixman_inplace pi;
 
-		count = REGION_NUM_RECTS(&clip);
-		extents = REGION_RECTS(&clip);
-		while (count--) {
-			int16_t y1 = pixman_fixed_to_int(t->top);
-			uint16_t fy1 = pixman_fixed_frac(t->top);
-			int16_t y2 = pixman_fixed_to_int(t->bottom);
-			uint16_t fy2 = pixman_fixed_frac(t->bottom);
+			pi.image = image_from_pict(dst, false, &pi.dx, &pi.dy);
+			pi.source = image_from_pict(src, false, &pi.sx, &pi.sy);
+			pi.sx += src_x;
+			pi.sy += src_y;
+			pi.mask = pixman_image_create_bits(PIXMAN_a8, 1, 1, &pi.color, 4);
+			pixman_image_set_repeat(pi.mask, PIXMAN_REPEAT_NORMAL);
+			pi.bits = pixman_image_get_data(pi.mask);
+			pi.op = op;
 
-			if (y1 < extents->y1)
-				y1 = extents->y1, fy1 = 0;
-			if (y2 > extents->y2)
-				y2 = extents->y2, fy2 = 0;
-			if (y1 < y2) {
-				if (fy1) {
+			count = REGION_NUM_RECTS(&clip);
+			extents = REGION_RECTS(&clip);
+			while (count--) {
+				int16_t y1 = pixman_fixed_to_int(t->top);
+				uint16_t fy1 = pixman_fixed_frac(t->top);
+				int16_t y2 = pixman_fixed_to_int(t->bottom);
+				uint16_t fy2 = pixman_fixed_frac(t->bottom);
+
+				if (y1 < extents->y1)
+					y1 = extents->y1, fy1 = 0;
+				if (y2 > extents->y2)
+					y2 = extents->y2, fy2 = 0;
+				if (y1 < y2) {
+					if (fy1) {
+						pixmask_unaligned_box_row(&pi, extents, t, y1, 1,
+									  SAMPLES_Y - grid_coverage(SAMPLES_Y, fy1));
+						y1++;
+					}
+
+					if (y2 > y1)
+						pixmask_unaligned_box_row(&pi, extents, t, y1, y2 - y1,
+									  SAMPLES_Y);
+
+					if (fy2)
+						pixmask_unaligned_box_row(&pi, extents, t, y2, 1,
+									  grid_coverage(SAMPLES_Y, fy2));
+				} else if (y1 == y2 && fy2 > fy1) {
 					pixmask_unaligned_box_row(&pi, extents, t, y1, 1,
-								   SAMPLES_Y - grid_coverage(SAMPLES_Y, fy1));
-					y1++;
+								  grid_coverage(SAMPLES_Y, fy2) - grid_coverage(SAMPLES_Y, fy1));
 				}
-
-				if (y2 > y1)
-					pixmask_unaligned_box_row(&pi, extents, t, y1, y2 - y1,
-								   SAMPLES_Y);
-
-				if (fy2)
-					pixmask_unaligned_box_row(&pi, extents, t, y2, 1,
-								   grid_coverage(SAMPLES_Y, fy2));
-			} else if (y1 == y2 && fy2 > fy1) {
-				pixmask_unaligned_box_row(&pi, extents, t, y1, 1,
-							  grid_coverage(SAMPLES_Y, fy2) - grid_coverage(SAMPLES_Y, fy1));
+				extents++;
 			}
-			extents++;
+
+			pixman_image_unref(pi.image);
+			pixman_image_unref(pi.source);
+			pixman_image_unref(pi.mask);
+		} else {
+			struct rectilinear_inplace_thread thread[num_threads];
+			int i, y, dy;
+
+
+			thread[0].trap = t;
+			thread[0].dst = image_from_pict(dst, false, &thread[0].dx, &thread[0].dy);
+			thread[0].src = image_from_pict(src, false, &thread[0].sx, &thread[0].sy);
+			thread[0].sx += src_x;
+			thread[0].sy += src_y;
+
+			thread[0].clip = &clip;
+			thread[0].op = op;
+
+			y = clip.extents.y1;
+			dy = (clip.extents.y2 - clip.extents.y1 + num_threads - 1) / num_threads;
+
+			for (i = 1; i < num_threads; i++) {
+				thread[i] = thread[0];
+				thread[i].y1 = y;
+				thread[i].y2 = y += dy;
+				sna_threads_run(rectilinear_inplace_thread, &thread[i]);
+			}
+
+			thread[0].y1 = y;
+			thread[0].y2 = clip.extents.y2;
+			rectilinear_inplace_thread(&thread[0]);
+
+			sna_threads_wait();
+
+			pixman_image_unref(thread[0].dst);
+			pixman_image_unref(thread[0].src);
 		}
 
 		RegionUninit(&clip);
-		pixman_image_unref(pi.image);
-		pixman_image_unref(pi.source);
-		pixman_image_unref(pi.mask);
 	} while (--n && t++);
 
 	return true;
