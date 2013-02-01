@@ -1908,7 +1908,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 	}
 
 	if (USE_INPLACE &&
-	    (flags & MOVE_READ) == 0 &&
+	    (flags & (MOVE_READ | MOVE_ASYNC_HINT)) == 0 &&
 	    (priv->flush || box_inplace(pixmap, &region->extents))) {
 		DBG(("%s: marking for inplace hint (%d, %d)\n",
 		     __FUNCTION__, priv->flush, box_inplace(pixmap, &region->extents)));
