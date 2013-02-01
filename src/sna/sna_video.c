@@ -215,19 +215,22 @@ sna_video_frame_init(struct sna *sna,
 		align = 1024;
 #endif
 
-	/* Determine the desired destination pitch (representing the chroma's pitch,
-	 * in the planar case.
+	/* Determine the desired destination pitch (representing the
+	 * chroma's pitch in the planar case).
 	 */
 	if (is_planar_fourcc(id)) {
+		assert((width & 1) == 0);
+		assert((height & 1) == 0);
 		if (video->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
 			frame->pitch[0] = ALIGN((height / 2), align);
 			frame->pitch[1] = ALIGN(height, align);
-			frame->size = 3U * frame->pitch[0] * width;
+			frame->size = width;
 		} else {
 			frame->pitch[0] = ALIGN((width / 2), align);
 			frame->pitch[1] = ALIGN(width, align);
-			frame->size = 3U * frame->pitch[0] * height;
+			frame->size = height;
 		}
+		frame->size *= frame->pitch[0] + frame->pitch[1];
 	} else {
 		if (video->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
 			frame->pitch[0] = ALIGN((height << 1), align);
