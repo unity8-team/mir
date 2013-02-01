@@ -323,6 +323,8 @@ static void assert_pixmap_damage(PixmapPtr p)
 	if (priv == NULL)
 		return;
 
+	assert(priv->gpu_damage == NULL || priv->gpu_bo);
+
 	if (priv->clear) {
 		assert(DAMAGE_IS_ALL(priv->gpu_damage));
 		assert(priv->cpu_damage == NULL);
@@ -1371,6 +1373,7 @@ sna_pixmap_create_mappable_gpu(PixmapPtr pixmap)
 
 	assert_pixmap_damage(pixmap);
 
+	assert(priv->gpu_damage == NULL);
 	assert(priv->gpu_bo == NULL);
 	priv->gpu_bo =
 		kgem_create_2d(&sna->kgem,
@@ -1495,6 +1498,8 @@ _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 	     __FUNCTION__,
 	     priv->gpu_bo ? priv->gpu_bo->handle : 0,
 	     priv->gpu_damage, priv->cpu_damage, priv->clear));
+
+	assert(priv->gpu_damage == NULL || priv->gpu_bo);
 
 	if (USE_INPLACE && (flags & MOVE_READ) == 0) {
 		assert(flags & MOVE_WRITE);
@@ -1690,6 +1695,7 @@ skip_inplace_map:
 		int n;
 
 		DBG(("%s: flushing GPU damage\n", __FUNCTION__));
+		assert(priv->gpu_bo);
 
 		n = sna_damage_get_boxes(priv->gpu_damage, &box);
 		if (n) {
@@ -1835,6 +1841,7 @@ static inline bool region_inplace(struct sna *sna,
 
 	if (DAMAGE_IS_ALL(priv->gpu_damage)) {
 		DBG(("%s: yes, already wholly damaged on the GPU\n", __FUNCTION__));
+		assert(priv->gpu_bo);
 		return true;
 	}
 
@@ -1879,6 +1886,8 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 		DBG(("%s: not attached to %p\n", __FUNCTION__, pixmap));
 		return true;
 	}
+
+	assert(priv->gpu_damage == NULL || priv->gpu_bo);
 
 	if (sna_damage_is_all(&priv->cpu_damage,
 			      pixmap->drawable.width,
@@ -2046,6 +2055,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 			DBG(("%s: forced migration\n", __FUNCTION__));
 
 			assert(pixmap_contains_damage(pixmap, priv->gpu_damage));
+			assert(priv->gpu_bo);
 
 			ok = false;
 			if (use_cpu_bo_for_download(sna, priv, &priv->gpu_damage->extents)) {
@@ -2071,6 +2081,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 		     __FUNCTION__,
 		     region->extents.x2 - region->extents.x1,
 		     region->extents.y2 - region->extents.y1));
+		assert(priv->gpu_bo);
 
 		if (priv->cpu_damage == NULL) {
 			if ((flags & MOVE_WRITE) == 0 &&
@@ -2391,6 +2402,7 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 	assert_pixmap_damage(pixmap);
 	assert_pixmap_contains_box(pixmap, box);
 	assert(!wedged(sna));
+	assert(priv->gpu_damage == NULL || priv->gpu_bo);
 
 	if (sna_damage_is_all(&priv->gpu_damage,
 			      pixmap->drawable.width,
@@ -2413,6 +2425,8 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 
 	if (priv->gpu_bo == NULL) {
 		unsigned create, tiling;
+
+		assert(priv->gpu_damage == NULL);
 
 		create = CREATE_INACTIVE;
 		if (pixmap->usage_hint == SNA_CREATE_FB)
@@ -2626,6 +2640,7 @@ sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
 	if (DAMAGE_IS_ALL(priv->gpu_damage)) {
 		DBG(("%s: use GPU fast path (all-damaged)\n", __FUNCTION__));
 		assert(priv->cpu_damage == NULL);
+		assert(priv->gpu_bo);
 		goto use_gpu_bo;
 	}
 
@@ -2727,6 +2742,7 @@ create_gpu_bo:
 	     region.extents.x2, region.extents.y2));
 
 	if (priv->gpu_damage) {
+		assert(priv->gpu_bo);
 		if (!priv->cpu_damage) {
 			if (sna_damage_contains_box__no_reduce(priv->gpu_damage,
 							       &region.extents)) {
@@ -3021,6 +3037,8 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 			       pixmap->drawable.height);
 	}
 
+	assert(priv->gpu_damage == NULL || priv->gpu_bo);
+
 	if (sna_damage_is_all(&priv->gpu_damage,
 			      pixmap->drawable.width,
 			      pixmap->drawable.height)) {
@@ -3077,6 +3095,7 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 		}
 		if (priv->gpu_bo == NULL) {
 			DBG(("%s: not creating GPU bo\n", __FUNCTION__));
+			assert(priv->gpu_damage == NULL);
 			assert(list_is_empty(&priv->list));
 			return NULL;
 		}
@@ -3845,8 +3864,10 @@ move_to_gpu(PixmapPtr pixmap, struct sna_pixmap *priv,
 	int h = box->y2 - box->y1;
 	int count;
 
-	if (DAMAGE_IS_ALL(priv->gpu_damage))
+	if (DAMAGE_IS_ALL(priv->gpu_damage)) {
+		assert(priv->gpu_bo);
 		return true;
+	}
 
 	if (priv->gpu_bo) {
 		if (alu != GXcopy)
@@ -3977,6 +3998,8 @@ sna_self_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 		goto fallback;
 
 	if (priv->gpu_damage) {
+		assert(priv->gpu_bo);
+
 		if (alu == GXcopy && priv->clear)
 			goto out;
 
@@ -4073,6 +4096,7 @@ source_prefer_gpu(struct sna *sna, struct sna_pixmap *priv)
 
 	if (priv->gpu_damage) {
 		DBG(("%s: source has gpu damage, force gpu\n", __FUNCTION__));
+		assert(priv->gpu_bo);
 		return PREFER_GPU | FORCE_GPU;
 	}
 
