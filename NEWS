@@ -1,3 +1,49 @@
+Release 2.21.0 (2013-02-01)
+===========================
+A few new features:
+
+ * Enable render acceleration for Haswell GT1/GT2.
+
+ * Enable multi-threaded rasterisation of trapezoids and fallback composition
+
+ * Utilile a new kernel interface (v3.9) for processing relocations
+
+along with a few older features from the 2.20.x series:
+
+ * PRIME support for hotplug GPUs and hybrid systems
+
+ * Support for IvyBridge GT1 machines, aka HD2500 graphics.
+
+ * Stable 830gm/845g support, at last!
+
+As usual we have a large number of bug fixes since the last release:
+
+ * Prevent a stray relocation being left after a buffer is removed from
+   a batch, leading to GPU hangs.
+
+ * Make the driver more robust against its own failures to submit batches
+   by falling back to software rendering.
+
+ * Fix emission of scanline waits for secondary pipes on gen6/7. Otherwise
+   you may encounter GPU hangs in MI_WAIT_FOR_EVENT.
+
+ * Fix a missing corner pixel when drawing rectangles with PolyLines
+   https://bugs.freedesktop.org/show_bug.cgi?id=55484
+
+ * Don't try to use Y-tiling colour buffers with mesa/i915c as mesa
+   doesn't support them and wil fallback to software rendering
+
+ * Ensure that any cached mmaps are invalidated for a SwapBuffers
+   https://bugs.freedesktop.org/show_bug.cgi?id=60042
+
+ * Correctly handle the composition of rotated displays too large for the
+   3D pipeline
+   https://bugs.freedesktop.org/show_bug.cgi?id=60124
+
+ * Fix the computation of the planar video frame size
+   https://bugs.launchpad.net/ubuntu/+source/xserver-xorg-video-intel/+bug/1104180
+
+
 Release 2.20.19 (2013-01-20)
 ============================
 A quick release as the last broke USB DisplayLink slave outputs badly. The
