@@ -394,7 +394,6 @@ static void kgem_bo_retire(struct kgem *kgem, struct kgem_bo *bo)
 	DBG(("%s: retiring bo handle=%d (needed flush? %d), rq? %d [busy?=%d]\n",
 	     __FUNCTION__, bo->handle, bo->needs_flush, bo->rq != NULL,
 	     __kgem_busy(kgem, bo->handle)));
-	assert(bo->refcnt);
 	assert(bo->exec == NULL);
 	assert(list_is_empty(&bo->vma));
 
