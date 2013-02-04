@@ -64,7 +64,7 @@ SUFFIXES = .g4a .g4b
 .g4a.g4b:
 	$(AM_V_GEN)m4 $*.g4a > $*.g4m && @INTEL_GEN4ASM@ -o $@ $*.g4m && @INTEL_GEN4ASM@ -g 5 -o $@.gen5 $*.g4m && rm $*.g4m
 
-$(INTEL_G4B): $(INTEL_G4I)
+$(INTEL_G4B): $(INTEL_GEN4ASM) $(INTEL_G4I)
 
 BUILT_SOURCES= $(INTEL_G4B)
 
