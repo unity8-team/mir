@@ -186,6 +186,8 @@ Radeon HD 6950/6970/6990
 .B PITCAIRN
 .TP 12
 .B VERDE
+.TP 12
+.B OLAND
 .PD
 .SH CONFIGURATION DETAILS
 Please refer to __xconfigfile__(__filemansuffix__) for general configuration
