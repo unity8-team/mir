@@ -23,7 +23,7 @@
 # Initialize Autoconf
 AC_PREREQ([2.60])
 AC_INIT([xf86-video-intel],
-        [2.20.19],
+        [2.21.0],
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
         [xf86-video-intel])
 AC_CONFIG_SRCDIR([Makefile.am])
@@ -103,6 +103,40 @@ if test x$ASM != "xno"; then
 	fi
 fi
 AM_CONDITIONAL(HAVE_GEN4ASM, test x$gen4asm = xyes)
+
+# Check for atomic intrinsics
+AC_CACHE_CHECK([for native atomic primitives], intel_cv_atomic_primitives,
+[
+    intel_cv_atomic_primitives="none"
+
+    AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+int atomic_add(int i) { return __sync_fetch_and_add (&i, 1); }
+int atomic_cmpxchg(int i, int j, int k) { return __sync_val_compare_and_swap (&i, j, k); }
+				    ]],[[]])],
+		   [intel_cv_atomic_primitives="Intel"],[])
+
+    if test "x$intel_cv_atomic_primitives" = "xnone"; then
+	    AC_CHECK_HEADER([atomic_ops.h], intel_cv_atomic_primitives="libatomic-ops")
+    fi
+
+    # atomic functions defined in <atomic.h> & libc on Solaris
+    if test "x$intel_cv_atomic_primitives" = "xnone"; then
+	    AC_CHECK_FUNC([atomic_cas_uint],
+			  intel_cv_atomic_primitives="Solaris")
+    fi
+
+])
+if test "x$intel_cv_atomic_primitives" = xIntel; then
+    AC_DEFINE(HAVE_ATOMIC_PRIMITIVES, 1,
+	      [Enable if your compiler supports the Intel __sync_* atomic primitives])
+fi
+if test "x$intel_cv_atomic_primitives" = "xlibatomic-ops"; then
+    AC_DEFINE(HAVE_LIB_ATOMIC_OPS, 1, [Enable if you have libatomic-ops-dev installed])
+fi
+
+if test "x$intel_cv_atomic_primitives" = "xnone"; then
+		AC_MSG_ERROR([xf86-video-intel depends upon atomic operations, which were not found for your compiler/cpu. Try compiling with -march=native, or install the libatomics-op-dev package.])
+fi
 
 AC_ARG_ENABLE(udev,
               AS_HELP_STRING([--disable-udev],
@@ -289,24 +323,6 @@ AC_ARG_ENABLE(userptr,
 AM_CONDITIONAL(USE_USERPTR, test x$USERPTR = xyes)
 if test "x$USERPTR" = xyes; then
 	AC_DEFINE(USE_USERPTR,1,[Assume USERPTR support])
-fi
-
-AC_ARG_ENABLE(fast-reloc,
-	      AS_HELP_STRING([--enable-fast-reloc],
-			     [Enable use of "fast reloc" (experimental) [default=no]]),
-	      [FASTRELOC="$enableval"],
-	      [FASTRELOC=no])
-if test "x$FASTRELOC" = xyes; then
-	AC_DEFINE(USE_FASTRELOC,1,[Assume "fast reloc" support])
-fi
-
-AC_ARG_ENABLE(handle-lut,
-	      AS_HELP_STRING([--enable-handle-lut],
-			     [Enable use of "handle LUT" (experimental) [default=no]]),
-	      [HANDLE_LUT="$enableval"],
-	      [HANDLE_LUT=no])
-if test "x$HANDLE_LUT" = xyes; then
-	AC_DEFINE(USE_HANDLE_LUT,1,[Assume "handle LUT" support])
 fi
 
 AC_ARG_ENABLE(async-swap,

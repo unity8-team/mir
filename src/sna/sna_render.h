@@ -7,6 +7,8 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <pthread.h>
+#include "atomic.h"
 
 #define GRADIENT_CACHE_SIZE 16
 
@@ -33,6 +35,8 @@ struct sna_composite_op {
 			     const BoxRec *box);
 	void (*boxes)(struct sna *sna, const struct sna_composite_op *op,
 		      const BoxRec *box, int nbox);
+	void (*thread_boxes)(struct sna *sna, const struct sna_composite_op *op,
+			     const BoxRec *box, int nbox);
 	void (*done)(struct sna *sna, const struct sna_composite_op *op);
 
 	struct sna_damage **damage;
@@ -91,6 +95,9 @@ struct sna_composite_op {
 	fastcall void (*prim_emit)(struct sna *sna,
 				   const struct sna_composite_op *op,
 				   const struct sna_composite_rectangles *r);
+	fastcall void (*emit_boxes)(const struct sna_composite_op *op,
+				    const BoxRec *box, int nbox,
+				    float *v);
 
 	struct sna_composite_redirect {
 		struct kgem_bo *real_bo;
@@ -142,6 +149,11 @@ struct sna_composite_op {
 	void *priv;
 };
 
+struct sna_opacity_box {
+	BoxRec box;
+	float alpha;
+} __packed__;
+
 struct sna_composite_spans_op {
 	struct sna_composite_op base;
 
@@ -153,6 +165,12 @@ struct sna_composite_spans_op {
 		      const struct sna_composite_spans_op *op,
 		      const BoxRec *box, int nbox,
 		      float opacity);
+
+	fastcall void (*thread_boxes)(struct sna *sna,
+				      const struct sna_composite_spans_op *op,
+				      const struct sna_opacity_box *box,
+				      int nbox);
+
 	fastcall void (*done)(struct sna *sna,
 			      const struct sna_composite_spans_op *op);
 
@@ -160,6 +178,9 @@ struct sna_composite_spans_op {
 				   const struct sna_composite_spans_op *op,
 				   const BoxRec *box,
 				   float opacity);
+	fastcall void (*emit_boxes)(const struct sna_composite_spans_op *op,
+				    const struct sna_opacity_box *box, int nbox,
+				    float *v);
 };
 
 struct sna_fill_op {
@@ -188,6 +209,10 @@ struct sna_copy_op {
 };
 
 struct sna_render {
+	pthread_mutex_t lock;
+	pthread_cond_t wait;
+	int active;
+
 	int max_3d_size;
 	int max_3d_pitch;
 
@@ -713,5 +738,37 @@ sna_render_copy_boxes__overlap(struct sna *sna, uint8_t alu,
 
 bool
 sna_composite_mask_is_opaque(PicturePtr mask);
+
+void sna_vertex_init(struct sna *sna);
+
+static inline void sna_vertex_lock(struct sna_render *r)
+{
+	pthread_mutex_lock(&r->lock);
+}
+
+static inline void sna_vertex_acquire__locked(struct sna_render *r)
+{
+	r->active++;
+}
+
+static inline void sna_vertex_unlock(struct sna_render *r)
+{
+	pthread_mutex_unlock(&r->lock);
+}
+
+static inline void sna_vertex_release__locked(struct sna_render *r)
+{
+	assert(r->active > 0);
+	if (--r->active == 0)
+		pthread_cond_signal(&r->wait);
+}
+
+static inline bool sna_vertex_wait__locked(struct sna_render *r)
+{
+	bool was_active = r->active;
+	while (r->active)
+		pthread_cond_wait(&r->wait, &r->lock);
+	return was_active;
+}
 
 #endif /* SNA_RENDER_H */

@@ -1,3 +1,18 @@
+xserver-xorg-video-intel (2:2.21.0-0ubuntu1) raring; urgency=low
+
+  * Merge from unreleased debian git.
+    - new upstream release (LP: #1104180)
+  * sna-compensate-clipextents.diff, upstream-snapshot-778dba90c.diff:
+    Deleted, were from upstream.
+
+ -- Timo Aaltonen <tjaalton@ubuntu.com>  Tue, 05 Feb 2013 12:22:15 +0200
+
+xserver-xorg-video-intel (2:2.21.0-1) UNRELEASED; urgency=low
+
+  * New upstream release.
+
+ -- Timo Aaltonen <tjaalton@ubuntu.com>  Fri, 07 Dec 2012 09:33:39 +0200
+
 xserver-xorg-video-intel (2:2.20.19-0ubuntu3) raring; urgency=low
 
   * sna-compensate-clipextents.diff: Compensate clipExtents for drawable
@@ -18,12 +33,6 @@ xserver-xorg-video-intel (2:2.20.19-0ubuntu1) raring; urgency=low
   * rules: Use SNA as the default acceleration method.
 
  -- Timo Aaltonen <tjaalton@ubuntu.com>  Mon, 21 Jan 2013 10:18:31 +0200
-
-xserver-xorg-video-intel (2:2.20.19-1) UNRELEASED; urgency=low
-
-  * New upstream release.
-
- -- Timo Aaltonen <tjaalton@ubuntu.com>  Fri, 07 Dec 2012 09:33:39 +0200
 
 xserver-xorg-video-intel (2:2.20.14-1) experimental; urgency=low
 

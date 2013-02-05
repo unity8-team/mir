@@ -164,6 +164,7 @@ static unsigned get_fb(struct sna *sna, struct kgem_bo *bo,
 			   scrn->depth, scrn->bitsPerPixel, bo->pitch, errno);
 		return 0;
 	}
+	assert(arg.fb_id != 0);
 
 	bo->scanout = true;
 	return bo->delta = arg.fb_id;
@@ -197,12 +198,14 @@ sna_output_backlight_set(xf86OutputPtr output, int level)
 	char path[1024], val[BACKLIGHT_VALUE_LEN];
 	int fd, len, ret;
 
-	DBG(("%s: level=%d\n", __FUNCTION__, level));
+	DBG(("%s: level=%d, max=%d\n", __FUNCTION__,
+	     level, sna_output->backlight_max));
 
-	if (level > sna_output->backlight_max)
-		level = sna_output->backlight_max;
-	if (!sna_output->backlight_iface || level < 0)
+	if (!sna_output->backlight_iface)
 		return;
+
+	if ((unsigned)level > sna_output->backlight_max)
+		level = sna_output->backlight_max;
 
 	len = snprintf(val, BACKLIGHT_VALUE_LEN, "%d\n", level);
 	sprintf(path, "%s/%s/brightness",
@@ -2737,6 +2740,11 @@ sna_covering_crtc(ScrnInfoPtr scrn,
 		     __FUNCTION__, c,
 		     crtc->bounds.x1, crtc->bounds.y1,
 		     crtc->bounds.x2, crtc->bounds.y2));
+		if (*(const uint64_t *)box == *(uint64_t *)&crtc->bounds) {
+			DBG(("%s: box exactly matches crtc [%d]\n",
+			     __FUNCTION__, c));
+			return crtc;
+		}
 
 		if (!sna_box_intersect(&cover_box, &crtc->bounds, box))
 			continue;
@@ -2768,10 +2776,12 @@ sna_covering_crtc(ScrnInfoPtr scrn,
 #define MI_LOAD_REGISTER_IMM			(0x22<<23)
 
 static bool sna_emit_wait_for_scanline_gen7(struct sna *sna,
+					    xf86CrtcPtr crtc,
 					    int pipe, int y1, int y2,
 					    bool full_height)
 {
 	uint32_t *b;
+	uint32_t event;
 
 	if (!sna->kgem.has_secure_batches)
 		return false;
@@ -2780,60 +2790,106 @@ static bool sna_emit_wait_for_scanline_gen7(struct sna *sna,
 	assert(y2 > y1);
 	assert(sna->kgem.mode);
 
-	b = kgem_get_batch(&sna->kgem, 16);
+	/* Always program one less than the desired value */
+	if (--y1 < 0)
+		y1 = crtc->bounds.y2;
+	y2--;
+
+	switch (pipe) {
+	default:
+		assert(0);
+	case 0:
+		event = 1 << (full_height ? 3 : 0);
+		break;
+	case 1:
+		event = 1 << (full_height ? 11 : 8);
+		break;
+	case 2:
+		event = 1 << (full_height ? 21 : 14);
+		break;
+	}
+
+	b = kgem_get_batch(&sna->kgem);
+
+	/* Both the LRI and WAIT_FOR_EVENT must be in the same cacheline */
+	if (((sna->kgem.nbatch + 6) >> 4) != (sna->kgem.nbatch + 10) >> 4) {
+		int dw = sna->kgem.nbatch + 6;
+		dw = ALIGN(dw, 16) - dw;
+		while (dw--)
+			*b++ = MI_NOOP;
+	}
+
 	b[0] = MI_LOAD_REGISTER_IMM | 1;
 	b[1] = 0x44050; /* DERRMR */
-	b[2] = ~(1 << (3*full_height + pipe*8));
+	b[2] = ~event;
 	b[3] = MI_LOAD_REGISTER_IMM | 1;
 	b[4] = 0xa188; /* FORCEWAKE_MT */
 	b[5] = 2 << 16 | 2;
 	b[6] = MI_LOAD_REGISTER_IMM | 1;
 	b[7] = 0x70068 + 0x1000 * pipe;
-	b[8] = (1 << 31) | (1 << 30) | (y1 << 16) | (y2 - 1);
-	b[9] = MI_WAIT_FOR_EVENT | 1 << (3*full_height + pipe*5);
+	b[8] = (1 << 31) | (1 << 30) | (y1 << 16) | y2;
+	b[9] = MI_WAIT_FOR_EVENT | event;
 	b[10] = MI_LOAD_REGISTER_IMM | 1;
 	b[11] = 0xa188; /* FORCEWAKE_MT */
 	b[12] = 2 << 16;
 	b[13] = MI_LOAD_REGISTER_IMM | 1;
 	b[14] = 0x44050; /* DERRMR */
 	b[15] = ~0;
-	kgem_advance_batch(&sna->kgem, 16);
+
+	sna->kgem.nbatch = b - sna->kgem.batch + 16;
 
 	sna->kgem.batch_flags |= I915_EXEC_SECURE;
 	return true;
 }
 
 static bool sna_emit_wait_for_scanline_gen6(struct sna *sna,
+					    xf86CrtcPtr crtc,
 					    int pipe, int y1, int y2,
 					    bool full_height)
 {
 	uint32_t *b;
+	uint32_t event;
 
 	if (!sna->kgem.has_secure_batches)
 		return false;
 
 	assert(y1 >= 0);
 	assert(y2 > y1);
-	assert(sna->kgem.mode);
+	assert(sna->kgem.mode == KGEM_RENDER);
 
-	b = kgem_get_batch(&sna->kgem, 10);
+	/* Always program one less than the desired value */
+	if (--y1 < 0)
+		y1 = crtc->bounds.y2;
+	y2--;
+
+	/* The scanline granularity is 3 bits */
+	y1 &= ~7;
+	y2 &= ~7;
+	if (y2 == y1)
+		return false;
+
+	event = 1 << (3*full_height + pipe*8);
+
+	b = kgem_get_batch(&sna->kgem);
+	sna->kgem.nbatch += 10;
+
 	b[0] = MI_LOAD_REGISTER_IMM | 1;
 	b[1] = 0x44050; /* DERRMR */
-	b[2] = ~(1 << (3*full_height + pipe*8));
+	b[2] = ~event;
 	b[3] = MI_LOAD_REGISTER_IMM | 1;
 	b[4] = 0x4f100; /* magic */
-	b[5] = (1 << 31) | (1 << 30) | pipe << 29 | (y1 << 16) | (y2 - 1);
-	b[6] = MI_WAIT_FOR_EVENT | 1 << (3*full_height + pipe*5);
+	b[5] = (1 << 31) | (1 << 30) | pipe << 29 | (y1 << 16) | y2;
+	b[6] = MI_WAIT_FOR_EVENT | event;
 	b[7] = MI_LOAD_REGISTER_IMM | 1;
 	b[8] = 0x44050; /* DERRMR */
 	b[9] = ~0;
-	kgem_advance_batch(&sna->kgem, 10);
 
 	sna->kgem.batch_flags |= I915_EXEC_SECURE;
 	return true;
 }
 
 static bool sna_emit_wait_for_scanline_gen4(struct sna *sna,
+					    xf86CrtcPtr crtc,
 					    int pipe, int y1, int y2,
 					    bool full_height)
 {
@@ -2852,18 +2908,20 @@ static bool sna_emit_wait_for_scanline_gen4(struct sna *sna,
 			event = MI_WAIT_FOR_PIPEB_SCAN_LINE_WINDOW;
 	}
 
-	b = kgem_get_batch(&sna->kgem, 5);
+	b = kgem_get_batch(&sna->kgem);
+	sna->kgem.nbatch += 5;
+
 	/* The documentation says that the LOAD_SCAN_LINES command
 	 * always comes in pairs. Don't ask me why. */
 	b[2] = b[0] = MI_LOAD_SCAN_LINES_INCL | pipe << 20;
 	b[3] = b[1] = (y1 << 16) | (y2-1);
 	b[4] = MI_WAIT_FOR_EVENT | event;
-	kgem_advance_batch(&sna->kgem, 5);
 
 	return true;
 }
 
 static bool sna_emit_wait_for_scanline_gen2(struct sna *sna,
+					    xf86CrtcPtr crtc,
 					    int pipe, int y1, int y2,
 					    bool full_height)
 {
@@ -2877,16 +2935,14 @@ static bool sna_emit_wait_for_scanline_gen2(struct sna *sna,
 	if (full_height)
 		y2 -= 2;
 
-	b = kgem_get_batch(&sna->kgem, 5);
+	b = kgem_get_batch(&sna->kgem);
+	sna->kgem.nbatch += 5;
+
 	/* The documentation says that the LOAD_SCAN_LINES command
 	 * always comes in pairs. Don't ask me why. */
 	b[2] = b[0] = MI_LOAD_SCAN_LINES_INCL | pipe << 20;
 	b[3] = b[1] = (y1 << 16) | (y2-1);
-	if (pipe == 0)
-		b[4] = MI_WAIT_FOR_EVENT | MI_WAIT_FOR_PIPEA_SCAN_LINE_WINDOW;
-	else
-		b[4] = MI_WAIT_FOR_EVENT | MI_WAIT_FOR_PIPEB_SCAN_LINE_WINDOW;
-	kgem_advance_batch(&sna->kgem, 5);
+	b[4] = MI_WAIT_FOR_EVENT | 1 << (1 + 4*pipe);
 
 	return true;
 }
@@ -2934,13 +2990,13 @@ sna_wait_for_scanline(struct sna *sna,
 	if (sna->kgem.gen >= 0100)
 		ret = false;
 	else if (sna->kgem.gen >= 070)
-		ret = sna_emit_wait_for_scanline_gen7(sna, pipe, y1, y2, full_height);
+		ret = sna_emit_wait_for_scanline_gen7(sna, crtc, pipe, y1, y2, full_height);
 	else if (sna->kgem.gen >= 060)
-		ret =sna_emit_wait_for_scanline_gen6(sna, pipe, y1, y2, full_height);
+		ret =sna_emit_wait_for_scanline_gen6(sna, crtc, pipe, y1, y2, full_height);
 	else if (sna->kgem.gen >= 040)
-		ret = sna_emit_wait_for_scanline_gen4(sna, pipe, y1, y2, full_height);
+		ret = sna_emit_wait_for_scanline_gen4(sna, crtc, pipe, y1, y2, full_height);
 	else
-		ret = sna_emit_wait_for_scanline_gen2(sna, pipe, y1, y2, full_height);
+		ret = sna_emit_wait_for_scanline_gen2(sna, crtc, pipe, y1, y2, full_height);
 
 	return ret;
 }
@@ -3113,7 +3169,7 @@ sna_crtc_redisplay__composite(xf86CrtcPtr crtc, RegionPtr region)
 				   0, 0,
 				   0, 0,
 				   0, 0,
-				   0, 0,
+				   crtc->mode.HDisplay, crtc->mode.VDisplay,
 				   memset(&tmp, 0, sizeof(tmp)))) {
 		DBG(("%s: unsupported operation!\n", __FUNCTION__));
 		sna_crtc_redisplay__fallback(crtc, region);
@@ -3249,7 +3305,7 @@ void sna_mode_redisplay(struct sna *sna)
 		RegionIntersect(&damage, &damage, region);
 		if (RegionNotEmpty(&damage)) {
 			sna_crtc_redisplay(crtc, &damage);
-			__kgem_flush(&sna->kgem, sna_crtc->bo);
+			kgem_bo_flush(&sna->kgem, sna_crtc->bo);
 		}
 		RegionUninit(&damage);
 	}

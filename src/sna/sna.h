@@ -42,6 +42,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 
 #include <stdint.h>
+
 #include "compiler.h"
 
 #include <xorg-server.h>
@@ -433,6 +434,9 @@ void sna_pixmap_destroy(PixmapPtr pixmap);
 #define __MOVE_FORCE 0x40
 #define __MOVE_DRI 0x80
 
+bool
+sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int flags);
+
 struct sna_pixmap *sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags);
 static inline struct sna_pixmap *
 sna_pixmap_force_to_gpu(PixmapPtr pixmap, unsigned flags)
@@ -698,6 +702,15 @@ void sna_composite(CARD8 op,
 		   INT16 mask_x, INT16 mask_y,
 		   INT16 dst_x,  INT16 dst_y,
 		   CARD16 width, CARD16 height);
+void sna_composite_fb(CARD8 op,
+		      PicturePtr src,
+		      PicturePtr mask,
+		      PicturePtr dst,
+		      RegionPtr region,
+		      INT16 src_x,  INT16 src_y,
+		      INT16 mask_x, INT16 mask_y,
+		      INT16 dst_x,  INT16 dst_y,
+		      CARD16 width, CARD16 height);
 void sna_composite_rectangles(CARD8		 op,
 			      PicturePtr		 dst,
 			      xRenderColor	*color,
@@ -834,5 +847,23 @@ inline static bool is_clipped(const RegionRec *r,
 		r->extents.x2 - r->extents.x1 != d->width ||
 		r->extents.y2 - r->extents.y1 != d->height);
 }
+
+void sna_threads_init(void);
+int sna_use_threads (int width, int height, int threshold);
+void sna_threads_run(void (*func)(void *arg), void *arg);
+void sna_threads_wait(void);
+
+void sna_image_composite(pixman_op_t        op,
+			 pixman_image_t    *src,
+			 pixman_image_t    *mask,
+			 pixman_image_t    *dst,
+			 int16_t            src_x,
+			 int16_t            src_y,
+			 int16_t            mask_x,
+			 int16_t            mask_y,
+			 int16_t            dst_x,
+			 int16_t            dst_y,
+			 uint16_t           width,
+			 uint16_t           height);
 
 #endif /* _SNA_H */

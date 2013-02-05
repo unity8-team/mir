@@ -439,6 +439,80 @@ static inline bool use_cpu(PixmapPtr pixmap, struct sna_pixmap *priv,
 }
 
 void
+sna_composite_fb(CARD8 op,
+		 PicturePtr src,
+		 PicturePtr mask,
+		 PicturePtr dst,
+		 RegionPtr region,
+		 INT16 src_x,  INT16 src_y,
+		 INT16 mask_x, INT16 mask_y,
+		 INT16 dst_x,  INT16 dst_y,
+		 CARD16 width, CARD16 height)
+{
+	pixman_image_t *src_image, *mask_image, *dest_image;
+	int src_xoff, src_yoff;
+	int msk_xoff, msk_yoff;
+	int dst_xoff, dst_yoff;
+	unsigned flags;
+
+	DBG(("%s: fallback -- move dst to cpu\n", __FUNCTION__));
+	if (op <= PictOpSrc && !dst->alphaMap)
+		flags = MOVE_WRITE | MOVE_INPLACE_HINT;
+	else
+		flags = MOVE_WRITE | MOVE_READ;
+	if (!sna_drawable_move_region_to_cpu(dst->pDrawable, region, flags))
+		return;
+	if (dst->alphaMap &&
+	    !sna_drawable_move_to_cpu(dst->alphaMap->pDrawable, flags))
+		return;
+
+	if (src->pDrawable) {
+		DBG(("%s: fallback -- move src to cpu\n", __FUNCTION__));
+		if (!sna_drawable_move_to_cpu(src->pDrawable,
+					      MOVE_READ))
+			return;
+
+		if (src->alphaMap &&
+		    !sna_drawable_move_to_cpu(src->alphaMap->pDrawable,
+					      MOVE_READ))
+			return;
+	}
+
+	if (mask && mask->pDrawable) {
+		DBG(("%s: fallback -- move mask to cpu\n", __FUNCTION__));
+		if (!sna_drawable_move_to_cpu(mask->pDrawable,
+					      MOVE_READ))
+			return;
+
+		if (mask->alphaMap &&
+		    !sna_drawable_move_to_cpu(mask->alphaMap->pDrawable,
+					      MOVE_READ))
+			return;
+	}
+
+	DBG(("%s: fallback -- fbComposite\n", __FUNCTION__));
+
+	miCompositeSourceValidate(src);
+	if (mask)
+		miCompositeSourceValidate(mask);
+
+	src_image = image_from_pict(src, FALSE, &src_xoff, &src_yoff);
+	mask_image = image_from_pict(mask, FALSE, &msk_xoff, &msk_yoff);
+	dest_image = image_from_pict(dst, TRUE, &dst_xoff, &dst_yoff);
+
+	if (src_image && dest_image && !(mask && !mask_image))
+		sna_image_composite(op, src_image, mask_image, dest_image,
+				       src_x + src_xoff, src_y + src_yoff,
+				       mask_x + msk_xoff, mask_y + msk_yoff,
+				       dst_x + dst_xoff, dst_y + dst_yoff,
+				       width, height);
+
+	free_pixman_pict(src, src_image);
+	free_pixman_pict(mask, mask_image);
+	free_pixman_pict(dst, dest_image);
+}
+
+void
 sna_composite(CARD8 op,
 	      PicturePtr src,
 	      PicturePtr mask,
@@ -610,11 +684,11 @@ fallback:
 	}
 
 	DBG(("%s: fallback -- fbComposite\n", __FUNCTION__));
-	fbComposite(op, src, mask, dst,
-		    src_x,  src_y,
-		    mask_x, mask_y,
-		    dst_x,  dst_y,
-		    width,  height);
+	sna_composite_fb(op, src, mask, dst, &region,
+			 src_x,  src_y,
+			 mask_x, mask_y,
+			 dst_x,  dst_y,
+			 width,  height);
 out:
 	REGION_UNINIT(NULL, &region);
 }
@@ -921,6 +995,8 @@ fallback:
 	if (dst->alphaMap &&
 	    !sna_drawable_move_to_cpu(dst->alphaMap->pDrawable, error))
 		goto done;
+
+	assert(pixmap->devPrivate.ptr);
 
 	if (op <= PictOpSrc) {
 		int nbox = REGION_NUM_RECTS(&region);

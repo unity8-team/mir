@@ -146,7 +146,8 @@ static uint32_t color_tiling(struct sna *sna, DrawablePtr draw)
 static uint32_t other_tiling(struct sna *sna, DrawablePtr draw)
 {
 	/* XXX Can mix color X / depth Y? */
-	return kgem_choose_tiling(&sna->kgem, -I915_TILING_Y,
+	return kgem_choose_tiling(&sna->kgem,
+				  sna->kgem.gen >=40 ? -I915_TILING_Y : -I915_TILING_X,
 				  draw->width,
 				  draw->height,
 				  draw->bitsPerPixel);
@@ -497,6 +498,12 @@ static void set_bo(PixmapPtr pixmap, struct kgem_bo *bo)
 	if (priv->gpu_bo != bo) {
 		kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
 		priv->gpu_bo = ref(bo);
+		if (priv->mapped) {
+			assert(!priv->shm && priv->stride);
+			pixmap->devPrivate.ptr = PTR(priv->ptr);
+			pixmap->devKind = priv->stride;
+			priv->mapped = false;
+		}
 	}
 	if (bo->domain != DOMAIN_GPU)
 		bo->domain = DOMAIN_NONE;
@@ -513,8 +520,11 @@ static void sna_dri_select_mode(struct sna *sna, struct kgem_bo *dst, struct kge
 		return;
 
 	if (sync) {
-		DBG(("%s: sync, force RENDER ring\n", __FUNCTION__));
-		kgem_set_mode(&sna->kgem, KGEM_RENDER, dst);
+		DBG(("%s: sync, force %s ring\n", __FUNCTION__,
+		     sna->kgem.gen >= 070 ? "BLT" : "RENDER"));
+		kgem_set_mode(&sna->kgem,
+			      sna->kgem.gen >= 070 ? KGEM_BLT : KGEM_RENDER,
+			      dst);
 		return;
 	}
 
@@ -837,14 +847,34 @@ can_blit(struct sna * sna,
 	 DRI2BufferPtr front,
 	 DRI2BufferPtr back)
 {
-	uint32_t f, b;
+	RegionPtr clip;
+	int w, h;
+	uint32_t s;
 
 	if (draw->type == DRAWABLE_PIXMAP)
 		return true;
 
-	f = get_private(front)->size;
-	b = get_private(back)->size;
-	return (f >> 16) >= (b >> 16) && (f & 0xffff) >= (b & 0xffff);
+	clip = &((WindowPtr)draw)->clipList;
+	w = clip->extents.x2 - draw->x;
+	h = clip->extents.y2 - draw->y;
+	if ((w|h) < 0)
+		return false;
+
+	s = get_private(front)->size;
+	if ((s>>16) < h || (s&0xffff) < w) {
+		DBG(("%s: reject front size (%dx%d) < (%dx%d)\n", __func__,
+		       s&0xffff, s>>16, w, h));
+		return false;
+	}
+
+	s = get_private(back)->size;
+	if ((s>>16) < h || (s&0xffff) < w) {
+		DBG(("%s:reject back size (%dx%d) < (%dx%d)\n", __func__,
+		     s&0xffff, s>>16, w, h));
+		return false;
+	}
+
+	return true;
 }
 
 static void
@@ -1832,10 +1862,15 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw,
 		DBG(("%s: performing immediate swap on pipe %d, pending? %d, mode: %d\n",
 		     __FUNCTION__, pipe, info != NULL, info ? info->mode : 0));
 
-		if (info && info->draw == draw) {
+		if (info &&
+		    info->draw == draw) {
 			assert(info->type == DRI2_FLIP_THROTTLE);
 			assert(info->front == front);
-			assert(info->back == back);
+			if (info->back != back) {
+				_sna_dri_destroy_buffer(sna, info->back);
+				info->back = back;
+				sna_dri_reference_buffer(back);
+			}
 			if (current_msc >= *target_msc) {
 				DBG(("%s: executing xchg of pending flip\n",
 				     __FUNCTION__));
@@ -2069,18 +2104,17 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	     (uint32_t)*target_msc, (uint32_t)current_msc, (uint32_t)divisor));
 
 	if (divisor == 0 && current_msc >= *target_msc - 1) {
+		bool sync = current_msc < *target_msc;
 		if (can_exchange(sna, draw, front, back)) {
-			sna_dri_immediate_xchg(sna, draw, info,
-					       current_msc < *target_msc);
+			sna_dri_immediate_xchg(sna, draw, info, sync);
 		} else if (can_blit(sna, draw, front, back)) {
-			sna_dri_immediate_blit(sna, draw, info,
-					       current_msc < *target_msc);
+			sna_dri_immediate_blit(sna, draw, info, sync);
 		} else {
 			DRI2SwapComplete(client, draw, 0, 0, 0,
 					 DRI2_BLIT_COMPLETE, func, data);
 			sna_dri_frame_event_info_free(sna, draw, info);
 		}
-		*target_msc = current_msc + 1;
+		*target_msc = current_msc + sync;
 		return TRUE;
 	}
 
