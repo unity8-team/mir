@@ -4,7 +4,7 @@ include $(CLEAR_VARS)
 LOCAL_CFLAGS += -std=gnu++0x
 
 LOCAL_C_INCLUDES := \
-	canonical/ubuntu-platform-api/include/include
+	canonical/ubuntu-platform-api/include
 
 LOCAL_SRC_FILES := \
 	ubuntu_application_api_for_hybris.cpp \
@@ -35,7 +35,7 @@ include $(CLEAR_VARS)
 LOCAL_CFLAGS += -std=gnu++0x
 
 LOCAL_C_INCLUDES := \
-	canonical/ubuntu-platform-api/include/include
+	canonical/ubuntu-platform-api/include
 
 LOCAL_SRC_FILES:= \
 	test.cpp \
@@ -57,7 +57,7 @@ include $(CLEAR_VARS)
 LOCAL_CFLAGS += -std=gnu++0x
 
 LOCAL_C_INCLUDES := \
-	canonical/ubuntu-platform-api/include/include
+	canonical/ubuntu-platform-api/include
 
 LOCAL_SRC_FILES:= \
 	test_c_api.cpp \
@@ -79,7 +79,7 @@ include $(CLEAR_VARS)
 LOCAL_CFLAGS += -std=gnu++0x
 
 LOCAL_C_INCLUDES := \
-	canonical/ubuntu-platform-api/include/include
+	canonical/ubuntu-platform-api/include
 
 LOCAL_SRC_FILES:= \
 	test_session_c_api.cpp \
@@ -101,7 +101,7 @@ include $(CLEAR_VARS)
 LOCAL_CFLAGS += -std=gnu++0x
 
 LOCAL_C_INCLUDES := \
-	canonical/ubuntu-platform-api/include/include
+	canonical/ubuntu-platform-api/include
 
 LOCAL_SRC_FILES:= \
 	test_osk_visibility.cpp \
@@ -123,7 +123,7 @@ include $(CLEAR_VARS)
 LOCAL_CFLAGS += -std=gnu++0x
 
 LOCAL_C_INCLUDES := \
-	canonical/ubuntu-platform-api/include/include
+	canonical/ubuntu-platform-api/include
 
 LOCAL_SRC_FILES:= \
 	test_sensors_c_api.cpp \
@@ -145,7 +145,7 @@ include $(CLEAR_VARS)
 LOCAL_CFLAGS += -std=gnu++0x
 
 LOCAL_C_INCLUDES := \
-	canonical/ubuntu-platform-api/include/include
+	canonical/ubuntu-platform-api/include
 
 LOCAL_SRC_FILES:= \
 	test_sensors.cpp \
@@ -169,7 +169,7 @@ LOCAL_CFLAGS += -std=gnu++0x
 LOCAL_C_INCLUDES := \
 	external/skia/include/core \
 	frameworks/base/services \
-	canonical/ubuntu-platform-api/include/include
+	canonical/ubuntu-platform-api/include
 
 LOCAL_SRC_FILES:= \
 	application_manager.cpp \
@@ -196,7 +196,7 @@ include $(CLEAR_VARS)
 LOCAL_CFLAGS += -std=gnu++0x
 
 LOCAL_C_INCLUDES := \
-	canonical/ubuntu-platform-api/include/include
+	canonical/ubuntu-platform-api/include
 
 LOCAL_SRC_FILES:= \
 	application_manager.cpp \
@@ -220,7 +220,7 @@ include $(CLEAR_VARS)
 LOCAL_CFLAGS += -std=gnu++0x
 
 LOCAL_C_INCLUDES := \
-	canonical/ubuntu-platform-api/include/include
+	canonical/ubuntu-platform-api/include
 
 LOCAL_SRC_FILES:= \
 	test_gps_api.cpp \
