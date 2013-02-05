@@ -844,7 +844,7 @@ gen4_emit_pipelined_pointers(struct sna *sna,
 	bp = gen4_get_blend(blend, op->has_component_alpha, op->dst.format);
 
 	DBG(("%s: sp=%d, bp=%d\n", __FUNCTION__, sp, bp));
-	key = sp | (uint32_t)bp << 16 | op->u.gen4.sf << 31;
+	key = sp | (uint32_t)bp << 16;
 	if (key == sna->render_state.gen4.last_pipelined_pointers)
 		return;
 
@@ -852,7 +852,7 @@ gen4_emit_pipelined_pointers(struct sna *sna,
 	OUT_BATCH(sna->render_state.gen4.vs);
 	OUT_BATCH(GEN4_GS_DISABLE); /* passthrough */
 	OUT_BATCH(GEN4_CLIP_DISABLE); /* passthrough */
-	OUT_BATCH(sna->render_state.gen4.sf[op->u.gen4.sf]);
+	OUT_BATCH(sna->render_state.gen4.sf);
 	OUT_BATCH(sna->render_state.gen4.wm + sp);
 	OUT_BATCH(sna->render_state.gen4.cc + bp);
 
@@ -1941,11 +1941,6 @@ gen4_render_composite(struct sna *sna,
 		tmp->is_affine &= tmp->mask.is_affine;
 	}
 
-	/* XXX using more then one thread causes corruption? */
-	tmp->u.gen4.sf = (tmp->mask.bo == NULL &&
-			  tmp->src.transform == NULL &&
-			  !tmp->src.is_solid);
-
 	tmp->u.gen4.wm_kernel =
 		gen4_choose_composite_kernel(tmp->op,
 					     tmp->mask.bo != NULL,
@@ -2189,7 +2184,6 @@ gen4_render_composite_spans(struct sna *sna,
 	tmp->base.has_component_alpha = false;
 	tmp->base.need_magic_ca_pass = false;
 
-	tmp->base.u.gen4.sf = !tmp->base.src.is_solid;
 	tmp->base.u.gen4.ve_id = gen4_choose_spans_emitter(tmp);
 	tmp->base.u.gen4.wm_kernel = WM_KERNEL_OPACITY | !tmp->base.is_affine;
 
@@ -2392,7 +2386,6 @@ fallback_blt:
 	tmp.floats_per_rect = 9;
 	tmp.u.gen4.wm_kernel = WM_KERNEL;
 	tmp.u.gen4.ve_id = 2;
-	tmp.u.gen4.sf = 0;
 
 	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL)) {
 		kgem_submit(&sna->kgem);
@@ -2523,7 +2516,6 @@ fallback:
 	op->base.floats_per_rect = 9;
 	op->base.u.gen4.wm_kernel = WM_KERNEL;
 	op->base.u.gen4.ve_id = 2;
-	op->base.u.gen4.sf = 0;
 
 	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL)) {
 		kgem_submit(&sna->kgem);
@@ -2640,7 +2632,6 @@ gen4_render_fill_boxes(struct sna *sna,
 	tmp.floats_per_rect = 6;
 	tmp.u.gen4.wm_kernel = WM_KERNEL;
 	tmp.u.gen4.ve_id = 1;
-	tmp.u.gen4.sf = 0;
 
 	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL)) {
 		kgem_submit(&sna->kgem);
@@ -2746,7 +2737,6 @@ gen4_render_fill(struct sna *sna, uint8_t alu,
 	op->base.floats_per_rect = 6;
 	op->base.u.gen4.wm_kernel = WM_KERNEL;
 	op->base.u.gen4.ve_id = 1;
-	op->base.u.gen4.sf = 0;
 
 	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL)) {
 		kgem_submit(&sna->kgem);
@@ -2826,7 +2816,6 @@ gen4_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 
 	tmp.u.gen4.wm_kernel = WM_KERNEL;
 	tmp.u.gen4.ve_id = 1;
-	tmp.u.gen4.sf = 0;
 
 	if (!kgem_check_bo(&sna->kgem, bo, NULL)) {
 		kgem_submit(&sna->kgem);
@@ -2934,8 +2923,7 @@ static uint32_t gen4_create_vs_unit_state(struct sna_static_stream *stream)
 }
 
 static uint32_t gen4_create_sf_state(struct sna_static_stream *stream,
-				     int gen, uint32_t kernel,
-				     bool single_thread)
+				     int gen, uint32_t kernel)
 {
 	struct gen4_sf_unit_state *sf;
 
@@ -2949,7 +2937,7 @@ static uint32_t gen4_create_sf_state(struct sna_static_stream *stream,
 	/* don't smash vertex header, read start from dw8 */
 	sf->thread3.urb_entry_read_offset = 1;
 	sf->thread3.dispatch_grf_start_reg = 3;
-	sf->thread4.max_threads = single_thread ? 0 : GEN4_MAX_SF_THREADS - 1;
+	sf->thread4.max_threads = GEN4_MAX_SF_THREADS - 1;
 	sf->thread4.urb_entry_allocation_size = URB_SF_ENTRY_SIZE - 1;
 	sf->thread4.nr_urb_entries = URB_SF_ENTRIES;
 	sf->sf5.viewport_transform = false;	/* skip viewport */
@@ -3089,8 +3077,7 @@ static bool gen4_render_setup(struct sna *sna)
 	}
 
 	state->vs = gen4_create_vs_unit_state(&general);
-	state->sf[0] = gen4_create_sf_state(&general, sna->kgem.gen, sf, false);
-	state->sf[1] = gen4_create_sf_state(&general, sna->kgem.gen, sf, true);
+	state->sf = gen4_create_sf_state(&general, sna->kgem.gen, sf);
 
 	wm_state = sna_static_stream_map(&general,
 					  sizeof(*wm_state) * KERNEL_COUNT *

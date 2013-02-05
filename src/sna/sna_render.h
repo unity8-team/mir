@@ -129,7 +129,6 @@ struct sna_composite_op {
 		struct {
 			int wm_kernel;
 			int ve_id;
-			int sf;
 		} gen4;
 
 		struct {
@@ -363,7 +362,7 @@ struct gen4_render_state {
 	struct kgem_bo *general_bo;
 
 	uint32_t vs;
-	uint32_t sf[2];
+	uint32_t sf;
 	uint32_t wm;
 	uint32_t cc;
 
