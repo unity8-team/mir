@@ -104,7 +104,7 @@ static const struct intel_device_info intel_ivybridge_info = {
 };
 
 static const struct intel_device_info intel_valleyview_info = {
-	.gen = 070,
+	.gen = 071,
 };
 
 static const struct intel_device_info intel_haswell_info = {

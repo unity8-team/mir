@@ -2989,6 +2989,8 @@ sna_wait_for_scanline(struct sna *sna,
 
 	if (sna->kgem.gen >= 0100)
 		ret = false;
+	else if (sna->kgem.gen == 071)
+		ret =sna_emit_wait_for_scanline_gen6(sna, crtc, pipe, y1, y2, full_height);
 	else if (sna->kgem.gen >= 070)
 		ret = sna_emit_wait_for_scanline_gen7(sna, crtc, pipe, y1, y2, full_height);
 	else if (sna->kgem.gen >= 060)
