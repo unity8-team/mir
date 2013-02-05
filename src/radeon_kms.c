@@ -389,6 +389,9 @@ radeon_xmir_copy_pixmap_to_mir(PixmapPtr src, xmir_buffer_info *buffer)
 
 	exaMoveInPixmap(dst);
 	radeon_set_pixmap_bo(dst, bo_dst);
+        radeon_bo_wait(bo_dst);
+        radeon_bo_wait(radeon_get_pixmap_bo(src));
+
 
 	ret = info->accel_state->exa->PrepareCopy (src, dst,
 						   -1, -1, GXcopy, FB_ALLONES);
@@ -398,10 +401,14 @@ radeon_xmir_copy_pixmap_to_mir(PixmapPtr src, xmir_buffer_info *buffer)
 				      pScrn->virtualX, pScrn->virtualY);
 	info->accel_state->exa->DoneCopy (dst);
 	radeon_cs_flush_indirect(pScrn);
-	
+
+        radeon_bo_wait(bo_dst);
+        radeon_bo_wait(radeon_get_pixmap_bo(src));	
 cleanup_dst:
 	pScreen->DestroyPixmap(dst);
 cleanup_bo:
+        radeon_bo_wait(bo_dst);
+        radeon_bo_wait(radeon_get_pixmap_bo(src));	
 	radeon_bo_unref(bo_dst);
     } else if (0) {
 	/* TODO: glamor accel */
