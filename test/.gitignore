@@ -13,3 +13,4 @@ render-copyarea
 render-copyarea-size
 render-copy-alphaless
 mixed-stress
+lowlevel-blt-bench

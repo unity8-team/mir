@@ -148,3 +148,20 @@ void test_init(struct test *test, int argc, char **argv)
 	memset(test, 0, sizeof(*test));
 	test_get_displays(argc, argv, &test->real, &test->ref);
 }
+
+void test_timer_start(struct test_display *t, struct timespec *tv)
+{
+	clock_gettime(CLOCK_MONOTONIC, tv);
+}
+
+double test_timer_stop(struct test_display *t, struct timespec *tv)
+{
+	XImage *image;
+	struct timespec now;
+
+	image = XGetImage(t->dpy, t->root, 0, 0, 1, 1, AllPlanes, ZPixmap);
+	clock_gettime(CLOCK_MONOTONIC, &now);
+	XDestroyImage(image);
+
+	return (now.tv_sec - tv->tv_sec) + 1e-9*(now.tv_nsec - tv->tv_nsec);
+}
