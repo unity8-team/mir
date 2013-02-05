@@ -30,7 +30,6 @@ Description: Ubuntu Platform API implementation - android libraries
  Contains the Ubuntu Platform API implementation libraries for Android.
 
 Package: ubuntu-platform-implementation-android-dev
-Provides: libubuntu-platform-api-dev
 Section: libdevel
 Architecture: armel armhf
 Depends:
