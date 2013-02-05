@@ -12,11 +12,9 @@ Vcs-Bzr: lp:~rocket-scientists/aal+/ubuntu-platform-api
 Vcs-Browser: https://bazaar.launchpad.net/~rocket-scientists/aal+/ubuntu-platform-api/files
 
 Package: ubuntu-platform-api-dev
-Section: libdevel
 Architecture: armel armhf
 Depends:
- ${misc:Depends},
- ubuntu-platform-implementation-android-dev (= ${binary:Version}) | libubuntu-platform-api-dev
+ ${misc:Depends}
 Description: Ubuntu Platform API implementation - development headers
  Contains the Ubuntu Platform API development headers.
 
@@ -37,6 +35,7 @@ Section: libdevel
 Architecture: armel armhf
 Depends:
  ${misc:Depends},
+ ubuntu-platform-api-dev (= ${binary:Version}),
  ubuntu-platform-implementation-android (= ${binary:Version}),
  libhybris-dev
 Description: Ubuntu Platform API implementation - android dev libraries
@@ -44,7 +43,6 @@ Description: Ubuntu Platform API implementation - android dev libraries
  for Android.
 
 Package: ubuntu-platform-implementation-android-tests
-Section: devel
 Architecture: armel armhf
 Depends:
  ${shlibs:Depends},
