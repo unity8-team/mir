@@ -5117,8 +5117,6 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 		if (bo->mem) {
 			if (flags & KGEM_BUFFER_WRITE)
 				kgem_bo_sync__cpu(kgem, &bo->base);
-
-			alloc = num_pages(&bo->base);
 			goto init;
 		} else {
 			bo->base.refcnt = 0; /* for valgrind */
@@ -5190,7 +5188,6 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 
 			bo->mem = kgem_bo_map(kgem, &bo->base);
 			if (bo->mem) {
-				alloc = num_pages(&bo->base);
 				if (IS_CPU_MAP(bo->base.map))
 				    flags &= ~KGEM_BUFFER_INPLACE;
 				goto init;
@@ -5213,7 +5210,6 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			if (flags & KGEM_BUFFER_WRITE)
 				kgem_bo_sync__cpu(kgem, &bo->base);
 			flags &= ~KGEM_BUFFER_INPLACE;
-			alloc = num_pages(&bo->base);
 			goto init;
 		}
 
@@ -5236,8 +5232,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 	if (old) {
 		DBG(("%s: reusing ordinary handle %d for io\n",
 		     __FUNCTION__, old->handle));
-		alloc = num_pages(old);
-		bo = buffer_alloc_with_data(alloc);
+		bo = buffer_alloc_with_data(num_pages(old));
 		if (bo == NULL)
 			return NULL;
 
@@ -5264,7 +5259,6 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			DBG(("%s: reusing handle=%d for buffer\n",
 			     __FUNCTION__, old->handle));
 
-			alloc = num_pages(old);
 			init_buffer_from_bo(bo, old);
 		} else {
 			uint32_t handle = gem_create(kgem->fd, alloc);
@@ -5293,7 +5287,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 
 		DBG(("%s: failing back to new pwrite buffer\n", __FUNCTION__));
 		old = &bo->base;
-		bo = buffer_alloc_with_data(alloc);
+		bo = buffer_alloc_with_data(num_pages(old));
 		if (bo == NULL) {
 			free(old);
 			return NULL;
@@ -5310,7 +5304,8 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 init:
 	bo->base.io = true;
 	assert(bo->base.refcnt == 1);
-	assert(num_pages(&bo->base) == alloc);
+	assert(num_pages(&bo->base) >= alloc);
+	assert(num_pages(&bo->base) >= NUM_PAGES(size));
 	assert(!bo->need_io || !bo->base.needs_flush);
 	assert(!bo->need_io || bo->base.domain != DOMAIN_GPU);
 	assert(bo->mem);
@@ -5323,8 +5318,8 @@ init:
 	assert(list_is_empty(&bo->base.list));
 	list_add(&bo->base.list, &kgem->batch_buffers);
 
-	DBG(("%s(pages=%d) new handle=%d, used=%d, write=%d\n",
-	     __FUNCTION__, alloc, bo->base.handle, bo->used, bo->write));
+	DBG(("%s(pages=%d [%d]) new handle=%d, used=%d, write=%d\n",
+	     __FUNCTION__, num_pages(&bo->base), alloc, bo->base.handle, bo->used, bo->write));
 
 done:
 	bo->used = ALIGN(bo->used, UPLOAD_ALIGNMENT);
