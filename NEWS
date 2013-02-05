@@ -6,7 +6,7 @@ A few new features:
 
  * Enable multi-threaded rasterisation of trapezoids and fallback composition
 
- * Utilile a new kernel interface (v3.9) for processing relocations
+ * Utilise a new kernel interface (v3.9) for processing relocations
 
 along with a few older features from the 2.20.x series:
 
