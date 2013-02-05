@@ -1,0 +1,53 @@
+Source: ubuntu-platform-api
+Priority: extra
+Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
+Build-Depends:
+ debhelper (>= 9),
+ libhybris-dev,
+ libgles2-mesa-dev
+Standards-Version: 3.9.4
+Section: devel
+Vcs-Bzr: lp:~rocket-scientists/aal+/ubuntu-platform-api
+Vcs-Browser: https://bazaar.launchpad.net/~rocket-scientists/aal+/ubuntu-platform-api/files
+
+Package: ubuntu-platform-api-dev
+Section: libdevel
+Architecture: armel armhf
+Depends:
+ ${misc:Depends},
+ ubuntu-platform-implementation-android-dev (= ${binary:Version}) | libubuntu-platform-api-dev
+Description: Ubuntu Platform API implementation - development headers
+ Contains the Ubuntu Platform API development headers.
+
+Package: ubuntu-platform-implementation-android
+Provides: libubuntu-platform-api
+Section: libs
+Architecture: armel armhf
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends},
+ libhybris
+Description: Ubuntu Platform API implementation - android libraries
+ Contains the Ubuntu Platform API implementation libraries for Android.
+
+Package: ubuntu-platform-implementation-android-dev
+Provides: libubuntu-platform-api-dev
+Section: libdevel
+Architecture: armel armhf
+Depends:
+ ${misc:Depends},
+ ubuntu-platform-implementation-android (= ${binary:Version}),
+ libhybris-dev
+Description: Ubuntu Platform API implementation - android dev libraries
+ Contains the Ubuntu Platform API implementation development libraries
+ for Android.
+
+Package: ubuntu-platform-implementation-android-tests
+Section: devel
+Architecture: armel armhf
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends},
+ ubuntu-platform-implementation-android (= ${binary:Version})
+Description: Ubuntu Platform API implementation - android tests
+ Contains the Ubuntu Platform API implementation tests for Android.

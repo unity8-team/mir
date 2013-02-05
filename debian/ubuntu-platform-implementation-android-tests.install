@@ -1,0 +1,5 @@
+usr/bin/test_android_gps_api
+usr/bin/test_android_sensors_api
+usr/bin/test_android_ubuntu_app_api
+usr/bin/test_android_ubuntu_app_api_multiple_surfaces
+usr/bin/test_android_ubuntu_session_api
