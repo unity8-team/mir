@@ -261,22 +261,21 @@ void intel_batch_submit(ScrnInfoPtr scrn)
 	}
 
 	if (ret != 0) {
-		if (ret == -EIO) {
-			static int once;
-
-			/* The GPU has hung and unlikely to recover by this point. */
-			if (!once) {
+		static int once;
+		if (!once) {
+			if (ret == -EIO) {
+				/* The GPU has hung and unlikely to recover by this point. */
 				xf86DrvMsg(scrn->scrnIndex, X_ERROR, "Detected a hung GPU, disabling acceleration.\n");
 				xf86DrvMsg(scrn->scrnIndex, X_ERROR, "When reporting this, please include i915_error_state from debugfs and the full dmesg.\n");
-				uxa_set_force_fallback(xf86ScrnToScreen(scrn), TRUE);
-				intel->force_fallback = TRUE;
-				once = 1;
+			} else {
+				/* The driver is broken. */
+				xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+					   "Failed to submit batch buffer, expect rendering corruption: %s.\n ",
+					   strerror(-ret));
 			}
-		} else {
-			xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-				   "Failed to submit batch buffer, expect rendering corruption "
-				   "or even a frozen display: %s.\n",
-				   strerror(-ret));
+			uxa_set_force_fallback(xf86ScrnToScreen(scrn), TRUE);
+			intel->force_fallback = TRUE;
+			once = 1;
 		}
 	}
 

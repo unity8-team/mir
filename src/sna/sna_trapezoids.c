@@ -49,6 +49,7 @@
 #define NO_ALIGNED_BOXES 0
 #define NO_UNALIGNED_BOXES 0
 #define NO_SCAN_CONVERTER 0
+#define NO_GPU_THREADS 0
 
 /* TODO: Emit unantialiased and MSAA triangles. */
 
@@ -67,6 +68,9 @@
 #define FAST_SAMPLES_X (1<<FAST_SAMPLES_shift)
 #define FAST_SAMPLES_Y (1<<FAST_SAMPLES_shift)
 #define FAST_SAMPLES_mask ((1<<FAST_SAMPLES_shift)-1)
+
+#define region_count(r) ((r)->data ? (r)->data->numRects : 1)
+#define region_boxes(r) ((r)->data ? (BoxPtr)((r)->data + 1) : &(r)->extents)
 
 typedef void (*span_func_t)(struct sna *sna,
 			    struct sna_composite_spans_op *op,
@@ -328,10 +332,10 @@ floored_divrem(int a, int b)
 /* Compute the floored division (x*a)/b. Assumes / and % perform symmetric
  * division. */
 static struct quorem
-floored_muldivrem(int x, int a, int b)
+floored_muldivrem(int32_t x, int32_t a, int32_t b)
 {
 	struct quorem qr;
-	long long xa = (long long)x*a;
+	int64_t xa = (int64_t)x*a;
 	qr.quo = xa/b;
 	qr.rem = xa%b;
 	if (qr.rem && (xa>=0) != (b>=0)) {
@@ -674,6 +678,8 @@ polygon_add_edge(struct polygon *polygon,
 	ybot = bottom <= ymax ? bottom : ymax;
 	e->ytop = ytop;
 	e->height_left = ybot - ytop;
+	if (e->height_left <= 0)
+		return;
 
 	if (dx == 0) {
 		e->x.quo = x1;
@@ -736,6 +742,8 @@ polygon_add_line(struct polygon *polygon,
 
 	e->ytop = top;
 	e->height_left = bot - top;
+	if (e->height_left <= 0)
+		return;
 
 	if (dx == 0) {
 		e->x.quo = p1->x;
@@ -1871,7 +1879,7 @@ static void
 mono_add_line(struct mono *mono,
 	      int dst_x, int dst_y,
 	      xFixed top, xFixed bottom,
-	      xPointFixed *p1, xPointFixed *p2,
+	      const xPointFixed *p1, const xPointFixed *p2,
 	      int dir)
 {
 	struct mono_polygon *polygon = &mono->polygon;
@@ -1888,7 +1896,7 @@ mono_add_line(struct mono *mono,
 	       dir));
 
 	if (top > bottom) {
-		xPointFixed *t;
+		const xPointFixed *t;
 
 		y = top;
 		top = bottom;
@@ -2145,6 +2153,60 @@ mono_span__fast(struct mono *c, int x1, int x2, BoxPtr box)
 	c->op.box(c->sna, &c->op, box);
 }
 
+struct mono_span_thread_boxes {
+	const struct sna_composite_op *op;
+#define MONO_SPAN_MAX_BOXES (8192/sizeof(BoxRec))
+	BoxRec boxes[MONO_SPAN_MAX_BOXES];
+	int num_boxes;
+};
+
+inline static void
+thread_mono_span_add_boxes(struct mono *c, const BoxRec *box, int count)
+{
+	struct mono_span_thread_boxes *b = c->op.priv;
+
+	assert(count > 0 && count <= MONO_SPAN_MAX_BOXES);
+	if (b->num_boxes + count > MONO_SPAN_MAX_BOXES) {
+		b->op->thread_boxes(c->sna, b->op, b->boxes, b->num_boxes);
+		b->num_boxes = 0;
+	}
+
+	memcpy(b->boxes + b->num_boxes, box, count*sizeof(BoxRec));
+	b->num_boxes += count;
+	assert(b->num_boxes <= MONO_SPAN_MAX_BOXES);
+}
+
+fastcall static void
+thread_mono_span_clipped(struct mono *c, int x1, int x2, BoxPtr box)
+{
+	pixman_region16_t region;
+
+	__DBG(("%s [%d, %d]\n", __FUNCTION__, x1, x2));
+
+	box->x1 = x1;
+	box->x2 = x2;
+
+	assert(c->clip.data);
+
+	pixman_region_init_rects(&region, box, 1);
+	RegionIntersect(&region, &region, &c->clip);
+	if (REGION_NUM_RECTS(&region))
+		thread_mono_span_add_boxes(c,
+					   REGION_RECTS(&region),
+					   REGION_NUM_RECTS(&region));
+	pixman_region_fini(&region);
+}
+
+fastcall static void
+thread_mono_span(struct mono *c, int x1, int x2, BoxPtr box)
+{
+	__DBG(("%s [%d, %d]\n", __FUNCTION__, x1, x2));
+
+	box->x1 = x1;
+	box->x2 = x2;
+	thread_mono_span_add_boxes(c, box, 1);
+}
+
 inline static void
 mono_row(struct mono *c, int16_t y, int16_t h)
 {
@@ -2262,10 +2324,7 @@ mono_render(struct mono *mono)
 	struct mono_polygon *polygon = &mono->polygon;
 	int i, j, h = mono->clip.extents.y2 - mono->clip.extents.y1;
 
-	if (mono->clip.data == NULL && mono->op.damage == NULL)
-		mono->span = mono_span__fast;
-	else
-		mono->span = mono_span;
+	assert(mono->span);
 
 	for (i = 0; i < h; i = j) {
 		j = i + 1;
@@ -2464,6 +2523,63 @@ trapezoids_inplace_fallback(CARD8 op,
 	return true;
 }
 
+struct rasterize_traps_thread {
+	xTrapezoid *traps;
+	char *ptr;
+	int stride;
+	BoxRec bounds;
+	pixman_format_code_t format;
+	int ntrap;
+};
+
+static void rasterize_traps_thread(void *arg)
+{
+	struct rasterize_traps_thread *thread = arg;
+	pixman_image_t *image;
+	int width, height, n;
+
+	width = thread->bounds.x2 - thread->bounds.x1;
+	height = thread->bounds.y2 - thread->bounds.y1;
+
+	memset(thread->ptr, 0, thread->stride*height);
+	if (PIXMAN_FORMAT_DEPTH(thread->format) < 8)
+		image = pixman_image_create_bits(thread->format,
+						 width, height,
+						 NULL, 0);
+	else
+		image = pixman_image_create_bits(thread->format,
+						 width, height,
+						 (uint32_t *)thread->ptr,
+						 thread->stride);
+	if (image == NULL)
+		return;
+
+	for (n = 0; n < thread->ntrap; n++)
+		pixman_rasterize_trapezoid(image,
+					   (pixman_trapezoid_t *)&thread->traps[n],
+					   -thread->bounds.x1, -thread->bounds.y1);
+
+	if (PIXMAN_FORMAT_DEPTH(thread->format) < 8) {
+		pixman_image_t *a8;
+
+		a8 = pixman_image_create_bits(PIXMAN_a8,
+					      width, height,
+					      (uint32_t *)thread->ptr,
+					      thread->stride);
+		if (a8) {
+			pixman_image_composite(PIXMAN_OP_SRC,
+					       image, NULL, a8,
+					       0, 0,
+					       0, 0,
+					       0, 0,
+					       width, height);
+			pixman_image_unref(a8);
+		}
+	}
+
+	pixman_image_unref(image);
+}
+
 static void
 trapezoids_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 		    PictFormatPtr maskFormat, INT16 xSrc, INT16 ySrc,
@@ -2507,6 +2623,8 @@ trapezoids_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 		height = bounds.y2 - bounds.y1;
 		bounds.x1 -= dst->pDrawable->x;
 		bounds.y1 -= dst->pDrawable->y;
+		bounds.x2 -= dst->pDrawable->x;
+		bounds.y2 -= dst->pDrawable->y;
 		depth = maskFormat->depth;
 		if (depth == 1) {
 			format = PIXMAN_a1;
@@ -2519,50 +2637,88 @@ trapezoids_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 		DBG(("%s: mask (%dx%d) depth=%d, format=%08x\n",
 		     __FUNCTION__, width, height, depth, format));
 		if (is_gpu(dst->pDrawable) || picture_is_gpu(src)) {
+			int num_threads;
+
 			scratch = sna_pixmap_create_upload(screen,
 							   width, height, 8,
 							   KGEM_BUFFER_WRITE);
 			if (!scratch)
 				return;
 
-			if (depth < 8) {
-				image = pixman_image_create_bits(format, width, height,
-								 NULL, 0);
-			} else {
-				memset(scratch->devPrivate.ptr, 0, scratch->devKind*height);
-				image = pixman_image_create_bits(format, width, height,
-								 scratch->devPrivate.ptr,
-								 scratch->devKind);
-			}
-			if (image) {
-				for (; ntrap; ntrap--, traps++)
-					pixman_rasterize_trapezoid(image,
-								   (pixman_trapezoid_t *)traps,
-								   -bounds.x1, -bounds.y1);
+			num_threads = sna_use_threads(width, height, 4);
+			if (num_threads == 1) {
 				if (depth < 8) {
-					pixman_image_t *a8;
+					image = pixman_image_create_bits(format, width, height,
+									 NULL, 0);
+				} else {
+					memset(scratch->devPrivate.ptr, 0, scratch->devKind*height);
 
-					a8 = pixman_image_create_bits(PIXMAN_a8, width, height,
-								      scratch->devPrivate.ptr,
-								      scratch->devKind);
-					if (a8) {
-						pixman_image_composite(PIXMAN_OP_SRC,
-								       image, NULL, a8,
-								       0, 0,
-								       0, 0,
-								       0, 0,
-								       width, height);
-						format = PIXMAN_a8;
-						depth = 8;
-						pixman_image_unref (a8);
+					image = pixman_image_create_bits(format, width, height,
+									 scratch->devPrivate.ptr,
+									 scratch->devKind);
+				}
+				if (image) {
+					for (; ntrap; ntrap--, traps++)
+						pixman_rasterize_trapezoid(image,
+									   (pixman_trapezoid_t *)traps,
+									   -bounds.x1, -bounds.y1);
+					if (depth < 8) {
+						pixman_image_t *a8;
+
+						a8 = pixman_image_create_bits(PIXMAN_a8, width, height,
+									      scratch->devPrivate.ptr,
+									      scratch->devKind);
+						if (a8) {
+							pixman_image_composite(PIXMAN_OP_SRC,
+									       image, NULL, a8,
+									       0, 0,
+									       0, 0,
+									       0, 0,
+									       width, height);
+							format = PIXMAN_a8;
+							depth = 8;
+							pixman_image_unref(a8);
+						}
 					}
+
+					pixman_image_unref(image);
+				}
+				if (format != PIXMAN_a8) {
+					sna_pixmap_destroy(scratch);
+					return;
+				}
+			} else {
+				struct rasterize_traps_thread threads[num_threads];
+				int y, dy, n;
+
+				threads[0].ptr = scratch->devPrivate.ptr;
+				threads[0].stride = scratch->devKind;
+				threads[0].traps = traps;
+				threads[0].ntrap = ntrap;
+				threads[0].bounds = bounds;
+				threads[0].format = format;
+
+				y = bounds.y1;
+				dy = (height + num_threads - 1) / num_threads;
+
+				for (n = 1; n < num_threads; n++) {
+					threads[n] = threads[0];
+					threads[n].ptr += (y - bounds.y1) * threads[n].stride;
+					threads[n].bounds.y1 = y;
+					threads[n].bounds.y2 = y += dy;
+
+					sna_threads_run(rasterize_traps_thread, &threads[n]);
 				}
 
-				pixman_image_unref(image);
-			}
-			if (format != PIXMAN_a8) {
-				sna_pixmap_destroy(scratch);
-				return;
+				threads[0].ptr += (y - bounds.y1) * threads[0].stride;
+				threads[0].bounds.y1 = y;
+				threads[0].bounds.y2 = bounds.y2;
+				rasterize_traps_thread(&threads[0]);
+
+				sna_threads_wait();
+
+				format = PIXMAN_a8;
+				depth = 8;
 			}
 		} else {
 			scratch = sna_pixmap_create_unattached(screen,
@@ -3490,7 +3646,7 @@ pixmask_opacity(struct pixman_inplace *pi,
 static void
 pixmask_unaligned_box_row(struct pixman_inplace *pi,
 			  const BoxRec *extents,
-			  xTrapezoid *trap,
+			  const xTrapezoid *trap,
 			  int16_t y, int16_t h,
 			  uint8_t covered)
 {
@@ -3521,13 +3677,80 @@ pixmask_unaligned_box_row(struct pixman_inplace *pi,
 	}
 }
 
+struct rectilinear_inplace_thread {
+	pixman_image_t *dst, *src;
+	const RegionRec *clip;
+	const xTrapezoid *trap;
+	int dx, dy, sx, sy;
+	int y1, y2;
+	CARD8 op;
+};
+
+static void rectilinear_inplace_thread(void *arg)
+{
+	struct rectilinear_inplace_thread *thread = arg;
+	const xTrapezoid *t = thread->trap;
+	struct pixman_inplace pi;
+	const BoxRec *extents;
+	int count;
+
+	pi.image = thread->dst;
+	pi.dx = thread->dx;
+	pi.dy = thread->dy;
+
+	pi.source = thread->src;
+	pi.sx = thread->sx;
+	pi.sy = thread->sy;
+
+	pi.mask = pixman_image_create_bits(PIXMAN_a8, 1, 1, &pi.color, 4);
+	pixman_image_set_repeat(pi.mask, PIXMAN_REPEAT_NORMAL);
+	pi.bits = pixman_image_get_data(pi.mask);
+	pi.op = thread->op;
+
+	count = region_count(thread->clip);
+	extents = region_boxes(thread->clip);
+	while (count--) {
+		int16_t y1 = pixman_fixed_to_int(t->top);
+		uint16_t fy1 = pixman_fixed_frac(t->top);
+		int16_t y2 = pixman_fixed_to_int(t->bottom);
+		uint16_t fy2 = pixman_fixed_frac(t->bottom);
+
+		if (y1 < MAX(thread->y1, extents->y1))
+			y1 = MAX(thread->y1, extents->y1), fy1 = 0;
+		if (y2 > MIN(thread->y2, extents->y2))
+			y2 = MIN(thread->y2, extents->y2), fy2 = 0;
+		if (y1 < y2) {
+			if (fy1) {
+				pixmask_unaligned_box_row(&pi, extents, t, y1, 1,
+							  SAMPLES_Y - grid_coverage(SAMPLES_Y, fy1));
+				y1++;
+			}
+
+			if (y2 > y1)
+				pixmask_unaligned_box_row(&pi, extents, t, y1, y2 - y1,
+							  SAMPLES_Y);
+
+			if (fy2)
+				pixmask_unaligned_box_row(&pi, extents, t, y2, 1,
+							  grid_coverage(SAMPLES_Y, fy2));
+		} else if (y1 == y2 && fy2 > fy1) {
+			pixmask_unaligned_box_row(&pi, extents, t, y1, 1,
+						  grid_coverage(SAMPLES_Y, fy2) - grid_coverage(SAMPLES_Y, fy1));
+		}
+		extents++;
+	}
+
+	pixman_image_unref(pi.mask);
+}
+
 static bool
 composite_unaligned_boxes_inplace(CARD8 op,
 				  PicturePtr src, int16_t src_x, int16_t src_y,
 				  PicturePtr dst, int n, xTrapezoid *t,
 				  bool force_fallback)
 {
-	if (!force_fallback) {
+	if (!force_fallback &&
+	    (is_gpu(dst->pDrawable) || picture_is_gpu(src))) {
 		DBG(("%s: fallback -- not forcing\n", __FUNCTION__));
 		return false;
 	}
@@ -3537,10 +3760,10 @@ composite_unaligned_boxes_inplace(CARD8 op,
 	src_x -= pixman_fixed_to_int(t[0].left.p1.x);
 	src_y -= pixman_fixed_to_int(t[0].left.p1.y);
 	do {
-		struct pixman_inplace pi;
 		RegionRec clip;
 		BoxPtr extents;
 		int count;
+		int num_threads;
 
 		clip.extents.x1 = pixman_fixed_to_int(t->left.p1.x);
 		clip.extents.x2 = pixman_fixed_to_int(t->right.p1.x + pixman_fixed_1_minus_e);
@@ -3579,52 +3802,92 @@ composite_unaligned_boxes_inplace(CARD8 op,
 			}
 		}
 
-		pi.image = image_from_pict(dst, false, &pi.dx, &pi.dy);
-		pi.source = image_from_pict(src, false, &pi.sx, &pi.sy);
-		pi.sx += src_x;
-		pi.sy += src_y;
-		pi.mask = pixman_image_create_bits(PIXMAN_a8, 1, 1, NULL, 0);
-		pixman_image_set_repeat(pi.mask, PIXMAN_REPEAT_NORMAL);
-		pi.bits = pixman_image_get_data(pi.mask);
-		pi.op = op;
+		num_threads = sna_use_threads(clip.extents.x2 - clip.extents.x1,
+					      clip.extents.y2 - clip.extents.y1,
+					      32);
+		if (num_threads == 1) {
+			struct pixman_inplace pi;
 
-		count = REGION_NUM_RECTS(&clip);
-		extents = REGION_RECTS(&clip);
-		while (count--) {
-			int16_t y1 = pixman_fixed_to_int(t->top);
-			uint16_t fy1 = pixman_fixed_frac(t->top);
-			int16_t y2 = pixman_fixed_to_int(t->bottom);
-			uint16_t fy2 = pixman_fixed_frac(t->bottom);
+			pi.image = image_from_pict(dst, false, &pi.dx, &pi.dy);
+			pi.source = image_from_pict(src, false, &pi.sx, &pi.sy);
+			pi.sx += src_x;
+			pi.sy += src_y;
+			pi.mask = pixman_image_create_bits(PIXMAN_a8, 1, 1, &pi.color, 4);
+			pixman_image_set_repeat(pi.mask, PIXMAN_REPEAT_NORMAL);
+			pi.bits = pixman_image_get_data(pi.mask);
+			pi.op = op;
 
-			if (y1 < extents->y1)
-				y1 = extents->y1, fy1 = 0;
-			if (y2 > extents->y2)
-				y2 = extents->y2, fy2 = 0;
-			if (y1 < y2) {
-				if (fy1) {
+			count = REGION_NUM_RECTS(&clip);
+			extents = REGION_RECTS(&clip);
+			while (count--) {
+				int16_t y1 = pixman_fixed_to_int(t->top);
+				uint16_t fy1 = pixman_fixed_frac(t->top);
+				int16_t y2 = pixman_fixed_to_int(t->bottom);
+				uint16_t fy2 = pixman_fixed_frac(t->bottom);
+
+				if (y1 < extents->y1)
+					y1 = extents->y1, fy1 = 0;
+				if (y2 > extents->y2)
+					y2 = extents->y2, fy2 = 0;
+				if (y1 < y2) {
+					if (fy1) {
+						pixmask_unaligned_box_row(&pi, extents, t, y1, 1,
+									  SAMPLES_Y - grid_coverage(SAMPLES_Y, fy1));
+						y1++;
+					}
+
+					if (y2 > y1)
+						pixmask_unaligned_box_row(&pi, extents, t, y1, y2 - y1,
+									  SAMPLES_Y);
+
+					if (fy2)
+						pixmask_unaligned_box_row(&pi, extents, t, y2, 1,
+									  grid_coverage(SAMPLES_Y, fy2));
+				} else if (y1 == y2 && fy2 > fy1) {
 					pixmask_unaligned_box_row(&pi, extents, t, y1, 1,
-								   SAMPLES_Y - grid_coverage(SAMPLES_Y, fy1));
-					y1++;
+								  grid_coverage(SAMPLES_Y, fy2) - grid_coverage(SAMPLES_Y, fy1));
 				}
-
-				if (y2 > y1)
-					pixmask_unaligned_box_row(&pi, extents, t, y1, y2 - y1,
-								   SAMPLES_Y);
-
-				if (fy2)
-					pixmask_unaligned_box_row(&pi, extents, t, y2, 1,
-								   grid_coverage(SAMPLES_Y, fy2));
-			} else if (y1 == y2 && fy2 > fy1) {
-				pixmask_unaligned_box_row(&pi, extents, t, y1, 1,
-							  grid_coverage(SAMPLES_Y, fy2) - grid_coverage(SAMPLES_Y, fy1));
+				extents++;
 			}
-			extents++;
+
+			pixman_image_unref(pi.image);
+			pixman_image_unref(pi.source);
+			pixman_image_unref(pi.mask);
+		} else {
+			struct rectilinear_inplace_thread thread[num_threads];
+			int i, y, dy;
+
+
+			thread[0].trap = t;
+			thread[0].dst = image_from_pict(dst, false, &thread[0].dx, &thread[0].dy);
+			thread[0].src = image_from_pict(src, false, &thread[0].sx, &thread[0].sy);
+			thread[0].sx += src_x;
+			thread[0].sy += src_y;
+
+			thread[0].clip = &clip;
+			thread[0].op = op;
+
+			y = clip.extents.y1;
+			dy = (clip.extents.y2 - clip.extents.y1 + num_threads - 1) / num_threads;
+
+			for (i = 1; i < num_threads; i++) {
+				thread[i] = thread[0];
+				thread[i].y1 = y;
+				thread[i].y2 = y += dy;
+				sna_threads_run(rectilinear_inplace_thread, &thread[i]);
+			}
+
+			thread[0].y1 = y;
+			thread[0].y2 = clip.extents.y2;
+			rectilinear_inplace_thread(&thread[0]);
+
+			sna_threads_wait();
+
+			pixman_image_unref(thread[0].dst);
+			pixman_image_unref(thread[0].src);
 		}
 
 		RegionUninit(&clip);
-		pixman_image_unref(pi.image);
-		pixman_image_unref(pi.source);
-		pixman_image_unref(pi.mask);
 	} while (--n && t++);
 
 	return true;
@@ -3926,14 +4189,13 @@ static span_func_t
 choose_span(struct sna_composite_spans_op *tmp,
 	    PicturePtr dst,
 	    PictFormatPtr maskFormat,
-	    uint8_t op,
 	    RegionPtr clip)
 {
 	span_func_t span;
 
 	if (is_mono(dst, maskFormat)) {
 		/* XXX An imprecise approximation */
-		if (maskFormat && !operator_is_bounded(op)) {
+		if (maskFormat && !operator_is_bounded(tmp->base.op)) {
 			span = tor_blt_span_mono_unbounded;
 			if (REGION_NUM_RECTS(clip) > 1)
 				span = tor_blt_span_mono_unbounded_clipped;
@@ -3954,6 +4216,74 @@ choose_span(struct sna_composite_spans_op *tmp,
 	return span;
 }
 
+struct mono_span_thread {
+	struct sna *sna;
+	const xTrapezoid *traps;
+	const struct sna_composite_op *op;
+	RegionPtr clip;
+	int ntrap;
+	BoxRec extents;
+	int dx, dy;
+};
+
+static void
+mono_span_thread(void *arg)
+{
+	struct mono_span_thread *thread = arg;
+	struct mono mono;
+	struct mono_span_thread_boxes boxes;
+	const xTrapezoid *t;
+	int n;
+
+	mono.sna = thread->sna;
+
+	mono.clip.extents = thread->extents;
+	mono.clip.data = NULL;
+	if (thread->clip->data) {
+		RegionIntersect(&mono.clip, &mono.clip, thread->clip);
+		if (RegionNil(&mono.clip))
+			return;
+	}
+
+	boxes.op = thread->op;
+	boxes.num_boxes = 0;
+	mono.op.priv = &boxes;
+
+	if (!mono_init(&mono, 2*thread->ntrap)) {
+		RegionUninit(&mono.clip);
+		return;
+	}
+
+	for (n = thread->ntrap, t = thread->traps; n--; t++) {
+		if (!xTrapezoidValid(t))
+			continue;
+
+		if (pixman_fixed_to_int(t->top) + thread->dy >= thread->extents.y2 ||
+		    pixman_fixed_to_int(t->bottom) + thread->dy <= thread->extents.y1)
+			continue;
+
+		mono_add_line(&mono, thread->dx, thread->dy,
+			      t->top, t->bottom,
+			      &t->left.p1, &t->left.p2, 1);
+		mono_add_line(&mono, thread->dx, thread->dy,
+			      t->top, t->bottom,
+			      &t->right.p1, &t->right.p2, -1);
+	}
+
+	if (mono.clip.data == NULL)
+		mono.span = thread_mono_span;
+	else
+		mono.span = thread_mono_span_clipped;
+
+	mono_render(&mono);
+	mono_fini(&mono);
+
+	if (boxes.num_boxes)
+		thread->op->thread_boxes(thread->sna, thread->op,
+					 boxes.boxes, boxes.num_boxes);
+	RegionUninit(&mono.clip);
+}
+
 static bool
 mono_trapezoids_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 			       INT16 src_x, INT16 src_y,
@@ -3963,8 +4293,8 @@ mono_trapezoids_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	BoxRec extents;
 	int16_t dst_x, dst_y;
 	int16_t dx, dy;
-	bool was_clear;
-	int n;
+	bool unbounded;
+	int num_threads, n;
 
 	if (NO_SCAN_CONVERTER)
 		return false;
@@ -4003,11 +4333,69 @@ mono_trapezoids_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	     src_x + mono.clip.extents.x1 - dst_x - dx,
 	     src_y + mono.clip.extents.y1 - dst_y - dy));
 
+	unbounded = (!sna_drawable_is_clear(dst->pDrawable) &&
+		     !operator_is_bounded(op));
+
 	mono.sna = to_sna_from_drawable(dst->pDrawable);
-	if (!mono_init(&mono, 2*ntrap))
+	if (!mono.sna->render.composite(mono.sna, op, src, NULL, dst,
+				       src_x + mono.clip.extents.x1 - dst_x - dx,
+				       src_y + mono.clip.extents.y1 - dst_y - dy,
+				       0, 0,
+				       mono.clip.extents.x1,  mono.clip.extents.y1,
+				       mono.clip.extents.x2 - mono.clip.extents.x1,
+				       mono.clip.extents.y2 - mono.clip.extents.y1,
+				       memset(&mono.op, 0, sizeof(mono.op))))
 		return false;
 
-	was_clear = sna_drawable_is_clear(dst->pDrawable);
+	num_threads = 1;
+	if (!NO_GPU_THREADS &&
+	    mono.op.thread_boxes &&
+	    mono.op.damage == NULL &&
+	    !unbounded)
+		num_threads = sna_use_threads(mono.clip.extents.x2 - mono.clip.extents.x1,
+					      mono.clip.extents.y2 - mono.clip.extents.y1,
+					      16);
+	if (num_threads > 1) {
+		struct mono_span_thread threads[num_threads];
+		int y, h;
+
+		DBG(("%s: using %d threads for mono span compositing %dx%d\n",
+		     __FUNCTION__, num_threads,
+		     mono.clip.extents.x2 - mono.clip.extents.x1,
+		     mono.clip.extents.y2 - mono.clip.extents.y1));
+
+		threads[0].sna = mono.sna;
+		threads[0].op = &mono.op;
+		threads[0].traps = traps;
+		threads[0].ntrap = ntrap;
+		threads[0].extents = mono.clip.extents;
+		threads[0].clip = &mono.clip;
+		threads[0].dx = dx;
+		threads[0].dy = dy;
+
+		y = extents.y1;
+		h = extents.y2 - extents.y1;
+		h = (h + num_threads - 1) / num_threads;
+
+		for (n = 1; n < num_threads; n++) {
+			threads[n] = threads[0];
+			threads[n].extents.y1 = y;
+			threads[n].extents.y2 = y += h;
+
+			sna_threads_run(mono_span_thread, &threads[n]);
+		}
+
+		threads[0].extents.y1 = y;
+		threads[0].extents.y2 = extents.y2;
+		mono_span_thread(&threads[0]);
+
+		sna_threads_wait();
+		mono.op.done(mono.sna, &mono.op);
+		return true;
+	}
+
+	if (!mono_init(&mono, 2*ntrap))
+		return false;
 
 	for (n = 0; n < ntrap; n++) {
 		if (!xTrapezoidValid(&traps[n]))
@@ -4025,23 +4413,16 @@ mono_trapezoids_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 			      &traps[n].right.p1, &traps[n].right.p2, -1);
 	}
 
-	memset(&mono.op, 0, sizeof(mono.op));
-	if (!mono.sna->render.composite(mono.sna, op, src, NULL, dst,
-				       src_x + mono.clip.extents.x1 - dst_x - dx,
-				       src_y + mono.clip.extents.y1 - dst_y - dy,
-				       0, 0,
-				       mono.clip.extents.x1,  mono.clip.extents.y1,
-				       mono.clip.extents.x2 - mono.clip.extents.x1,
-				       mono.clip.extents.y2 - mono.clip.extents.y1,
-				       &mono.op)) {
-		mono_fini(&mono);
-		return false;
-	}
+	if (mono.clip.data == NULL && mono.op.damage == NULL)
+		mono.span = mono_span__fast;
+	else
+		mono.span = mono_span;
+
 	mono_render(&mono);
 	mono.op.done(mono.sna, &mono.op);
 	mono_fini(&mono);
 
-	if (!was_clear && !operator_is_bounded(op)) {
+	if (unbounded) {
 		xPointFixed p1, p2;
 
 		if (!mono_init(&mono, 2+2*ntrap))
@@ -4093,6 +4474,151 @@ mono_trapezoids_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	return true;
 }
 
+struct span_thread {
+	struct sna *sna;
+	const struct sna_composite_spans_op *op;
+	const xTrapezoid *traps;
+	RegionPtr clip;
+	span_func_t span;
+	BoxRec extents;
+	int dx, dy, draw_y;
+	int ntrap;
+	bool unbounded;
+};
+
+#define SPAN_THREAD_MAX_BOXES (8192/sizeof(struct sna_opacity_box))
+struct span_thread_boxes {
+	const struct sna_composite_spans_op *op;
+	struct sna_opacity_box boxes[SPAN_THREAD_MAX_BOXES];
+	int num_boxes;
+};
+
+static void span_thread_add_boxes(struct sna *sna, void *data,
+				  const BoxRec *box, int count, float alpha)
+{
+	struct span_thread_boxes *b = data;
+
+	__DBG(("%s: adding %d boxes with alpha=%f\n",
+	       __FUNCTION__, count, alpha));
+
+	assert(count > 0 && count <= SPAN_THREAD_MAX_BOXES);
+	if (b->num_boxes + count > SPAN_THREAD_MAX_BOXES) {
+		DBG(("%s: flushing %d boxes, adding %d\n", __FUNCTION__, b->num_boxes, count));
+		assert(b->num_boxes <= SPAN_THREAD_MAX_BOXES);
+		b->op->thread_boxes(sna, b->op, b->boxes, b->num_boxes);
+		b->num_boxes = 0;
+	}
+
+	do {
+		b->boxes[b->num_boxes].box = *box++;
+		b->boxes[b->num_boxes].alpha = alpha;
+		b->num_boxes++;
+	} while (--count);
+	assert(b->num_boxes <= SPAN_THREAD_MAX_BOXES);
+}
+
+static void
+span_thread_box(struct sna *sna,
+		struct sna_composite_spans_op *op,
+		pixman_region16_t *clip,
+		const BoxRec *box,
+		int coverage)
+{
+	__DBG(("%s: %d -> %d @ %d\n", __FUNCTION__, box->x1, box->x2, coverage));
+	span_thread_add_boxes(sna, op, box, 1, AREA_TO_ALPHA(coverage));
+}
+
+static void
+span_thread_clipped_box(struct sna *sna,
+			struct sna_composite_spans_op *op,
+			pixman_region16_t *clip,
+			const BoxRec *box,
+			int coverage)
+{
+	pixman_region16_t region;
+
+	__DBG(("%s: %d -> %d @ %f\n", __FUNCTION__, box->x1, box->x2,
+	       AREA_TO_ALPHA(coverage)));
+
+	pixman_region_init_rects(&region, box, 1);
+	RegionIntersect(&region, &region, clip);
+	if (REGION_NUM_RECTS(&region)) {
+		span_thread_add_boxes(sna, op,
+				      REGION_RECTS(&region),
+				      REGION_NUM_RECTS(&region),
+				      AREA_TO_ALPHA(coverage));
+	}
+	pixman_region_fini(&region);
+}
+
+static span_func_t
+thread_choose_span(struct sna_composite_spans_op *tmp,
+		   PicturePtr dst,
+		   PictFormatPtr maskFormat,
+		   RegionPtr clip)
+{
+	span_func_t span;
+
+	if (tmp->base.damage)
+		return NULL;
+
+	if (is_mono(dst, maskFormat)) {
+		return NULL;
+	} else {
+		if (REGION_NUM_RECTS(clip) > 1)
+			span = span_thread_clipped_box;
+		else
+			span = span_thread_box;
+	}
+
+	return span;
+}
+
+static void
+span_thread(void *arg)
+{
+	struct span_thread *thread = arg;
+	struct span_thread_boxes boxes;
+	struct tor tor;
+	const xTrapezoid *t;
+	int n, y1, y2;
+
+	if (tor_init(&tor, &thread->extents, 2*thread->ntrap))
+		return;
+
+	boxes.op = thread->op;
+	boxes.num_boxes = 0;
+
+	y1 = thread->extents.y1 - thread->draw_y;
+	y2 = thread->extents.y2 - thread->draw_y;
+	for (n = thread->ntrap, t = thread->traps; n--; t++) {
+		xTrapezoid tt;
+
+		if (pixman_fixed_to_int(t->top) >= y2 ||
+		    pixman_fixed_to_int(t->bottom) < y1)
+			continue;
+
+		if (!project_trapezoid_onto_grid(t, thread->dx, thread->dy, &tt))
+			continue;
+
+		tor_add_edge(&tor, &tt, &tt.left, 1);
+		tor_add_edge(&tor, &tt, &tt.right, -1);
+	}
+
+	tor_render(thread->sna, &tor,
+		   (struct sna_composite_spans_op *)&boxes, thread->clip,
+		   thread->span, thread->unbounded);
+
+	tor_fini(&tor);
+
+	if (boxes.num_boxes) {
+		DBG(("%s: flushing %d boxes\n", __FUNCTION__, boxes.num_boxes));
+		assert(boxes.num_boxes <= SPAN_THREAD_MAX_BOXES);
+		thread->op->thread_boxes(thread->sna, thread->op,
+					 boxes.boxes, boxes.num_boxes);
+	}
+}
+
 static bool
 trapezoid_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 			 PictFormatPtr maskFormat, unsigned int flags,
@@ -4101,12 +4627,12 @@ trapezoid_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 {
 	struct sna *sna;
 	struct sna_composite_spans_op tmp;
-	struct tor tor;
 	BoxRec extents;
 	pixman_region16_t clip;
 	int16_t dst_x, dst_y;
 	bool was_clear;
 	int dx, dy, n;
+	int num_threads;
 
 	if (NO_SCAN_CONVERTER)
 		return false;
@@ -4210,29 +4736,78 @@ trapezoid_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 
 	dx *= FAST_SAMPLES_X;
 	dy *= FAST_SAMPLES_Y;
-	if (tor_init(&tor, &extents, 2*ntrap))
-		goto skip;
 
-	for (n = 0; n < ntrap; n++) {
-		xTrapezoid t;
+	num_threads = 1;
+	if (!NO_GPU_THREADS && tmp.thread_boxes &&
+	    thread_choose_span(&tmp, dst, maskFormat, &clip))
+		num_threads = sna_use_threads(extents.x2-extents.x1,
+					      extents.y2-extents.y1,
+					      16);
+	if (num_threads == 1) {
+		struct tor tor;
 
-		if (!project_trapezoid_onto_grid(&traps[n], dx, dy, &t))
-			continue;
+		if (tor_init(&tor, &extents, 2*ntrap))
+			goto skip;
 
-		if (pixman_fixed_to_int(traps[n].top) + dst->pDrawable->y >= extents.y2 ||
-		    pixman_fixed_to_int(traps[n].bottom) + dst->pDrawable->y < extents.y1)
-			continue;
+		for (n = 0; n < ntrap; n++) {
+			xTrapezoid t;
 
-		tor_add_edge(&tor, &t, &t.left, 1);
-		tor_add_edge(&tor, &t, &t.right, -1);
-	}
+			if (!project_trapezoid_onto_grid(&traps[n], dx, dy, &t))
+				continue;
 
-	tor_render(sna, &tor, &tmp, &clip,
-		   choose_span(&tmp, dst, maskFormat, op, &clip),
-		   !was_clear && maskFormat && !operator_is_bounded(op));
+			if (pixman_fixed_to_int(traps[n].top) + dst->pDrawable->y >= extents.y2 ||
+			    pixman_fixed_to_int(traps[n].bottom) + dst->pDrawable->y < extents.y1)
+				continue;
+
+			tor_add_edge(&tor, &t, &t.left, 1);
+			tor_add_edge(&tor, &t, &t.right, -1);
+		}
+
+		tor_render(sna, &tor, &tmp, &clip,
+			   choose_span(&tmp, dst, maskFormat, &clip),
+			   !was_clear && maskFormat && !operator_is_bounded(op));
 
 skip:
-	tor_fini(&tor);
+		tor_fini(&tor);
+	} else {
+		struct span_thread threads[num_threads];
+		int y, h;
+
+		DBG(("%s: using %d threads for span compositing %dx%d\n",
+		     __FUNCTION__, num_threads,
+		     extents.x2 - extents.x1,
+		     extents.y2 - extents.y1));
+
+		threads[0].sna = sna;
+		threads[0].op = &tmp;
+		threads[0].traps = traps;
+		threads[0].ntrap = ntrap;
+		threads[0].extents = extents;
+		threads[0].clip = &clip;
+		threads[0].dx = dx;
+		threads[0].dy = dy;
+		threads[0].draw_y = dst->pDrawable->y;
+		threads[0].unbounded = !was_clear && maskFormat && !operator_is_bounded(op);
+		threads[0].span = thread_choose_span(&tmp, dst, maskFormat, &clip);
+
+		y = extents.y1;
+		h = extents.y2 - extents.y1;
+		h = (h + num_threads - 1) / num_threads;
+
+		for (n = 1; n < num_threads; n++) {
+			threads[n] = threads[0];
+			threads[n].extents.y1 = y;
+			threads[n].extents.y2 = y += h;
+
+			sna_threads_run(span_thread, &threads[n]);
+		}
+
+		threads[0].extents.y1 = y;
+		threads[0].extents.y2 = extents.y2;
+		span_thread(&threads[0]);
+
+		sna_threads_wait();
+	}
 	tmp.done(sna, &tmp);
 
 	REGION_UNINIT(NULL, &clip);
@@ -4952,6 +5527,11 @@ unbounded_pass:
 		mono.op.box = mono_inplace_composite_box;
 		mono.op.boxes = mono_inplace_composite_boxes;
 	}
+
+	if (mono.clip.data == NULL && mono.op.damage == NULL)
+		mono.span = mono_span__fast;
+	else
+		mono.span = mono_span;
 	mono_render(&mono);
 	mono_fini(&mono);
 
@@ -5081,6 +5661,113 @@ pixmask_span__clipped(struct sna *sna,
 	pixman_region_fini(&region);
 }
 
+struct inplace_x8r8g8b8_thread {
+	xTrapezoid *traps;
+	PicturePtr dst, src;
+	BoxRec extents;
+	int dx, dy;
+	int ntrap;
+	bool lerp, is_solid;
+	uint32_t color;
+	int16_t src_x, src_y;
+	uint8_t op;
+};
+
+static void inplace_x8r8g8b8_thread(void *arg)
+{
+	struct inplace_x8r8g8b8_thread *thread = arg;
+	struct tor tor;
+	span_func_t span;
+	RegionPtr clip;
+	int y1, y2, n;
+
+	if (tor_init(&tor, &thread->extents, 2*thread->ntrap))
+		return;
+
+	y1 = thread->extents.y1 - thread->dst->pDrawable->y;
+	y2 = thread->extents.y2 - thread->dst->pDrawable->y;
+	for (n = 0; n < thread->ntrap; n++) {
+		xTrapezoid t;
+
+		if (!project_trapezoid_onto_grid(&thread->traps[n], thread->dx, thread->dy, &t))
+			continue;
+
+		if (pixman_fixed_to_int(thread->traps[n].top) >= y2 ||
+		    pixman_fixed_to_int(thread->traps[n].bottom) < y1)
+			continue;
+
+		tor_add_edge(&tor, &t, &t.left, 1);
+		tor_add_edge(&tor, &t, &t.right, -1);
+	}
+
+	clip = thread->dst->pCompositeClip;
+	if (thread->lerp) {
+		struct inplace inplace;
+		int16_t dst_x, dst_y;
+		PixmapPtr pixmap;
+
+		pixmap = get_drawable_pixmap(thread->dst->pDrawable);
+		get_drawable_deltas(thread->dst->pDrawable, pixmap, &dst_x, &dst_y);
+
+		inplace.ptr = pixmap->devPrivate.ptr;
+		inplace.ptr += dst_y * pixmap->devKind + dst_x * 4;
+		inplace.stride = pixmap->devKind;
+		inplace.color = thread->color;
+
+		if (clip->data)
+			span = tor_blt_lerp32_clipped;
+		else
+			span = tor_blt_lerp32;
+
+		tor_render(NULL, &tor, (void*)&inplace, clip, span, false);
+	} else if (thread->is_solid) {
+		struct pixman_inplace pi;
+
+		pi.image = image_from_pict(thread->dst, false, &pi.dx, &pi.dy);
+		pi.op = thread->op;
+		pi.color = thread->color;
+
+		pi.bits = (uint32_t *)&pi.sx;
+		pi.source = pixman_image_create_bits(PIXMAN_a8r8g8b8,
+						     1, 1, pi.bits, 0);
+		pixman_image_set_repeat(pi.source, PIXMAN_REPEAT_NORMAL);
+
+		if (clip->data)
+			span = pixmask_span_solid__clipped;
+		else
+			span = pixmask_span_solid;
+
+		tor_render(NULL, &tor, (void*)&pi, clip, span, false);
+
+		pixman_image_unref(pi.source);
+		pixman_image_unref(pi.image);
+	} else {
+		struct pixman_inplace pi;
+
+		pi.image = image_from_pict(thread->dst, false, &pi.dx, &pi.dy);
+		pi.source = image_from_pict(thread->src, false, &pi.sx, &pi.sy);
+		pi.sx += thread->src_x - pixman_fixed_to_int(thread->traps[0].left.p1.x);
+		pi.sy += thread->src_y - pixman_fixed_to_int(thread->traps[0].left.p1.y);
+		pi.mask = pixman_image_create_bits(PIXMAN_a8, 1, 1, NULL, 0);
+		pixman_image_set_repeat(pi.mask, PIXMAN_REPEAT_NORMAL);
+		pi.bits = pixman_image_get_data(pi.mask);
+		pi.op = thread->op;
+
+		if (clip->data)
+			span = pixmask_span__clipped;
+		else
+			span = pixmask_span;
+
+		tor_render(NULL, &tor, (void*)&pi, clip, span, false);
+
+		pixman_image_unref(pi.mask);
+		pixman_image_unref(pi.source);
+		pixman_image_unref(pi.image);
+	}
+
+	tor_fini(&tor);
+}
+
 static bool
 trapezoid_span_inplace__x8r8g8b8(CARD8 op,
 				 PicturePtr dst,
@@ -5088,17 +5775,15 @@ trapezoid_span_inplace__x8r8g8b8(CARD8 op,
 				 PictFormatPtr maskFormat,
 				 int ntrap, xTrapezoid *traps)
 {
-	struct tor tor;
-	span_func_t span;
 	uint32_t color;
-	bool lerp;
+	bool lerp, is_solid;
 	RegionRec region;
-	int16_t dst_x, dst_y;
 	int dx, dy;
-	int n;
+	int num_threads, n;
 
 	lerp = false;
-	if (sna_picture_is_solid(src, &color)) {
+	is_solid = sna_picture_is_solid(src, &color);
+	if (is_solid) {
 		if (op == PictOpOver && (color >> 24) == 0xff)
 			op = PictOpSrc;
 		if (op == PictOpOver && sna_drawable_is_clear(dst->pDrawable))
@@ -5157,40 +5842,63 @@ trapezoid_span_inplace__x8r8g8b8(CARD8 op,
 	     region.extents.x1, region.extents.y1,
 	     region.extents.x2, region.extents.y2));
 
-	if (tor_init(&tor, &region.extents, 2*ntrap))
+	region.data = NULL;
+	if (!sna_drawable_move_region_to_cpu(dst->pDrawable, &region,
+					    MOVE_WRITE | MOVE_READ))
 		return true;
+
+	if (!is_solid && src->pDrawable) {
+		if (!sna_drawable_move_to_cpu(src->pDrawable,
+					      MOVE_READ))
+			return true;
+
+		if (src->alphaMap &&
+		    !sna_drawable_move_to_cpu(src->alphaMap->pDrawable,
+					      MOVE_READ))
+			return true;
+	}
 
 	dx = dst->pDrawable->x * FAST_SAMPLES_X;
 	dy = dst->pDrawable->y * FAST_SAMPLES_Y;
 
-	for (n = 0; n < ntrap; n++) {
-		xTrapezoid t;
+	num_threads = sna_use_threads(4*(region.extents.x2 - region.extents.x1),
+				      region.extents.y2 - region.extents.y1,
+				      8);
 
-		if (!project_trapezoid_onto_grid(&traps[n], dx, dy, &t))
-			continue;
+	DBG(("%s: %dx%d, format=%x, op=%d, lerp?=%d, num_threads=%d\n",
+	     __FUNCTION__,
+	     region.extents.x2 - region.extents.x1,
+	     region.extents.y2 - region.extents.y1,
+	     dst->format, op, lerp, num_threads));
 
-		if (pixman_fixed_to_int(traps[n].top) >= region.extents.y2 - dst->pDrawable->y ||
-		    pixman_fixed_to_int(traps[n].bottom) < region.extents.y1 - dst->pDrawable->y)
-			continue;
+	if (num_threads == 1) {
+		struct tor tor;
+		span_func_t span;
 
-		tor_add_edge(&tor, &t, &t.left, 1);
-		tor_add_edge(&tor, &t, &t.right, -1);
-	}
+		if (tor_init(&tor, &region.extents, 2*ntrap))
+			return true;
 
-	DBG(("%s: move-to-cpu\n", __FUNCTION__));
-	region.data = NULL;
-	if (sna_drawable_move_region_to_cpu(dst->pDrawable, &region,
-					    MOVE_WRITE | MOVE_READ)) {
-		PixmapPtr pixmap;
+		for (n = 0; n < ntrap; n++) {
+			xTrapezoid t;
 
-		pixmap = get_drawable_pixmap(dst->pDrawable);
-		get_drawable_deltas(dst->pDrawable, pixmap, &dst_x, &dst_y);
+			if (!project_trapezoid_onto_grid(&traps[n], dx, dy, &t))
+				continue;
 
-		DBG(("%s: format=%x, op=%d, lerp?=%d\n",
-		     __FUNCTION__, dst->format, op, lerp));
+			if (pixman_fixed_to_int(traps[n].top) >= region.extents.y2 - dst->pDrawable->y ||
+			    pixman_fixed_to_int(traps[n].bottom) < region.extents.y1 - dst->pDrawable->y)
+				continue;
+
+			tor_add_edge(&tor, &t, &t.left, 1);
+			tor_add_edge(&tor, &t, &t.right, -1);
+		}
 
 		if (lerp) {
 			struct inplace inplace;
+			PixmapPtr pixmap;
+			int16_t dst_x, dst_y;
+
+			pixmap = get_drawable_pixmap(dst->pDrawable);
+			get_drawable_deltas(dst->pDrawable, pixmap, &dst_x, &dst_y);
 
 			inplace.ptr = pixmap->devPrivate.ptr;
 			inplace.ptr += dst_y * pixmap->devKind + dst_x * 4;
@@ -5207,8 +5915,7 @@ trapezoid_span_inplace__x8r8g8b8(CARD8 op,
 
 			tor_render(NULL, &tor, (void*)&inplace,
 				   dst->pCompositeClip, span, false);
-			tor_fini(&tor);
-		} else if (sna_picture_is_solid(src, &color)) {
+		} else if (is_solid) {
 			struct pixman_inplace pi;
 
 			pi.image = image_from_pict(dst, false, &pi.dx, &pi.dy);
@@ -5228,26 +5935,11 @@ trapezoid_span_inplace__x8r8g8b8(CARD8 op,
 			tor_render(NULL, &tor, (void*)&pi,
 				   dst->pCompositeClip, span,
 				   false);
-			tor_fini(&tor);
 
 			pixman_image_unref(pi.source);
 			pixman_image_unref(pi.image);
 		} else {
 			struct pixman_inplace pi;
-
-			if (src->pDrawable) {
-				if (!sna_drawable_move_to_cpu(src->pDrawable,
-							MOVE_READ)) {
-					tor_fini(&tor);
-					return false;
-				}
-				if (src->alphaMap &&
-				    !sna_drawable_move_to_cpu(src->alphaMap->pDrawable,
-							      MOVE_READ)) {
-					tor_fini(&tor);
-					return false;
-				}
-			}
 
 			pi.image = image_from_pict(dst, false, &pi.dx, &pi.dy);
 			pi.source = image_from_pict(src, false, &pi.sx, &pi.sy);
@@ -5266,15 +5958,97 @@ trapezoid_span_inplace__x8r8g8b8(CARD8 op,
 			tor_render(NULL, &tor, (void*)&pi,
 				   dst->pCompositeClip, span,
 				   false);
-			tor_fini(&tor);
 
 			pixman_image_unref(pi.mask);
 			pixman_image_unref(pi.source);
 			pixman_image_unref(pi.image);
 		}
+
+		tor_fini(&tor);
+	} else {
+		struct inplace_x8r8g8b8_thread threads[num_threads];
+		int y, h;
+
+		DBG(("%s: using %d threads for inplace compositing %dx%d\n",
+		     __FUNCTION__, num_threads,
+		     region.extents.x2 - region.extents.x1,
+		     region.extents.y2 - region.extents.y1));
+
+		threads[0].traps = traps;
+		threads[0].ntrap = ntrap;
+		threads[0].extents = region.extents;
+		threads[0].lerp = lerp;
+		threads[0].is_solid = is_solid;
+		threads[0].color = color;
+		threads[0].dx = dx;
+		threads[0].dy = dy;
+		threads[0].dst = dst;
+		threads[0].src = src;
+		threads[0].op = op;
+		threads[0].src_x = src_x;
+		threads[0].src_y = src_y;
+
+		y = region.extents.y1;
+		h = region.extents.y2 - region.extents.y1;
+		h = (h + num_threads - 1) / num_threads;
+
+		for (n = 1; n < num_threads; n++) {
+			threads[n] = threads[0];
+			threads[n].extents.y1 = y;
+			threads[n].extents.y2 = y += h;
+
+			sna_threads_run(inplace_x8r8g8b8_thread, &threads[n]);
+		}
+
+		threads[0].extents.y1 = y;
+		threads[0].extents.y2 = region.extents.y2;
+		inplace_x8r8g8b8_thread(&threads[0]);
+
+		sna_threads_wait();
 	}
 
 	return true;
+}
+
+struct inplace_thread {
+	xTrapezoid *traps;
+	RegionPtr clip;
+	span_func_t span;
+	struct inplace inplace;
+	BoxRec extents;
+	int dx, dy;
+	int draw_x, draw_y;
+	bool unbounded;
+	int ntrap;
+};
+
+static void inplace_thread(void *arg)
+{
+	struct inplace_thread *thread = arg;
+	struct tor tor;
+	int n;
+
+	if (tor_init(&tor, &thread->extents, 2*thread->ntrap))
+		return;
+
+	for (n = 0; n < thread->ntrap; n++) {
+		xTrapezoid t;
+
+		if (!project_trapezoid_onto_grid(&thread->traps[n], thread->dx, thread->dy, &t))
+			continue;
+
+		if (pixman_fixed_to_int(thread->traps[n].top) >= thread->extents.y2 - thread->draw_y ||
+		    pixman_fixed_to_int(thread->traps[n].bottom) < thread->extents.y1 - thread->draw_y)
+			continue;
+
+		tor_add_edge(&tor, &t, &t.left, 1);
+		tor_add_edge(&tor, &t, &t.right, -1);
+	}
+
+	tor_render(NULL, &tor, (void*)&thread->inplace,
+		   thread->clip, thread->span, thread->unbounded);
+
+	tor_fini(&tor);
 }
 
 static bool
@@ -5283,7 +6057,6 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 		       int ntrap, xTrapezoid *traps,
 		       bool fallback)
 {
-	struct tor tor;
 	struct inplace inplace;
 	span_func_t span;
 	PixmapPtr pixmap;
@@ -5293,7 +6066,7 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 	bool unbounded;
 	int16_t dst_x, dst_y;
 	int dx, dy;
-	int n;
+	int num_threads, n;
 
 	if (NO_SCAN_CONVERTER)
 		return false;
@@ -5424,26 +6197,6 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 	     region.extents.x1, region.extents.y1,
 	     region.extents.x2, region.extents.y2));
 
-	if (tor_init(&tor, &region.extents, 2*ntrap))
-		return true;
-
-	dx = dst->pDrawable->x * FAST_SAMPLES_X;
-	dy = dst->pDrawable->y * FAST_SAMPLES_Y;
-
-	for (n = 0; n < ntrap; n++) {
-		xTrapezoid t;
-
-		if (!project_trapezoid_onto_grid(&traps[n], dx, dy, &t))
-			continue;
-
-		if (pixman_fixed_to_int(traps[n].top) >= region.extents.y2 - dst->pDrawable->y ||
-		    pixman_fixed_to_int(traps[n].bottom) < region.extents.y1 - dst->pDrawable->y)
-			continue;
-
-		tor_add_edge(&tor, &t, &t.left, 1);
-		tor_add_edge(&tor, &t, &t.right, -1);
-	}
-
 	if (op == PictOpSrc) {
 		if (dst->pCompositeClip->data)
 			span = tor_blt_src_clipped;
@@ -5468,6 +6221,9 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 					     op == PictOpSrc ? MOVE_WRITE | MOVE_INPLACE_HINT : MOVE_WRITE | MOVE_READ))
 		return true;
 
+	dx = dst->pDrawable->x * FAST_SAMPLES_X;
+	dy = dst->pDrawable->y * FAST_SAMPLES_Y;
+
 	get_drawable_deltas(dst->pDrawable, pixmap, &dst_x, &dst_y);
 
 	inplace.ptr = pixmap->devPrivate.ptr;
@@ -5475,10 +6231,72 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 	inplace.stride = pixmap->devKind;
 	inplace.opacity = color >> 24;
 
-	tor_render(NULL, &tor, (void*)&inplace,
-		   dst->pCompositeClip, span, unbounded);
+	num_threads = sna_use_threads(region.extents.x2 - region.extents.x1,
+				      region.extents.y2 - region.extents.y1,
+				      8);
+	if (num_threads == 1) {
+		struct tor tor;
 
-	tor_fini(&tor);
+		if (tor_init(&tor, &region.extents, 2*ntrap))
+			return true;
+
+		for (n = 0; n < ntrap; n++) {
+			xTrapezoid t;
+
+			if (!project_trapezoid_onto_grid(&traps[n], dx, dy, &t))
+				continue;
+
+			if (pixman_fixed_to_int(traps[n].top) >= region.extents.y2 - dst->pDrawable->y ||
+			    pixman_fixed_to_int(traps[n].bottom) < region.extents.y1 - dst->pDrawable->y)
+				continue;
+
+			tor_add_edge(&tor, &t, &t.left, 1);
+			tor_add_edge(&tor, &t, &t.right, -1);
+		}
+
+		tor_render(NULL, &tor, (void*)&inplace,
+			   dst->pCompositeClip, span, unbounded);
+
+		tor_fini(&tor);
+	} else {
+		struct inplace_thread threads[num_threads];
+		int y, h;
+
+		DBG(("%s: using %d threads for inplace compositing %dx%d\n",
+		     __FUNCTION__, num_threads,
+		     region.extents.x2 - region.extents.x1,
+		     region.extents.y2 - region.extents.y1));
+
+		threads[0].traps = traps;
+		threads[0].ntrap = ntrap;
+		threads[0].inplace = inplace;
+		threads[0].extents = region.extents;
+		threads[0].clip = dst->pCompositeClip;
+		threads[0].span = span;
+		threads[0].unbounded = unbounded;
+		threads[0].dx = dx;
+		threads[0].dy = dy;
+		threads[0].draw_x = dst->pDrawable->x;
+		threads[0].draw_y = dst->pDrawable->y;
+
+		y = region.extents.y1;
+		h = region.extents.y2 - region.extents.y1;
+		h = (h + num_threads - 1) / num_threads;
+
+		for (n = 1; n < num_threads; n++) {
+			threads[n] = threads[0];
+			threads[n].extents.y1 = y;
+			threads[n].extents.y2 = y += h;
+
+			sna_threads_run(inplace_thread, &threads[n]);
+		}
+
+		threads[0].extents.y1 = y;
+		threads[0].extents.y2 = region.extents.y2;
+		inplace_thread(&threads[0]);
+
+		sna_threads_wait();
+	}
 
 	return true;
 }
@@ -5599,32 +6417,14 @@ trapezoid_span_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 		region.extents.y2 = region.extents.y1 + extents.y2;
 		region.data = NULL;
 
-		DBG(("%s: move-to-cpu\n", __FUNCTION__));
-		if (!sna_drawable_move_region_to_cpu(dst->pDrawable, &region,
-						     MOVE_READ | MOVE_WRITE))
-			goto done;
-		if (dst->alphaMap  &&
-		    !sna_drawable_move_to_cpu(dst->alphaMap->pDrawable,
-					      MOVE_READ | MOVE_WRITE))
-			goto done;
-		if (src->pDrawable) {
-			if (!sna_drawable_move_to_cpu(src->pDrawable,
-						      MOVE_READ))
-				goto done;
-			if (src->alphaMap &&
-			    !sna_drawable_move_to_cpu(src->alphaMap->pDrawable,
-						      MOVE_READ))
-				goto done;
-		}
-
 		DBG(("%s: fbComposite()\n", __FUNCTION__));
-		fbComposite(op, src, mask, dst,
-			    src_x + dst_x - pixman_fixed_to_int(traps[0].left.p1.x),
-			    src_y + dst_y - pixman_fixed_to_int(traps[0].left.p1.y),
-			    0, 0,
-			    dst_x, dst_y,
-			    extents.x2, extents.y2);
-done:
+		sna_composite_fb(op, src, mask, dst, &region,
+				 src_x + dst_x - pixman_fixed_to_int(traps[0].left.p1.x),
+				 src_y + dst_y - pixman_fixed_to_int(traps[0].left.p1.y),
+				 0, 0,
+				 dst_x, dst_y,
+				 extents.x2, extents.y2);
+
 		FreePicture(mask, 0);
 	}
 	sna_pixmap_destroy(scratch);
@@ -5967,7 +6767,7 @@ trap_span_converter(PicturePtr dst,
 	}
 
 	tor_render(sna, &tor, &tmp, clip,
-		   choose_span(&tmp, dst, NULL, PictOpAdd, clip), false);
+		   choose_span(&tmp, dst, NULL, clip), false);
 
 skip:
 	tor_fini(&tor);
@@ -6337,6 +7137,10 @@ mono_triangles_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 				       mono.clip.extents.x2 - mono.clip.extents.x1,
 				       mono.clip.extents.y2 - mono.clip.extents.y1,
 				       &mono.op)) {
+		if (mono.clip.data == NULL && mono.op.damage == NULL)
+			mono.span = mono_span__fast;
+		else
+			mono.span = mono_span;
 		mono_render(&mono);
 		mono.op.done(mono.sna, &mono.op);
 	}
@@ -6380,6 +7184,10 @@ mono_triangles_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 					       mono.clip.extents.x2 - mono.clip.extents.x1,
 					       mono.clip.extents.y2 - mono.clip.extents.y1,
 					       &mono.op)) {
+			if (mono.clip.data == NULL && mono.op.damage == NULL)
+				mono.span = mono_span__fast;
+			else
+				mono.span = mono_span;
 			mono_render(&mono);
 			mono.op.done(mono.sna, &mono.op);
 		}
@@ -6512,7 +7320,7 @@ triangles_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	}
 
 	tor_render(sna, &tor, &tmp, &clip,
-		   choose_span(&tmp, dst, maskFormat, op, &clip),
+		   choose_span(&tmp, dst, maskFormat, &clip),
 		   !was_clear && maskFormat && !operator_is_bounded(op));
 
 skip:
@@ -6886,7 +7694,7 @@ tristrip_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	assert(tor.polygon->num_edges <= 2*count);
 
 	tor_render(sna, &tor, &tmp, &clip,
-		   choose_span(&tmp, dst, maskFormat, op, &clip),
+		   choose_span(&tmp, dst, maskFormat, &clip),
 		   !was_clear && maskFormat && !operator_is_bounded(op));
 
 skip:

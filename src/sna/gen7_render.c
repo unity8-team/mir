@@ -115,6 +115,24 @@ static const struct gt_info hsw_gt_info = {
 	.urb = { 128, 64, 64 },
 };
 
+static const struct gt_info hsw_gt1_info = {
+	.max_vs_threads = 70,
+	.max_gs_threads = 70,
+	.max_wm_threads =
+		(102 - 1) << HSW_PS_MAX_THREADS_SHIFT |
+		1 << HSW_PS_SAMPLE_MASK_SHIFT,
+	.urb = { 128, 640, 256 },
+};
+
+static const struct gt_info hsw_gt2_info = {
+	.max_vs_threads = 280,
+	.max_gs_threads = 280,
+	.max_wm_threads =
+		(204 - 1) << HSW_PS_MAX_THREADS_SHIFT |
+		1 << HSW_PS_SAMPLE_MASK_SHIFT,
+	.urb = { 256, 1664, 640 },
+};
+
 static const uint32_t ps_kernel_packed[][4] = {
 #include "exa_wm_src_affine.g7b"
 #include "exa_wm_src_sample_argb.g7b"
@@ -1034,13 +1052,13 @@ gen7_emit_state(struct sna *sna,
 	sna->render_state.gen7.emit_flush = GEN7_READS_DST(op->u.gen7.flags);
 }
 
-static void gen7_magic_ca_pass(struct sna *sna,
+static bool gen7_magic_ca_pass(struct sna *sna,
 			       const struct sna_composite_op *op)
 {
 	struct gen7_render_state *state = &sna->render_state.gen7;
 
 	if (!op->need_magic_ca_pass)
-		return;
+		return false;
 
 	DBG(("%s: CA fixup (%d -> %d)\n", __FUNCTION__,
 	     sna->render.vertex_start, sna->render.vertex_index));
@@ -1064,6 +1082,7 @@ static void gen7_magic_ca_pass(struct sna *sna,
 	OUT_BATCH(0);	/* index buffer offset, ignored */
 
 	state->last_primitive = sna->kgem.nbatch;
+	return true;
 }
 
 static void null_create(struct sna_static_stream *stream)
@@ -1251,6 +1270,9 @@ static bool gen7_rectangle_begin(struct sna *sna,
 	int id = 1 << GEN7_VERTEX(op->u.gen7.flags);
 	int ndwords;
 
+	if (sna_vertex_wait__locked(&sna->render) && sna->render.vertex_offset)
+		return true;
+
 	ndwords = op->need_magic_ca_pass ? 60 : 6;
 	if ((sna->render.vb_id & id) == 0)
 		ndwords += 5;
@@ -1267,13 +1289,26 @@ static bool gen7_rectangle_begin(struct sna *sna,
 static int gen7_get_rectangles__flush(struct sna *sna,
 				      const struct sna_composite_op *op)
 {
+	/* Preventing discarding new vbo after lock contention */
+	if (sna_vertex_wait__locked(&sna->render)) {
+		int rem = vertex_space(sna);
+		if (rem > op->floats_per_rect)
+			return rem;
+	}
+
 	if (!kgem_check_batch(&sna->kgem, op->need_magic_ca_pass ? 65 : 6))
 		return 0;
 	if (!kgem_check_reloc_and_exec(&sna->kgem, 2))
 		return 0;
 
-	if (op->need_magic_ca_pass && sna->render.vbo)
-		return 0;
+	if (sna->render.vertex_offset) {
+		gen4_vertex_flush(sna);
+		if (gen7_magic_ca_pass(sna, op)) {
+			gen7_emit_pipe_invalidate(sna);
+			gen7_emit_cc(sna, GEN7_BLEND(op->u.gen7.flags));
+			gen7_emit_wm(sna, GEN7_KERNEL(op->u.gen7.flags));
+		}
+	}
 
 	return gen4_vertex_finish(sna);
 }
@@ -1287,7 +1322,7 @@ inline static int gen7_get_rectangles(struct sna *sna,
 
 start:
 	rem = vertex_space(sna);
-	if (rem < op->floats_per_rect) {
+	if (unlikely(rem < op->floats_per_rect)) {
 		DBG(("flushing vbo for %s: %d < %d\n",
 		     __FUNCTION__, rem, op->floats_per_rect));
 		rem = gen7_get_rectangles__flush(sna, op);
@@ -1311,6 +1346,7 @@ flush:
 		gen4_vertex_flush(sna);
 		gen7_magic_ca_pass(sna, op);
 	}
+	sna_vertex_wait__locked(&sna->render);
 	_kgem_submit(&sna->kgem);
 	emit_state(sna, op);
 	goto start;
@@ -1444,9 +1480,9 @@ gen7_render_composite_box(struct sna *sna,
 }
 
 static void
-gen7_render_composite_boxes(struct sna *sna,
-			    const struct sna_composite_op *op,
-			    const BoxRec *box, int nbox)
+gen7_render_composite_boxes__blt(struct sna *sna,
+				 const struct sna_composite_op *op,
+				 const BoxRec *box, int nbox)
 {
 	DBG(("composite_boxes(%d)\n", nbox));
 
@@ -1474,6 +1510,62 @@ gen7_render_composite_boxes(struct sna *sna,
 			box++;
 		} while (--nbox_this_time);
 	} while (nbox);
+}
+
+static void
+gen7_render_composite_boxes(struct sna *sna,
+			    const struct sna_composite_op *op,
+			    const BoxRec *box, int nbox)
+{
+	DBG(("%s: nbox=%d\n", __FUNCTION__, nbox));
+
+	do {
+		int nbox_this_time;
+		float *v;
+
+		nbox_this_time = gen7_get_rectangles(sna, op, nbox,
+						     gen7_emit_composite_state);
+		assert(nbox_this_time);
+		nbox -= nbox_this_time;
+
+		v = sna->render.vertices + sna->render.vertex_used;
+		sna->render.vertex_used += nbox_this_time * op->floats_per_rect;
+
+		op->emit_boxes(op, box, nbox_this_time, v);
+		box += nbox_this_time;
+	} while (nbox);
+}
+
+static void
+gen7_render_composite_boxes__thread(struct sna *sna,
+				    const struct sna_composite_op *op,
+				    const BoxRec *box, int nbox)
+{
+	DBG(("%s: nbox=%d\n", __FUNCTION__, nbox));
+
+	sna_vertex_lock(&sna->render);
+	do {
+		int nbox_this_time;
+		float *v;
+
+		nbox_this_time = gen7_get_rectangles(sna, op, nbox,
+						     gen7_emit_composite_state);
+		assert(nbox_this_time);
+		nbox -= nbox_this_time;
+
+		v = sna->render.vertices + sna->render.vertex_used;
+		sna->render.vertex_used += nbox_this_time * op->floats_per_rect;
+
+		sna_vertex_acquire__locked(&sna->render);
+		sna_vertex_unlock(&sna->render);
+
+		op->emit_boxes(op, box, nbox_this_time, v);
+		box += nbox_this_time;
+
+		sna_vertex_lock(&sna->render);
+		sna_vertex_release__locked(&sna->render);
+	} while (nbox);
+	sna_vertex_unlock(&sna->render);
 }
 
 #ifndef MAX
@@ -2315,7 +2407,11 @@ gen7_render_composite(struct sna *sna,
 
 	tmp->blt   = gen7_render_composite_blt;
 	tmp->box   = gen7_render_composite_box;
-	tmp->boxes = gen7_render_composite_boxes;
+	tmp->boxes = gen7_render_composite_boxes__blt;
+	if (tmp->emit_boxes){
+		tmp->boxes = gen7_render_composite_boxes;
+		tmp->thread_boxes = gen7_render_composite_boxes__thread;
+	}
 	tmp->done  = gen7_render_composite_done;
 
 	kgem_set_mode(&sna->kgem, KGEM_RENDER, tmp->dst.bo);
@@ -2393,6 +2489,42 @@ gen7_render_composite_spans_boxes(struct sna *sna,
 			op->prim_emit(sna, op, box++, opacity);
 		} while (--nbox_this_time);
 	} while (nbox);
+}
+
+fastcall static void
+gen7_render_composite_spans_boxes__thread(struct sna *sna,
+					  const struct sna_composite_spans_op *op,
+					  const struct sna_opacity_box *box,
+					  int nbox)
+{
+	DBG(("%s: nbox=%d, src=+(%d, %d), dst=+(%d, %d)\n",
+	     __FUNCTION__, nbox,
+	     op->base.src.offset[0], op->base.src.offset[1],
+	     op->base.dst.x, op->base.dst.y));
+
+	sna_vertex_lock(&sna->render);
+	do {
+		int nbox_this_time;
+		float *v;
+
+		nbox_this_time = gen7_get_rectangles(sna, &op->base, nbox,
+						     gen7_emit_composite_state);
+		assert(nbox_this_time);
+		nbox -= nbox_this_time;
+
+		v = sna->render.vertices + sna->render.vertex_used;
+		sna->render.vertex_used += nbox_this_time * op->base.floats_per_rect;
+
+		sna_vertex_acquire__locked(&sna->render);
+		sna_vertex_unlock(&sna->render);
+
+		op->emit_boxes(op, box, nbox_this_time, v);
+		box += nbox_this_time;
+
+		sna_vertex_lock(&sna->render);
+		sna_vertex_release__locked(&sna->render);
+	} while (nbox);
+	sna_vertex_unlock(&sna->render);
 }
 
 fastcall static void
@@ -2492,6 +2624,8 @@ gen7_render_composite_spans(struct sna *sna,
 
 	tmp->box   = gen7_render_composite_spans_box;
 	tmp->boxes = gen7_render_composite_spans_boxes;
+	if (tmp->emit_boxes)
+		tmp->thread_boxes = gen7_render_composite_spans_boxes__thread;
 	tmp->done  = gen7_render_composite_spans_done;
 
 	kgem_set_mode(&sna->kgem, KGEM_RENDER, tmp->base.dst.bo);
@@ -2557,11 +2691,10 @@ static inline bool prefer_blt_copy(struct sna *sna,
 				   struct kgem_bo *dst_bo,
 				   unsigned flags)
 {
-	if (flags & COPY_SYNC)
-		return false;
-
 	if (sna->kgem.ring == KGEM_BLT)
 		return true;
+
+	assert((flags & COPY_SYNC) == 0);
 
 	if (src_bo == dst_bo && can_switch_to_blt(sna, dst_bo, flags))
 		return true;
@@ -3503,6 +3636,10 @@ static void gen7_render_reset(struct sna *sna)
 	sna->render_state.gen7.drawrect_offset = -1;
 	sna->render_state.gen7.drawrect_limit = -1;
 	sna->render_state.gen7.surface_table = -1;
+
+	sna->render.vertex_offset = 0;
+	sna->render.nvertex_reloc = 0;
+	sna->render.vb_id = 0;
 }
 
 static void gen7_render_fini(struct sna *sna)
@@ -3526,6 +3663,11 @@ static bool gen7_render_setup(struct sna *sna)
 		}
 	} else if (sna->kgem.gen == 075) {
 		state->info = &hsw_gt_info;
+		if (DEVICE_ID(sna->PciInfo) & 0xf) {
+			state->info = &hsw_gt1_info;
+			if (DEVICE_ID(sna->PciInfo) & 0x20)
+				state->info = &hsw_gt2_info;
+		}
 	} else
 		return false;
 

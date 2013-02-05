@@ -304,6 +304,8 @@ void no_render_init(struct sna *sna)
 	sna->kgem.expire = no_render_expire;
 	if (sna->kgem.has_blt)
 		sna->kgem.ring = KGEM_BLT;
+
+	sna_vertex_init(sna);
 }
 
 static struct kgem_bo *
@@ -318,6 +320,14 @@ use_cpu_bo(struct sna *sna, PixmapPtr pixmap, const BoxRec *box, bool blt)
 	if (priv == NULL || priv->cpu_bo == NULL) {
 		DBG(("%s: no cpu bo\n", __FUNCTION__));
 		return NULL;
+	}
+
+	if (priv->shm) {
+		DBG(("%s: shm CPU bo, avoiding promotion to GPU\n",
+		     __FUNCTION__));
+		assert(!priv->flush);
+		sna_add_flush_pixmap(sna, priv, priv->cpu_bo);
+		return priv->cpu_bo;
 	}
 
 	if (priv->cpu_bo->snoop && priv->source_count > SOURCE_BIAS) {
@@ -381,11 +391,6 @@ use_cpu_bo(struct sna *sna, PixmapPtr pixmap, const BoxRec *box, bool blt)
 				return NULL;
 			}
 		}
-	}
-
-	if (priv->shm) {
-		assert(!priv->flush);
-		sna_add_flush_pixmap(sna, priv, priv->cpu_bo);
 	}
 
 	DBG(("%s for box=(%d, %d), (%d, %d)\n",
@@ -472,9 +477,15 @@ move_to_gpu(PixmapPtr pixmap, const BoxRec *box, bool blt)
 		migrate = count*w*h > pixmap->drawable.width * pixmap->drawable.height;
 	}
 
-	if (migrate && !sna_pixmap_force_to_gpu(pixmap,
-						blt ? MOVE_READ : MOVE_SOURCE_HINT | MOVE_READ))
-		return NULL;
+	if (migrate) {
+		if (blt) {
+			if (!sna_pixmap_move_area_to_gpu(pixmap, box, MOVE_READ))
+				return NULL;
+		} else {
+			if (!sna_pixmap_force_to_gpu(pixmap, MOVE_SOURCE_HINT | MOVE_READ))
+				return NULL;
+		}
+	}
 
 	return priv->gpu_bo;
 }
@@ -589,6 +600,10 @@ sna_render_pixmap_bo(struct sna *sna,
 		    !priv->cpu_bo->snoop && priv->cpu_bo->pitch < 4096) {
 			DBG(("%s: CPU all damaged\n", __FUNCTION__));
 			channel->bo = priv->cpu_bo;
+			if (priv->shm) {
+				assert(!priv->flush);
+				sna_add_flush_pixmap(sna, priv, priv->cpu_bo);
+			}
 			goto done;
 		}
 	}
@@ -1465,11 +1480,11 @@ sna_render_picture_approximate_gradient(struct sna *sna,
 		pixman_transform_multiply(&t, picture->transform, &t);
 	pixman_image_set_transform(src, &t);
 
-	pixman_image_composite(PictOpSrc, src, NULL, dst,
-			       x + dx, y + dy,
-			       0, 0,
-			       0, 0,
-			       w2, h2);
+	sna_image_composite(PictOpSrc, src, NULL, dst,
+			    x+dx, y+dy,
+			    0, 0,
+			    0, 0,
+			    w2, h2);
 	free_pixman_pict(picture, src);
 	pixman_image_unref(dst);
 
@@ -1580,11 +1595,11 @@ do_fixup:
 
 	DBG(("%s: compositing tmp=(%d+%d, %d+%d)x(%d, %d)\n",
 	     __FUNCTION__, x, dx, y, dy, w, h));
-	pixman_image_composite(PictOpSrc, src, NULL, dst,
-			       x + dx, y + dy,
-			       0, 0,
-			       0, 0,
-			       w, h);
+	sna_image_composite(PictOpSrc, src, NULL, dst,
+			    x + dx, y + dy,
+			    0, 0,
+			    0, 0,
+			    w, h);
 	free_pixman_pict(picture, src);
 
 	/* Then convert to card format */

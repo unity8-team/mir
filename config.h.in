@@ -26,6 +26,9 @@
 /* Enable pixman glyph cache */
 #undef HAS_PIXMAN_GLYPHS
 
+/* Enable if your compiler supports the Intel __sync_* atomic primitives */
+#undef HAVE_ATOMIC_PRIMITIVES
+
 /* Define to 1 if you have the <dgaproc.h> header file. */
 #undef HAVE_DGAPROC_H
 
@@ -49,6 +52,9 @@
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
+
+/* Enable if you have libatomic-ops-dev installed */
+#undef HAVE_LIB_ATOMIC_OPS
 
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
@@ -138,17 +144,11 @@
 /* Assume asynchronous swap support */
 #undef USE_ASYNC_SWAP
 
-/* Assume "fast reloc" support */
-#undef USE_FASTRELOC
-
 /* Use automagic builder description */
 #undef USE_GIT_DESCRIBE
 
 /* Enable glamor acceleration */
 #undef USE_GLAMOR
-
-/* Assume "handle LUT" support */
-#undef USE_HANDLE_LUT
 
 /* Enable SNA support */
 #undef USE_SNA

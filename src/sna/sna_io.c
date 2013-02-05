@@ -123,6 +123,9 @@ static bool download_inplace(struct kgem *kgem, struct kgem_bo *bo)
 	if (FORCE_INPLACE)
 		return FORCE_INPLACE > 0;
 
+	if (kgem->can_blt_cpu && kgem->max_cpu_size)
+		return false;
+
 	return !__kgem_bo_is_busy(kgem, bo) || bo->tiling == I915_TILING_NONE;
 }
 
