@@ -50,6 +50,7 @@
  * the BLT engine.
  */
 #define FORCE_SPANS 0
+#define FORCE_NONRECTILINEAR_SPANS -1
 
 #define NO_COMPOSITE 0
 #define NO_COMPOSITE_SPANS 0
@@ -2112,7 +2113,12 @@ gen4_check_composite_spans(struct sna *sna,
 		return FORCE_SPANS > 0;
 
 	if ((flags & COMPOSITE_SPANS_RECTILINEAR) == 0) {
-		struct sna_pixmap *priv = sna_pixmap_from_drawable(dst->pDrawable);
+		struct sna_pixmap *priv;
+
+		if (FORCE_NONRECTILINEAR_SPANS)
+			return FORCE_NONRECTILINEAR_SPANS > 0;
+
+		priv = sna_pixmap_from_drawable(dst->pDrawable);
 		assert(priv);
 
 		if (priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo))
@@ -2176,6 +2182,8 @@ gen4_render_composite_spans(struct sna *sna,
 	}
 
 	tmp->base.mask.bo = NULL;
+	tmp->base.mask.filter = SAMPLER_FILTER_NEAREST;
+	tmp->base.mask.repeat = SAMPLER_EXTEND_NONE;
 
 	tmp->base.is_affine = tmp->base.src.is_affine;
 	tmp->base.has_component_alpha = false;
