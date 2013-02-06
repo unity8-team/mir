@@ -13,7 +13,7 @@ Vcs-Browser: https://bazaar.launchpad.net/~rocket-scientists/aal+/ubuntu-platfor
 
 Package: ubuntu-platform-api-headers
 Section: libdevel
-Architecture: armel armhf
+Architecture: i386 armel armhf
 Depends:
  ${misc:Depends}
 Description: Ubuntu Platform API -- library headers
@@ -28,7 +28,7 @@ Conflicts: libhybris-dev (<< 0.57)
 Section: libdevel
 Pre-Depends: ${misc:Pre-Depends}
 Multi-Arch: same
-Architecture: armel armhf
+Architecture: i386 armel armhf
 Depends:
  ${misc:Depends},
  ubuntu-platform-api-headers (= ${source:Version}),
@@ -44,7 +44,7 @@ Replaces: libubuntu-platform-api1
 Section: libs
 Pre-Depends: ${misc:Pre-Depends}
 Multi-Arch: same
-Architecture: armel armhf
+Architecture: i386 armel armhf
 Depends:
  ${shlibs:Depends},
  ${misc:Depends},
@@ -56,7 +56,7 @@ Description: Android implementation of the Ubuntu Platform API -- runtime
  Android userspace, which is where the Ubuntu Application Manager lives.
 
 Package: ubuntu-platform-implementation-android-tests
-Architecture: armel armhf
+Architecture: i386 armel armhf
 Depends:
  ${shlibs:Depends},
  ${misc:Depends},
