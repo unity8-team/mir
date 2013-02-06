@@ -292,6 +292,11 @@ retry_gtt:
 		if (kgem_expire_cache(kgem))
 			goto retry_gtt;
 
+		if (kgem->need_expire) {
+			kgem_cleanup_cache(kgem);
+			goto retry_gtt;
+		}
+
 		return NULL;
 	}
 
@@ -303,6 +308,11 @@ retry_mmap:
 		       __FUNCTION__, bo->handle, bytes(bo), errno);
 		if (__kgem_throttle_retire(kgem, 0))
 			goto retry_mmap;
+
+		if (kgem->need_expire) {
+			kgem_cleanup_cache(kgem);
+			goto retry_mmap;
+		}
 
 		ptr = NULL;
 	}
@@ -4559,6 +4569,11 @@ retry:
 		if (__kgem_throttle_retire(kgem, 0))
 			goto retry;
 
+		if (kgem->need_expire) {
+			kgem_cleanup_cache(kgem);
+			goto retry;
+		}
+
 		return NULL;
 	}
 
@@ -4593,6 +4608,11 @@ retry:
 		       __FUNCTION__, bo->handle, bytes(bo), errno);
 		if (__kgem_throttle_retire(kgem, 0))
 			goto retry;
+
+		if (kgem->need_expire) {
+			kgem_cleanup_cache(kgem);
+			goto retry;
+		}
 
 		return NULL;
 	}
