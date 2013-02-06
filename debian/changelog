@@ -1,4 +1,4 @@
-ubuntu-platform-api (0.2) UNRELEASED; urgency=low
+ubuntu-platform-api (0.2) quantal; urgency=low
 
   * Updating packages to be multi-arch compatible
 
