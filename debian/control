@@ -13,8 +13,6 @@ Vcs-Browser: https://bazaar.launchpad.net/~rocket-scientists/aal+/ubuntu-platfor
 
 Package: ubuntu-platform-api-headers
 Section: libdevel
-#Architecture: all -> Launchpad workaround
-#Multi-Arch: foreign
 Architecture: armel armhf
 Depends:
  ${misc:Depends}

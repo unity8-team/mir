@@ -4,3 +4,4 @@ TODO:
 * Make sure the libraries are all self-contained at their own path, to avoid conflicts
 * Review headers to know which ones should not be exported by the package
 * Make sure the package is lintian free
+* Get the -headers package to be arch all, not used for now due restriction at Launchpad PPA
