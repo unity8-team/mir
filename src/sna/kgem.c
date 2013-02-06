@@ -1527,6 +1527,32 @@ inline static void kgem_bo_move_to_inactive(struct kgem *kgem,
 	}
 }
 
+static struct kgem_bo *kgem_bo_replace_io(struct kgem_bo *bo)
+{
+	struct kgem_bo *base;
+
+	if (!bo->io)
+		return bo;
+
+	assert(!bo->snoop);
+	base = malloc(sizeof(*base));
+	if (base) {
+		DBG(("%s: transferring io handle=%d to bo\n",
+		     __FUNCTION__, bo->handle));
+		/* transfer the handle to a minimum bo */
+		memcpy(base, bo, sizeof(*base));
+		base->io = false;
+		list_init(&base->list);
+		list_replace(&bo->request, &base->request);
+		list_replace(&bo->vma, &base->vma);
+		free(bo);
+		bo = base;
+	} else
+		bo->reusable = false;
+
+	return bo;
+}
+
 inline static void kgem_bo_remove_from_inactive(struct kgem *kgem,
 						struct kgem_bo *bo)
 {
@@ -1593,6 +1619,8 @@ static void kgem_bo_move_to_scanout(struct kgem *kgem, struct kgem_bo *bo)
 	assert(bo->exec == NULL);
 	assert(bo->scanout);
 	assert(bo->delta);
+	assert(!bo->snoop);
+	assert(!bo->io);
 
 	DBG(("%s: moving %d [fb %d] to scanout cachee\n", __FUNCTION__,
 	     bo->handle, bo->delta));
@@ -1703,31 +1731,13 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 		return;
 	}
 
-	if (bo->io) {
-		struct kgem_bo *base;
-
-		assert(!bo->snoop);
-		base = malloc(sizeof(*base));
-		if (base) {
-			DBG(("%s: transferring io handle=%d to bo\n",
-			     __FUNCTION__, bo->handle));
-			/* transfer the handle to a minimum bo */
-			memcpy(base, bo, sizeof(*base));
-			base->io = false;
-			list_init(&base->list);
-			list_replace(&bo->request, &base->request);
-			list_replace(&bo->vma, &base->vma);
-			free(bo);
-			bo = base;
-		} else
-			bo->reusable = false;
-	}
-
 	if (bo->scanout) {
 		kgem_bo_move_to_scanout(kgem, bo);
 		return;
 	}
 
+	if (bo->io)
+		bo = kgem_bo_replace_io(bo);
 	if (!bo->reusable) {
 		DBG(("%s: handle=%d, not reusable\n",
 		     __FUNCTION__, bo->handle));
@@ -1860,7 +1870,8 @@ static bool kgem_retire__flushing(struct kgem *kgem)
 			kgem_bo_move_to_snoop(kgem, bo);
 		} else if (bo->scanout) {
 			kgem_bo_move_to_scanout(kgem, bo);
-		} else if (bo->reusable && kgem_bo_set_purgeable(kgem, bo)) {
+		} else if ((bo = kgem_bo_replace_io(bo))->reusable &&
+			   kgem_bo_set_purgeable(kgem, bo)) {
 			kgem_bo_move_to_inactive(kgem, bo);
 			retired = true;
 		} else
@@ -1920,7 +1931,8 @@ static bool __kgem_retire_rq(struct kgem *kgem, struct kgem_request *rq)
 			kgem_bo_move_to_snoop(kgem, bo);
 		} else if (bo->scanout) {
 			kgem_bo_move_to_scanout(kgem, bo);
-		} else if (bo->reusable && kgem_bo_set_purgeable(kgem, bo)) {
+		} else if ((bo = kgem_bo_replace_io(bo))->reusable &&
+			   kgem_bo_set_purgeable(kgem, bo)) {
 			kgem_bo_move_to_inactive(kgem, bo);
 			retired = true;
 		} else {
