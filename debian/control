@@ -22,7 +22,7 @@ Description: Ubuntu Platform API -- development headers
  .
  Unless you are developing a new backend for the Ubuntu Platform API, you
  probably want ubuntu-platform-implementation-android-dev instead (or a
- development package for any other supported Ubuntu Platform API beckend
+ development package for any other supported Ubuntu Platform API backend
  implementation, which will pull this package automatically).
 
 Package: ubuntu-platform-implementation-android
