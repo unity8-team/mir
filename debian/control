@@ -20,9 +20,10 @@ Depends:
 Description: Ubuntu Platform API -- development headers
  This package provides development headers for the Ubuntu Platform API.
  .
- Unless you are developing an Ubuntu Platform API backend, you probably want
- ubuntu-platform-implementation-android-dev or any other supported backend
- implementation.
+ Unless you are developing a new backend for the Ubuntu Platform API, you
+ probably want ubuntu-platform-implementation-android-dev instead (or a
+ development package for any other supported Ubuntu Platform API beckend
+ implementation, which will pull this package automatically).
 
 Package: ubuntu-platform-implementation-android
 Provides: libubuntu-platform-api1
