@@ -5320,7 +5320,8 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 		old = &bo->base;
 		bo = buffer_alloc_with_data(num_pages(old));
 		if (bo == NULL) {
-			free(old);
+			old->refcnt= 0;
+			kgem_bo_free(kgem, old);
 			return NULL;
 		}
 
