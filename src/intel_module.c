@@ -488,7 +488,7 @@ intel_scrn_create(DriverPtr		driver,
 	xf86AddEntityToScreen(scrn, entity_num);
 
 #if !KMS_ONLY
-	if (((struct intel_device_info *)match_data)->gen < 020)
+	if ((unsigned)((struct intel_device_info *)match_data)->gen < 020)
 		return lg_i810_init(scrn);
 #endif
 
