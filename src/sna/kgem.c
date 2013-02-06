@@ -5290,9 +5290,10 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 
 		if (flags & KGEM_BUFFER_WRITE) {
 			bo->mem = kgem_bo_map__cpu(kgem, &bo->base);
-			if (bo->mem != NULL)
+			if (bo->mem != NULL) {
 				kgem_bo_sync__cpu(kgem, &bo->base);
-			goto init;
+				goto init;
+			}
 		}
 
 		DBG(("%s: failing back to new pwrite buffer\n", __FUNCTION__));
