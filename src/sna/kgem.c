@@ -5316,7 +5316,6 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 init:
 	bo->base.io = true;
 	assert(bo->base.refcnt == 1);
-	assert(num_pages(&bo->base) >= alloc);
 	assert(num_pages(&bo->base) >= NUM_PAGES(size));
 	assert(!bo->need_io || !bo->base.needs_flush);
 	assert(!bo->need_io || bo->base.domain != DOMAIN_GPU);
