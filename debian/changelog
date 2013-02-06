@@ -1,3 +1,9 @@
+ubuntu-platform-api (0.4) quantal; urgency=low
+
+  * Enabling packages for i386 (useful from a package dependency perspective).
+
+ -- Ricardo Salveti de Araujo <ricardo.salveti@canonical.com>  Wed, 06 Feb 2013 20:08:58 -0200
+
 ubuntu-platform-api (0.3) quantal; urgency=low
 
   * Creating a common libubuntu-platform-api-dev package, to avoid people to
