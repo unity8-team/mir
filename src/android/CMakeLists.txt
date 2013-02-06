@@ -19,6 +19,6 @@ set_target_properties(
 	SOVERSION 1
 )
 
-install(TARGETS ubuntu_application_api DESTINATION lib)
+install(TARGETS ubuntu_application_api ${INSTALL_TARGETS_DEFAULT_ARGS})
 
 add_subdirectory(tests/)
