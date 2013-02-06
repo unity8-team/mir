@@ -55,7 +55,7 @@ nouveau_allocate_surface(ScrnInfoPtr scrn, int width, int height, int bpp,
 		} else {
 			if (bpp >= 8 && !shared)
 				tiled = TRUE;
-			*pitch = NOUVEAU_ALIGN(width * cpp, 64);
+			*pitch = NOUVEAU_ALIGN(width * cpp, shared ? 256 : 64);
 		}
 	} else {
 		if (scanout && pNv->tiled_scanout)
