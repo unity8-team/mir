@@ -47,7 +47,7 @@ As usual we have a large number of bug fixes since the last release:
 Release 2.20.19 (2013-01-20)
 ============================
 A quick release as the last broke USB DisplayLink slave outputs badly. The
-performance of those displays was unusable due to a inadvertent change that
+performance of those displays was unusable due to an inadvertent change that
 caused us to flush the entire scanout over the USB for every drawing
 operation.
 
