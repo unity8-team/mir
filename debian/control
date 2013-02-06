@@ -13,17 +13,29 @@ Vcs-Browser: https://bazaar.launchpad.net/~rocket-scientists/aal+/ubuntu-platfor
 
 Package: ubuntu-platform-api-headers
 Section: libdevel
-Architecture: all
-Multi-Arch: foreign
+Architecture: armel armhf
 Depends:
  ${misc:Depends}
-Description: Ubuntu Platform API -- development headers
- This package provides development headers for the Ubuntu Platform API.
+Description: Ubuntu Platform API -- library headers
+ This package provides the library headers for the Ubuntu Platform API.
  .
  Unless you are developing a new backend for the Ubuntu Platform API, you
- probably want ubuntu-platform-implementation-android-dev instead (or a
- development package for any other supported Ubuntu Platform API backend
- implementation, which will pull this package automatically).
+ probably want libubuntu-platform-api-dev instead, which will pull this
+ package automatically.
+
+Package: libubuntu-platform-api1-dev
+Conflicts: libhybris-dev (<< 0.57)
+Section: libdevel
+Pre-Depends: ${misc:Pre-Depends}
+Multi-Arch: same
+Architecture: armel armhf
+Depends:
+ ${misc:Depends},
+ ubuntu-platform-api-headers (= ${source:Version}),
+ ubuntu-platform-implementation-android | libubuntu-platform-api1,
+ libgles2-mesa-dev
+Description: Ubuntu Platform API -- development headers
+ This package provides the development headers the Ubuntu Platform API.
 
 Package: ubuntu-platform-implementation-android
 Provides: libubuntu-platform-api1
@@ -42,23 +54,6 @@ Description: Android implementation of the Ubuntu Platform API -- runtime
  .
  The produced library should be used via libhybris, to communicate with the
  Android userspace, which is where the Ubuntu Application Manager lives.
-
-Package: ubuntu-platform-implementation-android-dev
-Provides: libubuntu-platform-api1-dev
-Conflicts: libubuntu-platform-api1-dev, libhybris-dev (<< 0.57)
-Replaces: libubuntu-platform-api1-dev
-Section: libdevel
-Pre-Depends: ${misc:Pre-Depends}
-Multi-Arch: same
-Architecture: armel armhf
-Depends:
- ${misc:Depends},
- ubuntu-platform-api-headers (= ${source:Version}),
- ubuntu-platform-implementation-android (= ${binary:Version}),
- libhybris-dev
-Description: Android implementation of the Ubuntu Platform API -- dev files
- This package provides the development files for the android implementation
- of the Ubuntu Platform API.
 
 Package: ubuntu-platform-implementation-android-tests
 Architecture: armel armhf

@@ -1,3 +1,10 @@
+ubuntu-platform-api (0.3) quantal; urgency=low
+
+  * Creating a common libubuntu-platform-api-dev package, to avoid people to
+    depend on implementation specific packages (for that we have provides).
+
+ -- Ricardo Salveti de Araujo <ricardo.salveti@canonical.com>  Wed, 06 Feb 2013 19:14:05 -0200
+
 ubuntu-platform-api (0.2) quantal; urgency=low
 
   * Updating packages to be multi-arch compatible
