@@ -35,9 +35,14 @@ nouveau_allocate_surface(ScrnInfoPtr scrn, int width, int height, int bpp,
 	NVPtr pNv = NVPTR(scrn);
 	Bool scanout = (usage_hint & NOUVEAU_CREATE_PIXMAP_SCANOUT);
 	Bool tiled = (usage_hint & NOUVEAU_CREATE_PIXMAP_TILED);
+	Bool shared = ((usage_hint & 0xffff) == CREATE_PIXMAP_USAGE_SHARED);
 	union nouveau_bo_config cfg = {};
 	int flags = NOUVEAU_BO_MAP | (bpp >= 8 ? NOUVEAU_BO_VRAM : 0);
 	int cpp = bpp / 8, ret;
+
+	flags = NOUVEAU_BO_MAP;
+	if (bpp >= 8)
+		flags |= shared ? NOUVEAU_BO_GART : NOUVEAU_BO_VRAM;
 
 	if (pNv->Architecture >= NV_ARCH_50) {
 		if (scanout) {
@@ -48,7 +53,7 @@ nouveau_allocate_surface(ScrnInfoPtr scrn, int width, int height, int bpp,
 				*pitch = NOUVEAU_ALIGN(width * cpp, 256);
 			}
 		} else {
-			if (bpp >= 8)
+			if (bpp >= 8 && !shared)
 				tiled = TRUE;
 			*pitch = NOUVEAU_ALIGN(width * cpp, 64);
 		}
