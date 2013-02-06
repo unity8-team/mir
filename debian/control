@@ -23,7 +23,7 @@ Description: Ubuntu Platform API -- library headers
  probably want libubuntu-platform-api-dev instead, which will pull this
  package automatically.
 
-Package: libubuntu-platform-api-dev
+Package: libubuntu-platform-api1-dev
 Conflicts: libhybris-dev (<< 0.57)
 Section: libdevel
 Pre-Depends: ${misc:Pre-Depends}
