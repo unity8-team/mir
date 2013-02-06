@@ -5113,7 +5113,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 	if (kgem->has_llc) {
 		bo = buffer_alloc();
 		if (bo == NULL)
-			return NULL;
+			goto skip_llc;
 
 		old = NULL;
 		if ((flags & KGEM_BUFFER_WRITE) == 0)
@@ -5131,7 +5131,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			uint32_t handle = gem_create(kgem->fd, alloc);
 			if (handle == 0) {
 				free(bo);
-				return NULL;
+				goto skip_llc;
 			}
 			__kgem_bo_init(&bo->base, handle, alloc);
 			DBG(("%s: created LLC handle=%d for buffer\n",
@@ -5153,6 +5153,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			kgem_bo_free(kgem, &bo->base);
 		}
 	}
+skip_llc:
 
 	if (PAGE_SIZE * alloc > kgem->aperture_mappable / 4)
 		flags &= ~KGEM_BUFFER_INPLACE;
