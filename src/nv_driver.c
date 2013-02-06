@@ -452,7 +452,7 @@ redisplay_dirty(ScreenPtr screen, PixmapDirtyUpdatePtr dirty)
 {
 	RegionRec pixregion;
 
-	PixmapRegionInit(&pixregion, dirty->slave_dst->master_pixmap);
+	PixmapRegionInit(&pixregion, dirty->slave_dst);
 
 	DamageRegionAppend(&dirty->slave_dst->drawable, &pixregion);
 	PixmapSyncDirtyHelper(dirty, &pixregion);
@@ -676,7 +676,7 @@ nouveau_setup_capabilities(ScrnInfoPtr pScrn)
 		if (value & DRM_PRIME_CAP_EXPORT)
 			pScrn->capabilities |= RR_Capability_SourceOutput;
 		if (value & DRM_PRIME_CAP_IMPORT)
-			pScrn->capabilities |= RR_Capability_SourceOffload;
+			pScrn->capabilities |= RR_Capability_SourceOffload | RR_Capability_SinkOutput;
 	}
 #endif
 }

@@ -42,6 +42,7 @@
 #include "libudev.h"
 #endif
 
+static Bool drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height);
 typedef struct {
     int fd;
     uint32_t fb_id;
@@ -345,7 +346,9 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	drmmode_ConvertToKMode(crtc->scrn, &kmode, mode);
 
 	fb_id = drmmode->fb_id;
-	if (drmmode_crtc->rotate_fb_id) {
+	if (crtc->randr_crtc->scanout_pixmap)
+		x = y = 0;
+	else if (drmmode_crtc->rotate_fb_id) {
 		fb_id = drmmode_crtc->rotate_fb_id;
 		x = 0;
 		y = 0;
@@ -536,6 +539,34 @@ drmmode_gamma_set(xf86CrtcPtr crtc, CARD16 *red, CARD16 *green, CARD16 *blue,
 	}
 }
 
+static Bool
+drmmode_set_scanout_pixmap(xf86CrtcPtr crtc, PixmapPtr ppix)
+{
+	ScreenPtr screen = xf86ScrnToScreen(crtc->scrn);
+	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+	PixmapPtr screenpix = screen->GetScreenPixmap(screen);
+
+	if (!ppix) {
+		if (crtc->randr_crtc->scanout_pixmap)
+			PixmapStopDirtyTracking(crtc->randr_crtc->scanout_pixmap, screenpix);
+		return TRUE;
+	}
+
+	if (ppix->drawable.width > screenpix->drawable.width ||
+	    ppix->drawable.height > screenpix->drawable.height) {
+		Bool ret;
+		ret = drmmode_xf86crtc_resize(crtc->scrn, ppix->drawable.width, ppix->drawable.height);
+		if (ret == FALSE)
+			return FALSE;
+
+		screenpix = screen->GetScreenPixmap(screen);
+		screen->width = screenpix->drawable.width = ppix->drawable.width;
+		screen->height = screenpix->drawable.height = ppix->drawable.height;
+	}
+	PixmapStartDirtyTracking(ppix, screenpix, 0, 0);
+	return TRUE;
+}
+
 static const xf86CrtcFuncsRec drmmode_crtc_funcs = {
 	.dpms = drmmode_crtc_dpms,
 	.set_mode_major = drmmode_set_mode_major,
@@ -547,6 +578,8 @@ static const xf86CrtcFuncsRec drmmode_crtc_funcs = {
 	.shadow_allocate = drmmode_crtc_shadow_allocate,
 	.shadow_destroy = drmmode_crtc_shadow_destroy,
 	.gamma_set = drmmode_gamma_set,
+
+	.set_scanout_pixmap = drmmode_set_scanout_pixmap,
 };
 
 
