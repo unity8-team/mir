@@ -4909,8 +4909,6 @@ create_snoopable_buffer(struct kgem *kgem, unsigned alloc)
 	struct kgem_buffer *bo;
 	uint32_t handle;
 
-	assert(!kgem->has_llc);
-
 	if (kgem->has_cacheing) {
 		struct kgem_bo *old;
 
@@ -5228,7 +5226,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 		if ((flags & KGEM_BUFFER_WRITE_INPLACE) != KGEM_BUFFER_WRITE_INPLACE) {
 			bo = create_snoopable_buffer(kgem, alloc);
 			if (bo) {
-				flags &= ~KGEM_BUFFER_INPLACE;
+				assert((flags & KGEM_BUFFER_INPLACE) == 0);
 				goto init;
 			}
 		}
