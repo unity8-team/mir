@@ -189,7 +189,8 @@ nouveau_dri2_copy_region2(ScreenPtr pScreen, DrawablePtr pDraw, RegionPtr pRegio
 		if (extents->x1 == 0 && extents->y1 == 0 &&
 		    extents->x2 == pDraw->width &&
 		    extents->y2 == pDraw->height) {
-			struct nouveau_bo *bo = nouveau_pixmap_bo((PixmapPtr)dst_draw);
+			PixmapPtr fpix = get_drawable_pixmap(dst_draw);
+			struct nouveau_bo *bo = nouveau_pixmap_bo(fpix);
 			if (bo)
 				nouveau_bo_wait(bo, NOUVEAU_BO_RD, pNv->client);
 		}
