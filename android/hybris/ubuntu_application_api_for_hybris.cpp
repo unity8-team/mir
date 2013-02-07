@@ -19,6 +19,7 @@
 #include "event_loop.h"
 #include "input_consumer_thread.h"
 
+#include <ubuntu/application/ui/clipboard.h>
 #include <ubuntu/application/ui/init.h>
 #include <ubuntu/application/ui/session.h>
 #include <ubuntu/application/ui/session_credentials.h>
@@ -46,6 +47,47 @@
 
 namespace android
 {
+
+struct Clipboard : public ubuntu::application::ui::Clipboard
+{
+    static sp<BpClipboardService> access_clipboard_service()
+    {
+        static sp<BpClipboardService> remote_instance;
+
+        if (remote_instance == NULL)
+        {
+            sp<IServiceManager> service_manager = defaultServiceManager();
+            sp<IBinder> service = service_manager->getService(
+                String16(IClipboardService::exported_service_name()));
+            remote_instance = new BpClipboardService(service);
+        }
+
+        return remote_instance;
+    }
+    
+    void set_content(const Clipboard::Content& content)
+    {
+        IClipboardService::Content c;
+        c.mime_type = String8(content.mime_type);
+        c.data_size = content.data_size;
+        c.data = content.data;
+        access_clipboard_service()->set_content(c);
+    }
+
+    Clipboard::Content get_content()
+    {
+        IClipboardService::Content content;
+        access_clipboard_service()->get_content(content);
+
+        Clipboard::Content result(content.mime_type.string(),
+                                  content.data,
+                                  content.data_size);
+
+        memcpy(result.data, content.data, result.data_size);
+
+        return result;
+    }
+};
 
 struct Setup : public ubuntu::application::ui::Setup
 {
@@ -850,10 +892,17 @@ ubuntu::application::ui::PhysicalDisplayInfo::Ptr ubuntu::application::ui::Sessi
     return display;
 }
 
+ubuntu::application::ui::Clipboard::Ptr ubuntu::application::ui::Session::clipboard()
+{
+    static ubuntu::application::ui::Clipboard::Ptr instance(new android::Clipboard());
+    return instance;
+}
+
 }
 }
 namespace ui
 {
+
 const ubuntu::ui::SessionService::Ptr& ubuntu::ui::SessionService::instance()
 {
     static ubuntu::ui::SessionService::Ptr instance(new android::SessionService());

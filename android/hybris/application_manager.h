@@ -19,9 +19,63 @@
 #define HYBRIS_APPLICATION_MANAGER_H_
 
 #include <binder/IInterface.h>
+#include <utils/String8.h>
 
 namespace android
 {
+
+class IClipboardService : public IInterface
+{
+public:
+    DECLARE_META_INTERFACE(ClipboardService);
+
+    static const char* exported_service_name()
+    {
+        return "UbuntuClipboardService";
+    }
+
+    struct Content
+    {
+        Content();
+        Content(const String8& mime_type, void* data, size_t data_size);
+        ~Content();
+        Content(const Content& rhs);
+        Content& operator=(const Content& rhs);
+        
+        String8 mime_type;
+        void* data;
+        size_t data_size;
+    };
+
+    virtual void set_content(const Content& content) = 0;
+    virtual void get_content(Content& content) = 0;
+
+protected:
+    enum
+    {
+        SET_CLIPBOARD_CONTENT_COMMAND = IBinder::FIRST_CALL_TRANSACTION,
+        GET_CLIPBOARD_CONTENT_COMMAND
+    };
+};
+
+class BnClipboardService : public BnInterface<IClipboardService>
+{
+  public:
+    status_t onTransact(uint32_t code,
+                        const Parcel& data,
+                        Parcel* reply,
+                        uint32_t flags = 0);
+};
+
+class BpClipboardService : public BpInterface<IClipboardService>
+{
+public:
+    BpClipboardService(const sp<IBinder>& impl);
+    
+    void set_content(const IClipboardService::Content& content);
+    void get_content(IClipboardService::Content& content);
+
+};
 
 class IApplicationManagerSession : public IInterface
 {

@@ -19,6 +19,7 @@
 #define UBUNTU_APPLICATION_UI_SESSION_H_
 
 #include "ubuntu/application/session.h"
+#include "ubuntu/application/ui/clipboard.h"
 #include "ubuntu/application/ui/physical_display_info.h"
 #include "ubuntu/application/ui/surface.h"
 #include "ubuntu/application/ui/surface_properties.h"
@@ -37,6 +38,8 @@ class Session : public ubuntu::application::Session
 {
 public:
     typedef ubuntu::platform::shared_ptr<Session> Ptr;
+
+    static Clipboard::Ptr clipboard();
 
     static PhysicalDisplayInfo::Ptr physical_display_info(PhysicalDisplayIdentifier id);
 

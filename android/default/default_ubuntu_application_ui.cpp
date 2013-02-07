@@ -99,6 +99,27 @@ ubuntu_application_ui_start_a_new_session(SessionCredentials* creds)
 }
 
 void
+ubuntu_application_ui_set_clipboard_content(void* data,
+                                            size_t size)
+{
+    static const char mime_type[ubuntu::application::ui::Clipboard::Content::MAX_MIME_TYPE_SIZE] = "none/none";
+
+    ubuntu::application::ui::Clipboard::Content content(mime_type, data, size);
+
+    ubuntu::application::ui::Session::clipboard()->set_content(content);
+}
+
+void
+ubuntu_application_ui_get_clipboard_content(void** data,
+                                            size_t* size)
+{
+    ubuntu::application::ui::Clipboard::Content content(ubuntu::application::ui::Session::clipboard()->get_content());
+
+    *data = content.data;
+    *size = content.data_size;
+}
+
+void
 ubuntu_application_ui_create_display_info(
     ubuntu_application_ui_physical_display_info* info,
     size_t index)
