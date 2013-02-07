@@ -139,8 +139,10 @@ nouveau_exa_create_pixmap(ScreenPtr pScreen, int width, int height, int depth,
 		return NULL;
 	}
 
+#ifdef NOUVEAU_PIXMAP_SHARING
 	if ((usage_hint & 0xffff) == CREATE_PIXMAP_USAGE_SHARED)
 		nvpix->shared = TRUE;
+#endif
 
 	return nvpix;
 }
