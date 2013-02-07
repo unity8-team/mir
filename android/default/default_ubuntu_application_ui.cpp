@@ -204,11 +204,23 @@ ubuntu_application_ui_create_surface(
 }
 
 void
+ubuntu_application_ui_request_fullscreen_for_surface(ubuntu_application_ui_surface surface)
+{
+    if (session == NULL)
+    {
+        // TODO: Report the error here.
+        return;
+    }
+
+    auto s = static_cast<Holder<ubuntu::application::ui::Surface::Ptr>*>(surface);
+    session->toggle_fullscreen_for_surface(s->value);
+}
+
+void
 ubuntu_application_ui_destroy_surface(
     ubuntu_application_ui_surface surface)
 {
     auto s = static_cast<Holder<ubuntu::application::ui::Surface::Ptr>*>(surface);
-
     delete s;
 }
 

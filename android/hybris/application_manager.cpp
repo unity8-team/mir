@@ -412,6 +412,13 @@ status_t BnApplicationManager::onTransact(uint32_t code,
         register_a_surface(title, session, surface_role, surface_token, fd);
     }
     break;
+    case REQUEST_FULLSCREEN_COMMAND:
+    {
+        sp<IBinder> binder = data.readStrongBinder();
+        sp<BpApplicationManagerSession> session(new BpApplicationManagerSession(binder));
+        request_fullscreen(session);
+    }
+    break;
     case REGISTER_AN_OBSERVER_COMMAND:
     {
         sp<IBinder> binder = data.readStrongBinder();
@@ -525,6 +532,18 @@ void BpApplicationManager::register_a_surface(
     in.writeFileDescriptor(fd);
 
     remote()->transact(REGISTER_A_SURFACE_COMMAND,
+                       in,
+                       &out);
+}
+
+void BpApplicationManager::request_fullscreen(
+    const sp<IApplicationManagerSession>& session)
+{
+    //printf("%s \n", __PRETTY_FUNCTION__);
+    Parcel in, out;
+    in.writeStrongBinder(session->asBinder());
+
+    remote()->transact(REQUEST_FULLSCREEN_COMMAND,
                        in,
                        &out);
 }

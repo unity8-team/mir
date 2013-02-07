@@ -167,6 +167,8 @@ struct ApplicationManager :
         int32_t token,
         int fd);
 
+    void request_fullscreen(const android::sp<android::IApplicationManagerSession>& session);
+
     void register_an_observer(const android::sp<android::IApplicationManagerObserver>& observer);
 
     void request_update_for_session(const android::sp<android::IApplicationManagerSession>& session);

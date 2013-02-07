@@ -406,6 +406,19 @@ void ApplicationManager::register_a_surface(
     }
 }
 
+void ApplicationManager::request_fullscreen(const android::sp<android::IApplicationManagerSession>& session)
+{
+    ALOGI("%s", __PRETTY_FUNCTION__);
+    android::Mutex::Autolock al(guard);
+
+    const android::sp<mir::ApplicationSession>& as =
+            apps.valueFor(apps_as_added[focused_application]);
+
+    notify_observers_about_session_requested_fullscreen(
+        as->remote_pid,
+        as->desktop_file);
+}
+
 void ApplicationManager::request_update_for_session(const android::sp<android::IApplicationManagerSession>& session)
 {
     ALOGI("%s", __PRETTY_FUNCTION__);

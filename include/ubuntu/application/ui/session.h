@@ -48,6 +48,8 @@ public:
         const ubuntu::application::ui::input::Listener::Ptr& listener) = 0;
     virtual void destroy_surface(const Surface::Ptr& surface) = 0;
 
+    virtual void toggle_fullscreen_for_surface(const Surface::Ptr& surface) = 0;
+
 protected:
     Session() {}
     virtual ~Session() {}

@@ -165,6 +165,10 @@ extern "C" {
         void* ctx);
 
     void
+    ubuntu_application_ui_request_fullscreen_for_surface(
+        ubuntu_application_ui_surface surface);
+
+    void
     ubuntu_application_ui_destroy_surface(
         ubuntu_application_ui_surface surface);
 
