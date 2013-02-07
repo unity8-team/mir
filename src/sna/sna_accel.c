@@ -1581,7 +1581,7 @@ skip_inplace_map:
 		kgem_bo_submit(&sna->kgem, priv->gpu_bo);
 
 		DBG(("%s: try to operate inplace (GTT)\n", __FUNCTION__));
-		assert(priv->cpu == false);
+		assert((flags & MOVE_READ) == 0 || priv->cpu == false);
 
 		pixmap->devPrivate.ptr = kgem_bo_map(&sna->kgem, priv->gpu_bo);
 		priv->mapped = pixmap->devPrivate.ptr != NULL;
