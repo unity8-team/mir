@@ -98,10 +98,6 @@ struct StubClientPlatformFactory : public mcl::ClientPlatformFactory
     std::shared_ptr<mcl::ClientPlatform> platform;
 };
 
-void connected_callback(MirConnection* /*connection*/, void * /*client_context*/)
-{
-}
-
 void drm_auth_magic_callback(int status, void* client_context)
 {
     auto status_ptr = static_cast<int*>(client_context);
@@ -144,7 +140,7 @@ TEST_F(MirConnectionTest, returns_correct_egl_native_display)
         .WillOnce(Return(native_display));
 
     MirWaitHandle* wait_handle = connection->connect("MirClientSurfaceTest",
-                                                     connected_callback, 0);
+                                                     nullptr);
     wait_handle->wait_for_result();
 
     EGLNativeDisplayType connection_native_display = connection->egl_native_display();
@@ -167,7 +163,7 @@ TEST_F(MirConnectionTest, client_drm_auth_magic_calls_server_drm_auth_magic)
         .Times(1);
 
     MirWaitHandle* wait_handle = connection->connect("MirClientSurfaceTest",
-                                                     connected_callback, 0);
+                                                     nullptr);
     wait_handle->wait_for_result();
 
     int const no_error{0};
@@ -211,7 +207,7 @@ TEST_F(MirConnectionTest, populates_display_info_correctly)
         .WillOnce(Invoke(fill_display_info));
 
     MirWaitHandle* wait_handle = connection->connect("MirClientSurfaceTest",
-                                                     connected_callback, 0);
+                                                     nullptr);
     wait_handle->wait_for_result();
 
     MirDisplayInfo info;
@@ -236,7 +232,7 @@ TEST_F(MirConnectionTest, populates_display_info_without_overflowing)
         .WillOnce(Invoke(fill_display_info_100));
 
     MirWaitHandle* wait_handle = connection->connect("MirConnectionTest",
-                                                     connected_callback, 0);
+                                                     nullptr);
     wait_handle->wait_for_result();
 
     MirDisplayInfo info;

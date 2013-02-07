@@ -38,14 +38,6 @@ typedef struct MirSurface MirSurface;
 typedef struct MirWaitHandle MirWaitHandle;
 
 /**
- * Callback to be passed when issuing a mir_connect request.
- *   \param [in] connection          the new connection
- *   \param [in,out] client_context  context provided by client in calling
- *                                   mir_connect
- */
-typedef void (*mir_connected_callback)(MirConnection *connection, void *client_context);
-
-/**
  * Callback to be passed when calling:
  *  - mir_surface_create
  *  - mir_surface_next_buffer
@@ -146,16 +138,13 @@ typedef struct MirDisplayInfo
  * wait handle remains valid until the connection has been released.
  *   \param [in] server       a name identifying the server
  *   \param [in] app_name     a name referring to the application
- *   \param [in] callback     callback function to be invoked when request
- *                            completes
- *   \param [in,out] context  passed to the callback function
- *   \return                  a handle that can be passed to mir_wait_for
+ *   \param [out] result      where to store the connection handle on
+ *                            completion.
  */
 MirWaitHandle *mir_connect(
     char const *server,
     char const *app_name,
-    mir_connected_callback callback,
-    void *client_context);
+    MirConnection **result);
 
 /**
  * Test for a valid connection

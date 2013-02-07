@@ -48,11 +48,6 @@ typedef struct MirDemoState
 /// needs to be accessible both to callbacks and to the control function.
 /// \snippet demo_client.c Callback_tag
 ///\internal [Callback_tag]
-// Callback to update MirDemoState on connection
-static void connection_callback(MirConnection *new_connection, void *context)
-{
-    ((MirDemoState*)context)->connection = new_connection;
-}
 
 // Callback to update MirDemoState on surface_create
 static void surface_create_callback(MirSurface *new_surface, void *context)
@@ -93,7 +88,7 @@ void demo_client(const char* server, int buffer_swap_count)
     /// \snippet demo_client.c connect_tag
     ///\internal [connect_tag]
     // Call mir_connect and wait for callback to complete.
-    mir_wait_for(mir_connect(server, __PRETTY_FUNCTION__, connection_callback, &mcd));
+    mir_wait_for(mir_connect(server, __PRETTY_FUNCTION__, &mcd.connection));
     puts("Connected");
     ///\internal [connect_tag]
 

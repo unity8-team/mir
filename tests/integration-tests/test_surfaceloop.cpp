@@ -183,28 +183,6 @@ struct ClientConfigCommon : TestingClientConfiguration
     {
     }
 
-    static void connection_callback(MirConnection * connection, void * context)
-    {
-        ClientConfigCommon * config = reinterpret_cast<ClientConfigCommon *>(context);
-        config->connected(connection);
-    }
-
-    void connected(MirConnection * new_connection)
-    {
-        std::unique_lock<std::mutex> lock(guard);
-        connection = new_connection;
-        wait_condition.notify_all();
-    }
-
-    void wait_for_connect()
-    {
-        std::unique_lock<std::mutex> lock(guard);
-        while (!connection)
-            wait_condition.wait(lock);
-    }
-
-    std::mutex guard;
-    std::condition_variable wait_condition;
     MirConnection * connection;
     static const int max_surface_count = 5;
     SurfaceSync ssync[max_surface_count];
@@ -270,9 +248,8 @@ TEST_F(BespokeDisplayServerTestFixture,
     {
         void exec()
         {
-            mir_connect(mir_test_socket, __PRETTY_FUNCTION__, connection_callback, this);
-
-            wait_for_connect();
+            mir_wait_for(mir_connect(mir_test_socket, __PRETTY_FUNCTION__,
+                                     &connection));
 
             ASSERT_TRUE(connection != NULL);
             EXPECT_TRUE(mir_connection_is_valid(connection));
@@ -373,9 +350,8 @@ TEST_F(BespokeDisplayServerTestFixture,
     {
         void exec()
         {
-            mir_connect(mir_test_socket, __PRETTY_FUNCTION__, connection_callback, this);
-
-            wait_for_connect();
+            mir_wait_for(mir_connect(mir_test_socket, __PRETTY_FUNCTION__,
+                                     &connection));
 
             ASSERT_TRUE(connection != NULL);
             EXPECT_TRUE(mir_connection_is_valid(connection));
@@ -512,9 +488,8 @@ TEST_F(BespokeDisplayServerTestFixture, all_created_buffers_are_destoyed)
     {
         void exec()
         {
-            mir_connect(mir_test_socket, __PRETTY_FUNCTION__, connection_callback, this);
-
-            wait_for_connect();
+            mir_wait_for(mir_connect(mir_test_socket, __PRETTY_FUNCTION__,
+                                     &connection));
 
             MirSurfaceParameters const request_params =
             {
@@ -561,9 +536,8 @@ TEST_F(BespokeDisplayServerTestFixture, all_created_buffers_are_destoyed_if_clie
     {
         void exec()
         {
-            mir_connect(mir_test_socket, __PRETTY_FUNCTION__, connection_callback, this);
-
-            wait_for_connect();
+            mir_wait_for(mir_connect(mir_test_socket, __PRETTY_FUNCTION__,
+                                     &connection));
 
             MirSurfaceParameters const request_params =
             {

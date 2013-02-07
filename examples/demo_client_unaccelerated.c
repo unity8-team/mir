@@ -30,12 +30,6 @@ static char const *socket_file = "/tmp/mir_socket";
 static MirConnection *connection = 0;
 static MirSurface *surface = 0;
 
-static void set_connection(MirConnection *new_connection, void * context)
-{
-    (void)context;
-    connection = new_connection;
-}
-
 static void surface_create_callback(MirSurface *new_surface, void *context)
 {
     (void)context;
@@ -136,7 +130,7 @@ int main(int argc, char* argv[])
 
     puts("Starting");
 
-    mir_wait_for(mir_connect(socket_file, __PRETTY_FUNCTION__, set_connection, 0));
+    mir_wait_for(mir_connect(socket_file, __PRETTY_FUNCTION__, &connection));
     puts("Connected");
 
     assert(connection != NULL);

@@ -151,28 +151,6 @@ struct ClientConfigCommon : TestingClientConfiguration
     {
     }
 
-    static void connection_callback(MirConnection * connection, void * context)
-    {
-        ClientConfigCommon * config = reinterpret_cast<ClientConfigCommon *>(context);
-        config->connected(connection);
-    }
-
-    void connected(MirConnection * new_connection)
-    {
-        std::unique_lock<std::mutex> lock(guard);
-        connection = new_connection;
-        wait_condition.notify_all();
-    }
-
-    void wait_for_connect()
-    {
-        std::unique_lock<std::mutex> lock(guard);
-        while (!connection)
-            wait_condition.wait(lock);
-    }
-
-    std::mutex guard;
-    std::condition_variable wait_condition;
     MirConnection * connection;
     static const int max_surface_count = 5;
     SurfaceSync ssync[max_surface_count];
@@ -255,9 +233,8 @@ TEST_F(BespokeDisplayServerTestFixture, c_api_returns_error)
     {
         void exec()
         {
-            mir_connect(mir_test_socket, __PRETTY_FUNCTION__, connection_callback, this);
-
-            wait_for_connect();
+            mir_wait_for(mir_connect(mir_test_socket, __PRETTY_FUNCTION__,
+                                     &connection));
 
             ASSERT_TRUE(connection != NULL);
             EXPECT_FALSE(mir_connection_is_valid(connection));

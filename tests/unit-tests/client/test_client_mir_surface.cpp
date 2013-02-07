@@ -201,10 +201,6 @@ struct StubClientPlatformFactory : public mcl::ClientPlatformFactory
 
 namespace mt = mir::test;
 
-void connected_callback(MirConnection* /*connection*/, void * /*client_context*/)
-{
-}
-
 struct CallBack
 {
     void msg() {}
@@ -233,7 +229,7 @@ struct MirClientSurfaceTest : public testing::Test
         channel = mcl::make_rpc_channel("./test_socket_surface", logger);
         connection = std::make_shared<MirConnection>(channel, logger, platform_factory);
         MirWaitHandle* wait_handle = connection->connect("MirClientSurfaceTest",
-                                                         connected_callback, 0);
+                                                         nullptr);
         wait_handle->wait_for_result();
         client_comm_channel = std::make_shared<mir::protobuf::DisplayServer::Stub>(channel.get());
     }

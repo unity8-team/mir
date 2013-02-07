@@ -71,14 +71,12 @@ public:
 
     MirWaitHandle* connect(
         const char* app_name,
-        mir_connected_callback callback,
-        void * context);
+        MirConnection **result);
 
     MirWaitHandle* connect(
         int lightdm_id,
         const char* app_name,
-        mir_connected_callback callback,
-        void * context);
+        MirConnection **result);
 
     void select_focus_by_lightdm_id(int lightdm_id);
 
@@ -128,7 +126,7 @@ private:
     struct SurfaceRelease;
 
     void done_disconnect();
-    void connected(mir_connected_callback callback, void * context);
+    void connected(MirConnection **result);
     void released(SurfaceRelease );
     void done_drm_auth_magic(mir_drm_auth_magic_callback callback, void* context);
 };

@@ -56,12 +56,6 @@ struct ClientConfigCommon : TestingClientConfiguration
     {
     }
 
-    static void connection_callback(MirConnection* connection, void* context)
-    {
-        ClientConfigCommon* config = reinterpret_cast<ClientConfigCommon *>(context);
-        config->connection = connection;
-    }
-
     static void create_surface_callback(MirSurface* surface, void* context)
     {
         ClientConfigCommon* config = reinterpret_cast<ClientConfigCommon *>(context);
@@ -200,8 +194,7 @@ TEST_F(BespokeDisplayServerTestFixture, focus_management)
                 mir_test_socket,
                 lightdm_id,
                 __PRETTY_FUNCTION__,
-                connection_callback,
-                this));
+                &connection));
 
             ASSERT_TRUE(connection != NULL);
 
@@ -229,8 +222,7 @@ TEST_F(BespokeDisplayServerTestFixture, focus_management)
             mir_wait_for(mir_connect(
                 mir_test_socket,
                 __PRETTY_FUNCTION__,
-                connection_callback,
-                this));
+                &connection));
 
             wait_for(focus_ready);
             mir_select_focus_by_lightdm_id(connection, lightdm_id);

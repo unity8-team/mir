@@ -53,12 +53,6 @@ struct ClientConfigCommon : TestingClientConfiguration
     {
     }
 
-    static void connection_callback(MirConnection * connection, void * context)
-    {
-        ClientConfigCommon * config = reinterpret_cast<ClientConfigCommon *>(context);
-        config->connection = connection;
-    }
-
     static void create_surface_callback(MirSurface * surface, void * context)
     {
         ClientConfigCommon * config = reinterpret_cast<ClientConfigCommon *>(context);
@@ -109,7 +103,8 @@ TEST_F(DefaultDisplayServerTestFixture, client_library_connects_and_disconnects)
     {
         void exec()
         {
-            mir_wait_for(mir_connect(mir_test_socket, __PRETTY_FUNCTION__, connection_callback, this));
+            mir_wait_for(mir_connect(mir_test_socket, __PRETTY_FUNCTION__,
+                                     &connection));
 
             ASSERT_TRUE(connection != NULL);
             EXPECT_TRUE(mir_connection_is_valid(connection));
@@ -129,7 +124,8 @@ TEST_F(DefaultDisplayServerTestFixture, client_library_creates_surface)
         void exec()
         {
 
-            mir_wait_for(mir_connect(mir_test_socket, __PRETTY_FUNCTION__, connection_callback, this));
+            mir_wait_for(mir_connect(mir_test_socket, __PRETTY_FUNCTION__,
+                                     &connection));
 
             ASSERT_TRUE(connection != NULL);
             EXPECT_TRUE(mir_connection_is_valid(connection));
@@ -200,7 +196,8 @@ TEST_F(DefaultDisplayServerTestFixture, client_library_creates_multiple_surfaces
 
         void exec()
         {
-            mir_wait_for(mir_connect(mir_test_socket, __PRETTY_FUNCTION__, connection_callback, this));
+            mir_wait_for(mir_connect(mir_test_socket, __PRETTY_FUNCTION__,
+                                     &connection));
 
             ASSERT_TRUE(connection != NULL);
             EXPECT_TRUE(mir_connection_is_valid(connection));
@@ -252,7 +249,8 @@ TEST_F(DefaultDisplayServerTestFixture, client_library_accesses_and_advances_buf
         void exec()
         {
 
-            mir_wait_for(mir_connect(mir_test_socket, __PRETTY_FUNCTION__, connection_callback, this));
+            mir_wait_for(mir_connect(mir_test_socket, __PRETTY_FUNCTION__,
+                                     &connection));
 
             ASSERT_TRUE(connection != NULL);
             EXPECT_TRUE(mir_connection_is_valid(connection));
@@ -288,7 +286,8 @@ TEST_F(DefaultDisplayServerTestFixture, client_library_accesses_platform_package
     {
         void exec()
         {
-            mir_wait_for(mir_connect(mir_test_socket, __PRETTY_FUNCTION__, connection_callback, this));
+            mir_wait_for(mir_connect(mir_test_socket, __PRETTY_FUNCTION__,
+                                     &connection));
             ASSERT_TRUE(connection != NULL);
 
             MirPlatformPackage platform_package;
@@ -314,7 +313,8 @@ TEST_F(DefaultDisplayServerTestFixture, client_library_accesses_display_info)
     {
         void exec()
         {
-            mir_wait_for(mir_connect(mir_test_socket, __PRETTY_FUNCTION__, connection_callback, this));
+            mir_wait_for(mir_connect(mir_test_socket, __PRETTY_FUNCTION__,
+                                     &connection));
             ASSERT_TRUE(connection != NULL);
 
             MirDisplayInfo display_info;
@@ -338,7 +338,8 @@ TEST_F(DefaultDisplayServerTestFixture, connect_errors_handled)
     {
         void exec()
         {
-            mir_wait_for(mir_connect("garbage", __PRETTY_FUNCTION__, connection_callback, this));
+            mir_wait_for(mir_connect("garbage", __PRETTY_FUNCTION__,
+                                     &connection));
             ASSERT_TRUE(connection != NULL);
 
             char const* error = mir_connection_get_error_message(connection);
@@ -360,7 +361,8 @@ TEST_F(DefaultDisplayServerTestFixture, connect_errors_dont_blow_up)
     {
         void exec()
         {
-            mir_wait_for(mir_connect("garbage", __PRETTY_FUNCTION__, connection_callback, this));
+            mir_wait_for(mir_connect("garbage", __PRETTY_FUNCTION__,
+                                     &connection));
 
             MirSurfaceParameters const request_params =
             {

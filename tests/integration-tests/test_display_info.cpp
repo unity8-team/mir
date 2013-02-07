@@ -106,12 +106,6 @@ public:
 
 };
 
-void connection_callback(MirConnection* connection, void* context)
-{
-    auto connection_ptr = static_cast<MirConnection**>(context);
-    *connection_ptr = connection;
-}
-
 }
 
 TEST_F(BespokeDisplayServerTestFixture, display_info_reaches_client)
@@ -139,7 +133,7 @@ TEST_F(BespokeDisplayServerTestFixture, display_info_reaches_client)
         {
             MirConnection* connection{nullptr};
             mir_wait_for(mir_connect(mir_test_socket, __PRETTY_FUNCTION__,
-                                     connection_callback, &connection));
+                                     &connection));
 
             MirDisplayInfo info;
 

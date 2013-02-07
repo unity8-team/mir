@@ -83,12 +83,6 @@ public:
     MOCK_METHOD1(drm_auth_magic, void(unsigned int));
 };
 
-void connection_callback(MirConnection* connection, void* context)
-{
-    auto connection_ptr = static_cast<MirConnection**>(context);
-    *connection_ptr = connection;
-}
-
 void drm_auth_magic_callback(int status, void* client_context)
 {
     auto status_ptr = static_cast<int*>(client_context);
@@ -127,7 +121,7 @@ TEST_F(BespokeDisplayServerTestFixture, client_drm_auth_magic_calls_platform)
         {
             MirConnection* connection{nullptr};
             mir_wait_for(mir_connect(mir_test_socket, __PRETTY_FUNCTION__,
-                                     connection_callback, &connection));
+                                     &connection));
 
             int const no_error{0};
             int status{67};
@@ -176,7 +170,7 @@ TEST_F(BespokeDisplayServerTestFixture, drm_auth_magic_platform_error_reaches_cl
         {
             MirConnection* connection{nullptr};
             mir_wait_for(mir_connect(mir_test_socket, __PRETTY_FUNCTION__,
-                                     connection_callback, &connection));
+                                     &connection));
 
             int status{67};
 

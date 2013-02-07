@@ -126,7 +126,7 @@ MirWaitHandle* MirConnection::release_surface(
     return new_wait_handle;
 }
 
-void MirConnection::connected(mir_connected_callback callback, void * context)
+void MirConnection::connected(MirConnection **result)
 {
     /*
      * We need to create the client platform after the connection has been
@@ -136,14 +136,15 @@ void MirConnection::connected(mir_connected_callback callback, void * context)
     platform = client_platform_factory->create_client_platform(this);
     native_display = platform->create_egl_native_display();
 
-    callback(this, context);
+    if (result)
+        *result = this;
+
     connect_wait_handle.result_received();
 }
 
 MirWaitHandle* MirConnection::connect(
     const char* app_name,
-    mir_connected_callback callback,
-    void * context)
+    MirConnection **result)
 {
     connect_parameters.set_application_name(app_name);
     server.connect(
@@ -151,15 +152,14 @@ MirWaitHandle* MirConnection::connect(
         &connect_parameters,
         &connect_result,
         google::protobuf::NewCallback(
-            this, &MirConnection::connected, callback, context));
+            this, &MirConnection::connected, result));
     return &connect_wait_handle;
 }
 
 MirWaitHandle* MirConnection::connect(
     int lightdm_id,
     const char* app_name,
-    mir_connected_callback callback,
-    void * context)
+    MirConnection **result)
 {
     connect_parameters.set_application_name(app_name);
     connect_parameters.set_lightdm_id(lightdm_id);
@@ -168,7 +168,7 @@ MirWaitHandle* MirConnection::connect(
         &connect_parameters,
         &connect_result,
         google::protobuf::NewCallback(
-            this, &MirConnection::connected, callback, context));
+            this, &MirConnection::connected, result));
     return &connect_wait_handle;
 }
 

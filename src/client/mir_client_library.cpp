@@ -44,7 +44,8 @@ namespace
 MirConnection error_connection;
 }
 
-MirWaitHandle* mir_connect(char const* socket_file, char const* name, mir_connected_callback callback, void * context)
+MirWaitHandle* mir_connect(char const* socket_file, char const* name,
+                           MirConnection **result)
 {
 
     try
@@ -57,12 +58,17 @@ MirWaitHandle* mir_connect(char const* socket_file, char const* name, mir_connec
             log,
             client_platform_factory);
 
-        return connection->connect(name, callback, context);
+        return connection->connect(name, result);
     }
     catch (std::exception const& x)
     {
         error_connection.set_error_message(x.what());
-        callback(&error_connection, context);
+
+        // Test cases expect a non-null error connection but why not null
+        // for simpler error handling?
+        if (result)
+            *result = &error_connection;
+
         return 0;
     }
 }
@@ -195,8 +201,7 @@ MirWaitHandle *mir_connect_with_lightdm_id(
     char const *server,
     int lightdm_id,
     char const *app_name,
-    mir_connected_callback callback,
-    void *client_context)
+    MirConnection **result)
 try
 {
     auto log = std::make_shared<mcl::ConsoleLogger>();
@@ -207,12 +212,13 @@ try
         log,
         client_platform_factory);
 
-    return connection->connect(lightdm_id, app_name, callback, client_context);
+    return connection->connect(lightdm_id, app_name, result);
 }
 catch (std::exception const& x)
 {
     error_connection.set_error_message(x.what());
-    callback(&error_connection, client_context);
+    if (result)
+        *result = 0;
     return 0;
 }
 
