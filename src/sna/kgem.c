@@ -2174,7 +2174,7 @@ static void kgem_finish_buffers(struct kgem *kgem)
 
 			assert(!bo->need_io);
 
-			used = ALIGN(bo->used + PAGE_SIZE-1, PAGE_SIZE);
+			used = ALIGN(bo->used, PAGE_SIZE);
 			if (!DBG_NO_UPLOAD_ACTIVE &&
 			    used + PAGE_SIZE <= bytes(&bo->base) &&
 			    (kgem->has_llc || !IS_CPU_MAP(bo->base.map) || bo->base.snoop)) {
