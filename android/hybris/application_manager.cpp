@@ -22,9 +22,115 @@
 
 namespace android
 {
+IMPLEMENT_META_INTERFACE(ClipboardService, "UbuntuClipboardService");
 IMPLEMENT_META_INTERFACE(ApplicationManagerObserver, "UbuntuApplicationManagerObserver");
 IMPLEMENT_META_INTERFACE(ApplicationManagerSession, "UbuntuApplicationManagerSession");
 IMPLEMENT_META_INTERFACE(ApplicationManager, "UbuntuApplicationManager");
+
+IClipboardService::Content::Content() : data(NULL),
+                                        data_size(0)
+{
+}
+
+IClipboardService::Content::Content(
+    const String8& mime_type, 
+    void* _data, 
+    size_t size) : mime_type(mime_type),
+                        data(malloc(size)),
+                        data_size(size)
+{
+    memcpy(this->data, _data, size);
+}
+
+IClipboardService::Content::~Content()
+{
+    if (data != NULL && data_size != 0)
+        free(data);
+}
+
+IClipboardService::Content::Content(const IClipboardService::Content& content) 
+        : mime_type(content.mime_type),
+          data(malloc(content.data_size)),          
+          data_size(content.data_size)
+{
+    memcpy(data, content.data, data_size);
+}
+
+IClipboardService::Content& IClipboardService::Content::operator=(const IClipboardService::Content& content) 
+{
+    mime_type = content.mime_type;
+    data_size = content.data_size;
+    data = realloc(data, data_size);
+    memcpy(data, content.data, data_size);
+
+    return *this;
+}
+
+status_t BnClipboardService::onTransact(uint32_t code,
+                                        const Parcel& data,
+                                        Parcel* reply,
+                                        uint32_t flags)
+{
+    switch(code)
+    {
+        case SET_CLIPBOARD_CONTENT_COMMAND:
+            {
+                IClipboardService::Content content;
+                String8 mime_type = data.readString8();
+                size_t data_size = data.readInt32();
+                void* p = malloc(data_size);
+                data.read(p, data_size);
+                set_content(Content(mime_type, p, data_size));
+                free(p);
+                break;
+            }
+        case GET_CLIPBOARD_CONTENT_COMMAND:
+            {
+                IClipboardService::Content content;
+                get_content(content);
+
+                reply->writeString8(String8(content.mime_type));
+                reply->writeInt32(content.data_size);
+                reply->write(content.data, content.data_size);
+            }
+            break;
+    }
+
+    return NO_ERROR;
+}
+
+BpClipboardService::BpClipboardService(const sp<IBinder>& impl) : BpInterface<IClipboardService>(impl)
+{
+}
+
+void BpClipboardService::set_content(const IClipboardService::Content& content)
+{
+    Parcel in, out;
+
+    in.writeString8(String8(content.mime_type));
+    in.writeInt32(content.data_size);
+    in.write(content.data, content.data_size);
+    
+    remote()->transact(
+        SET_CLIPBOARD_CONTENT_COMMAND,
+        in,
+        &out);
+}
+
+void BpClipboardService::get_content(IClipboardService::Content& content)
+{
+    Parcel in, out;
+
+    remote()->transact(
+        GET_CLIPBOARD_CONTENT_COMMAND,
+        in,
+        &out);
+
+    content.mime_type = out.readString8();
+    content.data_size = out.readInt32();
+    content.data = malloc(content.data_size);
+    out.read(content.data, content.data_size);
+}
 
 BnApplicationManagerSession::BnApplicationManagerSession()
 {

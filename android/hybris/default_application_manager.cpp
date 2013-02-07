@@ -764,17 +764,40 @@ void ApplicationManager::notify_observers_about_session_died(int id, const andro
     }
 }
 
+struct ClipboardService : public android::BnClipboardService
+{
+    void set_content(const android::IClipboardService::Content& content)
+    {
+        this->content = content;
+    }
+
+    void get_content(android::IClipboardService::Content& content)
+    {
+        content = this->content;
+    }
+
+    android::IClipboardService::Content content;
+};
+
 }
 
 int main(int argc, char** argv)
 {
     android::sp<mir::ApplicationManager> app_manager(new mir::ApplicationManager());
-
+    android::sp<mir::ClipboardService> clipboard_service(new mir::ClipboardService());
     // Register service
     android::sp<android::IServiceManager> service_manager = android::defaultServiceManager();
     if (android::NO_ERROR != service_manager->addService(
             android::String16(android::IApplicationManager::exported_service_name()),
             app_manager))
+    {
+        //printf("Error registering service with the system ... exiting now.");
+        return EXIT_FAILURE;
+    }
+
+    if (android::NO_ERROR != service_manager->addService(
+            android::String16(android::IClipboardService::exported_service_name()),
+            clipboard_service))
     {
         //printf("Error registering service with the system ... exiting now.");
         return EXIT_FAILURE;
