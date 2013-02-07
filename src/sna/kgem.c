@@ -5026,9 +5026,6 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 	/* we should never be asked to create anything TOO large */
 	assert(size <= kgem->max_object_size);
 
-	if (kgem->has_llc)
-		flags &= ~KGEM_BUFFER_INPLACE;
-
 #if !DBG_NO_UPLOAD_CACHE
 	list_for_each_entry(bo, &kgem->batch_buffers, base.list) {
 		assert(bo->base.io);
@@ -5109,8 +5106,13 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 		alloc = ALIGN(size, kgem->buffer_size);
 	if (alloc > MAX_CACHE_SIZE)
 		alloc = PAGE_ALIGN(size);
+
+	if (alloc > kgem->aperture_mappable / 4)
+		flags &= ~KGEM_BUFFER_INPLACE;
 	alloc /= PAGE_SIZE;
-	if (kgem->has_llc) {
+
+	if (kgem->has_llc &&
+	    (flags & KGEM_BUFFER_WRITE_INPLACE) != KGEM_BUFFER_WRITE_INPLACE) {
 		bo = buffer_alloc();
 		if (bo == NULL)
 			goto skip_llc;
@@ -5147,6 +5149,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 		if (bo->mem) {
 			if (flags & KGEM_BUFFER_WRITE)
 				kgem_bo_sync__cpu(kgem, &bo->base);
+			flags &= ~KGEM_BUFFER_INPLACE;
 			goto init;
 		} else {
 			bo->base.refcnt = 0; /* for valgrind */
@@ -5154,9 +5157,6 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 		}
 	}
 skip_llc:
-
-	if (PAGE_SIZE * alloc > kgem->aperture_mappable / 4)
-		flags &= ~KGEM_BUFFER_INPLACE;
 
 	if ((flags & KGEM_BUFFER_WRITE_INPLACE) == KGEM_BUFFER_WRITE_INPLACE) {
 		/* The issue with using a GTT upload buffer is that we may
@@ -5220,7 +5220,7 @@ skip_llc:
 			bo->mem = kgem_bo_map(kgem, &bo->base);
 			if (bo->mem) {
 				if (IS_CPU_MAP(bo->base.map))
-				    flags &= ~KGEM_BUFFER_INPLACE;
+					flags &= ~KGEM_BUFFER_INPLACE;
 				goto init;
 			} else {
 				bo->base.refcnt = 0;
@@ -5244,12 +5244,10 @@ skip_llc:
 			goto init;
 		}
 
-		if ((flags & KGEM_BUFFER_WRITE_INPLACE) != KGEM_BUFFER_WRITE_INPLACE) {
+		if ((flags & KGEM_BUFFER_INPLACE) == 0) {
 			bo = create_snoopable_buffer(kgem, alloc);
-			if (bo) {
-				assert((flags & KGEM_BUFFER_INPLACE) == 0);
+			if (bo)
 				goto init;
-			}
 		}
 	}
 
