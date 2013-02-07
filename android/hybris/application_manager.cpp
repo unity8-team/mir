@@ -266,6 +266,13 @@ status_t BnApplicationManagerObserver::onTransact(uint32_t code,
             on_session_focused(id, desktop_file);
             break;
         }
+    case ON_SESSION_REQUESTED_FULLSCREEN_NOTIFICATION:
+        {
+            int id = data.readInt32();
+            String8 desktop_file = data.readString8();
+            on_session_requested_fullscreen(id, desktop_file);
+            break;
+        }
     case ON_SESSION_DIED_NOTIFICATION:
         {
             int id = data.readInt32();
@@ -333,6 +340,20 @@ void BpApplicationManagerObserver::on_session_focused(int id,
 
     remote()->transact(
         ON_SESSION_FOCUSED_NOTIFICATION,
+        in,
+        &out,
+        android::IBinder::FLAG_ONEWAY);
+}
+
+void BpApplicationManagerObserver::on_session_requested_fullscreen(int id,
+        const String8& desktop_file_hint)
+{
+    Parcel in, out;
+    in.writeInt32(id);
+    in.writeString8(desktop_file_hint);
+
+    remote()->transact(
+        ON_SESSION_REQUESTED_FULLSCREEN_NOTIFICATION,
         in,
         &out,
         android::IBinder::FLAG_ONEWAY);

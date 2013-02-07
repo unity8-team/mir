@@ -755,6 +755,15 @@ void ApplicationManager::notify_observers_about_session_focused(int id, const an
     }
 }
 
+void ApplicationManager::notify_observers_about_session_requested_fullscreen(int id, const android::String8& desktop_file)
+{
+    android::Mutex::Autolock al(observer_guard);
+    for(unsigned int i = 0; i < app_manager_observers.size(); i++)
+    {
+        app_manager_observers[i]->on_session_requested_fullscreen(id, desktop_file);
+    }
+}
+
 void ApplicationManager::notify_observers_about_session_died(int id, const android::String8& desktop_file)
 {
     android::Mutex::Autolock al(observer_guard);

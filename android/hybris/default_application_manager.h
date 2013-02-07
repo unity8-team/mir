@@ -200,6 +200,7 @@ struct ApplicationManager :
     void notify_observers_about_session_born(int id, const android::String8& desktop_file);
     void notify_observers_about_session_unfocused(int id, const android::String8& desktop_file);
     void notify_observers_about_session_focused(int id, const android::String8& desktop_file);
+    void notify_observers_about_session_requested_fullscreen(int id, const android::String8& desktop_file);
     void notify_observers_about_session_died(int id, const android::String8& desktop_file);
 
     android::sp<android::InputListenerInterface> input_listener;

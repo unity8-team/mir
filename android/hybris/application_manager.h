@@ -143,6 +143,9 @@ public:
     virtual void on_session_focused(int id,
                                     const String8& desktop_file) = 0;
 
+    virtual void on_session_requested_fullscreen(int id,
+                                                 const String8& desktop_file) = 0;
+
     virtual void on_session_died(int id,
                                  const String8& desktop_file) = 0;
 
@@ -153,6 +156,7 @@ protected:
         ON_SESSION_BORN_NOTIFICATION,
         ON_SESSION_UNFOCUSED_NOTIFICATION,
         ON_SESSION_FOCUSED_NOTIFICATION,
+        ON_SESSION_REQUESTED_FULLSCREEN_NOTIFICATION,
         ON_SESSION_DIED_NOTIFICATION
     };
 
@@ -184,6 +188,9 @@ public:
 
     void on_session_focused(int id,
                             const String8& desktop_file);
+
+    void on_session_requested_fullscreen(int id,
+                                         const String8& desktop_file);
 
     void on_session_died(int id,
                          const String8& desktop_file);
