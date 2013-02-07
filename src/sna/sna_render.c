@@ -1576,8 +1576,10 @@ do_fixup:
 	}
 
 	/* Composite in the original format to preserve idiosyncracies */
-	if (picture->format == channel->pict_format)
-		dst = pixman_image_create_bits(picture->format,
+	if (!kgem_buffer_is_inplace(channel->bo) &&
+	    (picture->pDrawable == NULL ||
+	     picture->format == channel->pict_format))
+		dst = pixman_image_create_bits(channel->pict_format,
 					       w, h, ptr, channel->bo->pitch);
 	else
 		dst = pixman_image_create_bits(picture->format, w, h, NULL, 0);
@@ -1603,7 +1605,7 @@ do_fixup:
 	free_pixman_pict(picture, src);
 
 	/* Then convert to card format */
-	if (picture->format != channel->pict_format) {
+	if (pixman_image_get_data(dst) != ptr) {
 		DBG(("%s: performing post-conversion %08x->%08x (%d, %d)\n",
 		     __FUNCTION__,
 		     picture->format, channel->pict_format,
