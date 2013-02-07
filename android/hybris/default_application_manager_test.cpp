@@ -77,6 +77,12 @@ struct ApplicationManagerObserver : public android::BnApplicationManagerObserver
         printf("%s: %d, %s \n", __PRETTY_FUNCTION__, id, desktop_file.string());
     }
 
+    void on_session_requested_fullscreen(int id,
+                                         const android::String8& desktop_file)
+    {
+        printf("%s: %d, %s \n", __PRETTY_FUNCTION__, id, desktop_file.string());
+    }
+
     void on_session_died(int id,
                          const android::String8& desktop_file)
     {

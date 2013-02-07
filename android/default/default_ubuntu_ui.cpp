@@ -75,6 +75,17 @@ struct SessionLifeCycleObserver : public ubuntu::ui::SessionLifeCycleObserver
         observer->on_session_focused(&props, observer->context);
     }
 
+    void on_session_requested_fullscreen(const ubuntu::ui::SessionProperties::Ptr& props)
+    {
+        if (!observer)
+            return;
+
+        if(!observer->on_session_requested_fullscreen)
+            return;
+
+        observer->on_session_requested_fullscreen(&props, observer->context);
+    }
+
     void on_session_died(const ubuntu::ui::SessionProperties::Ptr& props)
     {
         if (!observer)

@@ -143,6 +143,9 @@ public:
     virtual void on_session_focused(int id,
                                     const String8& desktop_file) = 0;
 
+    virtual void on_session_requested_fullscreen(int id,
+                                                 const String8& desktop_file) = 0;
+
     virtual void on_session_died(int id,
                                  const String8& desktop_file) = 0;
 
@@ -153,6 +156,7 @@ protected:
         ON_SESSION_BORN_NOTIFICATION,
         ON_SESSION_UNFOCUSED_NOTIFICATION,
         ON_SESSION_FOCUSED_NOTIFICATION,
+        ON_SESSION_REQUESTED_FULLSCREEN_NOTIFICATION,
         ON_SESSION_DIED_NOTIFICATION
     };
 
@@ -185,6 +189,9 @@ public:
     void on_session_focused(int id,
                             const String8& desktop_file);
 
+    void on_session_requested_fullscreen(int id,
+                                         const String8& desktop_file);
+
     void on_session_died(int id,
                          const String8& desktop_file);
 };
@@ -211,6 +218,8 @@ public:
                                     int32_t token,
                                     int fd) = 0;
 
+    virtual void request_fullscreen(const sp<IApplicationManagerSession>& session) = 0;
+
     virtual void request_update_for_session(const sp<IApplicationManagerSession>& session) = 0;
 
     virtual void register_an_observer(const sp<IApplicationManagerObserver>& observer) = 0;
@@ -236,6 +245,7 @@ protected:
     {
         START_A_NEW_SESSION_COMMAND = IBinder::FIRST_CALL_TRANSACTION,
         REGISTER_A_SURFACE_COMMAND,
+        REQUEST_FULLSCREEN_COMMAND,
         REGISTER_AN_OBSERVER_COMMAND,
         REQUEST_UPDATE_FOR_SESSION_COMMAND,
         UNFOCUS_RUNNING_SESSIONS_COMMAND,
@@ -278,6 +288,8 @@ public:
                             int32_t surface_role,
                             int32_t token,
                             int fd);
+
+    void request_fullscreen(const android::sp<android::IApplicationManagerSession>& session);
 
     void request_update_for_session(const sp<IApplicationManagerSession>& session);
 

@@ -266,6 +266,13 @@ status_t BnApplicationManagerObserver::onTransact(uint32_t code,
             on_session_focused(id, desktop_file);
             break;
         }
+    case ON_SESSION_REQUESTED_FULLSCREEN_NOTIFICATION:
+        {
+            int id = data.readInt32();
+            String8 desktop_file = data.readString8();
+            on_session_requested_fullscreen(id, desktop_file);
+            break;
+        }
     case ON_SESSION_DIED_NOTIFICATION:
         {
             int id = data.readInt32();
@@ -338,6 +345,20 @@ void BpApplicationManagerObserver::on_session_focused(int id,
         android::IBinder::FLAG_ONEWAY);
 }
 
+void BpApplicationManagerObserver::on_session_requested_fullscreen(int id,
+        const String8& desktop_file_hint)
+{
+    Parcel in, out;
+    in.writeInt32(id);
+    in.writeString8(desktop_file_hint);
+
+    remote()->transact(
+        ON_SESSION_REQUESTED_FULLSCREEN_NOTIFICATION,
+        in,
+        &out,
+        android::IBinder::FLAG_ONEWAY);
+}
+
 void BpApplicationManagerObserver::on_session_died(int id,
         const String8& desktop_file_hint)
 {
@@ -389,6 +410,13 @@ status_t BnApplicationManager::onTransact(uint32_t code,
         int fd = data.readFileDescriptor();
 
         register_a_surface(title, session, surface_role, surface_token, fd);
+    }
+    break;
+    case REQUEST_FULLSCREEN_COMMAND:
+    {
+        sp<IBinder> binder = data.readStrongBinder();
+        sp<BpApplicationManagerSession> session(new BpApplicationManagerSession(binder));
+        request_fullscreen(session);
     }
     break;
     case REGISTER_AN_OBSERVER_COMMAND:
@@ -504,6 +532,18 @@ void BpApplicationManager::register_a_surface(
     in.writeFileDescriptor(fd);
 
     remote()->transact(REGISTER_A_SURFACE_COMMAND,
+                       in,
+                       &out);
+}
+
+void BpApplicationManager::request_fullscreen(
+    const sp<IApplicationManagerSession>& session)
+{
+    //printf("%s \n", __PRETTY_FUNCTION__);
+    Parcel in, out;
+    in.writeStrongBinder(session->asBinder());
+
+    remote()->transact(REQUEST_FULLSCREEN_COMMAND,
                        in,
                        &out);
 }

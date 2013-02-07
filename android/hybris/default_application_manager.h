@@ -167,6 +167,8 @@ struct ApplicationManager :
         int32_t token,
         int fd);
 
+    void request_fullscreen(const android::sp<android::IApplicationManagerSession>& session);
+
     void register_an_observer(const android::sp<android::IApplicationManagerObserver>& observer);
 
     void request_update_for_session(const android::sp<android::IApplicationManagerSession>& session);
@@ -200,6 +202,7 @@ struct ApplicationManager :
     void notify_observers_about_session_born(int id, const android::String8& desktop_file);
     void notify_observers_about_session_unfocused(int id, const android::String8& desktop_file);
     void notify_observers_about_session_focused(int id, const android::String8& desktop_file);
+    void notify_observers_about_session_requested_fullscreen(int id, const android::String8& desktop_file);
     void notify_observers_about_session_died(int id, const android::String8& desktop_file);
 
     android::sp<android::InputListenerInterface> input_listener;

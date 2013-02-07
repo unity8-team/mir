@@ -548,6 +548,17 @@ struct Session : public ubuntu::application::ui::Session, public UbuntuSurface::
         return ubuntu::application::ui::Surface::Ptr(surface);
     }
 
+    void toggle_fullscreen_for_surface(const ubuntu::application::ui::Surface::Ptr& /*surface*/)
+    {
+        sp<IServiceManager> service_manager = defaultServiceManager();
+        sp<IBinder> service = service_manager->getService(
+            String16(IApplicationManager::exported_service_name()));
+        BpApplicationManager app_manager(service);
+        app_manager.request_fullscreen(
+            app_manager_session
+        );
+    }
+
     void destroy_surface(
         const ubuntu::application::ui::Surface::Ptr& surf)
     {
@@ -635,6 +646,15 @@ struct ApplicationManagerObserver : public android::BnApplicationManagerObserver
             return;
 
         observer->on_session_focused(ubuntu::ui::SessionProperties::Ptr(new SessionProperties(id, desktop_file)));
+    }
+
+    virtual void on_session_requested_fullscreen(int id,
+                                                 const String8& desktop_file)
+    {
+        if (observer == NULL)
+            return;
+
+        observer->on_session_requested_fullscreen(ubuntu::ui::SessionProperties::Ptr(new SessionProperties(id, desktop_file)));
     }
 
     virtual void on_session_died(int id,
