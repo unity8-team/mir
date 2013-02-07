@@ -133,7 +133,7 @@ struct Setup : public ubuntu::application::ui::Setup
 
     ubuntu::application::ui::StageHint stage_hint()
     {
-        return ubuntu::application::ui::main_stage;
+        return stage;
     }
 
     ubuntu::application::ui::FormFactorHintFlags form_factor_hint()
