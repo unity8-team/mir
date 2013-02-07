@@ -178,6 +178,7 @@ extern "C" {
 
 // Session service
 IMPLEMENT_FUNCTION1(int, ubuntu_ui_session_properties_get_application_instance_id, ubuntu_ui_session_properties);
+IMPLEMENT_FUNCTION1(int, ubuntu_ui_session_properties_get_application_stage_hint, ubuntu_ui_session_properties);
 IMPLEMENT_FUNCTION1(const char*, ubuntu_ui_session_properties_get_desktop_file_hint, ubuntu_ui_session_properties);
 IMPLEMENT_VOID_FUNCTION1(ubuntu_ui_session_install_session_lifecycle_observer, ubuntu_ui_session_lifecycle_observer*);
 IMPLEMENT_VOID_FUNCTION0(ubuntu_ui_session_unfocus_running_sessions);

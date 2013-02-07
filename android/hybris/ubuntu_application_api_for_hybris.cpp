@@ -487,6 +487,7 @@ struct Session : public ubuntu::application::ui::Session, public UbuntuSurface::
 
         app_manager.start_a_new_session(
             creds.session_type(),
+            ubuntu::application::ui::Setup::instance()->stage_hint(),
             String8(creds.application_name()),
             String8(ubuntu::application::ui::Setup::instance()->desktop_file_hint()),
             app_manager_session,
@@ -575,8 +576,9 @@ struct Session : public ubuntu::application::ui::Session, public UbuntuSurface::
 
 struct SessionProperties : public ubuntu::ui::SessionProperties
 {
-    SessionProperties(int id, const android::String8& desktop_file)
+    SessionProperties(int id, int stage_hint, const android::String8& desktop_file)
         : id(id),
+          stage_hint(stage_hint),
           desktop_file(desktop_file)
     {
     }
@@ -584,6 +586,11 @@ struct SessionProperties : public ubuntu::ui::SessionProperties
     int application_instance_id() const
     {
         return id;
+    }
+
+    int application_stage_hint() const
+    {
+        return stage_hint;
     }
 
     const char* value_for_key(const char* key) const
@@ -597,6 +604,7 @@ struct SessionProperties : public ubuntu::ui::SessionProperties
     }
 
     int id;
+    int stage_hint;
     android::String8 desktop_file;
 };
 
@@ -611,39 +619,43 @@ struct ApplicationManagerObserver : public android::BnApplicationManagerObserver
     }
 
     void on_session_born(int id,
+                         int stage_hint,
                          const String8& desktop_file)
     {
         if (observer == NULL)
             return;
 
-        observer->on_session_born(ubuntu::ui::SessionProperties::Ptr(new SessionProperties(id, desktop_file)));
+        observer->on_session_born(ubuntu::ui::SessionProperties::Ptr(new SessionProperties(id, stage_hint, desktop_file)));
     }
 
     virtual void on_session_unfocused(int id,
-                                    const String8& desktop_file)
+                                      int stage_hint,
+                                      const String8& desktop_file)
     {
         if (observer == NULL)
             return;
 
-        observer->on_session_unfocused(ubuntu::ui::SessionProperties::Ptr(new SessionProperties(id, desktop_file)));
+        observer->on_session_unfocused(ubuntu::ui::SessionProperties::Ptr(new SessionProperties(id, stage_hint, desktop_file)));
     }
 
     virtual void on_session_focused(int id,
+                                    int stage_hint,
                                     const String8& desktop_file)
     {
         if (observer == NULL)
             return;
 
-        observer->on_session_focused(ubuntu::ui::SessionProperties::Ptr(new SessionProperties(id, desktop_file)));
+        observer->on_session_focused(ubuntu::ui::SessionProperties::Ptr(new SessionProperties(id, stage_hint, desktop_file)));
     }
 
     virtual void on_session_died(int id,
+                                 int stage_hint,
                                  const String8& desktop_file)
     {
         if (observer == NULL)
             return;
 
-        observer->on_session_died(ubuntu::ui::SessionProperties::Ptr(new SessionProperties(id, desktop_file)));
+        observer->on_session_died(ubuntu::ui::SessionProperties::Ptr(new SessionProperties(id, stage_hint, desktop_file)));
     }
 
     void install_session_lifecycle_observer(const ubuntu::ui::SessionLifeCycleObserver::Ptr& observer)
@@ -907,6 +919,12 @@ const ubuntu::ui::SessionService::Ptr& ubuntu::ui::SessionService::instance()
 {
     static ubuntu::ui::SessionService::Ptr instance(new android::SessionService());
     return instance;
+}
+
+const char* SessionProperties::key_application_stage_hint()
+{
+    static const char* key = "application_stage_hint";
+    return key;
 }
 
 const char* SessionProperties::key_application_instance_id()

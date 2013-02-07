@@ -33,12 +33,18 @@ class SessionProperties : public platform::ReferenceCountedBase
 {
 public:
     static const char* key_application_instance_id();
+    static const char* key_application_stage_hint();
     static const char* key_application_name();
     static const char* key_desktop_file_hint();
 
     typedef platform::shared_ptr<SessionProperties> Ptr;
 
     virtual const char* value_for_key(const char* key) const = 0;
+
+    virtual int application_stage_hint() const
+    {
+        return atoi(value_for_key(SessionProperties::key_application_stage_hint()));
+    }
 
     virtual int application_instance_id() const
     {
