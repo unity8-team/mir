@@ -52,6 +52,8 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
+#define FAULT_INJECTION 0
+
 #define FORCE_INPLACE 0
 #define FORCE_FALLBACK 0
 #define FORCE_FLUSH 0
@@ -14367,6 +14369,13 @@ void sna_accel_wakeup_handler(struct sna *sna)
 	}
 	if (sna->kgem.need_purge)
 		kgem_purge_cache(&sna->kgem);
+
+	if (FAULT_INJECTION && (rand() % FAULT_INJECTION) == 0) {
+		ErrorF("%s hardware acceleration\n",
+		       sna->kgem.wedged ? "Re-enabling" : "Disabling");
+		kgem_submit(&sna->kgem);
+		sna->kgem.wedged = !sna->kgem.wedged;
+	}
 }
 
 void sna_accel_free(struct sna *sna)
