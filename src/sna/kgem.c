@@ -2246,7 +2246,6 @@ static void kgem_finish_buffers(struct kgem *kgem)
 					list_init(&bo->base.request);
 					shrink->needs_flush = bo->base.dirty;
 
-					assert(bo->base.domain == DOMAIN_NONE);
 					bo->base.exec = NULL;
 					bo->base.rq = NULL;
 					bo->base.dirty = false;
@@ -2292,7 +2291,6 @@ static void kgem_finish_buffers(struct kgem *kgem)
 					list_init(&bo->base.request);
 					shrink->needs_flush = bo->base.dirty;
 
-					assert(bo->base.domain == DOMAIN_NONE);
 					bo->base.exec = NULL;
 					bo->base.rq = NULL;
 					bo->base.dirty = false;
