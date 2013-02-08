@@ -21,7 +21,8 @@
 MirWaitHandle::MirWaitHandle() :
     guard(),
     wait_condition(),
-    result_has_occurred(false)
+    result_has_occurred(false),
+    result(nullptr)
 {
 }
 
@@ -29,20 +30,21 @@ MirWaitHandle::~MirWaitHandle()
 {
 }
 
-void MirWaitHandle::result_received()
+void MirWaitHandle::result_received(void *res)
 {
     std::unique_lock<std::mutex> lock(guard);
     result_has_occurred = true;
-
+    result = res;
     wait_condition.notify_all();
 }
 
-void MirWaitHandle::wait_for_result()
+void *MirWaitHandle::wait_for_result()
 {
     std::unique_lock<std::mutex> lock(guard);
     while ( (!result_has_occurred) )
         wait_condition.wait(lock);
     result_has_occurred = false;
+    return result;
 }
 
 

@@ -109,13 +109,57 @@ TEST_F(DefaultDisplayServerTestFixture, client_library_connects_and_disconnects)
     {
         void exec()
         {
-            mir_wait_for(mir_connect(mir_test_socket, __PRETTY_FUNCTION__, connection_callback, this));
+            MirWaitHandle *w = mir_connect(mir_test_socket, __PRETTY_FUNCTION__,
+                                           connection_callback, this);
+            MirConnection *result = mir_wait_for_connection(w);
 
             ASSERT_TRUE(connection != NULL);
+            EXPECT_EQ(connection, result);
             EXPECT_TRUE(mir_connection_is_valid(connection));
             EXPECT_STREQ(mir_connection_get_error_message(connection), "");
 
             mir_connection_release(connection);
+        }
+    } client_config;
+
+    launch_client_process(client_config);
+}
+
+TEST_F(DefaultDisplayServerTestFixture, client_library_connects_without_callbacks)
+{
+    struct ClientConfig : ClientConfigCommon
+    {
+        void exec()
+        {
+            MirWaitHandle *w = mir_connect(mir_test_socket, __PRETTY_FUNCTION__,
+                                           nullptr, nullptr);
+            MirConnection *conn = mir_wait_for_connection(w);
+
+            ASSERT_TRUE(conn != NULL);
+            EXPECT_TRUE(mir_connection_is_valid(conn));
+            EXPECT_STREQ(mir_connection_get_error_message(conn), "");
+
+            mir_connection_release(conn);
+        }
+    } client_config;
+
+    launch_client_process(client_config);
+}
+
+TEST_F(DefaultDisplayServerTestFixture, client_library_blocking_connect)
+{
+    struct ClientConfig : ClientConfigCommon
+    {
+        void exec()
+        {
+            MirConnection *conn = mir_wait_connect(mir_test_socket,
+                                                   __PRETTY_FUNCTION__);
+
+            ASSERT_TRUE(conn != NULL);
+            EXPECT_TRUE(mir_connection_is_valid(conn));
+            EXPECT_STREQ(mir_connection_get_error_message(conn), "");
+
+            mir_connection_release(conn);
         }
     } client_config;
 

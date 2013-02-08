@@ -136,8 +136,9 @@ void MirConnection::connected(mir_connected_callback callback, void * context)
     platform = client_platform_factory->create_client_platform(this);
     native_display = platform->create_egl_native_display();
 
-    callback(this, context);
-    connect_wait_handle.result_received();
+    if (callback)
+        callback(this, context);
+    connect_wait_handle.result_received(this);
 }
 
 MirWaitHandle* MirConnection::connect(

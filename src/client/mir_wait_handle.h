@@ -28,14 +28,15 @@ public:
     MirWaitHandle();
     ~MirWaitHandle();
 
-    void result_received();
-    void wait_for_result();
+    void result_received(void *res = nullptr);
+    void *wait_for_result();
 
 private:
     std::mutex guard;
     std::condition_variable wait_condition;
 
     bool result_has_occurred;
+    void *result;
 };
 
 #endif /* MIR_CLIENT_MIR_WAIT_HANDLE_H_ */

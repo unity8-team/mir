@@ -158,6 +158,21 @@ MirWaitHandle *mir_connect(
     void *client_context);
 
 /**
+ * Wait for a mir_connect to complete and return the resulting connection.
+ *   \param [in] wait  The wait handle returned from mir_connect()
+ *   \return           The resulting MirConnection*
+ */
+MirConnection *mir_wait_for_connection(MirWaitHandle *wait);
+
+/**
+ * A simple blocking version of mir_connect()
+ *   \param [in] server    A name identifying the server
+ *   \param [in] app_name  A name referring to the application
+ *   \return               The resulting MirConnection*
+ */
+MirConnection *mir_wait_connect(char const *server, char const *app_name);
+
+/**
  * Test for a valid connection
  * \param [in] connection  the connection
  * \return                 a non-zero value if the supplied connection is

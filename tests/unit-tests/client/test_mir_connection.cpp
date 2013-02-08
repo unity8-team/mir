@@ -98,8 +98,16 @@ struct StubClientPlatformFactory : public mcl::ClientPlatformFactory
     std::shared_ptr<mcl::ClientPlatform> platform;
 };
 
-void connected_callback(MirConnection* /*connection*/, void * /*client_context*/)
+namespace
 {
+    MirConnection *cb_connection = nullptr;
+    void *cb_context = nullptr;
+}
+
+void connected_callback(MirConnection *connection, void *context)
+{
+    cb_connection = connection;
+    cb_context = context;
 }
 
 void drm_auth_magic_callback(int status, void* client_context)
@@ -251,4 +259,18 @@ TEST_F(MirConnectionTest, populates_display_info_without_overflowing)
         EXPECT_EQ(mir_pixel_format_xbgr_8888,
                   info.supported_pixel_format[i]);
     }
+}
+
+TEST_F(MirConnectionTest, consistent_results)
+{
+    cb_connection = nullptr;
+    cb_context = nullptr;
+    static const char ctx[] = "Hello world";
+
+    MirWaitHandle *wait = connection->connect("MirConnectionTest",
+                                              connected_callback, (void*)ctx);
+    void *result = wait->wait_for_result();
+
+    EXPECT_EQ(result, cb_connection);
+    EXPECT_EQ(ctx, cb_context);
 }

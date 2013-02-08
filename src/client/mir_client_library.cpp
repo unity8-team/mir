@@ -62,9 +62,20 @@ MirWaitHandle* mir_connect(char const* socket_file, char const* name, mir_connec
     catch (std::exception const& x)
     {
         error_connection.set_error_message(x.what());
-        callback(&error_connection, context);
+        if (callback)
+            callback(&error_connection, context);
         return 0;
     }
+}
+
+MirConnection *mir_wait_for_connection(MirWaitHandle *wait)
+{
+    return wait ? (MirConnection*)wait->wait_for_result() : nullptr;
+}
+
+MirConnection *mir_wait_connect(const char *server, const char *app)
+{
+    return mir_wait_for_connection(mir_connect(server, app, nullptr, nullptr));
 }
 
 int mir_connection_is_valid(MirConnection * connection)
