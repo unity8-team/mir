@@ -1,3 +1,13 @@
+ubuntu-platform-api (0.6) quantal; urgency=low
+
+  [ Thomas Voss ]
+  * Add fullscreen observer and callback for the app manager.
+
+  [ Ricardo Mendoza ]
+  * Release upstream
+
+ -- Ricardo Mendoza <ricardo.mendoza@canonical.com>  Thu, 07 Feb 2013 19:44:18 -0430
+
 ubuntu-platform-api (0.5) quantal; urgency=low
 
   * Add support for copy and paste (Clipboard service)
