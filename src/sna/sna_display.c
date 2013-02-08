@@ -3264,7 +3264,8 @@ void sna_mode_redisplay(struct sna *sna)
 	if (RegionNil(region))
 		return;
 
-	if (!sna_pixmap_move_to_gpu(sna->front, MOVE_READ)) {
+	if (!can_render(sna) ||
+	    !sna_pixmap_move_to_gpu(sna->front, MOVE_READ)) {
 		if (!sna_pixmap_move_to_cpu(sna->front, MOVE_READ))
 			return;
 
