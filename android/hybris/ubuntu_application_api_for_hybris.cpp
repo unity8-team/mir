@@ -660,12 +660,13 @@ struct ApplicationManagerObserver : public android::BnApplicationManagerObserver
     }
 
     virtual void on_session_requested_fullscreen(int id,
+                                                 int stage_hint,	
                                                  const String8& desktop_file)
     {
         if (observer == NULL)
             return;
 
-        observer->on_session_requested_fullscreen(ubuntu::ui::SessionProperties::Ptr(new SessionProperties(id, desktop_file)));
+        observer->on_session_requested_fullscreen(ubuntu::ui::SessionProperties::Ptr(new SessionProperties(id, stage_hint, desktop_file)));
     }
 
     virtual void on_session_died(int id,

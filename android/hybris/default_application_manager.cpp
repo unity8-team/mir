@@ -663,7 +663,9 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
                                                      session->desktop_file);
             // Stop the session
             if (!is_session_allowed_to_run_in_background(session))
-		if (session->stage_hint == 0 && next_session->stage_hint != 4)
+		//FIXME: get rid of check for stage hint
+		if (session->stage_hint == 0 &&
+                    next_session->stage_hint != ubuntu::application::ui::StageHint::side_stage)
 	                kill(session->remote_pid, SIGSTOP);
         }
     }
@@ -674,8 +676,8 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
     {
         focused_layer += focused_layer_increment;
 
-        session = next_session;
-        const android::sp<mir::ApplicationSession>& session = next_session;
+        const android::sp<mir::ApplicationSession>& session =
+                apps.valueFor(apps_as_added[focused_application]);
 
         ALOGI("Raising application now for idx: %d (stage_hint: %d)\n", focused_application, session->stage_hint);
         

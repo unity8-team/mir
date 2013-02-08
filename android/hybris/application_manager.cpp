@@ -272,8 +272,9 @@ status_t BnApplicationManagerObserver::onTransact(uint32_t code,
     case ON_SESSION_REQUESTED_FULLSCREEN_NOTIFICATION:
         {
             int id = data.readInt32();
+            int stage_hint = data.readInt32();
             String8 desktop_file = data.readString8();
-            on_session_requested_fullscreen(id, desktop_file);
+            on_session_requested_fullscreen(id, stage_hint, desktop_file);
             break;
         }
     case ON_SESSION_DIED_NOTIFICATION:
@@ -356,10 +357,12 @@ void BpApplicationManagerObserver::on_session_focused(int id,
 }
 
 void BpApplicationManagerObserver::on_session_requested_fullscreen(int id,
-        const String8& desktop_file_hint)
+                                                                   int stage_hint,
+                                                                   const String8& desktop_file_hint)
 {
     Parcel in, out;
     in.writeInt32(id);
+    in.writeInt32(stage_hint);
     in.writeString8(desktop_file_hint);
 
     remote()->transact(

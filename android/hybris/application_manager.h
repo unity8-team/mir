@@ -147,6 +147,7 @@ public:
                                     const String8& desktop_file) = 0;
 
     virtual void on_session_requested_fullscreen(int id,
+                                                 int stage_hint,
                                                  const String8& desktop_file) = 0;
 
     virtual void on_session_died(int id,
@@ -197,6 +198,7 @@ public:
                             const String8& desktop_file);
 
     void on_session_requested_fullscreen(int id,
+                                         int stage_hint,
                                          const String8& desktop_file);
 
     void on_session_died(int id,
