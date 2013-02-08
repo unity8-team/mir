@@ -135,18 +135,22 @@ public:
     virtual void on_session_requested(uint32_t app) = 0;
 
     virtual void on_session_born(int id,
+                                 int stage_hint,
                                  const String8& desktop_file) = 0;
     
     virtual void on_session_unfocused(int id,
+                                      int stage_hint,
                                       const String8& desktop_file) = 0;
 
     virtual void on_session_focused(int id,
+                                    int stage_hint,
                                     const String8& desktop_file) = 0;
 
     virtual void on_session_requested_fullscreen(int id,
                                                  const String8& desktop_file) = 0;
 
     virtual void on_session_died(int id,
+                                 int stage_hint,
                                  const String8& desktop_file) = 0;
 
 protected:
@@ -181,18 +185,22 @@ public:
     void on_session_requested(uint32_t app);
 
     void on_session_born(int id,
+                         int stage_hint,
                          const String8& desktop_file);
 
     void on_session_unfocused(int id,
-                            const String8& desktop_file);
+                              int stage_hint,
+                              const String8& desktop_file);
 
     void on_session_focused(int id,
+                            int stage_hint,
                             const String8& desktop_file);
 
     void on_session_requested_fullscreen(int id,
                                          const String8& desktop_file);
 
     void on_session_died(int id,
+                         int stage_hint,
                          const String8& desktop_file);
 };
 
@@ -207,6 +215,7 @@ public:
     }
 
     virtual void start_a_new_session(int32_t session_type,
+                                     int32_t stage_hint,
                                      const String8& app_name,
                                      const String8& desktop_file,
                                      const sp<IApplicationManagerSession>& session,
@@ -278,6 +287,7 @@ public:
     ~BpApplicationManager();
 
     void start_a_new_session(int32_t session_type,
+                             int32_t stage_hint,
                              const String8& app_name,
                              const String8& desktop_file,
                              const sp<IApplicationManagerSession>& session,

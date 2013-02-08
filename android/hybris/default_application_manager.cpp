@@ -252,6 +252,7 @@ void ApplicationManager::binderDied(const android::wp<android::IBinder>& who)
     const android::sp<mir::ApplicationSession>& dead_session = apps.valueFor(sp);
 
     notify_observers_about_session_died(dead_session->remote_pid,
+                                        dead_session->stage_hint,
                                         dead_session->desktop_file);
 
     size_t i = 0;
@@ -300,6 +301,7 @@ android::sp<ApplicationManager::LockingIterator> ApplicationManager::iterator()
 
 void ApplicationManager::start_a_new_session(
     int32_t session_type,
+    int32_t stage_hint,
     const android::String8& app_name,
     const android::String8& desktop_file,
     const android::sp<android::IApplicationManagerSession>& session,
@@ -311,6 +313,7 @@ void ApplicationManager::start_a_new_session(
             android::IPCThreadState::self()->getCallingPid(),
             session,
             session_type,
+            stage_hint,
             app_name,
             desktop_file));
     {
@@ -331,7 +334,9 @@ void ApplicationManager::start_a_new_session(
         }
     }
 
-    notify_observers_about_session_born(app_session->remote_pid, app_session->desktop_file);
+    notify_observers_about_session_born(app_session->remote_pid, 
+                                        app_session->stage_hint, 
+                                        app_session->desktop_file);
 }
 
 void ApplicationManager::register_a_surface(
@@ -416,6 +421,7 @@ void ApplicationManager::request_fullscreen(const android::sp<android::IApplicat
 
     notify_observers_about_session_requested_fullscreen(
         as->remote_pid,
+	as->stage_hint,
         as->desktop_file);
 }
 
@@ -470,6 +476,7 @@ void ApplicationManager::register_an_observer(
                     apps.valueFor(apps_as_added[i]);
 
             observer->on_session_born(session->remote_pid,
+                                      session->stage_hint,
                                       session->desktop_file);
         }
 
@@ -479,6 +486,7 @@ void ApplicationManager::register_an_observer(
                     apps.valueFor(apps_as_added[focused_application]);
 
             observer->on_session_focused(session->remote_pid,
+                                         session->stage_hint,
                                          session->desktop_file);
         }
     }
@@ -517,6 +525,7 @@ void ApplicationManager::unfocus_running_sessions()
         if (session->session_type != ubuntu::application::ui::system_session_type)
         {            
             notify_observers_about_session_unfocused(session->remote_pid,
+                                                     session->stage_hint,
                                                      session->desktop_file);
 
             // Stop the session
@@ -647,6 +656,7 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
         if (session->session_type != ubuntu::application::ui::system_session_type)
         {
             notify_observers_about_session_unfocused(session->remote_pid,
+                                                     session->stage_hint,
                                                      session->desktop_file);
             // Stop the session
             if (!is_session_allowed_to_run_in_background(session))
@@ -690,6 +700,7 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
             input_windows);
 
         notify_observers_about_session_focused(session->remote_pid,
+                                               session->stage_hint,
                                                session->desktop_file);
 
         shell_input_setup->shell_has_focus = false;
@@ -741,48 +752,48 @@ void ApplicationManager::notify_observers_about_session_requested(uint32_t app)
     }
 }
 
-void ApplicationManager::notify_observers_about_session_born(int id, const android::String8& desktop_file)
+void ApplicationManager::notify_observers_about_session_born(int id, int stage_hint, const android::String8& desktop_file)
 {
     android::Mutex::Autolock al(observer_guard);
     for(unsigned int i = 0; i < app_manager_observers.size(); i++)
     {
-        app_manager_observers[i]->on_session_born(id, desktop_file);
+        app_manager_observers[i]->on_session_born(id, stage_hint, desktop_file);
     }
 }
 
-void ApplicationManager::notify_observers_about_session_unfocused(int id, const android::String8& desktop_file)
+void ApplicationManager::notify_observers_about_session_unfocused(int id, int stage_hint, const android::String8& desktop_file)
 {
     android::Mutex::Autolock al(observer_guard);
     for(unsigned int i = 0; i < app_manager_observers.size(); i++)
     {
-        app_manager_observers[i]->on_session_unfocused(id, desktop_file);
+        app_manager_observers[i]->on_session_unfocused(id, stage_hint, desktop_file);
     }
 }
 
-void ApplicationManager::notify_observers_about_session_focused(int id, const android::String8& desktop_file)
+void ApplicationManager::notify_observers_about_session_focused(int id, int stage_hint, const android::String8& desktop_file)
 {
     android::Mutex::Autolock al(observer_guard);
     for(unsigned int i = 0; i < app_manager_observers.size(); i++)
     {
-        app_manager_observers[i]->on_session_focused(id, desktop_file);
+        app_manager_observers[i]->on_session_focused(id, stage_hint, desktop_file);
     }
 }
 
-void ApplicationManager::notify_observers_about_session_requested_fullscreen(int id, const android::String8& desktop_file)
+void ApplicationManager::notify_observers_about_session_requested_fullscreen(int id, int stage_hint, const android::String8& desktop_file)
 {
     android::Mutex::Autolock al(observer_guard);
     for(unsigned int i = 0; i < app_manager_observers.size(); i++)
     {
-        app_manager_observers[i]->on_session_requested_fullscreen(id, desktop_file);
+        app_manager_observers[i]->on_session_requested_fullscreen(id, stage_hint, desktop_file);
     }
 }
 
-void ApplicationManager::notify_observers_about_session_died(int id, const android::String8& desktop_file)
+void ApplicationManager::notify_observers_about_session_died(int id, int stage_hint, const android::String8& desktop_file)
 {
     android::Mutex::Autolock al(observer_guard);
     for(unsigned int i = 0; i < app_manager_observers.size(); i++)
     {
-        app_manager_observers[i]->on_session_died(id, desktop_file);
+        app_manager_observers[i]->on_session_died(id, stage_hint, desktop_file);
     }
 }
 

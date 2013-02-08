@@ -248,22 +248,25 @@ status_t BnApplicationManagerObserver::onTransact(uint32_t code,
     case ON_SESSION_BORN_NOTIFICATION:
         {
             int id = data.readInt32();
+            int stage_hint = data.readInt32();
             String8 desktop_file = data.readString8();
-            on_session_born(id, desktop_file);
+            on_session_born(id, stage_hint, desktop_file);
             break;
         }
     case ON_SESSION_UNFOCUSED_NOTIFICATION:
         {
             int id = data.readInt32();
+            int stage_hint = data.readInt32();
             String8 desktop_file = data.readString8();
-            on_session_unfocused(id, desktop_file);
+            on_session_unfocused(id, stage_hint, desktop_file);
             break;
         }
     case ON_SESSION_FOCUSED_NOTIFICATION:
         {
             int id = data.readInt32();
+            int stage_hint = data.readInt32();
             String8 desktop_file = data.readString8();
-            on_session_focused(id, desktop_file);
+            on_session_focused(id, stage_hint, desktop_file);
             break;
         }
     case ON_SESSION_REQUESTED_FULLSCREEN_NOTIFICATION:
@@ -276,8 +279,9 @@ status_t BnApplicationManagerObserver::onTransact(uint32_t code,
     case ON_SESSION_DIED_NOTIFICATION:
         {
             int id = data.readInt32();
+            int stage_hint = data.readInt32();
             String8 desktop_file = data.readString8();
-            on_session_died(id, desktop_file);
+            on_session_died(id, stage_hint, desktop_file);
             break;
         }
     }
@@ -304,10 +308,12 @@ void BpApplicationManagerObserver::on_session_requested(
 }
 
 void BpApplicationManagerObserver::on_session_born(int id,
-        const String8& desktop_file_hint)
+                                                   int stage_hint,
+                                                   const String8& desktop_file_hint)
 {
     Parcel in, out;
     in.writeInt32(id);
+    in.writeInt32(stage_hint);
     in.writeString8(desktop_file_hint);
 
     remote()->transact(
@@ -318,10 +324,12 @@ void BpApplicationManagerObserver::on_session_born(int id,
 }
 
 void BpApplicationManagerObserver::on_session_unfocused(int id,
-        const String8& desktop_file_hint)
+                                                        int stage_hint,
+                                                        const String8& desktop_file_hint)
 {
     Parcel in, out;
     in.writeInt32(id);
+    in.writeInt32(stage_hint);
     in.writeString8(desktop_file_hint);
 
     remote()->transact(
@@ -332,10 +340,12 @@ void BpApplicationManagerObserver::on_session_unfocused(int id,
 }
 
 void BpApplicationManagerObserver::on_session_focused(int id,
-        const String8& desktop_file_hint)
+                                                      int stage_hint,
+                                                      const String8& desktop_file_hint)
 {
     Parcel in, out;
     in.writeInt32(id);
+    in.writeInt32(stage_hint);
     in.writeString8(desktop_file_hint);
 
     remote()->transact(
@@ -360,10 +370,12 @@ void BpApplicationManagerObserver::on_session_requested_fullscreen(int id,
 }
 
 void BpApplicationManagerObserver::on_session_died(int id,
-        const String8& desktop_file_hint)
+                                                   int stage_hint,
+                                                   const String8& desktop_file_hint)
 {
     Parcel in, out;
     in.writeInt32(id);
+    in.writeInt32(stage_hint);
     in.writeString8(desktop_file_hint);
 
     remote()->transact(
@@ -391,13 +403,14 @@ status_t BnApplicationManager::onTransact(uint32_t code,
     case START_A_NEW_SESSION_COMMAND:
     {
         int32_t session_type = data.readInt32();
+        int32_t stage_hint = data.readInt32();
         String8 app_name = data.readString8();
         String8 desktop_file = data.readString8();
         sp<IBinder> binder = data.readStrongBinder();
         sp<BpApplicationManagerSession> session(new BpApplicationManagerSession(binder));
         int fd = data.readFileDescriptor();
 
-        start_a_new_session(session_type, app_name, desktop_file, session, fd);
+        start_a_new_session(session_type, stage_hint, app_name, desktop_file, session, fd);
     }
     break;
     case REGISTER_A_SURFACE_COMMAND:
@@ -496,6 +509,7 @@ BpApplicationManager::~BpApplicationManager()
 
 void BpApplicationManager::start_a_new_session(
     int32_t session_type,
+    int32_t stage_hint,
     const String8& app_name,
     const String8& desktop_file,
     const sp<IApplicationManagerSession>& session,
@@ -505,6 +519,7 @@ void BpApplicationManager::start_a_new_session(
     Parcel in, out;
     in.pushAllowFds(true);
     in.writeInt32(session_type);
+    in.writeInt32(stage_hint);
     in.writeString8(app_name);
     in.writeString8(desktop_file);
     in.writeStrongBinder(session->asBinder());

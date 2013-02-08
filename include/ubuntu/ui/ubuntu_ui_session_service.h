@@ -65,6 +65,10 @@ extern "C" {
         const char* key);
 
     int 
+    ubuntu_ui_session_properties_get_application_stage_hint(
+        ubuntu_ui_session_properties props);
+
+    int 
     ubuntu_ui_session_properties_get_application_instance_id(
         ubuntu_ui_session_properties props);
 

@@ -115,6 +115,16 @@ const char* ubuntu_ui_session_properties_get_value_for_key(ubuntu_ui_session_pro
     return (*p)->value_for_key(key);
 }
 
+int ubuntu_ui_session_properties_get_application_stage_hint(ubuntu_ui_session_properties props)
+{
+    if (!props)
+        return -1;
+
+    const ubuntu::ui::SessionProperties::Ptr* p = static_cast<const ubuntu::ui::SessionProperties::Ptr*>(props);
+
+    return (*p)->application_stage_hint();
+}
+
 int ubuntu_ui_session_properties_get_application_instance_id(ubuntu_ui_session_properties props)
 {
     if (!props)

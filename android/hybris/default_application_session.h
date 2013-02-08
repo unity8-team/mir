@@ -68,14 +68,16 @@ struct ApplicationSession : public android::RefBase
         pid_t remote_pid,        
         android::sp<android::IApplicationManagerSession> remote_session,
         int32_t session_type,
+        int32_t stage_hint,
         const android::String8& app_name,
         const android::String8& desktop_file)
-        : remote_pid(remote_pid),
-          app_layer(0),
-          remote_session(remote_session),
-          session_type(static_cast<ubuntu::application::ui::SessionType>(session_type)),
-          app_name(app_name),
-          desktop_file(desktop_file)
+            : remote_pid(remote_pid),
+            app_layer(0),
+            remote_session(remote_session),
+            session_type(static_cast<ubuntu::application::ui::SessionType>(session_type)),
+            stage_hint(stage_hint),
+            app_name(app_name),
+            desktop_file(desktop_file)
     {
     }
 
@@ -202,6 +204,7 @@ struct ApplicationSession : public android::RefBase
 
     android::sp<android::IApplicationManagerSession> remote_session;
     ubuntu::application::ui::SessionType session_type;
+    int32_t stage_hint;
     android::String8 app_name;
     android::String8 desktop_file;
     android::KeyedVector<int32_t, android::sp<Surface>> registered_surfaces;
