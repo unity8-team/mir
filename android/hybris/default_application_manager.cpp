@@ -649,10 +649,13 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
         focused_application < apps.size() &&
         focused_application != index_of_next_focused_app)
     {
-        //printf("\tLowering current application now for idx: %d \n", focused_application);
+        ALOGI("Lowering current application now for idx: %d \n", focused_application);
         const android::sp<mir::ApplicationSession>& session =
                 apps.valueFor(apps_as_added[focused_application]);
-        
+ 
+        const android::sp<mir::ApplicationSession>& next_session =
+                apps.valueFor(apps_as_added[index_of_next_focused_app]);
+       
         if (session->session_type != ubuntu::application::ui::system_session_type)
         {
             notify_observers_about_session_unfocused(session->remote_pid,
@@ -660,7 +663,8 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
                                                      session->desktop_file);
             // Stop the session
             if (!is_session_allowed_to_run_in_background(session))
-                kill(session->remote_pid, SIGSTOP);
+		if (session->stage_hint == 0 && next_session->stage_hint != 4)
+	                kill(session->remote_pid, SIGSTOP);
         }
     }
 
@@ -670,11 +674,12 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
     {
         focused_layer += focused_layer_increment;
 
-        ALOGI("Raising application now for idx: %d \n", focused_application);
-        const android::sp<mir::ApplicationSession>& session =
-                apps.valueFor(apps_as_added[focused_application]);
+        session = next_session;
+        const android::sp<mir::ApplicationSession>& session = next_session;
 
-        if (session->session_type == ubuntu::application::ui::system_session_type)
+        ALOGI("Raising application now for idx: %d (stage_hint: %d)\n", focused_application, session->stage_hint);
+        
+	if (session->session_type == ubuntu::application::ui::system_session_type)
         {
             ALOGI("\t system session - not raising it.");
             return;
