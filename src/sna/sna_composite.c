@@ -584,7 +584,7 @@ sna_composite(CARD8 op,
 	}
 
 	if (use_cpu(pixmap, priv, op, width, height) &&
-	    !picture_is_gpu(src) && !picture_is_gpu(mask)) {
+	    !picture_is_gpu(sna, src) && !picture_is_gpu(sna, mask)) {
 		DBG(("%s: fallback, dst pixmap=%ld is too small (or completely damaged)\n",
 		     __FUNCTION__, pixmap->drawable.serialNumber));
 		goto fallback;

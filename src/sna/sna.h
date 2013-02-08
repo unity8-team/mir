@@ -256,7 +256,6 @@ struct sna {
 		struct gen6_render_state gen6;
 		struct gen7_render_state gen7;
 	} render_state;
-	uint32_t have_render;
 
 	bool dri_available;
 	bool dri_open;
@@ -672,7 +671,7 @@ static inline bool wedged(struct sna *sna)
 
 static inline bool can_render(struct sna *sna)
 {
-	return likely(!sna->kgem.wedged && sna->have_render);
+	return likely(!sna->kgem.wedged && sna->render.prefer_gpu & PREFER_GPU_RENDER);
 }
 
 static inline uint32_t pixmap_size(PixmapPtr pixmap)

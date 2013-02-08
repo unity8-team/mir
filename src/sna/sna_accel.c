@@ -879,7 +879,8 @@ sna_pixmap_create_scratch(ScreenPtr screen,
 	     width, height, depth, tiling));
 
 	bpp = bits_per_pixel(depth);
-	if (tiling == I915_TILING_Y && !sna->have_render)
+	if (tiling == I915_TILING_Y &&
+	    (sna->render.prefer_gpu & PREFER_GPU_RENDER) == 0)
 		tiling = I915_TILING_X;
 
 	if (tiling == I915_TILING_Y &&
@@ -1180,7 +1181,7 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 		goto fallback;
 	}
 
-	if (unlikely(!sna->have_render))
+	if (unlikely((sna->render.prefer_gpu & PREFER_GPU_RENDER) == 0))
 		flags &= ~KGEM_CAN_CREATE_GPU;
 	if (wedged(sna))
 		flags = 0;
@@ -14199,31 +14200,30 @@ bool sna_accel_init(ScreenPtr screen, struct sna *sna)
 		return false;
 
 	backend = "no";
-	sna->have_render = false;
 	no_render_init(sna);
 
 	if (sna_option_accel_blt(sna) || sna->info->gen >= 0100) {
 	} else if (sna->info->gen >= 070) {
-		if ((sna->have_render = gen7_render_init(sna)))
+		if (gen7_render_init(sna))
 			backend = "IvyBridge";
 	} else if (sna->info->gen >= 060) {
-		if ((sna->have_render = gen6_render_init(sna)))
+		if (gen6_render_init(sna))
 			backend = "SandyBridge";
 	} else if (sna->info->gen >= 050) {
-		if ((sna->have_render = gen5_render_init(sna)))
+		if (gen5_render_init(sna))
 			backend = "Ironlake";
 	} else if (sna->info->gen >= 040) {
-		if ((sna->have_render = gen4_render_init(sna)))
+		if (gen4_render_init(sna))
 			backend = "Broadwater/Crestline";
 	} else if (sna->info->gen >= 030) {
-		if ((sna->have_render = gen3_render_init(sna)))
+		if (gen3_render_init(sna))
 			backend = "gen3";
 	} else if (sna->info->gen >= 020) {
-		if ((sna->have_render = gen2_render_init(sna)))
+		if (gen2_render_init(sna))
 			backend = "gen2";
 	}
-	DBG(("%s(backend=%s, have_render=%d)\n",
-	     __FUNCTION__, backend, sna->have_render));
+	DBG(("%s(backend=%s, prefer_gpu=%x)\n",
+	     __FUNCTION__, backend, sna->render.prefer_gpu));
 
 	kgem_reset(&sna->kgem);
 
@@ -14252,7 +14252,6 @@ void sna_accel_create(struct sna *sna)
 fail:
 	xf86DrvMsg(sna->scrn->scrnIndex, X_ERROR,
 		   "Failed to allocate caches, disabling RENDER acceleration\n");
-	sna->have_render = false;
 	no_render_init(sna);
 }
 

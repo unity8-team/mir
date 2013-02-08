@@ -1580,15 +1580,6 @@ gen4_composite_set_target(struct sna *sna,
 	return true;
 }
 
-static inline bool
-picture_is_cpu(PicturePtr picture)
-{
-	if (!picture->pDrawable)
-		return false;
-
-	return !is_gpu(picture->pDrawable);
-}
-
 static bool
 try_blt(struct sna *sna,
 	PicturePtr dst, PicturePtr src,
@@ -1613,7 +1604,7 @@ try_blt(struct sna *sna,
 		return true;
 
 	/* is the source picture only in cpu memory e.g. a shm pixmap? */
-	return picture_is_cpu(src);
+	return picture_is_cpu(sna, src);
 }
 
 static bool
@@ -1635,9 +1626,10 @@ has_alphamap(PicturePtr p)
 }
 
 static bool
-need_upload(PicturePtr p)
+need_upload(struct sna *sna, PicturePtr p)
 {
-	return p->pDrawable && untransformed(p) && !is_gpu(p->pDrawable);
+	return p->pDrawable && untransformed(p) &&
+		!is_gpu(sna, p->pDrawable, PREFER_GPU_RENDER);
 }
 
 static bool
@@ -1660,7 +1652,7 @@ source_is_busy(PixmapPtr pixmap)
 }
 
 static bool
-source_fallback(PicturePtr p, PixmapPtr pixmap)
+source_fallback(struct sna *sna, PicturePtr p, PixmapPtr pixmap)
 {
 	if (sna_picture_is_solid(p, NULL))
 		return false;
@@ -1675,7 +1667,7 @@ source_fallback(PicturePtr p, PixmapPtr pixmap)
 	if (pixmap && source_is_busy(pixmap))
 		return false;
 
-	return has_alphamap(p) || !gen4_check_filter(p) || need_upload(p);
+	return has_alphamap(p) || !gen4_check_filter(p) || need_upload(sna, p);
 }
 
 static bool
@@ -1698,11 +1690,11 @@ gen4_composite_fallback(struct sna *sna,
 	dst_pixmap = get_drawable_pixmap(dst->pDrawable);
 
 	src_pixmap = src->pDrawable ? get_drawable_pixmap(src->pDrawable) : NULL;
-	src_fallback = source_fallback(src, src_pixmap);
+	src_fallback = source_fallback(sna, src, src_pixmap);
 
 	if (mask) {
 		mask_pixmap = mask->pDrawable ? get_drawable_pixmap(mask->pDrawable) : NULL;
-		mask_fallback = source_fallback(mask, mask_pixmap);
+		mask_fallback = source_fallback(sna, mask, mask_pixmap);
 	} else {
 		mask_pixmap = NULL;
 		mask_fallback = false;
@@ -2098,7 +2090,8 @@ gen4_check_composite_spans(struct sna *sna,
 		return false;
 	}
 
-	if (need_tiling(sna, width, height) && !is_gpu(dst->pDrawable)) {
+	if (need_tiling(sna, width, height) &&
+	    !is_gpu(sna, dst->pDrawable, PREFER_GPU_SPANS)) {
 		DBG(("%s: fallback, tiled operation not on GPU\n",
 		     __FUNCTION__));
 		return false;
@@ -2108,24 +2101,20 @@ gen4_check_composite_spans(struct sna *sna,
 		return FORCE_SPANS > 0;
 
 	if ((flags & COMPOSITE_SPANS_RECTILINEAR) == 0) {
-		struct sna_pixmap *priv;
-
-		if (FORCE_NONRECTILINEAR_SPANS)
-			return FORCE_NONRECTILINEAR_SPANS > 0;
-
-		priv = sna_pixmap_from_drawable(dst->pDrawable);
+		struct sna_pixmap *priv = sna_pixmap_from_drawable(dst->pDrawable);
 		assert(priv);
 
 		if (priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo))
 			return true;
 
-		if ((flags & COMPOSITE_SPANS_INPLACE_HINT) == 0 &&
-		    priv->gpu_bo && kgem_bo_is_busy(priv->gpu_bo))
-			return true;
+		if (flags & COMPOSITE_SPANS_INPLACE_HINT)
+			return false;
 
-		DBG(("%s: fallback, non-rectilinear spans to idle bo\n",
-		     __FUNCTION__));
-		return false;
+		if ((sna->render.prefer_gpu & PREFER_GPU_SPANS) == 0 &&
+		    dst->format == PICT_a8)
+			return false;
+
+		return priv->gpu_bo && kgem_bo_is_busy(priv->gpu_bo);
 	}
 
 	return true;
@@ -3124,10 +3113,13 @@ bool gen4_render_init(struct sna *sna)
 
 #if !NO_COMPOSITE
 	sna->render.composite = gen4_render_composite;
+	sna->render.prefer_gpu |= PREFER_GPU_RENDER;
 #endif
 #if !NO_COMPOSITE_SPANS
 	sna->render.check_composite_spans = gen4_check_composite_spans;
 	sna->render.composite_spans = gen4_render_composite_spans;
+	if (0)
+		sna->render.prefer_gpu |= PREFER_GPU_SPANS;
 #endif
 
 #if !NO_VIDEO

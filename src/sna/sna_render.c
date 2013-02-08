@@ -87,8 +87,8 @@ no_render_composite(struct sna *sna,
 	if (mask)
 		return false;
 
-	if (!is_gpu(dst->pDrawable) &&
-	    (src->pDrawable == NULL || !is_gpu(src->pDrawable)))
+	if (!is_gpu(sna, dst->pDrawable, PREFER_GPU_BLT) &&
+	    (src->pDrawable == NULL || !is_gpu(sna, src->pDrawable, PREFER_GPU_BLT)))
 		return false;
 
 	return sna_blt_composite(sna,
@@ -279,7 +279,9 @@ void no_render_init(struct sna *sna)
 {
 	struct sna_render *render = &sna->render;
 
-	memset (render,0, sizeof (*render));
+	memset (render, 0, sizeof (*render));
+
+	render->prefer_gpu = PREFER_GPU_BLT;
 
 	render->vertices = render->vertex_data;
 	render->vertex_size = ARRAY_SIZE(render->vertex_data);
@@ -1533,7 +1535,8 @@ sna_render_picture_fixup(struct sna *sna,
 
 	if (picture->alphaMap) {
 		DBG(("%s: alphamap\n", __FUNCTION__));
-		if (is_gpu(picture->pDrawable) || is_gpu(picture->alphaMap->pDrawable)) {
+		if (is_gpu(sna, picture->pDrawable, PREFER_GPU_RENDER) ||
+		    is_gpu(sna, picture->alphaMap->pDrawable, PREFER_GPU_RENDER)) {
 			return sna_render_picture_flatten(sna, picture, channel,
 							  x, y, w, h, dst_x, dst_y);
 		}
@@ -1543,7 +1546,7 @@ sna_render_picture_fixup(struct sna *sna,
 
 	if (picture->filter == PictFilterConvolution) {
 		DBG(("%s: convolution\n", __FUNCTION__));
-		if (is_gpu(picture->pDrawable)) {
+		if (is_gpu(sna, picture->pDrawable, PREFER_GPU_RENDER)) {
 			return sna_render_picture_convolve(sna, picture, channel,
 							   x, y, w, h, dst_x, dst_y);
 		}
@@ -1704,7 +1707,7 @@ sna_render_picture_convert(struct sna *sna,
 		return 0;
 	}
 
-	if (fixup_alpha && is_gpu(&pixmap->drawable)) {
+	if (fixup_alpha && is_gpu(sna, &pixmap->drawable, PREFER_GPU_RENDER)) {
 		ScreenPtr screen = pixmap->drawable.pScreen;
 		PixmapPtr tmp;
 		PicturePtr src, dst;

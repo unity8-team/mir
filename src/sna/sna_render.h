@@ -215,6 +215,11 @@ struct sna_render {
 	int max_3d_size;
 	int max_3d_pitch;
 
+	unsigned prefer_gpu;
+#define PREFER_GPU_BLT 0x1
+#define PREFER_GPU_RENDER 0x2
+#define PREFER_GPU_SPANS 0x4
+
 	bool (*composite)(struct sna *sna, uint8_t op,
 			  PicturePtr dst, PicturePtr src, PicturePtr mask,
 			  int16_t src_x, int16_t src_y,
