@@ -1,6 +1,10 @@
 ubuntu-platform-api (0.6) quantal; urgency=low
 
-  * Release 0.6
+  [ Thomas Voss ]
+  * Add fullscreen observer and callback for the app manager.
+
+  [ Ricardo Mendoza ]
+  * Release upstream
 
  -- Ricardo Mendoza <ricardo.mendoza@canonical.com>  Thu, 07 Feb 2013 19:44:18 -0430
 
