@@ -665,7 +665,7 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
             if (!is_session_allowed_to_run_in_background(session))
 		//FIXME: get rid of check for stage hint
 		if (session->stage_hint == 0 &&
-                    next_session->stage_hint != ubuntu::application::ui::StageHint::side_stage)
+                    next_session->stage_hint != 4)
 	                kill(session->remote_pid, SIGSTOP);
         }
     }
