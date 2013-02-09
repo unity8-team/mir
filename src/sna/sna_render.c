@@ -350,6 +350,11 @@ use_cpu_bo(struct sna *sna, PixmapPtr pixmap, const BoxRec *box, bool blt)
 			     __FUNCTION__));
 			break;
 		default:
+			if (kgem_bo_is_busy(priv->gpu_bo)){
+				DBG(("%s: box is partially damaged on the CPU, and the GPU is busy\n",
+				     __FUNCTION__));
+				return NULL;
+			}
 			if (sna_damage_contains_box(priv->gpu_damage,
 						    box) != PIXMAN_REGION_OUT) {
 				DBG(("%s: box is damaged on the GPU\n",
@@ -454,7 +459,9 @@ move_to_gpu(PixmapPtr pixmap, const BoxRec *box, bool blt)
 
 	w = box->x2 - box->x1;
 	h = box->y2 - box->y1;
-	if (w == pixmap->drawable.width && h == pixmap->drawable.height) {
+	if (priv->cpu_bo && !priv->cpu_bo->flush) {
+		migrate = true;
+	} else if (w == pixmap->drawable.width && h == pixmap->drawable.height) {
 		migrate = priv->source_count++ > SOURCE_BIAS;
 
 		DBG(("%s: migrating whole pixmap (%dx%d) for source (%d,%d),(%d,%d), count %d? %d\n",
