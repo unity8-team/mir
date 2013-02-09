@@ -899,6 +899,9 @@ sna_render_pixmap_partial(struct sna *sna,
 		DBG(("%s: tile size for tiling %d: %dx%d, size=%d\n",
 		     __FUNCTION__, bo->tiling, tile_width, tile_height, tile_size));
 
+		if (sna->kgem.gen < 033)
+			tile_width = bo->pitch;
+
 		/* Ensure we align to an even tile row */
 		box.y1 = box.y1 & ~(2*tile_height - 1);
 		box.y2 = ALIGN(box.y2, 2*tile_height);
