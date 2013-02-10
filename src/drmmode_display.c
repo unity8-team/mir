@@ -346,9 +346,12 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	drmmode_ConvertToKMode(crtc->scrn, &kmode, mode);
 
 	fb_id = drmmode->fb_id;
+#ifdef NOUVEAU_PIXMAP_SHARING
 	if (crtc->randr_crtc->scanout_pixmap)
 		x = y = 0;
-	else if (drmmode_crtc->rotate_fb_id) {
+	else
+#endif
+	if (drmmode_crtc->rotate_fb_id) {
 		fb_id = drmmode_crtc->rotate_fb_id;
 		x = 0;
 		y = 0;
@@ -539,11 +542,11 @@ drmmode_gamma_set(xf86CrtcPtr crtc, CARD16 *red, CARD16 *green, CARD16 *blue,
 	}
 }
 
+#ifdef NOUVEAU_PIXMAP_SHARING
 static Bool
 drmmode_set_scanout_pixmap(xf86CrtcPtr crtc, PixmapPtr ppix)
 {
 	ScreenPtr screen = xf86ScrnToScreen(crtc->scrn);
-	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	PixmapPtr screenpix = screen->GetScreenPixmap(screen);
 
 	if (!ppix) {
@@ -566,6 +569,7 @@ drmmode_set_scanout_pixmap(xf86CrtcPtr crtc, PixmapPtr ppix)
 	PixmapStartDirtyTracking(ppix, screenpix, 0, 0);
 	return TRUE;
 }
+#endif
 
 static const xf86CrtcFuncsRec drmmode_crtc_funcs = {
 	.dpms = drmmode_crtc_dpms,
@@ -579,7 +583,9 @@ static const xf86CrtcFuncsRec drmmode_crtc_funcs = {
 	.shadow_destroy = drmmode_crtc_shadow_destroy,
 	.gamma_set = drmmode_gamma_set,
 
+#ifdef NOUVEAU_PIXMAP_SHARING
 	.set_scanout_pixmap = drmmode_set_scanout_pixmap,
+#endif
 };
 
 
