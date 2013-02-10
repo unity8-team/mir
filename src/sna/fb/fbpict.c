@@ -25,12 +25,11 @@
 
 #include <string.h>
 
-#include "fb.h"
-
-#include <xorgVersion.h>
 #include <picturestr.h>
 #include <mipict.h>
 #include <fbpict.h>
+
+#include "fb.h"
 
 static void
 SourceValidateOnePicture(PicturePtr picture)
