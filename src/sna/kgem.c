@@ -111,6 +111,9 @@ search_snoop_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags);
 
 #define MAKE_REQUEST(rq, ring) ((struct kgem_request *)((uintptr_t)(rq) | (ring)))
 
+#define LOCAL_I915_PARAM_HAS_BLT		11
+#define LOCAL_I915_PARAM_HAS_RELAXED_FENCING	12
+#define LOCAL_I915_PARAM_HAS_RELAXED_DELTA	15
 #define LOCAL_I915_PARAM_HAS_SEMAPHORES		20
 #define LOCAL_I915_PARAM_HAS_SECURE_BATCHES	23
 #define LOCAL_I915_PARAM_HAS_PINNED_BATCHES	24
@@ -782,7 +785,7 @@ static bool test_has_relaxed_fencing(struct kgem *kgem)
 		if (DBG_NO_RELAXED_FENCING)
 			return false;
 
-		return gem_param(kgem, I915_PARAM_HAS_RELAXED_FENCING) > 0;
+		return gem_param(kgem, LOCAL_I915_PARAM_HAS_RELAXED_FENCING) > 0;
 	} else
 		return true;
 }
@@ -982,12 +985,12 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, unsigned gen)
 	kgem->vma[MAP_GTT].count = -MAX_GTT_VMA_CACHE;
 	kgem->vma[MAP_CPU].count = -MAX_CPU_VMA_CACHE;
 
-	kgem->has_blt = gem_param(kgem, I915_PARAM_HAS_BLT) > 0;
+	kgem->has_blt = gem_param(kgem, LOCAL_I915_PARAM_HAS_BLT) > 0;
 	DBG(("%s: has BLT ring? %d\n", __FUNCTION__,
 	     kgem->has_blt));
 
 	kgem->has_relaxed_delta =
-		gem_param(kgem, I915_PARAM_HAS_RELAXED_DELTA) > 0;
+		gem_param(kgem, LOCAL_I915_PARAM_HAS_RELAXED_DELTA) > 0;
 	DBG(("%s: has relaxed delta? %d\n", __FUNCTION__,
 	     kgem->has_relaxed_delta));
 

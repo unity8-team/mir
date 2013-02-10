@@ -627,7 +627,7 @@ struct kgem_bo *sna_pixmap_change_tiling(PixmapPtr pixmap, uint32_t tiling)
 
 static inline void sna_set_pixmap(PixmapPtr pixmap, struct sna_pixmap *sna)
 {
-	((void **)dixGetPrivateAddr(&pixmap->devPrivates, &sna_pixmap_key))[1] = sna;
+	((void **)__get_private(pixmap, sna_pixmap_key))[1] = sna;
 	assert(sna_pixmap(pixmap) == sna);
 }
 
@@ -727,11 +727,13 @@ create_pixmap(struct sna *sna, ScreenPtr screen,
 		datasize += adjust;
 	}
 
+	DBG(("%s: allocating pixmap %dx%d, depth=%d, size=%ld\n",
+	     __FUNCTION__, width, height, depth, (long)datasize));
 	pixmap = AllocatePixmap(screen, datasize);
 	if (!pixmap)
 		return NullPixmap;
 
-	((void **)dixGetPrivateAddr(&pixmap->devPrivates, &sna_pixmap_key))[0] = sna;
+	((void **)__get_private(pixmap, sna_pixmap_key))[0] = sna;
 	assert(to_sna_from_pixmap(pixmap) == sna);
 
 	pixmap->drawable.type = DRAWABLE_PIXMAP;
@@ -2015,8 +2017,8 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 
 	assert(priv->gpu_bo->proxy == NULL);
 	if (priv->clear) {
-		int n = REGION_NUM_RECTS(region);
-		BoxPtr box = REGION_RECTS(region);
+		int n = RegionNumRects(region);
+		BoxPtr box = RegionRects(region);
 
 		DBG(("%s: pending clear, doing partial fill\n", __FUNCTION__));
 		if (priv->cpu_bo) {
@@ -2132,9 +2134,9 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 			 * reads.
 			 */
 			if (flags & MOVE_WRITE) {
-				int n = REGION_NUM_RECTS(region), i;
-				BoxPtr boxes = REGION_RECTS(region);
-				BoxPtr blocks = malloc(sizeof(BoxRec) * REGION_NUM_RECTS(region));
+				int n = RegionNumRects(region), i;
+				BoxPtr boxes = RegionRects(region);
+				BoxPtr blocks = malloc(sizeof(BoxRec) * RegionNumRects(region));
 				if (blocks) {
 					for (i = 0; i < n; i++) {
 						blocks[i].x1 = boxes[i].x1 & ~31;
@@ -2190,8 +2192,8 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 			} else if (DAMAGE_IS_ALL(priv->gpu_damage) ||
 				   sna_damage_contains_box__no_reduce(priv->gpu_damage,
 								      &r->extents)) {
-				BoxPtr box = REGION_RECTS(r);
-				int n = REGION_NUM_RECTS(r);
+				BoxPtr box = RegionRects(r);
+				int n = RegionNumRects(r);
 				bool ok = false;
 
 				DBG(("%s: region wholly inside damage\n",
@@ -2216,8 +2218,8 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 
 				pixman_region_init(&need);
 				if (sna_damage_intersect(priv->gpu_damage, r, &need)) {
-					BoxPtr box = REGION_RECTS(&need);
-					int n = REGION_NUM_RECTS(&need);
+					BoxPtr box = RegionRects(&need);
+					int n = RegionNumRects(&need);
 					bool ok = false;
 
 					DBG(("%s: region intersects damage\n",
@@ -2535,10 +2537,10 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 
 		sna_damage_subtract(&priv->cpu_damage, &r);
 	} else if (sna_damage_intersect(priv->cpu_damage, &r, &i)) {
-		int n = REGION_NUM_RECTS(&i);
+		int n = RegionNumRects(&i);
 		bool ok;
 
-		box = REGION_RECTS(&i);
+		box = RegionRects(&i);
 		ok = false;
 		if (use_cpu_bo_for_upload(sna, priv, 0)) {
 			DBG(("%s: using CPU bo for upload to GPU, %d boxes\n", __FUNCTION__, n));
@@ -3249,7 +3251,7 @@ static bool must_check sna_gc_move_to_cpu(GCPtr gc,
 
 	if (gc->clientClipType == CT_PIXMAP) {
 		PixmapPtr clip = gc->clientClip;
-		gc->clientClip = BitmapToRegion(gc->pScreen, clip);
+		gc->clientClip = region_from_bitmap(gc->pScreen, clip);
 		gc->pScreen->DestroyPixmap(clip);
 		gc->clientClipType = gc->clientClip ? CT_REGION : CT_NONE;
 		changes |= GCClipMask;
@@ -3443,8 +3445,8 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	DBG(("%s: upload(%d, %d, %d, %d)\n", __FUNCTION__, x, y, w, h));
 
 	/* Region is pre-clipped and translated into pixmap space */
-	box = REGION_RECTS(region);
-	n = REGION_NUM_RECTS(region);
+	box = RegionRects(region);
+	n = RegionNumRects(region);
 	do {
 		DBG(("%s: copy box (%d, %d)->(%d, %d)x(%d, %d)\n",
 		     __FUNCTION__,
@@ -3536,8 +3538,8 @@ sna_put_xybitmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	kgem_set_mode(&sna->kgem, KGEM_BLT, bo);
 
 	/* Region is pre-clipped and translated into pixmap space */
-	box = REGION_RECTS(region);
-	n = REGION_NUM_RECTS(region);
+	box = RegionRects(region);
+	n = RegionNumRects(region);
 	do {
 		int bx1 = (box->x1 - x) & ~7;
 		int bx2 = (box->x2 - x + 7) & ~7;
@@ -3661,8 +3663,8 @@ sna_put_xypixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 
 	skip = h * BitmapBytePad(w + left);
 	for (i = 1 << (gc->depth-1); i; i >>= 1, bits += skip) {
-		const BoxRec *box = REGION_RECTS(region);
-		int n = REGION_NUM_RECTS(region);
+		const BoxRec *box = RegionRects(region);
+		int n = RegionNumRects(region);
 
 		if ((gc->planemask & i) == 0)
 			continue;
@@ -4690,10 +4692,7 @@ sna_do_copy(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 		return NULL;
 	}
 
-	if (src->pScreen->SourceValidate)
-		src->pScreen->SourceValidate(src, sx, sy,
-					     width, height,
-					     gc->subWindowMode);
+	SourceValidate(src, sx, sy, width, height, gc->subWindowMode);
 
 	sx += src->x;
 	sy += src->y;
@@ -4772,17 +4771,17 @@ sna_do_copy(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 		if (free_clip)
 			RegionDestroy(free_clip);
 	}
-	DBG(("%s: src extents (%d, %d), (%d, %d) x %d\n", __FUNCTION__,
+	DBG(("%s: src extents (%d, %d), (%d, %d) x %ld\n", __FUNCTION__,
 	     region.extents.x1, region.extents.y1,
 	     region.extents.x2, region.extents.y2,
-	     RegionNumRects(&region)));
+	     (long)RegionNumRects(&region)));
 	RegionTranslate(&region, dx-sx, dy-sy);
 	if (gc->pCompositeClip->data)
 		RegionIntersect(&region, &region, gc->pCompositeClip);
-	DBG(("%s: copy region (%d, %d), (%d, %d) x %d\n", __FUNCTION__,
+	DBG(("%s: copy region (%d, %d), (%d, %d) x %ld\n", __FUNCTION__,
 	     region.extents.x1, region.extents.y1,
 	     region.extents.x2, region.extents.y2,
-	     RegionNumRects(&region)));
+	     (long)RegionNumRects(&region)));
 
 	if (RegionNotEmpty(&region))
 		copy(src, dst, gc, &region, sx-dx, sy-dy, bitPlane, closure);
@@ -4804,8 +4803,8 @@ sna_fallback_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			RegionPtr region, int dx, int dy,
 			Pixel bitplane, void *closure)
 {
-	DBG(("%s (boxes=%dx[(%d, %d), (%d, %d)...], src=+(%d, %d), alu=%d\n",
-	     __FUNCTION__, RegionNumRects(region),
+	DBG(("%s (boxes=%ldx[(%d, %d), (%d, %d)...], src=+(%d, %d), alu=%d\n",
+	     __FUNCTION__, (long)RegionNumRects(region),
 	     region->extents.x1, region->extents.y1,
 	     region->extents.x2, region->extents.y2,
 	     dx, dy, gc->alu));
@@ -5408,9 +5407,9 @@ no_damage_clipped:
 		assert(dx + clip.extents.x2 <= pixmap->drawable.width);
 		assert(dy + clip.extents.y2 <= pixmap->drawable.height);
 
-		DBG(("%s: clip %d x [(%d, %d), (%d, %d)] x %d [(%d, %d)...]\n",
+		DBG(("%s: clip %ld x [(%d, %d), (%d, %d)] x %d [(%d, %d)...]\n",
 		     __FUNCTION__,
-		     REGION_NUM_RECTS(&clip),
+		     (long)RegionNumRects(&clip),
 		     clip.extents.x1, clip.extents.y1, clip.extents.x2, clip.extents.y2,
 		     n, pt->x, pt->y));
 
@@ -5509,9 +5508,9 @@ damage_clipped:
 		assert(dx + clip.extents.x2 <= pixmap->drawable.width);
 		assert(dy + clip.extents.y2 <= pixmap->drawable.height);
 
-		DBG(("%s: clip %d x [(%d, %d), (%d, %d)] x %d [(%d, %d)...]\n",
+		DBG(("%s: clip %ld x [(%d, %d), (%d, %d)] x %d [(%d, %d)...]\n",
 		     __FUNCTION__,
-		     REGION_NUM_RECTS(&clip),
+		     RegionNumRects(&clip),
 		     clip.extents.x1, clip.extents.y1, clip.extents.x2, clip.extents.y2,
 		     n, pt->x, pt->y));
 
@@ -5899,10 +5898,11 @@ sna_copy_bitmap_blt(DrawablePtr _bitmap, DrawablePtr drawable, GCPtr gc,
 	BoxPtr box;
 	int n;
 
-	DBG(("%s: plane=%x (%d,%d),(%d,%d)x%d\n",
-	     __FUNCTION__, (unsigned)bitplane, RegionNumRects(region),
+	DBG(("%s: plane=%x (%d,%d),(%d,%d)x%ld\n",
+	     __FUNCTION__, (unsigned)bitplane,
 	     region->extents.x1, region->extents.y1,
-	     region->extents.x2, region->extents.y2));
+	     region->extents.x2, region->extents.y2,
+	     (long)RegionNumRects(region)));
 
 	box = RegionRects(region);
 	n = RegionNumRects(region);
@@ -6634,8 +6634,8 @@ sna_poly_zero_line_blt(DrawablePtr drawable,
 	     clip.extents.x2, clip.extents.y2,
 	     dx, dy, damage));
 
-	extents = REGION_RECTS(&clip);
-	last_extents = extents + REGION_NUM_RECTS(&clip);
+	extents = RegionRects(&clip);
+	last_extents = extents + RegionNumRects(&clip);
 
 	b = box;
 	do {
@@ -7847,8 +7847,8 @@ sna_poly_zero_segment_blt(DrawablePtr drawable,
 	jump = _jump[(damage != NULL) | !!(dx|dy) << 1];
 
 	b = box;
-	extents = REGION_RECTS(&clip);
-	last_extents = extents + REGION_NUM_RECTS(&clip);
+	extents = RegionRects(&clip);
+	last_extents = extents + RegionNumRects(&clip);
 	do {
 		int n = _n;
 		const xSegment *s = _s;
@@ -10217,8 +10217,8 @@ sna_poly_fill_rect_tiled_blt(DrawablePtr drawable,
 				region.data = NULL;
 				RegionIntersect(&region, &region, &clip);
 
-				nbox = REGION_NUM_RECTS(&region);
-				box = REGION_RECTS(&region);
+				nbox = RegionNumRects(&region);
+				box = RegionRects(&region);
 				while (nbox--) {
 					int height = box->y2 - box->y1;
 					int dst_y = box->y1;
@@ -12098,13 +12098,13 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 	_y += drawable->y + dy;
 
 	RegionTranslate(clip, dx, dy);
-	extents = REGION_RECTS(clip);
-	last_extents = extents + REGION_NUM_RECTS(clip);
+	extents = RegionRects(clip);
+	last_extents = extents + RegionNumRects(clip);
 
 	if (!transparent) /* emulate miImageGlyphBlt */
 		sna_blt_fill_boxes(sna, GXcopy,
 				   bo, drawable->bitsPerPixel,
-				   bg, extents, REGION_NUM_RECTS(clip));
+				   bg, extents, RegionNumRects(clip));
 
 	kgem_set_mode(&sna->kgem, KGEM_BLT, bo);
 	if (!kgem_check_batch(&sna->kgem, 16) ||
@@ -12745,13 +12745,13 @@ sna_reversed_glyph_blt(DrawablePtr drawable, GCPtr gc,
 	_y += drawable->y + dy;
 
 	RegionTranslate(clip, dx, dy);
-	extents = REGION_RECTS(clip);
-	last_extents = extents + REGION_NUM_RECTS(clip);
+	extents = RegionRects(clip);
+	last_extents = extents + RegionNumRects(clip);
 
 	if (!transparent) /* emulate miImageGlyphBlt */
 		sna_blt_fill_boxes(sna, GXcopy,
 				   bo, drawable->bitsPerPixel,
-				   bg, extents, REGION_NUM_RECTS(clip));
+				   bg, extents, RegionNumRects(clip));
 
 	kgem_set_mode(&sna->kgem, KGEM_BLT, bo);
 	if (!kgem_check_batch(&sna->kgem, 16) ||
@@ -13138,8 +13138,8 @@ sna_push_pixels_solid_blt(GCPtr gc,
 	kgem_set_mode(&sna->kgem, KGEM_BLT, bo);
 
 	/* Region is pre-clipped and translated into pixmap space */
-	box = REGION_RECTS(region);
-	n = REGION_NUM_RECTS(region);
+	box = RegionRects(region);
+	n = RegionNumRects(region);
 	do {
 		int bx1 = (box->x1 - region->extents.x1) & ~7;
 		int bx2 = (box->x2 - region->extents.x1 + 7) & ~7;
@@ -13384,6 +13384,10 @@ static int sna_create_gc(GCPtr gc)
 {
 	gc->miTranslate = 1;
 	gc->fExpose = 1;
+
+	gc->freeCompClip = 0;
+	gc->pCompositeClip = 0;
+	gc->pRotatedPixmap = 0;
 
 	fb_gc(gc)->bpp = bits_per_pixel(gc->depth);
 
@@ -13863,8 +13867,8 @@ static void sna_accel_post_damage(struct sna *sna)
 		     region.extents.x2, region.extents.y2,
 		     RegionNumRects(&region.extents)));
 
-		box = REGION_RECTS(&region);
-		n = REGION_NUM_RECTS(&region);
+		box = RegionRects(&region);
+		n = RegionNumRects(&region);
 		if (wedged(sna)) {
 fallback:
 			if (!sna_pixmap_move_to_cpu(src, MOVE_READ))
@@ -14019,7 +14023,7 @@ sna_get_window_pixmap(WindowPtr window)
 static void
 sna_set_window_pixmap(WindowPtr window, PixmapPtr pixmap)
 {
-	*(PixmapPtr *)dixGetPrivateAddr(&window->devPrivates, &sna_window_key) = pixmap;
+	*(PixmapPtr *)__get_private(window, sna_window_key) = pixmap;
 }
 
 static Bool
@@ -14107,10 +14111,12 @@ static bool sna_picture_init(ScreenPtr screen)
 	ps->UnrealizeGlyph = sna_glyph_unrealize;
 	ps->AddTraps = sna_add_traps;
 	ps->Trapezoids = sna_composite_trapezoids;
+#if HAS_PIXMAN_TRIANGLES
 	ps->Triangles = sna_composite_triangles;
 #if PICTURE_SCREEN_VERSION >= 2
 	ps->TriStrip = sna_composite_tristrip;
 	ps->TriFan = sna_composite_trifan;
+#endif
 #endif
 
 	return true;

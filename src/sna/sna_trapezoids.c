@@ -7046,6 +7046,7 @@ project_point_onto_grid(const xPointFixed *in,
 	out->y = dy + pixman_fixed_to_grid(in->y);
 }
 
+#if HAS_PIXMAN_TRIANGLES
 static inline bool
 xTriangleValid(const xTriangle *t)
 {
@@ -7988,3 +7989,4 @@ sna_composite_trifan(CARD8 op,
 {
 	trifan_fallback(op, src, dst, maskFormat, xSrc, ySrc, n, points);
 }
+#endif

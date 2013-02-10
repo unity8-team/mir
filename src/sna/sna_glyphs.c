@@ -110,7 +110,7 @@ extern DevPrivateKeyRec sna_glyph_key;
 
 static inline struct sna_glyph *sna_glyph(GlyphPtr glyph)
 {
-	return dixGetPrivateAddr(&glyph->devPrivates, &sna_glyph_key);
+	return __get_private(glyph, sna_glyph_key);
 }
 
 #define NeedsComponent(f) (PICT_FORMAT_A(f) != 0 && PICT_FORMAT_RGB(f) != 0)
@@ -246,6 +246,7 @@ bool sna_glyphs_create(struct sna *sna)
 			goto bail;
 
 		ValidatePicture(picture);
+		assert(picture->pDrawable == &pixmap->drawable);
 
 		cache->count = cache->evict = 0;
 		cache->picture = picture;

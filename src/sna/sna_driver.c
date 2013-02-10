@@ -186,7 +186,7 @@ sna_set_fallback_mode(ScrnInfoPtr scrn)
 
 	xf86DisableUnusedFunctions(scrn);
 #ifdef RANDR_12_INTERFACE
-	if (scrn->pScreen->root)
+	if (root(scrn->pScreen))
 		xf86RandR12TellChanged(scrn->pScreen);
 #endif
 }
@@ -855,6 +855,7 @@ static void sna_mode_set(ScrnInfoPtr scrn)
 static Bool
 sna_register_all_privates(void)
 {
+#if HAS_DIXREGISTERPRIVATEKEY
 	if (!dixRegisterPrivateKey(&sna_pixmap_key, PRIVATE_PIXMAP,
 				   3*sizeof(void *)))
 		return FALSE;
@@ -870,6 +871,19 @@ sna_register_all_privates(void)
 	if (!dixRegisterPrivateKey(&sna_window_key, PRIVATE_WINDOW,
 				   2*sizeof(void *)))
 		return FALSE;
+#else
+	if (!dixRequestPrivate(&sna_pixmap_key, 3*sizeof(void *)))
+		return FALSE;
+
+	if (!dixRequestPrivate(&sna_gc_key, sizeof(FbGCPrivate)))
+		return FALSE;
+
+	if (!dixRequestPrivate(&sna_glyph_key, sizeof(struct sna_glyph)))
+		return FALSE;
+
+	if (!dixRequestPrivate(&sna_window_key, 2*sizeof(void *)))
+		return FALSE;
+#endif
 
 	return TRUE;
 }
@@ -1168,7 +1182,9 @@ Bool sna_init_scrn(ScrnInfoPtr scrn, int entity_num)
 	scrn->ValidMode = sna_valid_mode;
 	scrn->PMEvent = sna_pm_event;
 
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,9,99,901,0)
 	scrn->ModeSet = sna_mode_set;
+#endif
 
 	xf86SetEntitySharable(entity_num);
 	xf86SetEntityInstanceForScreen(scrn, entity_num,
