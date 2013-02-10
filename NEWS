@@ -1,3 +1,10 @@
+Release 2.21.2 (2013-02-10)
+===========================
+Pass the brown paper bags, I need half a dozen or so. That seemingly
+innocuous build fix with xorg-1.13 happned to have the little side-effect
+of breaking glyph rendering with xorg-1.12 and older on 64-bit machines.
+
+
 Release 2.21.1 (2013-02-10)
 ===========================
 A fix for a potential GPU hang on 945gm (GMA3100) and earlier chipsets,
