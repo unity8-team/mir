@@ -16,7 +16,7 @@ like Debian 6.0 (Squeeze).
    only observed on just one particular laptop.
 
  * Fix alignment of subsurface proxies for old chipsets.
-   https://bugs.launchpad.net/ubuntu/+source/xserver-xorg-video-intel
+   https://bugs.launchpad.net/ubuntu/+source/xserver-xorg-video-intel/+bug/1120108
 
  * Repair build against Xorg-1.6 and contemporary packages.
 
