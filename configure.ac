@@ -215,20 +215,23 @@ AC_ARG_ENABLE(uxa,
 	      AS_HELP_STRING([--enable-uxa],
 			     [Enable Unified Acceleration Architecture (UXA) [default=yes]]),
 	      [UXA="$enableval"],
-	      [UXA=yes])
+	      [UXA=auto])
 AC_MSG_CHECKING([whether to include UXA support])
-AC_MSG_RESULT([$UXA])
-if ! pkg-config --exists 'libdrm_intel-1 >= 2.4.29'; then
-	UXA=no
-fi
-if ! pkg-config --exists 'pixman-1 >= 0.24.0'; then
-	UXA=no
+if test "x$UXA" = "xauto"; then
+	if ! pkg-config --exists 'libdrm_intel >= 2.4.29'; then
+		UXA=no
+	fi
+	if ! pkg-config --exists 'pixman-1 >= 0.24.0'; then
+		UXA=no
+	fi
 fi
 if test "x$UXA" != "xno"; then
 	AC_DEFINE(USE_UXA, 1, [Enable UXA support])
 	PKG_CHECK_MODULES(DRMINTEL, [libdrm_intel >= 2.4.29])
 	required_pixman_version=0.24
+	UXA=yes
 fi
+AC_MSG_RESULT([$UXA])
 AM_CONDITIONAL(UXA, test x$UXA != xno)
 
 AC_MSG_CHECKING([whether to include GLAMOR support])
