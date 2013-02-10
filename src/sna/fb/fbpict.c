@@ -25,11 +25,8 @@
 
 #include <string.h>
 
-#include <picturestr.h>
-#include <mipict.h>
-#include <fbpict.h>
-
 #include "fb.h"
+#include "fbpict.h"
 
 static void
 SourceValidateOnePicture(PicturePtr picture)
