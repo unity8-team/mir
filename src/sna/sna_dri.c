@@ -1525,6 +1525,8 @@ sna_dri_flip_get_back(struct sna *sna, struct sna_dri_frame_event *info)
 	     info->cache.bo ? info->cache.bo->handle : 0));
 
 	bo = get_private(info->back)->bo;
+	assert(bo->refcnt);
+	assert(bo->flush);
 	if (!(bo == info->scanout[0].bo || bo == info->scanout[1].bo))
 		return;
 
@@ -1533,10 +1535,8 @@ sna_dri_flip_get_back(struct sna *sna, struct sna_dri_frame_event *info)
 	if (bo == NULL ||
 	    bo == info->scanout[0].bo ||
 	    bo == info->scanout[1].bo) {
-		if (bo) {
-			DBG(("%s: discarding old backbuffer\n", __FUNCTION__));
-			kgem_bo_destroy(&sna->kgem, bo);
-		}
+		struct kgem_bo *old_bo = bo;
+
 		DBG(("%s: allocating new backbuffer\n", __FUNCTION__));
 		bo = kgem_create_2d(&sna->kgem,
 				    info->draw->width,
@@ -1544,17 +1544,34 @@ sna_dri_flip_get_back(struct sna *sna, struct sna_dri_frame_event *info)
 				    info->draw->bitsPerPixel,
 				    get_private(info->front)->bo->tiling,
 				    CREATE_SCANOUT | CREATE_EXACT);
+		if (bo == NULL)
+			return;
+
 		name = kgem_bo_flink(&sna->kgem, bo);
+		if (name == 0) {
+			kgem_bo_destroy(&sna->kgem, bo);
+			return;
+		}
+
+		if (old_bo) {
+			DBG(("%s: discarding old backbuffer\n", __FUNCTION__));
+			kgem_bo_destroy(&sna->kgem, old_bo);
+		}
 	}
 
 	info->cache.bo = get_private(info->back)->bo;
 	info->cache.name = info->back->name;
+	assert(info->cache.bo->refcnt);
+	assert(info->cache.name);
 
 	get_private(info->back)->bo = bo;
 	info->back->name = name;
 
 	assert(get_private(info->back)->bo != info->scanout[0].bo);
 	assert(get_private(info->back)->bo != info->scanout[1].bo);
+
+	assert(bo->refcnt);
+	assert(bo->flush);
 }
 
 static bool
