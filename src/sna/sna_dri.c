@@ -177,8 +177,11 @@ static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 
 	assert(priv->cpu_damage == NULL);
 	assert(priv->gpu_bo->proxy == NULL);
-	if (priv->flush++)
+	if (priv->flush++) {
+		assert(priv->gpu_bo->flush);
+		assert(priv->pinned & PIN_DRI);
 		return priv->gpu_bo;
+	}
 
 	tiling = color_tiling(sna, &pixmap->drawable);
 	if (tiling < 0)
@@ -411,6 +414,8 @@ static void _sna_dri_destroy_buffer(struct sna *sna, DRI2Buffer2Ptr buffer)
 			PixmapPtr pixmap = private->pixmap;
 			struct sna_pixmap *priv = sna_pixmap(pixmap);
 
+			assert(priv->gpu_bo == private->bo);
+
 			/* Undo the DRI markings on this pixmap */
 			if (priv->flush && --priv->flush == 0) {
 				DBG(("%s: releasing last DRI pixmap=%ld, scanout?=%d\n",
@@ -418,17 +423,17 @@ static void _sna_dri_destroy_buffer(struct sna *sna, DRI2Buffer2Ptr buffer)
 				     pixmap->drawable.serialNumber,
 				     pixmap == sna->front));
 				list_del(&priv->list);
-				sna_accel_watch_flush(sna, -1);
+				priv->gpu_bo->flush = 0;
 				priv->pinned &= ~PIN_DRI;
+				sna_accel_watch_flush(sna, -1);
 			}
 
 			sna_pixmap_set_buffer(pixmap, NULL);
 			pixmap->drawable.pScreen->DestroyPixmap(pixmap);
-		}
+		} else
+			private->bo->flush = 0;
 
-		private->bo->flush = 0;
 		kgem_bo_destroy(&sna->kgem, private->bo);
-
 		free(buffer);
 	}
 }
@@ -476,6 +481,9 @@ static void set_bo(PixmapPtr pixmap, struct kgem_bo *bo)
 	assert(pixmap->drawable.width * pixmap->drawable.bitsPerPixel <= 8*bo->pitch);
 	assert(pixmap->drawable.height * bo->pitch <= kgem_bo_size(bo));
 	assert(bo->proxy == NULL);
+	assert(bo->flush);
+	assert(priv->pinned & PIN_DRI);
+	assert(priv->flush);
 
 	/* Post damage on the new front buffer so that listeners, such
 	 * as DisplayLink know take a copy and shove it over the USB,
