@@ -23,7 +23,7 @@
 # Initialize Autoconf
 AC_PREREQ([2.60])
 AC_INIT([xf86-video-intel],
-        [2.21.0],
+        [2.21.2],
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
         [xf86-video-intel])
 AC_CONFIG_SRCDIR([Makefile.am])
@@ -184,10 +184,14 @@ AC_ARG_ENABLE(ums-only, AS_HELP_STRING([--enable-ums-only],
               [UMS_ONLY=no])
 
 required_xorg_xserver_version=1.6
-required_pixman_version=0.24
+required_pixman_version=0.16
 
 if pkg-config --exists 'pixman-1 >= 0.27.1'; then
 	AC_DEFINE([HAS_PIXMAN_GLYPHS], 1, [Enable pixman glyph cache])
+fi
+
+if pkg-config --exists 'pixman-1 >= 0.24.0'; then
+	AC_DEFINE([HAS_PIXMAN_TRIANGLES], 1, [Enable pixman triangle rasterisation])
 fi
 
 AC_ARG_ENABLE(sna,
@@ -201,7 +205,6 @@ if test "x$SNA" = "xauto" && pkg-config --exists "xorg-server >= 1.10"; then
 	SNA=yes
 fi
 if test "x$SNA" != "xno"; then
-	required_xorg_xserver_version=1.10
 	AC_DEFINE(USE_SNA, 1, [Enable SNA support])
 fi
 AC_MSG_CHECKING([whether to include SNA support])
@@ -212,14 +215,24 @@ AC_ARG_ENABLE(uxa,
 	      AS_HELP_STRING([--enable-uxa],
 			     [Enable Unified Acceleration Architecture (UXA) [default=yes]]),
 	      [UXA="$enableval"],
-	      [UXA=yes])
+	      [UXA=auto])
 AC_MSG_CHECKING([whether to include UXA support])
-AM_CONDITIONAL(UXA, test x$UXA != xno)
-AC_MSG_RESULT([$UXA])
+if test "x$UXA" = "xauto"; then
+	if ! pkg-config --exists 'libdrm_intel >= 2.4.29'; then
+		UXA=no
+	fi
+	if ! pkg-config --exists 'pixman-1 >= 0.24.0'; then
+		UXA=no
+	fi
+fi
 if test "x$UXA" != "xno"; then
 	AC_DEFINE(USE_UXA, 1, [Enable UXA support])
 	PKG_CHECK_MODULES(DRMINTEL, [libdrm_intel >= 2.4.29])
+	required_pixman_version=0.24
+	UXA=yes
 fi
+AC_MSG_RESULT([$UXA])
+AM_CONDITIONAL(UXA, test x$UXA != xno)
 
 AC_MSG_CHECKING([whether to include GLAMOR support])
 AC_ARG_ENABLE(glamor,
@@ -347,7 +360,7 @@ XORG_DRIVER_CHECK_EXT(XF86DRI, xextproto x11)
 XORG_DRIVER_CHECK_EXT(DPMSExtension, xextproto)
 
 # Obtain compiler/linker options for the driver dependencies
-PKG_CHECK_MODULES(DRM, [libdrm >= 2.4.24]) # libdrm_intel is checked separately
+PKG_CHECK_MODULES(DRM, [libdrm >= 2.4.20]) # libdrm_intel is checked separately
 PKG_CHECK_MODULES(DRI, [xf86driproto], , DRI=no)
 PKG_CHECK_MODULES(DRI2, [dri2proto >= 2.6],, DRI2=no)
 PKG_CHECK_MODULES(PCIACCESS, [pciaccess >= 0.10])
@@ -403,9 +416,8 @@ AM_CONDITIONAL(DRI2, test "x$DRI2" = xyes)
 AC_MSG_RESULT([$DRI2])
 
 if test "$XVMC" = yes; then
-	PKG_CHECK_MODULES(XVMCLIB,
-			  [xvmc xext xfixes dri2proto x11-xcb xcb-dri2 xcb-aux],
-			  [XVMC=yes], [XVMC=no])
+	PKG_CHECK_MODULES(XVMCLIB, [xvmc dri2proto], [], [XVMC=no])
+	PKG_CHECK_MODULES(XCB, [x11-xcb xcb-dri2 xcb-aux], [], [XVMC=no])
 fi
 AC_MSG_CHECKING([whether to include XvMC support])
 AC_MSG_RESULT([$XVMC])

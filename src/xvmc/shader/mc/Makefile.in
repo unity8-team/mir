@@ -181,6 +181,8 @@ VALGRIND_LIBS = @VALGRIND_LIBS@
 VERSION = @VERSION@
 X11_CFLAGS = @X11_CFLAGS@
 X11_LIBS = @X11_LIBS@
+XCB_CFLAGS = @XCB_CFLAGS@
+XCB_LIBS = @XCB_LIBS@
 XORG_CFLAGS = @XORG_CFLAGS@
 XORG_LIBS = @XORG_LIBS@
 XORG_MAN_PAGE = @XORG_MAN_PAGE@
@@ -544,9 +546,9 @@ uninstall-am:
 	uninstall uninstall-am
 
 @HAVE_GEN4ASM_TRUE@.g4a.g4b:
-@HAVE_GEN4ASM_TRUE@	m4 -I$(srcdir) $(srcdir)/$*.g4a > $*.g4m && @INTEL_GEN4ASM@ -o $@ $*.g4m && @INTEL_GEN4ASM@ -g 5 -o $@.gen5 $*.g4m && rm $*.g4m
+@HAVE_GEN4ASM_TRUE@	$(AM_V_GEN)m4 -I$(srcdir) $(srcdir)/$*.g4a > $*.g4m && @INTEL_GEN4ASM@ -o $@ $*.g4m && @INTEL_GEN4ASM@ -g 5 -o $@.gen5 $*.g4m && rm $*.g4m
 
-@HAVE_GEN4ASM_TRUE@$(INTEL_G4B): $(INTEL_G4I)
+@HAVE_GEN4ASM_TRUE@$(INTEL_G4B): $(INTEL_GEN4ASM) $(INTEL_G4I)
 
 @HAVE_GEN4ASM_TRUE@clean-local:
 @HAVE_GEN4ASM_TRUE@	-rm -f $(INTEL_G4B)

@@ -104,7 +104,7 @@ static const struct intel_device_info intel_ivybridge_info = {
 };
 
 static const struct intel_device_info intel_valleyview_info = {
-	.gen = 070,
+	.gen = 071,
 };
 
 static const struct intel_device_info intel_haswell_info = {
@@ -306,6 +306,9 @@ static const struct pci_id_match intel_device_match[] = {
 	INTEL_DEVICE_MATCH (PCI_CHIP_HASWELL_CRW_S_GT2_PLUS, &intel_haswell_info ),
 
 	INTEL_DEVICE_MATCH (PCI_CHIP_VALLEYVIEW_PO, &intel_valleyview_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_VALLEYVIEW_1, &intel_valleyview_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_VALLEYVIEW_2, &intel_valleyview_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_VALLEYVIEW_3, &intel_valleyview_info ),
 
 	INTEL_DEVICE_MATCH (PCI_MATCH_ANY, &intel_generic_info ),
 #endif
@@ -485,7 +488,7 @@ intel_scrn_create(DriverPtr		driver,
 	xf86AddEntityToScreen(scrn, entity_num);
 
 #if !KMS_ONLY
-	if (((struct intel_device_info *)match_data)->gen < 020)
+	if ((unsigned)((struct intel_device_info *)match_data)->gen < 020)
 		return lg_i810_init(scrn);
 #endif
 

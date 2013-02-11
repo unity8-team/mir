@@ -50,6 +50,7 @@
  * the BLT engine.
  */
 #define FORCE_SPANS 0
+#define FORCE_NONRECTILINEAR_SPANS -1
 
 #define NO_COMPOSITE 0
 #define NO_COMPOSITE_SPANS 0
@@ -843,7 +844,7 @@ gen4_emit_pipelined_pointers(struct sna *sna,
 	bp = gen4_get_blend(blend, op->has_component_alpha, op->dst.format);
 
 	DBG(("%s: sp=%d, bp=%d\n", __FUNCTION__, sp, bp));
-	key = sp | (uint32_t)bp << 16 | op->u.gen4.sf << 31;
+	key = sp | (uint32_t)bp << 16;
 	if (key == sna->render_state.gen4.last_pipelined_pointers)
 		return;
 
@@ -851,7 +852,7 @@ gen4_emit_pipelined_pointers(struct sna *sna,
 	OUT_BATCH(sna->render_state.gen4.vs);
 	OUT_BATCH(GEN4_GS_DISABLE); /* passthrough */
 	OUT_BATCH(GEN4_CLIP_DISABLE); /* passthrough */
-	OUT_BATCH(sna->render_state.gen4.sf[op->u.gen4.sf]);
+	OUT_BATCH(sna->render_state.gen4.sf);
 	OUT_BATCH(sna->render_state.gen4.wm + sp);
 	OUT_BATCH(sna->render_state.gen4.cc + bp);
 
@@ -1579,15 +1580,6 @@ gen4_composite_set_target(struct sna *sna,
 	return true;
 }
 
-static inline bool
-picture_is_cpu(PicturePtr picture)
-{
-	if (!picture->pDrawable)
-		return false;
-
-	return !is_gpu(picture->pDrawable);
-}
-
 static bool
 try_blt(struct sna *sna,
 	PicturePtr dst, PicturePtr src,
@@ -1612,7 +1604,7 @@ try_blt(struct sna *sna,
 		return true;
 
 	/* is the source picture only in cpu memory e.g. a shm pixmap? */
-	return picture_is_cpu(src);
+	return picture_is_cpu(sna, src);
 }
 
 static bool
@@ -1634,9 +1626,10 @@ has_alphamap(PicturePtr p)
 }
 
 static bool
-need_upload(PicturePtr p)
+need_upload(struct sna *sna, PicturePtr p)
 {
-	return p->pDrawable && untransformed(p) && !is_gpu(p->pDrawable);
+	return p->pDrawable && untransformed(p) &&
+		!is_gpu(sna, p->pDrawable, PREFER_GPU_RENDER);
 }
 
 static bool
@@ -1659,7 +1652,7 @@ source_is_busy(PixmapPtr pixmap)
 }
 
 static bool
-source_fallback(PicturePtr p, PixmapPtr pixmap)
+source_fallback(struct sna *sna, PicturePtr p, PixmapPtr pixmap)
 {
 	if (sna_picture_is_solid(p, NULL))
 		return false;
@@ -1674,7 +1667,7 @@ source_fallback(PicturePtr p, PixmapPtr pixmap)
 	if (pixmap && source_is_busy(pixmap))
 		return false;
 
-	return has_alphamap(p) || !gen4_check_filter(p) || need_upload(p);
+	return has_alphamap(p) || !gen4_check_filter(p) || need_upload(sna, p);
 }
 
 static bool
@@ -1697,11 +1690,11 @@ gen4_composite_fallback(struct sna *sna,
 	dst_pixmap = get_drawable_pixmap(dst->pDrawable);
 
 	src_pixmap = src->pDrawable ? get_drawable_pixmap(src->pDrawable) : NULL;
-	src_fallback = source_fallback(src, src_pixmap);
+	src_fallback = source_fallback(sna, src, src_pixmap);
 
 	if (mask) {
 		mask_pixmap = mask->pDrawable ? get_drawable_pixmap(mask->pDrawable) : NULL;
-		mask_fallback = source_fallback(mask, mask_pixmap);
+		mask_fallback = source_fallback(sna, mask, mask_pixmap);
 	} else {
 		mask_pixmap = NULL;
 		mask_fallback = false;
@@ -1940,11 +1933,6 @@ gen4_render_composite(struct sna *sna,
 		tmp->is_affine &= tmp->mask.is_affine;
 	}
 
-	/* XXX using more then one thread causes corruption? */
-	tmp->u.gen4.sf = (tmp->mask.bo == NULL &&
-			  tmp->src.transform == NULL &&
-			  !tmp->src.is_solid);
-
 	tmp->u.gen4.wm_kernel =
 		gen4_choose_composite_kernel(tmp->op,
 					     tmp->mask.bo != NULL,
@@ -2102,7 +2090,8 @@ gen4_check_composite_spans(struct sna *sna,
 		return false;
 	}
 
-	if (need_tiling(sna, width, height) && !is_gpu(dst->pDrawable)) {
+	if (need_tiling(sna, width, height) &&
+	    !is_gpu(sna, dst->pDrawable, PREFER_GPU_SPANS)) {
 		DBG(("%s: fallback, tiled operation not on GPU\n",
 		     __FUNCTION__));
 		return false;
@@ -2118,13 +2107,14 @@ gen4_check_composite_spans(struct sna *sna,
 		if (priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo))
 			return true;
 
-		if ((flags & COMPOSITE_SPANS_INPLACE_HINT) == 0 &&
-		    priv->gpu_bo && kgem_bo_is_busy(priv->gpu_bo))
-			return true;
+		if (flags & COMPOSITE_SPANS_INPLACE_HINT)
+			return false;
 
-		DBG(("%s: fallback, non-rectilinear spans to idle bo\n",
-		     __FUNCTION__));
-		return false;
+		if ((sna->render.prefer_gpu & PREFER_GPU_SPANS) == 0 &&
+		    dst->format == PICT_a8)
+			return false;
+
+		return priv->gpu_bo && kgem_bo_is_busy(priv->gpu_bo);
 	}
 
 	return true;
@@ -2176,12 +2166,13 @@ gen4_render_composite_spans(struct sna *sna,
 	}
 
 	tmp->base.mask.bo = NULL;
+	tmp->base.mask.filter = SAMPLER_FILTER_NEAREST;
+	tmp->base.mask.repeat = SAMPLER_EXTEND_NONE;
 
 	tmp->base.is_affine = tmp->base.src.is_affine;
 	tmp->base.has_component_alpha = false;
 	tmp->base.need_magic_ca_pass = false;
 
-	tmp->base.u.gen4.sf = !tmp->base.src.is_solid;
 	tmp->base.u.gen4.ve_id = gen4_choose_spans_emitter(tmp);
 	tmp->base.u.gen4.wm_kernel = WM_KERNEL_OPACITY | !tmp->base.is_affine;
 
@@ -2384,7 +2375,6 @@ fallback_blt:
 	tmp.floats_per_rect = 9;
 	tmp.u.gen4.wm_kernel = WM_KERNEL;
 	tmp.u.gen4.ve_id = 2;
-	tmp.u.gen4.sf = 0;
 
 	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL)) {
 		kgem_submit(&sna->kgem);
@@ -2515,7 +2505,6 @@ fallback:
 	op->base.floats_per_rect = 9;
 	op->base.u.gen4.wm_kernel = WM_KERNEL;
 	op->base.u.gen4.ve_id = 2;
-	op->base.u.gen4.sf = 0;
 
 	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL)) {
 		kgem_submit(&sna->kgem);
@@ -2632,7 +2621,6 @@ gen4_render_fill_boxes(struct sna *sna,
 	tmp.floats_per_rect = 6;
 	tmp.u.gen4.wm_kernel = WM_KERNEL;
 	tmp.u.gen4.ve_id = 1;
-	tmp.u.gen4.sf = 0;
 
 	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL)) {
 		kgem_submit(&sna->kgem);
@@ -2738,7 +2726,6 @@ gen4_render_fill(struct sna *sna, uint8_t alu,
 	op->base.floats_per_rect = 6;
 	op->base.u.gen4.wm_kernel = WM_KERNEL;
 	op->base.u.gen4.ve_id = 1;
-	op->base.u.gen4.sf = 0;
 
 	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL)) {
 		kgem_submit(&sna->kgem);
@@ -2818,7 +2805,6 @@ gen4_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 
 	tmp.u.gen4.wm_kernel = WM_KERNEL;
 	tmp.u.gen4.ve_id = 1;
-	tmp.u.gen4.sf = 0;
 
 	if (!kgem_check_bo(&sna->kgem, bo, NULL)) {
 		kgem_submit(&sna->kgem);
@@ -2926,8 +2912,7 @@ static uint32_t gen4_create_vs_unit_state(struct sna_static_stream *stream)
 }
 
 static uint32_t gen4_create_sf_state(struct sna_static_stream *stream,
-				     int gen, uint32_t kernel,
-				     bool single_thread)
+				     int gen, uint32_t kernel)
 {
 	struct gen4_sf_unit_state *sf;
 
@@ -2941,7 +2926,7 @@ static uint32_t gen4_create_sf_state(struct sna_static_stream *stream,
 	/* don't smash vertex header, read start from dw8 */
 	sf->thread3.urb_entry_read_offset = 1;
 	sf->thread3.dispatch_grf_start_reg = 3;
-	sf->thread4.max_threads = single_thread ? 0 : GEN4_MAX_SF_THREADS - 1;
+	sf->thread4.max_threads = GEN4_MAX_SF_THREADS - 1;
 	sf->thread4.urb_entry_allocation_size = URB_SF_ENTRY_SIZE - 1;
 	sf->thread4.nr_urb_entries = URB_SF_ENTRIES;
 	sf->sf5.viewport_transform = false;	/* skip viewport */
@@ -3081,8 +3066,7 @@ static bool gen4_render_setup(struct sna *sna)
 	}
 
 	state->vs = gen4_create_vs_unit_state(&general);
-	state->sf[0] = gen4_create_sf_state(&general, sna->kgem.gen, sf, false);
-	state->sf[1] = gen4_create_sf_state(&general, sna->kgem.gen, sf, true);
+	state->sf = gen4_create_sf_state(&general, sna->kgem.gen, sf);
 
 	wm_state = sna_static_stream_map(&general,
 					  sizeof(*wm_state) * KERNEL_COUNT *
@@ -3129,10 +3113,13 @@ bool gen4_render_init(struct sna *sna)
 
 #if !NO_COMPOSITE
 	sna->render.composite = gen4_render_composite;
+	sna->render.prefer_gpu |= PREFER_GPU_RENDER;
 #endif
 #if !NO_COMPOSITE_SPANS
 	sna->render.check_composite_spans = gen4_check_composite_spans;
 	sna->render.composite_spans = gen4_render_composite_spans;
+	if (0)
+		sna->render.prefer_gpu |= PREFER_GPU_SPANS;
 #endif
 
 #if !NO_VIDEO

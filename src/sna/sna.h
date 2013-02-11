@@ -141,6 +141,15 @@ struct sna_glyph {
 	uint16_t size, pos;
 };
 
+static inline WindowPtr root(ScreenPtr screen)
+{
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,10,0,0,0)
+	return screen->root;
+#else
+	return WindowTable[screen->myNum];
+#endif
+}
+
 static inline PixmapPtr get_window_pixmap(WindowPtr window)
 {
 	return fbGetWindowPixmap(window);
@@ -158,7 +167,7 @@ extern DevPrivateKeyRec sna_pixmap_key;
 
 constant static inline struct sna_pixmap *sna_pixmap(PixmapPtr pixmap)
 {
-	return ((void **)dixGetPrivateAddr(&pixmap->devPrivates, &sna_pixmap_key))[1];
+	return ((void **)__get_private(pixmap, sna_pixmap_key))[1];
 }
 
 static inline struct sna_pixmap *sna_pixmap_from_drawable(DrawablePtr drawable)
@@ -176,7 +185,7 @@ struct sna_gc {
 
 static inline struct sna_gc *sna_gc(GCPtr gc)
 {
-	return dixGetPrivateAddr(&gc->devPrivates, &sna_gc_key);
+	return (struct sna_gc *)__get_private(gc, sna_gc_key);
 }
 
 enum {
@@ -256,7 +265,6 @@ struct sna {
 		struct gen6_render_state gen6;
 		struct gen7_render_state gen7;
 	} render_state;
-	uint32_t have_render;
 
 	bool dri_available;
 	bool dri_open;
@@ -315,7 +323,7 @@ to_sna_from_screen(ScreenPtr screen)
 constant static inline struct sna *
 to_sna_from_pixmap(PixmapPtr pixmap)
 {
-	return ((void **)dixGetPrivateAddr(&pixmap->devPrivates, &sna_pixmap_key))[0];
+	return ((void **)__get_private(pixmap, sna_pixmap_key))[0];
 }
 
 constant static inline struct sna *
@@ -672,7 +680,7 @@ static inline bool wedged(struct sna *sna)
 
 static inline bool can_render(struct sna *sna)
 {
-	return likely(!sna->kgem.wedged && sna->have_render);
+	return likely(!sna->kgem.wedged && sna->render.prefer_gpu & PREFER_GPU_RENDER);
 }
 
 static inline uint32_t pixmap_size(PixmapPtr pixmap)

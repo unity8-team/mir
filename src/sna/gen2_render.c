@@ -2227,7 +2227,7 @@ gen2_check_composite_spans(struct sna *sna,
 		return false;
 
 	if (need_tiling(sna, width, height)) {
-		if (!is_gpu(dst->pDrawable)) {
+		if (!is_gpu(sna, dst->pDrawable, PREFER_GPU_SPANS)) {
 			DBG(("%s: fallback, tiled operation not on GPU\n",
 			     __FUNCTION__));
 			return false;
@@ -3143,10 +3143,12 @@ bool gen2_render_init(struct sna *sna)
 	 */
 #if !NO_COMPOSITE
 	render->composite = gen2_render_composite;
+	render->prefer_gpu |= PREFER_GPU_RENDER;
 #endif
 #if !NO_COMPOSITE_SPANS
 	render->check_composite_spans = gen2_check_composite_spans;
 	render->composite_spans = gen2_render_composite_spans;
+	render->prefer_gpu |= PREFER_GPU_SPANS;
 #endif
 	render->fill_boxes = gen2_render_fill_boxes;
 	render->fill = gen2_render_fill;

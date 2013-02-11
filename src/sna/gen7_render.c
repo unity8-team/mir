@@ -2553,12 +2553,11 @@ gen7_check_composite_spans(struct sna *sna,
 	if (gen7_composite_fallback(sna, src, NULL, dst))
 		return false;
 
-	if (need_tiling(sna, width, height)) {
-		if (!is_gpu(dst->pDrawable)) {
-			DBG(("%s: fallback, tiled operation not on GPU\n",
-			     __FUNCTION__));
-			return false;
-		}
+	if (need_tiling(sna, width, height) &&
+	    !is_gpu(sna, dst->pDrawable, PREFER_GPU_SPANS)) {
+		DBG(("%s: fallback, tiled operation not on GPU\n",
+		     __FUNCTION__));
+		return false;
 	}
 
 	return true;
@@ -3647,6 +3646,16 @@ static void gen7_render_fini(struct sna *sna)
 	kgem_bo_destroy(&sna->kgem, sna->render_state.gen7.general_bo);
 }
 
+static bool is_gt2(struct sna *sna)
+{
+	return DEVICE_ID(sna->PciInfo) & 0x20;
+}
+
+static bool is_mobile(struct sna *sna)
+{
+	return (DEVICE_ID(sna->PciInfo) & 0xf) == 0x6;
+}
+
 static bool gen7_render_setup(struct sna *sna)
 {
 	struct gen7_render_state *state = &sna->render_state.gen7;
@@ -3658,14 +3667,14 @@ static bool gen7_render_setup(struct sna *sna)
 		state->info = &ivb_gt_info;
 		if (DEVICE_ID(sna->PciInfo) & 0xf) {
 			state->info = &ivb_gt1_info;
-			if (DEVICE_ID(sna->PciInfo) & 0x20)
+			if (is_gt2(sna))
 				state->info = &ivb_gt2_info; /* XXX requires GT_MODE WiZ disabled */
 		}
 	} else if (sna->kgem.gen == 075) {
 		state->info = &hsw_gt_info;
 		if (DEVICE_ID(sna->PciInfo) & 0xf) {
 			state->info = &hsw_gt1_info;
-			if (DEVICE_ID(sna->PciInfo) & 0x20)
+			if (is_gt2(sna))
 				state->info = &hsw_gt2_info;
 		}
 	} else
@@ -3744,10 +3753,13 @@ bool gen7_render_init(struct sna *sna)
 
 #if !NO_COMPOSITE
 	sna->render.composite = gen7_render_composite;
+	sna->render.prefer_gpu |= PREFER_GPU_RENDER;
 #endif
 #if !NO_COMPOSITE_SPANS
 	sna->render.check_composite_spans = gen7_check_composite_spans;
 	sna->render.composite_spans = gen7_render_composite_spans;
+	if (is_mobile(sna))
+		sna->render.prefer_gpu |= PREFER_GPU_SPANS;
 #endif
 	sna->render.video = gen7_render_video;
 

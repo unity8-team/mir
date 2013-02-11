@@ -2,6 +2,8 @@
 #define TEST_H
 
 #include <stdint.h>
+#include <time.h>
+
 #include <X11/Xlib.h>
 #include <X11/extensions/XShm.h>
 #include <X11/extensions/Xrender.h>
@@ -106,6 +108,9 @@ static inline uint32_t color(uint8_t red, uint8_t green, uint8_t blue, uint8_t a
 
 	return alpha << 24 | ra >> 8 << 16 | ga >> 8 << 8 | ba >> 8;
 }
+
+void test_timer_start(struct test_display *t, struct timespec *tv);
+double test_timer_stop(struct test_display *t, struct timespec *tv);
 
 #ifndef MAX
 #define MAX(a,b) ((a) > (b) ? (a) : (b))

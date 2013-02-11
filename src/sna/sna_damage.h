@@ -2,7 +2,6 @@
 #define SNA_DAMAGE_H
 
 #include <regionstr.h>
-#include <list.h>
 
 #include "compiler.h"
 

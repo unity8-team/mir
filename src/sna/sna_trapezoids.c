@@ -2457,7 +2457,8 @@ is_mono(PicturePtr dst, PictFormatPtr mask)
 }
 
 static bool
-trapezoids_inplace_fallback(CARD8 op,
+trapezoids_inplace_fallback(struct sna *sna,
+			    CARD8 op,
 			    PicturePtr src, PicturePtr dst, PictFormatPtr mask,
 			    int ntrap, xTrapezoid *traps)
 {
@@ -2497,7 +2498,7 @@ trapezoids_inplace_fallback(CARD8 op,
 		return false;
 	}
 
-	if (is_gpu(dst->pDrawable)) {
+	if (is_gpu(sna, dst->pDrawable, PREFER_GPU_SPANS)) {
 		DBG(("%s: not performing inplace as dst is already on the GPU\n",
 		     __FUNCTION__));
 		return false;
@@ -2581,7 +2582,8 @@ static void rasterize_traps_thread(void *arg)
 }
 
 static void
-trapezoids_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
+trapezoids_fallback(struct sna *sna,
+		    CARD8 op, PicturePtr src, PicturePtr dst,
 		    PictFormatPtr maskFormat, INT16 xSrc, INT16 ySrc,
 		    int ntrap, xTrapezoid * traps)
 {
@@ -2636,7 +2638,8 @@ trapezoids_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 
 		DBG(("%s: mask (%dx%d) depth=%d, format=%08x\n",
 		     __FUNCTION__, width, height, depth, format));
-		if (is_gpu(dst->pDrawable) || picture_is_gpu(src)) {
+		if (is_gpu(sna, dst->pDrawable, PREFER_GPU_RENDER) ||
+		    picture_is_gpu(sna, src)) {
 			int num_threads;
 
 			scratch = sna_pixmap_create_upload(screen,
@@ -2760,7 +2763,7 @@ trapezoids_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 			maskFormat = PictureMatchFormat(screen, 8, PICT_a8);
 
 		for (; ntrap; ntrap--, traps++)
-			trapezoids_fallback(op,
+			trapezoids_fallback(sna, op,
 					    src, dst, maskFormat,
 					    xSrc, ySrc, 1, traps);
 	}
@@ -3420,7 +3423,8 @@ pixsolid_unaligned_box_row(struct pixman_inplace *pi,
 }
 
 static bool
-composite_unaligned_boxes_inplace__solid(CARD8 op, uint32_t color,
+composite_unaligned_boxes_inplace__solid(struct sna *sna,
+					 CARD8 op, uint32_t color,
 					 PicturePtr dst, int n, xTrapezoid *t,
 					 bool force_fallback)
 {
@@ -3428,9 +3432,9 @@ composite_unaligned_boxes_inplace__solid(CARD8 op, uint32_t color,
 	int16_t dx, dy;
 
 	DBG(("%s: force=%d, is_gpu=%d, op=%d, color=%x\n", __FUNCTION__,
-	     force_fallback, is_gpu(dst->pDrawable), op, color));
+	     force_fallback, is_gpu(sna, dst->pDrawable, PREFER_GPU_SPANS), op, color));
 
-	if (!force_fallback && is_gpu(dst->pDrawable)) {
+	if (!force_fallback && is_gpu(sna, dst->pDrawable, PREFER_GPU_SPANS)) {
 		DBG(("%s: fallback -- can not perform operation in place, destination busy\n",
 		     __FUNCTION__));
 
@@ -3744,13 +3748,15 @@ static void rectilinear_inplace_thread(void *arg)
 }
 
 static bool
-composite_unaligned_boxes_inplace(CARD8 op,
+composite_unaligned_boxes_inplace(struct sna *sna,
+				  CARD8 op,
 				  PicturePtr src, int16_t src_x, int16_t src_y,
 				  PicturePtr dst, int n, xTrapezoid *t,
 				  bool force_fallback)
 {
 	if (!force_fallback &&
-	    (is_gpu(dst->pDrawable) || picture_is_gpu(src))) {
+	    (is_gpu(sna, dst->pDrawable, PREFER_GPU_SPANS) ||
+	     picture_is_gpu(sna, src))) {
 		DBG(("%s: fallback -- not forcing\n", __FUNCTION__));
 		return false;
 	}
@@ -3894,7 +3900,8 @@ composite_unaligned_boxes_inplace(CARD8 op,
 }
 
 static bool
-composite_unaligned_boxes_fallback(CARD8 op,
+composite_unaligned_boxes_fallback(struct sna *sna,
+				   CARD8 op,
 				   PicturePtr src,
 				   PicturePtr dst,
 				   INT16 src_x, INT16 src_y,
@@ -3908,12 +3915,12 @@ composite_unaligned_boxes_fallback(CARD8 op,
 	int n;
 
 	if (sna_picture_is_solid(src, &color) &&
-	    composite_unaligned_boxes_inplace__solid(op, color, dst,
+	    composite_unaligned_boxes_inplace__solid(sna, op, color, dst,
 						     ntrap, traps,
 						     force_fallback))
 		return true;
 
-	if (composite_unaligned_boxes_inplace(op, src, src_x, src_y,
+	if (composite_unaligned_boxes_inplace(sna, op, src, src_x, src_y,
 					      dst, ntrap, traps,
 					      force_fallback))
 		return true;
@@ -4037,7 +4044,7 @@ composite_unaligned_boxes(struct sna *sna,
 	    !sna->render.check_composite_spans(sna, op, src, dst, 0, 0,
 					       COMPOSITE_SPANS_RECTILINEAR)) {
 fallback:
-		return composite_unaligned_boxes_fallback(op, src, dst,
+		return composite_unaligned_boxes_fallback(sna, op, src, dst,
 							  src_x, src_y,
 							  ntrap, traps,
 							  force_fallback);
@@ -4285,7 +4292,8 @@ mono_span_thread(void *arg)
 }
 
 static bool
-mono_trapezoids_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
+mono_trapezoids_span_converter(struct sna *sna,
+			       CARD8 op, PicturePtr src, PicturePtr dst,
 			       INT16 src_x, INT16 src_y,
 			       int ntrap, xTrapezoid *traps)
 {
@@ -4336,7 +4344,7 @@ mono_trapezoids_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	unbounded = (!sna_drawable_is_clear(dst->pDrawable) &&
 		     !operator_is_bounded(op));
 
-	mono.sna = to_sna_from_drawable(dst->pDrawable);
+	mono.sna = sna;
 	if (!mono.sna->render.composite(mono.sna, op, src, NULL, dst,
 				       src_x + mono.clip.extents.x1 - dst_x - dx,
 				       src_y + mono.clip.extents.y1 - dst_y - dy,
@@ -4620,12 +4628,12 @@ span_thread(void *arg)
 }
 
 static bool
-trapezoid_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
+trapezoid_span_converter(struct sna *sna,
+			 CARD8 op, PicturePtr src, PicturePtr dst,
 			 PictFormatPtr maskFormat, unsigned int flags,
 			 INT16 src_x, INT16 src_y,
 			 int ntrap, xTrapezoid *traps)
 {
-	struct sna *sna;
 	struct sna_composite_spans_op tmp;
 	BoxRec extents;
 	pixman_region16_t clip;
@@ -4638,7 +4646,7 @@ trapezoid_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 		return false;
 
 	if (is_mono(dst, maskFormat))
-		return mono_trapezoids_span_converter(op, src, dst,
+		return mono_trapezoids_span_converter(sna, op, src, dst,
 						      src_x, src_y,
 						      ntrap, traps);
 
@@ -4649,7 +4657,6 @@ trapezoid_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 		return false;
 	}
 
-	sna = to_sna_from_drawable(dst->pDrawable);
 	if (!sna->render.check_composite_spans(sna, op, src, dst, 0, 0, flags)) {
 		DBG(("%s: fallback -- composite spans not supported\n",
 		     __FUNCTION__));
@@ -5315,7 +5322,8 @@ mono_inplace_composite_boxes(struct sna *sna,
 }
 
 static bool
-trapezoid_spans_maybe_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
+trapezoid_spans_maybe_inplace(struct sna *sna,
+			      CARD8 op, PicturePtr src, PicturePtr dst,
 			      PictFormatPtr maskFormat)
 {
 	struct sna_pixmap *priv;
@@ -5348,7 +5356,7 @@ trapezoid_spans_maybe_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 
 	case PICT_x8r8g8b8:
 	case PICT_a8r8g8b8:
-		if (picture_is_gpu(src))
+		if (picture_is_gpu(sna, src))
 			return false;
 
 		switch (op) {
@@ -5395,7 +5403,8 @@ out:
 }
 
 static bool
-trapezoid_span_mono_inplace(CARD8 op,
+trapezoid_span_mono_inplace(struct sna *sna,
+			    CARD8 op,
 			    PicturePtr src,
 			    PicturePtr dst,
 			    INT16 src_x, INT16 src_y,
@@ -5441,7 +5450,7 @@ trapezoid_span_mono_inplace(CARD8 op,
 					     MOVE_WRITE | MOVE_READ))
 		return true;
 
-	mono.sna = to_sna_from_drawable(dst->pDrawable);
+	mono.sna = sna;
 	if (!mono_init(&mono, 2*ntrap))
 		return false;
 
@@ -6052,7 +6061,8 @@ static void inplace_thread(void *arg)
 }
 
 static bool
-trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
+trapezoid_span_inplace(struct sna *sna,
+		       CARD8 op, PicturePtr src, PicturePtr dst,
 		       PictFormatPtr maskFormat, INT16 src_x, INT16 src_y,
 		       int ntrap, xTrapezoid *traps,
 		       bool fallback)
@@ -6082,7 +6092,7 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 		return false;
 	}
 
-	if (!fallback && is_gpu(dst->pDrawable)) {
+	if (!fallback && is_gpu(sna, dst->pDrawable, PREFER_GPU_SPANS)) {
 		DBG(("%s: fallback -- can not perform operation in place, destination busy\n",
 		     __FUNCTION__));
 
@@ -6090,7 +6100,7 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 	}
 
 	if (is_mono(dst, maskFormat))
-		return trapezoid_span_mono_inplace(op, src, dst,
+		return trapezoid_span_mono_inplace(sna, op, src, dst,
 						   src_x, src_y, ntrap, traps);
 
 	if (dst->format == PICT_a8r8g8b8 || dst->format == PICT_x8r8g8b8)
@@ -6165,7 +6175,7 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 		     __FUNCTION__));
 		do {
 			/* XXX unwind errors? */
-			if (!trapezoid_span_inplace(op, src, dst, NULL,
+			if (!trapezoid_span_inplace(sna, op, src, dst, NULL,
 						    src_x, src_y, 1, traps++,
 						    fallback))
 				return false;
@@ -6476,14 +6486,14 @@ sna_composite_trapezoids(CARD8 op,
 
 	force_fallback = FORCE_FALLBACK > 0;
 	if ((too_small(priv) || DAMAGE_IS_ALL(priv->cpu_damage)) &&
-	    !picture_is_gpu(src) && untransformed(src)) {
+	    !picture_is_gpu(sna, src) && untransformed(src)) {
 		DBG(("%s: force fallbacks --too small, %dx%d? %d, all-cpu? %d, src-is-cpu? %d\n",
 		     __FUNCTION__,
 		     dst->pDrawable->width,
 		     dst->pDrawable->height,
 		     too_small(priv),
 		     (int)DAMAGE_IS_ALL(priv->cpu_damage),
-		     !picture_is_gpu(src)));
+		     !picture_is_gpu(sna, src)));
 		force_fallback = true;
 	}
 	if (FORCE_FALLBACK < 0)
@@ -6550,24 +6560,24 @@ sna_composite_trapezoids(CARD8 op,
 		goto fallback;
 
 	if (is_mono(dst, maskFormat) &&
-	    mono_trapezoids_span_converter(op, src, dst,
+	    mono_trapezoids_span_converter(sna, op, src, dst,
 					   xSrc, ySrc,
 					   ntrap, traps))
 		return;
 
-	if (trapezoid_spans_maybe_inplace(op, src, dst, maskFormat)) {
+	if (trapezoid_spans_maybe_inplace(sna, op, src, dst, maskFormat)) {
 		flags |= COMPOSITE_SPANS_INPLACE_HINT;
-		if (trapezoid_span_inplace(op, src, dst, maskFormat,
+		if (trapezoid_span_inplace(sna, op, src, dst, maskFormat,
 					   xSrc, ySrc, ntrap, traps,
 					   false))
 			return;
 	}
 
-	if (trapezoid_span_converter(op, src, dst, maskFormat, flags,
+	if (trapezoid_span_converter(sna, op, src, dst, maskFormat, flags,
 				     xSrc, ySrc, ntrap, traps))
 		return;
 
-	if (trapezoid_span_inplace(op, src, dst, maskFormat,
+	if (trapezoid_span_inplace(sna, op, src, dst, maskFormat,
 				   xSrc, ySrc, ntrap, traps,
 				   false))
 		return;
@@ -6577,7 +6587,7 @@ sna_composite_trapezoids(CARD8 op,
 		return;
 
 fallback:
-	if (trapezoid_span_inplace(op, src, dst, maskFormat,
+	if (trapezoid_span_inplace(sna, op, src, dst, maskFormat,
 				   xSrc, ySrc, ntrap, traps,
 				   true))
 		return;
@@ -6586,12 +6596,13 @@ fallback:
 				    xSrc, ySrc, ntrap, traps))
 		return;
 
-	if (trapezoids_inplace_fallback(op, src, dst, maskFormat, ntrap, traps))
+	if (trapezoids_inplace_fallback(sna, op, src, dst, maskFormat,
+					ntrap, traps))
 		return;
 
 	DBG(("%s: fallback mask=%08x, ntrap=%d\n", __FUNCTION__,
 	     maskFormat ? (unsigned)maskFormat->format : 0, ntrap));
-	trapezoids_fallback(op, src, dst, maskFormat,
+	trapezoids_fallback(sna, op, src, dst, maskFormat,
 			    xSrc, ySrc,
 			    ntrap, traps);
 }
@@ -6613,7 +6624,8 @@ project_trap_onto_grid(const xTrap *in,
 }
 
 static bool
-mono_trap_span_converter(PicturePtr dst,
+mono_trap_span_converter(struct sna *sna,
+			 PicturePtr dst,
 			 INT16 x, INT16 y,
 			 int ntrap, xTrap *traps)
 {
@@ -6638,7 +6650,7 @@ mono_trap_span_converter(PicturePtr dst,
 	     mono.clip.extents.x2, mono.clip.extents.y2,
 	     x, y));
 
-	mono.sna = to_sna_from_drawable(dst->pDrawable);
+	mono.sna = sna;
 	if (!mono_init(&mono, 2*ntrap))
 		return false;
 
@@ -6683,11 +6695,11 @@ mono_trap_span_converter(PicturePtr dst,
 }
 
 static bool
-trap_span_converter(PicturePtr dst,
+trap_span_converter(struct sna *sna,
+		    PicturePtr dst,
 		    INT16 src_x, INT16 src_y,
 		    int ntrap, xTrap *trap)
 {
-	struct sna *sna;
 	struct sna_composite_spans_op tmp;
 	struct tor tor;
 	BoxRec extents;
@@ -6701,9 +6713,8 @@ trap_span_converter(PicturePtr dst,
 		return false;
 
 	if (dst->polyEdge == PolyEdgeSharp)
-		return mono_trap_span_converter(dst, src_x, src_y, ntrap, trap);
+		return mono_trap_span_converter(sna, dst, src_x, src_y, ntrap, trap);
 
-	sna = to_sna_from_drawable(dst->pDrawable);
 	if (!sna->render.check_composite_spans(sna, PictOpAdd, sna->render.white_picture, dst,
 					       dst->pCompositeClip->extents.x2 - dst->pCompositeClip->extents.x1,
 					       dst->pCompositeClip->extents.y2 - dst->pCompositeClip->extents.y1,
@@ -6795,11 +6806,11 @@ static void mark_damaged(PixmapPtr pixmap, struct sna_pixmap *priv,
 }
 
 static bool
-trap_mask_converter(PicturePtr picture,
+trap_mask_converter(struct sna *sna,
+		    PicturePtr picture,
 		    INT16 x, INT16 y,
 		    int ntrap, xTrap *trap)
 {
-	struct sna *sna;
 	struct tor tor;
 	ScreenPtr screen = picture->pDrawable->pScreen;
 	PixmapPtr scratch, pixmap;
@@ -6993,13 +7004,18 @@ trap_upload(PicturePtr picture,
 void
 sna_add_traps(PicturePtr picture, INT16 x, INT16 y, int n, xTrap *t)
 {
+	struct sna *sna;
+
 	DBG(("%s (%d, %d) x %d\n", __FUNCTION__, x, y, n));
 
-	if (is_gpu(picture->pDrawable)) {
-		if (trap_span_converter(picture, x, y, n, t))
+	sna = to_sna_from_drawable(picture->pDrawable);
+	if (is_gpu(sna, picture->pDrawable, PREFER_GPU_SPANS)) {
+		if (trap_span_converter(sna, picture, x, y, n, t))
 			return;
+	}
 
-		if (trap_mask_converter(picture, x, y, n, t))
+	if (is_gpu(sna, picture->pDrawable, PREFER_GPU_RENDER)) {
+		if (trap_mask_converter(sna, picture, x, y, n, t))
 			return;
 
 		if (trap_upload(picture, x, y, n, t))
@@ -7030,6 +7046,7 @@ project_point_onto_grid(const xPointFixed *in,
 	out->y = dy + pixman_fixed_to_grid(in->y);
 }
 
+#if HAS_PIXMAN_TRIANGLES
 static inline bool
 xTriangleValid(const xTriangle *t)
 {
@@ -7064,7 +7081,8 @@ project_triangle_onto_grid(const xTriangle *in,
 }
 
 static bool
-mono_triangles_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
+mono_triangles_span_converter(struct sna *sna,
+			      CARD8 op, PicturePtr src, PicturePtr dst,
 			      INT16 src_x, INT16 src_y,
 			      int count, xTriangle *tri)
 {
@@ -7075,7 +7093,7 @@ mono_triangles_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	bool was_clear;
 	int n;
 
-	mono.sna = to_sna_from_drawable(dst->pDrawable);
+	mono.sna = sna;
 
 	dst_x = pixman_fixed_to_int(tri[0].p1.x);
 	dst_y = pixman_fixed_to_int(tri[0].p1.y);
@@ -7200,11 +7218,11 @@ mono_triangles_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 }
 
 static bool
-triangles_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
+triangles_span_converter(struct sna *sna,
+			 CARD8 op, PicturePtr src, PicturePtr dst,
 			 PictFormatPtr maskFormat, INT16 src_x, INT16 src_y,
 			 int count, xTriangle *tri)
 {
-	struct sna *sna;
 	struct sna_composite_spans_op tmp;
 	struct tor tor;
 	BoxRec extents;
@@ -7217,7 +7235,7 @@ triangles_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 		return false;
 
 	if (is_mono(dst, maskFormat))
-		return mono_triangles_span_converter(op, src, dst,
+		return mono_triangles_span_converter(sna, op, src, dst,
 						     src_x, src_y,
 						     count, tri);
 
@@ -7228,7 +7246,6 @@ triangles_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 		return false;
 	}
 
-	sna = to_sna_from_drawable(dst->pDrawable);
 	if (!sna->render.check_composite_spans(sna, op, src, dst, 0, 0, 0)) {
 		DBG(("%s: fallback -- composite spans not supported\n",
 		     __FUNCTION__));
@@ -7553,7 +7570,9 @@ sna_composite_triangles(CARD8 op,
 			 INT16 xSrc, INT16 ySrc,
 			 int n, xTriangle *tri)
 {
-	if (triangles_span_converter(op, src, dst, maskFormat,
+	struct sna *sna = to_sna_from_drawable(dst->pDrawable);
+
+	if (triangles_span_converter(sna, op, src, dst, maskFormat,
 				     xSrc, ySrc,
 				     n, tri))
 		return;
@@ -7567,11 +7586,11 @@ sna_composite_triangles(CARD8 op,
 }
 
 static bool
-tristrip_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
+tristrip_span_converter(struct sna *sna,
+			CARD8 op, PicturePtr src, PicturePtr dst,
 			PictFormatPtr maskFormat, INT16 src_x, INT16 src_y,
 			int count, xPointFixed *points)
 {
-	struct sna *sna;
 	struct sna_composite_spans_op tmp;
 	struct tor tor;
 	BoxRec extents;
@@ -7592,7 +7611,6 @@ tristrip_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 		return false;
 	}
 
-	sna = to_sna_from_drawable(dst->pDrawable);
 	if (!sna->render.check_composite_spans(sna, op, src, dst, 0, 0, 0)) {
 		DBG(("%s: fallback -- composite spans not supported\n",
 		     __FUNCTION__));
@@ -7833,7 +7851,9 @@ sna_composite_tristrip(CARD8 op,
 		       INT16 xSrc, INT16 ySrc,
 		       int n, xPointFixed *points)
 {
-	if (tristrip_span_converter(op, src, dst, maskFormat, xSrc, ySrc, n, points))
+	struct sna *sna = to_sna_from_drawable(dst->pDrawable);
+
+	if (tristrip_span_converter(sna, op, src, dst, maskFormat, xSrc, ySrc, n, points))
 		return;
 
 	tristrip_fallback(op, src, dst, maskFormat, xSrc, ySrc, n, points);
@@ -7969,3 +7989,4 @@ sna_composite_trifan(CARD8 op,
 {
 	trifan_fallback(op, src, dst, maskFormat, xSrc, ySrc, n, points);
 }
+#endif

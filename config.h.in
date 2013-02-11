@@ -26,6 +26,9 @@
 /* Enable pixman glyph cache */
 #undef HAS_PIXMAN_GLYPHS
 
+/* Enable pixman triangle rasterisation */
+#undef HAS_PIXMAN_TRIANGLES
+
 /* Enable if your compiler supports the Intel __sync_* atomic primitives */
 #undef HAVE_ATOMIC_PRIMITIVES
 

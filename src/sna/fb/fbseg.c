@@ -353,7 +353,8 @@ fbSelectBres(DrawablePtr drawable, GCPtr gc)
 	FbBres *bres;
 
 	DBG(("%s: line=%d, fill=%d, and=%lx, bgand=%lx\n",
-	     __FUNCTION__, gc->lineStyle, gc->fillStyle, pgc->and, pgc->bgand));
+	     __FUNCTION__, gc->lineStyle, gc->fillStyle,
+	     (long)pgc->and, (long)pgc->bgand));
 	assert(gc->lineWidth == 0);
 
 	if (gc->lineStyle == LineSolid) {
