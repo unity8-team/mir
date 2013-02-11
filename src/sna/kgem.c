@@ -1596,6 +1596,8 @@ inline static void kgem_bo_remove_from_active(struct kgem *kgem,
 static void kgem_bo_clear_scanout(struct kgem *kgem, struct kgem_bo *bo)
 {
 	assert(bo->scanout);
+	assert(!bo->refcnt);
+	assert(bo->exec == NULL);
 	assert(bo->proxy == NULL);
 
 	DBG(("%s: handle=%d, fb=%d (reusable=%d)\n",
@@ -2781,6 +2783,9 @@ bool kgem_expire_cache(struct kgem *kgem)
 
 	while (!list_is_empty(&kgem->scanout)) {
 		bo = list_first_entry(&kgem->scanout, struct kgem_bo, list);
+		if (__kgem_busy(kgem, bo->handle))
+			break;
+
 		list_del(&bo->list);
 		kgem_bo_clear_scanout(kgem, bo);
 		__kgem_bo_destroy(kgem, bo);
