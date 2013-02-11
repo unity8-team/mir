@@ -1,3 +1,543 @@
+commit 65c320e677b8ab4d745568b33f381d5865bf8b73
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Feb 10 14:20:59 2013 +0000
+
+    2.21.2 release
+
+commit 0d75b19979b1ac14353765e2bb84c6a466129109
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Feb 10 15:47:53 2013 +0000
+
+    sna: Restore glyphs with xorg-1.12
+    
+    That simple and innocuous build fix for xorg-1.13 bizarrely causes
+    missing glyphs with earlier Xorgs.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 9fd0d8873a5a5c4f77904cab0b9909ca941b5dae
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Feb 10 14:29:29 2013 +0000
+
+    NEWS: fix bug url
+    
+    The dangers of cutting and pasting from git log.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 617fadf3acf7bf75fb203c1e85fd0ddb98b3dbb9
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Feb 10 14:20:59 2013 +0000
+
+    2.21.1 release
+
+commit 3169a4e53cf39cc3d5c18ac6add909aa3a58de7e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Feb 10 11:57:14 2013 +0000
+
+    sna: Reorder some includes so that compat-api.h comes after the headers it wraps
+    
+    Fixes the build in cases where the compat-api.h was defining macros to
+    subvert the real functions found in the xorg includes
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 71fbad64c5cfe6832a03815bece4c89d15253e1a
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Feb 10 10:54:17 2013 +0000
+
+    configure: Fix typo in checking for libdrm_intel
+    
+    The package name is libdrm_intel not libdrm_intel-1, an obvious
+    cut'n'paste error from testing for pixman-1.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 3cbdfb54d1fcfed7745111e861e19b7bbac243cc
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Feb 9 19:15:20 2013 +0000
+
+    sna: Backport to squeeze - Xorg-1.6, pixman-0.16, libdrm-2.4.21
+    
+    The principle change is to switch to the old Privates API and undo the
+    Region renames.
+    
+    The downside is that this ignores the critical bugfixes made to the
+    xserver since xorg-1.6 - but I assume that whoever wants to run the
+    latest hardware on the old xservers is also backporting those stability
+    fixes...
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 42a6b25817985e22e7d462be87fbd97973d96a29
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Feb 9 15:30:58 2013 +0000
+
+    sna: Fix alignment of the base of partial buffers for pre-G33 chipsets
+    
+    The older chipsets have much more restrictive alignment rules for the
+    base address of tiled but unfenced objects.
+    
+    Bugzilla: https://bugs.launchpad.net/ubuntu/+source/xserver-xorg-video-intel/+bug/1120108
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 80044e54634d0836694d5aa6f98ce22fe38d367f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Feb 9 09:57:26 2013 +0000
+
+    sna: Promote to GPU is only partially damaged on the CPU but busy on the GPU
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d18cb72a94fad0ee99ab361c21d643c927d29c35
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Feb 8 22:31:19 2013 +0000
+
+    sna: Randomly perturb 'wedged' to hunt for faults
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit ce9f0448367ea6a90490a28150bfdc0a76500129
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Feb 8 16:01:54 2013 +0000
+
+    sna/gen6: Use GT2 settings for both GT2 and GT2+
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit ae5399aaf9ef57d33e8fd957e8a96964897c09b3
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Feb 8 11:31:21 2013 +0000
+
+    sna: Force the fallback path for unaccelerated randr damage
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit c69b4389abc324533a9a311c17a667bf8a1e1673
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Feb 7 22:54:37 2013 +0000
+
+    sna/gen4: Split the have_render flag in separate prefer_gpu hints
+    
+    The idea is to implement more fine-grained checks as we may want
+    different heuristics for desktops with GT1s than for mobile GT2s, etc.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit bec99de812ce6a1bbc2c8e4cfd05f4f74c560ea6
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Feb 8 00:53:10 2013 +0000
+
+    sna: Remove the bogus assertions on buffer domains
+    
+    Just a few lines earlier we already have the correct assertion that the
+    buffer was not in the GPU domain, so had these two been correct, they
+    would have still been redundant.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8d1d3c6e6102ff20fbff74ec6b3b2e94ee757015
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Feb 7 14:47:07 2013 +0000
+
+    sna: Fixup an invalid assertion
+    
+    We may choose to operate inplace on a buffer last used by the CPU if we
+    are discarding all the existing damage.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit c405dba367bdca51221bd2464213199783dc18fe
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Feb 7 13:41:42 2013 +0000
+
+    sna: Also assert that the GPU is not wedged before continuing a batch
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit feeff6fcefccdca5335fea55c2fdbf8a4004c175
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Feb 7 13:33:58 2013 +0000
+
+    sna: Force GTT readback if the GPU is wedged
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8a272971d5971a56f57dde00dceb082d0b142c8c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Feb 6 17:59:10 2013 +0000
+
+    sna: Allow inplace uploads to utilise GTT on LLC machines
+    
+    Rather than arbitrarily disable the fallback paths for LLC, allow it to
+    utilise any available GTT buffers for inplace uploads. The best
+    explanation so far is that with the streaming is that we are trashing
+    the LLC. On other machines, the difference is in the noise.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit bc8a2c30c4f6bb9ce751b6717a3a2feaea0d6d4b
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Feb 7 10:42:58 2013 +0000
+
+    sna: Only try the SRC fixup into the buffer if it is CPU mapped
+    
+    On one particular machine, this operation is behaving as if it is
+    reading back UC memory during the explicit write-only composite.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 889ed28f52bccdbc54692ea075f95f9635a8d58a
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Feb 7 10:42:21 2013 +0000
+
+    sna: Correctly align used buffers to the following page boundary
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 974b6a97d78dadf09be8a2c4f61020f15d80d558
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Feb 6 17:02:27 2013 +0000
+
+    sna: Fallback to non-LLC paths after an allocation failure for an LLC buffer
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5c8084ef04cb0a7da064fb1e13c8ef7dae528b1b
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Feb 6 16:39:31 2013 +0000
+
+    intel: Becareful not to match UMS against future generations
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit be241fb25ed0a8d41a642ea811253207f88d0962
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Feb 6 16:38:12 2013 +0000
+
+    sna: Free the handle after pwrite buffer allocation failure
+    
+    Having just allocated the handle, we need to free it if we then fail to
+    allocate memory for the buffer.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4b3b25f0be33d3af3ccecfb3193fc2d365445fdf
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Feb 6 16:37:21 2013 +0000
+
+    sna: Flush our caches if we fail to mmap an object
+    
+    The likely cause for a mmap failure is that we hold too many objects
+    open or have exhausted our address space. In both cases, we need to trim
+    our caches before continuing.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit daba1ae3e7f0532cc53d9a5178778dbaec203052
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Feb 6 16:17:36 2013 +0000
+
+    sna: Correctly handle failure to CPU map a new allocation
+    
+    If we fail to CPU map, we want to fallback to just using pwrite with
+    normal memory.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0adb0b5e1ebcf3ddfeddae99d96912ec4c090832
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Feb 6 16:02:30 2013 +0000
+
+    sna: Handle mapped buffer allocation failure for LLC
+    
+    The presumption was that if we had LLC we would have allocated the
+    buffer by that point - however, it was remotely possible to have fallen
+    through and so we need to handle those cases.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f4cff22afae598f41adf36cd149223d1f7dd6b6e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Feb 6 15:15:36 2013 +0000
+
+    sna: Relax the buffer size assertion to only be larger than required
+    
+    Not all paths request alloc pages, a few just request sufficient pages
+    for the original size. So we can only assert that condition is
+    satisfied.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8bc593c732a2f1ccd1bdabc071c709a44222db61
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Feb 6 15:11:00 2013 +0000
+
+    sna: Make sure we always replace io buffers before inserting into the cache
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5f72158919098dd5684d1c56d1ba643cc3be2c7d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Feb 6 15:10:23 2013 +0000
+
+    configure: XvMC support is optional, so make failure to find xcb non-fatal
+
+commit cd6d8f9b9df02934ebfff76cb40410c8ce3887dd
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Feb 6 10:37:50 2013 +0000
+
+    xvmc: Add the complementary XCB_CFLAGS
+    
+    After splitting the xvmc dependences into xcb and non-xcb, we then also
+    have to add the xcb CFLAGS to build libIntelXVmc.la
+    
+    Reported-by: Julien Cristau <jcristau@debian.org>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit b96ee47ad97943c3dccd40d9570e29002dc3d85f
+Author: Paul Menzel <paulepanter@users.sourceforge.net>
+Date:   Sun Feb 3 13:33:08 2013 +0100
+
+    configure.ac: Split out XCB libraries from `XVMCLIB` into `XCB`
+    
+    Building the package under Debian Sid/unstable, `dh_shlibdeps` informs
+    that `libI810XvMC.so.1.0.0` does not need to be linked against
+    `libX11-xcb.so.1`, `libxcb-dri2.so.0`, `libxcb-util.so.0` or
+    `libxcb.so.1` [1].
+    
+            $ debuild -b -us -uc
+            […]
+            make[1]: Entering directory `/src/xserver-xorg-video-intel'
+            dh_shlibdeps -- --warnings=6
+            dpkg-shlibdeps: Warnung: debian/xserver-xorg-video-intel/usr/lib/libI810XvMC.so.1.0.0 sollte nicht gegen libX11-xcb.so.1 gelinkt werden (es verwendet keines der Bibliotheks-Symbole)
+            dpkg-shlibdeps: Warnung: debian/xserver-xorg-video-intel/usr/lib/libI810XvMC.so.1.0.0 sollte nicht gegen libxcb-dri2.so.0 gelinkt werden (es verwendet keines der Bibliotheks-Symbole)
+            dpkg-shlibdeps: Warnung: debian/xserver-xorg-video-intel/usr/lib/libI810XvMC.so.1.0.0 sollte nicht gegen libxcb-util.so.0 gelinkt werden (es verwendet keines der Bibliotheks-Symbole)
+            dpkg-shlibdeps: Warnung: debian/xserver-xorg-video-intel/usr/lib/libI810XvMC.so.1.0.0 sollte nicht gegen libxcb.so.1 gelinkt werden (es verwendet keines der Bibliotheks-Symbole)
+            make[1]: Leaving directory `/src/xserver-xorg-video-intel'
+            […]
+    
+    Moving `x11-xcb`, `xcb-dri2` and `xcb-aux` from `XVMCLIBS` into `XCB`
+    and adding `XCB_LIBS` only to the `LIBADD` variables of `libIntelXvMC`
+    makes the warnings go away and the libraries are still built without any
+    issues.
+    
+            make[1]: Entering directory `/src/xserver-xorg-video-intel'
+            dh_shlibdeps -- --warnings=6
+            make[1]: Leaving directory `/src/xserver-xorg-video-intel'
+               dh_installdeb -O--builddirectory=build/
+               dh_xsf_substvars -O--builddirectory=build/
+               dh_gencontrol -O--builddirectory=build/
+            dpkg-gencontrol: Warnung: Feld Depends von Paket xserver-xorg-video-intel-dbg: unbekannte Substitutionsvariable ${shlibs:Depends}
+               dh_md5sums -O--builddirectory=build/
+               dh_builddeb -O--builddirectory=build/
+            dpkg-deb: Paket »xserver-xorg-video-intel« wird in »../xserver-xorg-video-intel_2.19.0-6.1_i386.deb« gebaut.
+            dpkg-deb: Paket »xserver-xorg-video-intel-dbg« wird in »../xserver-xorg-video-intel-dbg_2.19.0-6.1_i386.deb« gebaut.
+             dpkg-genchanges -b >../xserver-xorg-video-intel_2.19.0-6.1_i386.changes
+            dpkg-genchanges: rein binärer Upload - es ist kein Quellcode hinzugefügt
+             dpkg-source --after-build xserver-xorg-video-intel
+            dpkg-buildpackage: Binärpaket(e) hochzuladen (keine Quellen enthalten)
+            Now running lintian...
+            W: xserver-xorg-video-intel: hardening-no-relro usr/lib/libI810XvMC.so.1.0.0
+            W: xserver-xorg-video-intel: hardening-no-fortify-functions usr/lib/libI810XvMC.so.1.0.0
+            W: xserver-xorg-video-intel: hardening-no-relro usr/lib/libIntelXvMC.so.1.0.0
+            W: xserver-xorg-video-intel: hardening-no-fortify-functions usr/lib/libIntelXvMC.so.1.0.0
+            W: xserver-xorg-video-intel: hardening-no-relro usr/lib/xorg/modules/drivers/intel_drv.so
+            W: xserver-xorg-video-intel: hardening-no-fortify-functions usr/lib/xorg/modules/drivers/intel_drv.so
+            N: 1 tag overridden (1 warning)
+            Finished running lintian.
+    
+    The modules were originally added with the following commit present
+    since tag 2.10.0.
+    
+            commit 3e8f2eae3a586aa29be4858698e666e0ec778cea
+            Author: Eric Anholt <eric@anholt.net>
+            Date:   Thu Oct 15 13:48:56 2009 -0700
+    
+                XVMC: Use XCB DRI2 instead of cargo-culting our own copy of Xlib stuff. (v2)
+    
+    [1] https://buildd.debian.org/status/fetch.php?pkg=xserver-xorg-video-intel&arch=i386&ver=2%3A2.19.0-6&stamp=1347825458
+    
+    Signed-off-by: Paul Menzel <paulepanter@users.sourceforge.net>
+
+commit 93770c709aa7d3719b7c717040b16c8f82d5c207
+Author: Paul Menzel <paulepanter@users.sourceforge.net>
+Date:   Tue Jan 22 10:47:22 2013 +0100
+
+    NEWS: Fix a typo: a*n* inadvertent
+
+commit a8cfddd280b5220f23565b21c91f3f7dd10bbe91
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Feb 5 22:06:03 2013 +0000
+
+    sna: Tidy buffer allocation size assertions
+    
+    Rather than perilously update a local variable with the allocated size,
+    just use the size of the bo in the assertion that is large enough to
+    satisfy the allocation request.
+    
+    Reported-by: Jiri Slaby <jirislaby@gmail.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 82dc91e8c24a1fbbf03dcf89a3955319b3399ea0
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Feb 5 21:50:43 2013 +0000
+
+    test: Add a very basic blt benchmark
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 9c80a0337ec12b6baab5aab380503e672e925677
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Feb 5 14:56:10 2013 +0000
+
+    sna: ValleyView uses the same scanline registers as SandyBridge
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4c45e3fe456d211afc6ba69878b413a72ef5d0bf
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Feb 5 14:45:39 2013 +0000
+
+    intel: add more ValleyView PCI IDs
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit c6101d9d71a86a579ff9771d456b234a38bd80b7
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Feb 5 11:02:30 2013 +0000
+
+    man: Fix a typo s/debuging/debugging/
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f33c90f7ada238683433d05492434120d06ea1fc
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Feb 1 19:34:56 2013 +0000
+
+    NEWS: Trivial typo s/utilile/utilise/
+
+commit 6346c844525c2b3a82c16fe10485b901a2b5ddbc
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Feb 5 10:17:45 2013 +0000
+
+    sna/gen4: Remove old single-thread SF w/a
+    
+    The alternative of disabling GPU spans seems to be far more effective.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 1565917f10d9fb3c7e2e7e273173c38c364b9861
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Feb 5 10:11:14 2013 +0000
+
+    sna/gen4: Disable non-rectilinear GPU span compositing
+    
+    This seems to be the primary victim of the render corruption, so disable
+    until the root cause is fixed.
+    
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=55500
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 37bc822190f36be7b021167ba4d306bbcd97957b
+Author: Damien Lespiau <damien.lespiau@intel.com>
+Date:   Fri Jan 18 14:13:08 2013 +0000
+
+    build: Make generation of gen code depend on intel-gen4asm
+    
+    This way, when a new intel-gen4asm is available (because one just hacked
+    on it and has installed a new version for instance) the shaders will be
+    recompiled. This helps catching regressions, testing the latest changes
+    in the assembler haven't broken too many things.
+    
+    Signed-off-by: Damien Lespiau <damien.lespiau@intel.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 18f8d2291fbb53ac993b926c247ca981e1e5207b
+Author: Damien Lespiau <damien.lespiau@intel.com>
+Date:   Fri Jan 18 14:13:07 2013 +0000
+
+    build: Use $(AM_V_GEN) to silence the assembly of gen programs
+    
+    Signed-off-by: Damien Lespiau <damien.lespiau@intel.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit eea535b7e2a35ec4dfa50550b674d4212676d2ee
+Author: Damien Lespiau <damien.lespiau@intel.com>
+Date:   Fri Jan 18 14:13:06 2013 +0000
+
+    build: Make autoreconf honour ACLOCAL_FLAGS
+    
+    When running autoreconf, it's possible to give flags to the underlying
+    aclocal by declaring a ACLOCAL_AMFLAGS variable in the top level
+    Makefile.am.
+    
+    Putting ${ACLOCAL_FLAGS} there allows the user to set an environment
+    variable up before running autogen.sh and pull in the right directories
+    to look for m4 macros, say an up-to-date version of the xorg-util macros.
+    
+    Signed-off-by: Damien Lespiau <damien.lespiau@intel.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 9640640ab02d5de630e903116c1b104752f8b604
+Author: Paul Menzel <paulepanter@users.sourceforge.net>
+Date:   Sat Feb 2 11:44:54 2013 +0100
+
+    configure.ac: Do not include `xext` and `xfixes` in `XVMCLIB`
+    
+    Building the package under Debian Sid/unstable, `dh_shlibdeps` informs
+    that `libIntelXvMC.so.1.0.0` does not need to be linked against
+    `libXext.so.6` or `libXfixes.so.3` [1].
+    
+            $ debuild -b -us -uc
+            […]
+            make[1]: Entering directory `/build/buildd-xserver-xorg-video-intel_2.19.0-6-i386-9thLfo/xserver-xorg-video-intel-2.19.0'
+            dh_shlibdeps -- --warnings=6
+            dpkg-shlibdeps: warning: debian/xserver-xorg-video-intel/usr/lib/libIntelXvMC.so.1.0.0 should not be linked against libXext.so.6 (it uses none of the library's symbols)
+            dpkg-shlibdeps: warning: debian/xserver-xorg-video-intel/usr/lib/libIntelXvMC.so.1.0.0 should not be linked against libXfixes.so.3 (it uses none of the library's symbols)
+            dpkg-shlibdeps: warning: debian/xserver-xorg-video-intel/usr/lib/libI810XvMC.so.1.0.0 should not be linked against libXext.so.6 (it uses none of the library's symbols)
+            dpkg-shlibdeps: warning: debian/xserver-xorg-video-intel/usr/lib/libI810XvMC.so.1.0.0 should not be linked against libXfixes.so.3 (it uses none of the library's symbols)
+            dpkg-shlibdeps: warning: debian/xserver-xorg-video-intel/usr/lib/libI810XvMC.so.1.0.0 should not be linked against libX11-xcb.so.1 (it uses none of the library's symbols)
+            dpkg-shlibdeps: warning: debian/xserver-xorg-video-intel/usr/lib/libI810XvMC.so.1.0.0 should not be linked against libxcb-dri2.so.0 (it uses none of the library's symbols)
+            dpkg-shlibdeps: warning: debian/xserver-xorg-video-intel/usr/lib/libI810XvMC.so.1.0.0 should not be linked against libxcb-util.so.0 (it uses none of the library's symbols)
+            dpkg-shlibdeps: warning: debian/xserver-xorg-video-intel/usr/lib/libI810XvMC.so.1.0.0 should not be linked against libxcb.so.1 (it uses none of the library's symbols)
+            dpkg-shlibdeps: warning: package could avoid a useless dependency if debian/xserver-xorg-video-intel/usr/lib/libIntelXvMC.so.1.0.0 debian/xserver-xorg-video-intel/usr/lib/libI810XvMC.so.1.0.0 were not linked against libXext.so.6 (they use none of the library's symbols)
+            dpkg-shlibdeps: warning: package could avoid a useless dependency if debian/xserver-xorg-video-intel/usr/lib/libIntelXvMC.so.1.0.0 debian/xserver-xorg-video-intel/usr/lib/libI810XvMC.so.1.0.0 were not linked against libXfixes.so.3 (they use none of the library's symbols)
+            make[1]: Leaving directory `/build/buildd-xserver-xorg-video-intel_2.19.0-6-i386-9thLfo/xserver-xorg-video-intel-2.19.0'
+               dh_installdeb -a -O--builddirectory=build/
+            […]
+    
+    Not populating `XVMCLIB` with `xext` and `xfixes` makes the warning go
+    away and the libraries are still built without any issues.
+    
+    [1] https://buildd.debian.org/status/fetch.php?pkg=xserver-xorg-video-intel&arch=i386&ver=2%3A2.19.0-6&stamp=1347825458
+    
+    Signed-off-by: Paul Menzel <paulepanter@users.sourceforge.net>
+
+commit 9807bba950078d86a25b91064ecfebaa0ee459e3
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Feb 1 18:25:48 2013 +0000
+
+    sna: Drop bogus refcnt assertion during kgem_bo_retire()
+    
+    As we may call it kgem_bo_sync(), during preparation of the upload
+    buffer which in turn may operate on an object straight out of the snoop
+    cache and hence not yet referenced (or in some cases, ever).
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a5561f13498066922b54af04cc71549322ce0e3b
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Feb 1 18:05:35 2013 +0000
+
+    sna: Do not add the INPLACE hint if we have the ASYNC hint set
+    
+    If the caller is preparing to use the GPU to rendering into the CPU bo,
+    it will request an ASYNC migration. In those cases, we do not want to
+    substitute it with an INPLACE operation.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
 commit d3ff1cb9d7f788002337b1e6c4c81c58112b85b1
 Author: Chris Wilson <chris@chris-wilson.co.uk>
 Date:   Fri Feb 1 13:46:33 2013 +0000

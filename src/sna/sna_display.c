@@ -965,7 +965,9 @@ void sna_copy_fbcon(struct sna *sna)
 
 	kgem_bo_destroy(&sna->kgem, bo);
 
+#if ABI_VIDEODRV_VERSION >= SET_ABI_VERSION(10, 0)
 	sna->scrn->pScreen->canDoBGNoneRoot = ok;
+#endif
 
 cleanup_scratch:
 	FreeScratchPixmapHeader(scratch);
@@ -2479,13 +2481,13 @@ sna_crtc_resize(ScrnInfoPtr scrn, int width, int height)
 			sna_crtc_disable(crtc);
 	}
 
-	if (screen->root) {
+	if (root(screen)) {
 		struct sna_visit_set_pixmap_window visit;
 
 		visit.old = old_front;
 		visit.new = sna->front;
-		TraverseTree(screen->root, sna_visit_set_window_pixmap, &visit);
-		assert(screen->GetWindowPixmap(screen->root) == sna->front);
+		TraverseTree(root(screen), sna_visit_set_window_pixmap, &visit);
+		assert(screen->GetWindowPixmap(root(screen)) == sna->front);
 	}
 	screen->SetScreenPixmap(sna->front);
 	assert(screen->GetScreenPixmap(screen) == sna->front);
@@ -2989,6 +2991,8 @@ sna_wait_for_scanline(struct sna *sna,
 
 	if (sna->kgem.gen >= 0100)
 		ret = false;
+	else if (sna->kgem.gen == 071)
+		ret =sna_emit_wait_for_scanline_gen6(sna, crtc, pipe, y1, y2, full_height);
 	else if (sna->kgem.gen >= 070)
 		ret = sna_emit_wait_for_scanline_gen7(sna, crtc, pipe, y1, y2, full_height);
 	else if (sna->kgem.gen >= 060)
@@ -3262,7 +3266,8 @@ void sna_mode_redisplay(struct sna *sna)
 	if (RegionNil(region))
 		return;
 
-	if (!sna_pixmap_move_to_gpu(sna->front, MOVE_READ)) {
+	if (!can_render(sna) ||
+	    !sna_pixmap_move_to_gpu(sna->front, MOVE_READ)) {
 		if (!sna_pixmap_move_to_cpu(sna->front, MOVE_READ))
 			return;
 

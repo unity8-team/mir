@@ -117,6 +117,9 @@ static void read_boxes_inplace(struct kgem *kgem,
 
 static bool download_inplace(struct kgem *kgem, struct kgem_bo *bo)
 {
+	if (unlikely(kgem->wedged))
+		return true;
+
 	if (!kgem_bo_can_map(kgem, bo))
 		return false;
 
@@ -623,7 +626,7 @@ static bool upload_inplace(struct kgem *kgem,
 			   const BoxRec *box,
 			   int n, int bpp)
 {
-	if (kgem->wedged)
+	if (unlikely(kgem->wedged))
 		return true;
 
 	if (!kgem_bo_can_map(kgem, bo) && !upload_inplace__tiled(kgem, bo))
@@ -993,7 +996,7 @@ static bool upload_inplace__xor(struct kgem *kgem,
 				const BoxRec *box,
 				int n, int bpp)
 {
-	if (kgem->wedged)
+	if (unlikely(kgem->wedged))
 		return true;
 
 	if (!kgem_bo_can_map(kgem, bo))

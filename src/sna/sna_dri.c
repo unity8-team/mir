@@ -202,13 +202,13 @@ static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 constant static inline void *sna_pixmap_get_buffer(PixmapPtr pixmap)
 {
 	assert(pixmap->refcnt);
-	return ((void **)dixGetPrivateAddr(&pixmap->devPrivates, &sna_pixmap_key))[2];
+	return ((void **)__get_private(pixmap, sna_pixmap_key))[2];
 }
 
 static inline void sna_pixmap_set_buffer(PixmapPtr pixmap, void *ptr)
 {
 	assert(pixmap->refcnt);
-	((void **)dixGetPrivateAddr(&pixmap->devPrivates, &sna_pixmap_key))[2] = ptr;
+	((void **)__get_private(pixmap, sna_pixmap_key))[2] = ptr;
 }
 
 void
@@ -963,7 +963,7 @@ sna_dri_get_pipe(DrawablePtr pDraw)
 static struct sna_dri_frame_event *
 sna_dri_window_get_chain(WindowPtr win)
 {
-	return ((void **)dixGetPrivateAddr(&win->devPrivates, &sna_window_key))[1];
+	return ((void **)__get_private(win, sna_window_key))[1];
 }
 
 static void
@@ -972,7 +972,7 @@ sna_dri_window_set_chain(WindowPtr win,
 {
 	DBG(("%s: head now %p\n", __FUNCTION__, chain));
 	assert(win->drawable.type == DRAWABLE_WINDOW);
-	((void **)dixGetPrivateAddr(&win->devPrivates, &sna_window_key))[1] = chain;
+	((void **)__get_private(win, sna_window_key))[1] = chain;
 }
 
 static void

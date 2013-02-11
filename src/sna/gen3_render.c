@@ -2658,7 +2658,7 @@ source_use_blt(struct sna *sna, PicturePtr picture)
 	if (too_large(picture->pDrawable->width, picture->pDrawable->height))
 		return true;
 
-	return !is_gpu(picture->pDrawable);
+	return !is_gpu(sna, picture->pDrawable, PREFER_GPU_RENDER);
 }
 
 static bool
@@ -3884,12 +3884,11 @@ gen3_check_composite_spans(struct sna *sna,
 	if (gen3_composite_fallback(sna, op, src, NULL, dst))
 		return false;
 
-	if (need_tiling(sna, width, height)) {
-		if (!is_gpu(dst->pDrawable)) {
-			DBG(("%s: fallback, tiled operation not on GPU\n",
-			     __FUNCTION__));
-			return false;
-		}
+	if (need_tiling(sna, width, height) &&
+	    !is_gpu(sna, dst->pDrawable, PREFER_GPU_SPANS)) {
+		DBG(("%s: fallback, tiled operation not on GPU\n",
+		     __FUNCTION__));
+		return false;
 	}
 
 	return true;
@@ -5205,10 +5204,12 @@ bool gen3_render_init(struct sna *sna)
 
 #if !NO_COMPOSITE
 	render->composite = gen3_render_composite;
+	render->prefer_gpu |= PREFER_GPU_RENDER;
 #endif
 #if !NO_COMPOSITE_SPANS
 	render->check_composite_spans = gen3_check_composite_spans;
 	render->composite_spans = gen3_render_composite_spans;
+	render->prefer_gpu |= PREFER_GPU_SPANS;
 #endif
 
 	render->video = gen3_render_video;

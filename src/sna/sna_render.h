@@ -129,7 +129,6 @@ struct sna_composite_op {
 		struct {
 			int wm_kernel;
 			int ve_id;
-			int sf;
 		} gen4;
 
 		struct {
@@ -215,6 +214,11 @@ struct sna_render {
 
 	int max_3d_size;
 	int max_3d_pitch;
+
+	unsigned prefer_gpu;
+#define PREFER_GPU_BLT 0x1
+#define PREFER_GPU_RENDER 0x2
+#define PREFER_GPU_SPANS 0x4
 
 	bool (*composite)(struct sna *sna, uint8_t op,
 			  PicturePtr dst, PicturePtr src, PicturePtr mask,
@@ -363,7 +367,7 @@ struct gen4_render_state {
 	struct kgem_bo *general_bo;
 
 	uint32_t vs;
-	uint32_t sf[2];
+	uint32_t sf;
 	uint32_t wm;
 	uint32_t cc;
 

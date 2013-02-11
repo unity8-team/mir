@@ -399,8 +399,8 @@ static void _assert_pixmap_contains_box(PixmapPtr pixmap, BoxPtr box, const char
 
 static void apply_damage(struct sna_composite_op *op, RegionPtr region)
 {
-	DBG(("%s: damage=%p, region=%d [(%d, %d), (%d, %d) + (%d, %d)]\n",
-	     __FUNCTION__, op->damage, REGION_NUM_RECTS(region),
+	DBG(("%s: damage=%p, region=%ld [(%d, %d), (%d, %d) + (%d, %d)]\n",
+	     __FUNCTION__, op->damage, RegionNumRects(region),
 	     region->extents.x1, region->extents.y1,
 	     region->extents.x2, region->extents.y2,
 	     op->dst.x, op->dst.y));
@@ -436,6 +436,18 @@ static inline bool use_cpu(PixmapPtr pixmap, struct sna_pixmap *priv,
 		return false;
 
 	return (priv->create & KGEM_CAN_CREATE_GPU) == 0;
+}
+
+static void validate_source(PicturePtr picture)
+{
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,10,99,901,0)
+	miCompositeSourceValidate(picture);
+#else
+	miCompositeSourceValidate(picture,
+				  0, 0,
+				  picture->pDrawable ? picture->pDrawable->width : 0,
+				  picture->pDrawable ? picture->pDrawable->height : 0);
+#endif
 }
 
 void
@@ -492,9 +504,9 @@ sna_composite_fb(CARD8 op,
 
 	DBG(("%s: fallback -- fbComposite\n", __FUNCTION__));
 
-	miCompositeSourceValidate(src);
+	validate_source(src);
 	if (mask)
-		miCompositeSourceValidate(mask);
+		validate_source(mask);
 
 	src_image = image_from_pict(src, FALSE, &src_xoff, &src_yoff);
 	mask_image = image_from_pict(mask, FALSE, &msk_xoff, &msk_yoff);
@@ -584,7 +596,7 @@ sna_composite(CARD8 op,
 	}
 
 	if (use_cpu(pixmap, priv, op, width, height) &&
-	    !picture_is_gpu(src) && !picture_is_gpu(mask)) {
+	    !picture_is_gpu(sna, src) && !picture_is_gpu(sna, mask)) {
 		DBG(("%s: fallback, dst pixmap=%ld is too small (or completely damaged)\n",
 		     __FUNCTION__, pixmap->drawable.serialNumber));
 		goto fallback;
@@ -635,8 +647,8 @@ sna_composite(CARD8 op,
 		tmp.box(sna, &tmp, &region.extents);
 	else
 		tmp.boxes(sna, &tmp,
-			  REGION_BOXPTR(&region),
-			  REGION_NUM_RECTS(&region));
+			  RegionBoxptr(&region),
+			  RegionNumRects(&region));
 	apply_damage(&tmp, &region);
 	tmp.done(sna, &tmp);
 
@@ -844,11 +856,11 @@ sna_composite_rectangles(CARD8		 op,
 		return;
 	}
 
-	DBG(("%s: drawable extents (%d, %d),(%d, %d) x %d\n",
+	DBG(("%s: drawable extents (%d, %d),(%d, %d) x %ld\n",
 	     __FUNCTION__,
 	     RegionExtents(&region)->x1, RegionExtents(&region)->y1,
 	     RegionExtents(&region)->x2, RegionExtents(&region)->y2,
-	     RegionNumRects(&region)));
+	     (long)RegionNumRects(&region)));
 
 	if (dst->pCompositeClip->data &&
 	    (!pixman_region_intersect(&region, &region, dst->pCompositeClip) ||
@@ -859,11 +871,11 @@ sna_composite_rectangles(CARD8		 op,
 		return;
 	}
 
-	DBG(("%s: clipped extents (%d, %d),(%d, %d) x %d\n",
+	DBG(("%s: clipped extents (%d, %d),(%d, %d) x %ld\n",
 	     __FUNCTION__,
 	     RegionExtents(&region)->x1, RegionExtents(&region)->y1,
 	     RegionExtents(&region)->x2, RegionExtents(&region)->y2,
-	     RegionNumRects(&region)));
+	     (long)RegionNumRects(&region)));
 
 	pixmap = get_drawable_pixmap(dst->pDrawable);
 	get_drawable_deltas(dst->pDrawable, pixmap, &dst_x, &dst_y);
@@ -999,8 +1011,8 @@ fallback:
 	assert(pixmap->devPrivate.ptr);
 
 	if (op <= PictOpSrc) {
-		int nbox = REGION_NUM_RECTS(&region);
-		BoxPtr box = REGION_RECTS(&region);
+		int nbox = RegionNumRects(&region);
+		BoxPtr box = RegionRects(&region);
 		uint32_t pixel;
 
 		if (op == PictOpClear)

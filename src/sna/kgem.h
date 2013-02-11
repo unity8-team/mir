@@ -382,6 +382,7 @@ static inline void _kgem_set_mode(struct kgem *kgem, enum kgem_mode mode)
 {
 	assert(kgem->mode == KGEM_NONE);
 	assert(kgem->nbatch == 0);
+	assert(!kgem->wedged);
 	kgem->context_switch(kgem, mode);
 	kgem->mode = mode;
 }

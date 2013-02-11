@@ -1,3 +1,33 @@
+Release 2.21.2 (2013-02-10)
+===========================
+Pass the brown paper bags, I need half a dozen or so. That seemingly
+innocuous build fix with xorg-1.13 happned to have the little side-effect
+of breaking glyph rendering with xorg-1.12 and older on 64-bit machines.
+
+
+Release 2.21.1 (2013-02-10)
+===========================
+A fix for a potential GPU hang on 945gm (GMA3100) and earlier chipsets,
+along with backporting SNA to the packages found in stable distributions
+like Debian 6.0 (Squeeze).
+
+ * Cleanup compilation warnings from deblint, thanks to Paul Menzel
+
+ * Minor build improvements by Damien Lespiau.
+
+ * Disable generating span geometry for non-rectilinear spans on gen4
+   in order to work around and prevent one class of render corruption.
+
+ * Prevent cache thrashing and severe performance degradation on LLC
+   machines for streaming texture updates. However, note the effect was
+   only observed on just one particular laptop.
+
+ * Fix alignment of subsurface proxies for old chipsets.
+   https://bugs.launchpad.net/ubuntu/+source/xserver-xorg-video-intel/+bug/1120108
+
+ * Repair build against Xorg-1.6 and contemporary packages.
+
+
 Release 2.21.0 (2013-02-01)
 ===========================
 A few new features:
@@ -6,7 +36,7 @@ A few new features:
 
  * Enable multi-threaded rasterisation of trapezoids and fallback composition
 
- * Utilile a new kernel interface (v3.9) for processing relocations
+ * Utilise a new kernel interface (v3.9) for processing relocations
 
 along with a few older features from the 2.20.x series:
 
@@ -47,7 +77,7 @@ As usual we have a large number of bug fixes since the last release:
 Release 2.20.19 (2013-01-20)
 ============================
 A quick release as the last broke USB DisplayLink slave outputs badly. The
-performance of those displays was unusable due to a inadvertent change that
+performance of those displays was unusable due to an inadvertent change that
 caused us to flush the entire scanout over the USB for every drawing
 operation.
 

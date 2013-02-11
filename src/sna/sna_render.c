@@ -87,8 +87,8 @@ no_render_composite(struct sna *sna,
 	if (mask)
 		return false;
 
-	if (!is_gpu(dst->pDrawable) &&
-	    (src->pDrawable == NULL || !is_gpu(src->pDrawable)))
+	if (!is_gpu(sna, dst->pDrawable, PREFER_GPU_BLT) &&
+	    (src->pDrawable == NULL || !is_gpu(sna, src->pDrawable, PREFER_GPU_BLT)))
 		return false;
 
 	return sna_blt_composite(sna,
@@ -279,7 +279,9 @@ void no_render_init(struct sna *sna)
 {
 	struct sna_render *render = &sna->render;
 
-	memset (render,0, sizeof (*render));
+	memset (render, 0, sizeof (*render));
+
+	render->prefer_gpu = PREFER_GPU_BLT;
 
 	render->vertices = render->vertex_data;
 	render->vertex_size = ARRAY_SIZE(render->vertex_data);
@@ -348,6 +350,11 @@ use_cpu_bo(struct sna *sna, PixmapPtr pixmap, const BoxRec *box, bool blt)
 			     __FUNCTION__));
 			break;
 		default:
+			if (kgem_bo_is_busy(priv->gpu_bo)){
+				DBG(("%s: box is partially damaged on the CPU, and the GPU is busy\n",
+				     __FUNCTION__));
+				return NULL;
+			}
 			if (sna_damage_contains_box(priv->gpu_damage,
 						    box) != PIXMAN_REGION_OUT) {
 				DBG(("%s: box is damaged on the GPU\n",
@@ -452,7 +459,9 @@ move_to_gpu(PixmapPtr pixmap, const BoxRec *box, bool blt)
 
 	w = box->x2 - box->x1;
 	h = box->y2 - box->y1;
-	if (w == pixmap->drawable.width && h == pixmap->drawable.height) {
+	if (priv->cpu_bo && !priv->cpu_bo->flush) {
+		migrate = true;
+	} else if (w == pixmap->drawable.width && h == pixmap->drawable.height) {
 		migrate = priv->source_count++ > SOURCE_BIAS;
 
 		DBG(("%s: migrating whole pixmap (%dx%d) for source (%d,%d),(%d,%d), count %d? %d\n",
@@ -889,6 +898,9 @@ sna_render_pixmap_partial(struct sna *sna,
 				   &tile_width, &tile_height, &tile_size);
 		DBG(("%s: tile size for tiling %d: %dx%d, size=%d\n",
 		     __FUNCTION__, bo->tiling, tile_width, tile_height, tile_size));
+
+		if (sna->kgem.gen < 033)
+			tile_width = bo->pitch;
 
 		/* Ensure we align to an even tile row */
 		box.y1 = box.y1 & ~(2*tile_height - 1);
@@ -1533,7 +1545,8 @@ sna_render_picture_fixup(struct sna *sna,
 
 	if (picture->alphaMap) {
 		DBG(("%s: alphamap\n", __FUNCTION__));
-		if (is_gpu(picture->pDrawable) || is_gpu(picture->alphaMap->pDrawable)) {
+		if (is_gpu(sna, picture->pDrawable, PREFER_GPU_RENDER) ||
+		    is_gpu(sna, picture->alphaMap->pDrawable, PREFER_GPU_RENDER)) {
 			return sna_render_picture_flatten(sna, picture, channel,
 							  x, y, w, h, dst_x, dst_y);
 		}
@@ -1543,7 +1556,7 @@ sna_render_picture_fixup(struct sna *sna,
 
 	if (picture->filter == PictFilterConvolution) {
 		DBG(("%s: convolution\n", __FUNCTION__));
-		if (is_gpu(picture->pDrawable)) {
+		if (is_gpu(sna, picture->pDrawable, PREFER_GPU_RENDER)) {
 			return sna_render_picture_convolve(sna, picture, channel,
 							   x, y, w, h, dst_x, dst_y);
 		}
@@ -1576,8 +1589,10 @@ do_fixup:
 	}
 
 	/* Composite in the original format to preserve idiosyncracies */
-	if (picture->format == channel->pict_format)
-		dst = pixman_image_create_bits(picture->format,
+	if (!kgem_buffer_is_inplace(channel->bo) &&
+	    (picture->pDrawable == NULL ||
+	     picture->format == channel->pict_format))
+		dst = pixman_image_create_bits(channel->pict_format,
 					       w, h, ptr, channel->bo->pitch);
 	else
 		dst = pixman_image_create_bits(picture->format, w, h, NULL, 0);
@@ -1603,7 +1618,7 @@ do_fixup:
 	free_pixman_pict(picture, src);
 
 	/* Then convert to card format */
-	if (picture->format != channel->pict_format) {
+	if (pixman_image_get_data(dst) != ptr) {
 		DBG(("%s: performing post-conversion %08x->%08x (%d, %d)\n",
 		     __FUNCTION__,
 		     picture->format, channel->pict_format,
@@ -1702,7 +1717,7 @@ sna_render_picture_convert(struct sna *sna,
 		return 0;
 	}
 
-	if (fixup_alpha && is_gpu(&pixmap->drawable)) {
+	if (fixup_alpha && is_gpu(sna, &pixmap->drawable, PREFER_GPU_RENDER)) {
 		ScreenPtr screen = pixmap->drawable.pScreen;
 		PixmapPtr tmp;
 		PicturePtr src, dst;

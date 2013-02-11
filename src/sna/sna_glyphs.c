@@ -110,7 +110,7 @@ extern DevPrivateKeyRec sna_glyph_key;
 
 static inline struct sna_glyph *sna_glyph(GlyphPtr glyph)
 {
-	return dixGetPrivateAddr(&glyph->devPrivates, &sna_glyph_key);
+	return __get_private(glyph, sna_glyph_key);
 }
 
 #define NeedsComponent(f) (PICT_FORMAT_A(f) != 0 && PICT_FORMAT_RGB(f) != 0)
@@ -193,11 +193,17 @@ bool sna_glyphs_create(struct sna *sna)
 	if (sna->render.white_image == NULL)
 		goto bail;
 
-	if (!can_render(sna))
+	if (!can_render(sna)) {
+		DBG(("%s: no render acceleration, no render glyph caches\n",
+		     __FUNCTION__));
 		return true;
+	}
 
-	if (xf86IsEntityShared(sna->scrn->entityList[0]))
+	if (xf86IsEntityShared(sna->scrn->entityList[0])) {
+		DBG(("%s: shared GlyphPictures, no render glyph caches\n",
+		     __FUNCTION__));
 		return true;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(formats); i++) {
 		struct sna_glyph_cache *cache = &sna->render.glyph[i];
@@ -218,8 +224,11 @@ bool sna_glyphs_create(struct sna *sna)
 					      CACHE_PICTURE_SIZE,
 					      depth,
 					      SNA_CREATE_GLYPHS);
-		if (!pixmap)
+		if (!pixmap) {
+			DBG(("%s: failed to allocate pixmap for Glyph cache\n",
+			     __FUNCTION__));
 			goto bail;
+		}
 
 		priv = sna_pixmap(pixmap);
 		if (priv != NULL) {
@@ -237,6 +246,7 @@ bool sna_glyphs_create(struct sna *sna)
 			goto bail;
 
 		ValidatePicture(picture);
+		assert(picture->pDrawable == &pixmap->drawable);
 
 		cache->count = cache->evict = 0;
 		cache->picture = picture;
@@ -1678,7 +1688,7 @@ sna_glyphs(CARD8 op,
 	}
 
 	if ((too_small(priv) || DAMAGE_IS_ALL(priv->cpu_damage)) &&
-	    !picture_is_gpu(src)) {
+	    !picture_is_gpu(sna, src)) {
 		DBG(("%s: fallback -- too small (%dx%d)\n",
 		     __FUNCTION__, dst->pDrawable->width, dst->pDrawable->height));
 		goto fallback;
@@ -2002,7 +2012,7 @@ sna_glyphs__shared(CARD8 op,
 	}
 
 	if ((too_small(priv) || DAMAGE_IS_ALL(priv->cpu_damage)) &&
-	    !picture_is_gpu(src)) {
+	    !picture_is_gpu(sna, src)) {
 		DBG(("%s: fallback -- too small (%dx%d)\n",
 		     __FUNCTION__, dst->pDrawable->width, dst->pDrawable->height));
 		goto fallback;

@@ -67,7 +67,7 @@ static inline void batch_emit_float(struct sna *sna, float f)
 }
 
 static inline bool
-is_gpu(DrawablePtr drawable)
+is_gpu(struct sna *sna, DrawablePtr drawable, unsigned prefer)
 {
 	struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
 
@@ -77,7 +77,8 @@ is_gpu(DrawablePtr drawable)
 	if (priv->cpu_damage == NULL)
 		return true;
 
-	if (priv->gpu_damage && !priv->gpu_bo->proxy)
+	if (priv->gpu_damage && !priv->gpu_bo->proxy &&
+	    (sna->render.prefer_gpu & prefer))
 		return true;
 
 	if (priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo))
@@ -108,11 +109,20 @@ unattached(DrawablePtr drawable)
 }
 
 static inline bool
-picture_is_gpu(PicturePtr picture)
+picture_is_gpu(struct sna *sna, PicturePtr picture)
 {
 	if (!picture || !picture->pDrawable)
 		return false;
-	return is_gpu(picture->pDrawable);
+	return is_gpu(sna, picture->pDrawable, PREFER_GPU_RENDER);
+}
+
+static inline bool
+picture_is_cpu(struct sna *sna, PicturePtr picture)
+{
+	if (!picture->pDrawable)
+		return false;
+
+	return !is_gpu(sna, picture->pDrawable, PREFER_GPU_RENDER);
 }
 
 static inline bool sna_blt_compare_depth(DrawablePtr src, DrawablePtr dst)
