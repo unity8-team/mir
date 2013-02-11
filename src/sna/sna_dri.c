@@ -219,9 +219,13 @@ sna_dri_pixmap_update_bo(struct sna *sna, PixmapPtr pixmap)
 	if (private->bo == bo)
 		return;
 
+	private->bo->flush = false;
 	kgem_bo_destroy(&sna->kgem, private->bo);
+
 	buffer->name = kgem_bo_flink(&sna->kgem, bo);
 	private->bo = ref(bo);
+
+	assert(bo->flush);
 
 	/* XXX DRI2InvalidateDrawable(&pixmap->drawable); */
 }

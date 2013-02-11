@@ -3382,7 +3382,6 @@ disable:
 			sna_dri_pixmap_update_bo(sna, sna->front);
 
 			sna->mode.shadow = new;
-			new->flush = old->flush;
 		}
 
 		RegionEmpty(region);
