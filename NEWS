@@ -7,7 +7,7 @@ of breaking glyph rendering with xorg-1.12 and older on 64-bit machines.
 
 Release 2.21.1 (2013-02-10)
 ===========================
-A fix for a potential GPU hang on 945gm (GMA3100) and earlier chipsets,
+A fix for a potential GPU hang on 945gm (GMA950) and earlier chipsets,
 along with backporting SNA to the packages found in stable distributions
 like Debian 6.0 (Squeeze).
 
