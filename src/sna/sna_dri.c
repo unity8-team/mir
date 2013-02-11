@@ -1097,6 +1097,7 @@ sna_dri_page_flip(struct sna *sna, struct sna_dri_frame_event *info)
 	assert(sna_pixmap_get_buffer(sna->front) == info->front);
 	assert(get_drawable_pixmap(info->draw)->drawable.height * bo->pitch <= kgem_bo_size(bo));
 	assert(info->scanout[0].bo);
+	assert(info->scanout[1].bo == NULL);
 
 	info->count = sna_page_flip(sna, bo, info, info->pipe);
 	if (!info->count)
