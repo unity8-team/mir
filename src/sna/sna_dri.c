@@ -189,7 +189,7 @@ static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 	return priv->gpu_bo;
 }
 
-constant static inline void *sna_pixmap_get_buffer(PixmapPtr pixmap)
+pure static inline void *sna_pixmap_get_buffer(PixmapPtr pixmap)
 {
 	assert(pixmap->refcnt);
 	return ((void **)__get_private(pixmap, sna_pixmap_key))[2];
@@ -375,7 +375,7 @@ sna_dri_create_buffer(DrawablePtr draw,
 		assert(sna_pixmap_get_buffer(pixmap) == NULL);
 
 		sna_pixmap_set_buffer(pixmap, buffer);
-		//assert(sna_pixmap_get_buffer(pixmap) == buffer);
+		assert(sna_pixmap_get_buffer(pixmap) == buffer);
 		pixmap->refcnt++;
 
 		priv = sna_pixmap(pixmap);

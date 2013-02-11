@@ -543,8 +543,8 @@ static inline uint32_t default_tiling(PixmapPtr pixmap,
 	return tiling;
 }
 
-constant static uint32_t sna_pixmap_choose_tiling(PixmapPtr pixmap,
-						  uint32_t tiling)
+pure static uint32_t sna_pixmap_choose_tiling(PixmapPtr pixmap,
+					      uint32_t tiling)
 {
 	struct sna *sna = to_sna_from_pixmap(pixmap);
 	uint32_t bit;

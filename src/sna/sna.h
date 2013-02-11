@@ -164,7 +164,7 @@ static inline PixmapPtr get_drawable_pixmap(DrawablePtr drawable)
 
 extern DevPrivateKeyRec sna_pixmap_key;
 
-constant static inline struct sna_pixmap *sna_pixmap(PixmapPtr pixmap)
+pure static inline struct sna_pixmap *sna_pixmap(PixmapPtr pixmap)
 {
 	return ((void **)__get_private(pixmap, sna_pixmap_key))[1];
 }
@@ -307,25 +307,25 @@ extern int sna_page_flip(struct sna *sna,
 			 void *data,
 			 int ref_crtc_hw_id);
 
-constant static inline struct sna *
+pure static inline struct sna *
 to_sna(ScrnInfoPtr scrn)
 {
 	return (struct sna *)(scrn->driverPrivate);
 }
 
-constant static inline struct sna *
+pure static inline struct sna *
 to_sna_from_screen(ScreenPtr screen)
 {
 	return to_sna(xf86ScreenToScrn(screen));
 }
 
-constant static inline struct sna *
+pure static inline struct sna *
 to_sna_from_pixmap(PixmapPtr pixmap)
 {
 	return ((void **)__get_private(pixmap, sna_pixmap_key))[0];
 }
 
-constant static inline struct sna *
+pure static inline struct sna *
 to_sna_from_drawable(DrawablePtr drawable)
 {
 	return to_sna_from_screen(drawable->pScreen);
