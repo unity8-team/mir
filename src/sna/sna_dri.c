@@ -175,13 +175,10 @@ static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 		return NULL;
 	}
 
+	assert(priv->flush == false);
 	assert(priv->cpu_damage == NULL);
 	assert(priv->gpu_bo->proxy == NULL);
-	if (priv->flush++) {
-		assert(priv->gpu_bo->flush);
-		assert(priv->pinned & PIN_DRI);
-		return priv->gpu_bo;
-	}
+	assert(priv->gpu_bo->flush == false);
 
 	tiling = color_tiling(sna, &pixmap->drawable);
 	if (tiling < 0)
@@ -194,6 +191,7 @@ static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 	 *
 	 * As we don't track which Client, we flush for all.
 	 */
+	priv->flush = true;
 	sna_accel_watch_flush(sna, 1);
 
 	/* Don't allow this named buffer to be replaced */
@@ -414,19 +412,23 @@ static void _sna_dri_destroy_buffer(struct sna *sna, DRI2Buffer2Ptr buffer)
 			PixmapPtr pixmap = private->pixmap;
 			struct sna_pixmap *priv = sna_pixmap(pixmap);
 
+			assert(sna_pixmap_get_buffer(pixmap) == buffer);
 			assert(priv->gpu_bo == private->bo);
+			assert(priv->flush);
 
 			/* Undo the DRI markings on this pixmap */
-			if (priv->flush && --priv->flush == 0) {
-				DBG(("%s: releasing last DRI pixmap=%ld, scanout?=%d\n",
-				     __FUNCTION__,
-				     pixmap->drawable.serialNumber,
-				     pixmap == sna->front));
-				list_del(&priv->list);
-				priv->gpu_bo->flush = 0;
-				priv->pinned &= ~PIN_DRI;
-				sna_accel_watch_flush(sna, -1);
-			}
+			DBG(("%s: releasing last DRI pixmap=%ld, scanout?=%d\n",
+			     __FUNCTION__,
+			     pixmap->drawable.serialNumber,
+			     pixmap == sna->front));
+
+			list_del(&priv->list);
+
+			priv->gpu_bo->flush = false;
+			priv->pinned &= ~PIN_DRI;
+
+			priv->flush = false;
+			sna_accel_watch_flush(sna, -1);
 
 			sna_pixmap_set_buffer(pixmap, NULL);
 			pixmap->drawable.pScreen->DestroyPixmap(pixmap);
