@@ -186,17 +186,6 @@ static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 	if (priv->gpu_bo->tiling != tiling)
 		sna_pixmap_change_tiling(pixmap, tiling);
 
-	/* We need to submit any modifications to and reads from this
-	 * buffer before we send any reply to the Client.
-	 *
-	 * As we don't track which Client, we flush for all.
-	 */
-	priv->flush = true;
-	sna_accel_watch_flush(sna, 1);
-
-	/* Don't allow this named buffer to be replaced */
-	priv->pinned |= PIN_DRI;
-
 	return priv->gpu_bo;
 }
 
@@ -380,10 +369,29 @@ sna_dri_create_buffer(DrawablePtr draw,
 		goto err;
 
 	if (pixmap) {
+		struct sna_pixmap *priv;
+
 		assert(attachment == DRI2BufferFrontLeft);
+		assert(sna_pixmap_get_buffer(pixmap) == NULL);
+
 		sna_pixmap_set_buffer(pixmap, buffer);
 		assert(sna_pixmap_get_buffer(pixmap) == buffer);
 		pixmap->refcnt++;
+
+		priv = sna_pixmap(pixmap);
+		assert(priv->flush == false);
+		assert((priv->pinned & PIN_DRI) == 0);
+
+		/* Don't allow this named buffer to be replaced */
+		priv->pinned |= PIN_DRI;
+
+		/* We need to submit any modifications to and reads from this
+		 * buffer before we send any reply to the Client.
+		 *
+		 * As we don't track which Client, we flush for all.
+		 */
+		priv->flush = true;
+		sna_accel_watch_flush(sna, 1);
 	}
 
 	assert(bo->flush == true);
