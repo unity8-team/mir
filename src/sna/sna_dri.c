@@ -375,7 +375,7 @@ sna_dri_create_buffer(DrawablePtr draw,
 		assert(sna_pixmap_get_buffer(pixmap) == NULL);
 
 		sna_pixmap_set_buffer(pixmap, buffer);
-		assert(sna_pixmap_get_buffer(pixmap) == buffer);
+		//assert(sna_pixmap_get_buffer(pixmap) == buffer);
 		pixmap->refcnt++;
 
 		priv = sna_pixmap(pixmap);
