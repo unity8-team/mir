@@ -1,3 +1,10 @@
+ubuntu-platform-api (0.7) quantal; urgency=low
+
+  * debian/control: changing to arch any as libhybris is now available for
+    x86 64
+
+ -- Ricardo Salveti de Araujo <ricardo.salveti@canonical.com>  Sun, 10 Feb 2013 23:57:21 -0200
+
 ubuntu-platform-api (0.6) quantal; urgency=low
 
   [ Thomas Voss ]
