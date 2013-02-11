@@ -404,6 +404,7 @@ static void sna_pixmap_free_gpu(struct sna *sna, struct sna_pixmap *priv)
 	priv->clear = false;
 
 	if (priv->gpu_bo && !priv->pinned) {
+		assert(!priv->flush);
 		kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
 		priv->gpu_bo = NULL;
 	}
