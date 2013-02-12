@@ -4579,7 +4579,8 @@ fallback:
 						   RegionExtents(region));
 
 			mode = MOVE_READ;
-			if (src_priv->cpu_bo == NULL)
+			if (src_priv->cpu_bo == NULL &&
+			    (src_priv->create & KGEM_CAN_CREATE_CPU) == 0)
 				mode |= MOVE_INPLACE_HINT;
 
 			if (!sna_drawable_move_region_to_cpu(&src_pixmap->drawable,
