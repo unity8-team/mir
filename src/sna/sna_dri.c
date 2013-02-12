@@ -1085,8 +1085,10 @@ sna_dri_frame_event_info_free(struct sna *sna,
 
 	assert(info->scanout[1].bo == NULL);
 
-	if (info->scanout[0].bo)
+	if (info->scanout[0].bo) {
+		assert(info->scanout[0].bo->scanout);
 		kgem_bo_destroy(&sna->kgem, info->scanout[0].bo);
+	}
 
 	if (info->cache.bo)
 		kgem_bo_destroy(&sna->kgem, info->cache.bo);
@@ -1108,6 +1110,7 @@ sna_dri_page_flip(struct sna *sna, struct sna_dri_frame_event *info)
 	assert(sna_pixmap_get_buffer(sna->front) == info->front);
 	assert(get_drawable_pixmap(info->draw)->drawable.height * bo->pitch <= kgem_bo_size(bo));
 	assert(info->scanout[0].bo);
+	assert(info->scanout[0].bo->scanout);
 	assert(info->scanout[1].bo == NULL);
 	assert(bo->refcnt);
 
@@ -1118,6 +1121,7 @@ sna_dri_page_flip(struct sna *sna, struct sna_dri_frame_event *info)
 	info->scanout[1] = info->scanout[0];
 	info->scanout[0].bo = ref(bo);
 	info->scanout[0].name = info->back->name;
+	assert(info->scanout[0].bo->scanout);
 
 	tmp.bo = get_private(info->front)->bo;
 	tmp.name = info->front->name;
@@ -1606,9 +1610,11 @@ sna_dri_flip_continue(struct sna *sna, struct sna_dri_frame_event *info)
 		if (!info->count)
 			return false;
 
+		assert(info->scanout[0].bo->scanout);
 		info->scanout[1] = info->scanout[0];
 		info->scanout[0].bo = ref(get_private(info->front)->bo);
 		info->scanout[0].name = info->front->name;
+		assert(info->scanout[0].bo->scanout);
 		sna->dri.flip_pending = info;
 	} else {
 		if (!info->draw)
@@ -1953,6 +1959,7 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw,
 
 		info->scanout[0].bo = ref(get_private(front)->bo);
 		info->scanout[0].name = info->front->name;
+		assert(info->scanout[0].bo->scanout);
 
 		sna_dri_add_frame_event(draw, info);
 		sna_dri_reference_buffer(front);
@@ -2004,6 +2011,7 @@ out:
 
 	info->scanout[0].bo = ref(get_private(front)->bo);
 	info->scanout[0].name = info->front->name;
+	assert(info->scanout[0].bo->scanout);
 
 	sna_dri_add_frame_event(draw, info);
 	sna_dri_reference_buffer(front);
