@@ -911,6 +911,17 @@ sna_dri_copy_region(DrawablePtr draw,
 	void (*copy)(struct sna *, DrawablePtr, RegionPtr,
 		     struct kgem_bo *, struct kgem_bo *, bool) = sna_dri_copy;
 
+	assert(get_private(src_buffer)->refcnt);
+	assert(get_private(dst_buffer)->refcnt);
+
+	assert(get_private(src_buffer)->bo->refcnt);
+	assert(get_private(src_buffer)->bo->flush);
+
+	assert(get_private(dst_buffer)->bo->refcnt);
+	assert(get_private(dst_buffer)->bo->flush);
+
+	assert(sna_pixmap_from_drawable(draw)->flush);
+
 	if (!can_blit(sna, draw, dst_buffer, src_buffer))
 		return;
 
@@ -1098,6 +1109,7 @@ sna_dri_page_flip(struct sna *sna, struct sna_dri_frame_event *info)
 	assert(get_drawable_pixmap(info->draw)->drawable.height * bo->pitch <= kgem_bo_size(bo));
 	assert(info->scanout[0].bo);
 	assert(info->scanout[1].bo == NULL);
+	assert(bo->refcnt);
 
 	info->count = sna_page_flip(sna, bo, info, info->pipe);
 	if (!info->count)
@@ -2105,6 +2117,17 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	*target_msc &= 0xffffffff;
 	divisor &= 0xffffffff;
 	remainder &= 0xffffffff;
+
+	assert(get_private(front)->refcnt);
+	assert(get_private(back)->refcnt);
+
+	assert(get_private(front)->bo->refcnt);
+	assert(get_private(front)->bo->flush);
+
+	assert(get_private(back)->bo->refcnt);
+	assert(get_private(back)->bo->flush);
+
+	assert(sna_pixmap_from_drawable(draw)->flush);
 
 	/* Drawable not displayed... just complete the swap */
 	pipe = sna_dri_get_pipe(draw);
