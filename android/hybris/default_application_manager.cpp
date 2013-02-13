@@ -421,7 +421,7 @@ void ApplicationManager::request_fullscreen(const android::sp<android::IApplicat
 
     notify_observers_about_session_requested_fullscreen(
         as->remote_pid,
-	as->stage_hint,
+        as->stage_hint,
         as->desktop_file);
 }
 
@@ -681,7 +681,7 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
 
         ALOGI("Raising application now for idx: %d (stage_hint: %d)\n", focused_application, session->stage_hint);
         
-	if (session->session_type == ubuntu::application::ui::system_session_type)
+    if (session->session_type == ubuntu::application::ui::system_session_type)
         {
             ALOGI("\t system session - not raising it.");
             return;
