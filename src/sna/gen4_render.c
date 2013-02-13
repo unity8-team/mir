@@ -2101,17 +2101,22 @@ gen4_check_composite_spans(struct sna *sna,
 		return FORCE_SPANS > 0;
 
 	if ((flags & COMPOSITE_SPANS_RECTILINEAR) == 0) {
-		struct sna_pixmap *priv = sna_pixmap_from_drawable(dst->pDrawable);
+		struct sna_pixmap *priv;
+
+		if (FORCE_NONRECTILINEAR_SPANS)
+			return FORCE_NONRECTILINEAR_SPANS > 0;
+
+		if ((sna->render.prefer_gpu & PREFER_GPU_SPANS) == 0)
+			return false;
+
+		priv = sna_pixmap_from_drawable(dst->pDrawable);
 		assert(priv);
 
-		if (priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo))
+		if (priv->cpu_bo &&
+		    __kgem_bo_is_busy(&sna->kgem, priv->cpu_bo))
 			return true;
 
 		if (flags & COMPOSITE_SPANS_INPLACE_HINT)
-			return false;
-
-		if ((sna->render.prefer_gpu & PREFER_GPU_SPANS) == 0 &&
-		    dst->format == PICT_a8)
 			return false;
 
 		return priv->gpu_bo && kgem_bo_is_busy(priv->gpu_bo);
