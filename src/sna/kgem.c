@@ -1631,15 +1631,17 @@ static void _kgem_bo_delete_buffer(struct kgem *kgem, struct kgem_bo *bo)
 static void kgem_bo_move_to_scanout(struct kgem *kgem, struct kgem_bo *bo)
 {
 	assert(bo->refcnt == 0);
-	assert(bo->exec == NULL);
 	assert(bo->scanout);
 	assert(bo->delta);
 	assert(!bo->snoop);
 	assert(!bo->io);
 
-	DBG(("%s: moving %d [fb %d] to scanout cachee\n", __FUNCTION__,
-	     bo->handle, bo->delta));
-	list_move(&bo->list, &kgem->scanout);
+	DBG(("%s: moving %d [fb %d] to scanout cache, active? %d\n",
+	     __FUNCTION__, bo->handle, bo->delta, bo->rq != NULL));
+	if (bo->rq)
+		list_move_tail(&bo->list, &kgem->scanout);
+	else
+		list_move(&bo->list, &kgem->scanout);
 }
 
 static void kgem_bo_move_to_snoop(struct kgem *kgem, struct kgem_bo *bo)
@@ -3495,7 +3497,8 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 	bucket = cache_bucket(size);
 
 	if (flags & CREATE_SCANOUT) {
-		list_for_each_entry(bo, &kgem->scanout, list) {
+		assert((flags & CREATE_INACTIVE) == 0);
+		list_for_each_entry_reverse(bo, &kgem->scanout, list) {
 			assert(bo->scanout);
 			assert(bo->delta);
 			assert(!bo->purged);
