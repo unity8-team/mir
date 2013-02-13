@@ -324,14 +324,6 @@ use_cpu_bo(struct sna *sna, PixmapPtr pixmap, const BoxRec *box, bool blt)
 		return NULL;
 	}
 
-	if (priv->shm) {
-		DBG(("%s: shm CPU bo, avoiding promotion to GPU\n",
-		     __FUNCTION__));
-		assert(!priv->flush);
-		sna_add_flush_pixmap(sna, priv, priv->cpu_bo);
-		return priv->cpu_bo;
-	}
-
 	if (priv->cpu_bo->snoop && priv->source_count > SOURCE_BIAS) {
 		DBG(("%s: promoting snooped CPU bo due to reuse\n",
 		     __FUNCTION__));
@@ -398,6 +390,11 @@ use_cpu_bo(struct sna *sna, PixmapPtr pixmap, const BoxRec *box, bool blt)
 				return NULL;
 			}
 		}
+	}
+
+	if (priv->shm) {
+		assert(!priv->flush);
+		sna_add_flush_pixmap(sna, priv, priv->cpu_bo);
 	}
 
 	DBG(("%s for box=(%d, %d), (%d, %d)\n",
