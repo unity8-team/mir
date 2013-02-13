@@ -104,6 +104,28 @@ LOCAL_C_INCLUDES := \
 	canonical/ubuntu-platform-api/include
 
 LOCAL_SRC_FILES:= \
+	test_trap.cpp \
+
+LOCAL_MODULE:= direct_set_trap
+LOCAL_MODULE_TAGS := optional
+
+LOCAL_SHARED_LIBRARIES := \
+	libandroidfw \
+	libutils \
+	libEGL \
+	libGLESv2 \
+	libubuntu_application_api
+
+include $(BUILD_EXECUTABLE)
+
+include $(CLEAR_VARS)
+
+LOCAL_CFLAGS += -std=gnu++0x
+
+LOCAL_C_INCLUDES := \
+	canonical/ubuntu-platform-api/include
+
+LOCAL_SRC_FILES:= \
 	test_osk_visibility.cpp \
 
 LOCAL_MODULE:= direct_osk_visibility

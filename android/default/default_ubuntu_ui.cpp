@@ -23,6 +23,8 @@
 
 #include <stdio.h>
 
+#include <utils/Log.h>
+
 namespace
 {
 struct SessionLifeCycleObserver : public ubuntu::ui::SessionLifeCycleObserver
@@ -176,6 +178,16 @@ void ubuntu_ui_session_trigger_switch_to_well_known_application(ubuntu_ui_well_k
 {
     ubuntu::ui::SessionService::instance()->trigger_switch_to_well_known_application(
         static_cast<ubuntu::ui::WellKnownApplication>(app));
+}
+
+int32_t ubuntu_ui_set_surface_trap(int32_t x, int32_t y, int32_t width, int32_t height)
+{
+    return ubuntu::ui::SessionService::instance()->set_surface_trap(x, y, width, height);
+}
+
+void ubuntu_ui_unset_surface_trap(int32_t handle)
+{
+    ubuntu::ui::SessionService::instance()->unset_surface_trap(handle);
 }
 
 void ubuntu_ui_report_osk_visible(int x, int y, int width, int height)
