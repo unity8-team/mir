@@ -398,7 +398,7 @@ void ApplicationManager::register_a_surface(
                 registered_session->raise_surface_to_layer(token, default_shutdown_dialog_layer);
                 break;
         }
-    } else
+    } else if (registered_session->stage_hint != ubuntu::application::ui::side_stage)
     {
         size_t i = 0;
         for(i = 0; i < apps_as_added.size(); i++)
