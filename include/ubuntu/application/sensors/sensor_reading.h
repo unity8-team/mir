@@ -30,22 +30,26 @@ namespace application
 namespace sensors
 {
 
+/** A vector of static size. */
 template<size_t size, typename NumericType = float>
 struct Vector
 {
     NumericType v[size];
 
+    /** Accesses the element at index index. */
     NumericType& operator[](size_t index)
     {
         return v[index];
     }
 
+    /** Accesses the element at index index. */
     const NumericType& operator[](size_t index) const
     {
         return v[index];
     }
 };
 
+/** A timestamped reading from a sensor. */
 struct SensorReading : public ubuntu::platform::ReferenceCountedBase
 {
     typedef ubuntu::platform::shared_ptr<SensorReading> Ptr;
@@ -54,20 +58,17 @@ struct SensorReading : public ubuntu::platform::ReferenceCountedBase
     {
     }
 
-    virtual ~SensorReading()
-    {
-    }
-
-    int64_t timestamp;
+    int64_t timestamp; ///< The timestamp of the reading in [ns], CLOCK_MONOTONIC.
+    /** A union of different possible sensor readings. */
     union
     {
-        Vector<3> vector;
-        Vector<3> acceleration;
-        Vector<3> magnetic;
-        float temperature;
-        float distance;
-        float light;
-        float pressure;
+        Vector<3> vector; ///< Arbitrary vector, orientation and linear acceleration readings are reported here.
+        Vector<3> acceleration; ///< Acceleration vector containing acceleration readings for the three axis.
+        Vector<3> magnetic; ///< Readings from magnetometer, in three dimensions.
+        float temperature; ///< Ambient temperature.
+        float distance; ///< Discrete distance, everything > 5 is considered far, everything < 5 is considered near.
+        float light; ///< Ambient light conditions.
+        float pressure; ///< Ambient pressure.
     };
 };
 }

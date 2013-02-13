@@ -28,9 +28,11 @@ namespace application
 {
 namespace sensors
 {
+/** Local stub that allows for instantiating sensor instances given a type. */
 class SensorService : public ubuntu::platform::ReferenceCountedBase
 {
 public:
+    /** Returns a sensor instance for the provided type or NULL. */
     static Sensor::Ptr sensor_for_type(SensorType type);
 protected:
     SensorService() {}

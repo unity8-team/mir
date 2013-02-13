@@ -27,6 +27,9 @@ namespace application
 namespace ui
 {
 
+/**
+ * Marks physical displays connected to the system
+ */
 enum PhysicalDisplayIdentifier
 {
     first_physical_display = 0,
@@ -43,14 +46,21 @@ enum PhysicalDisplayIdentifier
     primary_physical_display = first_physical_display
 };
 
+/**
+ * Models information about a physical display.
+ */
 class PhysicalDisplayInfo : public ubuntu::platform::ReferenceCountedBase
 {
 public:
     typedef ubuntu::platform::shared_ptr<PhysicalDisplayInfo> Ptr;
 
+    /** Access to the horizontal dpi of the physical display. */
     virtual float horizontal_dpi() = 0;
+    /** Access to the vertical dpi of the physical display. */
     virtual float vertical_dpi() = 0;
+    /** Access to the horizontal resolution of the physical display. */
     virtual int horizontal_resolution() = 0;
+    /** Access to the vertical resolution of the physical display. */
     virtual int vertical_resolution() = 0;
 
 protected:

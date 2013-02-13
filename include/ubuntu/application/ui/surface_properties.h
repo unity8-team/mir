@@ -28,24 +28,33 @@ namespace application
 namespace ui
 {
 
+/**
+ * \enum SurfaceFlags 
+ * Flags that can be specified for a surface 
+ * \attention Requires privileged access to the ui service provider 
+ */
 enum SurfaceFlags
 {
-    is_opaque_flag = IS_OPAQUE_FLAG
+    is_opaque_flag = IS_OPAQUE_FLAG ///< Specifies that a surface is opaque
 };
 
+/** 
+ * \struct SurfaceProperties surface_properties.h
+ * Bundles the properties for surface creation.
+ */
 struct SurfaceProperties
 {
     enum
     {
-        max_surface_title_length = 512
+        max_surface_title_length = 512 ///< Maximum length of the surface title
     };
 
-    const char title[max_surface_title_length];
-    int width;
-    int height;
-    SurfaceRole role;
-    uint32_t flags;
-    bool is_opaque;
+    const char title[max_surface_title_length]; ///< Surface title
+    int width; ///< Requested width
+    int height; ///< Requested height
+    SurfaceRole role; ///< Requested role \sa ubuntu::application::ui::SurfaceRole
+    uint32_t flags; ///< Requested flags \sa ubuntu::application::ui::SurfaceFlags
+    bool is_opaque; ///< Signals that the surface should be opaque
 };
 }
 }

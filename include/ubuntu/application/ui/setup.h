@@ -28,6 +28,7 @@ namespace application
 {
 namespace ui
 {
+/** Provides access to the setup of the application instance as specified by command line/desktop file. */
 class Setup : public ubuntu::platform::ReferenceCountedBase
 {
 public:
@@ -35,10 +36,13 @@ public:
 
     static const Ptr& instance();
 
+    /** Provides access the stage the stage hint that the application should live in. */
     virtual StageHint stage_hint() = 0;
 
+    /** Provides access to the form factors that the application instance is currently running on. */
     virtual FormFactorHintFlags form_factor_hint() = 0;
 
+    /** Provides access to the desktop file that describes the current application instance. */
     virtual const char* desktop_file_hint() = 0;
 
 protected:

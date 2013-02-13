@@ -26,6 +26,9 @@ namespace application
 {
 namespace ui
 {
+/** Models a system-wide clipboard. 
+ * \deprecated This is a temporary solution and is likely to be removed or subject to significant changes in upcoming revisions.
+ */
 class Clipboard : public ubuntu::platform::ReferenceCountedBase
 {
 public:

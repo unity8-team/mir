@@ -25,7 +25,12 @@
 extern "C" {
 #endif
 
-/** Maximum number of SVs for gps_sv_status_callback(). */
+/** \defgroup gps_access Functions and types for accessing location services. */
+
+/** 
+ * Maximum number of SVs for gps_sv_status_callback(). 
+ * \ingroup gps_access
+ */
 #define UBUNTU_GPS_MAX_SVS 32
 
 enum
@@ -42,10 +47,12 @@ enum
     UBUNTU_GPS_STATUS_ENGINE_OFF = 4
 };
 
-/** Flags for the gps_set_capabilities callback. */
-/** GPS HAL schedules fixes for UBUNTU_GPS_POSITION_RECURRENCE_PERIODIC mode.
-    If this is not set, then the framework will use 1000ms for min_interval
-    and will start and call start() and stop() to schedule the GPS.
+/** 
+ * Flags for the gps_set_capabilities callback.
+ * \ingroup gps_access
+ * GPS HAL schedules fixes for UBUNTU_GPS_POSITION_RECURRENCE_PERIODIC mode.
+ * If this is not set, then the framework will use 1000ms for min_interval
+ * and will start and call start() and stop() to schedule the GPS.
  */
 #define UBUNTU_GPS_CAPABILITY_SCHEDULING       0x0000001
 /** GPS supports MS-Based AGPS mode */
@@ -59,6 +66,7 @@ enum
 
 /**
  * UbuntuGpsNiNotifyFlags constants
+ * \ingroup gps_access
  */
 typedef uint32_t UbuntuGpsNiNotifyFlags;
 /** NI requires notification */
@@ -71,6 +79,7 @@ typedef uint32_t UbuntuGpsNiNotifyFlags;
 /**
  * GPS NI responses, used to define the response in
  * NI structures
+ * \ingroup gps_access
  */
 typedef int UbuntuGpsUserResponseType;
 enum
@@ -89,12 +98,14 @@ enum
 
 /**
  * String length constants
+ * \ingroup gps_access
  */
 #define UBUNTU_GPS_NI_SHORT_STRING_MAXLEN      256
 #define UBUNTU_GPS_NI_LONG_STRING_MAXLEN       2048
 
 /**
  * NI data encoding scheme
+ * \ingroup gps_access
  */
 typedef int UbuntuGpsNiEncodingType;
 enum
@@ -158,6 +169,10 @@ enum
 
 typedef struct UbuntuGps_* UbuntuGps;
 
+/**
+ * Models a location as reported by the GPS HAL.
+ * \ingroup gps_access
+ */
 typedef struct
 {
     /** set to sizeof(UbuntuGpsLocation) */
@@ -181,7 +196,10 @@ typedef struct
     int64_t        timestamp;
 } UbuntuGpsLocation;
 
-/** Represents space vehicle information. */
+/** 
+ * Represents space vehicle (satellite) information. 
+ * \ingroup gps_access
+ */
 typedef struct {
     /** set to sizeof(UbuntuGpsSvInfo) */
     size_t          size;
@@ -195,7 +213,10 @@ typedef struct {
     float   azimuth;
 } UbuntuGpsSvInfo;
 
-/** Represents SV (Space Vehicle) status. */
+/** 
+ * Represents SV (Space Vehicle) status. 
+ * \ingroup gps_access
+ */
 typedef struct {
     /** set to sizeof(GpsSvStatus) */
     size_t          size;
@@ -223,7 +244,10 @@ typedef struct {
     uint32_t    used_in_fix_mask;
 } UbuntuGpsSvStatus;
 
-/** Represents the status of AGPS. */
+/** 
+ * Represents the status of AGPS. 
+ * \ingroup gps_access
+ */
 typedef struct {
     /** set to sizeof(UbuntuAgpsStatus) */
     size_t size;
@@ -233,7 +257,10 @@ typedef struct {
     uint32_t ipaddr;
 } UbuntuAgpsStatus;
 
-/** Represents an NI request */
+/** 
+ * Represents an NI request 
+ * \ingroup gps_access
+ */
 typedef struct {
     /** set to sizeof(UbuntuGpsNiNotification) */
     size_t          size;

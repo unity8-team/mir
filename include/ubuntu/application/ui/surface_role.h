@@ -26,16 +26,21 @@ namespace application
 {
 namespace ui
 {
+/**
+ * Describes the role of a surface.
+ * \attention Reserved roles require special privileges.
+ */
 enum SurfaceRole
 {
-    dash_actor_role = DASH_ACTOR_ROLE,
-    main_actor_role = MAIN_ACTOR_ROLE,
-    indicator_actor_role = INDICATOR_ACTOR_ROLE, 
-    notifications_actor_role = NOTIFICATIONS_ACTOR_ROLE,
-    greeter_actor_role = GREETER_ACTOR_ROLE,
-    launcher_actor_role = LAUNCHER_ACTOR_ROLE,
-    on_screen_keyboard_actor_role = ON_SCREEN_KEYBOARD_ACTOR_ROLE,
-    shutdown_dialog_actor_role = SHUTDOWN_DIALOG_ACTOR_ROLE
+    main_actor_role = MAIN_ACTOR_ROLE, ///< An application's main surface
+
+    dash_actor_role = DASH_ACTOR_ROLE, ///< Reserved for the shell's dash
+    indicator_actor_role = INDICATOR_ACTOR_ROLE, ///< Reserved for the shell's indicators
+    notifications_actor_role = NOTIFICATIONS_ACTOR_ROLE, ///< Reserved for the shell's notifications
+    greeter_actor_role = GREETER_ACTOR_ROLE, ///< Reserved for the greeter
+    launcher_actor_role = LAUNCHER_ACTOR_ROLE, ///< Reserved for the launcher
+    on_screen_keyboard_actor_role = ON_SCREEN_KEYBOARD_ACTOR_ROLE, ///< Reserved for the onscreen-keyboard
+    shutdown_dialog_actor_role = SHUTDOWN_DIALOG_ACTOR_ROLE ///< Reserved for the shutdown dialog
 };
 }
 }

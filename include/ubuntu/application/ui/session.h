@@ -33,21 +33,40 @@ namespace application
 {
 namespace ui
 {
-
+/**
+ * Represents a session with the service providers abstracted by
+ * Ubuntu platform API and allows for accessing ui-specific
+ * functionality.
+ */
 class Session : public ubuntu::application::Session
 {
 public:
     typedef ubuntu::platform::shared_ptr<Session> Ptr;
 
+    /** Provides access to the system-wide clipboard. */
     static Clipboard::Ptr clipboard();
 
+    /** Provides system-wide access to the physical displays known to the system. 
+     *  \sa PhysicalDisplayIdentifier
+     *  \sa PhysicalDisplayInfo
+     */
     static PhysicalDisplayInfo::Ptr physical_display_info(PhysicalDisplayIdentifier id);
 
+    /** Requests a surface from the system.
+     *  \param [in] props Requested properties for the surface
+     *  \param [in] listener Event receiver for input events
+     *  \return Pointer to the surface instance or NULL.
+     */
     virtual Surface::Ptr create_surface(
         const SurfaceProperties& props,
         const ubuntu::application::ui::input::Listener::Ptr& listener) = 0;
+
+    /** Destroys the surface and renders it unusable. */
     virtual void destroy_surface(const Surface::Ptr& surface) = 0;
 
+    /** Requests the surface to be shown in fullscreen. 
+     *  \param [in] surface The surface to transition to fullscreen.
+     */
     virtual void toggle_fullscreen_for_surface(const Surface::Ptr& surface) = 0;
 
 protected:

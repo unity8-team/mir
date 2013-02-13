@@ -23,7 +23,12 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+    
+    /** \defgroup sensor_access Functions and types to access sensor devices. */
 
+    /** A timestamped accelerometer reading 
+     * \ingroup sensor_access
+     */
     typedef struct
     {
         int64_t timestamp;
@@ -33,6 +38,9 @@ extern "C" {
         float acceleration_z;
     } ubuntu_sensor_accelerometer_reading;
 
+    /** A timestamped proximity sensor reading 
+     * \ingroup sensor_access
+     */
     typedef struct
     {
         int64_t timestamp;
@@ -40,6 +48,9 @@ extern "C" {
         float distance;
     } ubuntu_sensor_proximity_reading;
 
+    /** A timestamped ambient light sensor reading 
+     * \ingroup sensor_access
+     */
     typedef struct
     {
         int64_t timestamp;
@@ -47,6 +58,9 @@ extern "C" {
         float light;
     } ubuntu_sensor_ambient_light_reading;
 
+    /** Describes the sensor types known to the system 
+     * \ingroup sensor_access
+     */
     enum ubuntu_sensor_type
     {
         first_defined_sensor_type = 0,
@@ -61,26 +75,60 @@ extern "C" {
         undefined_sensor_type
     };
 
+    /** Callback that is invoked for new accelerometer readings.
+     * \ingroup sensor_access
+     * \param reading [in] The new reading.
+     * \param context [in] The callback context.
+     */
+    typedef void (*on_new_accelerometer_reading)(ubuntu_sensor_accelerometer_reading* reading, void* context);
+    
+    /** Callback that is invoked for new proximity sensor readings.
+     * \ingroup sensor_access
+     * \param reading [in] The new reading.
+     * \param context [in] The callback context.
+     */
+    typedef void (*on_new_proximity_reading)(ubuntu_sensor_proximity_reading* reading, void* context);
+    
+    /** Callback that is invoked for new ambient light sensor readings.
+     * \ingroup sensor_access
+     * \param reading [in] The new reading.
+     * \param context [in] The callback context.
+     */
+    typedef void (*on_new_ambient_light_reading)(ubuntu_sensor_ambient_light_reading* reading, void* context);
+    
+    /** Models a sensor observer. 
+     * \ingroup sensor_access
+     */
     typedef struct
-    {
-        typedef void (*on_new_accelerometer_reading)(ubuntu_sensor_accelerometer_reading* reading, void* context);
-        typedef void (*on_new_proximity_reading)(ubuntu_sensor_proximity_reading* reading, void* context);
-        typedef void (*on_new_ambient_light_reading)(ubuntu_sensor_ambient_light_reading* reading, void* context);
-
+    {   
+        /** Invoked for new readings from an accelerometer. */
         on_new_accelerometer_reading on_new_accelerometer_reading_cb;
+        /** Invoked for new readings from a proximity sensor. */
         on_new_proximity_reading on_new_proximity_reading_cb;
+        /** Invoked for new readings from an ambient light sensor. */
         on_new_ambient_light_reading on_new_ambient_light_reading_cb;
 
+        /** Callback context. */
         void* context;
     } ubuntu_sensor_observer;
 
-    // Initialize and get an ubuntu_sensor_observer instance ready to be used by
-    // a client application.
     void ubuntu_sensor_initialize_observer(ubuntu_sensor_observer* observer);
+    /** Installs the supplied observer. 
+     * \ingroup sensor_access
+     */
     void ubuntu_sensor_install_observer(ubuntu_sensor_observer* observer);
+    /** Uninstalls the supplied observer. 
+     * \ingroup sensor_access
+     */
     void ubuntu_sensor_uninstall_observer(ubuntu_sensor_observer* observer);
 
+    /** Enables the specified sensor type and starts data acquisition. 
+     * \ingroup sensor_access
+     */
     void ubuntu_sensor_enable_sensor(ubuntu_sensor_type sensor_type);
+    /** Disables the specified sensor type and starts data acquisition. 
+     * \ingroup sensor_access
+     */
     void ubuntu_sensor_disable_sensor(ubuntu_sensor_type sensor_type);
 
 #ifdef __cplusplus

@@ -31,11 +31,13 @@ namespace ui
 {
 namespace input
 {
+/** Models a listener for classic input event originating from input devices like mice or touchpads. */
 class Listener : public ubuntu::platform::ReferenceCountedBase
 {
 public:
     typedef ubuntu::platform::shared_ptr<Listener> Ptr;
 
+    /** Invoked whenever a new event is available. */
     virtual void on_new_event(const Event& event) = 0;
 
 protected:

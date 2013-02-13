@@ -24,6 +24,9 @@ namespace application
 {
 namespace ui
 {
+/** Initializes internals with the given command line arguments. 
+ *  \attention Has to be called before any other function is called.
+ */
 void init(int argc, char** argv);
 }
 }
