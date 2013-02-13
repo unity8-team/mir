@@ -4138,17 +4138,14 @@ static bool use_shm_bo(struct sna *sna,
 		DBG(("%s: yes, complex alu=%d\n", __FUNCTION__, alu));
 		return true;
 	}
-	if (bo->tiling) {
-		DBG(("%s:, yes, dst tiled=%d\n", __FUNCTION__, bo->tiling));
-		return true;
-	}
 
 	if (__kgem_bo_is_busy(&sna->kgem, bo)) {
 		DBG(("%s: yes, dst is busy\n", __FUNCTION__));
 		return true;
 	}
 
-	if (__kgem_bo_is_busy(&sna->kgem, priv->cpu_bo)) {
+	if (priv->cpu_bo->needs_flush &&
+	    __kgem_bo_is_busy(&sna->kgem, priv->cpu_bo)) {
 		DBG(("%s: yes, src is busy\n", __FUNCTION__));
 		return true;
 	}
@@ -4378,8 +4375,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 		    src_priv == NULL &&
 		    sna->kgem.has_userptr &&
 		    box_inplace(src_pixmap, &region->extents) &&
-		    ((sna->kgem.has_llc && bo->tiling && !bo->scanout) ||
-		     __kgem_bo_is_busy(&sna->kgem, bo))) {
+		     __kgem_bo_is_busy(&sna->kgem, bo)) {
 			struct kgem_bo *src_bo;
 			bool ok = false;
 

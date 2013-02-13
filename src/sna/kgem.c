@@ -4737,7 +4737,9 @@ void kgem_bo_sync__cpu(struct kgem *kgem, struct kgem_bo *bo)
 void kgem_bo_sync__cpu_full(struct kgem *kgem, struct kgem_bo *bo, bool write)
 {
 	assert(bo->proxy == NULL);
-	kgem_bo_submit(kgem, bo);
+
+	if (write || bo->needs_flush)
+		kgem_bo_submit(kgem, bo);
 
 	if (bo->domain != DOMAIN_CPU) {
 		struct drm_i915_gem_set_domain set_domain;
