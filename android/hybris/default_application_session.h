@@ -184,6 +184,12 @@ struct ApplicationSession : public android::RefBase
         return app_layer;
     }
 
+    android::IApplicationManagerSession::SurfaceProperties query_properties() const
+    {
+        android::IApplicationManagerSession::SurfaceProperties props = registered_surfaces.valueAt(registered_surfaces.size()-1)->query_properties();
+        return props;
+    }
+  
     void raise_application_surfaces_to_layer(int layer)
     {
         app_layer = layer;

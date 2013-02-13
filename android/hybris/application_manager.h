@@ -241,6 +241,8 @@ public:
 
     virtual int32_t query_snapshot_layer_for_session_with_id(int id) = 0;
     
+    virtual IApplicationManagerSession::SurfaceProperties query_surface_properties_for_session_id(int id) = 0;
+    
     virtual void switch_to_well_known_application(int32_t app) = 0;
 
     virtual void report_osk_visible(int32_t x, int32_t y, int32_t width, int32_t height) = 0;
@@ -262,6 +264,7 @@ protected:
         UNFOCUS_RUNNING_SESSIONS_COMMAND,
         FOCUS_RUNNING_SESSION_WITH_ID_COMMAND,
         QUERY_SNAPSHOT_LAYER_FOR_SESSION_WITH_ID_COMMAND,
+        QUERY_SURFACE_PROPERTIES_FOR_SESSION_ID_COMMAND,
         SWITCH_TO_WELL_KNOWN_APPLICATION_COMMAND,
         REPORT_OSK_VISIBLE_COMMAND,
         REPORT_OSK_INVISIBLE_COMMAND,
@@ -312,7 +315,9 @@ public:
     void focus_running_session_with_id(int id);
     
     int32_t query_snapshot_layer_for_session_with_id(int id);
-
+    
+    IApplicationManagerSession::SurfaceProperties query_surface_properties_for_session_id(int id);
+    
     void switch_to_well_known_application(int32_t app);
 
     void report_osk_visible(int32_t x, int32_t y, int32_t width, int32_t height);

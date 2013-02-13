@@ -699,15 +699,27 @@ struct SessionService : public ubuntu::ui::SessionService
     struct SessionSnapshot : public ubuntu::ui::SessionSnapshot
     {
         const void* snapshot_pixels;
+        unsigned int snapshot_x;
+        unsigned int snapshot_y;
+        unsigned int surface_width;
+        unsigned int surface_height;
         unsigned int snapshot_width;
         unsigned int snapshot_height;
         unsigned int snapshot_stride;
         
         SessionSnapshot(
             const void* pixels, 
+            unsigned int x,
+            unsigned int y,
+            unsigned int sf_width,
+            unsigned int sf_height,
             unsigned int width, 
             unsigned height, 
             unsigned int stride) : snapshot_pixels(pixels),
+                                   snapshot_x(x),
+                                   snapshot_y(y),
+                                   surface_width(sf_width),
+                                   surface_height(sf_height),
                                    snapshot_width(width),
                                    snapshot_height(height),
                                    snapshot_stride(stride)
@@ -717,7 +729,11 @@ struct SessionService : public ubuntu::ui::SessionService
         const void* pixel_data() {
             return snapshot_pixels;
         }
-        
+
+        unsigned int x() { return snapshot_x; }
+        unsigned int y() { return snapshot_y; }
+        unsigned int source_width() { return surface_width; }
+        unsigned int source_height() { return surface_height; }
         unsigned int width() { return snapshot_width; }
         unsigned int height() { return snapshot_height; }
         unsigned int stride() { return snapshot_stride; }       
@@ -776,15 +792,26 @@ struct SessionService : public ubuntu::ui::SessionService
         int32_t layer_max = id > 0 
                 ? access_application_manager()->query_snapshot_layer_for_session_with_id(id) 
                 : id;  
+
+        android::IApplicationManagerSession::SurfaceProperties props =
+             access_application_manager()->query_surface_properties_for_session_id(id);
+
         static android::ScreenshotClient screenshot_client;
         android::sp<android::IBinder> display(
                 android::SurfaceComposerClient::getBuiltInDisplay(
                 android::ISurfaceComposer::eDisplayIdMain));
-        screenshot_client.update(display, default_width, default_height, layer_min, layer_max);
+
+        screenshot_client.update(display, 0, 0, layer_min, layer_max);
+
+        ALOGI("screenshot: (%d, %d, %d, %d)\n", props.left, props.top, props.right, props.bottom);
 
         SessionSnapshot::Ptr ss(
             new SessionSnapshot(
                 screenshot_client.getPixels(),
+                props.left,
+                props.top,
+                props.right - props.left,
+                props.bottom - props.top,
                 screenshot_client.getWidth(),
                 screenshot_client.getHeight(),
                 screenshot_client.getStride()));

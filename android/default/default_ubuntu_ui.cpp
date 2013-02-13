@@ -23,6 +23,8 @@
 
 #include <stdio.h>
 
+#include <utils/Log.h>
+
 namespace
 {
 struct SessionLifeCycleObserver : public ubuntu::ui::SessionLifeCycleObserver
@@ -178,7 +180,9 @@ void ubuntu_ui_session_snapshot_running_session_with_id(int id, ubuntu_ui_sessio
 
     if (cb)
     {
-        cb(ss->pixel_data(), ss->width(), ss->height(), ss->stride(), context);
+        ALOGI("screenshot buffer (%d, %d) geometry (%d, %d, %d, %d)\n", ss->width(), ss->height(), ss->x(), ss->y(), ss->source_width(), ss->source_height());
+        cb(ss->pixel_data(), ss->width(), ss->height(), ss->x(), ss->y(),
+           ss->source_width(), ss->source_height(), ss->stride(), context);
     }
 }
 

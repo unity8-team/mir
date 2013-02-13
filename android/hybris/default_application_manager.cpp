@@ -557,6 +557,16 @@ int32_t ApplicationManager::query_snapshot_layer_for_session_with_id(int id)
     return INT_MAX;
 }
 
+android::IApplicationManagerSession::SurfaceProperties ApplicationManager::query_surface_properties_for_session_id(int id)
+{
+    size_t idx = session_id_to_index(id);
+
+    const android::sp<mir::ApplicationSession>& session =
+            apps.valueFor(apps_as_added[idx]);
+
+    return session->query_properties();
+}
+
 void ApplicationManager::switch_to_well_known_application(int32_t app)
 {
     notify_observers_about_session_requested(app);
@@ -658,22 +668,30 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
        
         if (session->session_type != ubuntu::application::ui::system_session_type)
         {
-            notify_observers_about_session_unfocused(session->remote_pid,
-                                                     session->stage_hint,
-                                                     session->desktop_file);
             // Stop the session
             if (!is_session_allowed_to_run_in_background(session))
-    		//FIXME: get rid of check for stage hint
-                if (session->stage_hint == ubuntu::application::ui::main_stage &&
-                    next_session->stage_hint != ubuntu::application::ui::side_stage)
+            {
+                if ((session->stage_hint == ubuntu::application::ui::main_stage &&
+                    next_session->stage_hint != ubuntu::application::ui::side_stage) ||
+                    (session->stage_hint == ubuntu::application::ui::side_stage &&
+                    next_session->stage_hint != ubuntu::application::ui::main_stage))
+                {
                     kill(session->remote_pid, SIGSTOP);
-        }
+                    notify_observers_about_session_unfocused(session->remote_pid,
+                                                             session->stage_hint,
+                                                             session->desktop_file);
+                }
+            }
+       }
     }
 
     focused_application = index_of_next_focused_app;
 
     if (focused_application < apps.size())
     {
+        const android::sp<mir::ApplicationSession>& old_session =
+                apps.valueFor(apps_as_added[focused_application]);
+  
         focused_layer += focused_layer_increment;
 
         const android::sp<mir::ApplicationSession>& session =
@@ -702,6 +720,9 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
         if (are_notifications_visible)
             input_windows.push(shell_input_setup->notifications_window.input_window);
 
+        if (old_session->stage_hint == ubuntu::application::ui::main_stage &&
+                session->stage_hint == ubuntu::application::ui::side_stage)
+            input_windows.appendVector(old_session->input_window_handles());
         input_windows.appendVector(session->input_window_handles());
         input_setup->input_manager->getDispatcher()->setInputWindows(
             input_windows);
