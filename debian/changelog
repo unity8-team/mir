@@ -1,3 +1,9 @@
+ubuntu-platform-api (0.9) UNRELEASED; urgency=low
+
+  * Removing logic to kill applications using the volume down key
+
+ -- Ricardo Salveti de Araujo <ricardo.salveti@canonical.com>  Wed, 13 Feb 2013 22:17:58 -0200
+
 ubuntu-platform-api (0.8) quantal; urgency=low
 
   [ Ricardo Mendoza ]

@@ -175,21 +175,6 @@ bool ApplicationManager::InputFilter::handle_key_event(const android::KeyEvent* 
 {
     bool result = true;
 
-    if (!event)
-        return result;
-
-    if (event->getAction() == AKEY_EVENT_ACTION_DOWN)
-    {
-        switch (event->getKeyCode())
-        {
-            case AKEYCODE_VOLUME_DOWN:
-                manager->lock();
-                manager->kill_focused_application_locked();
-                manager->unlock();
-                break;
-        }
-    }
-
     return result;
 }
 
