@@ -784,9 +784,8 @@ struct SessionService : public ubuntu::ui::SessionService
 
     ubuntu::ui::SessionSnapshot::Ptr snapshot_running_session_with_id(int id)
     {
-        static const unsigned int default_width = 720;
-        static const unsigned int default_height = 1280;
         static android::DisplayInfo info;
+        const void* pixels;
 
         int32_t layer_min = id > 0 
                 ? access_application_manager()->query_snapshot_layer_for_session_with_id(id) 
@@ -807,13 +806,17 @@ struct SessionService : public ubuntu::ui::SessionService
                 display,
                 &info);
 
-        screenshot_client.update(display, info.w / 4, info.h / 4, layer_min, layer_max);
+        screenshot_client.update(display, info.w, info.h, layer_min, layer_max);
 
         ALOGI("screenshot: (%d, %d, %d, %d)\n", props.left, props.top, props.right, props.bottom);
+        if (props.left == 0 && props.top == 0 && props.right == 0 && props.bottom == 0)
+            pixels = NULL;
+        else
+            pixels = screenshot_client.getPixels();
 
         SessionSnapshot::Ptr ss(
             new SessionSnapshot(
-                screenshot_client.getPixels(),
+                pixels,
                 props.left,
                 props.top,
                 props.right - props.left,

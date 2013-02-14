@@ -398,7 +398,7 @@ void ApplicationManager::register_a_surface(
                 registered_session->raise_surface_to_layer(token, default_shutdown_dialog_layer);
                 break;
         }
-    } else if (registered_session->stage_hint != ubuntu::application::ui::side_stage)
+    } else 
     {
         size_t i = 0;
         for(i = 0; i < apps_as_added.size(); i++)
@@ -455,8 +455,17 @@ void ApplicationManager::request_update_for_session(const android::sp<android::I
             input_windows.push(shell_input_setup->osk_window.input_window);
         if (are_notifications_visible)
             input_windows.push(shell_input_setup->notifications_window.input_window);
-
+            
         input_windows.appendVector(as->input_window_handles());
+        if (focused_application >= 1)
+        {
+            const android::sp<mir::ApplicationSession>& pas =
+                apps.valueFor(apps_as_added[focused_application-1]);
+
+            if (pas->stage_hint == ubuntu::application::ui::main_stage &&
+                as->stage_hint == ubuntu::application::ui::side_stage)
+                input_windows.appendVector(pas->input_window_handles());
+        }
         input_setup->input_manager->getDispatcher()->setInputWindows(
             input_windows);
     }
@@ -559,12 +568,19 @@ int32_t ApplicationManager::query_snapshot_layer_for_session_with_id(int id)
 
 android::IApplicationManagerSession::SurfaceProperties ApplicationManager::query_surface_properties_for_session_id(int id)
 {
+    android::Mutex::Autolock al(guard);
+    ALOGI("%s: %d", __PRETTY_FUNCTION__, id );
     size_t idx = session_id_to_index(id);
 
-    const android::sp<mir::ApplicationSession>& session =
-            apps.valueFor(apps_as_added[idx]);
+    if (idx < apps_as_added.size())
+    {
+        const android::sp<mir::ApplicationSession>& session =
+                apps.valueFor(apps_as_added[idx]);
 
-    return session->query_properties();
+        return session->query_properties();
+    }
+    
+    return android::IApplicationManagerSession::SurfaceProperties();
 }
 
 void ApplicationManager::switch_to_well_known_application(int32_t app)
@@ -685,13 +701,14 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
        }
     }
 
+    const android::sp<mir::ApplicationSession>& old_session =
+                apps.valueFor(apps_as_added[focused_application]);
+
     focused_application = index_of_next_focused_app;
 
     if (focused_application < apps.size())
     {
-        const android::sp<mir::ApplicationSession>& old_session =
-                apps.valueFor(apps_as_added[focused_application]);
-  
+          
         focused_layer += focused_layer_increment;
 
         const android::sp<mir::ApplicationSession>& session =
@@ -720,10 +737,11 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
         if (are_notifications_visible)
             input_windows.push(shell_input_setup->notifications_window.input_window);
 
+        input_windows.appendVector(session->input_window_handles());
         if (old_session->stage_hint == ubuntu::application::ui::main_stage &&
                 session->stage_hint == ubuntu::application::ui::side_stage)
             input_windows.appendVector(old_session->input_window_handles());
-        input_windows.appendVector(session->input_window_handles());
+        
         input_setup->input_manager->getDispatcher()->setInputWindows(
             input_windows);
 

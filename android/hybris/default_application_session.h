@@ -186,7 +186,12 @@ struct ApplicationSession : public android::RefBase
 
     android::IApplicationManagerSession::SurfaceProperties query_properties() const
     {
-        android::IApplicationManagerSession::SurfaceProperties props = registered_surfaces.valueAt(registered_surfaces.size()-1)->query_properties();
+        if (!registered_surfaces.size())
+            return android::IApplicationManagerSession::SurfaceProperties();
+
+        android::IApplicationManagerSession::SurfaceProperties props =
+            registered_surfaces.valueAt(registered_surfaces.size()-1)->query_properties();
+
         return props;
     }
   
