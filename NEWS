@@ -1,7 +1,7 @@
 Release 2.21.2 (2013-02-10)
 ===========================
 Pass the brown paper bags, I need half a dozen or so. That seemingly
-innocuous build fix with xorg-1.13 happned to have the little side-effect
+innocuous build fix with xorg-1.13 happened to have the little side-effect
 of breaking glyph rendering with xorg-1.12 and older on 64-bit machines.
 
 
@@ -25,7 +25,7 @@ like Debian 6.0 (Squeeze).
  * Fix alignment of subsurface proxies for old chipsets.
    https://bugs.launchpad.net/ubuntu/+source/xserver-xorg-video-intel/+bug/1120108
 
- * Repair build against Xorg-1.6 and contemporary packages.
+ * Repair build against Xserver-1.6 (Xorg-7.7) and contemporary packages.
 
 
 Release 2.21.0 (2013-02-01)
