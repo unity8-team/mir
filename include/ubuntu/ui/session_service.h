@@ -57,6 +57,10 @@ public:
 
     virtual ubuntu::ui::SessionSnapshot::Ptr snapshot_running_session_with_id(int id) = 0;
 
+    virtual int32_t set_surface_trap(int32_t x, int32_t y, int32_t width, int32_t height) = 0;
+
+    virtual void unset_surface_trap(int32_t handle) = 0;
+
     virtual void report_osk_visible(int x, int y, int width, int height) = 0;
     
     virtual void report_osk_invisible() = 0;

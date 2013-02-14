@@ -1,3 +1,17 @@
+ubuntu-platform-api (0.8) quantal; urgency=low
+
+  [ Ricardo Mendoza ]
+  * Add API support for the dynamic creation and dismissal of system-session input traps with variable geometry.
+
+ -- Florian Boucault <florian.boucault@canonical.com>  Wed, 13 Feb 2013 23:56:45 +0000
+
+ubuntu-platform-api (0.7) quantal; urgency=low
+
+  * debian/control: changing to arch any as libhybris is now available for
+    x86 64
+
+ -- Ricardo Salveti de Araujo <ricardo.salveti@canonical.com>  Sun, 10 Feb 2013 23:57:21 -0200
+
 ubuntu-platform-api (0.6) quantal; urgency=low
 
   [ Thomas Voss ]

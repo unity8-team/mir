@@ -93,6 +93,8 @@ struct ApplicationManager :
         android::sp<android::Looper> looper;
         ubuntu::application::EventLoop event_loop;
 
+        android::KeyedVector<int32_t,  android::sp<android::InputWindowHandle> > trap_windows;
+
         // TODO(tvoss): Get rid of hard coded values.
         Window<0, 0, 720, 1280> event_trap_window;
         // TODO(tvoss): This is really hacky, but we need to
@@ -184,6 +186,10 @@ struct ApplicationManager :
 
     void switch_to_well_known_application(int32_t app);
 
+    int32_t set_surface_trap(int32_t x, int32_t y, int32_t width, int32_t height);
+
+    void unset_surface_trap(int32_t handle);
+
     void report_osk_visible(int32_t x, int32_t y, int32_t width, int32_t height);
     
     void report_osk_invisible();
@@ -219,6 +225,8 @@ struct ApplicationManager :
     android::Vector< android::sp<android::IBinder> > apps_as_added;
     android::Mutex observer_guard;
     android::Vector< android::sp<android::IApplicationManagerObserver> > app_manager_observers;
+    //FIXME: KeyedVector for input traps enabled
+    //android::KeyedVector< int32_t, android::sp<Ubu
     size_t focused_application;    
 };
 

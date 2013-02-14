@@ -245,6 +245,10 @@ public:
     
     virtual void switch_to_well_known_application(int32_t app) = 0;
 
+    virtual int32_t set_surface_trap(int32_t x, int32_t y, int32_t width, int32_t height) = 0;
+
+    virtual void unset_surface_trap(int32_t handle) = 0;
+    
     virtual void report_osk_visible(int32_t x, int32_t y, int32_t width, int32_t height) = 0;
     
     virtual void report_osk_invisible() = 0;
@@ -266,6 +270,8 @@ protected:
         QUERY_SNAPSHOT_LAYER_FOR_SESSION_WITH_ID_COMMAND,
         QUERY_SURFACE_PROPERTIES_FOR_SESSION_ID_COMMAND,
         SWITCH_TO_WELL_KNOWN_APPLICATION_COMMAND,
+        SET_SURFACE_TRAP_COMMAND,
+        UNSET_SURFACE_TRAP_COMMAND,
         REPORT_OSK_VISIBLE_COMMAND,
         REPORT_OSK_INVISIBLE_COMMAND,
         REPORT_NOTIFICATION_VISIBLE_COMMAND,
@@ -319,6 +325,10 @@ public:
     IApplicationManagerSession::SurfaceProperties query_surface_properties_for_session_id(int id);
     
     void switch_to_well_known_application(int32_t app);
+
+    int32_t set_surface_trap(int32_t x, int32_t y, int32_t width, int32_t height);
+
+    void unset_surface_trap(int handle);
 
     void report_osk_visible(int32_t x, int32_t y, int32_t width, int32_t height);
     

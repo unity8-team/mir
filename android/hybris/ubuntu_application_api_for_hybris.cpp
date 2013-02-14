@@ -833,6 +833,19 @@ struct SessionService : public ubuntu::ui::SessionService
         access_application_manager()->switch_to_well_known_application(app);
     }
 
+    int32_t set_surface_trap(int32_t x, int32_t y, int32_t width, int32_t height)
+    {
+        ALOGI("%s", __PRETTY_FUNCTION__);
+        return access_application_manager()->set_surface_trap(x, y, width, height);
+    }
+    
+    void unset_surface_trap(int32_t handle)
+    {
+        ALOGI("%s(%d)", __PRETTY_FUNCTION__, handle);
+        access_application_manager()->unset_surface_trap(handle);
+    }
+
+
     void report_osk_visible(int32_t x, int32_t y, int32_t width, int32_t height)
     {
         ALOGI("%s", __PRETTY_FUNCTION__);

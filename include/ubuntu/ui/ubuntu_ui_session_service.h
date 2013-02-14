@@ -100,6 +100,12 @@ extern "C" {
     void 
     ubuntu_ui_session_trigger_switch_to_well_known_application(ubuntu_ui_well_known_application app);
 
+    int32_t
+    ubuntu_ui_set_surface_trap(int x, int y, int width, int height);
+
+    void
+    ubuntu_ui_unset_surface_trap(int32_t handle);
+
     void
     ubuntu_ui_report_osk_visible(int x, int y, int width, int height);
     

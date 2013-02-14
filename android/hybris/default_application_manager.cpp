@@ -111,15 +111,17 @@ ApplicationManager::ShellInputSetup::Window<x, y, w, h>::Window(
         android::String8("DummyShellInputChannel"),
         server_channel,
         client_channel);
-
+    
     window->input_channel = server_channel;
     input_window = window;
+
     parent->input_manager->getDispatcher()->registerInputChannel(
         window->input_channel,
         input_window,
         false);
 
     input_consumer = android::InputConsumer(client_channel);
+
     // input_consumer.initialize();
     parent->looper->addFd(client_channel->getFd(), //client_channel->getReceivePipeFd(),
                           0,
@@ -455,7 +457,18 @@ void ApplicationManager::request_update_for_session(const android::sp<android::I
             input_windows.push(shell_input_setup->osk_window.input_window);
         if (are_notifications_visible)
             input_windows.push(shell_input_setup->notifications_window.input_window);
-            
+        
+        if (!shell_input_setup->trap_windows.isEmpty())
+        {
+            int key = 0;
+            for (size_t i = 0; i < shell_input_setup->trap_windows.size(); i++)
+            {
+                key = shell_input_setup->trap_windows.keyAt(i);
+                ALOGI("input_trap index: %d key %d\n", i, key);
+                input_windows.push(shell_input_setup->trap_windows.valueFor(key));
+            }
+        }     
+
         input_windows.appendVector(as->input_window_handles());
         if (focused_application >= 1)
         {
@@ -588,6 +601,34 @@ void ApplicationManager::switch_to_well_known_application(int32_t app)
     notify_observers_about_session_requested(app);
 }
 
+int32_t ApplicationManager::set_surface_trap(int x, int y, int width, int height)
+{
+    static int32_t key = 0;
+
+    ALOGI("input_trap %s(x=%d, y=%d, width=%d, height=%d, shell_input_setup=0x%08lx)", __PRETTY_FUNCTION__, x, y, width, height, &shell_input_setup);
+
+    ApplicationManager::ShellInputSetup::Window<0, 0, 2048, 2048>* w =
+        new ApplicationManager::ShellInputSetup::Window<0, 0, 2048, 2048>(shell_input_setup.get(), x, y, width, height);
+
+    key++; 
+    shell_input_setup->trap_windows.add(key, w->input_window);
+
+    ALOGI("input_trap key=%d\n", key);
+
+    update_input_setup_locked();
+
+    return key;
+}
+
+void ApplicationManager::unset_surface_trap(int32_t handle)
+{
+    ALOGI("input_trap %s(%d)\n", __PRETTY_FUNCTION__, handle);
+
+    shell_input_setup->trap_windows.removeItem(handle);
+
+    update_input_setup_locked();
+}
+
 void ApplicationManager::report_osk_visible(int32_t x, int32_t y, int32_t width, int32_t height)
 {
     ALOGI("%s(x=%d, y=%d, width=%d, height=%d)", __PRETTY_FUNCTION__, x, y, width, height);
@@ -660,6 +701,16 @@ void ApplicationManager::update_input_setup_locked()
             input_windows.push(shell_input_setup->osk_window.input_window);
         if (are_notifications_visible)
             input_windows.push(shell_input_setup->notifications_window.input_window);
+        if (!shell_input_setup->trap_windows.isEmpty())
+        {
+            int key = 0;
+            for (size_t i = 0; i < shell_input_setup->trap_windows.size(); i++)
+            {
+                key = shell_input_setup->trap_windows.keyAt(i);
+                ALOGI("input_trap index: %d key %d\n", i, key);
+                input_windows.push(shell_input_setup->trap_windows.valueFor(key));
+            }
+        }
         input_windows.appendVector(session->input_window_handles());
         input_setup->input_manager->getDispatcher()->setInputWindows(
             input_windows);
@@ -726,6 +777,8 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
         if (!is_session_allowed_to_run_in_background(session))
             kill(session->remote_pid, SIGCONT);
 
+        ALOGI("shell_input_setup %p\n", &shell_input_setup);
+
         session->raise_application_surfaces_to_layer(focused_layer);
         input_setup->input_manager->getDispatcher()->setFocusedApplication(
             session->input_application_handle());
@@ -736,6 +789,16 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
             input_windows.push(shell_input_setup->osk_window.input_window);
         if (are_notifications_visible)
             input_windows.push(shell_input_setup->notifications_window.input_window);
+        if (!shell_input_setup->trap_windows.isEmpty())
+        {
+            int key = 0;
+            for (size_t i = 0; i < shell_input_setup->trap_windows.size(); i++)
+            {
+                key = shell_input_setup->trap_windows.keyAt(i);
+                ALOGI("input_trap index: %d key %d\n", i, key);
+                input_windows.push(shell_input_setup->trap_windows.valueFor(key));
+            }
+        }
 
         input_windows.appendVector(session->input_window_handles());
         if (old_session->stage_hint == ubuntu::application::ui::main_stage &&
