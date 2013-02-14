@@ -134,6 +134,13 @@ extern "C" {
         DLSYM(&f, #symbol);                                      \
         f(_1, _2, _3, _4); }
 
+#define IMPLEMENT_FUNCTION4(return_type, symbol, arg1, arg2, arg3, arg4) \
+    return_type symbol(arg1 _1, arg2 _2, arg3 _3, arg4 _4)               \
+    {                                                                    \
+        static return_type (*f)(arg1, arg2, arg3, arg4) = NULL;          \
+        DLSYM(&f, #symbol);                                              \
+        return f(_1, _2, _3, _4); }
+
 #define IMPLEMENT_FUNCTION6(return_type, symbol, arg1, arg2, arg3, arg4, arg5, arg6) \
     return_type symbol(arg1 _1, arg2 _2, arg3 _3, arg4 _4, arg5 _5, arg6 _6)         \
     {                                                                                \
@@ -185,6 +192,8 @@ IMPLEMENT_VOID_FUNCTION0(ubuntu_ui_session_unfocus_running_sessions);
 IMPLEMENT_VOID_FUNCTION1(ubuntu_ui_session_focus_running_session_with_id, int);
 IMPLEMENT_VOID_FUNCTION3(ubuntu_ui_session_snapshot_running_session_with_id, int, ubuntu_ui_session_service_snapshot_cb, void*); 
 IMPLEMENT_VOID_FUNCTION1(ubuntu_ui_session_trigger_switch_to_well_known_application, ubuntu_ui_well_known_application);
+IMPLEMENT_FUNCTION4(int32_t, ubuntu_ui_set_surface_trap, int, int, int, int);
+IMPLEMENT_VOID_FUNCTION1(ubuntu_ui_unset_surface_trap, int);
 IMPLEMENT_VOID_FUNCTION4(ubuntu_ui_report_osk_visible, int, int, int, int);
 IMPLEMENT_VOID_FUNCTION0(ubuntu_ui_report_osk_invisible);
 IMPLEMENT_VOID_FUNCTION0(ubuntu_ui_report_notification_visible);

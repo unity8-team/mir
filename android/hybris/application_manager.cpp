@@ -457,6 +457,22 @@ status_t BnApplicationManager::onTransact(uint32_t code,
         switch_to_well_known_application(app);
         break;
     }
+    case SET_SURFACE_TRAP_COMMAND:
+    {
+        int32_t x = data.readInt32();
+        int32_t y = data.readInt32();
+        int32_t width = data.readInt32();
+        int32_t height = data.readInt32();
+        int32_t handle = set_surface_trap(x, y, width, height);
+        reply->writeInt32(handle);
+        break;
+    }
+    case UNSET_SURFACE_TRAP_COMMAND:
+    {
+        int32_t handle = data.readInt32();
+        unset_surface_trap(handle);
+        break;
+    }
     case REPORT_OSK_VISIBLE_COMMAND:
     {
         int32_t x = data.readInt32();
@@ -604,6 +620,33 @@ void BpApplicationManager::switch_to_well_known_application(int32_t app)
     in.writeInt32(app);
 
     remote()->transact(SWITCH_TO_WELL_KNOWN_APPLICATION_COMMAND,
+                       in,
+                       &out);
+}
+
+int32_t BpApplicationManager::set_surface_trap(int32_t x, int32_t y, int32_t width, int32_t height)
+{
+    Parcel in, out;
+    in.writeInt32(x);
+    in.writeInt32(y);
+    in.writeInt32(width);
+    in.writeInt32(height);
+
+    remote()->transact(SET_SURFACE_TRAP_COMMAND,
+                       in,
+                       &out);
+
+    int32_t handle = out.readInt32();
+
+    return handle;
+}
+
+void BpApplicationManager::unset_surface_trap(int32_t handle)
+{
+    Parcel in, out;
+    in.writeInt32(handle);
+
+    remote()->transact(UNSET_SURFACE_TRAP_COMMAND,
                        in,
                        &out);
 }

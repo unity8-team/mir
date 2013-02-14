@@ -18,6 +18,11 @@ Source Tree Layout
 The overall source tree is split up into roughly two parts:
 
   * include/
+    * ubuntu/
+      * application/
+        * ui/
+        * sensors/
+      * ui/
   * android/
 
 where include contains all of the public types, functions and

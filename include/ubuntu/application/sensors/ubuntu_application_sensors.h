@@ -131,6 +131,7 @@ extern "C" {
      */
     void ubuntu_sensor_disable_sensor(ubuntu_sensor_type sensor_type);
 
+    /** \example test_sensors_api.cpp */
 #ifdef __cplusplus
 }
 #endif

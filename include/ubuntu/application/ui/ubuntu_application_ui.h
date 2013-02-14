@@ -341,6 +341,9 @@ extern "C" {
         int w,
         int h);
 
+    /** \example test_c_api.cpp */
+    /** \example test_multiple_surfaces_event_delivery.cpp */
+
 #ifdef __cplusplus
 }
 #endif
