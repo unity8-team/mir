@@ -1,3 +1,13 @@
+ubuntu-platform-api (0.9) UNRELEASED; urgency=low
+
+  * Support multiple application stages
+  * Do dynamic screenshots according to surface size
+  * Input layer changes to deal with new behaviour
+  * Permit running side-by-side apps in stages
+  * Stability fixes
+
+ -- Ricardo Mendoza <ricardo.mendoza@canonical.com>  Thu, 14 Feb 2013 11:19:18 -0430
+
 ubuntu-platform-api (0.8) quantal; urgency=low
 
   [ Ricardo Mendoza ]
