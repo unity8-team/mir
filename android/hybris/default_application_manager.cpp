@@ -36,6 +36,7 @@
 #include <cstdio>
 
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <signal.h>
 
 namespace mir
@@ -229,7 +230,9 @@ ApplicationManager::ApplicationManager() : input_filter(new InputFilter(this)),
                                            input_setup(new android::InputSetup(input_filter)),
                                            is_osk_visible(false),
                                            are_notifications_visible(false),
-                                           focused_application(0)
+                                           focused_application(0),
+                                           side_stage_application(0),
+                                           main_stage_application(0)
 {
     shell_input_setup = new ShellInputSetup(input_setup->input_manager);
 
@@ -247,7 +250,6 @@ ApplicationManager::ApplicationManager() : input_filter(new InputFilter(this)),
 // From DeathRecipient
 void ApplicationManager::binderDied(const android::wp<android::IBinder>& who)
 {
-    ALOGI("%s \n", __PRETTY_FUNCTION__);
     android::Mutex::Autolock al(guard);
     android::sp<android::IBinder> sp = who.promote();
 
@@ -259,27 +261,21 @@ void ApplicationManager::binderDied(const android::wp<android::IBinder>& who)
 
     size_t i = 0;
     for(i = 0; i < apps_as_added.size(); i++)
-    {
         if (apps_as_added[i] == sp)
             break;
-    }
 
     size_t next_focused_app = 0;
     next_focused_app = apps_as_added.removeAt(i);
-    apps.removeItem(sp);
 
     if (next_focused_app >= apps_as_added.size())
         next_focused_app = 0;
 
     if (i == focused_application)
-    {
         switch_focused_application_locked(next_focused_app);
-    }
     else if(focused_application > i)
-    {
         focused_application--;
-    }
-
+    
+    apps.removeItem(sp);
 }
 
 void ApplicationManager::lock()
@@ -464,21 +460,19 @@ void ApplicationManager::request_update_for_session(const android::sp<android::I
             for (size_t i = 0; i < shell_input_setup->trap_windows.size(); i++)
             {
                 key = shell_input_setup->trap_windows.keyAt(i);
-                ALOGI("input_trap index: %d key %d\n", i, key);
                 input_windows.push(shell_input_setup->trap_windows.valueFor(key));
             }
         }     
 
         input_windows.appendVector(as->input_window_handles());
-        if (focused_application >= 1)
-        {
-            const android::sp<mir::ApplicationSession>& pas =
-                apps.valueFor(apps_as_added[focused_application-1]);
 
-            if (pas->stage_hint == ubuntu::application::ui::main_stage &&
-                as->stage_hint == ubuntu::application::ui::side_stage)
-                input_windows.appendVector(pas->input_window_handles());
+        if (as->stage_hint == ubuntu::application::ui::side_stage)
+        {
+            const android::sp<mir::ApplicationSession>& main_session =
+                apps.valueFor(apps_as_added[main_stage_application]);
+            input_windows.appendVector(main_session->input_window_handles());
         }
+
         input_setup->input_manager->getDispatcher()->setInputWindows(
             input_windows);
     }
@@ -559,6 +553,7 @@ void ApplicationManager::unfocus_running_sessions()
                     ALOGI("\t Problem stopping process, errno = %d.", errno);
                 } else
                 {
+                    session->running_state = ubuntu::application::ui::process_stopped;
                     ALOGI("\t\t Successfully stopped process.");
                 }
             }
@@ -584,13 +579,24 @@ android::IApplicationManagerSession::SurfaceProperties ApplicationManager::query
     android::Mutex::Autolock al(guard);
     ALOGI("%s: %d", __PRETTY_FUNCTION__, id );
     size_t idx = session_id_to_index(id);
+    android::IApplicationManagerSession::SurfaceProperties props;
+    int status;
 
     if (idx < apps_as_added.size())
     {
         const android::sp<mir::ApplicationSession>& session =
                 apps.valueFor(apps_as_added[idx]);
 
-        return session->query_properties();
+        if (session->running_state == ubuntu::application::ui::process_stopped)
+        {
+            kill(session->remote_pid, SIGCONT);
+            props = session->query_properties();
+            kill(session->remote_pid, SIGSTOP);
+        } else {
+            props = session->query_properties();
+        }
+
+        return props;
     }
     
     return android::IApplicationManagerSession::SurfaceProperties();
@@ -605,15 +611,11 @@ int32_t ApplicationManager::set_surface_trap(int x, int y, int width, int height
 {
     static int32_t key = 0;
 
-    ALOGI("input_trap %s(x=%d, y=%d, width=%d, height=%d, shell_input_setup=0x%08lx)", __PRETTY_FUNCTION__, x, y, width, height, &shell_input_setup);
-
     ApplicationManager::ShellInputSetup::Window<0, 0, 2048, 2048>* w =
         new ApplicationManager::ShellInputSetup::Window<0, 0, 2048, 2048>(shell_input_setup.get(), x, y, width, height);
 
     key++; 
     shell_input_setup->trap_windows.add(key, w->input_window);
-
-    ALOGI("input_trap key=%d\n", key);
 
     update_input_setup_locked();
 
@@ -622,8 +624,6 @@ int32_t ApplicationManager::set_surface_trap(int x, int y, int width, int height
 
 void ApplicationManager::unset_surface_trap(int32_t handle)
 {
-    ALOGI("input_trap %s(%d)\n", __PRETTY_FUNCTION__, handle);
-
     shell_input_setup->trap_windows.removeItem(handle);
 
     update_input_setup_locked();
@@ -707,11 +707,19 @@ void ApplicationManager::update_input_setup_locked()
             for (size_t i = 0; i < shell_input_setup->trap_windows.size(); i++)
             {
                 key = shell_input_setup->trap_windows.keyAt(i);
-                ALOGI("input_trap index: %d key %d\n", i, key);
                 input_windows.push(shell_input_setup->trap_windows.valueFor(key));
             }
         }
+        
         input_windows.appendVector(session->input_window_handles());
+
+        if (session->stage_hint == ubuntu::application::ui::side_stage)
+        {
+            const android::sp<mir::ApplicationSession>& main_session =
+                apps.valueFor(apps_as_added[main_stage_application]);
+            input_windows.appendVector(main_session->input_window_handles());
+        }
+
         input_setup->input_manager->getDispatcher()->setInputWindows(
             input_windows);
     }
@@ -744,10 +752,11 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
                     next_session->stage_hint != ubuntu::application::ui::main_stage))
                 {
                     kill(session->remote_pid, SIGSTOP);
-                    notify_observers_about_session_unfocused(session->remote_pid,
-                                                             session->stage_hint,
-                                                             session->desktop_file);
+                    session->running_state = ubuntu::application::ui::process_stopped;
                 }
+                notify_observers_about_session_unfocused(session->remote_pid,
+                                                         session->stage_hint,
+                                                         session->desktop_file);
             }
        }
     }
@@ -775,9 +784,15 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
 
         // Continue the session
         if (!is_session_allowed_to_run_in_background(session))
+        {
             kill(session->remote_pid, SIGCONT);
+            session->running_state = ubuntu::application::ui::process_running;
+        }
 
-        ALOGI("shell_input_setup %p\n", &shell_input_setup);
+        if (session->stage_hint == ubuntu::application::ui::side_stage)
+            side_stage_application = focused_application;
+        else
+            main_stage_application = focused_application;
 
         session->raise_application_surfaces_to_layer(focused_layer);
         input_setup->input_manager->getDispatcher()->setFocusedApplication(
@@ -795,15 +810,23 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
             for (size_t i = 0; i < shell_input_setup->trap_windows.size(); i++)
             {
                 key = shell_input_setup->trap_windows.keyAt(i);
-                ALOGI("input_trap index: %d key %d\n", i, key);
                 input_windows.push(shell_input_setup->trap_windows.valueFor(key));
             }
         }
 
         input_windows.appendVector(session->input_window_handles());
-        if (old_session->stage_hint == ubuntu::application::ui::main_stage &&
-                session->stage_hint == ubuntu::application::ui::side_stage)
-            input_windows.appendVector(old_session->input_window_handles());
+        
+        if (session->stage_hint == ubuntu::application::ui::side_stage)
+        {
+            if (main_stage_application)
+            {
+                const android::sp<mir::ApplicationSession>& main_session =
+                    apps.valueFor(apps_as_added[main_stage_application]);
+                kill(main_session->remote_pid, SIGCONT);
+                main_session->running_state = ubuntu::application::ui::process_running;
+                input_windows.appendVector(main_session->input_window_handles());
+            }
+        }
         
         input_setup->input_manager->getDispatcher()->setInputWindows(
             input_windows);
@@ -933,7 +956,6 @@ int main(int argc, char** argv)
             android::String16(android::IApplicationManager::exported_service_name()),
             app_manager))
     {
-        //printf("Error registering service with the system ... exiting now.");
         return EXIT_FAILURE;
     }
 
@@ -941,7 +963,6 @@ int main(int argc, char** argv)
             android::String16(android::IClipboardService::exported_service_name()),
             clipboard_service))
     {
-        //printf("Error registering service with the system ... exiting now.");
         return EXIT_FAILURE;
     }
 

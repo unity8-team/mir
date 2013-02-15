@@ -806,7 +806,7 @@ struct SessionService : public ubuntu::ui::SessionService
                 display,
                 &info);
 
-        screenshot_client.update(display, info.w, info.h, layer_min, layer_max);
+        screenshot_client.update(display, info.w / 2, info.h / 2, layer_min, layer_max);
 
         ALOGI("screenshot: (%d, %d, %d, %d)\n", props.left, props.top, props.right, props.bottom);
         if (props.left == 0 && props.top == 0 && props.right == 0 && props.bottom == 0)
@@ -817,10 +817,10 @@ struct SessionService : public ubuntu::ui::SessionService
         SessionSnapshot::Ptr ss(
             new SessionSnapshot(
                 pixels,
-                props.left,
-                props.top,
-                props.right - props.left,
-                props.bottom - props.top,
+                (props.left+1) / 2,
+                (props.top+1) / 2,
+                (props.right-props.left+1) / 2,
+                (props.bottom-props.top+1) / 2,
                 screenshot_client.getWidth(),
                 screenshot_client.getHeight(),
                 screenshot_client.getStride()));

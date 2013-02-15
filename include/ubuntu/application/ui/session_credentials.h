@@ -34,6 +34,12 @@ enum SessionType
     system_session_type = SYSTEM_SESSION_TYPE
 };
 
+enum RunningState
+{
+    process_stopped = PROCESS_STOPPED,
+    process_running = PROCESS_RUNNING
+};
+
 enum MenuBarSupport
 {
     application_supports_overlayed_menubar = APPLICATION_SUPPORTS_OVERLAYED_MENUBAR,

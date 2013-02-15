@@ -225,9 +225,9 @@ struct ApplicationManager :
     android::Vector< android::sp<android::IBinder> > apps_as_added;
     android::Mutex observer_guard;
     android::Vector< android::sp<android::IApplicationManagerObserver> > app_manager_observers;
-    //FIXME: KeyedVector for input traps enabled
-    //android::KeyedVector< int32_t, android::sp<Ubu
     size_t focused_application;    
+    size_t side_stage_application;
+    size_t main_stage_application;
 };
 
 }
