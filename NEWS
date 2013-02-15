@@ -25,7 +25,7 @@ like Debian 6.0 (Squeeze).
  * Fix alignment of subsurface proxies for old chipsets.
    https://bugs.launchpad.net/ubuntu/+source/xserver-xorg-video-intel/+bug/1120108
 
- * Repair build against Xserver-1.6 (Xorg-7.7) and contemporary packages.
+ * Repair build against Xserver-1.6 and contemporary packages.
 
 
 Release 2.21.0 (2013-02-01)

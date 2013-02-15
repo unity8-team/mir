@@ -183,7 +183,7 @@ AC_ARG_ENABLE(ums-only, AS_HELP_STRING([--enable-ums-only],
               [UMS_ONLY="$enableval"],
               [UMS_ONLY=no])
 
-required_xorg_xserver_version=1.6
+required_xorg_server_version=1.6
 required_pixman_version=0.16
 
 if pkg-config --exists 'pixman-1 >= 0.27.1'; then
@@ -249,7 +249,7 @@ if test "x$GLAMOR" != "xno"; then
 fi
 
 
-PKG_CHECK_MODULES(XORG, [xorg-server >= $required_xorg_xserver_version xproto fontsproto pixman-1 >= $required_pixman_version $REQUIRED_MODULES])
+PKG_CHECK_MODULES(XORG, [xorg-server >= $required_xorg_server_version xproto fontsproto pixman-1 >= $required_pixman_version $REQUIRED_MODULES])
 
 AC_ARG_ENABLE(xaa,
 	      AS_HELP_STRING([--enable-xaa],
