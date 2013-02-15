@@ -62,7 +62,7 @@ extern "C" {
                 int32_t repeat_count;
                 nsecs_t down_time;
                 nsecs_t event_time;
-                bool is_system_key;
+                int is_system_key;
             } key;
             struct MotionEvent
             {
@@ -76,7 +76,7 @@ extern "C" {
                 nsecs_t event_time;
 
                 size_t pointer_count;
-                struct PointerCoordinates
+                typedef struct 
                 {
                     int id;
                     float x, raw_x;
@@ -86,7 +86,7 @@ extern "C" {
                     float size;
                     float pressure;
                     float orientation;
-                };
+                } PointerCoordinates;
                 PointerCoordinates pointer_coordinates[UBUNTU_APPLICATION_UI_INPUT_EVENT_MAX_POINTER_COUNT];
             } motion;
         } details;
