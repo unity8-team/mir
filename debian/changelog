@@ -1,4 +1,4 @@
-ubuntu-platform-api (0.9) UNRELEASED; urgency=low
+ubuntu-platform-api (0.9) quantal; urgency=low
 
   [ Ricardo Mendoza ]
   * Track sidestage/mainstage app running states and adjust transitions accordingly
