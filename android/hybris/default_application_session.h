@@ -66,17 +66,20 @@ struct ApplicationSession : public android::RefBase
     };
 
     ApplicationSession(
-        pid_t remote_pid,        
+        pid_t remote_pid,
         android::sp<android::IApplicationManagerSession> remote_session,
         int32_t session_type,
+        int32_t stage_hint,
         const android::String8& app_name,
         const android::String8& desktop_file)
-        : remote_pid(remote_pid),
-          app_layer(0),
-          remote_session(remote_session),
-          session_type(static_cast<ubuntu::application::ui::SessionType>(session_type)),
-          app_name(app_name),
-          desktop_file(desktop_file)
+            : running_state(ubuntu::application::ui::process_running),
+            remote_pid(remote_pid),
+            app_layer(0),
+            remote_session(remote_session),
+            session_type(static_cast<ubuntu::application::ui::SessionType>(session_type)),
+            stage_hint(stage_hint),
+            app_name(app_name),
+            desktop_file(desktop_file)
     {
     }
 
@@ -121,7 +124,15 @@ struct ApplicationSession : public android::RefBase
                 mInfo = new android::InputWindowInfo();
             }
             
-            android::IApplicationManagerSession::SurfaceProperties props = surface->query_properties();
+            android::IApplicationManagerSession::SurfaceProperties props;
+            if (parent->running_state == ubuntu::application::ui::process_stopped)
+            {
+                kill(parent->remote_pid, SIGCONT);            
+                props = surface->query_properties();
+                kill(parent->remote_pid, SIGSTOP);
+            } else
+                props = surface->query_properties();
+
             ALOGI("%s: touchable_region = (%d, %d, %d, %d)", 
                  __PRETTY_FUNCTION__,
                  props.left, 
@@ -182,6 +193,17 @@ struct ApplicationSession : public android::RefBase
         return app_layer;
     }
 
+    android::IApplicationManagerSession::SurfaceProperties query_properties() const
+    {
+        if (!registered_surfaces.size())
+            return android::IApplicationManagerSession::SurfaceProperties();
+
+        android::IApplicationManagerSession::SurfaceProperties props =
+            registered_surfaces.valueAt(registered_surfaces.size()-1)->query_properties();
+
+        return props;
+    }
+  
     void raise_application_surfaces_to_layer(int layer)
     {
         app_layer = layer;
@@ -199,10 +221,12 @@ struct ApplicationSession : public android::RefBase
     }
 
     pid_t remote_pid;
+    int32_t running_state;
     int32_t app_layer;
 
     android::sp<android::IApplicationManagerSession> remote_session;
     ubuntu::application::ui::SessionType session_type;
+    int32_t stage_hint;
     android::String8 app_name;
     android::String8 desktop_file;
     android::KeyedVector<int32_t, android::sp<Surface>> registered_surfaces;

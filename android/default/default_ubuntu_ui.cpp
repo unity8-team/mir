@@ -117,6 +117,16 @@ const char* ubuntu_ui_session_properties_get_value_for_key(ubuntu_ui_session_pro
     return (*p)->value_for_key(key);
 }
 
+int ubuntu_ui_session_properties_get_application_stage_hint(ubuntu_ui_session_properties props)
+{
+    if (!props)
+        return -1;
+
+    const ubuntu::ui::SessionProperties::Ptr* p = static_cast<const ubuntu::ui::SessionProperties::Ptr*>(props);
+
+    return (*p)->application_stage_hint();
+}
+
 int ubuntu_ui_session_properties_get_application_instance_id(ubuntu_ui_session_properties props)
 {
     if (!props)
@@ -170,7 +180,9 @@ void ubuntu_ui_session_snapshot_running_session_with_id(int id, ubuntu_ui_sessio
 
     if (cb)
     {
-        cb(ss->pixel_data(), ss->width(), ss->height(), ss->stride(), context);
+        ALOGI("screenshot buffer (%d, %d) geometry (%d, %d, %d, %d)\n", ss->width(), ss->height(), ss->x(), ss->y(), ss->source_width(), ss->source_height());
+        cb(ss->pixel_data(), ss->width(), ss->height(), ss->x(), ss->y(),
+           ss->source_width(), ss->source_height(), ss->stride(), context);
     }
 }
 

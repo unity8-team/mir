@@ -157,6 +157,7 @@ struct ApplicationManager :
 
     void start_a_new_session(
         int32_t session_type,
+        int32_t stage_hint,
         const android::String8& app_name,
         const android::String8& desktop_file,
         const android::sp<android::IApplicationManagerSession>& session,
@@ -180,6 +181,8 @@ struct ApplicationManager :
     void unfocus_running_sessions();
 
     int32_t query_snapshot_layer_for_session_with_id(int id);
+
+    android::IApplicationManagerSession::SurfaceProperties query_surface_properties_for_session_id(int id);
 
     void switch_to_well_known_application(int32_t app);
 
@@ -205,11 +208,11 @@ struct ApplicationManager :
 
     size_t session_id_to_index(int id);
     void notify_observers_about_session_requested(uint32_t app);
-    void notify_observers_about_session_born(int id, const android::String8& desktop_file);
-    void notify_observers_about_session_unfocused(int id, const android::String8& desktop_file);
-    void notify_observers_about_session_focused(int id, const android::String8& desktop_file);
-    void notify_observers_about_session_requested_fullscreen(int id, const android::String8& desktop_file);
-    void notify_observers_about_session_died(int id, const android::String8& desktop_file);
+    void notify_observers_about_session_born(int id, int stage_hint, const android::String8& desktop_file);
+    void notify_observers_about_session_unfocused(int id, int stage_hint, const android::String8& desktop_file);
+    void notify_observers_about_session_focused(int id, int stage_hint, const android::String8& desktop_file);
+    void notify_observers_about_session_requested_fullscreen(int id, int stage_hint, const android::String8& desktop_file);
+    void notify_observers_about_session_died(int id, int stage_hint, const android::String8& desktop_file);
 
     android::sp<android::InputListenerInterface> input_listener;
     android::sp<InputFilter> input_filter;
@@ -222,9 +225,9 @@ struct ApplicationManager :
     android::Vector< android::sp<android::IBinder> > apps_as_added;
     android::Mutex observer_guard;
     android::Vector< android::sp<android::IApplicationManagerObserver> > app_manager_observers;
-    //FIXME: KeyedVector for input traps enabled
-    //android::KeyedVector< int32_t, android::sp<Ubu
     size_t focused_application;    
+    size_t side_stage_application;
+    size_t main_stage_application;
 };
 
 }
