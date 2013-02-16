@@ -511,6 +511,9 @@ void ApplicationManager::unfocus_running_sessions()
     
     android::Mutex::Autolock al(guard);
 
+    if (shell_input_setup->shell_has_focus)
+        return;
+
     input_setup->input_manager->getDispatcher()->setFocusedApplication(
         shell_input_setup->shell_application);
     android::Vector< android::sp<android::InputWindowHandle> > input_windows;
@@ -738,16 +741,24 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
                 {
                     kill(session->remote_pid, SIGSTOP);
                     session->running_state = ubuntu::application::ui::process_stopped;
+                    notify_observers_about_session_unfocused(session->remote_pid,
+                                                             session->stage_hint,
+                                                             session->desktop_file);
+                } else
+                {
+                    if (session->stage_hint == ubuntu::application::ui::side_stage &&
+                        next_session->stage_hint == ubuntu::application::ui::main_stage &&
+                        main_stage_application < apps.size())
+                    {
+                        const android::sp<mir::ApplicationSession>& main_session =
+                            apps.valueFor(apps_as_added[main_stage_application]);
+                        kill(main_session->remote_pid, SIGSTOP);
+                        main_session->running_state = ubuntu::application::ui::process_stopped;
+                    }
                 }
-                notify_observers_about_session_unfocused(session->remote_pid,
-                                                         session->stage_hint,
-                                                         session->desktop_file);
             }
-       }
+        }
     }
-
-    const android::sp<mir::ApplicationSession>& old_session =
-                apps.valueFor(apps_as_added[focused_application]);
 
     focused_application = index_of_next_focused_app;
 
