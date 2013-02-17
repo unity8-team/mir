@@ -36,7 +36,7 @@ extern "C" {
         HW_SWITCH_EVENT_TYPE
     } EventType;
 
-    struct Event
+    typedef struct
     {
         // Generic event properties
         EventType type;
@@ -89,7 +89,7 @@ extern "C" {
                 } pointer_coordinates[UBUNTU_APPLICATION_UI_INPUT_EVENT_MAX_POINTER_COUNT];
             } motion;
         } details;
-    };
+    } Event;
 
 #ifdef __cplusplus
 }
