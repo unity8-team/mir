@@ -84,14 +84,14 @@ extern "C" {
         MAX_APPLICATION_NAME_LENGTH = 512
     };
 
+    typedef void (*on_application_resumed)(void* ctx);
+    typedef void (*on_application_suspended)(void* ctx);
+
+    typedef void (*on_application_focused)(void* ctx);
+    typedef void (*on_application_unfocused)(void* ctx);
+
     typedef struct
     {
-        typedef void (*on_application_resumed)(void* ctx);
-        typedef void (*on_application_suspended)(void* ctx);
-
-        typedef void (*on_application_focused)(void* ctx);
-        typedef void (*on_application_unfocused)(void* ctx);
-
         // Application-specific settings
         SessionType session_type;
         MenuBarSupport menu_bar_support;
