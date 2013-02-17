@@ -34,6 +34,12 @@ extern "C" {
 
     typedef enum
     {
+        PROCESS_STOPPED = 0,
+        PROCESS_RUNNING = 1
+    } RunningState;
+
+    typedef enum
+    {
         APPLICATION_SUPPORTS_OVERLAYED_MENUBAR = 0,
         APPLICATION_DOES_NOT_SUPPORT_OVERLAYED_MENUBAR = 1
     } MenuBarSupport;

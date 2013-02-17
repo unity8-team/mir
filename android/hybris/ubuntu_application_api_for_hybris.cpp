@@ -133,7 +133,7 @@ struct Setup : public ubuntu::application::ui::Setup
 
     ubuntu::application::ui::StageHint stage_hint()
     {
-        return ubuntu::application::ui::main_stage;
+        return stage;
     }
 
     ubuntu::application::ui::FormFactorHintFlags form_factor_hint()
@@ -487,6 +487,7 @@ struct Session : public ubuntu::application::ui::Session, public UbuntuSurface::
 
         app_manager.start_a_new_session(
             creds.session_type(),
+            ubuntu::application::ui::Setup::instance()->stage_hint(),
             String8(creds.application_name()),
             String8(ubuntu::application::ui::Setup::instance()->desktop_file_hint()),
             app_manager_session,
@@ -586,8 +587,9 @@ struct Session : public ubuntu::application::ui::Session, public UbuntuSurface::
 
 struct SessionProperties : public ubuntu::ui::SessionProperties
 {
-    SessionProperties(int id, const android::String8& desktop_file)
+    SessionProperties(int id, int stage_hint, const android::String8& desktop_file)
         : id(id),
+          stage_hint(stage_hint),
           desktop_file(desktop_file)
     {
     }
@@ -595,6 +597,11 @@ struct SessionProperties : public ubuntu::ui::SessionProperties
     int application_instance_id() const
     {
         return id;
+    }
+
+    int application_stage_hint() const
+    {
+        return stage_hint;
     }
 
     const char* value_for_key(const char* key) const
@@ -608,6 +615,7 @@ struct SessionProperties : public ubuntu::ui::SessionProperties
     }
 
     int id;
+    int stage_hint;
     android::String8 desktop_file;
 };
 
@@ -622,48 +630,53 @@ struct ApplicationManagerObserver : public android::BnApplicationManagerObserver
     }
 
     void on_session_born(int id,
+                         int stage_hint,
                          const String8& desktop_file)
     {
         if (observer == NULL)
             return;
 
-        observer->on_session_born(ubuntu::ui::SessionProperties::Ptr(new SessionProperties(id, desktop_file)));
+        observer->on_session_born(ubuntu::ui::SessionProperties::Ptr(new SessionProperties(id, stage_hint, desktop_file)));
     }
 
     virtual void on_session_unfocused(int id,
-                                    const String8& desktop_file)
+                                      int stage_hint,
+                                      const String8& desktop_file)
     {
         if (observer == NULL)
             return;
 
-        observer->on_session_unfocused(ubuntu::ui::SessionProperties::Ptr(new SessionProperties(id, desktop_file)));
+        observer->on_session_unfocused(ubuntu::ui::SessionProperties::Ptr(new SessionProperties(id, stage_hint, desktop_file)));
     }
 
     virtual void on_session_focused(int id,
+                                    int stage_hint,
                                     const String8& desktop_file)
     {
         if (observer == NULL)
             return;
 
-        observer->on_session_focused(ubuntu::ui::SessionProperties::Ptr(new SessionProperties(id, desktop_file)));
+        observer->on_session_focused(ubuntu::ui::SessionProperties::Ptr(new SessionProperties(id, stage_hint, desktop_file)));
     }
 
     virtual void on_session_requested_fullscreen(int id,
+                                                 int stage_hint,	
                                                  const String8& desktop_file)
     {
         if (observer == NULL)
             return;
 
-        observer->on_session_requested_fullscreen(ubuntu::ui::SessionProperties::Ptr(new SessionProperties(id, desktop_file)));
+        observer->on_session_requested_fullscreen(ubuntu::ui::SessionProperties::Ptr(new SessionProperties(id, stage_hint, desktop_file)));
     }
 
     virtual void on_session_died(int id,
+                                 int stage_hint,
                                  const String8& desktop_file)
     {
         if (observer == NULL)
             return;
 
-        observer->on_session_died(ubuntu::ui::SessionProperties::Ptr(new SessionProperties(id, desktop_file)));
+        observer->on_session_died(ubuntu::ui::SessionProperties::Ptr(new SessionProperties(id, stage_hint, desktop_file)));
     }
 
     void install_session_lifecycle_observer(const ubuntu::ui::SessionLifeCycleObserver::Ptr& observer)
@@ -686,15 +699,27 @@ struct SessionService : public ubuntu::ui::SessionService
     struct SessionSnapshot : public ubuntu::ui::SessionSnapshot
     {
         const void* snapshot_pixels;
+        unsigned int snapshot_x;
+        unsigned int snapshot_y;
+        unsigned int surface_width;
+        unsigned int surface_height;
         unsigned int snapshot_width;
         unsigned int snapshot_height;
         unsigned int snapshot_stride;
         
         SessionSnapshot(
             const void* pixels, 
+            unsigned int x,
+            unsigned int y,
+            unsigned int sf_width,
+            unsigned int sf_height,
             unsigned int width, 
             unsigned height, 
             unsigned int stride) : snapshot_pixels(pixels),
+                                   snapshot_x(x),
+                                   snapshot_y(y),
+                                   surface_width(sf_width),
+                                   surface_height(sf_height),
                                    snapshot_width(width),
                                    snapshot_height(height),
                                    snapshot_stride(stride)
@@ -704,7 +729,11 @@ struct SessionService : public ubuntu::ui::SessionService
         const void* pixel_data() {
             return snapshot_pixels;
         }
-        
+
+        unsigned int x() { return snapshot_x; }
+        unsigned int y() { return snapshot_y; }
+        unsigned int source_width() { return surface_width; }
+        unsigned int source_height() { return surface_height; }
         unsigned int width() { return snapshot_width; }
         unsigned int height() { return snapshot_height; }
         unsigned int stride() { return snapshot_stride; }       
@@ -755,23 +784,43 @@ struct SessionService : public ubuntu::ui::SessionService
 
     ubuntu::ui::SessionSnapshot::Ptr snapshot_running_session_with_id(int id)
     {
-        static const unsigned int default_width = 720;
-        static const unsigned int default_height = 1280;
+        static android::DisplayInfo info;
+        const void* pixels;
+
         int32_t layer_min = id > 0 
                 ? access_application_manager()->query_snapshot_layer_for_session_with_id(id) 
                 : 0;
         int32_t layer_max = id > 0 
                 ? access_application_manager()->query_snapshot_layer_for_session_with_id(id) 
                 : id;  
+
+        android::IApplicationManagerSession::SurfaceProperties props =
+             access_application_manager()->query_surface_properties_for_session_id(id);
+
         static android::ScreenshotClient screenshot_client;
         android::sp<android::IBinder> display(
                 android::SurfaceComposerClient::getBuiltInDisplay(
                 android::ISurfaceComposer::eDisplayIdMain));
-        screenshot_client.update(display, default_width, default_height, layer_min, layer_max);
+
+        android::SurfaceComposerClient::getDisplayInfo(
+                display,
+                &info);
+
+        screenshot_client.update(display, info.w / 2, info.h / 2, layer_min, layer_max);
+
+        ALOGI("screenshot: (%d, %d, %d, %d)\n", props.left, props.top, props.right, props.bottom);
+        if (props.left == 0 && props.top == 0 && props.right == 0 && props.bottom == 0)
+            pixels = NULL;
+        else
+            pixels = screenshot_client.getPixels();
 
         SessionSnapshot::Ptr ss(
             new SessionSnapshot(
-                screenshot_client.getPixels(),
+                pixels,
+                (props.left+1) / 2,
+                (props.top+1) / 2,
+                (props.right-props.left+1) / 2,
+                (props.bottom-props.top+1) / 2,
                 screenshot_client.getWidth(),
                 screenshot_client.getHeight(),
                 screenshot_client.getStride()));
@@ -940,6 +989,12 @@ const ubuntu::ui::SessionService::Ptr& ubuntu::ui::SessionService::instance()
 {
     static ubuntu::ui::SessionService::Ptr instance(new android::SessionService());
     return instance;
+}
+
+const char* SessionProperties::key_application_stage_hint()
+{
+    static const char* key = "application_stage_hint";
+    return key;
 }
 
 const char* SessionProperties::key_application_instance_id()
