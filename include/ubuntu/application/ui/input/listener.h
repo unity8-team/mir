@@ -21,8 +21,6 @@
 #include "ubuntu/application/ui/input/event.h"
 #include "ubuntu/platform/shared_ptr.h"
 
-struct Event;
-
 namespace ubuntu
 {
 namespace application
