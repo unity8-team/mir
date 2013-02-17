@@ -48,7 +48,7 @@ struct Config
     int take_screenshot_flag;
 };
 
-void on_snapshot_completed(const void* pixels, unsigned int width, unsigned int height, unsigned int x, unsigned int y, unsigned int source_width, unsigned int source_height, unsigned int stride, void* context)
+void on_snapshot_completed(const void* pixel_data, unsigned int width, unsigned int height, unsigned int x, unsigned int y, unsigned int source_width, unsigned int source_height, unsigned int stride, void* context)
 {
     static unsigned int counter = 0;
     
