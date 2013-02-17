@@ -25,7 +25,7 @@
 extern "C" {
 #endif
 
-    static const size_t UBUNTU_APPLICATION_UI_INPUT_EVENT_MAX_POINTER_COUNT = 16;
+#define UBUNTU_APPLICATION_UI_INPUT_EVENT_MAX_POINTER_COUNT  (16)
 
     typedef int64_t nsecs_t;
 
