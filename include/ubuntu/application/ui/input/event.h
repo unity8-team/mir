@@ -76,7 +76,7 @@ extern "C" {
                 nsecs_t event_time;
 
                 size_t pointer_count;
-                typedef struct 
+                struct PointerCoordinate
                 {
                     int id;
                     float x, raw_x;
@@ -86,8 +86,7 @@ extern "C" {
                     float size;
                     float pressure;
                     float orientation;
-                } PointerCoordinates;
-                PointerCoordinates pointer_coordinates[UBUNTU_APPLICATION_UI_INPUT_EVENT_MAX_POINTER_COUNT];
+                } pointer_coordinates[UBUNTU_APPLICATION_UI_INPUT_EVENT_MAX_POINTER_COUNT];
             } motion;
         } details;
     };
