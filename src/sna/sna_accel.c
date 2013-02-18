@@ -675,6 +675,8 @@ bool sna_pixmap_attach_to_bo(PixmapPtr pixmap, struct kgem_bo *bo)
 {
 	struct sna_pixmap *priv;
 
+	assert(bo);
+
 	priv = sna_pixmap_attach(pixmap);
 	if (!priv)
 		return false;
@@ -1995,6 +1997,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 	    __kgem_bo_is_busy(&sna->kgem, priv->cpu_bo)) {
 		sna_damage_subtract(&priv->cpu_damage, region);
 		if (sna_pixmap_move_to_gpu(pixmap, MOVE_READ | MOVE_ASYNC_HINT)) {
+			assert(priv->gpu_bo);
 			sna_damage_all(&priv->gpu_damage,
 				       pixmap->drawable.width,
 				       pixmap->drawable.height);
@@ -2413,6 +2416,7 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 	if (sna_damage_is_all(&priv->gpu_damage,
 			      pixmap->drawable.width,
 			      pixmap->drawable.height)) {
+		assert(priv->gpu_bo);
 		sna_damage_destroy(&priv->cpu_damage);
 		list_del(&priv->list);
 		goto done;
@@ -2579,6 +2583,7 @@ done:
 		    box_inplace(pixmap, &r.extents)) {
 			DBG(("%s: large operation on undamaged, promoting to full GPU\n",
 			     __FUNCTION__));
+			assert(priv->gpu_bo);
 			assert(priv->gpu_bo->proxy == NULL);
 			sna_damage_all(&priv->gpu_damage,
 				       pixmap->drawable.width,
@@ -3052,6 +3057,7 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 			      pixmap->drawable.width,
 			      pixmap->drawable.height)) {
 		DBG(("%s: already all-damaged\n", __FUNCTION__));
+		assert(priv->gpu_bo);
 		sna_damage_destroy(&priv->cpu_damage);
 		list_del(&priv->list);
 		assert(priv->cpu == false || IS_CPU_MAP(priv->gpu_bo->map));
@@ -3116,6 +3122,7 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 			 * synchronisation that takes the most time. This is
 			 * mitigated by avoiding fallbacks in the first place.
 			 */
+			assert(priv->gpu_bo);
 			assert(priv->gpu_bo->proxy == NULL);
 			sna_damage_all(&priv->gpu_damage,
 				       pixmap->drawable.width,
@@ -3197,6 +3204,7 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 		DBG(("%s: disposing of system copy for large/source\n",
 		     __FUNCTION__));
 		assert(!priv->shm);
+		assert(priv->gpu_bo);
 		assert(priv->gpu_bo->proxy == NULL);
 		sna_damage_all(&priv->gpu_damage,
 			       pixmap->drawable.width,
@@ -4523,6 +4531,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			assert(dst_priv->clear == false);
 			dst_priv->cpu = false;
 			if (damage) {
+				assert(dst_priv->gpu_bo);
 				assert(dst_priv->gpu_bo->proxy == NULL);
 				if (replaces) {
 					sna_damage_destroy(&dst_priv->cpu_damage);

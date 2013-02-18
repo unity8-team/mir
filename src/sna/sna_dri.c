@@ -470,6 +470,7 @@ static void damage(PixmapPtr pixmap, RegionPtr region)
 
 	priv = sna_pixmap(pixmap);
 	assert(priv != NULL);
+	assert(priv->gpu_bo);
 	if (DAMAGE_IS_ALL(priv->gpu_damage))
 		return;
 
