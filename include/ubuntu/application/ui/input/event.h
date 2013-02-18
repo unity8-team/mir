@@ -26,7 +26,7 @@ extern "C" {
 #endif
 
     /** Maximum number of pointers reported within one input event. */
-#define UBUNTU_APPLICATION_UI_INPUT_EVENT_MAX_POINTER_COUNT (16);
+#define UBUNTU_APPLICATION_UI_INPUT_EVENT_MAX_POINTER_COUNT (16)
 
     /** Reference timebase, nanoseconds as measured by CLOCK_MONOTONIC. */
     typedef int64_t nsecs_t;
