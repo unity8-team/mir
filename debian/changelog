@@ -1,3 +1,10 @@
+ubuntu-platform-api (0.10) quantal; urgency=low
+
+  [Thomas Voss]
+  * fix compilation for c programs 
+
+ -- Bill Filler <bill.filler@canonical.com>  Sat, 16 Feb 2013 23:09:26 -0500
+
 ubuntu-platform-api (0.9) quantal; urgency=low
 
   [ Ricardo Mendoza ]
