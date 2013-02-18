@@ -81,6 +81,7 @@ struct ApplicationManagerObserver : public android::BnApplicationManagerObserver
     }
 
     void on_session_requested_fullscreen(int id,
+                                         int stage_hint,
                                          const android::String8& desktop_file)
     {
         printf("%s: %d, %s \n", __PRETTY_FUNCTION__, id, desktop_file.string());
