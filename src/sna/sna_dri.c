@@ -261,6 +261,7 @@ sna_dri_create_buffer(DrawablePtr draw,
 			     private->bo->handle, buffer->name));
 
 			assert(private->pixmap == pixmap);
+			assert(sna_pixmap(pixmap)->flush);
 			assert(sna_pixmap(pixmap)->gpu_bo == private->bo);
 			assert(sna_pixmap(pixmap)->pinned & PIN_DRI);
 			assert(kgem_bo_flink(&sna->kgem, private->bo) == buffer->name);
@@ -1309,7 +1310,7 @@ can_exchange(struct sna * sna,
 		     __FUNCTION__));
 		return false;
 	}
-	assert(get_private(front)->pixmap == sna->front);
+	assert(get_private(front)->pixmap != sna->front);
 
 	if (!get_private(back)->scanout) {
 		DBG(("%s: no, DRI2 drawable was too small at time of creation)\n",
@@ -1767,6 +1768,7 @@ sna_dri_page_flip_handler(struct sna *sna,
 	struct sna_dri_frame_event *info = to_frame_event(event->user_data);
 
 	DBG(("%s: pending flip_count=%d\n", __FUNCTION__, info->count));
+	assert(info->count > 0);
 
 	/* Is this the event whose info shall be delivered to higher level? */
 	if (event->user_data & 1) {
@@ -2105,9 +2107,7 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		      DRI2BufferPtr back, CARD64 *target_msc, CARD64 divisor,
 		      CARD64 remainder, DRI2SwapEventPtr func, void *data)
 {
-	ScreenPtr screen = draw->pScreen;
-	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
-	struct sna *sna = to_sna(scrn);
+	struct sna *sna = to_sna_from_drawable(draw);
 	drmVBlank vbl;
 	int pipe;
 	struct sna_dri_frame_event *info = NULL;
@@ -2135,13 +2135,16 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	assert(get_private(back)->bo->refcnt);
 	assert(get_private(back)->bo->flush);
 
+	if (get_private(front)->pixmap != get_drawable_pixmap(draw))
+		goto skip;
+
 	assert(sna_pixmap_from_drawable(draw)->flush);
 
 	/* Drawable not displayed... just complete the swap */
 	pipe = sna_dri_get_pipe(draw);
 	if (pipe == -1) {
 		DBG(("%s: off-screen, immediate update\n", __FUNCTION__));
-		goto blit_fallback;
+		goto blit;
 	}
 
 	if (can_flip(sna, draw, front, back) &&
@@ -2154,7 +2157,7 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 
 	info = calloc(1, sizeof(struct sna_dri_frame_event));
 	if (!info)
-		goto blit_fallback;
+		goto blit;
 
 	info->draw = draw;
 	info->client = client;
@@ -2210,7 +2213,7 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		vbl.request.sequence = *target_msc;
 		vbl.request.signal = (unsigned long)info;
 		if (sna_wait_vblank(sna, &vbl))
-			goto blit_fallback;
+			goto blit;
 
 		return TRUE;
 	}
@@ -2250,11 +2253,11 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	vbl.request.sequence -= 1;
 	vbl.request.signal = (unsigned long)info;
 	if (sna_wait_vblank(sna, &vbl))
-		goto blit_fallback;
+		goto blit;
 
 	return TRUE;
 
-blit_fallback:
+blit:
 	pipe = DRI2_BLIT_COMPLETE;
 	if (can_exchange(sna, draw, front, back)) {
 		DBG(("%s -- xchg\n", __FUNCTION__));
@@ -2269,6 +2272,7 @@ blit_fallback:
 	}
 	if (info)
 		sna_dri_frame_event_info_free(sna, draw, info);
+skip:
 	DRI2SwapComplete(client, draw, 0, 0, 0, pipe, func, data);
 	*target_msc = 0; /* offscreen, so zero out target vblank count */
 	return TRUE;
