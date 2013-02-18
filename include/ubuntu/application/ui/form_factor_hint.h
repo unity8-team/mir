@@ -26,13 +26,15 @@ namespace application
 {
 namespace ui
 {
+/** Provides applications with a hint about the form factor it is running on. */
 enum FormFactorHint
 {
-    desktop_form_factor = DESKTOP_FORM_FACTOR_HINT,
-    phone_form_factor = PHONE_FORM_FACTOR_HINT,
-    tablet_form_factor = TABLET_FORM_FACTOR_HINT
+    desktop_form_factor = DESKTOP_FORM_FACTOR_HINT, ///< An ordinary desktop or laptop form factor.
+    phone_form_factor = PHONE_FORM_FACTOR_HINT, ///< A phone form factor.
+    tablet_form_factor = TABLET_FORM_FACTOR_HINT ///< A tablet form factor.
 };
 
+/** Bitfield as multiple form factor hints can be applied in a converged scenario. */
 typedef unsigned int FormFactorHintFlags;
 
 }

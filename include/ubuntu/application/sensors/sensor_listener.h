@@ -28,11 +28,15 @@ namespace application
 {
 namespace sensors
 {
+/** Extension point to allow for observing a sensor's readings. */
 class SensorListener : public ubuntu::platform::ReferenceCountedBase
 {
 public:
     typedef ubuntu::platform::shared_ptr<SensorListener> Ptr;
 
+    /** Invoked whenever a new reading is available from the sensor.
+     * \param [in] reading The new reading.
+     */
     virtual void on_new_reading(const SensorReading::Ptr& reading) = 0;
 
 protected:

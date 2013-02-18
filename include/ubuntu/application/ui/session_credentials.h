@@ -28,6 +28,10 @@ namespace application
 {
 namespace ui
 {
+/**
+ * Specifies the session type.  
+ * \attention System sessions require special privileged to be registered with the service providers.
+ */
 enum SessionType
 {
     user_session_type = USER_SESSION_TYPE,
@@ -40,12 +44,18 @@ enum RunningState
     process_running = PROCESS_RUNNING
 };
 
+/**
+ * Specifies whether the application tolerates a menubar when in fullscreen mode.
+ */
 enum MenuBarSupport
 {
     application_supports_overlayed_menubar = APPLICATION_SUPPORTS_OVERLAYED_MENUBAR,
     application_does_not_support_overlayed_menubar = APPLICATION_DOES_NOT_SUPPORT_OVERLAYED_MENUBAR
 };
 
+/**
+ * Bundles information about an application instance.
+ */
 class SessionCredentials
 {
 public:

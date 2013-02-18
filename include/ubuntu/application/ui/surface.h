@@ -30,18 +30,25 @@ namespace application
 {
 namespace ui
 {
+/**
+ * A surface is a rectangular region on screen.
+ */
 class Surface : public ubuntu::platform::ReferenceCountedBase
 {
 public:
     typedef ubuntu::platform::shared_ptr<Surface> Ptr;
 
     // Default surface API
+    /** Toggles the visibility of the surface. */
     virtual void set_visible(bool visible) = 0;
+    /** Adjusts the alpha channel of a surface. */
     virtual void set_alpha(float alpha) = 0;
+    /** Moves the surface to the specified coordinates. */
     virtual void move_to(int x, int y) = 0;
+    /** Resizes the surface to the specified width and height. */
     virtual void resize(int w, int h) = 0;
 
-    // Bind to EGL/GL rendering API
+    /** Binds to EGL/GL rendering API. */
     virtual EGLNativeWindowType to_native_window_type() = 0;
 
 protected:

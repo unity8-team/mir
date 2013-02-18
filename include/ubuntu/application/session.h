@@ -24,6 +24,9 @@ namespace ubuntu
 {
 namespace application
 {
+/**
+ * Represents a session with the service providers abstracted by Ubuntu platform API.
+ */
 class Session : public ubuntu::platform::ReferenceCountedBase
 {
 public:

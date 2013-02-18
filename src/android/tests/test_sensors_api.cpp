@@ -21,7 +21,7 @@
 #include <stdio.h>
 #include <string.h>
 
-void on_new_accelerometer_reading(ubuntu_sensor_accelerometer_reading* reading, void*)
+void cb_on_new_accelerometer_reading(ubuntu_sensor_accelerometer_reading* reading, void*)
 {
     printf("%s \n", __PRETTY_FUNCTION__);
     printf("\ttime: %d\n", reading->timestamp);
@@ -30,14 +30,14 @@ void on_new_accelerometer_reading(ubuntu_sensor_accelerometer_reading* reading, 
     printf("\tz: %f\n", reading->acceleration_z);
 }
 
-void on_new_proximity_reading(ubuntu_sensor_proximity_reading* reading, void*)
+void cb_on_new_proximity_reading(ubuntu_sensor_proximity_reading* reading, void*)
 {
     printf("%s \n", __PRETTY_FUNCTION__);
     printf("\ttime: %d\n", reading->timestamp);
     printf("\tdistance: %f\n", reading->distance);
 }
 
-void on_new_light_reading(ubuntu_sensor_ambient_light_reading* reading, void*)
+void cb_on_new_light_reading(ubuntu_sensor_ambient_light_reading* reading, void*)
 {
     printf("%s \n", __PRETTY_FUNCTION__);
     printf("\ttime: %d\n", reading->timestamp);
@@ -49,9 +49,9 @@ int main(int argc, char** argv)
     ubuntu_sensor_observer observer;
     memset(&observer, 0, sizeof(observer));
 
-    observer.on_new_accelerometer_reading_cb = on_new_accelerometer_reading;
-    observer.on_new_proximity_reading_cb = on_new_proximity_reading;
-    observer.on_new_ambient_light_reading_cb = on_new_light_reading;
+    observer.on_new_accelerometer_reading_cb = cb_on_new_accelerometer_reading;
+    observer.on_new_proximity_reading_cb = cb_on_new_proximity_reading;
+    observer.on_new_ambient_light_reading_cb = cb_on_new_light_reading;
 
     ubuntu_sensor_install_observer(&observer);
 
