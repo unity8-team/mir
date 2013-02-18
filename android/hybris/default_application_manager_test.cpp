@@ -60,21 +60,24 @@ struct ApplicationManagerObserver : public android::BnApplicationManagerObserver
     }
 
     void on_session_born(int id,
+                         int stage_hint,
                          const android::String8& desktop_file)
     {
-        printf("%s: %d, %s \n", __PRETTY_FUNCTION__, id, desktop_file.string());
+        printf("%s: %d, %d, %s \n", __PRETTY_FUNCTION__, id, stage_hint, desktop_file.string());
     }
 
     void on_session_unfocused(int id,
-                            const android::String8& desktop_file)
+                              int stage_hint,
+                              const android::String8& desktop_file)
     {
-        printf("%s: %d, %s \n", __PRETTY_FUNCTION__, id, desktop_file.string());
+        printf("%s: %d, %d, %s \n", __PRETTY_FUNCTION__, id, stage_hint, desktop_file.string());
     }
 
     void on_session_focused(int id,
+                            int stage_hint,
                             const android::String8& desktop_file)
     {
-        printf("%s: %d, %s \n", __PRETTY_FUNCTION__, id, desktop_file.string());
+        printf("%s: %d, %d, %s \n", __PRETTY_FUNCTION__, id, stage_hint, desktop_file.string());
     }
 
     void on_session_requested_fullscreen(int id,
@@ -84,9 +87,10 @@ struct ApplicationManagerObserver : public android::BnApplicationManagerObserver
     }
 
     void on_session_died(int id,
+                         int stage_hint,
                          const android::String8& desktop_file)
     {
-        printf("%s: %d, %s \n", __PRETTY_FUNCTION__, id, desktop_file.string());
+        printf("%s: %d, %d, %s \n", __PRETTY_FUNCTION__, id, stage_hint, desktop_file.string());
     }
 };
 
@@ -108,9 +112,11 @@ int main(int argc, char** argv)
     app_manager.register_an_observer(observer);
 
     static const int32_t session_type = 0;
-
+    static const int32_t stage_hint = 0;
+    
     app_manager.start_a_new_session(
         session_type,
+        stage_hint,
         android::String8("default_application_manager_test"),
         android::String8("default_application_manager_test"),
         session,

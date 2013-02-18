@@ -29,6 +29,10 @@ public:
 
     virtual const void * pixel_data() = 0;
 
+    virtual unsigned int x() = 0;
+    virtual unsigned int y() = 0;
+    virtual unsigned int source_width() = 0;
+    virtual unsigned int source_height() = 0;
     virtual unsigned int width() = 0;
     virtual unsigned int height() = 0;
     virtual unsigned int stride() = 0;

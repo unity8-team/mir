@@ -1,3 +1,23 @@
+ubuntu-platform-api (0.10) quantal; urgency=low
+
+  [Thomas Voss]
+  * fix compilation for c programs 
+
+ -- Bill Filler <bill.filler@canonical.com>  Sat, 16 Feb 2013 23:09:26 -0500
+
+ubuntu-platform-api (0.9) quantal; urgency=low
+
+  [ Ricardo Mendoza ]
+  * Track sidestage/mainstage app running states and adjust transitions accordingly
+  * Input layer changes to deal with new behaviour
+  * Do dynamic screenshots according to surface size with correctly scaled geometry
+  * General cleanup and stability fixes
+
+  [ Ricardo Salveti ]
+  * Removing logic to kill applications using the volume down key
+
+ -- Ricardo Mendoza <ricardo.mendoza@canonical.com>  Thu, 14 Feb 2013 11:19:18 -0430
+
 ubuntu-platform-api (0.8) quantal; urgency=low
 
   [ Ricardo Mendoza ]

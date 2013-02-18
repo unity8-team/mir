@@ -41,6 +41,13 @@ extern "C" {
         SYSTEM_SESSION_TYPE = 1 /**< A system session that requires elevated privileges.*/
     } SessionType;
 
+    /** Models the running state of a process. */
+    typedef enum
+    {
+        PROCESS_STOPPED = 0, /**< Process is stopped (SIGSTOP). */
+        PROCESS_RUNNING = 1 /**< Process is running normally. */
+    } RunningState;
+
     /**
      * Specifies whether the application tolerates a menubar when in fullscreen mode.
      * \ingroup ui_access
@@ -108,18 +115,18 @@ extern "C" {
         MAX_APPLICATION_NAME_LENGTH = 512
     };
 
+    typedef void (*on_application_resumed)(void* ctx);
+    typedef void (*on_application_suspended)(void* ctx);
+
+    typedef void (*on_application_focused)(void* ctx);
+    typedef void (*on_application_unfocused)(void* ctx);
+
     /**
      * Bundles information about an application instance.
      * \ingroup ui_access
-     */
+     */    
     typedef struct
     {
-        typedef void (*on_application_resumed)(void* ctx);
-        typedef void (*on_application_suspended)(void* ctx);
-
-        typedef void (*on_application_focused)(void* ctx);
-        typedef void (*on_application_unfocused)(void* ctx);
-
         /** Specifies the session type */
         SessionType session_type;
         /** Per-application instance menu-bar support */

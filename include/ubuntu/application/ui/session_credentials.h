@@ -38,6 +38,12 @@ enum SessionType
     system_session_type = SYSTEM_SESSION_TYPE
 };
 
+enum RunningState
+{
+    process_stopped = PROCESS_STOPPED,
+    process_running = PROCESS_RUNNING
+};
+
 /**
  * Specifies whether the application tolerates a menubar when in fullscreen mode.
  */

@@ -24,9 +24,9 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-    
+
     /** Maximum number of pointers reported within one input event. */
-    static const size_t UBUNTU_APPLICATION_UI_INPUT_EVENT_MAX_POINTER_COUNT = 16;
+#define UBUNTU_APPLICATION_UI_INPUT_EVENT_MAX_POINTER_COUNT (16);
 
     /** Reference timebase, nanoseconds as measured by CLOCK_MONOTONIC. */
     typedef int64_t nsecs_t;
@@ -40,7 +40,7 @@ extern "C" {
     } EventType;
 
     /** Models an input event. */
-    struct Event
+    typedef struct
     {
         EventType type; ///< Type of the event.
         int32_t device_id; ///< Device that this event originated from.
@@ -67,7 +67,7 @@ extern "C" {
                 int32_t repeat_count;
                 nsecs_t down_time;
                 nsecs_t event_time;
-                bool is_system_key; ///< \deprecated Do not use.
+                int is_system_key;  ///< \deprecated Do not use.
             } key;
             /** Information describing an event originating from a
              * "moving" device, e.g., a mouse, a mouse-wheel, a finger
@@ -83,9 +83,8 @@ extern "C" {
                 float y_precision; ///< Sampling precision in y direction
                 nsecs_t down_time; ///< Timestamp that marks the down event
                 nsecs_t event_time; ///< Timestamp that marks when this event happened
-
                 size_t pointer_count; ///< Number of pointers reported in this event
-                struct PointerCoordinates
+                struct PointerCoordinate
                 {
                     int id; ///< Unique id of the pointer
                     float x, raw_x; ///< Processed and raw x coordinates
@@ -95,11 +94,10 @@ extern "C" {
                     float size; ///< Size of the pointer/touch
                     float pressure; ///< Pressure of the touch
                     float orientation; ///< Orientation
-                };
-                PointerCoordinates pointer_coordinates[UBUNTU_APPLICATION_UI_INPUT_EVENT_MAX_POINTER_COUNT]; ///< Pointer information, valid from [0,pointer_count).
+                } pointer_coordinates[UBUNTU_APPLICATION_UI_INPUT_EVENT_MAX_POINTER_COUNT]; ///< Pointer information, valid from [0,pointer_count).
             } motion;
         } details;
-    };
+    } Event;
 
 #ifdef __cplusplus
 }
