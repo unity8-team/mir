@@ -177,6 +177,7 @@ static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 
 	assert(priv->flush == false);
 	assert(priv->cpu_damage == NULL);
+	assert(priv->gpu_bo);
 	assert(priv->gpu_bo->proxy == NULL);
 	assert(priv->gpu_bo->flush == false);
 

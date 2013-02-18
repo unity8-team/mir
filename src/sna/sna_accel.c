@@ -3041,6 +3041,9 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 		sna_damage_all(&priv->cpu_damage,
 			       pixmap->drawable.width,
 			       pixmap->drawable.height);
+
+		assert(priv->gpu_bo == NULL);
+		assert(priv->gpu_damage == NULL);
 	}
 
 	assert(priv->gpu_damage == NULL || priv->gpu_bo);
