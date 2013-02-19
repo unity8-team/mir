@@ -239,6 +239,9 @@ void ApplicationManager::update_app_lists()
         const android::sp<mir::ApplicationSession>& session =
                 apps.valueFor(apps_as_added[i]);
 
+        if (session->session_type == ubuntu::application::ui::system_session_type)
+            continue;
+
         if (session->stage_hint == ubuntu::application::ui::side_stage)
         {
             side_stage_application = i;
@@ -247,12 +250,15 @@ void ApplicationManager::update_app_lists()
 
         side_stage_application = 0;
     }
-   
+
     for (int i = apps_as_added.size()-1; i >= 0; i--)
     {
         const android::sp<mir::ApplicationSession>& session =
                 apps.valueFor(apps_as_added[i]);
    
+        if (session->session_type == ubuntu::application::ui::system_session_type)
+            continue;
+
         if (session->stage_hint == ubuntu::application::ui::main_stage)
         {
             main_stage_application = i;
@@ -289,6 +295,9 @@ void ApplicationManager::binderDied(const android::wp<android::IBinder>& who)
         next_focused_app = next_focused_app-1;
 
     update_app_lists();
+
+    if (next_focused_app != side_stage_application)
+        next_focused_app = main_stage_application;
 
     if (i == focused_application)
         switch_focused_application_locked(next_focused_app);
@@ -772,6 +781,9 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
  
         const android::sp<mir::ApplicationSession>& next_session =
                 apps.valueFor(apps_as_added[index_of_next_focused_app]);
+       
+        if (next_session->session_type == ubuntu::application::ui::system_session_type)
+            return;
         
         if (session->session_type != ubuntu::application::ui::system_session_type)
         {
@@ -815,8 +827,8 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
                 apps.valueFor(apps_as_added[focused_application]);
 
         ALOGI("Raising application now for idx: %d (stage_hint: %d)\n", focused_application, session->stage_hint);
-        
-    if (session->session_type == ubuntu::application::ui::system_session_type)
+
+        if (session->session_type == ubuntu::application::ui::system_session_type)
         {
             ALOGI("\t system session - not raising it.");
             return;
