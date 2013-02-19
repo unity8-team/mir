@@ -28,7 +28,7 @@
 #include <binder/IServiceManager.h>
 #include <binder/ProcessState.h>
 
-namespace mir
+namespace ubuntu { namespace detail
 {
 
 struct ApplicationSession : public android::RefBase
@@ -231,6 +231,6 @@ struct ApplicationSession : public android::RefBase
     android::String8 desktop_file;
     android::KeyedVector<int32_t, android::sp<Surface>> registered_surfaces;
 };
-
+}
 }
 #endif // DEFAULT_APPLICATION_SESSION_H_

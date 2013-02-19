@@ -32,7 +32,7 @@
 #include <androidfw/InputTransport.h>
 #include <utils/threads.h>
 
-namespace mir
+namespace ubuntu { namespace detail
 {
 struct ApplicationManager : 
             public android::BnApplicationManager,
@@ -128,7 +128,7 @@ struct ApplicationManager :
 
         void make_current();
 
-        const android::sp<mir::ApplicationSession>& operator*();
+        const android::sp<ubuntu::detail::ApplicationSession>& operator*();
 
       protected:
         friend class ApplicationManager;
@@ -221,7 +221,7 @@ struct ApplicationManager :
     bool is_osk_visible;
     bool are_notifications_visible;
     android::Mutex guard;
-    android::KeyedVector< android::sp<android::IBinder>, android::sp<mir::ApplicationSession> > apps;
+    android::KeyedVector< android::sp<android::IBinder>, android::sp<ubuntu::detail::ApplicationSession> > apps;
     android::Vector< android::sp<android::IBinder> > apps_as_added;
     android::Mutex observer_guard;
     android::Vector< android::sp<android::IApplicationManagerObserver> > app_manager_observers;
@@ -230,6 +230,7 @@ struct ApplicationManager :
     size_t main_stage_application;
 };
 
+}
 }
 
 #endif // DEFAULT_APPLICATION_MANAGER_H_

@@ -20,7 +20,7 @@
 
 #include <utils/StrongPointer.h>
 
-namespace mir
+namespace ubuntu { namespace detail
 {
 
 class ApplicationManager;
@@ -43,6 +43,7 @@ protected:
     android::sp<ApplicationManager> app_manager;
 };
 
+}
 }
 
 #endif // SHELL_H_
