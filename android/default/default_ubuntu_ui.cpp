@@ -171,7 +171,6 @@ void ubuntu_ui_session_unfocus_running_sessions()
 
 void ubuntu_ui_session_focus_running_session_with_id(int id)
 {
-    ALOGI("COMING FROM UBUNTU\n");
     ubuntu::ui::SessionService::instance()->focus_running_session_with_id(id);
 }
 
