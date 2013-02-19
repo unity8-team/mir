@@ -354,14 +354,21 @@ struct UbuntuSurface : public ubuntu::application::ui::Surface
         properties.layer = layer;
     }
 
-    void set_visible(bool visible)
+    void set_visible(int id, bool visible)
     {
+        sp<IServiceManager> service_manager = defaultServiceManager();
+        sp<IBinder> service = service_manager->getService(
+                        String16(IApplicationManager::exported_service_name()));
+
+        BpApplicationManager app_manager(service);
+
         ALOGI("%s: %s", __PRETTY_FUNCTION__, visible ? "true" : "false");
         if (visible)
         {
             client->openGlobalTransaction();
-            ALOGI("surface_control->show(INT_MAX): %d", surface_control->show());
+            ALOGI("surface_control->show(INT_MAX): %d id=%d", surface_control->show(), id);
             client->closeGlobalTransaction();
+            app_manager.focus_running_session_with_id(id);
         }
         else
         {
@@ -547,6 +554,19 @@ struct Session : public ubuntu::application::ui::Session, public UbuntuSurface::
             server_channel->getFd());
 
         return ubuntu::application::ui::Surface::Ptr(surface);
+    }
+
+    int get_session_pid()
+    {
+        sp<IServiceManager> service_manager = defaultServiceManager();
+        sp<IBinder> service = service_manager->getService(
+            String16(IApplicationManager::exported_service_name()));
+        BpApplicationManager app_manager(service);
+        int pid = app_manager.get_session_pid(
+            app_manager_session
+        );
+        
+        return pid;
     }
 
     void toggle_fullscreen_for_surface(const ubuntu::application::ui::Surface::Ptr& /*surface*/)

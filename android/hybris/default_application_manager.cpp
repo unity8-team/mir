@@ -381,17 +381,7 @@ void ApplicationManager::register_a_surface(
                 registered_session->raise_surface_to_layer(token, default_shutdown_dialog_layer);
                 break;
         }
-    } else 
-    {
-        size_t i = 0;
-        for(i = 0; i < apps_as_added.size(); i++)
-        {
-            if (apps_as_added[i] == session->asBinder())
-                break;
-        }
-
-        switch_focused_application_locked(i);
-    }
+    } 
 }
 
 void ApplicationManager::request_fullscreen(const android::sp<android::IApplicationManagerSession>& session)
@@ -406,6 +396,17 @@ void ApplicationManager::request_fullscreen(const android::sp<android::IApplicat
         as->remote_pid,
         as->stage_hint,
         as->desktop_file);
+}
+
+int ApplicationManager::get_session_pid(const android::sp<android::IApplicationManagerSession>& session)
+{
+    ALOGI("%s", __PRETTY_FUNCTION__);
+    android::Mutex::Autolock al(guard);
+
+    const android::sp<mir::ApplicationSession>& as =
+            apps.valueFor(session->asBinder());
+
+    return as->remote_pid;    
 }
 
 void ApplicationManager::request_update_for_session(const android::sp<android::IApplicationManagerSession>& session)
@@ -789,7 +790,7 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
             side_stage_application = focused_application;
         else
             main_stage_application = focused_application;
-
+    
         session->raise_application_surfaces_to_layer(focused_layer);
         input_setup->input_manager->getDispatcher()->setFocusedApplication(
             session->input_application_handle());

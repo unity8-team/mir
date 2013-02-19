@@ -236,16 +236,22 @@ void
 ubuntu_application_ui_show_surface(
     ubuntu_application_ui_surface surface)
 {
+    if (session == NULL)
+        return;
+
     auto s = static_cast<Holder<ubuntu::application::ui::Surface::Ptr>*>(surface);
-    s->value->set_visible(true);
+    s->value->set_visible(session->get_session_pid(), true);
 }
 
 void 
 ubuntu_application_ui_hide_surface(
     ubuntu_application_ui_surface surface)
 {
+    if (session == NULL)
+        return;
+  
     auto s = static_cast<Holder<ubuntu::application::ui::Surface::Ptr>*>(surface);
-    s->value->set_visible(false);
+    s->value->set_visible(session->get_session_pid(), false);
 }
 
 void 

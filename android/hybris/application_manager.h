@@ -229,6 +229,8 @@ public:
                                     int32_t token,
                                     int fd) = 0;
 
+    virtual int get_session_pid(const sp<IApplicationManagerSession>& session) = 0;
+
     virtual void request_fullscreen(const sp<IApplicationManagerSession>& session) = 0;
 
     virtual void request_update_for_session(const sp<IApplicationManagerSession>& session) = 0;
@@ -262,6 +264,7 @@ protected:
     {
         START_A_NEW_SESSION_COMMAND = IBinder::FIRST_CALL_TRANSACTION,
         REGISTER_A_SURFACE_COMMAND,
+        GET_SESSION_PID_COMMAND,
         REQUEST_FULLSCREEN_COMMAND,
         REGISTER_AN_OBSERVER_COMMAND,
         REQUEST_UPDATE_FOR_SESSION_COMMAND,
@@ -309,6 +312,8 @@ public:
                             int32_t surface_role,
                             int32_t token,
                             int fd);
+
+    int get_session_pid(const android::sp<android::IApplicationManagerSession>& session);
 
     void request_fullscreen(const android::sp<android::IApplicationManagerSession>& session);
 
