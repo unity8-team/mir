@@ -2,7 +2,7 @@ Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: ubuntu-platform-api
 
 Files: *
-Copyright: 2012 Canonical Ltd
+Copyright: 2013 Canonical Ltd
 License: LGPL-3
  This program is free software: you can redistribute it and/or modify it
  under the terms of the GNU Lesser General Public License version 3, as
@@ -17,7 +17,7 @@ License: LGPL-3
  Public License version 3 can be found in "/usr/share/common-licenses/LGPL-3".
 
 Files: android/hybris/test_* src/android/tests/test_* android/hybris/application_manager.cpp
-Copyright: 2012 Canonical Ltd
+Copyright: 2013 Canonical Ltd
 License: GPL-3
  This program is free software: you can redistribute it and/or modify it
  under the terms of the GNU General Public License version 3, as
