@@ -400,7 +400,7 @@ void ApplicationManager::request_fullscreen(const android::sp<android::IApplicat
     android::Mutex::Autolock al(guard);
 
     const android::sp<mir::ApplicationSession>& as =
-            apps.valueFor(apps_as_added[focused_application]);
+            apps.valueFor(apps_as_added[main_stage_application]);
 
     notify_observers_about_session_requested_fullscreen(
         as->remote_pid,
