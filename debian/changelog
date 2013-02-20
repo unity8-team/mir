@@ -1,3 +1,11 @@
+ubuntu-platform-api (0.15-0phablet1) quantal; urgency=low
+
+  * Correct selection of next focused application
+  * Mark keyboard as invisible when switching apps to prevent the trap
+  * Correctly update current apps list even if all remaining apps are system sessions
+
+ -- Ricardo Mendoza <ricardo.mendoza@canonical.com>  Wed, 20 Feb 2013 16:48:08 -0430
+
 ubuntu-platform-api (0.14-0phablet1) quantal; urgency=low
 
   * Packaging improvements for the public release
