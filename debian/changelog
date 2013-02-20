@@ -1,3 +1,9 @@
+ubuntu-platform-api (0.12) quantal; urgency=low
+
+  * Focus a new application only when the application requests visibility for its surfaces
+
+ -- Ricardo Mendoza <ricardo.mendoza@canonical.com>  Wed, 20 Feb 2013 02:05:14 -0430
+
 ubuntu-platform-api (0.11) quantal; urgency=low
 
   [ Ricardo Mendoza ]
