@@ -61,6 +61,9 @@ public:
         const SurfaceProperties& props,
         const ubuntu::application::ui::input::Listener::Ptr& listener) = 0;
 
+    /** Requests the PID for the running session. */ 
+    virtual int get_session_pid() = 0;
+
     /** Destroys the surface and renders it unusable. */
     virtual void destroy_surface(const Surface::Ptr& surface) = 0;
 

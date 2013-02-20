@@ -428,6 +428,14 @@ status_t BnApplicationManager::onTransact(uint32_t code,
         register_a_surface(title, session, surface_role, surface_token, fd);
     }
     break;
+    case GET_SESSION_PID_COMMAND:
+    {
+        sp<IBinder> binder = data.readStrongBinder();
+        sp<BpApplicationManagerSession> session(new BpApplicationManagerSession(binder));
+        int pid = get_session_pid(session);
+        reply->writeInt32(pid);
+    }
+    break;
     case REQUEST_FULLSCREEN_COMMAND:
     {
         sp<IBinder> binder = data.readStrongBinder();
@@ -581,6 +589,22 @@ void BpApplicationManager::register_a_surface(
                        in,
                        &out);
 }
+
+int BpApplicationManager::get_session_pid(
+    const sp<IApplicationManagerSession>& session)
+{
+    Parcel in, out;
+    in.writeStrongBinder(session->asBinder());
+
+    remote()->transact(GET_SESSION_PID_COMMAND,
+                       in,
+                       &out);                   
+    
+    int32_t pid = out.readInt32();
+
+    return pid; 
+}
+
 
 void BpApplicationManager::request_fullscreen(
     const sp<IApplicationManagerSession>& session)

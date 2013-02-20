@@ -20,6 +20,7 @@
 
 #include "ubuntu/platform/shared_ptr.h"
 
+#include "ubuntu/application/ui/session.h"
 #include "ubuntu/application/ui/input/listener.h"
 
 #include <EGL/egl.h>
@@ -40,7 +41,7 @@ public:
 
     // Default surface API
     /** Toggles the visibility of the surface. */
-    virtual void set_visible(bool visible) = 0;
+    virtual void set_visible(int id, bool visible) = 0;
     /** Adjusts the alpha channel of a surface. */
     virtual void set_alpha(float alpha) = 0;
     /** Moves the surface to the specified coordinates. */

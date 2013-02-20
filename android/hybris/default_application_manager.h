@@ -176,6 +176,8 @@ struct ApplicationManager :
 
     void register_an_observer(const android::sp<android::IApplicationManagerObserver>& observer);
 
+    int get_session_pid(const android::sp<android::IApplicationManagerSession>& session);
+
     void request_update_for_session(const android::sp<android::IApplicationManagerSession>& session);
 
     void focus_running_session_with_id(int id);
