@@ -146,6 +146,8 @@ struct ApplicationManager :
 
     ApplicationManager();
 
+    void update_app_lists();
+
     // From DeathRecipient
     void binderDied(const android::wp<android::IBinder>& who);
 
