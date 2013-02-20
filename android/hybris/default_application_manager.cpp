@@ -232,11 +232,50 @@ ApplicationManager::ApplicationManager() : input_filter(new InputFilter(this)),
     input_setup->start();
 }
 
+void ApplicationManager::update_app_lists()
+{
+    for (int i = apps_as_added.size()-1; i >= 0; i--)
+    {
+        const android::sp<mir::ApplicationSession>& session =
+                apps.valueFor(apps_as_added[i]);
+
+        if (session->session_type == ubuntu::application::ui::system_session_type)
+            continue;
+
+        if (session->stage_hint == ubuntu::application::ui::side_stage)
+        {
+            side_stage_application = i;
+            break;
+        }
+
+        side_stage_application = 0;
+    }
+
+    for (int i = apps_as_added.size()-1; i >= 0; i--)
+    {
+        const android::sp<mir::ApplicationSession>& session =
+                apps.valueFor(apps_as_added[i]);
+   
+        if (session->session_type == ubuntu::application::ui::system_session_type)
+            continue;
+
+        if (session->stage_hint == ubuntu::application::ui::main_stage)
+        {
+            main_stage_application = i;
+            break;
+        }
+
+        main_stage_application = 0;
+    }
+}
+
 // From DeathRecipient
 void ApplicationManager::binderDied(const android::wp<android::IBinder>& who)
 {
     android::Mutex::Autolock al(guard);
     android::sp<android::IBinder> sp = who.promote();
+
+    ALOGI("%s()%d\n", __PRETTY_FUNCTION__, __LINE__);
 
     const android::sp<mir::ApplicationSession>& dead_session = apps.valueFor(sp);
 
@@ -252,8 +291,13 @@ void ApplicationManager::binderDied(const android::wp<android::IBinder>& who)
     size_t next_focused_app = 0;
     next_focused_app = apps_as_added.removeAt(i);
 
-    if (next_focused_app >= apps_as_added.size())
-        next_focused_app = 0;
+    if (apps_as_added.size() >= 1)
+        next_focused_app = next_focused_app-1;
+
+    update_app_lists();
+
+    if (next_focused_app != side_stage_application)
+        next_focused_app = main_stage_application;
 
     if (i == focused_application)
         switch_focused_application_locked(next_focused_app);
@@ -566,7 +610,7 @@ int32_t ApplicationManager::query_snapshot_layer_for_session_with_id(int id)
 android::IApplicationManagerSession::SurfaceProperties ApplicationManager::query_surface_properties_for_session_id(int id)
 {
     android::Mutex::Autolock al(guard);
-    ALOGI("%s: %d", __PRETTY_FUNCTION__, id );
+    
     size_t idx = session_id_to_index(id);
     android::IApplicationManagerSession::SurfaceProperties props;
     int status;
@@ -699,14 +743,22 @@ void ApplicationManager::update_input_setup_locked()
                 input_windows.push(shell_input_setup->trap_windows.valueFor(key));
             }
         }
-        
-        input_windows.appendVector(session->input_window_handles());
+   
+        android::sp<android::IBinder> sb = apps_as_added[focused_application];
+    
+        if (sb->isBinderAlive())
+            input_windows.appendVector(session->input_window_handles());
 
         if (session->stage_hint == ubuntu::application::ui::side_stage)
         {
             const android::sp<mir::ApplicationSession>& main_session =
                 apps.valueFor(apps_as_added[main_stage_application]);
-            input_windows.appendVector(main_session->input_window_handles());
+
+            android::sp<android::IBinder> msb = apps_as_added[focused_application];
+            if (msb->isBinderAlive())
+            {
+                input_windows.appendVector(main_session->input_window_handles());
+            }
         }
 
         input_setup->input_manager->getDispatcher()->setInputWindows(
@@ -721,6 +773,7 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
 
     if (apps.size() > 1 &&
         focused_application < apps.size() &&
+        focused_application < apps_as_added.size() &&
         focused_application != index_of_next_focused_app)
     {
         ALOGI("Lowering current application now for idx: %d \n", focused_application);
@@ -730,6 +783,9 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
         const android::sp<mir::ApplicationSession>& next_session =
                 apps.valueFor(apps_as_added[index_of_next_focused_app]);
        
+        if (next_session->session_type == ubuntu::application::ui::system_session_type)
+            return;
+        
         if (session->session_type != ubuntu::application::ui::system_session_type)
         {
             // Stop the session
@@ -772,8 +828,8 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
                 apps.valueFor(apps_as_added[focused_application]);
 
         ALOGI("Raising application now for idx: %d (stage_hint: %d)\n", focused_application, session->stage_hint);
-        
-    if (session->session_type == ubuntu::application::ui::system_session_type)
+
+        if (session->session_type == ubuntu::application::ui::system_session_type)
         {
             ALOGI("\t system session - not raising it.");
             return;
