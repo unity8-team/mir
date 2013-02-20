@@ -1,3 +1,10 @@
+ubuntu-platform-api (0.12) UNRELEASED; urgency=low
+
+  * Add method to signal App Manager clients for changes on OSK geometry/visibility
+  * Prevent attempting to focus sessions from session-less surfaces
+
+ -- Ricardo Mendoza <ricardo.mendoza@canonical.com>  Wed, 20 Feb 2013 01:01:00 -0430
+
 ubuntu-platform-api (0.11) quantal; urgency=low
 
   [ Ricardo Mendoza ]
