@@ -1,6 +1,7 @@
 Source: ubuntu-platform-api
 Priority: extra
 Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
+XSBC-Original-Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
 Build-Depends:
  debhelper (>= 9),
  cmake,
@@ -8,8 +9,8 @@ Build-Depends:
  libgles2-mesa-dev
 Standards-Version: 3.9.4
 Section: devel
-Vcs-Bzr: lp:~rocket-scientists/aal+/ubuntu-platform-api
-Vcs-Browser: https://bazaar.launchpad.net/~rocket-scientists/aal+/ubuntu-platform-api/files
+Vcs-Bzr: lp:phablet-platform
+Vcs-Browser: https://bazaar.launchpad.net/~phablet-team/phablet-platform/files
 
 Package: ubuntu-platform-api-headers
 Section: libdevel
@@ -35,7 +36,7 @@ Depends:
  ubuntu-platform-implementation-android | libubuntu-platform-api1,
  libgles2-mesa-dev
 Description: Ubuntu Platform API -- development headers
- This package provides the development headers the Ubuntu Platform API.
+ This package provides the development headers for the Ubuntu Platform API.
 
 Package: ubuntu-platform-implementation-android
 Provides: libubuntu-platform-api1
