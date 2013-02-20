@@ -262,6 +262,7 @@ struct cell_list {
 	/* Points to the left-most cell in the scan line. */
 	struct cell head, tail;
 
+	int16_t x1, x2;
 	int16_t count, size;
 	struct cell *cells;
 	struct cell embedded[256];
@@ -331,7 +332,7 @@ cell_list_rewind(struct cell_list *cells)
 }
 
 static bool
-cell_list_init(struct cell_list *cells, int width)
+cell_list_init(struct cell_list *cells, int x1, int x2)
 {
 	cells->tail.next = NULL;
 	cells->tail.x = INT_MAX;
@@ -339,7 +340,9 @@ cell_list_init(struct cell_list *cells, int width)
 	cells->head.next = &cells->tail;
 	cell_list_rewind(cells);
 	cells->count = 0;
-	cells->size = width+1;
+	cells->x1 = x1;
+	cells->x2 = x2;
+	cells->size = x2 - x1 + 1;
 	cells->cells = cells->embedded;
 	if (cells->size > ARRAY_SIZE(cells->embedded))
 		cells->cells = malloc(cells->size * sizeof(struct cell));
@@ -388,6 +391,15 @@ inline static struct cell *
 cell_list_find(struct cell_list *cells, int x)
 {
 	struct cell *tail = cells->cursor;
+
+	if (tail->x == x)
+		return tail;
+
+	if (x >= cells->x2)
+		return &cells->tail;
+
+	if (x < cells->x1)
+		x = cells->x1;
 
 	if (tail->x == x)
 		return tail;
@@ -980,7 +992,7 @@ tor_init(struct tor *converter, const BoxRec *box, int num_edges)
 	converter->xmax = box->x2;
 	converter->ymax = box->y2;
 
-	if (!cell_list_init(converter->coverages, box->x2 - box->x1))
+	if (!cell_list_init(converter->coverages, box->x1, box->x2))
 		return false;
 
 	active_list_reset(converter->active);
@@ -1135,32 +1147,21 @@ tor_blt(struct sna *sna,
 	int xmin, int xmax,
 	int unbounded)
 {
-	struct cell *cell = cells->head.next;
+	struct cell *cell;
 	BoxRec box;
-	int cover = 0;
-
-	/* Skip cells to the left of the clip region. */
-	while (cell->x < xmin) {
-		__DBG(("%s: skipping cell (%d, %d, %d)\n",
-		       __FUNCTION__,
-		       cell->x, cell->covered_height, cell->uncovered_area));
-
-		cover += cell->covered_height;
-		cell = cell->next;
-	}
-	cover *= FAST_SAMPLES_X*2;
+	int cover;
 
 	box.y1 = y;
 	box.y2 = y + height;
 	box.x1 = xmin;
 
 	/* Form the spans from the coverages and areas. */
-	for (; cell != NULL; cell = cell->next) {
+	cover = 0;
+	for (cell = cells->head.next; cell != &cells->tail; cell = cell->next) {
 		int x = cell->x;
 
-		if (x >= xmax)
-			break;
-
+		assert(x >= xmin);
+		assert(x < xmax);
 		__DBG(("%s: cell=(%d, %d, %d), cover=%d, max=%d\n", __FUNCTION__,
 		       cell->x, cell->covered_height, cell->uncovered_area,
 		       cover, xmax));
