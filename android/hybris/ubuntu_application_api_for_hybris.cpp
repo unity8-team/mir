@@ -368,7 +368,8 @@ struct UbuntuSurface : public ubuntu::application::ui::Surface
             client->openGlobalTransaction();
             ALOGI("surface_control->show(INT_MAX): %d id=%d", surface_control->show(), id);
             client->closeGlobalTransaction();
-            app_manager.focus_running_session_with_id(id);
+            if (id)
+                app_manager.focus_running_session_with_id(id);
         }
         else
         {
@@ -687,6 +688,17 @@ struct ApplicationManagerObserver : public android::BnApplicationManagerObserver
             return;
 
         observer->on_session_requested_fullscreen(ubuntu::ui::SessionProperties::Ptr(new SessionProperties(id, stage_hint, desktop_file)));
+    }
+
+    virtual void on_keyboard_geometry_changed(int x,
+                                              int y,
+                                              int width,
+                                              int height)
+    {
+        if (observer == NULL)
+            return;
+        
+        observer->on_keyboard_geometry_changed(x, y, width, height);
     }
 
     virtual void on_session_died(int id,

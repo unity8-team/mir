@@ -32,6 +32,7 @@
 #include <input/InputReader.h>
 #include <androidfw/InputTransport.h>
 #include <utils/threads.h>
+#include <utils/Errors.h>
 
 #include <cstdio>
 
@@ -447,6 +448,9 @@ int ApplicationManager::get_session_pid(const android::sp<android::IApplicationM
     ALOGI("%s", __PRETTY_FUNCTION__);
     android::Mutex::Autolock al(guard);
 
+    if (apps.indexOfKey(session->asBinder()) == android::NAME_NOT_FOUND)
+        return 0;
+
     const android::sp<mir::ApplicationSession>& as =
             apps.valueFor(session->asBinder());
 
@@ -675,6 +679,8 @@ void ApplicationManager::report_osk_visible(int32_t x, int32_t y, int32_t width,
     is_osk_visible = true;
 
     update_input_setup_locked();
+
+    notify_observers_about_keyboard_geometry_changed(x, y, width, height);
 }
 
 void ApplicationManager::report_osk_invisible()
@@ -684,6 +690,8 @@ void ApplicationManager::report_osk_invisible()
     is_osk_visible = false;
 
     update_input_setup_locked();
+
+    notify_observers_about_keyboard_geometry_changed(0, 0, 0, 0);
 }
 
 void ApplicationManager::report_notification_visible()
@@ -961,6 +969,15 @@ void ApplicationManager::notify_observers_about_session_focused(int id, int stag
     for(unsigned int i = 0; i < app_manager_observers.size(); i++)
     {
         app_manager_observers[i]->on_session_focused(id, stage_hint, desktop_file);
+    }
+}
+
+void ApplicationManager::notify_observers_about_keyboard_geometry_changed(int x, int y, int width, int height)
+{
+    android::Mutex::Autolock al(observer_guard);
+    for(unsigned int i = 0; i < app_manager_observers.size(); i++)
+    {
+        app_manager_observers[i]->on_keyboard_geometry_changed(x, y, width, height);
     }
 }
 

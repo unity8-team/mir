@@ -44,6 +44,7 @@ extern "C" {
     typedef void (*session_born_cb)(ubuntu_ui_session_properties props, void* context);
     typedef void (*session_unfocused_cb)(ubuntu_ui_session_properties props, void* context);
     typedef void (*session_focused_cb)(ubuntu_ui_session_properties props, void* context);
+    typedef void (*keyboard_geometry_changed_cb)(int x, int y, int width, int height, void* context);
     typedef void (*session_requested_fullscreen_cb)(ubuntu_ui_session_properties props, void* context);
     typedef void (*session_died_cb)(ubuntu_ui_session_properties props, void * context);
 
@@ -53,6 +54,7 @@ extern "C" {
         session_born_cb on_session_born;
         session_unfocused_cb on_session_unfocused;
         session_focused_cb on_session_focused;
+        keyboard_geometry_changed_cb on_keyboard_geometry_changed;
         session_requested_fullscreen_cb on_session_requested_fullscreen;
         session_died_cb on_session_died;
 

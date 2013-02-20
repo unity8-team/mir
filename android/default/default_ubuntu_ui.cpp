@@ -77,6 +77,17 @@ struct SessionLifeCycleObserver : public ubuntu::ui::SessionLifeCycleObserver
         observer->on_session_focused(&props, observer->context);
     }
 
+    void on_keyboard_geometry_changed(int x, int y, int width, int height)
+    {
+        if (!observer)
+            return;
+
+        if (!observer->on_keyboard_geometry_changed)
+            return;
+
+        observer->on_keyboard_geometry_changed(x, y, width, height, observer->context);
+    }
+
     void on_session_requested_fullscreen(const ubuntu::ui::SessionProperties::Ptr& props)
     {
         if (!observer)

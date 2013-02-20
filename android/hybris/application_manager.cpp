@@ -269,6 +269,15 @@ status_t BnApplicationManagerObserver::onTransact(uint32_t code,
             on_session_focused(id, stage_hint, desktop_file);
             break;
         }
+    case ON_KEYBOARD_GEOMETRY_CHANGED_NOTIFICATION:
+        {
+            int x = data.readInt32();
+            int y = data.readInt32();
+            int width = data.readInt32();
+            int height = data.readInt32();
+            on_keyboard_geometry_changed(x, y, width, height);
+            break;
+        }
     case ON_SESSION_REQUESTED_FULLSCREEN_NOTIFICATION:
         {
             int id = data.readInt32();
@@ -351,6 +360,24 @@ void BpApplicationManagerObserver::on_session_focused(int id,
 
     remote()->transact(
         ON_SESSION_FOCUSED_NOTIFICATION,
+        in,
+        &out,
+        android::IBinder::FLAG_ONEWAY);
+}
+
+void BpApplicationManagerObserver::on_keyboard_geometry_changed(int x,
+                                                                int y,
+                                                                int width,
+                                                                int height)
+{
+    Parcel in, out;
+    in.writeInt32(x);
+    in.writeInt32(y);
+    in.writeInt32(width);
+    in.writeInt32(height);
+
+    remote()->transact(
+        ON_KEYBOARD_GEOMETRY_CHANGED_NOTIFICATION,
         in,
         &out,
         android::IBinder::FLAG_ONEWAY);
