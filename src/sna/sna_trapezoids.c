@@ -264,6 +264,7 @@ struct cell_list {
 
 	int16_t count, size;
 	struct cell *cells;
+	struct cell embedded[256];
 };
 
 /* The active list contains edges in the current scan line ordered by
@@ -339,14 +340,17 @@ cell_list_init(struct cell_list *cells, int width)
 	cell_list_rewind(cells);
 	cells->count = 0;
 	cells->size = width+1;
-	cells->cells = malloc(cells->size * sizeof(struct cell));
+	cells->cells = cells->embedded;
+	if (cells->size > ARRAY_SIZE(cells->embedded))
+		cells->cells = malloc(cells->size * sizeof(struct cell));
 	return cells->cells != NULL;
 }
 
 static void
 cell_list_fini(struct cell_list *cells)
 {
-	free(cells->cells);
+	if (cells->cells != cells->embedded)
+		free(cells->cells);
 }
 
 inline static void
