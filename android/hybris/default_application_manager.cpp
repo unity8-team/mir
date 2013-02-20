@@ -235,39 +235,43 @@ ApplicationManager::ApplicationManager() : input_filter(new InputFilter(this)),
 
 void ApplicationManager::update_app_lists()
 {
-    for (int i = apps_as_added.size()-1; i >= 0; i--)
+    int idx;
+
+    for (idx = apps_as_added.size()-1; idx >= 0; idx--)
     {
         const android::sp<mir::ApplicationSession>& session =
-                apps.valueFor(apps_as_added[i]);
+                apps.valueFor(apps_as_added[idx]);
 
         if (session->session_type == ubuntu::application::ui::system_session_type)
             continue;
 
         if (session->stage_hint == ubuntu::application::ui::side_stage)
         {
-            side_stage_application = i;
+            side_stage_application = idx;
             break;
         }
-
-        side_stage_application = 0;
     }
 
-    for (int i = apps_as_added.size()-1; i >= 0; i--)
+    if (idx < 0)
+        side_stage_application = 0;
+
+    for (idx = apps_as_added.size()-1; idx >= 0; idx--)
     {
         const android::sp<mir::ApplicationSession>& session =
-                apps.valueFor(apps_as_added[i]);
-   
+                apps.valueFor(apps_as_added[idx]);
+        
         if (session->session_type == ubuntu::application::ui::system_session_type)
             continue;
 
         if (session->stage_hint == ubuntu::application::ui::main_stage)
         {
-            main_stage_application = i;
+            main_stage_application = idx;
             break;
         }
-
-        main_stage_application = 0;
     }
+
+    if (idx < 0)
+        main_stage_application = 0;
 }
 
 // From DeathRecipient
