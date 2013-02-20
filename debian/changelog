@@ -1,6 +1,9 @@
 ubuntu-platform-api (0.11) quantal; urgency=low
 
-  * New release
+  [ Ricardo Mendoza ]
+  * Correctly report fullscreen session for mainstage apps if requested
+  * Dont schedule a system session app (osk) for focusing when recovering from a binder death
+  * Keep track of apps in independent pointers and better protect session binders.
 
  -- Florian Boucault <florian.boucault@canonical.com>  Wed, 20 Feb 2013 02:46:09 +0000
 
