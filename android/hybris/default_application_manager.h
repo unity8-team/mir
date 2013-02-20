@@ -215,6 +215,7 @@ struct ApplicationManager :
     void notify_observers_about_session_born(int id, int stage_hint, const android::String8& desktop_file);
     void notify_observers_about_session_unfocused(int id, int stage_hint, const android::String8& desktop_file);
     void notify_observers_about_session_focused(int id, int stage_hint, const android::String8& desktop_file);
+    void notify_observers_about_keyboard_geometry_changed(int x, int y, int width, int height);
     void notify_observers_about_session_requested_fullscreen(int id, int stage_hint, const android::String8& desktop_file);
     void notify_observers_about_session_died(int id, int stage_hint, const android::String8& desktop_file);
 

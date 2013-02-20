@@ -150,6 +150,11 @@ public:
                                                  int stage_hint,
                                                  const String8& desktop_file) = 0;
 
+    virtual void on_keyboard_geometry_changed(int x,
+                                              int y,
+                                              int width,
+                                              int height) = 0;
+
     virtual void on_session_died(int id,
                                  int stage_hint,
                                  const String8& desktop_file) = 0;
@@ -161,6 +166,7 @@ protected:
         ON_SESSION_BORN_NOTIFICATION,
         ON_SESSION_UNFOCUSED_NOTIFICATION,
         ON_SESSION_FOCUSED_NOTIFICATION,
+        ON_KEYBOARD_GEOMETRY_CHANGED_NOTIFICATION,
         ON_SESSION_REQUESTED_FULLSCREEN_NOTIFICATION,
         ON_SESSION_DIED_NOTIFICATION
     };
@@ -200,6 +206,11 @@ public:
     void on_session_requested_fullscreen(int id,
                                          int stage_hint,
                                          const String8& desktop_file);
+
+    void on_keyboard_geometry_changed(int x,
+                                      int y,
+                                      int width,
+                                      int height); 
 
     void on_session_died(int id,
                          int stage_hint,

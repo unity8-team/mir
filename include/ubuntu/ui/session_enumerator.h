@@ -78,6 +78,7 @@ public:
     virtual void on_session_born(const SessionProperties::Ptr& props) = 0;
     virtual void on_session_unfocused(const SessionProperties::Ptr& props) = 0;
     virtual void on_session_focused(const SessionProperties::Ptr& props) = 0;
+    virtual void on_keyboard_geometry_changed(int x, int y, int width, int height) = 0;
     virtual void on_session_requested_fullscreen(const SessionProperties::Ptr& props) = 0;
     virtual void on_session_died(const SessionProperties::Ptr& props) = 0;
 
