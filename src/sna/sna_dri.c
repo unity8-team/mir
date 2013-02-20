@@ -1321,6 +1321,15 @@ can_exchange(struct sna * sna,
 	}
 	assert(get_private(back)->size == get_private(front)->size);
 
+	/* prevent an implicit tiling mode change */
+	if (get_private(front)->bo->tiling != get_private(back)->bo->tiling) {
+		DBG(("%s -- no, tiling mismatch: front %d, back=%d\n",
+		     __FUNCTION__,
+		     get_private(front)->bo->tiling,
+		     get_private(back)->bo->tiling));
+		return false;
+	}
+
 	return true;
 }
 

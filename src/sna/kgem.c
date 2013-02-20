@@ -1208,14 +1208,6 @@ inline static uint32_t kgem_pitch_alignment(struct kgem *kgem, unsigned flags)
 	return kgem->min_alignment;
 }
 
-static uint32_t kgem_untiled_pitch(struct kgem *kgem,
-				   uint32_t width, uint32_t bpp,
-				   unsigned flags)
-{
-	width = ALIGN(width, 2) * bpp >> 3;
-	return ALIGN(width, kgem_pitch_alignment(kgem, flags));
-}
-
 void kgem_get_tile_size(struct kgem *kgem, int tiling,
 			int *tile_width, int *tile_height, int *tile_size)
 {
@@ -3473,7 +3465,7 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 {
 	struct list *cache;
 	struct kgem_bo *bo;
-	uint32_t pitch, untiled_pitch, tiled_height, size;
+	uint32_t pitch, tiled_height, size;
 	uint32_t handle;
 	int i, bucket, retry;
 
@@ -3535,7 +3527,6 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 			goto large_inactive;
 
 		tiled_height = kgem_aligned_height(kgem, height, tiling);
-		untiled_pitch = kgem_untiled_pitch(kgem, width, bpp, flags);
 
 		list_for_each_entry(bo, &kgem->large, list) {
 			assert(!bo->purged);
@@ -3800,7 +3791,6 @@ search_again:
 	}
 
 	if ((flags & CREATE_EXACT) == 0) { /* allow an active near-miss? */
-		untiled_pitch = kgem_untiled_pitch(kgem, width, bpp, flags);
 		i = tiling;
 		while (--i >= 0) {
 			tiled_height = kgem_surface_size(kgem, kgem->has_relaxed_fencing, flags,
@@ -3822,7 +3812,7 @@ search_again:
 						continue;
 					}
 				} else
-					bo->pitch = untiled_pitch;
+					bo->pitch = pitch;
 
 				if (bo->pitch * tiled_height > bytes(bo))
 					continue;

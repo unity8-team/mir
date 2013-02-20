@@ -557,7 +557,7 @@ pure static uint32_t sna_pixmap_choose_tiling(PixmapPtr pixmap,
 		tiling = default_tiling(pixmap, tiling);
 		bit = SNA_TILING_2D;
 	}
-	if ((sna->tiling && (1 << bit)) == 0)
+	if ((sna->tiling & bit) == 0)
 		tiling = I915_TILING_NONE;
 
 	/* Also adjust tiling if it is not supported or likely to
@@ -1372,6 +1372,7 @@ sna_pixmap_create_mappable_gpu(PixmapPtr pixmap)
 {
 	struct sna *sna = to_sna_from_pixmap(pixmap);
 	struct sna_pixmap *priv = sna_pixmap(pixmap);;
+	unsigned create;
 
 	if (wedged(sna))
 		return false;
@@ -1383,13 +1384,18 @@ sna_pixmap_create_mappable_gpu(PixmapPtr pixmap)
 
 	assert(priv->gpu_damage == NULL);
 	assert(priv->gpu_bo == NULL);
+
+	create = CREATE_GTT_MAP | CREATE_INACTIVE;
+	if (pixmap->usage_hint == SNA_CREATE_FB)
+		create |= CREATE_EXACT | CREATE_SCANOUT;
+
 	priv->gpu_bo =
 		kgem_create_2d(&sna->kgem,
 			       pixmap->drawable.width,
 			       pixmap->drawable.height,
 			       pixmap->drawable.bitsPerPixel,
 			       sna_pixmap_choose_tiling(pixmap, DEFAULT_TILING),
-			       CREATE_GTT_MAP | CREATE_INACTIVE);
+			       create);
 
 	return priv->gpu_bo && kgem_bo_is_mappable(&sna->kgem, priv->gpu_bo);
 }
@@ -3096,10 +3102,10 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 			tiling = sna_pixmap_choose_tiling(pixmap, tiling);
 
 			create = 0;
-			if (priv->cpu_damage && priv->cpu_bo == NULL)
+			if (flags & MOVE_INPLACE_HINT || (priv->cpu_damage && priv->cpu_bo == NULL))
 				create = CREATE_GTT_MAP | CREATE_INACTIVE;
-			if (flags & MOVE_INPLACE_HINT)
-				create = CREATE_GTT_MAP | CREATE_INACTIVE;
+			if (pixmap->usage_hint == SNA_CREATE_FB)
+				create |= CREATE_EXACT | CREATE_SCANOUT;
 
 			priv->gpu_bo =
 				kgem_create_2d(&sna->kgem,
