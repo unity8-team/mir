@@ -296,12 +296,13 @@ void ApplicationManager::binderDied(const android::wp<android::IBinder>& who)
     size_t next_focused_app = 0;
     next_focused_app = apps_as_added.removeAt(i);
 
-    if (apps_as_added.size() >= 1)
-        next_focused_app = next_focused_app-1;
-
+    next_focused_app = main_stage_application;
     update_app_lists();
+   
+    if (dead_session->stage_hint == ubuntu::application::ui::side_stage)
+        next_focused_app = side_stage_application ? side_stage_application : next_focused_app;
 
-    if (next_focused_app != side_stage_application)
+    if (dead_session->stage_hint == ubuntu::application::ui::main_stage)
         next_focused_app = main_stage_application;
 
     if (i == focused_application)
@@ -830,6 +831,7 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
     }
 
     focused_application = index_of_next_focused_app;
+    is_osk_visible = false
 
     if (focused_application < apps.size())
     {
@@ -858,15 +860,13 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
             side_stage_application = focused_application;
         else
             main_stage_application = focused_application;
-    
+        
         session->raise_application_surfaces_to_layer(focused_layer);
         input_setup->input_manager->getDispatcher()->setFocusedApplication(
             session->input_application_handle());
 
         android::Vector< android::sp<android::InputWindowHandle> > input_windows;
 
-        if (is_osk_visible)
-            input_windows.push(shell_input_setup->osk_window.input_window);
         if (are_notifications_visible)
             input_windows.push(shell_input_setup->notifications_window.input_window);
         if (!shell_input_setup->trap_windows.isEmpty())
