@@ -1,7 +1,6 @@
 Source: ubuntu-platform-api
 Priority: extra
 Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
-XSBC-Original-Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
 Build-Depends:
  debhelper (>= 9),
  cmake,
@@ -25,7 +24,6 @@ Description: Ubuntu Platform API -- library headers
  package automatically.
 
 Package: libubuntu-platform-api1-dev
-Conflicts: libhybris-dev (<< 0.57)
 Section: libdevel
 Pre-Depends: ${misc:Pre-Depends}
 Multi-Arch: same
@@ -40,7 +38,7 @@ Description: Ubuntu Platform API -- development headers
 
 Package: ubuntu-platform-implementation-android
 Provides: libubuntu-platform-api1
-Conflicts: libubuntu-platform-api1, libhybris (<< 0.57)
+Conflicts: libubuntu-platform-api1
 Replaces: libubuntu-platform-api1
 Section: libs
 Pre-Depends: ${misc:Pre-Depends}
