@@ -831,7 +831,8 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
     }
 
     focused_application = index_of_next_focused_app;
-    report_osk_invisible();
+    is_osk_visible = false;
+    notify_observers_about_keyboard_geometry_changed(0, 0, 0, 0);
 
     if (focused_application < apps.size())
     {
