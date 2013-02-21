@@ -28,14 +28,22 @@ public:
     MirWaitHandle();
     ~MirWaitHandle();
 
+    typedef void (*Callback)(void *owner, void *context);
+
     void result_received();
     void wait_for_result();
+    void register_callback(Callback cb, void *context);
+    void register_callback_owner(void *owner);
 
 private:
     std::mutex guard;
     std::condition_variable wait_condition;
 
     bool result_has_occurred;
+    Callback callback;
+    void *callback_owner;
+    void *callback_arg;
+    bool called_back;
 };
 
 #endif /* MIR_CLIENT_MIR_WAIT_HANDLE_H_ */

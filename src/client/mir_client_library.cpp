@@ -184,6 +184,14 @@ void mir_wait_for(MirWaitHandle* wait_handle)
         wait_handle->wait_for_result();
 }
 
+void mir_callback_on(MirWaitHandle *wait,
+                     mir_generic_callback cb,
+                     void *context)
+{
+    if (wait)
+        wait->register_callback(cb, context);
+}
+
 MirEGLNativeWindowType mir_surface_get_egl_native_window(MirSurface *surface)
 {
     return surface->generate_native_window();

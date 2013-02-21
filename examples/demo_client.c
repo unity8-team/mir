@@ -77,6 +77,7 @@ static void surface_release_callback(MirSurface *old_surface, void *context)
 /// current buffer before closing the surface and connection.
 void demo_client(const char* server, int buffer_swap_count)
 {
+    MirWaitHandle *wait;
     MirDemoState mcd;
     mcd.connection = 0;
     mcd.surface = 0;

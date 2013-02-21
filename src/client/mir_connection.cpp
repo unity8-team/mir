@@ -37,6 +37,7 @@ MirConnection::MirConnection() :
     server(0),
     error_message("ERROR")
 {
+    connect_wait_handle.register_callback_owner(this);
 }
 
 MirConnection::MirConnection(
@@ -53,6 +54,7 @@ MirConnection::MirConnection(
         valid_connections.insert(this);
     }
     connect_result.set_error("connect not called");
+    connect_wait_handle.register_callback_owner(this);
 }
 
 MirConnection::~MirConnection()

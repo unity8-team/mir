@@ -53,6 +53,12 @@ struct ClientConfigCommon : TestingClientConfiguration
     {
     }
 
+    static void connection_callback(MirConnection * connection, void * context)
+    {
+        ClientConfigCommon * config = reinterpret_cast<ClientConfigCommon *>(context);
+        config->connection = connection;
+    }
+
     static void create_surface_callback(MirSurface * surface, void * context)
     {
         ClientConfigCommon * config = reinterpret_cast<ClientConfigCommon *>(context);
@@ -107,6 +113,32 @@ TEST_F(DefaultDisplayServerTestFixture, client_library_connects_and_disconnects)
                                      &connection));
 
             ASSERT_TRUE(connection != NULL);
+            EXPECT_TRUE(mir_connection_is_valid(connection));
+            EXPECT_STREQ(mir_connection_get_error_message(connection), "");
+
+            mir_connection_release(connection);
+        }
+    } client_config;
+
+    launch_client_process(client_config);
+}
+
+TEST_F(DefaultDisplayServerTestFixture, connect_calls_back)
+{
+    struct ClientConfig : ClientConfigCommon
+    {
+        void exec()
+        {
+            MirConnection *conn = nullptr;
+            MirWaitHandle *wait = mir_connect(mir_test_socket,
+                                              __PRETTY_FUNCTION__,
+                                              &conn);
+            mir_callback_on(wait, (mir_generic_callback)connection_callback,
+                            this);
+            mir_wait_for(wait);
+
+            ASSERT_TRUE(connection != NULL);
+            EXPECT_EQ(connection, conn);
             EXPECT_TRUE(mir_connection_is_valid(connection));
             EXPECT_STREQ(mir_connection_get_error_message(connection), "");
 

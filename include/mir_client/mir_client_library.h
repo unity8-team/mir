@@ -38,6 +38,12 @@ typedef struct MirSurface MirSurface;
 typedef struct MirWaitHandle MirWaitHandle;
 
 /**
+ * A generic callback that can be used with mir_callback_on().
+ *   TODO...
+ */
+typedef void (*mir_generic_callback)(void *arg1, void *arg2);
+
+/**
  * Callback to be passed when calling:
  *  - mir_surface_create
  *  - mir_surface_next_buffer
@@ -300,6 +306,15 @@ MirWaitHandle *mir_surface_release(
  *   \param [in] wait_handle  handle returned by an asynchronous request
  */
 void mir_wait_for(MirWaitHandle *wait_handle);
+
+/**
+ * Register a callback to be called when the specified wait handle is
+ * completed.
+ *   TODO...
+ */
+void mir_callback_on(MirWaitHandle *wait,
+                     mir_generic_callback cb,
+                     void *context);
 
 /**
  * Return the id of the surface. (Only useful for debug output.)
