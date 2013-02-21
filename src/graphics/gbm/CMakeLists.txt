@@ -40,14 +40,16 @@ add_library(
   gbm_display_buffer.cpp
   kms_output.cpp
   kms_output_container.cpp
+  kms_page_flipper.cpp
 )
 
 target_link_libraries(
   mirplatformgraphics
   mircompositor
+  mirlogging
 
-  ${DRM_LIBRARIES}
-  ${GBM_LIBRARIES}
-  ${EGL_LIBRARIES}
-  ${GLESv2_LIBRARIES}
+  ${DRM_LDFLAGS} ${DRM_LIBRARIES}
+  ${GBM_LDFLAGS} ${GBM_LIBRARIES}
+  ${EGL_LDFLAGS} ${EGL_LIBRARIES}
+  ${GLESv2_LDFLAGS} ${GLESv2_LIBRARIES}
 )

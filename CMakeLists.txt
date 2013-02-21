@@ -36,7 +36,7 @@ set(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR}/lib)
 
 set(MIR_VERSION_MAJOR 0)
 set(MIR_VERSION_MINOR 0)
-set(MIR_VERSION_PATCH 1)
+set(MIR_VERSION_PATCH 2)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
@@ -46,6 +46,7 @@ include (cmake/MirCommon.cmake)
 include (cmake/Doxygen.cmake)
 include (cmake/PrePush.cmake)
 
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -Werror -Wall -fno-strict-aliasing -pedantic -Wextra -fPIC")
 
 #####################################################################
@@ -187,11 +188,7 @@ include_directories (
   ${GTEST_INCLUDE_DIR}
 )
 # We need to build cucumber after gtest
-# We disable building on android for now until hybrisization is complete
-if(NOT MIR_PLATFORM STREQUAL "android")
-  add_subdirectory(3rd_party/cucumber-cpp)
-endif()
-
+add_subdirectory(3rd_party/cucumber-cpp)
 add_subdirectory(benchmarks/)
 add_subdirectory(tests/)
 add_subdirectory(tools/)
@@ -199,4 +196,4 @@ add_subdirectory(examples/)
 add_subdirectory(guides/)
 add_subdirectory(cmake/)
 
-enable_coverage_report(mir)
+enable_coverage_report(mirserver)

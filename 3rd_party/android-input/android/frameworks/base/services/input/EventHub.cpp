@@ -30,7 +30,6 @@
 #include <cutils/properties.h>
 #include ANDROIDFW_UTILS(Log.h)
 #include ANDROIDFW_UTILS(Timers.h)
-#include ANDROIDFW_UTILS(threads.h)
 #include ANDROIDFW_UTILS(Errors.h)
 
 #include <stdlib.h>
@@ -45,7 +44,12 @@
 #include <androidfw/KeyCharacterMap.h>
 #include <androidfw/VirtualKeyMap.h>
 
+#if !defined(ANDROID_USE_STD)
 #include <sha1.h>
+#else
+#include <android/keycodes.h>
+#include <boost/uuid/sha1.hpp>
+#endif
 #include <string.h>
 #include <stdint.h>
 #include <dirent.h>
@@ -75,6 +79,45 @@
 #define INDENT2 "    "
 #define INDENT3 "      "
 
+#if defined(ANDROID_USE_STD)
+// TODO replace logging with mir reporting subsystem
+extern "C" int __android_log_print(int prio, const char *tag, const char *fmt, ...)
+{
+    if (prio < ANDROID_LOG_INFO) return 0;
+    va_list ap;
+    va_start(ap, fmt);
+    int result = vfprintf(stderr, fmt, ap);
+    fprintf(stderr, "\n");
+    va_end(ap);
+
+    return result;
+}
+
+extern "C" void __android_log_assert(const char *cond, const char *tag,
+              const char *fmt, ...)
+{
+    if (fmt) {
+        va_list ap;
+        va_start(ap, fmt);
+        vfprintf(stderr, fmt, ap);
+        fprintf(stderr, "\n");
+        va_end(ap);
+    } else {
+        /* Msg not provided, log condition.  N.B. Do not use cond directly as
+         * format string as it could contain spurious '%' syntax (e.g.
+         * "%d" in "blocks%devs == 0").
+         */
+        if (cond)
+            fprintf(stderr, "Assertion failed: %s\n", cond);
+        else
+            fprintf(stderr, "Unspecified assertion failed\n");
+    }
+
+    __builtin_trap(); /* trap so we have a chance to debug the situation */
+}
+
+#endif
+
 namespace android {
 
 static const char *WAKE_LOCK_ID = "KeyEvents";
@@ -90,19 +133,37 @@ static inline const char* toString(bool value) {
     return value ? "true" : "false";
 }
 
-static String8 sha1(const String8& in) {
+namespace detail
+{
+String8 sha1(const String8& in) {
+#if !defined(ANDROID_USE_STD)
     SHA1_CTX ctx;
     SHA1Init(&ctx);
     SHA1Update(&ctx, reinterpret_cast<const u_char*>(c_str(in)), in.size());
     u_char digest[SHA1_DIGEST_LENGTH];
     SHA1Final(digest, &ctx);
-
     String8 out;
     for (size_t i = 0; i < SHA1_DIGEST_LENGTH; i++) {
         appendFormat(out, "%02x", digest[i]);
     }
+#else
+    boost::uuids::detail::sha1 hasher;
+    hasher.process_bytes(in.data(), in.size());
+
+    unsigned int digest[5];
+    hasher.get_digest(digest);
+
+    String8 out;
+    for(int i : digest) {
+        appendFormat(out, "%08x", i);
+    }
+#endif
+
     return out;
 }
+}
+
+using detail::sha1;
 
 static void setDescriptor(InputDeviceIdentifier& identifier) {
     // Compute a device descriptor that uniquely identifies the device.
@@ -649,10 +710,6 @@ EventHub::Device* EventHub::getDeviceByPathLocked(const char* devicePath) const 
 
 size_t EventHub::getEvents(int timeoutMillis, RawEvent* buffer, size_t bufferSize) {
     ALOG_ASSERT(bufferSize >= 1);
-
-    // TODO(tvoss, racarr): This is extremely hacky, but it allows us to shutdown
-    // all the input stack specific threads and get rid of the test flakiness.
-    return 0;
 
     AutoMutex _l(mLock);
 

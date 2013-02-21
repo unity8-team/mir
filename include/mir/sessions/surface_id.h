@@ -13,16 +13,20 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Authored by: Alan Griffiths <alan@octopull.co.uk>
+ * Authored By: Robert Carr <racarr@canonical.com>
  */
 
+#ifndef MIR_SESSIONS_SURFACE_ID_H_
+#define MIR_SESSIONS_SURFACE_ID_H_
 
-#ifndef MIR_ANDROID_UBUNTU_THREADS_H_
-#define MIR_ANDROID_UBUNTU_THREADS_H_
+#include "mir/int_wrapper.h"
 
-#include ANDROIDFW_UTILS(Condition.h)
-#include ANDROIDFW_UTILS(Errors.h)
-#include ANDROIDFW_UTILS(Mutex.h)
-#include ANDROIDFW_UTILS(Thread.h)
+namespace mir
+{
+namespace sessions
+{
+typedef IntWrapper<IntWrapperTypeTag::SessionsSurfaceId> SurfaceId;
+}
+} // namespace mir
 
-#endif /* MIR_ANDROID_UBUNTU_THREADS_H_ */
+#endif // MIR_SESSIONS_SURFACE_ID_H

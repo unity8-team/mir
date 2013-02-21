@@ -105,7 +105,8 @@ mgg::GBMDisplayBuffer::GBMDisplayBuffer(std::shared_ptr<GBMPlatform> const& plat
                                         std::shared_ptr<DisplayListener> const& listener,
                                         std::vector<std::shared_ptr<KMSOutput>> const& outputs,
                                         GBMSurfaceUPtr surface_gbm_param,
-                                        geom::Size const& size)
+                                        geom::Size const& size,
+                                        EGLContext shared_context)
     : last_flipped_bufobj{nullptr},
       platform(platform),
       listener(listener),
@@ -114,7 +115,7 @@ mgg::GBMDisplayBuffer::GBMDisplayBuffer(std::shared_ptr<GBMPlatform> const& plat
       surface_gbm{std::move(surface_gbm_param)},
       size(size)
 {
-    egl.setup(platform->gbm, surface_gbm.get());
+    egl.setup(platform->gbm, surface_gbm.get(), shared_context);
 
     listener->report_successful_setup_of_native_resources();
 
@@ -126,7 +127,7 @@ mgg::GBMDisplayBuffer::GBMDisplayBuffer(std::shared_ptr<GBMPlatform> const& plat
 
     clear();
 
-    if (eglSwapBuffers(egl.display, egl.surface) == EGL_FALSE)
+    if (!egl.swap_buffers())
         BOOST_THROW_EXCEPTION(std::runtime_error("Failed to perform initial surface buffer swap"));
 
     listener->report_successful_egl_buffer_swap_on_construction();
@@ -140,6 +141,8 @@ mgg::GBMDisplayBuffer::GBMDisplayBuffer(std::shared_ptr<GBMPlatform> const& plat
         if (!output->set_crtc(last_flipped_bufobj->get_drm_fb_id()))
             BOOST_THROW_EXCEPTION(std::runtime_error("Failed to set DRM crtc"));
     }
+
+    egl.release_current();
 
     listener->report_successful_drm_mode_set_crtc_on_construction();
     listener->report_successful_display_construction();
@@ -171,7 +174,7 @@ bool mgg::GBMDisplayBuffer::post_update()
      * Bring the back buffer to the front and get the buffer object
      * corresponding to the front buffer.
      */
-    if (eglSwapBuffers(egl.display, egl.surface) == EGL_FALSE)
+    if (!egl.swap_buffers())
         return false;
 
     auto bufobj = get_front_buffer_object();
@@ -240,58 +243,24 @@ mgg::BufferObject* mgg::GBMDisplayBuffer::get_front_buffer_object()
 
 bool mgg::GBMDisplayBuffer::schedule_and_wait_for_page_flip(BufferObject* bufobj)
 {
-    /* Maximum time to wait for the page flip event in microseconds */
-    static const long page_flip_max_wait_usec{100000};
-    static drmEventContext evctx =
-    {
-        DRM_EVENT_CONTEXT_VERSION,  /* .version */
-        0,  /* .vblank_handler */
-        page_flip_handler  /* .page_flip_handler */
-    };
     int page_flips_pending{0};
 
     /*
      * Schedule the current front buffer object for display. Note that
-     * the page flip is asynchronous and synchronized with vertical refresh,
-     * so we tell DRM to emit a page flip event with &page_flips_pending as
-     * its user data when done.
+     * the page flip is asynchronous and synchronized with vertical refresh.
      */
     for (auto& output : outputs)
     {
-        if (output->schedule_page_flip(bufobj->get_drm_fb_id(), &page_flips_pending))
+        if (output->schedule_page_flip(bufobj->get_drm_fb_id()))
             ++page_flips_pending;
     }
 
     if (page_flips_pending == 0)
         return false;
 
-    /*
-     * Wait $page_flip_max_wait_usec for the page flip events. If we get a
-     * page flip event, page_flip_handler(), called through drmHandleEvent(),
-     * will decrease the page_flips_pending count. If we don't get the expected
-     * page flip events within that time, or we can't read from the DRM fd, act
-     * as if the page flips have occurred anyway.
-     *
-     * The rationale is that if we don't get the page flip events "soon" after
-     * scheduling the page flips, something is severely broken at the driver
-     * level. In that case, acting as if the page flips have occurred will not
-     * cause any worse harm anyway (perhaps some tearing), and will allow us to
-     * continue processing instead of just hanging.
-     */
-    while (page_flips_pending > 0)
+    for (auto& output : outputs)
     {
-        struct timeval tv{0, page_flip_max_wait_usec};
-        fd_set fds;
-        FD_ZERO(&fds);
-        FD_SET(drm.fd, &fds);
-
-        /* Wait for an event from the DRM device */
-        auto ret = select(drm.fd + 1, &fds, NULL, NULL, &tv);
-
-        if (ret > 0)
-            drmHandleEvent(drm.fd, &evctx);
-        else
-            page_flips_pending = 0;
+        output->wait_for_page_flip();
     }
 
     return true;
@@ -299,8 +268,7 @@ bool mgg::GBMDisplayBuffer::schedule_and_wait_for_page_flip(BufferObject* bufobj
 
 void mgg::GBMDisplayBuffer::make_current()
 {
-    if (eglMakeCurrent(egl.display, egl.surface,
-                       egl.surface, egl.context) == EGL_FALSE)
+    if (!egl.make_current())
     {
         BOOST_THROW_EXCEPTION(std::runtime_error("Failed to make EGL surface current"));
     }

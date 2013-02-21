@@ -21,6 +21,7 @@
 #include "gbm_display_buffer.h"
 #include "kms_display_configuration.h"
 #include "kms_output.h"
+#include "kms_page_flipper.h"
 
 #include "mir/geometry/rectangle.h"
 
@@ -32,9 +33,14 @@ mgg::GBMDisplay::GBMDisplay(std::shared_ptr<GBMPlatform> const& platform,
                             std::shared_ptr<DisplayListener> const& listener)
     : platform(platform),
       listener(listener),
-      output_container{platform->drm.fd}
+      output_container{platform->drm.fd,
+                       std::make_shared<KMSPageFlipper>(platform->drm.fd)}
 {
+    shared_egl.setup(platform->gbm);
+
     configure(configuration());
+
+    shared_egl.make_current();
 }
 
 geom::Rectangle mgg::GBMDisplay::view_area() const
@@ -87,6 +93,7 @@ void mgg::GBMDisplay::configure(std::shared_ptr<mg::DisplayConfiguration> const&
 
     /* Create a single DisplayBuffer that displays the surface on all the outputs */
     std::unique_ptr<DisplayBuffer> db{new GBMDisplayBuffer{platform, listener, enabled_outputs,
-                                                           std::move(surface), max_size}};
+                                                           std::move(surface), max_size,
+                                                           shared_egl.context()}};
     display_buffers.push_back(std::move(db));
 }
