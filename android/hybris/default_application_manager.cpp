@@ -235,39 +235,43 @@ ApplicationManager::ApplicationManager() : input_filter(new InputFilter(this)),
 
 void ApplicationManager::update_app_lists()
 {
-    for (int i = apps_as_added.size()-1; i >= 0; i--)
+    int idx;
+
+    for (idx = apps_as_added.size()-1; idx >= 0; idx--)
     {
         const android::sp<mir::ApplicationSession>& session =
-                apps.valueFor(apps_as_added[i]);
+                apps.valueFor(apps_as_added[idx]);
 
         if (session->session_type == ubuntu::application::ui::system_session_type)
             continue;
 
         if (session->stage_hint == ubuntu::application::ui::side_stage)
         {
-            side_stage_application = i;
+            side_stage_application = idx;
             break;
         }
-
-        side_stage_application = 0;
     }
 
-    for (int i = apps_as_added.size()-1; i >= 0; i--)
+    if (idx < 0)
+        side_stage_application = 0;
+
+    for (idx = apps_as_added.size()-1; idx >= 0; idx--)
     {
         const android::sp<mir::ApplicationSession>& session =
-                apps.valueFor(apps_as_added[i]);
-   
+                apps.valueFor(apps_as_added[idx]);
+        
         if (session->session_type == ubuntu::application::ui::system_session_type)
             continue;
 
         if (session->stage_hint == ubuntu::application::ui::main_stage)
         {
-            main_stage_application = i;
+            main_stage_application = idx;
             break;
         }
-
-        main_stage_application = 0;
     }
+
+    if (idx < 0)
+        main_stage_application = 0;
 }
 
 // From DeathRecipient
@@ -292,12 +296,13 @@ void ApplicationManager::binderDied(const android::wp<android::IBinder>& who)
     size_t next_focused_app = 0;
     next_focused_app = apps_as_added.removeAt(i);
 
-    if (apps_as_added.size() >= 1)
-        next_focused_app = next_focused_app-1;
-
+    next_focused_app = main_stage_application;
     update_app_lists();
+   
+    if (dead_session->stage_hint == ubuntu::application::ui::side_stage)
+        next_focused_app = side_stage_application ? side_stage_application : next_focused_app;
 
-    if (next_focused_app != side_stage_application)
+    if (dead_session->stage_hint == ubuntu::application::ui::main_stage)
         next_focused_app = main_stage_application;
 
     if (i == focused_application)
@@ -826,6 +831,8 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
     }
 
     focused_application = index_of_next_focused_app;
+    is_osk_visible = false;
+    notify_observers_about_keyboard_geometry_changed(0, 0, 0, 0);
 
     if (focused_application < apps.size())
     {
@@ -854,15 +861,13 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
             side_stage_application = focused_application;
         else
             main_stage_application = focused_application;
-    
+        
         session->raise_application_surfaces_to_layer(focused_layer);
         input_setup->input_manager->getDispatcher()->setFocusedApplication(
             session->input_application_handle());
 
         android::Vector< android::sp<android::InputWindowHandle> > input_windows;
 
-        if (is_osk_visible)
-            input_windows.push(shell_input_setup->osk_window.input_window);
         if (are_notifications_visible)
             input_windows.push(shell_input_setup->notifications_window.input_window);
         if (!shell_input_setup->trap_windows.isEmpty())
