@@ -831,7 +831,7 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
     }
 
     focused_application = index_of_next_focused_app;
-    is_osk_visible = false;
+    report_osk_invisible();
 
     if (focused_application < apps.size())
     {
