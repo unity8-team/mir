@@ -2962,8 +2962,53 @@ search_linear_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags)
 	DBG(("%s: num_pages=%d, flags=%x, use_active? %d\n",
 	     __FUNCTION__, num_pages, flags, use_active));
 
-	if (num_pages >= MAX_CACHE_SIZE / PAGE_SIZE)
+	if (num_pages >= MAX_CACHE_SIZE / PAGE_SIZE) {
+retry_large:
+		cache = use_active ? &kgem->large : &kgem->large_inactive;
+		list_for_each_entry_safe(bo, first, cache, list) {
+			assert(bo->refcnt == 0);
+			assert(bo->reusable);
+			assert(!bo->scanout);
+
+			if (num_pages > num_pages(bo))
+				goto discard;
+
+			if (bo->tiling != I915_TILING_NONE) {
+				if (use_active)
+					goto discard;
+
+				if (!gem_set_tiling(kgem->fd, bo->handle,
+						    I915_TILING_NONE, 0))
+					goto discard;
+
+				bo->tiling = I915_TILING_NONE;
+				bo->pitch = 0;
+			}
+
+			if (bo->purged && !kgem_bo_clear_purgeable(kgem, bo))
+					continue;
+
+			list_del(&bo->list);
+			if (bo->rq == (void *)kgem)
+				list_del(&bo->request);
+
+			bo->delta = 0;
+			return bo;
+
+discard:
+			kgem_bo_free(kgem, bo);
+		}
+
+		if (use_active) {
+			use_active = false;
+			goto retry_large;
+		}
+
+		if (__kgem_throttle_retire(kgem, flags))
+			goto retry_large;
+
 		return NULL;
+	}
 
 	if (!use_active && list_is_empty(inactive(kgem, num_pages))) {
 		DBG(("%s: inactive and cache bucket empty\n",
