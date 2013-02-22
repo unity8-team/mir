@@ -692,9 +692,11 @@ gen7_emit_null_depth_buffer(struct sna *sna)
 	OUT_BATCH(0);
 	OUT_BATCH(0);
 
+#if 0
 	OUT_BATCH(GEN7_3DSTATE_CLEAR_PARAMS | (3 - 2));
 	OUT_BATCH(0);
 	OUT_BATCH(0);
+#endif
 }
 
 static void
