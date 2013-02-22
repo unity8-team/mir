@@ -1626,11 +1626,9 @@ skip_inplace_map:
 	}
 
 	if (priv->gpu_damage && priv->cpu_damage == NULL &&
-	    ((flags & MOVE_ASYNC_HINT) == 0 ||
-	     !__kgem_bo_is_busy(&sna->kgem, priv->gpu_bo)) &&
-	    priv->gpu_bo->tiling == I915_TILING_NONE) {
-		kgem_bo_submit(&sna->kgem, priv->gpu_bo);
-
+	    priv->gpu_bo->tiling == I915_TILING_NONE &&
+	    ((flags & (MOVE_WRITE | MOVE_ASYNC_HINT)) == 0 ||
+	     !__kgem_bo_is_busy(&sna->kgem, priv->gpu_bo))) {
 		DBG(("%s: try to operate inplace (CPU)\n", __FUNCTION__));
 
 		assert(!priv->mapped);
