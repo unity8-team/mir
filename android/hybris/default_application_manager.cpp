@@ -74,6 +74,7 @@ bool write_proc_file(pid_t pid, const char* filename, const char* value)
     {
         file = open(proc_name, O_WRONLY);
         write(file, value, sizeof(value));
+        close(file);
         return true;
     } else
         return false;
