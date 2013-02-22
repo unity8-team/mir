@@ -1063,7 +1063,7 @@ static bool gen7_magic_ca_pass(struct sna *sna,
 	DBG(("%s: CA fixup (%d -> %d)\n", __FUNCTION__,
 	     sna->render.vertex_start, sna->render.vertex_index));
 
-	gen7_emit_pipe_invalidate(sna);
+	gen7_emit_pipe_stall(sna);
 
 	gen7_emit_cc(sna,
 		     GEN7_BLEND(gen7_get_blend(PictOpAdd, true,
@@ -1304,7 +1304,7 @@ static int gen7_get_rectangles__flush(struct sna *sna,
 	if (sna->render.vertex_offset) {
 		gen4_vertex_flush(sna);
 		if (gen7_magic_ca_pass(sna, op)) {
-			gen7_emit_pipe_invalidate(sna);
+			gen7_emit_pipe_stall(sna);
 			gen7_emit_cc(sna, GEN7_BLEND(op->u.gen7.flags));
 			gen7_emit_wm(sna, GEN7_KERNEL(op->u.gen7.flags));
 		}
