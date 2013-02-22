@@ -280,37 +280,49 @@ void ApplicationManager::binderDied(const android::wp<android::IBinder>& who)
     android::Mutex::Autolock al(guard);
     android::sp<android::IBinder> sp = who.promote();
 
-    ALOGI("%s()%d\n", __PRETTY_FUNCTION__, __LINE__);
+    ALOGI("%s():%d\n", __PRETTY_FUNCTION__, __LINE__);
 
     const android::sp<mir::ApplicationSession>& dead_session = apps.valueFor(sp);
+
+    ALOGI("%s():%d -- remote_pid=%d desktop_file=%s\n", __PRETTY_FUNCTION__, __LINE__,
+                                                       dead_session->remote_pid,
+                                                       dead_session->desktop_file.string());
 
     notify_observers_about_session_died(dead_session->remote_pid,
                                         dead_session->stage_hint,
                                         dead_session->desktop_file);
 
+    ALOGI("%s():%d\n", __PRETTY_FUNCTION__, __LINE__);
     size_t i = 0;
     for(i = 0; i < apps_as_added.size(); i++)
         if (apps_as_added[i] == sp)
             break;
 
+    ALOGI("%s():%d\n", __PRETTY_FUNCTION__, __LINE__);
     size_t next_focused_app = 0;
     next_focused_app = apps_as_added.removeAt(i);
 
+    ALOGI("%s():%d\n", __PRETTY_FUNCTION__, __LINE__);
     next_focused_app = main_stage_application;
     update_app_lists();
    
+    ALOGI("%s():%d\n", __PRETTY_FUNCTION__, __LINE__);
     if (dead_session->stage_hint == ubuntu::application::ui::side_stage)
         next_focused_app = side_stage_application ? side_stage_application : next_focused_app;
 
+    ALOGI("%s():%d\n", __PRETTY_FUNCTION__, __LINE__);
     if (dead_session->stage_hint == ubuntu::application::ui::main_stage)
         next_focused_app = main_stage_application;
 
+    ALOGI("%s():%d\n", __PRETTY_FUNCTION__, __LINE__);
     if (i == focused_application)
         switch_focused_application_locked(next_focused_app);
     else if(focused_application > i)
         focused_application--;
     
+    ALOGI("%s():%d\n", __PRETTY_FUNCTION__, __LINE__);
     apps.removeItem(sp);
+    ALOGI("%s():%d\n", __PRETTY_FUNCTION__, __LINE__);
 }
 
 void ApplicationManager::lock()
