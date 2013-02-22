@@ -1008,11 +1008,14 @@ sna_render_picture_partial(struct sna *sna,
 	if (use_cpu_bo(sna, pixmap, &box, false)) {
 		bo = sna_pixmap(pixmap)->cpu_bo;
 	} else {
-		if (!sna_pixmap_force_to_gpu(pixmap,
-					     MOVE_READ | MOVE_SOURCE_HINT))
+		struct sna_pixmap *priv;
+
+		priv = sna_pixmap_force_to_gpu(pixmap,
+					       MOVE_READ | MOVE_SOURCE_HINT);
+		if (priv == NULL)
 			return 0;
 
-		bo = sna_pixmap(pixmap)->gpu_bo;
+		bo = priv->gpu_bo;
 	}
 
 	if (bo->pitch > sna->render.max_3d_pitch)
@@ -1188,7 +1191,6 @@ sna_render_picture_extract(struct sna *sna,
 						      pixmap->devKind,
 						      pixmap->drawable.bitsPerPixel);
 			if (bo != NULL &&
-			    pixmap->usage_hint == 0 &&
 			    box.x2 - box.x1 == pixmap->drawable.width &&
 			    box.y2 - box.y1 == pixmap->drawable.height) {
 				struct sna_pixmap *priv = sna_pixmap(pixmap);

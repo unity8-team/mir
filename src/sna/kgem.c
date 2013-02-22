@@ -2959,10 +2959,13 @@ search_linear_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags)
 	bool use_active = (flags & CREATE_INACTIVE) == 0;
 	struct list *cache;
 
-	DBG(("%s: num_pages=%d, flags=%x, use_active? %d\n",
-	     __FUNCTION__, num_pages, flags, use_active));
+	DBG(("%s: num_pages=%d, flags=%x, use_active? %d, use_large=%d [max=%d]\n",
+	     __FUNCTION__, num_pages, flags, use_active,
+	     num_pages >= MAX_CACHE_SIZE / PAGE_SIZE,
+	     MAX_CACHE_SIZE / PAGE_SIZE));
 
 	if (num_pages >= MAX_CACHE_SIZE / PAGE_SIZE) {
+		DBG(("%s: searching large buffers\n", __FUNCTION__));
 retry_large:
 		cache = use_active ? &kgem->large : &kgem->large_inactive;
 		list_for_each_entry_safe(bo, first, cache, list) {
@@ -2986,7 +2989,7 @@ retry_large:
 			}
 
 			if (bo->purged && !kgem_bo_clear_purgeable(kgem, bo))
-					continue;
+				goto discard;
 
 			list_del(&bo->list);
 			if (bo->rq == (void *)kgem)
@@ -2996,7 +2999,8 @@ retry_large:
 			return bo;
 
 discard:
-			kgem_bo_free(kgem, bo);
+			if (!use_active)
+				kgem_bo_free(kgem, bo);
 		}
 
 		if (use_active) {
@@ -5469,6 +5473,9 @@ struct kgem_bo *kgem_upload_source_image(struct kgem *kgem,
 	int height = box->y2 - box->y1;
 	struct kgem_bo *bo;
 	void *dst;
+
+	if (!kgem_can_create_2d(kgem, width, height, bpp))
+		return NULL;
 
 	DBG(("%s : (%d, %d), (%d, %d), stride=%d, bpp=%d\n",
 	     __FUNCTION__, box->x1, box->y1, box->x2, box->y2, stride, bpp));
