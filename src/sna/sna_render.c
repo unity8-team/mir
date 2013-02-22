@@ -38,6 +38,13 @@
 #define DBG_FORCE_UPLOAD 0
 #define DBG_NO_CPU_BO 0
 
+#define alphaless(format) PICT_FORMAT(PICT_FORMAT_BPP(format),		\
+				      PICT_FORMAT_TYPE(format),		\
+				      0,				\
+				      PICT_FORMAT_R(format),		\
+				      PICT_FORMAT_G(format),		\
+				      PICT_FORMAT_B(format))
+
 CARD32
 sna_format_for_depth(int depth)
 {
@@ -1566,10 +1573,6 @@ do_fixup:
 		channel->pict_format = PIXMAN_a8;
 	else
 		channel->pict_format = PIXMAN_a8r8g8b8;
-	if (channel->pict_format != picture->format) {
-		DBG(("%s: converting to %08x from %08x\n",
-		     __FUNCTION__, channel->pict_format, picture->format));
-	}
 
 	if (picture->pDrawable &&
 	    !sna_drawable_move_to_cpu(picture->pDrawable, MOVE_READ))
@@ -1588,7 +1591,7 @@ do_fixup:
 	/* Composite in the original format to preserve idiosyncracies */
 	if (!kgem_buffer_is_inplace(channel->bo) &&
 	    (picture->pDrawable == NULL ||
-	     picture->format == channel->pict_format))
+	     alphaless(picture->format) == alphaless(channel->pict_format)))
 		dst = pixman_image_create_bits(channel->pict_format,
 					       w, h, ptr, channel->bo->pitch);
 	else
@@ -1729,7 +1732,9 @@ sna_render_picture_convert(struct sna *sna,
 						   PICT_FORMAT_B(picture->format));
 
 		DBG(("%s: converting to %08x from %08x using composite alpha-fixup\n",
-		     __FUNCTION__, (unsigned)picture->format));
+		     __FUNCTION__,
+		     (unsigned)channel->pict_format,
+		     (unsigned)picture->format));
 
 		tmp = screen->CreatePixmap(screen, w, h, pixmap->drawable.bitsPerPixel, 0);
 		if (tmp == NULL)
