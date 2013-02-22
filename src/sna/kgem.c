@@ -3616,6 +3616,7 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 		}
 
 large_inactive:
+		__kgem_throttle_retire(kgem, flags);
 		list_for_each_entry(bo, &kgem->large_inactive, list) {
 			assert(bo->refcnt == 0);
 			assert(bo->reusable);
