@@ -1248,11 +1248,11 @@ sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	assert(mode->HDisplay <= sna->mode.kmode->max_width &&
 	       mode->VDisplay <= sna->mode.kmode->max_height);
 
-	crtc->funcs->gamma_set(crtc,
-			       crtc->gamma_red,
-			       crtc->gamma_green,
-			       crtc->gamma_blue,
-			       crtc->gamma_size);
+	drmModeCrtcSetGamma(sna->kgem.fd, sna_crtc->id,
+			    crtc->gamma_size,
+			    crtc->gamma_red,
+			    crtc->gamma_green,
+			    crtc->gamma_blue);
 
 	saved_kmode = sna_crtc->kmode;
 	saved_bo = sna_crtc->bo;
