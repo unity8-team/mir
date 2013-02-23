@@ -1,3 +1,9 @@
+ubuntu-platform-api (0.16-0phablet1) quantal; urgency=low
+
+  * Dynamically adjust the OOM values for running apps 
+
+ -- Ricardo Mendoza <ricardo.mendoza@canonical.com>  Fri, 22 Feb 2013 18:25:13 -0430
+
 ubuntu-platform-api (0.15-0phablet1) quantal; urgency=low
 
   * Correct selection of next focused application

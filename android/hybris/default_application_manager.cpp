@@ -39,6 +39,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <signal.h>
+#include <fcntl.h>
 
 namespace mir
 {
@@ -60,6 +61,43 @@ bool is_session_allowed_to_run_in_background(
     }
 
     return false;
+}
+
+bool write_proc_file(pid_t pid, const char* filename, const char* value)
+{
+    char proc_name[128];
+    sprintf(proc_name, "/proc/%d/%s", pid, filename);
+
+    int file;
+    
+    if (access(proc_name, F_OK) == 0)
+    {
+        file = open(proc_name, O_WRONLY);
+        write(file, value, sizeof(value));
+        close(file);
+        return true;
+    } else
+        return false;
+}
+
+void update_oom_values(const android::sp<mir::ApplicationSession>& session)
+{
+    if (session->session_type == ubuntu::application::ui::system_session_type)
+    {
+        if (!write_proc_file(session->remote_pid, "oom_score_adj", "-940"))
+            write_proc_file(session->remote_pid, "oom_adj", "-16");
+        return;
+    }
+
+    if (session->running_state == ubuntu::application::ui::process_stopped)
+    {
+        if (!write_proc_file(session->remote_pid, "oom_score_adj", "1000"))
+            write_proc_file(session->remote_pid, "oom_adj", "15");
+    } else
+    {
+        if (!write_proc_file(session->remote_pid, "oom_score_adj", "0"))
+            write_proc_file(session->remote_pid, "oom_adj", "0");
+    }
 }
 
 template<int x, int y, int w, int h>
@@ -379,6 +417,8 @@ void ApplicationManager::start_a_new_session(
         }
     }
 
+    update_oom_values(app_session);
+
     notify_observers_about_session_born(app_session->remote_pid, 
                                         app_session->stage_hint, 
                                         app_session->desktop_file);
@@ -608,6 +648,7 @@ void ApplicationManager::unfocus_running_sessions()
                 } else
                 {
                     session->running_state = ubuntu::application::ui::process_stopped;
+                    update_oom_values(session);
                     ALOGI("\t\t Successfully stopped process.");
                 }
             }
@@ -823,6 +864,7 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
                 {
                     kill(session->remote_pid, SIGSTOP);
                     session->running_state = ubuntu::application::ui::process_stopped;
+                    update_oom_values(session);
                     notify_observers_about_session_unfocused(session->remote_pid,
                                                              session->stage_hint,
                                                              session->desktop_file);
@@ -836,6 +878,7 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
                             apps.valueFor(apps_as_added[main_stage_application]);
                         kill(main_session->remote_pid, SIGSTOP);
                         main_session->running_state = ubuntu::application::ui::process_stopped;
+                        update_oom_values(main_session);
                     }
                 }
             }
@@ -867,6 +910,7 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
         {
             kill(session->remote_pid, SIGCONT);
             session->running_state = ubuntu::application::ui::process_running;
+            update_oom_values(session);
         }
 
         if (session->stage_hint == ubuntu::application::ui::side_stage)
@@ -902,6 +946,7 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
                     apps.valueFor(apps_as_added[main_stage_application]);
                 kill(main_session->remote_pid, SIGCONT);
                 main_session->running_state = ubuntu::application::ui::process_running;
+                update_oom_values(main_session);
                 input_windows.appendVector(main_session->input_window_handles());
             }
         }
