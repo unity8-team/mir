@@ -532,15 +532,15 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 		return FALSE;
 
 	switch (scrn->depth) {
-	case 8:
 	case 15:
 	case 16:
 	case 24:
 	case 30:
 		break;
+	case 8:
 	default:
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-			   "Given depth (%d) is not supported by I830 driver\n",
+			   "Given depth (%d) is not supported by intel driver\n",
 			   scrn->depth);
 		return FALSE;
 	}
