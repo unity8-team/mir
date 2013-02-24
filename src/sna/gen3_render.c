@@ -510,33 +510,33 @@ gen3_emit_composite_primitive_affine_gradient(struct sna *sna,
 	PictTransform *transform = op->src.transform;
 	int16_t dst_x, dst_y;
 	int16_t src_x, src_y;
-	float sx, sy;
+	float *v;
 
 	dst_x = r->dst.x + op->dst.x;
 	dst_y = r->dst.y + op->dst.y;
 	src_x = r->src.x + op->src.offset[0];
 	src_y = r->src.y + op->src.offset[1];
 
-	sna_get_transformed_coordinates(src_x + r->width, src_y + r->height,
-					transform,
-					&sx, &sy);
-	gen3_emit_composite_dstcoord(sna, dst_x + r->width, dst_y + r->height);
-	OUT_VERTEX(sx);
-	OUT_VERTEX(sy);
+	v = sna->render.vertices + sna->render.vertex_used;
+	sna->render.vertex_used += 12;
 
-	sna_get_transformed_coordinates(src_x, src_y + r->height,
-					transform,
-					&sx, &sy);
-	gen3_emit_composite_dstcoord(sna, dst_x, dst_y + r->height);
-	OUT_VERTEX(sx);
-	OUT_VERTEX(sy);
+	v[0] = dst_x + r->width;
+	v[1] = dst_y + r->height;
+	_sna_get_transformed_scaled(src_x + r->width, src_y + r->height,
+				    transform, op->src.scale,
+				    &v[2], &v[3]);
 
-	sna_get_transformed_coordinates(src_x, src_y,
-					transform,
-					&sx, &sy);
-	gen3_emit_composite_dstcoord(sna, dst_x, dst_y);
-	OUT_VERTEX(sx);
-	OUT_VERTEX(sy);
+	v[4] = dst_x;
+	v[5] = dst_y + r->height;
+	_sna_get_transformed_scaled(src_x, src_y + r->height,
+				    transform, op->src.scale,
+				    &v[6], &v[7]);
+
+	v[8] = dst_x;
+	v[9] = dst_y;
+	_sna_get_transformed_scaled(src_x, src_y,
+				    transform, op->src.scale,
+				    &v[10], &v[11]);
 }
 
 fastcall static void
@@ -549,24 +549,24 @@ gen3_emit_composite_boxes_affine_gradient(const struct sna_composite_op *op,
 	do {
 		v[0] = box->x2;
 		v[1] = box->y2;
-		sna_get_transformed_coordinates(box->x2 + op->src.offset[0],
-						box->y2 + op->src.offset[1],
-						transform,
-						&v[2], &v[3]);
+		_sna_get_transformed_scaled(box->x2 + op->src.offset[0],
+					    box->y2 + op->src.offset[1],
+					    transform, op->src.scale,
+					    &v[2], &v[3]);
 
 		v[4] = box->x1;
 		v[5] = box->y2;
-		sna_get_transformed_coordinates(box->x1 + op->src.offset[0],
-						box->y2 + op->src.offset[1],
-						transform,
-						&v[6], &v[7]);
+		_sna_get_transformed_scaled(box->x1 + op->src.offset[0],
+					    box->y2 + op->src.offset[1],
+					    transform, op->src.scale,
+					    &v[6], &v[7]);
 
 		v[8] = box->x1;
 		v[9] = box->y1;
-		sna_get_transformed_coordinates(box->x1 + op->src.offset[0],
-						box->y1 + op->src.offset[1],
-						transform,
-						&v[10], &v[11]);
+		_sna_get_transformed_scaled(box->x1 + op->src.offset[0],
+					    box->y1 + op->src.offset[1],
+					    transform, op->src.scale,
+					    &v[10], &v[11]);
 
 		box++;
 		v += 12;
@@ -3204,6 +3204,7 @@ gen3_render_composite(struct sna *sna,
 				tmp->prim_emit = gen3_emit_composite_primitive_identity_gradient;
 				tmp->emit_boxes = gen3_emit_composite_boxes_identity_gradient;
 			} else if (tmp->src.is_affine) {
+				tmp->src.scale[1] = tmp->src.scale[0] = 1. / tmp->src.transform->matrix[2][2];
 				tmp->prim_emit = gen3_emit_composite_primitive_affine_gradient;
 				tmp->emit_boxes = gen3_emit_composite_boxes_affine_gradient;
 			}
@@ -3630,26 +3631,26 @@ gen3_emit_composite_spans_primitive_affine_gradient(struct sna *sna,
 
 	v[0] = op->base.dst.x + box->x2;
 	v[1] = op->base.dst.y + box->y2;
-	_sna_get_transformed_coordinates((int)op->base.src.offset[0] + box->x2,
-					 (int)op->base.src.offset[1] + box->y2,
-					 transform,
-					 &v[2], &v[3]);
+	_sna_get_transformed_scaled(op->base.src.offset[0] + box->x2,
+				    op->base.src.offset[1] + box->y2,
+				    transform, op->base.src.scale,
+				    &v[2], &v[3]);
 	v[4] = opacity;
 
 	v[5] = op->base.dst.x + box->x1;
 	v[6] = v[1];
-	_sna_get_transformed_coordinates((int)op->base.src.offset[0] + box->x1,
-					 (int)op->base.src.offset[1] + box->y2,
-					 transform,
-					 &v[7], &v[8]);
+	_sna_get_transformed_scaled(op->base.src.offset[0] + box->x1,
+				    op->base.src.offset[1] + box->y2,
+				    transform, op->base.src.scale,
+				    &v[7], &v[8]);
 	v[9] = opacity;
 
 	v[10] = v[5];
 	v[11] = op->base.dst.y + box->y1;
-	_sna_get_transformed_coordinates((int)op->base.src.offset[0] + box->x1,
-					 (int)op->base.src.offset[1] + box->y1,
-					 transform,
-					 &v[12], &v[13]);
+	_sna_get_transformed_scaled(op->base.src.offset[0] + box->x1,
+				    op->base.src.offset[1] + box->y1,
+				    transform, op->base.src.scale,
+				    &v[12], &v[13]);
 	v[14] = opacity;
 }
 
@@ -3664,26 +3665,26 @@ gen3_emit_composite_spans_primitive_affine_gradient__boxes(const struct sna_comp
 	do {
 		v[0] = op->base.dst.x + b->box.x2;
 		v[1] = op->base.dst.y + b->box.y2;
-		_sna_get_transformed_coordinates((int)op->base.src.offset[0] + b->box.x2,
-						 (int)op->base.src.offset[1] + b->box.y2,
-						 transform,
-						 &v[2], &v[3]);
+		_sna_get_transformed_scaled(op->base.src.offset[0] + b->box.x2,
+					    op->base.src.offset[1] + b->box.y2,
+					    transform, op->base.src.scale,
+					    &v[2], &v[3]);
 		v[4] = b->alpha;
 
 		v[5] = op->base.dst.x + b->box.x1;
 		v[6] = v[1];
-		_sna_get_transformed_coordinates((int)op->base.src.offset[0] + b->box.x1,
-						 (int)op->base.src.offset[1] + b->box.y2,
-						 transform,
-						 &v[7], &v[8]);
+		_sna_get_transformed_scaled(op->base.src.offset[0] + b->box.x1,
+					    op->base.src.offset[1] + b->box.y2,
+					    transform, op->base.src.scale,
+					    &v[7], &v[8]);
 		v[9] = b->alpha;
 
 		v[10] = v[5];
 		v[11] = op->base.dst.y + b->box.y1;
-		_sna_get_transformed_coordinates((int)op->base.src.offset[0] + b->box.x1,
-						 (int)op->base.src.offset[1] + b->box.y1,
-						 transform,
-						 &v[12], &v[13]);
+		_sna_get_transformed_scaled(op->base.src.offset[0] + b->box.x1,
+					    op->base.src.offset[1] + b->box.y1,
+					    transform, op->base.src.scale,
+					    &v[12], &v[13]);
 		v[14] = b->alpha;
 		v += 15;
 		b++;
@@ -3995,6 +3996,7 @@ gen3_render_composite_spans(struct sna *sna,
 			tmp->prim_emit = gen3_emit_composite_spans_primitive_identity_gradient;
 			tmp->emit_boxes = gen3_emit_composite_spans_primitive_identity_gradient__boxes;
 		} else if (tmp->base.src.is_affine) {
+			tmp->base.src.scale[1] = tmp->base.src.scale[0] = 1. / tmp->base.src.transform->matrix[2][2];
 			tmp->prim_emit = gen3_emit_composite_spans_primitive_affine_gradient;
 			tmp->emit_boxes = gen3_emit_composite_spans_primitive_affine_gradient__boxes;
 		}
