@@ -80,6 +80,14 @@ struct ApplicationManagerObserver : public android::BnApplicationManagerObserver
         printf("%s: %d, %d, %s \n", __PRETTY_FUNCTION__, id, stage_hint, desktop_file.string());
     }
 
+    void on_keyboard_geometry_changed(int x,
+                                      int y,
+                                      int width,
+                                      int height)
+    {
+        printf("%s: %d, %d, %d, %d \n", __PRETTY_FUNCTION__, x, y, width, height);
+    }
+
     void on_session_requested_fullscreen(int id,
                                          int stage_hint,
                                          const android::String8& desktop_file)
