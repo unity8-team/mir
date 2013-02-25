@@ -921,6 +921,7 @@ sna_composite_rectangles(CARD8		 op,
 		    region_subsumes_damage(&region, priv->cpu_damage)) {
 			DBG(("%s: discarding existing CPU damage\n", __FUNCTION__));
 			if (priv->gpu_bo && priv->gpu_bo->proxy) {
+				assert(priv->gpu_damage == NULL);
 				kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
 				priv->gpu_bo = NULL;
 			}

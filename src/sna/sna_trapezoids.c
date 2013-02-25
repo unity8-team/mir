@@ -160,26 +160,6 @@ struct quorem {
 	int32_t rem;
 };
 
-struct _pool_chunk {
-	size_t size;
-	struct _pool_chunk *prev_chunk;
-	/* Actual data starts here.	 Well aligned for pointers. */
-};
-
-/* A memory pool.  This is supposed to be embedded on the stack or
- * within some other structure.	 It may optionally be followed by an
- * embedded array from which requests are fulfilled until
- * malloc needs to be called to allocate a first real chunk. */
-struct pool {
-	struct _pool_chunk *current;
-	struct _pool_chunk *first_free;
-
-	/* Header for the sentinel chunk.  Directly following the pool
-	 * struct should be some space for embedded elements from which
-	 * the sentinel chunk allocates from. */
-	struct _pool_chunk sentinel[1];
-};
-
 struct edge {
 	struct edge *next, *prev;
 
@@ -277,17 +257,15 @@ struct cell {
  * ascending x.  It is geared towards scanning the cells in order
  * using an internal cursor. */
 struct cell_list {
+	struct cell *cursor;
+
 	/* Points to the left-most cell in the scan line. */
 	struct cell head, tail;
 
-	struct cell *cursor;
-
-	/* Cells in the cell list are owned by the cell list and are
-	 * allocated from this pool.  */
-	struct {
-		struct pool base[1];
-		struct cell embedded[256];
-	} cell_pool;
+	int16_t x1, x2;
+	int16_t count, size;
+	struct cell *cells;
+	struct cell embedded[256];
 };
 
 /* The active list contains edges in the current scan line ordered by
@@ -345,103 +323,6 @@ floored_muldivrem(int32_t x, int32_t a, int32_t b)
 	return qr;
 }
 
-static inline void
-_pool_chunk_init(struct _pool_chunk *p,
-		 struct _pool_chunk *prev_chunk)
-{
-	p->prev_chunk = prev_chunk;
-	p->size = sizeof(*p);
-}
-
-static struct _pool_chunk *
-_pool_chunk_create(struct _pool_chunk *prev_chunk)
-{
-	size_t size = 256*sizeof(struct cell);
-	struct _pool_chunk *p;
-
-	p = malloc(size + sizeof(struct _pool_chunk));
-	if (unlikely (p == NULL))
-		abort();
-
-	_pool_chunk_init(p, prev_chunk);
-	return p;
-}
-
-static void
-pool_init(struct pool *pool)
-{
-	pool->current = pool->sentinel;
-	pool->first_free = NULL;
-	_pool_chunk_init(pool->sentinel, NULL);
-}
-
-static void
-pool_fini(struct pool *pool)
-{
-	struct _pool_chunk *p = pool->current;
-	do {
-		while (NULL != p) {
-			struct _pool_chunk *prev = p->prev_chunk;
-			if (p != pool->sentinel)
-				free(p);
-			p = prev;
-		}
-		p = pool->first_free;
-		pool->first_free = NULL;
-	} while (NULL != p);
-}
-
-static void *
-_pool_alloc_from_new_chunk(struct pool *pool)
-{
-	struct _pool_chunk *chunk;
-	void *obj;
-
-	chunk = pool->first_free;
-	if (chunk) {
-		pool->first_free = chunk->prev_chunk;
-		_pool_chunk_init(chunk, pool->current);
-	} else {
-		chunk = _pool_chunk_create(pool->current);
-	}
-	pool->current = chunk;
-
-	obj = (unsigned char*)chunk + chunk->size;
-	chunk->size += sizeof(struct cell);
-	return obj;
-}
-
-inline static void *
-pool_alloc(struct pool *pool)
-{
-	struct _pool_chunk *chunk = pool->current;
-
-	if (chunk->size < 256*sizeof(struct cell)+sizeof(*chunk)) {
-		void *obj = (unsigned char*)chunk + chunk->size;
-		chunk->size += sizeof(struct cell);
-		return obj;
-	} else
-		return _pool_alloc_from_new_chunk(pool);
-}
-
-static void
-pool_reset(struct pool *pool)
-{
-	/* Transfer all used chunks to the chunk free list. */
-	struct _pool_chunk *chunk = pool->current;
-	if (chunk != pool->sentinel) {
-		while (chunk->prev_chunk != pool->sentinel)
-			chunk = chunk->prev_chunk;
-
-		chunk->prev_chunk = pool->first_free;
-		pool->first_free = pool->current;
-	}
-
-	/* Reset the sentinel as the current chunk. */
-	pool->current = pool->sentinel;
-	pool->sentinel->size = sizeof(*chunk);
-}
-
 /* Rewinds the cell list's cursor to the beginning.  After rewinding
  * we're good to cell_list_find() the cell any x coordinate. */
 inline static void
@@ -450,21 +331,29 @@ cell_list_rewind(struct cell_list *cells)
 	cells->cursor = &cells->head;
 }
 
-static void
-cell_list_init(struct cell_list *cells)
+static bool
+cell_list_init(struct cell_list *cells, int x1, int x2)
 {
-	pool_init(cells->cell_pool.base);
 	cells->tail.next = NULL;
 	cells->tail.x = INT_MAX;
 	cells->head.x = INT_MIN;
 	cells->head.next = &cells->tail;
 	cell_list_rewind(cells);
+	cells->count = 0;
+	cells->x1 = x1;
+	cells->x2 = x2;
+	cells->size = x2 - x1 + 1;
+	cells->cells = cells->embedded;
+	if (cells->size > ARRAY_SIZE(cells->embedded))
+		cells->cells = malloc(cells->size * sizeof(struct cell));
+	return cells->cells != NULL;
 }
 
 static void
 cell_list_fini(struct cell_list *cells)
 {
-	pool_fini(cells->cell_pool.base);
+	if (cells->cells != cells->embedded)
+		free(cells->cells);
 }
 
 inline static void
@@ -472,7 +361,7 @@ cell_list_reset(struct cell_list *cells)
 {
 	cell_list_rewind(cells);
 	cells->head.next = &cells->tail;
-	pool_reset(cells->cell_pool.base);
+	cells->count = 0;
 }
 
 inline static struct cell *
@@ -482,10 +371,11 @@ cell_list_alloc(struct cell_list *cells,
 {
 	struct cell *cell;
 
-	cell = pool_alloc(cells->cell_pool.base);
-
+	assert(cells->count < cells->size);
+	cell = cells->cells + cells->count++;
 	cell->next = tail->next;
 	tail->next = cell;
+
 	cell->x = x;
 	cell->uncovered_area = 0;
 	cell->covered_height = 0;
@@ -501,6 +391,15 @@ inline static struct cell *
 cell_list_find(struct cell_list *cells, int x)
 {
 	struct cell *tail = cells->cursor;
+
+	if (tail->x == x)
+		return tail;
+
+	if (x >= cells->x2)
+		return &cells->tail;
+
+	if (x < cells->x1)
+		x = cells->x1;
 
 	if (tail->x == x)
 		return tail;
@@ -594,7 +493,7 @@ polygon_fini(struct polygon *polygon)
 		free(polygon->edges);
 }
 
-static int
+static bool
 polygon_init(struct polygon *polygon,
 	     int num_edges,
 	     grid_scaled_y_t ymin,
@@ -627,11 +526,11 @@ polygon_init(struct polygon *polygon,
 
 	polygon->ymin = ymin;
 	polygon->ymax = ymax;
-	return 0;
+	return true;
 
 bail_no_mem:
 	polygon_fini(polygon);
-	return -1;
+	return false;
 }
 
 static void
@@ -1079,7 +978,7 @@ tor_fini(struct tor *converter)
 	cell_list_fini(converter->coverages);
 }
 
-static int
+static bool
 tor_init(struct tor *converter, const BoxRec *box, int num_edges)
 {
 	__DBG(("%s: (%d, %d),(%d, %d) x (%d, %d), num_edges=%d\n",
@@ -1093,12 +992,19 @@ tor_init(struct tor *converter, const BoxRec *box, int num_edges)
 	converter->xmax = box->x2;
 	converter->ymax = box->y2;
 
-	cell_list_init(converter->coverages);
+	if (!cell_list_init(converter->coverages, box->x1, box->x2))
+		return false;
+
 	active_list_reset(converter->active);
-	return polygon_init(converter->polygon,
+	if (!polygon_init(converter->polygon,
 			    num_edges,
 			    box->y1 * FAST_SAMPLES_Y,
-			    box->y2 * FAST_SAMPLES_Y);
+			    box->y2 * FAST_SAMPLES_Y)) {
+		cell_list_fini(converter->coverages);
+		return false;
+	}
+
+	return true;
 }
 
 static void
@@ -1241,32 +1147,21 @@ tor_blt(struct sna *sna,
 	int xmin, int xmax,
 	int unbounded)
 {
-	struct cell *cell = cells->head.next;
+	struct cell *cell;
 	BoxRec box;
-	int cover = 0;
-
-	/* Skip cells to the left of the clip region. */
-	while (cell->x < xmin) {
-		__DBG(("%s: skipping cell (%d, %d, %d)\n",
-		       __FUNCTION__,
-		       cell->x, cell->covered_height, cell->uncovered_area));
-
-		cover += cell->covered_height;
-		cell = cell->next;
-	}
-	cover *= FAST_SAMPLES_X*2;
+	int cover;
 
 	box.y1 = y;
 	box.y2 = y + height;
 	box.x1 = xmin;
 
 	/* Form the spans from the coverages and areas. */
-	for (; cell != NULL; cell = cell->next) {
+	cover = 0;
+	for (cell = cells->head.next; cell != &cells->tail; cell = cell->next) {
 		int x = cell->x;
 
-		if (x >= xmax)
-			break;
-
+		assert(x >= xmin);
+		assert(x < xmax);
 		__DBG(("%s: cell=(%d, %d, %d), cover=%d, max=%d\n", __FUNCTION__,
 		       cell->x, cell->covered_height, cell->uncovered_area,
 		       cover, xmax));
@@ -4591,7 +4486,7 @@ span_thread(void *arg)
 	const xTrapezoid *t;
 	int n, y1, y2;
 
-	if (tor_init(&tor, &thread->extents, 2*thread->ntrap))
+	if (!tor_init(&tor, &thread->extents, 2*thread->ntrap))
 		return;
 
 	boxes.op = thread->op;
@@ -4753,7 +4648,7 @@ trapezoid_span_converter(struct sna *sna,
 	if (num_threads == 1) {
 		struct tor tor;
 
-		if (tor_init(&tor, &extents, 2*ntrap))
+		if (!tor_init(&tor, &extents, 2*ntrap))
 			goto skip;
 
 		for (n = 0; n < ntrap; n++) {
@@ -4774,7 +4669,6 @@ trapezoid_span_converter(struct sna *sna,
 			   choose_span(&tmp, dst, maskFormat, &clip),
 			   !was_clear && maskFormat && !operator_is_bounded(op));
 
-skip:
 		tor_fini(&tor);
 	} else {
 		struct span_thread threads[num_threads];
@@ -4815,6 +4709,7 @@ skip:
 
 		sna_threads_wait();
 	}
+skip:
 	tmp.done(sna, &tmp);
 
 	REGION_UNINIT(NULL, &clip);
@@ -4938,7 +4833,7 @@ trapezoid_mask_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	DBG(("%s: created buffer %p, stride %d\n",
 	     __FUNCTION__, scratch->devPrivate.ptr, scratch->devKind));
 
-	if (tor_init(&tor, &extents, 2*ntrap)) {
+	if (!tor_init(&tor, &extents, 2*ntrap)) {
 		sna_pixmap_destroy(scratch);
 		return true;
 	}
@@ -5690,7 +5585,7 @@ static void inplace_x8r8g8b8_thread(void *arg)
 	RegionPtr clip;
 	int y1, y2, n;
 
-	if (tor_init(&tor, &thread->extents, 2*thread->ntrap))
+	if (!tor_init(&tor, &thread->extents, 2*thread->ntrap))
 		return;
 
 	y1 = thread->extents.y1 - thread->dst->pDrawable->y;
@@ -5884,7 +5779,7 @@ trapezoid_span_inplace__x8r8g8b8(CARD8 op,
 		struct tor tor;
 		span_func_t span;
 
-		if (tor_init(&tor, &region.extents, 2*ntrap))
+		if (!tor_init(&tor, &region.extents, 2*ntrap))
 			return true;
 
 		for (n = 0; n < ntrap; n++) {
@@ -6037,7 +5932,7 @@ static void inplace_thread(void *arg)
 	struct tor tor;
 	int n;
 
-	if (tor_init(&tor, &thread->extents, 2*thread->ntrap))
+	if (!tor_init(&tor, &thread->extents, 2*thread->ntrap))
 		return;
 
 	for (n = 0; n < thread->ntrap; n++) {
@@ -6247,7 +6142,7 @@ trapezoid_span_inplace(struct sna *sna,
 	if (num_threads == 1) {
 		struct tor tor;
 
-		if (tor_init(&tor, &region.extents, 2*ntrap))
+		if (!tor_init(&tor, &region.extents, 2*ntrap))
 			return true;
 
 		for (n = 0; n < ntrap; n++) {
@@ -6385,7 +6280,7 @@ trapezoid_span_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 	DBG(("%s: created buffer %p, stride %d\n",
 	     __FUNCTION__, scratch->devPrivate.ptr, scratch->devKind));
 
-	if (tor_init(&tor, &extents, 2*ntrap)) {
+	if (!tor_init(&tor, &extents, 2*ntrap)) {
 		sna_pixmap_destroy(scratch);
 		return true;
 	}
@@ -6750,7 +6645,7 @@ trap_span_converter(struct sna *sna,
 
 	dx *= FAST_SAMPLES_X;
 	dy *= FAST_SAMPLES_Y;
-	if (tor_init(&tor, &extents, 2*ntrap))
+	if (!tor_init(&tor, &extents, 2*ntrap))
 		goto skip;
 
 	for (n = 0; n < ntrap; n++) {
@@ -6780,8 +6675,8 @@ trap_span_converter(struct sna *sna,
 	tor_render(sna, &tor, &tmp, clip,
 		   choose_span(&tmp, dst, NULL, clip), false);
 
-skip:
 	tor_fini(&tor);
+skip:
 	tmp.done(sna, &tmp);
 	return true;
 }
@@ -6870,7 +6765,7 @@ trap_mask_converter(struct sna *sna,
 	dy = picture->pDrawable->y;
 	dx *= FAST_SAMPLES_X;
 	dy *= FAST_SAMPLES_Y;
-	if (tor_init(&tor, &extents, 2*ntrap)) {
+	if (!tor_init(&tor, &extents, 2*ntrap)) {
 		sna_pixmap_destroy(scratch);
 		return true;
 	}
@@ -7322,7 +7217,7 @@ triangles_span_converter(struct sna *sna,
 
 	dx *= FAST_SAMPLES_X;
 	dy *= FAST_SAMPLES_Y;
-	if (tor_init(&tor, &extents, 3*count))
+	if (!tor_init(&tor, &extents, 3*count))
 		goto skip;
 
 	for (n = 0; n < count; n++) {
@@ -7340,8 +7235,8 @@ triangles_span_converter(struct sna *sna,
 		   choose_span(&tmp, dst, maskFormat, &clip),
 		   !was_clear && maskFormat && !operator_is_bounded(op));
 
-skip:
 	tor_fini(&tor);
+skip:
 	tmp.done(sna, &tmp);
 
 	REGION_UNINIT(NULL, &clip);
@@ -7422,7 +7317,7 @@ triangles_mask_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	DBG(("%s: created buffer %p, stride %d\n",
 	     __FUNCTION__, scratch->devPrivate.ptr, scratch->devKind));
 
-	if (tor_init(&tor, &extents, 3*count)) {
+	if (!tor_init(&tor, &extents, 3*count)) {
 		sna_pixmap_destroy(scratch);
 		return true;
 	}
@@ -7687,7 +7582,7 @@ tristrip_span_converter(struct sna *sna,
 
 	dx *= FAST_SAMPLES_X;
 	dy *= FAST_SAMPLES_Y;
-	if (tor_init(&tor, &extents, 2*count))
+	if (!tor_init(&tor, &extents, 2*count))
 		goto skip;
 
 	cw = ccw = 0;
@@ -7715,8 +7610,8 @@ tristrip_span_converter(struct sna *sna,
 		   choose_span(&tmp, dst, maskFormat, &clip),
 		   !was_clear && maskFormat && !operator_is_bounded(op));
 
-skip:
 	tor_fini(&tor);
+skip:
 	tmp.done(sna, &tmp);
 
 	REGION_UNINIT(NULL, &clip);

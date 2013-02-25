@@ -23,7 +23,7 @@
 # Initialize Autoconf
 AC_PREREQ([2.60])
 AC_INIT([xf86-video-intel],
-        [2.21.2],
+        [2.21.3],
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
         [xf86-video-intel])
 AC_CONFIG_SRCDIR([Makefile.am])
@@ -183,7 +183,7 @@ AC_ARG_ENABLE(ums-only, AS_HELP_STRING([--enable-ums-only],
               [UMS_ONLY="$enableval"],
               [UMS_ONLY=no])
 
-required_xorg_xserver_version=1.6
+required_xorg_server_version=1.6
 required_pixman_version=0.16
 
 if pkg-config --exists 'pixman-1 >= 0.27.1'; then
@@ -249,7 +249,7 @@ if test "x$GLAMOR" != "xno"; then
 fi
 
 
-PKG_CHECK_MODULES(XORG, [xorg-server >= $required_xorg_xserver_version xproto fontsproto pixman-1 >= $required_pixman_version $REQUIRED_MODULES])
+PKG_CHECK_MODULES(XORG, [xorg-server >= $required_xorg_server_version xproto fontsproto pixman-1 >= $required_pixman_version $REQUIRED_MODULES])
 
 AC_ARG_ENABLE(xaa,
 	      AS_HELP_STRING([--enable-xaa],
@@ -416,7 +416,7 @@ AM_CONDITIONAL(DRI2, test "x$DRI2" = xyes)
 AC_MSG_RESULT([$DRI2])
 
 if test "$XVMC" = yes; then
-	PKG_CHECK_MODULES(XVMCLIB, [xvmc dri2proto], [], [XVMC=no])
+	PKG_CHECK_MODULES(XVMCLIB, [xvmc dri2proto x11], [], [XVMC=no])
 	PKG_CHECK_MODULES(XCB, [x11-xcb xcb-dri2 xcb-aux], [], [XVMC=no])
 fi
 AC_MSG_CHECKING([whether to include XvMC support])
