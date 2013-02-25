@@ -14,4 +14,4 @@ render-copyarea-size
 render-copy-alphaless
 mixed-stress
 lowlevel-blt-bench
-test/vsync.avi
+vsync.avi
