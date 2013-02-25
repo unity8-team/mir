@@ -20,7 +20,7 @@
 
 #include "shell.h"
 
-namespace mir
+namespace ubuntu { namespace detail
 {
 
 class DefaultShell : public Shell
@@ -40,6 +40,7 @@ protected:
     }
 };
 
+}
 }
 
 #endif // DEFAULT_SHELL_H_
