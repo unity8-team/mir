@@ -1334,9 +1334,12 @@ start:
 			goto flush;
 	}
 
-	if (unlikely(sna->render.vertex_offset == 0 &&
-		     !gen7_rectangle_begin(sna, op)))
-		goto flush;
+	if (unlikely(sna->render.vertex_offset == 0)) {
+		if (!gen7_rectangle_begin(sna, op))
+			goto flush;
+		else
+			goto start;
+	}
 
 	assert(op->floats_per_rect >= vertex_space(sna));
 	assert(rem <= vertex_space(sna));
