@@ -1,13 +1,35 @@
+Release 2.21.3 (2013-02-20)
+===========================
+A few minor bugfixes, another point release.
+
+ * Fix tracking of DRI pixmaps and their backing bo across reparenting. If
+   we tried to execute a SwapBuffers after a Window was reparented, but
+   before the DRI client has updated its references, then we would end up
+   manipulating an exported pixmap without a flush flag set. In the worst
+   case, this would culminate in a segfault in the driver.
+   https://bugs.launchpad.net/ubuntu/+source/xserver-xorg-video-intel/+bug/1127497
+
+ * Restore the gen4 workarounds for flickering rendering - a few cases still
+   remain, as the root cause persists.
+   https://bugs.freedesktop.org/show_bug.cgi?id=60402
+
+ * Double check that the device has KMS enabled before claiming. This allows
+   X to gracefully fallback to VESA/fbdev rather than bailing out.
+   https://bugs.freedesktop.org/show_bug.cgi?id=60987
+
+ * Fix the UXA render programs for projective transforms on Ivybridge.
+
+
 Release 2.21.2 (2013-02-10)
 ===========================
 Pass the brown paper bags, I need half a dozen or so. That seemingly
-innocuous build fix with xorg-1.13 happned to have the little side-effect
+innocuous build fix with xorg-1.13 happened to have the little side-effect
 of breaking glyph rendering with xorg-1.12 and older on 64-bit machines.
 
 
 Release 2.21.1 (2013-02-10)
 ===========================
-A fix for a potential GPU hang on 945gm (GMA3100) and earlier chipsets,
+A fix for a potential GPU hang on 945gm (GMA950) and earlier chipsets,
 along with backporting SNA to the packages found in stable distributions
 like Debian 6.0 (Squeeze).
 
@@ -25,7 +47,7 @@ like Debian 6.0 (Squeeze).
  * Fix alignment of subsurface proxies for old chipsets.
    https://bugs.launchpad.net/ubuntu/+source/xserver-xorg-video-intel/+bug/1120108
 
- * Repair build against Xorg-1.6 and contemporary packages.
+ * Repair build against Xserver-1.6 and contemporary packages.
 
 
 Release 2.21.0 (2013-02-01)

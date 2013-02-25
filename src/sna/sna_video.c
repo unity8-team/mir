@@ -569,13 +569,13 @@ void sna_video_init(struct sna *sna, ScreenPtr screen)
 	if (overlay && !prefer_overlay)
 		adaptors[num_adaptors++] = overlay;
 
-	if (num_adaptors)
-		xf86XVScreenInit(screen, adaptors, num_adaptors);
-	else
+	if (num_adaptors) {
+		Bool ok = xf86XVScreenInit(screen, adaptors, num_adaptors);
+		if (ok && textured)
+			sna_video_xvmc_setup(sna, screen, textured);
+	} else
 		xf86DrvMsg(sna->scrn->scrnIndex, X_WARNING,
 			   "Disabling Xv because no adaptors could be initialized.\n");
-	if (textured)
-		sna_video_xvmc_setup(sna, screen, textured);
 
 	free(adaptors);
 }

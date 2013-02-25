@@ -1,3 +1,399 @@
+commit d2442c74b8d41018f260f1da13f3fe5d2795792f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Feb 20 10:53:57 2013 +0000
+
+    2.21.3 release
+
+commit 2cab7e80eb6955a7f8ea051633f6975a12248b69
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Feb 20 12:36:22 2013 +0000
+
+    sna/trapezoids: Clamp cells to valid range
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 14de90b251dd8a6ff106e989580ef01cf5c2944d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Feb 20 12:00:54 2013 +0000
+
+    sna/trapezoids: Embed a few cells into the stack
+    
+    Avoid an allocation in the common case where the set of trapezoids is
+    fairly narrow.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 3eca4ea1a5d8ce04598b8d42e93e0dcb93e42e9a
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Feb 20 11:20:54 2013 +0000
+
+    sna/trapezoids: Perform the cell allocation upfront
+    
+    As we know the maximum extents of the trapezoids, we know the maximum
+    number of cells we will need and so can preallocate them.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 9df5e48c582e5c4edffdece75b5395c230a50b09
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Feb 19 10:08:29 2013 +0000
+
+    sna/video: Only setup XvMC if we first setup Xv
+    
+    Under certain circumstances, XvScreenInit can indeed fail, so do not
+    bother with creatin XvMC (as it triggers internal assertions if it
+    cannot find our adaptor amongst Xv's).
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit b6588c48077600a3e015b6d37b101393a806ae1a
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Feb 19 08:59:12 2013 +0000
+
+    test: Add generated vsync.avi to gitignore
+
+commit 1e2fd66ade6bdbf1e6011f3d59e423fada3f12f6
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Feb 19 08:57:47 2013 +0000
+
+    sna: Assert that the GPU damage is NULL before destroy a proxy
+    
+    If the GPU bo is a proxy, then it really is a pointer into a upload
+    buffer for CPU data. In these cases, there should never be any GPU
+    damage lying around.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d90a123db7ac99cf017167bf89df31c635df7e1e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Feb 18 20:06:45 2013 +0000
+
+    sna: Assert that the gpu_bo exists if it is entirely damaged
+    
+    This should help catch the error slightly earlier.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a03aba6f7f55577e29c6a3267528e2614016222d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Feb 18 16:12:14 2013 +0000
+
+    sna: A couple more assertions that we forcibly attach pixmaps correctly
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 1f16d854264ea923303b79379266bd789fd9dd4d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Feb 18 14:30:55 2013 +0000
+
+    sna/dri: Prevent swapping a decoupled DRI2Buffer
+    
+    If the DRI2Buffer is no longer valid for the Drawable, for example the
+    window had just been reparent, just complete the swap without triggering
+    any assertions.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit b3ba758a0186c9abc6c0583f52775ea714165134
+Author: Damien Lespiau <damien.lespiau@intel.com>
+Date:   Thu Feb 14 14:20:19 2013 +0000
+
+    uxa/gen7: Don't use a message register to store vl
+    
+    Turns out the "new" assembler that uses mesa's opcode emission hits the
+    path that automatically transforms MRF registers into GRF ones in the
+    exa_wm_src_projective shader.
+    
+    The diff with the new assembler is:
+    
+    $ intel-gen4disasm -g7 -
+    -   { 0x00600041, 0x208077be, 0x008d03c0, 0x008d0180 },
+    +   { 0x00600041, 0x2e8077bd, 0x008d03c0, 0x008d0180 },
+    mul(8)      m4<1>F          g30<8,8,1>F     g12<8,8,1>F     { align1 };
+    mul(8)      g116<1>F        g30<8,8,1>F     g12<8,8,1>F     { align1 };
+    
+    Of course, message registers are no more in gen7, so the shader is
+    trying to do something shaddy (ahem!).
+    
+    Instead of using m4, let's make exa_wm_src_projective use g68 for v (aka
+    vl) which makes sense since:
+    
+    1/ vh is g69
+    2/ exa_wm_src_affine uses g68 for vl already
+    
+    This commit changes the generated assembly, here's the decoded diff:
+    
+    $ intel-gen4disasm -g7 -
+    -   { 0x00600041, 0x208077be, 0x008d03c0, 0x008d0180 },
+    +   { 0x00600041, 0x288077bd, 0x008d03c0, 0x008d0180 },
+    mul(8)      m4<1>F          g30<8,8,1>F     g12<8,8,1>F     { align1 };
+    mul(8)      g68<1>F         g30<8,8,1>F     g12<8,8,1>F     { align1 };
+    
+    Cc: Kenneth Graunke <kenneth@whitecape.org>
+    Reported-by: Xiang, Haihao <haihao.xiang@intel.com>
+    Signed-off-by: Damien Lespiau <damien.lespiau@intel.com>
+    Reviewed-by: Kenneth Graunke <kenneth@whitecape.org>
+
+commit 43ba22ef4a4142f334e9ae2d926250988ecbe8bc
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Feb 17 09:25:38 2013 +0000
+
+    Confirm that i915.ko has KMS enabled before binding to the device
+    
+    If the kernel has the module, but the KMS module option is not enabled,
+    we cannot function. So after checking to see if the i915.ko is bound,
+    then querying whether it provides any KMS resources. If it has no CRTCs
+    attached, then we need to failover to the VESA/fbdev drivers. Note that
+    this should have been detected by drmCheckModesettingSupported()
+    
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=60987
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5a5943e2374a674067e0c48b0fe8a1f2eeff2177
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Feb 15 12:05:14 2013 +0000
+
+    NEWS: Xserver 1.6 was not packaged in Xorg 7.7
+    
+    I misinterpreted Sedat Dilek's advice on how to fix my confusing
+    changelog, so drop the Xorg 7.7 confusion and just refer to the version
+    of Xserver the driver is first compatible with.
+
+commit 15e1050ea505c40a288ec197d817d3c6d51693d5
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Feb 14 21:59:36 2013 +0000
+
+    NEWS: Fix a couple of typos and factual errors
+    
+    Sedat Dilek corrected my spelling and pointed out that what is known as
+    Xorg 1.6 in the log file is actually better known as releases of
+    Xserver 1.6 and Xorg 7.7.
+
+commit 86e025a1842f3c2f319676818b1f4624cd94ebc5
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Feb 13 22:05:34 2013 +0000
+
+    sna/gen4: Restore nonrectiinear spans workaround
+    
+    Instead of relying on the macro, the intention was simply to use the
+    prefer_gpu hint. However, I dropped it whilst refactoring ideas from
+    later generations. So restore both the debug control to force spans as
+    well as the intended workaround.
+    
+    Reported-by: Edward Sheldrake <ejsheldrake@gmail.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f2a64dbdfceac985d235c4873f52013633d6cfd8
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Feb 13 17:15:46 2013 +0000
+
+    sna: Avoid stalling on a SHM upload when otherwise idle
+    
+    Fixes regresion from
+    
+    commit 09ea1f4402b3bd0e411b90eb5575b3ff066d7356
+    Author: Chris Wilson <chris@chris-wilson.co.uk>
+    Date:   Thu Jan 10 16:26:24 2013 +0000
+    
+        sna: Prefer to use the GPU for copies from SHM onto tiled destinations
+    
+    As the stalls on IVB 64-bit machines at least greatly offset the
+    benefits. As those earlier measurements were made on the same IVB
+    machine but running in 32-bit mode, I need to double-check whether or
+    not this is another 32-bit peculiarity.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4bf51ec7bcc7818fbee8643a88aebee0362691b2
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Feb 13 16:32:18 2013 +0000
+
+    Revert "sna: Avoid promoting SHM CPU bo to GPU to maintain coherence with SHM clients"
+    
+    This reverts commit f743cd5734ca502aa8bdb0e1327fe84d6ce82755.
+
+commit 9861423a76402c260724a752ada293a03ce1a79b
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Feb 13 15:11:45 2013 +0000
+
+    sna/dri: Fix typo limiting gen4 to TILING_X depth buffers
+    
+    Fixes regression from
+    
+    commit 98b312e579385e6e4adf6bf0abe20f8ca84592af
+    Author: Chris Wilson <chris@chris-wilson.co.uk>
+    Date:   Wed Jan 23 20:51:35 2013 +0000
+    
+        sna/dri: Stop feeding I915_TILING_Y to mesa i915c
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=60178
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 38a3506aa1c9c2e07125b54fc319b6de89febff9
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Feb 13 14:09:38 2013 +0000
+
+    sna: Handle scanouts still active at the time of destruction
+    
+    Basically remove the bogus assert, and reorder the list to
+    preferentially reuse the still active scanouts.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 3b82d93162b9e127c6d055d5007e75fcc31f4af8
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Feb 12 21:53:38 2013 +0000
+
+    sna/dri: Validate that the scanout flag is set
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 04e4805f57fdf0581e5e75c29c275c15c79852a3
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Feb 12 21:52:35 2013 +0000
+
+    sna: Prefer inplace readback if the GPU doesn't support cacheable BLTs
+    
+    As we must perform the GTT reads anyway, first see if we can copy
+    directly to the destination.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2c569d22d2d243badc15d5dbcc09e6759f4ff01a
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Feb 12 20:15:33 2013 +0000
+
+    sna: Only use the inplace read fallback if we have no CPU bo support
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit aeaed0b7810e9c794749a4f59c72790063cddc86
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Feb 12 19:30:44 2013 +0000
+
+    sna/dri: Assert that we are not passed deceased DRI2Buffers
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5fb165b02d47634ccf9fb72ab6fb4d65b89f78d0
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Feb 11 22:15:17 2013 +0000
+
+    sna/dri: Assert that the old scanout is clear before overwriting
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2667b821e193c0badf16420f82f8a99a93c27a46
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Feb 11 22:06:00 2013 +0000
+
+    sna/dri: Update flush status for tear-free exported GPU bo
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a4442045df9164651702b166e0de2bfd25e8a76f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Feb 11 21:16:19 2013 +0000
+
+    sna/dri: Harden the replacement of the back buffer against alloc failure
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 75406775b83ca5c320e4bc2d2dbd8f1eb0d1677d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Feb 11 13:00:13 2013 +0000
+
+    NEWS: Fix marketing name for 945gm
+    
+    The GMA3100 was the desktop G31/G33 which whilst almost identical to the
+    GMA950, notably does not require the extra unfenced alignment.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0b116a1d023ad7cc148d91f268dbf71452dbd9dd
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Feb 11 12:36:43 2013 +0000
+
+    sna: Fix inaccurate use of __attribute__((const))
+    
+    'const' is only allowed to use the function parameters and not allowed
+    to access global memory - that includes not allowed to deference its
+    arguments...
+    
+    Thanks to Jiri Slaby for spotting my mistake.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 47657e5355103b2e61da6f059c560e63fe13b0ed
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Feb 11 12:31:18 2013 +0000
+
+    sna/dri: Ignore a compiler barf breaking an assertion
+    
+    Manual confirmation with gdb says all is fine and things work again
+    after printing the variables responsible. The curious reader is welcome
+    to read the disassembly to find where the compiler goofed.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 3540554e5a74ccd2ca746482700a9f5657954227
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Feb 11 11:14:17 2013 +0000
+
+    sna/dri: Couple up the flush pixmap after checking for allocation failures
+    
+    Tidy up the error path not to leave the GPU bo pinned and marked for
+    flushing.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 58b61bcd02467d2b08b2dd194ab6884437b83fa6
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Feb 11 11:05:02 2013 +0000
+
+    sna/dri: Tighten the assertions that we have one DRI2Buffer per Pixmap
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a13f806ae28459a5cf671ccbf9cc8725f541a4ba
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Feb 11 10:50:20 2013 +0000
+
+    sna: Assert that we do not destroy a GPU bo for an active DRI pixmap
+    
+    This is an extra paranoid check that the bo is still pinned.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit c2eb2db83280ae45b8df8a3b6e488b6a1404391a
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Feb 11 10:47:13 2013 +0000
+
+    sna: Avoid stalling for changing cache levels on an active scanout
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 696347a6260f3741ad3e6238db0fd285384bb753
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Feb 11 09:58:58 2013 +0000
+
+    sna/dri: Only clear the GPU bo flush flag when the last export is destroyed
+    
+    Add various assertions around DRI to be sure that we don't change the
+    GPU bo for a pixmap that does not match our flush bookkeeping. Then be
+    more careful during the DRI2Buffer destroy that we don't accidentally
+    remove the flush flag from a shared bo.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 301aebfa71143fb610eb7b816376a8c1f3e07208
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Feb 10 18:01:33 2013 +0000
+
+    configure: Add -lX11 required to link the legacy libI810XvMC.so
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
 commit 65c320e677b8ab4d745568b33f381d5865bf8b73
 Author: Chris Wilson <chris@chris-wilson.co.uk>
 Date:   Sun Feb 10 14:20:59 2013 +0000

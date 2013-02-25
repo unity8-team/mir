@@ -118,8 +118,6 @@ struct sna_pixmap {
 	uint32_t stride;
 	uint32_t clear_color;
 
-	uint32_t flush;
-
 #define SOURCE_BIAS 4
 	uint16_t source_count;
 	uint8_t pinned :3;
@@ -128,6 +126,7 @@ struct sna_pixmap {
 #define PIN_PRIME 0x4
 	uint8_t create :4;
 	uint8_t mapped :1;
+	uint8_t flush :1;
 	uint8_t shm :1;
 	uint8_t clear :1;
 	uint8_t header :1;
@@ -165,7 +164,7 @@ static inline PixmapPtr get_drawable_pixmap(DrawablePtr drawable)
 
 extern DevPrivateKeyRec sna_pixmap_key;
 
-constant static inline struct sna_pixmap *sna_pixmap(PixmapPtr pixmap)
+pure static inline struct sna_pixmap *sna_pixmap(PixmapPtr pixmap)
 {
 	return ((void **)__get_private(pixmap, sna_pixmap_key))[1];
 }
@@ -308,25 +307,25 @@ extern int sna_page_flip(struct sna *sna,
 			 void *data,
 			 int ref_crtc_hw_id);
 
-constant static inline struct sna *
+pure static inline struct sna *
 to_sna(ScrnInfoPtr scrn)
 {
 	return (struct sna *)(scrn->driverPrivate);
 }
 
-constant static inline struct sna *
+pure static inline struct sna *
 to_sna_from_screen(ScreenPtr screen)
 {
 	return to_sna(xf86ScreenToScrn(screen));
 }
 
-constant static inline struct sna *
+pure static inline struct sna *
 to_sna_from_pixmap(PixmapPtr pixmap)
 {
 	return ((void **)__get_private(pixmap, sna_pixmap_key))[0];
 }
 
-constant static inline struct sna *
+pure static inline struct sna *
 to_sna_from_drawable(DrawablePtr drawable)
 {
 	return to_sna_from_screen(drawable->pScreen);

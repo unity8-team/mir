@@ -147,7 +147,7 @@ static uint32_t other_tiling(struct sna *sna, DrawablePtr draw)
 {
 	/* XXX Can mix color X / depth Y? */
 	return kgem_choose_tiling(&sna->kgem,
-				  sna->kgem.gen >=40 ? -I915_TILING_Y : -I915_TILING_X,
+				  sna->kgem.gen >= 040 ? -I915_TILING_Y : -I915_TILING_X,
 				  draw->width,
 				  draw->height,
 				  draw->bitsPerPixel);
@@ -175,10 +175,11 @@ static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 		return NULL;
 	}
 
+	assert(priv->flush == false);
 	assert(priv->cpu_damage == NULL);
+	assert(priv->gpu_bo);
 	assert(priv->gpu_bo->proxy == NULL);
-	if (priv->flush++)
-		return priv->gpu_bo;
+	assert(priv->gpu_bo->flush == false);
 
 	tiling = color_tiling(sna, &pixmap->drawable);
 	if (tiling < 0)
@@ -186,20 +187,10 @@ static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 	if (priv->gpu_bo->tiling != tiling)
 		sna_pixmap_change_tiling(pixmap, tiling);
 
-	/* We need to submit any modifications to and reads from this
-	 * buffer before we send any reply to the Client.
-	 *
-	 * As we don't track which Client, we flush for all.
-	 */
-	sna_accel_watch_flush(sna, 1);
-
-	/* Don't allow this named buffer to be replaced */
-	priv->pinned |= PIN_DRI;
-
 	return priv->gpu_bo;
 }
 
-constant static inline void *sna_pixmap_get_buffer(PixmapPtr pixmap)
+pure static inline void *sna_pixmap_get_buffer(PixmapPtr pixmap)
 {
 	assert(pixmap->refcnt);
 	return ((void **)__get_private(pixmap, sna_pixmap_key))[2];
@@ -229,9 +220,13 @@ sna_dri_pixmap_update_bo(struct sna *sna, PixmapPtr pixmap)
 	if (private->bo == bo)
 		return;
 
+	private->bo->flush = false;
 	kgem_bo_destroy(&sna->kgem, private->bo);
+
 	buffer->name = kgem_bo_flink(&sna->kgem, bo);
 	private->bo = ref(bo);
+
+	assert(bo->flush);
 
 	/* XXX DRI2InvalidateDrawable(&pixmap->drawable); */
 }
@@ -267,6 +262,7 @@ sna_dri_create_buffer(DrawablePtr draw,
 			     private->bo->handle, buffer->name));
 
 			assert(private->pixmap == pixmap);
+			assert(sna_pixmap(pixmap)->flush);
 			assert(sna_pixmap(pixmap)->gpu_bo == private->bo);
 			assert(sna_pixmap(pixmap)->pinned & PIN_DRI);
 			assert(kgem_bo_flink(&sna->kgem, private->bo) == buffer->name);
@@ -379,10 +375,29 @@ sna_dri_create_buffer(DrawablePtr draw,
 		goto err;
 
 	if (pixmap) {
+		struct sna_pixmap *priv;
+
 		assert(attachment == DRI2BufferFrontLeft);
+		assert(sna_pixmap_get_buffer(pixmap) == NULL);
+
 		sna_pixmap_set_buffer(pixmap, buffer);
 		assert(sna_pixmap_get_buffer(pixmap) == buffer);
 		pixmap->refcnt++;
+
+		priv = sna_pixmap(pixmap);
+		assert(priv->flush == false);
+		assert((priv->pinned & PIN_DRI) == 0);
+
+		/* Don't allow this named buffer to be replaced */
+		priv->pinned |= PIN_DRI;
+
+		/* We need to submit any modifications to and reads from this
+		 * buffer before we send any reply to the Client.
+		 *
+		 * As we don't track which Client, we flush for all.
+		 */
+		priv->flush = true;
+		sna_accel_watch_flush(sna, 1);
 	}
 
 	assert(bo->flush == true);
@@ -411,24 +426,30 @@ static void _sna_dri_destroy_buffer(struct sna *sna, DRI2Buffer2Ptr buffer)
 			PixmapPtr pixmap = private->pixmap;
 			struct sna_pixmap *priv = sna_pixmap(pixmap);
 
+			assert(sna_pixmap_get_buffer(pixmap) == buffer);
+			assert(priv->gpu_bo == private->bo);
+			assert(priv->flush);
+
 			/* Undo the DRI markings on this pixmap */
-			if (priv->flush && --priv->flush == 0) {
-				DBG(("%s: releasing last DRI pixmap=%ld, scanout?=%d\n",
-				     __FUNCTION__,
-				     pixmap->drawable.serialNumber,
-				     pixmap == sna->front));
-				list_del(&priv->list);
-				sna_accel_watch_flush(sna, -1);
-				priv->pinned &= ~PIN_DRI;
-			}
+			DBG(("%s: releasing last DRI pixmap=%ld, scanout?=%d\n",
+			     __FUNCTION__,
+			     pixmap->drawable.serialNumber,
+			     pixmap == sna->front));
+
+			list_del(&priv->list);
+
+			priv->gpu_bo->flush = false;
+			priv->pinned &= ~PIN_DRI;
+
+			priv->flush = false;
+			sna_accel_watch_flush(sna, -1);
 
 			sna_pixmap_set_buffer(pixmap, NULL);
 			pixmap->drawable.pScreen->DestroyPixmap(pixmap);
-		}
+		} else
+			private->bo->flush = 0;
 
-		private->bo->flush = 0;
 		kgem_bo_destroy(&sna->kgem, private->bo);
-
 		free(buffer);
 	}
 }
@@ -449,6 +470,7 @@ static void damage(PixmapPtr pixmap, RegionPtr region)
 
 	priv = sna_pixmap(pixmap);
 	assert(priv != NULL);
+	assert(priv->gpu_bo);
 	if (DAMAGE_IS_ALL(priv->gpu_damage))
 		return;
 
@@ -476,6 +498,9 @@ static void set_bo(PixmapPtr pixmap, struct kgem_bo *bo)
 	assert(pixmap->drawable.width * pixmap->drawable.bitsPerPixel <= 8*bo->pitch);
 	assert(pixmap->drawable.height * bo->pitch <= kgem_bo_size(bo));
 	assert(bo->proxy == NULL);
+	assert(bo->flush);
+	assert(priv->pinned & PIN_DRI);
+	assert(priv->flush);
 
 	/* Post damage on the new front buffer so that listeners, such
 	 * as DisplayLink know take a copy and shove it over the USB,
@@ -889,6 +914,17 @@ sna_dri_copy_region(DrawablePtr draw,
 	void (*copy)(struct sna *, DrawablePtr, RegionPtr,
 		     struct kgem_bo *, struct kgem_bo *, bool) = sna_dri_copy;
 
+	assert(get_private(src_buffer)->refcnt);
+	assert(get_private(dst_buffer)->refcnt);
+
+	assert(get_private(src_buffer)->bo->refcnt);
+	assert(get_private(src_buffer)->bo->flush);
+
+	assert(get_private(dst_buffer)->bo->refcnt);
+	assert(get_private(dst_buffer)->bo->flush);
+
+	assert(sna_pixmap_from_drawable(draw)->flush);
+
 	if (!can_blit(sna, draw, dst_buffer, src_buffer))
 		return;
 
@@ -1052,8 +1088,10 @@ sna_dri_frame_event_info_free(struct sna *sna,
 
 	assert(info->scanout[1].bo == NULL);
 
-	if (info->scanout[0].bo)
+	if (info->scanout[0].bo) {
+		assert(info->scanout[0].bo->scanout);
 		kgem_bo_destroy(&sna->kgem, info->scanout[0].bo);
+	}
 
 	if (info->cache.bo)
 		kgem_bo_destroy(&sna->kgem, info->cache.bo);
@@ -1075,6 +1113,9 @@ sna_dri_page_flip(struct sna *sna, struct sna_dri_frame_event *info)
 	assert(sna_pixmap_get_buffer(sna->front) == info->front);
 	assert(get_drawable_pixmap(info->draw)->drawable.height * bo->pitch <= kgem_bo_size(bo));
 	assert(info->scanout[0].bo);
+	assert(info->scanout[0].bo->scanout);
+	assert(info->scanout[1].bo == NULL);
+	assert(bo->refcnt);
 
 	info->count = sna_page_flip(sna, bo, info, info->pipe);
 	if (!info->count)
@@ -1083,6 +1124,7 @@ sna_dri_page_flip(struct sna *sna, struct sna_dri_frame_event *info)
 	info->scanout[1] = info->scanout[0];
 	info->scanout[0].bo = ref(bo);
 	info->scanout[0].name = info->back->name;
+	assert(info->scanout[0].bo->scanout);
 
 	tmp.bo = get_private(info->front)->bo;
 	tmp.name = info->front->name;
@@ -1270,7 +1312,7 @@ can_exchange(struct sna * sna,
 		     __FUNCTION__));
 		return false;
 	}
-	assert(get_private(front)->pixmap == sna->front);
+	assert(get_private(front)->pixmap != sna->front);
 
 	if (!get_private(back)->scanout) {
 		DBG(("%s: no, DRI2 drawable was too small at time of creation)\n",
@@ -1507,6 +1549,8 @@ sna_dri_flip_get_back(struct sna *sna, struct sna_dri_frame_event *info)
 	     info->cache.bo ? info->cache.bo->handle : 0));
 
 	bo = get_private(info->back)->bo;
+	assert(bo->refcnt);
+	assert(bo->flush);
 	if (!(bo == info->scanout[0].bo || bo == info->scanout[1].bo))
 		return;
 
@@ -1515,10 +1559,8 @@ sna_dri_flip_get_back(struct sna *sna, struct sna_dri_frame_event *info)
 	if (bo == NULL ||
 	    bo == info->scanout[0].bo ||
 	    bo == info->scanout[1].bo) {
-		if (bo) {
-			DBG(("%s: discarding old backbuffer\n", __FUNCTION__));
-			kgem_bo_destroy(&sna->kgem, bo);
-		}
+		struct kgem_bo *old_bo = bo;
+
 		DBG(("%s: allocating new backbuffer\n", __FUNCTION__));
 		bo = kgem_create_2d(&sna->kgem,
 				    info->draw->width,
@@ -1526,17 +1568,34 @@ sna_dri_flip_get_back(struct sna *sna, struct sna_dri_frame_event *info)
 				    info->draw->bitsPerPixel,
 				    get_private(info->front)->bo->tiling,
 				    CREATE_SCANOUT | CREATE_EXACT);
+		if (bo == NULL)
+			return;
+
 		name = kgem_bo_flink(&sna->kgem, bo);
+		if (name == 0) {
+			kgem_bo_destroy(&sna->kgem, bo);
+			return;
+		}
+
+		if (old_bo) {
+			DBG(("%s: discarding old backbuffer\n", __FUNCTION__));
+			kgem_bo_destroy(&sna->kgem, old_bo);
+		}
 	}
 
 	info->cache.bo = get_private(info->back)->bo;
 	info->cache.name = info->back->name;
+	assert(info->cache.bo->refcnt);
+	assert(info->cache.name);
 
 	get_private(info->back)->bo = bo;
 	info->back->name = name;
 
 	assert(get_private(info->back)->bo != info->scanout[0].bo);
 	assert(get_private(info->back)->bo != info->scanout[1].bo);
+
+	assert(bo->refcnt);
+	assert(bo->flush);
 }
 
 static bool
@@ -1554,9 +1613,11 @@ sna_dri_flip_continue(struct sna *sna, struct sna_dri_frame_event *info)
 		if (!info->count)
 			return false;
 
+		assert(info->scanout[0].bo->scanout);
 		info->scanout[1] = info->scanout[0];
 		info->scanout[0].bo = ref(get_private(info->front)->bo);
 		info->scanout[0].name = info->front->name;
+		assert(info->scanout[0].bo->scanout);
 		sna->dri.flip_pending = info;
 	} else {
 		if (!info->draw)
@@ -1709,6 +1770,7 @@ sna_dri_page_flip_handler(struct sna *sna,
 	struct sna_dri_frame_event *info = to_frame_event(event->user_data);
 
 	DBG(("%s: pending flip_count=%d\n", __FUNCTION__, info->count));
+	assert(info->count > 0);
 
 	/* Is this the event whose info shall be delivered to higher level? */
 	if (event->user_data & 1) {
@@ -1901,6 +1963,7 @@ sna_dri_schedule_flip(ClientPtr client, DrawablePtr draw,
 
 		info->scanout[0].bo = ref(get_private(front)->bo);
 		info->scanout[0].name = info->front->name;
+		assert(info->scanout[0].bo->scanout);
 
 		sna_dri_add_frame_event(draw, info);
 		sna_dri_reference_buffer(front);
@@ -1952,6 +2015,7 @@ out:
 
 	info->scanout[0].bo = ref(get_private(front)->bo);
 	info->scanout[0].name = info->front->name;
+	assert(info->scanout[0].bo->scanout);
 
 	sna_dri_add_frame_event(draw, info);
 	sna_dri_reference_buffer(front);
@@ -2045,9 +2109,7 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		      DRI2BufferPtr back, CARD64 *target_msc, CARD64 divisor,
 		      CARD64 remainder, DRI2SwapEventPtr func, void *data)
 {
-	ScreenPtr screen = draw->pScreen;
-	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
-	struct sna *sna = to_sna(scrn);
+	struct sna *sna = to_sna_from_drawable(draw);
 	drmVBlank vbl;
 	int pipe;
 	struct sna_dri_frame_event *info = NULL;
@@ -2066,11 +2128,25 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	divisor &= 0xffffffff;
 	remainder &= 0xffffffff;
 
+	assert(get_private(front)->refcnt);
+	assert(get_private(back)->refcnt);
+
+	assert(get_private(front)->bo->refcnt);
+	assert(get_private(front)->bo->flush);
+
+	assert(get_private(back)->bo->refcnt);
+	assert(get_private(back)->bo->flush);
+
+	if (get_private(front)->pixmap != get_drawable_pixmap(draw))
+		goto skip;
+
+	assert(sna_pixmap_from_drawable(draw)->flush);
+
 	/* Drawable not displayed... just complete the swap */
 	pipe = sna_dri_get_pipe(draw);
 	if (pipe == -1) {
 		DBG(("%s: off-screen, immediate update\n", __FUNCTION__));
-		goto blit_fallback;
+		goto blit;
 	}
 
 	if (can_flip(sna, draw, front, back) &&
@@ -2083,7 +2159,7 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 
 	info = calloc(1, sizeof(struct sna_dri_frame_event));
 	if (!info)
-		goto blit_fallback;
+		goto blit;
 
 	info->draw = draw;
 	info->client = client;
@@ -2139,7 +2215,7 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		vbl.request.sequence = *target_msc;
 		vbl.request.signal = (unsigned long)info;
 		if (sna_wait_vblank(sna, &vbl))
-			goto blit_fallback;
+			goto blit;
 
 		return TRUE;
 	}
@@ -2179,11 +2255,11 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	vbl.request.sequence -= 1;
 	vbl.request.signal = (unsigned long)info;
 	if (sna_wait_vblank(sna, &vbl))
-		goto blit_fallback;
+		goto blit;
 
 	return TRUE;
 
-blit_fallback:
+blit:
 	pipe = DRI2_BLIT_COMPLETE;
 	if (can_exchange(sna, draw, front, back)) {
 		DBG(("%s -- xchg\n", __FUNCTION__));
@@ -2198,6 +2274,7 @@ blit_fallback:
 	}
 	if (info)
 		sna_dri_frame_event_info_free(sna, draw, info);
+skip:
 	DRI2SwapComplete(client, draw, 0, 0, 0, pipe, func, data);
 	*target_msc = 0; /* offscreen, so zero out target vblank count */
 	return TRUE;

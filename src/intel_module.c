@@ -419,6 +419,15 @@ static Bool has_kernel_mode_setting(const struct pci_device *dev)
 			if (drmIoctl(fd, DRM_IOCTL_I915_GETPARAM, &gp))
 				ret = FALSE;
 		}
+		if (ret) {
+			struct drm_mode_card_res res;
+
+			memset(&res, 0, sizeof(res));
+			if (drmIoctl(fd, DRM_IOCTL_MODE_GETRESOURCES, &res) == 0)
+				ret = res.count_crtcs != 0;
+			else
+				ret = FALSE;
+		}
 		close(fd);
 	}
 
