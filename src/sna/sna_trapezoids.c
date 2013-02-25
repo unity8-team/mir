@@ -1228,7 +1228,7 @@ tor_blt_empty(struct sna *sna,
 	span(sna, op, clip, &box, 0);
 }
 
-static void
+flatten static void
 tor_render(struct sna *sna,
 	   struct tor *converter,
 	   struct sna_composite_spans_op *op,
@@ -2213,7 +2213,7 @@ mono_step_edges(struct mono *c, int count)
 	}
 }
 
-static void
+flatten static void
 mono_render(struct mono *mono)
 {
 	struct mono_polygon *polygon = &mono->polygon;
