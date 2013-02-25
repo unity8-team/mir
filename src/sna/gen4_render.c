@@ -642,6 +642,8 @@ inline static int gen4_get_rectangles(struct sna *sna,
 {
 	int rem;
 
+	assert(want);
+
 start:
 	rem = vertex_space(sna);
 	if (unlikely(rem < op->floats_per_rect)) {
@@ -656,6 +658,8 @@ start:
 		     !gen4_rectangle_begin(sna, op)))
 		goto flush;
 
+	assert(op->floats_per_rect >= vertex_space(sna));
+	assert(rem <= vertex_space(sna));
 	if (want > 1 && want * op->floats_per_rect > rem)
 		want = rem / op->floats_per_rect;
 
@@ -2034,6 +2038,7 @@ gen4_render_composite_spans_boxes__thread(struct sna *sna,
 	     __FUNCTION__, nbox,
 	     op->base.src.offset[0], op->base.src.offset[1],
 	     op->base.dst.x, op->base.dst.y));
+	assert(nbox);
 
 	sna_vertex_lock(&sna->render);
 	do {

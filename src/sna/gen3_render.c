@@ -1977,6 +1977,7 @@ inline static int gen3_get_rectangles(struct sna *sna,
 	DBG(("%s: want=%d, rem=%d\n",
 	     __FUNCTION__, want*op->floats_per_rect, vertex_space(sna)));
 
+	assert(want);
 	assert(sna->render.vertex_index * op->floats_per_vertex == sna->render.vertex_used);
 
 start:
@@ -1993,6 +1994,8 @@ start:
 		     !gen3_rectangle_begin(sna, op)))
 		goto flush;
 
+	assert(op->floats_per_rect >= vertex_space(sna));
+	assert(rem <= vertex_space(sna));
 	if (want > 1 && want * op->floats_per_rect > rem)
 		want = rem / op->floats_per_rect;
 	sna->render.vertex_index += 3*want;

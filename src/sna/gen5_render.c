@@ -628,6 +628,8 @@ inline static int gen5_get_rectangles(struct sna *sna,
 {
 	int rem;
 
+	assert(want);
+
 start:
 	rem = vertex_space(sna);
 	if (unlikely(rem < op->floats_per_rect)) {
@@ -642,6 +644,8 @@ start:
 		     !gen5_rectangle_begin(sna, op)))
 		goto flush;
 
+	assert(op->floats_per_rect >= vertex_space(sna));
+	assert(rem <= vertex_space(sna));
 	if (want > 1 && want * op->floats_per_rect > rem)
 		want = rem / op->floats_per_rect;
 
