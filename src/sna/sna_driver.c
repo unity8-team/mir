@@ -487,6 +487,8 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 
 		sna->info = (void *)((uintptr_t)scrn->driverPrivate & ~1);
 		scrn->driverPrivate = sna;
+
+		sna->cpu_features = sna_cpu_detect();
 	}
 	sna = to_sna(scrn);
 	sna->scrn = scrn;

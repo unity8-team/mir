@@ -207,6 +207,18 @@ struct sna {
 #define SNA_TEAR_FREE		0x10
 #define SNA_FORCE_SHADOW	0x20
 
+	unsigned cpu_features;
+#define MMX 0x1
+#define SSE 0x2
+#define SSE2 0x4
+#define SSE3 0x8
+#define SSSE3 0x10
+#define SSE4a 0x20
+#define SSE4_1 0x40
+#define SSE4_2 0x80
+#define AVX 0x100
+#define AVX2 0x200
+
 	unsigned watch_flush;
 
 	struct timeval timer_tv;
@@ -854,6 +866,8 @@ inline static bool is_clipped(const RegionRec *r,
 		r->extents.x2 - r->extents.x1 != d->width ||
 		r->extents.y2 - r->extents.y1 != d->height);
 }
+
+unsigned sna_cpu_detect(void);
 
 void sna_threads_init(void);
 int sna_use_threads (int width, int height, int threshold);

@@ -1371,7 +1371,7 @@ static bool
 sna_pixmap_create_mappable_gpu(PixmapPtr pixmap)
 {
 	struct sna *sna = to_sna_from_pixmap(pixmap);
-	struct sna_pixmap *priv = sna_pixmap(pixmap);;
+	struct sna_pixmap *priv = sna_pixmap(pixmap);
 	unsigned create;
 
 	if (wedged(sna))
