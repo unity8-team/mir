@@ -2272,7 +2272,7 @@ gen6_render_composite(struct sna *sna,
 							    tmp->mask.bo != NULL,
 							    tmp->has_component_alpha,
 							    tmp->is_affine),
-			       gen4_choose_composite_emitter(tmp));
+			       gen4_choose_composite_emitter(sna, tmp));
 
 	tmp->blt   = gen6_render_composite_blt;
 	tmp->box   = gen6_render_composite_box;
@@ -2508,7 +2508,7 @@ gen6_render_composite_spans(struct sna *sna,
 					      SAMPLER_EXTEND_PAD),
 			       gen6_get_blend(tmp->base.op, false, tmp->base.dst.format),
 			       GEN6_WM_KERNEL_OPACITY | !tmp->base.is_affine,
-			       gen4_choose_spans_emitter(tmp));
+			       gen4_choose_spans_emitter(sna, tmp));
 
 	tmp->box   = gen6_render_composite_spans_box;
 	tmp->boxes = gen6_render_composite_spans_boxes;

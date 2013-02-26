@@ -1924,7 +1924,7 @@ gen5_render_composite(struct sna *sna,
 					     tmp->mask.bo != NULL,
 					     tmp->has_component_alpha,
 					     tmp->is_affine);
-	tmp->u.gen5.ve_id = gen4_choose_composite_emitter(tmp);
+	tmp->u.gen5.ve_id = gen4_choose_composite_emitter(sna, tmp);
 
 	tmp->blt   = gen5_render_composite_blt;
 	tmp->box   = gen5_render_composite_box;
@@ -2152,7 +2152,7 @@ gen5_render_composite_spans(struct sna *sna,
 	tmp->base.has_component_alpha = false;
 	tmp->base.need_magic_ca_pass = false;
 
-	tmp->base.u.gen5.ve_id = gen4_choose_spans_emitter(tmp);
+	tmp->base.u.gen5.ve_id = gen4_choose_spans_emitter(sna, tmp);
 	tmp->base.u.gen5.wm_kernel = WM_KERNEL_OPACITY | !tmp->base.is_affine;
 
 	tmp->box   = gen5_render_composite_spans_box;
