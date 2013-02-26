@@ -1997,8 +1997,8 @@ start:
 			goto start;
 	}
 
-	assert(op->floats_per_rect >= vertex_space(sna));
 	assert(rem <= vertex_space(sna));
+	assert(op->floats_per_rect <= rem);
 	if (want > 1 && want * op->floats_per_rect > rem)
 		want = rem / op->floats_per_rect;
 	sna->render.vertex_index += 3*want;
