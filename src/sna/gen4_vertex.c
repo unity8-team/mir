@@ -270,7 +270,7 @@ emit_texcoord(struct sna *sna,
 	}
 }
 
-inline static void
+sse2 inline static void
 emit_vertex(struct sna *sna,
 	    const struct sna_composite_op *op,
 	    int16_t srcX, int16_t srcY,
@@ -281,7 +281,7 @@ emit_vertex(struct sna *sna,
 	emit_texcoord(sna, &op->src, srcX, srcY);
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_primitive(struct sna *sna,
 	       const struct sna_composite_op *op,
 	       const struct sna_composite_rectangles *r)
@@ -300,7 +300,7 @@ emit_primitive(struct sna *sna,
 		    r->dst.x,  r->dst.y);
 }
 
-inline static void
+sse2 inline static void
 emit_vertex_mask(struct sna *sna,
 		 const struct sna_composite_op *op,
 		 int16_t srcX, int16_t srcY,
@@ -312,7 +312,7 @@ emit_vertex_mask(struct sna *sna,
 	emit_texcoord(sna, &op->mask, mskX, mskY);
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_primitive_mask(struct sna *sna,
 		    const struct sna_composite_op *op,
 		    const struct sna_composite_rectangles *r)
@@ -331,7 +331,7 @@ emit_primitive_mask(struct sna *sna,
 			 r->dst.x,  r->dst.y);
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_primitive_solid(struct sna *sna,
 		     const struct sna_composite_op *op,
 		     const struct sna_composite_rectangles *r)
@@ -359,7 +359,7 @@ emit_primitive_solid(struct sna *sna,
 	v[5] = v[3] = v[1] = .5;
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_boxes_solid(const struct sna_composite_op *op,
 		 const BoxRec *box, int nbox,
 		 float *v)
@@ -384,7 +384,7 @@ emit_boxes_solid(const struct sna_composite_op *op,
 	} while (--nbox);
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_primitive_linear(struct sna *sna,
 		      const struct sna_composite_op *op,
 		      const struct sna_composite_rectangles *r)
@@ -474,7 +474,7 @@ emit_primitive_linear__avx2(struct sna *sna,
 	v[5] = compute_linear(&op->src, r->src.x, r->src.y);
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_boxes_linear(const struct sna_composite_op *op,
 		  const BoxRec *box, int nbox,
 		  float *v)
@@ -558,7 +558,7 @@ emit_boxes_linear__avx2(const struct sna_composite_op *op,
 	} while (--nbox);
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_primitive_identity_source(struct sna *sna,
 			       const struct sna_composite_op *op,
 			       const struct sna_composite_rectangles *r)
@@ -651,7 +651,7 @@ emit_primitive_identity_source__avx2(struct sna *sna,
 	v[5] = v[2] = v[8] + r->height * op->src.scale[1];
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_boxes_identity_source(const struct sna_composite_op *op,
 			   const BoxRec *box, int nbox,
 			   float *v)
@@ -741,7 +741,7 @@ emit_boxes_identity_source__avx2(const struct sna_composite_op *op,
 	} while (--nbox);
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_primitive_simple_source(struct sna *sna,
 			     const struct sna_composite_op *op,
 			     const struct sna_composite_rectangles *r)
@@ -861,7 +861,7 @@ emit_primitive_simple_source__avx2(struct sna *sna,
 	v[8] = ((r->src.y + ty) * yy + y0) * sy;
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_boxes_simple_source(const struct sna_composite_op *op,
 			 const BoxRec *box, int nbox,
 			 float *v)
@@ -978,7 +978,7 @@ emit_boxes_simple_source__avx2(const struct sna_composite_op *op,
 	} while (--nbox);
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_primitive_affine_source(struct sna *sna,
 			     const struct sna_composite_op *op,
 			     const struct sna_composite_rectangles *r)
@@ -1017,7 +1017,7 @@ emit_primitive_affine_source(struct sna *sna,
 				    &v[7], &v[8]);
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_boxes_affine_source(const struct sna_composite_op *op,
 			 const BoxRec *box, int nbox,
 			 float *v)
@@ -1054,7 +1054,7 @@ emit_boxes_affine_source(const struct sna_composite_op *op,
 	} while (--nbox);
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_primitive_identity_mask(struct sna *sna,
 			     const struct sna_composite_op *op,
 			     const struct sna_composite_rectangles *r)
@@ -1097,7 +1097,7 @@ emit_primitive_identity_mask(struct sna *sna,
 	v[9] = v[5] = v[1] = .5;
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_boxes_identity_mask(const struct sna_composite_op *op,
 			 const BoxRec *box, int nbox,
 			 float *v)
@@ -1131,7 +1131,7 @@ emit_boxes_identity_mask(const struct sna_composite_op *op,
 	} while (--nbox);
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_primitive_linear_identity_mask(struct sna *sna,
 				    const struct sna_composite_op *op,
 				    const struct sna_composite_rectangles *r)
@@ -1176,7 +1176,7 @@ emit_primitive_linear_identity_mask(struct sna *sna,
 	v[9] = compute_linear(&op->src, r->src.x, r->src.y);
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_boxes_linear_identity_mask(const struct sna_composite_op *op,
 				const BoxRec *box, int nbox,
 				float *v)
@@ -1213,7 +1213,7 @@ emit_boxes_linear_identity_mask(const struct sna_composite_op *op,
 	} while (--nbox);
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_primitive_identity_source_mask(struct sna *sna,
 				    const struct sna_composite_op *op,
 				    const struct sna_composite_rectangles *r)
@@ -1262,7 +1262,7 @@ emit_primitive_identity_source_mask(struct sna *sna,
 	v[14] = msk_y * op->mask.scale[1];
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_primitive_simple_source_identity(struct sna *sna,
 				      const struct sna_composite_op *op,
 				      const struct sna_composite_rectangles *r)
@@ -1313,7 +1313,7 @@ emit_primitive_simple_source_identity(struct sna *sna,
 	v[14] = msk_y * op->mask.scale[1];
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_primitive_affine_source_identity(struct sna *sna,
 				      const struct sna_composite_op *op,
 				      const struct sna_composite_rectangles *r)
@@ -1526,7 +1526,7 @@ emit_span_vertex(struct sna *sna,
 	emit_texcoord(sna, &op->base.src, x, y);
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_composite_spans_primitive(struct sna *sna,
 			       const struct sna_composite_spans_op *op,
 			       const BoxRec *box,
@@ -1542,7 +1542,7 @@ emit_composite_spans_primitive(struct sna *sna,
 	OUT_VERTEX_F(opacity);
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_span_solid(struct sna *sna,
 		 const struct sna_composite_spans_op *op,
 		 const BoxRec *box,
@@ -1573,7 +1573,7 @@ emit_span_solid(struct sna *sna,
 	v[8] = v[5] = v[2] = opacity;
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_span_boxes_solid(const struct sna_composite_spans_op *op,
 		      const struct sna_opacity_box *b,
 		      int nbox, float *v)
@@ -1602,7 +1602,7 @@ emit_span_boxes_solid(const struct sna_composite_spans_op *op,
 	} while (--nbox);
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_span_identity(struct sna *sna,
 		    const struct sna_composite_spans_op *op,
 		    const BoxRec *box,
@@ -1722,7 +1722,7 @@ emit_span_identity__avx2(struct sna *sna,
 	v[11] = v[7] = v[3] = opacity;
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_span_boxes_identity(const struct sna_composite_spans_op *op,
 			 const struct sna_opacity_box *b, int nbox,
 			 float *v)
@@ -1833,7 +1833,7 @@ emit_span_boxes_identity__avx2(const struct sna_composite_spans_op *op,
 	} while (--nbox);
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_span_simple(struct sna *sna,
 		 const struct sna_composite_spans_op *op,
 		 const BoxRec *box,
@@ -1965,7 +1965,7 @@ emit_span_simple__avx2(struct sna *sna,
 	v[11] = v[7] = v[3] = opacity;
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_span_boxes_simple(const struct sna_composite_spans_op *op,
 		       const struct sna_opacity_box *b, int nbox,
 		       float *v)
@@ -2088,7 +2088,7 @@ emit_span_boxes_simple__avx2(const struct sna_composite_spans_op *op,
 	} while (--nbox);
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_span_affine(struct sna *sna,
 		  const struct sna_composite_spans_op *op,
 		  const BoxRec *box,
@@ -2223,7 +2223,7 @@ emit_span_affine__avx2(struct sna *sna,
 	v[11] = v[7] = v[3] = opacity;
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_span_boxes_affine(const struct sna_composite_spans_op *op,
 		       const struct sna_opacity_box *b, int nbox,
 		       float *v)
@@ -2352,7 +2352,7 @@ emit_span_boxes_affine__avx2(const struct sna_composite_spans_op *op,
 	} while (--nbox);
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_span_linear(struct sna *sna,
 		 const struct sna_composite_spans_op *op,
 		 const BoxRec *box,
@@ -2448,7 +2448,7 @@ emit_span_linear__avx2(struct sna *sna,
 	v[8] = v[5] = v[2] = opacity;
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_span_boxes_linear(const struct sna_composite_spans_op *op,
 		       const struct sna_opacity_box *b, int nbox,
 		       float *v)
