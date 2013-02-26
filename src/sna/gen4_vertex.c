@@ -981,6 +981,7 @@ emit_composite_texcoord_affine(struct sna *sna,
 }
 
 /* SSE4_2 */
+#if defined(sse4_2)
 
 sse4_2 fastcall static void
 emit_primitive_linear__sse4_2(struct sna *sna,
@@ -1179,6 +1180,8 @@ emit_boxes_simple_source__sse4_2(const struct sna_composite_op *op,
 		box++;
 	} while (--nbox);
 }
+
+#endif
 
 /* AVX2 */
 #if defined(avx2)
@@ -1468,10 +1471,13 @@ unsigned gen4_choose_composite_emitter(struct sna *sna, struct sna_composite_op 
 				tmp->emit_boxes = emit_boxes_linear__avx2;
 			} else
 #endif
+#if defined(sse4_2)
 			if (sna->cpu_features & SSE4_2) {
 				tmp->prim_emit = emit_primitive_linear__sse4_2;
 				tmp->emit_boxes = emit_boxes_linear__sse4_2;
-			} else {
+			} else
+#endif
+			{
 				tmp->prim_emit = emit_primitive_linear;
 				tmp->emit_boxes = emit_boxes_linear;
 			}
@@ -1485,10 +1491,13 @@ unsigned gen4_choose_composite_emitter(struct sna *sna, struct sna_composite_op 
 				tmp->emit_boxes = emit_boxes_identity_source__avx2;
 			} else
 #endif
+#if defined(sse4_2)
 			if (sna->cpu_features & SSE4_2) {
 				tmp->prim_emit = emit_primitive_identity_source__sse4_2;
 				tmp->emit_boxes = emit_boxes_identity_source__sse4_2;
-			} else {
+			} else
+#endif
+			{
 				tmp->prim_emit = emit_primitive_identity_source;
 				tmp->emit_boxes = emit_boxes_identity_source;
 			}
@@ -1505,10 +1514,13 @@ unsigned gen4_choose_composite_emitter(struct sna *sna, struct sna_composite_op 
 					tmp->emit_boxes = emit_boxes_simple_source__avx2;
 				} else
 #endif
+#if defined(sse4_2)
 				if (sna->cpu_features & SSE4_2) {
 					tmp->prim_emit = emit_primitive_simple_source__sse4_2;
 					tmp->emit_boxes = emit_boxes_simple_source__sse4_2;
-				} else {
+				} else
+#endif
+				{
 					tmp->prim_emit = emit_primitive_simple_source;
 					tmp->emit_boxes = emit_boxes_simple_source;
 				}
@@ -1930,6 +1942,7 @@ emit_span_boxes_linear(const struct sna_composite_spans_op *op,
 }
 
 /* SSE4_2 */
+#if defined(sse4_2)
 
 sse4_2 fastcall static void
 emit_span_identity__sse4_2(struct sna *sna,
@@ -2242,6 +2255,8 @@ emit_span_boxes_linear__sse4_2(const struct sna_composite_spans_op *op,
 		b++;
 	} while (--nbox);
 }
+
+#endif
 
 /* AVX2 */
 #if defined(avx2)
@@ -2584,10 +2599,13 @@ unsigned gen4_choose_spans_emitter(struct sna *sna,
 			tmp->emit_boxes = emit_span_boxes_linear__avx2;
 		} else
 #endif
+#if defined(sse4_2)
 		if (sna->cpu_features & SSE4_2) {
 			tmp->prim_emit = emit_span_linear__sse4_2;
 			tmp->emit_boxes = emit_span_boxes_linear__sse4_2;
-		} else {
+		} else
+#endif
+		{
 			tmp->prim_emit = emit_span_linear;
 			tmp->emit_boxes = emit_span_boxes_linear;
 		}
@@ -2600,10 +2618,13 @@ unsigned gen4_choose_spans_emitter(struct sna *sna,
 			tmp->emit_boxes = emit_span_boxes_identity__avx2;
 		} else
 #endif
+#if defined(sse4_2)
 		if (sna->cpu_features & SSE4_2) {
 			tmp->prim_emit = emit_span_identity__sse4_2;
 			tmp->emit_boxes = emit_span_boxes_identity__sse4_2;
-		} else {
+		} else
+#endif
+		{
 			tmp->prim_emit = emit_span_identity;
 			tmp->emit_boxes = emit_span_boxes_identity;
 		}
@@ -2619,10 +2640,13 @@ unsigned gen4_choose_spans_emitter(struct sna *sna,
 				tmp->emit_boxes = emit_span_boxes_simple__avx2;
 			} else
 #endif
+#if defined(sse4_2)
 			if (sna->cpu_features & SSE4_2) {
 				tmp->prim_emit = emit_span_simple__sse4_2;
 				tmp->emit_boxes = emit_span_boxes_simple__sse4_2;
-			} else {
+			} else
+#endif
+			{
 				tmp->prim_emit = emit_span_simple;
 				tmp->emit_boxes = emit_span_boxes_simple;
 			}
@@ -2633,10 +2657,13 @@ unsigned gen4_choose_spans_emitter(struct sna *sna,
 				tmp->emit_boxes = emit_span_boxes_affine__avx2;
 			} else
 #endif
+#if defined(sse4_2)
 			if (sna->cpu_features & SSE4_2) {
 				tmp->prim_emit = emit_span_affine__sse4_2;
 				tmp->emit_boxes = emit_span_boxes_affine__sse4_2;
-			} else {
+			} else
+#endif
+			{
 				tmp->prim_emit = emit_span_affine;
 				tmp->emit_boxes = emit_span_boxes_affine;
 			}
