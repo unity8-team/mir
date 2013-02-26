@@ -3625,7 +3625,7 @@ gen3_emit_composite_spans_primitive_identity_gradient__boxes(const struct sna_co
 	} while (--nbox);
 }
 
-#ifndef __x86_64__
+#if defined(sse2) && !defined(__x86_64__)
 sse2 fastcall static void
 gen3_emit_composite_spans_primitive_constant__sse2(struct sna *sna,
 						   const struct sna_composite_spans_op *op,
@@ -4380,7 +4380,7 @@ gen3_render_composite_spans(struct sna *sna,
 	case SHADER_WHITE:
 	case SHADER_CONSTANT:
 		if (no_offset) {
-#ifndef __x86_64__
+#if defined(sse2) && !defined(__x86_64__)
 			if (sna->cpu_features & SSE2) {
 				tmp->box = gen3_render_composite_spans_constant_box__sse2;
 				tmp->thread_boxes = gen3_render_composite_spans_constant_thread__sse2__boxes;
@@ -4395,7 +4395,7 @@ gen3_render_composite_spans(struct sna *sna,
 				tmp->emit_boxes = gen3_emit_composite_spans_primitive_constant_no_offset__boxes;
 			}
 		} else {
-#ifndef __x86_64__
+#if defined(sse2) && !defined(__x86_64__)
 			if (sna->cpu_features & SSE2) {
 				tmp->prim_emit = gen3_emit_composite_spans_primitive_constant__sse2;
 				tmp->emit_boxes = gen3_emit_composite_spans_primitive_constant__sse2__boxes;
@@ -4410,11 +4410,11 @@ gen3_render_composite_spans(struct sna *sna,
 	case SHADER_LINEAR:
 	case SHADER_RADIAL:
 		if (tmp->base.src.transform == NULL) {
-#ifndef __x86_64__
+#if defined(sse2) && !defined(__x86_64__)
 			if (sna->cpu_features & SSE2) {
 				tmp->prim_emit = gen3_emit_composite_spans_primitive_identity_gradient__sse2;
 				tmp->emit_boxes = gen3_emit_composite_spans_primitive_identity_gradient__sse2__boxes;
-			} else 
+			} else
 #endif
 			{
 				tmp->prim_emit = gen3_emit_composite_spans_primitive_identity_gradient;
@@ -4422,7 +4422,7 @@ gen3_render_composite_spans(struct sna *sna,
 			}
 		} else if (tmp->base.src.is_affine) {
 			tmp->base.src.scale[1] = tmp->base.src.scale[0] = 1. / tmp->base.src.transform->matrix[2][2];
-#ifndef __x86_64__
+#if defined(sse2) && !defined(__x86_64__)
 			if (sna->cpu_features & SSE2) {
 				tmp->prim_emit = gen3_emit_composite_spans_primitive_affine_gradient__sse2;
 				tmp->emit_boxes = gen3_emit_composite_spans_primitive_affine_gradient__sse2__boxes;
@@ -4436,7 +4436,7 @@ gen3_render_composite_spans(struct sna *sna,
 		break;
 	case SHADER_TEXTURE:
 		if (tmp->base.src.transform == NULL) {
-#ifndef __x86_64__
+#if defined(sse2) && !defined(__x86_64__)
 			if (sna->cpu_features & SSE2) {
 				tmp->prim_emit = gen3_emit_composite_spans_primitive_identity_source__sse2;
 				tmp->emit_boxes = gen3_emit_composite_spans_primitive_identity_source__sse2__boxes;
@@ -4449,7 +4449,7 @@ gen3_render_composite_spans(struct sna *sna,
 		} else if (tmp->base.src.is_affine) {
 			tmp->base.src.scale[0] /= tmp->base.src.transform->matrix[2][2];
 			tmp->base.src.scale[1] /= tmp->base.src.transform->matrix[2][2];
-#ifndef __x86_64__
+#if defined(sse2) && !defined(__x86_64__)
 			if (sna->cpu_features & SSE2) {
 				tmp->prim_emit = gen3_emit_composite_spans_primitive_affine_source__sse2;
 				tmp->emit_boxes = gen3_emit_composite_spans_primitive_affine_source__sse2__boxes;

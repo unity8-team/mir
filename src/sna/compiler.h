@@ -55,8 +55,6 @@
 #if defined(__GNUC__) && (__GNUC__ >= 4) && (__GNUC_MINOR__ >= 4)
 #define sse2 __attribute__((target("sse2,fpmath=sse+387")))
 #define sse4_2 __attribute__((target("sse4.2,sse2,fpmath=sse+387")))
-#else
-#define sse2
 #endif
 
 #if defined(__GNUC__) && (__GNUC__ >= 4) && (__GNUC_MINOR__ >= 7)

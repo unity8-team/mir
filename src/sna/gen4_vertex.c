@@ -34,6 +34,10 @@
 #include "sna_render_inline.h"
 #include "gen4_vertex.h"
 
+#ifndef sse2
+#define sse2
+#endif
+
 void gen4_vertex_flush(struct sna *sna)
 {
 	DBG(("%s[%x] = %d\n", __FUNCTION__,
