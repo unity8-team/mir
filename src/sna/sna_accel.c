@@ -2438,22 +2438,26 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 	}
 
 	if (priv->gpu_bo == NULL) {
-		unsigned create, tiling;
-
 		assert(priv->gpu_damage == NULL);
 
-		create = CREATE_INACTIVE;
-		if (pixmap->usage_hint == SNA_CREATE_FB)
-			create |= CREATE_EXACT | CREATE_SCANOUT;
+		if (flags & __MOVE_FORCE ||
+		    priv->create & KGEM_CAN_CREATE_GPU) {
+			unsigned create, tiling;
 
-		tiling = (flags & MOVE_SOURCE_HINT) ? I915_TILING_Y : DEFAULT_TILING;
-		tiling = sna_pixmap_choose_tiling(pixmap, tiling);
+			create = CREATE_INACTIVE;
+			if (pixmap->usage_hint == SNA_CREATE_FB)
+				create |= CREATE_EXACT | CREATE_SCANOUT;
 
-		priv->gpu_bo = kgem_create_2d(&sna->kgem,
-					      pixmap->drawable.width,
-					      pixmap->drawable.height,
-					      pixmap->drawable.bitsPerPixel,
-					      tiling, create);
+			tiling = (flags & MOVE_SOURCE_HINT) ? I915_TILING_Y : DEFAULT_TILING;
+			tiling = sna_pixmap_choose_tiling(pixmap, tiling);
+
+			priv->gpu_bo = kgem_create_2d(&sna->kgem,
+						      pixmap->drawable.width,
+						      pixmap->drawable.height,
+						      pixmap->drawable.bitsPerPixel,
+						      tiling, create);
+		}
+
 		if (priv->gpu_bo == NULL)
 			return false;
 
@@ -2516,7 +2520,6 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 		}
 
 		sna_damage_destroy(&priv->cpu_damage);
-		list_del(&priv->list);
 	} else if (DAMAGE_IS_ALL(priv->cpu_damage) ||
 		   sna_damage_contains_box__no_reduce(priv->cpu_damage, box)) {
 		bool ok = false;
@@ -2594,6 +2597,8 @@ done:
 				       pixmap->drawable.height);
 		}
 	}
+	if (priv->cpu_damage == NULL && priv->flush)
+		list_del(&priv->list);
 
 	assert(!priv->gpu_bo->proxy || (flags & MOVE_WRITE) == 0);
 	return sna_pixmap_mark_active(sna, priv) != NULL;
@@ -3115,7 +3120,6 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 		if (priv->gpu_bo == NULL) {
 			DBG(("%s: not creating GPU bo\n", __FUNCTION__));
 			assert(priv->gpu_damage == NULL);
-			assert(list_is_empty(&priv->list));
 			return NULL;
 		}
 
@@ -3203,8 +3207,7 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 	priv->cpu_damage = NULL;
 
 	/* For large bo, try to keep only a single copy around */
-	if (priv->create & KGEM_CAN_CREATE_LARGE ||
-	    flags & MOVE_SOURCE_HINT) {
+	if (priv->create & KGEM_CAN_CREATE_LARGE || flags & MOVE_SOURCE_HINT) {
 		DBG(("%s: disposing of system copy for large/source\n",
 		     __FUNCTION__));
 		assert(!priv->shm);
