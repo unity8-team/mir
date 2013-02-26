@@ -91,6 +91,10 @@ char *sna_cpu_features_to_string(unsigned features, char *line)
 {
 	char *ret = line;
 
+#ifdef __x86_64__
+	line += sprintf (line, ", x86-64");
+#endif
+
 	if (features & SSE2)
 		line += sprintf (line, ", sse2");
 	if (features & SSE3)
