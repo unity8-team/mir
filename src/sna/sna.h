@@ -213,11 +213,10 @@ struct sna {
 #define SSE2 0x4
 #define SSE3 0x8
 #define SSSE3 0x10
-#define SSE4a 0x20
-#define SSE4_1 0x40
-#define SSE4_2 0x80
-#define AVX 0x100
-#define AVX2 0x200
+#define SSE4_1 0x20
+#define SSE4_2 0x40
+#define AVX 0x80
+#define AVX2 0x100
 
 	unsigned watch_flush;
 
