@@ -52,14 +52,16 @@
 #define flatten
 #endif
 
-#if defined(__GNUC__) && (__GNUC__ >= 4) /* 4.4 */
+#if defined(__GNUC__) && (__GNUC__ >= 4) && (__GNUC_MINOR__ >= 4)
 #define sse2 __attribute__((target("sse2,fpmath=sse+387")))
 #define sse4_2 __attribute__((target("sse4.2,sse2,fpmath=sse+387")))
-#define avx2 __attribute__((target("avx2,sse4.2,sse2,fpmath=sse+387")))
 #else
 #define sse2
 #define sse4_2
-#define avx2
+#endif
+
+#if defined(__GNUC__) && (__GNUC__ >= 4) && (__GNUC_MINOR__ >= 7)
+#define avx2 __attribute__((target("avx2,sse4.2,sse2,fpmath=sse+387")))
 #endif
 
 #ifdef HAVE_VALGRIND

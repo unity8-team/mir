@@ -1181,6 +1181,7 @@ emit_boxes_simple_source__sse4_2(const struct sna_composite_op *op,
 }
 
 /* AVX2 */
+#if defined(avx2)
 
 avx2 fastcall static void
 emit_primitive_linear__avx2(struct sna *sna,
@@ -1380,6 +1381,8 @@ emit_boxes_simple_source__avx2(const struct sna_composite_op *op,
 	} while (--nbox);
 }
 
+#endif
+
 unsigned gen4_choose_composite_emitter(struct sna *sna, struct sna_composite_op *tmp)
 {
 	unsigned vb;
@@ -1459,10 +1462,13 @@ unsigned gen4_choose_composite_emitter(struct sna *sna, struct sna_composite_op 
 			vb = 1;
 		} else if (tmp->src.is_linear) {
 			DBG(("%s: linear, no mask\n", __FUNCTION__));
+#if defined(avx2)
 			if (sna->cpu_features & AVX2) {
 				tmp->prim_emit = emit_primitive_linear__avx2;
 				tmp->emit_boxes = emit_boxes_linear__avx2;
-			} else  if (sna->cpu_features & SSE4_2) {
+			} else
+#endif
+			if (sna->cpu_features & SSE4_2) {
 				tmp->prim_emit = emit_primitive_linear__sse4_2;
 				tmp->emit_boxes = emit_boxes_linear__sse4_2;
 			} else {
@@ -1473,10 +1479,13 @@ unsigned gen4_choose_composite_emitter(struct sna *sna, struct sna_composite_op 
 			vb = 1;
 		} else if (tmp->src.transform == NULL) {
 			DBG(("%s: identity src, no mask\n", __FUNCTION__));
+#if defined(avx2)
 			if (sna->cpu_features & AVX2) {
 				tmp->prim_emit = emit_primitive_identity_source__avx2;
 				tmp->emit_boxes = emit_boxes_identity_source__avx2;
-			} else if (sna->cpu_features & SSE4_2) {
+			} else
+#endif
+			if (sna->cpu_features & SSE4_2) {
 				tmp->prim_emit = emit_primitive_identity_source__sse4_2;
 				tmp->emit_boxes = emit_boxes_identity_source__sse4_2;
 			} else {
@@ -1490,10 +1499,13 @@ unsigned gen4_choose_composite_emitter(struct sna *sna, struct sna_composite_op 
 			tmp->src.scale[1] /= tmp->src.transform->matrix[2][2];
 			if (!sna_affine_transform_is_rotation(tmp->src.transform)) {
 				DBG(("%s: simple src, no mask\n", __FUNCTION__));
+#if defined(avx2)
 				if (sna->cpu_features & AVX2) {
 					tmp->prim_emit = emit_primitive_simple_source__avx2;
 					tmp->emit_boxes = emit_boxes_simple_source__avx2;
-				} else if (sna->cpu_features & SSE4_2) {
+				} else
+#endif
+				if (sna->cpu_features & SSE4_2) {
 					tmp->prim_emit = emit_primitive_simple_source__sse4_2;
 					tmp->emit_boxes = emit_boxes_simple_source__sse4_2;
 				} else {
@@ -1917,46 +1929,6 @@ emit_span_boxes_linear(const struct sna_composite_spans_op *op,
 	} while (--nbox);
 }
 
-avx2 fastcall static void
-emit_span_identity__avx2(struct sna *sna,
-			 const struct sna_composite_spans_op *op,
-			 const BoxRec *box,
-			 float opacity)
-{
-	float *v;
-	union {
-		struct sna_coordinate p;
-		float f;
-	} dst;
-
-	float sx = op->base.src.scale[0];
-	float sy = op->base.src.scale[1];
-	int16_t tx = op->base.src.offset[0];
-	int16_t ty = op->base.src.offset[1];
-
-	assert(op->base.floats_per_rect == 12);
-	assert((sna->render.vertex_used % 4) == 0);
-	v = sna->render.vertices + sna->render.vertex_used;
-	sna->render.vertex_used += 3*4;
-	assert(sna->render.vertex_used <= sna->render.vertex_size);
-
-	dst.p.x = box->x2;
-	dst.p.y = box->y2;
-	v[0] = dst.f;
-	v[1] = (box->x2 + tx) * sx;
-	v[6] = v[2] = (box->y2 + ty) * sy;
-
-	dst.p.x = box->x1;
-	v[4] = dst.f;
-	v[9] = v[5] = (box->x1 + tx) * sx;
-
-	dst.p.y = box->y1;
-	v[8] = dst.f;
-	v[10] = (box->y1 + ty) * sy;
-
-	v[11] = v[7] = v[3] = opacity;
-}
-
 /* SSE4_2 */
 
 sse4_2 fastcall static void
@@ -2272,6 +2244,47 @@ emit_span_boxes_linear__sse4_2(const struct sna_composite_spans_op *op,
 }
 
 /* AVX2 */
+#if defined(avx2)
+
+avx2 fastcall static void
+emit_span_identity__avx2(struct sna *sna,
+			 const struct sna_composite_spans_op *op,
+			 const BoxRec *box,
+			 float opacity)
+{
+	float *v;
+	union {
+		struct sna_coordinate p;
+		float f;
+	} dst;
+
+	float sx = op->base.src.scale[0];
+	float sy = op->base.src.scale[1];
+	int16_t tx = op->base.src.offset[0];
+	int16_t ty = op->base.src.offset[1];
+
+	assert(op->base.floats_per_rect == 12);
+	assert((sna->render.vertex_used % 4) == 0);
+	v = sna->render.vertices + sna->render.vertex_used;
+	sna->render.vertex_used += 3*4;
+	assert(sna->render.vertex_used <= sna->render.vertex_size);
+
+	dst.p.x = box->x2;
+	dst.p.y = box->y2;
+	v[0] = dst.f;
+	v[1] = (box->x2 + tx) * sx;
+	v[6] = v[2] = (box->y2 + ty) * sy;
+
+	dst.p.x = box->x1;
+	v[4] = dst.f;
+	v[9] = v[5] = (box->x1 + tx) * sx;
+
+	dst.p.y = box->y1;
+	v[8] = dst.f;
+	v[10] = (box->y1 + ty) * sy;
+
+	v[11] = v[7] = v[3] = opacity;
+}
 
 avx2 fastcall static void
 emit_span_boxes_identity__avx2(const struct sna_composite_spans_op *op,
@@ -2544,6 +2557,7 @@ emit_span_boxes_linear__avx2(const struct sna_composite_spans_op *op,
 		b++;
 	} while (--nbox);
 }
+#endif
 
 inline static uint32_t
 gen4_choose_spans_vertex_buffer(const struct sna_composite_op *op)
@@ -2564,10 +2578,13 @@ unsigned gen4_choose_spans_emitter(struct sna *sna,
 		tmp->base.floats_per_vertex = 3;
 		vb = 1 << 2 | 1;
 	} else if (tmp->base.src.is_linear) {
+#if defined(avx2)
 		if (sna->cpu_features & AVX2) {
 			tmp->prim_emit = emit_span_linear__avx2;
 			tmp->emit_boxes = emit_span_boxes_linear__avx2;
-		} else if (sna->cpu_features & SSE4_2) {
+		} else
+#endif
+		if (sna->cpu_features & SSE4_2) {
 			tmp->prim_emit = emit_span_linear__sse4_2;
 			tmp->emit_boxes = emit_span_boxes_linear__sse4_2;
 		} else {
@@ -2577,10 +2594,13 @@ unsigned gen4_choose_spans_emitter(struct sna *sna,
 		tmp->base.floats_per_vertex = 3;
 		vb = 1 << 2 | 1;
 	} else if (tmp->base.src.transform == NULL) {
+#if defined(avx2)
 		if (sna->cpu_features & AVX2) {
 			tmp->prim_emit = emit_span_identity__avx2;
 			tmp->emit_boxes = emit_span_boxes_identity__avx2;
-		} else if (sna->cpu_features & SSE4_2) {
+		} else
+#endif
+		if (sna->cpu_features & SSE4_2) {
 			tmp->prim_emit = emit_span_identity__sse4_2;
 			tmp->emit_boxes = emit_span_boxes_identity__sse4_2;
 		} else {
@@ -2593,10 +2613,13 @@ unsigned gen4_choose_spans_emitter(struct sna *sna,
 		tmp->base.src.scale[0] /= tmp->base.src.transform->matrix[2][2];
 		tmp->base.src.scale[1] /= tmp->base.src.transform->matrix[2][2];
 		if (!sna_affine_transform_is_rotation(tmp->base.src.transform)) {
+#if defined(avx2)
 			if (sna->cpu_features & AVX2) {
 				tmp->prim_emit = emit_span_simple__avx2;
 				tmp->emit_boxes = emit_span_boxes_simple__avx2;
-			} else if (sna->cpu_features & SSE4_2) {
+			} else
+#endif
+			if (sna->cpu_features & SSE4_2) {
 				tmp->prim_emit = emit_span_simple__sse4_2;
 				tmp->emit_boxes = emit_span_boxes_simple__sse4_2;
 			} else {
@@ -2604,10 +2627,13 @@ unsigned gen4_choose_spans_emitter(struct sna *sna,
 				tmp->emit_boxes = emit_span_boxes_simple;
 			}
 		} else {
+#if defined(avx2)
 			if (sna->cpu_features & AVX2) {
 				tmp->prim_emit = emit_span_affine__avx2;
 				tmp->emit_boxes = emit_span_boxes_affine__avx2;
-			} else if (sna->cpu_features & SSE4_2) {
+			} else
+#endif
+			if (sna->cpu_features & SSE4_2) {
 				tmp->prim_emit = emit_span_affine__sse4_2;
 				tmp->emit_boxes = emit_span_boxes_affine__sse4_2;
 			} else {
