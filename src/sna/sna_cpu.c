@@ -31,7 +31,13 @@
 
 #include "sna.h"
 
+#if defined(__GNUC__) && (__GNUC__ >= 4) /* 4.4 */
+
 #include <cpuid.h>
+
+#ifndef bit_AVX2
+#define bit_AVX2 (1<<5)
+#endif
 
 unsigned sna_cpu_detect(void)
 {
@@ -74,3 +80,12 @@ unsigned sna_cpu_detect(void)
 
 	return features;
 }
+
+#else
+
+unsigned sna_cpu_detect(void)
+{
+	return 0;
+}
+
+#endif
