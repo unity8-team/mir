@@ -502,7 +502,7 @@ static void apply_damage_clipped_to_dst(struct sna_composite_op *op,
 	sna_damage_add_box(op->damage, &box);
 }
 
-static bool
+flatten static bool
 glyphs_to_dst(struct sna *sna,
 	      CARD8 op,
 	      PicturePtr src,
@@ -830,7 +830,7 @@ sna_glyph_get_image(GlyphPtr g, ScreenPtr s)
 	return image;
 }
 
-static bool
+flatten static bool
 glyphs_via_mask(struct sna *sna,
 		CARD8 op,
 		PicturePtr src,
@@ -1694,17 +1694,10 @@ sna_glyphs(CARD8 op,
 		goto fallback;
 	}
 
-	if (mask == NULL) {
-		if (glyphs_to_dst(sna, op,
-				  src, dst,
-				  src_x, src_y,
-				  nlist, list, glyphs))
-			return;
-	}
-
 	/* Try to discard the mask for non-overlapping glyphs */
-	if (mask && dst->pCompositeClip->data == NULL &&
-	    can_discard_mask(op, src, mask, nlist, list, glyphs)) {
+	if (mask == NULL ||
+	    (dst->pCompositeClip->data == NULL &&
+	     can_discard_mask(op, src, mask, nlist, list, glyphs))) {
 		DBG(("%s: discarding mask\n", __FUNCTION__));
 		if (glyphs_to_dst(sna, op,
 				  src, dst,
