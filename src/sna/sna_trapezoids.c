@@ -2061,7 +2061,7 @@ thread_mono_span_add_boxes(struct mono *c, const BoxRec *box, int count)
 	struct mono_span_thread_boxes *b = c->op.priv;
 
 	assert(count > 0 && count <= MONO_SPAN_MAX_BOXES);
-	if (b->num_boxes + count > MONO_SPAN_MAX_BOXES) {
+	if (unlikely(b->num_boxes + count > MONO_SPAN_MAX_BOXES)) {
 		b->op->thread_boxes(c->sna, b->op, b->boxes, b->num_boxes);
 		b->num_boxes = 0;
 	}
@@ -4405,7 +4405,7 @@ static void span_thread_add_boxes(struct sna *sna, void *data,
 	       __FUNCTION__, count, alpha));
 
 	assert(count > 0 && count <= SPAN_THREAD_MAX_BOXES);
-	if (b->num_boxes + count > SPAN_THREAD_MAX_BOXES) {
+	if (unlikely(b->num_boxes + count > SPAN_THREAD_MAX_BOXES)) {
 		DBG(("%s: flushing %d boxes, adding %d\n", __FUNCTION__, b->num_boxes, count));
 		assert(b->num_boxes <= SPAN_THREAD_MAX_BOXES);
 		b->op->thread_boxes(sna, b->op, b->boxes, b->num_boxes);
