@@ -28,6 +28,7 @@
 #include <gui/Sensor.h>
 #include <gui/SensorManager.h>
 #include <utils/KeyedVector.h>
+#include <utils/List.h>
 
 namespace ubuntu
 {
@@ -105,14 +106,20 @@ struct Sensor : public ubuntu::application::sensors::Sensor
         return sensor->getVendor().string();
     }
 
+    // Deprecated!
     void register_listener(const SensorListener::Ptr& listener)
     {
-        this->listener = listener;
+        listeners.push_back(listener);
     }
 
     const SensorListener::Ptr& registered_listener()
     {
-        return listener;
+        return *(listeners.begin());
+    }
+
+    const android::List<ubuntu::application::sensors::SensorListener::Ptr>& registered_listeners() const
+    {
+        return listeners;
     }
 
     void enable()
@@ -157,6 +164,7 @@ struct Sensor : public ubuntu::application::sensors::Sensor
 
     const android::Sensor* sensor;
     ubuntu::application::sensors::SensorListener::Ptr listener;
+    android::List<ubuntu::application::sensors::SensorListener::Ptr> listeners;
     android::sp<android::SensorEventQueue> sensor_event_queue;
 };
 
@@ -174,7 +182,7 @@ struct SensorService : public ubuntu::application::sensors::SensorService
     {
         /*
         printf("%s: %d, %d, %p \n",
-               __PRETTY_FUNCTION__,
+               __FUNCTION__,
                receiveFd,
                events,
                ctxt);
@@ -248,8 +256,13 @@ struct SensorService : public ubuntu::application::sensors::SensorService
             break;
         }
 
-        if (sensor->registered_listener() != NULL)
-            sensor->registered_listener()->on_new_reading(reading);
+        // Call all of the registered listeners
+        android::List<ubuntu::application::sensors::SensorListener::Ptr>::const_iterator it = sensor->registered_listeners().begin();
+        while (it != sensor->registered_listeners().end())
+        {
+            (*it)->on_new_reading(reading);
+            ++it;
+        }
 
         return success_and_continue;
     }

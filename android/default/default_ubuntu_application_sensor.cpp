@@ -37,7 +37,7 @@ struct SensorListener : public ubuntu::application::sensors::SensorListener
 
     void on_new_reading(const ubuntu::application::sensors::SensorReading::Ptr& reading)
     {
-        if(!observer)
+        if (!observer)
             return;
 
         switch(sensor_type)
@@ -105,22 +105,37 @@ void ubuntu_sensor_initialize_observer(ubuntu_sensor_observer* observer)
     observer->context = NULL;
 }
 
+static void install_accelerometer_observer(ubuntu_sensor_observer* observer)
+{
+    assert(observer != NULL);
+    assert(accelerometer != NULL);
+
+    SensorListener<ubuntu::application::sensors::sensor_type_accelerometer>* sl 
+        = new SensorListener<ubuntu::application::sensors::sensor_type_accelerometer>();
+    sl->observer = observer;
+
+    accelerometer_listener = sl;
+    accelerometer->register_listener(accelerometer_listener);
+}
+
 void ubuntu_sensor_install_observer(ubuntu_sensor_observer* observer)
 {
     assert(observer);
     if (observer->on_new_accelerometer_reading_cb && accelerometer == NULL)
     {
+        // Only enable the accelerometer if this is the first observer installation
         accelerometer =
             ubuntu::application::sensors::SensorService::sensor_for_type(
                 ubuntu::application::sensors::sensor_type_accelerometer);
 
-        SensorListener<ubuntu::application::sensors::sensor_type_accelerometer>* sl 
-                       = new SensorListener<ubuntu::application::sensors::sensor_type_accelerometer>();
-        sl->observer = observer;
-
-        accelerometer_listener = sl;
-        accelerometer->register_listener(accelerometer_listener);
         accelerometer->enable();
+    }
+
+    if (observer->on_new_accelerometer_reading_cb)
+    {
+        // Now install the observer instance so that its callback gets called with
+        // a new accelerometer reading
+        install_accelerometer_observer(observer);
     }
 
     if (observer->on_new_proximity_reading_cb && proximity == NULL)
