@@ -2861,7 +2861,7 @@ static inline int grid_coverage(int samples, pixman_fixed_t f)
 	return (samples * pixman_fixed_frac(f) + pixman_fixed_1/2) / pixman_fixed_1;
 }
 
-static void
+inline static void
 composite_unaligned_box(struct sna *sna,
 			struct sna_composite_spans_op *tmp,
 			const BoxRec *box,
@@ -2885,7 +2885,7 @@ composite_unaligned_box(struct sna *sna,
 		tmp->box(sna, tmp, box, opacity);
 }
 
-static void
+inline static void
 composite_unaligned_trap_row(struct sna *sna,
 			     struct sna_composite_spans_op *tmp,
 			     xTrapezoid *trap, int dx,
@@ -2963,7 +2963,7 @@ composite_unaligned_trap_row(struct sna *sna,
 	}
 }
 
-static void
+flatten static void
 composite_unaligned_trap(struct sna *sna,
 			struct sna_composite_spans_op *tmp,
 			xTrapezoid *trap,
