@@ -868,6 +868,7 @@ inline static bool is_clipped(const RegionRec *r,
 }
 
 unsigned sna_cpu_detect(void);
+char *sna_cpu_features_to_string(unsigned features, char *line);
 
 void sna_threads_init(void);
 int sna_use_threads (int width, int height, int threshold);

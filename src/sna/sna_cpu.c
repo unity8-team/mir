@@ -44,7 +44,7 @@ unsigned sna_cpu_detect(void)
 	unsigned int eax, ebx, ecx, edx;
 	unsigned features = 0;
 
-	__cpuid(0, eax, ebx, ecx, edx);
+	__cpuid(1, eax, ebx, ecx, edx);
 
 	if (eax & bit_SSE3)
 		features |= SSE3;
@@ -89,3 +89,27 @@ unsigned sna_cpu_detect(void)
 }
 
 #endif
+
+char *sna_cpu_features_to_string(unsigned features, char *line)
+{
+	char *ret = line;
+
+	if (features & SSE2)
+		line += sprintf (line, ", sse2");
+	if (features & SSE3)
+		line += sprintf (line, ", sse3");
+	if (features & SSSE3)
+		line += sprintf (line, ", ssse3");
+	if (features & SSE4a)
+		line += sprintf (line, ", sse4a");
+	if (features & SSE4_1)
+		line += sprintf (line, ", sse4.1");
+	if (features & SSE4_2)
+		line += sprintf (line, ", sse4.2");
+	if (features & AVX)
+		line += sprintf (line, ", avx");
+	if (features & AVX2)
+		line += sprintf (line, ", avx2");
+
+	return ret + 2;
+}

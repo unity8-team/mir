@@ -451,6 +451,7 @@ static Bool sna_option_cast_to_bool(struct sna *sna, int id, Bool val)
 static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 {
 	struct sna *sna;
+	char buf[1024];
 	rgb defaultWeight = { 0, 0, 0 };
 	EntityInfoPtr pEnt;
 	int preferred_depth;
@@ -582,6 +583,8 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 	if (xf86ReturnOptValBool(sna->Options, OPTION_CRTC_PIXMAPS, FALSE))
 		sna->flags |= SNA_FORCE_SHADOW;
 
+	xf86DrvMsg(scrn->scrnIndex, X_PROBED, "CPU: %s\n",
+		   sna_cpu_features_to_string(sna->cpu_features, buf));
 	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Framebuffer %s\n",
 		   sna->tiling & SNA_TILING_FB ? "tiled" : "linear");
 	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Pixmaps %s\n",
