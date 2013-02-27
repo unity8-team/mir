@@ -44,7 +44,7 @@ unsigned sna_cpu_detect(void)
 	unsigned int eax, ebx, ecx, edx;
 	unsigned features = 0;
 
-	if (__get_cpuid(1, eax, ebx, ecx, edx)) {
+	if (__get_cpuid(1, &eax, &ebx, &ecx, &edx)) {
 		if (eax & bit_SSE3)
 			features |= SSE3;
 
@@ -70,7 +70,7 @@ unsigned sna_cpu_detect(void)
 			features |= SSE2;
 	}
 
-	if (__get_cpuid(7, eax, ebx, ecx, edx)) {
+	if (__get_cpuid(7, &eax, &ebx, &ecx, &edx)) {
 		if (eax & bit_AVX2)
 			features |= AVX2;
 	}
