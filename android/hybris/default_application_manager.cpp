@@ -60,10 +60,7 @@ pid_t pid_to_vpid(int pid)
     ALOGI("%s(%d)", __PRETTY_FUNCTION__, pid);
     
     if (pid < 0)
-    {
-        ALOGI("%s(): Invalid pid %d\n", __PRETTY_FUNCTION__, pid);
         return -1;
-    }
 
     char proc_name[128], buf[1024];
     char *rpid;
@@ -87,7 +84,10 @@ pid_t pid_to_vpid(int pid)
     close(fd);
 
     if (rpid == NULL)
+    {
+        ALOGI("%s(): Vpid not supported\n");
         return pid;    
+    }
    
     return atoi(rpid+sizeof(key));   
 }
