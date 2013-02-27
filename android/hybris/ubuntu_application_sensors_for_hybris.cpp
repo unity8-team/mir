@@ -106,12 +106,12 @@ struct Sensor : public ubuntu::application::sensors::Sensor
         return sensor->getVendor().string();
     }
 
-    // Deprecated!
     void register_listener(const SensorListener::Ptr& listener)
     {
         listeners.push_back(listener);
     }
 
+    // Deprecated!
     const SensorListener::Ptr& registered_listener()
     {
         return *(listeners.begin());
