@@ -2136,7 +2136,6 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	return TRUE;
 
 blit:
-	pipe = DRI2_BLIT_COMPLETE;
 	if (can_blit(sna, draw, front, back)) {
 		DBG(("%s -- blit\n", __FUNCTION__));
 		sna_dri_copy_to_front(sna, draw, NULL,
@@ -2147,7 +2146,7 @@ blit:
 	if (info)
 		sna_dri_frame_event_info_free(sna, draw, info);
 skip:
-	DRI2SwapComplete(client, draw, 0, 0, 0, pipe, func, data);
+	DRI2SwapComplete(client, draw, 0, 0, 0, DRI2_BLIT_COMPLETE, func, data);
 	*target_msc = 0; /* offscreen, so zero out target vblank count */
 	return TRUE;
 }
