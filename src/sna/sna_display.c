@@ -2427,6 +2427,36 @@ static void copy_front(struct sna *sna, PixmapPtr old, PixmapPtr new)
 			       new->drawable.height);
 }
 
+static void
+migrate_dirty_tracking(struct sna *sna, PixmapPtr old_front)
+{
+#if HAS_PIXMAP_SHARING
+	ScreenPtr screen = sna->scrn->pScreen;
+	PixmapDirtyUpdatePtr dirty, safe;
+
+	xorg_list_for_each_entry_safe(dirty, safe, &screen->pixmap_dirty_list, ent) {
+		assert(dirty->src == old_front);
+		if (dirty->src != old_front)
+			continue;
+
+		DamageUnregister(&dirty->src->drawable, dirty->damage);
+		DamageDestroy(dirty->damage);
+
+		dirty->damage = DamageCreate(NULL, NULL,
+					     DamageReportNone,
+					     TRUE, screen, screen);,
+		if (!dirty->damage) {
+			xorg_list_del(&dirty->ent);
+			free(dirty);
+			continue;
+		}
+
+		DamageRegister(&sna->front->drawable, dirty->damage);
+		dirty->src = sna->front;
+	}
+#endif
+}
+
 static Bool
 sna_crtc_resize(ScrnInfoPtr scrn, int width, int height)
 {
@@ -2480,6 +2510,9 @@ sna_crtc_resize(ScrnInfoPtr scrn, int width, int height)
 					     crtc->x, crtc->y))
 			sna_crtc_disable(crtc);
 	}
+
+	/* Open-coded screen->SetScreenPixmap */
+	migrate_dirty_tracking(sna, old_front);
 
 	if (root(screen)) {
 		struct sna_visit_set_pixmap_window visit;

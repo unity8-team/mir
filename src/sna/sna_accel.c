@@ -13701,6 +13701,7 @@ static bool has_offload_slaves(struct sna *sna)
 	PixmapDirtyUpdatePtr dirty;
 
 	xorg_list_for_each_entry(dirty, &screen->pixmap_dirty_list, ent) {
+		assert(dirty->src == sna->front);
 		if (RegionNotEmpty(DamageRegion(dirty->damage)))
 			return true;
 	}
@@ -13852,6 +13853,8 @@ static void sna_accel_post_damage(struct sna *sna)
 		PixmapPtr src, dst;
 		BoxPtr box;
 		int n;
+
+		assert(dirty->src == sna->front);
 
 		damage = DamageRegion(dirty->damage);
 		if (RegionNil(damage))
