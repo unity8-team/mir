@@ -2444,7 +2444,7 @@ migrate_dirty_tracking(struct sna *sna, PixmapPtr old_front)
 
 		dirty->damage = DamageCreate(NULL, NULL,
 					     DamageReportNone,
-					     TRUE, screen, screen);,
+					     TRUE, screen, screen);
 		if (!dirty->damage) {
 			xorg_list_del(&dirty->ent);
 			free(dirty);
