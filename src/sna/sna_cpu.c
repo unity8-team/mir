@@ -31,7 +31,7 @@
 
 #include "sna.h"
 
-#if defined(__GNUC__) && (__GNUC__ >= 4) /* 4.4 */
+#if defined(__GNUC__) && (__GNUC__ > 4) || (__GNUC__ == 4 && __GNUC_MINOR__ >=4)
 
 #include <cpuid.h>
 
@@ -44,36 +44,36 @@ unsigned sna_cpu_detect(void)
 	unsigned int eax, ebx, ecx, edx;
 	unsigned features = 0;
 
-	__cpuid(1, eax, ebx, ecx, edx);
+	if (__get_cpuid(1, eax, ebx, ecx, edx)) {
+		if (eax & bit_SSE3)
+			features |= SSE3;
 
-	if (eax & bit_SSE3)
-		features |= SSE3;
+		if (eax & bit_SSSE3)
+			features |= SSSE3;
 
-	if (eax & bit_SSSE3)
-		features |= SSSE3;
+		if (eax & bit_SSE4_1)
+			features |= SSE4_1;
 
-	if (eax & bit_SSE4_1)
-		features |= SSE4_1;
+		if (eax & bit_SSE4_2)
+			features |= SSE4_2;
 
-	if (eax & bit_SSE4_2)
-		features |= SSE4_2;
+		if (eax & bit_AVX)
+			features |= AVX;
 
-	if (eax & bit_AVX)
-		features |= AVX;
+		if (edx & bit_MMX)
+			features |= MMX;
 
-	if (edx & bit_MMX)
-		features |= MMX;
+		if (edx & bit_SSE)
+			features |= SSE;
 
-	if (edx & bit_SSE)
-		features |= SSE;
+		if (edx & bit_SSE2)
+			features |= SSE2;
+	}
 
-	if (edx & bit_SSE2)
-		features |= SSE2;
-
-	__cpuid(7, eax, ebx, ecx, edx);
-
-	if (eax & bit_AVX2)
-		features |= AVX2;
+	if (__get_cpuid(7, eax, ebx, ecx, edx)) {
+		if (eax & bit_AVX2)
+			features |= AVX2;
+	}
 
 	return features;
 }
