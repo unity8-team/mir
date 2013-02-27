@@ -52,12 +52,14 @@
 #define flatten
 #endif
 
-#if defined(__GNUC__) && (__GNUC__ >= 4) && (__GNUC_MINOR__ >= 5)
+#define HAS_GCC(major, minor) defined(__GNUC__) && (__GNUC__ > (major) || __GNUC__ == (major) && __GNUC_MINOR__ >= (minor))
+
+#if HAS_GCC(4, 5)
 #define sse2 __attribute__((target("sse2,fpmath=sse")))
 #define sse4_2 __attribute__((target("sse4.2,sse2,fpmath=sse")))
 #endif
 
-#if defined(__GNUC__) && (__GNUC__ >= 4) && (__GNUC_MINOR__ >= 7)
+#if HAS_GCC(4, 7)
 #define avx2 __attribute__((target("avx2,sse4.2,sse2,fpmath=sse")))
 #endif
 

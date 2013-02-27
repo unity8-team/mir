@@ -31,7 +31,7 @@
 
 #include "sna.h"
 
-#if defined(__GNUC__) && (__GNUC__ > 4) || (__GNUC__ == 4 && __GNUC_MINOR__ >=4)
+#if HAS_GCC(4, 4)
 
 #include <cpuid.h>
 
