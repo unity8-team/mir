@@ -51,12 +51,19 @@ const T& min(const T& lhs, const U& rhs)
     return lhs < rhs ? lhs : rhs;
 }
 
+/* TODO: Currently we need to map local pids to the ones of the
+ * container where Ubuntu is running as sessions need to be 
+ * referenced to observers in terms of the said namespace.
+ */
 pid_t pid_to_vpid(int pid)
 {
     ALOGI("%s(%d)", __PRETTY_FUNCTION__, pid);
     
     if (pid < 0)
+    {
+        ALOGI("%s(): Invalid pid %d\n", __PRETTY_FUNCTION__, pid);
         return -1;
+    }
 
     char proc_name[128], buf[1024];
     char *rpid;
@@ -68,7 +75,10 @@ pid_t pid_to_vpid(int pid)
 
     fd = open(proc_name, O_RDONLY);
     if (fd < 0)
+    {
+        ALOGI("%s(): Cannot find %s\n", __PRETTY_FUNCTION__, proc_name);
         return -1;
+    }
 
     memset(buf, '\0', sizeof(buf));
     read(fd, buf, sizeof(buf));
