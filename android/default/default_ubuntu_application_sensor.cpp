@@ -28,6 +28,7 @@
 
 namespace
 {
+enum sensor_value_t { MIN_DELAY, MIN_VALUE, MAX_VALUE, RESOLUTION };
 template<ubuntu::application::sensors::SensorType sensor_type>
 struct SensorListener : public ubuntu::application::sensors::SensorListener
 {
@@ -123,12 +124,10 @@ void ubuntu_sensor_install_observer(ubuntu_sensor_observer* observer)
     assert(observer);
     if (observer->on_new_accelerometer_reading_cb && accelerometer == NULL)
     {
-        // Only enable the accelerometer if this is the first observer installation
+        // Only create the accelerometer if this is the first observer installation
         accelerometer =
             ubuntu::application::sensors::SensorService::sensor_for_type(
                 ubuntu::application::sensors::sensor_type_accelerometer);
-
-        accelerometer->enable();
     }
 
     if (observer->on_new_accelerometer_reading_cb)
@@ -214,4 +213,76 @@ void ubuntu_sensor_enable_sensor(ubuntu_sensor_type sensor_type)
 void ubuntu_sensor_disable_sensor(ubuntu_sensor_type sensor_type)
 {
     sensor_set_state(sensor_type, false);
+}
+
+static int32_t toHz(int32_t microseconds)
+{
+    return 1 / (microseconds / 1e6);
+}
+
+static float sensor_range_value(ubuntu_sensor_type sensor_type, sensor_value_t value_type, float default_return = 0)
+{
+    ubuntu::application::sensors::Sensor::Ptr sensor;
+
+    switch (sensor_type)
+    {
+        case ubuntu_sensor_type_accelerometer:
+            sensor = accelerometer;
+            break;
+        case ubuntu_sensor_type_magnetic_field:
+            break;
+        case ubuntu_sensor_type_gyroscope:
+            break;
+        case ubuntu_sensor_type_light:
+            sensor = light;
+            break;
+        case ubuntu_sensor_type_proximity:
+            sensor = proximity;
+            break;
+        case ubuntu_sensor_type_orientation:
+            break;
+        case ubuntu_sensor_type_linear_acceleration:
+            break;
+        case ubuntu_sensor_type_rotation_vector:
+            break;
+        default:
+            break;
+    }
+
+    if (sensor != NULL)
+    {
+        switch (value_type)
+        {
+            case MIN_DELAY:
+                return toHz(sensor->min_delay());
+            case MIN_VALUE:
+                return sensor->min_value();
+            case MAX_VALUE:
+                return sensor->max_value();
+            case RESOLUTION:
+                return sensor->resolution();
+        }
+    }
+
+    return default_return;
+}
+
+int32_t ubuntu_sensor_get_sensor_min_delay(ubuntu_sensor_type sensor_type)
+{
+    return static_cast<int32_t>(sensor_range_value(sensor_type, MIN_DELAY, -1.0));
+}
+
+float ubuntu_sensor_get_sensor_min_value(ubuntu_sensor_type sensor_type)
+{
+    return sensor_range_value(sensor_type, MIN_VALUE);
+}
+
+float ubuntu_sensor_get_sensor_max_value(ubuntu_sensor_type sensor_type)
+{
+    return sensor_range_value(sensor_type, MAX_VALUE);
+}
+
+float ubuntu_sensor_get_sensor_resolution(ubuntu_sensor_type sensor_type)
+{
+    return sensor_range_value(sensor_type, RESOLUTION);
 }
