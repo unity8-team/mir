@@ -3024,8 +3024,10 @@ gen3_composite_picture(struct sna *sna,
 
 		switch (source->type) {
 		case SourcePictTypeSolidFill:
-			DBG(("%s: solid fill [%08x], format %x\n",
-			     __FUNCTION__, source->solidFill.color, picture->format));
+			DBG(("%s: solid fill [%08x], format %08x\n",
+			     __FUNCTION__,
+			     (unsigned)source->solidFill.color,
+			     (unsigned)picture->format));
 			ret = gen3_init_solid(channel, source->solidFill.color);
 			break;
 
@@ -5103,10 +5105,8 @@ gen3_emit_video_state(struct sna *sna,
 		OUT_BATCH(SS2_COLORSPACE_CONVERSION |
 			  (FILTER_LINEAR << SS2_MAG_FILTER_SHIFT) |
 			  (FILTER_LINEAR << SS2_MIN_FILTER_SHIFT));
-		OUT_BATCH((TEXCOORDMODE_CLAMP_EDGE <<
-			   SS3_TCX_ADDR_MODE_SHIFT) |
-			  (TEXCOORDMODE_CLAMP_EDGE <<
-			   SS3_TCY_ADDR_MODE_SHIFT) |
+		OUT_BATCH((TEXCOORDMODE_CLAMP_EDGE << SS3_TCX_ADDR_MODE_SHIFT) |
+			  (TEXCOORDMODE_CLAMP_EDGE << SS3_TCY_ADDR_MODE_SHIFT) |
 			  (0 << SS3_TEXTUREMAP_INDEX_SHIFT) |
 			  SS3_NORMALIZED_COORDS);
 		OUT_BATCH(0x00000000);
@@ -5220,30 +5220,24 @@ gen3_emit_video_state(struct sna *sna,
 		/* sampler 0 */
 		OUT_BATCH((FILTER_LINEAR << SS2_MAG_FILTER_SHIFT) |
 			  (FILTER_LINEAR << SS2_MIN_FILTER_SHIFT));
-		OUT_BATCH((TEXCOORDMODE_CLAMP_EDGE <<
-			   SS3_TCX_ADDR_MODE_SHIFT) |
-			  (TEXCOORDMODE_CLAMP_EDGE <<
-			   SS3_TCY_ADDR_MODE_SHIFT) |
+		OUT_BATCH((TEXCOORDMODE_CLAMP_EDGE << SS3_TCX_ADDR_MODE_SHIFT) |
+			  (TEXCOORDMODE_CLAMP_EDGE << SS3_TCY_ADDR_MODE_SHIFT) |
 			  (0 << SS3_TEXTUREMAP_INDEX_SHIFT) |
 			  SS3_NORMALIZED_COORDS);
 		OUT_BATCH(0x00000000);
 		/* sampler 1 */
 		OUT_BATCH((FILTER_LINEAR << SS2_MAG_FILTER_SHIFT) |
 			  (FILTER_LINEAR << SS2_MIN_FILTER_SHIFT));
-		OUT_BATCH((TEXCOORDMODE_CLAMP_EDGE <<
-			   SS3_TCX_ADDR_MODE_SHIFT) |
-			  (TEXCOORDMODE_CLAMP_EDGE <<
-			   SS3_TCY_ADDR_MODE_SHIFT) |
+		OUT_BATCH((TEXCOORDMODE_CLAMP_EDGE << SS3_TCX_ADDR_MODE_SHIFT) |
+			  (TEXCOORDMODE_CLAMP_EDGE << SS3_TCY_ADDR_MODE_SHIFT) |
 			  (1 << SS3_TEXTUREMAP_INDEX_SHIFT) |
 			  SS3_NORMALIZED_COORDS);
 		OUT_BATCH(0x00000000);
 		/* sampler 2 */
 		OUT_BATCH((FILTER_LINEAR << SS2_MAG_FILTER_SHIFT) |
 			  (FILTER_LINEAR << SS2_MIN_FILTER_SHIFT));
-		OUT_BATCH((TEXCOORDMODE_CLAMP_EDGE <<
-			   SS3_TCX_ADDR_MODE_SHIFT) |
-			  (TEXCOORDMODE_CLAMP_EDGE <<
-			   SS3_TCY_ADDR_MODE_SHIFT) |
+		OUT_BATCH((TEXCOORDMODE_CLAMP_EDGE << SS3_TCX_ADDR_MODE_SHIFT) |
+			  (TEXCOORDMODE_CLAMP_EDGE << SS3_TCY_ADDR_MODE_SHIFT) |
 			  (2 << SS3_TEXTUREMAP_INDEX_SHIFT) |
 			  SS3_NORMALIZED_COORDS);
 		OUT_BATCH(0x00000000);
@@ -5359,7 +5353,6 @@ gen3_emit_video_state(struct sna *sna,
 				(sna->kgem.nbatch - id - 2);
 		}
 	}
-
 }
 
 static void
@@ -5395,37 +5388,51 @@ gen3_render_video(struct sna *sna,
 		  struct sna_video *video,
 		  struct sna_video_frame *frame,
 		  RegionPtr dstRegion,
-		  short src_w, short src_h,
-		  short drw_w, short drw_h,
-		  short dx, short dy,
 		  PixmapPtr pixmap)
 {
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
 	BoxPtr pbox = REGION_RECTS(dstRegion);
 	int nbox = REGION_NUM_RECTS(dstRegion);
-	int width = dstRegion->extents.x2 - dstRegion->extents.x1;
-	int height = dstRegion->extents.y2 - dstRegion->extents.y1;
+	int dst_width = dstRegion->extents.x2 - dstRegion->extents.x1;
+	int dst_height = dstRegion->extents.y2 - dstRegion->extents.y1;
+	int src_width = frame->src.x2 - frame->src.x1;
+	int src_height = frame->src.y2 - frame->src.y1;
+	float src_offset_x, src_offset_y;
 	float src_scale_x, src_scale_y;
 	int pix_xoff, pix_yoff;
 	struct kgem_bo *dst_bo;
 	bool bilinear;
 	int copy = 0;
 
-	DBG(("%s: %dx%d -> %dx%d\n", __FUNCTION__, src_w, src_h, drw_w, drw_h));
+	DBG(("%s: src:%dx%d (frame:%dx%d) -> dst:%dx%d\n", __FUNCTION__,
+	     src_width, src_height, frame->width, frame->height, dst_width, dst_height));
 
 	dst_bo = priv->gpu_bo;
 	if (dst_bo == NULL)
 		return false;
 
+	bilinear = src_width != dst_width || src_height != dst_height;
+
+	src_scale_x = (float)src_width / dst_width / frame->width;
+	src_offset_x = (float)frame->src.x1 / frame->width - dstRegion->extents.x1 * src_scale_x;
+
+	src_scale_y = (float)src_height / dst_height / frame->height;
+	src_offset_y = (float)frame->src.y1 / frame->height - dstRegion->extents.y1 * src_scale_y;
+	DBG(("%s: src offset (%f, %f), scale (%f, %f)\n",
+	     __FUNCTION__, src_offset_x, src_offset_y, src_scale_x, src_scale_y));
+
 	if (too_large(pixmap->drawable.width, pixmap->drawable.height) ||
 	    !gen3_check_pitch_3d(dst_bo)) {
 		int bpp = pixmap->drawable.bitsPerPixel;
 
+		if (too_large(dst_width, dst_height))
+			return false;
+
 		dst_bo = kgem_create_2d(&sna->kgem,
-					width, height, bpp,
+					dst_width, dst_height, bpp,
 					kgem_choose_tiling(&sna->kgem,
 							   I915_TILING_X,
-							   width, height, bpp),
+							   dst_width, dst_height, bpp),
 					0);
 		if (!dst_bo)
 			return false;
@@ -5434,9 +5441,6 @@ gen3_render_video(struct sna *sna,
 		pix_yoff = -dstRegion->extents.y1;
 		copy = 1;
 	} else {
-		width = pixmap->drawable.width;
-		height = pixmap->drawable.height;
-
 		/* Set up the offset for translating from the given region
 		 * (in screen coordinates) to the backing pixmap.
 		 */
@@ -5447,32 +5451,27 @@ gen3_render_video(struct sna *sna,
 		pix_xoff = 0;
 		pix_yoff = 0;
 #endif
+
+		dst_width  = pixmap->drawable.width;
+		dst_height = pixmap->drawable.height;
 	}
-
-	bilinear = src_w != drw_w || src_h != drw_h;
-
-	src_scale_x = ((float)src_w / frame->width) / drw_w;
-	src_scale_y = ((float)src_h / frame->height) / drw_h;
-
-	DBG(("%s: src offset=(%d, %d), scale=(%f, %f), dst offset=(%d, %d)\n",
-	     __FUNCTION__,
-	     dx, dy, src_scale_x, src_scale_y, pix_xoff, pix_yoff));
 
 	gen3_video_get_batch(sna, dst_bo);
 	gen3_emit_video_state(sna, video, frame, pixmap,
-			      dst_bo, width, height, bilinear);
+			      dst_bo, dst_width, dst_height, bilinear);
 	do {
 		int nbox_this_time = gen3_get_inline_rectangles(sna, nbox, 4);
 		if (nbox_this_time == 0) {
 			gen3_video_get_batch(sna, dst_bo);
 			gen3_emit_video_state(sna, video, frame, pixmap,
-					      dst_bo, width, height, bilinear);
+					      dst_bo, dst_width, dst_height, bilinear);
 			nbox_this_time = gen3_get_inline_rectangles(sna, nbox, 4);
+			assert(nbox_this_time);
 		}
 		nbox -= nbox_this_time;
 
 		OUT_BATCH(PRIM3D_RECTLIST | (12 * nbox_this_time - 1));
-		while (nbox_this_time--) {
+		do {
 			int box_x1 = pbox->x1;
 			int box_y1 = pbox->y1;
 			int box_x2 = pbox->x2;
@@ -5480,27 +5479,31 @@ gen3_render_video(struct sna *sna,
 
 			pbox++;
 
-			DBG(("%s: box (%d, %d), (%d, %d)\n",
-			     __FUNCTION__, box_x1, box_y1, box_x2, box_y2));
+			DBG(("%s: dst (%d, %d), (%d, %d) + (%d, %d); src (%f, %f), (%f, %f)\n",
+			     __FUNCTION__, box_x1, box_y1, box_x2, box_y2, pix_xoff, pix_yoff,
+			     box_x1 * src_scale_x + src_offset_x,
+			     box_y1 * src_scale_y + src_offset_y,
+			     box_x2 * src_scale_x + src_offset_x,
+			     box_y2 * src_scale_y + src_offset_y));
 
 			/* bottom right */
 			OUT_BATCH_F(box_x2 + pix_xoff);
 			OUT_BATCH_F(box_y2 + pix_yoff);
-			OUT_BATCH_F((box_x2 - dx) * src_scale_x);
-			OUT_BATCH_F((box_y2 - dy) * src_scale_y);
+			OUT_BATCH_F(box_x2 * src_scale_x + src_offset_x);
+			OUT_BATCH_F(box_y2 * src_scale_y + src_offset_y);
 
 			/* bottom left */
 			OUT_BATCH_F(box_x1 + pix_xoff);
 			OUT_BATCH_F(box_y2 + pix_yoff);
-			OUT_BATCH_F((box_x1 - dx) * src_scale_x);
-			OUT_BATCH_F((box_y2 - dy) * src_scale_y);
+			OUT_BATCH_F(box_x1 * src_scale_x + src_offset_x);
+			OUT_BATCH_F(box_y2 * src_scale_y + src_offset_y);
 
 			/* top left */
 			OUT_BATCH_F(box_x1 + pix_xoff);
 			OUT_BATCH_F(box_y1 + pix_yoff);
-			OUT_BATCH_F((box_x1 - dx) * src_scale_x);
-			OUT_BATCH_F((box_y1 - dy) * src_scale_y);
-		}
+			OUT_BATCH_F(box_x1 * src_scale_x + src_offset_x);
+			OUT_BATCH_F(box_y1 * src_scale_y + src_offset_y);
+		} while (--nbox_this_time);
 	} while (nbox);
 
 	if (copy) {

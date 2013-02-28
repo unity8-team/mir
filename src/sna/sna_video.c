@@ -449,9 +449,9 @@ sna_video_copy_data(struct sna *sna,
 {
 	uint8_t *dst;
 
-	DBG(("%s: handle=%d, size=%dx%d [%d], rotation=%d, is-texture=%d\n",
+	DBG(("%s: handle=%d, size=%dx%d [%d], pitch=[%d,%d] rotation=%d, is-texture=%d\n",
 	     __FUNCTION__, frame->bo ? frame->bo->handle : 0,
-	     frame->width, frame->height, frame->size,
+	     frame->width, frame->height, frame->size, frame->pitch[0], frame->pitch[1],
 	     video->rotation, video->textured));
 	DBG(("%s: image=(%d, %d), (%d, %d), source=(%d, %d), (%d, %d)\n",
 	     __FUNCTION__,
@@ -462,6 +462,8 @@ sna_video_copy_data(struct sna *sna,
 
 	/* In the common case, we can simply the upload in a single pwrite */
 	if (video->rotation == RR_Rotate_0 && !video->tiled) {
+		DBG(("%s: unrotated, untiled fast paths: is-planar?=%d\n",
+		     __FUNCTION__, is_planar_fourcc(frame->id)));
 		if (is_planar_fourcc(frame->id)) {
 			int w = frame->image.x2 - frame->image.x1;
 			int h = frame->image.y2 - frame->image.y1;
@@ -508,6 +510,8 @@ sna_video_copy_data(struct sna *sna,
 				return true;
 			}
 		}
+
+		DBG(("%s: source cropped, fallback\n", __FUNCTION__));
 	}
 
 	/* copy data, must use GTT so that we keep the overlay uncached */
