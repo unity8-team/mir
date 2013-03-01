@@ -16,7 +16,7 @@
  * Authored by: Alan Griffiths <alan@octopull.co.uk>
  */
 
-#include "mir/server_configuration.h"
+#include "mir/default_server_configuration.h"
 #include "protobuf_binder_communicator.h"
 
 namespace mf = mir::frontend;
@@ -24,17 +24,14 @@ namespace mg = mir::graphics;
 namespace mc = mir::compositor;
 
 std::shared_ptr<mf::Communicator>
-mir::DefaultServerConfiguration::the_communicator(
-    std::shared_ptr<sessions::SessionStore> const& session_store,
-    std::shared_ptr<mg::Display> const& display,
-    std::shared_ptr<mc::GraphicBufferAllocator> const& allocator)
+mir::DefaultServerConfiguration::the_communicator()
 {
     return communicator(
         []() -> std::shared_ptr<mf::Communicator>
         {
-            auto const threads = the_options()->get("ipc_thread_pool", 10);
+            auto const threads = the_options()->get("ipc-thread-pool", 10);
             return std::make_shared<mf::ProtobufBinderCommunicator>(
-                the_socket_file(), the_ipc_factory(session_store, display, allocator));
+                the_socket_file(), the_ipc_factory(the_session_store(), the_display(), the_buffer_allocator()));
         });
 
 }

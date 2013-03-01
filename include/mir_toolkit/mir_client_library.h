@@ -19,6 +19,9 @@
 #define MIR_CLIENT_LIBRARY_H
 
 #ifdef __cplusplus
+/** The C client API
+ */
+namespace mir_toolkit {
 extern "C" {
 #endif
 
@@ -143,10 +146,10 @@ typedef struct MirDisplayInfo
  * Request a connection to the MIR server. The supplied callback is
  * called when the connection is established, or fails. The returned
  * wait handle remains valid until the connection has been released.
- *   \param [in] server       a name identifying the server
- *   \param [in] app_name     a name referring to the application
- *   \param [out] result      where to store the connection handle on
- *                            completion.
+ *   \param [in] server    a name identifying the server
+ *   \param [in] app_name  a name referring to the application
+ *   \param [out] result   where to store the connection handle on completion
+ *   \return               a handle that can be passed to mir_wait_for
  */
 MirWaitHandle *mir_connect(
     char const *server,
@@ -264,7 +267,7 @@ void mir_surface_get_current_buffer(MirSurface *surface, MirBufferPackage *buffe
  * memory.
  *   \pre                         the surface is valid
  *   \param [in] surface          the surface
- *   \param [out] buffer_package  structure to be populated
+ *   \param [out] graphics_region structure to be populated
  */
 void mir_surface_get_graphics_region(
     MirSurface *surface,
@@ -284,7 +287,7 @@ void mir_surface_get_graphics_region(
 MirWaitHandle *mir_surface_next_buffer(
     MirSurface *surface,
     mir_surface_lifecycle_callback callback,
-    void *context);
+    void *client_context);
 
 /**
  * Release the supplied surface and any associated buffer. The
@@ -300,7 +303,7 @@ MirWaitHandle *mir_surface_next_buffer(
 MirWaitHandle *mir_surface_release(
     MirSurface *surface,
     mir_surface_lifecycle_callback callback,
-    void *context);
+    void *client_context);
 
 /**
  * Wait on the supplied handle until the associated request has completed.
@@ -328,6 +331,8 @@ int mir_debug_surface_id(MirSurface *surface);
 
 #ifdef __cplusplus
 }
+}
+using namespace mir_toolkit;
 #endif
 
 #endif /* MIR_CLIENT_LIBRARY_H */

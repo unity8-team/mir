@@ -37,7 +37,10 @@ namespace sessions
 class SessionStore;
 class Session;
 }
-
+namespace graphics
+{
+class ViewableArea;
+}
 namespace test
 {
 namespace cucumber
@@ -58,6 +61,7 @@ public:
     geometry::Size get_window_size(std::string const& window_name);
     
     void set_view_area(geometry::Rectangle const& new_view_region);
+    std::shared_ptr<graphics::ViewableArea> get_view_area() const;
 
 protected:
     SessionManagementContext(SessionManagementContext const&) = delete;

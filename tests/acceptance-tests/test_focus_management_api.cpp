@@ -16,7 +16,7 @@
  * Authored by: Alan Griffiths <alan@octopull.co.uk>
  */
 
-#include "mir_client/mir_client_library_lightdm.h"
+#include "mir_toolkit/mir_client_library_lightdm.h"
 
 #include "mir/sessions/session_store.h"
 
@@ -148,34 +148,33 @@ TEST_F(BespokeDisplayServerTestFixture, focus_management)
     struct ServerConfig : TestingServerConfiguration
     {
         std::shared_ptr<sessions::SessionStore>
-        the_session_store(std::shared_ptr<sessions::SurfaceFactory> const& surface_factory,
-                           std::shared_ptr<mg::ViewableArea> const& /* viewable_area */)
+        the_session_store()
         {
-            using namespace ::testing;
+            return session_store(
+                [this]() -> std::shared_ptr<sessions::SessionStore>
+                {
+                    using namespace ::testing;
 
-            auto display = std::make_shared<mtd::MockDisplay>();
-            ON_CALL(*display, view_area()).WillByDefault(Return(default_view_area));
-            EXPECT_CALL(*display, view_area()).WillRepeatedly(Return(default_view_area));
+                    auto const& mock_session_store = std::make_shared<MockSessionStore>(
+                        DefaultServerConfiguration::the_session_store());
 
-            auto const& mock_session_store = std::make_shared<MockSessionStore>(
-                DefaultServerConfiguration::the_session_store(surface_factory, display));
+                    {
+                        using namespace testing;
+                        InSequence setup;
+                        EXPECT_CALL(*mock_session_store, open_session(_)).Times(2);
+                        EXPECT_CALL(*mock_session_store, close_session(_)).Times(2);
+                        EXPECT_CALL(*mock_session_store, shutdown());
+                    }
+                    {
+                        using namespace testing;
+                        InSequence test;
 
-            {
-                using namespace testing;
-                InSequence setup;
-                EXPECT_CALL(*mock_session_store, open_session(_)).Times(2);
-                EXPECT_CALL(*mock_session_store, close_session(_)).Times(2);
-                EXPECT_CALL(*mock_session_store, shutdown());
-            }
-            {
-                using namespace testing;
-                InSequence test;
+                        EXPECT_CALL(*mock_session_store, tag_session_with_lightdm_id(_, _));
+                        EXPECT_CALL(*mock_session_store, focus_session_with_lightdm_id(_));
+                    }
 
-                EXPECT_CALL(*mock_session_store, tag_session_with_lightdm_id(_, _));
-                EXPECT_CALL(*mock_session_store, focus_session_with_lightdm_id(_));
-            }
-
-            return mock_session_store;
+                    return mock_session_store;
+                });
         }
     } server_config;
 

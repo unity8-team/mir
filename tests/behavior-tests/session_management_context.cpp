@@ -27,7 +27,7 @@
 #include "mir/sessions/session_store.h"
 #include "mir/sessions/surface_factory.h"
 #include "mir/graphics/display.h"
-#include "mir/server_configuration.h"
+#include "mir/default_server_configuration.h"
 
 namespace msess = mir::sessions;
 
@@ -144,22 +144,23 @@ namespace
 {
     struct DummyServerConfiguration : mir::DefaultServerConfiguration
     {
+        virtual std::shared_ptr<mir::sessions::SurfaceFactory>
+        the_surface_factory()
+        {
+            return std::make_shared<mtc::DummySurfaceFactory>();
+        }
     } server_configuration;
 }
 
 mtc::SessionManagementContext::SessionManagementContext() :
     view_area(std::make_shared<mtc::SizedDisplay>()),
-    session_store(server_configuration.the_session_store(
-        std::make_shared<mtc::DummySurfaceFactory>(),
-        view_area))
+    session_store(server_configuration.the_session_store())
 {
 }
 
 mtc::SessionManagementContext::SessionManagementContext(ServerConfiguration& server_configuration) :
     view_area(std::make_shared<mtc::SizedDisplay>()),
-    session_store(server_configuration.the_session_store(
-        std::make_shared<mtc::DummySurfaceFactory>(),
-        view_area))
+    session_store(server_configuration.the_session_store())
 {
 }
 
@@ -201,3 +202,7 @@ void mtc::SessionManagementContext::set_view_area(geom::Rectangle const& new_vie
     view_area->set_view_area(new_view_region);
 }
 
+std::shared_ptr<mg::ViewableArea> mtc::SessionManagementContext::get_view_area() const
+{
+    return view_area;
+}

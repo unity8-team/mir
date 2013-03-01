@@ -16,15 +16,16 @@
  * Authored by: Alan Griffiths <alan@octopull.co.uk>
  */
 
-#include "mir/server_configuration.h"
+#include "mir/default_server_configuration.h"
 
 #include "mir/options/program_option.h"
 #include "mir/compositor/buffer_allocation_strategy.h"
 #include "mir/compositor/buffer_swapper.h"
 #include "mir/compositor/buffer_bundle_manager.h"
+#include "mir/compositor/compositor.h"
 #include "mir/compositor/swapper_factory.h"
 #include "mir/frontend/protobuf_ipc_factory.h"
-#include "mir/frontend/application_listener.h"
+#include "mir/frontend/application_mediator_report.h"
 #include "mir/frontend/application_mediator.h"
 #include "mir/frontend/resource_cache.h"
 #include "mir/sessions/session_manager.h"
@@ -41,6 +42,7 @@
 #include "mir/input/input_manager.h"
 #include "mir/logging/logger.h"
 #include "mir/logging/dumb_console_logger.h"
+#include "mir/logging/application_mediator_report.h"
 #include "mir/surfaces/surface_controller.h"
 #include "mir/surfaces/surface_stack.h"
 
@@ -60,12 +62,12 @@ class DefaultIpcFactory : public mf::ProtobufIpcFactory
 public:
     explicit DefaultIpcFactory(
         std::shared_ptr<msess::SessionStore> const& session_store,
-        std::shared_ptr<mf::ApplicationListener> const& listener,
+        std::shared_ptr<mf::ApplicationMediatorReport> const& report,
         std::shared_ptr<mg::Platform> const& graphics_platform,
         std::shared_ptr<mg::Display> const& graphics_display,
         std::shared_ptr<mc::GraphicBufferAllocator> const& buffer_allocator) :
         session_store(session_store),
-        listener(listener),
+        report(report),
         cache(std::make_shared<mf::ResourceCache>()),
         graphics_platform(graphics_platform),
         graphics_display(graphics_display),
@@ -75,7 +77,7 @@ public:
 
 private:
     std::shared_ptr<msess::SessionStore> session_store;
-    std::shared_ptr<mf::ApplicationListener> const listener;
+    std::shared_ptr<mf::ApplicationMediatorReport> const report;
     std::shared_ptr<mf::ResourceCache> const cache;
     std::shared_ptr<mg::Platform> const graphics_platform;
     std::shared_ptr<mg::Display> const graphics_display;
@@ -88,7 +90,7 @@ private:
             graphics_platform,
             graphics_display,
             buffer_allocator,
-            listener,
+            report,
             resource_cache());
     }
 
@@ -98,6 +100,26 @@ private:
     }
 };
 
+char const* const log_app_mediator = "log-app-mediator";
+
+boost::program_options::options_description program_options()
+{
+    namespace po = boost::program_options;
+
+    po::options_description desc(
+        "Command-line options.\n"
+        "Environment variables capitalise long form with prefix \"MIR_SERVER_\" and \"_\" in place of \"-\"");
+    desc.add_options()
+        ("file,f", po::value<std::string>(), "socket filename")
+        ("ipc-thread-pool,i", po::value<int>(), "threads in frontend thread pool")
+        (log_app_mediator, po::value<bool>(), "log the ApplicationMediator report")
+        ("tests-use-real-graphics", po::value<bool>(), "use real graphics in tests")
+        ("tests-use-real-input", po::value<bool>(), "use real input in tests");
+
+    return desc;
+}
+
+
 void parse_arguments(
     std::shared_ptr<mir::options::ProgramOption> const& options,
     int argc,
@@ -105,14 +127,11 @@ void parse_arguments(
 {
     namespace po = boost::program_options;
 
-    po::options_description desc("Options");
+    auto desc = program_options();
 
     try
     {
-        namespace po = boost::program_options;
-
         desc.add_options()
-            ("file,f", po::value<std::string>(), "<socket filename>")
             ("help,h", "this help text");
 
         options->parse_arguments(desc, argc, argv);
@@ -131,13 +150,7 @@ void parse_arguments(
 
 void parse_environment(std::shared_ptr<mir::options::ProgramOption> const& options)
 {
-    namespace po = boost::program_options;
-
-    po::options_description desc("Environment options");
-    desc.add_options()
-        ("tests_use_real_graphics", po::value<bool>(), "use real graphics in tests")
-        ("ipc_thread_pool", po::value<int>(), "threads in frontend thread pool")
-        ("tests_use_real_input", po::value<bool>(), "use real input in tests");
+    auto desc = program_options();
 
     options->parse_environment(desc, "MIR_SERVER_");
 }
@@ -198,40 +211,36 @@ mir::DefaultServerConfiguration::the_buffer_initializer()
 }
 
 std::shared_ptr<mc::BufferAllocationStrategy>
-mir::DefaultServerConfiguration::the_buffer_allocation_strategy(
-        std::shared_ptr<mc::GraphicBufferAllocator> const& buffer_allocator)
+mir::DefaultServerConfiguration::the_buffer_allocation_strategy()
 {
     return buffer_allocation_strategy(
-        [&]()
+        [this]()
         {
-             return std::make_shared<mc::SwapperFactory>(buffer_allocator);
+             return std::make_shared<mc::SwapperFactory>(the_buffer_allocator());
         });
 }
 
-std::shared_ptr<mg::Renderer> mir::DefaultServerConfiguration::the_renderer(
-        std::shared_ptr<mg::Display> const& display)
+std::shared_ptr<mg::Renderer> mir::DefaultServerConfiguration::the_renderer()
 {
     return renderer(
         [&]()
         {
-             return std::make_shared<mg::GLRenderer>(display->view_area().size);
+             return std::make_shared<mg::GLRenderer>(the_display()->view_area().size);
         });
 }
 
 std::shared_ptr<msess::SessionStore>
-mir::DefaultServerConfiguration::the_session_store(
-    std::shared_ptr<msess::SurfaceFactory> const& surface_factory,
-    std::shared_ptr<mg::ViewableArea> const& viewable_area)
+mir::DefaultServerConfiguration::the_session_store()
 {
     return session_store(
-        [&,this]() -> std::shared_ptr<msess::SessionStore>
+        [this]() -> std::shared_ptr<msess::SessionStore>
         {
             auto session_container = std::make_shared<msess::SessionContainer>();
             auto focus_mechanism = std::make_shared<msess::SingleVisibilityFocusMechanism>(session_container);
             auto focus_selection_strategy = std::make_shared<msess::RegistrationOrderFocusSequence>(session_container);
 
-            auto placement_strategy = std::make_shared<msess::ConsumingPlacementStrategy>(viewable_area);
-            auto organising_factory = std::make_shared<msess::OrganisingSurfaceFactory>(surface_factory, placement_strategy);
+            auto placement_strategy = std::make_shared<msess::ConsumingPlacementStrategy>(the_display());
+            auto organising_factory = std::make_shared<msess::OrganisingSurfaceFactory>(the_surface_factory(), placement_strategy);
 
             return std::make_shared<msess::SessionManager>(organising_factory, session_container, focus_selection_strategy, focus_mechanism);
         });
@@ -239,15 +248,85 @@ mir::DefaultServerConfiguration::the_session_store(
 
 std::shared_ptr<mi::InputManager>
 mir::DefaultServerConfiguration::the_input_manager(
-    const std::initializer_list<std::shared_ptr<mi::EventFilter> const>& event_filters,
-    std::shared_ptr<mg::ViewableArea> const& view_area)
+    const std::initializer_list<std::shared_ptr<mi::EventFilter> const>& event_filters)
 {
     return input_manager(
-        [&]()
+        [&, this]()
         {
-            return mi::create_input_manager(event_filters, view_area);
+            return mi::create_input_manager(event_filters, the_display());
         });
 }
+
+std::shared_ptr<mc::GraphicBufferAllocator>
+mir::DefaultServerConfiguration::the_buffer_allocator()
+{
+    return buffer_allocator(
+        [&]()
+        {
+            return the_graphics_platform()->create_buffer_allocator(the_buffer_initializer());
+        });
+}
+
+std::shared_ptr<mg::Display>
+mir::DefaultServerConfiguration::the_display()
+{
+    return display(
+        [this]()
+        {
+            return the_graphics_platform()->create_display();
+        });
+}
+
+std::shared_ptr<ms::SurfaceStackModel>
+mir::DefaultServerConfiguration::the_surface_stack_model()
+{
+    return surface_stack(
+        [this]()
+        {
+            return std::make_shared<ms::SurfaceStack>(the_buffer_bundle_factory());
+        });
+}
+
+std::shared_ptr<mc::RenderView>
+mir::DefaultServerConfiguration::the_render_view()
+{
+    return surface_stack(
+        [this]()
+        {
+            return std::make_shared<ms::SurfaceStack>(the_buffer_bundle_factory());
+        });
+}
+
+std::shared_ptr<msess::SurfaceFactory>
+mir::DefaultServerConfiguration::the_surface_factory()
+{
+    return surface_controller(
+        [this]()
+        {
+            return std::make_shared<ms::SurfaceController>(the_surface_stack_model());
+        });
+}
+
+std::shared_ptr<mc::Drawer>
+mir::DefaultServerConfiguration::the_drawer()
+{
+    return compositor(
+        [this]()
+        {
+            return std::make_shared<mc::Compositor>(the_render_view(), the_renderer());
+        });
+}
+
+std::shared_ptr<ms::BufferBundleFactory>
+mir::DefaultServerConfiguration::the_buffer_bundle_factory()
+{
+    return buffer_bundle_manager(
+        [this]()
+        {
+            return std::make_shared<mc::BufferBundleManager>(the_buffer_allocation_strategy());
+        });
+}
+
 
 std::shared_ptr<mir::frontend::ProtobufIpcFactory>
 mir::DefaultServerConfiguration::the_ipc_factory(
@@ -260,18 +339,35 @@ mir::DefaultServerConfiguration::the_ipc_factory(
         {
             return std::make_shared<DefaultIpcFactory>(
                 session_store,
-                the_application_listener(),
+                the_application_mediator_report(),
                 the_graphics_platform(),
                 display, allocator);
         });
 }
 
-std::shared_ptr<mf::ApplicationListener>
-mir::DefaultServerConfiguration::the_application_listener()
+std::shared_ptr<mf::ApplicationMediatorReport>
+mir::DefaultServerConfiguration::the_application_mediator_report()
 {
-    return application_listener(
-        []()
+    return application_mediator_report(
+        [this]() -> std::shared_ptr<mf::ApplicationMediatorReport>
         {
-            return std::make_shared<mf::NullApplicationListener>();
+            if (the_options()->get(log_app_mediator, false))
+            {
+                return std::make_shared<ml::ApplicationMediatorReport>(the_logger());
+            }
+            else
+            {
+                return std::make_shared<mf::NullApplicationMediatorReport>();
+            }
+        });
+}
+
+std::shared_ptr<ml::Logger> mir::DefaultServerConfiguration::the_logger()
+{
+    return logger(
+        [this]()
+        {
+            // TODO use the_options() to configure logging
+            return std::make_shared<ml::DumbConsoleLogger>();
         });
 }

@@ -19,6 +19,8 @@
 #include "src/client/mir_wait_handle.h"
 #include <gtest/gtest.h>
 
+using namespace mir_toolkit;
+
 TEST(MirWait, no_callback)
 {
     MirWaitHandle w;

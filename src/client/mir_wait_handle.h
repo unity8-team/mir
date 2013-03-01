@@ -22,6 +22,8 @@
 #include <condition_variable> 
 #include <mutex> 
 
+namespace mir_toolkit
+{
 class MirWaitHandle
 {
 public:
@@ -45,5 +47,6 @@ private:
     void *callback_arg;
     bool called_back;
 };
+}
 
 #endif /* MIR_CLIENT_MIR_WAIT_HANDLE_H_ */

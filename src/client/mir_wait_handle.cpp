@@ -18,7 +18,7 @@
 
 #include "mir_wait_handle.h"
 
-MirWaitHandle::MirWaitHandle() :
+mir_toolkit::MirWaitHandle::MirWaitHandle() :
     guard(),
     wait_condition(),
     result_has_occurred(false),
@@ -29,11 +29,11 @@ MirWaitHandle::MirWaitHandle() :
 {
 }
 
-MirWaitHandle::~MirWaitHandle()
+mir_toolkit::MirWaitHandle::~MirWaitHandle()
 {
 }
 
-void MirWaitHandle::result_received()
+void mir_toolkit::MirWaitHandle::result_received()
 {
     std::unique_lock<std::mutex> lock(guard);
     result_has_occurred = true;
@@ -41,7 +41,7 @@ void MirWaitHandle::result_received()
     wait_condition.notify_all();
 }
 
-void MirWaitHandle::wait_for_result()
+void mir_toolkit::MirWaitHandle::wait_for_result()
 {
     std::unique_lock<std::mutex> lock(guard);
     while ( (!result_has_occurred) )
@@ -54,7 +54,7 @@ void MirWaitHandle::wait_for_result()
     result_has_occurred = false;
 }
 
-void MirWaitHandle::register_callback(Callback cb, void *context)
+void mir_toolkit::MirWaitHandle::register_callback(Callback cb, void *context)
 {
     std::unique_lock<std::mutex> lock(guard);
     callback = cb;
@@ -68,7 +68,7 @@ void MirWaitHandle::register_callback(Callback cb, void *context)
     }
 }
 
-void MirWaitHandle::register_callback_owner(void *owner)
+void mir_toolkit::MirWaitHandle::register_callback_owner(void *owner)
 {
     callback_owner = owner;
 }
