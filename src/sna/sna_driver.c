@@ -512,7 +512,7 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 
 	flags24 = Support32bppFb | PreferConvert24to32 | SupportConvert24to32;
 
-	preferred_depth = sna->info->gen < 040 ? 16 : 24;
+	preferred_depth = sna->info->gen < 040 ? 15 : 24;
 	if (!xf86SetDepthBpp(scrn, preferred_depth, 0, 0, flags24))
 		return FALSE;
 
