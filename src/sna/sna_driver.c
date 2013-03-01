@@ -230,6 +230,9 @@ static Bool sna_create_screen_resources(ScreenPtr screen)
 	DBG(("%s(%dx%d@%d)\n", __FUNCTION__,
 	     screen->width, screen->height, screen->rootDepth));
 
+	assert(sna->scrn == xf86ScreenToScrn(screen));
+	assert(sna->scrn->pScreen == screen);
+
 	free(screen->devPrivate);
 	screen->devPrivate = NULL;
 
@@ -915,6 +918,9 @@ sna_screen_init(SCREEN_INIT_ARGS_DECL)
 	VisualID defaultVisual;
 
 	DBG(("%s\n", __FUNCTION__));
+
+	assert(sna->scrn == scrn);
+	assert(scrn->pScreen == NULL); /* set afterwards */
 
 	if (!sna_register_all_privates())
 		return FALSE;
