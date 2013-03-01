@@ -1558,6 +1558,7 @@ _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 			if (!priv->mapped)
 				goto skip_inplace_map;
 
+			assert(!IS_CPU_MAP(priv->gpu_bo->map) || sna->kgem.has_llc);
 			pixmap->devKind = priv->gpu_bo->pitch;
 
 			assert(priv->gpu_bo->proxy == NULL);
@@ -1614,6 +1615,7 @@ skip_inplace_map:
 		pixmap->devPrivate.ptr = kgem_bo_map(&sna->kgem, priv->gpu_bo);
 		priv->mapped = pixmap->devPrivate.ptr != NULL;
 		if (priv->mapped) {
+			assert(!IS_CPU_MAP(priv->gpu_bo->map) || sna->kgem.has_llc);
 			pixmap->devKind = priv->gpu_bo->pitch;
 			if (flags & MOVE_WRITE) {
 				assert(priv->gpu_bo->proxy == NULL);
@@ -1971,6 +1973,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 		pixmap->devPrivate.ptr = kgem_bo_map(&sna->kgem, priv->gpu_bo);
 		priv->mapped = pixmap->devPrivate.ptr != NULL;
 		if (priv->mapped) {
+			assert(!IS_CPU_MAP(priv->gpu_bo->map) || sna->kgem.has_llc);
 			pixmap->devKind = priv->gpu_bo->pitch;
 			if (flags & MOVE_WRITE) {
 				if (!DAMAGE_IS_ALL(priv->gpu_damage)) {
