@@ -35,6 +35,7 @@
 #include <utils/Errors.h>
 
 #include <cstdio>
+#include <cstdlib>
 
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -48,6 +49,47 @@ template<typename T, typename U>
 const T& min(const T& lhs, const U& rhs)
 {
     return lhs < rhs ? lhs : rhs;
+}
+
+/* TODO: Currently we need to map local pids to the ones of the
+ * container where Ubuntu is running as sessions need to be 
+ * referenced to observers in terms of the said namespace.
+ */
+pid_t pid_to_vpid(int pid)
+{
+    ALOGI("%s(%d)", __PRETTY_FUNCTION__, pid);
+    
+    if (pid <= 0)
+        return -1;
+
+    char proc_name[128], buf[1024];
+    char *rpid;
+    char key[] = "Vpid:";
+
+    sprintf(proc_name, "/proc/%d/status", pid);
+
+    int fd;
+
+    fd = open(proc_name, O_RDONLY);
+    if (fd < 0)
+    {
+        ALOGI("%s(): Cannot find %s\n", __PRETTY_FUNCTION__, proc_name);
+        return -1;
+    }
+
+    memset(buf, '\0', sizeof(buf));
+    read(fd, buf, sizeof(buf));
+    rpid = strstr(buf, key);
+
+    close(fd);
+
+    if (rpid == NULL)
+    {
+        ALOGI("%s(): Vpid not supported\n");
+        return pid;    
+    }
+   
+    return atoi(rpid+sizeof(key));   
 }
 
 bool is_session_allowed_to_run_in_background(
@@ -84,19 +126,19 @@ void update_oom_values(const android::sp<ubuntu::detail::ApplicationSession>& se
 {
     if (session->session_type == ubuntu::application::ui::system_session_type)
     {
-        if (!write_proc_file(session->remote_pid, "oom_score_adj", "-940"))
-            write_proc_file(session->remote_pid, "oom_adj", "-16");
+        if (!write_proc_file(session->pid, "oom_score_adj", "-940"))
+            write_proc_file(session->pid, "oom_adj", "-16");
         return;
     }
 
     if (session->running_state == ubuntu::application::ui::process_stopped)
     {
-        if (!write_proc_file(session->remote_pid, "oom_score_adj", "1000"))
-            write_proc_file(session->remote_pid, "oom_adj", "15");
+        if (!write_proc_file(session->pid, "oom_score_adj", "1000"))
+            write_proc_file(session->pid, "oom_adj", "15");
     } else
     {
-        if (!write_proc_file(session->remote_pid, "oom_score_adj", "0"))
-            write_proc_file(session->remote_pid, "oom_adj", "0");
+        if (!write_proc_file(session->pid, "oom_score_adj", "0"))
+            write_proc_file(session->pid, "oom_adj", "0");
     }
 }
 
@@ -391,9 +433,12 @@ void ApplicationManager::start_a_new_session(
     int fd)
 {
     (void) session_type;
+    pid_t pid = android::IPCThreadState::self()->getCallingPid();
+    pid_t remote_pid = pid_to_vpid(pid);
     android::sp<ubuntu::detail::ApplicationSession> app_session(
         new ubuntu::detail::ApplicationSession(
-            android::IPCThreadState::self()->getCallingPid(),
+            pid,
+            remote_pid,
             session,
             session_type,
             stage_hint,
@@ -511,7 +556,7 @@ int ApplicationManager::get_session_pid(const android::sp<android::IApplicationM
     const android::sp<ubuntu::detail::ApplicationSession>& as =
             apps.valueFor(session->asBinder());
 
-    return as->remote_pid;    
+    return as->remote_pid;
 }
 
 void ApplicationManager::request_update_for_session(const android::sp<android::IApplicationManagerSession>& session)
@@ -642,7 +687,7 @@ void ApplicationManager::unfocus_running_sessions()
             if (!is_session_allowed_to_run_in_background(session))
             {
                 ALOGI("\t Trying to stop ordinary app process.");
-                if (0 != kill(session->remote_pid, SIGSTOP))
+                if (0 != kill(session->pid, SIGSTOP))
                 {
                     ALOGI("\t Problem stopping process, errno = %d.", errno);
                 } else
@@ -684,9 +729,9 @@ android::IApplicationManagerSession::SurfaceProperties ApplicationManager::query
 
         if (session->running_state == ubuntu::application::ui::process_stopped)
         {
-            kill(session->remote_pid, SIGCONT);
+            kill(session->pid, SIGCONT);
             props = session->query_properties();
-            kill(session->remote_pid, SIGSTOP);
+            kill(session->pid, SIGSTOP);
         } else {
             props = session->query_properties();
         }
@@ -862,7 +907,7 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
                     (session->stage_hint == ubuntu::application::ui::side_stage &&
                     next_session->stage_hint != ubuntu::application::ui::main_stage))
                 {
-                    kill(session->remote_pid, SIGSTOP);
+                    kill(session->pid, SIGSTOP);
                     session->running_state = ubuntu::application::ui::process_stopped;
                     update_oom_values(session);
                     notify_observers_about_session_unfocused(session->remote_pid,
@@ -876,7 +921,7 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
                     {
                         const android::sp<ubuntu::detail::ApplicationSession>& main_session =
                             apps.valueFor(apps_as_added[main_stage_application]);
-                        kill(main_session->remote_pid, SIGSTOP);
+                        kill(main_session->pid, SIGSTOP);
                         main_session->running_state = ubuntu::application::ui::process_stopped;
                         update_oom_values(main_session);
                     }
@@ -908,7 +953,7 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
         // Continue the session
         if (!is_session_allowed_to_run_in_background(session))
         {
-            kill(session->remote_pid, SIGCONT);
+            kill(session->pid, SIGCONT);
             session->running_state = ubuntu::application::ui::process_running;
             update_oom_values(session);
         }
@@ -944,7 +989,7 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
             {
                 const android::sp<ubuntu::detail::ApplicationSession>& main_session =
                     apps.valueFor(apps_as_added[main_stage_application]);
-                kill(main_session->remote_pid, SIGCONT);
+                kill(main_session->pid, SIGCONT);
                 main_session->running_state = ubuntu::application::ui::process_running;
                 update_oom_values(main_session);
                 input_windows.appendVector(main_session->input_window_handles());
@@ -978,7 +1023,7 @@ void ApplicationManager::kill_focused_application_locked()
         const android::sp<ubuntu::detail::ApplicationSession>& session =
                 apps.valueFor(apps_as_added[focused_application]);
 
-        kill(session->remote_pid, SIGKILL);
+        kill(session->pid, SIGKILL);
     }
 }
 
