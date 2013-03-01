@@ -783,6 +783,7 @@ sna_uevent_fini(ScrnInfoPtr scrn)
 	DBG(("%s: removed uvent handler\n", __FUNCTION__));
 }
 #else
+static void sna_uevent_init(ScrnInfoPtr scrn) { }
 static void sna_uevent_fini(ScrnInfoPtr scrn) { }
 #endif /* HAVE_UDEV */
 
@@ -1030,9 +1031,7 @@ sna_screen_init(SCREEN_INIT_ARGS_DECL)
 
 	sna->suspended = FALSE;
 
-#if HAVE_UDEV
 	sna_uevent_init(scrn);
-#endif
 
 	return TRUE;
 }
