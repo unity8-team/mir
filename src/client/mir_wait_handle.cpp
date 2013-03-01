@@ -38,6 +38,7 @@ void mir_toolkit::MirWaitHandle::result_received()
     std::unique_lock<std::mutex> lock(guard);
     result_has_occurred = true;
     called_back = false;
+
     wait_condition.notify_all();
 }
 
