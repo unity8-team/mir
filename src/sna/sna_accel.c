@@ -760,6 +760,9 @@ create_pixmap(struct sna *sna, ScreenPtr screen,
 #endif
 
 	pixmap->usage_hint = usage_hint;
+#if DEBUG_MEMORY
+	sna->debug_memory.pixmap_allocs++;
+#endif
 
 	DBG(("%s: serial=%ld, usage=%d, %dx%d\n",
 	     __FUNCTION__,
@@ -1312,6 +1315,10 @@ static Bool sna_destroy_pixmap(PixmapPtr pixmap)
 
 	if (--pixmap->refcnt)
 		return TRUE;
+
+#if DEBUG_MEMORY
+	to_sna_from_pixmap(pixmap)->debug_memory.pixmap_allocs--;
+#endif
 
 	priv = sna_pixmap(pixmap);
 	DBG(("%s: pixmap=%ld, attached?=%d\n",
@@ -14021,6 +14028,8 @@ static bool sna_accel_do_debug_memory(struct sna *sna)
 
 static void sna_accel_debug_memory(struct sna *sna)
 {
+	ErrorF("Allocated pixmaps: %d\n",
+	       sna->debug_memory.pixmap_allocs);
 	ErrorF("Allocated bo: %d, %ld bytes\n",
 	       sna->kgem.debug_memory.bo_allocs,
 	       (long)sna->kgem.debug_memory.bo_bytes);

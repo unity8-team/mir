@@ -296,10 +296,10 @@ struct sna {
 
 #if DEBUG_MEMORY
 	struct {
-	       int shadow_pixels_allocs;
-	       int cpu_bo_allocs;
-	       size_t shadow_pixels_bytes;
-	       size_t cpu_bo_bytes;
+		int pixmap_allocs;
+		int cpu_bo_allocs;
+		size_t shadow_pixels_bytes;
+		size_t cpu_bo_bytes;
 	} debug_memory;
 #endif
 };
