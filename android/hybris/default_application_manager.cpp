@@ -59,7 +59,7 @@ pid_t pid_to_vpid(int pid)
 {
     ALOGI("%s(%d)", __PRETTY_FUNCTION__, pid);
     
-    if (pid < 0)
+    if (pid <= 0)
         return -1;
 
     char proc_name[128], buf[1024];
