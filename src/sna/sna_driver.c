@@ -831,7 +831,7 @@ static Bool sna_early_close_screen(CLOSE_SCREEN_ARGS_DECL)
 
 	xf86_cursors_fini(screen);
 
-	return TRUE;
+	return sna->CloseScreen(CLOSE_SCREEN_ARGS);
 }
 
 static Bool sna_late_close_screen(CLOSE_SCREEN_ARGS_DECL)
