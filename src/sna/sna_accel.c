@@ -1306,6 +1306,7 @@ static void __sna_free_pixmap(struct sna *sna,
 
 	if (priv->header) {
 		assert(!priv->shm);
+		assert(pixmap->drawable.pScreen == sna->scrn->pScreen);
 		pixmap->devPrivate.ptr = sna->freed_pixmap;
 		sna->freed_pixmap = pixmap;
 	} else {
