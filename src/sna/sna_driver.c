@@ -836,8 +836,7 @@ static Bool sna_early_close_screen(CLOSE_SCREEN_ARGS_DECL)
 
 static Bool sna_late_close_screen(CLOSE_SCREEN_ARGS_DECL)
 {
-	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
-	struct sna *sna = to_sna(scrn);
+	struct sna *sna = to_sna_from_screen(screen);
 	DepthPtr depths;
 	int d;
 
@@ -921,6 +920,8 @@ sna_screen_init(SCREEN_INIT_ARGS_DECL)
 
 	assert(sna->scrn == scrn);
 	assert(scrn->pScreen == NULL); /* set afterwards */
+
+	assert(sna->freed_pixmap == NULL);
 
 	if (!sna_register_all_privates())
 		return FALSE;

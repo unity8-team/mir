@@ -955,6 +955,9 @@ sna_pixmap_create_scratch(ScreenPtr screen,
 	priv->header = true;
 	sna_damage_all(&priv->gpu_damage, width, height);
 
+	assert(to_sna_from_pixmap(pixmap) == sna);
+	assert(pixmap->drawable.pScreen == screen);
+
 	return pixmap;
 }
 
@@ -1264,6 +1267,9 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 	priv->stride = pad;
 	priv->create = flags;
 	priv->ptr = ptr;
+
+	assert(to_sna_from_pixmap(pixmap) == sna);
+	assert(pixmap->drawable.pScreen == screen);
 
 	return pixmap;
 
