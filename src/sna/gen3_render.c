@@ -3480,7 +3480,7 @@ reuse_source(struct sna *sna,
 	mc->filter = gen3_filter(mask->filter);
 	mc->pict_format = mask->format;
 	gen3_composite_channel_set_format(mc, mask->format);
-	assert(mask->card_format);
+	assert(mc->card_format);
 	if (mc->bo)
 		kgem_bo_reference(mc->bo);
 	return true;
