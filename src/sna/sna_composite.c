@@ -43,7 +43,7 @@
 
 bool sna_composite_create(struct sna *sna)
 {
-	xRenderColor color ={ 0 };
+	xRenderColor color = { 0 };
 	int error;
 
 	if (!can_render(sna))
@@ -56,6 +56,7 @@ bool sna_composite_create(struct sna *sna)
 void sna_composite_close(struct sna *sna)
 {
 	FreePicture(sna->clear, 0);
+	sna->clear = NULL;
 }
 
 static inline bool
