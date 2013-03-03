@@ -2045,6 +2045,7 @@ static void gen3_emit_composite_state(struct sna *sna,
 		ss2 &= ~S2_TEXCOORD_FMT(tex_count, TEXCOORDFMT_NOT_PRESENT);
 		ss2 |= S2_TEXCOORD_FMT(tex_count,
 				       op->src.is_affine ? TEXCOORDFMT_2D : TEXCOORDFMT_4D);
+		assert(op->src.card_format);
 		map[tex_count * 2 + 0] =
 			op->src.card_format |
 			gen3_ms_tiling(op->src.bo->tiling) |
@@ -2080,6 +2081,7 @@ static void gen3_emit_composite_state(struct sna *sna,
 		ss2 &= ~S2_TEXCOORD_FMT(tex_count, TEXCOORDFMT_NOT_PRESENT);
 		ss2 |= S2_TEXCOORD_FMT(tex_count,
 				       op->mask.is_affine ? TEXCOORDFMT_2D : TEXCOORDFMT_4D);
+		assert(op->mask.card_format);
 		map[tex_count * 2 + 0] =
 			op->mask.card_format |
 			gen3_ms_tiling(op->mask.bo->tiling) |
@@ -2828,6 +2830,7 @@ static void gen3_composite_channel_convert(struct sna_composite_channel *channel
 	channel->filter = gen3_filter(channel->filter);
 	if (channel->card_format == 0)
 		gen3_composite_channel_set_format(channel, channel->pict_format);
+	assert(channel->card_format);
 }
 
 static bool gen3_gradient_setup(struct sna *sna,
@@ -3104,6 +3107,7 @@ gen3_composite_picture(struct sna *sna,
 		return sna_render_picture_convert(sna, picture, channel, pixmap,
 						  x, y, w, h, dst_x, dst_y,
 						  false);
+	assert(channel->card_format);
 
 	if (too_large(pixmap->drawable.width, pixmap->drawable.height)) {
 		DBG(("%s: pixmap too large (%dx%d), extracting (%d, %d)x(%d,%d)\n",
@@ -3476,6 +3480,7 @@ reuse_source(struct sna *sna,
 	mc->filter = gen3_filter(mask->filter);
 	mc->pict_format = mask->format;
 	gen3_composite_channel_set_format(mc, mask->format);
+	assert(mask->card_format);
 	if (mc->bo)
 		kgem_bo_reference(mc->bo);
 	return true;
@@ -5560,6 +5565,7 @@ gen3_render_copy_setup_source(struct sna_composite_channel *channel,
 	channel->offset[1] = 0;
 	gen3_composite_channel_set_format(channel,
 					  sna_format_for_depth(pixmap->drawable.depth));
+	assert(channel->card_format);
 	channel->bo = bo;
 	channel->is_affine = 1;
 }

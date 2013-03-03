@@ -923,6 +923,9 @@ void sna_copy_fbcon(struct sna *sna)
 		return;
 	}
 
+	DBG(("%s: found fbcon, size=%dx%d, depth=%d, bpp=%d\n",
+	     __FUNCTION__, fbcon.width, fbcon.height, fbcon.depth, fbcon.bpp));
+
 	/* Wrap the fbcon in a pixmap so that we select the right formats
 	 * in the render copy in case we need to preserve the fbcon
 	 * across a depth change upon starting X.
