@@ -1345,7 +1345,6 @@ void sna_mode_adjust_frame(struct sna *sna, int x, int y)
 static void
 sna_crtc_hide_cursor(xf86CrtcPtr crtc)
 {
-	struct sna *sna = to_sna(crtc->scrn);
 	struct sna_crtc *sna_crtc = to_sna_crtc(crtc);
 	struct drm_mode_cursor arg;
 
@@ -1357,13 +1356,12 @@ sna_crtc_hide_cursor(xf86CrtcPtr crtc)
 	arg.width = arg.height = 64;
 	arg.handle = 0;
 
-	(void)drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_CURSOR, &arg);
+	(void)drmIoctl(to_sna(crtc->scrn)->kgem.fd, DRM_IOCTL_MODE_CURSOR, &arg);
 }
 
 static void
 sna_crtc_show_cursor(xf86CrtcPtr crtc)
 {
-	struct sna *sna = to_sna(crtc->scrn);
 	struct sna_crtc *sna_crtc = to_sna_crtc(crtc);
 	struct drm_mode_cursor arg;
 
@@ -1375,7 +1373,7 @@ sna_crtc_show_cursor(xf86CrtcPtr crtc)
 	arg.width = arg.height = 64;
 	arg.handle = sna_crtc->cursor;
 
-	(void)drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_CURSOR, &arg);
+	(void)drmIoctl(to_sna(crtc->scrn)->kgem.fd, DRM_IOCTL_MODE_CURSOR, &arg);
 }
 
 static void
@@ -1388,7 +1386,6 @@ sna_crtc_set_cursor_colors(xf86CrtcPtr crtc, int bg, int fg)
 static void
 sna_crtc_set_cursor_position(xf86CrtcPtr crtc, int x, int y)
 {
-	struct sna *sna = to_sna(crtc->scrn);
 	struct sna_crtc *sna_crtc = to_sna_crtc(crtc);
 	struct drm_mode_cursor arg;
 
@@ -1401,45 +1398,40 @@ sna_crtc_set_cursor_position(xf86CrtcPtr crtc, int x, int y)
 	arg.y = y;
 	arg.handle = sna_crtc->cursor;
 
-	(void)drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_CURSOR, &arg);
+	(void)drmIoctl(to_sna(crtc->scrn)->kgem.fd, DRM_IOCTL_MODE_CURSOR, &arg);
 }
 
 static void
 sna_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *image)
 {
-	struct sna *sna = to_sna(crtc->scrn);
-	struct sna_crtc *sna_crtc = to_sna_crtc(crtc);
 	struct drm_i915_gem_pwrite pwrite;
 
-	__DBG(("%s: CRTC:%d\n", __FUNCTION__, sna_crtc->id));
+	__DBG(("%s: CRTC:%d\n", __FUNCTION__, to_sna_crtc(crtc)->id));
 
 	VG_CLEAR(pwrite);
-	pwrite.handle = sna_crtc->cursor;
+	pwrite.handle = to_sna_crtc(crtc)->cursor;
 	pwrite.offset = 0;
 	pwrite.size = 64*64*4;
 	pwrite.data_ptr = (uintptr_t)image;
-	(void)drmIoctl(sna->kgem.fd, DRM_IOCTL_I915_GEM_PWRITE, &pwrite);
+	(void)drmIoctl(to_sna(crtc->scrn)->kgem.fd, DRM_IOCTL_I915_GEM_PWRITE, &pwrite);
 }
 
 static void
 sna_crtc_gamma_set(xf86CrtcPtr crtc,
 		       CARD16 *red, CARD16 *green, CARD16 *blue, int size)
 {
-	struct sna *sna = to_sna(crtc->scrn);
-	struct sna_crtc *sna_crtc = to_sna_crtc(crtc);
-
-	drmModeCrtcSetGamma(sna->kgem.fd, sna_crtc->id,
+	drmModeCrtcSetGamma(to_sna(crtc->scrn)->kgem.fd,
+			    to_sna_crtc(crtc)->id,
 			    size, red, green, blue);
 }
 
 static void
 sna_crtc_destroy(xf86CrtcPtr crtc)
 {
-	struct sna *sna = to_sna(crtc->scrn);
 	struct sna_crtc *sna_crtc = to_sna_crtc(crtc);
 
 	sna_crtc_hide_cursor(crtc);
-	gem_close(sna->kgem.fd, sna_crtc->cursor);
+	gem_close(to_sna(crtc->scrn)->kgem.fd, sna_crtc->cursor);
 
 	list_del(&sna_crtc->link);
 	free(sna_crtc);
