@@ -547,7 +547,7 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 
 	flags24 = Support32bppFb | PreferConvert24to32 | SupportConvert24to32;
 
-	preferred_depth = sna->info->gen < 040 ? 15 : 24;
+	preferred_depth = sna->info->gen < 030 ? 15 : 24;
 	if (!fb_supports_depth(fd, preferred_depth))
 		preferred_depth = 24;
 
