@@ -438,6 +438,37 @@ static Bool sna_option_cast_to_bool(struct sna *sna, int id, Bool val)
 	return val;
 }
 
+static Bool fb_supports_depth(int fd, int depth)
+{
+	struct drm_i915_gem_create create;
+	struct drm_mode_fb_cmd fb;
+	struct drm_gem_close close;
+	Bool ret;
+
+	VG_CLEAR(create);
+	create.handle = 0;
+	create.size = 4096;
+	if (drmIoctl(fd, DRM_IOCTL_I915_GEM_CREATE, &create))
+		return FALSE;
+
+	VG_CLEAR(fb);
+	fb.width = 64;
+	fb.height = 16;
+	fb.pitch = 256;
+	fb.bpp = depth <= 8 ? 8 : depth <= 16 ? 16 : 32;
+	fb.depth = depth;
+	fb.handle = create.handle;
+
+	ret = drmIoctl(fd, DRM_IOCTL_MODE_ADDFB, &fb) == 0;
+	drmModeRmFB(fd, fb.fb_id);
+
+	VG_CLEAR(close);
+	close.handle = create.handle;
+	(void)drmIoctl(fd, DRM_IOCTL_GEM_CLOSE, &close);
+
+	return ret;
+}
+
 /**
  * This is called before ScreenInit to do any require probing of screen
  * configuration.
@@ -502,6 +533,10 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 
 	sna->PciInfo = xf86GetPciInfoForEntity(sna->pEnt->index);
 
+	scrn->monitor = scrn->confScreen->monitor;
+	scrn->progClock = TRUE;
+	scrn->rgbBits = 8;
+
 	fd = sna_open_drm_master(scrn);
 	if (fd == -1) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
@@ -509,13 +544,13 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 		return FALSE;
 	}
 
-	scrn->monitor = scrn->confScreen->monitor;
-	scrn->progClock = TRUE;
-	scrn->rgbBits = 8;
 
 	flags24 = Support32bppFb | PreferConvert24to32 | SupportConvert24to32;
 
 	preferred_depth = sna->info->gen < 040 ? 15 : 24;
+	if (!fb_supports_depth(fd, preferred_depth))
+		preferred_depth = 24;
+
 	if (!xf86SetDepthBpp(scrn, preferred_depth, 0, 0, flags24))
 		return FALSE;
 
@@ -525,10 +560,11 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 	case 16:
 	case 24:
 	case 30:
-		break;
+		if (fb_supports_depth(fd, scrn->depth))
+			break;
 	default:
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-			   "Given depth (%d) is not supported by Intel driver\n",
+			   "Given depth (%d) is not supported by the Intel driver and this chipset.\n",
 			   scrn->depth);
 		return FALSE;
 	}
