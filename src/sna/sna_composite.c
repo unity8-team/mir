@@ -55,8 +55,12 @@ bool sna_composite_create(struct sna *sna)
 
 void sna_composite_close(struct sna *sna)
 {
-	FreePicture(sna->clear, 0);
-	sna->clear = NULL;
+	DBG(("%s\n", __FUNCTION__));
+
+	if (sna->clear) {
+		FreePicture(sna->clear, 0);
+		sna->clear = NULL;
+	}
 }
 
 static inline bool
