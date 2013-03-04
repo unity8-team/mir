@@ -1372,9 +1372,12 @@ static inline bool pixmap_inplace(struct sna *sna,
 		return false;
 
 	if (priv->mapped)
-		return !IS_CPU_MAP(priv->gpu_bo->map);
+		return !IS_CPU_MAP(priv->gpu_bo->map) || sna->kgem.has_llc;
 
 	if (!write_only && priv->cpu_damage)
+		return false;
+
+	if (priv->gpu_bo && !kgem_bo_is_mappable(&sna->kgem, priv->gpu_bo))
 		return false;
 
 	return (pixmap->devKind * pixmap->drawable.height >> 12) >
