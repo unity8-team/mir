@@ -5774,8 +5774,7 @@ gen3_render_copy(struct sna *sna, uint8_t alu,
 #endif
 
 	/* Prefer to use the BLT */
-	if (sna->kgem.mode != KGEM_RENDER &&
-	    sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
+	if (sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
 	    sna_blt_copy(sna, alu,
 			 src_bo, dst_bo,
 			 dst->drawable.bitsPerPixel,
