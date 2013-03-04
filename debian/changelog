@@ -1,3 +1,18 @@
+ubuntu-platform-api (0.17-0phablet1) quantal; urgency=low
+
+  [ Jim Hodapp ]
+  * Implements getting the min sensor reading update rate, min and max
+    reading values, and reading resolution.
+  * Refactor accelerometer support so that it supports calling more than
+    one observer listener per Sensor instance.
+  
+  [ Ricardo Mendoza ]
+  * Support tracking sessions in a different namespace than the app manager. 
+  * Move default app manager to detail namespace.
+  * Fix various tests due to API changes.
+
+ -- Ricardo Mendoza <ricardo.mendoza@canonical.com>  Mon, 04 Mar 2013 10:51:10 -0430
+
 ubuntu-platform-api (0.16-0phablet1) quantal; urgency=low
 
   * Dynamically adjust the OOM values for running apps 
