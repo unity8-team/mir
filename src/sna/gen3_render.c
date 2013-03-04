@@ -5554,6 +5554,8 @@ gen3_render_copy_setup_source(struct sna_composite_channel *channel,
 			      PixmapPtr pixmap,
 			      struct kgem_bo *bo)
 {
+	int i;
+
 	channel->u.gen3.type = SHADER_TEXTURE;
 	channel->filter = gen3_filter(PictFilterNearest);
 	channel->repeat = gen3_texture_repeat(RepeatNone);
@@ -5563,9 +5565,20 @@ gen3_render_copy_setup_source(struct sna_composite_channel *channel,
 	channel->scale[1] = 1.f/pixmap->drawable.height;
 	channel->offset[0] = 0;
 	channel->offset[1] = 0;
-	gen3_composite_channel_set_format(channel,
-					  sna_format_for_depth(pixmap->drawable.depth));
+
+	channel->pict_format = sna_format_for_depth(pixmap->drawable.depth);
+	if (!gen3_composite_channel_set_format(channel, channel->pict_format)) {
+		for (i = 0; i < ARRAY_SIZE(gen3_tex_formats); i++) {
+			if (gen3_tex_formats[i].xfmt == channel->pict_format) {
+				channel->card_format = gen3_tex_formats[i].card_fmt;
+				channel->rb_reversed = gen3_tex_formats[i].rb_reversed;
+				channel->alpha_fixup = true;
+				break;
+			}
+		}
+	}
 	assert(channel->card_format);
+
 	channel->bo = bo;
 	channel->is_affine = 1;
 }
