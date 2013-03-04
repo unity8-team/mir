@@ -489,7 +489,6 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 	rgb defaultWeight = { 0, 0, 0 };
 	EntityInfoPtr pEnt;
 	int preferred_depth;
-	int flags24;
 	Gamma zeros = { 0.0, 0.0, 0.0 };
 	int fd;
 
@@ -544,14 +543,13 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 		return FALSE;
 	}
 
-
-	flags24 = Support32bppFb | PreferConvert24to32 | SupportConvert24to32;
-
 	preferred_depth = sna->info->gen < 030 ? 15 : 24;
 	if (!fb_supports_depth(fd, preferred_depth))
 		preferred_depth = 24;
 
-	if (!xf86SetDepthBpp(scrn, preferred_depth, 0, 0, flags24))
+	if (!xf86SetDepthBpp(scrn, preferred_depth, 0, 0,
+			     Support32bppFb |
+			     SupportConvert24to32 | PreferConvert24to32))
 		return FALSE;
 
 	switch (scrn->depth) {
