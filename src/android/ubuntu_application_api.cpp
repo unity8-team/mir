@@ -206,6 +206,10 @@ IMPLEMENT_VOID_FUNCTION1(ubuntu_sensor_install_observer, ubuntu_sensor_observer*
 IMPLEMENT_VOID_FUNCTION1(ubuntu_sensor_uninstall_observer, ubuntu_sensor_observer*);
 IMPLEMENT_VOID_FUNCTION1(ubuntu_sensor_enable_sensor, ubuntu_sensor_type);
 IMPLEMENT_VOID_FUNCTION1(ubuntu_sensor_disable_sensor, ubuntu_sensor_type);
+IMPLEMENT_FUNCTION1(int32_t, ubuntu_sensor_get_sensor_min_delay, ubuntu_sensor_type);
+IMPLEMENT_FUNCTION1(float, ubuntu_sensor_get_sensor_min_value, ubuntu_sensor_type);
+IMPLEMENT_FUNCTION1(float, ubuntu_sensor_get_sensor_max_value, ubuntu_sensor_type);
+IMPLEMENT_FUNCTION1(float, ubuntu_sensor_get_sensor_resolution, ubuntu_sensor_type);
 
 // GPS
 IMPLEMENT_FUNCTION1(UbuntuGps, ubuntu_gps_new, UbuntuGpsParams*);

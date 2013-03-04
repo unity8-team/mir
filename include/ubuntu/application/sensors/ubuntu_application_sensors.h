@@ -130,6 +130,22 @@ extern "C" {
      * \ingroup sensor_access
      */
     void ubuntu_sensor_disable_sensor(ubuntu_sensor_type sensor_type);
+    /** Returns the minimum sensor sampling delay in Hz.
+     * \ingroup sensor_access
+     */
+    int32_t ubuntu_sensor_get_sensor_min_delay(ubuntu_sensor_type sensor_type);
+    /** Returns the minimum valid value for the sensor_type.
+     * \ingroup sensor_access
+     */
+    float ubuntu_sensor_get_sensor_min_value(ubuntu_sensor_type sensor_type);
+    /** Returns the maximum valid value for the sensor_type.
+     * \ingroup sensor_access
+     */
+    float ubuntu_sensor_get_sensor_max_value(ubuntu_sensor_type sensor_type);
+    /** Returns the resolution of valid values for the sensor_type.
+     * \ingroup sensor_access
+     */
+    float ubuntu_sensor_get_sensor_resolution(ubuntu_sensor_type sensor_type);
 
     /** \example test_sensors_api.cpp */
 #ifdef __cplusplus
