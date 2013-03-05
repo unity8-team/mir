@@ -3278,6 +3278,20 @@ sna_crtc_redisplay(xf86CrtcPtr crtc, RegionPtr region)
 	sna_crtc_redisplay__composite(crtc, region);
 }
 
+static void set_bo(PixmapPtr pixmap, struct kgem_bo *bo)
+{
+	struct sna_pixmap *priv = sna_pixmap(pixmap);
+
+	if (priv->mapped) {
+		assert(!priv->shm && priv->stride);
+		pixmap->devPrivate.ptr = PTR(priv->ptr);
+		pixmap->devKind = priv->stride;
+		priv->mapped = false;
+	}
+
+	priv->gpu_bo = bo;
+}
+
 void sna_mode_redisplay(struct sna *sna)
 {
 	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(sna->scrn);
@@ -3406,7 +3420,7 @@ disable:
 						     COPY_LAST);
 			kgem_submit(&sna->kgem);
 
-			sna_pixmap(sna->front)->gpu_bo = old;
+			set_bo(sna->front, old);
 			sna_dri_pixmap_update_bo(sna, sna->front);
 
 			sna->mode.shadow = new;
