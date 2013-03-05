@@ -9295,7 +9295,7 @@ fallback:
 	if (!sna_gc_move_to_cpu(gc, drawable, &data.region))
 		goto out;
 	if (!sna_drawable_move_region_to_cpu(drawable, &data.region,
-					     MOVE_READ | MOVE_WRITE))
+					     drawable_gc_flags(drawable, gc, true)))
 		goto out_gc;
 
 	DBG(("%s -- fbPolyArc\n", __FUNCTION__));
