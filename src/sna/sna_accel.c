@@ -4041,7 +4041,7 @@ sna_self_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	if (priv == NULL || DAMAGE_IS_ALL(priv->cpu_damage) || priv->shm)
 		goto fallback;
 
-	if (priv->gpu_damage) {
+	if (priv->gpu_damage || (priv->cpu_damage == NULL && priv->gpu_bo)) {
 		assert(priv->gpu_bo);
 
 		if (alu == GXcopy && priv->clear)
