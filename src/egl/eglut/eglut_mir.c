@@ -68,7 +68,7 @@ _eglutNativeInitWindow(struct eglut_window *win, const char *title,
   parameters.name = strdup(title);
   parameters.height = h;
   parameters.width = w;
-  parameters.pixel_format = mir_pixel_format_rgba_8888;
+  parameters.pixel_format = mir_pixel_format_argb_8888;
   mir_wait_for(mir_surface_create(_eglut->native_dpy, &parameters,
 				  surface_create_callback, win));
   win->native.width = w;
