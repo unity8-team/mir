@@ -1614,6 +1614,8 @@ skip_inplace_map:
 	     sna_pixmap_create_mappable_gpu(pixmap, (flags & MOVE_READ) == 0)) {
 		DBG(("%s: try to operate inplace (GTT)\n", __FUNCTION__));
 		assert((flags & MOVE_READ) == 0 || priv->cpu == false);
+		/* XXX only sync for writes? */
+		kgem_bo_submit(&sna->kgem, priv->gpu_bo);
 		assert(priv->gpu_bo->exec == NULL);
 
 		pixmap->devPrivate.ptr = kgem_bo_map(&sna->kgem, priv->gpu_bo);
@@ -1971,6 +1973,8 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 	    region_inplace(sna, pixmap, region, priv, (flags & MOVE_READ) == 0) &&
 	     sna_pixmap_create_mappable_gpu(pixmap, false)) {
 		DBG(("%s: try to operate inplace\n", __FUNCTION__));
+		/* XXX only sync for writes? */
+		kgem_bo_submit(&sna->kgem, priv->gpu_bo);
 		assert(priv->gpu_bo->exec == NULL);
 
 		pixmap->devPrivate.ptr = kgem_bo_map(&sna->kgem, priv->gpu_bo);
