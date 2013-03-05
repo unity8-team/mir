@@ -43,18 +43,22 @@ noinst_PROGRAMS = \
 	clear \
 	drawtex_screen \
 	drawtex_x11 \
+	drawtex_mir \
 	eglfbdev \
 	es1_info \
 	gears_screen \
 	gears_x11 \
+	gears_mir \
 	msaa \
 	pbuffer\
 	render_tex \
 	texture_from_pixmap \
 	torus_screen \
 	torus_x11 \
+	torus_mir \
 	tri_screen \
 	tri_x11 \
+	tri_mir	\
 	two_win
 endif
 endif
@@ -81,6 +85,11 @@ gears_x11_SOURCES = gears.c
 torus_x11_SOURCES = torus.c
 tri_x11_SOURCES = tri.c
 
+drawtex_mir_SOURCES = drawtex.c
+gears_mir_SOURCES = gears.c
+torus_mir_SOURCES = torus.c
+tri_mir_SOURCES = tri.c
+
 drawtex_screen_LDADD = ../eglut/libeglut_screen.la
 gears_screen_LDADD = ../eglut/libeglut_screen.la
 torus_screen_LDADD = ../eglut/libeglut_screen.la
@@ -90,3 +99,8 @@ drawtex_x11_LDADD = ../eglut/libeglut_x11.la
 gears_x11_LDADD = ../eglut/libeglut_x11.la
 torus_x11_LDADD = ../eglut/libeglut_x11.la
 tri_x11_LDADD = ../eglut/libeglut_x11.la
+
+drawtex_mir_LDADD = ../eglut/libeglut_mir.la
+gears_mir_LDADD = ../eglut/libeglut_mir.la
+torus_mir_LDADD = ../eglut/libeglut_mir.la
+tri_mir_LDADD = ../eglut/libeglut_mir.la
