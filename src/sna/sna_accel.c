@@ -1397,19 +1397,18 @@ sna_pixmap_create_mappable_gpu(PixmapPtr pixmap,
 
 	assert_pixmap_damage(pixmap);
 
-	if (priv->gpu_bo) {
-		if (can_replace &&
-		    (!kgem_bo_is_mappable(&sna->kgem, priv->gpu_bo) ||
-		     __kgem_bo_is_busy(&sna->kgem, priv->gpu_bo))) {
-			if (priv->pinned)
-				return false;
+	if (can_replace && priv->gpu_bo &&
+	    (!kgem_bo_is_mappable(&sna->kgem, priv->gpu_bo) ||
+	     __kgem_bo_is_busy(&sna->kgem, priv->gpu_bo))) {
+		if (priv->pinned)
+			return false;
 
-			DBG(("%s: discard busy GPU bo\n", __FUNCTION__));
-			sna_pixmap_free_gpu(sna, priv);
-		}
-
-		return kgem_bo_is_mappable(&sna->kgem, priv->gpu_bo);
+		DBG(("%s: discard busy GPU bo\n", __FUNCTION__));
+		sna_pixmap_free_gpu(sna, priv);
 	}
+
+	if (priv->gpu_bo)
+		return kgem_bo_is_mappable(&sna->kgem, priv->gpu_bo);
 
 	assert_pixmap_damage(pixmap);
 
