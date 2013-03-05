@@ -2067,7 +2067,7 @@ clear:
 			goto clear;
 
 		if (op != PictOpSrc) {
-			DBG(("%s: unsuported op [%d] for blitting\n",
+			DBG(("%s: unsupported op [%d] for blitting\n",
 			     __FUNCTION__, op));
 			return false;
 		}
@@ -2087,7 +2087,7 @@ clear:
 	}
 
 	if (!src->pDrawable) {
-		DBG(("%s: unsuported procedural source\n",
+		DBG(("%s: unsupported procedural source\n",
 		     __FUNCTION__));
 		return false;
 	}
@@ -2102,7 +2102,7 @@ clear:
 		op = PictOpSrc;
 
 	if (op != PictOpSrc) {
-		DBG(("%s: unsuported op [%d] for blitting\n",
+		DBG(("%s: unsupported op [%d] for blitting\n",
 		     __FUNCTION__, op));
 		return false;
 	}
@@ -2294,7 +2294,7 @@ sna_blt_composite__convert(struct sna *sna,
 	if (op == PictOpOver && PICT_FORMAT_A(tmp->src.pict_format) == 0)
 		op = PictOpSrc;
 	if (op != PictOpSrc) {
-		DBG(("%s: unsuported op [%d] for blitting\n",
+		DBG(("%s: unsupported op [%d] for blitting\n",
 		     __FUNCTION__, op));
 		return false;
 	}
