@@ -499,6 +499,7 @@ static void set_bo(PixmapPtr pixmap, struct kgem_bo *bo)
 	assert(bo->proxy == NULL);
 	assert(bo->flush);
 	assert(priv->pinned & PIN_DRI);
+	assert((priv->pinned & PIN_PRIME) == 0);
 	assert(priv->flush);
 
 	/* Post damage on the new front buffer so that listeners, such

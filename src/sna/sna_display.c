@@ -3282,6 +3282,8 @@ static void set_bo(PixmapPtr pixmap, struct kgem_bo *bo)
 {
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
 
+	assert((priv->pinned & PIN_PRIME) == 0);
+
 	if (priv->mapped) {
 		assert(!priv->shm && priv->stride);
 		pixmap->devPrivate.ptr = PTR(priv->ptr);
