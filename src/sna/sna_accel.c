@@ -1377,15 +1377,13 @@ static inline bool pixmap_inplace(struct sna *sna,
 	if (!write_only && priv->cpu_damage)
 		return false;
 
-	if (priv->gpu_bo && !kgem_bo_is_mappable(&sna->kgem, priv->gpu_bo))
-		return false;
-
 	return (pixmap->devKind * pixmap->drawable.height >> 12) >
 		sna->kgem.half_cpu_cache_pages;
 }
 
 static bool
-sna_pixmap_create_mappable_gpu(PixmapPtr pixmap)
+sna_pixmap_create_mappable_gpu(PixmapPtr pixmap,
+			       bool can_replace)
 {
 	struct sna *sna = to_sna_from_pixmap(pixmap);
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
@@ -1396,6 +1394,22 @@ sna_pixmap_create_mappable_gpu(PixmapPtr pixmap)
 
 	if ((priv->create & KGEM_CAN_CREATE_GTT) == 0)
 		return false;
+
+	assert_pixmap_damage(pixmap);
+
+	if (priv->gpu_bo) {
+		if (can_replace &&
+		    (!kgem_bo_is_mappable(&sna->kgem, priv->gpu_bo) ||
+		     __kgem_bo_is_busy(&sna->kgem, priv->gpu_bo))) {
+			if (priv->pinned)
+				return false;
+
+			DBG(("%s: discard busy GPU bo\n", __FUNCTION__));
+			sna_pixmap_free_gpu(sna, priv);
+		}
+
+		return kgem_bo_is_mappable(&sna->kgem, priv->gpu_bo);
+	}
 
 	assert_pixmap_damage(pixmap);
 
@@ -1538,22 +1552,11 @@ _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 		     __FUNCTION__, priv->gpu_damage != NULL, priv->clear));
 
 		if (priv->create & KGEM_CAN_CREATE_GPU &&
-		    pixmap_inplace(sna, pixmap, priv, true)) {
-			assert(!priv->shm);
+		    pixmap_inplace(sna, pixmap, priv, true) &&
+		    sna_pixmap_create_mappable_gpu(pixmap, true)) {
 			DBG(("%s: write inplace\n", __FUNCTION__));
-			if (priv->gpu_bo) {
-				if (__kgem_bo_is_busy(&sna->kgem,
-						      priv->gpu_bo)) {
-					if (priv->pinned)
-						goto skip_inplace_map;
-
-					DBG(("%s: discard busy GPU bo\n", __FUNCTION__));
-					sna_pixmap_free_gpu(sna, priv);
-				}
-			}
-			if (priv->gpu_bo == NULL &&
-			    !sna_pixmap_create_mappable_gpu(pixmap))
-				goto skip_inplace_map;
+			assert(!priv->shm);
+			assert(priv->gpu_bo->exec == NULL);
 
 			pixmap->devPrivate.ptr =
 				kgem_bo_map(&sna->kgem, priv->gpu_bo);
@@ -1609,11 +1612,10 @@ skip_inplace_map:
 
 	if (operate_inplace(priv, flags) &&
 	    pixmap_inplace(sna, pixmap, priv, (flags & MOVE_READ) == 0) &&
-	    (priv->gpu_bo || sna_pixmap_create_mappable_gpu(pixmap))) {
-		kgem_bo_submit(&sna->kgem, priv->gpu_bo);
-
+	     sna_pixmap_create_mappable_gpu(pixmap, (flags & MOVE_READ) == 0)) {
 		DBG(("%s: try to operate inplace (GTT)\n", __FUNCTION__));
 		assert((flags & MOVE_READ) == 0 || priv->cpu == false);
+		assert(priv->gpu_bo->exec == NULL);
 
 		pixmap->devPrivate.ptr = kgem_bo_map(&sna->kgem, priv->gpu_bo);
 		priv->mapped = pixmap->devPrivate.ptr != NULL;
@@ -1968,10 +1970,9 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 
 	if (operate_inplace(priv, flags) &&
 	    region_inplace(sna, pixmap, region, priv, (flags & MOVE_READ) == 0) &&
-	    (priv->gpu_bo || sna_pixmap_create_mappable_gpu(pixmap))) {
-		kgem_bo_submit(&sna->kgem, priv->gpu_bo);
-
+	     sna_pixmap_create_mappable_gpu(pixmap, false)) {
 		DBG(("%s: try to operate inplace\n", __FUNCTION__));
+		assert(priv->gpu_bo->exec == NULL);
 
 		pixmap->devPrivate.ptr = kgem_bo_map(&sna->kgem, priv->gpu_bo);
 		priv->mapped = pixmap->devPrivate.ptr != NULL;
