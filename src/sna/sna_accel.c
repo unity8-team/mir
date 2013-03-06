@@ -14356,6 +14356,9 @@ void sna_accel_close(struct sna *sna)
 
 void sna_accel_block_handler(struct sna *sna, struct timeval **tv)
 {
+	if (sna->kgem.need_retire)
+		kgem_retire(&sna->kgem);
+
 	if (sna->timer_active)
 		UpdateCurrentTimeIf();
 
@@ -14413,26 +14416,26 @@ set_tv:
 	}
 
 	sna->kgem.scanout_busy = false;
-}
-
-void sna_accel_wakeup_handler(struct sna *sna)
-{
-	DBG(("%s\n", __FUNCTION__));
-
-	if (sna->kgem.need_retire)
-		kgem_retire(&sna->kgem);
-	if (sna->kgem.nbatch && !sna->kgem.need_retire) {
-		DBG(("%s: GPU idle, flushing\n", __FUNCTION__));
-		_kgem_submit(&sna->kgem);
-	}
-	if (sna->kgem.need_purge)
-		kgem_purge_cache(&sna->kgem);
 
 	if (FAULT_INJECTION && (rand() % FAULT_INJECTION) == 0) {
 		ErrorF("%s hardware acceleration\n",
 		       sna->kgem.wedged ? "Re-enabling" : "Disabling");
 		kgem_submit(&sna->kgem);
 		sna->kgem.wedged = !sna->kgem.wedged;
+	}
+}
+
+void sna_accel_wakeup_handler(struct sna *sna)
+{
+	DBG(("%s: nbatch=%d, need_retire=%d, need_purge=%d\n", __FUNCTION__,
+	     sna->kgem.nbatch, sna->kgem.need_retire, sna->kgem.need_purge));
+
+	if (!sna->kgem.nbatch)
+		return;
+
+	if (kgem_is_idle(&sna->kgem)) {
+		DBG(("%s: GPU idle, flushing\n", __FUNCTION__));
+		_kgem_submit(&sna->kgem);
 	}
 }
 
