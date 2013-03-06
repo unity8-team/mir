@@ -57,6 +57,7 @@
 #define FORCE_INPLACE 0
 #define FORCE_FALLBACK 0
 #define FORCE_FLUSH 0
+#define FORCE_FULL_SYNC 1 /* https://bugs.freedesktop.org/show_bug.cgi?id=61628 */
 
 #define DEFAULT_TILING I915_TILING_X
 
@@ -1671,9 +1672,8 @@ skip_inplace_map:
 				priv->clear = false;
 			}
 
-			kgem_bo_sync__cpu_full(&sna->kgem,
-					       priv->gpu_bo,
-					       flags & MOVE_WRITE);
+			kgem_bo_sync__cpu_full(&sna->kgem, priv->gpu_bo,
+					       FORCE_FULL_SYNC || flags & MOVE_WRITE);
 			assert_pixmap_damage(pixmap);
 			DBG(("%s: operate inplace (CPU)\n", __FUNCTION__));
 			return true;
@@ -1781,8 +1781,8 @@ done:
 	if (priv->cpu_bo) {
 		if ((flags & MOVE_ASYNC_HINT) == 0) {
 			DBG(("%s: syncing CPU bo\n", __FUNCTION__));
-			kgem_bo_sync__cpu_full(&sna->kgem,
-					       priv->cpu_bo, flags & MOVE_WRITE);
+			kgem_bo_sync__cpu_full(&sna->kgem, priv->cpu_bo,
+					       FORCE_FULL_SYNC || flags & MOVE_WRITE);
 			assert(!priv->shm || !kgem_bo_is_busy(priv->cpu_bo));
 		}
 		if (flags & MOVE_WRITE) {
@@ -2312,8 +2312,8 @@ out:
 	}
 	if ((flags & MOVE_ASYNC_HINT) == 0 && priv->cpu_bo) {
 		DBG(("%s: syncing cpu bo\n", __FUNCTION__));
-		kgem_bo_sync__cpu_full(&sna->kgem,
-				       priv->cpu_bo, flags & MOVE_WRITE);
+		kgem_bo_sync__cpu_full(&sna->kgem, priv->cpu_bo,
+				       FORCE_FULL_SYNC || flags & MOVE_WRITE);
 	}
 	priv->cpu = (flags & MOVE_ASYNC_HINT) == 0;
 	assert(pixmap->devPrivate.ptr);
