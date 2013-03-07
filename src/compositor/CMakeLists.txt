@@ -16,6 +16,7 @@ ADD_LIBRARY(
 
   ${MIR_COMPOSITOR_SRCS}
 )
+add_pch(pch/compositor_pch.hh mircompositor)
 
 target_link_libraries(mircompositor
   ${Boost_LIBRARIES}
