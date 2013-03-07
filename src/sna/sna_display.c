@@ -1571,8 +1571,6 @@ sna_crtc_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 	DBG(("%s: created handle=%d for cursor on CRTC:%d\n",
 	     __FUNCTION__, sna_crtc->cursor, sna_crtc->id));
 
-	list_add(&sna_crtc->link, &mode->crtcs);
-
 	DBG(("%s: attached crtc[%d] id=%d, pipe=%d\n",
 	     __FUNCTION__, num, sna_crtc->id, sna_crtc->pipe));
 }
@@ -2307,8 +2305,6 @@ sna_output_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 	output->possible_clones = enc.possible_clones;
 	output->interlaceAllowed = TRUE;
 
-	list_add(&sna_output->link, &mode->outputs);
-
 	return;
 
 cleanup_output:
@@ -2647,9 +2643,6 @@ bool sna_mode_pre_init(ScrnInfoPtr scrn, struct sna *sna)
 {
 	struct sna_mode *mode = &sna->mode;
 	int i;
-
-	list_init(&mode->crtcs);
-	list_init(&mode->outputs);
 
 	mode->kmode = drmModeGetResources(sna->kgem.fd);
 	if (!mode->kmode)
