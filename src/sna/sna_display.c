@@ -2642,14 +2642,11 @@ bool sna_mode_pre_init(ScrnInfoPtr scrn, struct sna *sna)
 	list_init(&mode->crtcs);
 	list_init(&mode->outputs);
 
-	xf86CrtcConfigInit(scrn, &sna_crtc_config_funcs);
-
 	mode->kmode = drmModeGetResources(sna->kgem.fd);
-	if (!mode->kmode) {
-		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-			   "failed to get resources: %s\n", strerror(errno));
-		return false;
-	}
+	if (!mode->kmode)
+		return true;
+
+	xf86CrtcConfigInit(scrn, &sna_crtc_config_funcs);
 
 	set_size_range(sna);
 
