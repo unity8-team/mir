@@ -778,6 +778,9 @@ sna_crtc_disable(xf86CrtcPtr crtc)
 	struct sna_crtc *sna_crtc = to_sna_crtc(crtc);
 	struct drm_mode_crtc arg;
 
+	if (sna_crtc == NULL)
+		return;
+
 	DBG(("%s: disabling crtc [%d]\n", __FUNCTION__, sna_crtc->id));
 
 	memset(&arg, 0, sizeof(arg));
@@ -801,6 +804,9 @@ static void update_flush_interval(struct sna *sna)
 
 	for (i = 0; i < xf86_config->num_crtc; i++) {
 		xf86CrtcPtr crtc = xf86_config->crtc[i];
+
+		if (to_sna_crtc(crtc) == NULL)
+			continue;
 
 		if (!crtc->enabled) {
 			DBG(("%s: CRTC:%d (pipe %d) disabled\n",
@@ -898,6 +904,9 @@ void sna_copy_fbcon(struct sna *sna)
 	for (i = 0; i < xf86_config->num_crtc; i++) {
 		struct sna_crtc *crtc = to_sna_crtc(xf86_config->crtc[i]);
 		struct drm_mode_crtc mode;
+
+		if (!crtc)
+			continue;
 
 		VG_CLEAR(mode);
 		mode.crtc_id = crtc->id;
@@ -1444,7 +1453,7 @@ sna_crtc_destroy(xf86CrtcPtr crtc)
 
 #if HAS_PIXMAP_SHARING
 static Bool
-sna_set_scanout_pixmap(xf86CrtcPtr crtc, PixmapPtr pixmap)
+sna_crtc_set_scanout_pixmap(xf86CrtcPtr crtc, PixmapPtr pixmap)
 {
 	DBG(("%s: CRTC:%d, pipe=%d setting scanout pixmap=%ld\n",
 	     __FUNCTION__,to_sna_crtc(crtc)->id, to_sna_crtc(crtc)->pipe,
@@ -1465,7 +1474,7 @@ static const xf86CrtcFuncsRec sna_crtc_funcs = {
 	.gamma_set = sna_crtc_gamma_set,
 	.destroy = sna_crtc_destroy,
 #if HAS_PIXMAP_SHARING
-	.set_scanout_pixmap = sna_set_scanout_pixmap,
+	.set_scanout_pixmap = sna_crtc_set_scanout_pixmap,
 #endif
 };
 
@@ -2644,11 +2653,9 @@ bool sna_mode_pre_init(ScrnInfoPtr scrn, struct sna *sna)
 
 	mode->kmode = drmModeGetResources(sna->kgem.fd);
 	if (!mode->kmode)
-		return true;
+		return sna_mode_fake_init(sna);
 
 	xf86CrtcConfigInit(scrn, &sna_crtc_config_funcs);
-
-	set_size_range(sna);
 
 	for (i = 0; i < mode->kmode->count_crtcs; i++)
 		sna_crtc_init(scrn, mode, i);
@@ -2658,6 +2665,8 @@ bool sna_mode_pre_init(ScrnInfoPtr scrn, struct sna *sna)
 
 	if (!xf86IsEntityShared(scrn->entityList[0]))
 		sna_mode_compute_possible_clones(scrn);
+
+	set_size_range(sna);
 
 #if HAS_PIXMAP_SHARING
 	xf86ProviderSetup(scrn, NULL, "Intel");
@@ -2756,6 +2765,9 @@ sna_covering_crtc(ScrnInfoPtr scrn,
 		xf86CrtcPtr crtc = xf86_config->crtc[c];
 		BoxRec cover_box;
 		int coverage;
+
+		if (to_sna_crtc(crtc) == NULL)
+			continue;
 
 		/* If the CRTC is off, treat it as not covering */
 		if (to_sna_crtc(crtc)->bo == NULL) {
@@ -3038,6 +3050,9 @@ void sna_mode_update(struct sna *sna)
 	/* Validate CRTC attachments */
 	for (i = 0; i < xf86_config->num_crtc; i++) {
 		xf86CrtcPtr crtc = xf86_config->crtc[i];
+		if (to_sna_crtc(crtc) == NULL)
+			continue;
+
 		if (!crtc->active || !sna_crtc_is_bound(sna, crtc))
 			sna_crtc_disable(crtc);
 	}
