@@ -25,6 +25,7 @@ add_library(
   kms_output_container.cpp
   kms_page_flipper.cpp
 )
+add_pch(pch/gbm_pch.hh mirplatformgraphics)
 
 target_link_libraries(
   mirplatformgraphics
