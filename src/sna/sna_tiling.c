@@ -690,7 +690,7 @@ bool sna_tiling_blt_copy_boxes(struct sna *sna, uint8_t alu,
 {
 	RegionRec region, tile, this;
 	struct kgem_bo *bo;
-	int step;
+	int max_size, step;
 	bool ret = false;
 
 	if (!kgem_bo_can_blt(&sna->kgem, src_bo) ||
@@ -703,14 +703,27 @@ bool sna_tiling_blt_copy_boxes(struct sna *sna, uint8_t alu,
 		return false;
 	}
 
+	max_size = sna->kgem.aperture_high * PAGE_SIZE;
+	max_size -= MAX(kgem_bo_size(src_bo), kgem_bo_size(dst_bo));
+	if (max_size <= 0) {
+		DBG(("%s: tiles cannot fit into aperture\n", __FUNCTION__));
+		return false;
+	}
+	if (max_size > sna->kgem.max_copy_tile_size)
+		max_size = sna->kgem.max_copy_tile_size;
+
 	pixman_region_init_rects(&region, box, nbox);
 
 	/* Use a small step to accommodate enlargement through tile alignment */
 	step = sna->render.max_3d_size;
 	if (region.extents.x1 & (8*512 / bpp - 1) || region.extents.y1 & 63)
 		step /= 2;
-	while (step * step * 4 > sna->kgem.max_copy_tile_size)
+	while (step * step * 4 > max_size)
 		step /= 2;
+	if (step == 0) {
+		DBG(("%s: tiles cannot fit into aperture\n", __FUNCTION__));
+		return false;
+	}
 
 	DBG(("%s (alu=%d), tile.size=%d, box=%dx[(%d, %d), (%d, %d)])\n",
 	     __FUNCTION__, alu, step, nbox,
