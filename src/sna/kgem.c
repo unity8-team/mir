@@ -1149,10 +1149,18 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, unsigned gen)
 		kgem->max_upload_tile_size = kgem->aperture_mappable / 4;
 	if (kgem->max_upload_tile_size > half_gpu_max)
 		kgem->max_upload_tile_size = half_gpu_max;
+	if (kgem->max_upload_tile_size > kgem->aperture_high/2)
+		kgem->max_upload_tile_size = kgem->aperture_high/2;
+	if (kgem->max_upload_tile_size > kgem->aperture_low)
+		kgem->max_upload_tile_size = kgem->aperture_low;
 
 	kgem->large_object_size = MAX_CACHE_SIZE;
 	if (kgem->large_object_size > kgem->max_gpu_size)
 		kgem->large_object_size = kgem->max_gpu_size;
+	if (kgem->max_copy_tile_size > kgem->aperture_high/2)
+		kgem->max_copy_tile_size = kgem->aperture_high/2;
+	if (kgem->max_copy_tile_size > kgem->aperture_low)
+		kgem->max_copy_tile_size = kgem->aperture_low;
 
 	if (kgem->has_llc | kgem->has_cacheing | kgem->has_userptr) {
 		if (kgem->large_object_size > kgem->max_cpu_size)
