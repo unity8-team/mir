@@ -2462,7 +2462,7 @@ migrate_dirty_tracking(struct sna *sna, PixmapPtr old_front)
 }
 
 static Bool
-sna_crtc_resize(ScrnInfoPtr scrn, int width, int height)
+sna_mode_resize(ScrnInfoPtr scrn, int width, int height)
 {
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
 	struct sna *sna = to_sna(scrn);
@@ -2630,8 +2630,8 @@ sna_page_flip(struct sna *sna,
 	return count;
 }
 
-static const xf86CrtcConfigFuncsRec sna_crtc_config_funcs = {
-	sna_crtc_resize
+static const xf86CrtcConfigFuncsRec sna_mode_funcs = {
+	sna_mode_resize
 };
 
 static void set_size_range(struct sna *sna)
@@ -2655,7 +2655,7 @@ bool sna_mode_pre_init(ScrnInfoPtr scrn, struct sna *sna)
 	if (!mode->kmode)
 		return sna_mode_fake_init(sna);
 
-	xf86CrtcConfigInit(scrn, &sna_crtc_config_funcs);
+	xf86CrtcConfigInit(scrn, &sna_mode_funcs);
 
 	for (i = 0; i < mode->kmode->count_crtcs; i++)
 		sna_crtc_init(scrn, mode, i);

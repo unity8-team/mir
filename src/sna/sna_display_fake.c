@@ -248,7 +248,7 @@ migrate_dirty_tracking(struct sna *sna, PixmapPtr old_front)
 }
 
 static Bool
-sna_crtc_resize(ScrnInfoPtr scrn, int width, int height)
+sna_mode_resize(ScrnInfoPtr scrn, int width, int height)
 {
 	struct sna *sna = to_sna(scrn);
 	ScreenPtr screen = scrn->pScreen;
@@ -298,15 +298,15 @@ sna_crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	return TRUE;
 }
 
-static const xf86CrtcConfigFuncsRec sna_crtc_config_funcs = {
-	sna_crtc_resize
+static const xf86CrtcConfigFuncsRec sna_mode_funcs = {
+	sna_mode_resize
 };
 
 bool sna_mode_fake_init(struct sna *sna)
 {
 	ScrnInfoPtr scrn = sna->scrn;
 
-	xf86CrtcConfigInit(scrn, &sna_crtc_config_funcs);
+	xf86CrtcConfigInit(scrn, &sna_mode_funcs);
 
 	if (!sna_crtc_fake(sna))
 		return false;
