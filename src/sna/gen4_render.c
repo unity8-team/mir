@@ -2814,6 +2814,8 @@ gen4_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 				sna_rgba_for_color(color,
 						   dst->drawable.depth));
 	tmp.mask.bo = NULL;
+	tmp.mask.filter = SAMPLER_FILTER_NEAREST;
+	tmp.mask.repeat = SAMPLER_EXTEND_NONE;
 
 	tmp.is_affine = true;
 	tmp.floats_per_vertex = 2;
