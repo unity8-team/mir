@@ -1121,7 +1121,7 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, unsigned gen)
 
 	kgem->max_object_size = 3 * (kgem->aperture_high >> 12) << 10;
 	kgem->max_gpu_size = kgem->max_object_size;
-	if (!kgem->has_llc)
+	if (!kgem->has_llc && kgem->max_gpu_size > MAX_CACHE_SIZE)
 		kgem->max_gpu_size = MAX_CACHE_SIZE;
 
 	totalram = total_ram_size();
