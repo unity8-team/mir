@@ -112,3 +112,94 @@ TEST(WaitHandle, asymmetric_asynchronous)
     }
     t.join();
 }
+
+TEST(WaitHandle, no_callback)
+{
+    MirWaitHandle w;
+
+    w.result_received();
+    EXPECT_NO_FATAL_FAILURE(w.wait_for_result());
+}
+
+namespace
+{
+    void *cb_owner = nullptr;
+    void *cb_context = nullptr;
+
+    void callback(void *owner, void *context)
+    {
+        cb_owner = owner;
+        cb_context = context;
+    }
+}
+
+TEST(WaitHandle, callback_before_signal)
+{
+    MirWaitHandle w;
+    int alpha, beta, gamma, delta;
+
+    cb_owner = 0;
+    cb_context = 0;
+    w.register_callback_owner(&alpha);
+    w.register_callback(callback, &beta);
+    w.result_received();
+    w.wait_for_result();
+    EXPECT_EQ(cb_owner, &alpha);
+    EXPECT_EQ(cb_context, &beta);
+
+    w.result_received();
+    w.wait_for_result();
+    EXPECT_EQ(cb_owner, &alpha);
+    EXPECT_EQ(cb_context, &beta);
+
+    cb_owner = 0;
+    cb_context = 0;
+    w.register_callback_owner(&gamma);
+    w.register_callback(callback, &delta);
+    w.result_received();
+    w.wait_for_result();
+    EXPECT_EQ(cb_owner, &gamma);
+    EXPECT_EQ(cb_context, &delta);
+
+    w.register_callback(nullptr, nullptr);
+    EXPECT_NO_FATAL_FAILURE({
+        w.result_received();
+        w.wait_for_result();
+    });
+}
+
+TEST(WaitHandle, callback_after_signal)
+{
+    MirWaitHandle w;
+    int alpha, beta, gamma, delta;
+
+    cb_owner = 0;
+    cb_context = 0;
+    w.result_received();
+    w.register_callback_owner(&alpha);
+    w.register_callback(callback, &beta);
+    w.wait_for_result();
+    EXPECT_EQ(cb_owner, &alpha);
+    EXPECT_EQ(cb_context, &beta);
+
+    w.result_received();
+    w.wait_for_result();
+    EXPECT_EQ(cb_owner, &alpha);
+    EXPECT_EQ(cb_context, &beta);
+
+    cb_owner = 0;
+    cb_context = 0;
+
+    w.result_received();
+    w.register_callback_owner(&gamma);
+    w.register_callback(callback, &delta);
+    w.wait_for_result();
+    EXPECT_EQ(cb_owner, &gamma);
+    EXPECT_EQ(cb_context, &delta);
+
+    w.register_callback(nullptr, nullptr);
+    EXPECT_NO_FATAL_FAILURE({
+        w.result_received();
+        w.wait_for_result();
+    });
+}
