@@ -420,40 +420,41 @@ static void _sna_dri_destroy_buffer(struct sna *sna, DRI2Buffer2Ptr buffer)
 	     __FUNCTION__, buffer, private->bo->handle, private->refcnt,
 	     private->pixmap ? private->pixmap->drawable.serialNumber : 0));
 	assert(private->refcnt > 0);
+	if (--private->refcnt)
+		return;
 
-	if (--private->refcnt == 0) {
-		if (private->pixmap) {
-			PixmapPtr pixmap = private->pixmap;
-			struct sna_pixmap *priv = sna_pixmap(pixmap);
+	assert(private->bo);
+	if (private->pixmap) {
+		PixmapPtr pixmap = private->pixmap;
+		struct sna_pixmap *priv = sna_pixmap(pixmap);
 
-			assert(sna_pixmap_get_buffer(pixmap) == buffer);
-			assert(priv->gpu_bo == private->bo);
-			assert(priv->gpu_bo->flush);
-			assert(priv->pinned & PIN_DRI);
-			assert(priv->flush);
+		assert(sna_pixmap_get_buffer(pixmap) == buffer);
+		assert(priv->gpu_bo == private->bo);
+		assert(priv->gpu_bo->flush);
+		assert(priv->pinned & PIN_DRI);
+		assert(priv->flush);
 
-			/* Undo the DRI markings on this pixmap */
-			DBG(("%s: releasing last DRI pixmap=%ld, scanout?=%d\n",
-			     __FUNCTION__,
-			     pixmap->drawable.serialNumber,
-			     pixmap == sna->front));
+		/* Undo the DRI markings on this pixmap */
+		DBG(("%s: releasing last DRI pixmap=%ld, scanout?=%d\n",
+		     __FUNCTION__,
+		     pixmap->drawable.serialNumber,
+		     pixmap == sna->front));
 
-			list_del(&priv->list);
+		list_del(&priv->list);
 
-			priv->gpu_bo->flush = false;
-			priv->pinned &= ~PIN_DRI;
+		priv->gpu_bo->flush = false;
+		priv->pinned &= ~PIN_DRI;
 
-			priv->flush = false;
-			sna_accel_watch_flush(sna, -1);
+		priv->flush = false;
+		sna_accel_watch_flush(sna, -1);
 
-			sna_pixmap_set_buffer(pixmap, NULL);
-			pixmap->drawable.pScreen->DestroyPixmap(pixmap);
-		} else
-			private->bo->flush = false;
+		sna_pixmap_set_buffer(pixmap, NULL);
+		pixmap->drawable.pScreen->DestroyPixmap(pixmap);
+	} else
+		private->bo->flush = false;
 
-		kgem_bo_destroy(&sna->kgem, private->bo);
-		free(buffer);
-	}
+	kgem_bo_destroy(&sna->kgem, private->bo);
+	free(buffer);
 }
 
 static void sna_dri_destroy_buffer(DrawablePtr draw, DRI2Buffer2Ptr buffer)
