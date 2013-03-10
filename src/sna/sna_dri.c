@@ -419,6 +419,7 @@ static void _sna_dri_destroy_buffer(struct sna *sna, DRI2Buffer2Ptr buffer)
 	DBG(("%s: %p [handle=%d] -- refcnt=%d, pixmap=%ld\n",
 	     __FUNCTION__, buffer, private->bo->handle, private->refcnt,
 	     private->pixmap ? private->pixmap->drawable.serialNumber : 0));
+	assert(private->refcnt > 0);
 
 	if (--private->refcnt == 0) {
 		if (private->pixmap) {
@@ -427,6 +428,8 @@ static void _sna_dri_destroy_buffer(struct sna *sna, DRI2Buffer2Ptr buffer)
 
 			assert(sna_pixmap_get_buffer(pixmap) == buffer);
 			assert(priv->gpu_bo == private->bo);
+			assert(priv->gpu_bo->flush);
+			assert(priv->pinned & PIN_DRI);
 			assert(priv->flush);
 
 			/* Undo the DRI markings on this pixmap */
@@ -446,7 +449,7 @@ static void _sna_dri_destroy_buffer(struct sna *sna, DRI2Buffer2Ptr buffer)
 			sna_pixmap_set_buffer(pixmap, NULL);
 			pixmap->drawable.pScreen->DestroyPixmap(pixmap);
 		} else
-			private->bo->flush = 0;
+			private->bo->flush = false;
 
 		kgem_bo_destroy(&sna->kgem, private->bo);
 		free(buffer);
