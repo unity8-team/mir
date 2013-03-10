@@ -1634,6 +1634,7 @@ skip_inplace_map:
 				list_del(&priv->list);
 				priv->clear = false;
 			}
+			priv->cpu = false;
 
 			assert_pixmap_damage(pixmap);
 			DBG(("%s: operate inplace (GTT)\n", __FUNCTION__));
@@ -1649,6 +1650,7 @@ skip_inplace_map:
 	}
 
 	if (priv->gpu_damage && priv->cpu_damage == NULL &&
+	    (flags & MOVE_READ || priv->gpu_bo->domain == DOMAIN_CPU || sna->kgem.has_llc) &&
 	    priv->gpu_bo->tiling == I915_TILING_NONE &&
 	    ((flags & (MOVE_WRITE | MOVE_ASYNC_HINT)) == 0 ||
 	     !__kgem_bo_is_busy(&sna->kgem, priv->gpu_bo))) {
@@ -1672,6 +1674,7 @@ skip_inplace_map:
 				priv->clear = false;
 			}
 
+			assert(IS_CPU_MAP(priv->gpu_bo->map));
 			kgem_bo_sync__cpu_full(&sna->kgem, priv->gpu_bo,
 					       FORCE_FULL_SYNC || flags & MOVE_WRITE);
 			assert_pixmap_damage(pixmap);
@@ -1781,6 +1784,7 @@ done:
 	if (priv->cpu_bo) {
 		if ((flags & MOVE_ASYNC_HINT) == 0) {
 			DBG(("%s: syncing CPU bo\n", __FUNCTION__));
+			assert(IS_CPU_MAP(priv->cpu_bo->map));
 			kgem_bo_sync__cpu_full(&sna->kgem, priv->cpu_bo,
 					       FORCE_FULL_SYNC || flags & MOVE_WRITE);
 			assert(!priv->shm || !kgem_bo_is_busy(priv->cpu_bo));
@@ -2312,6 +2316,7 @@ out:
 	}
 	if ((flags & MOVE_ASYNC_HINT) == 0 && priv->cpu_bo) {
 		DBG(("%s: syncing cpu bo\n", __FUNCTION__));
+		assert(IS_CPU_MAP(priv->cpu_bo->map));
 		kgem_bo_sync__cpu_full(&sna->kgem, priv->cpu_bo,
 				       FORCE_FULL_SYNC || flags & MOVE_WRITE);
 	}
