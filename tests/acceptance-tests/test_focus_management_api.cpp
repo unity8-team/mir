@@ -19,6 +19,7 @@
 #include "mir_toolkit/mir_client_library_lightdm.h"
 
 #include "mir/shell/session_store.h"
+#include "mir/shell/session.h"
 
 #include "mir_test_doubles/mock_display.h"
 #include "mir_test_framework/display_server_test_fixture.h"
@@ -132,6 +133,8 @@ public:
 
         ON_CALL(*this, tag_session_with_lightdm_id(_, _)).WillByDefault(Invoke(impl.get(), &SessionStore::tag_session_with_lightdm_id));
         ON_CALL(*this, focus_session_with_lightdm_id(_)).WillByDefault(Invoke(impl.get(), &SessionStore::focus_session_with_lightdm_id));
+        
+        ON_CALL(*this, request_focus(_)).WillByDefault(Invoke(impl.get(), &SessionStore::request_focus));
 
         ON_CALL(*this, shutdown()).WillByDefault(Invoke(impl.get(), &SessionStore::shutdown));
     }
@@ -141,6 +144,8 @@ public:
 
     MOCK_METHOD2(tag_session_with_lightdm_id, void (std::shared_ptr<shell::Session> const& session, int id));
     MOCK_METHOD1(focus_session_with_lightdm_id, void (int id));
+    
+    MOCK_METHOD1(request_focus, bool (shell::Session &));
 
     MOCK_METHOD0(shutdown, void ());
 

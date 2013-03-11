@@ -51,6 +51,8 @@ public:
 
     virtual void tag_session_with_lightdm_id(std::shared_ptr<Session> const& session, int id);
     virtual void focus_session_with_lightdm_id(int id);
+    
+    bool request_focus(Session &session);
 
     void focus_next();
 

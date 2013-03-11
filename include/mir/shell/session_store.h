@@ -19,6 +19,8 @@
 #ifndef MIR_SHELL_SESSION_STORE_H_
 #define MIR_SHELL_SESSION_STORE_H_
 
+#include "mir/shell/focus_arbitrator.h"
+
 #include <memory>
 
 namespace mir
@@ -29,7 +31,7 @@ namespace shell
 
 class Session;
 
-class SessionStore
+class SessionStore : public FocusArbitrator
 {
 public:
     virtual ~SessionStore() {}
@@ -40,8 +42,9 @@ public:
     virtual void tag_session_with_lightdm_id(std::shared_ptr<Session> const& session, int id) = 0;
     virtual void focus_session_with_lightdm_id(int id) = 0;
 
-    virtual void shutdown() = 0;
+    virtual bool request_focus(Session &session) = 0;
 
+    virtual void shutdown() = 0;
 protected:
     SessionStore() = default;
     SessionStore(const SessionStore&) = delete;

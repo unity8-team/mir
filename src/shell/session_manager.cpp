@@ -51,8 +51,7 @@ msh::SessionManager::~SessionManager()
 
 std::shared_ptr<msh::Session> msh::SessionManager::open_session(std::string const& name)
 {
-    // TODO: Lol
-    auto new_session = std::make_shared<msh::ApplicationSession>(surface_factory, std::shared_ptr<msh::FocusArbitrator>(), name);
+    auto new_session = std::make_shared<msh::ApplicationSession>(surface_factory, *this, name);
 
     app_container->insert_session(new_session);
 
@@ -134,4 +133,10 @@ void msh::SessionManager::focus_session_with_lightdm_id(int id)
     {
         set_focus_to(match->second);
     }
+}
+
+bool msh::SessionManager::request_focus(msh::Session &session)
+{
+    (void) session; // TODO: lol ~racarr
+    return true;
 }

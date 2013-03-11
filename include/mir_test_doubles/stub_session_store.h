@@ -44,6 +44,10 @@ class StubSessionStore : public shell::SessionStore
     void focus_session_with_lightdm_id(int /* id */)
     {
     }
+    bool request_focus(shell::Session & /* session */)
+    {
+        return false;
+    }
     void shutdown()
     {
     }

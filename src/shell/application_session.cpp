@@ -18,6 +18,7 @@
 
 #include "mir/shell/application_session.h"
 #include "mir/shell/surface.h"
+#include "mir/shell/focus_arbitrator.h"
 
 #include "mir/surfaces/surface_controller.h"
 
@@ -33,7 +34,7 @@ namespace ms = mir::surfaces;
 
 msh::ApplicationSession::ApplicationSession(
     std::shared_ptr<msh::SurfaceFactory> const& surface_factory,
-    std::shared_ptr<msh::FocusArbitrator> const& focus_arbitrator,
+    msh::FocusArbitrator &focus_arbitrator,
     std::string const& session_name) :
     surface_factory(surface_factory),
     focus_arbitrator(focus_arbitrator),
@@ -64,6 +65,8 @@ msh::SurfaceId msh::ApplicationSession::create_surface(const SurfaceCreationPara
 
     std::unique_lock<std::mutex> lock(surfaces_mutex);
     surfaces[id] = surf;
+    
+    focus_arbitrator.request_focus(*this);
     return id;
 }
 
