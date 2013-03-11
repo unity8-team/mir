@@ -1478,9 +1478,10 @@ static void kgem_bo_free(struct kgem *kgem, struct kgem_bo *bo)
 
 	if (IS_USER_MAP(bo->map)) {
 		assert(bo->rq == NULL);
-		assert(MAP(bo->map) != bo || bo->io);
-		if (bo != MAP(bo->map)) {
+		assert(MAP(bo->map) != bo || bo->io || bo->flush);
+		if (!(bo->io || bo->flush)) {
 			DBG(("%s: freeing snooped base\n", __FUNCTION__));
+			assert(bo != MAP(bo->map));
 			free(MAP(bo->map));
 		}
 		bo->map = NULL;
@@ -4077,7 +4078,6 @@ struct kgem_bo *kgem_create_cpu_2d(struct kgem *kgem,
 			return NULL;
 		}
 
-		bo->map = MAKE_USER_MAP(ptr);
 		bo->pitch = stride;
 		bo->unique_id = kgem_get_unique_id(kgem);
 		return bo;
@@ -4454,6 +4454,7 @@ void *kgem_bo_map__async(struct kgem *kgem, struct kgem_bo *bo)
 	assert(!bo->purged);
 	assert(bo->proxy == NULL);
 	assert(list_is_empty(&bo->list));
+	assert(!IS_USER_MAP(bo->map));
 
 	if (bo->tiling == I915_TILING_NONE && !bo->scanout && kgem->has_llc) {
 		DBG(("%s: converting request for GTT map into CPU map\n",
@@ -4496,6 +4497,7 @@ void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo)
 	assert(!bo->purged);
 	assert(bo->proxy == NULL);
 	assert(list_is_empty(&bo->list));
+	assert(!IS_USER_MAP(bo->map));
 	assert(bo->exec == NULL);
 
 	if (bo->tiling == I915_TILING_NONE && !bo->scanout &&
@@ -4561,6 +4563,7 @@ void *kgem_bo_map__gtt(struct kgem *kgem, struct kgem_bo *bo)
 	assert(!bo->purged);
 	assert(bo->exec == NULL);
 	assert(list_is_empty(&bo->list));
+	assert(!IS_USER_MAP(bo->map));
 
 	if (IS_CPU_MAP(bo->map))
 		kgem_bo_release_map(kgem, bo);
@@ -4738,6 +4741,8 @@ struct kgem_bo *kgem_create_map(struct kgem *kgem,
 	struct kgem_bo *bo;
 	uint32_t handle;
 
+	assert(MAP(ptr) == ptr);
+
 	if (!kgem->has_userptr)
 		return NULL;
 
@@ -4752,6 +4757,7 @@ struct kgem_bo *kgem_create_map(struct kgem *kgem,
 	}
 
 	bo->snoop = !kgem->has_llc;
+	bo->map = MAKE_USER_MAP(ptr);
 	debug_alloc__bo(kgem, bo);
 
 	DBG(("%s(ptr=%p, size=%d, pages=%d, read_only=%d) => handle=%d\n",
