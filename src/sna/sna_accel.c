@@ -1361,6 +1361,20 @@ void sna_pixmap_destroy(PixmapPtr pixmap)
 	sna_destroy_pixmap(pixmap);
 }
 
+static inline bool has_coherent_map(struct sna *sna,
+				    struct kgem_bo *bo)
+{
+	assert(bo->map);
+
+	if (!IS_CPU_MAP(bo->map))
+		return true;
+
+	if (bo->tiling != I915_TILING_NONE)
+		return false;
+
+	return bo->domain == DOMAIN_CPU || sna->kgem.has_llc;
+}
+
 static inline bool pixmap_inplace(struct sna *sna,
 				  PixmapPtr pixmap,
 				  struct sna_pixmap *priv,
@@ -1373,7 +1387,7 @@ static inline bool pixmap_inplace(struct sna *sna,
 		return false;
 
 	if (priv->mapped)
-		return !IS_CPU_MAP(priv->gpu_bo->map) || sna->kgem.has_llc;
+		return has_coherent_map(sna, priv->gpu_bo);
 
 	if (!write_only && priv->cpu_damage)
 		return false;
@@ -1564,7 +1578,7 @@ _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 			if (!priv->mapped)
 				goto skip_inplace_map;
 
-			assert(!IS_CPU_MAP(priv->gpu_bo->map) || sna->kgem.has_llc);
+			assert(has_coherent_map(sna, priv->gpu_bo));
 			pixmap->devKind = priv->gpu_bo->pitch;
 
 			assert(priv->gpu_bo->proxy == NULL);
@@ -1622,7 +1636,7 @@ skip_inplace_map:
 		pixmap->devPrivate.ptr = kgem_bo_map(&sna->kgem, priv->gpu_bo);
 		priv->mapped = pixmap->devPrivate.ptr != NULL;
 		if (priv->mapped) {
-			assert(!IS_CPU_MAP(priv->gpu_bo->map) || sna->kgem.has_llc);
+			assert(has_coherent_map(sna, priv->gpu_bo));
 			pixmap->devKind = priv->gpu_bo->pitch;
 			if (flags & MOVE_WRITE) {
 				assert(priv->gpu_bo->proxy == NULL);
@@ -1869,7 +1883,7 @@ static inline bool region_inplace(struct sna *sna,
 
 	if (priv->mapped) {
 		DBG(("%s: yes, already mapped, continuiung\n", __FUNCTION__));
-		return !IS_CPU_MAP(priv->gpu_bo->map);
+		return has_coherent_map(sna, priv->gpu_bo);
 	}
 
 	if (priv->flush) {
@@ -1984,7 +1998,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 		pixmap->devPrivate.ptr = kgem_bo_map(&sna->kgem, priv->gpu_bo);
 		priv->mapped = pixmap->devPrivate.ptr != NULL;
 		if (priv->mapped) {
-			assert(!IS_CPU_MAP(priv->gpu_bo->map) || sna->kgem.has_llc);
+			assert(has_coherent_map(sna, priv->gpu_bo));
 			pixmap->devKind = priv->gpu_bo->pitch;
 			if (flags & MOVE_WRITE) {
 				if (!DAMAGE_IS_ALL(priv->gpu_damage)) {
