@@ -20,6 +20,7 @@
 #define MIR_TEST_DOUBLES_STUB_SESSION_STORE_H_
 
 #include "mir/shell/session_store.h"
+#include "mir_test_doubles/stub_session.h"
 
 namespace mir
 {
@@ -32,7 +33,7 @@ class StubSessionStore : public shell::SessionStore
 {
     std::shared_ptr<shell::Session> open_session(std::string const& /* name */)
     {
-        return std::shared_ptr<shell::Session>();
+        return std::make_shared<StubSession>();
     }
     void close_session(std::shared_ptr<shell::Session> const& /* session */)
     {
