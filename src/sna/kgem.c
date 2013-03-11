@@ -1121,7 +1121,7 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, unsigned gen)
 
 	kgem->max_object_size = 3 * (kgem->aperture_high >> 12) << 10;
 	kgem->max_gpu_size = kgem->max_object_size;
-	if (!kgem->has_llc)
+	if (!kgem->has_llc && kgem->max_gpu_size > MAX_CACHE_SIZE)
 		kgem->max_gpu_size = MAX_CACHE_SIZE;
 
 	totalram = total_ram_size();
@@ -1149,10 +1149,18 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, unsigned gen)
 		kgem->max_upload_tile_size = kgem->aperture_mappable / 4;
 	if (kgem->max_upload_tile_size > half_gpu_max)
 		kgem->max_upload_tile_size = half_gpu_max;
+	if (kgem->max_upload_tile_size > kgem->aperture_high/2)
+		kgem->max_upload_tile_size = kgem->aperture_high/2;
+	if (kgem->max_upload_tile_size > kgem->aperture_low)
+		kgem->max_upload_tile_size = kgem->aperture_low;
 
 	kgem->large_object_size = MAX_CACHE_SIZE;
 	if (kgem->large_object_size > kgem->max_gpu_size)
 		kgem->large_object_size = kgem->max_gpu_size;
+	if (kgem->max_copy_tile_size > kgem->aperture_high/2)
+		kgem->max_copy_tile_size = kgem->aperture_high/2;
+	if (kgem->max_copy_tile_size > kgem->aperture_low)
+		kgem->max_copy_tile_size = kgem->aperture_low;
 
 	if (kgem->has_llc | kgem->has_cacheing | kgem->has_userptr) {
 		if (kgem->large_object_size > kgem->max_cpu_size)
@@ -1206,14 +1214,6 @@ inline static uint32_t kgem_pitch_alignment(struct kgem *kgem, unsigned flags)
 	if (flags & CREATE_SCANOUT)
 		return 64;
 	return kgem->min_alignment;
-}
-
-static uint32_t kgem_untiled_pitch(struct kgem *kgem,
-				   uint32_t width, uint32_t bpp,
-				   unsigned flags)
-{
-	width = ALIGN(width, 2) * bpp >> 3;
-	return ALIGN(width, kgem_pitch_alignment(kgem, flags));
 }
 
 void kgem_get_tile_size(struct kgem *kgem, int tiling,
@@ -2967,11 +2967,60 @@ search_linear_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags)
 	bool use_active = (flags & CREATE_INACTIVE) == 0;
 	struct list *cache;
 
-	DBG(("%s: num_pages=%d, flags=%x, use_active? %d\n",
-	     __FUNCTION__, num_pages, flags, use_active));
+	DBG(("%s: num_pages=%d, flags=%x, use_active? %d, use_large=%d [max=%d]\n",
+	     __FUNCTION__, num_pages, flags, use_active,
+	     num_pages >= MAX_CACHE_SIZE / PAGE_SIZE,
+	     MAX_CACHE_SIZE / PAGE_SIZE));
 
-	if (num_pages >= MAX_CACHE_SIZE / PAGE_SIZE)
+	if (num_pages >= MAX_CACHE_SIZE / PAGE_SIZE) {
+		DBG(("%s: searching large buffers\n", __FUNCTION__));
+retry_large:
+		cache = use_active ? &kgem->large : &kgem->large_inactive;
+		list_for_each_entry_safe(bo, first, cache, list) {
+			assert(bo->refcnt == 0);
+			assert(bo->reusable);
+			assert(!bo->scanout);
+
+			if (num_pages > num_pages(bo))
+				goto discard;
+
+			if (bo->tiling != I915_TILING_NONE) {
+				if (use_active)
+					goto discard;
+
+				if (!gem_set_tiling(kgem->fd, bo->handle,
+						    I915_TILING_NONE, 0))
+					goto discard;
+
+				bo->tiling = I915_TILING_NONE;
+				bo->pitch = 0;
+			}
+
+			if (bo->purged && !kgem_bo_clear_purgeable(kgem, bo))
+				goto discard;
+
+			list_del(&bo->list);
+			if (bo->rq == (void *)kgem)
+				list_del(&bo->request);
+
+			bo->delta = 0;
+			return bo;
+
+discard:
+			if (!use_active)
+				kgem_bo_free(kgem, bo);
+		}
+
+		if (use_active) {
+			use_active = false;
+			goto retry_large;
+		}
+
+		if (__kgem_throttle_retire(kgem, flags))
+			goto retry_large;
+
 		return NULL;
+	}
 
 	if (!use_active && list_is_empty(inactive(kgem, num_pages))) {
 		DBG(("%s: inactive and cache bucket empty\n",
@@ -3473,7 +3522,7 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 {
 	struct list *cache;
 	struct kgem_bo *bo;
-	uint32_t pitch, untiled_pitch, tiled_height, size;
+	uint32_t pitch, tiled_height, size;
 	uint32_t handle;
 	int i, bucket, retry;
 
@@ -3535,7 +3584,6 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 			goto large_inactive;
 
 		tiled_height = kgem_aligned_height(kgem, height, tiling);
-		untiled_pitch = kgem_untiled_pitch(kgem, width, bpp, flags);
 
 		list_for_each_entry(bo, &kgem->large, list) {
 			assert(!bo->purged);
@@ -3580,6 +3628,7 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 		}
 
 large_inactive:
+		__kgem_throttle_retire(kgem, flags);
 		list_for_each_entry(bo, &kgem->large_inactive, list) {
 			assert(bo->refcnt == 0);
 			assert(bo->reusable);
@@ -3800,7 +3849,6 @@ search_again:
 	}
 
 	if ((flags & CREATE_EXACT) == 0) { /* allow an active near-miss? */
-		untiled_pitch = kgem_untiled_pitch(kgem, width, bpp, flags);
 		i = tiling;
 		while (--i >= 0) {
 			tiled_height = kgem_surface_size(kgem, kgem->has_relaxed_fencing, flags,
@@ -3822,7 +3870,7 @@ search_again:
 						continue;
 					}
 				} else
-					bo->pitch = untiled_pitch;
+					bo->pitch = pitch;
 
 				if (bo->pitch * tiled_height > bytes(bo))
 					continue;
@@ -4753,7 +4801,7 @@ void kgem_bo_sync__cpu_full(struct kgem *kgem, struct kgem_bo *bo, bool write)
 		set_domain.write_domain = write ? I915_GEM_DOMAIN_CPU : 0;
 
 		if (drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_SET_DOMAIN, &set_domain) == 0) {
-			if (write || bo->needs_flush)
+			if (bo->exec == NULL)
 				kgem_bo_retire(kgem, bo);
 			bo->domain = write ? DOMAIN_CPU : DOMAIN_NONE;
 		}
@@ -5433,6 +5481,9 @@ struct kgem_bo *kgem_upload_source_image(struct kgem *kgem,
 	int height = box->y2 - box->y1;
 	struct kgem_bo *bo;
 	void *dst;
+
+	if (!kgem_can_create_2d(kgem, width, height, bpp))
+		return NULL;
 
 	DBG(("%s : (%d, %d), (%d, %d), stride=%d, bpp=%d\n",
 	     __FUNCTION__, box->x1, box->y1, box->x2, box->y2, stride, bpp));

@@ -207,6 +207,17 @@ struct sna {
 #define SNA_TEAR_FREE		0x10
 #define SNA_FORCE_SHADOW	0x20
 
+	unsigned cpu_features;
+#define MMX 0x1
+#define SSE 0x2
+#define SSE2 0x4
+#define SSE3 0x8
+#define SSSE3 0x10
+#define SSE4_1 0x20
+#define SSE4_2 0x40
+#define AVX 0x80
+#define AVX2 0x100
+
 	unsigned watch_flush;
 
 	struct timeval timer_tv;
@@ -228,9 +239,6 @@ struct sna {
 		DamagePtr shadow_damage;
 		struct kgem_bo *shadow;
 		int shadow_flip;
-
-		struct list outputs;
-		struct list crtcs;
 	} mode;
 
 	struct sna_dri {
@@ -285,15 +293,16 @@ struct sna {
 
 #if DEBUG_MEMORY
 	struct {
-	       int shadow_pixels_allocs;
-	       int cpu_bo_allocs;
-	       size_t shadow_pixels_bytes;
-	       size_t cpu_bo_bytes;
+		int pixmap_allocs;
+		int cpu_bo_allocs;
+		size_t shadow_pixels_bytes;
+		size_t cpu_bo_bytes;
 	} debug_memory;
 #endif
 };
 
 bool sna_mode_pre_init(ScrnInfoPtr scrn, struct sna *sna);
+bool sna_mode_fake_init(struct sna *sna);
 void sna_mode_adjust_frame(struct sna *sna, int x, int y);
 extern void sna_mode_update(struct sna *sna);
 extern void sna_mode_disable_unused(struct sna *sna);
@@ -854,6 +863,9 @@ inline static bool is_clipped(const RegionRec *r,
 		r->extents.x2 - r->extents.x1 != d->width ||
 		r->extents.y2 - r->extents.y1 != d->height);
 }
+
+unsigned sna_cpu_detect(void);
+char *sna_cpu_features_to_string(unsigned features, char *line);
 
 void sna_threads_init(void);
 int sna_use_threads (int width, int height, int threshold);

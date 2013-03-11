@@ -778,6 +778,9 @@ sna_crtc_disable(xf86CrtcPtr crtc)
 	struct sna_crtc *sna_crtc = to_sna_crtc(crtc);
 	struct drm_mode_crtc arg;
 
+	if (sna_crtc == NULL)
+		return;
+
 	DBG(("%s: disabling crtc [%d]\n", __FUNCTION__, sna_crtc->id));
 
 	memset(&arg, 0, sizeof(arg));
@@ -801,6 +804,9 @@ static void update_flush_interval(struct sna *sna)
 
 	for (i = 0; i < xf86_config->num_crtc; i++) {
 		xf86CrtcPtr crtc = xf86_config->crtc[i];
+
+		if (to_sna_crtc(crtc) == NULL)
+			continue;
 
 		if (!crtc->enabled) {
 			DBG(("%s: CRTC:%d (pipe %d) disabled\n",
@@ -899,6 +905,9 @@ void sna_copy_fbcon(struct sna *sna)
 		struct sna_crtc *crtc = to_sna_crtc(xf86_config->crtc[i]);
 		struct drm_mode_crtc mode;
 
+		if (!crtc)
+			continue;
+
 		VG_CLEAR(mode);
 		mode.crtc_id = crtc->id;
 		if (drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_GETCRTC, &mode))
@@ -922,6 +931,9 @@ void sna_copy_fbcon(struct sna *sna)
 		DBG(("%s: fb already installed as scanout\n", __FUNCTION__));
 		return;
 	}
+
+	DBG(("%s: found fbcon, size=%dx%d, depth=%d, bpp=%d\n",
+	     __FUNCTION__, fbcon.width, fbcon.height, fbcon.depth, fbcon.bpp));
 
 	/* Wrap the fbcon in a pixmap so that we select the right formats
 	 * in the render copy in case we need to preserve the fbcon
@@ -1248,11 +1260,11 @@ sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	assert(mode->HDisplay <= sna->mode.kmode->max_width &&
 	       mode->VDisplay <= sna->mode.kmode->max_height);
 
-	crtc->funcs->gamma_set(crtc,
-			       crtc->gamma_red,
-			       crtc->gamma_green,
-			       crtc->gamma_blue,
-			       crtc->gamma_size);
+	drmModeCrtcSetGamma(sna->kgem.fd, sna_crtc->id,
+			    crtc->gamma_size,
+			    crtc->gamma_red,
+			    crtc->gamma_green,
+			    crtc->gamma_blue);
 
 	saved_kmode = sna_crtc->kmode;
 	saved_bo = sna_crtc->bo;
@@ -1345,7 +1357,6 @@ void sna_mode_adjust_frame(struct sna *sna, int x, int y)
 static void
 sna_crtc_hide_cursor(xf86CrtcPtr crtc)
 {
-	struct sna *sna = to_sna(crtc->scrn);
 	struct sna_crtc *sna_crtc = to_sna_crtc(crtc);
 	struct drm_mode_cursor arg;
 
@@ -1357,13 +1368,12 @@ sna_crtc_hide_cursor(xf86CrtcPtr crtc)
 	arg.width = arg.height = 64;
 	arg.handle = 0;
 
-	(void)drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_CURSOR, &arg);
+	(void)drmIoctl(to_sna(crtc->scrn)->kgem.fd, DRM_IOCTL_MODE_CURSOR, &arg);
 }
 
 static void
 sna_crtc_show_cursor(xf86CrtcPtr crtc)
 {
-	struct sna *sna = to_sna(crtc->scrn);
 	struct sna_crtc *sna_crtc = to_sna_crtc(crtc);
 	struct drm_mode_cursor arg;
 
@@ -1375,7 +1385,7 @@ sna_crtc_show_cursor(xf86CrtcPtr crtc)
 	arg.width = arg.height = 64;
 	arg.handle = sna_crtc->cursor;
 
-	(void)drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_CURSOR, &arg);
+	(void)drmIoctl(to_sna(crtc->scrn)->kgem.fd, DRM_IOCTL_MODE_CURSOR, &arg);
 }
 
 static void
@@ -1388,7 +1398,6 @@ sna_crtc_set_cursor_colors(xf86CrtcPtr crtc, int bg, int fg)
 static void
 sna_crtc_set_cursor_position(xf86CrtcPtr crtc, int x, int y)
 {
-	struct sna *sna = to_sna(crtc->scrn);
 	struct sna_crtc *sna_crtc = to_sna_crtc(crtc);
 	struct drm_mode_cursor arg;
 
@@ -1401,45 +1410,40 @@ sna_crtc_set_cursor_position(xf86CrtcPtr crtc, int x, int y)
 	arg.y = y;
 	arg.handle = sna_crtc->cursor;
 
-	(void)drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_CURSOR, &arg);
+	(void)drmIoctl(to_sna(crtc->scrn)->kgem.fd, DRM_IOCTL_MODE_CURSOR, &arg);
 }
 
 static void
 sna_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *image)
 {
-	struct sna *sna = to_sna(crtc->scrn);
-	struct sna_crtc *sna_crtc = to_sna_crtc(crtc);
 	struct drm_i915_gem_pwrite pwrite;
 
-	__DBG(("%s: CRTC:%d\n", __FUNCTION__, sna_crtc->id));
+	__DBG(("%s: CRTC:%d\n", __FUNCTION__, to_sna_crtc(crtc)->id));
 
 	VG_CLEAR(pwrite);
-	pwrite.handle = sna_crtc->cursor;
+	pwrite.handle = to_sna_crtc(crtc)->cursor;
 	pwrite.offset = 0;
 	pwrite.size = 64*64*4;
 	pwrite.data_ptr = (uintptr_t)image;
-	(void)drmIoctl(sna->kgem.fd, DRM_IOCTL_I915_GEM_PWRITE, &pwrite);
+	(void)drmIoctl(to_sna(crtc->scrn)->kgem.fd, DRM_IOCTL_I915_GEM_PWRITE, &pwrite);
 }
 
 static void
 sna_crtc_gamma_set(xf86CrtcPtr crtc,
 		       CARD16 *red, CARD16 *green, CARD16 *blue, int size)
 {
-	struct sna *sna = to_sna(crtc->scrn);
-	struct sna_crtc *sna_crtc = to_sna_crtc(crtc);
-
-	drmModeCrtcSetGamma(sna->kgem.fd, sna_crtc->id,
+	drmModeCrtcSetGamma(to_sna(crtc->scrn)->kgem.fd,
+			    to_sna_crtc(crtc)->id,
 			    size, red, green, blue);
 }
 
 static void
 sna_crtc_destroy(xf86CrtcPtr crtc)
 {
-	struct sna *sna = to_sna(crtc->scrn);
 	struct sna_crtc *sna_crtc = to_sna_crtc(crtc);
 
 	sna_crtc_hide_cursor(crtc);
-	gem_close(sna->kgem.fd, sna_crtc->cursor);
+	gem_close(to_sna(crtc->scrn)->kgem.fd, sna_crtc->cursor);
 
 	list_del(&sna_crtc->link);
 	free(sna_crtc);
@@ -1449,7 +1453,7 @@ sna_crtc_destroy(xf86CrtcPtr crtc)
 
 #if HAS_PIXMAP_SHARING
 static Bool
-sna_set_scanout_pixmap(xf86CrtcPtr crtc, PixmapPtr pixmap)
+sna_crtc_set_scanout_pixmap(xf86CrtcPtr crtc, PixmapPtr pixmap)
 {
 	DBG(("%s: CRTC:%d, pipe=%d setting scanout pixmap=%ld\n",
 	     __FUNCTION__,to_sna_crtc(crtc)->id, to_sna_crtc(crtc)->pipe,
@@ -1470,7 +1474,7 @@ static const xf86CrtcFuncsRec sna_crtc_funcs = {
 	.gamma_set = sna_crtc_gamma_set,
 	.destroy = sna_crtc_destroy,
 #if HAS_PIXMAP_SHARING
-	.set_scanout_pixmap = sna_set_scanout_pixmap,
+	.set_scanout_pixmap = sna_crtc_set_scanout_pixmap,
 #endif
 };
 
@@ -1566,8 +1570,6 @@ sna_crtc_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 	sna_crtc->cursor = gem_create(sna->kgem.fd, 64*64*4);
 	DBG(("%s: created handle=%d for cursor on CRTC:%d\n",
 	     __FUNCTION__, sna_crtc->cursor, sna_crtc->id));
-
-	list_add(&sna_crtc->link, &mode->crtcs);
 
 	DBG(("%s: attached crtc[%d] id=%d, pipe=%d\n",
 	     __FUNCTION__, num, sna_crtc->id, sna_crtc->pipe));
@@ -2303,8 +2305,6 @@ sna_output_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 	output->possible_clones = enc.possible_clones;
 	output->interlaceAllowed = TRUE;
 
-	list_add(&sna_output->link, &mode->outputs);
-
 	return;
 
 cleanup_output:
@@ -2427,8 +2427,38 @@ static void copy_front(struct sna *sna, PixmapPtr old, PixmapPtr new)
 			       new->drawable.height);
 }
 
+static void
+migrate_dirty_tracking(struct sna *sna, PixmapPtr old_front)
+{
+#if HAS_PIXMAP_SHARING
+	ScreenPtr screen = sna->scrn->pScreen;
+	PixmapDirtyUpdatePtr dirty, safe;
+
+	xorg_list_for_each_entry_safe(dirty, safe, &screen->pixmap_dirty_list, ent) {
+		assert(dirty->src == old_front);
+		if (dirty->src != old_front)
+			continue;
+
+		DamageUnregister(&dirty->src->drawable, dirty->damage);
+		DamageDestroy(dirty->damage);
+
+		dirty->damage = DamageCreate(NULL, NULL,
+					     DamageReportNone,
+					     TRUE, screen, screen);
+		if (!dirty->damage) {
+			xorg_list_del(&dirty->ent);
+			free(dirty);
+			continue;
+		}
+
+		DamageRegister(&sna->front->drawable, dirty->damage);
+		dirty->src = sna->front;
+	}
+#endif
+}
+
 static Bool
-sna_crtc_resize(ScrnInfoPtr scrn, int width, int height)
+sna_mode_resize(ScrnInfoPtr scrn, int width, int height)
 {
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
 	struct sna *sna = to_sna(scrn);
@@ -2480,6 +2510,9 @@ sna_crtc_resize(ScrnInfoPtr scrn, int width, int height)
 					     crtc->x, crtc->y))
 			sna_crtc_disable(crtc);
 	}
+
+	/* Open-coded screen->SetScreenPixmap */
+	migrate_dirty_tracking(sna, old_front);
 
 	if (root(screen)) {
 		struct sna_visit_set_pixmap_window visit;
@@ -2593,8 +2626,8 @@ sna_page_flip(struct sna *sna,
 	return count;
 }
 
-static const xf86CrtcConfigFuncsRec sna_crtc_config_funcs = {
-	sna_crtc_resize
+static const xf86CrtcConfigFuncsRec sna_mode_funcs = {
+	sna_mode_resize
 };
 
 static void set_size_range(struct sna *sna)
@@ -2611,19 +2644,11 @@ bool sna_mode_pre_init(ScrnInfoPtr scrn, struct sna *sna)
 	struct sna_mode *mode = &sna->mode;
 	int i;
 
-	list_init(&mode->crtcs);
-	list_init(&mode->outputs);
-
-	xf86CrtcConfigInit(scrn, &sna_crtc_config_funcs);
-
 	mode->kmode = drmModeGetResources(sna->kgem.fd);
-	if (!mode->kmode) {
-		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-			   "failed to get resources: %s\n", strerror(errno));
-		return false;
-	}
+	if (!mode->kmode)
+		return sna_mode_fake_init(sna);
 
-	set_size_range(sna);
+	xf86CrtcConfigInit(scrn, &sna_mode_funcs);
 
 	for (i = 0; i < mode->kmode->count_crtcs; i++)
 		sna_crtc_init(scrn, mode, i);
@@ -2633,6 +2658,8 @@ bool sna_mode_pre_init(ScrnInfoPtr scrn, struct sna *sna)
 
 	if (!xf86IsEntityShared(scrn->entityList[0]))
 		sna_mode_compute_possible_clones(scrn);
+
+	set_size_range(sna);
 
 #if HAS_PIXMAP_SHARING
 	xf86ProviderSetup(scrn, NULL, "Intel");
@@ -2731,6 +2758,9 @@ sna_covering_crtc(ScrnInfoPtr scrn,
 		xf86CrtcPtr crtc = xf86_config->crtc[c];
 		BoxRec cover_box;
 		int coverage;
+
+		if (to_sna_crtc(crtc) == NULL)
+			continue;
 
 		/* If the CRTC is off, treat it as not covering */
 		if (to_sna_crtc(crtc)->bo == NULL) {
@@ -3013,6 +3043,9 @@ void sna_mode_update(struct sna *sna)
 	/* Validate CRTC attachments */
 	for (i = 0; i < xf86_config->num_crtc; i++) {
 		xf86CrtcPtr crtc = xf86_config->crtc[i];
+		if (to_sna_crtc(crtc) == NULL)
+			continue;
+
 		if (!crtc->active || !sna_crtc_is_bound(sna, crtc))
 			sna_crtc_disable(crtc);
 	}
@@ -3250,6 +3283,22 @@ sna_crtc_redisplay(xf86CrtcPtr crtc, RegionPtr region)
 	sna_crtc_redisplay__composite(crtc, region);
 }
 
+static void set_bo(PixmapPtr pixmap, struct kgem_bo *bo)
+{
+	struct sna_pixmap *priv = sna_pixmap(pixmap);
+
+	assert((priv->pinned & PIN_PRIME) == 0);
+
+	if (priv->mapped) {
+		assert(!priv->shm && priv->stride);
+		pixmap->devPrivate.ptr = PTR(priv->ptr);
+		pixmap->devKind = priv->stride;
+		priv->mapped = false;
+	}
+
+	priv->gpu_bo = bo;
+}
+
 void sna_mode_redisplay(struct sna *sna)
 {
 	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(sna->scrn);
@@ -3378,7 +3427,7 @@ disable:
 						     COPY_LAST);
 			kgem_submit(&sna->kgem);
 
-			sna_pixmap(sna->front)->gpu_bo = old;
+			set_bo(sna->front, old);
 			sna_dri_pixmap_update_bo(sna, sna->front);
 
 			sna->mode.shadow = new;

@@ -48,9 +48,11 @@ libsna_la_SOURCES = \
 	sna_accel.c \
 	sna_blt.c \
 	sna_composite.c \
+	sna_cpu.c \
 	sna_damage.c \
 	sna_damage.h \
 	sna_display.c \
+	sna_display_fake.c \
 	sna_driver.c \
 	sna_glyphs.c \
 	sna_gradient.c \

@@ -1388,6 +1388,8 @@ bool sna_replace(struct sna *sna,
 	     pixmap->drawable.bitsPerPixel,
 	     bo->tiling, busy));
 
+	assert(!sna_pixmap(pixmap)->pinned);
+
 	if (!busy && upload_inplace__tiled(kgem, bo)) {
 		BoxRec box;
 
@@ -1489,6 +1491,8 @@ struct kgem_bo *sna_replace__xor(struct sna *sna,
 	     pixmap->drawable.height,
 	     pixmap->drawable.bitsPerPixel,
 	     bo->tiling));
+
+	assert(!sna_pixmap(pixmap)->pinned);
 
 	if (kgem_bo_is_busy(bo)) {
 		struct kgem_bo *new_bo;

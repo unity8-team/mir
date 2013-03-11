@@ -38,6 +38,7 @@
 #define constant __attribute__((const))
 #define pure __attribute__((pure))
 #define __packed__ __attribute__((__packed__))
+#define flatten __attribute__((flatten))
 #else
 #define likely(expr) (expr)
 #define unlikely(expr) (expr)
@@ -48,6 +49,18 @@
 #define constant
 #define pure
 #define __packed__
+#define flatten
+#endif
+
+#define HAS_GCC(major, minor) defined(__GNUC__) && (__GNUC__ > (major) || __GNUC__ == (major) && __GNUC_MINOR__ >= (minor))
+
+#if HAS_GCC(4, 5)
+#define sse2 __attribute__((target("sse2,fpmath=sse")))
+#define sse4_2 __attribute__((target("sse4.2,sse2,fpmath=sse")))
+#endif
+
+#if HAS_GCC(4, 7)
+#define avx2 __attribute__((target("avx2,sse4.2,sse2,fpmath=sse")))
 #endif
 
 #ifdef HAVE_VALGRIND

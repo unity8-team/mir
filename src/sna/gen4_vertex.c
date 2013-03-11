@@ -34,6 +34,10 @@
 #include "sna_render_inline.h"
 #include "gen4_vertex.h"
 
+#ifndef sse2
+#define sse2
+#endif
+
 void gen4_vertex_flush(struct sna *sna)
 {
 	DBG(("%s[%x] = %d\n", __FUNCTION__,
@@ -270,18 +274,18 @@ emit_texcoord(struct sna *sna,
 	}
 }
 
-inline static void
+sse2 inline static void
 emit_vertex(struct sna *sna,
-		      const struct sna_composite_op *op,
-		      int16_t srcX, int16_t srcY,
-		      int16_t mskX, int16_t mskY,
-		      int16_t dstX, int16_t dstY)
+	    const struct sna_composite_op *op,
+	    int16_t srcX, int16_t srcY,
+	    int16_t mskX, int16_t mskY,
+	    int16_t dstX, int16_t dstY)
 {
 	OUT_VERTEX(dstX, dstY);
 	emit_texcoord(sna, &op->src, srcX, srcY);
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_primitive(struct sna *sna,
 	       const struct sna_composite_op *op,
 	       const struct sna_composite_rectangles *r)
@@ -300,7 +304,7 @@ emit_primitive(struct sna *sna,
 		    r->dst.x,  r->dst.y);
 }
 
-inline static void
+sse2 inline static void
 emit_vertex_mask(struct sna *sna,
 		 const struct sna_composite_op *op,
 		 int16_t srcX, int16_t srcY,
@@ -312,7 +316,7 @@ emit_vertex_mask(struct sna *sna,
 	emit_texcoord(sna, &op->mask, mskX, mskY);
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_primitive_mask(struct sna *sna,
 		    const struct sna_composite_op *op,
 		    const struct sna_composite_rectangles *r)
@@ -331,7 +335,7 @@ emit_primitive_mask(struct sna *sna,
 			 r->dst.x,  r->dst.y);
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_primitive_solid(struct sna *sna,
 		     const struct sna_composite_op *op,
 		     const struct sna_composite_rectangles *r)
@@ -359,7 +363,7 @@ emit_primitive_solid(struct sna *sna,
 	v[5] = v[3] = v[1] = .5;
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_boxes_solid(const struct sna_composite_op *op,
 		 const BoxRec *box, int nbox,
 		 float *v)
@@ -384,7 +388,7 @@ emit_boxes_solid(const struct sna_composite_op *op,
 	} while (--nbox);
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_primitive_linear(struct sna *sna,
 		      const struct sna_composite_op *op,
 		      const struct sna_composite_rectangles *r)
@@ -414,7 +418,7 @@ emit_primitive_linear(struct sna *sna,
 	v[5] = compute_linear(&op->src, r->src.x, r->src.y);
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_boxes_linear(const struct sna_composite_op *op,
 		  const BoxRec *box, int nbox,
 		  float *v)
@@ -442,7 +446,7 @@ emit_boxes_linear(const struct sna_composite_op *op,
 	} while (--nbox);
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_primitive_identity_source(struct sna *sna,
 			       const struct sna_composite_op *op,
 			       const struct sna_composite_rectangles *r)
@@ -473,7 +477,7 @@ emit_primitive_identity_source(struct sna *sna,
 	v[5] = v[2] = v[8] + r->height * op->src.scale[1];
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_boxes_identity_source(const struct sna_composite_op *op,
 			   const BoxRec *box, int nbox,
 			   float *v)
@@ -503,7 +507,7 @@ emit_boxes_identity_source(const struct sna_composite_op *op,
 	} while (--nbox);
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_primitive_simple_source(struct sna *sna,
 			     const struct sna_composite_op *op,
 			     const struct sna_composite_rectangles *r)
@@ -543,7 +547,7 @@ emit_primitive_simple_source(struct sna *sna,
 	v[8] = ((r->src.y + ty) * yy + y0) * sy;
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_boxes_simple_source(const struct sna_composite_op *op,
 			 const BoxRec *box, int nbox,
 			 float *v)
@@ -582,7 +586,7 @@ emit_boxes_simple_source(const struct sna_composite_op *op,
 	} while (--nbox);
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_primitive_affine_source(struct sna *sna,
 			     const struct sna_composite_op *op,
 			     const struct sna_composite_rectangles *r)
@@ -621,7 +625,7 @@ emit_primitive_affine_source(struct sna *sna,
 				    &v[7], &v[8]);
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_boxes_affine_source(const struct sna_composite_op *op,
 			 const BoxRec *box, int nbox,
 			 float *v)
@@ -658,7 +662,7 @@ emit_boxes_affine_source(const struct sna_composite_op *op,
 	} while (--nbox);
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_primitive_identity_mask(struct sna *sna,
 			     const struct sna_composite_op *op,
 			     const struct sna_composite_rectangles *r)
@@ -701,7 +705,7 @@ emit_primitive_identity_mask(struct sna *sna,
 	v[9] = v[5] = v[1] = .5;
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_boxes_identity_mask(const struct sna_composite_op *op,
 			 const BoxRec *box, int nbox,
 			 float *v)
@@ -735,7 +739,7 @@ emit_boxes_identity_mask(const struct sna_composite_op *op,
 	} while (--nbox);
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_primitive_linear_identity_mask(struct sna *sna,
 				    const struct sna_composite_op *op,
 				    const struct sna_composite_rectangles *r)
@@ -780,7 +784,7 @@ emit_primitive_linear_identity_mask(struct sna *sna,
 	v[9] = compute_linear(&op->src, r->src.x, r->src.y);
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_boxes_linear_identity_mask(const struct sna_composite_op *op,
 				const BoxRec *box, int nbox,
 				float *v)
@@ -817,7 +821,7 @@ emit_boxes_linear_identity_mask(const struct sna_composite_op *op,
 	} while (--nbox);
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_primitive_identity_source_mask(struct sna *sna,
 				    const struct sna_composite_op *op,
 				    const struct sna_composite_rectangles *r)
@@ -866,7 +870,7 @@ emit_primitive_identity_source_mask(struct sna *sna,
 	v[14] = msk_y * op->mask.scale[1];
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_primitive_simple_source_identity(struct sna *sna,
 				      const struct sna_composite_op *op,
 				      const struct sna_composite_rectangles *r)
@@ -917,7 +921,7 @@ emit_primitive_simple_source_identity(struct sna *sna,
 	v[14] = msk_y * op->mask.scale[1];
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_primitive_affine_source_identity(struct sna *sna,
 				      const struct sna_composite_op *op,
 				      const struct sna_composite_rectangles *r)
@@ -980,8 +984,413 @@ emit_composite_texcoord_affine(struct sna *sna,
 	OUT_VERTEX_F(t[1] * channel->scale[1]);
 }
 
+/* SSE4_2 */
+#if defined(sse4_2)
 
-unsigned gen4_choose_composite_emitter(struct sna_composite_op *tmp)
+sse4_2 fastcall static void
+emit_primitive_linear__sse4_2(struct sna *sna,
+			      const struct sna_composite_op *op,
+			      const struct sna_composite_rectangles *r)
+{
+	float *v;
+	union {
+		struct sna_coordinate p;
+		float f;
+	} dst;
+
+	assert(op->floats_per_rect == 6);
+	assert((sna->render.vertex_used % 2) == 0);
+	v = sna->render.vertices + sna->render.vertex_used;
+	sna->render.vertex_used += 6;
+	assert(sna->render.vertex_used <= sna->render.vertex_size);
+
+	dst.p.x = r->dst.x + r->width;
+	dst.p.y = r->dst.y + r->height;
+	v[0] = dst.f;
+	dst.p.x = r->dst.x;
+	v[2] = dst.f;
+	dst.p.y = r->dst.y;
+	v[4] = dst.f;
+
+	v[1] = compute_linear(&op->src, r->src.x+r->width, r->src.y+r->height);
+	v[3] = compute_linear(&op->src, r->src.x, r->src.y+r->height);
+	v[5] = compute_linear(&op->src, r->src.x, r->src.y);
+}
+
+sse4_2 fastcall static void
+emit_boxes_linear__sse4_2(const struct sna_composite_op *op,
+			  const BoxRec *box, int nbox,
+			  float *v)
+{
+	union {
+		struct sna_coordinate p;
+		float f;
+	} dst;
+
+	do {
+		dst.p.x = box->x2;
+		dst.p.y = box->y2;
+		v[0] = dst.f;
+		dst.p.x = box->x1;
+		v[2] = dst.f;
+		dst.p.y = box->y1;
+		v[4] = dst.f;
+
+		v[1] = compute_linear(&op->src, box->x2, box->y2);
+		v[3] = compute_linear(&op->src, box->x1, box->y2);
+		v[5] = compute_linear(&op->src, box->x1, box->y1);
+
+		v += 6;
+		box++;
+	} while (--nbox);
+}
+
+sse4_2 fastcall static void
+emit_primitive_identity_source__sse4_2(struct sna *sna,
+				       const struct sna_composite_op *op,
+				       const struct sna_composite_rectangles *r)
+{
+	union {
+		struct sna_coordinate p;
+		float f;
+	} dst;
+	float *v;
+
+	assert(op->floats_per_rect == 9);
+	assert((sna->render.vertex_used % 3) == 0);
+	v = sna->render.vertices + sna->render.vertex_used;
+	sna->render.vertex_used += 9;
+
+	dst.p.x = r->dst.x + r->width;
+	dst.p.y = r->dst.y + r->height;
+	v[0] = dst.f;
+	dst.p.x = r->dst.x;
+	v[3] = dst.f;
+	dst.p.y = r->dst.y;
+	v[6] = dst.f;
+
+	v[7] = v[4] = (r->src.x + op->src.offset[0]) * op->src.scale[0];
+	v[1] = v[4] + r->width * op->src.scale[0];
+
+	v[8] = (r->src.y + op->src.offset[1]) * op->src.scale[1];
+	v[5] = v[2] = v[8] + r->height * op->src.scale[1];
+}
+
+sse4_2 fastcall static void
+emit_boxes_identity_source__sse4_2(const struct sna_composite_op *op,
+				   const BoxRec *box, int nbox,
+				   float *v)
+{
+	do {
+		union {
+			struct sna_coordinate p;
+			float f;
+		} dst;
+
+		dst.p.x = box->x2;
+		dst.p.y = box->y2;
+		v[0] = dst.f;
+		dst.p.x = box->x1;
+		v[3] = dst.f;
+		dst.p.y = box->y1;
+		v[6] = dst.f;
+
+		v[7] = v[4] = (box->x1 + op->src.offset[0]) * op->src.scale[0];
+		v[1] = (box->x2 + op->src.offset[0]) * op->src.scale[0];
+
+		v[8] = (box->y1 + op->src.offset[1]) * op->src.scale[1];
+		v[2] = v[5] = (box->y2 + op->src.offset[1]) * op->src.scale[1];
+
+		v += 9;
+		box++;
+	} while (--nbox);
+}
+
+sse4_2 fastcall static void
+emit_primitive_simple_source__sse4_2(struct sna *sna,
+				     const struct sna_composite_op *op,
+				     const struct sna_composite_rectangles *r)
+{
+	float *v;
+	union {
+		struct sna_coordinate p;
+		float f;
+	} dst;
+
+	float xx = op->src.transform->matrix[0][0];
+	float x0 = op->src.transform->matrix[0][2];
+	float yy = op->src.transform->matrix[1][1];
+	float y0 = op->src.transform->matrix[1][2];
+	float sx = op->src.scale[0];
+	float sy = op->src.scale[1];
+	int16_t tx = op->src.offset[0];
+	int16_t ty = op->src.offset[1];
+
+	assert(op->floats_per_rect == 9);
+	assert((sna->render.vertex_used % 3) == 0);
+	v = sna->render.vertices + sna->render.vertex_used;
+	sna->render.vertex_used += 3*3;
+
+	dst.p.x = r->dst.x + r->width;
+	dst.p.y = r->dst.y + r->height;
+	v[0] = dst.f;
+	v[1] = ((r->src.x + r->width + tx) * xx + x0) * sx;
+	v[5] = v[2] = ((r->src.y + r->height + ty) * yy + y0) * sy;
+
+	dst.p.x = r->dst.x;
+	v[3] = dst.f;
+	v[7] = v[4] = ((r->src.x + tx) * xx + x0) * sx;
+
+	dst.p.y = r->dst.y;
+	v[6] = dst.f;
+	v[8] = ((r->src.y + ty) * yy + y0) * sy;
+}
+
+sse4_2 fastcall static void
+emit_boxes_simple_source__sse4_2(const struct sna_composite_op *op,
+				 const BoxRec *box, int nbox,
+				 float *v)
+{
+	float xx = op->src.transform->matrix[0][0];
+	float x0 = op->src.transform->matrix[0][2];
+	float yy = op->src.transform->matrix[1][1];
+	float y0 = op->src.transform->matrix[1][2];
+	float sx = op->src.scale[0];
+	float sy = op->src.scale[1];
+	int16_t tx = op->src.offset[0];
+	int16_t ty = op->src.offset[1];
+
+	do {
+		union {
+			struct sna_coordinate p;
+			float f;
+		} dst;
+
+		dst.p.x = box->x2;
+		dst.p.y = box->y2;
+		v[0] = dst.f;
+		v[1] = ((box->x2 + tx) * xx + x0) * sx;
+		v[5] = v[2] = ((box->y2 + ty) * yy + y0) * sy;
+
+		dst.p.x = box->x1;
+		v[3] = dst.f;
+		v[7] = v[4] = ((box->x1 + tx) * xx + x0) * sx;
+
+		dst.p.y = box->y1;
+		v[6] = dst.f;
+		v[8] = ((box->y1 + ty) * yy + y0) * sy;
+
+		v += 9;
+		box++;
+	} while (--nbox);
+}
+
+#endif
+
+/* AVX2 */
+#if defined(avx2)
+
+avx2 fastcall static void
+emit_primitive_linear__avx2(struct sna *sna,
+			    const struct sna_composite_op *op,
+			    const struct sna_composite_rectangles *r)
+{
+	float *v;
+	union {
+		struct sna_coordinate p;
+		float f;
+	} dst;
+
+	assert(op->floats_per_rect == 6);
+	assert((sna->render.vertex_used % 2) == 0);
+	v = sna->render.vertices + sna->render.vertex_used;
+	sna->render.vertex_used += 6;
+	assert(sna->render.vertex_used <= sna->render.vertex_size);
+
+	dst.p.x = r->dst.x + r->width;
+	dst.p.y = r->dst.y + r->height;
+	v[0] = dst.f;
+	dst.p.x = r->dst.x;
+	v[2] = dst.f;
+	dst.p.y = r->dst.y;
+	v[4] = dst.f;
+
+	v[1] = compute_linear(&op->src, r->src.x+r->width, r->src.y+r->height);
+	v[3] = compute_linear(&op->src, r->src.x, r->src.y+r->height);
+	v[5] = compute_linear(&op->src, r->src.x, r->src.y);
+}
+
+avx2 fastcall static void
+emit_boxes_linear__avx2(const struct sna_composite_op *op,
+			const BoxRec *box, int nbox,
+			float *v)
+{
+	union {
+		struct sna_coordinate p;
+		float f;
+	} dst;
+
+	do {
+		dst.p.x = box->x2;
+		dst.p.y = box->y2;
+		v[0] = dst.f;
+		dst.p.x = box->x1;
+		v[2] = dst.f;
+		dst.p.y = box->y1;
+		v[4] = dst.f;
+
+		v[1] = compute_linear(&op->src, box->x2, box->y2);
+		v[3] = compute_linear(&op->src, box->x1, box->y2);
+		v[5] = compute_linear(&op->src, box->x1, box->y1);
+
+		v += 6;
+		box++;
+	} while (--nbox);
+}
+
+avx2 fastcall static void
+emit_primitive_identity_source__avx2(struct sna *sna,
+				     const struct sna_composite_op *op,
+				     const struct sna_composite_rectangles *r)
+{
+	union {
+		struct sna_coordinate p;
+		float f;
+	} dst;
+	float *v;
+
+	assert(op->floats_per_rect == 9);
+	assert((sna->render.vertex_used % 3) == 0);
+	v = sna->render.vertices + sna->render.vertex_used;
+	sna->render.vertex_used += 9;
+
+	dst.p.x = r->dst.x + r->width;
+	dst.p.y = r->dst.y + r->height;
+	v[0] = dst.f;
+	dst.p.x = r->dst.x;
+	v[3] = dst.f;
+	dst.p.y = r->dst.y;
+	v[6] = dst.f;
+
+	v[7] = v[4] = (r->src.x + op->src.offset[0]) * op->src.scale[0];
+	v[1] = v[4] + r->width * op->src.scale[0];
+
+	v[8] = (r->src.y + op->src.offset[1]) * op->src.scale[1];
+	v[5] = v[2] = v[8] + r->height * op->src.scale[1];
+}
+
+avx2 fastcall static void
+emit_boxes_identity_source__avx2(const struct sna_composite_op *op,
+				 const BoxRec *box, int nbox,
+				 float *v)
+{
+	do {
+		union {
+			struct sna_coordinate p;
+			float f;
+		} dst;
+
+		dst.p.x = box->x2;
+		dst.p.y = box->y2;
+		v[0] = dst.f;
+		dst.p.x = box->x1;
+		v[3] = dst.f;
+		dst.p.y = box->y1;
+		v[6] = dst.f;
+
+		v[7] = v[4] = (box->x1 + op->src.offset[0]) * op->src.scale[0];
+		v[1] = (box->x2 + op->src.offset[0]) * op->src.scale[0];
+
+		v[8] = (box->y1 + op->src.offset[1]) * op->src.scale[1];
+		v[2] = v[5] = (box->y2 + op->src.offset[1]) * op->src.scale[1];
+
+		v += 9;
+		box++;
+	} while (--nbox);
+}
+
+avx2 fastcall static void
+emit_primitive_simple_source__avx2(struct sna *sna,
+				   const struct sna_composite_op *op,
+				   const struct sna_composite_rectangles *r)
+{
+	float *v;
+	union {
+		struct sna_coordinate p;
+		float f;
+	} dst;
+
+	float xx = op->src.transform->matrix[0][0];
+	float x0 = op->src.transform->matrix[0][2];
+	float yy = op->src.transform->matrix[1][1];
+	float y0 = op->src.transform->matrix[1][2];
+	float sx = op->src.scale[0];
+	float sy = op->src.scale[1];
+	int16_t tx = op->src.offset[0];
+	int16_t ty = op->src.offset[1];
+
+	assert(op->floats_per_rect == 9);
+	assert((sna->render.vertex_used % 3) == 0);
+	v = sna->render.vertices + sna->render.vertex_used;
+	sna->render.vertex_used += 3*3;
+
+	dst.p.x = r->dst.x + r->width;
+	dst.p.y = r->dst.y + r->height;
+	v[0] = dst.f;
+	v[1] = ((r->src.x + r->width + tx) * xx + x0) * sx;
+	v[5] = v[2] = ((r->src.y + r->height + ty) * yy + y0) * sy;
+
+	dst.p.x = r->dst.x;
+	v[3] = dst.f;
+	v[7] = v[4] = ((r->src.x + tx) * xx + x0) * sx;
+
+	dst.p.y = r->dst.y;
+	v[6] = dst.f;
+	v[8] = ((r->src.y + ty) * yy + y0) * sy;
+}
+
+avx2 fastcall static void
+emit_boxes_simple_source__avx2(const struct sna_composite_op *op,
+			       const BoxRec *box, int nbox,
+			       float *v)
+{
+	float xx = op->src.transform->matrix[0][0];
+	float x0 = op->src.transform->matrix[0][2];
+	float yy = op->src.transform->matrix[1][1];
+	float y0 = op->src.transform->matrix[1][2];
+	float sx = op->src.scale[0];
+	float sy = op->src.scale[1];
+	int16_t tx = op->src.offset[0];
+	int16_t ty = op->src.offset[1];
+
+	do {
+		union {
+			struct sna_coordinate p;
+			float f;
+		} dst;
+
+		dst.p.x = box->x2;
+		dst.p.y = box->y2;
+		v[0] = dst.f;
+		v[1] = ((box->x2 + tx) * xx + x0) * sx;
+		v[5] = v[2] = ((box->y2 + ty) * yy + y0) * sy;
+
+		dst.p.x = box->x1;
+		v[3] = dst.f;
+		v[7] = v[4] = ((box->x1 + tx) * xx + x0) * sx;
+
+		dst.p.y = box->y1;
+		v[6] = dst.f;
+		v[8] = ((box->y1 + ty) * yy + y0) * sy;
+
+		v += 9;
+		box++;
+	} while (--nbox);
+}
+
+#endif
+
+unsigned gen4_choose_composite_emitter(struct sna *sna, struct sna_composite_op *tmp)
 {
 	unsigned vb;
 
@@ -1060,14 +1469,42 @@ unsigned gen4_choose_composite_emitter(struct sna_composite_op *tmp)
 			vb = 1;
 		} else if (tmp->src.is_linear) {
 			DBG(("%s: linear, no mask\n", __FUNCTION__));
-			tmp->prim_emit = emit_primitive_linear;
-			tmp->emit_boxes = emit_boxes_linear;
+#if defined(avx2)
+			if (sna->cpu_features & AVX2) {
+				tmp->prim_emit = emit_primitive_linear__avx2;
+				tmp->emit_boxes = emit_boxes_linear__avx2;
+			} else
+#endif
+#if defined(sse4_2)
+			if (sna->cpu_features & SSE4_2) {
+				tmp->prim_emit = emit_primitive_linear__sse4_2;
+				tmp->emit_boxes = emit_boxes_linear__sse4_2;
+			} else
+#endif
+			{
+				tmp->prim_emit = emit_primitive_linear;
+				tmp->emit_boxes = emit_boxes_linear;
+			}
 			tmp->floats_per_vertex = 2;
 			vb = 1;
 		} else if (tmp->src.transform == NULL) {
 			DBG(("%s: identity src, no mask\n", __FUNCTION__));
-			tmp->prim_emit = emit_primitive_identity_source;
-			tmp->emit_boxes = emit_boxes_identity_source;
+#if defined(avx2)
+			if (sna->cpu_features & AVX2) {
+				tmp->prim_emit = emit_primitive_identity_source__avx2;
+				tmp->emit_boxes = emit_boxes_identity_source__avx2;
+			} else
+#endif
+#if defined(sse4_2)
+			if (sna->cpu_features & SSE4_2) {
+				tmp->prim_emit = emit_primitive_identity_source__sse4_2;
+				tmp->emit_boxes = emit_boxes_identity_source__sse4_2;
+			} else
+#endif
+			{
+				tmp->prim_emit = emit_primitive_identity_source;
+				tmp->emit_boxes = emit_boxes_identity_source;
+			}
 			tmp->floats_per_vertex = 3;
 			vb = 2;
 		} else if (tmp->src.is_affine) {
@@ -1075,8 +1512,22 @@ unsigned gen4_choose_composite_emitter(struct sna_composite_op *tmp)
 			tmp->src.scale[1] /= tmp->src.transform->matrix[2][2];
 			if (!sna_affine_transform_is_rotation(tmp->src.transform)) {
 				DBG(("%s: simple src, no mask\n", __FUNCTION__));
-				tmp->prim_emit = emit_primitive_simple_source;
-				tmp->emit_boxes = emit_boxes_simple_source;
+#if defined(avx2)
+				if (sna->cpu_features & AVX2) {
+					tmp->prim_emit = emit_primitive_simple_source__avx2;
+					tmp->emit_boxes = emit_boxes_simple_source__avx2;
+				} else
+#endif
+#if defined(sse4_2)
+				if (sna->cpu_features & SSE4_2) {
+					tmp->prim_emit = emit_primitive_simple_source__sse4_2;
+					tmp->emit_boxes = emit_boxes_simple_source__sse4_2;
+				} else
+#endif
+				{
+					tmp->prim_emit = emit_primitive_simple_source;
+					tmp->emit_boxes = emit_boxes_simple_source;
+				}
 			} else {
 				DBG(("%s: affine src, no mask\n", __FUNCTION__));
 				tmp->prim_emit = emit_primitive_affine_source;
@@ -1106,7 +1557,7 @@ emit_span_vertex(struct sna *sna,
 	emit_texcoord(sna, &op->base.src, x, y);
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_composite_spans_primitive(struct sna *sna,
 			       const struct sna_composite_spans_op *op,
 			       const BoxRec *box,
@@ -1122,7 +1573,7 @@ emit_composite_spans_primitive(struct sna *sna,
 	OUT_VERTEX_F(opacity);
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_span_solid(struct sna *sna,
 		 const struct sna_composite_spans_op *op,
 		 const BoxRec *box,
@@ -1153,7 +1604,7 @@ emit_span_solid(struct sna *sna,
 	v[8] = v[5] = v[2] = opacity;
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_span_boxes_solid(const struct sna_composite_spans_op *op,
 		      const struct sna_opacity_box *b,
 		      int nbox, float *v)
@@ -1182,7 +1633,7 @@ emit_span_boxes_solid(const struct sna_composite_spans_op *op,
 	} while (--nbox);
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_span_identity(struct sna *sna,
 		    const struct sna_composite_spans_op *op,
 		    const BoxRec *box,
@@ -1222,7 +1673,7 @@ emit_span_identity(struct sna *sna,
 	v[11] = v[7] = v[3] = opacity;
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_span_boxes_identity(const struct sna_composite_spans_op *op,
 			 const struct sna_opacity_box *b, int nbox,
 			 float *v)
@@ -1259,11 +1710,11 @@ emit_span_boxes_identity(const struct sna_composite_spans_op *op,
 	} while (--nbox);
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_span_simple(struct sna *sna,
-		  const struct sna_composite_spans_op *op,
-		  const BoxRec *box,
-		  float opacity)
+		 const struct sna_composite_spans_op *op,
+		 const BoxRec *box,
+		 float opacity)
 {
 	float *v;
 	union {
@@ -1303,7 +1754,7 @@ emit_span_simple(struct sna *sna,
 	v[11] = v[7] = v[3] = opacity;
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_span_boxes_simple(const struct sna_composite_spans_op *op,
 		       const struct sna_opacity_box *b, int nbox,
 		       float *v)
@@ -1344,7 +1795,7 @@ emit_span_boxes_simple(const struct sna_composite_spans_op *op,
 	} while (--nbox);
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_span_affine(struct sna *sna,
 		  const struct sna_composite_spans_op *op,
 		  const BoxRec *box,
@@ -1389,7 +1840,7 @@ emit_span_affine(struct sna *sna,
 	v[11] = v[7] = v[3] = opacity;
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_span_boxes_affine(const struct sna_composite_spans_op *op,
 		       const struct sna_opacity_box *b, int nbox,
 		       float *v)
@@ -1432,11 +1883,11 @@ emit_span_boxes_affine(const struct sna_composite_spans_op *op,
 	} while (--nbox);
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_span_linear(struct sna *sna,
-		  const struct sna_composite_spans_op *op,
-		  const BoxRec *box,
-		  float opacity)
+		 const struct sna_composite_spans_op *op,
+		 const BoxRec *box,
+		 float opacity)
 {
 	union {
 		struct sna_coordinate p;
@@ -1464,7 +1915,7 @@ emit_span_linear(struct sna *sna,
 	v[8] = v[5] = v[2] = opacity;
 }
 
-fastcall static void
+sse2 fastcall static void
 emit_span_boxes_linear(const struct sna_composite_spans_op *op,
 		       const struct sna_opacity_box *b, int nbox,
 		       float *v)
@@ -1494,7 +1945,640 @@ emit_span_boxes_linear(const struct sna_composite_spans_op *op,
 	} while (--nbox);
 }
 
-inline inline static uint32_t
+/* SSE4_2 */
+#if defined(sse4_2)
+
+sse4_2 fastcall static void
+emit_span_identity__sse4_2(struct sna *sna,
+			   const struct sna_composite_spans_op *op,
+			   const BoxRec *box,
+			   float opacity)
+{
+	float *v;
+	union {
+		struct sna_coordinate p;
+		float f;
+	} dst;
+
+	float sx = op->base.src.scale[0];
+	float sy = op->base.src.scale[1];
+	int16_t tx = op->base.src.offset[0];
+	int16_t ty = op->base.src.offset[1];
+
+	assert(op->base.floats_per_rect == 12);
+	assert((sna->render.vertex_used % 4) == 0);
+	v = sna->render.vertices + sna->render.vertex_used;
+	sna->render.vertex_used += 3*4;
+	assert(sna->render.vertex_used <= sna->render.vertex_size);
+
+	dst.p.x = box->x2;
+	dst.p.y = box->y2;
+	v[0] = dst.f;
+	v[1] = (box->x2 + tx) * sx;
+	v[6] = v[2] = (box->y2 + ty) * sy;
+
+	dst.p.x = box->x1;
+	v[4] = dst.f;
+	v[9] = v[5] = (box->x1 + tx) * sx;
+
+	dst.p.y = box->y1;
+	v[8] = dst.f;
+	v[10] = (box->y1 + ty) * sy;
+
+	v[11] = v[7] = v[3] = opacity;
+}
+
+sse4_2 fastcall static void
+emit_span_boxes_identity__sse4_2(const struct sna_composite_spans_op *op,
+				 const struct sna_opacity_box *b, int nbox,
+				 float *v)
+{
+	do {
+		union {
+			struct sna_coordinate p;
+			float f;
+		} dst;
+
+		float sx = op->base.src.scale[0];
+		float sy = op->base.src.scale[1];
+		int16_t tx = op->base.src.offset[0];
+		int16_t ty = op->base.src.offset[1];
+
+		dst.p.x = b->box.x2;
+		dst.p.y = b->box.y2;
+		v[0] = dst.f;
+		v[1] = (b->box.x2 + tx) * sx;
+		v[6] = v[2] = (b->box.y2 + ty) * sy;
+
+		dst.p.x = b->box.x1;
+		v[4] = dst.f;
+		v[9] = v[5] = (b->box.x1 + tx) * sx;
+
+		dst.p.y = b->box.y1;
+		v[8] = dst.f;
+		v[10] = (b->box.y1 + ty) * sy;
+
+		v[11] = v[7] = v[3] = b->alpha;
+
+		v += 12;
+		b++;
+	} while (--nbox);
+}
+
+sse4_2 fastcall static void
+emit_span_simple__sse4_2(struct sna *sna,
+			 const struct sna_composite_spans_op *op,
+			 const BoxRec *box,
+			 float opacity)
+{
+	float *v;
+	union {
+		struct sna_coordinate p;
+		float f;
+	} dst;
+
+	float xx = op->base.src.transform->matrix[0][0];
+	float x0 = op->base.src.transform->matrix[0][2];
+	float yy = op->base.src.transform->matrix[1][1];
+	float y0 = op->base.src.transform->matrix[1][2];
+	float sx = op->base.src.scale[0];
+	float sy = op->base.src.scale[1];
+	int16_t tx = op->base.src.offset[0];
+	int16_t ty = op->base.src.offset[1];
+
+	assert(op->base.floats_per_rect == 12);
+	assert((sna->render.vertex_used % 4) == 0);
+	v = sna->render.vertices + sna->render.vertex_used;
+	sna->render.vertex_used += 3*4;
+	assert(sna->render.vertex_used <= sna->render.vertex_size);
+
+	dst.p.x = box->x2;
+	dst.p.y = box->y2;
+	v[0] = dst.f;
+	v[1] = ((box->x2 + tx) * xx + x0) * sx;
+	v[6] = v[2] = ((box->y2 + ty) * yy + y0) * sy;
+
+	dst.p.x = box->x1;
+	v[4] = dst.f;
+	v[9] = v[5] = ((box->x1 + tx) * xx + x0) * sx;
+
+	dst.p.y = box->y1;
+	v[8] = dst.f;
+	v[10] = ((box->y1 + ty) * yy + y0) * sy;
+
+	v[11] = v[7] = v[3] = opacity;
+}
+
+sse4_2 fastcall static void
+emit_span_boxes_simple__sse4_2(const struct sna_composite_spans_op *op,
+			       const struct sna_opacity_box *b, int nbox,
+			       float *v)
+{
+	float xx = op->base.src.transform->matrix[0][0];
+	float x0 = op->base.src.transform->matrix[0][2];
+	float yy = op->base.src.transform->matrix[1][1];
+	float y0 = op->base.src.transform->matrix[1][2];
+	float sx = op->base.src.scale[0];
+	float sy = op->base.src.scale[1];
+	int16_t tx = op->base.src.offset[0];
+	int16_t ty = op->base.src.offset[1];
+
+	do {
+		union {
+			struct sna_coordinate p;
+			float f;
+		} dst;
+
+		dst.p.x = b->box.x2;
+		dst.p.y = b->box.y2;
+		v[0] = dst.f;
+		v[1] = ((b->box.x2 + tx) * xx + x0) * sx;
+		v[6] = v[2] = ((b->box.y2 + ty) * yy + y0) * sy;
+
+		dst.p.x = b->box.x1;
+		v[4] = dst.f;
+		v[9] = v[5] = ((b->box.x1 + tx) * xx + x0) * sx;
+
+		dst.p.y = b->box.y1;
+		v[8] = dst.f;
+		v[10] = ((b->box.y1 + ty) * yy + y0) * sy;
+
+		v[11] = v[7] = v[3] = b->alpha;
+
+		v += 12;
+		b++;
+	} while (--nbox);
+}
+
+sse4_2 fastcall static void
+emit_span_affine__sse4_2(struct sna *sna,
+			 const struct sna_composite_spans_op *op,
+			 const BoxRec *box,
+			 float opacity)
+{
+	union {
+		struct sna_coordinate p;
+		float f;
+	} dst;
+	float *v;
+
+	assert(op->base.floats_per_rect == 12);
+	assert((sna->render.vertex_used % 4) == 0);
+	v = sna->render.vertices + sna->render.vertex_used;
+	sna->render.vertex_used += 12;
+
+	dst.p.x = box->x2;
+	dst.p.y = box->y2;
+	v[0] = dst.f;
+	_sna_get_transformed_scaled(op->base.src.offset[0] + box->x2,
+				    op->base.src.offset[1] + box->y2,
+				    op->base.src.transform,
+				    op->base.src.scale,
+				    &v[1], &v[2]);
+
+	dst.p.x = box->x1;
+	v[4] = dst.f;
+	_sna_get_transformed_scaled(op->base.src.offset[0] + box->x1,
+				    op->base.src.offset[1] + box->y2,
+				    op->base.src.transform,
+				    op->base.src.scale,
+				    &v[5], &v[6]);
+
+	dst.p.y = box->y1;
+	v[8] = dst.f;
+	_sna_get_transformed_scaled(op->base.src.offset[0] + box->x1,
+				    op->base.src.offset[1] + box->y1,
+				    op->base.src.transform,
+				    op->base.src.scale,
+				    &v[9], &v[10]);
+
+	v[11] = v[7] = v[3] = opacity;
+}
+
+sse4_2 fastcall static void
+emit_span_boxes_affine__sse4_2(const struct sna_composite_spans_op *op,
+			       const struct sna_opacity_box *b, int nbox,
+			       float *v)
+{
+	do {
+		union {
+			struct sna_coordinate p;
+			float f;
+		} dst;
+
+		dst.p.x = b->box.x2;
+		dst.p.y = b->box.y2;
+		v[0] = dst.f;
+		_sna_get_transformed_scaled(op->base.src.offset[0] + b->box.x2,
+					    op->base.src.offset[1] + b->box.y2,
+					    op->base.src.transform,
+					    op->base.src.scale,
+					    &v[1], &v[2]);
+
+		dst.p.x = b->box.x1;
+		v[4] = dst.f;
+		_sna_get_transformed_scaled(op->base.src.offset[0] + b->box.x1,
+					    op->base.src.offset[1] + b->box.y2,
+					    op->base.src.transform,
+					    op->base.src.scale,
+					    &v[5], &v[6]);
+
+		dst.p.y = b->box.y1;
+		v[8] = dst.f;
+		_sna_get_transformed_scaled(op->base.src.offset[0] + b->box.x1,
+					    op->base.src.offset[1] + b->box.y1,
+					    op->base.src.transform,
+					    op->base.src.scale,
+					    &v[9], &v[10]);
+
+		v[11] = v[7] = v[3] = b->alpha;
+
+		v += 12;
+		b++;
+	} while (--nbox);
+}
+
+sse4_2 fastcall static void
+emit_span_linear__sse4_2(struct sna *sna,
+			 const struct sna_composite_spans_op *op,
+			 const BoxRec *box,
+			 float opacity)
+{
+	union {
+		struct sna_coordinate p;
+		float f;
+	} dst;
+	float *v;
+
+	assert(op->base.floats_per_rect == 9);
+	assert((sna->render.vertex_used % 3) == 0);
+	v = sna->render.vertices + sna->render.vertex_used;
+	sna->render.vertex_used += 9;
+
+	dst.p.x = box->x2;
+	dst.p.y = box->y2;
+	v[0] = dst.f;
+	dst.p.x = box->x1;
+	v[3] = dst.f;
+	dst.p.y = box->y1;
+	v[6] = dst.f;
+
+	v[1] = compute_linear(&op->base.src, box->x2, box->y2);
+	v[4] = compute_linear(&op->base.src, box->x1, box->y2);
+	v[7] = compute_linear(&op->base.src, box->x1, box->y1);
+
+	v[8] = v[5] = v[2] = opacity;
+}
+
+sse4_2 fastcall static void
+emit_span_boxes_linear__sse4_2(const struct sna_composite_spans_op *op,
+			       const struct sna_opacity_box *b, int nbox,
+			       float *v)
+{
+	do {
+		union {
+			struct sna_coordinate p;
+			float f;
+		} dst;
+
+		dst.p.x = b->box.x2;
+		dst.p.y = b->box.y2;
+		v[0] = dst.f;
+		dst.p.x = b->box.x1;
+		v[3] = dst.f;
+		dst.p.y = b->box.y1;
+		v[6] = dst.f;
+
+		v[1] = compute_linear(&op->base.src, b->box.x2, b->box.y2);
+		v[4] = compute_linear(&op->base.src, b->box.x1, b->box.y2);
+		v[7] = compute_linear(&op->base.src, b->box.x1, b->box.y1);
+
+		v[8] = v[5] = v[2] = b->alpha;
+
+		v += 9;
+		b++;
+	} while (--nbox);
+}
+
+#endif
+
+/* AVX2 */
+#if defined(avx2)
+
+avx2 fastcall static void
+emit_span_identity__avx2(struct sna *sna,
+			 const struct sna_composite_spans_op *op,
+			 const BoxRec *box,
+			 float opacity)
+{
+	float *v;
+	union {
+		struct sna_coordinate p;
+		float f;
+	} dst;
+
+	float sx = op->base.src.scale[0];
+	float sy = op->base.src.scale[1];
+	int16_t tx = op->base.src.offset[0];
+	int16_t ty = op->base.src.offset[1];
+
+	assert(op->base.floats_per_rect == 12);
+	assert((sna->render.vertex_used % 4) == 0);
+	v = sna->render.vertices + sna->render.vertex_used;
+	sna->render.vertex_used += 3*4;
+	assert(sna->render.vertex_used <= sna->render.vertex_size);
+
+	dst.p.x = box->x2;
+	dst.p.y = box->y2;
+	v[0] = dst.f;
+	v[1] = (box->x2 + tx) * sx;
+	v[6] = v[2] = (box->y2 + ty) * sy;
+
+	dst.p.x = box->x1;
+	v[4] = dst.f;
+	v[9] = v[5] = (box->x1 + tx) * sx;
+
+	dst.p.y = box->y1;
+	v[8] = dst.f;
+	v[10] = (box->y1 + ty) * sy;
+
+	v[11] = v[7] = v[3] = opacity;
+}
+
+avx2 fastcall static void
+emit_span_boxes_identity__avx2(const struct sna_composite_spans_op *op,
+			       const struct sna_opacity_box *b, int nbox,
+			       float *v)
+{
+	do {
+		union {
+			struct sna_coordinate p;
+			float f;
+		} dst;
+
+		float sx = op->base.src.scale[0];
+		float sy = op->base.src.scale[1];
+		int16_t tx = op->base.src.offset[0];
+		int16_t ty = op->base.src.offset[1];
+
+		dst.p.x = b->box.x2;
+		dst.p.y = b->box.y2;
+		v[0] = dst.f;
+		v[1] = (b->box.x2 + tx) * sx;
+		v[6] = v[2] = (b->box.y2 + ty) * sy;
+
+		dst.p.x = b->box.x1;
+		v[4] = dst.f;
+		v[9] = v[5] = (b->box.x1 + tx) * sx;
+
+		dst.p.y = b->box.y1;
+		v[8] = dst.f;
+		v[10] = (b->box.y1 + ty) * sy;
+
+		v[11] = v[7] = v[3] = b->alpha;
+
+		v += 12;
+		b++;
+	} while (--nbox);
+}
+
+avx2 fastcall static void
+emit_span_simple__avx2(struct sna *sna,
+		       const struct sna_composite_spans_op *op,
+		       const BoxRec *box,
+		       float opacity)
+{
+	float *v;
+	union {
+		struct sna_coordinate p;
+		float f;
+	} dst;
+
+	float xx = op->base.src.transform->matrix[0][0];
+	float x0 = op->base.src.transform->matrix[0][2];
+	float yy = op->base.src.transform->matrix[1][1];
+	float y0 = op->base.src.transform->matrix[1][2];
+	float sx = op->base.src.scale[0];
+	float sy = op->base.src.scale[1];
+	int16_t tx = op->base.src.offset[0];
+	int16_t ty = op->base.src.offset[1];
+
+	assert(op->base.floats_per_rect == 12);
+	assert((sna->render.vertex_used % 4) == 0);
+	v = sna->render.vertices + sna->render.vertex_used;
+	sna->render.vertex_used += 3*4;
+	assert(sna->render.vertex_used <= sna->render.vertex_size);
+
+	dst.p.x = box->x2;
+	dst.p.y = box->y2;
+	v[0] = dst.f;
+	v[1] = ((box->x2 + tx) * xx + x0) * sx;
+	v[6] = v[2] = ((box->y2 + ty) * yy + y0) * sy;
+
+	dst.p.x = box->x1;
+	v[4] = dst.f;
+	v[9] = v[5] = ((box->x1 + tx) * xx + x0) * sx;
+
+	dst.p.y = box->y1;
+	v[8] = dst.f;
+	v[10] = ((box->y1 + ty) * yy + y0) * sy;
+
+	v[11] = v[7] = v[3] = opacity;
+}
+
+avx2 fastcall static void
+emit_span_boxes_simple__avx2(const struct sna_composite_spans_op *op,
+			     const struct sna_opacity_box *b, int nbox,
+			     float *v)
+{
+	float xx = op->base.src.transform->matrix[0][0];
+	float x0 = op->base.src.transform->matrix[0][2];
+	float yy = op->base.src.transform->matrix[1][1];
+	float y0 = op->base.src.transform->matrix[1][2];
+	float sx = op->base.src.scale[0];
+	float sy = op->base.src.scale[1];
+	int16_t tx = op->base.src.offset[0];
+	int16_t ty = op->base.src.offset[1];
+
+	do {
+		union {
+			struct sna_coordinate p;
+			float f;
+		} dst;
+
+		dst.p.x = b->box.x2;
+		dst.p.y = b->box.y2;
+		v[0] = dst.f;
+		v[1] = ((b->box.x2 + tx) * xx + x0) * sx;
+		v[6] = v[2] = ((b->box.y2 + ty) * yy + y0) * sy;
+
+		dst.p.x = b->box.x1;
+		v[4] = dst.f;
+		v[9] = v[5] = ((b->box.x1 + tx) * xx + x0) * sx;
+
+		dst.p.y = b->box.y1;
+		v[8] = dst.f;
+		v[10] = ((b->box.y1 + ty) * yy + y0) * sy;
+
+		v[11] = v[7] = v[3] = b->alpha;
+
+		v += 12;
+		b++;
+	} while (--nbox);
+}
+
+avx2 fastcall static void
+emit_span_affine__avx2(struct sna *sna,
+		       const struct sna_composite_spans_op *op,
+		       const BoxRec *box,
+		       float opacity)
+{
+	union {
+		struct sna_coordinate p;
+		float f;
+	} dst;
+	float *v;
+
+	assert(op->base.floats_per_rect == 12);
+	assert((sna->render.vertex_used % 4) == 0);
+	v = sna->render.vertices + sna->render.vertex_used;
+	sna->render.vertex_used += 12;
+
+	dst.p.x = box->x2;
+	dst.p.y = box->y2;
+	v[0] = dst.f;
+	_sna_get_transformed_scaled(op->base.src.offset[0] + box->x2,
+				    op->base.src.offset[1] + box->y2,
+				    op->base.src.transform,
+				    op->base.src.scale,
+				    &v[1], &v[2]);
+
+	dst.p.x = box->x1;
+	v[4] = dst.f;
+	_sna_get_transformed_scaled(op->base.src.offset[0] + box->x1,
+				    op->base.src.offset[1] + box->y2,
+				    op->base.src.transform,
+				    op->base.src.scale,
+				    &v[5], &v[6]);
+
+	dst.p.y = box->y1;
+	v[8] = dst.f;
+	_sna_get_transformed_scaled(op->base.src.offset[0] + box->x1,
+				    op->base.src.offset[1] + box->y1,
+				    op->base.src.transform,
+				    op->base.src.scale,
+				    &v[9], &v[10]);
+
+	v[11] = v[7] = v[3] = opacity;
+}
+
+avx2 fastcall static void
+emit_span_boxes_affine__avx2(const struct sna_composite_spans_op *op,
+			     const struct sna_opacity_box *b, int nbox,
+			     float *v)
+{
+	do {
+		union {
+			struct sna_coordinate p;
+			float f;
+		} dst;
+
+		dst.p.x = b->box.x2;
+		dst.p.y = b->box.y2;
+		v[0] = dst.f;
+		_sna_get_transformed_scaled(op->base.src.offset[0] + b->box.x2,
+					    op->base.src.offset[1] + b->box.y2,
+					    op->base.src.transform,
+					    op->base.src.scale,
+					    &v[1], &v[2]);
+
+		dst.p.x = b->box.x1;
+		v[4] = dst.f;
+		_sna_get_transformed_scaled(op->base.src.offset[0] + b->box.x1,
+					    op->base.src.offset[1] + b->box.y2,
+					    op->base.src.transform,
+					    op->base.src.scale,
+					    &v[5], &v[6]);
+
+		dst.p.y = b->box.y1;
+		v[8] = dst.f;
+		_sna_get_transformed_scaled(op->base.src.offset[0] + b->box.x1,
+					    op->base.src.offset[1] + b->box.y1,
+					    op->base.src.transform,
+					    op->base.src.scale,
+					    &v[9], &v[10]);
+
+		v[11] = v[7] = v[3] = b->alpha;
+
+		v += 12;
+		b++;
+	} while (--nbox);
+}
+
+avx2 fastcall static void
+emit_span_linear__avx2(struct sna *sna,
+		       const struct sna_composite_spans_op *op,
+		       const BoxRec *box,
+		       float opacity)
+{
+	union {
+		struct sna_coordinate p;
+		float f;
+	} dst;
+	float *v;
+
+	assert(op->base.floats_per_rect == 9);
+	assert((sna->render.vertex_used % 3) == 0);
+	v = sna->render.vertices + sna->render.vertex_used;
+	sna->render.vertex_used += 9;
+
+	dst.p.x = box->x2;
+	dst.p.y = box->y2;
+	v[0] = dst.f;
+	dst.p.x = box->x1;
+	v[3] = dst.f;
+	dst.p.y = box->y1;
+	v[6] = dst.f;
+
+	v[1] = compute_linear(&op->base.src, box->x2, box->y2);
+	v[4] = compute_linear(&op->base.src, box->x1, box->y2);
+	v[7] = compute_linear(&op->base.src, box->x1, box->y1);
+
+	v[8] = v[5] = v[2] = opacity;
+}
+
+avx2 fastcall static void
+emit_span_boxes_linear__avx2(const struct sna_composite_spans_op *op,
+			     const struct sna_opacity_box *b, int nbox,
+			     float *v)
+{
+	do {
+		union {
+			struct sna_coordinate p;
+			float f;
+		} dst;
+
+		dst.p.x = b->box.x2;
+		dst.p.y = b->box.y2;
+		v[0] = dst.f;
+		dst.p.x = b->box.x1;
+		v[3] = dst.f;
+		dst.p.y = b->box.y1;
+		v[6] = dst.f;
+
+		v[1] = compute_linear(&op->base.src, b->box.x2, b->box.y2);
+		v[4] = compute_linear(&op->base.src, b->box.x1, b->box.y2);
+		v[7] = compute_linear(&op->base.src, b->box.x1, b->box.y1);
+
+		v[8] = v[5] = v[2] = b->alpha;
+
+		v += 9;
+		b++;
+	} while (--nbox);
+}
+#endif
+
+inline static uint32_t
 gen4_choose_spans_vertex_buffer(const struct sna_composite_op *op)
 {
 	int id = op->src.is_solid ? 1 : 2 + !op->src.is_affine;
@@ -1502,7 +2586,8 @@ gen4_choose_spans_vertex_buffer(const struct sna_composite_op *op)
 	return 1 << 2 | id;
 }
 
-unsigned gen4_choose_spans_emitter(struct sna_composite_spans_op *tmp)
+unsigned gen4_choose_spans_emitter(struct sna *sna,
+				   struct sna_composite_spans_op *tmp)
 {
 	unsigned vb;
 
@@ -1512,24 +2597,80 @@ unsigned gen4_choose_spans_emitter(struct sna_composite_spans_op *tmp)
 		tmp->base.floats_per_vertex = 3;
 		vb = 1 << 2 | 1;
 	} else if (tmp->base.src.is_linear) {
-		tmp->prim_emit = emit_span_linear;
-		tmp->emit_boxes = emit_span_boxes_linear;
+#if defined(avx2)
+		if (sna->cpu_features & AVX2) {
+			tmp->prim_emit = emit_span_linear__avx2;
+			tmp->emit_boxes = emit_span_boxes_linear__avx2;
+		} else
+#endif
+#if defined(sse4_2)
+		if (sna->cpu_features & SSE4_2) {
+			tmp->prim_emit = emit_span_linear__sse4_2;
+			tmp->emit_boxes = emit_span_boxes_linear__sse4_2;
+		} else
+#endif
+		{
+			tmp->prim_emit = emit_span_linear;
+			tmp->emit_boxes = emit_span_boxes_linear;
+		}
 		tmp->base.floats_per_vertex = 3;
 		vb = 1 << 2 | 1;
 	} else if (tmp->base.src.transform == NULL) {
-		tmp->prim_emit = emit_span_identity;
-		tmp->emit_boxes = emit_span_boxes_identity;
+#if defined(avx2)
+		if (sna->cpu_features & AVX2) {
+			tmp->prim_emit = emit_span_identity__avx2;
+			tmp->emit_boxes = emit_span_boxes_identity__avx2;
+		} else
+#endif
+#if defined(sse4_2)
+		if (sna->cpu_features & SSE4_2) {
+			tmp->prim_emit = emit_span_identity__sse4_2;
+			tmp->emit_boxes = emit_span_boxes_identity__sse4_2;
+		} else
+#endif
+		{
+			tmp->prim_emit = emit_span_identity;
+			tmp->emit_boxes = emit_span_boxes_identity;
+		}
 		tmp->base.floats_per_vertex = 4;
 		vb = 1 << 2 | 2;
 	} else if (tmp->base.is_affine) {
 		tmp->base.src.scale[0] /= tmp->base.src.transform->matrix[2][2];
 		tmp->base.src.scale[1] /= tmp->base.src.transform->matrix[2][2];
 		if (!sna_affine_transform_is_rotation(tmp->base.src.transform)) {
-			tmp->prim_emit = emit_span_simple;
-			tmp->emit_boxes = emit_span_boxes_simple;
+#if defined(avx2)
+			if (sna->cpu_features & AVX2) {
+				tmp->prim_emit = emit_span_simple__avx2;
+				tmp->emit_boxes = emit_span_boxes_simple__avx2;
+			} else
+#endif
+#if defined(sse4_2)
+			if (sna->cpu_features & SSE4_2) {
+				tmp->prim_emit = emit_span_simple__sse4_2;
+				tmp->emit_boxes = emit_span_boxes_simple__sse4_2;
+			} else
+#endif
+			{
+				tmp->prim_emit = emit_span_simple;
+				tmp->emit_boxes = emit_span_boxes_simple;
+			}
 		} else {
-			tmp->prim_emit = emit_span_affine;
-			tmp->emit_boxes = emit_span_boxes_affine;
+#if defined(avx2)
+			if (sna->cpu_features & AVX2) {
+				tmp->prim_emit = emit_span_affine__avx2;
+				tmp->emit_boxes = emit_span_boxes_affine__avx2;
+			} else
+#endif
+#if defined(sse4_2)
+			if (sna->cpu_features & SSE4_2) {
+				tmp->prim_emit = emit_span_affine__sse4_2;
+				tmp->emit_boxes = emit_span_boxes_affine__sse4_2;
+			} else
+#endif
+			{
+				tmp->prim_emit = emit_span_affine;
+				tmp->emit_boxes = emit_span_boxes_affine;
+			}
 		}
 		tmp->base.floats_per_vertex = 4;
 		vb = 1 << 2 | 2;
