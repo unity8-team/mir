@@ -1692,10 +1692,12 @@ static void sna_dri_flip_event(struct sna *sna,
 		}
 		break;
 
-	default:
+	default: /* Unknown type */
 		xf86DrvMsg(sna->scrn->scrnIndex, X_WARNING,
 			   "%s: unknown vblank event received\n", __func__);
-		/* Unknown type */
+		sna_dri_frame_event_info_free(sna, flip->draw, flip);
+		if (sna->dri.flip_pending)
+			chain_flip(sna);
 		break;
 	}
 }
