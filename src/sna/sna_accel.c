@@ -725,7 +725,7 @@ create_pixmap(struct sna *sna, ScreenPtr screen,
 
 	datasize = height * stride;
 	base = screen->totalPixmapSize;
-	if (base & 15) {
+	if (datasize && base & 15) {
 		int adjust = 16 - (base & 15);
 		base += adjust;
 		datasize += adjust;
@@ -753,7 +753,7 @@ create_pixmap(struct sna *sna, ScreenPtr screen,
 	pixmap->drawable.height = height;
 	pixmap->devKind = stride;
 	pixmap->refcnt = 1;
-	pixmap->devPrivate.ptr =  (char *)pixmap + base;
+	pixmap->devPrivate.ptr = datasize ? (char *)pixmap + base : NULL;
 
 #ifdef COMPOSITE
 	pixmap->screen_x = 0;
