@@ -1576,7 +1576,6 @@ static void chain_flip(struct sna *sna)
 {
 	struct sna_dri_frame_event *chain = sna->dri.flip_pending;
 
-	assert(chain == sna_dri_window_get_chain((WindowPtr)chain->draw));
 	assert(chain->type == DRI2_FLIP);
 	DBG(("%s: chaining type=%d\n", __FUNCTION__, chain->type));
 
@@ -1585,6 +1584,8 @@ static void chain_flip(struct sna *sna)
 		sna_dri_frame_event_info_free(sna, NULL, chain);
 		return;
 	}
+
+	assert(chain == sna_dri_window_get_chain((WindowPtr)chain->draw));
 
 	if (chain->type == DRI2_FLIP &&
 	    can_flip(sna, chain->draw, chain->front, chain->back) &&
