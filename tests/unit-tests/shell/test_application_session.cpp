@@ -19,6 +19,7 @@
 #include "mir/shell/application_session.h"
 #include "mir/compositor/buffer.h"
 #include "mir/shell/surface_creation_parameters.h"
+#include "mir/shell/focus_arbitrator.h"
 #include "mir_test/fake_shared.h"
 #include "mir_test_doubles/mock_surface_factory.h"
 #include "mir_test_doubles/mock_surface.h"
@@ -34,18 +35,30 @@ namespace ms = mir::surfaces;
 namespace mt = mir::test;
 namespace mtd = mir::test::doubles;
 
+namespace
+{
+
+struct MockFocusArbitrator
+{
+    MOCK_METHOD1(request_focus, bool(std::shared_ptr<msh::Session>));
+};
+
+}
+
 TEST(ApplicationSession, create_and_destroy_surface)
 {
     using namespace ::testing;
 
     auto const mock_surface = std::make_shared<mtd::MockSurface>();
     mtd::MockSurfaceFactory surface_factory;
+    NiceMock<MockFocusArbitrator> focus_arbitrator;
+
     ON_CALL(surface_factory, create_surface(_)).WillByDefault(Return(mock_surface));
 
     EXPECT_CALL(surface_factory, create_surface(_));
     EXPECT_CALL(*mock_surface, destroy());
 
-    msh::ApplicationSession session(mt::fake_shared(surface_factory), "Foo");
+    msh::ApplicationSession session(mt::fake_shared(surface_factory), mt::fake_shared(focus_arbitrator), "Foo");
 
     msh::SurfaceCreationParameters params;
     auto surf = session.create_surface(params);
@@ -60,9 +73,11 @@ TEST(ApplicationSession, session_visbility_propagates_to_surfaces)
 
     auto const mock_surface = std::make_shared<mtd::MockSurface>();
     mtd::MockSurfaceFactory surface_factory;
+    NiceMock<MockFocusArbitrator> focus_arbitrator;
+
     ON_CALL(surface_factory, create_surface(_)).WillByDefault(Return(mock_surface));
 
-    msh::ApplicationSession app_session(mt::fake_shared(surface_factory), "Foo");
+    msh::ApplicationSession app_session(mt::fake_shared(surface_factory), mt::fake_shared(focus_arbitrator), "Foo");
 
     EXPECT_CALL(surface_factory, create_surface(_));
 
@@ -82,12 +97,28 @@ TEST(ApplicationSession, session_visbility_propagates_to_surfaces)
     app_session.destroy_surface(surf);
 }
 
-TEST(Session, get_invalid_surface_throw_behavior)
+TEST(ApplicationSession, creating_suface_requests_focus)
 {
     using namespace ::testing;
 
     mtd::MockSurfaceFactory surface_factory;
-    msh::ApplicationSession app_session(mt::fake_shared(surface_factory), "Foo");
+    mtd::MockSurface mock_surface;
+    MockFocusArbitrator focus_arbitrator;
+
+    ON_CALL(surface_factory, create_surface(_)).WillByDefault(Return(mt::fake_shared(mock_surface)));
+    EXPECT_CALL(focus_arbitrator, request_focus(_)).Times(1).WillOnce(Return(true));
+
+    msh::ApplicationSession app_session(mt::fake_shared(surface_factory), mt::fake_shared(focus_arbitrator), "Foo");
+    app_session.create_surface(msh::a_surface());
+}
+
+TEST(ApplicationSession, get_invalid_surface_throw_behavior)
+{
+    using namespace ::testing;
+
+    mtd::MockSurfaceFactory surface_factory;
+    NiceMock<MockFocusArbitrator> focus_arbitrator;
+    msh::ApplicationSession app_session(mt::fake_shared(surface_factory), mt::fake_shared(focus_arbitrator), "Foo");
     msh::SurfaceId invalid_surface_id = msh::SurfaceId{1};
 
     EXPECT_THROW({
@@ -95,12 +126,13 @@ TEST(Session, get_invalid_surface_throw_behavior)
     }, std::runtime_error);
 }
 
-TEST(Session, destroy_invalid_surface_throw_behavior)
+TEST(ApplicationSession, destroy_invalid_surface_throw_behavior)
 {
     using namespace ::testing;
 
     mtd::MockSurfaceFactory surface_factory;
-    msh::ApplicationSession app_session(mt::fake_shared(surface_factory), "Foo");
+    NiceMock<MockFocusArbitrator> focus_arbitrator;
+    msh::ApplicationSession app_session(mt::fake_shared(surface_factory), mt::fake_shared(focus_arbitrator), "Foo");
     msh::SurfaceId invalid_surface_id = msh::SurfaceId{1};
 
     EXPECT_THROW({
