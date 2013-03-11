@@ -1041,21 +1041,6 @@ sna_dri_remove_frame_event(WindowPtr win,
 	chain->chain = info->chain;
 }
 
-void sna_dri_destroy_window(WindowPtr win)
-{
-	struct sna_dri_frame_event *chain;
-
-	chain = sna_dri_window_get_chain(win);
-	if (chain == NULL)
-		return;
-
-	DBG(("%s: window=%ld\n", __FUNCTION__, win->drawable.serialNumber));
-	while (chain) {
-		chain->draw = NULL;
-		chain = chain->chain;
-	}
-}
-
 static void
 sna_dri_add_frame_event(DrawablePtr draw, struct sna_dri_frame_event *info)
 {
@@ -1105,6 +1090,27 @@ sna_dri_frame_event_info_free(struct sna *sna,
 		kgem_bo_destroy(&sna->kgem, info->bo);
 
 	free(info);
+}
+
+void sna_dri_destroy_window(WindowPtr win)
+{
+	struct sna *sna = to_sna_from_drawable(&win->drawable);
+	struct sna_dri_frame_event *info, *chain;
+
+	info = sna_dri_window_get_chain(win);
+	if (info == NULL)
+		return;
+
+	DBG(("%s: window=%ld\n", __FUNCTION__, win->drawable.serialNumber));
+	info->draw = NULL;
+
+	chain = info->chain;
+	info->chain = NULL;
+
+	while ((info = chain)) {
+		chain = info->chain;
+		sna_dri_frame_event_info_free(sna, NULL, info);
+	}
 }
 
 static bool
@@ -1725,8 +1731,8 @@ sna_dri_immediate_blit(struct sna *sna,
 	if (sna->flags & SNA_NO_WAIT)
 		sync = false;
 
-	DBG(("%s: emitting immediate blit, throttling client, synced? %d\n",
-	     __FUNCTION__, sync));
+	DBG(("%s: emitting immediate blit, throttling client, synced? %d, chained? %d\n",
+	     __FUNCTION__, sync, sna_dri_window_get_chain((WindowPtr)draw) == info));
 
 	if (sync) {
 		info->type = DRI2_SWAP_THROTTLE;
