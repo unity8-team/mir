@@ -51,7 +51,8 @@ msh::SessionManager::~SessionManager()
 
 std::shared_ptr<msh::Session> msh::SessionManager::open_session(std::string const& name)
 {
-    auto new_session = std::make_shared<msh::ApplicationSession>(surface_factory, name);
+    // TODO: Lol
+    auto new_session = std::make_shared<msh::ApplicationSession>(surface_factory, std::shared_ptr<msh::FocusArbitrator>(), name);
 
     app_container->insert_session(new_session);
 

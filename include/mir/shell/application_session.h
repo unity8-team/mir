@@ -29,11 +29,12 @@ namespace mir
 namespace shell
 {
 class SurfaceFactory;
+class FocusArbitrator;
 
 class ApplicationSession : public Session
 {
 public:
-    explicit ApplicationSession(std::shared_ptr<SurfaceFactory> const& surface_factory, std::string const& session_name);
+    explicit ApplicationSession(std::shared_ptr<SurfaceFactory> const& surface_factory, std::shared_ptr<FocusArbitrator> const& focus_arbitrator, std::string const& session_name);
     ~ApplicationSession();
 
     SurfaceId create_surface(SurfaceCreationParameters const& params);
@@ -52,6 +53,7 @@ protected:
 
 private:
     std::shared_ptr<SurfaceFactory> const surface_factory;
+    std::shared_ptr<FocusArbitrator> const focus_arbitrator;
     std::string const session_name;
 
     SurfaceId next_id();

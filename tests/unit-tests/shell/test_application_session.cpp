@@ -38,9 +38,9 @@ namespace mtd = mir::test::doubles;
 namespace
 {
 
-struct MockFocusArbitrator
+struct MockFocusArbitrator : public msh::FocusArbitrator
 {
-    MOCK_METHOD1(request_focus, bool(std::shared_ptr<msh::Session>));
+    MOCK_METHOD1(request_focus, bool(std::shared_ptr<msh::Session> const&));
 };
 
 }

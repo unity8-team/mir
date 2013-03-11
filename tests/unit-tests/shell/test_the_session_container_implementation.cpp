@@ -17,42 +17,43 @@
  */
 
 #include "mir/surfaces/buffer_bundle.h"
-#include "mir/shell/application_session.h"
+#include "mir/shell/session.h"
 #include "mir/shell/session_container.h"
 #include "mir/shell/surface_creation_parameters.h"
 #include "mir/surfaces/surface.h"
-#include "mir_test_doubles/mock_buffer_bundle.h"
-#include "mir_test_doubles/mock_surface_factory.h"
+
+#include "mir_test/fake_shared.h"
+#include "mir_test_doubles/mock_session.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <string>
 
 namespace msh = mir::shell;
-namespace mtd = mir::test::doubles;
+namespace mt = mir::test;
+namespace mtd = mt::doubles;
 
 TEST(SessionContainer, for_each)
 {
     using namespace ::testing;
-    auto factory = std::make_shared<mtd::MockSurfaceFactory>();
     msh::SessionContainer container;
 
-    container.insert_session(std::make_shared<msh::ApplicationSession>(factory, "Visual Studio 7"));
-    container.insert_session(std::make_shared<msh::ApplicationSession>(factory, "Visual Studio 8"));
+    mtd::MockSession session1;
+    mtd::MockSession session2;
+    
+    container.insert_session(mt::fake_shared(session1));
+    container.insert_session(mt::fake_shared(session2));
 
     struct local
     {
-        MOCK_METHOD1(check_name, void (std::string const&));
-
         void operator()(std::shared_ptr<msh::Session> const& session)
         {
-            check_name(session->name());
+            session->name();
         }
     } functor;
 
-    InSequence seq;
-    EXPECT_CALL(functor, check_name("Visual Studio 7"));
-    EXPECT_CALL(functor, check_name("Visual Studio 8"));
+    EXPECT_CALL(session1, name()).WillOnce(Return("VS 7"));
+    EXPECT_CALL(session2, name()).WillOnce(Return("VS 8"));
 
     container.for_each(std::ref(functor));
 }
@@ -60,12 +61,10 @@ TEST(SessionContainer, for_each)
 TEST(SessionContainer, invalid_session_throw_behavior)
 {
     using namespace ::testing;
-    auto factory = std::make_shared<mtd::MockSurfaceFactory>();
     msh::SessionContainer container;
+    mtd::MockSession invalid_session;
 
-    auto session = std::make_shared<msh::ApplicationSession>(factory,
-                                                               "Visual Studio 7");
     EXPECT_THROW({
-        container.remove_session(session);
+        container.remove_session(mt::fake_shared(invalid_session));
     }, std::logic_error);
 }

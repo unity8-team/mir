@@ -33,8 +33,10 @@ namespace ms = mir::surfaces;
 
 msh::ApplicationSession::ApplicationSession(
     std::shared_ptr<msh::SurfaceFactory> const& surface_factory,
+    std::shared_ptr<msh::FocusArbitrator> const& focus_arbitrator,
     std::string const& session_name) :
     surface_factory(surface_factory),
+    focus_arbitrator(focus_arbitrator),
     session_name(session_name),
     next_surface_id(0)
 {
