@@ -4274,14 +4274,14 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 		box->x2 >= dst_pixmap->drawable.width &&
 		box->y2 >= dst_pixmap->drawable.height;
 
-	DBG(("%s: dst=(priv=%p, gpu_bo=%p, cpu_bo=%p), src=(priv=%p, gpu_bo=%p, cpu_bo=%p), replaces=%d\n",
+	DBG(("%s: dst=(priv=%p, gpu_bo=%d, cpu_bo=%d), src=(priv=%p, gpu_bo=%d, cpu_bo=%d), replaces=%d\n",
 	     __FUNCTION__,
 	     dst_priv,
-	     dst_priv ? dst_priv->gpu_bo : NULL,
-	     dst_priv ? dst_priv->cpu_bo : NULL,
+	     dst_priv && dst_priv->gpu_bo ? dst_priv->gpu_bo->handle : 0,
+	     dst_priv && dst_priv->cpu_bo ? dst_priv->cpu_bo->handle : 0,
 	     src_priv,
-	     src_priv ? src_priv->gpu_bo : NULL,
-	     src_priv ? src_priv->cpu_bo : NULL,
+	     src_priv && src_priv->gpu_bo ? src_priv->gpu_bo->handle : 0,
+	     src_priv && src_priv->cpu_bo ? src_priv->cpu_bo->handle : 0,
 	     replaces));
 
 	if (dst_priv == NULL)
