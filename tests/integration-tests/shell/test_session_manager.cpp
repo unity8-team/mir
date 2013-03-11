@@ -24,6 +24,7 @@
 #include "mir/compositor/buffer_swapper.h"
 #include "mir/shell/focus_sequence.h"
 #include "mir/shell/focus_setter.h"
+#include "mir/shell/session.h"
 #include "mir/shell/registration_order_focus_sequence.h"
 #include "mir/shell/session_container.h"
 #include "mir/shell/surface_creation_parameters.h"
@@ -33,6 +34,7 @@
 #include "mir_test/gmock_fixes.h"
 #include "mir_test/fake_shared.h"
 #include "mir_test_doubles/mock_surface_factory.h"
+#include "mir_test_doubles/mock_surface.h" // TODO: Replace with stub ~racarr
 
 namespace mc = mir::compositor;
 namespace msh = mir::shell;
@@ -112,4 +114,34 @@ TEST(TestSessionManagerAndFocusSelectionStrategy, closing_applications_transfers
 
     session_manager.close_session(session3);
     session_manager.close_session(session2);
+}
+
+TEST(TestSessionManagerDefaultFocusArbitratorAndSession, sessions_creating_first_surface_receive_focus)
+{
+    using namespace ::testing;
+
+    mtd::MockSurface mock_surface; // TODO: Replace with stub ~acarr
+    mtd::MockSurfaceFactory surface_factory;
+    std::shared_ptr<msh::SessionContainer> model(new msh::SessionContainer());
+    msh::RegistrationOrderFocusSequence sequence(model);
+    MockFocusSetter focus_changer;
+    std::shared_ptr<msh::Session> new_session;
+    
+    EXPECT_CALL(surface_factory, create_surface(_)).Times(2).WillRepeatedly(Return(mt::fake_shared(mock_surface)));
+
+    msh::SessionManager session_manager(
+        mt::fake_shared(surface_factory),
+        model,
+        mt::fake_shared(sequence),
+        mt::fake_shared(focus_changer));
+    
+    // Once for creating the session and a second time at surface creation
+    EXPECT_CALL(focus_changer, set_focus_to(_)).Times(2);
+
+    // Triggers a focus set
+    auto session1 = session_manager.open_session("Yesterday");
+    // Also triggers a focus change
+    session1->create_surface(msh::a_surface());
+    // Should not trigger a focus change
+    session1->create_surface(msh::a_surface());
 }
