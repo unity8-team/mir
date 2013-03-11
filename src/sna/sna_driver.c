@@ -230,6 +230,9 @@ static Bool sna_create_screen_resources(ScreenPtr screen)
 	DBG(("%s(%dx%d@%d)\n", __FUNCTION__,
 	     screen->width, screen->height, screen->rootDepth));
 
+	assert(sna->scrn == xf86ScreenToScrn(screen));
+	assert(sna->scrn->pScreen == screen);
+
 	free(screen->devPrivate);
 	screen->devPrivate = NULL;
 
@@ -435,6 +438,37 @@ static Bool sna_option_cast_to_bool(struct sna *sna, int id, Bool val)
 	return val;
 }
 
+static Bool fb_supports_depth(int fd, int depth)
+{
+	struct drm_i915_gem_create create;
+	struct drm_mode_fb_cmd fb;
+	struct drm_gem_close close;
+	Bool ret;
+
+	VG_CLEAR(create);
+	create.handle = 0;
+	create.size = 4096;
+	if (drmIoctl(fd, DRM_IOCTL_I915_GEM_CREATE, &create))
+		return FALSE;
+
+	VG_CLEAR(fb);
+	fb.width = 64;
+	fb.height = 16;
+	fb.pitch = 256;
+	fb.bpp = depth <= 8 ? 8 : depth <= 16 ? 16 : 32;
+	fb.depth = depth;
+	fb.handle = create.handle;
+
+	ret = drmIoctl(fd, DRM_IOCTL_MODE_ADDFB, &fb) == 0;
+	drmModeRmFB(fd, fb.fb_id);
+
+	VG_CLEAR(close);
+	close.handle = create.handle;
+	(void)drmIoctl(fd, DRM_IOCTL_GEM_CLOSE, &close);
+
+	return ret;
+}
+
 /**
  * This is called before ScreenInit to do any require probing of screen
  * configuration.
@@ -451,9 +485,10 @@ static Bool sna_option_cast_to_bool(struct sna *sna, int id, Bool val)
 static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 {
 	struct sna *sna;
+	char buf[1024];
 	rgb defaultWeight = { 0, 0, 0 };
 	EntityInfoPtr pEnt;
-	int flags24;
+	int preferred_depth;
 	Gamma zeros = { 0.0, 0.0, 0.0 };
 	int fd;
 
@@ -486,6 +521,8 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 
 		sna->info = (void *)((uintptr_t)scrn->driverPrivate & ~1);
 		scrn->driverPrivate = sna;
+
+		sna->cpu_features = sna_cpu_detect();
 	}
 	sna = to_sna(scrn);
 	sna->scrn = scrn;
@@ -495,6 +532,10 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 
 	sna->PciInfo = xf86GetPciInfoForEntity(sna->pEnt->index);
 
+	scrn->monitor = scrn->confScreen->monitor;
+	scrn->progClock = TRUE;
+	scrn->rgbBits = 8;
+
 	fd = sna_open_drm_master(scrn);
 	if (fd == -1) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
@@ -502,13 +543,13 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 		return FALSE;
 	}
 
-	scrn->monitor = scrn->confScreen->monitor;
-	scrn->progClock = TRUE;
-	scrn->rgbBits = 8;
+	preferred_depth = sna->info->gen < 030 ? 15 : 24;
+	if (!fb_supports_depth(fd, preferred_depth))
+		preferred_depth = 24;
 
-	flags24 = Support32bppFb | PreferConvert24to32 | SupportConvert24to32;
-
-	if (!xf86SetDepthBpp(scrn, 0, 0, 0, flags24))
+	if (!xf86SetDepthBpp(scrn, preferred_depth, 0, 0,
+			     Support32bppFb |
+			     SupportConvert24to32 | PreferConvert24to32))
 		return FALSE;
 
 	switch (scrn->depth) {
@@ -517,10 +558,11 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 	case 16:
 	case 24:
 	case 30:
-		break;
+		if (fb_supports_depth(fd, scrn->depth))
+			break;
 	default:
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-			   "Given depth (%d) is not supported by Intel driver\n",
+			   "Given depth (%d) is not supported by the Intel driver and this chipset.\n",
 			   scrn->depth);
 		return FALSE;
 	}
@@ -578,6 +620,8 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 	if (xf86ReturnOptValBool(sna->Options, OPTION_CRTC_PIXMAPS, FALSE))
 		sna->flags |= SNA_FORCE_SHADOW;
 
+	xf86DrvMsg(scrn->scrnIndex, X_PROBED, "CPU: %s\n",
+		   sna_cpu_features_to_string(sna->cpu_features, buf));
 	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Framebuffer %s\n",
 		   sna->tiling & SNA_TILING_FB ? "tiled" : "linear");
 	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Pixmaps %s\n",
@@ -776,6 +820,7 @@ sna_uevent_fini(ScrnInfoPtr scrn)
 	DBG(("%s: removed uvent handler\n", __FUNCTION__));
 }
 #else
+static void sna_uevent_init(ScrnInfoPtr scrn) { }
 static void sna_uevent_fini(ScrnInfoPtr scrn) { }
 #endif /* HAVE_UDEV */
 
@@ -820,13 +865,12 @@ static Bool sna_early_close_screen(CLOSE_SCREEN_ARGS_DECL)
 
 	xf86_cursors_fini(screen);
 
-	return TRUE;
+	return sna->CloseScreen(CLOSE_SCREEN_ARGS);
 }
 
 static Bool sna_late_close_screen(CLOSE_SCREEN_ARGS_DECL)
 {
-	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
-	struct sna *sna = to_sna(scrn);
+	struct sna *sna = to_sna_from_screen(screen);
 	DepthPtr depths;
 	int d;
 
@@ -907,6 +951,11 @@ sna_screen_init(SCREEN_INIT_ARGS_DECL)
 	VisualID defaultVisual;
 
 	DBG(("%s\n", __FUNCTION__));
+
+	assert(sna->scrn == scrn);
+	assert(scrn->pScreen == NULL); /* set afterwards */
+
+	assert(sna->freed_pixmap == NULL);
 
 	if (!sna_register_all_privates())
 		return FALSE;
@@ -1023,9 +1072,7 @@ sna_screen_init(SCREEN_INIT_ARGS_DECL)
 
 	sna->suspended = FALSE;
 
-#if HAVE_UDEV
 	sna_uevent_init(scrn);
-#endif
 
 	return TRUE;
 }

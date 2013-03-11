@@ -287,10 +287,7 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 	}
 
 	ret = Success;
-	if (!sna->render.video(sna, video, &frame, clip,
-			       src_w, src_h, drw_w, drw_h,
-			       drw_x - src_x, drw_y - src_y,
-			       pixmap)) {
+	if (!sna->render.video(sna, video, &frame, clip, pixmap)) {
 		DBG(("%s: failed to render video\n", __FUNCTION__));
 		ret = BadAlloc;
 	} else

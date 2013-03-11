@@ -38,6 +38,13 @@
 #define DBG_FORCE_UPLOAD 0
 #define DBG_NO_CPU_BO 0
 
+#define alphaless(format) PICT_FORMAT(PICT_FORMAT_BPP(format),		\
+				      PICT_FORMAT_TYPE(format),		\
+				      0,				\
+				      PICT_FORMAT_R(format),		\
+				      PICT_FORMAT_G(format),		\
+				      PICT_FORMAT_B(format))
+
 CARD32
 sna_format_for_depth(int depth)
 {
@@ -483,14 +490,17 @@ move_to_gpu(PixmapPtr pixmap, const BoxRec *box, bool blt)
 		migrate = count*w*h > pixmap->drawable.width * pixmap->drawable.height;
 	}
 
-	if (migrate) {
-		if (blt) {
-			if (!sna_pixmap_move_area_to_gpu(pixmap, box, MOVE_READ))
-				return NULL;
-		} else {
-			if (!sna_pixmap_force_to_gpu(pixmap, MOVE_SOURCE_HINT | MOVE_READ))
-				return NULL;
-		}
+	if (!migrate)
+		return NULL;
+
+	if (blt) {
+		if (!sna_pixmap_move_area_to_gpu(pixmap, box,
+						 __MOVE_FORCE | MOVE_READ))
+			return NULL;
+	} else {
+		if (!sna_pixmap_move_to_gpu(pixmap,
+					    __MOVE_FORCE | MOVE_SOURCE_HINT | MOVE_READ))
+			return NULL;
 	}
 
 	return priv->gpu_bo;
@@ -1001,11 +1011,14 @@ sna_render_picture_partial(struct sna *sna,
 	if (use_cpu_bo(sna, pixmap, &box, false)) {
 		bo = sna_pixmap(pixmap)->cpu_bo;
 	} else {
-		if (!sna_pixmap_force_to_gpu(pixmap,
-					     MOVE_READ | MOVE_SOURCE_HINT))
+		struct sna_pixmap *priv;
+
+		priv = sna_pixmap_force_to_gpu(pixmap,
+					       MOVE_READ | MOVE_SOURCE_HINT);
+		if (priv == NULL)
 			return 0;
 
-		bo = sna_pixmap(pixmap)->gpu_bo;
+		bo = priv->gpu_bo;
 	}
 
 	if (bo->pitch > sna->render.max_3d_pitch)
@@ -1181,7 +1194,6 @@ sna_render_picture_extract(struct sna *sna,
 						      pixmap->devKind,
 						      pixmap->drawable.bitsPerPixel);
 			if (bo != NULL &&
-			    pixmap->usage_hint == 0 &&
 			    box.x2 - box.x1 == pixmap->drawable.width &&
 			    box.y2 - box.y1 == pixmap->drawable.height) {
 				struct sna_pixmap *priv = sna_pixmap(pixmap);
@@ -1566,10 +1578,6 @@ do_fixup:
 		channel->pict_format = PIXMAN_a8;
 	else
 		channel->pict_format = PIXMAN_a8r8g8b8;
-	if (channel->pict_format != picture->format) {
-		DBG(("%s: converting to %08x from %08x\n",
-		     __FUNCTION__, channel->pict_format, picture->format));
-	}
 
 	if (picture->pDrawable &&
 	    !sna_drawable_move_to_cpu(picture->pDrawable, MOVE_READ))
@@ -1588,7 +1596,7 @@ do_fixup:
 	/* Composite in the original format to preserve idiosyncracies */
 	if (!kgem_buffer_is_inplace(channel->bo) &&
 	    (picture->pDrawable == NULL ||
-	     picture->format == channel->pict_format))
+	     alphaless(picture->format) == alphaless(channel->pict_format)))
 		dst = pixman_image_create_bits(channel->pict_format,
 					       w, h, ptr, channel->bo->pitch);
 	else
@@ -1729,7 +1737,9 @@ sna_render_picture_convert(struct sna *sna,
 						   PICT_FORMAT_B(picture->format));
 
 		DBG(("%s: converting to %08x from %08x using composite alpha-fixup\n",
-		     __FUNCTION__, (unsigned)picture->format));
+		     __FUNCTION__,
+		     (unsigned)channel->pict_format,
+		     (unsigned)picture->format));
 
 		tmp = screen->CreatePixmap(screen, w, h, pixmap->drawable.bitsPerPixel, 0);
 		if (tmp == NULL)

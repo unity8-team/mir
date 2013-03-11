@@ -1228,7 +1228,7 @@ tor_blt_empty(struct sna *sna,
 	span(sna, op, clip, &box, 0);
 }
 
-static void
+flatten static void
 tor_render(struct sna *sna,
 	   struct tor *converter,
 	   struct sna_composite_spans_op *op,
@@ -2061,7 +2061,7 @@ thread_mono_span_add_boxes(struct mono *c, const BoxRec *box, int count)
 	struct mono_span_thread_boxes *b = c->op.priv;
 
 	assert(count > 0 && count <= MONO_SPAN_MAX_BOXES);
-	if (b->num_boxes + count > MONO_SPAN_MAX_BOXES) {
+	if (unlikely(b->num_boxes + count > MONO_SPAN_MAX_BOXES)) {
 		b->op->thread_boxes(c->sna, b->op, b->boxes, b->num_boxes);
 		b->num_boxes = 0;
 	}
@@ -2213,7 +2213,7 @@ mono_step_edges(struct mono *c, int count)
 	}
 }
 
-static void
+flatten static void
 mono_render(struct mono *mono)
 {
 	struct mono_polygon *polygon = &mono->polygon;
@@ -2861,7 +2861,7 @@ static inline int grid_coverage(int samples, pixman_fixed_t f)
 	return (samples * pixman_fixed_frac(f) + pixman_fixed_1/2) / pixman_fixed_1;
 }
 
-static void
+inline static void
 composite_unaligned_box(struct sna *sna,
 			struct sna_composite_spans_op *tmp,
 			const BoxRec *box,
@@ -2885,7 +2885,7 @@ composite_unaligned_box(struct sna *sna,
 		tmp->box(sna, tmp, box, opacity);
 }
 
-static void
+inline static void
 composite_unaligned_trap_row(struct sna *sna,
 			     struct sna_composite_spans_op *tmp,
 			     xTrapezoid *trap, int dx,
@@ -2963,7 +2963,7 @@ composite_unaligned_trap_row(struct sna *sna,
 	}
 }
 
-static void
+flatten static void
 composite_unaligned_trap(struct sna *sna,
 			struct sna_composite_spans_op *tmp,
 			xTrapezoid *trap,
@@ -4405,7 +4405,7 @@ static void span_thread_add_boxes(struct sna *sna, void *data,
 	       __FUNCTION__, count, alpha));
 
 	assert(count > 0 && count <= SPAN_THREAD_MAX_BOXES);
-	if (b->num_boxes + count > SPAN_THREAD_MAX_BOXES) {
+	if (unlikely(b->num_boxes + count > SPAN_THREAD_MAX_BOXES)) {
 		DBG(("%s: flushing %d boxes, adding %d\n", __FUNCTION__, b->num_boxes, count));
 		assert(b->num_boxes <= SPAN_THREAD_MAX_BOXES);
 		b->op->thread_boxes(sna, b->op, b->boxes, b->num_boxes);

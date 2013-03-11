@@ -1,3 +1,41 @@
+Release 2.21.4 (2013-03-11)
+===========================
+More bugs, more fixes, more releases. A minor new feature being introduced
+is the runtime detection of CPU instructions sets along with specialised
+paths to take advantage of the available CPU.
+
+ * Honour LinearFramebuffer for clumsy PowerXpress integration
+
+ * Disable read-read optimisations of mappings whilst the root
+   cause of a corruption issue remains elusive.
+   https://bugs.freedesktop.org/show_bug.cgi?id=61628
+
+ * Disable 8-bpp framebuffers in UXA as the regressions therein
+   remain unfixed.
+
+ * Restart vertex checks after lock contention
+   https://bugs.launchpad.net/ubuntu/+source/xserver-xorg-video-intel/+bug/1124576
+
+ * Handle Screen Pixmap recreation whilst exported via PRIME.
+
+ * Correct application of scale factors to video source offsets.
+   https://bugs.freedesktop.org/show_bug.cgi?id=61610
+
+ * Chain up CloseScreen so that resources are actually freed across regen
+   https://bugs.freedesktop.org/show_bug.cgi?id=56608
+
+ * Fix Haswell CRW PCI-IDs
+
+ * Handle batch submission failure during DRI copies
+   https://bugs.freedesktop.org/show_bug.cgi?id=61708
+
+ * Probe for kernel support of requested Screen depth
+   https://bugs.launchpad.net/ubuntu/+source/xserver-xorg-video-intel/+bug/1135403
+
+ * Correct GPU limits for early gen2 and gen3 architectures and prevent
+   an infinite recursion for particular image sizes.
+
+
 Release 2.21.3 (2013-02-20)
 ===========================
 A few minor bugfixes, another point release.

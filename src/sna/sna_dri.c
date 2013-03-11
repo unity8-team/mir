@@ -62,7 +62,6 @@ enum frame_event_type {
 	DRI2_SWAP,
 	DRI2_SWAP_WAIT,
 	DRI2_SWAP_THROTTLE,
-	DRI2_XCHG_THROTTLE,
 	DRI2_FLIP,
 	DRI2_FLIP_THROTTLE,
 	DRI2_WAITMSC,
@@ -420,38 +419,42 @@ static void _sna_dri_destroy_buffer(struct sna *sna, DRI2Buffer2Ptr buffer)
 	DBG(("%s: %p [handle=%d] -- refcnt=%d, pixmap=%ld\n",
 	     __FUNCTION__, buffer, private->bo->handle, private->refcnt,
 	     private->pixmap ? private->pixmap->drawable.serialNumber : 0));
+	assert(private->refcnt > 0);
+	if (--private->refcnt)
+		return;
 
-	if (--private->refcnt == 0) {
-		if (private->pixmap) {
-			PixmapPtr pixmap = private->pixmap;
-			struct sna_pixmap *priv = sna_pixmap(pixmap);
+	assert(private->bo);
+	if (private->pixmap) {
+		PixmapPtr pixmap = private->pixmap;
+		struct sna_pixmap *priv = sna_pixmap(pixmap);
 
-			assert(sna_pixmap_get_buffer(pixmap) == buffer);
-			assert(priv->gpu_bo == private->bo);
-			assert(priv->flush);
+		assert(sna_pixmap_get_buffer(pixmap) == buffer);
+		assert(priv->gpu_bo == private->bo);
+		assert(priv->gpu_bo->flush);
+		assert(priv->pinned & PIN_DRI);
+		assert(priv->flush);
 
-			/* Undo the DRI markings on this pixmap */
-			DBG(("%s: releasing last DRI pixmap=%ld, scanout?=%d\n",
-			     __FUNCTION__,
-			     pixmap->drawable.serialNumber,
-			     pixmap == sna->front));
+		/* Undo the DRI markings on this pixmap */
+		DBG(("%s: releasing last DRI pixmap=%ld, scanout?=%d\n",
+		     __FUNCTION__,
+		     pixmap->drawable.serialNumber,
+		     pixmap == sna->front));
 
-			list_del(&priv->list);
+		list_del(&priv->list);
 
-			priv->gpu_bo->flush = false;
-			priv->pinned &= ~PIN_DRI;
+		priv->gpu_bo->flush = false;
+		priv->pinned &= ~PIN_DRI;
 
-			priv->flush = false;
-			sna_accel_watch_flush(sna, -1);
+		priv->flush = false;
+		sna_accel_watch_flush(sna, -1);
 
-			sna_pixmap_set_buffer(pixmap, NULL);
-			pixmap->drawable.pScreen->DestroyPixmap(pixmap);
-		} else
-			private->bo->flush = 0;
+		sna_pixmap_set_buffer(pixmap, NULL);
+		pixmap->drawable.pScreen->DestroyPixmap(pixmap);
+	} else
+		private->bo->flush = false;
 
-		kgem_bo_destroy(&sna->kgem, private->bo);
-		free(buffer);
-	}
+	kgem_bo_destroy(&sna->kgem, private->bo);
+	free(buffer);
 }
 
 static void sna_dri_destroy_buffer(DrawablePtr draw, DRI2Buffer2Ptr buffer)
@@ -500,6 +503,7 @@ static void set_bo(PixmapPtr pixmap, struct kgem_bo *bo)
 	assert(bo->proxy == NULL);
 	assert(bo->flush);
 	assert(priv->pinned & PIN_DRI);
+	assert((priv->pinned & PIN_PRIME) == 0);
 	assert(priv->flush);
 
 	/* Post damage on the new front buffer so that listeners, such
@@ -726,7 +730,8 @@ sna_dri_copy_to_front(struct sna *sna, DrawablePtr draw, RegionPtr region,
 		if (flush) { /* STAT! */
 			struct kgem_request *rq = sna->kgem.next_request;
 			kgem_submit(&sna->kgem);
-			bo = kgem_bo_reference(rq->bo);
+			if (rq->bo)
+				bo = kgem_bo_reference(rq->bo);
 		}
 	}
 
@@ -1259,71 +1264,6 @@ can_flip(struct sna * sna,
 	return true;
 }
 
-static bool
-can_exchange(struct sna * sna,
-	     DrawablePtr draw,
-	     DRI2BufferPtr front,
-	     DRI2BufferPtr back)
-{
-	WindowPtr win = (WindowPtr)draw;
-	PixmapPtr pixmap;
-
-	/* XXX There is an inherent race between the DRI2 client and the DRI2
-	 * compositor which is only masked if we force a blit and serialise
-	 * the operations through the kernel command queue. Hopeless.
-	 */
-	return false;
-
-	if (front->format != back->format) {
-		DBG(("%s: no, format mismatch, front = %d, back = %d\n",
-		     __FUNCTION__, front->format, back->format));
-		return false;
-	}
-
-	if (draw->type == DRAWABLE_PIXMAP)
-		return true;
-
-	pixmap = get_window_pixmap(win);
-	if (pixmap == sna->front) {
-		DBG(("%s: no, window is attached to the front buffer\n",
-		     __FUNCTION__));
-		return false;
-	}
-
-	if (pixmap->drawable.width != win->drawable.width ||
-	    pixmap->drawable.height != win->drawable.height) {
-		DBG(("%s: no, window has been reparented, window size %dx%d, parent %dx%d\n",
-		     __FUNCTION__,
-		     win->drawable.width,
-		     win->drawable.height,
-		     pixmap->drawable.width,
-		     pixmap->drawable.height));
-		return false;
-	}
-
-	if (sna_pixmap_get_buffer(pixmap) != front) {
-		DBG(("%s: no, DRI2 drawable is no longer attached\n",
-		     __FUNCTION__));
-		return false;
-	}
-
-	if (!get_private(front)->scanout) {
-		DBG(("%s: no, DRI2 drawable not attached at time of creation)\n",
-		     __FUNCTION__));
-		return false;
-	}
-	assert(get_private(front)->pixmap != sna->front);
-
-	if (!get_private(back)->scanout) {
-		DBG(("%s: no, DRI2 drawable was too small at time of creation)\n",
-		     __FUNCTION__));
-		return false;
-	}
-	assert(get_private(back)->size == get_private(front)->size);
-
-	return true;
-}
-
 inline static uint32_t pipe_select(int pipe)
 {
 	/* The third pipe was introduced with IvyBridge long after
@@ -1393,19 +1333,13 @@ static void chain_swap(struct sna *sna,
 	assert(chain == sna_dri_window_get_chain((WindowPtr)draw));
 	DBG(("%s: chaining type=%d\n", __FUNCTION__, chain->type));
 	switch (chain->type) {
-	case DRI2_XCHG_THROTTLE:
 	case DRI2_SWAP_THROTTLE:
 		break;
 	default:
 		return;
 	}
 
-	if (chain->type == DRI2_XCHG_THROTTLE &&
-	    can_exchange(sna, draw, chain->front, chain->back)) {
-		DBG(("%s: performing chained exchange\n", __FUNCTION__));
-		sna_dri_exchange_buffers(draw, chain->front, chain->back);
-		type = DRI2_EXCHANGE_COMPLETE;
-	} else if (can_blit(sna, draw, chain->front, chain->back)) {
+	if (can_blit(sna, draw, chain->front, chain->back)) {
 		DBG(("%s: emitting chained vsync'ed blit\n", __FUNCTION__));
 
 		chain->bo = sna_dri_copy_to_front(sna, draw, NULL,
@@ -1504,10 +1438,6 @@ void sna_dri_vblank_handler(struct sna *sna, struct drm_event_vblank *event)
 		DBG(("%s: %d complete, frame=%d tv=%d.%06d\n",
 		     __FUNCTION__, info->type,
 		     event->sequence, event->tv_sec, event->tv_usec));
-		break;
-
-	case DRI2_XCHG_THROTTLE:
-		DBG(("%s: xchg throttle\n", __FUNCTION__));
 		break;
 
 	case DRI2_WAITMSC:
@@ -1783,52 +1713,6 @@ sna_dri_page_flip_handler(struct sna *sna,
 		return;
 
 	sna_dri_flip_event(sna, info);
-}
-
-static void
-sna_dri_immediate_xchg(struct sna *sna,
-		       DrawablePtr draw,
-		       struct sna_dri_frame_event *info,
-		       bool sync)
-{
-	drmVBlank vbl;
-
-	if (sna->flags & SNA_NO_WAIT)
-		sync = false;
-
-	DBG(("%s: emitting immediate exchange, throttling client, synced? %d\n",
-	     __FUNCTION__, sync));
-	VG_CLEAR(vbl);
-
-	if (sync) {
-		info->type = DRI2_XCHG_THROTTLE;
-		if (sna_dri_window_get_chain((WindowPtr)draw) == info) {
-			DBG(("%s: no pending xchg, starting chain\n",
-			     __FUNCTION__));
-
-			sna_dri_exchange_buffers(draw, info->front, info->back);
-			DRI2SwapComplete(info->client, draw, 0, 0, 0,
-					 DRI2_EXCHANGE_COMPLETE,
-					 info->event_complete,
-					 info->event_data);
-			vbl.request.type =
-				DRM_VBLANK_RELATIVE |
-				DRM_VBLANK_NEXTONMISS |
-				DRM_VBLANK_EVENT |
-				pipe_select(info->pipe);
-			vbl.request.sequence = 0;
-			vbl.request.signal = (unsigned long)info;
-			if (sna_wait_vblank(sna, &vbl))
-				sna_dri_frame_event_info_free(sna, draw, info);
-		}
-	} else {
-		sna_dri_exchange_buffers(draw, info->front, info->back);
-		DRI2SwapComplete(info->client, draw, 0, 0, 0,
-				 DRI2_EXCHANGE_COMPLETE,
-				 info->event_complete,
-				 info->event_data);
-		sna_dri_frame_event_info_free(sna, draw, info);
-	}
 }
 
 static void
@@ -2181,9 +2065,7 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 
 	if (divisor == 0 && current_msc >= *target_msc - 1) {
 		bool sync = current_msc < *target_msc;
-		if (can_exchange(sna, draw, front, back)) {
-			sna_dri_immediate_xchg(sna, draw, info, sync);
-		} else if (can_blit(sna, draw, front, back)) {
+		if (can_blit(sna, draw, front, back)) {
 			sna_dri_immediate_blit(sna, draw, info, sync);
 		} else {
 			DRI2SwapComplete(client, draw, 0, 0, 0,
@@ -2260,12 +2142,7 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	return TRUE;
 
 blit:
-	pipe = DRI2_BLIT_COMPLETE;
-	if (can_exchange(sna, draw, front, back)) {
-		DBG(("%s -- xchg\n", __FUNCTION__));
-		sna_dri_exchange_buffers(draw, front, back);
-		pipe = DRI2_EXCHANGE_COMPLETE;
-	} else if (can_blit(sna, draw, front, back)) {
+	if (can_blit(sna, draw, front, back)) {
 		DBG(("%s -- blit\n", __FUNCTION__));
 		sna_dri_copy_to_front(sna, draw, NULL,
 				      get_private(front)->bo,
@@ -2275,7 +2152,7 @@ blit:
 	if (info)
 		sna_dri_frame_event_info_free(sna, draw, info);
 skip:
-	DRI2SwapComplete(client, draw, 0, 0, 0, pipe, func, data);
+	DRI2SwapComplete(client, draw, 0, 0, 0, DRI2_BLIT_COMPLETE, func, data);
 	*target_msc = 0; /* offscreen, so zero out target vblank count */
 	return TRUE;
 }
@@ -2297,11 +2174,7 @@ sna_dri_async_swap(ClientPtr client, DrawablePtr draw,
 	    !sna_dri_schedule_flip(client, draw, front, back, pipe,
 				   &target_msc, 0, 0, func, data)) {
 		pipe = DRI2_BLIT_COMPLETE;
-		if (can_exchange(sna, draw, front, back)) {
-			DBG(("%s: unable to flip, so xchg\n", __FUNCTION__));
-			sna_dri_exchange_buffers(draw, front, back);
-			pipe = DRI2_EXCHANGE_COMPLETE;
-		} else if (can_blit(sna, draw, front, back)) {
+		if (can_blit(sna, draw, front, back)) {
 			DBG(("%s: unable to flip, so blit\n", __FUNCTION__));
 			sna_dri_copy_to_front(sna, draw, NULL,
 					      get_private(front)->bo,

@@ -107,18 +107,19 @@ am__DEPENDENCIES_1 =
 libsna_la_DEPENDENCIES = brw/libbrw.la fb/libfb.la \
 	$(am__DEPENDENCIES_2)
 am__libsna_la_SOURCES_DIST = atomic.h blt.c compiler.h kgem.c kgem.h \
-	rop.h sna.h sna_accel.c sna_blt.c sna_composite.c sna_damage.c \
-	sna_damage.h sna_display.c sna_driver.c sna_glyphs.c \
-	sna_gradient.c sna_io.c sna_module.h sna_render.c sna_render.h \
-	sna_render_inline.h sna_reg.h sna_stream.c sna_trapezoids.c \
-	sna_tiling.c sna_transform.c sna_threads.c sna_vertex.c \
-	sna_video.c sna_video.h sna_video_overlay.c sna_video_sprite.c \
-	sna_video_textured.c gen2_render.c gen2_render.h gen3_render.c \
-	gen3_render.h gen4_render.c gen4_render.h gen4_source.c \
-	gen4_source.h gen4_vertex.c gen4_vertex.h gen5_render.c \
-	gen5_render.h gen6_render.c gen6_render.h gen7_render.c \
-	gen7_render.h sna_dri.c sna_video_hwmc.h sna_video_hwmc.c \
-	kgem_debug.c kgem_debug.h kgem_debug_gen2.c kgem_debug_gen3.c \
+	rop.h sna.h sna_accel.c sna_blt.c sna_composite.c sna_cpu.c \
+	sna_damage.c sna_damage.h sna_display.c sna_display_fake.c \
+	sna_driver.c sna_glyphs.c sna_gradient.c sna_io.c sna_module.h \
+	sna_render.c sna_render.h sna_render_inline.h sna_reg.h \
+	sna_stream.c sna_trapezoids.c sna_tiling.c sna_transform.c \
+	sna_threads.c sna_vertex.c sna_video.c sna_video.h \
+	sna_video_overlay.c sna_video_sprite.c sna_video_textured.c \
+	gen2_render.c gen2_render.h gen3_render.c gen3_render.h \
+	gen4_render.c gen4_render.h gen4_source.c gen4_source.h \
+	gen4_vertex.c gen4_vertex.h gen5_render.c gen5_render.h \
+	gen6_render.c gen6_render.h gen7_render.c gen7_render.h \
+	sna_dri.c sna_video_hwmc.h sna_video_hwmc.c kgem_debug.c \
+	kgem_debug.h kgem_debug_gen2.c kgem_debug_gen3.c \
 	kgem_debug_gen4.c kgem_debug_gen5.c kgem_debug_gen6.c \
 	kgem_debug_gen7.c
 @DRI2_TRUE@am__objects_1 = sna_dri.lo
@@ -128,9 +129,10 @@ am__libsna_la_SOURCES_DIST = atomic.h blt.c compiler.h kgem.c kgem.h \
 @FULL_DEBUG_TRUE@	kgem_debug_gen5.lo kgem_debug_gen6.lo \
 @FULL_DEBUG_TRUE@	kgem_debug_gen7.lo
 am_libsna_la_OBJECTS = blt.lo kgem.lo sna_accel.lo sna_blt.lo \
-	sna_composite.lo sna_damage.lo sna_display.lo sna_driver.lo \
-	sna_glyphs.lo sna_gradient.lo sna_io.lo sna_render.lo \
-	sna_stream.lo sna_trapezoids.lo sna_tiling.lo sna_transform.lo \
+	sna_composite.lo sna_cpu.lo sna_damage.lo sna_display.lo \
+	sna_display_fake.lo sna_driver.lo sna_glyphs.lo \
+	sna_gradient.lo sna_io.lo sna_render.lo sna_stream.lo \
+	sna_trapezoids.lo sna_tiling.lo sna_transform.lo \
 	sna_threads.lo sna_vertex.lo sna_video.lo sna_video_overlay.lo \
 	sna_video_sprite.lo sna_video_textured.lo gen2_render.lo \
 	gen3_render.lo gen4_render.lo gen4_source.lo gen4_vertex.lo \
@@ -393,18 +395,18 @@ libsna_la_LDFLAGS = -pthread
 libsna_la_LIBADD = @UDEV_LIBS@ -lm @DRM_LIBS@ brw/libbrw.la \
 	fb/libfb.la $(am__append_4)
 libsna_la_SOURCES = atomic.h blt.c compiler.h kgem.c kgem.h rop.h \
-	sna.h sna_accel.c sna_blt.c sna_composite.c sna_damage.c \
-	sna_damage.h sna_display.c sna_driver.c sna_glyphs.c \
-	sna_gradient.c sna_io.c sna_module.h sna_render.c sna_render.h \
-	sna_render_inline.h sna_reg.h sna_stream.c sna_trapezoids.c \
-	sna_tiling.c sna_transform.c sna_threads.c sna_vertex.c \
-	sna_video.c sna_video.h sna_video_overlay.c sna_video_sprite.c \
-	sna_video_textured.c gen2_render.c gen2_render.h gen3_render.c \
-	gen3_render.h gen4_render.c gen4_render.h gen4_source.c \
-	gen4_source.h gen4_vertex.c gen4_vertex.h gen5_render.c \
-	gen5_render.h gen6_render.c gen6_render.h gen7_render.c \
-	gen7_render.h $(NULL) $(am__append_3) $(am__append_5) \
-	$(am__append_6)
+	sna.h sna_accel.c sna_blt.c sna_composite.c sna_cpu.c \
+	sna_damage.c sna_damage.h sna_display.c sna_display_fake.c \
+	sna_driver.c sna_glyphs.c sna_gradient.c sna_io.c sna_module.h \
+	sna_render.c sna_render.h sna_render_inline.h sna_reg.h \
+	sna_stream.c sna_trapezoids.c sna_tiling.c sna_transform.c \
+	sna_threads.c sna_vertex.c sna_video.c sna_video.h \
+	sna_video_overlay.c sna_video_sprite.c sna_video_textured.c \
+	gen2_render.c gen2_render.h gen3_render.c gen3_render.h \
+	gen4_render.c gen4_render.h gen4_source.c gen4_source.h \
+	gen4_vertex.c gen4_vertex.h gen5_render.c gen5_render.h \
+	gen6_render.c gen6_render.h gen7_render.c gen7_render.h \
+	$(NULL) $(am__append_3) $(am__append_5) $(am__append_6)
 all: all-recursive
 
 .SUFFIXES:
@@ -477,8 +479,10 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sna_accel.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sna_blt.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sna_composite.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sna_cpu.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sna_damage.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sna_display.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sna_display_fake.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sna_dri.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sna_driver.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sna_glyphs.Plo@am__quote@

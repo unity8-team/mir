@@ -428,7 +428,7 @@ bool sna_gradients_create(struct sna *sna)
 {
 	DBG(("%s\n", __FUNCTION__));
 
-	if (!can_render(sna))
+	if (unlikely(sna->kgem.wedged))
 		return true;
 
 	if (!sna_alpha_cache_init(sna))
@@ -447,11 +447,15 @@ void sna_gradients_close(struct sna *sna)
 	DBG(("%s\n", __FUNCTION__));
 
 	for (i = 0; i < 256; i++) {
-		if (sna->render.alpha_cache.bo[i])
+		if (sna->render.alpha_cache.bo[i]) {
 			kgem_bo_destroy(&sna->kgem, sna->render.alpha_cache.bo[i]);
+			sna->render.alpha_cache.bo[i] = NULL;
+		}
 	}
-	if (sna->render.alpha_cache.cache_bo)
+	if (sna->render.alpha_cache.cache_bo) {
 		kgem_bo_destroy(&sna->kgem, sna->render.alpha_cache.cache_bo);
+		sna->render.alpha_cache.cache_bo = NULL;
+	}
 
 	if (sna->render.solid_cache.cache_bo)
 		kgem_bo_destroy(&sna->kgem, sna->render.solid_cache.cache_bo);

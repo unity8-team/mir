@@ -1177,6 +1177,8 @@ inline static int gen6_get_rectangles(struct sna *sna,
 {
 	int rem;
 
+	assert(want);
+
 start:
 	rem = vertex_space(sna);
 	if (unlikely(rem < op->floats_per_rect)) {
@@ -1187,10 +1189,15 @@ start:
 			goto flush;
 	}
 
-	if (unlikely(sna->render.vertex_offset == 0 &&
-		     !gen6_rectangle_begin(sna, op)))
-		goto flush;
+	if (unlikely(sna->render.vertex_offset == 0)) {
+		if (!gen6_rectangle_begin(sna, op))
+			goto flush;
+		else
+			goto start;
+	}
 
+	assert(rem <= vertex_space(sna));
+	assert(op->floats_per_rect <= rem);
 	if (want > 1 && want * op->floats_per_rect > rem)
 		want = rem / op->floats_per_rect;
 
@@ -1566,20 +1573,23 @@ gen6_render_video(struct sna *sna,
 		  struct sna_video *video,
 		  struct sna_video_frame *frame,
 		  RegionPtr dstRegion,
-		  short src_w, short src_h,
-		  short drw_w, short drw_h,
-		  short dx, short dy,
 		  PixmapPtr pixmap)
 {
 	struct sna_composite_op tmp;
-	int nbox, pix_xoff, pix_yoff;
+	int dst_width = dstRegion->extents.x2 - dstRegion->extents.x1;
+	int dst_height = dstRegion->extents.y2 - dstRegion->extents.y1;
+	int src_width = frame->src.x2 - frame->src.x1;
+	int src_height = frame->src.y2 - frame->src.y1;
+	float src_offset_x, src_offset_y;
 	float src_scale_x, src_scale_y;
+	int nbox, pix_xoff, pix_yoff;
 	struct sna_pixmap *priv;
 	unsigned filter;
 	BoxPtr box;
 
 	DBG(("%s: src=(%d, %d), dst=(%d, %d), %dx[(%d, %d), (%d, %d)...]\n",
-	     __FUNCTION__, src_w, src_h, drw_w, drw_h,
+	     __FUNCTION__,
+	     src_width, src_height, dst_width, dst_height,
 	     REGION_NUM_RECTS(dstRegion),
 	     REGION_EXTENTS(NULL, dstRegion)->x1,
 	     REGION_EXTENTS(NULL, dstRegion)->y1,
@@ -1604,7 +1614,7 @@ gen6_render_video(struct sna *sna,
 	tmp.floats_per_vertex = 3;
 	tmp.floats_per_rect = 9;
 
-	if (src_w == drw_w && src_h == drw_h)
+	if (src_width == dst_width && src_height == dst_height)
 		filter = SAMPLER_FILTER_NEAREST;
 	else
 		filter = SAMPLER_FILTER_BILINEAR;
@@ -1640,9 +1650,11 @@ gen6_render_video(struct sna *sna,
 	pix_yoff = 0;
 #endif
 
-	/* Use normalized texture coordinates */
-	src_scale_x = ((float)src_w / frame->width) / (float)drw_w;
-	src_scale_y = ((float)src_h / frame->height) / (float)drw_h;
+	src_scale_x = (float)src_width / dst_width / frame->width;
+	src_offset_x = frame->src.x1 / frame->width - dstRegion->extents.x1 * src_scale_x;
+
+	src_scale_y = (float)src_height / dst_height / frame->height;
+	src_offset_y = frame->src.y1 / frame->height - dstRegion->extents.y1 * src_scale_y;
 
 	box = REGION_RECTS(dstRegion);
 	nbox = REGION_NUM_RECTS(dstRegion);
@@ -1657,16 +1669,16 @@ gen6_render_video(struct sna *sna,
 		gen6_get_rectangles(sna, &tmp, 1, gen6_emit_video_state);
 
 		OUT_VERTEX(r.x2, r.y2);
-		OUT_VERTEX_F((box->x2 - dx) * src_scale_x);
-		OUT_VERTEX_F((box->y2 - dy) * src_scale_y);
+		OUT_VERTEX_F(box->x2 * src_scale_x + src_offset_x);
+		OUT_VERTEX_F(box->y2 * src_scale_y + src_offset_y);
 
 		OUT_VERTEX(r.x1, r.y2);
-		OUT_VERTEX_F((box->x1 - dx) * src_scale_x);
-		OUT_VERTEX_F((box->y2 - dy) * src_scale_y);
+		OUT_VERTEX_F(box->x1 * src_scale_x + src_offset_x);
+		OUT_VERTEX_F(box->y2 * src_scale_y + src_offset_y);
 
 		OUT_VERTEX(r.x1, r.y1);
-		OUT_VERTEX_F((box->x1 - dx) * src_scale_x);
-		OUT_VERTEX_F((box->y1 - dy) * src_scale_y);
+		OUT_VERTEX_F(box->x1 * src_scale_x + src_offset_x);
+		OUT_VERTEX_F(box->y1 * src_scale_y + src_offset_y);
 
 		if (!DAMAGE_IS_ALL(priv->gpu_damage)) {
 			sna_damage_add_box(&priv->gpu_damage, &r);
@@ -2265,7 +2277,7 @@ gen6_render_composite(struct sna *sna,
 							    tmp->mask.bo != NULL,
 							    tmp->has_component_alpha,
 							    tmp->is_affine),
-			       gen4_choose_composite_emitter(tmp));
+			       gen4_choose_composite_emitter(sna, tmp));
 
 	tmp->blt   = gen6_render_composite_blt;
 	tmp->box   = gen6_render_composite_box;
@@ -2501,7 +2513,7 @@ gen6_render_composite_spans(struct sna *sna,
 					      SAMPLER_EXTEND_PAD),
 			       gen6_get_blend(tmp->base.op, false, tmp->base.dst.format),
 			       GEN6_WM_KERNEL_OPACITY | !tmp->base.is_affine,
-			       gen4_choose_spans_emitter(tmp));
+			       gen4_choose_spans_emitter(sna, tmp));
 
 	tmp->box   = gen6_render_composite_spans_box;
 	tmp->boxes = gen6_render_composite_spans_boxes;
