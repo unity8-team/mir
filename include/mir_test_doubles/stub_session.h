@@ -54,6 +54,10 @@ struct StubSession : public shell::Session
     void show()
     {
     }
+    bool has_appeared() const
+    {
+        return false;
+    }
 };
 
 }

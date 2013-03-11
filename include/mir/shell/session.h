@@ -49,6 +49,8 @@ public:
 
     virtual void hide() = 0;
     virtual void show() = 0;
+    
+    virtual bool has_appeared() const = 0;
 
 protected:
     Session() = default;

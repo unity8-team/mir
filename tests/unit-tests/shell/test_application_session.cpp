@@ -112,6 +112,22 @@ TEST(ApplicationSession, creating_suface_requests_focus)
     app_session.create_surface(msh::a_surface());
 }
 
+TEST(ApplicationSession, session_has_appeared_after_creating_surface)
+{
+    using namespace ::testing;
+
+    mtd::MockSurfaceFactory surface_factory;
+    mtd::MockSurface mock_surface;
+    NiceMock<MockFocusArbitrator> focus_arbitrator;
+
+    ON_CALL(surface_factory, create_surface(_)).WillByDefault(Return(mt::fake_shared(mock_surface)));
+
+    msh::ApplicationSession app_session(mt::fake_shared(surface_factory), focus_arbitrator, "Foo");
+    EXPECT_FALSE(app_session.has_appeared());
+    app_session.create_surface(msh::a_surface());
+    EXPECT_TRUE(app_session.has_appeared());
+}
+
 TEST(ApplicationSession, get_invalid_surface_throw_behavior)
 {
     using namespace ::testing;

@@ -41,6 +41,8 @@ struct MockSession : public shell::Session
     
     MOCK_METHOD0(hide, void());
     MOCK_METHOD0(show, void());
+    
+    MOCK_CONST_METHOD0(has_appeared, bool());
 };
 
 }

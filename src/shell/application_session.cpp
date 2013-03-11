@@ -127,3 +127,9 @@ void msh::ApplicationSession::show()
         id_s.second->show();
     }
 }
+
+bool msh::ApplicationSession::has_appeared() const
+{
+    std::unique_lock<std::mutex> lock(surfaces_mutex);
+    return surfaces.size() > 0 ;
+}

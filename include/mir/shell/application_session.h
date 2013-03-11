@@ -46,6 +46,8 @@ public:
 
     void hide();
     void show();
+    
+    bool has_appeared() const;
 
 protected:
     ApplicationSession(ApplicationSession const&) = delete;
