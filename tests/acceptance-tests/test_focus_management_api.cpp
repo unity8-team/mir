@@ -145,7 +145,7 @@ public:
     MOCK_METHOD2(tag_session_with_lightdm_id, void (std::shared_ptr<shell::Session> const& session, int id));
     MOCK_METHOD1(focus_session_with_lightdm_id, void (int id));
     
-    MOCK_METHOD1(request_focus, bool (shell::Session &));
+    MOCK_METHOD1(request_focus, bool (std::shared_ptr<shell::Session> const&));
 
     MOCK_METHOD0(shutdown, void ());
 

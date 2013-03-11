@@ -135,7 +135,7 @@ void msh::SessionManager::focus_session_with_lightdm_id(int id)
     }
 }
 
-bool msh::SessionManager::request_focus(msh::Session &session)
+bool msh::SessionManager::request_focus(std::shared_ptr<msh::Session> const& session)
 {
     (void) session; // TODO: lol ~racarr
     return true;

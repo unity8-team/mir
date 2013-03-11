@@ -35,7 +35,7 @@ namespace shell
 class Surface;
 class SurfaceCreationParameters;
 
-class Session
+class Session : public std::enable_shared_from_this<Session>
 {
 public:
     virtual ~Session() {}

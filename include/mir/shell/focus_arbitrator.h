@@ -32,7 +32,7 @@ class FocusArbitrator
 public:
     virtual ~FocusArbitrator() {}
 
-    virtual bool request_focus(Session &session) = 0;
+    virtual bool request_focus(std::shared_ptr<Session> const& session) = 0;
 
 protected:
     FocusArbitrator() = default;

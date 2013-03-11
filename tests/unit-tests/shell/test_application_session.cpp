@@ -40,7 +40,7 @@ namespace
 
 struct MockFocusArbitrator : public msh::FocusArbitrator
 {
-    MOCK_METHOD1(request_focus, bool(msh::Session &));
+    MOCK_METHOD1(request_focus, bool(std::shared_ptr<msh::Session> const&));
 };
 
 }
@@ -58,12 +58,36 @@ TEST(ApplicationSession, create_and_destroy_surface)
     EXPECT_CALL(surface_factory, create_surface(_));
     EXPECT_CALL(*mock_surface, destroy());
 
-    msh::ApplicationSession session(mt::fake_shared(surface_factory), focus_arbitrator, "Foo");
+    auto session = std::make_shared<msh::ApplicationSession>(mt::fake_shared(surface_factory), focus_arbitrator, "Foo");
 
     msh::SurfaceCreationParameters params;
-    auto surf = session.create_surface(params);
+    auto surf = session->create_surface(params);
 
-    session.destroy_surface(surf);
+    session->destroy_surface(surf);
+}
+
+TEST(ApplicationSession, must_be_managed_by_shared_ptr_to_create_surface)
+{
+    using namespace ::testing;
+
+    auto const mock_surface = std::make_shared<NiceMock<mtd::MockSurface>>();
+    NiceMock<mtd::MockSurfaceFactory> surface_factory;
+    NiceMock<MockFocusArbitrator> focus_arbitrator;
+
+    ON_CALL(surface_factory, create_surface(_)).WillByDefault(Return(mock_surface));
+
+    auto session = std::make_shared<msh::ApplicationSession>(mt::fake_shared(surface_factory), focus_arbitrator, "Foo");
+    msh::ApplicationSession unmanaged_session(mt::fake_shared(surface_factory), focus_arbitrator, "Foo");
+    
+    EXPECT_NO_THROW({
+            session->create_surface(msh::a_surface());
+     });
+
+    // Since create surface uses std::enable_shared_from this to request focus from the focus arbitrator 
+    // creating a surface from an unmanaged session will throw
+    EXPECT_THROW({
+            unmanaged_session.create_surface(msh::a_surface());
+    }, std::bad_weak_ptr);
 }
 
 
@@ -77,7 +101,7 @@ TEST(ApplicationSession, session_visbility_propagates_to_surfaces)
 
     ON_CALL(surface_factory, create_surface(_)).WillByDefault(Return(mock_surface));
 
-    msh::ApplicationSession app_session(mt::fake_shared(surface_factory), focus_arbitrator, "Foo");
+    auto app_session = std::make_shared<msh::ApplicationSession>(mt::fake_shared(surface_factory), focus_arbitrator, "Foo");
 
     EXPECT_CALL(surface_factory, create_surface(_));
 
@@ -89,12 +113,12 @@ TEST(ApplicationSession, session_visbility_propagates_to_surfaces)
     }
 
     msh::SurfaceCreationParameters params;
-    auto surf = app_session.create_surface(params);
+    auto surf = app_session->create_surface(params);
 
-    app_session.hide();
-    app_session.show();
+    app_session->hide();
+    app_session->show();
 
-    app_session.destroy_surface(surf);
+    app_session->destroy_surface(surf);
 }
 
 TEST(ApplicationSession, creating_suface_requests_focus)
@@ -108,8 +132,8 @@ TEST(ApplicationSession, creating_suface_requests_focus)
     ON_CALL(surface_factory, create_surface(_)).WillByDefault(Return(mt::fake_shared(mock_surface)));
     EXPECT_CALL(focus_arbitrator, request_focus(_)).Times(1).WillOnce(Return(true));
 
-    msh::ApplicationSession app_session(mt::fake_shared(surface_factory), focus_arbitrator, "Foo");
-    app_session.create_surface(msh::a_surface());
+    auto app_session = std::make_shared<msh::ApplicationSession>(mt::fake_shared(surface_factory), focus_arbitrator, "Foo");
+    app_session->create_surface(msh::a_surface());
 }
 
 TEST(ApplicationSession, session_has_appeared_after_creating_surface)
@@ -122,10 +146,10 @@ TEST(ApplicationSession, session_has_appeared_after_creating_surface)
 
     ON_CALL(surface_factory, create_surface(_)).WillByDefault(Return(mt::fake_shared(mock_surface)));
 
-    msh::ApplicationSession app_session(mt::fake_shared(surface_factory), focus_arbitrator, "Foo");
-    EXPECT_FALSE(app_session.has_appeared());
-    app_session.create_surface(msh::a_surface());
-    EXPECT_TRUE(app_session.has_appeared());
+    auto app_session = std::make_shared<msh::ApplicationSession>(mt::fake_shared(surface_factory), focus_arbitrator, "Foo");
+    EXPECT_FALSE(app_session->has_appeared());
+    app_session->create_surface(msh::a_surface());
+    EXPECT_TRUE(app_session->has_appeared());
 }
 
 TEST(ApplicationSession, get_invalid_surface_throw_behavior)
@@ -134,11 +158,11 @@ TEST(ApplicationSession, get_invalid_surface_throw_behavior)
 
     mtd::MockSurfaceFactory surface_factory;
     NiceMock<MockFocusArbitrator> focus_arbitrator;
-    msh::ApplicationSession app_session(mt::fake_shared(surface_factory), focus_arbitrator, "Foo");
+    auto app_session = std::make_shared<msh::ApplicationSession>(mt::fake_shared(surface_factory), focus_arbitrator, "Foo");
     msh::SurfaceId invalid_surface_id = msh::SurfaceId{1};
 
     EXPECT_THROW({
-            app_session.get_surface(invalid_surface_id);
+            app_session->get_surface(invalid_surface_id);
     }, std::runtime_error);
 }
 
@@ -148,10 +172,10 @@ TEST(ApplicationSession, destroy_invalid_surface_throw_behavior)
 
     mtd::MockSurfaceFactory surface_factory;
     NiceMock<MockFocusArbitrator> focus_arbitrator;
-    msh::ApplicationSession app_session(mt::fake_shared(surface_factory), focus_arbitrator, "Foo");
+    auto app_session = std::make_shared<msh::ApplicationSession>(mt::fake_shared(surface_factory), focus_arbitrator, "Foo");
     msh::SurfaceId invalid_surface_id = msh::SurfaceId{1};
 
     EXPECT_THROW({
-            app_session.destroy_surface(invalid_surface_id);
+            app_session->destroy_surface(invalid_surface_id);
     }, std::runtime_error);
 }

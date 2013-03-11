@@ -66,7 +66,7 @@ msh::SurfaceId msh::ApplicationSession::create_surface(const SurfaceCreationPara
     std::unique_lock<std::mutex> lock(surfaces_mutex);
     surfaces[id] = surf;
     
-    focus_arbitrator.request_focus(*this);
+    focus_arbitrator.request_focus(shared_from_this());
     return id;
 }
 
