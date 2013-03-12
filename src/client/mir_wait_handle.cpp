@@ -68,7 +68,7 @@ void mir_toolkit::MirWaitHandle::wait_for_result()
     expecting = 0;
 }
 
-void mir_toolkit::MirWaitHandle::register_callback(Callback cb, void *context)
+void mir_toolkit::MirWaitHandle::set_callback(Callback cb, void *context)
 {
     std::unique_lock<std::mutex> lock(guard);
 
@@ -82,7 +82,7 @@ void mir_toolkit::MirWaitHandle::register_callback(Callback cb, void *context)
     }
 }
 
-void mir_toolkit::MirWaitHandle::register_callback_owner(void *owner)
+void mir_toolkit::MirWaitHandle::set_callback_owner(void *owner)
 {
     std::unique_lock<std::mutex> lock(guard);
 

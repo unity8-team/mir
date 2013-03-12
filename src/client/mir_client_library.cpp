@@ -190,7 +190,7 @@ void mir_toolkit::mir_callback_on(MirWaitHandle *wait,
                      void *context)
 {
     if (wait)
-        wait->register_callback(cb, context);
+        wait->set_callback(cb, context);
 }
 
 mir_toolkit::MirEGLNativeWindowType mir_toolkit::mir_surface_get_egl_native_window(MirSurface *surface)

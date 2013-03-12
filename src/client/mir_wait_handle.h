@@ -36,8 +36,8 @@ public:
     void expect_result();
     void result_received();
     void wait_for_result();
-    void register_callback(Callback cb, void *context);
-    void register_callback_owner(void *owner);
+    void set_callback(Callback cb, void *context);
+    void set_callback_owner(void *owner);
 
 private:
     std::mutex guard;

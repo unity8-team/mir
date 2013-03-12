@@ -140,8 +140,8 @@ TEST(WaitHandle, callback_before_signal)
 
     cb_owner = 0;
     cb_context = 0;
-    w.register_callback_owner(&alpha);
-    w.register_callback(callback, &beta);
+    w.set_callback_owner(&alpha);
+    w.set_callback(callback, &beta);
     w.result_received();
     w.wait_for_result();
     EXPECT_EQ(cb_owner, &alpha);
@@ -154,14 +154,14 @@ TEST(WaitHandle, callback_before_signal)
 
     cb_owner = 0;
     cb_context = 0;
-    w.register_callback_owner(&gamma);
-    w.register_callback(callback, &delta);
+    w.set_callback_owner(&gamma);
+    w.set_callback(callback, &delta);
     w.result_received();
     w.wait_for_result();
     EXPECT_EQ(cb_owner, &gamma);
     EXPECT_EQ(cb_context, &delta);
 
-    w.register_callback(nullptr, nullptr);
+    w.set_callback(nullptr, nullptr);
     EXPECT_NO_FATAL_FAILURE({
         w.result_received();
         w.wait_for_result();
@@ -176,8 +176,8 @@ TEST(WaitHandle, callback_after_signal)
     cb_owner = 0;
     cb_context = 0;
     w.result_received();
-    w.register_callback_owner(&alpha);
-    w.register_callback(callback, &beta);
+    w.set_callback_owner(&alpha);
+    w.set_callback(callback, &beta);
     w.wait_for_result();
     EXPECT_EQ(cb_owner, &alpha);
     EXPECT_EQ(cb_context, &beta);
@@ -191,13 +191,13 @@ TEST(WaitHandle, callback_after_signal)
     cb_context = 0;
 
     w.result_received();
-    w.register_callback_owner(&gamma);
-    w.register_callback(callback, &delta);
+    w.set_callback_owner(&gamma);
+    w.set_callback(callback, &delta);
     w.wait_for_result();
     EXPECT_EQ(cb_owner, &gamma);
     EXPECT_EQ(cb_context, &delta);
 
-    w.register_callback(nullptr, nullptr);
+    w.set_callback(nullptr, nullptr);
     EXPECT_NO_FATAL_FAILURE({
         w.result_received();
         w.wait_for_result();
