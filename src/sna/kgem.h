@@ -249,6 +249,8 @@ unsigned kgem_can_create_2d(struct kgem *kgem, int width, int height, int depth)
 #define KGEM_CAN_CREATE_LARGE	0x4
 #define KGEM_CAN_CREATE_GTT	0x8
 
+uint32_t kgem_get_unique_id(struct kgem *kgem);
+
 struct kgem_bo *
 kgem_replace_bo(struct kgem *kgem,
 		struct kgem_bo *src,

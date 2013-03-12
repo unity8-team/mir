@@ -3215,6 +3215,8 @@ gen3_composite_set_target(struct sna *sna,
 	if (op->dst.bo == NULL)
 		return false;
 
+	assert(op->dst.bo->unique_id);
+
 	/* For single-stream mode there should be no minimum alignment
 	 * required, except that the width must be at least 2 elements.
 	 */

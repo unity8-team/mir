@@ -1970,6 +1970,7 @@ sna_render_composite_redirect(struct sna *sna,
 			}
 
 			assert(op->dst.bo != t->real_bo);
+			op->dst.bo->unique_id = kgem_unique_id(&sna->kgem);
 			op->dst.bo->pitch = t->real_bo->pitch;
 
 			op->dst.x -= box.x1;

@@ -1198,7 +1198,7 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, unsigned gen)
 }
 
 /* XXX hopefully a good approximation */
-static uint32_t kgem_get_unique_id(struct kgem *kgem)
+uint32_t kgem_get_unique_id(struct kgem *kgem)
 {
 	uint32_t id;
 	id = ++kgem->unique_id;
