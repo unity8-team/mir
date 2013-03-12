@@ -962,12 +962,17 @@ gen3_emit_composite_primitive_constant__sse2(struct sna *sna,
 					     const struct sna_composite_op *op,
 					     const struct sna_composite_rectangles *r)
 {
-	int16_t dst_x = r->dst.x + op->dst.x;
-	int16_t dst_y = r->dst.y + op->dst.y;
+	float *v;
 
-	gen3_emit_composite_dstcoord(sna, dst_x + r->width, dst_y + r->height);
-	gen3_emit_composite_dstcoord(sna, dst_x, dst_y + r->height);
-	gen3_emit_composite_dstcoord(sna, dst_x, dst_y);
+	v = sna->render.vertices + sna->render.vertex_used;
+	sna->render.vertex_used += 6;
+
+	v[4] = v[2] = r->dst.x + op->dst.x;
+	v[5] = r->dst.y + op->dst.y;
+
+	v[0] = v[2] + r->width;
+	v[3] = v[1] = v[5] + r->height;
+
 }
 
 sse2 fastcall static void
@@ -977,12 +982,8 @@ gen3_emit_composite_boxes_constant__sse2(const struct sna_composite_op *op,
 {
 	do {
 		v[0] = box->x2;
-		v[1] = box->y2;
-
-		v[2] = box->x1;
-		v[3] = box->y2;
-
-		v[4] = box->x1;
+		v[3] = v[1] = box->y2;
+		v[4] = v[2] = box->x1;
 		v[5] = box->y1;
 
 		box++;
