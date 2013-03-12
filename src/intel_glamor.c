@@ -72,12 +72,34 @@ intel_glamor_create_screen_resources(ScreenPtr screen)
 	return TRUE;
 }
 
+static Bool
+intel_glamor_enabled(intel_screen_private *intel)
+{
+	const char *s;
+
+	s = xf86GetOptValString(intel->Options, OPTION_ACCEL_METHOD);
+	if (s == NULL)
+		return FALSE;
+
+	return strcasecmp(s, "glamor") == 0;
+}
+
 Bool
 intel_glamor_pre_init(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	pointer glamor_module;
 	CARD32 version;
+
+	if (!intel_glamor_enabled(intel))
+		return TRUE;
+
+	if (!xf86LoaderCheckSymbol("glamor_egl_init")) {
+		xf86DrvMsg(scrn->scrnIndex,  X_ERROR,
+			   "glamor requires Load \"glamoregl\" in "
+			   "Section \"Module\", disabling.\n");
+		return TRUE;
+	}
 
 	/* Load glamor module */
 	if ((glamor_module = xf86LoadSubModule(scrn, GLAMOR_EGL_MODULE_NAME))) {
@@ -173,18 +195,6 @@ intel_glamor_finish_access(PixmapPtr pixmap, uxa_access_t access)
 	return;
 }
 
-static Bool
-intel_glamor_enabled(intel_screen_private *intel)
-{
-	const char *s;
-
-	s = xf86GetOptValString(intel->Options, OPTION_ACCEL_METHOD);
-	if (s == NULL)
-		return FALSE;
-
-	return strcasecmp(s, "glamor") == 0;
-}
-
 Bool
 intel_glamor_init(ScreenPtr screen)
 {
@@ -192,9 +202,6 @@ intel_glamor_init(ScreenPtr screen)
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	if ((intel->uxa_flags & UXA_GLAMOR_EGL_INITIALIZED) == 0)
-		goto fail;
-
-	if (!intel_glamor_enabled(intel))
 		goto fail;
 
 	if (!glamor_init(screen, GLAMOR_INVERTED_Y_AXIS | GLAMOR_USE_EGL_SCREEN)) {
