@@ -995,25 +995,25 @@ gen3_emit_composite_primitive_identity_gradient__sse2(struct sna *sna,
 						      const struct sna_composite_op *op,
 						      const struct sna_composite_rectangles *r)
 {
-	int16_t dst_x, dst_y;
-	int16_t src_x, src_y;
+	int16_t x, y;
+	float *v;
 
-	dst_x = r->dst.x + op->dst.x;
-	dst_y = r->dst.y + op->dst.y;
-	src_x = r->src.x + op->src.offset[0];
-	src_y = r->src.y + op->src.offset[1];
+	v = sna->render.vertices + sna->render.vertex_used;
+	sna->render.vertex_used += 12;
 
-	gen3_emit_composite_dstcoord(sna, dst_x + r->width, dst_y + r->height);
-	OUT_VERTEX(src_x + r->width);
-	OUT_VERTEX(src_y + r->height);
+	x = r->dst.x + op->dst.x;
+	y = r->dst.y + op->dst.y;
+	v[0] = x + r->width;
+	v[5] = v[1] = y + r->height;
+	v[8] = v[4] = x;
+	v[9] = y;
 
-	gen3_emit_composite_dstcoord(sna, dst_x, dst_y + r->height);
-	OUT_VERTEX(src_x);
-	OUT_VERTEX(src_y + r->height);
-
-	gen3_emit_composite_dstcoord(sna, dst_x, dst_y);
-	OUT_VERTEX(src_x);
-	OUT_VERTEX(src_y);
+	x = r->src.x + op->src.offset[0];
+	y = r->src.y + op->src.offset[1];
+	v[2] = x + r->width;
+	v[7] = v[3] = y + r->height;
+	v[10] = v[6] = x;
+	v[11] = y;
 }
 
 sse2 fastcall static void
@@ -1023,18 +1023,13 @@ gen3_emit_composite_boxes_identity_gradient__sse2(const struct sna_composite_op 
 {
 	do {
 		v[0] = box->x2;
-		v[1] = box->y2;
-		v[2] = box->x2 + op->src.offset[0];
-		v[3] = box->y2 + op->src.offset[1];
-
-		v[4] = box->x1;
-		v[5] = box->y2;
-		v[6] = box->x1 + op->src.offset[0];
-		v[7] = box->y2 + op->src.offset[1];
-
-		v[8] = box->x1;
+		v[5] = v[1] = box->y2;
+		v[8] = v[4] = box->x1;
 		v[9] = box->y1;
-		v[10] = box->x1 + op->src.offset[0];
+
+		v[2] = box->x2 + op->src.offset[0];
+		v[7] = v[3] = box->y2 + op->src.offset[1];
+		v[10] = v[6] = box->x1 + op->src.offset[0];
 		v[11] = box->y1 + op->src.offset[1];
 
 		v += 12;
