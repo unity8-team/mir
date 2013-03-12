@@ -853,31 +853,25 @@ gen3_emit_composite_primitive_affine_source_mask(struct sna *sna,
 
 	v[0] = dst_x + w;
 	v[1] = dst_y + h;
-	sna_get_transformed_coordinates(src_x + r->width, src_y + r->height,
-					op->src.transform,
-					&v[2], &v[3]);
-	v[2] *= op->src.scale[0];
-	v[3] *= op->src.scale[1];
+	_sna_get_transformed_scaled(src_x + r->width, src_y + r->height,
+				    op->src.transform, op->src.scale,
+				    &v[2], &v[3]);
 	v[4] = (msk_x + w) * op->mask.scale[0];
 	v[5] = (msk_y + h) * op->mask.scale[1];
 
 	v[6] = dst_x;
 	v[7] = v[1];
-	sna_get_transformed_coordinates(src_x, src_y + r->height,
-					op->src.transform,
-					&v[8], &v[9]);
-	v[8] *= op->src.scale[0];
-	v[9] *= op->src.scale[1];
+	_sna_get_transformed_scaled(src_x, src_y + r->height,
+				    op->src.transform, op->src.scale,
+				    &v[8], &v[9]);
 	v[10] = msk_x * op->mask.scale[0];
 	v[11] =v[5];
 
 	v[12] = v[6];
 	v[13] = dst_y;
-	sna_get_transformed_coordinates(src_x, src_y,
-					op->src.transform,
-					&v[14], &v[15]);
-	v[14] *= op->src.scale[0];
-	v[15] *= op->src.scale[1];
+	_sna_get_transformed_scaled(src_x, src_y,
+				    op->src.transform, op->src.scale,
+				    &v[14], &v[15]);
 	v[16] = v[10];
 	v[17] = msk_y * op->mask.scale[1];
 }
@@ -1399,31 +1393,25 @@ gen3_emit_composite_primitive_affine_source_mask__sse2(struct sna *sna,
 
 	v[0] = dst_x + w;
 	v[1] = dst_y + h;
-	sna_get_transformed_coordinates(src_x + r->width, src_y + r->height,
-					op->src.transform,
-					&v[2], &v[3]);
-	v[2] *= op->src.scale[0];
-	v[3] *= op->src.scale[1];
+	_sna_get_transformed_scaled(src_x + r->width, src_y + r->height,
+				    op->src.transform, op->src.scale,
+				    &v[2], &v[3]);
 	v[4] = (msk_x + w) * op->mask.scale[0];
 	v[5] = (msk_y + h) * op->mask.scale[1];
 
 	v[6] = dst_x;
 	v[7] = v[1];
-	sna_get_transformed_coordinates(src_x, src_y + r->height,
-					op->src.transform,
-					&v[8], &v[9]);
-	v[8] *= op->src.scale[0];
-	v[9] *= op->src.scale[1];
+	_sna_get_transformed_scaled(src_x, src_y + r->height,
+				    op->src.transform, op->src.scale,
+				    &v[8], &v[9]);
 	v[10] = msk_x * op->mask.scale[0];
 	v[11] =v[5];
 
 	v[12] = v[6];
 	v[13] = dst_y;
-	sna_get_transformed_coordinates(src_x, src_y,
-					op->src.transform,
-					&v[14], &v[15]);
-	v[14] *= op->src.scale[0];
-	v[15] *= op->src.scale[1];
+	_sna_get_transformed_scaled(src_x, src_y,
+				    op->src.transform, op->src.scale,
+				    &v[14], &v[15]);
 	v[16] = v[10];
 	v[17] = msk_y * op->mask.scale[1];
 }
@@ -3789,6 +3777,8 @@ gen3_render_composite(struct sna *sna,
 					tmp->prim_emit = gen3_emit_composite_primitive_identity_source_mask;
 				}
 			} else if (tmp->src.is_affine) {
+				tmp->src.scale[0] /= tmp->src.transform->matrix[2][2];
+				tmp->src.scale[1] /= tmp->src.transform->matrix[2][2];
 #if defined(sse2) && !defined(__x86_64__)
 				if (sna->cpu_features & SSE2) {
 					tmp->prim_emit = gen3_emit_composite_primitive_affine_source_mask__sse2;
