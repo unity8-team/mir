@@ -29,6 +29,10 @@ namespace shell
 {
 class SurfaceCreationParameters;
 }
+namespace input
+{
+class InputChannel;
+}
 
 namespace surfaces
 {
@@ -38,7 +42,8 @@ class BasicProxySurface : public shell::Surface
 {
 public:
 
-    explicit BasicProxySurface(std::weak_ptr<mir::surfaces::Surface> const& surface);
+    explicit BasicProxySurface(std::weak_ptr<mir::surfaces::Surface> const& surface,
+                               std::shared_ptr<input::InputChannel> const& input_channel);
 
     void hide();
 
@@ -56,11 +61,15 @@ public:
 
     std::shared_ptr<compositor::Buffer> client_buffer() const;
 
+    bool supports_input() const;
+    int client_input_fd() const;
+
 protected:
     void destroy_surface(SurfaceStackModel* const surface_stack) const;
 
 private:
     std::weak_ptr<mir::surfaces::Surface> const surface;
+    std::shared_ptr<input::InputChannel> const input_channel;
 };
 
 class ProxySurface : public BasicProxySurface
@@ -68,6 +77,7 @@ class ProxySurface : public BasicProxySurface
 public:
     ProxySurface(
         SurfaceStackModel* const surface_stack_,
+        std::shared_ptr<input::InputChannel> const& input_channel,
         shell::SurfaceCreationParameters const& params);
 
     void destroy();

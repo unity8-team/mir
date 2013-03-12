@@ -20,6 +20,7 @@
 #include "mir/surfaces/surface.h"
 #include "mir/surfaces/surface_stack_model.h"
 #include "mir/shell/surface.h"
+#include "mir/input/input_channel_factory.h"
 
 #include "proxy_surface.h"
 
@@ -27,13 +28,19 @@
 
 namespace ms = mir::surfaces;
 namespace msh = mir::shell;
+namespace mi = mir::input;
 
-ms::SurfaceController::SurfaceController(std::shared_ptr<SurfaceStackModel> const& surface_stack) : surface_stack(surface_stack)
+ms::SurfaceController::SurfaceController(std::shared_ptr<SurfaceStackModel> const& surface_stack,
+                                         std::shared_ptr<mi::InputChannelFactory> const& input_factory) 
+  : surface_stack(surface_stack),
+    input_factory(input_factory)
 {
     assert(surface_stack);
 }
 
 std::shared_ptr<msh::Surface> ms::SurfaceController::create_surface(const msh::SurfaceCreationParameters& params)
 {
-    return std::make_shared<ProxySurface>(surface_stack.get(), params);
+    return std::make_shared<ProxySurface>(surface_stack.get(), 
+                                          input_factory->make_input_channel(),
+                                          params);
 }

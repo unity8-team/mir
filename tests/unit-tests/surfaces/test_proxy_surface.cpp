@@ -20,10 +20,12 @@
 #include "mir/surfaces/surface.h"
 #include "mir/shell/surface_creation_parameters.h"
 #include "mir/surfaces/surface_stack_model.h"
+#include "mir/input/input_channel.h"
 
 #include "mir_test_doubles/mock_buffer_bundle.h"
 #include "mir_test_doubles/mock_buffer.h"
 #include "mir_test_doubles/stub_buffer.h"
+#include "mir_test/fake_shared.h"
 
 #include <stdexcept>
 #include <gmock/gmock.h>
@@ -32,8 +34,10 @@
 namespace ms = mir::surfaces;
 namespace msh = mir::shell;
 namespace mc = mir::compositor;
+namespace mi = mir::input;
 namespace geom = mir::geometry;
-namespace mtd = mir::test::doubles;
+namespace mt = mir::test;
+namespace mtd = mt::doubles;
 
 namespace
 {
@@ -73,32 +77,43 @@ private:
 
     std::shared_ptr<ms::Surface> surface;
 };
+
+struct MockInputChannel : public mi::InputChannel
+{
+    MOCK_CONST_METHOD0(client_fd, int());
+    MOCK_CONST_METHOD0(server_fd, int());
+};
+
 }
 
-TEST(SurfaceProxy, creation_and_destruction)
+namespace
+{
+struct SurfaceProxySetup : public testing::Test
 {
     MockSurfaceStackModel surface_stack;
     msh::SurfaceCreationParameters params;
+    std::shared_ptr<mi::InputChannel> null_input_channel;
+};
+}
 
+TEST_F(SurfaceProxySetup, creation_and_destruction)
+{
     using namespace testing;
     InSequence sequence;
     EXPECT_CALL(surface_stack, create_surface(_)).Times(1);
     EXPECT_CALL(surface_stack, destroy_surface(_)).Times(1);
 
-    ms::ProxySurface test(&surface_stack, params);
+    ms::ProxySurface test(&surface_stack, null_input_channel, params);
 }
 
-TEST(SurfaceProxy, destroy)
+TEST_F(SurfaceProxySetup, destroy)
 {
     using namespace testing;
 
-    NiceMock<MockSurfaceStackModel> surface_stack;
-    msh::SurfaceCreationParameters params;
-
-    ms::ProxySurface test(&surface_stack, params);
-
+    EXPECT_CALL(surface_stack, create_surface(_)).Times(1);
     EXPECT_CALL(surface_stack, destroy_surface(_)).Times(1);
 
+    ms::ProxySurface test(&surface_stack, null_input_channel, params);
     test.destroy();
 
     Mock::VerifyAndClearExpectations(&surface_stack);
@@ -109,6 +124,7 @@ namespace
 struct BasicSurfaceProxy : testing::Test
 {
     std::shared_ptr<StubBufferBundle> buffer_bundle;
+    std::shared_ptr<mi::InputChannel> null_input_channel;
 
     BasicSurfaceProxy() :
         buffer_bundle(std::make_shared<StubBufferBundle>())
@@ -126,7 +142,7 @@ TEST_F(BasicSurfaceProxy, client_buffer_throw_behavior)
 {
     auto surface = std::make_shared<ms::Surface>(__PRETTY_FUNCTION__, buffer_bundle);
 
-    ms::BasicProxySurface proxy_surface(surface);
+    ms::BasicProxySurface proxy_surface(surface, null_input_channel);
 
     EXPECT_NO_THROW({
         proxy_surface.client_buffer();
@@ -143,7 +159,7 @@ TEST_F(BasicSurfaceProxy, size_throw_behavior)
 {
     auto surface = std::make_shared<ms::Surface>(__PRETTY_FUNCTION__, buffer_bundle);
 
-    ms::BasicProxySurface proxy_surface(surface);
+    ms::BasicProxySurface proxy_surface(surface, null_input_channel);
 
     EXPECT_NO_THROW({
         proxy_surface.size();
@@ -160,7 +176,7 @@ TEST_F(BasicSurfaceProxy, pixel_format_throw_behavior)
 {
     auto surface = std::make_shared<ms::Surface>(__PRETTY_FUNCTION__, buffer_bundle);
 
-    ms::BasicProxySurface proxy_surface(surface);
+    ms::BasicProxySurface proxy_surface(surface, null_input_channel);
 
     EXPECT_NO_THROW({
         proxy_surface.pixel_format();
@@ -177,7 +193,7 @@ TEST_F(BasicSurfaceProxy, hide_throw_behavior)
 {
     auto surface = std::make_shared<ms::Surface>(__PRETTY_FUNCTION__, buffer_bundle);
 
-    ms::BasicProxySurface proxy_surface(surface);
+    ms::BasicProxySurface proxy_surface(surface, null_input_channel);
 
     EXPECT_NO_THROW({
         proxy_surface.hide();
@@ -194,7 +210,7 @@ TEST_F(BasicSurfaceProxy, show_throw_behavior)
 {
     auto surface = std::make_shared<ms::Surface>(__PRETTY_FUNCTION__, buffer_bundle);
 
-    ms::BasicProxySurface proxy_surface(surface);
+    ms::BasicProxySurface proxy_surface(surface, null_input_channel);
 
     EXPECT_NO_THROW({
         proxy_surface.show();
@@ -211,7 +227,7 @@ TEST_F(BasicSurfaceProxy, destroy_throw_behavior)
 {
     auto surface = std::make_shared<ms::Surface>(__PRETTY_FUNCTION__, buffer_bundle);
 
-    ms::BasicProxySurface proxy_surface(surface);
+    ms::BasicProxySurface proxy_surface(surface, null_input_channel);
 
     EXPECT_NO_THROW({
         proxy_surface.destroy();
@@ -228,7 +244,7 @@ TEST_F(BasicSurfaceProxy, shutdown_throw_behavior)
 {
     auto surface = std::make_shared<ms::Surface>(__PRETTY_FUNCTION__, buffer_bundle);
 
-    ms::BasicProxySurface proxy_surface(surface);
+    ms::BasicProxySurface proxy_surface(surface, null_input_channel);
 
     EXPECT_NO_THROW({
         proxy_surface.shutdown();
@@ -245,7 +261,7 @@ TEST_F(BasicSurfaceProxy, advance_client_buffer_throw_behavior)
 {
     auto surface = std::make_shared<ms::Surface>(__PRETTY_FUNCTION__, buffer_bundle);
 
-    ms::BasicProxySurface proxy_surface(surface);
+    ms::BasicProxySurface proxy_surface(surface, null_input_channel);
 
     EXPECT_NO_THROW({
         proxy_surface.advance_client_buffer();
@@ -257,3 +273,27 @@ TEST_F(BasicSurfaceProxy, advance_client_buffer_throw_behavior)
         proxy_surface.advance_client_buffer();
     });
 }
+
+TEST_F(BasicSurfaceProxy, surfaces_with_input_channel_supports_input)
+{
+    using namespace testing;
+    const int testing_client_fd = 17;
+
+    MockInputChannel mock_package;
+    auto surface = std::make_shared<ms::Surface>(__PRETTY_FUNCTION__, buffer_bundle);
+    auto input_surface = std::make_shared<ms::Surface>(__PRETTY_FUNCTION__, buffer_bundle);
+    ms::BasicProxySurface proxy_surface(surface, null_input_channel);
+    ms::BasicProxySurface input_proxy_surface(surface, mt::fake_shared(mock_package));
+
+    EXPECT_CALL(mock_package, client_fd()).Times(1).WillOnce(Return(testing_client_fd));
+    
+    EXPECT_TRUE(input_proxy_surface.supports_input());
+    EXPECT_FALSE(proxy_surface.supports_input());
+
+    EXPECT_EQ(testing_client_fd, input_proxy_surface.client_input_fd());
+
+    EXPECT_THROW({
+            proxy_surface.client_input_fd();
+    }, std::logic_error);
+}
+

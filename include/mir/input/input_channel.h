@@ -1,5 +1,5 @@
 /*
- * Copyright © 2012 Canonical Ltd.
+ * Copyright © 2013 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License version 3,
@@ -16,31 +16,29 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
-#ifndef MIR_TEST_DOUBLES_MOCK_INPUT_MANAGER_H_
-#define MIR_TEST_DOUBLES_MOCK_INPUT_MANAGER_H_
-
-#include "mir/input/input_manager.h"
-
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
+#ifndef MIR_INPUT_INPUT_CHANNEL_H_
+#define MIR_INPUT_INPUT_CHANNEL_H_
 
 namespace mir
 {
-namespace test
-{
-namespace doubles
+namespace input
 {
 
-struct MockInputManager : public input::InputManager
+class InputChannel
 {
-    MOCK_METHOD0(start, void());
-    MOCK_METHOD0(stop, void());
+public:
+    virtual ~InputChannel() {}
     
-    MOCK_METHOD0(make_input_channel, std::shared_ptr<input::InputChannel>());
+    virtual int client_fd() const = 0;
+    virtual int server_fd() const = 0;
+
+protected:
+    InputChannel() = default;
+    InputChannel(InputChannel const&) = delete;
+    InputChannel& operator=(InputChannel const&) = delete;
 };
 
 }
-}
-}
+} // namespace mir
 
-#endif // MIR_TEST_DOUBLES_MOCK_INPUT_MANAGER_H
+#endif // MIR_INPUT_INPUT_CHANNEL_H_

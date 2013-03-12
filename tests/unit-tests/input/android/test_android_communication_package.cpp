@@ -1,5 +1,5 @@
 /*
- * Copyright © 2012 Canonical Ltd.
+ * Copyright © 2013 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License version 3,
@@ -16,31 +16,31 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
-#ifndef MIR_TEST_DOUBLES_MOCK_INPUT_MANAGER_H_
-#define MIR_TEST_DOUBLES_MOCK_INPUT_MANAGER_H_
+#include "src/input/android/android_input_channel.h"
 
-#include "mir/input/input_manager.h"
-
-#include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
-namespace mir
-{
-namespace test
-{
-namespace doubles
-{
+#include <unistd.h>
+#include <fcntl.h>
 
-struct MockInputManager : public input::InputManager
-{
-    MOCK_METHOD0(start, void());
-    MOCK_METHOD0(stop, void());
-    
-    MOCK_METHOD0(make_input_channel, std::shared_ptr<input::InputChannel>());
-};
+namespace droidinput = android;
+namespace mia = mir::input::android;
 
+TEST(AndroidInputChannel, packages_own_valid_fds)
+{
+    int server_fd, client_fd;
+    {
+        mia::AndroidInputChannel package;
+
+        server_fd = package.server_fd();
+        client_fd = package.client_fd();
+        EXPECT_GT(server_fd, 0);
+        EXPECT_GT(client_fd, 0);
+
+        EXPECT_EQ(fcntl(server_fd, F_GETFD), 0);
+        EXPECT_EQ(fcntl(client_fd, F_GETFD), 0);
+    }
+    EXPECT_LT(fcntl(server_fd, F_GETFD), 0);
+    EXPECT_LT(fcntl(client_fd, F_GETFD), 0);
 }
-}
-}
-
-#endif // MIR_TEST_DOUBLES_MOCK_INPUT_MANAGER_H
