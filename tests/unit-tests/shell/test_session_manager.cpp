@@ -28,6 +28,7 @@
 #include "mir_test/fake_shared.h"
 #include "mir_test_doubles/mock_surface_factory.h"
 #include "mir_test_doubles/null_buffer_bundle.h"
+#include "mir_test_doubles/mock_session.h"
 
 #include "src/surfaces/proxy_surface.h"
 
@@ -165,4 +166,22 @@ TEST_F(SessionManagerSetup, closing_apps_selected_by_id_changes_focus)
     EXPECT_CALL(focus_setter, set_focus_to(session2));
 
     session_manager.close_session(session1);
+}
+
+
+TEST_F(SessionManagerSetup, request_focus_sets_focus_for_sessions_which_have_not_appeared)
+{
+    using namespace ::testing;
+    // It is ok to use a session not managed by the session manager as the exceptional behavior is defined in the real focus setter
+    mtd::MockSession session;
+    
+    {
+        InSequence seq;
+        EXPECT_CALL(session, has_appeared()).Times(1).WillOnce(Return(false));
+        EXPECT_CALL(session, has_appeared()).Times(2).WillOnce(Return(true));
+    }
+    EXPECT_CALL(focus_setter, set_focus_to(_)).Times(1);
+
+    EXPECT_TRUE(session_manager.request_focus(mt::fake_shared(session)));
+    EXPECT_FALSE(session_manager.request_focus(mt::fake_shared(session)));
 }
