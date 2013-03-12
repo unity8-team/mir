@@ -25,6 +25,7 @@
 #include "mir/shell/focus_sequence.h"
 #include "mir/shell/focus_setter.h"
 #include "mir/shell/session.h"
+#include "mir/shell/surface.h"
 #include "mir/shell/registration_order_focus_sequence.h"
 #include "mir/shell/session_container.h"
 #include "mir/shell/surface_creation_parameters.h"
@@ -34,11 +35,11 @@
 #include "mir_test/gmock_fixes.h"
 #include "mir_test/fake_shared.h"
 #include "mir_test_doubles/mock_surface_factory.h"
-#include "mir_test_doubles/mock_surface.h" // TODO: Replace with stub ~racarr
 
 namespace mc = mir::compositor;
 namespace msh = mir::shell;
 namespace ms = mir::surfaces;
+namespace geom = mir::geometry;
 namespace mt = mir::test;
 namespace mtd = mir::test::doubles;
 
@@ -48,6 +49,37 @@ namespace
 struct MockFocusSetter: public msh::FocusSetter
 {
   MOCK_METHOD1(set_focus_to, void(std::shared_ptr<msh::Session> const&));
+};
+
+struct StubSurface : public msh::Surface
+{
+    void hide()
+    {
+    }
+    void show()
+    {
+    }
+    void destroy()
+    {
+    }
+    void shutdown()
+    {
+    }
+    geom::Size size() const
+    {
+        return geom::Size();
+    }
+    geom::PixelFormat pixel_format() const
+    {
+        return geom::PixelFormat();
+    }
+    void advance_client_buffer()
+    {
+    }
+    std::shared_ptr<mc::Buffer> client_buffer() const
+    {
+        return std::shared_ptr<mc::Buffer>();
+    }
 };
 
 }
@@ -120,14 +152,14 @@ TEST(TestSessionManagerDefaultFocusArbitratorAndSession, sessions_creating_first
 {
     using namespace ::testing;
 
-    mtd::MockSurface mock_surface; // TODO: Replace with stub ~acarr
+    StubSurface stub_surface;
     mtd::MockSurfaceFactory surface_factory;
     std::shared_ptr<msh::SessionContainer> model(new msh::SessionContainer());
     msh::RegistrationOrderFocusSequence sequence(model);
     MockFocusSetter focus_changer;
     std::shared_ptr<msh::Session> new_session;
     
-    EXPECT_CALL(surface_factory, create_surface(_)).Times(2).WillRepeatedly(Return(mt::fake_shared(mock_surface)));
+    EXPECT_CALL(surface_factory, create_surface(_)).Times(2).WillRepeatedly(Return(mt::fake_shared(stub_surface)));
 
     msh::SessionManager session_manager(
         mt::fake_shared(surface_factory),
