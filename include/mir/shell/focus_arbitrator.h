@@ -44,4 +44,4 @@ protected:
 }
 
 
-#endif // MIR_SHELL_FOCUS_SEQUENCE_H_
+#endif // MIR_SHELL_FOCUS_ARBITRATOR_H_
