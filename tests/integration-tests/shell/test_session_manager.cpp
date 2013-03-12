@@ -148,7 +148,7 @@ TEST(TestSessionManagerAndFocusSelectionStrategy, closing_applications_transfers
     session_manager.close_session(session2);
 }
 
-TEST(TestSessionManagerDefaultFocusArbitratorAndSession, sessions_creating_first_surface_receive_focus)
+TEST(TestSessionManagerAndSession, sessions_creating_first_surface_receive_focus)
 {
     using namespace ::testing;
 
