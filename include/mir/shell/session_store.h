@@ -45,6 +45,7 @@ public:
     virtual bool request_focus(std::shared_ptr<Session> const& session) = 0;
 
     virtual void shutdown() = 0;
+
 protected:
     SessionStore() = default;
     SessionStore(const SessionStore&) = delete;
