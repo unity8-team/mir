@@ -115,8 +115,9 @@ TEST_F(SessionManagerSetup, closing_session_removes_surfaces)
 
     EXPECT_CALL(container, insert_session(_)).Times(1);
     EXPECT_CALL(container, remove_session(_)).Times(1);
-
-    EXPECT_CALL(focus_setter, set_focus_to(_)).Times(1);
+    
+    // Once for session creation and once for surface creation
+    EXPECT_CALL(focus_setter, set_focus_to(_)).Times(2);
     EXPECT_CALL(focus_setter, set_focus_to(std::shared_ptr<msh::Session>())).Times(1);
 
     EXPECT_CALL(sequence, default_focus()).WillOnce(Return((std::shared_ptr<msh::Session>())));
@@ -178,7 +179,7 @@ TEST_F(SessionManagerSetup, request_focus_sets_focus_for_sessions_which_have_not
     {
         InSequence seq;
         EXPECT_CALL(session, has_appeared()).Times(1).WillOnce(Return(false));
-        EXPECT_CALL(session, has_appeared()).Times(2).WillOnce(Return(true));
+        EXPECT_CALL(session, has_appeared()).Times(1).WillOnce(Return(true));
     }
     EXPECT_CALL(focus_setter, set_focus_to(_)).Times(1);
 

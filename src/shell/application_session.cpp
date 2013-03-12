@@ -63,10 +63,12 @@ msh::SurfaceId msh::ApplicationSession::create_surface(const SurfaceCreationPara
     auto surf = surface_factory->create_surface(params);
     auto const id = next_id();
 
+    // Careful of ordering with respect to the focus arbitrators invocation of has_appeared()
+    focus_arbitrator.request_focus(shared_from_this());
+
     std::unique_lock<std::mutex> lock(surfaces_mutex);
     surfaces[id] = surf;
     
-    focus_arbitrator.request_focus(shared_from_this());
     return id;
 }
 
