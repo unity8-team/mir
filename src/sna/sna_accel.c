@@ -1691,6 +1691,7 @@ skip_inplace_map:
 			assert(IS_CPU_MAP(priv->gpu_bo->map));
 			kgem_bo_sync__cpu_full(&sna->kgem, priv->gpu_bo,
 					       FORCE_FULL_SYNC || flags & MOVE_WRITE);
+			assert((flags & MOVE_WRITE) == 0 || !kgem_bo_is_busy(priv->gpu_bo));
 			assert_pixmap_damage(pixmap);
 			DBG(("%s: operate inplace (CPU)\n", __FUNCTION__));
 			return true;
@@ -1801,7 +1802,7 @@ done:
 			assert(IS_CPU_MAP(priv->cpu_bo->map));
 			kgem_bo_sync__cpu_full(&sna->kgem, priv->cpu_bo,
 					       FORCE_FULL_SYNC || flags & MOVE_WRITE);
-			assert(!priv->shm || !kgem_bo_is_busy(priv->cpu_bo));
+			assert((flags & MOVE_WRITE) == 0 || !kgem_bo_is_busy(priv->cpu_bo));
 		}
 		if (flags & MOVE_WRITE) {
 			DBG(("%s: discarding GPU bo in favour of CPU bo\n", __FUNCTION__));
@@ -2333,6 +2334,7 @@ out:
 		assert(IS_CPU_MAP(priv->cpu_bo->map));
 		kgem_bo_sync__cpu_full(&sna->kgem, priv->cpu_bo,
 				       FORCE_FULL_SYNC || flags & MOVE_WRITE);
+		assert((flags & MOVE_WRITE) == 0 || !kgem_bo_is_busy(priv->cpu_bo));
 	}
 	priv->cpu = (flags & MOVE_ASYNC_HINT) == 0;
 	assert(pixmap->devPrivate.ptr);
