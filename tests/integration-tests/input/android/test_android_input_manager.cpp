@@ -19,17 +19,22 @@
 
 #include "mir/input/event_filter.h"
 #include "src/input/android/default_android_input_configuration.h"
+#include "src/input/android/dummy_input_dispatcher_policy.h"
 #include "src/input/android/android_input_manager.h"
 
 #include "mir_test/fake_shared.h"
 #include "mir_test/fake_event_hub.h"
 #include "mir_test/fake_event_hub_input_configuration.h"
-#include "mir_test_doubles/mock_event_filter.h"
-#include "mir_test_doubles/mock_viewable_area.h"
 #include "mir_test/wait_condition.h"
 #include "mir_test/event_factory.h"
+#include "mir_test_doubles/mock_event_filter.h"
+#include "mir_test_doubles/mock_viewable_area.h"
+#include "mir_test_doubles/mock_session.h"
+#include "mir_test_doubles/mock_surface.h"
+
 
 #include <EventHub.h>
+#include <InputDispatcher.h>
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -55,10 +60,10 @@ static const geom::Rectangle default_view_area =
 
 static const std::shared_ptr<mi::CursorListener> null_cursor_listener{};
 
-class AndroidInputManagerAndEventFilterDispatcherSetup : public testing::Test
+class AndroidInputManagerFakeEventHubDispatcherSetup : public testing::Test
 {
 public:
-    AndroidInputManagerAndEventFilterDispatcherSetup()
+    AndroidInputManagerFakeEventHubDispatcherSetup()
     {
         configuration = std::make_shared<mtd::FakeEventHubInputConfiguration>(std::initializer_list<std::shared_ptr<mi::EventFilter> const>{mt::fake_shared(event_filter)}, mt::fake_shared(viewable_area), null_cursor_listener);
         ON_CALL(viewable_area, view_area())
@@ -86,7 +91,7 @@ public:
 
 }
 
-TEST_F(AndroidInputManagerAndEventFilterDispatcherSetup, manager_dispatches_key_events_to_filter)
+TEST_F(AndroidInputManagerFakeEventHubDispatcherSetup, manager_dispatches_key_events_to_filter)
 {
     using namespace ::testing;
 
@@ -107,7 +112,7 @@ TEST_F(AndroidInputManagerAndEventFilterDispatcherSetup, manager_dispatches_key_
     wait_condition.wait_for_at_most_seconds(1);
 }
 
-TEST_F(AndroidInputManagerAndEventFilterDispatcherSetup, manager_dispatches_button_events_to_filter)
+TEST_F(AndroidInputManagerFakeEventHubDispatcherSetup, manager_dispatches_button_events_to_filter)
 {
     using namespace ::testing;
 
@@ -127,7 +132,7 @@ TEST_F(AndroidInputManagerAndEventFilterDispatcherSetup, manager_dispatches_butt
     wait_condition.wait_for_at_most_seconds(1);
 }
 
-TEST_F(AndroidInputManagerAndEventFilterDispatcherSetup, manager_dispatches_motion_events_to_filter)
+TEST_F(AndroidInputManagerFakeEventHubDispatcherSetup, manager_dispatches_motion_events_to_filter)
 {
     using namespace ::testing;
 
@@ -152,5 +157,25 @@ TEST_F(AndroidInputManagerAndEventFilterDispatcherSetup, manager_dispatches_moti
     fake_event_hub->synthesize_event(mis::a_motion_event().with_movement(100, 0));
 
     wait_condition.wait_for_at_most_seconds(1);
+}
+
+namespace
+{
+
+struct MockDispatcherPolicy : public mia::DummyInputDispatcherPolicy
+{
+    MOCK_METHOD3(interceptKeyBeforeDispatching, nsecs_t(droidinput::sp<droidinput::InputWindowHandle> const&,
+                                                        droidinput::KeyEvent const*, uint32_t));
+};
+
+struct TestingInputConfiguration : public mia::InputConfiguration
+{
+    
+};
+
+class AndroidInputManagerDispatcherInterceptSetup
+{
+
+};
 }
 
