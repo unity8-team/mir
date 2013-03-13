@@ -168,14 +168,37 @@ struct MockDispatcherPolicy : public mia::DummyInputDispatcherPolicy
                                                         droidinput::KeyEvent const*, uint32_t));
 };
 
-struct TestingInputConfiguration : public mia::InputConfiguration
+struct TestingInputConfiguration : public mtd::FakeEventHubInputConfiguration
 {
-    
+    TestingInputConfiguration(std::initializer_list<std::shared_ptr<mir::input::EventFilter> const> const& filters,
+                              std::shared_ptr<mg::ViewableArea> const& view_area,
+                              std::shared_ptr<mi::CursorListener> const& cursor_listener)
+        : FakeEventHubInputConfiguration(filters, view_area, cursor_listener),
+          dispatcher_policy(new MockDispatcherPolicy())
+    {
+    }
+    droidinput::sp<droidinput::InputDispatcherPolicyInterface> the_dispatcher_policy()
+    {
+        return dispatcher_policy;
+    }
+    droidinput::sp<droidinput::InputDispatcherPolicyInterface> dispatcher_policy;
 };
 
-class AndroidInputManagerDispatcherInterceptSetup
+class AndroidInputManagerDispatcherInterceptSetup : public testing::Test
 {
+    AndroidInputManagerDispatcherInterceptSetup()
+    {
+        std::shared_ptr<mtd::FakeEventHubInputConfiguration> configuration = std::make_shared<TestingInputConfiguration>(
+            std::initializer_list<std::shared_ptr<mi::EventFilter> const>{mt::fake_shared(event_filter)}, 
+            mt::fake_shared(viewable_area), null_cursor_listener);
+        input_manager = std::make_shared<mia::InputManager>(configuration);
 
+        fake_event_hub = configuration->the_fake_event_hub();
+    }
+    std::shared_ptr<mia::InputManager> input_manager;
+    mia::FakeEventHub* fake_event_hub;
+    MockEventFilter event_filter;
+    NiceMock<mtd::MockViewableArea> viewable_area;
 };
 }
 
