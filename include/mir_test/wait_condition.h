@@ -19,6 +19,9 @@
 #ifndef MIR_TEST_WAIT_CONDITION_H_
 #define MIR_TEST_WAIT_CONDITION_H_
 
+#include <gtest/gtest.h>
+#include <gmock/gmock.h>
+
 #include <chrono>
 #include <mutex>
 #include <condition_variable>

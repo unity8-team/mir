@@ -65,6 +65,14 @@ struct StubSurface : public msh::Surface
     void shutdown()
     {
     }
+    bool supports_input() const
+    {
+        return true;
+    }
+    int client_input_fd() const
+    {
+        return 0;
+    }
     geom::Size size() const
     {
         return geom::Size();
