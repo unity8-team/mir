@@ -118,9 +118,7 @@ mir_eglapp_bool mir_eglapp_init(int *width, int *height)
     EGLContext eglctx;
     EGLBoolean ok;
 
-    mir_wait_for(mir_connect(servername, appname,
-                             (mir_connected_callback)assign_result,
-                             &connection));
+    mir_wait_for(mir_connect(servername, appname, &connection));
     CHECK(mir_connection_is_valid(connection), "Can't get connection");
 
     mir_connection_get_display_info(connection, &dinfo);
