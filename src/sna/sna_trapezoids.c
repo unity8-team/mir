@@ -7827,8 +7827,7 @@ trifan_fallback(CARD8 op,
 					     -bounds.x1, -bounds.y1,
 					     1, (pixman_triangle_t *)&tri);
 			for (i = 3; i < n; i++) {
-				*p[1] = *p[2];
-				*p[2] = points[i];
+				*p[2 - (i&1)] = points[i];
 				pixman_add_triangles(image,
 						     -bounds.x1, -bounds.y1,
 						     1, (pixman_triangle_t *)&tri);
@@ -7866,8 +7865,7 @@ trifan_fallback(CARD8 op,
 				   src, dst, maskFormat,
 				   xSrc, ySrc, 1, &tri);
 		for (i = 3; i < n; i++) {
-			*p[1] = *p[2];
-			*p[2] = points[i];
+			*p[2 - (i&1)] = points[i];
 			/* Should xSrc,ySrc be updated? */
 			triangles_fallback(op,
 					   src, dst, maskFormat,
