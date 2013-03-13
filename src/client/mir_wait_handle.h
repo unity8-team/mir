@@ -31,20 +31,18 @@ public:
     MirWaitHandle();
     ~MirWaitHandle();
 
-    typedef void (*Callback)(void *owner, void *context);
+    typedef void (*Callback)(void *context);
 
     void expect_result();
     void result_received();
     void wait_for_result();
     void set_callback(Callback cb, void *context);
-    void set_callback_owner(void *owner);
 
 private:
     std::mutex guard;
     std::condition_variable wait_condition;
 
     Callback callback;
-    void *callback_owner;
     void *callback_arg;
     bool called_back;
     int expecting;

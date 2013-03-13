@@ -37,7 +37,6 @@ mir_toolkit::MirConnection::MirConnection() :
     server(0),
     error_message("ERROR")
 {
-    connect_wait_handle.set_callback_owner(this);
 }
 
 mir_toolkit::MirConnection::MirConnection(
@@ -54,7 +53,6 @@ mir_toolkit::MirConnection::MirConnection(
         valid_connections.insert(this);
     }
     connect_result.set_error("connect not called");
-    connect_wait_handle.set_callback_owner(this);
 }
 
 mir_toolkit::MirConnection::~MirConnection()

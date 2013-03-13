@@ -42,10 +42,9 @@ typedef struct MirWaitHandle MirWaitHandle;
 
 /**
  * A generic callback that can be used with mir_callback_on().
- *  \param [in] self     The object being operated on.
  *  \param [in] context  Context data for this callback.
  */
-typedef void (*mir_generic_callback)(void *self, void *context);
+typedef void (*mir_generic_callback)(void *context);
 
 /**
  * Callback to be passed when calling:

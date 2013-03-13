@@ -49,14 +49,15 @@ struct ClientConfigCommon : TestingClientConfiguration
     ClientConfigCommon()
         : connection(0)
         , surface(0),
-        buffers(0)
+        buffers(0),
+        called_back(false)
     {
     }
 
-    static void connection_callback(MirConnection * connection, void * context)
+    static void connection_callback(void *context)
     {
         ClientConfigCommon * config = reinterpret_cast<ClientConfigCommon *>(context);
-        config->connection = connection;
+        config->called_back = true;
     }
 
     static void create_surface_callback(MirSurface * surface, void * context)
@@ -100,6 +101,7 @@ struct ClientConfigCommon : TestingClientConfiguration
     MirConnection* connection;
     MirSurface* surface;
     int buffers;
+    bool called_back;
 };
 }
 
@@ -129,17 +131,17 @@ TEST_F(DefaultDisplayServerTestFixture, connect_calls_back)
     {
         void exec()
         {
-            MirConnection *conn = nullptr;
+            called_back = false;
+
             MirWaitHandle *wait = mir_connect(mir_test_socket,
                                               __PRETTY_FUNCTION__,
-                                              &conn);
-            mir_callback_on(wait, (mir_generic_callback)connection_callback,
-                            this);
+                                              &connection);
+            mir_callback_on(wait, connection_callback, this);
             mir_wait_for(wait);
 
             ASSERT_TRUE(connection != NULL);
-            EXPECT_EQ(connection, conn);
             EXPECT_TRUE(mir_connection_is_valid(connection));
+            EXPECT_TRUE(called_back);
             EXPECT_STREQ(mir_connection_get_error_message(connection), "");
 
             mir_connection_release(connection);

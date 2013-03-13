@@ -23,7 +23,6 @@ mir_toolkit::MirWaitHandle::MirWaitHandle() :
     guard(),
     wait_condition(),
     callback(nullptr),
-    callback_owner(nullptr),
     callback_arg(nullptr),
     called_back(false),
     expecting(0),
@@ -60,7 +59,7 @@ void mir_toolkit::MirWaitHandle::wait_for_result()
 
     if (!called_back && callback)
     {
-        callback(callback_owner, callback_arg);
+        callback(callback_arg);
         called_back = true;
     }
 
@@ -77,15 +76,8 @@ void mir_toolkit::MirWaitHandle::set_callback(Callback cb, void *context)
     called_back = false;
     if (received && callback)
     {
-        callback(callback_owner, callback_arg);
+        callback(callback_arg);
         called_back = true;
     }
-}
-
-void mir_toolkit::MirWaitHandle::set_callback_owner(void *owner)
-{
-    std::unique_lock<std::mutex> lock(guard);
-
-    callback_owner = owner;
 }
 

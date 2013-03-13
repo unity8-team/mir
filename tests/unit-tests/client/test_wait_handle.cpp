@@ -123,12 +123,10 @@ TEST(WaitHandle, no_callback)
 
 namespace
 {
-    void *cb_owner = nullptr;
     void *cb_context = nullptr;
 
-    void callback(void *owner, void *context)
+    void callback(void *context)
     {
-        cb_owner = owner;
         cb_context = context;
     }
 }
@@ -136,29 +134,22 @@ namespace
 TEST(WaitHandle, callback_before_signal)
 {
     MirWaitHandle w;
-    int alpha, beta, gamma, delta;
+    int beta, delta;
 
-    cb_owner = 0;
     cb_context = 0;
-    w.set_callback_owner(&alpha);
     w.set_callback(callback, &beta);
     w.result_received();
     w.wait_for_result();
-    EXPECT_EQ(cb_owner, &alpha);
     EXPECT_EQ(cb_context, &beta);
 
     w.result_received();
     w.wait_for_result();
-    EXPECT_EQ(cb_owner, &alpha);
     EXPECT_EQ(cb_context, &beta);
 
-    cb_owner = 0;
     cb_context = 0;
-    w.set_callback_owner(&gamma);
     w.set_callback(callback, &delta);
     w.result_received();
     w.wait_for_result();
-    EXPECT_EQ(cb_owner, &gamma);
     EXPECT_EQ(cb_context, &delta);
 
     w.set_callback(nullptr, nullptr);
@@ -171,30 +162,23 @@ TEST(WaitHandle, callback_before_signal)
 TEST(WaitHandle, callback_after_signal)
 {
     MirWaitHandle w;
-    int alpha, beta, gamma, delta;
+    int beta, delta;
 
-    cb_owner = 0;
     cb_context = 0;
     w.result_received();
-    w.set_callback_owner(&alpha);
     w.set_callback(callback, &beta);
     w.wait_for_result();
-    EXPECT_EQ(cb_owner, &alpha);
     EXPECT_EQ(cb_context, &beta);
 
     w.result_received();
     w.wait_for_result();
-    EXPECT_EQ(cb_owner, &alpha);
     EXPECT_EQ(cb_context, &beta);
 
-    cb_owner = 0;
     cb_context = 0;
 
     w.result_received();
-    w.set_callback_owner(&gamma);
     w.set_callback(callback, &delta);
     w.wait_for_result();
-    EXPECT_EQ(cb_owner, &gamma);
     EXPECT_EQ(cb_context, &delta);
 
     w.set_callback(nullptr, nullptr);
