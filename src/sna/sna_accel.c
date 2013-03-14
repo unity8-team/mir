@@ -13506,8 +13506,16 @@ sna_get_image_blt(DrawablePtr drawable,
 	if (!sna->kgem.has_userptr)
 		return false;
 
-	if (!DAMAGE_IS_ALL(priv->gpu_damage) ||
-	    !__kgem_bo_is_busy(&sna->kgem, priv->gpu_bo))
+	if (priv->gpu_damage == NULL)
+		return false;
+
+	assert(priv->gpu_bo);
+	if (!__kgem_bo_is_busy(&sna->kgem, priv->gpu_bo))
+		return false;
+
+	if (!DAMAGE_IS_ALL(priv->gpu_damage) &&
+	    !sna_damage_contains_box__no_reduce(priv->gpu_damage,
+						&region->extents))
 		return false;
 
 	DBG(("%s: download through a temporary map\n", __FUNCTION__));
