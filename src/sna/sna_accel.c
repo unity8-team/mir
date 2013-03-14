@@ -13468,7 +13468,8 @@ static int sna_create_gc(GCPtr gc)
 static bool
 sna_get_image_blt(DrawablePtr drawable,
 		  RegionPtr region,
-		  char *dst)
+		  char *dst,
+		  unsigned flags)
 {
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
@@ -13476,9 +13477,6 @@ sna_get_image_blt(DrawablePtr drawable,
 	struct kgem_bo *dst_bo;
 	bool ok = false;
 	int pitch;
-
-	if (!USE_USERPTR_DOWNLOADS)
-		return false;
 
 	if (priv == NULL)
 		return false;
@@ -13503,7 +13501,10 @@ sna_get_image_blt(DrawablePtr drawable,
 		return true;
 	}
 
-	if (!sna->kgem.has_userptr)
+	if (!sna->kgem.has_userptr || !USE_USERPTR_DOWNLOADS)
+		return false;
+
+	if (flags & (MOVE_WHOLE_HINT | MOVE_INPLACE_HINT))
 		return false;
 
 	if (priv->gpu_damage == NULL)
@@ -13575,14 +13576,15 @@ sna_get_image(DrawablePtr drawable,
 		drawable->bitsPerPixel >= 8 &&
 		PM_IS_SOLID(drawable, mask);
 
-	if (can_blt && sna_get_image_blt(drawable, &region, dst))
-		return;
-
 	flags = MOVE_READ;
 	if ((w | h) == 1)
 		flags |= MOVE_INPLACE_HINT;
 	if (w == drawable->width)
 		flags |= MOVE_WHOLE_HINT;
+
+	if (can_blt && sna_get_image_blt(drawable, &region, dst, flags))
+		return;
+
 	if (!sna_drawable_move_region_to_cpu(drawable, &region, flags))
 		return;
 
