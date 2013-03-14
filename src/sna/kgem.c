@@ -4769,14 +4769,17 @@ struct kgem_bo *kgem_create_map(struct kgem *kgem,
 
 void kgem_bo_sync__cpu(struct kgem *kgem, struct kgem_bo *bo)
 {
+	DBG(("%s: handle=%d\n", __FUNCTION__, bo->handle));
 	assert(bo->proxy == NULL);
 	kgem_bo_submit(kgem, bo);
 
 	if (bo->domain != DOMAIN_CPU) {
 		struct drm_i915_gem_set_domain set_domain;
 
-		DBG(("%s: SYNC: needs_flush? %d, domain? %d, busy? %d\n", __FUNCTION__,
-		     bo->needs_flush, bo->domain, __kgem_busy(kgem, bo->handle)));
+		DBG(("%s: SYNC: handle=%d, needs_flush? %d, domain? %d, busy? %d\n",
+		     __FUNCTION__, bo->handle,
+		     bo->needs_flush, bo->domain,
+		     __kgem_busy(kgem, bo->handle)));
 
 		VG_CLEAR(set_domain);
 		set_domain.handle = bo->handle;
@@ -4792,6 +4795,7 @@ void kgem_bo_sync__cpu(struct kgem *kgem, struct kgem_bo *bo)
 
 void kgem_bo_sync__cpu_full(struct kgem *kgem, struct kgem_bo *bo, bool write)
 {
+	DBG(("%s: handle=%d\n", __FUNCTION__, bo->handle));
 	assert(bo->proxy == NULL);
 
 	if (write || bo->needs_flush)
@@ -4800,8 +4804,10 @@ void kgem_bo_sync__cpu_full(struct kgem *kgem, struct kgem_bo *bo, bool write)
 	if (bo->domain != DOMAIN_CPU) {
 		struct drm_i915_gem_set_domain set_domain;
 
-		DBG(("%s: SYNC: needs_flush? %d, domain? %d, busy? %d\n", __FUNCTION__,
-		     bo->needs_flush, bo->domain, __kgem_busy(kgem, bo->handle)));
+		DBG(("%s: SYNC: handle=%d, needs_flush? %d, domain? %d, busy? %d\n",
+		     __FUNCTION__, bo->handle,
+		     bo->needs_flush, bo->domain,
+		     __kgem_busy(kgem, bo->handle)));
 
 		VG_CLEAR(set_domain);
 		set_domain.handle = bo->handle;
@@ -4818,14 +4824,17 @@ void kgem_bo_sync__cpu_full(struct kgem *kgem, struct kgem_bo *bo, bool write)
 
 void kgem_bo_sync__gtt(struct kgem *kgem, struct kgem_bo *bo)
 {
+	DBG(("%s: handle=%d\n", __FUNCTION__, bo->handle));
 	assert(bo->proxy == NULL);
 	kgem_bo_submit(kgem, bo);
 
 	if (bo->domain != DOMAIN_GTT) {
 		struct drm_i915_gem_set_domain set_domain;
 
-		DBG(("%s: SYNC: needs_flush? %d, domain? %d, busy? %d\n", __FUNCTION__,
-		     bo->needs_flush, bo->domain, __kgem_busy(kgem, bo->handle)));
+		DBG(("%s: SYNC: handle=%d, needs_flush? %d, domain? %d, busy? %d\n",
+		     __FUNCTION__, bo->handle,
+		     bo->needs_flush, bo->domain,
+		     __kgem_busy(kgem, bo->handle)));
 
 		VG_CLEAR(set_domain);
 		set_domain.handle = bo->handle;
