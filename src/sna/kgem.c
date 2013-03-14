@@ -5005,6 +5005,42 @@ create_snoopable_buffer(struct kgem *kgem, unsigned alloc)
 	struct kgem_buffer *bo;
 	uint32_t handle;
 
+	if (kgem->has_llc) {
+		struct kgem_bo *old;
+
+		bo = buffer_alloc();
+		if (bo == NULL)
+			return NULL;
+
+		old = search_linear_cache(kgem, alloc,
+					 CREATE_INACTIVE | CREATE_CPU_MAP | CREATE_EXACT);
+		if (old) {
+			init_buffer_from_bo(bo, old);
+		} else {
+			handle = gem_create(kgem->fd, alloc);
+			if (handle == 0) {
+				free(bo);
+				return NULL;
+			}
+
+			debug_alloc(kgem, alloc);
+			__kgem_bo_init(&bo->base, handle, alloc);
+			DBG(("%s: created CPU (LLC) handle=%d for buffer, size %d\n",
+			     __FUNCTION__, bo->base.handle, alloc));
+		}
+
+		assert(bo->base.refcnt == 1);
+		assert(bo->mmapped == true);
+		assert(bo->need_io == false);
+
+		bo->mem = kgem_bo_map__cpu(kgem, &bo->base);
+		if (bo->mem != NULL)
+			return bo;
+
+		bo->base.refcnt = 0; /* for valgrind */
+		kgem_bo_free(kgem, &bo->base);
+	}
+
 	if (kgem->has_cacheing) {
 		struct kgem_bo *old;
 
