@@ -4463,6 +4463,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 							    box, n, COPY_LAST);
 
 				kgem_bo_sync__cpu(&sna->kgem, src_bo);
+				assert(src_bo->rq == NULL);
 				kgem_bo_destroy(&sna->kgem, src_bo);
 			}
 
@@ -13534,6 +13535,7 @@ sna_get_image_blt(DrawablePtr drawable,
 					    COPY_LAST);
 
 		kgem_bo_sync__cpu(&sna->kgem, dst_bo);
+		assert(dst_bo->rq == NULL);
 		kgem_bo_destroy(&sna->kgem, dst_bo);
 	}
 

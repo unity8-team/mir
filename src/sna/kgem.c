@@ -1514,6 +1514,7 @@ inline static void kgem_bo_move_to_inactive(struct kgem *kgem,
 	assert(!bo->proxy);
 	assert(!bo->io);
 	assert(!bo->scanout);
+	assert(!bo->snoop);
 	assert(!bo->needs_flush);
 	assert(list_is_empty(&bo->vma));
 	ASSERT_IDLE(kgem, bo->handle);
@@ -1647,6 +1648,9 @@ static void kgem_bo_move_to_scanout(struct kgem *kgem, struct kgem_bo *bo)
 
 static void kgem_bo_move_to_snoop(struct kgem *kgem, struct kgem_bo *bo)
 {
+	assert(bo->reusable);
+	assert(!bo->flush);
+	assert(!bo->needs_flush);
 	assert(bo->refcnt == 0);
 	assert(bo->exec == NULL);
 
@@ -1738,14 +1742,12 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 
 	if (bo->snoop && !bo->flush) {
 		DBG(("%s: handle=%d is snooped\n", __FUNCTION__, bo->handle));
-		assert(!bo->flush);
+		assert(bo->reusable);
 		assert(list_is_empty(&bo->list));
 		if (bo->exec == NULL && bo->rq && !__kgem_busy(kgem, bo->handle))
 			__kgem_bo_clear_busy(bo);
-		if (bo->rq == NULL) {
-			assert(!bo->needs_flush);
+		if (bo->rq == NULL)
 			kgem_bo_move_to_snoop(kgem, bo);
-		}
 		return;
 	}
 

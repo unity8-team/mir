@@ -136,6 +136,7 @@ static unsigned get_fb(struct sna *sna, struct kgem_bo *bo,
 
 	assert(bo->refcnt);
 	assert(bo->proxy == NULL);
+	assert(!bo->snoop);
 	if (bo->delta) {
 		DBG(("%s: reusing fb=%d for handle=%d\n",
 		     __FUNCTION__, bo->delta, bo->handle));
