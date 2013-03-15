@@ -33,6 +33,7 @@
 #include <vector>
 
 namespace mg = mir::graphics;
+namespace msh = mir::shell;
 namespace mi = mir::input;
 namespace mia = mi::android;
 
@@ -71,6 +72,13 @@ void mia::InputManager::start()
 std::shared_ptr<mi::InputChannel> mia::InputManager::make_input_channel()
 {
     return std::make_shared<mia::AndroidInputChannel>();
+}
+
+void mia::InputManager::set_input_focus_to(std::shared_ptr<msh::Session> const& session, std::shared_ptr<msh::Surface> const& surface)
+{
+    // TODO: Implement ~racarr
+    (void)session;
+    (void)surface;
 }
 
 std::shared_ptr<mi::InputManager> mi::create_input_manager(

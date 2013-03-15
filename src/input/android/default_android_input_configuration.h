@@ -74,7 +74,6 @@ protected:
     DefaultInputConfiguration(DefaultInputConfiguration const&) = delete;
     DefaultInputConfiguration& operator=(DefaultInputConfiguration const&) = delete;
 
-private:
     template <typename Type>
     class CachedAndroidPtr
     {

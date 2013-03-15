@@ -40,6 +40,11 @@ namespace graphics
 {
 class ViewableArea;
 }
+namespace shell
+{
+class Session;
+class Surface;
+}
 namespace input
 {
 class CursorListener;
@@ -60,6 +65,8 @@ public:
     void stop();
     
     std::shared_ptr<InputChannel> make_input_channel();
+    
+    void set_input_focus_to(std::shared_ptr<shell::Session> const& session, std::shared_ptr<shell::Surface> const& surface);
     
 
 protected:

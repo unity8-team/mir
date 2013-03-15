@@ -200,7 +200,11 @@ struct AndroidInputManagerDispatcherInterceptSetup : public testing::Test
             mt::fake_shared(viewable_area), null_cursor_listener);
         fake_event_hub = configuration->the_fake_event_hub();
 
+        ON_CALL(viewable_area, view_area())
+            .WillByDefault(Return(default_view_area));
         input_manager = std::make_shared<mia::InputManager>(configuration);
+        
+        dispatcher_policy = configuration->the_mock_dispatcher_policy();
     }
 
     MockEventFilter event_filter;
@@ -232,8 +236,9 @@ TEST_F(AndroidInputManagerDispatcherInterceptSetup, server_input_fd_of_focused_s
     mtd::MockSession mock_session;
     mtd::MockSurface mock_surface;
     
-    ON_CALL(mock_surface, server_input_fd()).Times(1).WillOnce(Return(testing_server_fd));
-    EXPECT_CALL(*dispatcher_policy, interceptKeyBeforeDispatching(WindowHandleWithInputFd(testing_server_fd), _, _)).WillOnce(ReturnFalseAndWakeUp(WaitCondition));
+    EXPECT_CALL(mock_surface, server_input_fd()).Times(1).WillOnce(Return(testing_server_fd));
+    EXPECT_CALL(*dispatcher_policy, interceptKeyBeforeDispatching(WindowHandleWithInputFd(testing_server_fd), _, _)).Times(1).WillOnce(ReturnFalseAndWakeUp(&wait_condition));
+
     EXPECT_CALL(event_filter, handles(_)).Times(1).WillOnce(Return(false));
 
     input_manager->set_input_focus_to(mt::fake_shared(mock_session), mt::fake_shared(mock_surface));
