@@ -17,10 +17,12 @@
  *              Daniel d'Andrada <daniel.dandrada@canonical.com>
  */
 
-#include "mir/input/event_filter.h"
 #include "src/input/android/default_android_input_configuration.h"
 #include "src/input/android/dummy_input_dispatcher_policy.h"
 #include "src/input/android/android_input_manager.h"
+
+#include "mir/input/event_filter.h"
+#include "mir/shell/surface_creation_parameters.h"
 
 #include "mir_test/fake_shared.h"
 #include "mir_test/fake_event_hub.h"
@@ -181,24 +183,66 @@ struct TestingInputConfiguration : public mtd::FakeEventHubInputConfiguration
     {
         return dispatcher_policy;
     }
-    droidinput::sp<droidinput::InputDispatcherPolicyInterface> dispatcher_policy;
+    droidinput::sp<MockDispatcherPolicy> the_mock_dispatcher_policy()
+    {
+        return dispatcher_policy;
+    }
+
+    droidinput::sp<MockDispatcherPolicy> dispatcher_policy;
 };
 
-class AndroidInputManagerDispatcherInterceptSetup : public testing::Test
+struct AndroidInputManagerDispatcherInterceptSetup : public testing::Test
 {
     AndroidInputManagerDispatcherInterceptSetup()
     {
-        std::shared_ptr<mtd::FakeEventHubInputConfiguration> configuration = std::make_shared<TestingInputConfiguration>(
+        configuration = std::make_shared<TestingInputConfiguration>(
             std::initializer_list<std::shared_ptr<mi::EventFilter> const>{mt::fake_shared(event_filter)}, 
             mt::fake_shared(viewable_area), null_cursor_listener);
-        input_manager = std::make_shared<mia::InputManager>(configuration);
-
         fake_event_hub = configuration->the_fake_event_hub();
+
+        input_manager = std::make_shared<mia::InputManager>(configuration);
     }
-    std::shared_ptr<mia::InputManager> input_manager;
-    mia::FakeEventHub* fake_event_hub;
+
     MockEventFilter event_filter;
     NiceMock<mtd::MockViewableArea> viewable_area;
+    std::shared_ptr<TestingInputConfiguration> configuration;
+    mia::FakeEventHub* fake_event_hub;
+    droidinput::sp<MockDispatcherPolicy> dispatcher_policy;
+
+    std::shared_ptr<mia::InputManager> input_manager;
 };
+
+MATCHER_P(WindowHandleWithInputFd, input_fd, "")
+{
+    if (arg->getInputChannel()->getFd() == input_fd)
+        return true;
+    return false;
 }
 
+}
+
+TEST_F(AndroidInputManagerDispatcherInterceptSetup, server_input_fd_of_focused_surface_is_sent_unfiltered_key_events)
+{
+    using namespace ::testing;
+
+    WaitCondition wait_condition;
+
+    int const testing_server_fd{13};
+
+    mtd::MockSession mock_session;
+    mtd::MockSurface mock_surface;
+    
+    ON_CALL(mock_surface, server_input_fd()).Times(1).WillOnce(Return(testing_server_fd));
+    EXPECT_CALL(*dispatcher_policy, interceptKeyBeforeDispatching(WindowHandleWithInputFd(testing_server_fd), _, _)).WillOnce(ReturnFalseAndWakeUp(WaitCondition));
+    EXPECT_CALL(event_filter, handles(_)).Times(1).WillOnce(Return(false));
+
+    input_manager->set_input_focus_to(mt::fake_shared(mock_session), mt::fake_shared(mock_surface));
+
+    fake_event_hub->synthesize_builtin_keyboard_added();
+    fake_event_hub->synthesize_device_scan_complete();
+
+    fake_event_hub->synthesize_event(mis::a_key_down_event()
+                                .of_scancode(KEY_ENTER));
+
+    wait_condition.wait_for_at_most_seconds(1);
+}
