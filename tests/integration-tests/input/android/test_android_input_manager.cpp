@@ -17,9 +17,9 @@
  *              Daniel d'Andrada <daniel.dandrada@canonical.com>
  */
 
-#include "src/input/android/default_android_input_configuration.h"
-#include "src/input/android/dummy_input_dispatcher_policy.h"
-#include "src/input/android/android_input_manager.h"
+#include "src/server/input/android/default_android_input_configuration.h"
+#include "src/server/input/android/dummy_input_dispatcher_policy.h"
+#include "src/server/input/android/android_input_manager.h"
 
 #include "mir/input/event_filter.h"
 #include "mir/shell/surface_creation_parameters.h"
