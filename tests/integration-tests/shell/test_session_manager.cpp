@@ -73,6 +73,10 @@ struct StubSurface : public msh::Surface
     {
         return 0;
     }
+    int server_input_fd() const
+    {
+        return 0;
+    }
     geom::Size size() const
     {
         return geom::Size();

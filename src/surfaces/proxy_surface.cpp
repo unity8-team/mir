@@ -127,6 +127,13 @@ int ms::BasicProxySurface::client_input_fd() const
     return input_channel->client_fd();
 }
 
+int ms::BasicProxySurface::server_input_fd() const
+{
+    if (!supports_input())
+        BOOST_THROW_EXCEPTION(std::logic_error("Surface does not support input"));
+    return input_channel->server_fd();
+}
+
 ms::ProxySurface::ProxySurface(
         SurfaceStackModel* const surface_stack_,
         std::shared_ptr<input::InputChannel> const& input_channel,

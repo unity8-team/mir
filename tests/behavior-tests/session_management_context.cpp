@@ -83,10 +83,16 @@ struct DummySurface : public msh::Surface
     {
         return testing_client_input_fd;
     }
+    virtual int server_input_fd() const
+    {
+        return testing_server_input_fd;
+    }
     static int testing_client_input_fd;
+    static int testing_server_input_fd;
 };
 
 int DummySurface::testing_client_input_fd = 0;
+int DummySurface::testing_server_input_fd = 0;
 
 struct SizedDummySurface : public DummySurface
 {

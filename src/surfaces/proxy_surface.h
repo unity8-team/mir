@@ -63,6 +63,7 @@ public:
 
     bool supports_input() const;
     int client_input_fd() const;
+    int server_input_fd() const;
 
 protected:
     void destroy_surface(SurfaceStackModel* const surface_stack) const;

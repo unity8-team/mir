@@ -26,6 +26,7 @@
 
 #include "mir_test_doubles/mock_session.h"
 #include "mir_test_doubles/mock_session_store.h"
+#include "mir_test_doubles/mock_surface.h"
 #include "mir_test/fake_shared.h"
 
 #include <gtest/gtest.h>
@@ -38,7 +39,7 @@ namespace mi = mir::input;
 namespace msh = mir::shell;
 namespace geom = mir::geometry;
 namespace mt = mir::test;
-namespace mtd = mir::test::doubles;
+namespace mtd = mt::doubles;
 namespace mtc = mt::cucumber;
 
 namespace
@@ -51,22 +52,6 @@ struct MockServerConfiguration : public mir::ServerConfiguration
     MOCK_METHOD0(the_input_manager, std::shared_ptr<mi::InputManager>());
     MOCK_METHOD0(the_display, std::shared_ptr<mg::Display>());
     MOCK_METHOD0(the_drawer, std::shared_ptr<mc::Drawer>());
-};
-
-struct MockSurface : public msh::Surface
-{
-    MOCK_METHOD0(hide, void());
-    MOCK_METHOD0(show, void());
-    MOCK_METHOD0(destroy, void());
-    MOCK_METHOD0(shutdown, void());
-    MOCK_METHOD0(advance_client_buffer, void());
-
-    MOCK_CONST_METHOD0(size, mir::geometry::Size ());
-    MOCK_CONST_METHOD0(pixel_format, mir::geometry::PixelFormat ());
-    MOCK_CONST_METHOD0(client_buffer, std::shared_ptr<mc::Buffer> ());
-
-    MOCK_CONST_METHOD0(supports_input, bool());
-    MOCK_CONST_METHOD0(client_input_fd, int());
 };
 
 MATCHER_P(NamedWindowWithNoGeometry, name, "")
@@ -180,7 +165,7 @@ TEST_F(SessionManagementContextSetup, get_window_size_queries_surface)
     using namespace ::testing;
 
     mtd::MockSession session;
-    MockSurface surface;
+    mtd::MockSurface surface;
 
     EXPECT_CALL(session_store, open_session(test_window_name)).Times(1)
         .WillOnce(Return(mt::fake_shared<msh::Session>(session)));

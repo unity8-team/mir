@@ -277,7 +277,8 @@ TEST_F(BasicSurfaceProxy, advance_client_buffer_throw_behavior)
 TEST_F(BasicSurfaceProxy, surfaces_with_input_channel_supports_input)
 {
     using namespace testing;
-    const int testing_client_fd = 17;
+    const int testing_client_fd = 5;
+    const int testing_server_fd = 8;
 
     MockInputChannel mock_package;
     auto surface = std::make_shared<ms::Surface>(__PRETTY_FUNCTION__, buffer_bundle);
@@ -286,14 +287,19 @@ TEST_F(BasicSurfaceProxy, surfaces_with_input_channel_supports_input)
     ms::BasicProxySurface input_proxy_surface(surface, mt::fake_shared(mock_package));
 
     EXPECT_CALL(mock_package, client_fd()).Times(1).WillOnce(Return(testing_client_fd));
+    EXPECT_CALL(mock_package, server_fd()).Times(1).WillOnce(Return(testing_server_fd));
     
     EXPECT_TRUE(input_proxy_surface.supports_input());
     EXPECT_FALSE(proxy_surface.supports_input());
 
     EXPECT_EQ(testing_client_fd, input_proxy_surface.client_input_fd());
+    EXPECT_EQ(testing_server_fd, input_proxy_surface.server_input_fd());
 
     EXPECT_THROW({
             proxy_surface.client_input_fd();
+    }, std::logic_error);
+    EXPECT_THROW({
+            proxy_surface.server_input_fd();
     }, std::logic_error);
 }
 
