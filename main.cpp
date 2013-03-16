@@ -22,13 +22,16 @@ int main(int argc, char *argv[])
 {
     QJson::Parser parser;
     QByteArray text = "{ \"foo\":\"bar\" }";
+
+    // Parse JSON
     bool ok = true;
     QVariantMap result = parser.parse(QByteArray(text), &ok).toMap();
     if (!ok) {
-      fprintf(stderr, "Errors:\n%s\n", parser.errorString().toAscii().constData());
-     } else {
-      printf("%s\n", result["foo"].toString().toAscii().constData());
-     }
+        fprintf(stderr, "Errors:\n%s\n", cstr(parser.errorString()));
+        return 1;
+    }
+
+    printf("%s\n", cstr(result["foo"].toString()));
 
     return 0;
 }
