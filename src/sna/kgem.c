@@ -1515,6 +1515,7 @@ inline static void kgem_bo_move_to_inactive(struct kgem *kgem,
 	assert(!bo->io);
 	assert(!bo->scanout);
 	assert(!bo->snoop);
+	assert(!bo->flush);
 	assert(!bo->needs_flush);
 	assert(list_is_empty(&bo->vma));
 	ASSERT_IDLE(kgem, bo->handle);
@@ -1635,6 +1636,7 @@ static void kgem_bo_move_to_scanout(struct kgem *kgem, struct kgem_bo *bo)
 	assert(bo->refcnt == 0);
 	assert(bo->scanout);
 	assert(bo->delta);
+	assert(!bo->flush);
 	assert(!bo->snoop);
 	assert(!bo->io);
 
@@ -1750,6 +1752,7 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 			kgem_bo_move_to_snoop(kgem, bo);
 		return;
 	}
+	bo->flush = false;
 
 	if (bo->scanout) {
 		kgem_bo_move_to_scanout(kgem, bo);
@@ -1769,6 +1772,7 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 
 	assert(list_is_empty(&bo->vma));
 	assert(list_is_empty(&bo->list));
+	assert(bo->flush == false);
 	assert(bo->snoop == false);
 	assert(bo->io == false);
 	assert(bo->scanout == false);
@@ -3554,6 +3558,7 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 			assert(bo->scanout);
 			assert(bo->delta);
 			assert(!bo->purged);
+			assert(!bo->flush);
 
 			if (size > num_pages(bo) || num_pages(bo) > 2*size)
 				continue;

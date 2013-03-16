@@ -2442,6 +2442,9 @@ static inline struct sna_pixmap *
 sna_pixmap_mark_active(struct sna *sna, struct sna_pixmap *priv)
 {
 	assert(priv->gpu_bo);
+	DBG(("%s: pixmap=%ld, handle=%u\n", __FUNCTION__,
+	     priv->pixmap->drawable.serialNumber,
+	     priv->gpu_bo->handle));
 	return priv;
 }
 

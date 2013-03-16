@@ -884,6 +884,9 @@ can_blit(struct sna * sna,
 	if (draw->type == DRAWABLE_PIXMAP)
 		return true;
 
+	if (get_private(front)->pixmap != get_private(back)->pixmap)
+		return false;
+
 	clip = &((WindowPtr)draw)->clipList;
 	w = clip->extents.x2 - draw->x;
 	h = clip->extents.y2 - draw->y;
@@ -919,6 +922,12 @@ sna_dri_copy_region(DrawablePtr draw,
 	void (*copy)(struct sna *, DrawablePtr, RegionPtr,
 		     struct kgem_bo *, struct kgem_bo *, bool) = sna_dri_copy;
 
+	DBG(("%s: pixmap=%ld, src=%u, dst=%u\n",
+	     __FUNCTION__,
+	     pixmap->drawable.serialNumber,
+	     get_private(src_buffer)->bo->handle,
+	     get_private(dst_buffer)->bo->handle));
+
 	assert(get_private(src_buffer)->refcnt);
 	assert(get_private(dst_buffer)->refcnt);
 
@@ -928,10 +937,10 @@ sna_dri_copy_region(DrawablePtr draw,
 	assert(get_private(dst_buffer)->bo->refcnt);
 	assert(get_private(dst_buffer)->bo->flush);
 
-	assert(sna_pixmap_from_drawable(draw)->flush);
-
 	if (!can_blit(sna, draw, dst_buffer, src_buffer))
 		return;
+
+	assert(sna_pixmap(pixmap)->flush);
 
 	if (dst_buffer->attachment == DRI2BufferFrontLeft) {
 		dst = sna_pixmap_get_bo(pixmap);
