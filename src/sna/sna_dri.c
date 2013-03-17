@@ -884,8 +884,13 @@ can_blit(struct sna * sna,
 	if (draw->type == DRAWABLE_PIXMAP)
 		return true;
 
-	if (get_private(front)->pixmap != get_private(back)->pixmap)
+	if (get_private(front)->pixmap != get_drawable_pixmap(draw)) {
+		DBG(("%s: reject as front pixmap=%ld, but expecting pixmap=%ld\n",
+		     __FUNCTION__,
+		     get_private(front)->pixmap ? get_private(front)->pixmap->drawable.serialNumber : 0,
+		     get_drawable_pixmap(draw)->drawable.serialNumber));
 		return false;
+	}
 
 	clip = &((WindowPtr)draw)->clipList;
 	w = clip->extents.x2 - draw->x;
