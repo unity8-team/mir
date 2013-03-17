@@ -1752,7 +1752,8 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 			kgem_bo_move_to_snoop(kgem, bo);
 		return;
 	}
-	bo->flush = false;
+	if (!IS_USER_MAP(bo->map))
+		bo->flush = false;
 
 	if (bo->scanout) {
 		kgem_bo_move_to_scanout(kgem, bo);
