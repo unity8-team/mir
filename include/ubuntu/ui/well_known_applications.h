@@ -31,7 +31,7 @@ enum WellKnownApplication
     camera_app = GALLERY_APP,
     browser_app = BROWSER_APP,
     share_app = SHARE_APP,
-    telephony_app = TELEPHONY_APP
+    phone_app = PHONE_APP
 };
 }
 }
