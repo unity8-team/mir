@@ -4727,21 +4727,6 @@ typedef void (*sna_copy_func)(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			      RegionPtr region, int dx, int dy,
 			      Pixel bitPlane, void *closure);
 
-inline static bool
-box_intersect(BoxPtr a, const BoxRec *b)
-{
-	if (a->x1 < b->x1)
-		a->x1 = b->x1;
-	if (a->x2 > b->x2)
-		a->x2 = b->x2;
-	if (a->y1 < b->y1)
-		a->y1 = b->y1;
-	if (a->y2 > b->y2)
-		a->y2 = b->y2;
-
-	return a->x1 < a->x2 && a->y1 < a->y2;
-}
-
 static RegionPtr
 sna_do_copy(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	    int sx, int sy,

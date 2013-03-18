@@ -692,9 +692,19 @@ glyphs_slow(struct sna *sna,
 			GlyphPtr glyph = *glyphs++;
 			struct sna_glyph priv;
 			BoxPtr rects;
+			BoxRec box;
 			int nrect;
 
 			if (!glyph_valid(glyph))
+				goto next_glyph;
+
+			box.x1 = x - glyph->info.x;
+			box.y1 = y - glyph->info.y;
+			box.x2 = bound(box.x1, glyph->info.width);
+			box.y2 = bound(box.y1, glyph->info.height);
+
+			if (!box_intersect(&box,
+					   &dst->pCompositeClip->extents))
 				goto next_glyph;
 
 			priv = *sna_glyph(glyph);
