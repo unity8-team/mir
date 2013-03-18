@@ -1,3 +1,9 @@
+ubuntu-platform-api (0.18-0phablet1) quantal; urgency=low
+
+  * Rename telephony-app to phone-app.
+
+ -- Gustavo Pichorim Boiko <gustavo.boiko@canonical.com>  Mon, 18 Mar 2013 18:27:18 -0300
+
 ubuntu-platform-api (0.17-0phablet1) quantal; urgency=low
 
   [ Jim Hodapp ]
