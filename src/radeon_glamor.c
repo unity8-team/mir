@@ -93,6 +93,13 @@ radeon_glamor_pre_init(ScrnInfoPtr scrn)
 	if (strcasecmp(s, "glamor") != 0)
 		return FALSE;
 
+	if (!xf86LoaderCheckSymbol("glamor_egl_init")) {
+		xf86DrvMsg(scrn->scrnIndex, s ? X_ERROR : X_WARNING,
+			   "glamor requires Load \"glamoregl\" in "
+			   "Section \"Module\", disabling.\n");
+		return FALSE;
+	}
+
 	/* Load glamor module */
 	if ((glamor_module = xf86LoadSubModule(scrn, GLAMOR_EGL_MODULE_NAME))) {
 		version = xf86GetModuleVersion(glamor_module);
