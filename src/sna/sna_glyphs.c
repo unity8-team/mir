@@ -673,8 +673,6 @@ glyphs_slow(struct sna *sna,
 	if (NO_GLYPHS_SLOW)
 		return false;
 
-	memset(&tmp, 0, sizeof(tmp));
-
 	DBG(("%s(op=%d, src=(%d, %d), nlist=%d,  dst=(%d, %d)+(%d, %d))\n",
 	     __FUNCTION__, op, src_x, src_y, nlist,
 	     list->xOff, list->yOff, dst->pDrawable->x, dst->pDrawable->y));
@@ -740,7 +738,7 @@ glyphs_slow(struct sna *sna,
 						   y - glyph->info.y,
 						   glyph->info.width,
 						   glyph->info.height,
-						   &tmp))
+						   memset(&tmp, 0, sizeof(tmp))))
 				return false;
 
 			rects = REGION_RECTS(dst->pCompositeClip);
