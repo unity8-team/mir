@@ -1873,6 +1873,8 @@ sna_render_composite_redirect(struct sna *sna,
 	int bpp = op->dst.pixmap->drawable.bitsPerPixel;
 	struct kgem_bo *bo;
 
+	assert(t->real_bo == NULL);
+
 #if NO_REDIRECT
 	return false;
 #endif
@@ -1954,6 +1956,7 @@ sna_render_composite_redirect(struct sna *sna,
 			t->real_bo = op->dst.bo;
 			t->real_damage = op->damage;
 			if (op->damage) {
+				assert(!DAMAGE_IS_ALL(op->damage));
 				t->damage = sna_damage_create();
 				op->damage = &t->damage;
 			}
