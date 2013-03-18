@@ -1,3 +1,9 @@
+ubuntu-platform-api (0.17.1-0ubuntu1) UNRELEASED; urgency=low
+
+  * Automatic snapshot from revision 42 (bootstrap)
+
+ -- Dmitrijs Ledkovs <dmitrij.ledkov@ubuntu.com>  Mon, 18 Mar 2013 16:56:06 +0000
+
 ubuntu-platform-api (0.17-0phablet1) quantal; urgency=low
 
   [ Jim Hodapp ]
