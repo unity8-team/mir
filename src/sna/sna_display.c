@@ -3005,7 +3005,7 @@ sna_wait_for_scanline(struct sna *sna,
 	if (y2 > crtc->bounds.y2 - crtc->bounds.y1)
 		y2 = crtc->bounds.y2 - crtc->bounds.y1;
 	DBG(("%s: clipped range = %d, %d\n", __FUNCTION__, y1, y2));
-	if (y2 <= y1)
+	if (y2 <= y1 + 4)
 		return false;
 
 	full_height = y1 == 0 && y2 == crtc->bounds.y2 - crtc->bounds.y1;
