@@ -96,8 +96,8 @@ bool is_session_allowed_to_run_in_background(
     const android::sp<ubuntu::detail::ApplicationSession>& session)
 {
     ALOGI("%s: %s", __PRETTY_FUNCTION__, session->desktop_file.string());
-    static const android::String8 telephony_app_desktop_file("/usr/share/applications/telephony-app.desktop");
-    if (session->desktop_file == telephony_app_desktop_file)
+    static const android::String8 phone_app_desktop_file("/usr/share/applications/phone-app.desktop");
+    if (session->desktop_file == phone_app_desktop_file)
     {
         return true;
     }
