@@ -1065,6 +1065,7 @@ static Bool RADEONCloseScreen_KMS(CLOSE_SCREEN_ARGS_DECL)
 
     drmDropMaster(info->dri2.drm_fd);
 
+    drmmode_fini(pScrn, &info->drmmode);
     if (info->dri2.enabled)
 	radeon_dri2_close_screen(pScreen);
     drmClose(info->dri2.drm_fd);

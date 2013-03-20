@@ -1584,6 +1584,20 @@ void drmmode_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 	}
 }
 
+void drmmode_fini(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
+{
+	RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+	RADEONInfoPtr info = RADEONPTR(pScrn);
+
+	if (pRADEONEnt->fd_wakeup_registered == serverGeneration &&
+	    info->dri2.pKernelDRMVersion->version_minor >= 4) {
+		RemoveGeneralSocket(drmmode->fd);
+		RemoveBlockAndWakeupHandlers((BlockHandlerProcPtr)NoopDDA,
+				drm_wakeup_handler, drmmode);
+	}
+}
+
+
 Bool drmmode_set_bufmgr(ScrnInfoPtr pScrn, drmmode_ptr drmmode, struct radeon_bo_manager *bufmgr)
 {
 	drmmode->bufmgr = bufmgr;
