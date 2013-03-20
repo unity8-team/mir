@@ -5,6 +5,8 @@ ubuntu-platform-api (0.18.1-0ubuntu1) UNRELEASED; urgency=low
     - White space cleanup on .bzr-builddeb and debian/copyright
     - Remove un-needed comments from debian/rules
     - Use dh_install --fail-missing
+  * Rename packages to use generic names, but provide previous package
+    names as dummy/transitional such that not to break the world.
 
  -- Dmitrijs Ledkovs <dmitrij.ledkov@ubuntu.com>  Mon, 18 Mar 2013 16:56:06 +0000
 
