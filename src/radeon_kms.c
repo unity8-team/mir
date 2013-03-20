@@ -1067,6 +1067,7 @@ static Bool RADEONCloseScreen_KMS(CLOSE_SCREEN_ARGS_DECL)
 
     if (info->dri2.enabled)
 	radeon_dri2_close_screen(pScreen);
+    drmClose(info->dri2.drm_fd);
 
     pScrn->vtSema = FALSE;
     xf86ClearPrimInitDone(info->pEnt->index);
