@@ -1,4 +1,4 @@
-ubuntu-platform-api (0.18.1-0ubuntu1) UNRELEASED; urgency=low
+platform-api (0.18.1-0ubuntu1) UNRELEASED; urgency=low
 
   * Apply packaging clean-up:
     - Use wrap-and-sort
