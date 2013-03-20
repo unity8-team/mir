@@ -1,8 +1,14 @@
-ubuntu-platform-api (0.17.1-0ubuntu1) UNRELEASED; urgency=low
+ubuntu-platform-api (0.18.1-0ubuntu1) UNRELEASED; urgency=low
 
   * Automatic snapshot from revision 42 (bootstrap)
 
  -- Dmitrijs Ledkovs <dmitrij.ledkov@ubuntu.com>  Mon, 18 Mar 2013 16:56:06 +0000
+
+ubuntu-platform-api (0.18-0phablet1) quantal; urgency=low
+
+  * Rename telephony-app to phone-app.
+
+ -- Gustavo Pichorim Boiko <gustavo.boiko@canonical.com>  Mon, 18 Mar 2013 18:27:18 -0300
 
 ubuntu-platform-api (0.17-0phablet1) quantal; urgency=low
 

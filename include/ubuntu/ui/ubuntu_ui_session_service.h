@@ -32,7 +32,7 @@ extern "C" {
         GALLERY_APP = 1,
         BROWSER_APP = 2,
         SHARE_APP = 3,
-        TELEPHONY_APP = 4
+        PHONE_APP = 4
     } ubuntu_ui_well_known_application;
 
     typedef const void* ubuntu_ui_session_properties;
