@@ -1,6 +1,11 @@
 ubuntu-platform-api (0.18.1-0ubuntu1) UNRELEASED; urgency=low
 
   * Automatic snapshot from revision 42 (bootstrap)
+  * Apply packaging clean-up:
+    - Use wrap-and-sort
+    - White space cleanup on .bzr-builddeb and debian/copyright
+    - Remove un-needed comments from debian/rules
+    - Use dh_install --fail-missing
 
  -- Dmitrijs Ledkovs <dmitrij.ledkov@ubuntu.com>  Mon, 18 Mar 2013 16:56:06 +0000
 
