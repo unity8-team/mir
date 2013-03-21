@@ -453,6 +453,7 @@ typedef struct {
     uint64_t vram_size;
     uint64_t gart_size;
     drmmode_rec drmmode;
+    Bool drmmode_inited;
     /* r6xx+ tile config */
     Bool have_tiling_info;
     uint32_t tile_config;

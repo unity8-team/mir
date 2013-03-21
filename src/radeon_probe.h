@@ -128,7 +128,9 @@ typedef struct
     ScrnInfoPtr pPrimaryScrn;
 
     int fd;                             /* for sharing across zaphod heads   */
+    int fd_ref;
     unsigned long     fd_wakeup_registered; /* server generation for which fd has been registered for wakeup handling */
+    int fd_wakeup_ref;
     int dri2_info_cnt;
 } RADEONEntRec, *RADEONEntPtr;
 

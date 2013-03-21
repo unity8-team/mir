@@ -555,6 +555,7 @@ static Bool radeon_open_drm_master(ScrnInfoPtr pScrn)
 		   " reusing fd for second head\n");
 
 	info->dri2.drm_fd = pRADEONEnt->fd;
+	pRADEONEnt->fd_ref++;
 	goto out;
     }
 
@@ -596,6 +597,7 @@ static Bool radeon_open_drm_master(ScrnInfoPtr pScrn)
     }
 
     pRADEONEnt->fd = info->dri2.drm_fd;
+    pRADEONEnt->fd_ref = 1;
  out:
     info->drmmode.fd = info->dri2.drm_fd;
     return TRUE;
@@ -1068,7 +1070,6 @@ static Bool RADEONCloseScreen_KMS(CLOSE_SCREEN_ARGS_DECL)
     drmmode_fini(pScrn, &info->drmmode);
     if (info->dri2.enabled)
 	radeon_dri2_close_screen(pScreen);
-    drmClose(info->dri2.drm_fd);
 
     pScrn->vtSema = FALSE;
     xf86ClearPrimInitDone(info->pEnt->index);
@@ -1082,9 +1083,18 @@ void RADEONFreeScreen_KMS(FREE_SCREEN_ARGS_DECL)
 {
     SCRN_INFO_PTR(arg);
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "RADEONFreeScreen\n");
+
+    if (info->dri2.drm_fd > 0) {
+        pRADEONEnt->fd_ref--;
+        if (!pRADEONEnt->fd_ref) {
+            drmClose(pRADEONEnt->fd);
+            pRADEONEnt->fd = 0;
+        }
+    }
 
     /* when server quits at PreInit, we don't need do this anymore*/
     if (!info) return;

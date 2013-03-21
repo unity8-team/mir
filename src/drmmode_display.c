@@ -1575,13 +1575,18 @@ void drmmode_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 	RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
 	RADEONInfoPtr info = RADEONPTR(pScrn);
 
-	if (pRADEONEnt->fd_wakeup_registered != serverGeneration &&
-	    info->dri2.pKernelDRMVersion->version_minor >= 4) {
+	if (info->dri2.pKernelDRMVersion->version_minor < 4)
+		return;
+
+	info->drmmode_inited = TRUE;
+	if (pRADEONEnt->fd_wakeup_registered != serverGeneration) {
 		AddGeneralSocket(drmmode->fd);
 		RegisterBlockAndWakeupHandlers((BlockHandlerProcPtr)NoopDDA,
 				drm_wakeup_handler, drmmode);
 		pRADEONEnt->fd_wakeup_registered = serverGeneration;
-	}
+		pRADEONEnt->fd_wakeup_ref = 1;
+	} else
+		pRADEONEnt->fd_wakeup_ref++;
 }
 
 void drmmode_fini(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
@@ -1589,8 +1594,11 @@ void drmmode_fini(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 	RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
 	RADEONInfoPtr info = RADEONPTR(pScrn);
 
+	if (info->dri2.pKernelDRMVersion->version_minor < 4 || !info->drmmode_inited)
+		return;
+
 	if (pRADEONEnt->fd_wakeup_registered == serverGeneration &&
-	    info->dri2.pKernelDRMVersion->version_minor >= 4) {
+	    !--pRADEONEnt->fd_wakeup_ref) {
 		RemoveGeneralSocket(drmmode->fd);
 		RemoveBlockAndWakeupHandlers((BlockHandlerProcPtr)NoopDDA,
 				drm_wakeup_handler, drmmode);
