@@ -1719,6 +1719,7 @@ skip_inplace_map:
 		if (priv->cpu_bo) {
 			DBG(("%s: syncing CPU bo\n", __FUNCTION__));
 			kgem_bo_sync__cpu(&sna->kgem, priv->cpu_bo);
+			assert(pixmap->devPrivate.ptr == ((unsigned long)priv->cpu_bo->map) & ~3);
 		}
 
 		if (priv->clear_color == 0 || pixmap->drawable.bitsPerPixel == 8) {
