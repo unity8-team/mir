@@ -138,7 +138,7 @@ TEST(Session, no_urn)
         msh::ApplicationSession app_session(mt::fake_shared(surface_factory),
                                             *urn);
         EXPECT_EQ(*urn, app_session.name());
-        EXPECT_EQ("", app_session.urn());
+        EXPECT_TRUE(app_session.urn().empty());
     }
 }
 
