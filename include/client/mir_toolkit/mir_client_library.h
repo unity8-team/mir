@@ -155,7 +155,15 @@ typedef struct MirDisplayInfo
  * the connection is established, or fails. The returned wait handle remains
  * valid until the connection has been released.
  *   \param [in] server       A name identifying the server
- *   \param [in] app_name     A name referring to the application
+ *   \param [in] app_name     A name identifying the application. This may be
+ *                            either a simple name or a URN (e.g.
+ *                            "urn:uuid:52bb8448-98d2-404f-b354-b6122020766a")
+ *                            If the name begins with "urn:" then it is assumed
+ *                            to be a URN which can be used by the Mir server
+ *                            and shell to look up further information about
+ *                            the application. For more information, see:
+ *                            http://www.ietf.org/rfc/rfc2141.txt and
+ *                            http://www.ietf.org/rfc/rfc4122.txt
  *   \param [in] callback     Callback function to be invoked when request
  *                            completes
  *   \param [in,out] context  User data passed to the callback function
