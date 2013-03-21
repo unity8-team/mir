@@ -98,8 +98,13 @@ std::string msh::ApplicationSession::name() const
 
 std::string msh::ApplicationSession::urn() const
 {
-    // We could go through the pain of fully validating the URN but there's
-    // no real value in that right now.
+    /*
+     * We could go through the pain of fully validating the URN according to
+     * RFC2141, but there's no real value in that right now.
+     * The only use-case we care about is whether the client is telling us
+     * that the app name is /intended/ as unique URN to look up metadata.
+     * So that's a yes (URN string), or no (blank).
+     */
 
     return session_name.compare(0, 4, "urn:") == 0 ? session_name :
            std::string();
