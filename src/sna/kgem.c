@@ -1198,7 +1198,7 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, unsigned gen)
 }
 
 /* XXX hopefully a good approximation */
-static uint32_t kgem_get_unique_id(struct kgem *kgem)
+uint32_t kgem_get_unique_id(struct kgem *kgem)
 {
 	uint32_t id;
 	id = ++kgem->unique_id;
@@ -1478,9 +1478,10 @@ static void kgem_bo_free(struct kgem *kgem, struct kgem_bo *bo)
 
 	if (IS_USER_MAP(bo->map)) {
 		assert(bo->rq == NULL);
-		assert(MAP(bo->map) != bo || bo->io);
-		if (bo != MAP(bo->map)) {
+		assert(MAP(bo->map) != bo || bo->io || bo->flush);
+		if (!(bo->io || bo->flush)) {
 			DBG(("%s: freeing snooped base\n", __FUNCTION__));
+			assert(bo != MAP(bo->map));
 			free(MAP(bo->map));
 		}
 		bo->map = NULL;
@@ -1513,6 +1514,8 @@ inline static void kgem_bo_move_to_inactive(struct kgem *kgem,
 	assert(!bo->proxy);
 	assert(!bo->io);
 	assert(!bo->scanout);
+	assert(!bo->snoop);
+	assert(!bo->flush);
 	assert(!bo->needs_flush);
 	assert(list_is_empty(&bo->vma));
 	ASSERT_IDLE(kgem, bo->handle);
@@ -1633,6 +1636,7 @@ static void kgem_bo_move_to_scanout(struct kgem *kgem, struct kgem_bo *bo)
 	assert(bo->refcnt == 0);
 	assert(bo->scanout);
 	assert(bo->delta);
+	assert(!bo->flush);
 	assert(!bo->snoop);
 	assert(!bo->io);
 
@@ -1646,6 +1650,9 @@ static void kgem_bo_move_to_scanout(struct kgem *kgem, struct kgem_bo *bo)
 
 static void kgem_bo_move_to_snoop(struct kgem *kgem, struct kgem_bo *bo)
 {
+	assert(bo->reusable);
+	assert(!bo->flush);
+	assert(!bo->needs_flush);
 	assert(bo->refcnt == 0);
 	assert(bo->exec == NULL);
 
@@ -1737,16 +1744,16 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 
 	if (bo->snoop && !bo->flush) {
 		DBG(("%s: handle=%d is snooped\n", __FUNCTION__, bo->handle));
-		assert(!bo->flush);
+		assert(bo->reusable);
 		assert(list_is_empty(&bo->list));
 		if (bo->exec == NULL && bo->rq && !__kgem_busy(kgem, bo->handle))
 			__kgem_bo_clear_busy(bo);
-		if (bo->rq == NULL) {
-			assert(!bo->needs_flush);
+		if (bo->rq == NULL)
 			kgem_bo_move_to_snoop(kgem, bo);
-		}
 		return;
 	}
+	if (!IS_USER_MAP(bo->map))
+		bo->flush = false;
 
 	if (bo->scanout) {
 		kgem_bo_move_to_scanout(kgem, bo);
@@ -1766,6 +1773,7 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 
 	assert(list_is_empty(&bo->vma));
 	assert(list_is_empty(&bo->list));
+	assert(bo->flush == false);
 	assert(bo->snoop == false);
 	assert(bo->io == false);
 	assert(bo->scanout == false);
@@ -3551,6 +3559,7 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 			assert(bo->scanout);
 			assert(bo->delta);
 			assert(!bo->purged);
+			assert(!bo->flush);
 
 			if (size > num_pages(bo) || num_pages(bo) > 2*size)
 				continue;
@@ -4077,7 +4086,6 @@ struct kgem_bo *kgem_create_cpu_2d(struct kgem *kgem,
 			return NULL;
 		}
 
-		bo->map = MAKE_USER_MAP(ptr);
 		bo->pitch = stride;
 		bo->unique_id = kgem_get_unique_id(kgem);
 		return bo;
@@ -4454,6 +4462,7 @@ void *kgem_bo_map__async(struct kgem *kgem, struct kgem_bo *bo)
 	assert(!bo->purged);
 	assert(bo->proxy == NULL);
 	assert(list_is_empty(&bo->list));
+	assert(!IS_USER_MAP(bo->map));
 
 	if (bo->tiling == I915_TILING_NONE && !bo->scanout && kgem->has_llc) {
 		DBG(("%s: converting request for GTT map into CPU map\n",
@@ -4496,6 +4505,7 @@ void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo)
 	assert(!bo->purged);
 	assert(bo->proxy == NULL);
 	assert(list_is_empty(&bo->list));
+	assert(!IS_USER_MAP(bo->map));
 	assert(bo->exec == NULL);
 
 	if (bo->tiling == I915_TILING_NONE && !bo->scanout &&
@@ -4561,6 +4571,7 @@ void *kgem_bo_map__gtt(struct kgem *kgem, struct kgem_bo *bo)
 	assert(!bo->purged);
 	assert(bo->exec == NULL);
 	assert(list_is_empty(&bo->list));
+	assert(!IS_USER_MAP(bo->map));
 
 	if (IS_CPU_MAP(bo->map))
 		kgem_bo_release_map(kgem, bo);
@@ -4738,6 +4749,8 @@ struct kgem_bo *kgem_create_map(struct kgem *kgem,
 	struct kgem_bo *bo;
 	uint32_t handle;
 
+	assert(MAP(ptr) == ptr);
+
 	if (!kgem->has_userptr)
 		return NULL;
 
@@ -4752,6 +4765,7 @@ struct kgem_bo *kgem_create_map(struct kgem *kgem,
 	}
 
 	bo->snoop = !kgem->has_llc;
+	bo->map = MAKE_USER_MAP(ptr);
 	debug_alloc__bo(kgem, bo);
 
 	DBG(("%s(ptr=%p, size=%d, pages=%d, read_only=%d) => handle=%d\n",
@@ -4761,14 +4775,17 @@ struct kgem_bo *kgem_create_map(struct kgem *kgem,
 
 void kgem_bo_sync__cpu(struct kgem *kgem, struct kgem_bo *bo)
 {
+	DBG(("%s: handle=%d\n", __FUNCTION__, bo->handle));
 	assert(bo->proxy == NULL);
 	kgem_bo_submit(kgem, bo);
 
 	if (bo->domain != DOMAIN_CPU) {
 		struct drm_i915_gem_set_domain set_domain;
 
-		DBG(("%s: SYNC: needs_flush? %d, domain? %d, busy? %d\n", __FUNCTION__,
-		     bo->needs_flush, bo->domain, __kgem_busy(kgem, bo->handle)));
+		DBG(("%s: SYNC: handle=%d, needs_flush? %d, domain? %d, busy? %d\n",
+		     __FUNCTION__, bo->handle,
+		     bo->needs_flush, bo->domain,
+		     __kgem_busy(kgem, bo->handle)));
 
 		VG_CLEAR(set_domain);
 		set_domain.handle = bo->handle;
@@ -4784,6 +4801,7 @@ void kgem_bo_sync__cpu(struct kgem *kgem, struct kgem_bo *bo)
 
 void kgem_bo_sync__cpu_full(struct kgem *kgem, struct kgem_bo *bo, bool write)
 {
+	DBG(("%s: handle=%d\n", __FUNCTION__, bo->handle));
 	assert(bo->proxy == NULL);
 
 	if (write || bo->needs_flush)
@@ -4792,8 +4810,10 @@ void kgem_bo_sync__cpu_full(struct kgem *kgem, struct kgem_bo *bo, bool write)
 	if (bo->domain != DOMAIN_CPU) {
 		struct drm_i915_gem_set_domain set_domain;
 
-		DBG(("%s: SYNC: needs_flush? %d, domain? %d, busy? %d\n", __FUNCTION__,
-		     bo->needs_flush, bo->domain, __kgem_busy(kgem, bo->handle)));
+		DBG(("%s: SYNC: handle=%d, needs_flush? %d, domain? %d, busy? %d\n",
+		     __FUNCTION__, bo->handle,
+		     bo->needs_flush, bo->domain,
+		     __kgem_busy(kgem, bo->handle)));
 
 		VG_CLEAR(set_domain);
 		set_domain.handle = bo->handle;
@@ -4810,14 +4830,17 @@ void kgem_bo_sync__cpu_full(struct kgem *kgem, struct kgem_bo *bo, bool write)
 
 void kgem_bo_sync__gtt(struct kgem *kgem, struct kgem_bo *bo)
 {
+	DBG(("%s: handle=%d\n", __FUNCTION__, bo->handle));
 	assert(bo->proxy == NULL);
 	kgem_bo_submit(kgem, bo);
 
 	if (bo->domain != DOMAIN_GTT) {
 		struct drm_i915_gem_set_domain set_domain;
 
-		DBG(("%s: SYNC: needs_flush? %d, domain? %d, busy? %d\n", __FUNCTION__,
-		     bo->needs_flush, bo->domain, __kgem_busy(kgem, bo->handle)));
+		DBG(("%s: SYNC: handle=%d, needs_flush? %d, domain? %d, busy? %d\n",
+		     __FUNCTION__, bo->handle,
+		     bo->needs_flush, bo->domain,
+		     __kgem_busy(kgem, bo->handle)));
 
 		VG_CLEAR(set_domain);
 		set_domain.handle = bo->handle;
@@ -4987,6 +5010,42 @@ create_snoopable_buffer(struct kgem *kgem, unsigned alloc)
 {
 	struct kgem_buffer *bo;
 	uint32_t handle;
+
+	if (kgem->has_llc) {
+		struct kgem_bo *old;
+
+		bo = buffer_alloc();
+		if (bo == NULL)
+			return NULL;
+
+		old = search_linear_cache(kgem, alloc,
+					 CREATE_INACTIVE | CREATE_CPU_MAP | CREATE_EXACT);
+		if (old) {
+			init_buffer_from_bo(bo, old);
+		} else {
+			handle = gem_create(kgem->fd, alloc);
+			if (handle == 0) {
+				free(bo);
+				return NULL;
+			}
+
+			debug_alloc(kgem, alloc);
+			__kgem_bo_init(&bo->base, handle, alloc);
+			DBG(("%s: created CPU (LLC) handle=%d for buffer, size %d\n",
+			     __FUNCTION__, bo->base.handle, alloc));
+		}
+
+		assert(bo->base.refcnt == 1);
+		assert(bo->mmapped == true);
+		assert(bo->need_io == false);
+
+		bo->mem = kgem_bo_map__cpu(kgem, &bo->base);
+		if (bo->mem != NULL)
+			return bo;
+
+		bo->base.refcnt = 0; /* for valgrind */
+		kgem_bo_free(kgem, &bo->base);
+	}
 
 	if (kgem->has_cacheing) {
 		struct kgem_bo *old;

@@ -80,7 +80,7 @@ am__EXEEXT_1 = basic-fillrect$(EXEEXT) basic-rectangle$(EXEEXT) \
 	render-trapezoid-image$(EXEEXT) render-fill-copy$(EXEEXT) \
 	render-composite-solid$(EXEEXT) render-copyarea$(EXEEXT) \
 	render-copyarea-size$(EXEEXT) render-copy-alphaless$(EXEEXT) \
-	mixed-stress$(EXEEXT) dri2-swap$(EXEEXT)
+	mixed-stress$(EXEEXT) dri2-swap$(EXEEXT) dri2-race$(EXEEXT)
 PROGRAMS = $(noinst_PROGRAMS)
 basic_copyarea_SOURCES = basic-copyarea.c
 basic_copyarea_OBJECTS = basic-copyarea.$(OBJEXT)
@@ -114,6 +114,10 @@ basic_string_SOURCES = basic-string.c
 basic_string_OBJECTS = basic-string.$(OBJEXT)
 basic_string_LDADD = $(LDADD)
 basic_string_DEPENDENCIES = libtest.la
+dri2_race_SOURCES = dri2-race.c
+dri2_race_OBJECTS = dri2-race.$(OBJEXT)
+dri2_race_LDADD = $(LDADD)
+dri2_race_DEPENDENCIES = libtest.la
 dri2_swap_SOURCES = dri2-swap.c
 dri2_swap_OBJECTS = dri2-swap.$(OBJEXT)
 dri2_swap_LDADD = $(LDADD)
@@ -186,18 +190,19 @@ am__v_GEN_ = $(am__v_GEN_@AM_DEFAULT_V@)
 am__v_GEN_0 = @echo "  GEN   " $@;
 SOURCES = $(libtest_la_SOURCES) basic-copyarea.c basic-copyarea-size.c \
 	basic-fillrect.c basic-lines.c basic-putimage.c \
-	basic-rectangle.c basic-stress.c basic-string.c dri2-swap.c \
-	lowlevel-blt-bench.c mixed-stress.c render-composite-solid.c \
-	render-copy-alphaless.c render-copyarea.c \
-	render-copyarea-size.c render-fill.c render-fill-copy.c \
-	render-trapezoid.c render-trapezoid-image.c
-DIST_SOURCES = $(libtest_la_SOURCES) basic-copyarea.c \
-	basic-copyarea-size.c basic-fillrect.c basic-lines.c \
-	basic-putimage.c basic-rectangle.c basic-stress.c \
-	basic-string.c dri2-swap.c lowlevel-blt-bench.c mixed-stress.c \
+	basic-rectangle.c basic-stress.c basic-string.c dri2-race.c \
+	dri2-swap.c lowlevel-blt-bench.c mixed-stress.c \
 	render-composite-solid.c render-copy-alphaless.c \
 	render-copyarea.c render-copyarea-size.c render-fill.c \
 	render-fill-copy.c render-trapezoid.c render-trapezoid-image.c
+DIST_SOURCES = $(libtest_la_SOURCES) basic-copyarea.c \
+	basic-copyarea-size.c basic-fillrect.c basic-lines.c \
+	basic-putimage.c basic-rectangle.c basic-stress.c \
+	basic-string.c dri2-race.c dri2-swap.c lowlevel-blt-bench.c \
+	mixed-stress.c render-composite-solid.c \
+	render-copy-alphaless.c render-copyarea.c \
+	render-copyarea-size.c render-fill.c render-fill-copy.c \
+	render-trapezoid.c render-trapezoid-image.c
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -392,6 +397,7 @@ stress_TESTS = \
 	render-copy-alphaless \
 	mixed-stress \
 	dri2-swap \
+	dri2-race \
 	$(NULL)
 
 AM_CFLAGS = @CWARNFLAGS@ @X11_CFLAGS@ @DRM_CFLAGS@
@@ -495,6 +501,9 @@ basic-stress$(EXEEXT): $(basic_stress_OBJECTS) $(basic_stress_DEPENDENCIES) $(EX
 basic-string$(EXEEXT): $(basic_string_OBJECTS) $(basic_string_DEPENDENCIES) $(EXTRA_basic_string_DEPENDENCIES) 
 	@rm -f basic-string$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(basic_string_OBJECTS) $(basic_string_LDADD) $(LIBS)
+dri2-race$(EXEEXT): $(dri2_race_OBJECTS) $(dri2_race_DEPENDENCIES) $(EXTRA_dri2_race_DEPENDENCIES) 
+	@rm -f dri2-race$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(dri2_race_OBJECTS) $(dri2_race_LDADD) $(LIBS)
 dri2-swap$(EXEEXT): $(dri2_swap_OBJECTS) $(dri2_swap_DEPENDENCIES) $(EXTRA_dri2_swap_DEPENDENCIES) 
 	@rm -f dri2-swap$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(dri2_swap_OBJECTS) $(dri2_swap_LDADD) $(LIBS)
@@ -543,6 +552,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/basic-rectangle.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/basic-stress.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/basic-string.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dri2-race.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dri2-swap.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dri2.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lowlevel-blt-bench.Po@am__quote@

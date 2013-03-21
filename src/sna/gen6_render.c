@@ -1651,10 +1651,10 @@ gen6_render_video(struct sna *sna,
 #endif
 
 	src_scale_x = (float)src_width / dst_width / frame->width;
-	src_offset_x = frame->src.x1 / frame->width - dstRegion->extents.x1 * src_scale_x;
+	src_offset_x = (float)frame->src.x1 / frame->width - dstRegion->extents.x1 * src_scale_x;
 
 	src_scale_y = (float)src_height / dst_height / frame->height;
-	src_offset_y = frame->src.y1 / frame->height - dstRegion->extents.y1 * src_scale_y;
+	src_offset_y = (float)frame->src.y1 / frame->height - dstRegion->extents.y1 * src_scale_y;
 
 	box = REGION_RECTS(dstRegion);
 	nbox = REGION_NUM_RECTS(dstRegion);

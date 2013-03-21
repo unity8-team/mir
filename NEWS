@@ -1,3 +1,42 @@
+Release 2.21.5 (2013-03-21)
+===========================
+Haswell reintroduces a command to load the scanline window from the
+command stream and so requires its own specialised wait-for-vsync routine
+- failure to do so was then causing hangs when trying to do tearfree video
+or use a compositor.
+
+ * Prevent buffer leak if a non-fullscreen Window is closed with multiple
+   pending swap events.
+
+ * Fix offset transformation for fallback gradient paths.
+   https://bugs.freedesktop.org/show_bug.cgi?id=62198
+
+ * Prevent Glamor from crashing if misconfigured.
+   Thanks to Michel Dänzer.
+
+ * Prevent UXA from crashing if torn down during PreInit.
+   Thanks to Aaron Plattner.
+
+ * Prevent miscompilation with different functional units having different
+   compiler flags. Some functions were expected to be inlined and so
+   recompiled with the current target. However, some compilers were
+   choosing to emit subroutine calls instead without noticing that the
+   ABI was different between the caller and callee - causing corruption.
+   https://bugs.freedesktop.org/show_bug.cgi?id=62198
+
+ * Fix rendering of CompositeTriFan with recent Xorg.
+
+ * Apply the video src-offset fix highlighted in the last release!
+   A typo prevented the fix from working for gen4+.
+   https://bugs.freedesktop.org/show_bug.cgi?id=62343
+
+ * Fix rendering of multiple glyphs to very large destination surfaces
+   https://bugs.launchpad.net/ubuntu/+source/xserver-xorg-video-intel/+bug/1156387
+
+ * Fix scanline waits for Haswell
+   https://bugs.launchpad.net/ubuntu/+source/xserver-xorg-video-intel/+bug/1156679
+
+
 Release 2.21.4 (2013-03-11)
 ===========================
 More bugs, more fixes, more releases. A minor new feature being introduced

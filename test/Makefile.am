@@ -17,6 +17,7 @@ stress_TESTS = \
 	render-copy-alphaless \
 	mixed-stress \
 	dri2-swap \
+	dri2-race \
 	$(NULL)
 
 check_PROGRAMS = $(stress_TESTS)

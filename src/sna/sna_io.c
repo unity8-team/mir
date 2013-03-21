@@ -41,21 +41,6 @@
 
 /* XXX Need to avoid using GTT fenced access for I915_TILING_Y on 855GM */
 
-static bool
-box_intersect(BoxPtr a, const BoxRec *b)
-{
-	if (a->x1 < b->x1)
-		a->x1 = b->x1;
-	if (a->x2 > b->x2)
-		a->x2 = b->x2;
-	if (a->y1 < b->y1)
-		a->y1 = b->y1;
-	if (a->y2 > b->y2)
-		a->y2 = b->y2;
-
-	return a->x1 < a->x2 && a->y1 < a->y2;
-}
-
 static inline bool upload_too_large(struct sna *sna, int width, int height)
 {
 	return width * height * 4 > sna->kgem.max_upload_tile_size;

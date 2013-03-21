@@ -1093,7 +1093,7 @@ static void I830FreeScreen(FREE_SCREEN_ARGS_DECL)
 	SCRN_INFO_PTR(arg);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
-	if (intel) {
+	if (intel && !((uintptr_t)intel & 1)) {
 		intel_mode_fini(intel);
 		intel_close_drm_master(intel);
 		intel_bufmgr_fini(intel);

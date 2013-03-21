@@ -884,6 +884,14 @@ can_blit(struct sna * sna,
 	if (draw->type == DRAWABLE_PIXMAP)
 		return true;
 
+	if (get_private(front)->pixmap != get_drawable_pixmap(draw)) {
+		DBG(("%s: reject as front pixmap=%ld, but expecting pixmap=%ld\n",
+		     __FUNCTION__,
+		     get_private(front)->pixmap ? get_private(front)->pixmap->drawable.serialNumber : 0,
+		     get_drawable_pixmap(draw)->drawable.serialNumber));
+		return false;
+	}
+
 	clip = &((WindowPtr)draw)->clipList;
 	w = clip->extents.x2 - draw->x;
 	h = clip->extents.y2 - draw->y;
@@ -919,6 +927,12 @@ sna_dri_copy_region(DrawablePtr draw,
 	void (*copy)(struct sna *, DrawablePtr, RegionPtr,
 		     struct kgem_bo *, struct kgem_bo *, bool) = sna_dri_copy;
 
+	DBG(("%s: pixmap=%ld, src=%u, dst=%u\n",
+	     __FUNCTION__,
+	     pixmap->drawable.serialNumber,
+	     get_private(src_buffer)->bo->handle,
+	     get_private(dst_buffer)->bo->handle));
+
 	assert(get_private(src_buffer)->refcnt);
 	assert(get_private(dst_buffer)->refcnt);
 
@@ -928,10 +942,10 @@ sna_dri_copy_region(DrawablePtr draw,
 	assert(get_private(dst_buffer)->bo->refcnt);
 	assert(get_private(dst_buffer)->bo->flush);
 
-	assert(sna_pixmap_from_drawable(draw)->flush);
-
 	if (!can_blit(sna, draw, dst_buffer, src_buffer))
 		return;
+
+	assert(sna_pixmap(pixmap)->flush);
 
 	if (dst_buffer->attachment == DRI2BufferFrontLeft) {
 		dst = sna_pixmap_get_bo(pixmap);
@@ -1041,21 +1055,6 @@ sna_dri_remove_frame_event(WindowPtr win,
 	chain->chain = info->chain;
 }
 
-void sna_dri_destroy_window(WindowPtr win)
-{
-	struct sna_dri_frame_event *chain;
-
-	chain = sna_dri_window_get_chain(win);
-	if (chain == NULL)
-		return;
-
-	DBG(("%s: window=%ld\n", __FUNCTION__, win->drawable.serialNumber));
-	while (chain) {
-		chain->draw = NULL;
-		chain = chain->chain;
-	}
-}
-
 static void
 sna_dri_add_frame_event(DrawablePtr draw, struct sna_dri_frame_event *info)
 {
@@ -1105,6 +1104,27 @@ sna_dri_frame_event_info_free(struct sna *sna,
 		kgem_bo_destroy(&sna->kgem, info->bo);
 
 	free(info);
+}
+
+void sna_dri_destroy_window(WindowPtr win)
+{
+	struct sna *sna = to_sna_from_drawable(&win->drawable);
+	struct sna_dri_frame_event *info, *chain;
+
+	info = sna_dri_window_get_chain(win);
+	if (info == NULL)
+		return;
+
+	DBG(("%s: window=%ld\n", __FUNCTION__, win->drawable.serialNumber));
+	info->draw = NULL;
+
+	chain = info->chain;
+	info->chain = NULL;
+
+	while ((info = chain)) {
+		chain = info->chain;
+		sna_dri_frame_event_info_free(sna, NULL, info);
+	}
 }
 
 static bool
@@ -1576,7 +1596,6 @@ static void chain_flip(struct sna *sna)
 {
 	struct sna_dri_frame_event *chain = sna->dri.flip_pending;
 
-	assert(chain == sna_dri_window_get_chain((WindowPtr)chain->draw));
 	assert(chain->type == DRI2_FLIP);
 	DBG(("%s: chaining type=%d\n", __FUNCTION__, chain->type));
 
@@ -1585,6 +1604,8 @@ static void chain_flip(struct sna *sna)
 		sna_dri_frame_event_info_free(sna, NULL, chain);
 		return;
 	}
+
+	assert(chain == sna_dri_window_get_chain((WindowPtr)chain->draw));
 
 	if (chain->type == DRI2_FLIP &&
 	    can_flip(sna, chain->draw, chain->front, chain->back) &&
@@ -1685,10 +1706,12 @@ static void sna_dri_flip_event(struct sna *sna,
 		}
 		break;
 
-	default:
+	default: /* Unknown type */
 		xf86DrvMsg(sna->scrn->scrnIndex, X_WARNING,
 			   "%s: unknown vblank event received\n", __func__);
-		/* Unknown type */
+		sna_dri_frame_event_info_free(sna, flip->draw, flip);
+		if (sna->dri.flip_pending)
+			chain_flip(sna);
 		break;
 	}
 }
@@ -1724,8 +1747,8 @@ sna_dri_immediate_blit(struct sna *sna,
 	if (sna->flags & SNA_NO_WAIT)
 		sync = false;
 
-	DBG(("%s: emitting immediate blit, throttling client, synced? %d\n",
-	     __FUNCTION__, sync));
+	DBG(("%s: emitting immediate blit, throttling client, synced? %d, chained? %d\n",
+	     __FUNCTION__, sync, sna_dri_window_get_chain((WindowPtr)draw) == info));
 
 	if (sync) {
 		info->type = DRI2_SWAP_THROTTLE;

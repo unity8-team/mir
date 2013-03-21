@@ -43,7 +43,7 @@
 #define likely(expr) (expr)
 #define unlikely(expr) (expr)
 #define noinline
-#define force_inline
+#define force_inline inline
 #define fastcall
 #define must_check
 #define constant
