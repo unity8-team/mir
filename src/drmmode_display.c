@@ -716,6 +716,8 @@ drmmode_output_detect(xf86OutputPtr output)
 	drmModeFreeConnector(drmmode_output->mode_output);
 
 	drmmode_output->mode_output = drmModeGetConnector(drmmode->fd, drmmode_output->output_id);
+	if (!drmmode_output->mode_output)
+		return XF86OutputStatusDisconnected;
 
 	switch (drmmode_output->mode_output->connection) {
 	case DRM_MODE_CONNECTED:
@@ -748,6 +750,9 @@ drmmode_output_get_modes(xf86OutputPtr output)
 	DisplayModePtr Modes = NULL, Mode;
 	drmModePropertyPtr props;
 	xf86MonPtr mon = NULL;
+
+	if (!koutput)
+		return NULL;
 
 	/* look for an EDID property */
 	for (i = 0; i < koutput->count_props; i++) {
