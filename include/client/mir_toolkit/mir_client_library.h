@@ -157,7 +157,7 @@ typedef struct MirDisplayInfo
  *   \param [in] server       A name identifying the server
  *   \param [in] app_name     A name identifying the application. This may be
  *                            either a simple name or a URN (e.g.
- *                            "urn:uuid:52bb8448-98d2-404f-b354-b6122020766a")
+ *                            "urn:uuid:52bb8448-98d2-404f-b354-b6122020766a").
  *                            If the name begins with "urn:" then it is assumed
  *                            to be a URN which can be used by the Mir server
  *                            and shell to look up further information about
