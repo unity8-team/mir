@@ -162,8 +162,7 @@ typedef struct MirDisplayInfo
  *                            to be a URN which can be used by the Mir server
  *                            and shell to look up further information about
  *                            the application. For more information, see:
- *                            http://www.ietf.org/rfc/rfc2141.txt and
- *                            http://www.ietf.org/rfc/rfc4122.txt
+ *                            http://www.ietf.org/rfc/rfc2141.txt
  *   \param [in] callback     Callback function to be invoked when request
  *                            completes
  *   \param [in,out] context  User data passed to the callback function
