@@ -115,24 +115,50 @@ TEST(Session, destroy_invalid_surface_throw_behavior)
     }, std::runtime_error);
 }
 
-TEST(Session, trivial_app_id)
+TEST(Session, no_urn)
 {
+    static const char *invalid_urns[] =
+    {
+        "",
+        "u",
+        "ur",
+        "urn",
+        "Foo",
+        " urn:aa:bb",
+        "hello world",
+        "urn :apples:oranges",
+        "My Application version 3",
+        NULL
+    };
+
     mtd::MockSurfaceFactory surface_factory;
-    msh::ApplicationSession app_session(mt::fake_shared(surface_factory),
-                                        "foo");
-    
-    EXPECT_EQ("foo", app_session.name());
-    EXPECT_EQ("", app_session.urn());
+
+    for (const char **urn = invalid_urns; *urn; urn++)
+    {
+        msh::ApplicationSession app_session(mt::fake_shared(surface_factory),
+                                            *urn);
+        EXPECT_EQ(*urn, app_session.name());
+        EXPECT_EQ("", app_session.urn());
+    }
 }
 
-TEST(Session, unique_app_id)
+TEST(Session, urns)
 {
-    static const char urn[] =
-        "urn:uuid:a7b7cceb-9182-4032-a1d5-a9c1f295efe7";
+    static const char *valid_urns[] =
+    {
+        "urn:abc:def",
+        "urn:uuid:a7b7cceb-9182-4032-a1d5-a9c1f295efe7",
+        "urn:Well-Known-App:Super Widget Blaster 3.0",
+        NULL
+    };
 
     mtd::MockSurfaceFactory surface_factory;
-    msh::ApplicationSession app_session(mt::fake_shared(surface_factory), urn);
-    
-    EXPECT_EQ(urn, app_session.name());
-    EXPECT_EQ(urn, app_session.urn());
+
+    for (const char **urn = valid_urns; *urn; urn++)
+    {
+        msh::ApplicationSession app_session(mt::fake_shared(surface_factory),
+                                            *urn);
+        EXPECT_EQ(*urn, app_session.name());
+        EXPECT_EQ(*urn, app_session.urn());
+    }
 }
