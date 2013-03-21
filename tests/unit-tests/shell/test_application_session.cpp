@@ -114,3 +114,25 @@ TEST(Session, destroy_invalid_surface_throw_behavior)
             app_session.destroy_surface(invalid_surface_id);
     }, std::runtime_error);
 }
+
+TEST(Session, trivial_app_id)
+{
+    mtd::MockSurfaceFactory surface_factory;
+    msh::ApplicationSession app_session(mt::fake_shared(surface_factory),
+                                        "foo");
+    
+    EXPECT_EQ("foo", app_session.name());
+    EXPECT_EQ("", app_session.urn());
+}
+
+TEST(Session, unique_app_id)
+{
+    static const char urn[] =
+        "urn:uuid:a7b7cceb-9182-4032-a1d5-a9c1f295efe7";
+
+    mtd::MockSurfaceFactory surface_factory;
+    msh::ApplicationSession app_session(mt::fake_shared(surface_factory), urn);
+    
+    EXPECT_EQ(urn, app_session.name());
+    EXPECT_EQ(urn, app_session.urn());
+}

@@ -96,6 +96,15 @@ std::string msh::ApplicationSession::name() const
     return session_name;
 }
 
+std::string msh::ApplicationSession::urn() const
+{
+    // We could go through the pain of fully validating the URN but there's
+    // no real value in that right now.
+
+    return session_name.compare(0, 4, "urn:") == 0 ? session_name :
+           std::string();
+}
+
 void msh::ApplicationSession::shutdown()
 {
     std::unique_lock<std::mutex> lock(surfaces_mutex);

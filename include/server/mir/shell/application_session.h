@@ -42,6 +42,7 @@ public:
     std::shared_ptr<frontend::Surface> get_surface(frontend::SurfaceId surface) const;
 
     std::string name() const;
+    std::string urn() const;  // Unique application ID "urn:..." or empty.
 
     void shutdown();
 
