@@ -174,6 +174,20 @@ static void RADEONFreeRec(ScrnInfoPtr pScrn)
 
     info = RADEONPTR(pScrn);
 
+    if (info->dri2.drm_fd > 0) {
+        DevUnion *pPriv;
+        RADEONEntPtr pRADEONEnt;
+        pPriv = xf86GetEntityPrivate(pScrn->entityList[0],
+				     getRADEONEntityIndex());
+
+        pRADEONEnt = pPriv->ptr;
+        pRADEONEnt->fd_ref--;
+        if (!pRADEONEnt->fd_ref) {
+            drmClose(pRADEONEnt->fd);
+            pRADEONEnt->fd = 0;
+        }
+    }
+
     if (info->accel_state) {
 	free(info->accel_state);
 	info->accel_state = NULL;
@@ -1083,18 +1097,9 @@ void RADEONFreeScreen_KMS(FREE_SCREEN_ARGS_DECL)
 {
     SCRN_INFO_PTR(arg);
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
-    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "RADEONFreeScreen\n");
-
-    if (info->dri2.drm_fd > 0) {
-        pRADEONEnt->fd_ref--;
-        if (!pRADEONEnt->fd_ref) {
-            drmClose(pRADEONEnt->fd);
-            pRADEONEnt->fd = 0;
-        }
-    }
 
     /* when server quits at PreInit, we don't need do this anymore*/
     if (!info) return;
