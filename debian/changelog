@@ -1,8 +1,19 @@
-xserver-xorg-video-intel (2:2.21.4-0ubuntu1b1) raring; urgency=low
+xserver-xorg-video-intel (2:2.21.5-0ubuntu1) raring; urgency=low
 
-  * No-change rebuild against libudev1
+  * Merge from unreleased debian git
+    - new upstream release (LP: #1156387, #1156679)
 
- -- Martin Pitt <martin.pitt@ubuntu.com>  Wed, 13 Mar 2013 07:02:25 +0000
+ -- Timo Aaltonen <tjaalton@ubuntu.com>  Thu, 21 Mar 2013 15:51:49 +0200
+
+xserver-xorg-video-intel (2:2.21.5-1) UNRELEASED; urgency=low
+
+  [ Timo Aaltonen ]
+  * New upstream release.
+
+  [ Maarten Lankhorst ]
+  * Add valgrind to build-depends.
+
+ -- Timo Aaltonen <tjaalton@ubuntu.com>  Fri, 07 Dec 2012 09:33:39 +0200
 
 xserver-xorg-video-intel (2:2.21.4-0ubuntu1) raring; urgency=low
 
@@ -10,12 +21,6 @@ xserver-xorg-video-intel (2:2.21.4-0ubuntu1) raring; urgency=low
     - new upstream release (LP: #1124576, #1135403)
 
  -- Timo Aaltonen <tjaalton@ubuntu.com>  Mon, 11 Mar 2013 16:17:16 +0200
-
-xserver-xorg-video-intel (2:2.21.4-1) UNRELEASED; urgency=low
-
-  * New upstream release.
-
- -- Timo Aaltonen <tjaalton@ubuntu.com>  Fri, 07 Dec 2012 09:33:39 +0200
 
 xserver-xorg-video-intel (2:2.21.3-0ubuntu1) raring; urgency=low
 
@@ -70,54 +75,6 @@ xserver-xorg-video-intel (2:2.20.14-1) experimental; urgency=low
 
  -- Julien Cristau <jcristau@debian.org>  Sun, 02 Dec 2012 19:18:05 +0100
 
-xserver-xorg-video-intel (2:2.20.14-0ubuntu1) raring; urgency=low
-
-  * Merge from unreleased debian experimental git, remaining changes:
-    - Add an apport hook, triggered on udev GPU error event
-
- -- Timo Aaltonen <tjaalton@ubuntu.com>  Thu, 29 Nov 2012 12:29:54 +0200
-
-xserver-xorg-video-intel (2:2.20.9-0ubuntu2) quantal; urgency=low
-
-  [ Maarten Lankhorst ]
-  * Add fix-glamor-check.diff to fix a valgrind error, upstream.
-
- -- Timo Aaltonen <tjaalton@ubuntu.com>  Mon, 01 Oct 2012 15:39:54 +0300
-
-xserver-xorg-video-intel (2:2.20.9-0ubuntu1) quantal; urgency=low
-
-  * Merge from unrelease debian git.
-    - fixes racy UXA pageflip code (LP: #966744)
-  * Drop dont-run-intel-mode-fini-before-preinit.diff, upstream.
-
- -- Timo Aaltonen <tjaalton@ubuntu.com>  Sat, 29 Sep 2012 16:45:35 +0300
-
-xserver-xorg-video-intel (2:2.20.8-0ubuntu2) quantal; urgency=low
-
-  * dont-run-intel-mode-fini-before-preinit.diff, don't crash if
-    Screen is deleted before the driver has fully initialized.
-    (LP: #1053836)
-
- -- Timo Aaltonen <tjaalton@ubuntu.com>  Wed, 26 Sep 2012 15:14:07 +0300
-
-xserver-xorg-video-intel (2:2.20.8-0ubuntu1) quantal; urgency=low
-
-  * Merge from unreleased debian git.
-
- -- Timo Aaltonen <tjaalton@ubuntu.com>  Tue, 18 Sep 2012 12:39:11 +0300
-
-xserver-xorg-video-intel (2:2.20.7-0ubuntu1) quantal; urgency=low
-
-  * Merge from unreleased debian git.
-
- -- Timo Aaltonen <tjaalton@ubuntu.com>  Wed, 12 Sep 2012 07:43:59 +0300
-
-xserver-xorg-video-intel (2:2.20.6-0ubuntu1) quantal; urgency=low
-
-  * Merge from unreleased debian git.
-
- -- Timo Aaltonen <tjaalton@ubuntu.com>  Wed, 05 Sep 2012 17:27:17 +0300
-
 xserver-xorg-video-intel (2:2.20.5-1) experimental; urgency=low
 
   * New upstream release.
@@ -125,18 +82,6 @@ xserver-xorg-video-intel (2:2.20.5-1) experimental; urgency=low
       0001-Fix-build-failure-when-passing-with-builderstring.patch
 
  -- Julien Danjou <acid@debian.org>  Sun, 26 Aug 2012 14:25:55 +0200
-
-xserver-xorg-video-intel (2:2.20.2-1ubuntu1) quantal-proposed; urgency=low
-
-  * New upstream release (2.20.2)
-  * Drop upstreamed 101_copy-fb.patch
-  * Merge from Debian. Remaining Ubuntu changes:
-    - debian/xserver-xorg-video-intel.install:
-      + Don't install unnecessary i915-kms.conf; KMS is kernel default.
-    - debian/xserver-xorg-video-intel.udev
-      + Add apport hook, triggered on udev GPU error event
-
- -- Maarten Lankhorst <maarten.lankhorst@canonical.com>  Mon, 30 Jul 2012 10:10:37 +0200
 
 xserver-xorg-video-intel (2:2.20.2-1) experimental; urgency=low
 

@@ -864,6 +864,21 @@ inline static bool is_clipped(const RegionRec *r,
 		r->extents.y2 - r->extents.y1 != d->height);
 }
 
+inline static bool
+box_intersect(BoxPtr a, const BoxRec *b)
+{
+	if (a->x1 < b->x1)
+		a->x1 = b->x1;
+	if (a->x2 > b->x2)
+		a->x2 = b->x2;
+	if (a->y1 < b->y1)
+		a->y1 = b->y1;
+	if (a->y2 > b->y2)
+		a->y2 = b->y2;
+
+	return a->x1 < a->x2 && a->y1 < a->y2;
+}
+
 unsigned sna_cpu_detect(void);
 char *sna_cpu_features_to_string(unsigned features, char *line);
 

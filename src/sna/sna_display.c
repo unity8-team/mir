@@ -136,6 +136,7 @@ static unsigned get_fb(struct sna *sna, struct kgem_bo *bo,
 
 	assert(bo->refcnt);
 	assert(bo->proxy == NULL);
+	assert(!bo->snoop);
 	if (bo->delta) {
 		DBG(("%s: reusing fb=%d for handle=%d\n",
 		     __FUNCTION__, bo->delta, bo->handle));
@@ -2805,12 +2806,46 @@ sna_covering_crtc(ScrnInfoPtr scrn,
 	return best_crtc;
 }
 
+static bool sna_emit_wait_for_scanline_hsw(struct sna *sna,
+					   xf86CrtcPtr crtc,
+					   int pipe, int y1, int y2,
+					   bool full_height)
+{
+	uint32_t event;
+	uint32_t *b;
+
+	if (sna->kgem.mode != KGEM_BLT)
+		return false;
+
+	b = kgem_get_batch(&sna->kgem);
+	sna->kgem.nbatch += 5;
+
+	/* The documentation says that the LOAD_SCAN_LINES command
+	 * always comes in pairs. Don't ask me why. */
+	switch (pipe) {
+	case 0: event = 0; break;
+	case 1: event = 1 << 19; break;
+	case 2: event = 4 << 19; break;
+	}
+	b[2] = b[0] = MI_LOAD_SCAN_LINES_INCL | event;
+	b[3] = b[1] = (y1 << 16) | (y2-1);
+
+	switch (pipe) {
+	case 0: event = 0; break;
+	case 1: event = 1 << 8; break;
+	case 2: event = 1 << 14; break;
+	}
+	b[4] = MI_WAIT_FOR_EVENT | event;
+
+	return true;
+}
+
 #define MI_LOAD_REGISTER_IMM			(0x22<<23)
 
-static bool sna_emit_wait_for_scanline_gen7(struct sna *sna,
-					    xf86CrtcPtr crtc,
-					    int pipe, int y1, int y2,
-					    bool full_height)
+static bool sna_emit_wait_for_scanline_ivb(struct sna *sna,
+					   xf86CrtcPtr crtc,
+					   int pipe, int y1, int y2,
+					   bool full_height)
 {
 	uint32_t *b;
 	uint32_t event;
@@ -3004,7 +3039,7 @@ sna_wait_for_scanline(struct sna *sna,
 	if (y2 > crtc->bounds.y2 - crtc->bounds.y1)
 		y2 = crtc->bounds.y2 - crtc->bounds.y1;
 	DBG(("%s: clipped range = %d, %d\n", __FUNCTION__, y1, y2));
-	if (y2 <= y1)
+	if (y2 <= y1 + 4)
 		return false;
 
 	full_height = y1 == 0 && y2 == crtc->bounds.y2 - crtc->bounds.y1;
@@ -3021,10 +3056,12 @@ sna_wait_for_scanline(struct sna *sna,
 
 	if (sna->kgem.gen >= 0100)
 		ret = false;
+	else if (sna->kgem.gen >= 075)
+		ret = sna_emit_wait_for_scanline_hsw(sna, crtc, pipe, y1, y2, full_height);
 	else if (sna->kgem.gen == 071)
 		ret =sna_emit_wait_for_scanline_gen6(sna, crtc, pipe, y1, y2, full_height);
 	else if (sna->kgem.gen >= 070)
-		ret = sna_emit_wait_for_scanline_gen7(sna, crtc, pipe, y1, y2, full_height);
+		ret = sna_emit_wait_for_scanline_ivb(sna, crtc, pipe, y1, y2, full_height);
 	else if (sna->kgem.gen >= 060)
 		ret =sna_emit_wait_for_scanline_gen6(sna, crtc, pipe, y1, y2, full_height);
 	else if (sna->kgem.gen >= 040)

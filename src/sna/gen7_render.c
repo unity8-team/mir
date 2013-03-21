@@ -1792,16 +1792,38 @@ gen7_render_video(struct sna *sna,
 	pix_yoff = 0;
 #endif
 
+	DBG(("%s: src=(%d, %d)x(%d, %d); frame=(%dx%d), dst=(%dx%d)\n",
+	     __FUNCTION__,
+	     frame->src.x1, frame->src.y1,
+	     src_width, src_height,
+	     dst_width, dst_height,
+	     frame->width, frame->height));
+
 	src_scale_x = (float)src_width / dst_width / frame->width;
-	src_offset_x = frame->src.x1 / frame->width - dstRegion->extents.x1 * src_scale_x;
+	src_offset_x = (float)frame->src.x1 / frame->width - dstRegion->extents.x1 * src_scale_x;
 
 	src_scale_y = (float)src_height / dst_height / frame->height;
-	src_offset_y = frame->src.y1 / frame->height - dstRegion->extents.y1 * src_scale_y;
+	src_offset_y = (float)frame->src.y1 / frame->height - dstRegion->extents.y1 * src_scale_y;
+
+	DBG(("%s: scale=(%f, %f), offset=(%f, %f)\n",
+	     __FUNCTION__,
+	     src_scale_x, src_scale_y,
+	     src_offset_x, src_offset_y));
 
 	box = REGION_RECTS(dstRegion);
 	nbox = REGION_NUM_RECTS(dstRegion);
 	while (nbox--) {
 		BoxRec r;
+
+		DBG(("%s: dst=(%d, %d), (%d, %d) + (%d, %d); src=(%f, %f), (%f, %f)\n",
+		     __FUNCTION__,
+		     box->x1, box->y1,
+		     box->x2, box->y2,
+		     pix_xoff, pix_yoff,
+		     box->x1 * src_scale_x + src_offset_x,
+		     box->y1 * src_scale_y + src_offset_y,
+		     box->x2 * src_scale_x + src_offset_x,
+		     box->y2 * src_scale_y + src_offset_y));
 
 		r.x1 = box->x1 + pix_xoff;
 		r.x2 = box->x2 + pix_xoff;

@@ -35,6 +35,7 @@ Build-Depends:
  dpkg-dev (>= 1.14.17),
  quilt (>= 0.46-7~),
  xutils-dev (>= 1:7.5+4),
+ valgrind,
 Standards-Version: 3.9.3
 Vcs-Git: git://git.debian.org/git/pkg-xorg/driver/xserver-xorg-video-intel
 Vcs-Browser: http://git.debian.org/?p=pkg-xorg/driver/xserver-xorg-video-intel.git

@@ -795,21 +795,6 @@ done:
 	return ret;
 }
 
-static bool
-box_intersect(BoxPtr a, const BoxRec *b)
-{
-	if (a->x1 < b->x1)
-		a->x1 = b->x1;
-	if (a->x2 > b->x2)
-		a->x2 = b->x2;
-	if (a->y1 < b->y1)
-		a->y1 = b->y1;
-	if (a->y2 > b->y2)
-		a->y2 = b->y2;
-
-	return a->x1 < a->x2 && a->y1 < a->y2;
-}
-
 bool
 sna_tiling_copy_boxes(struct sna *sna, uint8_t alu,
 		      PixmapPtr src, struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,

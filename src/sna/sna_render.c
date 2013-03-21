@@ -1457,7 +1457,8 @@ sna_render_picture_approximate_gradient(struct sna *sna,
 	return -1;
 #endif
 
-	DBG(("%s: (%d, %d)x(%d, %d)\n", __FUNCTION__, x, y, w, h));
+	DBG(("%s: (%d, %d)x(%d, %d), dst=(%d, %d)\n",
+	     __FUNCTION__, x, y, w, h, dst_x, dst_y));
 
 	if (w2 == 0 || h2 == 0) {
 		DBG(("%s: fallback - unknown bounds\n", __FUNCTION__));
@@ -1468,6 +1469,7 @@ sna_render_picture_approximate_gradient(struct sna *sna,
 		return -1;
 	}
 
+	assert(channel->card_format == -1);
 	channel->pict_format = PIXMAN_a8r8g8b8;
 	channel->bo = kgem_create_buffer_2d(&sna->kgem,
 					    w2, h2, 32,
@@ -1483,6 +1485,7 @@ sna_render_picture_approximate_gradient(struct sna *sna,
 				       w2, h2, ptr, channel->bo->pitch);
 	if (!dst) {
 		kgem_bo_destroy(&sna->kgem, channel->bo);
+		channel->bo = NULL;
 		return 0;
 	}
 
@@ -1490,19 +1493,34 @@ sna_render_picture_approximate_gradient(struct sna *sna,
 	if (src == NULL) {
 		pixman_image_unref(dst);
 		kgem_bo_destroy(&sna->kgem, channel->bo);
+		channel->bo = NULL;
 		return 0;
 	}
+	DBG(("%s: source offset (%d, %d)\n", __FUNCTION__, dx, dy));
 
 	memset(&t, 0, sizeof(t));
 	t.matrix[0][0] = (w << 16) / w2;
+	t.matrix[0][2] = (x + dx) << 16;
 	t.matrix[1][1] = (h << 16) / h2;
+	t.matrix[1][2] = (y + dy) << 16;
 	t.matrix[2][2] = 1 << 16;
 	if (picture->transform)
 		pixman_transform_multiply(&t, picture->transform, &t);
+	DBG(("%s: applying transform [(%f, %f, %f), (%f, %f, %f), (%f, %f, %f)]\n",
+	     __FUNCTION__,
+	     pixman_fixed_to_double(t.matrix[0][0]),
+	     pixman_fixed_to_double(t.matrix[0][1]),
+	     pixman_fixed_to_double(t.matrix[0][2]),
+	     pixman_fixed_to_double(t.matrix[1][0]),
+	     pixman_fixed_to_double(t.matrix[1][1]),
+	     pixman_fixed_to_double(t.matrix[1][2]),
+	     pixman_fixed_to_double(t.matrix[2][0]),
+	     pixman_fixed_to_double(t.matrix[2][1]),
+	     pixman_fixed_to_double(t.matrix[2][2])));
 	pixman_image_set_transform(src, &t);
 
 	sna_image_composite(PictOpSrc, src, NULL, dst,
-			    x+dx, y+dy,
+			    0, 0,
 			    0, 0,
 			    0, 0,
 			    w2, h2);
@@ -1855,6 +1873,8 @@ sna_render_composite_redirect(struct sna *sna,
 	int bpp = op->dst.pixmap->drawable.bitsPerPixel;
 	struct kgem_bo *bo;
 
+	assert(t->real_bo == NULL);
+
 #if NO_REDIRECT
 	return false;
 #endif
@@ -1936,6 +1956,7 @@ sna_render_composite_redirect(struct sna *sna,
 			t->real_bo = op->dst.bo;
 			t->real_damage = op->damage;
 			if (op->damage) {
+				assert(!DAMAGE_IS_ALL(op->damage));
 				t->damage = sna_damage_create();
 				op->damage = &t->damage;
 			}
@@ -1952,6 +1973,7 @@ sna_render_composite_redirect(struct sna *sna,
 			}
 
 			assert(op->dst.bo != t->real_bo);
+			op->dst.bo->unique_id = kgem_get_unique_id(&sna->kgem);
 			op->dst.bo->pitch = t->real_bo->pitch;
 
 			op->dst.x -= box.x1;

@@ -232,7 +232,7 @@ void gen4_vertex_close(struct sna *sna)
 #define OUT_VERTEX(x,y) vertex_emit_2s(sna, x,y) /* XXX assert(!too_large(x, y)); */
 #define OUT_VERTEX_F(v) vertex_emit(sna, v)
 
-inline static float
+force_inline static float
 compute_linear(const struct sna_composite_channel *channel,
 	       int16_t x, int16_t y)
 {
@@ -241,7 +241,7 @@ compute_linear(const struct sna_composite_channel *channel,
 		channel->u.linear.offset);
 }
 
-inline static void
+sse2 inline static void
 emit_texcoord(struct sna *sna,
 	      const struct sna_composite_channel *channel,
 	      int16_t x, int16_t y)
@@ -274,7 +274,7 @@ emit_texcoord(struct sna *sna,
 	}
 }
 
-sse2 inline static void
+sse2 force_inline static void
 emit_vertex(struct sna *sna,
 	    const struct sna_composite_op *op,
 	    int16_t srcX, int16_t srcY,
@@ -304,7 +304,7 @@ emit_primitive(struct sna *sna,
 		    r->dst.x,  r->dst.y);
 }
 
-sse2 inline static void
+sse2 force_inline static void
 emit_vertex_mask(struct sna *sna,
 		 const struct sna_composite_op *op,
 		 int16_t srcX, int16_t srcY,
@@ -969,21 +969,6 @@ emit_primitive_affine_source_identity(struct sna *sna,
 	v[14] = msk_y * op->mask.scale[1];
 }
 
-inline static void
-emit_composite_texcoord_affine(struct sna *sna,
-			       const struct sna_composite_channel *channel,
-			       int16_t x, int16_t y)
-{
-	float t[2];
-
-	sna_get_transformed_coordinates(x + channel->offset[0],
-					y + channel->offset[1],
-					channel->transform,
-					&t[0], &t[1]);
-	OUT_VERTEX_F(t[0] * channel->scale[0]);
-	OUT_VERTEX_F(t[1] * channel->scale[1]);
-}
-
 /* SSE4_2 */
 #if defined(sse4_2)
 
@@ -1548,7 +1533,7 @@ unsigned gen4_choose_composite_emitter(struct sna *sna, struct sna_composite_op 
 	return vb;
 }
 
-inline static void
+sse2 force_inline static void
 emit_span_vertex(struct sna *sna,
 		  const struct sna_composite_spans_op *op,
 		  int16_t x, int16_t y)
