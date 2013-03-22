@@ -25,10 +25,50 @@
 
 #include <ubuntu/ui/session_service.h>
 
+#include <utils/Log.h>
+
 // C apis
 #include <ubuntu/application/ui/ubuntu_application_ui.h>
 
 // C-API implementation
+namespace
+{
+struct SessionLifeCycleDelegates : public ubuntu::application::ui::SessionLifeCycleDelegates
+{
+    SessionLifeCycleDelegates(ubuntu_application_ui_lifecycle_delegates* delegates) : delegates(delegates)
+    {
+    }
+
+    void on_application_started()
+    {
+        if (!delegates)
+            return;
+
+        if (!delegates->on_application_started)
+            return;
+
+        ALOGI("%s() delegates CALLING on_application_started context=%p", delegates->context);
+        delegates->on_application_started(NULL, NULL, delegates->context);
+    }
+
+    void on_application_about_to_stop()
+    {
+        ALOGI("%s() default delegates ", __PRETTY_FUNCTION__);
+        if (!delegates)
+            return;
+
+        ALOGI("%s() valid delegates ", __PRETTY_FUNCTION__);
+        if (!delegates->on_application_about_to_stop)
+            return;
+
+        delegates->on_application_about_to_stop(NULL, delegates->context);
+    }
+
+    ubuntu_application_ui_lifecycle_delegates* delegates;
+};
+
+}
+
 namespace
 {
 ubuntu::application::ui::Session::Ptr session;
@@ -96,6 +136,15 @@ ubuntu_application_ui_start_a_new_session(SessionCredentials* creds)
 
     ubuntu::application::ui::SessionCredentials sc(creds);
     session = ubuntu::ui::SessionService::instance()->start_a_new_session(sc);
+}
+
+void
+ubuntu_application_ui_install_lifecycle_delegates(ubuntu_application_ui_lifecycle_delegates* delegates)
+{
+    ALOGI("%s(): Installing lifecycle delegates", __PRETTY_FUNCTION__);
+        
+    ubuntu::application::ui::SessionLifeCycleDelegates::Ptr p(new SessionLifeCycleDelegates(delegates));
+    session->install_lifecycle_delegates(p);
 }
 
 void

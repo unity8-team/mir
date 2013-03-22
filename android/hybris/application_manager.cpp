@@ -173,6 +173,17 @@ status_t BnApplicationManagerSession::onTransact(uint32_t code,
         reply->writeInt32(props.right);
         reply->writeInt32(props.bottom);
     }
+    break;
+    case ON_APPLICATION_STARTED_NOTIFICATION:
+    {
+        on_application_started();
+    }
+    break;
+    case ON_APPLICATION_ABOUT_TO_STOP_NOTIFICATION:
+    {
+        on_application_about_to_stop();
+    }
+    break;
     }
     return NO_ERROR;
 }
@@ -228,6 +239,28 @@ IApplicationManagerSession::SurfaceProperties BpApplicationManagerSession::query
     props.bottom = out.readInt32();
 
     return props;
+}
+
+void BpApplicationManagerSession::on_application_started()
+{
+    Parcel in, out;
+
+    remote()->transact(
+        ON_APPLICATION_STARTED_NOTIFICATION,
+        in,
+        &out,
+        android::IBinder::FLAG_ONEWAY);
+}
+
+void BpApplicationManagerSession::on_application_about_to_stop()
+{
+    Parcel in, out;
+
+    remote()->transact(
+        ON_APPLICATION_ABOUT_TO_STOP_NOTIFICATION,
+        in,
+        &out,
+        android::IBinder::FLAG_ONEWAY);
 }
 
 status_t BnApplicationManagerObserver::onTransact(uint32_t code,

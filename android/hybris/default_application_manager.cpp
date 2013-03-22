@@ -85,7 +85,7 @@ pid_t pid_to_vpid(int pid)
 
     if (rpid == NULL)
     {
-        ALOGI("%s(): Vpid not supported\n");
+        ALOGI("%s(): Vpid not supported\n", __PRETTY_FUNCTION__);
         return pid;    
     }
    
@@ -678,7 +678,7 @@ void ApplicationManager::unfocus_running_sessions()
                 apps.valueFor(apps_as_added[focused_application]);
         
         if (session->session_type != ubuntu::application::ui::system_session_type)
-        {            
+        {          
             notify_observers_about_session_unfocused(session->remote_pid,
                                                      session->stage_hint,
                                                      session->desktop_file);

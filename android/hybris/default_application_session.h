@@ -222,12 +222,23 @@ struct ApplicationSession : public android::RefBase
         registered_surfaces.add(surface->token, surface);
     }
 
+    void on_application_started()
+    {
+        remote_session->on_application_started();
+    }
+
+    void on_application_about_to_stop()
+    {
+        remote_session->on_application_about_to_stop();
+    }
+
     pid_t pid;
     pid_t remote_pid;
     int32_t running_state;
     int32_t app_layer;
 
     android::sp<android::IApplicationManagerSession> remote_session;
+
     ubuntu::application::ui::SessionType session_type;
     int32_t stage_hint;
     android::String8 app_name;

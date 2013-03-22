@@ -41,7 +41,9 @@ enum SessionType
 enum RunningState
 {
     process_stopped = PROCESS_STOPPED,
-    process_running = PROCESS_RUNNING
+    process_running = PROCESS_RUNNING,
+    process_suspended = PROCESS_SUSPENDED,
+    process_destroyed = PROCESS_DESTROYED
 };
 
 /**

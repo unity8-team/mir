@@ -134,16 +134,6 @@ extern "C" {
         /** The name of the application */
         char application_name[MAX_APPLICATION_NAME_LENGTH]; 
 
-        // Lifecycle callbacks
-        /** If set: called when the application is resumed. */
-        on_application_resumed on_application_resumed_cb; 
-        /** If set: called when the application is suspended. */
-        on_application_suspended on_application_suspended_cb; 
-        /** If set: called when the application is gaining focus. */
-        on_application_focused on_application_focused_cb;
-        /** If set: called when the application loses focus. */
-        on_application_unfocused on_application_unfocused_cb; 
-        /** Cookie that is passed to the callback functions. */
         void* context; 
     } SessionCredentials;
 
@@ -152,6 +142,20 @@ extern "C" {
     typedef void* ubuntu_application_ui_physical_display_info;
     typedef void* ubuntu_application_ui_session;
     typedef void* ubuntu_application_ui_surface;
+
+    typedef const void* u_application_archive;
+    typedef const void* u_application_options;
+
+    typedef void (*application_started_cb)(u_application_archive archive, u_application_options options, void* context);
+    typedef void (*application_about_to_stop_cb)(u_application_archive archive, void* context);
+
+    typedef struct
+    {
+        application_started_cb on_application_started;
+        application_about_to_stop_cb on_application_about_to_stop;
+
+        void *context;
+    } ubuntu_application_ui_lifecycle_delegates;
 
     /** Initializes the Ubuntu Platform API. Has to be called before any other function is called.
      * \ingroup ui_access
@@ -184,6 +188,15 @@ extern "C" {
      */
     void
     ubuntu_application_ui_start_a_new_session(SessionCredentials* creds);
+
+    /**
+     * Installs the application lifecycle delegates
+     * \ingroup ui_access
+     * \attention Needs an existing session.
+     * \ingroup require_session_functions
+     */
+    void 
+    ubuntu_application_ui_install_lifecycle_delegates(ubuntu_application_ui_lifecycle_delegates* delegates);
 
     /** 
      * Sets the clipboard content.
