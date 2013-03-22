@@ -192,6 +192,78 @@ static void gem_close(int fd, uint32_t handle)
 	(void)drmIoctl(fd, DRM_IOCTL_GEM_CLOSE, &close);
 }
 
+#ifdef __OpenBSD__
+
+#include <dev/wscons/wsconsio.h>
+#include <xf86Priv.h>
+
+static void
+sna_output_backlight_set(xf86OutputPtr output, int level)
+{
+	struct sna_output *sna_output = output->driver_private;
+	struct wsdisplay_param param;
+
+	DBG(("%s: level=%d, max=%d\n", __FUNCTION__,
+	     level, sna_output->backlight_max));
+
+	if (!sna_output->backlight_iface)
+		return;
+
+	if ((unsigned)level > sna_output->backlight_max)
+		level = sna_output->backlight_max;
+
+	VG_CLEAR(param);
+	param.param = WSDISPLAYIO_PARAM_BRIGHTNESS;
+	param.curval = level;
+
+	if (ioctl(xf86Info.consoleFd, WSDISPLAYIO_SETPARAM, &param) == -1) {
+		xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
+			   "Failed to set backlight level: %s\n",
+			   strerror(errno));
+	}
+}
+
+static int
+sna_output_backlight_get(xf86OutputPtr output)
+{
+	struct wsdisplay_param param;
+
+	VG_CLEAR(param);
+	param.param = WSDISPLAYIO_PARAM_BRIGHTNESS;
+
+	if (ioctl(xf86Info.consoleFd, WSDISPLAYIO_GETPARAM, &param) == -1) {
+		xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
+			   "Failed to get backlight level: %s\n",
+			   strerror(errno));
+		return -1;
+	}
+
+	DBG(("%s: level=%d (max=%d)\n", __FUNCTION__, param.curval, param.max));
+
+	return param.curval;
+}
+
+static void
+sna_output_backlight_init(xf86OutputPtr output)
+{
+	struct sna_output *sna_output = output->driver_private;
+	struct wsdisplay_param param;
+
+	VG_CLEAR(param);
+	param.param = WSDISPLAYIO_PARAM_BRIGHTNESS;
+
+	if (ioctl(xf86Info.consoleFd, WSDISPLAYIO_GETPARAM, &param) == -1)
+		return;
+
+	DBG(("%s: found 'wscons'\n", __FUNCTION__));
+
+	intel_output->backlight_iface = "wscons";
+	intel_output->backlight_max = param.max;
+	intel_output->backlight_active_level = param.curval;
+}
+
+#else
+
 static void
 sna_output_backlight_set(xf86OutputPtr output, int level)
 {
@@ -532,6 +604,7 @@ done:
 		   "found backlight control interface %s (type '%s')\n",
 		   sna_output->backlight_iface, best_iface);
 }
+#endif
 
 static void
 mode_from_kmode(ScrnInfoPtr scrn,
