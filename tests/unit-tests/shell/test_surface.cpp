@@ -354,4 +354,9 @@ TEST_F(ShellSurface, types)
               surf.configure(mir_surface_attrib_type,
                              mir_surface_type_freestyle));
     EXPECT_EQ(mir_surface_type_freestyle, surf.type());
+
+    EXPECT_EQ(mir_surface_type_edge,
+              surf.configure(mir_surface_attrib_type,
+                             mir_surface_type_edge));
+    EXPECT_EQ(mir_surface_type_edge, surf.type());
 }

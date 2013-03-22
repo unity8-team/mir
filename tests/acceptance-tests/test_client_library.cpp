@@ -255,6 +255,11 @@ TEST_F(DefaultDisplayServerTestFixture, surface_types)
             EXPECT_EQ(mir_surface_type_dialog,
                       mir_surface_get_type(surface));
 
+            mir_wait_for(mir_surface_set_type(surface,
+                                              mir_surface_type_edge));
+            EXPECT_EQ(mir_surface_type_edge,
+                      mir_surface_get_type(surface));
+
             // Stress-test synchronization logic with some flooding
             for (int i = 0; i < 100; i++)
             {
