@@ -10659,10 +10659,11 @@ sna_poly_fill_rect_stippled_1_blt(DrawablePtr drawable,
 	int16_t dx, dy;
 	uint32_t br00, br13;
 
-	DBG(("%s: upload (%d, %d), (%d, %d), origin (%d, %d)\n", __FUNCTION__,
+	DBG(("%s: upload (%d, %d), (%d, %d), origin (%d, %d), clipped=%x\n", __FUNCTION__,
 	     extents->x1, extents->y1,
 	     extents->x2, extents->y2,
-	     origin->x, origin->y));
+	     origin->x, origin->y,
+	     clipped));
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
 	kgem_set_mode(&sna->kgem, KGEM_BLT, bo);
@@ -10823,9 +10824,9 @@ sna_poly_fill_rect_stippled_1_blt(DrawablePtr drawable,
 				void *ptr;
 
 				box.x1 = r->x + drawable->x;
-				box.x2 = bound(r->x, r->width);
+				box.x2 = bound(box.x1, r->width);
 				box.y1 = r->y + drawable->y;
-				box.y2 = bound(r->y, r->height);
+				box.y2 = bound(box.y1, r->height);
 				r++;
 
 				if (!box_intersect(&box, &clip.extents))
@@ -10957,9 +10958,9 @@ sna_poly_fill_rect_stippled_1_blt(DrawablePtr drawable,
 				void *ptr;
 
 				unclipped.x1 = r->x + drawable->x;
-				unclipped.x2 = bound(r->x, r->width);
+				unclipped.x2 = bound(unclipped.x2, r->width);
 				unclipped.y1 = r->y + drawable->y;
-				unclipped.y2 = bound(r->y, r->height);
+				unclipped.y2 = bound(unclipped.y2, r->height);
 				r++;
 
 				c = find_clip_box_for_y(clip_start,
@@ -11859,7 +11860,7 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 	if (gc->fillStyle == FillTiled) {
 		if (!gc->tileIsPixel && sna_pixmap_is_gpu(gc->tile.pixmap)) {
 			DBG(("%s: source is already on the gpu\n", __FUNCTION__));
-			hint |= PREFER_GPU | FORCE_GPU;
+			hint |= FORCE_GPU;
 		}
 	}
 
