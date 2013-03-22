@@ -26,6 +26,9 @@
 
 #include "radeon.h"
 
+#ifdef RADEON_PIXMAP_SHARING
+#include "radeon_bo_gem.h"
+#endif
 
 static const unsigned MicroBlockTable[5][3][2] = {
     /*linear  tiled   square-tiled */
@@ -181,3 +184,66 @@ radeon_alloc_pixmap_bo(ScrnInfoPtr pScrn, int width, int height, int depth,
     *new_pitch = pitch;
     return bo;
 }
+
+#ifdef RADEON_PIXMAP_SHARING
+
+Bool radeon_share_pixmap_backing(struct radeon_bo *bo, void **handle_p)
+{
+    int handle;
+
+    if (radeon_gem_prime_share_bo(bo, &handle) != 0)
+	return FALSE;
+
+    *handle_p = (void *)(long)handle;
+    return TRUE;
+}
+
+Bool radeon_set_shared_pixmap_backing(PixmapPtr ppix, void *fd_handle,
+				      struct radeon_surface *surface)
+{
+    ScrnInfoPtr pScrn = xf86ScreenToScrn(ppix->drawable.pScreen);
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    struct radeon_bo *bo;
+    int ihandle = (int)(long)fd_handle;
+    uint32_t size = ppix->devKind * ppix->drawable.height;
+
+    bo = radeon_gem_bo_open_prime(info->bufmgr, ihandle, size);
+    if (!bo)
+        return FALSE;
+
+    memset(surface, 0, sizeof(struct radeon_surface));
+
+    if (info->ChipFamily >= CHIP_FAMILY_R600 && info->surf_man) {
+
+	surface->npix_x = ppix->drawable.width;
+	surface->npix_y = ppix->drawable.height;
+	surface->npix_z = 1;
+	surface->blk_w = 1;
+	surface->blk_h = 1;
+	surface->blk_d = 1;
+	surface->array_size = 1;
+	surface->bpe = ppix->drawable.bitsPerPixel / 8;
+	surface->nsamples = 1;
+	surface->flags |= RADEON_SURF_SET(RADEON_SURF_TYPE_2D, TYPE);
+	surface->flags |= RADEON_SURF_SET(RADEON_SURF_MODE_LINEAR, MODE);
+	if (radeon_surface_best(info->surf_man, surface)) {
+	    return FALSE;
+	}
+	if (radeon_surface_init(info->surf_man, surface)) {
+	    return FALSE;
+	}
+	/* we have to post hack the surface to reflect the actual size
+	   of the shared pixmap */
+	surface->level[0].pitch_bytes = ppix->devKind;
+	surface->level[0].nblk_x = ppix->devKind / surface->bpe;
+    }
+    radeon_set_pixmap_bo(ppix, bo);
+
+    close(ihandle);
+    /* we have a reference from the alloc and one from set pixmap bo,
+       drop one */
+    radeon_bo_unref(bo);
+    return TRUE;
+}
+
+#endif /* RADEON_PIXMAP_SHARING */
