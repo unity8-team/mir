@@ -14377,6 +14377,7 @@ void sna_accel_close(struct sna *sna)
 	}
 
 	DeleteCallback(&FlushCallback, sna_accel_flush_callback, sna);
+	RemoveGeneralSocket(sna->kgem.fd);
 
 	kgem_cleanup_cache(&sna->kgem);
 }

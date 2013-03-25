@@ -1911,6 +1911,10 @@ intel_mode_close(intel_screen_private *intel)
 
 	while (has_pending_events(mode->fd))
 		drmHandleEvent(mode->fd, &mode->event_context);
+
+	RemoveBlockAndWakeupHandlers((BlockHandlerProcPtr)NoopDDA,
+				     drm_wakeup_handler, mode);
+	RemoveGeneralSocket(mode->fd);
 }
 
 void
