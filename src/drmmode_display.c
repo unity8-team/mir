@@ -627,6 +627,9 @@ drmmode_output_detect(xf86OutputPtr output)
 	drmmode_output->mode_output =
 		drmModeGetConnector(drmmode->fd, drmmode_output->output_id);
 
+	if (!drmmode_output->mode_output)
+		return XF86OutputStatusDisconnected;
+
 	switch (drmmode_output->mode_output->connection) {
 	case DRM_MODE_CONNECTED:
 		status = XF86OutputStatusConnected;
@@ -662,6 +665,9 @@ drmmode_output_get_modes(xf86OutputPtr output)
 	DisplayModePtr Modes = NULL, Mode;
 	drmModePropertyPtr props;
 	xf86MonPtr ddc_mon = NULL;
+
+	if (!koutput)
+		return NULL;
 
 	/* look for an EDID property */
 	for (i = 0; i < koutput->count_props; i++) {
@@ -926,6 +932,9 @@ drmmode_output_get_property(xf86OutputPtr output, Atom property)
 		drmmode_output->mode_output =
 			drmModeGetConnector(drmmode->fd, drmmode_output->output_id);
 	}
+
+	if (!drmmode_output->mode_output)
+		return FALSE;
 
 	for (i = 0; i < drmmode_output->num_props; i++) {
 		drmmode_prop_ptr p = &drmmode_output->props[i];
@@ -1437,6 +1446,7 @@ drmmode_uevent_fini(ScrnInfoPtr scrn)
 	if (drmmode->uevent_monitor) {
 		struct udev *u = udev_monitor_get_udev(drmmode->uevent_monitor);
 
+		RemoveGeneralSocket(udev_monitor_get_fd(drmmode->uevent_monitor));
 		udev_monitor_unref(drmmode->uevent_monitor);
 		udev_unref(u);
 	}
@@ -1524,6 +1534,12 @@ void
 drmmode_screen_fini(ScreenPtr pScreen)
 {
 	ScrnInfoPtr scrn = xf86ScreenToScrn(pScreen);
+	drmmode_ptr drmmode = drmmode_from_scrn(scrn);
 
 	drmmode_uevent_fini(scrn);
+
+	/* Register a wakeup handler to get informed on DRM events */
+	RemoveBlockAndWakeupHandlers((BlockHandlerProcPtr)NoopDDA,
+				     drmmode_wakeup_handler, scrn);
+	RemoveGeneralSocket(drmmode->fd);
 }

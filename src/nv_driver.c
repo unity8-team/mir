@@ -432,8 +432,8 @@ NVLeaveVT(VT_FUNC_ARGS_DECL)
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NVLeaveVT is called.\n");
 
 	ret = drmDropMaster(pNv->dev->fd);
-	if (ret)
-		ErrorF("Error dropping master: %d\n", ret);
+	if (ret && errno != EIO && errno != ENODEV)
+		ErrorF("Error dropping master: %i(%m)\n", -errno);
 }
 
 static void
@@ -624,8 +624,9 @@ NVCloseDRM(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
 
-	nouveau_device_del(&pNv->dev);
 	drmFree(pNv->drm_device_name);
+	nouveau_client_del(&pNv->client);
+	nouveau_device_del(&pNv->dev);
 }
 
 static Bool
