@@ -254,6 +254,8 @@ Chooses between available acceleration architectures.  Valid values are
 and
 .B glamor.
 The default is
+.B glamor
+as of TAHITI, otherwise
 .B EXA.
 
 .PP

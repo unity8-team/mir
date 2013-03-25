@@ -87,10 +87,10 @@ radeon_glamor_pre_init(ScrnInfoPtr scrn)
 		return FALSE;
 
 	s = xf86GetOptValString(info->Options, OPTION_ACCELMETHOD);
-	if (s == NULL)
+	if (s == NULL && info->ChipFamily < CHIP_FAMILY_TAHITI)
 		return FALSE;
 
-	if (strcasecmp(s, "glamor") != 0)
+	if (s && strcasecmp(s, "glamor") != 0)
 		return FALSE;
 
 	if (!xf86LoaderCheckSymbol("glamor_egl_init")) {
