@@ -39,11 +39,17 @@
 #define bit_AVX2 (1<<5)
 #endif
 
+#define xgetbv(index,eax,edx)                                   \
+	__asm__ ("xgetbv" : "=a"(eax), "=d"(edx) : "c" (index))
+
+#define has_YMM 0x1
+
 unsigned sna_cpu_detect(void)
 {
 	unsigned max = __get_cpuid_max(false, 0);
 	unsigned int eax, ebx, ecx, edx;
 	unsigned features = 0;
+	unsigned extra = 0;
 
 	if (max >= 1) {
 		__cpuid(1, eax, ebx, ecx, edx);
@@ -59,7 +65,14 @@ unsigned sna_cpu_detect(void)
 		if (ecx & bit_SSE4_2)
 			features |= SSE4_2;
 
-		if (ecx & bit_AVX)
+		if (ecx & bit_OSXSAVE) {
+			unsigned int bv_eax, bv_ecx;
+			xgetbv(0, bv_eax, bv_ecx);
+			if ((bv_eax & 6) == 6)
+				extra |= has_YMM;
+		}
+
+		if (extra & has_YMM && ecx & bit_AVX)
 			features |= AVX;
 
 		if (edx & bit_MMX)
@@ -74,7 +87,7 @@ unsigned sna_cpu_detect(void)
 
 	if (max >= 7) {
 		__cpuid_count(7, 0, eax, ebx, ecx, edx);
-		if (ebx & bit_AVX2)
+		if (extra & has_YMM && ebx & bit_AVX2)
 			features |= AVX2;
 	}
 
