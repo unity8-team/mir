@@ -41,10 +41,12 @@
 
 unsigned sna_cpu_detect(void)
 {
+	unsigned max = __get_cpuid_max(false, 0);
 	unsigned int eax, ebx, ecx, edx;
 	unsigned features = 0;
 
-	if (__get_cpuid(1, &eax, &ebx, &ecx, &edx)) {
+	if (max >= 1) {
+		__cpuid(1, eax, ebx, ecx, edx);
 		if (ecx & bit_SSE3)
 			features |= SSE3;
 
@@ -70,7 +72,8 @@ unsigned sna_cpu_detect(void)
 			features |= SSE2;
 	}
 
-	if (__get_cpuid(7, &eax, &ebx, &ecx, &edx)) {
+	if (max >= 7) {
+		__cpuid_count(7, 0, eax, ebx, ecx, edx);
 		if (ebx & bit_AVX2)
 			features |= AVX2;
 	}
