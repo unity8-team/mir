@@ -71,7 +71,7 @@ unsigned sna_cpu_detect(void)
 	}
 
 	if (__get_cpuid(7, &eax, &ebx, &ecx, &edx)) {
-		if (eax & bit_AVX2)
+		if (ebx & bit_AVX2)
 			features |= AVX2;
 	}
 
