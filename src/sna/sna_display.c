@@ -257,9 +257,9 @@ sna_output_backlight_init(xf86OutputPtr output)
 
 	DBG(("%s: found 'wscons'\n", __FUNCTION__));
 
-	intel_output->backlight_iface = "wscons";
-	intel_output->backlight_max = param.max;
-	intel_output->backlight_active_level = param.curval;
+	sna_output->backlight_iface = "wscons";
+	sna_output->backlight_max = param.max;
+	sna_output->backlight_active_level = param.curval;
 }
 
 #else
