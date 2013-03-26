@@ -2622,18 +2622,11 @@ void _kgem_submit(struct kgem *kgem)
 			struct drm_i915_gem_execbuffer2 execbuf;
 			int ret, retry = 3;
 
-			VG_CLEAR(execbuf);
+			memset(&execbuf, 0, sizeof(execbuf));
 			execbuf.buffers_ptr = (uintptr_t)kgem->exec;
 			execbuf.buffer_count = kgem->nexec;
-			execbuf.batch_start_offset = 0;
 			execbuf.batch_len = batch_end*sizeof(uint32_t);
-			execbuf.cliprects_ptr = 0;
-			execbuf.num_cliprects = 0;
-			execbuf.DR1 = 0;
-			execbuf.DR4 = 0;
 			execbuf.flags = kgem->ring | kgem->batch_flags;
-			execbuf.rsvd1 = 0;
-			execbuf.rsvd2 = 0;
 
 			if (DBG_DUMP) {
 				int fd = open("/tmp/i915-batchbuffers.dump",
