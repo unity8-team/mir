@@ -72,7 +72,7 @@ unsigned sna_cpu_detect(void)
 				extra |= has_YMM;
 		}
 
-		if (extra & has_YMM && ecx & bit_AVX)
+		if ((extra & has_YMM) && (ecx & bit_AVX))
 			features |= AVX;
 
 		if (edx & bit_MMX)
@@ -87,7 +87,7 @@ unsigned sna_cpu_detect(void)
 
 	if (max >= 7) {
 		__cpuid_count(7, 0, eax, ebx, ecx, edx);
-		if (extra & has_YMM && ebx & bit_AVX2)
+		if ((extra & has_YMM) && (ebx & bit_AVX2))
 			features |= AVX2;
 	}
 
