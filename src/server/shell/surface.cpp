@@ -165,7 +165,10 @@ int msh::Surface::configure(MirSurfaceAttrib attrib, int value)
     switch (attrib)
     {
     case mir_surface_attrib_type:
-        if (!set_type(static_cast<MirSurfaceType>(value)))
+        if (value == mir_surface_type_edge)
+            BOOST_THROW_EXCEPTION(std::logic_error("Attempt to set a private "
+                                                   "surface type."));
+        else if (!set_type(static_cast<MirSurfaceType>(value)))
             BOOST_THROW_EXCEPTION(std::logic_error("Invalid surface "
                                                    "type."));
         result = type();

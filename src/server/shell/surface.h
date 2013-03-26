@@ -77,9 +77,10 @@ public:
     virtual int configure(MirSurfaceAttrib attrib, int value);
     virtual MirSurfaceType type() const;
 
-private:
+protected:
     bool set_type(MirSurfaceType t);  // Use configure() to make public changes
 
+private:
     std::shared_ptr<SurfaceBuilder> const builder;
     std::shared_ptr<mir::input::InputChannel> const input_channel;
     std::weak_ptr<mir::surfaces::Surface> const surface;
