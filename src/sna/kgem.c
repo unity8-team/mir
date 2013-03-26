@@ -647,6 +647,10 @@ total_ram_size(void)
 		return info.totalram * info.mem_unit;
 #endif
 
+#ifdef _SC_PHYS_PAGES
+	 return sysconf(_SC_PHYS_PAGES) * sysconf(_SC_PAGE_SIZE);
+#endif
+
 	return 0;
 }
 
