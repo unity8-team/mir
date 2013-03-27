@@ -3794,7 +3794,7 @@ bool gen7_render_init(struct sna *sna)
 #if !NO_COMPOSITE_SPANS
 	sna->render.check_composite_spans = gen7_check_composite_spans;
 	sna->render.composite_spans = gen7_render_composite_spans;
-	if (is_mobile(sna))
+	if (is_mobile(sna) || is_gt2(sna))
 		sna->render.prefer_gpu |= PREFER_GPU_SPANS;
 #endif
 	sna->render.video = gen7_render_video;
