@@ -93,6 +93,12 @@ radeon_glamor_pre_init(ScrnInfoPtr scrn)
 	if (s && strcasecmp(s, "glamor") != 0)
 		return FALSE;
 
+	if (scrn->depth < 24) {
+		xf86DrvMsg(scrn->scrnIndex, s ? X_ERROR : X_WARNING,
+			   "glamor requires depth >= 24, disabling.\n");
+		return FALSE;
+	}
+
 	if (!xf86LoaderCheckSymbol("glamor_egl_init")) {
 		xf86DrvMsg(scrn->scrnIndex, s ? X_ERROR : X_WARNING,
 			   "glamor requires Load \"glamoregl\" in "
