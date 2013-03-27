@@ -502,7 +502,7 @@ gen4_bind_bo(struct sna *sna,
 	assert(sna->kgem.gen != 040 || !kgem_bo_is_snoop(bo));
 
 	/* After the first bind, we manage the cache domains within the batch */
-	offset = kgem_bo_get_binding(bo, format);
+	offset = kgem_bo_get_binding(bo, format | is_dst << 31);
 	if (offset) {
 		if (is_dst)
 			kgem_bo_mark_dirty(bo);
@@ -517,9 +517,10 @@ gen4_bind_bo(struct sna *sna,
 		 GEN4_SURFACE_BLEND_ENABLED |
 		 format << GEN4_SURFACE_FORMAT_SHIFT);
 
-	if (is_dst)
+	if (is_dst) {
+		ss[0] |= GEN4_SURFACE_RC_READ_WRITE;
 		domains = I915_GEM_DOMAIN_RENDER << 16 | I915_GEM_DOMAIN_RENDER;
-	else
+	} else
 		domains = I915_GEM_DOMAIN_SAMPLER << 16;
 	ss[1] = kgem_add_reloc(&sna->kgem, offset + 1, bo, domains, 0);
 
@@ -530,7 +531,7 @@ gen4_bind_bo(struct sna *sna,
 	ss[4] = 0;
 	ss[5] = 0;
 
-	kgem_bo_set_binding(bo, format, offset);
+	kgem_bo_set_binding(bo, format | is_dst << 31, offset);
 
 	DBG(("[%x] bind bo(handle=%d, addr=%d), format=%d, width=%d, height=%d, pitch=%d, tiling=%d -> %s\n",
 	     offset, bo->handle, ss[1],
