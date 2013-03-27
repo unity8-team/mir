@@ -3706,6 +3706,8 @@ static bool gen7_render_setup(struct sna *sna)
 			if (is_gt2(sna))
 				state->info = &ivb_gt2_info; /* XXX requires GT_MODE WiZ disabled */
 		}
+	} else if (sna->kgem.gen == 071) {
+		state->info = &ivb_gt_info;
 	} else if (sna->kgem.gen == 075) {
 		state->info = &hsw_gt_info;
 		if (DEVICE_ID(sna->PciInfo) & 0xf) {
