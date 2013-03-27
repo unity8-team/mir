@@ -50,7 +50,7 @@ struct FilterForVisibleRenderablesInRegion : public mc::FilterForRenderables
         : enclosing_region(enclosing_region)
     {
     }
-    bool operator()(mg::Renderable& renderable)
+    bool operator()(mg::Renderable const& renderable)
     {
         // TODO check against enclosing_region
         return !renderable.hidden();
@@ -63,6 +63,7 @@ struct FilterForVisibleRenderablesInRegion : public mc::FilterForRenderables
 
 void mc::DefaultCompositingStrategy::render(graphics::DisplayBuffer& display_buffer)
 {
+printf("RENDER!\n");
     RenderingOperator applicator(*renderer);
     FilterForVisibleRenderablesInRegion selector(display_buffer.view_area());
 

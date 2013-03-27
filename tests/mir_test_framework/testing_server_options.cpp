@@ -110,7 +110,7 @@ class StubGraphicPlatform : public mg::Platform
 class StubRenderer : public mg::Renderer
 {
 public:
-    virtual void render(std::function<void(std::shared_ptr<void> const&)>, mg::Renderable& r)
+    virtual void render(std::function<void(std::shared_ptr<void> const&)>, mg::Renderable const& r)
     {
         // Need to acquire the texture to cycle buffers
         r.graphic_region();

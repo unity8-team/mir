@@ -43,7 +43,7 @@ public:
     {
 
     }
-    void render(std::function<void(std::shared_ptr<void> const&)> save_resource, mg::Renderable&)
+    void render(std::function<void(std::shared_ptr<void> const&)> save_resource, mg::Renderable const&)
     {
         std::shared_ptr<void> tmp;
         switch(counter++)

@@ -25,7 +25,7 @@ mc::RenderingOperator::RenderingOperator(graphics::Renderer& renderer)
 {
 }
 
-void mc::RenderingOperator::operator()(graphics::Renderable& renderable)
+void mc::RenderingOperator::operator()(graphics::Renderable const& renderable)
 {
     renderer.render(
         [&](std::shared_ptr<void> const& r) { resources.push_back(r); },

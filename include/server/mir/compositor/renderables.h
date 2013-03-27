@@ -38,7 +38,7 @@ class FilterForRenderables
 public:
     virtual ~FilterForRenderables() {}
 
-    virtual bool operator()(graphics::Renderable& renderable) = 0;
+    virtual bool operator()(graphics::Renderable const& renderable) = 0;
 
 protected:
     FilterForRenderables() = default;
@@ -51,7 +51,7 @@ class OperatorForRenderables
 public:
     virtual ~OperatorForRenderables() {}
 
-    virtual void operator()(graphics::Renderable& renderable) = 0;
+    virtual void operator()(graphics::Renderable const& renderable) = 0;
 
 protected:
     OperatorForRenderables() = default;

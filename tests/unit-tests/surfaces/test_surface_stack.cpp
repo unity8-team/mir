@@ -82,8 +82,8 @@ struct MockBufferBundleFactory : public ms::BufferBundleFactory
 struct MockFilterForRenderables : public mc::FilterForRenderables
 {
     // Can not mock operator overload so need to forward
-    MOCK_METHOD1(filter, bool(mg::Renderable&));
-    bool operator()(mg::Renderable& r)
+    MOCK_METHOD1(filter, bool(mg::Renderable const&));
+    bool operator()(mg::Renderable const& r)
     {
         return filter(r);
     }
@@ -96,8 +96,8 @@ struct MockOperatorForRenderables : public mc::OperatorForRenderables
     {
     }
 
-    MOCK_METHOD1(renderable_operator, void(mg::Renderable&));
-    void operator()(mg::Renderable& r)
+    MOCK_METHOD1(renderable_operator, void(mg::Renderable const&));
+    void operator()(mg::Renderable const& r)
     {
         // We just use this for expectations
         renderable_operator(r);

@@ -216,7 +216,7 @@ mg::GLRenderer::GLRenderer(const geom::Size& display_size)
     resources.setup(display_size);
 }
 
-void mg::GLRenderer::render(std::function<void(std::shared_ptr<void> const&)> save_resource, Renderable& renderable)
+void mg::GLRenderer::render(std::function<void(std::shared_ptr<void> const&)> save_resource, Renderable const& renderable)
 {
     const geom::Point top_left = renderable.top_left();
     const geom::Size size = renderable.size();

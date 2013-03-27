@@ -34,7 +34,7 @@ class RenderingOperator : public OperatorForRenderables
 public:
     explicit RenderingOperator(graphics::Renderer& renderer);
 
-    void operator()(graphics::Renderable& renderable);
+    void operator()(graphics::Renderable const& renderable);
 
 private:
     graphics::Renderer& renderer;
