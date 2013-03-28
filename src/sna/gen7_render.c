@@ -3687,7 +3687,7 @@ static void gen7_render_fini(struct sna *sna)
 
 static bool is_gt2(struct sna *sna)
 {
-	return DEVICE_ID(sna->PciInfo) & 0x30;
+	return DEVICE_ID(sna->PciInfo) & (sna->kgem.gen == 075 ? 0x30 : 0x20);
 }
 
 static bool is_mobile(struct sna *sna)
