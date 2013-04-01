@@ -1732,6 +1732,23 @@ search_snoop_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags)
 	return NULL;
 }
 
+void kgem_bo_undo(struct kgem *kgem, struct kgem_bo *bo)
+{
+	if (kgem->nexec != 1 || bo->exec == NULL)
+		return;
+
+	DBG(("%s: only handle in batch, discarding last operations\n",
+	     __FUNCTION__));
+
+	assert(bo->exec == &kgem->exec[0]);
+	assert(kgem->exec[0].handle == bo->handle);
+	assert(RQ(bo->rq) == kgem->next_request);
+
+	bo->refcnt++;
+	kgem_reset(kgem);
+	bo->refcnt--;
+}
+
 static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 {
 	DBG(("%s: handle=%d\n", __FUNCTION__, bo->handle));
@@ -1782,16 +1799,8 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 	assert(bo->io == false);
 	assert(bo->scanout == false);
 
-	if (bo->exec && kgem->nexec == 1) {
-		DBG(("%s: only handle in batch, discarding last operations\n",
-		     __FUNCTION__));
-		assert(bo->exec == &kgem->exec[0]);
-		assert(kgem->exec[0].handle == bo->handle);
-		assert(RQ(bo->rq) == kgem->next_request);
-		bo->refcnt = 1;
-		kgem_reset(kgem);
-		bo->refcnt = 0;
-	}
+	kgem_bo_undo(kgem, bo);
+	assert(bo->refcnt == 0);
 
 	if (bo->rq && bo->exec == NULL && !__kgem_busy(kgem, bo->handle))
 		__kgem_bo_clear_busy(bo);
