@@ -43,6 +43,12 @@ ubuntu_application_ui_start_a_new_session(SessionCredentials* creds)
     // TODO: Implement ~racarr
 }
 
+EGLNativeDisplayType
+ubuntu_application_ui_get_native_display()
+{
+    return (EGLNativeDisplayType)0;
+}
+
 void
 ubuntu_application_ui_set_clipboard_content(void* data, size_t size)
 {

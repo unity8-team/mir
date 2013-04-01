@@ -185,6 +185,9 @@ extern "C" {
     void
     ubuntu_application_ui_start_a_new_session(SessionCredentials* creds);
 
+    EGLNativeDisplayType
+    ubuntu_application_ui_get_native_display();
+
     /** 
      * Sets the clipboard content.
      * \ingroup ui_access 
