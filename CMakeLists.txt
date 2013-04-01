@@ -9,6 +9,14 @@ set(INSTALL_TARGETS_DEFAULT_ARGS RUNTIME DESTINATION "${BIN_INSTALL_DIR}"
                                  LIBRARY DESTINATION "${LIB_INSTALL_DIR}"
                                  ARCHIVE DESTINATION "${LIB_INSTALL_DIR}")
 
+set(
+  PLATFORM_API_IMPLEMENTATION
+  hybris
+  CACHE
+  STRING
+  "API implementation to build (options are 'hybris' or 'mirclient')"
+)
+
 include_directories(include/)
 
 add_subdirectory(src/)
