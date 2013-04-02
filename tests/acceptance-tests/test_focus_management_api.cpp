@@ -23,6 +23,7 @@
 #include "mir/frontend/shell.h"
 
 #include "mir_test_doubles/mock_display.h"
+#include "mir_test_doubles/mock_shell.h"
 #include "mir_test_framework/display_server_test_fixture.h"
 
 #include <gtest/gtest.h>
@@ -118,7 +119,7 @@ struct ClientConfigCommon : TestingClientConfiguration
     }
 };
 
-class MockShell : public frontend::Shell
+class MockShell : public mtd::MockShell
 {
 public:
     MockShell(std::shared_ptr<Shell> const& impl) :
@@ -136,15 +137,6 @@ public:
 
         ON_CALL(*this, shutdown()).WillByDefault(Invoke(impl.get(), &Shell::shutdown));
     }
-
-    MOCK_METHOD1(open_session, std::shared_ptr<mf::Session> (std::string const& name));
-    MOCK_METHOD1(close_session, void (std::shared_ptr<mf::Session> const& session));
-
-    MOCK_METHOD2(tag_session_with_lightdm_id, void (std::shared_ptr<mf::Session> const& session, int id));
-    MOCK_METHOD1(focus_session_with_lightdm_id, void (int id));
-
-    MOCK_METHOD2(create_surface_for, frontend::SurfaceId(std::shared_ptr<mf::Session> const&, mf::SurfaceCreationParameters const&));
-    MOCK_METHOD0(shutdown, void ());
 
 private:
     std::shared_ptr<frontend::Shell> const impl;
