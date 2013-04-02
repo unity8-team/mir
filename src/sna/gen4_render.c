@@ -1392,7 +1392,6 @@ gen4_render_video(struct sna *sna,
 
 		n = gen4_get_rectangles(sna, &tmp, min(nbox, 16),
 					gen4_video_bind_surfaces);
-		ErrorF("n=%d/%d\n", n, nbox);
 		assert(n);
 		nbox -= n;
 
