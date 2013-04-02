@@ -1387,37 +1387,51 @@ gen4_render_video(struct sna *sna,
 
 	box = REGION_RECTS(dstRegion);
 	nbox = REGION_NUM_RECTS(dstRegion);
-	while (nbox--) {
-		BoxRec r;
+	do {
+		int n;
 
-		r.x1 = box->x1 + pix_xoff;
-		r.x2 = box->x2 + pix_xoff;
-		r.y1 = box->y1 + pix_yoff;
-		r.y2 = box->y2 + pix_yoff;
+		n = gen4_get_rectangles(sna, &tmp, min(nbox, 16),
+					gen4_video_bind_surfaces);
+		ErrorF("n=%d/%d\n", n, nbox);
+		assert(n);
+		nbox -= n;
 
-		gen4_get_rectangles(sna, &tmp, 1, gen4_video_bind_surfaces);
+		do {
+			BoxRec r;
 
-		OUT_VERTEX(r.x2, r.y2);
-		OUT_VERTEX_F(box->x2 * src_scale_x + src_offset_x);
-		OUT_VERTEX_F(box->y2 * src_scale_y + src_offset_y);
+			r.x1 = box->x1 + pix_xoff;
+			r.x2 = box->x2 + pix_xoff;
+			r.y1 = box->y1 + pix_yoff;
+			r.y2 = box->y2 + pix_yoff;
 
-		OUT_VERTEX(r.x1, r.y2);
-		OUT_VERTEX_F(box->x1 * src_scale_x + src_offset_x);
-		OUT_VERTEX_F(box->y2 * src_scale_y + src_offset_y);
+			OUT_VERTEX(r.x2, r.y2);
+			OUT_VERTEX_F(box->x2 * src_scale_x + src_offset_x);
+			OUT_VERTEX_F(box->y2 * src_scale_y + src_offset_y);
 
-		OUT_VERTEX(r.x1, r.y1);
-		OUT_VERTEX_F(box->x1 * src_scale_x + src_offset_x);
-		OUT_VERTEX_F(box->y1 * src_scale_y + src_offset_y);
+			OUT_VERTEX(r.x1, r.y2);
+			OUT_VERTEX_F(box->x1 * src_scale_x + src_offset_x);
+			OUT_VERTEX_F(box->y2 * src_scale_y + src_offset_y);
 
-		if (!DAMAGE_IS_ALL(priv->gpu_damage)) {
-			sna_damage_add_box(&priv->gpu_damage, &r);
-			sna_damage_subtract_box(&priv->cpu_damage, &r);
-		}
-		box++;
-	}
+			OUT_VERTEX(r.x1, r.y1);
+			OUT_VERTEX_F(box->x1 * src_scale_x + src_offset_x);
+			OUT_VERTEX_F(box->y1 * src_scale_y + src_offset_y);
+
+			if (!DAMAGE_IS_ALL(priv->gpu_damage)) {
+				sna_damage_add_box(&priv->gpu_damage, &r);
+				sna_damage_subtract_box(&priv->cpu_damage, &r);
+			}
+			box++;
+		} while (--n);
+
+		gen4_vertex_flush(sna);
+		if (!nbox)
+			break;
+
+		/* VUE corruption strikes again */
+		OUT_BATCH(MI_FLUSH | MI_INHIBIT_RENDER_CACHE_FLUSH);
+	} while (1);
+
 	priv->clear = false;
-
-	gen4_vertex_flush(sna);
 	return true;
 }
 
