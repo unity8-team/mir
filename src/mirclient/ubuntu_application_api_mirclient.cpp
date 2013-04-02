@@ -58,6 +58,7 @@ ubuntu_application_ui_start_a_new_session(SessionCredentials* creds)
 EGLNativeDisplayType
 ubuntu_application_ui_get_native_display()
 {
+    // TODO: Hack to accomodate qtubuntu ~racarr
     if (!global_connection)
         global_connection = mir_connect_sync(socket_file, "test");
     return (EGLNativeDisplayType)mir_connection_get_egl_native_display(global_connection);
