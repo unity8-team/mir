@@ -1326,6 +1326,16 @@ blit_fallback:
 	return TRUE;
 }
 
+static uint64_t gettime_us(void)
+{
+	struct timespec tv;
+
+	if (clock_gettime(CLOCK_MONOTONIC, &tv))
+		return 0;
+
+	return (uint64_t)tv.tv_sec * 1000000 + tv.tv_nsec / 1000;
+}
+
 /*
  * Get current frame count and frame count timestamp, based on drawable's
  * crtc.
@@ -1339,9 +1349,9 @@ I830DRI2GetMSC(DrawablePtr draw, CARD64 *ust, CARD64 *msc)
 	drmVBlank vbl;
 	int ret, pipe = I830DRI2DrawablePipe(draw);
 
-	/* Drawable not displayed, make up a value */
+	/* Drawable not displayed, make up a *monotonic* value */
 	if (pipe == -1) {
-		*ust = 0;
+		*ust = gettime_us();
 		*msc = 0;
 		return TRUE;
 	}

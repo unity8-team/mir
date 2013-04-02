@@ -37,6 +37,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 
 #include <errno.h>
+#include <time.h>
 #include <string.h>
 
 #include "sna.h"
@@ -2216,6 +2217,16 @@ sna_dri_async_swap(ClientPtr client, DrawablePtr draw,
 }
 #endif
 
+static uint64_t gettime_us(void)
+{
+	struct timespec tv;
+
+	if (clock_gettime(CLOCK_MONOTONIC, &tv))
+		return 0;
+
+	return (uint64_t)tv.tv_sec * 1000000 + tv.tv_nsec / 1000;
+}
+
 /*
  * Get current frame count and frame count timestamp, based on drawable's
  * crtc.
@@ -2227,13 +2238,16 @@ sna_dri_get_msc(DrawablePtr draw, CARD64 *ust, CARD64 *msc)
 	drmVBlank vbl;
 	int pipe;
 
-	/* Drawable not displayed, make up a value */
-	*ust = *msc = 0;
 
 	pipe = sna_dri_get_pipe(draw);
 	DBG(("%s(pipe=%d)\n", __FUNCTION__, pipe));
-	if (pipe == -1)
+	if (pipe == -1) {
+fail:
+		/* Drawable not displayed, make up a *monotonic* value */
+		*ust = gettime_us();
+		*msc = 0;
 		return TRUE;
+	}
 
 	VG_CLEAR(vbl);
 	vbl.request.type = DRM_VBLANK_RELATIVE | pipe_select(pipe);
@@ -2246,6 +2260,7 @@ sna_dri_get_msc(DrawablePtr draw, CARD64 *ust, CARD64 *msc)
 	} else {
 		DBG(("%s: query failed on pipe %d, ret=%d\n",
 		     __FUNCTION__, pipe, errno));
+		goto fail;
 	}
 
 	return TRUE;
