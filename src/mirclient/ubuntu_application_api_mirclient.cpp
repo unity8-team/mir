@@ -24,7 +24,7 @@
 namespace
 {
     char const* const socket_file = "/tmp/mir_socket";
-    MirConnection *global_connection;
+    MirConnection *global_connection = NULL;
 }
     
 void
@@ -49,6 +49,8 @@ ubuntu_application_ui_setup_get_form_factor_hint()
 void
 ubuntu_application_ui_start_a_new_session(SessionCredentials* creds)
 {
+    if (global_connection)
+        return;
     global_connection = mir_connect_sync(socket_file, creds->application_name);
     assert(global_connection);
 }
@@ -56,7 +58,8 @@ ubuntu_application_ui_start_a_new_session(SessionCredentials* creds)
 EGLNativeDisplayType
 ubuntu_application_ui_get_native_display()
 {
-    assert(global_connection);
+    if (!global_connection)
+        global_connection = mir_connect_sync(socket_file, "test");
     return (EGLNativeDisplayType)mir_connection_get_egl_native_display(global_connection);
 }
 
