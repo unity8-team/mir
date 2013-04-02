@@ -128,7 +128,7 @@ search_snoop_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags);
 #define LOCAL_IOCTL_I915_GEM_USERPTR DRM_IOWR (DRM_COMMAND_BASE + LOCAL_I915_GEM_USERPTR, struct local_i915_gem_userptr)
 struct local_i915_gem_userptr {
 	uint64_t user_ptr;
-	uint32_t user_size;
+	uint64_t user_size;
 	uint32_t flags;
 #define I915_USERPTR_READ_ONLY (1<<0)
 #define I915_USERPTR_UNSYNCHRONIZED (1<<31)
@@ -1482,6 +1482,7 @@ static void kgem_bo_free(struct kgem *kgem, struct kgem_bo *bo)
 
 	if (IS_USER_MAP(bo->map)) {
 		assert(bo->rq == NULL);
+		assert(!__kgem_busy(kgem, bo->handle));
 		assert(MAP(bo->map) != bo || bo->io || bo->flush);
 		if (!(bo->io || bo->flush)) {
 			DBG(("%s: freeing snooped base\n", __FUNCTION__));
