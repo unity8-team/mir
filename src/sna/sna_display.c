@@ -2887,15 +2887,13 @@ static bool sna_emit_wait_for_scanline_hsw(struct sna *sna,
 	uint32_t event;
 	uint32_t *b;
 
-	if (sna->kgem.mode != KGEM_BLT)
-		return false;
-
 	b = kgem_get_batch(&sna->kgem);
 	sna->kgem.nbatch += 5;
 
 	/* The documentation says that the LOAD_SCAN_LINES command
 	 * always comes in pairs. Don't ask me why. */
 	switch (pipe) {
+	default: assert(0);
 	case 0: event = 0; break;
 	case 1: event = 1 << 19; break;
 	case 2: event = 4 << 19; break;
@@ -2904,6 +2902,7 @@ static bool sna_emit_wait_for_scanline_hsw(struct sna *sna,
 	b[3] = b[1] = (y1 << 16) | (y2-1);
 
 	switch (pipe) {
+	default: assert(0);
 	case 0: event = 0; break;
 	case 1: event = 1 << 8; break;
 	case 2: event = 1 << 14; break;
