@@ -42,7 +42,7 @@ void mt::BufferRenderTarget::make_current()
     geom::Size buf_size = buffer.size();
 
     glBindFramebuffer(GL_FRAMEBUFFER, resources.fbo);
-    glViewport(0, 0, buf_size.width.as_uint32_t(), buf_size.height.as_uint32_t());
+    glViewport(0, 0, buf_size.width, buf_size.height);
 }
 
 mt::BufferRenderTarget::Resources::~Resources()
@@ -75,7 +75,7 @@ void mt::BufferRenderTarget::Resources::setup(mc::Buffer& buffer)
         glGenRenderbuffers(1, &depth_rbo);
         glBindRenderbuffer(GL_RENDERBUFFER, depth_rbo);
         glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16,
-                              buf_size.width.as_uint32_t(), buf_size.height.as_uint32_t());
+                              buf_size.width, buf_size.height);
         glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
                                   GL_RENDERBUFFER, depth_rbo);
 

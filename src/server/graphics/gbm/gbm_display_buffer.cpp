@@ -217,7 +217,7 @@ mgg::BufferObject* mgg::GBMDisplayBuffer::get_front_buffer_object()
     auto stride = gbm_bo_get_stride(bo);
 
     /* Create a KMS FB object with the gbm_bo attached to it. */
-    auto ret = drmModeAddFB(drm.fd, size.width.as_uint32_t(), size.height.as_uint32_t(),
+    auto ret = drmModeAddFB(drm.fd, size.width, size.height,
                             24, 32, stride, handle, &fb_id);
     if (ret)
     {

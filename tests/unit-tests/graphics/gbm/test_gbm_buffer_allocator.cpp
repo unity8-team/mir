@@ -171,7 +171,7 @@ TEST_F(GBMBufferAllocatorTest, requests_correct_buffer_dimensions)
 {
     using namespace testing;
 
-    EXPECT_CALL(mock_gbm, gbm_bo_create(_,size.width.as_uint32_t(),size.height.as_uint32_t(),_,_));
+    EXPECT_CALL(mock_gbm, gbm_bo_create(_,size.width,size.height,_,_));
     EXPECT_CALL(mock_gbm, gbm_bo_destroy(_));
 
     allocator->alloc_buffer(buffer_properties);

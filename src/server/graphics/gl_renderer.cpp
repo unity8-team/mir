@@ -184,8 +184,8 @@ void mg::GLRenderer::Resources::setup(const geometry::Size& display_size)
      */
     glm::mat4 screen_to_gl_coords = glm::translate(glm::mat4{1.0f}, glm::vec3{-1.0f, 1.0f, 0.0f});
     screen_to_gl_coords = glm::scale(screen_to_gl_coords,
-            glm::vec3{2.0f / display_size.width.as_uint32_t(),
-            -2.0f / display_size.height.as_uint32_t(),
+            glm::vec3{2.0f / display_size.width,
+            -2.0f / display_size.height,
             1.0f});
     glUniformMatrix4fv(mat_loc, 1, GL_FALSE, glm::value_ptr(screen_to_gl_coords));
 
@@ -221,11 +221,11 @@ void mg::GLRenderer::render(std::function<void(std::shared_ptr<void> const&)> sa
     const geom::Point top_left = renderable.top_left();
     const geom::Size size = renderable.size();
 
-    const glm::vec3 top_left_vec{top_left.x.as_uint32_t(),
-                                 top_left.y.as_uint32_t(),
+    const glm::vec3 top_left_vec{top_left.x,
+                                 top_left.y,
                                  0.0f};
-    const glm::vec3 size_vec{size.width.as_uint32_t(),
-                             size.height.as_uint32_t(),
+    const glm::vec3 size_vec{size.width,
+                             size.height,
                              0.0f};
 
     /* Get the center of the renderable's area */

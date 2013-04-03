@@ -145,9 +145,9 @@ TEST_F(BespokeDisplayServerTestFixture, display_info_reaches_client)
 
             mir_connection_get_display_info(connection, &info);
 
-            EXPECT_EQ(StubDisplay::rectangle.size.width.as_uint32_t(),
+            EXPECT_EQ(StubDisplay::rectangle.size.width,
                       static_cast<uint32_t>(info.width));
-            EXPECT_EQ(StubDisplay::rectangle.size.height.as_uint32_t(),
+            EXPECT_EQ(StubDisplay::rectangle.size.height,
                       static_cast<uint32_t>(info.height));
 
             ASSERT_EQ(StubGraphicBufferAllocator::pixel_formats.size(),

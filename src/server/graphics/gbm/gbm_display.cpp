@@ -88,8 +88,8 @@ void mgg::GBMDisplay::configure(std::shared_ptr<mg::DisplayConfiguration> const&
     }
 
     /* ...and create a scanout surface with that size */
-    auto surface = platform->gbm.create_scanout_surface(max_size.width.as_uint32_t(),
-                                                        max_size.height.as_uint32_t());
+    auto surface = platform->gbm.create_scanout_surface(max_size.width,
+                                                        max_size.height);
 
     /* Create a single DisplayBuffer that displays the surface on all the outputs */
     std::unique_ptr<DisplayBuffer> db{new GBMDisplayBuffer{platform, listener, enabled_outputs,

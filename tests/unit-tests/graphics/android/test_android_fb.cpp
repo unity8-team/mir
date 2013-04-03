@@ -522,8 +522,8 @@ TYPED_TEST(AndroidTestFramebufferInit, framebuffer_correct_view_area)
 
     auto area = display->view_area();
 
-    EXPECT_EQ((int)area.top_left.x.as_uint32_t() , 0);
-    EXPECT_EQ((int)area.top_left.y.as_uint32_t() , 0);
-    EXPECT_EQ((int)area.size.width.as_uint32_t() , this->width);
-    EXPECT_EQ((int)area.size.height.as_uint32_t(), this->height);
+    EXPECT_EQ((int)area.top_left.x , 0);
+    EXPECT_EQ((int)area.top_left.y , 0);
+    EXPECT_EQ((int)area.size.width , this->width);
+    EXPECT_EQ((int)area.size.height, this->height);
 }

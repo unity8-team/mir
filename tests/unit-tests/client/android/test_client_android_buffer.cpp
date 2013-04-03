@@ -48,7 +48,7 @@ protected:
         mock_android_registrar = std::make_shared<NiceMock<mtd::MockAndroidRegistrar>>();
 
         package = std::make_shared<MirBufferPackage>();
-        package->stride = stride.as_uint32_t();
+        package->stride = stride;
     }
 
     std::shared_ptr<MirBufferPackage> package;
@@ -300,8 +300,8 @@ TEST_F(ClientAndroidBufferTest, buffer_packs_anativewindowbuffer_dimensions)
     auto native_handle = buffer->get_native_handle();
 
     ASSERT_NE(nullptr, native_handle);
-    EXPECT_EQ(width.as_uint32_t(), static_cast<uint32_t>(native_handle->width));
-    EXPECT_EQ(height.as_uint32_t(), static_cast<uint32_t>(native_handle->height));
+    EXPECT_EQ(width, static_cast<uint32_t>(native_handle->width));
+    EXPECT_EQ(height, static_cast<uint32_t>(native_handle->height));
 }
 
 TEST_F(ClientAndroidBufferTest, buffer_packs_anativewindowbuffer_format)
@@ -320,7 +320,7 @@ TEST_F(ClientAndroidBufferTest, buffer_packs_anativewindowbuffer_stride)
 
     auto native_handle = buffer->get_native_handle();
     ASSERT_NE(nullptr, native_handle);
-    EXPECT_EQ(static_cast<int32_t>(stride.as_uint32_t()), native_handle->stride);
+    EXPECT_EQ(static_cast<int32_t>(stride), native_handle->stride);
 }
 
 TEST_F(ClientAndroidBufferTest, buffer_packs_anativewindowbuffer_refcounters_set)

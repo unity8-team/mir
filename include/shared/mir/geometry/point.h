@@ -29,6 +29,9 @@ namespace geometry
 
 struct Point
 {
+    Point() : x{0}, y{0} {}
+    Point(X i, Y j) : x{i}, y{j} {}
+
     X x;
     Y y;
 };

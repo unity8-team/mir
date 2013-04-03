@@ -38,7 +38,7 @@ struct SurfaceCreationParameters
 
     SurfaceCreationParameters& of_size(geometry::Size new_size);
 
-    SurfaceCreationParameters& of_size(geometry::Width::ValueType width, geometry::Height::ValueType height);
+    SurfaceCreationParameters& of_size(geometry::Width width, geometry::Height height);
 
     SurfaceCreationParameters& of_buffer_usage(compositor::BufferUsage new_buffer_usage);
 

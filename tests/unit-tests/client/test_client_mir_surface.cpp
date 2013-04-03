@@ -385,7 +385,7 @@ TEST_F(MirClientSurfaceTest, message_width_used_in_buffer_creation )
     auto wait_handle = surface->get_create_wait_handle();
     wait_handle->wait_for_result();
 
-    EXPECT_EQ(sz.width.as_uint32_t(), (unsigned int) mock_server_tool->width_sent);
+    EXPECT_EQ(sz.width, (unsigned int) mock_server_tool->width_sent);
 }
 
 TEST_F(MirClientSurfaceTest, message_height_used_in_buffer_creation )
@@ -410,7 +410,7 @@ TEST_F(MirClientSurfaceTest, message_height_used_in_buffer_creation )
     auto wait_handle = surface->get_create_wait_handle();
     wait_handle->wait_for_result();
 
-    EXPECT_EQ(sz.height.as_uint32_t(), (unsigned int) mock_server_tool->height_sent);
+    EXPECT_EQ(sz.height, (unsigned int) mock_server_tool->height_sent);
 }
 
 TEST_F(MirClientSurfaceTest, message_pf_used_in_buffer_creation )

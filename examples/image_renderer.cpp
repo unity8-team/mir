@@ -100,7 +100,7 @@ mt::ImageRenderer::ImageRenderer(const uint8_t* pixel_data, mir::geometry::Size 
     GLenum format = (bytes_per_pixel == 3) ? GL_RGB : GL_RGBA;
 
     glTexImage2D(GL_TEXTURE_2D, 0, format,
-                 size.width.as_uint32_t(), size.height.as_uint32_t(), 0,
+                 size.width, size.height, 0,
                  format, GL_UNSIGNED_BYTE, pixel_data);
 }
 

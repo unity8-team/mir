@@ -28,8 +28,8 @@ TEST(geometry, width)
     geom::Width width0 {0};
     geom::Width width42 {42};
 
-    EXPECT_EQ(uint32_t{0}, width0.as_uint32_t());
-    EXPECT_EQ(uint32_t{42}, width42.as_uint32_t());
+    EXPECT_EQ(uint32_t{0}, width0);
+    EXPECT_EQ(uint32_t{42}, width42);
 
     EXPECT_EQ(width0, width0);
     EXPECT_NE(width0, width42);
@@ -42,8 +42,8 @@ TEST(geometry, height)
     geom::Height height0 {0};
     geom::Height height42 {42};
 
-    EXPECT_EQ(uint32_t{0}, height0.as_uint32_t());
-    EXPECT_EQ(uint32_t{42}, height42.as_uint32_t());
+    EXPECT_EQ(uint32_t{0}, height0);
+    EXPECT_EQ(uint32_t{42}, height42);
 
     EXPECT_EQ(height0, height0);
     EXPECT_NE(height0, height42);
@@ -55,7 +55,6 @@ TEST(geometry, delta_arithmetic)
 {
     using namespace geom;
     DeltaX dx1{1};
-    DeltaY dy1{1};
 
     DeltaX x2 = DeltaX(1) + dx1;
     EXPECT_EQ(DeltaX(2), x2);
@@ -85,7 +84,7 @@ TEST(geometry, conversions)
     Width w1{1};
     DeltaX dx1{1};
 
-    EXPECT_EQ(w1, dim_cast<Width>(dx1));
-    EXPECT_EQ(dx1, dim_cast<DeltaX>(w1));
-    EXPECT_NE(dx1, dim_cast<DeltaX>(X()));
+    EXPECT_EQ(w1, dx1);
+    EXPECT_EQ(dx1, w1);
+    EXPECT_NE(dx1, X());
 }

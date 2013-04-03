@@ -74,6 +74,6 @@ TEST_F(AndroidInputReaderPolicySetup, configuration_has_display_info_filled_from
 
     ASSERT_TRUE(configuration_has_display_info);
 
-    EXPECT_EQ(default_view_area.size.width.as_uint32_t(),  (uint32_t)configured_width);
-    EXPECT_EQ(default_view_area.size.height.as_uint32_t(), (uint32_t)configured_height);
+    EXPECT_EQ(default_view_area.size.width,  (uint32_t)configured_width);
+    EXPECT_EQ(default_view_area.size.height, (uint32_t)configured_height);
 }

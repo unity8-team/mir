@@ -41,7 +41,7 @@ struct MirGBMBufferTest : public testing::Test
         drm_fd_handler = std::make_shared<testing::NiceMock<mclg::MockDRMFDHandler>>();
 
         package = std::make_shared<MirBufferPackage>();
-        package->stride = stride.as_uint32_t();
+        package->stride = stride;
         package_copy = std::make_shared<MirBufferPackage>(*package.get());
     }
     geom::Width width;

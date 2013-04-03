@@ -59,8 +59,8 @@ TEST_F(ConsumingPlacementStrategySetup, parameters_with_no_geometry_receieve_geo
     mf::SurfaceCreationParameters input_params;
 
     auto placed_params = placement_strategy.place(input_params);
-    EXPECT_EQ(default_view_area.size.width.as_uint32_t(), placed_params.size.width.as_uint32_t());
-    EXPECT_EQ(default_view_area.size.height.as_uint32_t(), placed_params.size.height.as_uint32_t());
+    EXPECT_EQ(default_view_area.size.width, placed_params.size.width);
+    EXPECT_EQ(default_view_area.size.height, placed_params.size.height);
 }
 
 TEST_F(ConsumingPlacementStrategySetup, parameters_with_geometry_are_forwarded)
@@ -84,8 +84,8 @@ TEST_F(ConsumingPlacementStrategySetup, parameters_with_unreasonable_geometry_ar
 {
     using namespace ::testing;
 
-    const geom::Width unreasonable_width = geom::Width{default_view_area.size.width.as_uint32_t() + 1};
-    const geom::Height unreasonable_height = geom::Height{default_view_area.size.width.as_uint32_t() + 1};
+    const geom::Width unreasonable_width = geom::Width{default_view_area.size.width + 1};
+    const geom::Height unreasonable_height = geom::Height{default_view_area.size.width + 1};
     const geom::Size unreasonable_size = geom::Size{unreasonable_width, unreasonable_height};
 
     EXPECT_CALL(*viewable_area, view_area()).Times(1);

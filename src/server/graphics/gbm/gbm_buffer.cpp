@@ -120,7 +120,7 @@ std::shared_ptr<mc::BufferIPCPackage> mgg::GBMBuffer::get_ipc_package() const
     auto temp = std::make_shared<mc::BufferIPCPackage>();
 
     temp->ipc_data.push_back(gem_flink_name);
-    temp->stride = stride().as_uint32_t();
+    temp->stride = stride();
 
     return temp;
 }

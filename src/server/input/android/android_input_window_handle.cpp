@@ -51,8 +51,8 @@ bool mia::InputWindowHandle::updateInfo()
     mInfo->frameLeft = 0;
     mInfo->frameTop = 0;
     auto surface_size = surface->size();
-    mInfo->frameRight = mInfo->frameLeft + surface_size.width.as_uint32_t();
-    mInfo->frameBottom = mInfo->frameTop + surface_size.height.as_uint32_t();
+    mInfo->frameRight = mInfo->frameLeft + surface_size.width;
+    mInfo->frameBottom = mInfo->frameTop + surface_size.height;
 
     mInfo->name = droidinput::String8(surface->name().c_str());
     mInfo->layoutParamsFlags = droidinput::InputWindowInfo::FLAG_NOT_TOUCH_MODAL;

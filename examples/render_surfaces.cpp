@@ -115,10 +115,10 @@ public:
     Moveable(ms::Surface& s, const geom::Size& display_size,
              float dx, float dy, const glm::vec3& rotation_axis, float alpha_offset)
         : surface(&s), display_size(display_size),
-          x{static_cast<float>(s.top_left().x.as_uint32_t())},
-          y{static_cast<float>(s.top_left().y.as_uint32_t())},
-          w{static_cast<float>(s.size().width.as_uint32_t())},
-          h{static_cast<float>(s.size().height.as_uint32_t())},
+          x{static_cast<float>(s.top_left().x)},
+          y{static_cast<float>(s.top_left().y)},
+          w{static_cast<float>(s.size().width)},
+          h{static_cast<float>(s.size().height)},
           dx{dx},
           dy{dy},
           rotation_axis{rotation_axis},
@@ -136,13 +136,13 @@ public:
         bool should_update = true;
         float new_x = x + elapsed_sec * dx;
         float new_y = y + elapsed_sec * dy;
-        if (new_x < 0.0 || new_x + w > display_size.width.as_uint32_t())
+        if (new_x < 0.0 || new_x + w > display_size.width)
         {
             dx = -dx;
             should_update = false;
         }
 
-        if (new_y < 0.0 || new_y + h > display_size.height.as_uint32_t())
+        if (new_y < 0.0 || new_y + h > display_size.height)
         {
             dy = -dy;
             should_update = false;
@@ -212,8 +212,8 @@ public:
                                       geom::Height{surface_side}};
 
         float const angular_step = 2.0 * M_PI / moveables.size();
-        float const w = display_size.width.as_uint32_t();
-        float const h = display_size.height.as_uint32_t();
+        float const w = display_size.width;
+        float const h = display_size.height;
         auto const surface_pf = the_buffer_allocator()->supported_pixel_formats()[0];
 
         int i = 0;

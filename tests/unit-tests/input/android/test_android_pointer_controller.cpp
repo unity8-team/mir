@@ -113,10 +113,10 @@ TEST_F(AndroidPointerControllerSetup, returns_bounds_of_view_area)
     controller->getBounds(&controller_min_x, &controller_min_y,
                           &controller_max_x, &controller_max_y);
 
-    const float area_min_x = default_view_area.top_left.x.as_float();
-    const float area_min_y = default_view_area.top_left.x.as_float();
-    const float area_max_x = default_view_area.size.width.as_float();
-    const float area_max_y = default_view_area.size.height.as_float();
+    const float area_min_x = default_view_area.top_left.x;
+    const float area_min_y = default_view_area.top_left.x;
+    const float area_max_x = default_view_area.size.width;
+    const float area_max_y = default_view_area.size.height;
 
     EXPECT_EQ(controller_min_x, area_min_x);
     EXPECT_EQ(controller_min_y, area_min_y);
@@ -128,10 +128,10 @@ TEST_F(AndroidPointerControllerSetup, clips_to_view_area)
 {
     using namespace ::testing;
 
-    float min_x_bound = default_view_area.top_left.x.as_float();
-    float min_y_bound = default_view_area.top_left.x.as_float();
-    float max_x_bound = min_x_bound + default_view_area.size.width.as_float();
-    float max_y_bound = min_y_bound + default_view_area.size.height.as_float();
+    float min_x_bound = default_view_area.top_left.x;
+    float min_y_bound = default_view_area.top_left.x;
+    float max_x_bound = min_x_bound + default_view_area.size.width;
+    float max_y_bound = min_y_bound + default_view_area.size.height;
 
     static const float invalid_lower_bound_x = min_x_bound - 1;
     static const float invalid_lower_bound_y = min_y_bound - 1;

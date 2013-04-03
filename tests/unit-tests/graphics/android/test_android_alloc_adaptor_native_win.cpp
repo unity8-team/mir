@@ -44,9 +44,9 @@ protected:
         usage = mga::BufferUsage::use_hardware;
         stride = geom::Stride(300*4);
 
-        anwb.height = (int) size.height.as_uint32_t();
-        anwb.width = (int) size.width.as_uint32_t();
-        anwb.stride = (int) stride.as_uint32_t();
+        anwb.height = (int) size.height;
+        anwb.width = (int) size.width;
+        anwb.stride = (int) stride;
         anwb.handle  = mock_alloc_device->buffer_handle;
 
     }

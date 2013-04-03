@@ -67,10 +67,10 @@ std::shared_ptr<char> mcla::AndroidRegistrarGralloc::secure_for_cpu(std::shared_
 {
     char* vaddr;
     int usage = GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN;
-    int width = rect.size.width.as_uint32_t();
-    int height = rect.size.height.as_uint32_t();
-    int top = rect.top_left.x.as_uint32_t();
-    int left = rect.top_left.y.as_uint32_t();
+    int width = rect.size.width;
+    int height = rect.size.height;
+    int top = rect.top_left.x;
+    int left = rect.top_left.y;
     if ( gralloc_module->lock(gralloc_module.get(), handle.get(),
                               usage, top, left, width, height, (void**) &vaddr) )
         BOOST_THROW_EXCEPTION(std::runtime_error("error securing buffer for client cpu use"));

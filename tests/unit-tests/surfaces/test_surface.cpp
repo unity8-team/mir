@@ -143,7 +143,7 @@ struct SurfaceCreation : public ::testing::Test
         surface_name = "test_surfaceA";
         pf = geom::PixelFormat::abgr_8888;
         size = geom::Size{geom::Width{43}, geom::Height{420}};
-        stride = geom::Stride{4 * size.width.as_uint32_t()};
+        stride = geom::Stride{4 * size.width};
         mock_buffer_bundle = std::make_shared<testing::NiceMock<mtd::MockBufferBundle>>();
         null_change_cb = []{};
         mock_change_cb = std::bind(&MockCallback::call, &mock_callback);

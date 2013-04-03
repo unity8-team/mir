@@ -38,8 +38,8 @@ void mia::InputReaderPolicy::getReaderConfiguration(droidinput::InputReaderConfi
     static int32_t const default_display_orientation = droidinput::DISPLAY_ORIENTATION_0;
 
     auto bounds = viewable_area->view_area();
-    auto width = bounds.size.width.as_float();
-    auto height = bounds.size.height.as_float();
+    float width = bounds.size.width;
+    float height = bounds.size.height;
 
     out_config->setDisplayInfo(
         default_display_id,

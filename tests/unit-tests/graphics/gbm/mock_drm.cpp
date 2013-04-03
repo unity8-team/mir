@@ -162,8 +162,8 @@ void mgg::FakeDRMResources::add_connector(uint32_t connector_id,
     connector.count_modes = modes.size();
     connector.encoders = possible_encoder_ids.data();
     connector.count_encoders = possible_encoder_ids.size();
-    connector.mmWidth = physical_size.width.as_uint32_t();
-    connector.mmHeight = physical_size.height.as_uint32_t();
+    connector.mmWidth = physical_size.width;
+    connector.mmHeight = physical_size.height;
 
     connectors.push_back(connector);
 }

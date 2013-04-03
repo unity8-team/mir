@@ -44,8 +44,8 @@ mf::SurfaceCreationParameters& mf::SurfaceCreationParameters::of_size(
 }
 
 mf::SurfaceCreationParameters& mf::SurfaceCreationParameters::of_size(
-    geometry::Width::ValueType width,
-    geometry::Height::ValueType height)
+    geometry::Width width,
+    geometry::Height height)
 {
     return of_size(geometry::Size(geometry::Width(width), geometry::Height(height)));
 }

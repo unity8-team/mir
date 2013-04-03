@@ -73,8 +73,8 @@ void mir::frontend::SessionMediator::connect(
         platform->add_fd(ipc_fds);
 
     auto view_area = viewable_area->view_area();
-    display_info->set_width(view_area.size.width.as_uint32_t());
-    display_info->set_height(view_area.size.height.as_uint32_t());
+    display_info->set_width(view_area.size.width);
+    display_info->set_height(view_area.size.height);
 
     auto supported_pixel_formats = buffer_allocator->supported_pixel_formats();
     for (auto pf : supported_pixel_formats)
@@ -110,8 +110,8 @@ void mir::frontend::SessionMediator::create_surface(
     {
         auto surface = session->get_surface(id);
         response->mutable_id()->set_value(id);
-        response->set_width(surface->size().width.as_uint32_t());
-        response->set_height(surface->size().height.as_uint32_t());
+        response->set_width(surface->size().width);
+        response->set_height(surface->size().height);
         response->set_pixel_format((int)surface->pixel_format());
         response->set_buffer_usage(request->buffer_usage());
 

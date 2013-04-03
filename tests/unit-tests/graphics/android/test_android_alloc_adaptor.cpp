@@ -79,7 +79,7 @@ TEST_F(AdaptorICSTest, resource_type_test_fail_ret)
     EXPECT_CALL(*mock_alloc_device, alloc_interface( _, _, _, _, _, _, _))
     .WillOnce(DoAll(
                   SetArgPointee<5>(mock_alloc_device->buffer_handle),
-                  SetArgPointee<6>(size.width.as_uint32_t()*4),
+                  SetArgPointee<6>(size.width*4),
                   Return(-1)));
 
     buffer_data = alloc_adaptor->alloc_buffer(size, pf, usage );
@@ -105,7 +105,7 @@ TEST_F(AdaptorICSTest, resource_type_test_fail_null_handle)
     EXPECT_CALL(*mock_alloc_device, alloc_interface( _, _, _, _, _, _, _))
     .WillOnce(DoAll(
                   SetArgPointee<5>((native_handle_t*)NULL),
-                  SetArgPointee<6>(size.width.as_uint32_t()*4),
+                  SetArgPointee<6>(size.width*4),
                   Return(0)));
 
     buffer_data = alloc_adaptor->alloc_buffer(size, pf, usage );
@@ -140,7 +140,7 @@ TEST_F(AdaptorICSTest, resource_type_test_deleter_deletes_correct_handle)
     EXPECT_CALL(*mock_alloc_device, alloc_interface( _, _, _, _, _, _, _))
     .WillOnce(DoAll(
                   SetArgPointee<5>(native_handle),
-                  SetArgPointee<6>(size.width.as_uint32_t()*4),
+                  SetArgPointee<6>(size.width*4),
                   Return(0)));
     EXPECT_CALL(*mock_alloc_device, free_interface( _, native_handle) );
 
@@ -160,8 +160,8 @@ TEST_F(AdaptorICSTest, adaptor_gralloc_format_conversion_abgr8888)
 TEST_F(AdaptorICSTest, adaptor_gralloc_dimension_conversion)
 {
     using namespace testing;
-    int w = (int) size.width.as_uint32_t();
-    int h = (int) size.height.as_uint32_t();
+    int w = (int) size.width;
+    int h = (int) size.height;
     EXPECT_CALL(*mock_alloc_device, alloc_interface( _, w, h, _, _, _, _));
     EXPECT_CALL(*mock_alloc_device, free_interface( _, _) );
 
@@ -224,7 +224,7 @@ TEST_F(AdaptorICSTest, handle_stride_is_correct)
     EXPECT_CALL(*mock_alloc_device, free_interface( _, _) );
 
     auto handle = alloc_adaptor->alloc_buffer(size, pf, usage );
-    EXPECT_EQ((int) handle->stride().as_uint32_t(), mock_alloc_device->fake_stride);
+    EXPECT_EQ((int) handle->stride(), mock_alloc_device->fake_stride);
 }
 
 TEST_F(AdaptorICSTest, handle_buffer_is_correct)

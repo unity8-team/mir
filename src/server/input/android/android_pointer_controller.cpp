@@ -71,10 +71,10 @@ bool mia::PointerController::get_bounds_locked(
     float* out_max_y) const
 {
     auto bounds = viewable_area->view_area();
-    *out_min_x = bounds.top_left.x.as_float();
-    *out_min_y = bounds.top_left.y.as_float();
-    *out_max_x = bounds.top_left.x.as_float() + bounds.size.width.as_float();
-    *out_max_y = bounds.top_left.y.as_float() + bounds.size.height.as_float();
+    *out_min_x = bounds.top_left.x;
+    *out_min_y = bounds.top_left.y;
+    *out_max_x = bounds.top_left.x + bounds.size.width;
+    *out_max_y = bounds.top_left.y + bounds.size.height;
     return true;
 }
 

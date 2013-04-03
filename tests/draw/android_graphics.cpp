@@ -114,15 +114,15 @@ std::shared_ptr<MirGraphicsRegion> mtd::TestGrallocMapper::get_graphic_region_fr
 
     int *vaddr;
     int usage = GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN;
-    module->lock(module, handle, usage, 0, 0, sz.width.as_uint32_t(), sz.height.as_uint32_t(), (void**) &vaddr);
+    module->lock(module, handle, usage, 0, 0, sz.width, sz.height, (void**) &vaddr);
 
     MirGraphicsRegion* region = new MirGraphicsRegion;
     RegionDeleter del(module, handle);
 
     region->vaddr = (char*) vaddr;
     region->stride = package->stride;
-    region->width = sz.width.as_uint32_t();
-    region->height = sz.height.as_uint32_t();
+    region->width = sz.width;
+    region->height = sz.height;
     region->pixel_format = mir_pixel_format_abgr_8888;
 
     return std::shared_ptr<MirGraphicsRegion>(region, del);

@@ -82,7 +82,7 @@ struct GBMMemoryRegion : mcl::MemoryRegion
                     geom::Stride stride_param, geom::PixelFormat format_param)
         : drm_fd_handler{drm_fd_handler},
           gem_handle{drm_fd_handler, gem_name},
-          size_in_bytes{size_param.height.as_uint32_t() * stride_param.as_uint32_t()}
+          size_in_bytes{size_param.height * stride_param}
     {
         width = size_param.width;
         height = size_param.height;
@@ -155,7 +155,7 @@ geom::Size mclg::GBMClientBuffer::size() const
 
 geom::Stride mclg::GBMClientBuffer::stride() const
 {
-    return geom::Stride{creation_package->stride};
+    return static_cast<geom::Stride>(creation_package->stride);
 }
 
 geom::PixelFormat mclg::GBMClientBuffer::pixel_format() const

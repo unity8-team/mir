@@ -38,7 +38,7 @@ namespace mir
 namespace client
 {
 
-/* vaddr is valid from vaddr[0] to vaddr[stride.as_uint32_t() * height.as_uint32_t() - 1] */
+/* vaddr is valid from vaddr[0] to vaddr[stride * height - 1] */
 struct MemoryRegion
 {
     geometry::Width width;

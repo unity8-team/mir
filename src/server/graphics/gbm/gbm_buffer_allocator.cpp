@@ -164,8 +164,8 @@ std::shared_ptr<mc::Buffer> mgg::GBMBufferAllocator::alloc_buffer(
 
     gbm_bo *bo_raw = gbm_bo_create(
         platform->gbm.device,
-        buffer_properties.size.width.as_uint32_t(),
-        buffer_properties.size.height.as_uint32_t(),
+        buffer_properties.size.width,
+        buffer_properties.size.height,
         mgg::mir_format_to_gbm_format(buffer_properties.format),
         bo_flags);
 

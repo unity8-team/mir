@@ -34,8 +34,8 @@ GIVEN("^the display-size is " STEP_SIZE_PARAMETER_REGEX "$")
     USING_CONTEXT(mtc::SessionManagementContext, ctx);
 
     ctx->set_view_area(geom::Rectangle{geom::Point(),
-                       geom::Size{geom::Width{width},
-                                  geom::Height{height}}});
+                       geom::Size{(geom::Width)width,
+                                  (geom::Height)height}});
 }
 
 // TODO: Maybe session names should be quoted to allow for spaces
@@ -54,8 +54,10 @@ WHEN("^" STEP_APPLICATION_NAME_PARAMETER_REGEX " is opened with size " STEP_SIZE
     REGEX_PARAM(int, request_height);
     USING_CONTEXT(mtc::SessionManagementContext, ctx);
 
-    EXPECT_TRUE(ctx->open_window_with_size(window_name, geom::Size{geom::Width{request_width},
-                                                                   geom::Height{request_height}}));
+    EXPECT_TRUE(ctx->open_window_with_size(window_name,
+                                           geom::Size{
+                                               (geom::Width)request_width,
+                                               (geom::Height)request_height}));
 }
 
 THEN("^" STEP_APPLICATION_NAME_PARAMETER_REGEX " will have size " STEP_SIZE_PARAMETER_REGEX "$")
@@ -65,8 +67,8 @@ THEN("^" STEP_APPLICATION_NAME_PARAMETER_REGEX " will have size " STEP_SIZE_PARA
     REGEX_PARAM(int, expected_height);
     USING_CONTEXT(mtc::SessionManagementContext, ctx);
 
-    auto expected_size = geom::Size{geom::Width{expected_width},
-                                    geom::Height{expected_height}};
+    auto expected_size = geom::Size{(geom::Width)expected_width,
+                                    (geom::Height)expected_height};
 
     auto actual_size = ctx->get_window_size(window_name);
     EXPECT_EQ(expected_size, actual_size);

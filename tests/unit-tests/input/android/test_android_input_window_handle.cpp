@@ -84,6 +84,6 @@ TEST(AndroidInputWindowHandle, update_info_uses_geometry_and_channel_from_surfac
 
     EXPECT_EQ(testing_server_fd, info->inputChannel->getFd());
 
-    EXPECT_EQ(default_surface_size.height.as_uint32_t(), (uint32_t)(info->frameRight - info->frameLeft));
-    EXPECT_EQ(default_surface_size.height.as_uint32_t(), (uint32_t)(info->frameBottom - info->frameTop));
+    EXPECT_EQ(default_surface_size.height, (uint32_t)(info->frameRight - info->frameLeft));
+    EXPECT_EQ(default_surface_size.height, (uint32_t)(info->frameBottom - info->frameTop));
 }

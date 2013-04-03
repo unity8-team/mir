@@ -59,9 +59,9 @@ MATCHER_P(NamedWindowWithNoGeometry, name, "")
     if (arg.name != name)
         return false;
 
-    if (arg.size.width.as_uint32_t() != 0)
+    if (arg.size.width != 0)
         return false;
-    if (arg.size.height.as_uint32_t() != 0)
+    if (arg.size.height != 0)
         return false;
 
     return true;
