@@ -19,13 +19,11 @@
 #ifndef MIR_FRONTEND_SURFACE_ID_H_
 #define MIR_FRONTEND_SURFACE_ID_H_
 
-#include "mir/int_wrapper.h"
-
 namespace mir
 {
 namespace frontend
 {
-typedef IntWrapper<IntWrapperTypeTag::SessionsSurfaceId> SurfaceId;
+typedef int SurfaceId;
 }
 } // namespace mir
 

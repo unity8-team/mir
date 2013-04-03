@@ -19,7 +19,6 @@
 #ifndef MIR_GRAPHICS_DISPLAY_CONFIGURATION_H_
 #define MIR_GRAPHICS_DISPLAY_CONFIGURATION_H_
 
-#include "mir/int_wrapper.h"
 #include "mir/geometry/size.h"
 
 #include <functional>
@@ -30,8 +29,8 @@ namespace mir
 namespace graphics
 {
 
-typedef IntWrapper<IntWrapperTypeTag::GraphicsConfCardId> DisplayConfigurationCardId;
-typedef IntWrapper<IntWrapperTypeTag::GraphicsConfOutputId> DisplayConfigurationOutputId;
+typedef int DisplayConfigurationCardId;
+typedef int DisplayConfigurationOutputId;
 
 struct DisplayConfigurationCard
 {

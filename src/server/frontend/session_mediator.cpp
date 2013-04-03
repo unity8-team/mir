@@ -109,7 +109,7 @@ void mir::frontend::SessionMediator::create_surface(
 
     {
         auto surface = session->get_surface(id);
-        response->mutable_id()->set_value(id.as_value());
+        response->mutable_id()->set_value(id);
         response->set_width(surface->size().width.as_uint32_t());
         response->set_height(surface->size().height.as_uint32_t());
         response->set_pixel_format((int)surface->pixel_format());

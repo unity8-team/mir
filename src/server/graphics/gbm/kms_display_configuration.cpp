@@ -86,7 +86,7 @@ uint32_t mgg::KMSDisplayConfiguration::get_kms_connector_id(DisplayConfiguration
     for (auto const& output : outputs)
     {
         if (output.id == id)
-            return id.as_value();
+            return id;
     }
 
     BOOST_THROW_EXCEPTION(std::runtime_error("Failed to find DisplayConfigurationOutput with provided id"));
