@@ -31,7 +31,7 @@ namespace geometry
 
 struct Displacement
 {
-    Displacement() : dx{0}, dy{0} {}
+    Displacement() : Displacement(0, 0) {}
     Displacement(DeltaX u, DeltaY v) : dx{u}, dy{v} {}
 
     DeltaX dx;

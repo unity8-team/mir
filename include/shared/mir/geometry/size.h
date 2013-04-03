@@ -29,7 +29,7 @@ namespace geometry
 
 struct Size
 {
-    Size() : width{0}, height{0} {}
+    Size() : Size(0, 0) {}
 
     Size(const Width& w, const Height& h) : width {w}, height {h}
     {
