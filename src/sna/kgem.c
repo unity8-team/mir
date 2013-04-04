@@ -3606,7 +3606,6 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 			assert(!bo->scanout);
 			assert(bo->refcnt == 0);
 			assert(bo->reusable);
-			assert(bo->flush == true);
 
 			if (kgem->gen < 040) {
 				if (bo->pitch < pitch) {
@@ -3640,6 +3639,7 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 			     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
 			assert(bo->pitch*kgem_aligned_height(kgem, height, bo->tiling) <= kgem_bo_size(bo));
 			bo->refcnt = 1;
+			bo->flush = true;
 			return bo;
 		}
 
