@@ -39,12 +39,12 @@ namespace android
 class AndroidBufferHandleDefault: public AndroidBufferHandle
 {
 public:
-    explicit AndroidBufferHandleDefault(ANativeWindowBuffer buf, geometry::PixelFormat pf, BufferUsage use);
+    explicit AndroidBufferHandleDefault(ANativeWindowBuffer buf, geometry::PixelFormat pf, compositor::BufferUsage use);
 
     geometry::Size size() const;
     geometry::Stride stride() const;
     geometry::PixelFormat format() const;
-    BufferUsage usage() const;
+    compositor::BufferUsage usage() const;
 
     EGLClientBuffer get_egl_client_buffer() const;
     std::shared_ptr<compositor::BufferIPCPackage> get_ipc_package() const;
@@ -58,7 +58,7 @@ private:
     /* we save these so that when other parts of the system query for the mir
        types, we don't have to convert back */
     const geometry::PixelFormat pixel_format;
-    const BufferUsage buffer_usage;
+    const compositor::BufferUsage buffer_usage;
 };
 
 }

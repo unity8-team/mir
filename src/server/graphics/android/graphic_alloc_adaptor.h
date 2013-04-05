@@ -20,6 +20,7 @@
 #define MIR_GRAPHICS_ANDROID_GRAPHIC_ALLOC_ADAPTOR_H_
 
 #include "android_buffer_handle.h"
+#include "mir/compositor/buffer_properties.h"
 
 #include <memory>
 
@@ -35,7 +36,7 @@ class GraphicAllocAdaptor
 {
 public:
     virtual std::shared_ptr<AndroidBufferHandle> alloc_buffer(geometry::Size size,
-        geometry::PixelFormat, BufferUsage usage) = 0;
+        geometry::PixelFormat, compositor::BufferUsage usage) = 0;
 protected:
     GraphicAllocAdaptor() = default;
     virtual ~GraphicAllocAdaptor() {}

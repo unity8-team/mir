@@ -41,7 +41,7 @@ protected:
         /* set up common defaults */
         pf = geom::PixelFormat::abgr_8888;
         size = geom::Size{geom::Width{110}, geom::Height{230}};
-        usage = mga::BufferUsage::use_hardware;
+        usage = mc::BufferUsage::hardware;
         stride = geom::Stride(300*4);
 
         anwb.height = (int) size.height.as_uint32_t();

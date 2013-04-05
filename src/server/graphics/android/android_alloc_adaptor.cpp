@@ -64,7 +64,7 @@ mga::AndroidAllocAdaptor::AndroidAllocAdaptor(const std::shared_ptr<struct alloc
 }
 
 std::shared_ptr<mga::AndroidBufferHandle> mga::AndroidAllocAdaptor::alloc_buffer(
-    geometry::Size size, geometry::PixelFormat pf, BufferUsage usage)
+    geometry::Size size, geometry::PixelFormat pf, compositor::BufferUsage usage)
 {
     buffer_handle_t buf_handle = NULL;
 
@@ -104,15 +104,15 @@ std::shared_ptr<mga::AndroidBufferHandle> mga::AndroidAllocAdaptor::alloc_buffer
 }
 
 
-int mga::AndroidAllocAdaptor::convert_to_android_usage(BufferUsage usage)
+int mga::AndroidAllocAdaptor::convert_to_android_usage(mc::BufferUsage usage)
 {
     switch (usage)
     {
-    case mga::BufferUsage::use_hardware:
+    case mc::BufferUsage::hardware:
         return (GRALLOC_USAGE_HW_TEXTURE | GRALLOC_USAGE_HW_RENDER);
-    case mga::BufferUsage::use_framebuffer_gles:
+    case mc::BufferUsage::framebuffer:
         return (GRALLOC_USAGE_HW_RENDER | GRALLOC_USAGE_HW_COMPOSER | GRALLOC_USAGE_HW_FB);
-    case mga::BufferUsage::use_software:
+    case mc::BufferUsage::software:
     default:
         return -1;
     }

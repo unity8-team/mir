@@ -31,7 +31,8 @@ enum class BufferUsage
 {
     undefined,
     hardware,
-    software
+    software,
+    framebuffer
 };
 
 struct BufferProperties

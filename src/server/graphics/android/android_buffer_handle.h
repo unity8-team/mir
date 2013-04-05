@@ -22,6 +22,7 @@
 
 #include "mir/geometry/size.h"
 #include "mir/geometry/pixel_format.h"
+#include "mir/compositor/buffer_properties.h"
 
 #include <EGL/egl.h>
 #include <memory>
@@ -38,13 +39,6 @@ namespace graphics
 namespace android
 {
 
-enum class BufferUsage : uint32_t
-{
-    use_hardware, //buffer supports usage as a gles render target, and a gles texture
-    use_software, //buffer supports usage as a cpu render target, and a gles texture
-    use_framebuffer_gles //buffer supports usage as a gles render target, hwc layer, and is postable to framebuffer
-};
-
 /* note: this interface will need a new concrete class implementing it when the struct for ANativeWindowBuffer changes */
 class AndroidBufferHandle
 {
@@ -54,7 +48,7 @@ public:
     virtual geometry::Size size() const   = 0;
     virtual geometry::Stride stride() const = 0;
     virtual geometry::PixelFormat format() const  = 0;
-    virtual BufferUsage usage() const = 0;
+    virtual compositor::BufferUsage usage() const = 0;
 
     virtual EGLClientBuffer get_egl_client_buffer() const = 0;
     virtual std::shared_ptr<compositor::BufferIPCPackage> get_ipc_package() const = 0;
