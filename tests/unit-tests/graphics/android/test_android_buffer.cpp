@@ -64,7 +64,7 @@ TEST_F(AndroidGraphicBufferBasic, usage_type_is_set_to_hardware_by_default)
 {
     using namespace testing;
 
-    EXPECT_CALL(*mock_alloc_device, alloc_buffer( _, _, mga::BufferUsage::use_hardware));
+    EXPECT_CALL(*mock_alloc_device, alloc_buffer( _, _, mc::BufferUsage::hardware));
 
     mga::AndroidBuffer buffer(mock_alloc_device, size, pf);
 }

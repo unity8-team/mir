@@ -52,13 +52,13 @@ public:
 private:
     void pack_ipc_package();
 
-    const ANativeWindowBuffer anw_buffer;
+    ANativeWindowBuffer const anw_buffer;
     std::shared_ptr<compositor::BufferIPCPackage> ipc_package;
 
     /* we save these so that when other parts of the system query for the mir
        types, we don't have to convert back */
-    const geometry::PixelFormat pixel_format;
-    const compositor::BufferUsage buffer_usage;
+    geometry::PixelFormat const pixel_format;
+    compositor::BufferUsage const buffer_usage;
 };
 
 }

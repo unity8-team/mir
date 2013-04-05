@@ -69,7 +69,7 @@ public:
     geom::Size size;
     geom::Stride stride;
     std::shared_ptr<mga::AndroidBufferHandle> buffer_data;
-    mga::BufferUsage usage;
+    mc::BufferUsage usage;
     unsigned int const fb_usage_flags;
     unsigned int const hw_usage_flags;
     unsigned int const sw_usage_flags;

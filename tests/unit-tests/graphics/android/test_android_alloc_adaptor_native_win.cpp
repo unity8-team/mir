@@ -58,7 +58,7 @@ protected:
 
     geom::Size size;
     geom::Stride stride;
-    mga::BufferUsage usage;
+    mc::BufferUsage usage;
     geom::PixelFormat pf;
 };
 
