@@ -31,7 +31,7 @@ namespace mga=mir::graphics::android;
 namespace geom=mir::geometry;
 
 mga::AndroidBuffer::AndroidBuffer(const std::shared_ptr<GraphicAllocAdaptor>& alloc_dev,
-                                  geom::Size size, geom::PixelFormat pf)
+                                  geom::Size size, geom::PixelFormat pf, mc::BufferUsage)
     :
     alloc_device(alloc_dev)
 {

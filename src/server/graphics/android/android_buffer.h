@@ -45,7 +45,7 @@ class AndroidBuffer: public compositor::BufferBasic
 {
 public:
     AndroidBuffer(const std::shared_ptr<GraphicAllocAdaptor>& device,
-                  geometry::Size size, geometry::PixelFormat pf);
+                  geometry::Size size, geometry::PixelFormat pf, compositor::BufferUsage usage);
     ~AndroidBuffer();
 
     geometry::Size size() const;

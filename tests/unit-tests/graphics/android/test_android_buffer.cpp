@@ -94,6 +94,15 @@ TEST_F(AndroidGraphicBufferBasic, format_passthrough_test)
     mga::AndroidBuffer buffer(mock_alloc_device, size, pf, usage);
 }
 
+TEST_F(AndroidGraphicBufferBasic, usage_passthrough_test)
+{
+    using namespace testing;
+
+    usage = mc::BufferUsage::framebuffer;
+    EXPECT_CALL(*mock_alloc_device, alloc_buffer( _, _, usage ));
+    mga::AndroidBuffer buffer(mock_alloc_device, size, pf, usage);
+}
+
 TEST_F(AndroidGraphicBufferBasic, format_queries_handle_test)
 {
     using namespace testing;
