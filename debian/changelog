@@ -1,5 +1,6 @@
 platform-api (0.18.1-0ubuntu1) UNRELEASED; urgency=low
 
+  [ Dmitrijs Ledkovs ]
   * Apply packaging clean-up:
     - Use wrap-and-sort
     - White space cleanup on .bzr-builddeb and debian/copyright
@@ -7,6 +8,9 @@ platform-api (0.18.1-0ubuntu1) UNRELEASED; urgency=low
     - Use dh_install --fail-missing
   * Rename packages to use generic names, but provide previous package
     names as dummy/transitional such that not to break the world.
+
+  [ Michael Terry ]
+  * Automatic snapshot from revision 44 (bootstrap)
 
  -- Dmitrijs Ledkovs <dmitrij.ledkov@ubuntu.com>  Mon, 18 Mar 2013 16:56:06 +0000
 
