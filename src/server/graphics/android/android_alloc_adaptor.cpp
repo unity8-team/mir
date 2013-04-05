@@ -113,6 +113,7 @@ int mga::AndroidAllocAdaptor::convert_to_android_usage(mc::BufferUsage usage)
     case mc::BufferUsage::framebuffer:
         return (GRALLOC_USAGE_HW_RENDER | GRALLOC_USAGE_HW_COMPOSER | GRALLOC_USAGE_HW_FB);
     case mc::BufferUsage::software:
+        return (GRALLOC_USAGE_SW_WRITE_OFTEN | GRALLOC_USAGE_SW_READ_OFTEN);
     default:
         return -1;
     }
