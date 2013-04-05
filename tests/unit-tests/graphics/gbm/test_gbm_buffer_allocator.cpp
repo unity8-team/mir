@@ -143,6 +143,18 @@ TEST_F(GBMBufferAllocatorTest, creates_hardware_rendering_buffer)
     allocator->alloc_buffer(properties);
 }
 
+TEST_F(GBMBufferAllocatorTest, framebuffer_usage_is_no_different_than_hardware_usage)
+{
+    using namespace testing;
+
+    mc::BufferProperties properties{size, pf, mc::BufferUsage::framebuffer};
+
+    EXPECT_CALL(mock_gbm, gbm_bo_create(_,_,_,_,has_flag_set(GBM_BO_USE_RENDERING)));
+    EXPECT_CALL(mock_gbm, gbm_bo_destroy(_));
+
+    allocator->alloc_buffer(properties);
+}
+
 TEST_F(GBMBufferAllocatorTest, creates_software_rendering_buffer)
 {
     using namespace testing;
