@@ -1,3 +1,33 @@
+Release 2.21.6 (2013-04-06)
+===========================
+A surprising highlight of this release is a little refresh to the KMS
+support for OpenBSD. OpenBSD now has its own KMS implementation which is
+mostly compatible with the interface in Linux, with one or two tweaks
+supplied by Mark Kettenis. This release continues to cleanup behaviour
+for Haswell.
+
+ * Workaround a failure by the xserver to invalidate DRI buffers
+   following a pixmap change for XComposite redirection.
+   https://bugs.freedesktop.org/show_bug.cgi?id=62614
+
+ * Fix computation of clip extents for stippling
+   https://bugs.freedesktop.org/show_bug.cgi?id=62618
+
+ * Support KMS on OpenBSD, by Mark Kettenis
+
+ * Clean up sockets upon CloseScreen (making ourselves better behaved
+   for muxed setups).
+
+ * Fix the tests for AVX/AVX2 support in CPUID and remember to check for
+   OS support as well.
+
+ * Report a monotonic UST value for undisplayed drawables rather than 0
+   by Daniel Kurtz
+
+ * Fix video playback on gen4 through a complex clip (more gen4 GPU woes)
+   https://bugs.launchpad.net/ubuntu/+source/xserver-xorg-video-intel/+bug/1162046
+
+
 Release 2.21.5 (2013-03-21)
 ===========================
 Haswell reintroduces a command to load the scanline window from the
