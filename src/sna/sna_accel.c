@@ -340,6 +340,10 @@ static void assert_pixmap_damage(PixmapPtr p)
 		return;
 	}
 
+	if (DAMAGE_IS_ALL(priv->gpu_damage)) {
+		assert(priv->cpu == false || (priv->mapped && IS_CPU_MAP(priv->gpu_bo->map)));
+	}
+
 	assert(!DAMAGE_IS_ALL(priv->gpu_damage) || priv->cpu_damage == NULL);
 	assert(!DAMAGE_IS_ALL(priv->cpu_damage) || priv->gpu_damage == NULL);
 
@@ -1788,6 +1792,7 @@ mark_damage:
 	}
 
 done:
+	assert(priv->gpu_damage == NULL);
 	if (flags & MOVE_WRITE) {
 		assert(DAMAGE_IS_ALL(priv->cpu_damage));
 		priv->source_count = SOURCE_BIAS;
@@ -1898,6 +1903,7 @@ static inline bool region_inplace(struct sna *sna,
 	if (DAMAGE_IS_ALL(priv->gpu_damage)) {
 		DBG(("%s: yes, already wholly damaged on the GPU\n", __FUNCTION__));
 		assert(priv->gpu_bo);
+		assert(priv->cpu == false || (priv->mapped && IS_CPU_MAP(priv->gpu_bo->map)));
 		return true;
 	}
 
@@ -1913,6 +1919,11 @@ static inline bool region_inplace(struct sna *sna,
 		(int)(region->extents.y2 - region->extents.y1) *
 		pixmap->drawable.bitsPerPixel >> 12)
 		>= sna->kgem.half_cpu_cache_pages;
+}
+
+static inline bool box_empty(const BoxRec *box)
+{
+	return box->x2 <= box->x1 || box->y2 <= box->y1;
 }
 
 bool
@@ -1936,6 +1947,9 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 	if (flags & MOVE_WRITE) {
 		assert_drawable_contains_box(drawable, &region->extents);
 	}
+
+	if (box_empty(&region->extents))
+		return true;
 
 	priv = sna_pixmap(pixmap);
 	if (priv == NULL) {
@@ -2012,6 +2026,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 							      pixmap->drawable.height)) {
 						DBG(("%s: replaced entire pixmap, destroying CPU shadow\n",
 						     __FUNCTION__));
+						assert(priv->cpu == false || (priv->mapped && IS_CPU_MAP(priv->gpu_bo->map)));
 						sna_damage_destroy(&priv->cpu_damage);
 						list_del(&priv->list);
 					} else
@@ -2348,11 +2363,6 @@ out:
 	return true;
 }
 
-static inline bool box_empty(const BoxRec *box)
-{
-	return box->x2 <= box->x1 || box->y2 <= box->y1;
-}
-
 bool
 sna_drawable_move_to_cpu(DrawablePtr drawable, unsigned flags)
 {
@@ -2474,6 +2484,8 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 			      pixmap->drawable.width,
 			      pixmap->drawable.height)) {
 		assert(priv->gpu_bo);
+		assert(priv->gpu_bo->proxy == NULL);
+		assert(priv->cpu == false || (priv->mapped && IS_CPU_MAP(priv->gpu_bo->map)));
 		sna_damage_destroy(&priv->cpu_damage);
 		list_del(&priv->list);
 		goto done;
@@ -2715,6 +2727,8 @@ sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
 		DBG(("%s: use GPU fast path (all-damaged)\n", __FUNCTION__));
 		assert(priv->cpu_damage == NULL);
 		assert(priv->gpu_bo);
+		assert(priv->gpu_bo->proxy == NULL);
+		assert(priv->cpu == false || (priv->mapped && IS_CPU_MAP(priv->gpu_bo->map)));
 		goto use_gpu_bo;
 	}
 
@@ -2879,6 +2893,7 @@ done:
 	if (sna_damage_is_all(&priv->gpu_damage,
 			      pixmap->drawable.width,
 			      pixmap->drawable.height)) {
+		assert(priv->cpu == false || (priv->mapped && IS_CPU_MAP(priv->gpu_bo->map)));
 		sna_damage_destroy(&priv->cpu_damage);
 		list_del(&priv->list);
 		*damage = NULL;
@@ -3121,9 +3136,10 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 			      pixmap->drawable.height)) {
 		DBG(("%s: already all-damaged\n", __FUNCTION__));
 		assert(priv->gpu_bo);
+		assert(priv->gpu_bo->proxy == NULL);
+		assert(priv->cpu == false || (priv->mapped && IS_CPU_MAP(priv->gpu_bo->map)));
 		sna_damage_destroy(&priv->cpu_damage);
 		list_del(&priv->list);
-		assert(priv->cpu == false || IS_CPU_MAP(priv->gpu_bo->map));
 		goto active;
 	}
 
@@ -3279,8 +3295,10 @@ done:
 	sna_damage_reduce_all(&priv->gpu_damage,
 			      pixmap->drawable.width,
 			      pixmap->drawable.height);
-	if (DAMAGE_IS_ALL(priv->gpu_damage))
+	if (DAMAGE_IS_ALL(priv->gpu_damage)) {
+		assert(priv->cpu == false || (priv->mapped && IS_CPU_MAP(priv->gpu_bo->map)));
 		sna_pixmap_free_cpu(sna, priv);
+	}
 
 active:
 	if (flags & MOVE_WRITE)
@@ -3945,6 +3963,7 @@ move_to_gpu(PixmapPtr pixmap, struct sna_pixmap *priv,
 
 	if (DAMAGE_IS_ALL(priv->gpu_damage)) {
 		assert(priv->gpu_bo);
+		assert(priv->cpu == false || (priv->mapped && IS_CPU_MAP(priv->gpu_bo->map)));
 		return true;
 	}
 
