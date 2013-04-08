@@ -1,65 +1,116 @@
-Source: ubuntu-platform-api
-Priority: extra
+Source: platform-api
+Priority: optional
 Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
-Build-Depends:
- debhelper (>= 9),
- cmake,
- libhybris-dev,
- libgles2-mesa-dev
+Build-Depends: cmake,
+               debhelper (>= 9),
+               libgles2-mesa-dev,
+               libhybris-dev,
 Standards-Version: 3.9.4
 Section: devel
-Vcs-Bzr: lp:phablet-platform
-Vcs-Browser: https://bazaar.launchpad.net/~phablet-team/phablet-platform/files
+Homepage: https://launchpad.net/platform-api
+Vcs-Bzr: lp:platform-api
+# If you aren't a member of http://pad.lv/~phablet-team but need to upload packaging changes,
+# just go ahead.  http://pad.lv/~phablet-team will notice and sync up the code again.
+Vcs-Browser: https://code.launchpad.net/platform-api
 
-Package: ubuntu-platform-api-headers
+Package: libplatform-api-headers
 Section: libdevel
+Pre-Depends: ${misc:Pre-Depends},
+Multi-Arch: same
 Architecture: any
-Depends:
- ${misc:Depends}
-Description: Ubuntu Platform API -- library headers
- This package provides the library headers for the Ubuntu Platform API.
+Depends: ${misc:Depends},
+Description: Platform API for system level capabilities (API headers)
+ This package provides the library headers for the Platform API.
  .
- Unless you are developing a new backend for the Ubuntu Platform API, you
- probably want libubuntu-platform-api-dev instead, which will pull this
- package automatically.
+ Unless a new backend for the Platform API is developed, packages
+ should build depend on the libplatform-api-dev package instead, which
+ will pull this package as well.
 
-Package: libubuntu-platform-api1-dev
+Package: libplatform-api1-dev
 Section: libdevel
-Pre-Depends: ${misc:Pre-Depends}
+Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Architecture: any
-Depends:
- ${misc:Depends},
- ubuntu-platform-api-headers (= ${source:Version}),
- ubuntu-platform-implementation-android | libubuntu-platform-api1,
- libgles2-mesa-dev
-Description: Ubuntu Platform API -- development headers
- This package provides the development headers for the Ubuntu Platform API.
+Depends: libgles2-mesa-dev,
+         libplatform-api-headers (= ${binary:Version}),
+         libplatform-api1-hybris | libplatform-api1,
+         ${misc:Depends},
+Description: Platform API for system level capabilities (development)
+ This package provides the development library and headers (via
+ dependency) for the Platform API.
 
-Package: ubuntu-platform-implementation-android
-Provides: libubuntu-platform-api1
-Conflicts: libubuntu-platform-api1
-Replaces: libubuntu-platform-api1
+Package: libplatform-api1-hybris
+Provides: libplatform-api1,
+Conflicts: libplatform-api1,
+Replaces: libplatform-api1,
 Section: libs
-Pre-Depends: ${misc:Pre-Depends}
+Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Architecture: any
-Depends:
- ${shlibs:Depends},
- ${misc:Depends},
- libhybris
-Description: Android implementation of the Ubuntu Platform API -- runtime
- This package provides the android implementation of the Ubuntu Platform API.
+Depends: libhybris,
+         ${misc:Depends},
+         ${shlibs:Depends},
+Description: Hybris implementation of the Platform API (runtime)
+ This package provides the hybris implementation of the Platform API.
  .
  The produced library should be used via libhybris, to communicate with the
  Android userspace, which is where the Ubuntu Application Manager lives.
 
-Package: ubuntu-platform-implementation-android-tests
+Package: libplatform-api1-hybris-tests
 Architecture: any
-Depends:
- ${shlibs:Depends},
- ${misc:Depends},
- ubuntu-platform-implementation-android (= ${binary:Version})
-Description: Android implementation of the Ubuntu Platform API -- tests
- This package provides the test cases for the android implementation
- of the Ubuntu Platform API.
+Depends: libplatform-api1-hybris (= ${binary:Version}),
+         ${misc:Depends},
+         ${shlibs:Depends},
+Description: Hybris implementation of the Platform API (tests)
+ This package provides the test cases for the hybris implementation
+ of the Platform API.
+
+Package: ubuntu-platform-api-headers
+Section: oldlibs
+Pre-Depends: ${misc:Pre-Depends},
+Multi-Arch: same
+Architecture: any
+Depends: libplatform-api-headers (= ${binary:Version}),
+         ${misc:Depends},
+Description: dummy transitional package for libplatform-api-headers
+ This is dummy transitional package, please use libplatform-api-headers instead.
+ .
+ This package can be safely removed.
+
+Package: libubuntu-platform-api1-dev
+Section: oldlibs
+Pre-Depends: ${misc:Pre-Depends},
+Multi-Arch: same
+Architecture: any
+Depends: libplatform-api1-dev (= ${binary:Version}),
+         ${misc:Depends},
+Description: dummy transitional package for libplatform-api1-dev
+ This is dummy transitional package, please use libplatform-api1-dev instead.
+ .
+ This package can be safely removed.
+
+Package: ubuntu-platform-implementation-android
+Provides: libubuntu-platform-api1,
+Conflicts: libubuntu-platform-api1,
+Replaces: libubuntu-platform-api1,
+Section: oldlibs
+Pre-Depends: ${misc:Pre-Depends},
+Multi-Arch: same
+Architecture: any
+Depends: libplatform-api1-hybris (= ${binary:Version}),
+         ${misc:Depends},
+         ${shlibs:Depends},
+Description: dummy transitional package for libplatform-api1-hybris
+ This is dummy transitional package, please use libplatform-api1-hybris instead.
+ .
+ This package can be safely removed.
+
+Package: ubuntu-platform-implementation-android-tests
+Architecture: oldlibs
+Depends: libplatform-api1-hybris-tests (= ${binary:Version}),
+         ${misc:Depends},
+         ${shlibs:Depends},
+Description: dummy transitional package for libplatform-api1-hybris-tests
+ This is dummy transitional package, please use libplatform-api1-hybris-tests instead.
+ .
+ This package can be safely removed.

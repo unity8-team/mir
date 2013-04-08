@@ -1,3 +1,22 @@
+platform-api (0.18.1daily13.04.08ubuntu.unity.next-0ubuntu1) raring; urgency=low
+
+  [ Dmitrijs Ledkovs ]
+  * Apply packaging clean-up:
+    - Use wrap-and-sort
+    - White space cleanup on .bzr-builddeb and debian/copyright
+    - Remove un-needed comments from debian/rules
+    - Use dh_install --fail-missing
+  * Rename packages to use generic names, but provide previous package
+    names as dummy/transitional such that not to break the world.
+
+  [ Michael Terry ]
+  * Automatic snapshot from revision 44 (bootstrap)
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 46 (ubuntu-unity/next)
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Mon, 08 Apr 2013 08:35:48 +0000
+
 ubuntu-platform-api (0.18-0phablet1) quantal; urgency=low
 
   * Rename telephony-app to phone-app.

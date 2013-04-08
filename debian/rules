@@ -1,10 +1,9 @@
 #!/usr/bin/make -f
-# -*- makefile -*-
 
 DPKG_GENSYMBOLS_CHECK_LEVEL = 4
 
-# Uncomment this to turn on verbose mode.
-#export DH_VERBOSE=1
-
 %:
 	dh $@
+
+overrid_dh_install:
+	dh_install --fail-missing
