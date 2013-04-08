@@ -2893,7 +2893,6 @@ done:
 	if (sna_damage_is_all(&priv->gpu_damage,
 			      pixmap->drawable.width,
 			      pixmap->drawable.height)) {
-		assert(priv->cpu == false || (priv->mapped && IS_CPU_MAP(priv->gpu_bo->map)));
 		sna_damage_destroy(&priv->cpu_damage);
 		list_del(&priv->list);
 		*damage = NULL;
@@ -3295,10 +3294,8 @@ done:
 	sna_damage_reduce_all(&priv->gpu_damage,
 			      pixmap->drawable.width,
 			      pixmap->drawable.height);
-	if (DAMAGE_IS_ALL(priv->gpu_damage)) {
-		assert(priv->cpu == false || (priv->mapped && IS_CPU_MAP(priv->gpu_bo->map)));
+	if (DAMAGE_IS_ALL(priv->gpu_damage))
 		sna_pixmap_free_cpu(sna, priv);
-	}
 
 active:
 	if (flags & MOVE_WRITE)
