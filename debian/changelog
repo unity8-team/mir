@@ -1,4 +1,4 @@
-platform-api (0.18.1-0ubuntu1) UNRELEASED; urgency=low
+platform-api (0.18.1daily13.04.08ubuntu.unity.next-0ubuntu1) raring; urgency=low
 
   [ Dmitrijs Ledkovs ]
   * Apply packaging clean-up:
@@ -12,7 +12,10 @@ platform-api (0.18.1-0ubuntu1) UNRELEASED; urgency=low
   [ Michael Terry ]
   * Automatic snapshot from revision 44 (bootstrap)
 
- -- Dmitrijs Ledkovs <dmitrij.ledkov@ubuntu.com>  Mon, 18 Mar 2013 16:56:06 +0000
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 46 (ubuntu-unity/next)
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Mon, 08 Apr 2013 08:35:48 +0000
 
 ubuntu-platform-api (0.18-0phablet1) quantal; urgency=low
 
