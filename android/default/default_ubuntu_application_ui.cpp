@@ -47,17 +47,14 @@ struct SessionLifeCycleDelegates : public ubuntu::application::ui::SessionLifeCy
         if (!delegates->on_application_started)
             return;
 
-        ALOGI("%s() delegates CALLING on_application_started context=%p", delegates->context);
         delegates->on_application_started(NULL, NULL, delegates->context);
     }
 
     void on_application_about_to_stop()
     {
-        ALOGI("%s() default delegates ", __PRETTY_FUNCTION__);
         if (!delegates)
             return;
 
-        ALOGI("%s() valid delegates ", __PRETTY_FUNCTION__);
         if (!delegates->on_application_about_to_stop)
             return;
 

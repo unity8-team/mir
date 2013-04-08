@@ -471,14 +471,9 @@ struct Session : public ubuntu::application::ui::Session, public UbuntuSurface::
     
         void on_application_about_to_stop()
         {
-            ALOGI("%s() delegates entry", __PRETTY_FUNCTION__);
             if (delegates == NULL)
-            {
-                ALOGI("%s() delegates INVALID", __PRETTY_FUNCTION__);
                 return;
-            }
     
-            ALOGI("%s() delegates valid", __PRETTY_FUNCTION__);
             delegates->on_application_about_to_stop();
         }
     

@@ -44,8 +44,10 @@ extern "C" {
     /** Models the running state of a process. */
     typedef enum
     {
-        PROCESS_STOPPED = 0, /**< Process is stopped (SIGSTOP). */
-        PROCESS_RUNNING = 1 /**< Process is running normally. */
+        PROCESS_STOPPED = 0, /**< Process is Stopped (Not in memory, valid-state stored). */
+        PROCESS_RUNNING = 1, /**< Process is running normally. */
+        PROCESS_SUSPENDED = 2, /**< Process is Suspended (SIGSTOP). */
+        PROCESS_DESTROYED = 3, /**< Process is Destroyed or Stateless (Not in memory, invalid state). */
     } RunningState;
 
     /**

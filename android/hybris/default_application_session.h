@@ -73,7 +73,7 @@ struct ApplicationSession : public android::RefBase
         int32_t stage_hint,
         const android::String8& app_name,
         const android::String8& desktop_file)
-            : running_state(ubuntu::application::ui::process_running),
+            : running_state(ubuntu::application::ui::process_destroyed),
             pid(pid),
             remote_pid(remote_pid),
             app_layer(0),
@@ -127,7 +127,7 @@ struct ApplicationSession : public android::RefBase
             }
             
             android::IApplicationManagerSession::SurfaceProperties props;
-            if (parent->running_state == ubuntu::application::ui::process_stopped)
+            if (parent->running_state == ubuntu::application::ui::process_suspended)
             {
                 kill(parent->pid, SIGCONT);            
                 props = surface->query_properties();
