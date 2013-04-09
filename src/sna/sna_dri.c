@@ -37,6 +37,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 
 #include <errno.h>
+#include <time.h>
 #include <string.h>
 
 #include "sna.h"
@@ -872,10 +873,10 @@ sna_dri_copy(struct sna *sna, DrawablePtr draw, RegionPtr region,
 }
 
 static bool
-can_blit(struct sna * sna,
+can_blit(struct sna *sna,
 	 DrawablePtr draw,
-	 DRI2BufferPtr front,
-	 DRI2BufferPtr back)
+	 DRI2BufferPtr dst,
+	 DRI2BufferPtr src)
 {
 	RegionPtr clip;
 	int w, h;
@@ -884,13 +885,19 @@ can_blit(struct sna * sna,
 	if (draw->type == DRAWABLE_PIXMAP)
 		return true;
 
-	if (get_private(front)->pixmap != get_drawable_pixmap(draw)) {
-		DBG(("%s: reject as front pixmap=%ld, but expecting pixmap=%ld\n",
+#if 0
+	if (get_private(dst)->pixmap != get_drawable_pixmap(draw)) {
+		DBG(("%s: reject as dst pixmap=%ld, but expecting pixmap=%ld\n",
 		     __FUNCTION__,
-		     get_private(front)->pixmap ? get_private(front)->pixmap->drawable.serialNumber : 0,
+		     get_private(dst)->pixmap ? get_private(dst)->pixmap->drawable.serialNumber : 0,
 		     get_drawable_pixmap(draw)->drawable.serialNumber));
 		return false;
 	}
+
+	assert(sna_pixmap(get_private(dst)->pixmap)->flush);
+#endif
+	assert(get_private(dst)->bo->flush);
+	assert(get_private(src)->bo->flush);
 
 	clip = &((WindowPtr)draw)->clipList;
 	w = clip->extents.x2 - draw->x;
@@ -898,14 +905,14 @@ can_blit(struct sna * sna,
 	if ((w|h) < 0)
 		return false;
 
-	s = get_private(front)->size;
+	s = get_private(dst)->size;
 	if ((s>>16) < h || (s&0xffff) < w) {
 		DBG(("%s: reject front size (%dx%d) < (%dx%d)\n", __func__,
 		       s&0xffff, s>>16, w, h));
 		return false;
 	}
 
-	s = get_private(back)->size;
+	s = get_private(src)->size;
 	if ((s>>16) < h || (s&0xffff) < w) {
 		DBG(("%s:reject back size (%dx%d) < (%dx%d)\n", __func__,
 		     s&0xffff, s>>16, w, h));
@@ -944,8 +951,6 @@ sna_dri_copy_region(DrawablePtr draw,
 
 	if (!can_blit(sna, draw, dst_buffer, src_buffer))
 		return;
-
-	assert(sna_pixmap(pixmap)->flush);
 
 	if (dst_buffer->attachment == DRI2BufferFrontLeft) {
 		dst = sna_pixmap_get_bo(pixmap);
@@ -2212,6 +2217,16 @@ sna_dri_async_swap(ClientPtr client, DrawablePtr draw,
 }
 #endif
 
+static uint64_t gettime_us(void)
+{
+	struct timespec tv;
+
+	if (clock_gettime(CLOCK_MONOTONIC, &tv))
+		return 0;
+
+	return (uint64_t)tv.tv_sec * 1000000 + tv.tv_nsec / 1000;
+}
+
 /*
  * Get current frame count and frame count timestamp, based on drawable's
  * crtc.
@@ -2223,13 +2238,16 @@ sna_dri_get_msc(DrawablePtr draw, CARD64 *ust, CARD64 *msc)
 	drmVBlank vbl;
 	int pipe;
 
-	/* Drawable not displayed, make up a value */
-	*ust = *msc = 0;
 
 	pipe = sna_dri_get_pipe(draw);
 	DBG(("%s(pipe=%d)\n", __FUNCTION__, pipe));
-	if (pipe == -1)
+	if (pipe == -1) {
+fail:
+		/* Drawable not displayed, make up a *monotonic* value */
+		*ust = gettime_us();
+		*msc = 0;
 		return TRUE;
+	}
 
 	VG_CLEAR(vbl);
 	vbl.request.type = DRM_VBLANK_RELATIVE | pipe_select(pipe);
@@ -2242,6 +2260,7 @@ sna_dri_get_msc(DrawablePtr draw, CARD64 *ust, CARD64 *msc)
 	} else {
 		DBG(("%s: query failed on pipe %d, ret=%d\n",
 		     __FUNCTION__, pipe, errno));
+		goto fail;
 	}
 
 	return TRUE;

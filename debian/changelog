@@ -1,11 +1,11 @@
-xserver-xorg-video-intel (2:2.21.5-0ubuntu1) raring; urgency=low
+xserver-xorg-video-intel (2:2.21.6-0ubuntu1) raring; urgency=low
 
   * Merge from unreleased debian git
-    - new upstream release (LP: #1156387, #1156679)
+    - new upstream minor release (LP: #1162046)
 
- -- Timo Aaltonen <tjaalton@ubuntu.com>  Thu, 21 Mar 2013 15:51:49 +0200
+ -- Timo Aaltonen <tjaalton@ubuntu.com>  Tue, 09 Apr 2013 17:31:20 +0300
 
-xserver-xorg-video-intel (2:2.21.5-1) UNRELEASED; urgency=low
+xserver-xorg-video-intel (2:2.21.6-1) UNRELEASED; urgency=low
 
   [ Timo Aaltonen ]
   * New upstream release.
@@ -14,6 +14,13 @@ xserver-xorg-video-intel (2:2.21.5-1) UNRELEASED; urgency=low
   * Add valgrind to build-depends.
 
  -- Timo Aaltonen <tjaalton@ubuntu.com>  Fri, 07 Dec 2012 09:33:39 +0200
+
+xserver-xorg-video-intel (2:2.21.5-0ubuntu1) raring; urgency=low
+
+  * Merge from unreleased debian git
+    - new upstream release (LP: #1156387, #1156679)
+
+ -- Timo Aaltonen <tjaalton@ubuntu.com>  Thu, 21 Mar 2013 15:51:49 +0200
 
 xserver-xorg-video-intel (2:2.21.4-0ubuntu1) raring; urgency=low
 

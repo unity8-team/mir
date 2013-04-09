@@ -1734,7 +1734,7 @@ sna_render_picture_convert(struct sna *sna,
 	     pixmap->drawable.width,
 	     pixmap->drawable.height));
 
-	if (w == 0 || h == 0) {
+	if (w <= 0 || h <= 0) {
 		DBG(("%s: sample extents lie outside of source, using clear\n",
 		     __FUNCTION__));
 		return 0;

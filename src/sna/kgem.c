@@ -128,7 +128,7 @@ search_snoop_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags);
 #define LOCAL_IOCTL_I915_GEM_USERPTR DRM_IOWR (DRM_COMMAND_BASE + LOCAL_I915_GEM_USERPTR, struct local_i915_gem_userptr)
 struct local_i915_gem_userptr {
 	uint64_t user_ptr;
-	uint32_t user_size;
+	uint64_t user_size;
 	uint32_t flags;
 #define I915_USERPTR_READ_ONLY (1<<0)
 #define I915_USERPTR_UNSYNCHRONIZED (1<<31)
@@ -645,6 +645,10 @@ total_ram_size(void)
 	struct sysinfo info;
 	if (sysinfo(&info) == 0)
 		return info.totalram * info.mem_unit;
+#endif
+
+#ifdef _SC_PHYS_PAGES
+	 return sysconf(_SC_PHYS_PAGES) * sysconf(_SC_PAGE_SIZE);
 #endif
 
 	return 0;
@@ -1478,6 +1482,7 @@ static void kgem_bo_free(struct kgem *kgem, struct kgem_bo *bo)
 
 	if (IS_USER_MAP(bo->map)) {
 		assert(bo->rq == NULL);
+		assert(!__kgem_busy(kgem, bo->handle));
 		assert(MAP(bo->map) != bo || bo->io || bo->flush);
 		if (!(bo->io || bo->flush)) {
 			DBG(("%s: freeing snooped base\n", __FUNCTION__));
@@ -1728,6 +1733,23 @@ search_snoop_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags)
 	return NULL;
 }
 
+void kgem_bo_undo(struct kgem *kgem, struct kgem_bo *bo)
+{
+	if (kgem->nexec != 1 || bo->exec == NULL)
+		return;
+
+	DBG(("%s: only handle in batch, discarding last operations\n",
+	     __FUNCTION__));
+
+	assert(bo->exec == &kgem->exec[0]);
+	assert(kgem->exec[0].handle == bo->handle);
+	assert(RQ(bo->rq) == kgem->next_request);
+
+	bo->refcnt++;
+	kgem_reset(kgem);
+	bo->refcnt--;
+}
+
 static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 {
 	DBG(("%s: handle=%d\n", __FUNCTION__, bo->handle));
@@ -1778,16 +1800,8 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 	assert(bo->io == false);
 	assert(bo->scanout == false);
 
-	if (bo->exec && kgem->nexec == 1) {
-		DBG(("%s: only handle in batch, discarding last operations\n",
-		     __FUNCTION__));
-		assert(bo->exec == &kgem->exec[0]);
-		assert(kgem->exec[0].handle == bo->handle);
-		assert(RQ(bo->rq) == kgem->next_request);
-		bo->refcnt = 1;
-		kgem_reset(kgem);
-		bo->refcnt = 0;
-	}
+	kgem_bo_undo(kgem, bo);
+	assert(bo->refcnt == 0);
 
 	if (bo->rq && bo->exec == NULL && !__kgem_busy(kgem, bo->handle))
 		__kgem_bo_clear_busy(bo);
@@ -2622,18 +2636,11 @@ void _kgem_submit(struct kgem *kgem)
 			struct drm_i915_gem_execbuffer2 execbuf;
 			int ret, retry = 3;
 
-			VG_CLEAR(execbuf);
+			memset(&execbuf, 0, sizeof(execbuf));
 			execbuf.buffers_ptr = (uintptr_t)kgem->exec;
 			execbuf.buffer_count = kgem->nexec;
-			execbuf.batch_start_offset = 0;
 			execbuf.batch_len = batch_end*sizeof(uint32_t);
-			execbuf.cliprects_ptr = 0;
-			execbuf.num_cliprects = 0;
-			execbuf.DR1 = 0;
-			execbuf.DR4 = 0;
 			execbuf.flags = kgem->ring | kgem->batch_flags;
-			execbuf.rsvd1 = 0;
-			execbuf.rsvd2 = 0;
 
 			if (DBG_DUMP) {
 				int fd = open("/tmp/i915-batchbuffers.dump",
@@ -3599,7 +3606,6 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 			assert(!bo->scanout);
 			assert(bo->refcnt == 0);
 			assert(bo->reusable);
-			assert(bo->flush == true);
 
 			if (kgem->gen < 040) {
 				if (bo->pitch < pitch) {
@@ -3633,6 +3639,7 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 			     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
 			assert(bo->pitch*kgem_aligned_height(kgem, height, bo->tiling) <= kgem_bo_size(bo));
 			bo->refcnt = 1;
+			bo->flush = true;
 			return bo;
 		}
 

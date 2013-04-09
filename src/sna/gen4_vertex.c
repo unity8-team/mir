@@ -1170,6 +1170,165 @@ emit_boxes_simple_source__sse4_2(const struct sna_composite_op *op,
 	} while (--nbox);
 }
 
+sse4_2 fastcall static void
+emit_primitive_identity_mask__sse4_2(struct sna *sna,
+				     const struct sna_composite_op *op,
+				     const struct sna_composite_rectangles *r)
+{
+	union {
+		struct sna_coordinate p;
+		float f;
+	} dst;
+	float msk_x, msk_y;
+	float w, h;
+	float *v;
+
+	msk_x = r->mask.x + op->mask.offset[0];
+	msk_y = r->mask.y + op->mask.offset[1];
+	w = r->width;
+	h = r->height;
+
+	DBG(("%s: dst=(%d, %d), mask=(%f, %f) x (%f, %f)\n",
+	     __FUNCTION__, r->dst.x, r->dst.y, msk_x, msk_y, w, h));
+
+	assert(op->floats_per_rect == 12);
+	assert((sna->render.vertex_used % 4) == 0);
+	v = sna->render.vertices + sna->render.vertex_used;
+	sna->render.vertex_used += 12;
+
+	dst.p.x = r->dst.x + r->width;
+	dst.p.y = r->dst.y + r->height;
+	v[0] = dst.f;
+	v[2] = (msk_x + w) * op->mask.scale[0];
+	v[7] = v[3] = (msk_y + h) * op->mask.scale[1];
+
+	dst.p.x = r->dst.x;
+	v[4] = dst.f;
+	v[10] = v[6] = msk_x * op->mask.scale[0];
+
+	dst.p.y = r->dst.y;
+	v[8] = dst.f;
+	v[11] = msk_y * op->mask.scale[1];
+
+	v[9] = v[5] = v[1] = .5;
+}
+
+sse4_2 fastcall static void
+emit_boxes_identity_mask__sse4_2(const struct sna_composite_op *op,
+				 const BoxRec *box, int nbox,
+				 float *v)
+{
+	float msk_x = op->mask.offset[0];
+	float msk_y = op->mask.offset[1];
+
+	do {
+		union {
+			struct sna_coordinate p;
+			float f;
+		} dst;
+
+		dst.p.x = box->x2;
+		dst.p.y = box->y2;
+		v[0] = dst.f;
+		v[2] = (msk_x + box->x2) * op->mask.scale[0];
+		v[7] = v[3] = (msk_y + box->y2) * op->mask.scale[1];
+
+		dst.p.x = box->x1;
+		v[4] = dst.f;
+		v[10] = v[6] = (msk_x + box->x1) * op->mask.scale[0];
+
+		dst.p.y = box->y1;
+		v[8] = dst.f;
+		v[11] = (msk_y + box->y1) * op->mask.scale[1];
+
+		v[9] = v[5] = v[1] = .5;
+		v += 12;
+		box++;
+	} while (--nbox);
+}
+
+sse4_2 fastcall static void
+emit_primitive_linear_identity_mask__sse4_2(struct sna *sna,
+					    const struct sna_composite_op *op,
+					    const struct sna_composite_rectangles *r)
+{
+	union {
+		struct sna_coordinate p;
+		float f;
+	} dst;
+	float msk_x, msk_y;
+	float w, h;
+	float *v;
+
+	msk_x = r->mask.x + op->mask.offset[0];
+	msk_y = r->mask.y + op->mask.offset[1];
+	w = r->width;
+	h = r->height;
+
+	DBG(("%s: dst=(%d, %d), mask=(%f, %f) x (%f, %f)\n",
+	     __FUNCTION__, r->dst.x, r->dst.y, msk_x, msk_y, w, h));
+
+	assert(op->floats_per_rect == 12);
+	assert((sna->render.vertex_used % 4) == 0);
+	v = sna->render.vertices + sna->render.vertex_used;
+	sna->render.vertex_used += 12;
+
+	dst.p.x = r->dst.x + r->width;
+	dst.p.y = r->dst.y + r->height;
+	v[0] = dst.f;
+	v[2] = (msk_x + w) * op->mask.scale[0];
+	v[7] = v[3] = (msk_y + h) * op->mask.scale[1];
+
+	dst.p.x = r->dst.x;
+	v[4] = dst.f;
+	v[10] = v[6] = msk_x * op->mask.scale[0];
+
+	dst.p.y = r->dst.y;
+	v[8] = dst.f;
+	v[11] = msk_y * op->mask.scale[1];
+
+	v[1] = compute_linear(&op->src, r->src.x+r->width, r->src.y+r->height);
+	v[5] = compute_linear(&op->src, r->src.x, r->src.y+r->height);
+	v[9] = compute_linear(&op->src, r->src.x, r->src.y);
+}
+
+sse4_2 fastcall static void
+emit_boxes_linear_identity_mask__sse4_2(const struct sna_composite_op *op,
+					const BoxRec *box, int nbox,
+					float *v)
+{
+	float msk_x = op->mask.offset[0];
+	float msk_y = op->mask.offset[1];
+
+	do {
+		union {
+			struct sna_coordinate p;
+			float f;
+		} dst;
+
+		dst.p.x = box->x2;
+		dst.p.y = box->y2;
+		v[0] = dst.f;
+		v[2] = (msk_x + box->x2) * op->mask.scale[0];
+		v[7] = v[3] = (msk_y + box->y2) * op->mask.scale[1];
+
+		dst.p.x = box->x1;
+		v[4] = dst.f;
+		v[10] = v[6] = (msk_x + box->x1) * op->mask.scale[0];
+
+		dst.p.y = box->y1;
+		v[8] = dst.f;
+		v[11] = (msk_y + box->y1) * op->mask.scale[1];
+
+		v[1] = compute_linear(&op->src, box->x2, box->y2);
+		v[5] = compute_linear(&op->src, box->x1, box->y2);
+		v[9] = compute_linear(&op->src, box->x1, box->y1);
+
+		v += 12;
+		box++;
+	} while (--nbox);
+}
+
 #endif
 
 /* AVX2 */
@@ -1373,6 +1532,165 @@ emit_boxes_simple_source__avx2(const struct sna_composite_op *op,
 	} while (--nbox);
 }
 
+avx2 fastcall static void
+emit_primitive_identity_mask__avx2(struct sna *sna,
+				   const struct sna_composite_op *op,
+				   const struct sna_composite_rectangles *r)
+{
+	union {
+		struct sna_coordinate p;
+		float f;
+	} dst;
+	float msk_x, msk_y;
+	float w, h;
+	float *v;
+
+	msk_x = r->mask.x + op->mask.offset[0];
+	msk_y = r->mask.y + op->mask.offset[1];
+	w = r->width;
+	h = r->height;
+
+	DBG(("%s: dst=(%d, %d), mask=(%f, %f) x (%f, %f)\n",
+	     __FUNCTION__, r->dst.x, r->dst.y, msk_x, msk_y, w, h));
+
+	assert(op->floats_per_rect == 12);
+	assert((sna->render.vertex_used % 4) == 0);
+	v = sna->render.vertices + sna->render.vertex_used;
+	sna->render.vertex_used += 12;
+
+	dst.p.x = r->dst.x + r->width;
+	dst.p.y = r->dst.y + r->height;
+	v[0] = dst.f;
+	v[2] = (msk_x + w) * op->mask.scale[0];
+	v[7] = v[3] = (msk_y + h) * op->mask.scale[1];
+
+	dst.p.x = r->dst.x;
+	v[4] = dst.f;
+	v[10] = v[6] = msk_x * op->mask.scale[0];
+
+	dst.p.y = r->dst.y;
+	v[8] = dst.f;
+	v[11] = msk_y * op->mask.scale[1];
+
+	v[9] = v[5] = v[1] = .5;
+}
+
+avx2 fastcall static void
+emit_boxes_identity_mask__avx2(const struct sna_composite_op *op,
+			       const BoxRec *box, int nbox,
+			       float *v)
+{
+	float msk_x = op->mask.offset[0];
+	float msk_y = op->mask.offset[1];
+
+	do {
+		union {
+			struct sna_coordinate p;
+			float f;
+		} dst;
+
+		dst.p.x = box->x2;
+		dst.p.y = box->y2;
+		v[0] = dst.f;
+		v[2] = (msk_x + box->x2) * op->mask.scale[0];
+		v[7] = v[3] = (msk_y + box->y2) * op->mask.scale[1];
+
+		dst.p.x = box->x1;
+		v[4] = dst.f;
+		v[10] = v[6] = (msk_x + box->x1) * op->mask.scale[0];
+
+		dst.p.y = box->y1;
+		v[8] = dst.f;
+		v[11] = (msk_y + box->y1) * op->mask.scale[1];
+
+		v[9] = v[5] = v[1] = .5;
+		v += 12;
+		box++;
+	} while (--nbox);
+}
+
+avx2 fastcall static void
+emit_primitive_linear_identity_mask__avx2(struct sna *sna,
+					  const struct sna_composite_op *op,
+					  const struct sna_composite_rectangles *r)
+{
+	union {
+		struct sna_coordinate p;
+		float f;
+	} dst;
+	float msk_x, msk_y;
+	float w, h;
+	float *v;
+
+	msk_x = r->mask.x + op->mask.offset[0];
+	msk_y = r->mask.y + op->mask.offset[1];
+	w = r->width;
+	h = r->height;
+
+	DBG(("%s: dst=(%d, %d), mask=(%f, %f) x (%f, %f)\n",
+	     __FUNCTION__, r->dst.x, r->dst.y, msk_x, msk_y, w, h));
+
+	assert(op->floats_per_rect == 12);
+	assert((sna->render.vertex_used % 4) == 0);
+	v = sna->render.vertices + sna->render.vertex_used;
+	sna->render.vertex_used += 12;
+
+	dst.p.x = r->dst.x + r->width;
+	dst.p.y = r->dst.y + r->height;
+	v[0] = dst.f;
+	v[2] = (msk_x + w) * op->mask.scale[0];
+	v[7] = v[3] = (msk_y + h) * op->mask.scale[1];
+
+	dst.p.x = r->dst.x;
+	v[4] = dst.f;
+	v[10] = v[6] = msk_x * op->mask.scale[0];
+
+	dst.p.y = r->dst.y;
+	v[8] = dst.f;
+	v[11] = msk_y * op->mask.scale[1];
+
+	v[1] = compute_linear(&op->src, r->src.x+r->width, r->src.y+r->height);
+	v[5] = compute_linear(&op->src, r->src.x, r->src.y+r->height);
+	v[9] = compute_linear(&op->src, r->src.x, r->src.y);
+}
+
+avx2 fastcall static void
+emit_boxes_linear_identity_mask__avx2(const struct sna_composite_op *op,
+				      const BoxRec *box, int nbox,
+				      float *v)
+{
+	float msk_x = op->mask.offset[0];
+	float msk_y = op->mask.offset[1];
+
+	do {
+		union {
+			struct sna_coordinate p;
+			float f;
+		} dst;
+
+		dst.p.x = box->x2;
+		dst.p.y = box->y2;
+		v[0] = dst.f;
+		v[2] = (msk_x + box->x2) * op->mask.scale[0];
+		v[7] = v[3] = (msk_y + box->y2) * op->mask.scale[1];
+
+		dst.p.x = box->x1;
+		v[4] = dst.f;
+		v[10] = v[6] = (msk_x + box->x1) * op->mask.scale[0];
+
+		dst.p.y = box->y1;
+		v[8] = dst.f;
+		v[11] = (msk_y + box->y1) * op->mask.scale[1];
+
+		v[1] = compute_linear(&op->src, box->x2, box->y2);
+		v[5] = compute_linear(&op->src, box->x1, box->y2);
+		v[9] = compute_linear(&op->src, box->x1, box->y1);
+
+		v += 12;
+		box++;
+	} while (--nbox);
+}
+
 #endif
 
 unsigned gen4_choose_composite_emitter(struct sna *sna, struct sna_composite_op *tmp)
@@ -1383,14 +1701,42 @@ unsigned gen4_choose_composite_emitter(struct sna *sna, struct sna_composite_op 
 		if (tmp->mask.transform == NULL) {
 			if (tmp->src.is_solid) {
 				DBG(("%s: solid, identity mask\n", __FUNCTION__));
-				tmp->prim_emit = emit_primitive_identity_mask;
-				tmp->emit_boxes = emit_boxes_identity_mask;
+#if defined(avx2)
+				if (sna->cpu_features & AVX2) {
+					tmp->prim_emit = emit_primitive_identity_mask__avx2;
+					tmp->emit_boxes = emit_boxes_identity_mask__avx2;
+				} else
+#endif
+#if defined(sse4_2)
+				if (sna->cpu_features & SSE4_2) {
+					tmp->prim_emit = emit_primitive_identity_mask__sse4_2;
+					tmp->emit_boxes = emit_boxes_identity_mask__sse4_2;
+				} else
+#endif
+				{
+					tmp->prim_emit = emit_primitive_identity_mask;
+					tmp->emit_boxes = emit_boxes_identity_mask;
+				}
 				tmp->floats_per_vertex = 4;
 				vb = 1 | 2 << 2;
 			} else if (tmp->src.is_linear) {
 				DBG(("%s: linear, identity mask\n", __FUNCTION__));
-				tmp->prim_emit = emit_primitive_linear_identity_mask;
-				tmp->emit_boxes = emit_boxes_linear_identity_mask;
+#if defined(avx2)
+				if (sna->cpu_features & AVX2) {
+					tmp->prim_emit = emit_primitive_linear_identity_mask__avx2;
+					tmp->emit_boxes = emit_boxes_linear_identity_mask__avx2;
+				} else
+#endif
+#if defined(sse4_2)
+				if (sna->cpu_features & SSE4_2) {
+					tmp->prim_emit = emit_primitive_linear_identity_mask__sse4_2;
+					tmp->emit_boxes = emit_boxes_linear_identity_mask__sse4_2;
+				} else
+#endif
+				{
+					tmp->prim_emit = emit_primitive_linear_identity_mask;
+					tmp->emit_boxes = emit_boxes_linear_identity_mask;
+				}
 				tmp->floats_per_vertex = 4;
 				vb = 1 | 2 << 2;
 			} else if (tmp->src.transform == NULL) {

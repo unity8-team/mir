@@ -23,7 +23,7 @@
 # Initialize Autoconf
 AC_PREREQ([2.60])
 AC_INIT([xf86-video-intel],
-        [2.21.5],
+        [2.21.6],
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
         [xf86-video-intel])
 AC_CONFIG_SRCDIR([Makefile.am])
@@ -200,12 +200,12 @@ AC_ARG_ENABLE(sna,
 	      [SNA="$enableval"],
 	      [SNA=auto])
 
-AC_CHECK_HEADERS([sys/sysinfo.h], , SNA=no)
 if test "x$SNA" = "xauto" && pkg-config --exists "xorg-server >= 1.10"; then
 	SNA=yes
 fi
 if test "x$SNA" != "xno"; then
 	AC_DEFINE(USE_SNA, 1, [Enable SNA support])
+	AC_CHECK_HEADERS([sys/sysinfo.h])
 fi
 AC_MSG_CHECKING([whether to include SNA support])
 AM_CONDITIONAL(SNA, test x$SNA != xno)
@@ -353,6 +353,12 @@ AC_ARG_ENABLE(debug,
 			     [Enables internal debugging [default=no]]),
               [DEBUG="$enableval"],
               [DEBUG=no])
+AC_ARG_ENABLE(valgrind,
+	      AS_HELP_STRING([--enable-valgrind],
+			     [Enables valgrindified ioctls for debugging [default=no]]),
+              [VG="$enableval"],
+              [VG=no])
+
 # Store the list of server defined optional extensions in REQUIRED_MODULES
 XORG_DRIVER_CHECK_EXT(RANDR, randrproto)
 XORG_DRIVER_CHECK_EXT(RENDER, renderproto)
@@ -439,12 +445,22 @@ AM_CONDITIONAL(DEBUG, test x$DEBUG != xno)
 AM_CONDITIONAL(FULL_DEBUG, test x$DEBUG = xfull)
 if test "x$DEBUG" = xno; then
 	AC_DEFINE(NDEBUG,1,[Disable internal debugging])
+else
+	if test "x$VG" != xyes; then
+		VG=auto
+	fi
 fi
-if test "x$DEBUG" != xno; then
+if test "x$VG" != xno; then
 	PKG_CHECK_MODULES(VALGRIND, [valgrind], have_valgrind=yes, have_valgrind=no)
+	AC_MSG_CHECKING([whether to include valgrind support])
 	if test x$have_valgrind = xyes; then
 		AC_DEFINE([HAVE_VALGRIND], 1, [Use valgrind intrinsics to suppress false warnings])
+	else
+		if test "x$VG" = xyes; then
+			AC_MSG_ERROR([valgrind support requested, but valgrind-dev headers not found])
+		fi
 	fi
+	AC_MSG_RESULT([$have_valgrind ($VG)])
 fi
 if test "x$DEBUG" = xsync; then
 	AC_DEFINE(DEBUG_SYNC,1,[Enable synchronous rendering for debugging])

@@ -192,6 +192,78 @@ static void gem_close(int fd, uint32_t handle)
 	(void)drmIoctl(fd, DRM_IOCTL_GEM_CLOSE, &close);
 }
 
+#ifdef __OpenBSD__
+
+#include <dev/wscons/wsconsio.h>
+#include <xf86Priv.h>
+
+static void
+sna_output_backlight_set(xf86OutputPtr output, int level)
+{
+	struct sna_output *sna_output = output->driver_private;
+	struct wsdisplay_param param;
+
+	DBG(("%s: level=%d, max=%d\n", __FUNCTION__,
+	     level, sna_output->backlight_max));
+
+	if (!sna_output->backlight_iface)
+		return;
+
+	if ((unsigned)level > sna_output->backlight_max)
+		level = sna_output->backlight_max;
+
+	VG_CLEAR(param);
+	param.param = WSDISPLAYIO_PARAM_BRIGHTNESS;
+	param.curval = level;
+
+	if (ioctl(xf86Info.consoleFd, WSDISPLAYIO_SETPARAM, &param) == -1) {
+		xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
+			   "Failed to set backlight level: %s\n",
+			   strerror(errno));
+	}
+}
+
+static int
+sna_output_backlight_get(xf86OutputPtr output)
+{
+	struct wsdisplay_param param;
+
+	VG_CLEAR(param);
+	param.param = WSDISPLAYIO_PARAM_BRIGHTNESS;
+
+	if (ioctl(xf86Info.consoleFd, WSDISPLAYIO_GETPARAM, &param) == -1) {
+		xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
+			   "Failed to get backlight level: %s\n",
+			   strerror(errno));
+		return -1;
+	}
+
+	DBG(("%s: level=%d (max=%d)\n", __FUNCTION__, param.curval, param.max));
+
+	return param.curval;
+}
+
+static void
+sna_output_backlight_init(xf86OutputPtr output)
+{
+	struct sna_output *sna_output = output->driver_private;
+	struct wsdisplay_param param;
+
+	VG_CLEAR(param);
+	param.param = WSDISPLAYIO_PARAM_BRIGHTNESS;
+
+	if (ioctl(xf86Info.consoleFd, WSDISPLAYIO_GETPARAM, &param) == -1)
+		return;
+
+	DBG(("%s: found 'wscons'\n", __FUNCTION__));
+
+	sna_output->backlight_iface = "wscons";
+	sna_output->backlight_max = param.max;
+	sna_output->backlight_active_level = param.curval;
+}
+
+#else
+
 static void
 sna_output_backlight_set(xf86OutputPtr output, int level)
 {
@@ -532,6 +604,7 @@ done:
 		   "found backlight control interface %s (type '%s')\n",
 		   sna_output->backlight_iface, best_iface);
 }
+#endif
 
 static void
 mode_from_kmode(ScrnInfoPtr scrn,
@@ -2814,15 +2887,13 @@ static bool sna_emit_wait_for_scanline_hsw(struct sna *sna,
 	uint32_t event;
 	uint32_t *b;
 
-	if (sna->kgem.mode != KGEM_BLT)
-		return false;
-
 	b = kgem_get_batch(&sna->kgem);
 	sna->kgem.nbatch += 5;
 
 	/* The documentation says that the LOAD_SCAN_LINES command
 	 * always comes in pairs. Don't ask me why. */
 	switch (pipe) {
+	default: assert(0);
 	case 0: event = 0; break;
 	case 1: event = 1 << 19; break;
 	case 2: event = 4 << 19; break;
@@ -2831,6 +2902,7 @@ static bool sna_emit_wait_for_scanline_hsw(struct sna *sna,
 	b[3] = b[1] = (y1 << 16) | (y2-1);
 
 	switch (pipe) {
+	default: assert(0);
 	case 0: event = 0; break;
 	case 1: event = 1 << 8; break;
 	case 2: event = 1 << 14; break;

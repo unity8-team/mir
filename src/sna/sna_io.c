@@ -1362,38 +1362,25 @@ bool sna_replace(struct sna *sna,
 {
 	struct kgem_bo *bo = *_bo;
 	struct kgem *kgem = &sna->kgem;
-	bool busy;
 	void *dst;
 
-	busy = __kgem_bo_is_busy(kgem, bo);
 	DBG(("%s(handle=%d, %dx%d, bpp=%d, tiling=%d) busy?=%d\n",
 	     __FUNCTION__, bo->handle,
 	     pixmap->drawable.width,
 	     pixmap->drawable.height,
 	     pixmap->drawable.bitsPerPixel,
-	     bo->tiling, busy));
+	     bo->tiling,
+	     __kgem_bo_is_busy(kgem, bo)));
 
 	assert(!sna_pixmap(pixmap)->pinned);
 
-	if (!busy && upload_inplace__tiled(kgem, bo)) {
-		BoxRec box;
+	kgem_bo_undo(kgem, bo);
 
-		box.x1 = box.y1 = 0;
-		box.x2 = pixmap->drawable.width;
-		box.y2 = pixmap->drawable.height;
-
-		if (write_boxes_inplace__tiled(kgem, src,
-					       stride, pixmap->drawable.bitsPerPixel, 0, 0,
-					       bo, 0, 0, &box, 1))
-			return true;
-	}
-
-	if ((busy || !kgem_bo_can_map(kgem, bo)) &&
-	    indirect_replace(sna, pixmap, bo, src, stride))
-		return true;
-
-	if (busy) {
+	if (__kgem_bo_is_busy(kgem, bo)) {
 		struct kgem_bo *new_bo;
+
+		if (indirect_replace(sna, pixmap, bo, src, stride))
+			return true;
 
 		new_bo = kgem_create_2d(kgem,
 					pixmap->drawable.width,

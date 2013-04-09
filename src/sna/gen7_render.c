@@ -125,10 +125,10 @@ static const struct gt_info hsw_gt1_info = {
 };
 
 static const struct gt_info hsw_gt2_info = {
-	.max_vs_threads = 280,
-	.max_gs_threads = 280,
+	.max_vs_threads = 140,
+	.max_gs_threads = 140,
 	.max_wm_threads =
-		(204 - 1) << HSW_PS_MAX_THREADS_SHIFT |
+		(140 - 1) << HSW_PS_MAX_THREADS_SHIFT |
 		1 << HSW_PS_SAMPLE_MASK_SHIFT,
 	.urb = { 256, 1664, 640 },
 };
@@ -1190,7 +1190,7 @@ gen7_bind_bo(struct sna *sna,
 	COMPILE_TIME_ASSERT(sizeof(struct gen7_surface_state) == 32);
 
 	/* After the first bind, we manage the cache domains within the batch */
-	offset = kgem_bo_get_binding(bo, format | is_scanout << 31);
+	offset = kgem_bo_get_binding(bo, format | is_dst << 30 | is_scanout << 31);
 	if (offset) {
 		if (is_dst)
 			kgem_bo_mark_dirty(bo);
@@ -1203,22 +1203,25 @@ gen7_bind_bo(struct sna *sna,
 	ss[0] = (GEN7_SURFACE_2D << GEN7_SURFACE_TYPE_SHIFT |
 		 gen7_tiling_bits(bo->tiling) |
 		 format << GEN7_SURFACE_FORMAT_SHIFT);
-	if (is_dst)
+	if (bo->tiling == I915_TILING_Y)
+		ss[0] |= GEN7_SURFACE_VALIGN_4;
+	if (is_dst) {
+		ss[0] |= GEN7_SURFACE_RC_READ_WRITE;
 		domains = I915_GEM_DOMAIN_RENDER << 16 |I915_GEM_DOMAIN_RENDER;
-	else
+	} else
 		domains = I915_GEM_DOMAIN_SAMPLER << 16;
 	ss[1] = kgem_add_reloc(&sna->kgem, offset + 1, bo, domains, 0);
 	ss[2] = ((width - 1)  << GEN7_SURFACE_WIDTH_SHIFT |
 		 (height - 1) << GEN7_SURFACE_HEIGHT_SHIFT);
 	ss[3] = (bo->pitch - 1) << GEN7_SURFACE_PITCH_SHIFT;
 	ss[4] = 0;
-	ss[5] = is_scanout ? 0 : 3 << 16;
+	ss[5] = is_scanout ? 0 : sna->kgem.gen == 075 ? 5 << 16 : 3 << 16;
 	ss[6] = 0;
 	ss[7] = 0;
 	if (sna->kgem.gen == 075)
 		ss[7] |= HSW_SURFACE_SWIZZLE(RED, GREEN, BLUE, ALPHA);
 
-	kgem_bo_set_binding(bo, format | is_scanout << 31, offset);
+	kgem_bo_set_binding(bo, format | is_dst << 30 | is_scanout << 31, offset);
 
 	DBG(("[%x] bind bo(handle=%d, addr=%d), format=%d, width=%d, height=%d, pitch=%d, tiling=%d -> %s\n",
 	     offset, bo->handle, ss[1],
@@ -3684,7 +3687,7 @@ static void gen7_render_fini(struct sna *sna)
 
 static bool is_gt2(struct sna *sna)
 {
-	return DEVICE_ID(sna->PciInfo) & 0x20;
+	return DEVICE_ID(sna->PciInfo) & (sna->kgem.gen == 075 ? 0x30 : 0x20);
 }
 
 static bool is_mobile(struct sna *sna)
@@ -3706,6 +3709,8 @@ static bool gen7_render_setup(struct sna *sna)
 			if (is_gt2(sna))
 				state->info = &ivb_gt2_info; /* XXX requires GT_MODE WiZ disabled */
 		}
+	} else if (sna->kgem.gen == 071) {
+		state->info = &ivb_gt_info;
 	} else if (sna->kgem.gen == 075) {
 		state->info = &hsw_gt_info;
 		if (DEVICE_ID(sna->PciInfo) & 0xf) {
@@ -3794,7 +3799,7 @@ bool gen7_render_init(struct sna *sna)
 #if !NO_COMPOSITE_SPANS
 	sna->render.check_composite_spans = gen7_check_composite_spans;
 	sna->render.composite_spans = gen7_render_composite_spans;
-	if (is_mobile(sna))
+	if (is_mobile(sna) || is_gt2(sna))
 		sna->render.prefer_gpu |= PREFER_GPU_SPANS;
 #endif
 	sna->render.video = gen7_render_video;
