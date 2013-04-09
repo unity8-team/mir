@@ -53,7 +53,7 @@ static Atom xvColorKey;
 static XF86VideoFormatRec xv_formats[] = {
 	{15, TrueColor}, {16, TrueColor}, {24, TrueColor}
 };
-static XF86ImageRec xv_images[] = { XVIMAGE_YUY2, XVIMAGE_UYVY, };
+static XF86ImageRec xv_images[] = { XVIMAGE_YUY2, XVIMAGE_UYVY, XVMC_YUV};
 static const XF86VideoEncodingRec xv_dummy_encoding[] = {
 	{ 0, "XV_IMAGE", IMAGE_MAX_WIDTH, IMAGE_MAX_HEIGHT, {1, 1} }
 };
@@ -314,15 +314,30 @@ static int sna_video_sprite_put_image(ScrnInfoPtr scrn,
 	/* sprites can't handle rotation natively, store it for the copy func */
 	video->rotation = crtc->rotation;
 
-	frame.bo = sna_video_buffer(sna, video, &frame);
-	if (frame.bo == NULL) {
-		DBG(("%s: failed to allocate video bo\n", __FUNCTION__));
-		return BadAlloc;
-	}
+	if (xvmc_passthrough(id)) {
+		DBG(("%s: using passthough, name=%d\n",
+		     __FUNCTION__, *(uint32_t *)buf));
 
-	if (!sna_video_copy_data(sna, video, &frame, buf)) {
-		DBG(("%s: failed to copy video data\n", __FUNCTION__));
-		return BadAlloc;
+		frame.bo = kgem_create_for_name(&sna->kgem, *(uint32_t*)buf);
+		if (frame.bo == NULL)
+			return BadAlloc;
+
+		assert(kgem_bo_size(frame.bo) >= frame.size);
+		frame.image.x1 = 0;
+		frame.image.y1 = 0;
+		frame.image.x2 = frame.width;
+		frame.image.y2 = frame.height;
+	} else {
+		frame.bo = sna_video_buffer(sna, video, &frame);
+		if (frame.bo == NULL) {
+			DBG(("%s: failed to allocate video bo\n", __FUNCTION__));
+			return BadAlloc;
+		}
+
+		if (!sna_video_copy_data(sna, video, &frame, buf)) {
+			DBG(("%s: failed to copy video data\n", __FUNCTION__));
+			return BadAlloc;
+		}
 	}
 
 	if (!sna_video_sprite_show(sna, video, &frame, crtc, &dst_box)) {
@@ -330,7 +345,11 @@ static int sna_video_sprite_put_image(ScrnInfoPtr scrn,
 		return BadAlloc;
 	}
 
-	sna_video_buffer_fini(sna, video);
+	frame.bo->domain = DOMAIN_NONE;
+	if (xvmc_passthrough(id))
+		kgem_bo_destroy(&sna->kgem, frame.bo);
+	else
+		sna_video_buffer_fini(sna, video);
 
 	if (!REGION_EQUAL(scrn->pScreen, &video->clip, clip)) {
 		REGION_COPY(scrn->pScreen, &video->clip, clip);
@@ -356,6 +375,13 @@ static int sna_video_sprite_query_attrs(ScrnInfoPtr scrn, int id,
 		offsets[0] = 0;
 
 	switch (id) {
+	case FOURCC_XVMC:
+		*h = (*h + 1) & ~1;
+		size = sizeof(uint32_t);
+		if (pitches)
+			pitches[0] = size;
+		break;
+
 	case FOURCC_YUY2:
 	default:
 		size = *w << 1;

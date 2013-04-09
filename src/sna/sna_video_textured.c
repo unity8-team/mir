@@ -69,43 +69,8 @@ static const XF86ImageRec Images[NUM_IMAGES] = {
 	XVIMAGE_YV12,
 	XVIMAGE_I420,
 	XVIMAGE_UYVY,
-#ifdef SNA_XVMC
-	{
-		/*
-		 * Below, a dummy picture type that is used in XvPutImage
-		 * only to do an overlay update.
-		 * Introduced for the XvMC client lib.
-		 * Defined to have a zero data size.
-		 */
-		FOURCC_XVMC,
-		XvYUV,
-		LSBFirst,
-		{'X', 'V', 'M', 'C',
-			0x00, 0x00, 0x00, 0x10, 0x80, 0x00, 0x00, 0xAA, 0x00,
-			0x38, 0x9B, 0x71},
-		12,
-		XvPlanar,
-		3,
-		0, 0, 0, 0,
-		8, 8, 8,
-		1, 2, 2,
-		1, 2, 2,
-		{'Y', 'V', 'U',
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-		XvTopToBottom},
-#endif
+	XVMC_YUV,
 };
-
-static int xvmc_passthrough(int id)
-{
-#ifdef SNA_XVMC
-	return id == FOURCC_XVMC;
-#else
-	return 0;
-	(void)id;
-#endif
-}
 
 static void sna_video_textured_stop(ScrnInfoPtr scrn,
 				    pointer data,
