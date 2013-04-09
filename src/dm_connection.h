@@ -21,14 +21,16 @@
 
 #include <boost/asio.hpp>
 
-struct DMMessageHandler
+class DMMessageHandler
 {
 public:
-    virtual void focus_session(std::string client_name) {};
+    virtual void focus_session(std::string client_name) = 0;
 };
 
-struct NullDMMessageHandler : DMMessageHandler
+class NullDMMessageHandler : public DMMessageHandler
 {
+public:
+    void focus_session(std::string client_name) {};
 };
 
 class DMConnection

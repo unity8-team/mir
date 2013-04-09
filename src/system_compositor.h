@@ -23,7 +23,7 @@
 
 #include <mir/default_server_configuration.h>
 
-class SystemCompositor
+class SystemCompositor : public DMMessageHandler
 {
 public:
     SystemCompositor(int argc, char const* argv[], int from_dm_fd, int to_dm_fd) :
@@ -35,6 +35,8 @@ public:
 private:
     mir::DefaultServerConfiguration config;
     DMConnection dm_connection;
+
+    virtual void focus_session(std::string client_name);
 };
 
 #endif /* SYSTEM_COMPOSITOR_H_ */

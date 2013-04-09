@@ -44,3 +44,8 @@ int SystemCompositor::run()
         return 1;
     }
 }
+
+void SystemCompositor::focus_session(std::string client_name)
+{
+    std::cerr << "FOCUS_SESSION" << std::endl;
+}
