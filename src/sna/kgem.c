@@ -3369,6 +3369,9 @@ int kgem_choose_tiling(struct kgem *kgem, int tiling, int width, int height, int
 			     __FUNCTION__, width, height));
 			tiling = -I915_TILING_X;
 		}
+
+		/* fences limited to 128k (256k on ivb) */
+		assert(width * bpp <= 128 * 1024 * 8);
 	}
 
 	if (tiling < 0)
