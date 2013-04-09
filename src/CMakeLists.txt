@@ -14,17 +14,31 @@
 #
 # Authored by: Robert Ancell <robert.ancell@canonical.com>
 
+# Compile protocol
+protobuf_generate_cpp(
+  GENERATED_PROTOBUF_SRCS GENERATED_PROTOBUF_HDRS
+  dm_protocol.proto
+)
+
+# Compile system compositor
 add_executable(
   unity-system-compositor
   unity-system-compositor.cpp
+  dm_connection.cpp
+  dm_connection.h
+  ${GENERATED_PROTOBUF_SRCS}
+  ${GENERATED_PROTOBUF_HDRS}
 )
 
-include_directories(/home/bob/bzr/mir/include)
-
+# Link against libmirserver
 target_link_libraries(unity-system-compositor
   mirserver
+  pthread
+  ${Boost_LIBRARIES}
+  ${PROTOBUF_LIBRARIES}
 )
 
+# Install into bin directory
 install(TARGETS unity-system-compositor
   RUNTIME DESTINATION bin
 )

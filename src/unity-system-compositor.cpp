@@ -16,58 +16,39 @@
  * Authored by: Robert Ancell <robert.ancell@canonical.com>
  */
 
-#include "mir/display_server.h"
-#include "mir/default_server_configuration.h"
+#include "dm_connection.h"
 
+#include <mir/display_server.h>
+#include <mir/default_server_configuration.h>
+#include <mir/run_mir.h>
+
+#include <cstdio>
 #include <thread>
-#include <boost/program_options/errors.hpp>
 #include <boost/exception/diagnostic_information.hpp>
 
-#include <atomic>
-#include <csignal>
-#include <iostream>
-
-namespace
-{
-std::atomic<mir::DisplayServer*> signal_display_server;
-
-extern "C" void signal_terminate(int)
-{
-    while (!signal_display_server.load())
-        std::this_thread::yield();
-
-    signal_display_server.load()->stop();
-}
-
-void run_mir(mir::ServerConfiguration& config)
-{
-    signal(SIGINT, signal_terminate);
-    signal(SIGTERM, signal_terminate);
-    signal(SIGPIPE, SIG_IGN);
-
-    mir::DisplayServer server(config);
-
-    signal_display_server.store(&server);
-
-    server.run();
-}
-}
-
 int main(int argc, char const* argv[])
-try
 {
-    mir::DefaultServerConfiguration config(argc, argv);
+    auto fd = atoi(argv[1]);
 
-    run_mir(config);
-    return 0;
-}
-catch (boost::program_options::error const&)
-{
-    // Can't run with these options - but no need for additional output
-    return 1;
-}
-catch (std::exception const& error)
-{
-    std::cerr << "ERROR: " << boost::diagnostic_information(error) << std::endl;
-    return 1;
+    DMConnection dm_connection(fd, ::dup(STDOUT_FILENO));
+    dm_connection.start();
+
+    try
+    {
+        mir::DefaultServerConfiguration config(argc, argv);
+
+        mir::run_mir(config, [](mir::DisplayServer&) {/* empty init */});
+
+        return 0;
+    }
+    catch (boost::program_options::error const&)
+    {
+        // Can't run with these options - but no need for additional output
+        return 1;
+    }
+    catch (std::exception const& error)
+    {
+        std::cerr << "ERROR: " << boost::diagnostic_information(error) << std::endl;
+        return 1;
+    }
 }

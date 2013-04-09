@@ -1,0 +1,5 @@
+option cc_generic_services = true;
+
+message FocusSession {
+  required string client_name = 1;
+};
