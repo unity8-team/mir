@@ -56,15 +56,7 @@ static const XF86AttributeRec TexturedAttributes[] = {
 	{XvSettable | XvGettable, 0, 255, "XV_CONTRAST"},
 };
 
-#ifdef SNA_XVMC
-#define NUM_IMAGES 5
-#define XVMC_IMAGE 1
-#else
-#define NUM_IMAGES 4
-#define XVMC_IMAGE 0
-#endif
-
-static const XF86ImageRec Images[NUM_IMAGES] = {
+static const XF86ImageRec Images[] = {
 	XVIMAGE_YUY2,
 	XVIMAGE_YV12,
 	XVIMAGE_I420,
@@ -224,12 +216,6 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 		DBG(("%s: using passthough, name=%d\n",
 		     __FUNCTION__, *(uint32_t *)buf));
 
-		if (sna->kgem.gen < 031) {
-			/* XXX: i915 is not support and needs some
-			 * serious care.  grep for KMS in i915_hwmc.c */
-			return BadAlloc;
-		}
-
 		frame.bo = kgem_create_for_name(&sna->kgem, *(uint32_t*)buf);
 		if (frame.bo == NULL) {
 			DBG(("%s: failed to open bo\n", __FUNCTION__));
@@ -325,14 +311,12 @@ sna_video_textured_query(ScrnInfoPtr scrn,
 			pitches[0] = size;
 		size *= *h;
 		break;
-#ifdef SNA_XVMC
 	case FOURCC_XVMC:
 		*h = (*h + 1) & ~1;
 		size = sizeof(uint32_t);
 		if (pitches)
 			pitches[0] = size;
 		break;
-#endif
 	}
 
 	return size;
@@ -403,7 +387,7 @@ XF86VideoAdaptorPtr sna_video_textured_setup(struct sna *sna,
 	adaptor->pAttributes = attrs;
 	memcpy(attrs, TexturedAttributes,
 	       NUM_TEXTURED_ATTRIBUTES * sizeof(XF86AttributeRec));
-	adaptor->nImages = NUM_IMAGES;
+	adaptor->nImages = ARRAY_SIZE(Images);
 	adaptor->pImages = (XF86ImagePtr)Images;
 	adaptor->PutVideo = NULL;
 	adaptor->PutStill = NULL;
