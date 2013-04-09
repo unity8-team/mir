@@ -138,7 +138,7 @@ xmm_save_128(__m128i *dst, __m128i data)
 }
 #endif
 
-void
+fast_memcpy void
 memcpy_blt(const void *src, void *dst, int bpp,
 	   int32_t src_stride, int32_t dst_stride,
 	   int16_t src_x, int16_t src_y,
@@ -213,7 +213,7 @@ memcpy_blt(const void *src, void *dst, int bpp,
 	}
 }
 
-void
+fast_memcpy void
 memcpy_to_tiled_x(const void *src, void *dst, int bpp, int swizzling,
 		  int32_t src_stride, int32_t dst_stride,
 		  int16_t src_x, int16_t src_y,

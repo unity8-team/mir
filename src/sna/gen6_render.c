@@ -1035,7 +1035,7 @@ gen6_bind_bo(struct sna *sna,
 	uint32_t is_scanout = is_dst && bo->scanout;
 
 	/* After the first bind, we manage the cache domains within the batch */
-	offset = kgem_bo_get_binding(bo, format | is_scanout << 31);
+	offset = kgem_bo_get_binding(bo, format | is_dst << 30 | is_scanout << 31);
 	if (offset) {
 		DBG(("[%x]  bo(handle=%d), format=%d, reuse %s binding\n",
 		     offset, bo->handle, format,
@@ -1051,9 +1051,10 @@ gen6_bind_bo(struct sna *sna,
 	ss[0] = (GEN6_SURFACE_2D << GEN6_SURFACE_TYPE_SHIFT |
 		 GEN6_SURFACE_BLEND_ENABLED |
 		 format << GEN6_SURFACE_FORMAT_SHIFT);
-	if (is_dst)
+	if (is_dst) {
+		ss[0] |= GEN6_SURFACE_RC_READ_WRITE;
 		domains = I915_GEM_DOMAIN_RENDER << 16 |I915_GEM_DOMAIN_RENDER;
-	else
+	} else
 		domains = I915_GEM_DOMAIN_SAMPLER << 16;
 	ss[1] = kgem_add_reloc(&sna->kgem, offset + 1, bo, domains, 0);
 	ss[2] = ((width - 1)  << GEN6_SURFACE_WIDTH_SHIFT |
@@ -1064,7 +1065,7 @@ gen6_bind_bo(struct sna *sna,
 	ss[4] = 0;
 	ss[5] = is_scanout ? 0 : 3 << 16;
 
-	kgem_bo_set_binding(bo, format | is_scanout << 31, offset);
+	kgem_bo_set_binding(bo, format | is_dst << 30 | is_scanout << 31, offset);
 
 	DBG(("[%x] bind bo(handle=%d, addr=%d), format=%d, width=%d, height=%d, pitch=%d, tiling=%d -> %s\n",
 	     offset, bo->handle, ss[1],

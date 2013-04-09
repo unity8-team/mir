@@ -1,3 +1,389 @@
+commit 678279eb373310f1a71a3d74e5a500b343e98830
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Apr 6 15:58:50 2013 +0100
+
+    2.21.6 release
+
+commit 5332d5a7e055042233e279385bfe1388adfe15fa
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Apr 6 15:42:23 2013 +0100
+
+    configure: Allow valgrind support to be manually enabled
+    
+    Irrespective of the DDX debug settings, some people wish to run Xorg
+    under valgrind and so prefer to have the cleaner output by making the
+    DDX valgrind aware.
+    
+    (Actually Maarten wants valgrind support enabled by default...)
+    
+    Suggested-by: Maarten Lankhorst <maarten.lankhorst@canonical.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 091cf6f0477824c5826547c02394752b6dc944ce
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Apr 6 09:30:57 2013 +0100
+
+    sna: Improve assertions to detect rogue priv->cpu status
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4a43aa81e27e8a651fde8a4761fd14bd8824d90c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Apr 4 10:53:55 2013 +0100
+
+    sna: Restore bo->flush status for large bo
+    
+    Since we started discarding the flush flags on cached bo (in order to
+    prevent DRI flush states leaking), we failed to preserve the flush flag
+    for large bo (which uses it to keep batches trim and other hints).
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit ed3dab44a717a1a88470228b5e33f20de1e4ad0d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Apr 2 15:20:52 2013 +0100
+
+    sna: Adjust userptr structure for implicit padding
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4e2fc5aee035c3059ca33dbcafc71dc5988d6b09
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Apr 2 14:29:29 2013 +0100
+
+    sna: Relax scanline waits on HSW to be emittable from either ring
+    
+    My overzealous reading of the bspec lead me to the conclusion that the
+    MI_LOAD_SCANLINES command was only available on the blitter ring. This
+    is false, thankfully, and allows us to do vsync'ed Xv.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5a36fdcee769195d5c6e642e84a8976114e7c6de
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Apr 2 11:01:53 2013 +0100
+
+    sna/gen4: Kill stray debugging ErrorF from previous commit
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 3d7e16addb2fb5f35936aafe8e16685a91d30f59
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Apr 2 10:58:52 2013 +0100
+
+    sna/gen4: Break the Video rendering loop into 16 rectangle chunks
+    
+    If we feed more than 16 rectangles into the video rendering pipeline,
+    the GPU goes crazy and starts emitting corruption. Lalalala.
+    
+    Bugzilla: https://bugs.launchpad.net/ubuntu/+source/xserver-xorg-video-intel/+bug/1162046
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f09aa788d79d36688bcfdd3b49b92367590c5f16
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Apr 2 10:01:21 2013 +0100
+
+    DRI2GetMSC: Do not send a bogus ust for when the drawable is not displayed
+    
+    According to the opengl glx_sync_control spec, the Unadjusted System Time
+    (or UST) is a 64-bit monotonically increasing counter that is available
+    throughout the system:
+    http://www.opengl.org/registry/specs/OML/glx_sync_control.txt
+    
+    Therefore, sending 0, even in this corner case, is out of spec. However,
+    we cannot just return FALSE here as that triggers a BadDrawable error to
+    be sent, and as is often the case mishandled, to the client. This results
+    in a certain compositor terminating, for example.
+    
+    As an alternative we can use the monotonic system timestamp which in
+    theory should also be monotonic with the previous and subsequent vblank
+    times.
+    
+    Based on a patch by Daniel Kurtz.
+    
+    Reported-by: Daniel Kurtz <djkurtz@chromium.org>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4af622edfc18af523e1fa9063379f68374e19b04
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Apr 1 22:44:13 2013 +0100
+
+    sna: Try to eliminate pending operations to the bo being replaced
+    
+    When we are replacing a bo with fresh data, we can drop pending
+    operations to it and thereby reduce the complexity of the replacement.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit ef0038d358e613381e03c077e06a87fc49108d87
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Apr 1 22:43:48 2013 +0100
+
+    sna: Allow the compiler to inline memcpy for the bitblt routines
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 43181692f752f0a552d2e2c76d8379fe16e521cf
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Mar 28 15:41:38 2013 +0000
+
+    sna/gen7: Refine is_gt2() for Haswell versus Ivybridge
+    
+    The two similar chipsets do not use the same PCI-ID encoding schema.
+    
+    Fixes regression from
+    commit 235a3981ea9759317b392302a2b2b8f4fafab410
+    Author: Chris Wilson <chris@chris-wilson.co.uk>
+    Date:   Tue Mar 26 20:37:14 2013 +0000
+    
+        sna/gen7: Use GT2 values for GT2 variants
+    
+    Reported-by: zaverel@free.fr
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 96c10bdff95a3f8a68c6623446655c4c3dbf738a
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Mar 27 22:10:37 2013 +0000
+
+    sna/gen7: Resist the temptation to overprogram the number of PS threads for HSW
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 19dfa72c28c6dc677dbfec3a538d4481985195e5
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Mar 27 16:56:10 2013 +0000
+
+    sna/gen4+: Set read-write allocation mode for the target render cache
+    
+    As we often first clear the destination before performing a blend, we
+    get a performance boost if that first write populates the render cache.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d9b8c2039d1be17af8c56364341fc3e10795f200
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Mar 27 14:49:15 2013 +0000
+
+    sna/gen7: Fix MOCS for Haswell
+    
+    The memory attributes changed slightly, and in particular there is now
+    an explicit uncached setting - which of course happened to be the value
+    currently selected.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 04b28021409bc179f6705802f3ccacb1e3c48cc5
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Mar 26 21:53:04 2013 +0000
+
+    sna/gen7: Restore render acceleration for VLV power-on board
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2054f43e4332e9d0ed61a0d643a1390dffff8d96
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Mar 26 20:38:52 2013 +0000
+
+    sna/gen7: Prefer spans for GT2 desktop variants
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 235a3981ea9759317b392302a2b2b8f4fafab410
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Mar 26 20:37:14 2013 +0000
+
+    sna/gen7: Use GT2 values for GT2 variants
+    
+    The check was only testing for GT2+ and excluding the normal GT2
+    devices. See also
+    
+    commit ce9f0448367ea6a90490a28150bfdc0a76500129
+    Author: Chris Wilson <chris@chris-wilson.co.uk>
+    Date:   Fri Feb 8 16:01:54 2013 +0000
+    
+        sna/gen6: Use GT2 settings for both GT2 and GT2+
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 3dddb01005274376c8cdc5eecad36d4e0723004a
+Author: Mark Kettenis <kettenis@openbsd.org>
+Date:   Tue Mar 26 20:50:53 2013 +0100
+
+    sna: Use a more portable way to determine total RAM size
+    
+    The sysinfo function is Linux-specific.  sysconf(_SC_PHYS_PAGES), while
+    not truly portable, is available on many more systems, including Linux,
+    Solaris, NetBSD, FreeBSD and OpenBSD.  So use that instead.  Verified
+    that this results in the same value as the sysinfo call on a handful of
+    Linux systems.
+    
+    Signed-off-by: Mark Kettenis <kettenis@openbsd.org>
+
+commit e63390df52117e1d3ca9d23a736e9995bc734765
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Mar 26 16:32:13 2013 +0000
+
+    sna: Add extra '()' around bitwise &/&& for CPU feature detection
+    
+    By popular demand.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 1d6f4078c1e405749ff688058ef76c287ab36201
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Mar 26 16:28:26 2013 +0000
+
+    sna/gen4+: Reorder code to compile on squeeze
+    
+    Remember to only use sse4_2, avx2 in their restricted sections that
+    check for compiler support.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0b479504c82bd81c0b93de0e6529eae928eea3bf
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Mar 26 16:12:30 2013 +0000
+
+    sna: Check for OS support of AVX/AVX2 before use
+    
+    If the OS has not initialised support for the extended instructions,
+    then their use may result in general protection faults.
+    
+    Based on code by Thiago Macieira.
+    
+    Reported-by: Arjan van de Ven <arjan@linux.intel.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 9620f419076202ebc89b4c7f1c06374fb2554f28
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Mar 26 15:44:42 2013 +0000
+
+    sna: Fix AVX2 detection
+    
+    It requires use of the cpuid feature eax=7:ecx=0, so it requires the
+    extended version of __cpuid  to pass in the subfeature.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit da2bd82b0e10f8a263f7ab4fb49b440349d97ace
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Mar 26 15:13:32 2013 +0000
+
+    sna/gen4+: Add a couple more advanced SSE variants for composite vertices
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 86bcf4a9f5dff98eab076df5872c3c412c0c13af
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Mar 26 15:13:08 2013 +0000
+
+    sna: AVX2 is in the ebx result of cpuid
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a5be4210b7e8b4a895a70ba617fda45d2e0188f0
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Mar 26 09:05:48 2013 +0000
+
+    sna: Trim removed fields from execbuffer2 for OpenBSD support
+    
+    Reported-by: Mark Kettenis <kettenis@openbsd.org>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 761ab4124e00b3dbab15abe69a9b29d9c3d0da0d
+Author: Mark Kettenis <kettenis@openbsd.org>
+Date:   Mon Mar 25 22:40:35 2013 +0100
+
+    sna: Fix OpenBSD backlight control implementation
+    
+    Fix cut'n'paste error such that this actually compiles.
+    
+    Signed-off-by: Mark Kettenis <kettenis@openbsd.org>
+
+commit 0a9b136ec43c860e6e6e651efea0330ac36a4ea5
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Mar 25 15:34:41 2013 +0000
+
+    Remove the GeneralSocket upon CloseScreen
+    
+    Be neat and tidy in case we are shutdown but the server is not
+    regenerated (e.g. a hot-unplug).
+    
+    Reported-by: Maarten Lankhorst <maarten.lankhorst@canonical.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 6b20924f22a14f69651dcf471c48f8a44d8ad42f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Mar 23 23:08:02 2013 +0000
+
+    sna: Convert out-of-bounds sample to CLEAR
+    
+    If asked to perform pixelformat conversion of a sample that resides
+    outside the valid area, we can simply substitute CLEAR.
+    
+    Bugzila: http://bugs.freedesktop.org/show_bug.cgi?id=62681
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f6582387e7d601272a92c3aaeb656de5ce1ffe75
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Mar 23 10:22:41 2013 +0000
+
+    sna: Fix an assertion to check the correct bo
+    
+    After syncing the GPU bo for use, that's what we should test as well.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 88b6b80c2a5191717f0baeb22cdb70ee8c993e09
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Mar 22 13:36:16 2013 +0000
+
+    sna: Fix assertions that the pixmap points into the CPU bo for fallbacks
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit ccd6b7e402e731c73163b132a80ae29ae2911613
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Mar 22 11:28:01 2013 +0000
+
+    sna: Add backlight control implementation
+    
+    Based on the previous patch by Mark Kettenis <kettenis@openbsd.org>
+
+commit 364e02c7998813643bc81f25ba077a764872d49e
+Author: Mark Kettenis <kettenis@openbsd.org>
+Date:   Fri Mar 22 11:23:11 2013 +0100
+
+    uxa: Add OpenBSD backlight control implementation
+    
+    Signed-off-by: Mark Kettenis <kettenis@openbsd.org>
+
+commit 8d75b2ece1de1c95047c5dc5a569348abd0e6325
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Mar 22 09:51:46 2013 +0000
+
+    sna: Fix computation of clip extents for stippling
+    
+    The clip extents for the stippled BLT missed applying the drawable
+    offset to the lower-right corner, so inevitably every operation ended up
+    being clipped.
+    
+    Reported-by: Clemens Eisserer <linuxhippy@gmail.com>
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=62618
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 9f8e86800345d19785eae2dd2099dd7d61a7a3b3
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Mar 21 22:48:06 2013 +0000
+
+    sna/dri: Disable assertion and associated bookkeeping
+    
+    Due to long standing ignored bugs in DRI2, we have to accept breakage
+    in the driver.
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=62614
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
 commit 4adebfed415cf58599b22e873f32e7ce2eaa6542
 Author: Chris Wilson <chris@chris-wilson.co.uk>
 Date:   Thu Mar 21 08:53:12 2013 +0000
