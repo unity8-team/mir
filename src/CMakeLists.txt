@@ -26,6 +26,8 @@ add_executable(
   main.cpp
   dm_connection.cpp
   dm_connection.h
+  system_compositor.cpp
+  system_compositor.h
   ${GENERATED_PROTOBUF_SRCS}
   ${GENERATED_PROTOBUF_HDRS}
 )

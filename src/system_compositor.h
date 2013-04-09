@@ -16,12 +16,25 @@
  * Authored by: Robert Ancell <robert.ancell@canonical.com>
  */
 
-#include "system_compositor.h"
+#ifndef SYSTEM_COMPOSITOR_H_
+#define SYSTEM_COMPOSITOR_H_
 
-int main(int argc, char const* argv[])
+#include "dm_connection.h"
+
+#include <mir/default_server_configuration.h>
+
+class SystemCompositor
 {
-    auto fd = atoi(argv[1]);
+public:
+    SystemCompositor(int argc, char const* argv[], int from_dm_fd, int to_dm_fd) :
+        config(argc, argv),
+        dm_connection(from_dm_fd, to_dm_fd) {};
 
-    SystemCompositor system_compositor(argc, argv, fd, ::dup(STDOUT_FILENO));
-    return system_compositor.run();
-}
+    int run();
+
+private:
+    mir::DefaultServerConfiguration config;
+    DMConnection dm_connection;
+};
+
+#endif /* SYSTEM_COMPOSITOR_H_ */

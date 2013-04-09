@@ -18,10 +18,29 @@
 
 #include "system_compositor.h"
 
-int main(int argc, char const* argv[])
-{
-    auto fd = atoi(argv[1]);
+#include <mir/run_mir.h>
+#include <cstdio>
+#include <thread>
+#include <boost/exception/diagnostic_information.hpp>
 
-    SystemCompositor system_compositor(argc, argv, fd, ::dup(STDOUT_FILENO));
-    return system_compositor.run();
+int SystemCompositor::run()
+{
+    dm_connection.start();
+
+    try
+    {
+        mir::run_mir(config, [](mir::DisplayServer&) {/* empty init */});
+
+        return 0;
+    }
+    catch (boost::program_options::error const&)
+    {
+        // Can't run with these options - but no need for additional output
+        return 1;
+    }
+    catch (std::exception const& error)
+    {
+        std::cerr << "ERROR: " << boost::diagnostic_information(error) << std::endl;
+        return 1;
+    }
 }
