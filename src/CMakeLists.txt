@@ -23,7 +23,7 @@ protobuf_generate_cpp(
 # Compile system compositor
 add_executable(
   unity-system-compositor
-  unity-system-compositor.cpp
+  main.cpp
   dm_connection.cpp
   dm_connection.h
   ${GENERATED_PROTOBUF_SRCS}

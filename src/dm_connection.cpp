@@ -65,8 +65,8 @@ void DMConnection::on_read_payload(const bs::error_code& ec)
         {
             FocusSession message;
             message.ParseFromIstream(&p);
-            std::cerr << message.client_name() << std::endl;
-        }          
+            handler->focus_session(message.client_name());
+        }
         default:
             break;
         }
