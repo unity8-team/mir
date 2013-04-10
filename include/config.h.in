@@ -1,0 +1,1 @@
+#define UBUNTU_USE_GLES @USE_GLES@

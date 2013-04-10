@@ -21,8 +21,14 @@
 
 #include "ubuntu/platform/shared_ptr.h"
 #include "ubuntu/ui/well_known_applications.h"
+#include "ubuntu/ui/config.h"
 
+#if UBUNTU_USE_GLES
 #include <GLES2/gl2.h>
+#else
+#include <GL/gl.h>
+#include <GL/glext.h>
+#endif
 
 namespace ubuntu
 {

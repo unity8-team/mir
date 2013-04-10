@@ -7,6 +7,10 @@ add_library(
 	${SOURCES}
 )
 
+include_directories(
+    ${CMAKE_BINARY_DIR}/include
+)
+
 target_link_libraries(
 	ubuntu_application_api
 	hybris_ics
