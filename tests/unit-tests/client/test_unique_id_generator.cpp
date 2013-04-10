@@ -136,7 +136,7 @@ TEST(UniqueIds, exhaustion)
         ASSERT_GE(100, i);
         if (n < 100)
         {
-            ASSERT_LE(1, i);
+            ASSERT_EQ(n+1, i);
             gen.reserve(i);
         }
         else
