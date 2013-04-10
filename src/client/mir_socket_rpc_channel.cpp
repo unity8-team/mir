@@ -32,7 +32,10 @@ namespace mcl = mir::client;
 namespace mcld = mir::client::detail;
 
 mcl::MirSocketRpcChannel::MirSocketRpcChannel() :
-    pending_calls(std::shared_ptr<Logger>()), work(io_service), socket(io_service)
+    UniqueIdGenerator(0, 1),
+    pending_calls(std::shared_ptr<Logger>()),
+    work(io_service),
+    socket(io_service)
 {
 }
 
@@ -275,3 +278,25 @@ mir::protobuf::wire::Result mcl::MirSocketRpcChannel::read_message_body(const si
     result.ParseFromIstream(&in);
     return result;
 }
+
+bool mcl::MirSocketRpcChannel::id_in_use(id_t x)
+{
+    return pending_calls.contains(x);
+}
+
+mir::protobuf::wire::Invocation mcl::MirSocketRpcChannel::invocation_for(
+    const google::protobuf::MethodDescriptor* method,
+    const google::protobuf::Message* request)
+{
+    std::ostringstream buffer;
+    request->SerializeToOstream(&buffer);
+
+    mir::protobuf::wire::Invocation invoke;
+
+    invoke.set_id(new_id());
+    invoke.set_method_name(method->name());
+    invoke.set_parameters(buffer.str());
+
+    return invoke;
+}
+

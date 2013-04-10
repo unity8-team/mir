@@ -17,8 +17,8 @@
  */
 
 
-#ifndef MIR_CLIENT_MIR_BASIC_RPC_CHANNEL_H_
-#define MIR_CLIENT_MIR_BASIC_RPC_CHANNEL_H_
+#ifndef MIR_CLIENT_PENDING_CALL_CACHE_H_
+#define MIR_CLIENT_PENDING_CALL_CACHE_H_
 
 #include "mir_logger.h"
 
@@ -63,6 +63,8 @@ public:
 
     bool empty() const;
 
+    bool contains(int x) const;
+
 private:
 
     struct PendingCall
@@ -85,23 +87,7 @@ private:
     std::shared_ptr<Logger> const log;
 };
 }
-
-class MirBasicRpcChannel : public google::protobuf::RpcChannel
-{
-public:
-    MirBasicRpcChannel();
-    ~MirBasicRpcChannel();
-
-protected:
-    mir::protobuf::wire::Invocation invocation_for(const google::protobuf::MethodDescriptor* method,
-        const google::protobuf::Message* request);
-    int next_id();
-
-private:
-    std::atomic<int> next_message_id;
-};
-
 }
 }
 
-#endif /* MIR_CLIENT_MIR_BASIC_RPC_CHANNEL_H_ */
+#endif /* MIR_CLIENT_PENDING_CALL_CACHE_H_ */

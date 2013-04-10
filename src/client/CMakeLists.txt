@@ -25,7 +25,6 @@ include_directories(
 set(
   CLIENT_SOURCES
 
-  unique_id_generator.cpp
   aging_buffer.cpp
   client_buffer_depository.cpp
   mir_client_library.cpp
@@ -33,15 +32,13 @@ set(
   mir_wait_handle.cpp
   mir_surface.cpp
   mir_logger.cpp
-  mir_basic_rpc_channel.cpp
+  unique_id_generator.cpp
+  pending_call_cache.cpp
+  mir_socket_rpc_channel.cpp
+  make_socket_rpc_channel.cpp
   ${PROTO_SRCS}
 )
 add_subdirectory(input)
-
-list(APPEND CLIENT_SOURCES
-  mir_socket_rpc_channel.cpp
-  make_socket_rpc_channel.cpp
-)
 
 if( MIR_PLATFORM STREQUAL "android")
 include_directories(${LIBHARDWARE_INCLUDE_DIRS})

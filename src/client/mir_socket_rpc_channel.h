@@ -20,7 +20,8 @@
 #ifndef MIR_CLIENT_MIR_SOCKET_RPC_CHANNEL_H_
 #define MIR_CLIENT_MIR_SOCKET_RPC_CHANNEL_H_
 
-#include "mir_basic_rpc_channel.h"
+#include "pending_call_cache.h"
+#include "unique_id_generator.h"
 #include "mir_logger.h"
 
 #include <boost/asio.hpp>
@@ -44,14 +45,22 @@ class Result;
 
 namespace client
 {
-class MirSocketRpcChannel : public MirBasicRpcChannel
+class MirSocketRpcChannel : public google::protobuf::RpcChannel,
+                            public UniqueIdGenerator
 {
 public:
     MirSocketRpcChannel();
     MirSocketRpcChannel(const std::string& endpoint, const std::shared_ptr<Logger>& log);
     ~MirSocketRpcChannel();
 
+protected:
+    bool id_in_use(id_t x);
+
 private:
+    mir::protobuf::wire::Invocation invocation_for(
+        const google::protobuf::MethodDescriptor* method,
+        const google::protobuf::Message* request);
+
     virtual void CallMethod(const google::protobuf::MethodDescriptor* method, google::protobuf::RpcController*,
         const google::protobuf::Message* parameters, google::protobuf::Message* response,
         google::protobuf::Closure* complete);
