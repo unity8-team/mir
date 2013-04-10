@@ -1,0 +1,22 @@
+Source: unity-system-compositor
+Section: x11
+Priority: extra
+Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
+Build-Depends: cmake,
+               cmake-data,
+               debhelper (>= 9),
+               libboost1.48-all-dev | libboost-all-dev,
+               libmirserver-dev,
+               libprotobuf-dev,
+               pkg-config,
+               protobuf-compiler
+Standards-Version: 3.9.4
+Homepage: https://launchpad.net/unity-system-compositor
+
+Package: unity-system-compositor
+Architecture: any
+Depends: ${misc:Depends},
+         ${shlibs:Depends},
+         libmirserver0 (= ${binary:Version}),
+Description: System compositor for Ubuntu
+ System compositor for Ubuntu
