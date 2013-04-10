@@ -21,7 +21,7 @@
 
 using namespace mir::client;
 
-UniqueIdGenerator::UniqueIdGenerator(id_t min, id_t max, id_t error)
+UniqueIdGenerator::UniqueIdGenerator(id_t error, id_t min, id_t max)
     : min_id(min),
       max_id(max),
       invalid_id(error),

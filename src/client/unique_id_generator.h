@@ -32,7 +32,7 @@ class UniqueIdGenerator
 public:
     typedef int id_t;
 
-    UniqueIdGenerator(id_t min = 1, id_t max = INT_MAX, id_t error = 0);
+    UniqueIdGenerator(id_t error = 0, id_t min = 1, id_t max = INT_MAX);
     virtual ~UniqueIdGenerator();
 
     virtual bool id_in_use(id_t x) = 0;

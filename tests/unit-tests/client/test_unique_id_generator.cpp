@@ -30,7 +30,7 @@ namespace
 class TestGenerator : public UniqueIdGenerator
 {
 public:
-    TestGenerator() : UniqueIdGenerator(10, 1000000, 666) {}
+    TestGenerator() : UniqueIdGenerator(666, 10) {}
 
     bool id_in_use(id_t x)
     {
@@ -46,7 +46,6 @@ TEST(UniqueIds, valid_and_unique)
 
     EXPECT_EQ(666, gen.invalid_id);
     EXPECT_EQ(10, gen.min_id);
-    EXPECT_EQ(1000000, gen.max_id);
 
     for (int n = 0; n < 100; n++)
     {
@@ -112,7 +111,7 @@ TEST(UniqueIds, exhaustion)
     class SmallGenerator : public UniqueIdGenerator
     {
     public:
-        SmallGenerator() : UniqueIdGenerator(1, 100, 0), highest(0) {}
+        SmallGenerator() : UniqueIdGenerator(0, 1, 100), highest(0) {}
         bool id_in_use(id_t x)
         {
             return x <= highest;
