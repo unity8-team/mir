@@ -17,12 +17,15 @@
  */
 
 #include "unique_id_generator.h"
+#include <cstdio>
 
 using namespace mir::client;
 
-UniqueIdGenerator::UniqueIdGenerator(id_t error_value)
-    : invalid_id(error_value),
-      next_id(invalid_id + 1)
+UniqueIdGenerator::UniqueIdGenerator(id_t min, id_t max, id_t error)
+    : min_id(min),
+      max_id(max),
+      invalid_id(error),
+      next_id(min_id)
 {
 }
 
@@ -32,15 +35,20 @@ UniqueIdGenerator::~UniqueIdGenerator()
 
 UniqueIdGenerator::id_t UniqueIdGenerator::new_id()
 {
-    id_t first_id, id;
+    id_t id = next_id.fetch_add(1);
+    int range = max_id - min_id + 1;
+    int tries = 1;
 
-    id = first_id = next_id.fetch_add(1);
-
-    while (id == invalid_id || id_in_use(id))
+    while (id == invalid_id || id_in_use(id) || id < min_id || id > max_id)
     {
         id = next_id.fetch_add(1);
-        if (id == first_id)   // Really? You've allocated maxint things?!
+
+        tries++;
+        if (tries > range)
             return invalid_id;
+
+        if (id > max_id || id < min_id)
+            next_id.store(min_id);
     }
 
     return id;

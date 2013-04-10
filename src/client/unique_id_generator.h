@@ -20,6 +20,7 @@
 #define MIR_CLIENT_UNIQUE_ID_GENERATOR_H_
 
 #include <atomic>
+#include <climits>
 
 namespace mir
 {
@@ -31,14 +32,14 @@ class UniqueIdGenerator
 public:
     typedef int id_t;
 
-    UniqueIdGenerator(id_t error_value = 0);
+    UniqueIdGenerator(id_t min = 1, id_t max = INT_MAX, id_t error = 0);
     virtual ~UniqueIdGenerator();
 
     virtual bool id_in_use(id_t x) = 0;
 
     id_t new_id();
 
-    id_t const invalid_id;
+    id_t const min_id, max_id, invalid_id;
 
 private:
     std::atomic<id_t> next_id;
