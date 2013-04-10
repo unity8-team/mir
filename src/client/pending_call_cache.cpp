@@ -71,7 +71,7 @@ bool mcld::PendingCallCache::empty() const
     return pending_calls.empty();
 }
 
-bool mcld::PendingCallCache::id_in_use(int x) const
+bool mcld::PendingCallCache::id_in_use(UniqueIdGenerator::id_t x) const
 {
     return pending_calls.find(x) != pending_calls.end();
 }
