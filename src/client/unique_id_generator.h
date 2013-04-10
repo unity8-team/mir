@@ -38,8 +38,9 @@ public:
 
     id_t new_id();
 
+    id_t const invalid_id;
+
 private:
-    id_t const        invalid_id;
     std::atomic<id_t> next_id;
 };
 
