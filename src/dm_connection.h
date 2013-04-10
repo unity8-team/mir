@@ -24,13 +24,22 @@
 class DMMessageHandler
 {
 public:
-    virtual void focus_session(std::string client_name) = 0;
+    virtual void set_active_session(std::string client_name) = 0;
 };
 
 class NullDMMessageHandler : public DMMessageHandler
 {
 public:
-    void focus_session(std::string client_name) {};
+    void set_active_session(std::string client_name) {};
+};
+
+enum class USCMessageID
+{
+    ping = 0,
+    pong = 1,
+    ready = 2,
+    session_connected = 3,
+    set_active_session = 4
 };
 
 class DMConnection
@@ -48,18 +57,22 @@ public:
 
     void start();
 
+    void send_ready();
+
 private:
-    std::shared_ptr<DMMessageHandler> handler;
     boost::asio::io_service io_service;
+    std::shared_ptr<DMMessageHandler> handler;
     boost::asio::posix::stream_descriptor from_dm_pipe;
     boost::asio::posix::stream_descriptor to_dm_pipe;
     static size_t const size_of_header = 4;
     unsigned char message_header_bytes[size_of_header];
-    boost::asio::streambuf payload;
+    boost::asio::streambuf read_buffer;
+    std::vector<char> write_buffer;
 
     void read_header();
     void on_read_header(const boost::system::error_code& ec);
     void on_read_payload(const boost::system::error_code& ec);
+    void send(USCMessageID id, std::string const& body);
 };
 
 #endif /* DM_CONNECTION_H_ */

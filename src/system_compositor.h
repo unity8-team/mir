@@ -36,7 +36,7 @@ private:
     mir::DefaultServerConfiguration config;
     DMConnection dm_connection;
 
-    virtual void focus_session(std::string client_name);
+    virtual void set_active_session(std::string client_name);
 };
 
 #endif /* SYSTEM_COMPOSITOR_H_ */

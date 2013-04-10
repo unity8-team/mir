@@ -27,6 +27,8 @@ int SystemCompositor::run()
 {
     dm_connection.start();
 
+    dm_connection.send_ready();
+
     try
     {
         mir::run_mir(config, [](mir::DisplayServer&) {/* empty init */});
@@ -45,7 +47,7 @@ int SystemCompositor::run()
     }
 }
 
-void SystemCompositor::focus_session(std::string client_name)
+void SystemCompositor::set_active_session(std::string client_name)
 {
-    std::cerr << "FOCUS_SESSION" << std::endl;
+    std::cerr << "set_active_session" << std::endl;
 }

@@ -17,7 +17,6 @@
  */
 
 #include "dm_connection.h"
-#include "dm_protocol.pb.h"
 
 #include <boost/signals2.hpp>
 
@@ -26,7 +25,13 @@ namespace bs = boost::system;
 
 void DMConnection::start()
 {
+    std::cerr << "dm_connection_start" << std::endl;
     read_header();
+}
+
+void DMConnection::send_ready()
+{
+    send(USCMessageID::ready, "");
 }
 
 void DMConnection::read_header()
@@ -43,8 +48,9 @@ void DMConnection::on_read_header(const bs::error_code& ec)
     if (!ec)
     {
         size_t const payload_length = message_header_bytes[2] << 8 | message_header_bytes[3];
+        std::cerr << "payload length: " << payload_length << std::endl;
         ba::async_read(from_dm_pipe,
-                       payload,
+                       read_buffer,
                        ba::transfer_exactly(payload_length),
                        boost::bind(&DMConnection::on_read_payload,
                                    this,
@@ -56,21 +62,52 @@ void DMConnection::on_read_payload(const bs::error_code& ec)
 {
     if (!ec)
     {
-        size_t const message_id = message_header_bytes[0] << 8 | message_header_bytes[1];
-        std::istream p(&payload);
-      
+        auto message_id = (USCMessageID) (message_header_bytes[0] << 8 | message_header_bytes[1]);
+        size_t const payload_length = message_header_bytes[2] << 8 | message_header_bytes[3];
+
+        std::cerr << "message id: " << (uint16_t) message_id << std::endl;
+
         switch (message_id)
         {
-        case 0:
+        case USCMessageID::ping:
         {
-            FocusSession message;
-            message.ParseFromIstream(&p);
-            handler->focus_session(message.client_name());
+            std::cerr << "ping" << std::endl;
+            send(USCMessageID::pong, "");
+        }
+        case USCMessageID::pong:
+        {
+            std::cerr << "pong" << std::endl;
+        }
+        case USCMessageID::set_active_session:
+        {
+            // FIXME: Get session name
+            handler->set_active_session("");
         }
         default:
+            std::cerr << "Ignoring unknown message " << (uint16_t) message_id << " with " << payload_length << " octets" << std::endl;
             break;
         }
     }
 
     read_header();
+}
+
+void DMConnection::send(USCMessageID id, std::string const& body)
+{
+    const size_t size = body.size();
+    const uint16_t _id = (uint16_t) id;
+    const unsigned char header_bytes[4] =
+    {
+        static_cast<unsigned char>((_id >> 8) & 0xFF),
+        static_cast<unsigned char>((_id >> 0) & 0xFF),
+        static_cast<unsigned char>((size >> 8) & 0xFF),
+        static_cast<unsigned char>((size >> 0) & 0xFF)
+    };
+
+    write_buffer.resize(sizeof header_bytes + size);
+    std::copy(header_bytes, header_bytes + sizeof header_bytes, write_buffer.begin());
+    std::copy(body.begin(), body.end(), write_buffer.begin() + sizeof header_bytes);
+
+    // FIXME: Make asynchronous
+    ba::write(to_dm_pipe, ba::buffer(write_buffer));
 }
