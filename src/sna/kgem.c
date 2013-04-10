@@ -62,6 +62,7 @@ search_snoop_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags);
 #define DBG_NO_CACHE_LEVEL 0
 #define DBG_NO_CPU 0
 #define DBG_NO_USERPTR 0
+#define DBG_NO_UNSYNCHRONIZED_USERPTR 0
 #define DBG_NO_LLC 0
 #define DBG_NO_SEMAPHORES 0
 #define DBG_NO_MADV 0
@@ -240,7 +241,8 @@ static uint32_t gem_userptr(int fd, void *ptr, int size, int read_only)
 	if (read_only)
 		arg.flags |= I915_USERPTR_READ_ONLY;
 
-	if (drmIoctl(fd, LOCAL_IOCTL_I915_GEM_USERPTR, &arg)) {
+	if (DBG_NO_UNSYNCHRONIZED_USERPTR ||
+	    drmIoctl(fd, LOCAL_IOCTL_I915_GEM_USERPTR, &arg)) {
 		arg.flags &= ~I915_USERPTR_UNSYNCHRONIZED;
 		if (drmIoctl(fd, LOCAL_IOCTL_I915_GEM_USERPTR, &arg)) {
 			DBG(("%s: failed to map %p + %d bytes: %d\n",
