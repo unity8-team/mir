@@ -32,7 +32,7 @@ class TestGenerator : public UniqueIdGenerator
 public:
     TestGenerator() : UniqueIdGenerator(666, 10) {}
 
-    bool id_in_use(id_t x)
+    bool id_in_use(id_t x) const
     {
         return (x % 5) == 0;
     }
@@ -112,7 +112,7 @@ TEST(UniqueIds, exhaustion)
     {
     public:
         SmallGenerator() : UniqueIdGenerator(0, 1, 100), highest(0) {}
-        bool id_in_use(id_t x)
+        bool id_in_use(id_t x) const
         {
             return x <= highest;
         }
