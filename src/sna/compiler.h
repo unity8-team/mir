@@ -39,6 +39,7 @@
 #define pure __attribute__((pure))
 #define __packed__ __attribute__((__packed__))
 #define flatten __attribute__((flatten))
+#define page_aligned __attribute__((aligned(4096)))
 #else
 #define likely(expr) (expr)
 #define unlikely(expr) (expr)
@@ -50,6 +51,7 @@
 #define pure
 #define __packed__
 #define flatten
+#define page_aligned
 #endif
 
 #define HAS_GCC(major, minor) defined(__GNUC__) && (__GNUC__ > (major) || __GNUC__ == (major) && __GNUC_MINOR__ >= (minor))

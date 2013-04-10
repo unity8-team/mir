@@ -198,6 +198,8 @@ enum {
 };
 
 struct sna {
+	struct kgem kgem;
+
 	ScrnInfoPtr scrn;
 
 	unsigned flags;
@@ -289,7 +291,6 @@ struct sna {
 	InputHandlerProc uevent_handler;
 #endif
 
-	struct kgem kgem;
 	struct sna_render render;
 
 #if DEBUG_MEMORY

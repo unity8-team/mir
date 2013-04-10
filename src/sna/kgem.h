@@ -194,9 +194,9 @@ struct kgem {
 	void (*retire)(struct kgem *kgem);
 	void (*expire)(struct kgem *kgem);
 
-	uint32_t batch[64*1024-8];
-	struct drm_i915_gem_exec_object2 exec[256];
-	struct drm_i915_gem_relocation_entry reloc[4096];
+	uint32_t batch[64*1024-8] page_aligned;
+	struct drm_i915_gem_exec_object2 exec[256] page_aligned;
+	struct drm_i915_gem_relocation_entry reloc[4096] page_aligned;
 	uint16_t reloc__self[256];
 
 #ifdef DEBUG_MEMORY

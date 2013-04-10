@@ -515,10 +515,10 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 	sna_selftest();
 
 	if (((uintptr_t)scrn->driverPrivate) & 1) {
-		sna = xnfcalloc(sizeof(struct sna), 1);
-		if (sna == NULL)
+		if (posix_memalign((void **)&sna, 4096, sizeof(*sna)))
 			return FALSE;
 
+		memset(sna, 0, sizeof(*sna)); /* should be unnecessary */
 		sna->info = (void *)((uintptr_t)scrn->driverPrivate & ~1);
 		scrn->driverPrivate = sna;
 
