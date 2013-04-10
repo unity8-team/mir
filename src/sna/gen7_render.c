@@ -458,6 +458,10 @@ gen7_emit_urb(struct sna *sna)
 static void
 gen7_emit_state_base_address(struct sna *sna)
 {
+	uint32_t mocs;
+
+	mocs = sna->kgem.gen == 075 ?  5 << 8 : 3 << 8;
+
 	OUT_BATCH(GEN7_STATE_BASE_ADDRESS | (10 - 2));
 	OUT_BATCH(0); /* general */
 	OUT_BATCH(kgem_add_reloc(&sna->kgem, /* surface */
@@ -465,17 +469,17 @@ gen7_emit_state_base_address(struct sna *sna)
 				 NULL,
 				 I915_GEM_DOMAIN_INSTRUCTION << 16,
 				 BASE_ADDRESS_MODIFY));
+	OUT_BATCH(kgem_add_reloc(&sna->kgem, /* dynamic */
+				 sna->kgem.nbatch,
+				 sna->render_state.gen7.general_bo,
+				 I915_GEM_DOMAIN_INSTRUCTION << 16,
+				 mocs | BASE_ADDRESS_MODIFY));
+	OUT_BATCH(0); /* indirect */
 	OUT_BATCH(kgem_add_reloc(&sna->kgem, /* instruction */
 				 sna->kgem.nbatch,
 				 sna->render_state.gen7.general_bo,
 				 I915_GEM_DOMAIN_INSTRUCTION << 16,
-				 BASE_ADDRESS_MODIFY));
-	OUT_BATCH(0); /* indirect */
-	OUT_BATCH(kgem_add_reloc(&sna->kgem,
-				 sna->kgem.nbatch,
-				 sna->render_state.gen7.general_bo,
-				 I915_GEM_DOMAIN_INSTRUCTION << 16,
-				 BASE_ADDRESS_MODIFY));
+				 mocs | BASE_ADDRESS_MODIFY));
 
 	/* upper bounds, disable */
 	OUT_BATCH(0);
