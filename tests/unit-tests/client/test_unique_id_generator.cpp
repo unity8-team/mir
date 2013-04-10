@@ -57,14 +57,13 @@ TEST(UniqueIds, valid_and_unique)
 
 namespace
 {
-typedef std::map<int, int> IntMap;
-IntMap counts;
+std::map<int, int> counts;
 std::mutex counts_lock;
 TestGenerator generator;
 
-static void busy_thread()
+static void busy_thread(int loops)
 {
-    for (int n = 0; n < 100; n++)
+    for (int n = 0; n < loops; n++)
     {
         counts_lock.lock();
         counts[generator.new_id()]++;
@@ -76,15 +75,18 @@ static void busy_thread()
 
 TEST(UniqueIds, valid_and_unique_across_threads)
 {
-    std::thread *thread[10];
+    const int nloops = 100;
+    const int nthreads = 10;
+
+    std::thread *thread[nthreads];
 
     for (std::thread *& t : thread)
-        t = new std::thread(busy_thread);
+        t = new std::thread(busy_thread, nloops);
 
     for (std::thread *& t : thread)
         t->join();
     
-    EXPECT_EQ(10 * 100, (int)counts.size());
+    EXPECT_EQ(nthreads * nloops, (int)counts.size());
 
     for (auto const& c : counts)
     {
