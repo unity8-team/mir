@@ -197,14 +197,13 @@ static XvMCSurfaceInfoPtr surface_info_vld[] = {
 
 /* check chip type and load xvmc driver */
 Bool sna_video_xvmc_setup(struct sna *sna,
-			  ScreenPtr screen,
-			  XF86VideoAdaptorPtr target)
+			  ScreenPtr screen)
 {
 	XvMCAdaptorRec *adaptors;
 	XvScreenPtr xv;
 	const char *name;
 	char bus[64];
-	int i;
+	int i, j;
 
 	if (!xf86LoaderCheckSymbol("XvMCScreenInit"))
 		return FALSE;
@@ -217,43 +216,42 @@ Bool sna_video_xvmc_setup(struct sna *sna,
 	if (sna->kgem.gen >= 060)
 		return FALSE;
 
-	adaptors = calloc(1, sizeof(XvMCAdaptorRec));
+	xv = dixLookupPrivate(&screen->devPrivates, XF86XvScreenKey);
+
+	adaptors = calloc(xv->nAdaptors, sizeof(XvMCAdaptorRec));
 	if (adaptors == NULL)
 		return FALSE;
 
-	xv = dixLookupPrivate(&screen->devPrivates, XF86XvScreenKey);
-	for (i = 0; i< xv->nAdaptors;i++) {
-		if (strcmp(xv->pAdaptors[i].name, target->name) == 0) {
-			adaptors->xv_adaptor = &xv->pAdaptors[i];
-			break;
+	for (i = j = 0; i< xv->nAdaptors;i++) {
+		if (strncmp(xv->pAdaptors[i].name, "Intel(R)", 8))
+			continue;
+
+		adaptors[j].xv_adaptor = &xv->pAdaptors[i];
+
+		adaptors[j].num_subpictures = 0;
+		adaptors[j].subpictures = NULL;
+		adaptors[j].CreateContext = create_context;
+		adaptors[j].DestroyContext = destroy_context;
+		adaptors[j].CreateSurface = create_surface;
+		adaptors[j].DestroySurface = destroy_surface;
+		adaptors[j].CreateSubpicture = create_subpicture;
+		adaptors[j].DestroySubpicture = destroy_subpicture;
+
+		if (sna->kgem.gen >= 045) {
+			adaptors[j].num_surfaces = ARRAY_SIZE(surface_info_vld);
+			adaptors[j].surfaces = surface_info_vld;
+		} else if (sna->kgem.gen >= 040) {
+			adaptors[j].num_surfaces = ARRAY_SIZE(surface_info_i965);
+			adaptors[j].surfaces = surface_info_i965;
+		} else {
+			adaptors[j].num_surfaces = ARRAY_SIZE(surface_info_i915);
+			adaptors[j].surfaces = surface_info_i915;
 		}
-	}
-	assert(adaptors->xv_adaptor);
 
-	adaptors->num_subpictures = 0;
-	adaptors->subpictures = NULL;
-	adaptors->CreateContext = create_context;
-	adaptors->DestroyContext = destroy_context;
-	adaptors->CreateSurface = create_surface;
-	adaptors->DestroySurface = destroy_surface;
-	adaptors->CreateSubpicture =  create_subpicture;
-	adaptors->DestroySubpicture = destroy_subpicture;
-
-	if (sna->kgem.gen >= 045) {
-		name = "xvmc_vld",
-		adaptors->num_surfaces = ARRAY_SIZE(surface_info_vld);
-		adaptors->surfaces = surface_info_vld;
-	} else if (sna->kgem.gen >= 040) {
-		name = "i965_xvmc",
-		adaptors->num_surfaces = ARRAY_SIZE(surface_info_i965);
-		adaptors->surfaces = surface_info_i965;
-	} else {
-		name = "i915_xvmc",
-		adaptors->num_surfaces = ARRAY_SIZE(surface_info_i915);
-		adaptors->surfaces = surface_info_i915;
+		j++;
 	}
 
-	if (XvMCScreenInit(screen, 1, adaptors) != Success) {
+	if (XvMCScreenInit(screen, j, adaptors) != Success) {
 		xf86DrvMsg(sna->scrn->scrnIndex, X_INFO,
 			   "[XvMC] Failed to initialize XvMC.\n");
 		free(adaptors);
@@ -268,8 +266,15 @@ Bool sna_video_xvmc_setup(struct sna *sna,
 			       SNA_XVMC_MAJOR, SNA_XVMC_MINOR,
 			       SNA_XVMC_PATCHLEVEL);
 
+	if (sna->kgem.gen >= 045)
+		name = "xvmc_vld";
+	else if (sna->kgem.gen >= 040)
+		name = "i965_xvmc";
+	else
+		name = "i915_xvmc";
 	xf86DrvMsg(sna->scrn->scrnIndex, X_INFO,
 		   "[XvMC] %s driver initialized.\n",
 		   name);
+
 	return TRUE;
 }
