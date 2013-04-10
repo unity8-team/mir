@@ -29,6 +29,7 @@ namespace mcl = mir::client;
 namespace mcld = mir::client::detail;
 
 mcld::PendingCallCache::PendingCallCache(std::shared_ptr<Logger> const& log) :
+    UniqueIdGenerator(0, 1),
     log(log)
 {
 }
@@ -70,7 +71,7 @@ bool mcld::PendingCallCache::empty() const
     return pending_calls.empty();
 }
 
-bool mcld::PendingCallCache::contains(int x) const
+bool mcld::PendingCallCache::id_in_use(int x)
 {
     return pending_calls.find(x) != pending_calls.end();
 }

@@ -21,6 +21,7 @@
 #define MIR_CLIENT_PENDING_CALL_CACHE_H_
 
 #include "mir_logger.h"
+#include "unique_id_generator.h"
 
 #include <google/protobuf/service.h>
 #include <google/protobuf/descriptor.h>
@@ -48,7 +49,7 @@ namespace detail
 {
 typedef std::vector<char> SendBuffer;
 
-class PendingCallCache
+class PendingCallCache : public UniqueIdGenerator
 {
 public:
     PendingCallCache(std::shared_ptr<Logger> const& log);
@@ -63,7 +64,7 @@ public:
 
     bool empty() const;
 
-    bool contains(int x) const;
+    bool id_in_use(int x);
 
 private:
 
