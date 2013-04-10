@@ -206,6 +206,7 @@ struct sna {
 #define SNA_TRIPLE_BUFFER	0x4
 #define SNA_TEAR_FREE		0x10
 #define SNA_FORCE_SHADOW	0x20
+#define SNA_REPROBE		0x80000000
 
 	unsigned cpu_features;
 #define MMX 0x1

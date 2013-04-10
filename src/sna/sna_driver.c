@@ -734,8 +734,11 @@ sna_handle_uevents(int fd, void *closure)
 	if (memcmp(&s.st_rdev, &udev_devnum, sizeof (dev_t)) == 0 &&
 	    hotplug && atoi(hotplug) == 1) {
 		DBG(("%s: hotplug event\n", __FUNCTION__));
-		sna_mode_update(sna);
-		RRGetInfo(xf86ScrnToScreen(scrn), TRUE);
+		if (sna->scrn->vtSema) {
+			sna_mode_update(sna);
+			RRGetInfo(xf86ScrnToScreen(scrn), TRUE);
+		} else
+			sna->flags |= SNA_REPROBE;
 	}
 
 	udev_device_unref(dev);
@@ -1106,9 +1109,19 @@ static void sna_free_screen(FREE_SCREEN_ARGS_DECL)
 static Bool sna_enter_vt(VT_FUNC_ARGS_DECL)
 {
 	SCRN_INFO_PTR(arg);
+	struct sna *sna = to_sna(scrn);
 
 	DBG(("%s\n", __FUNCTION__));
-	return sna_become_master(to_sna(scrn));
+	if (!sna_become_master(sna))
+		return FALSE;
+
+	if (sna->flags & SNA_REPROBE) {
+		sna_mode_update(sna);
+		RRGetInfo(xf86ScrnToScreen(scrn), TRUE);
+		sna->flags &= ~SNA_REPROBE;
+	}
+
+	return TRUE;
 }
 
 static Bool sna_switch_mode(SWITCH_MODE_ARGS_DECL)
