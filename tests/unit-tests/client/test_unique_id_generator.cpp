@@ -87,8 +87,12 @@ TEST(UniqueIds, valid_and_unique_across_threads)
         t = new std::thread(busy_thread, nloops);
 
     for (std::thread *& t : thread)
+    {
         t->join();
-    
+        delete t;
+        t = nullptr;
+    }
+
     EXPECT_EQ(nthreads * nloops, (int)counts.size());
 
     for (auto const& c : counts)
