@@ -17,7 +17,6 @@
  */
 
 #include "unique_id_generator.h"
-#include <cstdio>
 
 using namespace mir::client;
 
