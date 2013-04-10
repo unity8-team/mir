@@ -14,7 +14,7 @@
 #
 # Authored by: Robert Ancell <robert.ancell@canonical.com>
 
-# Use C++0x and warnings
+# Use C++11 and warnings
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall")
 
 project(UnitySystemCompisitor)
