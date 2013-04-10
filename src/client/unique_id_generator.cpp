@@ -32,12 +32,16 @@ UniqueIdGenerator::~UniqueIdGenerator()
 
 UniqueIdGenerator::id_t UniqueIdGenerator::new_id()
 {
-    id_t id;
+    id_t first_id, id;
 
-    do
+    id = first_id = next_id.fetch_add(1);
+
+    while (id == invalid_id || id_in_use(id))
     {
         id = next_id.fetch_add(1);
-    } while (id == invalid_id || id_in_use(id));
+        if (id == first_id)   // Really? You've allocated maxint things?!
+            return invalid_id;
+    }
 
     return id;
 }
