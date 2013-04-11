@@ -27,7 +27,7 @@ using namespace mir::client;
 namespace
 {
 
-bool id_virutally_in_use(UniqueIdGenerator::Id x)
+bool id_virtually_in_use(UniqueIdGenerator::Id x)
 {
     // Pretend every 5th ID is in use.
     return (x % 5) == 0;
@@ -46,7 +46,7 @@ public:
 
     bool id_in_use(Id x) const
     {
-        return id_virutally_in_use(x);
+        return id_virtually_in_use(x);
     }
 };
 
@@ -66,7 +66,7 @@ TEST(UniqueIds, valid_and_unique)
         ASSERT_NE(gen.invalid_id, i);
         ASSERT_LE(gen.min_id, i);
         ASSERT_GE(gen.max_id, i);
-        ASSERT_FALSE(id_virutally_in_use(i));
+        ASSERT_FALSE(id_virtually_in_use(i));
     }
 }
 
@@ -113,7 +113,7 @@ TEST(UniqueIds, valid_and_unique_across_threads)
         ASSERT_NE(generator.invalid_id, c.first);
         ASSERT_LE(generator.min_id, c.first);
         ASSERT_GE(generator.max_id, c.first);
-        ASSERT_FALSE(id_virutally_in_use(c.first));
+        ASSERT_FALSE(id_virtually_in_use(c.first));
     }
 }
 
