@@ -16,8 +16,8 @@
  * Authored by: Daniel van Vugt <daniel.van.vugt@canonical.com>
  */
 
-#ifndef MIR_CLIENT_UNIQUE_ID_GENERATOR_H_
-#define MIR_CLIENT_UNIQUE_ID_GENERATOR_H_
+#ifndef MIR_UNIQUE_ID_GENERATOR_H_
+#define MIR_UNIQUE_ID_GENERATOR_H_
 
 #include <atomic>
 #include <climits>
@@ -45,4 +45,4 @@ private:
 
 } // namespace mir
 
-#endif // MIR_CLIENT_UNIQUE_ID_GENERATOR_H_
+#endif // MIR_UNIQUE_ID_GENERATOR_H_
