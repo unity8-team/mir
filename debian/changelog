@@ -1,3 +1,12 @@
+xserver-xorg-video-intel (2:2.21.6-0ubuntu2) raring; urgency=low
+
+  * debian/xserver-xorg-video-intel.udev: Drop udev rule for gpu lockup
+    apport hook.  This hook is now provided by the xdiagnose package.
+    (LP: #997470)
+  * Re-merge from debian to enable valgrind.
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Thu, 11 Apr 2013 12:11:29 -0700
+
 xserver-xorg-video-intel (2:2.21.6-0ubuntu1) raring; urgency=low
 
   * Merge from unreleased debian git
@@ -12,6 +21,7 @@ xserver-xorg-video-intel (2:2.21.6-1) UNRELEASED; urgency=low
 
   [ Maarten Lankhorst ]
   * Add valgrind to build-depends.
+  * Enable valgrind by default.
 
  -- Timo Aaltonen <tjaalton@ubuntu.com>  Fri, 07 Dec 2012 09:33:39 +0200
 
