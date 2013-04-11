@@ -16,36 +16,39 @@
  * Authored by: Daniel van Vugt <daniel.van.vugt@canonical.com>
  */
 
-#ifndef MIR_CLIENT_UNIQUE_ID_GENERATOR_H_
-#define MIR_CLIENT_UNIQUE_ID_GENERATOR_H_
+#include "mir/unique_id_generator.h"
 
-#include <atomic>
-#include <climits>
+using namespace mir;
 
-namespace mir
+UniqueIdGenerator::UniqueIdGenerator(Id error, Id min, Id max)
+    : min_id(min),
+      max_id(max),
+      invalid_id(error),
+      next_id(min_id)
 {
-namespace client
+}
+
+UniqueIdGenerator::~UniqueIdGenerator()
 {
+}
 
-class UniqueIdGenerator
+UniqueIdGenerator::Id UniqueIdGenerator::new_id()
 {
-public:
-    typedef int Id;  // Should always remain int compatible.
+    Id ret = next_id.fetch_add(1);
+    int const range = max_id - min_id;
+    int tries = 1;
 
-    UniqueIdGenerator(Id error = 0, Id min = 1, Id max = INT_MAX);
-    virtual ~UniqueIdGenerator();
+    while (ret == invalid_id || id_in_use(ret) || ret < min_id || ret > max_id)
+    {
+        tries++;
+        if (tries > range)
+            return invalid_id;
 
-    virtual bool id_in_use(Id x) const = 0;
+        if (ret > max_id || ret < min_id)
+            next_id.store(min_id);
 
-    Id new_id();
+        ret = next_id.fetch_add(1);
+    }
 
-    Id const min_id, max_id, invalid_id;
-
-private:
-    std::atomic<Id> next_id;
-};
-
-} // namespace client
-} // namespace mir
-
-#endif // MIR_CLIENT_UNIQUE_ID_GENERATOR_H_
+    return ret;
+}

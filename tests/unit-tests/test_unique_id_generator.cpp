@@ -20,9 +20,9 @@
 #include <map>
 #include <mutex>
 #include <gtest/gtest.h>
-#include "src/client/unique_id_generator.h"
+#include "mir/unique_id_generator.h"
 
-using namespace mir::client;
+using namespace mir;
 
 namespace
 {

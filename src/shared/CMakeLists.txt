@@ -23,6 +23,10 @@ configure_file(
   ${CMAKE_CURRENT_BINARY_DIR}/mircommon.pc
 )
 
+add_library(miruniqueid SHARED
+  unique_id_generator.cpp
+)
+
 set(
   MIR_GENERATED_INCLUDE_DIRECTORIES
   ${MIR_GENERATED_INCLUDE_DIRECTORIES}

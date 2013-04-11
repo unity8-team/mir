@@ -32,7 +32,6 @@ set(
   mir_wait_handle.cpp
   mir_surface.cpp
   mir_logger.cpp
-  unique_id_generator.cpp
   pending_call_cache.cpp
   mir_socket_rpc_channel.cpp
   make_socket_rpc_channel.cpp
@@ -90,6 +89,7 @@ set(
 
   mirprotobuf
   mirsharedinput
+  miruniqueid
 
   ${DRM_LIBRARIES}
   ${MIR_COMMON_PLATFORM_LIBRARIES}

@@ -21,7 +21,7 @@
 #define MIR_CLIENT_PENDING_CALL_CACHE_H_
 
 #include "mir_logger.h"
-#include "unique_id_generator.h"
+#include "mir/unique_id_generator.h"
 
 #include <google/protobuf/service.h>
 #include <google/protobuf/descriptor.h>

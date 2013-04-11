@@ -6,6 +6,7 @@ set(
 
   test_gmock_fixes.cpp
   test_asio_main_loop.cpp
+  test_unique_id_generator.cpp
 )
 
 add_subdirectory(options/)
@@ -33,6 +34,7 @@ target_link_libraries(
   mirdraw
   mirtestdraw
   mirlogging
+  miruniqueid
 
   mir-test-doubles
 
