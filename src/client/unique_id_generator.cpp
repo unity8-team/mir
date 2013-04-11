@@ -34,21 +34,21 @@ UniqueIdGenerator::~UniqueIdGenerator()
 
 UniqueIdGenerator::Id UniqueIdGenerator::new_id()
 {
-    Id id = next_id.fetch_add(1);
-    int range = max_id - min_id + 1;
+    Id ret = next_id.fetch_add(1);
+    int const range = max_id - min_id;
     int tries = 1;
 
-    while (id == invalid_id || id_in_use(id) || id < min_id || id > max_id)
+    while (ret == invalid_id || id_in_use(ret) || ret < min_id || ret > max_id)
     {
-        id = next_id.fetch_add(1);
-
         tries++;
         if (tries > range)
             return invalid_id;
 
-        if (id > max_id || id < min_id)
+        if (ret > max_id || ret < min_id)
             next_id.store(min_id);
+
+        ret = next_id.fetch_add(1);
     }
 
-    return id;
+    return ret;
 }
