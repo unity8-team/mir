@@ -30,7 +30,13 @@ namespace
 class TestGenerator : public UniqueIdGenerator
 {
 public:
-    TestGenerator() : UniqueIdGenerator(666, 10) {}
+    enum
+    {
+        ERR = 666,
+        MIN = 10
+    };
+
+    TestGenerator() : UniqueIdGenerator(ERR, MIN) {}
 
     bool id_in_use(Id x) const
     {
@@ -44,8 +50,8 @@ TEST(UniqueIds, valid_and_unique)
 {
     TestGenerator gen;
 
-    EXPECT_EQ(666, gen.invalid_id);
-    EXPECT_EQ(10, gen.min_id);
+    ASSERT_EQ(TestGenerator::ERR, gen.invalid_id);
+    ASSERT_EQ(TestGenerator::MIN, gen.min_id);
 
     for (int n = 0; n < 100; n++)
     {
@@ -115,7 +121,14 @@ TEST(UniqueIds, exhaustion)
     class SmallGenerator : public UniqueIdGenerator
     {
     public:
-        SmallGenerator() : UniqueIdGenerator(0, 1, 100), highest(0) {}
+        enum
+        {
+            ERR = 0,
+            MIN = 1,
+            MAX = 100
+        };
+
+        SmallGenerator() : UniqueIdGenerator(ERR, MIN, MAX), highest(0) {}
         bool id_in_use(Id x) const
         {
             return x <= highest;
@@ -133,17 +146,17 @@ TEST(UniqueIds, exhaustion)
 
     SmallGenerator gen;
 
-    for (int n = 0; n < 200; n++)
+    for (int n = 0; n < 2 * SmallGenerator::MAX; n++)
     {
         int i = gen.new_id();
-        ASSERT_LE(0, i);
-        ASSERT_GE(100, i);
-        if (n < 100)
+        if (n < SmallGenerator::MAX)
         {
+            ASSERT_LE(SmallGenerator::MIN, i);
+            ASSERT_GE(SmallGenerator::MAX, i);
             ASSERT_EQ(n+1, i);
             gen.reserve(i);
         }
         else
-            ASSERT_EQ(0, i);
+            ASSERT_EQ(SmallGenerator::ERR, i);
     }
 }
