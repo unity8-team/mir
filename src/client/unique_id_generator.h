@@ -30,19 +30,19 @@ namespace client
 class UniqueIdGenerator
 {
 public:
-    typedef int id_t;
+    typedef int Id;  // Should always remain int compatible.
 
-    UniqueIdGenerator(id_t error = 0, id_t min = 1, id_t max = INT_MAX);
+    UniqueIdGenerator(Id error = 0, Id min = 1, Id max = INT_MAX);
     virtual ~UniqueIdGenerator();
 
-    virtual bool id_in_use(id_t x) const = 0;
+    virtual bool id_in_use(Id x) const = 0;
 
-    id_t new_id();
+    Id new_id();
 
-    id_t const min_id, max_id, invalid_id;
+    Id const min_id, max_id, invalid_id;
 
 private:
-    std::atomic<id_t> next_id;
+    std::atomic<Id> next_id;
 };
 
 } // namespace client

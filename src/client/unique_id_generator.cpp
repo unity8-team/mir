@@ -20,7 +20,7 @@
 
 using namespace mir::client;
 
-UniqueIdGenerator::UniqueIdGenerator(id_t error, id_t min, id_t max)
+UniqueIdGenerator::UniqueIdGenerator(Id error, Id min, Id max)
     : min_id(min),
       max_id(max),
       invalid_id(error),
@@ -32,9 +32,9 @@ UniqueIdGenerator::~UniqueIdGenerator()
 {
 }
 
-UniqueIdGenerator::id_t UniqueIdGenerator::new_id()
+UniqueIdGenerator::Id UniqueIdGenerator::new_id()
 {
-    id_t id = next_id.fetch_add(1);
+    Id id = next_id.fetch_add(1);
     int range = max_id - min_id + 1;
     int tries = 1;
 
