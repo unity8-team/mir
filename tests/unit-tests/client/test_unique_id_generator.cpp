@@ -111,11 +111,6 @@ TEST(UniqueIds, valid_and_unique_across_threads)
     }
 }
 
-namespace
-{
-
-}
-
 TEST(UniqueIds, exhaustion)
 {
     class SmallGenerator : public UniqueIdGenerator
