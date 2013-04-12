@@ -1,5 +1,4 @@
 LOCAL_PATH := $(call my-dir)
-
 include $(CLEAR_VARS)
 
 UPAPI_PATH := $(LOCAL_PATH)/../../
