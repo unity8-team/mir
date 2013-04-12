@@ -92,7 +92,7 @@ static int create_context(XvPortPtr port, XvMCContextPtr ctx,
 		priv->type = XVMC_I915_MPEG2_MC;
 
 	*size = sizeof(*priv) >> 2;
-	*out = priv;
+	*out = (CARD32 *)priv;
 	return Success;
 }
 
