@@ -1623,6 +1623,7 @@ skip_inplace_map:
 
 	if (DAMAGE_IS_ALL(priv->cpu_damage)) {
 		DBG(("%s: CPU all-damaged\n", __FUNCTION__));
+		assert(priv->gpu_damage == NULL || DAMAGE_IS_ALL(priv->gpu_damage));
 		goto done;
 	}
 
@@ -1792,7 +1793,6 @@ mark_damage:
 	}
 
 done:
-	assert(priv->gpu_damage == NULL);
 	if (flags & MOVE_WRITE) {
 		assert(DAMAGE_IS_ALL(priv->cpu_damage));
 		priv->source_count = SOURCE_BIAS;
