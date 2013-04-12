@@ -1658,7 +1658,7 @@ static bool check_scanout_size(struct kgem *kgem,
 		DBG(("%s: not using scanout %d (%dx%d), want (%dx%d)\n",
 		     __FUNCTION__,
 		     info.fb_id, info.width, info.height,
-		     width, height))
+		     width, height));
 		return false;
 	}
 
