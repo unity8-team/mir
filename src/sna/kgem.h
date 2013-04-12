@@ -194,10 +194,10 @@ struct kgem {
 	void (*retire)(struct kgem *kgem);
 	void (*expire)(struct kgem *kgem);
 
+	uint16_t reloc__self[256];
 	uint32_t batch[64*1024-8] page_aligned;
 	struct drm_i915_gem_exec_object2 exec[256] page_aligned;
 	struct drm_i915_gem_relocation_entry reloc[4096] page_aligned;
-	uint16_t reloc__self[256];
 
 #ifdef DEBUG_MEMORY
 	struct {
@@ -681,6 +681,9 @@ void kgem_throttle(struct kgem *kgem);
 bool kgem_expire_cache(struct kgem *kgem);
 void kgem_purge_cache(struct kgem *kgem);
 void kgem_cleanup_cache(struct kgem *kgem);
+
+void kgem_clean_scanout_cache(struct kgem *kgem);
+void kgem_clean_large_cache(struct kgem *kgem);
 
 #if HAS_DEBUG_FULL
 void __kgem_batch_debug(struct kgem *kgem, uint32_t nbatch);
