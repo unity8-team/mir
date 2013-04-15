@@ -2846,7 +2846,8 @@ bool kgem_expire_cache(struct kgem *kgem)
 	}
 
 	kgem_clean_large_cache(kgem);
-	kgem_clean_scanout_cache(kgem);
+	if (container_of(kgem, struct sna, kgem)->scrn->vtSema)
+		kgem_clean_scanout_cache(kgem);
 
 	expire = 0;
 	list_for_each_entry(bo, &kgem->snoop, list) {
