@@ -8,7 +8,7 @@
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
@@ -34,6 +34,8 @@ public:
     virtual ~DRMFDHandler() {}
 
     virtual int ioctl(unsigned long request, void* arg) = 0;
+    virtual int primeFDToHandle(int prime_fd, uint32_t *handle) = 0;
+    virtual int close(int fd) = 0;
     virtual void* map(size_t size, off_t offset) = 0;
     virtual void unmap(void* addr, size_t size) = 0;
 

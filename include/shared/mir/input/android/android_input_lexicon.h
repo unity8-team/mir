@@ -8,7 +8,7 @@
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
@@ -20,7 +20,7 @@
 #ifndef MIR_INPUT_ANDROID_INPUT_LEXICON_H_
 #define MIR_INPUT_ANDROID_INPUT_LEXICON_H_
 
-#include "mir_toolkit/input/event.h"
+#include "mir_toolkit/event.h"
 
 namespace android
 {
@@ -35,8 +35,6 @@ namespace input
 {
 namespace android
 {
-namespace transport
-{
 
 /// The Lexicon translates droidinput event types to MirEvent types prior to 
 /// shell or client handling.
@@ -46,7 +44,6 @@ public:
     static void translate(const droidinput::InputEvent *android_event, MirEvent &mir_event);
 };
 
-}
 }
 }
 }

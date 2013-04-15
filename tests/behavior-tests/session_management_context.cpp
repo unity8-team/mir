@@ -30,7 +30,7 @@
 #include "mir/graphics/display.h"
 #include "mir/default_server_configuration.h"
 
-#include "src/server/shell/surface.h"
+#include "mir/shell/surface.h"
 
 #include "mir_test_doubles/stub_surface_builder.h"
 #include "mir_test/fake_shared.h"
@@ -104,6 +104,15 @@ public:
     {
         return std::shared_ptr<mg::DisplayConfiguration>();
     }
+
+    void register_pause_resume_handlers(MainLoop&,
+                                        std::function<void()> const&,
+                                        std::function<void()> const&)
+    {
+    }
+
+    void pause() {}
+    void resume() {}
 
     geom::Rectangle area;
 };

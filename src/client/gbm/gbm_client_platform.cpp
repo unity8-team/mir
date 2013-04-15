@@ -8,7 +8,7 @@
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
@@ -27,6 +27,7 @@
 
 #include <xf86drm.h>
 #include <sys/mman.h>
+#include <unistd.h>
 
 namespace mcl=mir::client;
 namespace mclg=mir::client::gbm;
@@ -45,6 +46,22 @@ public:
     int ioctl(unsigned long request, void* arg)
     {
         return drmIoctl(drm_fd, request, arg);
+    }
+
+    int primeFDToHandle(int prime_fd, uint32_t *handle)
+    {
+        return drmPrimeFDToHandle(drm_fd, prime_fd, handle);
+    }
+
+    int close(int fd)
+    {
+        while (::close(fd) == -1)
+        {
+            // Retry on EINTR, return error on anything else
+            if (errno != EINTR)
+                return errno;
+        }
+        return 0;
     }
 
     void* map(size_t size, off_t offset)

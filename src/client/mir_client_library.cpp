@@ -8,7 +8,7 @@
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
@@ -108,15 +108,9 @@ MirEGLNativeDisplayType mir_connection_get_egl_native_display(MirConnection *con
     return connection->egl_native_display();
 }
 
-int mir_egl_native_display_is_valid(MirEGLNativeDisplayType egl_display)
-{
-    return mcl::EGLNativeDisplayContainer::instance().validate(egl_display);
-}
-
 MirWaitHandle* mir_surface_create(
     MirConnection* connection,
     MirSurfaceParameters const* params,
-    MirEventDelegate const* delegate,
     mir_surface_lifecycle_callback callback,
     void* context)
 {
@@ -124,7 +118,7 @@ MirWaitHandle* mir_surface_create(
 
     try
     {
-        return connection->create_surface(*params, delegate, callback, context);
+        return connection->create_surface(*params, callback, context);
     }
     catch (std::exception const&)
     {
@@ -136,17 +130,21 @@ MirWaitHandle* mir_surface_create(
 
 MirSurface* mir_surface_create_sync(
     MirConnection* connection, 
-    MirSurfaceParameters const* params,
-    MirEventDelegate const* delegate)
+    MirSurfaceParameters const* params)
 {
     MirSurface *surface = nullptr;
 
     mir_wait_for(mir_surface_create(connection, params,
-                                    delegate,
         reinterpret_cast<mir_surface_lifecycle_callback>(assign_result),
         &surface));
 
     return surface;
+}
+
+void mir_surface_set_event_handler(MirSurface *surface,
+                                   MirEventDelegate const *event_handler)
+{
+    surface->set_event_handler(event_handler);
 }
 
 MirWaitHandle* mir_surface_release(

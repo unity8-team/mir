@@ -86,6 +86,13 @@ public:
         auto null_configuration = std::shared_ptr<mg::DisplayConfiguration>();
         return null_configuration;
     }
+    void register_pause_resume_handlers(mir::MainLoop&,
+                                        std::function<void()> const&,
+                                        std::function<void()> const&)
+    {
+    }
+    void pause() {}
+    void resume() {}
 };
 
 class StubGraphicPlatform : public mg::Platform
@@ -104,6 +111,11 @@ class StubGraphicPlatform : public mg::Platform
     virtual std::shared_ptr<mg::PlatformIPCPackage> get_ipc_package()
     {
         return std::make_shared<mg::PlatformIPCPackage>();
+    }
+    
+    EGLNativeDisplayType shell_egl_display()
+    {
+        return (EGLNativeDisplayType) 0;
     }
 };
 
@@ -186,7 +198,7 @@ std::shared_ptr<mg::Renderer> mtf::TestingServerConfiguration::the_renderer()
             });
 }
 
-void mtf::TestingServerConfiguration::exec(DisplayServer* )
+void mtf::TestingServerConfiguration::exec()
 {
 }
 

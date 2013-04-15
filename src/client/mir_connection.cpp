@@ -8,7 +8,7 @@
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
@@ -67,12 +67,11 @@ MirConnection::~MirConnection()
 
 MirWaitHandle* MirConnection::create_surface(
     MirSurfaceParameters const & params,
-    MirEventDelegate const* delegate,
     mir_surface_lifecycle_callback callback,
     void * context)
 {
     auto null_log = std::make_shared<mir::client::NullLogger>();
-    auto surface = new MirSurface(this, server, null_log, platform->create_buffer_factory(), input_platform, params, delegate, callback, context);
+    auto surface = new MirSurface(this, server, null_log, platform->create_buffer_factory(), input_platform, params, callback, context);
 
     return surface->get_create_wait_handle();
 }

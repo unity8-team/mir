@@ -103,20 +103,11 @@ void mir_connection_get_display_info(MirConnection *connection, MirDisplayInfo *
 MirEGLNativeDisplayType mir_connection_get_egl_native_display(MirConnection *connection);
 
 /**
- * Validate an EGL native display
- *   \param [in] display the display
- *   \return             whether the display is valid for use with EGL
-  */
-int mir_egl_native_display_is_valid(MirEGLNativeDisplayType display);
-
-/**
  * Request a new Mir surface on the supplied connection with the supplied
  * parameters. The returned handle remains valid until the surface has been
  * released.
  *   \param [in] connection          The connection
  *   \param [in] surface_parameters  Request surface parameters
- *   \param [in] event_handler       Callback to be invoked when input is
- *                                   received
  *   \param [in] callback            Callback function to be invoked when
  *                                   request completes
  *   \param [in,out] context         User data passed to the callback function
@@ -126,7 +117,6 @@ int mir_egl_native_display_is_valid(MirEGLNativeDisplayType display);
 MirWaitHandle *mir_surface_create(
     MirConnection *connection,
     MirSurfaceParameters const *surface_parameters,
-    MirEventDelegate const *event_handler,
     mir_surface_lifecycle_callback callback,
     void *context);
 
@@ -135,12 +125,18 @@ MirWaitHandle *mir_surface_create(
  * to complete and return the resulting surface.
  *   \param [in] connection  The connection
  *   \param [in] params      Parameters describing the desired surface
- *   \param [in] event_handler Callback to be invoked when input is received
  *   \return                 The resulting surface
  */
 MirSurface *mir_surface_create_sync(MirConnection *connection,
-                                    MirSurfaceParameters const *params,
-                                    MirEventDelegate const *event_handler);
+                                    MirSurfaceParameters const *params);
+
+/**
+ * Set the event handler to be called when events arrive for a surface.
+ *   \param [in] surface        The surface
+ *   \param [in] event_handler  The event handler to call
+ */
+void mir_surface_set_event_handler(MirSurface *surface,
+                                   MirEventDelegate const *event_handler);
 
 /**
  * Get a window type that can be used for OpenGL ES 2.0 acceleration.

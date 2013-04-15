@@ -20,6 +20,7 @@
 
 #include "mir/display_server.h"
 #include "mir/server_configuration.h"
+#include "mir/main_loop.h"
 
 #include "mir/compositor/compositor.h"
 #include "mir/frontend/shell.h"
@@ -27,13 +28,9 @@
 #include "mir/graphics/display.h"
 #include "mir/input/input_manager.h"
 
-#include <mutex>
-#include <thread>
-#include <mutex>
-#include <condition_variable>
-
 namespace mc = mir::compositor;
 namespace mf = mir::frontend;
+namespace msh = mir::shell;
 namespace mg = mir::graphics;
 namespace mi = mir::input;
 
@@ -45,8 +42,20 @@ struct mir::DisplayServer::Private
           shell{config.the_frontend_shell()},
           communicator{config.the_communicator()},
           input_manager{config.the_input_manager()},
-          exit(false)
+          main_loop{config.the_main_loop()}
     {
+        display->register_pause_resume_handlers(
+            *main_loop,
+            [this]
+            {
+                compositor->stop();
+                display->pause();
+            },
+            [this]
+            {
+                display->resume();
+                compositor->start();
+            });
     }
 
     std::shared_ptr<mg::Display> display;
@@ -54,9 +63,7 @@ struct mir::DisplayServer::Private
     std::shared_ptr<frontend::Shell> shell;
     std::shared_ptr<mf::Communicator> communicator;
     std::shared_ptr<mi::InputManager> input_manager;
-    std::mutex exit_guard;
-    std::condition_variable exit_cv;
-    bool exit;
+    std::shared_ptr<mir::MainLoop> main_loop;
 };
 
 mir::DisplayServer::DisplayServer(ServerConfiguration& config) :
@@ -72,14 +79,11 @@ mir::DisplayServer::~DisplayServer()
 
 void mir::DisplayServer::run()
 {
-    std::unique_lock<std::mutex> lk(p->exit_guard);
-
     p->communicator->start();
     p->compositor->start();
     p->input_manager->start();
 
-    while (!p->exit)
-        p->exit_cv.wait(lk);
+    p->main_loop->run();
 
     p->input_manager->stop();
     p->compositor->stop();
@@ -87,7 +91,5 @@ void mir::DisplayServer::run()
 
 void mir::DisplayServer::stop()
 {
-    std::unique_lock<std::mutex> lk(p->exit_guard);
-    p->exit = true;
-    p->exit_cv.notify_one();
+    p->main_loop->stop();
 }

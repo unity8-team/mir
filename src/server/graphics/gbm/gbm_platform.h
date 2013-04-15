@@ -23,6 +23,8 @@
 #include "mir/graphics/drm_authenticator.h"
 #include "gbm_display_helpers.h"
 
+#include "mir_toolkit/mesa/native_display.h"
+
 namespace mir
 {
 namespace graphics
@@ -30,18 +32,23 @@ namespace graphics
 namespace gbm
 {
 
+class VirtualTerminal;
+
 class GBMPlatform : public Platform,
                     public DRMAuthenticator,
                     public std::enable_shared_from_this<GBMPlatform>
 {
 public:
-    explicit GBMPlatform(std::shared_ptr<DisplayReport> const& reporter);
+    explicit GBMPlatform(std::shared_ptr<DisplayReport> const& reporter,
+                         std::shared_ptr<VirtualTerminal> const& vt);
 
     /* From Platform */
     std::shared_ptr<compositor::GraphicBufferAllocator> create_buffer_allocator(
             const std::shared_ptr<BufferInitializer>& buffer_initializer);
     std::shared_ptr<Display> create_display();
     std::shared_ptr<PlatformIPCPackage> get_ipc_package();
+    
+    EGLNativeDisplayType shell_egl_display();
 
     /* From DRMAuthenticator */
     void drm_auth_magic(drm_magic_t magic);
@@ -49,7 +56,11 @@ public:
     helpers::DRMHelper drm;
     helpers::GBMHelper gbm;
 
-    std::shared_ptr<DisplayReport> listener;
+    std::shared_ptr<DisplayReport> const listener;
+    std::shared_ptr<VirtualTerminal> const vt;
+
+private:
+    std::shared_ptr<MirMesaEGLNativeDisplay> native_display;
 };
 
 }

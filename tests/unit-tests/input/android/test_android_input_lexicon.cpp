@@ -17,7 +17,7 @@
  */
 
 #include "mir/input/android/android_input_lexicon.h"
-#include "mir_toolkit/input/event.h"
+#include "mir_toolkit/event.h"
 
 #include <androidfw/Input.h>
 
@@ -25,7 +25,7 @@
 #include <gmock/gmock.h>
 
 namespace mi = mir::input;
-namespace miat = mir::input::android::transport;
+namespace mia = mir::input::android;
 
 TEST(AndroidInputLexicon, translates_key_events)
 {
@@ -48,18 +48,18 @@ TEST(AndroidInputLexicon, translates_key_events)
                                down_time, event_time);
 
     MirEvent mir_ev;
-    miat::Lexicon::translate(android_key_ev, mir_ev);
+    mia::Lexicon::translate(android_key_ev, mir_ev);
 
     // Common event properties
-    EXPECT_EQ(device_id, mir_ev.device_id);
-    EXPECT_EQ(source_id, mir_ev.source_id);
-    EXPECT_EQ(action, mir_ev.action);
-    EXPECT_EQ(flags, mir_ev.flags);
-    EXPECT_EQ(meta_state, mir_ev.meta_state);
+    EXPECT_EQ(device_id, mir_ev.key.device_id);
+    EXPECT_EQ(source_id, mir_ev.key.source_id);
+    EXPECT_EQ(action, mir_ev.key.action);
+    EXPECT_EQ(flags, mir_ev.key.flags);
+    EXPECT_EQ(meta_state, mir_ev.key.meta_state);
 
-    auto mir_key_ev = &mir_ev.details.key;
+    auto mir_key_ev = &mir_ev.key;
     // Key event specific properties
-    EXPECT_EQ(mir_ev.type, MIR_INPUT_EVENT_TYPE_KEY);
+    EXPECT_EQ(mir_ev.type, mir_event_type_key);
     EXPECT_EQ(mir_key_ev->key_code, key_code);
     EXPECT_EQ(mir_key_ev->scan_code, scan_code);
     EXPECT_EQ(mir_key_ev->repeat_count, repeat_count);
@@ -121,19 +121,19 @@ TEST(AndroidInputLexicon, translates_single_pointer_motion_events)
                                   event_time, pointer_count, &pointer_properties, &pointer_coords);
 
     MirEvent mir_ev;
-    miat::Lexicon::translate(android_motion_ev, mir_ev);
+    mia::Lexicon::translate(android_motion_ev, mir_ev);
 
     // Common event properties
-    EXPECT_EQ(device_id, mir_ev.device_id);
-    EXPECT_EQ(source_id, mir_ev.source_id);
-    EXPECT_EQ(action, mir_ev.action);
-    EXPECT_EQ(flags, mir_ev.flags);
-    EXPECT_EQ(meta_state, mir_ev.meta_state);
+    EXPECT_EQ(device_id, mir_ev.motion.device_id);
+    EXPECT_EQ(source_id, mir_ev.motion.source_id);
+    EXPECT_EQ(action, mir_ev.motion.action);
+    EXPECT_EQ(flags, mir_ev.motion.flags);
+    EXPECT_EQ(meta_state, mir_ev.motion.meta_state);
 
     // Motion event specific properties
-    EXPECT_EQ(mir_ev.type, MIR_INPUT_EVENT_TYPE_MOTION);
+    EXPECT_EQ(mir_ev.type, mir_event_type_motion);
 
-    auto mir_motion_ev = &mir_ev.details.motion;
+    auto mir_motion_ev = &mir_ev.motion;
 
     EXPECT_EQ(mir_motion_ev->edge_flags, edge_flags);
     EXPECT_EQ(mir_motion_ev->button_state, button_state);
