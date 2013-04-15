@@ -9,6 +9,14 @@
 #include <stdint.h>
 #include "xf86Crtc.h"
 
+#ifdef XMIR
+#include "xmir.h"
+#include "xf86Priv.h"
+#else
+typedef struct xmir_screen xmir_screen;
+#define xorgMir 0
+#endif
+
 #if XF86_CRTC_VERSION >= 5
 #define NOUVEAU_PIXMAP_SHARING 1
 #endif
@@ -112,6 +120,8 @@ typedef struct _NVRec {
 	PixmapPtr pspix, pmpix, pdpix;
 	PicturePtr pspict, pmpict;
 	Pixel fg_colour;
+
+	xmir_screen *xmir;
 } NVRec;
 
 #define NVPTR(p) ((NVPtr)((p)->driverPrivate))

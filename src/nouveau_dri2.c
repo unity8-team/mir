@@ -267,7 +267,7 @@ can_exchange(DrawablePtr draw, PixmapPtr dst_pix, PixmapPtr src_pix)
 	NVPtr pNv = NVPTR(scrn);
 	int i;
 
-	if (!xf86_config->num_crtc)
+	if (xorgMir || !xf86_config->num_crtc)
 		return FALSE;
 
 	for (i = 0; i < xf86_config->num_crtc; i++) {
@@ -290,7 +290,7 @@ can_sync_to_vblank(DrawablePtr draw)
 	ScrnInfoPtr scrn = xf86ScreenToScrn(draw->pScreen);
 	NVPtr pNv = NVPTR(scrn);
 
-	return pNv->glx_vblank &&
+	return pNv->glx_vblank && !xorgMir &&
 		nv_window_belongs_to_crtc(scrn, draw->x, draw->y,
 					  draw->width, draw->height);
 }
@@ -766,6 +766,19 @@ nouveau_dri2_flip_event_handler(unsigned int frame, unsigned int tv_sec,
 	free(flip);
 }
 
+#if DRI2INFOREC_VERSION >= 8 && defined(XMIR)
+static int nouveau_dri2_auth_magic(ScreenPtr pScreen, uint32_t magic)
+{
+    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
+    NVPtr pNv = NVPTR(pScrn);
+
+    if (xorgMir)
+	return xmir_auth_drm_magic(pNv->xmir, magic);
+    else
+	return drmAuthMagic(pNv->dev->fd, magic);
+}
+#endif
+
 Bool
 nouveau_dri2_init(ScreenPtr pScreen)
 {
@@ -802,6 +815,11 @@ nouveau_dri2_init(ScreenPtr pScreen)
 #if DRI2INFOREC_VERSION >= 7
 	dri2.version = 7;
 	dri2.GetParam = NULL;
+#endif
+
+#if DRI2INFOREC_VERSION >= 8 && defined(XMIR)
+	dri2.version = 8;
+	dri2.AuthMagic2 = nouveau_dri2_auth_magic;
 #endif
 
 #if DRI2INFOREC_VERSION >= 9
