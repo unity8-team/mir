@@ -1,0 +1,13 @@
+diff --git a/src/nv_driver.c b/src/nv_driver.c
+index 271f641..0b92025 100644
+--- a/src/nv_driver.c
++++ b/src/nv_driver.c
+@@ -932,6 +932,8 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
+ 		if (xf86GetOptValBool(pNv->Options, OPTION_GLX_VBLANK,
+ 				      &pNv->glx_vblank))
+ 			from = X_CONFIG;
++		else
++			pNv->glx_vblank = TRUE;
+ 
+ 		xf86DrvMsg(pScrn->scrnIndex, from, "GLX sync to VBlank %s.\n",
+ 			   pNv->glx_vblank ? "enabled" : "disabled");
