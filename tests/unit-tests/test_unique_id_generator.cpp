@@ -147,17 +147,18 @@ TEST(UniqueIds, exhaustion)
 
     SmallGenerator gen;
 
-    for (int n = 0; n < 2 * SmallGenerator::MAX; n++)
+    for (int n = 0; n < SmallGenerator::MAX; n++)
     {
         int i = gen.new_id();
-        if (n < SmallGenerator::MAX)
-        {
-            ASSERT_LE(SmallGenerator::MIN, i);
-            ASSERT_GE(SmallGenerator::MAX, i);
-            ASSERT_EQ(n+1, i);
-            gen.reserve(i);
-        }
-        else
-            ASSERT_EQ(SmallGenerator::ERR, i);
+        ASSERT_NE(SmallGenerator::ERR, i);
+        ASSERT_LE(SmallGenerator::MIN, i);
+        ASSERT_GE(SmallGenerator::MAX, i);
+        ASSERT_EQ(n+1, i);
+        gen.reserve(i);
+    }
+
+    for (int n = 0; n < 10; n++)
+    {
+        EXPECT_THROW(gen.new_id(), std::runtime_error);
     }
 }

@@ -17,6 +17,7 @@
  */
 
 #include "mir/unique_id_generator.h"
+#include <stdexcept>
 
 using namespace mir;
 
@@ -42,7 +43,7 @@ UniqueIdGenerator::Id UniqueIdGenerator::new_id()
     {
         tries++;
         if (tries > range)
-            return invalid_id;
+            throw std::runtime_error("Exhausted UniqueIdGenerator");
 
         if (ret > max_id || ret < min_id)
             next_id.store(min_id);
