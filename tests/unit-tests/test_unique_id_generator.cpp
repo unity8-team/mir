@@ -38,11 +38,10 @@ class TestGenerator : public UniqueIdGenerator
 public:
     enum
     {
-        ERR = 666,
         MIN = 10
     };
 
-    TestGenerator() : UniqueIdGenerator(&id_virtually_available, ERR, MIN) {}
+    TestGenerator() : UniqueIdGenerator(&id_virtually_available, MIN) {}
 };
 
 }
@@ -51,14 +50,12 @@ TEST(UniqueIds, valid_and_unique)
 {
     TestGenerator gen;
 
-    ASSERT_EQ(TestGenerator::ERR, gen.invalid_id);
     ASSERT_EQ(TestGenerator::MIN, gen.min_id);
 
     for (int n = 0; n < 100; n++)
     {
         int i = gen.new_id();
 
-        ASSERT_NE(gen.invalid_id, i);
         ASSERT_LE(gen.min_id, i);
         ASSERT_GE(gen.max_id, i);
         ASSERT_TRUE(id_virtually_available(i));
@@ -105,7 +102,6 @@ TEST(UniqueIds, valid_and_unique_across_threads)
     for (auto const& c : counts)
     {
         ASSERT_EQ(1, c.second);
-        ASSERT_NE(generator.invalid_id, c.first);
         ASSERT_LE(generator.min_id, c.first);
         ASSERT_GE(generator.max_id, c.first);
         ASSERT_TRUE(id_virtually_available(c.first));
@@ -119,7 +115,6 @@ TEST(UniqueIds, exhaustion)
     public:
         enum
         {
-            ERR = 0,
             MIN = 1,
             MAX = 100
         };
@@ -128,7 +123,7 @@ TEST(UniqueIds, exhaustion)
             UniqueIdGenerator(
                 std::bind(&SmallGenerator::id_available, this,
                           std::placeholders::_1),
-                ERR, MIN, MAX),
+                MIN, MAX),
             highest(0)
         {
         }
@@ -153,7 +148,6 @@ TEST(UniqueIds, exhaustion)
     for (int n = 0; n < SmallGenerator::MAX; n++)
     {
         int i = gen.new_id();
-        ASSERT_NE(SmallGenerator::ERR, i);
         ASSERT_LE(SmallGenerator::MIN, i);
         ASSERT_GE(SmallGenerator::MAX, i);
         ASSERT_EQ(n+1, i);

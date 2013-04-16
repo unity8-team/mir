@@ -33,14 +33,13 @@ public:
     typedef std::function<bool(Id)> Validator;
 
     UniqueIdGenerator(Validator validator,
-                      Id error = 0,
                       Id min = 1,
                       Id max = std::numeric_limits<Id>::max());
     virtual ~UniqueIdGenerator();
 
     Id new_id();
 
-    Id const min_id, max_id, invalid_id;
+    Id const min_id, max_id;
 
 private:
     Validator const is_valid;
