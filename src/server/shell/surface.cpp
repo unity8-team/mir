@@ -31,10 +31,12 @@ namespace mi = mir::input;
 msh::Surface::Surface(
     std::shared_ptr<SurfaceBuilder> const& builder,
     frontend::SurfaceCreationParameters const& params,
-    std::shared_ptr<input::InputChannel> const& input_channel)
+    std::shared_ptr<input::InputChannel> const& input_channel,
+    bool client_owned)
   : builder(builder),
     input_channel(input_channel),
     surface(builder->create_surface(params)),
+    client_owned(client_owned),
     type_value(mir_surface_type_normal)
 {
 }
@@ -187,7 +189,15 @@ bool msh::Surface::set_type(MirSurfaceType t)
 {
     bool valid = false;
 
-    if (t >= 0 && t < mir_surface_type_arraysize_)
+    if (t == mir_surface_type_edge)
+    {
+        if (!client_owned)
+        {
+            type_value = t;
+            valid = true;
+        }
+    }
+    else if (t >= 0 && t < mir_surface_type_arraysize_)
     {
         type_value = t;
         valid = true;

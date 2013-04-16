@@ -416,9 +416,9 @@ TEST_F(ShellSurface, types)
     EXPECT_EQ(mir_surface_type_freestyle, surf.type());
 
     // Ensure that by default, setting type "edge" is disallowed
-    EXPECT_EQ(mir_surface_type_freestyle,
-              surf.configure(mir_surface_attrib_type,
-                             mir_surface_type_edge));
+    EXPECT_THROW({
+        surf.configure(mir_surface_attrib_type, mir_surface_type_edge);
+    }, std::logic_error);
     EXPECT_EQ(mir_surface_type_freestyle, surf.type());
 }
 
@@ -429,7 +429,8 @@ TEST_F(ShellSurface, can_set_type_edge_internally)
     msh::Surface surf(
             mt::fake_shared(surface_builder),
             mf::a_surface(),
-            null_input_channel);
+            null_input_channel,
+            false);
 
     EXPECT_NE(mir_surface_type_edge, surf.type());
 

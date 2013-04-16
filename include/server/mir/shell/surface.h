@@ -49,7 +49,8 @@ public:
     Surface(
         std::shared_ptr<SurfaceBuilder> const& builder,
         frontend::SurfaceCreationParameters const& params,
-        std::shared_ptr<input::InputChannel> const& input_channel);
+        std::shared_ptr<input::InputChannel> const& input_channel,
+        bool client_owned = true);
     ~Surface();
 
     virtual void hide();
@@ -83,6 +84,7 @@ private:
     std::shared_ptr<SurfaceBuilder> const builder;
     std::shared_ptr<mir::input::InputChannel> const input_channel;
     std::weak_ptr<mir::surfaces::Surface> const surface;
+    bool const client_owned;
 
     MirSurfaceType type_value;
 };
