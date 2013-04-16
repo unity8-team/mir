@@ -285,7 +285,11 @@ mir::protobuf::wire::Invocation mcl::MirSocketRpcChannel::invocation_for(
 
     mir::protobuf::wire::Invocation invoke;
 
-    invoke.set_id(pending_calls.new_id());
+    int id = pending_calls.new_id();
+    if (id == pending_calls.invalid_id)
+        BOOST_THROW_EXCEPTION(std::runtime_error("Cannot allocate a call ID"));
+
+    invoke.set_id(id);
     invoke.set_method_name(method->name());
     invoke.set_parameters(buffer.str());
 
