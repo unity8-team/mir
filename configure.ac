@@ -450,6 +450,7 @@ else
 		VG=auto
 	fi
 fi
+have_valgrind=no
 if test "x$VG" != xno; then
 	PKG_CHECK_MODULES(VALGRIND, [valgrind], have_valgrind=yes, have_valgrind=no)
 	AC_MSG_CHECKING([whether to include valgrind support])
@@ -462,6 +463,7 @@ if test "x$VG" != xno; then
 	fi
 	AC_MSG_RESULT([$have_valgrind ($VG)])
 fi
+AM_CONDITIONAL(VALGRIND, test x$have_valgrind = xyes)
 if test "x$DEBUG" = xsync; then
 	AC_DEFINE(DEBUG_SYNC,1,[Enable synchronous rendering for debugging])
 fi
