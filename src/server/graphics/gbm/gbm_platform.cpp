@@ -2,7 +2,7 @@
  * Copyright © 2012 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU Lesser General Public License version 3,
+ * under the terms of the GNU General Public License version 3,
  * as published by the Free Software Foundation.
  *
  * This program is distributed in the hope that it will be useful,
@@ -10,7 +10,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
+ * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
@@ -21,6 +21,7 @@
 #include <boost/throw_exception.hpp>
 #include "gbm_buffer_allocator.h"
 #include "gbm_display.h"
+#include "linux_virtual_terminal.h"
 #include "mir/graphics/platform_ipc_package.h"
 #include "mir/graphics/egl/mesa_native_display.h"
 #include "mir/logging/logger.h"
@@ -54,9 +55,11 @@ struct GBMPlatformIPCPackage : public mg::PlatformIPCPackage
 
 }
 
-mgg::GBMPlatform::GBMPlatform(std::shared_ptr<DisplayReport> const& listener) :
-    listener(listener),
-    native_display(0)
+mgg::GBMPlatform::GBMPlatform(std::shared_ptr<DisplayReport> const& listener,
+                              std::shared_ptr<VirtualTerminal> const& vt)
+    : listener(listener),
+      vt{vt},
+      native_display(0)
 {
     drm.setup();
     gbm.setup(drm);
@@ -97,5 +100,7 @@ EGLNativeDisplayType mgg::GBMPlatform::shell_egl_display()
 
 std::shared_ptr<mg::Platform> mg::create_platform(std::shared_ptr<DisplayReport> const& report)
 {
-    return std::make_shared<mgg::GBMPlatform>(report);
+    return std::make_shared<mgg::GBMPlatform>(
+        report,
+        std::make_shared<mgg::LinuxVirtualTerminal>());
 }

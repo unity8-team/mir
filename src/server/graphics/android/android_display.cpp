@@ -2,7 +2,7 @@
  * Copyright © 2012 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU Lesser General Public License version 3,
+ * under the terms of the GNU General Public License version 3,
  * as published by the Free Software Foundation.
  *
  * This program is distributed in the hope that it will be useful,
@@ -10,7 +10,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
+ * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Authored by: Kevin DuBois <kevin.dubois@canonical.com>
@@ -140,6 +140,21 @@ void mga::AndroidDisplay::for_each_display_buffer(std::function<void(mg::Display
 std::shared_ptr<mg::DisplayConfiguration> mga::AndroidDisplay::configuration()
 {
     return std::make_shared<NullDisplayConfiguration>();
+}
+
+void mga::AndroidDisplay::register_pause_resume_handlers(
+    MainLoop& /*main_loop*/,
+    std::function<void()> const& /*pause_handler*/,
+    std::function<void()> const& /*resume_handler*/)
+{
+}
+
+void mga::AndroidDisplay::pause()
+{
+}
+
+void mga::AndroidDisplay::resume()
+{
 }
 
 void mga::AndroidDisplay::make_current()
