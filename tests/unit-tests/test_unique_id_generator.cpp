@@ -42,12 +42,7 @@ public:
         MIN = 10
     };
 
-    TestGenerator() : UniqueIdGenerator(ERR, MIN) {}
-
-    bool id_in_use(Id x) const
-    {
-        return id_virtually_in_use(x);
-    }
+    TestGenerator() : UniqueIdGenerator(&id_virtually_in_use, ERR, MIN) {}
 };
 
 }
@@ -129,7 +124,15 @@ TEST(UniqueIds, exhaustion)
             MAX = 100
         };
 
-        SmallGenerator() : UniqueIdGenerator(ERR, MIN, MAX), highest(0) {}
+        SmallGenerator() :
+            UniqueIdGenerator(
+                std::bind(&SmallGenerator::id_in_use, this,
+                          std::placeholders::_1),
+                ERR, MIN, MAX),
+            highest(0)
+        {
+        }
+
         bool id_in_use(Id x) const
         {
             return x <= highest;

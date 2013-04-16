@@ -21,6 +21,7 @@
 
 #include <atomic>
 #include <limits>
+#include <functional>
 
 namespace mir
 {
@@ -29,18 +30,20 @@ class UniqueIdGenerator
 {
 public:
     typedef int Id;  // Should always remain int compatible.
+    typedef std::function<bool(Id)> Check;
 
-    UniqueIdGenerator(Id error = 0, Id min = 1,
+    UniqueIdGenerator(Check const check,
+                      Id error = 0,
+                      Id min = 1,
                       Id max = std::numeric_limits<Id>::max());
     virtual ~UniqueIdGenerator();
-
-    virtual bool id_in_use(Id x) const = 0;
 
     Id new_id();
 
     Id const min_id, max_id, invalid_id;
 
 private:
+    Check const id_in_use;
     std::atomic<Id> next_id;
 };
 

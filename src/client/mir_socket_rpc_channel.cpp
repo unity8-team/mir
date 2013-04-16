@@ -32,12 +32,23 @@ namespace mcl = mir::client;
 namespace mcld = mir::client::detail;
 
 mcl::MirSocketRpcChannel::MirSocketRpcChannel() :
-    pending_calls(std::shared_ptr<Logger>()), work(io_service), socket(io_service)
+    pending_calls(std::shared_ptr<Logger>()),
+    call_ids(std::bind(&mcld::PendingCallCache::id_in_use, &pending_calls,
+                       std::placeholders::_1)),
+    work(io_service),
+    socket(io_service)
 {
 }
 
-mcl::MirSocketRpcChannel::MirSocketRpcChannel(std::string const& endpoint, std::shared_ptr<Logger> const& log) :
-    log(log), pending_calls(log), work(io_service), endpoint(endpoint), socket(io_service)
+mcl::MirSocketRpcChannel::MirSocketRpcChannel(
+    std::string const& endpoint, std::shared_ptr<Logger> const& log) :
+    log(log),
+    pending_calls(log),
+    call_ids(std::bind(&mcld::PendingCallCache::id_in_use, &pending_calls,
+                       std::placeholders::_1)),
+    work(io_service),
+    endpoint(endpoint),
+    socket(io_service)
 {
     socket.connect(endpoint);
 
@@ -285,11 +296,7 @@ mir::protobuf::wire::Invocation mcl::MirSocketRpcChannel::invocation_for(
 
     mir::protobuf::wire::Invocation invoke;
 
-    int id = pending_calls.new_id();
-    if (id == pending_calls.invalid_id)
-        BOOST_THROW_EXCEPTION(std::runtime_error("Cannot allocate a call ID"));
-
-    invoke.set_id(id);
+    invoke.set_id(call_ids.new_id());
     invoke.set_method_name(method->name());
     invoke.set_parameters(buffer.str());
 

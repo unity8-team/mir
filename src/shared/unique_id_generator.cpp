@@ -21,10 +21,12 @@
 
 using namespace mir;
 
-UniqueIdGenerator::UniqueIdGenerator(Id error, Id min, Id max)
+UniqueIdGenerator::UniqueIdGenerator(Check const check, Id error, Id min,
+                                     Id max)
     : min_id(min),
       max_id(max),
       invalid_id(error),
+      id_in_use(check),
       next_id(min_id)
 {
 }

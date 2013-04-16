@@ -61,6 +61,7 @@ private:
         google::protobuf::Closure* complete);
     std::shared_ptr<Logger> log;
     detail::PendingCallCache pending_calls;
+    UniqueIdGenerator call_ids;
     std::thread io_service_thread;
     boost::asio::io_service io_service;
     boost::asio::io_service::work work;

@@ -49,7 +49,7 @@ namespace detail
 {
 typedef std::vector<char> SendBuffer;
 
-class PendingCallCache : public UniqueIdGenerator
+class PendingCallCache
 {
 public:
     PendingCallCache(std::shared_ptr<Logger> const& log);

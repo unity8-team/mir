@@ -29,7 +29,6 @@ namespace mcl = mir::client;
 namespace mcld = mir::client::detail;
 
 mcld::PendingCallCache::PendingCallCache(std::shared_ptr<Logger> const& log) :
-    UniqueIdGenerator(0, 1),
     log(log)
 {
 }
