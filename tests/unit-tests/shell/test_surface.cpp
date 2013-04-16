@@ -414,52 +414,9 @@ TEST_F(ShellSurface, types)
               surf.configure(mir_surface_attrib_type,
                              mir_surface_type_freestyle));
     EXPECT_EQ(mir_surface_type_freestyle, surf.type());
-}
 
-namespace
-{
-class BespokeShellEdgeSurface : public msh::Surface
-{
-public:
-    BespokeShellEdgeSurface(
-        std::shared_ptr<msh::SurfaceBuilder> const& builder,
-        mf::SurfaceCreationParameters const& params,
-        std::shared_ptr<mir::input::InputChannel> const& input_channel)
-        : msh::Surface(builder, params, input_channel)
-    {
-        set_edge_type();
-    }
-
-    void set_edge_type()
-    {
-        set_type(mir_surface_type_edge);
-    }
-};
-} // namespace
-
-TEST_F(ShellSurface, edge_type)
-{
-    using namespace testing;
-
-    BespokeShellEdgeSurface surf(
-            mt::fake_shared(surface_builder),
-            mf::a_surface(),
-            null_input_channel);
-
-    EXPECT_EQ(mir_surface_type_edge, surf.type());
-
-    EXPECT_EQ(mir_surface_type_freestyle,
+    EXPECT_EQ(mir_surface_type_edge,
               surf.configure(mir_surface_attrib_type,
-                             mir_surface_type_freestyle));
-    EXPECT_EQ(mir_surface_type_freestyle, surf.type());
-
-    // "edge" is a private type that can't be set via the public interface...
-    EXPECT_THROW({
-        surf.configure(mir_surface_attrib_type, mir_surface_type_edge);
-    }, std::logic_error);
-    EXPECT_EQ(mir_surface_type_freestyle, surf.type());
-
-    // ... but make sure that bespoke shells can set "edge" type internally.
-    surf.set_edge_type();
+                             mir_surface_type_edge));
     EXPECT_EQ(mir_surface_type_edge, surf.type());
 }
