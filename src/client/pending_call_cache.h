@@ -64,7 +64,7 @@ public:
 
     bool empty() const;
 
-    bool id_in_use(UniqueIdGenerator::Id x) const;
+    bool id_available(UniqueIdGenerator::Id x) const;
 
 private:
 

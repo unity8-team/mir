@@ -33,7 +33,7 @@ namespace mcld = mir::client::detail;
 
 mcl::MirSocketRpcChannel::MirSocketRpcChannel() :
     pending_calls(std::shared_ptr<Logger>()),
-    call_ids(std::bind(&mcld::PendingCallCache::id_in_use, &pending_calls,
+    call_ids(std::bind(&mcld::PendingCallCache::id_available, &pending_calls,
                        std::placeholders::_1)),
     work(io_service),
     socket(io_service)
@@ -44,7 +44,7 @@ mcl::MirSocketRpcChannel::MirSocketRpcChannel(
     std::string const& endpoint, std::shared_ptr<Logger> const& log) :
     log(log),
     pending_calls(log),
-    call_ids(std::bind(&mcld::PendingCallCache::id_in_use, &pending_calls,
+    call_ids(std::bind(&mcld::PendingCallCache::id_available, &pending_calls,
                        std::placeholders::_1)),
     work(io_service),
     endpoint(endpoint),

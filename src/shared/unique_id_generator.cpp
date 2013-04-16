@@ -21,12 +21,12 @@
 
 using namespace mir;
 
-UniqueIdGenerator::UniqueIdGenerator(Check const check, Id error, Id min,
+UniqueIdGenerator::UniqueIdGenerator(Validator validator, Id error, Id min,
                                      Id max)
     : min_id(min),
       max_id(max),
       invalid_id(error),
-      id_in_use(check),
+      is_valid(validator),
       next_id(min_id)
 {
 }
@@ -41,7 +41,7 @@ UniqueIdGenerator::Id UniqueIdGenerator::new_id()
     int const range = max_id - min_id;
     int tries = 1;
 
-    while (ret == invalid_id || id_in_use(ret) || ret < min_id || ret > max_id)
+    while (ret == invalid_id || !is_valid(ret) || ret < min_id || ret > max_id)
     {
         tries++;
         if (tries > range)

@@ -30,9 +30,9 @@ class UniqueIdGenerator
 {
 public:
     typedef int Id;  // Should always remain int compatible.
-    typedef std::function<bool(Id)> Check;
+    typedef std::function<bool(Id)> Validator;
 
-    UniqueIdGenerator(Check const check,
+    UniqueIdGenerator(Validator validator,
                       Id error = 0,
                       Id min = 1,
                       Id max = std::numeric_limits<Id>::max());
@@ -43,7 +43,7 @@ public:
     Id const min_id, max_id, invalid_id;
 
 private:
-    Check const id_in_use;
+    Validator const is_valid;
     std::atomic<Id> next_id;
 };
 
