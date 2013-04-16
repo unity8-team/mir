@@ -20,7 +20,7 @@
 #define MIR_UNIQUE_ID_GENERATOR_H_
 
 #include <atomic>
-#include <climits>
+#include <limits>
 
 namespace mir
 {
@@ -30,7 +30,8 @@ class UniqueIdGenerator
 public:
     typedef int Id;  // Should always remain int compatible.
 
-    UniqueIdGenerator(Id error = 0, Id min = 1, Id max = INT_MAX);
+    UniqueIdGenerator(Id error = 0, Id min = 1,
+                      Id max = std::numeric_limits<Id>::max());
     virtual ~UniqueIdGenerator();
 
     virtual bool id_in_use(Id x) const = 0;
