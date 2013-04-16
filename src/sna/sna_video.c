@@ -532,50 +532,118 @@ sna_video_copy_data(struct sna *sna,
 	return true;
 }
 
+struct xXvEvent_Intel {
+	uint8_t type; /* GenericEvent */
+	uint8_t extension; /* XvReqCode */
+	uint16_t seqno;
+	uint32_t length; /* 0 */
+	uint16_t evtype;
+	uint16_t pad;
+	uint32_t frame;
+	uint32_t name;
+};
+#define XvFrameRelease_Intel 0x100
+
+void sna_video_send_frame_release(ClientPtr client,
+				  uint32_t frame,
+				  uint32_t name)
+{
+	//GEMaskIsSet
+	struct xXvEvent_Intel ev = {
+		.type = GenericEvent,
+		.extension = XvReqCode,
+		.seqno = client->sequence,
+		.length = 0,
+		.evtype = XvFrameRelease_Intel,
+		.frame = frame,
+		.name = name
+	};
+	assert(!client->swapped);
+	WriteToClient(client, sizeof(ev), &ev);
+}
+
+XvAdaptorPtr sna_xv_adaptor_alloc(struct sna *sna)
+{
+	XvAdaptorPtr new_adaptors;
+
+	new_adaptors = realloc(sna->xv.adaptors,
+			       (sna->xv.num_adaptors+1)*sizeof(XvAdaptorRec));
+	if (new_adaptors == NULL)
+		return NULL;
+
+	sna->xv.adaptors = new_adaptors;
+	return &sna->xv.adaptors[sna->xv.num_adaptors++];
+}
+
+int
+sna_xv_alloc_port(unsigned long port, XvPortPtr in, XvPortPtr *out)
+{
+	*out = in;
+	return Success;
+}
+
+int
+sna_xv_free_port(XvPortPtr port)
+{
+	return Success;
+}
+
+static int
+sna_xv_query_adaptors(ScreenPtr screen,
+		      XvAdaptorPtr *adaptors,
+		      int *num_adaptors)
+{
+	struct sna *sna = to_sna_from_screen(screen);
+
+	*num_adaptors = sna->xv.num_adaptors;
+	*adaptors = sna->xv.adaptors;
+	return Success;
+}
+
+static Bool
+sna_xv_close_screen(ScreenPtr screen)
+{
+	return TRUE;
+}
+
 void sna_video_init(struct sna *sna, ScreenPtr screen)
 {
-	XF86VideoAdaptorPtr *adaptors, *newAdaptors;
-	XF86VideoAdaptorPtr textured, overlay;
-	int num_adaptors;
-	int prefer_overlay =
-	    xf86ReturnOptValBool(sna->Options, OPTION_PREFER_OVERLAY, false);
+	XvScreenPtr xv;
 
-	if (!xf86LoaderCheckSymbol("xf86XVListGenericAdaptors"))
+	if (noXvExtension)
 		return;
 
-	adaptors = NULL;
-	num_adaptors = xf86XVListGenericAdaptors(sna->scrn, &adaptors);
-	newAdaptors = realloc(adaptors,
-			      (num_adaptors + 2) * sizeof(XF86VideoAdaptorPtr));
-	if (newAdaptors == NULL) {
+	if (xf86LoaderCheckSymbol("xf86XVListGenericAdaptors")) {
+		XF86VideoAdaptorPtr *adaptors = NULL;
+		int num_adaptors = xf86XVListGenericAdaptors(sna->scrn, &adaptors);
+		if (num_adaptors)
+			xf86DrvMsg(sna->scrn->scrnIndex, X_ERROR,
+				   "Ignoring generic xf86XV adaptors");
 		free(adaptors);
-		return;
 	}
-	adaptors = newAdaptors;
 
-	/* Set up textured video if we can do it at this depth and we are on
-	 * supported hardware.
-	 */
-	textured = sna_video_textured_setup(sna, screen);
-	overlay = sna_video_sprite_setup(sna, screen);
-	if (overlay == NULL)
-		overlay = sna_video_overlay_setup(sna, screen);
+	if (XvScreenInit(screen) != Success)
+		return;
 
-	if (overlay && prefer_overlay)
-		adaptors[num_adaptors++] = overlay;
+	xv = to_xv(screen);
+	xv->ddCloseScreen = sna_xv_close_screen;
+	xv->ddQueryAdaptors = sna_xv_query_adaptors;
 
-	if (textured)
-		adaptors[num_adaptors++] = textured;
+	sna_video_textured_setup(sna, screen);
+	if (!sna_video_sprite_setup(sna, screen))
+		sna_video_overlay_setup(sna, screen);
 
-	if (overlay && !prefer_overlay)
-		adaptors[num_adaptors++] = overlay;
+	if (sna->xv.num_adaptors >= 2 &&
+	    xf86ReturnOptValBool(sna->Options, OPTION_PREFER_OVERLAY, false)) {
+		XvAdaptorRec tmp;
 
-	if (num_adaptors) {
-		if (xf86XVScreenInit(screen, adaptors, num_adaptors))
-			sna_video_xvmc_setup(sna, screen);
-	} else
-		xf86DrvMsg(sna->scrn->scrnIndex, X_WARNING,
-			   "Disabling Xv because no adaptors could be initialized.\n");
+		tmp = sna->xv.adaptors[0];
+		sna->xv.adaptors[0] = sna->xv.adaptors[1];
+		sna->xv.adaptors[1] = tmp;
+	}
 
-	free(adaptors);
+	xv->nAdaptors = sna->xv.num_adaptors;
+	xv->pAdaptors = sna->xv.adaptors;
+
+	sna_video_xvmc_setup(sna, screen);
 }
