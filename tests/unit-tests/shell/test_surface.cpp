@@ -424,8 +424,6 @@ TEST_F(ShellSurface, types)
 
 TEST_F(ShellSurface, can_set_type_edge_internally)
 {
-    using namespace testing;
-
     msh::Surface surf(
             mt::fake_shared(surface_builder),
             mf::a_surface(),
