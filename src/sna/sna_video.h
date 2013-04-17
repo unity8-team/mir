@@ -50,8 +50,6 @@ THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 }
 
 struct sna_video {
-	struct sna *sna;
-
 	int brightness;
 	int contrast;
 	int saturation;
@@ -97,19 +95,10 @@ struct sna_video_frame {
 	BoxRec src;
 };
 
-static inline XvScreenPtr to_xv(ScreenPtr screen)
-{
-	return dixLookupPrivate(&screen->devPrivates, XvGetScreenKey());
-}
-
 void sna_video_init(struct sna *sna, ScreenPtr screen);
 XF86VideoAdaptorPtr sna_video_overlay_setup(struct sna *sna, ScreenPtr screen);
 XF86VideoAdaptorPtr sna_video_sprite_setup(struct sna *sna, ScreenPtr screen);
-void sna_video_textured_setup(struct sna *sna, ScreenPtr screen);
-
-XvAdaptorPtr sna_xv_adaptor_alloc(struct sna *sna);
-int sna_xv_alloc_port(unsigned long port, XvPortPtr in, XvPortPtr *out);
-int sna_xv_free_port(XvPortPtr port);
+XF86VideoAdaptorPtr sna_video_textured_setup(struct sna *sna, ScreenPtr screen);
 
 #define FOURCC_XVMC     (('C' << 24) + ('M' << 16) + ('V' << 8) + 'X')
 

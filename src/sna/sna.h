@@ -57,7 +57,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <glyphstr.h>
 #include <picturestr.h>
 #include <gcstruct.h>
-#include <xvdix.h>
 
 #include <pciaccess.h>
 
@@ -248,11 +247,6 @@ struct sna {
 	struct sna_dri {
 		void *flip_pending;
 	} dri;
-
-	struct sna_xv {
-		XvAdaptorPtr adaptors;
-		int num_adaptors;
-	} xv;
 
 	unsigned int tiling;
 #define SNA_TILING_FB		0x1
