@@ -68,6 +68,11 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "intel_glamor.h"
 #include "uxa.h"
 
+#ifdef XMIR
+#include "xmir.h"
+#include "xf86Priv.h"
+#endif
+
 typedef struct {
 	int refcnt;
 	PixmapPtr pixmap;
@@ -1545,6 +1550,19 @@ static const char *dri_driver_name(intel_screen_private *intel)
 	return s;
 }
 
+#if DRI2INFOREC_VERSION >= 8 && defined(XMIR)
+static int I830DRI2AuthMagic(ScreenPtr screen, uint32_t magic)
+{
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+
+	if (xorgMir)
+		return xmir_auth_drm_magic(intel->xmir, magic);
+	else
+		return drmAuthMagic(intel->drmSubFD, magic);
+}
+#endif
+
 Bool I830DRI2ScreenInit(ScreenPtr screen)
 {
 	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
@@ -1623,6 +1641,11 @@ Bool I830DRI2ScreenInit(ScreenPtr screen)
 	info.numDrivers = 1;
 	info.driverNames = driverNames;
 	driverNames[0] = info.driverName;
+#endif
+
+#if DRI2INFOREC_VERSION >= 8 && XMIR
+	info.version = 8;
+	info.AuthMagic2 = I830DRI2AuthMagic;
 #endif
 
 	return DRI2ScreenInit(screen, &info);

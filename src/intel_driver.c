@@ -64,6 +64,12 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "intel.h"
 #include "intel_video.h"
 
+#ifdef XMIR
+#include "xmir.h"
+#include "dix.h"
+#include "xf86Priv.h"
+#endif
+
 #ifdef INTEL_XVMC
 #define _INTEL_XVMC_SERVER_
 #include "intel_hwmc.h"
@@ -169,7 +175,8 @@ static Bool i830CreateScreenResources(ScreenPtr screen)
 	if (!intel_uxa_create_screen_resources(screen))
 		return FALSE;
 
-	intel_copy_fb(scrn);
+	if (!xorgMir)
+		intel_copy_fb(scrn);
 	return TRUE;
 }
 
@@ -246,41 +253,46 @@ static void intel_check_dri_option(ScrnInfoPtr scrn)
 
 static Bool intel_open_drm_master(ScrnInfoPtr scrn)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-	struct pci_device *dev = intel->PciInfo;
-	drmSetVersion sv;
 	struct drm_i915_getparam gp;
 	int err, has_gem;
-	char busid[20];
-
-	snprintf(busid, sizeof(busid), "pci:%04x:%02x:%02x.%d",
-		 dev->domain, dev->bus, dev->dev, dev->func);
-
-	intel->drmSubFD = drmOpen(NULL, busid);
-	if (intel->drmSubFD == -1) {
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+	
+	if (xorgMir) {
+	    intel->drmSubFD = xmir_get_drm_fd(intel->xmir);
+	}
+	else {
+	    struct pci_device *dev = intel->PciInfo;
+	    drmSetVersion sv;
+	    char busid[20];
+	    
+	    snprintf(busid, sizeof(busid), "pci:%04x:%02x:%02x.%d",
+		     dev->domain, dev->bus, dev->dev, dev->func);
+	    
+	    intel->drmSubFD = drmOpen(NULL, busid);
+	    if (intel->drmSubFD == -1) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[drm] Failed to open DRM device for %s: %s\n",
 			   busid, strerror(errno));
 		return FALSE;
-	}
-
-	/* Check that what we opened was a master or a master-capable FD,
-	 * by setting the version of the interface we'll use to talk to it.
-	 * (see DRIOpenDRMMaster() in DRI1)
-	 */
-	sv.drm_di_major = 1;
-	sv.drm_di_minor = 1;
-	sv.drm_dd_major = -1;
-	sv.drm_dd_minor = -1;
-	err = drmSetInterfaceVersion(intel->drmSubFD, &sv);
-	if (err != 0) {
+	    }
+	    
+	    /* Check that what we opened was a master or a master-capable FD,
+	     * by setting the version of the interface we'll use to talk to it.
+	     * (see DRIOpenDRMMaster() in DRI1)
+	     */
+	    sv.drm_di_major = 1;
+	    sv.drm_di_minor = 1;
+	    sv.drm_dd_major = -1;
+	    sv.drm_dd_minor = -1;
+	    err = drmSetInterfaceVersion(intel->drmSubFD, &sv);
+	    if (err != 0) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[drm] failed to set drm interface version.\n");
 		drmClose(intel->drmSubFD);
 		intel->drmSubFD = -1;
 		return FALSE;
+	    }
 	}
-
 	has_gem = FALSE;
 	gp.param = I915_PARAM_HAS_GEM;
 	gp.value = &has_gem;
@@ -299,7 +311,7 @@ static Bool intel_open_drm_master(ScrnInfoPtr scrn)
 
 static void intel_close_drm_master(intel_screen_private *intel)
 {
-	if (intel && intel->drmSubFD > 0) {
+	if (intel && intel->drmSubFD > 0 && !xorgMir) {
 		drmClose(intel->drmSubFD);
 		intel->drmSubFD = -1;
 	}
@@ -462,6 +474,101 @@ static void intel_setup_capabilities(ScrnInfoPtr scrn)
 #endif
 }
 
+#ifdef XMIR
+
+static void
+intel_xmir_copy_pixmap_to_mir(PixmapPtr src,
+                              int dst_fd)
+{
+	ScreenPtr pScreen = src->drawable.pScreen;
+	ScrnInfoPtr scrn = xf86ScreenToScrn(pScreen);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+        dri_bo *bo;
+	PixmapPtr dst;
+	unsigned int pitch = scrn->displayWidth * intel->cpp;
+
+	/* TODO: This is open-coded create_pixmap_for_bo
+	 * We actually want to keep a stable pixmap, and just intel_set_pixmap_bo each time.
+	 */
+
+	dst = pScreen->CreatePixmap(pScreen, 0, 0, scrn->depth, 0);
+
+	if (dst == NullPixmap)
+		return;
+
+	if (!pScreen->ModifyPixmapHeader(dst,
+					 scrn->virtualX, scrn->virtualY,
+					 scrn->depth, scrn->bitsPerPixel,
+					 pitch, NULL))
+		goto cleanup_dst;
+
+
+        bo = drm_intel_bo_gem_create_from_prime(intel->bufmgr, dst_fd, 0);
+        if (!bo)
+            goto cleanup_dst;
+        intel_set_pixmap_bo(dst, bo);
+
+	if (!intel->uxa_driver->prepare_copy(src, dst,
+					     -1, -1,
+					     GXcopy, FB_ALLONES))
+		goto cleanup_dst;
+
+	intel->uxa_driver->copy(dst,
+				0, 0,
+				0, 0,
+				scrn->virtualX, scrn->virtualY);
+
+	intel->uxa_driver->done_copy(dst);
+
+        /* Ensure we submit the right buffer */
+        intel_batch_submit(scrn);
+cleanup_dst:
+	(*pScreen->DestroyPixmap)(dst);
+}
+
+static void
+intel_xmir_buffer_available(WindowPtr win)
+{
+	int window_fd;
+	PixmapPtr window_pixmap;
+
+	if(!xmir_window_is_dirty(win))
+		return;
+
+	window_fd = xmir_prime_fd_for_window(win);
+
+	window_pixmap = (*win->drawable.pScreen->GetWindowPixmap)(win);
+	intel_xmir_copy_pixmap_to_mir(window_pixmap, window_fd);
+
+	xmir_submit_rendering_for_window(win, NULL);
+}
+
+static void
+intel_submit_dirty_window(WindowPtr win, DamagePtr damage)
+{
+	int window_fd;
+	PixmapPtr window_pixmap;
+
+	if(!xmir_window_has_free_buffer(win))
+		return;
+
+	window_fd = xmir_prime_fd_for_window(win);
+
+	window_pixmap = (*win->drawable.pScreen->GetWindowPixmap)(win);
+	intel_xmir_copy_pixmap_to_mir(window_pixmap, window_fd);
+
+	xmir_submit_rendering_for_window(win, DamageRegion(damage));
+
+	DamageEmpty(damage);
+}
+
+static xmir_driver driver = {
+	XMIR_DRIVER_VERSION,
+	intel_xmir_buffer_available
+};
+
+#endif /* XMIR */
+
 /**
  * This is called before ScreenInit to do any require probing of screen
  * configuration.
@@ -516,6 +623,12 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 
 	intel->PciInfo = xf86GetPciInfoForEntity(intel->pEnt->index);
 
+	if (xorgMir) {
+		intel->xmir = xmir_screen_create(scrn);
+		if (!intel->xmir)
+			return FALSE;
+	}
+
 	if (!intel_open_drm_master(scrn)) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "Failed to become DRM master.\n");
@@ -560,6 +673,9 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 	intel_check_chipset_option(scrn);
 	intel_check_dri_option(scrn);
 
+        if (intel->xmir && !xmir_screen_pre_init(scrn, intel->xmir, &driver))
+            return FALSE;
+
 	if (!intel_init_bufmgr(intel)) {
 		PreInitCleanup(scrn);
 		return FALSE;
@@ -598,16 +714,16 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 		   intel->has_relaxed_fencing ? "enabled" : "disabled");
 
 	/* SwapBuffers delays to avoid tearing */
-	intel->swapbuffers_wait = xf86ReturnOptValBool(intel->Options,
+	intel->swapbuffers_wait = FALSE; /*xf86ReturnOptValBool(intel->Options,
 						       OPTION_SWAPBUFFERS_WAIT,
-						       TRUE);
+						       TRUE); */
 	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Wait on SwapBuffers? %s\n",
 		   intel->swapbuffers_wait ? "enabled" : "disabled");
 
-	intel->use_triple_buffer =
-		xf86ReturnOptValBool(intel->Options,
+	intel->use_triple_buffer = FALSE;
+/*		xf86ReturnOptValBool(intel->Options,
 				     OPTION_TRIPLE_BUFFER,
-				     TRUE);
+				     TRUE); */
 	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Triple buffering? %s\n",
 		   intel->use_triple_buffer ? "enabled" : "disabled");
 
@@ -622,7 +738,10 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 
 	I830XvInit(scrn);
 
-	if (!intel_mode_pre_init(scrn, intel->drmSubFD, intel->cpp)) {
+	if (xorgMir) {
+		xf86ProviderSetup(scrn, NULL, "Intel");
+	}
+	else if (!intel_mode_pre_init(scrn, intel->drmSubFD, intel->cpp)) {
 		PreInitCleanup(scrn);
 		return FALSE;
 	}
@@ -758,6 +877,10 @@ I830BlockHandler(BLOCKHANDLER_ARGS_DECL)
 	intel_video_block_handler(intel);
 #ifdef INTEL_PIXMAP_SHARING
 	intel_dirty_update(screen);
+#endif
+#ifdef XMIR
+	if (xorgMir)
+		xmir_screen_for_each_damaged_window(intel->xmir, intel_submit_dirty_window);
 #endif
 }
 
@@ -974,6 +1097,9 @@ I830ScreenInit(SCREEN_INIT_ARGS_DECL)
 
 	fbPictureInit(screen, NULL, 0);
 
+	if(intel->xmir)
+		xmir_screen_init(screen, intel->xmir);
+
 	xf86SetBlackWhitePixels(screen);
 
 	if (!intel_uxa_init(screen)) {
@@ -987,7 +1113,7 @@ I830ScreenInit(SCREEN_INIT_ARGS_DECL)
 	miDCInitialize(screen, xf86GetPointerScreenFuncs());
 
 	xf86DrvMsg(scrn->scrnIndex, X_INFO, "Initializing HW Cursor\n");
-	if (!xf86_cursors_init(screen, 64, 64,
+	if (!xorgMir && !xf86_cursors_init(screen, 64, 64,
 			       (HARDWARE_CURSOR_TRUECOLOR_AT_8BPP |
 				HARDWARE_CURSOR_BIT_ORDER_MSBFIRST |
 				HARDWARE_CURSOR_INVERT_MASK |
@@ -1109,6 +1235,9 @@ static void I830LeaveVT(VT_FUNC_ARGS_DECL)
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	int ret;
 
+	if (xorgMir)
+		return;
+
 	xf86RotateFreeShadow(scrn);
 
 	xf86_hide_cursors(scrn);
@@ -1127,6 +1256,10 @@ static Bool I830EnterVT(VT_FUNC_ARGS_DECL)
 	SCRN_INFO_PTR(arg);
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	int ret;
+
+	if (xorgMir) {
+		return xf86SetDesiredModes(scrn);
+	}
 
 	ret = drmSetMaster(intel->drmSubFD);
 	if (ret) {
@@ -1184,7 +1317,8 @@ static Bool I830CloseScreen(CLOSE_SCREEN_ARGS_DECL)
 	}
 
 	if (intel->front_buffer) {
-		intel_mode_remove_fb(intel);
+		if (!xorgMir)
+			intel_mode_remove_fb(intel);
 		drm_intel_bo_unreference(intel->front_buffer);
 		intel->front_buffer = NULL;
 	}

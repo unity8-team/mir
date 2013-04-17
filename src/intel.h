@@ -76,6 +76,12 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <libudev.h>
 #endif
 
+#if XMIR
+#include "xmir.h"
+#else
+typedef struct xmir_screen xmir_screen;
+#endif
+
 /* remain compatible to xorg-server 1.6 */
 #ifndef MONITOR_EDID_COMPLETE_RAWDATA
 #define MONITOR_EDID_COMPLETE_RAWDATA EDID_COMPLETE_RAWDATA
@@ -350,6 +356,7 @@ typedef struct intel_screen_private {
 	InputHandlerProc uevent_handler;
 #endif
 	Bool has_prime_vmap_flush;
+	xmir_screen *xmir;
 } intel_screen_private;
 
 #ifndef I915_PARAM_HAS_PRIME_VMAP_FLUSH

@@ -51,6 +51,10 @@
 #include <xf86platformBus.h>
 #endif
 
+#ifdef XMIR
+#include <xf86Priv.h>
+#endif
+
 static const struct intel_device_info intel_generic_info = {
 	.gen = -1,
 };
@@ -428,6 +432,11 @@ static Bool intel_driver_func(ScrnInfoPtr pScrn,
 #else
 		(*flag) = HW_IO | HW_MMIO;
 #endif
+
+#ifdef XMIR
+		if (xorgMir)
+			(*flag) = HW_SKIP_CONSOLE;
+#endif
 		return TRUE;
 	default:
 		/* Unknown or deprecated function */
@@ -578,7 +587,7 @@ static Bool intel_pci_probe(DriverPtr		driver,
 			    struct pci_device	*device,
 			    intptr_t		match_data)
 {
-	if (!has_kernel_mode_setting(device)) {
+	if (!has_kernel_mode_setting(device) && !xorgMir) {
 #if KMS_ONLY
 		return FALSE;
 #else

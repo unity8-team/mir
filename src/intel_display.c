@@ -1872,6 +1872,17 @@ intel_mode_init(struct intel_screen_private *intel)
 {
 	struct intel_mode *mode = intel->modes;
 
+	if (intel->modes == NULL) {
+		mode = calloc (sizeof *mode, 1);
+		mode->fd = intel->drmSubFD;
+
+		mode->event_context.version = DRM_EVENT_CONTEXT_VERSION;
+		mode->event_context.vblank_handler = intel_vblank_handler;
+		mode->event_context.page_flip_handler = intel_page_flip_handler;
+
+		intel->modes = mode;
+	}
+
 	/* We need to re-register the mode->fd for the synchronisation
 	 * feedback on every server generation, so perform the
 	 * registration within ScreenInit and not PreInit.
@@ -1966,6 +1977,13 @@ Bool intel_crtc_on(xf86CrtcPtr crtc)
 	drmModeCrtcPtr drm_crtc;
 	Bool ret;
 	int i;
+
+	/* We're not in control of this crtc, probably because we're running nested.
+	 * We can't say anything useful about whether the CRTC's on or not, so say
+	 * off.
+	 */
+	if (!intel_crtc)
+		return FALSE;
 
 	if (!crtc->enabled)
 		return FALSE;
@@ -2095,7 +2113,7 @@ void intel_copy_fb(ScrnInfoPtr scrn)
 	if (src == NULL)
 		return;
 
-	/* We dont have a screen Pixmap yet */
+	/* We dont have a screen Pixmap yet */	
 	dst = intel_create_pixmap_for_bo(pScreen, intel->front_buffer,
 					 scrn->virtualX, scrn->virtualY,
 					 scrn->depth, scrn->bitsPerPixel,
