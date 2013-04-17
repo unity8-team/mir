@@ -354,44 +354,28 @@ radeon_dirty_update(ScreenPtr screen)
 //}
 
 static void
-radeon_xmir_copy_pixmap_to_mir(PixmapPtr src, xmir_buffer_info *buffer)
+radeon_xmir_copy_pixmap_to_mir(PixmapPtr src, int prime_fd)
 {
     ScreenPtr pScreen = src->drawable.pScreen;
     ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
     RADEONInfoPtr info = RADEONPTR(pScrn);
     if (info->accel_state->exa) {
 	PixmapPtr dst;
-	struct radeon_bo *bo_dst = radeon_bo_open(info->bufmgr, buffer->name, 0, 0, 0, 0);
 	int ret;
-/*	struct radeon_surface *surface_dst = radeon_calculate_surface_from_bo(bo_dst,
-									      pScreen,
-									      src->drawable.width, src->drawable.height,
-									      src->drawable.bitsPerPixel / 8);
-	int ret;
-	
+        int fd_copy = dup(prime_fd);
+	/* TODO: Create this scratch pixmap once to avoid allocation overhead */
 	dst = pScreen->CreatePixmap(pScreen, 0, 0, pScrn->depth, 0);
-
 	if (dst == NullPixmap)
-	    goto cleanup_bo;
+            return;
 
-	ret = pScreen->ModifyPixmapHeader(dst,
-					  pScrn->virtualX, pScrn->virtualY,
-					  pScrn->depth, pScrn->bitsPerPixel,
-					  surface_dst->level[0].pitch_bytes, NULL);
+	if (!pScreen->ModifyPixmapHeader(dst,
+					 pScrn->virtualX, pScrn->virtualY,
+					 pScrn->depth, pScrn->bitsPerPixel,
+					 src->devKind, NULL))
+		goto cleanup_dst;
 
-	if (!ret)
-	    goto cleanup_dst;
-*/
-	/* Just allocate a bo. TODO: Create this scratch pixmap once to avoid allocation overhead */
-	dst = pScreen->CreatePixmap(pScreen, pScrn->virtualX, pScrn->virtualY, pScrn->depth, 0);
-	if (dst == NullPixmap)
-	    goto cleanup_bo;
 
-	exaMoveInPixmap(dst);
-	radeon_set_pixmap_bo(dst, bo_dst);
-        radeon_bo_wait(bo_dst);
-        radeon_bo_wait(radeon_get_pixmap_bo(src));
-
+        info->accel_state->exa->SetSharedPixmapBacking(dst, &fd_copy);
 
 	ret = info->accel_state->exa->PrepareCopy (src, dst,
 						   -1, -1, GXcopy, FB_ALLONES);
@@ -400,22 +384,15 @@ radeon_xmir_copy_pixmap_to_mir(PixmapPtr src, xmir_buffer_info *buffer)
 	info->accel_state->exa->Copy (dst, 0, 0, 0, 0,
 				      pScrn->virtualX, pScrn->virtualY);
 	info->accel_state->exa->DoneCopy (dst);
-	radeon_cs_flush_indirect(pScrn);
 
-        radeon_bo_wait(bo_dst);
-        radeon_bo_wait(radeon_get_pixmap_bo(src));	
 cleanup_dst:
 	pScreen->DestroyPixmap(dst);
-cleanup_bo:
-        radeon_bo_wait(bo_dst);
-        radeon_bo_wait(radeon_get_pixmap_bo(src));	
-	radeon_bo_unref(bo_dst);
     } else if (0) {
 	/* TODO: glamor accel */
     } else {
 	/* Hideously bad software copy */
 	struct radeon_bo *bo_src = radeon_get_pixmap_bo(src);
-	struct radeon_bo *bo_dst = radeon_bo_open(info->bufmgr, buffer->name, 0, 0, 0, 0);
+	struct radeon_bo *bo_dst = radeon_gem_bo_open_prime(info->bufmgr, prime_fd, src->devKind * src->drawable.height);
 
 	radeon_bo_map(bo_src, FALSE);
 	radeon_bo_map(bo_dst, TRUE);
@@ -432,16 +409,16 @@ cleanup_bo:
 static void
 radeon_xmir_buffer_available(WindowPtr win)
 {
-    xmir_buffer_info buffer_info;
+    int window_fd;
     PixmapPtr window_pixmap;
 
     if(!xmir_window_is_dirty(win))
 	return;
 
-    xmir_populate_buffers_for_window(win, &buffer_info);
+    window_fd = xmir_prime_fd_for_window(win);
 
     window_pixmap = (*win->drawable.pScreen->GetWindowPixmap)(win);
-    radeon_xmir_copy_pixmap_to_mir(window_pixmap, &buffer_info);
+    radeon_xmir_copy_pixmap_to_mir(window_pixmap, window_fd);
 
     xmir_submit_rendering_for_window(win, NULL);
 }
@@ -449,16 +426,16 @@ radeon_xmir_buffer_available(WindowPtr win)
 static void
 radeon_submit_dirty_window(WindowPtr win, DamagePtr damage)
 {
-    xmir_buffer_info buffer_info;
+    int window_fd;
     PixmapPtr window_pixmap;
 
     if(!xmir_window_has_free_buffer(win))
 	return;
 
-    xmir_populate_buffers_for_window(win, &buffer_info);
+    window_fd = xmir_prime_fd_for_window(win);
 
     window_pixmap = (*win->drawable.pScreen->GetWindowPixmap)(win);
-    radeon_xmir_copy_pixmap_to_mir(window_pixmap, &buffer_info);
+    radeon_xmir_copy_pixmap_to_mir(window_pixmap, window_fd);
 
     xmir_submit_rendering_for_window(win, DamageRegion(damage));
 
