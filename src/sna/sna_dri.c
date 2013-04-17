@@ -39,6 +39,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <errno.h>
 #include <time.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "sna.h"
 #include "sna_reg.h"
@@ -2381,13 +2382,24 @@ out_complete:
 }
 #endif
 
+static bool has_i830_dri(void)
+{
+	return access(DRI_DRIVER_PATH "/i830_dri.so", R_OK) == 0;
+}
+
 static const char *dri_driver_name(struct sna *sna)
 {
 	const char *s = xf86GetOptValString(sna->Options, OPTION_DRI);
 	Bool dummy;
 
-	if (s == NULL || xf86getBoolValue(&dummy, s))
-		return sna->kgem.gen < 040 ? "i915" : "i965";
+	if (s == NULL || xf86getBoolValue(&dummy, s)) {
+		if (sna->kgem.gen < 030)
+			return has_i830_dri() ? "i830" : "i915";
+		else if (sna->kgem.gen < 040)
+			return "i915";
+		else
+			return "i965";
+	}
 
 	return s;
 }

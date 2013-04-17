@@ -28,6 +28,7 @@ AC_INIT([xf86-video-intel],
         [xf86-video-intel])
 AC_CONFIG_SRCDIR([Makefile.am])
 AC_CONFIG_HEADERS([config.h])
+AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_AUX_DIR(.)
 
 # Initialize Automake
@@ -168,6 +169,8 @@ AC_ARG_WITH(xorg-module-dir,
 
 AC_ARG_ENABLE(dri, AS_HELP_STRING([--disable-dri],
                                   [Disable DRI support [[default=auto]]]))
+dridriverdir=`$PKG_CONFIG --variable=dridriverdir dri`
+AC_DEFINE_DIR(DRI_DRIVER_PATH, dridriverdir, [Default DRI driver path])
 
 AC_ARG_ENABLE(xvmc, AS_HELP_STRING([--disable-xvmc],
                                   [Disable XvMC support [[default=yes]]]),
