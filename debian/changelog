@@ -1,0 +1,1719 @@
+xserver-xorg-video-ati (1:7.1.0-0ubuntu2) raring; urgency=low
+
+  * Fix not removing socket and block handler on close (LP: #1157614)
+    - fixup-close.patch
+  * Handle drmModeGetConnector failure better.
+    - drmmode-fail.patch
+
+ -- Maarten Lankhorst <mlankhorst@raring-amd64.local>  Wed, 20 Mar 2013 14:00:46 +0000
+
+xserver-xorg-video-ati (1:7.1.0-0ubuntu1) raring; urgency=low
+
+  * New upstream release
+  * Merge from debian-experimental. Remaining Ubuntu changes:
+    - debian/control:
+      + firmware-linux -> linux-firmware
+    - debian/rules:
+      + Remove reference to radeon-kms.conf
+    - debian/radeon-kms.conf:
+      + Don't install modprobe rule for KMS; the Ubuntu kernel defaults to KMS.
+  * Add patch to enable reverse optimus support.
+    - reverse-prime.patch
+
+ -- Maarten Lankhorst <maarten.lankhorst@ubuntu.com>  Wed, 30 Jan 2013 17:30:32 +0100
+
+xserver-xorg-video-ati (1:7.0.0-0ubuntu1) raring; urgency=low
+
+  * New upstream release:
+    - KMS-only release, only works with linux-any now.
+  * Bump to build against xserver 1.13rc1
+  * Require libdrm 2.4.39
+  * Merge from debian-experimental. Remaining Ubuntu changes:
+    - debian/control:
+      + firmware-linux -> linux-firmware
+    - debian/rules:
+      + Remove reference to radeon-kms.conf
+    - debian/radeon-kms.conf:
+      + Don't install modprobe rule for KMS; the Ubuntu kernel defaults to KMS.
+
+ -- Maarten Lankhorst <maarten.lankhorst@ubuntu.com>  Thu, 15 Nov 2012 11:44:38 +0100
+
+xserver-xorg-video-ati (1:6.99.99~git20120926.e8cb0b72-0ubuntu1) UNRELEASED; urgency=low
+
+  * remove mibstore.h include
+  * officially require libdrm 2.4.39
+
+ -- Maarten Lankhorst <maarten.lankhorst@canonical.com>  Wed, 03 Oct 2012 11:14:38 +0200
+
+xserver-xorg-video-ati (1:6.99.99~git20120913.8637f772-0ubuntu1) quantal; urgency=low
+
+  * New upstream snapshot. Adds hybrid graphics support, FFe (LP: #1053250)
+
+ -- Christopher James Halse Rogers <raof@ubuntu.com>  Fri, 21 Sep 2012 10:05:46 +1000
+
+xserver-xorg-video-ati (1:6.99.99~git20120713.6ef1ad6a-0ubuntu1) quantal-proposed; urgency=low
+
+  [ Maarten Lankhorst ]
+  * Merge from debian-experimental. Remaining Ubuntu changes:
+    - debian/control:
+      + firmware-linux -> linux-firmware
+    - debian/rules:
+      + Remove reference to radeon-kms.conf
+    - debian/radeon-kms.conf:
+      + Don't install modprobe rule for KMS; the Ubuntu kernel defaults to KMS.
+
+ -- Timo Aaltonen <tjaalton@ubuntu.com>  Wed, 01 Aug 2012 17:15:12 +0300
+
+xserver-xorg-video-ati (1:6.14.99~really6.14.4-0ubuntu1) quantal; urgency=low
+
+  * Merge from Debian. Remaining Ubuntu changes:
+    - debian/control:
+      + firmware-linux -> linux-firmware
+    - debian/rules:
+      + Remove reference to radeon-kms.conf
+    - debian/radeon-kms.conf:
+      + Don't install modprobe rule for KMS; the Ubuntu kernel defaults to KMS.
+    - Re-added missing src/bicubic_table.py
+
+ -- Maarten Lankhorst <maarten.lankhorst@canonical.com>  Fri, 08 Jun 2012 14:23:31 +0200
+
+xserver-xorg-video-ati (1:6.14.99~git20111219.aacbd629-0ubuntu2) precise; urgency=low
+
+  * debian/control: Suggest linux-firmware rather than firmware-linux.
+    The latter is only in Debian.
+    (LP: #894693)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Fri, 03 Feb 2012 14:10:31 -0800
+
+xserver-xorg-video-ati (1:6.14.99~git20111219.aacbd629-0ubuntu1) precise; urgency=low
+
+  * Merge from Debian.  Remaining Ubuntu changes:
+    - debian/rules:
+    - debian/radeon-kms.conf:
+      + Don't install modprobe rule for KMS; the Ubuntu kernel defaults to KMS.
+  * New upstream snapshot:
+    - More PCIIDs.
+    - Endianness fixes.
+  * Drop 100_radeon-6.9.0-bgnr-enable.patch; merged upstream.
+
+ -- Christopher James Halse Rogers <raof@ubuntu.com>  Mon, 19 Dec 2011 18:57:23 +1100
+
+xserver-xorg-video-ati (1:6.14.99~git20110811.g93fc084-0ubuntu1) oneiric; urgency=low
+
+  [ Christopher James Halse Rogers ]
+  * New upstream snapshot:
+    - DRI2 fixes.
+    - Pageflipping and vsync fixes.
+    - More PCIIDs supported
+  * 101_llano-support.diff, 102_llano-pciids.diff:
+    - Drop; in new upstream snapshot.
+
+ -- Timo Aaltonen <tjaalton@ubuntu.com>  Thu, 11 Aug 2011 22:43:25 +0300
+
+xserver-xorg-video-ati (1:6.14.4-5) unstable; urgency=low
+
+  * Update radeon's long description to list the chips mentioned in the
+    radeon manpage. Also drop fglrx from there (Closes: #677412).
+
+ -- Cyril Brulebois <kibi@debian.org>  Wed, 13 Jun 2012 22:58:36 +0200
+
+xserver-xorg-video-ati (1:6.14.4-4) unstable; urgency=low
+
+  * Cherry-pick from upstream to fix regression on UMS (Closes: #670570):
+    - EXA: Attempt to fix solid picture acceleration with UMS.
+    - EXA/UMS: Synchronize to the GPU before writing solid colour to scratch pixmap.
+    - UMS/EXA: Add reminder for potential solid picture performance issue.
+
+ -- Cyril Brulebois <kibi@debian.org>  Sat, 19 May 2012 21:00:45 +0000
+
+xserver-xorg-video-ati (1:6.14.4-3) unstable; urgency=low
+
+  * Fix uninstallability issues on ia64 by dropping mach64 and r128 from
+    dependencies on this architecture, since those were removed (the ia64
+    domain I/O support code is gone in xserver 1.12).
+
+ -- Cyril Brulebois <kibi@debian.org>  Fri, 18 May 2012 11:39:03 +0200
+
+xserver-xorg-video-ati (1:6.14.4-2) unstable; urgency=medium
+
+  * Cherry-picks from upstream git:
+    - r6xx-r9xx: force 1D tiling for buffer with height < 64
+    - Make radeon_setup_kernel_mem failures more graceful and verbose
+    - RADEONCopySwap: Fix RADEON_HOST_DATA_SWAP_16BIT case
+    - EXA: Support acceleration of solid pictures on R3xx-R7xx
+    - EXA: Support acceleration of solid pictures on Evergreen/NI
+    - EXA: Support acceleration of solid pictures on R1xx
+    - EXA: Support acceleration of solid pictures on R2xx
+  * The solid picture acceleration should fix the rendering mess people have
+    been seeing with cairo 1.12, and thus closes: #666982.
+
+ -- Julien Cristau <jcristau@debian.org>  Mon, 16 Apr 2012 20:03:31 +0200
+
+xserver-xorg-video-ati (1:6.14.4-1) unstable; urgency=low
+
+  * New upstream release:
+    - Add support for Trinity APUs.
+    - 2D tiling support on R6xx+ asics.
+    - KMS tiling support for r1xx-r2xx.
+    - Lots of bug fixes.
+  * Bump libdrm-dev build-dep.
+
+ -- Cyril Brulebois <kibi@debian.org>  Mon, 02 Apr 2012 20:21:35 +0000
+
+xserver-xorg-video-ati (1:6.14.3-2+exp1) experimental; urgency=low
+
+  * Build against Xserver 1.12 RC1.
+
+ -- Cyril Brulebois <kibi@debian.org>  Sat, 31 Dec 2011 20:05:12 +0100
+
+xserver-xorg-video-ati (1:6.14.3-2) unstable; urgency=low
+
+  * Fix xinerama by cherry-picking:
+    - 82069bae6f: “fixup xinerama since 9151f3b1c2” (Closes: #649495).
+
+ -- Cyril Brulebois <kibi@debian.org>  Sun, 11 Dec 2011 12:14:23 +0100
+
+xserver-xorg-video-ati (1:6.14.3-1) unstable; urgency=low
+
+  * New upstream release. Some highlights follow:
+    - Add support for llano APUs.
+    - “video: Don't round up bottom/right edge for clipping source
+      width/height” (Closes: #637258).
+    - “Bail if we're trying to start up in UMS mode on KMS.” According to
+      a comment in the code, this can happen if the radeon kernel module
+      wasn't loaded before X starts.
+    - “EXA >= R6xx / KMS: Avoid running out of CS space at inconvenient
+      times” (Closes: #645007).
+
+ -- Cyril Brulebois <kibi@debian.org>  Thu, 03 Nov 2011 00:36:47 +0100
+
+xserver-xorg-video-ati (1:6.14.2-2) unstable; urgency=low
+
+  * Enable parallel building.
+  * Build against xserver 1.11.
+
+ -- Cyril Brulebois <kibi@debian.org>  Sun, 28 Aug 2011 13:26:23 +0200
+
+xserver-xorg-video-ati (1:6.14.2-1ubuntu2) oneiric; urgency=low
+
+  * 101_llano-support.diff, 102_llano-pciids.diff:
+    - Add patches from upstream to suppor Llano chips.
+
+ -- Timo Aaltonen <tjaalton@ubuntu.com>  Fri, 01 Jul 2011 12:54:27 +0300
+
+xserver-xorg-video-ati (1:6.14.2-1ubuntu1) oneiric; urgency=low
+
+  * Merged with Debian unstable, remaining changes:
+    + debian/patches/100_radeon-6.9.0-bgnr-enable.patch:
+      - Smooth plymouth transition enablement patch
+    + debian/rules:
+      - Drop /etc/modprobe.d/radeon-kms.conf install.
+    + Add debian/gbp.conf pointing to Ubuntu branch to make
+      git-buildpackage less narky.
+  * Dropped patches
+    101_fix_build_aginst_1.10rc3.diff
+    102_disable_pageflipping_for_transformed_displays.patch
+    - included upstream
+  * Drop the change removing radeon-kms.conf, obsolete since 10.04 final.
+
+ -- Timo Aaltonen <tjaalton@ubuntu.com>  Thu, 30 Jun 2011 18:41:32 +0300
+
+xserver-xorg-video-ati (1:6.14.2-1) unstable; urgency=low
+
+  * New upstream release.
+  * Mention the need for an explicit configuration if r128, mach64, or
+    radeon is to be used without the ati package installed, since it's a
+    meta package, but also a wrapper (Closes: #626500). Thanks, Jonathan
+    Nieder!
+
+ -- Cyril Brulebois <kibi@debian.org>  Thu, 26 May 2011 11:52:58 +0200
+
+xserver-xorg-video-ati (1:6.14.1-1) unstable; urgency=low
+
+  * New upstream release.
+
+ -- Cyril Brulebois <kibi@debian.org>  Sun, 10 Apr 2011 23:25:09 +0200
+
+xserver-xorg-video-ati (1:6.14.0-1) unstable; urgency=low
+
+  * New upstream release:
+    - Many bug fixes.
+    - Improved Evergreen support.
+    - Added Ontario support.
+
+ -- Cyril Brulebois <kibi@debian.org>  Thu, 17 Feb 2011 14:50:50 +0100
+
+xserver-xorg-video-ati (1:6.13.2-2) unstable; urgency=low
+
+  * Stop building with -fvisibility=hidden. That was introduced to avoid
+    symbol name clashes with radeonhd, which is gone now.
+  * Switch to dh:
+    - Use debhelper 8.
+    - Use dh-autoreconf.
+    - Bump xserver-xorg-dev build-dep for dh_xsf_substvars and xsf
+      debhelper sequence.
+    - Ship manpages through .install, remove .manpages accordingly.
+  * Get rid of maintainer scripts, since they were only used to handle
+    switching between versions with or without KMS. Packages in squeeze
+    have KMS, so stop worrying about that.
+  * Remove xsfbs accordingly.
+  * Add quilt build-dep for future use.
+  * Update Uploaders list. Thanks, David & Brice!
+  * Remove long obsolete Replaces.
+
+ -- Cyril Brulebois <kibi@debian.org>  Sat, 05 Feb 2011 14:42:29 +0100
+
+xserver-xorg-video-ati (1:6.14.0-0ubuntu5) oneiric; urgency=low
+
+  * 102_disable_pageflipping_for_transformed_displays.patch:
+    Add cherrypick patch to not enable pageflipping if display has been
+    rotated.  Fixes issue where garbage appears on rotated screens
+    while rotated.
+    (LP: #772111)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Tue, 21 Jun 2011 12:41:28 -0700
+
+xserver-xorg-video-ati (1:6.14.0-0ubuntu4) natty; urgency=low
+
+  * Bump the build-dep on xserver-xorg-dev.
+
+ -- Timo Aaltonen <tjaalton@ubuntu.com>  Fri, 18 Mar 2011 17:00:02 +0200
+
+xserver-xorg-video-ati (1:6.14.0-0ubuntu3) natty; urgency=low
+
+  * Rebuild against final Xserver 1.10 ABI
+  * debian/patches/101_fix_build_aginst_1.10rc3.diff:
+    - Cherry-pick build-fix against xserver 1.10rc3 and later.
+
+ -- Christopher James Halse Rogers <raof@ubuntu.com>  Wed, 09 Mar 2011 18:45:43 +1100
+
+xserver-xorg-video-ati (1:6.14.0-0ubuntu2) natty; urgency=low
+
+  * Rebuild to pick up new Xserver dependencies
+
+ -- Christopher James Halse Rogers <raof@ubuntu.com>  Wed, 23 Feb 2011 17:52:57 +1100
+
+xserver-xorg-video-ati (1:6.14.0-0ubuntu1) natty; urgency=low
+
+  * New upstream release
+  * Drop 101_select_between_classic_and_gallium_dri.patch.  Default to gallium
+    everywhere, and rely on libGL and the Xserver to fallback when necessary
+    (LP: #715939)
+
+ -- Christopher James Halse Rogers <raof@ubuntu.com>  Fri, 18 Feb 2011 13:32:01 +1100
+
+xserver-xorg-video-ati (1:6.13.2+git20110124.fadee040-0ubuntu4) natty; urgency=low
+
+  * debian/control: Bump build-depends on xserver-xorg-dev to really,
+    really build against Xserver 1.10
+
+ -- Christopher James Halse Rogers <raof@ubuntu.com>  Tue, 01 Feb 2011 21:00:45 +1100
+
+xserver-xorg-video-ati (1:6.13.2+git20110124.fadee040-0ubuntu3) natty; urgency=low
+
+  * Rebuild against Xserver 1.10
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Mon, 31 Jan 2011 18:56:01 -0800
+
+xserver-xorg-video-ati (1:6.13.2+git20110124.fadee040-0ubuntu2) natty; urgency=low
+
+  * debian/patches/100_radeon-6.9.0-bgnr-enable.patch: Fix typo in Xserver 1.10
+    ABI codepath.
+
+ -- Christopher James Halse Rogers <raof@ubuntu.com>  Mon, 31 Jan 2011 19:34:41 +1100
+
+xserver-xorg-video-ati (1:6.13.2+git20110124.fadee040-0ubuntu1) natty; urgency=low
+
+  * Checkout from git 20110124 (master branch) up to commit
+    fadee0409a8e13b78bbccb83dd70f590fee23d57
+    - Enable 3D support for HD5670 and other late model cards
+
+  [Bryce Harrington]
+  * debian/control: Drop 'linux-any' qualifier for libdrm dependency.  Causes FTBS
+    in pbuilder.  (see deb bug 600823)
+  * Refresh 100_radeon-6.9.0-bgnr-enable.patch and address ABI change.
+
+  [Christopher James Halse Rogers]
+  * Add debian/patches/101_select_between_classic_and_gallium_dri.patch:
+    Select between r300c/r300g and r600c/r600g as the DRI driver.  Classic
+    drivers are selected when KMS is unavailable.  Gallium is default for
+    r300, classic for r600.  This also adds a ForceGallium xorg.conf
+    option to select between the two DRI drivers.
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Thu, 27 Jan 2011 16:23:33 -0800
+
+xserver-xorg-video-ati (1:6.13.2-1ubuntu1) natty; urgency=low
+
+  * Merge from Debian Experimental. Remaining Ubuntu changes:
+    + debian/control:
+      - Add quilt to build-depends for Ubuntu patches
+    + debian/patches/100_radeon-6.9.0-bgnr-enable.patch:
+      - Smooth plymouth transition enablement patch
+    + debian/rules:
+      - Add xsfbs patchsys
+      - Drop /etc/modprobe.d/radeon-kms.conf install.
+    + debian/xserver-xorg-video-ati.{pre,post}inst.in:
+      - Clean existing /etc/modprobe.d/radeon-kms.conf on install.
+        At best this does nothing (KMS is the default for our kernel)
+        and at worst it makes it harder to disable KMS.
+  * Add debian/gbp.conf pointing to Ubuntu branch to make git-buildpackage
+    less narky.
+  * Dropped Patch:
+    - 101_ref-count-dri2-buffers.patch: Upstream
+
+ -- Robert Hooker <sarvatt@ubuntu.com>  Mon, 08 Nov 2010 11:42:17 -0500
+
+xserver-xorg-video-ati (1:6.13.2-1) experimental; urgency=low
+
+  [ Robert Hooker ]
+  * New upstream version.
+  * Bump xutils-dev requirement for new util-macros.
+
+ -- Cyril Brulebois <kibi@debian.org>  Sat, 06 Nov 2010 23:57:11 +0100
+
+xserver-xorg-video-ati (1:6.13.1-3) experimental; urgency=low
+
+  * Build against Xserver 1.9.1 rc1.
+
+ -- Cyril Brulebois <kibi@debian.org>  Sun, 17 Oct 2010 03:08:54 +0200
+
+xserver-xorg-video-ati (1:6.13.1-2+squeeze1) unstable; urgency=low
+
+  * Cherry-pick upstream commit 91f707d3 to fix pixel column ordering with
+    Xv on big endian systems (without KMS, without DRI). Thanks to Ulrich
+    Eckhardt for the report (Closes: #587999).
+  * Apply patch by Julien Cristau: Only enable KMS on x86. At least on
+    powerpc, KMS in squeeze means no suspend/resume, and no backlight
+    control, so delay this to wheezy.
+
+ -- Cyril Brulebois <kibi@debian.org>  Sun, 07 Nov 2010 11:22:20 +0100
+
+xserver-xorg-video-ati (1:6.13.1-2) unstable; urgency=low
+
+  * Make libudev-dev build dependencies linux-any.
+  * Pull upstream commit 06691376 to fix build without KMS.
+
+ -- Brice Goglin <bgoglin@debian.org>  Thu, 15 Jul 2010 07:07:07 +0200
+
+xserver-xorg-video-ati (1:6.13.1-1ubuntu5) maverick; urgency=low
+
+  * debian/patches/101_ref-count-dri2-buffers.patch:
+    + Replace with version that got applied upstream.  Resolves another X crash
+      in an edge-case (LP #626743).
+  * Git does not contain src/modes; this is a copy of the X modes code somewhere
+    between Xserver 1.2 and 1.3 to enable building against Xserver 1.2.  This
+    is also removed upstream, and was never been actually used.
+
+ -- Christopher James Halse Rogers <raof@ubuntu.com>  Tue, 07 Sep 2010 21:41:53 +1000
+
+xserver-xorg-video-ati (1:6.13.1-1ubuntu4) maverick; urgency=low
+
+  * debian/patches/101_ref-count-dri2-buffers.patch:
+    + Fix Xserver crash when scheduling a swap on an offscreen Drawable,
+      most easily triggered by some Wine apps
+
+ -- Christopher James Halse Rogers <raof@ubuntu.com>  Thu, 26 Aug 2010 13:03:36 +1000
+
+xserver-xorg-video-ati (1:6.13.1-1ubuntu3) maverick; urgency=low
+
+  * debian/rules:
+    + Drop the upstream ChangeLog from the packages, saving precious CD
+      space.
+  * debian/patches/101_ref-count-dri2-buffers.patch:
+    + Add reference-counting to DRI2 buffers, and take a reference in
+      ScheduleSwap.  Prevents the buffers from being destroyed on client
+      quit between calling ScheduleSwap and the associated vblank event.
+      Fixes Xserver segfault when a GL client quits (LP: #617201).
+
+ -- Christopher James Halse Rogers <raof@ubuntu.com>  Tue, 24 Aug 2010 16:56:47 +1000
+
+xserver-xorg-video-ati (1:6.13.1-1ubuntu2) maverick; urgency=low
+
+  * No-change rebuild against new Xserver 1.9 ABI
+
+ -- Christopher James Halse Rogers <raof@ubuntu.com>  Mon, 09 Aug 2010 21:13:25 +1000
+
+xserver-xorg-video-ati (1:6.13.1-1ubuntu1) maverick; urgency=low
+
+  * Merge from Debian Unstable. Remainning Ubuntu changes:
+    + debian/control:
+      - Add quilt to build-depends for Ubuntu patches
+    + debian/patches/100_radeon-6.9.0-bgnr-enable.patch:
+      - Smooth plymouth transition enablement patch
+    + debian/rules:
+      - Add xsfbs patchsys
+      - Drop /etc/modprobe.d/radeon-kms.conf install.
+    + debian/xserver-xorg-video-ati.{pre,post}inst.in:
+      - Clean existing /etc/modprobe.d/radeon-kms.conf on install.
+        At best this does nothing (KMS is the default for our kernel)
+        and at worst it makes it harder to disable KMS.
+  * Add debian/gbp.conf pointing to Ubuntu branch to make git-buildpackage
+    less narky.
+  * Drop 102-no-xv-rn50.patch and 103_new_pci_ids.patch from previous
+    Ubuntu releases, they are upstream now.
+
+ -- Robert Hooker <sarvatt@ubuntu.com>  Thu, 08 Jul 2010 16:45:59 -0400
+
+xserver-xorg-video-ati (1:6.13.1-1) unstable; urgency=low
+
+  * New upstream release.
+    + Add libudev-dev to build dependencies.
+  * Bump Standards-Version to 3.9.0, no changes needed.
+
+ -- Brice Goglin <bgoglin@debian.org>  Wed, 07 Jul 2010 20:43:53 +0200
+
+xserver-xorg-video-ati (1:6.13.0-2ubuntu1) maverick; urgency=low
+
+  * Merge from Debian Unstable.  Remaining Ubuntu changes:
+    + debian/control:
+      - Add quilt to build-depends for Ubuntu patches
+    + debian/patches/103_new_pci_ids.patch:
+      - Add PCI IDs for some new RV7xx a Redwood
+    + debian/patches/102-no-xv-rn50.patch:
+      - Upstream backport: disable Xv on rn50 chips which have no 3D engine
+        or overlay.
+    + debian/patches/100_radeon-6.9.0-bgnr-enable.patch:
+      - Smooth plymouth transition enablement patch
+    + debian/rules:
+      - Add xsfbs patchsys
+      - Drop /etc/modprobe.d/radeon-kms.conf install.
+    + debian/xserver-xorg-video-ati.{pre,post}inst.in:
+      - Clean existing /etc/modprobe.d/radeon-kms.conf on install.
+        At best this does nothing (KMS is the default for our kernel)
+        and at worst it makes it harder to disable KMS.
+  * Add debian/gbp.conf pointing to Ubuntu branch to make git-buildpackage
+    less narky.
+
+ -- Christopher James Halse Rogers <raof@ubuntu.com>  Mon, 31 May 2010 16:50:56 +1000
+
+xserver-xorg-video-ati (1:6.13.0-2) unstable; urgency=medium
+
+  * Update xsfbs, use ${xviddriver:Depends} substvar.
+
+ -- Julien Cristau <jcristau@debian.org>  Fri, 14 May 2010 12:03:33 +0200
+
+xserver-xorg-video-ati (1:6.13.0-1ubuntu5) lucid; urgency=low
+
+  * Add 103_new_pci_ids.patch: Add support for newer ATI hardware.  Adds
+    PCI IDs for a number of RV7xx chips and one Redwood.
+  * Revert recent performance enhancement work included in 6.13.0, as it
+    appears to regress performance fairly severely in some circumstances
+    such as using googleearth.
+    (LP: #564181, #563400)
+    + 0001-Revert-r600-exa-further-cleanup-use-the-object-struc.patch
+    + 0002-Revert-r600-cleanup-wasteful-variables.patch
+    + 0003-Revert-r600-reduce-function-call-overhead.patch
+    + 0004-Revert-r6xx-EXA-fix-swapped-domains-in-kms-UTS.patch
+    + 0005-Revert-r6xx-EXA-Xv-add-a-R600SetAccelState-function.patch
+    + 0006-Revert-r6xx-EXA-always-use-a-temp-surface-for-overla.patch
+    + 0007-Revert-r6xx-EXA-always-use-the-accel_state-state-in-.patch
+    + 0008-Revert-r6xx-EXA-Xv-track-src-dst-domains.patch
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Fri, 16 Apr 2010 15:20:49 -0700
+
+xserver-xorg-video-ati (1:6.13.0-1ubuntu3) lucid; urgency=low
+
+  * Drop /etc/modprobe.d/radeon-kms.conf; in the best case it's redundant
+    because KMS is on by default in the Ubuntu kernel, in the worst case it
+    breaks our ability to forcibly disable KMS when there's a problem.
+
+ -- Steve Langasek <steve.langasek@ubuntu.com>  Thu, 15 Apr 2010 03:14:43 -0700
+
+xserver-xorg-video-ati (1:6.13.0-1ubuntu2) lucid; urgency=low
+
+  * Add 102-no-xv-rn50.patch:
+     - Disables Xv on rn50 class GPU's that do not have overlay or
+       3D engines. Backport of upstream commit eb5665688 (LP: #542925)
+
+ -- Robert Hooker <sarvatt@ubuntu.com>  Mon, 12 Apr 2010 20:48:28 -0400
+
+xserver-xorg-video-ati (1:6.13.0-1ubuntu1) lucid; urgency=low
+
+  * Merge from Debian unstable, remaining changes:
+    - Add quilt to Build-Depends and call patch/unpatch target.
+    - 100_radeon-6.9.0-bgnr-enable.patch: Turn on option to allow xserver to
+      skip drawing the root background window for the radeon driver. This
+      will make the boot up sequence smoother by eliminating one flicker.
+    - 101_man_no_pm_options_with_kms.patch: Document that several
+      power management configuration options do not work with KMS
+      and kernel versions less than 2.6.34.
+  * Restore ChangeLog and remove autogen.sh
+  * Remove src/bicubic_table.py on clean
+
+ -- Benjamin Drung <bdrung@ubuntu.com>  Sat, 10 Apr 2010 20:22:14 +0200
+
+xserver-xorg-video-ati (1:6.13.0-1) unstable; urgency=low
+
+  [ Brice Goglin ]
+  * Specify in the NEWS file that KMS may break radeonhd or vesa.
+
+  [ Cyril Brulebois ]
+  * New upstream release.
+  * Add myself to Uploaders.
+
+ -- Cyril Brulebois <kibi@debian.org>  Mon, 05 Apr 2010 19:36:21 +0200
+
+xserver-xorg-video-ati (1:6.12.192-2ubuntu2) lucid; urgency=low
+
+  * Add xserver-xorg-video-ati-6.12.192:  Document that several
+    power management configuration options do not work with KMS
+    and kernel versions less than 2.6.34.
+    (LP: #552458)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Wed, 31 Mar 2010 20:06:49 -0700
+
+xserver-xorg-video-ati (1:6.12.192-2ubuntu1) lucid; urgency=low
+
+  * Merge new upstream version from Debian.
+    - r6xx/r7xx: fix domain handling in accel code.  Improves GetImage
+      performace by a factor of ~10. (LP: #544496 ?)
+    - radeon: add support for pal on legacy IGP chips (LP: #161893)
+    - radeon: disable frac fb div with new pll code
+    - Allocate Xv buffers to GTT.  This is nice performance boost for Xv
+      under KMS.
+    - XAA: disable render accel. It's been reported broken for a while.
+      (LP: #513956)
+    - radeon: avoid using DRI1 init path on DRI2 driver.  Improves behavior
+      with multi-seat
+    - kms: fix ums naming compat for DisplayPort
+  * Remaining changes:
+    - Add quilt to Build-Depends and call patch/unpatch target.
+    - 100_radeon-6.9.0-bgnr-enable.patch: Turn on option to allow xserver to
+      skip drawing the root background window for the radeon driver.  This
+      will make the boot up sequence smoother by eliminating one flicker.
+  * Drop 101_support_hd4290.patch - included upstream
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Tue, 30 Mar 2010 19:24:28 -0700
+
+xserver-xorg-video-ati (1:6.12.192-2) unstable; urgency=low
+
+  * Enable kernel mode setting by default on Linux.
+  * Bump Standards-Version to 3.8.4, no changes needed.
+  * Pull from upstream master up to commit 5c256808.
+  * Stop installing the NEWS file in all binary packages, only
+    keep the relevant entries in -radeon and -ati NEWS files.
+
+ -- Brice Goglin <bgoglin@debian.org>  Mon, 22 Mar 2010 11:12:35 +0100
+
+xserver-xorg-video-ati (1:6.12.192-1) experimental; urgency=low
+
+  * New upstream release candidate.
+  * Update package descriptions.
+  * Drop x11proto-xinerama-dev from Build-Depends, it is not used anymore.
+
+ -- Brice Goglin <bgoglin@debian.org>  Mon, 15 Mar 2010 19:06:31 +0100
+
+xserver-xorg-video-ati (1:6.12.191-1ubuntu2) lucid; urgency=low
+
+  * Add 101_support_hd4290.patch: Adds PCI ids for a couple HD 4290 cards
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Thu, 11 Mar 2010 19:25:09 -0800
+
+xserver-xorg-video-ati (1:6.12.191-1ubuntu1) lucid; urgency=low
+
+  * Merge from Debian experimental (LP: #534026).
+    + Fix tearing (LP: #514845).
+  * Remaining changes:
+    - 100_radeon-6.9.0-bgnr-enable.patch: Turn on option to allow xserver to
+      skip drawing the root background window for the radeon driver.  This
+      will make the boot up sequence smoother by eliminating one flicker.
+      TESTERS:  Watch for corruption or other ill effects during boot up.
+  * Add quilt to Build-Depends and call patch/unpatch target.
+  * Add DEP-3 header to 100_radeon-6.9.0-bgnr-enable.patch.
+
+ -- Benjamin Drung <bdrung@ubuntu.com>  Tue, 09 Mar 2010 14:24:44 +0100
+
+xserver-xorg-video-ati (1:6.12.191-1) experimental; urgency=low
+
+  * New upstream release candidate.
+
+ -- Brice Goglin <bgoglin@debian.org>  Wed, 03 Mar 2010 17:37:19 +0100
+
+xserver-xorg-video-ati (1:6.12.99+git20100201.a887818f-1) experimental; urgency=low
+
+  * New upstream release snapshot.
+    + EXA now enabled by default, closes: #502970. 
+    + Fix display watermark, closes: #540954. 
+    + Add KMS support, closes: #561526, #567999. 
+  * Bump libdrm-dev dependency to 2.4.17 to get libdrm-radeon.
+  * Build-depend on x11proto-dri2-dev for DRI2 support.
+
+ -- Brice Goglin <bgoglin@debian.org>  Mon, 01 Feb 2010 23:54:34 +0100
+
+xserver-xorg-video-ati (1:6.12.6-1) unstable; urgency=low
+
+  * New upstream release.
+    + Fix some word accesses in AtomBios to work on all architectures,
+      closes: #572311.
+
+ -- Brice Goglin <bgoglin@debian.org>  Mon, 15 Mar 2010 18:53:23 +0100
+
+xserver-xorg-video-ati (1:6.12.5-1) unstable; urgency=low
+
+  * New upstream release, closes: #572306.
+
+ -- Brice Goglin <bgoglin@debian.org>  Wed, 03 Mar 2010 07:29:24 +0100
+
+xserver-xorg-video-ati (1:6.12.4-3) unstable; urgency=low
+
+  [ Julien Cristau ]
+  * Rename the build directory to not include DEB_BUILD_GNU_TYPE for no
+    good reason.  Thanks, Colin Watson!
+
+  [ Brice Goglin ]
+  * Pull upstream 6.12-branch up to commit 712ac98a.
+    + Some EXA fixes, closes: #565506.
+
+ -- Brice Goglin <bgoglin@debian.org>  Wed, 27 Jan 2010 16:44:30 +0100
+
+xserver-xorg-video-ati (1:6.12.4-2) unstable; urgency=low
+
+  [ Julien Cristau ]
+  * Drop obsolete build-dep on xf86miscproto.
+
+  [ Cyril Brulebois ]
+  * Add ${misc:Depends} to xserver-xorg-video-*-dbg's Depends.
+  * Wrap all Depends while I'm at it.
+  * Upload to unstable.
+
+ -- Cyril Brulebois <kibi@debian.org>  Fri, 08 Jan 2010 01:16:00 +0100
+
+xserver-xorg-video-ati (1:6.12.4-1) experimental; urgency=low
+
+  [ Timo Aaltonen ]
+  * New upstream release.
+  * Bump Standards-Version to 3.8.3.
+
+  [ Brice Goglin ]
+  * Properly generate each binary package substvars so as to fix shlibs
+    dependencies, closes: #558290.
+  * Build against xserver 1.7.
+
+ -- Brice Goglin <bgoglin@debian.org>  Thu, 03 Dec 2009 16:38:29 +0100
+
+xserver-xorg-video-ati (1:6.12.3-1) unstable; urgency=low
+
+  * New upstream release.
+    + More AGP quirks, closes: #545040.
+
+ -- Brice Goglin <bgoglin@debian.org>  Thu, 10 Sep 2009 07:40:14 +0200
+
+xserver-xorg-video-ati (1:6.12.99+git20100126.e5933fd7-0ubuntu2) lucid; urgency=low
+
+  * Add 0003-RS600-add-connector-quirk.patch:
+    - Prevent the driver from listing DVI connectors as HDMI on
+      RS600_7941 boards (LP: #495168).
+
+ -- Alberto Milone <alberto.milone@canonical.com>  Fri, 19 Feb 2010 12:48:35 +0100
+
+xserver-xorg-video-ati (1:6.12.99+git20100126.e5933fd7-0ubuntu1) lucid; urgency=low
+
+  * New upstream git snapshot 20100126 (master) up to commit
+    e5933fd7, includes:
+    + [3a30210d] RS4xx: fix 200M freezes on VT switch if CRTC is disabled
+      (LP: #333377, #494672)
+    + Speedups for r600
+    + Fixes to various dpms / incorrect resolution issues
+    + Fixes to low memory EXA; fix NoAccel to work with KMS
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Wed, 27 Jan 2010 17:15:02 -0800
+
+xserver-xorg-video-ati (1:6.12.99+git20091125.0061c4db-0ubuntu1) lucid; urgency=low
+
+  * New upstream git snapshot 20091125 (master) up to commit 0061c4db
+    - Fix PCI chips that report as AGP to force PCI (LP: #475466)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Mon, 21 Dec 2009 14:14:55 -0800
+
+xserver-xorg-video-ati (1:6.12.99+git20090929.7968e1fb-0ubuntu2) karmic; urgency=low
+
+  * 100_radeon-6.9.0-bgnr-enable.patch: Turn on option to allow xserver to
+    skip drawing the root background window for the radeon driver.  This
+    will make the boot up sequence smoother by eliminating one flicker.
+    TESTERS:  Watch for corruption or other ill effects during boot up.
+  * control:  Require xserver version with the no-root-background patch
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Mon, 23 Nov 2009 15:56:45 -0800
+
+xserver-xorg-video-ati (1:6.12.99+git20090929.7968e1fb-0ubuntu1) karmic; urgency=low
+
+  * New upstream git snapshot 20090929 (master) up to commit
+    7968e1fb, includes:  (FFe LP: #420803)
+    + [718a611f] radeon: fix zaphod
+    + [917f2d7c] RV280: add agp quirk
+    + EXA fixes (LP: #408065)
+    + Many r6xx/7xx fixes
+    + Many KMS fixes
+    + [55fbdbae] Fix random screen blanking (LP: #310864)
+
+  [Tormod Volden]
+  * debian/rules: clean up after (un)patching
+
+  [Bryce Harrington]
+  * Drop 100_radeoninit3dengine_crash.patch: Included upstream
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Tue, 13 Oct 2009 14:38:06 -0700
+
+xserver-xorg-video-ati (1:6.12.99+git20090825.fc74e119-0ubuntu2) karmic; urgency=low
+
+  * no-change rebuild against new libdrm (LP: #410058)
+
+ -- Tormod Volden <debian.tormod@gmail.com>  Sun, 20 Sep 2009 22:00:13 +0200
+
+xserver-xorg-video-ati (1:6.12.99+git20090825.fc74e119-0ubuntu1) karmic; urgency=low
+
+  * Checkout from git 20090825 (master branch) up to commit
+    fc74e1194c980d978667e02c60a29a761a694bde
+    + Adds DRI2 / redirected direct rendering
+      (LP: #96991)
+    + Fix freeze on opengl games (bzflag, alienarena) (when KMS on)
+      (LP: #348450)
+    + Fix intermittent short screen blanking behavior
+      (LP: #310864)
+    + Fix faulty wine screen updates with EXA Compositing
+      (LP: #314205)
+    + Fix screen corruption issues when switching windows
+      (LP: #406731)
+    + Fix SIGSEGV crash in drmCommandNone()
+      (LP: #352567)
+    + Fix smeared/tearing of display on reboot
+      (LP: #367741
+
+  [Tormod Volden]
+  * 199_add_git_version_to_log.diff: Log git commit id in RadeonPreInit()
+  * sed -i s/DRI2BufferPtr/DRI2Buffer2Ptr/ src/radeon_dri2.c
+      so it compiles against xserver 1.6.2.+
+
+  [Bryce Harrington]
+  * Restore patch system and quilt to build-depends
+  * Drop patches already present upstream
+    + 107_check_unsupported_composit_ops.patch
+    + 108_quirk_agpmode_m6_ali.patch: AGPMode quirk.
+    + 109_quirk_agpmode_m7_intel.patch: AGPMode quirk.
+    + 110_quirk_agpmode_r420_sis.patch: AGPMode quirk.
+    + 111_use_xaa_for_lowmem_or_nodri.patch
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Sat, 29 Aug 2009 12:16:53 -0700
+
+xserver-xorg-video-ati (1:6.12.99+git20090629.f39cafc5-0ubuntu6) karmic; urgency=low
+
+  * Add 111_use_xaa_for_lowmem_or_nodri.patch: Default to XAA in low
+    memory situations or when the DRI is disabled.  Fixes very poor Xorg
+    performance on older graphics hardware.
+    (LP: #363238)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Mon, 17 Aug 2009 09:37:36 -0700
+
+xserver-xorg-video-ati (1:6.12.99+git20090629.f39cafc5-0ubuntu5) karmic; urgency=low
+
+  * xsfbs/xsfbs.sh: Switch obsolete --print-installation-architecture to
+    --print-architecture.
+    (LP: #403316)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Tue, 04 Aug 2009 15:20:44 -0700
+
+xserver-xorg-video-ati (1:6.12.99+git20090629.f39cafc5-0ubuntu4) karmic; urgency=low
+
+  * Add 110_quirk_agpmode_r420_sis.patch: AGPMode quirk.  Fixes freeze
+    when starting or using openoffice tools with R420 on a SiS host bridge 655.
+    (LP: #371296)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Fri, 31 Jul 2009 19:13:46 -0700
+
+xserver-xorg-video-ati (1:6.12.99+git20090629.f39cafc5-0ubuntu3) karmic; urgency=low
+
+  * Add 109_quirk_agpmode_m7_intel.patch: AGPMode quirk.  Fixes high CPU
+    load on IBM Thinkpad T40 with Mobility M7 LW (Mobility 7500).
+    (LP: #353996)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Fri, 31 Jul 2009 18:31:11 -0700
+
+xserver-xorg-video-ati (1:6.12.99+git20090629.f39cafc5-0ubuntu2) karmic; urgency=low
+
+  * Add 108_quirk_agpmode_m6_ali.patch: AGPMode quirk.  Fixes freeze when
+    connecting powersupply on an HP Omnibook 6200 with ALi northbridge and
+    an ATI M6 LY.
+    (LP: #146303)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Fri, 31 Jul 2009 17:47:08 -0700
+
+xserver-xorg-video-ati (1:6.12.99+git20090629.f39cafc5-0ubuntu1) karmic; urgency=low
+
+  [Robert Hooker]
+  * Merge with debian and update git snapshot to 2009-06-29 commit
+    f39cafc5c4a93a16ac93756473ebb1f33c7881db on master branch.
+  * hook: Log git commit id in RadeonPreInit()
+
+  [Bryce Harrington]
+  * Drop patches 104_use_exa.patch, 105_pre_avivo_vblank_interrupt.patch,
+    106_fix_dvi_on_rs690.patch:  All changes now included upstream.
+  * Add cherrypicked patch 107_check_unsupported_composit_ops.patch:
+    Check if the composite op is supported in R200CheckComposite.
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Tue, 30 Jun 2009 13:33:13 -0700
+
+xserver-xorg-video-ati (1:6.12.2-3) unstable; urgency=low
+
+  * Pull upstream commits from 6.12-branch up to commit b1f005bf:
+    + Try harder when checking if a card is posted, closes: #524280.
+  * Add README.source, bump Standards-Version to 3.8.2.
+  * Remove the unused patching systems and drop quilt from Build-Depends.
+  * Wrap build-deps in debian/control.
+  * Wrap extended description to 80 columns.
+
+ -- Brice Goglin <bgoglin@debian.org>  Sat, 25 Jul 2009 21:19:26 +0200
+
+xserver-xorg-video-ati (1:6.12.2-2) unstable; urgency=low
+
+  [ Brice Goglin ]
+  * Pull upstream commits from 6.12-branch up to 248b435a.
+  * xserver-xorg-video-radeon now suggests firmware-linux since
+    a firmware may be needed to initialize DRI.
+  * Move -dbg packages to section debug.
+
+  [ David Nusinow ]
+  * Add a note in NEWS.Debian about firmware-linux
+  * Remove 01_gen_pci_ids.diff patch as the server just uses a built-in 
+    table to choose drivers now
+
+ -- Brice Goglin <bgoglin@debian.org>  Wed, 13 May 2009 09:08:21 +0200
+
+xserver-xorg-video-ati (1:6.12.2-1) unstable; urgency=low
+
+  * New upstream release, closes: #523302.
+
+ -- Brice Goglin <bgoglin@debian.org>  Thu, 09 Apr 2009 12:16:12 +0200
+
+xserver-xorg-video-ati (1:6.12.2-0ubuntu3) karmic; urgency=low
+
+  * Add 106_fix_dvi_on_rs690.patch: Fix DCI output on some rs690
+    cards.  Filtered from upstream.
+    (LP: #298094)
+
+ -- Malte S. Stretz <mss@apache.org>  Tue, 05 May 2009 17:25:01 +0200
+
+xserver-xorg-video-ati (1:6.12.2-0ubuntu2) karmic; urgency=low
+
+  * Add 105_pre_avivo_vblank_interrupt.patch: For pre-avivo hardware, -ati
+    only blanks crtcs.  This cherrypicked patch makes it disable them.
+    (LP: #364639)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Mon, 04 May 2009 16:30:25 -0700
+
+xserver-xorg-video-ati (1:6.12.2-0ubuntu1) karmic; urgency=low
+
+  * New upstream release.  Lots of bug fixes.  Adds r2xx/r3xx textured
+    video improvements.
+  * Drop 109_pciids_rs780.patch, 110_pciids_rs880.patch,
+    111_fix_dvi_on_macmini.patch, already included in upstream code.
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Tue, 28 Apr 2009 00:44:17 -0700
+
+xserver-xorg-video-ati (1:6.12.1-0ubuntu2) jaunty; urgency=low
+
+  [Bryce Harrington]
+  * Add 109_pciids_rs780.patch, 110_pciids_rs880.patch: Support for rs780
+    and rs880 cards.  Cherrypick from upstream.
+    (LP: #311748)
+
+  [Tormod Volden]
+  * Add 105_fix_dvi_on_macmini.patch: Fix DVI output on MacMini
+    Cherrypick from upstream.
+    (LP: #351245) 
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Tue, 31 Mar 2009 16:27:44 -0700
+
+xserver-xorg-video-ati (1:6.12.1-0ubuntu1) jaunty; urgency=low
+
+  * New upstream release.  Fixes some fall out from the r6xx/r7xx merge
+    and fix load detection on avivo chips.
+  * Add ChangeLog.  Missing from upstream tarball.
+  * Drop 108_ib_ring_fix.patch, already included in upstream code.
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Wed, 18 Mar 2009 18:35:17 -0700
+
+xserver-xorg-video-ati (1:6.12.0-0ubuntu2) jaunty; urgency=low
+
+  * Add 108_ib_ring_fix.patch:  Fixes BEGIN_RING without end error
+    when using Xv overlay instead of opengl for video playback.
+    Cherrypick from upstream tree.
+    (fdo bug 20510)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Mon, 16 Mar 2009 18:20:56 -0700
+
+xserver-xorg-video-ati (1:6.12.0-0ubuntu1) jaunty; urgency=low
+
+  * New upstream release.  Mostly just bug fixes since last git snapshot.
+    This release is the first with official EXA and Ev support on
+    R6xx/R7xx chips.
+  * Drop patches now included in upstream version:
+    - 105_quirk_rv280_865g.patch
+    - 106_quirk_vaio.patch
+    - 107_fix_cloning_on_rn50_cards.patch
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Mon, 16 Mar 2009 12:34:59 -0700
+
+xserver-xorg-video-ati (1:6.11.0-1ubuntu5) jaunty; urgency=low
+
+  * Fix 106_quirk_vaio.patch to apply
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Thu, 05 Mar 2009 14:35:07 -0800
+
+xserver-xorg-video-ati (1:6.11.0-1ubuntu4) jaunty; urgency=low
+
+  * Add 107_fix_cloning_on_rn50_cards.patch: Fixes up cloning behavior on
+    rn50 cards, to solve regression from Hardy where nothing is displayed
+    on screen at boot.
+    (LP: #304588)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Tue, 03 Mar 2009 18:59:42 -0800
+
+xserver-xorg-video-ati (1:6.11.0-1ubuntu3) jaunty; urgency=low
+
+  * Add 106_quirk_vaio.patch: AGPMode quirk.  Solves screen corruption
+    issue for Mobility 9200 on a Sony VaoiPCG.  Upstream cherrypick.
+    (LP: #240455)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Mon, 02 Mar 2009 15:33:49 -0800
+
+xserver-xorg-video-ati (1:6.11.0-1ubuntu2) jaunty; urgency=low
+
+  * Add 105_quirk_rv280_865g.patch: AGPMode quirk.  Solves screen
+    corruption issue for RV280 on Intel 82865G/PE/P DRAM
+    Controller/Host-Hub.
+    (LP: #300304)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Fri, 27 Feb 2009 18:23:17 -0800
+
+xserver-xorg-video-ati (1:6.11.0-1ubuntu1) jaunty; urgency=low
+
+  * Merge with Debian.  Remaining Ubuntu changes:
+    + 104_use_exa.patch: Switches to EXA acceleration by default.
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Wed, 18 Feb 2009 18:55:11 -0800
+
+xserver-xorg-video-ati (1:6.11.0-1) experimental; urgency=low
+
+  * New upstream release.
+    + Add more AGPMode quirks, closes: #515326, #515512.
+
+ -- Brice Goglin <bgoglin@debian.org>  Thu, 19 Feb 2009 00:13:59 +0100
+
+xserver-xorg-video-ati (1:6.10.99.0-1ubuntu1) jaunty; urgency=low
+
+  * Merge with Debian.  Remaining Ubuntu changes:
+    + 104_use_exa.patch: Switches to EXA acceleration by default.
+  * Add 105_hd3670_support.patch:  Fix VT switching issues on HD3670
+    (Fixes LP: #324234)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Wed, 11 Feb 2009 11:40:29 -0800
+
+xserver-xorg-video-ati (1:6.10.99.0-1) experimental; urgency=low
+
+  * New upstream release candidate.
+
+ -- Brice Goglin <bgoglin@debian.org>  Mon, 09 Feb 2009 22:51:40 +0100
+
+xserver-xorg-video-ati (1:6.10.0-2) experimental; urgency=low
+
+  * Build against xserver 1.6 rc1.
+
+ -- Brice Goglin <bgoglin@debian.org>  Thu, 22 Jan 2009 07:42:38 +0100
+
+xserver-xorg-video-ati (1:6.10.0-1ubuntu1) jaunty; urgency=low
+
+  * Merge with Debian.  Remaining Ubuntu changes:
+    + Add 104_use_exa.patch: Switches to EXA acceleration by default.
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Thu, 15 Jan 2009 14:20:13 -0800
+
+xserver-xorg-video-ati (1:6.10.0-1) experimental; urgency=low
+
+  * New upstream release.
+    + Add AGP quirk for Fujitsu-Siemens E8010, closes: #510208.
+
+ -- Brice Goglin <bgoglin@debian.org>  Wed, 07 Jan 2009 09:23:15 +0100
+
+xserver-xorg-video-ati (1:6.9.0.91-1ubuntu4) jaunty; urgency=low
+
+  * 104_use_exa.patch: Identify new default in the radeon man page.
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Fri, 02 Jan 2009 15:23:04 -0800
+
+xserver-xorg-video-ati (1:6.9.0.91-1ubuntu3) jaunty; urgency=low
+
+  * Update and re-enable 104_use_exa.patch, with logic adjusted to not set
+    acceleration for R600 cards (which caused but 311867), and to honor XAA
+    if specified in xorg.conf.
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Fri, 02 Jan 2009 15:04:42 -0800
+
+xserver-xorg-video-ati (1:6.9.0.91-1ubuntu2) jaunty; urgency=low
+
+  * Disable 104_use_exa.patch.  On at least two systems, both EXA and XAA
+    work if specified in xorg.conf, but this patch results in failure to
+    start X.
+    (LP: #311867)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Fri, 02 Jan 2009 14:37:37 -0800
+
+xserver-xorg-video-ati (1:6.9.0.91-1ubuntu1) jaunty; urgency=low
+
+  * Merge from debian experimental, remaining changes:
+    - Add 104_use_exa.patch: Switches to EXA acceleration by default.
+
+ -- Timo Aaltonen <tjaalton@ubuntu.com>  Fri, 02 Jan 2009 13:27:30 +0200
+
+xserver-xorg-video-ati (1:6.9.0.91-1) experimental; urgency=low
+
+  * New upstream release candidate.
+
+ -- Brice Goglin <bgoglin@debian.org>  Tue, 23 Dec 2008 08:01:02 +0100
+
+xserver-xorg-video-ati (1:6.9.0+git20081129.783cdb73-1) experimental; urgency=low
+
+  * Pull upstream snapshot, up to commit 783cdb73.
+    + Add AGPMode quirk table, closes: #461144, #462590, #467460. 
+
+ -- Brice Goglin <bgoglin@debian.org>  Sat, 29 Nov 2008 10:52:27 +0100
+
+xserver-xorg-video-ati (1:6.9.0+git20081012.c0e6cb6d-1) experimental; urgency=low
+
+  * Pull upstream snapshot, up to commit c0e6cb6d, closes: 500903.
+
+ -- Brice Goglin <bgoglin@debian.org>  Sun, 12 Oct 2008 08:57:46 +0200
+
+xserver-xorg-video-ati (1:6.9.0+git20081003.f9826a56-0ubuntu6) jaunty; urgency=low
+
+  * Add 104_use_exa.patch: Switches to EXA acceleration by default.
+    + See https://wiki.ubuntu.com/X/Blueprints/RadeonXaaToExa
+    + Should close the following bugs (please reopen if not):
+      LP: #227936, #269357, 68224 110384 132707
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Fri, 19 Dec 2008 19:46:27 -0800
+
+xserver-xorg-video-ati (1:6.9.0+git20081003.f9826a56-0ubuntu5) jaunty; urgency=low
+
+  * Rebuild against the new xserver
+
+ -- Timo Aaltonen <tjaalton@ubuntu.com>  Mon, 15 Dec 2008 10:19:03 +0200
+
+xserver-xorg-video-ati (1:6.9.0+git20081003.f9826a56-0ubuntu4) jaunty; urgency=low
+
+  * 100_quirk_system.patch:  Add three more quirks for AGPMode issues
+    (LP: #296617, #141551)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Mon, 24 Nov 2008 20:32:11 -0800
+
+xserver-xorg-video-ati (1:6.9.0+git20081003.f9826a56-0ubuntu3) jaunty; urgency=low
+
+  * Add 103_dithering_rework.patch: Complete, correct fix for dithering
+    issues we'd initially worked around in patches 101 and 102.  Those
+    patches also appear to have introduced regressions on certain hardware,
+    which this rework addresses more elegantly.  This patch essentially
+    includes all of upstream's work up to commit 435cf7da, except that it
+    drops commit 0975e007 (rename radeon_memory to radeon_legacy_memory)
+    which is unrelated to the dithering problem.
+    (Closes LP: #274234, #284346)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Tue, 25 Nov 2008 03:38:53 +0000
+
+xserver-xorg-video-ati (1:6.9.0+git20081003.f9826a56-0ubuntu2) intrepid; urgency=low
+
+  * 102_rv530_dithering.patch:  Expands previous dithering fixup to the RV530
+    (LP: #264535)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Fri, 03 Oct 2008 19:51:56 -0700
+
+xserver-xorg-video-ati (1:6.9.0+git20081003.f9826a56-0ubuntu1) intrepid; urgency=low
+
+  * Pull upstream snapshot, up to commit f9826a56 (LP: #277104)
+    - Add support for DDC via atom commands for RV410 (LP: #227520?)
+    - man page updates (fdo #17887)
+    - Make initial rotation work, by initializing acceleration _before_
+      setting the mode
+    - Fix Xv video corruption by passing base offset into
+      RADEONDisplayVideo() explicitly (fdo #17254, LP: #267297)
+    - Fix sync-to-vblank hangs after mode switch with DRM vblank-rework.
+    - pll adjustments
+    - Add quirk to fix macbook hardware (fdo #17625)
+  * Drop 103_rotation_reset.patch - already upstream
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Fri, 03 Oct 2008 18:56:44 -0700
+
+xserver-xorg-video-ati (1:6.9.0+git20080826.a3cc1d7a-2ubuntu4) intrepid; urgency=low
+
+  * 103_rotation_reset.patch: Fixes corruption on screen rotation
+    (LP: #267266)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Thu, 02 Oct 2008 11:55:04 -0700
+
+xserver-xorg-video-ati (1:6.9.0+git20080826.a3cc1d7a-2ubuntu3) intrepid; urgency=low
+
+  * 101_rv635_enable_dithering.patch: Enables dithering for RV620, RV635,
+    RS780, and RV770 chipsets to eliminate gradient banding issue
+    (fdo #17094)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Mon, 22 Sep 2008 12:50:56 -0700
+
+xserver-xorg-video-ati (1:6.9.0+git20080826.a3cc1d7a-2ubuntu2) intrepid; urgency=low
+
+  * Rebuild against the new xserver-xorg-dev.
+
+ -- Timo Aaltonen <tepsipakki@ubuntu.com>  Fri, 12 Sep 2008 01:06:29 +0300
+
+xserver-xorg-video-ati (1:6.9.0+git20080826.a3cc1d7a-2ubuntu1) intrepid; urgency=low
+
+  * debian/control:  Reduce xorg-server Build-Depends version to 1.4.99 (FTBS)
+  * 100_quirk_system.patch: Adds a quirk system for setting specific
+    AGPMode values for particular hardware combinations.  See
+    https://wiki.ubuntu.com/X/Quirks for details about this.
+    (LP: #248438)
+  * Modify Maintainer value to match the DebianMaintainerField
+    specification.
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Fri, 05 Sep 2008 18:47:50 -0700
+
+xserver-xorg-video-ati (1:6.9.0+git20080826.a3cc1d7a-2) experimental; urgency=low
+
+  * Build against xserver 1.5.
+
+ -- Julien Cristau <jcristau@debian.org>  Thu, 04 Sep 2008 14:21:38 +0200
+
+xserver-xorg-video-ati (1:6.9.0+git20080826.a3cc1d7a-1) experimental; urgency=low
+
+  [ Brice Goglin ]
+  * Pull upstream snapshot, up to commit a3cc1d7a.
+
+  [ Julien Cristau ]
+  * Build with -fvisibility=hidden, avoiding symbol name clashes with
+    radeonhd (closes: #472252).
+
+ -- Brice Goglin <bgoglin@debian.org>  Tue, 26 Aug 2008 21:33:42 +0200
+
+xserver-xorg-video-ati (1:6.9.0+git20080802.1f3eee36-1) experimental; urgency=low
+
+  * Pull upstream snapshot, up to commit 1f3eee36.
+  * Don't handle the nostrip build option in debian/rules, dh_strip does that;
+    allow the parallel=n option.
+  * Run autoreconf at build-time; build-depend on automake, libtool and
+    xutils-dev.
+
+ -- Brice Goglin <bgoglin@debian.org>  Sat, 02 Aug 2008 22:56:07 +0200
+
+xserver-xorg-video-ati (1:6.9.0-2) experimental; urgency=low
+
+  * Build against xserver 1.5 rc5.
+
+ -- Julien Cristau <jcristau@debian.org>  Mon, 14 Jul 2008 01:35:34 +0200
+
+xserver-xorg-video-ati (1:6.9.0-1+lenny3) unstable; urgency=low
+
+  * Cherry-pick patches from the upstream git repository:
+    + Fix VT switching on M6 chips, closes: #435040.
+    + Remove un-needed dac check for single crtc cards.
+    + Make sure video offerlay offsets don't exceed the hardware limit
+      of 128 MB.
+    + Fix pasto in connector table setup for vga powerbooks
+
+ -- Brice Goglin <bgoglin@debian.org>  Tue, 26 Aug 2008 20:49:34 +0200
+
+xserver-xorg-video-ati (1:6.9.0-1+lenny2) unstable; urgency=low
+
+  * Cherry-pick patches from the upstream git repository:
+    + IGP VGA fixes.
+    + Add PCI ids for FireMV 2400 and HD3850.
+    + Clamp tex coords (r100/r200) for textured video (closes: #489779).
+    + Atombios: add support for other endians.
+    + Add quirk for Falcon NW laptop.
+    + Fix cursor with multi-head and rotation.
+    + Make sure cursor offsets are properly aligned when using EXA.
+    + Atombios: fix typo in mode conversion for panel.
+    + ATOM: fix for r4xx cards with no VRAM_Usage tables (closes: #467263)
+    + Fix console switch on R500.
+    + Add oem quirk for external tmds setup on Dell Inspiron 8600.
+    + Clean up legacy display watermark setup.
+    + Clear display priority bits before resetting them.
+    + Interlaced mode fixups for AVIVO chips.
+    + Add quirk for oem x300 card (closes: #492457).
+    + Fix error in driver connector table for powerbook w/ vga.
+    + R300: NUM_FPU adjustments for VAP_CNTL.
+  * Fix debian/rules build/patch dependencies.
+
+ -- Brice Goglin <bgoglin@debian.org>  Sat, 02 Aug 2008 18:54:49 +0200
+
+xserver-xorg-video-ati (1:6.9.0-1+lenny1) unstable; urgency=low
+
+  * Do not export MACH64, MACH32 and R128 pci ids in radeon.ids,
+    closes: #490990.
+
+ -- Brice Goglin <bgoglin@debian.org>  Tue, 15 Jul 2008 23:10:04 +0200
+
+xserver-xorg-video-ati (1:6.9.0-1) unstable; urgency=low
+
+  * New upstream release.
+
+ -- Brice Goglin <bgoglin@debian.org>  Fri, 27 Jun 2008 07:22:21 +0200
+
+xserver-xorg-video-ati (1:6.8.192-1) unstable; urgency=low
+
+  * New upstream release.
+    + Add some PLL tweaks, closes: #465864.
+  * Fix typo in long description, thanks Anders Semb Hermansen,
+    closes: #487628.
+
+ -- Brice Goglin <bgoglin@debian.org>  Wed, 25 Jun 2008 07:26:16 +0200
+
+xserver-xorg-video-ati (1:6.8.191-3) unstable; urgency=low
+
+  * xserver-xorg-video-radeon replaces earlier -ati packages, closes: #487527.
+
+ -- Brice Goglin <bgoglin@debian.org>  Sun, 22 Jun 2008 15:19:12 +0200
+
+xserver-xorg-video-ati (1:6.8.191-2) unstable; urgency=low
+
+  * Split the package into into the -ati package containing the ati driver
+    wrapper, and xserver-xorg-video-radeon containing the actual radeon
+    sub-driver.
+    xserver-xorg-video-ati now depends on -r128, -mach64 and -radeon
+    while -ati-dbg depends on their corresponding -dbg packages.
+
+ -- Brice Goglin <bgoglin@debian.org>  Thu, 19 Jun 2008 07:59:57 +0200
+
+xserver-xorg-video-ati (1:6.8.191-1) unstable; urgency=low
+
+  * New upstream release candidate.
+
+ -- Brice Goglin <bgoglin@debian.org>  Fri, 13 Jun 2008 01:38:55 +0200
+
+xserver-xorg-video-ati (1:6.8.1~git20080528.faea0088-1) experimental; urgency=low
+
+  * New upstream snapshot, up to commit faea0088.
+
+ -- Brice Goglin <bgoglin@debian.org>  Wed, 28 May 2008 11:54:21 +0200
+
+xserver-xorg-video-ati (1:6.8.1~git20080521.04500c84-1) experimental; urgency=low
+
+  * New upstream snapshot, up to commit 04500c84.
+    + Fix lockup on startup on IGP320M, closes: #480312.
+
+ -- Brice Goglin <bgoglin@debian.org>  Wed, 21 May 2008 07:54:45 +0200
+
+xserver-xorg-video-ati (1:6.8.1~git20080512.94bf8f01-1) experimental; urgency=low
+
+  * New upstream snapshot, up to commit 94bf8f01.
+    + Fix some DPMS-related brief blanking, closes: #467105.
+  * Build-depend on dpkg-dev >= 1.14.17 for dpkg-shlibdeps --warnings.
+
+ -- Brice Goglin <bgoglin@debian.org>  Mon, 12 May 2008 13:41:04 +0200
+
+xserver-xorg-video-ati (1:6.8.1~git20080417.c5d62fa0-1) experimental; urgency=low
+
+  * New upstream snapshot, up to commit c5d62fa0.
+  * Run dpkg-shlibdeps with --warnings=6.  Drivers reference symbols from
+    /usr/bin/Xorg and other modules, and that's not a bug, so we want
+    dpkg-shlibdeps to shut up about symbols it can't find.
+
+ -- Brice Goglin <bgoglin@debian.org>  Mon, 21 Apr 2008 02:40:28 +0200
+
+xserver-xorg-video-ati (1:6.8.1~git20080320.5e3b2128-1) experimental; urgency=low
+
+  * New upstream snapshot, up to commit 5e3b2128.
+    + Driver-side fix of two colour cursors to ARGB conversion on
+      big endian platforms, needs a recent xserver-xorg-core to be
+      be complete, closes: #446123.
+
+ -- Brice Goglin <bgoglin@debian.org>  Thu, 20 Mar 2008 09:10:18 +0100
+
+xserver-xorg-video-ati (1:6.8.1~git20080310.38606b08-1) experimental; urgency=low
+
+  * New upstream snapshap, up to commit 38606b08.
+
+ -- Brice Goglin <bgoglin@debian.org>  Mon, 10 Mar 2008 23:48:13 +0100
+
+xserver-xorg-video-ati (1:6.8.1~git20080302.a4398ac3-1) experimental; urgency=low
+
+  * New upstream snapshot, after r128 and mach64 got split out.
+    + Depends on xserver-xorg-video-r128 and xserver-xorg-video-mach64.
+    + Drop obsolete conflicts/replaces.
+    + Add a NEWS entry about the need to change Driver ati into mach64/r128.
+  * Bump Standards-Version: to 3.7.3, no change needed.
+  * Remove XS- prefix to Vcs-Browser and Vcs-Git fields.
+
+ -- Brice Goglin <bgoglin@debian.org>  Sun, 02 Mar 2008 13:20:59 +0100
+
+xserver-xorg-video-ati (1:6.8.0-1) unstable; urgency=low
+
+  * New upstream release.
+    + Bring back to life planar-to-packed conversion for rs4xx,
+      closes: #448577.
+
+ -- Brice Goglin <bgoglin@debian.org>  Tue, 19 Feb 2008 08:24:35 +0100
+
+xserver-xorg-video-ati (1:6.7.198~git20080203.f65e8dfa-1) experimental; urgency=low
+
+  * New upstream snapshot, containing commits up to f65e8dfa.
+   + Reverts "Default to 1x again with non-v3 AGP cards", closes: #457767.
+
+ -- Brice Goglin <bgoglin@debian.org>  Sun, 03 Feb 2008 10:49:43 +0100
+
+xserver-xorg-video-ati (1:6.7.198~git20080117.6bd510a2-1) experimental; urgency=low
+
+  * New upstream snapshot, containing commits up to 6bd510a2.
+
+ -- Brice Goglin <bgoglin@debian.org>  Thu, 17 Jan 2008 10:54:03 +0100
+
+xserver-xorg-video-ati (1:6.7.198~git20080109.10e7636c-1) experimental; urgency=low
+
+  * New upstream snapshot, containing commits up to 10e7636c.
+
+ -- Brice Goglin <bgoglin@debian.org>  Wed, 09 Jan 2008 23:43:53 +0100
+
+xserver-xorg-video-ati (1:6.7.198~git20080102.30cab1db-1) experimental; urgency=low
+
+  * New upstream snapshot, containing commits up to 30cab1db.
+
+ -- Brice Goglin <bgoglin@debian.org>  Wed, 02 Jan 2008 22:04:12 +0100
+
+xserver-xorg-video-ati (1:6.7.198~git20080101.f65374f5-1) experimental; urgency=low
+
+  * New upstream snapshot, containing commits up to f65374f5.
+
+ -- Brice Goglin <bgoglin@debian.org>  Tue, 01 Jan 2008 11:37:58 +0100
+
+xserver-xorg-video-ati (1:6.7.198~git20071223.ad3325f6-1) experimental; urgency=low
+
+  * New upstream snapshot, containing commits up to ad3325f6.
+    + Add IgnoreLidStatus option to enable lid even when closed,
+      closes: #457612, #457516.
+    + Fix PLL input setup on mac cards, closes: #457563.
+
+ -- Brice Goglin <bgoglin@debian.org>  Sun, 23 Dec 2007 23:24:43 +0100
+
+xserver-xorg-video-ati (1:6.7.198~git20071221.be7f8fd3-1) experimental; urgency=low
+
+  * New upstream snapshot, containing commits up to be7f8fd3.
+    + New atombios based support for r500 and r600 boards.
+    + Zaphod mode is back, reimplemented on top of RandR 1.2.
+
+ -- Brice Goglin <bgoglin@debian.org>  Fri, 21 Dec 2007 08:39:57 +0100
+
+xserver-xorg-video-ati (1:6.7.197-1) unstable; urgency=low
+
+  * New upstream release candidate.
+  * Upload to unstable since this release candidate is supposed
+    to be much better than the old 1:6.6.193-3.
+  * Add a NEWS entry pointing to some RandR 1.2 documentation.
+
+ -- Brice Goglin <bgoglin@debian.org>  Fri, 21 Dec 2007 08:11:07 +0100
+
+xserver-xorg-video-ati (1:6.7.197~git20071219.ce4fa1ce-1) experimental; urgency=low
+
+  * New upstream snapshot, containing commits up to ce4fa1ce.
+    + Default to 1x again with non-v3 AGP cards, closes: #444049.
+
+ -- Brice Goglin <bgoglin@debian.org>  Wed, 19 Dec 2007 08:44:33 +0100
+
+xserver-xorg-video-ati (1:6.7.196-2) experimental; urgency=low
+
+  * New upstream snapshot, containing commits up to 5022d006.
+    + Fix the washed out color, closes: #440174.
+    + Update 01_gen_pci_ids.diff to use the new ati_pciids_gen.h.
+
+ -- Brice Goglin <bgoglin@debian.org>  Mon, 03 Dec 2007 21:26:02 +0100
+
+xserver-xorg-video-ati (1:6.7.196-1) experimental; urgency=low
+
+  * New upstream release candidate.
+
+ -- Brice Goglin <bgoglin@debian.org>  Mon, 12 Nov 2007 08:38:43 +0100
+
+xserver-xorg-video-ati (1:6.7.195-2) experimental; urgency=low
+
+  * New upstream snapshot,
+    based on commit ddec5783103045084a66a34d71326cc6e4a3f598
+    + Fixes some LVDS issues, closes: #445746.
+
+ -- Brice Goglin <bgoglin@debian.org>  Tue, 09 Oct 2007 18:27:22 +0200
+
+xserver-xorg-video-ati (1:6.7.195-1) experimental; urgency=low
+
+  * New upstream release candidate.
+
+ -- Julien Cristau <jcristau@debian.org>  Sat, 06 Oct 2007 02:56:56 +0200
+
+xserver-xorg-video-ati (1:6.7.194-1) experimental; urgency=low
+
+  * New upstream release candidate.
+    + Add MacModel "mini" option to support Mac Mini connector table,
+      closes: #443570.
+    + Fix crash when Xv window is outside of either crtc,
+      closes: #441902.
+
+ -- Brice Goglin <bgoglin@debian.org>  Mon, 24 Sep 2007 07:59:36 +0200
+
+xserver-xorg-video-ati (1:6.7.193-1) experimental; urgency=low
+
+  * New upstream release candidate.
+    + Fix distortion after lid close/reopen, closes: #435114.
+    + Stop wrongly detecting the TV-output as connected, closes: #439322.
+    + Fix outputs after VT switch, closes: #443151.
+
+ -- Brice Goglin <bgoglin@debian.org>  Thu, 20 Sep 2007 07:34:02 +0200
+
+xserver-xorg-video-ati (1:6.7.192-4) experimental; urgency=low
+
+  * Really build against xserver 2:1.4.
+  * Pull upstream commits up to 2d78e2b6f36c21812b15eea0f1c7004e748fd5ab.
+
+ -- Brice Goglin <bgoglin@debian.org>  Thu, 13 Sep 2007 22:35:56 +0200
+
+xserver-xorg-video-ati (1:6.7.192-3) experimental; urgency=low
+
+  * Build against xserver 2:1.4-1.
+
+ -- Brice Goglin <bgoglin@debian.org>  Fri, 07 Sep 2007 17:52:57 +0200
+
+xserver-xorg-video-ati (1:6.7.192-2) experimental; urgency=low
+
+  * Build against xserver 1.3.99.2.
+
+ -- Brice Goglin <bgoglin@debian.org>  Tue, 04 Sep 2007 19:12:45 +0200
+
+xserver-xorg-video-ati (1:6.7.192-1) experimental; urgency=low
+
+  * New upstream release candidate.
+    + UseFBDev option removed, closes: #372920.
+    + Monitor detection fixed, closes: #413500.
+
+ -- Brice Goglin <bgoglin@debian.org>  Mon, 27 Aug 2007 08:26:38 +0200
+
+xserver-xorg-video-ati (1:6.7.191-1) experimental; urgency=low
+
+  * New upstream release candidate.
+    + TV-output support, closes: #332410, #360186, #378594, #435691.
+    + Bump x11proto-randr-dev build-dependency to >= 1.2 for RandR-1.2
+      support.
+
+ -- Brice Goglin <bgoglin@debian.org>  Thu, 23 Aug 2007 08:15:03 +0200
+
+xserver-xorg-video-ati (1:6.6.193-2) experimental; urgency=low
+
+  * Build against xserver 1.3.99.0.
+  * Add 01_gen_pci_ids.diff. This patch adds a list of pci id's that the
+    driver supports so that the server can automatically load it.
+  * Use ${binary:Version} instead of ${Source-Version}.
+
+ -- Brice Goglin <bgoglin@debian.org>  Mon, 20 Aug 2007 19:49:33 +0200
+
+xserver-xorg-video-ati (1:6.6.193-1) experimental; urgency=low
+
+  [ Brice Goglin ]
+  * New upstream release candidate.
+    + Add references to radeon and r128 manpages in SEE ALSO
+      in the ati(4) manpage (closes: #386001).
+    + Fix typo in "specifying" in the radeon(4) manpage
+      (closes: #432059).
+    + Fully zero-initialize info->CRT2pScrn->monitor (closes: #422777).
+    + Avoid crash in MACH64 Xv code (closes: #320828).
+    + Drop 01_ati_r128_update_chip_identification.diff since
+      this information is redundant and does not matter anyway
+      since the driver auto-detects how the card is connected
+      to the system.
+    + Drop 02_radeon_manpage.diff, merged upstream.
+
+  [ Julien Cristau ]
+  * Add upstream URL to debian/copyright.  Thanks, Loïc Minier.
+
+ -- Brice Goglin <bgoglin@debian.org>  Sat,  4 Aug 2007 15:14:49 +0200
+
+xserver-xorg-video-ati (1:6.6.192-1) experimental; urgency=low
+
+  [ Brice Goglin ]
+  * Build a xserver-xorg-video-ati-dbg package with debugging symbols.
+  * Fix Provides: xf86-video-driver-atimisc to match Replaces: and
+    Conflicts: xserver-xorg-video-atimisc.
+    Thanks to Eric Lavarde (closes: #372312).
+  * Bump Build-Depends: xserver-xorg-dev to >= 2:1.2.99.902
+    (needed to let xsfbs get access to serverminver).
+  * Add XS-Vcs-*.
+  * Add a link to www.X.org and a reference to the xf86-video-ati
+    module in the long description (closes: #425321).
+
+  [ Timo Aaltonen ]
+  * Replaces/Conflicts: xserver-xorg-driver-ati.
+
+  [ Julien Cristau ]
+  * New upstream release candidate
+  * Refresh patch 02_radeon_manpage.diff.
+
+ -- Julien Cristau <jcristau@debian.org>  Mon, 21 May 2007 01:28:33 +0200
+
+xserver-xorg-video-ati (1:6.6.191-1) experimental; urgency=low
+
+  [ Brice Goglin ]
+  * New upstream release candidate.
+  * autoreconf.
+
+  [ Julien Cristau ]
+  * Drop Fabio and Branden from Uploaders, with their permission.  Hopefully
+    they'll come back when they have more time!
+
+ -- Julien Cristau <jcristau@debian.org>  Wed, 28 Mar 2007 14:26:43 +0200
+
+xserver-xorg-video-ati (1:6.6.3-5) experimental; urgency=low
+
+  * Bump build-dep on libdrm-dev to >= 2.2 to fix FTBFS (closes: #413100).
+    Thanks, Frank Lichtenheld!
+  * Add patch 02_radeon_manpage.diff to replace non-ascii character with the
+    corresponding groff escape sequence in the radeon manpage.
+
+ -- Julien Cristau <jcristau@debian.org>  Fri,  2 Mar 2007 22:44:03 +0100
+
+xserver-xorg-video-ati (1:6.6.3-4) experimental; urgency=low
+
+  * Generate server dependencies automatically from the ABI
+  * Merge changes from upstream pre-release
+  * Remove obsolete 02_radeon_memmap_fbdev.diff
+
+ -- David Nusinow <dnusinow@debian.org>  Wed, 21 Feb 2007 22:54:17 -0500
+
+xserver-xorg-video-ati (1:6.6.3-3) UNRELEASED; urgency=low
+
+  * Add link to xserver-xorg-core bug script, so that bugreports contain
+    the user's config and log files.
+  * Bump dependency on xserver-xorg-core to >= 2:1.1.1-11, as previous
+    versions don't have the bug script.
+
+ -- Julien Cristau <julien.cristau@ens-lyon.org>  Tue,  7 Nov 2006 07:30:39 +0100
+
+xserver-xorg-video-ati (1:6.6.3-2) unstable; urgency=low
+
+  * Add 02_radeon_memmap_fbdev.diff. This should fix breakage when using
+    fbdev. Thanks Michel Dänzer. Closes: #369167
+  * Don't require libdrm-dev on hurd-i386. Thanks Michael Banck.
+    Closes: #392876
+
+ -- David Nusinow <dnusinow@debian.org>  Sat, 14 Oct 2006 14:30:22 -0400
+
+xserver-xorg-video-ati (1:6.6.3-1) unstable; urgency=low
+
+  * New upstream release
+
+ -- David Nusinow <dnusinow@debian.org>  Fri, 13 Oct 2006 14:02:45 -0400
+
+xserver-xorg-video-ati (1:6.6.2-2) unstable; urgency=low
+
+  [ Drew Parsons ]
+  * Include upstream ChangeLog. Closes: #365104.
+  * Upload to unstable (X11R7.1 transition).
+
+ -- David Nusinow <dnusinow@debian.org>  Mon, 18 Sep 2006 19:57:28 -0400
+
+xserver-xorg-video-ati (1:6.6.2-1) experimental; urgency=low
+
+  * New upstream version. Happy birthday.
+  * Use debhelper 5.
+  * Standards version 3.7.2.
+  * Add reference to /usr/share/common-licenses/GPL to debian/copyright.
+  * Use dh_installman to install man pages.
+  * Exclude .la files from dh_install.
+
+ -- Drew Parsons <dparsons@debian.org>  Thu, 31 Aug 2006 21:36:05 +1000
+
+xserver-xorg-video-ati (1:6.6.1-2) experimental; urgency=low
+
+  [ Drew Parsons ]
+  *  Provides: xserver-xorg-video-1.0 not xserver-xorg-video.
+
+  [ David Nusinow ]
+  * Bump xserver (build-)depends epochs to 2: to deal with botched
+    server upload
+
+ -- David Nusinow <dnusinow@debian.org>  Tue, 22 Aug 2006 23:46:26 +0000
+
+xserver-xorg-video-ati (1:6.6.1-1) experimental; urgency=low
+
+  [ Andres Salomon ]
+  * Test for obj-$(DEB_BUILD_GNU_TYPE) before creating it during build;
+    idempotency fix.
+
+  [ David Nusinow ]
+  * New upstream release
+  * Bump dependency on xserver-xorg-core to >= 1:1.1.1. Do the same thing for
+    the build-dep on xserver-xorg-dev.
+
+ -- David Nusinow <dnusinow@debian.org>  Sun,  6 Aug 2006 20:15:19 +0000
+
+xserver-xorg-video-ati (1:6.5.8.0-1) unstable; urgency=low
+
+  * New upstream release
+  * Use dh_install with --list-missing
+  * Add build-dep on quilt
+  * Remove obsolete 02_ppc_fix.diff. Now incorporated upstream.
+
+ -- David Nusinow <dnusinow@debian.org>  Tue, 25 Apr 2006 22:11:48 -0400
+
+xserver-xorg-video-ati (1:6.5.7.3-3) unstable; urgency=low
+
+  * Upload to modular
+
+ -- David Nusinow <dnusinow@debian.org>  Sun, 26 Mar 2006 20:25:26 -0500
+
+xserver-xorg-video-ati (1:6.5.7.3-2) experimental; urgency=low
+
+  * Port patches from trunk
+    + general/043_ati_r128_update_chip_identification.diff
+  * Apply ppc-fix.patch and incorporate it in to our patch system instead of
+    just having it sit in the debian directory
+
+ -- David Nusinow <dnusinow@debian.org>  Sun, 26 Feb 2006 17:46:59 -0500
+
+xserver-xorg-video-ati (1:6.5.7.3-1) experimental; urgency=low
+
+  * First upload to Debian
+  * Change source package, package, and provides names to denote the
+    type of driver and that they are for xserver-xorg
+
+ -- David Nusinow <dnusinow@debian.org>  Fri, 13 Jan 2006 00:35:49 -0500
+
+xserver-xorg-driver-ati (1:6.5.7.3-0ubuntu1) dapper; urgency=low
+
+  * New upstream release.
+  * Also install Rage Theatre multimedia modules.
+
+ -- Daniel Stone <daniel.stone@ubuntu.com>  Wed,  4 Jan 2006 17:21:27 +1100
+
+xserver-xorg-driver-ati (1:6.5.7-0ubuntu3) dapper; urgency=low
+
+  * Add missing Build-Depends (x11proto-fonts-dev, x11proto-randr-dev,
+    x11proto-render-dev, libdrm (>> 1.0.5), x11proto-xf86dri-dev).
+
+ -- Daniel Stone <daniel.stone@ubuntu.com>  Mon,  5 Dec 2005 14:52:47 +1100
+
+xserver-xorg-driver-ati (1:6.5.7-0ubuntu2) dapper; urgency=low
+
+  * Apply patch from https://bugs.freedesktop.org/attachment.cgi?id=3620 to
+    fix hard crash on powerpc. The patch is also stored in
+    debian/ppc-fix.patch.
+    NOTE: according to benh the patch still needs some extra polishing.
+
+ -- Fabio M. Di Nitto <fabbione@ubuntu.com>  Fri, 25 Nov 2005 11:34:33 +0100
+
+xserver-xorg-driver-ati (1:6.5.7-0ubuntu1) dapper; urgency=low
+
+  * New upstream release.
+
+ -- Daniel Stone <daniel.stone@ubuntu.com>  Tue, 22 Nov 2005 13:25:16 +1100
+
+xserver-xorg-driver-ati (1:6.5.6.1-1) dapper; urgency=low
+
+  * New upstream release.
+
+ -- Daniel Stone <daniel.stone@ubuntu.com>  Tue, 25 Oct 2005 18:01:13 +1000
+
+xserver-xorg-driver-ati (1:6.5.6-1) breezy; urgency=low
+
+  * First xserver-xorg-driver-ati release.
+
+ -- Daniel Stone <daniel.stone@ubuntu.com>  Wed,  6 Jul 2005 15:48:17 +1000

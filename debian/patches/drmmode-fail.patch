@@ -1,0 +1,31 @@
+commit 35b384a00a0c76ea556f55787fccc95ecd51bc0c
+Author: Maarten Lankhorst <maarten.lankhorst@canonical.com>
+Date:   Thu Mar 21 15:34:21 2013 +0100
+
+    drmmode: handle failure of drmModeGetConnector
+    
+    Signed-off-by: Maarten Lankhorst <maarten.lankhorst@canonical.com>
+
+diff --git a/src/drmmode_display.c b/src/drmmode_display.c
+index 87ab268..4c50a1b 100644
+--- a/src/drmmode_display.c
++++ b/src/drmmode_display.c
+@@ -716,6 +716,8 @@ drmmode_output_detect(xf86OutputPtr output)
+ 	drmModeFreeConnector(drmmode_output->mode_output);
+ 
+ 	drmmode_output->mode_output = drmModeGetConnector(drmmode->fd, drmmode_output->output_id);
++	if (!drmmode_output->mode_output)
++		return XF86OutputStatusDisconnected;
+ 
+ 	switch (drmmode_output->mode_output->connection) {
+ 	case DRM_MODE_CONNECTED:
+@@ -749,6 +751,9 @@ drmmode_output_get_modes(xf86OutputPtr output)
+ 	drmModePropertyPtr props;
+ 	xf86MonPtr mon = NULL;
+ 
++	if (!koutput)
++		return NULL;
++
+ 	/* look for an EDID property */
+ 	for (i = 0; i < koutput->count_props; i++) {
+ 		props = drmModeGetProperty(drmmode->fd, koutput->props[i]);

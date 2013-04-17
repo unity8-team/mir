@@ -1,0 +1,131 @@
+diff --git a/src/drmmode_display.c b/src/drmmode_display.c
+index 0d73856..87ab268 100644
+--- a/src/drmmode_display.c
++++ b/src/drmmode_display.c
+@@ -1575,15 +1575,37 @@ void drmmode_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
+ 	RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+ 	RADEONInfoPtr info = RADEONPTR(pScrn);
+ 
+-	if (pRADEONEnt->fd_wakeup_registered != serverGeneration &&
+-	    info->dri2.pKernelDRMVersion->version_minor >= 4) {
++	if (info->dri2.pKernelDRMVersion->version_minor < 4)
++		return;
++
++	info->drmmode_inited = TRUE;
++	if (pRADEONEnt->fd_wakeup_registered != serverGeneration) {
+ 		AddGeneralSocket(drmmode->fd);
+ 		RegisterBlockAndWakeupHandlers((BlockHandlerProcPtr)NoopDDA,
+ 				drm_wakeup_handler, drmmode);
+ 		pRADEONEnt->fd_wakeup_registered = serverGeneration;
++		pRADEONEnt->fd_wakeup_ref = 1;
++	} else
++		pRADEONEnt->fd_wakeup_ref++;
++}
++
++void drmmode_fini(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
++{
++	RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
++	RADEONInfoPtr info = RADEONPTR(pScrn);
++
++	if (info->dri2.pKernelDRMVersion->version_minor < 4 || !info->drmmode_inited)
++		return;
++
++	if (pRADEONEnt->fd_wakeup_registered == serverGeneration &&
++	    !--pRADEONEnt->fd_wakeup_ref) {
++		RemoveGeneralSocket(drmmode->fd);
++		RemoveBlockAndWakeupHandlers((BlockHandlerProcPtr)NoopDDA,
++				drm_wakeup_handler, drmmode);
+ 	}
+ }
+ 
++
+ Bool drmmode_set_bufmgr(ScrnInfoPtr pScrn, drmmode_ptr drmmode, struct radeon_bo_manager *bufmgr)
+ {
+ 	drmmode->bufmgr = bufmgr;
+diff --git a/src/drmmode_display.h b/src/drmmode_display.h
+index 45c33cb..b63ec8e 100644
+--- a/src/drmmode_display.h
++++ b/src/drmmode_display.h
+@@ -99,6 +99,7 @@ typedef struct {
+ 
+ extern Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int cpp);
+ extern void drmmode_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode);
++extern void drmmode_fini(ScrnInfoPtr pScrn, drmmode_ptr drmmode);
+ extern Bool drmmode_set_bufmgr(ScrnInfoPtr pScrn, drmmode_ptr drmmode, struct radeon_bo_manager *bufmgr);
+ extern void drmmode_set_cursor(ScrnInfoPtr scrn, drmmode_ptr drmmode, int id, struct radeon_bo *bo);
+ void drmmode_adjust_frame(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int x, int y);
+diff --git a/src/radeon.h b/src/radeon.h
+index f986347..1cbeef6 100644
+--- a/src/radeon.h
++++ b/src/radeon.h
+@@ -453,6 +453,7 @@ typedef struct {
+     uint64_t vram_size;
+     uint64_t gart_size;
+     drmmode_rec drmmode;
++    Bool drmmode_inited;
+     /* r6xx+ tile config */
+     Bool have_tiling_info;
+     uint32_t tile_config;
+diff --git a/src/radeon_kms.c b/src/radeon_kms.c
+index cacdf8e..e4f586c 100644
+--- a/src/radeon_kms.c
++++ b/src/radeon_kms.c
+@@ -174,6 +174,20 @@ static void RADEONFreeRec(ScrnInfoPtr pScrn)
+ 
+     info = RADEONPTR(pScrn);
+ 
++    if (info->dri2.drm_fd > 0) {
++        DevUnion *pPriv;
++        RADEONEntPtr pRADEONEnt;
++        pPriv = xf86GetEntityPrivate(pScrn->entityList[0],
++				     getRADEONEntityIndex());
++
++        pRADEONEnt = pPriv->ptr;
++        pRADEONEnt->fd_ref--;
++        if (!pRADEONEnt->fd_ref) {
++            drmClose(pRADEONEnt->fd);
++            pRADEONEnt->fd = 0;
++        }
++    }
++
+     if (info->accel_state) {
+ 	free(info->accel_state);
+ 	info->accel_state = NULL;
+@@ -555,6 +569,7 @@ static Bool radeon_open_drm_master(ScrnInfoPtr pScrn)
+ 		   " reusing fd for second head\n");
+ 
+ 	info->dri2.drm_fd = pRADEONEnt->fd;
++	pRADEONEnt->fd_ref++;
+ 	goto out;
+     }
+ 
+@@ -596,6 +611,7 @@ static Bool radeon_open_drm_master(ScrnInfoPtr pScrn)
+     }
+ 
+     pRADEONEnt->fd = info->dri2.drm_fd;
++    pRADEONEnt->fd_ref = 1;
+  out:
+     info->drmmode.fd = info->dri2.drm_fd;
+     return TRUE;
+@@ -1065,6 +1081,7 @@ static Bool RADEONCloseScreen_KMS(CLOSE_SCREEN_ARGS_DECL)
+ 
+     drmDropMaster(info->dri2.drm_fd);
+ 
++    drmmode_fini(pScrn, &info->drmmode);
+     if (info->dri2.enabled)
+ 	radeon_dri2_close_screen(pScreen);
+ 
+diff --git a/src/radeon_probe.h b/src/radeon_probe.h
+index 516b7b4..1899a16 100644
+--- a/src/radeon_probe.h
++++ b/src/radeon_probe.h
+@@ -128,7 +128,9 @@ typedef struct
+     ScrnInfoPtr pPrimaryScrn;
+ 
+     int fd;                             /* for sharing across zaphod heads   */
++    int fd_ref;
+     unsigned long     fd_wakeup_registered; /* server generation for which fd has been registered for wakeup handling */
++    int fd_wakeup_ref;
+     int dri2_info_cnt;
+ } RADEONEntRec, *RADEONEntPtr;
+ 

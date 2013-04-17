@@ -1,0 +1,99 @@
+commit 9b566bf2d446805242b9528831f55863ada8d32d
+Author: Dave Airlie <airlied@redhat.com>
+Date:   Tue Jan 8 15:56:37 2013 +1000
+
+    radeon: add support for reverse prime
+    
+    This adds support for reverse prime configurations
+
+diff --git a/src/drmmode_display.c b/src/drmmode_display.c
+index db106ea..82572ac 100644
+--- a/src/drmmode_display.c
++++ b/src/drmmode_display.c
+@@ -49,6 +49,9 @@
+ #endif
+ 
+ static Bool
++drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height);
++
++static Bool
+ RADEONZaphodStringMatches(ScrnInfoPtr pScrn, const char *s, char *output_name)
+ {
+     int i = 0;
+@@ -447,7 +450,9 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
+ 		drmmode_ConvertToKMode(crtc->scrn, &kmode, mode);
+ 
+ 		fb_id = drmmode->fb_id;
+-		if (drmmode_crtc->rotate_fb_id) {
++		if (crtc->randr_crtc->scanout_pixmap)
++			x = y = 0;
++		else if (drmmode_crtc->rotate_fb_id) {
+ 			fb_id = drmmode_crtc->rotate_fb_id;
+ 			x = y = 0;
+ 		}
+@@ -643,6 +648,34 @@ drmmode_crtc_gamma_set(xf86CrtcPtr crtc, uint16_t *red, uint16_t *green,
+ 			    size, red, green, blue);
+ }
+ 
++
++static Bool
++drmmode_set_scanout_pixmap(xf86CrtcPtr crtc, PixmapPtr ppix)
++{
++	ScreenPtr screen = xf86ScrnToScreen(crtc->scrn);
++	PixmapPtr screenpix = screen->GetScreenPixmap(screen);
++
++	if (!ppix) {
++		if (crtc->randr_crtc->scanout_pixmap)
++			PixmapStopDirtyTracking(crtc->randr_crtc->scanout_pixmap, screenpix);
++		return TRUE;
++	}
++
++	if (ppix->drawable.width > screenpix->drawable.width ||
++	    ppix->drawable.height > screenpix->drawable.height) {
++		Bool ret;
++		ret = drmmode_xf86crtc_resize(crtc->scrn, ppix->drawable.width, ppix->drawable.height);
++		if (ret == FALSE)
++			return FALSE;
++
++		screenpix = screen->GetScreenPixmap(screen);
++		screen->width = screenpix->drawable.width = ppix->drawable.width;
++		screen->height = screenpix->drawable.height = ppix->drawable.height;
++	}
++	PixmapStartDirtyTracking(ppix, screenpix, 0, 0);
++	return TRUE;
++}
++
+ static const xf86CrtcFuncsRec drmmode_crtc_funcs = {
+     .dpms = drmmode_crtc_dpms,
+     .set_mode_major = drmmode_set_mode_major,
+@@ -657,6 +690,8 @@ static const xf86CrtcFuncsRec drmmode_crtc_funcs = {
+     .shadow_allocate = drmmode_crtc_shadow_allocate,
+     .shadow_destroy = drmmode_crtc_shadow_destroy,
+     .destroy = NULL, /* XXX */
++
++    .set_scanout_pixmap = drmmode_set_scanout_pixmap,
+ };
+ 
+ int drmmode_get_crtc_id(xf86CrtcPtr crtc)
+diff --git a/src/radeon_kms.c b/src/radeon_kms.c
+index 2265b17..f2a4eed 100644
+--- a/src/radeon_kms.c
++++ b/src/radeon_kms.c
+@@ -244,7 +244,7 @@ redisplay_dirty(ScreenPtr screen, PixmapDirtyUpdatePtr dirty)
+ 	ScrnInfoPtr pScrn = xf86ScreenToScrn(screen);
+ 	RegionRec pixregion;
+ 
+-	PixmapRegionInit(&pixregion, dirty->slave_dst->master_pixmap);
++	PixmapRegionInit(&pixregion, dirty->slave_dst);
+ 	DamageRegionAppend(&dirty->slave_dst->drawable, &pixregion);
+ 	PixmapSyncDirtyHelper(dirty, &pixregion);
+ 
+@@ -727,7 +727,7 @@ static void RADEONSetupCapabilities(ScrnInfoPtr pScrn)
+ 	if (value & DRM_PRIME_CAP_EXPORT)
+ 	    pScrn->capabilities |= RR_Capability_SourceOutput | RR_Capability_SinkOffload;
+ 	if (value & DRM_PRIME_CAP_IMPORT)
+-	    pScrn->capabilities |= RR_Capability_SourceOffload;
++	    pScrn->capabilities |= RR_Capability_SourceOffload | RR_Capability_SinkOutput;
+     }
+ #endif
+ }
