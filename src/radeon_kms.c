@@ -1351,7 +1351,7 @@ Bool RADEONScreenInit_KMS(SCREEN_INIT_ARGS_DECL)
     int            subPixelOrder = SubPixelUnknown;
     char*          s;
     void *front_ptr;
-    int ret;
+    int ret = 0;
 
     pScrn->fbOffset = 0;
 
@@ -1362,7 +1362,8 @@ Bool RADEONScreenInit_KMS(SCREEN_INIT_ARGS_DECL)
 			  pScrn->defaultVisual)) return FALSE;
     miSetPixmapDepths ();
 
-    ret = drmSetMaster(info->dri2.drm_fd);
+    if (!xorgMir)
+	ret = drmSetMaster(info->dri2.drm_fd);
     if (ret) {
         ErrorF("Unable to retrieve master\n");
         return FALSE;
@@ -1583,13 +1584,13 @@ Bool RADEONEnterVT_KMS(VT_FUNC_ARGS_DECL)
 {
     SCRN_INFO_PTR(arg);
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
-    int ret;
+    int ret = 0;
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "RADEONEnterVT_KMS\n");
 
-
-    ret = drmSetMaster(info->dri2.drm_fd);
+    if (!xorgMir)
+	ret = drmSetMaster(info->dri2.drm_fd);
     if (ret)
 	ErrorF("Unable to retrieve master\n");
     info->accel_state->XInited3D = FALSE;
