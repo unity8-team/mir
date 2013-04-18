@@ -14302,7 +14302,7 @@ bool sna_accel_init(ScreenPtr screen, struct sna *sna)
 	if (!sna_picture_init(screen))
 		return false;
 
-	backend = "no";
+	backend = "generic";
 	no_render_init(sna);
 
 	if (sna_option_accel_blt(sna) || sna->info->gen >= 0100) {
