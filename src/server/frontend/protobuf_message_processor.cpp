@@ -40,47 +40,45 @@ mfd::ProtobufMessageProcessor::ProtobufMessageProcessor(
 {
 }
 
-template<class ResultMessage>
-void mfd::ProtobufMessageProcessor::send_response(::google::protobuf::uint32 id, ResultMessage* response)
-{
-    send_response(id, static_cast<google::protobuf::Message*>(response));
-}
-
-void mfd::ProtobufMessageProcessor::send_response(::google::protobuf::uint32 id, mir::protobuf::Buffer* response)
+void mfd::ProtobufMessageProcessor::send_buffer_response(
+    ::google::protobuf::uint32 id, mir::protobuf::Buffer* response)
 {
     const auto& fd = extract_fds_from(response);
-    send_response(id, static_cast<google::protobuf::Message*>(response));
+    send_generic_response(id, response);
     sender->send_fds(fd);
     resource_cache->free_resource(response);
 }
 
-void mfd::ProtobufMessageProcessor::send_response(::google::protobuf::uint32 id, mir::protobuf::Platform* response)
+void mfd::ProtobufMessageProcessor::send_platform_response(
+    ::google::protobuf::uint32 id, mir::protobuf::Platform* response)
 {
     const auto& fd = extract_fds_from(response);
-    send_response(id, static_cast<google::protobuf::Message*>(response));
+    send_generic_response(id, response);
     sender->send_fds(fd);
     resource_cache->free_resource(response);
 }
 
-void mfd::ProtobufMessageProcessor::send_response(::google::protobuf::uint32 id, mir::protobuf::Connection* response)
+void mfd::ProtobufMessageProcessor::send_connection_response(
+    ::google::protobuf::uint32 id, mir::protobuf::Connection* response)
 {
     const auto& fd = response->has_platform() ?
         extract_fds_from(response->mutable_platform()) :
         std::vector<int32_t>();
 
-    send_response(id, static_cast<google::protobuf::Message*>(response));
+    send_generic_response(id, response);
     sender->send_fds(fd);
     resource_cache->free_resource(response);
 }
 
-void mfd::ProtobufMessageProcessor::send_response(::google::protobuf::uint32 id, mir::protobuf::Surface* response)
+void mfd::ProtobufMessageProcessor::send_surface_response(
+    ::google::protobuf::uint32 id, mir::protobuf::Surface* response)
 {
     auto const& surface_fd = extract_fds_from(response);
     const auto& buffer_fd = response->has_buffer() ?
         extract_fds_from(response->mutable_buffer()) :
         std::vector<int32_t>();
 
-    send_response(id, static_cast<google::protobuf::Message*>(response));
+    send_generic_response(id, response);
     sender->send_fds(surface_fd);
     sender->send_fds(buffer_fd);
     resource_cache->free_resource(response);
@@ -95,41 +93,7 @@ std::vector<int32_t> mfd::ProtobufMessageProcessor::extract_fds_from(Response* r
     return fd;
 }
 
-template<class ParameterMessage, class ResultMessage>
-void mfd::ProtobufMessageProcessor::invoke(
-    void (protobuf::DisplayServer::*function)(
-        ::google::protobuf::RpcController* controller,
-        const ParameterMessage* request,
-        ResultMessage* response,
-        ::google::protobuf::Closure* done),
-    mir::protobuf::wire::Invocation const& invocation)
-{
-    ParameterMessage parameter_message;
-    parameter_message.ParseFromString(invocation.parameters());
-    ResultMessage result_message;
-
-    try
-    {
-        std::unique_ptr<google::protobuf::Closure> callback(
-            google::protobuf::NewPermanentCallback(this,
-                &ProtobufMessageProcessor::send_response,
-                invocation.id(),
-                &result_message));
-
-        (display_server.get()->*function)(
-            0,
-            &parameter_message,
-            &result_message,
-            callback.get());
-    }
-    catch (std::exception const& x)
-    {
-        result_message.set_error(boost::diagnostic_information(x));
-        send_response(invocation.id(), &result_message);
-    }
-}
-
-void mfd::ProtobufMessageProcessor::send_response(
+void mfd::ProtobufMessageProcessor::send_generic_response(
     ::google::protobuf::uint32 id,
     google::protobuf::Message* response)
 {
@@ -165,6 +129,25 @@ bool mfd::ProtobufMessageProcessor::dispatch(mir::protobuf::wire::Invocation con
                                "TODO"); //invocation.method_name());
         return false;
     }
+
+    typedef void (mfd::ProtobufMessageProcessor::*SendResponse)(
+        ::google::protobuf::uint32, Message *);
+
+    SendResponse send_response = 0;
+
+    const std::string &name = method->name();
+    if (name == "next_buffer")
+        send_response = (SendResponse)
+            &ProtobufMessageProcessor::send_buffer_response;
+    else if (name == "connect")
+        send_response = (SendResponse)
+            &ProtobufMessageProcessor::send_connection_response;
+    else if (name == "create_surface")
+        send_response = (SendResponse)
+            &ProtobufMessageProcessor::send_surface_response;
+    else
+        send_response = &ProtobufMessageProcessor::send_generic_response;
+ 
     Message *request  = display_server->GetRequestPrototype (method).New();
     Message *response = display_server->GetResponsePrototype(method).New();
 
@@ -172,7 +155,7 @@ bool mfd::ProtobufMessageProcessor::dispatch(mir::protobuf::wire::Invocation con
 
     std::unique_ptr<google::protobuf::Closure> callback(
         google::protobuf::NewPermanentCallback(this,
-            &ProtobufMessageProcessor::send_response,
+            send_response,
             id,
             response));
 
@@ -185,16 +168,7 @@ bool mfd::ProtobufMessageProcessor::dispatch(mir::protobuf::wire::Invocation con
     catch (std::exception const& x)
     {
         // TODO response->set_error(boost::diagnostic_information(x));
-        const std::string &name = method->name();
-        if (name == "next_buffer")
-            send_response(id, (mir::protobuf::Buffer*)response);
-        else if (name == "connect")
-            send_response(id, (mir::protobuf::Connection*)response);
-        else if (name == "create_surface")
-            send_response(id, (mir::protobuf::Surface*)response);
-        else
-            send_response(id, response);
-
+        (this->*send_response)(id, response);
         report->exception_handled(display_server.get(), id, x);
         result = false;
     }

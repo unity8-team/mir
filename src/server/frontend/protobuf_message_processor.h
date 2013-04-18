@@ -51,26 +51,20 @@ struct ProtobufMessageProcessor : MessageProcessor
         std::shared_ptr<MessageProcessorReport> const& report);
 
 private:
-    void send_response(::google::protobuf::uint32 id, google::protobuf::Message* response);
+    void send_generic_response(::google::protobuf::uint32 id,
+                               google::protobuf::Message* response);
 
-    template<class ResultMessage>
-    void send_response(::google::protobuf::uint32 id, ResultMessage* response);
+    void send_buffer_response(::google::protobuf::uint32 id,
+                              mir::protobuf::Buffer* response);
 
-    // TODO detecting the message type to see if we send FDs seems a bit of a frig.
-    // OTOH until we have a real requirement it is hard to see how best to generalise.
-    void send_response(::google::protobuf::uint32 id, mir::protobuf::Buffer* response);
+    void send_platform_response(::google::protobuf::uint32 id,
+                                mir::protobuf::Platform* response);
 
-    // TODO detecting the message type to see if we send FDs seems a bit of a frig.
-    // OTOH until we have a real requirement it is hard to see how best to generalise.
-    void send_response(::google::protobuf::uint32 id, mir::protobuf::Platform* response);
+    void send_connection_response(::google::protobuf::uint32 id,
+                                  mir::protobuf::Connection* response);
 
-    // TODO detecting the message type to see if we send FDs seems a bit of a frig.
-    // OTOH until we have a real requirement it is hard to see how best to generalise.
-    void send_response(::google::protobuf::uint32 id, mir::protobuf::Connection* response);
-
-    // TODO detecting the message type to see if we send FDs seems a bit of a frig.
-    // OTOH until we have a real requirement it is hard to see how best to generalise.
-    void send_response(::google::protobuf::uint32 id, mir::protobuf::Surface* response);
+    void send_surface_response(::google::protobuf::uint32 id,
+                               mir::protobuf::Surface* response);
 
     template<class Response>
     std::vector<int32_t> extract_fds_from(Response* response);
@@ -78,15 +72,6 @@ private:
     bool process_message(std::istream& msg);
 
     bool dispatch(mir::protobuf::wire::Invocation const& invocation);
-
-    template<class ParameterMessage, class ResultMessage>
-    void invoke(
-        void (protobuf::DisplayServer::*function)(
-            ::google::protobuf::RpcController* controller,
-            const ParameterMessage* request,
-            ResultMessage* response,
-            ::google::protobuf::Closure* done),
-        mir::protobuf::wire::Invocation const& invocation);
 
     MessageSender* const sender;
     std::shared_ptr<protobuf::DisplayServer> const display_server;
