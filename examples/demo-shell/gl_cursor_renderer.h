@@ -19,6 +19,8 @@
 #ifndef MIR_EXAMPLES_GL_CURSOR_RENDERER_H_
 #define MIR_EXAMPLES_GL_CURSOR_RENDERER_H_
 
+#include "mir/geometry/size.h"
+
 #include <GLES2/gl2.h>
 
 namespace mir
@@ -31,7 +33,7 @@ public:
     GLCursorRenderer();
     ~GLCursorRenderer() = default;
     
-    void render_cursor(int x, int y);
+    void render_cursor(geometry::Size const& size, int x, int y);
 
 protected:
     GLCursorRenderer(GLCursorRenderer const&) = delete;

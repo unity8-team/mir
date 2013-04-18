@@ -24,6 +24,7 @@
 #include <stdio.h>
 
 namespace me = mir::examples;
+namespace geom = mir::geometry;
 
 namespace
 {
@@ -33,13 +34,7 @@ char const vshadersrc[] =
     "uniform float theta;                 \n"
     "void main()                          \n"
     "{                                    \n"
-    "    float c = cos(theta);            \n"
-    "    float s = sin(theta);            \n"
-    "    mat2 m;                          \n"
-    "    m[0] = vec2(c, s);               \n"
-    "    m[1] = vec2(-s, c);              \n"
-    "    vec2 p = m * vec2(vPosition);    \n"
-    "    gl_Position = vec4(p, 0.0, 1.0); \n"
+    "    gl_Position = vPosition; \n"
     "}                                    \n";
 
 char const fshadersrc[] =
@@ -50,12 +45,14 @@ char const fshadersrc[] =
     "    gl_FragColor = col;              \n"
     "}                                    \n";
 
-GLfloat const vertices[] =
-    {
-        0.0f, 1.0f,
-       -1.0f,-0.866f,
-        1.0f,-0.866f,
-    };
+const GLint num_vertex = 4;
+GLfloat vertex_data[] =
+{
+    -0.5f, -0.5f, 0.0f, 1.0f,
+    -0.5f,  0.5f, 0.0f, 1.0f,
+     0.5f, -0.5f, 0.0f, 1.0f,
+     0.5f,  0.5f, 0.0f, 1.0f,
+};
 
 static GLuint load_shader(const char *src, GLenum type)
 {
@@ -104,6 +101,9 @@ me::GLCursorRenderer::Resources::Resources()
         log[sizeof log - 1] = '\0';
         printf("Link failed: %s\n", log);
     }
+
+    auto vpos = glGetAttribLocation(prog, "vPosition");
+    glVertexAttribPointer(vpos, 4, GL_FLOAT, GL_FALSE, 0, vertex_data);
 }
 
 me::GLCursorRenderer::Resources::~Resources()
@@ -119,21 +119,23 @@ me::GLCursorRenderer::GLCursorRenderer()
 
 #define UBUNTU_ORANGE 0.866666667f, 0.282352941f, 0.141414141f
 
-void me::GLCursorRenderer::render_cursor(int x, int y)
+void me::GLCursorRenderer::render_cursor(geom::Size const& size, int x, int y)
 {
     // TODO: Scale and transform
-    (void) x; (void) y;
+    (void) size;
+    printf("Rendering cursor: %d %d \n", x, y);
 
     glUseProgram(resources.prog);
 
-    auto vpos = glGetAttribLocation(resources.prog, "vPosition");
     auto col = glGetUniformLocation(resources.prog, "col");
     auto theta = glGetUniformLocation(resources.prog, "theta");
+    auto vpos = glGetAttribLocation(resources.prog, "vPosition");
     glUniform4f(col, UBUNTU_ORANGE, 1.0f);
     glUniform1f(theta, 0.0f);
 
-    glVertexAttribPointer(vpos, 2, GL_FLOAT, GL_FALSE, 0, vertices);
-    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(vpos);
     
-    glDrawArrays(GL_TRIANGLES, 0, 3);
+    glDisable(GL_BLEND);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glDisableVertexAttribArray(vpos);
 }
