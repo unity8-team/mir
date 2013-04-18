@@ -117,9 +117,23 @@ me::GLCursorRenderer::GLCursorRenderer()
 {
 }
 
+#define UBUNTU_ORANGE 0.866666667f, 0.282352941f, 0.141414141f
+
 void me::GLCursorRenderer::render_cursor(int x, int y)
 {
-    // TODO: Implement ~racarr
-    (void) x;
-    (void) y;
+    // TODO: Scale and transform
+    (void) x; (void) y;
+
+    glUseProgram(resources.prog);
+
+    auto vpos = glGetAttribLocation(resources.prog, "vPosition");
+    auto col = glGetUniformLocation(resources.prog, "col");
+    auto theta = glGetUniformLocation(resources.prog, "theta");
+    glUniform4f(col, UBUNTU_ORANGE, 1.0f);
+    glUniform1f(theta, 0.0f);
+
+    glVertexAttribPointer(vpos, 2, GL_FLOAT, GL_FALSE, 0, vertices);
+    glEnableVertexAttribArray(0);
+    
+    glDrawArrays(GL_TRIANGLES, 0, 3);
 }

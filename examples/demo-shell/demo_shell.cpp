@@ -18,6 +18,7 @@
 
 #include "application_switcher.h"
 #include "fullscreen_placement_strategy.h"
+#include "software_cursor_compositing_strategy.h"
 
 #include "mir/run_mir.h"
 #include "mir/default_server_configuration.h"
@@ -36,6 +37,7 @@ namespace msh = mir::shell;
 namespace mg = mir::graphics;
 namespace mf = mir::frontend;
 namespace mi = mir::input;
+namespace mc = mir::compositor;
 
 namespace mir
 {
@@ -49,7 +51,7 @@ struct DemoServerConfiguration : mir::DefaultServerConfiguration
     {
     }
 
-    std::shared_ptr<msh::PlacementStrategy> the_shell_placement_strategy()
+    std::shared_ptr<msh::PlacementStrategy> the_shell_placement_strategy() override
     {
         return shell_placement_strategy(
             [this]
@@ -64,8 +66,18 @@ struct DemoServerConfiguration : mir::DefaultServerConfiguration
             app_switcher = std::make_shared<me::ApplicationSwitcher>();
         return std::initializer_list<std::shared_ptr<mi::EventFilter> const>{app_switcher};
     }
+    
+    std::shared_ptr<mc::CompositingStrategy> the_compositing_strategy() override
+    {
+        return software_cursor_compositor(
+            [this]
+            {
+                return std::make_shared<me::SoftwareCursorCompositingStrategy>(the_renderables(), the_renderer());
+            });
+    }
 
     std::shared_ptr<me::ApplicationSwitcher> app_switcher;
+    mir::CachedPtr<me::SoftwareCursorCompositingStrategy> software_cursor_compositor;
 };
 
 }
