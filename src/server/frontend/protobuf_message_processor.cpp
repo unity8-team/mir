@@ -147,7 +147,9 @@ void mfd::ProtobufMessageProcessor::send_response(
 
 bool mfd::ProtobufMessageProcessor::dispatch(mir::protobuf::wire::Invocation const& invocation)
 {
-    report->received_invocation(display_server.get(), invocation.id(),
+    ::google::protobuf::uint32 id = invocation.id();
+
+    report->received_invocation(display_server.get(), id,
       "TODO");
       //invocation.method_name());
 
@@ -159,7 +161,7 @@ bool mfd::ProtobufMessageProcessor::dispatch(mir::protobuf::wire::Invocation con
 
     if (!method)
     {
-        report->unknown_method(display_server.get(), invocation.id(),
+        report->unknown_method(display_server.get(), id,
                                "TODO"); //invocation.method_name());
         return false;
     }
@@ -171,7 +173,7 @@ bool mfd::ProtobufMessageProcessor::dispatch(mir::protobuf::wire::Invocation con
     std::unique_ptr<google::protobuf::Closure> callback(
         google::protobuf::NewPermanentCallback(this,
             &ProtobufMessageProcessor::send_response,
-            invocation.id(),
+            id,
             response));
 
     fprintf(stderr, "Call %s\n", method->name().c_str());
@@ -183,12 +185,21 @@ bool mfd::ProtobufMessageProcessor::dispatch(mir::protobuf::wire::Invocation con
     catch (std::exception const& x)
     {
         // TODO response->set_error(boost::diagnostic_information(x));
-        send_response(invocation.id(), response);
-        report->exception_handled(display_server.get(), invocation.id(), x);
+        const std::string &name = method->name();
+        if (name == "next_buffer")
+            send_response(id, (mir::protobuf::Buffer*)response);
+        else if (name == "connect")
+            send_response(id, (mir::protobuf::Connection*)response);
+        else if (name == "create_surface")
+            send_response(id, (mir::protobuf::Surface*)response);
+        else
+            send_response(id, response);
+
+        report->exception_handled(display_server.get(), id, x);
         result = false;
     }
 
-    report->completed_invocation(display_server.get(), invocation.id(), result);
+    report->completed_invocation(display_server.get(), id, result);
 
     return result;
 }
