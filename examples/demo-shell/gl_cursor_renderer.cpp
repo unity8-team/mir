@@ -35,17 +35,30 @@ namespace
 char const vshadersrc[] =
     "attribute vec4 vPosition;            \n"
     "uniform mat4 transform;              \n"
+    "varying vec2 texcoord;               \n"
     "void main()                          \n"
     "{                                    \n"
     "    gl_Position = transform * vPosition; \n"
+    "    texcoord = vec2(vPosition);      \n"
     "}                                    \n";
 
 char const fshadersrc[] =
     "precision mediump float;             \n"
     "uniform vec4 col;                    \n"
+    "varying vec2 texcoord;               \n"
     "void main()                          \n"
     "{                                    \n"
-    "    gl_FragColor = col;              \n"
+        "float border = 0.08;\n"
+        "float radius = 0.5;\n"
+        "vec2 m = texcoord - vec2(0.5, 0.5);\n"
+        "float dist = radius - sqrt(m.x * m.x + m.y * m.y);\n"
+        "float t = 0.0;\n"
+        "if (dist > border)\n"
+        "   gl_FragColor = vec4(1.0, 1.0, 1.0, 0.8);\n"
+        "else if (dist > 0.0)\n"
+        "   gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);\n"
+        "else\n"
+            "gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);\n"
     "}                                    \n";
 
 const GLint num_vertex = 4;

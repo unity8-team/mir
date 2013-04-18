@@ -40,8 +40,8 @@ protected:
     GLCursorRenderer& operator=(GLCursorRenderer const&) = delete;
 
 private:
-    static int const cursor_width_px = 12;
-    static int const cursor_height_px = 12;
+    static int const cursor_width_px = 20;
+    static int const cursor_height_px = 20;
     
     struct Resources
     {
