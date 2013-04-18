@@ -133,9 +133,9 @@ bool mfd::ProtobufMessageProcessor::dispatch(mir::protobuf::wire::Invocation con
     typedef void (mfd::ProtobufMessageProcessor::*SendResponse)(
         ::google::protobuf::uint32, Message *);
 
-    SendResponse send_response = 0;
-
     const std::string &name = method->name();
+    SendResponse send_response =
+        &ProtobufMessageProcessor::send_generic_response;
     if (name == "next_buffer")
         send_response = (SendResponse)
             &ProtobufMessageProcessor::send_buffer_response;
@@ -145,8 +145,6 @@ bool mfd::ProtobufMessageProcessor::dispatch(mir::protobuf::wire::Invocation con
     else if (name == "create_surface")
         send_response = (SendResponse)
             &ProtobufMessageProcessor::send_surface_response;
-    else
-        send_response = &ProtobufMessageProcessor::send_generic_response;
  
     Message *request  = display_server->GetRequestPrototype (method).New();
     Message *response = display_server->GetResponsePrototype(method).New();
