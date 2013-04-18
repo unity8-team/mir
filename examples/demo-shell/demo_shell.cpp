@@ -47,7 +47,8 @@ namespace examples
 struct DemoServerConfiguration : mir::DefaultServerConfiguration
 {
     DemoServerConfiguration(int argc, char const* argv[])
-      : DefaultServerConfiguration(argc, argv)
+      : DefaultServerConfiguration(argc, argv),
+        app_switcher(std::make_shared<me::ApplicationSwitcher>())
     {
     }
 
@@ -62,9 +63,8 @@ struct DemoServerConfiguration : mir::DefaultServerConfiguration
 
     std::initializer_list<std::shared_ptr<mi::EventFilter> const> the_event_filters() override
     {
-        if (!app_switcher)
-            app_switcher = std::make_shared<me::ApplicationSwitcher>();
-        return std::initializer_list<std::shared_ptr<mi::EventFilter> const>{app_switcher};
+        static std::initializer_list<std::shared_ptr<mi::EventFilter> const> event_filters{app_switcher};
+        return event_filters;
     }
     
     std::shared_ptr<mc::CompositingStrategy> the_compositing_strategy() override
