@@ -19,11 +19,12 @@
 #ifndef MIR_EXAMPLES_GL_CURSOR_RENDERER_H_
 #define MIR_EXAMPLES_GL_CURSOR_RENDERER_H_
 
+#include <GLES2/gl2.h>
+
 namespace mir
 {
 namespace examples
 {
-
 class GLCursorRenderer
 {
 public:
@@ -39,6 +40,19 @@ protected:
 private:
     static int const cursor_width_px = 12;
     static int const cursor_height_px = 12;
+    
+    struct Resources
+    {
+    public: 
+        Resources();
+        ~Resources();
+
+        GLuint fragment_shader;
+        GLuint vertex_shader;
+        GLuint prog;
+    };
+
+    Resources resources;
 };
 
 }

@@ -18,7 +18,100 @@
 
 #include "gl_cursor_renderer.h"
 
+#include <GLES2/gl2.h>
+
+#include <assert.h>
+#include <stdio.h>
+
 namespace me = mir::examples;
+
+namespace
+{
+
+char const vshadersrc[] =
+    "attribute vec4 vPosition;            \n"
+    "uniform float theta;                 \n"
+    "void main()                          \n"
+    "{                                    \n"
+    "    float c = cos(theta);            \n"
+    "    float s = sin(theta);            \n"
+    "    mat2 m;                          \n"
+    "    m[0] = vec2(c, s);               \n"
+    "    m[1] = vec2(-s, c);              \n"
+    "    vec2 p = m * vec2(vPosition);    \n"
+    "    gl_Position = vec4(p, 0.0, 1.0); \n"
+    "}                                    \n";
+
+char const fshadersrc[] =
+    "precision mediump float;             \n"
+    "uniform vec4 col;                    \n"
+    "void main()                          \n"
+    "{                                    \n"
+    "    gl_FragColor = col;              \n"
+    "}                                    \n";
+
+GLfloat const vertices[] =
+    {
+        0.0f, 1.0f,
+       -1.0f,-0.866f,
+        1.0f,-0.866f,
+    };
+
+static GLuint load_shader(const char *src, GLenum type)
+{
+    GLuint shader = glCreateShader(type);
+    if (shader)
+    {
+        GLint compiled;
+        glShaderSource(shader, 1, &src, 0);
+        glCompileShader(shader);
+        glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
+        if (!compiled)
+        {
+            GLchar log[1024];
+            glGetShaderInfoLog(shader, sizeof log - 1, 0, log);
+            log[sizeof log - 1] = '\0';
+            printf("load_shader compile failed: %s\n", log);
+            glDeleteShader(shader);
+            shader = 0;
+        }
+    }
+    return shader;
+}
+
+}
+
+me::GLCursorRenderer::Resources::Resources()
+{
+    vertex_shader = load_shader(vshadersrc, GL_VERTEX_SHADER);
+    assert(vertex_shader);
+    fragment_shader = load_shader(fshadersrc, GL_FRAGMENT_SHADER);
+    assert(fragment_shader);
+    
+    prog = glCreateProgram();
+    assert(prog);
+    
+    glAttachShader(prog, vertex_shader);
+    glAttachShader(prog, fragment_shader);
+    glLinkProgram(prog);
+
+    int linked;
+    glGetProgramiv(prog, GL_LINK_STATUS, &linked);
+    if (!linked)
+    {
+        GLchar log[1024];
+        glGetProgramInfoLog(prog, sizeof log - 1, NULL, log);
+        log[sizeof log - 1] = '\0';
+        printf("Link failed: %s\n", log);
+    }
+}
+
+me::GLCursorRenderer::Resources::~Resources()
+{
+    glDeleteShader(vertex_shader);
+    glDeleteShader(fragment_shader);
+    glDeleteProgram(prog);
+}
 
 me::GLCursorRenderer::GLCursorRenderer()
 {
