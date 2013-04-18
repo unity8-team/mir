@@ -18,6 +18,9 @@
 
 #include "gl_cursor_renderer.h"
 
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 #include <GLES2/gl2.h>
 
 #include <assert.h>
@@ -31,10 +34,10 @@ namespace
 
 char const vshadersrc[] =
     "attribute vec4 vPosition;            \n"
-    "uniform float theta;                 \n"
+    "uniform mat4 transform;              \n"
     "void main()                          \n"
     "{                                    \n"
-    "    gl_Position = vPosition; \n"
+    "    gl_Position = transform * vPosition; \n"
     "}                                    \n";
 
 char const fshadersrc[] =
@@ -74,6 +77,25 @@ static GLuint load_shader(const char *src, GLenum type)
         }
     }
     return shader;
+}
+
+static glm::mat4 compute_transformation(uint32_t display_width, uint32_t display_height, float cursor_x, float cursor_y, uint32_t cursor_width, uint32_t cursor_height)
+{
+    glm::mat4 screen_to_gl_coords = glm::translate(glm::mat4{1.0f}, glm::vec3{-1.0f, 1.0f, 0.0f});
+    screen_to_gl_coords = glm::scale(screen_to_gl_coords,
+                                     glm::vec3{2.0f / display_width,
+                                             -2.0f / display_height,
+                                             1.0f});
+    
+    glm::vec3 cursor_size{cursor_width, cursor_height, 0.0f};
+    glm::vec3 cursor_pos{cursor_x, cursor_y, 0.0f};
+    glm::vec3 centered_cursor_pos{cursor_pos + 0.5f * cursor_size};
+    
+    glm::mat4 pos_size_matrix;
+    pos_size_matrix = glm::translate(pos_size_matrix, centered_cursor_pos);
+    pos_size_matrix = glm::scale(pos_size_matrix, cursor_size);
+    
+    return screen_to_gl_coords * pos_size_matrix;
 }
 
 }
@@ -119,12 +141,9 @@ me::GLCursorRenderer::GLCursorRenderer()
 
 #define UBUNTU_ORANGE 0.866666667f, 0.282352941f, 0.141414141f
 
-void me::GLCursorRenderer::render_cursor(geom::Size const& size, int x, int y)
+void me::GLCursorRenderer::render_cursor(geom::Size const& display_size, float x, float y)
 {
     // TODO: Scale and transform
-    (void) size;
-    printf("Rendering cursor: %d %d \n", x, y);
-
     glUseProgram(resources.prog);
 
     auto col = glGetUniformLocation(resources.prog, "col");
@@ -132,8 +151,15 @@ void me::GLCursorRenderer::render_cursor(geom::Size const& size, int x, int y)
     auto vpos = glGetAttribLocation(resources.prog, "vPosition");
     glUniform4f(col, UBUNTU_ORANGE, 1.0f);
     glUniform1f(theta, 0.0f);
+    
+    auto transformation = compute_transformation(display_size.width.as_uint32_t(), display_size.height.as_uint32_t(),
+                                                 x, y, cursor_width_px, cursor_height_px);
+    auto transform_loc = glGetUniformLocation(resources.prog, "transform");
+    glUniformMatrix4fv(transform_loc, 1, GL_FALSE, glm::value_ptr(transformation));
+
 
     glEnableVertexAttribArray(vpos);
+    
     
     glDisable(GL_BLEND);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);

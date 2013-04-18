@@ -33,7 +33,7 @@ public:
     GLCursorRenderer();
     ~GLCursorRenderer() = default;
     
-    void render_cursor(geometry::Size const& size, int x, int y);
+    void render_cursor(geometry::Size const& display_size, float x, float y);
 
 protected:
     GLCursorRenderer(GLCursorRenderer const&) = delete;
