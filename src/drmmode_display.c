@@ -121,6 +121,8 @@ static PixmapPtr drmmode_create_bo_pixmap(ScrnInfoPtr pScrn,
 			surface->bpe = bpp / 8;
 			surface->nsamples = 1;
 			surface->flags = RADEON_SURF_SCANOUT;
+			/* we are requiring a recent enough libdrm version */
+			surface->flags |= RADEON_SURF_HAS_TILE_MODE_INDEX;
 			surface->flags |= RADEON_SURF_SET(RADEON_SURF_TYPE_2D, TYPE);
 			surface->flags |= RADEON_SURF_SET(RADEON_SURF_MODE_LINEAR_ALIGNED, MODE);
 			if (tiling & RADEON_TILING_MICRO) {
@@ -1351,6 +1353,8 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 		surface.bpe = cpp;
 		surface.nsamples = 1;
 		surface.flags = RADEON_SURF_SCANOUT;
+		/* we are requiring a recent enough libdrm version */
+		surface.flags |= RADEON_SURF_HAS_TILE_MODE_INDEX;
 		surface.flags |= RADEON_SURF_SET(RADEON_SURF_TYPE_2D, TYPE);
 		surface.flags |= RADEON_SURF_SET(RADEON_SURF_MODE_LINEAR_ALIGNED, MODE);
 		if (tiling_flags & RADEON_TILING_MICRO) {

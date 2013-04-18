@@ -835,6 +835,10 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 	Bool colorTilingDefault =
 	    xorgGetVersion() >= XORG_VERSION_NUMERIC(1,9,4,901,0) &&
 	    info->ChipFamily >= CHIP_FAMILY_R300 &&
+	    /* this ARUBA check could be removed sometime after a big mesa release
+	     * with proper bit, in the meantime you need to set tiling option in
+	     * xorg configuration files
+	     */
 	    info->ChipFamily <= CHIP_FAMILY_ARUBA;
 
 	/* 2D color tiling */
@@ -1455,6 +1459,8 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
 		surface.bpe = cpp;
 		surface.nsamples = 1;
 		surface.flags = RADEON_SURF_SCANOUT;
+		/* we are requiring a recent enough libdrm version */
+		surface.flags |= RADEON_SURF_HAS_TILE_MODE_INDEX;
 		surface.flags |= RADEON_SURF_SET(RADEON_SURF_TYPE_2D, TYPE);
 		surface.flags |= RADEON_SURF_SET(RADEON_SURF_MODE_LINEAR_ALIGNED, MODE);
 		if (tiling_flags & RADEON_TILING_MICRO) {

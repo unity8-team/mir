@@ -132,6 +132,8 @@ radeon_alloc_pixmap_bo(ScrnInfoPtr pScrn, int width, int height, int depth,
 				tiling &= ~RADEON_TILING_MACRO;
 			}
 			surface.flags = RADEON_SURF_SCANOUT;
+			/* we are requiring a recent enough libdrm version */
+			surface.flags |= RADEON_SURF_HAS_TILE_MODE_INDEX;
 			surface.flags |= RADEON_SURF_SET(RADEON_SURF_TYPE_2D, TYPE);
 			surface.flags |= RADEON_SURF_SET(RADEON_SURF_MODE_LINEAR, MODE);
 			if ((tiling & RADEON_TILING_MICRO)) {
@@ -224,6 +226,8 @@ Bool radeon_set_shared_pixmap_backing(PixmapPtr ppix, void *fd_handle,
 	surface->array_size = 1;
 	surface->bpe = ppix->drawable.bitsPerPixel / 8;
 	surface->nsamples = 1;
+	/* we are requiring a recent enough libdrm version */
+	surface->flags |= RADEON_SURF_HAS_TILE_MODE_INDEX;
 	surface->flags |= RADEON_SURF_SET(RADEON_SURF_TYPE_2D, TYPE);
 	surface->flags |= RADEON_SURF_SET(RADEON_SURF_MODE_LINEAR, MODE);
 	if (radeon_surface_best(info->surf_man, surface)) {
