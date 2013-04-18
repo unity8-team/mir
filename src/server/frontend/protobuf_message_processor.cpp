@@ -21,8 +21,10 @@
 #include "mir/frontend/resource_cache.h"
 
 #include <boost/exception/diagnostic_information.hpp>
+#include <google/protobuf/descriptor.h>
 
 #include <sstream>
+#include <cstdio>
 
 namespace mfd = mir::frontend::detail;
 
@@ -145,60 +147,44 @@ void mfd::ProtobufMessageProcessor::send_response(
 
 bool mfd::ProtobufMessageProcessor::dispatch(mir::protobuf::wire::Invocation const& invocation)
 {
-    report->received_invocation(display_server.get(), invocation.id(), invocation.method_name());
+    report->received_invocation(display_server.get(), invocation.id(),
+      "TODO");
+      //invocation.method_name());
+
+    using namespace ::google::protobuf;
 
     bool result = true;
+    const ServiceDescriptor *desc = display_server->GetDescriptor();
+    const MethodDescriptor *method = desc->method(invocation.method_name());
+
+    if (!method)
+    {
+        report->unknown_method(display_server.get(), invocation.id(),
+                               "TODO"); //invocation.method_name());
+        return false;
+    }
+    Message *request  = display_server->GetRequestPrototype (method).New();
+    Message *response = display_server->GetResponsePrototype(method).New();
+
+    request->ParseFromString(invocation.parameters());
+
+    std::unique_ptr<google::protobuf::Closure> callback(
+        google::protobuf::NewPermanentCallback(this,
+            &ProtobufMessageProcessor::send_response,
+            invocation.id(),
+            response));
+
+    fprintf(stderr, "Call %s\n", method->name().c_str());
 
     try
     {
-        // TODO comparing strings in an if-else chain isn't efficient.
-        // It is probably possible to generate a Trie at compile time.
-        if ("connect" == invocation.method_name())
-        {
-            invoke(&protobuf::DisplayServer::connect, invocation);
-        }
-        else if ("create_surface" == invocation.method_name())
-        {
-            invoke(&protobuf::DisplayServer::create_surface, invocation);
-        }
-        else if ("next_buffer" == invocation.method_name())
-        {
-            invoke(&protobuf::DisplayServer::next_buffer, invocation);
-        }
-        else if ("release_surface" == invocation.method_name())
-        {
-            invoke(&protobuf::DisplayServer::release_surface, invocation);
-        }
-        else if ("test_file_descriptors" == invocation.method_name())
-        {
-            invoke(&protobuf::DisplayServer::test_file_descriptors, invocation);
-        }
-        else if ("drm_auth_magic" == invocation.method_name())
-        {
-            invoke(&protobuf::DisplayServer::drm_auth_magic, invocation);
-        }
-        else if ("select_focus_by_lightdm_id" == invocation.method_name())
-        {
-            invoke(&protobuf::DisplayServer::select_focus_by_lightdm_id, invocation);
-        }
-        else if ("configure_surface" == invocation.method_name())
-        {
-            invoke(&protobuf::DisplayServer::configure_surface, invocation);
-        }
-        else if ("disconnect" == invocation.method_name())
-        {
-            invoke(&protobuf::DisplayServer::disconnect, invocation);
-            result = false;
-        }
-        else
-        {
-            report->unknown_method(display_server.get(), invocation.id(), invocation.method_name());
-            result = false;
-        }
+        display_server->CallMethod(method, 0, request, response, callback.get());
     }
-    catch (std::exception const& error)
+    catch (std::exception const& x)
     {
-        report->exception_handled(display_server.get(), invocation.id(), error);
+        // TODO response->set_error(boost::diagnostic_information(x));
+        send_response(invocation.id(), response);
+        report->exception_handled(display_server.get(), invocation.id(), x);
         result = false;
     }
 

@@ -163,6 +163,9 @@ void mcl::MirSocketRpcChannel::CallMethod(
     std::ostringstream buffer;
     invocation.SerializeToOstream(&buffer);
 
+    log->error() << "vv: " << method->index() << " " <<
+        method->name() << "\n";
+
     std::shared_ptr<google::protobuf::Closure> callback(
         google::protobuf::NewPermanentCallback(this, &MirSocketRpcChannel::receive_file_descriptors, response, complete));
 

@@ -92,7 +92,7 @@ mir::protobuf::wire::Invocation mcl::MirBasicRpcChannel::invocation_for(
     mir::protobuf::wire::Invocation invoke;
 
     invoke.set_id(next_id());
-    invoke.set_method_name(method->name());
+    invoke.set_method_name(method->index());
     invoke.set_parameters(buffer.str());
 
     return invoke;
