@@ -22,11 +22,13 @@
 #include "mir/compositor/default_compositing_strategy.h"
 
 #include <memory>
+#include <map>
 
 namespace mir
 {
 namespace examples
 {
+class GLCursorRenderer;
 
 class SoftwareCursorCompositingStrategy : public compositor::CompositingStrategy
 {
@@ -44,6 +46,9 @@ protected:
 private:
     std::shared_ptr<compositor::Renderables> const renderables;
     std::shared_ptr<graphics::Renderer> const renderer;
+    
+    // TODO: May need to be one per display buffer?
+    std::shared_ptr<GLCursorRenderer> cursor_renderer;
 };
 
 }

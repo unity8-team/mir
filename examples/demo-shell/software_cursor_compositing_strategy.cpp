@@ -18,6 +18,8 @@
 
 #include "software_cursor_compositing_strategy.h"
 
+#include "gl_cursor_renderer.h"
+
 #include "mir/compositor/rendering_operator.h"
 #include "mir/geometry/rectangle.h"
 #include "mir/graphics/display.h"
@@ -67,7 +69,11 @@ void me::SoftwareCursorCompositingStrategy::render(mg::DisplayBuffer& display_bu
     display_buffer.clear();
 
     renderables->for_each_if(selector, applicator);
-
+    
+    if (!cursor_renderer)
+        cursor_renderer = std::make_shared<me::GLCursorRenderer>();
+    cursor_renderer->render_cursor(50, 50);
+    
     display_buffer.post_update();
 }
 
