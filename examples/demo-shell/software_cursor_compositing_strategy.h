@@ -28,7 +28,7 @@ namespace mir
 namespace examples
 {
 
-class SoftwareCursorCompositingStrategy : public compositor::DefaultCompositingStrategy
+class SoftwareCursorCompositingStrategy : public compositor::CompositingStrategy
 {
 public:
     SoftwareCursorCompositingStrategy(std::shared_ptr<compositor::Renderables> const& renderables,
@@ -40,6 +40,10 @@ public:
 protected:
     SoftwareCursorCompositingStrategy(SoftwareCursorCompositingStrategy const&) = delete;
     SoftwareCursorCompositingStrategy& operator=(SoftwareCursorCompositingStrategy const&) = delete;
+
+private:
+    std::shared_ptr<compositor::Renderables> const renderables;
+    std::shared_ptr<graphics::Renderer> const renderer;
 };
 
 }
