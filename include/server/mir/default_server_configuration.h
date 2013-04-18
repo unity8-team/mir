@@ -82,6 +82,7 @@ namespace input
 {
 class InputManager;
 class EventFilter;
+class CursorListener;
 class InputChannelFactory;
 namespace android
 {
@@ -131,6 +132,7 @@ public:
 
     virtual std::shared_ptr<input::android::InputConfiguration> the_input_configuration();
     virtual std::initializer_list<std::shared_ptr<input::EventFilter> const> the_event_filters();
+    virtual std::shared_ptr<input::CursorListener> the_cursor_listener();
     virtual std::shared_ptr<input::InputManager> the_input_manager();
     virtual std::shared_ptr<shell::InputFocusSelector> the_input_focus_selector();
 

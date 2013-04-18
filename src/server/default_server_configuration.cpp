@@ -369,14 +369,20 @@ mir::DefaultServerConfiguration::the_event_filters()
     return empty_filter_list;
 }
 
+std::shared_ptr<mi::CursorListener>
+mir::DefaultServerConfiguration::the_cursor_listener()
+{
+    const std::shared_ptr<mi::CursorListener> null_cursor_listener{};
+    return null_cursor_listener;
+}
+
 std::shared_ptr<mia::InputConfiguration>
 mir::DefaultServerConfiguration::the_input_configuration()
 {
     return input_configuration(
         [this]()
         {
-            const std::shared_ptr<mi::CursorListener> null_cursor_listener{};
-            return std::make_shared<mia::DefaultInputConfiguration>(the_event_filters(), the_display(), null_cursor_listener);
+            return std::make_shared<mia::DefaultInputConfiguration>(the_event_filters(), the_display(), the_cursor_listener());
         });
 }
 
