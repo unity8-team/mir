@@ -79,7 +79,9 @@ static GLuint load_shader(const char *src, GLenum type)
     return shader;
 }
 
-static glm::mat4 compute_transformation(uint32_t display_width, uint32_t display_height, float cursor_x, float cursor_y, uint32_t cursor_width, uint32_t cursor_height)
+static inline glm::mat4 compute_transformation(uint32_t display_width, uint32_t display_height, 
+                                               float cursor_x, float cursor_y,
+                                               uint32_t cursor_width, uint32_t cursor_height)
 {
     glm::mat4 screen_to_gl_coords = glm::translate(glm::mat4{1.0f}, glm::vec3{-1.0f, 1.0f, 0.0f});
     screen_to_gl_coords = glm::scale(screen_to_gl_coords,
@@ -157,11 +159,7 @@ void me::GLCursorRenderer::render_cursor(geom::Size const& display_size, float x
     auto transform_loc = glGetUniformLocation(resources.prog, "transform");
     glUniformMatrix4fv(transform_loc, 1, GL_FALSE, glm::value_ptr(transformation));
 
-
     glEnableVertexAttribArray(vpos);
-    
-    
-    glDisable(GL_BLEND);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glDisableVertexAttribArray(vpos);
 }
