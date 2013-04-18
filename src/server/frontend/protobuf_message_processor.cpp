@@ -136,7 +136,7 @@ bool mfd::ProtobufMessageProcessor::dispatch(mir::protobuf::wire::Invocation con
     const std::string &name = method->name();
     SendResponse send_response =
         &ProtobufMessageProcessor::send_generic_response;
-    if (name == "next_buffer")
+    if (name == "next_buffer" || name == "test_file_descriptors")
         send_response = (SendResponse)
             &ProtobufMessageProcessor::send_buffer_response;
     else if (name == "connect")
