@@ -60,6 +60,13 @@ struct FilterForVisibleRenderablesInRegion : public mc::FilterForRenderables
 
 }
 
+void me::SoftwareCursorCompositingStrategy::cursor_moved_to(float abs_x, float abs_y)
+{
+    cursor_x = abs_x;
+    cursor_y = abs_y;
+    // TODO: How to emit damage?
+}
+
 void me::SoftwareCursorCompositingStrategy::render(mg::DisplayBuffer& display_buffer)
 {
     mc::RenderingOperator applicator(*renderer);
@@ -72,7 +79,7 @@ void me::SoftwareCursorCompositingStrategy::render(mg::DisplayBuffer& display_bu
     
     if (!cursor_renderer)
         cursor_renderer = std::make_shared<me::GLCursorRenderer>();
-    cursor_renderer->render_cursor(50, 50);
+    cursor_renderer->render_cursor(cursor_x, cursor_y);
     
     display_buffer.post_update();
 }

@@ -20,6 +20,7 @@
 #define MIR_EXAMPLES_SOFTWARE_CURSOR_COMPOSITING_STRATEGY_H_
 
 #include "mir/compositor/default_compositing_strategy.h"
+#include "mir/input/cursor_listener.h"
 
 #include <memory>
 #include <map>
@@ -30,13 +31,14 @@ namespace examples
 {
 class GLCursorRenderer;
 
-class SoftwareCursorCompositingStrategy : public compositor::CompositingStrategy
+class SoftwareCursorCompositingStrategy : public compositor::CompositingStrategy, public input::CursorListener
 {
 public:
     SoftwareCursorCompositingStrategy(std::shared_ptr<compositor::Renderables> const& renderables,
                                       std::shared_ptr<graphics::Renderer> const& renderer);
     ~SoftwareCursorCompositingStrategy() = default;
     
+    virtual void cursor_moved_to(float abs_x, float abs_y);
     virtual void render(graphics::DisplayBuffer& diplay_buffer);
     
 protected:
@@ -49,6 +51,9 @@ private:
     
     // TODO: May need to be one per display buffer?
     std::shared_ptr<GLCursorRenderer> cursor_renderer;
+
+    float cursor_x;
+    float cursor_y;
 };
 
 }

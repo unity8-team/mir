@@ -67,13 +67,23 @@ struct DemoServerConfiguration : mir::DefaultServerConfiguration
         return event_filters;
     }
     
-    std::shared_ptr<mc::CompositingStrategy> the_compositing_strategy() override
+    std::shared_ptr<me::SoftwareCursorCompositingStrategy> the_software_cursor_compositor()
     {
         return software_cursor_compositor(
             [this]
             {
                 return std::make_shared<me::SoftwareCursorCompositingStrategy>(the_renderables(), the_renderer());
             });
+    }
+    
+    std::shared_ptr<mc::CompositingStrategy> the_compositing_strategy() override
+    {
+        return the_software_cursor_compositor();
+    }
+
+    std::shared_ptr<mi::CursorListener> the_cursor_listener() override
+    {
+        return the_software_cursor_compositor();
     }
 
     std::shared_ptr<me::ApplicationSwitcher> app_switcher;
