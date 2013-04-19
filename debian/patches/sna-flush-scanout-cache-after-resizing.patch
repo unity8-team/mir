@@ -1,0 +1,228 @@
+From e083fbdc3f2025f4ccc199070e2488afc5afb2a7 Mon Sep 17 00:00:00 2001
+From: Chris Wilson <chris@chris-wilson.co.uk>
+Date: Fri, 12 Apr 2013 11:01:08 +0100
+Subject: [PATCH] sna: Flush the scanout cache after resizing the display
+
+And ensure that any new scanout allocations make the requested size.
+
+Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+(cherry picked from commit 9dae6f9f1f169c228929185a8bd94e82afe92574)
+
+Conflicts:
+
+	src/sna/kgem.h
+---
+ src/sna/kgem.c        |   88 ++++++++++++++++++++++++++++++++++++-------------
+ src/sna/kgem.h        |    3 ++
+ src/sna/sna_display.c |   23 ++++++++-----
+ 3 files changed, 83 insertions(+), 31 deletions(-)
+
+diff --git a/src/sna/kgem.c b/src/sna/kgem.c
+index 4136ce9..cb2dea7 100644
+--- a/src/sna/kgem.c
++++ b/src/sna/kgem.c
+@@ -1601,6 +1601,17 @@ inline static void kgem_bo_remove_from_active(struct kgem *kgem,
+ 	assert(list_is_empty(&bo->vma));
+ }
+ 
++static void _kgem_bo_delete_buffer(struct kgem *kgem, struct kgem_bo *bo)
++{
++	struct kgem_buffer *io = (struct kgem_buffer *)bo->proxy;
++
++	DBG(("%s: size=%d, offset=%d, parent used=%d\n",
++	     __FUNCTION__, bo->size.bytes, bo->delta, io->used));
++
++	if (ALIGN(bo->delta + bo->size.bytes, UPLOAD_ALIGNMENT) == io->used)
++		io->used = bo->delta;
++}
++
+ static void kgem_bo_clear_scanout(struct kgem *kgem, struct kgem_bo *bo)
+ {
+ 	assert(bo->scanout);
+@@ -1625,15 +1636,31 @@ static void kgem_bo_clear_scanout(struct kgem *kgem, struct kgem_bo *bo)
+ 		bo->reusable = false;
+ }
+ 
+-static void _kgem_bo_delete_buffer(struct kgem *kgem, struct kgem_bo *bo)
++static bool check_scanout_size(struct kgem *kgem,
++			       struct kgem_bo *bo,
++			       int width, int height)
+ {
+-	struct kgem_buffer *io = (struct kgem_buffer *)bo->proxy;
++	struct drm_mode_fb_cmd info;
+ 
+-	DBG(("%s: size=%d, offset=%d, parent used=%d\n",
+-	     __FUNCTION__, bo->size.bytes, bo->delta, io->used));
++	assert(bo->scanout);
+ 
+-	if (ALIGN(bo->delta + bo->size.bytes, UPLOAD_ALIGNMENT) == io->used)
+-		io->used = bo->delta;
++	VG_CLEAR(info);
++	info.fb_id = bo->delta;
++
++	if (drmIoctl(kgem->fd, DRM_IOCTL_MODE_GETFB, &info))
++		return false;
++
++	gem_close(kgem->fd, info.handle);
++
++	if (width != info.width || height != info.height) {
++		DBG(("%s: not using scanout %d (%dx%d), want (%dx%d)\n",
++		     __FUNCTION__,
++		     info.fb_id, info.width, info.height,
++		     width, height))
++		return false;
++	}
++
++	return true;
+ }
+ 
+ static void kgem_bo_move_to_scanout(struct kgem *kgem, struct kgem_bo *bo)
+@@ -2769,6 +2796,31 @@ void kgem_purge_cache(struct kgem *kgem)
+ 	kgem->need_purge = false;
+ }
+ 
++void kgem_clean_scanout_cache(struct kgem *kgem)
++{
++	while (!list_is_empty(&kgem->scanout)) {
++		struct kgem_bo *bo;
++
++		bo = list_first_entry(&kgem->scanout, struct kgem_bo, list);
++		if (__kgem_busy(kgem, bo->handle))
++			break;
++
++		list_del(&bo->list);
++		kgem_bo_clear_scanout(kgem, bo);
++		__kgem_bo_destroy(kgem, bo);
++	}
++}
++
++void kgem_clean_large_cache(struct kgem *kgem)
++{
++	while (!list_is_empty(&kgem->large_inactive)) {
++		kgem_bo_free(kgem,
++			     list_first_entry(&kgem->large_inactive,
++					      struct kgem_bo, list));
++
++	}
++}
++
+ bool kgem_expire_cache(struct kgem *kgem)
+ {
+ 	time_t now, expire;
+@@ -2791,22 +2843,8 @@ bool kgem_expire_cache(struct kgem *kgem)
+ 		free(rq);
+ 	}
+ 
+-	while (!list_is_empty(&kgem->large_inactive)) {
+-		kgem_bo_free(kgem,
+-			     list_first_entry(&kgem->large_inactive,
+-					      struct kgem_bo, list));
+-
+-	}
+-
+-	while (!list_is_empty(&kgem->scanout)) {
+-		bo = list_first_entry(&kgem->scanout, struct kgem_bo, list);
+-		if (__kgem_busy(kgem, bo->handle))
+-			break;
+-
+-		list_del(&bo->list);
+-		kgem_bo_clear_scanout(kgem, bo);
+-		__kgem_bo_destroy(kgem, bo);
+-	}
++	kgem_clean_large_cache(kgem);
++	kgem_clean_scanout_cache(kgem);
+ 
+ 	expire = 0;
+ 	list_for_each_entry(bo, &kgem->snoop, list) {
+@@ -2960,6 +2998,9 @@ void kgem_cleanup_cache(struct kgem *kgem)
+ 						     struct kgem_bo, list));
+ 	}
+ 
++	kgem_clean_large_cache(kgem);
++	kgem_clean_scanout_cache(kgem);
++
+ 	while (!list_is_empty(&kgem->snoop))
+ 		kgem_bo_free(kgem,
+ 			     list_last_entry(&kgem->snoop,
+@@ -3571,6 +3612,9 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
+ 			if (size > num_pages(bo) || num_pages(bo) > 2*size)
+ 				continue;
+ 
++			if (!check_scanout_size(kgem, bo, width, height))
++				continue;
++
+ 			if (bo->tiling != tiling ||
+ 			    (tiling != I915_TILING_NONE && bo->pitch != pitch)) {
+ 				if (!gem_set_tiling(kgem->fd, bo->handle,
+diff --git a/src/sna/kgem.h b/src/sna/kgem.h
+index f2b1c98..8f24d8b 100644
+--- a/src/sna/kgem.h
++++ b/src/sna/kgem.h
+@@ -682,6 +682,9 @@ bool kgem_expire_cache(struct kgem *kgem);
+ void kgem_purge_cache(struct kgem *kgem);
+ void kgem_cleanup_cache(struct kgem *kgem);
+ 
++void kgem_clean_scanout_cache(struct kgem *kgem);
++void kgem_clean_large_cache(struct kgem *kgem);
++
+ #if HAS_DEBUG_FULL
+ void __kgem_batch_debug(struct kgem *kgem, uint32_t nbatch);
+ #else
+diff --git a/src/sna/sna_display.c b/src/sna/sna_display.c
+index 0d32086..ba9bf79 100644
+--- a/src/sna/sna_display.c
++++ b/src/sna/sna_display.c
+@@ -103,6 +103,14 @@ static inline struct sna_crtc *to_sna_crtc(xf86CrtcPtr crtc)
+ 	return crtc->driver_private;
+ }
+ 
++static bool sna_mode_has_pending_events(struct sna *sna)
++{
++	struct pollfd pfd;
++	pfd.fd = sna->kgem.fd;
++	pfd.events = POLLIN;
++	return poll(&pfd, 1, 0) == 1;
++}
++
+ #define BACKLIGHT_CLASS "/sys/class/backlight"
+ 
+ /* Enough for 10 digits of backlight + '\n' + '\0' */
+@@ -2601,6 +2609,11 @@ sna_mode_resize(ScrnInfoPtr scrn, int width, int height)
+ 
+ 	screen->DestroyPixmap(old_front);
+ 
++	while (sna_mode_has_pending_events(sna))
++		sna_mode_wakeup(sna);
++
++	kgem_clean_scanout_cache(&sna->kgem);
++
+ 	return TRUE;
+ }
+ 
+@@ -2743,14 +2756,6 @@ bool sna_mode_pre_init(ScrnInfoPtr scrn, struct sna *sna)
+ 	return true;
+ }
+ 
+-static Bool sna_mode_has_pending_events(struct sna *sna)
+-{
+-	struct pollfd pfd;
+-	pfd.fd = sna->kgem.fd;
+-	pfd.events = POLLIN;
+-	return poll(&pfd, 1, 0) == 1;
+-}
+-
+ void
+ sna_mode_close(struct sna *sna)
+ {
+@@ -2761,7 +2766,7 @@ sna_mode_close(struct sna *sna)
+ 	 * check that the fd is readable before attempting to read the next
+ 	 * event from drm.
+ 	 */
+-	if (sna_mode_has_pending_events(sna))
++	while (sna_mode_has_pending_events(sna))
+ 		sna_mode_wakeup(sna);
+ 
+ 	for (i = 0; i < xf86_config->num_crtc; i++)
+-- 
+1.7.9.5
+

@@ -1,3 +1,14 @@
+xserver-xorg-video-intel (2:2.21.6-0ubuntu4) raring-proposed; urgency=low
+
+  [Chris Arges]
+  * Add sna-flush-scanout-cache-after-resizing.patch: Flush the scanout
+    cache after resizing the display.  Fixes a problem that occurs
+    e.g. when unplugging an external display, suspend/resume, etc. by
+    ensuring the scanout cache is properly sized.
+    (LP: #1157678)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Fri, 19 Apr 2013 11:12:14 -0700
+
 xserver-xorg-video-intel (2:2.21.6-0ubuntu3) raring-proposed; urgency=low
 
   * rules: Drop --enable-valgrind for now (causes FTBS).
