@@ -19,6 +19,7 @@
 #include "system_compositor.h"
 
 #include <mir/run_mir.h>
+#include <mir/abnormal_exit.h>
 #include <mir/shell/session.h>
 #include <mir/shell/session_container.h>
 #include <mir/shell/focus_setter.h>
@@ -40,12 +41,11 @@ int SystemCompositor::run(int argc, char const* argv[])
     try
     {
         mir::run_mir(*config, [](mir::DisplayServer&) {/* empty init */});
-
         return 0;
     }
-    catch (boost::program_options::error const&)
+    catch (mir::AbnormalExit const& error)
     {
-        // Can't run with these options - but no need for additional output
+        std::cerr << error.what() << std::endl;
         return 1;
     }
     catch (std::exception const& error)
