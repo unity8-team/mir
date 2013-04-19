@@ -20,6 +20,12 @@
 
 int main(int argc, char const* argv[])
 {
+    if (argc != 3)
+    {
+        std::cerr << "Usage: " << argv[0] << " from_dm_fd to_dm_fd\n";
+        return 1;
+    }
+
     auto from_dm_fd = atoi(argv[1]);
     auto to_dm_fd = atoi(argv[2]);
 
