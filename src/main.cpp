@@ -23,6 +23,6 @@ int main(int argc, char const* argv[])
     auto from_dm_fd = atoi(argv[1]);
     auto to_dm_fd = atoi(argv[2]);
 
-    SystemCompositor system_compositor(argc, argv, from_dm_fd, to_dm_fd);
-    return system_compositor.run();
+    SystemCompositor system_compositor(from_dm_fd, to_dm_fd);
+    return system_compositor.run(argc, argv);
 }

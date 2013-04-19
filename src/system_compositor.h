@@ -26,14 +26,13 @@
 class SystemCompositor : public DMMessageHandler
 {
 public:
-    SystemCompositor(int argc, char const* argv[], int from_dm_fd, int to_dm_fd) :
-        config(argc, argv),
+    SystemCompositor(int from_dm_fd, int to_dm_fd) :
         dm_connection(from_dm_fd, to_dm_fd) {};
 
-    int run();
+    int run(int argc, char const* argv[]);
 
 private:
-    mir::DefaultServerConfiguration config;
+    std::shared_ptr<mir::DefaultServerConfiguration> config;
     DMConnection dm_connection;
 
     virtual void set_active_session(std::string client_name);

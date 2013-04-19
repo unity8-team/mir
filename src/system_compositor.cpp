@@ -19,19 +19,27 @@
 #include "system_compositor.h"
 
 #include <mir/run_mir.h>
+#include <mir/shell/session.h>
+#include <mir/shell/session_container.h>
+#include <mir/shell/focus_setter.h>
 #include <cstdio>
 #include <thread>
 #include <boost/exception/diagnostic_information.hpp>
 
-int SystemCompositor::run()
+namespace mf = mir::frontend;
+namespace msh = mir::shell;
+
+int SystemCompositor::run(int argc, char const* argv[])
 {
     dm_connection.start();
 
     dm_connection.send_ready();
 
+    config = std::make_shared<mir::DefaultServerConfiguration>(argc, argv);
+
     try
     {
-        mir::run_mir(config, [](mir::DisplayServer&) {/* empty init */});
+        mir::run_mir(*config, [](mir::DisplayServer&) {/* empty init */});
 
         return 0;
     }
@@ -50,4 +58,14 @@ int SystemCompositor::run()
 void SystemCompositor::set_active_session(std::string client_name)
 {
     std::cerr << "set_active_session" << std::endl;
+
+    std::shared_ptr<msh::Session> session;
+    config->the_shell_session_container()->for_each([&client_name, &session](std::shared_ptr<msh::Session> const& s)
+    {
+        if (s->name() == client_name)
+            session = s;
+    });
+
+    if (session)
+        config->the_shell_focus_setter()->set_focus_to(session);
 }
