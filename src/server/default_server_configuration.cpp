@@ -379,11 +379,10 @@ mir::DefaultServerConfiguration::the_cursor_listener()
 std::shared_ptr<mia::InputConfiguration>
 mir::DefaultServerConfiguration::the_input_configuration()
 {
-    return input_configuration(
-        [this]()
-        {
-            return std::make_shared<mia::DefaultInputConfiguration>(the_event_filters(), the_display(), the_cursor_listener());
-        });
+    if (!input_configuration)
+        input_configuration = std::make_shared<mia::DefaultInputConfiguration>(the_event_filters(), the_display(), the_cursor_listener());
+
+    return input_configuration;
 }
 
 std::shared_ptr<mi::InputManager>
