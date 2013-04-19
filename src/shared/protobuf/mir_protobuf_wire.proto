@@ -2,7 +2,7 @@ package mir.protobuf.wire;
 
 message Invocation {
   required uint32 id = 1;
-  required string method_name = 2;
+  required int32  method_index = 2;
   required bytes  parameters = 3;
 }
 

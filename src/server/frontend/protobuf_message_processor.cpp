@@ -19,10 +19,11 @@
 #include "protobuf_message_processor.h"
 #include "mir/frontend/message_processor_report.h"
 #include "mir/frontend/resource_cache.h"
-
+#include <google/protobuf/descriptor.h>
 #include <boost/exception/diagnostic_information.hpp>
 
 #include <sstream>
+#include <cassert>
 
 namespace mfd = mir::frontend::detail;
 
@@ -145,55 +146,64 @@ void mfd::ProtobufMessageProcessor::send_response(
 
 bool mfd::ProtobufMessageProcessor::dispatch(mir::protobuf::wire::Invocation const& invocation)
 {
-    report->received_invocation(display_server.get(), invocation.id(), invocation.method_name());
+    using namespace ::google::protobuf;
+    const ServiceDescriptor *service = display_server->GetDescriptor();
+    int index = invocation.method_index();
+    const MethodDescriptor *method = service->method(index);
+    const std::string name = method ? method->name() : to_string(index);
+
+    report->received_invocation(display_server.get(), invocation.id(), name);
 
     bool result = true;
 
     try
     {
-        // TODO comparing strings in an if-else chain isn't efficient.
-        // It is probably possible to generate a Trie at compile time.
-        if ("connect" == invocation.method_name())
-        {
+        switch (index)
+        {  // One feature Protobuf is missing is enums for these. So use ints..
+        case 0:
+            assert(name == "connect");
             invoke(&protobuf::DisplayServer::connect, invocation);
-        }
-        else if ("create_surface" == invocation.method_name())
-        {
-            invoke(&protobuf::DisplayServer::create_surface, invocation);
-        }
-        else if ("next_buffer" == invocation.method_name())
-        {
-            invoke(&protobuf::DisplayServer::next_buffer, invocation);
-        }
-        else if ("release_surface" == invocation.method_name())
-        {
-            invoke(&protobuf::DisplayServer::release_surface, invocation);
-        }
-        else if ("test_file_descriptors" == invocation.method_name())
-        {
-            invoke(&protobuf::DisplayServer::test_file_descriptors, invocation);
-        }
-        else if ("drm_auth_magic" == invocation.method_name())
-        {
-            invoke(&protobuf::DisplayServer::drm_auth_magic, invocation);
-        }
-        else if ("select_focus_by_lightdm_id" == invocation.method_name())
-        {
-            invoke(&protobuf::DisplayServer::select_focus_by_lightdm_id, invocation);
-        }
-        else if ("configure_surface" == invocation.method_name())
-        {
-            invoke(&protobuf::DisplayServer::configure_surface, invocation);
-        }
-        else if ("disconnect" == invocation.method_name())
-        {
+            break;
+        case 1:
+            assert(name == "disconnect");
             invoke(&protobuf::DisplayServer::disconnect, invocation);
             result = false;
-        }
-        else
-        {
-            report->unknown_method(display_server.get(), invocation.id(), invocation.method_name());
+            break;
+        case 2:
+            assert(name == "create_surface");
+            invoke(&protobuf::DisplayServer::create_surface, invocation);
+            break;
+        case 3:
+            assert(name == "next_buffer");
+            invoke(&protobuf::DisplayServer::next_buffer, invocation);
+            break;
+        case 4:
+            assert(name == "release_surface");
+            invoke(&protobuf::DisplayServer::release_surface, invocation);
+            break;
+        case 5:
+            assert(name == "select_focus_by_lightdm_id");
+            invoke(&protobuf::DisplayServer::select_focus_by_lightdm_id,
+                   invocation);
+            break;
+        case 6:
+            assert(name == "drm_auth_magic");
+            invoke(&protobuf::DisplayServer::drm_auth_magic, invocation);
+            break;
+        case 7:
+            assert(name == "test_file_descriptors");
+            invoke(&protobuf::DisplayServer::test_file_descriptors,
+                   invocation);
+            break;
+        case 8:
+            assert(name == "configure_surface");
+            invoke(&protobuf::DisplayServer::configure_surface, invocation);
+            break;
+        default:
+            report->unknown_method(display_server.get(), invocation.id(),
+                name);
             result = false;
+            break;
         }
     }
     catch (std::exception const& error)
