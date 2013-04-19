@@ -342,7 +342,7 @@ mir::DefaultServerConfiguration::the_session_manager()
         [this]() -> std::shared_ptr<msh::SessionManager>
         {
             return std::make_shared<msh::SessionManager>(
-                the_surface_factory(),
+                the_shell_surface_factory(),
                 the_shell_session_container(),
                 the_shell_focus_sequence(),
                 the_shell_focus_setter(),
@@ -444,7 +444,7 @@ mir::DefaultServerConfiguration::the_renderables()
 }
 
 std::shared_ptr<msh::SurfaceFactory>
-mir::DefaultServerConfiguration::the_surface_factory()
+mir::DefaultServerConfiguration::the_shell_surface_factory()
 {
     return shell_surface_factory(
         [this]()

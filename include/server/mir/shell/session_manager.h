@@ -42,6 +42,8 @@ class SessionContainer;
 class FocusSequence;
 class FocusSetter;
 class InputTargetListener;
+class Session;
+
 
 class SessionManager : public frontend::Shell, public shell::FocusController
 {
@@ -77,11 +79,11 @@ private:
     std::shared_ptr<InputTargetListener> const input_target_listener;
 
     std::mutex mutex;
-    std::weak_ptr<frontend::Session> focus_application;
-    typedef std::vector<std::pair<int, std::shared_ptr<frontend::Session>>> Tags;
+    std::weak_ptr<Session> focus_application;
+    typedef std::vector<std::pair<int, std::shared_ptr<Session>>> Tags;
     Tags tags;
 
-    void set_focus_to_locked(std::unique_lock<std::mutex> const& lock, std::shared_ptr<frontend::Session> const& next_focus);
+    void set_focus_to_locked(std::unique_lock<std::mutex> const& lock, std::shared_ptr<Session> const& next_focus);
 };
 
 }
