@@ -26,6 +26,13 @@ namespace
     char const* const socket_file = "/tmp/mir_socket";
     MirConnection *global_connection = NULL;
 }
+
+typedef struct {
+    MirSurface *mir_surface;
+    input_event_cb ubuntu_input_cb;
+    void *input_ctx;
+} ubuntu_application_ui_mir_surface;
+
     
 void
 ubuntu_application_ui_init(int argc, char**argv)
@@ -127,11 +134,6 @@ ubuntu_application_ui_query_vertical_dpi(ubuntu_application_ui_physical_display_
 
 namespace
 {
-struct EventContext
-{
-    input_event_cb cb;
-    void* ctx;
-};
 
 static void
 mir_event_to_ubuntu_event(MirEvent const* mir_event, Event& ubuntu_ev)
@@ -187,12 +189,12 @@ mir_event_to_ubuntu_event(MirEvent const* mir_event, Event& ubuntu_ev)
     }
 }
 
-static void ubuntu_application_ui_mir_handle_event(MirSurface* surface, MirEvent const* mir_ev, void* context)
+static void ubuntu_application_ui_mir_handle_event(MirSurface* mir_surface, MirEvent const* mir_ev, void* context)
 {
-    EventContext *evctx = static_cast<EventContext*>(context);
+    ubuntu_application_ui_mir_surface *surface = static_cast<ubuntu_application_ui_mir_surface*>(context);
     Event ubuntu_ev;
     mir_event_to_ubuntu_event(mir_ev, ubuntu_ev);
-    evctx->cb(evctx->ctx, &ubuntu_ev);
+    surface->ubuntu_input_cb(surface->input_ctx, &ubuntu_ev);
 }
 }
 
@@ -210,14 +212,13 @@ ubuntu_application_ui_create_surface(ubuntu_application_ui_surface* out_surface,
     MirDisplayInfo display_info;
     mir_connection_get_display_info(global_connection, &display_info);
     MirSurfaceParameters params = { title, width, height, display_info.supported_pixel_format[0], mir_buffer_usage_hardware};
-    EventContext *delegate_ctx = new EventContext; // TODO: Fix leak ~racarr
-    delegate_ctx->cb = cb;
-    delegate_ctx->ctx = ctx;
-    MirEventDelegate event_delegate = { ubuntu_application_ui_mir_handle_event, delegate_ctx };
-    MirSurface* surface = mir_connection_create_surface_sync(global_connection, &params);
-    mir_surface_set_event_handler(surface, &event_delegate);
+    ubuntu_application_ui_mir_surface *surface = new ubuntu_application_ui_mir_surface;
+    surface->ubuntu_input_cb = cb;
+    surface->input_ctx = ctx;
+    MirEventDelegate event_delegate = { ubuntu_application_ui_mir_handle_event, surface };
+    surface->mir_surface = mir_connection_create_surface_sync(global_connection, &params);
+    mir_surface_set_event_handler(surface->mir_surface, &event_delegate);
     assert(surface);
-    // TODO: Implement ~racarr
     *out_surface = static_cast<ubuntu_application_ui_surface>(surface);
 }
 
@@ -228,16 +229,18 @@ ubuntu_application_ui_request_fullscreen_for_surface(ubuntu_application_ui_surfa
 }
 
 void
-ubuntu_application_ui_destroy_surface(ubuntu_application_ui_surface surface)
+ubuntu_application_ui_destroy_surface(ubuntu_application_ui_surface s)
 {
-    MirSurface *mir_surface = static_cast<MirSurface*>(surface);
-    mir_surface_release_sync(mir_surface);
+    ubuntu_application_ui_mir_surface *surface = static_cast<ubuntu_application_ui_mir_surface*>(s);
+    mir_surface_release_sync(surface->mir_surface);
+    delete surface;
 }
 
 EGLNativeWindowType
-ubuntu_application_ui_surface_to_native_window_type(ubuntu_application_ui_surface surface)
+ubuntu_application_ui_surface_to_native_window_type(ubuntu_application_ui_surface s)
 {
-    return reinterpret_cast<EGLNativeWindowType>(mir_surface_get_egl_native_window(static_cast<MirSurface*>(surface)));
+    ubuntu_application_ui_mir_surface *surface = static_cast<ubuntu_application_ui_mir_surface*>(s);
+    return reinterpret_cast<EGLNativeWindowType>(mir_surface_get_egl_native_window(surface->mir_surface));
 }
 
 void
