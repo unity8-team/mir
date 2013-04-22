@@ -58,10 +58,7 @@ ubuntu_application_ui_start_a_new_session(SessionCredentials* creds)
 EGLNativeDisplayType
 ubuntu_application_ui_get_native_display()
 {
-    // TODO: Hack to accomodate qtubuntu ~racarr
-    if (!global_connection)
-        global_connection = mir_connect_sync(socket_file, "test");
-    return (EGLNativeDisplayType)mir_connection_get_egl_native_display(global_connection);
+    return static_cast<EGLNativeDisplayType>(mir_connection_get_egl_native_display(global_connection));
 }
 
 void
@@ -100,7 +97,7 @@ ubuntu_application_ui_query_horizontal_resolution(ubuntu_application_ui_physical
     assert(global_connection);
 
     mir_connection_get_display_info(global_connection, &display_info);
-    return (int32_t)display_info.width;
+    return static_cast<int32_t>(display_info.width);
 }
 
 int32_t
@@ -111,7 +108,7 @@ ubuntu_application_ui_query_vertical_resolution(ubuntu_application_ui_physical_d
     assert(global_connection);
 
     mir_connection_get_display_info(global_connection, &display_info);
-    return (int32_t)display_info.height;
+    return static_cast<int32_t>(display_info.height);
 }
 
 float
@@ -195,7 +192,7 @@ static void ubuntu_application_ui_mir_handle_event(MirSurface* surface, MirEvent
     EventContext *evctx = static_cast<EventContext*>(context);
     Event ubuntu_ev;
     mir_event_to_ubuntu_event(mir_ev, ubuntu_ev);
-    evctx->cb(evctx->ctx, &ubuntu_ev); // TODO: Proper event translation ~racarr
+    evctx->cb(evctx->ctx, &ubuntu_ev);
 }
 }
 
