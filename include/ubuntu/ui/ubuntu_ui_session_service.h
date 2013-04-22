@@ -21,7 +21,7 @@
 
 #include "ubuntu/ui/config.h"
 
-#if UBUNTU_USE_GLES
+#ifdef UBUNTU_USE_GLES
 #include <GLES2/gl2.h>
 #else
 #include <GL/gl.h>

@@ -1,6 +1,10 @@
 set(SOURCES ubuntu_application_api_mirclient.cpp)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --std=c++0x -I/usr/local/include/mircommon -I/usr/local/include/mirclient")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --std=c++0x")
+
+include_directories(
+  ${MIR_CLIENT_INCLUDE_DIRS}
+)
 
 add_library(
 	ubuntu_application_api_mirclient SHARED
@@ -9,7 +13,7 @@ add_library(
 
 target_link_libraries(
 	ubuntu_application_api_mirclient
-        mirclient
+        ${MIR_CLIENT_LDFLAGS} ${MIR_CLIENT_LIBRARIES}
 )
 
 set_target_properties(

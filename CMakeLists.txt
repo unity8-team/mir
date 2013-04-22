@@ -17,6 +17,11 @@ set(
   "API implementation to build (options are 'hybris' or 'mirclient')"
 )
 
+if (PLATFORM_API_IMPLEMENTATION STREQUAL "mirclient")
+  find_package( PkgConfig ) 
+  pkg_check_modules( MIR_CLIENT mirclient )
+endif()
+
 include_directories(include/)
 
 add_subdirectory(src/)
