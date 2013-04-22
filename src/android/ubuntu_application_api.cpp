@@ -166,6 +166,7 @@ extern "C" {
     IMPLEMENT_VOID_FUNCTION2(ubuntu_application_ui_init, int, char**);
     IMPLEMENT_FUNCTION0(StageHint, ubuntu_application_ui_setup_get_stage_hint);
     IMPLEMENT_FUNCTION0(FormFactorHint, ubuntu_application_ui_setup_get_form_factor_hint);
+    IMPLEMENT_FUNCTION0(EGLNativeDisplayType, ubuntu_application_ui_get_native_display);
     IMPLEMENT_VOID_FUNCTION1(ubuntu_application_ui_start_a_new_session, SessionCredentials*);
     IMPLEMENT_VOID_FUNCTION2(ubuntu_application_ui_set_clipboard_content, void*, size_t);
     IMPLEMENT_VOID_FUNCTION2(ubuntu_application_ui_get_clipboard_content, void**, size_t*);

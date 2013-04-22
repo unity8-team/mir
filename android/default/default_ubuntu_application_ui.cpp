@@ -88,6 +88,12 @@ ubuntu_application_ui_setup_get_form_factor_hint()
                ubuntu::application::ui::Setup::instance()->form_factor_hint());
 }
 
+EGLNativeDisplayType
+ubuntu_application_ui_get_native_display()
+{
+    return EGL_NATIVE_DISPLAY;
+}
+
 void
 ubuntu_application_ui_start_a_new_session(SessionCredentials* creds)
 {
