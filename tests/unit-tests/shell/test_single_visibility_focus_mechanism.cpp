@@ -63,7 +63,7 @@ TEST(SingleVisibilityFocusMechanism, mechanism_sets_visibility)
 {
     using namespace ::testing;
 
-    MockShellSession app1, app2, app3;
+    NiceMock<MockShellSession> app1, app2, app3;
     msh::DefaultSessionContainer model;
 
     ON_CALL(app1, default_surface()).WillByDefault(Return(std::shared_ptr<msh::Surface>()));
@@ -86,5 +86,4 @@ TEST(SingleVisibilityFocusMechanism, mechanism_sets_visibility)
 
     focus_mechanism.set_focus_to(mt::fake_shared(app1));
 }
-
 
