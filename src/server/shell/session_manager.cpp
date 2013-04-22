@@ -68,22 +68,23 @@ std::shared_ptr<mf::Session> msh::SessionManager::open_session(std::string const
     return new_session;
 }
 
-inline void msh::SessionManager::set_focus_to_locked(std::unique_lock<std::mutex> const&, std::shared_ptr<Session> const& next_focus)
+inline void msh::SessionManager::set_focus_to_locked(std::unique_lock<std::mutex> const&, std::shared_ptr<Session> const& shell_session)
 {
     auto old_focus = focus_application.lock();
 
-    focus_application = next_focus;
-    focus_setter->set_focus_to(next_focus);
+    focus_application = shell_session;
+    focus_setter->set_focus_to(shell_session);
 
-    if (next_focus && next_focus->default_surface())
-        input_target_listener->focus_changed(next_focus->default_surface());
-    else if (next_focus == old_focus || !next_focus)
+    if (shell_session && shell_session->default_surface())
+        input_target_listener->focus_changed(shell_session->default_surface());
+    else if (shell_session == old_focus || !shell_session)
         input_target_listener->focus_cleared();
 }
 
 void msh::SessionManager::close_session(std::shared_ptr<mf::Session> const& session)
 {
     auto shell_session = std::dynamic_pointer_cast<Session>(session);
+
     input_target_listener->input_application_closed(shell_session);
 
     app_container->remove_session(shell_session);
@@ -147,8 +148,11 @@ mf::SurfaceId msh::SessionManager::create_surface_for(std::shared_ptr<mf::Sessio
     mf::SurfaceCreationParameters const& params)
 {
     auto shell_session = std::dynamic_pointer_cast<Session>(session);
-    auto id = session->create_surface(params);
-    input_target_listener->input_surface_opened(shell_session, std::dynamic_pointer_cast<msh::Surface>(session->get_surface(id)));
+    auto id = shell_session->create_surface(params);
+
+    input_target_listener->input_surface_opened(shell_session,
+        std::dynamic_pointer_cast<msh::Surface>(shell_session->get_surface(id)));
+
     set_focus_to_locked(std::unique_lock<std::mutex>(mutex), shell_session);
 
     return id;

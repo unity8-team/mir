@@ -83,15 +83,15 @@ TEST(TestSessionManagerAndFocusSelectionStrategy, closing_applications_transfers
     using namespace ::testing;
 
     mtd::MockSurfaceFactory surface_factory;
-    std::shared_ptr<msh::DefaultSessionContainer> model(new msh::DefaultSessionContainer());
-    msh::RegistrationOrderFocusSequence sequence(model);
+    std::shared_ptr<msh::DefaultSessionContainer> container(new msh::DefaultSessionContainer());
+    msh::RegistrationOrderFocusSequence sequence(container);
     mtd::MockFocusSetter focus_setter;
     std::shared_ptr<mf::Session> new_session;
     mtd::StubInputTargetListener input_target_listener;
 
     msh::SessionManager session_manager(
             mt::fake_shared(surface_factory),
-            model,
+            container,
             mt::fake_shared(sequence),
             mt::fake_shared(focus_setter),
             mt::fake_shared(input_target_listener));

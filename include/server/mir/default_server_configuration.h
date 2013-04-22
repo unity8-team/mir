@@ -182,6 +182,7 @@ public:
      *  @{ */
     virtual std::shared_ptr<input::android::InputConfiguration> the_input_configuration();
     virtual std::initializer_list<std::shared_ptr<input::EventFilter> const> the_event_filters();
+
     virtual std::shared_ptr<input::CursorListener> the_cursor_listener();
     virtual std::shared_ptr<shell::InputTargetListener> the_input_target_listener();
 

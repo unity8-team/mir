@@ -86,4 +86,3 @@ TEST(SingleVisibilityFocusMechanism, mechanism_sets_visibility)
 
     focus_mechanism.set_focus_to(mt::fake_shared(app1));
 }
-

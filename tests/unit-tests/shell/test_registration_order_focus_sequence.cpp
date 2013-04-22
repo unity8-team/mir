@@ -48,8 +48,8 @@ struct RegistrationOrderFocusSequenceSetup : public testing::Test
         container = std::make_shared<msh::DefaultSessionContainer>();
     }
     std::shared_ptr<mtd::MockSurfaceFactory> factory;
-    mtd::StubInputTargetListener input_listener;
     std::shared_ptr<msh::DefaultSessionContainer> container;
+    mtd::StubInputTargetListener input_listener;
 
     static std::string const testing_app_name1;
     static std::string const testing_app_name2;
