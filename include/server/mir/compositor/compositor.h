@@ -31,6 +31,9 @@ public:
 
     virtual void start() = 0;
     virtual void stop() = 0;
+    
+    // TODO: Should include a region when the compositor can handle regioned redraws.
+    virtual void request_redraw() = 0;
 
 protected:
     Compositor() = default;

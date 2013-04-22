@@ -48,6 +48,8 @@ public:
 
     void start();
     void stop();
+    
+    void request_redraw();
 
 private:
     std::shared_ptr<graphics::Display> const display;

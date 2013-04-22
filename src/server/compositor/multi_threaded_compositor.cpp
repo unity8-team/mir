@@ -157,3 +157,9 @@ void mc::MultiThreadedCompositor::stop()
     thread_functors.clear();
     threads.clear();
 }
+
+void mc::MultiThreadedCompositor::request_redraw()
+{
+    for (auto& f : thread_functors)
+        f->schedule_compositing();
+}

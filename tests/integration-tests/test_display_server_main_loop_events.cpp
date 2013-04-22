@@ -46,6 +46,7 @@ class MockCompositor : public mc::Compositor
 public:
     MOCK_METHOD0(start, void());
     MOCK_METHOD0(stop, void());
+    MOCK_METHOD0(request_redraw, void());
 };
 
 class MockCommunicator : public mf::Communicator

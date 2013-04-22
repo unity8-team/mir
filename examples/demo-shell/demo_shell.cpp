@@ -46,9 +46,10 @@ namespace examples
 
 struct DemoServerConfiguration : mir::DefaultServerConfiguration
 {
-    DemoServerConfiguration(int argc, char const* argv[])
+    DemoServerConfiguration(int argc, char const* argv[],
+                            std::initializer_list<std::shared_ptr<mi::EventFilter> const> const& filter_list)
       : DefaultServerConfiguration(argc, argv),
-        app_switcher(std::make_shared<me::ApplicationSwitcher>())
+        filter_list(filter_list)
     {
     }
 
@@ -63,8 +64,7 @@ struct DemoServerConfiguration : mir::DefaultServerConfiguration
 
     std::initializer_list<std::shared_ptr<mi::EventFilter> const> the_event_filters() override
     {
-        static std::initializer_list<std::shared_ptr<mi::EventFilter> const> event_filters{app_switcher};
-        return event_filters;
+        return filter_list;
     }
     
     std::shared_ptr<me::SoftwareCursorCompositingStrategy> the_software_cursor_compositor()
@@ -86,8 +86,8 @@ struct DemoServerConfiguration : mir::DefaultServerConfiguration
         return the_software_cursor_compositor();
     }
 
-    std::shared_ptr<me::ApplicationSwitcher> app_switcher;
     mir::CachedPtr<me::SoftwareCursorCompositingStrategy> software_cursor_compositor;
+    std::initializer_list<std::shared_ptr<mi::EventFilter> const> const filter_list;
 };
 
 }
@@ -96,12 +96,14 @@ struct DemoServerConfiguration : mir::DefaultServerConfiguration
 int main(int argc, char const* argv[])
 try
 {
-    me::DemoServerConfiguration config(argc, argv);
-    mir::run_mir(config, [&config](mir::DisplayServer&)
+    auto app_switcher = std::make_shared<me::ApplicationSwitcher>();
+    me::DemoServerConfiguration config(argc, argv, {app_switcher});
+    
+    mir::run_mir(config, [&config, &app_switcher](mir::DisplayServer&)
         {
             // We use this strange two stage initialization to avoid a circular dependency between the EventFilters
             // and the SessionStore
-            config.app_switcher->set_focus_controller(config.the_focus_controller());
+            app_switcher->set_focus_controller(config.the_focus_controller());
         });
     return 0;
 }
