@@ -104,6 +104,7 @@ try
             // We use this strange two stage initialization to avoid a circular dependency between the EventFilters
             // and the SessionStore
             app_switcher->set_focus_controller(config.the_focus_controller());
+            config.the_software_cursor_compositor()->set_damage_handler(config.the_compositor());
         });
     return 0;
 }

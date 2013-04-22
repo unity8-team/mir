@@ -21,6 +21,7 @@
 #include "gl_cursor_renderer.h"
 
 #include "mir/compositor/rendering_operator.h"
+#include "mir/compositor/compositor.h"
 #include "mir/geometry/rectangle.h"
 #include "mir/graphics/display.h"
 #include "mir/graphics/display_buffer.h"
@@ -64,7 +65,8 @@ void me::SoftwareCursorCompositingStrategy::cursor_moved_to(float abs_x, float a
 {
     cursor_x = abs_x;
     cursor_y = abs_y;
-    // TODO: How to emit damage?
+
+    damage_handler->request_redraw();
 }
 
 void me::SoftwareCursorCompositingStrategy::render(mg::DisplayBuffer& display_buffer)
@@ -82,5 +84,10 @@ void me::SoftwareCursorCompositingStrategy::render(mg::DisplayBuffer& display_bu
     cursor_renderer->render_cursor(display_buffer.view_area().size, cursor_x, cursor_y);
     
     display_buffer.post_update();
+}
+
+void me::SoftwareCursorCompositingStrategy::set_damage_handler(std::shared_ptr<mc::Compositor> const& handler)
+{
+    damage_handler = handler;
 }
 

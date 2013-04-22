@@ -27,6 +27,10 @@
 
 namespace mir
 {
+namespace compositor
+{
+class Compositor;
+}
 namespace examples
 {
 class GLCursorRenderer;
@@ -41,6 +45,8 @@ public:
     virtual void cursor_moved_to(float abs_x, float abs_y);
     virtual void render(graphics::DisplayBuffer& diplay_buffer);
     
+    virtual void set_damage_handler(std::shared_ptr<compositor::Compositor> const& handler);
+    
 protected:
     SoftwareCursorCompositingStrategy(SoftwareCursorCompositingStrategy const&) = delete;
     SoftwareCursorCompositingStrategy& operator=(SoftwareCursorCompositingStrategy const&) = delete;
@@ -48,6 +54,8 @@ protected:
 private:
     std::shared_ptr<compositor::Renderables> const renderables;
     std::shared_ptr<graphics::Renderer> const renderer;
+    std::shared_ptr<compositor::Compositor> damage_handler;
+
     
     // TODO: May need to be one per display buffer?
     std::shared_ptr<GLCursorRenderer> cursor_renderer;
