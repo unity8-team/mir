@@ -19,7 +19,14 @@
 #ifndef UBUNTU_UI_SESSION_SERVICE_C_API_H_
 #define UBUNTU_UI_SESSION_SERVICE_C_API_H_
 
+#include "ubuntu/ui/config.h"
+
+#if UBUNTU_USE_GLES
 #include <GLES2/gl2.h>
+#else
+#include <GL/gl.h>
+#include <GL/glext.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {
