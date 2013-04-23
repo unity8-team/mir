@@ -16,7 +16,6 @@ Homepage: https://launchpad.net/unity-system-compositor
 Package: unity-system-compositor
 Architecture: any
 Depends: ${misc:Depends},
-         ${shlibs:Depends},
-         libmirserver0 (= ${binary:Version}),
+         ${shlibs:Depends}
 Description: System compositor for Ubuntu
  System compositor for Ubuntu
