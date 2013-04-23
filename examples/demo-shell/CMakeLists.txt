@@ -2,7 +2,7 @@ add_executable(mir_demo_shell
   demo_shell.cpp
   fullscreen_placement_strategy.cpp
   application_switcher.cpp
-  software_cursor_compositing_strategy.cpp
+  software_cursor_overlay_renderer.cpp
   gl_cursor_renderer.cpp
 )
 

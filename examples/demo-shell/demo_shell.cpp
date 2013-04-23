@@ -18,7 +18,7 @@
 
 #include "application_switcher.h"
 #include "fullscreen_placement_strategy.h"
-#include "software_cursor_compositing_strategy.h"
+#include "software_cursor_overlay_renderer.h"
 
 #include "mir/run_mir.h"
 #include "mir/default_server_configuration.h"
@@ -49,7 +49,8 @@ struct DemoServerConfiguration : mir::DefaultServerConfiguration
     DemoServerConfiguration(int argc, char const* argv[],
                             std::initializer_list<std::shared_ptr<mi::EventFilter> const> const& filter_list)
       : DefaultServerConfiguration(argc, argv),
-        filter_list(filter_list)
+        filter_list(filter_list),
+        software_cursor_renderer(std::make_shared<me::SoftwareCursorOverlayRenderer>())
     {
     }
 
@@ -67,27 +68,18 @@ struct DemoServerConfiguration : mir::DefaultServerConfiguration
         return filter_list;
     }
     
-    std::shared_ptr<me::SoftwareCursorCompositingStrategy> the_software_cursor_compositor()
+    std::shared_ptr<mc::OverlayRenderer> the_overlay_renderer() override
     {
-        return software_cursor_compositor(
-            [this]
-            {
-                return std::make_shared<me::SoftwareCursorCompositingStrategy>(the_renderables(), the_renderer());
-            });
-    }
-    
-    std::shared_ptr<mc::CompositingStrategy> the_compositing_strategy() override
-    {
-        return the_software_cursor_compositor();
+        return software_cursor_renderer;
     }
 
     std::shared_ptr<mi::CursorListener> the_cursor_listener() override
     {
-        return the_software_cursor_compositor();
+        return software_cursor_renderer;
     }
 
-    mir::CachedPtr<me::SoftwareCursorCompositingStrategy> software_cursor_compositor;
     std::initializer_list<std::shared_ptr<mi::EventFilter> const> const filter_list;
+    std::shared_ptr<me::SoftwareCursorOverlayRenderer> software_cursor_renderer;
 };
 
 }
@@ -104,7 +96,7 @@ try
             // We use this strange two stage initialization to avoid a circular dependency between the EventFilters
             // and the SessionStore
             app_switcher->set_focus_controller(config.the_focus_controller());
-            config.the_software_cursor_compositor()->set_damage_handler(config.the_compositor());
+            config.software_cursor_renderer->set_damage_handler(config.the_compositor());
         });
     return 0;
 }
