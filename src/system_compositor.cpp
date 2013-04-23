@@ -34,13 +34,14 @@ int SystemCompositor::run(int argc, char const* argv[])
 {
     dm_connection.start();
 
-    dm_connection.send_ready();
-
     config = std::make_shared<mir::DefaultServerConfiguration>(argc, argv);
 
     try
     {
-        mir::run_mir(*config, [](mir::DisplayServer&) {/* empty init */});
+        mir::run_mir(*config, [this](mir::DisplayServer&)
+        {
+            dm_connection.send_ready();          
+        });
         return 0;
     }
     catch (mir::AbnormalExit const& error)
