@@ -63,7 +63,7 @@ void SystemCompositor::set_active_session(std::string client_name)
     std::shared_ptr<msh::Session> session;
     config->the_shell_session_container()->for_each([&client_name, &session](std::shared_ptr<msh::Session> const& s)
     {
-        if (static_cast<std::shared_ptr<mf::Session>>(s)->name() == client_name)
+        if (s->name() == client_name)
             session = s;
     });
 
