@@ -48,17 +48,11 @@ bool mia::InputWindowHandle::updateInfo()
                                                            surface->server_input_fd());
     }
 
-    // TODO: Position
     mInfo->frameLeft = 0;
     mInfo->frameTop = 0;
     auto surface_size = surface->size();
     mInfo->frameRight = mInfo->frameLeft + surface_size.width.as_uint32_t();
     mInfo->frameBottom = mInfo->frameTop + surface_size.height.as_uint32_t();
-
-    mInfo->touchableRegionLeft = 0;
-    mInfo->touchableRegionTop = 0;
-    mInfo->touchableRegionRight = mInfo->touchableRegionLeft + surface_size.width.as_uint32_t();
-    mInfo->touchableRegionBottom = mInfo->touchableRegionTop + surface_size.height.as_uint32_t();
 
     mInfo->name = droidinput::String8(surface->name().c_str());
     mInfo->layoutParamsFlags = droidinput::InputWindowInfo::FLAG_NOT_TOUCH_MODAL;
