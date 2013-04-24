@@ -1,3 +1,15 @@
+platform-api (0.18.1daily13.04.15ubuntu.unity.next-0ubuntu1) raring; urgency=low
+
+  * Automatic snapshot from revision 50 (ubuntu-unity/next)
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Mon, 15 Apr 2013 02:02:18 +0000
+
+platform-api (0.18.1daily13.04.12ubuntu.unity.next-0ubuntu1) raring; urgency=low
+
+  * Automatic snapshot from revision 48 (ubuntu-unity/next)
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Fri, 12 Apr 2013 02:01:49 +0000
+
 platform-api (0.18.1daily13.04.08ubuntu.unity.next-0ubuntu1) raring; urgency=low
 
   [ Dmitrijs Ledkovs ]
