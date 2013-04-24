@@ -222,8 +222,15 @@ radeon_platform_probe(DriverPtr pDriver,
     if (!dev->pdev)
 	return FALSE;
 
-    if (flags & PLATFORM_PROBE_GPU_SCREEN)
-	scr_flags = XF86_ALLOCATE_GPU_SCREEN;
+    if (flags & PLATFORM_PROBE_GPU_SCREEN) {
+        if (xorgMir) {
+            return FALSE;
+        } else {
+            scr_flags = XF86_ALLOCATE_GPU_SCREEN;
+        }
+    }
+    
+
 
     pScrn = xf86AllocateScreen(pDriver, scr_flags);
     if (xf86IsEntitySharable(entity_num))
