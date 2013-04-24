@@ -375,6 +375,9 @@ NVPlatformProbe(DriverPtr driver,
 	if (flags & PLATFORM_PROBE_GPU_SCREEN)
 		scr_flags = XF86_ALLOCATE_GPU_SCREEN;
 
+	if (xorgMir && (scr_flags & XF86_ALLOCATE_GPU_SCREEN))
+		return FALSE;
+
 	scrn = xf86AllocateScreen(driver, scr_flags);
 	if (!scrn)
 		return FALSE;
