@@ -428,6 +428,8 @@ android::sp<ApplicationManager::LockingIterator> ApplicationManager::iterator()
 void ApplicationManager::session_set_state(const android::sp<ubuntu::detail::ApplicationSession>& as,
                                            int32_t new_state)
 {
+    ALOGI("%s():%d running->running", __PRETTY_FUNCTION__, __LINE__);
+
     switch (new_state)
     {
     case ubuntu::application::ui::process_running:
@@ -467,7 +469,7 @@ void ApplicationManager::session_set_state(const android::sp<ubuntu::detail::App
     break;
     case ubuntu::application::ui::process_suspended:
     {
-        ALOGI("%s() state delegate transition to SUSPENDED", __PRETTY_FUNCTION__);
+        ALOGI("%s() state->suspended", __PRETTY_FUNCTION__);
         /* TODO: create archive */
         as->on_application_about_to_stop();
         as->running_state = ubuntu::application::ui::process_suspended;
@@ -478,7 +480,7 @@ void ApplicationManager::session_set_state(const android::sp<ubuntu::detail::App
     break;
     case ubuntu::application::ui::process_stopped:
     {
-        ALOGI("%s() state delegate transition to STOPPED", __PRETTY_FUNCTION__);
+        ALOGI("%s() state->stopped", __PRETTY_FUNCTION__);
         /* TODO:
          * This transition occurs while SIGSTOP'd. Check we hold a valid archive
          * and then destroy the process image. No need to signal via delegates.
@@ -488,7 +490,7 @@ void ApplicationManager::session_set_state(const android::sp<ubuntu::detail::App
     break;
     case ubuntu::application::ui::process_destroyed:
     {
-        ALOGI("%s() state delegate transition to DESTROYED", __PRETTY_FUNCTION__);
+        ALOGI("%s() state->destroyed", __PRETTY_FUNCTION__);
         /* TODO:
          * Internal transition: Invalidate archive if any, destroy
          * process image.
@@ -560,6 +562,8 @@ void ApplicationManager::start_a_new_session(
     notify_observers_about_session_born(app_session->remote_pid, 
                                         app_session->stage_hint, 
                                         app_session->desktop_file);
+    
+    ALOGI("%s():%d session", __PRETTY_FUNCTION__, __LINE__);
 }
 
 void ApplicationManager::register_a_surface(

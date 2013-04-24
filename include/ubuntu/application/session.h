@@ -39,6 +39,30 @@ protected:
     Session(const Session&) = delete;
     Session& operator=(const Session&) = delete;
 };
+
+/**
+ * Represents a session lifecycle delegate.
+ */
+class _UApplicationLifecycleDelegate : public ubuntu::platform::ReferenceCountedBase
+{
+public:
+    typedef ubuntu::platform::shared_ptr<_UApplicationLifecycleDelegate> Ptr;
+
+    virtual void on_application_started() = 0;
+    virtual void on_application_about_to_stop() = 0;
+
+    //virtual void on_application_started(const _UApplicationOptions *options, void *context) = 0;
+    //virtual void on_application_about_to_stop(_UApplicationArchive *archive, void *context) = 0;
+
+protected:
+    _UApplicationLifecycleDelegate() {}
+
+    virtual ~_UApplicationLifecycleDelegate() {}
+
+    _UApplicationLifecycleDelegate(const _UApplicationLifecycleDelegate&) = delete;
+    _UApplicationLifecycleDelegate& operator=(const _UApplicationLifecycleDelegate&) = delete;
+};
+
 }
 }
 

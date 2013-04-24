@@ -20,7 +20,6 @@
 
 #include "ubuntu/ui/session_enumerator.h"
 #include "ubuntu/application/session.h"
-#include "ubuntu/application/ui/session_delegates.h"
 #include "ubuntu/application/ui/clipboard.h"
 #include "ubuntu/application/ui/physical_display_info.h"
 #include "ubuntu/application/ui/surface.h"
@@ -54,7 +53,7 @@ public:
      */
     static PhysicalDisplayInfo::Ptr physical_display_info(PhysicalDisplayIdentifier id);
 
-    virtual void install_lifecycle_delegates(const ubuntu::application::ui::SessionLifeCycleDelegates::Ptr& delegates) = 0;
+    virtual void install_lifecycle_delegate(const ubuntu::application::_UApplicationLifecycleDelegate::Ptr& delegate) = 0;
 
     /** Requests a surface from the system.
      *  \param [in] props Requested properties for the surface

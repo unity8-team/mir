@@ -1,5 +1,5 @@
 /*
- * Copyright © 2012 Canonical Ltd.
+ * Copyright © 2013 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License version 3 as
@@ -14,7 +14,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Authored by: Thomas Voß <thomas.voss@canonical.com>
+ *              Ricardo Mendoza <ricardo.mendoza@canonical.com
  */
+
 #include <ubuntu/application/ui/init.h>
 #include <ubuntu/application/ui/session.h>
 #include <ubuntu/application/ui/session_credentials.h>
@@ -29,41 +31,43 @@
 
 // C apis
 #include <ubuntu/application/ui/ubuntu_application_ui.h>
+#include <ubuntu/application/lifecycle_delegate.h>
 
 // C-API implementation
 namespace
 {
-struct SessionLifeCycleDelegates : public ubuntu::application::ui::SessionLifeCycleDelegates
+struct _UApplicationLifecycleDelegate : public ubuntu::application::_UApplicationLifecycleDelegate
 {
-    SessionLifeCycleDelegates(ubuntu_application_ui_lifecycle_delegates* delegates) : delegates(delegates)
+    _UApplicationLifecycleDelegate(void *context) :
+                                    application_started_cb(NULL),
+                                    application_about_to_stop_cb(NULL),
+                                    context(context),
+                                    refcount(1)
     {
     }
 
     void on_application_started()
     {
-        if (!delegates)
+        if (!application_started_cb)
             return;
 
-        if (!delegates->on_application_started)
-            return;
-
-        delegates->on_application_started(NULL, NULL, delegates->context);
+        application_started_cb(NULL, this->context);
     }
 
     void on_application_about_to_stop()
     {
-        if (!delegates)
+        if (!application_about_to_stop_cb)
             return;
 
-        if (!delegates->on_application_about_to_stop)
-            return;
-
-        delegates->on_application_about_to_stop(NULL, delegates->context);
+        application_about_to_stop_cb(NULL, this->context);
     }
 
-    ubuntu_application_ui_lifecycle_delegates* delegates;
-};
+    u_on_application_started application_started_cb;
+    u_on_application_about_to_stop application_about_to_stop_cb;
+    void *context;
 
+    unsigned refcount;
+};
 }
 
 namespace
@@ -133,15 +137,6 @@ ubuntu_application_ui_start_a_new_session(SessionCredentials* creds)
 
     ubuntu::application::ui::SessionCredentials sc(creds);
     session = ubuntu::ui::SessionService::instance()->start_a_new_session(sc);
-}
-
-void
-ubuntu_application_ui_install_lifecycle_delegates(ubuntu_application_ui_lifecycle_delegates* delegates)
-{
-    ALOGI("%s(): Installing lifecycle delegates", __PRETTY_FUNCTION__);
-        
-    ubuntu::application::ui::SessionLifeCycleDelegates::Ptr p(new SessionLifeCycleDelegates(delegates));
-    session->install_lifecycle_delegates(p);
 }
 
 void
@@ -318,4 +313,116 @@ ubuntu_application_ui_resize_surface_to(
 {
     auto s = static_cast<Holder<ubuntu::application::ui::Surface::Ptr>*>(surface);
     s->value->resize(w, h);
+}
+
+/*
+ * NEW LIFECYCLE DELEGATE CODE 
+ */
+
+UApplicationLifecycleDelegate
+u_application_lifecycle_delegate_new()
+{
+    ALOGI("%s()", __PRETTY_FUNCTION__);
+
+    ubuntu::application::_UApplicationLifecycleDelegate::Ptr p(new _UApplicationLifecycleDelegate(NULL));
+    session->install_lifecycle_delegate(p);
+
+    return p.get();
+}
+
+void
+u_application_lifecycle_delegate_destroy(UApplicationLifecycleDelegate delegate)
+{
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+
+    auto s = static_cast<_UApplicationLifecycleDelegate*>(delegate);
+
+    if (s->refcount)
+        return;
+
+    delete s;
+}
+
+void
+u_application_lifecycle_delegate_ref(UApplicationLifecycleDelegate delegate)
+{
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+
+    auto s = static_cast<_UApplicationLifecycleDelegate*>(delegate);
+    s->refcount++;
+}
+
+void
+u_application_lifecycle_delegate_unref(UApplicationLifecycleDelegate delegate)
+{
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    
+    auto s = static_cast<_UApplicationLifecycleDelegate*>(delegate);
+    if (s->refcount)
+        s->refcount--;
+}
+
+void
+u_application_lifecycle_delegate_set_application_started_cb(
+    UApplicationLifecycleDelegate delegate,
+    u_on_application_started cb)
+{ 
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    
+    auto s = static_cast<_UApplicationLifecycleDelegate*>(delegate);
+    s->application_started_cb = cb;
+}
+
+u_on_application_started
+u_application_lifecycle_delegate_get_application_started_cb(
+    UApplicationLifecycleDelegate delegate)
+{ 
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    
+    auto s = static_cast<_UApplicationLifecycleDelegate*>(delegate);
+    return s->application_started_cb;
+}
+
+void
+u_application_lifecycle_delegate_set_application_about_to_stop_cb(
+    UApplicationLifecycleDelegate delegate,
+    u_on_application_about_to_stop cb)
+{ 
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    
+    auto s = static_cast<_UApplicationLifecycleDelegate*>(delegate);
+    s->application_about_to_stop_cb = cb;
+}
+
+u_on_application_about_to_stop
+u_application_lifecycle_delegate_get_application_about_to_stop_cb(
+    UApplicationLifecycleDelegate delegate)
+{ 
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    
+    auto s = static_cast<_UApplicationLifecycleDelegate*>(delegate);
+    return s->application_about_to_stop_cb;
+}
+
+void
+u_application_lifecycle_delegate_set_context(
+    UApplicationLifecycleDelegate delegate,
+    void *context)
+{
+    ALOGI("%s():%d context=%p", __PRETTY_FUNCTION__, __LINE__, context);
+    
+    auto s = static_cast<_UApplicationLifecycleDelegate*>(delegate);
+    if (s->context == NULL)
+        s->context = context;
+}
+
+void*
+u_application_lifecycle_delegate_get_context(
+    UApplicationLifecycleDelegate delegate,
+    void *context)
+{
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    
+    auto s = static_cast<_UApplicationLifecycleDelegate*>(delegate);
+    return s->context;
 }

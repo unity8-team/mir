@@ -20,6 +20,7 @@
 #include <ubuntu/application/ui/ubuntu_application_ui.h>
 #include <ubuntu/application/ubuntu_application_gps.h>
 #include <ubuntu/ui/ubuntu_ui_session_service.h>
+#include <ubuntu/application/lifecycle_delegate.h>
 
 #include <assert.h>
 #include <dlfcn.h>
@@ -184,6 +185,14 @@ extern "C" {
     IMPLEMENT_VOID_FUNCTION1(ubuntu_application_ui_hide_surface, ubuntu_application_ui_surface);
     IMPLEMENT_VOID_FUNCTION3(ubuntu_application_ui_move_surface_to, ubuntu_application_ui_surface, int, int);
     IMPLEMENT_VOID_FUNCTION3(ubuntu_application_ui_resize_surface_to, ubuntu_application_ui_surface, int, int);
+
+// Lifecycle helpers
+IMPLEMENT_FUNCTION0(UApplicationLifecycleDelegate, u_application_lifecycle_delegate_new);
+IMPLEMENT_VOID_FUNCTION2(u_application_lifecycle_delegate_set_context, UApplicationLifecycleDelegate, void*);
+IMPLEMENT_VOID_FUNCTION1(u_application_lifecycle_delegate_ref, UApplicationLifecycleDelegate);
+IMPLEMENT_VOID_FUNCTION1(u_application_lifecycle_delegate_unref, UApplicationLifecycleDelegate);
+IMPLEMENT_VOID_FUNCTION2(u_application_lifecycle_delegate_set_application_started_cb, UApplicationLifecycleDelegate, u_on_application_started);
+IMPLEMENT_VOID_FUNCTION2(u_application_lifecycle_delegate_set_application_about_to_stop_cb, UApplicationLifecycleDelegate, u_on_application_about_to_stop);
 
 // Session service
 IMPLEMENT_FUNCTION1(int, ubuntu_ui_session_properties_get_application_instance_id, ubuntu_ui_session_properties);

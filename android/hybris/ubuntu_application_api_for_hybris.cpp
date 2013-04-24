@@ -427,7 +427,7 @@ struct Session : public ubuntu::application::ui::Session, public UbuntuSurface::
     struct ApplicationManagerSession : public BnApplicationManagerSession
     {
         ApplicationManagerSession(Session* parent) : parent(parent),
-                                                     delegates()
+                                                     delegate()
         {
         }
 
@@ -463,26 +463,26 @@ struct Session : public ubuntu::application::ui::Session, public UbuntuSurface::
 
         void on_application_started()
         {
-            if (delegates == NULL)
+            if (delegate == NULL)
                 return;
     
-            delegates->on_application_started();
+            delegate->on_application_started();
         }
     
         void on_application_about_to_stop()
         {
-            if (delegates == NULL)
+            if (delegate == NULL)
                 return;
     
-            delegates->on_application_about_to_stop();
+            delegate->on_application_about_to_stop();
         }
     
-        void install_lifecycle_delegates(const ubuntu::application::ui::SessionLifeCycleDelegates::Ptr& delegates)
+        void install_lifecycle_delegate(const ubuntu::application::_UApplicationLifecycleDelegate::Ptr& delegate)
         {
-            this->delegates = delegates;
+            this->delegate = delegate;
         }
     
-        ubuntu::application::ui::SessionLifeCycleDelegates::Ptr delegates;
+        ubuntu::application::_UApplicationLifecycleDelegate::Ptr delegate;
         Session* parent;
     };
 
@@ -528,9 +528,9 @@ struct Session : public ubuntu::application::ui::Session, public UbuntuSurface::
         event_loop->run(__PRETTY_FUNCTION__, android::PRIORITY_URGENT_DISPLAY);
     }
 
-    void install_lifecycle_delegates(const ubuntu::application::ui::SessionLifeCycleDelegates::Ptr& delegates)
+    void install_lifecycle_delegate(const ubuntu::application::_UApplicationLifecycleDelegate::Ptr& delegate)
     {
-        this->app_manager_session->install_lifecycle_delegates(delegates);
+        this->app_manager_session->install_lifecycle_delegate(delegate);
     }
 
     void update()
