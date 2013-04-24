@@ -29,10 +29,12 @@ namespace test
 {
 namespace doubles
 {
+
 struct MockEventFilter : public mir::input::EventFilter
 {
     MOCK_METHOD1(handles, bool(const MirEvent&));
 };
+
 }
 }
 }
