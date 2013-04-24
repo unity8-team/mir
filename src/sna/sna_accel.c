@@ -2651,7 +2651,8 @@ done:
 	if (flags & MOVE_WRITE) {
 		priv->clear = false;
 		priv->cpu = false;
-		if (priv->cpu_damage == NULL &&
+		if (!DAMAGE_IS_ALL(priv->gpu_damage) &&
+		    priv->cpu_damage == NULL &&
 		    box_inplace(pixmap, &r.extents)) {
 			DBG(("%s: large operation on undamaged, promoting to full GPU\n",
 			     __FUNCTION__));
