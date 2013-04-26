@@ -121,6 +121,7 @@ struct Configuration : mir::DefaultServerConfiguration
 
 int SystemCompositor::run(int argc, char const* argv[])
 {
+    dm_connection.set_handler (this);
     dm_connection.start();
 
     config = std::make_shared<Configuration>(argc, argv, io_service);

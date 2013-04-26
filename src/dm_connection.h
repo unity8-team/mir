@@ -46,11 +46,10 @@ class DMConnection
 {
 public:
     DMConnection(boost::asio::io_service& io_service, int from_dm_fd, int to_dm_fd) :
-        handler(std::make_shared<NullDMMessageHandler>()),
         from_dm_pipe(io_service, from_dm_fd),
         to_dm_pipe(io_service, to_dm_fd) {};
 
-    void set_handler(std::shared_ptr<DMMessageHandler> const& handler)
+    void set_handler(DMMessageHandler *handler)
     {
         this->handler = handler;
     }
@@ -60,7 +59,7 @@ public:
     void send_ready();
 
 private:
-    std::shared_ptr<DMMessageHandler> handler;
+    DMMessageHandler *handler;
     boost::asio::posix::stream_descriptor from_dm_pipe;
     boost::asio::posix::stream_descriptor to_dm_pipe;
     static size_t const size_of_header = 4;

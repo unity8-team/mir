@@ -88,7 +88,8 @@ void DMConnection::on_read_payload(const bs::error_code& ec)
             ss << &message_payload_buffer;
             auto client_name = ss.str();
             std::cerr << "set_active_session '" << client_name << "'" << std::endl;
-            handler->set_active_session(client_name);
+            if (handler)
+                handler->set_active_session(client_name);
             break;
         }
         default:
