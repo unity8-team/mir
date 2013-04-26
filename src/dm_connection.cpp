@@ -50,12 +50,14 @@ void DMConnection::on_read_header(const bs::error_code& ec)
         size_t const payload_length = message_header_bytes[2] << 8 | message_header_bytes[3];
         std::cerr << "payload length: " << payload_length << std::endl;
         ba::async_read(from_dm_pipe,
-                       read_buffer,
+                       message_payload_buffer,
                        ba::transfer_exactly(payload_length),
                        boost::bind(&DMConnection::on_read_payload,
                                    this,
                                    ba::placeholders::error));
     }
+    else
+        std::cerr << "Failed to read header" << std::endl;
 }
 
 void DMConnection::on_read_payload(const bs::error_code& ec)
@@ -80,14 +82,19 @@ void DMConnection::on_read_payload(const bs::error_code& ec)
         }
         case USCMessageID::set_active_session:
         {
-            // FIXME: Get session name
-            handler->set_active_session("");
+            std::ostringstream ss;
+            ss << &message_payload_buffer;
+            auto client_name = ss.str();
+            std::cerr << "set_active_session '" << client_name << "'" << std::endl;
+            handler->set_active_session(client_name);
         }
         default:
             std::cerr << "Ignoring unknown message " << (uint16_t) message_id << " with " << payload_length << " octets" << std::endl;
             break;
         }
     }
+    else
+        std::cerr << "Failed to read payload" << std::endl;
 
     read_header();
 }

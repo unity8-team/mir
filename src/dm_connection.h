@@ -66,7 +66,7 @@ private:
     boost::asio::posix::stream_descriptor to_dm_pipe;
     static size_t const size_of_header = 4;
     unsigned char message_header_bytes[size_of_header];
-    boost::asio::streambuf read_buffer;
+    boost::asio::streambuf message_payload_buffer;
     std::vector<char> write_buffer;
 
     void read_header();
