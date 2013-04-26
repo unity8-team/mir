@@ -75,10 +75,12 @@ void DMConnection::on_read_payload(const bs::error_code& ec)
         {
             std::cerr << "ping" << std::endl;
             send(USCMessageID::pong, "");
+            break;
         }
         case USCMessageID::pong:
         {
             std::cerr << "pong" << std::endl;
+            break;
         }
         case USCMessageID::set_active_session:
         {
@@ -87,6 +89,7 @@ void DMConnection::on_read_payload(const bs::error_code& ec)
             auto client_name = ss.str();
             std::cerr << "set_active_session '" << client_name << "'" << std::endl;
             handler->set_active_session(client_name);
+            break;
         }
         default:
             std::cerr << "Ignoring unknown message " << (uint16_t) message_id << " with " << payload_length << " octets" << std::endl;
