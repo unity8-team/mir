@@ -45,7 +45,7 @@ enum class USCMessageID
 class DMConnection
 {
 public:
-    DMConnection(int from_dm_fd, int to_dm_fd) :
+    DMConnection(boost::asio::io_service& io_service, int from_dm_fd, int to_dm_fd) :
         handler(std::make_shared<NullDMMessageHandler>()),
         from_dm_pipe(io_service, from_dm_fd),
         to_dm_pipe(io_service, to_dm_fd) {};
@@ -60,7 +60,6 @@ public:
     void send_ready();
 
 private:
-    boost::asio::io_service io_service;
     std::shared_ptr<DMMessageHandler> handler;
     boost::asio::posix::stream_descriptor from_dm_pipe;
     boost::asio::posix::stream_descriptor to_dm_pipe;
