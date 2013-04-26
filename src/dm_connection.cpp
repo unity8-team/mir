@@ -48,7 +48,6 @@ void DMConnection::on_read_header(const bs::error_code& ec)
     if (!ec)
     {
         size_t const payload_length = message_header_bytes[2] << 8 | message_header_bytes[3];
-        std::cerr << "payload length: " << payload_length << std::endl;
         ba::async_read(from_dm_pipe,
                        message_payload_buffer,
                        ba::transfer_exactly(payload_length),
@@ -66,8 +65,6 @@ void DMConnection::on_read_payload(const bs::error_code& ec)
     {
         auto message_id = (USCMessageID) (message_header_bytes[0] << 8 | message_header_bytes[1]);
         size_t const payload_length = message_header_bytes[2] << 8 | message_header_bytes[3];
-
-        std::cerr << "message id: " << (uint16_t) message_id << std::endl;
 
         switch (message_id)
         {
