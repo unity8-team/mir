@@ -171,6 +171,9 @@ int mgg::LinuxVirtualTerminal::find_active_vt_number()
     return active_vt;
 }
 
+#include <termios.h>
+#include <unistd.h>
+
 int mgg::LinuxVirtualTerminal::open_vt(int vt_number)
 {
     std::stringstream vt_path_stream;
@@ -188,6 +191,11 @@ int mgg::LinuxVirtualTerminal::open_vt(int vt_number)
                     << boost::errinfo_file_name(active_vt_path)
                     << boost::errinfo_errno(errno));
     }
+    struct termios terminal_attributes;
+    tcgetattr(vt_fd, &terminal_attributes);
+//    cfmakeraw(&terminal_attributes);
+//    terminal_attributes.c_oflag |= OPOST | OCRNL;
+    tcsetattr(vt_fd, TCSANOW, &terminal_attributes);
 
     return vt_fd;
 }
