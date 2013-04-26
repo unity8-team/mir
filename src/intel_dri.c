@@ -1523,7 +1523,7 @@ out_complete:
 static int dri2_server_generation;
 #endif
 
-static bool has_i830_dri(void)
+static int has_i830_dri(void)
 {
 	return access(DRI_DRIVER_PATH "/i830_dri.so", R_OK) == 0;
 }
