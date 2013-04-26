@@ -14,12 +14,6 @@
 #
 # Authored by: Robert Ancell <robert.ancell@canonical.com>
 
-# Compile protocol
-protobuf_generate_cpp(
-  GENERATED_PROTOBUF_SRCS GENERATED_PROTOBUF_HDRS
-  dm_protocol.proto
-)
-
 # Compile system compositor
 add_executable(
   unity-system-compositor
@@ -28,8 +22,6 @@ add_executable(
   dm_connection.h
   system_compositor.cpp
   system_compositor.h
-  ${GENERATED_PROTOBUF_SRCS}
-  ${GENERATED_PROTOBUF_HDRS}
 )
 
 # Link against libmirserver
@@ -37,7 +29,6 @@ target_link_libraries(unity-system-compositor
   mirserver
   pthread
   ${Boost_LIBRARIES}
-  ${PROTOBUF_LIBRARIES}
 )
 
 # Install into bin directory

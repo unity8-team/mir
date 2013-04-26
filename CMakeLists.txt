@@ -34,7 +34,4 @@ include_directories(${MIRSERVER_INCLUDE_DIRS})
 find_package(Boost 1.48.0 COMPONENTS chrono date_time filesystem system thread program_options regex REQUIRED)
 include_directories(${Boost_INCLUDE_DIRS})
 
-# Check for Google Protocol Buffers
-find_package(Protobuf REQUIRED)
-
 add_subdirectory(src/)

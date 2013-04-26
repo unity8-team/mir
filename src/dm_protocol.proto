@@ -1,3 +1,0 @@
-message FocusSession {
-  required string client_name = 1;
-};
