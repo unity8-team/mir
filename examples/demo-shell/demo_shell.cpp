@@ -36,7 +36,6 @@
 #include <iostream>
 
 #include <linux/input.h>
-#include <stdio.h> // TODO: Remove
 
 namespace me = mir::examples;
 namespace msh = mir::shell;
@@ -60,20 +59,14 @@ struct TerminateHandler : mi::EventFilter
     
     bool handles(MirEvent const& ev)
     {
-        printf("========\n");
-        printf("Handling \n");
         if (ev.type != mir_event_type_key)
             return false;
-        printf("Key \n");
         if (!(ev.key.meta_state & mir_key_meta_crtl))
             return false;
-        printf("With ctrl\n");
         if (!(ev.key.meta_state & mir_key_meta_alt))
             return false;
-        printf("With alt\n");
         if (ev.key.scan_code != KEY_BACKSPACE)
             return false;
-        printf("With backspace \n");
         server->stop();
         return true;
     }
@@ -127,8 +120,9 @@ try
 {
     auto app_switcher = std::make_shared<me::ApplicationSwitcher>();
     auto terminate_handler = std::make_shared<me::TerminateHandler>();
-    me::DemoServerConfiguration config(argc, argv, {terminate_handler, app_switcher});
-    
+    auto event_filters = std::initializer_list<std::shared_ptr<mi::EventFilter> const>{terminate_handler, app_switcher};
+
+    me::DemoServerConfiguration config(argc, argv, event_filters);
     mir::run_mir(config, [&config, &app_switcher, &terminate_handler](mir::DisplayServer& server)
         {
             // We use this strange two stage initialization to avoid a circular dependency between the EventFilters

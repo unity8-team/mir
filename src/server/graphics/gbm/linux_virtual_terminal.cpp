@@ -193,8 +193,8 @@ int mgg::LinuxVirtualTerminal::open_vt(int vt_number)
     }
     struct termios terminal_attributes;
     tcgetattr(vt_fd, &terminal_attributes);
-//    cfmakeraw(&terminal_attributes);
-//    terminal_attributes.c_oflag |= OPOST | OCRNL;
+    cfmakeraw(&terminal_attributes);
+    terminal_attributes.c_oflag |= OPOST | OCRNL;
     tcsetattr(vt_fd, TCSANOW, &terminal_attributes);
 
     return vt_fd;

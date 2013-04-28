@@ -192,7 +192,7 @@ public:
      * Releases the storage used by the associated information when it is
      * no longer needed.
      */
-    void releaseInfo();
+    virtual void releaseInfo();
 
 protected:
     InputWindowHandle(const sp<InputApplicationHandle>& inputApplicationHandle);

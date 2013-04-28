@@ -26,6 +26,8 @@
 
 #include <limits.h>
 
+#include <stdio.h> // TODO: Remove
+
 namespace mi = mir::input;
 namespace mia = mi::android;
 
@@ -34,13 +36,16 @@ mia::InputWindowHandle::InputWindowHandle(droidinput::sp<droidinput::InputApplic
   : droidinput::InputWindowHandle(input_app_handle),
     surface(surface)
 {
+    printf("Constructing window handle: %s \n", surface->name().c_str());
     updateInfo();
 }
 
 bool mia::InputWindowHandle::updateInfo()
 {
+    printf("Updating window handle: %s \n", surface->name().c_str());
     if (!mInfo)
     {
+        printf("Constructing info: %s \n", surface->name().c_str());
         mInfo = new droidinput::InputWindowInfo();
 
         // TODO: How can we avoid recreating the InputChannel which the InputChannelFactory has already created?
@@ -77,4 +82,9 @@ bool mia::InputWindowHandle::updateInfo()
     // TODO: Set touchableRegion and layer for touch events.
 
     return true;
+}
+
+void mia::InputWindowHandle::releaseInfo()
+{
+    // This is a noop for Mir 
 }

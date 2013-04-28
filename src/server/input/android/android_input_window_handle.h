@@ -43,6 +43,7 @@ public:
     ~InputWindowHandle() {}
 
     bool updateInfo();
+    void releaseInfo();
 
 protected:
     InputWindowHandle(InputWindowHandle const&) = delete;
