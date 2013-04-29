@@ -37,6 +37,11 @@ typedef struct {
 void
 ubuntu_application_ui_init(int argc, char**argv)
 {
+    if (global_connection)
+        return;
+    global_connection = mir_connect_sync(socket_file, "Sadness");
+    assert(global_connection);
+
 }
 
 StageHint
@@ -56,10 +61,6 @@ ubuntu_application_ui_setup_get_form_factor_hint()
 void
 ubuntu_application_ui_start_a_new_session(SessionCredentials* creds)
 {
-    if (global_connection)
-        return;
-    global_connection = mir_connect_sync(socket_file, creds->application_name);
-    assert(global_connection);
 }
 
 EGLNativeDisplayType
