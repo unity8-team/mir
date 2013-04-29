@@ -153,6 +153,7 @@ void NVC0SyncToVBlank(PixmapPtr ppix, BoxPtr box);
 Bool NVAccelInitM2MF_NVC0(ScrnInfoPtr pScrn);
 Bool NVAccelInitCopy_NVC0(ScrnInfoPtr pScrn);
 Bool NVAccelInitP2MF_NVE0(ScrnInfoPtr pScrn);
+Bool NVAccelInitCOPY_NVE0(ScrnInfoPtr pScrn);
 Bool NVAccelInit2D_NVC0(ScrnInfoPtr pScrn);
 Bool NVAccelInit3D_NVC0(ScrnInfoPtr pScrn);
 

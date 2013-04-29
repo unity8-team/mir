@@ -103,6 +103,7 @@ typedef struct _NVRec {
 	struct nouveau_object *Nv2D;
 	struct nouveau_object *Nv3D;
 	struct nouveau_object *NvSW;
+	struct nouveau_object *NvCOPY;
 	struct nouveau_bo *scratch;
 
 	Bool ce_enabled;

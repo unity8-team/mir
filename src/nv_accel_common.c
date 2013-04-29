@@ -649,8 +649,10 @@ NVAccelCommonInit(ScrnInfoPtr pScrn)
 	else
 	if (pNv->Architecture < NV_ARCH_E0)
 		INIT_CONTEXT_OBJECT(M2MF_NVC0);
-	else
+	else {
 		INIT_CONTEXT_OBJECT(P2MF_NVE0);
+		INIT_CONTEXT_OBJECT(COPY_NVE0);
+	}
 
 	/* 3D init */
 	switch (pNv->Architecture) {
@@ -702,6 +704,7 @@ void NVAccelFree(ScrnInfoPtr pScrn)
 	nouveau_object_del(&pNv->NvMemFormat);
 	nouveau_object_del(&pNv->NvSW);
 	nouveau_object_del(&pNv->Nv3D);
+	nouveau_object_del(&pNv->NvCOPY);
 
 	nouveau_bo_ref(NULL, &pNv->scratch);
 }
