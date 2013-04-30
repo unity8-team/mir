@@ -19,18 +19,28 @@
 #ifndef MIR_EXAMPLES_INPROCESS_EGL_CLIENT_H_
 #define MIR_EXAMPLES_INPROCESS_EGL_CLIENT_H_
 
+#include "mir_toolkit/event.h"
+
 #include <thread>
 #include <memory>
+#include <atomic>
 
 namespace mir
 {
+namespace client
+{
+namespace input
+{
+class InputReceiverThread;
+}
+}
 namespace graphics
 {
 class Platform;
 }
 namespace shell
 {
-class SurfaceFactory;
+class SessionManager;
 }
 
 namespace examples
@@ -41,7 +51,7 @@ class InprocessEGLClient
 {
 public:
     InprocessEGLClient(std::shared_ptr<graphics::Platform> const& graphics_platform,
-                       std::shared_ptr<shell::SurfaceFactory> const& surface_factory);
+                       std::shared_ptr<shell::SessionManager> const& session_manager);
 
 protected:
     InprocessEGLClient(InprocessEGLClient const&) = delete;
@@ -49,10 +59,15 @@ protected:
 
 private:
     std::shared_ptr<graphics::Platform> const graphics_platform;
-    std::shared_ptr<shell::SurfaceFactory> const surface_factory;
-    
+    std::shared_ptr<shell::SessionManager> const session_manager;
+
+    std::atomic<bool> running;
     std::thread client_thread;
+    
+    std::shared_ptr<client::input::InputReceiverThread> input_thread;
+    
     void thread_loop();
+    void handle_event(MirEvent *event);
 };
 
 }
