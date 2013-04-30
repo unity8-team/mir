@@ -26,7 +26,7 @@
 #include "gbm/mock_drm.h"
 #include "gbm/mock_gbm.h"
 #include "mir_test_doubles/null_virtual_terminal.h"
-#include "src/server/graphics/gbm/gbm_platform.h"
+#include "src/server/platform/gbm_platform.h"
 #else
 #include "mir_test/hw_mock.h"
 #endif

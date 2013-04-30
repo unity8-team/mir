@@ -19,7 +19,7 @@
 
 #include "gbm_buffer_allocator.h"
 #include "gbm_buffer.h"
-#include "gbm_platform.h"
+#include "../../gbm_platform.h"
 #include "buffer_texture_binder.h"
 #include "mir/graphics/buffer_initializer.h"
 #include "mir/compositor/buffer_properties.h"

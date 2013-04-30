@@ -18,7 +18,7 @@
 
 #include "mir/graphics/platform_ipc_package.h"
 #include "mir/graphics/drm_authenticator.h"
-#include "src/server/graphics/gbm/gbm_platform.h"
+#include "src/server/platform/gbm_platform.h"
 #include "mir_test_doubles/null_virtual_terminal.h"
 
 #include "mir/graphics/null_display_report.h"

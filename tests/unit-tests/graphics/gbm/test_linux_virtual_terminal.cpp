@@ -16,7 +16,7 @@
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
-#include "src/server/graphics/gbm/linux_virtual_terminal.h"
+#include "src/server/platform/display/gbm/linux_virtual_terminal.h"
 #include "mir/graphics/null_display_report.h"
 #include "mir/main_loop.h"
 

@@ -17,7 +17,7 @@
  */
 
 #include "gbm_display.h"
-#include "gbm_platform.h"
+#include "../../gbm_platform.h"
 #include "gbm_display_buffer.h"
 #include "kms_display_configuration.h"
 #include "kms_output.h"

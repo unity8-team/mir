@@ -4,6 +4,7 @@ add_subdirectory(compositor/)
 add_subdirectory(graphics/)
 add_subdirectory(input/)
 add_subdirectory(logging/)
+add_subdirectory(platform/)
 add_subdirectory(surfaces/)
 add_subdirectory(options/)
 add_subdirectory(frontend/)
@@ -48,6 +49,7 @@ list(APPEND MIRSERVER_ARCHIVES
   mircompositor
   mirfrontend
   mirgraphics
+  mirplatform
   mirinput
   mirsharedinput
   mirsurfaces
@@ -55,7 +57,7 @@ list(APPEND MIRSERVER_ARCHIVES
 )
 
 list(APPEND MIRSERVER_LINKS
-  mirplatformgraphics
+  mirplatform
   mirprotobuf
   3rd_party
 )

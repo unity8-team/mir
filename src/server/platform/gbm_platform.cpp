@@ -18,9 +18,9 @@
 
 #include "gbm_platform.h"
 
-#include "gbm_buffer_allocator.h"
-#include "gbm_display.h"
-#include "linux_virtual_terminal.h"
+#include "graphics_buffer/gbm/gbm_buffer_allocator.h"
+#include "display/gbm/gbm_display.h"
+#include "display/gbm/linux_virtual_terminal.h"
 #include "mir/graphics/platform_ipc_package.h"
 #include "mir/graphics/egl/mesa_native_display.h"
 

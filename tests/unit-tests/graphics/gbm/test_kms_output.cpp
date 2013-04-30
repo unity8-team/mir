@@ -16,8 +16,8 @@
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
-#include "src/server/graphics/gbm/kms_output.h"
-#include "src/server/graphics/gbm/page_flipper.h"
+#include "src/server/platform/display/gbm/kms_output.h"
+#include "src/server/platform/display/gbm/page_flipper.h"
 
 #include "mir_test/fake_shared.h"
 

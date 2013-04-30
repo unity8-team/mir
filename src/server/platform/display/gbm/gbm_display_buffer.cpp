@@ -17,7 +17,7 @@
  */
 
 #include "gbm_display_buffer.h"
-#include "gbm_platform.h"
+#include "../../gbm_platform.h"
 #include "kms_output.h"
 #include "mir/graphics/display_report.h"
 
