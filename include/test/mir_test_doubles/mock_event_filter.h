@@ -34,9 +34,8 @@ struct MockEventFilter : public mir::input::EventFilter
 {
     MOCK_METHOD1(handles, bool(const MirEvent&));
 };
-
 }
 }
-}
+} // namespace mir
 
 #endif // MIR_TEST_DOUBLES_MOCK_EVENT_FILTER_H_

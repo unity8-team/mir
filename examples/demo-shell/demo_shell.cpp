@@ -16,11 +16,14 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
+/// \example demo_shell.cpp A simple mir shell
+
 #include "application_switcher.h"
 #include "fullscreen_placement_strategy.h"
 #include "software_cursor_overlay_renderer.h"
 
 #include "mir/run_mir.h"
+#include "mir/report_exception.h"
 #include "mir/default_server_configuration.h"
 #include "mir/shell/session_manager.h"
 #include "mir/shell/registration_order_focus_sequence.h"
@@ -32,7 +35,6 @@
 
 #include "mir_toolkit/event.h"
 
-#include <boost/exception/diagnostic_information.hpp>
 #include <iostream>
 
 #include <linux/input.h>
@@ -133,8 +135,8 @@ try
         });
     return 0;
 }
-catch (std::exception const& error)
+catch (...)
 {
-    std::cerr << "ERROR: " << boost::diagnostic_information(error) << std::endl;
+    mir::report_exception(std::cerr);
     return 1;
-} 
+}

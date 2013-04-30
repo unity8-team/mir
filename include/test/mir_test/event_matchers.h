@@ -50,6 +50,14 @@ MATCHER(ButtonDownEvent, "")
         return false;
     return arg.motion.action == mir_motion_action_down;
 }
+MATCHER(ButtonUpEvent, "")
+{
+    if (arg.type != mir_event_type_motion)
+        return false;
+    if (arg.motion.button_state != 0)
+        return false;
+    return arg.motion.action == mir_motion_action_up;
+}
 MATCHER_P2(MotionEvent, dx, dy, "")
 {
     if (arg.type != mir_event_type_motion)
@@ -57,7 +65,6 @@ MATCHER_P2(MotionEvent, dx, dy, "")
     auto coords = &arg.motion.pointer_coordinates[0];
     return (coords->x == dx) && (coords->y == dy);
 }
-
 }
 } // namespace mir
 
