@@ -1,0 +1,50 @@
+New device: id=1, fd=23, path='/dev/input/event10', name='ETPS/2 Elantech Touchpad', classes=0x14, configuration='', keyLayout='', keyCharacterMap='', builtinKeyboard=false, usingSuspendBlockIoctl=false, usingClockIoctl=true
+could not get driver version for /dev/input/mouse0, Inappropriate ioctl for device
+
+loaded the dummy plugin 
+loaded the Generic plugin 
+loaded the Linux plugin 
+file:///home/racarr/src/mirqt/qml/mirqt/Launcher/Launcher.qml: File not found 
+could not open /dev/input/by-id, Is a directory
+
+Could not determine key map for device 'USB2.0 VGA Webcam' and no default key maps were found!
+New device: id=2, fd=37, path='/dev/input/event9', name='USB2.0 VGA Webcam', classes=0x80000001, configuration='', keyLayout='Generic.kl', keyCharacterMap='Generic.kcm', builtinKeyboard=false, usingSuspendBlockIoctl=false, usingClockIoctl=true
+New device: id=3, fd=38, path='/dev/input/event8', name='HDA Intel PCH Headphone', classes=0x80, configuration='', keyLayout='', keyCharacterMap='', builtinKeyboard=false, usingSuspendBlockIoctl=false, usingClockIoctl=true
+New device: id=4, fd=39, path='/dev/input/event7', name='HDA Intel PCH Mic', classes=0x80, configuration='', keyLayout='', keyCharacterMap='', builtinKeyboard=false, usingSuspendBlockIoctl=false, usingClockIoctl=true
+New device: id=5, fd=40, path='/dev/input/event6', name='HDA Intel PCH HDMI/DP,pcm=3', classes=0x80, configuration='', keyLayout='', keyCharacterMap='', builtinKeyboard=false, usingSuspendBlockIoctl=false, usingClockIoctl=true
+Could not determine key map for device 'Asus WMI hotkeys' and no default key maps were found!
+New device: id=6, fd=41, path='/dev/input/event5', name='Asus WMI hotkeys', classes=0x1, configuration='', keyLayout='Generic.kl', keyCharacterMap='Generic.kcm', builtinKeyboard=false, usingSuspendBlockIoctl=false, usingClockIoctl=true
+could not open /dev/input/by-path, Is a directory
+
+Could not determine key map for device 'Video Bus' and no default key maps were found!
+New device: id=7, fd=42, path='/dev/input/event4', name='Video Bus', classes=0x1, configuration='', keyLayout='Generic.kl', keyCharacterMap='Generic.kcm', builtinKeyboard=false, usingSuspendBlockIoctl=false, usingClockIoctl=true
+Could not determine key map for device 'AT Translated Set 2 keyboard' and no default key maps were found!
+New device: id=8, fd=43, path='/dev/input/event3', name='AT Translated Set 2 keyboard', classes=0x3, configuration='', keyLayout='Generic.kl', keyCharacterMap='Generic.kcm', builtinKeyboard=false, usingSuspendBlockIoctl=false, usingClockIoctl=true
+Could not determine key map for device 'Power Button' and no default key maps were found!
+New device: id=9, fd=44, path='/dev/input/event2', name='Power Button', classes=0x1, configuration='', keyLayout='Generic.kl', keyCharacterMap='Generic.kcm', builtinKeyboard=false, usingSuspendBlockIoctl=false, usingClockIoctl=true
+Could not determine key map for device 'Sleep Button' and no default key maps were found!
+New device: id=10, fd=45, path='/dev/input/event1', name='Sleep Button', classes=0x1, configuration='', keyLayout='Generic.kl', keyCharacterMap='Generic.kcm', builtinKeyboard=false, usingSuspendBlockIoctl=false, usingClockIoctl=true
+New device: id=11, fd=46, path='/dev/input/event0', name='Lid Switch', classes=0x80, configuration='', keyLayout='', keyCharacterMap='', builtinKeyboard=false, usingSuspendBlockIoctl=false, usingClockIoctl=true
+could not get driver version for /dev/input/mice, Inappropriate ioctl for device
+
+Could not determine key map for device 'Virtual' and no default key maps were found!
+Device added: id=-1, name='Virtual', sources=0x00000301
+Device added: id=11, name='Lid Switch', sources=0x80000000
+Device added: id=10, name='Sleep Button', sources=0x00000101
+Device added: id=9, name='Power Button', sources=0x00000101
+Device added: id=8, name='AT Translated Set 2 keyboard', sources=0x00000101
+Device added: id=7, name='Video Bus', sources=0x00000101
+Device added: id=6, name='Asus WMI hotkeys', sources=0x00000101
+Device added: id=5, name='HDA Intel PCH HDMI/DP,pcm=3', sources=0x80000000
+Device added: id=4, name='HDA Intel PCH Mic', sources=0x80000000
+Device added: id=3, name='HDA Intel PCH Headphone', sources=0x80000000
+Device added: id=2, name='USB2.0 VGA Webcam', sources=0x00000101
+Device reconfigured: id=1, name='ETPS/2 Elantech Touchpad', surface size is now 1366x768, mode is 3
+Device added: id=1, name='ETPS/2 Elantech Touchpad', sources=0x00002002
+Input app opened: QUbuntuWindow 
+Input surface opened: QUbuntuWindow 
+Constructing window handle: QUbuntuWindow 
+Updating window handle: QUbuntuWindow 
+Constructing info: QUbuntuWindow 
+Focus changed: QUbuntuWindow 
+Updating window handle: QUbuntuWindow 

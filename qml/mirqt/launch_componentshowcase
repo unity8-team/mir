@@ -1,0 +1,2 @@
+#!/bin/bash
+/usr/lib/*/qt5/bin/qmlscene /usr/lib/ubuntu-ui-toolkit/demos/ComponentShowcase.qml
