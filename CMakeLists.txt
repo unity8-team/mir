@@ -14,12 +14,17 @@ set(
   hybris
   CACHE
   STRING
-  "API implementation to build (options are 'hybris' or 'mirclient')"
+  "API implementation to build (options are 'hybris', 'mirclient', or 'mirserver')"
 )
 
 if (PLATFORM_API_IMPLEMENTATION STREQUAL "mirclient")
   find_package( PkgConfig ) 
   pkg_check_modules( MIR_CLIENT mirclient )
+endif()
+
+if (PLATFORM_API_IMPLEMENTATION STREQUAL "mirserver")
+  find_package( PkgConfig ) 
+  pkg_check_modules( MIR_SERVER mirserver )
 endif()
 
 include_directories(include/)
