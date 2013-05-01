@@ -13726,6 +13726,7 @@ sna_accel_flush_callback(CallbackListPtr *list,
 			     __FUNCTION__,
 			     priv->pixmap->drawable.serialNumber,
 			     priv->pixmap->refcnt));
+			assert(!priv->flush);
 			ret = sna_pixmap_move_to_cpu(priv->pixmap,
 						     MOVE_READ | MOVE_WRITE);
 			assert(!ret || priv->gpu_bo == NULL);
@@ -13734,6 +13735,7 @@ sna_accel_flush_callback(CallbackListPtr *list,
 		} else {
 			DBG(("%s: flushing DRI pixmap=%ld\n", __FUNCTION__,
 			     priv->pixmap->drawable.serialNumber));
+			assert(priv->flush);
 			if (sna_pixmap_move_to_gpu(priv->pixmap,
 						   MOVE_READ | __MOVE_FORCE))
 				kgem_bo_unclean(&sna->kgem, priv->gpu_bo);

@@ -286,6 +286,7 @@ static void *__kgem_bo_map__gtt(struct kgem *kgem, struct kgem_bo *bo)
 	DBG(("%s(handle=%d, size=%d)\n", __FUNCTION__,
 	     bo->handle, bytes(bo)));
 	assert(bo->proxy == NULL);
+	assert(!bo->snoop);
 
 retry_gtt:
 	VG_CLEAR(mmap_arg);
@@ -848,7 +849,9 @@ static bool test_has_userptr(struct kgem *kgem)
 	if (kgem->gen == 040)
 		return false;
 
-	ptr = malloc(PAGE_SIZE);
+	if (posix_memalign(&ptr, PAGE_SIZE, PAGE_SIZE))
+		return false;
+
 	handle = gem_userptr(kgem->fd, ptr, PAGE_SIZE, false);
 	gem_close(kgem->fd, handle);
 	free(ptr);
@@ -4804,6 +4807,7 @@ struct kgem_bo *kgem_create_map(struct kgem *kgem,
 				bool read_only)
 {
 	struct kgem_bo *bo;
+	uintptr_t first_page, last_page;
 	uint32_t handle;
 
 	assert(MAP(ptr) == ptr);
@@ -4811,22 +4815,44 @@ struct kgem_bo *kgem_create_map(struct kgem *kgem,
 	if (!kgem->has_userptr)
 		return NULL;
 
-	handle = gem_userptr(kgem->fd, ptr, size, read_only);
+	first_page = (uintptr_t)ptr;
+	last_page = first_page + size + PAGE_SIZE - 1;
+
+	first_page &= ~(PAGE_SIZE-1);
+	last_page &= ~(PAGE_SIZE-1);
+	assert(last_page > first_page);
+
+	handle = gem_userptr(kgem->fd,
+			     (void *)first_page, last_page-first_page,
+			     read_only);
 	if (handle == 0)
 		return NULL;
 
-	bo = __kgem_bo_alloc(handle, NUM_PAGES(size));
+	bo = __kgem_bo_alloc(handle, (last_page - first_page) / PAGE_SIZE);
 	if (bo == NULL) {
 		gem_close(kgem->fd, handle);
 		return NULL;
 	}
 
 	bo->snoop = !kgem->has_llc;
-	bo->map = MAKE_USER_MAP(ptr);
 	debug_alloc__bo(kgem, bo);
 
-	DBG(("%s(ptr=%p, size=%d, pages=%d, read_only=%d) => handle=%d\n",
-	     __FUNCTION__, ptr, size, NUM_PAGES(size), read_only, handle));
+	if (first_page != (uintptr_t)ptr) {
+		struct kgem_bo *proxy;
+
+		proxy = kgem_create_proxy(kgem, bo,
+					  (uintptr_t)ptr - first_page, size);
+		kgem_bo_destroy(kgem, bo);
+		if (proxy == NULL)
+			return NULL;
+
+		bo = proxy;
+	}
+
+	bo->map = MAKE_USER_MAP(ptr);
+
+	DBG(("%s(ptr=%p, size=%d, pages=%d, read_only=%d) => handle=%d (proxy? %d)\n",
+	     __FUNCTION__, ptr, size, NUM_PAGES(size), read_only, handle, bo->proxy != NULL));
 	return bo;
 }
 
@@ -4946,6 +4972,8 @@ struct kgem_bo *kgem_create_proxy(struct kgem *kgem,
 	bo->dirty = target->dirty;
 	bo->tiling = target->tiling;
 	bo->pitch = target->pitch;
+	bo->flush = target->flush;
+	bo->snoop = target->snoop;
 
 	assert(!bo->scanout);
 	bo->proxy = kgem_bo_reference(target);
@@ -5154,7 +5182,7 @@ free_cacheing:
 			return NULL;
 
 		//if (posix_memalign(&ptr, 64, ALIGN(size, 64)))
-		if (posix_memalign(&bo->mem, PAGE_SIZE, alloc *PAGE_SIZE)) {
+		if (posix_memalign(&bo->mem, PAGE_SIZE, alloc * PAGE_SIZE)) {
 			free(bo);
 			return NULL;
 		}
@@ -5757,7 +5785,7 @@ kgem_replace_bo(struct kgem *kgem,
 	assert(src->tiling == I915_TILING_NONE);
 
 	size = height * pitch;
-	size = PAGE_ALIGN(size) / PAGE_SIZE;
+	size = NUM_PAGES(size);
 
 	dst = search_linear_cache(kgem, size, 0);
 	if (dst == NULL)
