@@ -19,8 +19,8 @@
 #include "mir/compositor/buffer.h"
 
 #include "fb_device.h"
-#include "android_buffer.h"
-#include "android_format_conversion-inl.h"
+#include "../../graphics_buffer/android/android_buffer.h"
+#include "../../graphics_buffer/android/android_format_conversion-inl.h"
 
 #include <algorithm>
 #include <boost/throw_exception.hpp>

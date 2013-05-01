@@ -19,7 +19,7 @@
 #ifndef MIR_TEST_DOUBLES_MOCK_ANDROID_FRAMEBUFFER_WINDOW_H_
 #define MIR_TEST_DOUBLES_MOCK_ANDROID_FRAMEBUFFER_WINDOW_H_
 
-#include "src/server/graphics/android/android_framebuffer_window_query.h"
+#include "src/server/platform/display/android/android_framebuffer_window_query.h"
 #include <gmock/gmock.h>
 
 namespace mir

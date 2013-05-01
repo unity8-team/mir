@@ -19,7 +19,7 @@
 #ifndef MIR_TEST_DOUBLES_MOCK_HWC_ORGANIZER_H_
 #define MIR_TEST_DOUBLES_MOCK_HWC_ORGANIZER_H_
 
-#include "src/server/graphics/android/hwc_layerlist.h"
+#include "src/server/platform/display/android/hwc_layerlist.h"
 
 #include <gmock/gmock.h>
 

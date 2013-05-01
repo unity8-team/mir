@@ -17,14 +17,14 @@
  */
 
 #include "mir/graphics/buffer_initializer.h"
-#include "src/server/graphics/android/android_display.h"
-#include "src/server/graphics/android/hwc10_device.h"
-#include "src/server/graphics/android/hwc11_device.h"
-#include "src/server/graphics/android/hwc_layerlist.h"
-#include "src/server/graphics/android/hwc_display.h"
-#include "src/server/graphics/android/default_framebuffer_factory.h"
-#include "src/server/graphics/android/android_graphic_buffer_allocator.h"
-#include "src/server/graphics/android/fb_device.h"
+#include "src/server/platform/display/android/android_display.h"
+#include "src/server/platform/display/android/hwc10_device.h"
+#include "src/server/platform/display/android/hwc11_device.h"
+#include "src/server/platform/display/android/hwc_layerlist.h"
+#include "src/server/platform/display/android/hwc_display.h"
+#include "src/server/platform/display/android/default_framebuffer_factory.h"
+#include "src/server/platform/graphics_buffer/android/android_graphic_buffer_allocator.h"
+#include "src/server/platform/display/android/fb_device.h"
 
 #include "examples/graphics.h"
 #include "mir_test/draw/android_graphics.h"

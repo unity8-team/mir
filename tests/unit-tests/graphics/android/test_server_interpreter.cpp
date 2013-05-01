@@ -16,8 +16,8 @@
  * Authored by: Kevin DuBois <kevin.dubois@canonical.com>
  */
 
-#include "src/server/graphics/android/server_render_window.h"
-#include "src/server/graphics/android/fb_swapper.h"
+#include "src/server/platform/display/android/server_render_window.h"
+#include "src/server/platform/display/android/fb_swapper.h"
 
 #include "mir_test_doubles/mock_display_support_provider.h"
 #include "mir_test_doubles/mock_android_buffer.h"

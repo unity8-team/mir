@@ -18,11 +18,11 @@
  */
 
 #include "android_platform.h"
-#include "android_graphic_buffer_allocator.h"
-#include "android_hwc_factory.h"
-#include "android_display_allocator.h"
-#include "android_display_factory.h"
-#include "default_framebuffer_factory.h"
+#include "graphics_buffer/android/android_graphic_buffer_allocator.h"
+#include "display/android/android_hwc_factory.h"
+#include "display/android/android_display_allocator.h"
+#include "display/android/android_display_factory.h"
+#include "display/android/default_framebuffer_factory.h"
 #include "mir/graphics/platform_ipc_package.h"
 #include "mir/graphics/buffer_initializer.h"
 #include "mir/compositor/buffer_id.h"

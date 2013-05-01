@@ -20,7 +20,7 @@
 #include "mir/graphics/android/mir_native_window.h"
 #include "default_framebuffer_factory.h"
 #include "fb_device.h"
-#include "graphic_buffer_allocator.h"
+#include "../../graphics_buffer/android/graphic_buffer_allocator.h"
 #include "server_render_window.h"
 #include "fb_simple_swapper.h"
 

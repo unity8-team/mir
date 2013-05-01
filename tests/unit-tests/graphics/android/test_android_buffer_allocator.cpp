@@ -16,7 +16,7 @@
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
-#include "src/server/graphics/android/android_graphic_buffer_allocator.h"
+#include "src/server/platform/graphics_buffer/android/android_graphic_buffer_allocator.h"
 #include "mir_test/hw_mock.h"
 #include "mir/graphics/buffer_initializer.h"
 #include "mir/compositor/buffer_properties.h"

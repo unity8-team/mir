@@ -21,6 +21,15 @@ set(
 )
 endif()
 
+if (MIR_PLATFORM STREQUAL "android")
+set(
+  PLATFORM_SOURCES
+  
+  ${PLATFORM_SOURCES}
+  android_platform.cpp
+)
+endif()
+
 if (MIR_PLATFORM STREQUAL "gbm")
   add_subdirectory(egl/)
 endif()

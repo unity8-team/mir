@@ -19,7 +19,7 @@
 #ifndef MIR_TEST_DOUBLES_MOCK_HWC_INTERFACE_H_
 #define MIR_TEST_DOUBLES_MOCK_HWC_INTERFACE_H_
 
-#include "src/server/graphics/android/hwc_device.h"
+#include "src/server/platform/display/android/hwc_device.h"
 
 #include <gmock/gmock.h>
 

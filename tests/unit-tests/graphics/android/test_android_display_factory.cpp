@@ -16,13 +16,13 @@
  * Authored by: Kevin DuBois <kevin.dubois@canonical.com>
  */
 
-#include "src/server/graphics/android/display_support_provider.h"
-#include "src/server/graphics/android/android_display_factory.h"
-#include "src/server/graphics/android/hwc_factory.h"
-#include "src/server/graphics/android/android_display_allocator.h"
-#include "src/server/graphics/android/framebuffer_factory.h"
-#include "src/server/graphics/android/fb_device.h"
-#include "src/server/graphics/android/hwc_device.h"
+#include "src/server/platform/display/android/display_support_provider.h"
+#include "src/server/platform/display/android/android_display_factory.h"
+#include "src/server/platform/display/android/hwc_factory.h"
+#include "src/server/platform/display/android/android_display_allocator.h"
+#include "src/server/platform/display/android/framebuffer_factory.h"
+#include "src/server/platform/display/android/fb_device.h"
+#include "src/server/platform/display/android/hwc_device.h"
 
 #include "mir_test_doubles/mock_display_support_provider.h"
 #include "mir_test_doubles/mock_display_report.h"

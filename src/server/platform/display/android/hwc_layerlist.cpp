@@ -17,7 +17,7 @@
  */
 
 #include "hwc_layerlist.h"
-#include "android_buffer.h"
+#include "../../graphics_buffer/android/android_buffer.h"
 
 #include <cstring>
 

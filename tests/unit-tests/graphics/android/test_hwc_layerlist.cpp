@@ -16,7 +16,7 @@
  * Authored by: Kevin DuBois <kevin.dubois@canonical.com>
  */
 
-#include "src/server/graphics/android/hwc_layerlist.h"
+#include "src/server/platform/display/android/hwc_layerlist.h"
 #include "mir_test_doubles/mock_android_buffer.h"
 #include "hwc_struct_helper-inl.h"
 #include <gtest/gtest.h>

@@ -16,8 +16,8 @@
  * Authored by: Kevin DuBois <kevin.dubois@canonical.com>
  */
 
-#include "src/server/graphics/android/hwc11_device.h"
-#include "src/server/graphics/android/hwc_layerlist.h"
+#include "src/server/platform/display/android/hwc11_device.h"
+#include "src/server/platform/display/android/hwc_layerlist.h"
 #include "mir_test_doubles/mock_display_support_provider.h"
 #include "mir_test_doubles/mock_hwc_composer_device_1.h"
 #include "mir_test_doubles/mock_hwc_organizer.h"

@@ -16,7 +16,7 @@
  * Authored by: Kevin DuBois <kevin.dubois@canonical.com>
  */
 
-#include "src/server/graphics/android/hwc_display.h"
+#include "src/server/platform/display/android/hwc_display.h"
 
 #include "mir_test_doubles/mock_hwc_interface.h"
 #include "mir_test_doubles/mock_android_framebuffer_window.h"

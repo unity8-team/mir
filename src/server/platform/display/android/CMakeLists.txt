@@ -5,12 +5,8 @@ include_directories(
 )
 
 add_library(
-  mirplatformgraphics STATIC
+  mirplatformdisplay STATIC
 
-  android_platform.cpp
-  android_buffer_allocator.cpp
-  buffer.cpp
-  android_buffer_handle.cpp
   android_display.cpp
   hwc_display.cpp
   hwc_layerlist.cpp
@@ -21,7 +17,6 @@ add_library(
   android_display_allocator.cpp
   android_framebuffer_window.cpp
   android_display_factory.cpp
-  android_alloc_adaptor.cpp
   server_render_window.cpp
   default_framebuffer_factory.cpp
   fb_simple_swapper.cpp
@@ -29,8 +24,10 @@ add_library(
 )
 
 target_link_libraries(
-  mirplatformgraphics
+  mirplatformdisplay
   mircompositor
+  mirplatformgraphicsbuffer
+  mirsharedandroid
 
   ${LIBHARDWARE_LIBRARIES}
   ${EGL_LDFLAGS} ${EGL_LIBRARIES}

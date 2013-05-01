@@ -17,7 +17,7 @@
  */
 
 #include "mir_test_doubles/mock_android_framebuffer_window.h"
-#include "src/server/graphics/android/android_display.h"
+#include "src/server/platform/display/android/android_display.h"
 #include "mir_test_doubles/mock_display_report.h"
 #include "mir_test/egl_mock.h"
 

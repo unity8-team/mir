@@ -19,7 +19,7 @@
 #ifndef MIR_TEST_DOUBLES_MOCK_DISPLAY_SUPPORT_PROVIDER_H_
 #define MIR_TEST_DOUBLES_MOCK_DISPLAY_SUPPORT_PROVIDER_H_
 
-#include "src/server/graphics/android/display_support_provider.h"
+#include "src/server/platform/display/android/display_support_provider.h"
 #include <gmock/gmock.h>
  
 namespace mir

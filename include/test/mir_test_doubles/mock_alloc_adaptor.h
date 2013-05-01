@@ -19,8 +19,8 @@
 #ifndef MIR_TEST_DOUBLES_MOCK_ALLOC_ADAPTOR_H_
 #define MIR_TEST_DOUBLES_MOCK_ALLOC_ADAPTOR_H_
 
-#include "src/server/graphics/android/graphic_alloc_adaptor.h"
-#include "src/server/graphics/android/android_buffer.h"
+#include "src/server/platform/graphics_buffer/android/graphic_alloc_adaptor.h"
+#include "src/server/platform/graphics_buffer/android/android_buffer.h"
 
 #include <system/window.h>
 #include <gmock/gmock.h>

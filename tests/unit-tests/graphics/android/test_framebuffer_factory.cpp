@@ -16,9 +16,9 @@
  * Authored by: Kevin DuBois <kevin.dubois@canonical.com>
  */
 
-#include "src/server/graphics/android/default_framebuffer_factory.h"
-#include "src/server/graphics/android/android_buffer_handle.h"
-#include "src/server/graphics/android/graphic_buffer_allocator.h"
+#include "src/server/platform/display/android/default_framebuffer_factory.h"
+#include "src/server/platform/graphics_buffer/android/android_buffer_handle.h"
+#include "src/server/platform/graphics_buffer/android/graphic_buffer_allocator.h"
 #include "mir/compositor/buffer_properties.h"
 #include "mir_test_doubles/mock_display_support_provider.h"
 

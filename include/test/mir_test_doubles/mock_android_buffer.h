@@ -19,7 +19,7 @@
 #ifndef MIR_TEST_DOUBLES_MOCK_ANDROID_BUFFER_H_
 #define MIR_TEST_DOUBLES_MOCK_ANDROID_BUFFER_H_
 
-#include "src/server/graphics/android/android_buffer.h"
+#include "src/server/platform/graphics_buffer/android/android_buffer.h"
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 

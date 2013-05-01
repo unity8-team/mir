@@ -17,7 +17,7 @@
  */
 
 #include "mir/graphics/platform.h"
-#include "src/server/graphics/android/android_graphic_buffer_allocator.h"
+#include "src/server/platform/graphics_buffer/android/android_graphic_buffer_allocator.h"
 #include "mir/graphics/buffer_initializer.h"
 #include "mir/graphics/null_display_report.h"
 #include "mir/compositor/swapper_factory.h"

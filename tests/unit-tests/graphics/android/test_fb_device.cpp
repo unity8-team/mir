@@ -18,7 +18,7 @@
 
 #include "mir_test_doubles/mock_fb_hal_device.h"
 #include "mir_test_doubles/mock_android_buffer.h"
-#include "src/server/graphics/android/fb_device.h"
+#include "src/server/platform/display/android/fb_device.h"
 #include "mir_test/hw_mock.h"
 
 #include <gtest/gtest.h>
