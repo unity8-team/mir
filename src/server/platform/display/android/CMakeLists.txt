@@ -25,8 +25,9 @@ add_library(
 
 target_link_libraries(
   mirplatformdisplay
+
   mircompositor
-  mirplatformgraphicsbuffer
+  mirandroidgraphicsbuffer
   mirsharedandroid
 
   ${LIBHARDWARE_LIBRARIES}

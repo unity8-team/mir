@@ -11,14 +11,14 @@ string(REPLACE "-pedantic" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
 
 
 add_library(
-  mirplatformgraphicsbuffer STATIC
+  mirgbmgraphicsbuffer STATIC
 
   gbm_buffer.cpp
   gbm_buffer_allocator.cpp
 )
 
 target_link_libraries(
-  mirplatformgraphicsbuffer
+  mirgbmgraphicsbuffer
   mirlogging
 
   ${DRM_LDFLAGS} ${DRM_LIBRARIES}

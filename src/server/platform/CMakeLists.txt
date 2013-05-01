@@ -44,7 +44,6 @@ target_link_libraries(
   mirplatform
 
   mirdisplay
-  mirplatformgraphicsbuffer
   mirlogging
 
   ${MIR_COMMON_PLATFORM_LIBRARIES}

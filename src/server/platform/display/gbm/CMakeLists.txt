@@ -26,8 +26,10 @@ add_library(
 
 target_link_libraries(
   mirplatformdisplay
+
   mircompositor
   mirlogging
+  mirgbmgraphicsbuffer
 
   ${DRM_LDFLAGS} ${DRM_LIBRARIES}
   ${GBM_LDFLAGS} ${GBM_LIBRARIES}
