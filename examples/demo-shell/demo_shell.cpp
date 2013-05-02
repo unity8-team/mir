@@ -63,9 +63,9 @@ struct TerminateHandler : mi::EventFilter
     {
         if (ev.type != mir_event_type_key)
             return false;
-        if (!(ev.key.modifiers & mir_key_meta_crtl))
+        if (!(ev.key.modifiers & mir_key_modifier_ctrl))
             return false;
-        if (!(ev.key.modifiers & mir_key_meta_alt))
+        if (!(ev.key.modifiers & mir_key_modifier_alt))
             return false;
         if (ev.key.scan_code != KEY_BACKSPACE)
             return false;

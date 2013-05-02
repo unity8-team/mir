@@ -72,6 +72,14 @@ public:
     {
         renderables->set_change_callback([]{});
     }
+    
+    void request_redraw()
+    {
+        display->for_each_display_buffer([this](mg::DisplayBuffer& buffer)
+        {
+            compositing_strategy->render(buffer);
+        });
+    }
 
 private:
     std::shared_ptr<mg::Display> const display;
