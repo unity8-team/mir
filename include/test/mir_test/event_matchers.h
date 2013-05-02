@@ -54,8 +54,6 @@ MATCHER(ButtonUpEvent, "")
 {
     if (arg.type != mir_event_type_motion)
         return false;
-    if (arg.motion.button_state != 0)
-        return false;
     return arg.motion.action == mir_motion_action_up;
 }
 MATCHER_P2(MotionEvent, dx, dy, "")

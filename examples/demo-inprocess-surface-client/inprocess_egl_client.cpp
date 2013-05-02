@@ -78,8 +78,6 @@ void me::InprocessEGLClient::thread_loop()
             std::bind(std::mem_fn(&me::InprocessEGLClient::handle_event), this, std::placeholders::_1));
     input_thread->start();
 
-    surface->advance_client_buffer(); // TODO: What a wart!
-
     auto native_display = graphics_platform->shell_egl_display();
     me::EGLHelper helper(reinterpret_cast<EGLNativeDisplayType>(native_display), reinterpret_cast<EGLNativeWindowType>(surface.get()));
 
