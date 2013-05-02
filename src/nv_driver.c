@@ -303,6 +303,7 @@ NVHasKMS(struct pci_device *pci_dev)
 	case 0xc0:
 	case 0xd0:
 	case 0xe0:
+	case 0xf0:
 		break;
 	default:
 		xf86DrvMsg(-1, X_ERROR, "Unknown chipset: NV%02x\n", chipset);
@@ -854,6 +855,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 		pNv->Architecture = NV_ARCH_C0;
 		break;
 	case 0xe0:
+	case 0xf0:
 		pNv->Architecture = NV_ARCH_E0;
 		break;
 	default:
