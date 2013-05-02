@@ -33,8 +33,7 @@ namespace mf = mir::frontend;
 namespace msh = mir::shell;
 
 SystemCompositor::SystemCompositor(int from_dm_fd, int to_dm_fd) :
-        dm_connection(io_service, from_dm_fd, to_dm_fd),
-        thread(std::mem_fn(&SystemCompositor::main), this)
+        dm_connection(io_service, from_dm_fd, to_dm_fd)
 {
 }
 
@@ -47,7 +46,7 @@ int SystemCompositor::run(int argc, char const* argv[])
     {
         mir::run_mir(*config, [this](mir::DisplayServer&)
         {
-           thread.detach();
+            thread = std::thread(std::mem_fn(&SystemCompositor::main), this);
         });
     }
     catch (mir::AbnormalExit const& error)
@@ -62,7 +61,8 @@ int SystemCompositor::run(int argc, char const* argv[])
     }
 
     io_service.stop();
-    thread.join();
+    if (thread.joinable())
+        thread.join();
 
     return return_value;
 }
