@@ -42,7 +42,7 @@ bool me::ApplicationSwitcher::handles(MirEvent const& event)
 
     if (event.key.type == mir_event_type_key &&
         event.key.action != 1 && // Not key-release
-        event.key.scan_code == KEY_TAB && event.key.meta_state != 0)  // TODO: Use keycode once we support keymapping on the server side
+        event.key.scan_code == KEY_TAB && event.key.modifiers != 0)  // TODO: Use keycode once we support keymapping on the server side
     {
         focus_controller->focus_next();
         return true;

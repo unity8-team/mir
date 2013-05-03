@@ -62,8 +62,8 @@ try
 
     mir::run_mir(config, [&config](mir::DisplayServer&) {
         ubuntu_application_ui_mirserver_init(config.the_session_manager(),
-                                                 config.the_graphics_platform(),
-                                                 config.the_display());
+                                             config.the_graphics_platform(),
+                                             config.the_display());
         run_shell();
     });
     return 0;

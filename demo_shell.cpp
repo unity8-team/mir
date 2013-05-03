@@ -88,9 +88,9 @@ struct TerminateHandler : mi::EventFilter
     {
         if (ev.type != mir_event_type_key)
             return false;
-        if (!(ev.key.meta_state & mir_key_meta_crtl))
+        if (!(ev.key.modifiers & mir_key_modifier_ctrl))
             return false;
-        if (!(ev.key.meta_state & mir_key_meta_alt))
+        if (!(ev.key.modifiers & mir_key_modifier_alt))
             return false;
         if (ev.key.scan_code != KEY_BACKSPACE)
             return false;
@@ -150,6 +150,7 @@ try
     auto event_filters = std::initializer_list<std::shared_ptr<mi::EventFilter> const>{terminate_handler, app_switcher};
 
     me::DemoServerConfiguration config(argc, argv, event_filters);
+    auto display = config.the_display();
     mir::run_mir(config, [&config, &app_switcher, &terminate_handler](mir::DisplayServer& server)
         {
             // We use this strange two stage initialization to avoid a circular dependency between the EventFilters
