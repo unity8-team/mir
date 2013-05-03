@@ -187,7 +187,7 @@ mir_event_to_ubuntu_event(MirEvent const* mir_event, Event& ubuntu_ev)
         ubuntu_ev.source_id = mir_event->key.source_id;
         ubuntu_ev.action = mir_event->key.action;
         ubuntu_ev.flags = mir_event->key.flags;
-        ubuntu_ev.modifiers = mir_event->key.modifiers;
+        ubuntu_ev.meta_state = mir_event->key.modifiers;
         ubuntu_ev.details.key.key_code = mir_event->key.key_code;
         ubuntu_ev.details.key.scan_code = mir_event->key.scan_code;
         ubuntu_ev.details.key.repeat_count = mir_event->key.repeat_count;
@@ -201,7 +201,7 @@ mir_event_to_ubuntu_event(MirEvent const* mir_event, Event& ubuntu_ev)
         ubuntu_ev.source_id = mir_event->motion.source_id;
         ubuntu_ev.action = mir_event->motion.action;
         ubuntu_ev.flags = mir_event->motion.flags;
-        ubuntu_ev.modifiers = mir_event->motion.modifiers;
+        ubuntu_ev.meta_state = mir_event->motion.modifiers;
         ubuntu_ev.details.motion.edge_flags = mir_event->motion.edge_flags;
         ubuntu_ev.details.motion.button_state = mir_event->motion.button_state;
         ubuntu_ev.details.motion.x_offset = mir_event->motion.x_offset;
