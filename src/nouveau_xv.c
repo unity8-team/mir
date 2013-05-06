@@ -1095,7 +1095,7 @@ NVPutImage(ScrnInfoPtr pScrn, short src_x, short src_y, short drw_x,
 				NVCopyNV12ColorPlanes(buf + s2offset,
 						      buf + s3offset, dst,
 						      line_len, srcPitch2,
-						      nlines, line_len);
+						      nlines, npixels);
 			}
 		} else {
 			for (i = 0; i < nlines; i++) {
@@ -1161,7 +1161,7 @@ CPU_copy:
 				NVCopyNV12ColorPlanes(buf + s2offset,
 						      buf + s3offset,
 						      map, dstPitch, srcPitch2,
-						      nlines, line_len);
+						      nlines, npixels);
 			}
 		} else {
 			/* YUY2 and RGB */
