@@ -60,7 +60,7 @@ static Bool	NVUnmapMem(ScrnInfoPtr pScrn);
 
 #define NOUVEAU_PCI_DEVICE(_vendor_id, _device_id)                             \
 	{ (_vendor_id), (_device_id), PCI_MATCH_ANY, PCI_MATCH_ANY,            \
-	  0x00030000, 0x00ffffff, 0 }
+	  0x00030000, 0x00ff0000, 0 }
 
 static const struct pci_id_match nouveau_device_match[] = {
 	NOUVEAU_PCI_DEVICE(0x12d2, PCI_MATCH_ANY),
