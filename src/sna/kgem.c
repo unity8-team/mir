@@ -2807,7 +2807,7 @@ void kgem_clean_scanout_cache(struct kgem *kgem)
 		struct kgem_bo *bo;
 
 		bo = list_first_entry(&kgem->scanout, struct kgem_bo, list);
-		if (__kgem_busy(kgem, bo->handle))
+		if (bo->exec || __kgem_busy(kgem, bo->handle))
 			break;
 
 		list_del(&bo->list);
