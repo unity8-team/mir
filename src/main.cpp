@@ -17,8 +17,10 @@
  */
 
 #include "system_compositor.h"
+#include <mir/report_exception.h>
 
 int main(int argc, char const* argv[])
+try
 {
     if (argc != 3)
     {
@@ -30,5 +32,12 @@ int main(int argc, char const* argv[])
     auto to_dm_fd = atoi(argv[2]);
 
     SystemCompositor system_compositor(from_dm_fd, to_dm_fd);
-    return system_compositor.run(argc, argv);
+    system_compositor.run(argc, argv);
+
+    return 0;
+}
+catch (...)
+{
+    mir::report_exception(std::cerr);
+    return 1;
 }
