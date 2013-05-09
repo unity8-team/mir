@@ -34,28 +34,18 @@ void SystemCompositor::run(int argc, char const* argv[])
 {
     config = std::make_shared<mir::DefaultServerConfiguration>(argc, argv);
 
-    class ScopeGuard
+    struct ScopeGuard
     {
-    public:
-        explicit ScopeGuard(boost::asio::io_service& io_service) :
-            io_service(io_service) {}
+        explicit ScopeGuard(boost::asio::io_service& io_service) : io_service(io_service) {}
+        ~ScopeGuard() { io_service.stop(); if (thread.joinable()) thread.join(); }
 
-        ScopeGuard& operator=(std::thread&& thread)
-            { this->thread = std::move(thread); return *this; }
-
-        ~ScopeGuard() noexcept
-            { io_service.stop(); if (thread.joinable()) thread.join(); }
-
-    private:
         boost::asio::io_service& io_service;
         std::thread thread;
-        ScopeGuard(ScopeGuard const&) = delete;
-        ScopeGuard& operator=(ScopeGuard const&) = delete;
-    } thread(io_service);
+    } guard(io_service);
 
-    mir::run_mir(*config, [&thread, this](mir::DisplayServer&)
+    mir::run_mir(*config, [&](mir::DisplayServer&)
         {
-            thread = std::thread(&SystemCompositor::main, this);
+            guard.thread = std::thread(&SystemCompositor::main, this);
         });
 }
 
