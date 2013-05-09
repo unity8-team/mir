@@ -404,8 +404,8 @@ static void _assert_pixmap_contains_box(PixmapPtr pixmap, BoxPtr box, const char
 
 static void apply_damage(struct sna_composite_op *op, RegionPtr region)
 {
-	DBG(("%s: damage=%p, region=%ld [(%d, %d), (%d, %d) + (%d, %d)]\n",
-	     __FUNCTION__, op->damage, RegionNumRects(region),
+	DBG(("%s: damage=%p, region=%d [(%d, %d), (%d, %d) + (%d, %d)]\n",
+	     __FUNCTION__, op->damage, (int)RegionNumRects(region),
 	     region->extents.x1, region->extents.y1,
 	     region->extents.x2, region->extents.y2,
 	     op->dst.x, op->dst.y));
@@ -995,8 +995,9 @@ sna_composite_rectangles(CARD8		 op,
 							     color->alpha,
 							     dst->format);
 			priv->clear = ok;
-			DBG(("%s: marking clear [%08x]? %d\n",
-			     __FUNCTION__, priv->clear_color, ok));
+			DBG(("%s: pixmap=%ld marking clear [%08x]? %d\n",
+			     __FUNCTION__, pixmap->drawable.serialNumber,
+			     priv->clear_color, ok));
 		}
 	}
 	goto done;

@@ -2671,7 +2671,7 @@ composite_aligned_boxes(struct sna *sna,
 			PicturePtr dst,
 			PictFormatPtr maskFormat,
 			INT16 src_x, INT16 src_y,
-			int ntrap, xTrapezoid *traps,
+			int ntrap, const xTrapezoid *traps,
 			bool force_fallback)
 {
 	BoxRec stack_boxes[64], *boxes;
@@ -2888,7 +2888,7 @@ composite_unaligned_box(struct sna *sna,
 inline static void
 composite_unaligned_trap_row(struct sna *sna,
 			     struct sna_composite_spans_op *tmp,
-			     xTrapezoid *trap, int dx,
+			     const xTrapezoid *trap, int dx,
 			     int y1, int y2, int covered,
 			     pixman_region16_t *clip)
 {
@@ -2966,7 +2966,7 @@ composite_unaligned_trap_row(struct sna *sna,
 flatten static void
 composite_unaligned_trap(struct sna *sna,
 			struct sna_composite_spans_op *tmp,
-			xTrapezoid *trap,
+			const xTrapezoid *trap,
 			int dx, int dy,
 			pixman_region16_t *clip)
 {
@@ -2974,6 +2974,8 @@ composite_unaligned_trap(struct sna *sna,
 
 	y1 = dy + pixman_fixed_to_int(trap->top);
 	y2 = dy + pixman_fixed_to_int(trap->bottom);
+
+	DBG(("%s: y1=%d, y2=%d\n", __FUNCTION__, y1, y2));
 
 	if (y1 == y2) {
 		composite_unaligned_trap_row(sna, tmp, trap, dx,
@@ -3006,9 +3008,9 @@ composite_unaligned_trap(struct sna *sna,
 		BoxRec box;
 
 		box.x1 = dx + pixman_fixed_to_int(trap->left.p1.x);
-		box.x2 = dx + pixman_fixed_to_int(trap->right.p1.x);
-		box.y1 = y1;
-		box.y2 = y2 + (pixman_fixed_frac(trap->bottom) != 0);
+		box.x2 = dx + pixman_fixed_to_int(trap->right.p1.x + pixman_fixed_1_minus_e);
+		box.y1 = dy + pixman_fixed_to_int(trap->top);
+		box.y2 = dy + pixman_fixed_to_int(trap->bottom + pixman_fixed_1_minus_e);
 
 		if (clip) {
 			pixman_region16_t region;
@@ -3058,7 +3060,7 @@ blt_opacity(PixmapPtr scratch,
 static void
 blt_unaligned_box_row(PixmapPtr scratch,
 		      BoxPtr extents,
-		      xTrapezoid *trap,
+		      const xTrapezoid *trap,
 		      int y1, int y2,
 		      int covered)
 {
@@ -3188,7 +3190,7 @@ lerp32_opacity(PixmapPtr scratch,
 static void
 lerp32_unaligned_box_row(PixmapPtr scratch, uint32_t color,
 			 const BoxRec *extents,
-			 xTrapezoid *trap, int16_t dx,
+			 const xTrapezoid *trap, int16_t dx,
 			 int16_t y, int16_t h,
 			 uint8_t covered)
 {
@@ -3286,7 +3288,7 @@ pixsolid_opacity(struct pixman_inplace *pi,
 static void
 pixsolid_unaligned_box_row(struct pixman_inplace *pi,
 			   const BoxRec *extents,
-			   xTrapezoid *trap,
+			   const xTrapezoid *trap,
 			   int16_t y, int16_t h,
 			   uint8_t covered)
 {
@@ -3320,7 +3322,8 @@ pixsolid_unaligned_box_row(struct pixman_inplace *pi,
 static bool
 composite_unaligned_boxes_inplace__solid(struct sna *sna,
 					 CARD8 op, uint32_t color,
-					 PicturePtr dst, int n, xTrapezoid *t,
+					 PicturePtr dst,
+					 int n, const xTrapezoid *t,
 					 bool force_fallback)
 {
 	PixmapPtr pixmap;
@@ -3646,7 +3649,7 @@ static bool
 composite_unaligned_boxes_inplace(struct sna *sna,
 				  CARD8 op,
 				  PicturePtr src, int16_t src_x, int16_t src_y,
-				  PicturePtr dst, int n, xTrapezoid *t,
+				  PicturePtr dst, int n, const xTrapezoid *t,
 				  bool force_fallback)
 {
 	if (!force_fallback &&
@@ -3800,7 +3803,7 @@ composite_unaligned_boxes_fallback(struct sna *sna,
 				   PicturePtr src,
 				   PicturePtr dst,
 				   INT16 src_x, INT16 src_y,
-				   int ntrap, xTrapezoid *traps,
+				   int ntrap, const xTrapezoid *traps,
 				   bool force_fallback)
 {
 	ScreenPtr screen = dst->pDrawable->pScreen;
@@ -3825,7 +3828,7 @@ composite_unaligned_boxes_fallback(struct sna *sna,
 	dx = dst->pDrawable->x;
 	dy = dst->pDrawable->y;
 	for (n = 0; n < ntrap; n++) {
-		xTrapezoid *t = &traps[n];
+		const xTrapezoid *t = &traps[n];
 		PixmapPtr scratch;
 		PicturePtr mask;
 		BoxRec extents;
@@ -3915,21 +3918,21 @@ composite_unaligned_boxes(struct sna *sna,
 			  PicturePtr dst,
 			  PictFormatPtr maskFormat,
 			  INT16 src_x, INT16 src_y,
-			  int ntrap, xTrapezoid *traps,
+			  int ntrap, const xTrapezoid *traps,
 			  bool force_fallback)
 {
 	BoxRec extents;
 	struct sna_composite_spans_op tmp;
 	struct sna_pixmap *priv;
 	pixman_region16_t clip, *c;
-	int dst_x, dst_y;
+	int16_t dst_x, dst_y;
 	int dx, dy, n;
 
 	if (NO_UNALIGNED_BOXES)
 		return false;
 
-	DBG(("%s: force_fallback=%d, mask=%x, n=%d\n",
-	     __FUNCTION__, force_fallback, maskFormat ? (int)maskFormat->format : 0, ntrap));
+	DBG(("%s: force_fallback=%d, mask=%x, n=%d, op=%d\n",
+	     __FUNCTION__, force_fallback, maskFormat ? (int)maskFormat->format : 0, ntrap, op));
 
 	/* need a span converter to handle overlapping traps */
 	if (ntrap > 1 && maskFormat)
@@ -3996,8 +3999,10 @@ fallback:
 
 	c = NULL;
 	if (extents.x2 - extents.x1 > clip.extents.x2 - clip.extents.x1 ||
-	    extents.y2 - extents.y1 > clip.extents.y2 - clip.extents.y1)
+	    extents.y2 - extents.y1 > clip.extents.y2 - clip.extents.y1) {
+		DBG(("%s: forcing clip\n", __FUNCTION__));
 		c = &clip;
+	}
 
 	extents = *RegionExtents(&clip);
 	dx = dst->pDrawable->x;
@@ -4016,18 +4021,23 @@ fallback:
 	case PictOpOver:
 		priv = sna_pixmap(get_drawable_pixmap(dst->pDrawable));
 		assert(priv != NULL);
-		if (priv->clear && priv->clear_color == 0)
+		if (priv->clear && priv->clear_color == 0) {
+			DBG(("%s: converting %d to PictOpSrc\n",
+			     __FUNCTION__, op));
 			op = PictOpSrc;
+		}
 		break;
 	case PictOpIn:
 		priv = sna_pixmap(get_drawable_pixmap(dst->pDrawable));
 		assert(priv != NULL);
-		if (priv->clear && priv->clear_color == 0)
+		if (priv->clear && priv->clear_color == 0) {
+			DBG(("%s: clear destination using In, skipping\n",
+			     __FUNCTION__));
 			return true;
+		}
 		break;
 	}
 
-	memset(&tmp, 0, sizeof(tmp));
 	if (!sna->render.composite_spans(sna, op, src, dst,
 					 src_x + extents.x1 - dst_x - dx,
 					 src_y + extents.y1 - dst_y - dy,
@@ -4035,7 +4045,7 @@ fallback:
 					 extents.x2 - extents.x1,
 					 extents.y2 - extents.y1,
 					 COMPOSITE_SPANS_RECTILINEAR,
-					 &tmp)) {
+					 memset(&tmp, 0, sizeof(tmp)))) {
 		DBG(("%s: composite spans render op not supported\n",
 		     __FUNCTION__));
 		REGION_UNINIT(NULL, &clip);
