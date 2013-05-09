@@ -19,17 +19,12 @@
 #include "system_compositor.h"
 
 #include <mir/run_mir.h>
-#include <mir/abnormal_exit.h>
-#include <mir/main_loop.h>
 #include <mir/shell/session.h>
 #include <mir/shell/session_container.h>
 #include <mir/shell/focus_setter.h>
-#include <cstdio>
-#include <thread>
-#include <boost/exception/diagnostic_information.hpp>
-#include <boost/asio.hpp>
 
-namespace mf = mir::frontend;
+#include <thread>
+
 namespace msh = mir::shell;
 
 SystemCompositor::SystemCompositor(int from_dm_fd, int to_dm_fd) :
@@ -37,34 +32,23 @@ SystemCompositor::SystemCompositor(int from_dm_fd, int to_dm_fd) :
 {
 }
 
-int SystemCompositor::run(int argc, char const* argv[])
+void SystemCompositor::run(int argc, char const* argv[])
 {
     config = std::make_shared<mir::DefaultServerConfiguration>(argc, argv);
 
-    auto return_value = 0;
-    try
+    struct ScopeGuard
     {
-        mir::run_mir(*config, [this](mir::DisplayServer&)
+        explicit ScopeGuard(boost::asio::io_service& io_service) : io_service(io_service) {}
+        ~ScopeGuard() { io_service.stop(); if (thread.joinable()) thread.join(); }
+
+        boost::asio::io_service& io_service;
+        std::thread thread;
+    } guard(io_service);
+
+    mir::run_mir(*config, [&](mir::DisplayServer&)
         {
-            thread = std::thread(std::mem_fn(&SystemCompositor::main), this);
+            guard.thread = std::thread(&SystemCompositor::main, this);
         });
-    }
-    catch (mir::AbnormalExit const& error)
-    {
-        std::cerr << error.what() << std::endl;
-        return_value = 1;
-    }
-    catch (std::exception const& error)
-    {
-        std::cerr << "ERROR: " << boost::diagnostic_information(error) << std::endl;
-        return_value = 1;
-    }
-
-    io_service.stop();
-    if (thread.joinable())
-        thread.join();
-
-    return return_value;
 }
 
 void SystemCompositor::set_active_session(std::string client_name)
