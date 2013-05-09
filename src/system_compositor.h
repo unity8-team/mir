@@ -23,8 +23,6 @@
 
 #include <mir/default_server_configuration.h>
 
-#include <thread>
-
 class Configuration;
 
 class SystemCompositor : public DMMessageHandler

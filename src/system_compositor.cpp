@@ -23,6 +23,8 @@
 #include <mir/shell/session_container.h>
 #include <mir/shell/focus_setter.h>
 
+#include <thread>
+
 namespace msh = mir::shell;
 
 SystemCompositor::SystemCompositor(int from_dm_fd, int to_dm_fd) :
