@@ -2491,6 +2491,14 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 		goto done;
 	}
 
+	if (flags & MOVE_WRITE && priv->gpu_bo && priv->gpu_bo->proxy) {
+		DBG(("%s: discarding cached upload buffer\n", __FUNCTION__));
+		assert(priv->gpu_damage == NULL);
+		assert(!priv->pinned);
+		kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
+		priv->gpu_bo = NULL;
+	}
+
 	if ((flags & MOVE_READ) == 0)
 		sna_damage_subtract_box(&priv->cpu_damage, box);
 
@@ -2528,12 +2536,12 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 
 		DBG(("%s: created gpu bo\n", __FUNCTION__));
 	}
-	assert(priv->gpu_bo->proxy == NULL);
 
-	if (priv->mapped) {
-		assert(!priv->shm);
-		pixmap->devPrivate.ptr = NULL;
-		priv->mapped = false;
+	if (priv->gpu_bo->proxy) {
+		DBG(("%s: reusing cached upload\n", __FUNCTION__));
+		assert((flags & MOVE_WRITE) == 0);
+		assert(priv->gpu_damage == NULL);
+		return priv;
 	}
 
 	if (priv->shm) {
@@ -2541,6 +2549,7 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 		sna_add_flush_pixmap(sna, priv, priv->cpu_bo);
 	}
 
+	assert(priv->cpu_damage);
 	region_set(&r, box);
 	if (MIGRATE_ALL || region_subsumes_damage(&r, priv->cpu_damage)) {
 		int n;
@@ -2662,6 +2671,8 @@ done:
 				       pixmap->drawable.width,
 				       pixmap->drawable.height);
 		}
+		if (DAMAGE_IS_ALL(priv->gpu_damage))
+			sna_pixmap_free_cpu(sna, priv);
 	}
 	if (priv->cpu_damage == NULL && priv->flush)
 		list_del(&priv->list);
