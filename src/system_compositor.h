@@ -21,6 +21,7 @@
 
 #include "dm_connection.h"
 
+#include <thread>
 #include <mir/default_server_configuration.h>
 
 class Configuration;
@@ -28,17 +29,17 @@ class Configuration;
 class SystemCompositor : public DMMessageHandler
 {
 public:
-    SystemCompositor(int from_dm_fd, int to_dm_fd) :
-        dm_connection(io_service, from_dm_fd, to_dm_fd) {};
-
+    SystemCompositor(int from_dm_fd, int to_dm_fd);
     int run(int argc, char const* argv[]);
 
 private:
+    std::shared_ptr<mir::DefaultServerConfiguration> config;
     boost::asio::io_service io_service;
-    std::shared_ptr<Configuration> config;
     DMConnection dm_connection;
+    std::thread thread;
 
     virtual void set_active_session(std::string client_name);
+    void main();
 };
 
 #endif /* SYSTEM_COMPOSITOR_H_ */
