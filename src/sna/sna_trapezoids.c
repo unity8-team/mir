@@ -2476,6 +2476,17 @@ static void rasterize_traps_thread(void *arg)
 	pixman_image_unref(image);
 }
 
+inline static void trapezoid_origin(const xLineFixed *l, int16_t *x, int16_t *y)
+{
+	if (l->p1.y < l->p2.y) {
+		*x = pixman_fixed_to_int(l->p1.x);
+		*y = pixman_fixed_to_int(l->p1.y);
+	} else {
+		*x = pixman_fixed_to_int(l->p2.x);
+		*y = pixman_fixed_to_int(l->p2.y);
+	}
+}
+
 static void
 trapezoids_fallback(struct sna *sna,
 		    CARD8 op, PicturePtr src, PicturePtr dst,
@@ -2494,8 +2505,7 @@ trapezoids_fallback(struct sna *sna,
 		pixman_format_code_t format;
 		int error;
 
-		dst_x = pixman_fixed_to_int(traps[0].left.p1.x);
-		dst_y = pixman_fixed_to_int(traps[0].left.p1.y);
+		trapezoid_origin(&traps[0].left, &dst_x, &dst_y);
 
 		trapezoids_bounds(ntrap, traps, &bounds);
 		if (bounds.y1 >= bounds.y2 || bounds.x1 >= bounds.x2)
@@ -3823,8 +3833,7 @@ composite_unaligned_boxes_fallback(struct sna *sna,
 					      force_fallback))
 		return true;
 
-	dst_x = pixman_fixed_to_int(traps[0].left.p1.x);
-	dst_y = pixman_fixed_to_int(traps[0].left.p1.y);
+	trapezoid_origin(&traps[0].left, &dst_x, &dst_y);
 	dx = dst->pDrawable->x;
 	dy = dst->pDrawable->y;
 	for (n = 0; n < ntrap; n++) {
@@ -3948,9 +3957,11 @@ fallback:
 							  force_fallback);
 	}
 
-	dst_x = extents.x1 = pixman_fixed_to_int(traps[0].left.p1.x);
+	trapezoid_origin(&traps[0].left, &dst_x, &dst_y);
+
+	extents.x1 = pixman_fixed_to_int(traps[0].left.p1.x);
 	extents.x2 = pixman_fixed_to_int(traps[0].right.p1.x + pixman_fixed_1_minus_e);
-	dst_y = extents.y1 = pixman_fixed_to_int(traps[0].top);
+	extents.y1 = pixman_fixed_to_int(traps[0].top);
 	extents.y2 = pixman_fixed_to_int(traps[0].bottom + pixman_fixed_1_minus_e);
 
 	DBG(("%s: src=(%d, %d), dst=(%d, %d)\n",
@@ -4212,8 +4223,7 @@ mono_trapezoids_span_converter(struct sna *sna,
 	if (NO_SCAN_CONVERTER)
 		return false;
 
-	dst_x = pixman_fixed_to_int(traps[0].left.p1.x);
-	dst_y = pixman_fixed_to_int(traps[0].left.p1.y);
+	trapezoid_origin(&traps[0].left, &dst_x, &dst_y);
 
 	trapezoids_bounds(ntrap, traps, &extents);
 	if (extents.y1 >= extents.y2 || extents.x1 >= extents.x2)
@@ -4568,8 +4578,7 @@ trapezoid_span_converter(struct sna *sna,
 		return false;
 	}
 
-	dst_x = pixman_fixed_to_int(traps[0].left.p1.x);
-	dst_y = pixman_fixed_to_int(traps[0].left.p1.y);
+	trapezoid_origin(&traps[0].left, &dst_x, &dst_y);
 
 	trapezoids_bounds(ntrap, traps, &extents);
 	if (extents.y1 >= extents.y2 || extents.x1 >= extents.x2)
