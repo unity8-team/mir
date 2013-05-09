@@ -19,7 +19,7 @@
 #include "system_compositor.h"
 
 #include <mir/run_mir.h>
-#include <mir/abnormal_exit.h>
+#include <mir/report_exception.h>
 #include <mir/default_server_configuration.h>
 #include <mir/main_loop.h>
 #include <mir/shell/session.h>
@@ -27,7 +27,6 @@
 #include <mir/shell/focus_setter.h>
 #include <cstdio>
 #include <thread>
-#include <boost/exception/diagnostic_information.hpp>
 #include <boost/asio.hpp>
 
 namespace mf = mir::frontend;
@@ -130,18 +129,13 @@ int SystemCompositor::run(int argc, char const* argv[])
     {
         mir::run_mir(*config, [this](mir::DisplayServer&)
         {
-            dm_connection.send_ready();          
+            dm_connection.send_ready();
         });
         return 0;
     }
-    catch (mir::AbnormalExit const& error)
+    catch (...)
     {
-        std::cerr << error.what() << std::endl;
-        return 1;
-    }
-    catch (std::exception const& error)
-    {
-        std::cerr << "ERROR: " << boost::diagnostic_information(error) << std::endl;
+        mir::report_exception(std::cerr);
         return 1;
     }
 }
