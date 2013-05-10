@@ -15,7 +15,7 @@ endif
 
 COMMON_CONFIGURE_OPTIONS = \
   -DMIR_DISABLE_EPOLL_REACTOR=YES \
-  -DBUILD_DOXYGEN=YES
+  -DBUILD_DOXYGEN=NO
 
 # We need to rely on the select-based reactor to fix the ppa builds.
 # TODO: Get rid of this workaround by either switching to boost 1.51 or

@@ -198,8 +198,8 @@ add_subdirectory(3rd_party/cucumber-cpp)
 # Restore -Werror for non-3rd-party code
 set (CMAKE_CXX_FLAGS ${OLD_CMAKE_CXX_FLAGS})
 
-add_subdirectory(benchmarks/)
-add_subdirectory(tests/)
+#add_subdirectory(benchmarks/)
+#add_subdirectory(tests/)
 add_subdirectory(tools/)
 add_subdirectory(examples/)
 add_subdirectory(guides/)
