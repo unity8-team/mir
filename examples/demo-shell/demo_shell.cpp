@@ -81,8 +81,7 @@ struct DemoServerConfiguration : mir::DefaultServerConfiguration
     DemoServerConfiguration(int argc, char const* argv[],
                             std::initializer_list<std::shared_ptr<mi::EventFilter> const> const& filter_list)
       : DefaultServerConfiguration(argc, argv),
-        filter_list(filter_list),
-        software_cursor_renderer(std::make_shared<me::SoftwareCursorOverlayRenderer>())
+        filter_list(filter_list)
     {
     }
 
@@ -99,19 +98,8 @@ struct DemoServerConfiguration : mir::DefaultServerConfiguration
     {
         return filter_list;
     }
-    
-    std::shared_ptr<mc::OverlayRenderer> the_overlay_renderer() override
-    {
-        return software_cursor_renderer;
-    }
-
-    std::shared_ptr<mi::CursorListener> the_cursor_listener() override
-    {
-        return software_cursor_renderer;
-    }
 
     std::initializer_list<std::shared_ptr<mi::EventFilter> const> const filter_list;
-    std::shared_ptr<me::SoftwareCursorOverlayRenderer> software_cursor_renderer;
 };
 
 }
@@ -121,17 +109,13 @@ int main(int argc, char const* argv[])
 try
 {
     auto app_switcher = std::make_shared<me::ApplicationSwitcher>();
-    auto terminate_handler = std::make_shared<me::TerminateHandler>();
-    auto event_filters = std::initializer_list<std::shared_ptr<mi::EventFilter> const>{terminate_handler, app_switcher};
-
-    me::DemoServerConfiguration config(argc, argv, event_filters);
-    mir::run_mir(config, [&config, &app_switcher, &terminate_handler](mir::DisplayServer& server)
+    me::DemoServerConfiguration config(argc, argv, {app_switcher});
+    
+    mir::run_mir(config, [&config, &app_switcher](mir::DisplayServer&)
         {
             // We use this strange two stage initialization to avoid a circular dependency between the EventFilters
             // and the SessionStore
             app_switcher->set_focus_controller(config.the_focus_controller());
-            terminate_handler->set_server(&server);
-            config.software_cursor_renderer->set_damage_handler(config.the_compositor());
         });
     return 0;
 }
