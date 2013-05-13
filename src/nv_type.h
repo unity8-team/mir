@@ -31,6 +31,11 @@
 
 /* NV50 */
 typedef struct _NVRec *NVPtr;
+
+typedef struct {
+	int fd;
+} NVEntRec, *NVEntPtr;
+
 typedef struct _NVRec {
     uint32_t              Architecture;
     EntityInfoPtr       pEnt;

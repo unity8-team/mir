@@ -80,6 +80,7 @@ static Bool NVPlatformProbe(DriverPtr driver,
 				intptr_t dev_match_data);
 #endif
 
+_X_EXPORT int NVEntityIndex = -1;
 /*
  * This contains the functions needed by the server after loading the
  * driver module.  It must be supplied, and gets added the driver list by
@@ -228,6 +229,8 @@ NVDriverFunc(ScrnInfoPtr scrn, xorgDriverFuncOp op, void *data)
 static void
 NVInitScrn(ScrnInfoPtr pScrn, int entity_num)
 {
+	DevUnion *pPriv;
+
 	pScrn->driverVersion    = NV_VERSION;
 	pScrn->driverName       = NV_DRIVER_NAME;
 	pScrn->name             = NV_NAME;
@@ -242,6 +245,15 @@ NVInitScrn(ScrnInfoPtr pScrn, int entity_num)
 	pScrn->FreeScreen       = NVFreeScreen;
 
 	xf86SetEntitySharable(entity_num);
+	if (NVEntityIndex == -1)
+	    NVEntityIndex = xf86AllocateEntityPrivateIndex();
+
+	pPriv = xf86GetEntityPrivate(entity_num,
+				     NVEntityIndex);
+	if (!pPriv->ptr) {
+		pPriv->ptr = xnfcalloc(sizeof(NVEntRec), 1);
+	}
+
 	xf86SetEntityInstanceForScreen(pScrn, entity_num,
 					xf86GetNumEntityInstances(entity_num) - 1);
 }
@@ -683,14 +695,43 @@ nouveau_setup_capabilities(ScrnInfoPtr pScrn)
 #endif
 }
 
+extern _X_EXPORT int NVEntityIndex;
+
+static int getNVEntityIndex(void)
+{
+	return NVEntityIndex;
+}
+
+NVEntPtr NVEntPriv(ScrnInfoPtr pScrn)
+{
+	DevUnion     *pPriv;
+	NVPtr  pNv   = NVPTR(pScrn);
+	pPriv = xf86GetEntityPrivate(pNv->pEnt->index,
+				     getNVEntityIndex());
+	return pPriv->ptr;
+}
+
 static Bool NVOpenDRMMaster(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
+	NVEntPtr pNVEnt = NVEntPriv(pScrn);
 	struct pci_device *dev = pNv->PciInfo;
 	char *busid;
 	drmSetVersion sv;
 	int err;
 	int ret;
+
+	if (pNVEnt->fd) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   " reusing fd for second head\n");
+		ret = nouveau_device_wrap(pNVEnt->fd, 0, &pNv->dev);
+		if (ret) {
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+				"[drm] error creating device\n");
+			return FALSE;
+		}
+		return TRUE;
+	}
 
 #if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,9,99,901,0)
 	XNFasprintf(&busid, "pci:%04x:%02x:%02x.%d",
@@ -721,6 +762,7 @@ static Bool NVOpenDRMMaster(ScrnInfoPtr pScrn)
 		nouveau_device_del(&pNv->dev);
 		return FALSE;
 	}
+	pNVEnt->fd = pNv->dev->fd;
 	return TRUE;
 }
 
