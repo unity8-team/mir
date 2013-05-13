@@ -13,7 +13,7 @@ endif
 	dh $@
 
 override_dh_auto_configure:
-	dh_auto_configure -- -DUSE_GLES=$(use_gles)
+	dh_auto_configure -- -DUSE_GLES=$(use_gles) -DPLATFORM_API_IMPLEMENTATION=mirserver
 
 overrid_dh_install:
 	dh_install --fail-missing
