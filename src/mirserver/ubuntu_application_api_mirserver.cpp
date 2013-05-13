@@ -118,7 +118,8 @@ ubuntu_application_ui_start_a_new_session(SessionCredentials* creds)
 EGLNativeDisplayType
 ubuntu_application_ui_get_native_display()
 {
-    return global_context.graphics_platform->shell_egl_display();
+//    return global_context.graphics_platform->shell_egl_display();
+    return EGL_DEFAULT_DISPLAY;
 }
 
 void
