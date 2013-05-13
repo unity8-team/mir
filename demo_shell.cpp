@@ -130,10 +130,10 @@ struct DemoServerConfiguration : mir::DefaultServerConfiguration
         return software_cursor_renderer;
     }
 
-    std::shared_ptr<mi::CursorListener> the_cursor_listener() override
+/*    std::shared_ptr<mi::CursorListener> the_cursor_listener() override
     {
         return software_cursor_renderer;
-    }
+    }*/
 
     std::initializer_list<std::shared_ptr<mi::EventFilter> const> const filter_list;
     std::shared_ptr<me::SoftwareCursorOverlayRenderer> software_cursor_renderer;

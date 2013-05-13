@@ -39,7 +39,7 @@ class SoftwareCursorOverlayRenderer : public compositor::OverlayRenderer, public
 {
 public:
     SoftwareCursorOverlayRenderer();
-    ~SoftwareCursorOverlayRenderer() = default;
+    ~SoftwareCursorOverlayRenderer() throw() {}
     
     virtual void cursor_moved_to(float abs_x, float abs_y);
     virtual void render(graphics::DisplayBuffer& diplay_buffer);
