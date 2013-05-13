@@ -81,6 +81,12 @@ static Bool NVPlatformProbe(DriverPtr driver,
 #endif
 
 _X_EXPORT int NVEntityIndex = -1;
+
+static int getNVEntityIndex(void)
+{
+	return NVEntityIndex;
+}
+
 /*
  * This contains the functions needed by the server after loading the
  * driver module.  It must be supplied, and gets added the driver list by
@@ -693,13 +699,6 @@ nouveau_setup_capabilities(ScrnInfoPtr pScrn)
 			pScrn->capabilities |= RR_Capability_SourceOffload | RR_Capability_SinkOutput;
 	}
 #endif
-}
-
-extern _X_EXPORT int NVEntityIndex;
-
-static int getNVEntityIndex(void)
-{
-	return NVEntityIndex;
 }
 
 NVEntPtr NVEntPriv(ScrnInfoPtr pScrn)
