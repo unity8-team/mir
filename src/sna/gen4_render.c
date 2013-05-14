@@ -586,7 +586,7 @@ static void gen4_emit_primitive(struct sna *sna)
 static bool gen4_rectangle_begin(struct sna *sna,
 				 const struct sna_composite_op *op)
 {
-	int id = op->u.gen4.ve_id;
+	unsigned int id = 1 << op->u.gen4.ve_id;
 	int ndwords;
 
 	if (sna_vertex_wait__locked(&sna->render) && sna->render.vertex_offset)
@@ -594,13 +594,13 @@ static bool gen4_rectangle_begin(struct sna *sna,
 
 	/* 7xpipelined pointers + 6xprimitive + 1xflush */
 	ndwords = op->need_magic_ca_pass? 20 : 6;
-	if ((sna->render.vb_id & (1 << id)) == 0)
+	if ((sna->render.vb_id & id) == 0)
 		ndwords += 5;
 
 	if (!kgem_check_batch(&sna->kgem, ndwords))
 		return false;
 
-	if ((sna->render.vb_id & (1 << id)) == 0)
+	if ((sna->render.vb_id & id) == 0)
 		gen4_emit_vertex_buffer(sna, op);
 	if (sna->render.vertex_offset == 0)
 		gen4_emit_primitive(sna);
