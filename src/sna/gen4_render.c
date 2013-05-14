@@ -2946,7 +2946,7 @@ static uint32_t gen4_create_vs_unit_state(struct sna_static_stream *stream)
 }
 
 static uint32_t gen4_create_sf_state(struct sna_static_stream *stream,
-				     int gen, uint32_t kernel)
+				     uint32_t kernel)
 {
 	struct gen4_sf_unit_state *sf;
 
@@ -3100,7 +3100,7 @@ static bool gen4_render_setup(struct sna *sna)
 	}
 
 	state->vs = gen4_create_vs_unit_state(&general);
-	state->sf = gen4_create_sf_state(&general, sna->kgem.gen, sf);
+	state->sf = gen4_create_sf_state(&general, sf);
 
 	wm_state = sna_static_stream_map(&general,
 					  sizeof(*wm_state) * KERNEL_COUNT *
