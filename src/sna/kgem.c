@@ -1499,6 +1499,7 @@ static void kgem_bo_free(struct kgem *kgem, struct kgem_bo *bo)
 	if (bo->map)
 		kgem_bo_release_map(kgem, bo);
 	assert(list_is_empty(&bo->vma));
+	assert(bo->map == NULL);
 
 	_list_del(&bo->list);
 	_list_del(&bo->request);
@@ -2182,6 +2183,7 @@ static void kgem_commit(struct kgem *kgem)
 		kgem_retire(kgem);
 		assert(list_is_empty(&rq->buffers));
 
+		assert(rq->bo->map == NULL);
 		gem_close(kgem->fd, rq->bo->handle);
 		kgem_cleanup_cache(kgem);
 	} else {
@@ -5796,7 +5798,7 @@ kgem_replace_bo(struct kgem *kgem,
 			return NULL;
 
 		dst = __kgem_bo_alloc(handle, size);
-		if (dst== NULL) {
+		if (dst == NULL) {
 			gem_close(kgem->fd, handle);
 			return NULL;
 		}
