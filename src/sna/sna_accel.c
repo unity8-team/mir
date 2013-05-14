@@ -4350,6 +4350,9 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	bo = sna_drawable_use_bo(&dst_pixmap->drawable, hint,
 				 &region->extents, &damage);
 	if (bo) {
+		if (replaces)
+			kgem_bo_undo(&sna->kgem, bo);
+
 		if (src_priv && src_priv->clear) {
 			DBG(("%s: applying src clear[%08x] to dst\n",
 			     __FUNCTION__, src_priv->clear_color));
