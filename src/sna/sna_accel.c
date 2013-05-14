@@ -4382,6 +4382,11 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 				fill.done(sna, &fill);
 			}
 
+			if (replaces && bo == dst_priv->gpu_bo) {
+				dst_priv->clear = true;
+				dst_priv->clear_color = src_priv->clear_color;
+			}
+
 			if (damage)
 				sna_damage_add(damage, region);
 			return;
