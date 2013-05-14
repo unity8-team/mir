@@ -1981,6 +1981,21 @@ is_clear(PixmapPtr pixmap)
 	return priv && priv->clear;
 }
 
+static struct kgem_bo *
+peek_bo(DrawablePtr draw)
+{
+	struct sna_pixmap *priv;
+
+	if (draw == NULL)
+		return NULL;
+
+	priv = sna_pixmap(get_drawable_pixmap(draw));
+	if (priv == NULL)
+		return NULL;
+
+	return priv->gpu_bo;
+}
+
 bool
 sna_blt_composite(struct sna *sna,
 		  uint32_t op,
@@ -2030,7 +2045,10 @@ sna_blt_composite(struct sna *sna,
 	} else
 		sna_render_picture_extents(dst, &dst_box);
 
-	bo = sna_drawable_use_bo(dst->pDrawable, PREFER_GPU, &dst_box, &tmp->damage);
+	bo = sna_pixmap(tmp->dst.pixmap)->gpu_bo;
+	if (bo == NULL || bo != peek_bo(src->pDrawable))
+		bo = sna_drawable_use_bo(dst->pDrawable, PREFER_GPU,
+					 &dst_box, &tmp->damage);
 	if (bo && !kgem_bo_can_blt(&sna->kgem, bo)) {
 		DBG(("%s: can not blit to dst, tiling? %d, pitch? %d\n",
 		     __FUNCTION__, bo->tiling, bo->pitch));
@@ -2241,7 +2259,7 @@ put:
 			region.data = NULL;
 
 			if (!sna_drawable_move_region_to_cpu(dst->pDrawable, &region,
-							MOVE_INPLACE_HINT | MOVE_READ | MOVE_WRITE))
+							     MOVE_INPLACE_HINT | MOVE_READ | MOVE_WRITE))
 				return false;
 		}
 

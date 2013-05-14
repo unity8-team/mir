@@ -106,10 +106,16 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SNA_CURSOR_X			64
 #define SNA_CURSOR_Y			SNA_CURSOR_X
 
+struct sna_cow {
+	struct kgem_bo *bo;
+	int refcnt;
+};
+
 struct sna_pixmap {
 	PixmapPtr pixmap;
 	struct kgem_bo *gpu_bo, *cpu_bo;
 	struct sna_damage *gpu_damage, *cpu_damage;
+	struct sna_cow *cow;
 	void *ptr;
 #define PTR(ptr) ((void*)((uintptr_t)(ptr) & ~1))
 

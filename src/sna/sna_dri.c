@@ -177,6 +177,7 @@ static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 	}
 
 	assert(priv->flush == false);
+	assert(priv->cow == NULL);
 	assert(priv->cpu_damage == NULL);
 	assert(priv->gpu_bo);
 	assert(priv->gpu_bo->proxy == NULL);
@@ -504,6 +505,7 @@ static void set_bo(PixmapPtr pixmap, struct kgem_bo *bo)
 	assert(pixmap->drawable.height * bo->pitch <= kgem_bo_size(bo));
 	assert(bo->proxy == NULL);
 	assert(bo->flush);
+	assert(priv->cow == NULL);
 	assert(priv->pinned & PIN_DRI);
 	assert((priv->pinned & PIN_PRIME) == 0);
 	assert(priv->flush);
