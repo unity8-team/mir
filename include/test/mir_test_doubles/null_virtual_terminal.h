@@ -32,6 +32,7 @@ class NullVirtualTerminal : public graphics::gbm::VirtualTerminal
 {
 public:
     void set_graphics_mode() {}
+    void disable_control_sequences() {}
 
     void register_switch_handlers(MainLoop&,
                                   std::function<bool()> const&,

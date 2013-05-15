@@ -383,3 +383,53 @@ TEST_F(LinuxVirtualTerminalTest, reports_failed_vt_switch_back_attempt)
     /* Fake a VT switch back request */
     sig_handler(SIGUSR1);
 }
+
+TEST_F(LinuxVirtualTerminalTest, disables_control_sequences)
+{
+    using namespace testing;
+
+    int const vt_num{7};
+    int const success = 0;
+
+    InSequence s;
+
+    set_up_expectations_for_current_vt_search(vt_num);
+    set_up_expectations_for_vt_setup(vt_num);
+
+    EXPECT_CALL(mock_fops, make_raw(fake_vt_fd))
+        .WillOnce(Return(success));
+
+    set_up_expectations_for_vt_teardown();
+
+    auto fops = mt::fake_shared<mgg::VTFileOperations>(mock_fops);
+    auto null_report = std::make_shared<mg::NullDisplayReport>();
+
+    mgg::LinuxVirtualTerminal vt(fops, null_report);
+    vt.disable_control_sequences();
+}
+
+TEST_F(LinuxVirtualTerminalTest, failure_to_disable_control_sequences_throws)
+{
+    using namespace testing;
+
+    int const vt_num{7};
+    int const failure = -1;
+
+    InSequence s;
+
+    set_up_expectations_for_current_vt_search(vt_num);
+    set_up_expectations_for_vt_setup(vt_num);
+
+    EXPECT_CALL(mock_fops, make_raw(fake_vt_fd))
+        .WillOnce(Return(failure));
+
+    set_up_expectations_for_vt_teardown();
+
+    auto fops = mt::fake_shared<mgg::VTFileOperations>(mock_fops);
+    auto null_report = std::make_shared<mg::NullDisplayReport>();
+
+    mgg::LinuxVirtualTerminal vt(fops, null_report);
+    EXPECT_THROW({
+            vt.disable_control_sequences();
+    }, std::runtime_error);
+}

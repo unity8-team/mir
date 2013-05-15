@@ -82,6 +82,17 @@ void mgg::LinuxVirtualTerminal::set_graphics_mode()
     }
 }
 
+void mgg::LinuxVirtualTerminal::disable_control_sequences()
+{
+    if (fops->make_raw(vt_fd.fd()))
+    {
+        BOOST_THROW_EXCEPTION(
+            boost::enable_error_info(
+                std::runtime_error("Failed to disable control sequences on VT"))
+                   << boost::errinfo_errno(errno));
+    }
+}
+
 void mgg::LinuxVirtualTerminal::register_switch_handlers(
     MainLoop& main_loop,
     std::function<bool()> const& switch_away,

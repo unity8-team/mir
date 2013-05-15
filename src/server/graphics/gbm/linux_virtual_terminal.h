@@ -61,6 +61,7 @@ public:
     ~LinuxVirtualTerminal() noexcept(true);
 
     void set_graphics_mode();
+    void disable_control_sequences();
     void register_switch_handlers(
         MainLoop& main_loop,
         std::function<bool()> const& switch_away,

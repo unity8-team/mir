@@ -58,6 +58,7 @@ public:
     ~MockVirtualTerminal() noexcept(true) {}
 
     MOCK_METHOD0(set_graphics_mode, void());
+    MOCK_METHOD0(disable_control_sequences, void());
     MOCK_METHOD3(register_switch_handlers,
                  void(mir::MainLoop&,
                       std::function<bool()> const&,

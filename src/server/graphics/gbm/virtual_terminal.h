@@ -37,6 +37,7 @@ public:
     virtual ~VirtualTerminal() = default;
 
     virtual void set_graphics_mode() = 0;
+    virtual void disable_control_sequences() = 0;
     virtual void register_switch_handlers(
         MainLoop& main_loop,
         std::function<bool()> const& switch_away,
