@@ -1,3 +1,14 @@
+platform-api (0.18.1daily13.05.15ubuntu.unity.next-0ubuntu1) raring; urgency=low
+
+  [ Gustavo Pichorim Boiko ]
+  * Now that phone-app is being separate into phone, messages and
+    contacts, we need to have a messages and contacts app listed too.
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 52 (ubuntu-unity/next)
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Wed, 15 May 2013 02:00:58 +0000
+
 platform-api (0.18.1daily13.04.15ubuntu.unity.next-0ubuntu1) raring; urgency=low
 
   * Automatic snapshot from revision 50 (ubuntu-unity/next)
