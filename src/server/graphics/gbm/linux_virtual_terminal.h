@@ -45,6 +45,7 @@ public:
     virtual int close(int fd) = 0;
     virtual int ioctl(int d, int request, int val) = 0;
     virtual int ioctl(int d, int request, void* p_val) = 0;
+    virtual int make_raw(int vt_fd) = 0;
 
 protected:
     VTFileOperations() = default;

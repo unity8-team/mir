@@ -29,6 +29,7 @@
 
 #include <fcntl.h>
 #include <sys/ioctl.h>
+#include <termios.h>
 
 namespace mg = mir::graphics;
 namespace mgg = mg::gbm;
@@ -70,6 +71,19 @@ struct RealVTFileOperations : public mgg::VTFileOperations
     int ioctl(int d, int request, void* p_val)
     {
         return ::ioctl(d, request, p_val);
+    }
+    
+    int make_raw(int vt_fd)
+    {
+        struct termios terminal_attributes;
+        auto status = tcgetattr(vt_fd, &terminal_attributes);
+        if (status)
+            return status;
+
+        cfmakeraw(&terminal_attributes);
+        terminal_attributes.c_oflag |= OPOST | OCRNL;
+
+        return tcsetattr(vt_fd, TCSANOW, &terminal_attributes);
     }
 };
 

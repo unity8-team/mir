@@ -47,6 +47,7 @@ public:
     MOCK_METHOD1(close, int(int));
     MOCK_METHOD3(ioctl, int(int, int, int));
     MOCK_METHOD3(ioctl, int(int, int, void*));
+    MOCK_METHOD1(make_raw, int(int));
 };
 
 class MockMainLoop : public mir::MainLoop

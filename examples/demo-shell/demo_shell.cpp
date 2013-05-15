@@ -22,6 +22,7 @@
 #include "fullscreen_placement_strategy.h"
 
 #include "mir/run_mir.h"
+#include "mir/display_server.h"
 #include "mir/report_exception.h"
 #include "mir/default_server_configuration.h"
 #include "mir/shell/session_manager.h"
@@ -33,6 +34,8 @@
 
 #include <iostream>
 
+#include <linux/input.h>
+
 namespace me = mir::examples;
 namespace msh = mir::shell;
 namespace mg = mir::graphics;
@@ -43,6 +46,31 @@ namespace mir
 {
 namespace examples
 {
+
+struct TerminateHandler : mi::EventFilter
+{
+    TerminateHandler() : server(0) {}
+    void set_server(DisplayServer* ds)
+    {
+        server = ds;
+    }
+    
+    bool handles(MirEvent const& ev)
+    {
+        if (ev.type != mir_event_type_key)
+            return false;
+        if (!(ev.key.modifiers & mir_key_modifier_ctrl))
+            return false;
+        if (!(ev.key.modifiers & mir_key_modifier_alt))
+            return false;
+        if (ev.key.scan_code != KEY_BACKSPACE)
+            return false;
+        server->stop();
+        return true;
+    }
+       
+    DisplayServer* server;
+};
 
 struct DemoServerConfiguration : mir::DefaultServerConfiguration
 {
@@ -76,8 +104,9 @@ struct DemoServerConfiguration : mir::DefaultServerConfiguration
 int main(int argc, char const* argv[])
 try
 {
+    auto terminate_handler = std::make_shared<me::TerminateHandler>();
     auto app_switcher = std::make_shared<me::ApplicationSwitcher>();
-    me::DemoServerConfiguration config(argc, argv, {app_switcher});
+    me::DemoServerConfiguration config(argc, argv, {terminate_handler, app_switcher});
     
     mir::run_mir(config, [&config, &app_switcher](mir::DisplayServer&)
         {
