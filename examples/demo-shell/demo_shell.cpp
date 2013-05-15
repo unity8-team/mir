@@ -106,13 +106,15 @@ try
 {
     auto terminate_handler = std::make_shared<me::TerminateHandler>();
     auto app_switcher = std::make_shared<me::ApplicationSwitcher>();
-    me::DemoServerConfiguration config(argc, argv, {terminate_handler, app_switcher});
+    auto event_filters = std::initializer_list<std::shared_ptr<mi::EventFilter> const>{terminate_handler, app_switcher};
+    me::DemoServerConfiguration config(argc, argv, event_filters);
     
-    mir::run_mir(config, [&config, &app_switcher](mir::DisplayServer&)
+    mir::run_mir(config, [&](mir::DisplayServer& server)
         {
             // We use this strange two stage initialization to avoid a circular dependency between the EventFilters
             // and the SessionStore
             app_switcher->set_focus_controller(config.the_focus_controller());
+            terminate_handler->set_server(&server);
         });
     return 0;
 }
