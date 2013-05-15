@@ -22,8 +22,32 @@
 
 #include "nv_include.h"
 #include "nvc0_accel.h"
-#include "nvc0_shader.h"
-#include "nve0_shader.h"
+
+#include "shader/xfrm2nvc0.vp"
+#include "shader/videonvc0.fp"
+
+#include "shader/exascnvc0.fp"
+#include "shader/exacmnvc0.fp"
+#include "shader/exacanvc0.fp"
+#include "shader/exasanvc0.fp"
+#include "shader/exas8nvc0.fp"
+#include "shader/exac8nvc0.fp"
+
+#include "shader/xfrm2nve0.vp"
+#include "shader/videonve0.fp"
+
+#include "shader/exascnve0.fp"
+#include "shader/exacmnve0.fp"
+#include "shader/exacanve0.fp"
+#include "shader/exasanve0.fp"
+#include "shader/exas8nve0.fp"
+#include "shader/exac8nve0.fp"
+
+#define NVC0PushProgram(pNv,addr,code) do {                                    \
+	const unsigned size = sizeof(code) / sizeof(code[0]);                  \
+	PUSH_DATAu((pNv)->pushbuf, (pNv)->scratch, (addr), size);              \
+	PUSH_DATAp((pNv)->pushbuf, (code), size);                              \
+} while(0)
 
 void
 NVC0SyncToVBlank(PixmapPtr ppix, BoxPtr box)

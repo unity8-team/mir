@@ -76,8 +76,6 @@ EXTRA_DIST = hwdefs/nv_3ddefs.xml.h \
 	     nv04_accel.h \
 	     nv50_accel.h \
 	     nvc0_accel.h \
-	     nvc0_shader.h \
-	     nve0_shader.h \
 	     compat-api.h \
 	     vl_hwmc.c \
 	     vl_hwmc.h

@@ -1,0 +1,28 @@
+#ifndef ENVYAS
+static uint32_t
+NVE0VP_Transform2[] = {
+	0x00020461,
+	0x00000000,
+	0x00000000,
+	0x00000000,
+	0x000ff000,
+	0x00000000, /* VP_ATTR_EN[0x000] */
+	0x0001033f, /* VP_ATTR_EN[0x080] */
+	0x00000000, /* VP_ATTR_EN[0x100] */
+	0x00000000,
+	0x00000000, /* VP_ATTR_EN[0x200] */
+	0x00000000,
+	0x00000000, /* VP_ATTR_EN[0x300] */
+	0x00000000,
+	0x0033f000, /* VP_EXPORT_EN[0x040] */
+	0x00000000, /* VP_EXPORT_EN[0x0c0] */
+	0x00000000,
+	0x00000000,
+	0x00000000,
+	0x00000000, /* VP_EXPORT_EN[0x2c0] */
+	0x00000000,
+#include "xfrm2nve0.vpc"
+};
+#else
+
+#endif

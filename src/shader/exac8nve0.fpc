@@ -1,0 +1,28 @@
+	0xfff01c00,
+	0xc07e007c, /* linterp f32 $r0 v[$r63+0x7c] */
+	0x10001c00,
+	0xc8000000, /* rcp f32 $r0 $r0 */
+	0x03f0dc40,
+	0xc07e0094, /* pinterp f32 $r3 $r0 v[$r63+0x94] */
+	0x03f09c40,
+	0xc07e0090, /* pinterp f32 $r2 $r0 v[$r63+0x90] */
+	0xfc205e86,
+	0x80120001, /* tex { _ _ _ $r1 } $t1 { $r2 $r3 } */
+	0x03f0dc40,
+	0xc07e0084, /* pinterp f32 $r3 $r0 v[$r63+0x84] */
+	0x03f09c40,
+	0xc07e0080, /* pinterp f32 $r2 $r0 v[$r63+0x80] */
+	0xfc201e86,
+	0x80120000, /* tex { _ _ _ $r0 } $t0 { $r2 $r3 } */
+	0x00001de6,
+	0xf0000000, /* texbar */
+	0x0400dc40,
+	0x58000000, /* mul ftz rn f32 $r3 $r0 $r1 */
+	0x0c009de4,
+	0x28000000, /* mov b32 $r2 $r3 */
+	0x0c005de4,
+	0x28000000, /* mov b32 $r1 $r3 */
+	0x0c001de4,
+	0x28000000, /* mov b32 $r0 $r3 */
+	0x00001de7,
+	0x80000000, /* exit */
