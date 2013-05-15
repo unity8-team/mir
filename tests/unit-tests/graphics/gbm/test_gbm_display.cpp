@@ -628,13 +628,15 @@ TEST_F(GBMDisplayTest, for_each_display_buffer_calls_callback)
     EXPECT_NE(0, callback_count);
 }
 
-TEST_F(GBMDisplayTest, constructor_sets_vt_graphics_mode)
+TEST_F(GBMDisplayTest, constructor_sets_vt_graphics_and_input_mode)
 {
     using namespace testing;
 
     auto mock_vt = std::make_shared<MockVirtualTerminal>();
 
     EXPECT_CALL(*mock_vt, set_graphics_mode())
+        .Times(1);
+    EXPECT_CALL(*mock_vt, disable_control_sequences())
         .Times(1);
 
     auto platform = std::make_shared<mgg::GBMPlatform>(null_report, mock_vt);
