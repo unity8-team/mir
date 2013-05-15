@@ -39,5 +39,5 @@ mul ftz rn f32 $r3 $r3 $r4
 mul ftz rn f32 $r2 $r2 $r4
 mul ftz rn f32 $r1 $r1 $r4
 mul ftz rn f32 $r0 $r0 $r4
-exit
+long exit
 #endif

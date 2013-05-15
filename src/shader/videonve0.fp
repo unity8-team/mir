@@ -46,5 +46,5 @@ fma ftz rn f32 $r5 $r0 c0[0x18] $r5
 fma ftz rn f32 $r0 $r1 c0[0x1c] $r3
 fma ftz rn f32 $r2 $r1 c0[0x24] $r5
 fma ftz rn f32 $r1 $r1 c0[0x20] $r4
-exit
+long exit
 #endif

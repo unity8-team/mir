@@ -31,8 +31,8 @@ interp mul f32 $r1 a[0x84] $r0 0x0
 interp mul f32 $r0 a[0x80] $r0 0x0
 tex t lauto live dfp #:#:#:$r0 t2d $t0 $s0 $r0:$r1 ()
 texbar 0x0
-mov b32 $r3 $r0
-mov b32 $r2 $r0
-mov b32 $r1 $r0
-exit
+long mov b32 $r3 $r0
+long mov b32 $r2 $r0
+long mov b32 $r1 $r0
+long exit
 #endif
