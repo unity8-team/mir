@@ -56,6 +56,7 @@ mgg::GBMDisplay::GBMDisplay(std::shared_ptr<GBMPlatform> const& platform,
                        std::make_shared<KMSPageFlipper>(platform->drm.fd)}
 {
     platform->vt->set_graphics_mode();
+    platform->vt->disable_control_sequences();
 
     shared_egl.setup(platform->gbm);
 
