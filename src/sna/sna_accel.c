@@ -1366,6 +1366,10 @@ static Bool sna_destroy_pixmap(PixmapPtr pixmap)
 
 	if (priv->cow) {
 		struct sna_cow *cow = COW(priv->cow);
+		DBG(("%s: pixmap=%ld discarding cow, refcnt=%d\n",
+		     __FUNCTION__, pixmap->drawable.serialNumber, cow->refcnt));
+		assert(cow->refcnt);
+		list_del(&priv->cow_list);
 		if (!--cow->refcnt)
 			free(cow);
 		priv->cow = NULL;
@@ -1556,8 +1560,9 @@ sna_pixmap_undo_cow(struct sna *sna, struct sna_pixmap *priv, unsigned flags)
 	list_del(&priv->cow_list);
 
 	if (!--cow->refcnt) {
+		assert(list_is_empty(&cow->list));
 		free(cow);
-	} else if (IS_COW_OWNER(priv->cow)) {
+	} else if (IS_COW_OWNER(priv->cow) && priv->pinned) {
 		PixmapPtr pixmap = priv->pixmap;
 		struct kgem_bo *bo;
 		BoxRec box;
@@ -1589,7 +1594,6 @@ sna_pixmap_undo_cow(struct sna *sna, struct sna_pixmap *priv, unsigned flags)
 			return false;
 		}
 
-		cow->bo = bo;
 		assert(!list_is_empty(&cow->list));
 		while (!list_is_empty(&cow->list)) {
 			struct sna_pixmap *clone;
@@ -1598,9 +1602,11 @@ sna_pixmap_undo_cow(struct sna *sna, struct sna_pixmap *priv, unsigned flags)
 						 struct sna_pixmap, cow_list);
 			list_del(&clone->cow_list);
 
+			assert(clone->gpu_bo == cow->bo);
 			kgem_bo_destroy(&sna->kgem, clone->gpu_bo);
 			clone->gpu_bo = kgem_bo_reference(bo);
 		}
+		cow->bo = bo;
 		kgem_bo_destroy(&sna->kgem, bo);
 	} else {
 		struct kgem_bo *bo = NULL;
@@ -1681,6 +1687,9 @@ sna_pixmap_make_cow(struct sna *sna,
 		cow->bo = src_priv->gpu_bo;
 		cow->refcnt = 1;
 
+		DBG(("%s: attaching source cow to pixmap=%ld\n",
+		     __FUNCTION__, src_priv->pixmap->drawable.serialNumber));
+
 		src_priv->cow = MAKE_COW_OWNER(cow);
 		list_init(&src_priv->cow_list);
 
@@ -1691,8 +1700,10 @@ sna_pixmap_make_cow(struct sna *sna,
 	}
 	assert(!src_priv->mapped);
 
-	if (cow == COW(dst_priv->cow))
+	if (cow == COW(dst_priv->cow)) {
+		assert(dst_priv->gpu_bo == cow->bo);
 		return true;
+	}
 
 	if (dst_priv->cow)
 		sna_pixmap_undo_cow(sna, dst_priv, 0);
@@ -1703,6 +1714,9 @@ sna_pixmap_make_cow(struct sna *sna,
 	dst_priv->cow = cow;
 	list_add(&dst_priv->cow_list, &cow->list);
 	cow->refcnt++;
+
+	DBG(("%s: attaching clone to pixmap=%ld\n",
+	     __FUNCTION__, dst_priv->pixmap->drawable.serialNumber));
 
 	if (dst_priv->mapped) {
 		dst_priv->pixmap->devPrivate.ptr = NULL;
