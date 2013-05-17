@@ -108,6 +108,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 struct sna_cow {
 	struct kgem_bo *bo;
+	struct list list;
 	int refcnt;
 };
 
@@ -119,7 +120,8 @@ struct sna_pixmap {
 	void *ptr;
 #define PTR(ptr) ((void*)((uintptr_t)(ptr) & ~1))
 
-	struct list list;
+	struct list flush_list;
+	struct list cow_list;
 
 	uint32_t stride;
 	uint32_t clear_color;

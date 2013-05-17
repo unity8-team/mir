@@ -6712,7 +6712,7 @@ static void mark_damaged(PixmapPtr pixmap, struct sna_pixmap *priv,
 		sna_damage_all(&priv->gpu_damage,
 			       pixmap->drawable.width,
 			       pixmap->drawable.height);
-		list_del(&priv->list);
+		list_del(&priv->flush_list);
 	} else {
 		sna_damage_add_box(&priv->gpu_damage, box);
 		sna_damage_subtract_box(&priv->cpu_damage, box);

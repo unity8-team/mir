@@ -627,7 +627,7 @@ sna_composite(CARD8 op,
 
 		sna_damage_subtract(&priv->cpu_damage, &region);
 		if (priv->cpu_damage == NULL) {
-			list_del(&priv->list);
+			list_del(&priv->flush_list);
 			priv->cpu = false;
 		}
 
@@ -931,7 +931,7 @@ sna_composite_rectangles(CARD8		 op,
 				priv->gpu_bo = NULL;
 			}
 			sna_damage_destroy(&priv->cpu_damage);
-			list_del(&priv->list);
+			list_del(&priv->flush_list);
 		}
 		if (region_subsumes_drawable(&region, &pixmap->drawable) ||
 		    box_inplace(pixmap, &region.extents)) {

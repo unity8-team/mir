@@ -443,7 +443,7 @@ static void _sna_dri_destroy_buffer(struct sna *sna, DRI2Buffer2Ptr buffer)
 		     pixmap->drawable.serialNumber,
 		     pixmap == sna->front));
 
-		list_del(&priv->list);
+		list_del(&priv->flush_list);
 
 		priv->gpu_bo->flush = false;
 		priv->pinned &= ~PIN_DRI;
@@ -524,7 +524,7 @@ static void set_bo(PixmapPtr pixmap, struct kgem_bo *bo)
 		       pixmap->drawable.width,
 		       pixmap->drawable.height);
 	sna_damage_destroy(&priv->cpu_damage);
-	list_del(&priv->list);
+	list_del(&priv->flush_list);
 	priv->cpu = false;
 
 	assert(bo->refcnt);
