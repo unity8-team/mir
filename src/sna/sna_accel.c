@@ -1590,6 +1590,7 @@ sna_pixmap_undo_cow(struct sna *sna, struct sna_pixmap *priv, unsigned flags)
 		}
 
 		cow->bo = bo;
+		assert(!list_is_empty(&cow->list));
 		while (!list_is_empty(&cow->list)) {
 			struct sna_pixmap *clone;
 
@@ -1600,6 +1601,7 @@ sna_pixmap_undo_cow(struct sna *sna, struct sna_pixmap *priv, unsigned flags)
 			kgem_bo_destroy(&sna->kgem, clone->gpu_bo);
 			clone->gpu_bo = bo;
 		}
+		kgem_bo_destroy(&sna->kgem, bo);
 	} else {
 		struct kgem_bo *bo = NULL;
 
