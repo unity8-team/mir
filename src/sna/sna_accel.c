@@ -1599,7 +1599,7 @@ sna_pixmap_undo_cow(struct sna *sna, struct sna_pixmap *priv, unsigned flags)
 			list_del(&clone->cow_list);
 
 			kgem_bo_destroy(&sna->kgem, clone->gpu_bo);
-			clone->gpu_bo = bo;
+			clone->gpu_bo = kgem_bo_reference(bo);
 		}
 		kgem_bo_destroy(&sna->kgem, bo);
 	} else {
