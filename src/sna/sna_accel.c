@@ -1536,13 +1536,14 @@ static inline bool use_cpu_bo_for_upload(struct sna *sna,
 static bool
 sna_pixmap_undo_cow(struct sna *sna, struct sna_pixmap *priv, unsigned flags)
 {
-	assert(priv->gpu_bo == priv->cow->bo);
-
 	DBG(("%s: pixmap=%ld, handle=%ld, flags=%x\n",
 	     __FUNCTION__,
 	     priv->pixmap->drawable.serialNumber,
 	     priv->gpu_bo->handle,
 	     flags));
+
+	assert(priv->gpu_bo == priv->cow->bo);
+	assert(!priv->mapped);
 
 	if (!--priv->cow->refcnt) {
 		free(priv->cow);
@@ -1612,6 +1613,7 @@ sna_pixmap_make_cow(struct sna *sna,
 		return false;
 	}
 
+	assert(!src_priv->flush);
 	assert(!dst_priv->flush);
 
 	cow = src_priv->cow;
@@ -1624,7 +1626,13 @@ sna_pixmap_make_cow(struct sna *sna,
 		cow->refcnt = 1;
 
 		src_priv->cow = cow;
+
+		if (src_priv->mapped) {
+			src_priv->pixmap->devPrivate.ptr = NULL;
+			src_priv->mapped = false;
+		}
 	}
+	assert(!src_priv->mapped);
 
 	if (cow == dst_priv->cow)
 		return true;
@@ -1637,6 +1645,11 @@ sna_pixmap_make_cow(struct sna *sna,
 	dst_priv->gpu_bo = kgem_bo_reference(cow->bo);
 	dst_priv->cow = cow;
 	cow->refcnt++;
+
+	if (dst_priv->mapped) {
+		dst_priv->pixmap->devPrivate.ptr = NULL;
+		dst_priv->mapped = false;
+	}
 
 	return true;
 }
