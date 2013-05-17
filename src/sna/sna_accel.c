@@ -1538,7 +1538,7 @@ static inline bool use_cpu_bo_for_upload(struct sna *sna,
 	return kgem_bo_is_busy(priv->gpu_bo) || kgem_bo_is_busy(priv->cpu_bo);
 }
 
-static bool
+bool
 sna_pixmap_undo_cow(struct sna *sna, struct sna_pixmap *priv, unsigned flags)
 {
 	struct sna_cow *cow = COW(priv->cow);

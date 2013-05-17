@@ -505,10 +505,12 @@ static void set_bo(PixmapPtr pixmap, struct kgem_bo *bo)
 	assert(pixmap->drawable.height * bo->pitch <= kgem_bo_size(bo));
 	assert(bo->proxy == NULL);
 	assert(bo->flush);
-	assert(priv->cow == NULL);
 	assert(priv->pinned & PIN_DRI);
 	assert((priv->pinned & PIN_PRIME) == 0);
 	assert(priv->flush);
+
+	if (priv->cow)
+		sna_pixmap_undo_cow(sna, priv, 0);
 
 	/* Post damage on the new front buffer so that listeners, such
 	 * as DisplayLink know take a copy and shove it over the USB,
@@ -529,7 +531,8 @@ static void set_bo(PixmapPtr pixmap, struct kgem_bo *bo)
 
 	assert(bo->refcnt);
 	if (priv->gpu_bo != bo) {
-		kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
+		if (priv->gpu_bo)
+			kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
 		priv->gpu_bo = ref(bo);
 		if (priv->mapped) {
 			assert(!priv->shm && priv->stride);

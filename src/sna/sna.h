@@ -451,6 +451,9 @@ PixmapPtr sna_pixmap_create_unattached(ScreenPtr screen,
 				       int width, int height, int depth);
 void sna_pixmap_destroy(PixmapPtr pixmap);
 
+bool
+sna_pixmap_undo_cow(struct sna *sna, struct sna_pixmap *priv, unsigned flags);
+
 #define MOVE_WRITE 0x1
 #define MOVE_READ 0x2
 #define MOVE_INPLACE_HINT 0x4
