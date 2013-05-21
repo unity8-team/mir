@@ -631,6 +631,10 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Forcing per-crtc-pixmaps? %s\n",
 		   sna->flags & SNA_FORCE_SHADOW ? "yes" : "no");
 
+	if (sna->tiling != SNA_TILING_ALL)
+		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+			   "Tiling disabled, expect poor performance and increased power consumption.\n");
+
 	if (!sna_mode_pre_init(scrn, sna)) {
 		PreInitCleanup(scrn);
 		return FALSE;
