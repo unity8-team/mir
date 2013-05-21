@@ -1,3 +1,35 @@
+Release 2.21.7 (2013-05-21)
+===========================
+A couple of weeks turned into a month and a couple of weeks... Amidst
+the usual bug fixes, we have added the complete set of Haswell PCI IDs -
+hopefully future proofing ourselves against being surprised by new
+products. We can also now use the correct term for the top of the range
+Haswell variants, GT3.
+
+ * Fix several assertion failures hit by Jiri Slaby.
+
+ * Allow XvMC to also target overlay/sprite planes.
+
+ * Throw in a paranoid MI_FLUSH between BLT and RENDER operations on
+   Ironlake.
+   https://bugs.launchpad.net/ubuntu/+source/xserver-xorg-video-intel/+bug/1168066
+
+ * Prevent reuse of old framebuffers after a resize.
+   https://bugs.launchpad.net/ubuntu/+source/xserver-xorg-video-intel/+bug/1157678
+
+ * Fix compilation with --enable-valgrind and no --enable-debug
+
+ * Improve partial migration of render sources.
+
+ * Fix origin of trapezoids.
+   https://bugs.launchpad.net/ubuntu/+source/xserver-xorg-video-intel/+bug/1178020
+
+ * Introduce copy-on-write support for cloning pixmaps. The ultimate
+   goal here is to efficiently support the TearFree mode of operation,
+   but this provides immediate benefits with firefox - most importantly
+   because of the inefficient way it now implements scrolling.
+
+
 Release 2.21.6 (2013-04-06)
 ===========================
 A surprising highlight of this release is a little refresh to the KMS
