@@ -8,6 +8,7 @@ set(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR}/lib)
 set(
   STARTUP_SOURCES
   eglapp.c
+  mir_app.c
   startup_cost_mir.c
 )
 

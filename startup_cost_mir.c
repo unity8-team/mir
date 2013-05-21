@@ -16,6 +16,7 @@
  * Author: Kevin DuBois <kevin.dubois@canonical.com>
  */
 
+#include "mir_app.h"
 #include "eglapp.h"
 #include <stdio.h>
 #include <sys/time.h>
@@ -34,7 +35,12 @@ int main(void)
     gettimeofday(&start, NULL);
   
     int width = 512, height = 512;
-    if (!mir_eglapp_init(&width, &height))
+
+    EGLNativeDisplayType egl_display;
+    EGLNativeWindowType egl_window;
+    kvant_mir_connect(&egl_display, &egl_window, width, height); 
+
+    if (!kvant_egl_init(egl_display, egl_window))
     {
         printf("Can't initialize EGL\n");
         return 1;
@@ -42,12 +48,13 @@ int main(void)
 
     glClearColor(1.0, 1.0, 1.0, 1.0);
     glClear(GL_COLOR_BUFFER_BIT);
-    mir_eglapp_swap_buffers();
+    kvant_egl_swap_buffers();
 
     gettimeofday(&end, NULL);
     double seconds = time_delta(&end, &start); 
     printf("Startup time: %.3fms\n", seconds);
 
-    mir_eglapp_shutdown();
+    kvant_egl_shutdown();
+    kvant_mir_shutdown();
     return 0;
 }

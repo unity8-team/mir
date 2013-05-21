@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Author: Daniel van Vugt <daniel.van.vugt@canonical.com>
+ * Author: Kevin DuBois <kevin.dubois@canonical.com>
  */
 
 #ifndef __EGLAPP_H__
@@ -25,9 +25,9 @@
 extern "C" {
 #endif
 
-int  kvant_egl_init(EGLNativeDisplayType display, EGLNativeWindowType window);
-void kvant_egl_swap_buffers(void);
-void kvant_egl_shutdown(void);
+void kvant_mir_shutdown(void);
+void kvant_mir_connect(EGLNativeDisplayType *display, EGLNativeWindowType* window,
+                       int width, int height);
 
 #ifdef __cplusplus
 }
