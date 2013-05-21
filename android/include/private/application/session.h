@@ -15,6 +15,7 @@
  *
  * Authored by: Thomas Voß <thomas.voss@canonical.com>
  */
+
 #ifndef UBUNTU_APPLICATION_SESSION_H_
 #define UBUNTU_APPLICATION_SESSION_H_
 
@@ -54,9 +55,6 @@ public:
     virtual void on_application_started() = 0;
     virtual void on_application_about_to_stop() = 0;
 
-    //virtual void on_application_started(const Options *options, void *context) = 0;
-    //virtual void on_application_about_to_stop(Archive *archive, void *context) = 0;
-
 protected:
     LifecycleDelegate() {}
 
@@ -71,6 +69,13 @@ class Id : public ubuntu::platform::ReferenceCountedBase
 public:
     typedef ubuntu::platform::shared_ptr<Id> Ptr;
     
+    Id(const char *string, size_t size)
+    {
+        this->size = size;
+        this->string = (char*) malloc(sizeof (char) * (size+1));
+        memcpy(this->string, string, (size+1));
+    }
+
     char *string;
     size_t size;
 
@@ -83,55 +88,6 @@ protected:
     Id& operator=(const Id&) = delete;
 };
 }
-}
-
-// C APIs
-namespace
-{
-struct IUApplicationLifecycleDelegate : public ubuntu::application::LifecycleDelegate
-{
-    IUApplicationLifecycleDelegate(void *context) :
-                                    application_started_cb(NULL),
-                                    application_about_to_stop_cb(NULL),
-                                    context(context),
-                                    refcount(1)
-    {
-    }
-
-    void on_application_started()
-    {
-        if (!application_started_cb)
-            return;
-
-        ALOGI("ON_APPLICATION_STARTED()");
-        application_started_cb(NULL, this->context);
-    }
-
-    void on_application_about_to_stop()
-    {
-        if (!application_about_to_stop_cb)
-            return;
-
-        ALOGI("ON_APPLICATION_ABOUT_TO_STOP()");
-        application_about_to_stop_cb(NULL, this->context);
-    }
-
-    u_on_application_started application_started_cb;
-    u_on_application_about_to_stop application_about_to_stop_cb;
-    void *context;
-
-    unsigned refcount;
-};
-
-struct IUApplicationId : public ubuntu::application::Id
-{
-    IUApplicationId(const char *string, size_t size)
-    {
-        this->size = size;
-        this->string = (char*) malloc(sizeof (char) * (size+1));
-        memcpy(this->string, string, (size+1));
-    }
-};
 }
 
 #endif // UBUNTU_APPLICATION_SESSION_H_

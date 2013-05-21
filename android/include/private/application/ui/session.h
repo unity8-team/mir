@@ -15,6 +15,7 @@
  *
  * Authored by: Thomas Voß <thomas.voss@canonical.com>
  */
+
 #ifndef UBUNTU_APPLICATION_UI_SESSION_INTERNAL_H_
 #define UBUNTU_APPLICATION_UI_SESSION_INTERNAL_H_
 

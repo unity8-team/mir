@@ -14,7 +14,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Authored by: Thomas Voß <thomas.voss@canonical.com>
- *              Ricardo Mendoza <ricardo.mendoza@canonical.com
+ *              Ricardo Mendoza <ricardo.mendoza@canonical.com>
  */
 
 // Private
@@ -35,8 +35,46 @@
 
 #include <utils/Log.h>
 
+// C APIs
 namespace
 {
+struct IUApplicationLifecycleDelegate : public ubuntu::application::LifecycleDelegate
+{
+    IUApplicationLifecycleDelegate(void *context) :
+                                    application_started_cb(NULL),
+                                    application_about_to_stop_cb(NULL),
+                                    context(context),
+                                    refcount(1)
+    {
+    }
+
+    void on_application_started()
+    {
+        ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    
+        if (!application_started_cb)
+            return;
+    
+        application_started_cb(NULL, this->context);
+    }
+
+    void on_application_about_to_stop()
+    {
+        ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+
+        if (!application_about_to_stop_cb)
+            return;
+
+        application_about_to_stop_cb(NULL, this->context);
+    }
+
+    u_on_application_started application_started_cb;
+    u_on_application_about_to_stop application_about_to_stop_cb;
+    void *context;
+
+    unsigned refcount;
+};
+
 template<typename T>
 struct Holder
 {
@@ -211,7 +249,7 @@ u_application_id_new_from_stringn(
     size_t size)
 {
     ubuntu::application::Id::Ptr id(
-        new IUApplicationId(string, size)
+        new ubuntu::application::Id(string, size)
         );
 
     return make_holder(id);
@@ -221,7 +259,7 @@ void
 u_application_id_destroy(UApplicationId *id)
 {
     
-    auto p = static_cast<Holder<IUApplicationId*>*>(id);
+    auto p = static_cast<Holder<ubuntu::application::Id::Ptr>*>(id);
 
     if (p)
         delete p;
@@ -232,8 +270,8 @@ u_application_id_compare(
     UApplicationId *lhs,
     UApplicationId *rhs)
 {    
-    auto ilhs = static_cast<Holder<IUApplicationId*>*>(lhs);
-    auto irhs = static_cast<Holder<IUApplicationId*>*>(rhs);
+    auto ilhs = static_cast<Holder<ubuntu::application::Id::Ptr>*>(lhs);
+    auto irhs = static_cast<Holder<ubuntu::application::Id::Ptr>*>(rhs);
     
     if (ilhs->value->size != irhs->value->size)
         return 1;
@@ -257,7 +295,7 @@ UApplicationDescription*
 u_application_description_new()
 {
     ubuntu::application::Description::Ptr desc(
-        new IUApplicationDescription()
+        new ubuntu::application::Description()
         );
 
     return make_holder(desc);
@@ -267,7 +305,7 @@ void
 u_application_description_destroy(
     UApplicationDescription *desc)
 {
-    auto p = static_cast<Holder<IUApplicationDescription*>*>(desc);
+    auto p = static_cast<Holder<ubuntu::application::Description::Ptr>*>(desc);
 
     if (p)
         delete p;
@@ -281,7 +319,7 @@ u_application_description_set_application_id(
     if (id == NULL)
         return;
 
-    auto p = static_cast<Holder<IUApplicationDescription*>*>(desc);
+    auto p = static_cast<Holder<ubuntu::application::Description::Ptr>*>(desc);
     p->value->set_application_id(id);
 }
 
@@ -289,7 +327,7 @@ UApplicationId*
 u_application_description_get_application_id(
     UApplicationDescription *desc)
 {
-    auto p = static_cast<Holder<IUApplicationDescription*>*>(desc);
+    auto p = static_cast<Holder<ubuntu::application::Description::Ptr>*>(desc);
     return p->value->get_application_id();
 }
 
@@ -303,7 +341,7 @@ u_application_description_set_application_lifecycle_delegate(
     
     ALOGI("%s():%d -- delegate=%p", __PRETTY_FUNCTION__, __LINE__, delegate);
 
-    auto p = static_cast<Holder<IUApplicationDescription*>*>(desc);
+    auto p = static_cast<Holder<ubuntu::application::Description::Ptr>*>(desc);
     p->value->set_lifecycle_delegate(delegate);
 }
 
@@ -311,7 +349,7 @@ UApplicationLifecycleDelegate*
 u_application_description_get_application_lifecycle_delegate(
     UApplicationDescription *desc)
 {
-    auto p = static_cast<Holder<IUApplicationDescription*>*>(desc);
+    auto p = static_cast<Holder<ubuntu::application::Description::Ptr>*>(desc);
     return p->value->get_lifecycle_delegate();
 }
 
@@ -326,8 +364,6 @@ u_application_instance_new_from_description_with_options(
 {
     if (desc == NULL || options == NULL)
         return NULL;
-
-    auto d = static_cast<Holder<IUApplicationDescription*>*>(desc);
 
     ubuntu::application::Instance::Ptr instance(
         new ubuntu::application::Instance(desc, options)

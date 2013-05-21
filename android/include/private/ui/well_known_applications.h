@@ -18,7 +18,7 @@
 #ifndef UBUNTU_UI_WELL_KNOWN_APPLICATIONS_H_
 #define UBUNTU_UI_WELL_KNOWN_APPLICATIONS_H_
 
-#include "ubuntu_ui_session_service.h"
+#include <ubuntu/ui/ubuntu_ui_session_service.h>
 
 namespace ubuntu
 {

@@ -14,7 +14,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Authored by: Thomas Voß <thomas.voss@canonical.com>
- *              Ricardo Mendoza <ricardo.mendoza@canonical.com
+ *              Ricardo Mendoza <ricardo.mendoza@canonical.com>
  */
 
 // Private
@@ -154,7 +154,7 @@ ua_ui_window_properties_new_for_normal_window()
     ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
     
     ubuntu::application::ui::WindowProperties::Ptr p(
-        new IUAUiWindowProperties()
+        new ubuntu::application::ui::WindowProperties()
         );
 
     return make_holder(p);
@@ -164,7 +164,7 @@ void
 ua_ui_window_properties_destroy(
     UAUiWindowProperties *properties)
 {
-    auto p = static_cast<Holder<IUAUiWindowProperties*>*>(properties);
+    auto p = static_cast<Holder<ubuntu::application::ui::WindowProperties::Ptr>*>(properties);
     
     if (p)
         delete p;
@@ -177,7 +177,7 @@ ua_ui_window_properties_set_titlen(
     size_t size)
 {
     ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
-    auto p = static_cast<Holder<IUAUiWindowProperties*>*>(properties);
+    auto p = static_cast<Holder<ubuntu::application::ui::WindowProperties::Ptr>*>(properties);
     p->value->set_titlen(title, size);
 }
 
@@ -186,7 +186,7 @@ ua_ui_window_properties_get_title(
     UAUiWindowProperties *properties)
 {
     ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
-    auto p = static_cast<Holder<IUAUiWindowProperties*>*>(properties);
+    auto p = static_cast<Holder<ubuntu::application::ui::WindowProperties::Ptr>*>(properties);
     return p->value->get_title();
 }
 
@@ -196,7 +196,7 @@ ua_ui_window_properties_set_role(
     UAUiWindowRole role)
 {
     ALOGI("%s():%d %p %d", __PRETTY_FUNCTION__, __LINE__, properties, role);
-    auto p = static_cast<Holder<IUAUiWindowProperties*>*>(properties);
+    auto p = static_cast<Holder<ubuntu::application::ui::WindowProperties::Ptr>*>(properties);
     p->value->set_role(role);
 }
 
@@ -204,7 +204,7 @@ UAUiWindowRole
 ua_ui_window_properties_get_role(
     UAUiWindowProperties *properties)
 {
-    auto p = static_cast<Holder<IUAUiWindowProperties*>*>(properties);
+    auto p = static_cast<Holder<ubuntu::application::ui::WindowProperties::Ptr>*>(properties);
     return p->value->get_role();
 }
 
@@ -215,7 +215,7 @@ ua_ui_window_properties_set_input_cb_and_ctx(
     void *ctx)
 {
     ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
-    auto p = static_cast<Holder<IUAUiWindowProperties*>*>(properties);
+    auto p = static_cast<Holder<ubuntu::application::ui::WindowProperties::Ptr>*>(properties);
     p->value->set_input_event_cb_and_ctx(cb, ctx);
 }
 
@@ -228,7 +228,9 @@ ua_ui_session_properties_new()
 {
     ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
 
-    ubuntu::application::ui::SessionProperties::Ptr props(new IUAUiSessionProperties());
+    ubuntu::application::ui::SessionProperties::Ptr props(
+        new ubuntu::application::ui::SessionProperties()
+        );
 
     return make_holder(props);
 }
@@ -240,7 +242,7 @@ ua_ui_session_properties_set_type(
 {
     ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
 
-    auto p = static_cast<Holder<IUAUiSessionProperties*>*>(properties);
+    auto p = static_cast<Holder<ubuntu::application::ui::SessionProperties::Ptr>*>(properties);
 
     if (p)
         p->value->set_type(static_cast<ubuntu::application::ui::SessionType>(type));
@@ -255,7 +257,7 @@ ua_ui_session_new_with_properties(
     if (session != NULL)
         return session.get();
     
-    auto p = static_cast<Holder<IUAUiSessionProperties*>*>(properties);
+    auto p = static_cast<Holder<ubuntu::application::ui::SessionProperties::Ptr>*>(properties);
 
     SessionCredentials creds = {
             static_cast<SessionType>(p->value->get_type()), APPLICATION_SUPPORTS_OVERLAYED_MENUBAR, "QtUbuntu", NULL
@@ -281,7 +283,7 @@ ua_ui_window_new_for_application_with_properties(
     if (session == NULL)
         return NULL;
     
-    auto p = static_cast<Holder<IUAUiWindowProperties*>*>(properties);
+    auto p = static_cast<Holder<ubuntu::application::ui::WindowProperties::Ptr>*>(properties);
 
     ubuntu::application::ui::SurfaceProperties props =
     {
@@ -301,7 +303,7 @@ ua_ui_window_new_for_application_with_properties(
                                           p->value->get_ctx())));
 
     auto inst = static_cast<Holder<ubuntu::application::Instance::Ptr>*>(instance);
-    auto desc = static_cast<Holder<IUApplicationDescription*>*>(inst->value->get_description());
+    auto desc = static_cast<Holder<ubuntu::application::Description::Ptr>*>(inst->value->get_description());
     auto dele = static_cast<Holder<ubuntu::application::LifecycleDelegate::Ptr>*>(desc->value->get_lifecycle_delegate());
 
     session->install_lifecycle_delegate(dele->value);

@@ -12,6 +12,8 @@ namespace ui
 class WindowProperties : public ubuntu::platform::ReferenceCountedBase
 {
 public:
+    WindowProperties() {}
+
     typedef ubuntu::platform::shared_ptr<WindowProperties> Ptr;
    
     void set_titlen(const char* title, size_t size)
@@ -58,8 +60,6 @@ private:
     void* ctx;
    
 protected:
-    WindowProperties() {}
-
     virtual ~WindowProperties() {}
 
     WindowProperties(const WindowProperties&) = delete;
@@ -69,6 +69,8 @@ protected:
 class SessionProperties : public ubuntu::platform::ReferenceCountedBase
 {
 public:
+    SessionProperties() {}
+
     typedef ubuntu::platform::shared_ptr<SessionProperties> Ptr;
 
     void set_type(SessionType type)
@@ -85,8 +87,6 @@ private:
     SessionType type;
 
 protected:
-    SessionProperties() {}
-
     virtual ~SessionProperties() {}
 
     SessionProperties(const SessionProperties&) = delete;
@@ -94,16 +94,5 @@ protected:
 };
 }
 }
-}
-// C-API implementation
-namespace
-{
-struct IUAUiWindowProperties : public ubuntu::application::ui::WindowProperties
-{
-};
-
-struct IUAUiSessionProperties : public ubuntu::application::ui::SessionProperties
-{
-};
 }
 #endif /* UBUNTU_APPLICATION_UI_WINDOW_INTERNAL_H_ */
