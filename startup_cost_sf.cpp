@@ -49,7 +49,7 @@ int main(int argc, char **argv)
 
     gettimeofday(&end, NULL);
     double seconds = time_delta(&end, &start); 
-    printf("Startup time: %.3fms\n", seconds);
+    printf("Startup time: %.3fs\n", seconds);
 
     kvant_egl_shutdown();
     kvant_sf_shutdown();
