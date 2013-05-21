@@ -272,20 +272,3 @@ LOCAL_SHARED_LIBRARIES := \
 	libubuntu_application_api
 
 include $(BUILD_EXECUTABLE)
-
-include $(CLEAR_VARS)
-
-LOCAL_CFLAGS += -std=gnu++0x -fpermissive
-
-LOCAL_C_INCLUDES := \
-	$(UPAPI_PATH)/include
-
-LOCAL_SRC_FILES:= \
-	smemcap.cpp \
-
-LOCAL_MODULE:= android-smemcap
-LOCAL_MODULE_TAGS := optional
-
-LOCAL_SHARED_LIBRARIES := \
-
-include $(BUILD_EXECUTABLE)
