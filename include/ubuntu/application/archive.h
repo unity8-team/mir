@@ -23,7 +23,7 @@
 #include <stdint.h>
 #include "ubuntu/status.h"
 
-typedef struct UApplicationArchive;
+struct UApplicationArchive;
 
 UApplicationArchive*
 u_application_archive_new();

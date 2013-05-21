@@ -19,7 +19,7 @@
 #ifndef UBUNTU_APPLICATION_UI_SESSION_DELEGATES_H_
 #define UBUNTU_APPLICATION_UI_SESSION_DELEGATES_H_
 
-#include "lifecycle_delegate.h"
+#include <session/lifecycle_delegate.h>
 
 #include <cstdio>
 

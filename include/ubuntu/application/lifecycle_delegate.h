@@ -30,49 +30,49 @@ extern "C" {
     typedef void (*u_on_application_started)(const UApplicationOptions *options, void *context);
     typedef void (*u_on_application_about_to_stop)(UApplicationArchive *archive, void *context);
     
-    typedef void* UApplicationLifecycleDelegate;
+    typedef void UApplicationLifecycleDelegate;
     
-    UApplicationLifecycleDelegate
+    UApplicationLifecycleDelegate*
     u_application_lifecycle_delegate_new();
     
     void
     u_application_lifecycle_delegate_destroy(
-        UApplicationLifecycleDelegate delegate);
+        UApplicationLifecycleDelegate *delegate);
     
     void
     u_application_lifecycle_delegate_ref(
-        UApplicationLifecycleDelegate delegate);
+        UApplicationLifecycleDelegate *delegate);
     
     void
     u_application_lifecycle_delegate_unref(
-        UApplicationLifecycleDelegate delegate);
+        UApplicationLifecycleDelegate *delegate);
     
     void
     u_application_lifecycle_delegate_set_application_started_cb(
-        UApplicationLifecycleDelegate delegate,
+        UApplicationLifecycleDelegate *delegate,
         u_on_application_started cb);
     
     u_on_application_started
     u_application_lifecycle_delegate_get_application_started_cb(
-        UApplicationLifecycleDelegate delegate);
+        UApplicationLifecycleDelegate *delegate);
     
     void
     u_application_lifecycle_delegate_set_application_about_to_stop_cb(
-        UApplicationLifecycleDelegate delegate,
+        UApplicationLifecycleDelegate *delegate,
         u_on_application_about_to_stop cb);
     
     u_on_application_about_to_stop
     u_application_lifecycle_delegate_get_application_about_to_stop_cb(
-        UApplicationLifecycleDelegate delegate);
+        UApplicationLifecycleDelegate *delegate);
     
     void
     u_application_lifecycle_delegate_set_context(
-        UApplicationLifecycleDelegate delegate,
+        UApplicationLifecycleDelegate *delegate,
         void *context);
     
     void*
     u_application_lifecycle_delegate_get_context(
-        UApplicationLifecycleDelegate delegate,
+        UApplicationLifecycleDelegate *delegate,
         void *context);
     
 #ifdef __cplusplus

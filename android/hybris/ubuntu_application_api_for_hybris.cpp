@@ -19,18 +19,18 @@
 #include "event_loop.h"
 #include "input_consumer_thread.h"
 
-#include <ubuntu/application/ui/clipboard.h>
-#include <ubuntu/application/ui/init.h>
-#include <ubuntu/application/ui/session.h>
-#include <ubuntu/application/ui/session_credentials.h>
-#include <ubuntu/application/ui/setup.h>
-#include <ubuntu/application/ui/surface.h>
-#include <ubuntu/application/ui/surface_factory.h>
-#include <ubuntu/application/ui/surface_properties.h>
+#include <private/application/ui/clipboard.h>
+#include <private/application/ui/init.h>
+#include <private/application/ui/session.h>
+#include <private/application/ui/session_credentials.h>
+#include <private/application/ui/setup.h>
+#include <private/application/ui/surface.h>
+#include <private/application/ui/surface_factory.h>
+#include <private/application/ui/surface_properties.h>
 
-#include <ubuntu/ui/session_enumerator.h>
-#include <ubuntu/ui/session_service.h>
-#include <ubuntu/ui/well_known_applications.h>
+#include <private/ui/session_enumerator.h>
+#include <private/ui/session_service.h>
+#include <private/ui/well_known_applications.h>
 
 #include <binder/IMemory.h>
 #include <binder/IPCThreadState.h>
@@ -136,7 +136,7 @@ struct Setup : public ubuntu::application::ui::Setup
         return stage;
     }
 
-    ubuntu::application::ui::FormFactorHintFlags form_factor_hint()
+    ubuntu::application::ui::FormFactorHint form_factor_hint()
     {
         return ubuntu::application::ui::desktop_form_factor;
     }
@@ -147,7 +147,7 @@ struct Setup : public ubuntu::application::ui::Setup
     }
 
     ubuntu::application::ui::StageHint stage;
-    ubuntu::application::ui::FormFactorHintFlags form_factor;
+    ubuntu::application::ui::FormFactorHint form_factor;
     android::String8 desktop_file;
 };
 
@@ -416,6 +416,11 @@ struct UbuntuSurface : public ubuntu::application::ui::Surface
             observer->update();
     }
 
+    int32_t get_id()
+    {
+        return -1;
+    }
+
     EGLNativeWindowType to_native_window_type()
     {
         return surface.get();
@@ -477,13 +482,13 @@ struct Session : public ubuntu::application::ui::Session, public UbuntuSurface::
             delegate->on_application_about_to_stop();
         }
     
-        void install_lifecycle_delegate(const ubuntu::application::_UApplicationLifecycleDelegate::Ptr& delegate)
+        void install_lifecycle_delegate(const ubuntu::application::LifecycleDelegate::Ptr& delegate)
         {
             this->delegate = delegate;
         }
     
-        ubuntu::application::_UApplicationLifecycleDelegate::Ptr delegate;
         Session* parent;
+        ubuntu::application::LifecycleDelegate::Ptr delegate;
     };
 
     sp<ApplicationManagerSession> app_manager_session;
@@ -528,7 +533,7 @@ struct Session : public ubuntu::application::ui::Session, public UbuntuSurface::
         event_loop->run(__PRETTY_FUNCTION__, android::PRIORITY_URGENT_DISPLAY);
     }
 
-    void install_lifecycle_delegate(const ubuntu::application::_UApplicationLifecycleDelegate::Ptr& delegate)
+    void install_lifecycle_delegate(const ubuntu::application::LifecycleDelegate::Ptr& delegate)
     {
         this->app_manager_session->install_lifecycle_delegate(delegate);
     }

@@ -18,7 +18,7 @@
 #ifndef UBUNTU_APPLICATION_UI_STAGE_HINT_H_
 #define UBUNTU_APPLICATION_UI_STAGE_HINT_H_
 
-#include "ubuntu/application/ui/ubuntu_application_ui.h"
+#include "private/application/ui/ubuntu_application_ui.h"
 
 namespace ubuntu
 {

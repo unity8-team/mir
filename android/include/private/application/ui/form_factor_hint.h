@@ -15,11 +15,10 @@
  *
  * Authored by: Thomas Voß <thomas.voss@canonical.com>
  */
-#ifndef UBUNTU_APPLICATION_UI_INPUT_LISTENER_H_
-#define UBUNTU_APPLICATION_UI_INPUT_LISTENER_H_
+#ifndef UBUNTU_APPLICATION_UI_FORM_FACTOR_HINT_H_
+#define UBUNTU_APPLICATION_UI_FORM_FACTOR_HINT_H_
 
-#include "ubuntu/application/ui/input/event.h"
-#include "ubuntu/platform/shared_ptr.h"
+#include "private/application/ui/ubuntu_application_ui.h"
 
 namespace ubuntu
 {
@@ -27,27 +26,19 @@ namespace application
 {
 namespace ui
 {
-namespace input
+/** Provides applications with a hint about the form factor it is running on. */
+enum FormFactorHint
 {
-/** Models a listener for classic input event originating from input devices like mice or touchpads. */
-class Listener : public ubuntu::platform::ReferenceCountedBase
-{
-public:
-    typedef ubuntu::platform::shared_ptr<Listener> Ptr;
-
-    /** Invoked whenever a new event is available. */
-    virtual void on_new_event(const Event& event) = 0;
-
-protected:
-    Listener() {}
-    virtual ~Listener() {}
-
-    Listener(const Listener&) = delete;
-    Listener& operator=(const Listener&) = delete;
+    desktop_form_factor = DESKTOP_FORM_FACTOR_HINT, ///< An ordinary desktop or laptop form factor.
+    phone_form_factor = PHONE_FORM_FACTOR_HINT, ///< A phone form factor.
+    tablet_form_factor = TABLET_FORM_FACTOR_HINT ///< A tablet form factor.
 };
-}
+
+/** Bitfield as multiple form factor hints can be applied in a converged scenario. */
+//typedef unsigned int FormFactorHintFlags;
+
 }
 }
 }
 
-#endif // UBUNTU_APPLICATION_UI_INPUT_LISTENER_H_
+#endif // UBUNTU_APPLICATION_UI_FORM_FACTOR_HINT_H_

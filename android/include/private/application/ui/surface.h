@@ -18,10 +18,10 @@
 #ifndef UBUNTU_APPLICATION_UI_SURFACE_H_
 #define UBUNTU_APPLICATION_UI_SURFACE_H_
 
-#include "ubuntu/platform/shared_ptr.h"
+#include "private/platform/shared_ptr.h"
 
-#include "ubuntu/application/ui/session.h"
-#include "ubuntu/application/ui/input/listener.h"
+#include "private/application/ui/session.h"
+#include "private/application/ui/input/listener.h"
 
 #include <EGL/egl.h>
 
@@ -48,6 +48,8 @@ public:
     virtual void move_to(int x, int y) = 0;
     /** Resizes the surface to the specified width and height. */
     virtual void resize(int w, int h) = 0;
+    /** Returns the ID of the associated surface. */
+    virtual int32_t get_id() = 0;
 
     /** Binds to EGL/GL rendering API. */
     virtual EGLNativeWindowType to_native_window_type() = 0;

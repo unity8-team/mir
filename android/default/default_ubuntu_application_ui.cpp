@@ -17,58 +17,32 @@
  *              Ricardo Mendoza <ricardo.mendoza@canonical.com
  */
 
-#include <ubuntu/application/ui/init.h>
-#include <ubuntu/application/ui/session.h>
-#include <ubuntu/application/ui/session_credentials.h>
-#include <ubuntu/application/ui/setup.h>
-#include <ubuntu/application/ui/surface.h>
-#include <ubuntu/application/ui/surface_factory.h>
-#include <ubuntu/application/ui/surface_properties.h>
+// Private
+#include <private/application/ui/init.h>
+#include <private/application/ui/session.h>
+#include <private/application/ui/session_credentials.h>
+#include <private/application/ui/setup.h>
+#include <private/application/ui/surface.h>
+#include <private/application/ui/surface_factory.h>
+#include <private/application/ui/surface_properties.h>
 
-#include <ubuntu/ui/session_service.h>
+// Public C apis
+#include <private/application/ui/ubuntu_application_ui.h>
+#include <ubuntu/application/instance.h>
+#include <ubuntu/application/lifecycle_delegate.h>
+#include <ubuntu/application/ui/options.h>
+#include <ubuntu/application/ui/session.h>
+#include <ubuntu/application/ui/window.h>
+#include <ubuntu/application/ui/clipboard.h>
+#include <ubuntu/application/ui/display.h>
+
+// ver2.0 Private
+#include <private/application/ui/window_internal.h>
+
+#include <private/ui/session_service.h>
+#include <private/application/application.h>
 
 #include <utils/Log.h>
-
-// C apis
-#include <ubuntu/application/ui/ubuntu_application_ui.h>
-#include <ubuntu/application/lifecycle_delegate.h>
-
-// C-API implementation
-namespace
-{
-struct _UApplicationLifecycleDelegate : public ubuntu::application::_UApplicationLifecycleDelegate
-{
-    _UApplicationLifecycleDelegate(void *context) :
-                                    application_started_cb(NULL),
-                                    application_about_to_stop_cb(NULL),
-                                    context(context),
-                                    refcount(1)
-    {
-    }
-
-    void on_application_started()
-    {
-        if (!application_started_cb)
-            return;
-
-        application_started_cb(NULL, this->context);
-    }
-
-    void on_application_about_to_stop()
-    {
-        if (!application_about_to_stop_cb)
-            return;
-
-        application_about_to_stop_cb(NULL, this->context);
-    }
-
-    u_on_application_started application_started_cb;
-    u_on_application_about_to_stop application_about_to_stop_cb;
-    void *context;
-
-    unsigned refcount;
-};
-}
 
 namespace
 {
@@ -106,41 +80,14 @@ Holder<T>* make_holder(const T& value)
 {
     return new Holder<T>(value);
 }
-
 }
+
+/*
+ * Clipboard
+ */
 
 void
-ubuntu_application_ui_init(int argc, char**argv)
-{
-    ubuntu::application::ui::init(argc, argv);
-}
-
-::StageHint
-ubuntu_application_ui_setup_get_stage_hint()
-{
-    return static_cast<StageHint>(
-               ubuntu::application::ui::Setup::instance()->stage_hint());
-}
-
-::FormFactorHint
-ubuntu_application_ui_setup_get_form_factor_hint()
-{
-    return static_cast<FormFactorHint>(
-               ubuntu::application::ui::Setup::instance()->form_factor_hint());
-}
-
-void
-ubuntu_application_ui_start_a_new_session(SessionCredentials* creds)
-{
-    if (session != NULL)
-        return;
-
-    ubuntu::application::ui::SessionCredentials sc(creds);
-    session = ubuntu::ui::SessionService::instance()->start_a_new_session(sc);
-}
-
-void
-ubuntu_application_ui_set_clipboard_content(void* data,
+ua_ui_set_clipboard_content(void* data,
                                             size_t size)
 {
     static const char mime_type[ubuntu::application::ui::Clipboard::Content::MAX_MIME_TYPE_SIZE] = "none/none";
@@ -151,7 +98,7 @@ ubuntu_application_ui_set_clipboard_content(void* data,
 }
 
 void
-ubuntu_application_ui_get_clipboard_content(void** data,
+ua_ui_get_clipboard_content(void** data,
                                             size_t* size)
 {
     ubuntu::application::ui::Clipboard::Content content(ubuntu::application::ui::Session::clipboard()->get_content());
@@ -160,269 +107,297 @@ ubuntu_application_ui_get_clipboard_content(void** data,
     *size = content.data_size;
 }
 
-void
-ubuntu_application_ui_create_display_info(
-    ubuntu_application_ui_physical_display_info* info,
+/*
+ * Display
+ */
+
+UAUiDisplay*
+ua_ui_display_new_with_index(
     size_t index)
 {
-    *info = make_holder(
+    return make_holder(
         ubuntu::application::ui::Session::physical_display_info(
             static_cast<ubuntu::application::ui::PhysicalDisplayIdentifier>(index)));
 }
 
 void
-ubuntu_application_ui_destroy_display_info(
-    ubuntu_application_ui_physical_display_info info)
+ua_ui_display_destroy(
+    UAUiDisplay* display)
 {
-    auto s = static_cast<Holder<ubuntu::application::ui::PhysicalDisplayInfo::Ptr>*>(info);
+    auto s = static_cast<Holder<ubuntu::application::ui::PhysicalDisplayInfo::Ptr>*>(display);
     delete s;
 }
 
-int32_t
-ubuntu_application_ui_query_horizontal_resolution(
-    ubuntu_application_ui_physical_display_info info)
+uint32_t
+ua_ui_display_query_horizontal_res(
+    UAUiDisplay* display)
 {
-    auto s = static_cast<Holder<ubuntu::application::ui::PhysicalDisplayInfo::Ptr>*>(info);
+    auto s = static_cast<Holder<ubuntu::application::ui::PhysicalDisplayInfo::Ptr>*>(display);
     return s->value->horizontal_resolution();
 }
 
-int32_t
-ubuntu_application_ui_query_vertical_resolution(
-    ubuntu_application_ui_physical_display_info info)
+uint32_t
+ua_ui_display_query_vertical_res(
+    UAUiDisplay* display)
 {
-    auto s = static_cast<Holder<ubuntu::application::ui::PhysicalDisplayInfo::Ptr>*>(info);
+    auto s = static_cast<Holder<ubuntu::application::ui::PhysicalDisplayInfo::Ptr>*>(display);
     return s->value->vertical_resolution();
 }
 
-float
-ubuntu_application_ui_query_horizontal_dpi(
-    ubuntu_application_ui_physical_display_info info)
-{
-    auto s = static_cast<Holder<ubuntu::application::ui::PhysicalDisplayInfo::Ptr>*>(info);
-    return s->value->horizontal_dpi();
-}
+/*
+ * Window Properties
+ */
 
-float
-ubuntu_application_ui_query_vertical_dpi(
-    ubuntu_application_ui_physical_display_info info)
+UAUiWindowProperties*
+ua_ui_window_properties_new_for_normal_window()
 {
-    auto s = static_cast<Holder<ubuntu::application::ui::PhysicalDisplayInfo::Ptr>*>(info);
-    return s->value->vertical_dpi();
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    
+    ubuntu::application::ui::WindowProperties::Ptr p(
+        new IUAUiWindowProperties()
+        );
+
+    return make_holder(p);
 }
 
 void
-ubuntu_application_ui_create_surface(
-    ubuntu_application_ui_surface* out_surface,
-    const char* title,
-    int width,
-    int height,
-    SurfaceRole role,
-    uint32_t flags,
-    input_event_cb cb,
-    void* ctx)
+ua_ui_window_properties_destroy(
+    UAUiWindowProperties *properties)
 {
+    auto p = static_cast<Holder<IUAUiWindowProperties*>*>(properties);
+    
+    if (p)
+        delete p;
+}
+
+void
+ua_ui_window_properties_set_titlen(
+    UAUiWindowProperties *properties,
+    const char *title,
+    size_t size)
+{
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    auto p = static_cast<Holder<IUAUiWindowProperties*>*>(properties);
+    p->value->set_titlen(title, size);
+}
+
+const char*
+ua_ui_window_properties_get_title(
+    UAUiWindowProperties *properties)
+{
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    auto p = static_cast<Holder<IUAUiWindowProperties*>*>(properties);
+    return p->value->get_title();
+}
+
+void
+ua_ui_window_properties_set_role(
+    UAUiWindowProperties *properties,
+    UAUiWindowRole role)
+{
+    ALOGI("%s():%d %p %d", __PRETTY_FUNCTION__, __LINE__, properties, role);
+    auto p = static_cast<Holder<IUAUiWindowProperties*>*>(properties);
+    p->value->set_role(role);
+}
+
+UAUiWindowRole
+ua_ui_window_properties_get_role(
+    UAUiWindowProperties *properties)
+{
+    auto p = static_cast<Holder<IUAUiWindowProperties*>*>(properties);
+    return p->value->get_role();
+}
+
+void
+ua_ui_window_properties_set_input_cb_and_ctx(
+    UAUiWindowProperties *properties,
+    UAUiWindowInputEventCb cb,
+    void *ctx)
+{
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    auto p = static_cast<Holder<IUAUiWindowProperties*>*>(properties);
+    p->value->set_input_event_cb_and_ctx(cb, ctx);
+}
+
+/*
+ * Session
+ */
+
+UAUiSessionProperties*
+ua_ui_session_properties_new()
+{
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+
+    ubuntu::application::ui::SessionProperties::Ptr props(new IUAUiSessionProperties());
+
+    return make_holder(props);
+}
+
+void
+ua_ui_session_properties_set_type(
+    UAUiSessionProperties* properties,
+    UAUiSessionType type)
+{
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+
+    auto p = static_cast<Holder<IUAUiSessionProperties*>*>(properties);
+
+    if (p)
+        p->value->set_type(static_cast<ubuntu::application::ui::SessionType>(type));
+}
+
+UAUiSession*
+ua_ui_session_new_with_properties(
+    UAUiSessionProperties *properties)
+{
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+
+    if (session != NULL)
+        return session.get();
+    
+    auto p = static_cast<Holder<IUAUiSessionProperties*>*>(properties);
+
+    SessionCredentials creds = {
+            static_cast<SessionType>(p->value->get_type()), APPLICATION_SUPPORTS_OVERLAYED_MENUBAR, "QtUbuntu", NULL
+    };    
+
+    ubuntu::application::ui::SessionCredentials sc(&creds);
+    session = ubuntu::ui::SessionService::instance()->start_a_new_session(sc);
+
+    return session.get();
+}
+
+/*
+ * Window (Surface)
+ */
+
+UAUiWindow*
+ua_ui_window_new_for_application_with_properties(
+    UApplicationInstance *instance,
+    UAUiWindowProperties *properties)
+{
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+
     if (session == NULL)
-    {
-        // TODO: Report the error here.
-        return;
-    }
+        return NULL;
+    
+    auto p = static_cast<Holder<IUAUiWindowProperties*>*>(properties);
+
     ubuntu::application::ui::SurfaceProperties props =
     {
         "test",
-        width,
-        height,
-        static_cast<ubuntu::application::ui::SurfaceRole>(role),
-        flags
+        0,
+        0,
+        static_cast<ubuntu::application::ui::SurfaceRole>(p->value->get_role()),
+        0, //FIXME: Set flags
+        true
     };
 
     ubuntu::application::ui::Surface::Ptr surface =
         session->create_surface(
             props,
             ubuntu::application::ui::input::Listener::Ptr(
-                new CallbackEventListener(cb, ctx)));
+                new CallbackEventListener(p->value->get_input_cb(),
+                                          p->value->get_ctx())));
 
-    *out_surface = make_holder(surface);
+    auto inst = static_cast<Holder<ubuntu::application::Instance::Ptr>*>(instance);
+    auto desc = static_cast<Holder<IUApplicationDescription*>*>(inst->value->get_description());
+    auto dele = static_cast<Holder<ubuntu::application::LifecycleDelegate::Ptr>*>(desc->value->get_lifecycle_delegate());
+
+    session->install_lifecycle_delegate(dele->value);
+
+    return make_holder(surface);
 }
 
 void
-ubuntu_application_ui_request_fullscreen_for_surface(ubuntu_application_ui_surface surface)
+ua_ui_window_destroy(
+    UAUiWindow *window)
 {
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    //auto p = static_cast<Holder<ubuntu::application::ui::Window::Ptr*>*>(window);
+    auto p = static_cast<Holder<ubuntu::application::ui::Surface::Ptr>*>(window);
+
+    if (p)
+        delete p;
+}
+
+UAUiWindowId
+ua_ui_window_get_id(
+    UAUiWindow *window)
+{
+    //auto p = static_cast<Holder<ubuntu::application::ui::Window::Ptr*>*>(window);
+    auto p = static_cast<Holder<ubuntu::application::ui::Surface::Ptr>*>(window);
+    
+    return p->value->get_id();
+}
+
+UStatus
+ua_ui_window_move(
+    UAUiWindow *window,
+    uint32_t new_x,
+    uint32_t new_y)
+{
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    auto p = static_cast<Holder<ubuntu::application::ui::Surface::Ptr>*>(window);
+    p->value->move_to(new_x, new_y);
+    
+    return U_STATUS_SUCCESS;
+}
+
+UStatus
+ua_ui_window_resize(
+    UAUiWindow *window,
+    uint32_t new_width,
+    uint32_t new_height)
+{
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    //auto p = static_cast<Holder<ubuntu::application::ui::Window::Ptr*>*>(window);
+    auto p = static_cast<Holder<ubuntu::application::ui::Surface::Ptr>*>(window);
+    p->value->resize(new_width, new_height);
+
+    return U_STATUS_SUCCESS;
+}
+
+UStatus
+ua_ui_window_hide(
+    UAUiWindow *window)
+{
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    //auto p = static_cast<Holder<ubuntu::application::ui::Window::Ptr*>*>(window);
+    auto p = static_cast<Holder<ubuntu::application::ui::Surface::Ptr>*>(window);
+    p->value->set_visible(session->get_session_pid(), false);
+
+    return U_STATUS_SUCCESS;
+}
+
+UStatus
+ua_ui_window_show(
+    UAUiWindow *window)
+{
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    auto p = static_cast<Holder<ubuntu::application::ui::Surface::Ptr>*>(window);
+    p->value->set_visible(session->get_session_pid(), true);
+
+    return U_STATUS_SUCCESS;
+}
+
+void
+ua_ui_window_request_fullscreen(
+    UAUiWindow *window)
+{
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
     if (session == NULL)
-    {
-        // TODO: Report the error here.
         return;
-    }
 
-    auto s = static_cast<Holder<ubuntu::application::ui::Surface::Ptr>*>(surface);
-    session->toggle_fullscreen_for_surface(s->value);
-}
-
-void
-ubuntu_application_ui_destroy_surface(
-    ubuntu_application_ui_surface surface)
-{
-    auto s = static_cast<Holder<ubuntu::application::ui::Surface::Ptr>*>(surface);
-    delete s;
+    auto p = static_cast<Holder<ubuntu::application::ui::Surface::Ptr>*>(window);
+    session->toggle_fullscreen_for_surface(p->value);
 }
 
 EGLNativeWindowType
-ubuntu_application_ui_surface_to_native_window_type(
-    ubuntu_application_ui_surface surface)
-{
-    auto s = static_cast<Holder<ubuntu::application::ui::Surface::Ptr>*>(surface);
-    return s->value->to_native_window_type();
-}
-
-void 
-ubuntu_application_ui_show_surface(
-    ubuntu_application_ui_surface surface)
-{
-    if (session == NULL)
-        return;
-
-    auto s = static_cast<Holder<ubuntu::application::ui::Surface::Ptr>*>(surface);
-    s->value->set_visible(session->get_session_pid(), true);
-}
-
-void 
-ubuntu_application_ui_hide_surface(
-    ubuntu_application_ui_surface surface)
-{
-    if (session == NULL)
-        return;
-  
-    auto s = static_cast<Holder<ubuntu::application::ui::Surface::Ptr>*>(surface);
-    s->value->set_visible(session->get_session_pid(), false);
-}
-
-void 
-ubuntu_application_ui_move_surface_to(
-    ubuntu_application_ui_surface surface,
-    int x,
-    int y)
-{
-    auto s = static_cast<Holder<ubuntu::application::ui::Surface::Ptr>*>(surface);
-    s->value->move_to(x, y);
-}
-
-void 
-ubuntu_application_ui_resize_surface_to(
-    ubuntu_application_ui_surface surface,
-    int w,
-    int h)
-{
-    auto s = static_cast<Holder<ubuntu::application::ui::Surface::Ptr>*>(surface);
-    s->value->resize(w, h);
-}
-
-/*
- * NEW LIFECYCLE DELEGATE CODE 
- */
-
-UApplicationLifecycleDelegate
-u_application_lifecycle_delegate_new()
-{
-    ALOGI("%s()", __PRETTY_FUNCTION__);
-
-    ubuntu::application::_UApplicationLifecycleDelegate::Ptr p(new _UApplicationLifecycleDelegate(NULL));
-    session->install_lifecycle_delegate(p);
-
-    return p.get();
-}
-
-void
-u_application_lifecycle_delegate_destroy(UApplicationLifecycleDelegate delegate)
+ua_ui_window_get_native_type(
+    UAUiWindow *window)
 {
     ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
-
-    auto s = static_cast<_UApplicationLifecycleDelegate*>(delegate);
-
-    if (s->refcount)
-        return;
-
-    delete s;
-}
-
-void
-u_application_lifecycle_delegate_ref(UApplicationLifecycleDelegate delegate)
-{
-    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
-
-    auto s = static_cast<_UApplicationLifecycleDelegate*>(delegate);
-    s->refcount++;
-}
-
-void
-u_application_lifecycle_delegate_unref(UApplicationLifecycleDelegate delegate)
-{
-    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
-    
-    auto s = static_cast<_UApplicationLifecycleDelegate*>(delegate);
-    if (s->refcount)
-        s->refcount--;
-}
-
-void
-u_application_lifecycle_delegate_set_application_started_cb(
-    UApplicationLifecycleDelegate delegate,
-    u_on_application_started cb)
-{ 
-    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
-    
-    auto s = static_cast<_UApplicationLifecycleDelegate*>(delegate);
-    s->application_started_cb = cb;
-}
-
-u_on_application_started
-u_application_lifecycle_delegate_get_application_started_cb(
-    UApplicationLifecycleDelegate delegate)
-{ 
-    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
-    
-    auto s = static_cast<_UApplicationLifecycleDelegate*>(delegate);
-    return s->application_started_cb;
-}
-
-void
-u_application_lifecycle_delegate_set_application_about_to_stop_cb(
-    UApplicationLifecycleDelegate delegate,
-    u_on_application_about_to_stop cb)
-{ 
-    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
-    
-    auto s = static_cast<_UApplicationLifecycleDelegate*>(delegate);
-    s->application_about_to_stop_cb = cb;
-}
-
-u_on_application_about_to_stop
-u_application_lifecycle_delegate_get_application_about_to_stop_cb(
-    UApplicationLifecycleDelegate delegate)
-{ 
-    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
-    
-    auto s = static_cast<_UApplicationLifecycleDelegate*>(delegate);
-    return s->application_about_to_stop_cb;
-}
-
-void
-u_application_lifecycle_delegate_set_context(
-    UApplicationLifecycleDelegate delegate,
-    void *context)
-{
-    ALOGI("%s():%d context=%p", __PRETTY_FUNCTION__, __LINE__, context);
-    
-    auto s = static_cast<_UApplicationLifecycleDelegate*>(delegate);
-    if (s->context == NULL)
-        s->context = context;
-}
-
-void*
-u_application_lifecycle_delegate_get_context(
-    UApplicationLifecycleDelegate delegate,
-    void *context)
-{
-    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
-    
-    auto s = static_cast<_UApplicationLifecycleDelegate*>(delegate);
-    return s->context;
+    auto p = static_cast<Holder<ubuntu::application::ui::Surface::Ptr>*>(window);
+    return p->value->to_native_window_type();
 }

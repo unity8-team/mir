@@ -20,9 +20,9 @@
 
 #include "application_manager.h"
 
-#include "ubuntu/application/ui/session_credentials.h"
-#include "ubuntu/application/ui/surface_role.h"
-#include "ubuntu/application/ui/stage_hint.h"
+#include "private/application/ui/session_credentials.h"
+#include "private/application/ui/surface_role.h"
+#include "private/application/ui/stage_hint.h"
 
 #include <binder/IPCThreadState.h>
 #include <binder/IServiceManager.h>
@@ -232,9 +232,9 @@ struct ApplicationSession : public android::RefBase
         remote_session->on_application_about_to_stop();
     }
 
+    int32_t running_state;
     pid_t pid;
     pid_t remote_pid;
-    int32_t running_state;
     int32_t app_layer;
 
     android::sp<android::IApplicationManagerSession> remote_session;

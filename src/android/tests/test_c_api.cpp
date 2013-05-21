@@ -16,7 +16,10 @@
  * Authored by: Thomas Voß <thomas.voss@canonical.com>
  */
 
-#include <ubuntu/application/ui/ubuntu_application_ui.h>
+#include <ubuntu/application/ui/window.h>
+#include <ubuntu/application/ui/options.h>
+#include <ubuntu/application/ui/display.h>
+#include <ubuntu/application/ui/session.h>
 
 #include <EGL/egl.h>
 #include <GLES2/gl2.h>
@@ -59,12 +62,12 @@ struct View
         return result;
     }
 
-    View(ubuntu_application_ui_surface surface);
+    View(UAUiWindow* surface);
 
     void render();
     void step();    
     
-    ubuntu_application_ui_surface surface;
+    UAUiWindow* surface;
     EGLDisplay egl_display;
     EGLSurface egl_surface;
     EGLConfig egl_config;
@@ -86,33 +89,30 @@ void on_new_event(void* ctx, const Event* ev)
 
 int main(int argc, char** argv)
 {
-    ubuntu_application_ui_init(argc, argv);
+    UApplicationOptions* options = u_application_options_new_from_cmd_line(argc, argv);
 
-    SessionCredentials sc;
-    memset(&sc, 0, sizeof(sc));
-    sc.session_type = USER_SESSION_TYPE;
-    snprintf(sc.application_name, sizeof(sc.application_name), "UbuntuApplicationCAPITest");
-    ubuntu_application_ui_start_a_new_session(&sc);
+    UApplicationDescription* desc = u_application_description_new();
+    UApplicationId* id = u_application_id_new_from_stringn("UbuntuApplicationCAPI", 21);
+    u_application_description_set_application_id(desc, id);
+    UApplicationInstance* instance = u_application_instance_new_from_description_with_options(desc, options);
 
-    ubuntu_application_ui_physical_display_info info;
-    ubuntu_application_ui_create_display_info(&info, 0);
-    
-    printf("Display resolution: (x,y) = (%d,%d), (xdpi, ydpi) = (%f,%f)\n",
-           ubuntu_application_ui_query_horizontal_resolution(info),
-           ubuntu_application_ui_query_vertical_resolution(info),
-           ubuntu_application_ui_query_horizontal_dpi(info),
-           ubuntu_application_ui_query_vertical_dpi(info));
-    
-    ubuntu_application_ui_surface surface;
-    ubuntu_application_ui_create_surface(
-        &surface,
-        "TestSurface",
-        500, 
-        500,
-        MAIN_ACTOR_ROLE,
-        0,
-        on_new_event,
-        NULL);
+    UAUiSessionProperties* props = ua_ui_session_properties_new();
+    ua_ui_session_properties_set_type(props, U_USER_SESSION);
+
+    UAUiSession* ua_ui_session_new_with_properties(props);
+
+    UAUiDisplay* display = ua_ui_display_new_with_index(0);
+
+    printf("Display resolution: (x,y) = (%d,%d)\n",
+           ua_ui_display_query_horizontal_res(display),
+           ua_ui_display_query_vertical_res(display));
+   
+    UAUiWindowProperties* wprops = ua_ui_window_properties_new_for_normal_window();
+    ua_ui_window_properties_set_titlen(wprops, "Window 1", 8);
+    ua_ui_window_properties_set_role(wprops, U_MAIN_ROLE);
+    ua_ui_window_properties_set_input_cb_and_ctx(wprops, on_new_event, NULL);
+   
+    UAUiWindow* surface = ua_ui_window_new_for_application_with_properties(instance, wprops);
     
     View view(surface);
     while(true)
@@ -219,7 +219,7 @@ GLuint View::create_program(const char* pVertexSource, const char* pFragmentSour
 	return program;
 }
 
-View::View(ubuntu_application_ui_surface surface) 
+View::View(UAUiWindow* surface) 
         : surface(surface),
           rotation_angle(0.f),
           num_vertex(3)
@@ -265,7 +265,7 @@ View::View(ubuntu_application_ui_surface surface)
 
     assert(EGL_NO_CONTEXT != egl_context);
 
-    EGLNativeWindowType nativeWindow = ubuntu_application_ui_surface_to_native_window_type(surface);
+    EGLNativeWindowType nativeWindow = ua_ui_window_get_native_type(surface);
     egl_surface = eglCreateWindowSurface(egl_display, egl_config, nativeWindow, NULL);
 
     eglMakeCurrent(

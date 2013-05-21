@@ -19,9 +19,9 @@
 #ifndef UBUNTU_UI_SESSION_ENUMERATOR_H_
 #define UBUNTU_UI_SESSION_ENUMERATOR_H_
 
-#include "ubuntu/platform/shared_ptr.h"
-#include "ubuntu/ui/well_known_applications.h"
-#include "ubuntu/ui/config.h"
+#include "private/platform/shared_ptr.h"
+#include "private/ui/well_known_applications.h"
+#include "private/ui/config.h"
 
 #if UBUNTU_USE_GLES
 #include <GLES2/gl2.h>

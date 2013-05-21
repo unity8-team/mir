@@ -18,9 +18,9 @@
 #ifndef UBUNTU_APPLICATION_UI_SETUP_H_
 #define UBUNTU_APPLICATION_UI_SETUP_H_
 
-#include "ubuntu/application/ui/stage_hint.h"
-#include "ubuntu/application/ui/form_factor_hint.h"
-#include "ubuntu/platform/shared_ptr.h"
+#include "private/application/ui/stage_hint.h"
+#include "private/application/ui/form_factor_hint.h"
+#include "private/platform/shared_ptr.h"
 
 namespace ubuntu
 {
@@ -40,7 +40,7 @@ public:
     virtual StageHint stage_hint() = 0;
 
     /** Provides access to the form factors that the application instance is currently running on. */
-    virtual FormFactorHintFlags form_factor_hint() = 0;
+    virtual FormFactorHint form_factor_hint() = 0;
 
     /** Provides access to the desktop file that describes the current application instance. */
     virtual const char* desktop_file_hint() = 0;
