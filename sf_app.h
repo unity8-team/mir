@@ -16,21 +16,12 @@
  * Author: Kevin DuBois <kevin.dubois@canonical.com>
  */
 
-#ifndef __MIRAPP_H__
-#define __MIRAPP_H__
+#ifndef __SFAPP_H__
+#define __SFAPP_H__
 
 #include <EGL/egl.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-void kvant_mir_shutdown(void);
-void kvant_mir_connect(EGLNativeDisplayType *display, EGLNativeWindowType* window,
-                       int width, int height);
-
-#ifdef __cplusplus
-}
-#endif
+void kvant_sf_init(EGLNativeWindowType *egl_window, int x, int y, int w, int h, float alpha);
+void kvant_sf_shutdown();
 
 #endif

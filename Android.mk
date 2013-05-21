@@ -3,6 +3,7 @@ include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES:=		\
     eglapp.c \
+    sf_app.cpp \
 	startup_cost_sf.cpp 
 
 LOCAL_MODULE:= startup_cost_sf

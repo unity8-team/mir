@@ -16,26 +16,18 @@
  * Author: Kevin DuBois <kevin.dubois@canonical.com>
  */
 
+#include "timer.h"
 #include "mir_app.h"
 #include "eglapp.h"
 #include <stdio.h>
-#include <sys/time.h>
 #include <GLES2/gl2.h>
-
-static inline double time_delta(struct timeval* e, struct timeval* s)
-{
-    double start = ((double) s->tv_sec) + ((double) s->tv_usec / 1000000);
-    double end = ((double) e->tv_sec) + ((double) e->tv_usec / 1000000);
-    return end-start; 
-}
 
 int main(void)
 {
     struct timeval start, end;
     gettimeofday(&start, NULL);
-  
     int width = 512, height = 512;
-
+  
     EGLNativeDisplayType egl_display;
     EGLNativeWindowType egl_window;
     kvant_mir_connect(&egl_display, &egl_window, width, height); 

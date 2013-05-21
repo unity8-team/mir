@@ -16,21 +16,12 @@
  * Author: Kevin DuBois <kevin.dubois@canonical.com>
  */
 
-#ifndef __MIRAPP_H__
-#define __MIRAPP_H__
+#include <sys/time.h>
 
-#include <EGL/egl.h>
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-void kvant_mir_shutdown(void);
-void kvant_mir_connect(EGLNativeDisplayType *display, EGLNativeWindowType* window,
-                       int width, int height);
-
-#ifdef __cplusplus
+static inline double time_delta(struct timeval* e, struct timeval* s)
+{
+    double start = ((double) s->tv_sec) + ((double) s->tv_usec / 1000000);
+    double end = ((double) e->tv_sec) + ((double) e->tv_usec / 1000000);
+    return end-start; 
 }
-#endif
 
-#endif
