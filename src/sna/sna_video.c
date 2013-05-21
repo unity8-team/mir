@@ -71,39 +71,38 @@ static inline void sna_video_xvmc_setup(struct sna *sna, ScreenPtr ptr)
 }
 #endif
 
-void sna_video_free_buffers(struct sna *sna, struct sna_video *video)
+void sna_video_free_buffers(struct sna_video *video)
 {
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(video->old_buf); i++) {
 		if (video->old_buf[i]) {
-			kgem_bo_destroy(&sna->kgem, video->old_buf[i]);
+			kgem_bo_destroy(&video->sna->kgem, video->old_buf[i]);
 			video->old_buf[i] = NULL;
 		}
 	}
 
 	if (video->buf) {
-		kgem_bo_destroy(&sna->kgem, video->buf);
+		kgem_bo_destroy(&video->sna->kgem, video->buf);
 		video->buf = NULL;
 	}
 }
 
 struct kgem_bo *
-sna_video_buffer(struct sna *sna,
-		 struct sna_video *video,
+sna_video_buffer(struct sna_video *video,
 		 struct sna_video_frame *frame)
 {
 	/* Free the current buffer if we're going to have to reallocate */
 	if (video->buf && __kgem_bo_size(video->buf) < frame->size)
-		sna_video_free_buffers(sna, video);
+		sna_video_free_buffers(video);
 
 	if (video->buf == NULL) {
 		if (video->tiled) {
-			video->buf = kgem_create_2d(&sna->kgem,
+			video->buf = kgem_create_2d(&video->sna->kgem,
 						    frame->width, frame->height, 32,
 						    I915_TILING_X, CREATE_EXACT);
 		} else {
-			video->buf = kgem_create_linear(&sna->kgem, frame->size,
+			video->buf = kgem_create_linear(&video->sna->kgem, frame->size,
 							CREATE_GTT_MAP);
 		}
 	}
@@ -111,8 +110,7 @@ sna_video_buffer(struct sna *sna,
 	return video->buf;
 }
 
-void sna_video_buffer_fini(struct sna *sna,
-			   struct sna_video *video)
+void sna_video_buffer_fini(struct sna_video *video)
 {
 	struct kgem_bo *bo;
 
@@ -189,8 +187,7 @@ sna_video_clip_helper(ScrnInfoPtr scrn,
 }
 
 void
-sna_video_frame_init(struct sna *sna,
-		     struct sna_video *video,
+sna_video_frame_init(struct sna_video *video,
 		     int id, short width, short height,
 		     struct sna_video_frame *frame)
 {
@@ -208,7 +205,7 @@ sna_video_frame_init(struct sna *sna,
 	align = video->alignment;
 #if SNA_XVMC
 	/* for i915 xvmc, hw requires 1kb aligned surfaces */
-	if (id == FOURCC_XVMC && sna->kgem.gen < 040 && align < 1024)
+	if (id == FOURCC_XVMC && video->sna->kgem.gen < 040 && align < 1024)
 		align = 1024;
 #endif
 
@@ -439,8 +436,7 @@ sna_copy_packed_data(struct sna_video *video,
 }
 
 bool
-sna_video_copy_data(struct sna *sna,
-		    struct sna_video *video,
+sna_video_copy_data(struct sna_video *video,
 		    struct sna_video_frame *frame,
 		    const uint8_t *buf)
 {
@@ -468,10 +464,10 @@ sna_video_copy_data(struct sna *sna,
 			    ALIGN(w >> 1, 4) == frame->pitch[0] &&
 			    ALIGN(w, 4) == frame->pitch[1]) {
 				if (frame->bo) {
-					kgem_bo_write(&sna->kgem, frame->bo,
+					kgem_bo_write(&video->sna->kgem, frame->bo,
 						      buf, frame->size);
 				} else {
-					frame->bo = kgem_create_buffer(&sna->kgem, frame->size,
+					frame->bo = kgem_create_buffer(&video->sna->kgem, frame->size,
 								       KGEM_BUFFER_WRITE | KGEM_BUFFER_WRITE_INPLACE,
 								       (void **)&dst);
 					if (frame->bo == NULL)
@@ -490,11 +486,11 @@ sna_video_copy_data(struct sna *sna,
 		} else {
 			if (frame->width*2 == frame->pitch[0]) {
 				if (frame->bo) {
-					kgem_bo_write(&sna->kgem, frame->bo,
+					kgem_bo_write(&video->sna->kgem, frame->bo,
 						      buf + (2U*frame->image.y1 * frame->width) + (frame->image.x1 << 1),
 						      2U*(frame->image.y2-frame->image.y1)*frame->width);
 				} else {
-					frame->bo = kgem_create_buffer(&sna->kgem, frame->size,
+					frame->bo = kgem_create_buffer(&video->sna->kgem, frame->size,
 								       KGEM_BUFFER_WRITE | KGEM_BUFFER_WRITE_INPLACE,
 								       (void **)&dst);
 					if (frame->bo == NULL)
@@ -513,11 +509,11 @@ sna_video_copy_data(struct sna *sna,
 
 	/* copy data, must use GTT so that we keep the overlay uncached */
 	if (frame->bo) {
-		dst = kgem_bo_map__gtt(&sna->kgem, frame->bo);
+		dst = kgem_bo_map__gtt(&video->sna->kgem, frame->bo);
 		if (dst == NULL)
 			return false;
 	} else {
-		frame->bo = kgem_create_buffer(&sna->kgem, frame->size,
+		frame->bo = kgem_create_buffer(&video->sna->kgem, frame->size,
 					       KGEM_BUFFER_WRITE | KGEM_BUFFER_WRITE_INPLACE,
 					       (void **)&dst);
 		if (frame->bo == NULL)
@@ -532,50 +528,108 @@ sna_video_copy_data(struct sna *sna,
 	return true;
 }
 
+XvAdaptorPtr sna_xv_adaptor_alloc(struct sna *sna)
+{
+	XvAdaptorPtr new_adaptors;
+
+	new_adaptors = realloc(sna->xv.adaptors,
+			       (sna->xv.num_adaptors+1)*sizeof(XvAdaptorRec));
+	if (new_adaptors == NULL)
+		return NULL;
+
+	if (sna->xv.num_adaptors && new_adaptors != sna->xv.adaptors) {
+		XvAdaptorPtr adaptor = new_adaptors;
+		int i = sna->xv.num_adaptors, j;
+		while (i--) {
+			for (j = 0; j < adaptor->nPorts; j++)
+				adaptor->pPorts[j].pAdaptor = adaptor;
+			adaptor++;
+		}
+	}
+
+	sna->xv.adaptors = new_adaptors;
+	return &sna->xv.adaptors[sna->xv.num_adaptors++];
+}
+
+int
+sna_xv_alloc_port(unsigned long port, XvPortPtr in, XvPortPtr *out)
+{
+	*out = in;
+	return Success;
+}
+
+int
+sna_xv_free_port(XvPortPtr port)
+{
+	return Success;
+}
+
+static int
+sna_xv_query_adaptors(ScreenPtr screen,
+		      XvAdaptorPtr *adaptors,
+		      int *num_adaptors)
+{
+	struct sna *sna = to_sna_from_screen(screen);
+
+	*num_adaptors = sna->xv.num_adaptors;
+	*adaptors = sna->xv.adaptors;
+	return Success;
+}
+
+static Bool
+sna_xv_close_screen(ScreenPtr screen)
+{
+	return TRUE;
+}
+
 void sna_video_init(struct sna *sna, ScreenPtr screen)
 {
-	XF86VideoAdaptorPtr *adaptors, *newAdaptors;
-	XF86VideoAdaptorPtr textured, overlay;
-	int num_adaptors;
-	int prefer_overlay =
-	    xf86ReturnOptValBool(sna->Options, OPTION_PREFER_OVERLAY, false);
+	XvScreenPtr xv;
 
-	if (!xf86LoaderCheckSymbol("xf86XVListGenericAdaptors"))
+	if (noXvExtension)
 		return;
 
-	adaptors = NULL;
-	num_adaptors = xf86XVListGenericAdaptors(sna->scrn, &adaptors);
-	newAdaptors = realloc(adaptors,
-			      (num_adaptors + 2) * sizeof(XF86VideoAdaptorPtr));
-	if (newAdaptors == NULL) {
+	if (xf86LoaderCheckSymbol("xf86XVListGenericAdaptors")) {
+		XF86VideoAdaptorPtr *adaptors = NULL;
+		int num_adaptors = xf86XVListGenericAdaptors(sna->scrn, &adaptors);
+		if (num_adaptors)
+			xf86DrvMsg(sna->scrn->scrnIndex, X_ERROR,
+				   "Ignoring generic xf86XV adaptors");
 		free(adaptors);
-		return;
 	}
-	adaptors = newAdaptors;
 
-	/* Set up textured video if we can do it at this depth and we are on
-	 * supported hardware.
-	 */
-	textured = sna_video_textured_setup(sna, screen);
-	overlay = sna_video_sprite_setup(sna, screen);
-	if (overlay == NULL)
-		overlay = sna_video_overlay_setup(sna, screen);
+	if (XvScreenInit(screen) != Success)
+		return;
 
-	if (overlay && prefer_overlay)
-		adaptors[num_adaptors++] = overlay;
+	xv = to_xv(screen);
+	xv->ddCloseScreen = sna_xv_close_screen;
+	xv->ddQueryAdaptors = sna_xv_query_adaptors;
 
-	if (textured)
-		adaptors[num_adaptors++] = textured;
+	sna_video_textured_setup(sna, screen);
+	sna_video_sprite_setup(sna, screen);
+	sna_video_overlay_setup(sna, screen);
 
-	if (overlay && !prefer_overlay)
-		adaptors[num_adaptors++] = overlay;
+	if (sna->xv.num_adaptors >= 2 &&
+	    xf86ReturnOptValBool(sna->Options, OPTION_PREFER_OVERLAY, false)) {
+		XvAdaptorRec tmp;
 
-	if (num_adaptors) {
-		if (xf86XVScreenInit(screen, adaptors, num_adaptors))
-			sna_video_xvmc_setup(sna, screen);
-	} else
-		xf86DrvMsg(sna->scrn->scrnIndex, X_WARNING,
-			   "Disabling Xv because no adaptors could be initialized.\n");
+		tmp = sna->xv.adaptors[0];
+		sna->xv.adaptors[0] = sna->xv.adaptors[1];
+		sna->xv.adaptors[1] = tmp;
+	}
 
-	free(adaptors);
+	xv->nAdaptors = sna->xv.num_adaptors;
+	xv->pAdaptors = sna->xv.adaptors;
+
+	sna_video_xvmc_setup(sna, screen);
+}
+
+void sna_video_destroy_window(WindowPtr win)
+{
+	XvPortPtr port;
+
+	port = sna_window_get_port(win);
+	if (port)
+		port->pAdaptor->ddStopVideo(NULL, port, &win->drawable);
+	assert(sna_window_get_port(win) == NULL);
 }

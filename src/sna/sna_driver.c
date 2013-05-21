@@ -916,7 +916,7 @@ sna_register_all_privates(void)
 		return FALSE;
 
 	if (!dixRegisterPrivateKey(&sna_window_key, PRIVATE_WINDOW,
-				   2*sizeof(void *)))
+				   3*sizeof(void *)))
 		return FALSE;
 #else
 	if (!dixRequestPrivate(&sna_pixmap_key, 3*sizeof(void *)))
@@ -928,7 +928,7 @@ sna_register_all_privates(void)
 	if (!dixRequestPrivate(&sna_glyph_key, sizeof(struct sna_glyph)))
 		return FALSE;
 
-	if (!dixRequestPrivate(&sna_window_key, 2*sizeof(void *)))
+	if (!dixRequestPrivate(&sna_window_key, 3*sizeof(void *)))
 		return FALSE;
 #endif
 

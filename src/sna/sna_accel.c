@@ -32,6 +32,7 @@
 #include "intel_options.h"
 #include "sna.h"
 #include "sna_reg.h"
+#include "sna_video.h"
 #include "rop.h"
 
 #include <X11/fonts/font.h>
@@ -14479,6 +14480,7 @@ sna_unmap_window(WindowPtr win)
 static Bool
 sna_destroy_window(WindowPtr win)
 {
+	sna_video_destroy_window(win);
 	sna_dri_destroy_window(win);
 	return TRUE;
 }

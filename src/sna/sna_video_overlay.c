@@ -57,41 +57,28 @@ static Atom xvSyncToVblank;
 #define IMAGE_MAX_WIDTH_LEGACY	1024
 #define IMAGE_MAX_HEIGHT_LEGACY	1088
 
-/* client libraries expect an encoding */
-static const XF86VideoEncodingRec DummyEncoding[1] = {
-	{
-	 0,
-	 "XV_IMAGE",
-	 IMAGE_MAX_WIDTH, IMAGE_MAX_HEIGHT,
-	 {1, 1}
-	 }
-};
-
-#define NUM_FORMATS 3
-static const XF86VideoFormatRec Formats[NUM_FORMATS] = {
+static const XvFormatRec Formats[] = {
 	{15, TrueColor}, {16, TrueColor}, {24, TrueColor}
 };
 
-#define NUM_ATTRIBUTES 5
-static const XF86AttributeRec Attributes[NUM_ATTRIBUTES] = {
+static const XvAttributeRec Attributes[] = {
 	{XvSettable | XvGettable, 0, (1 << 24) - 1, "XV_COLORKEY"},
 	{XvSettable | XvGettable, -128, 127, "XV_BRIGHTNESS"},
 	{XvSettable | XvGettable, 0, 255, "XV_CONTRAST"},
 	{XvSettable | XvGettable, 0, 1023, "XV_SATURATION"},
-	{XvSettable | XvGettable, -1, 1, "XV_PIPE"}
-};
+	{XvSettable | XvGettable, -1, 1, "XV_PIPE"},
+#define NUM_ATTRIBUTES 5
 
-#define GAMMA_ATTRIBUTES 6
-static const XF86AttributeRec GammaAttributes[GAMMA_ATTRIBUTES] = {
 	{XvSettable | XvGettable, 0, 0xffffff, "XV_GAMMA0"},
 	{XvSettable | XvGettable, 0, 0xffffff, "XV_GAMMA1"},
 	{XvSettable | XvGettable, 0, 0xffffff, "XV_GAMMA2"},
 	{XvSettable | XvGettable, 0, 0xffffff, "XV_GAMMA3"},
 	{XvSettable | XvGettable, 0, 0xffffff, "XV_GAMMA4"},
 	{XvSettable | XvGettable, 0, 0xffffff, "XV_GAMMA5"}
+#define GAMMA_ATTRIBUTES 6
 };
 
-static const XF86ImageRec Images[] = {
+static const XvImageRec Images[] = {
 	XVIMAGE_YUY2,
 	XVIMAGE_YV12,
 	XVIMAGE_I420,
@@ -113,8 +100,7 @@ static bool sna_has_overlay(struct sna *sna)
 	return ret == 0 && has_overlay;
 }
 
-static bool sna_video_overlay_update_attrs(struct sna *sna,
-					   struct sna_video *video)
+static bool sna_video_overlay_update_attrs(struct sna_video *video)
 {
 	struct drm_intel_overlay_attrs attrs;
 
@@ -132,47 +118,39 @@ static bool sna_video_overlay_update_attrs(struct sna *sna,
 	attrs.gamma4 = video->gamma4;
 	attrs.gamma5 = video->gamma5;
 
-	return drmIoctl(sna->kgem.fd, DRM_IOCTL_I915_OVERLAY_ATTRS, &attrs) == 0;
+	return drmIoctl(video->sna->kgem.fd, DRM_IOCTL_I915_OVERLAY_ATTRS, &attrs) == 0;
 }
 
-static void sna_video_overlay_off(struct sna *sna)
+static int sna_video_overlay_stop(ClientPtr client,
+				  XvPortPtr port,
+				  DrawablePtr draw)
 {
+	struct sna_video *video = port->devPriv.ptr;
+	struct sna *sna = video->sna;
 	struct drm_intel_overlay_put_image request;
-
-	DBG(("%s()\n", __FUNCTION__));
-
-	request.flags = 0;
-
-	/* Not much we can do if the hardware dies before we turn it off! */
-	(void)drmIoctl(sna->kgem.fd,
-		       DRM_IOCTL_I915_OVERLAY_PUT_IMAGE,
-		       &request);
-}
-
-static void sna_video_overlay_stop(ScrnInfoPtr scrn,
-				   pointer data,
-				   Bool shutdown)
-{
-	struct sna *sna = to_sna(scrn);
-	struct sna_video *video = data;
 
 	DBG(("%s()\n", __FUNCTION__));
 
 	REGION_EMPTY(scrn->pScreen, &video->clip);
 
-	if (!shutdown)
-		return;
+	request.flags = 0;
+	(void)drmIoctl(sna->kgem.fd,
+		       DRM_IOCTL_I915_OVERLAY_PUT_IMAGE,
+		       &request);
 
-	sna_video_overlay_off(sna);
-	sna_video_free_buffers(sna, video);
+	sna_video_free_buffers(video);
+	sna_window_set_port((WindowPtr)draw, NULL);
+	return Success;
 }
 
 static int
-sna_video_overlay_set_port_attribute(ScrnInfoPtr scrn,
-				     Atom attribute, INT32 value, pointer data)
+sna_video_overlay_set_attribute(ClientPtr client,
+				XvPortPtr port,
+				Atom attribute,
+				INT32 value)
 {
-	struct sna *sna = to_sna(scrn);
-	struct sna_video *video = data;
+	struct sna_video *video = port->devPriv.ptr;
+	struct sna *sna = video->sna;
 
 	if (attribute == xvBrightness) {
 		if ((value < -128) || (value > 127))
@@ -193,7 +171,7 @@ sna_video_overlay_set_port_attribute(ScrnInfoPtr scrn,
 		     video->saturation, (int)value));
 		video->saturation = value;
 	} else if (attribute == xvPipe) {
-		xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
+		xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(sna->scrn);
 		if ((value < -1) || (value >= xf86_config->num_crtc))
 			return BadValue;
 		if (value < 0)
@@ -227,21 +205,23 @@ sna_video_overlay_set_port_attribute(ScrnInfoPtr scrn,
 		DBG(("%s: GAMMA\n", __FUNCTION__));
 	}
 
-	if (!sna_video_overlay_update_attrs(sna, data))
+	if (!sna_video_overlay_update_attrs(video))
 		return BadValue;
 
 	if (attribute == xvColorKey)
-		REGION_EMPTY(scrn->pScreen, &video->clip);
+		RegionEmpty(&video->clip);
 
 	return Success;
 }
 
 static int
-sna_video_overlay_get_port_attribute(ScrnInfoPtr scrn,
-				     Atom attribute, INT32 * value, pointer data)
+sna_video_overlay_get_attribute(ClientPtr client,
+				XvPortPtr port,
+				Atom attribute,
+				INT32 *value)
 {
-	struct sna *sna = to_sna(scrn);
-	struct sna_video *video = (struct sna_video *) data;
+	struct sna_video *video = port->devPriv.ptr;
+	struct sna *sna = video->sna;
 
 	if (attribute == xvBrightness) {
 		*value = video->brightness;
@@ -251,7 +231,7 @@ sna_video_overlay_get_port_attribute(ScrnInfoPtr scrn,
 		*value = video->saturation;
 	} else if (attribute == xvPipe) {
 		int c;
-		xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
+		xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(sna->scrn);
 		for (c = 0; c < xf86_config->num_crtc; c++)
 			if (xf86_config->crtc[c] == video->desired_crtc)
 				break;
@@ -280,15 +260,16 @@ sna_video_overlay_get_port_attribute(ScrnInfoPtr scrn,
 	return Success;
 }
 
-static void
-sna_video_overlay_query_best_size(ScrnInfoPtr scrn,
-				  Bool motion,
-				  short vid_w, short vid_h,
-				  short drw_w, short drw_h,
-				  unsigned int *p_w, unsigned int *p_h,
-				  pointer data)
+static int
+sna_video_overlay_best_size(ClientPtr client,
+			    XvPortPtr port,
+			    CARD8 motion,
+			    CARD16 vid_w, CARD16 vid_h,
+			    CARD16 drw_w, CARD16 drw_h,
+			    unsigned int *p_w, unsigned int *p_h)
 {
-	struct sna *sna = to_sna(scrn);
+	struct sna_video *video = port->devPriv.ptr;
+	struct sna *sna = video->sna;
 	short max_w, max_h;
 
 	if (vid_w > (drw_w << 1) || vid_h > (drw_h << 1)){
@@ -311,6 +292,7 @@ sna_video_overlay_query_best_size(ScrnInfoPtr scrn,
 
 	*p_w = drw_w;
 	*p_h = drw_h;
+	return Success;
 }
 
 static void
@@ -462,21 +444,26 @@ sna_video_overlay_show(struct sna *sna,
 }
 
 static int
-sna_video_overlay_put_image(ScrnInfoPtr scrn,
-			    short src_x, short src_y,
-			    short drw_x, short drw_y,
-			    short src_w, short src_h,
-			    short drw_w, short drw_h,
-			    int id, unsigned char *buf,
-			    short width, short height,
-			    Bool sync, RegionPtr clip, pointer data,
-			    DrawablePtr drawable)
+sna_video_overlay_put_image(ClientPtr client,
+			    DrawablePtr draw,
+			    XvPortPtr port,
+			    GCPtr gc,
+			    INT16 src_x, INT16 src_y,
+			    CARD16 src_w, CARD16 src_h,
+			    INT16 drw_x, INT16 drw_y,
+			    CARD16 drw_w, CARD16 drw_h,
+			    XvImagePtr format,
+			    unsigned char *buf,
+			    Bool sync,
+			    CARD16 width, CARD16 height)
 {
-	struct sna *sna = to_sna(scrn);
-	struct sna_video *video = data;
+	struct sna_video *video = port->devPriv.ptr;
+	struct sna *sna = video->sna;
 	struct sna_video_frame frame;
-	BoxRec dstBox;
 	xf86CrtcPtr crtc;
+	BoxRec dstBox;
+	RegionRec clip;
+	int ret;
 
 	DBG(("%s: src: (%d,%d)(%d,%d), dst: (%d,%d)(%d,%d), width %d, height %d\n",
 	     __FUNCTION__,
@@ -492,30 +479,43 @@ sna_video_overlay_put_image(ScrnInfoPtr scrn,
 	if (src_h >= (drw_h * 8))
 		drw_h = src_h / 7;
 
-	sna_video_frame_init(sna, video, id, width, height, &frame);
+	clip.extents.x1 = draw->x + drw_x;
+	clip.extents.y1 = draw->y + drw_y;
+	clip.extents.x2 = clip.extents.x1 + drw_w;
+	clip.extents.y2 = clip.extents.y1 + drw_h;
+	clip.data = NULL;
 
-	if (!sna_video_clip_helper(scrn,
-				   video,
-				   &frame,
-				   &crtc,
-				   &dstBox,
-				   src_x, src_y, drw_x, drw_y,
+	RegionIntersect(&clip, &clip, gc->pCompositeClip);
+	if (!RegionNotEmpty(&clip))
+		goto invisible;
+
+	DBG(("%s: src=(%d, %d),(%d, %d), dst=(%d, %d),(%d, %d), id=%d, sizep=%dx%d, sync?=%d\n",
+	     __FUNCTION__,
+	     src_x, src_y, src_w, src_h,
+	     drw_x, drw_y, drw_w, drw_h,
+	     format->id, width, height, sync));
+
+	DBG(("%s: region %d:(%d, %d), (%d, %d)\n", __FUNCTION__,
+	     RegionNumRects(&clip),
+	     clip.extents.x1, clip.extents.y1,
+	     clip.extents.x2, clip.extents.y2));
+
+	sna_video_frame_init(video, format->id, width, height, &frame);
+
+	if (!sna_video_clip_helper(sna->scrn, video, &frame,
+				   &crtc, &dstBox,
+				   src_x, src_y, draw->x + drw_x, draw->y + drw_y,
 				   src_w, src_h, drw_w, drw_h,
-				   clip))
-		return Success;
+				   &clip))
+		goto invisible;
 
-	if (!crtc) {
-		/*
-		 * If the video isn't visible on any CRTC, turn it off
-		 */
-		sna_video_overlay_off(sna);
-		return Success;
-	}
+	if (!crtc)
+		goto invisible;
 
 	/* overlay can't handle rotation natively, store it for the copy func */
 	video->rotation = crtc->rotation;
 
-	if (xvmc_passthrough(id)) {
+	if (xvmc_passthrough(format->id)) {
 		DBG(("%s: using passthough, name=%d\n",
 		     __FUNCTION__, *(uint32_t *)buf));
 
@@ -531,46 +531,59 @@ sna_video_overlay_put_image(ScrnInfoPtr scrn,
 		frame.image.x2 = frame.width;
 		frame.image.y2 = frame.height;
 	} else {
-		frame.bo = sna_video_buffer(sna, video, &frame);
+		frame.bo = sna_video_buffer(video, &frame);
 		if (frame.bo == NULL) {
 			DBG(("%s: failed to allocate video bo\n", __FUNCTION__));
 			return BadAlloc;
 		}
 
-		if (!sna_video_copy_data(sna, video, &frame, buf)) {
+		if (!sna_video_copy_data(video, &frame, buf)) {
 			DBG(("%s: failed to copy video data\n", __FUNCTION__));
 			return BadAlloc;
 		}
 	}
 
-	if (!sna_video_overlay_show
+	ret = Success;
+	if (sna_video_overlay_show
 	    (sna, video, &frame, crtc, &dstBox, src_w, src_h, drw_w, drw_h)) {
+		if (!RegionEqual(&video->clip, &clip)) {
+			RegionCopy(&video->clip, &clip);
+			xf86XVFillKeyHelperDrawable(draw, video->color_key, &clip);
+		}
+
+		sna_window_set_port((WindowPtr)draw, port);
+	} else {
 		DBG(("%s: failed to show video frame\n", __FUNCTION__));
-		return BadAlloc;
+		ret = BadAlloc;
 	}
 
 	frame.bo->domain = DOMAIN_NONE;
-	if (xvmc_passthrough(id))
+	if (xvmc_passthrough(format->id))
 		kgem_bo_destroy(&sna->kgem, frame.bo);
 	else
-		sna_video_buffer_fini(sna, video);
+		sna_video_buffer_fini(video);
 
-	/* update cliplist */
-	if (!REGION_EQUAL(scrn->pScreen, &video->clip, clip)) {
-		REGION_COPY(scrn->pScreen, &video->clip, clip);
-		xf86XVFillKeyHelperDrawable(drawable, video->color_key, clip);
-	}
+	return ret;
 
+invisible:
+	/*
+	 * If the video isn't visible on any CRTC, turn it off
+	 */
+	sna_video_overlay_stop(client, port, draw);
 	return Success;
 }
 
 static int
-sna_video_overlay_query_video_attributes(ScrnInfoPtr scrn,
-					 int id,
-					 unsigned short *w, unsigned short *h,
-					 int *pitches, int *offsets)
+sna_video_overlay_query(ClientPtr client,
+			XvPortPtr port,
+			XvImagePtr format,
+			unsigned short *w,
+			unsigned short *h,
+			int *pitches,
+			int *offsets)
 {
-	struct sna *sna = to_sna(scrn);
+	struct sna_video *video = port->devPriv.ptr;
+	struct sna *sna = video->sna;
 	int size, tmp;
 
 	DBG(("%s: w is %d, h is %d\n", __FUNCTION__, *w, *h));
@@ -591,7 +604,7 @@ sna_video_overlay_query_video_attributes(ScrnInfoPtr scrn,
 	if (offsets)
 		offsets[0] = 0;
 
-	switch (id) {
+	switch (format->id) {
 	case FOURCC_XVMC:
 		*h = (*h + 1) & ~1;
 		size = sizeof(uint32_t);
@@ -666,69 +679,78 @@ static int sna_video_overlay_color_key(struct sna *sna)
 	return color_key & ((1 << scrn->depth) - 1);
 }
 
-XF86VideoAdaptorPtr sna_video_overlay_setup(struct sna *sna,
-					    ScreenPtr screen)
+void sna_video_overlay_setup(struct sna *sna, ScreenPtr screen)
 {
-	XF86VideoAdaptorPtr adaptor;
+	XvAdaptorPtr adaptor;
 	struct sna_video *video;
+	XvPortPtr port;
 
-	if (!sna_has_overlay(sna)) {
-		xf86DrvMsg(sna->scrn->scrnIndex, X_INFO,
-			   "Overlay video not supported on this hardware\n");
-		return NULL;
-	}
+	if (!sna_has_overlay(sna))
+		return;
 
 	DBG(("%s()\n", __FUNCTION__));
 
-	if (!(adaptor = calloc(1,
-			     sizeof(XF86VideoAdaptorRec) +
-			     sizeof(struct sna_video) +
-			     sizeof(DevUnion))))
-		return NULL;
+	adaptor = sna_xv_adaptor_alloc(sna);
+	if (adaptor == NULL)
+		return;
 
-	adaptor->type = XvWindowMask | XvInputMask | XvImageMask;
-	adaptor->flags = VIDEO_OVERLAID_IMAGES /*| VIDEO_CLIP_TO_VIEWPORT */ ;
+	video = calloc(1, sizeof(*video));
+	port = calloc(1, sizeof(*port));
+	if (video == NULL || port == NULL) {
+		free(video);
+		free(port);
+		sna->xv.num_adaptors--;
+		return;
+	}
+
+	adaptor->type = XvInputMask | XvImageMask;
+	adaptor->pScreen = screen;
 	adaptor->name = "Intel(R) Video Overlay";
 	adaptor->nEncodings = 1;
-	adaptor->pEncodings = xnfalloc(sizeof(DummyEncoding));
-	memcpy(adaptor->pEncodings, DummyEncoding, sizeof(DummyEncoding));
-	if (sna->kgem.gen < 021) {
-		adaptor->pEncodings->width = IMAGE_MAX_WIDTH_LEGACY;
-		adaptor->pEncodings->height = IMAGE_MAX_HEIGHT_LEGACY;
-	}
-	adaptor->nFormats = NUM_FORMATS;
-	adaptor->pFormats = (XF86VideoFormatPtr)Formats;
-	adaptor->nPorts = 1;
-	adaptor->pPortPrivates = (DevUnion *)&adaptor[1];
-
-	video = (struct sna_video *)&adaptor->pPortPrivates[1];
-
-	adaptor->pPortPrivates[0].ptr = video;
+	adaptor->pEncodings = xnfalloc(sizeof(XvEncodingRec));
+	adaptor->pEncodings[0].id = 0;
+	adaptor->pEncodings[0].pScreen = screen;
+	adaptor->pEncodings[0].name = "XV_IMAGE";
+	adaptor->pEncodings[0].width = sna->kgem.gen < 021 ? IMAGE_MAX_WIDTH_LEGACY : IMAGE_MAX_WIDTH;
+	adaptor->pEncodings[0].height = sna->kgem.gen < 021 ? IMAGE_MAX_HEIGHT_LEGACY : IMAGE_MAX_HEIGHT;
+	adaptor->pEncodings[0].rate.numerator = 1;
+	adaptor->pEncodings[0].rate.denominator = 1;
+	adaptor->nFormats = ARRAY_SIZE(Formats);
+	adaptor->pFormats = Formats;
 	adaptor->nAttributes = NUM_ATTRIBUTES;
 	if (HAS_GAMMA(sna))
 		adaptor->nAttributes += GAMMA_ATTRIBUTES;
-
-	 adaptor->pAttributes =
-	    xnfalloc(sizeof(XF86AttributeRec) * adaptor->nAttributes);
-	/* Now copy the attributes */
-	memcpy(adaptor->pAttributes, Attributes, sizeof(XF86AttributeRec) * NUM_ATTRIBUTES);
-	if (HAS_GAMMA(sna))
-		memcpy(adaptor->pAttributes + NUM_ATTRIBUTES, GammaAttributes,
-		       sizeof(XF86AttributeRec) * GAMMA_ATTRIBUTES);
-
+	adaptor->pAttributes = Attributes;
 	adaptor->nImages = ARRAY_SIZE(Images);
-	adaptor->pImages = (XF86ImagePtr)Images;
-	adaptor->PutVideo = NULL;
-	adaptor->PutStill = NULL;
-	adaptor->GetVideo = NULL;
-	adaptor->GetStill = NULL;
-	adaptor->StopVideo = sna_video_overlay_stop;
-	adaptor->SetPortAttribute = sna_video_overlay_set_port_attribute;
-	adaptor->GetPortAttribute = sna_video_overlay_get_port_attribute;
-	adaptor->QueryBestSize = sna_video_overlay_query_best_size;
-	adaptor->PutImage = sna_video_overlay_put_image;
-	adaptor->QueryImageAttributes = sna_video_overlay_query_video_attributes;
+	adaptor->pImages = Images;
+	adaptor->ddAllocatePort = sna_xv_alloc_port;
+	adaptor->ddFreePort = sna_xv_free_port;
+	adaptor->ddPutVideo = NULL;
+	adaptor->ddPutStill = NULL;
+	adaptor->ddGetVideo = NULL;
+	adaptor->ddGetStill = NULL;
+	adaptor->ddStopVideo = sna_video_overlay_stop;
+	adaptor->ddSetPortAttribute = sna_video_overlay_set_attribute;
+	adaptor->ddGetPortAttribute = sna_video_overlay_get_attribute;
+	adaptor->ddQueryBestSize = sna_video_overlay_best_size;
+	adaptor->ddPutImage = sna_video_overlay_put_image;
+	adaptor->ddQueryImageAttributes = sna_video_overlay_query;
 
+	adaptor->nPorts = 1;
+	adaptor->pPorts = port;
+
+	adaptor->base_id = port->id = FakeClientID(0);
+	AddResource(port->id, XvGetRTPort(), port);
+
+	port->pAdaptor = adaptor;
+	port->pNotify =  NULL;
+	port->pDraw =  NULL;
+	port->client =  NULL;
+	port->grab.client =  NULL;
+	port->time = currentTime;
+	port->devPriv.ptr = video;
+
+	video->sna = sna;
 	if (sna->kgem.gen >= 040)
 		/* Actually the alignment is 64 bytes, too. But the
 		 * stride must be at least 512 bytes. Take the easy fix
@@ -741,7 +763,6 @@ XF86VideoAdaptorPtr sna_video_overlay_setup(struct sna *sna,
 		video->alignment = 256;
 	else
 		video->alignment = 64;
-	video->textured = false;
 	video->color_key = sna_video_overlay_color_key(sna);
 	video->brightness = -19;	/* (255/219) * -16 */
 	video->contrast = 75;	/* 255/219 * 64 */
@@ -753,11 +774,8 @@ XF86VideoAdaptorPtr sna_video_overlay_setup(struct sna *sna,
 	video->gamma2 = 0x202020;
 	video->gamma1 = 0x101010;
 	video->gamma0 = 0x080808;
-
 	video->rotation = RR_Rotate_0;
-
-	/* gotta uninit this someplace */
-	REGION_NULL(screen, &video->clip);
+	RegionNil(&video->clip);
 
 	xvColorKey = MAKE_ATOM("XV_COLORKEY");
 	xvBrightness = MAKE_ATOM("XV_BRIGHTNESS");
@@ -776,7 +794,5 @@ XF86VideoAdaptorPtr sna_video_overlay_setup(struct sna *sna,
 		xvGamma5 = MAKE_ATOM("XV_GAMMA5");
 	}
 
-	sna_video_overlay_update_attrs(sna, video);
-
-	return adaptor;
+	sna_video_overlay_update_attrs(video);
 }
