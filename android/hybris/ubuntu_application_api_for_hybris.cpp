@@ -136,7 +136,7 @@ struct Setup : public ubuntu::application::ui::Setup
         return stage;
     }
 
-    ubuntu::application::ui::FormFactorHintFlags form_factor_hint()
+    ubuntu::application::ui::FormFactorHint form_factor_hint()
     {
         return ubuntu::application::ui::desktop_form_factor;
     }
@@ -147,7 +147,7 @@ struct Setup : public ubuntu::application::ui::Setup
     }
 
     ubuntu::application::ui::StageHint stage;
-    ubuntu::application::ui::FormFactorHintFlags form_factor;
+    ubuntu::application::ui::FormFactorHint form_factor;
     android::String8 desktop_file;
 };
 
@@ -414,6 +414,11 @@ struct UbuntuSurface : public ubuntu::application::ui::Surface
 
         if (observer)
             observer->update();
+    }
+
+    int32_t get_id()
+    {
+        return -1;
     }
 
     EGLNativeWindowType to_native_window_type()

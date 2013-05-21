@@ -5,7 +5,7 @@ UPAPI_PATH := $(LOCAL_PATH)/../../
 
 LOCAL_CFLAGS += -std=gnu++0x
 
-CONFIG_H := $(UPAPI_PATH)/include/ubuntu/ui/config.h 
+CONFIG_H := $(UPAPI_PATH)/include/ui/config.h 
 $(CONFIG_H):
 	echo "Generating config.h"
 	sed $(UPAPI_PATH)/include/config.h.in -e 's/@USE_GLES@/1/g' > $@
@@ -14,7 +14,7 @@ LOCAL_GENERATED_SOURCES := $(CONFIG_H)
 
 LOCAL_C_INCLUDES := \
 	$(UPAPI_PATH)/include \
-    $(UPAPI_PATH)/android/include
+	$(UPAPI_PATH)/android/include
 
 LOCAL_SRC_FILES := \
 	ubuntu_application_api_for_hybris.cpp \
@@ -22,6 +22,7 @@ LOCAL_SRC_FILES := \
 	ubuntu_application_sensors_for_hybris.cpp \
 	../default/default_ubuntu_application_sensor.cpp \
 	../default/default_ubuntu_application_ui.cpp \
+	../default/default_ubuntu_application.cpp \
 	../default/default_ubuntu_ui.cpp \
 	application_manager.cpp
 
@@ -209,7 +210,7 @@ LOCAL_C_INCLUDES := \
 	external/skia/include/core \
 	frameworks/base/services \
 	$(UPAPI_PATH)/include \
-    $(UPAPI_PATH)/android/include
+	$(UPAPI_PATH)/android/include
 
 LOCAL_SRC_FILES:= \
 	application_manager.cpp \
