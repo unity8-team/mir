@@ -2946,6 +2946,8 @@ sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
 	     box->x1, box->y1, box->x2, box->y2,
 	     flags));
 
+	assert((hint & REPLACES) == 0 || (hint & IGNORE_CPU));
+
 	assert(box->x2 > box->x1 && box->y2 > box->y1);
 	assert(pixmap->refcnt);
 	assert_pixmap_damage(pixmap);
@@ -3001,7 +3003,7 @@ sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
 	     __FUNCTION__, priv->flush, priv->shm, priv->cpu, flags));
 
 	if ((flags & PREFER_GPU) == 0 &&
-	    (!priv->gpu_damage || !kgem_bo_is_busy(priv->gpu_bo))) {
+	    (flags & REPLACES || !priv->gpu_damage || !kgem_bo_is_busy(priv->gpu_bo))) {
 		DBG(("%s: try cpu as GPU bo is idle\n", __FUNCTION__));
 		goto use_cpu_bo;
 	}
@@ -12179,18 +12181,20 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 			}
 			hint |= IGNORE_CPU;
 		}
-		if (priv->cpu_damage == NULL &&
-		    (region_subsumes_drawable(&region, &pixmap->drawable) ||
-		     box_inplace(pixmap, &region.extents))) {
-			DBG(("%s: promoting to full GPU\n", __FUNCTION__));
-			if (priv->gpu_bo) {
-				assert(priv->gpu_bo->proxy == NULL);
-				sna_damage_all(&priv->gpu_damage,
-					       pixmap->drawable.width,
-					       pixmap->drawable.height);
-			}
-		}
+		if (region_subsumes_drawable(&region, &pixmap->drawable))
+			hint |= REPLACES;
 		if (priv->cpu_damage == NULL) {
+			if (hint & REPLACES &&
+			    box_inplace(pixmap, &region.extents)) {
+				DBG(("%s: promoting to full GPU\n",
+				     __FUNCTION__));
+				if (priv->gpu_bo) {
+					assert(priv->gpu_bo->proxy == NULL);
+					sna_damage_all(&priv->gpu_damage,
+						       pixmap->drawable.width,
+						       pixmap->drawable.height);
+				}
+			}
 			DBG(("%s: dropping last-cpu hint\n", __FUNCTION__));
 			priv->cpu = false;
 		}
@@ -12209,6 +12213,8 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 		DBG(("%s: not using GPU, hint=%x\n", __FUNCTION__, hint));
 		goto fallback;
 	}
+	if (hint & REPLACES)
+		kgem_bo_undo(&sna->kgem, bo);
 
 	if (gc_is_solid(gc, &color)) {
 		DBG(("%s: solid fill [%08x], testing for blt\n",

@@ -933,8 +933,9 @@ sna_composite_rectangles(CARD8		 op,
 			sna_damage_destroy(&priv->cpu_damage);
 			list_del(&priv->flush_list);
 		}
-		if (region_subsumes_drawable(&region, &pixmap->drawable) ||
-		    box_inplace(pixmap, &region.extents)) {
+		if (region_subsumes_drawable(&region, &pixmap->drawable))
+			hint |= REPLACES;
+		if (hint & REPLACES || box_inplace(pixmap, &region.extents)) {
 			DBG(("%s: promoting to full GPU\n", __FUNCTION__));
 			if (priv->gpu_bo && priv->cpu_damage == NULL) {
 				assert(priv->gpu_bo->proxy == NULL);
@@ -958,6 +959,8 @@ sna_composite_rectangles(CARD8		 op,
 		DBG(("%s: fallback due to no GPU bo\n", __FUNCTION__));
 		goto fallback;
 	}
+	if (hint & REPLACES)
+		kgem_bo_undo(&sna->kgem, bo);
 
 	if (!sna->render.fill_boxes(sna, op, dst->format, color,
 				    pixmap, bo, boxes, num_boxes)) {
