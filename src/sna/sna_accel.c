@@ -57,7 +57,7 @@
 #define FORCE_INPLACE 0
 #define FORCE_FALLBACK 0
 #define FORCE_FLUSH 0
-#define FORCE_FULL_SYNC 1 /* https://bugs.freedesktop.org/show_bug.cgi?id=61628 */
+#define FORCE_FULL_SYNC 0 /* https://bugs.freedesktop.org/show_bug.cgi?id=61628 */
 
 #define DEFAULT_TILING I915_TILING_X
 
