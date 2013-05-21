@@ -35,7 +35,7 @@ enum FormFactorHint
 };
 
 /** Bitfield as multiple form factor hints can be applied in a converged scenario. */
-//typedef unsigned int FormFactorHintFlags;
+typedef unsigned int FormFactorHintFlags;
 
 }
 }

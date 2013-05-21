@@ -18,8 +18,8 @@
 
 #include <ubuntu/ui/ubuntu_ui_session_service.h>
 
-#include <ubuntu/ui/session_service.h>
-#include <ubuntu/ui/session_enumerator.h>
+#include <private/ui/session_service.h>
+#include <private/ui/session_enumerator.h>
 
 #include <stdio.h>
 

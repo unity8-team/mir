@@ -54,8 +54,6 @@ public:
      */
     static PhysicalDisplayInfo::Ptr physical_display_info(PhysicalDisplayIdentifier id);
 
-    virtual void install_lifecycle_delegate(const ubuntu::application::LifecycleDelegate::Ptr& delegate) = 0;
-
     /** Requests a surface from the system.
      *  \param [in] props Requested properties for the surface
      *  \param [in] listener Event receiver for input events

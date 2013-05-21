@@ -15,12 +15,12 @@
  *
  * Authored by: Thomas Voß <thomas.voss@canonical.com>
  */
-#include <ubuntu/application/ui/init.h>
-#include <ubuntu/application/ui/session.h>
-#include <ubuntu/application/ui/session_credentials.h>
-#include <ubuntu/application/ui/setup.h>
+#include <private/application/ui/init.h>
+#include <private/application/ui/session.h>
+#include <private/application/ui/session_credentials.h>
+#include <private/application/ui/setup.h>
 
-#include <ubuntu/ui/session_service.h>
+#include <private/ui/session_service.h>
 
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
