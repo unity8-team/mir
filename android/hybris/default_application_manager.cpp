@@ -33,6 +33,7 @@
 #include <androidfw/InputTransport.h>
 #include <utils/threads.h>
 #include <utils/Errors.h>
+#include <utils/Timers.h>
 
 #include <cstdio>
 #include <cstdlib>
@@ -131,7 +132,7 @@ void update_oom_values(const android::sp<ubuntu::detail::ApplicationSession>& se
         return;
     }
 
-    if (session->running_state == ubuntu::application::ui::process_stopped)
+    if (session->running_state == ubuntu::application::ui::process_suspended)
     {
         if (!write_proc_file(session->pid, "oom_score_adj", "1000"))
             write_proc_file(session->pid, "oom_adj", "15");
@@ -424,6 +425,82 @@ android::sp<ApplicationManager::LockingIterator> ApplicationManager::iterator()
     return it;
 }
 
+void ApplicationManager::session_set_state(const android::sp<ubuntu::detail::ApplicationSession>& as,
+                                           int32_t new_state)
+{
+    ALOGI("%s():%d running->running", __PRETTY_FUNCTION__, __LINE__);
+
+    switch (new_state)
+    {
+    case ubuntu::application::ui::process_running:
+    {
+        if (as->running_state == ubuntu::application::ui::process_running)
+        {
+            ALOGI("%s():%d running->running", __PRETTY_FUNCTION__, __LINE__);
+            /* FIXME:
+             * Technically invalid, this transition currently is hit because
+             * of focus being requested on the session before its delagate call
+             */
+        } else if (as->running_state == ubuntu::application::ui::process_destroyed)
+        {
+            ALOGI("%s():%d destroyed->running", __PRETTY_FUNCTION__, __LINE__);
+            /* TODO:
+             * Resume application with a null archive handler
+             */
+        } else if (as->running_state == ubuntu::application::ui::process_stopped)
+        {
+            ALOGI("%s():%d stopped->running", __PRETTY_FUNCTION__, __LINE__);
+            /* TODO:
+             * Support starting the new process and wait for the
+             * session to be available to call its delegate
+             */
+            return;
+        } else
+        {
+            /* suspended->running
+             * nothing to do, process image still in memory
+             */
+            kill(as->pid, SIGCONT);
+        }
+        as->running_state = ubuntu::application::ui::process_running;
+        as->on_application_started();
+        update_oom_values(as);
+    }
+    break;
+    case ubuntu::application::ui::process_suspended:
+    {
+        ALOGI("%s() state->suspended", __PRETTY_FUNCTION__);
+        /* TODO: create archive */
+        as->on_application_about_to_stop();
+        as->running_state = ubuntu::application::ui::process_suspended;
+        android::sp<android::Thread> deferred_kill(new ubuntu::application::ProcessKiller(as));
+        deferred_kill->run();
+        update_oom_values(as);
+    }
+    break;
+    case ubuntu::application::ui::process_stopped:
+    {
+        ALOGI("%s() state->stopped", __PRETTY_FUNCTION__);
+        /* TODO:
+         * This transition occurs while SIGSTOP'd. Check we hold a valid archive
+         * and then destroy the process image. No need to signal via delegates.
+         */
+        as->running_state = ubuntu::application::ui::process_stopped;
+    }
+    break;
+    case ubuntu::application::ui::process_destroyed:
+    {
+        ALOGI("%s() state->destroyed", __PRETTY_FUNCTION__);
+        /* TODO:
+         * Internal transition: Invalidate archive if any, destroy
+         * process image.
+         */
+        as->running_state = ubuntu::application::ui::process_destroyed;
+    }
+    break;
+    }
+}
+
 void ApplicationManager::start_a_new_session(
     int32_t session_type,
     int32_t stage_hint,
@@ -432,41 +509,61 @@ void ApplicationManager::start_a_new_session(
     const android::sp<android::IApplicationManagerSession>& session,
     int fd)
 {
+    android::Mutex::Autolock al(guard);
     (void) session_type;
     pid_t pid = android::IPCThreadState::self()->getCallingPid();
     pid_t remote_pid = pid_to_vpid(pid);
-    android::sp<ubuntu::detail::ApplicationSession> app_session(
-        new ubuntu::detail::ApplicationSession(
-            pid,
-            remote_pid,
-            session,
-            session_type,
-            stage_hint,
-            app_name,
-            desktop_file));
+    
+    ALOGI("%s() starting new session", __PRETTY_FUNCTION__);
+    
+    size_t idx = session_by_desktop_file(desktop_file);
+    // FIXME: Forcing idx=0 to always start new session
+    idx = 0;
+    if (!idx)
     {
-        android::Mutex::Autolock al(guard);
-        session->asBinder()->linkToDeath(
-            android::sp<android::IBinder::DeathRecipient>(this));
-        apps.add(session->asBinder(), app_session);
-        apps_as_added.push_back(session->asBinder());
+        android::sp<ubuntu::detail::ApplicationSession> app_session(
+            new ubuntu::detail::ApplicationSession(
+                pid,
+                remote_pid,
+                session,
+                session_type,
+                stage_hint,
+                app_name,
+                desktop_file));
 
-        switch(session_type)
-        {
-            case ubuntu::application::ui::user_session_type:
-                ALOGI("%s: Invoked for user_session_type \n", __PRETTY_FUNCTION__);
-                break;
-            case ubuntu::application::ui::system_session_type:
-                ALOGI("%s: Invoked for system_session_type \n", __PRETTY_FUNCTION__);
-                break;
-        }
+        idx = apps.add(session->asBinder(), app_session);
+        apps_as_added.push_back(session->asBinder());
+    } else {
+        // FIXME: Correct index calculation
+        idx = idx-1;
+        ALOGI("%s(): setting remote_session to existing one", __PRETTY_FUNCTION__);
+        const android::sp<ubuntu::detail::ApplicationSession>& app_session =
+                    apps.valueFor(apps_as_added[idx-1]);
+        // Set not-running app_session's live binder to the new instance
+        app_session->remote_session = session;
     }
 
-    update_oom_values(app_session);
+    session->asBinder()->linkToDeath(
+        android::sp<android::IBinder::DeathRecipient>(this));
+
+    switch(session_type)
+    {
+        case ubuntu::application::ui::user_session_type:
+            ALOGI("%s: Invoked for user_session_type \n", __PRETTY_FUNCTION__);
+            break;
+        case ubuntu::application::ui::system_session_type:
+            ALOGI("%s: Invoked for system_session_type \n", __PRETTY_FUNCTION__);
+            break;
+    }
+
+    const android::sp<ubuntu::detail::ApplicationSession>& app_session =
+                    apps.valueFor(apps_as_added.top());
 
     notify_observers_about_session_born(app_session->remote_pid, 
                                         app_session->stage_hint, 
                                         app_session->desktop_file);
+    
+    ALOGI("%s():%d session", __PRETTY_FUNCTION__, __LINE__);
 }
 
 void ApplicationManager::register_a_surface(
@@ -678,25 +775,13 @@ void ApplicationManager::unfocus_running_sessions()
                 apps.valueFor(apps_as_added[focused_application]);
         
         if (session->session_type != ubuntu::application::ui::system_session_type)
-        {            
+        {          
             notify_observers_about_session_unfocused(session->remote_pid,
                                                      session->stage_hint,
                                                      session->desktop_file);
 
-            // Stop the session
             if (!is_session_allowed_to_run_in_background(session))
-            {
-                ALOGI("\t Trying to stop ordinary app process.");
-                if (0 != kill(session->pid, SIGSTOP))
-                {
-                    ALOGI("\t Problem stopping process, errno = %d.", errno);
-                } else
-                {
-                    session->running_state = ubuntu::application::ui::process_stopped;
-                    update_oom_values(session);
-                    ALOGI("\t\t Successfully stopped process.");
-                }
-            }
+                session_set_state(session, ubuntu::application::ui::process_suspended);
         }
     }
     shell_input_setup->shell_has_focus = true;
@@ -727,7 +812,7 @@ android::IApplicationManagerSession::SurfaceProperties ApplicationManager::query
         const android::sp<ubuntu::detail::ApplicationSession>& session =
                 apps.valueFor(apps_as_added[idx]);
 
-        if (session->running_state == ubuntu::application::ui::process_stopped)
+        if (session->running_state == ubuntu::application::ui::process_suspended)
         {
             kill(session->pid, SIGCONT);
             props = session->query_properties();
@@ -907,12 +992,11 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
                     (session->stage_hint == ubuntu::application::ui::side_stage &&
                     next_session->stage_hint != ubuntu::application::ui::main_stage))
                 {
-                    kill(session->pid, SIGSTOP);
-                    session->running_state = ubuntu::application::ui::process_stopped;
-                    update_oom_values(session);
                     notify_observers_about_session_unfocused(session->remote_pid,
                                                              session->stage_hint,
                                                              session->desktop_file);
+
+                    session_set_state(session, ubuntu::application::ui::process_suspended);
                 } else
                 {
                     if (session->stage_hint == ubuntu::application::ui::side_stage &&
@@ -921,9 +1005,8 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
                     {
                         const android::sp<ubuntu::detail::ApplicationSession>& main_session =
                             apps.valueFor(apps_as_added[main_stage_application]);
-                        kill(main_session->pid, SIGSTOP);
-                        main_session->running_state = ubuntu::application::ui::process_stopped;
-                        update_oom_values(main_session);
+
+                        session_set_state(main_session, ubuntu::application::ui::process_suspended);
                     }
                 }
             }
@@ -952,11 +1035,7 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
 
         // Continue the session
         if (!is_session_allowed_to_run_in_background(session))
-        {
-            kill(session->pid, SIGCONT);
-            session->running_state = ubuntu::application::ui::process_running;
-            update_oom_values(session);
-        }
+            session_set_state(session, ubuntu::application::ui::process_running);
 
         if (session->stage_hint == ubuntu::application::ui::side_stage)
             side_stage_application = focused_application;
@@ -989,9 +1068,7 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
             {
                 const android::sp<ubuntu::detail::ApplicationSession>& main_session =
                     apps.valueFor(apps_as_added[main_stage_application]);
-                kill(main_session->pid, SIGCONT);
-                main_session->running_state = ubuntu::application::ui::process_running;
-                update_oom_values(main_session);
+                session_set_state(main_session, ubuntu::application::ui::process_running);
                 input_windows.appendVector(main_session->input_window_handles());
             }
         }
@@ -1025,6 +1102,22 @@ void ApplicationManager::kill_focused_application_locked()
 
         kill(session->pid, SIGKILL);
     }
+}
+
+size_t ApplicationManager::session_by_desktop_file(const android::String8 desktop_file)
+{
+    size_t idx;
+
+    for(idx = apps_as_added.size(); idx > 0; idx--)
+    {
+        const android::sp<ubuntu::detail::ApplicationSession>& session =
+                apps.valueFor(apps_as_added[idx-1]);
+
+        if (session->desktop_file == desktop_file)
+            break;
+    }
+
+    return idx;
 }
 
 size_t ApplicationManager::session_id_to_index(int id)

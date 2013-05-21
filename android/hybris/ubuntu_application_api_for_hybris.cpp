@@ -431,7 +431,8 @@ struct Session : public ubuntu::application::ui::Session, public UbuntuSurface::
 {
     struct ApplicationManagerSession : public BnApplicationManagerSession
     {
-        ApplicationManagerSession(Session* parent) : parent(parent)
+        ApplicationManagerSession(Session* parent) : parent(parent),
+                                                     delegate()
         {
         }
 
@@ -465,7 +466,29 @@ struct Session : public ubuntu::application::ui::Session, public UbuntuSurface::
             return parent->surfaces.valueFor(token)->properties;
         }
 
+        void on_application_started()
+        {
+            if (delegate == NULL)
+                return;
+    
+            delegate->on_application_started();
+        }
+    
+        void on_application_about_to_stop()
+        {
+            if (delegate == NULL)
+                return;
+    
+            delegate->on_application_about_to_stop();
+        }
+    
+        void install_lifecycle_delegate(const ubuntu::application::LifecycleDelegate::Ptr& delegate)
+        {
+            this->delegate = delegate;
+        }
+    
         Session* parent;
+        ubuntu::application::LifecycleDelegate::Ptr delegate;
     };
 
     sp<ApplicationManagerSession> app_manager_session;
@@ -508,6 +531,11 @@ struct Session : public ubuntu::application::ui::Session, public UbuntuSurface::
 
         android::ProcessState::self()->startThreadPool();
         event_loop->run(__PRETTY_FUNCTION__, android::PRIORITY_URGENT_DISPLAY);
+    }
+
+    void install_lifecycle_delegate(const ubuntu::application::LifecycleDelegate::Ptr& delegate)
+    {
+        this->app_manager_session->install_lifecycle_delegate(delegate);
     }
 
     void update()
