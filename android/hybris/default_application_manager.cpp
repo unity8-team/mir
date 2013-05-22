@@ -516,32 +516,18 @@ void ApplicationManager::start_a_new_session(
     
     ALOGI("%s() starting new session", __PRETTY_FUNCTION__);
     
-    size_t idx = session_by_desktop_file(desktop_file);
-    // FIXME: Forcing idx=0 to always start new session
-    idx = 0;
-    if (!idx)
-    {
-        android::sp<ubuntu::detail::ApplicationSession> app_session(
-            new ubuntu::detail::ApplicationSession(
-                pid,
-                remote_pid,
-                session,
-                session_type,
-                stage_hint,
-                app_name,
-                desktop_file));
+    android::sp<ubuntu::detail::ApplicationSession> app_session(
+        new ubuntu::detail::ApplicationSession(
+            pid,
+            remote_pid,
+            session,
+            session_type,
+            stage_hint,
+            app_name,
+            desktop_file));
 
-        idx = apps.add(session->asBinder(), app_session);
-        apps_as_added.push_back(session->asBinder());
-    } else {
-        // FIXME: Correct index calculation
-        idx = idx-1;
-        ALOGI("%s(): setting remote_session to existing one", __PRETTY_FUNCTION__);
-        const android::sp<ubuntu::detail::ApplicationSession>& app_session =
-                    apps.valueFor(apps_as_added[idx-1]);
-        // Set not-running app_session's live binder to the new instance
-        app_session->remote_session = session;
-    }
+    apps.add(session->asBinder(), app_session);
+    apps_as_added.push_back(session->asBinder());
 
     session->asBinder()->linkToDeath(
         android::sp<android::IBinder::DeathRecipient>(this));
@@ -555,9 +541,6 @@ void ApplicationManager::start_a_new_session(
             ALOGI("%s: Invoked for system_session_type \n", __PRETTY_FUNCTION__);
             break;
     }
-
-    const android::sp<ubuntu::detail::ApplicationSession>& app_session =
-                    apps.valueFor(apps_as_added.top());
 
     notify_observers_about_session_born(app_session->remote_pid, 
                                         app_session->stage_hint, 
@@ -1102,22 +1085,6 @@ void ApplicationManager::kill_focused_application_locked()
 
         kill(session->pid, SIGKILL);
     }
-}
-
-size_t ApplicationManager::session_by_desktop_file(const android::String8 desktop_file)
-{
-    size_t idx;
-
-    for(idx = apps_as_added.size(); idx > 0; idx--)
-    {
-        const android::sp<ubuntu::detail::ApplicationSession>& session =
-                apps.valueFor(apps_as_added[idx-1]);
-
-        if (session->desktop_file == desktop_file)
-            break;
-    }
-
-    return idx;
 }
 
 size_t ApplicationManager::session_id_to_index(int id)

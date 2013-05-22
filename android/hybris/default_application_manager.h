@@ -211,8 +211,6 @@ struct ApplicationManager :
 
     void kill_focused_application_locked();
 
-    size_t session_by_desktop_file(const android::String8 desktop_file);
-    
   private:
     void update_input_setup_locked();
 
