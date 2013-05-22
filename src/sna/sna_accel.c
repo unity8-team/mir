@@ -2947,8 +2947,6 @@ sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
 	     box->x1, box->y1, box->x2, box->y2,
 	     flags));
 
-	assert((flags & REPLACES) == 0 || (flags & IGNORE_CPU));
-
 	assert(box->x2 > box->x1 && box->y2 > box->y1);
 	assert(pixmap->refcnt);
 	assert_pixmap_damage(pixmap);
