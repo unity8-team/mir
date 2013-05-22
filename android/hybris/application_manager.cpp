@@ -176,7 +176,7 @@ status_t BnApplicationManagerSession::onTransact(uint32_t code,
     break;
     case ON_APPLICATION_STARTED_NOTIFICATION:
     {
-        on_application_started();
+        on_application_resumed();
     }
     break;
     case ON_APPLICATION_ABOUT_TO_STOP_NOTIFICATION:
@@ -241,7 +241,7 @@ IApplicationManagerSession::SurfaceProperties BpApplicationManagerSession::query
     return props;
 }
 
-void BpApplicationManagerSession::on_application_started()
+void BpApplicationManagerSession::on_application_resumed()
 {
     Parcel in, out;
 

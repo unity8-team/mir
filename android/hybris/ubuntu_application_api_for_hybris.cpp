@@ -466,12 +466,12 @@ struct Session : public ubuntu::application::ui::Session, public UbuntuSurface::
             return parent->surfaces.valueFor(token)->properties;
         }
 
-        void on_application_started()
+        void on_application_resumed()
         {
             if (delegate == NULL)
                 return;
     
-            delegate->on_application_started();
+            delegate->on_application_resumed();
         }
     
         void on_application_about_to_stop()

@@ -94,7 +94,7 @@ public:
     virtual void raise_application_surfaces_to_layer(int layer) = 0;
     virtual void raise_surface_to_layer(int32_t token, int layer) = 0;
     virtual SurfaceProperties query_surface_properties_for_token(int32_t token) = 0;
-    virtual void on_application_started() = 0;
+    virtual void on_application_resumed() = 0;
     virtual void on_application_about_to_stop() = 0;
 
 protected:
@@ -129,7 +129,7 @@ public:
     void raise_application_surfaces_to_layer(int layer);
     void raise_surface_to_layer(int32_t token, int layer);
     IApplicationManagerSession::SurfaceProperties query_surface_properties_for_token(int32_t token);
-    void on_application_started();
+    void on_application_resumed();
     void on_application_about_to_stop();
 };
 

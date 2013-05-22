@@ -27,7 +27,7 @@
 extern "C" {
 #endif
     
-    typedef void (*u_on_application_started)(const UApplicationOptions *options, void *context);
+    typedef void (*u_on_application_resumed)(const UApplicationOptions *options, void *context);
     typedef void (*u_on_application_about_to_stop)(UApplicationArchive *archive, void *context);
     
     typedef void UApplicationLifecycleDelegate;
@@ -48,12 +48,12 @@ extern "C" {
         UApplicationLifecycleDelegate *delegate);
     
     void
-    u_application_lifecycle_delegate_set_application_started_cb(
+    u_application_lifecycle_delegate_set_application_resumed_cb(
         UApplicationLifecycleDelegate *delegate,
-        u_on_application_started cb);
+        u_on_application_resumed cb);
     
-    u_on_application_started
-    u_application_lifecycle_delegate_get_application_started_cb(
+    u_on_application_resumed
+    u_application_lifecycle_delegate_get_application_resumed_cb(
         UApplicationLifecycleDelegate *delegate);
     
     void

@@ -48,7 +48,7 @@ struct IUApplicationLifecycleDelegate : public ubuntu::application::LifecycleDel
     {
     }
 
-    void on_application_started()
+    void on_application_resumed()
     {
         ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
     
@@ -68,7 +68,7 @@ struct IUApplicationLifecycleDelegate : public ubuntu::application::LifecycleDel
         application_about_to_stop_cb(NULL, this->context);
     }
 
-    u_on_application_started application_started_cb;
+    u_on_application_resumed application_started_cb;
     u_on_application_about_to_stop application_about_to_stop_cb;
     void *context;
 
@@ -141,7 +141,7 @@ u_application_lifecycle_delegate_unref(UApplicationLifecycleDelegate *delegate)
 void
 u_application_lifecycle_delegate_set_application_started_cb(
     UApplicationLifecycleDelegate *delegate,
-    u_on_application_started cb)
+    u_on_application_resumed cb)
 { 
     ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
     
@@ -149,7 +149,7 @@ u_application_lifecycle_delegate_set_application_started_cb(
     s->value->application_started_cb = cb;
 }
 
-u_on_application_started
+u_on_application_resumed
 u_application_lifecycle_delegate_get_application_started_cb(
     UApplicationLifecycleDelegate *delegate)
 { 

@@ -463,7 +463,7 @@ void ApplicationManager::session_set_state(const android::sp<ubuntu::detail::App
             kill(as->pid, SIGCONT);
         }
         as->running_state = ubuntu::application::ui::process_running;
-        as->on_application_started();
+        as->on_application_resumed();
         update_oom_values(as);
     }
     break;

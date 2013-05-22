@@ -222,9 +222,9 @@ struct ApplicationSession : public android::RefBase
         registered_surfaces.add(surface->token, surface);
     }
 
-    void on_application_started()
+    void on_application_resumed()
     {
-        remote_session->on_application_started();
+        remote_session->on_application_resumed();
     }
 
     void on_application_about_to_stop()
