@@ -139,7 +139,7 @@ install(TARGETS mir_demo_server
 )
 
 add_executable(mir_demo_server_composition_bypass composition_bypass.cpp)
-  
+
 target_link_libraries(mir_demo_server_composition_bypass
   mirserver
   ${Boost_LIBRARIES}
