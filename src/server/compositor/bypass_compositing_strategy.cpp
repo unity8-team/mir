@@ -19,8 +19,8 @@
 #include "mir/compositor/bypass_compositing_strategy.h"
 
 void mir::compositor::BypassCompositingStrategy::compose_renderables(
-        geometry::Rectangle const& /*view_area*/,
-        std::function<void(std::shared_ptr<void> const&)> /*save_resource*/)
+    geometry::Rectangle const& /*view_area*/,
+    std::function<void(std::shared_ptr<void> const&)> /*save_resource*/)
 {
 }
 
