@@ -3,6 +3,7 @@ set(
 
   basic_compositing_strategy.cpp
   default_compositing_strategy.cpp
+  bypass_compositing_strategy.cpp
   buffer_basic.cpp
   temporary_buffers.cpp
   buffer_bundle_manager.cpp
