@@ -427,13 +427,14 @@ move_to_gpu(PixmapPtr pixmap, const BoxRec *box, bool blt)
 		return NULL;
 	}
 
+	if (priv->shm)
+		blt = true;
+
 	if (priv->gpu_bo) {
 		if (priv->cpu_damage &&
 		    sna_damage_contains_box(priv->cpu_damage,
-					    box) != PIXMAN_REGION_OUT) {
-			if (!sna_pixmap_move_to_gpu(pixmap, MOVE_READ))
-				return NULL;
-		}
+					    box) != PIXMAN_REGION_OUT)
+			goto upload;
 
 		return priv->gpu_bo;
 	}
@@ -449,9 +450,6 @@ move_to_gpu(PixmapPtr pixmap, const BoxRec *box, bool blt)
 		     __FUNCTION__, pixmap->usage_hint));
 		return NULL;
 	}
-
-	if (priv->shm)
-		blt = true;
 
 	if (DBG_FORCE_UPLOAD < 0) {
 		if (!sna_pixmap_force_to_gpu(pixmap,
@@ -493,6 +491,7 @@ move_to_gpu(PixmapPtr pixmap, const BoxRec *box, bool blt)
 	if (!migrate)
 		return NULL;
 
+upload:
 	if (blt) {
 		if (!sna_pixmap_move_area_to_gpu(pixmap, box,
 						 __MOVE_FORCE | MOVE_READ))

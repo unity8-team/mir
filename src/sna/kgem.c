@@ -62,6 +62,7 @@ search_snoop_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags);
 #define DBG_NO_CACHE_LEVEL 0
 #define DBG_NO_CPU 0
 #define DBG_NO_USERPTR 0
+#define DBG_NO_UNSYNCHRONIZED_USERPTR 0
 #define DBG_NO_LLC 0
 #define DBG_NO_SEMAPHORES 0
 #define DBG_NO_MADV 0
@@ -240,7 +241,8 @@ static uint32_t gem_userptr(int fd, void *ptr, int size, int read_only)
 	if (read_only)
 		arg.flags |= I915_USERPTR_READ_ONLY;
 
-	if (drmIoctl(fd, LOCAL_IOCTL_I915_GEM_USERPTR, &arg)) {
+	if (DBG_NO_UNSYNCHRONIZED_USERPTR ||
+	    drmIoctl(fd, LOCAL_IOCTL_I915_GEM_USERPTR, &arg)) {
 		arg.flags &= ~I915_USERPTR_UNSYNCHRONIZED;
 		if (drmIoctl(fd, LOCAL_IOCTL_I915_GEM_USERPTR, &arg)) {
 			DBG(("%s: failed to map %p + %d bytes: %d\n",
@@ -284,6 +286,7 @@ static void *__kgem_bo_map__gtt(struct kgem *kgem, struct kgem_bo *bo)
 	DBG(("%s(handle=%d, size=%d)\n", __FUNCTION__,
 	     bo->handle, bytes(bo)));
 	assert(bo->proxy == NULL);
+	assert(!bo->snoop);
 
 retry_gtt:
 	VG_CLEAR(mmap_arg);
@@ -846,7 +849,9 @@ static bool test_has_userptr(struct kgem *kgem)
 	if (kgem->gen == 040)
 		return false;
 
-	ptr = malloc(PAGE_SIZE);
+	if (posix_memalign(&ptr, PAGE_SIZE, PAGE_SIZE))
+		return false;
+
 	handle = gem_userptr(kgem->fd, ptr, PAGE_SIZE, false);
 	gem_close(kgem->fd, handle);
 	free(ptr);
@@ -1494,6 +1499,7 @@ static void kgem_bo_free(struct kgem *kgem, struct kgem_bo *bo)
 	if (bo->map)
 		kgem_bo_release_map(kgem, bo);
 	assert(list_is_empty(&bo->vma));
+	assert(bo->map == NULL);
 
 	_list_del(&bo->list);
 	_list_del(&bo->request);
@@ -1601,6 +1607,17 @@ inline static void kgem_bo_remove_from_active(struct kgem *kgem,
 	assert(list_is_empty(&bo->vma));
 }
 
+static void _kgem_bo_delete_buffer(struct kgem *kgem, struct kgem_bo *bo)
+{
+	struct kgem_buffer *io = (struct kgem_buffer *)bo->proxy;
+
+	DBG(("%s: size=%d, offset=%d, parent used=%d\n",
+	     __FUNCTION__, bo->size.bytes, bo->delta, io->used));
+
+	if (ALIGN(bo->delta + bo->size.bytes, UPLOAD_ALIGNMENT) == io->used)
+		io->used = bo->delta;
+}
+
 static void kgem_bo_clear_scanout(struct kgem *kgem, struct kgem_bo *bo)
 {
 	assert(bo->scanout);
@@ -1625,15 +1642,31 @@ static void kgem_bo_clear_scanout(struct kgem *kgem, struct kgem_bo *bo)
 		bo->reusable = false;
 }
 
-static void _kgem_bo_delete_buffer(struct kgem *kgem, struct kgem_bo *bo)
+static bool check_scanout_size(struct kgem *kgem,
+			       struct kgem_bo *bo,
+			       int width, int height)
 {
-	struct kgem_buffer *io = (struct kgem_buffer *)bo->proxy;
+	struct drm_mode_fb_cmd info;
 
-	DBG(("%s: size=%d, offset=%d, parent used=%d\n",
-	     __FUNCTION__, bo->size.bytes, bo->delta, io->used));
+	assert(bo->scanout);
 
-	if (ALIGN(bo->delta + bo->size.bytes, UPLOAD_ALIGNMENT) == io->used)
-		io->used = bo->delta;
+	VG_CLEAR(info);
+	info.fb_id = bo->delta;
+
+	if (drmIoctl(kgem->fd, DRM_IOCTL_MODE_GETFB, &info))
+		return false;
+
+	gem_close(kgem->fd, info.handle);
+
+	if (width != info.width || height != info.height) {
+		DBG(("%s: not using scanout %d (%dx%d), want (%dx%d)\n",
+		     __FUNCTION__,
+		     info.fb_id, info.width, info.height,
+		     width, height));
+		return false;
+	}
+
+	return true;
 }
 
 static void kgem_bo_move_to_scanout(struct kgem *kgem, struct kgem_bo *bo)
@@ -2150,6 +2183,7 @@ static void kgem_commit(struct kgem *kgem)
 		kgem_retire(kgem);
 		assert(list_is_empty(&rq->buffers));
 
+		assert(rq->bo->map == NULL);
 		gem_close(kgem->fd, rq->bo->handle);
 		kgem_cleanup_cache(kgem);
 	} else {
@@ -2769,6 +2803,31 @@ void kgem_purge_cache(struct kgem *kgem)
 	kgem->need_purge = false;
 }
 
+void kgem_clean_scanout_cache(struct kgem *kgem)
+{
+	while (!list_is_empty(&kgem->scanout)) {
+		struct kgem_bo *bo;
+
+		bo = list_first_entry(&kgem->scanout, struct kgem_bo, list);
+		if (bo->exec || __kgem_busy(kgem, bo->handle))
+			break;
+
+		list_del(&bo->list);
+		kgem_bo_clear_scanout(kgem, bo);
+		__kgem_bo_destroy(kgem, bo);
+	}
+}
+
+void kgem_clean_large_cache(struct kgem *kgem)
+{
+	while (!list_is_empty(&kgem->large_inactive)) {
+		kgem_bo_free(kgem,
+			     list_first_entry(&kgem->large_inactive,
+					      struct kgem_bo, list));
+
+	}
+}
+
 bool kgem_expire_cache(struct kgem *kgem)
 {
 	time_t now, expire;
@@ -2791,22 +2850,9 @@ bool kgem_expire_cache(struct kgem *kgem)
 		free(rq);
 	}
 
-	while (!list_is_empty(&kgem->large_inactive)) {
-		kgem_bo_free(kgem,
-			     list_first_entry(&kgem->large_inactive,
-					      struct kgem_bo, list));
-
-	}
-
-	while (!list_is_empty(&kgem->scanout)) {
-		bo = list_first_entry(&kgem->scanout, struct kgem_bo, list);
-		if (__kgem_busy(kgem, bo->handle))
-			break;
-
-		list_del(&bo->list);
-		kgem_bo_clear_scanout(kgem, bo);
-		__kgem_bo_destroy(kgem, bo);
-	}
+	kgem_clean_large_cache(kgem);
+	if (container_of(kgem, struct sna, kgem)->scrn->vtSema)
+		kgem_clean_scanout_cache(kgem);
 
 	expire = 0;
 	list_for_each_entry(bo, &kgem->snoop, list) {
@@ -2959,6 +3005,9 @@ void kgem_cleanup_cache(struct kgem *kgem)
 				     list_last_entry(&kgem->inactive[i],
 						     struct kgem_bo, list));
 	}
+
+	kgem_clean_large_cache(kgem);
+	kgem_clean_scanout_cache(kgem);
 
 	while (!list_is_empty(&kgem->snoop))
 		kgem_bo_free(kgem,
@@ -3369,6 +3418,9 @@ int kgem_choose_tiling(struct kgem *kgem, int tiling, int width, int height, int
 			     __FUNCTION__, width, height));
 			tiling = -I915_TILING_X;
 		}
+
+		/* fences limited to 128k (256k on ivb) */
+		assert(width * bpp <= 128 * 1024 * 8);
 	}
 
 	if (tiling < 0)
@@ -3569,6 +3621,9 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 			assert(!bo->flush);
 
 			if (size > num_pages(bo) || num_pages(bo) > 2*size)
+				continue;
+
+			if (!check_scanout_size(kgem, bo, width, height))
 				continue;
 
 			if (bo->tiling != tiling ||
@@ -4754,6 +4809,7 @@ struct kgem_bo *kgem_create_map(struct kgem *kgem,
 				bool read_only)
 {
 	struct kgem_bo *bo;
+	uintptr_t first_page, last_page;
 	uint32_t handle;
 
 	assert(MAP(ptr) == ptr);
@@ -4761,22 +4817,44 @@ struct kgem_bo *kgem_create_map(struct kgem *kgem,
 	if (!kgem->has_userptr)
 		return NULL;
 
-	handle = gem_userptr(kgem->fd, ptr, size, read_only);
+	first_page = (uintptr_t)ptr;
+	last_page = first_page + size + PAGE_SIZE - 1;
+
+	first_page &= ~(PAGE_SIZE-1);
+	last_page &= ~(PAGE_SIZE-1);
+	assert(last_page > first_page);
+
+	handle = gem_userptr(kgem->fd,
+			     (void *)first_page, last_page-first_page,
+			     read_only);
 	if (handle == 0)
 		return NULL;
 
-	bo = __kgem_bo_alloc(handle, NUM_PAGES(size));
+	bo = __kgem_bo_alloc(handle, (last_page - first_page) / PAGE_SIZE);
 	if (bo == NULL) {
 		gem_close(kgem->fd, handle);
 		return NULL;
 	}
 
 	bo->snoop = !kgem->has_llc;
-	bo->map = MAKE_USER_MAP(ptr);
 	debug_alloc__bo(kgem, bo);
 
-	DBG(("%s(ptr=%p, size=%d, pages=%d, read_only=%d) => handle=%d\n",
-	     __FUNCTION__, ptr, size, NUM_PAGES(size), read_only, handle));
+	if (first_page != (uintptr_t)ptr) {
+		struct kgem_bo *proxy;
+
+		proxy = kgem_create_proxy(kgem, bo,
+					  (uintptr_t)ptr - first_page, size);
+		kgem_bo_destroy(kgem, bo);
+		if (proxy == NULL)
+			return NULL;
+
+		bo = proxy;
+	}
+
+	bo->map = MAKE_USER_MAP(ptr);
+
+	DBG(("%s(ptr=%p, size=%d, pages=%d, read_only=%d) => handle=%d (proxy? %d)\n",
+	     __FUNCTION__, ptr, size, NUM_PAGES(size), read_only, handle, bo->proxy != NULL));
 	return bo;
 }
 
@@ -4896,6 +4974,8 @@ struct kgem_bo *kgem_create_proxy(struct kgem *kgem,
 	bo->dirty = target->dirty;
 	bo->tiling = target->tiling;
 	bo->pitch = target->pitch;
+	bo->flush = target->flush;
+	bo->snoop = target->snoop;
 
 	assert(!bo->scanout);
 	bo->proxy = kgem_bo_reference(target);
@@ -5104,7 +5184,7 @@ free_cacheing:
 			return NULL;
 
 		//if (posix_memalign(&ptr, 64, ALIGN(size, 64)))
-		if (posix_memalign(&bo->mem, PAGE_SIZE, alloc *PAGE_SIZE)) {
+		if (posix_memalign(&bo->mem, PAGE_SIZE, alloc * PAGE_SIZE)) {
 			free(bo);
 			return NULL;
 		}
@@ -5707,7 +5787,7 @@ kgem_replace_bo(struct kgem *kgem,
 	assert(src->tiling == I915_TILING_NONE);
 
 	size = height * pitch;
-	size = PAGE_ALIGN(size) / PAGE_SIZE;
+	size = NUM_PAGES(size);
 
 	dst = search_linear_cache(kgem, size, 0);
 	if (dst == NULL)
@@ -5718,7 +5798,7 @@ kgem_replace_bo(struct kgem *kgem,
 			return NULL;
 
 		dst = __kgem_bo_alloc(handle, size);
-		if (dst== NULL) {
+		if (dst == NULL) {
 			gem_close(kgem->fd, handle);
 			return NULL;
 		}

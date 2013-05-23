@@ -29,7 +29,7 @@ AM_CFLAGS = \
 	@DRM_CFLAGS@ \
 	$(NULL)
 
-if DEBUG
+if VALGRIND
 AM_CFLAGS += @VALGRIND_CFLAGS@
 endif
 

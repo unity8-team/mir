@@ -17,6 +17,9 @@
 /* Default acceleration method */
 #undef DEFAULT_ACCEL_METHOD
 
+/* Default DRI driver path */
+#undef DRI_DRIVER_PATH
+
 /* Enable XvMC support */
 #undef ENABLE_XVMC
 

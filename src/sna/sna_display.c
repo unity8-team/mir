@@ -103,6 +103,14 @@ static inline struct sna_crtc *to_sna_crtc(xf86CrtcPtr crtc)
 	return crtc->driver_private;
 }
 
+static bool sna_mode_has_pending_events(struct sna *sna)
+{
+	struct pollfd pfd;
+	pfd.fd = sna->kgem.fd;
+	pfd.events = POLLIN;
+	return poll(&pfd, 1, 0) == 1;
+}
+
 #define BACKLIGHT_CLASS "/sys/class/backlight"
 
 /* Enough for 10 digits of backlight + '\n' + '\0' */
@@ -2601,6 +2609,11 @@ sna_mode_resize(ScrnInfoPtr scrn, int width, int height)
 
 	screen->DestroyPixmap(old_front);
 
+	while (sna_mode_has_pending_events(sna))
+		sna_mode_wakeup(sna);
+
+	kgem_clean_scanout_cache(&sna->kgem);
+
 	return TRUE;
 }
 
@@ -2743,14 +2756,6 @@ bool sna_mode_pre_init(ScrnInfoPtr scrn, struct sna *sna)
 	return true;
 }
 
-static Bool sna_mode_has_pending_events(struct sna *sna)
-{
-	struct pollfd pfd;
-	pfd.fd = sna->kgem.fd;
-	pfd.events = POLLIN;
-	return poll(&pfd, 1, 0) == 1;
-}
-
 void
 sna_mode_close(struct sna *sna)
 {
@@ -2761,7 +2766,7 @@ sna_mode_close(struct sna *sna)
 	 * check that the fd is readable before attempting to read the next
 	 * event from drm.
 	 */
-	if (sna_mode_has_pending_events(sna))
+	while (sna_mode_has_pending_events(sna))
 		sna_mode_wakeup(sna);
 
 	for (i = 0; i < xf86_config->num_crtc; i++)

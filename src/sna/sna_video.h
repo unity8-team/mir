@@ -35,6 +35,20 @@ THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SNA_XVMC 1
 #endif
 
+/*
+ * Below, a dummy picture type that is used in XvPutImage
+ * only to do an overlay update.
+ * Introduced for the XvMC client lib.
+ * Defined to have a zero data size.
+ */
+#define XVMC_YUV { \
+	FOURCC_XVMC, XvYUV, LSBFirst, \
+	{'X', 'V', 'M', 'C', 0x00, 0x00, 0x00, 0x10, 0x80, 0x00, 0x00, 0xAA, 0x00, 0x38, 0x9B, 0x71}, \
+	12, XvPlanar, 3, 0, 0, 0, 0, 8, 8, 8, 1, 2, 2, 1, 2, 2, \
+	{'Y', 'V', 'U', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, \
+	XvTopToBottom \
+}
+
 struct sna_video {
 	int brightness;
 	int contrast;
@@ -87,6 +101,11 @@ XF86VideoAdaptorPtr sna_video_sprite_setup(struct sna *sna, ScreenPtr screen);
 XF86VideoAdaptorPtr sna_video_textured_setup(struct sna *sna, ScreenPtr screen);
 
 #define FOURCC_XVMC     (('C' << 24) + ('M' << 16) + ('V' << 8) + 'X')
+
+static inline int xvmc_passthrough(int id)
+{
+	return id == FOURCC_XVMC;
+}
 
 static inline int is_planar_fourcc(int id)
 {

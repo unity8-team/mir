@@ -3668,8 +3668,8 @@ bool gen6_render_init(struct sna *sna)
 #if !NO_COMPOSITE
 	sna->render.composite = gen6_render_composite;
 	sna->render.prefer_gpu |= PREFER_GPU_RENDER;
-
 #endif
+
 #if !NO_COMPOSITE_SPANS
 	sna->render.check_composite_spans = gen6_check_composite_spans;
 	sna->render.composite_spans = gen6_render_composite_spans;

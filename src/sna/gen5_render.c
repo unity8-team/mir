@@ -756,8 +756,13 @@ gen5_emit_invariant(struct sna *sna)
 	 *
 	 * However, the kernel flushes the pipeline between batches,
 	 * so we should be safe....
-	 * OUT_BATCH(MI_FLUSH | MI_INHIBIT_RENDER_CACHE_FLUSH);
+	 *
+	 * On the other hand, after using BLT we must use a non-pipelined
+	 * operation...
 	 */
+	if (sna->kgem.nreloc)
+		OUT_BATCH(MI_FLUSH | MI_INHIBIT_RENDER_CACHE_FLUSH);
+
 	OUT_BATCH(GEN5_PIPELINE_SELECT | PIPELINE_SELECT_3D);
 
 	gen5_emit_state_base_address(sna);

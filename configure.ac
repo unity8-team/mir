@@ -23,11 +23,12 @@
 # Initialize Autoconf
 AC_PREREQ([2.60])
 AC_INIT([xf86-video-intel],
-        [2.21.6],
+        [2.21.7],
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
         [xf86-video-intel])
 AC_CONFIG_SRCDIR([Makefile.am])
 AC_CONFIG_HEADERS([config.h])
+AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_AUX_DIR(.)
 
 # Initialize Automake
@@ -168,6 +169,8 @@ AC_ARG_WITH(xorg-module-dir,
 
 AC_ARG_ENABLE(dri, AS_HELP_STRING([--disable-dri],
                                   [Disable DRI support [[default=auto]]]))
+dridriverdir=`$PKG_CONFIG --variable=dridriverdir dri`
+AC_DEFINE_DIR(DRI_DRIVER_PATH, dridriverdir, [Default DRI driver path])
 
 AC_ARG_ENABLE(xvmc, AS_HELP_STRING([--disable-xvmc],
                                   [Disable XvMC support [[default=yes]]]),
@@ -450,6 +453,7 @@ else
 		VG=auto
 	fi
 fi
+have_valgrind=no
 if test "x$VG" != xno; then
 	PKG_CHECK_MODULES(VALGRIND, [valgrind], have_valgrind=yes, have_valgrind=no)
 	AC_MSG_CHECKING([whether to include valgrind support])
@@ -462,6 +466,7 @@ if test "x$VG" != xno; then
 	fi
 	AC_MSG_RESULT([$have_valgrind ($VG)])
 fi
+AM_CONDITIONAL(VALGRIND, test x$have_valgrind = xyes)
 if test "x$DEBUG" = xsync; then
 	AC_DEFINE(DEBUG_SYNC,1,[Enable synchronous rendering for debugging])
 fi

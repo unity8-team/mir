@@ -39,6 +39,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <errno.h>
 #include <time.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "sna.h"
 #include "sna_reg.h"
@@ -176,6 +177,7 @@ static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 	}
 
 	assert(priv->flush == false);
+	assert(priv->cow == NULL);
 	assert(priv->cpu_damage == NULL);
 	assert(priv->gpu_bo);
 	assert(priv->gpu_bo->proxy == NULL);
@@ -441,7 +443,7 @@ static void _sna_dri_destroy_buffer(struct sna *sna, DRI2Buffer2Ptr buffer)
 		     pixmap->drawable.serialNumber,
 		     pixmap == sna->front));
 
-		list_del(&priv->list);
+		list_del(&priv->flush_list);
 
 		priv->gpu_bo->flush = false;
 		priv->pinned &= ~PIN_DRI;
@@ -507,6 +509,9 @@ static void set_bo(PixmapPtr pixmap, struct kgem_bo *bo)
 	assert((priv->pinned & PIN_PRIME) == 0);
 	assert(priv->flush);
 
+	if (priv->cow)
+		sna_pixmap_undo_cow(sna, priv, 0);
+
 	/* Post damage on the new front buffer so that listeners, such
 	 * as DisplayLink know take a copy and shove it over the USB,
 	 * also for software cursors and the like.
@@ -521,12 +526,13 @@ static void set_bo(PixmapPtr pixmap, struct kgem_bo *bo)
 		       pixmap->drawable.width,
 		       pixmap->drawable.height);
 	sna_damage_destroy(&priv->cpu_damage);
-	list_del(&priv->list);
+	list_del(&priv->flush_list);
 	priv->cpu = false;
 
 	assert(bo->refcnt);
 	if (priv->gpu_bo != bo) {
-		kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
+		if (priv->gpu_bo)
+			kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
 		priv->gpu_bo = ref(bo);
 		if (priv->mapped) {
 			assert(!priv->shm && priv->stride);
@@ -2381,13 +2387,24 @@ out_complete:
 }
 #endif
 
+static bool has_i830_dri(void)
+{
+	return access(DRI_DRIVER_PATH "/i830_dri.so", R_OK) == 0;
+}
+
 static const char *dri_driver_name(struct sna *sna)
 {
 	const char *s = xf86GetOptValString(sna->Options, OPTION_DRI);
 	Bool dummy;
 
-	if (s == NULL || xf86getBoolValue(&dummy, s))
-		return sna->kgem.gen < 040 ? "i915" : "i965";
+	if (s == NULL || xf86getBoolValue(&dummy, s)) {
+		if (sna->kgem.gen < 030)
+			return has_i830_dri() ? "i830" : "i915";
+		else if (sna->kgem.gen < 040)
+			return "i915";
+		else
+			return "i965";
+	}
 
 	return s;
 }
