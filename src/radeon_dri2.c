@@ -854,8 +854,7 @@ cleanup:
     free(event);
 }
 
-static
-drmVBlankSeqType populate_vbl_request_type(RADEONInfoPtr info, xf86CrtcPtr crtc)
+static drmVBlankSeqType populate_vbl_request_type(xf86CrtcPtr crtc)
 {
     drmVBlankSeqType type = 0;
     int crtc_id = drmmode_get_crtc_id(crtc);
@@ -895,7 +894,7 @@ static int radeon_dri2_get_msc(DrawablePtr draw, CARD64 *ust, CARD64 *msc)
         return TRUE;
     }
     vbl.request.type = DRM_VBLANK_RELATIVE;
-    vbl.request.type |= populate_vbl_request_type(info, crtc);
+    vbl.request.type |= populate_vbl_request_type(crtc);
     vbl.request.sequence = 0;
 
     ret = drmWaitVBlank(info->dri2.drm_fd, &vbl);
@@ -959,7 +958,7 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
 
     /* Get current count */
     vbl.request.type = DRM_VBLANK_RELATIVE;
-    vbl.request.type |= populate_vbl_request_type(info, crtc);
+    vbl.request.type |= populate_vbl_request_type(crtc);
     vbl.request.sequence = 0;
     ret = drmWaitVBlank(info->dri2.drm_fd, &vbl);
     if (ret) {
@@ -985,7 +984,7 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
         if (current_msc >= target_msc)
             target_msc = current_msc;
         vbl.request.type = DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT;
-	vbl.request.type |= populate_vbl_request_type(info, crtc);
+	vbl.request.type |= populate_vbl_request_type(crtc);
         vbl.request.sequence = target_msc;
         vbl.request.signal = (unsigned long)wait_info;
         ret = drmWaitVBlank(info->dri2.drm_fd, &vbl);
@@ -1005,7 +1004,7 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
      * so we queue an event that will satisfy the divisor/remainder equation.
      */
     vbl.request.type = DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT;
-    vbl.request.type |= populate_vbl_request_type(info, crtc);
+    vbl.request.type |= populate_vbl_request_type(crtc);
 
     vbl.request.sequence = current_msc - (current_msc % divisor) +
         remainder;
@@ -1190,7 +1189,7 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
 
     /* Get current count */
     vbl.request.type = DRM_VBLANK_RELATIVE;
-    vbl.request.type |= populate_vbl_request_type(info, crtc);
+    vbl.request.type |= populate_vbl_request_type(crtc);
     vbl.request.sequence = 0;
     ret = drmWaitVBlank(info->dri2.drm_fd, &vbl);
     if (ret) {
@@ -1233,7 +1232,7 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
          */
         if (flip == 0)
             vbl.request.type |= DRM_VBLANK_NEXTONMISS;
-	vbl.request.type |= populate_vbl_request_type(info, crtc);
+	vbl.request.type |= populate_vbl_request_type(crtc);
 
         /* If target_msc already reached or passed, set it to
          * current_msc to ensure we return a reasonable value back
@@ -1269,7 +1268,7 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
     vbl.request.type = DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT;
     if (flip == 0)
         vbl.request.type |= DRM_VBLANK_NEXTONMISS;
-    vbl.request.type |= populate_vbl_request_type(info, crtc);
+    vbl.request.type |= populate_vbl_request_type(crtc);
 
     vbl.request.sequence = current_msc - (current_msc % divisor) +
         remainder;
