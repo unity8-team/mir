@@ -1,5 +1,5 @@
 /*
- * Copyright © 2012 Canonical Ltd.
+ * Copyright © 2013 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -13,33 +13,28 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Authored by: Kevin DuBois <kevin.dubois@canonical.com>
+ * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
-#ifndef MIR_TEST_DOUBLES_MOCK_ALLOC_ADAPTOR_H_
-#define MIR_TEST_DOUBLES_MOCK_ALLOC_ADAPTOR_H_
-
-#include "src/server/graphics/android/graphic_alloc_adaptor.h"
-
-#include <system/window.h>
-#include <gmock/gmock.h>
+#ifndef MIR_LTTNG_TRACEPOINT_PROVIDER_H_
+#define MIR_LTTNG_TRACEPOINT_PROVIDER_H_
 
 namespace mir
 {
-namespace test
-{
-namespace doubles
+namespace lttng
 {
 
-class MockAllocAdaptor : public graphics::android::GraphicAllocAdaptor
+class TracepointProvider
 {
 public:
-    MOCK_METHOD3(alloc_buffer, 
-        std::shared_ptr<ANativeWindowBuffer>(geometry::Size, geometry::PixelFormat, graphics::android::BufferUsage));
+    TracepointProvider();
+    ~TracepointProvider() noexcept;
+
+private:
+    void* lib;
 };
 
 }
 }
-}
 
-#endif /* MIR_TEST_DOUBLES_MOCK_ALLOC_ADAPTOR_H_ */
+#endif /* MIR_LTTNG_TRACEPOINT_PROVIDER_H_ */
