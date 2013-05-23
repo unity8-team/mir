@@ -1200,12 +1200,12 @@ prepare_blt_clear(struct sna *sna,
 static bool
 prepare_blt_fill(struct sna *sna,
 		 struct sna_composite_op *op,
-		 PicturePtr source)
+		 uint32_t pixel)
 {
 	DBG(("%s\n", __FUNCTION__));
 
 	if (op->dst.bo == NULL) {
-		op->u.blt.pixel = get_solid_color(source, op->dst.format);
+		op->u.blt.pixel = pixel;
 		op->blt = blt_composite_fill__cpu;
 		op->box   = blt_composite_fill_box__cpu;
 		op->boxes = blt_composite_fill_boxes__cpu;
@@ -1228,8 +1228,7 @@ prepare_blt_fill(struct sna *sna,
 
 	if (!sna_blt_fill_init(sna, &op->u.blt, op->dst.bo,
 			       op->dst.pixmap->drawable.bitsPerPixel,
-			       GXcopy,
-			       get_solid_color(source, op->dst.format)))
+			       GXcopy, pixel))
 		return false;
 
 	return begin_blt(sna, op);
@@ -1975,6 +1974,28 @@ static bool source_is_gpu(PixmapPtr pixmap, const BoxRec *box)
 				      PICT_FORMAT_G(format),		\
 				      PICT_FORMAT_B(format))
 
+static bool
+is_clear(PixmapPtr pixmap)
+{
+	struct sna_pixmap *priv = sna_pixmap(pixmap);
+	return priv && priv->clear;
+}
+
+static struct kgem_bo *
+peek_bo(DrawablePtr draw)
+{
+	struct sna_pixmap *priv;
+
+	if (draw == NULL)
+		return NULL;
+
+	priv = sna_pixmap(get_drawable_pixmap(draw));
+	if (priv == NULL)
+		return NULL;
+
+	return priv->gpu_bo;
+}
+
 bool
 sna_blt_composite(struct sna *sna,
 		  uint32_t op,
@@ -2024,7 +2045,10 @@ sna_blt_composite(struct sna *sna,
 	} else
 		sna_render_picture_extents(dst, &dst_box);
 
-	bo = sna_drawable_use_bo(dst->pDrawable, PREFER_GPU, &dst_box, &tmp->damage);
+	bo = sna_pixmap(tmp->dst.pixmap)->gpu_bo;
+	if (bo == NULL || bo != peek_bo(src->pDrawable))
+		bo = sna_drawable_use_bo(dst->pDrawable, PREFER_GPU,
+					 &dst_box, &tmp->damage);
 	if (bo && !kgem_bo_can_blt(&sna->kgem, bo)) {
 		DBG(("%s: can not blit to dst, tiling? %d, pitch? %d\n",
 		     __FUNCTION__, bo->tiling, bo->pitch));
@@ -2083,7 +2107,7 @@ clear:
 				return false;
 		}
 
-		return prepare_blt_fill(sna, tmp, src);
+		return prepare_blt_fill(sna, tmp, get_solid_color(src, tmp->dst.format));
 	}
 
 	if (!src->pDrawable) {
@@ -2125,6 +2149,13 @@ clear:
 		goto clear;
 	}
 
+	src_pixmap = get_drawable_pixmap(src->pDrawable);
+	if (is_clear(src_pixmap)) {
+		return prepare_blt_fill(sna, tmp,
+					color_convert(sna_pixmap(src_pixmap)->clear_color,
+						      src->format, tmp->dst.format));
+	}
+
 	alpha_fixup = 0;
 	if (!(dst->format == src_format ||
 	      dst->format == alphaless(src_format) ||
@@ -2158,7 +2189,6 @@ clear:
 			return false;
 	}
 
-	src_pixmap = get_drawable_pixmap(src->pDrawable);
 	get_drawable_deltas(src->pDrawable, src_pixmap, &tx, &ty);
 	x += tx + src->pDrawable->x;
 	y += ty + src->pDrawable->y;
@@ -2229,7 +2259,7 @@ put:
 			region.data = NULL;
 
 			if (!sna_drawable_move_region_to_cpu(dst->pDrawable, &region,
-							MOVE_INPLACE_HINT | MOVE_READ | MOVE_WRITE))
+							     MOVE_INPLACE_HINT | MOVE_READ | MOVE_WRITE))
 				return false;
 		}
 

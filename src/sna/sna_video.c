@@ -66,11 +66,8 @@
 #define _SNA_XVMC_SERVER_
 #include "sna_video_hwmc.h"
 #else
-static inline bool sna_video_xvmc_setup(struct sna *sna,
-					ScreenPtr ptr,
-					XF86VideoAdaptorPtr target)
+static inline void sna_video_xvmc_setup(struct sna *sna, ScreenPtr ptr)
 {
-	return false;
 }
 #endif
 
@@ -574,9 +571,8 @@ void sna_video_init(struct sna *sna, ScreenPtr screen)
 		adaptors[num_adaptors++] = overlay;
 
 	if (num_adaptors) {
-		Bool ok = xf86XVScreenInit(screen, adaptors, num_adaptors);
-		if (ok && textured)
-			sna_video_xvmc_setup(sna, screen, textured);
+		if (xf86XVScreenInit(screen, adaptors, num_adaptors))
+			sna_video_xvmc_setup(sna, screen);
 	} else
 		xf86DrvMsg(sna->scrn->scrnIndex, X_WARNING,
 			   "Disabling Xv because no adaptors could be initialized.\n");

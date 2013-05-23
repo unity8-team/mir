@@ -404,8 +404,8 @@ static void _assert_pixmap_contains_box(PixmapPtr pixmap, BoxPtr box, const char
 
 static void apply_damage(struct sna_composite_op *op, RegionPtr region)
 {
-	DBG(("%s: damage=%p, region=%ld [(%d, %d), (%d, %d) + (%d, %d)]\n",
-	     __FUNCTION__, op->damage, RegionNumRects(region),
+	DBG(("%s: damage=%p, region=%d [(%d, %d), (%d, %d) + (%d, %d)]\n",
+	     __FUNCTION__, op->damage, (int)RegionNumRects(region),
 	     region->extents.x1, region->extents.y1,
 	     region->extents.x2, region->extents.y2,
 	     op->dst.x, op->dst.y));
@@ -627,7 +627,7 @@ sna_composite(CARD8 op,
 
 		sna_damage_subtract(&priv->cpu_damage, &region);
 		if (priv->cpu_damage == NULL) {
-			list_del(&priv->list);
+			list_del(&priv->flush_list);
 			priv->cpu = false;
 		}
 
@@ -931,10 +931,11 @@ sna_composite_rectangles(CARD8		 op,
 				priv->gpu_bo = NULL;
 			}
 			sna_damage_destroy(&priv->cpu_damage);
-			list_del(&priv->list);
+			list_del(&priv->flush_list);
 		}
-		if (region_subsumes_drawable(&region, &pixmap->drawable) ||
-		    box_inplace(pixmap, &region.extents)) {
+		if (region_subsumes_drawable(&region, &pixmap->drawable))
+			hint |= REPLACES;
+		if (hint & REPLACES || box_inplace(pixmap, &region.extents)) {
 			DBG(("%s: promoting to full GPU\n", __FUNCTION__));
 			if (priv->gpu_bo && priv->cpu_damage == NULL) {
 				assert(priv->gpu_bo->proxy == NULL);
@@ -958,6 +959,8 @@ sna_composite_rectangles(CARD8		 op,
 		DBG(("%s: fallback due to no GPU bo\n", __FUNCTION__));
 		goto fallback;
 	}
+	if (hint & REPLACES)
+		kgem_bo_undo(&sna->kgem, bo);
 
 	if (!sna->render.fill_boxes(sna, op, dst->format, color,
 				    pixmap, bo, boxes, num_boxes)) {
@@ -995,8 +998,9 @@ sna_composite_rectangles(CARD8		 op,
 							     color->alpha,
 							     dst->format);
 			priv->clear = ok;
-			DBG(("%s: marking clear [%08x]? %d\n",
-			     __FUNCTION__, priv->clear_color, ok));
+			DBG(("%s: pixmap=%ld marking clear [%08x]? %d\n",
+			     __FUNCTION__, pixmap->drawable.serialNumber,
+			     priv->clear_color, ok));
 		}
 	}
 	goto done;

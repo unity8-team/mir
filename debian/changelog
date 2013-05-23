@@ -1,3 +1,24 @@
+xserver-xorg-video-intel (2:2.21.7-0ubuntu1) saucy; urgency=low
+
+  * Merge from unreleased debian git, remaining changes:
+    - Use SNA by default.
+  * rules: Add --enable-valgrind again.
+  * Drop sna-flush-scanout-cache-after-resizing.patch, upstreamed.
+
+ -- Maarten Lankhorst <maarten.lankhorst@ubuntu.com>  Thu, 23 May 2013 09:44:44 +0200
+
+xserver-xorg-video-intel (2:2.21.7-1) UNRELEASED; urgency=low
+
+  [ Timo Aaltonen ]
+  * New upstream release.
+
+  [ Maarten Lankhorst ]
+  * Add valgrind to build-depends.
+  * Enable valgrind by default.
+  * New upstream release.
+
+ -- Timo Aaltonen <tjaalton@ubuntu.com>  Fri, 07 Dec 2012 09:33:39 +0200
+
 xserver-xorg-video-intel (2:2.21.6-0ubuntu4) raring-proposed; urgency=low
 
   [Chris Arges]
@@ -30,17 +51,6 @@ xserver-xorg-video-intel (2:2.21.6-0ubuntu1) raring; urgency=low
     - new upstream minor release (LP: #1162046)
 
  -- Timo Aaltonen <tjaalton@ubuntu.com>  Tue, 09 Apr 2013 17:31:20 +0300
-
-xserver-xorg-video-intel (2:2.21.6-1) UNRELEASED; urgency=low
-
-  [ Timo Aaltonen ]
-  * New upstream release.
-
-  [ Maarten Lankhorst ]
-  * Add valgrind to build-depends.
-  * Enable valgrind by default.
-
- -- Timo Aaltonen <tjaalton@ubuntu.com>  Fri, 07 Dec 2012 09:33:39 +0200
 
 xserver-xorg-video-intel (2:2.21.5-0ubuntu1) raring; urgency=low
 

@@ -1,3 +1,497 @@
+commit e65ee10dfd7155230ac18a6d24a67b68336dc973
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue May 21 11:01:50 2013 +0100
+
+    2.21.7 release
+
+commit ef9dc6fae585d5616446eedc1e6e91173f4064c1
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon May 20 11:08:51 2013 +0100
+
+    sna: Undo a few more overwritten operations upon a bo
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d6c30d1d4df6bcdfa075bd29da7c8aabee20774c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri May 17 12:11:34 2013 +0100
+
+    sna: Clear the cow_list when discarding the clone upon pixmap destroy
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 21f17455650d52848467290f609c678e85b8ceab
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri May 17 11:46:16 2013 +0100
+
+    sna: Add the missing ref(bo) when undoing the source clone
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit ee166ca856ac02ca8900b9ff44ed3899add2c72a
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri May 17 11:30:03 2013 +0100
+
+    sna: Undo the clone when replacing the DRI pixmap
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8d31fe771b423a3768cbd05db994d49e941369e1
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri May 17 11:14:34 2013 +0100
+
+    sna: Transfer ownership of the cloned bo to the pixmaps
+    
+    Fix the leak from the previous commit.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5d9315873e02d4acc5ddffc698dbf8984cbd5c42
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri May 17 10:51:44 2013 +0100
+
+    sna: Avoid replacing pinned bo when undoing a clone
+    
+    Otherwise we end up cloning the scanout only to leave it dangling if the
+    client copies the from the front-buffer and then writes to it.
+    
+    Reported-by: Nick Bowler <nbowler@draconx.ca>
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=64675
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 3efe143e367acfa2ff38c63388d24a8d06331944
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri May 17 10:30:51 2013 +0100
+
+    sna: Clear mapped hints upon cloning a pair of pixmaps
+    
+    Once cloned, we do not want to use inplace operations and instead force
+    a copy. However, if we do not relinquish the hints when copying across
+    the bo, then those hints become stale and lead to corruption.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f57a65c35268f215c17f1a02b3af50a6678ce3c1
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue May 14 16:15:57 2013 +0100
+
+    sna: Correct assertions to allow discarding of cpu hint for inplace ops
+    
+    Reported-by: Zdenek Kabelac <zkabelac@redhat.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit bb0969e6a5c2bddcd0499d81c0c241003f8b07ef
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue May 14 15:22:59 2013 +0100
+
+    sna: Assert that the mapping is released before closing the GEM handle
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 16a64649e9c440ab9457467fe04be25719a73e7c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri May 10 15:48:58 2013 +0100
+
+    sna: Basic copy-on-write support for cloning pixmaps
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d89b2647dc0b72d6fa6ff89065acd3776b04cd3f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri May 10 18:17:24 2013 +0100
+
+    sna: Propagate clears when using the BLT composite routines
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 810a0ce2f89ba6b343b5043963626c0f2d50fb22
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri May 10 12:02:10 2013 +0100
+
+    sna: Propagate clear color when replacing by a CopyArea
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 07a4400fffe4f83df3debe62abd2c37b45f8f0c0
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri May 10 11:59:59 2013 +0100
+
+    sna: Attempt to discard overwritten operations before CopyArea
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 3ee42de066e4629f78e254c27d07dc33e16dbc02
+Author: Rodrigo Vivi <rodrigo.vivi@gmail.com>
+Date:   Mon May 13 17:56:30 2013 -0300
+
+    Adding more reserved PCI IDs for Haswell.
+    
+    As Chris mentioned there is a tendency for us to find out more
+    PCI IDs only when users report. So let's add all new reserved Haswell IDs.
+    I didn't have better names for this reserved ids and didn't want to use rsvd1
+    and rsvd2 groups, so I decided to use "B" and "E" that stands for the last
+    id digit.
+    
+    Cc: Chris Wilson <chris@chris-wilson.co.uk>
+    Signed-off-by: Rodrigo Vivi <rodrigo.vivi@gmail.com>
+
+commit ee96de8b1e7e4a305ee31c0ece1d9d38df8328f9
+Author: Rodrigo Vivi <rodrigo.vivi@gmail.com>
+Date:   Mon May 13 17:56:29 2013 -0300
+
+    Fix Haswell GT3 names.
+    
+    When publishing first HSW ids we weren't allowed to use "GT3" codname.
+    But this is the correct codname and Mesa is using it already.
+    So to avoid people getting confused why in Mesa it is called GT3 and here
+    it is called GT2_PLUS let's fix this name in a standard and correct way.
+    
+    Signed-off-by: Rodrigo Vivi <rodrigo.vivi@gmail.com>
+
+commit 979d2f8d0038aa621e1c75200b10a3819e024a66
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Apr 22 18:00:32 2013 +0100
+
+    sna/gen4: Tidy testing for an active vertex buffer id
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 7ba63307058337af5a120ad01c93b423a3e422eb
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Apr 22 17:43:21 2013 +0100
+
+    sna/gen4: Drop unused gen parameter to SF state setup
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2217f6356b53263b6ce8f92b5c29c0614d4ef2a5
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu May 9 13:46:11 2013 +0100
+
+    sna/trapezoids: Fix the determination of the trapezoid origin
+    
+    "src-x and src-y register the pattern to
+    the floor of the top x and y coordinate of the left edge of the
+    first trapezoid,"
+    
+    Bugzilla: https://bugs.launchpad.net/ubuntu/+source/xserver-xorg-video-intel/+bug/1178020
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 6e98df06fa9d218a6139730140a83a1940b05980
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu May 9 13:45:38 2013 +0100
+
+    sna: Add more debugging to unaligned trapezoids
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5d62ec25937ad296114bf890a7a5ac11ff03508c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu May 9 13:44:24 2013 +0100
+
+    sna/gen7: Add DBG for channel setup for render source
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit debdcd6a09464251324238ccbd935a6ade265d94
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu May 9 13:43:57 2013 +0100
+
+    sna: Add DBG statements for choice of spans vertex emitter
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit c6e4088dcb261d89fa0065eb7d9b62eada049dbd
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu May 9 11:30:05 2013 +0100
+
+    sna: Handle cached upload buffers for partial migration to GPU
+    
+    Since the extended use of move_area_to_gpu for partial migration of
+    render sources, we exposed the lack of handling of upload caches along
+    that path.
+    
+    Reported-by: Zdenek Kabelac <zkabelac@redhat.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 262ee1ef1e98cb84fa0af6e679c8cd61dc93f008
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue May 7 10:35:53 2013 +0100
+
+    sna: Do not attempt to clean an active scanout
+    
+    For simplicity, skip buffers that are still in use by the batch - they
+    will be removed later.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5637c173f85a5bb9a77572e4c070e0d612e6f49d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed May 1 15:14:55 2013 +0100
+
+    sna: Be careful not to preemptively upload portions of a SHM pixmap
+    
+    Only upload the portion of the pixmap being used for this rendering
+    operation, as outside of that may remain undefined and to be written by
+    the client before a future operation.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit ca4a32c20d4c1f91552c02b9008ae16435b92d71
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed May 1 10:18:23 2013 +0100
+
+    sna: Page align requests to userptr
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit ab576a42650d8a743dd91108f774c220d866de95
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Apr 27 12:06:30 2013 +0100
+
+    Add all reserved PCI-IDs for Haswell
+    
+    There is a tendency for a product to ship based on a 'reserved' PCI-ID
+    prior to us being notified about it. In other words, the first we find
+    out about such a product is when customers start complaining about their
+    shiny new hardware not being supported...
+    
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=63701
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 7dfb359677027310f4617b49f3da2321727a076f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Apr 26 13:20:36 2013 +0100
+
+    uxa/dri: Fix compile error for unknown 'bool'
+    
+    It appears that it is only accidentally pulled in on some systems, but
+    not all.
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=63957
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8eaafdb43998b5cdefb20b8098c558fa5decb115
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Apr 24 15:48:14 2013 +0100
+
+    sna: Prevent accessing an uninitialised region in move_area_to_gpu()
+    
+    If we skip the migration, we need to avoid using the unitialiased
+    region. There is no bad consequence as both branches of the if are
+    no-ops, but it does silence the static checkers and should make the
+    predicate cheaper.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit b4871f1dac3d3c8d81101ef0f29eb69099ff2dcf
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Apr 18 09:51:39 2013 +0100
+
+    sna: Rephrase initialisation without a specific backend
+    
+    "generic" sounds more impressive than "no"
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 6668f68054cb33e0cd3425f5403d14092a4a17f8
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Apr 17 15:32:49 2013 +0100
+
+    Revert "xgvevent"
+    
+    This reverts commit ddd75d6539dcf692cb76747cd63d1f301180f18a.
+    
+    This is a WIP patch, not ready for upstream. The danger of mixing topic
+    branches.
+
+commit 1bf0d869ae07ffc5b9cd79904b421cd37997ae8c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Apr 17 15:24:10 2013 +0100
+
+    Prefer i830_dri.so for gen2 chipsets
+    
+    Probe for i830_dri.so and, if it exists, use that driver in preference
+    to i915_dri.so for DRI (i.e. GL clients). This was suggested in the
+    context of distributions supplying i915g as the main DRI driver for
+    gen3, in which case we need to provide a separate DRI driver for gen2.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit ddd75d6539dcf692cb76747cd63d1f301180f18a
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Apr 9 19:13:46 2013 +0100
+
+    xgvevent
+
+commit ddd3cc4ed6ac9b69f178147b49628b7a7f3f3104
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Apr 16 11:55:23 2013 +0100
+
+    sna: Add VALGRIND_CFLAGS whilst compiling with --enable-valgrind
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f0b6ae2cfb811a8c234634c878800ca1fb95703f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Apr 15 11:42:20 2013 +0100
+
+    sna: Only release the scanout cache whilst DRM_MASTER
+    
+    If we try to release the framebuffers whilst not DRM_MASTER, the
+    operation will fail and we will leak the buffers. So do not bother
+    during the normal expiration to clean the scanout cache if vt switched
+    away.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d68270ca84dc01a930c2ed0c05cecfac88c8cc4b
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Apr 12 14:48:04 2013 +0100
+
+    sna/xvmc: silence a compiler warning
+    
+    sna_video_hwmc.c: In function 'create_context':
+    sna_video_hwmc.c:95: warning: assignment from incompatible pointer type
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a64490c794e2e98c77e0c7f9cec6778fd1e06465
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Apr 12 14:28:18 2013 +0100
+
+    sna: Add missing ';'
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 9dae6f9f1f169c228929185a8bd94e82afe92574
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Apr 12 11:01:08 2013 +0100
+
+    sna: Flush the scanout cache after resizing the display
+    
+    And ensure that any new scanout allocations make the requested size.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 97fc1d4c5bd268f331aaa9f7144e4fe40837fbb0
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Apr 12 10:23:43 2013 +0100
+
+    sna/gen5: Force a MI_FLUSH between using the BLT and RENDER engines
+    
+    There is a workaround that says the first RENDER command following use of
+    the BLT should be a non-pipelined command. To be safe, emit a MI_FLUSH
+    before setting up the invariants.
+    
+    Bugzilla: https://bugs.launchpad.net/ubuntu/+source/xserver-xorg-video-intel/+bug/1168066
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit aff14a23f98b1230a9053a1b8434f5cc9f766d14
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Apr 12 09:49:47 2013 +0100
+
+    sna: Refine assertion about the existence of CPU damage when GPU damaged
+    
+    One particular buffer type is quite cunning and simultaneously sets both
+    CPU/GPU as all damaged (the upload buffer) so be aware when making bold
+    assertions.
+    
+    Reported-by: Jiri Slaby <jirislaby@gmail.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit afe61281d8f92d6eb841e2522ab18e0d2fe73773
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Apr 10 12:13:37 2013 +0100
+
+    sna/gen7: Cache our kernels in L3
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit caf3118f90bad7f88f5f08e49177a1696bf97ccb
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Apr 10 12:16:34 2013 +0100
+
+    sna: Align uploads to start on page boundaries
+    
+    This reduces the number of loops and restarts required in the kernel.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 092e30de8a3476ab99446264edaf9b250a41736b
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Apr 9 20:43:19 2013 +0100
+
+    sna/xvmc: Wrap each output adaptor
+    
+    Each of the overlay, sprite and textured video can support XvMC
+    passthrough, so we need to setup an XvMC adaptor for each of our Xv
+    adaptors.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 540802595fee7f8b2c73e74c2b44e9a21f6471ae
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Apr 10 10:33:48 2013 +0100
+
+    sna: Suppress hotplug events whilst VT switched away
+    
+    Whilst we are not DRM master, not only is another server in control of
+    the outputs and responding to the udev event, we ourselves cannot
+    change modes and just cause contention upon the DRM device. Instead
+    inform userspace of the change as soon as we are DRM master again and
+    back in control.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 7afe2b45556f07b7e3a36e36da5a6d1c60366c25
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Apr 9 20:57:23 2013 +0100
+
+    sna: Add a DBG option for testing userptr more thoroughly
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit fbe081061a2790e0e6e6a4065af313df0d1d6a84
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Apr 9 09:52:13 2013 +0100
+
+    sna: Document fence limits for gen4+
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5f1367d611b91008ba28a8c99a6b98a3e84449dc
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Apr 9 09:18:41 2013 +0100
+
+    sna/video: Textured video passthrough no longer relies upon XvMC
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 21294eaaf16a1e35fefe0f45a237826d38dc62eb
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Apr 9 09:10:33 2013 +0100
+
+    sna/video: Expand passthrough support for overlay planes
+    
+    The passthrough is actually a generic, albeit private, mechanism that
+    anything can use to pass along a GEM handle for use with Xv.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 86efddd9e4b921fcfc1a4b7492ba9174b84de64c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Apr 8 10:54:56 2013 +0100
+
+    sna: Remove assertions for mapped GPU bo if priv->cpu after GPU bo creation
+    
+    The condition that we have a mapped GPU bo iff priv->cpu is only true if
+    we have a GPU bo at the time of using the CPU -- if we create the GPU bo
+    during move_to_gpu, then that assertion is bogus.
+    
+    Reported-by: Jiri Slaby <jirislaby@gmail.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
 commit 678279eb373310f1a71a3d74e5a500b343e98830
 Author: Chris Wilson <chris@chris-wilson.co.uk>
 Date:   Sat Apr 6 15:58:50 2013 +0100

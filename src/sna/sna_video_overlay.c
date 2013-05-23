@@ -91,12 +91,12 @@ static const XF86AttributeRec GammaAttributes[GAMMA_ATTRIBUTES] = {
 	{XvSettable | XvGettable, 0, 0xffffff, "XV_GAMMA5"}
 };
 
-#define NUM_IMAGES 4
-static const XF86ImageRec Images[NUM_IMAGES] = {
+static const XF86ImageRec Images[] = {
 	XVIMAGE_YUY2,
 	XVIMAGE_YV12,
 	XVIMAGE_I420,
 	XVIMAGE_UYVY,
+	XVMC_YUV
 };
 
 /* kernel modesetting overlay functions */
@@ -515,15 +515,32 @@ sna_video_overlay_put_image(ScrnInfoPtr scrn,
 	/* overlay can't handle rotation natively, store it for the copy func */
 	video->rotation = crtc->rotation;
 
-	frame.bo = sna_video_buffer(sna, video, &frame);
-	if (frame.bo == NULL) {
-		DBG(("%s: failed to allocate video bo\n", __FUNCTION__));
-		return BadAlloc;
-	}
+	if (xvmc_passthrough(id)) {
+		DBG(("%s: using passthough, name=%d\n",
+		     __FUNCTION__, *(uint32_t *)buf));
 
-	if (!sna_video_copy_data(sna, video, &frame, buf)) {
-		DBG(("%s: failed to copy video data\n", __FUNCTION__));
-		return BadAlloc;
+		frame.bo = kgem_create_for_name(&sna->kgem, *(uint32_t*)buf);
+		if (frame.bo == NULL) {
+			DBG(("%s: failed to open bo\n", __FUNCTION__));
+			return BadAlloc;
+		}
+
+		assert(kgem_bo_size(frame.bo) >= frame.size);
+		frame.image.x1 = 0;
+		frame.image.y1 = 0;
+		frame.image.x2 = frame.width;
+		frame.image.y2 = frame.height;
+	} else {
+		frame.bo = sna_video_buffer(sna, video, &frame);
+		if (frame.bo == NULL) {
+			DBG(("%s: failed to allocate video bo\n", __FUNCTION__));
+			return BadAlloc;
+		}
+
+		if (!sna_video_copy_data(sna, video, &frame, buf)) {
+			DBG(("%s: failed to copy video data\n", __FUNCTION__));
+			return BadAlloc;
+		}
 	}
 
 	if (!sna_video_overlay_show
@@ -533,7 +550,10 @@ sna_video_overlay_put_image(ScrnInfoPtr scrn,
 	}
 
 	frame.bo->domain = DOMAIN_NONE;
-	sna_video_buffer_fini(sna, video);
+	if (xvmc_passthrough(id))
+		kgem_bo_destroy(&sna->kgem, frame.bo);
+	else
+		sna_video_buffer_fini(sna, video);
 
 	/* update cliplist */
 	if (!REGION_EQUAL(scrn->pScreen, &video->clip, clip)) {
@@ -572,6 +592,13 @@ sna_video_overlay_query_video_attributes(ScrnInfoPtr scrn,
 		offsets[0] = 0;
 
 	switch (id) {
+	case FOURCC_XVMC:
+		*h = (*h + 1) & ~1;
+		size = sizeof(uint32_t);
+		if (pitches)
+			pitches[0] = size;
+		break;
+
 		/* IA44 is for XvMC only */
 	case FOURCC_IA44:
 	case FOURCC_AI44:
@@ -689,7 +716,7 @@ XF86VideoAdaptorPtr sna_video_overlay_setup(struct sna *sna,
 		memcpy(adaptor->pAttributes + NUM_ATTRIBUTES, GammaAttributes,
 		       sizeof(XF86AttributeRec) * GAMMA_ATTRIBUTES);
 
-	adaptor->nImages = NUM_IMAGES;
+	adaptor->nImages = ARRAY_SIZE(Images);
 	adaptor->pImages = (XF86ImagePtr)Images;
 	adaptor->PutVideo = NULL;
 	adaptor->PutStill = NULL;

@@ -2923,11 +2923,13 @@ unsigned gen4_choose_spans_emitter(struct sna *sna,
 	unsigned vb;
 
 	if (tmp->base.src.is_solid) {
+		DBG(("%s: solid source\n", __FUNCTION__));
 		tmp->prim_emit = emit_span_solid;
 		tmp->emit_boxes = emit_span_boxes_solid;
 		tmp->base.floats_per_vertex = 3;
 		vb = 1 << 2 | 1;
 	} else if (tmp->base.src.is_linear) {
+		DBG(("%s: linear source\n", __FUNCTION__));
 #if defined(avx2)
 		if (sna->cpu_features & AVX2) {
 			tmp->prim_emit = emit_span_linear__avx2;
@@ -2947,6 +2949,7 @@ unsigned gen4_choose_spans_emitter(struct sna *sna,
 		tmp->base.floats_per_vertex = 3;
 		vb = 1 << 2 | 1;
 	} else if (tmp->base.src.transform == NULL) {
+		DBG(("%s: identity transform\n", __FUNCTION__));
 #if defined(avx2)
 		if (sna->cpu_features & AVX2) {
 			tmp->prim_emit = emit_span_identity__avx2;
@@ -2969,6 +2972,7 @@ unsigned gen4_choose_spans_emitter(struct sna *sna,
 		tmp->base.src.scale[0] /= tmp->base.src.transform->matrix[2][2];
 		tmp->base.src.scale[1] /= tmp->base.src.transform->matrix[2][2];
 		if (!sna_affine_transform_is_rotation(tmp->base.src.transform)) {
+			DBG(("%s: simple (unrotated affine) transform\n", __FUNCTION__));
 #if defined(avx2)
 			if (sna->cpu_features & AVX2) {
 				tmp->prim_emit = emit_span_simple__avx2;
@@ -2986,6 +2990,7 @@ unsigned gen4_choose_spans_emitter(struct sna *sna,
 				tmp->emit_boxes = emit_span_boxes_simple;
 			}
 		} else {
+			DBG(("%s: affine transform\n", __FUNCTION__));
 #if defined(avx2)
 			if (sna->cpu_features & AVX2) {
 				tmp->prim_emit = emit_span_affine__avx2;
@@ -3006,6 +3011,7 @@ unsigned gen4_choose_spans_emitter(struct sna *sna,
 		tmp->base.floats_per_vertex = 4;
 		vb = 1 << 2 | 2;
 	} else {
+		DBG(("%s: projective transform\n", __FUNCTION__));
 		tmp->prim_emit = emit_composite_spans_primitive;
 		tmp->base.floats_per_vertex = 5;
 		vb = 1 << 2 | 3;

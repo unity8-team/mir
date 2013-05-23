@@ -106,14 +106,22 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SNA_CURSOR_X			64
 #define SNA_CURSOR_Y			SNA_CURSOR_X
 
+struct sna_cow {
+	struct kgem_bo *bo;
+	struct list list;
+	int refcnt;
+};
+
 struct sna_pixmap {
 	PixmapPtr pixmap;
 	struct kgem_bo *gpu_bo, *cpu_bo;
 	struct sna_damage *gpu_damage, *cpu_damage;
+	struct sna_cow *cow;
 	void *ptr;
 #define PTR(ptr) ((void*)((uintptr_t)(ptr) & ~1))
 
-	struct list list;
+	struct list flush_list;
+	struct list cow_list;
 
 	uint32_t stride;
 	uint32_t clear_color;
@@ -198,6 +206,8 @@ enum {
 };
 
 struct sna {
+	struct kgem kgem;
+
 	ScrnInfoPtr scrn;
 
 	unsigned flags;
@@ -206,6 +216,7 @@ struct sna {
 #define SNA_TRIPLE_BUFFER	0x4
 #define SNA_TEAR_FREE		0x10
 #define SNA_FORCE_SHADOW	0x20
+#define SNA_REPROBE		0x80000000
 
 	unsigned cpu_features;
 #define MMX 0x1
@@ -288,7 +299,6 @@ struct sna {
 	InputHandlerProc uevent_handler;
 #endif
 
-	struct kgem kgem;
 	struct sna_render render;
 
 #if DEBUG_MEMORY
@@ -441,6 +451,9 @@ PixmapPtr sna_pixmap_create_unattached(ScreenPtr screen,
 				       int width, int height, int depth);
 void sna_pixmap_destroy(PixmapPtr pixmap);
 
+bool
+sna_pixmap_undo_cow(struct sna *sna, struct sna_pixmap *priv, unsigned flags);
+
 #define MOVE_WRITE 0x1
 #define MOVE_READ 0x2
 #define MOVE_INPLACE_HINT 0x4
@@ -494,6 +507,7 @@ struct kgem_bo *sna_pixmap_change_tiling(PixmapPtr pixmap, uint32_t tiling);
 #define FORCE_GPU	0x2
 #define RENDER_GPU	0x4
 #define IGNORE_CPU	0x8
+#define REPLACES	0x10
 struct kgem_bo *
 sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
 		    struct sna_damage ***damage);

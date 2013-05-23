@@ -458,6 +458,10 @@ gen7_emit_urb(struct sna *sna)
 static void
 gen7_emit_state_base_address(struct sna *sna)
 {
+	uint32_t mocs;
+
+	mocs = sna->kgem.gen == 075 ?  5 << 8 : 3 << 8;
+
 	OUT_BATCH(GEN7_STATE_BASE_ADDRESS | (10 - 2));
 	OUT_BATCH(0); /* general */
 	OUT_BATCH(kgem_add_reloc(&sna->kgem, /* surface */
@@ -465,17 +469,17 @@ gen7_emit_state_base_address(struct sna *sna)
 				 NULL,
 				 I915_GEM_DOMAIN_INSTRUCTION << 16,
 				 BASE_ADDRESS_MODIFY));
+	OUT_BATCH(kgem_add_reloc(&sna->kgem, /* dynamic */
+				 sna->kgem.nbatch,
+				 sna->render_state.gen7.general_bo,
+				 I915_GEM_DOMAIN_INSTRUCTION << 16,
+				 mocs | BASE_ADDRESS_MODIFY));
+	OUT_BATCH(0); /* indirect */
 	OUT_BATCH(kgem_add_reloc(&sna->kgem, /* instruction */
 				 sna->kgem.nbatch,
 				 sna->render_state.gen7.general_bo,
 				 I915_GEM_DOMAIN_INSTRUCTION << 16,
-				 BASE_ADDRESS_MODIFY));
-	OUT_BATCH(0); /* indirect */
-	OUT_BATCH(kgem_add_reloc(&sna->kgem,
-				 sna->kgem.nbatch,
-				 sna->render_state.gen7.general_bo,
-				 I915_GEM_DOMAIN_INSTRUCTION << 16,
-				 BASE_ADDRESS_MODIFY));
+				 mocs | BASE_ADDRESS_MODIFY));
 
 	/* upper bounds, disable */
 	OUT_BATCH(0);
@@ -1947,6 +1951,25 @@ gen7_composite_picture(struct sna *sna,
 		     pixmap->drawable.width, pixmap->drawable.height));
 		return sna_render_picture_extract(sna, picture, channel,
 						  x, y, w, h, dst_x, dst_y);
+	}
+
+	DBG(("%s: pixmap, repeat=%d, filter=%d, transform?=%d [affine? %d], format=%08x\n",
+	     __FUNCTION__,
+	     channel->repeat, channel->filter,
+	     channel->transform != NULL, channel->is_affine,
+	     channel->pict_format));
+	if (channel->transform) {
+		DBG(("%s: transform=[%f %f %f, %f %f %f, %f %f %f]\n",
+		     __FUNCTION__,
+		     channel->transform->matrix[0][0] / 65536.,
+		     channel->transform->matrix[0][1] / 65536.,
+		     channel->transform->matrix[0][2] / 65536.,
+		     channel->transform->matrix[1][0] / 65536.,
+		     channel->transform->matrix[1][1] / 65536.,
+		     channel->transform->matrix[1][2] / 65536.,
+		     channel->transform->matrix[2][0] / 65536.,
+		     channel->transform->matrix[2][1] / 65536.,
+		     channel->transform->matrix[2][2] / 65536.));
 	}
 
 	return sna_render_pixmap_bo(sna, channel, pixmap,
