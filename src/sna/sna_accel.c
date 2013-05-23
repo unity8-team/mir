@@ -12164,9 +12164,16 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 	 */
 	hint = PREFER_GPU;
 	if (n == 1 && gc->fillStyle != FillStippled && alu_overwrites(gc->alu)) {
+		int16_t dx, dy;
+
 		region.data = NULL;
-		if (priv->cpu_damage &&
-		    region_is_singular(gc->pCompositeClip)) {
+
+		get_drawable_deltas(draw, pixmap, &dx, &dy);
+		DBG(("%s: delta=(%d, %d)\n", __FUNCTION__, dx, dy));
+		if (dx | dy)
+			RegionTranslate(&region, dx, dy);
+
+		if (priv->cpu_damage && (flags & 2) == 0) {
 			if (region_subsumes_damage(&region, priv->cpu_damage)) {
 				DBG(("%s: discarding existing CPU damage\n", __FUNCTION__));
 				if (priv->gpu_bo && priv->gpu_bo->proxy) {
@@ -12183,28 +12190,29 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 		if (region_subsumes_drawable(&region, &pixmap->drawable))
 			hint |= REPLACES;
 		if (priv->cpu_damage == NULL) {
-			if (hint & REPLACES &&
+			if (priv->gpu_bo &&
+			    hint & REPLACES &&
 			    box_inplace(pixmap, &region.extents)) {
 				DBG(("%s: promoting to full GPU\n",
 				     __FUNCTION__));
-				if (priv->gpu_bo) {
-					assert(priv->gpu_bo->proxy == NULL);
-					sna_damage_all(&priv->gpu_damage,
-						       pixmap->drawable.width,
-						       pixmap->drawable.height);
-				}
+				assert(priv->gpu_bo->proxy == NULL);
+				sna_damage_all(&priv->gpu_damage,
+					       pixmap->drawable.width,
+					       pixmap->drawable.height);
 			}
 			DBG(("%s: dropping last-cpu hint\n", __FUNCTION__));
 			priv->cpu = false;
 		}
+
+		if (dx | dy)
+			RegionTranslate(&region, -dx, -dy);
 	}
 
 	/* If the source is already on the GPU, keep the operation on the GPU */
-	if (gc->fillStyle == FillTiled) {
-		if (!gc->tileIsPixel && sna_pixmap_is_gpu(gc->tile.pixmap)) {
-			DBG(("%s: source is already on the gpu\n", __FUNCTION__));
-			hint |= FORCE_GPU;
-		}
+	if (gc->fillStyle == FillTiled && !gc->tileIsPixel &&
+	    sna_pixmap_is_gpu(gc->tile.pixmap)) {
+		DBG(("%s: source is already on the gpu\n", __FUNCTION__));
+		hint |= FORCE_GPU;
 	}
 
 	bo = sna_drawable_use_bo(draw, hint, &region.extents, &damage);
@@ -12212,7 +12220,7 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 		DBG(("%s: not using GPU, hint=%x\n", __FUNCTION__, hint));
 		goto fallback;
 	}
-	if (hint & REPLACES)
+	if (hint & REPLACES && (flags & 2) == 0)
 		kgem_bo_undo(&sna->kgem, bo);
 
 	if (gc_is_solid(gc, &color)) {
