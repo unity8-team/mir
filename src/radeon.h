@@ -563,16 +563,20 @@ static inline void radeon_set_pixmap_bo(PixmapPtr pPix, struct radeon_bo *bo)
 	    if (priv->bo)
 		radeon_bo_unref(priv->bo);
 
-	    free(priv);
-	    priv = NULL;
+	    if (!bo) {
+		free(priv);
+		priv = NULL;
+	    }
 	}
 
 	if (bo) {
 	    uint32_t pitch;
 
-	    priv = calloc(1, sizeof (struct radeon_pixmap));
-	    if (priv == NULL)
-		goto out;
+	    if (!priv) {
+		priv = calloc(1, sizeof (struct radeon_pixmap));
+		if (!priv)
+		    goto out;
+	    }
 
 	    radeon_bo_ref(bo);
 	    priv->bo = bo;
