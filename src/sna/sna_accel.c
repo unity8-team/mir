@@ -68,7 +68,7 @@
 #define USE_CPU_BO 1
 #define USE_USERPTR_UPLOADS 1
 #define USE_USERPTR_DOWNLOADS 1
-#define USE_COW 1
+#define USE_COW 0
 
 #define MIGRATE_ALL 0
 #define DBG_NO_CPU_UPLOAD 0
@@ -2580,8 +2580,6 @@ done:
 
 out:
 	if (flags & MOVE_WRITE) {
-		if (priv->cow)
-			sna_pixmap_undo_cow(sna, priv, priv->gpu_damage ? MOVE_READ : 0);
 		priv->source_count = SOURCE_BIAS;
 		assert(priv->gpu_bo == NULL || priv->gpu_bo->proxy == NULL);
 		assert(priv->gpu_bo || priv->gpu_damage == NULL);
@@ -2719,7 +2717,7 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 	assert(!wedged(sna));
 	assert(priv->gpu_damage == NULL || priv->gpu_bo);
 
-	if (flags & MOVE_WRITE && priv->cow) {
+	if (priv->cow && (flags & MOVE_WRITE || priv->cpu_damage)) {
 		unsigned cow = MOVE_READ;
 
 		if ((flags & MOVE_READ) == 0) {
@@ -3429,7 +3427,7 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 
 	assert(priv->gpu_damage == NULL || priv->gpu_bo);
 
-	if (flags & MOVE_WRITE && priv->cow) {
+	if (priv->cow && (flags & MOVE_WRITE || priv->cpu_damage)) {
 		if (!sna_pixmap_undo_cow(sna, priv, flags & MOVE_READ))
 			return false;
 
@@ -4701,6 +4699,8 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			if (replaces &&
 			    src_pixmap->drawable.width == dst_pixmap->drawable.width &&
 			    src_pixmap->drawable.height == dst_pixmap->drawable.height) {
+				assert(src_pixmap->drawable.depth == dst_pixmap->drawable.depth);
+				assert(src_pixmap->drawable.bitsPerPixel == dst_pixmap->drawable.bitsPerPixel);
 				if (sna_pixmap_make_cow(sna, src_priv, dst_priv)) {
 					assert(dst_priv->gpu_bo == src_priv->gpu_bo);
 					sna_damage_all(&dst_priv->gpu_damage,
