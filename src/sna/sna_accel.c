@@ -4637,7 +4637,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 
 	/* XXX hack for firefox -- subsequent uses of src will be corrupt! */
 	if (src_priv && src_priv->cow && src_priv->gpu_bo == dst_priv->gpu_bo) {
-		assert(DAMAGE_IS_ALL(src_priv->gpu_damage));
+		assert(src_priv->cpu_damage == NULL);
 		bo = dst_priv->gpu_bo;
 		damage = NULL;
 	} else
