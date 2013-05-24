@@ -1663,6 +1663,9 @@ sna_pixmap_make_cow(struct sna *sna,
 	if (!USE_COW)
 		return false;
 
+	if (src_priv->gpu_bo->proxy)
+		return false;
+
 	DBG(("%s: make cow src=%ld, dst=%ld, handle=%ld\n",
 	     __FUNCTION__,
 	     src_priv->pixmap->drawable.serialNumber,
@@ -1795,6 +1798,7 @@ _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 		    pixmap_inplace(sna, pixmap, priv, true) &&
 		    sna_pixmap_create_mappable_gpu(pixmap, true)) {
 			DBG(("%s: write inplace\n", __FUNCTION__));
+			assert(priv->cow == NULL);
 			assert(!priv->shm);
 			assert(priv->gpu_bo->exec == NULL);
 			assert((flags & MOVE_READ) == 0 || priv->cpu_damage == NULL);
@@ -1856,6 +1860,7 @@ skip_inplace_map:
 	    pixmap_inplace(sna, pixmap, priv, (flags & MOVE_READ) == 0) &&
 	     sna_pixmap_create_mappable_gpu(pixmap, (flags & MOVE_READ) == 0)) {
 		DBG(("%s: try to operate inplace (GTT)\n", __FUNCTION__));
+		assert(priv->cow == NULL);
 		assert((flags & MOVE_READ) == 0 || priv->cpu_damage == NULL);
 		/* XXX only sync for writes? */
 		kgem_bo_submit(&sna->kgem, priv->gpu_bo);
@@ -1897,6 +1902,7 @@ skip_inplace_map:
 	    ((flags & (MOVE_WRITE | MOVE_ASYNC_HINT)) == 0 ||
 	     !__kgem_bo_is_busy(&sna->kgem, priv->gpu_bo))) {
 		DBG(("%s: try to operate inplace (CPU)\n", __FUNCTION__));
+		assert(priv->cow == NULL);
 
 		assert(!priv->mapped);
 		pixmap->devPrivate.ptr =
@@ -2238,6 +2244,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 	    region_inplace(sna, pixmap, region, priv, (flags & MOVE_READ) == 0) &&
 	     sna_pixmap_create_mappable_gpu(pixmap, false)) {
 		DBG(("%s: try to operate inplace\n", __FUNCTION__));
+		assert(priv->cow == NULL);
 		/* XXX only sync for writes? */
 		kgem_bo_submit(&sna->kgem, priv->gpu_bo);
 		assert(priv->gpu_bo->exec == NULL);
