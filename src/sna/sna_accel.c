@@ -68,7 +68,7 @@
 #define USE_CPU_BO 1
 #define USE_USERPTR_UPLOADS 1
 #define USE_USERPTR_DOWNLOADS 1
-#define USE_COW 0
+#define USE_COW 1
 
 #define MIGRATE_ALL 0
 #define DBG_NO_CPU_UPLOAD 0
