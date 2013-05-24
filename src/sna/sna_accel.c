@@ -2915,6 +2915,8 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 	}
 
 done:
+	if (priv->cpu_damage == NULL && priv->flush)
+		list_del(&priv->flush_list);
 	if (flags & MOVE_WRITE) {
 		priv->clear = false;
 		priv->cpu = false;
@@ -2932,8 +2934,6 @@ done:
 		if (DAMAGE_IS_ALL(priv->gpu_damage))
 			sna_pixmap_free_cpu(sna, priv);
 	}
-	if (priv->cpu_damage == NULL && priv->flush)
-		list_del(&priv->flush_list);
 
 	assert(!priv->gpu_bo->proxy || (flags & MOVE_WRITE) == 0);
 	return sna_pixmap_mark_active(sna, priv) != NULL;
