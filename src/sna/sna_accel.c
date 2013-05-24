@@ -4600,6 +4600,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 					       src_dx, src_dy);
 
 	replaces = n == 1 &&
+		alu_overwrites(alu) &&
 		box->x1 <= 0 &&
 		box->y1 <= 0 &&
 		box->x2 >= dst_pixmap->drawable.width &&
@@ -4649,13 +4650,13 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 		bo = sna_drawable_use_bo(&dst_pixmap->drawable, hint,
 					 &region->extents, &damage);
 	if (bo) {
-		if (replaces)
-			kgem_bo_undo(&sna->kgem, bo);
-
 		if (src_priv && src_priv->clear) {
 			DBG(("%s: applying src clear[%08x] to dst\n",
 			     __FUNCTION__, src_priv->clear_color));
 			if (n == 1) {
+				if (replaces)
+					kgem_bo_undo(&sna->kgem, bo);
+
 				if (!sna->render.fill_one(sna,
 							  dst_pixmap, bo,
 							  src_priv->clear_color,
@@ -4665,6 +4666,16 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 					DBG(("%s: unsupported fill\n",
 					     __FUNCTION__));
 					goto fallback;
+				}
+
+				if (replaces && bo == dst_priv->gpu_bo) {
+					dst_priv->clear = true;
+					dst_priv->clear_color = src_priv->clear_color;
+					sna_damage_all(&dst_priv->gpu_damage,
+						       dst_pixmap->drawable.width,
+						       dst_pixmap->drawable.height);
+					sna_damage_destroy(&dst_priv->cpu_damage);
+					list_del(&dst_priv->flush_list);
 				}
 			} else {
 				struct sna_fill_op fill;
@@ -4681,11 +4692,6 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 				fill.done(sna, &fill);
 			}
 
-			if (replaces && bo == dst_priv->gpu_bo) {
-				dst_priv->clear = true;
-				dst_priv->clear_color = src_priv->clear_color;
-			}
-
 			if (damage)
 				sna_damage_add(damage, region);
 			return;
@@ -4696,7 +4702,10 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 		    sna_pixmap_move_to_gpu(src_pixmap, MOVE_READ | MOVE_ASYNC_HINT)) {
 			DBG(("%s: move whole src_pixmap to GPU and copy\n",
 			     __FUNCTION__));
-			if (replaces &&
+			if (replaces)
+				kgem_bo_undo(&sna->kgem, bo);
+
+			if (replaces && alu == GXcopy &&
 			    src_pixmap->drawable.width == dst_pixmap->drawable.width &&
 			    src_pixmap->drawable.height == dst_pixmap->drawable.height) {
 				assert(src_pixmap->drawable.depth == dst_pixmap->drawable.depth);
@@ -4745,6 +4754,9 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 							 MOVE_READ | MOVE_ASYNC_HINT))
 				goto fallback;
 
+			if (replaces)
+				kgem_bo_undo(&sna->kgem, bo);
+
 			if (!sna->render.copy_boxes(sna, alu,
 						    src_pixmap, src_priv->gpu_bo, src_dx, src_dy,
 						    dst_pixmap, bo, 0, 0,
@@ -4777,6 +4789,9 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			RegionTranslate(region, -src_dx, -src_dy);
 			if (!ret)
 				goto fallback;
+
+			if (replaces)
+				kgem_bo_undo(&sna->kgem, bo);
 
 			if (src_priv->shm) {
 				assert(!src_priv->flush);
