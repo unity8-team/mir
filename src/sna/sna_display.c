@@ -2568,6 +2568,10 @@ sna_mode_resize(ScrnInfoPtr scrn, int width, int height)
 	if (!new_front)
 		return FALSE;
 
+	xf86DrvMsg(crtc->scrn->scrnIndex, X_INFO,
+		   "resizing framebuffer to %dx%d\n",
+		   width, height);
+
 	for (i = 0; i < xf86_config->num_crtc; i++)
 		sna_crtc_disable_shadow(sna, to_sna_crtc(xf86_config->crtc[i]));
 	assert(sna->mode.shadow_active == 0);
