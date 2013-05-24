@@ -2716,9 +2716,13 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, const BoxRec *box, unsigned int fl
 		unsigned cow = MOVE_READ;
 
 		if ((flags & MOVE_READ) == 0) {
-			r.extents = *box;
-			r.data = NULL;
-			if (region_subsumes_damage(&r, priv->gpu_damage))
+			if (priv->gpu_damage) {
+				r.extents = *box;
+				r.data = NULL;
+				if (region_subsumes_damage(&r,
+							   priv->gpu_damage))
+					cow = 0;
+			} else
 				cow = 0;
 		}
 
@@ -2961,15 +2965,19 @@ sna_drawable_use_bo(DrawablePtr drawable, unsigned flags, const BoxRec *box,
 		unsigned cow = MOVE_READ;
 
 		if (flags & IGNORE_CPU) {
-			get_drawable_deltas(drawable, pixmap, &dx, &dy);
+			if (priv->gpu_damage) {
+				get_drawable_deltas(drawable, pixmap, &dx, &dy);
 
-			region.extents = *box;
-			region.extents.x1 += dx;
-			region.extents.x2 += dx;
-			region.extents.y1 += dy;
-			region.extents.y2 += dy;
-			region.data = NULL;
-			if (region_subsumes_damage(&region, priv->gpu_damage))
+				region.extents = *box;
+				region.extents.x1 += dx;
+				region.extents.x2 += dx;
+				region.extents.y1 += dy;
+				region.extents.y2 += dy;
+				region.data = NULL;
+				if (region_subsumes_damage(&region,
+							   priv->gpu_damage))
+					cow = 0;
+			} else
 				cow = 0;
 		}
 
