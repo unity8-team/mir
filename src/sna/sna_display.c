@@ -2568,7 +2568,7 @@ sna_mode_resize(ScrnInfoPtr scrn, int width, int height)
 	if (!new_front)
 		return FALSE;
 
-	xf86DrvMsg(crtc->scrn->scrnIndex, X_INFO,
+	xf86DrvMsg(scrn->scrnIndex, X_INFO,
 		   "resizing framebuffer to %dx%d\n",
 		   width, height);
 
