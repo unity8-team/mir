@@ -1644,6 +1644,8 @@ sna_pixmap_undo_cow(struct sna *sna, struct sna_pixmap *priv, unsigned flags)
 			}
 		}
 
+		assert(priv->gpu_bo);
+		kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
 		priv->gpu_bo = bo;
 	}
 
