@@ -136,7 +136,7 @@ struct Setup : public ubuntu::application::ui::Setup
         return stage;
     }
 
-    ubuntu::application::ui::FormFactorHintFlags form_factor_hint()
+    ubuntu::application::ui::FormFactorHint form_factor_hint()
     {
         return ubuntu::application::ui::desktop_form_factor;
     }
@@ -147,7 +147,7 @@ struct Setup : public ubuntu::application::ui::Setup
     }
 
     ubuntu::application::ui::StageHint stage;
-    ubuntu::application::ui::FormFactorHintFlags form_factor;
+    ubuntu::application::ui::FormFactorHint form_factor;
     android::String8 desktop_file;
 };
 
@@ -416,6 +416,11 @@ struct UbuntuSurface : public ubuntu::application::ui::Surface
             observer->update();
     }
 
+    int32_t get_id()
+    {
+        return -1;
+    }
+
     EGLNativeWindowType to_native_window_type()
     {
         return surface.get();
@@ -426,7 +431,8 @@ struct Session : public ubuntu::application::ui::Session, public UbuntuSurface::
 {
     struct ApplicationManagerSession : public BnApplicationManagerSession
     {
-        ApplicationManagerSession(Session* parent) : parent(parent)
+        ApplicationManagerSession(Session* parent) : parent(parent),
+                                                     delegate()
         {
         }
 
@@ -460,7 +466,29 @@ struct Session : public ubuntu::application::ui::Session, public UbuntuSurface::
             return parent->surfaces.valueFor(token)->properties;
         }
 
+        void on_application_resumed()
+        {
+            if (delegate == NULL)
+                return;
+    
+            delegate->on_application_resumed();
+        }
+    
+        void on_application_about_to_stop()
+        {
+            if (delegate == NULL)
+                return;
+    
+            delegate->on_application_about_to_stop();
+        }
+    
+        void install_lifecycle_delegate(const ubuntu::application::LifecycleDelegate::Ptr& delegate)
+        {
+            this->delegate = delegate;
+        }
+    
         Session* parent;
+        ubuntu::application::LifecycleDelegate::Ptr delegate;
     };
 
     sp<ApplicationManagerSession> app_manager_session;
@@ -503,6 +531,11 @@ struct Session : public ubuntu::application::ui::Session, public UbuntuSurface::
 
         android::ProcessState::self()->startThreadPool();
         event_loop->run(__PRETTY_FUNCTION__, android::PRIORITY_URGENT_DISPLAY);
+    }
+
+    void install_lifecycle_delegate(const ubuntu::application::LifecycleDelegate::Ptr& delegate)
+    {
+        this->app_manager_session->install_lifecycle_delegate(delegate);
     }
 
     void update()

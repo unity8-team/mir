@@ -14,35 +14,33 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Authored by: Ricardo Mendoza <ricardo.mendoza@canonical.com>
+ *              Thomas Voß <thomas.voss@canonical.com>           
  */
 
-#ifndef UBUNTU_APPLICATION_UI_SESSION_DELEGATES_H_
-#define UBUNTU_APPLICATION_UI_SESSION_DELEGATES_H_
+#ifndef UBUNTU_APPLICATION_ID_H_
+#define UBUNTU_APPLICATION_ID_H_
 
-#include <session/lifecycle_delegate.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-#include <cstdio>
-
-namespace ubuntu
-{
-namespace application
-{
-class LifecycleDelegate : public platform::ReferenceCountedBase
-{
-public:
-    typedef platform::shared_ptr<LifecycleDelegate> Ptr;
-
-    virtual void on_application_resumed() = 0;
-    virtual void on_application_about_to_stop() = 0;
-
-protected:
-    LifecycleDelegate() {}
-    virtual ~LifecycleDelegate() {}
-
-    LifecycleDelegate(const LifecycleDelegate&) = delete;
-    LifecycleDelegate& operator=(const LifecycleDelegate&) = delete;
-};
+    typedef void UApplicationId;
+    
+    UApplicationId*
+    u_application_id_new_from_stringn(
+    	const char *string, 
+    	size_t size);
+    
+    void
+    u_application_id_destroy(UApplicationId *id);
+    
+    int
+    u_application_id_compare(
+    	UApplicationId *lhs,
+    	UApplicationId *rhs);
+       
+#ifdef __cplusplus
 }
-}
+#endif
 
-#endif // UBUNTU_APPLICATION_UI_SESSION_DELEGATES_H_
+#endif /* UBUNTU_APPLICATION_ID_H_ */

@@ -166,7 +166,7 @@ struct MockSetup : public ubuntu::application::ui::Setup
         return ubuntu::application::ui::main_stage;
     }
 
-    ubuntu::application::ui::FormFactorHintFlags form_factor_hint()
+    ubuntu::application::ui::FormFactorHint form_factor_hint()
     {
         return ubuntu::application::ui::desktop_form_factor;
     }

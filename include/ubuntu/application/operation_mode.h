@@ -14,35 +14,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Authored by: Ricardo Mendoza <ricardo.mendoza@canonical.com>
+ *              Thomas Voß <thomas.voss@canonical.com>           
  */
 
-#ifndef UBUNTU_APPLICATION_UI_SESSION_DELEGATES_H_
-#define UBUNTU_APPLICATION_UI_SESSION_DELEGATES_H_
+#ifndef UBUNTU_APPLICATION_OPERATION_MODE_H_
+#define UBUNTU_APPLICATION_OPERATION_MODE_H_
 
-#include <session/lifecycle_delegate.h>
-
-#include <cstdio>
-
-namespace ubuntu
+typedef enum
 {
-namespace application
-{
-class LifecycleDelegate : public platform::ReferenceCountedBase
-{
-public:
-    typedef platform::shared_ptr<LifecycleDelegate> Ptr;
+	U_APPLICATION_FOREGROUND_APP,
+	U_APPLICATION_BACKGROUND_SERVICE
+} UApplicationOperationMode;
 
-    virtual void on_application_resumed() = 0;
-    virtual void on_application_about_to_stop() = 0;
-
-protected:
-    LifecycleDelegate() {}
-    virtual ~LifecycleDelegate() {}
-
-    LifecycleDelegate(const LifecycleDelegate&) = delete;
-    LifecycleDelegate& operator=(const LifecycleDelegate&) = delete;
-};
-}
-}
-
-#endif // UBUNTU_APPLICATION_UI_SESSION_DELEGATES_H_
+#endif /* UBUNTU_APPLICATION_OPERATION_MODE_H_ */

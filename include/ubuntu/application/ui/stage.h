@@ -14,35 +14,20 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Authored by: Ricardo Mendoza <ricardo.mendoza@canonical.com>
+ *              Thomas Voß <thomas.voss@canonical.com>           
  */
 
-#ifndef UBUNTU_APPLICATION_UI_SESSION_DELEGATES_H_
-#define UBUNTU_APPLICATION_UI_SESSION_DELEGATES_H_
+#ifndef UBUNTU_APPLICATION_UI_STAGE_H_
+#define UBUNTU_APPLICATION_UI_STAGE_H_
 
-#include <session/lifecycle_delegate.h>
-
-#include <cstdio>
-
-namespace ubuntu
+typedef enum
 {
-namespace application
-{
-class LifecycleDelegate : public platform::ReferenceCountedBase
-{
-public:
-    typedef platform::shared_ptr<LifecycleDelegate> Ptr;
+    U_MAIN_STAGE = 0,
+    U_INTEGRATION_STAGE = 1,
+    U_SHARE_STAGE = 2,
+    U_CONTENT_PICKING_STAGE = 3,
+    U_SIDE_STAGE = 4,
+    U_CONFIGURATION_STAGE = 5
+} UAUiStage;
 
-    virtual void on_application_resumed() = 0;
-    virtual void on_application_about_to_stop() = 0;
-
-protected:
-    LifecycleDelegate() {}
-    virtual ~LifecycleDelegate() {}
-
-    LifecycleDelegate(const LifecycleDelegate&) = delete;
-    LifecycleDelegate& operator=(const LifecycleDelegate&) = delete;
-};
-}
-}
-
-#endif // UBUNTU_APPLICATION_UI_SESSION_DELEGATES_H_
+#endif /* UBUNTU_APPLICATION_UI_STAGE_H_ */

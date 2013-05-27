@@ -153,7 +153,7 @@ extern "C" {
 
     typedef struct
     {
-        application_started_cb on_application_started;
+        application_started_cb on_application_resumed;
         application_about_to_stop_cb on_application_about_to_stop;
 
         void *context;
