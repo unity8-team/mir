@@ -22,6 +22,7 @@ LOCAL_SRC_FILES := \
 	ubuntu_application_sensors_for_hybris.cpp \
 	../default/default_ubuntu_application_sensor.cpp \
 	../default/default_ubuntu_application_ui.cpp \
+	../default/default_ubuntu_application.cpp \
 	../default/default_ubuntu_ui.cpp \
 	application_manager.cpp
 

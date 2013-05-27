@@ -41,21 +41,21 @@ namespace
 struct IUApplicationLifecycleDelegate : public ubuntu::application::LifecycleDelegate
 {
     IUApplicationLifecycleDelegate(void *context) :
-                                    application_started_cb(NULL),
+                                    application_resumed_cb(NULL),
                                     application_about_to_stop_cb(NULL),
                                     context(context),
                                     refcount(1)
     {
     }
 
-    void on_application_started()
+    void on_application_resumed()
     {
         ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
     
-        if (!application_started_cb)
+        if (!application_resumed_cb)
             return;
     
-        application_started_cb(NULL, this->context);
+        application_resumed_cb(NULL, this->context);
     }
 
     void on_application_about_to_stop()
@@ -68,7 +68,7 @@ struct IUApplicationLifecycleDelegate : public ubuntu::application::LifecycleDel
         application_about_to_stop_cb(NULL, this->context);
     }
 
-    u_on_application_started application_started_cb;
+    u_on_application_resumed application_resumed_cb;
     u_on_application_about_to_stop application_about_to_stop_cb;
     void *context;
 
@@ -139,24 +139,24 @@ u_application_lifecycle_delegate_unref(UApplicationLifecycleDelegate *delegate)
 }
 
 void
-u_application_lifecycle_delegate_set_application_started_cb(
+u_application_lifecycle_delegate_set_application_resumed_cb(
     UApplicationLifecycleDelegate *delegate,
-    u_on_application_started cb)
+    u_on_application_resumed cb)
 { 
     ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
     
     auto s = static_cast<Holder<IUApplicationLifecycleDelegate*>*>(delegate);
-    s->value->application_started_cb = cb;
+    s->value->application_resumed_cb = cb;
 }
 
-u_on_application_started
-u_application_lifecycle_delegate_get_application_started_cb(
+u_on_application_resumed
+u_application_lifecycle_delegate_get_application_resumed_cb(
     UApplicationLifecycleDelegate *delegate)
 { 
     ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
     
     auto s = static_cast<Holder<IUApplicationLifecycleDelegate*>*>(delegate);
-    return s->value->application_started_cb;
+    return s->value->application_resumed_cb;
 }
 
 void
