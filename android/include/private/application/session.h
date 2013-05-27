@@ -20,7 +20,6 @@
 #define UBUNTU_APPLICATION_SESSION_H_
 
 #include <private/platform/shared_ptr.h>
-#include <ubuntu/application/lifecycle_delegate.h>
 
 #include <utils/Log.h>
 
