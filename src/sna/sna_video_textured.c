@@ -235,7 +235,7 @@ sna_video_textured_put_image(ClientPtr client,
 		}
 	}
 
-	if (crtc && sync && video->SyncToVblank != 0 &&
+	if (crtc && video->SyncToVblank != 0 &&
 	    sna_pixmap_is_scanout(sna, pixmap)) {
 		kgem_set_mode(&sna->kgem, KGEM_RENDER, sna_pixmap(pixmap)->gpu_bo);
 		flush = sna_wait_for_scanline(sna, pixmap, crtc,
@@ -254,7 +254,7 @@ sna_video_textured_put_image(ClientPtr client,
 	/* Push the frame to the GPU as soon as possible so
 	 * we can hit the next vsync.
 	 */
-	if (flush)
+	if (flush || sync)
 		kgem_submit(&sna->kgem);
 
 	RegionUninit(&clip);
