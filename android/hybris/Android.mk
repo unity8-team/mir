@@ -5,7 +5,7 @@ UPAPI_PATH := $(LOCAL_PATH)/../../
 
 LOCAL_CFLAGS += -std=gnu++0x
 
-CONFIG_H := $(UPAPI_PATH)/include/ui/config.h 
+CONFIG_H := $(UPAPI_PATH)/include/ubuntu/ui/config.h 
 $(CONFIG_H):
 	echo "Generating config.h"
 	sed $(UPAPI_PATH)/include/config.h.in -e 's/@USE_GLES@/1/g' > $@
@@ -22,7 +22,6 @@ LOCAL_SRC_FILES := \
 	ubuntu_application_sensors_for_hybris.cpp \
 	../default/default_ubuntu_application_sensor.cpp \
 	../default/default_ubuntu_application_ui.cpp \
-	../default/default_ubuntu_application.cpp \
 	../default/default_ubuntu_ui.cpp \
 	application_manager.cpp
 
@@ -47,7 +46,7 @@ LOCAL_CFLAGS += -std=gnu++0x
 
 LOCAL_C_INCLUDES := \
 	$(UPAPI_PATH)/include \
-    $(UPAPI_PATH)/android/include
+	$(UPAPI_PATH)/android/include
 
 LOCAL_SRC_FILES:= \
 	test.cpp \
@@ -70,7 +69,7 @@ LOCAL_CFLAGS += -std=gnu++0x
 
 LOCAL_C_INCLUDES := \
 	$(UPAPI_PATH)/include \
-    $(UPAPI_PATH)/android/include
+	$(UPAPI_PATH)/android/include
 
 LOCAL_SRC_FILES:= \
 	test_c_api.cpp \
@@ -93,7 +92,7 @@ LOCAL_CFLAGS += -std=gnu++0x
 
 LOCAL_C_INCLUDES := \
 	$(UPAPI_PATH)/include \
-    $(UPAPI_PATH)/android/include
+	$(UPAPI_PATH)/android/include
 
 LOCAL_SRC_FILES:= \
 	test_session_c_api.cpp \
@@ -116,7 +115,7 @@ LOCAL_CFLAGS += -std=gnu++0x
 
 LOCAL_C_INCLUDES := \
 	$(UPAPI_PATH)/include \
-    $(UPAPI_PATH)/android/include
+	$(UPAPI_PATH)/android/include
 
 LOCAL_SRC_FILES:= \
 	test_trap.cpp \
@@ -139,7 +138,7 @@ LOCAL_CFLAGS += -std=gnu++0x
 
 LOCAL_C_INCLUDES := \
 	$(UPAPI_PATH)/include \
-    $(UPAPI_PATH)/android/include
+	$(UPAPI_PATH)/android/include
 
 LOCAL_SRC_FILES:= \
 	test_osk_visibility.cpp \
@@ -162,7 +161,7 @@ LOCAL_CFLAGS += -std=gnu++0x
 
 LOCAL_C_INCLUDES := \
 	$(UPAPI_PATH)/include \
-    $(UPAPI_PATH)/android/include
+	$(UPAPI_PATH)/android/include
 
 LOCAL_SRC_FILES:= \
 	test_sensors_c_api.cpp \
@@ -185,7 +184,7 @@ LOCAL_CFLAGS += -std=gnu++0x
 
 LOCAL_C_INCLUDES := \
 	$(UPAPI_PATH)/include \
-    $(UPAPI_PATH)/android/include
+	$(UPAPI_PATH)/android/include
 
 LOCAL_SRC_FILES:= \
 	test_sensors.cpp \
@@ -238,7 +237,7 @@ LOCAL_CFLAGS += -std=gnu++0x
 
 LOCAL_C_INCLUDES := \
 	$(UPAPI_PATH)/include \
-    $(UPAPI_PATH)/android/include
+	$(UPAPI_PATH)/android/include
 
 LOCAL_SRC_FILES:= \
 	application_manager.cpp \
@@ -263,7 +262,7 @@ LOCAL_CFLAGS += -std=gnu++0x
 
 LOCAL_C_INCLUDES := \
 	$(UPAPI_PATH)/include \
-    $(UPAPI_PATH)/android/include
+	$(UPAPI_PATH)/android/include
 
 LOCAL_SRC_FILES:= \
 	test_gps_api.cpp \

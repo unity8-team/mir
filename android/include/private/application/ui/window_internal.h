@@ -14,6 +14,11 @@ class WindowProperties : public ubuntu::platform::ReferenceCountedBase
 public:
     WindowProperties() {}
 
+    ~WindowProperties()
+    {
+        free(this->title);
+    }
+
     typedef ubuntu::platform::shared_ptr<WindowProperties> Ptr;
    
     void set_titlen(const char* title, size_t size)
@@ -60,8 +65,6 @@ private:
     void* ctx;
    
 protected:
-    virtual ~WindowProperties() {}
-
     WindowProperties(const WindowProperties&) = delete;
     WindowProperties& operator=(const WindowProperties&) = delete;
 };
