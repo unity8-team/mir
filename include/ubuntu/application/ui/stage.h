@@ -30,11 +30,4 @@ typedef enum
     U_CONFIGURATION_STAGE = 5
 } UAUiStage;
 
-#ifndef UBUNTU_APPLICATION_UI_STAGE_HINT_H_
-#define UBUNTU_APPLICATION_UI_STAGE_HINT_H_
-
-#endif /* UBUNTU_APPLICATION_UI_STAGE_HINT_H_ */
-
-//typedef ubuntu::application::ui::StageHint UApplicationUiStage;
-
 #endif /* UBUNTU_APPLICATION_UI_STAGE_H_ */
