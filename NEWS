@@ -1,3 +1,22 @@
+Release 2.21.8 (2013-05-27)
+===========================
+A quick release to cleanup a few regressions from the introduction of
+copy-on-write support, notably hitting wine applications and a memory
+leak for firefox.
+
+ * Only mark a PolyFillRect operation as replacing if it is unclipped
+   https://bugs.freedesktop.org/show_bug.cgi?id=64841
+
+ * Prevent potential NULL dereference of damage when checking COW support
+
+ * Fix invalidation of clone after dirtying the pixmap via the CPU
+
+ * Prevent discarding an operation before requiring it for a fallback
+
+ * Fix memory leak from replacing the clone under certain circumstances
+   https://bugs.freedesktop.org/show_bug.cgi?id=64978
+
+
 Release 2.21.7 (2013-05-21)
 ===========================
 A couple of weeks turned into a month and a couple of weeks... Amidst
