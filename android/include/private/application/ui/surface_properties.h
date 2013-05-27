@@ -18,8 +18,8 @@
 #ifndef UBUNTU_APPLICATION_UI_SURFACE_PROPERTIES_H_
 #define UBUNTU_APPLICATION_UI_SURFACE_PROPERTIES_H_
 
-#include "ubuntu/application/ui/surface_role.h"
-#include "ubuntu/application/ui/ubuntu_application_ui.h"
+#include "private/application/ui/surface_role.h"
+#include "private/application/ui/ubuntu_application_ui.h"
 
 namespace ubuntu
 {

@@ -18,10 +18,10 @@
 #ifndef UBUNTU_APPLICATION_SENSORS_SENSOR_H_
 #define UBUNTU_APPLICATION_SENSORS_SENSOR_H_
 
-#include "ubuntu/platform/shared_ptr.h"
+#include "private/platform/shared_ptr.h"
 
-#include "ubuntu/application/sensors/sensor_listener.h"
-#include "ubuntu/application/sensors/sensor_type.h"
+#include "private/application/sensors/sensor_listener.h"
+#include "private/application/sensors/sensor_type.h"
 
 #include <cstdint>
 

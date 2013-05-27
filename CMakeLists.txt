@@ -10,6 +10,7 @@ set(INSTALL_TARGETS_DEFAULT_ARGS RUNTIME DESTINATION "${BIN_INSTALL_DIR}"
                                  ARCHIVE DESTINATION "${LIB_INSTALL_DIR}")
 
 include_directories(include/)
+include_directories(android/include/)
 
 add_subdirectory(src/)
 add_subdirectory(include/)

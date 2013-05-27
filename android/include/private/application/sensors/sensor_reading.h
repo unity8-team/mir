@@ -18,7 +18,7 @@
 #ifndef UBUNTU_APPLICATION_SENSORS_SENSOR_READING_H_
 #define UBUNTU_APPLICATION_SENSORS_SENSOR_READING_H_
 
-#include "ubuntu/platform/shared_ptr.h"
+#include "private/platform/shared_ptr.h"
 
 #include <cstddef>
 #include <cstdint>

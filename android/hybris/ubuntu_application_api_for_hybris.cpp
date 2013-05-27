@@ -19,18 +19,18 @@
 #include "event_loop.h"
 #include "input_consumer_thread.h"
 
-#include <ubuntu/application/ui/clipboard.h>
-#include <ubuntu/application/ui/init.h>
-#include <ubuntu/application/ui/session.h>
-#include <ubuntu/application/ui/session_credentials.h>
-#include <ubuntu/application/ui/setup.h>
-#include <ubuntu/application/ui/surface.h>
-#include <ubuntu/application/ui/surface_factory.h>
-#include <ubuntu/application/ui/surface_properties.h>
+#include <private/application/ui/clipboard.h>
+#include <private/application/ui/init.h>
+#include <private/application/ui/session.h>
+#include <private/application/ui/session_credentials.h>
+#include <private/application/ui/setup.h>
+#include <private/application/ui/surface.h>
+#include <private/application/ui/surface_factory.h>
+#include <private/application/ui/surface_properties.h>
 
-#include <ubuntu/ui/session_enumerator.h>
-#include <ubuntu/ui/session_service.h>
-#include <ubuntu/ui/well_known_applications.h>
+#include <private/ui/session_enumerator.h>
+#include <private/ui/session_service.h>
+#include <private/ui/well_known_applications.h>
 
 #include <binder/IMemory.h>
 #include <binder/IPCThreadState.h>

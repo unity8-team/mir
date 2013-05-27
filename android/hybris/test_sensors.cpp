@@ -15,11 +15,11 @@
  *
  * Authored by: Thomas Voß <thomas.voss@canonical.com>
  */
-#include <ubuntu/application/sensors/sensor_service.h>
+#include <private/application/sensors/sensor_service.h>
 
-#include <ubuntu/application/sensors/sensor.h>
-#include <ubuntu/application/sensors/sensor_listener.h>
-#include <ubuntu/application/sensors/sensor_reading.h>
+#include <private/application/sensors/sensor.h>
+#include <private/application/sensors/sensor_listener.h>
+#include <private/application/sensors/sensor_reading.h>
 
 #include <cstdio>
 

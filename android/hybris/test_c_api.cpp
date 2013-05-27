@@ -15,7 +15,7 @@
  *
  * Authored by: Thomas Voß <thomas.voss@canonical.com>
  */
-#include <ubuntu/application/ui/ubuntu_application_ui.h>
+#include <private/application/ui/ubuntu_application_ui.h>
 
 #include <EGL/egl.h>
 #include <GLES2/gl2.h>
