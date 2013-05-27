@@ -15,15 +15,17 @@
  *
  * Authored by: Thomas Voß <thomas.voss@canonical.com>
  */
-#ifndef UBUNTU_APPLICATION_UI_SESSION_H_
-#define UBUNTU_APPLICATION_UI_SESSION_H_
 
-#include "ubuntu/application/session.h"
-#include "ubuntu/application/ui/clipboard.h"
-#include "ubuntu/application/ui/physical_display_info.h"
-#include "ubuntu/application/ui/surface.h"
-#include "ubuntu/application/ui/surface_properties.h"
-#include "ubuntu/platform/shared_ptr.h"
+#ifndef UBUNTU_APPLICATION_UI_SESSION_INTERNAL_H_
+#define UBUNTU_APPLICATION_UI_SESSION_INTERNAL_H_
+
+#include <private/ui/session_enumerator.h>
+#include <private/application/session.h>
+#include <private/application/ui/clipboard.h>
+#include <private/application/ui/physical_display_info.h>
+#include <private/application/ui/surface.h>
+#include <private/application/ui/surface_properties.h>
+#include <private/platform/shared_ptr.h>
 
 #include <EGL/egl.h>
 
@@ -83,4 +85,4 @@ protected:
 }
 }
 
-#endif // UBUNTU_APPLICATION_UI_SESSION_H_
+#endif // UBUNTU_APPLICATION_UI_SESSION_INTERNAL_H_

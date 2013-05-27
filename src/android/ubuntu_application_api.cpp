@@ -16,8 +16,9 @@
  * Authored by: Thomas Voss <thomas.voss@canonical.com>
  */
 
+#include <private/application/ui/ubuntu_application_ui.h>
+
 #include <ubuntu/application/sensors/ubuntu_application_sensors.h>
-#include <ubuntu/application/ui/ubuntu_application_ui.h>
 #include <ubuntu/application/ubuntu_application_gps.h>
 #include <ubuntu/ui/ubuntu_ui_session_service.h>
 

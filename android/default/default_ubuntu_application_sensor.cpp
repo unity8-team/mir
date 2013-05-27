@@ -18,10 +18,10 @@
 
 #include <ubuntu/application/sensors/ubuntu_application_sensors.h>
 
-#include <ubuntu/application/sensors/sensor.h>
-#include <ubuntu/application/sensors/sensor_listener.h>
-#include <ubuntu/application/sensors/sensor_service.h>
-#include <ubuntu/application/sensors/sensor_type.h>
+#include <private/application/sensors/sensor.h>
+#include <private/application/sensors/sensor_listener.h>
+#include <private/application/sensors/sensor_service.h>
+#include <private/application/sensors/sensor_type.h>
 
 #include <cassert>
 #include <cstdio>

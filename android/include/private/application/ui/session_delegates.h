@@ -13,30 +13,33 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Authored by: Thomas Voß <thomas.voss@canonical.com>
+ * Authored by: Ricardo Mendoza <ricardo.mendoza@canonical.com>
  */
-#ifndef UBUNTU_APPLICATION_UI_STAGE_HINT_H_
-#define UBUNTU_APPLICATION_UI_STAGE_HINT_H_
+#ifndef UBUNTU_APPLICATION_UI_SESSION_DELEGATES_H_
+#define UBUNTU_APPLICATION_UI_SESSION_DELEGATES_H_
 
-#include "ubuntu/application/ui/ubuntu_application_ui.h"
+#include <cstdio>
 
 namespace ubuntu
 {
 namespace application
 {
-namespace ui
+class LifecycleDelegate : public platform::ReferenceCountedBase
 {
-enum StageHint
-{
-    main_stage = MAIN_STAGE_HINT,
-    integration_stage = INTEGRATION_STAGE_HINT,
-    share_stage = SHARE_STAGE_HINT,
-    content_picking_stage = CONTENT_PICKING_STAGE_HINT,
-    side_stage = SIDE_STAGE_HINT,
-    configuration_stage = CONFIGURATION_STAGE_HINT
+public:
+    typedef platform::shared_ptr<LifecycleDelegate> Ptr;
+
+    virtual void on_application_started() = 0;
+    virtual void on_application_about_to_stop() = 0;
+
+protected:
+    LifecycleDelegate() {}
+    virtual ~LifecycleDelegate() {}
+
+    LifecycleDelegate(const LifecycleDelegate&) = delete;
+    LifecycleDelegate& operator=(const LifecycleDelegate&) = delete;
 };
 }
 }
-}
 
-#endif // UBUNTU_APPLICATION_UI_STAGE_HINT_H_
+#endif // UBUNTU_APPLICATION_UI_SESSION_DELEGATES_H_
