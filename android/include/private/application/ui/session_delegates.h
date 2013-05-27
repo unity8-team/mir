@@ -18,8 +18,6 @@
 #ifndef UBUNTU_APPLICATION_UI_SESSION_DELEGATES_H_
 #define UBUNTU_APPLICATION_UI_SESSION_DELEGATES_H_
 
-//#include "NEW_lifecycle_delegate.h"
-
 #include <cstdio>
 
 namespace ubuntu

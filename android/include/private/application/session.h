@@ -76,13 +76,16 @@ public:
         memcpy(this->string, string, (size+1));
     }
 
+    ~Id()
+    {
+        free(this->string);
+    }
+
     char *string;
     size_t size;
 
 protected:
     Id() {}
-
-    virtual ~Id() {}
 
     Id(const Id&) = delete;
     Id& operator=(const Id&) = delete;
