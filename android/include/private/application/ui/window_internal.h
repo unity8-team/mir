@@ -1,7 +1,7 @@
 #ifndef UBUNTU_APPLICATION_UI_WINDOW_INTERNAL_H_
 #define UBUNTU_APPLICATION_UI_WINDOW_INTERNAL_H_
 
-#include <private/application/ui/window_properties.h>
+#include <ubuntu/application/ui/window_properties.h>
 
 namespace ubuntu
 {
@@ -13,6 +13,11 @@ class WindowProperties : public ubuntu::platform::ReferenceCountedBase
 {
 public:
     WindowProperties() {}
+
+    ~WindowProperties()
+    {
+        free(this->title);
+    }
 
     typedef ubuntu::platform::shared_ptr<WindowProperties> Ptr;
    
@@ -60,8 +65,6 @@ private:
     void* ctx;
    
 protected:
-    virtual ~WindowProperties() {}
-
     WindowProperties(const WindowProperties&) = delete;
     WindowProperties& operator=(const WindowProperties&) = delete;
 };

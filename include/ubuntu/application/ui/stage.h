@@ -22,8 +22,8 @@
 
 typedef enum
 {
-	U_MAIN_STAGE = 0,
-	U_INTEGRATION_STAGE = 1,
+    U_MAIN_STAGE = 0,
+    U_INTEGRATION_STAGE = 1,
     U_SHARE_STAGE = 2,
     U_CONTENT_PICKING_STAGE = 3,
     U_SIDE_STAGE = 4,

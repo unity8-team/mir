@@ -22,9 +22,9 @@
 
 typedef enum
 {
-	U_DESKTOP = 0,
-	U_PHONE = 1,
-	U_TABLET = 2
+    U_DESKTOP = 0,
+    U_PHONE = 1,
+    U_TABLET = 2
 } UAUiFormFactor;
 
 #endif /* UBUNTU_APPLICATION_UI_FORM_FACTOR_H_ */
