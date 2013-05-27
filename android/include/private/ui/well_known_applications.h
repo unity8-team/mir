@@ -15,30 +15,27 @@
  *
  * Authored by: Thomas Voß <thomas.voss@canonical.com>
  */
-#ifndef UBUNTU_APPLICATION_UI_FORM_FACTOR_HINT_H_
-#define UBUNTU_APPLICATION_UI_FORM_FACTOR_HINT_H_
+#ifndef UBUNTU_UI_WELL_KNOWN_APPLICATIONS_H_
+#define UBUNTU_UI_WELL_KNOWN_APPLICATIONS_H_
 
-#include "ubuntu/application/ui/ubuntu_application_ui.h"
+#include <ubuntu/ui/ubuntu_ui_session_service.h>
 
 namespace ubuntu
 {
-namespace application
-{
 namespace ui
 {
-/** Provides applications with a hint about the form factor it is running on. */
-enum FormFactorHint
+enum WellKnownApplication
 {
-    desktop_form_factor = DESKTOP_FORM_FACTOR_HINT, ///< An ordinary desktop or laptop form factor.
-    phone_form_factor = PHONE_FORM_FACTOR_HINT, ///< A phone form factor.
-    tablet_form_factor = TABLET_FORM_FACTOR_HINT ///< A tablet form factor.
+    unknown_app = UNKNOWN_APP,
+    gallery_app = CAMERA_APP,
+    camera_app = GALLERY_APP,
+    browser_app = BROWSER_APP,
+    share_app = SHARE_APP,
+    phone_app = PHONE_APP,
+    messages_app = MESSAGES_APP,
+    contacts_app = CONTACTS_APP
 };
-
-/** Bitfield as multiple form factor hints can be applied in a converged scenario. */
-typedef unsigned int FormFactorHintFlags;
-
-}
 }
 }
 
-#endif // UBUNTU_APPLICATION_UI_FORM_FACTOR_HINT_H_
+#endif // UBUNTU_UI_WELL_KNOWN_APPLICATIONS_H_

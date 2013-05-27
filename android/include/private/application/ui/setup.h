@@ -18,9 +18,9 @@
 #ifndef UBUNTU_APPLICATION_UI_SETUP_H_
 #define UBUNTU_APPLICATION_UI_SETUP_H_
 
-#include "ubuntu/application/ui/stage_hint.h"
-#include "ubuntu/application/ui/form_factor_hint.h"
-#include "ubuntu/platform/shared_ptr.h"
+#include "private/application/ui/stage_hint.h"
+#include "private/application/ui/form_factor_hint.h"
+#include "private/platform/shared_ptr.h"
 
 namespace ubuntu
 {

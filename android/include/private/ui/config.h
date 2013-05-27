@@ -1,5 +1,5 @@
 /*
- * Copyright © 2012 Canonical Ltd.
+ * Copyright © 2013 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License version 3 as
@@ -13,29 +13,12 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Authored by: Thomas Voß <thomas.voss@canonical.com>
+ * Authored by: Michael Terry <michael.terry@canonical.com>
  */
-#ifndef UBUNTU_UI_WELL_KNOWN_APPLICATIONS_H_
-#define UBUNTU_UI_WELL_KNOWN_APPLICATIONS_H_
 
-#include "ubuntu_ui_session_service.h"
+#ifndef UBUNTU_UI_CONFIG_H_
+#define UBUNTU_UI_CONFIG_H_
 
-namespace ubuntu
-{
-namespace ui
-{
-enum WellKnownApplication
-{
-    unknown_app = UNKNOWN_APP,
-    gallery_app = CAMERA_APP,
-    camera_app = GALLERY_APP,
-    browser_app = BROWSER_APP,
-    share_app = SHARE_APP,
-    phone_app = PHONE_APP,
-    messages_app = MESSAGES_APP,
-    contacts_app = CONTACTS_APP
-};
-}
-}
+#define UBUNTU_USE_GLES 1
 
-#endif // UBUNTU_UI_WELL_KNOWN_APPLICATIONS_H_
+#endif // UBUNTU_UI_CONFIG_H_

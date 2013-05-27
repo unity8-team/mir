@@ -18,10 +18,10 @@
 #ifndef UBUNTU_APPLICATION_UI_SURFACE_H_
 #define UBUNTU_APPLICATION_UI_SURFACE_H_
 
-#include "ubuntu/platform/shared_ptr.h"
+#include "private/platform/shared_ptr.h"
 
-#include "ubuntu/application/ui/session.h"
-#include "ubuntu/application/ui/input/listener.h"
+#include "private/application/ui/session.h"
+#include "private/application/ui/input/listener.h"
 
 #include <EGL/egl.h>
 

@@ -18,9 +18,9 @@
 #ifndef UBUNTU_APPLICATION_SENSORS_SENSOR_SERVICE_H_
 #define UBUNTU_APPLICATION_SENSORS_SENSOR_SERVICE_H_
 
-#include "ubuntu/platform/shared_ptr.h"
+#include "private/platform/shared_ptr.h"
 
-#include "ubuntu/application/sensors/sensor.h"
+#include "private/application/sensors/sensor.h"
 
 namespace ubuntu
 {

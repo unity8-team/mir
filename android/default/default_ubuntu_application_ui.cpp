@@ -15,18 +15,18 @@
  *
  * Authored by: Thomas Voß <thomas.voss@canonical.com>
  */
-#include <ubuntu/application/ui/init.h>
-#include <ubuntu/application/ui/session.h>
-#include <ubuntu/application/ui/session_credentials.h>
-#include <ubuntu/application/ui/setup.h>
-#include <ubuntu/application/ui/surface.h>
-#include <ubuntu/application/ui/surface_factory.h>
-#include <ubuntu/application/ui/surface_properties.h>
+#include <private/application/ui/init.h>
+#include <private/application/ui/session.h>
+#include <private/application/ui/session_credentials.h>
+#include <private/application/ui/setup.h>
+#include <private/application/ui/surface.h>
+#include <private/application/ui/surface_factory.h>
+#include <private/application/ui/surface_properties.h>
 
-#include <ubuntu/ui/session_service.h>
+#include <private/ui/session_service.h>
 
 // C apis
-#include <ubuntu/application/ui/ubuntu_application_ui.h>
+#include <private/application/ui/ubuntu_application_ui.h>
 
 // C-API implementation
 namespace
