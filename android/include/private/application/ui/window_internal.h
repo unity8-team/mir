@@ -1,7 +1,7 @@
 #ifndef UBUNTU_APPLICATION_UI_WINDOW_INTERNAL_H_
 #define UBUNTU_APPLICATION_UI_WINDOW_INTERNAL_H_
 
-#include <private/application/ui/window_properties.h>
+#include <ubuntu/application/ui/window_properties.h>
 
 namespace ubuntu
 {
