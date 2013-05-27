@@ -20,7 +20,6 @@
 #define UBUNTU_APPLICATION_SESSION_H_
 
 #include <private/platform/shared_ptr.h>
-#include <ubuntu/application/lifecycle_delegate.h>
 
 #include <utils/Log.h>
 
@@ -76,13 +75,16 @@ public:
         memcpy(this->string, string, (size+1));
     }
 
+    ~Id()
+    {
+        free(this->string);
+    }
+
     char *string;
     size_t size;
 
 protected:
     Id() {}
-
-    virtual ~Id() {}
 
     Id(const Id&) = delete;
     Id& operator=(const Id&) = delete;
