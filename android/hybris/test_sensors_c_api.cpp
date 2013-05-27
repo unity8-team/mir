@@ -16,7 +16,7 @@
  * Authored by: Thomas Voß <thomas.voss@canonical.com>
  */
 
-#include <private/application/sensors/ubuntu_application_sensors.h>
+#include <ubuntu/application/sensors/ubuntu_application_sensors.h>
 
 #include <stdio.h>
 #include <string.h>
