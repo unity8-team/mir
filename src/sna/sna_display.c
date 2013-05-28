@@ -929,6 +929,8 @@ void sna_mode_disable_unused(struct sna *sna)
 		if (!xf86_config->crtc[i]->enabled)
 			sna_crtc_disable(xf86_config->crtc[i]);
 	}
+
+	sna_mode_update(sna);
 }
 
 static struct kgem_bo *sna_create_bo_for_fbcon(struct sna *sna,
