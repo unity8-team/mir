@@ -14672,29 +14672,22 @@ bool sna_accel_init(ScreenPtr screen, struct sna *sna)
 	if (!sna_picture_init(screen))
 		return false;
 
-	backend = "generic";
-	no_render_init(sna);
+	backend = no_render_init(sna);
+	if (sna_option_accel_blt(sna) || sna->info->gen >= 0100)
+		(void)backend;
+	else if (sna->info->gen >= 070)
+		backend = gen7_render_init(sna, backend);
+	else if (sna->info->gen >= 060)
+		backend = gen6_render_init(sna, backend);
+	else if (sna->info->gen >= 050)
+		backend = gen5_render_init(sna, backend);
+	else if (sna->info->gen >= 040)
+		backend = gen4_render_init(sna, backend);
+	else if (sna->info->gen >= 030)
+		backend = gen3_render_init(sna, backend);
+	else if (sna->info->gen >= 020)
+		backend = gen2_render_init(sna, backend);
 
-	if (sna_option_accel_blt(sna) || sna->info->gen >= 0100) {
-	} else if (sna->info->gen >= 070) {
-		if (gen7_render_init(sna))
-			backend = "IvyBridge";
-	} else if (sna->info->gen >= 060) {
-		if (gen6_render_init(sna))
-			backend = "SandyBridge";
-	} else if (sna->info->gen >= 050) {
-		if (gen5_render_init(sna))
-			backend = "Ironlake";
-	} else if (sna->info->gen >= 040) {
-		if (gen4_render_init(sna))
-			backend = "Broadwater/Crestline";
-	} else if (sna->info->gen >= 030) {
-		if (gen3_render_init(sna))
-			backend = "gen3";
-	} else if (sna->info->gen >= 020) {
-		if (gen2_render_init(sna))
-			backend = "gen2";
-	}
 	DBG(("%s(backend=%s, prefer_gpu=%x)\n",
 	     __FUNCTION__, backend, sna->render.prefer_gpu));
 

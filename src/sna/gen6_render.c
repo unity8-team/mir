@@ -3656,10 +3656,10 @@ static bool gen6_render_setup(struct sna *sna)
 	return state->general_bo != NULL;
 }
 
-bool gen6_render_init(struct sna *sna)
+const char *gen6_render_init(struct sna *sna, const char *backend)
 {
 	if (!gen6_render_setup(sna))
-		return false;
+		return backend;
 
 	sna->kgem.context_switch = gen6_render_context_switch;
 	sna->kgem.retire = gen6_render_retire;
@@ -3704,5 +3704,5 @@ bool gen6_render_init(struct sna *sna)
 
 	sna->render.max_3d_size = GEN6_MAX_SIZE;
 	sna->render.max_3d_pitch = 1 << 18;
-	return true;
+	return "Sandybridge (gen6)";
 }

@@ -3718,12 +3718,13 @@ static bool is_mobile(struct sna *sna)
 	return (DEVICE_ID(sna->PciInfo) & 0xf) == 0x6;
 }
 
-static bool gen7_render_setup(struct sna *sna)
+static const char *gen7_render_setup(struct sna *sna)
 {
 	struct gen7_render_state *state = &sna->render_state.gen7;
 	struct sna_static_stream general;
 	struct gen7_sampler_state *ss;
 	int i, j, k, l, m;
+	const char *backend;
 
 	if (sna->kgem.gen == 070) {
 		state->info = &ivb_gt_info;
@@ -3732,8 +3733,10 @@ static bool gen7_render_setup(struct sna *sna)
 			if (is_gt2(sna))
 				state->info = &ivb_gt2_info; /* XXX requires GT_MODE WiZ disabled */
 		}
+		backend = "Ivybridge (gen7)";
 	} else if (sna->kgem.gen == 071) {
 		state->info = &ivb_gt_info;
+		backend = "Valleyview (gen7)";
 	} else if (sna->kgem.gen == 075) {
 		state->info = &hsw_gt_info;
 		if (DEVICE_ID(sna->PciInfo) & 0xf) {
@@ -3741,8 +3744,9 @@ static bool gen7_render_setup(struct sna *sna)
 			if (is_gt2(sna))
 				state->info = &hsw_gt2_info;
 		}
+		backend = "Haswell (gen7.5)";
 	} else
-		return false;
+		return NULL;
 
 	sna_static_stream_init(&general);
 
@@ -3803,13 +3807,16 @@ static bool gen7_render_setup(struct sna *sna)
 	state->cc_blend = gen7_composite_create_blend_state(&general);
 
 	state->general_bo = sna_static_stream_fini(sna, &general);
-	return state->general_bo != NULL;
+	return state->general_bo ? backend : NULL;
 }
 
-bool gen7_render_init(struct sna *sna)
+const char *gen7_render_init(struct sna *sna, const char *parent)
 {
-	if (!gen7_render_setup(sna))
-		return false;
+	const char *backend;
+
+	backend = gen7_render_setup(sna);
+	if (backend == NULL)
+		return parent;
 
 	sna->kgem.context_switch = gen7_render_context_switch;
 	sna->kgem.retire = gen7_render_retire;
@@ -3853,5 +3860,5 @@ bool gen7_render_init(struct sna *sna)
 
 	sna->render.max_3d_size = GEN7_MAX_SIZE;
 	sna->render.max_3d_pitch = 1 << 18;
-	return true;
+	return backend;
 }
