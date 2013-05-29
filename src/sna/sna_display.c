@@ -1332,6 +1332,25 @@ sna_crtc_damage(xf86CrtcPtr crtc)
 	RegionUnion(damage, damage, &region);
 }
 
+static char *outputs_for_crtc(xf86CrtcPtr crtc, char *outputs, int max)
+{
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
+	int len, i;
+
+	for (i = len = 0; i < xf86_config->num_output; i++) {
+		xf86OutputPtr output = xf86_config->output[i];
+
+		if (output->crtc != crtc)
+			continue;
+
+		len += snprintf(outputs+len, max-len, "%s, ", output->name);
+	}
+	assert(len >= 2);
+	outputs[len-2] = '\0';
+
+	return outputs;
+}
+
 static Bool
 sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 			Rotation rotation, int x, int y)
@@ -1342,14 +1361,15 @@ sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	struct kgem_bo *saved_bo, *bo;
 	struct drm_mode_modeinfo saved_kmode;
 	bool saved_transform;
+	char outputs[256];
 
 	if (mode->HDisplay == 0 || mode->VDisplay == 0)
 		return FALSE;
 
 	xf86DrvMsg(crtc->scrn->scrnIndex, X_INFO,
-		   "switch to mode %dx%d on crtc %d (pipe %d)\n",
-		   mode->HDisplay, mode->VDisplay,
-		   sna_crtc->id, sna_crtc->pipe);
+		   "switch to mode %dx%d on pipe %d using %s\n",
+		   mode->HDisplay, mode->VDisplay, sna_crtc->pipe,
+		   outputs_for_crtc(crtc, outputs, sizeof(outputs)));
 
 	DBG(("%s(crtc=%d [pipe=%d] rotation=%d, x=%d, y=%d, mode=%dx%d@%d)\n",
 	     __FUNCTION__, sna_crtc->id, sna_crtc->pipe, rotation, x, y,
