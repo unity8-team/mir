@@ -1258,14 +1258,16 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
     }
 
     /*
-     * CRTC is in DPMS off state, fallback to blit, but pace the
-     * application at the rate that roughly approximates the
-     * nominal frame rate of the relevant CRTC
+     * CRTC is in DPMS off state, fallback to blit, but calculate
+     * wait time from current time, target_msc and last vblank
+     * time/sequence when CRTC was turned off
      */
     if (!radeon_crtc_is_enabled(crtc)) {
-	TimerSet(NULL, 0, FALLBACK_SWAP_DELAY, radeon_dri2_deferred_swap,
-		 swap_info);
-	*target_msc = 0;
+	CARD32 delay;
+	delay = radeon_dri2_extrapolate_msc_delay(crtc, target_msc,
+						  divisor, remainder);
+	swap_info->frame = *target_msc;
+	TimerSet(NULL, 0, delay, radeon_dri2_deferred_swap, swap_info);
 	return TRUE;
     }
 
