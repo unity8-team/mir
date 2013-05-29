@@ -740,7 +740,15 @@ sna_crtc_apply(xf86CrtcPtr crtc)
 		if (output->crtc != crtc)
 			continue;
 
+		assert(output->possible_crtcs & (1 << i));
+
 		sna_output = output->driver_private;
+
+		DBG(("%s: attaching output '%s' %d [%d] to crtc:%d (pipe %d) (possible crtc:%x, possible clones:%x)\n",
+		     __FUNCTION__, output->name, i,
+		     sna_output->mode_output->connector_id,
+		     sna_crtc->id, sna_crtc->pipe,
+		     output->possible_crtcs, output->possible_clones));
 		output_ids[output_count] =
 			sna_output->mode_output->connector_id;
 		output_count++;
@@ -761,8 +769,8 @@ sna_crtc_apply(xf86CrtcPtr crtc)
 	arg.mode = sna_crtc->kmode;
 	arg.mode_valid = 1;
 
-	DBG(("%s: applying crtc [%d] mode=%dx%d+%d+%d@%d, fb=%d%s%s update to %d outputs\n",
-	     __FUNCTION__, sna_crtc->id,
+	DBG(("%s: applying crtc [%d, pipe=%d] mode=%dx%d+%d+%d@%d, fb=%d%s%s update to %d outputs [%d...]\n",
+	     __FUNCTION__, sna_crtc->id, sna_crtc->pipe,
 	     arg.mode.hdisplay,
 	     arg.mode.vdisplay,
 	     arg.x, arg.y,
@@ -770,7 +778,7 @@ sna_crtc_apply(xf86CrtcPtr crtc)
 	     arg.fb_id,
 	     sna_crtc->shadow ? " [shadow]" : "",
 	     sna_crtc->transform ? " [transformed]" : "",
-	     output_count));
+	     output_count, output_count ? output_ids[0] : 0));
 
 	if (drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_SETCRTC, &arg))
 		return false;
@@ -2388,6 +2396,11 @@ sna_output_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 	output->possible_crtcs = enc.possible_crtcs;
 	output->possible_clones = enc.possible_clones;
 	output->interlaceAllowed = TRUE;
+
+	DBG(("%s: created output '%s' %d [%d]  (possible crtc:%x, possible clones:%x)\n",
+	     __FUNCTION__, name, num,
+	     sna_output->mode_output->connector_id,
+	     output->possible_crtcs, output->possible_clones));
 
 	return;
 
