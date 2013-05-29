@@ -18,11 +18,11 @@
 #ifndef UBUNTU_UI_SESSION_SERVICE_H_
 #define UBUNTU_UI_SESSION_SERVICE_H_
 
-#include "ubuntu/application/ui/session.h"
-#include "ubuntu/platform/shared_ptr.h"
-#include "ubuntu/ui/session_enumerator.h"
-#include "ubuntu/ui/session_snapshot.h"
-#include "ubuntu/ui/well_known_applications.h"
+#include "private/application/ui/session.h"
+#include "private/platform/shared_ptr.h"
+#include "private/ui/session_enumerator.h"
+#include "private/ui/session_snapshot.h"
+#include "private/ui/well_known_applications.h"
 
 namespace ubuntu
 {

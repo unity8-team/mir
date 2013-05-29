@@ -18,7 +18,7 @@
 #ifndef UBUNTU_APPLICATION_UI_SURFACE_ROLE_H_
 #define UBUNTU_APPLICATION_UI_SURFACE_ROLE_H_
 
-#include "ubuntu/application/ui/ubuntu_application_ui.h"
+#include "private/application/ui/ubuntu_application_ui.h"
 
 namespace ubuntu
 {

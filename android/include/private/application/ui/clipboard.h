@@ -18,7 +18,7 @@
 #ifndef UBUNTU_APPLICATION_UI_CLIPBOARD_H_
 #define UBUNTU_APPLICATION_UI_CLIPBOARD_H_
 
-#include "ubuntu/platform/shared_ptr.h"
+#include "private/platform/shared_ptr.h"
 
 namespace ubuntu
 {

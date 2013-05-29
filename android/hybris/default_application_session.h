@@ -20,9 +20,9 @@
 
 #include "application_manager.h"
 
-#include "ubuntu/application/ui/session_credentials.h"
-#include "ubuntu/application/ui/surface_role.h"
-#include "ubuntu/application/ui/stage_hint.h"
+#include "private/application/ui/session_credentials.h"
+#include "private/application/ui/surface_role.h"
+#include "private/application/ui/stage_hint.h"
 
 #include <binder/IPCThreadState.h>
 #include <binder/IServiceManager.h>

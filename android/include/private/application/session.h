@@ -15,10 +15,13 @@
  *
  * Authored by: Thomas Voß <thomas.voss@canonical.com>
  */
+
 #ifndef UBUNTU_APPLICATION_SESSION_H_
 #define UBUNTU_APPLICATION_SESSION_H_
 
-#include "ubuntu/platform/shared_ptr.h"
+#include <private/platform/shared_ptr.h>
+
+#include <utils/Log.h>
 
 namespace ubuntu
 {
@@ -38,6 +41,53 @@ protected:
 
     Session(const Session&) = delete;
     Session& operator=(const Session&) = delete;
+};
+
+/**
+ * Represents a session lifecycle delegate.
+ */
+class LifecycleDelegate : public ubuntu::platform::ReferenceCountedBase
+{
+public:
+    typedef ubuntu::platform::shared_ptr<LifecycleDelegate> Ptr;
+
+    virtual void on_application_started() = 0;
+    virtual void on_application_about_to_stop() = 0;
+
+protected:
+    LifecycleDelegate() {}
+
+    virtual ~LifecycleDelegate() {}
+
+    LifecycleDelegate(const LifecycleDelegate&) = delete;
+    LifecycleDelegate& operator=(const LifecycleDelegate&) = delete;
+};
+
+class Id : public ubuntu::platform::ReferenceCountedBase
+{
+public:
+    typedef ubuntu::platform::shared_ptr<Id> Ptr;
+    
+    Id(const char *string, size_t size)
+    {
+        this->size = size;
+        this->string = (char*) malloc(sizeof (char) * (size+1));
+        memcpy(this->string, string, (size+1));
+    }
+
+    ~Id()
+    {
+        free(this->string);
+    }
+
+    char *string;
+    size_t size;
+
+protected:
+    Id() {}
+
+    Id(const Id&) = delete;
+    Id& operator=(const Id&) = delete;
 };
 }
 }

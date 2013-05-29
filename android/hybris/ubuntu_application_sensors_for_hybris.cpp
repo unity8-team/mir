@@ -17,11 +17,11 @@
  */
 #include "event_loop.h"
 
-#include <ubuntu/application/sensors/sensor_service.h>
-#include <ubuntu/application/sensors/sensor_listener.h>
-#include <ubuntu/application/sensors/sensor_reading.h>
-#include <ubuntu/application/sensors/sensor_type.h>
-#include <ubuntu/application/sensors/sensor.h>
+#include <private/application/sensors/sensor_service.h>
+#include <private/application/sensors/sensor_listener.h>
+#include <private/application/sensors/sensor_reading.h>
+#include <private/application/sensors/sensor_type.h>
+#include <private/application/sensors/sensor.h>
 
 #include <android/sensor.h>
 
