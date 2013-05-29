@@ -40,14 +40,16 @@ public:
     explicit DefaultFramebufferFactory(std::shared_ptr<GraphicBufferAllocator> const& buffer_allocator);
     std::shared_ptr<ANativeWindow> create_fb_native_window(std::shared_ptr<DisplaySupportProvider> const&) const;
     std::shared_ptr<DisplaySupportProvider> create_fb_device() const; 
-private:
-    std::shared_ptr<GraphicBufferAllocator> const buffer_allocator;
 
+protected:
     virtual std::vector<std::shared_ptr<compositor::Buffer>> create_buffers(
         std::shared_ptr<DisplaySupportProvider> const& info_provider) const;
 
     virtual std::shared_ptr<FBSwapper> create_swapper(
         std::vector<std::shared_ptr<compositor::Buffer>> const& buffers) const;
+
+private:
+    std::shared_ptr<GraphicBufferAllocator> const buffer_allocator;
 };
 
 }

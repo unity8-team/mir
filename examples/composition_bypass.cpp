@@ -62,7 +62,12 @@ public:
     explicit CompositionBypassFramebufferFactory(std::shared_ptr<GraphicBufferAllocator> const& buffer_allocator) :
         DefaultFramebufferFactory(buffer_allocator) {}
 
-    std::shared_ptr<ANativeWindow> create_fb_native_window(std::shared_ptr<DisplaySupportProvider> const&) const;
+private:
+    virtual std::vector<std::shared_ptr<compositor::Buffer>> create_buffers(
+        std::shared_ptr<DisplaySupportProvider> const& info_provider) const;
+
+    virtual std::shared_ptr<FBSwapper> create_swapper(
+        std::vector<std::shared_ptr<compositor::Buffer>> const& buffers) const;
 };
 }
 }
@@ -119,9 +124,19 @@ auto mga::CompositionBypassAndroidPlatform::create_frame_buffer_factory(
     return {};
 }
 
-auto mga::CompositionBypassFramebufferFactory::create_fb_native_window(std::shared_ptr<DisplaySupportProvider> const&) const
-    -> std::shared_ptr<ANativeWindow>
+auto mga::CompositionBypassFramebufferFactory::create_buffers(
+    std::shared_ptr<DisplaySupportProvider> const& info_provider) const
+    -> std::vector<std::shared_ptr<compositor::Buffer>>
+{
+    // TODO - does this actually need customizing after all?
+    return DefaultFramebufferFactory::create_buffers(info_provider);
+}
+
+auto mga::CompositionBypassFramebufferFactory::create_swapper(
+    std::vector<std::shared_ptr<compositor::Buffer>> const& /*buffers*/) const
+    -> std::shared_ptr<FBSwapper>
 {
     // TODO create a "CompositionBypass" Swapper : public FBSwapper, public BufferSwapper
+    // This should be shared with the CompositionBypassSwapperFactory
     return {};
 }
