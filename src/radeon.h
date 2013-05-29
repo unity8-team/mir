@@ -518,6 +518,8 @@ extern void radeon_ddx_cs_start(ScrnInfoPtr pScrn,
 				const char *func, int line);
 void radeon_kms_update_vram_limit(ScrnInfoPtr pScrn, int new_fb_size);
 
+drmVBlankSeqType radeon_populate_vbl_request_type(xf86CrtcPtr crtc);
+
 #if XF86_CRTC_VERSION >= 5
 #define RADEON_PIXMAP_SHARING 1
 #endif
