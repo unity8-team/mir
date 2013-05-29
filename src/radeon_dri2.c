@@ -1076,6 +1076,18 @@ CARD32 radeon_dri2_deferred_event(OsTimerPtr timer, CARD32 now, pointer data)
     return 0;
 }
 
+static
+void radeon_dri2_schedule_event(CARD32 delay, pointer arg)
+{
+    OsTimerPtr timer;
+
+    timer = TimerSet(NULL, 0, delay, radeon_dri2_deferred_event, arg);
+    if (delay == 0) {
+	CARD32 now = GetTimeInMillis();
+	radeon_dri2_deferred_event(timer, now, arg);
+    }
+}
+
 /*
  * Request a DRM event when the requested conditions will be satisfied.
  *
@@ -1132,7 +1144,7 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
 	delay = radeon_dri2_extrapolate_msc_delay(crtc, &target_msc,
 						  divisor, remainder);
 	wait_info->frame = target_msc;
-	TimerSet(NULL, 0, delay, radeon_dri2_deferred_event, wait_info);
+	radeon_dri2_schedule_event(delay, wait_info);
 	DRI2BlockClient(client, draw);
 	return TRUE;
     }
@@ -1364,7 +1376,7 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
 	delay = radeon_dri2_extrapolate_msc_delay(crtc, target_msc,
 						  divisor, remainder);
 	swap_info->frame = *target_msc;
-	TimerSet(NULL, 0, delay, radeon_dri2_deferred_event, swap_info);
+	radeon_dri2_schedule_event(delay, swap_info);
 	return TRUE;
     }
 
@@ -1377,9 +1389,8 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
         xf86DrvMsg(scrn->scrnIndex, X_WARNING,
                 "first get vblank counter failed: %s\n",
                 strerror(errno));
-	TimerSet(NULL, 0, FALLBACK_SWAP_DELAY, radeon_dri2_deferred_event,
-		 swap_info);
 	*target_msc = 0;
+	radeon_dri2_schedule_event(FALLBACK_SWAP_DELAY, swap_info);
 	return TRUE;
     }
 
@@ -1431,9 +1442,8 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
             xf86DrvMsg(scrn->scrnIndex, X_WARNING,
                     "divisor 0 get vblank counter failed: %s\n",
                     strerror(errno));
-	    TimerSet(NULL, 0, FALLBACK_SWAP_DELAY, radeon_dri2_deferred_event,
-		     swap_info);
 	    *target_msc = 0;
+	    radeon_dri2_schedule_event(FALLBACK_SWAP_DELAY, swap_info);
             return TRUE;
         }
 
@@ -1481,9 +1491,8 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
         xf86DrvMsg(scrn->scrnIndex, X_WARNING,
                 "final get vblank counter failed: %s\n",
                 strerror(errno));
-	TimerSet(NULL, 0, FALLBACK_SWAP_DELAY, radeon_dri2_deferred_event,
-		 swap_info);
 	*target_msc = 0;
+	radeon_dri2_schedule_event(FALLBACK_SWAP_DELAY, swap_info);
 	return TRUE;
     }
 
