@@ -875,6 +875,82 @@ drmVBlankSeqType radeon_populate_vbl_request_type(xf86CrtcPtr crtc)
 }
 
 /*
+ * This function should be called on a disabled CRTC only (i.e., CRTC
+ * in DPMS-off state). It will calculate the delay necessary to reach
+ * target_msc from present time if the CRTC were running.
+ */
+static
+CARD32 radeon_dri2_extrapolate_msc_delay(xf86CrtcPtr crtc, CARD64 *target_msc,
+					 CARD64 divisor, CARD64 remainder)
+{
+    drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+    ScrnInfoPtr pScrn = crtc->scrn;
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    int nominal_frame_rate = drmmode_crtc->dpms_last_fps;
+    CARD64 last_vblank_ust = drmmode_crtc->dpms_last_ust;
+    int last_vblank_seq = drmmode_crtc->dpms_last_seq;
+    int interpolated_vblanks = drmmode_crtc->interpolated_vblanks;
+    int target_seq;
+    CARD64 now, target_time, delta_t;
+    int64_t d, delta_seq;
+    int ret;
+    CARD32 d_ms;
+
+    if (!last_vblank_ust) {
+	*target_msc = 0;
+	return FALLBACK_SWAP_DELAY;
+    }
+    ret = drmmode_get_current_ust(info->dri2.drm_fd, &now);
+    if (ret) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "%s cannot get current time\n", __func__);
+	*target_msc = 0;
+	return FALLBACK_SWAP_DELAY;
+    }
+    target_seq = (int)*target_msc - interpolated_vblanks;
+    delta_seq = (int64_t)target_seq - (int64_t)last_vblank_seq;
+    delta_seq *= 1000000;
+    target_time = last_vblank_ust;
+    target_time += delta_seq / nominal_frame_rate;
+    d = target_time - now;
+    if (d < 0) {
+	/* we missed the event, adjust target_msc, do the divisor magic */
+	CARD64 current_msc;
+	current_msc = last_vblank_seq + interpolated_vblanks;
+	delta_t = now - last_vblank_ust;
+	delta_seq = delta_t * nominal_frame_rate;
+	current_msc += delta_seq / 1000000;
+	current_msc &= 0xffffffff;
+	if (divisor == 0) {
+	    *target_msc = current_msc;
+	    d = 0;
+	} else {
+	    *target_msc = current_msc - (current_msc % divisor) + remainder;
+	    if ((current_msc % divisor) >= remainder)
+		*target_msc += divisor;
+	    *target_msc &= 0xffffffff;
+	    target_seq = (int)*target_msc - interpolated_vblanks;
+	    delta_seq = (int64_t)target_seq - (int64_t)last_vblank_seq;
+	    delta_seq *= 1000000;
+	    target_time = last_vblank_ust;
+	    target_time += delta_seq / nominal_frame_rate;
+	    d = target_time - now;
+	}
+    }
+    /*
+     * convert delay to milliseconds and add margin to prevent the client
+     * from coming back early (due to timer granularity and rounding
+     * errors) and getting the same MSC it just got
+     */
+    d_ms = (CARD32)d / 1000;
+    if ((CARD32)d - d_ms * 1000 > 0)
+	d_ms += 2;
+    else
+	d_ms++;
+    return d_ms;
+}
+
+/*
  * Get current frame count and frame count timestamp, based on drawable's
  * crtc.
  */
