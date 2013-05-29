@@ -38,10 +38,18 @@ namespace graphics
 {
 namespace android
 {
-class CompositionBypassSwapper : public FBSwapper, public compositor::BufferSwapper
+class CompositionBypassSwapper : public FBSwapper, public mc::BufferSwapper
 {
 public:
-    // TODO
+    std::shared_ptr<mc::Buffer> client_acquire() override;
+
+    void client_release(std::shared_ptr<mc::Buffer> const& queued_buffer) override;
+
+    std::shared_ptr<mc::Buffer> compositor_acquire() override;
+
+    void compositor_release(std::shared_ptr<mc::Buffer> const& released_buffer) override;
+
+    void force_requests_to_complete() override;
 
     ~CompositionBypassSwapper() noexcept {}
 };
@@ -63,8 +71,8 @@ public:
         DefaultFramebufferFactory(buffer_allocator) {}
 
 private:
-    virtual std::vector<std::shared_ptr<compositor::Buffer>> create_buffers(
-        std::shared_ptr<DisplaySupportProvider> const& info_provider) const;
+//    virtual std::vector<std::shared_ptr<compositor::Buffer>> create_buffers(
+//        std::shared_ptr<DisplaySupportProvider> const& info_provider) const;
 
     virtual std::shared_ptr<FBSwapper> create_swapper(
         std::vector<std::shared_ptr<compositor::Buffer>> const& buffers) const;
@@ -124,13 +132,13 @@ auto mga::CompositionBypassAndroidPlatform::create_frame_buffer_factory(
     return {};
 }
 
-auto mga::CompositionBypassFramebufferFactory::create_buffers(
-    std::shared_ptr<DisplaySupportProvider> const& info_provider) const
-    -> std::vector<std::shared_ptr<compositor::Buffer>>
-{
-    // TODO - does this actually need customizing after all?
-    return DefaultFramebufferFactory::create_buffers(info_provider);
-}
+//auto mga::CompositionBypassFramebufferFactory::create_buffers(
+//    std::shared_ptr<DisplaySupportProvider> const& info_provider) const
+//    -> std::vector<std::shared_ptr<compositor::Buffer>>
+//{
+//    // TODO - does this actually need customizing after all?
+//    return DefaultFramebufferFactory::create_buffers(info_provider);
+//}
 
 auto mga::CompositionBypassFramebufferFactory::create_swapper(
     std::vector<std::shared_ptr<compositor::Buffer>> const& /*buffers*/) const
