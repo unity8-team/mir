@@ -49,6 +49,8 @@
 #include <X11/extensions/dpms.h>
 #endif
 
+#define DEFAULT_NOMINAL_FRAME_RATE 60
+
 static Bool
 RADEONZaphodStringMatches(ScrnInfoPtr pScrn, const char *s, char *output_name)
 {
@@ -245,7 +247,61 @@ static void
 drmmode_crtc_dpms(xf86CrtcPtr crtc, int mode)
 {
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+	ScrnInfoPtr scrn = crtc->scrn;
+	RADEONInfoPtr info = RADEONPTR(scrn);
+	CARD64 ust;
+	int ret;
 
+	if (drmmode_crtc->dpms_mode == DPMSModeOn && mode != DPMSModeOn) {
+		drmVBlank vbl;
+
+		/*
+		 * On->Off transition: record the last vblank time,
+		 * sequence number and frame period.
+		 */
+		vbl.request.type = DRM_VBLANK_RELATIVE;
+		vbl.request.type |= radeon_populate_vbl_request_type(crtc);
+		vbl.request.sequence = 0;
+		ret = drmWaitVBlank(info->dri2.drm_fd, &vbl);
+		if (ret)
+			xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+				   "%s cannot get last vblank counter\n",
+				   __func__);
+		else {
+			CARD64 seq = (CARD64)vbl.reply.sequence;
+			CARD64 nominal_frame_rate, pix_in_frame;
+
+			ust = ((CARD64)vbl.reply.tval_sec * 1000000) +
+				vbl.reply.tval_usec;
+			drmmode_crtc->dpms_last_ust = ust;
+			drmmode_crtc->dpms_last_seq = seq;
+			nominal_frame_rate = crtc->mode.Clock;
+			nominal_frame_rate *= 1000;
+			pix_in_frame = crtc->mode.HTotal * crtc->mode.VTotal;
+			if (nominal_frame_rate == 0 || pix_in_frame == 0)
+				nominal_frame_rate = DEFAULT_NOMINAL_FRAME_RATE;
+			else
+				nominal_frame_rate /= pix_in_frame;
+			drmmode_crtc->dpms_last_fps = nominal_frame_rate;
+		}
+	} else if (drmmode_crtc->dpms_mode != DPMSModeOn && mode == DPMSModeOn) {
+		/*
+		 * Off->On transition: calculate and accumulate the
+		 * number of interpolated vblanks while we were in Off state
+		 */
+		ret = drmmode_get_current_ust(info->dri2.drm_fd, &ust);
+		if (ret)
+			xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+				   "%s cannot get current time\n", __func__);
+		else if (drmmode_crtc->dpms_last_ust) {
+			CARD64 time_elapsed, delta_seq;
+			time_elapsed = ust - drmmode_crtc->dpms_last_ust;
+			delta_seq = time_elapsed * drmmode_crtc->dpms_last_fps;
+			delta_seq /= 1000000;
+			drmmode_crtc->interpolated_vblanks += delta_seq;
+
+		}
+	}
 	drmmode_crtc->dpms_mode = mode;
 }
 
