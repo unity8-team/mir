@@ -1,9 +1,3 @@
-platform-api (0.18.1daily13.05.15ubuntu.unity.next-0ubuntu2) raring; urgency=low
-
-  * Switch to lazy init for the Bridge, and prevent tests from failing on amd64/i386. 
-
- -- Thomas Voß <thomas.voss@canonical.com>  Wed, 29 May 2013 15:56:40 +0200
-
 platform-api (0.18.1daily13.05.15ubuntu.unity.next-0ubuntu1) raring; urgency=low
 
   [ Gustavo Pichorim Boiko ]
