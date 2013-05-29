@@ -20,9 +20,9 @@
 // Private
 #include <private/application/ui/init.h>
 #include <private/application/ui/setup.h>
+#include <private/application/ui/ubuntu_application_ui.h>
 
 // Public C apis
-#include <private/application/ui/ubuntu_application_ui.h>
 #include <ubuntu/application/id.h>
 #include <ubuntu/application/instance.h>
 #include <ubuntu/application/lifecycle_delegate.h>
