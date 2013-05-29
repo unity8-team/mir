@@ -84,6 +84,7 @@ struct sna_property {
 struct sna_output {
 	int id;
 	drmModeConnectorPtr mode_output;
+	int encoder_idx;
 	int num_props;
 	struct sna_property *props;
 
@@ -97,6 +98,16 @@ struct sna_output {
 	int backlight_max;
 	struct list link;
 };
+
+static inline struct sna_output *to_sna_output(xf86OutputPtr output)
+{
+	return output->driver_private;
+}
+
+static inline int to_connector_id(xf86OutputPtr output)
+{
+	return to_sna_output(output)->mode_output->connector_id;
+}
 
 static inline struct sna_crtc *to_sna_crtc(xf86CrtcPtr crtc)
 {
@@ -735,22 +746,17 @@ sna_crtc_apply(xf86CrtcPtr crtc)
 
 	for (i = 0; i < xf86_config->num_output; i++) {
 		xf86OutputPtr output = xf86_config->output[i];
-		struct sna_output *sna_output;
 
 		if (output->crtc != crtc)
 			continue;
 
 		assert(output->possible_crtcs & (1 << i));
 
-		sna_output = output->driver_private;
-
 		DBG(("%s: attaching output '%s' %d [%d] to crtc:%d (pipe %d) (possible crtc:%x, possible clones:%x)\n",
-		     __FUNCTION__, output->name, i,
-		     sna_output->mode_output->connector_id,
+		     __FUNCTION__, output->name, i, to_connector_id(output),
 		     sna_crtc->id, sna_crtc->pipe,
 		     output->possible_crtcs, output->possible_clones));
-		output_ids[output_count] =
-			sna_output->mode_output->connector_id;
+		output_ids[output_count] = to_connector_id(output);
 		output_count++;
 	}
 
@@ -2336,6 +2342,7 @@ sna_output_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 	struct sna_output *sna_output;
 	const char *output_name;
 	char name[32];
+	int i;
 
 	koutput = drmModeGetConnector(sna->kgem.fd,
 				      mode->kmode->connectors[num]);
@@ -2390,6 +2397,13 @@ sna_output_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 	output->subpixel_order = subpixel_conv_table[koutput->subpixel];
 	output->driver_private = sna_output;
 
+	for (i = 0; i < mode->kmode->count_encoders; i++) {
+		if (enc.encoder_id == mode->kmode->encoders[i]) {
+			sna_output->encoder_idx = i;
+			break;
+		}
+	}
+
 	if (is_panel(koutput->connector_type))
 		sna_output_backlight_init(output);
 
@@ -2398,8 +2412,7 @@ sna_output_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 	output->interlaceAllowed = TRUE;
 
 	DBG(("%s: created output '%s' %d [%d]  (possible crtc:%x, possible clones:%x)\n",
-	     __FUNCTION__, name, num,
-	     sna_output->mode_output->connector_id,
+	     __FUNCTION__, name, num, to_connector_id(output),
 	     output->possible_crtcs, output->possible_clones));
 
 	return;
@@ -2410,33 +2423,34 @@ cleanup_connector:
 	drmModeFreeConnector(koutput);
 }
 
-/* The kernel reports possible encoder clones, whereas X uses a list of
- * possible connector clones. This is works when we have a 1:1 mapping
- * between encoders and connectors, but breaks for Haswell which has a pair
- * of DP/HDMI connectors hanging off a single encoder.
+/* We need to map from kms encoder based possible_clones mask to X output based
+ * possible clones masking. Note that for SDVO and on Haswell with DP/HDMI we
+ * can have more than one output hanging off the same encoder.
  */
 static void
 sna_mode_compute_possible_clones(ScrnInfoPtr scrn)
 {
 	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(scrn);
-	unsigned clones[32] = { 0 };
 	int i, j;
 
 	assert(config->num_output <= 32);
 
 	/* Convert from encoder numbering to output numbering */
 	for (i = 0; i < config->num_output; i++) {
-		unsigned mask = config->output[i]->possible_clones;
-		for (j = 0; mask != 0; j++, mask >>= 1) {
-			if ((mask & 1) == 0)
-				continue;
+		xf86OutputPtr output = config->output[i];
+		unsigned mask = output->possible_clones;
+		unsigned clones = 0;
 
-			clones[j] |= 1 << i;
+		for (j = 0; j < config->num_output; j++) {
+			if (mask & (1 << to_sna_output(config->output[j])->encoder_idx))
+				clones |= 1 << j;
 		}
-	}
 
-	for (i = 0; i < config->num_output; i++)
-		config->output[i]->possible_clones = clones[i];
+		output->possible_clones = clones;
+		DBG(("%s: updated output '%s' %d [%d] (possible crtc:%x, possible clones:%x)\n",
+		     __FUNCTION__, output->name, i, to_connector_id(output),
+		     output->possible_crtcs, output->possible_clones));
+	}
 }
 
 struct sna_visit_set_pixmap_window {
