@@ -989,6 +989,67 @@ static int radeon_dri2_get_msc(DrawablePtr draw, CARD64 *ust, CARD64 *msc)
     return TRUE;
 }
 
+static
+CARD32 radeon_dri2_deferred_event(OsTimerPtr timer, CARD32 now, pointer data)
+{
+    DRI2FrameEventPtr event_info = (DRI2FrameEventPtr)data;
+    DrawablePtr drawable;
+    ScreenPtr screen;
+    ScrnInfoPtr scrn;
+    RADEONInfoPtr info;
+    int status;
+    CARD64 drm_now;
+    int ret;
+    unsigned int tv_sec, tv_usec;
+    CARD64 delta_t, delta_seq, frame;
+    drmmode_crtc_private_ptr drmmode_crtc;
+    TimerFree(timer);
+
+    /*
+     * This is emulated event, so its time is current time, which we
+     * have to get in DRM-compatible form (which is a bit messy given
+     * the information that we have at this point). Can't use now argument
+     * because DRM event time may come from monotonic clock, while
+     * DIX timer facility uses real-time clock.
+     */
+    if (!event_info->crtc) {
+	ErrorF("%s no crtc\n", __func__);
+	radeon_dri2_frame_event_handler(0, 0, 0, data);
+	return 0;
+    }
+    status = dixLookupDrawable(&drawable, event_info->drawable_id, serverClient,
+			       M_ANY, DixWriteAccess);
+    if (status != Success) {
+	ErrorF("%s cannot lookup drawable\n", __func__);
+	radeon_dri2_frame_event_handler(0, 0, 0, data);
+	return 0;
+    }
+    screen = drawable->pScreen;
+    scrn = xf86ScreenToScrn(screen);
+    info = RADEONPTR(scrn);
+    ret = drmmode_get_current_ust(info->dri2.drm_fd, &drm_now);
+    if (ret) {
+	xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+		   "%s cannot get current time\n", __func__);
+	radeon_dri2_frame_event_handler(0, 0, 0, data);
+	return 0;
+    }
+    tv_sec = (unsigned int)(drm_now / 1000000);
+    tv_usec = (unsigned int)(drm_now - (CARD64)tv_sec * 1000000);
+    /*
+     * calculate the frame number from current time
+     * that would come from CRTC if it were running
+     */
+    drmmode_crtc = event_info->crtc->driver_private;
+    delta_t = drm_now - (CARD64)drmmode_crtc->dpms_last_ust;
+    delta_seq = delta_t * drmmode_crtc->dpms_last_fps;
+    delta_seq /= 1000000;
+    frame = (CARD64)drmmode_crtc->dpms_last_seq + delta_seq;
+    frame &= 0xffffffff;
+    radeon_dri2_frame_event_handler((unsigned int)frame, tv_sec, tv_usec, data);
+    return 0;
+}
+
 /*
  * Request a DRM event when the requested conditions will be satisfied.
  *
@@ -1178,14 +1239,6 @@ void radeon_dri2_flip_event_handler(unsigned int frame, unsigned int tv_sec,
     free(flip);
 }
 
-static
-CARD32 radeon_dri2_deferred_swap(OsTimerPtr timer, CARD32 now, pointer data)
-{
-    TimerFree(timer);
-    radeon_dri2_frame_event_handler(0, 0, 0, data);
-    return 0;
-}
-
 /*
  * ScheduleSwap is responsible for requesting a DRM vblank event for the
  * appropriate frame.
@@ -1271,7 +1324,7 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
 	delay = radeon_dri2_extrapolate_msc_delay(crtc, target_msc,
 						  divisor, remainder);
 	swap_info->frame = *target_msc;
-	TimerSet(NULL, 0, delay, radeon_dri2_deferred_swap, swap_info);
+	TimerSet(NULL, 0, delay, radeon_dri2_deferred_event, swap_info);
 	return TRUE;
     }
 
@@ -1284,7 +1337,7 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
         xf86DrvMsg(scrn->scrnIndex, X_WARNING,
                 "first get vblank counter failed: %s\n",
                 strerror(errno));
-	TimerSet(NULL, 0, FALLBACK_SWAP_DELAY, radeon_dri2_deferred_swap,
+	TimerSet(NULL, 0, FALLBACK_SWAP_DELAY, radeon_dri2_deferred_event,
 		 swap_info);
 	*target_msc = 0;
 	return TRUE;
@@ -1338,7 +1391,7 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
             xf86DrvMsg(scrn->scrnIndex, X_WARNING,
                     "divisor 0 get vblank counter failed: %s\n",
                     strerror(errno));
-	    TimerSet(NULL, 0, FALLBACK_SWAP_DELAY, radeon_dri2_deferred_swap,
+	    TimerSet(NULL, 0, FALLBACK_SWAP_DELAY, radeon_dri2_deferred_event,
 		     swap_info);
 	    *target_msc = 0;
             return TRUE;
@@ -1388,7 +1441,7 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
         xf86DrvMsg(scrn->scrnIndex, X_WARNING,
                 "final get vblank counter failed: %s\n",
                 strerror(errno));
-	TimerSet(NULL, 0, FALLBACK_SWAP_DELAY, radeon_dri2_deferred_swap,
+	TimerSet(NULL, 0, FALLBACK_SWAP_DELAY, radeon_dri2_deferred_event,
 		 swap_info);
 	*target_msc = 0;
 	return TRUE;
