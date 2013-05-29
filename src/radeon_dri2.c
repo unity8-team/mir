@@ -799,6 +799,9 @@ void radeon_dri2_frame_event_handler(unsigned int frame, unsigned int tv_sec,
                                M_ANY, DixWriteAccess);
     if (status != Success)
         goto cleanup;
+    if (!event->crtc)
+	goto cleanup;
+    frame += radeon_get_interpolated_vblanks(event->crtc);
 
     screen = drawable->pScreen;
     scrn = xf86ScreenToScrn(screen);
@@ -1254,6 +1257,11 @@ void radeon_dri2_flip_event_handler(unsigned int frame, unsigned int tv_sec,
 	free(flip);
 	return;
     }
+    if (!flip->crtc) {
+	free(flip);
+	return;
+    }
+    frame += radeon_get_interpolated_vblanks(flip->crtc);
 
     screen = drawable->pScreen;
     scrn = xf86ScreenToScrn(screen);
