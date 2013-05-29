@@ -46,6 +46,8 @@ struct Bridge
     {
         return "/system/lib/libubuntu_application_api.so";
     }
+
+    static Bridge& instance() { static Bridge bridge; return bridge; }
     
     Bridge() : lib_handle(android_dlopen(path_to_library(), RTLD_LAZY))
     {
@@ -65,8 +67,6 @@ struct Bridge
     void* lib_handle;
 };
 
-static Bridge bridge;
-
 }
 
 #ifdef __cplusplus
@@ -77,7 +77,7 @@ extern "C" {
 /*********** Implementation starts here *******************/
 /**********************************************************/
 
-#define DLSYM(fptr, sym) if (*(fptr) == NULL) { *((void**)fptr) = (void *) bridge.resolve_symbol(sym); }
+#define DLSYM(fptr, sym) if (*(fptr) == NULL) { *((void**)fptr) = (void *) Bridge::instance().resolve_symbol(sym); }
     
 #define IMPLEMENT_FUNCTION0(return_type, symbol)  \
     return_type symbol()                          \
