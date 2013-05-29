@@ -501,6 +501,7 @@ typedef struct _DRI2FrameEvent {
     ClientPtr client;
     enum DRI2FrameEventType type;
     int frame;
+    xf86CrtcPtr crtc;
 
     /* for swaps & flips only */
     DRI2SwapEventPtr event_complete;
@@ -648,6 +649,7 @@ radeon_dri2_schedule_flip(ScrnInfoPtr scrn, ClientPtr client,
     flip_info->event_complete = func;
     flip_info->event_data = data;
     flip_info->frame = target_msc;
+    flip_info->crtc = crtc;
 
     xf86DrvMsgVerb(scrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "%s:%d fevent[%p]\n", __func__, __LINE__, flip_info);
@@ -1024,6 +1026,7 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
     wait_info->client = client;
     wait_info->type = DRI2_WAITMSC;
     wait_info->valid = TRUE;
+    wait_info->crtc = crtc;
 
     if (ListAddDRI2ClientEvents(client, &wait_info->link)) {
         xf86DrvMsg(scrn->scrnIndex, X_WARNING,
@@ -1249,6 +1252,7 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
     swap_info->front = front;
     swap_info->back = back;
     swap_info->valid = TRUE;
+    swap_info->crtc = crtc;
     if (ListAddDRI2ClientEvents(client, &swap_info->link)) {
         xf86DrvMsg(scrn->scrnIndex, X_WARNING,
                 "add events to client private failed.\n");
