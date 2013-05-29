@@ -963,7 +963,7 @@ static int radeon_dri2_get_msc(DrawablePtr draw, CARD64 *ust, CARD64 *msc)
     RADEONInfoPtr info = RADEONPTR(scrn);
     drmVBlank vbl;
     int ret;
-    xf86CrtcPtr crtc = radeon_dri2_drawable_crtc(draw, FALSE);
+    xf86CrtcPtr crtc = radeon_dri2_drawable_crtc(draw, TRUE);
 
     /* Drawable not displayed, make up a value */
     if (crtc == NULL) {
@@ -971,21 +971,47 @@ static int radeon_dri2_get_msc(DrawablePtr draw, CARD64 *ust, CARD64 *msc)
         *msc = 0;
         return TRUE;
     }
-    vbl.request.type = DRM_VBLANK_RELATIVE;
-    vbl.request.type |= radeon_populate_vbl_request_type(crtc);
-    vbl.request.sequence = 0;
+    if (radeon_crtc_is_enabled(crtc)) {
+	/* CRTC is running, read vblank counter and timestamp */
+	vbl.request.type = DRM_VBLANK_RELATIVE;
+	vbl.request.type |= radeon_populate_vbl_request_type(crtc);
+	vbl.request.sequence = 0;
 
-    ret = drmWaitVBlank(info->dri2.drm_fd, &vbl);
-    if (ret) {
-        xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-                "get vblank counter failed: %s\n", strerror(errno));
-        return FALSE;
+	ret = drmWaitVBlank(info->dri2.drm_fd, &vbl);
+	if (ret) {
+	    xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+		       "get vblank counter failed: %s\n", strerror(errno));
+	    return FALSE;
+	}
+
+	*ust = ((CARD64)vbl.reply.tval_sec * 1000000) + vbl.reply.tval_usec;
+	*msc = vbl.reply.sequence + radeon_get_interpolated_vblanks(crtc);
+	*msc &= 0xffffffff;
+    } else {
+	/* CRTC is not running, extrapolate MSC and timestamp */
+	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+	CARD64 now, delta_t, delta_seq;
+
+	if (!drmmode_crtc->dpms_last_ust)
+	    return FALSE;
+	ret = drmmode_get_current_ust(info->dri2.drm_fd, &now);
+	if (ret) {
+	    xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+		       "%s cannot get current time\n", __func__);
+	    return FALSE;
+	}
+	delta_t = now - drmmode_crtc->dpms_last_ust;
+	delta_seq = delta_t * drmmode_crtc->dpms_last_fps;
+	delta_seq /= 1000000;
+	*ust = drmmode_crtc->dpms_last_ust;
+	delta_t = delta_seq * 1000000;
+	delta_t /= drmmode_crtc->dpms_last_fps;
+	*ust += delta_t;
+	*msc = drmmode_crtc->dpms_last_seq;
+	*msc += drmmode_crtc->interpolated_vblanks;
+	*msc += delta_seq;
+	*msc &= 0xffffffff;
     }
-
-    *ust = ((CARD64)vbl.reply.tval_sec * 1000000) + vbl.reply.tval_usec;
-    *msc = vbl.reply.sequence + radeon_get_interpolated_vblanks(crtc);
-    *msc &= 0xffffffff;
-
     return TRUE;
 }
 
@@ -1064,7 +1090,7 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
     RADEONInfoPtr info = RADEONPTR(scrn);
     DRI2FrameEventPtr wait_info = NULL;
-    xf86CrtcPtr crtc = radeon_dri2_drawable_crtc(draw, FALSE);
+    xf86CrtcPtr crtc = radeon_dri2_drawable_crtc(draw, TRUE);
     drmVBlank vbl;
     int ret;
     CARD64 current_msc;
@@ -1095,6 +1121,20 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
         free(wait_info);
         wait_info = NULL;
         goto out_complete;
+    }
+
+    /*
+     * CRTC is in DPMS off state, calculate wait time from current time,
+     * target_msc and last vblank time/sequence when CRTC was turned off
+     */
+    if (!radeon_crtc_is_enabled(crtc)) {
+	CARD32 delay;
+	delay = radeon_dri2_extrapolate_msc_delay(crtc, &target_msc,
+						  divisor, remainder);
+	wait_info->frame = target_msc;
+	TimerSet(NULL, 0, delay, radeon_dri2_deferred_event, wait_info);
+	DRI2BlockClient(client, draw);
+	return TRUE;
     }
 
     /* Get current count */
