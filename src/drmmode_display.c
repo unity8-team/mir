@@ -31,6 +31,7 @@
 
 #include <errno.h>
 #include <sys/ioctl.h>
+#include <time.h>
 #include "micmap.h"
 #include "xf86cmap.h"
 #include "radeon.h"
@@ -214,6 +215,30 @@ drmmode_ConvertToKMode(ScrnInfoPtr	scrn,
 		strncpy(kmode->name, mode->name, DRM_DISPLAY_MODE_LEN);
 	kmode->name[DRM_DISPLAY_MODE_LEN-1] = 0;
 
+}
+
+/*
+ * Retrieves present time in microseconds that is compatible
+ * with units used by vblank timestamps. Depending on the kernel
+ * version and DRM kernel module configuration, the vblank
+ * timestamp can either be in real time or monotonic time
+ */
+int drmmode_get_current_ust(int drm_fd, CARD64 *ust)
+{
+	uint64_t cap_value;
+	int ret;
+	struct timespec now;
+
+	ret = drmGetCap(drm_fd, DRM_CAP_TIMESTAMP_MONOTONIC, &cap_value);
+	if (ret || !cap_value)
+		/* old kernel or drm_timestamp_monotonic turned off */
+		ret = clock_gettime(CLOCK_REALTIME, &now);
+	else
+		ret = clock_gettime(CLOCK_MONOTONIC, &now);
+	if (ret)
+		return ret;
+	*ust = ((CARD64)now.tv_sec * 1000000) + ((CARD64)now.tv_nsec / 1000);
+	return 0;
 }
 
 static void

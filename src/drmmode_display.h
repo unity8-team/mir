@@ -34,6 +34,10 @@
 
 #include "radeon_probe.h"
 
+#ifndef DRM_CAP_TIMESTAMP_MONOTONIC
+#define DRM_CAP_TIMESTAMP_MONOTONIC 0x6
+#endif
+
 typedef struct {
   int fd;
   unsigned fb_id;
@@ -115,6 +119,7 @@ extern int drmmode_get_pitch_align(ScrnInfoPtr scrn, int bpe, uint32_t tiling);
 extern int drmmode_get_base_align(ScrnInfoPtr scrn, int bpe, uint32_t tiling);
 
 Bool radeon_do_pageflip(ScrnInfoPtr scrn, struct radeon_bo *new_front, void *data, int ref_crtc_hw_id);
+int drmmode_get_current_ust(int drm_fd, CARD64 *ust);
 
 #endif
 
