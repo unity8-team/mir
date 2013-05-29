@@ -905,7 +905,8 @@ static int radeon_dri2_get_msc(DrawablePtr draw, CARD64 *ust, CARD64 *msc)
     }
 
     *ust = ((CARD64)vbl.reply.tval_sec * 1000000) + vbl.reply.tval_usec;
-    *msc = vbl.reply.sequence;
+    *msc = vbl.reply.sequence + radeon_get_interpolated_vblanks(crtc);
+    *msc &= 0xffffffff;
 
     return TRUE;
 }
@@ -967,7 +968,8 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
         goto out_complete;
     }
 
-    current_msc = vbl.reply.sequence;
+    current_msc = vbl.reply.sequence + radeon_get_interpolated_vblanks(crtc);
+    current_msc &= 0xffffffff;
 
     /*
      * If divisor is zero, or current_msc is smaller than target_msc,
@@ -986,6 +988,7 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
         vbl.request.type = DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT;
 	vbl.request.type |= radeon_populate_vbl_request_type(crtc);
         vbl.request.sequence = target_msc;
+	vbl.request.sequence -= radeon_get_interpolated_vblanks(crtc);
         vbl.request.signal = (unsigned long)wait_info;
         ret = drmWaitVBlank(info->dri2.drm_fd, &vbl);
         if (ret) {
@@ -995,6 +998,7 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
         }
 
         wait_info->frame = vbl.reply.sequence;
+	wait_info->frame += radeon_get_interpolated_vblanks(crtc);
         DRI2BlockClient(client, draw);
         return TRUE;
     }
@@ -1017,6 +1021,7 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
      */
     if ((current_msc % divisor) >= remainder)
         vbl.request.sequence += divisor;
+    vbl.request.sequence -= radeon_get_interpolated_vblanks(crtc);
 
     vbl.request.signal = (unsigned long)wait_info;
     ret = drmWaitVBlank(info->dri2.drm_fd, &vbl);
@@ -1027,6 +1032,7 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
     }
 
     wait_info->frame = vbl.reply.sequence;
+    wait_info->frame += radeon_get_interpolated_vblanks(crtc);
     DRI2BlockClient(client, draw);
 
     return TRUE;
@@ -1202,7 +1208,8 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
 	return TRUE;
     }
 
-    current_msc = vbl.reply.sequence;
+    current_msc = vbl.reply.sequence + radeon_get_interpolated_vblanks(crtc);
+    current_msc &= 0xffffffff;
 
     /* Flips need to be submitted one frame before */
     if (can_flip(scrn, draw, front, back)) {
@@ -1242,6 +1249,7 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
             *target_msc = current_msc;
 
         vbl.request.sequence = *target_msc;
+	vbl.request.sequence -= radeon_get_interpolated_vblanks(crtc);
         vbl.request.signal = (unsigned long)swap_info;
         ret = drmWaitVBlank(info->dri2.drm_fd, &vbl);
         if (ret) {
@@ -1255,6 +1263,7 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
         }
 
         *target_msc = vbl.reply.sequence + flip;
+	*target_msc += radeon_get_interpolated_vblanks(crtc);
         swap_info->frame = *target_msc;
 
         return TRUE;
@@ -1286,6 +1295,7 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
      */
     if (vbl.request.sequence <= current_msc)
         vbl.request.sequence += divisor;
+    vbl.request.sequence -= radeon_get_interpolated_vblanks(crtc);
 
     /* Account for 1 frame extra pageflip delay if flip > 0 */
     vbl.request.sequence -= flip;
@@ -1304,6 +1314,7 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
 
     /* Adjust returned value for 1 fame pageflip offset of flip > 0 */
     *target_msc = vbl.reply.sequence + flip;
+    *target_msc += radeon_get_interpolated_vblanks(crtc);
     swap_info->frame = *target_msc;
 
     return TRUE;

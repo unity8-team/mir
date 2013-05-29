@@ -73,6 +73,12 @@ Bool radeon_crtc_is_enabled(xf86CrtcPtr crtc)
     return drmmode_crtc->dpms_mode == DPMSModeOn;
 }
 
+uint32_t radeon_get_interpolated_vblanks(xf86CrtcPtr crtc)
+{
+    drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+    return drmmode_crtc->interpolated_vblanks;
+}
+
 xf86CrtcPtr
 radeon_pick_best_crtc(ScrnInfoPtr pScrn, Bool consider_disabled,
 		      int x1, int x2, int y1, int y2)
