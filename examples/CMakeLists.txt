@@ -138,9 +138,11 @@ install(TARGETS mir_demo_server
   RUNTIME DESTINATION bin
 )
 
+if (MIR_PLATFORM STREQUAL "android")
 add_executable(mir_demo_server_composition_bypass composition_bypass.cpp)
 
 target_link_libraries(mir_demo_server_composition_bypass
   mirserver
   ${Boost_LIBRARIES}
 )
+endif()
