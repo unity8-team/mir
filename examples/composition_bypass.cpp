@@ -41,6 +41,8 @@ namespace android
 class CompositionBypassSwapper : public FBSwapper, public mc::BufferSwapper
 {
 public:
+    explicit CompositionBypassSwapper(std::vector<std::shared_ptr<compositor::Buffer>> const& buffers);
+
     std::shared_ptr<mc::Buffer> client_acquire() override;
 
     void client_release(std::shared_ptr<mc::Buffer> const& queued_buffer) override;
@@ -54,21 +56,32 @@ public:
     ~CompositionBypassSwapper() noexcept {}
 };
 
+typedef mir::CachedPtr<CompositionBypassSwapper> CompositionBypassSwapperCache;
+
 class CompositionBypassAndroidPlatform : public AndroidPlatform
 {
 public:
-    CompositionBypassAndroidPlatform(std::shared_ptr<DisplayReport> const& display_report) :
-        AndroidPlatform(display_report) {}
+    CompositionBypassAndroidPlatform(
+        std::shared_ptr<DisplayReport> const& display_report,
+        CompositionBypassSwapperCache& composition_bypass_swapper) :
+        AndroidPlatform(display_report),
+        composition_bypass_swapper(composition_bypass_swapper) {}
 
     virtual std::shared_ptr<FramebufferFactory> create_frame_buffer_factory(
         const std::shared_ptr<GraphicBufferAllocator>& buffer_allocator);
+
+private:
+    CompositionBypassSwapperCache& composition_bypass_swapper;
 };
 
 class CompositionBypassFramebufferFactory : public DefaultFramebufferFactory
 {
 public:
-    explicit CompositionBypassFramebufferFactory(std::shared_ptr<GraphicBufferAllocator> const& buffer_allocator) :
-        DefaultFramebufferFactory(buffer_allocator) {}
+    explicit CompositionBypassFramebufferFactory(
+        std::shared_ptr<GraphicBufferAllocator> const& buffer_allocator,
+        CompositionBypassSwapperCache& composition_bypass_swapper) :
+        DefaultFramebufferFactory(buffer_allocator),
+        composition_bypass_swapper(composition_bypass_swapper) {}
 
 private:
 //    virtual std::vector<std::shared_ptr<compositor::Buffer>> create_buffers(
@@ -76,6 +89,8 @@ private:
 
     virtual std::shared_ptr<FBSwapper> create_swapper(
         std::vector<std::shared_ptr<compositor::Buffer>> const& buffers) const;
+
+    CompositionBypassSwapperCache& composition_bypass_swapper;
 };
 }
 }
@@ -102,9 +117,13 @@ public:
         return graphics_platform(
             [this]()
             {
-                return std::make_shared<mga::CompositionBypassAndroidPlatform>(the_display_report());
+                return std::make_shared<mga::CompositionBypassAndroidPlatform>(
+                    the_display_report(),
+                    composition_bypass_swapper);
             });
     }
+
+    mga::CompositionBypassSwapperCache composition_bypass_swapper;
 };
 }
 
@@ -125,11 +144,46 @@ catch (...)
 
 ///////////////////////////////////////////////
 
-auto mga::CompositionBypassAndroidPlatform::create_frame_buffer_factory(
-        const std::shared_ptr<GraphicBufferAllocator>& /*buffer_allocator*/) -> std::shared_ptr<FramebufferFactory>
+mga::CompositionBypassSwapper::CompositionBypassSwapper(
+    std::vector<std::shared_ptr<compositor::Buffer>> const& /*buffers*/)
 {
-    // TODO here we need a bespoke "CompositionBypass" FramebufferFactory
+    // TODO
+}
+
+auto mga::CompositionBypassSwapper::client_acquire() -> std::shared_ptr<mc::Buffer>
+{
+    // TODO
     return {};
+}
+
+void mga::CompositionBypassSwapper::client_release(std::shared_ptr<mc::Buffer> const& /*queued_buffer*/)
+{
+    // TODO
+}
+
+auto mga::CompositionBypassSwapper::compositor_acquire() -> std::shared_ptr<mc::Buffer>
+{
+    // TODO
+    return {};
+}
+
+
+
+void mga::CompositionBypassSwapper::compositor_release(std::shared_ptr<mc::Buffer> const& /*released_buffer*/)
+{
+}
+
+void mga::CompositionBypassSwapper::force_requests_to_complete()
+{
+}
+
+
+auto mga::CompositionBypassAndroidPlatform::create_frame_buffer_factory(
+        const std::shared_ptr<GraphicBufferAllocator>& buffer_allocator) -> std::shared_ptr<FramebufferFactory>
+{
+    return std::make_shared<CompositionBypassFramebufferFactory>(
+        buffer_allocator,
+        composition_bypass_swapper);
 }
 
 //auto mga::CompositionBypassFramebufferFactory::create_buffers(
@@ -141,10 +195,14 @@ auto mga::CompositionBypassAndroidPlatform::create_frame_buffer_factory(
 //}
 
 auto mga::CompositionBypassFramebufferFactory::create_swapper(
-    std::vector<std::shared_ptr<compositor::Buffer>> const& /*buffers*/) const
+    std::vector<std::shared_ptr<compositor::Buffer>> const& buffers) const
     -> std::shared_ptr<FBSwapper>
 {
     // TODO create a "CompositionBypass" Swapper : public FBSwapper, public BufferSwapper
     // This should be shared with the CompositionBypassSwapperFactory
-    return {};
+    return composition_bypass_swapper(
+        [&buffers]
+        {
+            return std::make_shared<mga::CompositionBypassSwapper>(buffers);
+        });
 }
