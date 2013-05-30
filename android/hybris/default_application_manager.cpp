@@ -85,7 +85,7 @@ pid_t pid_to_vpid(int pid)
 
     if (rpid == NULL)
     {
-        ALOGI("%s(): Vpid not supported\n");
+        ALOGI("%s(): Vpid not supported\n", __PRETTY_FUNCTION__);
         return pid;    
     }
    

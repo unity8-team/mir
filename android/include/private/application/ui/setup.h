@@ -40,7 +40,7 @@ public:
     virtual StageHint stage_hint() = 0;
 
     /** Provides access to the form factors that the application instance is currently running on. */
-    virtual FormFactorHintFlags form_factor_hint() = 0;
+    virtual FormFactorHint form_factor_hint() = 0;
 
     /** Provides access to the desktop file that describes the current application instance. */
     virtual const char* desktop_file_hint() = 0;

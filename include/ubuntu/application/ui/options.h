@@ -14,35 +14,30 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Authored by: Ricardo Mendoza <ricardo.mendoza@canonical.com>
+ *              Thomas Voß <thomas.voss@canonical.com>           
  */
 
-#ifndef UBUNTU_APPLICATION_UI_SESSION_DELEGATES_H_
-#define UBUNTU_APPLICATION_UI_SESSION_DELEGATES_H_
+#ifndef UBUNTU_APPLICATION_UI_OPTIONS_H_
+#define UBUNTU_APPLICATION_UI_OPTIONS_H_
 
-#include <session/lifecycle_delegate.h>
+#include "form_factor.h"
+#include "stage.h"
+#include <ubuntu/application/options.h>
 
-#include <cstdio>
-
-namespace ubuntu
-{
-namespace application
-{
-class LifecycleDelegate : public platform::ReferenceCountedBase
-{
-public:
-    typedef platform::shared_ptr<LifecycleDelegate> Ptr;
-
-    virtual void on_application_resumed() = 0;
-    virtual void on_application_about_to_stop() = 0;
-
-protected:
-    LifecycleDelegate() {}
-    virtual ~LifecycleDelegate() {}
-
-    LifecycleDelegate(const LifecycleDelegate&) = delete;
-    LifecycleDelegate& operator=(const LifecycleDelegate&) = delete;
-};
+#ifdef __cplusplus
+extern "C" {
+#endif
+   
+    UAUiFormFactor
+    u_application_options_get_form_factor(
+    	UApplicationOptions* options);
+   
+    UAUiStage
+    u_application_options_get_stage(
+    	UApplicationOptions* options);
+    
+#ifdef __cplusplus
 }
-}
+#endif
 
-#endif // UBUNTU_APPLICATION_UI_SESSION_DELEGATES_H_
+#endif /* UBUNTU_APPLICATION_UI_OPTIONS_H_ */

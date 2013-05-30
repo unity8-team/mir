@@ -29,7 +29,7 @@ class LifecycleDelegate : public platform::ReferenceCountedBase
 public:
     typedef platform::shared_ptr<LifecycleDelegate> Ptr;
 
-    virtual void on_application_started() = 0;
+    virtual void on_application_resumed() = 0;
     virtual void on_application_about_to_stop() = 0;
 
 protected:

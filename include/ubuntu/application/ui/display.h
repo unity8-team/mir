@@ -14,35 +14,36 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Authored by: Ricardo Mendoza <ricardo.mendoza@canonical.com>
+ *              Thomas Voß <thomas.voss@canonical.com>           
  */
 
-#ifndef UBUNTU_APPLICATION_UI_SESSION_DELEGATES_H_
-#define UBUNTU_APPLICATION_UI_SESSION_DELEGATES_H_
+#ifndef UBUNTU_APPLICATION_UI_DISPLAY_H_
+#define UBUNTU_APPLICATION_UI_DISPLAY_H_
 
-#include <session/lifecycle_delegate.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-#include <cstdio>
-
-namespace ubuntu
-{
-namespace application
-{
-class LifecycleDelegate : public platform::ReferenceCountedBase
-{
-public:
-    typedef platform::shared_ptr<LifecycleDelegate> Ptr;
-
-    virtual void on_application_resumed() = 0;
-    virtual void on_application_about_to_stop() = 0;
-
-protected:
-    LifecycleDelegate() {}
-    virtual ~LifecycleDelegate() {}
-
-    LifecycleDelegate(const LifecycleDelegate&) = delete;
-    LifecycleDelegate& operator=(const LifecycleDelegate&) = delete;
-};
+    typedef void UAUiDisplay;
+    
+    UAUiDisplay*
+    ua_ui_display_new_with_index(
+        size_t index);
+    
+    void
+    ua_ui_display_destroy(
+        UAUiDisplay* display);
+    
+    uint32_t
+    ua_ui_display_query_horizontal_res(
+        UAUiDisplay* display);
+    
+    uint32_t
+    ua_ui_display_query_vertical_res(
+        UAUiDisplay* display);
+    
+#ifdef __cplusplus
 }
-}
+#endif
 
-#endif // UBUNTU_APPLICATION_UI_SESSION_DELEGATES_H_
+#endif /* UBUNTU_APPLICATION_UI_DISPLAY_H_ */

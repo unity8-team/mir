@@ -14,35 +14,35 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Authored by: Ricardo Mendoza <ricardo.mendoza@canonical.com>
+ *              Thomas Voß <thomas.voss@canonical.com>           
  */
 
-#ifndef UBUNTU_APPLICATION_UI_SESSION_DELEGATES_H_
-#define UBUNTU_APPLICATION_UI_SESSION_DELEGATES_H_
+#ifndef UBUNTU_APPLICATION_OPTIONS_H_
+#define UBUNTU_APPLICATION_OPTIONS_H_
 
-#include <session/lifecycle_delegate.h>
+#include "operation_mode.h"
 
-#include <cstdio>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-namespace ubuntu
-{
-namespace application
-{
-class LifecycleDelegate : public platform::ReferenceCountedBase
-{
-public:
-    typedef platform::shared_ptr<LifecycleDelegate> Ptr;
-
-    virtual void on_application_resumed() = 0;
-    virtual void on_application_about_to_stop() = 0;
-
-protected:
-    LifecycleDelegate() {}
-    virtual ~LifecycleDelegate() {}
-
-    LifecycleDelegate(const LifecycleDelegate&) = delete;
-    LifecycleDelegate& operator=(const LifecycleDelegate&) = delete;
-};
+    typedef void UApplicationOptions;
+    
+    UApplicationOptions*
+    u_application_options_new_from_cmd_line(
+    	int argc, 
+    	char** argv);
+    
+    void
+    u_application_options_destroy(
+    	UApplicationOptions *options);
+    
+    UApplicationOperationMode
+    u_application_options_get_operation_mode(
+    	UApplicationOptions *options);
+       
+#ifdef __cplusplus
 }
-}
+#endif
 
-#endif // UBUNTU_APPLICATION_UI_SESSION_DELEGATES_H_
+#endif /* UBUNTU_APPLICATION_OPTIONS_H_ */
