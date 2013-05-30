@@ -73,7 +73,7 @@ struct ApplicationSession : public android::RefBase
         int32_t stage_hint,
         const android::String8& app_name,
         const android::String8& desktop_file)
-            : running_state(ubuntu::application::ui::process_running),
+            : running_state(ubuntu::application::ui::process_destroyed),
             pid(pid),
             remote_pid(remote_pid),
             app_layer(0),
@@ -127,7 +127,7 @@ struct ApplicationSession : public android::RefBase
             }
             
             android::IApplicationManagerSession::SurfaceProperties props;
-            if (parent->running_state == ubuntu::application::ui::process_stopped)
+            if (parent->running_state == ubuntu::application::ui::process_suspended)
             {
                 kill(parent->pid, SIGCONT);            
                 props = surface->query_properties();
@@ -222,12 +222,23 @@ struct ApplicationSession : public android::RefBase
         registered_surfaces.add(surface->token, surface);
     }
 
+    void on_application_resumed()
+    {
+        remote_session->on_application_resumed();
+    }
+
+    void on_application_about_to_stop()
+    {
+        remote_session->on_application_about_to_stop();
+    }
+
+    int32_t running_state;
     pid_t pid;
     pid_t remote_pid;
-    int32_t running_state;
     int32_t app_layer;
 
     android::sp<android::IApplicationManagerSession> remote_session;
+
     ubuntu::application::ui::SessionType session_type;
     int32_t stage_hint;
     android::String8 app_name;

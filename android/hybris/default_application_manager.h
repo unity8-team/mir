@@ -22,6 +22,7 @@
 #include "default_application_manager_input_setup.h"
 #include "default_application_session.h"
 #include "event_loop.h"
+#include "lifecycle_helpers.h"
 
 #include <binder/IPCThreadState.h>
 #include <binder/IServiceManager.h>
@@ -157,6 +158,9 @@ struct ApplicationManager :
 
     android::sp<LockingIterator> iterator();
 
+    void session_set_state(const android::sp<ubuntu::detail::ApplicationSession>& session,
+                           int32_t new_state);
+
     void start_a_new_session(
         int32_t session_type,
         int32_t stage_hint,
@@ -206,7 +210,7 @@ struct ApplicationManager :
     void switch_focus_to_next_application_locked();
 
     void kill_focused_application_locked();
-    
+
   private:
     void update_input_setup_locked();
 
@@ -225,6 +229,8 @@ struct ApplicationManager :
     android::sp<ShellInputSetup> shell_input_setup;
     bool is_osk_visible;
     bool are_notifications_visible;
+    android::Condition state_cond;
+    android::Mutex state_lock;
     android::Mutex guard;
     android::KeyedVector< android::sp<android::IBinder>, android::sp<ubuntu::detail::ApplicationSession> > apps;
     android::Vector< android::sp<android::IBinder> > apps_as_added;

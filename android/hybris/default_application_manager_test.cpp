@@ -33,6 +33,16 @@ struct ApplicationManagerSession : public android::BnApplicationManagerSession
     {
     }
 
+    void on_application_resumed()
+    {
+        printf("%s \n", __PRETTY_FUNCTION__);
+    }
+
+    void on_application_about_to_stop()
+    {
+        printf("%s \n", __PRETTY_FUNCTION__);
+    }
+
     void raise_application_surfaces_to_layer(int layer)
     {
         printf("%s \n", __PRETTY_FUNCTION__);
