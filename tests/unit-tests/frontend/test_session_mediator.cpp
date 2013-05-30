@@ -87,24 +87,6 @@ public:
 
 int const StubbedSession::testing_client_input_fd{11};
 
-class MockGraphicBufferAllocator : public mc::GraphicBufferAllocator
-{
-public:
-    MockGraphicBufferAllocator()
-    {
-        ON_CALL(*this, supported_pixel_formats())
-            .WillByDefault(testing::Return(std::vector<geom::PixelFormat>()));
-    }
-
-    std::shared_ptr<mc::Buffer> alloc_buffer(mc::BufferProperties const&)
-    {
-        return std::shared_ptr<mc::Buffer>();
-    }
-
-    MOCK_METHOD0(supported_pixel_formats, std::vector<geom::PixelFormat>());
-    ~MockGraphicBufferAllocator() noexcept {}
-};
-
 class MockPlatform : public mg::Platform
 {
  public:
@@ -125,6 +107,8 @@ class MockPlatform : public mg::Platform
     MOCK_METHOD0(create_internal_client, std::shared_ptr<mg::InternalClient>());
     MOCK_CONST_METHOD2(fill_ipc_package, void(std::shared_ptr<mc::BufferIPCPacker> const&,
                                               std::shared_ptr<mc::Buffer> const&));
+    MOCK_METHOD0(supported_pixel_formats, std::vector<geom::PixelFormat>());
+
 };
 
 class NullEventSink : public mir::events::EventSink
@@ -139,11 +123,9 @@ struct SessionMediatorTest : public ::testing::Test
         : shell{std::make_shared<testing::NiceMock<mtd::MockShell>>()},
           graphics_platform{std::make_shared<MockPlatform>()},
           graphics_display{std::make_shared<mtd::NullDisplay>()},
-          buffer_allocator{std::make_shared<testing::NiceMock<MockGraphicBufferAllocator>>()},
           report{std::make_shared<mf::NullSessionMediatorReport>()},
           resource_cache{std::make_shared<mf::ResourceCache>()},
-          mediator{shell, graphics_platform, graphics_display,
-                   buffer_allocator, report, 
+          mediator{shell, graphics_platform, graphics_display, report
                    std::make_shared<NullEventSink>(),
                    resource_cache},
           stubbed_session{std::make_shared<StubbedSession>()},
@@ -158,7 +140,6 @@ struct SessionMediatorTest : public ::testing::Test
     std::shared_ptr<testing::NiceMock<mtd::MockShell>> const shell;
     std::shared_ptr<MockPlatform> const graphics_platform;
     std::shared_ptr<mg::Display> const graphics_display;
-    std::shared_ptr<testing::NiceMock<MockGraphicBufferAllocator>> const buffer_allocator;
     std::shared_ptr<mf::SessionMediatorReport> const report;
     std::shared_ptr<mf::ResourceCache> const resource_cache;
     mf::SessionMediator mediator;
@@ -309,7 +290,7 @@ TEST_F(SessionMediatorTest, connect_queries_supported_pixel_formats)
         geom::PixelFormat::xbgr_8888
     };
 
-    EXPECT_CALL(*buffer_allocator, supported_pixel_formats())
+    EXPECT_CALL(*graphics_platform, supported_pixel_formats())
         .WillOnce(Return(pixel_formats));
 
     mediator.connect(nullptr, &connect_parameters, &connection, null_callback.get());
