@@ -1,3 +1,13 @@
+platform-api (0.18.1daily13.05.30.2ubuntu.unity.next-0ubuntu1) raring; urgency=low
+
+  [ Ricardo Mendoza ]
+  * * Change include barrier name to fix collision.
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 60 (ubuntu-unity/next)
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 30 May 2013 21:13:45 +0000
+
 platform-api (0.18.1daily13.05.30.1ubuntu.unity.next-0ubuntu1) raring; urgency=low
 
   [ Thomas Voß ]
