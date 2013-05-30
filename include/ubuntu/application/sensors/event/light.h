@@ -13,17 +13,30 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Authored by: Thomas Voß <thomas.voss@canonical.com>
- *              Ricardo Mendoza <ricardo.mendoza@canonical.com
+ * Authored by: Ricardo Mendoza <ricardo.mendoza@canonical.com>
  */
 
-#ifndef UBUNTU_STATUS_H_
-#define UBUNTU_STATUS_H_
+#ifndef UBUNTU_APPLICATION_SENSORS_LIGHT_EVENT_H_
+#define UBUNTU_APPLICATION_SENSORS_LIGHT_EVENT_H_
 
-typedef enum
-{
-	U_STATUS_SUCCESS,
-    U_STATUS_ERROR
-} UStatus;
+#include <stdint.h>
 
-#endif /* UBUNTU_STATUS_H_ */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+    typedef void UASLightEvent;
+
+    uint64_t
+    uas_light_event_get_timestamp(
+        UASLightEvent* event);
+   
+    float
+    uas_light_event_get_light(
+        UASLightEvent* event);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* UBUNTU_APPLICATION_SENSORS_LIGHT_EVENT_H_ */

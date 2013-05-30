@@ -15,8 +15,8 @@
  *
  * Authored by: Thomas Voß <thomas.voss@canonical.com>
  */
-#ifndef PRIVATE_APPLICATION_UI_CLIPBOARD_H_
-#define PRIVATE_APPLICATION_UI_CLIPBOARD_H_
+#ifndef UBUNTU_APPLICATION_UI_CLIPBOARD_H_
+#define UBUNTU_APPLICATION_UI_CLIPBOARD_H_
 
 #include "private/platform/shared_ptr.h"
 
@@ -88,4 +88,4 @@ protected:
 }
 }
 
-#endif // PRIVATE_APPLICATION_UI_CLIPBOARD_H_
+#endif // UBUNTU_APPLICATION_UI_CLIPBOARD_H_

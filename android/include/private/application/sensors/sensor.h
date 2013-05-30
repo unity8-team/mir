@@ -50,9 +50,9 @@ public:
     virtual void register_listener(const SensorListener::Ptr& listener) = 0;
 
     /** Enables the sensor and starts the data acquisition. */
-    virtual void enable() = 0;
+    virtual int enable() = 0;
     /** Disables the sensor and stops the data acquisition. */
-    virtual void disable() = 0;
+    virtual int disable() = 0;
 
     virtual SensorType type() = 0;
 

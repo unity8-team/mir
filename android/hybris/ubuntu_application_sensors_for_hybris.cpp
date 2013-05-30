@@ -122,14 +122,14 @@ struct Sensor : public ubuntu::application::sensors::Sensor
         return listeners;
     }
 
-    void enable()
+    int enable()
     {
-        sensor_event_queue->enableSensor(sensor);
+        return sensor_event_queue->enableSensor(sensor);
     }
 
-    void disable()
+    int disable()
     {
-        sensor_event_queue->disableSensor(sensor);
+        return sensor_event_queue->disableSensor(sensor);
     }
 
     SensorType type()
@@ -180,14 +180,6 @@ struct SensorService : public ubuntu::application::sensors::SensorService
 {
     static int looper_callback(int receiveFd, int events, void* ctxt)
     {
-        /*
-        printf("%s: %d, %d, %p \n",
-               __FUNCTION__,
-               receiveFd,
-               events,
-               ctxt);
-        */
-
         static const int success_and_continue = 1;
         static const int error_and_abort = 0;
 

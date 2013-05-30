@@ -13,50 +13,76 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Authored by: Thomas Voß <thomas.voss@canonical.com>
+ * Authored by: Ricardo Mendoza <ricardo.mendoza@canonical.com>
  */
 
-#include <ubuntu/application/sensors/ubuntu_application_sensors.h>
-
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
-void cb_on_new_accelerometer_reading(ubuntu_sensor_accelerometer_reading* reading, void*)
+#include <ubuntu/application/sensors/accelerometer.h>
+#include <ubuntu/application/sensors/proximity.h>
+#include <ubuntu/application/sensors/light.h>
+
+void on_new_accelerometer_event(UASAccelerometerEvent* event, void* context)
 {
     printf("%s \n", __PRETTY_FUNCTION__);
-    printf("\ttime: %d\n", reading->timestamp);
-    printf("\tx: %f\n", reading->acceleration_x);
-    printf("\ty: %f\n", reading->acceleration_y);
-    printf("\tz: %f\n", reading->acceleration_z);
+    printf("\ttime: %llu\n", uas_accelerometer_event_get_timestamp(event));
+    printf("\tx: %f\n", uas_accelerometer_event_get_acceleration_x(event));
+    printf("\ty: %f\n", uas_accelerometer_event_get_acceleration_y(event));
+    printf("\tz: %f\n", uas_accelerometer_event_get_acceleration_z(event));
 }
 
-void cb_on_new_proximity_reading(ubuntu_sensor_proximity_reading* reading, void*)
+void on_new_proximity_event(UASProximityEvent* event, void* context)
 {
     printf("%s \n", __PRETTY_FUNCTION__);
-    printf("\ttime: %d\n", reading->timestamp);
-    printf("\tdistance: %f\n", reading->distance);
+    printf("\ttime: %llu\n", uas_proximity_event_get_timestamp(event));
+
+    switch (uas_proximity_event_get_distance(event))
+    {
+        case U_PROXIMITY_NEAR:
+        {   
+            printf("\tdistance: NEAR\n");
+            break;
+        }
+        case U_PROXIMITY_FAR:
+        {
+            printf("\tdistance: FAR\n");
+            break;
+        }
+    }
 }
 
-void cb_on_new_light_reading(ubuntu_sensor_ambient_light_reading* reading, void*)
+void on_new_light_event(UASLightEvent* event, void* context)
 {
     printf("%s \n", __PRETTY_FUNCTION__);
-    printf("\ttime: %d\n", reading->timestamp);
-    printf("\tdistance: %f\n", reading->light);
+    printf("\ttime: %llu\n", uas_light_event_get_timestamp(event));
+    printf("\tlight: %f\n", uas_light_event_get_light(event));
 }
 
 int main(int argc, char** argv)
 {
-    ubuntu_sensor_observer observer;
-    memset(&observer, 0, sizeof(observer));
+    UASensorsAccelerometer* accelerometer = ua_sensors_accelerometer_new();
+    UASensorsProximity* proximity = ua_sensors_proximity_new();
+    UASensorsLight* ambientlight = ua_sensors_light_new();
 
-    observer.on_new_accelerometer_reading_cb = cb_on_new_accelerometer_reading;
-    observer.on_new_proximity_reading_cb = cb_on_new_proximity_reading;
-    observer.on_new_ambient_light_reading_cb = cb_on_new_light_reading;
+    ua_sensors_accelerometer_set_reading_cb(accelerometer,
+                                            on_new_accelerometer_event,
+                                            NULL);
 
-    ubuntu_sensor_install_observer(&observer);
+    ua_sensors_proximity_set_reading_cb(proximity,
+                                        on_new_proximity_event,
+                                        NULL);
+  
+    ua_sensors_light_set_reading_cb(ambientlight,
+                                    on_new_light_event,
+                                    NULL);
+
+    ua_sensors_accelerometer_enable(accelerometer);
+    ua_sensors_proximity_enable(proximity);
+    ua_sensors_light_enable(ambientlight);
 
     while(true)
     {
     }
 }
-
