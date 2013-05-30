@@ -14,77 +14,115 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Authored by: Thomas Voß <thomas.voss@canonical.com>
+ *              Ricardo Mendoza <ricardo.mendoza@canonical.com>
  */
 
 #include <ubuntu/application/sensors/ubuntu_application_sensors.h>
+#include <ubuntu/application/sensors/accelerometer.h>
+#include <ubuntu/application/sensors/proximity.h>
+#include <ubuntu/application/sensors/light.h>
 
 #include <private/application/sensors/sensor.h>
 #include <private/application/sensors/sensor_listener.h>
 #include <private/application/sensors/sensor_service.h>
 #include <private/application/sensors/sensor_type.h>
+#include <private/application/sensors/events.h>
 
 #include <cassert>
 #include <cstdio>
 
 namespace
 {
+template<typename T>
+struct Holder
+{
+    Holder(const T&value = T()) : value(value)
+    {
+    }
+
+    T value;
+};
+
+template<typename T>
+Holder<T>* make_holder(const T& value)
+{
+    return new Holder<T>(value);
+}
+
 enum sensor_value_t { MIN_DELAY, MIN_VALUE, MAX_VALUE, RESOLUTION };
 template<ubuntu::application::sensors::SensorType sensor_type>
 struct SensorListener : public ubuntu::application::sensors::SensorListener
 {
-    SensorListener() : observer(NULL)
+    SensorListener() : on_accelerometer_event(NULL),
+                       on_proximity_event(NULL),
+                       on_light_event(NULL)
     {
     }
 
     void on_new_reading(const ubuntu::application::sensors::SensorReading::Ptr& reading)
     {
-        if (!observer)
-            return;
-
         switch(sensor_type)
         {
             case ubuntu::application::sensors::sensor_type_accelerometer:
-                {
-                    if (!observer->on_new_accelerometer_reading_cb)
-                        return;
+            {
+                if (!on_accelerometer_event)
+                    return;
 
-                    static ubuntu_sensor_accelerometer_reading r;
-                    r.timestamp = reading->timestamp;
-                    r.acceleration_x = reading->acceleration[0];
-                    r.acceleration_y = reading->acceleration[1];
-                    r.acceleration_z = reading->acceleration[2];
+                ubuntu::application::sensors::AccelerometerEvent::Ptr ev(
+                    new ubuntu::application::sensors::AccelerometerEvent(
+                        reading->timestamp,
+                        reading->acceleration[0],
+                        reading->acceleration[1],
+                        reading->acceleration[2])
+                        );
 
-                    observer->on_new_accelerometer_reading_cb(&r, observer->context);
-                    break;
-                }
+                on_accelerometer_event(
+                    make_holder(ev), this->context
+                    );
+
+                break;
+            }
             case ubuntu::application::sensors::sensor_type_proximity:
-                {
-                    if (!observer->on_new_proximity_reading_cb)
-                        return;
+            {
+                if (!on_proximity_event)
+                    return;
 
-                    static ubuntu_sensor_proximity_reading r;
-                    r.timestamp = reading->timestamp;
-                    r.distance = reading->distance;
+                ubuntu::application::sensors::ProximityEvent::Ptr ev(
+                    new ubuntu::application::sensors::ProximityEvent(
+                        static_cast<uint64_t>(reading->timestamp),
+                        reading->distance)
+                    );
 
-                    observer->on_new_proximity_reading_cb(&r, observer->context);
-                    break;
-                }
+                on_proximity_event(
+                    make_holder(ev), this->context
+                    );
+
+                break;
+            }
             case ubuntu::application::sensors::sensor_type_light:
-                {
-                    if (!observer->on_new_ambient_light_reading_cb)
-                        return;
+            {
+                if (!on_light_event)
+                    return;
 
-                    static ubuntu_sensor_ambient_light_reading r;
-                    r.timestamp = reading->timestamp;
-                    r.light = reading->light;
+                ubuntu::application::sensors::LightEvent::Ptr ev(
+                    new ubuntu::application::sensors::LightEvent(
+                        reading->timestamp,
+                        reading->light)
+                    );
 
-                    observer->on_new_ambient_light_reading_cb(&r, observer->context);
-                    break;
-                }
+                on_light_event(
+                    make_holder(ev), this->context
+                    );
+
+                break;
+            }
         }
     }
 
-    ubuntu_sensor_observer* observer;
+    on_accelerometer_event_cb on_accelerometer_event;
+    on_proximity_event_cb on_proximity_event;
+    on_light_event_cb on_light_event;
+    void *context;
 };
 
 ubuntu::application::sensors::Sensor::Ptr accelerometer;
@@ -95,194 +133,359 @@ ubuntu::application::sensors::SensorListener::Ptr proximity_listener;
 ubuntu::application::sensors::SensorListener::Ptr light_listener;
 }
 
-void ubuntu_sensor_initialize_observer(ubuntu_sensor_observer* observer)
-{
-    if (observer == NULL)
-        return;
-
-    observer->on_new_proximity_reading_cb = NULL;
-    observer->on_new_ambient_light_reading_cb = NULL;
-    observer->on_new_accelerometer_reading_cb = NULL;
-    observer->context = NULL;
-}
-
-static void install_accelerometer_observer(ubuntu_sensor_observer* observer)
-{
-    assert(observer != NULL);
-    assert(accelerometer != NULL);
-
-    SensorListener<ubuntu::application::sensors::sensor_type_accelerometer>* sl 
-        = new SensorListener<ubuntu::application::sensors::sensor_type_accelerometer>();
-    sl->observer = observer;
-
-    accelerometer_listener = sl;
-    accelerometer->register_listener(accelerometer_listener);
-}
-
-void ubuntu_sensor_install_observer(ubuntu_sensor_observer* observer)
-{
-    assert(observer);
-    if (observer->on_new_accelerometer_reading_cb && accelerometer == NULL)
-    {
-        // Only create the accelerometer if this is the first observer installation
-        accelerometer =
-            ubuntu::application::sensors::SensorService::sensor_for_type(
-                ubuntu::application::sensors::sensor_type_accelerometer);
-    }
-
-    if (observer->on_new_accelerometer_reading_cb)
-    {
-        // Now install the observer instance so that its callback gets called with
-        // a new accelerometer reading
-        install_accelerometer_observer(observer);
-    }
-
-    if (observer->on_new_proximity_reading_cb && proximity == NULL)
-    {
-        proximity =
-            ubuntu::application::sensors::SensorService::sensor_for_type(
-                ubuntu::application::sensors::sensor_type_proximity);
-
-        SensorListener<ubuntu::application::sensors::sensor_type_proximity>* sl 
-                = new SensorListener<ubuntu::application::sensors::sensor_type_proximity>();
-        sl->observer = observer;
-
-        proximity_listener = sl;
-        proximity->register_listener(proximity_listener);
-        proximity->enable();
-    }
-
-    if (observer->on_new_ambient_light_reading_cb && light == NULL)
-    {
-        light =
-            ubuntu::application::sensors::SensorService::sensor_for_type(
-                ubuntu::application::sensors::sensor_type_light);
-
-        SensorListener<ubuntu::application::sensors::sensor_type_light>* sl 
-                = new SensorListener<ubuntu::application::sensors::sensor_type_light>();
-        sl->observer = observer;
-
-        light_listener = sl;
-        light->register_listener(light_listener);
-        light->enable();
-    }
-}
-
-void ubuntu_sensor_uninstall_observer(ubuntu_sensor_observer* observer)
-{
-    if (observer == NULL)
-        return;
-}
-
-static void sensor_set_state(ubuntu_sensor_type sensor_type, bool enable)
-{
-    switch (sensor_type)
-    {
-        case ubuntu_sensor_type_accelerometer:
-            if (accelerometer != NULL)
-                (enable) ? accelerometer->enable() : accelerometer->disable();
-            break;
-        case ubuntu_sensor_type_magnetic_field:
-            break;
-        case ubuntu_sensor_type_gyroscope:
-            break;
-        case ubuntu_sensor_type_light:
-            if (light != NULL)
-                (enable) ? light->enable() : light->disable();
-            break;
-        case ubuntu_sensor_type_proximity:
-            if (proximity != NULL)
-                (enable) ? proximity->enable() : proximity->disable();
-            break;
-        case ubuntu_sensor_type_orientation:
-            break;
-        case ubuntu_sensor_type_linear_acceleration:
-            break;
-        case ubuntu_sensor_type_rotation_vector:
-            break;
-        default:
-            return;
-    }
-}
-
-void ubuntu_sensor_enable_sensor(ubuntu_sensor_type sensor_type)
-{
-    sensor_set_state(sensor_type, true);
-}
-
-void ubuntu_sensor_disable_sensor(ubuntu_sensor_type sensor_type)
-{
-    sensor_set_state(sensor_type, false);
-}
-
 static int32_t toHz(int32_t microseconds)
 {
     return 1 / (microseconds / 1e6);
 }
 
-static float sensor_range_value(ubuntu_sensor_type sensor_type, sensor_value_t value_type, float default_return = 0)
+/*
+ * Proximity Sensor
+ */
+
+UASensorsProximity*
+ua_sensors_proximity_new()
 {
-    ubuntu::application::sensors::Sensor::Ptr sensor;
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
 
-    switch (sensor_type)
-    {
-        case ubuntu_sensor_type_accelerometer:
-            sensor = accelerometer;
-            break;
-        case ubuntu_sensor_type_magnetic_field:
-            break;
-        case ubuntu_sensor_type_gyroscope:
-            break;
-        case ubuntu_sensor_type_light:
-            sensor = light;
-            break;
-        case ubuntu_sensor_type_proximity:
-            sensor = proximity;
-            break;
-        case ubuntu_sensor_type_orientation:
-            break;
-        case ubuntu_sensor_type_linear_acceleration:
-            break;
-        case ubuntu_sensor_type_rotation_vector:
-            break;
-        default:
-            break;
-    }
+    proximity =
+        ubuntu::application::sensors::SensorService::sensor_for_type(
+            ubuntu::application::sensors::sensor_type_proximity);
 
-    if (sensor != NULL)
-    {
-        switch (value_type)
-        {
-            case MIN_DELAY:
-                return toHz(sensor->min_delay());
-            case MIN_VALUE:
-                return sensor->min_value();
-            case MAX_VALUE:
-                return sensor->max_value();
-            case RESOLUTION:
-                return sensor->resolution();
-        }
-    }
-
-    return default_return;
+    return proximity.get();
 }
 
-int32_t ubuntu_sensor_get_sensor_min_delay(ubuntu_sensor_type sensor_type)
+UStatus
+ua_sensors_proximity_enable(
+    UASensorsProximity* sensor)
 {
-    return static_cast<int32_t>(sensor_range_value(sensor_type, MIN_DELAY, -1.0));
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+
+    auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
+    int ret = s->enable();
+
+    if (ret < 0)
+        return U_STATUS_ERROR;
+
+    return U_STATUS_SUCCESS;
 }
 
-float ubuntu_sensor_get_sensor_min_value(ubuntu_sensor_type sensor_type)
+UStatus
+ua_sensors_proximity_disable(
+    UASensorsProximity* sensor)
 {
-    return sensor_range_value(sensor_type, MIN_VALUE);
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+
+    auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
+    s->disable();
+
+    return U_STATUS_SUCCESS;
 }
 
-float ubuntu_sensor_get_sensor_max_value(ubuntu_sensor_type sensor_type)
+uint32_t
+ua_sensors_proximity_get_min_delay(
+    UASensorsProximity* sensor)
 {
-    return sensor_range_value(sensor_type, MAX_VALUE);
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
+    return toHz(s->min_delay());
 }
 
-float ubuntu_sensor_get_sensor_resolution(ubuntu_sensor_type sensor_type)
+float
+ua_sensors_proximity_get_min_value(
+    UASensorsProximity* sensor)
 {
-    return sensor_range_value(sensor_type, RESOLUTION);
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
+    return s->min_value();
+}
+
+float
+ua_sensors_proximity_get_max_value(
+    UASensorsProximity* sensor)
+{
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
+    return s->max_value();
+}
+
+float
+ua_sensors_proximity_get_resolution(
+    UASensorsProximity* sensor)
+{
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
+    return s->resolution();
+}
+
+void
+ua_sensors_proximity_set_reading_cb(
+    UASensorsProximity* sensor,
+    on_proximity_event_cb cb,
+    void *ctx)
+{
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
+
+    SensorListener<ubuntu::application::sensors::sensor_type_proximity>* sl
+        = new SensorListener<ubuntu::application::sensors::sensor_type_proximity>();
+
+    sl->on_proximity_event = cb;
+    sl->context = ctx;
+
+    proximity_listener = sl;
+    s->register_listener(proximity_listener);
+}
+
+uint64_t
+uas_proximity_event_get_timestamp(
+    UASProximityEvent* event)
+{
+    auto ev = static_cast<Holder<ubuntu::application::sensors::ProximityEvent::Ptr>*>(event);
+
+    return ev->value->get_timestamp();
+}
+
+UASProximityDistance
+uas_proximity_event_get_distance(
+    UASProximityEvent* event)
+{
+    auto ev = static_cast<Holder<ubuntu::application::sensors::ProximityEvent::Ptr>*>(event);
+
+    if (ev->value->get_distance() == proximity->max_value())
+        return U_PROXIMITY_FAR;
+
+    return U_PROXIMITY_NEAR;
+}
+
+/*
+ * Ambient Light Sensor
+ */
+
+UASensorsLight*
+ua_sensors_light_new()
+{
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    light =
+        ubuntu::application::sensors::SensorService::sensor_for_type(
+            ubuntu::application::sensors::sensor_type_light);
+
+    return light.get();
+}
+
+UStatus
+ua_sensors_light_enable(
+    UASensorsLight* sensor)
+{
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
+    
+    s->enable();
+
+    return U_STATUS_SUCCESS;
+}
+
+UStatus
+ua_sensors_light_disable(
+    UASensorsLight* sensor)
+{
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
+    s->disable();
+
+    return U_STATUS_SUCCESS;
+}
+
+uint32_t
+ua_sensors_light_get_min_delay(
+    UASensorsLight* sensor)
+{
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
+    return toHz(s->min_delay());
+}
+
+float
+ua_sensors_light_get_min_value(
+    UASensorsLight* sensor)
+{
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
+    return s->min_value();
+}
+
+float
+ua_sensors_light_get_max_value(
+    UASensorsLight* sensor)
+{
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
+    return s->max_value();
+}
+
+float
+ua_sensors_light_get_resolution(
+    UASensorsLight* sensor)
+{
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
+    return s->resolution();
+}
+
+void
+ua_sensors_light_set_reading_cb(
+    UASensorsLight* sensor,
+    on_light_event_cb cb,
+    void *ctx)
+{
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
+
+    SensorListener<ubuntu::application::sensors::sensor_type_light>* sl
+        = new SensorListener<ubuntu::application::sensors::sensor_type_light>();
+
+    sl->on_light_event = cb;
+    sl->context = ctx;
+
+    light_listener = sl;
+    s->register_listener(light_listener);
+}
+
+uint64_t
+uas_light_event_get_timestamp(
+    UASLightEvent* event)
+{
+    auto ev = static_cast<Holder<ubuntu::application::sensors::LightEvent::Ptr>*>(event);
+    return ev->value->get_timestamp();
+}
+
+float
+uas_light_event_get_light(
+    UASLightEvent* event)
+{
+    auto ev = static_cast<Holder<ubuntu::application::sensors::LightEvent::Ptr>*>(event);
+    return ev->value->get_light();
+}
+
+/*
+ * Acceleration Sensor
+ */
+
+UASensorsAccelerometer*
+ua_sensors_accelerometer_new()
+{
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    accelerometer =
+        ubuntu::application::sensors::SensorService::sensor_for_type(
+            ubuntu::application::sensors::sensor_type_accelerometer);
+
+    return accelerometer.get();
+}
+
+UStatus
+ua_sensors_accelerometer_enable(
+    UASensorsAccelerometer* sensor)
+{
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
+    
+    s->enable();
+
+    return U_STATUS_SUCCESS;
+}
+
+UStatus
+ua_sensors_accelerometer_disable(
+    UASensorsAccelerometer* sensor)
+{
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
+    s->disable();
+
+    return U_STATUS_SUCCESS;
+}
+
+uint32_t
+ua_sensors_accelerometer_get_min_delay(
+    UASensorsAccelerometer* sensor)
+{
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
+    return toHz(s->min_delay());
+}
+
+float
+ua_sensors_accelerometer_get_min_value(
+    UASensorsAccelerometer* sensor)
+{
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
+    return s->min_value();
+}
+
+float
+ua_sensors_accelerometer_get_max_value(
+    UASensorsAccelerometer* sensor)
+{
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
+    return s->max_value();
+}
+
+float
+ua_sensors_accelerometer_get_resolution(
+    UASensorsAccelerometer* sensor)
+{
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
+    return s->resolution();
+}
+
+void
+ua_sensors_accelerometer_set_reading_cb(
+    UASensorsAccelerometer* sensor,
+    on_accelerometer_event_cb cb,
+    void *ctx)
+{
+    auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
+
+    SensorListener<ubuntu::application::sensors::sensor_type_accelerometer>* sl
+        = new SensorListener<ubuntu::application::sensors::sensor_type_accelerometer>();
+
+    sl->on_accelerometer_event = cb;
+    sl->context = ctx;
+
+    accelerometer_listener = sl;
+    s->register_listener(accelerometer_listener);
+}
+
+uint64_t
+uas_accelerometer_event_get_timestamp(
+    UASAccelerometerEvent* event)
+{
+    auto ev = static_cast<Holder<ubuntu::application::sensors::AccelerometerEvent::Ptr>*>(event);
+    return ev->value->get_timestamp();
+}
+
+float
+uas_accelerometer_event_get_acceleration_x(
+    UASAccelerometerEvent* event)
+{
+    auto ev = static_cast<Holder<ubuntu::application::sensors::AccelerometerEvent::Ptr>*>(event);
+    return ev->value->get_x();
+}
+
+float
+uas_accelerometer_event_get_acceleration_y(
+    UASAccelerometerEvent* event)
+{
+    auto ev = static_cast<Holder<ubuntu::application::sensors::AccelerometerEvent::Ptr>*>(event);
+    return ev->value->get_y();
+}
+
+float
+uas_accelerometer_event_get_acceleration_z(
+    UASAccelerometerEvent* event)
+{
+    auto ev = static_cast<Holder<ubuntu::application::sensors::AccelerometerEvent::Ptr>*>(event);
+    return ev->value->get_z();
 }
