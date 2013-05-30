@@ -21,7 +21,8 @@
 
 #include "mir/default_server_configuration.h"
 #include "mir/compositor/bypass_compositing_strategy.h"
-#include "mir/compositor/buffer_swapper.h"
+#include "mir/compositor/buffer_swapper_multi.h"
+#include "mir/compositor/buffer_properties.h"
 
 #include "mir/compositor/buffer_allocation_strategy.h"
 
@@ -40,7 +41,7 @@ namespace graphics
 {
 namespace android
 {
-class CompositionBypassSwapper : public FBSwapper, public mc::BufferSwapper
+class CompositionBypassSwapper : public FBSwapper, public mc::BufferSwapperMulti
 {
 public:
     explicit CompositionBypassSwapper(std::vector<std::shared_ptr<compositor::Buffer>> const& buffers);
@@ -174,42 +175,6 @@ catch (...)
 
 ///////////////////////////////////////////////
 
-mga::CompositionBypassSwapper::CompositionBypassSwapper(
-    std::vector<std::shared_ptr<compositor::Buffer>> const& /*buffers*/)
-{
-    // TODO
-}
-
-auto mga::CompositionBypassSwapper::client_acquire() -> std::shared_ptr<mc::Buffer>
-{
-    // TODO
-    return {};
-}
-
-void mga::CompositionBypassSwapper::client_release(std::shared_ptr<mc::Buffer> const& /*queued_buffer*/)
-{
-    // TODO
-}
-
-auto mga::CompositionBypassSwapper::compositor_acquire() -> std::shared_ptr<mc::Buffer>
-{
-    // TODO
-    return {};
-}
-
-
-
-void mga::CompositionBypassSwapper::compositor_release(std::shared_ptr<mc::Buffer> const& /*released_buffer*/)
-{
-    // TODO
-}
-
-void mga::CompositionBypassSwapper::force_requests_to_complete()
-{
-    // TODO
-}
-
-
 auto mga::CompositionBypassAndroidPlatform::create_frame_buffer_factory(
         const std::shared_ptr<GraphicBufferAllocator>& buffer_allocator) -> std::shared_ptr<FramebufferFactory>
 {
@@ -245,8 +210,8 @@ mc::CompositionBypassSwapperFactory::CompositionBypassSwapperFactory(
 }
 
 auto mc::CompositionBypassSwapperFactory::create_swapper(
-    BufferProperties& /*actual_buffer_properties*/,
-    BufferProperties const& /*requested_buffer_properties*/) -> std::unique_ptr<BufferSwapper>
+    BufferProperties& actual_buffer_properties,
+    BufferProperties const& requested_buffer_properties) -> std::unique_ptr<BufferSwapper>
 {
     auto sp = composition_bypass_swapper(
         []() -> std::shared_ptr<mga::CompositionBypassSwapper>
@@ -277,5 +242,45 @@ auto mc::CompositionBypassSwapperFactory::create_swapper(
         decltype(sp) self;
     };
 
+    actual_buffer_properties = requested_buffer_properties;
+
+    auto buffer = sp->compositor_acquire();
+
+    actual_buffer_properties.size = buffer->size();
+
     return std::unique_ptr<BufferSwapper>(new ProxyBufferSwapper(sp));
+}
+
+
+mga::CompositionBypassSwapper::CompositionBypassSwapper(
+    std::vector<std::shared_ptr<compositor::Buffer>> const& buffers) :
+    BufferSwapperMulti(buffers)
+{
+}
+
+auto mga::CompositionBypassSwapper::client_acquire() -> std::shared_ptr<mc::Buffer>
+{
+    return BufferSwapperMulti::client_acquire();
+}
+
+void mga::CompositionBypassSwapper::client_release(std::shared_ptr<mc::Buffer> const& queued_buffer)
+{
+    BufferSwapperMulti::client_release(queued_buffer);
+}
+
+auto mga::CompositionBypassSwapper::compositor_acquire() -> std::shared_ptr<mc::Buffer>
+{
+    return BufferSwapperMulti::compositor_acquire();
+}
+
+
+
+void mga::CompositionBypassSwapper::compositor_release(std::shared_ptr<mc::Buffer> const& released_buffer)
+{
+    BufferSwapperMulti::compositor_release(released_buffer);
+}
+
+void mga::CompositionBypassSwapper::force_requests_to_complete()
+{
+    BufferSwapperMulti::force_requests_to_complete();
 }
