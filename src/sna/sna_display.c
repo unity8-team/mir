@@ -162,6 +162,8 @@ static void assert_scanout(struct kgem *kgem, struct kgem_bo *bo,
 
 	assert(width == info.width && height == info.height);
 }
+#else
+#define assert_scanout(k, b, w, h)
 #endif
 
 static unsigned get_fb(struct sna *sna, struct kgem_bo *bo,
