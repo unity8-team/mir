@@ -2793,30 +2793,32 @@ bool sna_mode_pre_init(ScrnInfoPtr scrn, struct sna *sna)
 	int i;
 
 	mode->kmode = drmModeGetResources(sna->kgem.fd);
-	if (!mode->kmode)
-		return sna_mode_fake_init(sna);
+	if (mode->kmode) {
+		xf86CrtcConfigInit(scrn, &sna_mode_funcs);
 
-	xf86CrtcConfigInit(scrn, &sna_mode_funcs);
+		for (i = 0; i < mode->kmode->count_crtcs; i++)
+			if (!sna_crtc_init(scrn, mode, i))
+				return false;
 
-	for (i = 0; i < mode->kmode->count_crtcs; i++)
-		if (!sna_crtc_init(scrn, mode, i))
-			return false;
+		for (i = 0; i < mode->kmode->count_connectors; i++)
+			if (!sna_output_init(scrn, mode, i))
+				return false;
 
-	for (i = 0; i < mode->kmode->count_connectors; i++)
-		if (!sna_output_init(scrn, mode, i))
-			return false;
-
-	if (!xf86IsEntityShared(scrn->entityList[0]))
-		sna_mode_compute_possible_clones(scrn);
-
-	set_size_range(sna);
+		if (!xf86IsEntityShared(scrn->entityList[0]))
+			sna_mode_compute_possible_clones(scrn);
 
 #if HAS_PIXMAP_SHARING
 	xf86ProviderSetup(scrn, NULL, "Intel");
 #endif
-	xf86InitialConfiguration(scrn, TRUE);
+	} else {
+		if (!sna_mode_fake_init(sna))
+			return false;
+	}
 
-	return true;
+	set_size_range(sna);
+
+	xf86InitialConfiguration(scrn, TRUE);
+	return scrn->modes != NULL;
 }
 
 void

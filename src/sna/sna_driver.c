@@ -636,23 +636,14 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 			   "Tiling disabled, expect poor performance and increased power consumption.\n");
 
 	if (!sna_mode_pre_init(scrn, sna)) {
-		PreInitCleanup(scrn);
-		return FALSE;
-	}
-
-	if (!xf86SetGamma(scrn, zeros)) {
-		PreInitCleanup(scrn);
-		return FALSE;
-	}
-
-	if (scrn->modes == NULL) {
-		xf86DrvMsg(scrn->scrnIndex, X_ERROR, "No modes.\n");
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+			   "No outputs and no modes.\n");
 		PreInitCleanup(scrn);
 		return FALSE;
 	}
 	scrn->currentMode = scrn->modes;
 
-	/* Set display resolution */
+	xf86SetGamma(scrn, zeros);
 	xf86SetDpi(scrn, 0, 0);
 
 	sna->dri_available = false;
