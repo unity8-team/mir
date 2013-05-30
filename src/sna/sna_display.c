@@ -71,7 +71,6 @@ struct sna_crtc {
 	uint8_t id;
 	uint8_t pipe;
 	uint8_t plane;
-	struct list link;
 };
 
 struct sna_property {
@@ -96,7 +95,6 @@ struct sna_output {
 	char *backlight_iface;
 	int backlight_active_level;
 	int backlight_max;
-	struct list link;
 };
 
 static inline struct sna_output *to_sna_output(xf86OutputPtr output)
@@ -1560,12 +1558,13 @@ sna_crtc_destroy(xf86CrtcPtr crtc)
 {
 	struct sna_crtc *sna_crtc = to_sna_crtc(crtc);
 
+	if (sna_crtc == NULL)
+		return;
+
 	sna_crtc_hide_cursor(crtc);
 	gem_close(to_sna(crtc->scrn)->kgem.fd, sna_crtc->cursor);
 
-	list_del(&sna_crtc->link);
 	free(sna_crtc);
-
 	crtc->driver_private = NULL;
 }
 
@@ -1642,7 +1641,7 @@ sna_crtc_find_plane(struct sna *sna, int pipe)
 #endif
 }
 
-static void
+static bool
 sna_crtc_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 {
 	struct sna *sna = to_sna(scrn);
@@ -1654,7 +1653,7 @@ sna_crtc_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 
 	sna_crtc = calloc(sizeof(struct sna_crtc), 1);
 	if (sna_crtc == NULL)
-		return;
+		return false;
 
 	sna_crtc->id = mode->kmode->crtcs[num];
 	sna_crtc->dpms_mode = DPMSModeOff;
@@ -1666,7 +1665,7 @@ sna_crtc_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 		     DRM_IOCTL_I915_GET_PIPE_FROM_CRTC_ID,
 		     &get_pipe)) {
 		free(sna_crtc);
-		return;
+		return false;
 	}
 	sna_crtc->pipe = get_pipe.pipe;
 	sna_crtc->plane = sna_crtc_find_plane(sna, sna_crtc->pipe);
@@ -1674,23 +1673,28 @@ sna_crtc_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 	if (xf86IsEntityShared(scrn->entityList[0]) &&
 	    scrn->confScreen->device->screen != sna_crtc->pipe) {
 		free(sna_crtc);
-		return;
+		return true;
 	}
 
 	crtc = xf86CrtcCreate(scrn, &sna_crtc_funcs);
 	if (crtc == NULL) {
 		free(sna_crtc);
-		return;
+		return false;
 	}
 
-	crtc->driver_private = sna_crtc;
-
 	sna_crtc->cursor = gem_create(sna->kgem.fd, 64*64*4);
+	if (!sna_crtc->cursor) {
+		xf86CrtcDestroy(crtc);
+		return false;
+	}
 	DBG(("%s: created handle=%d for cursor on CRTC:%d\n",
 	     __FUNCTION__, sna_crtc->cursor, sna_crtc->id));
 
+	crtc->driver_private = sna_crtc;
 	DBG(("%s: attached crtc[%d] id=%d, pipe=%d\n",
 	     __FUNCTION__, num, sna_crtc->id, sna_crtc->pipe));
+
+	return true;
 }
 
 static bool
@@ -1927,6 +1931,9 @@ sna_output_destroy(xf86OutputPtr output)
 	struct sna_output *sna_output = output->driver_private;
 	int i;
 
+	if (sna_output == NULL)
+		return;
+
 	for (i = 0; i < sna_output->num_props; i++) {
 		drmModeFreeProperty(sna_output->props[i].mode_prop);
 		free(sna_output->props[i].atoms);
@@ -1938,9 +1945,7 @@ sna_output_destroy(xf86OutputPtr output)
 
 	free(sna_output->backlight_iface);
 
-	list_del(&sna_output->link);
 	free(sna_output);
-
 	output->driver_private = NULL;
 }
 
@@ -2352,7 +2357,7 @@ sna_zaphod_match(const char *s, const char *output)
 	return false;
 }
 
-static void
+static bool
 sna_output_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 {
 	struct sna *sna = to_sna(scrn);
@@ -2367,7 +2372,7 @@ sna_output_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 	koutput = drmModeGetConnector(sna->kgem.fd,
 				      mode->kmode->connectors[num]);
 	if (!koutput)
-		return;
+		return false;
 
 	VG_CLEAR(enc);
 	enc.encoder_id = koutput->encoders[0];
@@ -2384,8 +2389,10 @@ sna_output_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 		const char *str;
 
 		str = xf86GetOptValString(sna->Options, OPTION_ZAPHOD);
-		if (str && !sna_zaphod_match(str, name))
-			goto cleanup_connector;
+		if (str && !sna_zaphod_match(str, name)) {
+			drmModeFreeConnector(koutput);
+			return true;
+		}
 
 		if ((enc.possible_crtcs & (1 << scrn->confScreen->device->screen)) == 0) {
 			if (str) {
@@ -2435,12 +2442,13 @@ sna_output_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 	     __FUNCTION__, name, num, to_connector_id(output),
 	     output->possible_crtcs, output->possible_clones));
 
-	return;
+	return true;
 
 cleanup_output:
 	xf86OutputDestroy(output);
 cleanup_connector:
 	drmModeFreeConnector(koutput);
+	return false;
 }
 
 /* We need to map from kms encoder based possible_clones mask to X output based
@@ -2791,10 +2799,12 @@ bool sna_mode_pre_init(ScrnInfoPtr scrn, struct sna *sna)
 	xf86CrtcConfigInit(scrn, &sna_mode_funcs);
 
 	for (i = 0; i < mode->kmode->count_crtcs; i++)
-		sna_crtc_init(scrn, mode, i);
+		if (!sna_crtc_init(scrn, mode, i))
+			return false;
 
 	for (i = 0; i < mode->kmode->count_connectors; i++)
-		sna_output_init(scrn, mode, i);
+		if (!sna_output_init(scrn, mode, i))
+			return false;
 
 	if (!xf86IsEntityShared(scrn->entityList[0]))
 		sna_mode_compute_possible_clones(scrn);
@@ -2829,19 +2839,6 @@ sna_mode_close(struct sna *sna)
 void
 sna_mode_fini(struct sna *sna)
 {
-#if 0
-	while (!list_is_empty(&mode->crtcs)) {
-		xf86CrtcDestroy(list_first_entry(&mode->crtcs,
-						 struct sna_crtc,
-						 link)->crtc);
-	}
-
-	while (!list_is_empty(&mode->outputs)) {
-		xf86OutputDestroy(list_first_entry(&mode->outputs,
-						   struct sna_output,
-						   link)->output);
-	}
-#endif
 }
 
 static bool sna_box_intersect(BoxPtr r, const BoxRec *a, const BoxRec *b)
