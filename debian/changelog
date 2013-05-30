@@ -1,3 +1,31 @@
+platform-api (0.18.1daily13.05.30.1ubuntu.unity.next-0ubuntu1) raring; urgency=low
+
+  [ Thomas Voß ]
+  * Switch to lazy init for the Bridge, and prevent tests from failing
+    on amd64/i386.
+
+  [ Ricardo Mendoza ]
+  * * Move all private headers for android interfaces to
+    android/include/ * Expose publicly only the C headers for the API *
+    Change namespaces to match new coding guidelines * General cleanup
+    and housekeeping of the codebase.
+  * * Add headers for new refactored platform API * Implement new API
+    for Android/hybris backend * Implement lifecycle iteration 0
+    delegates infrastructure * Do away with all old public headers and
+    use only the new API.
+  * * Enable usage of the new delegates from within the Application
+    Manager * Implement the notion of the application lifecycle and
+    state transition * Implement initial session state controller * Make
+    use of async delayer for suspend timeouts.
+  * * Refactor sensors API to use new guidelines * Add new public
+    headers for sensors and discard old API * Provide soft-float dynamic
+    loader macro for hybris * Provide updated test cases.
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 58 (ubuntu-unity/next)
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 30 May 2013 02:45:43 +0000
+
 platform-api (0.18.1daily13.05.15ubuntu.unity.next-0ubuntu1) raring; urgency=low
 
   [ Gustavo Pichorim Boiko ]
