@@ -12223,8 +12223,7 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 			hint |= REPLACES;
 		if (priv->cpu_damage == NULL) {
 			if (priv->gpu_bo &&
-			    hint & REPLACES &&
-			    box_inplace(pixmap, &region.extents)) {
+			    (hint & REPLACES || box_inplace(pixmap, &region.extents))) {
 				DBG(("%s: promoting to full GPU\n",
 				     __FUNCTION__));
 				assert(priv->gpu_bo->proxy == NULL);
