@@ -145,6 +145,25 @@ uint32_t sna_crtc_to_plane(xf86CrtcPtr crtc)
 	return to_sna_crtc(crtc)->plane;
 }
 
+#ifndef NDEBUG
+static void gem_close(int fd, uint32_t handle);
+static void assert_scanout(struct kgem *kgem, struct kgem_bo *bo,
+			   int width, int height)
+{
+	struct drm_mode_fb_cmd info;
+
+	assert(bo->scanout);
+
+	VG_CLEAR(info);
+	info.fb_id = bo->delta;
+
+	assert(drmIoctl(kgem->fd, DRM_IOCTL_MODE_GETFB, &info) == 0);
+	gem_close(kgem->fd, info.handle);
+
+	assert(width == info.width && height == info.height);
+}
+#endif
+
 static unsigned get_fb(struct sna *sna, struct kgem_bo *bo,
 		       int width, int height)
 {
@@ -157,6 +176,7 @@ static unsigned get_fb(struct sna *sna, struct kgem_bo *bo,
 	if (bo->delta) {
 		DBG(("%s: reusing fb=%d for handle=%d\n",
 		     __FUNCTION__, bo->delta, bo->handle));
+		assert_scanout(&sna->kgem, bo, width, height);
 		return bo->delta;
 	}
 
