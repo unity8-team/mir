@@ -33,6 +33,7 @@ namespace mg=mir::graphics;
 namespace mga=mir::graphics::android;
 namespace mc=mir::compositor;
 namespace mf=mir::frontend;
+namespace geom = mir::geometry;
 
 mga::AndroidPlatform::AndroidPlatform(std::shared_ptr<mg::DisplayReport> const& display_report)
     : display_report(display_report)
@@ -96,6 +97,17 @@ void mga::AndroidPlatform::fill_ipc_package(std::shared_ptr<compositor::BufferIP
 std::shared_ptr<mg::InternalClient> mga::AndroidPlatform::create_internal_client()
 {
     return std::make_shared<mga::InternalClient>();
+}
+
+std::vector<geom::PixelFormat> mga::AndroidPlatform::supported_pixel_formats()
+{
+    static std::vector<geom::PixelFormat> const pixel_formats{
+        geom::PixelFormat::abgr_8888,
+        geom::PixelFormat::xbgr_8888,
+        geom::PixelFormat::bgr_888
+    };
+
+    return pixel_formats;
 }
 
 std::shared_ptr<mg::Platform> mg::create_platform(std::shared_ptr<DisplayReport> const& display_report)

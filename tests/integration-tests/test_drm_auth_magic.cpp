@@ -89,6 +89,11 @@ public:
     {
     }
 
+    std::vector<geom::PixelFormat> supported_pixel_formats()
+    {
+        return std::vector<geom::PixelFormat>();
+    }
+
     MOCK_METHOD1(drm_auth_magic, void(unsigned int));
 };
 

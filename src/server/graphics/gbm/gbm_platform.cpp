@@ -34,6 +34,8 @@
 namespace mg = mir::graphics;
 namespace mgg = mg::gbm;
 namespace mc = mir::compositor;
+namespace geom = mir::geometry;
+
 namespace
 {
 
@@ -141,6 +143,16 @@ std::shared_ptr<mg::InternalClient> mgg::GBMPlatform::create_internal_client()
         internal_native_display = std::make_shared<mgg::InternalNativeDisplay>(get_ipc_package()); 
     internal_display_clients_present = true;
     return std::make_shared<mgg::InternalClient>(internal_native_display);
+}
+
+std::vector<geom::PixelFormat> mgg::GBMPlatform::supported_pixel_formats()
+{
+    static std::vector<geom::PixelFormat> const pixel_formats{
+        geom::PixelFormat::argb_8888,
+        geom::PixelFormat::xrgb_8888
+    };
+
+    return pixel_formats;
 }
 
 std::shared_ptr<mg::Platform> mg::create_platform(std::shared_ptr<DisplayReport> const& report)

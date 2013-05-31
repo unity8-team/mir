@@ -17,7 +17,7 @@
  */
 
 #include "mir/compositor/default_compositing_strategy.h"
-#include "mir/compositor/graphic_buffer_allocator.h"
+#include "mir/graphics/platform.h"
 #include "mir/frontend/communicator.h"
 #include "mir/shell/surface_creation_parameters.h"
 #include "mir/geometry/size.h"
@@ -376,7 +376,7 @@ public:
         float const angular_step = 2.0 * M_PI / moveables.size();
         float const w = display_size.width.as_uint32_t();
         float const h = display_size.height.as_uint32_t();
-        auto const surface_pf = the_buffer_allocator()->supported_pixel_formats()[0];
+        auto const surface_pf = the_graphics_platform()->supported_pixel_formats()[0];
 
         int i = 0;
         for (auto& m : moveables)

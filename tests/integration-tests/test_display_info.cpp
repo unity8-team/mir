@@ -71,18 +71,6 @@ public:
         return std::shared_ptr<mc::Buffer>(new mtd::StubBuffer());
     }
 
-    std::vector<geom::PixelFormat> supported_pixel_formats()
-    {
-        return pixel_formats;
-    }
-
-    static std::vector<geom::PixelFormat> const pixel_formats;
-};
-
-std::vector<geom::PixelFormat> const StubGraphicBufferAllocator::pixel_formats{
-    geom::PixelFormat::bgr_888,
-    geom::PixelFormat::abgr_8888,
-    geom::PixelFormat::xbgr_8888
 };
 
 class StubPlatform : public mg::Platform
@@ -113,7 +101,20 @@ public:
                           std::shared_ptr<mc::Buffer> const&) const
     {
     }
+
+    std::vector<geom::PixelFormat> supported_pixel_formats()
+    {
+        return pixel_formats;
+    }
+    static std::vector<geom::PixelFormat> const pixel_formats;
 };
+
+std::vector<geom::PixelFormat> const StubPlatform::pixel_formats{
+    geom::PixelFormat::bgr_888,
+    geom::PixelFormat::abgr_8888,
+    geom::PixelFormat::xbgr_8888
+};
+
 
 void connection_callback(MirConnection* connection, void* context)
 {
@@ -159,12 +160,12 @@ TEST_F(BespokeDisplayServerTestFixture, display_info_reaches_client)
             EXPECT_EQ(StubDisplay::rectangle.size.height.as_uint32_t(),
                       static_cast<uint32_t>(info.height));
 
-            ASSERT_EQ(StubGraphicBufferAllocator::pixel_formats.size(),
+            ASSERT_EQ(StubPlatform::pixel_formats.size(),
                       static_cast<uint32_t>(info.supported_pixel_format_items));
 
             for (int i = 0; i < info.supported_pixel_format_items; ++i)
             {
-                EXPECT_EQ(StubGraphicBufferAllocator::pixel_formats[i],
+                EXPECT_EQ(StubPlatform::pixel_formats[i],
                           static_cast<geom::PixelFormat>(info.supported_pixel_format[i]));
             }
 

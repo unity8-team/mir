@@ -182,13 +182,3 @@ std::shared_ptr<mc::Buffer> mgg::GBMBufferAllocator::alloc_buffer(
 
     return buffer;
 }
-
-std::vector<geom::PixelFormat> mgg::GBMBufferAllocator::supported_pixel_formats()
-{
-    static std::vector<geom::PixelFormat> const pixel_formats{
-        geom::PixelFormat::argb_8888,
-        geom::PixelFormat::xrgb_8888
-    };
-
-    return pixel_formats;
-}

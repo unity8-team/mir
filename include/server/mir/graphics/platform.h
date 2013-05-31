@@ -20,7 +20,10 @@
 #ifndef MIR_GRAPHICS_PLATFORM_H_
 #define MIR_GRAPHICS_PLATFORM_H_
 
+#include "mir/geometry/pixel_format.h"
+
 #include <memory>
+#include <vector>
 
 namespace mir
 {
@@ -62,6 +65,7 @@ public:
                                   std::shared_ptr<compositor::Buffer> const& buffer) const = 0;
     
     virtual std::shared_ptr<InternalClient> create_internal_client() = 0;
+    virtual std::vector<geometry::PixelFormat> supported_pixel_formats() = 0;
 };
 
 // Create and return a new graphics platform.

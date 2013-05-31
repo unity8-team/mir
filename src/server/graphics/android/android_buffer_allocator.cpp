@@ -83,17 +83,6 @@ std::shared_ptr<mga::Buffer> mga::AndroidGraphicBufferAllocator::alloc_buffer_pl
     return buffer;
 }
 
-std::vector<geom::PixelFormat> mga::AndroidGraphicBufferAllocator::supported_pixel_formats()
-{
-    static std::vector<geom::PixelFormat> const pixel_formats{
-        geom::PixelFormat::abgr_8888,
-        geom::PixelFormat::xbgr_8888,
-        geom::PixelFormat::bgr_888
-    };
-
-    return pixel_formats;
-}
-
 mga::BufferUsage mga::AndroidGraphicBufferAllocator::convert_from_compositor_usage(mc::BufferUsage usage)
 {
     switch (usage)

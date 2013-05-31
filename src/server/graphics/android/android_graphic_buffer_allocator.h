@@ -50,8 +50,6 @@ public:
     std::shared_ptr<Buffer> alloc_buffer_platform(
         geometry::Size sz, geometry::PixelFormat pf, BufferUsage use);
 
-    std::vector<geometry::PixelFormat> supported_pixel_formats();
-
     static BufferUsage convert_from_compositor_usage(compositor::BufferUsage usage);
 
 private:

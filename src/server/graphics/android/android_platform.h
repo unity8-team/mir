@@ -44,6 +44,7 @@ public:
     std::shared_ptr<InternalClient> create_internal_client();
     void fill_ipc_package(std::shared_ptr<compositor::BufferIPCPacker> const& packer,
                           std::shared_ptr<compositor::Buffer> const& buffer) const;
+    std::vector<geometry::PixelFormat> supported_pixel_formats();
 
 private:
     // TODO a design that has this and create_buffer_allocator is missing simplicity

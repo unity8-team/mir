@@ -98,11 +98,6 @@ class MockGraphicBufferAllocator : public mc::GraphicBufferAllocator
         std::shared_ptr<mc::Buffer> (mc::BufferProperties const&));
 
 
-    std::vector<geom::PixelFormat> supported_pixel_formats()
-    {
-        return std::vector<geom::PixelFormat>();
-    }
-
     std::unique_ptr<mc::Buffer> on_create_swapper(mc::BufferProperties const&)
     {
         return std::unique_ptr<mc::Buffer>(new mtd::StubBuffer(::buffer_properties));
@@ -366,6 +361,12 @@ struct ServerConfigAllocatesBuffersOnServer : TestingServerConfiguration
                               std::shared_ptr<mc::Buffer> const&) const
         {
         }
+
+        std::vector<geom::PixelFormat> supported_pixel_formats()
+        {
+            return std::vector<geom::PixelFormat>();
+        }
+
     };
 
     std::shared_ptr<mg::Platform> the_graphics_platform()
@@ -502,6 +503,11 @@ struct BufferCounterConfig : TestingServerConfiguration
         void fill_ipc_package(std::shared_ptr<mc::BufferIPCPacker> const&,
                               std::shared_ptr<mc::Buffer> const&) const
         {
+        }
+
+        std::vector<geom::PixelFormat> supported_pixel_formats()
+        {
+            return std::vector<geom::PixelFormat>();
         }
     };
 

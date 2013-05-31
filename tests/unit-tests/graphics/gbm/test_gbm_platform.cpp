@@ -42,6 +42,7 @@
 namespace mg = mir::graphics;
 namespace mgg = mir::graphics::gbm;
 namespace mtd = mir::test::doubles;
+namespace geom = mir::geometry;
 
 namespace
 {
@@ -275,4 +276,30 @@ TEST_F(GBMGraphicsPlatform, drm_close_not_called_concurrently_on_ipc_package_des
         t.join();
 
     EXPECT_FALSE(detector.detected_concurrent_calls());
+}
+
+TEST_F(GBMGraphicsPlatform, supported_pixel_formats_contain_common_formats)
+{
+    auto platform = create_platform();
+    auto supported_pixel_formats = platform->supported_pixel_formats();
+
+    auto argb_8888_count = std::count(supported_pixel_formats.begin(),
+                                      supported_pixel_formats.end(),
+                                      geom::PixelFormat::argb_8888);
+
+    auto xrgb_8888_count = std::count(supported_pixel_formats.begin(),
+                                      supported_pixel_formats.end(),
+                                      geom::PixelFormat::xrgb_8888);
+
+    EXPECT_EQ(1, argb_8888_count);
+    EXPECT_EQ(1, xrgb_8888_count);
+}
+
+TEST_F(GBMGraphicsPlatform, supported_pixel_formats_have_sane_default_in_first_position)
+{
+    auto platform = create_platform();
+    auto supported_pixel_formats = platform->supported_pixel_formats();
+
+    ASSERT_FALSE(supported_pixel_formats.empty());
+    EXPECT_EQ(geom::PixelFormat::argb_8888, supported_pixel_formats[0]);
 }

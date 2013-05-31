@@ -49,27 +49,13 @@ namespace mtd = mir::test::doubles;
 namespace
 {
 
-class StubGraphicBufferAllocator : public mc::GraphicBufferAllocator
-{
-public:
-    std::shared_ptr<mc::Buffer> alloc_buffer(mc::BufferProperties const&)
-    {
-        return std::shared_ptr<mc::Buffer>();
-    }
-
-    virtual std::vector<geom::PixelFormat> supported_pixel_formats()
-    {
-        return std::vector<geom::PixelFormat>();
-    }
-};
-
 class MockAuthenticatingPlatform : public mg::Platform, public mg::DRMAuthenticator
 {
  public:
     std::shared_ptr<mc::GraphicBufferAllocator> create_buffer_allocator(
             const std::shared_ptr<mg::BufferInitializer>& /*buffer_initializer*/)
     {
-        return std::shared_ptr<StubGraphicBufferAllocator>();
+        return std::shared_ptr<mc::GraphicBufferAllocator>();
     }
 
     std::shared_ptr<mg::Display> create_display()
@@ -92,6 +78,11 @@ class MockAuthenticatingPlatform : public mg::Platform, public mg::DRMAuthentica
     {
     }
 
+    virtual std::vector<geom::PixelFormat> supported_pixel_formats()
+    {
+        return std::vector<geom::PixelFormat>();
+    }
+
     MOCK_METHOD1(drm_auth_magic, void(drm_magic_t));
 };
 
@@ -107,11 +98,9 @@ struct SessionMediatorGBMTest : public ::testing::Test
         : shell{std::make_shared<mtd::StubShell>()},
           mock_platform{std::make_shared<MockAuthenticatingPlatform>()},
           graphics_display{std::make_shared<mtd::NullDisplay>()},
-          buffer_allocator{std::make_shared<StubGraphicBufferAllocator>()},
           report{std::make_shared<mf::NullSessionMediatorReport>()},
           resource_cache{std::make_shared<mf::ResourceCache>()},
-          mediator{shell, mock_platform, graphics_display,
-                   buffer_allocator, report,
+          mediator{shell, mock_platform, graphics_display, report,
                    std::make_shared<NullEventSink>(),
                    resource_cache},
           null_callback{google::protobuf::NewPermanentCallback(google::protobuf::DoNothing)}

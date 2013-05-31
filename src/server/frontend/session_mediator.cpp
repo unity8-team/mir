@@ -27,7 +27,6 @@
 #include "mir/compositor/buffer_id.h"
 #include "mir/compositor/buffer.h"
 #include "mir/surfaces/buffer_bundle.h"
-#include "mir/compositor/graphic_buffer_allocator.h"
 #include "mir/geometry/dimensions.h"
 #include "mir/graphics/platform.h"
 #include "mir/graphics/viewable_area.h"
@@ -46,14 +45,12 @@ mf::SessionMediator::SessionMediator(
     std::shared_ptr<frontend::Shell> const& shell,
     std::shared_ptr<graphics::Platform> const & graphics_platform,
     std::shared_ptr<graphics::ViewableArea> const& viewable_area,
-    std::shared_ptr<compositor::GraphicBufferAllocator> const& buffer_allocator,
     std::shared_ptr<SessionMediatorReport> const& report,
     std::shared_ptr<events::EventSink> const& event_sink,
     std::shared_ptr<ResourceCache> const& resource_cache) :
     shell(shell),
     graphics_platform(graphics_platform),
     viewable_area(viewable_area),
-    buffer_allocator(buffer_allocator),
     report(report),
     event_sink(event_sink),
     resource_cache(resource_cache),
@@ -85,7 +82,7 @@ void mf::SessionMediator::connect(
     display_info->set_width(view_area.size.width.as_uint32_t());
     display_info->set_height(view_area.size.height.as_uint32_t());
 
-    auto supported_pixel_formats = buffer_allocator->supported_pixel_formats();
+    auto supported_pixel_formats = graphics_platform->supported_pixel_formats();
     for (auto pf : supported_pixel_formats)
         display_info->add_supported_pixel_format(static_cast<uint32_t>(pf));
 

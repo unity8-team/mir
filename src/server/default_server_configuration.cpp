@@ -123,7 +123,6 @@ private:
             shell,
             graphics_platform,
             graphics_display,
-            buffer_allocator,
             sm_report,
             sink,
             resource_cache());

@@ -254,27 +254,3 @@ TEST_F(GBMBufferAllocatorTest, constructor_throws_if_gl_oes_egl_image_not_suppor
         mgg::GBMBufferAllocator allocator(platform, mock_buffer_initializer);
     }, std::runtime_error);
 }
-
-TEST_F(GBMBufferAllocatorTest, supported_pixel_formats_contain_common_formats)
-{
-    auto supported_pixel_formats = allocator->supported_pixel_formats();
-
-    auto argb_8888_count = std::count(supported_pixel_formats.begin(),
-                                      supported_pixel_formats.end(),
-                                      geom::PixelFormat::argb_8888);
-
-    auto xrgb_8888_count = std::count(supported_pixel_formats.begin(),
-                                      supported_pixel_formats.end(),
-                                      geom::PixelFormat::xrgb_8888);
-
-    EXPECT_EQ(1, argb_8888_count);
-    EXPECT_EQ(1, xrgb_8888_count);
-}
-
-TEST_F(GBMBufferAllocatorTest, supported_pixel_formats_have_sane_default_in_first_position)
-{
-    auto supported_pixel_formats = allocator->supported_pixel_formats();
-
-    ASSERT_FALSE(supported_pixel_formats.empty());
-    EXPECT_EQ(geom::PixelFormat::argb_8888, supported_pixel_formats[0]);
-}

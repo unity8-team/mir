@@ -21,7 +21,6 @@
 
 #include "mir/compositor/buffer.h"
 
-#include <vector>
 #include <memory>
 
 namespace mir
@@ -38,8 +37,6 @@ public:
 
     virtual std::shared_ptr<Buffer> alloc_buffer(
         BufferProperties const& buffer_properties) = 0;
-
-    virtual std::vector<geometry::PixelFormat> supported_pixel_formats() = 0;
 
 protected:
     GraphicBufferAllocator() = default;

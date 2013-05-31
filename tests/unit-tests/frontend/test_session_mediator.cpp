@@ -99,6 +99,8 @@ class MockPlatform : public mg::Platform
             .WillByDefault(Return(std::make_shared<mtd::NullDisplay>()));
         ON_CALL(*this, get_ipc_package())
             .WillByDefault(Return(std::make_shared<mg::PlatformIPCPackage>()));
+        ON_CALL(*this, supported_pixel_formats())
+            .WillByDefault(Return(std::vector<geom::PixelFormat>({})));
     }
 
     MOCK_METHOD1(create_buffer_allocator, std::shared_ptr<mc::GraphicBufferAllocator>(std::shared_ptr<mg::BufferInitializer> const&));
@@ -108,7 +110,6 @@ class MockPlatform : public mg::Platform
     MOCK_CONST_METHOD2(fill_ipc_package, void(std::shared_ptr<mc::BufferIPCPacker> const&,
                                               std::shared_ptr<mc::Buffer> const&));
     MOCK_METHOD0(supported_pixel_formats, std::vector<geom::PixelFormat>());
-
 };
 
 class NullEventSink : public mir::events::EventSink
@@ -125,7 +126,7 @@ struct SessionMediatorTest : public ::testing::Test
           graphics_display{std::make_shared<mtd::NullDisplay>()},
           report{std::make_shared<mf::NullSessionMediatorReport>()},
           resource_cache{std::make_shared<mf::ResourceCache>()},
-          mediator{shell, graphics_platform, graphics_display, report
+          mediator{shell, graphics_platform, graphics_display, report,
                    std::make_shared<NullEventSink>(),
                    resource_cache},
           stubbed_session{std::make_shared<StubbedSession>()},
