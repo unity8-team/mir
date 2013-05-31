@@ -29,7 +29,7 @@ namespace mga=mir::graphics::android;
 namespace mtd=mir::test::doubles;
 namespace geom=mir::geometry;
 
-class PlatformBufferIPCPackaging : public ::testing::Test
+class AndroidPlatform : public ::testing::Test
 {
 protected:
     virtual void SetUp()
@@ -71,7 +71,7 @@ protected:
 };
 
 /* ipc packaging tests */
-TEST_F(PlatformBufferIPCPackaging, test_ipc_data_packed_correctly)
+TEST_F(AndroidPlatform, test_ipc_data_packed_correctly)
 {
     auto mock_buffer = std::make_shared<mtd::MockBuffer>();
     geom::Stride dummy_stride(4390);
@@ -101,3 +101,37 @@ TEST_F(PlatformBufferIPCPackaging, test_ipc_data_packed_correctly)
     platform->fill_ipc_package(mock_packer, mock_buffer);
 
 }
+
+TEST(AndroidPlatformFormats, supported_pixel_formats_contain_common_formats)
+{
+    auto stub_display_report = std::make_shared<mg::NullDisplayReport>();
+    auto platform = mg::create_platform(stub_display_report);
+    auto supported_pixel_formats = platform->supported_pixel_formats();
+
+    auto abgr_8888_count = std::count(supported_pixel_formats.begin(),
+                                      supported_pixel_formats.end(),
+                                      geom::PixelFormat::abgr_8888);
+
+    auto xbgr_8888_count = std::count(supported_pixel_formats.begin(),
+                                      supported_pixel_formats.end(),
+                                      geom::PixelFormat::xbgr_8888);
+
+    auto bgr_888_count = std::count(supported_pixel_formats.begin(),
+                                    supported_pixel_formats.end(),
+                                    geom::PixelFormat::bgr_888);
+
+    EXPECT_EQ(1, abgr_8888_count);
+    EXPECT_EQ(1, xbgr_8888_count);
+    EXPECT_EQ(1, bgr_888_count);
+}
+
+TEST(AndroidPlatformFormats, supported_pixel_formats_have_sane_default_in_first_position)
+{
+    auto stub_display_report = std::make_shared<mg::NullDisplayReport>();
+    auto platform = mg::create_platform(stub_display_report);
+    auto supported_pixel_formats = platform->supported_pixel_formats();
+
+    ASSERT_FALSE(supported_pixel_formats.empty());
+    EXPECT_EQ(geom::PixelFormat::abgr_8888, supported_pixel_formats[0]);
+}
+

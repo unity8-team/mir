@@ -57,6 +57,11 @@ class StubPlatform : public graphics::Platform
                           std::shared_ptr<compositor::Buffer> const&) const
     {
     }
+    
+    virtual std::vector<geometry::PixelFormat> supported_pixel_formats()
+    {
+        return std::vector<geometry::PixelFormat>();
+    }
 };
 }
 }

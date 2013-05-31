@@ -54,37 +54,6 @@ TEST_F(AndroidGraphicBufferAllocatorTest, allocator_accesses_gralloc_module)
     mga::AndroidGraphicBufferAllocator allocator(null_buffer_initializer);
 }
 
-TEST_F(AndroidGraphicBufferAllocatorTest, supported_pixel_formats_contain_common_formats)
-{
-    mga::AndroidGraphicBufferAllocator allocator{null_buffer_initializer};
-    auto supported_pixel_formats = allocator.supported_pixel_formats();
-
-    auto abgr_8888_count = std::count(supported_pixel_formats.begin(),
-                                      supported_pixel_formats.end(),
-                                      geom::PixelFormat::abgr_8888);
-
-    auto xbgr_8888_count = std::count(supported_pixel_formats.begin(),
-                                      supported_pixel_formats.end(),
-                                      geom::PixelFormat::xbgr_8888);
-
-    auto bgr_888_count = std::count(supported_pixel_formats.begin(),
-                                    supported_pixel_formats.end(),
-                                    geom::PixelFormat::bgr_888);
-
-    EXPECT_EQ(1, abgr_8888_count);
-    EXPECT_EQ(1, xbgr_8888_count);
-    EXPECT_EQ(1, bgr_888_count);
-}
-
-TEST_F(AndroidGraphicBufferAllocatorTest, supported_pixel_formats_have_sane_default_in_first_position)
-{
-    mga::AndroidGraphicBufferAllocator allocator{null_buffer_initializer};
-    auto supported_pixel_formats = allocator.supported_pixel_formats();
-
-    ASSERT_FALSE(supported_pixel_formats.empty());
-    EXPECT_EQ(geom::PixelFormat::abgr_8888, supported_pixel_formats[0]);
-}
-
 TEST_F(AndroidGraphicBufferAllocatorTest, alloc_buffer_calls_initializer)
 {
     using namespace testing;

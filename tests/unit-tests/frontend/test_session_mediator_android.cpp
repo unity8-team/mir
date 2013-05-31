@@ -16,7 +16,6 @@
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
-#include "mir/compositor/graphic_buffer_allocator.h"
 #include "mir/frontend/session_mediator_report.h"
 #include "mir/frontend/session_mediator.h"
 #include "mir/frontend/resource_cache.h"
@@ -49,20 +48,6 @@ namespace mtd = mir::test::doubles;
 namespace
 {
 
-class StubGraphicBufferAllocator : public mc::GraphicBufferAllocator
-{
-public:
-    std::shared_ptr<mc::Buffer> alloc_buffer(mc::BufferProperties const&)
-    {
-        return std::shared_ptr<mc::Buffer>();
-    }
-
-    virtual std::vector<geom::PixelFormat> supported_pixel_formats()
-    {
-        return std::vector<geom::PixelFormat>();
-    }
-};
-
 class NullEventSink : public mir::events::EventSink
 {
 public:
@@ -75,11 +60,9 @@ struct SessionMediatorAndroidTest : public ::testing::Test
         : shell{std::make_shared<mtd::StubShell>()},
           graphics_platform{std::make_shared<mtd::StubPlatform>()},
           graphics_display{std::make_shared<mtd::NullDisplay>()},
-          buffer_allocator{std::make_shared<StubGraphicBufferAllocator>()},
           report{std::make_shared<mf::NullSessionMediatorReport>()},
           resource_cache{std::make_shared<mf::ResourceCache>()},
-          mediator{shell, graphics_platform, graphics_display,
-                   buffer_allocator, report,
+          mediator{shell, graphics_platform, graphics_display, report,
                    std::make_shared<NullEventSink>(),
                    resource_cache},
           null_callback{google::protobuf::NewPermanentCallback(google::protobuf::DoNothing)}
@@ -89,7 +72,6 @@ struct SessionMediatorAndroidTest : public ::testing::Test
     std::shared_ptr<mtd::StubShell> const shell;
     std::shared_ptr<mtd::StubPlatform> const graphics_platform;
     std::shared_ptr<mg::Display> const graphics_display;
-    std::shared_ptr<mc::GraphicBufferAllocator> const buffer_allocator;
     std::shared_ptr<mf::SessionMediatorReport> const report;
     std::shared_ptr<mf::ResourceCache> const resource_cache;
     mf::SessionMediator mediator;
