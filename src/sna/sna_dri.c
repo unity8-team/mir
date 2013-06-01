@@ -1584,10 +1584,10 @@ sna_dri_flip_continue(struct sna *sna, struct sna_dri_frame_event *info)
 		if (!info->draw)
 			return false;
 
-		assert(sna_pixmap_get_buffer(get_drawable_pixmap(info->draw)) == info->front);
 		if (!can_flip(sna, info->draw, info->front, info->back))
 			return false;
 
+		assert(sna_pixmap_get_buffer(get_drawable_pixmap(info->draw)) == info->front);
 		if (!sna_dri_page_flip(sna, info))
 			return false;
 
