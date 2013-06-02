@@ -1668,11 +1668,13 @@ sna_pixmap_make_cow(struct sna *sna,
 	if (src_priv->gpu_bo->proxy)
 		return false;
 
-	DBG(("%s: make cow src=%ld, dst=%ld, handle=%ld\n",
+	DBG(("%s: make cow src=%ld, dst=%ld, handle=%ld (already cow? src=%d, dst=%d)\n",
 	     __FUNCTION__,
 	     src_priv->pixmap->drawable.serialNumber,
 	     dst_priv->pixmap->drawable.serialNumber,
-	     src_priv->gpu_bo->handle));
+	     src_priv->gpu_bo->handle,
+	     src_priv->cow ? IS_COW_OWNER(src_priv->cow) ? 1 : -1 : 0,
+	     dst_priv->cow ? IS_COW_OWNER(dst_priv->cow) ? 1 : -1 : 0));
 
 	if (dst_priv->pinned) {
 		DBG(("%s: can't cow, dst_pinned=%x\n",
@@ -1693,8 +1695,10 @@ sna_pixmap_make_cow(struct sna *sna,
 		cow->bo = src_priv->gpu_bo;
 		cow->refcnt = 1;
 
-		DBG(("%s: attaching source cow to pixmap=%ld\n",
-		     __FUNCTION__, src_priv->pixmap->drawable.serialNumber));
+		DBG(("%s: moo! attaching source cow to pixmap=%ld, handle=%d\n",
+		     __FUNCTION__,
+		     src_priv->pixmap->drawable.serialNumber,
+		     cow->bo->handle));
 
 		src_priv->cow = MAKE_COW_OWNER(cow);
 		list_init(&src_priv->cow_list);
@@ -1721,8 +1725,11 @@ sna_pixmap_make_cow(struct sna *sna,
 	list_add(&dst_priv->cow_list, &cow->list);
 	cow->refcnt++;
 
-	DBG(("%s: attaching clone to pixmap=%ld\n",
-	     __FUNCTION__, dst_priv->pixmap->drawable.serialNumber));
+	DBG(("%s: moo! attaching clone to pixmap=%ld (source=%ld, handle=%d)\n",
+	     __FUNCTION__,
+	     dst_priv->pixmap->drawable.serialNumber,
+	     src_priv->pixmap->drawable.serialNumber,
+	     cow->bo->handle));
 
 	if (dst_priv->mapped) {
 		dst_priv->pixmap->devPrivate.ptr = NULL;
@@ -4645,6 +4652,8 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 
 	/* XXX hack for firefox -- subsequent uses of src will be corrupt! */
 	if (src_priv && src_priv->cow && src_priv->gpu_bo == dst_priv->gpu_bo) {
+		DBG(("%s: discarding cow reference for cousin copy\n",
+		     __FUNCTION__));
 		assert(src_priv->cpu_damage == NULL);
 		bo = dst_priv->gpu_bo;
 		damage = NULL;

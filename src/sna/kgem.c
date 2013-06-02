@@ -1771,8 +1771,8 @@ void kgem_bo_undo(struct kgem *kgem, struct kgem_bo *bo)
 	if (kgem->nexec != 1 || bo->exec == NULL)
 		return;
 
-	DBG(("%s: only handle in batch, discarding last operations\n",
-	     __FUNCTION__));
+	DBG(("%s: only handle in batch, discarding last operations for handle=%ld\n",
+	     __FUNCTION__, bo->handle));
 
 	assert(bo->exec == &kgem->exec[0]);
 	assert(kgem->exec[0].handle == bo->handle);
