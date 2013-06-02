@@ -477,6 +477,12 @@ static void damage(PixmapPtr pixmap, RegionPtr region)
 	priv = sna_pixmap(pixmap);
 	assert(priv != NULL);
 	assert(priv->gpu_bo);
+
+	if (priv->cow) {
+		sna_pixmap_undo_cow(to_sna_from_pixmap(pixmap), priv,
+				    region ? MOVE_READ : 0);
+	}
+
 	if (DAMAGE_IS_ALL(priv->gpu_damage))
 		return;
 
@@ -509,7 +515,7 @@ static void set_bo(PixmapPtr pixmap, struct kgem_bo *bo)
 	assert((priv->pinned & PIN_PRIME) == 0);
 	assert(priv->flush);
 
-	if (priv->cow)
+	if (priv->cow && priv->gpu_bo != bo)
 		sna_pixmap_undo_cow(sna, priv, 0);
 
 	/* Post damage on the new front buffer so that listeners, such
