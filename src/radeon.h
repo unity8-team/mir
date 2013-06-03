@@ -425,6 +425,7 @@ typedef struct {
     Bool	      exa_pixmaps;
     Bool              exa_force_create;
     XF86ModReqInfo    exaReq;
+    Bool              is_fast_fb; /* use direct mapping for fast fb access */
 
     unsigned int xv_max_width;
     unsigned int xv_max_height;

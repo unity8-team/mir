@@ -319,6 +319,28 @@ radeon_flush_callback(CallbackListPtr *list,
     }
 }
 
+static Bool RADEONIsFastFBWorking(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    struct drm_radeon_info ginfo;
+    int r;
+    uint32_t tmp = 0;
+
+#ifndef RADEON_INFO_FASTFB_WORKING
+#define RADEON_INFO_FASTFB_WORKING 0x14
+#endif
+    memset(&ginfo, 0, sizeof(ginfo));
+    ginfo.request = RADEON_INFO_FASTFB_WORKING;
+    ginfo.value = (uintptr_t)&tmp;
+    r = drmCommandWriteRead(info->dri2.drm_fd, DRM_RADEON_INFO, &ginfo, sizeof(ginfo));
+    if (r) {
+	return FALSE;
+    }
+    if (tmp == 1)
+	return TRUE;
+    return FALSE;
+}
+
 static Bool RADEONIsFusionGARTWorking(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
@@ -462,6 +484,12 @@ static Bool RADEONPreInitAccel_KMS(ScrnInfoPtr pScrn)
     if (!(info->accel_state = calloc(1, sizeof(struct radeon_accel_state)))) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Unable to allocate accel_state rec!\n");
 	return FALSE;
+    }
+
+    /* Check whether direct mapping is used for fast fb access*/
+    if (RADEONIsFastFBWorking(pScrn)) {
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Direct mapping of fb aperture is enabled for fast fb access.\n");
+	info->is_fast_fb = TRUE;
     }
 
     if (xf86ReturnOptValBool(info->Options, OPTION_NOACCEL, FALSE) ||
@@ -839,7 +867,8 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 	     * with proper bit, in the meantime you need to set tiling option in
 	     * xorg configuration files
 	     */
-	    info->ChipFamily <= CHIP_FAMILY_ARUBA;
+	    info->ChipFamily <= CHIP_FAMILY_ARUBA &&
+	    !info->is_fast_fb;
 
 	/* 2D color tiling */
 	if (info->ChipFamily >= CHIP_FAMILY_R600) {
@@ -935,8 +964,9 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
     if (!info->use_glamor) {
 	info->exa_pixmaps = xf86ReturnOptValBool(info->Options,
 						 OPTION_EXA_PIXMAPS,
-						 ((info->vram_size > (32 * 1024 * 1024) &&
-						 info->RenderAccel)));
+						 (info->vram_size > (32 * 1024 * 1024) &&
+						 info->RenderAccel &&
+                                                 !info->is_fast_fb));
 	if (info->exa_pixmaps)
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		       "EXA: Driver will allow EXA pixmaps in VRAM\n");

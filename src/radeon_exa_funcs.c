@@ -412,6 +412,9 @@ RADEONUploadToScreenCS(PixmapPtr pDst, int x, int y, int w, int h,
 	    if (!radeon_bo_is_busy(driver_priv->bo, &dst_domain))
 		goto copy;
 	}
+	/* use cpu copy for fast fb access */
+	if (info->is_fast_fb)
+	    goto copy;
     }
 
     size = scratch_pitch * h;

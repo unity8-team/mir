@@ -1542,6 +1542,9 @@ R600UploadToScreenCS(PixmapPtr pDst, int x, int y, int w, int h,
 	    if (!radeon_bo_is_busy(driver_priv->bo, &dst_domain))
 		goto copy;
 	}
+	/* use cpu copy for fast fb access */
+	if (info->is_fast_fb)
+	    goto copy;
     }
 
     scratch_pitch = RADEON_ALIGN(w, drmmode_get_pitch_align(pScrn, (bpp / 8), 0));
