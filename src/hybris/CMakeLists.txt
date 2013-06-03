@@ -1,4 +1,4 @@
-set(SOURCES ubuntu_application_api.cpp)
+set(SOURCES ubuntu_application_api_hybris.cpp)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --std=c++0x")
 
