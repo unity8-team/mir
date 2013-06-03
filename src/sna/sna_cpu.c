@@ -108,7 +108,9 @@ char *sna_cpu_features_to_string(unsigned features, char *line)
 	char *ret = line;
 
 #ifdef __x86_64__
-	line += sprintf (line, ", x86-64");
+	line += sprintf (line, "x86-64");
+#else
+	line += sprintf (line, "x86");
 #endif
 
 	if (features & SSE2)
@@ -126,5 +128,5 @@ char *sna_cpu_features_to_string(unsigned features, char *line)
 	if (features & AVX2)
 		line += sprintf (line, ", avx2");
 
-	return ret + 2;
+	return ret;
 }
