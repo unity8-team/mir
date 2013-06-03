@@ -85,6 +85,7 @@
 #define N_STACK_GLYPHS 512
 
 #define glyph_valid(g) *((uint32_t *)&(g)->info.width)
+#define glyph_copy_size(r, g) *(uint32_t *)&(r)->width = *(uint32_t *)&g->info.width
 
 #if HAS_DEBUG_FULL
 static void _assert_pixmap_contains_box(PixmapPtr pixmap, BoxPtr box, const char *function)
@@ -632,10 +633,8 @@ glyphs_to_dst(struct sna *sna,
 				r.dst.y = y - glyph->info.y;
 				r.src.x = r.dst.x + src_x;
 				r.src.y = r.dst.y + src_y;
-				r.mask.x = priv.coordinate.x;
-				r.mask.y = priv.coordinate.y;
-				r.width  = glyph->info.width;
-				r.height = glyph->info.height;
+				r.mask = priv.coordinate;
+				glyph_copy_size(&r, glyph);
 
 				DBG(("%s: glyph=(%d, %d)x(%d, %d), unclipped\n",
 				     __FUNCTION__,
@@ -1164,8 +1163,7 @@ next_image:
 				r.mask = r.src;
 				r.dst.x = x - glyph->info.x;
 				r.dst.y = y - glyph->info.y;
-				r.width  = glyph->info.width;
-				r.height = glyph->info.height;
+				glyph_copy_size(&r, glyph);
 				tmp.blt(sna, &tmp, &r);
 
 next_glyph:
