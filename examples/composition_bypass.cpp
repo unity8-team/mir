@@ -119,22 +119,42 @@ private:
 
 namespace
 {
+char const* const bypass_compositor = "bypass-compositor";
+char const* const bypass_fbswapper  = "bypass-fbswapper";
+char const* const bypass_swapper    = "bypass-swapper";
+
 class CompositionBypassConfiguration : public mir::DefaultServerConfiguration
 {
 public:
-//    using mir::DefaultServerConfiguration::DefaultServerConfiguration;
     CompositionBypassConfiguration(int argc, char const* argv[]) :
-        mir::DefaultServerConfiguration(argc, argv) {}
+        mir::DefaultServerConfiguration(argc, argv)
+    {
+        using boost::program_options::value;
+        add_options()
+            (bypass_compositor, value<bool>(), "replace compositor. [bool:default=true]")
+            (bypass_fbswapper,  value<bool>(), "replace fbswapper. [bool:default=true]")
+            (bypass_swapper,    value<bool>(), "replace swapper. [bool:default=true]");
+    }
 
     std::shared_ptr<mc::CompositingStrategy>
     the_compositing_strategy()
     {
+        if (!the_options()->get(bypass_compositor, true))
+        {
+            return DefaultServerConfiguration::the_compositing_strategy();
+        }
+
         return compositing_strategy(
             [this]{ return std::make_shared<mc::BypassCompositingStrategy>(); });
     }
 
     std::shared_ptr<mg::Platform> the_graphics_platform()
     {
+        if (!the_options()->get(bypass_fbswapper, true))
+        {
+            return DefaultServerConfiguration::the_graphics_platform();
+        }
+
         return graphics_platform(
             [this]()
             {
@@ -146,6 +166,11 @@ public:
 
     auto the_buffer_allocation_strategy() -> std::shared_ptr<mc::BufferAllocationStrategy>
     {
+        if (!the_options()->get(bypass_swapper, true))
+        {
+            return DefaultServerConfiguration::the_buffer_allocation_strategy();
+        }
+
         return buffer_allocation_strategy(
             [this]()
             {
