@@ -29,15 +29,176 @@
 
 #include <mir_toolkit/mir_client_library.h>
 
+#include <stdlib.h>
+#include <assert.h>
+
+// TODO: Move to a mircommon
+namespace
+{
+
+void
+mir_event_to_ubuntu_event(MirEvent const* mir_event, Event& ubuntu_ev)
+{
+    switch (mir_event->type)
+    {
+    case mir_event_type_key:
+        ubuntu_ev.type = KEY_EVENT_TYPE;
+        ubuntu_ev.device_id = mir_event->key.device_id;
+        ubuntu_ev.source_id = mir_event->key.source_id;
+        ubuntu_ev.action = mir_event->key.action;
+        ubuntu_ev.flags = mir_event->key.flags;
+        ubuntu_ev.meta_state = mir_event->key.modifiers;
+        ubuntu_ev.details.key.key_code = mir_event->key.key_code;
+        ubuntu_ev.details.key.scan_code = mir_event->key.scan_code;
+        ubuntu_ev.details.key.repeat_count = mir_event->key.repeat_count;
+        ubuntu_ev.details.key.down_time = mir_event->key.down_time;
+        ubuntu_ev.details.key.event_time = mir_event->key.event_time;
+        ubuntu_ev.details.key.is_system_key = mir_event->key.is_system_key;
+        break;
+    case mir_event_type_motion:
+        ubuntu_ev.type = MOTION_EVENT_TYPE;
+        ubuntu_ev.device_id = mir_event->motion.device_id;
+        ubuntu_ev.source_id = mir_event->motion.source_id;
+        ubuntu_ev.action = mir_event->motion.action;
+        ubuntu_ev.flags = mir_event->motion.flags;
+        ubuntu_ev.meta_state = mir_event->motion.modifiers;
+        ubuntu_ev.details.motion.edge_flags = mir_event->motion.edge_flags;
+        ubuntu_ev.details.motion.button_state = mir_event->motion.button_state;
+        ubuntu_ev.details.motion.x_offset = mir_event->motion.x_offset;
+        ubuntu_ev.details.motion.y_offset = mir_event->motion.y_offset;
+        ubuntu_ev.details.motion.x_precision = mir_event->motion.x_precision;
+        ubuntu_ev.details.motion.y_precision = mir_event->motion.y_precision;
+        ubuntu_ev.details.motion.down_time = mir_event->motion.down_time;
+        ubuntu_ev.details.motion.event_time = mir_event->motion.event_time;
+        ubuntu_ev.details.motion.pointer_count = mir_event->motion.pointer_count;
+        for (int i = 0; i < mir_event->motion.pointer_count; i++)
+        {
+            ubuntu_ev.details.motion.pointer_coordinates[i].id = mir_event->motion.pointer_coordinates[i].id;
+            ubuntu_ev.details.motion.pointer_coordinates[i].x = mir_event->motion.pointer_coordinates[i].x;
+            ubuntu_ev.details.motion.pointer_coordinates[i].raw_x = mir_event->motion.pointer_coordinates[i].raw_x;
+            ubuntu_ev.details.motion.pointer_coordinates[i].y = mir_event->motion.pointer_coordinates[i].y;
+            ubuntu_ev.details.motion.pointer_coordinates[i].raw_y = mir_event->motion.pointer_coordinates[i].raw_y;
+            ubuntu_ev.details.motion.pointer_coordinates[i].touch_major = mir_event->motion.pointer_coordinates[i].touch_major;
+            ubuntu_ev.details.motion.pointer_coordinates[i].touch_minor = mir_event->motion.pointer_coordinates[i].touch_minor;
+            ubuntu_ev.details.motion.pointer_coordinates[i].size = mir_event->motion.pointer_coordinates[i].size;
+            ubuntu_ev.details.motion.pointer_coordinates[i].pressure = mir_event->motion.pointer_coordinates[i].pressure;
+            ubuntu_ev.details.motion.pointer_coordinates[i].orientation = mir_event->motion.pointer_coordinates[i].orientation;
+        }
+        break;
+    default:
+        break;
+    }
+}
+
+struct MirInputContext
+{
+    UAUiWindowInputEventCb cb;
+    void *ctx;
+};
+
+static void
+ua_ui_window_mir_handle_event(MirSurface* surface, MirEvent const* mir_ev, void* ctx)
+{
+    // TODO: Perhaps this indicates that mirclient library should not contain a surface argument here.
+    (void) surface;
+    Event ubuntu_ev;
+    mir_event_to_ubuntu_event(mir_ev, ubuntu_ev);
+    auto mir_ctx = static_cast<MirInputContext*>(ctx);
+    mir_ctx->cb(ctx, &ubuntu_ev);
+}
+
+}
+
+namespace
+{
+
+// Application Instance
+struct MirApplicationInstance
+{
+    MirConnection *connection;
+};
+static MirApplicationInstance*
+global_mir_instance()
+{
+    static MirApplicationInstance instance{NULL};
+    return &instance;
+}
+static MirApplicationInstance*
+assert_global_mir_instance()
+{
+    auto instance = global_mir_instance();
+    assert(mir_connection_is_valid(instance->connection));
+    return instance;
+}
+static UApplicationInstance*
+mir_application_u_application(MirApplicationInstance *instance)
+{
+    return (UApplicationInstance *)instance;
+}
+static MirApplicationInstance*
+u_application_mir_application(UApplicationInstance *instance)
+{
+    return (MirApplicationInstance *)instance;
+}
+
+
+// Display info
+static MirDisplayInfo*
+u_display_mir_display(UAUiDisplay *display)
+{
+    return (MirDisplayInfo *)display;
+}
+
+static UAUiDisplay*
+mir_display_u_display(MirDisplayInfo *display)
+{
+    return (UAUiDisplay *)display;
+}
+
+// Window properties
+struct MirWindowProperties
+{
+    MirSurfaceParameters parameters;
+    MirEventDelegate delegate;
+};
+static MirWindowProperties*
+u_window_properties_mir_window_properties(UAUiWindowProperties *properties)
+{
+    return (MirWindowProperties *)properties;
+}
+
+static UAUiWindowProperties*
+mir_window_properties_u_window_properties(MirWindowProperties *properties)
+{
+    return (UAUiWindowProperties *)properties;
+}
+
+static MirSurface*
+u_window_mir_window(UAUiWindow *window)
+{
+    return (MirSurface *)window;
+}
+
+static UAUiWindow*
+mir_window_u_window(MirSurface *window)
+{
+    return (UAUiWindow *)window;
+}
+
+};
+
 extern "C"
 {
-// TODO: Application description/options
 
+// TODO: Application description/options
+// TODO: Eliminate global instance by adding Instance to some functions (i.e. display queries)
 UApplicationInstance* u_application_instance_new_from_description_with_options(UApplicationDescription* description, UApplicationOptions* options)
 {
-    (void) description;
-    (void) options;
-    return (UApplicationInstance*) NULL;
+    auto instance = global_mir_instance();
+    // TODO: App name
+    instance->connection = mir_connect_sync(NULL, "TODO: App Name");
+    assert(instance->connection);
+    return mir_application_u_application(instance);
 }
 
 void ua_ui_set_clipboard_content(void* content, size_t content_size)
@@ -54,92 +215,125 @@ void ua_ui_get_clipboard_content(void** out_content, size_t* out_content_size)
     *out_content_size = 0;
 }
 
+// TODO: We need to expose the EGLNativeDisplay somehow
 UAUiDisplay* ua_ui_display_new_with_index(size_t index)
 {
-    // TODO: Implement
+    // TODO: Perhaps this should be noop for Mir as there is no need to construct
+    // a display object.
+    // TODO: Make use of index.
+    // TODO: This function should take an application instance so we can eliminate the global mir instance.
     (void) index;
-    return (UAUiDisplay*) NULL;
+    auto instance = assert_global_mir_instance();
+
+    auto display = new MirDisplayInfo;
+    mir_connection_get_display_info(instance->connection, display);
+
+    return mir_display_u_display(display);
 }
 
 void ua_ui_display_destroy(UAUiDisplay* display)
 {
-    // TODO: Implement
-    (void) display;
+    auto mir_display = u_display_mir_display(display);
+    delete mir_display;
 }
 
 uint32_t ua_ui_display_query_horizontal_res(UAUiDisplay* display)
 {
-    // TODO: Implement
-    (void) display;
-    return 0;
+    auto mir_display = u_display_mir_display(display);
+    // TODO: Line up return types
+    return (uint32_t)mir_display->width;
 }
 
 uint32_t ua_ui_display_query_vertical_res(UAUiDisplay* display)
 {
-    // TODO: Implement
-    (void) display;
-    return 0;
+    auto mir_display = u_display_mir_display(display);
+    // TODO: Line up return types.
+    return (uint32_t)mir_display->height;
 }
 
 UAUiWindowProperties* ua_ui_window_properties_new_for_normal_window()
 {
-    // TODO: Implement
-    return (UAUiWindowProperties*) NULL;
+    auto properties = new MirWindowProperties;
+
+    auto &parameters = properties->parameters;
+    parameters.name = NULL;
+    // If unspecified we leave the decision up to the server
+    parameters.width = 0;
+    parameters.height = 0;
+    parameters.pixel_format = mir_pixel_format_argb_8888; // TODO: Choose
+    parameters.buffer_usage = mir_buffer_usage_hardware;
+    
+    auto &delegate = properties->delegate;
+    delegate.callback = NULL;
+    delegate.context = NULL;
+
+    return mir_window_properties_u_window_properties(properties);
 }
 
 void ua_ui_window_properties_destroy(UAUiWindowProperties* properties)
 {
-    // TODO: Implement
-    (void) properties;
+    auto mir_properties = u_window_properties_mir_window_properties(properties);
+
+    // TODO: This should be managed somehow...
+    auto input_context = static_cast<MirInputContext*>(mir_properties->delegate.context);
+    delete input_context;
+    
+    delete mir_properties;
 }
 
 void ua_ui_window_properties_set_titlen(UAUiWindowProperties* properties, const char* title, size_t title_length)
 {
-    // TODO: Implement
-    (void) properties;
-    (void) title;
-    (void) title_length;
+    // TODO: Who owns title? Why title length?
+    auto mir_properties = u_window_properties_mir_window_properties(properties);
+    mir_properties->parameters.name = title;
+    
 }
 
 const char* ua_ui_window_properties_get_title(UAUiWindowProperties* properties)
 {
-    // TODO: Implement
-    (void) properties;
-    return NULL;
+    auto mir_properties = u_window_properties_mir_window_properties(properties);
+    return mir_properties->parameters.name;
 }
 
 void ua_ui_window_properties_set_role(UAUiWindowProperties* properties, UAUiWindowRole role)
 {
-    // TODO: Implement
+    // TODO: Does this do anything for mirclient?
     (void) properties;
     (void) role;
 }
 
-void ua_ui_window_properties_set_input_cb_and_ctx(UAUiWindowProperties* properties, UAUiWindowInputEventCb cb, void* ctx)
+void ua_ui_window_propperties_set_input_cb_and_ctx(UAUiWindowProperties* properties, UAUiWindowInputEventCb cb, void* ctx)
 {
-    // TODO: Implement
-    (void) properties;
-    (void) cb;
-    (void) ctx;
+    // Do the properties or the window itself own this?
+    auto context = new MirInputContext;
+    context->cb = cb;
+    context->ctx = ctx;
+
+    auto mir_properties = u_window_properties_mir_window_properties(properties);
+    auto& delegate = mir_properties->delegate;
+    delegate.context = context;
+    delegate.callback  = ua_ui_window_mir_handle_event;
 }
 
 UAUiWindow* ua_ui_window_new_for_application_with_properties(UApplicationInstance* instance, UAUiWindowProperties* properties)
 {
-    // TODO: Implement
-    (void) instance;
-    (void) properties;
-    return (UAUiWindow*) NULL;
+    auto mir_application = u_application_mir_application(instance);
+
+    auto mir_properties = u_window_properties_mir_window_properties(properties);
+    auto window = mir_connection_create_surface_sync(mir_application->connection, &mir_properties->parameters);
+    mir_surface_set_event_handler(window, &mir_properties->delegate);
+    return mir_window_u_window(window);
 }
 
 void ua_ui_window_destroy(UAUiWindow* window)
 {
-    // TODO: Implement
-    (void) window;
+    auto mir_window = u_window_mir_window(window);
+    mir_surface_release_sync(mir_window);
 }
 
 UStatus ua_ui_window_move(UAUiWindow* window, uint32_t x, uint32_t y)
 {
-    // TODO: Implement
+    // TODO: Implement. Assuming this should exist on mirclient?
     (void) window;
     (void) x;
     (void) y;
@@ -177,9 +371,9 @@ void ua_ui_window_request_fullscreen(UAUiWindow* window)
 
 EGLNativeWindowType ua_ui_window_get_native_type(UAUiWindow* window)
 {
-    // TODO: Implement
-    (void) window;
-    return (EGLNativeWindowType) 0;
+    auto mir_window = u_window_mir_window(window);
+    // TODO: Careful with this cast!
+    return reinterpret_cast<EGLNativeWindowType>(mir_surface_get_egl_native_window(mir_window));
 }
 
 // TODO: Sensors
