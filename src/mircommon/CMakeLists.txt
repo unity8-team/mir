@@ -2,6 +2,7 @@ set(SOURCES
   ubuntu_application_api_mircommon.cpp
   application_id.cpp
   application_options.cpp
+  application_description.cpp
 )
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --std=c++11")
