@@ -33,6 +33,8 @@
 #include <mir/default_server_configuration.h>
 
 #include <mir/graphics/display.h>
+#include <mir/graphics/platform.h>
+#include <mir/graphics/internal_client.h>
 #include <mir/frontend/session.h>
 #include <mir/frontend/shell.h>
 #include <mir/shell/surface_creation_parameters.h>
@@ -56,7 +58,10 @@ struct MirServerContext
     // taken a reference to the display).
     std::weak_ptr<mir::graphics::Display> display;
     std::weak_ptr<mir::frontend::Shell> shell;
+
+    // TODO: Leak!!!
     std::shared_ptr<mir::input::receiver::InputPlatform> input_platform;
+    std::shared_ptr<mir::graphics::InternalClient> egl_client;
 };
 
 MirServerContext *
@@ -72,6 +77,7 @@ void ua_ui_mirserver_init(mir::DefaultServerConfiguration& config)
     context->display = config.the_display();
     context->shell = config.the_frontend_shell();
     context->input_platform = mir::input::receiver::InputPlatform::create();
+    context->egl_client = config.the_graphics_platform()->create_internal_client();
 }
 
 struct MirServerApplicationInstance
@@ -277,8 +283,12 @@ UAUiWindow* ua_ui_window_new_for_application_with_properties(UApplicationInstanc
 
 void ua_ui_window_destroy(UAUiWindow* window)
 {
-    // TODO: Implement
-    (void) window;
+    auto mir_window = u_window_mirserver_window(window);
+    mir_window->input_thread->stop();
+    mir_window->input_thread->join();
+
+    // TODO: Is this enough to ensure we don't leak the surface?
+    delete mir_window;
 }
 
 UStatus ua_ui_window_move(UAUiWindow* window, uint32_t x, uint32_t y)
@@ -321,9 +331,10 @@ void ua_ui_window_request_fullscreen(UAUiWindow* window)
 
 EGLNativeWindowType ua_ui_window_get_native_type(UAUiWindow* window)
 {
-    // TODO: Implement
-    (void) window;
-    return (EGLNativeWindowType) 0;
+    auto egl_client = global_mirserver_context()->egl_client;
+    auto mir_window = u_window_mirserver_window(window);
+
+    return egl_client->egl_native_window(mir_window->surface);
 }
 
 // TODO: Sensors
