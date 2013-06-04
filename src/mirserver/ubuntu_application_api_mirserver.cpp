@@ -68,6 +68,7 @@ global_mirserver_context()
 void ua_ui_mirserver_init(mir::DefaultServerConfiguration& config)
 {
     auto context = global_mirserver_context();
+
     context->display = config.the_display();
     context->shell = config.the_frontend_shell();
     context->input_platform = mir::input::receiver::InputPlatform::create();
@@ -77,29 +78,31 @@ void ua_ui_mirserver_init(mir::DefaultServerConfiguration& config)
 void ua_ui_mirserver_finish()
 {
     auto context = global_mirserver_context();
+
     context->display.reset();
     context->shell.reset();
     context->input_platform.reset();
     context->egl_client.reset();
 }
 
+// Application instance
 struct MirServerApplicationInstance
 {
     std::shared_ptr<mir::frontend::Session> session;
 };
-
 MirServerApplicationInstance *
 u_application_mirserver_application(UApplicationInstance *instance)
 {
     return (MirServerApplicationInstance *)instance;
 }
-
 UApplicationInstance*
 mirserver_application_u_application(MirServerApplicationInstance *instance)
 {
     return (UApplicationInstance *)instance;
 }
 
+
+// Window properties
 struct MirServerWindowProperties
 {
     MirServerWindowProperties()
@@ -112,31 +115,28 @@ struct MirServerWindowProperties
     UAUiWindowInputEventCb cb;
     void* ctx;
 };
-
 MirServerWindowProperties*
 u_window_properties_mirserver_window_properties(UAUiWindowProperties *properties)
 {
     return (MirServerWindowProperties *)properties;
 }
-
 UAUiWindowProperties*
 mirserver_window_properties_u_window_properties(MirServerWindowProperties *properties)
 {
     return (UAUiWindowProperties *)properties;
 }
 
+// Window
 struct MirServerWindow
 {
     std::shared_ptr<mir::shell::Surface> surface;
     std::shared_ptr<mir::input::receiver::InputReceiverThread> input_thread;
 };
-
 MirServerWindow*
 u_window_mirserver_window(UAUiWindow* window)
 {
     return (MirServerWindow *)window;
 }
-
 UAUiWindow*
 mirserver_window_u_window(MirServerWindow* window)
 {
@@ -180,7 +180,7 @@ void ua_ui_get_clipboard_content(void** out_content, size_t* out_content_size)
 UAUiDisplay* ua_ui_display_new_with_index(size_t index)
 {
     // TODO: Make use of index. This is kind of strangely done...
-    return (UAUiDisplay*) index;
+    return reinterpret_cast<UAUiDisplay*>(index);
 }
 
 void ua_ui_display_destroy(UAUiDisplay* display)
@@ -291,7 +291,7 @@ void ua_ui_window_destroy(UAUiWindow* window)
     mir_window->input_thread->stop();
     mir_window->input_thread->join();
 
-    // TODO: Is this enough to ensure we don't leak the surface?
+    // TODO: Is this enough to ensure we don't leak the surface, or should we close it through the session?
     delete mir_window;
 }
 
