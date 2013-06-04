@@ -66,11 +66,16 @@ namespace
 struct MirApplicationInstance
 {
     MirConnection *connection;
+    int ref_count;
+
+    // TODO: Obviously this is yucky, remove when we can.
+    bool is_global_yuck;
 };
 static MirApplicationInstance*
 global_mir_instance()
 {
-    static MirApplicationInstance instance{NULL};
+    // Obviously ref counting is whacky here...
+    static MirApplicationInstance instance{NULL, 1, true};
     return &instance;
 }
 static MirApplicationInstance*
@@ -145,10 +150,42 @@ UApplicationInstance* u_application_instance_new_from_description_with_options(U
 {
     auto instance = global_mir_instance();
     // TODO: Make use of description and options
-    // TODO: When do we free this?
     instance->connection = mir_connect_sync(NULL, "TODO: App Name");
     assert(instance->connection);
+    
+    instance->is_global_yuck = false;
+
     return mir_application_u_application(instance);
+}
+
+void
+u_application_instance_ref(UApplicationInstance *instance)
+{
+    auto mir_instance = u_application_mir_application(instance);
+    mir_instance->ref_count++;
+}
+    
+void
+u_application_instance_unref(UApplicationInstance *instance)
+{
+    auto mir_instance = u_application_mir_application(instance);
+    mir_instance->ref_count--;
+    if (mir_instance->ref_count == 0 && mir_instance->is_global_yuck == false)
+        delete mir_instance;
+}
+    
+void
+u_application_instance_destroy(UApplicationInstance *instance)
+{
+    // TODO: What are the proper semantics here.
+    u_application_instance_unref(instance);
+}
+    
+void
+u_application_instance_run(UApplicationInstance *instance)
+{
+    // TODO: What is this supposed to do? Seems to be no-op on hybris.
+    (void) instance;
 }
 
 void ua_ui_set_clipboard_content(void* content, size_t content_size)
