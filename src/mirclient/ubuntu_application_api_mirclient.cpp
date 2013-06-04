@@ -18,7 +18,6 @@
 
 #include "ubuntu_application_api_mircommon.h"
 
-// C APIs
 #include <ubuntu/application/lifecycle_delegate.h>
 #include <ubuntu/application/ui/window.h>
 #include <ubuntu/application/ui/options.h>
@@ -37,7 +36,7 @@
 namespace
 {
 
-struct MirInputContext
+struct MirClientInputContext
 {
     UAUiWindowInputEventCb cb;
     void *ctx;
@@ -46,11 +45,12 @@ struct MirInputContext
 static void
 ua_ui_window_mir_handle_event(MirSurface* surface, MirEvent const* mir_ev, void* ctx)
 {
-    // TODO: Perhaps this indicates that mirclient library should not contain a surface argument here.
+    // TODO: Perhaps this indicates that mirclient library should not pass a surface argument here.
     (void) surface;
+
     Event ubuntu_ev;
     mir_event_to_ubuntu_event(mir_ev, ubuntu_ev);
-    auto mir_ctx = static_cast<MirInputContext*>(ctx);
+    auto mir_ctx = static_cast<MirClientInputContext*>(ctx);
     mir_ctx->cb(ctx, &ubuntu_ev);
 }
 
@@ -60,6 +60,8 @@ namespace
 {
 
 // Application Instance
+// We use a global instance as some platform-api functions, i.e. display_new_with_index
+// do not supply dependencies, but a MirConnection is required for all queries.
 struct MirApplicationInstance
 {
     MirConnection *connection;
@@ -78,28 +80,27 @@ assert_global_mir_instance()
     return instance;
 }
 static UApplicationInstance*
-mir_application_u_application(MirApplicationInstance *instance)
+mir_application_u_application(MirApplicationInstance* instance)
 {
-    return (UApplicationInstance *)instance;
+    return static_cast<UApplicationInstance*>(instance);
 }
 static MirApplicationInstance*
-u_application_mir_application(UApplicationInstance *instance)
+u_application_mir_application(UApplicationInstance* instance)
 {
-    return (MirApplicationInstance *)instance;
+    return static_cast<MirApplicationInstance*>(instance);
 }
-
 
 // Display info
 static MirDisplayInfo*
 u_display_mir_display(UAUiDisplay *display)
 {
-    return (MirDisplayInfo *)display;
+    return static_cast<MirDisplayInfo*>(display);
 }
 
 static UAUiDisplay*
 mir_display_u_display(MirDisplayInfo *display)
 {
-    return (UAUiDisplay *)display;
+    return static_cast<UAUiDisplay*>(display);
 }
 
 // Window properties
@@ -111,25 +112,25 @@ struct MirWindowProperties
 static MirWindowProperties*
 u_window_properties_mir_window_properties(UAUiWindowProperties *properties)
 {
-    return (MirWindowProperties *)properties;
+    return static_cast<MirWindowProperties*>(properties);
 }
 
 static UAUiWindowProperties*
 mir_window_properties_u_window_properties(MirWindowProperties *properties)
 {
-    return (UAUiWindowProperties *)properties;
+    return static_cast<UAUiWindowProperties*>(properties);
 }
 
 static MirSurface*
 u_window_mir_window(UAUiWindow *window)
 {
-    return (MirSurface *)window;
+    return static_cast<MirSurface*>(window);
 }
 
 static UAUiWindow*
 mir_window_u_window(MirSurface *window)
 {
-    return (UAUiWindow *)window;
+    return static_cast<UAUiWindow*>(window);
 }
 
 };
@@ -222,7 +223,7 @@ void ua_ui_window_properties_destroy(UAUiWindowProperties* properties)
     auto mir_properties = u_window_properties_mir_window_properties(properties);
 
     // TODO: This should be managed somehow...
-    auto input_context = static_cast<MirInputContext*>(mir_properties->delegate.context);
+    auto input_context = static_cast<MirClientInputContext*>(mir_properties->delegate.context);
     delete input_context;
     
     delete mir_properties;
@@ -252,7 +253,7 @@ void ua_ui_window_properties_set_role(UAUiWindowProperties* properties, UAUiWind
 void ua_ui_window_propperties_set_input_cb_and_ctx(UAUiWindowProperties* properties, UAUiWindowInputEventCb cb, void* ctx)
 {
     // Do the properties or the window itself own this?
-    auto context = new MirInputContext;
+    auto context = new MirClientInputContext;
     context->cb = cb;
     context->ctx = ctx;
 
