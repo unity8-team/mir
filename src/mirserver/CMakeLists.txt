@@ -14,6 +14,7 @@ include_directories(
 
 target_link_libraries(
 	ubuntu_application_api_mirserver
+        ubuntu_application_api_mircommon
         ${MIRSERVER_LDFLAGS} ${MIRSERVER_LIBRARIES}
 )
 

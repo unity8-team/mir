@@ -14,7 +14,8 @@ include_directories(
 
 target_link_libraries(
 	ubuntu_application_api_mirclient
-        
+        ubuntu_application_api_mircommon        
+
         ${MIRCLIENT_LDFLAGS} ${MIRCLIENT_LIBRARIES}
 )
 

@@ -37,6 +37,10 @@ if(ENABLE_MIRCLIENT_IMPLEMENTATION)
   pkg_check_modules(MIRCLIENT REQUIRED mirclient)
 endif(ENABLE_MIRCLIENT_IMPLEMENTATION)
 
+if(ENABLE_MIRCLIENT_IMPLEMENTATION OR ENABLE_MIRSERVER_IMPLEMENTATION)
+  pkg_check_modules(MIRCOMMON REQUIRED mircommon)
+endif()
+
 include_directories(include)
 include_directories(android/include)
 

@@ -1,6 +1,12 @@
 if(ENABLE_HYBRIS_IMPLEMENTATION)
   add_subdirectory(hybris/)
 endif()
+
+if(ENABLE_MIRSERVER_IMPLEMENTATION OR ENABLE_MIRCLIENT_IMPLEMENTATION)
+add_subdirectory(mircommon)
+include_directories(mircommon)
+endif()
+
 if(ENABLE_MIRSERVER_IMPLEMENTATION)
 add_subdirectory(mirserver/)
 endif()
