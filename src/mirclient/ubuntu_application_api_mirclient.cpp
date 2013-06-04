@@ -32,6 +32,7 @@
 
 #include <stdlib.h>
 #include <assert.h>
+#include <string.h>
 
 namespace
 {
@@ -143,7 +144,8 @@ extern "C"
 UApplicationInstance* u_application_instance_new_from_description_with_options(UApplicationDescription* description, UApplicationOptions* options)
 {
     auto instance = global_mir_instance();
-    // TODO: App name
+    // TODO: Make use of description and options
+    // TODO: When do we free this?
     instance->connection = mir_connect_sync(NULL, "TODO: App Name");
     assert(instance->connection);
     return mir_application_u_application(instance);
@@ -234,16 +236,21 @@ void ua_ui_window_properties_destroy(UAUiWindowProperties* properties)
     // TODO: This should be managed somehow...
     auto input_context = static_cast<MirClientInputContext*>(mir_properties->delegate.context);
     delete input_context;
+
+    delete[] mir_properties->parameters.name;
     
     delete mir_properties;
 }
 
 void ua_ui_window_properties_set_titlen(UAUiWindowProperties* properties, const char* title, size_t title_length)
 {
-    // TODO: Who owns title? Why title length?
     auto mir_properties = u_window_properties_mir_window_properties(properties);
-    mir_properties->parameters.name = title;
     
+    auto name = new char[title_length+1];
+    strncpy(name, title, title_length);
+    name[title_length] = '\0';
+
+    mir_properties->parameters.name = name;
 }
 
 const char* ua_ui_window_properties_get_title(UAUiWindowProperties* properties)

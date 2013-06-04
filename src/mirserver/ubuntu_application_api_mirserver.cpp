@@ -93,12 +93,12 @@ struct MirServerApplicationInstance
 MirServerApplicationInstance *
 u_application_mirserver_application(UApplicationInstance *instance)
 {
-    return (MirServerApplicationInstance *)instance;
+    return static_cast<MirServerApplicationInstance*>(instance);
 }
 UApplicationInstance*
 mirserver_application_u_application(MirServerApplicationInstance *instance)
 {
-    return (UApplicationInstance *)instance;
+    return static_cast<UApplicationInstance*>(instance);
 }
 
 
@@ -118,12 +118,12 @@ struct MirServerWindowProperties
 MirServerWindowProperties*
 u_window_properties_mirserver_window_properties(UAUiWindowProperties *properties)
 {
-    return (MirServerWindowProperties *)properties;
+    return static_cast<MirServerWindowProperties*>(properties);
 }
 UAUiWindowProperties*
 mirserver_window_properties_u_window_properties(MirServerWindowProperties *properties)
 {
-    return (UAUiWindowProperties *)properties;
+    return static_cast<UAUiWindowProperties*>(properties);
 }
 
 // Window
@@ -135,12 +135,12 @@ struct MirServerWindow
 MirServerWindow*
 u_window_mirserver_window(UAUiWindow* window)
 {
-    return (MirServerWindow *)window;
+    return static_cast<MirServerWindow*>(window);
 }
 UAUiWindow*
 mirserver_window_u_window(MirServerWindow* window)
 {
-    return (UAUiWindow *)window;
+    return static_cast<UAUiWindow*>(window);
 }
 
 }
@@ -151,14 +151,15 @@ extern "C"
 // TODO: Application description/options
 UApplicationInstance* u_application_instance_new_from_description_with_options(UApplicationDescription* description, UApplicationOptions* options)
 {
+    auto shell = global_mirserver_context()->shell;
+    assert(shell);
+
     // TODO: Make use of descriptions and options
     // TODO: When do we free this?
     auto instance = new MirServerApplicationInstance;
 
-    auto shell = global_mirserver_context()->shell;
-    assert(shell);
     instance->session = shell->open_session(std::string("TODO: Name"),
-                                                        std::shared_ptr<mir::events::EventSink>());
+        std::shared_ptr<mir::events::EventSink>());
 
     return mirserver_application_u_application(instance);
 }
@@ -224,11 +225,8 @@ void ua_ui_window_properties_destroy(UAUiWindowProperties* properties)
 
 void ua_ui_window_properties_set_titlen(UAUiWindowProperties* properties, const char* title, size_t title_length)
 {
-    // TODO: Why do we have the length?
-    (void) title_length;
-
     auto mir_properties = u_window_properties_mirserver_window_properties(properties);
-    mir_properties->parameters = mir_properties->parameters.of_name(title);
+    mir_properties->parameters = mir_properties->parameters.of_name(std::string(title, title_length));
 }
 
 const char* ua_ui_window_properties_get_title(UAUiWindowProperties* properties)
