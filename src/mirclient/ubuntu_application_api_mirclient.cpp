@@ -138,7 +138,7 @@ mir_window_u_window(MirSurface *window)
 extern "C"
 {
 
-// TODO: Application description/options
+// TODO: Gain access to application description/options
 // TODO: Eliminate global instance by adding Instance to some functions (i.e. display queries)
 UApplicationInstance* u_application_instance_new_from_description_with_options(UApplicationDescription* description, UApplicationOptions* options)
 {
@@ -163,13 +163,17 @@ void ua_ui_get_clipboard_content(void** out_content, size_t* out_content_size)
     *out_content_size = 0;
 }
 
+//
 // TODO: We need to expose the EGLNativeDisplay somehow
+//
+
+// TODO: This function should take an application instance so we can eliminate the global mir instance.
+// TODO: Perhaps this should be noop for Mir as there is no need to construct
+// a display object, the connection already has everything we need, as it receives
+// the display info at connect time.
 UAUiDisplay* ua_ui_display_new_with_index(size_t index)
 {
-    // TODO: Perhaps this should be noop for Mir as there is no need to construct
-    // a display object.
-    // TODO: Make use of index.
-    // TODO: This function should take an application instance so we can eliminate the global mir instance.
+    // TODO: What are the semantics of index. How should we use it?
     (void) index;
     auto instance = assert_global_mir_instance();
 
@@ -188,15 +192,17 @@ void ua_ui_display_destroy(UAUiDisplay* display)
 uint32_t ua_ui_display_query_horizontal_res(UAUiDisplay* display)
 {
     auto mir_display = u_display_mir_display(display);
-    // TODO: Line up return types
-    return (uint32_t)mir_display->width;
+
+    // TODO: Line up return types from mirclient
+    return static_cast<uint32_t>(mir_display->width);
 }
 
 uint32_t ua_ui_display_query_vertical_res(UAUiDisplay* display)
 {
     auto mir_display = u_display_mir_display(display);
-    // TODO: Line up return types.
-    return (uint32_t)mir_display->height;
+
+    // TODO: Line up return types from mirclient
+    return static_cast<uint32_t>(mir_display->height);
 }
 
 UAUiWindowProperties* ua_ui_window_properties_new_for_normal_window()
@@ -205,11 +211,14 @@ UAUiWindowProperties* ua_ui_window_properties_new_for_normal_window()
 
     auto &parameters = properties->parameters;
     parameters.name = NULL;
-    // If unspecified we leave the decision up to the server
+
+    // If unspecified the server will choose a width and height for us.
     parameters.width = 0;
     parameters.height = 0;
-    parameters.pixel_format = mir_pixel_format_argb_8888; // TODO: Choose
     parameters.buffer_usage = mir_buffer_usage_hardware;
+
+    // We still have to set a pixel format on the parameters. We do this at window creation
+    // time as we need the MirConnection.
     
     auto &delegate = properties->delegate;
     delegate.callback = NULL;
@@ -245,7 +254,7 @@ const char* ua_ui_window_properties_get_title(UAUiWindowProperties* properties)
 
 void ua_ui_window_properties_set_role(UAUiWindowProperties* properties, UAUiWindowRole role)
 {
-    // TODO: Does this do anything for mirclient?
+    // TODO: Doesn't seem like this is meaningful for mirclient. Perhaps it should leave platform-api.
     (void) properties;
     (void) role;
 }
@@ -263,11 +272,21 @@ void ua_ui_window_propperties_set_input_cb_and_ctx(UAUiWindowProperties* propert
     delegate.callback  = ua_ui_window_mir_handle_event;
 }
 
+static MirPixelFormat
+mir_choose_default_pixel_format(MirConnection *connection)
+{
+    MirDisplayInfo info;
+    mir_connection_get_display_info(connection, &info);
+    return info.supported_pixel_format[0];
+}
+
 UAUiWindow* ua_ui_window_new_for_application_with_properties(UApplicationInstance* instance, UAUiWindowProperties* properties)
 {
     auto mir_application = u_application_mir_application(instance);
-
     auto mir_properties = u_window_properties_mir_window_properties(properties);
+
+    mir_properties->parameters.pixel_format = mir_choose_default_pixel_format(mir_application->connection);
+
     auto window = mir_connection_create_surface_sync(mir_application->connection, &mir_properties->parameters);
     mir_surface_set_event_handler(window, &mir_properties->delegate);
     return mir_window_u_window(window);
