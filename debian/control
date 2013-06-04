@@ -18,7 +18,7 @@ Package: libplatform-api-headers
 Section: libdevel
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
-Architecture: any
+Architecture: i386 amd64 armhf
 Depends: ${misc:Depends},
 Description: Platform API for system level capabilities (API headers)
  This package provides the library headers for the Platform API.
@@ -31,7 +31,7 @@ Package: libplatform-api1-dev
 Section: libdevel
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
-Architecture: any
+Architecture: i386 amd64 armhf
 Depends: libgles2-mesa-dev,
          libplatform-api-headers (= ${binary:Version}),
          libplatform-api1-hybris | libplatform-api1,
@@ -47,7 +47,7 @@ Replaces: libplatform-api1,
 Section: libs
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
-Architecture: any
+Architecture: i386 amd64 armhf
 Depends: libhybris,
          ${misc:Depends},
          ${shlibs:Depends},
@@ -58,7 +58,7 @@ Description: Hybris implementation of the Platform API (runtime)
  Android userspace, which is where the Ubuntu Application Manager lives.
 
 Package: libplatform-api1-hybris-tests
-Architecture: any
+Architecture: i386 amd64 armhf
 Depends: libplatform-api1-hybris (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends},
@@ -68,9 +68,7 @@ Description: Hybris implementation of the Platform API (tests)
 
 Package: ubuntu-platform-api-headers
 Section: oldlibs
-Pre-Depends: ${misc:Pre-Depends},
-Multi-Arch: same
-Architecture: any
+Architecture: all
 Depends: libplatform-api-headers (= ${binary:Version}),
          ${misc:Depends},
 Description: dummy transitional package for libplatform-api-headers
@@ -80,9 +78,7 @@ Description: dummy transitional package for libplatform-api-headers
 
 Package: libubuntu-platform-api1-dev
 Section: oldlibs
-Pre-Depends: ${misc:Pre-Depends},
-Multi-Arch: same
-Architecture: any
+Architecture: all
 Depends: libplatform-api1-dev (= ${binary:Version}),
          ${misc:Depends},
 Description: dummy transitional package for libplatform-api1-dev
@@ -91,13 +87,11 @@ Description: dummy transitional package for libplatform-api1-dev
  This package can be safely removed.
 
 Package: ubuntu-platform-implementation-android
+Section: oldlibs
+Architecture: all 
 Provides: libubuntu-platform-api1,
 Conflicts: libubuntu-platform-api1,
 Replaces: libubuntu-platform-api1,
-Section: oldlibs
-Pre-Depends: ${misc:Pre-Depends},
-Multi-Arch: same
-Architecture: any
 Depends: libplatform-api1-hybris (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends},
@@ -107,7 +101,8 @@ Description: dummy transitional package for libplatform-api1-hybris
  This package can be safely removed.
 
 Package: ubuntu-platform-implementation-android-tests
-Architecture: oldlibs
+Architecture: all
+Section: oldlibs
 Depends: libplatform-api1-hybris-tests (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends},
