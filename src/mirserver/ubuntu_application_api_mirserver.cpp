@@ -16,6 +16,8 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
+#include "ubuntu_application_api_mirserver_priv.h"
+
 // C APIs
 #include <ubuntu/application/lifecycle_delegate.h>
 #include <ubuntu/application/ui/window.h>
@@ -29,15 +31,82 @@
 
 #include <mir/default_server_configuration.h>
 
+#include <mir/frontend/session.h>
+#include <mir/frontend/shell.h>
+#include <mir/graphics/display.h>
+#include <mir/shell/surface_creation_parameters.h>
+
+#include <assert.h>
+
+#include <memory>
+
+namespace
+{
+
+struct MirServerContext
+{
+    // TODO: We need to examine the ownership here.
+    // currently it's unpredictable when to call this
+    // (i.e. have to ensure the internals of Mir have
+    // taken a reference to the display).
+    std::weak_ptr<mir::graphics::Display> display;
+    std::weak_ptr<mir::frontend::Shell> shell;
+};
+
+MirServerContext *
+global_mirserver_context()
+{
+    static MirServerContext context;
+    return &context;
+}
+
+void ua_ui_mirserver_init(mir::DefaultServerConfiguration& config)
+{
+    auto context = global_mirserver_context();
+    context->display = config.the_display();
+    context->shell = config.the_frontend_shell();
+}
+
+struct MirServerApplicationInstance
+{
+    std::shared_ptr<mir::frontend::Session> session;
+};
+
+MirServerApplicationInstance *
+u_application_mirserver_application(UApplicationInstance *instance)
+{
+    return (MirServerApplicationInstance *)instance;
+}
+
+UApplicationInstance*
+mirserver_application_u_application(MirServerApplicationInstance *instance)
+{
+    return (UApplicationInstance *)instance;
+}
+
+struct MirServerWindowProperties
+{
+    mir::shell::SurfaceCreationParameters parameters;
+};
+
+}
+
+
 extern "C"
 {
 // TODO: Application description/options
-
 UApplicationInstance* u_application_instance_new_from_description_with_options(UApplicationDescription* description, UApplicationOptions* options)
 {
-    (void) description;
-    (void) options;
-    return (UApplicationInstance*) NULL;
+    // TODO: Make use of descriptions and options
+    // TODO: When do we free this?
+    auto instance = new MirServerApplicationInstance;
+
+    auto shell = global_mirserver_context()->shell.lock();
+    assert(shell);
+    instance->session = shell->open_session(std::string("TODO: Name"),
+                                                        std::shared_ptr<mir::events::EventSink>());
+
+    return mirserver_application_u_application(instance);
 }
 
 void ua_ui_set_clipboard_content(void* content, size_t content_size)
@@ -56,29 +125,34 @@ void ua_ui_get_clipboard_content(void** out_content, size_t* out_content_size)
 
 UAUiDisplay* ua_ui_display_new_with_index(size_t index)
 {
-    // TODO: Implement
-    (void) index;
-    return (UAUiDisplay*) NULL;
+    // TODO: Make use of index. This is kind of strangely done...
+    return (UAUiDisplay*) index;
 }
 
 void ua_ui_display_destroy(UAUiDisplay* display)
 {
-    // TODO: Implement
+    // TODO: Implement. Or is this a noop for mirserver?
     (void) display;
 }
 
 uint32_t ua_ui_display_query_horizontal_res(UAUiDisplay* display)
 {
-    // TODO: Implement
-    (void) display;
-    return 0;
+    (void) display; // TODO: Multiple displays
+
+    auto mir_display = global_mirserver_context()->display.lock();
+    assert(mir_display);
+    
+    return mir_display->view_area().size.width.as_uint32_t();
 }
 
 uint32_t ua_ui_display_query_vertical_res(UAUiDisplay* display)
 {
-    // TODO: Implement
-    (void) display;
-    return 0;
+    (void) display; // TODO: Multiple displays
+
+    auto mir_display = global_mirserver_context()->display.lock();
+    assert(mir_display);
+    
+    return mir_display->view_area().size.height.as_uint32_t();
 }
 
 UAUiWindowProperties* ua_ui_window_properties_new_for_normal_window()
