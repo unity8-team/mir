@@ -31,6 +31,12 @@ namespace
 {
 struct ApplicationOptions
 {
+    ApplicationOptions() :
+        operation_mode(U_APPLICATION_FOREGROUND_APP),
+        form_factor(U_DESKTOP),
+        stage(U_MAIN_STAGE)
+    {
+    }
     UApplicationOperationMode operation_mode;
     UAUiFormFactor form_factor;
     UAUiStage stage;
@@ -90,7 +96,6 @@ u_application_options_new_from_cmd_line(int argc, char** argv)
     static const int help_index = 3;
 
     auto app_options = new ApplicationOptions;
-    app_options->operation_mode = U_APPLICATION_FOREGROUND_APP;
 
     while(true)
     {
