@@ -52,14 +52,8 @@ namespace
 
 struct MirServerContext
 {
-    // TODO: We need to examine the ownership here.
-    // currently it's unpredictable when to call this
-    // (i.e. have to ensure the internals of Mir have
-    // taken a reference to the display).
-    std::weak_ptr<mir::graphics::Display> display;
-    std::weak_ptr<mir::frontend::Shell> shell;
-
-    // TODO: Leak!!!
+    std::shared_ptr<mir::graphics::Display> display;
+    std::shared_ptr<mir::frontend::Shell> shell;
     std::shared_ptr<mir::input::receiver::InputPlatform> input_platform;
     std::shared_ptr<mir::graphics::InternalClient> egl_client;
 };
@@ -78,6 +72,15 @@ void ua_ui_mirserver_init(mir::DefaultServerConfiguration& config)
     context->shell = config.the_frontend_shell();
     context->input_platform = mir::input::receiver::InputPlatform::create();
     context->egl_client = config.the_graphics_platform()->create_internal_client();
+}
+
+void ua_ui_mirserver_finish()
+{
+    auto context = global_mirserver_context();
+    context->display.reset();
+    context->shell.reset();
+    context->input_platform.reset();
+    context->egl_client.reset();
 }
 
 struct MirServerApplicationInstance
@@ -152,7 +155,7 @@ UApplicationInstance* u_application_instance_new_from_description_with_options(U
     // TODO: When do we free this?
     auto instance = new MirServerApplicationInstance;
 
-    auto shell = global_mirserver_context()->shell.lock();
+    auto shell = global_mirserver_context()->shell;
     assert(shell);
     instance->session = shell->open_session(std::string("TODO: Name"),
                                                         std::shared_ptr<mir::events::EventSink>());
@@ -190,7 +193,7 @@ uint32_t ua_ui_display_query_horizontal_res(UAUiDisplay* display)
 {
     (void) display; // TODO: Multiple displays
 
-    auto mir_display = global_mirserver_context()->display.lock();
+    auto mir_display = global_mirserver_context()->display;
     assert(mir_display);
     
     return mir_display->view_area().size.width.as_uint32_t();
@@ -200,7 +203,7 @@ uint32_t ua_ui_display_query_vertical_res(UAUiDisplay* display)
 {
     (void) display; // TODO: Multiple displays
 
-    auto mir_display = global_mirserver_context()->display.lock();
+    auto mir_display = global_mirserver_context()->display;
     assert(mir_display);
     
     return mir_display->view_area().size.height.as_uint32_t();
@@ -262,9 +265,10 @@ static void ua_ui_window_handle_event(UAUiWindowInputEventCb cb, void* ctx, MirE
 
 UAUiWindow* ua_ui_window_new_for_application_with_properties(UApplicationInstance* instance, UAUiWindowProperties* properties)
 {
-    auto shell = global_mirserver_context()->shell.lock();
-    auto input_platform = global_mirserver_context()->input_platform;
+    auto shell = global_mirserver_context()->shell;
     assert(shell);
+    auto input_platform = global_mirserver_context()->input_platform;
+    assert(input_platform);
 
     auto mir_instance = u_application_mirserver_application(instance);
     auto mir_properties = u_window_properties_mirserver_window_properties(properties);

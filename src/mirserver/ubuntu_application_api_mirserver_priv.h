@@ -24,7 +24,14 @@ namespace mir
 class DefaultServerConfiguration;
 }
 
+// We need to provide the platform API with Mir server objects as dependency. The analog
+// on the client side is of course the named socket for connection to Mir. This should be
+// invoked from the run_mir handler prior to creation of a UApplicationInstance or usage of
+// any ua_ui functions.
 void ua_ui_mirserver_init(mir::DefaultServerConfiguration& config);
+
+// Release platform-api ownership of Mir server objects to allow for clean shutdown.
+void ua_ui_mirserver_finish();
 
 #endif // UBUNTU_APPLICATION_API_MIRSERVER_PRIV_H_
 
