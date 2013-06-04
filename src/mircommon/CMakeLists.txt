@@ -3,6 +3,7 @@ set(SOURCES
   application_id.cpp
   application_options.cpp
   application_description.cpp
+  lifecycle_delegate.cpp
 )
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --std=c++11")
