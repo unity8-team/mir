@@ -42,7 +42,7 @@ struct Bridge
 }
 
 // Sweet and beautiful music.
-#define DLSYM(fptr, sym) if (*(fptr) == NULL) { *((void**)fptr) = (void *) Bridge::instance().resolve_symbol(sym); }
+#define DLSYM(fptr, sym) if (*(fptr) == NULL) { *((void**)fptr) = (void *) ubuntu::hybris::Bridge::instance().resolve_symbol(sym); }
     
 #define IMPLEMENT_FUNCTION0(return_type, symbol)  \
     return_type symbol()                          \
