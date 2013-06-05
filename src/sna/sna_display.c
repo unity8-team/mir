@@ -44,6 +44,7 @@
 #include <X11/extensions/dpmsconst.h>
 #include <xf86drm.h>
 #include <xf86DDC.h> /* for xf86InterpretEDID */
+#include <xf86Opt.h> /* for xf86OptionPtr */
 
 #include "sna.h"
 #include "sna_reg.h"
@@ -58,6 +59,8 @@
 #else
 #define __DBG(x)
 #endif
+
+extern XF86ConfigPtr xf86configptr;
 
 struct sna_crtc {
 	struct drm_mode_modeinfo kmode;
@@ -2380,6 +2383,29 @@ sna_zaphod_match(const char *s, const char *output)
 }
 
 static bool
+output_ignored(ScrnInfoPtr scrn, const char *name)
+{
+	char monitor_name[64];
+	const char *monitor;
+	XF86ConfMonitorPtr conf;
+
+	snprintf(monitor_name, sizeof(monitor_name), "monitor-%s", name);
+	monitor = xf86findOptionValue(scrn->options, monitor_name);
+	if (!monitor)
+		monitor = name;
+
+	conf = xf86findMonitor(monitor,
+			       xf86configptr->conf_monitor_lst);
+	if (conf == NULL && XF86_CRTC_CONFIG_PTR(scrn)->num_output == 0)
+		conf = xf86findMonitor(scrn->monitor->id,
+				       xf86configptr->conf_monitor_lst);
+	if (conf == NULL)
+		return false;
+
+	return xf86CheckBoolOption(conf->mon_option_lst, "Ignore", 0);
+}
+
+static bool
 sna_output_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 {
 	struct sna *sna = to_sna(scrn);
@@ -2389,6 +2415,7 @@ sna_output_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 	struct sna_output *sna_output;
 	const char *output_name;
 	char name[32];
+	bool ret = false;
 	int i;
 
 	koutput = drmModeGetConnector(sna->kgem.fd,
@@ -2412,8 +2439,8 @@ sna_output_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 
 		str = xf86GetOptValString(sna->Options, OPTION_ZAPHOD);
 		if (str && !sna_zaphod_match(str, name)) {
-			drmModeFreeConnector(koutput);
-			return true;
+			ret = true;
+			goto cleanup_connector;
 		}
 
 		if ((enc.possible_crtcs & (1 << scrn->confScreen->device->screen)) == 0) {
@@ -2430,8 +2457,15 @@ sna_output_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 	}
 
 	output = xf86OutputCreate(scrn, &sna_output_funcs, name);
-	if (!output)
+	if (!output) {
+		/* xf86OutputCreate does not differentiate between
+		 * a failure to allocate the output, and a user request
+		 * to ignore the output. So reconstruct whether the user
+		 * explicitly ignored the output.
+		 */
+		ret = output_ignored(scrn, name);
 		goto cleanup_connector;
+	}
 
 	sna_output = calloc(sizeof(struct sna_output), 1);
 	if (!sna_output)
@@ -2470,7 +2504,7 @@ cleanup_output:
 	xf86OutputDestroy(output);
 cleanup_connector:
 	drmModeFreeConnector(koutput);
-	return false;
+	return ret;
 }
 
 /* We need to map from kms encoder based possible_clones mask to X output based
@@ -2830,7 +2864,7 @@ bool sna_mode_pre_init(ScrnInfoPtr scrn, struct sna *sna)
 			sna_mode_compute_possible_clones(scrn);
 
 #if HAS_PIXMAP_SHARING
-	xf86ProviderSetup(scrn, NULL, "Intel");
+		xf86ProviderSetup(scrn, NULL, "Intel");
 #endif
 	} else {
 		if (!sna_mode_fake_init(sna))
