@@ -507,19 +507,25 @@ void ApplicationManager::start_a_new_session(
     const android::String8& app_name,
     const android::String8& desktop_file,
     const android::sp<android::IApplicationManagerSession>& session,
-    int fd)
+    int fd,
+    uint32_t remote_pid)
 {
     android::Mutex::Autolock al(guard);
     (void) session_type;
     pid_t pid = android::IPCThreadState::self()->getCallingPid();
-    pid_t remote_pid = pid_to_vpid(pid);
+
+    pid_t rpid;
+    if (!remote_pid)
+        rpid = pid_to_vpid(pid);
+    else
+        rpid = static_cast<pid_t>(remote_pid);
     
     ALOGI("%s() starting new session", __PRETTY_FUNCTION__);
     
     android::sp<ubuntu::detail::ApplicationSession> app_session(
         new ubuntu::detail::ApplicationSession(
             pid,
-            remote_pid,
+            rpid,
             session,
             session_type,
             stage_hint,

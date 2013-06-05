@@ -192,6 +192,7 @@ extern "C" {
 // Session helpers
 IMPLEMENT_FUNCTION0(UAUiSessionProperties*, ua_ui_session_properties_new);
 IMPLEMENT_VOID_FUNCTION2(ua_ui_session_properties_set_type, UAUiSessionProperties*, UAUiSessionType);
+IMPLEMENT_VOID_FUNCTION2(ua_ui_session_properties_set_remote_pid, UAUiSessionProperties*, uint32_t);
 IMPLEMENT_FUNCTION1(UAUiSession*, ua_ui_session_new_with_properties, UAUiSessionProperties*);
 
 // Lifecycle helpers

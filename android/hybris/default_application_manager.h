@@ -167,7 +167,8 @@ struct ApplicationManager :
         const android::String8& app_name,
         const android::String8& desktop_file,
         const android::sp<android::IApplicationManagerSession>& session,
-        int fd);
+        int fd,
+        uint32_t remote_pid);
 
     void register_a_surface(
         const android::String8& title,
