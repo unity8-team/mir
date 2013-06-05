@@ -16,8 +16,7 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
-#include <ubuntu/application/options.h>
-#include <ubuntu/application/ui/options.h>
+#include "application_options_mir_priv.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -27,22 +26,19 @@
 #include <tuple>
 #include <string>
 
+namespace uam = ubuntu::application::mir;
+
+UApplicationOptions* uam::Options::as_u_application_options()
+{
+    return static_cast<UApplicationOptions*>(this);
+}
+uam::Options* uam::Options::from_u_application_options(UApplicationOptions* options)
+{
+    return static_cast<uam::Options*>(options);
+}
+
 namespace
 {
-struct ApplicationOptions
-{
-    ApplicationOptions() :
-        operation_mode(U_APPLICATION_FOREGROUND_APP),
-        form_factor(U_DESKTOP),
-        stage(U_MAIN_STAGE)
-    {
-    }
-    UApplicationOperationMode operation_mode;
-    UAUiFormFactor form_factor;
-    UAUiStage stage;
-    
-    std::string desktop_file;
-};
 
 UAUiStage
 string_to_stage(std::string const& s)
@@ -95,7 +91,7 @@ u_application_options_new_from_cmd_line(int argc, char** argv)
     static const int desktop_file_hint_index = 2;
     static const int help_index = 3;
 
-    auto app_options = new ApplicationOptions;
+    auto app_options = new uam::Options;
 
     while(true)
     {
@@ -139,33 +135,33 @@ u_application_options_new_from_cmd_line(int argc, char** argv)
         }
     }
     
-    return static_cast<UApplicationOptions*>(app_options);
+    return app_options->as_u_application_options();
 }
 
 void
 u_application_option_destroy(UApplicationOptions* u_options)
 {
-    auto options = static_cast<ApplicationOptions*>(u_options);
+    auto options = uam::Options::from_u_application_options(u_options);
     delete options;
 }
 
 UApplicationOperationMode
 u_application_options_get_operation_mode(UApplicationOptions *u_options)
 {
-    auto options = static_cast<ApplicationOptions*>(u_options);
+    auto options = uam::Options::from_u_application_options(u_options);
     return options->operation_mode;
 }
 
 UAUiFormFactor
 u_application_options_get_form_factor(UApplicationOptions* u_options)
 {
-    auto options = static_cast<ApplicationOptions*>(u_options);
+    auto options = uam::Options::from_u_application_options(u_options);
     return options->form_factor;
 }
 
 UAUiStage
 u_application_options_get_stage(UApplicationOptions* u_options)
 {
-    auto options = static_cast<ApplicationOptions*>(u_options);
+    auto options = uam::Options::from_u_application_options(u_options);
     return options->stage;
 }

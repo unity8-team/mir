@@ -16,10 +16,11 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
-#ifndef UBUNTU_APPLICATION_ID_MIR_PRIV_H_
-#define UBUNTU_APPLICATION_ID_MIR_PRIV_H_
+#ifndef UBUNTU_APPLICATION_OPTIONS_MIR_PRIV_H_
+#define UBUNTU_APPLICATION_OPTIONS_MIR_PRIV_H_
 
-#include <ubuntu/application/id.h>
+#include <ubuntu/application/options.h>
+#include <ubuntu/application/ui/options.h>
 
 #include <string>
 
@@ -30,24 +31,28 @@ namespace application
 namespace mir
 {
 
-class Id
+class Options
 {
 public:
-    Id(const char *name, size_t size);
-    ~Id() = default;
+    Options() = default;
+    ~Options() = default;
     
-    UApplicationId* as_u_application_id();
-    static Id* from_u_application_id(UApplicationId* id);
+    UApplicationOptions* as_u_application_options();
+    static Options* from_u_application_options(UApplicationOptions* u_options);
 
-    std::string const name;
+    UApplicationOperationMode operation_mode = U_APPLICATION_FOREGROUND_APP;
+    UAUiFormFactor form_factor = U_DESKTOP;
+    UAUiStage stage = U_MAIN_STAGE;
+    
+    std::string desktop_file;
 
 protected:
-    Id(const Id&) = delete;
-    Id& operator=(const Id&) = delete;
+    Options(Options const&) = delete;
+    Options& operator=(Options const&) = delete;
 };
 
 }
 }
 } // namespace ubuntu
 
-#endif // UBUNTU_APPLICATION_ID_MIR_PRIV_H_
+#endif // UBUNTU_APPLICATION_OPTIONS_MIR_PRIV_H_
