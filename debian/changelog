@@ -1,3 +1,9 @@
+platform-api (0.18.1daily13.05.30.2ubuntu.unity.next-0ubuntu2) UNRELEASED; urgency=low
+
+  * Testing mir builds
+
+ -- Robert Carr <robert.carr@canonical.com>  Wed, 05 Jun 2013 14:00:51 -0700
+
 platform-api (0.18.1daily13.05.30.2ubuntu.unity.next-0ubuntu1) raring; urgency=low
 
   [ Ricardo Mendoza ]

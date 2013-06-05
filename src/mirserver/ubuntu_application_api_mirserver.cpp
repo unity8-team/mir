@@ -36,6 +36,7 @@
 
 #include <mir/graphics/display.h>
 #include <mir/graphics/platform.h>
+#include <mir/compositor/graphic_buffer_allocator.h>
 #include <mir/graphics/internal_client.h>
 #include <mir/frontend/session.h>
 #include <mir/frontend/shell.h>
@@ -57,6 +58,7 @@ namespace
 struct MirServerContext
 {
     std::shared_ptr<mir::graphics::Display> display;
+    std::shared_ptr<mir::compositor::GraphicBufferAllocator> buffer_allocator;
     std::shared_ptr<mir::frontend::Shell> shell;
     std::shared_ptr<mir::input::receiver::InputPlatform> input_platform;
     std::shared_ptr<mir::graphics::InternalClient> egl_client;
@@ -74,6 +76,7 @@ void ua_ui_mirserver_init(mir::DefaultServerConfiguration& config)
     auto context = global_mirserver_context();
 
     context->display = config.the_display();
+    context->buffer_allocator = config.the_buffer_allocator();
     context->shell = config.the_frontend_shell();
     context->input_platform = mir::input::receiver::InputPlatform::create();
     context->egl_client = config.the_graphics_platform()->create_internal_client();
@@ -253,10 +256,20 @@ uint32_t ua_ui_display_query_vertical_res(UAUiDisplay* display)
     return mir_display->view_area().size.height.as_uint32_t();
 }
 
+namespace
+{
+static mir::geometry::PixelFormat choose_pixel_format(std::shared_ptr<mir::compositor::GraphicBufferAllocator> const& allocator)
+{
+    auto formats = allocator->supported_pixel_formats();
+    return formats[0];
+}
+}
+
 UAUiWindowProperties* ua_ui_window_properties_new_for_normal_window()
 {
     auto properties = new MirServerWindowProperties;
-    // TODO: We need to choose the pixel format on the surface parameters
+
+    properties->parameters.pixel_format = choose_pixel_format(global_mirserver_context()->buffer_allocator);
     return mirserver_window_properties_u_window_properties(properties);
 }
 
