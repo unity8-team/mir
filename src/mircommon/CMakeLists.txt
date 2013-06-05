@@ -1,9 +1,9 @@
 set(SOURCES
   ubuntu_application_api_mircommon.cpp
-  application_id.cpp
-  application_options.cpp
-  application_description.cpp
-  lifecycle_delegate.cpp
+  application_id_mir.cpp
+  application_options_mir.cpp
+  application_description_mir.cpp
+  lifecycle_delegate_mir.cpp
 )
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --std=c++11")
