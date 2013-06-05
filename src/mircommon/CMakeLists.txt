@@ -18,7 +18,11 @@ if(ENABLE_HYBRIS_IMPLEMENTATION)
   list(APPEND LINK_LIBRARIES
     hybris_ics
     )
-endif()
+else()
+  list(APPEND SOURCES
+    ubuntu_application_sensors_desktop.cpp
+    )
+endi()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC --std=c++11")
 

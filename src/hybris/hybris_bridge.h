@@ -20,6 +20,8 @@
 #ifndef UBUNTU_APPLICATION_API_HYBRIS_BRIDGE_H_
 #define UBUNTU_APPLICATION_API_HYBRIS_BRIDGE_H_
 
+#include <stddef.h>
+
 namespace ubuntu
 {
 namespace hybris
