@@ -50,7 +50,7 @@ struct MirClientInputContext
 static void
 ua_ui_window_mir_handle_event(MirSurface* surface, MirEvent const* mir_ev, void* ctx)
 {
-    // TODO: Perhaps this indicates that mirclient library should not pass a surface argument here.
+    // TODO<mir>: Perhaps this indicates that mirclient library should not pass a surface argument here.
     (void) surface;
 
     Event ubuntu_ev;
@@ -72,7 +72,7 @@ struct MirApplicationInstance
     MirConnection *connection;
     int ref_count;
 
-    // TODO: Obviously this is yucky, remove when we can.
+    // TODO<papi>: Obviously this is yucky, remove when we can.
     bool is_global_yuck;
 };
 static MirApplicationInstance*
@@ -148,11 +148,10 @@ mir_window_u_window(MirSurface *window)
 extern "C"
 {
 
-// TODO: Gain access to application description/options
-// TODO: Eliminate global instance by adding Instance to some functions (i.e. display queries)
+// TODO<papi>: Eliminate global instance by adding Instance to some functions (i.e. display queries)
 UApplicationInstance* u_application_instance_new_from_description_with_options(UApplicationDescription* description, UApplicationOptions* options)
 {
-    // TODO: Make use of options!
+    // TODO<mir>: Make use of options!
     (void) options;
 
     auto instance = global_mir_instance();
@@ -185,42 +184,42 @@ u_application_instance_unref(UApplicationInstance *instance)
 void
 u_application_instance_destroy(UApplicationInstance *instance)
 {
-    // TODO: What are the proper semantics here.
+    // TODO<papi>: What are the proper semantics here.
     u_application_instance_unref(instance);
 }
     
 void
 u_application_instance_run(UApplicationInstance *instance)
 {
-    // TODO: What is this supposed to do? Seems to be no-op on hybris.
+    // TODO<papi>: What is this supposed to do? Seems to be no-op on hybris.
     (void) instance;
 }
 
 void ua_ui_set_clipboard_content(void* content, size_t content_size)
 {
-    // TODO: Implement
+    // TODO<papi,mir>: Implement. We will need a MirConnection
     (void) content;
     (void) content_size;
 }
 
 void ua_ui_get_clipboard_content(void** out_content, size_t* out_content_size)
 {
-    // TODO: Implement
+    // TODO<papi,mir>: Implement, see get_clipboard_comment.
     *out_content = NULL;
     *out_content_size = 0;
 }
 
 //
-// TODO: We need to expose the EGLNativeDisplay somehow
+// TODO <papi>: We need to expose the EGLNativeDisplay somehow
 //
 
-// TODO: This function should take an application instance so we can eliminate the global mir instance.
-// TODO: Perhaps this should be noop for Mir as there is no need to construct
+// TODO <papi>: This function should take an application instance so we can eliminate the global mir instance.
+// TODO <mir>: Perhaps this should be noop for Mir as there is no need to construct
 // a display object, the connection already has everything we need, as it receives
 // the display info at connect time.
 UAUiDisplay* ua_ui_display_new_with_index(size_t index)
 {
-    // TODO: What are the semantics of index. How should we use it?
+    // TODO<papi,mir>: What are the semantics of index. How should we use it?
     (void) index;
     auto instance = assert_global_mir_instance();
 
@@ -240,7 +239,7 @@ uint32_t ua_ui_display_query_horizontal_res(UAUiDisplay* display)
 {
     auto mir_display = u_display_mir_display(display);
 
-    // TODO: Line up return types from mirclient
+    // TODO<mir>: Line up return types from mirclient
     return static_cast<uint32_t>(mir_display->width);
 }
 
@@ -248,7 +247,7 @@ uint32_t ua_ui_display_query_vertical_res(UAUiDisplay* display)
 {
     auto mir_display = u_display_mir_display(display);
 
-    // TODO: Line up return types from mirclient
+    // TODO<mir>: Line up return types from mirclient
     return static_cast<uint32_t>(mir_display->height);
 }
 
@@ -278,7 +277,7 @@ void ua_ui_window_properties_destroy(UAUiWindowProperties* properties)
 {
     auto mir_properties = u_window_properties_mir_window_properties(properties);
 
-    // TODO: This should be managed somehow...
+    // TODO<mir>: This should be managed somehow...
     auto input_context = static_cast<MirClientInputContext*>(mir_properties->delegate.context);
     delete input_context;
 
@@ -306,14 +305,14 @@ const char* ua_ui_window_properties_get_title(UAUiWindowProperties* properties)
 
 void ua_ui_window_properties_set_role(UAUiWindowProperties* properties, UAUiWindowRole role)
 {
-    // TODO: Doesn't seem like this is meaningful for mirclient. Perhaps it should leave platform-api.
+    // TODO<papi>: Doesn't seem like this is meaningful for mirclient. Perhaps it should leave platform-api.
     (void) properties;
     (void) role;
 }
 
 void ua_ui_window_propperties_set_input_cb_and_ctx(UAUiWindowProperties* properties, UAUiWindowInputEventCb cb, void* ctx)
 {
-    // Do the properties or the window itself own this?
+    // TODO<papi>: Do the properties or the window itself own this?
     auto context = new MirClientInputContext;
     context->cb = cb;
     context->ctx = ctx;
@@ -352,7 +351,7 @@ void ua_ui_window_destroy(UAUiWindow* window)
 
 UStatus ua_ui_window_move(UAUiWindow* window, uint32_t x, uint32_t y)
 {
-    // TODO: Implement. Assuming this should exist on mirclient?
+    // TODO<papi,mir>: Implement. Assuming this should exist on mirclient?
     (void) window;
     (void) x;
     (void) y;
@@ -361,7 +360,7 @@ UStatus ua_ui_window_move(UAUiWindow* window, uint32_t x, uint32_t y)
 
 UStatus ua_ui_window_resize(UAUiWindow* window, uint32_t width, uint32_t height)
 {
-    // TODO: Implement
+    // TODO<mir>: Implement
     (void) window;
     (void) width;
     (void) height;
@@ -370,28 +369,28 @@ UStatus ua_ui_window_resize(UAUiWindow* window, uint32_t width, uint32_t height)
 
 UStatus ua_ui_window_hide(UAUiWindow* window)
 {
-    // TODO: Implement
+    // TODO<mir>: Implement
     (void) window;
     return (UStatus) 0;
 }
 
 UStatus ua_ui_window_show(UAUiWindow* window)
 {
-    // TODO: Implement
+    // TODO<mir>: Implement
     (void) window;
     return (UStatus) 0;
 }
 
 void ua_ui_window_request_fullscreen(UAUiWindow* window)
 {
-    // TODO: Implement
+    // TODO<mir>: Implement
     (void) window;
 }
 
 EGLNativeWindowType ua_ui_window_get_native_type(UAUiWindow* window)
 {
     auto mir_window = u_window_mir_window(window);
-    // TODO: Careful with this cast!
+    // TODO<mir>: Careful with this cast!
     return reinterpret_cast<EGLNativeWindowType>(mir_surface_get_egl_native_window(mir_window));
 }
 

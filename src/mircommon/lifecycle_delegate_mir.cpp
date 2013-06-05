@@ -18,8 +18,10 @@
 
 #include <ubuntu/application/lifecycle_delegate.h>
 
-// TODO: This implementation as a stub as we 
-// currently don't do anything with this in Mir.
+// TODO<papi, mir>: This implementation as a stub as we 
+// currently don't do anything with this in Mir. I am not sure
+// what exactly we should be doing either so we need some alignment
+// on this.
 
 namespace
 {

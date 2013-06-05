@@ -20,7 +20,7 @@
 
 namespace uaum = ubuntu::application::ui::mir;
 
-// This begs the question: Why does MirEvent exist? It's difficult to ensure this function is kept in sync 
+// TODO<mir>: This begs the question: Why does MirEvent exist? It's difficult to ensure this function is kept in sync 
 // at the unit test level.
 void
 uaum::event_to_ubuntu_event(MirEvent const* mir_event, Event& ubuntu_ev)

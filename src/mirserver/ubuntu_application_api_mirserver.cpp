@@ -162,13 +162,13 @@ mirserver_window_u_window(MirServerWindow* window)
 
 extern "C"
 {
-// TODO: Application description/options
+
 UApplicationInstance* u_application_instance_new_from_description_with_options(UApplicationDescription* description, UApplicationOptions* options)
 {
     auto shell = global_mirserver_context()->shell;
     assert(shell);
 
-    // TODO: Make use of options
+    // TODO<mir>: Make use of options
     (void) description;
 
     auto instance = new MirServerApplicationInstance;
@@ -199,34 +199,34 @@ u_application_instance_unref(UApplicationInstance *instance)
 void
 u_application_instance_destroy(UApplicationInstance *instance)
 {
-    // TODO: What are the proper semantics here.
+    // TODO<papi>: What are the proper semantics here.
     u_application_instance_unref(instance);
 }
     
 void
 u_application_instance_run(UApplicationInstance *instance)
 {
-    // TODO: What is this supposed to do? Seems to be no-op on hybris.
+    // TODO<papi>: What is this supposed to do? Seems to be no-op on hybris.
     (void) instance;
 }
 
 void ua_ui_set_clipboard_content(void* content, size_t content_size)
 {
-    // TODO: Implement
+    // TODO<mir,papi>: Implement. Probably need more arguments?
     (void) content;
     (void) content_size;
 }
 
 void ua_ui_get_clipboard_content(void** out_content, size_t* out_content_size)
 {
-    // TODO: Implement
+    // TODO<mir,papi>: Implement
     *out_content = NULL;
     *out_content_size = 0;
 }
 
 UAUiDisplay* ua_ui_display_new_with_index(size_t index)
 {
-    // TODO: Make use of index. This is kind of strangely done...
+    // TODO<mir>: Make use of index. This is kind of strangely done...
     return reinterpret_cast<UAUiDisplay*>(index);
 }
 
@@ -238,7 +238,7 @@ void ua_ui_display_destroy(UAUiDisplay* display)
 
 uint32_t ua_ui_display_query_horizontal_res(UAUiDisplay* display)
 {
-    (void) display; // TODO: Multiple displays
+    (void) display; // TODO<mir>: Multiple displays
 
     auto mir_display = global_mirserver_context()->display;
     assert(mir_display);
@@ -248,7 +248,7 @@ uint32_t ua_ui_display_query_horizontal_res(UAUiDisplay* display)
 
 uint32_t ua_ui_display_query_vertical_res(UAUiDisplay* display)
 {
-    (void) display; // TODO: Multiple displays
+    (void) display; // TODO<mir>: Multiple displays
 
     auto mir_display = global_mirserver_context()->display;
     assert(mir_display);
@@ -293,7 +293,7 @@ const char* ua_ui_window_properties_get_title(UAUiWindowProperties* properties)
 
 void ua_ui_window_properties_set_role(UAUiWindowProperties* properties, UAUiWindowRole role)
 {
-    // TODO: Implement. Or is this a noop for us?
+    // TODO<papi>: Implement. Or is this a noop for us?
     (void) properties;
     (void) role;
 }
@@ -334,7 +334,7 @@ UAUiWindow* ua_ui_window_new_for_application_with_properties(UApplicationInstanc
         std::bind(ua_ui_window_handle_event, mir_properties->cb, mir_properties->ctx, std::placeholders::_1));
     window->input_thread->start();
 
-    // TODO: Verify that we don't have to advance the client buffer anymore ~racarr
+    // TODO<mir>: Verify that we don't have to advance the client buffer anymore ~racarr
 
     return mirserver_window_u_window(window);
 }
@@ -345,13 +345,13 @@ void ua_ui_window_destroy(UAUiWindow* window)
     mir_window->input_thread->stop();
     mir_window->input_thread->join();
 
-    // TODO: Is this enough to ensure we don't leak the surface, or should we close it through the session?
+    // TODO<mir>: Is this enough to ensure we don't leak the surface, or should we close it through the session?
     delete mir_window;
 }
 
 UStatus ua_ui_window_move(UAUiWindow* window, uint32_t x, uint32_t y)
 {
-    // TODO: Implement
+    // TODO<mir,papi>: Implement. But should this exist?
     (void) window;
     (void) x;
     (void) y;
@@ -360,7 +360,7 @@ UStatus ua_ui_window_move(UAUiWindow* window, uint32_t x, uint32_t y)
 
 UStatus ua_ui_window_resize(UAUiWindow* window, uint32_t width, uint32_t height)
 {
-    // TODO: Implement
+    // TODO<mir>: Implement
     (void) window;
     (void) width;
     (void) height;
@@ -369,21 +369,21 @@ UStatus ua_ui_window_resize(UAUiWindow* window, uint32_t width, uint32_t height)
 
 UStatus ua_ui_window_hide(UAUiWindow* window)
 {
-    // TODO: Implement
+    // TODO<mir>: Implement
     (void) window;
     return (UStatus) 0;
 }
 
 UStatus ua_ui_window_show(UAUiWindow* window)
 {
-    // TODO: Implement
+    // TODO<mir>: Implement
     (void) window;
     return (UStatus) 0;
 }
 
 void ua_ui_window_request_fullscreen(UAUiWindow* window)
 {
-    // TODO: Implement
+    // TODO<mir>: Implement
     (void) window;
 }
 

@@ -28,7 +28,7 @@ uam::Description::Description()
 
 uam::Description::~Description()
 {
-    // TODO: Do we have any ownership responsibilities over the application_id or
+    // TODO<papi>: Do we have any ownership responsibilities over the application_id or
     // lifecycle delegate
 }
 
