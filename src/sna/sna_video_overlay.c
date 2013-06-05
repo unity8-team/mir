@@ -775,7 +775,7 @@ void sna_video_overlay_setup(struct sna *sna, ScreenPtr screen)
 	video->gamma1 = 0x101010;
 	video->gamma0 = 0x080808;
 	video->rotation = RR_Rotate_0;
-	RegionNil(&video->clip);
+	RegionNull(&video->clip);
 
 	xvColorKey = MAKE_ATOM("XV_COLORKEY");
 	xvBrightness = MAKE_ATOM("XV_BRIGHTNESS");
