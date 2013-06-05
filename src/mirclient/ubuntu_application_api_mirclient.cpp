@@ -18,6 +18,8 @@
 
 #include "ubuntu_application_api_mircommon.h"
 
+#include "application_id_mir_priv.h"
+
 #include <ubuntu/application/lifecycle_delegate.h>
 #include <ubuntu/application/ui/window.h>
 #include <ubuntu/application/ui/options.h>
@@ -33,6 +35,8 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
+
+namespace uam = ubuntu::application::mir;
 
 namespace
 {
@@ -148,9 +152,13 @@ extern "C"
 // TODO: Eliminate global instance by adding Instance to some functions (i.e. display queries)
 UApplicationInstance* u_application_instance_new_from_description_with_options(UApplicationDescription* description, UApplicationOptions* options)
 {
+    // TODO: Make use of options!
+    (void) options;
+
     auto instance = global_mir_instance();
-    // TODO: Make use of description and options
-    instance->connection = mir_connect_sync(NULL, "TODO: App Name");
+
+    auto id = uam::Id::from_u_application_id(u_application_description_get_application_id(description));
+    instance->connection = mir_connect_sync(NULL, id->name.c_str());
     assert(instance->connection);
     
     instance->is_global_yuck = false;

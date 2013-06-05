@@ -19,6 +19,8 @@
 #include "ubuntu_application_api_mirserver_priv.h"
 #include "ubuntu_application_api_mircommon.h"
 
+#include "application_id_mir_priv.h"
+
 // C APIs
 #include <ubuntu/application/lifecycle_delegate.h>
 #include <ubuntu/application/ui/window.h>
@@ -42,10 +44,11 @@
 #include <mir/input/input_platform.h>
 #include <mir/input/input_receiver_thread.h>
 
-
 #include <assert.h>
 
 #include <memory>
+
+namespace uam = ubuntu::application::mir;
 
 namespace
 {
@@ -161,12 +164,13 @@ UApplicationInstance* u_application_instance_new_from_description_with_options(U
     auto shell = global_mirserver_context()->shell;
     assert(shell);
 
-    // TODO: Make use of descriptions and options
+    // TODO: Make use of options
     (void) description;
-    (void) options;
+
     auto instance = new MirServerApplicationInstance;
 
-    instance->session = shell->open_session(std::string("TODO: Name"),
+    auto id = uam::Id::from_u_application_id(u_application_description_get_application_id(description));
+    instance->session = shell->open_session(id->name,
         std::shared_ptr<mir::events::EventSink>());
 
     return mirserver_application_u_application(instance);
