@@ -31,7 +31,7 @@ extern void *android_dlsym(void *handle, const char *symbol);
 
 }
 
-static const char* uh::Bridge::path_to_library()
+const char* uh::Bridge::path_to_library()
 {
     return "/system/lib/libubuntu_application_api.so";
 }
@@ -42,13 +42,13 @@ uh::Bridge& uh::Bridge::instance()
     return bridge;
 }
 
-uh::Bridge()
+uh::Bridge::Bridge()
     : lib_handle(android_dlopen(path_to_library(), RTLD_LAZY))
 {
     assert(lib_handle && "Error loading ubuntu_application_api");
 }
 
-uh::~Bridge()
+uh::Bridge::~Bridge()
 {
     // TODO android_dlclose(libcamera_handle);
 }

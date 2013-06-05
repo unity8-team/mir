@@ -13,6 +13,7 @@ endif()
 if(ENABLE_MIRSERVER_IMPLEMENTATION)
 add_subdirectory(mirserver/)
 endif()
+
 if(ENABLE_MIRCLIENT_IMPLEMENTATION)
 add_subdirectory(mirclient/)
 endif()

@@ -27,12 +27,12 @@ namespace hybris
 
 struct Bridge
 {
-    static const char* path_to_library();
-    static Bridge& instance();
-    
     Bridge();
     ~Bridge();
 
+    static const char* path_to_library();
+    static Bridge& instance();
+    
     void* resolve_symbol(const char* symbol) const;
 
     void* lib_handle;
