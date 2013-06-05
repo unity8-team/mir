@@ -16,37 +16,41 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
-#include <ubuntu/application/id.h>
+#include "application_id_mir_priv.h"
 
-#include <string>
+namespace uam = ubuntu::application::mir;
 
-namespace
+uam::Id::Id(const char *name, size_t size)
+    : name(name, size)
 {
-struct ApplicationId
+}
+
+UApplicationId* uam::Id::as_u_application_id()
 {
-    ApplicationId(const char *name, size_t size)
-        : name(name, size)
-    {
-    }
-    std::string name;
-};
+    return static_cast<UApplicationId*>(this);
+}
+
+uam::Id* uam::Id::from_u_application_id(UApplicationId *id)
+{
+    return static_cast<uam::Id*>(id);
 }
 
 UApplicationId*
 u_application_id_new_from_stringn(const char *string, size_t size)
 {
-    return static_cast<UApplicationId*>(new ApplicationId(string, size));
+    auto id = new uam::Id(string, size);
+    return id->as_u_application_id();
 }
 
 void u_application_id_destroy(UApplicationId *u_id)
 {
-    auto id = static_cast<ApplicationId*>(u_id);
+    auto id = uam::Id::from_u_application_id(u_id);
     delete id;
 }
 
 int u_application_id_compare(UApplicationId* u_lhs, UApplicationId* u_rhs)
 {
-    auto lhs = static_cast<ApplicationId*>(u_lhs);
-    auto rhs = static_cast<ApplicationId*>(u_rhs);
+    auto lhs = uam::Id::from_u_application_id(u_lhs);
+    auto rhs = uam::Id::from_u_application_id(u_rhs);
     return lhs->name.compare(rhs->name);
 }
