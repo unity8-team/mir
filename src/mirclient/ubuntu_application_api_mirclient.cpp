@@ -16,9 +16,8 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
-#include "ubuntu_application_api_mircommon.h"
-
-#include "application_id_mir_priv.h"
+#include "mircommon/event_helpers_mir.h"
+#include "mircommon/application_id_mir_priv.h"
 
 #include <ubuntu/application/lifecycle_delegate.h>
 #include <ubuntu/application/ui/window.h>
@@ -37,6 +36,7 @@
 #include <string.h>
 
 namespace uam = ubuntu::application::mir;
+namespace uaum = ubuntu::application::ui::mir;
 
 namespace
 {
@@ -54,7 +54,7 @@ ua_ui_window_mir_handle_event(MirSurface* surface, MirEvent const* mir_ev, void*
     (void) surface;
 
     Event ubuntu_ev;
-    mir_event_to_ubuntu_event(mir_ev, ubuntu_ev);
+    uaum::event_to_ubuntu_event(mir_ev, ubuntu_ev);
     auto mir_ctx = static_cast<MirClientInputContext*>(ctx);
     mir_ctx->cb(ctx, &ubuntu_ev);
 }

@@ -16,12 +16,14 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
-#include "ubuntu_application_api_mircommon.h"
+#include "event_helpers_mir.h"
+
+namespace uaum = ubuntu::application::ui::mir;
 
 // This begs the question: Why does MirEvent exist? It's difficult to ensure this function is kept in sync 
 // at the unit test level.
 void
-mir_event_to_ubuntu_event(MirEvent const* mir_event, Event& ubuntu_ev)
+uaum::event_to_ubuntu_event(MirEvent const* mir_event, Event& ubuntu_ev)
 {
     switch (mir_event->type)
     {

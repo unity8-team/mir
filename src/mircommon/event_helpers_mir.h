@@ -16,20 +16,24 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
-#ifndef UBUNTU_APPLICATION_API_MIR_COMMON_H_
-#define UBUNTU_APPLICATION_API_MIR_COMMON_H_
+#ifndef UBUNTU_EVENT_HELPERS_MIR_COMMON_H_
+#define UBUNTU_EVENT_HELPERS_MIR_COMMON_H_
 
 #include <ubuntu/application/ui/input/event.h>
 #include <mir_toolkit/event.h>
 
-#ifndef __cplusplus
-extern "C" {
-#endif
-
-void mir_event_to_ubuntu_event(MirEvent const* mir_event, Event& ubuntu_ev);
-
-#ifndef __cplusplus
+namespace ubuntu
+{
+namespace application
+{
+namespace ui
+{
+namespace mir
+{
+void event_to_ubuntu_event(MirEvent const* mir_event, Event& ubuntu_ev);
 }
-#endif
+}
+}
+}
 
-#endif // UBUNTU_APPLICATION_API_MIR_COMMON_H_
+#endif // UBUNTU_EVENT_HELPERS_MIR_COMMON_H_

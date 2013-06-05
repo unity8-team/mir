@@ -17,9 +17,9 @@
  */
 
 #include "ubuntu_application_api_mirserver_priv.h"
-#include "ubuntu_application_api_mircommon.h"
 
-#include "application_id_mir_priv.h"
+#include "mircommon/event_helpers_mir.h"
+#include "mircommon/application_id_mir_priv.h"
 
 // C APIs
 #include <ubuntu/application/lifecycle_delegate.h>
@@ -49,6 +49,7 @@
 #include <memory>
 
 namespace uam = ubuntu::application::mir;
+namespace uaum = ubuntu::application::ui::mir;
 
 namespace
 {
@@ -297,7 +298,7 @@ namespace
 static void ua_ui_window_handle_event(UAUiWindowInputEventCb cb, void* ctx, MirEvent* mir_event)
 {
     Event ubuntu_ev;
-    mir_event_to_ubuntu_event(mir_event, ubuntu_ev);
+    uaum::event_to_ubuntu_event(mir_event, ubuntu_ev);
     cb(ctx, &ubuntu_ev);
 }
 
