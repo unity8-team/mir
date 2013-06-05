@@ -29,56 +29,12 @@
 #include <ubuntu/application/ui/session.h>
 #include <ubuntu/application/ui/clipboard.h>
 #include <ubuntu/application/ui/display.h>
-#include <ubuntu/application/sensors/accelerometer.h>
-#include <ubuntu/application/sensors/proximity.h>
-#include <ubuntu/application/sensors/light.h>
 
 #include <assert.h>
 #include <dlfcn.h>
 #include <stddef.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-extern void *android_dlopen(const char *filename, int flag);
-extern void *android_dlsym(void *handle, const char *symbol);
-
-#ifdef __cplusplus
-}
-#endif
-
-namespace
-{
-
-struct Bridge
-{
-    static const char* path_to_library()
-    {
-        return "/system/lib/libubuntu_application_api.so";
-    }
-
-    static Bridge& instance() { static Bridge bridge; return bridge; }
-    
-    Bridge() : lib_handle(android_dlopen(path_to_library(), RTLD_LAZY))
-    {
-        assert(lib_handle && "Error loading ubuntu_application_api");
-    }
-
-    ~Bridge()
-    {
-        // TODO android_dlclose(libcamera_handle);
-    }
-
-    void* resolve_symbol(const char* symbol) const
-    {
-        return android_dlsym(lib_handle, symbol);
-    }
-
-    void* lib_handle;
-};
-
-}
+#include "hybris_bridge.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -88,106 +44,6 @@ extern "C" {
 /*********** Implementation starts here *******************/
 /**********************************************************/
 
-#define DLSYM(fptr, sym) if (*(fptr) == NULL) { *((void**)fptr) = (void *) Bridge::instance().resolve_symbol(sym); }
-    
-#define IMPLEMENT_FUNCTION0(return_type, symbol)  \
-    return_type symbol()                          \
-    {                                             \
-        static return_type (*f)() = NULL;         \
-        DLSYM(&f, #symbol);                       \
-        return f();}
-
-#define IMPLEMENT_VOID_FUNCTION0(symbol)          \
-    void symbol()                                 \
-    {                                             \
-        static void (*f)() = NULL;                \
-        DLSYM(&f, #symbol);                       \
-        f();}
-    
-#define IMPLEMENT_FUNCTION1(return_type, symbol, arg1) \
-    return_type symbol(arg1 _1)                        \
-    {                                                  \
-        static return_type (*f)(arg1) = NULL;          \
-        DLSYM(&f, #symbol);                     \
-        return f(_1); }
-
-#define IMPLEMENT_SF_FUNCTION1(return_type, symbol, arg1) \
-    return_type symbol(arg1 _1)                        \
-    {                                                  \
-        static return_type (*f)(arg1) __attribute__((pcs("aapcs"))) = NULL; \
-        DLSYM(&f, #symbol);                     \
-        return f(_1); }
-
-
-#define IMPLEMENT_VOID_FUNCTION1(symbol, arg1)               \
-    void symbol(arg1 _1)                                     \
-    {                                                        \
-        static void (*f)(arg1) = NULL;                       \
-        DLSYM(&f, #symbol);                           \
-        f(_1); }
-
-#define IMPLEMENT_FUNCTION2(return_type, symbol, arg1, arg2)    \
-    return_type symbol(arg1 _1, arg2 _2)                        \
-    {                                                           \
-        static return_type (*f)(arg1, arg2) = NULL;             \
-        DLSYM(&f, #symbol);                              \
-        return f(_1, _2); }
-
-#define IMPLEMENT_VOID_FUNCTION2(symbol, arg1, arg2)            \
-    void symbol(arg1 _1, arg2 _2)                               \
-    {                                                           \
-        static void (*f)(arg1, arg2) = NULL;                    \
-        DLSYM(&f, #symbol);                              \
-        f(_1, _2); }
-
-#define IMPLEMENT_FUNCTION3(return_type, symbol, arg1, arg2, arg3)    \
-    return_type symbol(arg1 _1, arg2 _2, arg3 _3)                     \
-    {                                                                 \
-        static return_type (*f)(arg1, arg2, arg3) = NULL;             \
-        DLSYM(&f, #symbol);                                           \
-        return f(_1, _2, _3); } 
-
-#define IMPLEMENT_VOID_FUNCTION3(symbol, arg1, arg2, arg3)      \
-    void symbol(arg1 _1, arg2 _2, arg3 _3)                      \
-    {                                                           \
-        static void (*f)(arg1, arg2, arg3) = NULL;              \
-        DLSYM(&f, #symbol);                                     \
-        f(_1, _2, _3); }
-
-#define IMPLEMENT_VOID_FUNCTION4(symbol, arg1, arg2, arg3, arg4) \
-    void symbol(arg1 _1, arg2 _2, arg3 _3, arg4 _4)              \
-    {                                                            \
-        static void (*f)(arg1, arg2, arg3, arg4) = NULL;         \
-        DLSYM(&f, #symbol);                                      \
-        f(_1, _2, _3, _4); }
-
-#define IMPLEMENT_FUNCTION4(return_type, symbol, arg1, arg2, arg3, arg4) \
-    return_type symbol(arg1 _1, arg2 _2, arg3 _3, arg4 _4)               \
-    {                                                                    \
-        static return_type (*f)(arg1, arg2, arg3, arg4) = NULL;          \
-        DLSYM(&f, #symbol);                                              \
-        return f(_1, _2, _3, _4); }
-
-#define IMPLEMENT_FUNCTION6(return_type, symbol, arg1, arg2, arg3, arg4, arg5, arg6) \
-    return_type symbol(arg1 _1, arg2 _2, arg3 _3, arg4 _4, arg5 _5, arg6 _6)         \
-    {                                                                                \
-        static return_type (*f)(arg1, arg2, arg3, arg4, arg5, arg6) = NULL;          \
-        DLSYM(&f, #symbol);                                                          \
-        return f(_1, _2, _3, _4, _5, _6); }
-
-#define IMPLEMENT_VOID_FUNCTION7(symbol, arg1, arg2, arg3, arg4, arg5, arg6, arg7) \
-    void symbol(arg1 _1, arg2 _2, arg3 _3, arg4 _4, arg5 _5, arg6 _6, arg7 _7) \
-    {                                                                   \
-        static void (*f)(arg1, arg2, arg3, arg4, arg5, arg6, arg7) = NULL; \
-        DLSYM(&f, #symbol);                                             \
-        f(_1, _2, _3, _4, _5, _6, _7); }
-
-#define IMPLEMENT_VOID_FUNCTION8(symbol, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) \
-    void symbol(arg1 _1, arg2 _2, arg3 _3, arg4 _4, arg5 _5, arg6 _6, arg7 _7, arg8 _8) \
-    {                                                                   \
-        static void (*f)(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) = NULL; \
-        DLSYM(&f, #symbol);                                             \
-        f(_1, _2, _3, _4, _5, _6, _7, _8); }
 
 // Session helpers
 IMPLEMENT_FUNCTION0(UAUiSessionProperties*, ua_ui_session_properties_new);
@@ -254,52 +110,6 @@ IMPLEMENT_FUNCTION1(UStatus, ua_ui_window_hide, UAUiWindow*);
 IMPLEMENT_FUNCTION1(UStatus, ua_ui_window_show, UAUiWindow*);
 IMPLEMENT_VOID_FUNCTION1(ua_ui_window_request_fullscreen, UAUiWindow*);
 IMPLEMENT_FUNCTION1(EGLNativeWindowType, ua_ui_window_get_native_type, UAUiWindow*);
-
-// Ubuntu Application Sensors
-
-// Acceleration Sensor
-IMPLEMENT_FUNCTION0(UASensorsAccelerometer*, ua_sensors_accelerometer_new);
-IMPLEMENT_FUNCTION1(UStatus, ua_sensors_accelerometer_enable, UASensorsAccelerometer*);
-IMPLEMENT_FUNCTION1(UStatus, ua_sensors_accelerometer_disable, UASensorsAccelerometer*);
-IMPLEMENT_FUNCTION1(uint32_t, ua_sensors_accelerometer_get_min_delay, UASensorsAccelerometer*);
-IMPLEMENT_SF_FUNCTION1(float, ua_sensors_accelerometer_get_min_value, UASensorsAccelerometer*);
-IMPLEMENT_SF_FUNCTION1(float, ua_sensors_accelerometer_get_max_value, UASensorsAccelerometer*);
-IMPLEMENT_SF_FUNCTION1(float, ua_sensors_accelerometer_get_resolution, UASensorsAccelerometer*);
-IMPLEMENT_VOID_FUNCTION3(ua_sensors_accelerometer_set_reading_cb, UASensorsAccelerometer*, on_accelerometer_event_cb, void*);
-
-// Acceleration Sensor Event
-IMPLEMENT_FUNCTION1(uint64_t, uas_accelerometer_event_get_timestamp, UASAccelerometerEvent*);
-IMPLEMENT_SF_FUNCTION1(float, uas_accelerometer_event_get_acceleration_x, UASAccelerometerEvent*);
-IMPLEMENT_SF_FUNCTION1(float, uas_accelerometer_event_get_acceleration_y, UASAccelerometerEvent*);
-IMPLEMENT_SF_FUNCTION1(float, uas_accelerometer_event_get_acceleration_z, UASAccelerometerEvent*);
-
-// Proximity Sensor
-IMPLEMENT_FUNCTION0(UASensorsProximity*, ua_sensors_proximity_new);
-IMPLEMENT_FUNCTION1(UStatus, ua_sensors_proximity_enable, UASensorsProximity*);
-IMPLEMENT_FUNCTION1(UStatus, ua_sensors_proximity_disable, UASensorsProximity*);
-IMPLEMENT_FUNCTION1(uint32_t, ua_sensors_proximity_get_min_delay, UASensorsProximity*);
-IMPLEMENT_SF_FUNCTION1(float, ua_sensors_proximity_get_min_value, UASensorsProximity*);
-IMPLEMENT_SF_FUNCTION1(float, ua_sensors_proximity_get_max_value, UASensorsProximity*);
-IMPLEMENT_SF_FUNCTION1(float, ua_sensors_proximity_get_resolution, UASensorsProximity*);
-IMPLEMENT_VOID_FUNCTION3(ua_sensors_proximity_set_reading_cb, UASensorsProximity*, on_proximity_event_cb, void*);
-
-// Proximity Sensor Event
-IMPLEMENT_FUNCTION1(uint64_t, uas_proximity_event_get_timestamp, UASProximityEvent*);
-IMPLEMENT_FUNCTION1(UASProximityDistance, uas_proximity_event_get_distance, UASProximityEvent*);
-
-// Ambient Light Sensor
-IMPLEMENT_FUNCTION0(UASensorsLight*, ua_sensors_light_new);
-IMPLEMENT_FUNCTION1(UStatus, ua_sensors_light_enable, UASensorsLight*);
-IMPLEMENT_FUNCTION1(UStatus, ua_sensors_light_disable, UASensorsLight*);
-IMPLEMENT_FUNCTION1(uint32_t, ua_sensors_light_get_min_delay, UASensorsLight*);
-IMPLEMENT_SF_FUNCTION1(float, ua_sensors_light_get_min_value, UASensorsLight*);
-IMPLEMENT_SF_FUNCTION1(float, ua_sensors_light_get_max_value, UASensorsLight*);
-IMPLEMENT_SF_FUNCTION1(float, ua_sensors_light_get_resolution, UASensorsLight*);
-IMPLEMENT_VOID_FUNCTION3(ua_sensors_light_set_reading_cb, UASensorsLight*, on_light_event_cb, void*);
-
-// Ambient Light Sensor Event
-IMPLEMENT_FUNCTION1(uint64_t, uas_light_event_get_timestamp, UASLightEvent*);
-IMPLEMENT_SF_FUNCTION1(float, uas_light_event_get_light, UASLightEvent*);
 
 /* -------------------------------------------------------------------------- *
  * * * * * * * * * * * * * * * Deprecated API * * * * * * * * * * * * * * * * *
