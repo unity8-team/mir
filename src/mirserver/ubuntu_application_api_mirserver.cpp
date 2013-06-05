@@ -162,6 +162,8 @@ UApplicationInstance* u_application_instance_new_from_description_with_options(U
     assert(shell);
 
     // TODO: Make use of descriptions and options
+    (void) description;
+    (void) options;
     auto instance = new MirServerApplicationInstance;
 
     instance->session = shell->open_session(std::string("TODO: Name"),
