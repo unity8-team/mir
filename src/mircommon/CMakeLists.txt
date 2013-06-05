@@ -22,7 +22,7 @@ else()
   list(APPEND SOURCES
     ubuntu_application_sensors_desktop.cpp
     )
-endi()
+endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC --std=c++11")
 
