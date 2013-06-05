@@ -16,63 +16,72 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
-#include <ubuntu/application/description.h>
+#include "application_description_mir_priv.h"
 
-namespace
-{
-struct ApplicationDescription
-{
-    ApplicationDescription()
-        : application_id(nullptr), lifecycle_delegate(nullptr)
-    {
-    }
+namespace uam = ubuntu::application::mir;
 
-    // TODO: Does the application description own this id?
-    UApplicationId *application_id;
-    // TODO: Likewise do we own the lifecycle delegate?
-    UApplicationLifecycleDelegate *lifecycle_delegate;
-};
+uam::Description::Description()
+    : application_id(nullptr),
+      lifecycle_delegate(nullptr)
+{
+}
+
+uam::Description::~Description()
+{
+    // TODO: Do we have any ownership responsibilities over the application_id or
+    // lifecycle delegate
+}
+
+UApplicationDescription* uam::Description::as_u_application_description()
+{
+    return static_cast<UApplicationDescription*>(this);
+}
+
+uam::Description* uam::Description::from_u_application_description(UApplicationDescription* description)
+{
+    return static_cast<uam::Description*>(description);
 }
 
 UApplicationDescription*
 u_application_description_new()
 {
-    return static_cast<UApplicationDescription*>(new ApplicationDescription);
+    auto description = new uam::Description();
+    return description->as_u_application_description();
 }
     
 void
-u_application_description_destroy(UApplicationDescription *desc)
+u_application_description_destroy(UApplicationDescription *u_description)
 {
-    auto d = static_cast<ApplicationDescription*>(desc);
-    delete d;
+    auto description = uam::Description::from_u_application_description(u_description);
+    delete description;
 }
     
 void
-u_application_description_set_application_id(UApplicationDescription *desc,
+u_application_description_set_application_id(UApplicationDescription *u_description,
     UApplicationId *id)
 {
-    auto d = static_cast<ApplicationDescription*>(desc);
-    d->application_id = id;
+    auto description = uam::Description::from_u_application_description(u_description);
+    description->application_id = id;
 }
     
 UApplicationId* 
-u_application_description_get_application_id(UApplicationDescription *desc)
+u_application_description_get_application_id(UApplicationDescription *u_description)
 {
-    auto d = static_cast<ApplicationDescription*>(desc);
-    return d->application_id;
+    auto description = uam::Description::from_u_application_description(u_description);
+    return description->application_id;
 }
     
 void
-u_application_description_set_application_lifecycle_delegate(UApplicationDescription *desc,
+u_application_description_set_application_lifecycle_delegate(UApplicationDescription *u_description,
     UApplicationLifecycleDelegate *lifecycle_delegate)
 {
-    auto d = static_cast<ApplicationDescription*>(desc);
-    d->lifecycle_delegate = lifecycle_delegate;
+    auto description = uam::Description::from_u_application_description(u_description);
+    description->lifecycle_delegate = lifecycle_delegate;
 }
     
 UApplicationLifecycleDelegate* 
-u_application_description_get_application_lifecycle_delegate(UApplicationDescription *desc)
+u_application_description_get_application_lifecycle_delegate(UApplicationDescription *u_description)
 {
-    auto d = static_cast<ApplicationDescription*>(desc);
-    return d->lifecycle_delegate;
+    auto description = uam::Description::from_u_application_description(u_description);
+    return description->lifecycle_delegate;
 }

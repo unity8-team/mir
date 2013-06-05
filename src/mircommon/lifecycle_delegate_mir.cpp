@@ -18,7 +18,8 @@
 
 #include <ubuntu/application/lifecycle_delegate.h>
 
-// TODO: We currently don't do anything with this in Mir.
+// TODO: This implementation as a stub as we 
+// currently don't do anything with this in Mir.
 
 namespace
 {
