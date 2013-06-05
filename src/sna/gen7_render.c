@@ -75,6 +75,7 @@
 #define is_aligned(x, y) (((x) & ((y) - 1)) == 0)
 
 struct gt_info {
+	const char *name;
 	uint32_t max_vs_threads;
 	uint32_t max_gs_threads;
 	uint32_t max_wm_threads;
@@ -86,6 +87,7 @@ struct gt_info {
 };
 
 static const struct gt_info ivb_gt_info = {
+	.name = "Ivybridge (gen7)",
 	.max_vs_threads = 16,
 	.max_gs_threads = 16,
 	.max_wm_threads = (16-1) << IVB_PS_MAX_THREADS_SHIFT,
@@ -93,6 +95,7 @@ static const struct gt_info ivb_gt_info = {
 };
 
 static const struct gt_info ivb_gt1_info = {
+	.name = "Ivybridge (gen7, gt1)",
 	.max_vs_threads = 36,
 	.max_gs_threads = 36,
 	.max_wm_threads = (48-1) << IVB_PS_MAX_THREADS_SHIFT,
@@ -100,13 +103,23 @@ static const struct gt_info ivb_gt1_info = {
 };
 
 static const struct gt_info ivb_gt2_info = {
+	.name = "Ivybridge (gen7, gt2)",
 	.max_vs_threads = 128,
 	.max_gs_threads = 128,
 	.max_wm_threads = (172-1) << IVB_PS_MAX_THREADS_SHIFT,
 	.urb = { 256, 704, 320 },
 };
 
+static const struct gt_info vlv_gt_info = {
+	.name = "Valleyview (gen7)",
+	.max_vs_threads = 16,
+	.max_gs_threads = 16,
+	.max_wm_threads = (16-1) << IVB_PS_MAX_THREADS_SHIFT,
+	.urb = { 128, 64, 64 },
+};
+
 static const struct gt_info hsw_gt_info = {
+	.name = "Haswell (gen7.5)",
 	.max_vs_threads = 8,
 	.max_gs_threads = 8,
 	.max_wm_threads =
@@ -116,6 +129,7 @@ static const struct gt_info hsw_gt_info = {
 };
 
 static const struct gt_info hsw_gt1_info = {
+	.name = "Haswell (gen7.5, gt1)",
 	.max_vs_threads = 70,
 	.max_gs_threads = 70,
 	.max_wm_threads =
@@ -125,6 +139,7 @@ static const struct gt_info hsw_gt1_info = {
 };
 
 static const struct gt_info hsw_gt2_info = {
+	.name = "Haswell (gen7.5, gt2)",
 	.max_vs_threads = 140,
 	.max_gs_threads = 140,
 	.max_wm_threads =
@@ -3718,13 +3733,12 @@ static bool is_mobile(struct sna *sna)
 	return (DEVICE_ID(sna->PciInfo) & 0xf) == 0x6;
 }
 
-static const char *gen7_render_setup(struct sna *sna)
+static bool gen7_render_setup(struct sna *sna)
 {
 	struct gen7_render_state *state = &sna->render_state.gen7;
 	struct sna_static_stream general;
 	struct gen7_sampler_state *ss;
 	int i, j, k, l, m;
-	const char *backend;
 
 	if (sna->kgem.gen == 070) {
 		state->info = &ivb_gt_info;
@@ -3733,10 +3747,8 @@ static const char *gen7_render_setup(struct sna *sna)
 			if (is_gt2(sna))
 				state->info = &ivb_gt2_info; /* XXX requires GT_MODE WiZ disabled */
 		}
-		backend = "Ivybridge (gen7)";
 	} else if (sna->kgem.gen == 071) {
-		state->info = &ivb_gt_info;
-		backend = "Valleyview (gen7)";
+		state->info = &vlv_gt_info;
 	} else if (sna->kgem.gen == 075) {
 		state->info = &hsw_gt_info;
 		if (DEVICE_ID(sna->PciInfo) & 0xf) {
@@ -3744,9 +3756,8 @@ static const char *gen7_render_setup(struct sna *sna)
 			if (is_gt2(sna))
 				state->info = &hsw_gt2_info;
 		}
-		backend = "Haswell (gen7.5)";
 	} else
-		return NULL;
+		return false;
 
 	sna_static_stream_init(&general);
 
@@ -3807,16 +3818,13 @@ static const char *gen7_render_setup(struct sna *sna)
 	state->cc_blend = gen7_composite_create_blend_state(&general);
 
 	state->general_bo = sna_static_stream_fini(sna, &general);
-	return state->general_bo ? backend : NULL;
+	return state->general_bo != NULL;
 }
 
-const char *gen7_render_init(struct sna *sna, const char *parent)
+const char *gen7_render_init(struct sna *sna, const char *backend)
 {
-	const char *backend;
-
-	backend = gen7_render_setup(sna);
-	if (backend == NULL)
-		return parent;
+	if (!gen7_render_setup(sna))
+		return backend;
 
 	sna->kgem.context_switch = gen7_render_context_switch;
 	sna->kgem.retire = gen7_render_retire;
@@ -3860,5 +3868,5 @@ const char *gen7_render_init(struct sna *sna, const char *parent)
 
 	sna->render.max_3d_size = GEN7_MAX_SIZE;
 	sna->render.max_3d_pitch = 1 << 18;
-	return backend;
+	return sna->render_state.gen7.info->name;
 }

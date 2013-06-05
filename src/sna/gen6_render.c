@@ -68,6 +68,7 @@
 #define GEN6_MAX_SIZE 8192
 
 struct gt_info {
+	const char *name;
 	int max_vs_threads;
 	int max_gs_threads;
 	int max_wm_threads;
@@ -79,6 +80,7 @@ struct gt_info {
 };
 
 static const struct gt_info gt1_info = {
+	.name = "Sandybridge (gen6, gt1)",
 	.max_vs_threads = 24,
 	.max_gs_threads = 21,
 	.max_wm_threads = 40,
@@ -86,6 +88,7 @@ static const struct gt_info gt1_info = {
 };
 
 static const struct gt_info gt2_info = {
+	.name = "Sandybridge (gen6, gt2)",
 	.max_vs_threads = 60,
 	.max_gs_threads = 60,
 	.max_wm_threads = 80,
@@ -3704,5 +3707,5 @@ const char *gen6_render_init(struct sna *sna, const char *backend)
 
 	sna->render.max_3d_size = GEN6_MAX_SIZE;
 	sna->render.max_3d_pitch = 1 << 18;
-	return "Sandybridge (gen6)";
+	return sna->render_state.gen6.info->name;
 }
