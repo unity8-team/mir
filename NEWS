@@ -1,3 +1,25 @@
+Release 2.21.9 (2013-06-06)
+===========================
+Consolidating the copy-on-write support, hopefully cleaning up the last of
+the regressions.
+
+ * Restore vsync on textured videos.
+   [regression from 2.21.8]
+   https://bugs.freedesktop.org/show_bug.cgi?id=65048
+
+ * Fix incorrect ordering of possible_clones with certain outputs, which
+   can lead to attempting to incorrectly clone 2 outputs and failing to
+   light them up.
+   [regression from 2.20.10]
+
+ * Fix performance regression from not promoting large fills to the GPU
+   [regression from 2.21.7]
+
+ * Undo the pixmap clone before performing a DRI2CopyRegion
+   [regression from 2.21.7]
+   https://bugs.freedesktop.org/show_bug.cgi?id=65250
+
+
 Release 2.21.8 (2013-05-27)
 ===========================
 A quick release to cleanup a few regressions from the introduction of
