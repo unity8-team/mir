@@ -56,7 +56,7 @@ ua_ui_window_mir_handle_event(MirSurface* surface, MirEvent const* mir_ev, void*
     Event ubuntu_ev;
     uaum::event_to_ubuntu_event(mir_ev, ubuntu_ev);
     auto mir_ctx = static_cast<MirClientInputContext*>(ctx);
-    mir_ctx->cb(ctx, &ubuntu_ev);
+    mir_ctx->cb(mir_ctx->ctx, &ubuntu_ev);
 }
 
 }
@@ -287,6 +287,8 @@ void ua_ui_window_properties_destroy(UAUiWindowProperties* properties)
 
     // TODO<mir>: This should be managed somehow...
     auto input_context = static_cast<MirClientInputContext*>(mir_properties->delegate.context);
+    // TODO<papi>: Who owns this? Do we transfer ownership to the window or does the window own
+    // the window properties?
     delete input_context;
 
     delete[] mir_properties->parameters.name;
