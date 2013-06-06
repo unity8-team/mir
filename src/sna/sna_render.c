@@ -282,7 +282,7 @@ no_render_fini(struct sna *sna)
 	(void)sna;
 }
 
-void no_render_init(struct sna *sna)
+const char *no_render_init(struct sna *sna)
 {
 	struct sna_render *render = &sna->render;
 
@@ -315,6 +315,7 @@ void no_render_init(struct sna *sna)
 		sna->kgem.ring = KGEM_BLT;
 
 	sna_vertex_init(sna);
+	return "generic";
 }
 
 static struct kgem_bo *

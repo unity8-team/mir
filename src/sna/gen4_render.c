@@ -3137,10 +3137,10 @@ static bool gen4_render_setup(struct sna *sna)
 	return state->general_bo != NULL;
 }
 
-bool gen4_render_init(struct sna *sna)
+const char *gen4_render_init(struct sna *sna, const char *backend)
 {
 	if (!gen4_render_setup(sna))
-		return false;
+		return backend;
 
 	sna->kgem.retire = gen4_render_retire;
 	sna->kgem.expire = gen4_render_expire;
@@ -3183,5 +3183,5 @@ bool gen4_render_init(struct sna *sna)
 
 	sna->render.max_3d_size = GEN4_MAX_3D_SIZE;
 	sna->render.max_3d_pitch = 1 << 18;
-	return true;
+	return sna->kgem.gen >= 045 ? "Eaglelake (gen4.5)" : "Broadwater (gen4)";
 }

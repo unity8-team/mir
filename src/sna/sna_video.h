@@ -50,6 +50,8 @@ THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 }
 
 struct sna_video {
+	struct sna *sna;
+
 	int brightness;
 	int contrast;
 	int saturation;
@@ -95,10 +97,20 @@ struct sna_video_frame {
 	BoxRec src;
 };
 
+static inline XvScreenPtr to_xv(ScreenPtr screen)
+{
+	return dixLookupPrivate(&screen->devPrivates, XvGetScreenKey());
+}
+
 void sna_video_init(struct sna *sna, ScreenPtr screen);
-XF86VideoAdaptorPtr sna_video_overlay_setup(struct sna *sna, ScreenPtr screen);
-XF86VideoAdaptorPtr sna_video_sprite_setup(struct sna *sna, ScreenPtr screen);
-XF86VideoAdaptorPtr sna_video_textured_setup(struct sna *sna, ScreenPtr screen);
+void sna_video_overlay_setup(struct sna *sna, ScreenPtr screen);
+void sna_video_sprite_setup(struct sna *sna, ScreenPtr screen);
+void sna_video_textured_setup(struct sna *sna, ScreenPtr screen);
+void sna_video_destroy_window(WindowPtr win);
+
+XvAdaptorPtr sna_xv_adaptor_alloc(struct sna *sna);
+int sna_xv_alloc_port(unsigned long port, XvPortPtr in, XvPortPtr *out);
+int sna_xv_free_port(XvPortPtr port);
 
 #define FOURCC_XVMC     (('C' << 24) + ('M' << 16) + ('V' << 8) + 'X')
 
@@ -134,25 +146,33 @@ sna_video_clip_helper(ScrnInfoPtr scrn,
 		      RegionPtr reg);
 
 void
-sna_video_frame_init(struct sna *sna,
-		     struct sna_video *video,
+sna_video_frame_init(struct sna_video *video,
 		     int id, short width, short height,
 		     struct sna_video_frame *frame);
 
 struct kgem_bo *
-sna_video_buffer(struct sna *sna,
-		 struct sna_video *video,
+sna_video_buffer(struct sna_video *video,
 		 struct sna_video_frame *frame);
 
 bool
-sna_video_copy_data(struct sna *sna,
-		    struct sna_video *video,
+sna_video_copy_data(struct sna_video *video,
 		    struct sna_video_frame *frame,
 		    const uint8_t *buf);
 
-void sna_video_buffer_fini(struct sna *sna,
-			   struct sna_video *video);
+void sna_video_buffer_fini(struct sna_video *video);
 
-void sna_video_free_buffers(struct sna *sna, struct sna_video *video);
+void sna_video_free_buffers(struct sna_video *video);
+
+static inline XvPortPtr
+sna_window_get_port(WindowPtr window)
+{
+	return ((void **)__get_private(window, sna_window_key))[2];
+}
+
+static inline void
+sna_window_set_port(WindowPtr window, XvPortPtr port)
+{
+	((void **)__get_private(window, sna_window_key))[2] = port;
+}
 
 #endif /* SNA_VIDEO_H */

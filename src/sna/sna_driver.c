@@ -631,24 +631,19 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Forcing per-crtc-pixmaps? %s\n",
 		   sna->flags & SNA_FORCE_SHADOW ? "yes" : "no");
 
+	if (sna->tiling != SNA_TILING_ALL)
+		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+			   "Tiling disabled, expect poor performance and increased power consumption.\n");
+
 	if (!sna_mode_pre_init(scrn, sna)) {
-		PreInitCleanup(scrn);
-		return FALSE;
-	}
-
-	if (!xf86SetGamma(scrn, zeros)) {
-		PreInitCleanup(scrn);
-		return FALSE;
-	}
-
-	if (scrn->modes == NULL) {
-		xf86DrvMsg(scrn->scrnIndex, X_ERROR, "No modes.\n");
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+			   "No outputs and no modes.\n");
 		PreInitCleanup(scrn);
 		return FALSE;
 	}
 	scrn->currentMode = scrn->modes;
 
-	/* Set display resolution */
+	xf86SetGamma(scrn, zeros);
 	xf86SetDpi(scrn, 0, 0);
 
 	sna->dri_available = false;
@@ -916,7 +911,7 @@ sna_register_all_privates(void)
 		return FALSE;
 
 	if (!dixRegisterPrivateKey(&sna_window_key, PRIVATE_WINDOW,
-				   2*sizeof(void *)))
+				   3*sizeof(void *)))
 		return FALSE;
 #else
 	if (!dixRequestPrivate(&sna_pixmap_key, 3*sizeof(void *)))
@@ -928,7 +923,7 @@ sna_register_all_privates(void)
 	if (!dixRequestPrivate(&sna_glyph_key, sizeof(struct sna_glyph)))
 		return FALSE;
 
-	if (!dixRequestPrivate(&sna_window_key, 2*sizeof(void *)))
+	if (!dixRequestPrivate(&sna_window_key, 3*sizeof(void *)))
 		return FALSE;
 #endif
 

@@ -304,17 +304,6 @@ static const xf86CrtcConfigFuncsRec sna_mode_funcs = {
 
 bool sna_mode_fake_init(struct sna *sna)
 {
-	ScrnInfoPtr scrn = sna->scrn;
-
-	xf86CrtcConfigInit(scrn, &sna_mode_funcs);
-
-	if (!sna_crtc_fake(sna))
-		return false;
-
-	if (!sna_output_fake(sna))
-		return false;
-
-	xf86CrtcSetSizeRange(scrn, 320, 200, INT16_MAX, INT16_MAX);
-	xf86InitialConfiguration(scrn, TRUE);
-	return true;
+	xf86CrtcConfigInit(sna->scrn, &sna_mode_funcs);
+	return sna_crtc_fake(sna) && sna_output_fake(sna);
 }
