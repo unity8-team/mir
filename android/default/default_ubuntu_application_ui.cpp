@@ -145,6 +145,14 @@ ua_ui_display_query_vertical_res(
     return s->value->vertical_resolution();
 }
 
+EGLNativeDisplayType
+ua_ui_display_get_native_type(
+    UAUiDisplay* display)
+{
+    // Always EGL_DEFAULT_DISPLAY with android EGL.
+    return EGL_DEFAULT_DISPLAY;
+}                              
+
 /*
  * Window Properties
  */
