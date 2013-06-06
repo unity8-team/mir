@@ -42,6 +42,9 @@ struct LifecycleDelegate
 };
 }
 
+extern "C"
+{
+
 UApplicationLifecycleDelegate*
 u_application_lifecycle_delegate_new()
 {
@@ -115,4 +118,6 @@ u_application_lifecycle_delegate_get_context(UApplicationLifecycleDelegate *u_de
 {
     auto delegate = static_cast<LifecycleDelegate*>(u_delegate);
     return delegate->ctx;
+}
+
 }

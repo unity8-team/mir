@@ -1,6 +1,6 @@
 set(SOURCES ubuntu_application_api_mirserver.cpp)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --std=c++11")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --std=c++11 -fPIC")
 
 add_library(
 	ubuntu_application_api_mirserver SHARED
@@ -14,8 +14,9 @@ include_directories(
 
 target_link_libraries(
 	ubuntu_application_api_mirserver
-        ubuntu_application_api_mircommon
         ${MIRSERVER_LDFLAGS} ${MIRSERVER_LIBRARIES}
+        -Wl,--whole-archive ubuntu_application_api_mircommon
+        -Wl,--no-whole-archive
 )
 
 set_target_properties(

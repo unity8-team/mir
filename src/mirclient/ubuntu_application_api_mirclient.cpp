@@ -318,7 +318,7 @@ void ua_ui_window_properties_set_role(UAUiWindowProperties* properties, UAUiWind
     (void) role;
 }
 
-void ua_ui_window_propperties_set_input_cb_and_ctx(UAUiWindowProperties* properties, UAUiWindowInputEventCb cb, void* ctx)
+void ua_ui_window_properties_set_input_cb_and_ctx(UAUiWindowProperties* properties, UAUiWindowInputEventCb cb, void* ctx)
 {
     // TODO<papi>: Do the properties or the window itself own this?
     auto context = new MirClientInputContext;
