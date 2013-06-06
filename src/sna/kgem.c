@@ -292,8 +292,8 @@ retry_gtt:
 	VG_CLEAR(mmap_arg);
 	mmap_arg.handle = bo->handle;
 	if (drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_MMAP_GTT, &mmap_arg)) {
-		ErrorF("%s: failed to retrieve GTT offset for handle=%d: %d\n",
-		       __FUNCTION__, bo->handle, errno);
+		int err = errno;
+
 		(void)__kgem_throttle_retire(kgem, 0);
 		if (kgem_expire_cache(kgem))
 			goto retry_gtt;
@@ -303,6 +303,8 @@ retry_gtt:
 			goto retry_gtt;
 		}
 
+		ErrorF("%s: failed to retrieve GTT offset for handle=%d: %d\n",
+		       __FUNCTION__, bo->handle, err);
 		return NULL;
 	}
 
@@ -310,8 +312,8 @@ retry_mmap:
 	ptr = mmap(0, bytes(bo), PROT_READ | PROT_WRITE, MAP_SHARED,
 		   kgem->fd, mmap_arg.offset);
 	if (ptr == MAP_FAILED) {
-		ErrorF("%s: failed to mmap %d, %d bytes, into GTT domain: %d\n",
-		       __FUNCTION__, bo->handle, bytes(bo), errno);
+		int err = errno;
+
 		if (__kgem_throttle_retire(kgem, 0))
 			goto retry_mmap;
 
@@ -320,6 +322,8 @@ retry_mmap:
 			goto retry_mmap;
 		}
 
+		ErrorF("%s: failed to mmap handle=%d, %d bytes, into GTT domain: %d\n",
+		       __FUNCTION__, bo->handle, bytes(bo), err);
 		ptr = NULL;
 	}
 
@@ -4694,8 +4698,8 @@ retry:
 	mmap_arg.offset = 0;
 	mmap_arg.size = bytes(bo);
 	if (drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_MMAP, &mmap_arg)) {
-		ErrorF("%s: failed to mmap %d, %d bytes, into CPU domain: %d\n",
-		       __FUNCTION__, bo->handle, bytes(bo), errno);
+		int err = errno;
+
 		if (__kgem_throttle_retire(kgem, 0))
 			goto retry;
 
@@ -4704,6 +4708,8 @@ retry:
 			goto retry;
 		}
 
+		ErrorF("%s: failed to mmap handle=%d, %d bytes, into CPU domain: %d\n",
+		       __FUNCTION__, bo->handle, bytes(bo), err);
 		return NULL;
 	}
 
@@ -4734,8 +4740,8 @@ retry:
 	mmap_arg.offset = 0;
 	mmap_arg.size = bytes(bo);
 	if (drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_MMAP, &mmap_arg)) {
-		ErrorF("%s: failed to mmap %d, %d bytes, into CPU domain: %d\n",
-		       __FUNCTION__, bo->handle, bytes(bo), errno);
+		int err = errno;
+
 		if (__kgem_throttle_retire(kgem, 0))
 			goto retry;
 
@@ -4744,6 +4750,8 @@ retry:
 			goto retry;
 		}
 
+		ErrorF("%s: failed to mmap handle=%d, %d bytes, into CPU domain: %d\n",
+		       __FUNCTION__, bo->handle, bytes(bo), err);
 		return NULL;
 	}
 
