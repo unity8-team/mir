@@ -3436,7 +3436,7 @@ gen2_render_context_switch(struct kgem *kgem,
 	}
 }
 
-bool gen2_render_init(struct sna *sna)
+const char *gen2_render_init(struct sna *sna, const char *backend)
 {
 	struct sna_render *render = &sna->render;
 
@@ -3467,5 +3467,5 @@ bool gen2_render_init(struct sna *sna)
 
 	render->max_3d_size = MAX_3D_SIZE;
 	render->max_3d_pitch = MAX_3D_PITCH;
-	return true;
+	return "Almador (gen2)";
 }

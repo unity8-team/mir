@@ -1,3 +1,489 @@
+commit 2770655371954413c750b030c9a7135baee302d4
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jun 6 12:04:23 2013 +0100
+
+    2.21.9 release
+
+commit d3345cd269dc75999b35f3286d21059974dcb24b
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jun 6 12:18:32 2013 +0100
+
+    sna: Only emit an error for terminal mmap failures
+    
+    If we repeat the mmap, keep quiet. Only emit the ErrorF in case even the
+    repeated attempts to mmap the bo fail.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 70fa080d02bff9742523cea52c875d9447a78bfd
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Jun 5 23:32:01 2013 +0100
+
+    sna: Include the GT details in the backend name for a chipset
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 45c09bfe58c37bbf7965af25bdd4fa5c37c0908f
+Author: Rodrigo Vivi <rodrigo.vivi@gmail.com>
+Date:   Wed Jun 5 13:07:13 2013 -0300
+
+    Add more correct names for Haswell.
+    
+    As we find out more of the final product names for Haswell chipsets, we
+    need to update the user visible identification strings.
+    
+    Signed-off-by: Rodrigo Vivi <rodrigo.vivi@gmail.com>
+
+commit a9f9fb8e44bb0bdbd004da1fce986585ebcafd28
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Jun 5 09:48:19 2013 +0100
+
+    sna/video: Fix redundant initialisation of video->clip
+    
+    It will be created before use anyway, but this silences a compiler
+    warning.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5d0ae71f1d667759ed4cfd2b7e793a08b8e3702c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Jun 5 09:12:48 2013 +0100
+
+    sna: Do not conflate ignoring an output with an allocation failure
+    
+    If the user explicitly ignores an output through xorg.conf, then
+    xf86OutputCreate returns NULL. This is not to be confused with an
+    allocation error that also returns NULL. The latter is terminal, the
+    former is desired.
+    
+    Fixes regression from commit a9acc8dbb436e1e523e7d7c0f3c41946a2d0f245
+    Author: Chris Wilson <chris@chris-wilson.co.uk>
+    Date:   Thu May 30 12:09:52 2013 +0100
+    
+        sna: Cleanup up error reporting after failure to init KMS interface
+    
+    Reported-by: David Rosca <nowrep@gmail.com>
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=65381
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 6dacaddb6a28670a52cead4b62c056a8acde8f3a
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Jun 3 15:34:37 2013 +0100
+
+    sna: Always populate the CPU features string
+    
+    So that we don't print random contents of the stack on ancient 32-bit
+    CPUs with no extended instruction sets.
+    
+    References: https://bugs.launchpad.net/ubuntu/+source/xserver-xorg-video-intel/+bug/1186800
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8a88c01c3737a3570628600b1ab51938f82e226d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Jun 3 14:14:09 2013 +0100
+
+    sna: Make copying the glyph size more compact
+    
+    The assembly was ugly with an unwarranted AGU stall.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 66ad4d6f3c990bd40d816b4a22122bbf64786e4c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jun 2 12:13:46 2013 +0100
+
+    sna/dri: Undo any COW before performing a copy with DRI2CopyRegion
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=65250
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 9a8ff7861c50b2f8698a968a011d5d833c7d5975
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jun 2 12:13:28 2013 +0100
+
+    sna: Add some more DBG hints to copy-on-write cloning
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit c4ad7b14ca71b95af83864b05793ea357f48bb88
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Jun 1 16:58:15 2013 +0100
+
+    sna: Prevent adding damage to an already all-damaged GPU bo
+    
+    Keep the bookkeeping straight after propagating the source clear colour:
+    commit 810a0ce2f89ba6b343b5043963626c0f2d50fb22 [2.21.7]
+    Author: Chris Wilson <chris@chris-wilson.co.uk>
+    Date:   Fri May 10 12:02:10 2013 +0100
+    
+        sna: Propagate clear color when replacing by a CopyArea
+    
+    Reported-by: Roman Jarosz <kedgedev@gmail.com>
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=65247
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit be84b6929705584f30b63d6e613ff3d8e6e3dc1d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Jun 1 16:51:38 2013 +0100
+
+    sna/dri: Reorder assert not to fail on a pageflip deferred to after a modeset
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2e11b520bbdb1af7e977db7fdef2d4c41242d56f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu May 30 15:34:08 2013 +0100
+
+    sna: Compile fix for non-debug builds
+    
+    sna_display.c: In function 'get_fb':
+    sna_display.c:181:3: warning: implicit declaration of function 'assert_scanout' [-Wimplicit-function-declaration]
+    sna_display.c:181:3: warning: nested extern declaration of 'assert_scanout' [-Wnested-externs]
+    
+    * sigh
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 3a9975729c665cd09a33e33eab608350aaee8160
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu May 30 14:15:23 2013 +0100
+
+    sna: Restore GPU promotion for large fills
+    
+    Fix another regression from
+    commit ef9dc6fae585d5616446eedc1e6e91173f4064c1 [2.21.7]
+    Author: Chris Wilson <chris@chris-wilson.co.uk>
+    Date:   Mon May 20 11:08:51 2013 +0100
+    
+        sna: Undo a few more overwritten operations upon a bo
+    
+    The REPLACES predicate was meant to complement the existing tests, not
+    be compulsory.
+    
+    Found whilst investigating why performance seemed to have dropped off in
+    Phoronix's benchmarks.
+    
+    Reported-by: Michael Larabel <michael@phoronix.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 08b33ba8f12bb4bc425ca1bc40e2660e446e2c65
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu May 30 14:57:56 2013 +0100
+
+    sna: Assert that an existing scanout is the desired size
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a9acc8dbb436e1e523e7d7c0f3c41946a2d0f245
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu May 30 12:09:52 2013 +0100
+
+    sna: Cleanup up error reporting after failure to init KMS interface
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f4fcb0e7d24a104afb642dd8819e67ffcaafbfb1
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu May 30 12:02:44 2013 +0100
+
+    sna: Report allocations failures during Screen initialisation
+    
+    Just abort instead of trying to limp on if we fail to even allocate
+    memory during initialisation.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 7f7c8087db6af58109e791763fe33582a1559646
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed May 29 12:25:37 2013 +0100
+
+    sna: Log which outputs are being configured during a modeset
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit fc1e0702b25e647cb423851fb7228989fec28bd6
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Wed May 29 11:25:28 2013 +0100
+
+    sna: fixup up possible_clones kms->X impedance mismatch
+    
+    We need to be a notch more careful with remapping the possible clones
+    mask from the kernel:
+    - SDVO and Haswell DDI have multiple connectors mapping to the same encoder.
+    - The connector list can be reordered compared to the encoder list.
+      This is used to move eDP/LVDS to the front.
+    
+    Also add even more debug output.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit b7aa05e44b1f88284183c1c73bb074dd5dce74cb
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue May 28 23:01:30 2013 +0100
+
+    sna: Sanity check that CRTC / output combination is valid
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit b507796679529b14c99e8937870561cd8eebebb9
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue May 28 12:13:02 2013 +0100
+
+    Add the known marketing names for the performance Haswell parts
+    
+    Start filling in the names for the parts that have been announced, the
+    Iris branded Haswell GT3 parts.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit b3169768ddf8c8977d2ace3675611b5ec6eba7ee
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue May 28 12:02:56 2013 +0100
+
+    sna: Make the backend identifier more informative
+    
+    This is useful, for example, with the multiple gen7 variants.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0839e3316a02380cd64d354ee0ec9d4c2b8eecf4
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue May 28 11:18:14 2013 +0100
+
+    sna: Call mode update after disabling outputs upon VT switch
+    
+    Perform a second sanity check that all the outputs we expect to be
+    active remain so following the cleanup after VT switching.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 7d64f596b895071ea253481c97275bf551c013e9
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon May 27 21:13:40 2013 +0100
+
+    test: Add an easily visible tearing test for video playback
+    
+    Contributed by Matti Hamalainen.
+
+commit f38d037b94aacdccb2aaa058bbe48d1c8079d604
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon May 27 21:07:20 2013 +0100
+
+    sna/video: Correct interpretation of 'sync'
+    
+    The 'sync' parameter past along XvPutImage is not a request for us to
+    perform the operation synchronised to the vblank, rather a hint that the
+    client wishes the operation to be synchronous. In Xorg, this is
+    implemented as an immediate ShmCompletion event so make sure we flush
+    the operation to hw in this case.
+    
+    Fixes regression from
+    commit 195a51353c3af7bd253227da5f759f06cea01f73 [2.21.8]
+    Author: Chris Wilson <chris@chris-wilson.co.uk>
+    Date:   Tue Apr 9 19:13:46 2013 +0100
+    
+        sna/video: Convert to a pure Xv backend
+    
+    Reported-by: Matti Hamalainen <ccr@tnsp.org>
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=65048
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 7e7d0ad15bafc4624f8c2ccf73c08ead5cc6fd6a
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon May 27 13:41:13 2013 +0100
+
+    2.21.8 release
+
+commit 51103d8637ba34a0d5f3507e196f54333aa765bb
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat May 25 15:53:11 2013 +0100
+
+    sna: Free the released COW reference when uncloning
+    
+    Reported-by: Jiri Slaby <jirislaby@gmail.com>
+    Reported-by: David Gow <david@ingeniumdigital.com>
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=64978
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit fce4292ab7216a1c610ffc57aa6763e05b458904
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri May 24 15:15:13 2013 +0100
+
+    sna: Fix cut'n'paste compile error from previous commit
+    
+    Always check for outstanding diff before pushing.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit e2e139923dd000f13602e51d94bc8a265b5e234f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri May 24 15:08:13 2013 +0100
+
+    sna: Log when the framebuffer changes size
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 820f97ede7a38015a781de72cc265b0b65f86415
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri May 24 14:38:06 2013 +0100
+
+    sna: Reorder cleanup of flush list and CPU bo to silence an assertion
+    
+    Keep the bookkeeping in order.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 79e98ea6448f666d1a6dcca19bfe0e84fb62dd46
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri May 24 13:08:26 2013 +0100
+
+    sna: Reenable COW support
+    
+    Accidentally left it disabled whilst testing.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f6c35e58c1bb94ccfa04723db76d7164d5772f11
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri May 24 12:43:16 2013 +0100
+
+    sna: Do not undo a bo if we may fallback
+    
+    If we undo the pending operations to a bo, then fallback we cause
+    corruption. For example, see wine and its 1-bit rendering.
+    
+    Fixes regression from
+    commit 07a4400fffe4f83df3debe62abd2c37b45f8f0c0 [2.21.7]
+    Author: Chris Wilson <chris@chris-wilson.co.uk>
+    Date:   Fri May 10 11:59:59 2013 +0100
+    
+        sna: Attempt to discard overwritten operations before CopyArea
+    
+    Also we need to be more careful and consider alu when marking the
+    operation as 'replaces'.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 818702d3dc48964e4fd11afe8f2fce431ae913c0
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri May 24 12:15:42 2013 +0100
+
+    sna: Discard COW before migrating CPU damage to the GPU
+    
+    At that point, the GPU bo will no longer be a clone of the source and so
+    we need to decouple it and make ourselves a fresh copy.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2b9723767612702f4cfa2f73ffced83c46eccddf
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri May 24 11:46:36 2013 +0100
+
+    sna: Do make a clone of a GPU bo that is itself a cache
+    
+    As we do not attempt to undo the cache status upon the clone.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit dbe2b5896ec2cd00a456236467b221c9fafdd2f7
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri May 24 12:03:41 2013 +0100
+
+    sna: Correct assertion for reusing COW
+    
+    Reported-by: Jiri Slaby <jirislaby@gmail.com>
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=47597
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2005b273e10f2b946f79c602b55a7bf585c936de
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri May 24 11:02:20 2013 +0100
+
+    sna: Check for NULL damage before dereferencing
+    
+    Fixes regression from
+    commit 16a64649e9c440ab9457467fe04be25719a73e7c [2.21.7]
+    Author: Chris Wilson <chris@chris-wilson.co.uk>
+    Date:   Fri May 10 15:48:58 2013 +0100
+    
+        sna: Basic copy-on-write support for cloning pixmaps
+    
+    Reported-by: Axel Rohde
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit ee7ea10148b7843091c3fa103f9f4476979f8b68
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu May 23 12:55:21 2013 +0100
+
+    sna: Only flags the PolyFillRect as REPLACES if it is unclipped
+    
+    Otherwise we discard a fill operation that is required to initialise the
+    pixmap before drawing commences.
+    
+    Fixes regression from
+    commit ef9dc6fae585d5616446eedc1e6e91173f4064c1 [2.21.7]
+    Author: Chris Wilson <chris@chris-wilson.co.uk>
+    Date:   Mon May 20 11:08:51 2013 +0100
+    
+        sna: Undo a few more overwritten operations upon a bo
+    
+    Reported-by: Matti Hamalainen <ccr@tnsp.org>
+    Reported-by: Clemens Eisserer <linuxhippy@gmail.com>
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=64841
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 87295b1ef85505689ce326137c2794230fb3f35f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed May 22 09:43:16 2013 +0100
+
+    sna: Remove the overzealous assert
+    
+    IGNORE_CPU is sometimes only set when there is CPU damage to ignore...
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f2e0454f2df4289521b24de41fb41c68f7abf0ed
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed May 22 08:58:51 2013 +0100
+
+    sna: Fix DBG typo and so fix build with --enable-debug
+    
+    s/hint/flags/ -- used the wrong variable name in an assert and upset the
+    compiler.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit abe85adda51c58d3f3b9c5dea6cec4b13a65cdcd
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue May 21 13:39:35 2013 +0100
+
+    sna: Warn about the consequences of disabling tiling
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 195a51353c3af7bd253227da5f759f06cea01f73
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Apr 9 19:13:46 2013 +0100
+
+    sna/video: Convert to a pure Xv backend
+    
+    This is to enable feature work which requires access to Client state.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8e42637050275945200797538a34c13c90b295cc
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue May 21 11:13:03 2013 +0100
+
+    sna: Re-enable read-read optimisations
+    
+    Coacher is optimistic that the issue is no longer reproducible on his
+    machine - and whilst I do not understand the root cause, I am confident
+    that the kernel code is correct as is our use.
+    
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=61628
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
 commit e65ee10dfd7155230ac18a6d24a67b68336dc973
 Author: Chris Wilson <chris@chris-wilson.co.uk>
 Date:   Tue May 21 11:01:50 2013 +0100

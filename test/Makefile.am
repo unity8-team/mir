@@ -44,5 +44,5 @@ vsync.avi: mkvsync.sh
 clean-vsync-avi:
 	rm -rf vsync.avi .build.tmp
 
-EXTRA_DIST = README mkvsync.sh
+EXTRA_DIST = README mkvsync.sh tearing.mp4
 clean-local: clean-vsync-avi

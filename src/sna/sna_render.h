@@ -541,14 +541,13 @@ bool sna_get_rgba_from_pixel(uint32_t pixel,
 			     uint32_t format);
 bool sna_picture_is_solid(PicturePtr picture, uint32_t *color);
 
-void no_render_init(struct sna *sna);
-
-bool gen2_render_init(struct sna *sna);
-bool gen3_render_init(struct sna *sna);
-bool gen4_render_init(struct sna *sna);
-bool gen5_render_init(struct sna *sna);
-bool gen6_render_init(struct sna *sna);
-bool gen7_render_init(struct sna *sna);
+const char *no_render_init(struct sna *sna);
+const char *gen2_render_init(struct sna *sna, const char *backend);
+const char *gen3_render_init(struct sna *sna, const char *backend);
+const char *gen4_render_init(struct sna *sna, const char *backend);
+const char *gen5_render_init(struct sna *sna, const char *backend);
+const char *gen6_render_init(struct sna *sna, const char *backend);
+const char *gen7_render_init(struct sna *sna, const char *backend);
 
 bool sna_tiling_composite(uint32_t op,
 			  PicturePtr src,

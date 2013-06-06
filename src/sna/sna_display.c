@@ -44,6 +44,7 @@
 #include <X11/extensions/dpmsconst.h>
 #include <xf86drm.h>
 #include <xf86DDC.h> /* for xf86InterpretEDID */
+#include <xf86Opt.h> /* for xf86OptionPtr */
 
 #include "sna.h"
 #include "sna_reg.h"
@@ -59,6 +60,8 @@
 #define __DBG(x)
 #endif
 
+extern XF86ConfigPtr xf86configptr;
+
 struct sna_crtc {
 	struct drm_mode_modeinfo kmode;
 	int dpms_mode;
@@ -71,7 +74,6 @@ struct sna_crtc {
 	uint8_t id;
 	uint8_t pipe;
 	uint8_t plane;
-	struct list link;
 };
 
 struct sna_property {
@@ -84,6 +86,7 @@ struct sna_property {
 struct sna_output {
 	int id;
 	drmModeConnectorPtr mode_output;
+	int encoder_idx;
 	int num_props;
 	struct sna_property *props;
 
@@ -95,8 +98,17 @@ struct sna_output {
 	char *backlight_iface;
 	int backlight_active_level;
 	int backlight_max;
-	struct list link;
 };
+
+static inline struct sna_output *to_sna_output(xf86OutputPtr output)
+{
+	return output->driver_private;
+}
+
+static inline int to_connector_id(xf86OutputPtr output)
+{
+	return to_sna_output(output)->mode_output->connector_id;
+}
 
 static inline struct sna_crtc *to_sna_crtc(xf86CrtcPtr crtc)
 {
@@ -136,6 +148,27 @@ uint32_t sna_crtc_to_plane(xf86CrtcPtr crtc)
 	return to_sna_crtc(crtc)->plane;
 }
 
+#ifndef NDEBUG
+static void gem_close(int fd, uint32_t handle);
+static void assert_scanout(struct kgem *kgem, struct kgem_bo *bo,
+			   int width, int height)
+{
+	struct drm_mode_fb_cmd info;
+
+	assert(bo->scanout);
+
+	VG_CLEAR(info);
+	info.fb_id = bo->delta;
+
+	assert(drmIoctl(kgem->fd, DRM_IOCTL_MODE_GETFB, &info) == 0);
+	gem_close(kgem->fd, info.handle);
+
+	assert(width == info.width && height == info.height);
+}
+#else
+#define assert_scanout(k, b, w, h)
+#endif
+
 static unsigned get_fb(struct sna *sna, struct kgem_bo *bo,
 		       int width, int height)
 {
@@ -148,6 +181,7 @@ static unsigned get_fb(struct sna *sna, struct kgem_bo *bo,
 	if (bo->delta) {
 		DBG(("%s: reusing fb=%d for handle=%d\n",
 		     __FUNCTION__, bo->delta, bo->handle));
+		assert_scanout(&sna->kgem, bo, width, height);
 		return bo->delta;
 	}
 
@@ -735,14 +769,17 @@ sna_crtc_apply(xf86CrtcPtr crtc)
 
 	for (i = 0; i < xf86_config->num_output; i++) {
 		xf86OutputPtr output = xf86_config->output[i];
-		struct sna_output *sna_output;
 
 		if (output->crtc != crtc)
 			continue;
 
-		sna_output = output->driver_private;
-		output_ids[output_count] =
-			sna_output->mode_output->connector_id;
+		assert(output->possible_crtcs & (1 << i));
+
+		DBG(("%s: attaching output '%s' %d [%d] to crtc:%d (pipe %d) (possible crtc:%x, possible clones:%x)\n",
+		     __FUNCTION__, output->name, i, to_connector_id(output),
+		     sna_crtc->id, sna_crtc->pipe,
+		     output->possible_crtcs, output->possible_clones));
+		output_ids[output_count] = to_connector_id(output);
 		output_count++;
 	}
 
@@ -761,8 +798,8 @@ sna_crtc_apply(xf86CrtcPtr crtc)
 	arg.mode = sna_crtc->kmode;
 	arg.mode_valid = 1;
 
-	DBG(("%s: applying crtc [%d] mode=%dx%d+%d+%d@%d, fb=%d%s%s update to %d outputs\n",
-	     __FUNCTION__, sna_crtc->id,
+	DBG(("%s: applying crtc [%d, pipe=%d] mode=%dx%d+%d+%d@%d, fb=%d%s%s update to %d outputs [%d...]\n",
+	     __FUNCTION__, sna_crtc->id, sna_crtc->pipe,
 	     arg.mode.hdisplay,
 	     arg.mode.vdisplay,
 	     arg.x, arg.y,
@@ -770,7 +807,7 @@ sna_crtc_apply(xf86CrtcPtr crtc)
 	     arg.fb_id,
 	     sna_crtc->shadow ? " [shadow]" : "",
 	     sna_crtc->transform ? " [transformed]" : "",
-	     output_count));
+	     output_count, output_count ? output_ids[0] : 0));
 
 	if (drmIoctl(sna->kgem.fd, DRM_IOCTL_MODE_SETCRTC, &arg))
 		return false;
@@ -929,6 +966,8 @@ void sna_mode_disable_unused(struct sna *sna)
 		if (!xf86_config->crtc[i]->enabled)
 			sna_crtc_disable(xf86_config->crtc[i]);
 	}
+
+	sna_mode_update(sna);
 }
 
 static struct kgem_bo *sna_create_bo_for_fbcon(struct sna *sna,
@@ -1316,6 +1355,25 @@ sna_crtc_damage(xf86CrtcPtr crtc)
 	RegionUnion(damage, damage, &region);
 }
 
+static char *outputs_for_crtc(xf86CrtcPtr crtc, char *outputs, int max)
+{
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
+	int len, i;
+
+	for (i = len = 0; i < xf86_config->num_output; i++) {
+		xf86OutputPtr output = xf86_config->output[i];
+
+		if (output->crtc != crtc)
+			continue;
+
+		len += snprintf(outputs+len, max-len, "%s, ", output->name);
+	}
+	assert(len >= 2);
+	outputs[len-2] = '\0';
+
+	return outputs;
+}
+
 static Bool
 sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 			Rotation rotation, int x, int y)
@@ -1326,14 +1384,15 @@ sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	struct kgem_bo *saved_bo, *bo;
 	struct drm_mode_modeinfo saved_kmode;
 	bool saved_transform;
+	char outputs[256];
 
 	if (mode->HDisplay == 0 || mode->VDisplay == 0)
 		return FALSE;
 
 	xf86DrvMsg(crtc->scrn->scrnIndex, X_INFO,
-		   "switch to mode %dx%d on crtc %d (pipe %d)\n",
-		   mode->HDisplay, mode->VDisplay,
-		   sna_crtc->id, sna_crtc->pipe);
+		   "switch to mode %dx%d on pipe %d using %s\n",
+		   mode->HDisplay, mode->VDisplay, sna_crtc->pipe,
+		   outputs_for_crtc(crtc, outputs, sizeof(outputs)));
 
 	DBG(("%s(crtc=%d [pipe=%d] rotation=%d, x=%d, y=%d, mode=%dx%d@%d)\n",
 	     __FUNCTION__, sna_crtc->id, sna_crtc->pipe, rotation, x, y,
@@ -1524,12 +1583,13 @@ sna_crtc_destroy(xf86CrtcPtr crtc)
 {
 	struct sna_crtc *sna_crtc = to_sna_crtc(crtc);
 
+	if (sna_crtc == NULL)
+		return;
+
 	sna_crtc_hide_cursor(crtc);
 	gem_close(to_sna(crtc->scrn)->kgem.fd, sna_crtc->cursor);
 
-	list_del(&sna_crtc->link);
 	free(sna_crtc);
-
 	crtc->driver_private = NULL;
 }
 
@@ -1606,7 +1666,7 @@ sna_crtc_find_plane(struct sna *sna, int pipe)
 #endif
 }
 
-static void
+static bool
 sna_crtc_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 {
 	struct sna *sna = to_sna(scrn);
@@ -1618,7 +1678,7 @@ sna_crtc_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 
 	sna_crtc = calloc(sizeof(struct sna_crtc), 1);
 	if (sna_crtc == NULL)
-		return;
+		return false;
 
 	sna_crtc->id = mode->kmode->crtcs[num];
 	sna_crtc->dpms_mode = DPMSModeOff;
@@ -1630,7 +1690,7 @@ sna_crtc_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 		     DRM_IOCTL_I915_GET_PIPE_FROM_CRTC_ID,
 		     &get_pipe)) {
 		free(sna_crtc);
-		return;
+		return false;
 	}
 	sna_crtc->pipe = get_pipe.pipe;
 	sna_crtc->plane = sna_crtc_find_plane(sna, sna_crtc->pipe);
@@ -1638,23 +1698,28 @@ sna_crtc_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 	if (xf86IsEntityShared(scrn->entityList[0]) &&
 	    scrn->confScreen->device->screen != sna_crtc->pipe) {
 		free(sna_crtc);
-		return;
+		return true;
 	}
 
 	crtc = xf86CrtcCreate(scrn, &sna_crtc_funcs);
 	if (crtc == NULL) {
 		free(sna_crtc);
-		return;
+		return false;
 	}
 
-	crtc->driver_private = sna_crtc;
-
 	sna_crtc->cursor = gem_create(sna->kgem.fd, 64*64*4);
+	if (!sna_crtc->cursor) {
+		xf86CrtcDestroy(crtc);
+		return false;
+	}
 	DBG(("%s: created handle=%d for cursor on CRTC:%d\n",
 	     __FUNCTION__, sna_crtc->cursor, sna_crtc->id));
 
+	crtc->driver_private = sna_crtc;
 	DBG(("%s: attached crtc[%d] id=%d, pipe=%d\n",
 	     __FUNCTION__, num, sna_crtc->id, sna_crtc->pipe));
+
+	return true;
 }
 
 static bool
@@ -1891,6 +1956,9 @@ sna_output_destroy(xf86OutputPtr output)
 	struct sna_output *sna_output = output->driver_private;
 	int i;
 
+	if (sna_output == NULL)
+		return;
+
 	for (i = 0; i < sna_output->num_props; i++) {
 		drmModeFreeProperty(sna_output->props[i].mode_prop);
 		free(sna_output->props[i].atoms);
@@ -1902,9 +1970,7 @@ sna_output_destroy(xf86OutputPtr output)
 
 	free(sna_output->backlight_iface);
 
-	list_del(&sna_output->link);
 	free(sna_output);
-
 	output->driver_private = NULL;
 }
 
@@ -2316,7 +2382,30 @@ sna_zaphod_match(const char *s, const char *output)
 	return false;
 }
 
-static void
+static bool
+output_ignored(ScrnInfoPtr scrn, const char *name)
+{
+	char monitor_name[64];
+	const char *monitor;
+	XF86ConfMonitorPtr conf;
+
+	snprintf(monitor_name, sizeof(monitor_name), "monitor-%s", name);
+	monitor = xf86findOptionValue(scrn->options, monitor_name);
+	if (!monitor)
+		monitor = name;
+
+	conf = xf86findMonitor(monitor,
+			       xf86configptr->conf_monitor_lst);
+	if (conf == NULL && XF86_CRTC_CONFIG_PTR(scrn)->num_output == 0)
+		conf = xf86findMonitor(scrn->monitor->id,
+				       xf86configptr->conf_monitor_lst);
+	if (conf == NULL)
+		return false;
+
+	return xf86CheckBoolOption(conf->mon_option_lst, "Ignore", 0);
+}
+
+static bool
 sna_output_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 {
 	struct sna *sna = to_sna(scrn);
@@ -2326,11 +2415,13 @@ sna_output_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 	struct sna_output *sna_output;
 	const char *output_name;
 	char name[32];
+	bool ret = false;
+	int i;
 
 	koutput = drmModeGetConnector(sna->kgem.fd,
 				      mode->kmode->connectors[num]);
 	if (!koutput)
-		return;
+		return false;
 
 	VG_CLEAR(enc);
 	enc.encoder_id = koutput->encoders[0];
@@ -2347,8 +2438,10 @@ sna_output_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 		const char *str;
 
 		str = xf86GetOptValString(sna->Options, OPTION_ZAPHOD);
-		if (str && !sna_zaphod_match(str, name))
+		if (str && !sna_zaphod_match(str, name)) {
+			ret = true;
 			goto cleanup_connector;
+		}
 
 		if ((enc.possible_crtcs & (1 << scrn->confScreen->device->screen)) == 0) {
 			if (str) {
@@ -2364,8 +2457,15 @@ sna_output_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 	}
 
 	output = xf86OutputCreate(scrn, &sna_output_funcs, name);
-	if (!output)
+	if (!output) {
+		/* xf86OutputCreate does not differentiate between
+		 * a failure to allocate the output, and a user request
+		 * to ignore the output. So reconstruct whether the user
+		 * explicitly ignored the output.
+		 */
+		ret = output_ignored(scrn, name);
 		goto cleanup_connector;
+	}
 
 	sna_output = calloc(sizeof(struct sna_output), 1);
 	if (!sna_output)
@@ -2380,6 +2480,13 @@ sna_output_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 	output->subpixel_order = subpixel_conv_table[koutput->subpixel];
 	output->driver_private = sna_output;
 
+	for (i = 0; i < mode->kmode->count_encoders; i++) {
+		if (enc.encoder_id == mode->kmode->encoders[i]) {
+			sna_output->encoder_idx = i;
+			break;
+		}
+	}
+
 	if (is_panel(koutput->connector_type))
 		sna_output_backlight_init(output);
 
@@ -2387,41 +2494,47 @@ sna_output_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 	output->possible_clones = enc.possible_clones;
 	output->interlaceAllowed = TRUE;
 
-	return;
+	DBG(("%s: created output '%s' %d [%d]  (possible crtc:%x, possible clones:%x)\n",
+	     __FUNCTION__, name, num, to_connector_id(output),
+	     output->possible_crtcs, output->possible_clones));
+
+	return true;
 
 cleanup_output:
 	xf86OutputDestroy(output);
 cleanup_connector:
 	drmModeFreeConnector(koutput);
+	return ret;
 }
 
-/* The kernel reports possible encoder clones, whereas X uses a list of
- * possible connector clones. This is works when we have a 1:1 mapping
- * between encoders and connectors, but breaks for Haswell which has a pair
- * of DP/HDMI connectors hanging off a single encoder.
+/* We need to map from kms encoder based possible_clones mask to X output based
+ * possible clones masking. Note that for SDVO and on Haswell with DP/HDMI we
+ * can have more than one output hanging off the same encoder.
  */
 static void
 sna_mode_compute_possible_clones(ScrnInfoPtr scrn)
 {
 	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(scrn);
-	unsigned clones[32] = { 0 };
 	int i, j;
 
 	assert(config->num_output <= 32);
 
 	/* Convert from encoder numbering to output numbering */
 	for (i = 0; i < config->num_output; i++) {
-		unsigned mask = config->output[i]->possible_clones;
-		for (j = 0; mask != 0; j++, mask >>= 1) {
-			if ((mask & 1) == 0)
-				continue;
+		xf86OutputPtr output = config->output[i];
+		unsigned mask = output->possible_clones;
+		unsigned clones = 0;
 
-			clones[j] |= 1 << i;
+		for (j = 0; j < config->num_output; j++) {
+			if (mask & (1 << to_sna_output(config->output[j])->encoder_idx))
+				clones |= 1 << j;
 		}
-	}
 
-	for (i = 0; i < config->num_output; i++)
-		config->output[i]->possible_clones = clones[i];
+		output->possible_clones = clones;
+		DBG(("%s: updated output '%s' %d [%d] (possible crtc:%x, possible clones:%x)\n",
+		     __FUNCTION__, output->name, i, to_connector_id(output),
+		     output->possible_crtcs, output->possible_clones));
+	}
 }
 
 struct sna_visit_set_pixmap_window {
@@ -2567,6 +2680,10 @@ sna_mode_resize(ScrnInfoPtr scrn, int width, int height)
 					 SNA_CREATE_FB);
 	if (!new_front)
 		return FALSE;
+
+	xf86DrvMsg(scrn->scrnIndex, X_INFO,
+		   "resizing framebuffer to %dx%d\n",
+		   width, height);
 
 	for (i = 0; i < xf86_config->num_crtc; i++)
 		sna_crtc_disable_shadow(sna, to_sna_crtc(xf86_config->crtc[i]));
@@ -2732,28 +2849,32 @@ bool sna_mode_pre_init(ScrnInfoPtr scrn, struct sna *sna)
 	int i;
 
 	mode->kmode = drmModeGetResources(sna->kgem.fd);
-	if (!mode->kmode)
-		return sna_mode_fake_init(sna);
+	if (mode->kmode) {
+		xf86CrtcConfigInit(scrn, &sna_mode_funcs);
 
-	xf86CrtcConfigInit(scrn, &sna_mode_funcs);
+		for (i = 0; i < mode->kmode->count_crtcs; i++)
+			if (!sna_crtc_init(scrn, mode, i))
+				return false;
 
-	for (i = 0; i < mode->kmode->count_crtcs; i++)
-		sna_crtc_init(scrn, mode, i);
+		for (i = 0; i < mode->kmode->count_connectors; i++)
+			if (!sna_output_init(scrn, mode, i))
+				return false;
 
-	for (i = 0; i < mode->kmode->count_connectors; i++)
-		sna_output_init(scrn, mode, i);
+		if (!xf86IsEntityShared(scrn->entityList[0]))
+			sna_mode_compute_possible_clones(scrn);
 
-	if (!xf86IsEntityShared(scrn->entityList[0]))
-		sna_mode_compute_possible_clones(scrn);
+#if HAS_PIXMAP_SHARING
+		xf86ProviderSetup(scrn, NULL, "Intel");
+#endif
+	} else {
+		if (!sna_mode_fake_init(sna))
+			return false;
+	}
 
 	set_size_range(sna);
 
-#if HAS_PIXMAP_SHARING
-	xf86ProviderSetup(scrn, NULL, "Intel");
-#endif
 	xf86InitialConfiguration(scrn, TRUE);
-
-	return true;
+	return scrn->modes != NULL;
 }
 
 void
@@ -2776,19 +2897,6 @@ sna_mode_close(struct sna *sna)
 void
 sna_mode_fini(struct sna *sna)
 {
-#if 0
-	while (!list_is_empty(&mode->crtcs)) {
-		xf86CrtcDestroy(list_first_entry(&mode->crtcs,
-						 struct sna_crtc,
-						 link)->crtc);
-	}
-
-	while (!list_is_empty(&mode->outputs)) {
-		xf86OutputDestroy(list_first_entry(&mode->outputs,
-						   struct sna_output,
-						   link)->output);
-	}
-#endif
 }
 
 static bool sna_box_intersect(BoxPtr r, const BoxRec *a, const BoxRec *b)

@@ -128,6 +128,7 @@
 #define RegionNull(r) REGION_NULL(NULL, r)
 #define RegionNotEmpty(r) REGION_NOTEMPTY(NULL, r)
 #define RegionEmpty(r) REGION_EMPTY(NULL, r)
+#define RegionEqual(a, b) REGION_EQUAL(NULL, a, b)
 #define RegionDestroy(r) REGION_DESTROY(NULL, r)
 #else
 #define region_from_bitmap BitmapToRegion

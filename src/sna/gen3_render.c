@@ -6204,7 +6204,7 @@ gen3_render_fini(struct sna *sna)
 {
 }
 
-bool gen3_render_init(struct sna *sna)
+const char *gen3_render_init(struct sna *sna, const char *backend)
 {
 	struct sna_render *render = &sna->render;
 
@@ -6236,5 +6236,5 @@ bool gen3_render_init(struct sna *sna)
 
 	sna->kgem.retire = gen3_render_retire;
 	sna->kgem.expire = gen3_render_expire;
-	return true;
+	return "Alviso (gen3)";
 }
