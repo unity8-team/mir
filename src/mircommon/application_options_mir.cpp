@@ -73,6 +73,8 @@ void print_help_and_exit()
 
 }
 
+extern "C"
+{
 UApplicationOptions*
 u_application_options_new_from_cmd_line(int argc, char** argv)
 {
@@ -139,7 +141,7 @@ u_application_options_new_from_cmd_line(int argc, char** argv)
 }
 
 void
-u_application_option_destroy(UApplicationOptions* u_options)
+u_application_options_destroy(UApplicationOptions* u_options)
 {
     auto options = uam::Options::from_u_application_options(u_options);
     delete options;
@@ -164,4 +166,5 @@ u_application_options_get_stage(UApplicationOptions* u_options)
 {
     auto options = uam::Options::from_u_application_options(u_options);
     return options->stage;
+}
 }
