@@ -69,6 +69,10 @@ typedef enum {
     U_KEY_MODIFIER_SCROLL_LOCK = 0x400000
 } UKeyModifierMask;
 
+#define U_MOTION_ACTION_POINTER_INDEX_SHIFT 8
+#define U_MOTION_ACTION_MASK 0xff
+#define U_MOTION_ACTION_POINTER_INDEX_MASK 0xff00
+
 typedef enum {
     U_MOTION_ACTION_DOWN         = 0,
     U_MOTION_ACTION_UP           = 1,
