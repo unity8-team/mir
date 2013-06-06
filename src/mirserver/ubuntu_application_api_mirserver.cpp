@@ -256,6 +256,14 @@ uint32_t ua_ui_display_query_vertical_res(UAUiDisplay* display)
     return mir_display->view_area().size.height.as_uint32_t();
 }
 
+EGLNativeDisplayType ua_ui_display_get_native_type(UAUiDisplay* display)
+{
+    auto internal_client = global_mirserver_context()->egl_client;
+    assert(internal_client);
+    
+    return internal_client->egl_native_display();
+}
+
 namespace
 {
 static mir::geometry::PixelFormat choose_pixel_format(std::shared_ptr<mir::compositor::GraphicBufferAllocator> const& allocator)

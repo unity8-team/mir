@@ -251,6 +251,14 @@ uint32_t ua_ui_display_query_vertical_res(UAUiDisplay* display)
     return static_cast<uint32_t>(mir_display->height);
 }
 
+EGLNativeDisplayType ua_ui_display_get_native_type(UAUiDisplay* display)
+{
+    auto instance = assert_global_mir_instance();
+
+    // TODO<mir>: Careful with this cast
+    return reinterpret_cast<EGLNativeDisplayType>(mir_connection_get_egl_native_display(instance->connection));
+}
+
 UAUiWindowProperties* ua_ui_window_properties_new_for_normal_window()
 {
     auto properties = new MirWindowProperties;
