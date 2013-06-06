@@ -90,7 +90,7 @@ protected:
 class SessionProperties : public ubuntu::platform::ReferenceCountedBase
 {
 public:
-    SessionProperties() {}
+    SessionProperties() : pid(0) {}
 
     typedef ubuntu::platform::shared_ptr<SessionProperties> Ptr;
 
@@ -104,8 +104,19 @@ public:
         return this->type;
     }
 
+    void set_remote_pid(uint32_t pid)
+    {
+        this->pid = pid;
+    }
+
+    uint32_t get_remote_pid()
+    {
+        return this->pid;
+    }
+
 private:
     SessionType type;
+    uint32_t pid;
 
 protected:
     virtual ~SessionProperties() {}

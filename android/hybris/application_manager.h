@@ -238,7 +238,8 @@ public:
                                      const String8& app_name,
                                      const String8& desktop_file,
                                      const sp<IApplicationManagerSession>& session,
-                                     int fd) = 0;
+                                     int fd,
+                                     uint32_t remote_pid) = 0;
 
     virtual void register_a_surface(const String8& title,
                                     const sp<IApplicationManagerSession>& session,
@@ -322,7 +323,8 @@ public:
                              const String8& app_name,
                              const String8& desktop_file,
                              const sp<IApplicationManagerSession>& session,
-                             int fd);
+                             int fd,
+                             uint32_t remote_pid);
 
     void register_a_surface(const String8& title,
                             const android::sp<android::IApplicationManagerSession>& session,

@@ -249,6 +249,15 @@ ua_ui_session_properties_set_type(
         p->value->set_type(static_cast<ubuntu::application::ui::SessionType>(type));
 }
 
+void
+ua_ui_session_properties_set_remote_pid(
+    UAUiSessionProperties *properties,
+    uint32_t pid)
+{
+    auto p = static_cast<Holder<ubuntu::application::ui::SessionProperties::Ptr>*>(properties);
+    p->value->set_remote_pid(pid);
+}
+
 UAUiSession*
 ua_ui_session_new_with_properties(
     UAUiSessionProperties *properties)
@@ -261,7 +270,11 @@ ua_ui_session_new_with_properties(
     auto p = static_cast<Holder<ubuntu::application::ui::SessionProperties::Ptr>*>(properties);
 
     SessionCredentials creds = {
-            static_cast<SessionType>(p->value->get_type()), APPLICATION_SUPPORTS_OVERLAYED_MENUBAR, "QtUbuntu", NULL
+            static_cast<SessionType>(p->value->get_type()),
+            APPLICATION_SUPPORTS_OVERLAYED_MENUBAR,
+            "QtUbuntu",
+            p->value->get_remote_pid(),
+            NULL
     };    
 
     ubuntu::application::ui::SessionCredentials sc(&creds);
