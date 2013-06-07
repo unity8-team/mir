@@ -74,7 +74,7 @@ Replaces: libplatform-api1,
 Section: libs
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
-Architecture: i386 amd64 armhf
+Architecture: armhf
 Depends: libhybris,
          ${misc:Depends},
          ${shlibs:Depends},
