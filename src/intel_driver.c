@@ -714,16 +714,16 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 		   intel->has_relaxed_fencing ? "enabled" : "disabled");
 
 	/* SwapBuffers delays to avoid tearing */
-	intel->swapbuffers_wait = FALSE; /*xf86ReturnOptValBool(intel->Options,
+	intel->swapbuffers_wait = xf86ReturnOptValBool(intel->Options,
 						       OPTION_SWAPBUFFERS_WAIT,
-						       TRUE); */
+						       TRUE);
 	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Wait on SwapBuffers? %s\n",
 		   intel->swapbuffers_wait ? "enabled" : "disabled");
 
-	intel->use_triple_buffer = FALSE;
-/*		xf86ReturnOptValBool(intel->Options,
+	intel->use_triple_buffer = 
+		xf86ReturnOptValBool(intel->Options,
 				     OPTION_TRIPLE_BUFFER,
-				     TRUE); */
+				     TRUE);
 	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Triple buffering? %s\n",
 		   intel->use_triple_buffer ? "enabled" : "disabled");
 
