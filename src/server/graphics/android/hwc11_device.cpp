@@ -75,14 +75,18 @@ unsigned int mga::HWC11Device::number_of_framebuffers_available() const
     return 2u;
 }
  
-void mga::HWC11Device::set_next_frontbuffer(std::shared_ptr<mc::Buffer> const& buffer)
+bool mga::HWC11Device::set_next_frontbuffer(std::shared_ptr<mc::Buffer> const& buffer)
 {
+    bool ok = true;
+
     layer_organizer->set_fb_target(buffer);
 
     if (wait_for_vsync)
     {
-        fb_device->set_next_frontbuffer(buffer);
+        ok = fb_device->set_next_frontbuffer(buffer);
     }
+
+    return ok;
 }
 
 void mga::HWC11Device::commit_frame(EGLDisplay dpy, EGLSurface sur)

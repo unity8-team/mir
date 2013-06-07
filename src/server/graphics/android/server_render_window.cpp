@@ -56,8 +56,18 @@ ANativeWindowBuffer* mga::ServerRenderWindow::driver_requests_buffer()
 void mga::ServerRenderWindow::driver_returns_buffer(ANativeWindowBuffer* returned_handle, std::shared_ptr<SyncObject> const&)
 {
     auto buffer = resource_cache->retrieve_buffer(returned_handle); 
-    poster->set_next_frontbuffer(buffer);
+    bool posted = poster->set_next_frontbuffer(buffer);
     swapper->compositor_release(buffer);
+    if (!posted)
+    {
+        /*
+         * This usually means powerd, or something, has blanked the display.
+         * Sleep for about a frame to avoid spinning the CPU.
+         * Arguably a nicer solution would be to block in a system call but
+         * I don't see any blocking in this situation. So just sleep.
+         */
+        usleep(16000);
+    }
 }
 
 void mga::ServerRenderWindow::dispatch_driver_request_format(int request_format)

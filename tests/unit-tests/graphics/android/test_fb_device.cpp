@@ -65,7 +65,7 @@ TEST_F(FBDevice, set_next_frontbuffer_ok)
     EXPECT_CALL(*fb_hal_mock, post_interface(fb_hal_mock.get(),dummy_buffer->handle))
         .Times(1);
 
-    fbdev.set_next_frontbuffer(mock_buffer); 
+    EXPECT_TRUE(fbdev.set_next_frontbuffer(mock_buffer));
 }
 
 TEST_F(FBDevice, set_next_frontbuffer_fail)
@@ -77,9 +77,7 @@ TEST_F(FBDevice, set_next_frontbuffer_fail)
         .Times(1)
         .WillOnce(Return(-1));
 
-    EXPECT_THROW({
-        fbdev.set_next_frontbuffer(mock_buffer); 
-    }, std::runtime_error); 
+    EXPECT_FALSE(fbdev.set_next_frontbuffer(mock_buffer));
 }
 
 TEST_F(FBDevice, determine_size)
