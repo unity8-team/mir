@@ -5,7 +5,7 @@ Build-Depends: cmake,
                debhelper (>= 9),
                libgl1-mesa-dev[!armhf],
                libgles2-mesa-dev[armhf],
-               libhybris-dev,
+               libhybris-dev[armhf],
                pkg-config,
                libmirclient-dev,
                libmirserver-dev
@@ -21,7 +21,7 @@ Package: libplatform-api-headers
 Section: libdevel
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
-Architecture: any
+Architecture: i386 amd64 armhf
 Depends: ${misc:Depends},
 Description: Platform API for system level capabilities (API headers)
  This package provides the library headers for the Platform API.
@@ -34,7 +34,7 @@ Package: libplatform-api1-dev
 Section: libdevel
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
-Architecture: any
+Architecture: armhf
 Depends: libgles2-mesa-dev,
          libplatform-api-headers (= ${binary:Version}),
          libplatform-api1-hybris | libplatform-api1,
@@ -43,6 +43,30 @@ Description: Platform API for system level capabilities (development)
  This package provides the development library and headers (via
  dependency) for the Platform API.
 
+Package: libplatform-api1-mirserver
+Section: libs
+Pre-Depends: ${misc:Pre-Depends},
+Multi-Arch: same
+Architecture: any
+Depends: libmirserver0,
+         ${misc:Depends},
+         ${shlibs:Depends},
+Description: Implementation of the Platform API for a Mir server 
+ This package provides the implementation of the Platform API to
+ provide a server instance of Mir.
+
+Package: libplatform-api1-mirclient
+Section: libs
+Pre-Depends: ${misc:Pre-Depends},
+Multi-Arch: same
+Architecture: any
+Depends: libmirclient0,
+         ${misc:Depends},
+         ${shlibs:Depends},
+Description: Implementation of the Platform API for a Mir client
+ This package provides the implementation of the Platform API to
+ allow a client to connect to a Mir server.
+
 Package: libplatform-api1-hybris
 Provides: libplatform-api1,
 Conflicts: libplatform-api1,
@@ -50,7 +74,7 @@ Replaces: libplatform-api1,
 Section: libs
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
-Architecture: any
+Architecture: armhf
 Depends: libhybris,
          ${misc:Depends},
          ${shlibs:Depends},
@@ -61,7 +85,7 @@ Description: Hybris implementation of the Platform API (runtime)
  Android userspace, which is where the Ubuntu Application Manager lives.
 
 Package: libplatform-api1-hybris-tests
-Architecture: any
+Architecture: armhf
 Depends: libplatform-api1-hybris (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends},
@@ -71,9 +95,7 @@ Description: Hybris implementation of the Platform API (tests)
 
 Package: ubuntu-platform-api-headers
 Section: oldlibs
-Pre-Depends: ${misc:Pre-Depends},
-Multi-Arch: same
-Architecture: any
+Architecture: all
 Depends: libplatform-api-headers (= ${binary:Version}),
          ${misc:Depends},
 Description: dummy transitional package for libplatform-api-headers
@@ -83,9 +105,7 @@ Description: dummy transitional package for libplatform-api-headers
 
 Package: libubuntu-platform-api1-dev
 Section: oldlibs
-Pre-Depends: ${misc:Pre-Depends},
-Multi-Arch: same
-Architecture: any
+Architecture: all
 Depends: libplatform-api1-dev (= ${binary:Version}),
          ${misc:Depends},
 Description: dummy transitional package for libplatform-api1-dev
@@ -94,13 +114,11 @@ Description: dummy transitional package for libplatform-api1-dev
  This package can be safely removed.
 
 Package: ubuntu-platform-implementation-android
+Section: oldlibs
+Architecture: all 
 Provides: libubuntu-platform-api1,
 Conflicts: libubuntu-platform-api1,
 Replaces: libubuntu-platform-api1,
-Section: oldlibs
-Pre-Depends: ${misc:Pre-Depends},
-Multi-Arch: same
-Architecture: any
 Depends: libplatform-api1-hybris (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends},
@@ -110,7 +128,8 @@ Description: dummy transitional package for libplatform-api1-hybris
  This package can be safely removed.
 
 Package: ubuntu-platform-implementation-android-tests
-Architecture: oldlibs
+Architecture: all
+Section: oldlibs
 Depends: libplatform-api1-hybris-tests (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends},

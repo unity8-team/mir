@@ -136,6 +136,8 @@ extern "C" {
         /** The name of the application */
         char application_name[MAX_APPLICATION_NAME_LENGTH]; 
 
+        uint32_t remote_pid;
+
         void* context; 
     } SessionCredentials;
 

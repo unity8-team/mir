@@ -472,8 +472,9 @@ status_t BnApplicationManager::onTransact(uint32_t code,
         sp<IBinder> binder = data.readStrongBinder();
         sp<BpApplicationManagerSession> session(new BpApplicationManagerSession(binder));
         int fd = data.readFileDescriptor();
+        uint32_t remote_pid = data.readInt32();
 
-        start_a_new_session(session_type, stage_hint, app_name, desktop_file, session, fd);
+        start_a_new_session(session_type, stage_hint, app_name, desktop_file, session, fd, remote_pid);
     }
     break;
     case REGISTER_A_SURFACE_COMMAND:
@@ -612,7 +613,8 @@ void BpApplicationManager::start_a_new_session(
     const String8& app_name,
     const String8& desktop_file,
     const sp<IApplicationManagerSession>& session,
-    int fd)
+    int fd,
+    uint32_t remote_pid)
 {
     //printf("%s \n", __PRETTY_FUNCTION__);
     Parcel in, out;
@@ -623,6 +625,7 @@ void BpApplicationManager::start_a_new_session(
     in.writeString8(desktop_file);
     in.writeStrongBinder(session->asBinder());
     in.writeFileDescriptor(fd);
+    in.writeInt32(remote_pid);
 
     remote()->transact(START_A_NEW_SESSION_COMMAND,
                        in,
