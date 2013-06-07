@@ -75,6 +75,10 @@ public:
         return parent->application_name;
     }
 
+    uint32_t remote_pid() const
+    {
+        return parent->remote_pid;
+    }
     
 private:
     ::SessionCredentials* parent;

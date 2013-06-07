@@ -527,7 +527,8 @@ struct Session : public ubuntu::application::ui::Session, public UbuntuSurface::
             String8(creds.application_name()),
             String8(ubuntu::application::ui::Setup::instance()->desktop_file_hint()),
             app_manager_session,
-            server_channel->getFd());
+            server_channel->getFd(),
+            creds.remote_pid());
 
         android::ProcessState::self()->startThreadPool();
         event_loop->run(__PRETTY_FUNCTION__, android::PRIORITY_URGENT_DISPLAY);
