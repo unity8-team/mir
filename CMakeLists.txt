@@ -41,6 +41,10 @@ if(ENABLE_MIRCLIENT_IMPLEMENTATION OR ENABLE_MIRSERVER_IMPLEMENTATION)
   pkg_check_modules(MIRCOMMON REQUIRED mircommon)
 endif()
 
+if(NOT DEFINED USE_GLES)
+  set(USE_GLES 1)
+endif()
+
 include_directories(include)
 include_directories(android/include)
 
