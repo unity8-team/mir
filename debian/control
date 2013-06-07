@@ -34,7 +34,7 @@ Package: libplatform-api1-dev
 Section: libdevel
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
-Architecture: i386 amd64 armhf
+Architecture: armhf
 Depends: libgles2-mesa-dev,
          libplatform-api-headers (= ${binary:Version}),
          libplatform-api1-hybris | libplatform-api1,
