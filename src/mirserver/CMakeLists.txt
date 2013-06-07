@@ -27,3 +27,4 @@ set_target_properties(
 )
 
 install(TARGETS ubuntu_application_api_mirserver ${INSTALL_TARGETS_DEFAULT_ARGS})
+install(FILES ubuntu_application_api_mirserver_priv.h DESTINATION include/ubuntu/application)
