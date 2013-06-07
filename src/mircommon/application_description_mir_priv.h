@@ -21,6 +21,9 @@
 
 #include <ubuntu/application/description.h>
 
+#include <memory>
+#include <functional>
+
 namespace ubuntu
 {
 namespace application
@@ -32,13 +35,14 @@ class Description
 {
 public:
     Description();
-    ~Description();
+    ~Description() = default;
     
     UApplicationDescription* as_u_application_description();
     static Description* from_u_application_description(UApplicationDescription* u_description);
 
-    UApplicationId *application_id;
-    UApplicationLifecycleDelegate *lifecycle_delegate;
+    // TODO<papi> Do we really own these?
+    std::unique_ptr<UApplicationId, std::function<void(UApplicationId*)>> application_id;
+    std::unique_ptr<UApplicationLifecycleDelegate, std::function<void(UApplicationLifecycleDelegate*)>> lifecycle_delegate;
 
 protected:
     Description(Description const&) = delete;

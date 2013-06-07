@@ -26,12 +26,6 @@ uam::Description::Description()
 {
 }
 
-uam::Description::~Description()
-{
-    // TODO<papi>: Do we have any ownership responsibilities over the application_id or
-    // lifecycle delegate
-}
-
 UApplicationDescription* uam::Description::as_u_application_description()
 {
     return static_cast<UApplicationDescription*>(this);
@@ -61,14 +55,19 @@ u_application_description_set_application_id(UApplicationDescription *u_descript
     UApplicationId *id)
 {
     auto description = uam::Description::from_u_application_description(u_description);
-    description->application_id = id;
+    
+    description->application_id = std::unique_ptr<UApplicationId, std::function<void(UApplicationId*)>>(id,
+        [](UApplicationId *p)
+        {
+            u_application_id_destroy(p);
+        });
 }
     
 UApplicationId* 
 u_application_description_get_application_id(UApplicationDescription *u_description)
 {
     auto description = uam::Description::from_u_application_description(u_description);
-    return description->application_id;
+    return description->application_id.get();
 }
     
 void
@@ -76,12 +75,20 @@ u_application_description_set_application_lifecycle_delegate(UApplicationDescrip
     UApplicationLifecycleDelegate *lifecycle_delegate)
 {
     auto description = uam::Description::from_u_application_description(u_description);
-    description->lifecycle_delegate = lifecycle_delegate;
+
+    // TODO: We don't take a ref as it is created with a floating ref but this should be made more explicit...
+    description->lifecycle_delegate = 
+        std::unique_ptr<UApplicationLifecycleDelegate, std::function<void(UApplicationLifecycleDelegate*)>>(lifecycle_delegate,
+            [](UApplicationLifecycleDelegate *p)
+            {
+                u_application_lifecycle_delegate_unref(p);
+            });
+
 }
     
 UApplicationLifecycleDelegate* 
 u_application_description_get_application_lifecycle_delegate(UApplicationDescription *u_description)
 {
     auto description = uam::Description::from_u_application_description(u_description);
-    return description->lifecycle_delegate;
+    return description->lifecycle_delegate.get();
 }
