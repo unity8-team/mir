@@ -16,8 +16,6 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
-// TODO: INSTALL THIS FILE! ~racarr
-
 #ifndef UBUNTU_APPLICATION_API_MIRSERVER_PRIV_H_
 #define UBUNTU_APPLICATION_API_MIRSERVER_PRIV_H_
 
