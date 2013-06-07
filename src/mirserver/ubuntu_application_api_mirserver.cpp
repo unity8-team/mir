@@ -71,6 +71,8 @@ global_mirserver_context()
     return &context;
 }
 
+extern "C"
+{
 void ua_ui_mirserver_init(mir::DefaultServerConfiguration& config)
 {
     auto context = global_mirserver_context();
@@ -90,6 +92,7 @@ void ua_ui_mirserver_finish()
     context->shell.reset();
     context->input_platform.reset();
     context->egl_client.reset();
+}
 }
 
 // Application instance
@@ -343,6 +346,7 @@ UAUiWindow* ua_ui_window_new_for_application_with_properties(UApplicationInstanc
     window->input_thread->start();
 
     // TODO<mir>: Verify that we don't have to advance the client buffer anymore ~racarr
+    window->surface->advance_client_buffer();
 
     return mirserver_window_u_window(window);
 }
