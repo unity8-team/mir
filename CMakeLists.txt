@@ -41,8 +41,19 @@ if(ENABLE_MIRCLIENT_IMPLEMENTATION OR ENABLE_MIRSERVER_IMPLEMENTATION)
   pkg_check_modules(MIRCOMMON REQUIRED mircommon)
 endif()
 
+# Sanity-check options
 if(NOT DEFINED USE_GLES)
   set(USE_GLES 1)
+endif()
+
+# Try to find hybris, and disable hybris from build if not found
+find_library(Hybris
+  NAMES hybris_ics
+)
+
+if(NOT Hybris)
+  message("Notice: libhybris_ics.so not found, disabling hybris support")
+  set(ENABLE_HYBRIS_IMPLEMENTATION OFF)
 endif()
 
 include_directories(include)
