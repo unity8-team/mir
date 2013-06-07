@@ -16,31 +16,44 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
-#include <ubuntu/application/lifecycle_delegate.h>
+#include "lifecycle_delegate_mir_priv.h"
+
+namespace uam = ubuntu::application::mir;
 
 // TODO<papi, mir>: This implementation as a stub as we 
 // currently don't do anything with this in Mir. I am not sure
 // what exactly we should be doing either so we need some alignment
 // on this.
 
-namespace
+uam::LifecycleDelegate::LifecycleDelegate()
+    : resumed_cb(nullptr),
+      stop_cb(nullptr),
+      ctx(nullptr)
 {
-struct LifecycleDelegate
-{
-    LifecycleDelegate()
-        : resumed_cb(nullptr),
-          stop_cb(nullptr),
-          ctx(nullptr),
-          ref_count(1)
-    {
-    }
-    u_on_application_resumed resumed_cb;
-    u_on_application_about_to_stop stop_cb;
-    void *ctx;
-    
-    unsigned int ref_count;
-};
 }
+
+UApplicationLifecycleDelegate* uam::LifecycleDelegate::as_u_lifecycle_delegate()
+{
+    return static_cast<UApplicationLifecycleDelegate*>(this);
+}
+
+uam::LifecycleDelegate* uam::LifecycleDelegate::from_u_lifecycle_delegate(UApplicationLifecycleDelegate *u_delegate)
+{
+    return static_cast<uam::LifecycleDelegate*>(u_delegate);
+}
+
+void uam::LifecycleDelegate::ref()
+{
+    ref_count++;
+}
+
+void uam::LifecycleDelegate::unref()
+{
+    ref_count--;
+    if (ref_count == 0)
+        delete this;
+}
+
 
 extern "C"
 {
@@ -48,44 +61,44 @@ extern "C"
 UApplicationLifecycleDelegate*
 u_application_lifecycle_delegate_new()
 {
-    return static_cast<UApplicationLifecycleDelegate*>(new LifecycleDelegate);
+    return (new uam::LifecycleDelegate)->as_u_lifecycle_delegate();
 }
     
 void
 u_application_lifecycle_delegate_destroy(UApplicationLifecycleDelegate *u_delegate)
 {
-    // TODO: What are the semantics of this function supposed to be?
-    u_application_lifecycle_delegate_unref(u_delegate);
+    auto delegate = uam::LifecycleDelegate::from_u_lifecycle_delegate(u_delegate);
+
+    // TODO: What are the intended semantics of this?
+    delegate->unref();
 }
     
 void
 u_application_lifecycle_delegate_ref(UApplicationLifecycleDelegate *u_delegate)
 {
-    auto delegate = static_cast<LifecycleDelegate*>(u_delegate);
-    delegate->ref_count++;
+    auto delegate = uam::LifecycleDelegate::from_u_lifecycle_delegate(u_delegate);
+    delegate->ref();
 }
     
 void
 u_application_lifecycle_delegate_unref(UApplicationLifecycleDelegate *u_delegate)
 {
-    auto delegate = static_cast<LifecycleDelegate*>(u_delegate);
-    delegate->ref_count--;
-    if(delegate->ref_count == 0)
-        delete delegate;
+    auto delegate = uam::LifecycleDelegate::from_u_lifecycle_delegate(u_delegate);
+    delegate->unref();
 }
     
 void
 u_application_lifecycle_delegate_set_application_resumed_cb(UApplicationLifecycleDelegate *u_delegate,
     u_on_application_resumed cb)
 {
-    auto delegate = static_cast<LifecycleDelegate*>(u_delegate);
+    auto delegate = uam::LifecycleDelegate::from_u_lifecycle_delegate(u_delegate);
     delegate->resumed_cb = cb;
 }
     
 u_on_application_resumed
 u_application_lifecycle_delegate_get_application_resumed_cb(UApplicationLifecycleDelegate *u_delegate)
 {
-    auto delegate = static_cast<LifecycleDelegate*>(u_delegate);
+    auto delegate = uam::LifecycleDelegate::from_u_lifecycle_delegate(u_delegate);
     return delegate->resumed_cb;
 }
     
@@ -93,14 +106,14 @@ void
 u_application_lifecycle_delegate_set_application_about_to_stop_cb(UApplicationLifecycleDelegate *u_delegate,
     u_on_application_about_to_stop cb)
 {
-    auto delegate = static_cast<LifecycleDelegate*>(u_delegate);
+    auto delegate = uam::LifecycleDelegate::from_u_lifecycle_delegate(u_delegate);
     delegate->stop_cb = cb;
 }
     
 u_on_application_about_to_stop
 u_application_lifecycle_delegate_get_application_about_to_stop_cb(UApplicationLifecycleDelegate *u_delegate)
 {
-    auto delegate = static_cast<LifecycleDelegate*>(u_delegate);
+    auto delegate = uam::LifecycleDelegate::from_u_lifecycle_delegate(u_delegate);
     return delegate->stop_cb;
 }
     
@@ -108,7 +121,7 @@ void
 u_application_lifecycle_delegate_set_context(UApplicationLifecycleDelegate *u_delegate,
     void *context)
 {
-    auto delegate = static_cast<LifecycleDelegate*>(u_delegate);
+    auto delegate = uam::LifecycleDelegate::from_u_lifecycle_delegate(u_delegate);
     delegate->ctx = context;
 }
     
@@ -116,7 +129,7 @@ void*
 u_application_lifecycle_delegate_get_context(UApplicationLifecycleDelegate *u_delegate,
     void *context)
 {
-    auto delegate = static_cast<LifecycleDelegate*>(u_delegate);
+    auto delegate = uam::LifecycleDelegate::from_u_lifecycle_delegate(u_delegate);
     return delegate->ctx;
 }
 
