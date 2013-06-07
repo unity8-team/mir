@@ -150,6 +150,7 @@ struct MirServerWindowProperties
     UAUiWindowInputEventCb cb;
     void* ctx;
 };
+
 MirServerWindowProperties*
 u_window_properties_mirserver_window_properties(UAUiWindowProperties *properties)
 {
@@ -164,9 +165,21 @@ mirserver_window_properties_u_window_properties(MirServerWindowProperties *prope
 // Window
 struct MirServerWindow
 {
+    MirServerWindow(UAUiWindowProperties *properties_)
+    {
+        properties = WindowPropertiesPtr(properties_,
+            [](UAUiWindowProperties *p)
+            {
+                ua_ui_window_properties_destroy(p);
+            });
+    }
+    typedef std::unique_ptr<UAUiWindowProperties, std::function<void(UAUiWindowProperties*)>> WindowPropertiesPtr;
+    WindowPropertiesPtr properties;
+
     std::shared_ptr<mir::shell::Surface> surface;
     std::shared_ptr<mir::input::receiver::InputReceiverThread> input_thread;
 };
+
 MirServerWindow*
 u_window_mirserver_window(UAUiWindow* window)
 {
@@ -353,7 +366,7 @@ UAUiWindow* ua_ui_window_new_for_application_with_properties(UApplicationInstanc
     auto mir_instance = u_application_mirserver_application(instance);
     auto mir_properties = u_window_properties_mirserver_window_properties(properties);
 
-    auto window = new MirServerWindow;
+    auto window = new MirServerWindow(properties);
     window->surface = std::dynamic_pointer_cast<mir::shell::Surface>(mir_instance->session->get_surface(
         shell->create_surface_for(mir_instance->session, mir_properties->parameters)));
     window->input_thread = input_platform->create_input_thread(window->surface->client_input_fd(),
