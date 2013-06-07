@@ -17,6 +17,7 @@
  */
 
 #include "application_instance_mirclient_priv.h"
+#include "window_properties_mirclient_priv.h"
 
 #include "mircommon/event_helpers_mir.h"
 #include "mircommon/application_id_mir_priv.h"
@@ -89,24 +90,6 @@ static UAUiDisplay*
 mir_display_u_display(MirDisplayInfo *display)
 {
     return static_cast<UAUiDisplay*>(display);
-}
-
-// Window properties
-struct MirWindowProperties
-{
-    MirSurfaceParameters parameters;
-    MirEventDelegate delegate;
-};
-static MirWindowProperties*
-u_window_properties_mir_window_properties(UAUiWindowProperties *properties)
-{
-    return static_cast<MirWindowProperties*>(properties);
-}
-
-static UAUiWindowProperties*
-mir_window_properties_u_window_properties(MirWindowProperties *properties)
-{
-    return static_cast<UAUiWindowProperties*>(properties);
 }
 
 static MirSurface*
@@ -233,56 +216,26 @@ EGLNativeDisplayType ua_ui_display_get_native_type(UAUiDisplay* display)
 
 UAUiWindowProperties* ua_ui_window_properties_new_for_normal_window()
 {
-    auto properties = new MirWindowProperties;
-
-    auto &parameters = properties->parameters;
-    parameters.name = NULL;
-
-    // If unspecified the server will choose a width and height for us.
-    parameters.width = 0;
-    parameters.height = 0;
-    parameters.buffer_usage = mir_buffer_usage_hardware;
-
-    // We still have to set a pixel format on the parameters. We do this at window creation
-    // time as we need the MirConnection.
-    
-    auto &delegate = properties->delegate;
-    delegate.callback = NULL;
-    delegate.context = NULL;
-
-    return mir_window_properties_u_window_properties(properties);
+    return (new uamc::WindowProperties)->as_u_window_properties();
 }
 
-void ua_ui_window_properties_destroy(UAUiWindowProperties* properties)
+void ua_ui_window_properties_destroy(UAUiWindowProperties* u_properties)
 {
-    auto mir_properties = u_window_properties_mir_window_properties(properties);
-
-    // TODO<mir>: This should be managed somehow...
-    auto input_context = static_cast<MirClientInputContext*>(mir_properties->delegate.context);
-    // TODO<papi>: Who owns this? Do we transfer ownership to the window or does the window own
-    // the window properties?
-    delete input_context;
-
-    delete[] mir_properties->parameters.name;
-    
-    delete mir_properties;
+    auto properties = uamc::WindowProperties::from_u_window_properties(u_properties);
+    delete properties;
 }
 
-void ua_ui_window_properties_set_titlen(UAUiWindowProperties* properties, const char* title, size_t title_length)
+void ua_ui_window_properties_set_titlen(UAUiWindowProperties* u_properties, const char* title, size_t title_length)
 {
-    auto mir_properties = u_window_properties_mir_window_properties(properties);
-    
-    auto name = new char[title_length+1];
-    strncpy(name, title, title_length);
-    name[title_length] = '\0';
+    auto properties = uamc::WindowProperties::from_u_window_properties(u_properties);
 
-    mir_properties->parameters.name = name;
+    properties->set_title(title, title_length);
 }
 
-const char* ua_ui_window_properties_get_title(UAUiWindowProperties* properties)
+const char* ua_ui_window_properties_get_title(UAUiWindowProperties* u_properties)
 {
-    auto mir_properties = u_window_properties_mir_window_properties(properties);
-    return mir_properties->parameters.name;
+    auto properties = uamc::WindowProperties::from_u_window_properties(u_properties);
+    return properties->surface_parameters().name;
 }
 
 void ua_ui_window_properties_set_role(UAUiWindowProperties* properties, UAUiWindowRole role)
@@ -292,17 +245,18 @@ void ua_ui_window_properties_set_role(UAUiWindowProperties* properties, UAUiWind
     (void) role;
 }
 
-void ua_ui_window_properties_set_input_cb_and_ctx(UAUiWindowProperties* properties, UAUiWindowInputEventCb cb, void* ctx)
+void ua_ui_window_properties_set_input_cb_and_ctx(UAUiWindowProperties* u_properties, UAUiWindowInputEventCb cb, void* ctx)
 {
-    // TODO<papi>: Do the properties or the window itself own this?
-    auto context = new MirClientInputContext;
+    auto properties = uamc::WindowProperties::from_u_window_properties(u_properties);
+    properties->set_input_cb_and_ctx(cb, ctx);
+/*    auto context = new MirClientInputContext;
     context->cb = cb;
     context->ctx = ctx;
 
     auto mir_properties = u_window_properties_mir_window_properties(properties);
     auto& delegate = mir_properties->delegate;
     delegate.context = context;
-    delegate.callback  = ua_ui_window_mir_handle_event;
+    delegate.callback  = ua_ui_window_mir_handle_event;*/
 }
 
 static MirPixelFormat
@@ -313,15 +267,17 @@ mir_choose_default_pixel_format(MirConnection *connection)
     return info.supported_pixel_format[0];
 }
 
-UAUiWindow* ua_ui_window_new_for_application_with_properties(UApplicationInstance* u_instance, UAUiWindowProperties* properties)
+UAUiWindow* ua_ui_window_new_for_application_with_properties(UApplicationInstance* u_instance, UAUiWindowProperties* u_properties)
 {
     auto instance = uamc::Instance::from_u_application_instance(u_instance);
-    auto mir_properties = u_window_properties_mir_window_properties(properties);
+    auto properties = uamc::WindowProperties::from_u_window_properties(u_properties);
 
-    mir_properties->parameters.pixel_format = mir_choose_default_pixel_format(instance->connection());
+    MirSurfaceParameters parameters = properties->surface_parameters();
+    parameters.pixel_format = mir_choose_default_pixel_format(instance->connection());
 
-    auto window = mir_connection_create_surface_sync(instance->connection(), &mir_properties->parameters);
-    mir_surface_set_event_handler(window, &mir_properties->delegate);
+    auto window = mir_connection_create_surface_sync(instance->connection(), &parameters);
+// TODO: Me, Redo event delegate when adding window refactor
+//    mir_surface_set_event_handler(window, &mir_properties->delegate);
     return mir_window_u_window(window);
 }
 
