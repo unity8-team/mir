@@ -1,3 +1,47 @@
+platform-api (0.18.1daily13.06.05-0ubuntu1) saucy; urgency=low
+
+  [ Ricardo Mendoza ]
+  * * Move all private headers for android interfaces to
+    android/include/ * Expose publicly only the C headers for the API *
+    Change namespaces to match new coding guidelines * General cleanup
+    and housekeeping of the codebase.
+  * * Add headers for new refactored platform API * Implement new API
+    for Android/hybris backend * Implement lifecycle iteration 0
+    delegates infrastructure * Do away with all old public headers and
+    use only the new API.
+  * * Enable usage of the new delegates from within the Application
+    Manager * Implement the notion of the application lifecycle and
+    state transition * Implement initial session state controller * Make
+    use of async delayer for suspend timeouts.
+  * * Refactor sensors API to use new guidelines * Add new public
+    headers for sensors and discard old API * Provide soft-float dynamic
+    loader macro for hybris * Provide updated test cases.
+  * * Change include barrier name to fix collision.
+
+  [ Michael Terry ]
+  * Add ubuntu/ui/config.h with UBUNTU_USE_GLES so we can know whether
+    to include GLES2/gl2.h or GL/gl.h.
+
+  [ Didier Roche ]
+  * fix archs for not building on powerpc and arch: all for transitional
+    packages.
+
+  [ Sergio Schvezov ]
+  * Adding rules to generate config.h from Android.mk.
+
+  [ Thomas Voß ]
+  * Switch to lazy init for the Bridge, and prevent tests from failing
+    on amd64/i386.
+
+  [ Gustavo Pichorim Boiko ]
+  * Now that phone-app is being separate into phone, messages and
+    contacts, we need to have a messages and contacts app listed too.
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 62
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Wed, 05 Jun 2013 02:02:04 +0000
+
 platform-api (0.18.1daily13.05.30.2ubuntu.unity.next-0ubuntu1) raring; urgency=low
 
   [ Ricardo Mendoza ]
