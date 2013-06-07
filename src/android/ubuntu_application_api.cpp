@@ -322,6 +322,7 @@ IMPLEMENT_VOID_FUNCTION4(ubuntu_ui_report_osk_visible, int, int, int, int);
 IMPLEMENT_VOID_FUNCTION0(ubuntu_ui_report_osk_invisible);
 IMPLEMENT_VOID_FUNCTION0(ubuntu_ui_report_notification_visible);
 IMPLEMENT_VOID_FUNCTION0(ubuntu_ui_report_notification_invisible);
+IMPLEMENT_VOID_FUNCTION1(ubuntu_ui_install_task_controller, ubuntu_ui_task_controller*);
 
 // GPS
 IMPLEMENT_FUNCTION1(UbuntuGps, ubuntu_gps_new, UbuntuGpsParams*);

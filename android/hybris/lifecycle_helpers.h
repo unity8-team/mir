@@ -28,7 +28,9 @@ namespace application
 {
 struct ProcessKiller : public android::Thread
 {
-    ProcessKiller(const android::sp<ubuntu::detail::ApplicationSession>& as) : as(as)
+    ProcessKiller(const android::sp<ubuntu::detail::ApplicationSession>& as,
+                  const android::sp<android::IAMTaskController>& controller) : as(as),
+                                                                               task_controller(controller)
     {
     }
 
@@ -40,12 +42,16 @@ struct ProcessKiller : public android::Thread
         if (as->running_state == ubuntu::application::ui::process_suspended)
         {
             ALOGI("%s() Suspending process", __PRETTY_FUNCTION__);
-            kill(as->pid, SIGSTOP); // delegate timer elapsed
+            if (task_controller == NULL)
+                kill(as->pid, SIGSTOP); // delegate timer elapsed
+            else
+                task_controller->suspend_task(as->remote_pid);
         }
 
         return false;
     }
 
+    android::sp<android::IAMTaskController> task_controller;
     android::sp<ubuntu::detail::ApplicationSession> as;
     android::Mutex state_lock;
     android::Condition state_cond;
