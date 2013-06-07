@@ -18,8 +18,8 @@
 
 #include "application_instance_mirclient_priv.h"
 #include "window_properties_mirclient_priv.h"
+#include "window_mirclient_priv.h"
 
-#include "mircommon/event_helpers_mir.h"
 #include "mircommon/application_id_mir_priv.h"
 
 #include <ubuntu/application/lifecycle_delegate.h>
@@ -40,30 +40,6 @@
 
 namespace uam = ubuntu::application::mir;
 namespace uamc = uam::client;
-namespace uaum = ubuntu::application::ui::mir;
-
-namespace
-{
-
-struct MirClientInputContext
-{
-    UAUiWindowInputEventCb cb;
-    void *ctx;
-};
-
-static void
-ua_ui_window_mir_handle_event(MirSurface* surface, MirEvent const* mir_ev, void* ctx)
-{
-    // TODO<mir>: Perhaps this indicates that mirclient library should not pass a surface argument here.
-    (void) surface;
-
-    Event ubuntu_ev;
-    uaum::event_to_ubuntu_event(mir_ev, ubuntu_ev);
-    auto mir_ctx = static_cast<MirClientInputContext*>(ctx);
-    mir_ctx->cb(mir_ctx->ctx, &ubuntu_ev);
-}
-
-}
 
 namespace
 {
@@ -90,18 +66,6 @@ static UAUiDisplay*
 mir_display_u_display(MirDisplayInfo *display)
 {
     return static_cast<UAUiDisplay*>(display);
-}
-
-static MirSurface*
-u_window_mir_window(UAUiWindow *window)
-{
-    return static_cast<MirSurface*>(window);
-}
-
-static UAUiWindow*
-mir_window_u_window(MirSurface *window)
-{
-    return static_cast<UAUiWindow*>(window);
 }
 
 };
@@ -249,22 +213,6 @@ void ua_ui_window_properties_set_input_cb_and_ctx(UAUiWindowProperties* u_proper
 {
     auto properties = uamc::WindowProperties::from_u_window_properties(u_properties);
     properties->set_input_cb_and_ctx(cb, ctx);
-/*    auto context = new MirClientInputContext;
-    context->cb = cb;
-    context->ctx = ctx;
-
-    auto mir_properties = u_window_properties_mir_window_properties(properties);
-    auto& delegate = mir_properties->delegate;
-    delegate.context = context;
-    delegate.callback  = ua_ui_window_mir_handle_event;*/
-}
-
-static MirPixelFormat
-mir_choose_default_pixel_format(MirConnection *connection)
-{
-    MirDisplayInfo info;
-    mir_connection_get_display_info(connection, &info);
-    return info.supported_pixel_format[0];
 }
 
 UAUiWindow* ua_ui_window_new_for_application_with_properties(UApplicationInstance* u_instance, UAUiWindowProperties* u_properties)
@@ -272,64 +220,58 @@ UAUiWindow* ua_ui_window_new_for_application_with_properties(UApplicationInstanc
     auto instance = uamc::Instance::from_u_application_instance(u_instance);
     auto properties = uamc::WindowProperties::from_u_window_properties(u_properties);
 
-    MirSurfaceParameters parameters = properties->surface_parameters();
-    parameters.pixel_format = mir_choose_default_pixel_format(instance->connection());
-
-    auto window = mir_connection_create_surface_sync(instance->connection(), &parameters);
-// TODO: Me, Redo event delegate when adding window refactor
-//    mir_surface_set_event_handler(window, &mir_properties->delegate);
-    return mir_window_u_window(window);
+    auto window = new uamc::Window(*instance, properties);
+    return window->as_u_window();
 }
 
-void ua_ui_window_destroy(UAUiWindow* window)
+void ua_ui_window_destroy(UAUiWindow* u_window)
 {
-    auto mir_window = u_window_mir_window(window);
-    mir_surface_release_sync(mir_window);
+    auto window = uamc::Window::from_u_window(u_window);
+    delete window;
 }
 
-UStatus ua_ui_window_move(UAUiWindow* window, uint32_t x, uint32_t y)
+UStatus ua_ui_window_move(UAUiWindow* u_window, uint32_t x, uint32_t y)
 {
     // TODO<papi,mir>: Implement. Assuming this should exist on mirclient?
-    (void) window;
+    (void) u_window;
     (void) x;
     (void) y;
     return (UStatus) 0;
 }
 
-UStatus ua_ui_window_resize(UAUiWindow* window, uint32_t width, uint32_t height)
+UStatus ua_ui_window_resize(UAUiWindow* u_window, uint32_t width, uint32_t height)
 {
     // TODO<mir>: Implement
-    (void) window;
+    (void) u_window;
     (void) width;
     (void) height;
     return (UStatus) 0;
 }
 
-UStatus ua_ui_window_hide(UAUiWindow* window)
+UStatus ua_ui_window_hide(UAUiWindow* u_window)
 {
     // TODO<mir>: Implement
-    (void) window;
+    (void) u_window;
     return (UStatus) 0;
 }
 
-UStatus ua_ui_window_show(UAUiWindow* window)
+UStatus ua_ui_window_show(UAUiWindow* u_window)
 {
     // TODO<mir>: Implement
-    (void) window;
+    (void) u_window;
     return (UStatus) 0;
 }
 
-void ua_ui_window_request_fullscreen(UAUiWindow* window)
+void ua_ui_window_request_fullscreen(UAUiWindow* u_window)
 {
     // TODO<mir>: Implement
-    (void) window;
+    (void) u_window;
 }
 
-EGLNativeWindowType ua_ui_window_get_native_type(UAUiWindow* window)
+EGLNativeWindowType ua_ui_window_get_native_type(UAUiWindow* u_window)
 {
-    auto mir_window = u_window_mir_window(window);
-    // TODO<mir>: Careful with this cast!
-    return reinterpret_cast<EGLNativeWindowType>(mir_surface_get_egl_native_window(mir_window));
+    auto window = uamc::Window::from_u_window(u_window);
+    return window->get_native_type();
 }
 
 // TODO: Sensors
