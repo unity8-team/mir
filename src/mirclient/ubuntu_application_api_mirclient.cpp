@@ -16,6 +16,8 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
+#include "application_instance_mirclient_priv.h"
+
 #include "mircommon/event_helpers_mir.h"
 #include "mircommon/application_id_mir_priv.h"
 
@@ -36,6 +38,7 @@
 #include <string.h>
 
 namespace uam = ubuntu::application::mir;
+namespace uamc = uam::client;
 namespace uaum = ubuntu::application::ui::mir;
 
 namespace
@@ -64,40 +67,15 @@ ua_ui_window_mir_handle_event(MirSurface* surface, MirEvent const* mir_ev, void*
 namespace
 {
 
-// Application Instance
 // We use a global instance as some platform-api functions, i.e. display_new_with_index
 // do not supply dependencies, but a MirConnection is required for all queries.
-struct MirApplicationInstance
-{
-    MirConnection *connection;
-    int ref_count;
-
-    // TODO<papi>: Obviously this is yucky, remove when we can.
-    bool is_global_yuck;
-};
-static MirApplicationInstance*
+static uamc::Instance*
 global_mir_instance()
 {
     // Obviously ref counting is whacky here...
-    static MirApplicationInstance instance{NULL, 1, true};
+    static uamc::Instance instance;
+    instance.ref(); // We leak a reference, this object can't be destroyed
     return &instance;
-}
-static MirApplicationInstance*
-assert_global_mir_instance()
-{
-    auto instance = global_mir_instance();
-    assert(mir_connection_is_valid(instance->connection));
-    return instance;
-}
-static UApplicationInstance*
-mir_application_u_application(MirApplicationInstance* instance)
-{
-    return static_cast<UApplicationInstance*>(instance);
-}
-static MirApplicationInstance*
-u_application_mir_application(UApplicationInstance* instance)
-{
-    return static_cast<MirApplicationInstance*>(instance);
 }
 
 // Display info
@@ -157,35 +135,30 @@ UApplicationInstance* u_application_instance_new_from_description_with_options(U
     auto instance = global_mir_instance();
 
     auto id = uam::Id::from_u_application_id(u_application_description_get_application_id(description));
-    instance->connection = mir_connect_sync(NULL, id->name.c_str());
-    assert(instance->connection);
-    
-    instance->is_global_yuck = false;
+    assert(instance->connect(id->name));
 
-    return mir_application_u_application(instance);
+    return instance->as_u_application_instance();
 }
 
 void
-u_application_instance_ref(UApplicationInstance *instance)
+u_application_instance_ref(UApplicationInstance *u_instance)
 {
-    auto mir_instance = u_application_mir_application(instance);
-    mir_instance->ref_count++;
+    auto instance = uamc::Instance::from_u_application_instance(u_instance);
+    instance->ref();
 }
     
 void
-u_application_instance_unref(UApplicationInstance *instance)
+u_application_instance_unref(UApplicationInstance *u_instance)
 {
-    auto mir_instance = u_application_mir_application(instance);
-    mir_instance->ref_count--;
-    if (mir_instance->ref_count == 0 && mir_instance->is_global_yuck == false)
-        delete mir_instance;
+    auto instance = uamc::Instance::from_u_application_instance(u_instance);
+    instance->unref();
 }
     
 void
-u_application_instance_destroy(UApplicationInstance *instance)
+u_application_instance_destroy(UApplicationInstance *u_instance)
 {
     // TODO<papi>: What are the proper semantics here.
-    u_application_instance_unref(instance);
+    u_application_instance_unref(u_instance);
 }
     
 void
@@ -221,10 +194,10 @@ UAUiDisplay* ua_ui_display_new_with_index(size_t index)
 {
     // TODO<papi,mir>: What are the semantics of index. How should we use it?
     (void) index;
-    auto instance = assert_global_mir_instance();
+    auto instance = global_mir_instance();
 
     auto display = new MirDisplayInfo;
-    mir_connection_get_display_info(instance->connection, display);
+    mir_connection_get_display_info(instance->connection(), display);
 
     return mir_display_u_display(display);
 }
@@ -253,10 +226,10 @@ uint32_t ua_ui_display_query_vertical_res(UAUiDisplay* display)
 
 EGLNativeDisplayType ua_ui_display_get_native_type(UAUiDisplay* display)
 {
-    auto instance = assert_global_mir_instance();
+    auto instance = global_mir_instance();
 
     // TODO<mir>: Careful with this cast
-    return reinterpret_cast<EGLNativeDisplayType>(mir_connection_get_egl_native_display(instance->connection));
+    return reinterpret_cast<EGLNativeDisplayType>(mir_connection_get_egl_native_display(instance->connection()));
 }
 
 UAUiWindowProperties* ua_ui_window_properties_new_for_normal_window()
@@ -341,14 +314,14 @@ mir_choose_default_pixel_format(MirConnection *connection)
     return info.supported_pixel_format[0];
 }
 
-UAUiWindow* ua_ui_window_new_for_application_with_properties(UApplicationInstance* instance, UAUiWindowProperties* properties)
+UAUiWindow* ua_ui_window_new_for_application_with_properties(UApplicationInstance* u_instance, UAUiWindowProperties* properties)
 {
-    auto mir_application = u_application_mir_application(instance);
+    auto instance = uamc::Instance::from_u_application_instance(u_instance);
     auto mir_properties = u_window_properties_mir_window_properties(properties);
 
-    mir_properties->parameters.pixel_format = mir_choose_default_pixel_format(mir_application->connection);
+    mir_properties->parameters.pixel_format = mir_choose_default_pixel_format(instance->connection());
 
-    auto window = mir_connection_create_surface_sync(mir_application->connection, &mir_properties->parameters);
+    auto window = mir_connection_create_surface_sync(instance->connection(), &mir_properties->parameters);
     mir_surface_set_event_handler(window, &mir_properties->delegate);
     return mir_window_u_window(window);
 }
