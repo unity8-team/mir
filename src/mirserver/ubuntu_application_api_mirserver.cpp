@@ -48,6 +48,7 @@
 #include <assert.h>
 
 #include <memory>
+#include <functional>
 
 namespace uam = ubuntu::application::mir;
 namespace uaum = ubuntu::application::ui::mir;
@@ -98,10 +99,27 @@ void ua_ui_mirserver_finish()
 // Application instance
 struct MirServerApplicationInstance
 {
-    MirServerApplicationInstance()
+    MirServerApplicationInstance(UApplicationDescription *description_,
+                                 UApplicationOptions *options_)
         : ref_count(1)
     {
+        description = DescriptionPtr(description_, 
+            [] (UApplicationDescription* p)
+            {
+                u_application_description_destroy(p);
+            });
+        options = OptionsPtr(options_,
+            [] (UApplicationOptions* p)
+            {
+                u_application_options_destroy(p);
+            });
     }
+
+    typedef std::unique_ptr<UApplicationDescription, std::function<void(UApplicationDescription*)>> DescriptionPtr;
+    typedef std::unique_ptr<UApplicationOptions, std::function<void(UApplicationOptions*)>> OptionsPtr;
+    
+    DescriptionPtr description;
+    OptionsPtr options;
 
     std::shared_ptr<mir::frontend::Session> session;
     int ref_count;
@@ -171,10 +189,7 @@ UApplicationInstance* u_application_instance_new_from_description_with_options(U
     auto shell = global_mirserver_context()->shell;
     assert(shell);
 
-    // TODO<mir>: Make use of options
-    (void) description;
-
-    auto instance = new MirServerApplicationInstance;
+    auto instance = new MirServerApplicationInstance(description, options);
 
     auto id = uam::Id::from_u_application_id(u_application_description_get_application_id(description));
     instance->session = shell->open_session(id->name,
