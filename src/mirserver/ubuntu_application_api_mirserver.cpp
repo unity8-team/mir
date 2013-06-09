@@ -19,8 +19,8 @@
 #include "ubuntu_application_api_mirserver_priv.h"
 #include "application_instance_mirserver_priv.h"
 #include "window_properties_mirserver_priv.h"
+#include "window_mirserver_priv.h"
 
-#include "mircommon/event_helpers_mir.h"
 #include "mircommon/application_id_mir_priv.h"
 #include "mircommon/application_description_mir_priv.h"
 #include "mircommon/application_options_mir_priv.h"
@@ -41,13 +41,12 @@
 #include <mir/graphics/display.h>
 #include <mir/graphics/platform.h>
 #include <mir/compositor/graphic_buffer_allocator.h>
-#include <mir/graphics/internal_client.h>
 #include <mir/frontend/session.h>
 #include <mir/frontend/shell.h>
 #include <mir/shell/surface_creation_parameters.h>
 #include <mir/shell/surface.h>
+#include <mir/graphics/internal_client.h>
 #include <mir/input/input_platform.h>
-#include <mir/input/input_receiver_thread.h>
 
 #include <assert.h>
 
@@ -56,7 +55,6 @@
 
 namespace uam = ubuntu::application::mir;
 namespace uams = ubuntu::application::mir::server;
-namespace uaum = ubuntu::application::ui::mir;
 
 namespace
 {
@@ -99,35 +97,6 @@ void ua_ui_mirserver_finish()
     context->input_platform.reset();
     context->egl_client.reset();
 }
-}
-
-// Window
-struct MirServerWindow
-{
-    MirServerWindow(UAUiWindowProperties *properties_)
-    {
-        properties = WindowPropertiesPtr(properties_,
-            [](UAUiWindowProperties *p)
-            {
-                ua_ui_window_properties_destroy(p);
-            });
-    }
-    typedef std::unique_ptr<UAUiWindowProperties, std::function<void(UAUiWindowProperties*)>> WindowPropertiesPtr;
-    WindowPropertiesPtr properties;
-
-    std::shared_ptr<mir::shell::Surface> surface;
-    std::shared_ptr<mir::input::receiver::InputReceiverThread> input_thread;
-};
-
-MirServerWindow*
-u_window_mirserver_window(UAUiWindow* window)
-{
-    return static_cast<MirServerWindow*>(window);
-}
-UAUiWindow*
-mirserver_window_u_window(MirServerWindow* window)
-{
-    return static_cast<UAUiWindow*>(window);
 }
 
 }
@@ -278,51 +247,28 @@ void ua_ui_window_properties_set_input_cb_and_ctx(UAUiWindowProperties* u_proper
     properties->set_input_cb_and_ctx(cb, ctx);
 }
 
-namespace
-{
-
-static void ua_ui_window_handle_event(UAUiWindowInputEventCb cb, void* ctx, MirEvent* mir_event)
-{
-    Event ubuntu_ev;
-    uaum::event_to_ubuntu_event(mir_event, ubuntu_ev);
-    cb(ctx, &ubuntu_ev);
-}
-
-}
-
 UAUiWindow* ua_ui_window_new_for_application_with_properties(UApplicationInstance* u_instance, UAUiWindowProperties* u_properties)
 {
-    auto shell = global_mirserver_context()->shell;
-    assert(shell);
     auto input_platform = global_mirserver_context()->input_platform;
     assert(input_platform);
+    auto internal_client = global_mirserver_context()->egl_client;
+    assert(internal_client);
 
     auto instance = uams::Instance::from_u_application_instance(u_instance);
     auto properties = uams::WindowProperties::from_u_window_properties(u_properties);
     
-    mir::shell::SurfaceCreationParameters parameters = properties->surface_parameters();
-    parameters.pixel_format = choose_pixel_format(global_mirserver_context()->buffer_allocator);
+    // A bit of a wart.
+    properties->set_pixel_format(choose_pixel_format(global_mirserver_context()->buffer_allocator));
+    
+    auto window = new uams::Window(*instance, properties, input_platform, internal_client);
 
-    auto window = new MirServerWindow(u_properties);
-    window->surface = instance->create_surface(parameters);
-    window->input_thread = input_platform->create_input_thread(window->surface->client_input_fd(),
-        std::bind(ua_ui_window_handle_event, properties->input_cb(), properties->input_context(), std::placeholders::_1));
-    window->input_thread->start();
-
-    // TODO<mir>: Verify that we don't have to advance the client buffer anymore ~racarr
-    window->surface->advance_client_buffer();
-
-    return mirserver_window_u_window(window);
+    return window->as_u_window();
 }
 
-void ua_ui_window_destroy(UAUiWindow* window)
+void ua_ui_window_destroy(UAUiWindow* u_window)
 {
-    auto mir_window = u_window_mirserver_window(window);
-    mir_window->input_thread->stop();
-    mir_window->input_thread->join();
-
-    // TODO<mir>: Is this enough to ensure we don't leak the surface, or should we close it through the session?
-    delete mir_window;
+    auto window = uams::Window::from_u_window(u_window);
+    delete window;
 }
 
 UStatus ua_ui_window_move(UAUiWindow* window, uint32_t x, uint32_t y)
@@ -363,12 +309,11 @@ void ua_ui_window_request_fullscreen(UAUiWindow* window)
     (void) window;
 }
 
-EGLNativeWindowType ua_ui_window_get_native_type(UAUiWindow* window)
+EGLNativeWindowType ua_ui_window_get_native_type(UAUiWindow* u_window)
 {
-    auto egl_client = global_mirserver_context()->egl_client;
-    auto mir_window = u_window_mirserver_window(window);
+    auto window = uams::Window::from_u_window(u_window);
 
-    return egl_client->egl_native_window(mir_window->surface);
+    return window->get_native_type();
 }
 
 // TODO: Sensors
