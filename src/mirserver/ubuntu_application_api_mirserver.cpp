@@ -18,6 +18,7 @@
 
 #include "ubuntu_application_api_mirserver_priv.h"
 #include "application_instance_mirserver_priv.h"
+#include "window_properties_mirserver_priv.h"
 
 #include "mircommon/event_helpers_mir.h"
 #include "mircommon/application_id_mir_priv.h"
@@ -98,31 +99,6 @@ void ua_ui_mirserver_finish()
     context->input_platform.reset();
     context->egl_client.reset();
 }
-}
-
-// Window properties
-struct MirServerWindowProperties
-{
-    MirServerWindowProperties()
-        : parameters(mir::shell::a_surface()),
-          cb(0),
-          ctx(0)
-    {
-    }
-    mir::shell::SurfaceCreationParameters parameters;
-    UAUiWindowInputEventCb cb;
-    void* ctx;
-};
-
-MirServerWindowProperties*
-u_window_properties_mirserver_window_properties(UAUiWindowProperties *properties)
-{
-    return static_cast<MirServerWindowProperties*>(properties);
-}
-UAUiWindowProperties*
-mirserver_window_properties_u_window_properties(MirServerWindowProperties *properties)
-{
-    return static_cast<UAUiWindowProperties*>(properties);
 }
 
 // Window
@@ -266,28 +242,27 @@ static mir::geometry::PixelFormat choose_pixel_format(std::shared_ptr<mir::compo
 
 UAUiWindowProperties* ua_ui_window_properties_new_for_normal_window()
 {
-    auto properties = new MirServerWindowProperties;
+    auto properties = new uams::WindowProperties();
 
-    properties->parameters.pixel_format = choose_pixel_format(global_mirserver_context()->buffer_allocator);
-    return mirserver_window_properties_u_window_properties(properties);
+    return properties->as_u_window_properties();
 }
 
-void ua_ui_window_properties_destroy(UAUiWindowProperties* properties)
+void ua_ui_window_properties_destroy(UAUiWindowProperties* u_properties)
 {
-    auto mir_properties = u_window_properties_mirserver_window_properties(properties);
-    delete mir_properties;
+    auto properties = uams::WindowProperties::from_u_window_properties(u_properties);
+    delete properties;
 }
 
-void ua_ui_window_properties_set_titlen(UAUiWindowProperties* properties, const char* title, size_t title_length)
+void ua_ui_window_properties_set_titlen(UAUiWindowProperties* u_properties, const char* title, size_t title_length)
 {
-    auto mir_properties = u_window_properties_mirserver_window_properties(properties);
-    mir_properties->parameters = mir_properties->parameters.of_name(std::string(title, title_length));
+    auto properties = uams::WindowProperties::from_u_window_properties(u_properties);
+    properties->set_title(title, title_length);
 }
 
-const char* ua_ui_window_properties_get_title(UAUiWindowProperties* properties)
+const char* ua_ui_window_properties_get_title(UAUiWindowProperties* u_properties)
 {
-    auto mir_properties = u_window_properties_mirserver_window_properties(properties);
-    return mir_properties->parameters.name.c_str();
+    auto properties = uams::WindowProperties::from_u_window_properties(u_properties);
+    return properties->surface_parameters().name.c_str();
 }
 
 void ua_ui_window_properties_set_role(UAUiWindowProperties* properties, UAUiWindowRole role)
@@ -297,11 +272,10 @@ void ua_ui_window_properties_set_role(UAUiWindowProperties* properties, UAUiWind
     (void) role;
 }
 
-void ua_ui_window_properties_set_input_cb_and_ctx(UAUiWindowProperties* properties, UAUiWindowInputEventCb cb, void* ctx)
+void ua_ui_window_properties_set_input_cb_and_ctx(UAUiWindowProperties* u_properties, UAUiWindowInputEventCb cb, void* ctx)
 {
-    auto mir_properties = u_window_properties_mirserver_window_properties(properties);
-    mir_properties->cb = cb;
-    mir_properties->ctx = ctx;
+    auto properties = uams::WindowProperties::from_u_window_properties(u_properties);
+    properties->set_input_cb_and_ctx(cb, ctx);
 }
 
 namespace
@@ -316,7 +290,7 @@ static void ua_ui_window_handle_event(UAUiWindowInputEventCb cb, void* ctx, MirE
 
 }
 
-UAUiWindow* ua_ui_window_new_for_application_with_properties(UApplicationInstance* u_instance, UAUiWindowProperties* properties)
+UAUiWindow* ua_ui_window_new_for_application_with_properties(UApplicationInstance* u_instance, UAUiWindowProperties* u_properties)
 {
     auto shell = global_mirserver_context()->shell;
     assert(shell);
@@ -324,12 +298,15 @@ UAUiWindow* ua_ui_window_new_for_application_with_properties(UApplicationInstanc
     assert(input_platform);
 
     auto instance = uams::Instance::from_u_application_instance(u_instance);
-    auto mir_properties = u_window_properties_mirserver_window_properties(properties);
+    auto properties = uams::WindowProperties::from_u_window_properties(u_properties);
+    
+    mir::shell::SurfaceCreationParameters parameters = properties->surface_parameters();
+    parameters.pixel_format = choose_pixel_format(global_mirserver_context()->buffer_allocator);
 
-    auto window = new MirServerWindow(properties);
-    window->surface = instance->create_surface(mir_properties->parameters);
+    auto window = new MirServerWindow(u_properties);
+    window->surface = instance->create_surface(parameters);
     window->input_thread = input_platform->create_input_thread(window->surface->client_input_fd(),
-        std::bind(ua_ui_window_handle_event, mir_properties->cb, mir_properties->ctx, std::placeholders::_1));
+        std::bind(ua_ui_window_handle_event, properties->input_cb(), properties->input_context(), std::placeholders::_1));
     window->input_thread->start();
 
     // TODO<mir>: Verify that we don't have to advance the client buffer anymore ~racarr
