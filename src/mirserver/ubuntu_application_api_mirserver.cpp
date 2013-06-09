@@ -17,9 +17,12 @@
  */
 
 #include "ubuntu_application_api_mirserver_priv.h"
+#include "application_instance_mirserver_priv.h"
 
 #include "mircommon/event_helpers_mir.h"
 #include "mircommon/application_id_mir_priv.h"
+#include "mircommon/application_description_mir_priv.h"
+#include "mircommon/application_options_mir_priv.h"
 
 // C APIs
 #include <ubuntu/application/lifecycle_delegate.h>
@@ -51,6 +54,7 @@
 #include <functional>
 
 namespace uam = ubuntu::application::mir;
+namespace uams = ubuntu::application::mir::server;
 namespace uaum = ubuntu::application::ui::mir;
 
 namespace
@@ -95,47 +99,6 @@ void ua_ui_mirserver_finish()
     context->egl_client.reset();
 }
 }
-
-// Application instance
-struct MirServerApplicationInstance
-{
-    MirServerApplicationInstance(UApplicationDescription *description_,
-                                 UApplicationOptions *options_)
-        : ref_count(1)
-    {
-        description = DescriptionPtr(description_, 
-            [] (UApplicationDescription* p)
-            {
-                u_application_description_destroy(p);
-            });
-        options = OptionsPtr(options_,
-            [] (UApplicationOptions* p)
-            {
-                u_application_options_destroy(p);
-            });
-    }
-
-    typedef std::unique_ptr<UApplicationDescription, std::function<void(UApplicationDescription*)>> DescriptionPtr;
-    typedef std::unique_ptr<UApplicationOptions, std::function<void(UApplicationOptions*)>> OptionsPtr;
-    
-    DescriptionPtr description;
-    OptionsPtr options;
-
-    std::shared_ptr<mir::frontend::Session> session;
-    int ref_count;
-};
-
-MirServerApplicationInstance *
-u_application_mirserver_application(UApplicationInstance *instance)
-{
-    return static_cast<MirServerApplicationInstance*>(instance);
-}
-UApplicationInstance*
-mirserver_application_u_application(MirServerApplicationInstance *instance)
-{
-    return static_cast<UApplicationInstance*>(instance);
-}
-
 
 // Window properties
 struct MirServerWindowProperties
@@ -197,34 +160,31 @@ mirserver_window_u_window(MirServerWindow* window)
 extern "C"
 {
 
-UApplicationInstance* u_application_instance_new_from_description_with_options(UApplicationDescription* description, UApplicationOptions* options)
+UApplicationInstance* u_application_instance_new_from_description_with_options(UApplicationDescription* u_description, UApplicationOptions* u_options)
 {
     auto shell = global_mirserver_context()->shell;
     assert(shell);
 
-    auto instance = new MirServerApplicationInstance(description, options);
+    auto description = uam::Description::from_u_application_description(u_description);
+    auto options = uam::Options::from_u_application_options(u_options);
 
-    auto id = uam::Id::from_u_application_id(u_application_description_get_application_id(description));
-    instance->session = shell->open_session(id->name,
-        std::shared_ptr<mir::events::EventSink>());
+    auto instance = new uams::Instance(shell, description, options);
 
-    return mirserver_application_u_application(instance);
+    return instance->as_u_application_instance();
 }
 
 void
-u_application_instance_ref(UApplicationInstance *instance)
+u_application_instance_ref(UApplicationInstance *u_instance)
 {
-    auto mir_instance = u_application_mirserver_application(instance);
-    mir_instance->ref_count++;
+    auto instance = uams::Instance::from_u_application_instance(u_instance);
+    instance->ref();
 }
     
 void
-u_application_instance_unref(UApplicationInstance *instance)
+u_application_instance_unref(UApplicationInstance *u_instance)
 {
-    auto mir_instance = u_application_mirserver_application(instance);
-    mir_instance->ref_count--;
-    if (mir_instance->ref_count == 0)
-        delete mir_instance;
+    auto instance = uams::Instance::from_u_application_instance(u_instance);
+    instance->unref();
 }
     
 void
@@ -356,19 +316,18 @@ static void ua_ui_window_handle_event(UAUiWindowInputEventCb cb, void* ctx, MirE
 
 }
 
-UAUiWindow* ua_ui_window_new_for_application_with_properties(UApplicationInstance* instance, UAUiWindowProperties* properties)
+UAUiWindow* ua_ui_window_new_for_application_with_properties(UApplicationInstance* u_instance, UAUiWindowProperties* properties)
 {
     auto shell = global_mirserver_context()->shell;
     assert(shell);
     auto input_platform = global_mirserver_context()->input_platform;
     assert(input_platform);
 
-    auto mir_instance = u_application_mirserver_application(instance);
+    auto instance = uams::Instance::from_u_application_instance(u_instance);
     auto mir_properties = u_window_properties_mirserver_window_properties(properties);
 
     auto window = new MirServerWindow(properties);
-    window->surface = std::dynamic_pointer_cast<mir::shell::Surface>(mir_instance->session->get_surface(
-        shell->create_surface_for(mir_instance->session, mir_properties->parameters)));
+    window->surface = instance->create_surface(mir_properties->parameters);
     window->input_thread = input_platform->create_input_thread(window->surface->client_input_fd(),
         std::bind(ua_ui_window_handle_event, mir_properties->cb, mir_properties->ctx, std::placeholders::_1));
     window->input_thread->start();

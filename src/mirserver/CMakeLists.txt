@@ -1,4 +1,7 @@
-set(SOURCES ubuntu_application_api_mirserver.cpp)
+set(SOURCES
+  ubuntu_application_api_mirserver.cpp
+  application_instance_mirserver.cpp
+)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --std=c++11 -fPIC")
 

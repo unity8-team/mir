@@ -16,15 +16,27 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
-#ifndef UBUNTU_APPLICATION_INSTANCE_MIRCLIENT_PRIV_H_
-#define UBUNTU_APPLICATION_INSTANCE_MIRCLIENT_PRIV_H_
+#ifndef UBUNTU_APPLICATION_INSTANCE_MIRSERVER_PRIV_H_
+#define UBUNTU_APPLICATION_INSTANCE_MIRSERVER_PRIV_H_
 
 #include <ubuntu/application/instance.h>
 
 #include <memory>
-#include <string>
+#include <functional>
 
-#include <mir_toolkit/mir_client_library.h>
+namespace mir
+{
+namespace frontend
+{
+class Shell;
+class Session;
+}
+namespace shell
+{
+class SurfaceCreationParameters;
+class Surface;
+}
+}
 
 namespace ubuntu
 {
@@ -32,14 +44,19 @@ namespace application
 {
 namespace mir
 {
-namespace client
+class Description;
+class Options;
+
+namespace server
 {
 
 class Instance
 {
 public:
-    Instance();
-    ~Instance() = default;
+    Instance(std::shared_ptr< ::mir::frontend::Shell> const& shell,
+             ubuntu::application::mir::Description* description, 
+             ubuntu::application::mir::Options *options);
+    ~Instance() noexcept(true);
     
     UApplicationInstance* as_u_application_instance();
     static Instance* from_u_application_instance(UApplicationInstance* u_instance);
@@ -47,16 +64,21 @@ public:
     void ref();
     void unref();
     
-    MirConnection* connection() const;
-    bool connect(std::string const& application_name);
+    std::shared_ptr< ::mir::shell::Surface> create_surface( ::mir::shell::SurfaceCreationParameters const& parameters);
     
 protected:
     Instance(Instance const&) = delete;
     Instance& operator=(Instance const&) = delete;
 
 private:
-    typedef std::unique_ptr<MirConnection, std::function<void(MirConnection*)>> ConnectionPtr;
-    ConnectionPtr con;
+    typedef std::unique_ptr<Description, std::function<void(Description*)>> DescriptionPtr;
+    typedef std::unique_ptr<Options, std::function<void(Options*)>> OptionsPtr;
+    
+    OptionsPtr options;
+    DescriptionPtr description;
+    
+    std::weak_ptr< ::mir::frontend::Shell> shell;
+    std::shared_ptr< ::mir::frontend::Session> session;
     int ref_count;
 };
 
@@ -65,4 +87,4 @@ private:
 }
 } // namespace ubuntu
 
-#endif // UBUNTU_APPLICATION_INSTANCE_MIRCLIENT_PRIV_H_
+#endif // UBUNTU_APPLICATION_INSTANCE_MIRSERVER_PRIV_H_
