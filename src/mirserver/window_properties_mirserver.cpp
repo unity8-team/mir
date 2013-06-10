@@ -22,6 +22,7 @@
 
 namespace uams = ubuntu::application::mir::server;
 namespace msh = mir::shell;
+namespace geom = mir::geometry;
 
 uams::WindowProperties::WindowProperties()
     : parameters(msh::a_surface()),
@@ -49,6 +50,11 @@ void uams::WindowProperties::set_input_cb_and_ctx(UAUiWindowInputEventCb callbac
 {
     cb = callback;
     input_ctx = ctx;
+}
+
+void uams::WindowProperties::set_pixel_format(geom::PixelFormat const& format)
+{
+    parameters = parameters.of_pixel_format(format);
 }
     
 msh::SurfaceCreationParameters const& uams::WindowProperties::surface_parameters() const
