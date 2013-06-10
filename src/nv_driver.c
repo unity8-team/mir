@@ -426,7 +426,7 @@ NVEnterVT(VT_FUNC_ARGS_DECL)
 	if (ret)
 		ErrorF("Unable to get master: %s\n", strerror(errno));
 
-	if (!xf86SetDesiredModes(pScrn))
+	if (XF86_CRTC_CONFIG_PTR(pScrn)->num_crtc && !xf86SetDesiredModes(pScrn))
 		return FALSE;
 
 	if (pNv->overlayAdaptor && pNv->Architecture != NV_ARCH_04)
@@ -559,7 +559,8 @@ NVCloseScreen(CLOSE_SCREEN_ARGS_DECL)
 	ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
 	NVPtr pNv = NVPTR(pScrn);
 
-	drmmode_screen_fini(pScreen);
+	if (XF86_CRTC_CONFIG_PTR(pScrn)->num_crtc)
+		drmmode_screen_fini(pScreen);
 
 	if (!pNv->NoAccel)
 		nouveau_dri2_fini(pScreen);
@@ -687,6 +688,7 @@ nouveau_setup_capabilities(ScrnInfoPtr pScrn)
 {
 #ifdef NOUVEAU_PIXMAP_SHARING
 	NVPtr pNv = NVPTR(pScrn);
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 	uint64_t value;
 	int ret;
 
@@ -695,8 +697,11 @@ nouveau_setup_capabilities(ScrnInfoPtr pScrn)
 	if (ret == 0) {
 		if (value & DRM_PRIME_CAP_EXPORT)
 			pScrn->capabilities |= RR_Capability_SourceOutput;
-		if (value & DRM_PRIME_CAP_IMPORT)
-			pScrn->capabilities |= RR_Capability_SourceOffload | RR_Capability_SinkOutput;
+		if (value & DRM_PRIME_CAP_IMPORT) {
+			pScrn->capabilities |= RR_Capability_SourceOffload;
+			if (xf86_config->num_crtc)
+				pScrn->capabilities |= RR_Capability_SinkOutput;
+		}
 	}
 #endif
 }
@@ -861,8 +866,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	if (!NVPreInitDRM(pScrn))
 		NVPreInitFail("\n");
 	dev = pNv->dev;
-
-	nouveau_setup_capabilities(pScrn);
 
 	pScrn->chipset = malloc(sizeof(char) * 25);
 	sprintf(pScrn->chipset, "NVIDIA NV%02x", dev->chipset);
@@ -1102,9 +1105,35 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	if (!xf86SetGamma(pScrn, gammazeros))
 		NVPreInitFail("\n");
 
-	/* No usable mode */
+#ifdef NOUVEAU_PIXMAP_SHARING
+	/*
+	 * The driver will not work as gpu screen without acceleration enabled.
+	 * To support this usecase modesetting ddx can be used instead.
+	 */
+	if (pNv->NoAccel || pNv->ShadowFB) {
+		/*
+		 * Optimus mode requires acceleration enabled.
+		 * So if no mode is found, or the screen is created
+		 * as a gpu screen the pre init should fail.
+		 */
+		if (pScrn->is_gpu || !pScrn->modes)
+			return FALSE;
+	}
+
+#else
+	/* No usable mode, no optimus config possible */
 	if (!pScrn->modes)
 		return FALSE;
+#endif
+
+	nouveau_setup_capabilities(pScrn);
+
+	if (!pScrn->modes) {
+		pScrn->modes = xf86ModesAdd(pScrn->modes,
+			xf86CVTMode(pScrn->display->virtualX,
+				    pScrn->display->virtualY,
+				    60, 0, 0));
+	}
 
 	/* Set the current mode to the first in the list */
 	pScrn->currentMode = pScrn->modes;
@@ -1389,7 +1418,7 @@ NVScreenInit(SCREEN_INIT_ARGS_DECL)
 	 * Initialize HW cursor layer. 
 	 * Must follow software cursor initialization.
 	 */
-	if (pNv->HWCursor) { 
+	if (xf86_config->num_crtc && pNv->HWCursor) {
 		ret = drmmode_cursor_init(pScreen);
 		if (ret != TRUE) {
 			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -1444,7 +1473,8 @@ NVScreenInit(SCREEN_INIT_ARGS_DECL)
 	 * Initialize colormap layer.
 	 * Must follow initialization of the default colormap 
 	 */
-	if (!xf86HandleColormaps(pScreen, 256, 8, NVLoadPalette,
+	if (xf86_config->num_crtc &&
+	    !xf86HandleColormaps(pScreen, 256, 8, NVLoadPalette,
 				 NULL, CMAP_PALETTED_TRUECOLOR))
 		return FALSE;
 
@@ -1452,7 +1482,10 @@ NVScreenInit(SCREEN_INIT_ARGS_DECL)
 	if (serverGeneration == 1)
 		xf86ShowUnusedOptions(pScrn->scrnIndex, pScrn->options);
 
-	drmmode_screen_init(pScreen);
+	if (xf86_config->num_crtc)
+		drmmode_screen_init(pScreen);
+	else
+		pNv->glx_vblank = FALSE;
 	return TRUE;
 }
 

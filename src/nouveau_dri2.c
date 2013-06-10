@@ -266,6 +266,9 @@ can_exchange(DrawablePtr draw, PixmapPtr dst_pix, PixmapPtr src_pix)
 	NVPtr pNv = NVPTR(scrn);
 	int i;
 
+	if (!xf86_config->num_crtc)
+		return FALSE;
+
 	for (i = 0; i < xf86_config->num_crtc; i++) {
 		xf86CrtcPtr crtc = xf86_config->crtc[i];
 		if (crtc->enabled && crtc->rotatedData)

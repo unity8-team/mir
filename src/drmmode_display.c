@@ -1129,14 +1129,17 @@ drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
 	ScreenPtr screen = xf86ScrnToScreen(scrn);
 	NVPtr pNv = NVPTR(scrn);
-	drmmode_crtc_private_ptr
-		    drmmode_crtc = xf86_config->crtc[0]->driver_private;
-	drmmode_ptr drmmode = drmmode_crtc->drmmode;
-	uint32_t old_width, old_height, old_pitch, old_fb_id;
+	drmmode_crtc_private_ptr drmmode_crtc = NULL;
+	drmmode_ptr drmmode = NULL;
+	uint32_t old_width, old_height, old_pitch, old_fb_id = 0;
 	struct nouveau_bo *old_bo = NULL;
 	int ret, i, pitch;
 	PixmapPtr ppix;
 
+	if (xf86_config->num_crtc) {
+		drmmode_crtc = xf86_config->crtc[0]->driver_private;
+		drmmode = drmmode_crtc->drmmode;
+	}
 	ErrorF("resize called %d %d\n", width, height);
 
 	if (scrn->virtualX == width && scrn->virtualY == height)
@@ -1145,7 +1148,8 @@ drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	old_width = scrn->virtualX;
 	old_height = scrn->virtualY;
 	old_pitch = scrn->displayWidth;
-	old_fb_id = drmmode->fb_id;
+	if (drmmode)
+		old_fb_id = drmmode->fb_id;
 	nouveau_bo_ref(pNv->scanout, &old_bo);
 	nouveau_bo_ref(NULL, &pNv->scanout);
 
@@ -1162,11 +1166,13 @@ drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 
 	nouveau_bo_map(pNv->scanout, NOUVEAU_BO_RDWR, pNv->client);
 
-	ret = drmModeAddFB(drmmode->fd, width, height, scrn->depth,
-			   scrn->bitsPerPixel, pitch, pNv->scanout->handle,
-			   &drmmode->fb_id);
-	if (ret)
-		goto fail;
+	if (drmmode) {
+		ret = drmModeAddFB(drmmode->fd, width, height, scrn->depth,
+				  scrn->bitsPerPixel, pitch, pNv->scanout->handle,
+				  &drmmode->fb_id);
+		if (ret)
+			goto fail;
+	}
 
 	if (pNv->ShadowPtr) {
 		free(pNv->ShadowPtr);
@@ -1214,7 +1220,8 @@ drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	scrn->virtualX = old_width;
 	scrn->virtualY = old_height;
 	scrn->displayWidth = old_pitch;
-	drmmode->fb_id = old_fb_id;
+	if (drmmode)
+		drmmode->fb_id = old_fb_id;
 
 	return FALSE;
 }
@@ -1241,6 +1248,14 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp)
 
 	xf86CrtcSetSizeRange(pScrn, 320, 200, drmmode->mode_res->max_width,
 			     drmmode->mode_res->max_height);
+
+	if (!drmmode->mode_res->count_connectors ||
+	    !drmmode->mode_res->count_crtcs) {
+		drmModeFreeResources(drmmode->mode_res);
+		xfree(drmmode);
+		goto done;
+	}
+
 	for (i = 0; i < drmmode->mode_res->count_crtcs; i++) {
 		if (!xf86IsEntityShared(pScrn->entityList[0]) ||
 		     (pScrn->confScreen->device->screen == i))
@@ -1250,6 +1265,7 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp)
 	for (i = 0; i < drmmode->mode_res->count_connectors; i++)
 		drmmode_output_init(pScrn, drmmode, i);
 
+done:
 #ifdef NOUVEAU_PIXMAP_SHARING
 	xf86ProviderSetup(pScrn, NULL, "nouveau");
 #endif
@@ -1280,7 +1296,7 @@ drmmode_remove_fb(ScrnInfoPtr pScrn)
 	drmmode_crtc_private_ptr drmmode_crtc;
 	drmmode_ptr drmmode;
 
-	if (config)
+	if (config && config->num_crtc)
 		crtc = config->crtc[0];
 	if (!crtc)
 		return;
