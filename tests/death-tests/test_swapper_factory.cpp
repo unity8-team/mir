@@ -38,6 +38,7 @@ struct EmptyDeleter
 };
 }
 
+#ifndef NDEBUG
 TEST(
     double_buffer_allocation_strategy_death_test,
     if_dependency_on_allocator_is_missing_an_assertion_is_triggered)
@@ -50,3 +51,4 @@ TEST(
     ::testing::FLAGS_gtest_death_test_style = "fast";
     EXPECT_EXIT(mc::SwapperFactory(std::shared_ptr<mc::GraphicBufferAllocator>()), ::testing::KilledBySignal(SIGABRT), ".*");
 }
+#endif
