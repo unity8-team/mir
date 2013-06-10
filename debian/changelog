@@ -1,3 +1,17 @@
+platform-api (0.18.1daily13.06.10-0ubuntu1) saucy; urgency=low
+
+  [ Ricardo Salveti de Araujo ]
+  * clipboard.h: fixing license (it should be LGPL instead of GPL).
+
+  [ Ricardo Mendoza ]
+  * Extend the SessionProperties API to allow setting a remote_pid for
+    operation across container boundaries.
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 65
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Mon, 10 Jun 2013 02:02:01 +0000
+
 platform-api (0.18.1daily13.06.05-0ubuntu1) saucy; urgency=low
 
   [ Ricardo Mendoza ]
