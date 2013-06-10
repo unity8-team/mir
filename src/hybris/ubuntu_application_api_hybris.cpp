@@ -92,6 +92,7 @@ IMPLEMENT_FUNCTION1(UAUiDisplay*, ua_ui_display_new_with_index, size_t);
 IMPLEMENT_VOID_FUNCTION1(ua_ui_display_destroy, UAUiDisplay*);
 IMPLEMENT_FUNCTION1(uint32_t, ua_ui_display_query_horizontal_res, UAUiDisplay*);
 IMPLEMENT_FUNCTION1(uint32_t, ua_ui_display_query_vertical_res, UAUiDisplay*);
+IMPLEMENT_FUNCTION1(EGLNativeDisplayType, ua_ui_display_get_native_type, UAUiDisplay*);
 
 
 // UAUiWindowProperties
