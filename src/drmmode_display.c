@@ -1252,7 +1252,7 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp)
 	if (!drmmode->mode_res->count_connectors ||
 	    !drmmode->mode_res->count_crtcs) {
 		drmModeFreeResources(drmmode->mode_res);
-		xfree(drmmode);
+		free(drmmode);
 		goto done;
 	}
 
