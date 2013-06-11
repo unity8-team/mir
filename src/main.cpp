@@ -18,6 +18,7 @@
 
 #include "system_compositor.h"
 #include <mir/report_exception.h>
+#include <iostream>
 
 int main(int argc, char const* argv[])
 try

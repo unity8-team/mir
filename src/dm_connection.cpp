@@ -19,6 +19,7 @@
 #include "dm_connection.h"
 
 #include <boost/signals2.hpp>
+#include <iostream>
 
 namespace ba = boost::asio;
 namespace bs = boost::system;
