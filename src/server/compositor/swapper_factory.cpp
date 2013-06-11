@@ -37,7 +37,8 @@ mc::SwapperFactory::SwapperFactory(
     gr_allocator(gr_alloc),
     number_of_buffers(2)
 {
-    assert(gr_alloc);
+    if (!gr_allocator)
+        abort();
 }
 
 mc::SwapperFactory::SwapperFactory(
@@ -45,7 +46,8 @@ mc::SwapperFactory::SwapperFactory(
     gr_allocator(gr_alloc),
     number_of_buffers(number_of_buffers)
 {
-    assert(gr_alloc);
+    if (!gr_allocator)
+        abort();
 }
 
 std::unique_ptr<mc::BufferSwapperMaster> mc::SwapperFactory::create_swapper_master(

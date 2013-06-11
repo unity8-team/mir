@@ -66,8 +66,8 @@ mtf::Process::Process(pid_t pid)
     , terminated(false)
     , detached(false)
 {
-  if (pid <= 0)
-    abort();
+    if (pid <= 0)
+        abort();
 }
 
 mtf::Process::~Process()
