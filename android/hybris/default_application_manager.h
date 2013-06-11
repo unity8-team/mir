@@ -180,6 +180,8 @@ struct ApplicationManager :
     void request_fullscreen(const android::sp<android::IApplicationManagerSession>& session);
 
     void register_an_observer(const android::sp<android::IApplicationManagerObserver>& observer);
+    
+    void register_task_controller(const android::sp<android::IAMTaskController>& controller);
 
     int get_session_pid(const android::sp<android::IApplicationManagerSession>& session);
 
@@ -237,6 +239,7 @@ struct ApplicationManager :
     android::Vector< android::sp<android::IBinder> > apps_as_added;
     android::Mutex observer_guard;
     android::Vector< android::sp<android::IApplicationManagerObserver> > app_manager_observers;
+    android::sp<android::IAMTaskController> app_manager_task_controller;
     size_t focused_application;    
     size_t side_stage_application;
     size_t main_stage_application;

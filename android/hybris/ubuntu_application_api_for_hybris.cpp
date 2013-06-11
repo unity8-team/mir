@@ -674,6 +674,41 @@ struct SessionProperties : public ubuntu::ui::SessionProperties
     android::String8 desktop_file;
 };
 
+struct AMTaskController : public android::BnAMTaskController
+{
+    void continue_task(uint32_t pid)
+    {
+        if (controller == NULL)
+            return;
+
+        controller->continue_task(static_cast<int>(pid));
+    }
+
+    void suspend_task(uint32_t pid)
+    {
+        if (controller == NULL)
+            return;
+
+        controller->suspend_task(static_cast<int>(pid));
+    }
+
+    void install_task_controller(const ubuntu::ui::TaskController::Ptr& controller)
+    {
+        printf("%s()\n", __PRETTY_FUNCTION__);
+        this->controller = controller;
+
+        sp<IServiceManager> service_manager = defaultServiceManager();
+        sp<IBinder> service = service_manager->getService(
+                                  String16(IApplicationManager::exported_service_name()));
+        BpApplicationManager app_manager(service);
+
+        app_manager.register_task_controller(android::sp<IAMTaskController>(this));
+    }
+
+
+    ubuntu::ui::TaskController::Ptr controller;
+};
+
 struct ApplicationManagerObserver : public android::BnApplicationManagerObserver
 {
     void on_session_requested(uint32_t app)
@@ -820,7 +855,8 @@ struct SessionService : public ubuntu::ui::SessionService
         return remote_instance;
     }
 
-    SessionService() : observer(new ApplicationManagerObserver())
+    SessionService() : observer(new ApplicationManagerObserver()),
+                       controller(new AMTaskController())
     {
         android::ProcessState::self()->startThreadPool();
     }
@@ -835,6 +871,12 @@ struct SessionService : public ubuntu::ui::SessionService
     void install_session_lifecycle_observer(const ubuntu::ui::SessionLifeCycleObserver::Ptr& lifecycle_observer)
     {
         this->observer->install_session_lifecycle_observer(lifecycle_observer);
+    }
+
+    void install_task_controller(const ubuntu::ui::TaskController::Ptr& controller)
+    {
+        printf("%s()\n", __PRETTY_FUNCTION__);
+        this->controller->install_task_controller(controller);
     }
 
     void unfocus_running_sessions()
@@ -937,6 +979,7 @@ struct SessionService : public ubuntu::ui::SessionService
     }
 
     android::sp<ApplicationManagerObserver> observer;
+    android::sp<AMTaskController> controller;
 };
 
 }
