@@ -23,6 +23,7 @@
 #include <mir/shell/session_container.h>
 #include <mir/shell/focus_setter.h>
 
+#include <iostream>
 #include <thread>
 
 namespace msh = mir::shell;
