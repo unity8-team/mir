@@ -1,0 +1,61 @@
+commit 7d91051c50210560dbd93a9e36f30d9f74ce9133
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jun 11 14:23:57 2013 +0100
+
+    sna: Make sure the source is coherent on the CPU before uploading
+    
+    Makes the presumption that for the upload path the region is stored on
+    the CPU explicit.
+    
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=61628
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+diff --git a/src/sna/sna_accel.c b/src/sna/sna_accel.c
+index 69a151c..1663fe3 100644
+--- a/src/sna/sna_accel.c
++++ b/src/sna/sna_accel.c
+@@ -4861,6 +4861,22 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
+ 			}
+ 		}
+ 
++		if (src_priv) {
++			bool ret;
++
++			RegionTranslate(region, src_dx, src_dy);
++			ret = sna_drawable_move_region_to_cpu(&src_pixmap->drawable,
++							      region, MOVE_READ);
++			RegionTranslate(region, -src_dx, -src_dy);
++			if (!ret)
++				goto fallback;
++
++			assert(!src_priv->mapped);
++			if (src_pixmap->devPrivate.ptr == NULL)
++				/* uninitialised!*/
++				return;
++		}
++
+ 		if (alu != GXcopy) {
+ 			PixmapPtr tmp;
+ 			struct kgem_bo *src_bo;
+@@ -4936,21 +4952,6 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
+ 			DBG(("%s: dst is on the GPU, src is on the CPU, uploading into dst\n",
+ 			     __FUNCTION__));
+ 
+-			if (src_priv) {
+-				/* Fixup the shadow pointer as necessary */
+-				if (src_priv->mapped) {
+-					assert(!src_priv->shm);
+-					src_pixmap->devPrivate.ptr = NULL;
+-					src_priv->mapped = false;
+-				}
+-				if (src_pixmap->devPrivate.ptr == NULL) {
+-					if (!src_priv->ptr) /* uninitialised!*/
+-						return;
+-					src_pixmap->devPrivate.ptr = PTR(src_priv->ptr);
+-					src_pixmap->devKind = src_priv->stride;
+-				}
+-			}
+-
+ 			if (!dst_priv->pinned && replaces) {
+ 				stride = src_pixmap->devKind;
+ 				bits = src_pixmap->devPrivate.ptr;
