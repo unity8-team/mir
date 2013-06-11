@@ -20,15 +20,9 @@
 #define UBUNTU_UI_SESSION_ENUMERATOR_H_
 
 #include "private/platform/shared_ptr.h"
-#include "private/ui/config.h"
 #include "private/ui/well_known_applications.h"
 
-#if UBUNTU_USE_GLES
 #include <GLES2/gl2.h>
-#else
-#include <GL/gl.h>
-#include <GL/glext.h>
-#endif
 
 namespace ubuntu
 {
