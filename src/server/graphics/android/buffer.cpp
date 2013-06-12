@@ -32,8 +32,44 @@ namespace mg=mir::graphics;
 namespace mga=mir::graphics::android;
 namespace geom=mir::geometry;
 
+namespace mir
+{
+namespace graphics
+{
+namespace android
+{
+
+struct EGLExtensions
+{
+    EGLExtensions()
+        : eglCreateImageKHR{
+              reinterpret_cast<PFNEGLCREATEIMAGEKHRPROC>(
+                  eglGetProcAddress("eglCreateImageKHR"))},
+          eglDestroyImageKHR{
+              reinterpret_cast<PFNEGLDESTROYIMAGEKHRPROC>(
+                  eglGetProcAddress("eglDestroyImageKHR"))},
+          glEGLImageTargetTexture2DOES{
+              reinterpret_cast<PFNGLEGLIMAGETARGETTEXTURE2DOESPROC>(
+                  eglGetProcAddress("glEGLImageTargetTexture2DOES"))}
+    {
+        if (!eglCreateImageKHR || !eglDestroyImageKHR)
+            BOOST_THROW_EXCEPTION(std::runtime_error("EGL implementation doesn't support EGLImage"));
+
+        if (!glEGLImageTargetTexture2DOES)
+            BOOST_THROW_EXCEPTION(std::runtime_error("GLES2 implementation doesn't support updating a texture from an EGLImage"));
+    }
+
+    PFNEGLCREATEIMAGEKHRPROC const eglCreateImageKHR;
+    PFNEGLDESTROYIMAGEKHRPROC const eglDestroyImageKHR;
+    PFNGLEGLIMAGETARGETTEXTURE2DOESPROC const glEGLImageTargetTexture2DOES;
+};
+}
+}
+}
+
 mga::Buffer::Buffer(const std::shared_ptr<GraphicAllocAdaptor>& alloc_device,
                     geom::Size size, geom::PixelFormat pf, mga::BufferUsage use)
+    : egl_extensions(std::make_shared<EGLExtensions>())
 {
     if (!alloc_device)
         BOOST_THROW_EXCEPTION(std::runtime_error("No allocation device for graphics buffer"));
@@ -88,8 +124,9 @@ void mga::Buffer::bind_to_texture()
     auto it = egl_image_map.find(disp);
     if (it == egl_image_map.end())
     {
-        image = eglCreateImageKHR(disp, EGL_NO_CONTEXT, EGL_NATIVE_BUFFER_ANDROID,
-                                  native_buffer.get(), image_attrs);
+        image = egl_extensions->eglCreateImageKHR(disp, EGL_NO_CONTEXT,
+             EGL_NATIVE_BUFFER_ANDROID, native_buffer.get(), image_attrs);
+
         if (image == EGL_NO_IMAGE_KHR)
         {
             BOOST_THROW_EXCEPTION(std::runtime_error("error binding buffer to texture\n"));

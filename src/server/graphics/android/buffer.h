@@ -37,6 +37,8 @@ namespace graphics
 namespace android
 {
 
+struct EGLExtensions;
+
 class GraphicAllocAdaptor;
 class Buffer: public compositor::BufferBasic 
 {
@@ -50,6 +52,7 @@ public:
     geometry::PixelFormat pixel_format() const;
     void bind_to_texture();
     std::shared_ptr<ANativeWindowBuffer> native_buffer_handle() const;
+    std::shared_ptr<EGLExtensions> const egl_extensions;
 
 private:
     std::map<EGLDisplay,EGLImageKHR> egl_image_map;
