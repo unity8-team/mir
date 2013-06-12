@@ -47,6 +47,18 @@ AM_INIT_AUTOMAKE([dist-bzip2])
 
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
+# Require X.Org macros 1.8 or later for MAN_SUBSTS set by XORG_MANPAGE_SECTIONS
+m4_ifndef([XORG_MACROS_VERSION],
+          [m4_fatal([must install xorg-macros 1.8 or later before running autoconf/autogen])])
+
+XORG_MACROS_VERSION(1.8)
+XORG_DEFAULT_OPTIONS
+
+# Require X.Org server macros (i.e. XORG_DRIVER_CHECK_EXT) to check for required modules
+m4_ifndef([XORG_DRIVER_CHECK_EXT],
+          [m4_fatal([must install xorg-server macros before running autoconf/autogen])])
+
+
 # Checks for programs.
 AC_DISABLE_STATIC
 LT_INIT
