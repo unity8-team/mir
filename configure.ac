@@ -132,3 +132,21 @@ AC_CONFIG_FILES([
 	man/Makefile
 ])
 AC_OUTPUT
+
+dnl
+dnl Output some configuration info for the user
+dnl
+echo ""
+echo "        prefix:              $prefix"
+echo "        exec_prefix:         $exec_prefix"
+echo "        libdir:              $libdir"
+echo "        includedir:          $includedir"
+
+echo ""
+echo "        CFLAGS:              $CFLAGS"
+echo "        CXXFLAGS:            $CXXFLAGS"
+echo "        Macros:              $DEFINES"
+
+echo ""
+echo "        Run '${MAKE-make}' to build xf86-video-nouveau"
+echo ""
