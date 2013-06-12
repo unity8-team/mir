@@ -7,9 +7,10 @@
 #include "nv_include.h"
 #ifdef DRI2
 #include "dri2.h"
+#else
+#error "This driver requires a DRI2-enabled X server"
 #endif
 
-#if defined(DRI2) && DRI2INFOREC_VERSION >= 3
 struct nouveau_dri2_buffer {
 	DRI2BufferRec base;
 	PixmapPtr ppix;
@@ -817,16 +818,3 @@ nouveau_dri2_fini(ScreenPtr pScreen)
 {
 	DRI2CloseScreen(pScreen);
 }
-#else
-Bool
-nouveau_dri2_init(ScreenPtr pScreen)
-{
-	return TRUE;
-}
-
-void
-nouveau_dri2_fini(ScreenPtr pScreen)
-{
-}
-#endif
-
