@@ -4,16 +4,10 @@
 #include "colormapst.h"
 #include "xf86Cursor.h"
 #include "exa.h"
-#ifdef XF86DRI
-#define _XF86DRI_SERVER_
 #include "xf86drm.h"
-#include "dri.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include "xf86Crtc.h"
-#else
-#error "This driver requires a DRI-enabled X server"
-#endif
 
 #if XF86_CRTC_VERSION >= 5
 #define NOUVEAU_PIXMAP_SHARING 1
