@@ -272,11 +272,13 @@ NVHasKMS(struct pci_device *pci_dev)
 	char *busid;
 	int chipset, ret;
 
-	if (!xf86LoaderCheckSymbol("DRICreatePCIBusID")) {
-		xf86DrvMsg(-1, X_ERROR, "[drm] No DRICreatePCIBusID symbol\n");
-		return FALSE;
-	}
-	busid = DRICreatePCIBusID(pci_dev);
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,9,99,901,0)
+	XNFasprintf(&busid, "pci:%04x:%02x:%02x.%d",
+		    pci_dev->domain, pci_dev->bus, pci_dev->dev, pci_dev->func);
+#else
+	busid = XNFprintf("pci:%04x:%02x:%02x.%d",
+			  pci_dev->domain, pci_dev->bus, pci_dev->dev, pci_dev->func);
+#endif
 
 	ret = drmCheckModesettingSupported(busid);
 	if (ret) {
