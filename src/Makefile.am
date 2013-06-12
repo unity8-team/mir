@@ -66,6 +66,39 @@ EXTRA_DIST = hwdefs/nv_3ddefs.xml.h \
 	     hwdefs/nv50_texture.h \
 	     hwdefs/nvc0_3d.xml.h \
 	     hwdefs/nvc0_m2mf.xml.h \
+	     shader/exac8nvc0.fp \
+	     shader/exac8nvc0.fpc \
+	     shader/exac8nve0.fp \
+	     shader/exac8nve0.fpc \
+	     shader/exacanvc0.fp \
+	     shader/exacanvc0.fpc \
+	     shader/exacanve0.fp \
+	     shader/exacanve0.fpc \
+	     shader/exacmnvc0.fp \
+	     shader/exacmnvc0.fpc \
+	     shader/exacmnve0.fp \
+	     shader/exacmnve0.fpc \
+	     shader/exas8nvc0.fp \
+	     shader/exas8nvc0.fpc \
+	     shader/exas8nve0.fp \
+	     shader/exas8nve0.fpc \
+	     shader/exasanvc0.fp \
+	     shader/exasanvc0.fpc \
+	     shader/exasanve0.fp \
+	     shader/exasanve0.fpc \
+	     shader/exascnvc0.fp \
+	     shader/exascnvc0.fpc \
+	     shader/exascnve0.fp \
+	     shader/exascnve0.fpc \
+	     shader/videonvc0.fp \
+	     shader/videonvc0.fpc \
+	     shader/videonve0.fp \
+	     shader/videonve0.fpc \
+	     shader/xfrm2nvc0.vp \
+	     shader/xfrm2nvc0.vpc \
+	     shader/xfrm2nve0.vp \
+	     shader/xfrm2nve0.vpc \
+	     shader/Makefile \
 	     nouveau_local.h \
 	     nv_const.h \
 	     nv_dma.h \

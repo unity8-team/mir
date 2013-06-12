@@ -20,11 +20,14 @@
 
 AUTOMAKE_OPTIONS = foreign
 SUBDIRS = src man
+MAINTAINERCLEANFILES = ChangeLog INSTALL
 
-EXTRA_DIST = ChangeLog
+.PHONY: ChangeLog INSTALL
 
-# Always regenerate the changelog
-CLEANFILES = ChangeLog
-ChangeLog: FORCE
-	git log > ChangeLog
-FORCE:
+INSTALL:
+	$(INSTALL_CMD)
+
+ChangeLog:
+	$(CHANGELOG_CMD)
+
+EXTRA_DIST = ChangeLog INSTALL
