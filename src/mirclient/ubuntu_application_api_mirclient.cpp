@@ -82,7 +82,7 @@ UApplicationInstance* u_application_instance_new_from_description_with_options(U
 
     auto id = uam::Id::from_u_application_id(u_application_description_get_application_id(description));
     auto connect_suceeded = instance->connect(id->name);
-    assert(connect_suceeded)
+    assert(connect_suceeded);
 
     return instance->as_u_application_instance();
 }
