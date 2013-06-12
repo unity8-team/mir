@@ -651,40 +651,6 @@ NVCloseDRM(ScrnInfoPtr pScrn)
 	nouveau_device_del(&pNv->dev);
 }
 
-static Bool
-NVDRIGetVersion(ScrnInfoPtr pScrn)
-{
-	NVPtr pNv = NVPTR(pScrn);
-	int errmaj, errmin;
-	pointer ret;
-
-	ret = LoadSubModule(pScrn->module, "dri", NULL, NULL, NULL,
-			    NULL, &errmaj, &errmin);
-	if (!ret) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-				"error %d\n", errmaj);
-		LoaderErrorMsg(pScrn->name, "dri", errmaj, errmin);
-	}
-
-	if (!ret && errmaj != LDR_ONCEONLY)
-		return FALSE;
-
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Loaded DRI module\n");
-
-	/* Check the lib version */
-	if (xf86LoaderCheckSymbol("drmGetLibVersion"))
-		pNv->pLibDRMVersion = drmGetLibVersion(0);
-	if (pNv->pLibDRMVersion == NULL) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		"NVDRIGetVersion failed because libDRM is really "
-		"way to old to even get a version number out of it.\n"
-		"[dri] Disabling DRI.\n");
-		return FALSE;
-	}
-
-	return TRUE;
-}
-
 static void
 nouveau_setup_capabilities(ScrnInfoPtr pScrn)
 {
@@ -778,7 +744,7 @@ NVPreInitDRM(ScrnInfoPtr pScrn)
 	NVPtr pNv = NVPTR(pScrn);
 	int ret;
 
-	if (!NVDRIGetVersion(pScrn))
+	if (!xf86LoadSubModule(pScrn, "dri2"))
 		return FALSE;
 
 	/* Load the kernel module, and open the DRM */
