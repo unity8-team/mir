@@ -27,14 +27,3 @@ override_dh_shlibdeps:
 
 %:
 	dh $@ --with quilt,autoreconf,xsf --builddirectory=build/
-
-
-# Build me a tarball:
-get-orig-source:
-	git clone git://anongit.freedesktop.org/git/nouveau/xf86-video-nouveau && \
-	cd xf86-video-nouveau && git log > ChangeLog && \
-	REVISION=$$(git show --pretty=format:"%h" HEAD | head -n1) && cd .. && \
-	PREFIX=xserver-xorg-video-nouveau_1.0.1+git$$(date +%Y%m%d)+$$REVISION && \
-	rm -rf xf86-video-nouveau/.git && \
-	tar czf $$PREFIX.orig.tar.gz xf86-video-nouveau && \
-	rm -rf xf86-video-nouveau

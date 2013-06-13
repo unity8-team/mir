@@ -1,3 +1,21 @@
+xserver-xorg-video-nouveau (1:1.0.8-0ubuntu1) saucy; urgency=low
+
+  * Sync to unreleased debian experimental git.
+  * Remaining differences:
+    - Try to enable vblank if available (LP: #1019131)
+      - 100-vblank-on.diff
+  * Add support for displayless cards. (LP: #1142733)
+
+ -- Maarten Lankhorst <maarten.lankhorst@ubuntu.com>  Wed, 12 Jun 2013 11:24:18 +0200
+
+xserver-xorg-video-nouveau (1:1.0.8-1) UNRELEASED; urgency=low
+
+  * New upstream release.
+  * Replace dependency on x11proto-xf86dri-dev with x11proto-dri2-dev.
+    - Upstream removed dri1 dependency.
+
+ -- Maarten Lankhorst <maarten.lankhorst@ubuntu.com>  Wed, 12 Jun 2013 10:58:45 +0200
+
 xserver-xorg-video-nouveau (1:1.0.7-0ubuntu1) raring; urgency=low
 
   * Sync to unreleased debian experimental git.
@@ -7,11 +25,17 @@ xserver-xorg-video-nouveau (1:1.0.7-0ubuntu1) raring; urgency=low
 
  -- Maarten Lankhorst <maarten.lankhorst@ubuntu.com>  Wed, 27 Mar 2013 13:37:09 +0100
 
-xserver-xorg-video-nouveau (1:1.0.7-1) UNRELEASED; urgency=low
+xserver-xorg-video-nouveau (1:1.0.7-1) experimental; urgency=low
 
+  [ Maarten Lankhorst ]
   * New upstream release.
 
- -- Maarten Lankhorst <maarten.lankhorst@ubuntu.com>  Wed, 27 Mar 2013 13:37:09 +0100
+  [ Sven Joachim ]
+  * Remove patch 03-fix-shaders-on-big-endian-machines.diff, applied
+    upstream.
+  * Drop get-orig-source target from debian/rules.
+
+ -- Sven Joachim <svenjoac@gmx.de>  Sat, 30 Mar 2013 18:28:51 +0100
 
 xserver-xorg-video-nouveau (1:1.0.6-0ubuntu4) raring; urgency=low
 
@@ -112,6 +136,14 @@ xserver-xorg-video-nouveau (1:1.0.2-0ubuntu1) quantal; urgency=low
   * Sync from unreleased debian git.
 
  -- Timo Aaltonen <tjaalton@ubuntu.com>  Wed, 12 Sep 2012 17:26:27 +0300
+
+xserver-xorg-video-nouveau (1:1.0.1-5) unstable; urgency=low
+
+  * New patch 03-fix-shaders-on-big-endian-machines.diff from
+    Marcin Slucarz, fixes missing fonts on NV30 cards on powerpc
+    (Closes: #699214).
+
+ -- Sven Joachim <svenjoac@gmx.de>  Thu, 07 Feb 2013 18:14:24 +0100
 
 xserver-xorg-video-nouveau (1:1.0.1-4) unstable; urgency=low
 
