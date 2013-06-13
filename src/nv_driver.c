@@ -661,7 +661,7 @@ NVCloseScreen(CLOSE_SCREEN_ARGS_DECL)
 	ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
 	NVPtr pNv = NVPTR(pScrn);
 
-	if (!orgMir && XF86_CRTC_CONFIG_PTR(pScrn)->num_crtc)
+	if (!xorgMir && XF86_CRTC_CONFIG_PTR(pScrn)->num_crtc)
 		drmmode_screen_fini(pScreen);
 
 	if (!pNv->NoAccel)
