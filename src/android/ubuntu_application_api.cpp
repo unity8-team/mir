@@ -19,7 +19,6 @@
 
 #include <private/application/ui/ubuntu_application_ui.h>
 
-#include <ubuntu/application/ubuntu_application_gps.h>
 #include <ubuntu/ui/ubuntu_ui_session_service.h>
 
 // C APIs
@@ -32,6 +31,7 @@
 #include <ubuntu/application/sensors/accelerometer.h>
 #include <ubuntu/application/sensors/proximity.h>
 #include <ubuntu/application/sensors/light.h>
+#include <ubuntu/hardware/gps.h>
 
 #include <assert.h>
 #include <dlfcn.h>
@@ -302,6 +302,17 @@ IMPLEMENT_VOID_FUNCTION3(ua_sensors_light_set_reading_cb, UASensorsLight*, on_li
 IMPLEMENT_FUNCTION1(uint64_t, uas_light_event_get_timestamp, UASLightEvent*);
 IMPLEMENT_SF_FUNCTION1(float, uas_light_event_get_light, UASLightEvent*);
 
+// Hardware - GPS
+IMPLEMENT_FUNCTION1(UHardwareGps, u_hardware_gps_new, UHardwareGpsParams*);
+IMPLEMENT_VOID_FUNCTION1(u_hardware_gps_delete, UHardwareGps);
+IMPLEMENT_FUNCTION1(bool, u_hardware_gps_start, UHardwareGps);
+IMPLEMENT_FUNCTION1(bool, u_hardware_gps_stop, UHardwareGps);
+IMPLEMENT_VOID_FUNCTION4(u_hardware_gps_inject_time, UHardwareGps, int64_t, int64_t, int);
+IMPLEMENT_VOID_FUNCTION4(u_hardware_gps_inject_location, UHardwareGps, double, double, float);
+IMPLEMENT_VOID_FUNCTION2(u_hardware_gps_delete_aiding_data, UHardwareGps, uint16_t);
+IMPLEMENT_FUNCTION6(bool, u_hardware_gps_set_position_mode, UHardwareGps, uint32_t, uint32_t,
+                                                        uint32_t, uint32_t, uint32_t);
+IMPLEMENT_VOID_FUNCTION3(u_hardware_gps_inject_xtra_data, UHardwareGps, char*, int);
 /* -------------------------------------------------------------------------- *
  * * * * * * * * * * * * * * * Deprecated API * * * * * * * * * * * * * * * * *
  * -------------------------------------------------------------------------- *
@@ -324,16 +335,16 @@ IMPLEMENT_VOID_FUNCTION0(ubuntu_ui_report_notification_visible);
 IMPLEMENT_VOID_FUNCTION0(ubuntu_ui_report_notification_invisible);
 
 // GPS
-IMPLEMENT_FUNCTION1(UbuntuGps, ubuntu_gps_new, UbuntuGpsParams*);
-IMPLEMENT_VOID_FUNCTION1(ubuntu_gps_delete, UbuntuGps);
-IMPLEMENT_FUNCTION1(bool, ubuntu_gps_start, UbuntuGps);
-IMPLEMENT_FUNCTION1(bool, ubuntu_gps_stop, UbuntuGps);
-IMPLEMENT_VOID_FUNCTION4(ubuntu_gps_inject_time, UbuntuGps, int64_t, int64_t, int);
-IMPLEMENT_VOID_FUNCTION4(ubuntu_gps_inject_location, UbuntuGps, double, double, float);
-IMPLEMENT_VOID_FUNCTION2(ubuntu_gps_delete_aiding_data, UbuntuGps, uint16_t);
-IMPLEMENT_FUNCTION6(bool, ubuntu_gps_set_position_mode, UbuntuGps, uint32_t, uint32_t,
-                                                        uint32_t, uint32_t, uint32_t);
-IMPLEMENT_VOID_FUNCTION3(ubuntu_gps_inject_xtra_data, UbuntuGps, char*, int);
+    //IMPLEMENT_FUNCTION1(UbuntuGps, ubuntu_gps_new, UbuntuGpsParams*);
+    //IMPLEMENT_VOID_FUNCTION1(ubuntu_gps_delete, UbuntuGps);
+    //IMPLEMENT_FUNCTION1(bool, ubuntu_gps_start, UbuntuGps);
+    //IMPLEMENT_FUNCTION1(bool, ubuntu_gps_stop, UbuntuGps);
+    //IMPLEMENT_VOID_FUNCTION4(ubuntu_gps_inject_time, UbuntuGps, int64_t, int64_t, int);
+    //IMPLEMENT_VOID_FUNCTION4(ubuntu_gps_inject_location, UbuntuGps, double, double, float);
+    //IMPLEMENT_VOID_FUNCTION2(ubuntu_gps_delete_aiding_data, UbuntuGps, uint16_t);
+    //IMPLEMENT_FUNCTION6(bool, ubuntu_gps_set_position_mode, UbuntuGps, uint32_t, uint32_t,
+    //uint32_t, uint32_t, uint32_t);
+//IMPLEMENT_VOID_FUNCTION3(ubuntu_gps_inject_xtra_data, UbuntuGps, char*, int);
 
 #ifdef __cplusplus
 }
