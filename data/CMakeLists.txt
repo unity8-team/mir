@@ -4,5 +4,5 @@ configure_file(
 
 install(
   FILES ${CMAKE_CURRENT_BINARY_DIR}/ubuntu-platform-api.pc
-  DESTINATION lib/pkgconfig
+  DESTINATION lib/${CMAKE_LIBRARY_ARCHITECTURE}/pkgconfig
 )
