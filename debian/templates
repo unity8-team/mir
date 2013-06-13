@@ -1,0 +1,9 @@
+Template: unity-system-compositor/enable
+Type: boolean
+Default: true
+_Description: Use Unity system compositor?
+ The Unity system compositor provides improved graphical smoothness to startup,
+ user-switching, and shutdown.
+ .
+ If the system compositor is enabled, but fails to work, LightDM will fall back
+ to a regular session. It should be safe to enable the system compositor.

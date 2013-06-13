@@ -1,0 +1,17 @@
+#!/bin/sh -e
+
+. /usr/share/debconf/confmodule
+
+db_get unity-system-compositor/enable
+
+# Update LightDM defaults to match debconf, respecting any manual changes
+if [ "$RET" = "true" ]; then
+    # --keep-old will only change the type if there is not already a type set
+    /usr/lib/lightdm/lightdm-set-defaults --keep-old --type=unity
+else
+    # --remove will only remove if the type is currently set to "unity"
+    # Will exit with status 4 if the user has changed the value, so ignore that.
+    /usr/lib/lightdm/lightdm-set-defaults --remove --type=unity || [ $? = 4 ]
+fi
+
+#DEBHELPER#
