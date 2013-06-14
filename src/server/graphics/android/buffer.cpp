@@ -26,6 +26,7 @@
 #include <GLES2/gl2ext.h>
 #include <boost/throw_exception.hpp>
 #include <stdexcept>
+#include <dlfcn.h>
 
 namespace mc=mir::compositor;
 namespace mg=mir::graphics;
@@ -45,6 +46,8 @@ mga::Buffer::Buffer(const std::shared_ptr<GraphicAllocAdaptor>& alloc_device,
     if (!native_buffer.get())
         BOOST_THROW_EXCEPTION(std::runtime_error("Graphics buffer allocation failed"));
 
+    this->eglCreateImageKHR = (EglCreateImageKHR)dlsym(RTLD_DEFAULT,
+                                                       "eglCreateImageKHR");
 }
 
 mga::Buffer::~Buffer()
@@ -89,8 +92,9 @@ void mga::Buffer::bind_to_texture()
     auto it = egl_image_map.find(disp);
     if (it == egl_image_map.end())
     {
-        image = eglCreateImageKHR(disp, EGL_NO_CONTEXT, EGL_NATIVE_BUFFER_ANDROID,
-                                  native_buffer.get(), image_attrs);
+        image = this->eglCreateImageKHR(disp, EGL_NO_CONTEXT,
+                                        EGL_NATIVE_BUFFER_ANDROID,
+                                        native_buffer.get(), image_attrs);
         if (image == EGL_NO_IMAGE_KHR)
         {
             BOOST_THROW_EXCEPTION(std::runtime_error("error binding buffer to texture\n"));

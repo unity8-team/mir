@@ -52,6 +52,10 @@ public:
     std::shared_ptr<ANativeWindowBuffer> native_buffer_handle() const;
 
 private:
+    typedef EGLImageKHR (*EglCreateImageKHR) (EGLDisplay dpy, EGLContext ctx, EGLenum target, EGLClientBuffer buffer, const EGLint *attrib_list);
+
+    EglCreateImageKHR eglCreateImageKHR;
+
     std::map<EGLDisplay,EGLImageKHR> egl_image_map;
 
     std::shared_ptr<ANativeWindowBuffer> native_buffer;

@@ -1,3 +1,7 @@
+# For some reason, gcc-4.8 won't let me disable Werror using a #pragma in the
+# source. I have to do it here :(
+string (REPLACE " -Werror " " " CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+
 include_directories(
     ${LIBHARDWARE_INCLUDE_DIRS}
     ${EGL_INCLUDE_DIRS}
