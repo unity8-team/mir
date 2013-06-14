@@ -27,12 +27,36 @@
 #include <vector>
 #include <memory>
 #include <deque>
-#include <map>
 
 namespace mir
 {
 namespace compositor
 {
+namespace detail
+{
+
+struct AcquiredBufferInfo
+{
+    std::weak_ptr<Buffer> buffer;
+    bool can_be_reacquired;
+    int use_count;
+};
+
+class AcquiredBuffers
+{
+public:
+    void acquire(std::shared_ptr<Buffer> const& buffer);
+    std::pair<bool,bool> release(std::shared_ptr<Buffer> const& buffer);
+    std::shared_ptr<Buffer> find_reacquirable_buffer();
+    std::shared_ptr<Buffer> last_buffer();
+
+private:
+    std::vector<AcquiredBufferInfo>::iterator find_info(std::shared_ptr<Buffer> const& buffer);
+
+    std::vector<AcquiredBufferInfo> acquired_buffers;
+};
+
+}
 
 class Buffer;
 
@@ -56,6 +80,7 @@ private:
 
     std::deque<std::shared_ptr<Buffer>> client_queue;
     std::deque<std::shared_ptr<Buffer>> compositor_queue;
+    detail::AcquiredBuffers acquired_buffers;
     unsigned int in_use_by_client;
     unsigned int const swapper_size;
     int clients_trying_to_acquire;

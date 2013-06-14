@@ -166,3 +166,62 @@ TEST_F(BufferSwapperDouble, force_requests_to_complete_works)
         swapper->client_acquire();
     }, std::logic_error);
 }
+
+TEST_F(BufferSwapperDouble, compositor_acquire_gives_same_buffer_until_released)
+{
+    auto a = swapper->client_acquire();
+    swapper->client_release(a);
+    auto b = swapper->client_acquire();
+    swapper->client_release(b);
+
+    auto comp1 = swapper->compositor_acquire();
+    auto comp2 = swapper->compositor_acquire();
+
+    EXPECT_EQ(comp1, comp2);
+
+    swapper->compositor_release(comp1);
+
+    auto comp3 = swapper->compositor_acquire();
+    swapper->compositor_release(comp3);
+
+    EXPECT_NE(comp1, comp3);
+}
+
+TEST_F(BufferSwapperDouble, multiple_compositor_releases_return_buffer_to_client)
+{
+    auto a = swapper->client_acquire();
+    swapper->client_release(a);
+    auto b = swapper->client_acquire();
+    swapper->client_release(b);
+
+    auto comp1 = swapper->compositor_acquire();
+    auto comp2 = swapper->compositor_acquire();
+
+    EXPECT_EQ(comp1, comp2);
+
+    swapper->compositor_release(comp1);
+    swapper->compositor_release(comp2);
+
+    auto client1 = swapper->client_acquire();
+    swapper->client_release(client1);
+
+    EXPECT_EQ(comp1, comp2);
+}
+
+TEST_F(BufferSwapperDouble, compositor_acquire_can_return_partly_released_buffer)
+{
+    auto a = swapper->client_acquire();
+    swapper->client_release(a);
+    auto b = swapper->client_acquire();
+
+    auto comp1 = swapper->compositor_acquire();
+    auto comp2 = swapper->compositor_acquire();
+
+    EXPECT_EQ(comp1, comp2);
+
+    swapper->compositor_release(comp1);
+
+    auto comp3 = swapper->compositor_acquire();
+
+    EXPECT_EQ(comp1, comp3);
+}

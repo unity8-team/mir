@@ -18,8 +18,89 @@
 
 #include "mir/compositor/buffer_swapper_multi.h"
 #include <boost/throw_exception.hpp>
+#include <algorithm>
 
 namespace mc = mir::compositor;
+
+std::vector<mc::detail::AcquiredBufferInfo>::iterator
+mc::detail::AcquiredBuffers::find_info(std::shared_ptr<Buffer> const& buffer)
+{
+    return std::find_if(acquired_buffers.begin(), acquired_buffers.end(),
+                        [&buffer] (AcquiredBufferInfo const& info)
+                        {
+                            return info.buffer.lock() == buffer;
+                        });
+}
+
+void mc::detail::AcquiredBuffers::acquire(std::shared_ptr<Buffer> const& buffer)
+{
+    auto iter = find_info(buffer);
+
+    if (iter != acquired_buffers.end())
+        ++iter->use_count;
+    else
+        acquired_buffers.push_back(AcquiredBufferInfo{buffer, true, 1});
+
+}
+
+std::pair<bool,bool>
+mc::detail::AcquiredBuffers::release(std::shared_ptr<Buffer> const& buffer)
+{
+    auto iter = find_info(buffer);
+
+    bool released{false};
+    bool found{false};
+
+    if (iter != acquired_buffers.end())
+    {
+        AcquiredBufferInfo& info = *iter;
+        found = true;
+
+        --info.use_count;
+
+        if (info.use_count == 0)
+        {
+            acquired_buffers.erase(iter);
+            released = true;
+        }
+        else
+        {
+            info.can_be_reacquired = false;
+        }
+    }
+
+    return std::make_pair(released, found);
+}
+
+std::shared_ptr<mc::Buffer> mc::detail::AcquiredBuffers::find_reacquirable_buffer()
+{
+    auto iter = std::find_if(acquired_buffers.begin(), acquired_buffers.end(),
+                    [] (AcquiredBufferInfo const& info)
+                    {
+                        return info.can_be_reacquired == true;
+                    });
+
+    if (iter != acquired_buffers.end())
+    {
+        return iter->buffer.lock();
+    }
+    else
+    {
+        return {};
+    }
+}
+
+std::shared_ptr<mc::Buffer> mc::detail::AcquiredBuffers::last_buffer()
+{
+    if (!acquired_buffers.empty())
+    {
+        return acquired_buffers.back().buffer.lock();
+    }
+    else
+    {
+        return {};
+    }
+}
 
 mc::BufferSwapperMulti::BufferSwapperMulti(std::vector<std::shared_ptr<compositor::Buffer>>& buffer_list, size_t swapper_size)
  : in_use_by_client(0),
@@ -57,6 +138,7 @@ std::shared_ptr<mc::Buffer> mc::BufferSwapperMulti::client_acquire()
     //we have been forced to shutdown
     if (force_clients_to_complete)
     {
+        clients_trying_to_acquire--;
         BOOST_THROW_EXCEPTION(std::logic_error("forced_completion"));
     }
 
@@ -89,22 +171,30 @@ std::shared_ptr<mc::Buffer> mc::BufferSwapperMulti::compositor_acquire()
 {
     std::unique_lock<std::mutex> lk(swapper_mutex);
 
-    if (compositor_queue.empty() && client_queue.empty())
-    {
-        BOOST_THROW_EXCEPTION(std::logic_error("forced_completion"));
-    }
-
     std::shared_ptr<mc::Buffer> dequeued_buffer;
-    if (compositor_queue.empty())
+
+    if ((dequeued_buffer = acquired_buffers.find_reacquirable_buffer()) != nullptr)
     {
-        dequeued_buffer = client_queue.back();
-        client_queue.pop_back();
     }
-    else
+    else if (!compositor_queue.empty())
     {
         dequeued_buffer = compositor_queue.front();
         compositor_queue.pop_front();
     }
+    else if (!client_queue.empty())
+    {
+        dequeued_buffer = client_queue.back();
+        client_queue.pop_back();
+    }
+    else if ((dequeued_buffer = acquired_buffers.last_buffer()) != nullptr)
+    {
+    }
+    else
+    {
+        BOOST_THROW_EXCEPTION(std::logic_error("forced_completion"));
+    }
+
+    acquired_buffers.acquire(dequeued_buffer);
 
     return dequeued_buffer;
 }
@@ -112,8 +202,17 @@ std::shared_ptr<mc::Buffer> mc::BufferSwapperMulti::compositor_acquire()
 void mc::BufferSwapperMulti::compositor_release(std::shared_ptr<Buffer> const& released_buffer)
 {
     std::unique_lock<std::mutex> lk(swapper_mutex);
-    client_queue.push_back(released_buffer);
-    client_available_cv.notify_one();
+
+    auto const rel_pair = acquired_buffers.release(released_buffer);
+
+    bool const buffer_released{rel_pair.first};
+    bool const buffer_found{rel_pair.second};
+
+    if (buffer_released || !buffer_found)
+    {
+        client_queue.push_back(released_buffer);
+        client_available_cv.notify_one();
+    }
 }
 
 void mc::BufferSwapperMulti::force_client_abort()

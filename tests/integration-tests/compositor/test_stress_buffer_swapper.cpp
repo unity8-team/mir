@@ -51,12 +51,14 @@ public:
 
     mt::Synchronizer compositor_controller;
     mt::Synchronizer client_controller;
+    mt::Synchronizer compositor_controller1;
 
     std::chrono::microseconds const sleep_duration;
     int const num_iterations;
 
     std::thread thread1;
     std::thread thread2;
+    std::thread thread3;
 
     void test_distinct_buffers(mc::BufferSwapper& swapper);
     void test_valid_buffers(mc::BufferSwapper& swapper);
@@ -107,33 +109,43 @@ void compositor_grab_loop(std::shared_ptr<mc::Buffer>& out_buffer, mt::Synchroni
     }
 }
 
-/* test that the compositor and the client are never in ownership of the same
-   buffer */
+/*
+ * Test that multiple compositor buffer consumers and the
+ * client are never in ownership of the same buffer.
+ */
 void BufferSwapperStress::test_distinct_buffers(mc::BufferSwapper& swapper)
 {
     std::shared_ptr<mc::Buffer> compositor_buffer;
     std::shared_ptr<mc::Buffer> client_buffer;
+    std::shared_ptr<mc::Buffer> compositor_buffer1;
 
     thread1 = std::thread(compositor_grab_loop, std::ref(compositor_buffer),
                           std::ref(compositor_controller), std::ref(swapper));
     thread2 = std::thread(client_request_loop,  std::ref(client_buffer),
                           std::ref(client_controller), std::ref(swapper));
+    thread3 = std::thread(compositor_grab_loop, std::ref(compositor_buffer1),
+                          std::ref(compositor_controller1), std::ref(swapper));
 
-    for(int i=0; i<  num_iterations; i++)
+    for(int i = 0; i < num_iterations; i++)
     {
         compositor_controller.ensure_child_is_waiting();
         client_controller.ensure_child_is_waiting();
+        compositor_controller1.ensure_child_is_waiting();
 
         EXPECT_NE(compositor_buffer, client_buffer);
+        EXPECT_NE(compositor_buffer1, client_buffer);
 
         compositor_controller.activate_waiting_child();
         client_controller.activate_waiting_child();
+        compositor_controller1.activate_waiting_child();
 
         main_test_loop_pause(sleep_duration);
     }
 
+    terminate_child_thread(compositor_controller1);
     terminate_child_thread(client_controller);
     terminate_child_thread(compositor_controller);
+    thread3.join();
     thread2.join();
     thread1.join();
 }

@@ -41,11 +41,26 @@ public:
        it. This modifies the buffer the compositor posts to the screen */
     virtual void client_release(std::shared_ptr<Buffer> const& queued_buffer) = 0;
 
-    /* caller of compositor_acquire buffer should get no-wait access to the
-        last posted buffer. However, the client will potentially stall
-        until control of the buffer is returned via compositor_release() */
+    /**
+     * Acquires the last posted buffer.
+     *
+     * Callers of compositor_acquire() should get no-wait access to the
+     * last posted buffer. However, the client will potentially stall
+     * until control of the buffer is returned via matching calls to
+     * compositor_release().
+     *
+     * Each call in a series of compositor_acquire() calls is guaranteed to
+     * return a buffer no older than the ones returned in the previous calls
+     * (may return the same buffer).
+     */
     virtual std::shared_ptr<Buffer> compositor_acquire() = 0;
 
+    /**
+     * Releases a buffer from the compositor to the client.
+     *
+     * Note that the buffer is made available to the client only when all users
+     * who have called compositor_acquire() have released the buffer.
+     */
     virtual void compositor_release(std::shared_ptr<Buffer> const& released_buffer) = 0;
 
     /**

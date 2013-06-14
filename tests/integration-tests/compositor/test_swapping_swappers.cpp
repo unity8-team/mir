@@ -39,25 +39,24 @@ namespace mtd = mir::test::doubles;
 namespace
 {
 
-struct MockBufferAllocator : public mc::GraphicBufferAllocator
+struct StubBufferAllocator : public mc::GraphicBufferAllocator
 {
-    MockBufferAllocator()
+    std::shared_ptr<mc::Buffer> alloc_buffer(mc::BufferProperties const&)
     {
-        using namespace testing;
-        ON_CALL(*this, alloc_buffer(_))
-            .WillByDefault(Return(std::make_shared<mtd::StubBuffer>()));
+        return std::make_shared<mtd::StubBuffer>();
     }
-    ~MockBufferAllocator() noexcept{}
 
-    MOCK_METHOD1(alloc_buffer, std::shared_ptr<mc::Buffer>(mc::BufferProperties const&));
-    MOCK_METHOD0(supported_pixel_formats, std::vector<geom::PixelFormat>());
+    std::vector<geom::PixelFormat> supported_pixel_formats()
+    {
+        return {};
+    }
 };
 
 struct SwapperSwappingStress : public ::testing::Test
 {
     void SetUp()
     {
-        auto allocator = std::make_shared<MockBufferAllocator>();
+        auto allocator = std::make_shared<StubBufferAllocator>();
         auto factory = std::make_shared<mc::SwapperFactory>(allocator, 3);
         auto properties = mc::BufferProperties{geom::Size{geom::Width{380}, geom::Height{210}},
                                           geom::PixelFormat::abgr_8888, mc::BufferUsage::hardware};
