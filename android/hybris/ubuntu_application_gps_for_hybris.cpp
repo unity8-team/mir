@@ -23,7 +23,7 @@
 #include <hardware/gps.h>
 #include <hardware_legacy/power.h>
 
-#define WAKE_LOCK_NAME  "UBUNTU_GPS"
+#define WAKE_LOCK_NAME  "U_HARDWARE_GPS"
 
 struct UHardwareGps_
 {
@@ -373,58 +373,58 @@ void UHardwareGps_::inject_xtra_data(char* data, int length)
 /////////////////////////////////////////////////////////////////////
 // Implementation of the C API
 
-UHardwareGps ubuntu_gps_new(UHardwareGpsParams* params)
+UHardwareGps u_hardware_gps_new(UHardwareGpsParams* params)
 {
     if (hybris_gps_instance != NULL)
         return NULL;
 
-    UHardwareGps ubuntu_gps = new UHardwareGps_(params);
-    hybris_gps_instance = ubuntu_gps;
+    UHardwareGps u_hardware_gps = new UHardwareGps_(params);
+    hybris_gps_instance = u_hardware_gps;
 
-    if (!ubuntu_gps->init())
+    if (!u_hardware_gps->init())
     {
-        delete ubuntu_gps;
-        ubuntu_gps = NULL;
+        delete u_hardware_gps;
+        u_hardware_gps = NULL;
     }
 
-    return ubuntu_gps;
+    return u_hardware_gps;
 }
 
-void ubuntu_gps_delete(UHardwareGps handle)
+void u_hardware_gps_delete(UHardwareGps handle)
 {
     delete handle;
     if (handle == hybris_gps_instance)
         hybris_gps_instance = NULL;
 }
 
-bool ubuntu_gps_start(UHardwareGps self)
+bool u_hardware_gps_start(UHardwareGps self)
 {
     return self->start();
 }
 
-bool ubuntu_gps_stop(UHardwareGps self)
+bool u_hardware_gps_stop(UHardwareGps self)
 {
     return self->stop();
 }
 
-void ubuntu_gps_inject_time(UHardwareGps self, int64_t time, int64_t time_reference,
+void u_hardware_gps_inject_time(UHardwareGps self, int64_t time, int64_t time_reference,
                             int uncertainty)
 {
     self->inject_time(time, time_reference, uncertainty);
 }
 
-void ubuntu_gps_inject_location(UHardwareGps self, double latitude, double longitude,
+void u_hardware_gps_inject_location(UHardwareGps self, double latitude, double longitude,
                                 float accuracy)
 {
     self->inject_location(latitude, longitude, accuracy);
 }
 
-void ubuntu_gps_delete_aiding_data(UHardwareGps self, uint16_t flags)
+void u_hardware_gps_delete_aiding_data(UHardwareGps self, uint16_t flags)
 {
     self->delete_aiding_data(flags);
 }
 
-bool ubuntu_gps_set_position_mode(UHardwareGps self, uint32_t mode, uint32_t recurrence,
+bool u_hardware_gps_set_position_mode(UHardwareGps self, uint32_t mode, uint32_t recurrence,
                                   uint32_t min_interval, uint32_t preferred_accuracy,
                                   uint32_t preferred_time)
 {
@@ -432,7 +432,7 @@ bool ubuntu_gps_set_position_mode(UHardwareGps self, uint32_t mode, uint32_t rec
                                    preferred_time);
 }
 
-void ubuntu_gps_inject_xtra_data(UHardwareGps self, char* data, int length)
+void u_hardware_gps_inject_xtra_data(UHardwareGps self, char* data, int length)
 {
     self->inject_xtra_data(data, length);
 }
