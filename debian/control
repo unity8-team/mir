@@ -5,10 +5,7 @@ Build-Depends: cmake,
                debhelper (>= 9),
                libgl1-mesa-dev[!armhf],
                libgles2-mesa-dev[armhf],
-               libhybris-dev[armhf],
-               pkg-config,
-               libmirclient-dev,
-               libmirserver-dev
+               libhybris-dev,
 Standards-Version: 3.9.4
 Section: devel
 Homepage: https://launchpad.net/platform-api
@@ -34,7 +31,7 @@ Package: libplatform-api1-dev
 Section: libdevel
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
-Architecture: armhf
+Architecture: i386 amd64 armhf
 Depends: libgles2-mesa-dev,
          libplatform-api-headers (= ${binary:Version}),
          libplatform-api1-hybris | libplatform-api1,
@@ -43,30 +40,6 @@ Description: Platform API for system level capabilities (development)
  This package provides the development library and headers (via
  dependency) for the Platform API.
 
-Package: libplatform-api1-mirserver
-Section: libs
-Pre-Depends: ${misc:Pre-Depends},
-Multi-Arch: same
-Architecture: any
-Depends: libmirserver0,
-         ${misc:Depends},
-         ${shlibs:Depends},
-Description: Implementation of the Platform API for a Mir server 
- This package provides the implementation of the Platform API to
- provide a server instance of Mir.
-
-Package: libplatform-api1-mirclient
-Section: libs
-Pre-Depends: ${misc:Pre-Depends},
-Multi-Arch: same
-Architecture: any
-Depends: libmirclient0,
-         ${misc:Depends},
-         ${shlibs:Depends},
-Description: Implementation of the Platform API for a Mir client
- This package provides the implementation of the Platform API to
- allow a client to connect to a Mir server.
-
 Package: libplatform-api1-hybris
 Provides: libplatform-api1,
 Conflicts: libplatform-api1,
@@ -74,7 +47,7 @@ Replaces: libplatform-api1,
 Section: libs
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
-Architecture: armhf
+Architecture: i386 amd64 armhf
 Depends: libhybris,
          ${misc:Depends},
          ${shlibs:Depends},
@@ -85,7 +58,7 @@ Description: Hybris implementation of the Platform API (runtime)
  Android userspace, which is where the Ubuntu Application Manager lives.
 
 Package: libplatform-api1-hybris-tests
-Architecture: armhf
+Architecture: i386 amd64 armhf
 Depends: libplatform-api1-hybris (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends},
