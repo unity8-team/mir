@@ -17,7 +17,7 @@ include_directories(
 
 target_link_libraries(
 	ubuntu_application_api
-	hybris_ics
+	hybris-common
 )
 
 set_target_properties(

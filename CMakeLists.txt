@@ -48,11 +48,11 @@ endif()
 
 # Try to find hybris, and disable hybris from build if not found
 find_library(Hybris
-  NAMES hybris_ics
+  NAMES hybris-common
 )
 
 if(NOT Hybris)
-  message("Notice: libhybris_ics.so not found, disabling hybris support")
+  message("Notice: libhybris-common.so not found, disabling hybris support")
   set(ENABLE_HYBRIS_IMPLEMENTATION OFF)
 endif()
 
