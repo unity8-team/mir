@@ -26,15 +26,11 @@
 
 namespace mir
 {
-namespace frontend
-{
-class Shell;
-class Session;
-}
 namespace shell
 {
 class SurfaceCreationParameters;
 class Surface;
+class SurfaceFactory;
 }
 }
 
@@ -53,10 +49,10 @@ namespace server
 class Instance
 {
 public:
-    Instance(std::shared_ptr< ::mir::frontend::Shell> const& shell,
+    Instance(std::shared_ptr< ::mir::shell::SurfaceFactory> const& surface_factory,
              ubuntu::application::mir::Description* description, 
              ubuntu::application::mir::Options *options);
-    ~Instance() noexcept(true);
+    ~Instance() = default;
     
     UApplicationInstance* as_u_application_instance();
     static Instance* from_u_application_instance(UApplicationInstance* u_instance);
@@ -77,8 +73,7 @@ private:
     OptionsPtr options;
     DescriptionPtr description;
     
-    std::weak_ptr< ::mir::frontend::Shell> shell;
-    std::shared_ptr< ::mir::frontend::Session> session;
+    std::shared_ptr< ::mir::shell::SurfaceFactory> const surface_factory;
     int ref_count;
 };
 

@@ -63,7 +63,7 @@ struct MirServerContext
 {
     std::shared_ptr<mir::graphics::Display> display;
     std::shared_ptr<mir::compositor::GraphicBufferAllocator> buffer_allocator;
-    std::shared_ptr<mir::frontend::Shell> shell;
+    std::shared_ptr<mir::shell::SurfaceFactory> surface_factory;
     std::shared_ptr<mir::input::receiver::InputPlatform> input_platform;
     std::shared_ptr<mir::graphics::InternalClient> egl_client;
 };
@@ -83,7 +83,7 @@ void ua_ui_mirserver_init(mir::DefaultServerConfiguration& config)
 
     context->display = config.the_display();
     context->buffer_allocator = config.the_buffer_allocator();
-    context->shell = config.the_frontend_shell();
+    context->surface_factory = config.the_shell_surface_factory();
     context->input_platform = mir::input::receiver::InputPlatform::create();
     context->egl_client = config.the_graphics_platform()->create_internal_client();
 }
@@ -93,7 +93,7 @@ void ua_ui_mirserver_finish()
     auto context = global_mirserver_context();
 
     context->display.reset();
-    context->shell.reset();
+    context->surface_factory.reset();
     context->input_platform.reset();
     context->egl_client.reset();
 }
@@ -107,13 +107,13 @@ extern "C"
 
 UApplicationInstance* u_application_instance_new_from_description_with_options(UApplicationDescription* u_description, UApplicationOptions* u_options)
 {
-    auto shell = global_mirserver_context()->shell;
-    assert(shell);
+    auto surface_factory = global_mirserver_context()->surface_factory;
+    assert(surface_factory);
 
     auto description = uam::Description::from_u_application_description(u_description);
     auto options = uam::Options::from_u_application_options(u_options);
 
-    auto instance = new uams::Instance(shell, description, options);
+    auto instance = new uams::Instance(surface_factory, description, options);
 
     return instance->as_u_application_instance();
 }
