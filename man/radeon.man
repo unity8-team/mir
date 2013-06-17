@@ -180,7 +180,7 @@ Radeon HD 6430/6450/6470/6490
 Radeon HD 6950/6970/6990
 .TP 12
 .B ARUBA
-Radeon HD 8990
+Radeon HD 7000 series
 .TP 12
 .B TAHITI
 Radeon HD 7900 series
@@ -192,10 +192,10 @@ Radeon HD 7800 series
 Radeon HD 7700 series
 .TP 12
 .B OLAND
-Radeon HD 8000 series (1040M transistors)
+Radeon HD 8000 series
 .TP 12
 .B HAINAN
-Radeon HD 8000 series (3120M transistors).
+Radeon HD 8000 series
 .PD
 .SH CONFIGURATION DETAILS
 Please refer to __xconfigfile__(__filemansuffix__) for general configuration
