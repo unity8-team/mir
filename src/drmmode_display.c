@@ -837,8 +837,9 @@ drmmode_output_get_modes(xf86OutputPtr output)
 					drmModeFreePropertyBlob(drmmode_output->edid_blob);
 				drmmode_output->edid_blob = drmModeGetPropertyBlob(drmmode->fd, koutput->prop_values[i]);
 			}
-			drmModeFreeProperty(props);
 		}
+		if (props)
+			drmModeFreeProperty(props);
 	}
 
 	if (drmmode_output->edid_blob) {
