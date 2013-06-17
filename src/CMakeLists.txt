@@ -7,13 +7,13 @@ if(ENABLE_HYBRIS_IMPLEMENTATION)
 endif()
 
 if(ENABLE_MIRSERVER_IMPLEMENTATION OR ENABLE_MIRCLIENT_IMPLEMENTATION)
-add_subdirectory(mircommon)
+  add_subdirectory(mircommon/)
 endif()
 
 if(ENABLE_MIRSERVER_IMPLEMENTATION)
-add_subdirectory(mirserver/)
+  add_subdirectory(mirserver/)
 endif()
 
 if(ENABLE_MIRCLIENT_IMPLEMENTATION)
-add_subdirectory(mirclient/)
+  add_subdirectory(mirclient/)
 endif()
