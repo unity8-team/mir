@@ -341,7 +341,8 @@ seat_unity_start (Seat *seat)
     g_free (dir);
 
     SEAT_UNITY (seat)->priv->mir_socket_filename = g_strdup ("/tmp/mir_socket"); // FIXME: Use this socket by default as XMir is hardcoded to this
-    command = g_strdup_printf ("unity-system-compositor %d %d", SEAT_UNITY (seat)->priv->to_compositor_pipe[0], SEAT_UNITY (seat)->priv->from_compositor_pipe[1]);
+    const char *debug_options = "--display-report log --input-report log --legacy-input-report log --msg-processor-report log --glog --glog-stderrthreshold 0 --glog-log-dir /var/log/lightdm";
+    command = g_strdup_printf ("unity-system-compositor %d %d %s", SEAT_UNITY (seat)->priv->to_compositor_pipe[0], SEAT_UNITY (seat)->priv->from_compositor_pipe[1], debug_options);
 
     absolute_command = get_absolute_command (command);
     g_free (command);
