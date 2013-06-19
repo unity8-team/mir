@@ -4,7 +4,7 @@ Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
 Build-Depends: cmake,
                debhelper (>= 9),
                libgl1-mesa-dev[!armhf],
-               libgles2-mesa-dev (<= 9.1.999) [armhf],
+               libgles2-mesa-dev[armhf],
                libhybris-dev,
                pkg-config,
                libmirclient-dev,
