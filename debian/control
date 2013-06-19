@@ -6,6 +6,9 @@ Build-Depends: cmake,
                libgl1-mesa-dev[!armhf],
                libgles2-mesa-dev[armhf],
                libhybris-dev,
+               pkg-config,
+               libmirclient-dev,
+               libmirserver-dev
 Standards-Version: 3.9.4
 Section: devel
 Homepage: https://launchpad.net/platform-api
@@ -39,6 +42,30 @@ Depends: libgles2-mesa-dev,
 Description: Platform API for system level capabilities (development)
  This package provides the development library and headers (via
  dependency) for the Platform API.
+
+Package: libplatform-api1-mirserver
+Section: libs
+Pre-Depends: ${misc:Pre-Depends},
+Multi-Arch: same
+Architecture: any
+Depends: libmirserver0,
+         ${misc:Depends},
+         ${shlibs:Depends},
+Description: Implementation of the Platform API for a Mir server
+ This package provides the implementation of the Platform API to
+ provide a server instance of Mir.
+
+Package: libplatform-api1-mirclient
+Section: libs
+Pre-Depends: ${misc:Pre-Depends},
+Multi-Arch: same
+Architecture: any
+Depends: libmirclient0,
+         ${misc:Depends},
+         ${shlibs:Depends},
+Description: Implementation of the Platform API for a Mir client
+ This package provides the implementation of the Platform API to
+ allow a client to connect to a Mir server.
 
 Package: libplatform-api1-hybris
 Provides: libplatform-api1,
