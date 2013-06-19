@@ -22,9 +22,9 @@
 #include "mircommon/application_options_mir_priv.h"
 #include "mircommon/application_id_mir_priv.h"
 
-#include <mir/frontend/shell.h>
-#include <mir/frontend/session.h>
 #include <mir/shell/surface.h>
+#include <mir/shell/surface_factory.h>
+#include <mir/shell/surface_creation_parameters.h>
 
 namespace uam = ubuntu::application::mir;
 namespace uams = uam::server;
@@ -33,10 +33,10 @@ namespace mf = mir::frontend;
 namespace me = mir::events;
 namespace msh = mir::shell;
 
-uams::Instance::Instance(std::shared_ptr<mf::Shell> const& shell,
+uams::Instance::Instance(std::shared_ptr<msh::SurfaceFactory> const &surface_factory,
                          uam::Description* description_,
                          uam::Options *options_)
-    : shell(shell),
+    : surface_factory(surface_factory),
       ref_count(1)
 {
     description = DescriptionPtr(description_, 
@@ -49,17 +49,6 @@ uams::Instance::Instance(std::shared_ptr<mf::Shell> const& shell,
         {
             delete p;
         });
-
-    auto id = uam::Id::from_u_application_id(description->application_id.get());
-
-    // TODO: Hook up event sink.
-    session = shell->open_session(id->name, std::shared_ptr<me::EventSink>());
-}
-
-uams::Instance::~Instance() noexcept(true)
-{
-    auto s = shell.lock();
-    s->close_session(session);
 }
 
 UApplicationInstance* uams::Instance::as_u_application_instance()
@@ -86,6 +75,9 @@ void uams::Instance::unref()
 
 std::shared_ptr<msh::Surface> uams::Instance::create_surface(msh::SurfaceCreationParameters const& parameters)
 {
-    auto id = shell.lock()->create_surface_for(session, parameters);
-    return std::dynamic_pointer_cast<msh::Surface>(session->get_surface(id));
+    static std::shared_ptr<me::EventSink> const null_event_sink{nullptr};
+    static mf::SurfaceId const default_surface_id{0};
+
+    return surface_factory->create_surface(parameters, default_surface_id,
+                                           null_event_sink);
 }

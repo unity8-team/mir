@@ -17,7 +17,7 @@ if(ENABLE_HYBRIS_IMPLEMENTATION)
     ../hybris/ubuntu_application_sensors_hybris.cpp
     )
   list(APPEND LINK_LIBRARIES
-    hybris_ics
+    hybris-common
     )
 else()
   list(APPEND SOURCES

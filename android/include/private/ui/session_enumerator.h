@@ -75,6 +75,22 @@ protected:
     SessionProperties& operator=(const SessionProperties&) = delete;
 };
 
+class TaskController : public platform::ReferenceCountedBase
+{
+public:
+    typedef platform::shared_ptr<TaskController> Ptr;
+    
+    virtual void continue_task(int pid) = 0;
+    virtual void suspend_task(int pid) = 0;
+
+protected:
+    TaskController() {}
+    virtual ~TaskController() {}
+
+    TaskController(const TaskController&) = delete;
+    TaskController& operator=(const TaskController&) = delete;
+};
+
 class SessionLifeCycleObserver : public platform::ReferenceCountedBase
 {
 public:

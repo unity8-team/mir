@@ -133,6 +133,45 @@ public:
     void on_application_about_to_stop();
 };
 
+class IAMTaskController : public IInterface
+{
+public:
+    DECLARE_META_INTERFACE(AMTaskController);
+
+    virtual void continue_task(uint32_t pid) = 0;
+
+    virtual void suspend_task(uint32_t pid) = 0;
+
+protected:
+    enum
+    {
+        CONTINUE_TASK_COMMAND = IBinder::FIRST_CALL_TRANSACTION,
+        SUSPEND_TASK_COMMAND
+    };
+
+    IAMTaskController(const IAMTaskController&) = delete;
+    IAMTaskController& operator=(const IAMTaskController&) = delete;
+};
+
+class BnAMTaskController : public BnInterface<IAMTaskController>
+{
+public:
+    status_t onTransact(uint32_t code,
+                        const Parcel& data,
+                        Parcel* reply,
+                        uint32_t flags = 0);
+};
+
+class BpAMTaskController : public BpInterface<IAMTaskController>
+{
+public:
+    BpAMTaskController(const sp<IBinder>& impl);
+
+    void continue_task(uint32_t pid);
+
+    void suspend_task(uint32_t pid);
+};
+
 class IApplicationManagerObserver : public IInterface
 {
 public:
@@ -255,6 +294,8 @@ public:
 
     virtual void register_an_observer(const sp<IApplicationManagerObserver>& observer) = 0;
 
+    virtual void register_task_controller(const sp<IAMTaskController>& controller) = 0;
+
     virtual void unfocus_running_sessions() = 0;
 
     virtual void focus_running_session_with_id(int id) = 0;
@@ -285,6 +326,7 @@ protected:
         GET_SESSION_PID_COMMAND,
         REQUEST_FULLSCREEN_COMMAND,
         REGISTER_AN_OBSERVER_COMMAND,
+        REGISTER_TASK_CONTROLLER_COMMAND,
         REQUEST_UPDATE_FOR_SESSION_COMMAND,
         UNFOCUS_RUNNING_SESSIONS_COMMAND,
         FOCUS_RUNNING_SESSION_WITH_ID_COMMAND,
@@ -340,6 +382,8 @@ public:
 
     void register_an_observer(const sp<IApplicationManagerObserver>& observer);
 
+    void register_task_controller(const sp<IAMTaskController>& controller);
+    
     void unfocus_running_sessions();
 
     void focus_running_session_with_id(int id);

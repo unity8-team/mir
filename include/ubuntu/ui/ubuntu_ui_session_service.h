@@ -70,6 +70,21 @@ extern "C" {
         void* context;
     } ubuntu_ui_session_lifecycle_observer;
 
+    typedef void (*continue_task_cb)(int pid, void* context);
+    typedef void (*suspend_task_cb)(int pid, void* context);
+
+    typedef struct
+    {
+        continue_task_cb continue_task;
+        suspend_task_cb suspend_task;
+
+        void *context;
+    } ubuntu_ui_task_controller;
+
+    void
+    ubuntu_ui_install_task_controller(
+        ubuntu_ui_task_controller *controller);
+
     const char* 
     ubuntu_ui_session_properties_get_value_for_key(
         ubuntu_ui_session_properties props, 
