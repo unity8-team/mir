@@ -85,8 +85,8 @@ find_library(Hybris
 )
 
 if(NOT Hybris)
-  message("Notice: libhybris-common.so not found, disabling hybris support")
-  set(ENABLE_HYBRIS_IMPLEMENTATION ON)
+  message(STATUS "Notice: libhybris-common.so not found, disabling hybris support")
+  set(ENABLE_HYBRIS_IMPLEMENTATION OFF)
 endif()
 
 include_directories(include)
