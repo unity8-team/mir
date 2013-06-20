@@ -21,6 +21,7 @@
 #define UBUNTU_APPLICATION_ARCHIVE_H_
 
 #include <stdint.h>
+#include <stddef.h>
 #include "ubuntu/status.h"
 
 struct UApplicationArchive;

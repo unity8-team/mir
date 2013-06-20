@@ -1,4 +1,4 @@
-set(SOURCES ubuntu_application_api.cpp)
+set(SOURCES ubuntu_application_api_hybris.cpp)
 
 add_executable(test_android_ubuntu_app_api test_c_api.cpp)
 target_link_libraries(test_android_ubuntu_app_api ubuntu_application_api EGL GLESv2)

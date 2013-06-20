@@ -20,6 +20,8 @@
 #ifndef UBUNTU_APPLICATION_ID_H_
 #define UBUNTU_APPLICATION_ID_H_
 
+#include <stdlib.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif

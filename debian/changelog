@@ -1,3 +1,26 @@
+platform-api (0.18.1daily13.06.18-0ubuntu1) saucy; urgency=low
+
+  [ Gerry Boland ]
+  * Add mir suport.
+
+  [ Robert Carr ]
+  * Add mir suport.
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 69
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Tue, 18 Jun 2013 18:32:00 +0000
+
+platform-api (0.18.1daily13.06.11-0ubuntu1) saucy; urgency=low
+
+  [ Ricardo Mendoza ]
+  * Allow remote App Manager to take care of signalling processes.
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 67
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Tue, 11 Jun 2013 14:40:23 +0000
+
 platform-api (0.18.1daily13.06.10-0ubuntu1) saucy; urgency=low
 
   [ Ricardo Salveti de Araujo ]

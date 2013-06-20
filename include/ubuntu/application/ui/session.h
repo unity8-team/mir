@@ -20,6 +20,8 @@
 #ifndef UBUNTU_APPLICATION_UI_SESSION_H_
 #define UBUNTU_APPLICATION_UI_SESSION_H_
 
+#include <stdint.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif

@@ -299,7 +299,8 @@ ApplicationManager::ApplicationManager() : input_filter(new InputFilter(this)),
                                            are_notifications_visible(false),
                                            focused_application(0),
                                            side_stage_application(0),
-                                           main_stage_application(0)
+                                           main_stage_application(0),
+                                           app_manager_task_controller(NULL)
 {
     shell_input_setup = new ShellInputSetup(input_setup->input_manager);
 
@@ -460,7 +461,10 @@ void ApplicationManager::session_set_state(const android::sp<ubuntu::detail::App
             /* suspended->running
              * nothing to do, process image still in memory
              */
-            kill(as->pid, SIGCONT);
+            if (app_manager_task_controller != NULL)
+                app_manager_task_controller->continue_task(as->remote_pid);
+            else
+                kill(as->pid, SIGCONT);
         }
         as->running_state = ubuntu::application::ui::process_running;
         as->on_application_resumed();
@@ -473,7 +477,7 @@ void ApplicationManager::session_set_state(const android::sp<ubuntu::detail::App
         /* TODO: create archive */
         as->on_application_about_to_stop();
         as->running_state = ubuntu::application::ui::process_suspended;
-        android::sp<android::Thread> deferred_kill(new ubuntu::application::ProcessKiller(as));
+        android::sp<android::Thread> deferred_kill(new ubuntu::application::ProcessKiller(as, app_manager_task_controller));
         deferred_kill->run();
         update_oom_values(as);
     }
@@ -516,11 +520,17 @@ void ApplicationManager::start_a_new_session(
 
     pid_t rpid;
     if (!remote_pid)
+    {
+        ALOGI("%s() no remote_pid set from client, lookup in proc", __PRETTY_FUNCTION__);
         rpid = pid_to_vpid(pid);
+    }
     else
+    {
+        ALOGI("%s() remote_pid=%d", __PRETTY_FUNCTION__, remote_pid);
         rpid = static_cast<pid_t>(remote_pid);
+    }
     
-    ALOGI("%s() starting new session", __PRETTY_FUNCTION__);
+    ALOGI("%s() starting new session pid=%d rpid=%d", __PRETTY_FUNCTION__, pid, rpid);
     
     android::sp<ubuntu::detail::ApplicationSession> app_session(
         new ubuntu::detail::ApplicationSession(
@@ -698,6 +708,22 @@ void ApplicationManager::request_update_for_session(const android::sp<android::I
         input_setup->input_manager->getDispatcher()->setInputWindows(
             input_windows);
     }
+}
+
+void ApplicationManager::register_task_controller(
+    const android::sp<android::IAMTaskController>& controller)
+{
+    ALOGI("%s() registering task controller", __PRETTY_FUNCTION__);
+
+    //TODO: Register the task controller to use it instead of sigkilling
+    android::Mutex::Autolock al(guard);
+
+    if (app_manager_task_controller != NULL)
+        return;
+
+    ALOGI("%s() done registering task controller", __PRETTY_FUNCTION__);
+    
+    app_manager_task_controller = controller;
 }
 
 void ApplicationManager::register_an_observer(

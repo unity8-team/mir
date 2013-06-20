@@ -20,6 +20,8 @@
 #ifndef UBUNTU_APPLICATION_UI_DISPLAY_H_
 #define UBUNTU_APPLICATION_UI_DISPLAY_H_
 
+#include <EGL/egl.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -40,6 +42,10 @@ extern "C" {
     
     uint32_t
     ua_ui_display_query_vertical_res(
+        UAUiDisplay* display);
+    
+    EGLNativeDisplayType
+    ua_ui_display_get_native_type(
         UAUiDisplay* display);
     
 #ifdef __cplusplus
