@@ -62,7 +62,7 @@ Section: libs
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Architecture: any
-Depends: libmirclient0,
+Depends: libmirclient1,
          ${misc:Depends},
          ${shlibs:Depends},
 Description: Implementation of the Platform API for a Mir client
