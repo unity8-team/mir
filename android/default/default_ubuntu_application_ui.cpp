@@ -145,6 +145,14 @@ ua_ui_display_query_vertical_res(
     return s->value->vertical_resolution();
 }
 
+EGLNativeDisplayType
+ua_ui_display_get_native_type(
+    UAUiDisplay* display)
+{
+    // Always EGL_DEFAULT_DISPLAY with android EGL.
+    return EGL_DEFAULT_DISPLAY;
+}                              
+
 /*
  * Window Properties
  */
@@ -254,6 +262,8 @@ ua_ui_session_properties_set_remote_pid(
     UAUiSessionProperties *properties,
     uint32_t pid)
 {
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+
     auto p = static_cast<Holder<ubuntu::application::ui::SessionProperties::Ptr>*>(properties);
     p->value->set_remote_pid(pid);
 }

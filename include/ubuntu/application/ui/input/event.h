@@ -25,6 +25,81 @@
 extern "C" {
 #endif
 
+// TODO<papi>: Perhaps we should update the struct to use these enum types. But then we need to move action/flags
+// in to the internal typed event structs.
+
+typedef enum {
+    U_KEY_ACTION_DOWN     = 0,
+    U_KEY_ACTION_UP       = 1,
+    U_KEY_ACTION_MULTIPLE = 2
+} UKeyAction;
+
+typedef enum {
+    U_KEY_FLAG_WOKE_HERE           = 0x1,
+    U_KEY_FLAG_SOFT_KEYBOARD       = 0x2,
+    U_KEY_FLAG_KEEP_TOUCH_MODE     = 0x4,
+    U_KEY_FLAG_FROM_SYSTEM         = 0x8,
+    U_KEY_FLAG_EDITOR_ACTION       = 0x10,
+    U_KEY_FLAG_CANCELED            = 0x20,
+    U_KEY_FLAG_VIRTUAL_HARD_KEY    = 0x40,
+    U_KEY_FLAG_LONG_PRESS          = 0x80,
+    U_KEY_FLAG_CANCELED_LONG_PRESS = 0x100,
+    U_KEY_FLAG_TRACKING            = 0x200,
+    U_KEY_FLAG_FALLBACK            = 0x400
+} UKeyFlag;
+
+typedef enum {
+    U_KEY_MODIFIER_NONE        = 0,
+    U_KEY_MODIFIER_ALT         = 0x02,
+    U_KEY_MODIFIER_ALT_LEFT    = 0x10,
+    U_KEY_MODIFIER_ALT_RIGHT   = 0x20,
+    U_KEY_MODIFIER_SHIFT       = 0x01,
+    U_KEY_MODIFIER_SHIFT_LEFT  = 0x40,
+    U_KEY_MODIFIER_SHIFT_RIGHT = 0x80,
+    U_KEY_MODIFIER_SYM         = 0x04,
+    U_KEY_MODIFIER_FUNCTION    = 0x08,
+    U_KEY_MODIFIER_CTRL        = 0x1000,
+    U_KEY_MODIFIER_CTRL_LEFT   = 0x2000,
+    U_KEY_MODIFIER_CTRL_RIGHT  = 0x4000,
+    U_KEY_MODIFIER_META        = 0x10000,
+    U_KEY_MODIFIER_META_LEFT   = 0x20000,
+    U_KEY_MODIFIER_META_RIGHT  = 0x40000,
+    U_KEY_MODIFIER_CAPS_LOCK   = 0x100000,
+    U_KEY_MODIFIER_NUM_LOCK    = 0x200000,
+    U_KEY_MODIFIER_SCROLL_LOCK = 0x400000
+} UKeyModifierMask;
+
+#define U_MOTION_ACTION_POINTER_INDEX_SHIFT 8
+#define U_MOTION_ACTION_MASK 0xff
+#define U_MOTION_ACTION_POINTER_INDEX_MASK 0xff00
+
+typedef enum {
+    U_MOTION_ACTION_DOWN         = 0,
+    U_MOTION_ACTION_UP           = 1,
+    U_MOTION_ACTION_MOVE         = 2,
+    U_MOTION_ACTION_CANCEL       = 3,
+    U_MOTION_ACTION_OUTSIDE      = 4,
+    U_MOTION_ACTION_POINTER_DOWN = 5,
+    U_MOTION_ACTION_POINTER_UP   = 6,
+    U_MOTION_ACTION_HOVER_MOVE   = 7,
+    U_MOTION_ACTION_SCROLL       = 8,
+    U_MOTION_ACTION_HOVER_ENTER  = 9,
+    U_MOTION_ACTION_HOVER_EXIT   = 10
+} UMotionAction;
+
+typedef enum {
+    U_MOTION_FLAG_WINDOW_IS_OBSCURED = 0x1
+} UMotionFlag;
+
+typedef enum {
+    U_MOTION_BUTTON_PRIMARY   = 1 << 0,
+    U_MOTION_BUTTON_SECONDARY = 1 << 1,
+    U_MOTION_BUTTON_TERTIARY  = 1 << 2,
+    U_MOTION_BUTTON_BACK      = 1 << 3,
+    U_MOTION_BUTTON_FORWARD   = 1 << 4
+} UMotionButtonMask;
+
+
     /** Maximum number of pointers reported within one input event. */
 #define UBUNTU_APPLICATION_UI_INPUT_EVENT_MAX_POINTER_COUNT (16)
 
