@@ -27,6 +27,37 @@
 
 namespace
 {
+struct TaskController : public ubuntu::ui::TaskController
+{
+    TaskController(ubuntu_ui_task_controller* controller) : controller(controller)
+    {
+    }
+
+    void continue_task(int pid)
+    {
+        if (!controller)
+            return;
+
+        if (!controller->continue_task)
+            return;
+
+        controller->continue_task(pid, controller->context);
+    }
+
+    void suspend_task(int pid)
+    {
+        if (!controller)
+            return;
+
+        if (!controller->suspend_task)
+            return;
+
+        controller->suspend_task(pid, controller->context);
+    }
+
+    ubuntu_ui_task_controller* controller;
+};
+
 struct SessionLifeCycleObserver : public ubuntu::ui::SessionLifeCycleObserver
 {
     SessionLifeCycleObserver(ubuntu_ui_session_lifecycle_observer* observer) : observer(observer)
@@ -232,3 +263,11 @@ void ubuntu_ui_report_notification_invisible()
 {
     ubuntu::ui::SessionService::instance()->report_notification_invisible();
 }
+
+void ubuntu_ui_install_task_controller(ubuntu_ui_task_controller *controller)
+{
+    printf("installing task controller");
+    ubuntu::ui::TaskController::Ptr p(new TaskController(controller));
+    ubuntu::ui::SessionService::instance()->install_task_controller(p);
+}
+

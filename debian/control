@@ -20,7 +20,7 @@ Package: libplatform-api-headers
 Section: libdevel
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
-Architecture: i386 amd64 armhf
+Architecture: any
 Depends: ${misc:Depends},
 Description: Platform API for system level capabilities (API headers)
  This package provides the library headers for the Platform API.
@@ -33,7 +33,7 @@ Package: libplatform-api1-dev
 Section: libdevel
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
-Architecture: i386 amd64 armhf
+Architecture: any
 Depends: libgles2-mesa-dev,
          libplatform-api-headers (= ${binary:Version}),
          libplatform-api1-hybris | libplatform-api1,
@@ -49,7 +49,7 @@ Replaces: libplatform-api1,
 Section: libs
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
-Architecture: i386 amd64 armhf
+Architecture: any
 Depends: libhybris,
          ${misc:Depends},
          ${shlibs:Depends},
@@ -60,7 +60,7 @@ Description: Hybris implementation of the Platform API (runtime)
  Android userspace, which is where the Ubuntu Application Manager lives.
 
 Package: libplatform-api1-hybris-tests
-Architecture: i386 amd64 armhf
+Architecture: any
 Depends: libplatform-api1-hybris (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends},

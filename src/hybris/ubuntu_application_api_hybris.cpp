@@ -28,11 +28,12 @@
 #include <ubuntu/application/ui/session.h>
 #include <ubuntu/application/ui/clipboard.h>
 #include <ubuntu/application/ui/display.h>
-#include <ubuntu/application/sensors/accelerometer.h>
-#include <ubuntu/application/sensors/proximity.h>
-#include <ubuntu/application/sensors/light.h>
 
 #include "bridge.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 // Session helpers
 IMPLEMENT_FUNCTION0(UAUiSessionProperties*, ua_ui_session_properties_new);
@@ -81,6 +82,7 @@ IMPLEMENT_FUNCTION1(UAUiDisplay*, ua_ui_display_new_with_index, size_t);
 IMPLEMENT_VOID_FUNCTION1(ua_ui_display_destroy, UAUiDisplay*);
 IMPLEMENT_FUNCTION1(uint32_t, ua_ui_display_query_horizontal_res, UAUiDisplay*);
 IMPLEMENT_FUNCTION1(uint32_t, ua_ui_display_query_vertical_res, UAUiDisplay*);
+IMPLEMENT_FUNCTION1(EGLNativeDisplayType, ua_ui_display_get_native_type, UAUiDisplay*);
 
 
 // UAUiWindowProperties
@@ -100,52 +102,6 @@ IMPLEMENT_FUNCTION1(UStatus, ua_ui_window_hide, UAUiWindow*);
 IMPLEMENT_FUNCTION1(UStatus, ua_ui_window_show, UAUiWindow*);
 IMPLEMENT_VOID_FUNCTION1(ua_ui_window_request_fullscreen, UAUiWindow*);
 IMPLEMENT_FUNCTION1(EGLNativeWindowType, ua_ui_window_get_native_type, UAUiWindow*);
-
-// Ubuntu Application Sensors
-
-// Acceleration Sensor
-IMPLEMENT_FUNCTION0(UASensorsAccelerometer*, ua_sensors_accelerometer_new);
-IMPLEMENT_FUNCTION1(UStatus, ua_sensors_accelerometer_enable, UASensorsAccelerometer*);
-IMPLEMENT_FUNCTION1(UStatus, ua_sensors_accelerometer_disable, UASensorsAccelerometer*);
-IMPLEMENT_FUNCTION1(uint32_t, ua_sensors_accelerometer_get_min_delay, UASensorsAccelerometer*);
-IMPLEMENT_SF_FUNCTION1(float, ua_sensors_accelerometer_get_min_value, UASensorsAccelerometer*);
-IMPLEMENT_SF_FUNCTION1(float, ua_sensors_accelerometer_get_max_value, UASensorsAccelerometer*);
-IMPLEMENT_SF_FUNCTION1(float, ua_sensors_accelerometer_get_resolution, UASensorsAccelerometer*);
-IMPLEMENT_VOID_FUNCTION3(ua_sensors_accelerometer_set_reading_cb, UASensorsAccelerometer*, on_accelerometer_event_cb, void*);
-
-// Acceleration Sensor Event
-IMPLEMENT_FUNCTION1(uint64_t, uas_accelerometer_event_get_timestamp, UASAccelerometerEvent*);
-IMPLEMENT_SF_FUNCTION1(float, uas_accelerometer_event_get_acceleration_x, UASAccelerometerEvent*);
-IMPLEMENT_SF_FUNCTION1(float, uas_accelerometer_event_get_acceleration_y, UASAccelerometerEvent*);
-IMPLEMENT_SF_FUNCTION1(float, uas_accelerometer_event_get_acceleration_z, UASAccelerometerEvent*);
-
-// Proximity Sensor
-IMPLEMENT_FUNCTION0(UASensorsProximity*, ua_sensors_proximity_new);
-IMPLEMENT_FUNCTION1(UStatus, ua_sensors_proximity_enable, UASensorsProximity*);
-IMPLEMENT_FUNCTION1(UStatus, ua_sensors_proximity_disable, UASensorsProximity*);
-IMPLEMENT_FUNCTION1(uint32_t, ua_sensors_proximity_get_min_delay, UASensorsProximity*);
-IMPLEMENT_SF_FUNCTION1(float, ua_sensors_proximity_get_min_value, UASensorsProximity*);
-IMPLEMENT_SF_FUNCTION1(float, ua_sensors_proximity_get_max_value, UASensorsProximity*);
-IMPLEMENT_SF_FUNCTION1(float, ua_sensors_proximity_get_resolution, UASensorsProximity*);
-IMPLEMENT_VOID_FUNCTION3(ua_sensors_proximity_set_reading_cb, UASensorsProximity*, on_proximity_event_cb, void*);
-
-// Proximity Sensor Event
-IMPLEMENT_FUNCTION1(uint64_t, uas_proximity_event_get_timestamp, UASProximityEvent*);
-IMPLEMENT_FUNCTION1(UASProximityDistance, uas_proximity_event_get_distance, UASProximityEvent*);
-
-// Ambient Light Sensor
-IMPLEMENT_FUNCTION0(UASensorsLight*, ua_sensors_light_new);
-IMPLEMENT_FUNCTION1(UStatus, ua_sensors_light_enable, UASensorsLight*);
-IMPLEMENT_FUNCTION1(UStatus, ua_sensors_light_disable, UASensorsLight*);
-IMPLEMENT_FUNCTION1(uint32_t, ua_sensors_light_get_min_delay, UASensorsLight*);
-IMPLEMENT_SF_FUNCTION1(float, ua_sensors_light_get_min_value, UASensorsLight*);
-IMPLEMENT_SF_FUNCTION1(float, ua_sensors_light_get_max_value, UASensorsLight*);
-IMPLEMENT_SF_FUNCTION1(float, ua_sensors_light_get_resolution, UASensorsLight*);
-IMPLEMENT_VOID_FUNCTION3(ua_sensors_light_set_reading_cb, UASensorsLight*, on_light_event_cb, void*);
-
-// Ambient Light Sensor Event
-IMPLEMENT_FUNCTION1(uint64_t, uas_light_event_get_timestamp, UASLightEvent*);
-IMPLEMENT_SF_FUNCTION1(float, uas_light_event_get_light, UASLightEvent*);
 
 /* -------------------------------------------------------------------------- *
  * * * * * * * * * * * * * * * Deprecated API * * * * * * * * * * * * * * * * *
@@ -167,3 +123,8 @@ IMPLEMENT_VOID_FUNCTION4(ubuntu_ui_report_osk_visible, int, int, int, int);
 IMPLEMENT_VOID_FUNCTION0(ubuntu_ui_report_osk_invisible);
 IMPLEMENT_VOID_FUNCTION0(ubuntu_ui_report_notification_visible);
 IMPLEMENT_VOID_FUNCTION0(ubuntu_ui_report_notification_invisible);
+IMPLEMENT_VOID_FUNCTION1(ubuntu_ui_install_task_controller, ubuntu_ui_task_controller*);
+
+#ifdef __cplusplus
+}
+#endif

@@ -2,7 +2,9 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --std=c++0x")
 
 add_library(
   ubuntu_application_api SHARED
-  ubuntu_application_api.cpp
+
+  ubuntu_application_api_hybris.cpp
+  ubuntu_application_sensors_hybris.cpp
 )
 
 add_library(
@@ -16,12 +18,12 @@ include_directories(
 
 target_link_libraries(
   ubuntu_application_api
-  hybris_ics
+  hybris-common
 )
 
 target_link_libraries(
   ubuntu_platform_hardware_api
-  hybris_ics
+  hybris-common
 )
 
 set_target_properties(

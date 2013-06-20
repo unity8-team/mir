@@ -23,6 +23,7 @@
 namespace android
 {
 IMPLEMENT_META_INTERFACE(ClipboardService, "UbuntuClipboardService");
+IMPLEMENT_META_INTERFACE(AMTaskController, "UbuntuApplicationManagerTaskController");
 IMPLEMENT_META_INTERFACE(ApplicationManagerObserver, "UbuntuApplicationManagerObserver");
 IMPLEMENT_META_INTERFACE(ApplicationManagerSession, "UbuntuApplicationManagerSession");
 IMPLEMENT_META_INTERFACE(ApplicationManager, "UbuntuApplicationManager");
@@ -258,6 +259,59 @@ void BpApplicationManagerSession::on_application_about_to_stop()
 
     remote()->transact(
         ON_APPLICATION_ABOUT_TO_STOP_NOTIFICATION,
+        in,
+        &out,
+        android::IBinder::FLAG_ONEWAY);
+}
+
+status_t BnAMTaskController::onTransact(uint32_t code,
+        const Parcel& data,
+        Parcel* reply,
+        uint32_t flags)
+{
+    switch(code)
+    {
+    case CONTINUE_TASK_COMMAND:
+        {
+            uint32_t pid = data.readInt32();
+            continue_task(pid);
+            break;
+        }
+    case SUSPEND_TASK_COMMAND:
+        {
+            int pid = data.readInt32();
+            suspend_task(pid);
+            break;
+        }
+    }
+
+    return NO_ERROR;
+}
+
+BpAMTaskController::BpAMTaskController(const sp<IBinder>& impl)
+    : BpInterface<IAMTaskController>(impl)
+{
+}
+
+void BpAMTaskController::continue_task(uint32_t pid)
+{
+    Parcel in, out;
+    in.writeInt32(pid);
+
+    remote()->transact(
+        CONTINUE_TASK_COMMAND,
+        in,
+        &out,
+        android::IBinder::FLAG_ONEWAY);
+}
+
+void BpAMTaskController::suspend_task(uint32_t pid)
+{
+    Parcel in, out;
+    in.writeInt32(pid);
+
+    remote()->transact(
+        SUSPEND_TASK_COMMAND,
         in,
         &out,
         android::IBinder::FLAG_ONEWAY);
@@ -511,6 +565,13 @@ status_t BnApplicationManager::onTransact(uint32_t code,
         register_an_observer(observer);
         break;
     }
+    case REGISTER_TASK_CONTROLLER_COMMAND:
+    {
+        sp<IBinder> binder = data.readStrongBinder();
+        sp<BpAMTaskController> controller(new BpAMTaskController(binder));
+        register_task_controller(controller);
+        break;
+    }
     case REQUEST_UPDATE_FOR_SESSION_COMMAND:
     {
         sp<IBinder> binder = data.readStrongBinder();
@@ -677,6 +738,16 @@ void BpApplicationManager::request_fullscreen(
     in.writeStrongBinder(session->asBinder());
 
     remote()->transact(REQUEST_FULLSCREEN_COMMAND,
+                       in,
+                       &out);
+}
+
+void BpApplicationManager::register_task_controller(const sp<IAMTaskController>& controller)
+{
+    Parcel in, out;
+    in.writeStrongBinder(controller->asBinder());
+
+    remote()->transact(REGISTER_TASK_CONTROLLER_COMMAND,
                        in,
                        &out);
 }
