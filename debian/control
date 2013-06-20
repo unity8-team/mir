@@ -38,6 +38,8 @@ Architecture: i386 amd64 armhf
 Depends: libgles2-mesa-dev,
          libplatform-api-headers (= ${binary:Version}),
          libplatform-api1-hybris | libplatform-api1,
+         libplatform-api1-mirserver,
+         libplatform-api1-mirclient,
          ${misc:Depends},
 Description: Platform API for system level capabilities (development)
  This package provides the development library and headers (via
