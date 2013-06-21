@@ -41,7 +41,7 @@ void ua_ui_session_properties_set_type(UAUiSessionProperties* properties,
     (void) type;
 }
 
-void ua_ui_session_properties_set_remote_pid(UAUISessionProperties* properties,
+void ua_ui_session_properties_set_remote_pid(UAUiSessionProperties* properties,
                                              uint32_t pid)
 {
     (void) properties;
