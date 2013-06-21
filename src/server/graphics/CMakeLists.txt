@@ -18,6 +18,7 @@ set(
   egl_extensions.cpp
   display_configuration.cpp
   null_display_report.cpp
+  gl_buffer_pixels.cpp
 )
 
 add_library(

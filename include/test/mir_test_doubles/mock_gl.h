@@ -34,7 +34,6 @@ class MockGL
 public:
     MockGL();
     ~MockGL();
-    void silence_uninteresting();
 
     MOCK_METHOD1(glGetString, const GLubyte*(GLenum));
     MOCK_METHOD1(glUseProgram, void (GLuint));
@@ -67,6 +66,10 @@ public:
     MOCK_METHOD3(glGetProgramiv, void (GLuint, GLenum, GLint *));
     MOCK_METHOD4(glGetProgramInfoLog, void (GLuint, GLsizei, GLsizei *, GLchar *));
     MOCK_METHOD9(glTexImage2D, void(GLenum,GLint,GLint,GLsizei,GLsizei,GLint,GLenum,GLenum,const GLvoid*));
+    MOCK_METHOD2(glGenFramebuffers, void(GLsizei, GLuint *));
+    MOCK_METHOD2(glBindFramebuffer, void(GLenum, GLuint));
+    MOCK_METHOD5(glFramebufferTexture2D, void(GLenum, GLenum, GLenum, GLuint, GLint));
+    MOCK_METHOD7(glReadPixels, void(GLint, GLint, GLsizei, GLsizei, GLenum, GLenum, GLvoid*));
 };
 
 }
