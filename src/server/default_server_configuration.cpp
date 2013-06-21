@@ -39,9 +39,12 @@
 #include "mir/shell/default_session_container.h"
 #include "mir/shell/consuming_placement_strategy.h"
 #include "mir/shell/organising_surface_factory.h"
+#include "mir/shell/threaded_snapshot_strategy.h"
 #include "mir/graphics/cursor.h"
 #include "mir/shell/null_session_listener.h"
 #include "mir/graphics/display.h"
+#include "mir/graphics/gl_buffer_pixels.h"
+#include "mir/graphics/gl_context.h"
 #include "mir/graphics/gl_renderer.h"
 #include "mir/graphics/renderer.h"
 #include "mir/graphics/platform.h"
@@ -398,6 +401,27 @@ mir::DefaultServerConfiguration::the_session_manager()
         });
 }
 
+std::shared_ptr<msh::BufferPixels>
+mir::DefaultServerConfiguration::the_shell_buffer_pixels()
+{
+    return shell_buffer_pixels(
+        [this]()
+        {
+            return std::make_shared<mg::GLBufferPixels>(
+                the_display()->create_gl_context());
+        });
+}
+
+std::shared_ptr<msh::SnapshotStrategy>
+mir::DefaultServerConfiguration::the_shell_snapshot_strategy()
+{
+    return shell_snapshot_strategy(
+        [this]()
+        {
+            return std::make_shared<msh::ThreadedSnapshotStrategy>(
+                the_shell_buffer_pixels());
+        });
+}
 
 std::shared_ptr<mf::Shell>
 mir::DefaultServerConfiguration::the_frontend_shell()
