@@ -23,6 +23,7 @@
 #include "mir/shell/session_manager.h"
 #include "mir/shell/surface.h"
 #include "mir/shell/surface_creation_parameters.h"
+#include "mir/shell/session.h"
 #include "mir/frontend/session.h"
 #include "mir/geometry/size.h"
 #include "mir/compositor/buffer_properties.h"
@@ -41,6 +42,9 @@
 
 #include <assert.h>
 #include <signal.h>
+#include <iostream>
+#include <sstream>
+#include <fstream>
 
 
 namespace mf = mir::frontend;
@@ -82,6 +86,7 @@ void me::InprocessEGLClient::thread_loop()
         .of_pixel_format(geom::PixelFormat::argb_8888);
     auto session = session_manager->open_session("Inprocess client",
                                                  std::shared_ptr<mir::events::EventSink>());
+    auto sh_session = std::static_pointer_cast<msh::Session>(session);
     // TODO: Why do we get an ID? ~racarr
     auto surface = session->get_surface(session_manager->create_surface_for(session, params));
     
@@ -102,6 +107,7 @@ void me::InprocessEGLClient::thread_loop()
     ///\internal [setup_tag]
 
     ///\internal [loop_tag]
+    int frame = 0;
     while(!terminate)
     {
         gl_animation.render_gl();
@@ -109,6 +115,18 @@ void me::InprocessEGLClient::thread_loop()
         assert(rc = EGL_TRUE);
 
         gl_animation.step();
+        if (frame % 60 == 0)
+        {
+            sh_session->take_snapshot(
+                [frame] (msh::Snapshot const& snapshot)
+                {
+                    std::stringstream ss;
+                    ss << "/tmp/frame_" << frame << ".bgra";
+                    std::ofstream output(ss.str().c_str(), std::ios::out | std::ios::binary);
+                    output.write(static_cast<char*>(snapshot.pixels), snapshot.stride.as_uint32_t() * snapshot.size.height.as_uint32_t());
+                });
+        }
+        frame++;
     }
 
     (void)rc;
