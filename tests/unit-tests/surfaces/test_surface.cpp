@@ -436,6 +436,18 @@ TEST_F(SurfaceCreation, test_surface_force_requests_to_complete)
     surf.force_requests_to_complete();
 }
 
+TEST_F(SurfaceCreation, test_surface_next_buffer_does_not_set_valid_until_second_frame)
+{
+    ms::Surface surf{surface_name, geom::Point(), mock_buffer_bundle,
+        std::shared_ptr<mi::InputChannel>(), mock_change_cb};
+
+    EXPECT_FALSE(surf.should_be_rendered());
+    surf.next_client_buffer();
+    EXPECT_FALSE(surf.should_be_rendered());
+    surf.next_client_buffer();
+    EXPECT_TRUE(surf.should_be_rendered());
+}
+
 TEST_F(SurfaceCreation, input_fds)
 {
     using namespace testing;

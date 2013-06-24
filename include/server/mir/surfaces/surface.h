@@ -94,7 +94,7 @@ private:
     float alpha_value;
 
     bool is_hidden;
-    bool buffer_is_valid;
+    unsigned int buffer_count;
     std::function<void()> notify_change;
 };
 

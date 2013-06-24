@@ -168,8 +168,10 @@ void mf::SessionMediator::next_buffer(
 
     auto surface = session->get_surface(SurfaceId(request->value()));
 
-    auto const& buffer_resource = surface->next_client_buffer();
-    auto const& id = buffer_resource->id();
+    client_buffer_resource.reset();
+    client_buffer_resource = surface->next_client_buffer();
+
+    auto const& id = client_buffer_resource->id();
     response->set_buffer_id(id.as_uint32_t());
 
     if (!client_tracker->client_has(id))
@@ -245,4 +247,3 @@ void mf::SessionMediator::configure_surface(
 
     done->Run();
 }
-

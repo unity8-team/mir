@@ -49,7 +49,7 @@ ms::Surface::Surface(
     client_buffer_resource(buffer_stream->secure_client_buffer()),
     alpha_value(1.0f),
     is_hidden(false),
-    buffer_is_valid(false),
+    buffer_count(0),
     notify_change(change_callback)
 {
     // TODO(tvoss,kdub): Does a surface without a buffer_stream make sense?
@@ -151,7 +151,7 @@ float ms::Surface::alpha() const
 
 bool ms::Surface::should_be_rendered() const
 {
-    return !is_hidden && buffer_is_valid;
+    return !is_hidden && (buffer_count > 1);
 }
 
 //note: not sure the surface should be aware of pixel format. might be something that the
@@ -164,24 +164,15 @@ geom::PixelFormat ms::Surface::pixel_format() const
 
 std::shared_ptr<mc::Buffer> ms::Surface::next_client_buffer()
 {
-    /* we must hold a reference (client_buffer_resource) to the resource on behalf
-       of the client until it is returned to us */
-    /* todo: the surface shouldn't be holding onto the resource... the frontend should! */
-    client_buffer_resource.reset();  // Release old client buffer
-    client_buffer_resource = buffer_stream->secure_client_buffer();
     flag_for_render();
     notify_change();
-    return client_buffer_resource;
-}
-
-std::shared_ptr<mc::Buffer> ms::Surface::compositor_buffer() const
-{
-    return buffer_stream->lock_back_buffer();
+    return buffer_bundle->secure_client_buffer();
 }
 
 void ms::Surface::flag_for_render()
 {
-    buffer_is_valid = true;
+    if (buffer_count < 2)
+        buffer_count++;
 }
 
 bool ms::Surface::supports_input() const
