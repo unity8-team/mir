@@ -251,7 +251,7 @@ TEST_F(SurfaceCreation, test_surface_advance_buffer)
         .Times(1)
         .WillOnce(Return(graphics_resource));
 
-    surf.advance_client_buffer();
+    EXPECT_EQ(graphics_resource, surf.next_client_buffer());
 }
 
 TEST_F(SurfaceCreation, test_surface_advance_buffer_notifies_changes)
@@ -285,6 +285,7 @@ TEST_F(SurfaceCreation, test_surface_gets_ipc_from_stream)
 
     auto ret_ipc = surf.client_buffer();
     EXPECT_EQ(stub_buffer, ret_ipc);
+    surf.advance_client_buffer();
 }
 
 TEST_F(SurfaceCreation, test_surface_gets_top_left)
