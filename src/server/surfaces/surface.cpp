@@ -162,7 +162,7 @@ geom::PixelFormat ms::Surface::pixel_format() const
     return buffer_stream->get_stream_pixel_format();
 }
 
-void ms::Surface::advance_client_buffer()
+std::shared_ptr<mc::Buffer> ms::Surface::next_client_buffer()
 {
     /* we must hold a reference (client_buffer_resource) to the resource on behalf
        of the client until it is returned to us */
@@ -171,10 +171,6 @@ void ms::Surface::advance_client_buffer()
     client_buffer_resource = buffer_stream->secure_client_buffer();
     flag_for_render();
     notify_change();
-}
-
-std::shared_ptr<mc::Buffer> ms::Surface::client_buffer() const
-{
     return client_buffer_resource;
 }
 

@@ -67,8 +67,7 @@ public:
 
         EXPECT_CALL(*mock_surface, size()).Times(AnyNumber()).WillRepeatedly(Return(geom::Size()));
         EXPECT_CALL(*mock_surface, pixel_format()).Times(AnyNumber()).WillRepeatedly(Return(geom::PixelFormat()));
-        EXPECT_CALL(*mock_surface, client_buffer()).Times(AnyNumber()).WillRepeatedly(Return(mock_buffer));
-        EXPECT_CALL(*mock_surface, advance_client_buffer()).Times(AnyNumber());
+        EXPECT_CALL(*mock_surface, next_client_buffer()).Times(AnyNumber()).WillRepeatedly(Return(mock_buffer));
 
         EXPECT_CALL(*mock_surface, supports_input()).Times(AnyNumber()).WillRepeatedly(Return(true));
         EXPECT_CALL(*mock_surface, client_input_fd()).Times(AnyNumber()).WillRepeatedly(Return(testing_client_input_fd));

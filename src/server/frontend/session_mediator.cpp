@@ -133,7 +133,7 @@ void mf::SessionMediator::create_surface(
         if (surface->supports_input())
             response->add_fd(surface->client_input_fd());
 
-        auto const& buffer_resource = surface->client_buffer();
+        auto const& buffer_resource = surface->next_client_buffer();
 
         auto const& id = buffer_resource->id();
 
@@ -146,7 +146,7 @@ void mf::SessionMediator::create_surface(
             graphics_platform->fill_ipc_package(packer, buffer_resource);
 
             //TODO: (kdub) here, we should hold onto buffer_resource. so ms::Surface doesn't have
-            // to worry about it. ms::Surface guarentees the resource will be there until the end
+            // to worry about it. ms::Surface guarantees the resource will be there until the end
             // of the ipc request
         }
         client_tracker->add(id);
@@ -168,8 +168,7 @@ void mf::SessionMediator::next_buffer(
 
     auto surface = session->get_surface(SurfaceId(request->value()));
 
-    surface->advance_client_buffer();
-    auto const& buffer_resource = surface->client_buffer();
+    auto const& buffer_resource = surface->next_client_buffer();
     auto const& id = buffer_resource->id();
     response->set_buffer_id(id.as_uint32_t());
 
@@ -179,7 +178,7 @@ void mf::SessionMediator::next_buffer(
         graphics_platform->fill_ipc_package(packer, buffer_resource);
 
         //TODO: (kdub) here, we should hold onto buffer_resource. so ms::Surface doesn't have
-        // to worry about it. ms::Surface guarentees the resource will be there until the end
+        // to worry about it. ms::Surface guarantees the resource will be there until the end
         // of the ipc request
     }
     client_tracker->add(id);

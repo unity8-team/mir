@@ -195,7 +195,7 @@ TEST_F(SurfaceCreation, test_surface_secures_client_buffer_on_creation)
     ms::Surface surf(surface_name, geom::Point(), mock_buffer_stream,
         std::shared_ptr<mi::InputChannel>(), null_change_cb);
 
-    EXPECT_NE(nullptr, surf.client_buffer());
+    EXPECT_NE(nullptr, surf.next_client_buffer());
 }
 
 TEST_F(SurfaceCreation, test_surface_gets_right_name)
@@ -240,7 +240,7 @@ TEST_F(SurfaceCreation, test_surface_queries_stream_for_size)
     EXPECT_EQ(ret_size, size);
 }
 
-TEST_F(SurfaceCreation, test_surface_advance_buffer)
+TEST_F(SurfaceCreation, test_surface_next_buffer)
 {
     using namespace testing;
     ms::Surface surf(surface_name, geom::Point(), mock_buffer_stream,
@@ -254,7 +254,7 @@ TEST_F(SurfaceCreation, test_surface_advance_buffer)
     EXPECT_EQ(graphics_resource, surf.next_client_buffer());
 }
 
-TEST_F(SurfaceCreation, test_surface_advance_buffer_notifies_changes)
+TEST_F(SurfaceCreation, test_surface_next_buffer_notifies_changes)
 {
     using namespace testing;
     ms::Surface surf(surface_name, geom::Point(), mock_buffer_stream,
