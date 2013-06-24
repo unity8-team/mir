@@ -341,13 +341,13 @@ TEST_F(ShellSurface, next_client_buffer_throw_behavior)
             msh::a_surface());
 
     EXPECT_NO_THROW({
-        test.next_client_buffer();
+        test.advance_client_buffer();
     });
 
     surface_builder.reset_surface();
 
     EXPECT_THROW({
-        test.next_client_buffer();
+        test.advance_client_buffer();
     }, std::runtime_error);
 }
 

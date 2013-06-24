@@ -47,7 +47,7 @@ public:
         return geometry::PixelFormat();
     }
 
-    std::shared_ptr<compositor::Buffer> next_client_buffer()
+    std::shared_ptr<compositor::Buffer> advance_client_buffer()
     {
         return std::shared_ptr<compositor::Buffer>();
     }

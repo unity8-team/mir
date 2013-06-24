@@ -105,6 +105,11 @@ mir::geometry::Size ms::Surface::size() const
     return buffer_stream->stream_size();
 }
 
+std::shared_ptr<mc::Buffer> ms::Surface::compositor_buffer() const
+{
+    return buffer_stream->lock_back_buffer();
+}
+
 std::shared_ptr<ms::GraphicRegion> ms::Surface::graphic_region() const
 {
     return compositor_buffer();
@@ -162,11 +167,11 @@ geom::PixelFormat ms::Surface::pixel_format() const
     return buffer_stream->get_stream_pixel_format();
 }
 
-std::shared_ptr<mc::Buffer> ms::Surface::next_client_buffer()
+std::shared_ptr<mc::Buffer> ms::Surface::advance_client_buffer()
 {
     flag_for_render();
     notify_change();
-    return buffer_bundle->secure_client_buffer();
+    return buffer_stream->secure_client_buffer();
 }
 
 void ms::Surface::flag_for_render()

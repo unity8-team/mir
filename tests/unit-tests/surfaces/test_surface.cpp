@@ -185,18 +185,6 @@ struct SurfaceCreation : public ::testing::Test
 
 }
 
-TEST_F(SurfaceCreation, test_surface_secures_client_buffer_on_creation)
-{
-    EXPECT_CALL(*mock_buffer_stream, secure_client_buffer())
-        .Times(1)
-        .WillOnce(Return(std::make_shared<mtd::StubBuffer>()));
-
-    ms::Surface surf(surface_name, geom::Point(), mock_buffer_stream,
-        std::shared_ptr<mi::InputChannel>(), null_change_cb);
-
-    EXPECT_NE(nullptr, surf.next_client_buffer());
-}
-
 TEST_F(SurfaceCreation, test_surface_gets_right_name)
 {
     ms::Surface surf(surface_name, geom::Point(), mock_buffer_stream,
@@ -250,7 +238,7 @@ TEST_F(SurfaceCreation, test_surface_next_buffer)
         .Times(1)
         .WillOnce(Return(graphics_resource));
 
-    EXPECT_EQ(graphics_resource, surf.next_client_buffer());
+    EXPECT_EQ(graphics_resource, surf.advance_client_buffer());
 }
 
 TEST_F(SurfaceCreation, test_surface_next_buffer_notifies_changes)
@@ -280,11 +268,9 @@ TEST_F(SurfaceCreation, test_surface_gets_ipc_from_stream)
     EXPECT_CALL(*mock_buffer_stream, secure_client_buffer())
         .Times(1)
         .WillOnce(Return(stub_buffer));
-    surf.advance_client_buffer();
 
-    auto ret_ipc = surf.client_buffer();
+    auto ret_ipc = surf.advance_client_buffer();
     EXPECT_EQ(stub_buffer, ret_ipc);
-    surf.advance_client_buffer();
 }
 
 TEST_F(SurfaceCreation, test_surface_gets_top_left)
@@ -438,13 +424,13 @@ TEST_F(SurfaceCreation, test_surface_force_requests_to_complete)
 
 TEST_F(SurfaceCreation, test_surface_next_buffer_does_not_set_valid_until_second_frame)
 {
-    ms::Surface surf{surface_name, geom::Point(), mock_buffer_bundle,
+    ms::Surface surf{surface_name, geom::Point(), mock_buffer_stream,
         std::shared_ptr<mi::InputChannel>(), mock_change_cb};
 
     EXPECT_FALSE(surf.should_be_rendered());
-    surf.next_client_buffer();
+    surf.advance_client_buffer();
     EXPECT_FALSE(surf.should_be_rendered());
-    surf.next_client_buffer();
+    surf.advance_client_buffer();
     EXPECT_TRUE(surf.should_be_rendered());
 }
 

@@ -177,11 +177,11 @@ mir::geometry::PixelFormat msh::Surface::pixel_format() const
     }
 }
 
-std::shared_ptr<mc::Buffer> msh::Surface::next_client_buffer()
+std::shared_ptr<mc::Buffer> msh::Surface::advance_client_buffer()
 {
     if (auto const& s = surface.lock())
     {
-        return s->next_client_buffer();
+        return s->advance_client_buffer();
     }
     else
     {
