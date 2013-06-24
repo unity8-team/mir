@@ -47,3 +47,4 @@ std::shared_ptr<msh::Surface> msh::SurfaceSource::create_surface(
         id,
         sink);
 }
+
