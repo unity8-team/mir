@@ -46,7 +46,6 @@ ms::Surface::Surface(
     top_left_point(top_left),
     buffer_stream(buffer_stream),
     input_channel(input_channel),
-    client_buffer_resource(buffer_stream->secure_client_buffer()),
     alpha_value(1.0f),
     is_hidden(false),
     buffer_count(0),

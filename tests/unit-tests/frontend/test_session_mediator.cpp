@@ -67,7 +67,7 @@ public:
 
         EXPECT_CALL(*mock_surface, size()).Times(AnyNumber()).WillRepeatedly(Return(geom::Size()));
         EXPECT_CALL(*mock_surface, pixel_format()).Times(AnyNumber()).WillRepeatedly(Return(geom::PixelFormat()));
-        EXPECT_CALL(*mock_surface, next_client_buffer()).Times(AnyNumber()).WillRepeatedly(Return(mock_buffer));
+        EXPECT_CALL(*mock_surface, advance_client_buffer()).Times(AnyNumber()).WillRepeatedly(Return(mock_buffer));
 
         EXPECT_CALL(*mock_surface, supports_input()).Times(AnyNumber()).WillRepeatedly(Return(true));
         EXPECT_CALL(*mock_surface, client_input_fd()).Times(AnyNumber()).WillRepeatedly(Return(testing_client_input_fd));
@@ -414,7 +414,7 @@ TEST_F(SessionMediatorTest, buffer_resource_held_over_call)
     mp::Buffer buffer_response;
     mp::SurfaceParameters surface_request;
 
-    EXPECT_CALL(*stubbed_session->mock_surface, next_client_buffer())
+    EXPECT_CALL(*stubbed_session->mock_surface, advance_client_buffer())
         .Times(2)
         .WillOnce(Return(stub_buffer1))
         .WillOnce(Return(stub_buffer2));

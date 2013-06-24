@@ -89,7 +89,6 @@ private:
 
     std::shared_ptr<input::InputChannel> const input_channel;
 
-    std::shared_ptr<compositor::Buffer> client_buffer_resource;
     glm::mat4 rotation_matrix;
     float alpha_value;
 

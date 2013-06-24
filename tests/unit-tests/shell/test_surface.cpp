@@ -334,7 +334,7 @@ TEST_F(ShellSurface, force_request_to_complete_throw_behavior)
     });
 }
 
-TEST_F(ShellSurface, next_client_buffer_throw_behavior)
+TEST_F(ShellSurface, advance_client_buffer_throw_behavior)
 {
     msh::Surface test(
             mt::fake_shared(surface_builder),

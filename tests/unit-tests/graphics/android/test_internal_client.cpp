@@ -43,7 +43,7 @@ class StubSurface : public mir::frontend::Surface
     {
         return geom::PixelFormat::xbgr_8888;
     }
-    std::shared_ptr<mc::Buffer> next_client_buffer()
+    std::shared_ptr<mc::Buffer> advance_client_buffer()
     {
         return std::shared_ptr<mc::Buffer>();
     }
