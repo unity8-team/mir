@@ -187,9 +187,8 @@ struct SurfaceCreation : public ::testing::Test
 
 TEST_F(SurfaceCreation, test_surface_secures_client_buffer_on_creation)
 {
-    using namespace testing;
-
     EXPECT_CALL(*mock_buffer_stream, secure_client_buffer())
+        .Times(1)
         .WillOnce(Return(std::make_shared<mtd::StubBuffer>()));
 
     ms::Surface surf(surface_name, geom::Point(), mock_buffer_stream,
