@@ -65,6 +65,7 @@ TEST(ApplicationSession, default_surface_is_first_surface)
 {
     using namespace ::testing;
 
+    std::shared_ptr<msh::Surface> stub_shell_surface;
 //    mtd::MockSurfaceFactory surface_factory;
 //    mtd::StubSurfaceBuilder surface_builder;
 #if 0
@@ -83,9 +84,9 @@ TEST(ApplicationSession, default_surface_is_first_surface)
     auto surface1 = std::make_shared<StubSurface>();
     auto surface2 = std::make_shared<StubSurface>();
     auto surface3 = std::make_shared<StubSurface>();
-    auto id1 = app_session.associate_surface(surface1);
-    auto id2 = app_session.associate_surface(surface2);
-    auto id3 = app_session.associate_surface(surface3);
+    auto id1 = app_session.associate_surface(surface1, stub_shell_surface);
+    auto id2 = app_session.associate_surface(surface2, stub_shell_surface);
+    auto id3 = app_session.associate_surface(surface3, stub_shell_surface);
     EXPECT_EQ(app_session.get_surface(id1), surface1);
     EXPECT_EQ(app_session.get_surface(id2), surface2);
     EXPECT_EQ(app_session.get_surface(id3), surface3);
