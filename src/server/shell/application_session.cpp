@@ -51,12 +51,12 @@ msh::ApplicationSession::~ApplicationSession()
 {
 }
 
-mf::SurfaceId msh::ApplicationSession::associate_surface(std::weak_ptr<ms::Surface> const& surface)
+mf::SurfaceId msh::ApplicationSession::associate_surface(std::weak_ptr<ms::Surface> const& surface,
+                                                         std::shared_ptr<msh::Surface> const& shell_surface)
 {
     std::unique_lock<std::mutex> lock(surfaces_mutex);
     mf::SurfaceId id{next_surface_id++};
 
-    std::shared_ptr<msh::Surface> shell_surface; 
     auto association = std::make_pair(shell_surface, surface);
     surfaces[id] = association; 
     return id;

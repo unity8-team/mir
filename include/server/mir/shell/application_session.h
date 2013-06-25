@@ -50,7 +50,8 @@ public:
     ~ApplicationSession();
 
     /* hodge-podge */
-    frontend::SurfaceId associate_surface(std::weak_ptr<surfaces::Surface> const& surface);
+    frontend::SurfaceId associate_surface(std::weak_ptr<surfaces::Surface> const& surface,
+                                          std::shared_ptr<shell::Surface> const& shell_surface);
     void disassociate_surface(frontend::SurfaceId surface);
 
     //triggers state change in ms::Surface

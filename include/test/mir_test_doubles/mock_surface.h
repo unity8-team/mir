@@ -34,10 +34,9 @@ namespace test
 namespace doubles
 {
 
-struct MockSurface : public shell::Surface
+struct MockSurface : public frontend::Surface
 {
-    MockSurface(std::shared_ptr<shell::SurfaceBuilder> const& builder) :
-        shell::Surface(builder, shell::a_surface())
+    MockSurface()
     {
     }
 
@@ -59,6 +58,12 @@ struct MockSurface : public shell::Surface
 
     MOCK_METHOD2(configure, int(MirSurfaceAttrib, int));
     MOCK_METHOD1(take_input_focus, void(std::shared_ptr<shell::InputTargeter> const&));
+
+    MOCK_METHOD1(move_to, void(geometry::Point const&));
+    MOCK_CONST_METHOD0(top_left, geometry::Point());
+    MOCK_METHOD1(with_most_recent_buffer_do, void(std::function<void(compositor::Buffer&)> const&));
+    MOCK_CONST_METHOD0(type, MirSurfaceType()); 
+    MOCK_CONST_METHOD0(state, MirSurfaceState()); 
 };
 
 }

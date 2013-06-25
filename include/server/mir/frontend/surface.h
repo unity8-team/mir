@@ -38,6 +38,10 @@ namespace input
 class InputChannel;
 }
 
+namespace shell
+{
+class InputTargeter;
+}
 namespace frontend
 {
 
@@ -47,7 +51,7 @@ public:
 
     virtual ~Surface() {}
 
-//    virtual void destroy() = 0;
+    virtual void destroy() = 0;
     virtual void force_requests_to_complete() = 0;
 
     virtual geometry::Size size() const = 0;
@@ -60,6 +64,20 @@ public:
 
     virtual int configure(MirSurfaceAttrib attrib, int value) = 0;
 
+
+    //hack
+    virtual void hide() = 0;
+    virtual void show() = 0;
+    virtual bool visible() = 0;
+    virtual std::string name() const = 0;
+    virtual void move_to(geometry::Point const& top_left) = 0;
+    virtual geometry::Point top_left() const = 0;
+    virtual void with_most_recent_buffer_do(
+        std::function<void(compositor::Buffer&)> const& exec) = 0;
+    virtual int server_input_fd() const = 0;
+    virtual MirSurfaceType type() const = 0;
+    virtual MirSurfaceState state() const = 0;
+    virtual void take_input_focus(std::shared_ptr<shell::InputTargeter> const& targeter) = 0;
 protected:
     Surface() = default;
     Surface(Surface const&) = delete;

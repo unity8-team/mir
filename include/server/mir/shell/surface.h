@@ -37,7 +37,6 @@ class EventSink;
 
 namespace shell
 {
-class InputTargeter;
 class SurfaceBuilder;
 struct SurfaceCreationParameters;
 

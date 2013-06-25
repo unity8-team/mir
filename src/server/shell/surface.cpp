@@ -35,12 +35,11 @@ namespace mi = mir::input;
 namespace ms = mir::surfaces;
 
 msh::Surface::Surface(
-    std::shared_ptr<SurfaceBuilder> const& builder,
-    shell::SurfaceCreationParameters const& params,
+    std::weak_ptr<ms::Surface> const& surface,
+    shell::SurfaceCreationParameters const& /*params*/,
     frontend::SurfaceId id,
     std::shared_ptr<events::EventSink> const& sink)
-  : builder(builder),
-    surface(builder->create_surface(params)),
+  : surface(surface),
     id(id),
     event_sink(sink),
     type_value(mir_surface_type_normal),
@@ -49,10 +48,9 @@ msh::Surface::Surface(
 }
 
 msh::Surface::Surface(
-    std::shared_ptr<SurfaceBuilder> const& builder,
-    shell::SurfaceCreationParameters const& params)
-  : builder(builder),
-    surface(builder->create_surface(params)),
+    std::weak_ptr<ms::Surface> const& surface,
+    shell::SurfaceCreationParameters const& /*params*/)
+  : surface(surface),
     id(),
     event_sink(),
     type_value(mir_surface_type_normal),
@@ -106,7 +104,7 @@ bool msh::Surface::visible()
 
 void msh::Surface::destroy()
 {
-    builder->destroy_surface(surface);
+    //builder->destroy_surface(surface);
 }
 
 void msh::Surface::force_requests_to_complete()

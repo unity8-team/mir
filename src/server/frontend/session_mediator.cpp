@@ -180,7 +180,8 @@ void mf::SessionMediator::next_buffer(
 
 void mf::SessionMediator::release_surface(
     google::protobuf::RpcController* /*controller*/,
-    const mir::protobuf::SurfaceId* request,
+    //const mir::protobuf::SurfaceId* request,
+    const mir::protobuf::SurfaceId* /*request*/,
     mir::protobuf::Void*,
     google::protobuf::Closure* done)
 {
@@ -189,9 +190,9 @@ void mf::SessionMediator::release_surface(
 
     report->session_release_surface_called(session->name());
 
-    auto const id = SurfaceId(request->value());
+    //auto const id = SurfaceId(request->value());
 
-    session->destroy_surface(id);
+//    session->destroy_surface(id);
 
     done->Run();
 }

@@ -155,9 +155,9 @@ mf::SurfaceId msh::SessionManager::create_surface_for(std::shared_ptr<mf::Sessio
 
 //    static ms::DepthId const default_surface_depth{0};
     //FIXBEFORE LAND : check 
-    auto surface = surface_factory->create_surface(params, 
+    std::shared_ptr<mir::surfaces::Surface> surface;
+    auto shell_surface = surface_factory->create_surface(params, 
         mf::SurfaceId{0}, std::shared_ptr<mir::events::EventSink>());
-    auto shell_surface = std::make_shared<msh::Surface>(surface, params);
     auto id = shell_session->associate_surface(surface, shell_surface);
 
     set_focus_to(shell_session);
