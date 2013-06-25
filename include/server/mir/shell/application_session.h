@@ -29,6 +29,10 @@ namespace events
 {
 class EventSink;
 }
+namespace surface
+{
+class Surface;
+}
 namespace shell
 {
 class SurfaceFactory;
@@ -47,7 +51,7 @@ public:
     ~ApplicationSession();
 
     /* hodge-podge */
-    frontend::SurfaceId associate_surface(std::weak_ptr<ms::Surface> const& surface);
+    frontend::SurfaceId associate_surface(std::weak_ptr<surface::Surface> const& surface);
     void destroy_surface(frontend::SurfaceId surface);
     void hide();
     void show();
