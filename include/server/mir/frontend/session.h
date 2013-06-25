@@ -33,7 +33,10 @@ namespace shell
 {
 struct SurfaceCreationParameters;
 }
-
+namespace surfaces
+{
+class Surface;
+}
 namespace frontend
 {
 class Surface;
@@ -43,8 +46,8 @@ class Session
 public:
     virtual ~Session() {}
 
-    virtual SurfaceId create_surface(shell::SurfaceCreationParameters const& params) = 0;
-    virtual void destroy_surface(SurfaceId surface) = 0;
+    virtual frontend::SurfaceId associate_surface(std::weak_ptr<surfaces::Surface> const& surface) = 0;
+    virtual void disassociate_surface(frontend::SurfaceId surface) = 0;
     virtual std::shared_ptr<Surface> get_surface(SurfaceId surface) const = 0;
 
     virtual std::string name() const = 0;

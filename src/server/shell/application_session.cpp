@@ -30,7 +30,7 @@
 namespace me = mir::events;
 namespace mf = mir::frontend;
 namespace msh = mir::shell;
-namespace ms = mir::surface;
+namespace ms = mir::surfaces;
 
 msh::ApplicationSession::ApplicationSession(
     std::string const& session_name,

@@ -105,12 +105,12 @@ TEST_F(SessionManagerSetup, closing_session_removes_surfaces)
 {
     using namespace ::testing;
 
-    EXPECT_CALL(surface_factory, create_surface(_, _, _)).Times(1);
-
-    ON_CALL(surface_factory, create_surface(_, _, _)).WillByDefault(
-       Return(std::make_shared<msh::Surface>(
-           mt::fake_shared(surface_builder),
-           msh::a_surface())));
+    EXPECT_CALL(surface_factory, create_surface(_, _, _))
+        .Times(1)
+        .WillOnce(
+           Return(std::make_shared<msh::Surface>(
+                   mt::fake_shared(surface_builder),
+                   msh::a_surface())));
 
 
     EXPECT_CALL(container, insert_session(_)).Times(1);

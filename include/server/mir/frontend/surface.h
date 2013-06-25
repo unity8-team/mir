@@ -47,7 +47,7 @@ public:
 
     virtual ~Surface() {}
 
-    virtual void destroy() = 0;
+//    virtual void destroy() = 0;
     virtual void force_requests_to_complete() = 0;
 
     virtual geometry::Size size() const = 0;

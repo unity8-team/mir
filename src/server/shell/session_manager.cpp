@@ -75,7 +75,7 @@ std::shared_ptr<mf::Session> msh::SessionManager::open_session(
     std::string const& name,
     std::shared_ptr<events::EventSink> const& sink)
 {
-    std::shared_ptr<msh::Session> new_session = std::make_shared<msh::ApplicationSession>(surface_factory, name, sink);
+    std::shared_ptr<msh::Session> new_session = std::make_shared<msh::ApplicationSession>(name, sink);
 
     app_container->insert_session(new_session);
     
@@ -152,7 +152,13 @@ mf::SurfaceId msh::SessionManager::create_surface_for(std::shared_ptr<mf::Sessio
     msh::SurfaceCreationParameters const& params)
 {
     auto shell_session = std::dynamic_pointer_cast<Session>(session);
-    auto id = shell_session->create_surface(params);
+
+//    static ms::DepthId const default_surface_depth{0};
+    //FIXBEFORE LAND : check 
+    auto surface = surface_factory->create_surface(params, 
+        mf::SurfaceId{0}, std::shared_ptr<mir::events::EventSink>());
+    auto shell_surface = std::make_shared<msh::Surface>(surface, params);
+    auto id = shell_session->associate_surface(surface, shell_surface);
 
     set_focus_to(shell_session);
 
