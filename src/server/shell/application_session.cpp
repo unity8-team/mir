@@ -29,6 +29,7 @@
 namespace me = mir::events;
 namespace mf = mir::frontend;
 namespace msh = mir::shell;
+namespace ms = mir::surface;
 
 msh::ApplicationSession::ApplicationSession(
     std::string const& session_name,
@@ -47,25 +48,16 @@ msh::ApplicationSession::ApplicationSession(
 
 msh::ApplicationSession::~ApplicationSession()
 {
-    std::unique_lock<std::mutex> lock(surfaces_mutex);
-    for (auto const& pair_id_surface : surfaces)
-    {
-        pair_id_surface.second->destroy();
-    }
 }
 
-mf::SurfaceId msh::ApplicationSession::next_id()
+mf::SurfaceId msh::ApplicationSession::associate_surface(std::weak_ptr<ms::Surface> const& surface)
 {
-    return mf::SurfaceId(next_surface_id.fetch_add(1));
-}
-
-mf::SurfaceId msh::ApplicationSession::associate_surface(std::weak_ptr<surface::Surface> const& surface)
-{
-    auto const id = next_id();
-    auto surf = surface_factory->create_surface(params, id, event_sink);
-
     std::unique_lock<std::mutex> lock(surfaces_mutex);
-    surfaces[id] = surf;
+    mf::SurfaceId id{next_surface_id++};
+
+    std::shared_ptr<mf::Surface> shell_surface; 
+    auto association = std::make_pair(shell_surface, surface);
+    surfaces[id] = association; 
     return id;
 }
 
@@ -83,7 +75,7 @@ std::shared_ptr<mf::Surface> msh::ApplicationSession::get_surface(mf::SurfaceId 
 {
     std::unique_lock<std::mutex> lock(surfaces_mutex);
 
-    return checked_find(id)->second;
+    return (checked_find(id)->second).first;
 }
 
 std::shared_ptr<msh::Surface> msh::ApplicationSession::default_surface() const
@@ -91,7 +83,7 @@ std::shared_ptr<msh::Surface> msh::ApplicationSession::default_surface() const
     std::unique_lock<std::mutex> lock(surfaces_mutex);
 
     if (surfaces.size())
-        return surfaces.begin()->second;
+        return (surfaces.begin()->second).second;
     else
         return std::shared_ptr<msh::Surface>();
 }

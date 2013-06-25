@@ -52,8 +52,12 @@ public:
     /* hodge-podge */
     frontend::SurfaceId associate_surface(std::weak_ptr<surface::Surface> const& surface);
     void disassociate_surface(frontend::SurfaceId surface);
+
+    //triggers state change in ms::Surface
     void hide();
     void show();
+
+    //accesses shell surfaces
     std::shared_ptr<frontend::Surface> get_surface(frontend::SurfaceId surface) const;
     int configure_surface(frontend::SurfaceId id, MirSurfaceAttrib attrib, int value);
 
@@ -71,14 +75,13 @@ private:
     std::string const session_name;
     std::shared_ptr<events::EventSink> const event_sink;
 
-    frontend::SurfaceId next_id();
-
-    std::atomic<int> next_surface_id;
-
-    typedef std::map<frontend::SurfaceId, std::shared_ptr<Surface>> Surfaces;
-    Surfaces::const_iterator checked_find(frontend::SurfaceId id) const;
+    typedef std::pair<std::shared_ptr<frontend::Surface>,
+                      std::weak_ptr<surface::Surface>> SurfaceAssociation; 
+    typedef std::map<frontend::SurfaceId, SurfaceAssociation> Surfaces;
     std::mutex mutable surfaces_mutex;
+    Surfaces::const_iterator checked_find(frontend::SurfaceId id) const;
     Surfaces surfaces;
+    int next_surface_id;
 };
 
 }
