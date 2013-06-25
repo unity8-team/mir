@@ -80,25 +80,27 @@ TEST(ApplicationSession, default_surface_is_first_surface)
 #endif
     msh::ApplicationSession app_session("Foo");
 
-//    msh::SurfaceCreationParameters params;
     auto surface1 = std::make_shared<StubSurface>();
     auto surface2 = std::make_shared<StubSurface>();
     auto surface3 = std::make_shared<StubSurface>();
     auto id1 = app_session.associate_surface(surface1);
     auto id2 = app_session.associate_surface(surface2);
     auto id3 = app_session.associate_surface(surface3);
+    EXPECT_EQ(app_session.get_surface(id1), surface1);
+    EXPECT_EQ(app_session.get_surface(id2), surface2);
+    EXPECT_EQ(app_session.get_surface(id3), surface3);
 
     auto default_surf = app_session.default_surface();
     EXPECT_EQ(surface1, default_surf);
-    app_session.disassociate_surface(surface1);
+    app_session.disassociate_surface(id1);
 
     auto default_surf = app_session.default_surface();
     EXPECT_EQ(surface2, default_surf);
-    app_session.disassociate_surface(surface2);
+    app_session.disassociate_surface(id2);
 
     auto default_surf = app_session.default_surface();
     EXPECT_EQ(surface3, default_surf);
-    app_session.disassociate_surface(surface3);
+    app_session.disassociate_surface(id3);
 }
 
 #if 0
@@ -131,30 +133,16 @@ TEST(ApplicationSession, session_visbility_propagates_to_surfaces)
 
     app_session.destroy_surface(surf);
 }
+#endif
 
 TEST(Session, get_invalid_surface_throw_behavior)
 {
     using namespace ::testing;
 
-    mtd::MockSurfaceFactory surface_factory;
-    msh::ApplicationSession app_session(mt::fake_shared(surface_factory), "Foo");
+    msh::ApplicationSession app_session("Foo");
     mf::SurfaceId invalid_surface_id(1);
 
     EXPECT_THROW({
             app_session.get_surface(invalid_surface_id);
     }, std::runtime_error);
 }
-
-TEST(Session, destroy_invalid_surface_throw_behavior)
-{
-    using namespace ::testing;
-
-    mtd::MockSurfaceFactory surface_factory;
-    msh::ApplicationSession app_session(mt::fake_shared(surface_factory), "Foo");
-    mf::SurfaceId invalid_surface_id(1);
-
-    EXPECT_THROW({
-            app_session.destroy_surface(invalid_surface_id);
-    }, std::runtime_error);
-}
-#endif

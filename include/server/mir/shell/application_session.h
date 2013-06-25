@@ -46,20 +46,20 @@ public:
 
     ~ApplicationSession();
 
-    frontend::SurfaceId create_surface(shell::SurfaceCreationParameters const& params);
+    /* hodge-podge */
+    frontend::SurfaceId associate_surface(std::weak_ptr<ms::Surface> const& surface);
     void destroy_surface(frontend::SurfaceId surface);
-    std::shared_ptr<frontend::Surface> get_surface(frontend::SurfaceId surface) const;
-
-    std::shared_ptr<Surface> default_surface() const;
-
-    std::string name() const;
-
-    void force_requests_to_complete();
-
     void hide();
     void show();
-
+    std::shared_ptr<frontend::Surface> get_surface(frontend::SurfaceId surface) const;
     int configure_surface(frontend::SurfaceId id, MirSurfaceAttrib attrib, int value);
+
+    /* msh::Session */
+    std::string name() const;
+    void force_requests_to_complete();
+    std::shared_ptr<Surface> default_surface() const;
+
+
 
 protected:
     ApplicationSession(ApplicationSession const&) = delete;
