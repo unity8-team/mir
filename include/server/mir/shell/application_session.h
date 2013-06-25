@@ -41,10 +41,9 @@ class Surface;
 class ApplicationSession : public Session
 {
 public:
-    explicit ApplicationSession(std::shared_ptr<SurfaceFactory> const& surface_factory, std::string const& session_name);
-
+    /* why two constructors? */
+    explicit ApplicationSession(std::string const& session_name);
     ApplicationSession(
-        std::shared_ptr<SurfaceFactory> const& surface_factory,
         std::string const& session_name,
         std::shared_ptr<events::EventSink> const& sink);
 
@@ -52,7 +51,7 @@ public:
 
     /* hodge-podge */
     frontend::SurfaceId associate_surface(std::weak_ptr<surface::Surface> const& surface);
-    void destroy_surface(frontend::SurfaceId surface);
+    void disassociate_surface(frontend::SurfaceId surface);
     void hide();
     void show();
     std::shared_ptr<frontend::Surface> get_surface(frontend::SurfaceId surface) const;
@@ -63,14 +62,12 @@ public:
     void force_requests_to_complete();
     std::shared_ptr<Surface> default_surface() const;
 
-
-
 protected:
     ApplicationSession(ApplicationSession const&) = delete;
     ApplicationSession& operator=(ApplicationSession const&) = delete;
 
 private:
-    std::shared_ptr<SurfaceFactory> const surface_factory;
+//    std::shared_ptr<SurfaceFactory> const surface_factory;
     std::string const session_name;
     std::shared_ptr<events::EventSink> const event_sink;
 

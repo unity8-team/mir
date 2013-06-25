@@ -18,7 +18,6 @@
 
 #include "mir/shell/application_session.h"
 #include "mir/shell/surface.h"
-#include "mir/shell/surface_factory.h"
 
 #include <boost/throw_exception.hpp>
 
@@ -32,21 +31,17 @@ namespace mf = mir::frontend;
 namespace msh = mir::shell;
 
 msh::ApplicationSession::ApplicationSession(
-    std::shared_ptr<SurfaceFactory> const& surface_factory,
     std::string const& session_name,
-    std::shared_ptr<me::EventSink> const& sink) :
-    surface_factory(surface_factory),
-    session_name(session_name),
-    event_sink(sink),
-    next_surface_id(0)
+    std::shared_ptr<me::EventSink> const& sink)
+    : session_name(session_name),
+      event_sink(sink),
+      next_surface_id(0)
 {
-    assert(surface_factory);
 }
 
 msh::ApplicationSession::ApplicationSession(
-    std::shared_ptr<SurfaceFactory> const& surface_factory,
-    std::string const& session_name) :
-    ApplicationSession(surface_factory, session_name, std::shared_ptr<me::EventSink>())
+    std::string const& session_name)
+    : ApplicationSession(session_name, std::shared_ptr<me::EventSink>())
 {
 }
 
@@ -64,7 +59,7 @@ mf::SurfaceId msh::ApplicationSession::next_id()
     return mf::SurfaceId(next_surface_id.fetch_add(1));
 }
 
-mf::SurfaceId msh::ApplicationSession::create_surface(const msh::SurfaceCreationParameters& params)
+mf::SurfaceId msh::ApplicationSession::associate_surface(std::weak_ptr<surface::Surface> const& surface)
 {
     auto const id = next_id();
     auto surf = surface_factory->create_surface(params, id, event_sink);
