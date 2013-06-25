@@ -75,7 +75,7 @@ private:
     std::string const session_name;
     std::shared_ptr<events::EventSink> const event_sink;
 
-    typedef std::pair<std::shared_ptr<frontend::Surface>,
+    typedef std::pair<std::shared_ptr<shell::Surface>,
                       std::weak_ptr<surface::Surface>> SurfaceAssociation; 
     typedef std::map<frontend::SurfaceId, SurfaceAssociation> Surfaces;
     std::mutex mutable surfaces_mutex;
