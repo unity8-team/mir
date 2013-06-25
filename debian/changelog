@@ -1,3 +1,13 @@
+platform-api (0.18.1daily13.06.25-0ubuntu1) saucy; urgency=low
+
+  [ Robert Carr ]
+  * Add missing mir stub (ua_ui_session_properties_set_remote_pid).
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 73
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Tue, 25 Jun 2013 02:01:11 +0000
+
 platform-api (0.18.1daily13.06.21-0ubuntu1) saucy; urgency=low
 
   [ Ubuntu daily release ]
