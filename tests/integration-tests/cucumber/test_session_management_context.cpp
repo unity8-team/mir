@@ -25,12 +25,15 @@
 
 #include "mir_test_doubles/mock_session.h"
 #include "mir_test_doubles/mock_surface.h"
+#include "mir_test_doubles/mock_surface_stack_model.h"
 #include "mir_test_doubles/mock_shell.h"
 #include "mir_test/fake_shared.h"
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
+namespace ms = mir::surfaces;
+namespace msh = mir::shell;
 namespace mg = mir::graphics;
 namespace mc = mir::compositor;
 namespace mf = mir::frontend;
@@ -57,9 +60,12 @@ MATCHER_P(NamedWindowWithNoGeometry, name, "")
 
 MATCHER_P2(NamedWindowWithGeometry, name, geometry, "")
 {
-    if (arg.name != name)
+    if (!arg)
         return false;
-    if (arg.size != geometry)
+
+    if (arg->name() != name)
+        return false;
+    if (arg->size() != geometry)
         return false;
     return true;
 }
@@ -70,8 +76,11 @@ struct SessionManagementContextSetup : public testing::Test
     {
         using namespace ::testing;
 
-        ctx = std::make_shared<mtc::SessionManagementContext>(mt::fake_shared<mf::Shell>(shell));
+        ctx = std::make_shared<mtc::SessionManagementContext>(mt::fake_shared<mf::Shell>(shell),
+                                                              mt::fake_shared<ms::SurfaceStackModel>(mock_stack));
     }
+
+    mtd::MockSurfaceStackModel mock_stack;
     mtd::MockShell shell;
     std::shared_ptr<mtc::SessionManagementContext> ctx;
 
@@ -86,7 +95,8 @@ struct SessionManagementContextViewAreaSetup : public SessionManagementContextSe
     {
         using namespace ::testing;
 
-        ctx = std::make_shared<mtc::SessionManagementContext>(mt::fake_shared<mf::Shell>(shell));
+        ctx = std::make_shared<mtc::SessionManagementContext>(mt::fake_shared<mf::Shell>(shell),
+                                                              mt::fake_shared<ms::SurfaceStackModel>(mock_stack));
         viewable_area = ctx->get_view_area();
     }
 
@@ -109,8 +119,11 @@ TEST_F(SessionManagementContextSetup, open_window_consuming_creates_surface_with
         .WillOnce(Return(mt::fake_shared<mf::Session>(session)));
 
     // As consuming mode is the default, omiting geometry is sufficient to request it.
-//    EXPECT_CALL(session, create_surface(NamedWindowWithNoGeometry(test_window_name))).Times(1)
-//        .WillOnce(Return(test_surface_id));
+    EXPECT_CALL(mock_stack, create_surface(_,_))
+        .Times(1)
+        .WillOnce(Return(std::weak_ptr<ms::Surface>()));
+    EXPECT_CALL(session, adopt_surface(_)).Times(1)
+        .WillOnce(Return(test_surface_id));
 
     EXPECT_TRUE(ctx->open_window_consuming(test_window_name));
 }
@@ -124,8 +137,12 @@ TEST_F(SessionManagementContextSetup, open_window_with_size_creates_surface_with
     EXPECT_CALL(shell, open_session(test_window_name, _)).Times(1)
         .WillOnce(Return(mt::fake_shared<mf::Session>(session)));
 
-//    EXPECT_CALL(session, create_surface(NamedWindowWithGeometry(test_window_name, test_window_size))).Times(1)
-//        .WillOnce(Return(test_surface_id));
+    auto params = msh::a_surface().of_size(test_window_size); 
+    EXPECT_CALL(mock_stack, create_surface(params,_))
+        .Times(1)
+        .WillOnce(Return(std::weak_ptr<ms::Surface>()));
+    EXPECT_CALL(session, adopt_surface(_)).Times(1)
+        .WillOnce(Return(test_surface_id));
 
     EXPECT_TRUE(ctx->open_window_with_size(test_window_name, test_window_size));
 }
@@ -140,8 +157,12 @@ TEST_F(SessionManagementContextSetup, get_window_size_queries_surface)
     EXPECT_CALL(shell, open_session(test_window_name, _)).Times(1)
         .WillOnce(Return(mt::fake_shared<mf::Session>(session)));
 
-//    EXPECT_CALL(session, create_surface(NamedWindowWithGeometry(test_window_name, test_window_size))).Times(1)
-//        .WillOnce(Return(test_surface_id));
+    auto params = msh::a_surface().of_size(test_window_size); 
+    EXPECT_CALL(mock_stack, create_surface(params,_))
+        .Times(1)
+        .WillOnce(Return(std::weak_ptr<ms::Surface>()));
+    EXPECT_CALL(session, adopt_surface(_)).Times(1)
+        .WillOnce(Return(test_surface_id));
 
     EXPECT_TRUE(ctx->open_window_with_size(test_window_name, test_window_size));
 

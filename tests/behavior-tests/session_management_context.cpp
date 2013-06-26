@@ -24,6 +24,7 @@
 #include "mir/shell/registration_order_focus_sequence.h"
 #include "mir/shell/single_visibility_focus_mechanism.h"
 #include "mir/shell/session_container.h"
+#include "mir/surfaces/surface_stack_model.h"
 #include "mir/frontend/shell.h"
 #include "mir/shell/surface_factory.h"
 #include "mir/graphics/display.h"
@@ -150,9 +151,11 @@ mtc::SessionManagementContext::SessionManagementContext() :
 }
 
 mtc::SessionManagementContext::SessionManagementContext(
-    std::shared_ptr<frontend::Shell> const& shell) :
-    view_area(std::make_shared<mtc::SizedDisplay>()),
-    shell(shell)
+    std::shared_ptr<frontend::Shell> const& shell,
+    std::shared_ptr<surfaces::SurfaceStackModel> const& stack)
+    : view_area(std::make_shared<mtc::SizedDisplay>()),
+      shell(shell),
+      stack(stack)
 {
 }
 
@@ -162,8 +165,10 @@ bool mtc::SessionManagementContext::open_window_consuming(std::string const& win
     auto const params = msh::a_surface().of_name(window_name);
     auto session = shell->open_session(window_name, std::shared_ptr<mir::events::EventSink>());
 
-    std::shared_ptr<msh::Surface> surface;
-    auto const surface_id = session->adopt_surface(surface);
+    auto surface = stack->create_surface(params, ms::DepthId{0});
+    auto sh_surface = std::make_shared<msh::Surface>(surface, params,
+                        mf::SurfaceId{0}, std::shared_ptr<mir::events::EventSink>());
+    auto const surface_id = session->adopt_surface(sh_surface);
 
     open_windows[window_name] = std::make_tuple(session, surface_id);
 
@@ -175,8 +180,10 @@ bool mtc::SessionManagementContext::open_window_with_size(std::string const& win
 {
     auto const params = msh::a_surface().of_name(window_name).of_size(size);
     auto session = shell->open_session(window_name, std::shared_ptr<mir::events::EventSink>());
-    std::shared_ptr<msh::Surface> surface;
-    auto const surface_id = session->adopt_surface(surface);
+    auto surface = stack->create_surface(params, ms::DepthId{0});
+    auto sh_surface = std::make_shared<msh::Surface>(surface, params,
+                        mf::SurfaceId{0}, std::shared_ptr<mir::events::EventSink>());
+    auto const surface_id = session->adopt_surface(sh_surface);
 
     open_windows[window_name] = std::make_tuple(session, surface_id);
 

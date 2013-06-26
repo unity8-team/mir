@@ -34,6 +34,11 @@ namespace frontend
 class Shell;
 class Session;
 }
+
+namespace surfaces
+{
+class SurfaceStackModel;
+}
 namespace graphics
 {
 class ViewableArea;
@@ -48,7 +53,7 @@ class SessionManagementContext
 {
 public:
     SessionManagementContext();
-    SessionManagementContext(std::shared_ptr<frontend::Shell> const& shell);
+    SessionManagementContext(std::shared_ptr<frontend::Shell> const& shell, std::shared_ptr<surfaces::SurfaceStackModel> const& stack);
 
     virtual ~SessionManagementContext() {}
 
@@ -69,6 +74,7 @@ private:
 
     std::shared_ptr<SizedDisplay> view_area;
     std::shared_ptr<frontend::Shell> shell;
+    std::shared_ptr<surfaces::SurfaceStackModel> stack;
 };
 
 }

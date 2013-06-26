@@ -160,7 +160,7 @@ mf::SurfaceId msh::SessionManager::create_surface_for(std::shared_ptr<mf::Sessio
     msh::SurfaceCreationParameters const& params)
 {
     auto shell_session = std::dynamic_pointer_cast<Session>(session);
-
+printf("ok...\n");
     static ms::DepthId const default_surface_depth{0};
     auto surface = surface_stack->create_surface(params, default_surface_depth);
     auto shell_surface = surface_factory->create_surface(surface, params, 
