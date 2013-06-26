@@ -20,20 +20,15 @@
 #include "mir/shell/surface_builder.h"
 #include "mir/shell/surface.h"
 #include "mir/frontend/surface.h"
-#include "mir/input/input_channel_factory.h"
 
 #include <cassert>
 
 namespace ms = mir::surfaces;
 namespace msh = mir::shell;
-namespace mi = mir::input;
-namespace mf = mir::frontend;
 
 //TODO WRONG DEPENDENCY
-msh::SurfaceSource::SurfaceSource(std::shared_ptr<SurfaceBuilder> const& surface_builder)
-    : surface_builder(surface_builder)
+msh::SurfaceSource::SurfaceSource()
 {
-    assert(surface_builder);
 }
 
 std::shared_ptr<msh::Surface> msh::SurfaceSource::create_surface(
