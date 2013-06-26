@@ -17,7 +17,6 @@
  */
 
 #include "mir/shell/surface.h"
-#include "mir/shell/surface_builder.h"
 #include "mir/shell/input_targeter.h"
 #include "mir/input/input_channel.h"
 #include "mir/events/event_sink.h"

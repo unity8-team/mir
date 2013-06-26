@@ -50,7 +50,6 @@ class MessageProcessorReport;
 namespace shell
 {
 class SurfaceFactory;
-class SurfaceBuilder;
 class InputTargeter;
 class SessionContainer;
 class FocusSetter;
@@ -69,7 +68,6 @@ namespace surfaces
 class BufferStreamFactory;
 class SurfaceStackModel;
 class SurfaceStack;
-class SurfaceController;
 class InputRegistrar;
 }
 namespace graphics
@@ -235,7 +233,6 @@ protected:
     CachedPtr<compositor::Compositor> compositor;
     CachedPtr<logging::Logger> logger;
     CachedPtr<graphics::DisplayReport> display_report;
-    CachedPtr<surfaces::SurfaceController> surface_controller;
     CachedPtr<time::TimeSource> time_source;
     CachedPtr<MainLoop> main_loop;
 

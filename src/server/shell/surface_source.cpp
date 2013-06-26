@@ -17,7 +17,6 @@
  */
 
 #include "mir/shell/surface_source.h"
-#include "mir/shell/surface_builder.h"
 #include "mir/shell/surface.h"
 #include "mir/frontend/surface.h"
 

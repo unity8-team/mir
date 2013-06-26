@@ -28,7 +28,6 @@ namespace mir
 
 namespace shell
 {
-class SurfaceBuilder;
 
 class SurfaceSource : public SurfaceFactory
 {

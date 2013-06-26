@@ -37,7 +37,6 @@ class EventSink;
 
 namespace shell
 {
-class SurfaceBuilder;
 struct SurfaceCreationParameters;
 
 class Surface : public frontend::Surface

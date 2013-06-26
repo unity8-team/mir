@@ -30,7 +30,6 @@
 #include "mir/input/null_input_configuration.h"
 
 #include "mir_test_doubles/stub_buffer.h"
-#include "mir_test_doubles/stub_surface_builder.h"
 #include "mir_test_doubles/null_platform.h"
 
 #include <gtest/gtest.h>

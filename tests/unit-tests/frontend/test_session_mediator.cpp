@@ -32,7 +32,7 @@
 #include "mir_test_doubles/mock_surface.h"
 #include "mir_test_doubles/mock_buffer.h"
 #include "mir_test_doubles/stub_session.h"
-#include "mir_test_doubles/stub_surface_builder.h"
+#include "mir_test_doubles/stub_buffer.h"
 #include "mir_test/fake_shared.h"
 #include "mir/events/event_sink.h"
 #include "mir/shell/surface.h"
@@ -78,7 +78,6 @@ public:
         return mock_surface;
     }
 
-    mtd::StubSurfaceBuilder surface_builder;
     std::shared_ptr<mtd::MockSurface> mock_surface;
     std::shared_ptr<mtd::MockBuffer> mock_buffer;
     static int const testing_client_input_fd;

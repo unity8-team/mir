@@ -24,7 +24,6 @@
 #include "mir/graphics/viewable_area.h"
 
 #include "mir_test_doubles/mock_session.h"
-#include "mir_test_doubles/stub_surface_builder.h"
 #include "mir_test_doubles/mock_surface.h"
 #include "mir_test_doubles/mock_shell.h"
 #include "mir_test/fake_shared.h"

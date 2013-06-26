@@ -22,7 +22,6 @@
 #include "mir_test/fake_shared.h"
 #include "mir_test_doubles/mock_surface_factory.h"
 #include "mir_test_doubles/mock_surface.h"
-#include "mir_test_doubles/stub_surface_builder.h"
 #include "mir_test_doubles/stub_surface.h"
 
 #include "mir/shell/surface.h"

@@ -65,7 +65,6 @@
 #include "mir/lttng/input_report.h"
 #include "mir/shell/surface_source.h"
 #include "mir/surfaces/surface_stack.h"
-#include "mir/surfaces/surface_controller.h"
 #include "mir/time/high_resolution_clock.h"
 #include "mir/default_configuration.h"
 

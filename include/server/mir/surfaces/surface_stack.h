@@ -50,8 +50,6 @@ class InputChannelFactory;
 class SurfaceTarget;
 }
 
-/// Management of Surface objects. Includes the model (SurfaceStack and Surface
-/// classes) and controller (SurfaceController) elements of an MVC design.
 namespace surfaces
 {
 class BufferStreamFactory;

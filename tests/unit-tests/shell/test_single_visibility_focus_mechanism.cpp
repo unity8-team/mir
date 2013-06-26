@@ -29,7 +29,6 @@
 #include "mir_test_doubles/mock_surface_factory.h"
 #include "mir_test_doubles/stub_surface.h"
 #include "mir_test_doubles/mock_surface.h"
-#include "mir_test_doubles/stub_surface_builder.h"
 #include "mir_test_doubles/stub_input_targeter.h"
 #include "mir_test_doubles/mock_input_targeter.h"
 
