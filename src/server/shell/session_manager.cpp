@@ -156,6 +156,7 @@ std::weak_ptr<msh::Session> msh::SessionManager::focussed_application() const
 mf::SurfaceId msh::SessionManager::create_surface_for(std::shared_ptr<mf::Session> const& session,
     msh::SurfaceCreationParameters const& params)
 {
+    //TODO: we shouldnt cast
     auto shell_session = std::dynamic_pointer_cast<Session>(session);
 
     static ms::DepthId const default_surface_depth{0};
@@ -172,7 +173,8 @@ mf::SurfaceId msh::SessionManager::create_surface_for(std::shared_ptr<mf::Sessio
 
 void msh::SessionManager::destroy_surface_for(std::shared_ptr<mf::Session> const& session, mf::SurfaceId id)
 {
-    (void) session; (void) id;
-//    auto stack_surface = shell_session->abandon_surface(id);
-//    surface_stack->destroy_surface(stack_surface);
+    auto shell_session = std::dynamic_pointer_cast<Session>(session);
+    auto surface = shell_session->get_surface(id);
+    shell_session->abandon_surface(id);
+    surface_stack->destroy_surface(surface->stack_surface());
 }

@@ -76,6 +76,7 @@ public:
     virtual MirSurfaceType type() const { return mir_surface_type_normal;}
     virtual MirSurfaceState state() const { return mir_surface_state_unknown;}
     virtual void take_input_focus(std::shared_ptr<shell::InputTargeter> const&) {}
+    virtual std::weak_ptr<surfaces::Surface> stack_surface() const { return std::weak_ptr<surfaces::Surface>(); }
 };
 
 }

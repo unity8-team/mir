@@ -85,6 +85,7 @@ public:
     virtual MirSurfaceState state() const;
 
     virtual void take_input_focus(std::shared_ptr<InputTargeter> const& targeter);
+    virtual std::weak_ptr<surfaces::Surface> stack_surface() const;
 
 private:
     bool set_type(MirSurfaceType t);  // Use configure() to make public changes

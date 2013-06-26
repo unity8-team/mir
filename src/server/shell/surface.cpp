@@ -334,3 +334,8 @@ void msh::Surface::take_input_focus(std::shared_ptr<msh::InputTargeter> const& t
     else
         BOOST_THROW_EXCEPTION(std::runtime_error("Invalid surface"));
 }
+
+std::weak_ptr<ms::Surface> msh::Surface::stack_surface() const
+{
+    return surface;
+}

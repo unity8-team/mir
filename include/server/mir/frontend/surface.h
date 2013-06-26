@@ -37,7 +37,10 @@ namespace input
 {
 class InputChannel;
 }
-
+namespace surfaces
+{
+class Surface;
+}
 namespace shell
 {
 class InputTargeter;
@@ -78,6 +81,7 @@ public:
     virtual MirSurfaceType type() const = 0;
     virtual MirSurfaceState state() const = 0;
     virtual void take_input_focus(std::shared_ptr<shell::InputTargeter> const& targeter) = 0;
+    virtual std::weak_ptr<surfaces::Surface> stack_surface() const = 0;
 protected:
     Surface() = default;
     Surface(Surface const&) = delete;
