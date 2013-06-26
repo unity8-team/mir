@@ -129,7 +129,7 @@ TEST_F(ShellSurface, destroy)
     EXPECT_CALL(surface_builder, create_surface(_)).Times(AnyNumber());
     EXPECT_CALL(surface_builder, destroy_surface(_)).Times(0);
 
-    msh::Surface test(
+    msh::Surface surf(
             mt::fake_shared(surface_builder),
             msh::a_surface());
 
@@ -144,6 +144,7 @@ TEST_F(ShellSurface, destroy)
 }
 #endif
 
+#if 0
 TEST_F(ShellSurface, size_throw_behavior)
 {
     msh::Surface test(stub_surface, msh::a_surface());
@@ -152,7 +153,7 @@ TEST_F(ShellSurface, size_throw_behavior)
         test.size();
     });
 
-    surface_builder.reset_surface();
+    stub_surface.reset();
 
     EXPECT_THROW({
         test.size();
@@ -167,7 +168,7 @@ TEST_F(ShellSurface, top_left_throw_behavior)
         test.top_left();
     });
 
-    surface_builder.reset_surface();
+    stub_surface.reset();
 
     EXPECT_THROW({
         test.top_left();
@@ -182,7 +183,7 @@ TEST_F(ShellSurface, name_throw_behavior)
         test.name();
     });
 
-    surface_builder.reset_surface();
+    stub_surface.reset();
 
     EXPECT_THROW({
         test.name();
@@ -197,7 +198,7 @@ TEST_F(ShellSurface, pixel_format_throw_behavior)
         test.pixel_format();
     });
 
-    surface_builder.reset_surface();
+    stub_surface.reset();
 
     EXPECT_THROW({
         test.pixel_format();
@@ -212,7 +213,7 @@ TEST_F(ShellSurface, hide_throw_behavior)
         test.hide();
     });
 
-    surface_builder.reset_surface();
+    stub_surface.reset();
 
     EXPECT_THROW({
         test.hide();
@@ -227,7 +228,7 @@ TEST_F(ShellSurface, show_throw_behavior)
         test.show();
     });
 
-    surface_builder.reset_surface();
+    stub_surface.reset();
 
     EXPECT_THROW({
         test.show();
@@ -242,7 +243,7 @@ TEST_F(ShellSurface, visible_throw_behavior)
         test.visible();
     });
 
-    surface_builder.reset_surface();
+    stub_surface.reset();
 
     EXPECT_THROW({
         test.visible();
@@ -257,7 +258,7 @@ TEST_F(ShellSurface, destroy_throw_behavior)
         test.destroy();
     });
 
-    surface_builder.reset_surface();
+    stub_surface.reset();
 
     EXPECT_NO_THROW({
         test.destroy();
@@ -272,7 +273,7 @@ TEST_F(ShellSurface, force_request_to_complete_throw_behavior)
         test.force_requests_to_complete();
     });
 
-    surface_builder.reset_surface();
+    stub_surface.reset();
 
     EXPECT_NO_THROW({
         test.force_requests_to_complete();
@@ -287,7 +288,7 @@ TEST_F(ShellSurface, advance_client_buffer_throw_behavior)
         test.advance_client_buffer();
     });
 
-    surface_builder.reset_surface();
+    stub_surface.reset();
 
     EXPECT_THROW({
         test.advance_client_buffer();
@@ -298,7 +299,7 @@ TEST_F(ShellSurface, input_fds_throw_behavior)
 {
     msh::Surface test(stub_surface, msh::a_surface());
 
-    surface_builder.reset_surface();
+    stub_surface.reset();
 
     EXPECT_THROW({
             test.server_input_fd();
@@ -310,7 +311,7 @@ TEST_F(ShellSurface, input_fds_throw_behavior)
 
 TEST_F(ShellSurface, attributes)
 {
-    msh::Surface test(stub_surface, msh::a_surface());
+    msh::Surface surf(stub_surface, msh::a_surface());
 
     EXPECT_THROW({
         surf.configure(static_cast<MirSurfaceAttrib>(111), 222);
@@ -319,7 +320,7 @@ TEST_F(ShellSurface, attributes)
 
 TEST_F(ShellSurface, types)
 {
-    msh::Surface test(stub_surface, msh::a_surface());
+    msh::Surface surf(stub_surface, msh::a_surface());
 
     EXPECT_EQ(mir_surface_type_normal, surf.type());
 
@@ -351,7 +352,7 @@ TEST_F(ShellSurface, states)
 {
     using namespace testing;
 
-    msh::Surface test(stub_surface, msh::a_surface());
+    msh::Surface surf(stub_surface, msh::a_surface());
 
     EXPECT_EQ(mir_surface_state_restored, surf.state());
 
@@ -396,7 +397,7 @@ TEST_F(ShellSurface, take_input_focus_throw_behavior)
     using namespace ::testing;
 
     msh::Surface test(stub_surface, msh::a_surface());
-    surface_builder.reset_surface();
+    stub_surface.reset();
 
     mtd::StubInputTargeter targeter;
     
@@ -420,3 +421,4 @@ TEST_F(ShellSurface, with_most_recent_buffer_do_uses_compositor_buffer)
     EXPECT_EQ(surface_builder.stub_buffer_stream()->stub_compositor_buffer.get(),
               buf_ptr);
 }
+#endif
