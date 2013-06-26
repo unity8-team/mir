@@ -45,9 +45,8 @@ namespace mtd = mir::test::doubles;
 
 struct MockShellSession : public msh::Session
 {
-    MOCK_METHOD2(associate_surface, mf::SurfaceId(std::weak_ptr<ms::Surface> const&,
-                                                  std::shared_ptr<mf::Surface> const&));
-    MOCK_METHOD1(disassociate_surface, void(mf::SurfaceId surface));
+    MOCK_METHOD1(adopt_surface, mf::SurfaceId(std::shared_ptr<mf::Surface> const&));
+    MOCK_METHOD1(abandon_surface, void(mf::SurfaceId surface));
     MOCK_CONST_METHOD1(get_surface, std::shared_ptr<mf::Surface>(mf::SurfaceId));
 
     MOCK_CONST_METHOD0(default_surface, std::shared_ptr<mf::Surface>());

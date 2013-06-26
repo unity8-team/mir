@@ -47,9 +47,8 @@ class Session
 public:
     virtual ~Session() {}
 
-    virtual frontend::SurfaceId associate_surface(std::weak_ptr<surfaces::Surface> const& surface,
-        std::shared_ptr<frontend::Surface> const& shell_surface) = 0;
-    virtual void disassociate_surface(frontend::SurfaceId surface) = 0;
+    virtual frontend::SurfaceId adopt_surface(std::shared_ptr<frontend::Surface> const& shell_surface) = 0;
+    virtual void abandon_surface(frontend::SurfaceId surface) = 0;
     virtual std::shared_ptr<Surface> get_surface(SurfaceId surface) const = 0;
 
     virtual std::string name() const = 0;

@@ -116,9 +116,8 @@ TEST_F(SessionManagerSetup, closing_session_removes_surfaces)
 
     auto session = session_manager.open_session("Visual Basic Studio", std::shared_ptr<me::EventSink>());
 
-    std::shared_ptr<ms::Surface> surface;
     std::shared_ptr<msh::Surface> shell_surface;
-    session->associate_surface(surface, shell_surface);
+    session->adopt_surface(shell_surface);
 
     session_manager.close_session(session);
 }

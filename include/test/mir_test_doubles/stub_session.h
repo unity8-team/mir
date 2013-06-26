@@ -30,13 +30,12 @@ namespace doubles
 
 struct StubSession : public frontend::Session
 {
-    frontend::SurfaceId associate_surface(std::weak_ptr<surfaces::Surface> const& /*surface*/,
-        std::shared_ptr<frontend::Surface> const& /*shell_surface*/)
+    frontend::SurfaceId adopt_surface(std::shared_ptr<frontend::Surface> const& /*shell_surface*/)
     {
         return frontend::SurfaceId{0};
     }
 
-    void disassociate_surface(frontend::SurfaceId /*surface*/)
+    void abandon_surface(frontend::SurfaceId /*surface*/)
     {
     }
 

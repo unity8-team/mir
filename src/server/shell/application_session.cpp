@@ -52,14 +52,12 @@ msh::ApplicationSession::~ApplicationSession()
 {
 }
 
-mf::SurfaceId msh::ApplicationSession::associate_surface(std::weak_ptr<ms::Surface> const& surface,
-                                                         std::shared_ptr<mf::Surface> const& shell_surface)
+mf::SurfaceId msh::ApplicationSession::adopt_surface(std::shared_ptr<mf::Surface> const& surface)
 {
     std::unique_lock<std::mutex> lock(surfaces_mutex);
     mf::SurfaceId id{next_surface_id++};
 
-    auto association = std::make_pair(shell_surface, surface);
-    surfaces[id] = association; 
+    surfaces[id] = surface; 
     return id;
 }
 
@@ -77,25 +75,26 @@ std::shared_ptr<mf::Surface> msh::ApplicationSession::get_surface(mf::SurfaceId 
 {
     std::unique_lock<std::mutex> lock(surfaces_mutex);
 
-    return (checked_find(id)->second).first;
+    return checked_find(id)->second;
 }
 
 std::shared_ptr<mf::Surface> msh::ApplicationSession::default_surface() const
 {
     std::unique_lock<std::mutex> lock(surfaces_mutex);
 
+    //TODO: why is this returning a nullptr?
     if (surfaces.size())
-        return (surfaces.begin()->second).first;
+        return surfaces.begin()->second;
     else
         return std::shared_ptr<msh::Surface>();
 }
 
-void msh::ApplicationSession::disassociate_surface(mf::SurfaceId id)
+void msh::ApplicationSession::abandon_surface(mf::SurfaceId id)
 {
     std::unique_lock<std::mutex> lock(surfaces_mutex);
     auto p = checked_find(id);
 
-    (p->second).first->destroy();
+    p->second->destroy();
     surfaces.erase(p);
 }
 
@@ -109,7 +108,7 @@ void msh::ApplicationSession::force_requests_to_complete()
     std::unique_lock<std::mutex> lock(surfaces_mutex);
     for (auto& id_s : surfaces)
     {
-        (id_s.second).first->force_requests_to_complete();
+        id_s.second->force_requests_to_complete();
     }
 }
 
@@ -118,7 +117,7 @@ void msh::ApplicationSession::hide()
     std::unique_lock<std::mutex> lock(surfaces_mutex);
     for (auto& id_s : surfaces)
     {
-        (id_s.second).first->hide();
+        id_s.second->hide();
     }
 }
 
@@ -127,9 +126,7 @@ void msh::ApplicationSession::show()
     std::unique_lock<std::mutex> lock(surfaces_mutex);
     for (auto& id_s : surfaces)
     {
-        std::cout << "OK "<< (id_s.second).first.get() << std::endl;
-        (id_s.second).first->show();
-        printf("D2\n");
+        id_s.second->show();
     }
 }
 
@@ -138,7 +135,7 @@ int msh::ApplicationSession::configure_surface(mf::SurfaceId id,
                                                int value)
 {
     std::unique_lock<std::mutex> lock(surfaces_mutex);
-    std::shared_ptr<mf::Surface> surf((checked_find(id)->second).first);
+    std::shared_ptr<mf::Surface> surf(checked_find(id)->second);
 
     return surf->configure(attrib, value);
 }

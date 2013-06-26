@@ -31,8 +31,6 @@
 #include <cassert>
 #include <algorithm>
 
-
-#include <iostream>
 namespace mf = mir::frontend;
 namespace msh = mir::shell;
 namespace ms = mir::surfaces;
@@ -168,12 +166,9 @@ mf::SurfaceId msh::SessionManager::create_surface_for(std::shared_ptr<mf::Sessio
     auto shell_surface = surface_factory->create_surface(surface, params, 
         mf::SurfaceId{0}, std::shared_ptr<mir::events::EventSink>());
 
-    std::cout << "THINGE " << shell_surface.get() << std::endl;;
-    auto id = shell_session->associate_surface(surface, shell_surface);
+    auto id = shell_session->adopt_surface(shell_surface);
 
-    printf("buoom\n");
     set_focus_to(shell_session);
 
-printf("ok.\n");
     return id;
 }
