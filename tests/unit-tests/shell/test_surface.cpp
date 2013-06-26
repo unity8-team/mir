@@ -144,7 +144,6 @@ TEST_F(ShellSurface, destroy)
 }
 #endif
 
-#if 0
 TEST_F(ShellSurface, size_throw_behavior)
 {
     msh::Surface test(stub_surface, msh::a_surface());
@@ -160,6 +159,7 @@ TEST_F(ShellSurface, size_throw_behavior)
     }, std::runtime_error);
 }
 
+#if 0
 TEST_F(ShellSurface, top_left_throw_behavior)
 {
     msh::Surface test(stub_surface, msh::a_surface());
