@@ -153,7 +153,9 @@ TEST_F(SessionManagerSetup, create_surface_for_session_forwards_and_then_focuses
         InSequence seq;
 
         EXPECT_CALL(focus_setter, set_focus_to(_)).Times(1); // Session creation
-        EXPECT_CALL(surface_stack, create_surface(_,_)).Times(1);
+        EXPECT_CALL(surface_stack, create_surface(_,_))
+            .Times(1)
+            .WillOnce(Return(std::weak_ptr<ms::Surface>()));
         EXPECT_CALL(surface_factory, create_surface(_,_,_)).Times(1);
         EXPECT_CALL(focus_setter, set_focus_to(_)).Times(1); // Post Surface creation
     }
