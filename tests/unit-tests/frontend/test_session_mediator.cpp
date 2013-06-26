@@ -185,26 +185,12 @@ TEST_F(SessionMediatorTest, surface_creation)
 
     mp::ConnectParameters connect_parameters;
     mp::Connection connection;
+    mp::SurfaceParameters request;
+    mp::Surface response;
 
     EXPECT_CALL(*shell, create_surface_for(_,_))
         .Times(1)
-        .WillOnce(Return(mf::SurfaceId{1}))
-
-    mediator.connect(nullptr, &connect_parameters, &connection, null_callback.get());
-        mediator.create_surface(nullptr, &request, &response, null_callback.get());
-    mediator.disconnect(nullptr, nullptr, nullptr, null_callback.get());
-}
-
-TEST_F(SessionMediatorTest, surface_creation)
-{
-    using namespace ::testing;
-
-    mp::ConnectParameters connect_parameters;
-    mp::Connection connection;
-
-    EXPECT_CALL(*shell, create_surface_for(_,_))
-        .Times(1)
-        .WillOnce(Return(mf::SurfaceId{1}))
+        .WillOnce(Return(mf::SurfaceId{1}));
 
     mediator.connect(nullptr, &connect_parameters, &connection, null_callback.get());
         mediator.create_surface(nullptr, &request, &response, null_callback.get());
@@ -217,13 +203,16 @@ TEST_F(SessionMediatorTest, surface_destruction)
 
     mp::ConnectParameters connect_parameters;
     mp::Connection connection;
+    mp::SurfaceParameters request;
+    mp::Surface response;
+    mp::SurfaceId release_request;
 
     EXPECT_CALL(*shell, destroy_surface_for(_,_))
         .Times(1);
 
     mediator.connect(nullptr, &connect_parameters, &connection, null_callback.get());
         mediator.create_surface(nullptr, &request, &response, null_callback.get());
-        mediator.release_surface(nullptr, &request, nullptr, null_callback.get());
+        mediator.release_surface(nullptr, &release_request, nullptr, null_callback.get());
     mediator.disconnect(nullptr, nullptr, nullptr, null_callback.get());
 }
 

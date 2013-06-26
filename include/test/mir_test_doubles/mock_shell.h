@@ -38,6 +38,7 @@ struct MockShell : public frontend::Shell
     MOCK_METHOD1(close_session, void(std::shared_ptr<frontend::Session> const&));
 
     MOCK_METHOD2(create_surface_for, frontend::SurfaceId(std::shared_ptr<frontend::Session> const&, shell::SurfaceCreationParameters const&));
+    MOCK_METHOD2(destroy_surface_for, void(std::shared_ptr<frontend::Session> const&, frontend::SurfaceId));
 };
 
 }

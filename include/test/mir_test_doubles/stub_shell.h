@@ -43,6 +43,9 @@ class StubShell : public frontend::Shell
     {
         return frontend::SurfaceId{0};
     }
+    void destroy_surface_for(std::shared_ptr<frontend::Session> const&, frontend::SurfaceId)
+    {
+    }
 };
 
 }
