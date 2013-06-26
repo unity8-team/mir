@@ -135,17 +135,17 @@ TEST_F(SessionManagerSetup, new_applications_receive_focus)
 TEST_F(SessionManagerSetup, create_surface_for_session_forwards_and_then_focuses_session)
 {
     using namespace ::testing;
-//    ON_CALL(surface_factory, create_surface(_, _, _)).WillByDefault(
-//        Return(std::make_shared<msh::Surface>(
-//            std::shared_ptr<ms::Surface>(),
-//            msh::a_surface())));
+    ON_CALL(surface_factory, create_surface(_, _, _)).WillByDefault(
+        Return(std::make_shared<msh::Surface>(
+            std::shared_ptr<ms::Surface>(),
+            msh::a_surface())));
 
     // Once for session creation and once for surface creation
     {
         InSequence seq;
 
         EXPECT_CALL(focus_setter, set_focus_to(_)).Times(1); // Session creation
-//        EXPECT_CALL(surface_factory, create_surface(_, _, _)).Times(1);
+        EXPECT_CALL(surface_factory, create_surface(_, _, _)).Times(1);
         EXPECT_CALL(focus_setter, set_focus_to(_)).Times(1); // Post Surface creation
     }
 
