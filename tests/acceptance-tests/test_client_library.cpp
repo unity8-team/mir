@@ -391,9 +391,9 @@ TEST_F(DefaultDisplayServerTestFixture, client_event_handler_is_thread_safe)
 
             int surface_id = mir_surface_get_id(surface);
 
+            mir_surface_lock_event_handler(surface);
             MirWaitHandle *w = mir_surface_set_state(surface,
                                                mir_surface_state_fullscreen);
-            mir_surface_lock_event_handler(surface);
             std::this_thread::sleep_for(std::chrono::seconds(3));
             // by now, event_callback is trying to start, but is blocked.
             EXPECT_STREQ("no one", owner);
