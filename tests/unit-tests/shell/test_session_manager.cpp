@@ -32,6 +32,7 @@
 #include "mir_test_doubles/mock_buffer_stream.h"
 #include "mir_test_doubles/mock_surface_factory.h"
 #include "mir_test_doubles/mock_focus_setter.h"
+#include "mir_test_doubles/mock_session.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -133,6 +134,41 @@ TEST_F(SessionManagerSetup, new_applications_receive_focus)
     auto session = session_manager.open_session("Visual Basic Studio", std::shared_ptr<me::EventSink>());
     EXPECT_EQ(session, new_session);
 }
+
+TEST_F(SessionManagerSetup, create_surface_uses_stack_and_shell)
+{
+    using namespace ::testing;
+    auto mock_session = std::make_shared<mtd::MockSession>();
+    auto new_surface = std::make_shared<msh::Surface>(
+                        std::shared_ptr<ms::Surface>(),
+                        msh::a_surface());
+    EXPECT_CALL(surface_stack, create_surface(_,_))
+        .Times(1)
+        .WillOnce(Return(std::weak_ptr<ms::Surface>()));
+    EXPECT_CALL(surface_factory, create_surface(_,_,_,_))
+        .Times(1)
+        .WillOnce(Return(new_surface));
+    EXPECT_CALL(*mock_session, adopt_surface(_))
+        .Times(1);
+
+    session_manager.create_surface_for(mock_session, msh::a_surface());
+}
+
+#if 0
+TEST_F(SessionManagerSetup, destroy_surface_uses_stack_and_shell)
+{
+    using namespace ::testing;
+
+        EXPECT_CALL(surface_stack, destroy_surface(_))
+            .Times(1);
+        EXPECT_CALL(shell, abandon_surface(_,_,_,_)).Times(1);
+    }
+
+    auto session1 = session_manager.open_session("Weather Report", std::shared_ptr<me::EventSink>());
+    auto id = session_manager.create_surface_for(session1, msh::a_surface());
+    session_manager.destroy_surface_for(session1, id);
+}
+#endif
 
 TEST_F(SessionManagerSetup, create_surface_for_session_forwards_and_then_focuses_session)
 {
