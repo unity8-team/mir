@@ -111,11 +111,18 @@ typedef testing::NiceMock<mtd::MockBufferStream> StubBufferStream;
 
 struct ShellSurface : testing::Test
 {
-    std::shared_ptr<ms::Surface> stub_surface;
-
     ShellSurface()
     {
     }
+
+    void SetUp()
+    {
+        stub_buffer_stream = std::make_shared<mtd::StubBufferStream>();
+        stub_surface = std::make_shared<ms::Surface>(msh::a_surface().name, msh::a_surface().top_left, stub_buffer_stream, std::shared_ptr<mi::InputChannel>(), []{});
+    }
+
+    std::shared_ptr<ms::Surface> stub_surface;
+    std::shared_ptr<mtd::StubBufferStream> stub_buffer_stream;
 };
 }
 
@@ -145,7 +152,7 @@ TEST_F(ShellSurface, destroy)
 #endif
 
 TEST_F(ShellSurface, size_throw_behavior)
-{
+{    
     msh::Surface test(stub_surface, msh::a_surface());
 
     EXPECT_NO_THROW({
@@ -159,7 +166,6 @@ TEST_F(ShellSurface, size_throw_behavior)
     }, std::runtime_error);
 }
 
-#if 0
 TEST_F(ShellSurface, top_left_throw_behavior)
 {
     msh::Surface test(stub_surface, msh::a_surface());
@@ -406,6 +412,7 @@ TEST_F(ShellSurface, take_input_focus_throw_behavior)
     }, std::runtime_error);
 }
 
+#if 0
 TEST_F(ShellSurface, with_most_recent_buffer_do_uses_compositor_buffer)
 {
     msh::Surface test(stub_surface, msh::a_surface());
