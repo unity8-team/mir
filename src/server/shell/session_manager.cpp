@@ -170,3 +170,8 @@ mf::SurfaceId msh::SessionManager::create_surface_for(std::shared_ptr<mf::Sessio
 
     return id;
 }
+
+void msh::SessionManager::destroy_surface_for(std::shared_ptr<mf::Session> const& session, mf::SurfaceId id)
+{
+    (void) session; (void) id;
+}

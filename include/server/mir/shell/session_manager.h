@@ -62,6 +62,7 @@ public:
 
     frontend::SurfaceId create_surface_for(std::shared_ptr<frontend::Session> const& session,
                                  SurfaceCreationParameters const& params);
+    void destroy_surface_for(std::shared_ptr<frontend::Session> const& session, frontend::SurfaceId id);
 
     void focus_next();
     std::weak_ptr<Session> focussed_application() const;
