@@ -17,7 +17,6 @@
  */
 
 #include "mir/surfaces/buffer_stream.h"
-#include "mir/surfaces/surface_stack_model.h"
 #include "mir/shell/focus_sequence.h"
 #include "mir/shell/session_manager.h"
 #include "mir/shell/default_session_container.h"
@@ -29,6 +28,7 @@
 #include "mir/surfaces/surface.h"
 
 #include "mir_test/fake_shared.h"
+#include "mir_test_doubles/mock_surface_stack_model.h"
 #include "mir_test_doubles/mock_buffer_stream.h"
 #include "mir_test_doubles/mock_surface_factory.h"
 #include "mir_test_doubles/mock_focus_setter.h"
@@ -47,11 +47,6 @@ namespace mtd = mir::test::doubles;
 
 namespace
 {
-struct MockSurfaceStackModel : public ms::SurfaceStackModel
-{
-    MOCK_METHOD2(create_surface, std::weak_ptr<ms::Surface>(msh::SurfaceCreationParameters const&, ms::DepthId));
-    MOCK_METHOD1(destroy_surface, void(std::weak_ptr<ms::Surface> const& surface));
-};
 
 struct MockSessionContainer : public msh::DefaultSessionContainer
 {
@@ -81,7 +76,7 @@ struct SessionManagerSetup : public testing::Test
     {
     }
 
-    MockSurfaceStackModel surface_stack;
+    mtd::MockSurfaceStackModel surface_stack;
     mtd::MockSurfaceFactory surface_factory;
     testing::NiceMock<MockSessionContainer> container;    // Inelegant but some tests need a stub
     MockFocusSequence focus_sequence;
@@ -189,7 +184,7 @@ struct SessionManagerSessionListenerSetup : public testing::Test
     {
     }
 
-    MockSurfaceStackModel surface_stack;
+    mtd::MockSurfaceStackModel surface_stack;
     mtd::MockSurfaceFactory surface_factory;
     testing::NiceMock<MockSessionContainer> container;    // Inelegant but some tests need a stub
     testing::NiceMock<MockFocusSequence> focus_sequence;

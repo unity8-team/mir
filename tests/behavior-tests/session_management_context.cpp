@@ -31,7 +31,6 @@
 
 #include "mir/shell/surface.h"
 
-#include "mir_test_doubles/stub_surface_builder.h"
 #include "mir_test_doubles/null_gl_context.h"
 #include "mir_test/fake_shared.h"
 
@@ -43,6 +42,7 @@ namespace geom = mir::geometry;
 namespace mt = mir::test;
 namespace mtc = mir::test::cucumber;
 namespace mtd = mir::test::doubles;
+namespace ms = mir::surfaces;
 
 namespace mir
 {
@@ -65,18 +65,18 @@ struct DummySurfaceFactory : public msh::SurfaceFactory
     {
     }
 
-    std::shared_ptr<msh::Surface> create_surface(const msh::SurfaceCreationParameters& params,
+    std::shared_ptr<msh::Surface> create_surface(
+        std::weak_ptr<ms::Surface> const& surface,
+        msh::SurfaceCreationParameters const& params,
         frontend::SurfaceId id,
         std::shared_ptr<events::EventSink> const& sink) override
     {
         return std::make_shared<msh::Surface>(
-            mt::fake_shared(surface_builder),
+            surface,
             params,
             id,
             sink);
     }
-
-    mtd::StubSurfaceBuilder surface_builder;
 };
 
 class SizedDisplay : public mg::Display
@@ -161,7 +161,10 @@ bool mtc::SessionManagementContext::open_window_consuming(std::string const& win
 {
     auto const params = msh::a_surface().of_name(window_name);
     auto session = shell->open_session(window_name, std::shared_ptr<mir::events::EventSink>());
-    auto const surface_id = session->create_surface(params);
+
+    std::shared_ptr<msh::Surface> sh_surface;
+    std::weak_ptr<ms::Surface> surface; 
+    auto const surface_id = session->associate_surface(surface, sh_surface);
 
     open_windows[window_name] = std::make_tuple(session, surface_id);
 
@@ -173,7 +176,9 @@ bool mtc::SessionManagementContext::open_window_with_size(std::string const& win
 {
     auto const params = msh::a_surface().of_name(window_name).of_size(size);
     auto session = shell->open_session(window_name, std::shared_ptr<mir::events::EventSink>());
-    auto const surface_id = session->create_surface(params);
+    std::shared_ptr<msh::Surface> sh_surface;
+    std::weak_ptr<ms::Surface> surface; 
+    auto const surface_id = session->associate_surface(surface, sh_surface);
 
     open_windows[window_name] = std::make_tuple(session, surface_id);
 

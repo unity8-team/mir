@@ -30,6 +30,7 @@
 
 #include "mir_test/gmock_fixes.h"
 #include "mir_test/fake_shared.h"
+#include "mir_test_doubles/mock_surface_stack_model.h"
 #include "mir_test_doubles/mock_surface_factory.h"
 #include "mir_test_doubles/mock_focus_setter.h"
 
@@ -48,6 +49,7 @@ TEST(TestSessionManagerAndFocusSelectionStrategy, cycle_focus)
 {
     using namespace ::testing;
 
+    mtd::MockSurfaceStackModel surface_stack;
     mtd::MockSurfaceFactory surface_factory;
     std::shared_ptr<msh::DefaultSessionContainer> container(new msh::DefaultSessionContainer());
     msh::RegistrationOrderFocusSequence sequence(container);
@@ -56,6 +58,7 @@ TEST(TestSessionManagerAndFocusSelectionStrategy, cycle_focus)
     msh::NullSessionListener session_listener;
 
     msh::SessionManager session_manager(
+            mt::fake_shared(surface_stack),
             mt::fake_shared(surface_factory),
             container,
             mt::fake_shared(sequence),
@@ -91,6 +94,7 @@ TEST(TestSessionManagerAndFocusSelectionStrategy, closing_applications_transfers
 {
     using namespace ::testing;
 
+    mtd::MockSurfaceStackModel surface_stack;
     mtd::MockSurfaceFactory surface_factory;
     std::shared_ptr<msh::DefaultSessionContainer> container(new msh::DefaultSessionContainer());
     msh::RegistrationOrderFocusSequence sequence(container);
@@ -99,6 +103,7 @@ TEST(TestSessionManagerAndFocusSelectionStrategy, closing_applications_transfers
     msh::NullSessionListener session_listener;
 
     msh::SessionManager session_manager(
+            mt::fake_shared(surface_stack),
             mt::fake_shared(surface_factory),
             container,
             mt::fake_shared(sequence),

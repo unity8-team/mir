@@ -136,7 +136,7 @@ TEST_F(SessionManagementContextSetup, get_window_size_queries_surface)
     using namespace ::testing;
 
     mtd::MockSession session;
-    mtd::MockSurface surface(std::make_shared<mtd::StubSurfaceBuilder>());
+    mtd::MockSurface surface;
 
     EXPECT_CALL(shell, open_session(test_window_name, _)).Times(1)
         .WillOnce(Return(mt::fake_shared<mf::Session>(session)));
