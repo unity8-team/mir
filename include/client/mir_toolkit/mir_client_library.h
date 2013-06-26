@@ -136,13 +136,13 @@ MirSurface *mir_connection_create_surface_sync(
 
 /**
  * Set the event handler to be called when events arrive for a surface.
- * \warning Event callbacks are called from a <b>different thread</b>, so if
- *          you don't already have your own locking, you will need to use
- *          mir_surface_lock_event_handler to protect any data shared between
- *          event_handler and your other code.
+ *   \warning Event callbacks are called from a <b>different thread</b>, so if
+ *            you don't already have your own locking, you will need to use
+ *            mir_surface_lock_event_handler to protect any data shared between
+ *            event_handler and your other code.
  *   \param [in] surface        The surface
  *   \param [in] event_handler  The event handler to call
- *
+ *   \post                      The old event handler (if any) has returned
  */
 void mir_surface_set_event_handler(MirSurface *surface,
                                    MirEventDelegate const *event_handler);

@@ -306,6 +306,8 @@ void MirSurface::set_event_handler(MirEventDelegate const* delegate)
         input_thread = nullptr;
     }
 
+    lock_event_handler();  // can only block if the user still owns it
+
     event_delegate = delegate;  // can be NULL, to remove the handler
 
     if (delegate && surface.fd_size() > 0)
@@ -318,6 +320,8 @@ void MirSurface::set_event_handler(MirEventDelegate const* delegate)
                                                         handle_event_callback);
         input_thread->start();
     }
+
+    unlock_event_handler();
 }
 
 void MirSurface::lock_event_handler()

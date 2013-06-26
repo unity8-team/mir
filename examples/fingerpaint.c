@@ -314,10 +314,8 @@ int main(int argc, char *argv[])
             }
 
             /* Ensure canvas won't be used after it's freed */
-            mir_surface_lock_event_handler(surf);
             mir_surface_set_event_handler(surf, NULL);
             free(canvas.vaddr);
-            mir_surface_unlock_event_handler(surf);
         }
         else
         {
