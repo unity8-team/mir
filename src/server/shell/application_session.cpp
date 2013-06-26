@@ -79,7 +79,7 @@ std::shared_ptr<mf::Surface> msh::ApplicationSession::get_surface(mf::SurfaceId 
     return (checked_find(id)->second).first;
 }
 
-std::shared_ptr<frontend::Surface> msh::ApplicationSession::default_surface() const
+std::shared_ptr<mf::Surface> msh::ApplicationSession::default_surface() const
 {
     std::unique_lock<std::mutex> lock(surfaces_mutex);
 
@@ -135,7 +135,7 @@ int msh::ApplicationSession::configure_surface(mf::SurfaceId id,
                                                int value)
 {
     std::unique_lock<std::mutex> lock(surfaces_mutex);
-    std::shared_ptr<msh::Surface> surf((checked_find(id)->second).first);
+    std::shared_ptr<mf::Surface> surf((checked_find(id)->second).first);
 
     return surf->configure(attrib, value);
 }

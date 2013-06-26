@@ -24,9 +24,12 @@
 namespace mir
 {
 
-namespace shell
+namespace frontend
 {
 class Surface;
+}
+namespace shell
+{
 
 class Session : public frontend::Session
 {
@@ -34,7 +37,7 @@ public:
     virtual std::string name() const = 0;
     virtual void force_requests_to_complete() = 0;
 
-    virtual std::shared_ptr<Surface> default_surface() const = 0;
+    virtual std::shared_ptr<frontend::Surface> default_surface() const = 0;
 };
 
 }

@@ -66,7 +66,6 @@ TEST(ApplicationSession, default_surface_is_first_surface)
     using namespace ::testing;
 
     std::shared_ptr<ms::Surface> stub_ms_surface;
-    std::shared_ptr<msh::Surface> surface;
 //    mtd::MockSurfaceFactory surface_factory;
 //    mtd::StubSurfaceBuilder surface_builder;
 #if 0
@@ -83,12 +82,11 @@ TEST(ApplicationSession, default_surface_is_first_surface)
     msh::ApplicationSession app_session("Foo");
 
     auto surface1 = std::make_shared<mtd::StubSurface>();
-//    auto surface2 = std::make_shared<mtd::StubSurface>();
-//    auto surface3 = std::make_shared<mtd::StubSurface>();
+    auto surface2 = std::make_shared<mtd::StubSurface>();
+    auto surface3 = std::make_shared<mtd::StubSurface>();
     auto id1 = app_session.associate_surface(stub_ms_surface, surface1);
-    auto id2 = app_session.associate_surface(stub_ms_surface, surface);
-    auto id3 = app_session.associate_surface(stub_ms_surface, surface);
-#if 0
+    auto id2 = app_session.associate_surface(stub_ms_surface, surface2);
+    auto id3 = app_session.associate_surface(stub_ms_surface, surface3);
     EXPECT_EQ(app_session.get_surface(id1), surface1);
     EXPECT_EQ(app_session.get_surface(id2), surface2);
     EXPECT_EQ(app_session.get_surface(id3), surface3);
@@ -97,14 +95,13 @@ TEST(ApplicationSession, default_surface_is_first_surface)
     EXPECT_EQ(surface1, default_surf);
     app_session.disassociate_surface(id1);
 
-    auto default_surf = app_session.default_surface();
+    default_surf = app_session.default_surface();
     EXPECT_EQ(surface2, default_surf);
     app_session.disassociate_surface(id2);
 
-    auto default_surf = app_session.default_surface();
+    default_surf = app_session.default_surface();
     EXPECT_EQ(surface3, default_surf);
     app_session.disassociate_surface(id3);
-#endif
 }
 
 #if 0
