@@ -31,7 +31,6 @@
 #include "mir_test_doubles/mock_buffer_stream.h"
 #include "mir_test_doubles/mock_surface_factory.h"
 #include "mir_test_doubles/mock_focus_setter.h"
-#include "mir_test_doubles/stub_surface_builder.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -104,14 +103,6 @@ TEST_F(SessionManagerSetup, closing_session_removes_surfaces)
 {
     using namespace ::testing;
 
-    EXPECT_CALL(surface_factory, create_surface(_, _, _))
-        .Times(1)
-        .WillOnce(
-           Return(std::make_shared<msh::Surface>(
-                   std::shared_ptr<ms::Surface>(),
-                   msh::a_surface())));
-
-
     EXPECT_CALL(container, insert_session(_)).Times(1);
     EXPECT_CALL(container, remove_session(_)).Times(1);
 
@@ -121,7 +112,10 @@ TEST_F(SessionManagerSetup, closing_session_removes_surfaces)
     EXPECT_CALL(focus_sequence, default_focus()).WillOnce(Return((std::shared_ptr<msh::Session>())));
 
     auto session = session_manager.open_session("Visual Basic Studio", std::shared_ptr<me::EventSink>());
-    //kdub -> session->create_surface(msh::a_surface().of_size(geom::Size{geom::Width{1024}, geom::Height{768}}));
+
+    std::shared_ptr<ms::Surface> surface;
+    std::shared_ptr<msh::Surface> shell_surface;
+    session->associate_surface(surface, shell_surface);
 
     session_manager.close_session(session);
 }
@@ -182,7 +176,6 @@ struct SessionManagerSessionListenerSetup : public testing::Test
     {
     }
 
-    mtd::StubSurfaceBuilder surface_builder;
     mtd::MockSurfaceFactory surface_factory;
     testing::NiceMock<MockSessionContainer> container;    // Inelegant but some tests need a stub
     testing::NiceMock<MockFocusSequence> focus_sequence;
