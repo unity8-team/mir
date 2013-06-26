@@ -396,6 +396,7 @@ mir::DefaultServerConfiguration::the_session_manager()
         [this]() -> std::shared_ptr<msh::SessionManager>
         {
             return std::make_shared<msh::SessionManager>(
+                the_surface_stack_model(),
                 the_shell_surface_factory(),
                 the_shell_session_container(),
                 the_shell_focus_sequence(),

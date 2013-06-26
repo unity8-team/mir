@@ -30,6 +30,10 @@
 namespace mir
 {
 
+namespace surfaces
+{
+class SurfaceStackModel;
+}
 /// Management of sessions and surfaces
 namespace shell
 {
@@ -45,7 +49,8 @@ struct SurfaceCreationParameters;
 class SessionManager : public frontend::Shell, public shell::FocusController
 {
 public:
-    explicit SessionManager(std::shared_ptr<SurfaceFactory> const& surface_factory,
+    explicit SessionManager(std::shared_ptr<surfaces::SurfaceStackModel> const& surface_stack,
+                            std::shared_ptr<SurfaceFactory> const& surface_factory,
                             std::shared_ptr<SessionContainer> const& app_container,
                             std::shared_ptr<FocusSequence> const& focus_sequence,
                             std::shared_ptr<FocusSetter> const& focus_setter,
@@ -67,6 +72,7 @@ protected:
     SessionManager& operator=(const SessionManager&) = delete;
 
 private:
+    std::shared_ptr<surfaces::SurfaceStackModel> const surface_stack;
     std::shared_ptr<SurfaceFactory> const surface_factory;
     std::shared_ptr<SessionContainer> const app_container;
     std::shared_ptr<FocusSequence> const focus_sequence;

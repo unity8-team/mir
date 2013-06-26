@@ -32,12 +32,16 @@
 
 namespace mf = mir::frontend;
 namespace msh = mir::shell;
+namespace ms = mir::surfaces;
 
-msh::SessionManager::SessionManager(std::shared_ptr<msh::SurfaceFactory> const& surface_factory,
+msh::SessionManager::SessionManager(
+    std::shared_ptr<ms::SurfaceStackModel> const& surface_stack,
+    std::shared_ptr<msh::SurfaceFactory> const& surface_factory,
     std::shared_ptr<msh::SessionContainer> const& container,
     std::shared_ptr<msh::FocusSequence> const& sequence,
     std::shared_ptr<msh::FocusSetter> const& focus_setter,
     std::shared_ptr<msh::SessionListener> const& session_listener) :
+    surface_stack(surface_stack),
     surface_factory(surface_factory),
     app_container(container),
     focus_sequence(sequence),
