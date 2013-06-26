@@ -42,6 +42,7 @@ struct SurfaceCreationParameters;
 class Surface : public frontend::Surface
 {
 public:
+    /* TODO: (kdub) consolidate these constructors. the sink can be in the Session */
     Surface(
         std::weak_ptr<surfaces::Surface> const& surface,
         SurfaceCreationParameters const& params);
