@@ -74,7 +74,6 @@ struct SessionManagerSetup : public testing::Test
     {
     }
 
-    mtd::StubSurfaceBuilder surface_builder;
     mtd::MockSurfaceFactory surface_factory;
     testing::NiceMock<MockSessionContainer> container;    // Inelegant but some tests need a stub
     MockFocusSequence focus_sequence;
@@ -109,7 +108,7 @@ TEST_F(SessionManagerSetup, closing_session_removes_surfaces)
         .Times(1)
         .WillOnce(
            Return(std::make_shared<msh::Surface>(
-                   mt::fake_shared(surface_builder),
+                   std::shared_ptr<ms::Surface>(),
                    msh::a_surface())));
 
 
@@ -144,7 +143,7 @@ TEST_F(SessionManagerSetup, create_surface_for_session_forwards_and_then_focuses
     using namespace ::testing;
 //    ON_CALL(surface_factory, create_surface(_, _, _)).WillByDefault(
 //        Return(std::make_shared<msh::Surface>(
-//            mt::fake_shared(surface_builder),
+//            std::shared_ptr<ms::Surface>(),
 //            msh::a_surface())));
 
     // Once for session creation and once for surface creation
