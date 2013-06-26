@@ -90,7 +90,6 @@ TEST(SingleVisibilityFocusMechanism, mechanism_sets_visibility)
 
     focus_mechanism.set_focus_to(mt::fake_shared(app1));
 }
-#if 0
 
 TEST(SingleVisibilityFocusMechanism, sets_input_focus)
 {
@@ -126,4 +125,3 @@ TEST(SingleVisibilityFocusMechanism, sets_input_focus)
     focus_mechanism.set_focus_to(mt::fake_shared(app1));
     focus_mechanism.set_focus_to(std::shared_ptr<msh::Session>());
 }
-#endif
