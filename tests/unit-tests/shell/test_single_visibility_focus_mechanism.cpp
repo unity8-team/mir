@@ -29,6 +29,7 @@
 #include "mir_test_doubles/mock_surface_factory.h"
 #include "mir_test_doubles/stub_surface.h"
 #include "mir_test_doubles/mock_surface.h"
+#include "mir_test_doubles/mock_shell_session.h"
 #include "mir_test_doubles/stub_input_targeter.h"
 #include "mir_test_doubles/mock_input_targeter.h"
 
@@ -43,28 +44,12 @@ namespace mf = mir::frontend;
 namespace mt = mir::test;
 namespace mtd = mir::test::doubles;
 
-struct MockShellSession : public msh::Session
-{
-    MOCK_METHOD1(adopt_surface, mf::SurfaceId(std::shared_ptr<mf::Surface> const&));
-    MOCK_METHOD1(abandon_surface, void(mf::SurfaceId surface));
-    MOCK_CONST_METHOD1(get_surface, std::shared_ptr<mf::Surface>(mf::SurfaceId));
-
-    MOCK_CONST_METHOD0(default_surface, std::shared_ptr<mf::Surface>());
-
-    MOCK_CONST_METHOD0(name, std::string());
-    MOCK_METHOD0(force_requests_to_complete, void());
-
-    MOCK_METHOD0(hide, void());
-    MOCK_METHOD0(show, void());
-
-    MOCK_METHOD3(configure_surface, int(mf::SurfaceId, MirSurfaceAttrib, int));
-};
 
 TEST(SingleVisibilityFocusMechanism, mechanism_sets_visibility)
 {
     using namespace ::testing;
 
-    NiceMock<MockShellSession> app1, app2, app3;
+    NiceMock<mtd::MockShellSession> app1, app2, app3;
     msh::DefaultSessionContainer model;
 
     ON_CALL(app1, default_surface()).WillByDefault(Return(std::shared_ptr<msh::Surface>()));
@@ -93,7 +78,7 @@ TEST(SingleVisibilityFocusMechanism, sets_input_focus)
 {
     using namespace ::testing;
     
-    NiceMock<MockShellSession> app1;
+    NiceMock<mtd::MockShellSession> app1;
     mtd::MockSurface mock_surface;
     {
         InSequence seq;

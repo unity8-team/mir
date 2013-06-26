@@ -173,4 +173,6 @@ mf::SurfaceId msh::SessionManager::create_surface_for(std::shared_ptr<mf::Sessio
 void msh::SessionManager::destroy_surface_for(std::shared_ptr<mf::Session> const& session, mf::SurfaceId id)
 {
     (void) session; (void) id;
+//    auto stack_surface = shell_session->abandon_surface(id);
+//    surface_stack->destroy_surface(stack_surface);
 }

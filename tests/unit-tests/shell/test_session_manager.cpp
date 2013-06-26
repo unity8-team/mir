@@ -32,7 +32,7 @@
 #include "mir_test_doubles/mock_buffer_stream.h"
 #include "mir_test_doubles/mock_surface_factory.h"
 #include "mir_test_doubles/mock_focus_setter.h"
-#include "mir_test_doubles/mock_session.h"
+#include "mir_test_doubles/mock_shell_session.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -138,7 +138,8 @@ TEST_F(SessionManagerSetup, new_applications_receive_focus)
 TEST_F(SessionManagerSetup, create_surface_uses_stack_and_shell)
 {
     using namespace ::testing;
-    auto mock_session = std::make_shared<mtd::MockSession>();
+    auto mock_session = std::make_shared<mtd::MockShellSession>();
+
     auto new_surface = std::make_shared<msh::Surface>(
                         std::shared_ptr<ms::Surface>(),
                         msh::a_surface());
@@ -149,7 +150,8 @@ TEST_F(SessionManagerSetup, create_surface_uses_stack_and_shell)
         .Times(1)
         .WillOnce(Return(new_surface));
     EXPECT_CALL(*mock_session, adopt_surface(_))
-        .Times(1);
+        .Times(1)
+        .WillOnce(Return(mf::SurfaceId{0}));
 
     session_manager.create_surface_for(mock_session, msh::a_surface());
 }
@@ -157,13 +159,14 @@ TEST_F(SessionManagerSetup, create_surface_uses_stack_and_shell)
 TEST_F(SessionManagerSetup, destroy_surface_uses_stack_and_shell)
 {
     using namespace ::testing;
-    auto mock_session = std::make_shared<mtd::MockSession>();
+    auto mock_session = std::make_shared<mtd::MockShellSession>();
     auto new_surface = std::make_shared<msh::Surface>(
                         std::shared_ptr<ms::Surface>(),
                         msh::a_surface());
-    EXPECT_CALL(surface_stack, destroy_surface(_))
-        .Times(1);
+
     EXPECT_CALL(*mock_session, abandon_surface(_))
+        .Times(1);
+    EXPECT_CALL(surface_stack, destroy_surface(_))
         .Times(1);
 
     auto id = session_manager.create_surface_for(mock_session, msh::a_surface());

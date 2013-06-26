@@ -38,28 +38,20 @@ namespace mi = mir::input;
 namespace mt = mir::test;
 namespace mtd = mir::test::doubles;
 
-#if 0
-TEST(ApplicationSession, create_and_destroy_surface)
+TEST(ApplicationSession, adopt_and_abandon_surface)
 {
-    using namespace ::testing;
+    msh::ApplicationSession session("Foo");
 
-    mtd::StubSurfaceBuilder surface_builder;
-    auto const mock_surface = std::make_shared<mtd::MockSurface>(mt::fake_shared(surface_builder));
+    auto surface1 = std::make_shared<mtd::StubSurface>();
+    auto surface2 = std::make_shared<mtd::StubSurface>();
 
-    mtd::MockSurfaceFactory surface_factory;
-    ON_CALL(surface_factory, create_surface(_, _, _)).WillByDefault(Return(mock_surface));
+    auto id1 = session.adopt_surface(surface1);
+    auto id2 = session.adopt_surface(surface1);
 
-    EXPECT_CALL(surface_factory, create_surface(_, _, _));
-    EXPECT_CALL(*mock_surface, destroy());
-
-    msh::ApplicationSession session(mt::fake_shared(surface_factory), "Foo");
-
-    msh::SurfaceCreationParameters params;
-    auto surf = session.create_surface(params);
-
-    session.destroy_surface(surf);
+    EXPECT_EQ(surface2, session.abandon_surface(id2);
+    EXPECT_EQ(surface1, session.abandon_surface(id1);
 }
-#endif
+
 TEST(ApplicationSession, default_surface_is_first_surface)
 {
     msh::ApplicationSession app_session("Foo");
