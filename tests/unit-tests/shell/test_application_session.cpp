@@ -62,45 +62,29 @@ TEST(ApplicationSession, create_and_destroy_surface)
 #endif
 TEST(ApplicationSession, default_surface_is_first_surface)
 {
-    using namespace ::testing;
-
-    std::shared_ptr<ms::Surface> stub_ms_surface;
-//    mtd::MockSurfaceFactory surface_factory;
-//    mtd::StubSurfaceBuilder surface_builder;
-#if 0
-    {
-        InSequence seq;
-        EXPECT_CALL(surface_factory, create_surface(_, _, _)).Times(1)
-            .WillOnce(Return(std::make_shared<NiceMock<mtd::MockSurface>>(mt::fake_shared(surface_builder))));
-        EXPECT_CALL(surface_factory, create_surface(_, _, _)).Times(1)
-            .WillOnce(Return(std::make_shared<NiceMock<mtd::MockSurface>>(mt::fake_shared(surface_builder))));
-        EXPECT_CALL(surface_factory, create_surface(_, _, _)).Times(1)
-            .WillOnce(Return(std::make_shared<NiceMock<mtd::MockSurface>>(mt::fake_shared(surface_builder))));
-    }
-#endif
     msh::ApplicationSession app_session("Foo");
 
     auto surface1 = std::make_shared<mtd::StubSurface>();
     auto surface2 = std::make_shared<mtd::StubSurface>();
     auto surface3 = std::make_shared<mtd::StubSurface>();
-    auto id1 = app_session.associate_surface(stub_ms_surface, surface1);
-    auto id2 = app_session.associate_surface(stub_ms_surface, surface2);
-    auto id3 = app_session.associate_surface(stub_ms_surface, surface3);
+    auto id1 = app_session.adopt_surface(surface1);
+    auto id2 = app_session.adopt_surface(surface2);
+    auto id3 = app_session.adopt_surface(surface3);
     EXPECT_EQ(app_session.get_surface(id1), surface1);
     EXPECT_EQ(app_session.get_surface(id2), surface2);
     EXPECT_EQ(app_session.get_surface(id3), surface3);
 
     auto default_surf = app_session.default_surface();
     EXPECT_EQ(surface1, default_surf);
-    app_session.disassociate_surface(id1);
+    app_session.abandon_surface(id1);
 
     default_surf = app_session.default_surface();
     EXPECT_EQ(surface2, default_surf);
-    app_session.disassociate_surface(id2);
+    app_session.abandon_surface(id2);
 
     default_surf = app_session.default_surface();
     EXPECT_EQ(surface3, default_surf);
-    app_session.disassociate_surface(id3);
+    app_session.abandon_surface(id3);
 }
 
 #if 0
