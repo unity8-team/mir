@@ -553,22 +553,22 @@ mir::DefaultServerConfiguration::the_shell_surface_factory()
     return shell_surface_factory(
         [this]()
         {
-            auto surface_source = std::make_shared<msh::SurfaceSource>(
-                the_surface_builder());
-
+            auto surface_source = std::make_shared<msh::SurfaceSource>();
             return std::make_shared<msh::OrganisingSurfaceFactory>(
                 surface_source,
                 the_shell_placement_strategy());
         });
 }
 
+
+//TODO REMOVE
 std::shared_ptr<msh::SurfaceBuilder>
 mir::DefaultServerConfiguration::the_surface_builder()
 {
     return surface_controller(
         [this]()
         {
-            return std::make_shared<ms::SurfaceController>(the_surface_stack_model());
+            return std::shared_ptr<ms::SurfaceController>();
         });
 }
 
