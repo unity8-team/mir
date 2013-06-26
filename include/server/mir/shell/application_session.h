@@ -33,6 +33,10 @@ namespace surfaces
 {
 class Surface;
 }
+namespace frontend
+{
+class Surface;
+}
 namespace shell
 {
 class SurfaceFactory;
@@ -51,7 +55,7 @@ public:
 
     /* hodge-podge */
     frontend::SurfaceId associate_surface(std::weak_ptr<surfaces::Surface> const& surface,
-                                          std::shared_ptr<shell::Surface> const& shell_surface);
+                                          std::shared_ptr<frontend::Surface> const& shell_surface);
     void disassociate_surface(frontend::SurfaceId surface);
 
     //triggers state change in ms::Surface
@@ -65,7 +69,7 @@ public:
     /* msh::Session */
     std::string name() const;
     void force_requests_to_complete();
-    std::shared_ptr<Surface> default_surface() const;
+    std::shared_ptr<frontend::Surface> default_surface() const;
 
 protected:
     ApplicationSession(ApplicationSession const&) = delete;
@@ -76,7 +80,7 @@ private:
     std::string const session_name;
     std::shared_ptr<events::EventSink> const event_sink;
 
-    typedef std::pair<std::shared_ptr<shell::Surface>,
+    typedef std::pair<std::shared_ptr<frontend::Surface>,
                       std::weak_ptr<surfaces::Surface>> SurfaceAssociation; 
     typedef std::map<frontend::SurfaceId, SurfaceAssociation> Surfaces;
     std::mutex mutable surfaces_mutex;

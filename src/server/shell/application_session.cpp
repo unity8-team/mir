@@ -52,7 +52,7 @@ msh::ApplicationSession::~ApplicationSession()
 }
 
 mf::SurfaceId msh::ApplicationSession::associate_surface(std::weak_ptr<ms::Surface> const& surface,
-                                                         std::shared_ptr<msh::Surface> const& shell_surface)
+                                                         std::shared_ptr<mf::Surface> const& shell_surface)
 {
     std::unique_lock<std::mutex> lock(surfaces_mutex);
     mf::SurfaceId id{next_surface_id++};
@@ -79,7 +79,7 @@ std::shared_ptr<mf::Surface> msh::ApplicationSession::get_surface(mf::SurfaceId 
     return (checked_find(id)->second).first;
 }
 
-std::shared_ptr<msh::Surface> msh::ApplicationSession::default_surface() const
+std::shared_ptr<frontend::Surface> msh::ApplicationSession::default_surface() const
 {
     std::unique_lock<std::mutex> lock(surfaces_mutex);
 

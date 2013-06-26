@@ -66,6 +66,16 @@ public:
     {
         return 0;
     }
+
+    virtual bool visible() {return true;}
+    virtual std::string name() const {return std::string("a");}
+    virtual void move_to(geometry::Point const&) {}
+    virtual geometry::Point top_left() const { return geometry::Point{geometry::X{4}, geometry::Y{3}}; }
+    virtual void with_most_recent_buffer_do(std::function<void(compositor::Buffer&)> const&) {}
+    virtual int server_input_fd() const { return 5;}
+    virtual MirSurfaceType type() const { return mir_surface_type_normal;}
+    virtual MirSurfaceState state() const { return mir_surface_state_unknown;}
+    virtual void take_input_focus(std::shared_ptr<shell::InputTargeter> const&) {}
 };
 
 }
