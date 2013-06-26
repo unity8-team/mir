@@ -35,12 +35,13 @@ msh::OrganisingSurfaceFactory::~OrganisingSurfaceFactory()
 }
 
 std::shared_ptr<msh::Surface> msh::OrganisingSurfaceFactory::create_surface(
+    std::weak_ptr<surfaces::Surface> const& surface,
     shell::SurfaceCreationParameters const& params,
     frontend::SurfaceId id,
     std::shared_ptr<events::EventSink> const& sink)
 {
     auto placed_params = placement_strategy->place(params);
 
-    return underlying_factory->create_surface(placed_params, id, sink);
+    return underlying_factory->create_surface(surface, placed_params, id, sink);
 }
 

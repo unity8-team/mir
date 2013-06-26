@@ -31,6 +31,8 @@
 #include <cassert>
 #include <algorithm>
 
+
+#include <iostream>
 namespace mf = mir::frontend;
 namespace msh = mir::shell;
 namespace ms = mir::surfaces;
@@ -93,10 +95,12 @@ std::shared_ptr<mf::Session> msh::SessionManager::open_session(
 
 inline void msh::SessionManager::set_focus_to_locked(std::unique_lock<std::mutex> const&, std::shared_ptr<Session> const& shell_session)
 {
+printf("hmm.\n");
     auto old_focus = focus_application.lock();
 
     focus_application = shell_session;
 
+printf("humm.\n");
     focus_setter->set_focus_to(shell_session);
     if (shell_session)
     {
@@ -106,6 +110,7 @@ inline void msh::SessionManager::set_focus_to_locked(std::unique_lock<std::mutex
     {
         session_listener->unfocused();
     }
+printf("humm.\n");
 }
 
 void msh::SessionManager::set_focus_to(std::shared_ptr<Session> const& shell_session)
@@ -160,11 +165,15 @@ mf::SurfaceId msh::SessionManager::create_surface_for(std::shared_ptr<mf::Sessio
 
     static ms::DepthId const default_surface_depth{0};
     auto surface = surface_stack->create_surface(params, default_surface_depth);
-    auto shell_surface = surface_factory->create_surface(params, 
+    auto shell_surface = surface_factory->create_surface(surface, params, 
         mf::SurfaceId{0}, std::shared_ptr<mir::events::EventSink>());
+
+    std::cout << "THINGE " << shell_surface.get() << std::endl;;
     auto id = shell_session->associate_surface(surface, shell_surface);
 
+    printf("buoom\n");
     set_focus_to(shell_session);
 
+printf("ok.\n");
     return id;
 }

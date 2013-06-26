@@ -29,7 +29,7 @@ namespace msh = mir::shell;
 namespace mi = mir::input;
 namespace mf = mir::frontend;
 
-
+//TODO WRONG DEPENDENCY
 msh::SurfaceSource::SurfaceSource(std::shared_ptr<SurfaceBuilder> const& surface_builder)
     : surface_builder(surface_builder)
 {
@@ -37,17 +37,14 @@ msh::SurfaceSource::SurfaceSource(std::shared_ptr<SurfaceBuilder> const& surface
 }
 
 std::shared_ptr<msh::Surface> msh::SurfaceSource::create_surface(
-    shell::SurfaceCreationParameters const& /*params*/,
-    frontend::SurfaceId /*id*/,
-    std::shared_ptr<events::EventSink> const& /*sink*/)
+    std::weak_ptr<ms::Surface> const& surface,
+    shell::SurfaceCreationParameters const& params,
+    frontend::SurfaceId id,
+    std::shared_ptr<events::EventSink> const& sink)
 {
-    return std::shared_ptr<Surface>();
-#if 0
     return std::make_shared<Surface>(
-        surface_builder,
+        surface,
         params,
         id,
         sink);
-#endif
 }
-

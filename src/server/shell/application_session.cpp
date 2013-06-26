@@ -22,6 +22,7 @@
 
 #include <boost/throw_exception.hpp>
 
+#include <iostream>
 #include <stdexcept>
 #include <memory>
 #include <cassert>
@@ -54,11 +55,13 @@ msh::ApplicationSession::~ApplicationSession()
 mf::SurfaceId msh::ApplicationSession::associate_surface(std::weak_ptr<ms::Surface> const& surface,
                                                          std::shared_ptr<mf::Surface> const& shell_surface)
 {
+printf("okay.\n");
     std::unique_lock<std::mutex> lock(surfaces_mutex);
     mf::SurfaceId id{next_surface_id++};
 
     auto association = std::make_pair(shell_surface, surface);
     surfaces[id] = association; 
+printf("zokay.\n");
     return id;
 }
 
@@ -126,7 +129,9 @@ void msh::ApplicationSession::show()
     std::unique_lock<std::mutex> lock(surfaces_mutex);
     for (auto& id_s : surfaces)
     {
+        std::cout << "OK "<< (id_s.second).first.get() << std::endl;
         (id_s.second).first->show();
+        printf("D2\n");
     }
 }
 

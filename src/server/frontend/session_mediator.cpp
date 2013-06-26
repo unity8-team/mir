@@ -147,6 +147,7 @@ void mf::SessionMediator::create_surface(
         client_tracker->add(id);
     }
 
+    printf("done...\n");
     done->Run();
 }
 

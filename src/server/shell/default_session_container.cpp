@@ -32,6 +32,7 @@ void msh::DefaultSessionContainer::insert_session(std::shared_ptr<Session> const
 {
     std::unique_lock<std::mutex> lk(guard);
 
+    printf("INSERT SESSION\n");
     apps.push_back(session);
 }
 
@@ -43,19 +44,24 @@ void msh::DefaultSessionContainer::remove_session(std::shared_ptr<Session> const
     if (it != apps.end())
     {
         apps.erase(it);
+    printf("REMOVE SESSION\n");
     }
     else
     {
+    printf("THROWINSERT SESSION\n");
         BOOST_THROW_EXCEPTION(std::logic_error("Invalid Session"));
     }
 }
 
 void msh::DefaultSessionContainer::for_each(std::function<void(std::shared_ptr<Session> const&)> f) const
 {
+    printf("b1\n");
     std::unique_lock<std::mutex> lk(guard);
+    printf("b2\n");
 
     for (auto const ptr : apps)
     {
         f(ptr);
     }
+    printf("b1\n");
 }

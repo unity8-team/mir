@@ -29,6 +29,10 @@ namespace events
 class EventSink;
 }
 
+namespace surfaces
+{
+class Surface;
+}
 namespace shell
 {
 class Surface;
@@ -38,6 +42,7 @@ class SurfaceFactory
 {
 public:
     virtual std::shared_ptr<Surface> create_surface(
+        std::weak_ptr<surfaces::Surface> const& surface,
         SurfaceCreationParameters const& params,
         frontend::SurfaceId id,
         std::shared_ptr<events::EventSink> const& sink) = 0;

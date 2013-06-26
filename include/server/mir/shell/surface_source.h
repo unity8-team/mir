@@ -37,6 +37,7 @@ public:
     virtual ~SurfaceSource() {}
 
     std::shared_ptr<Surface> create_surface(
+        std::weak_ptr<surfaces::Surface> const& surface,
         shell::SurfaceCreationParameters const& params,
         frontend::SurfaceId id,
         std::shared_ptr<events::EventSink> const& sink);

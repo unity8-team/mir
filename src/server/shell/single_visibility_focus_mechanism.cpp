@@ -36,24 +36,31 @@ msh::SingleVisibilityFocusMechanism::SingleVisibilityFocusMechanism(std::shared_
 void msh::SingleVisibilityFocusMechanism::set_focus_to(std::shared_ptr<Session> const& focus_session)
 {
     bool set_input_focus = false;
+printf("a1\n");
     app_container->for_each(
         [&](std::shared_ptr<mf::Session> const& session) {
         if (session == focus_session)
         {
+            printf("C1\n");
             auto surface = focus_session->default_surface();
+            printf("C2\n");
             if (surface)
             {
                 surface->take_input_focus(input_targeter);
                 set_input_focus = true;
             }
+            printf("C4\n");
             session->show();
+            printf("C5\n");
         }
         else
         {
+            printf("C3\n");
             session->hide();
         }
     });
 
+printf("a\n");
     if (set_input_focus == false)
         input_targeter->focus_cleared();
 }

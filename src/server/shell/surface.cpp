@@ -68,24 +68,28 @@ msh::Surface::~Surface()
 
 void msh::Surface::hide()
 {
+    printf("HID.\n");
     if (auto const& s = surface.lock())
     {
         s->set_hidden(true);
     }
     else
     {
+    printf("ENDSHOW.\n");
         BOOST_THROW_EXCEPTION(std::runtime_error("Invalid surface"));
     }
 }
 
 void msh::Surface::show()
 {
+    printf("SHOW.\n");
     if (auto const& s = surface.lock())
     {
         s->set_hidden(false);
     }
     else
     {
+    printf("ENDSHOW.\n");
         BOOST_THROW_EXCEPTION(std::runtime_error("Invalid surface"));
     }
 }

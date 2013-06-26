@@ -94,6 +94,7 @@ std::weak_ptr<ms::Surface> ms::SurfaceStack::create_surface(const shell::Surface
 
     emit_change_notification();
 
+printf("created.\n");
     return surface;
 }
 
