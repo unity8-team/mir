@@ -412,7 +412,7 @@ TEST_F(ShellSurface, take_input_focus_throw_behavior)
     }, std::runtime_error);
 }
 
-#if 0
+#if 1
 TEST_F(ShellSurface, with_most_recent_buffer_do_uses_compositor_buffer)
 {
     msh::Surface test(stub_surface, msh::a_surface());
@@ -425,7 +425,7 @@ TEST_F(ShellSurface, with_most_recent_buffer_do_uses_compositor_buffer)
             buf_ptr = &buffer;
         });
 
-    EXPECT_EQ(surface_builder.stub_buffer_stream()->stub_compositor_buffer.get(),
+    EXPECT_EQ(stub_buffer_stream->stub_compositor_buffer.get(),
               buf_ptr);
 }
 #endif
