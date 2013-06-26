@@ -63,7 +63,8 @@ struct MockSurface : public frontend::Surface
     MOCK_CONST_METHOD0(top_left, geometry::Point());
     MOCK_METHOD1(with_most_recent_buffer_do, void(std::function<void(compositor::Buffer&)> const&));
     MOCK_CONST_METHOD0(type, MirSurfaceType()); 
-    MOCK_CONST_METHOD0(state, MirSurfaceState()); 
+    MOCK_CONST_METHOD0(state, MirSurfaceState());
+    MOCK_CONST_METHOD0(stack_surface, std::weak_ptr<surfaces::Surface>());
 };
 
 }

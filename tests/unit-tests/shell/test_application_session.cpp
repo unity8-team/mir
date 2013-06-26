@@ -38,20 +38,6 @@ namespace mi = mir::input;
 namespace mt = mir::test;
 namespace mtd = mir::test::doubles;
 
-TEST(ApplicationSession, adopt_and_abandon_surface)
-{
-    msh::ApplicationSession session("Foo");
-
-    auto surface1 = std::make_shared<mtd::StubSurface>();
-    auto surface2 = std::make_shared<mtd::StubSurface>();
-
-    auto id1 = session.adopt_surface(surface1);
-    auto id2 = session.adopt_surface(surface1);
-
-    EXPECT_EQ(surface2, session.abandon_surface(id2);
-    EXPECT_EQ(surface1, session.abandon_surface(id1);
-}
-
 TEST(ApplicationSession, default_surface_is_first_surface)
 {
     msh::ApplicationSession app_session("Foo");

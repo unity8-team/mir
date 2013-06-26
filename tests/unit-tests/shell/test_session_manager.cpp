@@ -29,6 +29,7 @@
 
 #include "mir_test/fake_shared.h"
 #include "mir_test_doubles/mock_surface_stack_model.h"
+#include "mir_test_doubles/mock_surface.h"
 #include "mir_test_doubles/mock_buffer_stream.h"
 #include "mir_test_doubles/mock_surface_factory.h"
 #include "mir_test_doubles/mock_focus_setter.h"
@@ -160,10 +161,14 @@ TEST_F(SessionManagerSetup, destroy_surface_uses_stack_and_shell)
 {
     using namespace ::testing;
     auto mock_session = std::make_shared<mtd::MockShellSession>();
-    auto new_surface = std::make_shared<msh::Surface>(
-                        std::shared_ptr<ms::Surface>(),
-                        msh::a_surface());
+    auto mock_surface = std::make_shared<mtd::MockSurface>();
 
+    EXPECT_CALL(*mock_surface, stack_surface())
+        .Times(1)
+        .WillOnce(Return(std::weak_ptr<ms::Surface>()));
+    EXPECT_CALL(*mock_session, get_surface(_))
+        .Times(1)
+        .WillOnce(Return(mock_surface));
     EXPECT_CALL(*mock_session, abandon_surface(_))
         .Times(1);
     EXPECT_CALL(surface_stack, destroy_surface(_))
