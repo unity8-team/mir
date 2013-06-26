@@ -43,7 +43,8 @@ MirSurface::MirSurface(
     : server(server),
       connection(allocating_connection),
       buffer_depository(std::make_shared<mcl::ClientBufferDepository>(factory, mir::frontend::client_buffer_cache_size)),
-      input_platform(input_platform)
+      input_platform(input_platform),
+      event_delegate(nullptr)
 {
     mir::protobuf::SurfaceParameters message;
     message.set_surface_name(params.name ? params.name : std::string());
@@ -288,6 +289,14 @@ int MirSurface::attrib(MirSurfaceAttrib at) const
     return attrib_cache[at];
 }
 
+void MirSurface::event_callback(MirEvent const* event)
+{
+    lock_event_handler();
+    if (event_delegate)
+        event_delegate->callback(this, event, event_delegate->context);
+    unlock_event_handler();
+}
+
 void MirSurface::set_event_handler(MirEventDelegate const* delegate)
 {
     if (input_thread)
@@ -297,19 +306,28 @@ void MirSurface::set_event_handler(MirEventDelegate const* delegate)
         input_thread = nullptr;
     }
 
-    if (delegate)
-    {
-        handle_event_callback = std::bind(delegate->callback, this,
-                                          std::placeholders::_1,
-                                          delegate->context);
+    event_delegate = delegate;  // can be NULL, to remove the handler
 
-        if (surface.fd_size() > 0 && handle_event_callback)
-        {
-            input_thread = input_platform->create_input_thread(surface.fd(0),
+    if (delegate && surface.fd_size() > 0)
+    {
+        auto handle_event_callback = std::bind(&MirSurface::event_callback,
+                                               this,
+                                               std::placeholders::_1);
+
+        input_thread = input_platform->create_input_thread(surface.fd(0),
                                                         handle_event_callback);
-            input_thread->start();
-        }
+        input_thread->start();
     }
+}
+
+void MirSurface::lock_event_handler()
+{
+    event_mutex.lock();
+}
+
+void MirSurface::unlock_event_handler()
+{
+    event_mutex.unlock();
 }
 
 void MirSurface::handle_event(MirEvent const& e)
@@ -321,8 +339,7 @@ void MirSurface::handle_event(MirEvent const& e)
             attrib_cache[a] = e.surface.value;
     }
 
-    if (handle_event_callback)
-        handle_event_callback(&e);
+    event_callback(&e);
 }
 
 MirPlatformType MirSurface::platform_type()

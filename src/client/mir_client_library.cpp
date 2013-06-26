@@ -178,6 +178,16 @@ void mir_surface_set_event_handler(MirSurface *surface,
     surface->set_event_handler(event_handler);
 }
 
+void mir_surface_lock_event_handler(MirSurface *surface)
+{
+    surface->lock_event_handler();
+}
+
+void mir_surface_unlock_event_handler(MirSurface *surface)
+{
+    surface->unlock_event_handler();
+}
+
 MirWaitHandle* mir_surface_release(
     MirSurface * surface,
     mir_surface_callback callback, void * context)

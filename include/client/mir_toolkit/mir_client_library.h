@@ -136,11 +136,33 @@ MirSurface *mir_connection_create_surface_sync(
 
 /**
  * Set the event handler to be called when events arrive for a surface.
+ * \warning Event callbacks are called from a <b>different thread</b>, so if
+ *          you don't already have your own locking, you will need to use
+ *          mir_surface_lock_event_handler to protect any data shared between
+ *          event_handler and your other code.
  *   \param [in] surface        The surface
  *   \param [in] event_handler  The event handler to call
+ *
  */
 void mir_surface_set_event_handler(MirSurface *surface,
                                    MirEventDelegate const *event_handler);
+
+/** 
+ * Acquire the mutex that surrounds event callbacks for a given surface. Use
+ * this to guarantee safe access to shared data you use inside the event
+ * handler.
+ *   \param [in] surface  The surface whose event handler to lock
+ *   \post                The event handler is not executing and will not be
+ *                        entered until you mir_surface_unlock_event_handler
+ */
+void mir_surface_lock_event_handler(MirSurface *surface);
+
+/** 
+ * Release the mutex that surrounds event callbacks for a given surface.
+ *   \pre                 You have called mir_surface_lock_event_handler
+ *   \param [in] surface  The surface whose event handler to unlock
+ */
+void mir_surface_unlock_event_handler(MirSurface *surface);
 
 /**
  * Get a window type that can be used for OpenGL ES 2.0 acceleration.

@@ -31,7 +31,7 @@
 #include "client_platform.h"
 
 #include <memory>
-#include <functional>
+#include <mutex>
 
 namespace mir
 {
@@ -88,7 +88,10 @@ public:
     MirWaitHandle* configure(MirSurfaceAttrib a, int value);
     int attrib(MirSurfaceAttrib a) const;
 
+    void event_callback(MirEvent const* event);
     void set_event_handler(MirEventDelegate const* delegate);
+    void lock_event_handler();
+    void unlock_event_handler();
     void handle_event(MirEvent const& e);
 
 private:
@@ -99,8 +102,6 @@ private:
     void new_buffer(mir_surface_callback callback, void * context);
     mir::geometry::PixelFormat convert_ipc_pf_to_geometry(google::protobuf::int32 pf);
 
-    /* todo: race condition. protobuf does not guarantee that callbacks will be synchronized. potential
-             race in surface, last_buffer_id */
     mir::protobuf::DisplayServer::Stub & server;
     mir::protobuf::Surface surface;
     std::string error_message;
@@ -121,8 +122,11 @@ private:
     // Cache of latest SurfaceSettings returned from the server
     int attrib_cache[mir_surface_attrib_arraysize_];
 
-    std::function<void(MirEvent const*)> handle_event_callback;
     std::shared_ptr<mir::input::receiver::InputReceiverThread> input_thread;
+
+    // event_mutex protects the execution of event_delgate->callback only.
+    std::mutex event_mutex;
+    const MirEventDelegate *event_delegate;
 };
 
 #endif /* MIR_CLIENT_PRIVATE_MIR_WAIT_HANDLE_H_ */

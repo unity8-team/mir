@@ -253,7 +253,6 @@ int main(int argc, char *argv[])
     MirDisplayInfo dinfo;
     MirSurface *surf;
     MirGraphicsRegion canvas;
-    MirEventDelegate delegate = {&on_event, &canvas};
     int f;
 
     (void)argc;
@@ -290,7 +289,6 @@ int main(int argc, char *argv[])
     surf = mir_connection_create_surface_sync(conn, &parm);
     if (surf != NULL)
     {
-        mir_surface_set_event_handler(surf, &delegate);
     
         canvas.width = parm.width;
         canvas.height = parm.height;
@@ -300,20 +298,26 @@ int main(int argc, char *argv[])
 
         if (canvas.vaddr != NULL)
         {
+            MirEventDelegate delegate = {&on_event, &canvas};
+
             signal(SIGINT, shutdown);
             signal(SIGTERM, shutdown);
         
             clear_region(&canvas, &background);
             redraw(surf, &canvas);
         
+            mir_surface_set_event_handler(surf, &delegate);
+
             while (running)
             {
                 sleep(1);  /* Is there a better way yet? */
             }
 
             /* Ensure canvas won't be used after it's freed */
+            mir_surface_lock_event_handler(surf);
             mir_surface_set_event_handler(surf, NULL);
             free(canvas.vaddr);
+            mir_surface_unlock_event_handler(surf);
         }
         else
         {
