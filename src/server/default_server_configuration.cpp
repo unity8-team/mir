@@ -560,18 +560,6 @@ mir::DefaultServerConfiguration::the_shell_surface_factory()
         });
 }
 
-
-//TODO REMOVE
-std::shared_ptr<msh::SurfaceBuilder>
-mir::DefaultServerConfiguration::the_surface_builder()
-{
-    return surface_controller(
-        [this]()
-        {
-            return std::shared_ptr<ms::SurfaceController>();
-        });
-}
-
 std::shared_ptr<mc::OverlayRenderer>
 mir::DefaultServerConfiguration::the_overlay_renderer()
 {

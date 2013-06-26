@@ -160,13 +160,6 @@ public:
     virtual std::shared_ptr<shell::SessionListener>   the_shell_session_listener();
     /** @} */
 
-    /** @name shell configuration - dependencies
-     * dependencies of shell on the rest of the Mir
-     *  @{ */
-    virtual std::shared_ptr<shell::SurfaceBuilder>     the_surface_builder();
-    /** @} */
-
-
     /** @name surfaces configuration - customization
      * configurable interfaces for modifying surfaces
      *  @{ */
