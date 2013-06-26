@@ -162,9 +162,8 @@ bool mtc::SessionManagementContext::open_window_consuming(std::string const& win
     auto const params = msh::a_surface().of_name(window_name);
     auto session = shell->open_session(window_name, std::shared_ptr<mir::events::EventSink>());
 
-    std::shared_ptr<msh::Surface> sh_surface;
-    std::weak_ptr<ms::Surface> surface; 
-    auto const surface_id = session->associate_surface(surface, sh_surface);
+    std::shared_ptr<msh::Surface> surface;
+    auto const surface_id = session->adopt_surface(surface);
 
     open_windows[window_name] = std::make_tuple(session, surface_id);
 
@@ -176,9 +175,8 @@ bool mtc::SessionManagementContext::open_window_with_size(std::string const& win
 {
     auto const params = msh::a_surface().of_name(window_name).of_size(size);
     auto session = shell->open_session(window_name, std::shared_ptr<mir::events::EventSink>());
-    std::shared_ptr<msh::Surface> sh_surface;
-    std::weak_ptr<ms::Surface> surface; 
-    auto const surface_id = session->associate_surface(surface, sh_surface);
+    std::shared_ptr<msh::Surface> surface;
+    auto const surface_id = session->adopt_surface(surface);
 
     open_windows[window_name] = std::make_tuple(session, surface_id);
 
