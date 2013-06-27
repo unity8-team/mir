@@ -41,17 +41,8 @@ std::shared_ptr<msh::Surface> msh::SurfaceSource::create_surface(
     frontend::SurfaceId id,
     std::shared_ptr<events::EventSink> const& sink)
 {
-#if 0
-    std::weak_ptr<ms::Surface> surface_weak;
-
-    return std::make_shared<Surface>(
-        surface_builder,
-        surface_weak,
-        [](std::weak_ptr<ms::Surface>){},
-        params,
-        id,
-        sink);
-#else
+    //TODO: this is still messy. We should only have a simple make_shared here, and the builder
+    //should exist up in the SessionManager 
     auto surface = surface_builder->create_surface(params);
     auto fn = [this](std::weak_ptr<ms::Surface> s){
         surface_builder->destroy_surface(s);
@@ -61,6 +52,5 @@ std::shared_ptr<msh::Surface> msh::SurfaceSource::create_surface(
         fn,
         id,
         sink);
-#endif
 }
 
