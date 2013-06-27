@@ -189,16 +189,14 @@ TEST_F(ShellSurface, destroy)
 TEST_F(ShellSurface, size_throw_behavior)
 {
     msh::Surface test(
-        mt::fake_shared(surface_builder),
         weak_surface, 
-        [](std::weak_ptr<ms::Surface>){}, msh::a_surface());
+        [](std::weak_ptr<ms::Surface>){});
 
     EXPECT_NO_THROW({
         test.size();
     });
 
     weak_surface.reset();
-//    surface_builder.reset_surface();
 
     EXPECT_THROW({
         test.size();
