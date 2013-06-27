@@ -136,8 +136,9 @@ TEST_F(ShellSurface, creation_and_destruction)
     EXPECT_CALL(surface_builder, destroy_surface(_)).Times(1);
 
     msh::Surface test(
-        //mt::fake_shared(surface_builder),
-        weak_surface, [](){}, params);
+        mt::fake_shared(surface_builder),
+        weak_surface, 
+        [](std::weak_ptr<ms::Surface>){}, params);
 }
 #if 0
 TEST_F(ShellSurface, creation_throws_means_no_destroy)

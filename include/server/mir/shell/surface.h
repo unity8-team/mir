@@ -26,6 +26,7 @@
 
 #include "mir_toolkit/common.h"
 
+#include <functional>
 #include <string>
 
 namespace mir
@@ -47,11 +48,13 @@ public:
     Surface(
         std::shared_ptr<SurfaceBuilder> const& builder,
         std::weak_ptr<surfaces::Surface> const& surface,
+        std::function<void(std::weak_ptr<surfaces::Surface>)> const& destroyer,
         SurfaceCreationParameters const& params);
 
     Surface(
         std::shared_ptr<SurfaceBuilder> const& builder,
         std::weak_ptr<surfaces::Surface> const& surface,
+        std::function<void(std::weak_ptr<surfaces::Surface>)> const& destroyer,
         SurfaceCreationParameters const& params,
         frontend::SurfaceId id,
         std::shared_ptr<events::EventSink> const& sink);

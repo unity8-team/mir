@@ -111,6 +111,7 @@ TEST_F(SessionManagerSetup, closing_session_removes_surfaces)
        Return(std::make_shared<msh::Surface>(
            mt::fake_shared(surface_builder),
            std::weak_ptr<ms::Surface>(),
+           [](std::weak_ptr<ms::Surface>){},
            msh::a_surface())));
 
 
@@ -147,6 +148,7 @@ TEST_F(SessionManagerSetup, create_surface_for_session_forwards_and_then_focuses
         Return(std::make_shared<msh::Surface>(
             mt::fake_shared(surface_builder),
             std::weak_ptr<ms::Surface>(),
+            [](std::weak_ptr<ms::Surface>){},
             msh::a_surface())));
 
     // Once for session creation and once for surface creation

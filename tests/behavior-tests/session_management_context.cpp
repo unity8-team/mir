@@ -73,6 +73,7 @@ struct DummySurfaceFactory : public msh::SurfaceFactory
         return std::make_shared<msh::Surface>(
             mt::fake_shared(surface_builder),
             std::weak_ptr<ms::Surface>(),
+            [](std::weak_ptr<surfaces::Surface>){},
             params,
             id,
             sink);

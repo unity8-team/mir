@@ -42,11 +42,26 @@ std::shared_ptr<msh::Surface> msh::SurfaceSource::create_surface(
     std::shared_ptr<events::EventSink> const& sink)
 {
     std::weak_ptr<ms::Surface> surface_weak;
+
     return std::make_shared<Surface>(
         surface_builder,
         surface_weak,
+        [](std::weak_ptr<ms::Surface>){},
         params,
         id,
         sink);
+#if 0
+    auto surface = surface_builder->create_surface(params);
+    auto fn = [this](std::weak_ptr<ms::Surface> s){
+        surface_builder->destroy_surface(s);
+    };
+    return std::make_shared<Surface>(
+        surface_builder,
+        surface_weak,
+        fn,
+        params,
+        id,
+        sink);
+#endif
 }
 
