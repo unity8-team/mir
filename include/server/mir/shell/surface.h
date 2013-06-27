@@ -106,6 +106,7 @@ private:
 
     MirSurfaceType type_value;
     MirSurfaceState state_value;
+    std::function<void(std::weak_ptr<surfaces::Surface>)> destr; 
 };
 }
 }
