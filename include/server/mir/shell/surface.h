@@ -46,10 +46,12 @@ class Surface : public frontend::Surface
 public:
     Surface(
         std::shared_ptr<SurfaceBuilder> const& builder,
+        std::weak_ptr<surfaces::Surface> const& surface,
         SurfaceCreationParameters const& params);
 
     Surface(
         std::shared_ptr<SurfaceBuilder> const& builder,
+        std::weak_ptr<surfaces::Surface> const& surface,
         SurfaceCreationParameters const& params,
         frontend::SurfaceId id,
         std::shared_ptr<events::EventSink> const& sink);
