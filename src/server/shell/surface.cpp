@@ -36,6 +36,7 @@ namespace ms = mir::surfaces;
 
 msh::Surface::Surface(
     std::shared_ptr<SurfaceBuilder> const& builder,
+    std::weak_ptr<ms::Surface> const& surface,
     shell::SurfaceCreationParameters const& params,
     frontend::SurfaceId id,
     std::shared_ptr<events::EventSink> const& sink)
@@ -46,10 +47,12 @@ msh::Surface::Surface(
     type_value(mir_surface_type_normal),
     state_value(mir_surface_state_restored)
 {
+    (void) surface;
 }
 
 msh::Surface::Surface(
     std::shared_ptr<SurfaceBuilder> const& builder,
+    std::weak_ptr<ms::Surface> const& surface,
     shell::SurfaceCreationParameters const& params)
   : builder(builder),
     surface(builder->create_surface(params)),
@@ -58,6 +61,7 @@ msh::Surface::Surface(
     type_value(mir_surface_type_normal),
     state_value(mir_surface_state_restored)
 {
+    (void) surface;
 }
 
 msh::Surface::~Surface()

@@ -37,7 +37,7 @@ namespace doubles
 struct MockSurface : public shell::Surface
 {
     MockSurface(std::shared_ptr<shell::SurfaceBuilder> const& builder) :
-        shell::Surface(builder, shell::a_surface())
+        shell::Surface(builder, std::weak_ptr<surfaces::Surface>(), shell::a_surface())
     {
     }
 

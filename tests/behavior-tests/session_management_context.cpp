@@ -37,6 +37,7 @@
 
 namespace mf = mir::frontend;
 namespace msh = mir::shell;
+namespace ms = mir::surfaces;
 namespace mg = mir::graphics;
 namespace mc = mir::compositor;
 namespace geom = mir::geometry;
@@ -71,6 +72,7 @@ struct DummySurfaceFactory : public msh::SurfaceFactory
     {
         return std::make_shared<msh::Surface>(
             mt::fake_shared(surface_builder),
+            std::weak_ptr<ms::Surface>(),
             params,
             id,
             sink);

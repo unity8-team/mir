@@ -41,8 +41,10 @@ std::shared_ptr<msh::Surface> msh::SurfaceSource::create_surface(
     frontend::SurfaceId id,
     std::shared_ptr<events::EventSink> const& sink)
 {
+    std::weak_ptr<ms::Surface> surface_weak;
     return std::make_shared<Surface>(
         surface_builder,
+        surface_weak,
         params,
         id,
         sink);
