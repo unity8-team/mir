@@ -97,13 +97,13 @@ target_link_libraries(mir_demo_standalone_render_to_fb
     ${Boost_LIBRARIES}
 )
 
-set(RENDER_SURFACES_SOURCES render_surfaces.cpp buffer_render_target.cpp image_renderer.cpp)
-add_executable(mir_demo_standalone_render_surfaces ${RENDER_SURFACES_SOURCES})
-target_link_libraries(mir_demo_standalone_render_surfaces
-    mirserver
-    mirshell
-    ${Boost_LIBRARIES}
-)
+#set(RENDER_SURFACES_SOURCES render_surfaces.cpp buffer_render_target.cpp image_renderer.cpp)
+#add_executable(mir_demo_standalone_render_surfaces ${RENDER_SURFACES_SOURCES})
+#target_link_libraries(mir_demo_standalone_render_surfaces
+#    mirserver
+#    mirshell
+#    ${Boost_LIBRARIES}
+#)
 
 add_executable(mir_demo_standalone_input_filter
   demo_input_filter.cpp
@@ -125,7 +125,7 @@ set (DEMO_CLIENTS
 )
 
 add_subdirectory(demo-inprocess-surface-client)
-add_subdirectory(demo-shell)
+#add_subdirectory(demo-shell)
 
 install(TARGETS ${DEMO_CLIENTS} RUNTIME DESTINATION ${CMAKE_INSTALL_LIBEXECDIR}/examples)
 
