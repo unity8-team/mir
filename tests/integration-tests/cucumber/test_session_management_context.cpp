@@ -122,7 +122,7 @@ TEST_F(SessionManagementContextSetup, open_window_consuming_creates_surface_with
     EXPECT_CALL(mock_stack, create_surface(_,_))
         .Times(1)
         .WillOnce(Return(std::weak_ptr<ms::Surface>()));
-    EXPECT_CALL(session, adopt_surface(_)).Times(1)
+    EXPECT_CALL(session, adopt_surface(_,_)).Times(1)
         .WillOnce(Return(test_surface_id));
 
     EXPECT_TRUE(ctx->open_window_consuming(test_window_name));
@@ -141,7 +141,7 @@ TEST_F(SessionManagementContextSetup, open_window_with_size_creates_surface_with
     EXPECT_CALL(mock_stack, create_surface(params,_))
         .Times(1)
         .WillOnce(Return(std::weak_ptr<ms::Surface>()));
-    EXPECT_CALL(session, adopt_surface(_)).Times(1)
+    EXPECT_CALL(session, adopt_surface(_,_)).Times(1)
         .WillOnce(Return(test_surface_id));
 
     EXPECT_TRUE(ctx->open_window_with_size(test_window_name, test_window_size));
@@ -161,7 +161,7 @@ TEST_F(SessionManagementContextSetup, get_window_size_queries_surface)
     EXPECT_CALL(mock_stack, create_surface(params,_))
         .Times(1)
         .WillOnce(Return(std::weak_ptr<ms::Surface>()));
-    EXPECT_CALL(session, adopt_surface(_)).Times(1)
+    EXPECT_CALL(session, adopt_surface(_,_)).Times(1)
         .WillOnce(Return(test_surface_id));
 
     EXPECT_TRUE(ctx->open_window_with_size(test_window_name, test_window_size));

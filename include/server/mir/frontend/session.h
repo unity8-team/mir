@@ -47,7 +47,7 @@ class Session
 public:
     virtual ~Session() {}
 
-    virtual frontend::SurfaceId adopt_surface(std::shared_ptr<frontend::Surface> const& shell_surface) = 0;
+    virtual frontend::SurfaceId adopt_surface(std::weak_ptr<surfaces::Surface> const& shell_surface, shell::SurfaceCreationParameters const&) = 0;
     virtual void abandon_surface(frontend::SurfaceId surface) = 0;
     virtual std::shared_ptr<Surface> get_surface(SurfaceId surface) const = 0;
 

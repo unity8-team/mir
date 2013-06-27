@@ -18,6 +18,7 @@
 
 #include "mir/shell/application_session.h"
 #include "mir/shell/surface.h"
+#include "mir/shell/surface_factory.h"
 #include "mir/surfaces/surface.h"
 
 #include <boost/throw_exception.hpp>
@@ -35,16 +36,18 @@ namespace ms = mir::surfaces;
 
 msh::ApplicationSession::ApplicationSession(
     std::string const& session_name,
+    std::shared_ptr<shell::SurfaceFactory> const& factory,
     std::shared_ptr<me::EventSink> const& sink)
-    : session_name(session_name),
+    : factory(factory), session_name(session_name),
       event_sink(sink),
       next_surface_id(0)
 {
 }
 
 msh::ApplicationSession::ApplicationSession(
-    std::string const& session_name)
-    : ApplicationSession(session_name, std::shared_ptr<me::EventSink>())
+    std::string const& session_name,
+    std::shared_ptr<shell::SurfaceFactory> const& factory)
+    : ApplicationSession(session_name, factory, std::shared_ptr<me::EventSink>())
 {
 }
 
@@ -52,10 +55,12 @@ msh::ApplicationSession::~ApplicationSession()
 {
 }
 
-mf::SurfaceId msh::ApplicationSession::adopt_surface(std::shared_ptr<mf::Surface> const& surface)
+mf::SurfaceId msh::ApplicationSession::adopt_surface(std::weak_ptr<ms::Surface> const& surf, SurfaceCreationParameters const& params)
 {
     std::unique_lock<std::mutex> lock(surfaces_mutex);
     mf::SurfaceId id{next_surface_id++};
+
+    auto surface = factory->create_surface(surf, params, id, event_sink);
 
     surfaces[id] = surface; 
     return id;

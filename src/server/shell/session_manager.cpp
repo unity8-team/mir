@@ -25,6 +25,7 @@
 #include "mir/shell/focus_setter.h"
 #include "mir/shell/session.h"
 #include "mir/shell/surface.h"
+#include "mir/shell/surface_source.h"
 #include "mir/shell/session_listener.h"
 
 #include <memory>
@@ -80,7 +81,8 @@ std::shared_ptr<mf::Session> msh::SessionManager::open_session(
     std::string const& name,
     std::shared_ptr<events::EventSink> const& sink)
 {
-    std::shared_ptr<msh::Session> new_session = std::make_shared<msh::ApplicationSession>(name, sink);
+    auto surface_factory = std::make_shared<msh::SurfaceSource>();
+    std::shared_ptr<msh::Session> new_session = std::make_shared<msh::ApplicationSession>(name, surface_factory, sink);
 
     app_container->insert_session(new_session);
     
@@ -161,10 +163,7 @@ mf::SurfaceId msh::SessionManager::create_surface_for(std::shared_ptr<mf::Sessio
 
     static ms::DepthId const default_surface_depth{0};
     auto surface = surface_stack->create_surface(params, default_surface_depth);
-    auto shell_surface = surface_factory->create_surface(surface, params, 
-        mf::SurfaceId{0}, std::shared_ptr<mir::events::EventSink>());
-
-    auto id = shell_session->adopt_surface(shell_surface);
+    auto id = shell_session->adopt_surface(surface, params);
 
     set_focus_to(shell_session);
 

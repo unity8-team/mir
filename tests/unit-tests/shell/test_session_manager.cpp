@@ -119,8 +119,8 @@ TEST_F(SessionManagerSetup, closing_session_removes_surfaces)
 
     auto session = session_manager.open_session("Visual Basic Studio", std::shared_ptr<me::EventSink>());
 
-    std::shared_ptr<msh::Surface> shell_surface;
-    session->adopt_surface(shell_surface);
+    std::weak_ptr<ms::Surface> shell_surface;
+    session->adopt_surface(shell_surface, msh::a_surface());
 
     session_manager.close_session(session);
 }
@@ -148,10 +148,7 @@ TEST_F(SessionManagerSetup, create_surface_uses_stack_and_shell)
     EXPECT_CALL(surface_stack, create_surface(_,_))
         .Times(1)
         .WillOnce(Return(std::weak_ptr<ms::Surface>()));
-    EXPECT_CALL(surface_factory, create_surface(_,_,_,_))
-        .Times(1)
-        .WillOnce(Return(new_surface));
-    EXPECT_CALL(*mock_session, adopt_surface(_))
+    EXPECT_CALL(*mock_session, adopt_surface(_,_))
         .Times(1)
         .WillOnce(Return(mf::SurfaceId{0}));
 
@@ -170,10 +167,7 @@ TEST_F(SessionManagerSetup, destroy_surface_uses_stack_and_shell)
     EXPECT_CALL(surface_stack, create_surface(_,_))
         .Times(1)
         .WillOnce(Return(std::weak_ptr<ms::Surface>()));
-    EXPECT_CALL(surface_factory, create_surface(_,_,_,_))
-        .Times(1)
-        .WillOnce(Return(new_surface));
-    EXPECT_CALL(*mock_session, adopt_surface(_))
+    EXPECT_CALL(*mock_session, adopt_surface(_,_))
         .Times(1)
         .WillOnce(Return(mf::SurfaceId{0}));
 
@@ -209,7 +203,6 @@ TEST_F(SessionManagerSetup, create_surface_for_session_forwards_and_then_focuses
         EXPECT_CALL(surface_stack, create_surface(_,_))
             .Times(1)
             .WillOnce(Return(std::weak_ptr<ms::Surface>()));
-        EXPECT_CALL(surface_factory, create_surface(_,_,_,_)).Times(1);
         EXPECT_CALL(focus_setter, set_focus_to(_)).Times(1); // Post Surface creation
     }
 

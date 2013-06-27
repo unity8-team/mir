@@ -54,8 +54,7 @@ public:
 
     ~ApplicationSession();
 
-    /* hodge-podge */
-    frontend::SurfaceId adopt_surface(std::shared_ptr<frontend::Surface> const& shell_surface);
+    frontend::SurfaceId adopt_surface(std::weak_ptr<surfaces::Surface> const& surface, shell::SurfaceCreationParameters const&);
     void abandon_surface(frontend::SurfaceId surface);
 
     //triggers state change in ms::Surface
@@ -76,6 +75,7 @@ protected:
     ApplicationSession& operator=(ApplicationSession const&) = delete;
 
 private:
+    std::shared_ptr<SurfaceFactory> factory;
     std::string const session_name;
     std::shared_ptr<events::EventSink> const event_sink;
 

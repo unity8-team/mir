@@ -32,7 +32,7 @@ namespace doubles
 
 struct MockSession : public frontend::Session
 {
-    MOCK_METHOD1(adopt_surface, frontend::SurfaceId(std::shared_ptr<frontend::Surface> const&));
+    MOCK_METHOD2(adopt_surface, frontend::SurfaceId(std::weak_ptr<surfaces::Surface> const&, shell::SurfaceCreationParameters const&));
     MOCK_METHOD1(abandon_surface, void(frontend::SurfaceId));
     MOCK_CONST_METHOD1(get_surface, std::shared_ptr<frontend::Surface>(frontend::SurfaceId));
 

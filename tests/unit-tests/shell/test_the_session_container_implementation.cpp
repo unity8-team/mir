@@ -19,6 +19,7 @@
 #include "mir/shell/application_session.h"
 #include "mir/shell/default_session_container.h"
 #include "mir/shell/surface_creation_parameters.h"
+#include "mir/shell/surface_source.h"
 #include "mir/surfaces/surface.h"
 #include "mir_test_doubles/mock_buffer_stream.h"
 #include "mir_test_doubles/mock_surface_factory.h"
@@ -40,8 +41,9 @@ TEST(DefaultSessionContainer, for_each)
 //    auto factory = std::make_shared<mtd::MockSurfaceFactory>();
     msh::DefaultSessionContainer container;
 
-    container.insert_session(std::make_shared<msh::ApplicationSession>("Visual Studio 7"));
-    container.insert_session(std::make_shared<msh::ApplicationSession>("Visual Studio 8"));
+    auto surface_factory = std::make_shared<msh::SurfaceSource>();
+    container.insert_session(std::make_shared<msh::ApplicationSession>("Visual Studio 7", surface_factory));
+    container.insert_session(std::make_shared<msh::ApplicationSession>("Visual Studio 8", surface_factory));
 
     struct local
     {
@@ -67,7 +69,8 @@ TEST(DefaultSessionContainer, invalid_session_throw_behavior)
     //auto factory = std::make_shared<mtd::MockSurfaceFactory>();
     msh::DefaultSessionContainer container;
 
-    auto session = std::make_shared<msh::ApplicationSession>("Visual Studio 7");
+    auto surface_factory = std::make_shared<msh::SurfaceSource>();
+    auto session = std::make_shared<msh::ApplicationSession>("Visual Studio 7", surface_factory);
     EXPECT_THROW({
         container.remove_session(session);
     }, std::logic_error);
