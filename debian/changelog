@@ -1,3 +1,16 @@
+platform-api (0.18.1+13.10.20130627-0ubuntu1) saucy; urgency=low
+
+  [ Ricardo Mendoza ]
+  * GCC 4.8 introduces a change for ARM AAPCS calling conventions, this
+    breaks ABI for us because the Android library is built with GCC 4.7.
+    Revert to building platform-api with GCC 4.7 until we can update the
+    Android build. .
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 75
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 27 Jun 2013 02:01:09 +0000
+
 platform-api (0.18.1daily13.06.25-0ubuntu1) saucy; urgency=low
 
   [ Robert Carr ]
