@@ -40,7 +40,11 @@ namespace mtd = mir::test::doubles;
 
 TEST(ApplicationSession, default_surface_is_first_surface)
 {
-    msh::ApplicationSession app_session("Foo");
+    using namespace testing;
+    auto mock_surface_factory = std::make_shared<mtd::MockSurfaceFactory>();
+    ON_CALL(*mock_surface_factory, create_surface(_,_,_,_))
+        .WillByDefault(Return(std::make_shared<mtd::StubSurface>())); 
+    msh::ApplicationSession app_session("Foo", mock_surface_factory);
 
     auto surface1 = std::make_shared<mtd::StubSurface>();
     auto surface2 = std::make_shared<mtd::StubSurface>();

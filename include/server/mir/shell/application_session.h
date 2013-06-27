@@ -46,9 +46,10 @@ class ApplicationSession : public Session
 {
 public:
     /* why two constructors? */
-    explicit ApplicationSession(std::string const& session_name);
+    explicit ApplicationSession(std::string const& session_name, std::shared_ptr<shell::SurfaceFactory> const&);
     ApplicationSession(
         std::string const& session_name,
+        std::shared_ptr<shell::SurfaceFactory> const&,
         std::shared_ptr<events::EventSink> const& sink);
 
     ~ApplicationSession();
