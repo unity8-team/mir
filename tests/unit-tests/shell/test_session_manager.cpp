@@ -109,10 +109,9 @@ TEST_F(SessionManagerSetup, closing_session_removes_surfaces)
 
     ON_CALL(surface_factory, create_surface(_, _, _)).WillByDefault(
        Return(std::make_shared<msh::Surface>(
-           mt::fake_shared(surface_builder),
            std::weak_ptr<ms::Surface>(),
-           [](std::weak_ptr<ms::Surface>){},
-           msh::a_surface())));
+           [](std::weak_ptr<ms::Surface>){}
+           )));
 
 
     EXPECT_CALL(container, insert_session(_)).Times(1);
@@ -146,10 +145,9 @@ TEST_F(SessionManagerSetup, create_surface_for_session_forwards_and_then_focuses
     using namespace ::testing;
     ON_CALL(surface_factory, create_surface(_, _, _)).WillByDefault(
         Return(std::make_shared<msh::Surface>(
-            mt::fake_shared(surface_builder),
             std::weak_ptr<ms::Surface>(),
-            [](std::weak_ptr<ms::Surface>){},
-            msh::a_surface())));
+            [](std::weak_ptr<ms::Surface>){}
+            )));
 
     // Once for session creation and once for surface creation
     {

@@ -66,20 +66,16 @@ struct DummySurfaceFactory : public msh::SurfaceFactory
     {
     }
 
-    std::shared_ptr<msh::Surface> create_surface(const msh::SurfaceCreationParameters& params,
+    std::shared_ptr<msh::Surface> create_surface(const msh::SurfaceCreationParameters&,
         frontend::SurfaceId id,
         std::shared_ptr<events::EventSink> const& sink) override
     {
         return std::make_shared<msh::Surface>(
-            mt::fake_shared(surface_builder),
             std::weak_ptr<ms::Surface>(),
             [](std::weak_ptr<surfaces::Surface>){},
-            params,
             id,
             sink);
     }
-
-    mtd::StubSurfaceBuilder surface_builder;
 };
 
 class SizedDisplay : public mg::Display

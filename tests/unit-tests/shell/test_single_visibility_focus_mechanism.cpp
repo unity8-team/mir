@@ -29,7 +29,6 @@
 #include "mir_test_doubles/mock_surface_factory.h"
 #include "mir_test_doubles/stub_surface.h"
 #include "mir_test_doubles/mock_surface.h"
-#include "mir_test_doubles/stub_surface_builder.h"
 #include "mir_test_doubles/stub_input_targeter.h"
 #include "mir_test_doubles/mock_input_targeter.h"
 
@@ -95,7 +94,7 @@ TEST(SingleVisibilityFocusMechanism, sets_input_focus)
     using namespace ::testing;
     
     NiceMock<MockShellSession> app1;
-    mtd::MockSurface mock_surface(std::make_shared<mtd::StubSurfaceBuilder>());
+    mtd::MockSurface mock_surface;
     {
         InSequence seq;
         EXPECT_CALL(app1, default_surface()).Times(1)

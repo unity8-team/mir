@@ -22,7 +22,6 @@
 #include "mir_test/fake_shared.h"
 #include "mir_test_doubles/mock_surface_factory.h"
 #include "mir_test_doubles/mock_surface.h"
-#include "mir_test_doubles/stub_surface_builder.h"
 #include "mir_test_doubles/stub_surface.h"
 
 #include "mir/shell/surface.h"
@@ -43,8 +42,7 @@ TEST(ApplicationSession, create_and_destroy_surface)
 {
     using namespace ::testing;
 
-    mtd::StubSurfaceBuilder surface_builder;
-    auto const mock_surface = std::make_shared<mtd::MockSurface>(mt::fake_shared(surface_builder));
+    auto const mock_surface = std::make_shared<mtd::MockSurface>();
 
     mtd::MockSurfaceFactory surface_factory;
     ON_CALL(surface_factory, create_surface(_, _, _)).WillByDefault(Return(mock_surface));
@@ -65,15 +63,14 @@ TEST(ApplicationSession, default_surface_is_first_surface)
     using namespace ::testing;
 
     mtd::MockSurfaceFactory surface_factory;
-    mtd::StubSurfaceBuilder surface_builder;
     {
         InSequence seq;
         EXPECT_CALL(surface_factory, create_surface(_, _, _)).Times(1)
-            .WillOnce(Return(std::make_shared<NiceMock<mtd::MockSurface>>(mt::fake_shared(surface_builder))));
+            .WillOnce(Return(std::make_shared<NiceMock<mtd::MockSurface>>()));
         EXPECT_CALL(surface_factory, create_surface(_, _, _)).Times(1)
-            .WillOnce(Return(std::make_shared<NiceMock<mtd::MockSurface>>(mt::fake_shared(surface_builder))));
+            .WillOnce(Return(std::make_shared<NiceMock<mtd::MockSurface>>()));
         EXPECT_CALL(surface_factory, create_surface(_, _, _)).Times(1)
-            .WillOnce(Return(std::make_shared<NiceMock<mtd::MockSurface>>(mt::fake_shared(surface_builder))));
+            .WillOnce(Return(std::make_shared<NiceMock<mtd::MockSurface>>()));
     }
 
     msh::ApplicationSession app_session(mt::fake_shared(surface_factory), "Foo");
@@ -100,8 +97,7 @@ TEST(ApplicationSession, session_visbility_propagates_to_surfaces)
 {
     using namespace ::testing;
 
-    mtd::StubSurfaceBuilder surface_builder;
-    auto const mock_surface = std::make_shared<mtd::MockSurface>(mt::fake_shared(surface_builder));
+    auto const mock_surface = std::make_shared<mtd::MockSurface>();
 
     mtd::MockSurfaceFactory surface_factory;
     ON_CALL(surface_factory, create_surface(_, _, _)).WillByDefault(Return(mock_surface));

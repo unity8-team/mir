@@ -57,10 +57,8 @@ std::shared_ptr<msh::Surface> msh::SurfaceSource::create_surface(
         surface_builder->destroy_surface(s);
     };
     return std::make_shared<Surface>(
-        surface_builder,
         surface,
         fn,
-        params,
         id,
         sink);
 #endif
