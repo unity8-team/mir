@@ -107,7 +107,6 @@ bool msh::Surface::visible()
 void msh::Surface::destroy()
 {
     destr(surface);
-//    builder->destroy_surface(surface);
 }
 
 void msh::Surface::force_requests_to_complete()
