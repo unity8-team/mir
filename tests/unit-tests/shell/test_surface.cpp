@@ -110,12 +110,16 @@ struct ShellSurface : testing::Test
 {
     std::shared_ptr<StubBufferStream> const buffer_stream;
     StubSurfaceBuilder surface_builder;
-    std::weak_ptr<ms::Surface> weak_surface;
+    std::shared_ptr<ms::Surface> weak_surface;
 
     ShellSurface() :
         buffer_stream(std::make_shared<StubBufferStream>())
     {
         using namespace testing;
+
+        weak_surface = std::make_shared<ms::Surface>(std::string("oov"), geom::Point(),
+                                                     buffer_stream,
+                                                     std::shared_ptr<mi::InputChannel>(), [](){});
 
         ON_CALL(*buffer_stream, stream_size()).WillByDefault(Return(geom::Size()));
         ON_CALL(*buffer_stream, get_stream_pixel_format()).WillByDefault(Return(geom::PixelFormat::abgr_8888));
@@ -193,7 +197,8 @@ TEST_F(ShellSurface, size_throw_behavior)
         test.size();
     });
 
-    surface_builder.reset_surface();
+    weak_surface.reset();
+//    surface_builder.reset_surface();
 
     EXPECT_THROW({
         test.size();
