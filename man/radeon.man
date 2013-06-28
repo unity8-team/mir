@@ -196,6 +196,15 @@ Radeon HD 8000 series
 .TP 12
 .B HAINAN
 Radeon HD 8000 series
+.TP 12
+.B BONAIRE
+Radeon HD 7790 series
+.TP 12
+.B KAVERI
+KAVERI APUs
+.TP 12
+.B KABINI
+KABINI APUs
 .PD
 .SH CONFIGURATION DETAILS
 Please refer to __xconfigfile__(__filemansuffix__) for general configuration
