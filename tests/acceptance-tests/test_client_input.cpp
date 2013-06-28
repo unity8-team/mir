@@ -142,6 +142,18 @@ struct InputClient : ClientConfig
          };
         return request_params;
     }
+    
+    void surface_created(MirSurface* new_surface) override
+    {
+         MirEventDelegate const event_delegate =
+         {
+             handle_input,
+             this
+         };
+
+         mir_surface_set_event_handler(new_surface, &event_delegate);
+         surface = new_surface;
+    }
 
     void exec()
     {
@@ -156,15 +168,8 @@ struct InputClient : ClientConfig
             this));
          ASSERT_TRUE(connection != NULL);
     
-         MirEventDelegate const event_delegate =
-         {
-             handle_input,
-             this
-         };
          auto request_params = parameters();
          mir_wait_for(mir_connection_create_surface(connection, &request_params, create_surface_callback, this));
-
-         mir_surface_set_event_handler(surface, &event_delegate);
 
          events_received.wait_for_at_most_seconds(60);
 
