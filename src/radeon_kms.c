@@ -51,9 +51,6 @@
 
 #include "radeon_chipinfo_gen.h"
 
-#define CURSOR_WIDTH	64
-#define CURSOR_HEIGHT	64
-
 #include "radeon_bo_gem.h"
 #include "radeon_cs_gem.h"
 #include "radeon_vbo.h"
@@ -946,6 +943,15 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 	}
     }
 
+    /* set cursor size */
+    if (info->ChipFamily >= CHIP_FAMILY_BONAIRE) {
+	info->cursor_w = CURSOR_WIDTH_CIK;
+	info->cursor_h = CURSOR_HEIGHT_CIK;
+    } else {
+	info->cursor_w = CURSOR_WIDTH;
+	info->cursor_h = CURSOR_HEIGHT;
+    }
+
     {
 	struct drm_radeon_gem_info mminfo;
 
@@ -1016,7 +1022,10 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 
 static Bool RADEONCursorInit_KMS(ScreenPtr pScreen)
 {
-    return xf86_cursors_init (pScreen, CURSOR_WIDTH, CURSOR_HEIGHT,
+    ScrnInfoPtr    pScrn = xf86ScreenToScrn(pScreen);
+    RADEONInfoPtr  info  = RADEONPTR(pScrn);
+
+    return xf86_cursors_init (pScreen, info->cursor_w, info->cursor_h,
 			      (HARDWARE_CURSOR_TRUECOLOR_AT_8BPP |
 			       HARDWARE_CURSOR_AND_SOURCE_WITH_MASK |
 			       HARDWARE_CURSOR_SOURCE_MASK_INTERLEAVE_1 |
@@ -1532,9 +1541,10 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
 		info->front_surface = surface;
 	}
     {
-	int cursor_size = 64 * 4 * 64;
+	int cursor_size;
 	int c;
 
+	cursor_size = info->cursor_w * info->cursor_h * 4;
 	cursor_size = RADEON_ALIGN(cursor_size, RADEON_GPU_PAGE_SIZE);
 	for (c = 0; c < xf86_config->num_crtc; c++) {
 	    /* cursor objects */

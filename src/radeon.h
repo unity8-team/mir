@@ -235,6 +235,12 @@ typedef enum {
 	(info->ChipFamily == CHIP_FAMILY_RS300) || \
 	(info->ChipFamily == CHIP_FAMILY_R200))
 
+#define CURSOR_WIDTH	64
+#define CURSOR_HEIGHT	64
+
+#define CURSOR_WIDTH_CIK	128
+#define CURSOR_HEIGHT_CIK	128
+
 struct radeon_exa_pixmap_priv {
     struct radeon_bo *bo;
     uint32_t tiling_flags;
@@ -473,6 +479,10 @@ typedef struct {
 
     /* Perform vsync'ed SwapBuffers? */
     Bool swapBuffersWait;
+
+    /* cursor size */
+    int cursor_w;
+    int cursor_h;
 } RADEONInfoRec, *RADEONInfoPtr;
 
 /* radeon_accel.c */

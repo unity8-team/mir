@@ -584,14 +584,17 @@ drmmode_set_cursor_position (xf86CrtcPtr crtc, int x, int y)
 static void
 drmmode_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image)
 {
+	ScrnInfoPtr pScrn = crtc->scrn;
+	RADEONInfoPtr info = RADEONPTR(pScrn);
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	int i;
 	uint32_t *ptr;
+	uint32_t cursor_size = info->cursor_w * info->cursor_h;
 
 	/* cursor should be mapped already */
 	ptr = (uint32_t *)(drmmode_crtc->cursor_bo->ptr);
 
-	for (i = 0; i < 64 * 64; i++)
+	for (i = 0; i < cursor_size; i++)
 		ptr[i] = cpu_to_le32(image[i]);
 }
 
@@ -599,21 +602,27 @@ drmmode_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image)
 static void
 drmmode_hide_cursor (xf86CrtcPtr crtc)
 {
+	ScrnInfoPtr pScrn = crtc->scrn;
+	RADEONInfoPtr info = RADEONPTR(pScrn);
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 
-	drmModeSetCursor(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id, 0, 64, 64);
+	drmModeSetCursor(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id, 0,
+			 info->cursor_w, info->cursor_h);
 
 }
 
 static void
 drmmode_show_cursor (xf86CrtcPtr crtc)
 {
+	ScrnInfoPtr pScrn = crtc->scrn;
+	RADEONInfoPtr info = RADEONPTR(pScrn);
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 	uint32_t handle = drmmode_crtc->cursor_bo->handle;
 
-	drmModeSetCursor(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id, handle, 64, 64);
+	drmModeSetCursor(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id, handle,
+			 info->cursor_w, info->cursor_h);
 }
 
 static void *
