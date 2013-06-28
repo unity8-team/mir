@@ -1,3 +1,14 @@
+platform-api (0.18.1+13.10.20130628-0ubuntu1) saucy; urgency=low
+
+  [ Didier Roche ]
+  * minor cosmetic cleanups as we detect the archs we can't build for in
+    daily release now.
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 77
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Fri, 28 Jun 2013 02:01:14 +0000
+
 platform-api (0.18.1+13.10.20130627-0ubuntu1) saucy; urgency=low
 
   [ Ricardo Mendoza ]
