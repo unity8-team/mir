@@ -1,3 +1,53 @@
+platform-api (0.18.1+13.10.20130628-0ubuntu1) saucy; urgency=low
+
+  [ Didier Roche ]
+  * minor cosmetic cleanups as we detect the archs we can't build for in
+    daily release now.
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 77
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Fri, 28 Jun 2013 02:01:14 +0000
+
+platform-api (0.18.1+13.10.20130627-0ubuntu1) saucy; urgency=low
+
+  [ Ricardo Mendoza ]
+  * GCC 4.8 introduces a change for ARM AAPCS calling conventions, this
+    breaks ABI for us because the Android library is built with GCC 4.7.
+    Revert to building platform-api with GCC 4.7 until we can update the
+    Android build. .
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 75
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 27 Jun 2013 02:01:09 +0000
+
+platform-api (0.18.1daily13.06.25-0ubuntu1) saucy; urgency=low
+
+  [ Robert Carr ]
+  * Add missing mir stub (ua_ui_session_properties_set_remote_pid).
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 73
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Tue, 25 Jun 2013 02:01:11 +0000
+
+platform-api (0.18.1daily13.06.21-0ubuntu1) saucy; urgency=low
+
+  [ Ubuntu daily release ]
+  * debian/*symbols: auto-update new symbols to released version
+
+  [ Didier Roche ]
+  * Add a symbol files with unmangled C++ symbols to track ABI.
+
+  [ Dmitrijs Ledkovs ]
+  * Add a symbol files with unmangled C++ symbols to track ABI.
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 71
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Fri, 21 Jun 2013 02:01:21 +0000
+
 platform-api (0.18.1daily13.06.18-0ubuntu1) saucy; urgency=low
 
   [ Gerry Boland ]

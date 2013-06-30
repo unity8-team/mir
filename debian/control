@@ -1,26 +1,27 @@
 Source: platform-api
 Priority: optional
+Section: devel
 Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
 Build-Depends: cmake,
                debhelper (>= 9),
 	       doxygen,
 	       graphviz,
+               g++-4.7,
                libgl1-mesa-dev[!armhf],
                libgles2-mesa-dev[armhf],
                libhybris-dev,
 Standards-Version: 3.9.4
-Section: devel
 Homepage: https://launchpad.net/platform-api
 Vcs-Bzr: lp:platform-api
-# If you aren't a member of http://pad.lv/~phablet-team but need to upload packaging changes,
-# just go ahead.  http://pad.lv/~phablet-team will notice and sync up the code again.
+# If you aren't a member of ~phablet-team but need to upload packaging changes,
+# just go ahead.  ~phablet-team will notice and sync up the code again.
 Vcs-Browser: https://code.launchpad.net/platform-api
 
 Package: libplatform-api-headers
 Section: libdevel
+Architecture: any
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
-Architecture: any
 Depends: ${misc:Depends},
 Description: Platform API for system level capabilities (API headers)
  This package provides the library headers for the Platform API.
@@ -31,9 +32,9 @@ Description: Platform API for system level capabilities (API headers)
 
 Package: libplatform-api1-dev
 Section: libdevel
+Architecture: any
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
-Architecture: any
 Depends: libgles2-mesa-dev,
          libplatform-api-headers (= ${binary:Version}),
          libplatform-api1-hybris | libplatform-api1,
@@ -43,13 +44,13 @@ Description: Platform API for system level capabilities (development)
  dependency) for the Platform API.
 
 Package: libplatform-api1-hybris
+Section: libs
+Architecture: any
 Provides: libplatform-api1,
 Conflicts: libplatform-api1,
 Replaces: libplatform-api1,
-Section: libs
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
-Architecture: any
 Depends: libhybris,
          ${misc:Depends},
          ${shlibs:Depends},
