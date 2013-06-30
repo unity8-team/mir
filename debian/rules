@@ -17,3 +17,4 @@ override_dh_auto_configure:
 
 overrid_dh_install:
 	dh_install --fail-missing
+	dh_link include/ubuntu-${UBUNTU_PLATFORM_API_VERSION_MAJOR} include/ubuntu
