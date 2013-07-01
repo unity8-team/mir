@@ -1,3 +1,13 @@
+platform-api (0.18.1+13.10.20130630-0ubuntu1) saucy; urgency=low
+
+  [ Ricardo Mendoza ]
+  * Add guards for NULL sensors.
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 79
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Sun, 30 Jun 2013 02:01:10 +0000
+
 platform-api (0.18.1+13.10.20130628-0ubuntu1) saucy; urgency=low
 
   [ Didier Roche ]
