@@ -5,8 +5,7 @@ Build-Depends: cmake,
                debhelper (>= 9),
                doxygen,
                graphviz,
-               libgl1-mesa-dev[!armhf],
-               libgles2-mesa-dev[armhf],
+               libgles2-mesa-dev,
                libhybris-dev,
 Standards-Version: 3.9.4
 Section: devel
