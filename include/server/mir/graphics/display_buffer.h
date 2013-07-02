@@ -20,6 +20,7 @@
 #define MIR_GRAPHICS_DISPLAY_BUFFER_H_
 
 #include <mir/geometry/rectangle.h>
+#include <mir/graphics/viewable_area.h>
 
 namespace mir
 {
@@ -29,13 +30,11 @@ namespace graphics
 /**
  * Interface to an output framebuffer.
  */
-class DisplayBuffer
+class DisplayBuffer : public ViewableArea
 {
 public:
     virtual ~DisplayBuffer() {}
 
-    /** The area the DisplayBuffer occupies in the virtual screen space. */
-    virtual geometry::Rectangle view_area() const = 0;
     /** Makes the DisplayBuffer the current GL rendering target. */
     virtual void make_current() = 0;
     /** Releases the current GL rendering target. */
