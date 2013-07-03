@@ -1,3 +1,14 @@
+platform-api (0.18.1+13.10.20130703-0ubuntu1) saucy; urgency=low
+
+  [ Ricardo Mendoza ]
+  * Stop the app manager from suspending the shell if there is no valid
+    active main stage application running. (LP: #1196696)
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 81
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Wed, 03 Jul 2013 02:01:08 +0000
+
 platform-api (0.18.1+13.10.20130630-0ubuntu1) saucy; urgency=low
 
   [ Ricardo Mendoza ]
