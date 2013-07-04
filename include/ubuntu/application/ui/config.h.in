@@ -13,12 +13,15 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Authored by: Michael Terry <michael.terry@canonical.com>
+ * Authored by: Thomas Voß <thomas.voss@canonical.com>
  */
 
-#ifndef UBUNTU_UI_CONFIG_H_
-#define UBUNTU_UI_CONFIG_H_
+#ifndef UBUNTU_APPLICATION_UI_CONFIG_H_
+#define UBUNTU_APPLICATION_UI_CONFIG_H_
+#ifndef __ANDROID__
+#define UBUNTU_PLATFORM_API_HAVE_GLES2 @UBUNTU_PLATFORM_API_HAVE_GLES2@
+#else
+#define UBUNTU_PLATFORM_API_HAVE_GLES2 1
+#endif  // __ANDROID__
 
-#define UBUNTU_USE_GLES 1
-
-#endif // UBUNTU_UI_CONFIG_H_
+#endif // UBUNTU_APPLICATION_UI_CONFIG_H_
