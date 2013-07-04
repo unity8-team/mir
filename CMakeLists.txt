@@ -159,31 +159,24 @@ add_subdirectory(src/)
 include_directories(${MIR_GENERATED_INCLUDE_DIRECTORIES})
 
 set (OLD_CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
-# Don't treat warnings as errors in 3rd_party/{gmock}
+
+# Don't treat warnings as errors
 string (REPLACE " -Werror " " " CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
 
-# Pulling in local gmock version
-# While this seems evil, we are doing
-# it to ensure/allow for:
-#   (1.) a matching gmock/gtest version
-#   (2.) a stream-lined cross-compilation workflow
-set(
-  GTEST_INCLUDE_DIR
+set(GMOCK_INCLUDE_DIR "/usr/include/gmock/include" CACHE PATH "gmock source include directory")
+set(GTEST_INCLUDE_DIR "/usr/include/gtest/include" CACHE PATH "gtest source include directory")
+set (GMOCK_SOURCE_DIR "/usr/src/gmock" CACHE PATH "gmock source directory")
+add_subdirectory(${GMOCK_SOURCE_DIR} "${CMAKE_CURRENT_BINARY_DIR}/gmock")
 
-  3rd_party/gmock/include
-  3rd_party/gmock/gtest/include)
-
-add_subdirectory(3rd_party/gmock/)
 set(GMOCK_LIBRARY gmock)
 set(GMOCK_MAIN_LIBRARY gmock_main)
-set(
-  GTEST_BOTH_LIBRARIES
-
+set( GTEST_BOTH_LIBRARIES
   ${GMOCK_LIBRARY}
   ${GMOCK_MAIN_LIBRARY})
 set(GTEST_FOUND TRUE)
 # GMock/GTest build finished and available to subsequent components
 include_directories (
+  ${GMOCK_INCLUDE_DIR}
   ${GTEST_INCLUDE_DIR}
 )
 
@@ -192,7 +185,10 @@ set (CMAKE_CXX_FLAGS ${OLD_CMAKE_CXX_FLAGS})
 
 add_subdirectory(benchmarks/)
 if (MIR_TESTS_AVAILABLE)
+# Don't error on unused-local-typedefs and deprecation for tests (including gmock ang glib)
+  set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=unused-local-typedefs -Wno-error=deprecated")
   add_subdirectory(tests/)
+  set (CMAKE_CXX_FLAGS ${OLD_CMAKE_CXX_FLAGS})
 endif ()
 add_subdirectory(tools/)
 add_subdirectory(examples/)
