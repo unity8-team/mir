@@ -2,9 +2,9 @@ cmake_minimum_required(VERSION 2.6)
 
 project(ubuntu-platform-api)
 
-set(UBUNTU_PLATFORM_API_VERSION_MAJOR 0)
+set(UBUNTU_PLATFORM_API_VERSION_MAJOR 1)
 set(UBUNTU_PLATFORM_API_VERSION_MINOR 0)
-set(UBUNTU_PLATFORM_API_VERSION_PATCH 1)
+set(UBUNTU_PLATFORM_API_VERSION_PATCH 0)
 
 set(BIN_INSTALL_DIR bin)
 set(LIB_INSTALL_DIR lib/${CMAKE_LIBRARY_ARCHITECTURE})
@@ -18,7 +18,7 @@ set(UBUNTU_PLATFORM_API_HAVE_GLES2 0)
 
 find_path(
   GLES2_INCLUDE_PATH
-  gles2/gl2.h
+  GLES2/gl2.h
 )
 
 if (GLES2_INCLUDE_PATH)
@@ -73,11 +73,6 @@ endif(ENABLE_MIRCLIENT_IMPLEMENTATION)
 if(ENABLE_MIRCLIENT_IMPLEMENTATION OR ENABLE_MIRSERVER_IMPLEMENTATION)
   pkg_check_modules(MIRCOMMON REQUIRED mircommon)
 endif()
-
-# Sanity-check options
-#if(NOT DEFINED USE_GLES)
-#  set(USE_GLES 1)
-#endif()
 
 # Try to find hybris, and disable hybris from build if not found
 find_library(Hybris
