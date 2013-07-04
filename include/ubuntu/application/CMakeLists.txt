@@ -12,7 +12,7 @@ set(
 
 install(
   FILES ${UBUNTU_APPLICATION_HEADERS}
-  DESTINATION include/ubuntu/application
+  DESTINATION include/ubuntu-${UBUNTU_PLATFORM_API_VERSION_MAJOR}/application
 )
 
 add_subdirectory(sensors)

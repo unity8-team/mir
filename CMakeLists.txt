@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.6)
 
-project(ubuntu_platform_api)
+project(ubuntu-platform-api)
 
 set(UBUNTU_PLATFORM_API_VERSION_MAJOR 1)
 set(UBUNTU_PLATFORM_API_VERSION_MINOR 0)
@@ -87,6 +87,7 @@ endif()
 include_directories(include)
 include_directories(android/include)
 
+add_subdirectory(data/)
 add_subdirectory(doc/)
 add_subdirectory(include/)
 add_subdirectory(src/)
