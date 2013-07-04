@@ -4,19 +4,8 @@ DPKG_GENSYMBOLS_CHECK_LEVEL = 4
 
 export CXX=g++-4.7
 
-gles2_architectures := armhf
-ifeq ($(DEB_HOST_ARCH),$(findstring $(DEB_HOST_ARCH), $(gles2_architectures)))
-	use_gles=1
-else
-	use_gles=0
-endif
-
 %:
 	dh $@
 
-override_dh_auto_configure:
-	dh_auto_configure -- -DUSE_GLES=$(use_gles)
-
 overrid_dh_install:
 	dh_install --fail-missing
-	dh_link include/ubuntu-${UBUNTU_PLATFORM_API_VERSION_MAJOR} include/ubuntu
