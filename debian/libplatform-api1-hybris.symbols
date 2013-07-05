@@ -1,12 +1,9 @@
 libubuntu_application_api.so.1 libplatform-api1-hybris #MINVER#
- (c++)"ua_sensors_light_disable(void*)@Base" 0.18.1daily13.06.21
- (c++)"ubuntu::hybris::Bridge::path_to_library()@Base" 0.18.1daily13.06.21
- (c++)"ubuntu::hybris::Bridge::instance()@Base" 0.18.1daily13.06.21
- (c++)"ubuntu::hybris::Bridge::Bridge()@Base" 0.18.1daily13.06.21
- (c++)"ubuntu::hybris::Bridge::Bridge()@Base" 0.18.1daily13.06.21
- (c++)"ubuntu::hybris::Bridge::~Bridge()@Base" 0.18.1daily13.06.21
- (c++)"ubuntu::hybris::Bridge::~Bridge()@Base" 0.18.1daily13.06.21
- (c++)"ubuntu::hybris::Bridge::resolve_symbol(char const*) const@Base" 0.18.1daily13.06.21
+ _Z24ua_sensors_light_disablePv@Base 0.18.1daily13.06.21
+ _ZGVZN8internal6BridgeINS_13ToApplicationEE8instanceEvE6bridge@Base 0.18.1+13.10.20130703-0ubuntu2
+ _ZN8internal6BridgeINS_13ToApplicationEED1Ev@Base 0.18.1+13.10.20130703-0ubuntu2
+ _ZN8internal6BridgeINS_13ToApplicationEED2Ev@Base 0.18.1+13.10.20130703-0ubuntu2
+ _ZZN8internal6BridgeINS_13ToApplicationEE8instanceEvE6bridge@Base 0.18.1+13.10.20130703-0ubuntu2
  u_application_description_destroy@Base 0.18.1daily13.06.21
  u_application_description_new@Base 0.18.1daily13.06.21
  u_application_description_set_application_id@Base 0.18.1daily13.06.21
@@ -81,15 +78,6 @@ libubuntu_application_api.so.1 libplatform-api1-hybris #MINVER#
  uas_light_event_get_timestamp@Base 0.18.1daily13.06.21
  uas_proximity_event_get_distance@Base 0.18.1daily13.06.21
  uas_proximity_event_get_timestamp@Base 0.18.1daily13.06.21
- ubuntu_gps_delete@Base 0.18.1daily13.06.21
- ubuntu_gps_delete_aiding_data@Base 0.18.1daily13.06.21
- ubuntu_gps_inject_location@Base 0.18.1daily13.06.21
- ubuntu_gps_inject_time@Base 0.18.1daily13.06.21
- ubuntu_gps_inject_xtra_data@Base 0.18.1daily13.06.21
- ubuntu_gps_new@Base 0.18.1daily13.06.21
- ubuntu_gps_set_position_mode@Base 0.18.1daily13.06.21
- ubuntu_gps_start@Base 0.18.1daily13.06.21
- ubuntu_gps_stop@Base 0.18.1daily13.06.21
  ubuntu_ui_install_task_controller@Base 0.18.1daily13.06.21
  ubuntu_ui_report_notification_invisible@Base 0.18.1daily13.06.21
  ubuntu_ui_report_notification_visible@Base 0.18.1daily13.06.21
@@ -105,3 +93,17 @@ libubuntu_application_api.so.1 libplatform-api1-hybris #MINVER#
  ubuntu_ui_session_unfocus_running_sessions@Base 0.18.1daily13.06.21
  ubuntu_ui_set_surface_trap@Base 0.18.1daily13.06.21
  ubuntu_ui_unset_surface_trap@Base 0.18.1daily13.06.21
+libubuntu_platform_hardware_api.so.1 libplatform-api1-hybris #MINVER#
+ _ZGVZN8internal6BridgeINS_13ToApplicationEE8instanceEvE6bridge@Base 0.18.1+13.10.20130703-0ubuntu2
+ _ZN8internal6BridgeINS_13ToApplicationEED1Ev@Base 0.18.1+13.10.20130703-0ubuntu2
+ _ZN8internal6BridgeINS_13ToApplicationEED2Ev@Base 0.18.1+13.10.20130703-0ubuntu2
+ _ZZN8internal6BridgeINS_13ToApplicationEE8instanceEvE6bridge@Base 0.18.1+13.10.20130703-0ubuntu2
+ u_hardware_gps_delete@Base 0.18.1+13.10.20130703-0ubuntu2
+ u_hardware_gps_delete_aiding_data@Base 0.18.1+13.10.20130703-0ubuntu2
+ u_hardware_gps_inject_location@Base 0.18.1+13.10.20130703-0ubuntu2
+ u_hardware_gps_inject_time@Base 0.18.1+13.10.20130703-0ubuntu2
+ u_hardware_gps_inject_xtra_data@Base 0.18.1+13.10.20130703-0ubuntu2
+ u_hardware_gps_new@Base 0.18.1+13.10.20130703-0ubuntu2
+ u_hardware_gps_set_position_mode@Base 0.18.1+13.10.20130703-0ubuntu2
+ u_hardware_gps_start@Base 0.18.1+13.10.20130703-0ubuntu2
+ u_hardware_gps_stop@Base 0.18.1+13.10.20130703-0ubuntu2
