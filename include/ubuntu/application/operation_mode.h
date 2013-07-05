@@ -14,16 +14,20 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Authored by: Ricardo Mendoza <ricardo.mendoza@canonical.com>
- *              Thomas Voß <thomas.voss@canonical.com>           
+ *              Thomas Voß <thomas.voss@canonical.com>
  */
 
 #ifndef UBUNTU_APPLICATION_OPERATION_MODE_H_
 #define UBUNTU_APPLICATION_OPERATION_MODE_H_
 
+/**
+ * \brief Describes the different operational modes that an
+ * application can run in.
+ */
 typedef enum
 {
-	U_APPLICATION_FOREGROUND_APP,
-	U_APPLICATION_BACKGROUND_SERVICE
+    U_APPLICATION_FOREGROUND_APP,
+    U_APPLICATION_BACKGROUND_SERVICE
 } UApplicationOperationMode;
 
 #endif /* UBUNTU_APPLICATION_OPERATION_MODE_H_ */

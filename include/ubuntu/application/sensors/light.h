@@ -26,36 +26,94 @@
 extern "C" {
 #endif
 
+    /**
+     * \brief Opaque type that models the ambient light sensor.
+     * \ingroup sensor_access
+     */
     typedef void UASensorsLight;
+
+    /**
+     * \brief Callback type used by applications to subscribe to ambient light sensor events.
+     * \ingroup sensor_access
+     */
     typedef void (*on_light_event_cb)(UASLightEvent* event,
                                       void* context);
 
+    /**
+     * \brief Create a new object for accessing the ambient light sensor.
+     * \ingroup sensor_access
+     * \returns A new instance or NULL in case of errors.
+     */
     UASensorsLight*
-    ua_sensors_light_new(); 
+    ua_sensors_light_new();
 
+    /**
+     * \brief Enables the supplied ambient light sensor.
+     * \ingroup sensor_access
+     * \returns U_STATUS_SUCCESS if successful or U_STATUS_ERROR if an error occured.
+     * \param[in] sensor The sensor instance to be enabled.
+     */
     UStatus
     ua_sensors_light_enable(
         UASensorsLight* sensor);
 
+    /**
+     * \brief Disables the supplied ambient light sensor.
+     * \ingroup sensor_access
+     * \returns U_STATUS_SUCCESS if successful or U_STATUS_ERROR if an error occured.
+     * \param[in] sensor The sensor instance to be disabled.
+     */
     UStatus
     ua_sensors_light_disable(
         UASensorsLight* sensor);
 
+    /**
+     * \brief Queries the minimum delay between two readings for the supplied sensor.
+     * \ingroup sensor_access
+     * \returns The minimum delay between two readings in [ms].
+     * \param[in] sensor The sensor instance to be queried.
+     */
     uint32_t
     ua_sensors_light_get_min_delay(
         UASensorsLight* sensor);
-    
+
+    /**
+     * \brief Queries the minimum value that can be reported by the sensor.
+     * \ingroup sensor_access
+     * \returns The minimum value that can be reported by the sensor.
+     * \param[in] sensor The sensor instance to be queried.
+     */
     float
     ua_sensors_light_get_min_value(
         UASensorsLight* sensor);
-  
+
+    /**
+     * \brief Queries the maximum value that can be reported by the sensor.
+     * \ingroup sensor_access
+     * \returns The maximum value that can be reported by the sensor.
+     * \param[in] sensor The sensor instance to be queried.
+     */
     float
     ua_sensors_light_get_max_value(
         UASensorsLight* sensor);
- 
+
+    /**
+     * \brief Queries the numeric resolution supported by the sensor
+     * \ingroup sensor_access
+     * \returns The numeric resolution supported by the sensor.
+     * \param[in] sensor The sensor instance to be queried.
+     */
     float
     ua_sensors_light_get_resolution(
         UASensorsLight* sensor);
+
+    /**
+     * \brief Set the callback to be invoked whenever a new sensor reading is available.
+     * \ingroup sensor_access
+     * \param[in] sensor The sensor instance to associate the callback with.
+     * \param[in] cb The callback to be invoked.
+     * \param[in] ctx The context supplied to the callback invocation.
+     */
     void
     ua_sensors_light_set_reading_cb(
         UASensorsLight* sensor,

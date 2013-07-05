@@ -39,9 +39,18 @@ Depends: libgles2-mesa-dev,
          libplatform-api-headers (= ${binary:Version}),
          libplatform-api1-hybris | libplatform-api1,
          ${misc:Depends},
+Suggests: libplatform-api1-doc,
 Description: Platform API for system level capabilities (development)
  This package provides the development library and headers (via
  dependency) for the Platform API.
+
+Package: libplatform-api1-doc
+Section: doc
+Architecture: any
+Depends: libplatform-api1-dev,
+         ${misc:Depends},
+Description: Platform API for system level capabilities (development)
+ This package provides the developer documentation for the Platform API.
 
 Package: libplatform-api1-hybris
 Section: libs

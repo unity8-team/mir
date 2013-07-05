@@ -1,0 +1,8 @@
+Document: ubuntu-platform-api 
+Title: Ubuntu Platform API Reference Documentation
+Author: Thomas Voß
+Abstract: This is the reference documentation for the Ubuntu Platform API
+Section: Debian
+Format: HTML
+Index: /usr/share/doc/ubuntu-platform-api/html/index.html
+Files: /usr/share/doc/ubuntu-platform-api/html/*.html

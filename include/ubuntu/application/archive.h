@@ -14,7 +14,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Authored by: Ricardo Mendoza <ricardo.mendoza@canonical.com>
- *              Thomas Voß <thomas.voss@canonical.com>           
+ *              Thomas Voß <thomas.voss@canonical.com>
  */
 
 #ifndef UBUNTU_APPLICATION_ARCHIVE_H_
@@ -26,139 +26,311 @@
 
 struct UApplicationArchive;
 
+/**
+ * \brief Creates a new archive, ownership is transferred to caller.
+ * \ingroup application_support
+ * \sa u_application_archive_destroy
+ * \returns A new archive instance or NULL if not enough memory is available.
+ */
 UApplicationArchive*
 u_application_archive_new();
 
+/**
+ * \brief Destroys the given archive instance and releases all resources held by the instance.
+ * \ingroup application_support
+ * \param[in] archive The instance to be destroyed.
+ * \post All resources held by the instance are released. The result of any operation invoked on the destroyed instance are undefined.
+ */
 void
 u_application_archive_destroy(
-	UApplicationArchive *archive);
+    UApplicationArchive *archive);
 
+/**
+ * \brief Writes a signed 8-bit integer to the supplied archive
+ * \ingroup application_support
+ * \returns U_STATUS_SUCCESS if successful, and U_STATUS_ERROR in case of failures.
+ * \param[in] archive The archive to write to.
+ * \param[in] c The signed 8-bit integer to write to the archive.
+ */
 UStatus
 u_application_archive_write(
-	UApplicationArchive *archive,
-	int8_t c);
+    UApplicationArchive *archive,
+    int8_t c);
 
+/**
+ * \brief Writes an unsigned 8-bit integer to the supplied archive
+ * \ingroup application_support
+ * \returns U_STATUS_SUCCESS if successful, and U_STATUS_ERROR in case of failures.
+ * \param[in] archive The archive to write to.
+ * \param[in] c The unsigned 8-bit integer to write to the archive.
+ */
 UStatus
 u_application_archive_write(
-	UApplicationArchive *archive,
-	uint8_t c);
+    UApplicationArchive *archive,
+    uint8_t c);
 
+/**
+ * \brief Writes a signed 16-bit integer to the supplied archive
+ * \ingroup application_support
+ * \returns U_STATUS_SUCCESS if successful, and U_STATUS_ERROR in case of failures.
+ * \param[in] archive The archive to write to.
+ * \param[in] s The signed 16-bit integer to write to the archive.
+ */
 UStatus
 u_application_archive_write(
-	UApplicationArchive *archive,
-	int16_t s);
+    UApplicationArchive *archive,
+    int16_t s);
 
+/**
+ * \brief Writes an unsigned 16-bit integer to the supplied archive
+ * \ingroup application_support
+ * \returns U_STATUS_SUCCESS if successful, and U_STATUS_ERROR in case of failures.
+ * \param[in] archive The archive to write to.
+ * \param[in] s The unsigned 16-bit integer to write to the archive.
+ */
 UStatus
 u_application_archive_write(
-	UApplicationArchive *archive,
-	uint16_t s);
+    UApplicationArchive *archive,
+    uint16_t s);
 
+/**
+ * \brief Writes a signed 32-bit integer to the supplied archive
+ * \ingroup application_support
+ * \returns U_STATUS_SUCCESS if successful, and U_STATUS_ERROR in case of failures.
+ * \param[in] archive The archive to write to.
+ * \param[in] s The signed 32-bit integer to write to the archive.
+ */
 UStatus
 u_application_archive_write(
-	UApplicationArchive *archive,
-	int32_t s);
+    UApplicationArchive *archive,
+    int32_t s);
 
+/**
+ * \brief Writes an unsigned 32-bit integer to the supplied archive
+ * \ingroup application_support
+ * \returns U_STATUS_SUCCESS if successful, and U_STATUS_ERROR in case of failures.
+ * \param[in] archive The archive to write to.
+ * \param[in] s The unsigned 32-bit integer to write to the archive.
+ */
 UStatus
 u_application_archive_write(
-	UApplicationArchive *archive,
-	uint32_t s);
+    UApplicationArchive *archive,
+    uint32_t s);
 
+/**
+ * \brief Writes a signed 64-bit integer to the supplied archive
+ * \ingroup application_support
+ * \returns U_STATUS_SUCCESS if successful, and U_STATUS_ERROR in case of failures.
+ * \param[in] archive The archive to write to.
+ * \param[in] s The signed 64-bit integer to write to the archive.
+ */
 UStatus
 u_application_archive_write(
-	UApplicationArchive *archive,
-	int64_t s);
+    UApplicationArchive *archive,
+    int64_t s);
 
+/**
+ * \brief Writes an unsigned 64-bit integer to the supplied archive
+ * \ingroup application_support
+ * \returns U_STATUS_SUCCESS if successful, and U_STATUS_ERROR in case of failures.
+ * \param[in] archive The archive to write to.
+ * \param[in] s The unsigned 64-bit integer to write to the archive.
+ */
 UStatus
 u_application_archive_write(
-	UApplicationArchive *archive,
-	uint64_t s);
+    UApplicationArchive *archive,
+    uint64_t s);
 
+/**
+ * \brief Writes a string of characters to the supplied archive
+ * \ingroup application_support
+ * \returns U_STATUS_SUCCESS if successful, and U_STATUS_ERROR in case of failures.
+ * \param[in] archive The archive to write to.
+ * \param[in] s The string to write.
+ * \param[in] size The number of characters to write to the archive.
+ */
 UStatus
 u_application_archive_write_stringn(
-	UApplicationArchive *archive,
-	const char *s,
-	size_t size);
+    UApplicationArchive *archive,
+    const char *s,
+    size_t size);
 
+/**
+ * \brief Writes a string of wide characters to the supplied archive
+ * \ingroup application_support
+ * \returns U_STATUS_SUCCESS if successful, and U_STATUS_ERROR in case of failures.
+ * \param[in] archive The archive to write to.
+ * \param[in] s The string to write.
+ * \param[in] size The number of characters to write to the archive.
+ */
 UStatus
 u_application_archive_write_wstringn(
-	UApplicationArchive *archive,
-	const wchar_t *s,
-	size_t size);
+    UApplicationArchive *archive,
+    const wchar_t *s,
+    size_t size);
 
+/**
+ * \brief Writes a blob of binary data to the supplied archive
+ * \ingroup application_support
+ * \returns U_STATUS_SUCCESS if successful, and U_STATUS_ERROR in case of failures.
+ * \param[in] archive The archive to write to.
+ * \param[in] data The binary blob to write.
+ * \param[in] size The size of the blob.
+ */
 UStatus
 u_application_archive_write_bytes(
-	UApplicationArchive *archive,
-	const intptr_t *data,
-	size_t size);
+    UApplicationArchive *archive,
+    const intptr_t *data,
+    size_t size);
 
 UStatus
 u_application_archive_write_begin_blockn(
-	UApplicationArchive* archive,
-	const char *name,
-	size_t size);
+    UApplicationArchive* archive,
+    const char *name,
+    size_t size);
 
 UStatus
 u_application_archive_write_end_blockn(
-	UApplicationArchive* archive,
-	const char *name,
-	size_t size);
+    UApplicationArchive* archive,
+    const char *name,
+    size_t size);
 
+/**
+ * \brief Reads a signed 8-bit integer from the supplied archive
+ * \ingroup application_support
+ * \returns U_STATUS_SUCCESS if successful, and U_STATUS_ERROR in case of failures.
+ * \param[in] archive The archive to read from.
+ * \param[out] c Pointer to memory that receives the signed 8-bit integer.
+ */
 UStatus
 u_application_archive_read(
-	const UApplicationArchive *archive,
-	int8_t *c);
+    const UApplicationArchive *archive,
+    int8_t *c);
 
+/**
+ * \brief Reads an unsigned 8-bit integer from the supplied archive
+ * \ingroup application_support
+ * \returns U_STATUS_SUCCESS if successful, and U_STATUS_ERROR in case of failures.
+ * \param[in] archive The archive to read from.
+ * \param[out] c Pointer to memory that receives the unsigned 8-bit integer.
+ */
 UStatus
 u_application_archive_read(
-	const UApplicationArchive *archive,
-	uint8_t *c);
+    const UApplicationArchive *archive,
+    uint8_t *c);
 
+/**
+ * \brief Reads a signed 16-bit integer from the supplied archive
+ * \ingroup application_support
+ * \returns U_STATUS_SUCCESS if successful, and U_STATUS_ERROR in case of failures.
+ * \param[in] archive The archive to read from.
+ * \param[out] s Pointer to memory that receives the signed 16-bit integer.
+ */
 UStatus
 u_application_archive_read(
-	const UApplicationArchive *archive,
-	int16_t *s);
+    const UApplicationArchive *archive,
+    int16_t *s);
 
+/**
+ * \brief Reads an unsigned 16-bit integer from the supplied archive
+ * \ingroup application_support
+ * \returns U_STATUS_SUCCESS if successful, and U_STATUS_ERROR in case of failures.
+ * \param[in] archive The archive to read from.
+ * \param[out] s Pointer to memory that receives the unsigned 16-bit integer.
+ */
 UStatus
 u_application_archive_read(
-	const UApplicationArchive *archive,
-	uint16_t *s);
+    const UApplicationArchive *archive,
+    uint16_t *s);
 
+/**
+ * \brief Reads a signed 32-bit integer from the supplied archive
+ * \ingroup application_support
+ * \returns U_STATUS_SUCCESS if successful, and U_STATUS_ERROR in case of failures.
+ * \param[in] archive The archive to read from.
+ * \param[out] s Pointer to memory that receives the signed 32-bit integer.
+ */
 UStatus
 u_application_archive_read(
-	const UApplicationArchive *archive,
-	int32_t *s);
+    const UApplicationArchive *archive,
+    int32_t *s);
 
+/**
+ * \brief Reads an unsigned 32-bit integer from the supplied archive
+ * \ingroup application_support
+ * \returns U_STATUS_SUCCESS if successful, and U_STATUS_ERROR in case of failures.
+ * \param[in] archive The archive to read from.
+ * \param[out] s Pointer to memory that receives the unsigned 32-bit integer.
+ */
 UStatus
 u_application_archive_read(
-	const UApplicationArchive *archive,
-	uint32_t *s);
+    const UApplicationArchive *archive,
+    uint32_t *s);
 
+/**
+ * \brief Reads a signed 64-bit integer from the supplied archive
+ * \ingroup application_support
+ * \returns U_STATUS_SUCCESS if successful, and U_STATUS_ERROR in case of failures.
+ * \param[in] archive The archive to read from.
+ * \param[out] s Pointer to memory that receives the signed 64-bit integer.
+ */
 UStatus
 u_application_archive_read(
-	const UApplicationArchive *archive,
-	int64_t *s);
+    const UApplicationArchive *archive,
+    int64_t *s);
 
+/**
+ * \brief Reads an unsigned 64-bit integer from the supplied archive
+ * \ingroup application_support
+ * \returns U_STATUS_SUCCESS if successful, and U_STATUS_ERROR in case of failures.
+ * \param[in] archive The archive to read from.
+ * \param[out] s Pointer to memory that receives the unsigned 64-bit integer.
+ */
 UStatus
 u_application_archive_read(
-	const UApplicationArchive *archive,
-	uint64_t *s);
+    const UApplicationArchive *archive,
+    uint64_t *s);
 
+/**
+ * \brief Reads a string of characters from the supplied archive
+ * \ingroup application_support
+ * \returns U_STATUS_SUCCESS if successful, and U_STATUS_ERROR in case of failures.
+ * \param[in] archive The archive to read from.
+ * \param[out] s Pointer to memory that receives the string.
+ * \param[out] size Pointer to memory that receives the size of the string.
+ */
 UStatus
 u_application_archive_read_stringn(
-	const UApplicationArchive *archive,
-	const char **s,
-	size_t *size);
+    const UApplicationArchive *archive,
+    const char **s,
+    size_t *size);
 
+/**
+ * \brief Reads a string of wide characters from the supplied archive
+ * \ingroup application_support
+ * \returns U_STATUS_SUCCESS if successful, and U_STATUS_ERROR in case of failures.
+ * \param[in] archive The archive to read from.
+ * \param[out] s Pointer to memory that receives the wide string.
+ * \param[out] size Pointer to memory that receives the size of the string.
+ */
 UStatus
 u_application_archive_read_wstringn(
-	UApplicationArchive *archive,
-	const wchar_t *s,
-	size_t size);
+    UApplicationArchive *archive,
+    const wchar_t *s,
+    size_t size);
 
+/**
+ * \brief Reads a blob of binary data from the supplied archive
+ * \ingroup application_support
+ * \returns U_STATUS_SUCCESS if successful, and U_STATUS_ERROR in case of failures.
+ * \param[in] archive The archive to read from.
+ * \param[out] data Pointer to memory that receives the binary data.
+ * \param[out] size Pointer to memory that receives the size of the blob.
+ */
 UStatus
 u_application_archive_read_bytes(
-	UApplicationArchive *archive,
-	const intptr_t *data,
-	size_t size);
+    UApplicationArchive *archive,
+    const intptr_t *data,
+    size_t size);
 
 #endif /* UBUNTU_APPLICATION_ARCHIVE_H_ */
