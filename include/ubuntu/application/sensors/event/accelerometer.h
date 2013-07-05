@@ -25,20 +25,48 @@
 extern "C" {
 #endif
 
+    /**
+     * \brief Opaque type describing an accelerometer reading.
+     * \ingroup sensor_access
+     */
     typedef void UASAccelerometerEvent;
 
+    /**
+     * \brief Query the timestamp of the sensor reading.
+     * \ingroup sensor_access
+     * \returns The timestamp of the sensor reading in [µs], timebase: monotonic clock.
+     * \param[in] event The reading to be queried.
+     */
     uint64_t
     uas_accelerometer_event_get_timestamp(
         UASAccelerometerEvent* event);
-   
+
+    /**
+     * \brief Query the acceleration in x-axis direction.
+     * \ingroup sensor_access
+     * \returns The acceleration in x-axis direction.
+     * \param[in] event The reading to be queried.
+     */
     float
     uas_accelerometer_event_get_acceleration_x(
         UASAccelerometerEvent* event);
-  
+
+    /**
+     * \brief Query the acceleration in y-axis direction.
+     * \ingroup sensor_access
+     * \returns The acceleration in y-axis direction.
+     * \param[in] event The reading to be queried.
+     */
     float
     uas_accelerometer_event_get_acceleration_y(
         UASAccelerometerEvent* event);
-  
+
+    /**
+     * \brief Query the acceleration in z-axis direction.
+     * \ingroup sensor_access
+     * \returns The acceleration in z-axis direction.
+     * \param[in] event The reading to be queried.
+     */
     float
     uas_accelerometer_event_get_acceleration_z(
         UASAccelerometerEvent* event);

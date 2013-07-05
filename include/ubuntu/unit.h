@@ -20,13 +20,16 @@
 #ifndef UBUNTU_UNIT_H_
 #define UBUNTU_UNIT_H_
 
+/**
+ * \brief Describes units known to the platform integration layer.
+ */
 typedef enum
 {
-	U_DEGREE,
-	U_METER,
-	U_SECOND,
-	U_METER_PER_SECOND,
-	U_MICRO_TESLA
+    U_DEGREE,
+    U_METER,
+    U_SECOND,
+    U_METER_PER_SECOND,
+    U_MICRO_TESLA
 } UbuntuUnit;
 
 typedef UbuntuUnit UUnit;

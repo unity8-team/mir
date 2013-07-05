@@ -20,10 +20,15 @@
 #ifndef UBUNTU_STATUS_H_
 #define UBUNTU_STATUS_H_
 
+/**
+ * \brief Indicates the status of an operation.
+ */
 typedef enum
 {
-	U_STATUS_SUCCESS,
-    U_STATUS_ERROR
-} UStatus;
+    U_STATUS_SUCCESS, ///< Operation finished successfully.
+    U_STATUS_ERROR ///< Operation finished with an error.
+} UbuntuStatus;
+
+typedef UbuntuStatus UStatus;
 
 #endif /* UBUNTU_STATUS_H_ */

@@ -26,36 +26,94 @@
 extern "C" {
 #endif
 
+    /**
+     * \brief Opaque type that models the proximity sensor.
+     * \ingroup sensor_access
+     */
     typedef void UASensorsProximity;
+
+    /**
+     * \brief Callback type used by applications to subscribe to proximity sensor events.
+     * \ingroup sensor_access
+     */
     typedef void (*on_proximity_event_cb)(UASProximityEvent* event,
                                           void* context);
 
+    /**
+     * \brief Create a new object for accessing the proximity sensor.
+     * \ingroup sensor_access
+     * \returns A new instance or NULL in case of errors.
+     */
     UASensorsProximity*
-    ua_sensors_proximity_new(); 
+    ua_sensors_proximity_new();
 
+    /**
+     * \brief Enables the supplied proximity sensor.
+     * \ingroup sensor_access
+     * \returns U_STATUS_SUCCESS if successful or U_STATUS_ERROR if an error occured.
+     * \param[in] sensor The sensor instance to be enabled.
+     */
     UStatus
     ua_sensors_proximity_enable(
         UASensorsProximity* sensor);
 
+    /**
+     * \brief Disables the supplied proximity sensor.
+     * \ingroup sensor_access
+     * \returns U_STATUS_SUCCESS if successful or U_STATUS_ERROR if an error occured.
+     * \param[in] sensor The sensor instance to be disabled.
+     */
     UStatus
     ua_sensors_proximity_disable(
         UASensorsProximity* sensor);
 
+    /**
+     * \brief Queries the minimum delay between two readings for the supplied sensor.
+     * \ingroup sensor_access
+     * \returns The minimum delay between two readings in [ms].
+     * \param[in] sensor The sensor instance to be queried.
+     */
     uint32_t
     ua_sensors_proximity_get_min_delay(
         UASensorsProximity* sensor);
-    
+
+    /**
+     * \brief Queries the minimum value that can be reported by the sensor.
+     * \ingroup sensor_access
+     * \returns The minimum value that can be reported by the sensor.
+     * \param[in] sensor The sensor instance to be queried.
+     */
     float
     ua_sensors_proximity_get_min_value(
         UASensorsProximity* sensor);
-  
+
+    /**
+     * \brief Queries the maximum value that can be reported by the sensor.
+     * \ingroup sensor_access
+     * \returns The maximum value that can be reported by the sensor.
+     * \param[in] sensor The sensor instance to be queried.
+     */
     float
     ua_sensors_proximity_get_max_value(
         UASensorsProximity* sensor);
- 
+
+    /**
+     * \brief Queries the numeric resolution supported by the sensor
+     * \ingroup sensor_access
+     * \returns The numeric resolution supported by the sensor.
+     * \param[in] sensor The sensor instance to be queried.
+     */
     float
     ua_sensors_proximity_get_resolution(
         UASensorsProximity* sensor);
+
+    /**
+     * \brief Set the callback to be invoked whenever a new sensor reading is available.
+     * \ingroup sensor_access
+     * \param[in] sensor The sensor instance to associate the callback with.
+     * \param[in] cb The callback to be invoked.
+     * \param[in] ctx The context supplied to the callback invocation.
+     */
     void
     ua_sensors_proximity_set_reading_cb(
         UASensorsProximity* sensor,
