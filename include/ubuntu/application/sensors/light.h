@@ -64,7 +64,7 @@ extern "C" {
      * \param[in] sensor The sensor instance to be disabled.
      */
     UStatus
-    ua_sensors_light_enable(
+    ua_sensors_light_disable(
         UASensorsLight* sensor);
 
     /**
