@@ -1,4 +1,4 @@
-platform-api (0.18.1+13.10.20130703-0ubuntu2) UNRELEASED; urgency=low
+platform-api (0.18.2) UNRELEASED; urgency=low
 
   * Split out hal to ease integration of location service.
 
