@@ -46,14 +46,6 @@ Description: Platform API for system level capabilities (development)
 Package: libplatform-api1-hybris
 Section: libs
 Architecture: any
-Breaks: cameraplugin-aal (<< 0.3.4),
-	hud (<< 13.10.2),
-	libplatform-api1-dev(<< 0.18.2),
-	libplatform-api1-hybris-tests(<< 0.18.2),
-	powerd (<< 0.13.1),
-	qtubuntu-android (<< 0.52.1),
-	qtubuntu-sensors (<< 0.6.1),
-	ubuntu-platform-implementation-android (<< 0.18.2),
 Provides: libplatform-api1,
 Conflicts: libplatform-api1,
 Replaces: libplatform-api1,
