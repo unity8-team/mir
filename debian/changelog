@@ -1,3 +1,18 @@
+platform-api (0.18.1+13.10.20130705-0ubuntu1) saucy; urgency=low
+
+  [ Thomas Voß ]
+  * * Adjust the cmake setup and get rid of -DUSE_GLES, instead rely on
+    automatic detection if the header is available. * Adjust the cmake
+    setup to bail out if EGL is not available. * Adjust the cmake setup
+    to autogenerate doxygen API documentation.
+  * * Add a pkgconfig file for the platform API * Adjust installation of
+    header files to account for version.
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 84
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Fri, 05 Jul 2013 02:01:10 +0000
+
 platform-api (0.18.1+13.10.20130703-0ubuntu2) UNRELEASED; urgency=low
 
   * Split out hal to ease integration of location service.
