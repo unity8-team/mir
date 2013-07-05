@@ -160,6 +160,9 @@ ua_sensors_proximity_enable(
 {
     ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
 
+    if (sensor == NULL)
+        return U_STATUS_ERROR;
+
     auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
     int ret = s->enable();
 
@@ -175,6 +178,9 @@ ua_sensors_proximity_disable(
 {
     ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
 
+    if (sensor == NULL)
+        return U_STATUS_ERROR;
+
     auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
     s->disable();
 
@@ -185,6 +191,9 @@ uint32_t
 ua_sensors_proximity_get_min_delay(
     UASensorsProximity* sensor)
 {
+    if (sensor == NULL)
+        return -1;
+
     ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
     auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
     return toHz(s->min_delay());
@@ -194,6 +203,9 @@ float
 ua_sensors_proximity_get_min_value(
     UASensorsProximity* sensor)
 {
+    if (sensor == NULL)
+        return -1;
+
     ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
     auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
     return s->min_value();
@@ -203,6 +215,9 @@ float
 ua_sensors_proximity_get_max_value(
     UASensorsProximity* sensor)
 {
+    if (sensor == NULL)
+        return -1;
+
     ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
     auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
     return s->max_value();
@@ -212,6 +227,9 @@ float
 ua_sensors_proximity_get_resolution(
     UASensorsProximity* sensor)
 {
+    if (sensor == NULL)
+        return -1;
+
     ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
     auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
     return s->resolution();
@@ -223,6 +241,9 @@ ua_sensors_proximity_set_reading_cb(
     on_proximity_event_cb cb,
     void *ctx)
 {
+    if (sensor == NULL)
+        return;
+
     ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
     auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
 
@@ -276,6 +297,9 @@ UStatus
 ua_sensors_light_enable(
     UASensorsLight* sensor)
 {
+    if (sensor == NULL)
+        return U_STATUS_ERROR;
+
     ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
     auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
     
@@ -288,6 +312,9 @@ UStatus
 ua_sensors_light_disable(
     UASensorsLight* sensor)
 {
+    if (sensor == NULL)
+        return U_STATUS_ERROR;
+
     ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
     auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
     s->disable();
@@ -299,6 +326,9 @@ uint32_t
 ua_sensors_light_get_min_delay(
     UASensorsLight* sensor)
 {
+    if (sensor == NULL)
+        return -1;
+
     ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
     auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
     return toHz(s->min_delay());
@@ -308,6 +338,9 @@ float
 ua_sensors_light_get_min_value(
     UASensorsLight* sensor)
 {
+    if (sensor == NULL)
+        return -1;
+
     ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
     auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
     return s->min_value();
@@ -317,6 +350,9 @@ float
 ua_sensors_light_get_max_value(
     UASensorsLight* sensor)
 {
+    if (sensor == NULL)
+        return -1;
+
     ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
     auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
     return s->max_value();
@@ -326,6 +362,9 @@ float
 ua_sensors_light_get_resolution(
     UASensorsLight* sensor)
 {
+    if (sensor == NULL)
+        return -1;
+
     ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
     auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
     return s->resolution();
@@ -337,6 +376,9 @@ ua_sensors_light_set_reading_cb(
     on_light_event_cb cb,
     void *ctx)
 {
+    if (sensor == NULL)
+        return;
+
     ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
     auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
 
@@ -385,6 +427,9 @@ UStatus
 ua_sensors_accelerometer_enable(
     UASensorsAccelerometer* sensor)
 {
+    if (sensor == NULL)
+        return U_STATUS_ERROR;
+
     ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
     auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
     
@@ -397,6 +442,9 @@ UStatus
 ua_sensors_accelerometer_disable(
     UASensorsAccelerometer* sensor)
 {
+    if (sensor == NULL)
+        return U_STATUS_ERROR;
+
     ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
     auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
     s->disable();
@@ -408,6 +456,9 @@ uint32_t
 ua_sensors_accelerometer_get_min_delay(
     UASensorsAccelerometer* sensor)
 {
+    if (sensor == NULL)
+        return -1;
+
     ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
     auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
     return toHz(s->min_delay());
@@ -417,6 +468,9 @@ float
 ua_sensors_accelerometer_get_min_value(
     UASensorsAccelerometer* sensor)
 {
+    if (sensor == NULL)
+        return -1;
+
     ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
     auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
     return s->min_value();
@@ -426,6 +480,9 @@ float
 ua_sensors_accelerometer_get_max_value(
     UASensorsAccelerometer* sensor)
 {
+    if (sensor == NULL)
+        return -1;
+
     ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
     auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
     return s->max_value();
@@ -435,6 +492,9 @@ float
 ua_sensors_accelerometer_get_resolution(
     UASensorsAccelerometer* sensor)
 {
+    if (sensor == NULL)
+        return -1;
+
     ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
     auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
     return s->resolution();
@@ -446,6 +506,9 @@ ua_sensors_accelerometer_set_reading_cb(
     on_accelerometer_event_cb cb,
     void *ctx)
 {
+    if (sensor == NULL)
+        return; 
+
     auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
 
     SensorListener<ubuntu::application::sensors::sensor_type_accelerometer>* sl

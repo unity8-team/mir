@@ -1021,7 +1021,8 @@ void ApplicationManager::switch_focused_application_locked(size_t index_of_next_
                         const android::sp<ubuntu::detail::ApplicationSession>& main_session =
                             apps.valueFor(apps_as_added[main_stage_application]);
 
-                        session_set_state(main_session, ubuntu::application::ui::process_suspended);
+                        if (main_session->session_type != ubuntu::application::ui::system_session_type)
+                            session_set_state(main_session, ubuntu::application::ui::process_suspended);
                     }
                 }
             }

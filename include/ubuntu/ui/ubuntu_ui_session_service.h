@@ -19,14 +19,7 @@
 #ifndef UBUNTU_UI_SESSION_SERVICE_C_API_H_
 #define UBUNTU_UI_SESSION_SERVICE_C_API_H_
 
-#include "ubuntu/ui/config.h"
-
-#if UBUNTU_USE_GLES
-#include <GLES2/gl2.h>
-#else
-#include <GL/gl.h>
-#include <GL/glext.h>
-#endif
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -105,14 +98,6 @@ extern "C" {
     void 
     ubuntu_ui_session_install_session_lifecycle_observer(
         ubuntu_ui_session_lifecycle_observer* observer);
-
-    int /* boolean */
-    ubuntu_ui_session_preview_provider_update_session_preview_texture_with_id(
-        ubuntu_ui_session_preview_provider pp,
-        int id,
-        GLuint texture,
-        unsigned int* width,
-        unsigned int* height);
 
     void 
     ubuntu_ui_session_unfocus_running_sessions();

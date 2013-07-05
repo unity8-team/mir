@@ -2,12 +2,7 @@
 
 DPKG_GENSYMBOLS_CHECK_LEVEL = 4
 
-gles2_architectures := armhf
-ifeq ($(DEB_HOST_ARCH),$(findstring $(DEB_HOST_ARCH), $(gles2_architectures)))
-	use_gles=1
-else
-	use_gles=0
-endif
+export CXX=g++-4.7
 
 %:
 	dh $@
