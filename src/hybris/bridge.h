@@ -23,6 +23,8 @@
 #include <dlfcn.h>
 #include <stddef.h>
 
+#define HIDDEN_SYMBOL __attribute__ ((visibility ("hidden")))
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -37,7 +39,7 @@ extern void *android_dlsym(void *handle, const char *symbol);
 namespace internal
 {
 
-struct ToApplication
+struct HIDDEN_SYMBOL ToApplication
 {
     static const char* path()
     {
@@ -45,7 +47,7 @@ struct ToApplication
     }
 };
 
-struct ToHardware
+struct HIDDEN_SYMBOL ToHardware
 {
     static const char* path()
     {
@@ -54,7 +56,7 @@ struct ToHardware
 };
 
 template<typename Scope = ToApplication>
-class Bridge
+class HIDDEN_SYMBOL Bridge
 {
   public:
     static Bridge<Scope>& instance()
