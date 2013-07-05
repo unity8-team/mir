@@ -1,5 +1,4 @@
 libubuntu_application_api.so.1 libplatform-api1-hybris #MINVER#
- ua_sensors_light_disable(void*)@Base 0.18.1daily13.06.21
  u_application_description_destroy@Base 0.18.1daily13.06.21
  u_application_description_new@Base 0.18.1daily13.06.21
  u_application_description_set_application_id@Base 0.18.1daily13.06.21
@@ -27,6 +26,7 @@ libubuntu_application_api.so.1 libplatform-api1-hybris #MINVER#
  ua_sensors_accelerometer_new@Base 0.18.1daily13.06.21
  ua_sensors_accelerometer_set_reading_cb@Base 0.18.1daily13.06.21
  ua_sensors_light_enable@Base 0.18.1daily13.06.21
+ ua_sensors_light_disable@Base 0replaceme
  ua_sensors_light_get_max_value@Base 0.18.1daily13.06.21
  ua_sensors_light_get_min_delay@Base 0.18.1daily13.06.21
  ua_sensors_light_get_min_value@Base 0.18.1daily13.06.21

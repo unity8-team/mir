@@ -1,3 +1,9 @@
+platform-api (0.18.1+13.10.20130703-0ubuntu2) UNRELEASED; urgency=low
+
+  * Split out hal to ease integration of location service.
+
+ -- Thomas Voß <thomas.voss@canonical.com>  Thu, 04 Jul 2013 19:09:22 +0200
+
 platform-api (0.18.1+13.10.20130705-0ubuntu1) saucy; urgency=low
 
   [ Thomas Voß ]
@@ -12,12 +18,6 @@ platform-api (0.18.1+13.10.20130705-0ubuntu1) saucy; urgency=low
   * Automatic snapshot from revision 84
 
  -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Fri, 05 Jul 2013 02:01:10 +0000
-
-platform-api (0.18.1+13.10.20130703-0ubuntu2) UNRELEASED; urgency=low
-
-  * Split out hal to ease integration of location service.
-
- -- Thomas Voß <tvoss@x220>  Thu, 04 Jul 2013 19:09:22 +0200
 
 platform-api (0.18.1+13.10.20130703-0ubuntu1) saucy; urgency=low
 

@@ -38,7 +38,7 @@ extern "C" {
         UASensorsLight* sensor);
 
     UStatus
-    ua_sensors_light_enable(
+    ua_sensors_light_disable(
         UASensorsLight* sensor);
 
     uint32_t
