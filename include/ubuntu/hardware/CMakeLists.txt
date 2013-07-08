@@ -1,0 +1,9 @@
+set(
+  UBUNTU_HARDWARE_HEADERS
+  gps.h
+)
+
+install(
+  FILES ${UBUNTU_HARDWARE_HEADERS}
+  DESTINATION include/ubuntu-${UBUNTU_PLATFORM_API_VERSION_MAJOR}/hardware
+)

@@ -89,13 +89,4 @@ libubuntu_application_api.so.1 libplatform-api1-hybris #MINVER#
  ubuntu_ui_session_unfocus_running_sessions@Base 0.18.1daily13.06.21
  ubuntu_ui_set_surface_trap@Base 0.18.1daily13.06.21
  ubuntu_ui_unset_surface_trap@Base 0.18.1daily13.06.21
-libubuntu_platform_hardware_api.so.1 libplatform-api1-hybris #MINVER#
- u_hardware_gps_delete@Base 0.18.2+13.10.20130708
- u_hardware_gps_delete_aiding_data@Base 0.18.2+13.10.20130708
- u_hardware_gps_inject_location@Base 0.18.2+13.10.20130708
- u_hardware_gps_inject_time@Base 0.18.2+13.10.20130708
- u_hardware_gps_inject_xtra_data@Base 0.18.2+13.10.20130708
- u_hardware_gps_new@Base 0.18.2+13.10.20130708
- u_hardware_gps_set_position_mode@Base 0.18.2+13.10.20130708
- u_hardware_gps_start@Base 0.18.2+13.10.20130708
- u_hardware_gps_stop@Base 0.18.2+13.10.20130708
+
