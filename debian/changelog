@@ -1,6 +1,10 @@
 platform-api (0.18.2) UNRELEASED; urgency=low
 
+  [ Thomas Voß ]
   * Split out hal to ease integration of location service.
+
+  [ Ubuntu daily release ]
+  * debian/*symbols: auto-update new symbols to released version
 
  -- Thomas Voß <thomas.voss@canonical.com>  Thu, 04 Jul 2013 19:09:22 +0200
 
