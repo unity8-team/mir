@@ -805,20 +805,17 @@ static Bool NVOpenDRMMaster(ScrnInfoPtr pScrn)
 		return TRUE;
 	}
 
-	if (!xorgMir) {
 #if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,9,99,901,0)
-		XNFasprintf(&busid, "pci:%04x:%02x:%02x.%d",
-			    dev->domain, dev->bus, dev->dev, dev->func);
+	XNFasprintf(&busid, "pci:%04x:%02x:%02x.%d",
+		    dev->domain, dev->bus, dev->dev, dev->func);
 #else
-		busid = XNFprintf("pci:%04x:%02x:%02x.%d",
-				  dev->domain, dev->bus, dev->dev, dev->func);
+	busid = XNFprintf("pci:%04x:%02x:%02x.%d",
+			  dev->domain, dev->bus, dev->dev, dev->func);
 #endif
+	if (!xorgMir)
 		ret = nouveau_device_open(busid, &pNv->dev);
-	}
-#ifdef XMIR
 	else
-		ret = nouveau_device_wrap(xmir_get_drm_fd(pNv->xmir), 0, &pNv->dev);
-#endif
+		ret = nouveau_device_wrap(xmir_get_drm_fd(busid), 0, &pNv->dev);
 
 	if (ret) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
