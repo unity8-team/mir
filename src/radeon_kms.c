@@ -763,21 +763,30 @@ static Bool radeon_open_drm_master(ScrnInfoPtr pScrn)
 	goto out;
     }
 
-#ifdef XMIR
-    if (xorgMir) {
-	info->dri2.drm_fd = xmir_get_drm_fd(info->xmir);
-	/* TODO: Work out what to do about the crazy multihead involved in
-	   pRADEONEnt->fd */
-	goto out;
-    }
-#endif
-
 #if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,9,99,901,0)
     XNFasprintf(&busid, "pci:%04x:%02x:%02x.%d",
                 dev->domain, dev->bus, dev->dev, dev->func);
 #else
     busid = XNFprintf("pci:%04x:%02x:%02x.%d",
 		      dev->domain, dev->bus, dev->dev, dev->func);
+#endif
+
+#ifdef XMIR
+    if (xorgMir) {
+	info->dri2.drm_fd = xmir_get_drm_fd(busid);
+        
+        if (info->dri2.drm_fd < 0) {
+            xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                       "[drm] Failed to retrieve DRM device %s from Mir\n",
+                       busid);
+            free(busid);
+            return FALSE;
+        }
+        free(busid);
+	/* TODO: Work out what to do about the crazy multihead involved in
+	   pRADEONEnt->fd */
+	goto out;
+    }
 #endif
 
     info->dri2.drm_fd = drmOpen("radeon", busid);

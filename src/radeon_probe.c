@@ -106,6 +106,33 @@ static Bool radeon_kernel_mode_enabled(ScrnInfoPtr pScrn, struct pci_device *pci
 }
 
 static Bool
+radeon_check_mir_support(ScrnInfoPtr pScrn, struct pci_device *pci_dev)
+{
+    char *busIdString;
+    int fd;
+
+    if (!xf86LoaderCheckSymbol("DRICreatePCIBusID")) {
+        xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, 0,
+           "[XMir] No DRICreatePCIBusID symbol, unable to find Radeon device.\n");
+        return FALSE;
+    }
+
+    busIdString = DRICreatePCIBusID(pci_dev);
+    fd = xmir_get_drm_fd(busIdString);
+    free(busIdString);
+
+    if (fd < 0) {
+        xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, 0,
+           "[XMir] Radeon device not managed by Mir.\n");
+        return FALSE;
+    }
+
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, 0,
+           "[XMir] Using Radeon device from Mir.\n");
+    return TRUE;
+}
+
+static Bool
 radeon_get_scrninfo(int entity_num, void *pci_dev)
 {
     ScrnInfoPtr   pScrn = NULL;
@@ -120,7 +147,9 @@ radeon_get_scrninfo(int entity_num, void *pci_dev)
 
     if (pci_dev) {
 #ifdef XMIR
-      if (!xorgMir && !radeon_kernel_mode_enabled(pScrn, pci_dev)) {
+        if (xorgMir && !radeon_check_mir_support(pScrn, pci_dev))
+            return FALSE;
+        else if (!radeon_kernel_mode_enabled(pScrn, pci_dev)) {
 #else
       if (!radeon_kernel_mode_enabled(pScrn, pci_dev)) {
 #endif
@@ -223,11 +252,7 @@ radeon_platform_probe(DriverPtr pDriver,
 	return FALSE;
 
     if (flags & PLATFORM_PROBE_GPU_SCREEN) {
-        if (xorgMir) {
-            return FALSE;
-        } else {
-            scr_flags = XF86_ALLOCATE_GPU_SCREEN;
-        }
+        scr_flags = XF86_ALLOCATE_GPU_SCREEN;
     }
     
 
@@ -236,6 +261,9 @@ radeon_platform_probe(DriverPtr pDriver,
     if (xf86IsEntitySharable(entity_num))
 	xf86SetEntityShared(entity_num);
     xf86AddEntityToScreen(pScrn, entity_num);
+
+    if (xorgMir && !radeon_check_mir_support(pScrn, pci_dev))
+        return FALSE;
 
     if (!radeon_kernel_mode_enabled(pScrn, dev->pdev))
 	return FALSE;
