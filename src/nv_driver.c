@@ -335,6 +335,23 @@ NVHasKMS(struct pci_device *pci_dev)
 }
 
 static Bool
+NVHasMirSupport(struct pci_device *pci_dev)
+{
+	char *busid;
+
+	busid = XNFprintf("pci:%04x:%02x:%02x.%d",
+			  pci_dev->domain, pci_dev->bus, pci_dev->dev, pci_dev->func);
+
+	if (xmir_get_drm_fd(busid) < 0) {
+		xf86DrvMsg(-1, X_ERROR, "[XMir] GPU %s not handled by Mir\n", busid);
+		free(busid);
+		return FALSE;
+	}
+	free(busid);
+	return TRUE;
+}
+
+static Bool
 NVPciProbe(DriverPtr drv, int entity_num, struct pci_device *pci_dev,
 	   intptr_t match_data)
 {
@@ -344,6 +361,9 @@ NVPciProbe(DriverPtr drv, int entity_num, struct pci_device *pci_dev,
 		{ -1, -1, NULL }
 	};
 	ScrnInfoPtr pScrn = NULL;
+
+	if (xorgMir && !NVHasMirSupport(pci_dev))
+		return FALSE;
 
 	if (!NVHasKMS(pci_dev))
 		return FALSE;
@@ -367,6 +387,9 @@ NVPlatformProbe(DriverPtr driver,
 	uint32_t scr_flags = 0;
 
 	if (!dev->pdev)
+		return FALSE;
+
+	if (xorgMir && !NVHasMirSupport(dev->pdev))
 		return FALSE;
 
 	if (!NVHasKMS(dev->pdev))
