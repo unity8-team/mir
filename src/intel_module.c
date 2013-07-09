@@ -492,6 +492,21 @@ static Bool has_kernel_mode_setting(const struct pci_device *dev)
 	return ret;
 }
 
+static Bool has_mir_support(const struct pci_device *dev)
+{
+	char id[20];
+
+	snprintf(id, sizeof(id),
+		 "pci:%04x:%02x:%02x.%d",
+		 dev->domain, dev->bus, dev->dev, dev->func);
+
+        if (xmir_get_drm_fd(id) < 0)
+            return FALSE;
+
+        return TRUE;
+}
+
+
 #if !UMS_ONLY
 extern XF86ConfigPtr xf86configptr;
 
@@ -617,6 +632,9 @@ intel_platform_probe(DriverPtr driver,
 
 	if (!dev->pdev)
 		return FALSE;
+
+        if (xorgMir && !has_mir_support(dev->pdev))
+		return FALSE;            
 
 	if (!has_kernel_mode_setting(dev->pdev))
 		return FALSE;
