@@ -257,17 +257,22 @@ static Bool intel_open_drm_master(ScrnInfoPtr scrn)
 	int err, has_gem;
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	
+        struct pci_device *dev = intel->PciInfo;
+        drmSetVersion sv;
+        char busid[20];
+
+        snprintf(busid, sizeof(busid), "pci:%04x:%02x:%02x.%d",
+                 dev->domain, dev->bus, dev->dev, dev->func);
+	    
 	if (xorgMir) {
-	    intel->drmSubFD = xmir_get_drm_fd(intel->xmir);
-	}
-	else {
-	    struct pci_device *dev = intel->PciInfo;
-	    drmSetVersion sv;
-	    char busid[20];
-	    
-	    snprintf(busid, sizeof(busid), "pci:%04x:%02x:%02x.%d",
-		     dev->domain, dev->bus, dev->dev, dev->func);
-	    
+	    intel->drmSubFD = xmir_get_drm_fd(busid);
+            if (intel->drmSubFD < 0) {
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+			   "[drm] Failed to retrieve DRM device %s from Mir\n",
+			   busid);
+		return FALSE;
+            }
+	} else {
 	    intel->drmSubFD = drmOpen(NULL, busid);
 	    if (intel->drmSubFD == -1) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
