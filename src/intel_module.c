@@ -53,6 +53,7 @@
 
 #ifdef XMIR
 #include <xf86Priv.h>
+#include <xmir.h>
 #endif
 
 static const struct intel_device_info intel_generic_info = {
