@@ -32,3 +32,5 @@ endif
 override_dh_makeshlibs:
 	dh_makeshlibs -p libmirserver0 -V 'libmirserver0 (= ${EXACT_PACKAGE_VERSION})'
 	dh_makeshlibs --remaining-packages -V
+
+override_dh_auto_test:
