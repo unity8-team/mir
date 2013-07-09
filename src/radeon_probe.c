@@ -267,7 +267,7 @@ radeon_platform_probe(DriverPtr pDriver,
 	xf86SetEntityShared(entity_num);
     xf86AddEntityToScreen(pScrn, entity_num);
 
-    if (xorgMir && !radeon_check_mir_support(pScrn, pci_dev))
+    if (xorgMir && !radeon_check_mir_support(pScrn, dev->pdev))
         return FALSE;
 
     if (!radeon_kernel_mode_enabled(pScrn, dev->pdev))
