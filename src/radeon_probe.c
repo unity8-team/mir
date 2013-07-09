@@ -55,6 +55,11 @@
 #include <xf86platformBus.h>
 #endif
 
+#ifdef XMIR
+#include <xf86Priv.h>
+#include <xmir.h>
+#endif
+
 #include "radeon_chipset_gen.h"
 
 #include "radeon_pci_chipset_gen.h"
