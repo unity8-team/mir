@@ -1,3 +1,9 @@
+platform-api (0.18.2+13.10.20130708-0ubuntu2) UNRELEASED; urgency=low
+
+  * debian/*symbols: auto-update new symbols to released version
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Tue, 09 Jul 2013 02:02:37 +0000
+
 platform-api (0.18.2+13.10.20130708-0ubuntu1) saucy; urgency=low
 
   [ Thomas Voß ]
