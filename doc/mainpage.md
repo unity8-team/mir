@@ -1,4 +1,4 @@
-Ubuntu Platform API	{#mainpage}
+Ubuntu Platform API {#mainpage}
 ===================
 
 The Ubuntu platform API Implements access to the Ubuntu platform and

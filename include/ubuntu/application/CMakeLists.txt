@@ -7,7 +7,6 @@ set(
   lifecycle_delegate.h
   operation_mode.h
   options.h
-  ubuntu_application_gps.h
 )
 
 install(

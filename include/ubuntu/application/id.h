@@ -14,7 +14,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Authored by: Ricardo Mendoza <ricardo.mendoza@canonical.com>
- *              Thomas Voß <thomas.voss@canonical.com>           
+ *              Thomas Voß <thomas.voss@canonical.com>
  */
 
 #ifndef UBUNTU_APPLICATION_ID_H_
@@ -26,21 +26,43 @@
 extern "C" {
 #endif
 
+    /**
+     * \brief An opaque type describing an application ID.
+     * \ingroup application_support
+     */
     typedef void UApplicationId;
-    
+
+    /**
+     * \brief Creates a new application ID from an existing string.
+     * \ingroup application_support
+     * \param[in] string The string containing the application ID.
+     * \param[in] size The size of the string.
+     */
     UApplicationId*
     u_application_id_new_from_stringn(
-    	const char *string, 
-    	size_t size);
-    
+        const char *string,
+        size_t size);
+
+    /**
+     * \brief Destroy the supplied application ID instance.
+     * \ingroup application_support
+     * \param[in] id The instance to be destroyed.
+     */
     void
     u_application_id_destroy(UApplicationId *id);
-    
+
+    /**
+     * \brief Compares two application ID instances.
+     * \ingroup application_support
+     * \returns -1 iff lhs < rhs, 0 iff lhs == rhs, 1 iff lhs > rhs.
+     * \param[in] lhs The left-hand-side id to be compared.
+     * \param[in] rhs The right-hand-side id to be compared.
+     */
     int
     u_application_id_compare(
-    	UApplicationId *lhs,
-    	UApplicationId *rhs);
-       
+        UApplicationId *lhs,
+        UApplicationId *rhs);
+
 #ifdef __cplusplus
 }
 #endif

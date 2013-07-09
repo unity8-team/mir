@@ -15,7 +15,7 @@
  *
  * Authored by: Daniel d'Andrada <daniel.dandrada@canonical.com>
  */
-#include <ubuntu/application/ubuntu_application_gps.h>
+#include <ubuntu/hardware/gps.h>
 
 #include <ctime>
 #include <signal.h>
@@ -23,6 +23,8 @@
 #include <string.h>
 #include <unistd.h>
 
+namespace ubuntu
+{
 class GPSTest
 {
   public:
@@ -32,10 +34,10 @@ class GPSTest
     bool stop();
     void inject_time();
 
-    UbuntuGps ubuntu_gps;
+    UHardwareGps u_hardware_gps;
 };
 
-void gps_location_cb(UbuntuGpsLocation* location, void* context)
+void gps_location_cb(UHardwareGpsLocation* location, void* context)
 {
     printf("gps_location_cb() called.\n");
 }
@@ -44,26 +46,26 @@ void gps_status_cb(uint16_t status, void* context)
 {
     switch(status)
     {
-    case UBUNTU_GPS_STATUS_NONE:
+    case U_HARDWARE_GPS_STATUS_NONE:
         printf("status: None\n");
         break;
-    case UBUNTU_GPS_STATUS_SESSION_BEGIN:
+    case U_HARDWARE_GPS_STATUS_SESSION_BEGIN:
         printf("status: Session Begin\n");
         break;
-    case UBUNTU_GPS_STATUS_SESSION_END:
+    case U_HARDWARE_GPS_STATUS_SESSION_END:
         printf("status: Session End\n");
         break;
-    case UBUNTU_GPS_STATUS_ENGINE_ON:
+    case U_HARDWARE_GPS_STATUS_ENGINE_ON:
         printf("status: Engine On\n");
         break;
-    case UBUNTU_GPS_STATUS_ENGINE_OFF:
+    case U_HARDWARE_GPS_STATUS_ENGINE_OFF:
         printf("status: Engine Off\n");
     default:
         break;
     };
 }
 
-void gps_sb_status_cb(UbuntuGpsSvStatus* sv_info, void* context)
+void gps_sb_status_cb(UHardwareGpsSvStatus* sv_info, void* context)
 {
     printf("gps_sb_status_cb() called, listing %d space vehicles\n", sv_info->num_svs);
 }
@@ -80,15 +82,15 @@ void gps_set_cabapilities_cb(uint32_t capabilities, void* context)
 {
     printf("gps_set_cabapilities_cb() -");
 
-    if (capabilities & UBUNTU_GPS_CAPABILITY_SCHEDULING)
+    if (capabilities & U_HARDWARE_GPS_CAPABILITY_SCHEDULING)
         printf(" scheduling");
-    if (capabilities & UBUNTU_GPS_CAPABILITY_MSB)
+    if (capabilities & U_HARDWARE_GPS_CAPABILITY_MSB)
         printf(" MSB");
-    if (capabilities & UBUNTU_GPS_CAPABILITY_MSA)
+    if (capabilities & U_HARDWARE_GPS_CAPABILITY_MSA)
         printf(" MSA");
-    if (capabilities & UBUNTU_GPS_CAPABILITY_SINGLE_SHOT)
+    if (capabilities & U_HARDWARE_GPS_CAPABILITY_SINGLE_SHOT)
         printf(" 'single shot'");
-    if (capabilities & UBUNTU_GPS_CAPABILITY_ON_DEMAND_TIME)
+    if (capabilities & U_HARDWARE_GPS_CAPABILITY_ON_DEMAND_TIME)
         printf(" 'on demand time'");
 
     printf("\n");
@@ -105,31 +107,31 @@ void gps_xtra_download_request_cb(void* context)
     printf("gps_xtra_download_request_cb() called.\n");
 }
 
-void agps_status_cb(UbuntuAgpsStatus* status, void* context)
+void agps_status_cb(UHardwareGpsAGpsStatus* status, void* context)
 {
     printf("agps status -");
 
-    if (status->type == UBUNTU_AGPS_TYPE_SUPL)
+    if (status->type == U_HARDWARE_GPS_AGPS_TYPE_SUPL)
         printf(" SUPL");
     else
         printf(" C2K");
 
     switch (status->status)
     {
-    case UBUNTU_GPS_REQUEST_AGPS_DATA_CONN:
+    case U_HARDWARE_GPS_REQUEST_AGPS_DATA_CONN:
         printf(", request AGPS data connection");
         break;
-    case UBUNTU_GPS_RELEASE_AGPS_DATA_CONN:
+    case U_HARDWARE_GPS_RELEASE_AGPS_DATA_CONN:
         printf(", release AGPS data connection");
         break;
-    case UBUNTU_GPS_AGPS_DATA_CONNECTED:
+    case U_HARDWARE_GPS_AGPS_DATA_CONNECTED:
         printf(", request AGPS data connected");
         break;
-    case UBUNTU_GPS_AGPS_DATA_CONN_DONE:
+    case U_HARDWARE_GPS_AGPS_DATA_CONN_DONE:
         printf(", AGPS data connection done");
         break;
     default:
-    case UBUNTU_GPS_AGPS_DATA_CONN_FAILED:
+    case U_HARDWARE_GPS_AGPS_DATA_CONN_FAILED:
         printf(", AGPS data connection failed");
         break;
     }
@@ -137,7 +139,7 @@ void agps_status_cb(UbuntuAgpsStatus* status, void* context)
     printf(" ipaddr=%u\n", status->ipaddr);
 }
 
-void gps_notify_cb(UbuntuGpsNiNotification *notification, void* context)
+void gps_notify_cb(UHardwareGpsNiNotification *notification, void* context)
 {
     printf("gps_notify_cb() called.\n");
 }
@@ -153,14 +155,14 @@ void agps_ril_request_refloc_cb(uint32_t flags, void* context)
 }
 
 GPSTest::GPSTest()
-    : ubuntu_gps(NULL)
+    : u_hardware_gps(NULL)
 {
 }
 
 GPSTest::~GPSTest()
 {
-    if (ubuntu_gps)
-        ubuntu_gps_delete(ubuntu_gps);
+    if (u_hardware_gps)
+        u_hardware_gps_delete(u_hardware_gps);
 }
 
 void GPSTest::inject_time()
@@ -168,7 +170,7 @@ void GPSTest::inject_time()
     // A real implementation would inject time from some NTP server.
     time_t t = time(0);
     int64_t time_millis = (int64_t)t * (int64_t)1000;
-    ubuntu_gps_inject_time(ubuntu_gps,
+    u_hardware_gps_inject_time(u_hardware_gps,
                            time_millis /*NTP time would go here*/,
                            time_millis /*internal time when that NTP time was taken*/,
                            10 /* possible deviation, in milliseconds*/);
@@ -176,7 +178,7 @@ void GPSTest::inject_time()
 
 bool GPSTest::init_and_start()
 {
-    UbuntuGpsParams gps_params;
+    UHardwareGpsParams gps_params;
 
     gps_params.location_cb = gps_location_cb;
     gps_params.status_cb = gps_status_cb;
@@ -191,14 +193,14 @@ bool GPSTest::init_and_start()
     gps_params.request_refloc_cb = agps_ril_request_refloc_cb;
     gps_params.context = this;
 
-    UbuntuGps ubuntu_gps = ubuntu_gps_new(&gps_params);
-    if (!ubuntu_gps)
+    UHardwareGps u_hardware_gps = u_hardware_gps_new(&gps_params);
+    if (!u_hardware_gps)
     {
         printf("GPS creation failed!\n");
         return false;
     }
 
-    bool ok = ubuntu_gps_start(ubuntu_gps);
+    bool ok = u_hardware_gps_start(u_hardware_gps);
     if (!ok)
     {
         printf("GPS start up failed!\n");
@@ -210,11 +212,12 @@ bool GPSTest::init_and_start()
 
 bool GPSTest::stop()
 {
-    bool ok = ubuntu_gps_stop(ubuntu_gps);
+    bool ok = u_hardware_gps_stop(u_hardware_gps);
     if (!ok)
         printf("failed when stopping GPS!\n");
 
     return ok;
+}
 }
 
 void wait_for_sigint()
@@ -232,7 +235,7 @@ void wait_for_sigint()
 int main(int argc, char** argv)
 {
     int return_value = 0;
-    GPSTest test;
+    ubuntu::GPSTest test;
 
     if (!test.init_and_start())
         return 1;

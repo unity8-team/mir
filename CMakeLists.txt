@@ -80,7 +80,7 @@ find_library(Hybris
 )
 
 if(NOT Hybris)
-  message("Notice: libhybris-common.so not found, disabling hybris support")
+  message(STATUS "Notice: libhybris-common.so not found, disabling hybris support")
   set(ENABLE_HYBRIS_IMPLEMENTATION OFF)
 endif()
 

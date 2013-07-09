@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Canonical Ltd
+ * Copyright (C) 2012 Canonical Ltd
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License version 3 as
@@ -16,35 +16,85 @@
  * Authored by: Thomas Voss <thomas.voss@canonical.com>
  *              Ricardo Mendoza <ricardo.mendoza@canonical.com>
  */
+#ifndef BRIDGE_H_
+#define BRIDGE_H_
 
-#ifndef UBUNTU_APPLICATION_API_HYBRIS_BRIDGE_H_
-#define UBUNTU_APPLICATION_API_HYBRIS_BRIDGE_H_
-
+#include <assert.h>
+#include <dlfcn.h>
 #include <stddef.h>
 
-namespace ubuntu
-{
-namespace hybris
+#define HIDDEN_SYMBOL __attribute__ ((visibility ("hidden")))
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+extern void *android_dlopen(const char *filename, int flag);
+extern void *android_dlsym(void *handle, const char *symbol);
+
+#ifdef __cplusplus
+}
+#endif
+
+namespace internal
 {
 
-struct Bridge
+struct HIDDEN_SYMBOL ToApplication
 {
-    Bridge();
-    ~Bridge();
+    static const char* path()
+    {
+        return "/system/lib/libubuntu_application_api.so";
+    }
+};
 
-    static const char* path_to_library();
-    static Bridge& instance();
-    
-    void* resolve_symbol(const char* symbol) const;
+struct HIDDEN_SYMBOL ToHardware
+{
+    static const char* path()
+    {
+        return "/system/lib/libubuntu_platform_hardware_api.so";
+    }
+};
+
+template<typename Scope = ToApplication>
+class HIDDEN_SYMBOL Bridge
+{
+  public:
+    static Bridge<Scope>& instance()
+    { 
+        static Bridge<Scope> bridge; 
+        return bridge; 
+    }
+
+    void* resolve_symbol(const char* symbol) const
+    {
+        return android_dlsym(lib_handle, symbol);
+    }
+
+  protected:
+    Bridge() : lib_handle(android_dlopen(Scope::path(), RTLD_LAZY))
+    {
+        assert(lib_handle && "Error loading ubuntu_application_api");
+    }
+
+    ~Bridge()
+    {
+        // TODO android_dlclose(libcamera_handle);
+    }
 
     void* lib_handle;
 };
 
 }
-}
 
-// Sweet and beautiful music.
-#define DLSYM(fptr, sym) if (*(fptr) == NULL) { *((void**)fptr) = (void *) ubuntu::hybris::Bridge::instance().resolve_symbol(sym); }
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/**********************************************************/
+/*********** Implementation starts here *******************/
+/**********************************************************/
+
+#define DLSYM(fptr, sym) if (*(fptr) == NULL) { *((void**)fptr) = (void *) internal::Bridge<>::instance().resolve_symbol(sym); }
     
 #define IMPLEMENT_FUNCTION0(return_type, symbol)  \
     return_type symbol()                          \
@@ -145,4 +195,8 @@ struct Bridge
         DLSYM(&f, #symbol);                                             \
         f(_1, _2, _3, _4, _5, _6, _7, _8); }
 
-#endif // UBUNTU_APPLICATION_API_HYBRIS_BRIDGE_H_
+#ifdef __cplusplus
+}
+#endif
+
+#endif // BRIDGE_H_

@@ -7,6 +7,7 @@ Build-Depends: cmake,
                doxygen,
                graphviz,
                libgles2-mesa-dev,
+               gcc-4.7,
                g++-4.7,
                libhybris-dev,
                pkg-config,
@@ -32,17 +33,33 @@ Description: Platform API for system level capabilities (API headers)
  should build depend on the libplatform-api-dev package instead, which
  will pull this package as well.
 
+Package: libplatform-hardware-api-headers
+Section: libdevel
+Architecture: any
+Pre-Depends: ${misc:Pre-Depends},
+Multi-Arch: same
+Depends: ${misc:Depends},
+	 libplatform-api-headers,
+Description: Platform API for system level capabilities (API headers)
+ This package provides the library headers for the hw-access parts of the Platform API.
+ .
+ Unless a new backend for the Platform API is developed, packages
+ should build depend on the libplatform-hardware-api-dev package instead, which
+ will pull this package as well.
+
 Package: libplatform-api1-dev
 Section: libdevel
 Architecture: any
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
-Depends: libgles2-mesa-dev,
+Depends: ${misc:Depends},
+         libgles2-mesa-dev,
          libplatform-api-headers (= ${binary:Version}),
          libplatform-api1-hybris | libplatform-api1,
          libplatform-api1-mirserver,
          libplatform-api1-mirclient,
          ${misc:Depends},
+Suggests: libplatform-api1-doc,
 Description: Platform API for system level capabilities (development)
  This package provides the development library and headers (via
  dependency) for the Platform API.
@@ -71,6 +88,45 @@ Description: Implementation of the Platform API for a Mir client
  This package provides the implementation of the Platform API to
  allow a client to connect to a Mir server.
 
+Package: libplatform-hardware-api1-dev
+Section: libdevel
+Architecture: any
+Pre-Depends: ${misc:Pre-Depends},
+Multi-Arch: same
+Depends: ${misc:Depends},
+         libgles2-mesa-dev,
+         libplatform-hardware-api-headers (= ${binary:Version}),
+         libplatform-hardware-api1-hybris | libplatform-hardware-api1,
+Suggests: libplatform-api1-doc,
+Description: Platform API for system level capabilities (development)
+ This package provides the development library and headers (via
+ dependency) for the hw-access portions of the Platform API.
+
+Package: libplatform-api1-doc
+Section: doc
+Architecture: all
+Depends: ${misc:Depends},
+         libplatform-api1-dev,
+Description: Platform API for system level capabilities (development)
+ This package provides the developer documentation for the Platform API.
+
+Package: libplatform-hardware-api1-hybris
+Section: libs
+Architecture: any
+Provides: libplatform-hardware-api1,
+Conflicts: libplatform-hardware-api1,
+Replaces: libplatform-hardware-api1,
+Pre-Depends: ${misc:Pre-Depends},
+Multi-Arch: same
+Depends: ${misc:Depends},
+         ${shlibs:Depends},
+         libhybris,
+Description: Hybris implementation of the hw-access parts of the Platform API (runtime)
+ This package provides the hybris implementation of the hw-access parts of the Platform API.
+ .
+ The produced library should be used via libhybris, to communicate with the
+ Android userspace, which is where the device drivers live.
+
 Package: libplatform-api1-hybris
 Section: libs
 Architecture: any
@@ -79,9 +135,9 @@ Conflicts: libplatform-api1,
 Replaces: libplatform-api1,
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
-Depends: libhybris,
-         ${misc:Depends},
+Depends: ${misc:Depends},
          ${shlibs:Depends},
+         libhybris,
 Description: Hybris implementation of the Platform API (runtime)
  This package provides the hybris implementation of the Platform API.
  .
@@ -90,9 +146,9 @@ Description: Hybris implementation of the Platform API (runtime)
 
 Package: libplatform-api1-hybris-tests
 Architecture: any
-Depends: libplatform-api1-hybris (= ${binary:Version}),
-         ${misc:Depends},
+Depends: ${misc:Depends},
          ${shlibs:Depends},
+         libplatform-api1-hybris (= ${binary:Version}),
 Description: Hybris implementation of the Platform API (tests)
  This package provides the test cases for the hybris implementation
  of the Platform API.
@@ -100,8 +156,8 @@ Description: Hybris implementation of the Platform API (tests)
 Package: ubuntu-platform-api-headers
 Section: oldlibs
 Architecture: all
-Depends: libplatform-api-headers (= ${binary:Version}),
-         ${misc:Depends},
+Depends: ${misc:Depends},
+         libplatform-api-headers (= ${binary:Version}),
 Description: dummy transitional package for libplatform-api-headers
  This is dummy transitional package, please use libplatform-api-headers instead.
  .
@@ -110,8 +166,8 @@ Description: dummy transitional package for libplatform-api-headers
 Package: libubuntu-platform-api1-dev
 Section: oldlibs
 Architecture: all
-Depends: libplatform-api1-dev (= ${binary:Version}),
-         ${misc:Depends},
+Depends: ${misc:Depends},
+         libplatform-api1-dev (= ${binary:Version}),
 Description: dummy transitional package for libplatform-api1-dev
  This is dummy transitional package, please use libplatform-api1-dev instead.
  .
@@ -119,13 +175,13 @@ Description: dummy transitional package for libplatform-api1-dev
 
 Package: ubuntu-platform-implementation-android
 Section: oldlibs
-Architecture: all 
+Architecture: all
 Provides: libubuntu-platform-api1,
 Conflicts: libubuntu-platform-api1,
 Replaces: libubuntu-platform-api1,
-Depends: libplatform-api1-hybris (= ${binary:Version}),
-         ${misc:Depends},
+Depends: ${misc:Depends},
          ${shlibs:Depends},
+         libplatform-api1-hybris (= ${binary:Version}),
 Description: dummy transitional package for libplatform-api1-hybris
  This is dummy transitional package, please use libplatform-api1-hybris instead.
  .
@@ -134,9 +190,9 @@ Description: dummy transitional package for libplatform-api1-hybris
 Package: ubuntu-platform-implementation-android-tests
 Architecture: all
 Section: oldlibs
-Depends: libplatform-api1-hybris-tests (= ${binary:Version}),
-         ${misc:Depends},
+Depends: ${misc:Depends},
          ${shlibs:Depends},
+         libplatform-api1-hybris-tests (= ${binary:Version}),
 Description: dummy transitional package for libplatform-api1-hybris-tests
  This is dummy transitional package, please use libplatform-api1-hybris-tests instead.
  .

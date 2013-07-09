@@ -14,7 +14,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Authored by: Ricardo Mendoza <ricardo.mendoza@canonical.com>
- *              Thomas Voß <thomas.voss@canonical.com>           
+ *              Thomas Voß <thomas.voss@canonical.com>
  */
 
 #ifndef UBUNTU_APPLICATION_OPTIONS_H_
@@ -26,21 +26,43 @@
 extern "C" {
 #endif
 
+    /**
+     * \brief Encapsulates options as passed to the application.
+     * \ingroup application_support
+     */
     typedef void UApplicationOptions;
-    
+
+    /**
+     * \brief Parses options from the command line.
+     * \ingroup application_support
+     * \returns An options instance if parsing was successful, or 0 otheriwse.
+     * \param[in] argc Number of arguments.
+     * \param[in] argv Arguments.
+     */
     UApplicationOptions*
     u_application_options_new_from_cmd_line(
-    	int argc, 
-    	char** argv);
-    
+        int argc,
+        char** argv);
+
+    /**
+     * \brief Destroys the options object and releases all resources.
+     * \ingroup application_support
+     * \param[in] options The object to be destroyed.
+     */
     void
     u_application_options_destroy(
-    	UApplicationOptions *options);
-    
+        UApplicationOptions *options);
+
+    /**
+     * \brief Queries the operation mode from the supplied options object.
+     * \ingroup application_support
+     * \returns The operation mode as stored in the options object.
+     * \param[in] options The options object to be queried.
+     */
     UApplicationOperationMode
     u_application_options_get_operation_mode(
-    	UApplicationOptions *options);
-       
+        UApplicationOptions *options);
+
 #ifdef __cplusplus
 }
 #endif

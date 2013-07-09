@@ -25,12 +25,28 @@
 extern "C" {
 #endif
 
+    /**
+     * \brief Opaque type describing an ambient light sensor reading.
+     * \ingroup sensor_access
+     */
     typedef void UASLightEvent;
 
+    /**
+     * \brief Query the timestamp of the sensor reading.
+     * \ingroup sensor_access
+     * \returns The timestamp of the sensor reading in [µs], timebase: monotonic clock.
+     * \param[in] event The reading to be queried.
+     */
     uint64_t
     uas_light_event_get_timestamp(
         UASLightEvent* event);
-   
+
+    /**
+     * \brief Query the value measured by the ambient light sensor.
+     * \ingroup sensor_access
+     * \returns The ambient light level.
+     * \param[in] event The reading to be queried.
+     */
     float
     uas_light_event_get_light(
         UASLightEvent* event);

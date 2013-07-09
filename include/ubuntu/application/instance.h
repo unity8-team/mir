@@ -14,7 +14,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Authored by: Ricardo Mendoza <ricardo.mendoza@canonical.com>
- *              Thomas Voß <thomas.voss@canonical.com>           
+ *              Thomas Voß <thomas.voss@canonical.com>
  */
 
 #ifndef UBUNTU_APPLICATION_INSTANCE_H_
@@ -27,31 +27,65 @@
 extern "C" {
 #endif
 
+    /** \defgroup application_support Functions and types to support application development. */
+
+    /**
+     * \brief Opaque type describing an application instance.
+     * \ingroup application_support
+     * An application instance encapsulates the event loop of an app.
+     */
     typedef void UApplicationInstance;
-    
+
+    /**
+     * \brief Creates a new application instance with a reference count of 1.
+     * \ingroup application_support
+     * \returns A new application instance or NULL in case of low-memory.
+     * \param[in] desc A description object, must not be NULL.
+     * \param[in] options An options object, must not be NULL.
+     */
     UApplicationInstance*
     u_application_instance_new_from_description_with_options(
-    	UApplicationDescription *desc,
-    	UApplicationOptions *options);
-    
+        UApplicationDescription *desc,
+        UApplicationOptions *options);
+
+    /**
+     * \brief Increments the reference count of an application instance.
+     * \ingroup application_support
+     * \param[in] instance The instance to increment the reference count for.
+     */
     void
     u_application_instance_ref(
-    	UApplicationInstance *instance);
-    
+        UApplicationInstance *instance);
+
+    /**
+     * \brief Decrements the reference count of an application instance and releases all resources held by the object if the reference count reaches 0.
+     * \ingroup application_support
+     * \param[in] instance The instance to decrement the reference count for.
+     */
     void
     u_application_instance_unref(
-    	UApplicationInstance *instance);
-    
+        UApplicationInstance *instance);
+
+    /**
+     * \brief Destroys the application instance and releases all its resources.
+     * \ingroup application_support
+     * \param[in] instance The instance to be destroyed.
+     */
     void
     u_application_instance_destroy(
-    	UApplicationInstance *instance);
-    
+        UApplicationInstance *instance);
+
+    /**
+     * \brief Executes the event loop of the application instance
+     * \ingroup application_support
+     * \param[in] instance The instance to be executed.
+     */
     void
     u_application_instance_run(
-    	UApplicationInstance *instance);
+        UApplicationInstance *instance);
 
 #ifdef __cplusplus
 }
 #endif
-    
+
 #endif /* UBUNTU_APPLICATION_INSTANCE_H_ */

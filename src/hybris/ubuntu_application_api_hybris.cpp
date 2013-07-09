@@ -19,7 +19,6 @@
 
 #include <private/application/ui/ubuntu_application_ui.h>
 
-#include <ubuntu/application/ubuntu_application_gps.h>
 #include <ubuntu/ui/ubuntu_ui_session_service.h>
 
 // C APIs
@@ -30,20 +29,11 @@
 #include <ubuntu/application/ui/clipboard.h>
 #include <ubuntu/application/ui/display.h>
 
-#include <assert.h>
-#include <dlfcn.h>
-#include <stddef.h>
-
-#include "hybris_bridge.h"
+#include "bridge.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/**********************************************************/
-/*********** Implementation starts here *******************/
-/**********************************************************/
-
 
 // Session helpers
 IMPLEMENT_FUNCTION0(UAUiSessionProperties*, ua_ui_session_properties_new);
@@ -134,18 +124,6 @@ IMPLEMENT_VOID_FUNCTION0(ubuntu_ui_report_osk_invisible);
 IMPLEMENT_VOID_FUNCTION0(ubuntu_ui_report_notification_visible);
 IMPLEMENT_VOID_FUNCTION0(ubuntu_ui_report_notification_invisible);
 IMPLEMENT_VOID_FUNCTION1(ubuntu_ui_install_task_controller, ubuntu_ui_task_controller*);
-
-// GPS
-IMPLEMENT_FUNCTION1(UbuntuGps, ubuntu_gps_new, UbuntuGpsParams*);
-IMPLEMENT_VOID_FUNCTION1(ubuntu_gps_delete, UbuntuGps);
-IMPLEMENT_FUNCTION1(bool, ubuntu_gps_start, UbuntuGps);
-IMPLEMENT_FUNCTION1(bool, ubuntu_gps_stop, UbuntuGps);
-IMPLEMENT_VOID_FUNCTION4(ubuntu_gps_inject_time, UbuntuGps, int64_t, int64_t, int);
-IMPLEMENT_VOID_FUNCTION4(ubuntu_gps_inject_location, UbuntuGps, double, double, float);
-IMPLEMENT_VOID_FUNCTION2(ubuntu_gps_delete_aiding_data, UbuntuGps, uint16_t);
-IMPLEMENT_FUNCTION6(bool, ubuntu_gps_set_position_mode, UbuntuGps, uint32_t, uint32_t,
-                                                        uint32_t, uint32_t, uint32_t);
-IMPLEMENT_VOID_FUNCTION3(ubuntu_gps_inject_xtra_data, UbuntuGps, char*, int);
 
 #ifdef __cplusplus
 }
