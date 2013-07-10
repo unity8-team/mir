@@ -43,6 +43,7 @@ download_and_extract_packages()
 pushd ${1} > /dev/null
 
     declare -a PACKAGES_ARMHF=(
+        google-mock
         libboost1.49-dev
         libboost-chrono1.49-dev
         libboost-chrono1.49-dev
