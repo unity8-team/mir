@@ -30,6 +30,9 @@ pushd ${BUILD_DIR} > /dev/null
     cmake -DCMAKE_TOOLCHAIN_FILE=../cmake/LinuxCrossCompile.cmake \
       -DBoost_COMPILER=-gcc \
       -DMIR_PLATFORM=android \
+      -DGMOCK_INCLUDE_DIR="$MIR_NDK_PATH/usr/include/gmock/include" \
+      -DGMOCK_SOURCE_DIR="$MIR_NDK_PATH/usr/src/gmock" \
+      -DGTEST_INCLUDE_DIR="$MIR_NDK_PATH/usr/src/gmock/gtest/include" \
       .. 
 
     cmake --build .
