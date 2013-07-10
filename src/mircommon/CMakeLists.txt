@@ -13,7 +13,6 @@ set(LINK_LIBRARIES
 
 if(ENABLE_HYBRIS_IMPLEMENTATION)
   list(APPEND SOURCES
-    ../hybris/hybris_bridge.cpp
     ../hybris/ubuntu_application_sensors_hybris.cpp
     )
   list(APPEND LINK_LIBRARIES
