@@ -1089,14 +1089,14 @@ sna_screen_init(SCREEN_INIT_ARGS_DECL)
 	assert(screen->CloseScreen == NULL);
 	screen->CloseScreen = sna_late_close_screen;
 
-	if (sna->xmir)
-		xmir_screen_init(screen, sna->xmir);
-
 	if (!sna_accel_init(screen, sna)) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "Hardware acceleration initialization failed\n");
 		return FALSE;
 	}
+
+	if (sna->xmir)
+		xmir_screen_init(screen, sna->xmir);
 
 	xf86SetBlackWhitePixels(screen);
 
