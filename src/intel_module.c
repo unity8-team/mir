@@ -635,7 +635,7 @@ intel_platform_probe(DriverPtr driver,
 		return FALSE;
 
         if (xorgMir && !has_mir_support(dev->pdev))
-		return FALSE;            
+		return FALSE;
 
 	if (!has_kernel_mode_setting(dev->pdev))
 		return FALSE;

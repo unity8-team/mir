@@ -2113,7 +2113,7 @@ void intel_copy_fb(ScrnInfoPtr scrn)
 	if (src == NULL)
 		return;
 
-	/* We dont have a screen Pixmap yet */	
+	/* We dont have a screen Pixmap yet */
 	dst = intel_create_pixmap_for_bo(pScreen, intel->front_buffer,
 					 scrn->virtualX, scrn->virtualY,
 					 scrn->depth, scrn->bitsPerPixel,

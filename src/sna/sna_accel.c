@@ -14777,14 +14777,15 @@ sna_xmir_copy_pixmap_to_mir(PixmapPtr src, int dst_fd)
 	ScreenPtr pScreen = src->drawable.pScreen;
 	ScrnInfoPtr scrn = xf86ScreenToScrn(pScreen);
 	struct sna *sna = to_sna_from_pixmap(src);
+	struct sna_pixmap *priv = sna_pixmap(src);
 	struct kgem_bo *bo;
-	unsigned int pitch = src->devKind;
+	unsigned int pitch = priv->gpu_bo->pitch;
 	BoxRec box;
 
-	bo = kgem_create_for_prime(&sna->kgem, dst_fd, pitch);
+	bo = kgem_create_for_prime(&sna->kgem, dst_fd, pitch * src->drawable.height);
 	if (!bo)
 		return;
-	bo->pitch = src->devKind;
+	bo->pitch = pitch;
 
 	box.x1 = box.y1 = 0;
 	box.x2 = scrn->virtualX;

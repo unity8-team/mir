@@ -1088,7 +1088,6 @@ sna_screen_init(SCREEN_INIT_ARGS_DECL)
 
 	assert(screen->CloseScreen == NULL);
 	screen->CloseScreen = sna_late_close_screen;
-
 	if (!sna_accel_init(screen, sna)) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "Hardware acceleration initialization failed\n");

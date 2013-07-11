@@ -256,14 +256,14 @@ static Bool intel_open_drm_master(ScrnInfoPtr scrn)
 	struct drm_i915_getparam gp;
 	int err, has_gem;
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	
+
         struct pci_device *dev = intel->PciInfo;
         drmSetVersion sv;
         char busid[20];
 
         snprintf(busid, sizeof(busid), "pci:%04x:%02x:%02x.%d",
                  dev->domain, dev->bus, dev->dev, dev->func);
-	    
+
 	if (xorgMir) {
 	    intel->drmSubFD = xmir_get_drm_fd(busid);
             if (intel->drmSubFD < 0) {
@@ -280,7 +280,7 @@ static Bool intel_open_drm_master(ScrnInfoPtr scrn)
 			   busid, strerror(errno));
 		return FALSE;
 	    }
-	    
+
 	    /* Check that what we opened was a master or a master-capable FD,
 	     * by setting the version of the interface we'll use to talk to it.
 	     * (see DRIOpenDRMMaster() in DRI1)
@@ -725,7 +725,7 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Wait on SwapBuffers? %s\n",
 		   intel->swapbuffers_wait ? "enabled" : "disabled");
 
-	intel->use_triple_buffer = 
+	intel->use_triple_buffer =
 		xf86ReturnOptValBool(intel->Options,
 				     OPTION_TRIPLE_BUFFER,
 				     TRUE);
