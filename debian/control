@@ -61,7 +61,7 @@ Section: libs
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Architecture: any
-Depends: libmirclient0,
+Depends: libmirclient1,
          ${misc:Depends},
          ${shlibs:Depends},
 Description: Implementation of the Platform API for a Mir client
@@ -89,6 +89,7 @@ Package: libplatform-api1-hybris-tests
 Depends: libplatform-api1-hybris (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends},
+Architecture: any
 Description: Hybris implementation of the Platform API (tests)
  This package provides the test cases for the hybris implementation
  of the Platform API.
