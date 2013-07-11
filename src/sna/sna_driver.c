@@ -264,6 +264,9 @@ static Bool sna_create_screen_resources(ScreenPtr screen)
 
 	screen->SetScreenPixmap(sna->front);
 
+	if (xorgMir)
+		return TRUE;
+
 	sna_copy_fbcon(sna);
 
 	if (!sna_become_master(sna)) {
@@ -314,7 +317,6 @@ static int sna_open_drm_master(ScrnInfoPtr scrn)
 	struct sna_device *dev;
 	struct sna *sna = to_sna(scrn);
 	struct pci_device *pci = sna->PciInfo;
-	drmSetVersion sv;
 	int err;
 	char busid[20];
 	int fd;
@@ -333,11 +335,16 @@ static int sna_open_drm_master(ScrnInfoPtr scrn)
 		 pci->domain, pci->bus, pci->dev, pci->func);
 
 	DBG(("%s: opening device '%s'\n",  __FUNCTION__, busid));
-	fd = drmOpen(NULL, busid);
+
+	if (!xorgMir)
+		fd = drmOpen(NULL, busid);
+	else
+		fd = xmir_get_drm_fd(busid);
+
 	if (fd == -1) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-			   "[drm] Failed to open DRM device for %s: %s\n",
-			   busid, strerror(errno));
+			   "[drm] Failed to open DRM device for %s%s: %s\n",
+			   busid, xorgMir ? " from Mir" : "", strerror(errno));
 		return -1;
 	}
 
@@ -345,17 +352,21 @@ static int sna_open_drm_master(ScrnInfoPtr scrn)
 	 * by setting the version of the interface we'll use to talk to it.
 	 * (see DRIOpenDRMMaster() in DRI1)
 	 */
-	sv.drm_di_major = 1;
-	sv.drm_di_minor = 1;
-	sv.drm_dd_major = -1;
-	sv.drm_dd_minor = -1;
-	err = drmSetInterfaceVersion(fd, &sv);
-	if (err != 0) {
-		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-			   "[drm] failed to set drm interface version: %s [%d].\n",
-			   strerror(-err), -err);
-		drmClose(fd);
-		return -1;
+	if (!xorgMir) {
+		drmSetVersion sv;
+
+		sv.drm_di_major = 1;
+		sv.drm_di_minor = 1;
+		sv.drm_dd_major = -1;
+		sv.drm_dd_minor = -1;
+		err = drmSetInterfaceVersion(fd, &sv);
+		if (err != 0) {
+			xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+				"[drm] failed to set drm interface version: %s [%d].\n",
+				strerror(-err), -err);
+			drmClose(fd);
+			return -1;
+		}
 	}
 
 	dev = malloc(sizeof(*dev));
@@ -386,7 +397,8 @@ static void sna_close_drm_master(ScrnInfoPtr scrn)
 	if (--dev->open_count)
 		return;
 
-	drmClose(dev->fd);
+	if (!xorgMir)
+		drmClose(dev->fd);
 	sna_set_device(scrn, NULL);
 	free(dev);
 }
@@ -469,6 +481,51 @@ static Bool fb_supports_depth(int fd, int depth)
 	return ret;
 }
 
+#ifdef XMIR
+
+static void
+sna_xmir_buffer_available(WindowPtr win)
+{
+	int window_fd;
+	PixmapPtr window_pixmap;
+
+	if(!xmir_window_is_dirty(win))
+		return;
+
+	window_fd = xmir_prime_fd_for_window(win);
+
+	window_pixmap = (*win->drawable.pScreen->GetWindowPixmap)(win);
+	sna_xmir_copy_pixmap_to_mir(window_pixmap, window_fd);
+
+	xmir_submit_rendering_for_window(win, NULL);
+}
+
+static void
+sna_xmir_submit_dirty_window(WindowPtr win, DamagePtr damage)
+{
+	int window_fd;
+	PixmapPtr window_pixmap;
+
+	if(!xmir_window_has_free_buffer(win))
+		return;
+
+	window_fd = xmir_prime_fd_for_window(win);
+
+	window_pixmap = (*win->drawable.pScreen->GetWindowPixmap)(win);
+	sna_xmir_copy_pixmap_to_mir(window_pixmap, window_fd);
+
+	xmir_submit_rendering_for_window(win, DamageRegion(damage));
+
+	DamageEmpty(damage);
+}
+
+static xmir_driver sna_xmir_driver = {
+	XMIR_DRIVER_VERSION,
+	sna_xmir_buffer_available
+};
+
+#endif /* XMIR */
+
 /**
  * This is called before ScreenInit to do any require probing of screen
  * configuration.
@@ -536,6 +593,12 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 	scrn->progClock = TRUE;
 	scrn->rgbBits = 8;
 
+	if (xorgMir) {
+		sna->xmir = xmir_screen_create(scrn);
+		if (!sna->xmir)
+			return FALSE;
+	}
+
 	fd = sna_open_drm_master(scrn);
 	if (fd == -1) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
@@ -580,6 +643,9 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 	sna_setup_capabilities(scrn, fd);
 
 	intel_detect_chipset(scrn, sna->pEnt, sna->PciInfo);
+
+	if (sna->xmir && !xmir_screen_pre_init(scrn, sna->xmir, &sna_xmir_driver))
+		return FALSE;
 
 	kgem_init(&sna->kgem, fd, sna->PciInfo, sna->info->gen);
 	if (xf86ReturnOptValBool(sna->Options, OPTION_ACCEL_DISABLE, FALSE) ||
@@ -635,7 +701,9 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 			   "Tiling disabled, expect poor performance and increased power consumption.\n");
 
-	if (!sna_mode_pre_init(scrn, sna)) {
+	if (xorgMir)
+		xf86ProviderSetup(scrn, NULL, "Intel");
+	else if (!sna_mode_pre_init(scrn, sna)) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "No outputs and no modes.\n");
 		PreInitCleanup(scrn);
@@ -670,6 +738,10 @@ sna_block_handler(BLOCKHANDLER_ARGS_DECL)
 
 	if (*tv == NULL || ((*tv)->tv_usec | (*tv)->tv_sec))
 		sna_accel_block_handler(sna, tv);
+#ifdef XMIR
+	if (xorgMir)
+		xmir_screen_for_each_damaged_window(sna->xmir, sna_xmir_submit_dirty_window);
+#endif
 }
 
 static void
@@ -829,6 +901,9 @@ static void sna_leave_vt(VT_FUNC_ARGS_DECL)
 
 	DBG(("%s\n", __FUNCTION__));
 
+	if (xorgMir)
+		return;
+
 	xf86_hide_cursors(scrn);
 
 	if (drmDropMaster(sna->kgem.fd))
@@ -846,7 +921,8 @@ static Bool sna_early_close_screen(CLOSE_SCREEN_ARGS_DECL)
 	xf86_hide_cursors(scrn);
 	sna_uevent_fini(scrn);
 
-	sna_mode_close(sna);
+	if (!xorgMir)
+		sna_mode_close(sna);
 
 	if (sna->dri_open) {
 		sna_dri_close(sna, screen);
@@ -885,6 +961,19 @@ static Bool sna_late_close_screen(CLOSE_SCREEN_ARGS_DECL)
 
 	return TRUE;
 }
+
+#if DRI2INFOREC_VERSION >= 8 && defined(XMIR)
+int sna_dri_auth_magic2(ScreenPtr screen, uint32_t magic)
+{
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+	struct sna *sna = to_sna(scrn);
+
+	if (xorgMir)
+		return xmir_auth_drm_magic(sna->xmir, magic);
+	else
+		return drmAuthMagic(sna_device(scrn)->fd, magic);
+}
+#endif
 
 static void sna_mode_set(ScrnInfoPtr scrn)
 {
@@ -999,6 +1088,10 @@ sna_screen_init(SCREEN_INIT_ARGS_DECL)
 
 	assert(screen->CloseScreen == NULL);
 	screen->CloseScreen = sna_late_close_screen;
+
+	if (sna->xmir)
+		xmir_screen_init(screen, sna->xmir);
+
 	if (!sna_accel_init(screen, sna)) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "Hardware acceleration initialization failed\n");
@@ -1012,7 +1105,7 @@ sna_screen_init(SCREEN_INIT_ARGS_DECL)
 	if (!miDCInitialize(screen, xf86GetPointerScreenFuncs()))
 		return FALSE;
 
-	if (xf86_cursors_init(screen, SNA_CURSOR_X, SNA_CURSOR_Y,
+	if (!xorgMir && xf86_cursors_init(screen, SNA_CURSOR_X, SNA_CURSOR_Y,
 			       HARDWARE_CURSOR_TRUECOLOR_AT_8BPP |
 			       HARDWARE_CURSOR_BIT_ORDER_MSBFIRST |
 			       HARDWARE_CURSOR_INVERT_MASK |
@@ -1107,6 +1200,10 @@ static Bool sna_enter_vt(VT_FUNC_ARGS_DECL)
 	struct sna *sna = to_sna(scrn);
 
 	DBG(("%s\n", __FUNCTION__));
+
+	if (xorgMir)
+		return xf86SetDesiredModes(scrn);
+
 	if (!sna_become_master(sna))
 		return FALSE;
 

@@ -14770,6 +14770,33 @@ void sna_accel_close(struct sna *sna)
 	kgem_cleanup_cache(&sna->kgem);
 }
 
+#ifdef XMIR
+void
+sna_xmir_copy_pixmap_to_mir(PixmapPtr src, int dst_fd)
+{
+	ScreenPtr pScreen = src->drawable.pScreen;
+	ScrnInfoPtr scrn = xf86ScreenToScrn(pScreen);
+	struct sna *sna = to_sna_from_pixmap(src);
+	struct kgem_bo *bo;
+	unsigned int pitch = src->devKind;
+	BoxRec box;
+
+	bo = kgem_create_for_prime(&sna->kgem, dst_fd, pitch);
+	if (!bo)
+		return;
+	bo->pitch = src->devKind;
+
+	box.x1 = box.y1 = 0;
+	box.x2 = scrn->virtualX;
+	box.y2 = scrn->virtualY;
+
+	sna->render.copy_boxes(sna, GXcopy, src, sna_pixmap(src)->gpu_bo, 0, 0,
+			       src, bo, 0, 0, &box, 1, 0);
+	kgem_submit(&sna->kgem);
+	kgem_bo_destroy(&sna->kgem, bo);
+}
+#endif
+
 void sna_accel_block_handler(struct sna *sna, struct timeval **tv)
 {
 	if (sna->kgem.need_retire)

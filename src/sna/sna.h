@@ -75,6 +75,14 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <libudev.h>
 #endif
 
+#if XMIR
+#include <xf86Priv.h>
+#include "xmir.h"
+#else
+typedef struct xmir_screen xmir_screen;
+#define xorgMir 0
+#endif
+
 #if HAS_DEBUG_FULL
 #define DBG(x) ErrorF x
 #else
@@ -306,6 +314,7 @@ struct sna {
 #endif
 
 	struct sna_render render;
+	xmir_screen *xmir;
 
 #if DEBUG_MEMORY
 	struct {
@@ -724,6 +733,9 @@ void sna_accel_wakeup_handler(struct sna *sna);
 void sna_accel_watch_flush(struct sna *sna, int enable);
 void sna_accel_close(struct sna *sna);
 void sna_accel_free(struct sna *sna);
+
+void sna_xmir_copy_pixmap_to_mir(PixmapPtr src, int dst_fd);
+int sna_dri_auth_magic2(ScreenPtr screen, uint32_t magic);
 
 void sna_copy_fbcon(struct sna *sna);
 

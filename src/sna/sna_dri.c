@@ -2469,6 +2469,11 @@ bool sna_dri_open(struct sna *sna, ScreenPtr screen)
 	info.ReuseBufferNotify = NULL;
 #endif
 
+#if DRI2INFOREC_VERSION >= 8 && XMIR
+	info.version = 8;
+	info.AuthMagic2 = sna_dri_auth_magic2;
+#endif
+
 #if USE_ASYNC_SWAP
 	info.version = 10;
 	info.AsyncSwap = sna_dri_async_swap;
