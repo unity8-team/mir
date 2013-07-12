@@ -277,14 +277,15 @@ radeon_glamor_set_shared_pixmap_backing(PixmapPtr pixmap, void *handle)
 	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	struct radeon_surface surface;
 	struct radeon_pixmap *priv;
+	uint32_t tiling_flags, pitch;
 
-	if (!radeon_set_shared_pixmap_backing(pixmap, handle, &surface))
+	if (!radeon_set_shared_pixmap_backing(pixmap, handle, &surface, &tiling_flags, &pitch))
 		return FALSE;
 
 	priv = radeon_get_pixmap_private(pixmap);
-	priv->stride = pixmap->devKind;
+	priv->stride = pitch;
 	priv->surface = surface;
-	priv->tiling_flags = 0;
+	priv->tiling_flags = tiling_flags;
 
 	if (!radeon_glamor_create_textured_pixmap(pixmap)) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,

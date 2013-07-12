@@ -201,19 +201,25 @@ Bool radeon_share_pixmap_backing(struct radeon_bo *bo, void **handle_p)
 }
 
 Bool radeon_set_shared_pixmap_backing(PixmapPtr ppix, void *fd_handle,
-				      struct radeon_surface *surface)
+				      struct radeon_surface *surface,
+				      uint32_t *tiling_flags, uint32_t *pitch)
 {
     ScrnInfoPtr pScrn = xf86ScreenToScrn(ppix->drawable.pScreen);
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_bo *bo;
     int ihandle = (int)(long)fd_handle;
-    uint32_t size = ppix->devKind * ppix->drawable.height;
+    uint32_t size;
 
-    bo = radeon_gem_bo_open_prime(info->bufmgr, ihandle, size);
+    bo = radeon_gem_bo_open_prime(info->bufmgr, ihandle, 0);
     if (!bo)
         return FALSE;
 
     memset(surface, 0, sizeof(struct radeon_surface));
+    radeon_bo_get_tiling(bo, tiling_flags, pitch);
+    if (*tiling_flags & RADEON_TILING_MACRO)
+	bo->size = *pitch * ppix->drawable.height;
+    else
+        bo->size = ppix->devKind * ppix->drawable.height;
 
     if (info->ChipFamily >= CHIP_FAMILY_R600 && info->surf_man) {
 
@@ -229,7 +235,12 @@ Bool radeon_set_shared_pixmap_backing(PixmapPtr ppix, void *fd_handle,
 	/* we are requiring a recent enough libdrm version */
 	surface->flags |= RADEON_SURF_HAS_TILE_MODE_INDEX;
 	surface->flags |= RADEON_SURF_SET(RADEON_SURF_TYPE_2D, TYPE);
-	surface->flags |= RADEON_SURF_SET(RADEON_SURF_MODE_LINEAR, MODE);
+
+	if (*tiling_flags & RADEON_TILING_MACRO)
+	    surface->flags |= RADEON_SURF_SET(RADEON_SURF_MODE_2D, MODE);
+	else
+	    surface->flags |= RADEON_SURF_SET(RADEON_SURF_MODE_LINEAR, MODE);
+
 	if (radeon_surface_best(info->surf_man, surface)) {
 	    return FALSE;
 	}
@@ -238,8 +249,11 @@ Bool radeon_set_shared_pixmap_backing(PixmapPtr ppix, void *fd_handle,
 	}
 	/* we have to post hack the surface to reflect the actual size
 	   of the shared pixmap */
-	surface->level[0].pitch_bytes = ppix->devKind;
-	surface->level[0].nblk_x = ppix->devKind / surface->bpe;
+	if (*tiling_flags & RADEON_TILING_MACRO)
+		surface->level[0].pitch_bytes = *pitch;
+	else
+		surface->level[0].pitch_bytes = *pitch = ppix->devKind;
+	surface->level[0].nblk_x = surface->level[0].pitch_bytes / surface->bpe;
     }
     radeon_set_pixmap_bo(ppix, bo);
 

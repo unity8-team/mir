@@ -33,6 +33,7 @@ radeon_share_pixmap_backing(struct radeon_bo *bo, void **handle_p);
 
 extern Bool
 radeon_set_shared_pixmap_backing(PixmapPtr ppix, void *fd_handle,
-				 struct radeon_surface *surface);
+				 struct radeon_surface *surface,
+				 uint32_t *tiling_flags, uint32_t *pitch);
 
 #endif /* RADEON_BO_HELPER_H */

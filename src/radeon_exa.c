@@ -326,12 +326,12 @@ Bool RADEONEXASharePixmapBacking(PixmapPtr ppix, ScreenPtr slave, void **fd_hand
 Bool RADEONEXASetSharedPixmapBacking(PixmapPtr ppix, void *fd_handle)
 {
     struct radeon_exa_pixmap_priv *driver_priv = exaGetPixmapDriverPrivate(ppix);
+    uint32_t tiling_flags, pitch;
 
-    if (!radeon_set_shared_pixmap_backing(ppix, fd_handle, &driver_priv->surface))
+    if (!radeon_set_shared_pixmap_backing(ppix, fd_handle, &driver_priv->surface, &tiling_flags, &pitch))
 	return FALSE;
 
     driver_priv->shared = TRUE;
-    driver_priv->tiling_flags = 0;
     return TRUE;
 }
 #endif

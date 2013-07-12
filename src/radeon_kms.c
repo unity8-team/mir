@@ -375,7 +375,7 @@ radeon_xmir_copy_pixmap_to_mir(PixmapPtr src, int prime_fd)
 		goto cleanup_dst;
 
 
-        info->accel_state->exa->SetSharedPixmapBacking(dst, fd_copy);
+        info->accel_state->exa->SetSharedPixmapBacking(dst, (void*)(size_t)fd_copy);
 
 	ret = info->accel_state->exa->PrepareCopy (src, dst,
 						   -1, -1, GXcopy, FB_ALLONES);
