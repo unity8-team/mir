@@ -242,7 +242,8 @@ static Bool sna_create_screen_resources(ScreenPtr screen)
 					  screen->width,
 					  screen->height,
 					  screen->rootDepth,
-					  SNA_CREATE_FB);
+					  xorgMir ? CREATE_PIXMAP_USAGE_SHARED
+						  : SNA_CREATE_FB);
 	if (!sna->front) {
 		xf86DrvMsg(screen->myNum, X_ERROR,
 			   "[intel] Unable to create front buffer %dx%d at depth %d\n",
@@ -253,7 +254,8 @@ static Bool sna_create_screen_resources(ScreenPtr screen)
 		return FALSE;
 	}
 
-	if (!sna_pixmap_force_to_gpu(sna->front, MOVE_WRITE)) {
+	if (!sna_pixmap_force_to_gpu(sna->front, xorgMir ? MOVE_READ | MOVE_WRITE
+							 : MOVE_WRITE)) {
 		xf86DrvMsg(screen->myNum, X_ERROR,
 			   "[intel] Failed to allocate video resources for front buffer %dx%d at depth %d\n",
 			   screen->width,
