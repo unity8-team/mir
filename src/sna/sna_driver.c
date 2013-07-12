@@ -1027,6 +1027,8 @@ agp_aperture_size(struct pci_device *dev, int gen)
 	return dev->regions[gen < 030 ? 0 : 2].size;
 }
 
+static Bool sna_enter_vt(VT_FUNC_ARGS_DECL);
+
 static Bool
 sna_screen_init(SCREEN_INIT_ARGS_DECL)
 {
@@ -1166,7 +1168,7 @@ sna_screen_init(SCREEN_INIT_ARGS_DECL)
 
 	sna_uevent_init(scrn);
 
-	return TRUE;
+	return sna_enter_vt(VT_FUNC_ARGS(0));
 }
 
 static void sna_adjust_frame(ADJUST_FRAME_ARGS_DECL)
