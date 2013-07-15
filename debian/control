@@ -69,7 +69,7 @@ Section: libs
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Architecture: any
-Depends: libmirserver0,
+Depends: libmirserver0 (>= 0.0.7),
          ${misc:Depends},
          ${shlibs:Depends},
 Description: Implementation of the Platform API for a Mir server
@@ -81,7 +81,7 @@ Section: libs
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Architecture: any
-Depends: libmirclient1,
+Depends: libmirclient1 (>= 0.0.7),
          ${misc:Depends},
          ${shlibs:Depends},
 Description: Implementation of the Platform API for a Mir client
