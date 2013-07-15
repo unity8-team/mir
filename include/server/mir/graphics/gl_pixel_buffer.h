@@ -19,7 +19,7 @@
 #ifndef MIR_GRAPHICS_GL_PIXEL_BUFFER_H_
 #define MIR_GRAPHICS_GL_PIXEL_BUFFER_H_
 
-#include "mir/shell/pixel_buffer.h"
+#include "mir/graphics/pixel_buffer.h"
 
 #include <memory>
 #include <vector>
