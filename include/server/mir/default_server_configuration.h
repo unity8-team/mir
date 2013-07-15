@@ -60,7 +60,6 @@ class PlacementStrategy;
 class SessionListener;
 class FocusController;
 class SessionManager;
-class PixelBuffer;
 class SnapshotStrategy;
 }
 namespace time
@@ -82,6 +81,7 @@ class Platform;
 class Display;
 class ViewableArea;
 class BufferInitializer;
+class PixelBuffer;
 class DisplayReport;
 }
 namespace input
@@ -164,7 +164,7 @@ public:
     virtual std::shared_ptr<shell::FocusSequence>     the_shell_focus_sequence();
     virtual std::shared_ptr<shell::PlacementStrategy> the_shell_placement_strategy();
     virtual std::shared_ptr<shell::SessionListener>   the_shell_session_listener();
-    virtual std::shared_ptr<shell::PixelBuffer>       the_shell_pixel_buffer();
+    virtual std::shared_ptr<graphics::PixelBuffer>       the_shell_pixel_buffer();
     virtual std::shared_ptr<shell::SnapshotStrategy>  the_shell_snapshot_strategy();
     /** @} */
 
@@ -248,7 +248,7 @@ protected:
     CachedPtr<shell::FocusSequence>     shell_focus_sequence;
     CachedPtr<shell::PlacementStrategy> shell_placement_strategy;
     CachedPtr<shell::SessionListener> shell_session_listener;
-    CachedPtr<shell::PixelBuffer>       shell_pixel_buffer;
+    CachedPtr<graphics::PixelBuffer>       shell_pixel_buffer;
     CachedPtr<shell::SnapshotStrategy>  shell_snapshot_strategy;
     CachedPtr<compositor::CompositingStrategy> compositing_strategy;
     CachedPtr<compositor::OverlayRenderer> overlay_renderer;

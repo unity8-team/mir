@@ -28,7 +28,7 @@ namespace compositor
 {
 class Buffer;
 }
-namespace shell
+namespace graphics
 {
 
 /**

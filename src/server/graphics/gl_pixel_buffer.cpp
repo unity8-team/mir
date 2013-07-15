@@ -26,7 +26,6 @@
 #include <GLES2/gl2ext.h>
 
 namespace mg = mir::graphics;
-namespace msh = mir::shell;
 namespace geom = mir::geometry;
 
 namespace

@@ -32,6 +32,7 @@
 #include <atomic>
 
 namespace mc = mir::compositor;
+namespace mg = mir::graphics;
 namespace msh = mir::shell;
 namespace mt = mir::test;
 namespace mtd = mir::test::doubles;
@@ -51,7 +52,7 @@ public:
     mtd::StubBuffer buffer;
 };
 
-class MockPixelBuffer : public msh::PixelBuffer
+class MockPixelBuffer : public mg::PixelBuffer
 {
 public:
     ~MockPixelBuffer() noexcept {}

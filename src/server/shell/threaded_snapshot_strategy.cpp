@@ -41,7 +41,7 @@ struct WorkItem
 class SnapshottingFunctor
 {
 public:
-    SnapshottingFunctor(std::shared_ptr<PixelBuffer> const& pixels)
+    SnapshottingFunctor(std::shared_ptr<graphics::PixelBuffer> const& pixels)
         : running{true}, pixels{pixels}
     {
     }
@@ -100,7 +100,7 @@ public:
 
 private:
     bool running;
-    std::shared_ptr<PixelBuffer> const pixels;
+    std::shared_ptr<graphics::PixelBuffer> const pixels;
     std::mutex work_mutex;
     std::condition_variable work_cv;
     std::deque<WorkItem> work;
@@ -110,7 +110,7 @@ private:
 }
 
 msh::ThreadedSnapshotStrategy::ThreadedSnapshotStrategy(
-    std::shared_ptr<PixelBuffer> const& pixels)
+    std::shared_ptr<graphics::PixelBuffer> const& pixels)
     : pixels{pixels},
       functor{new SnapshottingFunctor{pixels}},
       thread{std::ref(*functor)}

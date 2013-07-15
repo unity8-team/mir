@@ -27,16 +27,19 @@
 
 namespace mir
 {
+namespace graphics
+{
+class PixelBuffer;
+}
+
 namespace shell
 {
-
-class PixelBuffer;
 class SnapshottingFunctor;
 
 class ThreadedSnapshotStrategy : public SnapshotStrategy
 {
 public:
-    ThreadedSnapshotStrategy(std::shared_ptr<PixelBuffer> const& pixels);
+    ThreadedSnapshotStrategy(std::shared_ptr<graphics::PixelBuffer> const& pixels);
     ~ThreadedSnapshotStrategy() noexcept;
 
     void take_snapshot_of(
@@ -44,7 +47,7 @@ public:
         SnapshotCallback const& snapshot_taken);
 
 private:
-    std::shared_ptr<PixelBuffer> const pixels;
+    std::shared_ptr<graphics::PixelBuffer> const pixels;
     std::unique_ptr<SnapshottingFunctor> functor;
     std::thread thread;
 };

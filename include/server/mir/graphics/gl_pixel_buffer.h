@@ -34,7 +34,7 @@ namespace graphics
 class GLContext;
 
 /** Extracts the pixels from a compositor::Buffer using GL facilities. */
-class GLPixelBuffer : public shell::PixelBuffer
+class GLPixelBuffer : public PixelBuffer
 {
 public:
     GLPixelBuffer(std::unique_ptr<GLContext> gl_context);

@@ -404,7 +404,7 @@ mir::DefaultServerConfiguration::the_session_manager()
         });
 }
 
-std::shared_ptr<msh::PixelBuffer>
+std::shared_ptr<mg::PixelBuffer>
 mir::DefaultServerConfiguration::the_shell_pixel_buffer()
 {
     return shell_pixel_buffer(

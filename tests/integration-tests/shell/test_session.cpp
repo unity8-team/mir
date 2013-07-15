@@ -105,9 +105,9 @@ struct TestServerConfiguration : public mir::DefaultServerConfiguration
     }
 
 
-    std::shared_ptr<msh::PixelBuffer> the_shell_pixel_buffer() override
+    std::shared_ptr<mg::PixelBuffer> the_shell_pixel_buffer() override
     {
-        struct StubPixelBuffer : public msh::PixelBuffer
+        struct StubPixelBuffer : public mg::PixelBuffer
         {
             void fill_from(mc::Buffer&) {}
             void const* as_argb_8888() { return nullptr; }
