@@ -52,7 +52,7 @@ Multi-Arch: same
 Depends: ${misc:Depends},
          libgles2-mesa-dev,
          libplatform-api-headers (= ${binary:Version}),
-         libplatform-api1-hybris | libplatform-api1,
+         libubuntu-application-api1 | libplatform-api1,
 Suggests: libplatform-api1-doc,
 Description: Platform API for system level capabilities (development)
  This package provides the development library and headers (via
@@ -66,7 +66,7 @@ Multi-Arch: same
 Depends: ${misc:Depends},
          libgles2-mesa-dev,
          libplatform-hardware-api-headers (= ${binary:Version}),
-         libplatform-hardware-api1-hybris | libplatform-hardware-api1,
+         libubuntu-platform-hardware-api1 | libplatform-hardware-api1,
 Suggests: libplatform-api1-doc,
 Description: Platform API for system level capabilities (development)
  This package provides the development library and headers (via
@@ -80,7 +80,7 @@ Depends: ${misc:Depends},
 Description: Platform API for system level capabilities (development)
  This package provides the developer documentation for the Platform API.
 
-Package: libplatform-hardware-api1-hybris
+Package: libubuntu-platform-hardware-api1
 Section: libs
 Architecture: any
 Provides: libplatform-hardware-api1,
@@ -97,7 +97,7 @@ Description: Hybris implementation of the hw-access parts of the Platform API (r
  The produced library should be used via libhybris, to communicate with the
  Android userspace, which is where the device drivers live.
 
-Package: libplatform-api1-hybris
+Package: libubuntu-application-api1
 Section: libs
 Architecture: any
 Provides: libplatform-api1,
@@ -118,52 +118,7 @@ Package: libplatform-api1-hybris-tests
 Architecture: any
 Depends: ${misc:Depends},
          ${shlibs:Depends},
-         libplatform-api1-hybris (= ${binary:Version}),
+         libubuntu-application-api1 (= ${binary:Version}),
 Description: Hybris implementation of the Platform API (tests)
  This package provides the test cases for the hybris implementation
  of the Platform API.
-
-Package: ubuntu-platform-api-headers
-Section: oldlibs
-Architecture: all
-Depends: ${misc:Depends},
-         libplatform-api-headers (= ${binary:Version}),
-Description: dummy transitional package for libplatform-api-headers
- This is dummy transitional package, please use libplatform-api-headers instead.
- .
- This package can be safely removed.
-
-Package: libubuntu-platform-api1-dev
-Section: oldlibs
-Architecture: all
-Depends: ${misc:Depends},
-         libplatform-api1-dev (= ${binary:Version}),
-Description: dummy transitional package for libplatform-api1-dev
- This is dummy transitional package, please use libplatform-api1-dev instead.
- .
- This package can be safely removed.
-
-Package: ubuntu-platform-implementation-android
-Section: oldlibs
-Architecture: all
-Provides: libubuntu-platform-api1,
-Conflicts: libubuntu-platform-api1,
-Replaces: libubuntu-platform-api1,
-Depends: ${misc:Depends},
-         ${shlibs:Depends},
-         libplatform-api1-hybris (= ${binary:Version}),
-Description: dummy transitional package for libplatform-api1-hybris
- This is dummy transitional package, please use libplatform-api1-hybris instead.
- .
- This package can be safely removed.
-
-Package: ubuntu-platform-implementation-android-tests
-Architecture: all
-Section: oldlibs
-Depends: ${misc:Depends},
-         ${shlibs:Depends},
-         libplatform-api1-hybris-tests (= ${binary:Version}),
-Description: dummy transitional package for libplatform-api1-hybris-tests
- This is dummy transitional package, please use libplatform-api1-hybris-tests instead.
- .
- This package can be safely removed.
