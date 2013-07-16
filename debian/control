@@ -122,3 +122,14 @@ Depends: ${misc:Depends},
 Description: Hybris implementation of the Platform API (tests)
  This package provides the test cases for the hybris implementation
  of the Platform API.
+
+Package: libubuntu-platform-api1-dev
+Section: oldlibs
+Architecture: all
+Depends: ${misc:Depends},
+         libplatform-api1-dev (= ${binary:Version}),
+Description: dummy transitional package for libplatform-api1-dev
+ This is dummy transitional package, please use libplatform-api1-dev instead.
+ .
+ This package can be safely removed.
+
