@@ -44,7 +44,7 @@ public:
     ~StubSurfaceBufferAccess() noexcept {}
 
     void with_most_recent_buffer_do(
-        std::function<void(mc::Buffer&)> const& exec)
+        std::function<void(mg::Buffer&)> const& exec)
     {
         exec(buffer);
     }
@@ -57,7 +57,7 @@ class MockPixelBuffer : public mg::PixelBuffer
 public:
     ~MockPixelBuffer() noexcept {}
 
-    MOCK_METHOD1(fill_from, void(mc::Buffer& buffer));
+    MOCK_METHOD1(fill_from, void(mg::Buffer& buffer));
     MOCK_METHOD0(as_argb_8888, void const*());
     MOCK_CONST_METHOD0(size, geom::Size());
     MOCK_CONST_METHOD0(stride, geom::Stride());

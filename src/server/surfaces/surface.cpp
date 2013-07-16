@@ -172,7 +172,7 @@ geom::PixelFormat ms::Surface::pixel_format() const
     return buffer_stream->get_stream_pixel_format();
 }
 
-std::shared_ptr<mc::Buffer> ms::Surface::advance_client_buffer()
+std::shared_ptr<mg::Buffer> ms::Surface::advance_client_buffer()
 {
     if (buffer_count < 2)
         buffer_count++;
@@ -186,7 +186,7 @@ void ms::Surface::allow_framedropping(bool allow)
     buffer_stream->allow_framedropping(allow);
 }
 
-std::shared_ptr<mc::Buffer> ms::Surface::compositor_buffer() const
+std::shared_ptr<mg::Buffer> ms::Surface::compositor_buffer() const
 {
     return buffer_stream->lock_back_buffer();
 }

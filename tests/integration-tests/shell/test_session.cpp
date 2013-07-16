@@ -72,7 +72,7 @@ struct TestServerConfiguration : public mir::DefaultServerConfiguration
     {
         struct StubBufferAllocator : public mc::GraphicBufferAllocator
         {
-            std::shared_ptr<mc::Buffer> alloc_buffer(mc::BufferProperties const& buffer_properties)
+            std::shared_ptr<mg::Buffer> alloc_buffer(mc::BufferProperties const& buffer_properties)
             {
                 return std::make_shared<mtd::StubBuffer>(buffer_properties);
             }
@@ -109,7 +109,7 @@ struct TestServerConfiguration : public mir::DefaultServerConfiguration
     {
         struct StubPixelBuffer : public mg::PixelBuffer
         {
-            void fill_from(mc::Buffer&) {}
+            void fill_from(mg::Buffer&) {}
             void const* as_argb_8888() { return nullptr; }
             geom::Size size() const { return geom::Size(); }
             geom::Stride stride() const { return geom::Stride(); }
