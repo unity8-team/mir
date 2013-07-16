@@ -1,3 +1,14 @@
+platform-api (0.18.2+13.10.20130711-0ubuntu1) saucy; urgency=low
+
+  [ Ricardo Mendoza ]
+  * Fix build of non-existant file (mircommon target).
+  * Install Mir headers in the right place.
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 92
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 11 Jul 2013 02:01:51 +0000
+
 platform-api (0.18.2+13.10.20130709-0ubuntu1) saucy; urgency=low
 
   [ Ubuntu daily release ]
