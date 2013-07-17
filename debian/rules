@@ -24,11 +24,6 @@ ifeq ($(DEB_HOST_ARCH),armhf)
 	  -DMIR_PLATFORM=android \
 	  -DMIR_DISABLE_INTEGRATION_TESTS=YES
 else
-ifeq ($(DEB_HOST_ARCH),powerpc)
-	dh_auto_configure -- \
-	  $(COMMON_CONFIGURE_OPTIONS) \
-	  -DMIR_ENABLE_TESTS=NO
-else
 	dh_auto_configure -- \
 	  $(COMMON_CONFIGURE_OPTIONS)
 endif
