@@ -84,7 +84,9 @@ Package: libubuntu-platform-hardware-api1
 Section: libs
 Architecture: any
 Provides: libplatform-hardware-api1,
+          libplatform-hardware-api1-hybris,
 Conflicts: libplatform-hardware-api1,
+           libplatform-hardware-api1-hybris,
 Replaces: libplatform-hardware-api1,
           libplatform-hardware-api1-hybris,
 Pre-Depends: ${misc:Pre-Depends},
@@ -102,7 +104,9 @@ Package: libubuntu-application-api1
 Section: libs
 Architecture: any
 Provides: libplatform-api1,
+          libplatform-api1-hybris,
 Conflicts: libplatform-api1,
+           libplatform-api1-hybris,
 Replaces: libplatform-api1,
           libplatform-api1-hybris,
 Pre-Depends: ${misc:Pre-Depends},

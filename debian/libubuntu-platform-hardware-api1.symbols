@@ -1,4 +1,4 @@
-libubuntu_platform_hardware_api.so.1 libplatform-hardware-api1-hybris #MINVER#
+libubuntu_platform_hardware_api.so.1 libubuntu-platform-hardware-api1 #MINVER#
  u_hardware_gps_delete@Base 0.18.2+13.10.20130709
  u_hardware_gps_delete_aiding_data@Base 0.18.2+13.10.20130709
  u_hardware_gps_inject_location@Base 0.18.2+13.10.20130709
