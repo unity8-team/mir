@@ -119,12 +119,8 @@ Description: Platform API for system level capabilities (development)
 Package: libubuntu-platform-hardware-api1
 Section: libs
 Architecture: any
-Provides: libplatform-hardware-api1,
-          libplatform-hardware-api1-hybris,
-Conflicts: libplatform-hardware-api1,
-           libplatform-hardware-api1-hybris,
-Replaces: libplatform-hardware-api1,
-          libplatform-hardware-api1-hybris,
+Replaces: libplatform-hardware-api1-hybris (<= 0.18.2)
+Breaks: libplatform-hardware-api1-hybris (<= 0.18.2)
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Depends: ${misc:Depends},
@@ -139,12 +135,8 @@ Description: Hybris implementation of the hw-access parts of the Platform API (r
 Package: libubuntu-application-api1
 Section: libs
 Architecture: any
-Provides: libplatform-api1,
-          libplatform-api1-hybris,
-Conflicts: libplatform-api1,
-           libplatform-api1-hybris,
-Replaces: libplatform-api1,
-          libplatform-api1-hybris,
+Replaces: libplatform-api1-hybris (<= 0.18.2)
+Breaks: libplatform-api1-hybris (<= 0.18.2)
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Depends: ${misc:Depends},
@@ -174,4 +166,22 @@ Description: dummy transitional package for libplatform-api1-dev
  This is dummy transitional package, please use libplatform-api1-dev instead.
  .
  This package can be safely removed.
+
+Package: libplatform-api1-hybris
+Section: oldlibs
+Architecture: all
+Depends: libubuntu-application-api1,
+         ${misc:Depends},
+Description: dummy transitional package for libplatform-api1-hybris
+ This is a dummy transitional package, please use libubuntu-application-api1
+ instead.
+
+Package: libplatform-hardware-api1-hybris
+Section: oldlibs
+Architecture: all
+Depends: libubuntu-platform-hardware-api1,
+         ${misc:Depends},
+Description: dummy transitional package for libplatform-hardware-api1-hybris
+ This is a dummy transitional package, please use libubuntu-platform-hardware-api1
+ instead.
 
