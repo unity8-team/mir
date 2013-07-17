@@ -69,6 +69,8 @@ Section: libs
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Architecture: any
+Conflicts: libplatform-api1-mirserver,
+Provides: libplatform-api1-mirserver,
 Replaces: libplatform-api1-mirserver,
 Depends: libmirserver0 (>= 0.0.7),
          ${misc:Depends},
@@ -82,6 +84,8 @@ Section: libs
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Architecture: any
+Conflicts: libplatform-api1-mirclient,
+Provides: libplatform-api1-mirclient,
 Replaces: libplatform-api1-mirclient,
 Depends: libmirclient1 (>= 0.0.7),
          ${misc:Depends},
@@ -116,7 +120,9 @@ Package: libubuntu-platform-hardware-api1
 Section: libs
 Architecture: any
 Provides: libplatform-hardware-api1,
+          libplatform-hardware-api1-hybris,
 Conflicts: libplatform-hardware-api1,
+           libplatform-hardware-api1-hybris,
 Replaces: libplatform-hardware-api1,
           libplatform-hardware-api1-hybris,
 Pre-Depends: ${misc:Pre-Depends},
@@ -134,7 +140,9 @@ Package: libubuntu-application-api1
 Section: libs
 Architecture: any
 Provides: libplatform-api1,
+          libplatform-api1-hybris,
 Conflicts: libplatform-api1,
+           libplatform-api1-hybris,
 Replaces: libplatform-api1,
           libplatform-api1-hybris,
 Pre-Depends: ${misc:Pre-Depends},
