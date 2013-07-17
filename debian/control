@@ -69,6 +69,7 @@ Section: libs
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Architecture: any
+Replaces: libplatform-api1-mirserver,
 Depends: libmirserver0 (>= 0.0.7),
          ${misc:Depends},
          ${shlibs:Depends},
@@ -81,6 +82,7 @@ Section: libs
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Architecture: any
+Replaces: libplatform-api1-mirclient,
 Depends: libmirclient1 (>= 0.0.7),
          ${misc:Depends},
          ${shlibs:Depends},
@@ -116,6 +118,7 @@ Architecture: any
 Provides: libplatform-hardware-api1,
 Conflicts: libplatform-hardware-api1,
 Replaces: libplatform-hardware-api1,
+          libplatform-hardware-api1-hybris,
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Depends: ${misc:Depends},
@@ -133,6 +136,7 @@ Architecture: any
 Provides: libplatform-api1,
 Conflicts: libplatform-api1,
 Replaces: libplatform-api1,
+          libplatform-api1-hybris,
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Depends: ${misc:Depends},
