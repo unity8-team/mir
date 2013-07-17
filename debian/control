@@ -86,6 +86,7 @@ Architecture: any
 Provides: libplatform-hardware-api1,
 Conflicts: libplatform-hardware-api1,
 Replaces: libplatform-hardware-api1,
+          libplatform-hardware-api1-hybris,
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Depends: ${misc:Depends},
@@ -103,6 +104,7 @@ Architecture: any
 Provides: libplatform-api1,
 Conflicts: libplatform-api1,
 Replaces: libplatform-api1,
+          libplatform-api1-hybris,
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Depends: ${misc:Depends},
