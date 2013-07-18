@@ -6,7 +6,7 @@ set(
 
 install(
   FILES ${UBUNTU_HEADERS}
-  DESTINATION include/ubuntu-${UBUNTU_PLATFORM_API_VERSION_MAJOR}
+  DESTINATION include/ubuntu
 )
 
 add_subdirectory(application)
