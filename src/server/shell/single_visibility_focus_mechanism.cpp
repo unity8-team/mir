@@ -40,13 +40,18 @@ void msh::SingleVisibilityFocusMechanism::set_focus_to(std::shared_ptr<Session> 
         [&](std::shared_ptr<mf::Session> const& session) {
         if (session == focus_session)
         {
-            auto surface = focus_session->default_surface();
-            if (surface)
+            // We use a transaction to guarantee the surface will not be destroyed
+            // from a second thread before input focus is set.xs
+            focus_session->transaction([&]()
             {
-                surface->take_input_focus(input_targeter);
-                set_input_focus = true;
-            }
-            session->show();
+                auto surface = focus_session->default_surface();
+                if (surface)
+                    {
+                        surface->take_input_focus(input_targeter);
+                        set_input_focus = true;
+                    }
+                session->show();
+            });
         }
         else
         {

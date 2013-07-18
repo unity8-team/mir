@@ -66,6 +66,8 @@ public:
     void show();
 
     int configure_surface(frontend::SurfaceId id, MirSurfaceAttrib attrib, int value);
+    
+    void transaction(std::function<void()> const& body);
 
 protected:
     ApplicationSession(ApplicationSession const&) = delete;
@@ -83,7 +85,7 @@ private:
 
     typedef std::map<frontend::SurfaceId, std::shared_ptr<Surface>> Surfaces;
     Surfaces::const_iterator checked_find(frontend::SurfaceId id) const;
-    std::mutex mutable surfaces_mutex;
+    std::recursive_mutex mutable surfaces_mutex;
     Surfaces surfaces;
 };
 

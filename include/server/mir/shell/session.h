@@ -22,6 +22,8 @@
 #include "mir/frontend/session.h"
 #include "mir/shell/snapshot.h"
 
+#include <functional>
+
 namespace mir
 {
 
@@ -37,6 +39,11 @@ public:
 
     virtual void take_snapshot(SnapshotCallback const& snapshot_taken) = 0;
     virtual std::shared_ptr<Surface> default_surface() const = 0;
+    
+    /// Executes the body callback as a transaction. That is to say
+    /// other requests to this session will block during the execution
+    //  of body.
+    virtual void transaction(std::function<void()> const& body) = 0;
 };
 
 }

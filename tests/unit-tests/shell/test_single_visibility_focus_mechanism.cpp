@@ -60,6 +60,15 @@ struct MockShellSession : public msh::Session
     MOCK_METHOD0(show, void());
 
     MOCK_METHOD3(configure_surface, int(mf::SurfaceId, MirSurfaceAttrib, int));
+
+    MOCK_METHOD0(mock_transaction_started, void());
+    MOCK_METHOD0(mock_transaction_finished, void());
+    void transaction(std::function<void()> const& body)
+    {
+        mock_transaction_started();
+        body();
+        mock_transaction_finished();
+    }
 };
 
 TEST(SingleVisibilityFocusMechanism, mechanism_sets_visibility)
@@ -114,8 +123,13 @@ TEST(SingleVisibilityFocusMechanism, sets_input_focus)
     
     {
         InSequence seq;
+        EXPECT_CALL(app1, mock_transaction_started()).Times(1);
         EXPECT_CALL(mock_surface, take_input_focus(_)).Times(1);
+        EXPECT_CALL(app1, mock_transaction_finished()).Times(1);
         // When we have no default surface.
+        EXPECT_CALL(app1, mock_transaction_started()).Times(1);
+        EXPECT_CALL(app1, mock_transaction_finished()).Times(1);
+
         EXPECT_CALL(targeter, focus_cleared()).Times(1);
         // When we have no session.
         EXPECT_CALL(targeter, focus_cleared()).Times(1);

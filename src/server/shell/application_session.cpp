@@ -56,7 +56,7 @@ msh::ApplicationSession::ApplicationSession(
 
 msh::ApplicationSession::~ApplicationSession()
 {
-    std::unique_lock<std::mutex> lock(surfaces_mutex);
+    std::unique_lock<std::recursive_mutex> lock(surfaces_mutex);
     for (auto const& pair_id_surface : surfaces)
     {
         pair_id_surface.second->destroy();
@@ -73,7 +73,7 @@ mf::SurfaceId msh::ApplicationSession::create_surface(const msh::SurfaceCreation
     auto const id = next_id();
     auto surf = surface_factory->create_surface(params, id, event_sink);
 
-    std::unique_lock<std::mutex> lock(surfaces_mutex);
+    std::unique_lock<std::recursive_mutex> lock(surfaces_mutex);
     surfaces[id] = surf;
     return id;
 }
@@ -90,7 +90,7 @@ msh::ApplicationSession::Surfaces::const_iterator msh::ApplicationSession::check
 
 std::shared_ptr<mf::Surface> msh::ApplicationSession::get_surface(mf::SurfaceId id) const
 {
-    std::unique_lock<std::mutex> lock(surfaces_mutex);
+    std::unique_lock<std::recursive_mutex> lock(surfaces_mutex);
 
     return checked_find(id)->second;
 }
@@ -102,7 +102,7 @@ void msh::ApplicationSession::take_snapshot(SnapshotCallback const& snapshot_tak
 
 std::shared_ptr<msh::Surface> msh::ApplicationSession::default_surface() const
 {
-    std::unique_lock<std::mutex> lock(surfaces_mutex);
+    std::unique_lock<std::recursive_mutex> lock(surfaces_mutex);
 
     if (surfaces.size())
         return surfaces.begin()->second;
@@ -112,7 +112,7 @@ std::shared_ptr<msh::Surface> msh::ApplicationSession::default_surface() const
 
 void msh::ApplicationSession::destroy_surface(mf::SurfaceId id)
 {
-    std::unique_lock<std::mutex> lock(surfaces_mutex);
+    std::unique_lock<std::recursive_mutex> lock(surfaces_mutex);
     auto p = checked_find(id);
 
     p->second->destroy();
@@ -126,7 +126,7 @@ std::string msh::ApplicationSession::name() const
 
 void msh::ApplicationSession::force_requests_to_complete()
 {
-    std::unique_lock<std::mutex> lock(surfaces_mutex);
+    std::unique_lock<std::recursive_mutex> lock(surfaces_mutex);
     for (auto& id_s : surfaces)
     {
         id_s.second->force_requests_to_complete();
@@ -135,7 +135,7 @@ void msh::ApplicationSession::force_requests_to_complete()
 
 void msh::ApplicationSession::hide()
 {
-    std::unique_lock<std::mutex> lock(surfaces_mutex);
+    std::unique_lock<std::recursive_mutex> lock(surfaces_mutex);
     for (auto& id_s : surfaces)
     {
         id_s.second->hide();
@@ -144,7 +144,7 @@ void msh::ApplicationSession::hide()
 
 void msh::ApplicationSession::show()
 {
-    std::unique_lock<std::mutex> lock(surfaces_mutex);
+    std::unique_lock<std::recursive_mutex> lock(surfaces_mutex);
     for (auto& id_s : surfaces)
     {
         id_s.second->show();
@@ -155,8 +155,14 @@ int msh::ApplicationSession::configure_surface(mf::SurfaceId id,
                                                MirSurfaceAttrib attrib,
                                                int value)
 {
-    std::unique_lock<std::mutex> lock(surfaces_mutex);
+    std::unique_lock<std::recursive_mutex> lock(surfaces_mutex);
     std::shared_ptr<mf::Surface> surf(checked_find(id)->second);
 
     return surf->configure(attrib, value);
+}
+
+void msh::ApplicationSession::transaction(std::function<void()> const& body)
+{
+    std::unique_lock<std::recursive_mutex> lg(surfaces_mutex);
+    body();
 }
