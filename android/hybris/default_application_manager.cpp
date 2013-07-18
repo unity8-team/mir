@@ -397,8 +397,11 @@ void ApplicationManager::binderDied(const android::wp<android::IBinder>& who)
         next_focused_app = main_stage_application;
 
     ALOGI("%s():%d\n", __PRETTY_FUNCTION__, __LINE__);
-    if (i && i == focused_application)
+    if (i && i == focused_application &&
+        shell_input_setup->shell_has_focus == false)
+    {
         switch_focused_application_locked(next_focused_app);
+    }
     else if(focused_application > i)
         focused_application--;
     
