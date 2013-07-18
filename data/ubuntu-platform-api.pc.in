@@ -6,4 +6,4 @@ includedir=${exec_prefix}/include
 Name: @CMAKE_PROJECT_NAME@
 Description: Ubuntu's platform abstraction layer.
 Version: @UBUNTU_PLATFORM_API_VERSION_MAJOR@.@UBUNTU_PLATFORM_API_VERSION_MINOR@.@UBUNTU_PLATFORM_API_VERSION_PATCH@
-Cflags: -I${includedir}/ubuntu-@UBUNTU_PLATFORM_API_VERSION_MAJOR@
+Cflags: -I${includedir}/ubuntu
