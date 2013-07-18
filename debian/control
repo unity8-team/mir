@@ -83,8 +83,8 @@ Description: Platform API for system level capabilities (development)
 Package: libubuntu-platform-hardware-api1
 Section: libs
 Architecture: any
-Replaces: libplatform-hardware-api1-hybris (<= 0.18.2)
-Breaks: libplatform-hardware-api1-hybris (<= 0.18.2)
+Replaces: libplatform-hardware-api1-hybris (<< 0.18.3)
+Breaks: libplatform-hardware-api1-hybris (<< 0.18.3)
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Depends: ${misc:Depends},
@@ -99,8 +99,8 @@ Description: Hybris implementation of the hw-access parts of the Platform API (r
 Package: libubuntu-application-api1
 Section: libs
 Architecture: any
-Replaces: libplatform-api1-hybris (<= 0.18.2)
-Breaks: libplatform-api1-hybris (<= 0.18.2)
+Replaces: libplatform-api1-hybris (<< 0.18.3)
+Breaks: libplatform-api1-hybris (<< 0.18.3)
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Depends: ${misc:Depends},
