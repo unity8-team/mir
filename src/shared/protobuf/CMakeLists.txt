@@ -23,8 +23,9 @@ add_library(
 set_target_properties(
   mirprotobuf
   PROPERTIES
-  VERSION ${MIR_VERSION_MAJOR}.${MIR_VERSION_MINOR}.${MIR_VERSION_PATCH}
-  SOVERSION ${MIR_VERSION_MAJOR})
+  VERSION ${MIR_VERSION}
+  SOVERSION ${MIR_ABI}
+)
 
 target_link_libraries(
   mirprotobuf

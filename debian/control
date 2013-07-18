@@ -34,7 +34,7 @@ Homepage: https://launchpad.net/mir
 # just go ahead. ~mir-team will notice and sync up the code again.
 Vcs-Bzr: https://code.launchpad.net/~mir-team/mir/trunk
 
-Package: libmirprotobuf0
+Package: libmirprotobuf0.1
 Section: libs
 Architecture: i386 amd64 armhf armel64
 Multi-Arch: same
@@ -62,7 +62,7 @@ Description: Display server for Ubuntu - protocol definition
  .
  Contains the protocol's definition files.
 
-Package: libmirserver0
+Package: libmirserver0.1
 Section: libs
 Architecture: i386 amd64 armhf armel64
 Multi-Arch: same
@@ -104,7 +104,7 @@ Description: Display server for Ubuntu - development headers
  .
  Contains header files required to build Mir servers.
 
-Package: libmirclient1
+Package: libmirclient0.1
 Section: libs
 Architecture: i386 amd64 armhf armel64
 Multi-Arch: same
