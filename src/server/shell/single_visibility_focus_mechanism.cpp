@@ -41,7 +41,7 @@ void msh::SingleVisibilityFocusMechanism::set_focus_to(std::shared_ptr<Session> 
         if (session == focus_session)
         {
             // We use a transaction to guarantee the surface will not be destroyed
-            // from a second thread before input focus is set.xs
+            // from a second thread before input focus is set.
             focus_session->transaction([&]()
             {
                 auto surface = focus_session->default_surface();
