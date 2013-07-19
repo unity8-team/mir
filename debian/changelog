@@ -1,3 +1,19 @@
+platform-api (0.18.2+13.10.20130719-0ubuntu1) saucy; urgency=low
+
+  [ Thomas Voß ]
+  * Remove versioned include directories. (LP: #1202309)
+
+  [ Ricardo Mendoza ]
+  * Stop changing focus when the binder that died was the last app in
+    our list. (LP: #1202803)
+  * Dont refocus other app if app dies while shell has focus. (LP:
+    #1178288)
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 96
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Fri, 19 Jul 2013 02:02:00 +0000
+
 platform-api (0.18.2+13.10.20130711-0ubuntu1) saucy; urgency=low
 
   [ Ricardo Mendoza ]
