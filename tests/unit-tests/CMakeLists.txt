@@ -28,7 +28,7 @@ uses_android_input(unit-tests)
 target_link_libraries(
   unit-tests
 
-  mirclient
+  mirclient-static
   mirserver
   mirplatformgraphics
   mirdraw

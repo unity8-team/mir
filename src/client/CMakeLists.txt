@@ -3,6 +3,8 @@ set(EXEC_PREFIX "${CMAKE_INSTALL_PREFIX}")
 set(LIBDIR "${CMAKE_INSTALL_FULL_LIBDIR}")
 set(INCLUDEDIR "${CMAKE_INSTALL_PREFIX}/include/mirclient")
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden")
+
 configure_file(
   ${CMAKE_CURRENT_SOURCE_DIR}/mirclient.pc.in
   ${CMAKE_CURRENT_BINARY_DIR}/mirclient.pc
@@ -65,6 +67,12 @@ add_library(
   ${CLIENT_SOURCES}
 )
 
+add_library(
+  mirclient-static
+
+  ${CLIENT_SOURCES}
+)
+
 set_target_properties(
   mirclient
 
@@ -99,8 +107,8 @@ set(
   ${XKBCOMMON_LIBRARIES}
 
   mirprotobuf
-  mirsharedinput
-  mirsharedlogging
+  mirsharedinput-private
+  mirsharedlogging-private
   mirclientrpc
   mirclientlttngstatic
 
@@ -112,6 +120,12 @@ set(
 
 target_link_libraries(
   mirclient
+
+  ${MIR_CLIENT_LIBRARIES}
+)
+
+target_link_libraries(
+  mirclient-static
 
   ${MIR_CLIENT_LIBRARIES}
 )

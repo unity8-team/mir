@@ -32,7 +32,7 @@ target_link_libraries(
   acceptance-tests
 
   mirserver
-  mirclient
+  mirclient-static
 
   mir-test-framework
   mir-test-doubles
