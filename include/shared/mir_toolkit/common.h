@@ -28,6 +28,11 @@
 /* This is C code. Not C++. */
 
 /**
+ * Used to mark an exported symbol
+ */
+#define _MIR_EXPORT __attribute__((visibility("default")))
+
+/**
  * Attributes of a surface that the client and server/shell may wish to
  * get or set over the wire.
  */

@@ -47,7 +47,7 @@ extern "C" {
  *   \param [in,out] context  User data passed to the callback function
  *   \return                  A handle that can be passed to mir_wait_for
  */
-MirWaitHandle *mir_connect(
+_MIR_EXPORT MirWaitHandle *mir_connect(
     char const *server,
     char const *app_name,
     mir_connected_callback callback,
@@ -60,7 +60,7 @@ MirWaitHandle *mir_connect(
  *   \param [in] app_name  A name referring to the application
  *   \return               The resulting MirConnection
  */
-MirConnection *mir_connect_sync(char const *server, char const *app_name);
+_MIR_EXPORT MirConnection *mir_connect_sync(char const *server, char const *app_name);
 
 /**
  * Test for a valid connection
@@ -68,7 +68,7 @@ MirConnection *mir_connect_sync(char const *server, char const *app_name);
  * \return                 A non-zero value if the supplied connection is
  *                         valid, 0 otherwise
  */
-int mir_connection_is_valid(MirConnection *connection);
+_MIR_EXPORT int mir_connection_is_valid(MirConnection *connection);
 
 /**
  * Retrieve a text description of the last error. The returned string is owned
@@ -78,13 +78,13 @@ int mir_connection_is_valid(MirConnection *connection);
  *                           invalid connection, or the empty string "" if the
  *                           connection is valid.
  */
-char const *mir_connection_get_error_message(MirConnection *connection);
+_MIR_EXPORT char const *mir_connection_get_error_message(MirConnection *connection);
 
 /**
  * Release a connection to the Mir server
  *   \param [in] connection  The connection
  */
-void mir_connection_release(MirConnection *connection);
+_MIR_EXPORT void mir_connection_release(MirConnection *connection);
 
 /**
  * Query platform-specific data and/or file descriptors that are required to
@@ -92,21 +92,21 @@ void mir_connection_release(MirConnection *connection);
  *   \param [in]  connection        The connection
  *   \param [out] platform_package  Structure to be populated
  */
-void mir_connection_get_platform(MirConnection *connection, MirPlatformPackage *platform_package);
+_MIR_EXPORT void mir_connection_get_platform(MirConnection *connection, MirPlatformPackage *platform_package);
 
 /**
  * Query the display
  *   \param [in]  connection    The connection
  *   \param [out] display_info  Structure to be populated
  */
-void mir_connection_get_display_info(MirConnection *connection, MirDisplayInfo *display_info);
+_MIR_EXPORT void mir_connection_get_display_info(MirConnection *connection, MirDisplayInfo *display_info);
 
 /**
  * Get a display type that can be used for OpenGL ES 2.0 acceleration.
  *   \param [in] connection  The connection
  *   \return                 An EGLNativeDisplayType that the client can use
  */
-MirEGLNativeDisplayType mir_connection_get_egl_native_display(MirConnection *connection);
+_MIR_EXPORT MirEGLNativeDisplayType mir_connection_get_egl_native_display(MirConnection *connection);
 
 /**
  * Request a new Mir surface on the supplied connection with the supplied
@@ -123,7 +123,7 @@ MirEGLNativeDisplayType mir_connection_get_egl_native_display(MirConnection *con
  *   \return                         A handle that can be passed to
  *                                   mir_wait_for
  */
-MirWaitHandle *mir_connection_create_surface(
+_MIR_EXPORT MirWaitHandle *mir_connection_create_surface(
     MirConnection *connection,
     MirSurfaceParameters const *surface_parameters,
     mir_surface_callback callback,
@@ -136,7 +136,7 @@ MirWaitHandle *mir_connection_create_surface(
  *   \param [in] params      Parameters describing the desired surface
  *   \return                 The resulting surface
  */
-MirSurface *mir_connection_create_surface_sync(
+_MIR_EXPORT MirSurface *mir_connection_create_surface_sync(
     MirConnection *connection,
     MirSurfaceParameters const *params);
 
@@ -150,15 +150,15 @@ MirSurface *mir_connection_create_surface_sync(
  *   \param [in] surface        The surface
  *   \param [in] event_handler  The event handler to call
  */
-void mir_surface_set_event_handler(MirSurface *surface,
-                                   MirEventDelegate const *event_handler);
+_MIR_EXPORT void mir_surface_set_event_handler(MirSurface *surface,
+                                               MirEventDelegate const *event_handler);
 
 /**
  * Get a window type that can be used for OpenGL ES 2.0 acceleration.
  *   \param [in] surface  The surface
  *   \return              An EGLNativeWindowType that the client can use
  */
-MirEGLNativeWindowType mir_surface_get_egl_native_window(MirSurface *surface);
+_MIR_EXPORT MirEGLNativeWindowType mir_surface_get_egl_native_window(MirSurface *surface);
 
 /**
  * Test for a valid surface
@@ -166,7 +166,7 @@ MirEGLNativeWindowType mir_surface_get_egl_native_window(MirSurface *surface);
  *   \return              A non-zero value if the supplied surface is valid,
  *                        0 otherwise
  */
-int mir_surface_is_valid(MirSurface *surface);
+_MIR_EXPORT int mir_surface_is_valid(MirSurface *surface);
 
 /**
  * Retrieve a text description of the error. The returned string is owned by
@@ -177,7 +177,7 @@ int mir_surface_is_valid(MirSurface *surface);
  *                        invalid surface, or the empty string "" if the
  *                        connection is valid.
  */
-char const *mir_surface_get_error_message(MirSurface *surface);
+_MIR_EXPORT char const *mir_surface_get_error_message(MirSurface *surface);
 
 /**
  * Get a surface's parameters.
@@ -185,7 +185,7 @@ char const *mir_surface_get_error_message(MirSurface *surface);
  *   \param [in] surface      The surface
  *   \param [out] parameters  Structure to be populated
  */
-void mir_surface_get_parameters(MirSurface *surface, MirSurfaceParameters *parameters);
+_MIR_EXPORT void mir_surface_get_parameters(MirSurface *surface, MirSurfaceParameters *parameters);
 
 /**
  * Get the underlying platform type so the buffer obtained in "raw" representation
@@ -194,7 +194,7 @@ void mir_surface_get_parameters(MirSurface *surface, MirSurfaceParameters *param
  *   \param [in] surface      The surface
  *   \return                  One of mir_platform_type_android or mir_platform_type_gbm
  */
-MirPlatformType mir_surface_get_platform_type(MirSurface *surface);
+_MIR_EXPORT MirPlatformType mir_surface_get_platform_type(MirSurface *surface);
 
 /**
  * Get a surface's buffer in "raw" representation.
@@ -202,7 +202,7 @@ MirPlatformType mir_surface_get_platform_type(MirSurface *surface);
  *   \param [in] surface          The surface
  *   \param [out] buffer_package  Structure to be populated
  */
-void mir_surface_get_current_buffer(MirSurface *surface, MirNativeBuffer **buffer_package);
+_MIR_EXPORT void mir_surface_get_current_buffer(MirSurface *surface, MirNativeBuffer **buffer_package);
 
 /**
  * Get a surface's graphics_region, i.e., map the graphics buffer to main
@@ -211,7 +211,7 @@ void mir_surface_get_current_buffer(MirSurface *surface, MirNativeBuffer **buffe
  *   \param [in] surface           The surface
  *   \param [out] graphics_region  Structure to be populated
  */
-void mir_surface_get_graphics_region(
+_MIR_EXPORT void mir_surface_get_graphics_region(
     MirSurface *surface,
     MirGraphicsRegion *graphics_region);
 
@@ -228,7 +228,7 @@ void mir_surface_get_graphics_region(
  *   \param [in,out] context  User data passed to the callback function
  *   \return                  A handle that can be passed to mir_wait_for
  */
-MirWaitHandle *mir_surface_swap_buffers(
+_MIR_EXPORT MirWaitHandle *mir_surface_swap_buffers(
     MirSurface *surface,
     mir_surface_callback callback,
     void *context);
@@ -238,7 +238,7 @@ MirWaitHandle *mir_surface_swap_buffers(
  * for the operation to complete.
  *   \param [in] surface  The surface whose buffer to advance
  */
-void mir_surface_swap_buffers_sync(MirSurface *surface);
+_MIR_EXPORT void mir_surface_swap_buffers_sync(MirSurface *surface);
 
 /**
  * Release the supplied surface and any associated buffer. The returned wait
@@ -252,7 +252,7 @@ void mir_surface_swap_buffers_sync(MirSurface *surface);
  *   \param [in,out] context  User data passed to the callback function
  *   \return                  A handle that can be passed to mir_wait_for
  */
-MirWaitHandle *mir_surface_release(
+_MIR_EXPORT MirWaitHandle *mir_surface_release(
     MirSurface *surface,
     mir_surface_callback callback,
     void *context);
@@ -262,14 +262,14 @@ MirWaitHandle *mir_surface_release(
  * for the operation to complete.
  *   \param [in] surface  The surface to be released
  */
-void mir_surface_release_sync(MirSurface *surface);
+_MIR_EXPORT void mir_surface_release_sync(MirSurface *surface);
 
 /**
  * Wait on the supplied handle until all instances of the associated request
  * have completed.
  *   \param [in] wait_handle  Handle returned by an asynchronous request
  */
-void mir_wait_for(MirWaitHandle *wait_handle);
+_MIR_EXPORT void mir_wait_for(MirWaitHandle *wait_handle);
 
 /**
  * Wait on the supplied handle until one instance of the associated request
@@ -278,14 +278,14 @@ void mir_wait_for(MirWaitHandle *wait_handle);
  * with the wait handle; only one.
  *   \param [in] wait_handle  Handle returned by an asynchronous request
  */
-void mir_wait_for_one(MirWaitHandle *wait_handle);
+_MIR_EXPORT void mir_wait_for_one(MirWaitHandle *wait_handle);
 
 /**
  * Return the ID of a surface (only useful for debug output).
  *   \param [in] surface  The surface
  *   \return              An internal ID that identifies the surface
  */
-int mir_surface_get_id(MirSurface *surface);
+_MIR_EXPORT int mir_surface_get_id(MirSurface *surface);
 
 /**
  * Set the type (purpose) of a surface. This is not guaranteed to always work
@@ -295,14 +295,14 @@ int mir_surface_get_id(MirSurface *surface);
  *   \param [in] type     The new type of the surface
  *   \return              A wait handle that can be passed to mir_wait_for
  */
-MirWaitHandle* mir_surface_set_type(MirSurface *surface, MirSurfaceType type);
+_MIR_EXPORT MirWaitHandle* mir_surface_set_type(MirSurface *surface, MirSurfaceType type);
 
 /**
  * Get the type (purpose) of a surface.
  *   \param [in] surface  The surface to query
  *   \return              The type of the surface
  */
-MirSurfaceType mir_surface_get_type(MirSurface *surface);
+_MIR_EXPORT MirSurfaceType mir_surface_get_type(MirSurface *surface);
 
 /**
  * Change the state of a surface.
@@ -310,7 +310,7 @@ MirSurfaceType mir_surface_get_type(MirSurface *surface);
  *   \param [in] state    The new state of the surface
  *   \return              A wait handle that can be passed to mir_wait_for
  */
-MirWaitHandle* mir_surface_set_state(MirSurface *surface,
+_MIR_EXPORT MirWaitHandle* mir_surface_set_state(MirSurface *surface,
                                      MirSurfaceState state);
 
 /**
@@ -318,7 +318,7 @@ MirWaitHandle* mir_surface_set_state(MirSurface *surface,
  *   \param [in] surface  The surface to query
  *   \return              The state of the surface
  */
-MirSurfaceState mir_surface_get_state(MirSurface *surface);
+_MIR_EXPORT MirSurfaceState mir_surface_get_state(MirSurface *surface);
 
 /**
  * Set the swapinterval for mir_surface_swap_buffers. EGL users should use
@@ -330,7 +330,7 @@ MirSurfaceState mir_surface_get_state(MirSurface *surface);
  *   \return              A wait handle that can be passed to mir_wait_for,
  *                        or NULL if the interval could not be supported 
  */
-MirWaitHandle* mir_surface_set_swapinterval(MirSurface* surface, int interval);
+_MIR_EXPORT MirWaitHandle* mir_surface_set_swapinterval(MirSurface* surface, int interval);
 
 /**
  * Query the swapinterval that the surface is operating with.
@@ -339,7 +339,7 @@ MirWaitHandle* mir_surface_set_swapinterval(MirSurface* surface, int interval);
  *   \return              The swapinterval value that the client is operating with.
  *                        Returns -1 if surface is invalid.
  */
-int mir_surface_get_swapinterval(MirSurface* surface);
+_MIR_EXPORT int mir_surface_get_swapinterval(MirSurface* surface);
 
 #ifdef __cplusplus
 }

@@ -74,7 +74,7 @@ void assign_result(void *result, void **context)
 
 }
 
-MirWaitHandle* mir_connect(char const* socket_file, char const* name, mir_connected_callback callback, void * context)
+_MIR_EXPORT MirWaitHandle* mir_connect(char const* socket_file, char const* name, mir_connected_callback callback, void * context)
 {
 
     try
@@ -98,8 +98,8 @@ MirWaitHandle* mir_connect(char const* socket_file, char const* name, mir_connec
     }
 }
 
-MirConnection *mir_connect_sync(char const *server,
-                                             char const *app_name)
+_MIR_EXPORT MirConnection *mir_connect_sync(char const *server,
+                                            char const *app_name)
 {
     MirConnection *conn = nullptr;
     mir_wait_for(mir_connect(server, app_name,
@@ -109,17 +109,17 @@ MirConnection *mir_connect_sync(char const *server,
     return conn;
 }
 
-int mir_connection_is_valid(MirConnection * connection)
+_MIR_EXPORT int mir_connection_is_valid(MirConnection * connection)
 {
     return MirConnection::is_valid(connection);
 }
 
-char const * mir_connection_get_error_message(MirConnection * connection)
+_MIR_EXPORT char const * mir_connection_get_error_message(MirConnection * connection)
 {
     return connection->get_error_message();
 }
 
-void mir_connection_release(MirConnection * connection)
+_MIR_EXPORT void mir_connection_release(MirConnection * connection)
 {
     if (!error_connections.contains(connection))
     {
@@ -134,12 +134,12 @@ void mir_connection_release(MirConnection * connection)
     delete connection;
 }
 
-MirEGLNativeDisplayType mir_connection_get_egl_native_display(MirConnection *connection)
+_MIR_EXPORT MirEGLNativeDisplayType mir_connection_get_egl_native_display(MirConnection *connection)
 {
     return connection->egl_native_display();
 }
 
-MirWaitHandle* mir_connection_create_surface(
+_MIR_EXPORT MirWaitHandle* mir_connection_create_surface(
     MirConnection* connection,
     MirSurfaceParameters const* params,
     mir_surface_callback callback,
@@ -159,7 +159,7 @@ MirWaitHandle* mir_connection_create_surface(
 
 }
 
-MirSurface* mir_connection_create_surface_sync(
+_MIR_EXPORT MirSurface* mir_connection_create_surface_sync(
     MirConnection* connection,
     MirSurfaceParameters const* params)
 {
@@ -172,116 +172,116 @@ MirSurface* mir_connection_create_surface_sync(
     return surface;
 }
 
-void mir_surface_set_event_handler(MirSurface *surface,
-                                   MirEventDelegate const *event_handler)
+_MIR_EXPORT void mir_surface_set_event_handler(MirSurface *surface,
+                                               MirEventDelegate const *event_handler)
 {
     surface->set_event_handler(event_handler);
 }
 
-MirWaitHandle* mir_surface_release(
+_MIR_EXPORT MirWaitHandle* mir_surface_release(
     MirSurface * surface,
     mir_surface_callback callback, void * context)
 {
     return surface->release_surface(callback, context);
 }
 
-void mir_surface_release_sync(MirSurface *surface)
+_MIR_EXPORT void mir_surface_release_sync(MirSurface *surface)
 {
     mir_wait_for(mir_surface_release(surface,
         reinterpret_cast<mir_surface_callback>(assign_result),
         nullptr));
 }
 
-int mir_surface_get_id(MirSurface * surface)
+_MIR_EXPORT int mir_surface_get_id(MirSurface * surface)
 {
     return surface->id();
 }
 
-int mir_surface_is_valid(MirSurface* surface)
+_MIR_EXPORT int mir_surface_is_valid(MirSurface* surface)
 {
     return surface->is_valid();
 }
 
-char const * mir_surface_get_error_message(MirSurface * surface)
+_MIR_EXPORT char const * mir_surface_get_error_message(MirSurface * surface)
 {
     return surface->get_error_message();
 }
 
-void mir_surface_get_parameters(MirSurface * surface, MirSurfaceParameters *parameters)
+_MIR_EXPORT void mir_surface_get_parameters(MirSurface * surface, MirSurfaceParameters *parameters)
 {
     *parameters = surface->get_parameters();
 }
 
-MirPlatformType mir_surface_get_platform_type(MirSurface * surface)
+_MIR_EXPORT MirPlatformType mir_surface_get_platform_type(MirSurface * surface)
 {
     return surface->platform_type();
 }
 
-void mir_surface_get_current_buffer(MirSurface * surface, MirNativeBuffer ** buffer_package_out)
+_MIR_EXPORT void mir_surface_get_current_buffer(MirSurface * surface, MirNativeBuffer ** buffer_package_out)
 {
     auto package = surface->get_current_buffer_package();
     *buffer_package_out = package.get();
 }
 
-void mir_connection_get_platform(MirConnection *connection, MirPlatformPackage *platform_package)
+_MIR_EXPORT void mir_connection_get_platform(MirConnection *connection, MirPlatformPackage *platform_package)
 {
     connection->populate(*platform_package);
 }
 
-void mir_connection_get_display_info(MirConnection *connection, MirDisplayInfo *display_info)
+_MIR_EXPORT void mir_connection_get_display_info(MirConnection *connection, MirDisplayInfo *display_info)
 {
     connection->populate(*display_info);
 }
 
-void mir_surface_get_graphics_region(MirSurface * surface, MirGraphicsRegion * graphics_region)
+_MIR_EXPORT void mir_surface_get_graphics_region(MirSurface * surface, MirGraphicsRegion * graphics_region)
 {
     surface->get_cpu_region( *graphics_region);
 }
 
-MirWaitHandle* mir_surface_swap_buffers(MirSurface *surface, mir_surface_callback callback, void * context)
+_MIR_EXPORT MirWaitHandle* mir_surface_swap_buffers(MirSurface *surface, mir_surface_callback callback, void * context)
 {
     return surface->next_buffer(callback, context);
 }
 
-void mir_surface_swap_buffers_sync(MirSurface *surface)
+_MIR_EXPORT void mir_surface_swap_buffers_sync(MirSurface *surface)
 {
     mir_wait_for(mir_surface_swap_buffers(surface,
         reinterpret_cast<mir_surface_callback>(assign_result),
         nullptr));
 }
 
-void mir_wait_for(MirWaitHandle* wait_handle)
+_MIR_EXPORT void mir_wait_for(MirWaitHandle* wait_handle)
 {
     if (wait_handle)
         wait_handle->wait_for_all();
 }
 
-void mir_wait_for_one(MirWaitHandle* wait_handle)
+_MIR_EXPORT void mir_wait_for_one(MirWaitHandle* wait_handle)
 {
     if (wait_handle)
         wait_handle->wait_for_one();
 }
 
-MirEGLNativeWindowType mir_surface_get_egl_native_window(MirSurface *surface)
+_MIR_EXPORT MirEGLNativeWindowType mir_surface_get_egl_native_window(MirSurface *surface)
 {
     return surface->generate_native_window();
 }
 
-MirWaitHandle *mir_connection_drm_auth_magic(MirConnection* connection,
-                                             unsigned int magic,
-                                             mir_drm_auth_magic_callback callback,
-                                             void* context)
+_MIR_EXPORT MirWaitHandle *mir_connection_drm_auth_magic(MirConnection* connection,
+                                                         unsigned int magic,
+                                                         mir_drm_auth_magic_callback callback,
+                                                         void* context)
 {
     return connection->drm_auth_magic(magic, callback, context);
 }
 
-MirWaitHandle* mir_surface_set_type(MirSurface *surf,
+_MIR_EXPORT MirWaitHandle* mir_surface_set_type(MirSurface *surf,
                                                            MirSurfaceType type)
 {
     return surf ? surf->configure(mir_surface_attrib_type, type) : NULL;
 }
 
-MirSurfaceType mir_surface_get_type(MirSurface *surf)
+_MIR_EXPORT MirSurfaceType mir_surface_get_type(MirSurface *surf)
 {
     MirSurfaceType type = mir_surface_type_normal;
 
@@ -297,12 +297,12 @@ MirSurfaceType mir_surface_get_type(MirSurface *surf)
     return type;
 }
 
-MirWaitHandle* mir_surface_set_state(MirSurface *surf, MirSurfaceState state)
+_MIR_EXPORT MirWaitHandle* mir_surface_set_state(MirSurface *surf, MirSurfaceState state)
 {
     return surf ? surf->configure(mir_surface_attrib_state, state) : NULL;
 }
 
-MirSurfaceState mir_surface_get_state(MirSurface *surf)
+_MIR_EXPORT MirSurfaceState mir_surface_get_state(MirSurface *surf)
 {
     MirSurfaceState state = mir_surface_state_unknown;
 
@@ -323,14 +323,14 @@ MirSurfaceState mir_surface_get_state(MirSurface *surf)
     return state;
 }
 
-MirWaitHandle* mir_surface_set_swapinterval(MirSurface* surf, int interval)
+_MIR_EXPORT MirWaitHandle* mir_surface_set_swapinterval(MirSurface* surf, int interval)
 {
     if ((interval < 0) || (interval > 1))
         return NULL;
     return surf ? surf->configure(mir_surface_attrib_swapinterval, interval) : NULL;
 }
 
-int mir_surface_get_swapinterval(MirSurface* surf)
+_MIR_EXPORT int mir_surface_get_swapinterval(MirSurface* surf)
 {
     return surf ? surf->attrib(mir_surface_attrib_swapinterval) : -1;
 }
