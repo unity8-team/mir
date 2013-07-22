@@ -24,6 +24,7 @@
 #include "mircommon/application_id_mir_priv.h"
 #include "mircommon/application_description_mir_priv.h"
 #include "mircommon/application_options_mir_priv.h"
+#include "mircommon/mir/geometry/rectangles.h"
 
 // C APIs
 #include <ubuntu/application/lifecycle_delegate.h>
@@ -39,6 +40,7 @@
 #include <mir/default_server_configuration.h>
 
 #include <mir/graphics/display.h>
+#include <mir/graphics/display_buffer.h>
 #include <mir/graphics/platform.h>
 #include <mir/compositor/graphic_buffer_allocator.h>
 #include <mir/frontend/session.h>
@@ -178,8 +180,16 @@ uint32_t ua_ui_display_query_horizontal_res(UAUiDisplay* display)
 
     auto mir_display = global_mirserver_context()->display;
     assert(mir_display);
+
+    /* TODO: Get proper configuration */
+    mir::geometry::Rectangles view_area;
+    mir_display->for_each_display_buffer([&view_area](mir::graphics::DisplayBuffer const& db)
+    {
+        view_area.add(db.view_area());
+    });
+    mir::geometry::Size const display_size{view_area.bounding_rectangle().size};
     
-    return mir_display->view_area().size.width.as_uint32_t();
+    return display_size.width.as_uint32_t();
 }
 
 uint32_t ua_ui_display_query_vertical_res(UAUiDisplay* display)
@@ -188,8 +198,16 @@ uint32_t ua_ui_display_query_vertical_res(UAUiDisplay* display)
 
     auto mir_display = global_mirserver_context()->display;
     assert(mir_display);
+
+    /* TODO: Get proper configuration */
+    mir::geometry::Rectangles view_area;
+    mir_display->for_each_display_buffer([&view_area](mir::graphics::DisplayBuffer const& db)
+    {
+        view_area.add(db.view_area());
+    });
+    mir::geometry::Size const display_size{view_area.bounding_rectangle().size};
     
-    return mir_display->view_area().size.height.as_uint32_t();
+    return display_size.height.as_uint32_t();
 }
 
 EGLNativeDisplayType ua_ui_display_get_native_type(UAUiDisplay* display)
