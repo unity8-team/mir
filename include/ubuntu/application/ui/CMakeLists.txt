@@ -19,7 +19,7 @@ set(
 
 install(
   FILES ${UBUNTU_APPLICATION_UI_HEADERS}
-  DESTINATION include/ubuntu-${UBUNTU_PLATFORM_API_VERSION_MAJOR}/application/ui
+  DESTINATION include/ubuntu/application/ui
 )
 
 add_subdirectory(input)
