@@ -404,6 +404,12 @@ void ApplicationManager::binderDied(const android::wp<android::IBinder>& who)
     }
     else if(focused_application > i)
         focused_application--;
+   
+    if (i == 0)
+    {
+        shell_input_setup->trap_windows.clear();
+        update_input_setup_locked();
+    }
     
     ALOGI("%s():%d\n", __PRETTY_FUNCTION__, __LINE__);
     apps.removeItem(sp);
