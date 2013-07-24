@@ -164,7 +164,7 @@ char const* const glog_stderrthreshold = "glog-stderrthreshold";
 char const* const glog_minloglevel     = "glog-minloglevel";
 char const* const glog_log_dir         = "glog-log-dir";
 
-bool const enable_input_default = true;
+bool const enable_input_default = false;
 
 char const* const off_opt_value = "off";
 char const* const log_opt_value = "log";
