@@ -139,7 +139,8 @@ int main(int argc, char** argv)
         android::String8("default_application_manager_test"),
         android::String8("default_application_manager_test"),
         session,
-        test_fd);
+        test_fd,
+        0);
 
     for(;;) {}
 }
