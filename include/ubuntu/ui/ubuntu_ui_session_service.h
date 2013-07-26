@@ -35,7 +35,7 @@ extern "C" {
         PHONE_APP = 4,
         DIALER_APP = 5,
         MESSAGING_APP = 6,
-        ADDRESSBOOK_APP= 7
+        ADDRESSBOOK_APP = 7
     } ubuntu_ui_well_known_application;
 
     typedef const void* ubuntu_ui_session_properties;
