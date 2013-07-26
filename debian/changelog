@@ -1,3 +1,14 @@
+platform-api (0.18.2+13.10.20130726-0ubuntu1) saucy; urgency=low
+
+  [ Jani Monoses ]
+  * Fixing issue with gcc 4.6.
+  * Build fixes for tests.
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 101
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Fri, 26 Jul 2013 02:01:55 +0000
+
 platform-api (0.18.2+13.10.20130725-0ubuntu1) saucy; urgency=low
 
   [ Ricardo Mendoza ]
