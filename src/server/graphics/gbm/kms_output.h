@@ -53,6 +53,7 @@ public:
     void set_cursor(gbm_bo* buffer);
     void move_cursor(geometry::Point destination);
     void clear_cursor();
+    bool has_cursor();
 
 private:
     KMSOutput(const KMSOutput&) = delete;
@@ -71,6 +72,7 @@ private:
     DRMModeCrtcUPtr current_crtc;
     drmModeCrtc saved_crtc;
     bool using_saved_crtc;
+    bool has_cursor_;
 };
 
 }

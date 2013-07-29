@@ -95,7 +95,7 @@ mgg::KMSOutput::KMSOutput(int drm_fd, uint32_t connector_id,
                           std::shared_ptr<PageFlipper> const& page_flipper)
     : drm_fd{drm_fd}, connector_id{connector_id}, page_flipper{page_flipper},
       connector(), mode_index{0}, current_crtc(), saved_crtc(),
-      using_saved_crtc{true}
+      using_saved_crtc{true}, has_cursor_{false}
 {
     reset();
 
@@ -191,6 +191,8 @@ void mgg::KMSOutput::set_cursor(gbm_bo* buffer)
                 ::boost::enable_error_info(std::runtime_error("drmModeSetCursor() failed"))
                     << (boost::error_info<KMSOutput, decltype(result)>(result)));
         }
+
+        has_cursor_ = true;
     }
 }
 
@@ -214,7 +216,13 @@ void mgg::KMSOutput::clear_cursor()
     if (current_crtc)
     {
         drmModeSetCursor(drm_fd, current_crtc->crtc_id, 0, 0, 0);
+        has_cursor_ = false;
     }
+}
+
+bool mgg::KMSOutput::has_cursor()
+{
+    return has_cursor_;
 }
 
 bool mgg::KMSOutput::ensure_crtc()

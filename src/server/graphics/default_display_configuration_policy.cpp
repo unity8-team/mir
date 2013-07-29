@@ -25,14 +25,17 @@ namespace geom = mir::geometry;
 void mg::DefaultDisplayConfigurationPolicy::apply_to(DisplayConfiguration& conf)
 {
     size_t const preferred_mode_index{0};
+    int max_width = 0;
 
     conf.for_each_output(
-        [&conf](DisplayConfigurationOutput const& conf_output)
+        [&conf,&max_width](DisplayConfigurationOutput const& conf_output)
         {
             if (conf_output.connected && conf_output.modes.size() > 0)
             {
-                conf.configure_output(conf_output.id, true, geom::Point(),
+                conf.configure_output(conf_output.id, true, geom::Point(max_width, 0),
                                       preferred_mode_index);
+
+                max_width += conf_output.modes[preferred_mode_index].size.width.as_int();
             }
             else
             {

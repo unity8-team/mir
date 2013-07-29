@@ -27,11 +27,17 @@
 
 namespace mir
 {
+namespace geometry
+{
+struct Rectangle;
+}
 namespace graphics
 {
 namespace gbm
 {
 class KMSOutputContainer;
+class KMSOutput;
+class KMSDisplayConfiguration;
 class GBMPlatform;
 
 class GBMCursor : public Cursor
@@ -39,7 +45,8 @@ class GBMCursor : public Cursor
 public:
     GBMCursor(
         std::shared_ptr<GBMPlatform> const& platform,
-        KMSOutputContainer const& output_container);
+        KMSOutputContainer& output_container,
+        std::function<KMSDisplayConfiguration const&()> const& get_kms_conf);
 
     ~GBMCursor() noexcept;
 
@@ -51,7 +58,8 @@ public:
     void hide();
 
 private:
-    KMSOutputContainer const& output_container;
+    void for_each_used_output(std::function<void(KMSOutput&, geometry::Rectangle const&)> const& f);
+    KMSOutputContainer& output_container;
     geometry::Point current_position;
 
     struct GBMBOWrapper
@@ -64,6 +72,7 @@ private:
         GBMBOWrapper(GBMBOWrapper const&) = delete;
         GBMBOWrapper& operator=(GBMBOWrapper const&) = delete;
     } buffer;
+    std::function<KMSDisplayConfiguration const&()> const get_kms_conf;
 };
 }
 }

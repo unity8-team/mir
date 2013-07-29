@@ -215,7 +215,16 @@ void mgg::GBMDisplay::resume()
 
 auto mgg::GBMDisplay::the_cursor() -> std::weak_ptr<Cursor>
 {
-    if (!cursor) cursor = std::make_shared<GBMCursor>(platform, output_container);
+    if (!cursor) {
+        auto get_kms_conf =
+            [this]() -> KMSDisplayConfiguration const&
+            {
+                return this->current_display_configuration;
+            };
+
+        cursor = std::make_shared<GBMCursor>(platform, output_container, get_kms_conf);
+    }
+
     return cursor;
 }
 

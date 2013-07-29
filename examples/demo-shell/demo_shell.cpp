@@ -53,6 +53,7 @@ struct DemoServerConfiguration : mir::DefaultServerConfiguration
     {
     }
 
+    /*
     std::shared_ptr<msh::PlacementStrategy> the_shell_placement_strategy()
     {
         return shell_placement_strategy(
@@ -61,6 +62,7 @@ struct DemoServerConfiguration : mir::DefaultServerConfiguration
                 return std::make_shared<me::FullscreenPlacementStrategy>(the_shell_display_layout());
             });
     }
+    */
 
     std::initializer_list<std::shared_ptr<mi::EventFilter> const> the_event_filters() override
     {
