@@ -155,7 +155,7 @@ static Setup::Ptr global_setup(new Setup());
 
 struct PhysicalDisplayInfo : public ubuntu::application::ui::PhysicalDisplayInfo
 {
-    explicit PhysicalDisplayInfo(size_t display_id) : display_id(display_id)
+    explicit PhysicalDisplayInfo(size_t display_id) : display_id(SurfaceComposerClient::getBuiltInDisplay(display_id))
     {
     }
 
@@ -191,7 +191,7 @@ struct PhysicalDisplayInfo : public ubuntu::application::ui::PhysicalDisplayInfo
         return info.h;
     }
 
-    size_t display_id;
+    sp<IBinder> display_id;
 };
 
 struct UbuntuSurface : public ubuntu::application::ui::Surface

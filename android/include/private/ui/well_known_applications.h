@@ -32,8 +32,9 @@ enum WellKnownApplication
     browser_app = BROWSER_APP,
     share_app = SHARE_APP,
     phone_app = PHONE_APP,
-    messages_app = MESSAGES_APP,
-    contacts_app = CONTACTS_APP
+    dialer_app = DIALER_APP,
+    messaging_app = MESSAGING_APP,
+    addressbook_app = ADDRESSBOOK_APP
 };
 }
 }

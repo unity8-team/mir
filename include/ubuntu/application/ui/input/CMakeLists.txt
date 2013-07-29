@@ -5,5 +5,5 @@ set(
 
 install(
   FILES ${UBUNTU_APPLICATION_UI_INPUT_HEADERS}
-  DESTINATION include/ubuntu-${UBUNTU_PLATFORM_API_VERSION_MAJOR}/application/ui/input
+  DESTINATION include/ubuntu/application/ui/input
 )

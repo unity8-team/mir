@@ -1,4 +1,4 @@
-usr/include/ubuntu-1/status.h
-usr/include/ubuntu-1/unit.h
-usr/include/ubuntu-1/application
-usr/include/ubuntu-1/ui
+usr/include/ubuntu/status.h
+usr/include/ubuntu/unit.h
+usr/include/ubuntu/application
+usr/include/ubuntu/ui
