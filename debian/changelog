@@ -1,3 +1,16 @@
+platform-api (0.18.2+13.10.20130729-0ubuntu1) saucy; urgency=low
+
+  [ Gustavo Pichorim Boiko ]
+  * Rename the well known applications to match their names after the
+    splitting of phone-app. The entry for the current phone-app was kept
+    there so that it can be used while the new applications are not yet
+    mature.
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 103
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Mon, 29 Jul 2013 02:01:57 +0000
+
 platform-api (0.18.2+13.10.20130726-0ubuntu1) saucy; urgency=low
 
   [ Jani Monoses ]
