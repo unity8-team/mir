@@ -1,0 +1,7 @@
+examples/demo_client.c
+examples/demo_client_accelerated.cpp
+examples/demo_client_unaccelerated.c
+examples/README
+examples/graphics.h
+examples/mir_image.h
+examples/graphics_utils.cpp
