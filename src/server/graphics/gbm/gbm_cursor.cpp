@@ -81,10 +81,15 @@ void mgg::GBMCursor::set_image(const void* raw_argb, geometry::Size size)
     }
 }
 
+void mir::graphics::gbm::GBMCursor::set_hotspot(geometry::Point point)
+{
+    hotspot = geometry::Displacement(point.x.as_int(),point.y.as_int());
+}
+
 void mgg::GBMCursor::move_to(geometry::Point position)
 {
-    output_container.for_each_output([&](KMSOutput& output) { output.move_cursor(position); });
-    current_position = position;
+    output_container.for_each_output([&](KMSOutput& output) { output.move_cursor(position - hotspot); });
+    current_position = position - hotspot;
 }
 
 void mgg::GBMCursor::show_at_last_known_position()

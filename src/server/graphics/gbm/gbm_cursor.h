@@ -21,6 +21,7 @@
 #define MIR_GRAPHICS_GBM_GBM_CURSOR_H_
 
 #include "mir/graphics/cursor.h"
+#include "mir/geometry/displacement.h"
 
 #include <gbm.h>
 #include <memory>
@@ -44,7 +45,7 @@ public:
     ~GBMCursor() noexcept;
 
     void set_image(const void* raw_argb, geometry::Size size);
-
+    void set_hotspot(geometry::Point point);
     void move_to(geometry::Point position);
 
     void show_at_last_known_position();
@@ -53,7 +54,7 @@ public:
 private:
     KMSOutputContainer const& output_container;
     geometry::Point current_position;
-
+    geometry::Displacement hotspot;
     struct GBMBOWrapper
     {
         GBMBOWrapper(GBMPlatform& platform);
