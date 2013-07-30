@@ -1168,7 +1168,10 @@ sna_screen_init(SCREEN_INIT_ARGS_DECL)
 
 	sna_uevent_init(scrn);
 
-	return sna_enter_vt(VT_FUNC_ARGS(0));
+	if (xorgMir)
+		return xf86SetDesiredModes(scrn);
+
+	return TRUE;
 }
 
 static void sna_adjust_frame(ADJUST_FRAME_ARGS_DECL)
