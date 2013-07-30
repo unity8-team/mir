@@ -1,0 +1,15 @@
+package mir.protobuf.wire;
+
+message Invocation {
+  required uint32 id = 1;
+  required string method_name = 2;
+  required bytes  parameters = 3;
+}
+
+message Result {
+  // Invocation results have id and response.
+  optional uint32 id = 1;
+  optional bytes response = 2;
+  // Events are in events.
+  repeated bytes events = 3;
+}
