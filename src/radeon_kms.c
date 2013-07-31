@@ -385,6 +385,7 @@ radeon_xmir_copy_pixmap_to_mir(PixmapPtr src, int prime_fd)
 				      pScrn->virtualX, pScrn->virtualY);
 	info->accel_state->exa->DoneCopy (dst);
 
+	radeon_cs_flush_indirect(pScrn);
 cleanup_dst:
 	pScreen->DestroyPixmap(dst);
     } else if (0) {
