@@ -54,10 +54,10 @@ mgg::GBMCursor::GBMCursor(
     KMSOutputContainer const& output_container) :
         output_container(output_container),
         current_position(),
-        hotspot(geometry::Displacement(1,1)),
         buffer(*platform)
 {
     set_image(black_arrow.pixel_data, geometry::Size{width, height});
+    set_hotspot(geometry::Point(1,1));
 
     show_at_last_known_position();
 }
