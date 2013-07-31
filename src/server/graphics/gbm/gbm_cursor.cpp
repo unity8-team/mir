@@ -54,6 +54,7 @@ mgg::GBMCursor::GBMCursor(
     KMSOutputContainer const& output_container) :
         output_container(output_container),
         current_position(),
+        hotspot(geometry::Displacement(1,1)),
         buffer(*platform)
 {
     set_image(black_arrow.pixel_data, geometry::Size{width, height});
