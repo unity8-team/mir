@@ -215,6 +215,21 @@ typedef struct MirEventDelegate
     void *context;
 } MirEventDelegate;
 
+/**
+ * MirCursorConfig is used to specify
+ * the cursor image and hotspot.
+ */
+typedef struct MirCursorConfig
+{
+    int32_t hotspot_x;
+    int32_t hotspot_y;
+    
+    int32_t size_x;
+    int32_t size_y;
+    
+    void* pixels; 
+} MirCursorConfig;
+
 #ifdef __cplusplus
 }
 /**@}*/

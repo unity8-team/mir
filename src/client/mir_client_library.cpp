@@ -26,6 +26,7 @@
 #include "native_client_platform_factory.h"
 #include "egl_native_display_container.h"
 #include "default_connection_configuration.h"
+#include "mir/geometry/point.h"
 
 #include <set>
 #include <unordered_set>
@@ -376,4 +377,9 @@ MirWaitHandle* mir_surface_set_swapinterval(MirSurface* surf, int interval)
 int mir_surface_get_swapinterval(MirSurface* surf)
 {
     return surf ? surf->attrib(mir_surface_attrib_swapinterval) : -1;
+}
+
+void mir_connection_set_cursor(MirConnection* connection, MirCursorConfig* config)
+{
+    connection->set_cursor(config);
 }

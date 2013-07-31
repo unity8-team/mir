@@ -188,7 +188,6 @@ void MirConnection::done_disconnect()
         for (auto handle : release_wait_handles)
             delete handle;
     }
-
     disconnect_wait_handle.result_received();
 }
 
@@ -322,4 +321,24 @@ EGLNativeDisplayType MirConnection::egl_native_display()
 void MirConnection::on_surface_created(int id, MirSurface* surface)
 {
     surface_map->insert(id, surface);
+}
+
+void MirConnection::done_set_cursor()
+{
+
+}
+
+
+void MirConnection::set_cursor(MirCursorConfig* config)
+{
+    mir::protobuf::CursorSetting request;
+    request.set_hotspot_x(config->hotspot_x);
+    request.set_hotspot_y(config->hotspot_y);
+    request.set_size_x(config->size_x);
+    request.set_size_y(config->size_y);
+    request.set_pixels(std::string((char*)config->pixels,config->size_x*config->size_y*4));
+    server.set_cursor(0,
+                      &request,
+                      &ignored,
+                      google::protobuf::NewCallback(this,&MirConnection::done_set_cursor));    
 }

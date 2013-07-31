@@ -94,7 +94,7 @@ public:
         void * context);
 
     MirWaitHandle* disconnect();
-
+    void set_cursor(MirCursorConfig* config);
     MirWaitHandle* drm_auth_magic(unsigned int magic,
                                   mir_drm_auth_magic_callback callback,
                                   void* context);
@@ -152,6 +152,7 @@ private:
     void connected(mir_connected_callback callback, void * context);
     void released(SurfaceRelease );
     void done_drm_auth_magic(mir_drm_auth_magic_callback callback, void* context);
+    void done_set_cursor();
 };
 
 #endif /* MIR_CLIENT_MIR_CONNECTION_H_ */

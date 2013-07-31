@@ -30,7 +30,7 @@ namespace frontend
 unsigned int const client_buffer_cache_size = 3;
 
 /// Buffers need to be big enough to support messages
-unsigned int const serialization_buffer_size = 2048;
+unsigned int const serialization_buffer_size = 32768;
 }
 }
 

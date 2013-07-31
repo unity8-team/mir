@@ -108,6 +108,11 @@ public:
                            const mir::protobuf::SurfaceSetting*,
                            mir::protobuf::SurfaceSetting*,
                            google::protobuf::Closure* done);
+    void set_cursor(google::protobuf::RpcController* controller,
+                    const mir::protobuf::CursorSetting*,
+                    mir::protobuf::Void*,
+                    google::protobuf::Closure* done);
+    
 
 private:
     std::shared_ptr<Shell> const shell;

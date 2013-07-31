@@ -27,6 +27,7 @@
 #include "mir/graphics/buffer_id.h"
 #include "mir/graphics/buffer.h"
 #include "mir/surfaces/buffer_stream.h"
+#include "mir/graphics/cursor.h"
 #include "mir/compositor/graphic_buffer_allocator.h"
 #include "mir/geometry/dimensions.h"
 #include "mir/graphics/platform.h"
@@ -38,6 +39,7 @@
 #include "client_buffer_tracker.h"
 #include "protobuf_buffer_packer.h"
 
+#include <memory>
 #include <boost/throw_exception.hpp>
 
 namespace msh = mir::shell;
@@ -280,4 +282,18 @@ void mf::SessionMediator::configure_surface(
     }
 
     done->Run();
+}
+
+void mf::SessionMediator::set_cursor(google::protobuf::RpcController*, // controller
+                    const mir::protobuf::CursorSetting* cs,
+                    mir::protobuf::Void*,   
+                    google::protobuf::Closure* done)
+{
+    
+    std::shared_ptr<mg::Cursor> c = static_cast<std::shared_ptr<mg::Cursor> >(display->the_cursor());
+    c->set_hotspot(geom::Point(cs->hotspot_x(), cs->hotspot_y()));
+    if (cs->has_pixels()) {
+        c->set_image(cs->pixels().c_str(),geom::Size(cs->size_x(),cs->size_y()));
+        done->Run();
+    }
 }

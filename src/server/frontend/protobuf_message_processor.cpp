@@ -208,6 +208,10 @@ bool mfd::ProtobufMessageProcessor::dispatch(mir::protobuf::wire::Invocation con
             invoke(&protobuf::DisplayServer::disconnect, invocation);
             result = false;
         }
+        else if ("set_cursor" == invocation.method_name())
+        {
+            invoke(&protobuf::DisplayServer::set_cursor, invocation);
+        }
         else
         {
             report->unknown_method(display_server.get(), invocation.id(), invocation.method_name());

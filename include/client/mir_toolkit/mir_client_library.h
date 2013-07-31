@@ -365,6 +365,14 @@ MirWaitHandle* mir_surface_set_swapinterval(MirSurface* surface, int interval);
  */
 int mir_surface_get_swapinterval(MirSurface* surface);
 
+/**
+ * Set the display's cursor.
+ * \param [in] connection  The connection to operate on.
+ * \param [in] cursor   The cursor configuration to set.
+ */
+ void mir_connection_set_cursor(MirConnection* connection, MirCursorConfig* cursor);
+
+
 #ifdef __cplusplus
 }
 /**@}*/

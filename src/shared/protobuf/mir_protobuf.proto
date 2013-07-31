@@ -139,7 +139,13 @@ message SurfaceSetting {
   // optional string    svalue = 4;  // Expected for future use
   optional string error = 127;
 }
-
+message CursorSetting {
+  optional int32 hotspot_x = 1;
+  optional int32 hotspot_y = 2;
+  optional int32 size_x = 3;
+  optional int32 size_y = 4;
+  optional bytes pixels = 5;
+}
 message Event {
   optional bytes raw = 1;  // MirEvent structure
 }
@@ -155,7 +161,7 @@ service DisplayServer {
   rpc create_surface(SurfaceParameters) returns (Surface);
   rpc next_buffer(SurfaceId) returns (Buffer);
   rpc release_surface(SurfaceId) returns (Void);
-
+  rpc set_cursor(CursorSetting) returns (Void);
   // Platform specific requests
   rpc drm_auth_magic(DRMMagic) returns (DRMAuthMagicStatus);
 
