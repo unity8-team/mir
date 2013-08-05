@@ -1,8 +1,63 @@
+platform-api (0.18.3+13.10.20130802-0ubuntu1) saucy; urgency=low
+
+  [ Thomas Voß ]
+  * Make sure that archive.h compiles with C compilers.
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 107
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Fri, 02 Aug 2013 02:02:00 +0000
+
+platform-api (0.18.3+13.10.20130730-0ubuntu1) saucy; urgency=low
+
+  [ Ricardo Mendoza ]
+  * General renaming of packages to match debian guidelines
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 105
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Tue, 30 Jul 2013 02:02:34 +0000
+
 platform-api (0.18.3-0ubuntu1) UNRELEASED; urgency=low
 
   * General renaming of packages to match debian guidelines
 
  -- Ricardo Mendoza <ricardo.mendoza@canonical.com>  Wed, 17 Jul 2013 12:39:08 -0430
+
+platform-api (0.18.2+13.10.20130729-0ubuntu1) saucy; urgency=low
+
+  [ Gustavo Pichorim Boiko ]
+  * Rename the well known applications to match their names after the
+    splitting of phone-app. The entry for the current phone-app was kept
+    there so that it can be used while the new applications are not yet
+    mature.
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 103
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Mon, 29 Jul 2013 02:01:57 +0000
+
+platform-api (0.18.2+13.10.20130726-0ubuntu1) saucy; urgency=low
+
+  [ Jani Monoses ]
+  * Fixing issue with gcc 4.6.
+  * Build fixes for tests.
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 101
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Fri, 26 Jul 2013 02:01:55 +0000
+
+platform-api (0.18.2+13.10.20130725-0ubuntu1) saucy; urgency=low
+
+  [ Ricardo Mendoza ]
+  * * Clear all input traps upon death of the last client * Reset shell
+    focus if all apps exit. (LP: #1203698, #1204299)
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 98
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 25 Jul 2013 11:44:22 +0000
 
 platform-api (0.18.2+13.10.20130719-0ubuntu1) saucy; urgency=low
 

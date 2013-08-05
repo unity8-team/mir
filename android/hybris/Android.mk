@@ -273,4 +273,4 @@ LOCAL_SHARED_LIBRARIES := \
 	libhardware_legacy \
 	libubuntu_application_api
 
-include $(BUILD_EXECUTABLE)
+#include $(BUILD_EXECUTABLE)
