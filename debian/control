@@ -72,7 +72,7 @@ Architecture: any
 Conflicts: libplatform-api1-mirserver,
 Provides: libplatform-api1-mirserver,
 Replaces: libplatform-api1-mirserver,
-Depends: libmirserver1 (>= 0.0.7),
+Depends: libmirserver0 (>= 0.0.7),
          ${misc:Depends},
          ${shlibs:Depends},
 Description: Implementation of the Platform API for a Mir server
