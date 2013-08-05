@@ -30,7 +30,6 @@ namespace uam = ubuntu::application::mir;
 namespace uams = uam::server;
 
 namespace mf = mir::frontend;
-namespace me = mir::events;
 namespace msh = mir::shell;
 
 uams::Instance::Instance(std::shared_ptr<msh::SurfaceFactory> const &surface_factory,
@@ -75,7 +74,7 @@ void uams::Instance::unref()
 
 std::shared_ptr<msh::Surface> uams::Instance::create_surface(msh::SurfaceCreationParameters const& parameters)
 {
-    static std::shared_ptr<me::EventSink> const null_event_sink{nullptr};
+    static std::shared_ptr<mf::EventSink> const null_event_sink{nullptr};
     static mf::SurfaceId const default_surface_id{0};
 
     return surface_factory->create_surface(parameters, default_surface_id,

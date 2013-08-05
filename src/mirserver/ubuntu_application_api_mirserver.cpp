@@ -40,7 +40,7 @@
 
 #include <mir/graphics/display.h>
 #include <mir/graphics/platform.h>
-#include <mir/compositor/graphic_buffer_allocator.h>
+#include <mir/graphics/graphic_buffer_allocator.h>
 #include <mir/frontend/session.h>
 #include <mir/frontend/shell.h>
 #include <mir/shell/surface_creation_parameters.h>
@@ -62,7 +62,7 @@ namespace
 struct MirServerContext
 {
     std::shared_ptr<mir::graphics::Display> display;
-    std::shared_ptr<mir::compositor::GraphicBufferAllocator> buffer_allocator;
+    std::shared_ptr<mir::graphics::GraphicBufferAllocator> buffer_allocator;
     std::shared_ptr<mir::shell::SurfaceFactory> surface_factory;
     std::shared_ptr<mir::input::receiver::InputPlatform> input_platform;
     std::shared_ptr<mir::graphics::InternalClient> egl_client;
@@ -202,7 +202,7 @@ EGLNativeDisplayType ua_ui_display_get_native_type(UAUiDisplay* display)
 
 namespace
 {
-static mir::geometry::PixelFormat choose_pixel_format(std::shared_ptr<mir::compositor::GraphicBufferAllocator> const& allocator)
+static mir::geometry::PixelFormat choose_pixel_format(std::shared_ptr<mir::graphics::GraphicBufferAllocator> const& allocator)
 {
     auto formats = allocator->supported_pixel_formats();
     return formats[0];
