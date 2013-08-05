@@ -27,6 +27,7 @@
 #include <mir/input/input_platform.h>
 #include <mir/input/input_receiver_thread.h>
 #include <mir/graphics/internal_client.h>
+#include <mir/graphics/internal_surface.h>
 
 namespace uams = ubuntu::application::mir::server;
 namespace uaum = ubuntu::application::ui::mir;
@@ -37,6 +38,20 @@ namespace mircv = mir::input::receiver;
 
 namespace
 {
+
+// TODO this ought to be provided by the library
+class ForwardingInternalSurface : public mg::InternalSurface
+{
+public:
+    ForwardingInternalSurface(std::shared_ptr<msh::Surface> const& surface) : surface(surface) {}
+
+private:
+    virtual std::shared_ptr<mg::Buffer> advance_client_buffer() { return surface->advance_client_buffer(); }
+    virtual mir::geometry::Size size() const { return surface->size(); }
+    virtual MirPixelFormat pixel_format() const { return static_cast<MirPixelFormat>(surface->pixel_format()); }
+
+    std::shared_ptr<msh::Surface> const surface;
+};
 
 static void ua_ui_window_handle_event(UAUiWindowInputEventCb cb, void* ctx, MirEvent* mir_event)
 {
@@ -77,5 +92,6 @@ uams::Window* uams::Window::from_u_window(UAUiWindow *u_window)
 
 EGLNativeWindowType uams::Window::get_native_type()
 {
-    return internal_client->egl_native_window(surface);
+    auto mir_surface = std::make_shared<ForwardingInternalSurface>(surface);
+    return internal_client->egl_native_window(mir_surface);
 }
