@@ -5,11 +5,11 @@ set(SOURCES
   application_description_mir.cpp
   lifecycle_delegate_mir.cpp
   session_mir.cpp
-)
+  )
 
 set(LINK_LIBRARIES
   ${MIR_COMMON_LDFLAGS} ${MIR_COMMON_LIBRARIES}
-)
+  )
 
 if(ENABLE_HYBRIS_IMPLEMENTATION)
   list(APPEND SOURCES
@@ -28,16 +28,16 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC --std=c++11")
 
 include_directories(
   ${MIRCOMMON_INCLUDE_DIRS}
-)
+  )
 
 add_library(
-	ubuntu_application_api_mircommon STATIC
-	${SOURCES}
-)
+  ubuntu_application_api_mircommon STATIC
+  ${SOURCES}
+  )
 
 target_link_libraries(
-	ubuntu_application_api_mircommon
-        ${LINK_LIBRARIES}
-)
+  ubuntu_application_api_mircommon
 
-
+  ${UBUNTU_APPLICATION_API_LINK_LIBRARIES}
+  ${LINK_LIBRARIES}
+  )
