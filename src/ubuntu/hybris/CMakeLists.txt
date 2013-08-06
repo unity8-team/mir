@@ -18,6 +18,10 @@ include_directories(
 
 target_link_libraries(
   ubuntu_application_api
+
+  "-Wl,--whole-archive"
+  ${UBUNTU_APPLICATION_API_LINK_LIBRARIES}  
+  "-Wl,--no-whole-archive"
   hybris-common
 )
 
