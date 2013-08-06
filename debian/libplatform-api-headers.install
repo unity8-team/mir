@@ -2,4 +2,4 @@ usr/include/ubuntu/status.h
 usr/include/ubuntu/unit.h
 usr/include/ubuntu/application
 usr/include/ubuntu/ui
-usr/include/ubuntu/location
+usr/include/ubuntu/application/location
