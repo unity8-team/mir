@@ -41,7 +41,7 @@ ua_location_heading_update_get_timestamp(
 }
 
 double
-ua_location_position_update_get_heading_in_degree(
+ua_location_heading_update_get_heading_in_degree(
     UALocationHeadingUpdate *update)
 {
     (void) update;

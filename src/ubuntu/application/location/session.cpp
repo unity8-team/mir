@@ -35,28 +35,34 @@ ua_location_service_session_unref(
 void
 ua_location_service_session_set_position_updates_handler(
     UALocationServiceSession *session,
-    UALocationServiceSessionPositionUpdatesHandler *handler)
+    UALocationServiceSessionPositionUpdatesHandler handler,
+    void *context)
 {
     (void) session;
     (void) handler;
+    (void) context;
 }
 
 void
 ua_location_service_session_set_heading_updates_handler(
     UALocationServiceSession *session,
-    UALocationServiceSessionHeadingUpdatesHandler *handler)
+    UALocationServiceSessionHeadingUpdatesHandler handler,
+    void *context)
 {
     (void) session;
     (void) handler;
+    (void) context;
 }
 
 void
 ua_location_service_session_set_velocity_updates_handler(
     UALocationServiceSession *session,
-    UALocationServiceSessionVelocityUpdatesHandler *handler)
+    UALocationServiceSessionVelocityUpdatesHandler handler,
+    void *context)
 {
     (void) session;
     (void) handler;
+    (void) context;
 }
 
 UStatus
