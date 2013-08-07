@@ -8,5 +8,8 @@ export CXX=g++-4.7
 %:
 	dh $@
 
+override_dh_auto_configure:
+	dh_auto_configure -- -DUSE_GLES=$(use_gles) -DENABLE_MIRCLIENT_IMPLEMENTATION=true -DENABLE_MIRSERVER_IMPLEMENTATION=true
+
 overrid_dh_install:
 	dh_install --fail-missing
