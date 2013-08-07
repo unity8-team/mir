@@ -49,12 +49,6 @@ platform-api (0.18.3+13.10.20130730-0ubuntu1) saucy; urgency=low
 
  -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Tue, 30 Jul 2013 02:02:34 +0000
 
-platform-api (0.18.3-0ubuntu1) UNRELEASED; urgency=low
-
-  * General renaming of packages to match debian guidelines
-
- -- Ricardo Mendoza <ricardo.mendoza@canonical.com>  Wed, 17 Jul 2013 12:39:08 -0430
-
 platform-api (0.18.2+13.10.20130729-0ubuntu1) saucy; urgency=low
 
   [ Gustavo Pichorim Boiko ]
