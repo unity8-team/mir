@@ -69,9 +69,6 @@ Section: libs
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Architecture: any
-Conflicts: libplatform-api1-mirserver,
-Provides: libplatform-api1-mirserver,
-Replaces: libplatform-api1-mirserver,
 Depends: libmirserver0 (>= 0.0.7),
          ${misc:Depends},
          ${shlibs:Depends},
@@ -84,9 +81,6 @@ Section: libs
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Architecture: any
-Conflicts: libplatform-api1-mirclient,
-Provides: libplatform-api1-mirclient,
-Replaces: libplatform-api1-mirclient,
 Depends: libmirclient1 (>= 0.0.7),
          ${misc:Depends},
          ${shlibs:Depends},
