@@ -1,2 +1,4 @@
 usr/lib/*/libubuntu_application_api.so
+usr/lib/*/libubuntu_application_api_mirclient.so
+usr/lib/*/libubuntu_application_api_mirserver.so
 usr/lib/*/pkgconfig/ubuntu-platform-api.pc
