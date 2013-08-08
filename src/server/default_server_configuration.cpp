@@ -44,6 +44,7 @@
 #include "mir/shell/organising_surface_factory.h"
 #include "mir/shell/threaded_snapshot_strategy.h"
 #include "mir/shell/graphics_display_layout.h"
+#include "mir/shell/surface_configurator.h"
 #include "mir/graphics/cursor.h"
 #include "mir/shell/null_session_listener.h"
 #include "mir/graphics/display.h"
@@ -61,6 +62,7 @@
 #include "mir/input/null_input_report.h"
 #include "mir/input/display_input_region.h"
 #include "mir/input/event_filter_chain.h"
+#include "input/vt_filter.h"
 #include "input/android/default_android_input_configuration.h"
 #include "input/android/android_input_manager.h"
 #include "input/android/android_input_targeter.h"
@@ -98,7 +100,6 @@ namespace mia = mi::android;
 
 namespace
 {
-std::initializer_list<std::shared_ptr<mi::EventFilter> const> empty_filter_list{};
 mir::SharedLibrary const* load_library(std::string const& libname);
 }
 
@@ -482,7 +483,14 @@ mir::DefaultServerConfiguration::the_focus_controller()
 std::shared_ptr<mi::CompositeEventFilter>
 mir::DefaultServerConfiguration::the_composite_event_filter()
 {
-    return std::make_shared<mi::EventFilterChain>(empty_filter_list);
+    return composite_event_filter(
+        [this]() -> std::shared_ptr<mi::CompositeEventFilter>
+        {
+            if (!vt_filter)
+                vt_filter = std::make_shared<mi::VTFilter>();
+            std::initializer_list<std::shared_ptr<mi::EventFilter> const> filter_list {vt_filter};
+            return std::make_shared<mi::EventFilterChain>(filter_list);
+        });
 }
 
 std::shared_ptr<mi::InputReport>
@@ -607,6 +615,25 @@ std::shared_ptr<msh::DisplayLayout> mir::DefaultServerConfiguration::the_shell_d
         });
 }
 
+std::shared_ptr<msh::SurfaceConfigurator> mir::DefaultServerConfiguration::the_shell_surface_configurator()
+{
+    struct DefaultSurfaceConfigurator : public msh::SurfaceConfigurator
+    {
+        int select_attribute_value(msh::Surface const&, MirSurfaceAttrib, int requested_value)
+        {
+            return requested_value;
+        }
+        void attribute_set(msh::Surface const&, MirSurfaceAttrib, int)
+        {
+        }
+    };
+    return shell_surface_configurator(
+        [this]()
+        {
+            return std::make_shared<DefaultSurfaceConfigurator>();
+        });
+}
+
 std::shared_ptr<ms::SurfaceStackModel>
 mir::DefaultServerConfiguration::the_surface_stack_model()
 {
@@ -642,7 +669,7 @@ mir::DefaultServerConfiguration::the_shell_surface_factory()
         [this]()
         {
             auto surface_source = std::make_shared<msh::SurfaceSource>(
-                the_surface_builder());
+                the_surface_builder(), the_shell_surface_configurator());
 
             return std::make_shared<msh::OrganisingSurfaceFactory>(
                 surface_source,
