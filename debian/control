@@ -56,8 +56,8 @@ Depends: ${misc:Depends},
          libgles2-mesa-dev,
          libplatform-api-headers (= ${binary:Version}),
          libubuntu-application-api1 | libplatform-api1,
-         libubuntu-application-api-mirserver1,
-         libubuntu-application-api-mirclient1,
+         libubuntu-application-api-mirserver1 (= ${binary:Version}),
+         libubuntu-application-api-mirclient1 (= ${binary:Version}),
          ${misc:Depends},
 Suggests: libplatform-api1-doc,
 Description: Platform API for system level capabilities (development)
@@ -69,8 +69,7 @@ Section: libs
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Architecture: any
-Depends: libmirserver0 (>= 0.0.7),
-         ${misc:Depends},
+Depends: ${misc:Depends},
          ${shlibs:Depends},
 Description: Implementation of the Platform API for a Mir server
  This package provides the implementation of the Platform API to
@@ -81,8 +80,7 @@ Section: libs
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Architecture: any
-Depends: libmirclient1 (>= 0.0.7),
-         ${misc:Depends},
+Depends: ${misc:Depends},
          ${shlibs:Depends},
 Description: Implementation of the Platform API for a Mir client
  This package provides the implementation of the Platform API to
