@@ -12,7 +12,7 @@ Build-Depends: cmake,
                libhybris-dev,
                pkg-config,
                libmirclient-dev,
-               libmirserver-dev
+               libmirserver-dev,
 Standards-Version: 3.9.4
 Homepage: https://launchpad.net/platform-api
 Vcs-Bzr: lp:platform-api
