@@ -77,6 +77,6 @@ std::shared_ptr<msh::Surface> uams::Instance::create_surface(msh::SurfaceCreatio
     static std::shared_ptr<mf::EventSink> const null_event_sink{nullptr};
     static mf::SurfaceId const default_surface_id{0};
 
-    return surface_factory->create_surface(parameters, default_surface_id,
+    return surface_factory->create_surface(nullptr, parameters, default_surface_id,
                                            null_event_sink);
 }
