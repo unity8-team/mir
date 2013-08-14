@@ -203,11 +203,10 @@ const char* ua_ui_window_properties_get_title(UAUiWindowProperties* u_properties
     return properties->surface_parameters().name;
 }
 
-void ua_ui_window_properties_set_role(UAUiWindowProperties* properties, UAUiWindowRole role)
+void ua_ui_window_properties_set_role(UAUiWindowProperties* u_properties, UAUiWindowRole role)
 {
-    // TODO<papi>: Doesn't seem like this is meaningful for mirclient. Perhaps it should leave platform-api.
-    (void) properties;
-    (void) role;
+    auto properties = uamc::WindowProperties::from_u_window_properties(u_properties);
+    properties->set_role(role);
 }
 
 void ua_ui_window_properties_set_input_cb_and_ctx(UAUiWindowProperties* u_properties, UAUiWindowInputEventCb cb, void* ctx)

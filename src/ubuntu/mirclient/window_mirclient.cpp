@@ -98,6 +98,11 @@ uamc::Window::Window(uamc::Instance& instance,
         {
             delete c;
         });
+
+    if (properties->surface_type()) {
+        // TODO: Should I bother checking the result?
+        mir_surface_set_type(mir_surface, *properties->surface_type());
+    }
     
     MirEventDelegate delegate = 
         { 
