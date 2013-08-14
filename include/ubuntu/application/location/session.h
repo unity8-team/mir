@@ -40,19 +40,25 @@ extern "C"
      * \ingroup location_service
      */
 
-    typedef void (*UALocationServiceSessionPositionUpdatesHandler)(UALocationPositionUpdate *position);
+    typedef void (*UALocationServiceSessionPositionUpdatesHandler)(
+        UALocationPositionUpdate *position,
+        void *context);
 
     /**
      * \brief Callback type that is invoked for heading updates.
      * \ingroup location_service
      */
-    typedef void (*UALocationServiceSessionHeadingUpdatesHandler)(UALocationHeadingUpdate *heading);
+    typedef void (*UALocationServiceSessionHeadingUpdatesHandler)(
+        UALocationHeadingUpdate *heading,
+        void *context);
 
     /**
      * \brief Callback type that is invoked for velocity updates.
      * \ingroup location_service
      */
-    typedef void (*UALocationServiceSessionVelocityUpdatesHandler)(UALocationVelocityUpdate *heading);
+    typedef void (*UALocationServiceSessionVelocityUpdatesHandler)(
+        UALocationVelocityUpdate *heading,
+        void *context);
 
     /**
      * \brief Increments the reference count of the session instance.
@@ -81,7 +87,8 @@ extern "C"
     void
     ua_location_service_session_set_position_updates_handler(
         UALocationServiceSession *session,
-        UALocationServiceSessionPositionUpdatesHandler *handler);
+        UALocationServiceSessionPositionUpdatesHandler handler,
+        void *context);
 
     /**
      * \brief Installs an app-specific heading update handler for the session.
@@ -92,7 +99,8 @@ extern "C"
     void
     ua_location_service_session_set_heading_updates_handler(
         UALocationServiceSession *session,
-        UALocationServiceSessionHeadingUpdatesHandler *handler);
+        UALocationServiceSessionHeadingUpdatesHandler handler,
+        void *context);
 
     /**
      * \brief Installs an app-specific velocity update handler for the session.
@@ -103,7 +111,8 @@ extern "C"
     void
     ua_location_service_session_set_velocity_updates_handler(
         UALocationServiceSession *session,
-        UALocationServiceSessionVelocityUpdatesHandler *handler);
+        UALocationServiceSessionVelocityUpdatesHandler handler,
+        void *context);
 
     /**
      * \brief Starts position updates for the supplied session.
