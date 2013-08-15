@@ -20,7 +20,7 @@ libubuntu_application_api.so.1 libubuntu-application-api1 #MINVER#
  ua_location_heading_update_get_timestamp@Base 0.18.3+13.10.20130807
  ua_location_heading_update_ref@Base 0.18.3+13.10.20130807
  ua_location_heading_update_unref@Base 0.18.3+13.10.20130807
- ua_location_heading_update_get_heading_in_degree@Base 0replaceme
+ ua_location_heading_update_get_heading_in_degree@Base 0.18.3+13.10.20130815.1
  ua_location_position_update_get_altitude_in_meter@Base 0.18.3+13.10.20130807
  ua_location_position_update_get_latitude_in_degree@Base 0.18.3+13.10.20130807
  ua_location_position_update_get_longitude_in_degree@Base 0.18.3+13.10.20130807
