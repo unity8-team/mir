@@ -1,8 +1,16 @@
-platform-api (0.18.3+13.10.20130813-0ubuntu2) UNRELEASED; urgency=low
+platform-api (0.18.3+13.10.20130815.1-0ubuntu1) saucy; urgency=low
 
+  [ Ubuntu daily release ]
   * debian/*symbols: auto-update new symbols to released version
+  * New rebuild forced
 
- -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 15 Aug 2013 06:06:32 +0000
+  [ Thomas Voß ]
+  * Fix typos in location service API.
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 118
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 15 Aug 2013 06:06:34 +0000
 
 platform-api (0.18.3+13.10.20130813-0ubuntu1) saucy; urgency=low
 
