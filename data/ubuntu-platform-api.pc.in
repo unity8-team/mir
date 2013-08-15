@@ -7,4 +7,4 @@ Name: @CMAKE_PROJECT_NAME@
 Description: Ubuntu's platform abstraction layer.
 Version: @UBUNTU_PLATFORM_API_VERSION_MAJOR@.@UBUNTU_PLATFORM_API_VERSION_MINOR@.@UBUNTU_PLATFORM_API_VERSION_PATCH@
 Libs: -L${libdir} -lubuntu_application_api
-Cflags: -I${includedir}/
+Cflags: -I${includedir}/ubuntu
