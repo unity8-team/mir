@@ -18,6 +18,13 @@
 
 #include "ubuntu/application/location/velocity_update.h"
 
+#include "velocity_update_p.h"
+
+#include <com/ubuntu/location/update.h>
+#include <com/ubuntu/location/velocity.h>
+
+namespace cul = com::ubuntu::location;
+
 void
 ua_location_velocity_update_ref(
     UALocationVelocityUpdate *update)
@@ -36,15 +43,23 @@ uint64_t
 ua_location_velocity_update_get_timestamp(
     UALocationVelocityUpdate *update)
 {
-    (void) update;
+    auto u = static_cast<UbuntuApplicationLocationVelocityUpdate*>(update);
 
-    return 0;
+    if (!u)
+        return 0;
+
+    return std::chrono::duration_cast<std::chrono::microseconds>(
+        u->update.when.time_since_epoch()).count();
 }
 
 double
 ua_location_velocity_update_get_velocity_in_meters_per_second(
     UALocationVelocityUpdate *update)
 {
-    (void) update;
-    return 0;
+    auto u = static_cast<UbuntuApplicationLocationVelocityUpdate*>(update);
+
+    if (!u)
+        return 0;
+
+    return u->update.value.value.value();
 }

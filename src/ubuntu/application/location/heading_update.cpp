@@ -18,6 +18,13 @@
 
 #include "ubuntu/application/location/heading_update.h"
 
+#include "heading_update_p.h"
+
+#include <com/ubuntu/location/heading.h>
+#include <com/ubuntu/location/update.h>
+
+namespace cul = com::ubuntu::location;
+
 void
 ua_location_heading_update_ref(
     UALocationHeadingUpdate *update)
@@ -36,15 +43,23 @@ uint64_t
 ua_location_heading_update_get_timestamp(
     UALocationHeadingUpdate *update)
 {
-    (void) update;
-    return 0;
+    auto u = static_cast<UbuntuApplicationLocationHeadingUpdate*>(update);
+
+    if (!u)
+        return 0;
+
+    return std::chrono::duration_cast<std::chrono::microseconds>(
+        u->update.when.time_since_epoch()).count();
 }
 
 double
 ua_location_heading_update_get_heading_in_degree(
     UALocationHeadingUpdate *update)
 {
-    (void) update;
-    
-    return 0;
+    auto u = static_cast<UbuntuApplicationLocationHeadingUpdate*>(update);
+
+    if (!u)
+        return 0; // TODO return invalid value here.
+
+    return u->update.value.value.value();
 }

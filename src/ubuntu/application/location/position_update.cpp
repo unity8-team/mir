@@ -18,6 +18,13 @@
 
 #include "ubuntu/application/location/position_update.h"
 
+#include "position_update_p.h"
+
+#include <com/ubuntu/location/position.h>
+#include <com/ubuntu/location/update.h>
+
+namespace cul = com::ubuntu::location;
+
 void
 ua_location_position_update_ref(
     UALocationPositionUpdate *update)
@@ -36,43 +43,59 @@ uint64_t
 ua_location_position_update_get_timestamp(
     UALocationPositionUpdate *update)
 {
-    (void) update;
+    auto u = static_cast<UbuntuApplicationLocationPositionUpdate*>(update);
 
-    return 0;
+    if (!u)
+        return 0;
+
+    return std::chrono::duration_cast<std::chrono::microseconds>(
+        u->update.when.time_since_epoch()).count();
 }
 
 double
 ua_location_position_update_get_latitude_in_degree(
     UALocationPositionUpdate *update)
 {
-    (void) update;
+    auto u = static_cast<UbuntuApplicationLocationPositionUpdate*>(update);
 
-    return 0;
+    if (!u)
+        return 0; // TODO return invalid value here.
+
+    return u->update.value.latitude().value.value();
 }
 
 double
 ua_location_position_update_get_longitude_in_degree(
     UALocationPositionUpdate *update)
 {
-    (void) update;
+    auto u = static_cast<UbuntuApplicationLocationPositionUpdate*>(update);
 
-    return 0;
+    if (!u)
+        return 0; // TODO return invalid value here.
+
+    return u->update.value.longitude().value.value();
 }
 
 bool
 ua_location_position_update_has_altitude(
     UALocationPositionUpdate *update)
 {
-    (void) update;
+    auto u = static_cast<UbuntuApplicationLocationPositionUpdate*>(update);
 
-    return false;
+    if (!u)
+        return false;
+
+    return u->update.value.has_altitude();
 }
 
 double
 ua_location_position_update_get_altitude_in_meter(
     UALocationPositionUpdate *update)
 {
-    (void) update;
+    auto u = static_cast<UbuntuApplicationLocationPositionUpdate*>(update);
 
-    return 0;
+    if (!u)
+        return 0; // TODO return invalid value here.
+
+    return u->update.value.altitude().value.value();
 }
