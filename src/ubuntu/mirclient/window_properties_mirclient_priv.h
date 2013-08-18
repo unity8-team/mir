@@ -20,6 +20,7 @@
 #define UBUNTU_APPLICATION_UI_WINDOW_PROPERTIES_MIRCLIENT_PRIV_H_
 
 #include <ubuntu/application/ui/window.h>
+#include <ubuntu/application/ui/window_type.h>
 #include <mir_toolkit/mir_client_library.h>
 
 #include <stddef.h>
@@ -46,6 +47,7 @@ public:
     
     void set_title(char const* title, size_t length);
     void set_input_cb_and_ctx(UAUiWindowInputEventCb cb, void* ctx);
+    void set_role(UAUiWindowRole role);    
     void set_type(UApplicationUiWindowType type);
     
     MirSurfaceParameters const& surface_parameters() const;
@@ -59,7 +61,7 @@ protected:
 
 private:
     MirSurfaceParameters parameters;
-    MirSurfaceType m_type;
+    MirSurfaceType type;
 
     std::string title;
 

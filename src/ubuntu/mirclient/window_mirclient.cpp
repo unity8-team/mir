@@ -131,3 +131,13 @@ EGLNativeWindowType uamc::Window::get_native_type()
 {
     return reinterpret_cast<EGLNativeWindowType>(mir_surface_get_egl_native_window(surface.get()));
 }
+
+UApplicationUiWindowState uamc::Window::state() const
+{
+    return static_cast<UApplicationUiWindowState>(mir_surface_get_state(surface.get()));
+}
+
+void uamc::Window::set_state(const UApplicationUiWindowState state)
+{
+    mir_surface_set_state(surface.get(), static_cast<MirSurfaceState>(state));
+}

@@ -14,6 +14,7 @@ set(
   window.h
   window_parent.h
   window_properties.h
+  window_state.h
   window_type.h
 )
 

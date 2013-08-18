@@ -20,6 +20,7 @@
 #define UBUNTU_APPLICATION_UI_WINDOW_MIRCLIENT_PRIV_H_
 
 #include <ubuntu/application/ui/window.h>
+#include <ubuntu/application/ui/window_state.h>
 #include <mir_toolkit/mir_client_library.h>
 
 #include <EGL/egl.h>
@@ -52,6 +53,10 @@ public:
     static Window* from_u_window(UAUiWindow* u_window);
     
     EGLNativeWindowType get_native_type();
+
+    UApplicationUiWindowState state() const;
+    void set_state(const UApplicationUiWindowState);
+
 protected:
     Window(Window const&) = delete;
     Window& operator=(Window const&) = delete;

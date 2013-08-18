@@ -52,9 +52,15 @@ void uamc::WindowProperties::set_input_cb_and_ctx(UAUiWindowInputEventCb callbac
     input_ctx = ctx;
 }
 
-void uamc::WindowProperties::set_type(UApplicationUiWindowType type)
+void uamc::WindowProperties::set_role(UAUiWindowRole role)
 {
-    m_type = static_cast<MirSurfaceType>(type);
+    // Mir has no concept of surface role yet
+    (void) role;
+}
+
+void uamc::WindowProperties::set_type(UApplicationUiWindowType type_in)
+{
+    type = static_cast<MirSurfaceType>(type_in);
 }
 
 MirSurfaceParameters const& uamc::WindowProperties::surface_parameters() const
@@ -64,7 +70,7 @@ MirSurfaceParameters const& uamc::WindowProperties::surface_parameters() const
 
 MirSurfaceType uamc::WindowProperties::surface_type() const
 {
-    return m_type;
+    return type;
 }
 
 UAUiWindowInputEventCb uamc::WindowProperties::input_cb() const
@@ -76,4 +82,3 @@ void* uamc::WindowProperties::input_context() const
 {
     return input_ctx;
 }
-
