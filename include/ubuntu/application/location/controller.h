@@ -19,6 +19,8 @@
 #ifndef UBUNTU_APPLICATION_LOCATION_SERVICE_CONTROLLER_H_
 #define UBUNTU_APPLICATION_LOCATION_SERVICE_CONTROLLER_H_
 
+#include "ubuntu/status.h"
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -77,7 +79,7 @@ extern "C"
      * \ingroup location_service
      * \param[in] controller The controller instance to increment the reference count for.
      */
-    void
+    UStatus
     ua_location_service_controller_set_status_changed_handler(
         UALocationServiceController *controller,
         UALocationServiceStatusChangedHandler handler,
@@ -87,17 +89,19 @@ extern "C"
      * \brief Query the status of the location service.
      * \ingroup location_service
      * \param[in] controller The controller instance.
+     * \param[out] flags Flags indicating the service status.
      */
-    UALocationServiceStatusFlags
+    UStatus
     ua_location_service_controller_query_status(
-        UALocationServiceController *controller);
+        UALocationServiceController *controller,
+        UALocationServiceStatusFlags *out_flags);
 
     /**
      * \brief Enables the location service.
      * \ingroup location_service
      * \param[in] controller The controller instance.
      */
-    void
+    UStatus
     ua_location_service_controller_enable_service(
         UALocationServiceController *controller);
 
@@ -106,7 +110,7 @@ extern "C"
      * \ingroup location_service
      * \param[in] controller The controller instance.
      */
-    void
+    UStatus
     ua_location_service_controller_disable_service(
         UALocationServiceController *controller);
 
@@ -115,7 +119,7 @@ extern "C"
      * \ingroup location_service
      * \param[in] controller The controller instance.
      */
-    void
+    UStatus
     ua_location_service_controller_enable_gps(
         UALocationServiceController *controller);
 
@@ -124,7 +128,7 @@ extern "C"
      * \ingroup location_service
      * \param[in] controller The controller instance.
      */
-    void
+    UStatus
     ua_location_service_controller_disable_gps(
         UALocationServiceController *controller);
 
