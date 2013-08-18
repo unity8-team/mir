@@ -39,6 +39,7 @@ class WindowProperties
 {
 public:
     WindowProperties();
+    ~WindowProperties() = default;
 
     UAUiWindowProperties* as_u_window_properties();
     static WindowProperties* from_u_window_properties(UAUiWindowProperties* u_properties);
