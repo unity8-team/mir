@@ -19,6 +19,7 @@
 #ifndef UBUNTU_APPLICATION_LOCATION_SERVICE_H_
 #define UBUNTU_APPLICATION_LOCATION_SERVICE_H_
 
+#include "ubuntu/application/location/controller.h"
 #include "ubuntu/application/location/session.h"
 
 #ifdef __cplusplus
@@ -67,6 +68,7 @@ extern "C"
 
     /**
      * \brief Creates a new session with the location service for low positional accuracy requirements.
+     * \ingroup location_service
      * \returns A new session or NULL if the requirements cannot be
      * satisfied or if the app lacks permissions to access the
      * location service.
@@ -78,6 +80,7 @@ extern "C"
 
     /**
      * \brief Creates a new session with the location service for high positional accuracy requirements.
+     * \ingroup location_service
      * \returns A new session or NULL if the requirements cannot be
      * satisfied or if the app lacks permissions to access the
      * location service.
@@ -86,6 +89,15 @@ extern "C"
     UALocationServiceSession*
     ua_location_service_create_session_for_high_accuracy(
         UALocationServiceRequirementsFlags flags);
+
+    /**
+     * \brief Creates a new controller for the location service.
+     * \ingroup location_service
+     * \returns A controller or NULL if the calling process does not
+     * have sufficient privileges.
+     */
+    UALocationServiceController*
+    ua_location_service_create_controller();
 
 #ifdef __cplusplus
 }

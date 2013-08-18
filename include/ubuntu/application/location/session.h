@@ -39,7 +39,6 @@ extern "C"
      * \brief Callback type that is invoked for position updates.
      * \ingroup location_service
      */
-
     typedef void (*UALocationServiceSessionPositionUpdatesHandler)(
         UALocationPositionUpdate *position,
         void *context);
