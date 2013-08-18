@@ -39,17 +39,16 @@ class WindowProperties
 {
 public:
     WindowProperties();
-    ~WindowProperties();
 
     UAUiWindowProperties* as_u_window_properties();
     static WindowProperties* from_u_window_properties(UAUiWindowProperties* u_properties);
     
     void set_title(char const* title, size_t length);
     void set_input_cb_and_ctx(UAUiWindowInputEventCb cb, void* ctx);
-    void set_role(UAUiWindowRole role);
+    void set_type(UApplicationUiWindowType type);
     
     MirSurfaceParameters const& surface_parameters() const;
-    MirSurfaceType *surface_type() const; // returns nullptr if no surface type was specified
+    MirSurfaceType surface_type() const;
     UAUiWindowInputEventCb input_cb() const;
     void* input_context() const;
     
@@ -59,7 +58,7 @@ protected:
 
 private:
     MirSurfaceParameters parameters;
-    MirSurfaceType *type;
+    MirSurfaceType m_type;
 
     std::string title;
 

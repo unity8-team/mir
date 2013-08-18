@@ -23,17 +23,12 @@ namespace uamc = ubuntu::application::mir::client;
 uamc::WindowProperties::WindowProperties()
     : cb(nullptr),
       input_ctx(nullptr),
-      type(nullptr)
+      type(mir_surface_type_normal)
 {
     parameters.name = nullptr;
     parameters.width = 0;
     parameters.height = 0;
     parameters.buffer_usage = mir_buffer_usage_hardware;
-}
-
-uamc::WindowProperties::~WindowProperties()
-{
-    delete type;
 }
 
 UAUiWindowProperties* uamc::WindowProperties::as_u_window_properties()
@@ -57,14 +52,9 @@ void uamc::WindowProperties::set_input_cb_and_ctx(UAUiWindowInputEventCb callbac
     input_ctx = ctx;
 }
 
-void uamc::WindowProperties::set_role(UAUiWindowRole role)
+void uamc::WindowProperties::set_type(UApplicationUiWindowType type)
 {
-    if (role == U_ON_SCREEN_KEYBOARD_ROLE) {
-        if (!type)
-            type = new MirSurfaceType;
-
-        *type = mir_surface_type_inputmethod;
-    }
+    m_type = static_cast<MirSurfaceType>(type);
 }
 
 MirSurfaceParameters const& uamc::WindowProperties::surface_parameters() const
@@ -72,9 +62,9 @@ MirSurfaceParameters const& uamc::WindowProperties::surface_parameters() const
     return parameters;
 }
 
-MirSurfaceType *uamc::WindowProperties::surface_type() const
+MirSurfaceType uamc::WindowProperties::surface_type() const
 {
-    return type;
+    return m_type;
 }
 
 UAUiWindowInputEventCb uamc::WindowProperties::input_cb() const
