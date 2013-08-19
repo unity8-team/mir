@@ -34,7 +34,6 @@ namespace mir
 {
 namespace client
 {
-
 class Instance
 {
 public:
@@ -64,5 +63,21 @@ private:
 }
 }
 } // namespace ubuntu
+
+namespace uamc = ubuntu::application::mir::client;
+
+namespace
+{
+// We use a global instance as some platform-api functions, i.e. display_new_with_index
+// do not supply dependencies, but a MirConnection is required for all queries.
+static uamc::Instance*
+global_mir_instance()
+{
+    // Obviously ref counting is whacky here...
+    static uamc::Instance instance;
+    instance.ref(); // We leak a reference, this object can't be destroyed
+    return &instance;
+}
+}
 
 #endif // UBUNTU_APPLICATION_INSTANCE_MIRCLIENT_PRIV_H_

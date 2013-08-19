@@ -3,6 +3,7 @@ set(SOURCES
   application_instance_mirclient.cpp
   window_properties_mirclient.cpp
   window_mirclient.cpp
+  lifecycle_delegate_mir.cpp
 )
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --std=c++11 -fPIC")
