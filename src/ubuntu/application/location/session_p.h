@@ -15,18 +15,24 @@
  *
  * Authored by: Thomas Voss <thomas.voss@canonical.com>
  */
-
 #ifndef SESSION_PRIVATE_H_
 #define SESSION_PRIVATE_H_
 
 #include "ubuntu/application/location/session.h"
 
+#include "ref_counted.h"
+
 #include <com/ubuntu/location/service/session/interface.h>
 
 namespace culss = com::ubuntu::location::service::session;
 
-struct UbuntuApplicationLocationServiceSession
+struct UbuntuApplicationLocationServiceSession : public detail::RefCounted
 {
+    UbuntuApplicationLocationServiceSession(const culss::Interface::Ptr& session)
+            : session(session)
+    {
+    }
+    
     culss::Interface::Ptr session;
 };
 

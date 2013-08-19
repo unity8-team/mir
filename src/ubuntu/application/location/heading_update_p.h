@@ -21,13 +21,19 @@
 
 #include "ubuntu/application/location/heading_update.h"
 
+#include "ref_counted.h"
+
 #include <com/ubuntu/location/heading.h>
 #include <com/ubuntu/location/update.h>
 
 namespace cul = com::ubuntu::location;
 
-struct UbuntuApplicationLocationHeadingUpdate
+struct UbuntuApplicationLocationHeadingUpdate : public detail::RefCounted
 {
+    UbuntuApplicationLocationHeadingUpdate(const cul::Update<cul::Heading>& update) : update(update)
+    {
+    }
+
     const cul::Update<cul::Heading>& update;
 };
 

@@ -29,73 +29,48 @@ void
 ua_location_position_update_ref(
     UALocationPositionUpdate *update)
 {
-    (void) update;
+    update->ref();
 }
 
 void
 ua_location_position_update_unref(
     UALocationPositionUpdate *update)
 {
-    (void) update;
+    update->unref();
 }
 
 uint64_t
 ua_location_position_update_get_timestamp(
     UALocationPositionUpdate *update)
 {
-    auto u = static_cast<UbuntuApplicationLocationPositionUpdate*>(update);
-
-    if (!u)
-        return 0;
-
     return std::chrono::duration_cast<std::chrono::microseconds>(
-        u->update.when.time_since_epoch()).count();
+        update->update.when.time_since_epoch()).count();
 }
 
 double
 ua_location_position_update_get_latitude_in_degree(
     UALocationPositionUpdate *update)
 {
-    auto u = static_cast<UbuntuApplicationLocationPositionUpdate*>(update);
-
-    if (!u)
-        return 0; // TODO return invalid value here.
-
-    return u->update.value.latitude().value.value();
+    return update->update.value.latitude().value.value();
 }
 
 double
 ua_location_position_update_get_longitude_in_degree(
     UALocationPositionUpdate *update)
 {
-    auto u = static_cast<UbuntuApplicationLocationPositionUpdate*>(update);
-
-    if (!u)
-        return 0; // TODO return invalid value here.
-
-    return u->update.value.longitude().value.value();
+    return update->update.value.longitude().value.value();
 }
 
 bool
 ua_location_position_update_has_altitude(
     UALocationPositionUpdate *update)
 {
-    auto u = static_cast<UbuntuApplicationLocationPositionUpdate*>(update);
-
-    if (!u)
-        return false;
-
-    return u->update.value.has_altitude();
+    return update->update.value.has_altitude();
 }
 
 double
 ua_location_position_update_get_altitude_in_meter(
     UALocationPositionUpdate *update)
 {
-    auto u = static_cast<UbuntuApplicationLocationPositionUpdate*>(update);
-
-    if (!u)
-        return 0; // TODO return invalid value here.
-
-    return u->update.value.altitude().value.value();
+    return update->update.value.altitude().value.value();
 }

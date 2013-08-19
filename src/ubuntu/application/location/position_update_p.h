@@ -21,13 +21,19 @@
 
 #include "ubuntu/application/location/position_update.h"
 
+#include "ref_counted.h"
+
 #include <com/ubuntu/location/position.h>
 #include <com/ubuntu/location/update.h>
 
 namespace cul = com::ubuntu::location;
 
-struct UbuntuApplicationLocationPositionUpdate
+struct UbuntuApplicationLocationPositionUpdate : public detail::RefCounted
 {
+    UbuntuApplicationLocationPositionUpdate(const cul::Update<cul::Position>& update) : update(update)
+    {
+    }
+
     const cul::Update<cul::Position>& update;
 };
 

@@ -21,13 +21,19 @@
 
 #include "ubuntu/application/location/velocity_update.h"
 
+#include "ref_counted.h"
+
 #include <com/ubuntu/location/update.h>
 #include <com/ubuntu/location/velocity.h>
 
 namespace cul = com::ubuntu::location;
 
-struct UbuntuApplicationLocationVelocityUpdate
+struct UbuntuApplicationLocationVelocityUpdate : public detail::RefCounted
 {
+    UbuntuApplicationLocationVelocityUpdate(const cul::Update<cul::Velocity>& update) : update(update)
+    {
+    }
+
     const cul::Update<cul::Velocity>& update;
 };
 

@@ -29,6 +29,7 @@ ua_location_service_session_ref(
     UALocationServiceSession *session)
 {
     auto s = static_cast<UbuntuApplicationLocationServiceSession*>(session);
+    s->ref();
 }
 
 void
@@ -36,6 +37,7 @@ ua_location_service_session_unref(
     UALocationServiceSession *session)
 {
     auto s = static_cast<UbuntuApplicationLocationServiceSession*>(session);
+    s->unref();
 }
 
 void
