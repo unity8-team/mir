@@ -33,9 +33,9 @@ pid_t mfd::SocketMessenger::client_pid()
 {
     struct ucred cr;
     socklen_t cl = sizeof(cr);
-    
+
     auto status = getsockopt(socket->native_handle(), SOL_SOCKET, SO_PEERCRED, &cr, &cl);
-    
+
     if (status)
         BOOST_THROW_EXCEPTION(std::runtime_error("Failed to query client socket credentials"));
     return cr.pid;
@@ -65,36 +65,39 @@ void mfd::SocketMessenger::send_fds(std::vector<int32_t> const& fds)
     auto n_fds = fds.size();
     if (n_fds > 0)
     {
-        // We send dummy data
-        struct iovec iov;
-        char dummy_iov_data = 'M';
-        iov.iov_base = &dummy_iov_data;
-        iov.iov_len = 1;
+        socket->get_io_service().dispatch([this, fds, n_fds]()
+                                          {
+                                              // We send dummy data
+                                              struct iovec iov;
+                                              char dummy_iov_data = 'M';
+                                              iov.iov_base = &dummy_iov_data;
+                                              iov.iov_len = 1;
 
-        // Allocate space for control message
-        std::vector<char> control(sizeof(struct cmsghdr) + sizeof(int) * n_fds);
+                                              // Allocate space for control message
+                                              std::vector<char> control(CMSG_SPACE(sizeof(int) * n_fds));
+                                              // Message to send
+                                              struct msghdr header;
+                                              header.msg_name = NULL;
+                                              header.msg_namelen = 0;
+                                              header.msg_iov = &iov;
+                                              header.msg_iovlen = 1;
+                                              header.msg_controllen = control.size();
+                                              header.msg_control = control.data();
+                                              header.msg_flags = 0;
 
-        // Message to send
-        struct msghdr header;
-        header.msg_name = NULL;
-        header.msg_namelen = 0;
-        header.msg_iov = &iov;
-        header.msg_iovlen = 1;
-        header.msg_controllen = control.size();
-        header.msg_control = control.data();
-        header.msg_flags = 0;
+                                              // Control message contains file descriptors
+                                              struct cmsghdr *message = CMSG_FIRSTHDR(&header);
+                                              message->cmsg_len = CMSG_LEN(sizeof(int) * n_fds);
+                                              message->cmsg_level = SOL_SOCKET;
+                                              message->cmsg_type = SCM_RIGHTS;
+                                              int *data = (int *)CMSG_DATA(message);
+                                              int i = 0;
+                                              for (auto &fd: fds)
+                                                  data[i++] = fd;
 
-        // Control message contains file descriptors
-        struct cmsghdr *message = CMSG_FIRSTHDR(&header);
-        message->cmsg_len = header.msg_controllen;
-        message->cmsg_level = SOL_SOCKET;
-        message->cmsg_type = SCM_RIGHTS;
-        int *data = (int *)CMSG_DATA(message);
-        int i = 0;
-        for (auto &fd: fds)
-            data[i++] = fd;
-
-        sendmsg(socket->native_handle(), &header, 0);
+                                              sendmsg(socket->native_handle(), &header, 0);
+                                          }
+                                          );
     }
 }
 
@@ -106,4 +109,4 @@ void mfd::SocketMessenger::async_receive_msg(
          buffer,
          boost::asio::transfer_exactly(size),
          handler);
-} 
+}
