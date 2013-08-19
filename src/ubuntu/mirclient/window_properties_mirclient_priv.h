@@ -48,7 +48,6 @@ public:
     void set_title(char const* title, size_t length);
     void set_input_cb_and_ctx(UAUiWindowInputEventCb cb, void* ctx);
     void set_role(UAUiWindowRole role);    
-    void set_type(UApplicationUiWindowType type);
     
     MirSurfaceParameters const& surface_parameters() const;
     MirSurfaceType surface_type() const;

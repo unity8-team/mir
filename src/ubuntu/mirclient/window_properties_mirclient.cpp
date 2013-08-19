@@ -54,13 +54,10 @@ void uamc::WindowProperties::set_input_cb_and_ctx(UAUiWindowInputEventCb callbac
 
 void uamc::WindowProperties::set_role(UAUiWindowRole role)
 {
-    // Mir has no concept of surface role yet
-    (void) role;
-}
-
-void uamc::WindowProperties::set_type(UApplicationUiWindowType type_in)
-{
-    type = static_cast<MirSurfaceType>(type_in);
+    if (role == U_ON_SCREEN_KEYBOARD_ROLE) {
+        type = mir_surface_type_inputmethod;
+    }
+    //TODO implement other surface roles
 }
 
 MirSurfaceParameters const& uamc::WindowProperties::surface_parameters() const
