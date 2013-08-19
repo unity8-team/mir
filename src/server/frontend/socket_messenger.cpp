@@ -91,10 +91,10 @@ void mfd::SocketMessenger::send_fds(std::vector<int32_t> const& fds)
                 message->cmsg_len = CMSG_LEN(sizeof(int) * n_fds);
                 message->cmsg_level = SOL_SOCKET;
                 message->cmsg_type = SCM_RIGHTS;
-                int *data = (int *)CMSG_DATA(message);
-                int i = 0;
-                for (auto &fd: fds)
-                    data[i++] = fd;
+                std::copy(
+                    fds.begin(),
+                    fds.end(),
+                    reinterpret_cast<int*>(CMSG_DATA(message)));
 
                 sendmsg(socket->native_handle(), &header, 0);
             });

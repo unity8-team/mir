@@ -176,7 +176,7 @@ void mclr::MirSocketRpcChannel::receive_file_descriptors(std::vector<int> &fds)
 
     // Allocate space for control message
     auto n_fds = fds.size();
-    std::vector<char> control(sizeof(struct cmsghdr) + sizeof(int) * n_fds);
+    std::vector<char> control(CMSG_SPACE(sizeof(int) * n_fds));
 
     // Message to send
     struct msghdr header;
@@ -190,7 +190,7 @@ void mclr::MirSocketRpcChannel::receive_file_descriptors(std::vector<int> &fds)
 
     // Control message contains file descriptors
     struct cmsghdr *message = CMSG_FIRSTHDR(&header);
-    message->cmsg_len = header.msg_controllen;
+    message->cmsg_len = CMSG_LEN(sizeof(int) * n_fds);
     message->cmsg_level = SOL_SOCKET;
     message->cmsg_type = SCM_RIGHTS;
 
