@@ -13,22 +13,20 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Authored by: Ricardo Mendoza <ricardo.mendoza@canonical.com>
- *              Thomas Voß <thomas.voss@canonical.com>           
+ * Authored by: Gerry Boland <gerry.boland@canonical.com>
  */
 
-#ifndef UBUNTU_APPLICATION_UI_WINDOW_TYPE_H_
-#define UBUNTU_APPLICATION_UI_WINDOW_TYPE_H_
+#ifndef UBUNTU_APPLICATION_UI_WINDOW_STATE_H_
+#define UBUNTU_APPLICATION_UI_WINDOW_STATE_H_
 
 typedef enum
 {
-	U_NORMAL_WINDOW,
-	U_UTILITY_WINDOW,
-	U_DIALOG_WINDOW,
-	U_OVERLAY_WINDOW,
-	U_FREESTYLE_WINDOW,
-	U_POPOVER_WINDOW,
-	U_INPUTMETHOD_WINDOW
-} UApplicationUiWindowType;
+	U_UNKNOWN_STATE,
+	U_RESTORED_STATE,
+	U_MINIMIZED_STATE,
+	U_MAXIMIZED_STATE,
+	U_VERTMAXIMIZED_STATE,
+	U_FULLSCREEN_STATE
+} UApplicationUiWindowState;
 
-#endif /* UBUNTU_APPLICATION_UI_WINDOW_TYPE_H_ */
+#endif /* UBUNTU_APPLICATION_UI_WINDOW_STATE_H_ */
