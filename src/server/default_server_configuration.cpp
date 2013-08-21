@@ -669,8 +669,10 @@ std::shared_ptr<msh::SurfaceConfigurator> mir::DefaultServerConfiguration::the_s
 std::shared_ptr<ms::SurfaceStackModel>
 mir::DefaultServerConfiguration::the_surface_stack_model()
 {
+    auto configuration = the_input_configuration();
+
     return surface_stack(
-        [this]() -> std::shared_ptr<ms::SurfaceStack>
+        [this, configuration]() -> std::shared_ptr<ms::SurfaceStack>
         {
             auto factory = std::make_shared<ms::SurfaceAllocator>(
                 the_buffer_stream_factory(), the_input_channel_factory());
