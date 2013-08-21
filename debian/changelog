@@ -1,3 +1,31 @@
+platform-api (0.18.3+13.10.20130821-0ubuntu1) saucy; urgency=low
+
+  [ Daniel d'Andrada ]
+  * Enable OSK window role, which ties into Mir's OSK surface type. Also
+    add "state" property to Window, and this implement
+    show/hide/fullscreen functions using Mir's surface state API.
+
+  [ Ricardo Salveti de Araujo ]
+  * debian/control: depending on libhybris-common only instead.
+
+  [ Robert Carr ]
+  * Enable OSK window role, which ties into Mir's OSK surface type. Also
+    add "state" property to Window, and this implement
+    show/hide/fullscreen functions using Mir's surface state API.
+
+  [ Ubuntu daily release ]
+  * New rebuild forced
+
+  [ Gerry Boland ]
+  * Enable OSK window role, which ties into Mir's OSK surface type. Also
+    add "state" property to Window, and this implement
+    show/hide/fullscreen functions using Mir's surface state API.
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 124
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Wed, 21 Aug 2013 06:51:21 +0000
+
 platform-api (0.18.3+13.10.20130820-0ubuntu1) saucy; urgency=low
 
   [ Gerry Boland ]
