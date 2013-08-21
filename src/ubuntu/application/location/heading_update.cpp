@@ -29,37 +29,27 @@ void
 ua_location_heading_update_ref(
     UALocationHeadingUpdate *update)
 {
-    (void) update;
+    update->ref();
 }
 
 void
 ua_location_heading_update_unref(
     UALocationHeadingUpdate *update)
 {
-    (void) update;
+    update->unref();
 }
 
 uint64_t
 ua_location_heading_update_get_timestamp(
     UALocationHeadingUpdate *update)
 {
-    auto u = static_cast<UbuntuApplicationLocationHeadingUpdate*>(update);
-
-    if (!u)
-        return 0;
-
     return std::chrono::duration_cast<std::chrono::microseconds>(
-        u->update.when.time_since_epoch()).count();
+        update->update.when.time_since_epoch()).count();
 }
 
 double
 ua_location_heading_update_get_heading_in_degree(
     UALocationHeadingUpdate *update)
 {
-    auto u = static_cast<UbuntuApplicationLocationHeadingUpdate*>(update);
-
-    if (!u)
-        return 0; // TODO return invalid value here.
-
-    return u->update.value.value.value();
+    return update->update.value.value.value();
 }

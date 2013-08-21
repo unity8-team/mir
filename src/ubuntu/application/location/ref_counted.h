@@ -15,26 +15,33 @@
  *
  * Authored by: Thomas Voss <thomas.voss@canonical.com>
  */
+#ifndef REF_COUNTED_H_
+#define REF_COUNTED_H_
 
-#ifndef POSITION_UPDATE_PRIVATE_H_
-#define POSITION_UPDATE_PRIVATE_H_
+#include <atomic>
 
-#include "ubuntu/application/location/position_update.h"
-
-#include "ref_counted.h"
-
-#include <com/ubuntu/location/position.h>
-#include <com/ubuntu/location/update.h>
-
-namespace cul = com::ubuntu::location;
-
-struct UbuntuApplicationLocationPositionUpdate : public detail::RefCounted
+namespace detail
 {
-    UbuntuApplicationLocationPositionUpdate(const cul::Update<cul::Position>& update) : update(update)
+class RefCounted
+{
+  public:
+    RefCounted(const RefCounted&) = delete;
+    virtual ~RefCounted() = default;
+
+    RefCounted& operator=(const RefCounted&) = delete;
+    bool operator==(const RefCounted&) const = delete;
+
+    void ref() { counter.fetch_add(1); }
+    void unref() { if (0 == counter.fetch_sub(1)) { delete this; } }
+
+  protected:
+    RefCounted() : counter(1)
     {
     }
 
-    const cul::Update<cul::Position>& update;
+  private:
+    std::atomic<int> counter;
 };
+}
 
-#endif // POSITION_UPDATE_PRIVATE_H_
+#endif // REF_COUNTED_H_

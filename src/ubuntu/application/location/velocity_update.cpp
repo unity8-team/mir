@@ -29,37 +29,27 @@ void
 ua_location_velocity_update_ref(
     UALocationVelocityUpdate *update)
 {
-    (void) update;
+    update->ref();
 }
 
 void
 ua_location_velocity_update_unref(
     UALocationVelocityUpdate *update)
 {
-    (void) update;
+    update->unref();
 }
 
 uint64_t
 ua_location_velocity_update_get_timestamp(
     UALocationVelocityUpdate *update)
 {
-    auto u = static_cast<UbuntuApplicationLocationVelocityUpdate*>(update);
-
-    if (!u)
-        return 0;
-
     return std::chrono::duration_cast<std::chrono::microseconds>(
-        u->update.when.time_since_epoch()).count();
+        update->update.when.time_since_epoch()).count();
 }
 
 double
 ua_location_velocity_update_get_velocity_in_meters_per_second(
     UALocationVelocityUpdate *update)
 {
-    auto u = static_cast<UbuntuApplicationLocationVelocityUpdate*>(update);
-
-    if (!u)
-        return 0;
-
-    return u->update.value.value.value();
+    return update->update.value.value.value();
 }

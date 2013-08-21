@@ -117,4 +117,11 @@ libubuntu_application_api.so.1 libubuntu-application-api1 #MINVER#
  ubuntu_ui_session_unfocus_running_sessions@Base 0.18.1daily13.06.21
  ubuntu_ui_set_surface_trap@Base 0.18.1daily13.06.21
  ubuntu_ui_unset_surface_trap@Base 0.18.1daily13.06.21
-
+ ua_location_service_controller_disable_gps@Base 0replaceme
+ ua_location_service_controller_disable_service@Base 0replaceme
+ ua_location_service_controller_enable_gps@Base 0replaceme
+ ua_location_service_controller_enable_service@Base 0replaceme
+ ua_location_service_controller_query_status@Base 0replaceme
+ ua_location_service_controller_ref@Base 0replaceme
+ ua_location_service_controller_set_status_changed_handler@Base 0replaceme
+ ua_location_service_controller_unref@Base 0replaceme

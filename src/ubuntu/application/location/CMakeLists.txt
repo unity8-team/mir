@@ -16,6 +16,7 @@ include_directories(
 add_library(
   ubuntu_application_location
 
+  controller.cpp
   service.cpp
   session.cpp
 

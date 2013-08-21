@@ -16,25 +16,15 @@
  * Authored by: Thomas Voss <thomas.voss@canonical.com>
  */
 
-#ifndef POSITION_UPDATE_PRIVATE_H_
-#define POSITION_UPDATE_PRIVATE_H_
+#ifndef CONTROLLER_PRIVATE_H_
+#define CONTROLLER_PRIVATE_H_
 
-#include "ubuntu/application/location/position_update.h"
+#include "ubuntu/application/location/controller.h"
 
 #include "ref_counted.h"
 
-#include <com/ubuntu/location/position.h>
-#include <com/ubuntu/location/update.h>
-
-namespace cul = com::ubuntu::location;
-
-struct UbuntuApplicationLocationPositionUpdate : public detail::RefCounted
+struct UbuntuApplicationLocationServiceController : public detail::RefCounted
 {
-    UbuntuApplicationLocationPositionUpdate(const cul::Update<cul::Position>& update) : update(update)
-    {
-    }
-
-    const cul::Update<cul::Position>& update;
 };
 
-#endif // POSITION_UPDATE_PRIVATE_H_
+#endif // CONTROLLER_PRIVATE_H_
