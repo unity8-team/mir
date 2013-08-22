@@ -34,3 +34,6 @@ target_link_libraries(
   ${CMAKE_THREAD_LIBS_INIT}
   ${Boost_LIBRARIES}
 )
+
+install(TARGETS ubuntu_application_location ${INSTALL_TARGETS_DEFAULT_ARGS})
+
