@@ -58,6 +58,8 @@ libubuntu_application_api_mirserver.so.1 libubuntu-application-api-mirserver1 #M
  ua_ui_display_query_horizontal_res@Base 0.18.3+13.10.20130813
  ua_ui_display_query_vertical_res@Base 0.18.3+13.10.20130813
  ua_ui_get_clipboard_content@Base 0.18.3+13.10.20130813
+ ua_ui_mirserver_finish@Base @replaceme
+ ua_ui_mirserver_init@Base @replaceme
  ua_ui_session_new_with_properties@Base 0.18.3+13.10.20130813
  ua_ui_session_properties_new@Base 0.18.3+13.10.20130813
  ua_ui_session_properties_set_remote_pid@Base 0.18.3+13.10.20130813
