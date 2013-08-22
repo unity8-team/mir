@@ -23,3 +23,10 @@ install(
   TARGETS ubuntu_application_url_dispatcher
   DESTINATION ${LIB_INSTALL_DIR}
 )
+
+set_target_properties(
+    ubuntu_application_url_dispatcher
+    PROPERTIES
+    VERSION 1.0
+    SOVERSION 1
+)
