@@ -20,6 +20,8 @@
 #ifndef UBUNTU_APPLICATION_UI_SESSION_H_
 #define UBUNTU_APPLICATION_UI_SESSION_H_
 
+#include <ubuntu/visibility.h>
+
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -35,19 +37,19 @@ extern "C" {
         U_SYSTEM_SESSION = 1
     } UAUiSessionType;
     
-    UAUiSession*
+    UBUNTU_DLL_PUBLIC UAUiSession*
     ua_ui_session_new_with_properties(
     	UAUiSessionProperties *properties);
     
-    UAUiSessionProperties*
+    UBUNTU_DLL_PUBLIC UAUiSessionProperties*
     ua_ui_session_properties_new();
     
-    void
+    UBUNTU_DLL_PUBLIC void
     ua_ui_session_properties_set_type(
         UAUiSessionProperties* properties,
         UAUiSessionType type);
 
-    void
+    UBUNTU_DLL_PUBLIC void
     ua_ui_session_properties_set_remote_pid(
         UAUiSessionProperties* properties,
         uint32_t pid);

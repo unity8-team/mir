@@ -20,6 +20,8 @@
 #define UBUNTU_APPLICATION_SENSORS_PROXIMITY_H_
 
 #include <ubuntu/status.h>
+#include <ubuntu/visibility.h>
+
 #include <ubuntu/application/sensors/event/proximity.h>
 
 #ifdef __cplusplus
@@ -44,7 +46,7 @@ extern "C" {
      * \ingroup sensor_access
      * \returns A new instance or NULL in case of errors.
      */
-    UASensorsProximity*
+    UBUNTU_DLL_PUBLIC UASensorsProximity*
     ua_sensors_proximity_new();
 
     /**
@@ -53,7 +55,7 @@ extern "C" {
      * \returns U_STATUS_SUCCESS if successful or U_STATUS_ERROR if an error occured.
      * \param[in] sensor The sensor instance to be enabled.
      */
-    UStatus
+    UBUNTU_DLL_PUBLIC UStatus
     ua_sensors_proximity_enable(
         UASensorsProximity* sensor);
 
@@ -63,7 +65,7 @@ extern "C" {
      * \returns U_STATUS_SUCCESS if successful or U_STATUS_ERROR if an error occured.
      * \param[in] sensor The sensor instance to be disabled.
      */
-    UStatus
+    UBUNTU_DLL_PUBLIC UStatus
     ua_sensors_proximity_disable(
         UASensorsProximity* sensor);
 
@@ -73,7 +75,7 @@ extern "C" {
      * \returns The minimum delay between two readings in [ms].
      * \param[in] sensor The sensor instance to be queried.
      */
-    uint32_t
+    UBUNTU_DLL_PUBLIC uint32_t
     ua_sensors_proximity_get_min_delay(
         UASensorsProximity* sensor);
 
@@ -83,7 +85,7 @@ extern "C" {
      * \returns The minimum value that can be reported by the sensor.
      * \param[in] sensor The sensor instance to be queried.
      */
-    float
+    UBUNTU_DLL_PUBLIC float
     ua_sensors_proximity_get_min_value(
         UASensorsProximity* sensor);
 
@@ -93,7 +95,7 @@ extern "C" {
      * \returns The maximum value that can be reported by the sensor.
      * \param[in] sensor The sensor instance to be queried.
      */
-    float
+    UBUNTU_DLL_PUBLIC float
     ua_sensors_proximity_get_max_value(
         UASensorsProximity* sensor);
 
@@ -103,7 +105,7 @@ extern "C" {
      * \returns The numeric resolution supported by the sensor.
      * \param[in] sensor The sensor instance to be queried.
      */
-    float
+    UBUNTU_DLL_PUBLIC float
     ua_sensors_proximity_get_resolution(
         UASensorsProximity* sensor);
 
@@ -114,7 +116,7 @@ extern "C" {
      * \param[in] cb The callback to be invoked.
      * \param[in] ctx The context supplied to the callback invocation.
      */
-    void
+    UBUNTU_DLL_PUBLIC void
     ua_sensors_proximity_set_reading_cb(
         UASensorsProximity* sensor,
         on_proximity_event_cb cb,

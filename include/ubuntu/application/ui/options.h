@@ -20,19 +20,21 @@
 #ifndef UBUNTU_APPLICATION_UI_OPTIONS_H_
 #define UBUNTU_APPLICATION_UI_OPTIONS_H_
 
-#include "form_factor.h"
-#include "stage.h"
+#include <ubuntu/visibility.h>
+
+#include <ubuntu/application/ui/form_factor.h>
+#include <ubuntu/application/ui/stage.h>
 #include <ubuntu/application/options.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
    
-    UAUiFormFactor
+    UBUNTU_DLL_PUBLIC UAUiFormFactor
     u_application_options_get_form_factor(
     	UApplicationOptions* options);
    
-    UAUiStage
+    UBUNTU_DLL_PUBLIC UAUiStage
     u_application_options_get_stage(
     	UApplicationOptions* options);
     

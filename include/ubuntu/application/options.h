@@ -20,7 +20,9 @@
 #ifndef UBUNTU_APPLICATION_OPTIONS_H_
 #define UBUNTU_APPLICATION_OPTIONS_H_
 
-#include "operation_mode.h"
+#include <ubuntu/visibility.h>
+
+#include <ubuntu/application/operation_mode.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -39,7 +41,7 @@ extern "C" {
      * \param[in] argc Number of arguments.
      * \param[in] argv Arguments.
      */
-    UApplicationOptions*
+    UBUNTU_DLL_PUBLIC UApplicationOptions*
     u_application_options_new_from_cmd_line(
         int argc,
         char** argv);
@@ -49,7 +51,7 @@ extern "C" {
      * \ingroup application_support
      * \param[in] options The object to be destroyed.
      */
-    void
+    UBUNTU_DLL_PUBLIC void
     u_application_options_destroy(
         UApplicationOptions *options);
 
@@ -59,7 +61,7 @@ extern "C" {
      * \returns The operation mode as stored in the options object.
      * \param[in] options The options object to be queried.
      */
-    UApplicationOperationMode
+    UBUNTU_DLL_PUBLIC UApplicationOperationMode
     u_application_options_get_operation_mode(
         UApplicationOptions *options);
 

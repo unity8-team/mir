@@ -13,31 +13,16 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Authored by: Ricardo Mendoza <ricardo.mendoza@canonical.com>
- *              Thomas Voß <thomas.voss@canonical.com>           
+ * Authored by: Thomas Voß <thomas.voss@canonical.com>
  */
 
-#ifndef UBUNTU_APPLICATION_UI_CLIPBOARD_H_
-#define UBUNTU_APPLICATION_UI_CLIPBOARD_H_
+#ifndef UBUNTU_VISIBILITY_H_
+#define UBUNTU_VISIBILITY_H_
 
-#include <ubuntu/visibility.h>
-
-#ifdef __cplusplus
-extern "C" {
+#if __GNUC__ >= 4
+#define UBUNTU_DLL_PUBLIC __attribute__ ((visibility ("default")))
+#else
+#define UBUNTU_DLL_PUBLIC
 #endif
 
-    UBUNTU_DLL_PUBLIC void
-    ua_ui_set_clipboard_content(
-        void* data,
-        size_t size);
-    
-    UBUNTU_DLL_PUBLIC void
-    ua_ui_get_clipboard_content(
-        void** data,
-        size_t* size);
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* UBUNTU_APPLICATION_UI_CLIPBOARD_H_ */
+#endif /* UBUNTU_VISIBILITY_H_ */
