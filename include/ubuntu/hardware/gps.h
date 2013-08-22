@@ -197,7 +197,7 @@ typedef struct UHardwareGps_* UHardwareGps;
  * Models a location as reported by the GPS HAL.
  * \ingroup gps_access
  */
-typedef UBUNTU_DLL_PUBLIC struct
+typedef struct
 {
     /** set to sizeof(UHardwareGpsLocation) */
     size_t size;
@@ -224,7 +224,7 @@ typedef UBUNTU_DLL_PUBLIC struct
  * Represents space vehicle (satellite) information.
  * \ingroup gps_access
  */
-typedef UBUNTU_DLL_PUBLIC struct {
+typedef struct {
     /** set to sizeof(UHardwareGpsSvInfo) */
     size_t size;
     /** Pseudo-random number for the SV. */
@@ -241,7 +241,7 @@ typedef UBUNTU_DLL_PUBLIC struct {
  * Represents SV (Space Vehicle) status.
  * \ingroup gps_access
  */
-typedef UBUNTU_DLL_PUBLIC struct {
+typedef struct {
     /** set to sizeof(GpsSvStatus) */
     size_t size;
 
@@ -272,7 +272,7 @@ typedef UBUNTU_DLL_PUBLIC struct {
  * Represents the status of AGPS.
  * \ingroup gps_access
  */
-typedef UBUNTU_DLL_PUBLIC struct {
+typedef struct {
     /** set to sizeof(UHardwareGpsAGpsStatus) */
     size_t size;
 
@@ -285,7 +285,7 @@ typedef UBUNTU_DLL_PUBLIC struct {
  * Represents an NI request
  * \ingroup gps_access
  */
-typedef UBUNTU_DLL_PUBLIC struct {
+typedef struct {
     /** set to sizeof(UHardwareGpsNiNotification) */
     size_t size;
 
@@ -372,7 +372,7 @@ typedef void (*UHardwareGpsNiNotifyCallback)(UHardwareGpsNiNotification *notific
 typedef void (*UHardwareGpsAGpsRilRequestSetId)(uint32_t flags, void *context);
 typedef void (*UHardwareGpsAGpsRilRequestRefLoc)(uint32_t flags, void *context);
 
-typedef UBUNTU_DLL_PUBLIC struct
+typedef struct
 {
 
     UHardwareGpsLocationCallback location_cb;

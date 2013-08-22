@@ -31,7 +31,7 @@ extern "C" {
     /** A timestamped accelerometer reading 
      * \ingroup sensor_access
      */
-    typedef UBUNTU_DLL_PUBLIC struct
+    typedef struct
     {
         int64_t timestamp;
 
@@ -43,7 +43,7 @@ extern "C" {
     /** A timestamped proximity sensor reading 
      * \ingroup sensor_access
      */
-    typedef UBUNTU_DLL_PUBLIC struct
+    typedef struct
     {
         int64_t timestamp;
 
@@ -53,7 +53,7 @@ extern "C" {
     /** A timestamped ambient light sensor reading 
      * \ingroup sensor_access
      */
-    typedef UBUNTU_DLL_PUBLIC struct
+    typedef struct
     {
         int64_t timestamp;
 
@@ -63,7 +63,7 @@ extern "C" {
     /** Describes the sensor types known to the system 
      * \ingroup sensor_access
      */
-    enum UBUNTU_DLL_PUBLIC ubuntu_sensor_type
+    enum ubuntu_sensor_type
     {
         first_defined_sensor_type = 0,
         ubuntu_sensor_type_accelerometer = first_defined_sensor_type,
@@ -101,7 +101,7 @@ extern "C" {
     /** Models a sensor observer. 
      * \ingroup sensor_access
      */
-    typedef UBUNTU_DLL_PUBLIC struct
+    typedef struct
     {   
         /** Invoked for new readings from an accelerometer. */
         on_new_accelerometer_reading on_new_accelerometer_reading_cb;
