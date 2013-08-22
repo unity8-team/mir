@@ -20,8 +20,10 @@
 #ifndef UBUNTU_APPLICATION_INSTANCE_H_
 #define UBUNTU_APPLICATION_INSTANCE_H_
 
-#include "description.h"
-#include "options.h"
+#include <ubuntu/visibility.h>
+
+#include <ubuntu/application/description.h>
+#include <ubuntu/application/options.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -43,7 +45,7 @@ extern "C" {
      * \param[in] desc A description object, must not be NULL.
      * \param[in] options An options object, must not be NULL.
      */
-    UApplicationInstance*
+    UBUNTU_DLL_PUBLIC UApplicationInstance*
     u_application_instance_new_from_description_with_options(
         UApplicationDescription *desc,
         UApplicationOptions *options);
@@ -53,7 +55,7 @@ extern "C" {
      * \ingroup application_support
      * \param[in] instance The instance to increment the reference count for.
      */
-    void
+    UBUNTU_DLL_PUBLIC void
     u_application_instance_ref(
         UApplicationInstance *instance);
 
@@ -62,7 +64,7 @@ extern "C" {
      * \ingroup application_support
      * \param[in] instance The instance to decrement the reference count for.
      */
-    void
+    UBUNTU_DLL_PUBLIC void
     u_application_instance_unref(
         UApplicationInstance *instance);
 
@@ -71,7 +73,7 @@ extern "C" {
      * \ingroup application_support
      * \param[in] instance The instance to be destroyed.
      */
-    void
+    UBUNTU_DLL_PUBLIC void
     u_application_instance_destroy(
         UApplicationInstance *instance);
 
@@ -80,7 +82,7 @@ extern "C" {
      * \ingroup application_support
      * \param[in] instance The instance to be executed.
      */
-    void
+    UBUNTU_DLL_PUBLIC void
     u_application_instance_run(
         UApplicationInstance *instance);
 

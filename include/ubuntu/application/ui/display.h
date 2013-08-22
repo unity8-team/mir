@@ -20,6 +20,8 @@
 #ifndef UBUNTU_APPLICATION_UI_DISPLAY_H_
 #define UBUNTU_APPLICATION_UI_DISPLAY_H_
 
+#include <ubuntu/visibility.h>
+
 #include <EGL/egl.h>
 
 #ifdef __cplusplus
@@ -28,23 +30,23 @@ extern "C" {
 
     typedef void UAUiDisplay;
     
-    UAUiDisplay*
+    UBUNTU_DLL_PUBLIC UAUiDisplay*
     ua_ui_display_new_with_index(
         size_t index);
     
-    void
+    UBUNTU_DLL_PUBLIC void
     ua_ui_display_destroy(
         UAUiDisplay* display);
     
-    uint32_t
+    UBUNTU_DLL_PUBLIC uint32_t
     ua_ui_display_query_horizontal_res(
         UAUiDisplay* display);
     
-    uint32_t
+    UBUNTU_DLL_PUBLIC uint32_t
     ua_ui_display_query_vertical_res(
         UAUiDisplay* display);
     
-    EGLNativeDisplayType
+    UBUNTU_DLL_PUBLIC EGLNativeDisplayType
     ua_ui_display_get_native_type(
         UAUiDisplay* display);
     

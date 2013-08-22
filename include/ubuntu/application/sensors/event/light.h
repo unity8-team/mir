@@ -19,6 +19,8 @@
 #ifndef UBUNTU_APPLICATION_SENSORS_LIGHT_EVENT_H_
 #define UBUNTU_APPLICATION_SENSORS_LIGHT_EVENT_H_
 
+#include <ubuntu/visibility.h>
+
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -37,7 +39,7 @@ extern "C" {
      * \returns The timestamp of the sensor reading in [µs], timebase: monotonic clock.
      * \param[in] event The reading to be queried.
      */
-    uint64_t
+    UBUNTU_DLL_PUBLIC uint64_t
     uas_light_event_get_timestamp(
         UASLightEvent* event);
 
@@ -47,7 +49,7 @@ extern "C" {
      * \returns The ambient light level.
      * \param[in] event The reading to be queried.
      */
-    float
+    UBUNTU_DLL_PUBLIC float
     uas_light_event_get_light(
         UASLightEvent* event);
 

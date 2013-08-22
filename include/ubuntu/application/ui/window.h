@@ -20,11 +20,13 @@
 #ifndef UBUNTU_APPLICATION_UI_WINDOW_H_
 #define UBUNTU_APPLICATION_UI_WINDOW_H_
 
-#include <EGL/egl.h>
+#include <ubuntu/visibility.h>
 
 #include <ubuntu/status.h>
 #include <ubuntu/application/instance.h>
 #include <ubuntu/application/ui/window_properties.h>
+
+#include <EGL/egl.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -33,44 +35,44 @@ extern "C" {
     typedef void UAUiWindow;
     typedef int32_t UAUiWindowId;
     
-    UAUiWindow*
+    UBUNTU_DLL_PUBLIC UAUiWindow*
     ua_ui_window_new_for_application_with_properties(
     	UApplicationInstance *instance,
     	UAUiWindowProperties *properties);
     
-    void
+    UBUNTU_DLL_PUBLIC void
     ua_ui_window_destroy(
     	UAUiWindow *window);
     
-    UAUiWindowId
+    UBUNTU_DLL_PUBLIC UAUiWindowId
     ua_ui_window_get_id(
     	UAUiWindow *window);
     
-    UStatus
+    UBUNTU_DLL_PUBLIC UStatus
     ua_ui_window_move(
         UAUiWindow *window,
         uint32_t new_x,
         uint32_t new_y);
 
-    UStatus
+    UBUNTU_DLL_PUBLIC UStatus
     ua_ui_window_resize(
     	UAUiWindow *window,
     	uint32_t new_width,
     	uint32_t new_height);
     
-    UStatus
+    UBUNTU_DLL_PUBLIC UStatus
     ua_ui_window_hide(
     	UAUiWindow *window);
     
-    UStatus
+    UBUNTU_DLL_PUBLIC UStatus
     ua_ui_window_show(
     	UAUiWindow *window);
 
-    void
+    UBUNTU_DLL_PUBLIC void
     ua_ui_window_request_fullscreen(
         UAUiWindow *window);
 
-    EGLNativeWindowType
+    UBUNTU_DLL_PUBLIC EGLNativeWindowType
     ua_ui_window_get_native_type(
         UAUiWindow *window);
 

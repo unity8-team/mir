@@ -20,8 +20,10 @@
 #ifndef UBUNTU_APPLICATION_DESCRIPTION_H_
 #define UBUNTU_APPLICATION_DESCRIPTION_H_
 
-#include "id.h"
-#include "lifecycle_delegate.h"
+#include <ubuntu/visibility.h>
+
+#include <ubuntu/application/id.h>
+#include <ubuntu/application/lifecycle_delegate.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -38,7 +40,7 @@ extern "C" {
      * \ingroup application_support
      * \returns A new application description instance or NULL if not enough memory is available.
      */
-    UApplicationDescription*
+    UBUNTU_DLL_PUBLIC UApplicationDescription*
     u_application_description_new();
 
     /**
@@ -46,7 +48,7 @@ extern "C" {
      * \ingroup application_support
      * \param[in] desc The instance to be destroyed.
      */
-    void
+    UBUNTU_DLL_PUBLIC void
     u_application_description_destroy(
         UApplicationDescription *desc);
 
@@ -56,7 +58,7 @@ extern "C" {
      * \param[in] desc The application description instance, must not be NULL.
      * \param[in] id The new application id, must not be NULL.
      */
-    void
+    UBUNTU_DLL_PUBLIC void
     u_application_description_set_application_id(
         UApplicationDescription *desc,
         UApplicationId *id);
@@ -67,7 +69,7 @@ extern "C" {
      * \returns The app id contained in the instance.
      * \param[in] desc The application description instance, must not be NULL.
      */
-    UApplicationId*
+    UBUNTU_DLL_PUBLIC UApplicationId*
     u_application_description_get_application_id(
         UApplicationDescription *desc);
 
@@ -77,7 +79,7 @@ extern "C" {
      * \param[in] desc The application description instance, must not be NULL.
      * \param[in] lifecycle_delegate The new lifecycle delegate, must not be NULL.
      */
-    void
+    UBUNTU_DLL_PUBLIC void
     u_application_description_set_application_lifecycle_delegate(
         UApplicationDescription *desc,
         UApplicationLifecycleDelegate *lifecycle_delegate);
@@ -88,7 +90,7 @@ extern "C" {
      * \returns The application lifecycle delegate contained in the description instance.
      * \param[in] desc The application description instance, must not be NULL.
      */
-    UApplicationLifecycleDelegate*
+    UBUNTU_DLL_PUBLIC UApplicationLifecycleDelegate*
     u_application_description_get_application_lifecycle_delegate(
         UApplicationDescription *desc);
 

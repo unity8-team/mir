@@ -19,6 +19,8 @@
 #ifndef UBUNTU_APPLICATION_SENSORS_PROXIMITY_EVENT_H_
 #define UBUNTU_APPLICATION_SENSORS_PROXIMITY_EVENT_H_
 
+#include <ubuntu/visibility.h>
+
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -48,7 +50,7 @@ extern "C" {
      * \returns The timestamp of the sensor reading in [µs], timebase: monotonic clock.
      * \param[in] event The reading to be queried.
      */
-    uint64_t
+    UBUNTU_DLL_PUBLIC uint64_t
     uas_proximity_event_get_timestamp(
         UASProximityEvent* event);
 
@@ -58,7 +60,7 @@ extern "C" {
      * \returns The discrete distance as reported by the proximity sensor.
      * \param[in] event The reading to be queried.
      */
-    UASProximityDistance
+    UBUNTU_DLL_PUBLIC UASProximityDistance
     uas_proximity_event_get_distance(
         UASProximityEvent* event);
 
