@@ -31,10 +31,10 @@ class DefaultServerConfiguration;
 
 extern "C"
 {
-void ua_ui_mirserver_init(mir::DefaultServerConfiguration& config);
+UBUNTU_DLL_PUBLIC void ua_ui_mirserver_init(mir::DefaultServerConfiguration& config);
 
 // Release platform-api ownership of Mir server objects to allow for clean shutdown.
-void ua_ui_mirserver_finish();
+UBUNTU_DLL_PUBLIC void ua_ui_mirserver_finish();
 }
 
 #endif // UBUNTU_APPLICATION_API_MIRSERVER_PRIV_H_
