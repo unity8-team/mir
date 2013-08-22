@@ -13,6 +13,7 @@ Build-Depends: cmake,
                pkg-config,
                libmirclient-dev,
                libmirserver-dev,
+               liburl-dispatcher1-dev,
 Standards-Version: 3.9.4
 Homepage: https://launchpad.net/platform-api
 Vcs-Bzr: lp:platform-api
