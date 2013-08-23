@@ -32,7 +32,8 @@ void
 dispatch_callback(const gchar *url, gboolean success, gpointer user_data)
 {
     DispatchCallBackData *data = (DispatchCallBackData*)user_data;
-    data->handler(success ? U_STATUS_SUCCESS : U_STATUS_ERROR, url, data->user_context);
+    if (data->handler) 
+        data->handler(success ? U_STATUS_SUCCESS : U_STATUS_ERROR, url, data->user_context);
     free(data);
 }
 
