@@ -19,7 +19,8 @@
 #ifndef UBUNTU_APPLICATION_LOCATION_SERVICE_CONTROLLER_H_
 #define UBUNTU_APPLICATION_LOCATION_SERVICE_CONTROLLER_H_
 
-#include "ubuntu/status.h"
+#include <ubuntu/status.h>
+#include <ubuntu/visibility.h>
 
 #ifdef __cplusplus
 extern "C"
@@ -81,7 +82,7 @@ extern "C"
      * \param[in] handler The status changed handler to invoke.
      * \param[in] context The context pointer to pass in the status changed handler
      */
-    UStatus
+    void
     ua_location_service_controller_set_status_changed_handler(
         UALocationServiceController *controller,
         UALocationServiceStatusChangedHandler handler,
