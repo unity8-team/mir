@@ -29,8 +29,6 @@ namespace application
 {
 namespace mir
 {
-namespace client
-{
 
 class LifecycleDelegate
 {
@@ -56,7 +54,6 @@ private:
     unsigned int ref_count;
 };
 
-}
 }
 }
 }

@@ -19,7 +19,7 @@
 #include "application_instance_mirclient_priv.h"
 #include "window_properties_mirclient_priv.h"
 #include "window_mirclient_priv.h"
-#include "lifecycle_delegate_mir_priv.h"
+#include "mircommon/lifecycle_delegate_mir_priv.h"
 
 #include "mircommon/application_id_mir_priv.h"
 
@@ -59,7 +59,7 @@ mir_display_u_display(MirDisplayInfo *display)
 
 static void dispatch_callback(MirConnection* conn, MirLifecycleState state, void* context)
 {
-    auto delegate = static_cast<uamc::LifecycleDelegate*>(context);
+    auto delegate = static_cast<uam::LifecycleDelegate*>(context);
     void* c_ctx = u_application_lifecycle_delegate_get_context(delegate->as_u_lifecycle_delegate(), nullptr);
 
     switch (state)
