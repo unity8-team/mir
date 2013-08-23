@@ -20,6 +20,8 @@
 
 #include "ubuntu/application/url_dispatcher/session.h"
 
+#include <ubuntu/visibility.h>
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -36,7 +38,7 @@ extern "C"
      * \brief Creates a new session with the url dispatcher service.
      * \returns A new session or NULL if the app lacks permissions to access the url dispatcher.
      */
-    UAUrlDispatcherSession*
+    UBUNTU_DLL_PUBLIC UAUrlDispatcherSession*
     ua_url_dispatcher_session();
 
 #ifdef __cplusplus

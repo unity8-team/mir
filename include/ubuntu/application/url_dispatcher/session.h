@@ -18,7 +18,8 @@
 #ifndef UBUNTU_APPLICATION_URL_DISPATCHER_SESSION_H_
 #define UBUNTU_APPLICATION_URL_DISPATCHER_SESSION_H_
 
-#include "ubuntu/status.h"
+#include <ubuntu/status.h>
+#include <ubuntu/visibility.h>
 
 #ifdef __cplusplus
 extern "C"
@@ -52,7 +53,7 @@ extern "C"
      * \param[in] handler The url dispatcher open handler.
      * \param[in] context Your context, will be returned to you as is in the handler callback.
      */
-    void
+    UBUNTU_DLL_PUBLIC void
     ua_url_dispatcher_session_open(
         UAUrlDispatcherSession *session,
         const char *url,
