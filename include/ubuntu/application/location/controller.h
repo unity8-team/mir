@@ -75,9 +75,11 @@ extern "C"
         UALocationServiceController *controller);
 
     /**
-     * \brief Increments the reference count of the controller instance.
+     * \brief Sets the status changed handler of the controller instance.
      * \ingroup location_service
-     * \param[in] controller The controller instance to increment the reference count for.
+     * \param[in] controller The controller instance.
+     * \param[in] handler The status changed handler to invoke.
+     * \param[in] context The context pointer to pass in the status changed handler
      */
     UStatus
     ua_location_service_controller_set_status_changed_handler(
