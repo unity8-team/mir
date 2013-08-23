@@ -4,8 +4,8 @@ find_package(Threads)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --std=c++11 -fPIC")
 
-pkg_check_modules(DBUS_CPP dbus-cpp REQUIRED)
-pkg_check_modules(LOCATION_SERVICE ubuntu-location-service REQUIRED)
+pkg_check_modules(DBUS_CPP REQUIRED dbus-cpp)
+pkg_check_modules(LOCATION_SERVICE REQUIRED ubuntu-location-service)
 
 include_directories(
   ${Boost_INCLUDE_DIRS}
@@ -16,6 +16,7 @@ include_directories(
 add_library(
   ubuntu_application_location
 
+  controller.cpp
   service.cpp
   session.cpp
 

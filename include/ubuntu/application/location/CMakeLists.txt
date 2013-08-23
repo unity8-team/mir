@@ -1,6 +1,7 @@
 set(
-  UBUNTU_APPLICATION_SENSORS_HEADERS
+  UBUNTU_APPLICATION_LOCATION_HEADERS
 
+  controller.h
   heading_update.h
   position_update.h
   service.h
@@ -9,6 +10,6 @@ set(
 )
 
 install(
-  FILES ${UBUNTU_APPLICATION_SENSORS_HEADERS}
+  FILES ${UBUNTU_APPLICATION_LOCATION_HEADERS}
   DESTINATION include/ubuntu/application/location
 )
