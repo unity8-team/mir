@@ -19,6 +19,8 @@
 #ifndef UBUNTU_APPLICATION_API_MIRSERVER_PRIV_H_
 #define UBUNTU_APPLICATION_API_MIRSERVER_PRIV_H_
 
+#include <ubuntu/visibility.h>
+
 namespace mir
 {
 class DefaultServerConfiguration;
