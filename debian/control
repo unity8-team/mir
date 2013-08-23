@@ -90,17 +90,6 @@ Description: Implementation of the Platform API for a Mir client
  This package provides the implementation of the Platform API to
  allow a client to connect to a Mir server.
 
-Package: libubuntu-application-api-url-dispatcher1
-Section: libs
-Pre-Depends: ${misc:Pre-Depends},
-Multi-Arch: same
-Architecture: any
-Depends: ${misc:Depends},
-         ${shlibs:Depends},
-Description: Implementation of the Platform API for a url dispatcher client
- This package provides the implementation of the Platform API to
- allow a client to connect to the url dispatcher service.
-
 Package: libplatform-hardware-api1-dev
 Section: libdevel
 Architecture: any
