@@ -76,6 +76,7 @@ global_mirserver_context()
     static MirServerContext context;
     return &context;
 }
+}
 
 extern "C"
 {
@@ -99,13 +100,6 @@ void ua_ui_mirserver_finish()
     context->input_platform.reset();
     context->egl_client.reset();
 }
-}
-
-}
-
-
-extern "C"
-{
 
 UApplicationInstance* u_application_instance_new_from_description_with_options(UApplicationDescription* u_description, UApplicationOptions* u_options)
 {
