@@ -18,6 +18,8 @@
 #ifndef UBUNTU_APPLICATION_UI_INPUT_EVENT_H_
 #define UBUNTU_APPLICATION_UI_INPUT_EVENT_H_
 
+#include <ubuntu/visibility.h>
+
 #include <stddef.h>
 #include <stdint.h>
 

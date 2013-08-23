@@ -22,7 +22,8 @@ namespace uamc = ubuntu::application::mir::client;
 
 uamc::WindowProperties::WindowProperties()
     : cb(nullptr),
-      input_ctx(nullptr)
+      input_ctx(nullptr),
+      type(mir_surface_type_normal)
 {
     parameters.name = nullptr;
     parameters.width = 0;
@@ -51,9 +52,22 @@ void uamc::WindowProperties::set_input_cb_and_ctx(UAUiWindowInputEventCb callbac
     input_ctx = ctx;
 }
 
+void uamc::WindowProperties::set_role(UAUiWindowRole role)
+{
+    if (role == U_ON_SCREEN_KEYBOARD_ROLE) {
+        type = mir_surface_type_inputmethod;
+    }
+    //TODO implement other surface roles
+}
+
 MirSurfaceParameters const& uamc::WindowProperties::surface_parameters() const
 {
     return parameters;
+}
+
+MirSurfaceType uamc::WindowProperties::surface_type() const
+{
+    return type;
 }
 
 UAUiWindowInputEventCb uamc::WindowProperties::input_cb() const
@@ -65,4 +79,3 @@ void* uamc::WindowProperties::input_context() const
 {
     return input_ctx;
 }
-

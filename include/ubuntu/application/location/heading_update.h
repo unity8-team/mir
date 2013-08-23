@@ -19,6 +19,8 @@
 #ifndef UBUNTU_APPLICATION_LOCATION_HEADING_UPDATE_H_
 #define UBUNTU_APPLICATION_LOCATION_HEADING_UPDATE_H_
 
+#include <ubuntu/visibility.h>
+
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -38,7 +40,7 @@ extern "C"
      * \ingroup location_service
      * \param[in] update The heading update instance to increment the reference count for.
      */
-    void
+    UBUNTU_DLL_PUBLIC void
     ua_location_heading_update_ref(
         UALocationHeadingUpdate *update);
 
@@ -47,7 +49,7 @@ extern "C"
      * \ingroup location_service
      * \param[in] update The heading update instance to decrement the reference count for.
      */
-    void
+    UBUNTU_DLL_PUBLIC void
     ua_location_heading_update_unref(
         UALocationHeadingUpdate *update);
 
@@ -57,7 +59,7 @@ extern "C"
      * \returns The timestamp of the heading update in [µs].
      * \param[in] update The heading update instance to be queried.
      */
-    uint64_t
+    UBUNTU_DLL_PUBLIC uint64_t
     ua_location_heading_update_get_timestamp(
         UALocationHeadingUpdate *update);
 
@@ -67,7 +69,7 @@ extern "C"
      * \returns The new heading from the update in [°].
      * \param[in] update The heading update instance to be queried.
      */
-    double
+    UBUNTU_DLL_PUBLIC double
     ua_location_heading_update_get_heading_in_degree(
         UALocationHeadingUpdate *update);
 

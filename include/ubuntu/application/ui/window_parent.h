@@ -20,6 +20,8 @@
 #ifndef UBUNTU_APPLICATION_UI_WINDOW_PARENT_H_
 #define UBUNTU_APPLICATION_UI_WINDOW_PARENT_H_
 
+#include <ubuntu/visibility.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -34,29 +36,29 @@ extern "C" {
     
     typedef struct UApplicationUiWindowParent;
     
-    UApplicationUiWindowParent*
+    UBUNTU_DLL_PUBLIC UApplicationUiWindowParent*
     u_application_ui_window_parent_new_with_window(
     	UApplicationUiWindow *window);
     
-    UApplicationUiWindowParent*
+    UBUNTU_DLL_PUBLIC UApplicationUiWindowParent*
     u_application_ui_window_parent_new_with_application(
     	UApplicationInstance *instance);
     
-    UApplicationUiWindowParent*
+    UBUNTU_DLL_PUBLIC UApplicationUiWindowParent*
     u_application_ui_window_parent_new_for_session();
     
-    UApplicationUiWindowParent*
+    UBUNTU_DLL_PUBLIC UApplicationUiWindowParent*
     u_application_ui_window_parent_new_for_system();
     
-    void
+    UBUNTU_DLL_PUBLIC void
     u_application_ui_window_parent_destroy(
     	UApplicationUiWindowParent *parent);
     
-    UApplicationUiWindowParentType
+    UBUNTU_DLL_PUBLIC UApplicationUiWindowParentType
     u_application_ui_window_parent_get_type(
     	UApplicationUiWindowParent *parent);
     
-    UApplicationUiWindow*
+    UBUNTU_DLL_PUBLIC UApplicationUiWindow*
     u_application_ui_window_parent_get_parent_window(
     	UApplicationUiWindowParent *parent);
 

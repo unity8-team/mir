@@ -19,10 +19,12 @@
 #ifndef UBUNTU_APPLICATION_LOCATION_SESSION_H_
 #define UBUNTU_APPLICATION_LOCATION_SESSION_H_
 
-#include "ubuntu/status.h"
-#include "ubuntu/application/location/heading_update.h"
-#include "ubuntu/application/location/position_update.h"
-#include "ubuntu/application/location/velocity_update.h"
+#include <ubuntu/status.h>
+#include <ubuntu/visibility.h>
+
+#include <ubuntu/application/location/heading_update.h>
+#include <ubuntu/application/location/position_update.h>
+#include <ubuntu/application/location/velocity_update.h>
 
 #ifdef __cplusplus
 extern "C"
@@ -64,7 +66,7 @@ extern "C"
      * \ingroup location_service
      * \param[in] session The session instance to increment the reference count for.
      */
-    void
+    UBUNTU_DLL_PUBLIC void
     ua_location_service_session_ref(
         UALocationServiceSession *session);
 
@@ -73,7 +75,7 @@ extern "C"
      * \ingroup location_service
      * \param[in] session The session instance to decrement the reference count for.
      */
-    void
+    UBUNTU_DLL_PUBLIC void
     ua_location_service_session_unref(
         UALocationServiceSession *session);
 
@@ -83,7 +85,7 @@ extern "C"
      * \param[in] session The session instance to install the handler for.
      * \param[in] handler The position update handler.
      */
-    void
+    UBUNTU_DLL_PUBLIC void
     ua_location_service_session_set_position_updates_handler(
         UALocationServiceSession *session,
         UALocationServiceSessionPositionUpdatesHandler handler,
@@ -95,7 +97,7 @@ extern "C"
      * \param[in] session The session instance to install the handler for.
      * \param[in] handler The heading update handler.
      */
-    void
+    UBUNTU_DLL_PUBLIC void
     ua_location_service_session_set_heading_updates_handler(
         UALocationServiceSession *session,
         UALocationServiceSessionHeadingUpdatesHandler handler,
@@ -107,7 +109,7 @@ extern "C"
      * \param[in] session The session instance to install the handler for.
      * \param[in] handler The velocity update handler.
      */
-    void
+    UBUNTU_DLL_PUBLIC void
     ua_location_service_session_set_velocity_updates_handler(
         UALocationServiceSession *session,
         UALocationServiceSessionVelocityUpdatesHandler handler,
@@ -119,7 +121,7 @@ extern "C"
      * \returns U_STATUS_SUCCESS if the updates were successfully started on the service side, else U_STATUS_ERROR.
      * \param[in] session The session instance to start position updates for.
      */
-    UStatus
+    UBUNTU_DLL_PUBLIC UStatus
     ua_location_service_session_start_position_updates(
         UALocationServiceSession *session);
 
@@ -128,7 +130,7 @@ extern "C"
      * \ingroup location_service
      * \param[in] session The session instance to stop position updates for.
      */
-    void
+    UBUNTU_DLL_PUBLIC void
     ua_location_service_session_stop_position_updates(
         UALocationServiceSession *session);
 
@@ -138,7 +140,7 @@ extern "C"
      * \returns U_STATUS_SUCCESS if the updates were successfully started on the service side, else U_STATUS_ERROR.
      * \param[in] session The session instance to start heading updates for.
      */
-    UStatus
+    UBUNTU_DLL_PUBLIC UStatus
     ua_location_service_session_start_heading_updates(
         UALocationServiceSession *session);
 
@@ -147,7 +149,7 @@ extern "C"
      * \ingroup location_service
      * \param[in] session The session instance to stop heading updates for.
      */
-    void
+    UBUNTU_DLL_PUBLIC void
     ua_location_service_session_stop_heading_updates(
         UALocationServiceSession *session);
 
@@ -157,7 +159,7 @@ extern "C"
      * \returns U_STATUS_SUCCESS if the updates were successfully started on the service side, else U_STATUS_ERROR.
      * \param[in] session The session instance to start velocity updates for.
      */
-    UStatus
+    UBUNTU_DLL_PUBLIC UStatus
     ua_location_service_session_start_velocity_updates(
         UALocationServiceSession *session);
 
@@ -166,7 +168,7 @@ extern "C"
      * \ingroup location_service
      * \param[in] session The session instance to stop velocity updates for.
      */
-    void
+    UBUNTU_DLL_PUBLIC void
     ua_location_service_session_stop_velocity_updates(
         UALocationServiceSession *session);
 

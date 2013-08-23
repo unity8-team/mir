@@ -13,31 +13,20 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Authored by: Ricardo Mendoza <ricardo.mendoza@canonical.com>
- *              Thomas Voß <thomas.voss@canonical.com>           
+ * Authored by: Gerry Boland <gerry.boland@canonical.com>
  */
 
-#ifndef UBUNTU_APPLICATION_UI_CLIPBOARD_H_
-#define UBUNTU_APPLICATION_UI_CLIPBOARD_H_
+#ifndef UBUNTU_APPLICATION_UI_WINDOW_STATE_H_
+#define UBUNTU_APPLICATION_UI_WINDOW_STATE_H_
 
-#include <ubuntu/visibility.h>
+typedef enum
+{
+	U_UNKNOWN_STATE,
+	U_RESTORED_STATE,
+	U_MINIMIZED_STATE,
+	U_MAXIMIZED_STATE,
+	U_VERTMAXIMIZED_STATE,
+	U_FULLSCREEN_STATE
+} UApplicationUiWindowState;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-    UBUNTU_DLL_PUBLIC void
-    ua_ui_set_clipboard_content(
-        void* data,
-        size_t size);
-    
-    UBUNTU_DLL_PUBLIC void
-    ua_ui_get_clipboard_content(
-        void** data,
-        size_t* size);
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* UBUNTU_APPLICATION_UI_CLIPBOARD_H_ */
+#endif /* UBUNTU_APPLICATION_UI_WINDOW_STATE_H_ */

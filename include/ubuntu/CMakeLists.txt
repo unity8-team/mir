@@ -2,6 +2,7 @@ set(
   UBUNTU_HEADERS
   status.h
   unit.h
+  visibility.h
 )
 
 install(

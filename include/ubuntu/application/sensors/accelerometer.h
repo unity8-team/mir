@@ -20,6 +20,8 @@
 #define UBUNTU_APPLICATION_SENSORS_ACCELEROMETER_H_
 
 #include <ubuntu/status.h>
+#include <ubuntu/visibility.h>
+
 #include <ubuntu/application/sensors/event/accelerometer.h>
 
 #ifdef __cplusplus
@@ -44,7 +46,7 @@ extern "C" {
      * \ingroup sensor_access
      * \returns A new instance or NULL in case of errors.
      */
-    UASensorsAccelerometer*
+    UBUNTU_DLL_PUBLIC UASensorsAccelerometer*
     ua_sensors_accelerometer_new();
 
     /**
@@ -53,7 +55,7 @@ extern "C" {
      * \returns U_STATUS_SUCCESS if successful or U_STATUS_ERROR if an error occured.
      * \param[in] sensor The sensor instance to be enabled.
      */
-    UStatus
+    UBUNTU_DLL_PUBLIC UStatus
     ua_sensors_accelerometer_enable(
         UASensorsAccelerometer* sensor);
 
@@ -63,7 +65,7 @@ extern "C" {
      * \returns U_STATUS_SUCCESS if successful or U_STATUS_ERROR if an error occured.
      * \param[in] sensor The sensor instance to be disabled.
      */
-    UStatus
+    UBUNTU_DLL_PUBLIC UStatus
     ua_sensors_accelerometer_disable(
         UASensorsAccelerometer* sensor);
 
@@ -73,7 +75,7 @@ extern "C" {
      * \returns The minimum delay between two readings in [ms].
      * \param[in] sensor The sensor instance to be queried.
      */
-    uint32_t
+    UBUNTU_DLL_PUBLIC uint32_t
     ua_sensors_accelerometer_get_min_delay(
         UASensorsAccelerometer* sensor);
 
@@ -83,7 +85,7 @@ extern "C" {
      * \returns The minimum value that can be reported by the sensor.
      * \param[in] sensor The sensor instance to be queried.
      */
-    float
+    UBUNTU_DLL_PUBLIC float
     ua_sensors_accelerometer_get_min_value(
         UASensorsAccelerometer* sensor);
 
@@ -93,7 +95,7 @@ extern "C" {
      * \returns The maximum value that can be reported by the sensor.
      * \param[in] sensor The sensor instance to be queried.
      */
-    float
+    UBUNTU_DLL_PUBLIC float
     ua_sensors_accelerometer_get_max_value(
         UASensorsAccelerometer* sensor);
 
@@ -103,7 +105,7 @@ extern "C" {
      * \returns The numeric resolution supported by the sensor.
      * \param[in] sensor The sensor instance to be queried.
      */
-    float
+    UBUNTU_DLL_PUBLIC float
     ua_sensors_accelerometer_get_resolution(
         UASensorsAccelerometer* sensor);
 
@@ -114,7 +116,7 @@ extern "C" {
      * \param[in] cb The callback to be invoked.
      * \param[in] ctx The context supplied to the callback invocation.
      */
-    void
+    UBUNTU_DLL_PUBLIC void
     ua_sensors_accelerometer_set_reading_cb(
         UASensorsAccelerometer* sensor,
         on_accelerometer_event_cb cb,

@@ -98,6 +98,11 @@ uamc::Window::Window(uamc::Instance& instance,
         {
             delete c;
         });
+
+    if (properties->surface_type()) {
+        // TODO: Should I bother checking the result?
+        mir_surface_set_type(mir_surface, properties->surface_type());
+    }
     
     MirEventDelegate delegate = 
         { 
@@ -125,4 +130,14 @@ uamc::Window* uamc::Window::from_u_window(UAUiWindow *u_window)
 EGLNativeWindowType uamc::Window::get_native_type()
 {
     return reinterpret_cast<EGLNativeWindowType>(mir_surface_get_egl_native_window(surface.get()));
+}
+
+UApplicationUiWindowState uamc::Window::state() const
+{
+    return static_cast<UApplicationUiWindowState>(mir_surface_get_state(surface.get()));
+}
+
+void uamc::Window::set_state(const UApplicationUiWindowState state)
+{
+    mir_surface_set_state(surface.get(), static_cast<MirSurfaceState>(state));
 }

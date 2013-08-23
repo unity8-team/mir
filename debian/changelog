@@ -1,3 +1,107 @@
+platform-api (0.18.3+13.10.20130823-0ubuntu1) saucy; urgency=low
+
+  [ Ubuntu daily release ]
+  * debian/*symbols: auto-update new symbols to released version
+  * New rebuild forced
+
+  [ Ricardo Mendoza ]
+  * Restore accidentally dropped symbols back to the Mir server API.
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 131
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Fri, 23 Aug 2013 06:45:15 +0000
+
+platform-api (0.18.3+13.10.20130822.2-0ubuntu1) saucy; urgency=low
+
+  [ thomas-voss ]
+  * Reimplement location submodule on top of location-service.
+
+  [ Thomas Voß ]
+  * Reimplement location submodule on top of location-service.
+
+  [ Ubuntu daily release ]
+  * New rebuild forced
+  * Automatic snapshot from revision 129
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 22 Aug 2013 18:06:37 +0000
+
+platform-api (0.18.3+13.10.20130822.1-0ubuntu1) saucy; urgency=low
+
+  * New rebuild forced
+  * Automatic snapshot from revision 127
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 22 Aug 2013 14:36:12 +0000
+
+platform-api (0.18.3+13.10.20130822-0ubuntu1) saucy; urgency=low
+
+  * New rebuild forced
+  * Automatic snapshot from revision 126
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 22 Aug 2013 10:42:14 +0000
+
+platform-api (0.18.3+13.10.20130821.1-0ubuntu1) saucy; urgency=low
+
+  * New rebuild forced
+  * Automatic snapshot from revision 125
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Wed, 21 Aug 2013 14:40:14 +0000
+
+platform-api (0.18.3+13.10.20130821-0ubuntu1) saucy; urgency=low
+
+  [ Daniel d'Andrada ]
+  * Enable OSK window role, which ties into Mir's OSK surface type. Also
+    add "state" property to Window, and this implement
+    show/hide/fullscreen functions using Mir's surface state API.
+
+  [ Ricardo Salveti de Araujo ]
+  * debian/control: depending on libhybris-common only instead.
+
+  [ Robert Carr ]
+  * Enable OSK window role, which ties into Mir's OSK surface type. Also
+    add "state" property to Window, and this implement
+    show/hide/fullscreen functions using Mir's surface state API.
+
+  [ Ubuntu daily release ]
+  * New rebuild forced
+
+  [ Gerry Boland ]
+  * Enable OSK window role, which ties into Mir's OSK surface type. Also
+    add "state" property to Window, and this implement
+    show/hide/fullscreen functions using Mir's surface state API.
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 124
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Wed, 21 Aug 2013 06:51:21 +0000
+
+platform-api (0.18.3+13.10.20130820-0ubuntu1) saucy; urgency=low
+
+  [ Gerry Boland ]
+  * Revert Cflags change in pkgconfig file in rev 118.
+  * Remove workaround to obtain Mir internal surface, as Mir added
+    as_internal_surface method in revno 964.
+
+  [ Ubuntu daily release ]
+  * New rebuild forced
+  * Automatic snapshot from revision 121
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Tue, 20 Aug 2013 14:06:21 +0000
+
+platform-api (0.18.3+13.10.20130815.1-0ubuntu1) saucy; urgency=low
+
+  [ Ubuntu daily release ]
+  * debian/*symbols: auto-update new symbols to released version
+  * New rebuild forced
+
+  [ Thomas Voß ]
+  * Fix typos in location service API.
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 118
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 15 Aug 2013 06:06:34 +0000
+
 platform-api (0.18.3+13.10.20130813-0ubuntu1) saucy; urgency=low
 
   [ Ubuntu daily release ]

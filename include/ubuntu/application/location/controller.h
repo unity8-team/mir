@@ -62,7 +62,7 @@ extern "C"
      * \ingroup location_service
      * \param[in] controller The controller instance to increment the reference count for.
      */
-    void
+    UBUNTU_DLL_PUBLIC void
     ua_location_service_controller_ref(
         UALocationServiceController *controller);
 
@@ -71,7 +71,7 @@ extern "C"
      * \ingroup location_service
      * \param[in] controller The controller instance to decrement the reference count for.
      */
-    void
+    UBUNTU_DLL_PUBLIC void
     ua_location_service_controller_unref(
         UALocationServiceController *controller);
 
@@ -82,7 +82,7 @@ extern "C"
      * \param[in] handler The status changed handler to invoke.
      * \param[in] context The context pointer to pass in the status changed handler
      */
-    void
+    UBUNTU_DLL_PUBLIC void
     ua_location_service_controller_set_status_changed_handler(
         UALocationServiceController *controller,
         UALocationServiceStatusChangedHandler handler,
@@ -94,7 +94,7 @@ extern "C"
      * \param[in] controller The controller instance.
      * \param[out] flags Flags indicating the service status.
      */
-    UStatus
+    UBUNTU_DLL_PUBLIC UStatus
     ua_location_service_controller_query_status(
         UALocationServiceController *controller,
         UALocationServiceStatusFlags *out_flags);
@@ -104,7 +104,7 @@ extern "C"
      * \ingroup location_service
      * \param[in] controller The controller instance.
      */
-    UStatus
+    UBUNTU_DLL_PUBLIC UStatus
     ua_location_service_controller_enable_service(
         UALocationServiceController *controller);
 
@@ -113,7 +113,7 @@ extern "C"
      * \ingroup location_service
      * \param[in] controller The controller instance.
      */
-    UStatus
+    UBUNTU_DLL_PUBLIC UStatus
     ua_location_service_controller_disable_service(
         UALocationServiceController *controller);
 
@@ -122,7 +122,7 @@ extern "C"
      * \ingroup location_service
      * \param[in] controller The controller instance.
      */
-    UStatus
+    UBUNTU_DLL_PUBLIC UStatus
     ua_location_service_controller_enable_gps(
         UALocationServiceController *controller);
 
@@ -131,7 +131,7 @@ extern "C"
      * \ingroup location_service
      * \param[in] controller The controller instance.
      */
-    UStatus
+    UBUNTU_DLL_PUBLIC UStatus
     ua_location_service_controller_disable_gps(
         UALocationServiceController *controller);
 

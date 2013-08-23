@@ -20,6 +20,8 @@
 #ifndef UBUNTU_APPLICATION_ID_H_
 #define UBUNTU_APPLICATION_ID_H_
 
+#include <ubuntu/visibility.h>
+
 #include <stdlib.h>
 
 #ifdef __cplusplus
@@ -38,7 +40,7 @@ extern "C" {
      * \param[in] string The string containing the application ID.
      * \param[in] size The size of the string.
      */
-    UApplicationId*
+    UBUNTU_DLL_PUBLIC UApplicationId*
     u_application_id_new_from_stringn(
         const char *string,
         size_t size);
@@ -48,7 +50,7 @@ extern "C" {
      * \ingroup application_support
      * \param[in] id The instance to be destroyed.
      */
-    void
+    UBUNTU_DLL_PUBLIC void
     u_application_id_destroy(UApplicationId *id);
 
     /**
@@ -58,7 +60,7 @@ extern "C" {
      * \param[in] lhs The left-hand-side id to be compared.
      * \param[in] rhs The right-hand-side id to be compared.
      */
-    int
+    UBUNTU_DLL_PUBLIC int
     u_application_id_compare(
         UApplicationId *lhs,
         UApplicationId *rhs);

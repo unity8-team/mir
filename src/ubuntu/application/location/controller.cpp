@@ -34,7 +34,7 @@ ua_location_service_controller_unref(
     controller->unref();
 }
 
-UStatus
+void
 ua_location_service_controller_set_status_changed_handler(
     UALocationServiceController *controller,
     UALocationServiceStatusChangedHandler handler,
@@ -43,8 +43,6 @@ ua_location_service_controller_set_status_changed_handler(
     (void) controller;
     (void) handler;
     (void) context;
-
-    return U_STATUS_SUCCESS;
 }
 
 UStatus

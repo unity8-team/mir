@@ -19,6 +19,8 @@
 #ifndef UBUNTU_UI_SESSION_SERVICE_C_API_H_
 #define UBUNTU_UI_SESSION_SERVICE_C_API_H_
 
+#include <ubuntu/visibility.h>
+
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -75,59 +77,59 @@ extern "C" {
         void *context;
     } ubuntu_ui_task_controller;
 
-    void
+    UBUNTU_DLL_PUBLIC void
     ubuntu_ui_install_task_controller(
         ubuntu_ui_task_controller *controller);
 
-    const char* 
+    UBUNTU_DLL_PUBLIC const char* 
     ubuntu_ui_session_properties_get_value_for_key(
         ubuntu_ui_session_properties props, 
         const char* key);
 
-    int 
+    UBUNTU_DLL_PUBLIC int 
     ubuntu_ui_session_properties_get_application_stage_hint(
         ubuntu_ui_session_properties props);
 
-    int 
+    UBUNTU_DLL_PUBLIC int 
     ubuntu_ui_session_properties_get_application_instance_id(
         ubuntu_ui_session_properties props);
 
-    const char* 
+    UBUNTU_DLL_PUBLIC const char* 
     ubuntu_ui_session_properties_get_desktop_file_hint(
         ubuntu_ui_session_properties props);
 
-    void 
+    UBUNTU_DLL_PUBLIC void 
     ubuntu_ui_session_install_session_lifecycle_observer(
         ubuntu_ui_session_lifecycle_observer* observer);
 
-    void 
+    UBUNTU_DLL_PUBLIC void 
     ubuntu_ui_session_unfocus_running_sessions();
 
-    void 
+    UBUNTU_DLL_PUBLIC void 
     ubuntu_ui_session_focus_running_session_with_id(int id);
 
-    void 
+    UBUNTU_DLL_PUBLIC void 
     ubuntu_ui_session_snapshot_running_session_with_id(int id, ubuntu_ui_session_service_snapshot_cb cb, void* context);
 
-    void 
+    UBUNTU_DLL_PUBLIC void 
     ubuntu_ui_session_trigger_switch_to_well_known_application(ubuntu_ui_well_known_application app);
 
-    int32_t
+    UBUNTU_DLL_PUBLIC int32_t
     ubuntu_ui_set_surface_trap(int x, int y, int width, int height);
 
-    void
+    UBUNTU_DLL_PUBLIC void
     ubuntu_ui_unset_surface_trap(int32_t handle);
 
-    void
+    UBUNTU_DLL_PUBLIC void
     ubuntu_ui_report_osk_visible(int x, int y, int width, int height);
     
-    void
+    UBUNTU_DLL_PUBLIC void
     ubuntu_ui_report_osk_invisible();
 
-    void
+    UBUNTU_DLL_PUBLIC void
     ubuntu_ui_report_notification_visible();
     
-    void
+    UBUNTU_DLL_PUBLIC void
     ubuntu_ui_report_notification_invisible();
 
 #ifdef __cplusplus

@@ -18,6 +18,8 @@
 #ifndef UBUNTU_APPLICATION_SENSORS_C_API_H_
 #define UBUNTU_APPLICATION_SENSORS_C_API_H_
 
+#include <ubuntu/visibility.h>
+
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -112,40 +114,40 @@ extern "C" {
         void* context;
     } ubuntu_sensor_observer;
 
-    void ubuntu_sensor_initialize_observer(ubuntu_sensor_observer* observer);
+    UBUNTU_DLL_PUBLIC void ubuntu_sensor_initialize_observer(ubuntu_sensor_observer* observer);
     /** Installs the supplied observer. 
      * \ingroup sensor_access
      */
-    void ubuntu_sensor_install_observer(ubuntu_sensor_observer* observer);
+    UBUNTU_DLL_PUBLIC void ubuntu_sensor_install_observer(ubuntu_sensor_observer* observer);
     /** Uninstalls the supplied observer. 
      * \ingroup sensor_access
      */
-    void ubuntu_sensor_uninstall_observer(ubuntu_sensor_observer* observer);
+    UBUNTU_DLL_PUBLIC void ubuntu_sensor_uninstall_observer(ubuntu_sensor_observer* observer);
 
     /** Enables the specified sensor type and starts data acquisition. 
      * \ingroup sensor_access
      */
-    void ubuntu_sensor_enable_sensor(ubuntu_sensor_type sensor_type);
+    UBUNTU_DLL_PUBLIC void ubuntu_sensor_enable_sensor(ubuntu_sensor_type sensor_type);
     /** Disables the specified sensor type and starts data acquisition. 
      * \ingroup sensor_access
      */
-    void ubuntu_sensor_disable_sensor(ubuntu_sensor_type sensor_type);
+    UBUNTU_DLL_PUBLIC void ubuntu_sensor_disable_sensor(ubuntu_sensor_type sensor_type);
     /** Returns the minimum sensor sampling delay in Hz.
      * \ingroup sensor_access
      */
-    int32_t ubuntu_sensor_get_sensor_min_delay(ubuntu_sensor_type sensor_type);
+    UBUNTU_DLL_PUBLIC int32_t ubuntu_sensor_get_sensor_min_delay(ubuntu_sensor_type sensor_type);
     /** Returns the minimum valid value for the sensor_type.
      * \ingroup sensor_access
      */
-    float ubuntu_sensor_get_sensor_min_value(ubuntu_sensor_type sensor_type);
+    UBUNTU_DLL_PUBLIC float ubuntu_sensor_get_sensor_min_value(ubuntu_sensor_type sensor_type);
     /** Returns the maximum valid value for the sensor_type.
      * \ingroup sensor_access
      */
-    float ubuntu_sensor_get_sensor_max_value(ubuntu_sensor_type sensor_type);
+    UBUNTU_DLL_PUBLIC float ubuntu_sensor_get_sensor_max_value(ubuntu_sensor_type sensor_type);
     /** Returns the resolution of valid values for the sensor_type.
      * \ingroup sensor_access
      */
-    float ubuntu_sensor_get_sensor_resolution(ubuntu_sensor_type sensor_type);
+    UBUNTU_DLL_PUBLIC float ubuntu_sensor_get_sensor_resolution(ubuntu_sensor_type sensor_type);
 
     /** \example test_sensors_api.cpp */
 #ifdef __cplusplus
