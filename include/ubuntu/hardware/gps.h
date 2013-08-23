@@ -19,6 +19,8 @@
 #ifndef UBUNTU_HARDWARE_GPS_H_
 #define UBUNTU_HARDWARE_GPS_H_
 
+#include <ubuntu/visibility.h>
+
 #include <stdint.h>
 #include <stddef.h>
 
@@ -395,16 +397,16 @@ typedef struct
 /*
  You must create only one instance per process/application.
 */
-UHardwareGps
+UBUNTU_DLL_PUBLIC UHardwareGps
 u_hardware_gps_new(UHardwareGpsParams *params);
 
-void
+UBUNTU_DLL_PUBLIC void
 u_hardware_gps_delete(UHardwareGps handle);
 
-bool
+UBUNTU_DLL_PUBLIC bool
 u_hardware_gps_start(UHardwareGps self);
 
-bool
+UBUNTU_DLL_PUBLIC bool
 u_hardware_gps_stop(UHardwareGps self);
 
 /*
@@ -412,21 +414,21 @@ u_hardware_gps_stop(UHardwareGps self);
     \param time_reference time from the internal clock at the moment that NTP time was taken.
     \param uncertainty possible deviation in the time supplied (uncertainty) in milliseconds.
  */
-void
+UBUNTU_DLL_PUBLIC void
 u_hardware_gps_inject_time(
     UHardwareGps self,
     int64_t time,
     int64_t time_reference,
     int uncertainty);
 
-void
+UBUNTU_DLL_PUBLIC void
 u_hardware_gps_inject_location(
     UHardwareGps self,
     double latitude,
     double longitude,
     float accuracy);
 
-void
+UBUNTU_DLL_PUBLIC void
 u_hardware_gps_delete_aiding_data(
     UHardwareGps self,
     uint16_t flags);
@@ -438,7 +440,7 @@ u_hardware_gps_delete_aiding_data(
     \param preferred_accuracy The requested fix accuracy in meters. Can be zero.
     \param preferred_time The requested time to first fix in milliseconds. Can be zero.
  */
-bool
+UBUNTU_DLL_PUBLIC bool
 u_hardware_gps_set_position_mode(
     UHardwareGps self,
     uint32_t mode,
@@ -447,7 +449,7 @@ u_hardware_gps_set_position_mode(
     uint32_t preferred_accuracy,
     uint32_t preferred_time);
 
-void
+UBUNTU_DLL_PUBLIC void
 u_hardware_gps_inject_xtra_data(
     UHardwareGps self,
     char* data,

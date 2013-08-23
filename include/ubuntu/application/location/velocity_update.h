@@ -19,6 +19,8 @@
 #ifndef UBUNTU_APPLICATION_LOCATION_VELOCITY_UPDATE_H_
 #define UBUNTU_APPLICATION_LOCATION_VELOCITY_UPDATE_H_
 
+#include <ubuntu/visibility.h>
+
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -38,7 +40,7 @@ extern "C"
      * \ingroup location_service
      * \param[in] update The velocity update instance to increment the reference count for.
      */
-    void
+    UBUNTU_DLL_PUBLIC void
     ua_location_velocity_update_ref(
         UALocationVelocityUpdate *update);
 
@@ -47,7 +49,7 @@ extern "C"
      * \ingroup location_service
      * \param[in] update The velocity update instance to decrement the reference count for.
      */
-    void
+    UBUNTU_DLL_PUBLIC void
     ua_location_velocity_update_unref(
         UALocationVelocityUpdate *update);
 
@@ -57,7 +59,7 @@ extern "C"
      * \returns The timestamp of the position update in [µs].
      * \param[in] update The velocity update instance to be queried.
      */
-    uint64_t
+    UBUNTU_DLL_PUBLIC uint64_t
     ua_location_velocity_update_get_timestamp(
         UALocationVelocityUpdate *update);
 
@@ -67,7 +69,7 @@ extern "C"
      * \returns The velocity in the position update in [m/s].
      * \param[in] update The velocity update instance to be queried.
      */
-    double
+    UBUNTU_DLL_PUBLIC double
     ua_location_velocity_update_get_velocity_in_meters_per_second(
         UALocationVelocityUpdate *update);
 

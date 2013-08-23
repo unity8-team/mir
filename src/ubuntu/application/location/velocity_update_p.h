@@ -16,40 +16,25 @@
  * Authored by: Thomas Voss <thomas.voss@canonical.com>
  */
 
+#ifndef VELOCITY_UPDATE_PRIVATE_H_
+#define VELOCITY_UPDATE_PRIVATE_H_
+
 #include "ubuntu/application/location/velocity_update.h"
 
-#include "velocity_update_p.h"
+#include "ref_counted.h"
 
 #include <com/ubuntu/location/update.h>
 #include <com/ubuntu/location/velocity.h>
 
 namespace cul = com::ubuntu::location;
 
-void
-ua_location_velocity_update_ref(
-    UALocationVelocityUpdate *update)
+struct UbuntuApplicationLocationVelocityUpdate : public detail::RefCounted
 {
-    update->ref();
-}
+    UbuntuApplicationLocationVelocityUpdate(const cul::Update<cul::Velocity>& update) : update(update)
+    {
+    }
 
-void
-ua_location_velocity_update_unref(
-    UALocationVelocityUpdate *update)
-{
-    update->unref();
-}
+    const cul::Update<cul::Velocity>& update;
+};
 
-uint64_t
-ua_location_velocity_update_get_timestamp(
-    UALocationVelocityUpdate *update)
-{
-    return std::chrono::duration_cast<std::chrono::microseconds>(
-        update->update.when.time_since_epoch()).count();
-}
-
-double
-ua_location_velocity_update_get_velocity_in_meters_per_second(
-    UALocationVelocityUpdate *update)
-{
-    return update->update.value.value.value();
-}
+#endif // VELOCITY_UPDATE_PRIVATE_H_

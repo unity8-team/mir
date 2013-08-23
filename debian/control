@@ -14,6 +14,9 @@ Build-Depends: cmake,
                libmirclient-dev,
                libmirserver-dev,
                liburl-dispatcher1-dev,
+               libdbus-1-dev,
+               dbus-cpp-dev,
+               libubuntu-location-service-dev,
 Standards-Version: 3.9.4
 Homepage: https://launchpad.net/platform-api
 Vcs-Bzr: lp:platform-api

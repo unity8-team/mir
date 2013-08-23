@@ -20,6 +20,8 @@
 #ifndef UBUNTU_APPLICATION_UI_WINDOW_PROPERTIES_H_
 #define UBUNTU_APPLICATION_UI_WINDOW_PROPERTIES_H_
 
+#include <ubuntu/visibility.h>
+
 #include <ubuntu/application/ui/input/event.h>
 
 #ifdef __cplusplus
@@ -43,33 +45,33 @@ extern "C" {
 
     typedef void UAUiWindowProperties;
     
-    UAUiWindowProperties*
+    UBUNTU_DLL_PUBLIC UAUiWindowProperties*
     ua_ui_window_properties_new_for_normal_window();
    
-    void
+    UBUNTU_DLL_PUBLIC void
     ua_ui_window_properties_destroy(
     	UAUiWindowProperties *properties);
     
-    void
+    UBUNTU_DLL_PUBLIC void
     ua_ui_window_properties_set_titlen(
     	UAUiWindowProperties *properties,
     	const char *title,
         size_t size);
     
-    const char*
+    UBUNTU_DLL_PUBLIC const char*
     ua_ui_window_properties_get_title(
     	UAUiWindowProperties *properties);
   
-    void
+    UBUNTU_DLL_PUBLIC void
     ua_ui_window_properties_set_role(
         UAUiWindowProperties *properties,
         UAUiWindowRole role);
 
-    UAUiWindowRole
+    UBUNTU_DLL_PUBLIC UAUiWindowRole
     ua_ui_window_properties_get_role(
         UAUiWindowProperties *properties);
    
-    void
+    UBUNTU_DLL_PUBLIC void
     ua_ui_window_properties_set_input_cb_and_ctx(
         UAUiWindowProperties *properties,
         UAUiWindowInputEventCb cb,

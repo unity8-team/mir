@@ -19,7 +19,9 @@
 #ifndef UBUNTU_APPLICATION_LOCATION_SERVICE_H_
 #define UBUNTU_APPLICATION_LOCATION_SERVICE_H_
 
-#include "ubuntu/application/location/session.h"
+#include <ubuntu/visibility.h>
+
+#include <ubuntu/application/location/session.h>
 
 #ifdef __cplusplus
 extern "C"
@@ -72,7 +74,7 @@ extern "C"
      * location service.
      * \param[in] Bitfield describing the application's requirements.
      */
-    UALocationServiceSession*
+    UBUNTU_DLL_PUBLIC UALocationServiceSession*
     ua_location_service_create_session_for_low_accuracy(
         UALocationServiceRequirementsFlags flags);
 
@@ -83,7 +85,7 @@ extern "C"
      * location service.
      * \param[in] Bitfield describing the application's requirements.
      */
-    UALocationServiceSession*
+    UBUNTU_DLL_PUBLIC UALocationServiceSession*
     ua_location_service_create_session_for_high_accuracy(
         UALocationServiceRequirementsFlags flags);
 

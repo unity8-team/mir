@@ -19,6 +19,8 @@
 #ifndef UBUNTU_APPLICATION_LOCATION_POSITION_UPDATE_H_
 #define UBUNTU_APPLICATION_LOCATION_POSITION_UPDATE_H_
 
+#include <ubuntu/visibility.h>
+
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -38,7 +40,7 @@ extern "C"
      * \ingroup location_service
      * \param[in] update The position update instance to increment the reference count for.
      */
-    void
+    UBUNTU_DLL_PUBLIC void
     ua_location_position_update_ref(
         UALocationPositionUpdate *update);
 
@@ -47,7 +49,7 @@ extern "C"
      * \ingroup location_service
      * \param[in] update The position update instance to decrement the reference count for.
      */
-    void
+    UBUNTU_DLL_PUBLIC void
     ua_location_position_update_unref(
         UALocationPositionUpdate *update);
 
@@ -57,7 +59,7 @@ extern "C"
      * \returns The timestamp of the position update in [µs].
      * \param[in] update The position update instance to be queried.
      */
-    uint64_t
+    UBUNTU_DLL_PUBLIC uint64_t
     ua_location_position_update_get_timestamp(
         UALocationPositionUpdate *update);
 
@@ -67,7 +69,7 @@ extern "C"
      * \returns The latitude of the position update in [°].
      * \param[in] update The position update instance to be queried.
      */
-    double
+    UBUNTU_DLL_PUBLIC double
     ua_location_position_update_get_latitude_in_degree(
         UALocationPositionUpdate *update);
 
@@ -77,7 +79,7 @@ extern "C"
      * \returns The longitude of the position update in [°].
      * \param[in] update The position update instance to be queried.
      */
-    double
+    UBUNTU_DLL_PUBLIC double
     ua_location_position_update_get_longitude_in_degree(
         UALocationPositionUpdate *update);
 
@@ -87,7 +89,7 @@ extern "C"
      * \returns TRUE if the update contains an altitude, else FALSE.
      * \param[in] update The position update instance to be queried.
      */
-    bool
+    UBUNTU_DLL_PUBLIC bool
     ua_location_position_update_has_altitude(
         UALocationPositionUpdate *update);
 
@@ -97,7 +99,7 @@ extern "C"
      * \returns The altitude of the position update in [m].
      * \param[in] update The position update instance to be queried.
      */
-    double
+    UBUNTU_DLL_PUBLIC double
     ua_location_position_update_get_altitude_in_meter(
         UALocationPositionUpdate *update);
 

@@ -20,8 +20,10 @@
 #ifndef UBUNTU_APPLICATION_LIFECYCLE_DELEGATE_H_
 #define UBUNTU_APPLICATION_LIFECYCLE_DELEGATE_H_
 
-#include "archive.h"
-#include "options.h"
+#include <ubuntu/visibility.h>
+
+#include <ubuntu/application/archive.h>
+#include <ubuntu/application/options.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -52,7 +54,7 @@ extern "C" {
      * \ingroup application_support
      * \returns A new instance of the lifecycle delegate or NULL if no memory is available.
      */
-    UApplicationLifecycleDelegate*
+    UBUNTU_DLL_PUBLIC UApplicationLifecycleDelegate*
     u_application_lifecycle_delegate_new();
 
     /**
@@ -60,7 +62,7 @@ extern "C" {
      * \ingroup application_support
      * \param[in] delegate The instance to be destroyed.
      */
-    void
+    UBUNTU_DLL_PUBLIC void
     u_application_lifecycle_delegate_destroy(
         UApplicationLifecycleDelegate *delegate);
 
@@ -69,7 +71,7 @@ extern "C" {
      * \ingroup application_support
      * \param[in] delegate The lifecycle delegate to increment the reference count for.
      */
-    void
+    UBUNTU_DLL_PUBLIC void
     u_application_lifecycle_delegate_ref(
         UApplicationLifecycleDelegate *delegate);
 
@@ -78,7 +80,7 @@ extern "C" {
      * \ingroup application_support
      * \param[in] delegate The lifecycle delegate to decrement the reference count for.
      */
-    void
+    UBUNTU_DLL_PUBLIC void
     u_application_lifecycle_delegate_unref(
         UApplicationLifecycleDelegate *delegate);
 
@@ -88,7 +90,7 @@ extern "C" {
      * \param[in] delegate The lifecycle delegate to adjust the cb for.
      * \param[in] cb The new callback to be invoked whenever the app resumes.
      */
-    void
+    UBUNTU_DLL_PUBLIC void
     u_application_lifecycle_delegate_set_application_resumed_cb(
         UApplicationLifecycleDelegate *delegate,
         u_on_application_resumed cb);
@@ -99,7 +101,7 @@ extern "C" {
      * \returns The callback to be invoked whenever the app resumes.
      * \param[in] delegate The lifecycle delegate to query the callback from.
      */
-    u_on_application_resumed
+    UBUNTU_DLL_PUBLIC u_on_application_resumed
     u_application_lifecycle_delegate_get_application_resumed_cb(
         UApplicationLifecycleDelegate *delegate);
 
@@ -109,7 +111,7 @@ extern "C" {
      * \param[in] delegate The lifecycle delegate to adjust the cb for.
      * \param[in] cb The new callback to be invoked whenever the app is about to be stopped..
      */
-    void
+    UBUNTU_DLL_PUBLIC void
     u_application_lifecycle_delegate_set_application_about_to_stop_cb(
         UApplicationLifecycleDelegate *delegate,
         u_on_application_about_to_stop cb);
@@ -120,7 +122,7 @@ extern "C" {
      * \returns The callback to be invoked whenever the app is about to be stopped.
      * \param[in] delegate The lifecycle delegate to query the callback from.
      */
-    u_on_application_about_to_stop
+    UBUNTU_DLL_PUBLIC u_on_application_about_to_stop
     u_application_lifecycle_delegate_get_application_about_to_stop_cb(
         UApplicationLifecycleDelegate *delegate);
 
@@ -130,7 +132,7 @@ extern "C" {
      * \param[in] delegate The lifecycle delegate to adjust the context for.
      * \param[in] context The new cb context.
      */
-    void
+    UBUNTU_DLL_PUBLIC void
     u_application_lifecycle_delegate_set_context(
         UApplicationLifecycleDelegate *delegate,
         void *context);
@@ -142,7 +144,7 @@ extern "C" {
      * \param[in] delegate The lifecycle delegate to query the context from.
      * \param[in] context Unused.
      */
-    void*
+    UBUNTU_DLL_PUBLIC void*
     u_application_lifecycle_delegate_get_context(
         UApplicationLifecycleDelegate *delegate,
         void *context);

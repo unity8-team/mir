@@ -20,9 +20,11 @@
 #ifndef UBUNTU_APPLICATION_ARCHIVE_H_
 #define UBUNTU_APPLICATION_ARCHIVE_H_
 
+#include <ubuntu/status.h>
+#include <ubuntu/visibility.h>
+
 #include <stdint.h>
 #include <stddef.h>
-#include "ubuntu/status.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -36,7 +38,7 @@ typedef struct UbuntuApplicationArchive_ UApplicationArchive;
  * \sa u_application_archive_destroy
  * \returns A new archive instance or NULL if not enough memory is available.
  */
-UApplicationArchive*
+UBUNTU_DLL_PUBLIC UApplicationArchive*
 u_application_archive_new();
 
 /**
@@ -45,7 +47,7 @@ u_application_archive_new();
  * \param[in] archive The instance to be destroyed.
  * \post All resources held by the instance are released. The result of any operation invoked on the destroyed instance are undefined.
  */
-void
+UBUNTU_DLL_PUBLIC void
 u_application_archive_destroy(
     UApplicationArchive *archive);
 
@@ -56,7 +58,7 @@ u_application_archive_destroy(
  * \param[in] archive The archive to write to.
  * \param[in] s The signed 64-bit integer to write to the archive.
  */
-UStatus
+UBUNTU_DLL_PUBLIC UStatus
 u_application_archive_write(
     UApplicationArchive *archive,
     int64_t s);
@@ -69,7 +71,7 @@ u_application_archive_write(
  * \param[in] s The string to write.
  * \param[in] size The number of characters to write to the archive.
  */
-UStatus
+UBUNTU_DLL_PUBLIC UStatus
 u_application_archive_write_stringn(
     UApplicationArchive *archive,
     const char *s,
@@ -83,7 +85,7 @@ u_application_archive_write_stringn(
  * \param[in] s The string to write.
  * \param[in] size The number of characters to write to the archive.
  */
-UStatus
+UBUNTU_DLL_PUBLIC UStatus
 u_application_archive_write_wstringn(
     UApplicationArchive *archive,
     const wchar_t *s,
@@ -97,19 +99,19 @@ u_application_archive_write_wstringn(
  * \param[in] data The binary blob to write.
  * \param[in] size The size of the blob.
  */
-UStatus
+UBUNTU_DLL_PUBLIC UStatus
 u_application_archive_write_bytes(
     UApplicationArchive *archive,
     const intptr_t *data,
     size_t size);
 
-UStatus
+UBUNTU_DLL_PUBLIC UStatus
 u_application_archive_write_begin_blockn(
     UApplicationArchive* archive,
     const char *name,
     size_t size);
 
-UStatus
+UBUNTU_DLL_PUBLIC UStatus
 u_application_archive_write_end_blockn(
     UApplicationArchive* archive,
     const char *name,
@@ -122,7 +124,7 @@ u_application_archive_write_end_blockn(
  * \param[in] archive The archive to read from.
  * \param[out] s Pointer to memory that receives the signed 64-bit integer.
  */
-UStatus
+UBUNTU_DLL_PUBLIC UStatus
 u_application_archive_read(
     const UApplicationArchive *archive,
     int64_t *s);
@@ -135,7 +137,7 @@ u_application_archive_read(
  * \param[out] s Pointer to memory that receives the string.
  * \param[out] size Pointer to memory that receives the size of the string.
  */
-UStatus
+UBUNTU_DLL_PUBLIC UStatus
 u_application_archive_read_stringn(
     const UApplicationArchive *archive,
     const char **s,
@@ -149,7 +151,7 @@ u_application_archive_read_stringn(
  * \param[out] s Pointer to memory that receives the wide string.
  * \param[out] size Pointer to memory that receives the size of the string.
  */
-UStatus
+UBUNTU_DLL_PUBLIC UStatus
 u_application_archive_read_wstringn(
     UApplicationArchive *archive,
     const wchar_t *s,
@@ -163,7 +165,7 @@ u_application_archive_read_wstringn(
  * \param[out] data Pointer to memory that receives the binary data.
  * \param[out] size Pointer to memory that receives the size of the blob.
  */
-UStatus
+UBUNTU_DLL_PUBLIC UStatus
 u_application_archive_read_bytes(
     UApplicationArchive *archive,
     const intptr_t *data,

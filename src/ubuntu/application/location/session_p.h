@@ -1,5 +1,5 @@
 /*
- * Copyright © 2013 Canonical Ltd.
+ * Copyright (C) 2013 Canonical Ltd
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License version 3 as
@@ -13,31 +13,27 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Authored by: Ricardo Mendoza <ricardo.mendoza@canonical.com>
- *              Thomas Voß <thomas.voss@canonical.com>           
+ * Authored by: Thomas Voss <thomas.voss@canonical.com>
  */
+#ifndef SESSION_PRIVATE_H_
+#define SESSION_PRIVATE_H_
 
-#ifndef UBUNTU_APPLICATION_UI_CLIPBOARD_H_
-#define UBUNTU_APPLICATION_UI_CLIPBOARD_H_
+#include "ubuntu/application/location/session.h"
 
-#include <ubuntu/visibility.h>
+#include "ref_counted.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <com/ubuntu/location/service/session/interface.h>
 
-    UBUNTU_DLL_PUBLIC void
-    ua_ui_set_clipboard_content(
-        void* data,
-        size_t size);
+namespace culss = com::ubuntu::location::service::session;
+
+struct UbuntuApplicationLocationServiceSession : public detail::RefCounted
+{
+    UbuntuApplicationLocationServiceSession(const culss::Interface::Ptr& session)
+            : session(session)
+    {
+    }
     
-    UBUNTU_DLL_PUBLIC void
-    ua_ui_get_clipboard_content(
-        void** data,
-        size_t* size);
+    culss::Interface::Ptr session;
+};
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* UBUNTU_APPLICATION_UI_CLIPBOARD_H_ */
+#endif // SESSION_PRIVATE_H_
