@@ -18,6 +18,7 @@
 
 #include "ubuntu/application/location/service.h"
 
+#include "controller_p.h"
 #include "session_p.h"
 
 #include <com/ubuntu/location/service/stub.h>
@@ -61,7 +62,7 @@ class Instance
 
     dbus::Bus::Ptr bus;
     dbus::Executor::Ptr executor;
-    culs::Interface::Ptr service;        
+    culs::Interface::Ptr service;
     std::thread worker;
 };
 
@@ -81,4 +82,10 @@ ua_location_service_create_session_for_high_accuracy(
 {
     return new UbuntuApplicationLocationServiceSession{
         Instance::instance().get_service()->create_session_for_criteria(cul::Criteria{})};
+}
+
+UALocationServiceController*
+ua_location_service_create_controller()
+{
+    return new UbuntuApplicationLocationServiceController{};
 }
