@@ -20,16 +20,11 @@
 
 namespace uam = ubuntu::application::mir;
 
-// TODO<papi, mir>: This implementation as a stub as we 
-// currently don't do anything with this in Mir. I am not sure
-// what exactly we should be doing either so we need some alignment
-// on this.
-
 uam::LifecycleDelegate::LifecycleDelegate()
     : resumed_cb(nullptr),
       stop_cb(nullptr),
       ctx(nullptr)
-{
+{ 
 }
 
 UApplicationLifecycleDelegate* uam::LifecycleDelegate::as_u_lifecycle_delegate()

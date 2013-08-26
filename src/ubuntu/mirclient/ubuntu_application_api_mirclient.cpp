@@ -19,6 +19,7 @@
 #include "application_instance_mirclient_priv.h"
 #include "window_properties_mirclient_priv.h"
 #include "window_mirclient_priv.h"
+#include "mircommon/lifecycle_delegate_mir_priv.h"
 
 #include "mircommon/application_id_mir_priv.h"
 
@@ -43,18 +44,6 @@ namespace uamc = uam::client;
 
 namespace
 {
-
-// We use a global instance as some platform-api functions, i.e. display_new_with_index
-// do not supply dependencies, but a MirConnection is required for all queries.
-static uamc::Instance*
-global_mir_instance()
-{
-    // Obviously ref counting is whacky here...
-    static uamc::Instance instance;
-    instance.ref(); // We leak a reference, this object can't be destroyed
-    return &instance;
-}
-
 // Display info
 static MirDisplayInfo*
 u_display_mir_display(UAUiDisplay *display)
@@ -68,6 +57,29 @@ mir_display_u_display(MirDisplayInfo *display)
     return static_cast<UAUiDisplay*>(display);
 }
 
+static void dispatch_callback(MirConnection* conn, MirLifecycleState state, void* context)
+{
+    auto delegate = static_cast<uam::LifecycleDelegate*>(context);
+    void* c_ctx = u_application_lifecycle_delegate_get_context(delegate->as_u_lifecycle_delegate(), nullptr);
+
+    switch (state)
+    {
+    case mir_lifecycle_state_will_suspend:
+    {
+        if (delegate->stop_cb)
+            delegate->stop_cb(nullptr, c_ctx);
+        break;
+    }
+    case mir_lifecycle_state_resumed:
+    {
+        if (delegate->resumed_cb)
+            delegate->resumed_cb(nullptr, c_ctx);
+        break;
+    }
+    default:
+        break;
+    }
+}
 };
 
 extern "C"
@@ -83,6 +95,9 @@ UApplicationInstance* u_application_instance_new_from_description_with_options(U
     auto id = uam::Id::from_u_application_id(u_application_description_get_application_id(description));
     auto connect_suceeded = instance->connect(id->name);
     assert(connect_suceeded);
+
+    auto delegate = u_application_description_get_application_lifecycle_delegate(description);
+    mir_connection_set_lifecycle_event_callback(instance->connection(), &dispatch_callback, delegate);
 
     return instance->as_u_application_instance();
 }

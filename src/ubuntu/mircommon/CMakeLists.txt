@@ -3,8 +3,8 @@ set(SOURCES
   application_id_mir.cpp
   application_options_mir.cpp
   application_description_mir.cpp
-  lifecycle_delegate_mir.cpp
   session_mir.cpp
+  lifecycle_delegate_mir.cpp
   )
 
 set(LINK_LIBRARIES
