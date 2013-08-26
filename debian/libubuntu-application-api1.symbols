@@ -30,7 +30,7 @@ libubuntu_application_api.so.1 libubuntu-application-api1 #MINVER#
  ua_location_position_update_unref@Base 0.18.3+13.10.20130807
  ua_location_service_create_session_for_high_accuracy@Base 0.18.3+13.10.20130807
  ua_location_service_create_session_for_low_accuracy@Base 0.18.3+13.10.20130807
- ua_location_service_create_controller@Base 0replaceme
+ ua_location_service_create_controller@Base 0.18.3+13.10.20130826.3
  ua_location_service_session_ref@Base 0.18.3+13.10.20130807
  ua_location_service_session_set_heading_updates_handler@Base 0.18.3+13.10.20130807
  ua_location_service_session_set_position_updates_handler@Base 0.18.3+13.10.20130807
