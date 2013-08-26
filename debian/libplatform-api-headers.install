@@ -4,3 +4,4 @@ usr/include/ubuntu/visibility.h
 usr/include/ubuntu/application
 usr/include/ubuntu/ui
 usr/include/ubuntu/application/location
+usr/include/ubuntu/application/url_dispatcher

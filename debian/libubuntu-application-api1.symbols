@@ -95,6 +95,8 @@ libubuntu_application_api.so.1 libubuntu-application-api1 #MINVER#
  ua_ui_window_request_fullscreen@Base 0.18.1daily13.06.21
  ua_ui_window_resize@Base 0.18.1daily13.06.21
  ua_ui_window_show@Base 0.18.1daily13.06.21
+ ua_url_dispatcher_session@Base 0.18.3+13.10.20130823-0ubuntu1
+ ua_url_dispatcher_session_open@Base 0.18.3+13.10.20130823-0ubuntu1
  uas_accelerometer_event_get_acceleration_x@Base 0.18.1daily13.06.21
  uas_accelerometer_event_get_acceleration_y@Base 0.18.1daily13.06.21
  uas_accelerometer_event_get_acceleration_z@Base 0.18.1daily13.06.21
