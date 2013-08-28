@@ -1,3 +1,10 @@
+platform-api (0.18.3+13.10.20130828-0ubuntu1) saucy; urgency=low
+
+  * New rebuild forced
+  * Automatic snapshot from revision 140
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Wed, 28 Aug 2013 10:42:09 +0000
+
 platform-api (0.18.3+13.10.20130827.1-0ubuntu1) saucy; urgency=low
 
   * New rebuild forced
