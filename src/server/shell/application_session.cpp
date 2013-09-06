@@ -116,7 +116,6 @@ void msh::ApplicationSession::destroy_surface(mf::SurfaceId id)
     
     session_listener->destroying_surface(*this, p->second);
 
-    p->second->destroy();
     surfaces.erase(p);
 }
 
