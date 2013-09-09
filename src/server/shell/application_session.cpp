@@ -50,15 +50,6 @@ msh::ApplicationSession::ApplicationSession(
     assert(surface_factory);
 }
 
-msh::ApplicationSession::~ApplicationSession()
-{
-    std::unique_lock<std::mutex> lock(surfaces_mutex);
-    for (auto const& pair_id_surface : surfaces)
-    {
-        pair_id_surface.second->destroy();
-    }
-}
-
 mf::SurfaceId msh::ApplicationSession::next_id()
 {
     return mf::SurfaceId(next_surface_id.fetch_add(1));
