@@ -71,7 +71,10 @@ TEST_F(LifecycleEventTest, lifecycle_event_test)
 
     struct ClientConfig : TestingClientConfiguration
     {
-        static void lifecycle_callback(MirConnection* /*connection*/, MirLifecycleState state, void* context)
+        static void lifecycle_callback(MirConnection* /*connection*/,
+                                       MirLifecycleState state,
+                                       MirEventCookie* /*cookie*/,
+                                       void* context)
         {
             auto config = static_cast<ClientConfig*>(context);
             config->handler->state_changed(state);

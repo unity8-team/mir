@@ -182,6 +182,10 @@ typedef union
     MirSurfaceEvent surface;
 } MirEvent;
 
+/** Opaque cookie used by clients to refer to past events */
+typedef struct MirEventCookie MirEventCookie;
+
+
 #ifdef __cplusplus
 }
 /**@}*/

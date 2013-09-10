@@ -371,7 +371,11 @@ void MirConnection::on_surface_created(int id, MirSurface* surface)
 
 void MirConnection::register_lifecycle_event_callback(mir_lifecycle_event_callback callback, void* context)
 {
-    lifecycle_control->set_lifecycle_event_handler(std::bind(callback, this, std::placeholders::_1, context));
+    lifecycle_control->set_lifecycle_event_handler(std::bind(callback,
+                                                             this,
+                                                             std::placeholders::_1,
+                                                             std::placeholders::_2,
+                                                             context));
 }
 
 void MirConnection::register_display_change_callback(mir_display_config_callback callback, void* context)

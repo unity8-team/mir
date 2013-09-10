@@ -81,11 +81,12 @@ typedef void (*mir_event_delegate_callback)(
  * from the running server.
  *   \param [in] connection     The connection associated with the lifecycle event
  *   \param [in] cb             The callback requested
+ *   \param [in] cookie         The cookie associated with this event
  *   \param [in,out] context    The context provided by the client
  */
 
 typedef void (*mir_lifecycle_event_callback)(
-    MirConnection* connection, MirLifecycleState state, void* context);
+    MirConnection* connection, MirLifecycleState state, MirEventCookie* cookie, void* context);
 
 /**
  * Callback called when a display config change has occurred

@@ -23,7 +23,7 @@
 namespace mcl = mir::client;
 
 mcl::LifecycleControl::LifecycleControl()
-    : handle_lifecycle_event([](MirLifecycleState){})
+    : handle_lifecycle_event([](MirLifecycleState, MirEventCookie*){})
 {
 }
 
@@ -31,7 +31,7 @@ mcl::LifecycleControl::~LifecycleControl()
 {
 }
 
-void mcl::LifecycleControl::set_lifecycle_event_handler(std::function<void(MirLifecycleState)> const& fn)
+void mcl::LifecycleControl::set_lifecycle_event_handler(std::function<void(MirLifecycleState, MirEventCookie*)> const& fn)
 {
     std::unique_lock<std::mutex> lk(guard);
 
@@ -42,5 +42,5 @@ void mcl::LifecycleControl::call_lifecycle_event_handler(uint32_t state)
 {
     std::unique_lock<std::mutex> lk(guard);
 
-    handle_lifecycle_event(static_cast<MirLifecycleState>(state));
+    handle_lifecycle_event(static_cast<MirLifecycleState>(state), nullptr);
 }
