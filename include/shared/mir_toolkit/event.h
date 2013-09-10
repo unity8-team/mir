@@ -183,7 +183,7 @@ typedef union
 } MirEvent;
 
 /** Opaque cookie used by clients to refer to past events */
-typedef struct MirEventCookie MirEventCookie;
+typedef uint64_t MirEventCookie;
 
 
 #ifdef __cplusplus
