@@ -55,8 +55,15 @@ connection{connection}
     MirPlatformPackage pkg;
     mir_connection_get_platform(*connection, &pkg);
     MirConnection* c = *connection;
-    auto auth_magic = [c] (int magic)
+    std::vector<int> v;
+    auto auth_magic = [c,&v] (int magic)
         {
+            if (v.size() < 2)
+            {
+                v.push_back(magic);
+                return;
+            }
+
             if (!mir_connection_is_valid(c))
             {
                 BOOST_THROW_EXCEPTION(std::runtime_error("Nested Mir callback Platform Connection Error: "));
@@ -64,7 +71,9 @@ connection{connection}
             mir_wait_for(mir_connection_drm_auth_magic(c, magic, auth_magic_callback, NULL));
             std::cerr << "AUTH MAGIC" << std::endl;
         };
+
     native_platform->initialize(auth_magic, pkg.data_items, pkg.data, pkg.fd_items, pkg.fd);
+    mir_connection_drm_set_gbm_device(*connection, *reinterpret_cast<struct gbm_device**>(v.data()));
 }
 
 mgn::NestedPlatform::~NestedPlatform() noexcept

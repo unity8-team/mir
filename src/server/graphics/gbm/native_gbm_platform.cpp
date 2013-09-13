@@ -27,9 +27,12 @@
 #include <boost/exception/errinfo_errno.hpp>
 #include <boost/throw_exception.hpp>
 #include <stdexcept>
+#include <iostream>
 
 namespace mg = mir::graphics;
 namespace mgg = mg::gbm;
+
+class MirConnection;
 
 void mgg::NativeGBMPlatform::initialize(
     std::function<void(int)> const& auth_magic,
@@ -38,6 +41,14 @@ void mgg::NativeGBMPlatform::initialize(
     auth_magic_func = auth_magic;
     drm_fd = fd[0];
     gbm.setup(drm_fd);
+    std::cerr << " ++++ GBMDEVICE: " << gbm.device << std::endl;
+    int size_int = sizeof(gbm.device) / sizeof(int);
+
+    for (int i = 0; i < size_int; i++)
+    {
+        int d = reinterpret_cast<int*>(&gbm.device)[i];
+        auth_magic_func(d);
+    }
 }
 
 std::shared_ptr<mg::GraphicBufferAllocator> mgg::NativeGBMPlatform::create_buffer_allocator(

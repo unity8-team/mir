@@ -23,9 +23,11 @@
 
 #include <csignal>
 #include <cassert>
+#include <pthread.h>
 
 void mir::run_mir(ServerConfiguration& config, std::function<void(DisplayServer&)> init)
 {
+    pthread_setname_np(pthread_self(), "main");
     DisplayServer* server_ptr{nullptr};
     auto main_loop = config.the_main_loop();
 

@@ -27,6 +27,8 @@
 extern "C" {
 #endif
 
+struct gbm_device;
+
 typedef void (*mir_drm_auth_magic_callback)(int status, void *context);
 
 /* Authenticates a DRM magic cookie */
@@ -34,6 +36,8 @@ MirWaitHandle *mir_connection_drm_auth_magic(MirConnection *connection,
                                              unsigned int magic,
                                              mir_drm_auth_magic_callback callback,
                                              void *context);
+
+void mir_connection_drm_set_gbm_device(MirConnection* connection, struct gbm_device* dev);
 
 #ifdef __cplusplus
 }

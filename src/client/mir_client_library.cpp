@@ -253,9 +253,13 @@ uint32_t mir_debug_surface_current_buffer_id(MirSurface * surface)
     return surface->get_current_buffer_id();
 }
 
+static std::vector<int> extra_data;
+
 void mir_connection_get_platform(MirConnection *connection, MirPlatformPackage *platform_package)
 {
     connection->populate(*platform_package);
+    for (auto i : extra_data)
+        platform_package->data[platform_package->data_items++] = i;
 }
 
 MirDisplayConfiguration* mir_connection_create_display_config(MirConnection *connection)
@@ -356,6 +360,12 @@ MirWaitHandle *mir_connection_drm_auth_magic(MirConnection* connection,
                                              void* context)
 {
     return connection->drm_auth_magic(magic, callback, context);
+}
+
+void mir_connection_drm_set_gbm_device(MirConnection* /*connection*/, struct gbm_device* dev)
+{
+    int size_int = sizeof(dev) / sizeof(int);
+    extra_data.insert(extra_data.begin(), reinterpret_cast<int*>(&dev), reinterpret_cast<int*>(&dev) + size_int);
 }
 
 MirWaitHandle* mir_surface_set_type(MirSurface *surf,

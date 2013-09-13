@@ -28,6 +28,7 @@
 #include "mir/protobuf/google_protobuf_guard.h"
 
 #include <boost/signals2.hpp>
+#include <pthread.h>
 
 namespace mf = mir::frontend;
 namespace mfd = mir::frontend::detail;
@@ -42,7 +43,7 @@ mf::ProtobufSocketCommunicator::ProtobufSocketCommunicator(
     std::shared_ptr<CommunicatorReport> const& report)
 :   socket_file((std::remove(socket_file.c_str()), socket_file)),
     acceptor(io_service, socket_file),
-    io_service_threads(threads),
+    io_service_threads(threads - threads + 1),
     ipc_factory(ipc_factory),
     session_authorizer(session_authorizer),
     next_session_id(0),
@@ -81,6 +82,7 @@ void mf::ProtobufSocketCommunicator::start()
         while (true)
         try
         {
+            pthread_setname_np(pthread_self(), "communicator");
             io_service.run();
             return;
         }

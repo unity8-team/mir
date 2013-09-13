@@ -60,6 +60,8 @@ void mggh::DRMHelper::setup(UdevHelper const& udev)
 
     if (fd < 0)
         BOOST_THROW_EXCEPTION(std::runtime_error("Failed to open DRM device\n"));
+
+    set_master();
 }
 
 int mggh::DRMHelper::get_authenticated_fd()

@@ -24,6 +24,7 @@
 #include "mir/compositor/scene.h"
 
 #include <thread>
+#include <pthread.h>
 #include <condition_variable>
 
 namespace mc = mir::compositor;
@@ -66,6 +67,7 @@ public:
 
     void operator()()
     {
+        pthread_setname_np(pthread_self(), "compositor");
         std::unique_lock<std::mutex> lock{run_mutex};
 
         /*

@@ -39,6 +39,7 @@
 #include <iostream>
 #include <thread>
 #include <mutex>
+#include <pthread.h>
 
 namespace mg  = mir::graphics;
 namespace mgg = mir::graphics::gbm;
@@ -89,7 +90,9 @@ private:
                 EGL_NONE
             };
 
-            std::cerr << " ====== " << std::this_thread::get_id() << ": CreateImagekhr ======" << std::endl;
+            char tname[128];
+            pthread_getname_np(pthread_self(), tname, 128);
+            std::cerr << " ====== " << tname << " thread: CreateImagekhr ======" << std::endl;
 
             egl_image = egl_extensions->eglCreateImageKHR(egl_display, EGL_NO_CONTEXT,
                                                           EGL_NATIVE_PIXMAP_KHR,
@@ -137,6 +140,10 @@ mgg::GBMBufferAllocator::GBMBufferAllocator(
 std::shared_ptr<mg::Buffer> mgg::GBMBufferAllocator::alloc_buffer(BufferProperties const& buffer_properties)
 {
     std::lock_guard<std::recursive_mutex> lock{gbm_mutex};
+    char tname[128];
+    pthread_getname_np(pthread_self(), tname, 128);
+    std::cerr << " ===== " << tname << " thread: alloc buffer "
+              << buffer_properties.size << std::endl;
     uint32_t bo_flags{GBM_BO_USE_RENDERING};
 
     uint32_t gbm_format = mgg::mir_format_to_gbm_format(buffer_properties.format);
@@ -183,7 +190,7 @@ std::shared_ptr<mg::Buffer> mgg::GBMBufferAllocator::alloc_buffer(BufferProperti
     if (!bo_raw)
         BOOST_THROW_EXCEPTION(std::runtime_error("Failed to create GBM buffer object"));
 
-    std::cerr << std::this_thread::get_id() << ": bo create fd " << drm_fd << " device " << device
+    std::cerr << " ===== " << tname << " thread: bo create fd " << drm_fd << " device " << device
               << "gem handle " << gbm_bo_get_handle(bo_raw).u32 << std::endl;
 
     std::shared_ptr<gbm_bo> bo{bo_raw, GBMBODeleter()};

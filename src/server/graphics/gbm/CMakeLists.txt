@@ -45,6 +45,7 @@ target_link_libraries(
   ${EGL_LDFLAGS} ${EGL_LIBRARIES}
   ${GLESv2_LDFLAGS} ${GLESv2_LIBRARIES}
   ${UDEV_LDFLAGS} ${UDEV_LIBRARIES}
+  -lpthread
 )
 
 install(TARGETS mirplatformgraphics LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
