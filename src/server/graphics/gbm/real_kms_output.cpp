@@ -37,7 +37,8 @@ bool encoder_is_used(mgg::DRMModeResources const& resources, uint32_t encoder_id
 
     resources.for_each_connector([&](mgg::DRMModeConnectorUPtr connector)
     {
-        if (connector->encoder_id == encoder_id)
+        if (connector->connection == DRM_MODE_CONNECTED &&
+            connector->encoder_id == encoder_id)
         {
             auto encoder = resources.encoder(connector->encoder_id);
             if (encoder)
@@ -58,11 +59,14 @@ bool crtc_is_used(mgg::DRMModeResources const& resources, uint32_t crtc_id)
 
     resources.for_each_connector([&](mgg::DRMModeConnectorUPtr connector)
     {
-        auto encoder = resources.encoder(connector->encoder_id);
-        if (encoder)
+        if (connector->connection == DRM_MODE_CONNECTED)
         {
-            if (encoder->crtc_id == crtc_id)
-                crtc_used = true;
+            auto encoder = resources.encoder(connector->encoder_id);
+            if (encoder)
+            {
+                if (encoder->crtc_id == crtc_id)
+                    crtc_used = true;
+            }
         }
     });
 
