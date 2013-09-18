@@ -35,13 +35,15 @@ typedef enum
     configuration_mode_unknown,
     configuration_mode_clone,
     configuration_mode_horizontal,
-    configuration_mode_vertical
+    configuration_mode_vertical,
+    configuration_mode_single
 } ConfigurationMode;
 
 struct ClientContext
 {
     MirConnection *connection;
     ConfigurationMode mode;
+    int mode_data;
     volatile sig_atomic_t running;
     volatile sig_atomic_t reconfigure;
 };
@@ -120,7 +122,23 @@ static void configure_display_vertical(struct MirDisplayConfiguration *conf)
     }
 }
 
-static void configure_display(struct ClientContext *context, ConfigurationMode mode)
+static void configure_display_single(struct MirDisplayConfiguration *conf, int output_num)
+{
+    for (uint32_t i = 0; i < conf->num_outputs; i++)
+    {
+        MirDisplayOutput *output = &conf->outputs[i];
+        if (output->connected && output->num_modes > 0)
+        {
+            output->used = (--output_num == 0);
+            output->current_mode = 0;
+            output->position_x = 0;
+            output->position_y = 0;
+        }
+    }
+}
+
+static void configure_display(struct ClientContext *context, ConfigurationMode mode,
+                              int mode_data)
 {
     MirDisplayConfiguration *conf =
         mir_connection_create_display_config(context->connection);
@@ -140,9 +158,18 @@ static void configure_display(struct ClientContext *context, ConfigurationMode m
         configure_display_horizontal(conf);
         printf("Applying horizontal configuration: ");
     }
+    else if (mode == configuration_mode_single)
+    {
+        configure_display_single(conf, mode_data);
+        printf("Applying off configuration: ");
+    }
 
     if (apply_configuration(context->connection, conf))
+    {
         context->mode = mode;
+        context->mode_data = mode_data;
+    }
+
     mir_display_config_destroy(conf);
 }
 
@@ -183,15 +210,27 @@ static void event_callback(
         }
         else if (event->key.key_code == XKB_KEY_c)
         {
-            configure_display(ctx, configuration_mode_clone);
+            configure_display(ctx, configuration_mode_clone, 0);
         }
         else if (event->key.key_code == XKB_KEY_h)
         {
-            configure_display(ctx, configuration_mode_horizontal);
+            configure_display(ctx, configuration_mode_horizontal, 0);
         }
         else if (event->key.key_code == XKB_KEY_v)
         {
-            configure_display(ctx, configuration_mode_vertical);
+            configure_display(ctx, configuration_mode_vertical, 0);
+        }
+        else if (event->key.key_code == XKB_KEY_1)
+        {
+            configure_display(ctx, configuration_mode_single, 1);
+        }
+        else if (event->key.key_code == XKB_KEY_2)
+        {
+            configure_display(ctx, configuration_mode_single, 2);
+        }
+        else if (event->key.key_code == XKB_KEY_3)
+        {
+            configure_display(ctx, configuration_mode_single, 3);
         }
     }
 }
@@ -214,7 +253,7 @@ int main(int argc, char *argv[])
     MirConnection *connection = mir_eglapp_native_connection();
     MirSurface *surface = mir_eglapp_native_surface();
 
-    struct ClientContext ctx = {connection, configuration_mode_unknown, 1, 0};
+    struct ClientContext ctx = {connection, configuration_mode_unknown, 0, 1, 0};
     mir_connection_set_display_config_change_callback(
         connection, display_change_callback, &ctx);
 
@@ -236,7 +275,7 @@ int main(int argc, char *argv[])
 
         if (ctx.reconfigure)
         {
-            configure_display(&ctx, ctx.mode);
+            configure_display(&ctx, ctx.mode, ctx.mode_data);
             ctx.reconfigure = 0;
         }
     }

@@ -61,6 +61,7 @@
 
 #include <boost/throw_exception.hpp>
 #include <utility>
+#include <iostream>
 
 namespace mc=mir::compositor;
 namespace mg = mir::graphics;
@@ -179,6 +180,7 @@ std::shared_ptr<mg::Buffer> mc::SwitchingBundle::client_acquire()
 {
     std::unique_lock<std::mutex> lock(guard);
 
+    std::cerr << "client acquire enter nclients " << nclients << " nfree " << nfree() << std::endl;
     if ((framedropping || force_drop) && nbuffers > 1)
     {
         if (nfree() <= 0)
@@ -208,6 +210,7 @@ std::shared_ptr<mg::Buffer> mc::SwitchingBundle::client_acquire()
             1;
 #endif
 
+        std::cerr << "client acquire bla nfree " << nfree() << " min_free " << min_free << std::endl;
         while (nfree() < min_free)
             cond.wait(lock);
     }
@@ -239,6 +242,7 @@ std::shared_ptr<mg::Buffer> mc::SwitchingBundle::client_acquire()
         }
     }
 
+    std::cerr << "client acquire leave nclients " << nclients << " nready " << nready << std::endl;
     return ret;
 }
 
@@ -256,6 +260,7 @@ void mc::SwitchingBundle::client_release(std::shared_ptr<mg::Buffer> const& rele
     nclients--;
     nready++;
     cond.notify_all();
+    std::cerr << "client release nclients " << nclients << " nready " << nready << std::endl;
 }
 
 std::shared_ptr<mg::Buffer> mc::SwitchingBundle::compositor_acquire(
@@ -264,6 +269,7 @@ std::shared_ptr<mg::Buffer> mc::SwitchingBundle::compositor_acquire(
     std::unique_lock<std::mutex> lock(guard);
     int compositor;
 
+    std::cerr << "compositor acquired enter" << std::endl;
     if (!nready || frameno == last_consumed)
     {
         compositor = last_compositor();
@@ -286,6 +292,7 @@ std::shared_ptr<mg::Buffer> mc::SwitchingBundle::compositor_acquire(
     overlapping_compositors = (ncompositors > 1);
 
     ring[compositor].users++;
+    std::cerr << "compositor acquired leave" << std::endl;
     return alloc_buffer(compositor);
 }
 
@@ -294,6 +301,7 @@ void mc::SwitchingBundle::compositor_release(std::shared_ptr<mg::Buffer> const& 
     std::unique_lock<std::mutex> lock(guard);
     int compositor = -1;
 
+    std::cerr << "compositor release enter" << std::endl;
     for (int n = 0, i = first_compositor; n < ncompositors; n++, i = next(i))
     {
         if (ring[i].buf == released_buffer)
@@ -319,6 +327,7 @@ void mc::SwitchingBundle::compositor_release(std::shared_ptr<mg::Buffer> const& 
         }
         cond.notify_all();
     }
+    std::cerr << "compositor release leave" << std::endl;
 }
 
 std::shared_ptr<mg::Buffer> mc::SwitchingBundle::snapshot_acquire()

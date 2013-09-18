@@ -160,6 +160,16 @@ void mgg::GBMDisplay::configure(mg::DisplayConfiguration const& conf)
             display_buffers_new.push_back(std::move(db));
         });
 
+        kms_conf.for_each_output([&](DisplayConfigurationOutput const& conf_output)
+        {
+            if (conf_output.connected && !conf_output.used)
+            {
+                uint32_t const connector_id = kms_conf.get_kms_connector_id(conf_output.id);
+                auto kms_output = output_container.get_kms_output_for(connector_id);
+                kms_output->clear_crtc();
+            }
+        });
+
         display_buffers = std::move(display_buffers_new);
 
         /* Store applied configuration */

@@ -198,6 +198,17 @@ bool mgg::RealKMSOutput::set_crtc(uint32_t fb_id)
     return true;
 }
 
+void mgg::RealKMSOutput::clear_crtc()
+{
+    if (current_crtc)
+    {
+        drmModeSetCrtc(drm_fd, current_crtc->crtc_id,
+                       0, 0, 0,
+                       &connector->connector_id, 1, nullptr);
+        current_crtc = nullptr;
+    }
+}
+
 bool mgg::RealKMSOutput::schedule_page_flip(uint32_t fb_id)
 {
     if (!current_crtc)
