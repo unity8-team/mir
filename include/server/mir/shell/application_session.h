@@ -46,7 +46,7 @@ public:
         std::shared_ptr<SessionListener> const& session_listener,
         std::shared_ptr<frontend::EventSink> const& sink);
 
-    ~ApplicationSession();
+    ~ApplicationSession() = default;
 
     frontend::SurfaceId create_surface(shell::SurfaceCreationParameters const& params);
     void destroy_surface(frontend::SurfaceId surface);
