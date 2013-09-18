@@ -20,7 +20,7 @@ include_directories(
 target_link_libraries(
 	ubuntu_application_api_mirserver
         ${MIRSERVER_LDFLAGS} ${MIRSERVER_LIBRARIES}
-        -Wl,--whole-archive ubuntu_application_api_mircommon
+        -Wl,--whole-archive ubuntu_application_api_mircommon ${UBUNTU_APPLICATION_API_LINK_LIBRARIES}
         -Wl,--no-whole-archive
 )
 
