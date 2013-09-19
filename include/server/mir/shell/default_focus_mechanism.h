@@ -50,8 +50,8 @@ private:
     std::shared_ptr<InputTargeter> const input_targeter;
     std::shared_ptr<SurfaceController> const surface_controller;
 
-    std::mutex surface_focus_lock;
-    std::weak_ptr<Surface> currently_focused_surface;
+    std::mutex focus_lock;
+    std::shared_ptr<Session> currently_focused_session;
 };
 
 }

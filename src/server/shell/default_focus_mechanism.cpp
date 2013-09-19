@@ -35,28 +35,18 @@ msh::DefaultFocusMechanism::DefaultFocusMechanism(std::shared_ptr<msh::InputTarg
 
 void msh::DefaultFocusMechanism::set_focus_to(std::shared_ptr<Session> const& focus_session)
 {
+    std::lock_guard<std::mutex> lg(focus_lock);
+
     // TODO: This path should be encapsulated in a seperate clear_focus message
     if (!focus_session)
     {
         input_targeter->focus_cleared();
         return;
     }
-    
-    auto surface = focus_session->default_surface();
-    if (surface)
+    if (currently_focused_session)
     {
-        std::lock_guard<std::mutex> lg(surface_focus_lock);
-        auto current_focus = currently_focused_surface.lock();
-        if (current_focus)
-            current_focus->configure(mir_surface_attrib_focus, mir_surface_unfocused);
-        surface->configure(mir_surface_attrib_focus, mir_surface_focused);
-        currently_focused_surface = surface;
-        
-        surface->raise(surface_controller);
-        surface->take_input_focus(input_targeter);
+        currently_focused_session->relinquish_focus();
     }
-    else
-    {
-        input_targeter->focus_cleared();
-    }
+    focus_session->receive_focus(input_targeter, surface_controller);
+    currently_focused_session = focus_session;
 }

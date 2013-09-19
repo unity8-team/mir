@@ -28,6 +28,8 @@ namespace mir
 namespace shell
 {
 class Surface;
+class InputTargeter;
+class SurfaceController;
 
 class Session : public frontend::Session
 {
@@ -37,6 +39,9 @@ public:
 
     virtual void take_snapshot(SnapshotCallback const& snapshot_taken) = 0;
     virtual std::shared_ptr<Surface> default_surface() const = 0;
+    
+    virtual void receive_focus(std::shared_ptr<InputTargeter> const& targeter, std::shared_ptr<SurfaceController> const& controller) = 0;
+    virtual void relinquish_focus() = 0;
 };
 
 }

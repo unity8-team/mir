@@ -21,6 +21,7 @@
 #include "mir/shell/surface_factory.h"
 #include "mir/shell/snapshot_strategy.h"
 #include "mir/shell/session_listener.h"
+#include "mir/shell/input_targeter.h"
 #include "mir/frontend/event_sink.h"
 
 #include <boost/throw_exception.hpp>
@@ -170,4 +171,31 @@ void msh::ApplicationSession::send_display_config(mg::DisplayConfiguration const
 void msh::ApplicationSession::set_lifecycle_state(MirLifecycleState state)
 {
     event_sink->handle_lifecycle_event(state);
+}
+
+void msh::ApplicationSession::receive_focus(std::shared_ptr<msh::InputTargeter> const& targeter,
+                                            std::shared_ptr<SurfaceController> const& controller)
+{
+    std::unique_lock<std::mutex> lock(surfaces_mutex);
+    if (surfaces.size() == 0)
+    {
+        targeter->focus_cleared();
+    }
+    auto focus_surface = surfaces.begin()->second;
+    
+    focus_surface->raise(controller);
+    focus_surface->take_input_focus(targeter);
+    focus_surface->configure(mir_surface_attrib_focus, mir_surface_focused);
+
+    last_focused_surface = focus_surface;
+}
+
+void msh::ApplicationSession::relinquish_focus()
+{
+    std::unique_lock<std::mutex> lock(surfaces_mutex);
+    auto surf = last_focused_surface.lock();
+    if (surf)
+    {
+        surf->configure(mir_surface_attrib_focus, mir_surface_unfocused);
+    }
 }

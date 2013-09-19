@@ -67,6 +67,9 @@ public:
 
     void set_lifecycle_state(MirLifecycleState state);
 
+    void receive_focus(std::shared_ptr<InputTargeter> const& targeter, std::shared_ptr<SurfaceController> const& controller);
+    void relinquish_focus();
+
 protected:
     ApplicationSession(ApplicationSession const&) = delete;
     ApplicationSession& operator=(ApplicationSession const&) = delete;
@@ -86,6 +89,8 @@ private:
     Surfaces::const_iterator checked_find(frontend::SurfaceId id) const;
     std::mutex mutable surfaces_mutex;
     Surfaces surfaces;
+    
+    std::weak_ptr<Surface> last_focused_surface;
 };
 
 }
