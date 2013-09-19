@@ -180,6 +180,7 @@ void msh::ApplicationSession::receive_focus(std::shared_ptr<msh::InputTargeter> 
     if (surfaces.size() == 0)
     {
         targeter->focus_cleared();
+        return;
     }
     auto focus_surface = surfaces.begin()->second;
     
