@@ -51,7 +51,7 @@ private:
     std::shared_ptr<SurfaceController> const surface_controller;
 
     std::mutex focus_lock;
-    std::shared_ptr<Session> currently_focused_session;
+    std::weak_ptr<Session> currently_focused_session;
 };
 
 }
