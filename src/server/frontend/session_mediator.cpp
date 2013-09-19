@@ -230,6 +230,7 @@ void mf::SessionMediator::disconnect(
     mir::protobuf::Void* /*response*/,
     google::protobuf::Closure* done)
 {
+    try
     {
         std::unique_lock<std::mutex> lock(session_mutex);
 
@@ -243,6 +244,10 @@ void mf::SessionMediator::disconnect(
         shell->close_session(session);
         weak_session.reset();
     }
+    catch (std::exception const& ex)
+     {
+         printf("Like a fox: %s\n", ex.what);
+     }
 
     done->Run();
 }

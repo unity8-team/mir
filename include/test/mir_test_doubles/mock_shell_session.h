@@ -49,6 +49,9 @@ struct MockShellSession : public shell::Session
     
     MOCK_METHOD1(send_display_config, void(graphics::DisplayConfiguration const&));
     MOCK_METHOD3(configure_surface, int(frontend::SurfaceId, MirSurfaceAttrib, int));
+    
+    MOCK_METHOD2(receive_focus, void(std::shared_ptr<shell::InputTargeter> const&, std::shared_ptr<shell::SurfaceController> const&));
+    MOCK_METHOD0(relinquish_focus, void());
 };
 
 }

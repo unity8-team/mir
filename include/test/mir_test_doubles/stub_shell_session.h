@@ -71,6 +71,14 @@ struct StubShellSession : public shell::Session
     {
         return std::shared_ptr<shell::Surface>();
     }
+
+    void receive_focus(std::shared_ptr<shell::InputTargeter> const&,
+                       std::shared_ptr<shell::SurfaceController> const&)
+    {
+    }
+    void relinquish_focus()
+    {
+    }
 };
 
 }
