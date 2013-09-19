@@ -37,15 +37,15 @@ void msh::DefaultFocusMechanism::set_focus_to(std::shared_ptr<Session> const& fo
 {
     std::lock_guard<std::mutex> lg(focus_lock);
 
+    if (currently_focused_session)
+    {
+        currently_focused_session->relinquish_focus();
+    }
+
     // TODO: This path should be encapsulated in a seperate clear_focus message
     if (!focus_session)
     {
         input_targeter->focus_cleared();
-        return;
-    }
-    if (currently_focused_session)
-    {
-        currently_focused_session->relinquish_focus();
     }
     focus_session->receive_focus(input_targeter, surface_controller);
     currently_focused_session = focus_session;
