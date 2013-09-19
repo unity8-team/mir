@@ -47,6 +47,7 @@ void msh::DefaultFocusMechanism::set_focus_to(std::shared_ptr<Session> const& fo
     if (!focus_session)
     {
         input_targeter->focus_cleared();
+        return;
     }
     focus_session->receive_focus(input_targeter, surface_controller);
     currently_focused_session = focus_session;
