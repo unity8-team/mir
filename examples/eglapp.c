@@ -94,8 +94,12 @@ static void mir_eglapp_handle_input(MirSurface* surface, MirEvent const* ev, voi
 {
     (void) surface;
     (void) context;
-    if (ev->key.key_code == XKB_KEY_q && ev->key.action == mir_key_action_up)
+    if (ev->type == mir_event_type_key &&
+        ev->key.key_code == XKB_KEY_q &&
+        ev->key.action == mir_key_action_up)
+    {
         running = 0;
+    }
 }
 
 static unsigned int get_bpp(MirPixelFormat pf)
@@ -164,6 +168,7 @@ mir_eglapp_bool mir_eglapp_init(int argc, char *argv[],
     EGLContext eglctx;
     EGLBoolean ok;
     EGLint swapinterval = 1;
+    char *mir_socket = NULL;
 
     if (argc > 1)
     {
@@ -225,6 +230,9 @@ mir_eglapp_bool mir_eglapp_init(int argc, char *argv[],
                         }
                     }
                     break;
+                case 'm':
+                    mir_socket = argv[++i];
+                    break;
                 case 'h':
                 default:
                     help = 1;
@@ -239,10 +247,11 @@ mir_eglapp_bool mir_eglapp_init(int argc, char *argv[],
             if (help)
             {
                 printf("Usage: %s [<options>]\n"
-                       "  -f     Force full screen\n"
-                       "  -h     Show this help text\n"
-                       "  -o ID  Force placement on output monitor ID\n"
-                       "  -n     Don't sync to vblank\n"
+                       "  -h               Show this help text\n"
+                       "  -f               Force full screen\n"
+                       "  -o ID            Force placement on output monitor ID\n"
+                       "  -n               Don't sync to vblank\n"
+                       "  -m socket        Mir server socket\n"
                        "  -s WIDTHxHEIGHT  Force surface size\n"
                        , argv[0]);
                 return 0;
@@ -250,7 +259,7 @@ mir_eglapp_bool mir_eglapp_init(int argc, char *argv[],
         }
     }
 
-    connection = mir_connect_sync(NULL, appname);
+    connection = mir_connect_sync(mir_socket, appname);
     CHECK(mir_connection_is_valid(connection), "Can't get connection");
 
     /* eglapps are interested in the screen size, so

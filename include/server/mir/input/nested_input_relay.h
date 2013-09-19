@@ -13,34 +13,37 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Authored by: Kevin DuBois <kevin.dubois@canonical.com>
+ * Authored by: Alan Griffiths <alan@octopull.co.uk>
  */
 
-#ifndef MIR_TEST_DOUBLES_MOCK_BUFFER_PACKER_H_
-#define MIR_TEST_DOUBLES_MOCK_BUFFER_PACKER_H_
+#ifndef MIR_INPUT_NESTED_INPUT_RELAY_H_
+#define MIR_INPUT_NESTED_INPUT_RELAY_H_
 
-#include "mir/graphics/buffer_ipc_packer.h"
+#include "mir/input/event_filter.h"
 
-#include <gmock/gmock.h>
+#include <utils/StrongPointer.h>
+
+namespace android { class InputDispatcher; }
 
 namespace mir
 {
-namespace test
+namespace input
 {
-namespace doubles
+class NestedInputRelay : public EventFilter
 {
+public:
+    NestedInputRelay();
+    ~NestedInputRelay() noexcept;
 
-struct MockPacker : public graphics::BufferIPCPacker
-{
-    ~MockPacker() noexcept {}
-    MOCK_METHOD1(pack_fd, void(int));
-    MOCK_METHOD1(pack_data, void(int));
-    MOCK_METHOD1(pack_stride, void(geometry::Stride));
-    MOCK_METHOD1(pack_flags, void(unsigned int));
+    void set_dispatcher(::android::sp<::android::InputDispatcher> const& dispatcher);
+
+private:
+    bool handle(MirEvent const& event);
+
+    ::android::sp<::android::InputDispatcher> dispatcher;
 };
-
-}
 }
 }
 
-#endif /* MIR_TEST_DOUBLES_MOCK_BUFFER_PACKER_H_ */
+
+#endif /* MIR_INPUT_NESTED_INPUT_RELAY_H_ */
