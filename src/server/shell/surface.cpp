@@ -58,14 +58,17 @@ msh::Surface::Surface(
 
 msh::Surface::~Surface() noexcept
 {
+    std::unique_lock<std::mutex> lg(surface_lock);
+
     if (surface.lock())
     {
-        destroy();
+        builder->destroy_surface(surface);
     }
 }
 
 void msh::Surface::hide()
 {
+    std::unique_lock<std::mutex> lg(surface_lock);
     if (auto const& s = surface.lock())
     {
         s->set_hidden(true);
@@ -78,6 +81,7 @@ void msh::Surface::hide()
 
 void msh::Surface::show()
 {
+    std::unique_lock<std::mutex> lg(surface_lock);
     if (auto const& s = surface.lock())
     {
         s->set_hidden(false);
@@ -90,11 +94,15 @@ void msh::Surface::show()
 
 void msh::Surface::destroy()
 {
+    std::unique_lock<std::mutex> lg(surface_lock);
+
     builder->destroy_surface(surface);
 }
 
 void msh::Surface::force_requests_to_complete()
 {
+    std::unique_lock<std::mutex> lg(surface_lock);
+
     if (auto const& s = surface.lock())
     {
         s->force_requests_to_complete();
@@ -103,6 +111,8 @@ void msh::Surface::force_requests_to_complete()
 
 mir::geometry::Size msh::Surface::size() const
 {
+    std::unique_lock<std::mutex> lg(surface_lock);
+
     if (auto const& s = surface.lock())
     {
         return s->size();
@@ -115,6 +125,8 @@ mir::geometry::Size msh::Surface::size() const
 
 void msh::Surface::move_to(geometry::Point const& p)
 {
+    std::unique_lock<std::mutex> lg(surface_lock);
+
     if (auto const& s = surface.lock())
     {
         s->move_to(p);
@@ -127,6 +139,8 @@ void msh::Surface::move_to(geometry::Point const& p)
 
 mir::geometry::Point msh::Surface::top_left() const
 {
+    std::unique_lock<std::mutex> lg(surface_lock);
+
     if (auto const& s = surface.lock())
     {
         return s->top_left();
@@ -139,6 +153,8 @@ mir::geometry::Point msh::Surface::top_left() const
 
 std::string msh::Surface::name() const
 {
+    std::unique_lock<std::mutex> lg(surface_lock);
+
     if (auto const& s = surface.lock())
     {
         return s->name();
@@ -151,6 +167,8 @@ std::string msh::Surface::name() const
 
 mir::geometry::PixelFormat msh::Surface::pixel_format() const
 {
+    std::unique_lock<std::mutex> lg(surface_lock);
+
     if (auto const& s = surface.lock())
     {
         return s->pixel_format();
@@ -163,6 +181,8 @@ mir::geometry::PixelFormat msh::Surface::pixel_format() const
 
 std::shared_ptr<mg::Buffer> msh::Surface::advance_client_buffer()
 {
+    std::unique_lock<std::mutex> lg(surface_lock);
+
     if (auto const& s = surface.lock())
     {
         return s->advance_client_buffer();
@@ -175,6 +195,8 @@ std::shared_ptr<mg::Buffer> msh::Surface::advance_client_buffer()
 
 void msh::Surface::allow_framedropping(bool allow)
 {
+    std::unique_lock<std::mutex> lg(surface_lock);
+
     if (auto const& s = surface.lock())
     {
         s->allow_framedropping(allow);
@@ -184,6 +206,8 @@ void msh::Surface::allow_framedropping(bool allow)
 void msh::Surface::with_most_recent_buffer_do(
     std::function<void(mg::Buffer&)> const& exec)
 {
+    std::unique_lock<std::mutex> lg(surface_lock);
+
     if (auto const& s = surface.lock())
     {
         auto buf = s->snapshot_buffer();
@@ -197,6 +221,8 @@ void msh::Surface::with_most_recent_buffer_do(
 
 bool msh::Surface::supports_input() const
 {
+    std::unique_lock<std::mutex> lg(surface_lock);
+    
     if (auto const& s = surface.lock())
     {
         return s->supports_input();
@@ -209,6 +235,8 @@ bool msh::Surface::supports_input() const
 
 int msh::Surface::client_input_fd() const
 {
+    std::unique_lock<std::mutex> lg(surface_lock);
+
     if (auto const& s = surface.lock())
     {
         return s->client_input_fd();
@@ -221,6 +249,8 @@ int msh::Surface::client_input_fd() const
 
 int msh::Surface::configure(MirSurfaceAttrib attrib, int value)
 {
+    std::unique_lock<std::mutex> lg(surface_lock);
+
     int result = 0;
     bool allow_dropping = false;
     /*
@@ -263,11 +293,14 @@ int msh::Surface::configure(MirSurfaceAttrib attrib, int value)
 
 MirSurfaceType msh::Surface::type() const
 {
+    std::unique_lock<std::mutex> lg(surface_lock);
+
     return type_value;
 }
 
 bool msh::Surface::set_type(MirSurfaceType t)
 {
+    std::unique_lock<std::mutex> lg(surface_lock);
     bool valid = false;
 
     if (t >= 0 && t < mir_surface_type_enum_max_)
@@ -281,11 +314,13 @@ bool msh::Surface::set_type(MirSurfaceType t)
 
 MirSurfaceState msh::Surface::state() const
 {
+    std::unique_lock<std::mutex> lg(surface_lock);
     return state_value;
 }
 
 bool msh::Surface::set_state(MirSurfaceState s)
 {
+    std::unique_lock<std::mutex> lg(surface_lock);
     bool valid = false;
 
     if (s > mir_surface_state_unknown &&
@@ -302,6 +337,7 @@ bool msh::Surface::set_state(MirSurfaceState s)
 
 void msh::Surface::notify_change(MirSurfaceAttrib attrib, int value)
 {
+    std::unique_lock<std::mutex> lg(surface_lock);
     MirEvent e;
 
     // This memset is not really required. However it does avoid some
@@ -319,6 +355,7 @@ void msh::Surface::notify_change(MirSurfaceAttrib attrib, int value)
 
 void msh::Surface::take_input_focus(std::shared_ptr<msh::InputTargeter> const& targeter)
 {
+    std::unique_lock<std::mutex> lg(surface_lock);
     auto s = surface.lock();
     if (s)
         targeter->focus_changed(s->input_channel());
@@ -328,6 +365,7 @@ void msh::Surface::take_input_focus(std::shared_ptr<msh::InputTargeter> const& t
 
 void msh::Surface::set_input_region(std::vector<geom::Rectangle> const& region)
 {
+    std::unique_lock<std::mutex> lg(surface_lock);
     if (auto const& s = surface.lock())
     {
         s->set_input_region(region);
@@ -340,6 +378,7 @@ void msh::Surface::set_input_region(std::vector<geom::Rectangle> const& region)
 
 void msh::Surface::raise(std::shared_ptr<msh::SurfaceController> const& controller)
 {
+    std::unique_lock<std::mutex> lg(surface_lock);
     if (auto const& s = surface.lock())
     {
         controller->raise(s);

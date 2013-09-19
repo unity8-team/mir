@@ -28,6 +28,7 @@
 #include "mir_toolkit/common.h"
 
 #include <string>
+#include <mutex>
 
 namespace mir
 {
@@ -104,6 +105,8 @@ private:
 
     MirSurfaceType type_value;
     MirSurfaceState state_value;
+    
+    mutable std::mutex surface_lock;
 };
 }
 }
