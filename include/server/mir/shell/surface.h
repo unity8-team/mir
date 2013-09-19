@@ -106,7 +106,7 @@ private:
     MirSurfaceType type_value;
     MirSurfaceState state_value;
     
-    mutable std::mutex surface_lock;
+    mutable std::recursive_mutex surface_lock;
 };
 }
 }
