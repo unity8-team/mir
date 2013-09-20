@@ -43,7 +43,6 @@ pid_t mfd::SocketMessenger::client_pid()
 
 void mfd::SocketMessenger::send(std::string const& body)
 {
-    std::unique_lock<std::mutex> lg(message_mutex);
     const size_t size = body.size();
     const unsigned char header_bytes[2] =
     {

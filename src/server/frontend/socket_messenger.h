@@ -43,8 +43,6 @@ public:
 private:
     std::shared_ptr<boost::asio::local::stream_protocol::socket> socket;
     std::vector<char> whole_message;
-    
-    std::mutex message_mutex;
 };
 }
 }
