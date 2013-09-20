@@ -87,7 +87,7 @@ private:
 
     typedef std::map<frontend::SurfaceId, std::shared_ptr<Surface>> Surfaces;
     Surfaces::const_iterator checked_find(frontend::SurfaceId id) const;
-    std::recursive_mutex mutable surfaces_recursive_mutex;
+    std::mutex mutable surfaces_mutex;
     Surfaces surfaces;
     
     std::weak_ptr<Surface> last_focused_surface;

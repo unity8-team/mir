@@ -53,7 +53,7 @@ msh::ApplicationSession::ApplicationSession(
 
 msh::ApplicationSession::~ApplicationSession()
 {
-    std::unique_lock<std::recursive_mutex> lock(surfaces_recursive_mutex);
+    std::unique_lock<std::mutex> lock(surfaces_mutex);
     for (auto const& pair_id_surface : surfaces)
     {
         pair_id_surface.second->destroy();
@@ -70,7 +70,7 @@ mf::SurfaceId msh::ApplicationSession::create_surface(const msh::SurfaceCreation
     auto const id = next_id();
     auto surf = surface_factory->create_surface(this, params, id, event_sink);
 
-    std::unique_lock<std::recursive_mutex> lock(surfaces_recursive_mutex);
+    std::unique_lock<std::mutex> lock(surfaces_mutex);
     surfaces[id] = surf;
     
     session_listener->surface_created(*this, surf);
@@ -90,7 +90,7 @@ msh::ApplicationSession::Surfaces::const_iterator msh::ApplicationSession::check
 
 std::shared_ptr<mf::Surface> msh::ApplicationSession::get_surface(mf::SurfaceId id) const
 {
-    std::unique_lock<std::recursive_mutex> lock(surfaces_recursive_mutex);
+    std::unique_lock<std::mutex> lock(surfaces_mutex);
 
     return checked_find(id)->second;
 }
@@ -102,7 +102,7 @@ void msh::ApplicationSession::take_snapshot(SnapshotCallback const& snapshot_tak
 
 std::shared_ptr<msh::Surface> msh::ApplicationSession::default_surface() const
 {
-    std::unique_lock<std::recursive_mutex> lock(surfaces_recursive_mutex);
+    std::unique_lock<std::mutex> lock(surfaces_mutex);
 
     if (surfaces.size())
         return surfaces.begin()->second;
@@ -112,7 +112,7 @@ std::shared_ptr<msh::Surface> msh::ApplicationSession::default_surface() const
 
 void msh::ApplicationSession::destroy_surface(mf::SurfaceId id)
 {
-    std::unique_lock<std::recursive_mutex> lock(surfaces_recursive_mutex);
+    std::unique_lock<std::mutex> lock(surfaces_mutex);
     auto p = checked_find(id);
     
     session_listener->destroying_surface(*this, p->second);
@@ -128,7 +128,7 @@ std::string msh::ApplicationSession::name() const
 
 void msh::ApplicationSession::force_requests_to_complete()
 {
-    std::unique_lock<std::recursive_mutex> lock(surfaces_recursive_mutex);
+    std::unique_lock<std::mutex> lock(surfaces_mutex);
     for (auto& id_s : surfaces)
     {
         id_s.second->force_requests_to_complete();
@@ -137,7 +137,7 @@ void msh::ApplicationSession::force_requests_to_complete()
 
 void msh::ApplicationSession::hide()
 {
-    std::unique_lock<std::recursive_mutex> lock(surfaces_recursive_mutex);
+    std::unique_lock<std::mutex> lock(surfaces_mutex);
     for (auto& id_s : surfaces)
     {
         id_s.second->hide();
@@ -146,7 +146,7 @@ void msh::ApplicationSession::hide()
 
 void msh::ApplicationSession::show()
 {
-    std::unique_lock<std::recursive_mutex> lock(surfaces_recursive_mutex);
+    std::unique_lock<std::mutex> lock(surfaces_mutex);
     for (auto& id_s : surfaces)
     {
         id_s.second->show();
@@ -157,7 +157,7 @@ int msh::ApplicationSession::configure_surface(mf::SurfaceId id,
                                                MirSurfaceAttrib attrib,
                                                int requested_value)
 {
-    std::unique_lock<std::recursive_mutex> lock(surfaces_recursive_mutex);
+    std::unique_lock<std::mutex> lock(surfaces_mutex);
     std::shared_ptr<msh::Surface> surf(checked_find(id)->second);
 
     return surf->configure(attrib, requested_value);
@@ -176,7 +176,7 @@ void msh::ApplicationSession::set_lifecycle_state(MirLifecycleState state)
 void msh::ApplicationSession::receive_focus(std::shared_ptr<msh::InputTargeter> const& targeter,
                                             std::shared_ptr<SurfaceController> const& controller)
 {
-    std::unique_lock<std::recursive_mutex> lock(surfaces_recursive_mutex);
+    std::unique_lock<std::mutex> lock(surfaces_mutex);
     if (surfaces.size() == 0)
     {
         targeter->focus_cleared();
@@ -193,7 +193,7 @@ void msh::ApplicationSession::receive_focus(std::shared_ptr<msh::InputTargeter> 
 
 void msh::ApplicationSession::relinquish_focus()
 {
-    std::unique_lock<std::recursive_mutex> lock(surfaces_recursive_mutex);
+    std::unique_lock<std::mutex> lock(surfaces_mutex);
     auto surf = last_focused_surface.lock();
     if (surf)
     {
