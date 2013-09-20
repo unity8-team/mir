@@ -29,6 +29,8 @@
 
 #include <string>
 
+#include <mutex>
+
 namespace mir
 {
 namespace frontend
@@ -104,6 +106,8 @@ private:
 
     MirSurfaceType type_value;
     MirSurfaceState state_value;
+    
+    mutable std::mutex surface_mutex;
 };
 }
 }
