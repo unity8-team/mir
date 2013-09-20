@@ -126,15 +126,15 @@ void mf::SessionMediator::create_surface(
     
     report->session_create_surface_called(session->name());
 
-    auto const id = session->create_surface(msh::SurfaceCreationParameters()
+    auto const surf_id = session->create_surface(msh::SurfaceCreationParameters()
         .of_name(request->surface_name())
         .of_size(request->width(), request->height())
         .of_buffer_usage(static_cast<graphics::BufferUsage>(request->buffer_usage()))
         .of_pixel_format(static_cast<geometry::PixelFormat>(request->pixel_format()))
         .with_output_id(graphics::DisplayConfigurationOutputId(request->output_id())));
     {
-        auto surface = session->get_surface(id);
-        response->mutable_id()->set_value(id.as_value());
+        auto surface = session->get_surface(surf_id);
+        response->mutable_id()->set_value(surf_id.as_value());
         response->set_width(surface->size().width.as_uint32_t());
         response->set_height(surface->size().height.as_uint32_t());
         response->set_pixel_format((int)surface->pixel_format());
@@ -144,16 +144,16 @@ void mf::SessionMediator::create_surface(
             response->add_fd(surface->client_input_fd());
 
         bool need_full_ipc;
-        client_buffer_resource = surface->advance_client_buffer(need_full_ipc);
-        auto const& id = client_buffer_resource->id();
+        client_buffer_resource[surf_id] = surface->advance_client_buffer(need_full_ipc);
+        auto const& buf_id = client_buffer_resource[surf_id]->id();
 
         auto buffer = response->mutable_buffer();
-        buffer->set_buffer_id(id.as_uint32_t());
+        buffer->set_buffer_id(buf_id.as_uint32_t());
 
         if (need_full_ipc)
         {
             auto packer = std::make_shared<mfd::ProtobufBufferPacker>(buffer);
-            graphics_platform->fill_ipc_package(packer, client_buffer_resource);
+            graphics_platform->fill_ipc_package(packer, client_buffer_resource[surf_id]);
         }
     }
 
@@ -172,6 +172,8 @@ void mf::SessionMediator::next_buffer(
     ::google::protobuf::Closure* done)
 {
     bool needs_full_ipc;
+    SurfaceId const surf_id{request->value()};
+
     {
         std::unique_lock<std::mutex> lock(session_mutex);
         
@@ -182,19 +184,19 @@ void mf::SessionMediator::next_buffer(
 
         report->session_next_buffer_called(session->name());
 
-        auto surface = session->get_surface(SurfaceId(request->value()));
+        auto surface = session->get_surface(surf_id);
 
-        client_buffer_resource.reset();
-        client_buffer_resource = surface->advance_client_buffer(needs_full_ipc);
+        client_buffer_resource[surf_id].reset();
+        client_buffer_resource[surf_id] = surface->advance_client_buffer(needs_full_ipc);
     }
 
-    auto const& id = client_buffer_resource->id();
-    response->set_buffer_id(id.as_uint32_t());
+    auto const& buf_id = client_buffer_resource[surf_id]->id();
+    response->set_buffer_id(buf_id.as_uint32_t());
 
     if (needs_full_ipc)
     {
         auto packer = std::make_shared<mfd::ProtobufBufferPacker>(response);
-        graphics_platform->fill_ipc_package(packer, client_buffer_resource);
+        graphics_platform->fill_ipc_package(packer, client_buffer_resource[surf_id]);
     }
     done->Run();
 }

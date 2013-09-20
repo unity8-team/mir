@@ -21,8 +21,9 @@
 #define MIR_FRONTEND_SESSION_MEDIATOR_H_
 
 #include "mir_protobuf.pb.h"
+#include "mir/frontend/surface_id.h"
 
-#include <map>
+#include <unordered_map>
 #include <memory>
 #include <mutex>
 
@@ -119,7 +120,7 @@ private:
     std::shared_ptr<EventSink> const event_sink;
     std::shared_ptr<ResourceCache> const resource_cache;
 
-    std::shared_ptr<graphics::Buffer> client_buffer_resource;
+    std::unordered_map<SurfaceId,std::shared_ptr<graphics::Buffer>> client_buffer_resource;
 
     std::mutex session_mutex;
     std::weak_ptr<Session> weak_session;
