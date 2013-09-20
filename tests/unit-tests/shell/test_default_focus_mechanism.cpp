@@ -47,80 +47,34 @@ namespace mf = mir::frontend;
 namespace mt = mir::test;
 namespace mtd = mir::test::doubles;
 
-TEST(DefaultFocusMechanism, raises_default_surface)
+TEST(DefaultFocusMechanism, hands_focus_to_session)
 {
     using namespace ::testing;
     
-    NiceMock<mtd::MockShellSession> app1;
-    mtd::MockSurface mock_surface(&app1, std::make_shared<mtd::StubSurfaceBuilder>());
-    {
-        InSequence seq;
-        EXPECT_CALL(app1, default_surface()).Times(1)
-            .WillOnce(Return(mt::fake_shared(mock_surface)));
-    }
-
-    auto controller = std::make_shared<mtd::StubSurfaceController>();
-    EXPECT_CALL(mock_surface, raise(Eq(controller))).Times(1);
-    mtd::StubInputTargeter targeter;
-    msh::DefaultFocusMechanism focus_mechanism(mt::fake_shared(targeter), controller);
+    mtd::MockShellSession app1;
+    EXPECT_CALL(app1, receive_focus(_, _)).Times(1);
     
+    msh::DefaultFocusMechanism focus_mechanism(std::make_shared<mtd::StubInputTargeter>(), std::make_shared<mtd::StubSurfaceController>());
+
     focus_mechanism.set_focus_to(mt::fake_shared(app1));
 }
 
-TEST(DefaultFocusMechanism, mechanism_notifies_default_surface_of_focus_changes)
-{
-    using namespace ::testing;
-
-    NiceMock<mtd::MockShellSession> app1, app2;
-    mtd::MockSurface mock_surface1(&app1, std::make_shared<mtd::StubSurfaceBuilder>());
-    mtd::MockSurface mock_surface2(&app2, std::make_shared<mtd::StubSurfaceBuilder>());
-    
-    ON_CALL(app1, default_surface()).WillByDefault(Return(mt::fake_shared(mock_surface1)));
-    ON_CALL(app2, default_surface()).WillByDefault(Return(mt::fake_shared(mock_surface2)));
-
-    
-    {
-        InSequence seq;
-        EXPECT_CALL(mock_surface1, configure(mir_surface_attrib_focus, mir_surface_focused)).Times(1);
-        EXPECT_CALL(mock_surface1, configure(mir_surface_attrib_focus, mir_surface_unfocused)).Times(1);
-        EXPECT_CALL(mock_surface2, configure(mir_surface_attrib_focus, mir_surface_focused)).Times(1);
-    }
-
-    msh::DefaultFocusMechanism focus_mechanism(std::make_shared<mtd::StubInputTargeter>(),
-                                                        std::make_shared<mtd::StubSurfaceController>());
-
-    focus_mechanism.set_focus_to(mt::fake_shared(app1));
-    focus_mechanism.set_focus_to(mt::fake_shared(app2));
-}
-
-TEST(DefaultFocusMechanism, sets_input_focus)
+TEST(DefaultFocusMechanism, relinquishes_focus_from_last_session)
 {
     using namespace ::testing;
     
-    NiceMock<mtd::MockShellSession> app1;
-    mtd::MockSurface mock_surface(&app1, std::make_shared<mtd::StubSurfaceBuilder>());
+    auto app1 = std::make_shared<mtd::MockShellSession>();
+    auto app2 = std::make_shared<mtd::MockShellSession>();
+    
     {
         InSequence seq;
-        EXPECT_CALL(app1, default_surface()).Times(1)
-            .WillOnce(Return(mt::fake_shared(mock_surface)));
-        EXPECT_CALL(app1, default_surface()).Times(1)
-            .WillOnce(Return(std::shared_ptr<msh::Surface>()));
+        EXPECT_CALL(*app1, receive_focus(_, _)).Times(1);
+        EXPECT_CALL(*app1, relinquish_focus()).Times(1);
+        EXPECT_CALL(*app2, receive_focus(_, _)).Times(1);
     }
+    
+    msh::DefaultFocusMechanism focus_mechanism(std::make_shared<mtd::StubInputTargeter>(), std::make_shared<mtd::StubSurfaceController>());
 
-    mtd::MockInputTargeter targeter;
-    
-    msh::DefaultFocusMechanism focus_mechanism(mt::fake_shared(targeter), std::make_shared<mtd::StubSurfaceController>());
-    
-    {
-        InSequence seq;
-        EXPECT_CALL(mock_surface, take_input_focus(_)).Times(1);
-        // When we have no default surface.
-        EXPECT_CALL(targeter, focus_cleared()).Times(1);
-        // When we have no session.
-        EXPECT_CALL(targeter, focus_cleared()).Times(1);
-    }
-    
-    focus_mechanism.set_focus_to(mt::fake_shared(app1));
-    focus_mechanism.set_focus_to(mt::fake_shared(app1));
-    focus_mechanism.set_focus_to(std::shared_ptr<msh::Session>());
+    focus_mechanism.set_focus_to(app1);
+    focus_mechanism.set_focus_to(app2);
 }
