@@ -1,3 +1,18 @@
+platform-api (0.19+13.10.20130919.3-0ubuntu1) saucy; urgency=low
+
+  [ Ubuntu daily release ]
+  * debian/*symbols: auto-update new symbols to released version
+
+  [ thomas-voss ]
+  * Ensure that url dispatcher and location service symbols are part of
+    the mir implementation.
+
+  [ Ubuntu daily release ]
+  * New rebuild forced
+  * Automatic snapshot from revision 150
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 19 Sep 2013 14:09:35 +0000
+
 platform-api (0.19-0ubuntu1) saucy; urgency=low
 
   * New upstream release
