@@ -82,6 +82,7 @@ private:
     std::shared_ptr<frontend::EventSink> const event_sink;
 
     frontend::SurfaceId next_id();
+    std::shared_ptr<Surface> default_surface_locked(std::unique_lock<std::mutex> const& lock) const;
 
     std::atomic<int> next_surface_id;
 

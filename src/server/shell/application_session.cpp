@@ -100,14 +100,19 @@ void msh::ApplicationSession::take_snapshot(SnapshotCallback const& snapshot_tak
     snapshot_strategy->take_snapshot_of(default_surface(), snapshot_taken);
 }
 
-std::shared_ptr<msh::Surface> msh::ApplicationSession::default_surface() const
+std::shared_ptr<msh::Surface> msh::ApplicationSession::default_surface_locked(std::unique_lock<std::mutex> const& /* lock */) const
 {
-    std::unique_lock<std::mutex> lock(surfaces_mutex);
-
     if (surfaces.size())
         return surfaces.begin()->second;
     else
         return std::shared_ptr<msh::Surface>();
+}
+
+std::shared_ptr<msh::Surface> msh::ApplicationSession::default_surface() const
+{
+    std::unique_lock<std::mutex> lock(surfaces_mutex);
+
+    return default_surface_locked(lock);
 }
 
 void msh::ApplicationSession::destroy_surface(mf::SurfaceId id)
@@ -195,7 +200,7 @@ void msh::ApplicationSession::receive_focus(std::shared_ptr<msh::InputTargeter> 
 void msh::ApplicationSession::relinquish_focus()
 {
     std::unique_lock<std::mutex> lock(surfaces_mutex);
-    auto surf = last_focused_surface.lock();
+    auto surf = default_surface_locked(lock);
     if (surf)
     {
         surf->configure(mir_surface_attrib_focus, mir_surface_unfocused);
