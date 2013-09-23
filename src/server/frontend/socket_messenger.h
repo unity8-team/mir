@@ -45,7 +45,7 @@ public:
 
 private:
     std::shared_ptr<boost::asio::local::stream_protocol::socket> socket;
-    std::shared_ptr<CommunicatorReport> const& report;
+    std::shared_ptr<CommunicatorReport> const report;
 
     std::vector<char> whole_message;
 };
