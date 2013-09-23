@@ -182,6 +182,7 @@ void msh::ApplicationSession::receive_focus(std::shared_ptr<msh::InputTargeter> 
         targeter->focus_cleared();
         return;
     }
+    // Use default_surface_locked idiom instead
     auto focus_surface = surfaces.begin()->second;
     
     focus_surface->raise(controller);
