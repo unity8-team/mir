@@ -18,10 +18,9 @@ include_directories(
 )
 
 target_link_libraries(
-	ubuntu_application_api_mirclient
-        ${MIRCLIENT_LDFLAGS} ${MIRCLIENT_LIBRARIES}
-        -Wl,--whole-archive ubuntu_application_api_mircommon
-        -Wl,--no-whole-archive
+  ubuntu_application_api_mirclient
+  ${MIRCLIENT_LDFLAGS} ${MIRCLIENT_LIBRARIES}
+  -Wl,--whole-archive ubuntu_application_api_mircommon ${UBUNTU_APPLICATION_API_LINK_LIBRARIES} -Wl,--no-whole-archive
 )
 
 set_target_properties(

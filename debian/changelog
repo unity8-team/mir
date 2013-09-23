@@ -1,3 +1,87 @@
+platform-api (0.19+13.10.20130919.3-0ubuntu1) saucy; urgency=low
+
+  [ Ubuntu daily release ]
+  * debian/*symbols: auto-update new symbols to released version
+
+  [ thomas-voss ]
+  * Ensure that url dispatcher and location service symbols are part of
+    the mir implementation.
+
+  [ Ubuntu daily release ]
+  * New rebuild forced
+  * Automatic snapshot from revision 150
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 19 Sep 2013 14:09:35 +0000
+
+platform-api (0.19-0ubuntu1) saucy; urgency=low
+
+  * New upstream release
+
+ -- Ricardo Mendoza <ricardo.mendoza@canonical.com>  Wed, 18 Sep 2013 12:00:35 -0400
+
+platform-api (0.18.3+13.10.20130904-0ubuntu1) saucy; urgency=low
+
+  * New rebuild forced
+  * Automatic snapshot from revision 147
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Wed, 04 Sep 2013 06:46:10 +0000
+
+platform-api (0.18.3+13.10.20130903-0ubuntu1) saucy; urgency=low
+
+  * New rebuild forced
+  * Automatic snapshot from revision 146
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Tue, 03 Sep 2013 14:46:10 +0000
+
+platform-api (0.18.3+13.10.20130830.1-0ubuntu1) saucy; urgency=low
+
+  * New rebuild forced
+  * Automatic snapshot from revision 145
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Fri, 30 Aug 2013 18:55:10 +0000
+
+platform-api (0.18.3+13.10.20130830-0ubuntu1) saucy; urgency=low
+
+  * New rebuild forced
+  * Automatic snapshot from revision 144
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Fri, 30 Aug 2013 12:12:17 +0000
+
+platform-api (0.18.3+13.10.20130829.2-0ubuntu1) saucy; urgency=low
+
+  * New rebuild forced
+  * Automatic snapshot from revision 143
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 29 Aug 2013 18:40:08 +0000
+
+platform-api (0.18.3+13.10.20130829.1-0ubuntu1) saucy; urgency=low
+
+  * New rebuild forced
+  * Automatic snapshot from revision 142
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 29 Aug 2013 14:50:08 +0000
+
+platform-api (0.18.3+13.10.20130829-0ubuntu1) saucy; urgency=low
+
+  * New rebuild forced
+  * Automatic snapshot from revision 141
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 29 Aug 2013 10:40:08 +0000
+
+platform-api (0.18.3+13.10.20130828-0ubuntu1) saucy; urgency=low
+
+  * New rebuild forced
+  * Automatic snapshot from revision 140
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Wed, 28 Aug 2013 10:42:09 +0000
+
+platform-api (0.18.3+13.10.20130827.1-0ubuntu1) saucy; urgency=low
+
+  * New rebuild forced
+  * Automatic snapshot from revision 139
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Tue, 27 Aug 2013 18:42:09 +0000
+
 platform-api (0.18.3+13.10.20130827-0ubuntu1) saucy; urgency=low
 
   * New rebuild forced
