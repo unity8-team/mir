@@ -26,13 +26,16 @@ namespace mir
 {
 namespace frontend
 {
+class CommunicatorReport;
+
 namespace detail
 {
 class SocketMessenger : public MessageSender,
                         public MessageReceiver
 {
 public:
-    SocketMessenger(std::shared_ptr<boost::asio::local::stream_protocol::socket> const& socket);
+    SocketMessenger(std::shared_ptr<boost::asio::local::stream_protocol::socket> const& socket,
+                    std::shared_ptr<frontend::CommunicatorReport> const& report);
 
     void send(std::string const& body);
     void send_fds(std::vector<int32_t> const& fds);
@@ -42,6 +45,8 @@ public:
 
 private:
     std::shared_ptr<boost::asio::local::stream_protocol::socket> socket;
+    std::shared_ptr<CommunicatorReport> const& report;
+
     std::vector<char> whole_message;
 };
 }

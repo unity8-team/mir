@@ -42,7 +42,6 @@ protected:
 class NullCommunicatorReport : public CommunicatorReport
 {
 public:
-
     void error(std::exception const& error);
 };
 }

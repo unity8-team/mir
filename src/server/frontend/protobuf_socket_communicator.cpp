@@ -135,7 +135,7 @@ void mf::ProtobufSocketCommunicator::on_new_connection(
 {
     if (!ec)
     {
-        auto messenger = std::make_shared<detail::SocketMessenger>(socket);
+        auto messenger = std::make_shared<detail::SocketMessenger>(socket, report);
         auto client_pid = messenger->client_pid(); 
         if (session_authorizer->connection_is_allowed(client_pid))
         {

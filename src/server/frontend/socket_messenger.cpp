@@ -18,13 +18,16 @@
 
 #include "socket_messenger.h"
 #include "mir/frontend/client_constants.h"
+#include "mir/frontend/communicator_report.h"
 
 namespace mfd = mir::frontend::detail;
 namespace bs = boost::system;
 namespace ba = boost::asio;
 
-mfd::SocketMessenger::SocketMessenger(std::shared_ptr<ba::local::stream_protocol::socket> const& socket)
-    : socket(socket)
+mfd::SocketMessenger::SocketMessenger(std::shared_ptr<ba::local::stream_protocol::socket> const& socket,
+                                      std::shared_ptr<CommunicatorReport> const& report)
+    : socket(socket),
+      report(report)
 {
     whole_message.reserve(serialization_buffer_size);
 }
@@ -63,9 +66,9 @@ void mfd::SocketMessenger::send(std::string const& body)
     {
         ba::write(*socket, ba::buffer(whole_message));
     }
-    catch (std::exception &)
+    catch (std::exception &ex)
     {
-        // Don't care
+        report->error(ex);
     }
 }
 

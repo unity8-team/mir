@@ -16,19 +16,22 @@
  * Authored by: Daniel van Vugt <daniel.van.vugt@canonical.com>
  */
 
+#include "mir/frontend/communicator_report.h"
 #include "src/server/frontend/socket_messenger.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-using namespace mir::frontend::detail;
+namespace mf = mir::frontend;
+
+using namespace mf::detail;
 using namespace boost::asio;
 
 TEST(SocketMessengerTest, write_failures_never_throw)
 {
     io_service svc;
     auto sock = std::make_shared<local::stream_protocol::socket>(svc);
-    SocketMessenger mess(sock);
+    SocketMessenger mess(sock, std::make_shared<mf::NullCommunicatorReport>());
 
     EXPECT_NO_THROW( mess.send("foo") );
 }
