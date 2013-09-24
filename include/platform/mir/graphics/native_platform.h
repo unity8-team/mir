@@ -19,6 +19,7 @@
 #define MIR_GRAPHICS_NATIVE_PLATFORM_H_
 
 #include <memory>
+#include <functional>
 
 namespace mir
 {
@@ -34,11 +35,14 @@ class PlatformIPCPackage;
 class InternalClient;
 class BufferIPCPacker;
 class Buffer;
+class DisplayReport;
 
 class NativePlatform
 {
 public:
     NativePlatform() {}
+
+    virtual void initialize(std::function<void(int)> const& auth_magic, int data_items, int const* data, int fd_items, int const* fd) = 0;
 
     virtual std::shared_ptr<GraphicBufferAllocator> create_buffer_allocator(
         std::shared_ptr<BufferInitializer> const& buffer_initializer) = 0;
@@ -54,8 +58,8 @@ public:
     NativePlatform& operator=(NativePlatform const&) = delete;
 };
 
-extern "C" typedef std::shared_ptr<NativePlatform>(*CreateNativePlatform)(/* TODO */);
-extern "C" std::shared_ptr<NativePlatform> create_native_platform(/* TODO */);
+extern "C" typedef std::shared_ptr<NativePlatform>(*CreateNativePlatform)(std::shared_ptr<DisplayReport> const& report);
+extern "C" std::shared_ptr<NativePlatform> create_native_platform(std::shared_ptr<DisplayReport> const& report);
 }
 }
 
