@@ -1,3 +1,13 @@
+platform-api (0.19+13.10.20130924-0ubuntu1) saucy; urgency=low
+
+  [ Ricardo Mendoza ]
+  * * Bump build-dep on Mir to 0.0.11.
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 152
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Tue, 24 Sep 2013 13:05:21 +0000
+
 platform-api (0.19+13.10.20130919.3-0ubuntu1) saucy; urgency=low
 
   [ Ubuntu daily release ]
