@@ -1,3 +1,13 @@
+platform-api (0.19+13.10.20130926.1-0ubuntu1) saucy; urgency=low
+
+  [ Kevin Gunn ]
+  * bump build dep for new mir soname in order to rebuild
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 156
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 26 Sep 2013 10:03:20 +0000
+
 platform-api (0.19+13.10.20130925.1-0ubuntu1) saucy; urgency=low
 
   [ Ricardo Mendoza ]
