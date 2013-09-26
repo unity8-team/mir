@@ -46,6 +46,7 @@ class ProtobufIpcFactory;
 class SessionCreator;
 class SessionMediatorReport;
 class MessageProcessorReport;
+class MessengerReport;
 class SessionAuthorizer;
 class EventSink;
 class DisplayChanger;
@@ -165,6 +166,7 @@ public:
      *  @{ */
     virtual std::shared_ptr<frontend::SessionMediatorReport>  the_session_mediator_report();
     virtual std::shared_ptr<frontend::MessageProcessorReport> the_message_processor_report();
+    virtual std::shared_ptr<frontend::MessengerReport>        the_messenger_report();
     virtual std::shared_ptr<frontend::SessionAuthorizer>      the_session_authorizer();
     virtual std::shared_ptr<frontend::Shell>                  the_frontend_shell();
     virtual std::shared_ptr<frontend::EventSink>              the_global_event_sink();
@@ -270,6 +272,7 @@ protected:
     CachedPtr<frontend::ProtobufIpcFactory>  ipc_factory;
     CachedPtr<frontend::SessionMediatorReport> session_mediator_report;
     CachedPtr<frontend::MessageProcessorReport> message_processor_report;
+    CachedPtr<frontend::MessengerReport> messenger_report;
     CachedPtr<frontend::SessionAuthorizer> session_authorizer;
     CachedPtr<frontend::EventSink> global_event_sink;
     CachedPtr<frontend::SessionCreator>    session_creator;

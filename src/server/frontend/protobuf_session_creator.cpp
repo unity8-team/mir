@@ -53,7 +53,7 @@ int mf::ProtobufSessionCreator::next_id()
 
 void mf::ProtobufSessionCreator::create_session_for(std::shared_ptr<ba::local::stream_protocol::socket> const& socket)
 {
-    auto const messenger = std::make_shared<detail::SocketMessenger>(socket);
+    auto const messenger = std::make_shared<detail::SocketMessenger>(socket, ipc_factory->messenger_report());
     auto const client_pid = messenger->client_pid();
 
     if (session_authorizer->connection_is_allowed(client_pid))
@@ -64,7 +64,7 @@ void mf::ProtobufSessionCreator::create_session_for(std::shared_ptr<ba::local::s
             messenger,
             ipc_factory->make_ipc_server(event_sink, authorized_to_resize_display),
             ipc_factory->resource_cache(),
-            ipc_factory->report());
+            ipc_factory->message_processor_report());
 
         const auto& session = std::make_shared<mfd::SocketSession>(messenger, next_id(), connected_sessions, msg_processor);
         connected_sessions->add(session);

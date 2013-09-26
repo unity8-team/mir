@@ -30,6 +30,7 @@
 #include "mir/frontend/protobuf_ipc_factory.h"
 #include "mir/frontend/session_mediator_report.h"
 #include "mir/frontend/null_message_processor_report.h"
+#include "mir/frontend/messenger_report.h"
 #include "mir/frontend/session_mediator.h"
 #include "mir/frontend/session_authorizer.h"
 #include "mir/frontend/global_event_sender.h"
@@ -75,6 +76,7 @@
 #include "mir/logging/session_mediator_report.h"
 #include "mir/logging/message_processor_report.h"
 #include "mir/logging/display_report.h"
+#include "mir/logging/messenger_report.h"
 #include "mir/lttng/message_processor_report.h"
 #include "mir/lttng/input_report.h"
 #include "mir/shell/surface_source.h"
@@ -113,13 +115,15 @@ public:
     explicit DefaultIpcFactory(
         std::shared_ptr<mf::Shell> const& shell,
         std::shared_ptr<mf::SessionMediatorReport> const& sm_report,
-        std::shared_ptr<mf::MessageProcessorReport> const& mr_report,
+        std::shared_ptr<mf::MessageProcessorReport> const& mp_report,
+        std::shared_ptr<mf::MessengerReport> const& messenger_report,
         std::shared_ptr<mg::Platform> const& graphics_platform,
         std::shared_ptr<mf::DisplayChanger> const& display_changer,
         std::shared_ptr<mg::GraphicBufferAllocator> const& buffer_allocator) :
         shell(shell),
         sm_report(sm_report),
-        mp_report(mr_report),
+        mp_report(mp_report),
+        msger_report(messenger_report),
         cache(std::make_shared<mf::ResourceCache>()),
         graphics_platform(graphics_platform),
         display_changer(display_changer),
@@ -131,6 +135,7 @@ private:
     std::shared_ptr<mf::Shell> shell;
     std::shared_ptr<mf::SessionMediatorReport> const sm_report;
     std::shared_ptr<mf::MessageProcessorReport> const mp_report;
+    std::shared_ptr<mf::MessengerReport> const msger_report;
     std::shared_ptr<mf::ResourceCache> const cache;
     std::shared_ptr<mg::Platform> const graphics_platform;
     std::shared_ptr<mf::DisplayChanger> const display_changer;
@@ -164,9 +169,13 @@ private:
         return cache;
     }
 
-    virtual std::shared_ptr<mf::MessageProcessorReport> report()
+    virtual std::shared_ptr<mf::MessageProcessorReport> message_processor_report()
     {
         return mp_report;
+    }
+    virtual std::shared_ptr<mf::MessengerReport> messenger_report()
+    {
+        return msger_report;
     }
 };
 
@@ -174,6 +183,7 @@ char const* const server_socket_opt           = "file";
 char const* const no_server_socket_opt        = "no-file";
 char const* const session_mediator_report_opt = "session-mediator-report";
 char const* const msg_processor_report_opt    = "msg-processor-report";
+char const* const messenger_report_opt        = "messenger-report";
 char const* const display_report_opt          = "display-report";
 char const* const legacy_input_report_opt     = "legacy-input-report";
 char const* const input_report_opt            = "input-report";
@@ -824,6 +834,7 @@ mir::DefaultServerConfiguration::the_ipc_factory(
                 shell,
                 the_session_mediator_report(),
                 the_message_processor_report(),
+                the_messenger_report(),
                 the_graphics_platform(),
                 the_frontend_display_changer(), allocator);
         });
@@ -890,6 +901,23 @@ mir::DefaultServerConfiguration::the_message_processor_report()
         });
 }
 
+std::shared_ptr<mf::MessengerReport>
+mir::DefaultServerConfiguration::the_messenger_report()
+{
+    return messenger_report(
+        [this]() -> std::shared_ptr<mf::MessengerReport>
+        {
+            auto report_opt = the_options()->get(messenger_report_opt, off_opt_value);
+            if (report_opt == log_opt_value)
+            {
+                return std::make_shared<ml::MessengerReport>(the_logger());
+            }
+            else
+            {
+                return std::make_shared<mf::NullMessengerReport>();
+            }
+        });
+}
 
 std::shared_ptr<ml::Logger> mir::DefaultServerConfiguration::the_logger()
 {

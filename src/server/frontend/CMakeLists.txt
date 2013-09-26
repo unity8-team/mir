@@ -5,6 +5,7 @@ set(
   session_mediator.cpp
   null_session_mediator_report.cpp
   null_message_processor_report.cpp
+  null_messenger_report.cpp
   protobuf_message_processor.cpp
   protobuf_buffer_packer.cpp
   null_message_processor.cpp
