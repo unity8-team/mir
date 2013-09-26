@@ -6,6 +6,7 @@ set(
   message_processor_report.cpp
   display_report.cpp
   input_report.cpp
+  messenger_report.cpp
 )
 
 add_library(
