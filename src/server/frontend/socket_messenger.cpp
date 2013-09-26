@@ -18,16 +18,13 @@
 
 #include "socket_messenger.h"
 #include "mir/frontend/client_constants.h"
-#include "mir/frontend/communicator_report.h"
 
 namespace mfd = mir::frontend::detail;
 namespace bs = boost::system;
 namespace ba = boost::asio;
 
-mfd::SocketMessenger::SocketMessenger(std::shared_ptr<ba::local::stream_protocol::socket> const& socket,
-                                      std::shared_ptr<CommunicatorReport> const& report)
-    : socket(socket),
-      report(report)
+mfd::SocketMessenger::SocketMessenger(std::shared_ptr<ba::local::stream_protocol::socket> const& socket)
+    : socket(socket)
 {
     whole_message.reserve(serialization_buffer_size);
 }
@@ -62,14 +59,8 @@ void mfd::SocketMessenger::send(std::string const& body)
     // function has completed (if it would be executed asynchronously.
     // NOTE: we rely on this synchronous behavior as per the comment in
     // mf::SessionMediator::create_surface
-    try
-    {
-        ba::write(*socket, ba::buffer(whole_message));
-    }
-    catch (std::exception &ex)
-    {
-        report->error(ex);
-    }
+    boost::system::error_code err;
+    ba::write(*socket, ba::buffer(whole_message), err);
 }
 
 void mfd::SocketMessenger::send_fds(std::vector<int32_t> const& fds)

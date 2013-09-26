@@ -13,38 +13,32 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Authored by: Alan Griffiths <alan@octopull.co.uk
+ * Authored by: Alan Griffiths <alan@octopull.co.uk>
  */
 
-#ifndef MIR_FRONTEND_COMMUNICATOR_REPORT_H_
-#define MIR_FRONTEND_COMMUNICATOR_REPORT_H_
+#ifndef MIR_FRONTEND_SESSION_CREATOR_H_
+#define MIR_FRONTEND_SESSION_CREATOR_H_
 
-#include <stdexcept>
+#include <boost/asio.hpp>
+
+#include <memory>
 
 namespace mir
 {
 namespace frontend
 {
-
-class CommunicatorReport
+class SessionCreator
 {
 public:
-
-    virtual void error(std::exception const& error) = 0;
+    virtual void create_session_for(std::shared_ptr<boost::asio::local::stream_protocol::socket> const& socket) = 0;
 
 protected:
-    virtual ~CommunicatorReport() = default;
-    CommunicatorReport() = default;
-    CommunicatorReport(const CommunicatorReport&) = delete;
-    CommunicatorReport& operator=(const CommunicatorReport&) = delete;
-};
-
-class NullCommunicatorReport : public CommunicatorReport
-{
-public:
-    void error(std::exception const& error);
+    SessionCreator() = default;
+    virtual ~SessionCreator() noexcept = default;
+    SessionCreator(SessionCreator const&) = delete;
+    SessionCreator& operator=(SessionCreator const&) = delete;
 };
 }
 }
 
-#endif // MIR_FRONTEND_COMMUNICATOR_REPORT_H_
+#endif /* MIR_FRONTEND_SESSION_CREATOR_H_ */
