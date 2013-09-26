@@ -16,7 +16,7 @@
  * Authored by: Daniel van Vugt <daniel.van.vugt@canonical.com>
  */
 
-#include "mir/frontend/communicator_report.h"
+#include "mir/frontend/messenger_report.h"
 #include "src/server/frontend/socket_messenger.h"
 
 #include <gmock/gmock.h>
@@ -31,7 +31,7 @@ TEST(SocketMessengerTest, write_failures_never_throw)
 {
     io_service svc;
     auto sock = std::make_shared<local::stream_protocol::socket>(svc);
-    SocketMessenger mess(sock, std::make_shared<mf::NullCommunicatorReport>());
+    SocketMessenger mess(sock, std::make_shared<mf::NullMessengerReport>());
 
     EXPECT_NO_THROW( mess.send("foo") );
 }
