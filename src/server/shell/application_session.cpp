@@ -200,9 +200,10 @@ void msh::ApplicationSession::receive_focus(std::shared_ptr<msh::InputTargeter> 
 void msh::ApplicationSession::relinquish_focus()
 {
     std::unique_lock<std::mutex> lock(surfaces_mutex);
-    auto surf = default_surface_locked(lock);
+    auto surf = last_focused_surface.lock();
     if (surf)
     {
         surf->configure(mir_surface_attrib_focus, mir_surface_unfocused);
     }
+    last_focused_surface.reset();
 }

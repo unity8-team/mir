@@ -159,7 +159,9 @@ TEST_F(BespokeDisplayServerTestFixture, DISABLED_ON_ANDROID(a_surface_is_notifie
         void expect_events(mt::WaitCondition* all_events_received) override
         {
             EXPECT_CALL(*observer, see(Pointee(mt::SurfaceEvent(mir_surface_attrib_focus, mir_surface_focused)))).Times(1)
-                .WillOnce(mt::WakeUp(all_events_received));
+                .WillOnce(mt::WakeUp(all_events_received)); // Now we close the surface generating an unfocused event
+            // libmirclient guarantees we will see this before mir_surface_release finishes, so we don't need further
+            // synchronization
             EXPECT_CALL(*observer, see(Pointee(mt::SurfaceEvent(mir_surface_attrib_focus, mir_surface_unfocused)))).Times(1);
         }
     } client_config;
