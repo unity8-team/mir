@@ -41,8 +41,9 @@ class RendererFactory;
 namespace frontend
 {
 class Shell;
-class Communicator;
+class Connector;
 class ProtobufIpcFactory;
+class SessionCreator;
 class SessionMediatorReport;
 class MessageProcessorReport;
 class SessionAuthorizer;
@@ -118,11 +119,12 @@ public:
     /** @name DisplayServer dependencies
      * dependencies of DisplayServer on the rest of the Mir
      *  @{ */
-    virtual std::shared_ptr<frontend::Communicator> the_communicator();
+    virtual std::shared_ptr<frontend::Connector>    the_connector();
     virtual std::shared_ptr<graphics::Display>      the_display();
     virtual std::shared_ptr<compositor::Compositor> the_compositor();
     virtual std::shared_ptr<input::InputManager>    the_input_manager();
     virtual std::shared_ptr<MainLoop>               the_main_loop();
+    virtual std::shared_ptr<PauseResumeListener>    the_pause_resume_listener();
     virtual std::shared_ptr<DisplayChanger>         the_display_changer();
     virtual std::shared_ptr<graphics::Platform>     the_graphics_platform();
     virtual std::shared_ptr<input::InputConfiguration> the_input_configuration();
@@ -167,6 +169,11 @@ public:
     virtual std::shared_ptr<frontend::Shell>                  the_frontend_shell();
     virtual std::shared_ptr<frontend::EventSink>              the_global_event_sink();
     virtual std::shared_ptr<frontend::DisplayChanger>         the_frontend_display_changer();
+    /** @name frontend configuration - internal dependencies
+     * internal dependencies of frontend
+     *  @{ */
+    virtual std::shared_ptr<frontend::SessionCreator>         the_session_creator();
+    /** @} */
     /** @} */
 
     virtual std::shared_ptr<shell::FocusController> the_focus_controller();
@@ -242,7 +249,7 @@ protected:
     virtual std::shared_ptr<shell::MediatingDisplayChanger> the_mediating_display_changer();
     virtual std::shared_ptr<shell::BroadcastingSessionEventSink> the_broadcasting_session_event_sink();
 
-    CachedPtr<frontend::Communicator> communicator;
+    CachedPtr<frontend::Connector>   connector;
     CachedPtr<shell::SessionManager> session_manager;
 
 
@@ -265,6 +272,7 @@ protected:
     CachedPtr<frontend::MessageProcessorReport> message_processor_report;
     CachedPtr<frontend::SessionAuthorizer> session_authorizer;
     CachedPtr<frontend::EventSink> global_event_sink;
+    CachedPtr<frontend::SessionCreator>    session_creator;
     CachedPtr<compositor::RendererFactory> renderer_factory;
     CachedPtr<compositor::BufferStreamFactory> buffer_stream_factory;
     CachedPtr<surfaces::SurfaceStack> surface_stack;
@@ -286,6 +294,7 @@ protected:
     CachedPtr<surfaces::SurfaceController> surface_controller;
     CachedPtr<time::TimeSource> time_source;
     CachedPtr<MainLoop> main_loop;
+    CachedPtr<PauseResumeListener> pause_resume_listener;
     CachedPtr<graphics::DisplayConfigurationPolicy> display_configuration_policy;
     CachedPtr<graphics::nested::HostConnection> host_connection;
     CachedPtr<input::NestedInputRelay> nested_input_relay;

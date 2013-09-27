@@ -16,10 +16,12 @@
  * Authored by: Kevin DuBois <kevin.dubois@canonical.com>
  */
 
-#ifndef MIR_TEST_DOUBLES_NULL_DISPLAY_CONFIG_H_
-#define MIR_TEST_DOUBLES_NULL_DISPLAY_CONFIG_H_
+#ifndef MIR_TEST_DOUBLES_MOCK_HWC_LAYERLIST_H_
+#define MIR_TEST_DOUBLES_MOCK_HWC_LAYERLIST_H_
 
-#include "mir/graphics/display_configuration.h"
+#include "src/server/graphics/android/hwc_layerlist.h"
+
+#include <gmock/gmock.h>
 
 namespace mir
 {
@@ -28,24 +30,14 @@ namespace test
 namespace doubles
 {
 
-struct NullDisplayConfig : public graphics::DisplayConfiguration
+struct MockHWCLayerList : public graphics::android::HWCLayerList
 {
-    NullDisplayConfig()
-    {
-    }
-    virtual void for_each_card(std::function<void(graphics::DisplayConfigurationCard const&)>) const
-    {
-    }
-    virtual void for_each_output(std::function<void(graphics::DisplayConfigurationOutput const&)>) const
-    {
-    }
-    virtual void configure_output(graphics::DisplayConfigurationOutputId, bool, geometry::Point, size_t)
-    {
-    }
+    ~MockHWCLayerList() noexcept {}
+    MOCK_CONST_METHOD0(native_list, hwc_display_contents_1_t*());
+    MOCK_METHOD1(set_fb_target, void(std::shared_ptr<graphics::Buffer> const&));
 };
 
 }
 }
 }
-
-#endif /*MIR_TEST_DOUBLES_NULL_DISPLAY_CONFIG_H_ */
+#endif /* MIR_TEST_DOUBLES_MOCK_HWC_LAYERLIST_H_ */

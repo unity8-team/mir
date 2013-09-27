@@ -61,7 +61,8 @@ void mfd::SocketMessenger::send(std::string const& body)
     // mf::SessionMediator::create_surface
     try
     {
-        ba::write(*socket, ba::buffer(whole_message));
+        boost::system::error_code err;
+        ba::write(*socket, ba::buffer(whole_message), err);
     }
     catch (std::exception &)
     {
