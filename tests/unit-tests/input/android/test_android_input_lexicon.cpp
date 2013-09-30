@@ -27,6 +27,7 @@
 namespace mi = mir::input;
 namespace mia = mir::input::android;
 
+// Translate key events from android::KeyEvent to MirEvent
 TEST(AndroidInputLexicon, translates_key_events)
 {
     using namespace ::testing;
@@ -67,6 +68,54 @@ TEST(AndroidInputLexicon, translates_key_events)
     EXPECT_EQ(mir_key_ev->event_time, event_time);
     // What is this flag and where does it come from?
     EXPECT_EQ(mir_key_ev->is_system_key, false);
+
+    delete android_key_ev;
+}
+
+// Translate MirEvent to android::KeyEvent
+TEST(AndroidInputLexicon, translates_key_events_in_reverse)
+{
+    using namespace ::testing;
+
+    const int32_t device_id = 1;
+    const int32_t source_id = 2;
+    const int32_t action = 3;
+    const int32_t flags = 4;
+    const int32_t key_code = 5;
+    const int32_t scan_code = 6;
+    const int32_t meta_state = 7;
+    const int32_t repeat_count = 8;
+    const nsecs_t down_time = 9;
+    const nsecs_t event_time = 10;
+    
+    MirEvent mir_ev;
+    mir_ev.type = mir_event_type_key;
+    mir_ev.key.device_id = device_id;
+    mir_ev.key.source_id = source_id;
+    mir_ev.key.action = static_cast<MirKeyAction>(action);
+    mir_ev.key.flags = static_cast<MirKeyFlag>(flags);
+    mir_ev.key.key_code = key_code;
+    mir_ev.key.scan_code = scan_code;
+    mir_ev.key.modifiers = meta_state;
+    mir_ev.key.repeat_count = repeat_count;
+    mir_ev.key.down_time = down_time;
+    mir_ev.key.event_time = event_time;
+
+    droidinput::InputEvent *aev;
+    mia::Lexicon::translate(mir_ev, &aev);
+    auto android_key_ev = dynamic_cast<droidinput::KeyEvent*>(aev);
+
+    EXPECT_EQ(device_id, android_key_ev->getDeviceId());
+    EXPECT_EQ(source_id, android_key_ev->getSource());
+    EXPECT_EQ(action, android_key_ev->getAction());
+    EXPECT_EQ(flags, android_key_ev->getFlags());
+    EXPECT_EQ(meta_state, android_key_ev->getMetaState());
+    EXPECT_EQ(AINPUT_EVENT_TYPE_KEY, android_key_ev->getType());
+    EXPECT_EQ(key_code, android_key_ev->getKeyCode());
+    EXPECT_EQ(scan_code, android_key_ev->getScanCode());
+    EXPECT_EQ(repeat_count, android_key_ev->getRepeatCount());
+    EXPECT_EQ(down_time, android_key_ev->getDownTime());
+    EXPECT_EQ(event_time, android_key_ev->getEventTime());
 
     delete android_key_ev;
 }

@@ -81,3 +81,24 @@ void mia::Lexicon::translate(const droidinput::InputEvent *android_event, MirEve
 
 }
 
+void mia::Lexicon::translate(MirEvent const& mir_event, droidinput::InputEvent **android_event)
+{
+    switch (mir_event.type)
+    {
+        case mir_event_type_key:
+        {
+            auto key_event = new droidinput::KeyEvent();
+            key_event->initialize(mir_event.key.device_id, mir_event.key.source_id, 
+                mir_event.key.action, mir_event.key.flags, mir_event.key.key_code,
+                mir_event.key.scan_code, mir_event.key.modifiers, 
+                mir_event.key.repeat_count, mir_event.key.down_time, mir_event.key.event_time);
+            *android_event = key_event;
+            break;
+        }
+        case mir_event_type_motion:
+        case mir_event_type_surface:        
+        default:
+            // TODO: LOL
+            break;
+    }
+}
