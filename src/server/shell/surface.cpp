@@ -355,7 +355,7 @@ void msh::Surface::inject_input(std::shared_ptr<msh::InputInjecter> const& injec
 {
     if (auto const& s = surface.lock())
     {
-        injecter->inject_input(s, ev);
+        injecter->inject_input(s->input_channel(), ev);
     }
     else
     {

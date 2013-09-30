@@ -26,9 +26,9 @@
 namespace mir
 {
 
-namespace surfaces
+namespace input
 {
-class Surface;
+class InputChannel;
 }
 
 namespace shell
@@ -40,7 +40,7 @@ class InputInjecter
 public:
     virtual ~InputInjecter() = default;
     
-    virtual void inject_input(std::shared_ptr<surfaces::Surface> const& surface,
+    virtual void inject_input(std::shared_ptr<input::InputChannel> const& target,
                               MirEvent const& ev) = 0;
 
 protected:
