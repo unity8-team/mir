@@ -930,7 +930,7 @@ std::shared_ptr<msh::InputInjecter> mir::DefaultServerConfiguration::the_input_i
 {
     struct NullInputInjecter : public msh::InputInjecter
     {
-        void inject_input(std::shared_ptr<msh::Surface> const&, MirEvent const&)
+        void inject_input(std::shared_ptr<ms::Surface> const&, MirEvent const&)
         {
         }
     };

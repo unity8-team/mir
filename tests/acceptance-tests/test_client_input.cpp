@@ -23,6 +23,8 @@
 #include "mir/shell/surface.h"
 #include "mir/shell/session_container.h"
 #include "mir/shell/session.h"
+#include "mir/shell/focus_sequence.h"
+#include "mir/shell/input_injecter.h"
 #include "mir/surfaces/surface_controller.h"
 #include "mir/surfaces/surface_stack_model.h"
 
@@ -942,4 +944,60 @@ TEST_F(TestClientInput, hidden_clients_do_not_receive_pointer_events)
 
     launch_client_process(client_1);
     launch_client_process(client_2);
+}
+
+TEST_F(TestClientInput, clients_receive_injected_input_per_norm)
+{
+    using namespace ::testing;
+    
+    static std::string const test_client_name = "1";
+
+    mtf::CrossProcessSync fence;
+
+    struct ServerConfiguration : mtf::InputTestingServerConfiguration
+    {
+        mtf::CrossProcessSync input_cb_setup_fence;
+
+        ServerConfiguration(const mtf::CrossProcessSync& input_cb_setup_fence) 
+                : input_cb_setup_fence(input_cb_setup_fence)
+        {
+        }
+
+        std::shared_ptr<msh::Surface> the_most_default_surface()
+        {
+            return the_shell_focus_sequence()->default_focus()->default_surface();
+        }
+
+        void inject_event_to_default_surface(MirEvent &ev)
+        {
+            the_most_default_surface()->inject_input(the_input_injecter(), ev);
+        }
+        
+        void inject_input()
+        {
+            wait_until_client_appears(test_client_name);
+            input_cb_setup_fence.wait_for_signal_ready_for();
+
+            MirEvent ev;
+            ev.type = mir_event_type_key;
+            ev.key.action = mir_key_action_down;
+
+            inject_event_to_default_surface(ev);
+        }
+    } server_config(fence);
+    launch_server_process(server_config);
+    
+    struct KeyReceivingClient : InputClient
+    {
+        KeyReceivingClient(const mtf::CrossProcessSync& fence) : InputClient(fence, test_client_name) {}
+        void expect_input(mt::WaitCondition& events_received) override
+        {
+            using namespace ::testing;
+            InSequence seq;
+
+            EXPECT_CALL(*handler, handle_input(KeyDownEvent())).Times(1)
+                .WillOnce(mt::WakeUp(&events_received));
+        }
+    } client_config(fence);
+    launch_client_process(client_config);
 }

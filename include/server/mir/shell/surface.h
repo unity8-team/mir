@@ -26,6 +26,7 @@
 #include "mir/surfaces/surface.h"
 
 #include "mir_toolkit/common.h"
+#include "mir_toolkit/event.h"
 
 #include <string>
 
@@ -42,6 +43,7 @@ class Session;
 class SurfaceBuilder;
 class SurfaceConfigurator;
 class SurfaceController;
+class InputInjecter;
 struct SurfaceCreationParameters;
 
 class Surface : public frontend::ClientTrackingSurface, public shell::SurfaceBufferAccess
@@ -90,6 +92,8 @@ public:
     virtual void allow_framedropping(bool); 
     
     virtual void raise(std::shared_ptr<SurfaceController> const& controller);
+    
+    virtual void inject_input(std::shared_ptr<InputInjecter> const& injecter, MirEvent const& ev);
 private:
     bool set_type(MirSurfaceType t);  // Use configure() to make public changes
     bool set_state(MirSurfaceState s);

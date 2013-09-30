@@ -26,9 +26,13 @@
 namespace mir
 {
 
-namespace shell
+namespace surfaces
 {
 class Surface;
+}
+
+namespace shell
+{
 
 /// An interface used to control the selection of keyboard input focus.
 class InputInjecter
@@ -36,7 +40,7 @@ class InputInjecter
 public:
     virtual ~InputInjecter() = default;
     
-    virtual void inject_input(std::shared_ptr<Surface> const& surface,
+    virtual void inject_input(std::shared_ptr<surfaces::Surface> const& surface,
                               MirEvent const& ev) = 0;
 
 protected:

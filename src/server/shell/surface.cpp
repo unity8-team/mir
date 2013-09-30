@@ -21,6 +21,7 @@
 #include "mir/shell/surface_configurator.h"
 #include "mir/shell/surface_controller.h"
 #include "mir/shell/input_targeter.h"
+#include "mir/shell/input_injecter.h"
 #include "mir/input/input_channel.h"
 #include "mir/frontend/event_sink.h"
 
@@ -343,6 +344,18 @@ void msh::Surface::raise(std::shared_ptr<msh::SurfaceController> const& controll
     if (auto const& s = surface.lock())
     {
         controller->raise(s);
+    }
+    else
+    {
+        BOOST_THROW_EXCEPTION(std::runtime_error("Invalid surface"));
+    }
+}
+
+void msh::Surface::inject_input(std::shared_ptr<msh::InputInjecter> const& injecter, MirEvent const& ev)
+{
+    if (auto const& s = surface.lock())
+    {
+        injecter->inject_input(s, ev);
     }
     else
     {
