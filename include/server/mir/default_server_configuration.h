@@ -57,6 +57,7 @@ class SurfaceFactory;
 class SurfaceBuilder;
 class SurfaceController;
 class InputTargeter;
+class InputInjecter;
 class SessionContainer;
 class FocusSetter;
 class FocusSequence;
@@ -223,6 +224,7 @@ public:
     virtual std::shared_ptr<input::CompositeEventFilter> the_composite_event_filter();
     virtual std::shared_ptr<surfaces::InputRegistrar> the_input_registrar();
     virtual std::shared_ptr<shell::InputTargeter> the_input_targeter();
+    virtual std::shared_ptr<shell::InputInjecter> the_input_injecter();
     virtual std::shared_ptr<input::CursorListener> the_cursor_listener();
     virtual std::shared_ptr<input::InputRegion>    the_input_region();
     /** @} */
@@ -261,6 +263,7 @@ protected:
     CachedPtr<input::InputRegion>     input_region;
     CachedPtr<surfaces::InputRegistrar> input_registrar;
     CachedPtr<shell::InputTargeter> input_targeter;
+    CachedPtr<shell::InputInjecter> input_injecter;
     CachedPtr<input::CursorListener> cursor_listener;
     CachedPtr<graphics::Platform>     graphics_platform;
     CachedPtr<graphics::BufferInitializer> buffer_initializer;

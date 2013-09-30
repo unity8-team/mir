@@ -45,6 +45,7 @@
 #include "mir/shell/graphics_display_layout.h"
 #include "mir/shell/surface_configurator.h"
 #include "mir/shell/broadcasting_session_event_sink.h"
+#include "mir/shell/input_injecter.h"
 #include "mir/graphics/cursor.h"
 #include "mir/graphics/nested/host_connection.h"
 #include "mir/shell/null_session_listener.h"
@@ -922,6 +923,21 @@ std::shared_ptr<msh::InputTargeter> mir::DefaultServerConfiguration::the_input_t
         [&]() -> std::shared_ptr<msh::InputTargeter>
         {
             return the_input_configuration()->the_input_targeter();
+        });
+}
+
+std::shared_ptr<msh::InputInjecter> mir::DefaultServerConfiguration::the_input_injecter()
+{
+    struct NullInputInjecter : public msh::InputInjecter
+    {
+        void inject_input(std::shared_ptr<msh::Surface> const&, MirEvent const&)
+        {
+        }
+    };
+    return input_injecter(
+        [&]() -> std::shared_ptr<msh::InputInjecter>
+        {
+            return std::make_shared<NullInputInjecter>();
         });
 }
 
