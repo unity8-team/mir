@@ -1037,10 +1037,13 @@ TEST_F(TestClientInput, clients_receive_shell_injected_pointer_input_per_norm)
 
             MirEvent ev;
             ev.type = mir_event_type_motion;
-            ev.motion.action = mir_motion_action_down;
-            ev.motion.button_state = mir_motion_button_primary;
-            ev.motion.pointer_coordinates[0].x = 1;
-            ev.motion.pointer_coordinates[0].y = 1;
+            auto &mev = ev.motion;
+            mev.action = mir_motion_action_down;
+            mev.button_state = mir_motion_button_primary;
+
+            mev.pointer_count = 1;
+            mev.pointer_coordinates[0].x = 1;
+            mev.pointer_coordinates[0].y = 1;
 
             inject_event_to_default_surface(ev);
         }

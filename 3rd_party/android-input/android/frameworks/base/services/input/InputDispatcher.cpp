@@ -4286,6 +4286,22 @@ void InputDispatcher::publishEventToConnectionLocked(sp<Connection> const& conne
                                               kev->getEventTime());
             break;
         }
+        case AINPUT_EVENT_TYPE_MOTION:
+        {
+            auto seq = DispatchEntry::nextSeq();
+            auto mev = static_cast<MotionEvent const*>(event);
+            auto status = connection->inputPublisher.publishMotionEvent(seq,
+                    mev->getDeviceId(), mev->getSource(),
+                    mev->getAction(), mev->getFlags(),
+                    mev->getEdgeFlags(), mev->getMetaState(), mev->getButtonState(),
+                    mev->getXOffset(), mev->getYOffset(),
+                    mev->getXPrecision(), mev->getYPrecision(),                                               
+                    mev->getDownTime(), mev->getEventTime(),
+                    mev->getPointerCount(), mev->getPointerProperties(), mev->getSamplePointerCoords());
+            input_report->published_motion_event(connection->inputChannel->getFd(),
+                                                 seq,
+                                                 mev->getEventTime());
+        }
         default:
             break;
     }
