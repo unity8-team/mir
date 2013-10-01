@@ -4266,6 +4266,45 @@ bool InputDispatcher::TouchState::isSlippery() const {
     return haveSlipperyForegroundWindow;
 }
 
+void InputDispatcher::publishEventToConnectionLocked(sp<Connection> const& connection, InputEvent const* event)
+{
+    switch (event->getType())
+    {
+        case AINPUT_EVENT_TYPE_KEY:
+        {
+            auto seq = DispatchEntry::nextSeq();
+            auto kev = static_cast<KeyEvent const*>(event);
+            auto status = connection->inputPublisher.publishKeyEvent(seq,
+                    kev->getDeviceId(), kev->getSource(),
+                    kev->getAction(), kev->getFlags(),
+                    kev->getKeyCode(), kev->getScanCode(),
+                    kev->getMetaState(), kev->getRepeatCount(), kev->getDownTime(),
+                    kev->getEventTime());
+
+            input_report->published_key_event(connection->inputChannel->getFd(),
+                                              seq,
+                                              kev->getEventTime());
+            break;
+        }
+        default:
+            break;
+    }
+}
+
+
+void InputDispatcher::injectEventToWindow(sp<InputWindowHandle> const& windowHandle, InputEvent const* event)
+{
+    AutoMutex _l(mLock);
+    
+    auto index = getConnectionIndexLocked(windowHandle->getInfo()->inputChannel);
+    
+    if (index >= 0)
+    {
+        auto connection = mConnectionsByFd.valueAt(index);
+        publishEventToConnectionLocked(connection, event);
+    }
+}
+
 
 // --- InputDispatcherThread ---
 

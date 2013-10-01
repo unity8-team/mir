@@ -928,16 +928,10 @@ std::shared_ptr<msh::InputTargeter> mir::DefaultServerConfiguration::the_input_t
 
 std::shared_ptr<msh::InputInjecter> mir::DefaultServerConfiguration::the_input_injecter()
 {
-    struct NullInputInjecter : public msh::InputInjecter
-    {
-        void inject_input(std::shared_ptr<mi::InputChannel> const&, MirEvent const&)
-        {
-        }
-    };
     return input_injecter(
         [&]() -> std::shared_ptr<msh::InputInjecter>
         {
-            return std::make_shared<NullInputInjecter>();
+            return the_input_configuration()->the_input_injecter();
         });
 }
 

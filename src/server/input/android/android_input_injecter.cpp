@@ -22,6 +22,8 @@
 #include "android_input_window_handle.h"
 #include "android_input_application_handle.h"
 
+#include "mir/input/android/android_input_lexicon.h"
+
 #include <InputDispatcher.h>
 
 #include <boost/throw_exception.hpp>
@@ -49,5 +51,8 @@ void mia::InputInjecter::inject_input(std::shared_ptr<mi::InputChannel const> co
     
     if (window_handle == NULL)
         BOOST_THROW_EXCEPTION(std::logic_error("Attempt to inject input to an unregistered input channel"));
-    (void) ev;
+
+    droidinput::InputEvent *android_event;
+    mia::Lexicon::translate(ev, &android_event);
+    input_dispatcher->injectEventToWindow(window_handle, android_event);
 }

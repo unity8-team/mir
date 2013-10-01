@@ -93,6 +93,7 @@ public:
     std::shared_ptr<surfaces::InputRegistrar> the_input_registrar();
     std::shared_ptr<shell::InputTargeter> the_input_targeter();
     std::shared_ptr<input::InputManager> the_input_manager();
+    std::shared_ptr<shell::InputInjecter> the_input_injecter();
 
     void set_input_targets(std::shared_ptr<input::InputTargets> const& targets);
 
@@ -119,6 +120,7 @@ private:
     CachedPtr<InputRegistrar> input_registrar;
 
     CachedPtr<shell::InputTargeter> input_targeter;
+    CachedPtr<shell::InputInjecter> input_injecter;
 
     CachedAndroidPtr<droidinput::InputDispatcherPolicyInterface> dispatcher_policy;
 };

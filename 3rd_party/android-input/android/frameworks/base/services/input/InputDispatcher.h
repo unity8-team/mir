@@ -323,6 +323,13 @@ public:
      * This method may be called on any thread.
      */
     virtual void setKeyboardFocus(const sp<InputWindowHandle>& windowHandle) = 0;
+    
+    /*
+     * Asynchronously publish an event directly to a given input channel.
+     *
+     * This method may be called on any thread.
+     */
+    virtual void injectEventToWindow(sp<InputWindowHandle> const& windowHandle, InputEvent const* event) = 0;
     /*
      * Notify that a window handle is about to vanish
 
@@ -423,6 +430,8 @@ public:
     virtual status_t registerInputChannel(const sp<InputChannel>& inputChannel,
             const sp<InputWindowHandle>& inputWindowHandle, bool monitor);
     virtual status_t unregisterInputChannel(const sp<InputChannel>& inputChannel);
+
+    void injectEventToWindow(sp<InputWindowHandle> const& windowHandle, InputEvent const* event);
     
 private:
     std::shared_ptr<mir::input::InputReport> const input_report;
@@ -586,10 +595,10 @@ private:
             return targetFlags & InputTarget::FLAG_SPLIT;
         }
 
+        static uint32_t nextSeq();
+
     private:
         static android_atomic_int32_t sNextSeqAtomic;
-
-        static uint32_t nextSeq();
     };
 
     // A command entry captures state and behavior for an action to be performed in the
@@ -1117,6 +1126,8 @@ private:
             int32_t injectionResult, nsecs_t timeSpentWaitingForApplication);
 
     void setKeyboardFocusLocked(const sp<InputWindowHandle>& windowHandle);
+
+    void publishEventToConnectionLocked(sp<Connection> const& connection, InputEvent const* event);
 };
 
 /* Enqueues and dispatches input events, endlessly. */

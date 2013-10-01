@@ -34,6 +34,7 @@ public:
 
     std::shared_ptr<surfaces::InputRegistrar> the_input_registrar();
     std::shared_ptr<shell::InputTargeter> the_input_targeter();
+    std::shared_ptr<shell::InputInjecter> the_input_injecter();
     std::shared_ptr<InputManager> the_input_manager();
     
     void set_input_targets(std::shared_ptr<InputTargets> const& /* targets */);

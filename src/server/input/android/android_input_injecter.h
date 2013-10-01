@@ -49,7 +49,7 @@ public:
                            std::shared_ptr<WindowHandleRepository> const& repository);
     virtual ~InputInjecter() noexcept(true);
 
-    void inject_input(std::shared_ptr<input::InputChannel const> const& focus_channel,
+    void inject_input(std::shared_ptr<input::InputChannel const> const& target,
                       MirEvent const& ev);
 
 protected:

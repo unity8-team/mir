@@ -20,6 +20,7 @@
 
 #include "mir/surfaces/input_registrar.h"
 #include "mir/shell/input_targeter.h"
+#include "mir/shell/input_injecter.h"
 #include "mir/input/input_manager.h"
 
 namespace mi = mir::input;
@@ -73,6 +74,13 @@ struct NullInputManager : public mi::InputManager
     }
 };
 
+struct NullInputInjecter : public msh::InputInjecter
+{
+    void inject_input(std::shared_ptr<mi::InputChannel const> const&, MirEvent const&)
+    {
+    }
+};
+
 }
 
 std::shared_ptr<ms::InputRegistrar> mi::NullInputConfiguration::the_input_registrar()
@@ -83,6 +91,11 @@ std::shared_ptr<ms::InputRegistrar> mi::NullInputConfiguration::the_input_regist
 std::shared_ptr<msh::InputTargeter> mi::NullInputConfiguration::the_input_targeter()
 {
     return std::make_shared<NullInputTargeter>();
+}
+
+std::shared_ptr<msh::InputInjecter> mi::NullInputConfiguration::the_input_injecter()
+{
+    return std::make_shared<NullInputInjecter>();
 }
 
 std::shared_ptr<mi::InputManager> mi::NullInputConfiguration::the_input_manager()

@@ -48,6 +48,8 @@ struct MockInputDispatcher : public droidinput::InputDispatcherInterface
     
     MOCK_METHOD1(setKeyboardFocus, void(droidinput::sp<droidinput::InputWindowHandle> const&));
     MOCK_METHOD1(notifyWindowRemoved, void(droidinput::sp<droidinput::InputWindowHandle> const&));
+    
+    MOCK_METHOD2(injectEventToWindow, void(droidinput::sp<droidinput::InputWindowHandle> const&, droidinput::InputEvent const*));
 
     // droidinput::InputListener interface
     MOCK_METHOD1(notifyConfigurationChanged, void(droidinput::NotifyConfigurationChangedArgs const*));

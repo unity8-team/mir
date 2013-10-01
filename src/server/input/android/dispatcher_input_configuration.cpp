@@ -22,6 +22,7 @@
 #include "android_input_thread.h"
 #include "android_input_registrar.h"
 #include "android_input_targeter.h"
+#include "android_input_injecter.h"
 #include "android_input_target_enumerator.h"
 #include "android_input_manager.h"
 #include "mir/input/event_filter.h"
@@ -132,6 +133,15 @@ std::shared_ptr<msh::InputTargeter> mia::DispatcherInputConfiguration::the_input
         [this]()
         {
             return std::make_shared<mia::InputTargeter>(the_dispatcher(), the_window_handle_repository());
+        });
+}
+
+std::shared_ptr<msh::InputInjecter> mia::DispatcherInputConfiguration::the_input_injecter()
+{
+    return input_injecter(
+        [this]()
+        {
+            return std::make_shared<mia::InputInjecter>(the_dispatcher(), the_window_handle_repository());
         });
 }
 

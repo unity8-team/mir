@@ -40,7 +40,7 @@ class InputInjecter
 public:
     virtual ~InputInjecter() = default;
     
-    virtual void inject_input(std::shared_ptr<input::InputChannel> const& target,
+    virtual void inject_input(std::shared_ptr<input::InputChannel const> const& target,
                               MirEvent const& ev) = 0;
 
 protected:
