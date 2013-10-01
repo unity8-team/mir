@@ -96,7 +96,44 @@ void mia::Lexicon::translate(MirEvent const& mir_event, droidinput::InputEvent *
             break;
         }
         case mir_event_type_motion:
-        case mir_event_type_surface:        
+        {
+            auto motion_event = new droidinput::MotionEvent();
+            auto const& mmev = mir_event.motion;
+            auto pc = mmev.pointer_count;
+
+            droidinput::PointerProperties *pointer_properties = new droidinput::PointerProperties[pc];
+            droidinput::PointerCoords *pointer_coords = new droidinput::PointerCoords[pc];
+            
+            for (unsigned int i = 0; i < pc; i++)
+            {
+                auto const& mir_coords = mmev.pointer_coordinates[i];
+                pointer_properties[i].id = mir_coords.id;
+
+                auto &coords = pointer_coords[i];
+                coords.setAxisValue(AMOTION_EVENT_AXIS_X, mir_coords.x);
+                coords.setAxisValue(AMOTION_EVENT_AXIS_Y, mir_coords.y);
+                coords.setAxisValue(AMOTION_EVENT_AXIS_TOUCH_MAJOR,
+                                    mir_coords.touch_major);
+                coords.setAxisValue(AMOTION_EVENT_AXIS_TOUCH_MINOR,
+                                    mir_coords.touch_minor);
+                coords.setAxisValue(AMOTION_EVENT_AXIS_SIZE, mir_coords.size);
+                coords.setAxisValue(AMOTION_EVENT_AXIS_PRESSURE,
+                                    mir_coords.pressure);
+                coords.setAxisValue(AMOTION_EVENT_AXIS_ORIENTATION,
+                                    mir_coords.orientation);
+            }
+            
+            motion_event->initialize(mmev.device_id, mmev.source_id, mmev.action, mmev.flags,
+                                     mmev.edge_flags, mmev.modifiers, mmev.button_state,
+                                     mmev.x_offset, mmev.y_offset, mmev.x_precision, mmev.y_precision,
+                                     mmev.down_time, mmev.event_time, mmev.pointer_count,
+                                     pointer_properties, pointer_coords);
+            *android_event = motion_event;
+            
+            delete pointer_properties;
+            delete pointer_coords;
+        }
+        case mir_event_type_surface:
         default:
             // TODO: LOL
             break;

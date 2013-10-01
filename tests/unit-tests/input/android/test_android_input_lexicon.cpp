@@ -209,8 +209,108 @@ TEST(AndroidInputLexicon, translates_single_pointer_motion_events)
     EXPECT_EQ(mir_pointer_coords->pressure, pressure);
     EXPECT_EQ(mir_pointer_coords->orientation, orientation);
 
-
     delete android_motion_ev;
+}
+
+TEST(AndroidInputLexicon, translates_single_pointer_motion_events_in_reverse)
+{
+    using namespace ::testing;
+
+    // Common event properties
+    const int32_t device_id = 1;
+    const int32_t source_id = 2;
+    const int32_t action = 3;
+    const int32_t flags = 4;
+    const int32_t edge_flags = 5;
+    const int32_t meta_state = 6;
+    const int32_t button_state = 7;
+    const float x_offset = 8;
+    const float y_offset = 9;
+    const float x_precision = 10;
+    const float y_precision = 11;
+    const nsecs_t down_time = 12;
+    const nsecs_t event_time = 13;
+    const size_t pointer_count = 1;
+
+    // Set up the MirEvent for translation
+    // General event properties
+    MirEvent mir_ev;
+    auto mmev = &mir_ev.motion;
+    mir_ev.type = mir_event_type_motion;
+    // General motion event properties
+    mmev->device_id = device_id;
+    mmev->source_id = source_id;
+    mmev->action = action;
+    mmev->flags = static_cast<MirMotionFlag>(flags);
+    mmev->edge_flags = edge_flags;
+    mmev->modifiers = meta_state;
+    mmev->button_state = static_cast<MirMotionButton>(button_state);
+    mmev->down_time = down_time;
+    mmev->event_time = event_time;
+    mmev->x_offset = x_offset;
+    mmev->y_offset = y_offset;
+    mmev->x_precision = x_precision;
+    mmev->y_precision = y_precision;
+    mmev->pointer_count = pointer_count;
+
+    // Pointer specific properties
+    const int pointer_id = 1;
+    const float x_axis = 100.0;
+    const float y_axis = 200.0;
+    const float touch_minor = 300.0;
+    const float touch_major = 400.0;
+    const float size = 500.0;
+    const float pressure = 600.0;
+    const float orientation = 700.0;
+
+    auto coords = &mmev->pointer_coordinates[0];
+    coords->id = pointer_id;
+    coords->x = x_axis;
+    coords->y = y_axis;
+    coords->raw_x = x_axis;
+    coords->raw_y = y_axis;
+    coords->touch_minor = touch_minor;
+    coords->touch_major = touch_major;
+    coords->size = size;
+    coords->pressure = pressure;
+    coords->orientation = orientation;
+
+    droidinput::InputEvent *android_ev;
+    mia::Lexicon::translate(mir_ev, &android_ev);
+
+    // Verify the produced android event
+    // General event properties
+    EXPECT_EQ(AINPUT_EVENT_TYPE_MOTION, android_ev->getType());
+    // Motion event properties
+    auto android_mev = static_cast<droidinput::MotionEvent*>(android_ev);
+    EXPECT_EQ(device_id, android_mev->getDeviceId());
+    EXPECT_EQ(source_id, android_mev->getSource());
+    EXPECT_EQ(action, android_mev->getAction());
+    EXPECT_EQ(flags, android_mev->getFlags());
+    EXPECT_EQ(edge_flags, android_mev->getEdgeFlags());
+    EXPECT_EQ(meta_state, android_mev->getMetaState());
+    EXPECT_EQ(button_state, android_mev->getButtonState());
+    EXPECT_EQ(down_time, android_mev->getDownTime());
+    EXPECT_EQ(event_time, android_mev->getEventTime());
+    EXPECT_EQ(x_offset, android_mev->getXOffset());
+    EXPECT_EQ(y_offset, android_mev->getYOffset());
+    EXPECT_EQ(x_precision, android_mev->getXPrecision());
+    EXPECT_EQ(y_precision, android_mev->getYPrecision());
+    EXPECT_EQ(pointer_count, android_mev->getPointerCount());
+
+    // Pointer properties and coordinates
+    auto a_pp = android_mev->getPointerProperties(0);
+    auto a_pc = android_mev->getRawPointerCoords(0);
+    EXPECT_EQ(pointer_id, a_pp->id);
+    EXPECT_EQ(x_axis, a_pc->getAxisValue(AMOTION_EVENT_AXIS_X));
+    EXPECT_EQ(y_axis, a_pc->getAxisValue(AMOTION_EVENT_AXIS_Y));
+    EXPECT_EQ(touch_major, a_pc->getAxisValue(AMOTION_EVENT_AXIS_TOUCH_MAJOR));
+    EXPECT_EQ(touch_minor, a_pc->getAxisValue(AMOTION_EVENT_AXIS_TOUCH_MINOR));
+    EXPECT_EQ(size, a_pc->getAxisValue(AMOTION_EVENT_AXIS_SIZE));
+    EXPECT_EQ(pressure, a_pc->getAxisValue(AMOTION_EVENT_AXIS_PRESSURE));
+    EXPECT_EQ(orientation, a_pc->getAxisValue(AMOTION_EVENT_AXIS_ORIENTATION));
+
+    delete android_ev;
 }
 
 TEST(AndroidInputLexicon, translates_multi_pointer_motion_events)
