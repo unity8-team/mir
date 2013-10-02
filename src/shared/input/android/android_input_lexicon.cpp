@@ -21,6 +21,9 @@
 
 #include <androidfw/Input.h>
 
+#include <boost/throw_exception.hpp>
+#include <stdexcept>
+
 namespace mia = mir::input::android;
 
 void mia::Lexicon::translate(const droidinput::InputEvent *android_event, MirEvent &mir_event)
@@ -136,7 +139,7 @@ void mia::Lexicon::translate(MirEvent const& mir_event, droidinput::InputEvent *
         }
         case mir_event_type_surface:
         default:
-            // TODO: LOL
+            BOOST_THROW_EXCEPTION(std::logic_error("Input Lexicon can not translate surface events"));
             break;
     }
 }
