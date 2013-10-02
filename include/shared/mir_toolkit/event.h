@@ -157,6 +157,8 @@ typedef struct
         int id;
         float x, raw_x;
         float y, raw_y;
+        float touch_major;
+        float touch_minor;
         float size;
         float pressure;
         float orientation;
