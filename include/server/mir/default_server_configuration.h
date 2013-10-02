@@ -42,6 +42,7 @@ namespace frontend
 {
 class Shell;
 class Connector;
+class ConnectorReport;
 class ProtobufIpcFactory;
 class SessionCreator;
 class SessionMediatorReport;
@@ -174,6 +175,7 @@ public:
      * internal dependencies of frontend
      *  @{ */
     virtual std::shared_ptr<frontend::SessionCreator>         the_session_creator();
+    virtual std::shared_ptr<frontend::ConnectorReport>        the_connector_report();
     /** @} */
     /** @} */
 
@@ -270,6 +272,7 @@ protected:
     CachedPtr<graphics::GraphicBufferAllocator> buffer_allocator;
     CachedPtr<graphics::Display>      display;
 
+    CachedPtr<frontend::ConnectorReport>   connector_report;
     CachedPtr<frontend::ProtobufIpcFactory>  ipc_factory;
     CachedPtr<frontend::SessionMediatorReport> session_mediator_report;
     CachedPtr<frontend::MessageProcessorReport> message_processor_report;
