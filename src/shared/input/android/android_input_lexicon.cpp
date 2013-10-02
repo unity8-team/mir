@@ -108,18 +108,19 @@ void mia::Lexicon::translate(MirEvent const& mir_event, droidinput::InputEvent *
             {
                 auto const& mir_coords = mmev.pointer_coordinates[i];
                 pointer_properties[i].id = mir_coords.id;
+                
+                pointer_coords[i].clear();
 
-                auto &coords = pointer_coords[i];
-                coords.setAxisValue(AMOTION_EVENT_AXIS_X, mir_coords.x);
-                coords.setAxisValue(AMOTION_EVENT_AXIS_Y, mir_coords.y);
-                coords.setAxisValue(AMOTION_EVENT_AXIS_TOUCH_MAJOR,
+                pointer_coords[i].setAxisValue(AMOTION_EVENT_AXIS_X, mir_coords.x);
+                pointer_coords[i].setAxisValue(AMOTION_EVENT_AXIS_Y, mir_coords.y);
+                pointer_coords[i].setAxisValue(AMOTION_EVENT_AXIS_TOUCH_MAJOR,
                                     mir_coords.touch_major);
-                coords.setAxisValue(AMOTION_EVENT_AXIS_TOUCH_MINOR,
+                pointer_coords[i].setAxisValue(AMOTION_EVENT_AXIS_TOUCH_MINOR,
                                     mir_coords.touch_minor);
-                coords.setAxisValue(AMOTION_EVENT_AXIS_SIZE, mir_coords.size);
-                coords.setAxisValue(AMOTION_EVENT_AXIS_PRESSURE,
+                pointer_coords[i].setAxisValue(AMOTION_EVENT_AXIS_SIZE, mir_coords.size);
+                pointer_coords[i].setAxisValue(AMOTION_EVENT_AXIS_PRESSURE,
                                     mir_coords.pressure);
-                coords.setAxisValue(AMOTION_EVENT_AXIS_ORIENTATION,
+                pointer_coords[i].setAxisValue(AMOTION_EVENT_AXIS_ORIENTATION,
                                     mir_coords.orientation);
             }
             
