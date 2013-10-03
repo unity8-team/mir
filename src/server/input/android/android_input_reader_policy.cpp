@@ -19,7 +19,7 @@
 #include "android_input_reader_policy.h"
 #include "android_pointer_controller.h"
 
-#include "mir/input/input_region.h"
+#include "input/input_region.h"
 #include "mir/geometry/rectangle.h"
 
 namespace mi = mir::input;

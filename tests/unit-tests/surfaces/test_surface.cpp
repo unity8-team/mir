@@ -18,7 +18,7 @@
 
 #include "mir/surfaces/surface.h"
 #include "mir/shell/surface_creation_parameters.h"
-#include "mir/input/input_channel.h"
+#include "input/input_channel.h"
 
 #include "mir_test_doubles/mock_buffer_stream.h"
 #include "mir_test_doubles/mock_surface_state.h"

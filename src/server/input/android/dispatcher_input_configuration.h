@@ -20,7 +20,7 @@
 #ifndef MIR_INPUT_ANDROID_DISPATCHER_INPUT_CONFIGURATION_H_
 #define MIR_INPUT_ANDROID_DISPATCHER_INPUT_CONFIGURATION_H_
 
-#include "mir/input/input_configuration.h"
+#include "input/input_configuration.h"
 
 #include "mir/cached_ptr.h"
 

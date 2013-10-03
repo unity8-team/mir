@@ -25,9 +25,9 @@
 #include "mir/graphics/buffer_properties.h"
 #include "mir/graphics/buffer_ipc_packer.h"
 #include "mir/graphics/graphic_buffer_allocator.h"
-#include "mir/input/input_channel.h"
-#include "mir/input/input_manager.h"
-#include "mir/input/null_input_configuration.h"
+#include "input/input_channel.h"
+#include "input/input_manager.h"
+#include "input/null_input_configuration.h"
 
 #include "mir_test_doubles/stub_buffer.h"
 #include "mir_test_doubles/stub_surface_builder.h"

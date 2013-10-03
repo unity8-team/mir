@@ -19,7 +19,7 @@
 #ifndef MIR_TEST_DOUBLES_MOCK_INPUT_MANAGER_H_
 #define MIR_TEST_DOUBLES_MOCK_INPUT_MANAGER_H_
 
-#include "mir/input/input_manager.h"
+#include "input/input_manager.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>

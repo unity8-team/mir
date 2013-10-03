@@ -18,7 +18,7 @@
 
 #include "src/server/input/android/android_input_application_handle.h"
 
-#include "mir/input/input_channel.h"
+#include "input/input_channel.h"
 
 #include "mir_test_doubles/mock_input_surface.h"
 

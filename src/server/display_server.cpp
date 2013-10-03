@@ -27,7 +27,7 @@
 #include "mir/compositor/compositor.h"
 #include "mir/frontend/connector.h"
 #include "mir/graphics/display.h"
-#include "mir/input/input_manager.h"
+#include "input/input_manager.h"
 
 #include <stdexcept>
 

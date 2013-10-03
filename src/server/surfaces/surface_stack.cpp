@@ -27,7 +27,7 @@
 #include "mir/surfaces/surface_factory.h"
 #include "mir/surfaces/buffer_stream.h"
 #include "mir/surfaces/input_registrar.h"
-#include "mir/input/input_channel_factory.h"
+#include "input/input_channel.h"
 
 #include <boost/throw_exception.hpp>
 

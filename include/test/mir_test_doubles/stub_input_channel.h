@@ -19,7 +19,7 @@
 #ifndef MIR_TEST_DOUBLES_STUB_INPUT_CHANNEL_H_
 #define MIR_TEST_DOUBLES_STUB_INPUT_CHANNEL_H_
 
-#include "mir/input/input_channel.h"
+#include "input/input_channel.h"
 
 namespace mir
 {

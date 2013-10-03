@@ -16,7 +16,7 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
-#include "mir/input/null_input_report.h"
+#include "input/null_input_report.h"
 
 namespace mi = mir::input;
 

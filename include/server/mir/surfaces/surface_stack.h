@@ -23,7 +23,7 @@
 
 #include "mir/compositor/scene.h"
 #include "mir/surfaces/depth_id.h"
-#include "mir/input/input_targets.h"
+#include "input/input_targets.h"
 
 #include <memory>
 #include <vector>

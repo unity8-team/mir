@@ -20,7 +20,7 @@
 #ifndef MIR_INPUT_ANDROID_INPUT_DISPATCHER_MANAGER_H_
 #define MIR_INPUT_ANDROID_INPUT_DISPATCHER_MANAGER_H_
 
-#include "mir/input/input_manager.h"
+#include "input/input_manager.h"
 
 #include <utils/StrongPointer.h>
 

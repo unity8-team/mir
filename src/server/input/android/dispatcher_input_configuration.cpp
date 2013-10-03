@@ -17,7 +17,7 @@
  */
 
 
-#include "mir/input/android/dispatcher_input_configuration.h"
+#include "input/android/dispatcher_input_configuration.h"
 #include "event_filter_dispatcher_policy.h"
 #include "android_input_thread.h"
 #include "android_input_registrar.h"

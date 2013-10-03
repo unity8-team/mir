@@ -23,7 +23,7 @@
 #define acquire_wake_lock(lock, id) {}
 #define release_wake_lock(id) {}
 
-#include "mir/input/input_report.h"
+#include "input/input_report.h"
 
 #include <cutils/properties.h>
 #include <std/Log.h>

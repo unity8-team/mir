@@ -19,7 +19,7 @@
 #ifndef MIR_INPUT_ANDROID_DEFAULT_ANDROID_INPUT_CONFIGURATION_H_
 #define MIR_INPUT_ANDROID_DEFAULT_ANDROID_INPUT_CONFIGURATION_H_
 
-#include "mir/input/android/dispatcher_input_configuration.h"
+#include "input/android/dispatcher_input_configuration.h"
 
 namespace mir
 {

@@ -16,7 +16,7 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
-#include "mir/input/input_region.h"
+#include "input/input_region.h"
 #include "mir/geometry/rectangle.h"
 #include "mir/geometry/point.h"
 

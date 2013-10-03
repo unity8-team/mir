@@ -45,7 +45,7 @@
 
 #include "InputDispatcher.h"
 
-#include "mir/input/input_report.h"
+#include "input/input_report.h"
 
 #include <cutils/log.h>
 #include <android/keycodes.h>

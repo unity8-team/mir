@@ -19,7 +19,7 @@
 #ifndef MIR_INPUT_ANDROID_INPUT_CHANNEL_H_
 #define MIR_INPUT_ANDROID_INPUT_CHANNEL_H_
 
-#include "mir/input/input_channel.h"
+#include "input/input_channel.h"
 
 #include <utils/StrongPointer.h>
 

@@ -19,7 +19,7 @@
 #ifndef MIR_INPUT_NULL_INPUT_CONFIGURATION_H_
 #define MIR_INPUT_NULL_INPUT_CONFIGURATION_H_
 
-#include "mir/input/input_configuration.h"
+#include "input/input_configuration.h"
 
 namespace mir
 {

@@ -20,7 +20,7 @@
 #include "mir/shell/surface_builder.h"
 #include "mir/shell/surface.h"
 #include "mir/frontend/surface.h"
-#include "mir/input/input_channel_factory.h"
+#include "input/input_channel_factory.h"
 
 #include <cassert>
 

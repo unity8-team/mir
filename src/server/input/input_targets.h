@@ -1,5 +1,5 @@
 /*
- * Copyright © 2013 Canonical Ltd.
+ * Copyright © 2012 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -13,39 +13,37 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
+ * Authored by: Robert Carr <robert.carr@canonical.com>
+ *              Daniel d'Andradra <daniel.dandrada@canonical.com>
  */
 
-#ifndef MIR_INPUT_DISPLAY_INPUT_REGION_H_
-#define MIR_INPUT_DISPLAY_INPUT_REGION_H_
+#ifndef MIR_INPUT_INPUT_TARGETS_H_
+#define MIR_INPUT_INPUT_TARGETS_H_
 
-#include "mir/input/input_region.h"
+#include "input/input_channel_factory.h"
 
 #include <memory>
 
 namespace mir
 {
-namespace graphics
-{
-class Display;
-}
 namespace input
 {
+class InputChannel;
 
-class DisplayInputRegion : public InputRegion
+class InputTargets
 {
 public:
-    DisplayInputRegion(std::shared_ptr<graphics::Display> const& display);
+    virtual ~InputTargets() = default;
 
-    geometry::Rectangle bounding_rectangle();
-    void confine(geometry::Point& point);
+    virtual void for_each(std::function<void(std::shared_ptr<input::InputChannel> const&)> const& callback) = 0;
 
-private:
-    std::shared_ptr<graphics::Display> const display;
+protected:
+    InputTargets() = default;
+    InputTargets(InputTargets const&) = delete;
+    InputTargets& operator=(InputTargets const&) = delete;
 };
 
 }
 }
 
-#endif /* MIR_INPUT_DISPLAY_INPUT_REGION_H_ */
-
+#endif // MIR_INPUT_INPUT_TARGETS

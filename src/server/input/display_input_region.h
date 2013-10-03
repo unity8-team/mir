@@ -13,35 +13,39 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Authored by: Alan Griffiths <alan@octopull.co.uk>
+ * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
+#ifndef MIR_INPUT_DISPLAY_INPUT_REGION_H_
+#define MIR_INPUT_DISPLAY_INPUT_REGION_H_
 
-#ifndef MIR_INPUT_NULL_INPUT_REPORT_H_
-#define MIR_INPUT_NULL_INPUT_REPORT_H_
+#include "input/input_region.h"
 
-#include "mir/input/input_report.h"
+#include <memory>
 
 namespace mir
 {
+namespace graphics
+{
+class Display;
+}
 namespace input
 {
 
-class NullInputReport : public InputReport
+class DisplayInputRegion : public InputRegion
 {
 public:
-    NullInputReport() = default;
-    virtual ~NullInputReport() noexcept(true) = default;
-    
-    void received_event_from_kernel(int64_t when, int type, int code, int value);
+    DisplayInputRegion(std::shared_ptr<graphics::Display> const& display);
 
-    void published_key_event(int dest_fd, uint32_t seq_id, int64_t event_time);
-    void published_motion_event(int dest_fd, uint32_t seq_id, int64_t event_time);
+    geometry::Rectangle bounding_rectangle();
+    void confine(geometry::Point& point);
 
-    void received_event_finished_signal(int src_fd, uint32_t seq_id);
+private:
+    std::shared_ptr<graphics::Display> const display;
 };
 
 }
 }
 
-#endif /* MIR_INPUT_NULL_INPUT_REPORT_H_ */
+#endif /* MIR_INPUT_DISPLAY_INPUT_REGION_H_ */
+

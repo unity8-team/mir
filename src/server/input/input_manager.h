@@ -17,10 +17,10 @@
  *              Daniel d'Andradra <daniel.dandrada@canonical.com>
  */
 
-#ifndef MIR_INPUT_INPUT_TARGETS_H_
-#define MIR_INPUT_INPUT_TARGETS_H_
+#ifndef MIR_INPUT_INPUT_MANAGER_H_
+#define MIR_INPUT_INPUT_MANAGER_H_
 
-#include "mir/input/input_channel_factory.h"
+#include "input/input_channel_factory.h"
 
 #include <memory>
 
@@ -30,20 +30,22 @@ namespace input
 {
 class InputChannel;
 
-class InputTargets
+class InputManager : public InputChannelFactory
 {
 public:
-    virtual ~InputTargets() = default;
+    virtual void start() = 0;
+    virtual void stop() = 0;
 
-    virtual void for_each(std::function<void(std::shared_ptr<input::InputChannel> const&)> const& callback) = 0;
+    virtual std::shared_ptr<InputChannel> make_input_channel() = 0;
 
 protected:
-    InputTargets() = default;
-    InputTargets(InputTargets const&) = delete;
-    InputTargets& operator=(InputTargets const&) = delete;
+    InputManager() {};
+    virtual ~InputManager() {}
+    InputManager(const InputManager&) = delete;
+    InputManager& operator=(const InputManager&) = delete;
 };
 
 }
 }
 
-#endif // MIR_INPUT_INPUT_TARGETS
+#endif // MIR_INPUT_INPUT_MANAGER

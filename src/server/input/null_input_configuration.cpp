@@ -16,11 +16,11 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
-#include "mir/input/null_input_configuration.h"
+#include "input/null_input_configuration.h"
 
 #include "mir/surfaces/input_registrar.h"
 #include "mir/shell/input_targeter.h"
-#include "mir/input/input_manager.h"
+#include "input/input_manager.h"
 
 namespace mi = mir::input;
 namespace ms = mir::surfaces;

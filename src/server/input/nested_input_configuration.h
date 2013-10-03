@@ -19,7 +19,7 @@
 #ifndef MIR_INPUT_NESTED_INPUT_CONFIGURATION_H_
 #define MIR_INPUT_NESTED_INPUT_CONFIGURATION_H_
 
-#include "mir/input/android/dispatcher_input_configuration.h"
+#include "input/android/dispatcher_input_configuration.h"
 
 namespace mir
 {

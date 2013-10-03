@@ -20,7 +20,7 @@
 
 #include "android_window_handle_repository.h"
 
-#include "mir/input/input_targets.h"
+#include "input/input_targets.h"
 
 #include <InputWindow.h>
 

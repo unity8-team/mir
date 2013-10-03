@@ -21,7 +21,7 @@
 #include "mir/surfaces/surface.h"
 #include "surface_state.h"
 #include "mir/surfaces/buffer_stream.h"
-#include "mir/input/input_channel.h"
+#include "input/input_channel.h"
 #include "mir/graphics/buffer.h"
 
 #include <boost/throw_exception.hpp>

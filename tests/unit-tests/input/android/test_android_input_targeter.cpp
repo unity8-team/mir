@@ -20,7 +20,7 @@
 #include "src/server/input/android/android_input_registrar.h"
 #include "src/server/input/android/android_window_handle_repository.h"
 
-#include "mir/input/input_channel.h"
+#include "input/input_channel.h"
 
 #include "mir_test_doubles/mock_input_dispatcher.h"
 #include "mir_test_doubles/stub_input_channel.h"

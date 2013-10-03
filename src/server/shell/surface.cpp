@@ -21,7 +21,7 @@
 #include "mir/shell/surface_configurator.h"
 #include "mir/shell/surface_controller.h"
 #include "mir/shell/input_targeter.h"
-#include "mir/input/input_channel.h"
+#include "input/input_channel.h"
 #include "mir/frontend/event_sink.h"
 
 #include "mir_toolkit/event.h"

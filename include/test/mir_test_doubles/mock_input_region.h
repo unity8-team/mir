@@ -19,7 +19,7 @@
 #ifndef MIR_TEST_DOUBLES_MOCK_INPUT_REGION_H_
 #define MIR_TEST_DOUBLES_MOCK_INPUT_REGION_H_
 
-#include "mir/input/input_region.h"
+#include "input/input_region.h"
 #include "mir/geometry/point.h"
 #include "mir/geometry/rectangle.h"
 

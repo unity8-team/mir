@@ -18,8 +18,8 @@
 
 #include "src/server/input/android/android_input_target_enumerator.h"
 
-#include "mir/input/input_channel.h"
-#include "mir/input/input_targets.h"
+#include "input/input_channel.h"
+#include "input/input_targets.h"
 
 #include "mir_test/fake_shared.h"
 #include "mir_test_doubles/stub_input_channel.h"

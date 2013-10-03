@@ -18,7 +18,7 @@
 
 #include "android_input_application_handle.h"
 
-#include "mir/input/input_channel.h"
+#include "input/input_channel.h"
 #include "input/surface.h"
 
 #include <limits.h>
