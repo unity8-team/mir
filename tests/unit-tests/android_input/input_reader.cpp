@@ -24,7 +24,7 @@
 #include <math.h>
 
 #include <mir/logging/logger.h>
-#include <mir/logging/input_report.h>
+#include <logging/input_report.h>
 
 namespace ml  = mir::logging;
 

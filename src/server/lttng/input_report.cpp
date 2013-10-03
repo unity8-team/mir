@@ -16,7 +16,7 @@
  * Authored by: Alan Griffiths <alan@octopull.co.uk>
  */
 
-#include "mir/lttng/input_report.h"
+#include "lttng/input_report.h"
 #include "mir/lttng/mir_tracepoint.h"
 
 #define TRACEPOINT_DEFINE

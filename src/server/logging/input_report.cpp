@@ -16,7 +16,7 @@
  * Authored by: Alan Griffiths <alan@octopull.co.uk>
  */
 
-#include "mir/logging/input_report.h"
+#include "logging/input_report.h"
 #include "mir/logging/logger.h"
 
 #include "std/MirLog.h"

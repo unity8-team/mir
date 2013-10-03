@@ -19,7 +19,7 @@
 #ifndef MIR_SURFACES_SURFACESTACK_H_
 #define MIR_SURFACES_SURFACESTACK_H_
 
-#include "surface_stack_model.h"
+#include "mir/surfaces/surface_stack_model.h"
 
 #include "mir/compositor/scene.h"
 #include "mir/surfaces/depth_id.h"
