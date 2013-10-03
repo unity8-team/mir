@@ -1,3 +1,13 @@
+platform-api (0.19+13.10.20131003-0ubuntu1) saucy; urgency=low
+
+  [ Kevin Gunn ]
+  * bumping mir dep debian 0.0.13, libmirserver5
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 158
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 03 Oct 2013 07:59:18 +0000
+
 platform-api (0.19+13.10.20130926.1-0ubuntu1) saucy; urgency=low
 
   [ Kevin Gunn ]
