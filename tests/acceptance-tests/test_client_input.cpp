@@ -980,6 +980,8 @@ TEST_F(TestClientInput, clients_receive_shell_injected_key_input_per_norm)
             input_cb_setup_fence.wait_for_signal_ready_for();
 
             MirEvent ev;
+            memset(&ev, 0, sizeof(MirEvent));
+
             ev.type = mir_event_type_key;
             ev.key.action = mir_key_action_down;
 
@@ -1036,6 +1038,8 @@ TEST_F(TestClientInput, clients_receive_shell_injected_pointer_input_per_norm)
             input_cb_setup_fence.wait_for_signal_ready_for();
 
             MirEvent ev;
+            memset(&ev, 0, sizeof(MirEvent));
+
             ev.type = mir_event_type_motion;
             auto &mev = ev.motion;
             mev.action = mir_motion_action_down;
