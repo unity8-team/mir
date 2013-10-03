@@ -134,8 +134,9 @@ void mia::Lexicon::translate(MirEvent const& mir_event, droidinput::InputEvent *
                                      pointer_properties, pointer_coords);
             *android_event = motion_event;
             
-            delete pointer_properties;
-            delete pointer_coords;
+            delete[] pointer_properties;
+            delete[] pointer_coords;
+            break;
         }
         case mir_event_type_surface:
         default:
