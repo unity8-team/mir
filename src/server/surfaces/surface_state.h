@@ -20,7 +20,7 @@
 #define MIR_SURFACES_SURFACE_STATE_H_
 
 #include "mir/compositor/compositing_criteria.h"
-#include "mir/input/surface.h"
+#include "input/surface.h"
 #include "mutable_surface_state.h"
 
 namespace mir

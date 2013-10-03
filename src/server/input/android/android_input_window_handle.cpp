@@ -20,7 +20,7 @@
 #include "android_input_application_handle.h"
 
 #include "mir/input/input_channel.h"
-#include "mir/input/surface.h"
+#include "input/surface.h"
 
 #include <androidfw/InputTransport.h>
 

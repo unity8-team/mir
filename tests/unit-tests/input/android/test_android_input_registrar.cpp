@@ -16,7 +16,7 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
-#include "mir/input/surface.h"
+#include "input/surface.h"
 
 #include "src/server/input/android/android_input_registrar.h"
 
