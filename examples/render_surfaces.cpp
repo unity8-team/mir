@@ -28,7 +28,8 @@
 #include "mir/graphics/display.h"
 #include "mir/graphics/display_buffer.h"
 #include "mir/shell/surface_builder.h"
-#include "../src/server/surfaces/surface.h"  // FIXME: Don't dig into src
+#include "../src/server/surfaces/surface.h"  // Ugly, yes. But it is an
+                                             // internal implementation class.
 #include "mir/run_mir.h"
 #include "mir/report_exception.h"
 
