@@ -28,7 +28,7 @@
 #include "mir/graphics/display.h"
 #include "mir/graphics/display_buffer.h"
 #include "mir/shell/surface_builder.h"
-#include "mir/surfaces/surface.h"
+#include "../src/server/surfaces/surface.h"  // FIXME: Don't dig into src
 #include "mir/run_mir.h"
 #include "mir/report_exception.h"
 

@@ -26,7 +26,6 @@
 #include "mir/shell/null_session_listener.h"
 #include "mir/shell/surface_creation_parameters.h"
 #include "mir/shell/session_event_sink.h"
-#include "mir/surfaces/surface.h"
 
 #include "mir_test/fake_shared.h"
 #include "mir_test_doubles/mock_buffer_stream.h"
@@ -45,7 +44,6 @@
 namespace mc = mir::compositor;
 namespace mf = mir::frontend;
 namespace msh = mir::shell;
-namespace ms = mir::surfaces;
 namespace geom = mir::geometry;
 namespace mt = mir::test;
 namespace mtd = mir::test::doubles;

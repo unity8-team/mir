@@ -21,7 +21,7 @@
 #define MIR_TEST_DOUBLES_STUB_SURFACE_BUILDER_H_
 
 #include "mir/shell/surface_builder.h"
-#include "mir/surfaces/surface.h"
+#include "src/server/surfaces/surface.h"
 #include "mir/shell/surface_creation_parameters.h"
 
 #include "mir_test_doubles/stub_buffer_stream.h"

@@ -28,7 +28,7 @@
 #include "mir/surfaces/surface_stack.h"
 #include "mir/compositor/renderer.h"
 #include "mir/compositor/compositing_criteria.h"
-#include "mir/surfaces/surface.h"
+#include "src/server/surfaces/surface.h"
 #include "mir/input/input_channel_factory.h"
 #include "mir/input/input_channel.h"
 #include "mir_test_doubles/mock_surface_renderer.h"
