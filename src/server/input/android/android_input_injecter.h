@@ -52,11 +52,10 @@ public:
     void inject_input(std::shared_ptr<input::InputChannel const> const& target,
                       MirEvent const& ev);
 
-protected:
+private:
     InputInjecter(const InputInjecter&) = delete;
     InputInjecter& operator=(const InputInjecter&) = delete;
 
-private:
     droidinput::sp<droidinput::InputDispatcherInterface> input_dispatcher;
 
     std::shared_ptr<WindowHandleRepository> const repository;

@@ -924,7 +924,7 @@ std::shared_ptr<mi::InputChannelFactory> mir::DefaultServerConfiguration::the_in
 std::shared_ptr<msh::InputTargeter> mir::DefaultServerConfiguration::the_input_targeter()
 {
     return input_targeter(
-        [&]() -> std::shared_ptr<msh::InputTargeter>
+        [&]()
         {
             return the_input_configuration()->the_input_targeter();
         });
@@ -933,7 +933,7 @@ std::shared_ptr<msh::InputTargeter> mir::DefaultServerConfiguration::the_input_t
 std::shared_ptr<msh::InputInjecter> mir::DefaultServerConfiguration::the_input_injecter()
 {
     return input_injecter(
-        [&]() -> std::shared_ptr<msh::InputInjecter>
+        [&]()
         {
             return the_input_configuration()->the_input_injecter();
         });
@@ -942,7 +942,7 @@ std::shared_ptr<msh::InputInjecter> mir::DefaultServerConfiguration::the_input_i
 std::shared_ptr<ms::InputRegistrar> mir::DefaultServerConfiguration::the_input_registrar()
 {
     return input_registrar(
-        [&]() -> std::shared_ptr<ms::InputRegistrar>
+        [&]()
         {
             return the_input_configuration()->the_input_registrar();
         });

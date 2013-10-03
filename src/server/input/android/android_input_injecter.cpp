@@ -53,6 +53,9 @@ void mia::InputInjecter::inject_input(std::shared_ptr<mi::InputChannel const> co
         BOOST_THROW_EXCEPTION(std::logic_error("Attempt to inject input to an unregistered input channel"));
 
     droidinput::InputEvent *android_event;
+
     mia::Lexicon::translate(ev, &android_event);
     input_dispatcher->injectEventToWindow(window_handle, android_event);
+
+    delete android_event;
 }
