@@ -110,10 +110,11 @@ void mia::Lexicon::translate(MirEvent const& mir_event, droidinput::InputEvent *
             for (unsigned int i = 0; i < pc; i++)
             {
                 auto const& mir_coords = mmev.pointer_coordinates[i];
+
+                pointer_properties[i].clear();
                 pointer_properties[i].id = mir_coords.id;
                 
                 pointer_coords[i].clear();
-                pointer_properties[i].clear();
 
                 pointer_coords[i].setAxisValue(AMOTION_EVENT_AXIS_X, mir_coords.x);
                 pointer_coords[i].setAxisValue(AMOTION_EVENT_AXIS_Y, mir_coords.y);
