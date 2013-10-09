@@ -69,8 +69,8 @@ private:
     typedef std::unique_ptr<InputContext, std::function<void(InputContext*)>> InputContextPtr;
 
     WindowPropertiesPtr window_properties;
-    SurfacePtr surface;
     InputContextPtr input_ctx;
+    SurfacePtr surface;
 };
     
 }
