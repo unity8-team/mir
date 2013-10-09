@@ -1,3 +1,24 @@
+platform-api (0.19+13.10.20131009.2-0ubuntu1) saucy; urgency=low
+
+  [ Ubuntu daily release ]
+  * New rebuild forced
+
+  [ Kevin Gunn ]
+  * bump mir build dep 0.0.14.
+
+  [ Alexandros Frantzis ]
+  * mirclient: Release Window resources in the proper order Release the
+    InputContext after releasing the Surface that is using the
+    InputContext in its event callback. Otherwise we get a crash when an
+    input event comes to the Surface after the InputContext is
+    destroyed, but before the Surface itself has been destroyed. (LP:
+    #1236225)
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 161
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Wed, 09 Oct 2013 23:16:04 +0000
+
 platform-api (0.19+13.10.20131003-0ubuntu1) saucy; urgency=low
 
   [ Kevin Gunn ]
