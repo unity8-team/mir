@@ -20,8 +20,12 @@
 
 #include "EventHub.h"
 
+#ifdef ANDROID
+#include <hardware_legacy/power.h>
+#else
 #define acquire_wake_lock(lock, id) {}
 #define release_wake_lock(id) {}
+#endif // ANDROID
 
 #include "mir/input/input_report.h"
 
