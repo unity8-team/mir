@@ -1,3 +1,15 @@
+platform-api (0.19+13.10.20131010.1-0ubuntu1) saucy; urgency=low
+
+  [ Alexandros Frantzis ]
+  * mirclient: Properly check for failed connections to the server
+    Failing to do so leads to invalid/error connections being used
+    platform-api, leading to crashes. . (LP: #1233988)
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 163
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 10 Oct 2013 20:03:35 +0000
+
 platform-api (0.19+13.10.20131009.2-0ubuntu1) saucy; urgency=low
 
   [ Ubuntu daily release ]
