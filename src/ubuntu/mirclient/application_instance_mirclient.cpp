@@ -57,12 +57,14 @@ MirConnection* uamc::Instance::connection() const
 bool uamc::Instance::connect(std::string const& application_name)
 {
     auto mir_connection = mir_connect_sync(NULL, application_name.c_str());
-    if (mir_connection == nullptr)
-        return false;
+
+    // mir_connect_sync() always returns a connection object, even in case
+    // of a failed connection. We need to release this object in all cases.
     con = ConnectionPtr(mir_connection,
         [](MirConnection *c)
         {
             mir_connection_release(c);
         });
-    return true;
+
+    return mir_connection_is_valid(mir_connection);
 }
