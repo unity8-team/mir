@@ -30,7 +30,7 @@ namespace ui
 {
 namespace mir
 {
-void event_to_ubuntu_event(MirEvent const* mir_event, Event& ubuntu_ev);
+bool event_to_ubuntu_event(MirEvent const* mir_event, Event& ubuntu_ev);
 }
 }
 }
