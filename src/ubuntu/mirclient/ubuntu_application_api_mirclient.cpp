@@ -93,8 +93,10 @@ UApplicationInstance* u_application_instance_new_from_description_with_options(U
     auto instance = global_mir_instance();
 
     auto id = uam::Id::from_u_application_id(u_application_description_get_application_id(description));
-    auto connect_suceeded = instance->connect(id->name);
-    assert(connect_suceeded);
+    auto connect_succeeded = instance->connect(id->name);
+
+    if (!connect_succeeded)
+        return nullptr;
 
     auto delegate = u_application_description_get_application_lifecycle_delegate(description);
     mir_connection_set_lifecycle_event_callback(instance->connection(), &dispatch_callback, delegate);
