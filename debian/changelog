@@ -1,3 +1,22 @@
+platform-api (0.19+13.10.20131015.1-0ubuntu1) saucy; urgency=low
+
+  [ Robert Carr ]
+  * It seems events of mir_event_type_surface may lead to passing an
+    uninitialized ubuntu event in to qtubuntu. Drop these events for
+    now.
+
+  [ Kevin Gunn ]
+  * bump mir build dep 0.0.15 & libmirserver7.
+
+  [ Alexandros Frantzis ]
+  * mirclient: Return a null UApplicationInstance* when failing to
+    connect to the mir server. (LP: #1233988)
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 167
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Tue, 15 Oct 2013 02:39:54 +0000
+
 platform-api (0.19+13.10.20131010.1-0ubuntu1) saucy; urgency=low
 
   [ Alexandros Frantzis ]
