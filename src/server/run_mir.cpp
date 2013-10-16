@@ -50,6 +50,16 @@ extern "C" void fatal_signal_cleanup(int sig)
     signal(sig, old_handler[sig]);
     raise(sig);
 }
+
+struct PairedOperations
+{
+    PairedOperations(void (*set_up)(), void (*tear_down)()) :
+        tear_down(tear_down) { set_up(); }
+
+    ~PairedOperations() { tear_down(); }
+
+    void (* const tear_down)();
+};
 }
 
 void mir::run_mir(ServerConfiguration& config, std::function<void(DisplayServer&)> init)
@@ -71,8 +81,11 @@ void mir::run_mir(ServerConfiguration& config, std::function<void(DisplayServer&
 
     weak_connector = config.the_connector();
 
-    for (auto sig : { SIGQUIT, SIGABRT, SIGFPE, SIGSEGV, SIGBUS })
-        old_handler[sig] = signal(sig, fatal_signal_cleanup);
+    PairedOperations scoped(
+        [] { for (auto sig : { SIGQUIT, SIGABRT, SIGFPE, SIGSEGV, SIGBUS })
+                old_handler[sig] = signal(sig, fatal_signal_cleanup); },
+        [] { for (auto sig : { SIGQUIT, SIGABRT, SIGFPE, SIGSEGV, SIGBUS })
+                signal(sig, old_handler[sig]); });
 
     std::atexit(&delete_endpoint);
 
