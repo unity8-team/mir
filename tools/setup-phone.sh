@@ -7,7 +7,7 @@ phablet-flash ubuntu-system --no-backup --channel=devel-proposed
 adb shell mount -o remount,rw /
 adb shell touch /userdata/.writable_image
 phablet-network
-adb shell apt-get install mir-demos
+adb shell apt-get install mir-demos gdb
 adb shell sudo -i -u phablet stop unity8
 ../tools/install_on_android.sh .
 
@@ -25,7 +25,6 @@ adb shell sudo -i -u phablet stop unity8
 
 # Or even:
 # $ adb shell 
-# # apt-get install gdb
 # # sudo -i -u phablet
 # $ stop unity8
 # # gdb unity8
