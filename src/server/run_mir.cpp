@@ -39,8 +39,6 @@ extern "C" void delete_endpoint()
     }
 }
 
-extern "C" { typedef void (*sig_handler)(int); }
-
 extern "C" void fatal_signal_cleanup(int sig)
 {
     delete_endpoint();
