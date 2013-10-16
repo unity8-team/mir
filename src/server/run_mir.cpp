@@ -41,13 +41,11 @@ extern "C" void delete_endpoint()
 
 extern "C" { typedef void (*sig_handler)(int); }
 
-volatile sig_handler old_handler[SIGUNUSED]  = { nullptr };
-
 extern "C" void fatal_signal_cleanup(int sig)
 {
     delete_endpoint();
 
-    signal(sig, old_handler[sig]);
+    signal(sig, SIG_DFL);
     raise(sig);
 }
 }
@@ -72,7 +70,7 @@ void mir::run_mir(ServerConfiguration& config, std::function<void(DisplayServer&
     weak_connector = config.the_connector();
 
     for (auto sig : { SIGQUIT, SIGABRT, SIGFPE, SIGSEGV, SIGBUS })
-        old_handler[sig] = signal(sig, fatal_signal_cleanup);
+        signal(sig, fatal_signal_cleanup);
 
     std::atexit(&delete_endpoint);
 
