@@ -23,3 +23,8 @@ adb shell sudo -i -u phablet stop unity8
 # # apt-get update 
 # # apt-get install libautopilot-qt python-autopilot 
 
+# Or even:
+# $ adb shell 
+# # sudo -i -u phablet
+# $ stop unity8
+# # gdb unity8
