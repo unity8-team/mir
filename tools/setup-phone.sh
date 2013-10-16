@@ -25,6 +25,7 @@ adb shell sudo -i -u phablet stop unity8
 
 # Or even:
 # $ adb shell 
+# # apt-get install gdb
 # # sudo -i -u phablet
 # $ stop unity8
 # # gdb unity8
