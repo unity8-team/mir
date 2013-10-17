@@ -1,16 +1,16 @@
 #!/bin/bash
 # Setup script for getting phone to a convenient state for development work
 #
-cd build-android
-rm lib/libmirclient.so.0
 phablet-flash ubuntu-system --no-backup --channel=devel-proposed
 adb shell mount -o remount,rw /
 adb shell touch /userdata/.writable_image
 phablet-network
 adb shell apt-get install -y mir-demos gdb
-../tools/install_on_android.sh .
 
 # You now can do stuff like this:
+# tools/install_on_android.sh
+
+# Or stuff like this:
 # $ adb shell
 # # cd tmp/mirtest/
 # # export LD_LIBRARY_PATH=/tmp/mirtest/
