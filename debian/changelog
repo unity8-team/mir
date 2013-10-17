@@ -10,8 +10,12 @@ mir (0.0.16+13.10.20131016-0ubuntu1) UNRELEASED; urgency=low
     "started" events (LP: #1239876)
   * Fix: unit-tests: GBMBufferAllocatorTest.large_hardware_buffers_bypass unit
     test fails sometimes (LP: #1238000)
-  * Provide info about NATIVE_WINDOW_MIN_UNDEQUEUED_BUFFERS to driver.
-    (LP: #1239160)
+  * Add method for testing if Rectangle::contains(Rectangle)
+  * Fix mismatched free() / delete / delete [] reported by valgrind
+  * Add support for traversing the Scene from front surface to back.
+  * Optimization: Turn off blending for surfaces that are not blendable. On
+    some systems this can have a noticeable performance benefit.
+  * logging: correct component tag in connector report.
 
  -- Kevin Gunn <kevin.gunn@canonical.com>  Wed, 16 Oct 2013 23:35:28 -0500
 
@@ -35,6 +39,10 @@ mir (0.0.15+13.10.20131014-0ubuntu1) saucy; urgency=low
     something you shouldn't... (LP: #1236712)
   * Fix: unit-tests: LinuxVirtualTerminalTest.use_provided_vt fails sometimes
     (LP: #1237837)
+  * Provide info about NATIVE_WINDOW_MIN_UNDEQUEUED_BUFFERS to driver.
+    (LP: #1239160)
+  * client: use lock_guard as it is simpler than unique_lock.
+  * socket_messenger: Protect whole_message with a lock.
 
  -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Mon, 14 Oct 2013 23:55:33 +0000
 
