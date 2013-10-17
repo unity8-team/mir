@@ -1,16 +1,40 @@
 mir (0.0.16+13.10.20131016-0ubuntu1) UNRELEASED; urgency=low
 
-  * bump version 0.0.16
+  * Bump version 0.0.16
+  * client: fix hang(s) in client API when server dies (LP: #1227743)
+  * Fix failing acceptance-test:
+    ServerShutdown/OnSignal.removes_endpoint_on_signal (LP: #1237710)
+  * Fix: integration-tests: TestClientIPCRender.test_render_single FAILED:
+    Timeout while waiting for child to change state (LP: #1239577)
+  * server: Extend server status (formerly pause/resume) listener to report
+    "started" events (LP: #1239876)
+  * Fix: unit-tests: GBMBufferAllocatorTest.large_hardware_buffers_bypass unit
+    test fails sometimes (LP: #1238000)
+  * Provide info about NATIVE_WINDOW_MIN_UNDEQUEUED_BUFFERS to driver.
+    (LP: #1239160)
 
  -- Kevin Gunn <kevin.gunn@canonical.com>  Wed, 16 Oct 2013 23:35:28 -0500
 
 mir (0.0.15+13.10.20131014-0ubuntu1) saucy; urgency=low
 
-  [ Kevin Gunn ]
-  * bump version 0.0.15
-
-  [ Ubuntu daily release ]
-  * Automatic snapshot from revision 1100
+  * Bump version 0.0.15
+  * Hold ms::Surface alive from msh::Surface, and remove the explicit throw
+    calls. This way holding a shared_ptr to msh::Surface becomes safe (as long
+    as you drop it eventually!). (LP: #1234609)
+  * Fix: Segfault when closing apps that link against
+    ubuntu_application_api_mirclient (LP: #1238312)
+  * Ensure -pthread is correctly passed to compiler and linker. (LP: #1233988)
+  * graphics: android: prepare buffers for passing around sync fences. This
+    fixes: [regression] [mako] Scrolling and animations are very slow with Mir
+    (LP: #1235190)
+  * client, tests: deal correctly with a race condition during double
+    disconnection test (LP: #1236698)
+  * frontend: Remove the endpoint first when shutting down (LP: #1235159)
+  * BypassFilter: Remember to check that a surface is not hidden and has had a
+    buffer posted before allowing it to be bypassed. Or else you will see
+    something you shouldn't... (LP: #1236712)
+  * Fix: unit-tests: LinuxVirtualTerminalTest.use_provided_vt fails sometimes
+    (LP: #1237837)
 
  -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Mon, 14 Oct 2013 23:55:33 +0000
 
