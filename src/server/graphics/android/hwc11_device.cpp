@@ -84,8 +84,9 @@ void mga::HWC11Device::commit_frame(EGLDisplay dpy, EGLSurface sur)
     auto lg = lock_unblanked();
 
     //note, although we only have a primary display right now,
-    //      set the second display to nullptr, as exynos hwc always derefs displays[1]
-    hwc_display_contents_1_t* displays[HWC_NUM_DISPLAY_TYPES] {layer_list->native_list(), nullptr};
+    //      set the second/third display to nullptr, as qcom hwc
+    //      always derefs displays[1] and displays[2]
+    hwc_display_contents_1_t* displays[HWC_NUM_DISPLAY_TYPES+1] {layer_list->native_list(), nullptr, nullptr};
 
     if (hwc_device->prepare(hwc_device.get(), 1, displays))
     {
