@@ -13,9 +13,7 @@ include_directories(
   ${PROJECT_SOURCE_DIR}/include/platform
   ${PROJECT_SOURCE_DIR}/include/server
   ${PROJECT_SOURCE_DIR}/include/client
-  ${PROJECT_SOURCE_DIR}/include/test
-  ${PROJECT_SOURCE_DIR}/src/server
-)
+  ${PROJECT_SOURCE_DIR}/include/test)
 
 if (MIR_PLATFORM STREQUAL "android")
   include_directories( ${LIBHARDWARE_INCLUDE_DIRS})

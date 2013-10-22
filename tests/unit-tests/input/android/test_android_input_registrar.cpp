@@ -16,8 +16,7 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
-#include "input/surface.h"
-
+#include "src/server/input/surface.h"
 #include "src/server/input/android/android_input_registrar.h"
 
 #include "mir_test_doubles/mock_input_dispatcher.h"

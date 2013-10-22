@@ -1,3 +1,6 @@
+# For the benefit of android/...
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+
 set(
   INPUT_SOURCES
 

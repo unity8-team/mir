@@ -20,7 +20,7 @@
 #define MIR_SURFACES_SURFACE_STATE_H_
 
 #include "mir/compositor/compositing_criteria.h"
-#include "input/surface.h"
+#include "../input/surface.h"
 #include "mutable_surface_state.h"
 
 namespace mir
@@ -28,6 +28,7 @@ namespace mir
 namespace surfaces
 {
 
+// FIXME: Too much crossing of components:
 class SurfaceState : public compositor::CompositingCriteria, public input::Surface,
                      public MutableSurfaceState 
 {
