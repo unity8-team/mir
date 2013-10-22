@@ -16,10 +16,10 @@
  * Authored by: Robert Ancell <robert.ancell@canonical.com>
  */
 
-#ifndef MIR_TEST_DOUBLES_MOCK_PAUSE_RESUME_LISTENER_H_
-#define MIR_TEST_DOUBLES_MOCK_PAUSE_RESUME_LISTENER_H_
+#ifndef MIR_TEST_DOUBLES_MOCK_SERVER_STATUS_LISTENER_H_
+#define MIR_TEST_DOUBLES_MOCK_SERVER_STATUS_LISTENER_H_
 
-#include "mir/pause_resume_listener.h"
+#include "mir/server_status_listener.h"
 
 #include <gmock/gmock.h>
 
@@ -30,15 +30,16 @@ namespace test
 namespace doubles
 {
 
-class MockPauseResumeListener : public mir::PauseResumeListener
+class MockServerStatusListener : public mir::ServerStatusListener
 {
 public:
     MOCK_METHOD0(paused, void());
     MOCK_METHOD0(resumed, void());
+    MOCK_METHOD0(started, void());
 };
 
 }
 }
 }
 
-#endif /* MIR_TEST_DOUBLES_MOCK_PAUSE_RESUME_LISTENER_H_ */
+#endif /* MIR_TEST_DOUBLES_MOCK_SERVER_STATUS_LISTENER_H_ */

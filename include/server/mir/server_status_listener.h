@@ -16,25 +16,26 @@
  * Authored by: Robert Ancell <robert.ancell@canonical.com>
  */
 
-#ifndef MIR_PAUSE_RESUME_LISTENER_H_
-#define MIR_PAUSE_RESUME_LISTENER_H_
+#ifndef MIR_SERVER_STATUS_LISTENER_H_
+#define MIR_SERVER_STATUS_LISTENER_H_
 
 namespace mir
 {
 
-class PauseResumeListener
+class ServerStatusListener
 {
 public:
     virtual void paused() = 0;
     virtual void resumed() = 0;
+    virtual void started() = 0;
 
 protected:
-    PauseResumeListener() = default;
-    virtual ~PauseResumeListener() = default;
-    PauseResumeListener(PauseResumeListener const&) = delete;
-    PauseResumeListener& operator=(PauseResumeListener const&) = delete;
+    ServerStatusListener() = default;
+    virtual ~ServerStatusListener() = default;
+    ServerStatusListener(ServerStatusListener const&) = delete;
+    ServerStatusListener& operator=(ServerStatusListener const&) = delete;
 };
 
 }
 
-#endif /* MIR_PAUSE_RESUME_LISTENER_H_ */
+#endif /* MIR_SERVER_STATUS_LISTENER_H_ */

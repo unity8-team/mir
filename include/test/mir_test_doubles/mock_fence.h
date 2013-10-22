@@ -13,32 +13,32 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
+ * Authored by: Kevin DuBois <kevin.dubois@canonical.com>
  */
 
-#ifndef MIR_GRAPHICS_ANDROID_GPU_ANDROID_DISPLAY_BUFFER_FACTORY_H_
-#define MIR_GRAPHICS_ANDROID_GPU_ANDROID_DISPLAY_BUFFER_FACTORY_H_
+#ifndef MIR_TEST_DOUBLES_MOCK_FENCE_H_
+#define MIR_TEST_DOUBLES_MOCK_FENCE_H_
 
-#include "android_display_buffer_factory.h"
+#include "mir/graphics/android/fence.h"
+
+#include <gmock/gmock.h>
 
 namespace mir
 {
-namespace graphics
+namespace test
 {
-namespace android
+namespace doubles
 {
 
-class GPUAndroidDisplayBufferFactory : public AndroidDisplayBufferFactory
+struct MockFence : public graphics::android::Fence
 {
-public:
-    std::unique_ptr<DisplayBuffer> create_display_buffer(
-        std::shared_ptr<AndroidFramebufferWindowQuery> const& native_win,
-        EGLDisplay egl_display,
-        EGLContext egl_context_shared);
+    MOCK_METHOD0(wait, void());
+    MOCK_METHOD1(merge_with, void(graphics::android::NativeFence&));
+    MOCK_CONST_METHOD0(copy_native_handle, graphics::android::NativeFence());
 };
 
 }
 }
 }
 
-#endif /* MIR_GRAPHICS_ANDROID_GPU_ANDROID_DISPLAY_BUFFER_FACTORY_H_ */
+#endif /* MIR_TEST_DOUBLES_MOCK_FENCE_H_ */

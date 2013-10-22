@@ -13,28 +13,21 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Authored by: Robert Ancell <robert.ancell@canonical.com>
+ * Authored by: Robert Carr <robert.carr@canonical.com>
  */
+#ifndef MIR_FRONTEND_FD_SETS_H_
+#define MIR_FRONTEND_FD_SETS_H_
 
-#ifndef MIR_DEFAULT_PAUSE_RESUME_LISTENER_H_
-#define MIR_DEFAULT_PAUSE_RESUME_LISTENER_H_
-
-#include "mir/pause_resume_listener.h"
+#include <vector>
+#include <initializer_list>
+#include <stdint.h>
 
 namespace mir
 {
-class DefaultPauseResumeListener : public virtual PauseResumeListener
+namespace frontend
 {
-public:
-    virtual void paused()
-    {
-    }
-
-    virtual void resumed()
-    {
-    }
-};
-  
+typedef std::initializer_list<std::vector<int32_t>> FdSets;
 }
+} // namespace mir 
 
-#endif /* MIR_DEFAULT_PAUSE_RESUME_LISTENER_H_ */
+#endif // MIR_FRONTEND_FD_SETS_H_

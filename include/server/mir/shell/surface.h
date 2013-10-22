@@ -68,8 +68,6 @@ public:
     virtual void hide();
     virtual void show();
 
-    virtual void destroy();
-
     virtual void force_requests_to_complete();
 
     virtual std::string name() const;
@@ -105,7 +103,7 @@ private:
 
     std::shared_ptr<SurfaceBuilder> const builder;
     std::shared_ptr<SurfaceConfigurator> const configurator;
-    std::weak_ptr<mir::surfaces::Surface> const surface;
+    std::shared_ptr<mir::surfaces::Surface> const surface;
 
     frontend::SurfaceId const id;
     std::shared_ptr<frontend::EventSink> const event_sink;

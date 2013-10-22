@@ -274,6 +274,7 @@ public:
             void start() {}
             void stop() {}
             int client_socket_fd() const override { return 0; }
+            void remove_endpoint() const override { }
         };
 
         return std::make_shared<NullConnector>();
