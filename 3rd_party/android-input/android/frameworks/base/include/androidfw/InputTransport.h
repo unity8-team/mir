@@ -50,7 +50,9 @@ struct InputMessage {
     enum {
         TYPE_KEY = 1,
         TYPE_MOTION = 2,
-        TYPE_FINISHED = 3
+        TYPE_FINISHED = 3,
+        TYPE_ACCEPTED = 4, // A given pointer was accepted by the input consumer
+        TYPE_REJECTED = 5 // A given pointer was rejected by the input consumer
     };
 
     struct Header {
@@ -118,6 +120,14 @@ struct InputMessage {
                 return sizeof(Finished);
             }
         } finished;
+
+        struct AcceptedRejected {
+            int32_t pointerId;
+
+            inline size_t size() const {
+                return sizeof(AcceptedRejected);
+            }
+        } acceptedRejected;
     } body;
 
     bool isValid(size_t actualSize) const;

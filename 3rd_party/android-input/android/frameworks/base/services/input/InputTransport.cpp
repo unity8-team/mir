@@ -78,6 +78,9 @@ bool InputMessage::isValid(size_t actualSize) const {
                     && body.motion.pointerCount <= MAX_POINTERS;
         case TYPE_FINISHED:
             return true;
+        case TYPE_ACCEPTED:
+        case TYPE_REJECTED:
+            return body.acceptedRejected.pointerId >= 0;
         }
     }
     return false;
@@ -91,6 +94,9 @@ size_t InputMessage::size() const {
         return sizeof(Header) + body.motion.size();
     case TYPE_FINISHED:
         return sizeof(Header) + body.finished.size();
+    case TYPE_ACCEPTED:
+    case TYPE_REJECTED:
+        return sizeof(Header) + body.acceptedRejected.size();
     }
     return sizeof(Header);
 }
