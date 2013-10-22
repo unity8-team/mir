@@ -23,7 +23,7 @@
 #include "mir/shell/input_targeter.h"
 #include "mir/input/input_channel.h"
 #include "mir/frontend/event_sink.h"
-#include "surfaces/surface.h"
+#include "../surfaces/surface.h" // Cross-component reference - clean up!
 
 #include "mir_toolkit/event.h"
 

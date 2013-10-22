@@ -1,5 +1,3 @@
-include_directories(${PROJECT_SOURCE_DIR}/src/server)
-
 set(
   SHELL_SOURCES
 
