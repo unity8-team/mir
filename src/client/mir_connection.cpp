@@ -31,6 +31,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <unistd.h>
+#include <signal.h>
 
 namespace mcl = mir::client;
 namespace mircv = mir::input::receiver;
@@ -61,6 +62,8 @@ private:
     MirDisplayConfiguration* const config;
 };
 
+std::mutex connection_guard;
+std::unordered_set<MirConnection*> valid_connections;
 }
 
 MirConnection::MirConnection() :
@@ -182,24 +185,32 @@ MirWaitHandle* MirConnection::release_surface(
 
     SurfaceRelease surf_release{surface, new_wait_handle, callback, context};
 
-    try
+    mir::protobuf::SurfaceId message;
+    message.set_value(surface->id());
+
     {
-        mir::protobuf::SurfaceId message;
-        message.set_value(surface->id());
-        server.release_surface(0, &message, &void_response,
-                        gp::NewCallback(this, &MirConnection::released, surf_release));
-    }
-    catch (std::exception const& x)
-    {
-        set_error_message(std::string("release_surface: ") + x.what());
-        released(surf_release);
+        std::lock_guard<std::mutex> rel_lock(release_wait_handle_guard);
+        release_wait_handles.push_back(new_wait_handle);
     }
 
-    std::lock_guard<std::mutex> rel_lock(release_wait_handle_guard);
-    release_wait_handles.push_back(new_wait_handle);
+    server.release_surface(0, &message, &void_response,
+                           gp::NewCallback(this, &MirConnection::released, surf_release));
+
 
     return new_wait_handle;
 }
+
+namespace
+{
+void default_lifecycle_event_handler(MirLifecycleState transition)
+{
+    if (transition == mir_lifecycle_connection_lost)
+    {
+        raise(SIGTERM);
+    }
+}
+}
+
 
 void MirConnection::connected(mir_connected_callback callback, void * context)
 {
@@ -225,6 +236,7 @@ void MirConnection::connected(mir_connected_callback callback, void * context)
         platform = client_platform_factory->create_client_platform(this);
         native_display = platform->create_egl_native_display();
         display_configuration->set_configuration(connect_result.display_configuration());
+        lifecycle_control->set_lifecycle_event_handler(default_lifecycle_event_handler);
     }
 
     if (safe_to_callback) callback(this, context);
@@ -266,16 +278,8 @@ MirWaitHandle* MirConnection::disconnect()
 {
     std::lock_guard<std::recursive_mutex> lock(mutex);
 
-    try 
-    {
-        server.disconnect(0, &ignored, &ignored,
-                          google::protobuf::NewCallback(this, &MirConnection::done_disconnect));
-    }
-    catch (std::exception const& x)
-    {
-        set_error_message(std::string("disconnect: ") + x.what());
-        disconnect_wait_handle.result_received();
-    }
+    server.disconnect(0, &ignored, &ignored,
+                      google::protobuf::NewCallback(this, &MirConnection::done_disconnect));
 
     return &disconnect_wait_handle;
 }

@@ -77,6 +77,7 @@ private:
     boost::asio::io_service io_service;
     boost::asio::io_service::work work;
     boost::asio::local::stream_protocol::socket socket;
+    boost::asio::deadline_timer timer;
 
     static size_t const size_of_header = 2;
     unsigned char header_bytes[size_of_header];
@@ -98,6 +99,7 @@ private:
     std::shared_ptr<SurfaceMap> surface_map;
     std::shared_ptr<DisplayConfiguration> display_configuration;
     std::shared_ptr<LifecycleControl> lifecycle_control;
+    std::atomic<bool> disconnected;
 };
 
 }

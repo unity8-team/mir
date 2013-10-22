@@ -31,6 +31,7 @@ namespace android
 {
 class HWCLayerList;
 class HWCVsyncCoordinator;
+class SyncFileOps;
 
 class HWC11Device : public HWCCommonDevice
 {
@@ -44,7 +45,7 @@ public:
     geometry::Size display_size() const; 
     geometry::PixelFormat display_format() const;
     unsigned int number_of_framebuffers_available() const;
-    void set_next_frontbuffer(std::shared_ptr<Buffer> const& buffer);
+    void set_next_frontbuffer(std::shared_ptr<graphics::Buffer> const& buffer);
     void sync_to_display(bool sync);
  
     void commit_frame(EGLDisplay dpy, EGLSurface sur);
@@ -52,6 +53,7 @@ public:
 private:
     std::shared_ptr<HWCLayerList> const layer_list;
     std::shared_ptr<DisplaySupportProvider> const fb_device;
+    std::shared_ptr<SyncFileOps> const sync_ops;
     unsigned int primary_display_config;
 };
 
