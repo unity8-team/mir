@@ -2047,20 +2047,27 @@ int InputDispatcher::handleReceiveCallback(int fd, int events, void* data) {
             }
 
             nsecs_t currentTime = now();
-            bool gotOne = false;
+            bool gotOneFinished = false;
             status_t status;
             for (;;) {
-                uint32_t seq;
-                bool handled;
-                status = connection->inputPublisher.receiveFinishedSignal(&seq, &handled);
-                if (status) {
+                InputMessage message;
+                status = connection->inputPublisher.getChannel()->receiveMessage(&message);
+                if (status != OK) {
                     break;
                 }
-                d->input_report->received_event_finished_signal(connection->inputChannel->getFd(), seq);
-                d->finishDispatchCycleLocked(currentTime, connection, seq, handled);
-                gotOne = true;
+
+                if (message.header.type == InputMessage::TYPE_REJECTED) {
+
+                } else if (message.header.type == InputMessage::TYPE_FINISHED) {
+                    uint32_t seq = message.body.finished.seq;
+                    bool handled = message.body.finished.handled;
+
+                    d->input_report->received_event_finished_signal(connection->inputChannel->getFd(), seq);
+                    d->finishDispatchCycleLocked(currentTime, connection, seq, handled);
+                    gotOneFinished = true;
+                }
             }
-            if (gotOne) {
+            if (gotOneFinished) {
                 d->runCommandsLockedInterruptible();
                 if (status == WOULD_BLOCK) {
                     return 1;

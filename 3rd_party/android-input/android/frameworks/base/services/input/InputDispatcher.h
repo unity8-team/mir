@@ -547,6 +547,9 @@ private:
         PointerProperties pointerProperties[MAX_POINTERS];
         PointerCoords pointerCoords[MAX_POINTERS];
 
+        // File descriptors of input channels whose windows already rejected those touch points.
+        Vector<int> rejectedChannelFds;
+
         MotionEntry(nsecs_t eventTime,
                 int32_t deviceId, uint32_t source, uint32_t policyFlags, int32_t action,
                 int32_t flags, int32_t metaState, int32_t buttonState, int32_t edgeFlags,
