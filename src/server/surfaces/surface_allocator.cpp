@@ -21,7 +21,7 @@
 #include "mir/surfaces/buffer_stream.h"
 #include "mir/input/input_channel_factory.h"
 #include "surface_data.h"
-#include "surface.h"
+#include "surfaces/surface.h"
 
 namespace geom=mir::geometry;
 namespace mc=mir::compositor;

@@ -28,8 +28,6 @@
 #include "mir/graphics/display.h"
 #include "mir/graphics/display_buffer.h"
 #include "mir/shell/surface_builder.h"
-#include "../src/server/surfaces/surface.h"  // Ugly, yes. But it is an
-                                             // internal implementation class.
 #include "mir/run_mir.h"
 #include "mir/report_exception.h"
 
@@ -37,6 +35,9 @@
 #include "buffer_render_target.h"
 #include "image_renderer.h"
 #include "server_configuration.h"
+
+// TODO: Expose sufficient functionality in the public SDK instead of using:
+#include "../src/server/include/surfaces/surface.h"
 
 #include <thread>
 #include <atomic>

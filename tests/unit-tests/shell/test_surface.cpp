@@ -17,7 +17,7 @@
  */
 
 #include "mir/shell/surface.h"
-#include "src/server/surfaces/surface.h"
+#include "surfaces/surface.h"
 #include "mir/shell/surface_creation_parameters.h"
 #include "mir/surfaces/surface_stack_model.h"
 #include "mir/shell/surface_builder.h"

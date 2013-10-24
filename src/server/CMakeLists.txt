@@ -1,6 +1,8 @@
 include_directories(
   ${PROJECT_SOURCE_DIR}/include/platform
-  ${PROJECT_SOURCE_DIR}/include/server)
+  ${PROJECT_SOURCE_DIR}/include/server
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
 
 add_subdirectory(compositor/)
 add_subdirectory(graphics/)
