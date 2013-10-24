@@ -20,16 +20,16 @@
 //#define LOG_NDEBUG 0
 
 // Log detailed debug messages about each inbound event notification to the dispatcher.
-#define DEBUG_INBOUND_EVENT_DETAILS 0
+#define DEBUG_INBOUND_EVENT_DETAILS 1
 
 // Log detailed debug messages about each outbound event processed by the dispatcher.
-#define DEBUG_OUTBOUND_EVENT_DETAILS 0
+#define DEBUG_OUTBOUND_EVENT_DETAILS 1
 
 // Log debug messages about the dispatch cycle.
-#define DEBUG_DISPATCH_CYCLE 0
+#define DEBUG_DISPATCH_CYCLE 1
 
 // Log debug messages about registrations.
-#define DEBUG_REGISTRATION 0
+#define DEBUG_REGISTRATION 1
 
 // Log debug messages about input event injection.
 #define DEBUG_INJECTION 0
@@ -87,10 +87,12 @@ const nsecs_t STREAM_AHEAD_EVENT_TIMEOUT = 500 * 1000000LL; // 0.5sec
 // Log a warning when an event takes longer than this to process, even if an ANR does not occur.
 const nsecs_t SLOW_EVENT_PROCESSING_WARNING_TIMEOUT = 2000 * 1000000LL; // 2sec
 
-
-static inline nsecs_t now() {
-    return systemTime(SYSTEM_TIME_MONOTONIC);
-}
+class DefaultTimeSource : public TimeSourceInterface {
+public:
+    nsecs_t now() override {
+        return systemTime(SYSTEM_TIME_MONOTONIC);
+    }
+};
 
 static inline const char* toString(bool value) {
     return value ? "true" : "false";
@@ -148,7 +150,7 @@ static bool validateMotionEvent(int32_t action, size_t pointerCount,
         return false;
     }
     if (pointerCount < 1 || pointerCount > MAX_POINTERS) {
-        ALOGE("Motion event has invalid pointer count %d; value must be between 1 and %d.",
+        ALOGE("Motion event has invalid pointer count %zd; value must be between 1 and %d.",
                 pointerCount, MAX_POINTERS);
         return false;
     }
@@ -178,7 +180,8 @@ InputDispatcher::InputDispatcher(const sp<InputDispatcherPolicyInterface>& polic
         mPendingEvent(NULL), mAppSwitchSawKeyDown(false), mAppSwitchDueTime(LONG_LONG_MAX),
         mNextUnblockedEvent(NULL),
         mDispatchEnabled(false), mDispatchFrozen(false), mInputFilterEnabled(false),
-        mInputTargetWaitCause(INPUT_TARGET_WAIT_CAUSE_NONE) {
+        mInputTargetWaitCause(INPUT_TARGET_WAIT_CAUSE_NONE),
+        mTimeSource(new DefaultTimeSource) {
     mLooper = new Looper(false);
 
     mKeyRepeatState.lastKeyEntry = NULL;
@@ -631,7 +634,7 @@ InputDispatcher::KeyEntry* InputDispatcher::synthesizeKeyRepeatLocked(nsecs_t cu
 bool InputDispatcher::dispatchConfigurationChangedLocked(
         nsecs_t currentTime, ConfigurationChangedEntry* entry) {
 #if DEBUG_OUTBOUND_EVENT_DETAILS
-    ALOGD("dispatchConfigurationChanged - eventTime=%lld", entry->eventTime);
+    ALOGD("dispatchConfigurationChanged - eventTime=%" PRINSECS, entry->eventTime);
 #endif
 
     // Reset key repeating in case a keyboard device was added or removed or something.
@@ -647,7 +650,7 @@ bool InputDispatcher::dispatchConfigurationChangedLocked(
 bool InputDispatcher::dispatchDeviceResetLocked(
         nsecs_t currentTime, DeviceResetEntry* entry) {
 #if DEBUG_OUTBOUND_EVENT_DETAILS
-    ALOGD("dispatchDeviceReset - eventTime=%lld, deviceId=%d", entry->eventTime, entry->deviceId);
+    ALOGD("dispatchDeviceReset - eventTime=%" PRINSECS ", deviceId=%d", entry->eventTime, entry->deviceId);
 #endif
 
     CancelationOptions options(CancelationOptions::CANCEL_ALL_EVENTS,
@@ -757,9 +760,9 @@ bool InputDispatcher::dispatchKeyLocked(nsecs_t currentTime, KeyEntry* entry,
 
 void InputDispatcher::logOutboundKeyDetailsLocked(const char* prefix, const KeyEntry* entry) {
 #if DEBUG_OUTBOUND_EVENT_DETAILS
-    ALOGD("%seventTime=%lld, deviceId=%d, source=0x%x, policyFlags=0x%x, "
+    ALOGD("%seventTime=%" PRINSECS ", deviceId=%d, source=0x%x, policyFlags=0x%x, "
             "action=0x%x, flags=0x%x, keyCode=0x%x, scanCode=0x%x, metaState=0x%x, "
-            "repeatCount=%d, downTime=%lld",
+            "repeatCount=%d, downTime=%" PRINSECS,
             prefix,
             entry->eventTime, entry->deviceId, entry->source, entry->policyFlags,
             entry->action, entry->flags, entry->keyCode, entry->scanCode, entry->metaState,
@@ -823,10 +826,10 @@ bool InputDispatcher::dispatchMotionLocked(
 
 void InputDispatcher::logOutboundMotionDetailsLocked(const char* prefix, const MotionEntry* entry) {
 #if DEBUG_OUTBOUND_EVENT_DETAILS
-    ALOGD("%seventTime=%lld, deviceId=%d, source=0x%x, policyFlags=0x%x, "
+    ALOGD("%seventTime=%" PRINSECS ", deviceId=%d, source=0x%x, policyFlags=0x%x, "
             "action=0x%x, flags=0x%x, "
             "metaState=0x%x, buttonState=0x%x, "
-            "edgeFlags=0x%x, xPrecision=%f, yPrecision=%f, downTime=%lld",
+            "edgeFlags=0x%x, xPrecision=%f, yPrecision=%f, downTime=%" PRINSECS,
             prefix,
             entry->eventTime, entry->deviceId, entry->source, entry->policyFlags,
             entry->action, entry->flags,
@@ -1696,7 +1699,7 @@ void InputDispatcher::prepareDispatchCycleLocked(nsecs_t currentTime,
     std::string pointerIdsString = inputTarget->pointerIds.toString();
     ALOGD("channel '%s' ~ prepareDispatchCycle - flags=0x%08x, "
             "xOffset=%f, yOffset=%f, scaleFactor=%f, "
-            "pointerIds=%s",
+            "pointerIds=(%s)",
             connection->getInputChannelName(), inputTarget->flags,
             inputTarget->xOffset, inputTarget->yOffset,
             inputTarget->scaleFactor, pointerIdsString.c_str());
@@ -2046,7 +2049,7 @@ int InputDispatcher::handleReceiveCallback(int fd, int events, void* data) {
                 return 1;
             }
 
-            nsecs_t currentTime = now();
+            nsecs_t currentTime = d->now();
             bool gotOneFinished = false;
             status_t status;
             for (;;) {
@@ -2127,7 +2130,7 @@ void InputDispatcher::synthesizeCancelationEventsForConnectionLocked(
 
     if (!cancelationEvents.isEmpty()) {
 #if DEBUG_OUTBOUND_EVENT_DETAILS
-        ALOGD("channel '%s' ~ Synthesized %d cancelation events to bring channel back in sync "
+        ALOGD("channel '%s' ~ Synthesized %zu cancelation events to bring channel back in sync "
                 "with reality: %s, mode=%d.",
                 connection->getInputChannelName(), cancelationEvents.size(),
                 options.reason, options.mode);
@@ -2202,7 +2205,7 @@ InputDispatcher::splitMotionEvent(const MotionEntry* originalMotionEntry, const 
         // or ACTION_POINTER_DOWN events that caused us to decide to split the pointers
         // in this way.
         ALOGW("Dropping split motion event because the pointer count is %d but "
-                "we expected there to be %d pointers.  This probably means we received "
+                "we expected there to be %zu pointers.  This probably means we received "
                 "a broken sequence of pointer ids from the input device.",
                 splitPointerCount, pointerIds.count());
         return NULL;
@@ -2261,7 +2264,7 @@ InputDispatcher::splitMotionEvent(const MotionEntry* originalMotionEntry, const 
 
 void InputDispatcher::notifyConfigurationChanged(const NotifyConfigurationChangedArgs* args) {
 #if DEBUG_INBOUND_EVENT_DETAILS
-    ALOGD("notifyConfigurationChanged - eventTime=%lld", args->eventTime);
+    ALOGD("notifyConfigurationChanged - eventTime=%" PRINSECS, args->eventTime);
 #endif
 
     bool needWake;
@@ -2279,8 +2282,8 @@ void InputDispatcher::notifyConfigurationChanged(const NotifyConfigurationChange
 
 void InputDispatcher::notifyKey(const NotifyKeyArgs* args) {
 #if DEBUG_INBOUND_EVENT_DETAILS
-    ALOGD("notifyKey - eventTime=%lld, deviceId=%d, source=0x%x, policyFlags=0x%x, action=0x%x, "
-            "flags=0x%x, keyCode=0x%x, scanCode=0x%x, metaState=0x%x, downTime=%lld",
+    ALOGD("notifyKey - eventTime=%" PRINSECS ", deviceId=%d, source=0x%x, policyFlags=0x%x, action=0x%x, "
+            "flags=0x%x, keyCode=0x%x, scanCode=0x%x, metaState=0x%x, downTime=%" PRINSECS,
             args->eventTime, args->deviceId, args->source, args->policyFlags,
             args->action, args->flags, args->keyCode, args->scanCode,
             args->metaState, args->downTime);
@@ -2357,9 +2360,9 @@ void InputDispatcher::notifyKey(const NotifyKeyArgs* args) {
 
 void InputDispatcher::notifyMotion(const NotifyMotionArgs* args) {
 #if DEBUG_INBOUND_EVENT_DETAILS
-    ALOGD("notifyMotion - eventTime=%lld, deviceId=%d, source=0x%x, policyFlags=0x%x, "
+    ALOGD("notifyMotion - eventTime=%" PRINSECS ", deviceId=%d, source=0x%x, policyFlags=0x%x, "
             "action=0x%x, flags=0x%x, metaState=0x%x, buttonState=0x%x, edgeFlags=0x%x, "
-            "xPrecision=%f, yPrecision=%f, downTime=%lld",
+            "xPrecision=%f, yPrecision=%f, downTime=%" PRINSECS,
             args->eventTime, args->deviceId, args->source, args->policyFlags,
             args->action, args->flags, args->metaState, args->buttonState,
             args->edgeFlags, args->xPrecision, args->yPrecision, args->downTime);
@@ -2429,7 +2432,7 @@ void InputDispatcher::notifyMotion(const NotifyMotionArgs* args) {
 
 void InputDispatcher::notifySwitch(const NotifySwitchArgs* args) {
 #if DEBUG_INBOUND_EVENT_DETAILS
-    ALOGD("notifySwitch - eventTime=%lld, policyFlags=0x%x, switchCode=%d, switchValue=%d",
+    ALOGD("notifySwitch - eventTime=%" PRINSECS ", policyFlags=0x%x, switchCode=%d, switchValue=%d",
             args->eventTime, args->policyFlags,
             args->switchCode, args->switchValue);
 #endif
@@ -2442,7 +2445,7 @@ void InputDispatcher::notifySwitch(const NotifySwitchArgs* args) {
 
 void InputDispatcher::notifyDeviceReset(const NotifyDeviceResetArgs* args) {
 #if DEBUG_INBOUND_EVENT_DETAILS
-    ALOGD("notifyDeviceReset - eventTime=%lld, deviceId=%d",
+    ALOGD("notifyDeviceReset - eventTime=%" PRINSECS ", deviceId=%d",
             args->eventTime, args->deviceId);
 #endif
 
@@ -3026,13 +3029,12 @@ void InputDispatcher::dumpDispatchStateLocked(String8& dump) {
     mEnumerator->for_each([&](sp<InputWindowHandle> const& windowHandle){
         const InputWindowInfo* windowInfo = windowHandle->getInfo();
 
-        appendFormat(dump, INDENT2 "name='%s', paused=%s, hasFocus=%s, hasWallpaper=%s, "
+        appendFormat(dump, INDENT2 "name='%s', paused=%s, hasWallpaper=%s, "
                 "visible=%s, canReceiveKeys=%s, flags=0x%08x, type=0x%08x, "
                 "frame=[%d,%d][%d,%d], scale=%f, "
                 "touchableRegion=[%d,%d][%d,%d]",
                 c_str(windowInfo->name),
                 toString(windowInfo->paused),
-                toString(windowInfo->hasFocus),
                 toString(windowInfo->hasWallpaper),
                 toString(windowInfo->visible),
                 toString(windowInfo->canReceiveKeys),
@@ -3533,7 +3535,7 @@ bool InputDispatcher::afterKeyEventLockedInterruptible(const sp<Connection>& con
                     appendFormat(msg, ", %d->%d", fallbackKeys.keyAt(i),
                             fallbackKeys.valueAt(i));
                 }
-                ALOGD("Unhandled key event: %d currently tracked fallback keys%s.",
+                ALOGD("Unhandled key event: %zu currently tracked fallback keys%s.",
                         fallbackKeys.size(), c_str(msg));
             }
 #endif

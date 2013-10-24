@@ -130,7 +130,6 @@ struct InputWindowInfo {
 
     bool visible;
     bool canReceiveKeys;
-    bool hasFocus;
     bool hasWallpaper;
     bool paused;
     // Whether the window understands pointer ownership and will accept or reject

@@ -63,6 +63,9 @@ struct StubWindowHandle : public droidinput::InputWindowHandle
     {
         return true;
     }
+
+    // Return a modifiable pointer, as opposed to getInfo()
+    droidinput::InputWindowInfo* info() { return mInfo; }
 };
 
 }

@@ -190,6 +190,15 @@ struct InputDispatcherConfiguration {
             keyRepeatDelay(50 * 1000000LL) { }
 };
 
+/*
+ * Interface for a time source
+ */
+class TimeSourceInterface : public virtual RefBase {
+public:
+    /* Returns the current system time */
+    virtual nsecs_t now() = 0;
+};
+
 
 /*
  * Input dispatcher policy interface.
@@ -423,7 +432,15 @@ public:
     virtual status_t registerInputChannel(const sp<InputChannel>& inputChannel,
             const sp<InputWindowHandle>& inputWindowHandle, bool monitor);
     virtual status_t unregisterInputChannel(const sp<InputChannel>& inputChannel);
-    
+
+    /* Replaces the used time source with the given one. Useful in tests.
+     *
+     * Changing it when the InputDispatcher has already started processing events is
+     * asking for trouble.
+     */
+    void setTimeSource(const sp<TimeSourceInterface>& timeSource) {
+        mTimeSource = timeSource;
+    }
 private:
     std::shared_ptr<mir::input::InputReport> const input_report;
 
@@ -1041,6 +1058,9 @@ private:
 
     // Contains the last window which received a hover event.
     sp<InputWindowHandle> mLastHoverWindowHandle;
+
+    sp<TimeSourceInterface> mTimeSource;
+    inline nsecs_t now() { return mTimeSource->now(); }
 
     // Finding targets for input events.
     int32_t handleTargetsNotReadyLocked(nsecs_t currentTime, const EventEntry* entry,

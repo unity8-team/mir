@@ -24,6 +24,12 @@
 #include <sys/types.h>
 #include <sys/time.h>
 
+// for PRId64
+#ifndef __STDC_FORMAT_MACROS
+#   define __STDC_FORMAT_MACROS
+#endif
+#include <inttypes.h> 
+
 // ------------------------------------------------------------------
 // C API
 
@@ -32,6 +38,7 @@ extern "C" {
 #endif
 
 typedef int64_t nsecs_t;       // nano-seconds
+#define PRINSECS PRId64
 
 static inline nsecs_t seconds_to_nanoseconds(nsecs_t secs)
 {

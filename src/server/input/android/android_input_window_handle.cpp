@@ -88,7 +88,6 @@ bool mia::InputWindowHandle::updateInfo()
     mInfo->scaleFactor = 1.f;
     mInfo->visible = true;
     mInfo->canReceiveKeys = true;
-    mInfo->hasFocus = true;
     mInfo->hasWallpaper = false;
     mInfo->paused = false;
     mInfo->dispatchingTimeout = INT_MAX;
