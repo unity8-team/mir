@@ -94,7 +94,6 @@ bool mia::InputWindowHandle::updateInfo()
     mInfo->dispatchingTimeout = INT_MAX;
     mInfo->ownerPid = 0;
     mInfo->ownerUid = 0;
-    mInfo->inputFeatures = 0;
 
     // TODO: Set touchableRegion and layer for touch events.
 

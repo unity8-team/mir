@@ -133,10 +133,21 @@ struct InputWindowInfo {
     bool hasFocus;
     bool hasWallpaper;
     bool paused;
-    int32_t layer;
+    // Whether the window understands pointer ownership and will accept or reject
+    // all pointers it receives.
+    bool handlesPointerOwnership;
     int32_t ownerPid;
     int32_t ownerUid;
-    int32_t inputFeatures;
+
+    struct PointerAcceptance {
+        int32_t id;
+        enum {
+            UNDECIDED,
+            ACCEPTED,
+            REJECTED
+        } acceptance;
+    };
+    Vector<PointerAcceptance> pointerAcceptanceVector;
 
     virtual bool touchableRegionContainsPoint(int32_t x, int32_t y) const;
     bool frameContainsPoint(int32_t x, int32_t y) const;

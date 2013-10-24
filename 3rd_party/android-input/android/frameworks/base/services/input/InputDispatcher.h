@@ -547,9 +547,6 @@ private:
         PointerProperties pointerProperties[MAX_POINTERS];
         PointerCoords pointerCoords[MAX_POINTERS];
 
-        // File descriptors of input channels whose windows already rejected those touch points.
-        Vector<int> rejectedChannelFds;
-
         MotionEntry(nsecs_t eventTime,
                 int32_t deviceId, uint32_t source, uint32_t policyFlags, int32_t action,
                 int32_t flags, int32_t metaState, int32_t buttonState, int32_t edgeFlags,
@@ -979,6 +976,32 @@ private:
 
     TouchState mTouchState;
     TouchState mTempTouchState;
+
+    struct OwnerlessPointerEvent {
+        nsecs_t time;
+        enum {
+            DOWN,
+            MOVE,
+            UP
+        } type;
+        PointerProperties properties;
+        PointerCoords coords;
+    };
+    struct OwnerlessPointerInfo {
+        // id of the pointer
+        int32_t id;
+        // pointer physically ended but the corresponding end event hasn't been sent
+        // to windows yet
+        bool pendingEnd;
+        // window that will own this pointer if it accepts it
+        sp<InputWindowHandle> targetWindow;
+        // windows that will get a chance to own this pointer if the target window rejects it
+        Vector< sp<InputWindowHandle> > fallbackWindows;
+        // all pointer updates so far. will be sent to the owner if it doesn't handle pointer
+        // ownership (i.e. if the window doesn't know about pointer accept/reject, pending ends, etc)
+        Vector<OwnerlessPointerEvent> eventsQueue;
+    };
+    Vector<OwnerlessPointerInfo> mOwnerlessPointersInfo;
 
     // Focused application.
     sp<InputApplicationHandle> mFocusedApplicationHandle;
