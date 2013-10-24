@@ -1,7 +1,10 @@
 include_directories(
   ${PROJECT_SOURCE_DIR}/include/platform
   ${PROJECT_SOURCE_DIR}/include/server
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  # ^^^ This line can be removed if all server code adopts "namespace/class.h"
+  #     instead of "mir/namespace/class.h"
+  ${MIR_SERVER_HEADERS_PUBLIC}
+  ${MIR_SERVER_HEADERS_PROTECTED}
 )
 
 add_subdirectory(compositor/)

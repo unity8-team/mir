@@ -1,2 +1,0 @@
-src/server/include/ is a place for server "protected" headers; those that are
-not part of the public SDK but need to be shared between server components.

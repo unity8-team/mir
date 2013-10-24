@@ -68,6 +68,13 @@ ENDIF(CMAKE_BUILD_TYPE MATCHES [cC][oO][vV][eE][rR][aA][gG][eE])
 
 enable_testing()
 
+#
+# Using these paths, you can always include "namespace/class.h" without needing
+# to know if class.h is public or protected...
+#
+set (MIR_SERVER_HEADERS_PUBLIC ${PROJECT_SOURCE_DIR}/include/server/mir)
+set (MIR_SERVER_HEADERS_PROTECTED ${PROJECT_SOURCE_DIR}/src/server/include)
+
 include_directories(include/shared)
 
 # Check for boost
