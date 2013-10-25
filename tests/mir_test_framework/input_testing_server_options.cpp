@@ -20,7 +20,7 @@
 
 #include "mir/input/input_channel.h"
 #include "mir/surfaces/input_registrar.h"
-#include "src/server/input/surface.h"
+#include "input/surface.h"
 #include "mir/shell/surface_creation_parameters.h"
 #include "mir/frontend/shell.h"
 #include "mir/frontend/session.h"
