@@ -21,7 +21,6 @@
 #include "mir/shell/default_focus_mechanism.h"
 #include "mir/shell/session.h"
 #include "mir/shell/surface_creation_parameters.h"
-#include "mir/surfaces/surface.h"
 #include "mir/graphics/display_configuration.h"
 
 #include "mir_test/fake_shared.h"
@@ -40,9 +39,7 @@
 #include <gtest/gtest.h>
 #include <string>
 
-namespace mc = mir::compositor;
 namespace msh = mir::shell;
-namespace ms = mir::surfaces;
 namespace mf = mir::frontend;
 namespace mt = mir::test;
 namespace mtd = mir::test::doubles;

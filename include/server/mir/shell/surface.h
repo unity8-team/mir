@@ -23,14 +23,22 @@
 #include "mir/shell/surface_buffer_access.h"
 #include "mir/frontend/surface.h"
 #include "mir/frontend/surface_id.h"
-#include "mir/surfaces/surface.h"
 
 #include "mir_toolkit/common.h"
 
 #include <string>
+#include <vector>
 
 namespace mir
 {
+namespace surfaces
+{
+class Surface;
+}
+namespace geometry
+{
+class Rectangle;
+}
 namespace frontend
 {
 class EventSink;

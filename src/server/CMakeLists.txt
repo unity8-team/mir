@@ -1,6 +1,11 @@
 include_directories(
   ${PROJECT_SOURCE_DIR}/include/platform
-  ${PROJECT_SOURCE_DIR}/include/server)
+  ${PROJECT_SOURCE_DIR}/include/server
+  # ^^^ This line can be removed if all server code adopts "namespace/class.h"
+  #     instead of "mir/namespace/class.h"
+  ${MIR_SERVER_HEADERS_PUBLIC}
+  ${MIR_SERVER_HEADERS_PROTECTED}
+)
 
 add_subdirectory(compositor/)
 add_subdirectory(graphics/)
@@ -29,6 +34,7 @@ set(
   run_mir.cpp
   report_exception.cpp
   display_server.cpp
+  default_configuration_options.cpp
   default_server_configuration.cpp
   asio_main_loop.cpp
   shared_library.cpp
@@ -44,6 +50,7 @@ list(APPEND MIRSERVER_ARCHIVES
   miroptions
   mircompositor
   mirfrontend
+  mirgraphics
   mirplatform
   mirinput
   mirsharedinput
@@ -88,7 +95,7 @@ else()
   )
 endif()
 
-set(MIRSERVER_ABI 8)
+set(MIRSERVER_ABI 9)
 
 set_target_properties(
   mirserver

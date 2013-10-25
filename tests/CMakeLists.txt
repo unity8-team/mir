@@ -12,8 +12,13 @@ endif()
 include_directories(
   ${PROJECT_SOURCE_DIR}/include/platform
   ${PROJECT_SOURCE_DIR}/include/server
+  # ^^^ This line can be removed if all test code adopts "namespace/class.h"
+  #     instead of "mir/namespace/class.h"
   ${PROJECT_SOURCE_DIR}/include/client
-  ${PROJECT_SOURCE_DIR}/include/test)
+  ${PROJECT_SOURCE_DIR}/include/test
+  ${MIR_SERVER_HEADERS_PUBLIC}
+  ${MIR_SERVER_HEADERS_PROTECTED}
+)
 
 if (MIR_PLATFORM STREQUAL "android")
   include_directories( ${LIBHARDWARE_INCLUDE_DIRS})

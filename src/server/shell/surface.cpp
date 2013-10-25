@@ -23,6 +23,7 @@
 #include "mir/shell/input_targeter.h"
 #include "mir/input/input_channel.h"
 #include "mir/frontend/event_sink.h"
+#include "surfaces/surface.h"
 
 #include "mir_toolkit/event.h"
 
@@ -32,7 +33,6 @@
 #include <cstring>
 
 namespace msh = mir::shell;
-namespace mc = mir::compositor;
 namespace mg = mir::graphics;
 namespace mi = mir::input;
 namespace ms = mir::surfaces;

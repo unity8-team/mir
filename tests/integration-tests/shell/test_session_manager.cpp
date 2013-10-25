@@ -23,8 +23,7 @@
 #include "mir/shell/registration_order_focus_sequence.h"
 #include "mir/shell/default_session_container.h"
 #include "mir/shell/null_session_listener.h"
-#include "mir/surfaces/buffer_stream.h"
-#include "mir/surfaces/surface.h"
+#include "mir/compositor/buffer_stream.h"
 #include "mir/shell/surface_creation_parameters.h"
 
 #include "mir_test/gmock_fixes.h"
@@ -38,10 +37,8 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-namespace mc = mir::compositor;
 namespace mf = mir::frontend;
 namespace msh = mir::shell;
-namespace ms = mir::surfaces;
 namespace mt = mir::test;
 namespace mtd = mir::test::doubles;
 

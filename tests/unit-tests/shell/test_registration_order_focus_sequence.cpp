@@ -21,7 +21,6 @@
 #include "mir/shell/registration_order_focus_sequence.h"
 #include "mir/shell/surface_creation_parameters.h"
 #include "mir/shell/null_session_listener.h"
-#include "mir/surfaces/surface.h"
 
 #include "mir_test_doubles/mock_buffer_stream.h"
 #include "mir_test_doubles/mock_surface_factory.h"
@@ -32,9 +31,7 @@
 #include <gtest/gtest.h>
 #include <string>
 
-namespace mc = mir::compositor;
 namespace msh = mir::shell;
-namespace ms = mir::surfaces;
 namespace mt = mir::test;
 namespace mtd = mt::doubles;
 

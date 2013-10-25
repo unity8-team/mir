@@ -46,7 +46,6 @@
 #include <signal.h>
 
 namespace mf = mir::frontend;
-namespace mc = mir::compositor;
 namespace msh = mir::shell;
 namespace mg = mir::graphics;
 namespace me = mir::examples;
