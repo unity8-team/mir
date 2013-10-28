@@ -1,3 +1,13 @@
+platform-api (0.19+14.04.20131028-0ubuntu1) trusty; urgency=low
+
+  [ Kevin Gunn ]
+  * bump mir build dep to 0.0.16.
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 170
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Mon, 28 Oct 2013 16:56:11 +0000
+
 platform-api (0.19+13.10.20131015.1-0ubuntu2) trusty; urgency=low
 
   * No change rebuild for Boost 1.54 transition, required to drop
