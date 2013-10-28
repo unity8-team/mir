@@ -13,12 +13,8 @@ export DPKG_GENSYMBOLS_CHECK_LEVEL = 4
 override_dh_auto_test:
 ifeq($(DEB_HOST_ARCH),armhf)
 	powerd-cli active &
-	POWERD_PID=$!
 endif
 	GTEST_OUTPUT=xml:./ dh_auto_test --max-parallel=1
-ifeq($(DEB_HOST_ARCH),armhf)
-	kill $(POWERD_PID)
-endif
 
 COMMON_CONFIGURE_OPTIONS = \
   -DBUILD_DOXYGEN=YES \
