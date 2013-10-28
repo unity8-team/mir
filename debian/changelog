@@ -1,3 +1,10 @@
+platform-api (0.19+13.10.20131015.1-0ubuntu2) trusty; urgency=low
+
+  * No change rebuild for Boost 1.54 transition, required to drop
+    boost1.53 from main.
+
+ -- Dmitrijs Ledkovs <xnox@ubuntu.com>  Fri, 25 Oct 2013 00:06:13 +0100
+
 platform-api (0.19+13.10.20131015.1-0ubuntu1) saucy; urgency=low
 
   [ Robert Carr ]
