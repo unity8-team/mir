@@ -36,7 +36,7 @@ namespace geom = mir::geometry;
 namespace
 {
 
-MirPixelFormat find_opaque_surface_format(MirConnection* connection)
+MirPixelFormat find_transparent_surface_format(MirConnection* connection)
 {
     static unsigned const max_formats = 32;
     MirPixelFormat formats[max_formats];
@@ -48,8 +48,8 @@ MirPixelFormat find_opaque_surface_format(MirConnection* connection)
     // Find an opaque surface format
     for (auto f = formats; f != formats+valid_formats; ++f)
     {
-        if (*f == mir_pixel_format_xbgr_8888 ||
-            *f == mir_pixel_format_xrgb_8888)
+        if (*f != mir_pixel_format_xbgr_8888 &&
+            *f != mir_pixel_format_xrgb_8888)
         {
             return *f;
         }
@@ -66,7 +66,7 @@ EGLint const mgn::detail::nested_egl_config_attribs[] = {
     EGL_RED_SIZE, 8,
     EGL_GREEN_SIZE, 8,
     EGL_BLUE_SIZE, 8,
-    EGL_ALPHA_SIZE, 0,
+    EGL_ALPHA_SIZE, 8,
     EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
     EGL_NONE
 };
