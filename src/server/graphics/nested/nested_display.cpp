@@ -153,7 +153,7 @@ mgn::NestedDisplay::NestedDisplay(
     event_handler{event_handler},
     display_report{display_report},
     egl_display{*connection},
-    egl_pixel_format{find_opaque_surface_format(*connection)},
+    egl_pixel_format{find_transparent_surface_format(*connection)},
     outputs{}
 {
     egl_display.initialize();
