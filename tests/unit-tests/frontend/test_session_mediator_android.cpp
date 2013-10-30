@@ -27,7 +27,7 @@
 #include "mir/graphics/platform.h"
 #include "mir/graphics/platform_ipc_package.h"
 
-#include "mir_test_doubles/null_display_changer.h"
+#include "mir_test_doubles/null_display_arbitrator.h"
 #include "mir_test_doubles/mock_session.h"
 #include "mir_test_doubles/stub_shell.h"
 #include "mir_test_doubles/null_platform.h"
@@ -66,11 +66,11 @@ struct SessionMediatorAndroidTest : public ::testing::Test
     SessionMediatorAndroidTest()
         : shell{std::make_shared<mtd::StubShell>()},
           graphics_platform{std::make_shared<mtd::NullPlatform>()},
-          display_changer{std::make_shared<mtd::NullDisplayChanger>()},
+          display_arbitrator{std::make_shared<mtd::NullDisplayArbitrator>()},
           buffer_allocator{std::make_shared<StubGraphicBufferAllocator>()},
           report{std::make_shared<mf::NullSessionMediatorReport>()},
           resource_cache{std::make_shared<mf::ResourceCache>()},
-          mediator{shell, graphics_platform, display_changer,
+          mediator{shell, graphics_platform, display_arbitrator,
                    buffer_allocator, report,
                    std::make_shared<mtd::NullEventSink>(),
                    resource_cache},
@@ -80,7 +80,7 @@ struct SessionMediatorAndroidTest : public ::testing::Test
 
     std::shared_ptr<mtd::StubShell> const shell;
     std::shared_ptr<mtd::NullPlatform> const graphics_platform;
-    std::shared_ptr<mf::DisplayChanger> const display_changer;
+    std::shared_ptr<mf::DisplayArbitrator> const display_arbitrator;
     std::shared_ptr<mg::GraphicBufferAllocator> const buffer_allocator;
     std::shared_ptr<mf::SessionMediatorReport> const report;
     std::shared_ptr<mf::ResourceCache> const resource_cache;

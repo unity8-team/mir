@@ -16,9 +16,9 @@
  * Authored by: Kevin DuBois <kevin.dubois@canonical.com>
  */
 
-#include "mir/shell/unauthorized_display_changer.h"
+#include "mir/shell/unauthorized_display_arbitrator.h"
 
-#include "mir_test_doubles/mock_display_changer.h"
+#include "mir_test_doubles/mock_display_arbitrator.h"
 #include "mir_test_doubles/null_display_configuration.h"
 
 #include "mir_test/fake_shared.h"
@@ -31,33 +31,33 @@ namespace mtd = mir::test::doubles;
 namespace mf = mir::frontend;
 namespace msh = mir::shell;
 
-struct UnauthorizedDisplayChangerTest : public ::testing::Test
+struct UnauthorizedDisplayArbitratorTest : public ::testing::Test
 {
-    mtd::MockDisplayChanger underlying_changer;
+    mtd::MockDisplayArbitrator underlying_arbitrator;
 };
 
-TEST_F(UnauthorizedDisplayChangerTest, change_attempt)
+TEST_F(UnauthorizedDisplayArbitratorTest, change_attempt)
 {
     mtd::NullDisplayConfiguration conf;
-    msh::UnauthorizedDisplayChanger changer(mt::fake_shared(underlying_changer));
+    msh::UnauthorizedDisplayArbitrator arbitrator(mt::fake_shared(underlying_arbitrator));
 
     EXPECT_THROW({
-        changer.configure(std::shared_ptr<mf::Session>(), mt::fake_shared(conf));
+        arbitrator.configure(std::shared_ptr<mf::Session>(), mt::fake_shared(conf));
     }, std::runtime_error);
 }
 
-TEST_F(UnauthorizedDisplayChangerTest, access_config)
+TEST_F(UnauthorizedDisplayArbitratorTest, access_config)
 {
     using namespace testing;
 
     mtd::NullDisplayConfiguration conf;
-    EXPECT_CALL(underlying_changer, active_configuration())
+    EXPECT_CALL(underlying_arbitrator, active_configuration())
         .Times(1)
         .WillOnce(Return(mt::fake_shared(conf)));
 
-    msh::UnauthorizedDisplayChanger changer(mt::fake_shared(underlying_changer));
+    msh::UnauthorizedDisplayArbitrator arbitrator(mt::fake_shared(underlying_arbitrator));
 
-    auto returned_conf = changer.active_configuration();
+    auto returned_conf = arbitrator.active_configuration();
 
     EXPECT_EQ(&conf, returned_conf.get());
 }

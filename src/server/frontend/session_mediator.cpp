@@ -22,7 +22,7 @@
 #include "mir/frontend/session.h"
 #include "mir/frontend/surface.h"
 #include "mir/shell/surface_creation_parameters.h"
-#include "mir/frontend/display_changer.h"
+#include "mir/frontend/display_arbitrator.h"
 #include "resource_cache.h"
 #include "mir_toolkit/common.h"
 #include "mir/graphics/buffer_id.h"
@@ -31,7 +31,7 @@
 #include "mir/graphics/graphic_buffer_allocator.h"
 #include "mir/geometry/dimensions.h"
 #include "mir/graphics/platform.h"
-#include "mir/frontend/display_changer.h"
+#include "mir/frontend/display_arbitrator.h"
 #include "mir/graphics/display_configuration.h"
 #include "mir/graphics/platform_ipc_package.h"
 #include "mir/frontend/client_constants.h"
@@ -55,7 +55,7 @@ namespace geom = mir::geometry;
 mf::SessionMediator::SessionMediator(
     std::shared_ptr<frontend::Shell> const& shell,
     std::shared_ptr<graphics::Platform> const & graphics_platform,
-    std::shared_ptr<mf::DisplayChanger> const& display_changer,
+    std::shared_ptr<mf::DisplayArbitrator> const& display_arbitrator,
     std::shared_ptr<graphics::GraphicBufferAllocator> const& buffer_allocator,
     std::shared_ptr<SessionMediatorReport> const& report,
     std::shared_ptr<EventSink> const& sender,
@@ -63,7 +63,7 @@ mf::SessionMediator::SessionMediator(
     shell(shell),
     graphics_platform(graphics_platform),
     buffer_allocator(buffer_allocator),
-    display_changer(display_changer),
+    display_arbitrator(display_arbitrator),
     report(report),
     event_sink(sender),
     resource_cache(resource_cache)
@@ -102,7 +102,7 @@ void mf::SessionMediator::connect(
     for (auto& ipc_fds : ipc_package->ipc_fds)
         platform->add_fd(ipc_fds);
 
-    auto display_config = display_changer->active_configuration();
+    auto display_config = display_arbitrator->active_configuration();
     auto protobuf_config = response->mutable_display_configuration();
     mfd::pack_protobuf_display_configuration(*protobuf_config, *display_config);
 
@@ -183,7 +183,7 @@ void mf::SessionMediator::next_buffer(
         // swap_buffer will not block indefinitely, leaving the client
         // in a position where it can not turn back on the
         // outputs.
-        display_changer->ensure_display_powered(session);
+        display_arbitrator->ensure_display_powered(session);
 
         auto surface = session->get_surface(surf_id);
 
@@ -292,7 +292,7 @@ void mf::SessionMediator::configure_display(
 
         report->session_configure_display_called(session->name());
 
-        auto config = display_changer->active_configuration();
+        auto config = display_arbitrator->active_configuration();
         for (auto i=0; i < request->display_output_size(); i++)
         {   
             auto& output = request->display_output(i);
@@ -302,8 +302,8 @@ void mf::SessionMediator::configure_display(
                                      output.current_mode(), static_cast<MirPowerMode>(output.power_mode()));
         }
 
-        display_changer->configure(session, config);
-        auto display_config = display_changer->active_configuration();
+        display_arbitrator->configure(session, config);
+        auto display_config = display_arbitrator->active_configuration();
         mfd::pack_protobuf_display_configuration(*response, *display_config);
     }
     done->Run();

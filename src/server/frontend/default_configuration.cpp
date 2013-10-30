@@ -30,7 +30,7 @@
 #include "mir/shell/session.h"
 
 // TODO this looks like a missing factory function
-#include "mir/shell/unauthorized_display_changer.h"
+#include "mir/shell/unauthorized_display_arbitrator.h"
 
 namespace mf = mir::frontend;
 namespace mg = mir::graphics;
@@ -48,14 +48,14 @@ public:
         std::shared_ptr<mf::SessionMediatorReport> const& sm_report,
         std::shared_ptr<mf::MessageProcessorReport> const& mr_report,
         std::shared_ptr<mg::Platform> const& graphics_platform,
-        std::shared_ptr<mf::DisplayChanger> const& display_changer,
+        std::shared_ptr<mf::DisplayArbitrator> const& display_arbitrator,
         std::shared_ptr<mg::GraphicBufferAllocator> const& buffer_allocator) :
         shell(shell),
         sm_report(sm_report),
         mp_report(mr_report),
         cache(std::make_shared<mf::ResourceCache>()),
         graphics_platform(graphics_platform),
-        display_changer(display_changer),
+        display_arbitrator(display_arbitrator),
         buffer_allocator(buffer_allocator)
     {
     }
@@ -66,20 +66,20 @@ private:
     std::shared_ptr<mf::MessageProcessorReport> const mp_report;
     std::shared_ptr<mf::ResourceCache> const cache;
     std::shared_ptr<mg::Platform> const graphics_platform;
-    std::shared_ptr<mf::DisplayChanger> const display_changer;
+    std::shared_ptr<mf::DisplayArbitrator> const display_arbitrator;
     std::shared_ptr<mg::GraphicBufferAllocator> const buffer_allocator;
 
     virtual std::shared_ptr<mir::protobuf::DisplayServer> make_ipc_server(
         std::shared_ptr<mf::EventSink> const& sink, bool authorized_to_resize_display)
     {
-        std::shared_ptr<mf::DisplayChanger> changer;
+        std::shared_ptr<mf::DisplayArbitrator> changer;
         if(authorized_to_resize_display)
         {
-            changer = display_changer;
+            changer = display_arbitrator;
         }
         else
         {
-            changer = std::make_shared<msh::UnauthorizedDisplayChanger>(display_changer);
+            changer = std::make_shared<msh::UnauthorizedDisplayArbitrator>(display_arbitrator);
         }
 
         return std::make_shared<mf::SessionMediator>(
@@ -175,6 +175,6 @@ mir::DefaultServerConfiguration::the_ipc_factory(
                 the_session_mediator_report(),
                 the_message_processor_report(),
                 the_graphics_platform(),
-                the_frontend_display_changer(), allocator);
+                the_frontend_display_arbitrator(), allocator);
         });
 }

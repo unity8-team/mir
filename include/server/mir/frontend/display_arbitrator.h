@@ -16,8 +16,8 @@
  * Authored by: Kevin DuBois <kevin.dubois@canonical.com>
  */
 
-#ifndef MIR_FRONTEND_DISPLAY_CHANGER_H_
-#define MIR_FRONTEND_DISPLAY_CHANGER_H_
+#ifndef MIR_FRONTEND_DISPLAY_ARBITRATOR_H_
+#define MIR_FRONTEND_DISPLAY_ARBITRATOR_H_
 
 #include <memory>
 
@@ -31,22 +31,22 @@ namespace frontend
 {
 class Session;
 
-class DisplayChanger
+class DisplayArbitrator
 {
 public:
-    virtual ~DisplayChanger() = default;
+    virtual ~DisplayArbitrator() = default;
 
     virtual std::shared_ptr<graphics::DisplayConfiguration> active_configuration() = 0;
     virtual void configure(std::shared_ptr<Session> const&, std::shared_ptr<graphics::DisplayConfiguration> const&) = 0;
     virtual void ensure_display_powered(std::shared_ptr<Session> const& session) = 0;
 
 protected:
-    DisplayChanger() = default;
-    DisplayChanger(DisplayChanger const&) = delete;
-    DisplayChanger& operator=(DisplayChanger const&) = delete;
+    DisplayArbitrator() = default;
+    DisplayArbitrator(DisplayArbitrator const&) = delete;
+    DisplayArbitrator& operator=(DisplayArbitrator const&) = delete;
 };
 
 }
 }
 
-#endif /* MIR_FRONTEND_DISPLAY_CHANGER_H_ */
+#endif /* MIR_FRONTEND_DISPLAY_ARBITRATOR_H_ */

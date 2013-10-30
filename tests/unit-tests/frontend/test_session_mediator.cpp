@@ -28,10 +28,10 @@
 #include "mir/graphics/platform_ipc_package.h"
 #include "mir/surfaces/surface.h"
 #include "mir_test_doubles/mock_display.h"
-#include "mir_test_doubles/mock_display_changer.h"
+#include "mir_test_doubles/mock_display_arbitrator.h"
 #include "mir_test_doubles/null_display.h"
 #include "mir_test_doubles/null_event_sink.h"
-#include "mir_test_doubles/null_display_changer.h"
+#include "mir_test_doubles/null_display_arbitrator.h"
 #include "mir_test_doubles/mock_display.h"
 #include "mir_test_doubles/mock_shell.h"
 #include "mir_test_doubles/mock_frontend_surface.h"
@@ -193,11 +193,11 @@ struct SessionMediatorTest : public ::testing::Test
     SessionMediatorTest()
         : shell{std::make_shared<testing::NiceMock<mtd::MockShell>>()},
           graphics_platform{std::make_shared<testing::NiceMock<MockPlatform>>()},
-          graphics_changer{std::make_shared<mtd::NullDisplayChanger>()},
+          graphics_arbitrator{std::make_shared<mtd::NullDisplayArbitrator>()},
           buffer_allocator{std::make_shared<testing::NiceMock<MockGraphicBufferAllocator>>()},
           report{std::make_shared<mf::NullSessionMediatorReport>()},
           resource_cache{std::make_shared<mf::ResourceCache>()},
-          mediator{shell, graphics_platform, graphics_changer,
+          mediator{shell, graphics_platform, graphics_arbitrator,
                    buffer_allocator, report, 
                    std::make_shared<mtd::NullEventSink>(),
                    resource_cache},
@@ -213,7 +213,7 @@ struct SessionMediatorTest : public ::testing::Test
 
     std::shared_ptr<testing::NiceMock<mtd::MockShell>> const shell;
     std::shared_ptr<MockPlatform> const graphics_platform;
-    std::shared_ptr<mf::DisplayChanger> const graphics_changer;
+    std::shared_ptr<mf::DisplayArbitrator> const graphics_arbitrator;
     std::shared_ptr<testing::NiceMock<MockGraphicBufferAllocator>> const buffer_allocator;
     std::shared_ptr<mf::SessionMediatorReport> const report;
     std::shared_ptr<mf::ResourceCache> const resource_cache;
@@ -355,7 +355,7 @@ TEST_F(SessionMediatorTest, connect_packs_display_configuration)
 
     mtd::StubDisplayConfig config;
 
-    auto mock_display = std::make_shared<mtd::MockDisplayChanger>();
+    auto mock_display = std::make_shared<mtd::MockDisplayArbitrator>();
     EXPECT_CALL(*mock_display, active_configuration())
         .Times(1)
         .WillOnce(Return(mt::fake_shared(config)));
@@ -596,7 +596,7 @@ TEST_F(SessionMediatorTest, display_config_request)
 
     NiceMock<MockConfig> mock_display_config;
     mtd::StubDisplayConfig stub_display_config;
-    auto mock_display_selector = std::make_shared<mtd::MockDisplayChanger>();
+    auto mock_display_selector = std::make_shared<mtd::MockDisplayArbitrator>();
 
     Sequence seq;
     EXPECT_CALL(*mock_display_selector, active_configuration())

@@ -16,11 +16,11 @@
  * Authored by: Kevin DuBois <kevin.dubois@canonical.com>
  */
 
-#ifndef MIR_TEST_DOUBLES_NULL_DISPLAY_CHANGER_H_
-#define MIR_TEST_DOUBLES_NULL_DISPLAY_CHANGER_H_
+#ifndef MIR_TEST_DOUBLES_MOCK_DISPLAY_ARBITRATOR_H_
+#define MIR_TEST_DOUBLES_MOCK_DISPLAY_ARBITRATOR_H_
 
-#include "mir/frontend/display_changer.h"
-#include "null_display_configuration.h"
+#include "mir/frontend/display_arbitrator.h"
+#include <gmock/gmock.h>
 
 namespace mir
 {
@@ -29,22 +29,16 @@ namespace test
 namespace doubles
 {
 
-class NullDisplayChanger : public frontend::DisplayChanger
+class MockDisplayArbitrator : public frontend::DisplayArbitrator
 {
 public:
-    virtual std::shared_ptr<graphics::DisplayConfiguration> active_configuration()
-    {
-        return std::make_shared<NullDisplayConfiguration>();
-    }
-    virtual void configure(std::shared_ptr<frontend::Session> const&, std::shared_ptr<graphics::DisplayConfiguration> const&)
-    {
-    }
-    virtual void ensure_display_powered(std::shared_ptr<frontend::Session> const&)
-    {
-    }
+    MOCK_METHOD0(active_configuration, std::shared_ptr<graphics::DisplayConfiguration>());
+    MOCK_METHOD2(configure,
+        void(std::shared_ptr<frontend::Session> const&, std::shared_ptr<graphics::DisplayConfiguration> const&));
+    MOCK_METHOD1(ensure_display_powered, void(std::shared_ptr<frontend::Session> const&));
 };
-}
-}
-}
 
-#endif /* MIR_TEST_DOUBLES_NULL_DISPLAY_CHANGER_H_ */
+}
+}
+}
+#endif /* MIR_TEST_DOUBLES_MOCK_DISPLAY_ARBITRATOR_H_ */

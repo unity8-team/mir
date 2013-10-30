@@ -16,20 +16,20 @@
  * Authored by: Kevin DuBois <kevin.dubois@canonical.com>
  */
 
-#ifndef MIR_SHELL_UNAUTHORIZED_DISPLAY_CHANGER_H_
-#define MIR_SHELL_UNAUTHORIZED_DISPLAY_CHANGER_H_
+#ifndef MIR_SHELL_UNAUTHORIZED_DISPLAY_ARBITRATOR_H_
+#define MIR_SHELL_UNAUTHORIZED_DISPLAY_ARBITRATOR_H_
 
-#include "mir/frontend/display_changer.h"
+#include "mir/frontend/display_arbitrator.h"
 
 namespace mir
 {
 namespace shell
 {
 
-class UnauthorizedDisplayChanger : public frontend::DisplayChanger
+class UnauthorizedDisplayArbitrator : public frontend::DisplayArbitrator
 {
 public:
-    explicit UnauthorizedDisplayChanger(std::shared_ptr<frontend::DisplayChanger> const& changer);
+    explicit UnauthorizedDisplayArbitrator(std::shared_ptr<frontend::DisplayArbitrator> const& arbitrator);
 
     std::shared_ptr<graphics::DisplayConfiguration> active_configuration();
     void configure(std::shared_ptr<frontend::Session> const&, std::shared_ptr<graphics::DisplayConfiguration> const&);
@@ -37,10 +37,10 @@ public:
     void ensure_display_powered(std::shared_ptr<frontend::Session> const& session);
 
 private:
-    std::shared_ptr<frontend::DisplayChanger> const changer;
+    std::shared_ptr<frontend::DisplayArbitrator> const arbitrator;
 };
 
 }
 }
 
-#endif /* MIR_SHELL_UNAUTHORIZED_DISPLAY_CHANGER_H_ */
+#endif /* MIR_SHELL_UNAUTHORIZED_DISPLAY_ARBITRATOR_H_ */

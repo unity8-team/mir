@@ -30,7 +30,7 @@
 #include "mir_test_doubles/stub_buffer.h"
 #include "mir_test_doubles/null_display.h"
 #include "mir_test_doubles/null_event_sink.h"
-#include "mir_test_doubles/null_display_changer.h"
+#include "mir_test_doubles/null_display_arbitrator.h"
 #include "mir_test_doubles/stub_display_buffer.h"
 #include "mir_test_doubles/null_platform.h"
 #include "mir_test/display_config_matchers.h"
@@ -72,7 +72,7 @@ private:
     mtd::NullDisplayBuffer display_buffer;
 };
 
-class StubChanger : public mtd::NullDisplayChanger
+class StubArbitrator : public mtd::NullDisplayArbitrator
 {
 public:
     std::shared_ptr<mg::DisplayConfiguration> active_configuration() override
@@ -85,7 +85,7 @@ private:
     mtd::NullDisplayBuffer display_buffer;
 };
 
-mtd::StubDisplayConfig StubChanger::stub_display_config;
+mtd::StubDisplayConfig StubArbitrator::stub_display_config;
 
 char const* const mir_test_socket = mtf::test_socket_file().c_str();
 
@@ -149,14 +149,14 @@ TEST_F(BespokeDisplayServerTestFixture, display_surface_pfs_reaches_client)
             return platform;
         }
 
-        std::shared_ptr<mf::DisplayChanger> the_frontend_display_changer() override
+        std::shared_ptr<mf::DisplayArbitrator> the_frontend_display_arbitrator() override
         {
-            if (!changer)
-                changer = std::make_shared<StubChanger>();
-            return changer; 
+            if (!arbitrator)
+                arbitrator = std::make_shared<StubArbitrator>();
+            return arbitrator; 
         }
 
-        std::shared_ptr<StubChanger> changer;
+        std::shared_ptr<StubArbitrator> arbitrator;
         std::shared_ptr<StubPlatform> platform;
     } server_config;
 

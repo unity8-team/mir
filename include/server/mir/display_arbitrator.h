@@ -16,8 +16,8 @@
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
-#ifndef MIR_DISPLAY_CHANGER_H_
-#define MIR_DISPLAY_CHANGER_H_
+#ifndef MIR_DISPLAY_ARBITRATOR_H_
+#define MIR_DISPLAY_ARBITRATOR_H_
 
 #include <memory>
 
@@ -28,10 +28,10 @@ namespace graphics
 class DisplayConfiguration;
 }
 
-class DisplayChanger
+class DisplayArbitrator
 {
 public:
-    virtual ~DisplayChanger() = default;
+    virtual ~DisplayArbitrator() = default;
 
     enum SystemStateHandling : bool { RetainSystemState, PauseResumeSystem };
 
@@ -40,11 +40,11 @@ public:
         SystemStateHandling pause_resume_system) = 0;
 
 protected:
-    DisplayChanger() = default;
-    DisplayChanger(DisplayChanger const&) = delete;
-    DisplayChanger& operator=(DisplayChanger const&) = delete;
+    DisplayArbitrator() = default;
+    DisplayArbitrator(DisplayArbitrator const&) = delete;
+    DisplayArbitrator& operator=(DisplayArbitrator const&) = delete;
 };
 
 }
 
-#endif /* MIR_DISPLAY_CHANGER_H_ */
+#endif /* MIR_DISPLAY_ARBITRATOR_H_ */

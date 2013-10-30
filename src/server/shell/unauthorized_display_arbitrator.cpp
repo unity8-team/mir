@@ -16,30 +16,30 @@
  * Authored by: Kevin DuBois <kevin.dubois@canonical.com>
  */
 
-#include "mir/shell/unauthorized_display_changer.h"
+#include "mir/shell/unauthorized_display_arbitrator.h"
 #include <boost/throw_exception.hpp>
 
 namespace mf = mir::frontend;
 namespace msh = mir::shell;
 namespace mg = mir::graphics;
 
-msh::UnauthorizedDisplayChanger::UnauthorizedDisplayChanger(std::shared_ptr<frontend::DisplayChanger> const& changer)
-    : changer(changer)
+msh::UnauthorizedDisplayArbitrator::UnauthorizedDisplayArbitrator(std::shared_ptr<frontend::DisplayArbitrator> const& arbitrator)
+    : arbitrator(arbitrator)
 {
 }
 
-std::shared_ptr<mg::DisplayConfiguration> msh::UnauthorizedDisplayChanger::active_configuration()
+std::shared_ptr<mg::DisplayConfiguration> msh::UnauthorizedDisplayArbitrator::active_configuration()
 {
-    return changer->active_configuration();
+    return arbitrator->active_configuration();
 }
 
-void msh::UnauthorizedDisplayChanger::configure(
+void msh::UnauthorizedDisplayArbitrator::configure(
     std::shared_ptr<mf::Session> const&, std::shared_ptr<mg::DisplayConfiguration> const&)
 {
     BOOST_THROW_EXCEPTION(std::runtime_error("not authorized to apply display configurations"));
 }
 
-void msh::UnauthorizedDisplayChanger::ensure_display_powered(std::shared_ptr<mf::Session> const&)
+void msh::UnauthorizedDisplayArbitrator::ensure_display_powered(std::shared_ptr<mf::Session> const&)
 {
     BOOST_THROW_EXCEPTION(std::runtime_error("not authorized to apply display configurations"));
 }

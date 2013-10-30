@@ -21,7 +21,7 @@
 #include "mir/graphics/display_configuration.h"
 #include "mir/graphics/display_configuration_policy.h"
 #include "mir/main_loop.h"
-#include "mir/display_changer.h"
+#include "mir/display_arbitrator.h"
 #include "mir/server_status_listener.h"
 
 #include "mir_test/pipe.h"
@@ -66,7 +66,7 @@ public:
     void remove_endpoint() const {}
 };
 
-class MockDisplayChanger : public mir::DisplayChanger
+class MockDisplayArbitrator : public mir::DisplayArbitrator
 {
 public:
     MOCK_METHOD2(configure_for_hardware_change,
@@ -248,12 +248,12 @@ public:
         return mock_input_manager;
     }
 
-    std::shared_ptr<mir::DisplayChanger> the_display_changer() override
+    std::shared_ptr<mir::DisplayArbitrator> the_display_arbitrator() override
     {
-        if (!mock_display_changer)
-            mock_display_changer = std::make_shared<MockDisplayChanger>();
+        if (!mock_display_arbitrator)
+            mock_display_arbitrator = std::make_shared<MockDisplayArbitrator>();
 
-        return mock_display_changer;
+        return mock_display_arbitrator;
     }
 
     std::shared_ptr<MockDisplay> the_mock_display()
@@ -280,10 +280,10 @@ public:
         return mock_input_manager;
     }
 
-    std::shared_ptr<MockDisplayChanger> the_mock_display_changer()
+    std::shared_ptr<MockDisplayArbitrator> the_mock_display_arbitrator()
     {
-        the_display_changer();
-        return mock_display_changer;
+        the_display_arbitrator();
+        return mock_display_arbitrator;
     }
 
     void emit_pause_event_and_wait_for_handler()
@@ -312,7 +312,7 @@ private:
     std::shared_ptr<MockDisplay> mock_display;
     std::shared_ptr<MockConnector> mock_connector;
     std::shared_ptr<mtd::MockInputManager> mock_input_manager;
-    std::shared_ptr<MockDisplayChanger> mock_display_changer;
+    std::shared_ptr<MockDisplayArbitrator> mock_display_arbitrator;
 
     mt::Pipe p;
     int const pause_signal;
@@ -519,7 +519,7 @@ TEST(DisplayServerMainLoopEvents, display_server_handles_configuration_change)
     auto mock_display = server_config.the_mock_display();
     auto mock_connector = server_config.the_mock_connector();
     auto mock_input_manager = server_config.the_mock_input_manager();
-    auto mock_display_changer = server_config.the_mock_display_changer();
+    auto mock_display_arbitrator = server_config.the_mock_display_arbitrator();
 
     {
         InSequence s;
@@ -530,8 +530,8 @@ TEST(DisplayServerMainLoopEvents, display_server_handles_configuration_change)
         EXPECT_CALL(*mock_input_manager, start()).Times(1);
 
         /* Configuration change event */
-        EXPECT_CALL(*mock_display_changer,
-                    configure_for_hardware_change(_, mir::DisplayChanger::PauseResumeSystem))
+        EXPECT_CALL(*mock_display_arbitrator,
+                    configure_for_hardware_change(_, mir::DisplayArbitrator::PauseResumeSystem))
             .Times(1);
 
         /* Stop */
@@ -563,7 +563,7 @@ TEST(DisplayServerMainLoopEvents, postpones_configuration_when_paused)
     auto mock_display = server_config.the_mock_display();
     auto mock_connector = server_config.the_mock_connector();
     auto mock_input_manager = server_config.the_mock_input_manager();
-    auto mock_display_changer = server_config.the_mock_display_changer();
+    auto mock_display_arbitrator = server_config.the_mock_display_arbitrator();
 
     {
         InSequence s;
@@ -583,8 +583,8 @@ TEST(DisplayServerMainLoopEvents, postpones_configuration_when_paused)
         EXPECT_CALL(*mock_display, resume()).Times(1);
         EXPECT_CALL(*mock_connector, start()).Times(1);
 
-        EXPECT_CALL(*mock_display_changer,
-                    configure_for_hardware_change(_, mir::DisplayChanger::RetainSystemState))
+        EXPECT_CALL(*mock_display_arbitrator,
+                    configure_for_hardware_change(_, mir::DisplayArbitrator::RetainSystemState))
             .Times(1);
 
         EXPECT_CALL(*mock_input_manager, start()).Times(1);

@@ -16,7 +16,7 @@
  * Authored by: Kevin DuBois <kevin.dubois@canonical.com>
  */
 
-#include "mir/shell/mediating_display_changer.h"
+#include "mir/shell/default_display_arbitrator.h"
 #include "mir/shell/session_container.h"
 #include "mir/graphics/display_configuration_policy.h"
 #include "mir/shell/broadcasting_session_event_sink.h"
@@ -68,16 +68,16 @@ private:
     std::vector<std::shared_ptr<msh::Session>> sessions;
 };
 
-struct MediatingDisplayChangerTest : public ::testing::Test
+struct DefaultDisplayArbitratorTest : public ::testing::Test
 {
-    MediatingDisplayChangerTest()
+    DefaultDisplayArbitratorTest()
     {
         using namespace testing;
 
         ON_CALL(mock_display, configuration())
             .WillByDefault(Return(mt::fake_shared(base_config)));
 
-        changer = std::make_shared<msh::MediatingDisplayChanger>(
+        arbitrator = std::make_shared<msh::DefaultDisplayArbitrator>(
                       mt::fake_shared(mock_display),
                       mt::fake_shared(mock_compositor),
                       mt::fake_shared(mock_conf_policy),
@@ -91,10 +91,10 @@ struct MediatingDisplayChangerTest : public ::testing::Test
     StubSessionContainer stub_session_container;
     msh::BroadcastingSessionEventSink session_event_sink;
     mtd::StubDisplayConfig base_config;
-    std::shared_ptr<msh::MediatingDisplayChanger> changer;
+    std::shared_ptr<msh::DefaultDisplayArbitrator> arbitrator;
 };
 
-TEST_F(MediatingDisplayChangerTest, returns_active_configuration_from_display)
+TEST_F(DefaultDisplayArbitratorTest, returns_active_configuration_from_display)
 {
     using namespace testing;
     mtd::NullDisplayConfiguration conf;
@@ -103,11 +103,11 @@ TEST_F(MediatingDisplayChangerTest, returns_active_configuration_from_display)
         .Times(1)
         .WillOnce(Return(mt::fake_shared(conf)));
 
-    auto returned_conf = changer->active_configuration();
+    auto returned_conf = arbitrator->active_configuration();
     EXPECT_EQ(&conf, returned_conf.get());
 }
 
-TEST_F(MediatingDisplayChangerTest, pauses_system_when_applying_new_configuration_for_focused_session)
+TEST_F(DefaultDisplayArbitratorTest, pauses_system_when_applying_new_configuration_for_focused_session)
 {
     using namespace testing;
     mtd::NullDisplayConfiguration conf;
@@ -121,11 +121,11 @@ TEST_F(MediatingDisplayChangerTest, pauses_system_when_applying_new_configuratio
     EXPECT_CALL(mock_compositor, start());
 
     session_event_sink.handle_focus_change(session);
-    changer->configure(session,
+    arbitrator->configure(session,
                        mt::fake_shared(conf));
 }
 
-TEST_F(MediatingDisplayChangerTest, doesnt_apply_config_for_unfocused_session)
+TEST_F(DefaultDisplayArbitratorTest, doesnt_apply_config_for_unfocused_session)
 {
     using namespace testing;
     mtd::NullDisplayConfiguration conf;
@@ -134,11 +134,11 @@ TEST_F(MediatingDisplayChangerTest, doesnt_apply_config_for_unfocused_session)
     EXPECT_CALL(mock_display, configure(Ref(conf))).Times(0);
     EXPECT_CALL(mock_compositor, start()).Times(0);
 
-    changer->configure(std::make_shared<mtd::StubShellSession>(),
+    arbitrator->configure(std::make_shared<mtd::StubShellSession>(),
                        mt::fake_shared(conf));
 }
 
-TEST_F(MediatingDisplayChangerTest, handles_hardware_change_properly_when_pausing_system)
+TEST_F(DefaultDisplayArbitratorTest, handles_hardware_change_properly_when_pausing_system)
 {
     using namespace testing;
     mtd::NullDisplayConfiguration conf;
@@ -150,11 +150,11 @@ TEST_F(MediatingDisplayChangerTest, handles_hardware_change_properly_when_pausin
     EXPECT_CALL(mock_display, configure(Ref(conf)));
     EXPECT_CALL(mock_compositor, start());
 
-    changer->configure_for_hardware_change(mt::fake_shared(conf),
-                                           mir::DisplayChanger::PauseResumeSystem);
+    arbitrator->configure_for_hardware_change(mt::fake_shared(conf),
+                                           mir::DisplayArbitrator::PauseResumeSystem);
 }
 
-TEST_F(MediatingDisplayChangerTest, handles_hardware_change_properly_when_retaining_system_state)
+TEST_F(DefaultDisplayArbitratorTest, handles_hardware_change_properly_when_retaining_system_state)
 {
     using namespace testing;
     mtd::NullDisplayConfiguration conf;
@@ -166,11 +166,11 @@ TEST_F(MediatingDisplayChangerTest, handles_hardware_change_properly_when_retain
     EXPECT_CALL(mock_conf_policy, apply_to(Ref(conf)));
     EXPECT_CALL(mock_display, configure(Ref(conf)));
 
-    changer->configure_for_hardware_change(mt::fake_shared(conf),
-                                           mir::DisplayChanger::RetainSystemState);
+    arbitrator->configure_for_hardware_change(mt::fake_shared(conf),
+                                           mir::DisplayArbitrator::RetainSystemState);
 }
 
-TEST_F(MediatingDisplayChangerTest, hardware_change_doesnt_apply_base_config_if_per_session_config_is_active)
+TEST_F(DefaultDisplayArbitratorTest, hardware_change_doesnt_apply_base_config_if_per_session_config_is_active)
 {
     using namespace testing;
 
@@ -178,7 +178,7 @@ TEST_F(MediatingDisplayChangerTest, hardware_change_doesnt_apply_base_config_if_
     auto session1 = std::make_shared<mtd::StubShellSession>();
 
     stub_session_container.insert_session(session1);
-    changer->configure(session1, conf);
+    arbitrator->configure(session1, conf);
 
     session_event_sink.handle_focus_change(session1);
 
@@ -190,11 +190,11 @@ TEST_F(MediatingDisplayChangerTest, hardware_change_doesnt_apply_base_config_if_
     EXPECT_CALL(mock_display, configure(_)).Times(0);
     EXPECT_CALL(mock_compositor, start()).Times(0);
 
-    changer->configure_for_hardware_change(conf,
-                                           mir::DisplayChanger::PauseResumeSystem);
+    arbitrator->configure_for_hardware_change(conf,
+                                           mir::DisplayArbitrator::PauseResumeSystem);
 }
 
-TEST_F(MediatingDisplayChangerTest, notifies_all_sessions_on_hardware_config_change)
+TEST_F(DefaultDisplayArbitratorTest, notifies_all_sessions_on_hardware_config_change)
 {
     using namespace testing;
     mtd::NullDisplayConfiguration conf;
@@ -207,18 +207,18 @@ TEST_F(MediatingDisplayChangerTest, notifies_all_sessions_on_hardware_config_cha
     EXPECT_CALL(mock_session1, send_display_config(_));
     EXPECT_CALL(mock_session2, send_display_config(_));
 
-    changer->configure_for_hardware_change(mt::fake_shared(conf),
-                                           mir::DisplayChanger::PauseResumeSystem);
+    arbitrator->configure_for_hardware_change(mt::fake_shared(conf),
+                                           mir::DisplayArbitrator::PauseResumeSystem);
 }
 
-TEST_F(MediatingDisplayChangerTest, focusing_a_session_with_attached_config_applies_config)
+TEST_F(DefaultDisplayArbitratorTest, focusing_a_session_with_attached_config_applies_config)
 {
     using namespace testing;
     auto conf = std::make_shared<mtd::NullDisplayConfiguration>();
     auto session1 = std::make_shared<mtd::StubShellSession>();
 
     stub_session_container.insert_session(session1);
-    changer->configure(session1, conf);
+    arbitrator->configure(session1, conf);
 
     InSequence s;
     EXPECT_CALL(mock_compositor, stop());
@@ -228,7 +228,7 @@ TEST_F(MediatingDisplayChangerTest, focusing_a_session_with_attached_config_appl
     session_event_sink.handle_focus_change(session1);
 }
 
-TEST_F(MediatingDisplayChangerTest, focusing_a_session_without_attached_config_applies_base_config)
+TEST_F(DefaultDisplayArbitratorTest, focusing_a_session_without_attached_config_applies_base_config)
 {
     using namespace testing;
     auto conf = std::make_shared<mtd::NullDisplayConfiguration>();
@@ -236,7 +236,7 @@ TEST_F(MediatingDisplayChangerTest, focusing_a_session_without_attached_config_a
     auto session2 = std::make_shared<mtd::StubShellSession>();
 
     stub_session_container.insert_session(session1);
-    changer->configure(session1, conf);
+    arbitrator->configure(session1, conf);
 
     session_event_sink.handle_focus_change(session1);
 
@@ -251,14 +251,14 @@ TEST_F(MediatingDisplayChangerTest, focusing_a_session_without_attached_config_a
     session_event_sink.handle_focus_change(session2);
 }
 
-TEST_F(MediatingDisplayChangerTest, losing_focus_applies_base_config)
+TEST_F(DefaultDisplayArbitratorTest, losing_focus_applies_base_config)
 {
     using namespace testing;
     auto conf = std::make_shared<mtd::NullDisplayConfiguration>();
     auto session1 = std::make_shared<mtd::StubShellSession>();
 
     stub_session_container.insert_session(session1);
-    changer->configure(session1, conf);
+    arbitrator->configure(session1, conf);
 
     session_event_sink.handle_focus_change(session1);
 
@@ -273,7 +273,7 @@ TEST_F(MediatingDisplayChangerTest, losing_focus_applies_base_config)
     session_event_sink.handle_no_focus();
 }
 
-TEST_F(MediatingDisplayChangerTest, base_config_is_not_applied_if_already_active)
+TEST_F(DefaultDisplayArbitratorTest, base_config_is_not_applied_if_already_active)
 {
     using namespace testing;
     auto conf = std::make_shared<mtd::NullDisplayConfiguration>();
@@ -292,17 +292,17 @@ TEST_F(MediatingDisplayChangerTest, base_config_is_not_applied_if_already_active
     session_event_sink.handle_no_focus();
 }
 
-TEST_F(MediatingDisplayChangerTest, hardware_change_invalidates_session_configs)
+TEST_F(DefaultDisplayArbitratorTest, hardware_change_invalidates_session_configs)
 {
     using namespace testing;
     auto conf = std::make_shared<mtd::NullDisplayConfiguration>();
     auto session1 = std::make_shared<mtd::StubShellSession>();
 
     stub_session_container.insert_session(session1);
-    changer->configure(session1, conf);
+    arbitrator->configure(session1, conf);
 
-    changer->configure_for_hardware_change(conf,
-                                           mir::DisplayChanger::PauseResumeSystem);
+    arbitrator->configure_for_hardware_change(conf,
+        mir::DisplayArbitrator::PauseResumeSystem);
 
     Mock::VerifyAndClearExpectations(&mock_compositor);
     Mock::VerifyAndClearExpectations(&mock_display);
@@ -318,14 +318,14 @@ TEST_F(MediatingDisplayChangerTest, hardware_change_invalidates_session_configs)
     session_event_sink.handle_focus_change(session1);
 }
 
-TEST_F(MediatingDisplayChangerTest, session_stopping_invalidates_session_config)
+TEST_F(DefaultDisplayArbitratorTest, session_stopping_invalidates_session_config)
 {
     using namespace testing;
     auto conf = std::make_shared<mtd::NullDisplayConfiguration>();
     auto session1 = std::make_shared<mtd::StubShellSession>();
 
     stub_session_container.insert_session(session1);
-    changer->configure(session1, conf);
+    arbitrator->configure(session1, conf);
 
     session_event_sink.handle_session_stopping(session1);
 

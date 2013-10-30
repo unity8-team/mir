@@ -22,7 +22,7 @@
 #include "mir/server_configuration.h"
 #include "mir/main_loop.h"
 #include "mir/server_status_listener.h"
-#include "mir/display_changer.h"
+#include "mir/display_arbitrator.h"
 
 #include "mir/compositor/compositor.h"
 #include "mir/frontend/connector.h"
@@ -76,7 +76,7 @@ struct mir::DisplayServer::Private
           input_manager{config.the_input_manager()},
           main_loop{config.the_main_loop()},
           server_status_listener{config.the_server_status_listener()},
-          display_changer{config.the_display_changer()},
+          display_arbitrator{config.the_display_arbitrator()},
           paused{false},
           configure_display_on_resume{false}
     {
@@ -135,8 +135,8 @@ struct mir::DisplayServer::Private
             if (configure_display_on_resume)
             {
                 auto conf = display->configuration();
-                display_changer->configure_for_hardware_change(
-                    conf, DisplayChanger::RetainSystemState);
+                display_arbitrator->configure_for_hardware_change(
+                    conf, DisplayArbitrator::RetainSystemState);
                 configure_display_on_resume = false;
             }
 
@@ -163,8 +163,8 @@ struct mir::DisplayServer::Private
         if (!paused)
         {
             auto conf = display->configuration();
-            display_changer->configure_for_hardware_change(
-                conf, DisplayChanger::PauseResumeSystem);
+            display_arbitrator->configure_for_hardware_change(
+                conf, DisplayArbitrator::PauseResumeSystem);
         }
         else
         {
@@ -180,7 +180,7 @@ struct mir::DisplayServer::Private
     std::shared_ptr<mi::InputManager> const input_manager;
     std::shared_ptr<mir::MainLoop> const main_loop;
     std::shared_ptr<mir::ServerStatusListener> const server_status_listener;
-    std::shared_ptr<mir::DisplayChanger> const display_changer;
+    std::shared_ptr<mir::DisplayArbitrator> const display_arbitrator;
     bool paused;
     bool configure_display_on_resume;
 };

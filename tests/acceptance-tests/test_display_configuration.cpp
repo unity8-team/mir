@@ -26,7 +26,7 @@
 #include "mir_test_framework/cross_process_sync.h"
 #include "mir_test_doubles/null_platform.h"
 #include "mir_test_doubles/null_display.h"
-#include "mir_test_doubles/null_display_changer.h"
+#include "mir_test_doubles/null_display_arbitrator.h"
 #include "mir_test_doubles/null_display_buffer.h"
 #include "mir_test_doubles/null_platform.h"
 #include "mir_test/display_config_matchers.h"
@@ -55,7 +55,7 @@ namespace
 
 char const* const mir_test_socket = mtf::test_socket_file().c_str();
 
-class StubChanger : public mtd::NullDisplayChanger
+class StubArbitrator : public mtd::NullDisplayArbitrator
 {
 public:
     std::shared_ptr<mg::DisplayConfiguration> active_configuration() override
@@ -69,7 +69,7 @@ private:
     mtd::NullDisplayBuffer display_buffer;
 };
 
-mtd::StubDisplayConfig StubChanger::stub_display_config;
+mtd::StubDisplayConfig StubArbitrator::stub_display_config;
 
 mtd::StubDisplayConfig changed_stub_display_config{1};
 
@@ -171,14 +171,14 @@ TEST_F(DisplayConfigurationTest, display_configuration_reaches_client)
 {
     struct ServerConfig : TestingServerConfiguration
     {
-        std::shared_ptr<mf::DisplayChanger> the_frontend_display_changer() override
+        std::shared_ptr<mf::DisplayArbitrator> the_frontend_display_arbitrator() override
         {
-            if (!changer)
-                changer = std::make_shared<StubChanger>();
-            return changer;
+            if (!arbitrator)
+                arbitrator = std::make_shared<StubArbitrator>();
+            return arbitrator;
         }
 
-        std::shared_ptr<StubChanger> changer;
+        std::shared_ptr<StubArbitrator> arbitrator;
     } server_config;
 
     launch_server_process(server_config);
@@ -191,7 +191,7 @@ TEST_F(DisplayConfigurationTest, display_configuration_reaches_client)
             auto configuration = mir_connection_create_display_config(connection);
 
             EXPECT_THAT(*configuration,
-                        mt::DisplayConfigMatches(std::cref(StubChanger::stub_display_config)));
+                        mt::DisplayConfigMatches(std::cref(StubArbitrator::stub_display_config)));
 
             mir_display_config_destroy(configuration);
             mir_connection_release(connection);

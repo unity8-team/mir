@@ -57,7 +57,7 @@
 #include "mir/lttng/message_processor_report.h"
 #include "mir/lttng/input_report.h"
 #include "mir/shell/surface_source.h"
-#include "mir/shell/mediating_display_changer.h"
+#include "mir/shell/default_display_arbitrator.h"
 #include "mir/time/high_resolution_clock.h"
 #include "mir/geometry/rectangles.h"
 #include "mir/default_configuration.h"
@@ -93,13 +93,13 @@ std::string mir::DefaultServerConfiguration::the_socket_file() const
     return socket_file;
 }
 
-std::shared_ptr<msh::MediatingDisplayChanger>
-mir::DefaultServerConfiguration::the_mediating_display_changer()
+std::shared_ptr<msh::DefaultDisplayArbitrator>
+mir::DefaultServerConfiguration::the_default_display_arbitrator()
 {
-    return mediating_display_changer(
+    return default_display_arbitrator(
         [this]()
         {
-            return std::make_shared<msh::MediatingDisplayChanger>(
+            return std::make_shared<msh::DefaultDisplayArbitrator>(
                 the_display(),
                 the_compositor(),
                 the_display_configuration_policy(),
@@ -109,16 +109,16 @@ mir::DefaultServerConfiguration::the_mediating_display_changer()
 
 }
 
-std::shared_ptr<mf::DisplayChanger>
-mir::DefaultServerConfiguration::the_frontend_display_changer()
+std::shared_ptr<mf::DisplayArbitrator>
+mir::DefaultServerConfiguration::the_frontend_display_arbitrator()
 {
-    return the_mediating_display_changer();
+    return the_default_display_arbitrator();
 }
 
-std::shared_ptr<mir::DisplayChanger>
-mir::DefaultServerConfiguration::the_display_changer()
+std::shared_ptr<mir::DisplayArbitrator>
+mir::DefaultServerConfiguration::the_display_arbitrator()
 {
-    return the_mediating_display_changer();
+    return the_default_display_arbitrator();
 }
 
 std::shared_ptr<msh::SessionContainer>

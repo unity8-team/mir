@@ -16,11 +16,11 @@
  * Authored by: Kevin DuBois <kevin.dubois@canonical.com>
  */
 
-#ifndef MIR_SHELL_MEDIATING_DISPLAY_CHANGER_H_
-#define MIR_SHELL_MEDIATING_DISPLAY_CHANGER_H_
+#ifndef MIR_SHELL_DEFAULT_DISPLAY_ARBITRATOR_H_
+#define MIR_SHELL_DEFAULT_DISPLAY_ARBITRATOR_H_
 
-#include "mir/frontend/display_changer.h"
-#include "mir/display_changer.h"
+#include "mir/frontend/display_arbitrator.h"
+#include "mir/display_arbitrator.h"
 
 #include <mutex>
 #include <map>
@@ -41,25 +41,25 @@ namespace shell
 class SessionContainer;
 class SessionEventHandlerRegister;
 
-class MediatingDisplayChanger : public frontend::DisplayChanger,
-                                public mir::DisplayChanger
+class DefaultDisplayArbitrator : public frontend::DisplayArbitrator,
+                                 public mir::DisplayArbitrator
 {
 public:
-    MediatingDisplayChanger(
+    DefaultDisplayArbitrator(
         std::shared_ptr<graphics::Display> const& display,
         std::shared_ptr<compositor::Compositor> const& compositor,
         std::shared_ptr<graphics::DisplayConfigurationPolicy> const& display_configuration_policy,
         std::shared_ptr<SessionContainer> const& session_container,
         std::shared_ptr<SessionEventHandlerRegister> const& session_event_handler_register);
 
-    /* From mir::frontend::DisplayChanger */
+    /* From mir::frontend::DisplayArbitrator */
     std::shared_ptr<graphics::DisplayConfiguration> active_configuration();
     void configure(std::shared_ptr<frontend::Session> const& session,
                    std::shared_ptr<graphics::DisplayConfiguration> const& conf);
 
     void ensure_display_powered(std::shared_ptr<frontend::Session> const& session);
 
-    /* From mir::DisplayChanger */
+    /* From mir::DisplayArbitrator */
     void configure_for_hardware_change(
         std::shared_ptr<graphics::DisplayConfiguration> const& conf,
         SystemStateHandling pause_resume_system);
@@ -88,4 +88,4 @@ private:
 }
 }
 
-#endif /* MIR_SHELL_MEDIATING_DISPLAY_CHANGER_H_ */
+#endif /* MIR_SHELL_DEFAULT_DISPLAY_ARBITRATOR_H_ */

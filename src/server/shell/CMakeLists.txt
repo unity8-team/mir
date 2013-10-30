@@ -14,8 +14,8 @@ set(
   threaded_snapshot_strategy.cpp
   gl_pixel_buffer.cpp
   graphics_display_layout.cpp
-  mediating_display_changer.cpp
-  unauthorized_display_changer.cpp
+  default_display_arbitrator.cpp
+  unauthorized_display_arbitrator.cpp
   broadcasting_session_event_sink.cpp
 )
 

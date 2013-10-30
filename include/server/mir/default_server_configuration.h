@@ -49,7 +49,7 @@ class SessionMediatorReport;
 class MessageProcessorReport;
 class SessionAuthorizer;
 class EventSink;
-class DisplayChanger;
+class DisplayArbitrator;
 }
 
 namespace shell
@@ -69,7 +69,7 @@ class PixelBuffer;
 class SnapshotStrategy;
 class DisplayLayout;
 class SurfaceConfigurator;
-class MediatingDisplayChanger;
+class DefaultDisplayArbitrator;
 class SessionEventSink;
 class SessionEventHandlerRegister;
 class BroadcastingSessionEventSink;
@@ -127,7 +127,7 @@ public:
     virtual std::shared_ptr<input::InputManager>    the_input_manager();
     virtual std::shared_ptr<MainLoop>               the_main_loop();
     virtual std::shared_ptr<ServerStatusListener>   the_server_status_listener();
-    virtual std::shared_ptr<DisplayChanger>         the_display_changer();
+    virtual std::shared_ptr<DisplayArbitrator>         the_display_arbitrator();
     virtual std::shared_ptr<graphics::Platform>     the_graphics_platform();
     virtual std::shared_ptr<input::InputConfiguration> the_input_configuration();
     /** @} */
@@ -170,7 +170,7 @@ public:
     virtual std::shared_ptr<frontend::SessionAuthorizer>      the_session_authorizer();
     virtual std::shared_ptr<frontend::Shell>                  the_frontend_shell();
     virtual std::shared_ptr<frontend::EventSink>              the_global_event_sink();
-    virtual std::shared_ptr<frontend::DisplayChanger>         the_frontend_display_changer();
+    virtual std::shared_ptr<frontend::DisplayArbitrator>         the_frontend_display_arbitrator();
     /** @name frontend configuration - internal dependencies
      * internal dependencies of frontend
      *  @{ */
@@ -248,7 +248,7 @@ protected:
     using DefaultConfigurationOptions::parse_options;
 
     virtual std::shared_ptr<input::InputChannelFactory> the_input_channel_factory();
-    virtual std::shared_ptr<shell::MediatingDisplayChanger> the_mediating_display_changer();
+    virtual std::shared_ptr<shell::DefaultDisplayArbitrator> the_default_display_arbitrator();
     virtual std::shared_ptr<shell::BroadcastingSessionEventSink> the_broadcasting_session_event_sink();
 
     CachedPtr<frontend::Connector>   connector;
@@ -303,7 +303,7 @@ protected:
     CachedPtr<graphics::DisplayConfigurationPolicy> display_configuration_policy;
     CachedPtr<graphics::nested::HostConnection> host_connection;
     CachedPtr<input::NestedInputRelay> nested_input_relay;
-    CachedPtr<shell::MediatingDisplayChanger> mediating_display_changer;
+    CachedPtr<shell::DefaultDisplayArbitrator> default_display_arbitrator;
     CachedPtr<shell::BroadcastingSessionEventSink> broadcasting_session_event_sink;
 
 private:
