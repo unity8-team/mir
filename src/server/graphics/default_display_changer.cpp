@@ -36,36 +36,12 @@ std::shared_ptr<mg::DisplayConfiguration> mg::DefaultDisplayChanger::configurati
     return display->configuration();
 }
 
-namespace
-{
-class ApplyNowAndRevertOnScopeExit
-{
-public:
-    ApplyNowAndRevertOnScopeExit(std::function<void()> const& apply,
-                                 std::function<void()> const& revert)
-        : revert{revert}
-    {
-        apply();
-    }
-
-    ~ApplyNowAndRevertOnScopeExit()
-    {
-        revert();
-    }
-
-private:
-    ApplyNowAndRevertOnScopeExit(ApplyNowAndRevertOnScopeExit const&) = delete;
-    ApplyNowAndRevertOnScopeExit& operator=(ApplyNowAndRevertOnScopeExit const&) = delete;
-
-    std::function<void()> const revert;
-};
-}
-
 void mg::DefaultDisplayChanger::configure(
     std::shared_ptr<mg::DisplayConfiguration> const& new_configuration)
 {
-    ApplyNowAndRevertOnScopeExit comp{
-        [this] { compositor->stop(); },
-        [this] { compositor->start(); }};
-    display->configure(*new_configuration);
+    compositor->while_pausing_composition(
+        [&]
+        {
+            display->configure(*new_configuration);
+        });
 }

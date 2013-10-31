@@ -81,6 +81,13 @@ public:
     {
         scene->set_change_callback([]{});
     }
+    
+    void while_pausing_composition(std::function<void()> const& exec)
+    {
+        stop();
+        exec();
+        start();
+    }
 
 private:
     std::shared_ptr<mg::Display> const display;

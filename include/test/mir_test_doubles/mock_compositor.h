@@ -35,6 +35,7 @@ class MockCompositor : public compositor::Compositor
 public:
     MOCK_METHOD0(start, void());
     MOCK_METHOD0(stop, void());
+    MOCK_METHOD1(while_pausing_composition, void(std::function<void()> const&));
 };
 
 }

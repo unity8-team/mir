@@ -149,6 +149,8 @@ mc::MultiThreadedCompositor::~MultiThreadedCompositor()
 
 void mc::MultiThreadedCompositor::start()
 {
+    std::unique_lock<std::mutex> lg(threads_guard);
+
     /* Start the compositing threads */
     display->for_each_display_buffer([this](mg::DisplayBuffer& buffer)
     {
@@ -173,6 +175,8 @@ void mc::MultiThreadedCompositor::start()
 
 void mc::MultiThreadedCompositor::stop()
 {
+    std::unique_lock<std::mutex> lg(threads_guard);
+
     scene->set_change_callback([]{});
 
     for (auto& f : thread_functors)
@@ -183,4 +187,25 @@ void mc::MultiThreadedCompositor::stop()
 
     thread_functors.clear();
     threads.clear();
+}
+
+bool mc::MultiThreadedCompositor::running()
+{
+    std::unique_lock<std::mutex> lg(threads_guard);
+
+    if (threads.size() > 0)
+        return true;
+    return false;
+}
+
+void mc::MultiThreadedCompositor::while_pausing_composition(std::function<void()> const& exec)
+{
+    if (!running())
+    {
+        exec();
+        return;
+    }
+    stop();
+    exec();
+    start();
 }

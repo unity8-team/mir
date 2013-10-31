@@ -19,6 +19,8 @@
 #ifndef MIR_COMPOSITOR_COMPOSITOR_H_
 #define MIR_COMPOSITOR_COMPOSITOR_H_
 
+#include <functional>
+
 namespace mir
 {
 namespace compositor
@@ -31,6 +33,8 @@ public:
 
     virtual void start() = 0;
     virtual void stop() = 0;
+    
+    virtual void while_pausing_composition(std::function<void()> const& exec) = 0;
 
 protected:
     Compositor() = default;

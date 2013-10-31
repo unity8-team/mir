@@ -24,6 +24,7 @@
 #include <memory>
 #include <vector>
 #include <thread>
+#include <mutex>
 
 namespace mir
 {
@@ -50,6 +51,8 @@ public:
 
     void start();
     void stop();
+    
+    void while_pausing_composition(std::function<void()> const& exec);
 
 private:
     std::shared_ptr<graphics::Display> const display;
@@ -58,6 +61,10 @@ private:
 
     std::vector<std::unique_ptr<CompositingFunctor>> thread_functors;
     std::vector<std::thread> threads;
+    
+    std::mutex threads_guard;
+    
+    bool running();
 };
 
 }

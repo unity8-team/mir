@@ -64,11 +64,20 @@ TEST_F(DefaultDisplayChangerTest, pauses_compositor_when_configuring_display)
 {
     using namespace testing;
     
+    std::function<void()> callback;
+    
     mg::DefaultDisplayChanger changer(mock_display, mock_compositor);
+
     
-    EXPECT_CALL(*mock_compositor, stop());
-    EXPECT_CALL(*mock_display, configure(Ref(config)));
-    EXPECT_CALL(*mock_compositor, start());
-    
+    // We verify that the call to configure only is executed through
+    // the callback passed to while_pausing_composition.
+    EXPECT_CALL(*mock_compositor, while_pausing_composition(_)).Times(1)
+        .WillOnce(SaveArg<0>(&callback));
+
+    EXPECT_CALL(*mock_display, configure(_)).Times(0);
     changer.configure(mt::fake_shared(config));
+
+    Mock::VerifyAndClearExpectations(mock_display.get());
+    EXPECT_CALL(*mock_display, configure(_)).Times(1);
+    callback();
 }
