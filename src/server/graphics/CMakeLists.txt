@@ -5,6 +5,7 @@ add_library(
 
   default_configuration.cpp
   default_display_configuration_policy.cpp
+  default_display_changer.cpp
 )
 
 add_subdirectory(nested/)
