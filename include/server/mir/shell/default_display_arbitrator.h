@@ -33,7 +33,6 @@ namespace graphics
     class Display;
     class DisplayConfigurationPolicy;
 }
-namespace compositor { class Compositor; }
 
 namespace shell
 {
@@ -47,7 +46,6 @@ class DefaultDisplayArbitrator : public frontend::DisplayArbitrator,
 public:
     DefaultDisplayArbitrator(
         std::shared_ptr<graphics::Display> const& display,
-        std::shared_ptr<compositor::Compositor> const& compositor,
         std::shared_ptr<graphics::DisplayConfigurationPolicy> const& display_configuration_policy,
         std::shared_ptr<SessionContainer> const& session_container,
         std::shared_ptr<SessionEventHandlerRegister> const& session_event_handler_register);
@@ -61,18 +59,15 @@ public:
 
     /* From mir::DisplayArbitrator */
     void configure_for_hardware_change(
-        std::shared_ptr<graphics::DisplayConfiguration> const& conf,
-        SystemStateHandling pause_resume_system);
+        std::shared_ptr<graphics::DisplayConfiguration> const& conf);
 
 private:
-    void apply_config(std::shared_ptr<graphics::DisplayConfiguration> const& conf,
-                      SystemStateHandling pause_resume_system);
-    void apply_base_config(SystemStateHandling pause_resume_system);
+    void apply_config(std::shared_ptr<graphics::DisplayConfiguration> const& conf);
+    void apply_base_config();
     void send_config_to_all_sessions(
         std::shared_ptr<graphics::DisplayConfiguration> const& conf);
 
     std::shared_ptr<graphics::Display> const display;
-    std::shared_ptr<compositor::Compositor> const compositor;
     std::shared_ptr<graphics::DisplayConfigurationPolicy> const display_configuration_policy;
     std::shared_ptr<shell::SessionContainer> const session_container;
     std::shared_ptr<SessionEventHandlerRegister> const session_event_handler_register;

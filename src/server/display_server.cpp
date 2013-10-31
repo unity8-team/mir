@@ -135,8 +135,7 @@ struct mir::DisplayServer::Private
             if (configure_display_on_resume)
             {
                 auto conf = display->configuration();
-                display_arbitrator->configure_for_hardware_change(
-                    conf, DisplayArbitrator::RetainSystemState);
+                display_arbitrator->configure_for_hardware_change(conf);
                 configure_display_on_resume = false;
             }
 
@@ -163,8 +162,7 @@ struct mir::DisplayServer::Private
         if (!paused)
         {
             auto conf = display->configuration();
-            display_arbitrator->configure_for_hardware_change(
-                conf, DisplayArbitrator::PauseResumeSystem);
+            display_arbitrator->configure_for_hardware_change(conf);
         }
         else
         {

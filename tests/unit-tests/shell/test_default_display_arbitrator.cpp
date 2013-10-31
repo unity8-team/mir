@@ -22,7 +22,6 @@
 #include "mir/shell/broadcasting_session_event_sink.h"
 
 #include "mir_test_doubles/mock_display.h"
-#include "mir_test_doubles/mock_compositor.h"
 #include "mir_test_doubles/null_display_configuration.h"
 #include "mir_test_doubles/stub_display_configuration.h"
 #include "mir_test_doubles/mock_shell_session.h"
@@ -79,14 +78,12 @@ struct DefaultDisplayArbitratorTest : public ::testing::Test
 
         arbitrator = std::make_shared<msh::DefaultDisplayArbitrator>(
                       mt::fake_shared(mock_display),
-                      mt::fake_shared(mock_compositor),
                       mt::fake_shared(mock_conf_policy),
                       mt::fake_shared(stub_session_container),
                       mt::fake_shared(session_event_sink));
     }
 
     testing::NiceMock<mtd::MockDisplay> mock_display;
-    testing::NiceMock<mtd::MockCompositor> mock_compositor;
     testing::NiceMock<MockDisplayConfigurationPolicy> mock_conf_policy;
     StubSessionContainer stub_session_container;
     msh::BroadcastingSessionEventSink session_event_sink;
@@ -114,15 +111,11 @@ TEST_F(DefaultDisplayArbitratorTest, pauses_system_when_applying_new_configurati
     auto session = std::make_shared<mtd::StubShellSession>();
 
     InSequence s;
-    EXPECT_CALL(mock_compositor, stop());
-
     EXPECT_CALL(mock_display, configure(Ref(conf)));
-
-    EXPECT_CALL(mock_compositor, start());
 
     session_event_sink.handle_focus_change(session);
     arbitrator->configure(session,
-                       mt::fake_shared(conf));
+        mt::fake_shared(conf));
 }
 
 TEST_F(DefaultDisplayArbitratorTest, doesnt_apply_config_for_unfocused_session)
@@ -130,12 +123,10 @@ TEST_F(DefaultDisplayArbitratorTest, doesnt_apply_config_for_unfocused_session)
     using namespace testing;
     mtd::NullDisplayConfiguration conf;
 
-    EXPECT_CALL(mock_compositor, stop()).Times(0);
     EXPECT_CALL(mock_display, configure(Ref(conf))).Times(0);
-    EXPECT_CALL(mock_compositor, start()).Times(0);
 
     arbitrator->configure(std::make_shared<mtd::StubShellSession>(),
-                       mt::fake_shared(conf));
+        mt::fake_shared(conf));
 }
 
 TEST_F(DefaultDisplayArbitratorTest, handles_hardware_change_properly_when_pausing_system)
@@ -145,13 +136,9 @@ TEST_F(DefaultDisplayArbitratorTest, handles_hardware_change_properly_when_pausi
 
     InSequence s;
     EXPECT_CALL(mock_conf_policy, apply_to(Ref(conf)));
-
-    EXPECT_CALL(mock_compositor, stop());
     EXPECT_CALL(mock_display, configure(Ref(conf)));
-    EXPECT_CALL(mock_compositor, start());
-
-    arbitrator->configure_for_hardware_change(mt::fake_shared(conf),
-                                           mir::DisplayArbitrator::PauseResumeSystem);
+ 
+    arbitrator->configure_for_hardware_change(mt::fake_shared(conf));
 }
 
 TEST_F(DefaultDisplayArbitratorTest, handles_hardware_change_properly_when_retaining_system_state)
@@ -159,15 +146,11 @@ TEST_F(DefaultDisplayArbitratorTest, handles_hardware_change_properly_when_retai
     using namespace testing;
     mtd::NullDisplayConfiguration conf;
 
-    EXPECT_CALL(mock_compositor, stop()).Times(0);
-    EXPECT_CALL(mock_compositor, start()).Times(0);
-
     InSequence s;
     EXPECT_CALL(mock_conf_policy, apply_to(Ref(conf)));
     EXPECT_CALL(mock_display, configure(Ref(conf)));
 
-    arbitrator->configure_for_hardware_change(mt::fake_shared(conf),
-                                           mir::DisplayArbitrator::RetainSystemState);
+    arbitrator->configure_for_hardware_change(mt::fake_shared(conf));
 }
 
 TEST_F(DefaultDisplayArbitratorTest, hardware_change_doesnt_apply_base_config_if_per_session_config_is_active)
@@ -182,16 +165,11 @@ TEST_F(DefaultDisplayArbitratorTest, hardware_change_doesnt_apply_base_config_if
 
     session_event_sink.handle_focus_change(session1);
 
-    Mock::VerifyAndClearExpectations(&mock_compositor);
     Mock::VerifyAndClearExpectations(&mock_display);
 
     InSequence s;
-    EXPECT_CALL(mock_compositor, stop()).Times(0);
     EXPECT_CALL(mock_display, configure(_)).Times(0);
-    EXPECT_CALL(mock_compositor, start()).Times(0);
-
-    arbitrator->configure_for_hardware_change(conf,
-                                           mir::DisplayArbitrator::PauseResumeSystem);
+    arbitrator->configure_for_hardware_change(conf);
 }
 
 TEST_F(DefaultDisplayArbitratorTest, notifies_all_sessions_on_hardware_config_change)
@@ -207,8 +185,7 @@ TEST_F(DefaultDisplayArbitratorTest, notifies_all_sessions_on_hardware_config_ch
     EXPECT_CALL(mock_session1, send_display_config(_));
     EXPECT_CALL(mock_session2, send_display_config(_));
 
-    arbitrator->configure_for_hardware_change(mt::fake_shared(conf),
-                                           mir::DisplayArbitrator::PauseResumeSystem);
+    arbitrator->configure_for_hardware_change(mt::fake_shared(conf));
 }
 
 TEST_F(DefaultDisplayArbitratorTest, focusing_a_session_with_attached_config_applies_config)
@@ -221,9 +198,7 @@ TEST_F(DefaultDisplayArbitratorTest, focusing_a_session_with_attached_config_app
     arbitrator->configure(session1, conf);
 
     InSequence s;
-    EXPECT_CALL(mock_compositor, stop());
     EXPECT_CALL(mock_display, configure(Ref(*conf)));
-    EXPECT_CALL(mock_compositor, start());
 
     session_event_sink.handle_focus_change(session1);
 }
@@ -240,13 +215,8 @@ TEST_F(DefaultDisplayArbitratorTest, focusing_a_session_without_attached_config_
 
     session_event_sink.handle_focus_change(session1);
 
-    Mock::VerifyAndClearExpectations(&mock_compositor);
     Mock::VerifyAndClearExpectations(&mock_display);
-
-    InSequence s;
-    EXPECT_CALL(mock_compositor, stop());
     EXPECT_CALL(mock_display, configure(mt::DisplayConfigMatches(std::cref(base_config))));
-    EXPECT_CALL(mock_compositor, start());
 
     session_event_sink.handle_focus_change(session2);
 }
@@ -262,13 +232,9 @@ TEST_F(DefaultDisplayArbitratorTest, losing_focus_applies_base_config)
 
     session_event_sink.handle_focus_change(session1);
 
-    Mock::VerifyAndClearExpectations(&mock_compositor);
     Mock::VerifyAndClearExpectations(&mock_display);
 
-    InSequence s;
-    EXPECT_CALL(mock_compositor, stop());
     EXPECT_CALL(mock_display, configure(mt::DisplayConfigMatches(std::cref(base_config))));
-    EXPECT_CALL(mock_compositor, start());
 
     session_event_sink.handle_no_focus();
 }
@@ -280,9 +246,7 @@ TEST_F(DefaultDisplayArbitratorTest, base_config_is_not_applied_if_already_activ
     auto session1 = std::make_shared<mtd::StubShellSession>();
     auto session2 = std::make_shared<mtd::StubShellSession>();
 
-    EXPECT_CALL(mock_compositor, stop()).Times(0);
     EXPECT_CALL(mock_display, configure(_)).Times(0);
-    EXPECT_CALL(mock_compositor, start()).Times(0);
 
     stub_session_container.insert_session(session1);
     stub_session_container.insert_session(session2);
@@ -301,19 +265,15 @@ TEST_F(DefaultDisplayArbitratorTest, hardware_change_invalidates_session_configs
     stub_session_container.insert_session(session1);
     arbitrator->configure(session1, conf);
 
-    arbitrator->configure_for_hardware_change(conf,
-        mir::DisplayArbitrator::PauseResumeSystem);
+    arbitrator->configure_for_hardware_change(conf);
 
-    Mock::VerifyAndClearExpectations(&mock_compositor);
     Mock::VerifyAndClearExpectations(&mock_display);
 
     /*
      * Session1 had a config, but it should have been invalidated by the hardware
      * change, so expect no reconfiguration.
      */
-    EXPECT_CALL(mock_compositor, stop()).Times(0);
     EXPECT_CALL(mock_display, configure(_)).Times(0);
-    EXPECT_CALL(mock_compositor, start()).Times(0);
 
     session_event_sink.handle_focus_change(session1);
 }
@@ -329,16 +289,13 @@ TEST_F(DefaultDisplayArbitratorTest, session_stopping_invalidates_session_config
 
     session_event_sink.handle_session_stopping(session1);
 
-    Mock::VerifyAndClearExpectations(&mock_compositor);
     Mock::VerifyAndClearExpectations(&mock_display);
 
     /*
      * Session1 had a config, but it should have been invalidated by the
      * session stopping event, so expect no reconfiguration.
      */
-    EXPECT_CALL(mock_compositor, stop()).Times(0);
     EXPECT_CALL(mock_display, configure(_)).Times(0);
-    EXPECT_CALL(mock_compositor, start()).Times(0);
 
     session_event_sink.handle_focus_change(session1);
 }

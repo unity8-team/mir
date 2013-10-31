@@ -69,9 +69,8 @@ public:
 class MockDisplayArbitrator : public mir::DisplayArbitrator
 {
 public:
-    MOCK_METHOD2(configure_for_hardware_change,
-                 void(std::shared_ptr<mg::DisplayConfiguration> const& conf,
-                      SystemStateHandling pause_resume_system));
+    MOCK_METHOD1(configure_for_hardware_change,
+                 void(std::shared_ptr<mg::DisplayConfiguration> const& conf));
 };
 
 class MockDisplay : public mtd::NullDisplay
@@ -531,8 +530,7 @@ TEST(DisplayServerMainLoopEvents, display_server_handles_configuration_change)
 
         /* Configuration change event */
         EXPECT_CALL(*mock_display_arbitrator,
-                    configure_for_hardware_change(_, mir::DisplayArbitrator::PauseResumeSystem))
-            .Times(1);
+                    configure_for_hardware_change(_)).Times(1);
 
         /* Stop */
         EXPECT_CALL(*mock_input_manager, stop()).Times(1);
@@ -584,7 +582,7 @@ TEST(DisplayServerMainLoopEvents, postpones_configuration_when_paused)
         EXPECT_CALL(*mock_connector, start()).Times(1);
 
         EXPECT_CALL(*mock_display_arbitrator,
-                    configure_for_hardware_change(_, mir::DisplayArbitrator::RetainSystemState))
+                    configure_for_hardware_change(_))
             .Times(1);
 
         EXPECT_CALL(*mock_input_manager, start()).Times(1);

@@ -21,50 +21,19 @@
 #include "mir/shell/session.h"
 #include "mir/shell/session_event_handler_register.h"
 #include "mir/graphics/display.h"
-#include "mir/compositor/compositor.h"
 #include "mir/graphics/display_configuration_policy.h"
 #include "mir/graphics/display_configuration.h"
 
 namespace mf = mir::frontend;
 namespace msh = mir::shell;
 namespace mg = mir::graphics;
-namespace mc = mir::compositor;
-
-namespace
-{
-
-class ApplyNowAndRevertOnScopeExit
-{
-public:
-    ApplyNowAndRevertOnScopeExit(std::function<void()> const& apply,
-                                 std::function<void()> const& revert)
-        : revert{revert}
-    {
-        apply();
-    }
-
-    ~ApplyNowAndRevertOnScopeExit()
-    {
-        revert();
-    }
-
-private:
-    ApplyNowAndRevertOnScopeExit(ApplyNowAndRevertOnScopeExit const&) = delete;
-    ApplyNowAndRevertOnScopeExit& operator=(ApplyNowAndRevertOnScopeExit const&) = delete;
-
-    std::function<void()> const revert;
-};
-
-}
 
 msh::DefaultDisplayArbitrator::DefaultDisplayArbitrator(
     std::shared_ptr<mg::Display> const& display,
-    std::shared_ptr<mc::Compositor> const& compositor,
     std::shared_ptr<mg::DisplayConfigurationPolicy> const& display_configuration_policy,
     std::shared_ptr<msh::SessionContainer> const& session_container,
     std::shared_ptr<SessionEventHandlerRegister> const& session_event_handler_register)
     : display{display},
-      compositor{compositor},
       display_configuration_policy{display_configuration_policy},
       session_container{session_container},
       session_event_handler_register{session_event_handler_register},
@@ -86,11 +55,11 @@ msh::DefaultDisplayArbitrator::DefaultDisplayArbitrator(
             auto it = config_map.find(session);
             if (it != config_map.end())
             {
-                apply_config(it->second, PauseResumeSystem);
+                apply_config(it->second);
             }
             else if (!base_configuration_applied)
             {
-                apply_base_config(PauseResumeSystem);
+                apply_base_config();
             }
         });
 
@@ -102,7 +71,7 @@ msh::DefaultDisplayArbitrator::DefaultDisplayArbitrator(
             focused_session.reset();
             if (!base_configuration_applied)
             {
-                apply_base_config(PauseResumeSystem);
+                apply_base_config();
             }
         });
 
@@ -153,7 +122,7 @@ void msh::DefaultDisplayArbitrator::configure(
     /* If the session is focused, apply the configuration */
     if (focused_session.lock() == session)
     {
-        apply_config(conf, PauseResumeSystem);
+        apply_config(conf);
     }
 }
 
@@ -166,15 +135,14 @@ msh::DefaultDisplayArbitrator::active_configuration()
 }
 
 void msh::DefaultDisplayArbitrator::configure_for_hardware_change(
-    std::shared_ptr<graphics::DisplayConfiguration> const& conf,
-    SystemStateHandling pause_resume_system)
+    std::shared_ptr<graphics::DisplayConfiguration> const& conf)
 {
     std::lock_guard<std::mutex> lg{configuration_mutex};
 
     display_configuration_policy->apply_to(*conf);
     base_configuration = conf;
     if (base_configuration_applied)
-        apply_base_config(pause_resume_system);
+        apply_base_config();
 
     /*
      * Clear all the per-session configurations, since they may have become
@@ -187,29 +155,15 @@ void msh::DefaultDisplayArbitrator::configure_for_hardware_change(
 }
 
 void msh::DefaultDisplayArbitrator::apply_config(
-    std::shared_ptr<graphics::DisplayConfiguration> const& conf,
-    SystemStateHandling pause_resume_system)
+    std::shared_ptr<graphics::DisplayConfiguration> const& conf)
 {
-    if (pause_resume_system)
-    {
-        ApplyNowAndRevertOnScopeExit comp{
-            [this] { compositor->stop(); },
-            [this] { compositor->start(); }};
-
-        display->configure(*conf);
-    }
-    else
-    {
-        display->configure(*conf);
-    }
-
+    display->configure(*conf);
     base_configuration_applied = false;
 }
 
-void msh::DefaultDisplayArbitrator::apply_base_config(
-    SystemStateHandling pause_resume_system)
+void msh::DefaultDisplayArbitrator::apply_base_config()
 {
-    apply_config(base_configuration, pause_resume_system);
+    apply_config(base_configuration);
     base_configuration_applied = true;
 }
 

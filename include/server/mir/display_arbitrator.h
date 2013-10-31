@@ -33,11 +33,8 @@ class DisplayArbitrator
 public:
     virtual ~DisplayArbitrator() = default;
 
-    enum SystemStateHandling : bool { RetainSystemState, PauseResumeSystem };
-
     virtual void configure_for_hardware_change(
-        std::shared_ptr<graphics::DisplayConfiguration> const& conf,
-        SystemStateHandling pause_resume_system) = 0;
+        std::shared_ptr<graphics::DisplayConfiguration> const& conf) = 0;
 
 protected:
     DisplayArbitrator() = default;
