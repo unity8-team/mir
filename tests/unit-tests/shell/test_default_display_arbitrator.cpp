@@ -19,9 +19,9 @@
 #include "mir/shell/default_display_arbitrator.h"
 #include "mir/shell/session_container.h"
 #include "mir/graphics/display_configuration_policy.h"
+#include "mir/graphics/display_changer.h"
 #include "mir/shell/broadcasting_session_event_sink.h"
 
-#include "mir_test_doubles/mock_display.h"
 #include "mir_test_doubles/null_display_configuration.h"
 #include "mir_test_doubles/stub_display_configuration.h"
 #include "mir_test_doubles/mock_shell_session.h"

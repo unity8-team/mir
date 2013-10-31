@@ -30,8 +30,8 @@ namespace mir
 
 namespace graphics
 {
-    class Display;
-    class DisplayConfigurationPolicy;
+class DisplayChanger;
+class DisplayConfigurationPolicy;
 }
 
 namespace shell
@@ -45,7 +45,7 @@ class DefaultDisplayArbitrator : public frontend::DisplayArbitrator,
 {
 public:
     DefaultDisplayArbitrator(
-        std::shared_ptr<graphics::Display> const& display,
+        std::shared_ptr<graphics::DisplayChanger> const& display_changer,
         std::shared_ptr<graphics::DisplayConfigurationPolicy> const& display_configuration_policy,
         std::shared_ptr<SessionContainer> const& session_container,
         std::shared_ptr<SessionEventHandlerRegister> const& session_event_handler_register);
@@ -67,7 +67,7 @@ private:
     void send_config_to_all_sessions(
         std::shared_ptr<graphics::DisplayConfiguration> const& conf);
 
-    std::shared_ptr<graphics::Display> const display;
+    std::shared_ptr<graphics::DisplayChanger> const display_changer;
     std::shared_ptr<graphics::DisplayConfigurationPolicy> const display_configuration_policy;
     std::shared_ptr<shell::SessionContainer> const session_container;
     std::shared_ptr<SessionEventHandlerRegister> const session_event_handler_register;

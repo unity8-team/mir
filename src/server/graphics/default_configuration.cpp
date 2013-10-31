@@ -19,6 +19,7 @@
 #include "mir/default_server_configuration.h"
 
 #include "default_display_configuration_policy.h"
+#include "default_display_changer.h"
 #include "nested/host_connection.h"
 #include "nested/nested_platform.h"
 
@@ -143,5 +144,14 @@ auto mir::DefaultServerConfiguration::the_host_connection()
             {
                 BOOST_THROW_EXCEPTION(std::logic_error("can only use host connection in nested mode"));
             }
+        });
+}
+
+std::shared_ptr<mg::DisplayChanger> mir::DefaultServerConfiguration::the_display_changer()
+{
+    return display_changer(
+        [this]() -> std::shared_ptr<mg::DisplayChanger>
+        {
+            return std::make_shared<mg::DefaultDisplayChanger>(the_display(), the_compositor());
         });
 }

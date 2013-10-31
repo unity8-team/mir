@@ -94,6 +94,7 @@ class Display;
 class BufferInitializer;
 class DisplayReport;
 class GraphicBufferAllocator;
+class DisplayChanger;
 namespace nested { class HostConnection; }
 }
 namespace input
@@ -241,6 +242,8 @@ public:
     virtual std::shared_ptr<time::TimeSource>    the_time_source();
 
     virtual std::shared_ptr<shell::SessionManager> the_session_manager();
+    
+    virtual std::shared_ptr<graphics::DisplayChanger> the_display_changer();
 
 protected:
     using DefaultConfigurationOptions::the_options;
@@ -268,6 +271,7 @@ protected:
     CachedPtr<graphics::BufferInitializer> buffer_initializer;
     CachedPtr<graphics::GraphicBufferAllocator> buffer_allocator;
     CachedPtr<graphics::Display>      display;
+    CachedPtr<graphics::DisplayChanger>      display_changer;
 
     CachedPtr<frontend::ConnectorReport>   connector_report;
     CachedPtr<frontend::ProtobufIpcFactory>  ipc_factory;

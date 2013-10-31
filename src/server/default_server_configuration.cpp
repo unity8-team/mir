@@ -100,7 +100,7 @@ mir::DefaultServerConfiguration::the_default_display_arbitrator()
         [this]()
         {
             return std::make_shared<msh::DefaultDisplayArbitrator>(
-                the_display(),
+                the_display_changer(),
                 the_display_configuration_policy(),
                 the_shell_session_container(),
                 the_shell_session_event_handler_register());

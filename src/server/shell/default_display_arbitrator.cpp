@@ -20,7 +20,7 @@
 #include "mir/shell/session_container.h"
 #include "mir/shell/session.h"
 #include "mir/shell/session_event_handler_register.h"
-#include "mir/graphics/display.h"
+#include "mir/graphics/display_changer.h"
 #include "mir/graphics/display_configuration_policy.h"
 #include "mir/graphics/display_configuration.h"
 
@@ -29,15 +29,15 @@ namespace msh = mir::shell;
 namespace mg = mir::graphics;
 
 msh::DefaultDisplayArbitrator::DefaultDisplayArbitrator(
-    std::shared_ptr<mg::Display> const& display,
+    std::shared_ptr<mg::DisplayChanger> const& display_changer,
     std::shared_ptr<mg::DisplayConfigurationPolicy> const& display_configuration_policy,
     std::shared_ptr<msh::SessionContainer> const& session_container,
     std::shared_ptr<SessionEventHandlerRegister> const& session_event_handler_register)
-    : display{display},
+    : display_changer{display_changer},
       display_configuration_policy{display_configuration_policy},
       session_container{session_container},
       session_event_handler_register{session_event_handler_register},
-      base_configuration{display->configuration()},
+      base_configuration{display_changer->configuration()},
       base_configuration_applied{true}
 {
     session_event_handler_register->register_focus_change_handler(
@@ -131,7 +131,7 @@ msh::DefaultDisplayArbitrator::active_configuration()
 {
     std::lock_guard<std::mutex> lg{configuration_mutex};
 
-    return display->configuration();
+    return display_changer->configuration();
 }
 
 void msh::DefaultDisplayArbitrator::configure_for_hardware_change(
@@ -157,7 +157,7 @@ void msh::DefaultDisplayArbitrator::configure_for_hardware_change(
 void msh::DefaultDisplayArbitrator::apply_config(
     std::shared_ptr<graphics::DisplayConfiguration> const& conf)
 {
-    display->configure(*conf);
+    display_changer->configure(conf);
     base_configuration_applied = false;
 }
 
