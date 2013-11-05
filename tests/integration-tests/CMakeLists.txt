@@ -65,7 +65,7 @@ target_link_libraries(
 )
 
 if (MIR_PLATFORM STREQUAL "android")
-    option(MIR_ENABLE_INTEGRATION_TESTS "run acceptance tests" OFF)
+    #don't discover the test, we'll run it later on a phone
 else()
     if(MIR_ENABLE_INTEGRATION_TESTS)
     mir_discover_tests(mir-integration-tests)
