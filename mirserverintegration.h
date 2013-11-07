@@ -16,6 +16,7 @@ public:
     QPlatformOpenGLContext *createPlatformOpenGLContext(QOpenGLContext *context) const override;
 
     QAbstractEventDispatcher *createEventDispatcher() const override;
+    void initialize() override;
 
     QPlatformFontDatabase *fontDatabase() const;
     QPlatformServices *services() const;

@@ -17,6 +17,8 @@ SOURCES += plugin.cpp \
 HEADERS += plugin.h \
     mirserverintegration.h
 
+include(mirserver/mirserver.pri)
+
 # Installation path
 target.path +=  $$[QT_INSTALL_PLUGINS]/platforms
 

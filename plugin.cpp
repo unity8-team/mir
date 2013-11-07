@@ -12,4 +12,3 @@ QPlatformIntegration* MirServerIntegrationPlugin::create(const QString &system, 
         return new MirServerIntegration;
     return 0;
 }
-

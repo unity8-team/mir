@@ -8,7 +8,7 @@
 
 MirServerIntegration::MirServerIntegration()
 {
-    // Create instance of and start the Mir server
+    // Start Mir server only once Qt has initialized its event dispatcher, see initialize()
 }
 
 MirServerIntegration::~MirServerIntegration()
@@ -48,6 +48,11 @@ QPlatformOpenGLContext *MirServerIntegration::createPlatformOpenGLContext(QOpenG
 QAbstractEventDispatcher *MirServerIntegration::createEventDispatcher() const
 {
     return createUnixEventDispatcher();
+}
+
+void MirServerIntegration::initialize()
+{
+    // Create instance of and start the Mir server in a separate thread
 }
 
 QPlatformFontDatabase *MirServerIntegration::fontDatabase() const
