@@ -1,7 +1,11 @@
 #ifndef MIRSERVERINTEGRATION_H
 #define MIRSERVERINTEGRATION_H
 
+// qt
 #include <qpa/qplatformintegration.h>
+
+// local
+#include "mirserver/qmirserver.h"
 
 class MirServerIntegration : public QPlatformIntegration
 {
@@ -24,6 +28,7 @@ public:
 private:
     QScopedPointer<QPlatformFontDatabase> m_fontDb;
     QScopedPointer<QPlatformServices> m_services;
+    QScopedPointer<QMirServer> m_mirServer;
 };
 
 #endif // MIRSERVERINTEGRATION_H

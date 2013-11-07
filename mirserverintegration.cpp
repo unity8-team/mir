@@ -6,6 +6,9 @@
 
 #include <qpa/qplatformwindow.h>
 
+// local
+#include "mirserver/qmirserver.h"
+
 MirServerIntegration::MirServerIntegration()
 {
     // Start Mir server only once Qt has initialized its event dispatcher, see initialize()
@@ -53,6 +56,7 @@ QAbstractEventDispatcher *MirServerIntegration::createEventDispatcher() const
 void MirServerIntegration::initialize()
 {
     // Create instance of and start the Mir server in a separate thread
+    m_mirServer = new QMirServer();
 }
 
 QPlatformFontDatabase *MirServerIntegration::fontDatabase() const

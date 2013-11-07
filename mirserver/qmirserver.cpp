@@ -15,81 +15,53 @@
  */
 
 // Mir support
-#include <mir/run_mir.h>
-#include <mir/abnormal_exit.h>
-#include <mir/default_server_configuration.h>
-
-// Platform API
-#include <application/ubuntu_application_api_mirserver_priv.h>
+#include <mir/display_server.h>
 
 // Qt
 #include <QCoreApplication>
-#include <QDebug>
-#include <QThread>
-
-// Std
-#include <thread>
+#include <QStringList>
 
 // local
 #include "qmirserver.h"
+#include "shellserverconfiguration.h"
 
-QMirServer::QMirServer(int argc, const char* argv[], QObject *parent)
+// Wrap mir::DisplayServer with QObject, so it can be controlled via QThread
+class MirServerWorker : public QObject, mir::DisplayServer {
+    Q_OBJECT
+
+    MirServerWorker(ServerConfiguration& config)
+        : mir::DisplayServer(config)
+    {}
+
+public Q_SLOTS:
+    void run() { mir::DisplayServer::run(); }
+    void stop() { mir::DisplayServer::stop(); }
+};
+
+
+QMirServer::QMirServer(QObject *parent)
     : QObject(parent)
-    , m_argc(argc)
-    , m_argv(argv)
 {
+    QStringList args = QCoreApplication::arguments();
+    // convert arguments back into argc-argv form that Mir wants
+    char **argv;
+    argv = new char*[args.size() + 1];
+    for (int i = 0; i < args.size(); i++) {
+        argv[i] = new char[strlen(args.at(i).toStdString().c_str())+1];
+        memcpy(argv[i], args.at(i).toStdString().c_str(), strlen(args.at(i).toStdString().c_str())+1);
+    }
+    argv[args.size()] = ((char)NULL);
+
+    auto config = new ShellServerConfiguration(args.length(), argv);
+    m_mirServer = new MirServerWorker(config);
+    m_mirServer->moveToThread(m_mirThread);
+
+    connect(m_mirThread, &QThread::finished, m_mirServer, &QObject::deleteLater);
 }
 
 QMirServer::~QMirServer()
 {
-}
-
-int QMirServer::runWithClient(std::function<int(int, const char**, ShellServerConfiguration*)> client)
-{
-    // need local copies as lambda function will not capture class members
-    int argc = m_argc;
-    auto argv = m_argv;
-    auto config = new ShellServerConfiguration(m_argc, m_argv);
-    std::thread *t;
-
-    mir::run_mir(*config, [config, &client, &argc, &argv, &t](mir::DisplayServer&) {
-        ua_ui_mirserver_init(*config);
-
-        try {
-            t = new std::thread(client, argc, argv, config);
-        } catch (...) {
-            qDebug() << "Exception caught, quitting";
-        }
-    });
-    if (QCoreApplication::instance()) {
-        bool aboutToQuitSignaled = false;
-        QObject::connect(QCoreApplication::instance(), &QCoreApplication::aboutToQuit, [&]() {
-                aboutToQuitSignaled = true;
-            }
-        );
-        QCoreApplication::quit();
-        while (!aboutToQuitSignaled) {
-            usleep(100000);
-            QCoreApplication::quit();
-        }
-    }
-    t->join();
-    ua_ui_mirserver_finish();
-    delete config;
-    return 0;
-}
-
-// class factory implementation
-extern "C" {
-    QMirServer *createQMirServer(int argc, const char **argv) {
-        return new QMirServer(argc, argv);
-    }
-
-    int runQMirServerWithClient(QMirServer *mirServer, std::function<int(int, const char**, ShellServerConfiguration*)> client) {
-        return mirServer->runWithClient(client);
-    }
-
-    void destroyQMirServer(QMirServer *mirServer) {
-        delete mirServer;
-    }
+    m_mirThread.quit();
+    m_mirThread.wait();
+    deleteLater(m_mirServer);
 }

@@ -19,9 +19,7 @@
 #include "initialsurfaceplacementstrategy.h"
 #include "sessionlistener.h"
 #include "surfaceconfigurator.h"
-#include "surfacefactory.h"
 #include "sessionauthorizer.h"
-#include "surfacebuilder.h"
 #include "focussetter.h"
 #include "logging.h"
 
@@ -69,16 +67,6 @@ ShellServerConfiguration::the_shell_surface_configurator()
         });
 }
 
-std::shared_ptr<msh::SurfaceBuilder>
-ShellServerConfiguration::the_surface_builder()
-{
-    return m_surfaceBuilder(
-        [this]()
-        {
-            return std::make_shared<SurfaceBuilder>(DefaultServerConfiguration::the_surface_builder());
-        });
-}
-
 std::shared_ptr<mir::frontend::SessionAuthorizer>
 ShellServerConfiguration::the_session_authorizer()
 {
@@ -100,16 +88,6 @@ ShellServerConfiguration::the_shell_surface_factory()
     }
 
     return m_surfaceFactory;
-}
-
-std::shared_ptr<msh::FocusSetter>
-ShellServerConfiguration::the_shell_focus_setter()
-{
-    return shell_focus_setter(
-       [this]
-       {
-           return std::make_shared<FocusSetter>(DefaultServerConfiguration::the_shell_focus_setter(), the_input_targeter());
-       });
 }
 
 /************************************ Shell side ************************************/
@@ -148,17 +126,4 @@ SurfaceConfigurator *ShellServerConfiguration::surfaceConfigurator()
     if (sharedPtr.unique()) return 0;
 
     return static_cast<SurfaceConfigurator*>(sharedPtr.get());
-}
-
-SurfaceFactory *ShellServerConfiguration::surfaceFactory()
-{
-    return m_surfaceFactory.get();
-}
-
-FocusSetter *ShellServerConfiguration::focusSetter()
-{
-    auto sharedPtr = the_shell_focus_setter();
-    if (sharedPtr.unique()) return 0;
-
-    return static_cast<FocusSetter*>(sharedPtr.get());
 }

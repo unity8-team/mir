@@ -21,10 +21,8 @@
 #include <mir/default_server_configuration.h>
 
 
-class FocusSetter;
 class SessionListener;
 class SessionAuthorizer;
-class SurfaceFactory;
 class SurfaceConfigurator;
 
 class ShellServerConfiguration : public QObject, public mir::DefaultServerConfiguration
@@ -34,7 +32,6 @@ class ShellServerConfiguration : public QObject, public mir::DefaultServerConfig
     Q_PROPERTY(SessionAuthorizer* sessionAuthorizer READ sessionAuthorizer CONSTANT)
     Q_PROPERTY(SessionListener* sessionListener READ sessionListener CONSTANT)
     Q_PROPERTY(SurfaceConfigurator* surfaceConfigurator READ surfaceConfigurator CONSTANT)
-    Q_PROPERTY(SurfaceFactory* surfaceFactory READ surfaceFactory CONSTANT)
 
 public:
     ShellServerConfiguration(int argc, char const* argv[], QObject* parent = 0);
@@ -44,24 +41,15 @@ public:
     std::shared_ptr<mir::shell::PlacementStrategy> the_shell_placement_strategy() override;
     std::shared_ptr<mir::shell::SessionListener> the_shell_session_listener() override;
     std::shared_ptr<mir::shell::SurfaceConfigurator> the_shell_surface_configurator() override;
-    std::shared_ptr<mir::shell::SurfaceFactory> the_shell_surface_factory() override;
-    std::shared_ptr<mir::shell::FocusSetter> the_shell_focus_setter() override;
     std::shared_ptr<mir::frontend::SessionAuthorizer> the_session_authorizer() override;
-    std::shared_ptr<mir::shell::SurfaceBuilder> the_surface_builder() override;
 
     /* qt specific */
     // getters
     SessionAuthorizer *sessionAuthorizer();
     SessionListener *sessionListener();
     SurfaceConfigurator *surfaceConfigurator();
-    SurfaceFactory *surfaceFactory();
-    FocusSetter *focusSetter();
-
-protected:
-    std::shared_ptr<SurfaceFactory> m_surfaceFactory;
 
 private:
-    mir::CachedPtr<mir::shell::SurfaceBuilder> m_surfaceBuilder;
 };
 
 #endif // SHELLSERVERCONFIGURATION_H

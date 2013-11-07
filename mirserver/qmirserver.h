@@ -17,36 +17,24 @@
 #ifndef QMIRSERVER_H
 #define QMIRSERVER_H
 
-#include <functional>
-
 #include <QObject>
+#include <QThread>
 
 #include "shellserverconfiguration.h"
 
+class MirServerWorker;
 class QMirServer: public QObject
 {
     Q_OBJECT
 
 public:
-    QMirServer(int argc, const char *argv[], QObject* parent=0);
+    QMirServer(QObject* parent=0);
     ~QMirServer();
 
-    int runWithClient(std::function<int(int, const char**, ShellServerConfiguration*)>);
-
 private:
-    int m_argc;
-    const char** m_argv;
+    QThread m_mirThread;
+    MirServerWorker *m_mirServer;
     Q_DISABLE_COPY(QMirServer)
 };
-
-
-// class factory
-extern "C" {
-    QMirServer *createQMirServer(int argc, const char **argv);
-
-    int runQMirServerWithClient(QMirServer *mirServer, std::function<int(int, const char**, ShellServerConfiguration*)> client);
-
-    void destroyQMirServer(QMirServer *mirServer);
-}
 
 #endif // QMIRSERVER_H
