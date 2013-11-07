@@ -38,7 +38,7 @@ mir::DefaultServerConfiguration::the_surfaces_report()
     {
         auto opt = the_options()->get(surfaces_report_opt, off_opt_value);
 
-        if (opt == log_opt_value)
+        if (opt == log_opt_value || the_options()->is_set(log_all_opt))
         {
             return std::make_shared<ml::SurfacesReport>(the_logger());
         }
@@ -62,7 +62,7 @@ auto mir::DefaultServerConfiguration::the_connector_report()
         {
             auto opt = the_options()->get(connector_report_opt, off_opt_value);
 
-            if (opt == log_opt_value)
+            if (opt == log_opt_value || the_options()->is_set(log_all_opt) || the_options()->is_set(log_all_opt))
             {
                 return std::make_shared<ml::ConnectorReport>(the_logger());
             }
@@ -83,7 +83,7 @@ std::shared_ptr<mg::DisplayReport> mir::DefaultServerConfiguration::the_display_
     return display_report(
         [this]() -> std::shared_ptr<graphics::DisplayReport>
         {
-            if (the_options()->get(display_report_opt, off_opt_value) == log_opt_value)
+            if (the_options()->get(display_report_opt, off_opt_value) == log_opt_value || the_options()->is_set(log_all_opt))
             {
                 return std::make_shared<ml::DisplayReport>(the_logger());
             }
@@ -100,7 +100,7 @@ mir::DefaultServerConfiguration::the_session_mediator_report()
     return session_mediator_report(
         [this]() -> std::shared_ptr<mf::SessionMediatorReport>
         {
-            if (the_options()->get(session_mediator_report_opt, off_opt_value) == log_opt_value)
+            if (the_options()->get(session_mediator_report_opt, off_opt_value) == log_opt_value || the_options()->is_set(log_all_opt))
             {
                 return std::make_shared<ml::SessionMediatorReport>(the_logger());
             }

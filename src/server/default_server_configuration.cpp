@@ -91,7 +91,7 @@ mir::DefaultServerConfiguration::the_input_report()
         {
             auto opt = the_options()->get(input_report_opt, off_opt_value);
             
-            if (opt == log_opt_value)
+            if (opt == log_opt_value || the_options()->is_set(log_all_opt))
             {
                 return std::make_shared<ml::InputReport>(the_logger());
             }
@@ -181,7 +181,7 @@ mir::DefaultServerConfiguration::the_message_processor_report()
         [this]() -> std::shared_ptr<mf::MessageProcessorReport>
         {
             auto mp_report = the_options()->get(msg_processor_report_opt, off_opt_value);
-            if (mp_report == log_opt_value)
+            if (mp_report == log_opt_value || the_options()->is_set(log_all_opt))
             {
                 return std::make_shared<ml::MessageProcessorReport>(the_logger(), the_time_source());
             }

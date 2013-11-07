@@ -79,6 +79,7 @@ char const* const mir::ConfigurationOptions::host_socket_opt             = "host
 char const* const mir::ConfigurationOptions::standalone_opt              = "standalone";
 char const* const mir::ConfigurationOptions::frontend_threads            = "ipc-thread-pool";
 char const* const mir::ConfigurationOptions::name_opt                    = "name";
+char const* const mir::ConfigurationOptions::log_all_opt                 = "log-all";
 
 char const* const mir::ConfigurationOptions::glog                 = "glog";
 char const* const mir::ConfigurationOptions::glog_stderrthreshold = "glog-stderrthreshold";
@@ -133,6 +134,7 @@ mir::DefaultConfigurationOptions::DefaultConfigurationOptions(int argc, char con
             "How to handle the MessageProcessor report. [{log,lttng,off}:default=off]")
         (surfaces_report_opt, po::value<std::string>(),
             "How to handle the surfaces report. [{log,off}:default=off]")
+        (log_all_opt, "Convenience option for setting all component reports to log")
         (glog,
             "Use google::GLog for logging")
         (glog_stderrthreshold, po::value<int>(),

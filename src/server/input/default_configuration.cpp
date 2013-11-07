@@ -91,7 +91,7 @@ mir::DefaultServerConfiguration::the_input_manager()
     return input_manager(
         [&, this]() -> std::shared_ptr<mi::InputManager>
         {
-            if (the_options()->get(legacy_input_report_opt, off_opt_value) == log_opt_value)
+            if (the_options()->get(legacy_input_report_opt, off_opt_value) == log_opt_value || the_options()->is_set(log_all_opt))
                     ml::legacy_input_report::initialize(the_logger());
             return the_input_configuration()->the_input_manager();
         });
