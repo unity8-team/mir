@@ -193,6 +193,19 @@ std::shared_ptr<mg::Buffer> mc::SwitchingBundle::client_acquire()
     }
     else
     {
+        if (ncompositors > 1 && nclients > 0 && !nfree())
+        {
+            /*
+             * This is not strictly an error, but it's useful to tell you that
+             * there will be a serious performance problem, as client_acquire()
+             * will be forced to block while there are multiple compositor
+             * buffers held (e.g. bypassing). (LP: #1249210)
+             */
+            BOOST_THROW_EXCEPTION(std::logic_error(
+                "Bad client_acquire semantics leading to poor performance. "
+                "Try releasing your client buffers before getting new ones."));
+        }
+
         /*
          * Even if there are free buffers available, we might wish to still
          * wait. This is so we don't touch (hence allocate) a third or higher

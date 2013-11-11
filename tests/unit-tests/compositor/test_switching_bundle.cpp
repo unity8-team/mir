@@ -373,6 +373,24 @@ TEST_F(SwitchingBundleTest, overlapping_compositors_get_different_frames)
     }
 }
 
+TEST_F(SwitchingBundleTest, overlapping_clients_with_bypass)
+{  // Detect buffer abuse leading to performance regression (LP: #1249210)
+    mc::SwitchingBundle bundle(3, allocator, basic_properties);
+    std::shared_ptr<mg::Buffer> compositor[2], client[2];
+
+    bundle.client_release(bundle.client_acquire());
+    compositor[0] = bundle.compositor_acquire(1);
+    bundle.client_release(bundle.client_acquire());
+    compositor[1] = bundle.compositor_acquire(2);
+
+    client[0] = bundle.client_acquire();
+    EXPECT_THROW({client[1] = bundle.client_acquire();},
+                  std::logic_error);
+
+    bundle.compositor_release(compositor[0]);
+    bundle.compositor_release(compositor[1]);
+}
+
 TEST_F(SwitchingBundleTest, snapshot_acquire_basic)
 {
     for (int nbuffers = mc::SwitchingBundle::min_buffers;
