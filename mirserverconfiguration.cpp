@@ -14,41 +14,29 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "shellserverconfiguration.h"
+#include "mirserverconfiguration.h"
 
-#include "initialsurfaceplacementstrategy.h"
 #include "sessionlistener.h"
 #include "surfaceconfigurator.h"
 #include "sessionauthorizer.h"
-#include "focussetter.h"
 #include "logging.h"
 
 namespace msh = mir::shell;
 namespace ms = mir::surfaces;
 
-ShellServerConfiguration::ShellServerConfiguration(int argc, char const* argv[], QObject* parent)
+MirServerConfiguration::MirServerConfiguration(int argc, char const* argv[], QObject* parent)
     : QObject(parent)
     , DefaultServerConfiguration(argc, argv)
 {
-    DLOG("ShellServerConfiguration created");
+    DLOG("MirServerConfiguration created");
 }
 
-ShellServerConfiguration::~ShellServerConfiguration()
+MirServerConfiguration::~MirServerConfiguration()
 {
-}
-
-std::shared_ptr<msh::PlacementStrategy>
-ShellServerConfiguration::the_shell_placement_strategy()
-{
-    return shell_placement_strategy(
-        [this]
-        {
-            return std::make_shared<InitialSurfacePlacementStrategy>(the_shell_display_layout());
-        });
 }
 
 std::shared_ptr<msh::SessionListener>
-ShellServerConfiguration::the_shell_session_listener()
+MirServerConfiguration::the_shell_session_listener()
 {
     return shell_session_listener(
         [this]
@@ -58,7 +46,7 @@ ShellServerConfiguration::the_shell_session_listener()
 }
 
 std::shared_ptr<msh::SurfaceConfigurator>
-ShellServerConfiguration::the_shell_surface_configurator()
+MirServerConfiguration::the_shell_surface_configurator()
 {
     return shell_surface_configurator(
         [this]()
@@ -68,26 +56,13 @@ ShellServerConfiguration::the_shell_surface_configurator()
 }
 
 std::shared_ptr<mir::frontend::SessionAuthorizer>
-ShellServerConfiguration::the_session_authorizer()
+MirServerConfiguration::the_session_authorizer()
 {
     return session_authorizer(
     []
     {
         return std::make_shared<SessionAuthorizer>();
     });
-}
-
-// FIXME: Needed to detect the shell's surface - there must be a better way
-std::shared_ptr<msh::SurfaceFactory>
-ShellServerConfiguration::the_shell_surface_factory()
-{
-    if (!m_surfaceFactory)
-    {
-        m_surfaceFactory = std::make_shared<SurfaceFactory>(
-            DefaultServerConfiguration::the_shell_surface_factory());
-    }
-
-    return m_surfaceFactory;
 }
 
 /************************************ Shell side ************************************/
@@ -104,7 +79,7 @@ ShellServerConfiguration::the_shell_surface_factory()
 // scope the unique pointer will be destroyed so we return 0
 //
 
-SessionAuthorizer *ShellServerConfiguration::sessionAuthorizer()
+SessionAuthorizer *MirServerConfiguration::sessionAuthorizer()
 {
     auto sharedPtr = the_session_authorizer();
     if (sharedPtr.unique()) return 0;
@@ -112,7 +87,7 @@ SessionAuthorizer *ShellServerConfiguration::sessionAuthorizer()
     return static_cast<SessionAuthorizer*>(sharedPtr.get());
 }
 
-SessionListener *ShellServerConfiguration::sessionListener()
+SessionListener *MirServerConfiguration::sessionListener()
 {
     auto sharedPtr = the_shell_session_listener();
     if (sharedPtr.unique()) return 0;
@@ -120,7 +95,7 @@ SessionListener *ShellServerConfiguration::sessionListener()
     return static_cast<SessionListener*>(sharedPtr.get());
 }
 
-SurfaceConfigurator *ShellServerConfiguration::surfaceConfigurator()
+SurfaceConfigurator *MirServerConfiguration::surfaceConfigurator()
 {
     auto sharedPtr = the_shell_surface_configurator();
     if (sharedPtr.unique()) return 0;

@@ -14,8 +14,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef SHELLSERVERCONFIGURATION_H
-#define SHELLSERVERCONFIGURATION_H
+#ifndef MIRSERVERCONFIGURATION_H
+#define MIRSERVERCONFIGURATION_H
 
 #include <QObject>
 #include <mir/default_server_configuration.h>
@@ -25,7 +25,7 @@ class SessionListener;
 class SessionAuthorizer;
 class SurfaceConfigurator;
 
-class ShellServerConfiguration : public QObject, public mir::DefaultServerConfiguration
+class MirServerConfiguration : public QObject, public mir::DefaultServerConfiguration
 {
     Q_OBJECT
 
@@ -34,11 +34,10 @@ class ShellServerConfiguration : public QObject, public mir::DefaultServerConfig
     Q_PROPERTY(SurfaceConfigurator* surfaceConfigurator READ surfaceConfigurator CONSTANT)
 
 public:
-    ShellServerConfiguration(int argc, char const* argv[], QObject* parent = 0);
-    ~ShellServerConfiguration();
+    MirServerConfiguration(int argc, char const* argv[], QObject* parent = 0);
+    ~MirServerConfiguration();
 
     /* mir specific */
-    std::shared_ptr<mir::shell::PlacementStrategy> the_shell_placement_strategy() override;
     std::shared_ptr<mir::shell::SessionListener> the_shell_session_listener() override;
     std::shared_ptr<mir::shell::SurfaceConfigurator> the_shell_surface_configurator() override;
     std::shared_ptr<mir::frontend::SessionAuthorizer> the_session_authorizer() override;
@@ -52,4 +51,4 @@ public:
 private:
 };
 
-#endif // SHELLSERVERCONFIGURATION_H
+#endif // MIRSERVERCONFIGURATION_H

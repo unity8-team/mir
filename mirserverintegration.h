@@ -5,7 +5,9 @@
 #include <qpa/qplatformintegration.h>
 
 // local
-#include "mirserver/qmirserver.h"
+#include "qmirserver.h"
+#include "mirserverconfiguration.h"
+#include "display.h"
 
 class MirServerIntegration : public QPlatformIntegration
 {
@@ -20,15 +22,21 @@ public:
     QPlatformOpenGLContext *createPlatformOpenGLContext(QOpenGLContext *context) const override;
 
     QAbstractEventDispatcher *createEventDispatcher() const override;
+
     void initialize() override;
 
-    QPlatformFontDatabase *fontDatabase() const;
-    QPlatformServices *services() const;
+    QPlatformFontDatabase *fontDatabase() const override;
+    QPlatformServices *services() const override;
+
+    QPlatformAccessibility *accessibility() const override;
 
 private:
+    QScopedPointer<QPlatformAccessibility> m_accessibility;
     QScopedPointer<QPlatformFontDatabase> m_fontDb;
     QScopedPointer<QPlatformServices> m_services;
-    QScopedPointer<QMirServer> m_mirServer;
+    QMirServer *m_mirServer;
+    Display *m_display;
+    MirServerConfiguration *m_mirConfig;
 };
 
 #endif // MIRSERVERINTEGRATION_H

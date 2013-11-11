@@ -8,16 +8,36 @@ CONFIG += plugin
 
 # CONFIG += c++11 # only enables C++0x
 QMAKE_CXXFLAGS = -std=c++11
-QMAKE_CXXFLAGS_RELEASE += -fvisibility=hidden -fvisibility-inlines-hidden -Werror     # so no stop on warning in debug builds
+QMAKE_CXXFLAGS_RELEASE += -fvisibility=hidden -fvisibility-inlines-hidden -Werror  # so no stop on warning in debug builds
 QMAKE_LFLAGS = -std=c++11 -Wl,-no-undefined
 
+CONFIG   += link_pkgconfig
+PKGCONFIG += mircommon mirserver
+
 SOURCES += plugin.cpp \
-    mirserverintegration.cpp
+    qmirserver.cpp \
+    sessionauthorizer.cpp \
+    sessionlistener.cpp \
+    surfaceconfigurator.cpp \
+    mirserverconfiguration.cpp \
+    display.cpp \
+    screen.cpp \
+    displaywindow.cpp \
+    mirserverintegration.cpp \
+    miropenglcontext.cpp
 
 HEADERS += plugin.h \
-    mirserverintegration.h
-
-include(mirserver/mirserver.pri)
+    qmirserver.h \
+    sessionauthorizer.h \
+    sessionlistener.h \
+    surfaceconfigurator.h \
+    logging.h \
+    mirserverconfiguration.h \
+    display.h \
+    screen.h \
+    displaywindow.h \
+    mirserverintegration.h \
+    miropenglcontext.h
 
 # Installation path
 target.path +=  $$[QT_INSTALL_PLUGINS]/platforms

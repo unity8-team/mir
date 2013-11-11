@@ -20,16 +20,42 @@
 #include <QObject>
 #include <QThread>
 
-#include "shellserverconfiguration.h"
+// Mir
+#include <mir/display_server.h>
 
-class MirServerWorker;
+#include "mirserverconfiguration.h"
+
+class MirServerConfiguration;
+
+// Wrap mir::DisplayServer with QObject, so it can be controlled via QThread
+class MirServerWorker : public QObject, public mir::DisplayServer
+{
+    Q_OBJECT
+public:
+    MirServerWorker(MirServerConfiguration &config)
+        : mir::DisplayServer(config)
+    {}
+
+public Q_SLOTS:
+    void run() { mir::DisplayServer::run(); }
+    void stop() { mir::DisplayServer::stop(); }
+};
+
+
 class QMirServer: public QObject
 {
     Q_OBJECT
 
 public:
-    QMirServer(QObject* parent=0);
+    QMirServer(MirServerConfiguration*, QObject* parent=0);
     ~QMirServer();
+
+Q_SIGNALS:
+    void run();
+    void stop();
+
+protected Q_SLOTS:
+    void shutDown();
 
 private:
     QThread m_mirThread;
