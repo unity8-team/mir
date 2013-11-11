@@ -163,7 +163,7 @@ std::shared_ptr<mg::InternalClient> mgg::GBMPlatform::create_internal_client()
     return std::make_shared<mgg::InternalClient>(internal_native_display);
 }
 
-EGLNativeDisplayType mgg::GBMPlatform::egl_native_display()
+EGLNativeDisplayType mgg::GBMPlatform::egl_native_display() const
 {
     return gbm.device;
 }

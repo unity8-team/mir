@@ -17,12 +17,16 @@
  */
 
 #include "display_buffer.h"
+#include "gl_extensions_base.h"
 
 #include <boost/throw_exception.hpp>
 
 #include <cstring>
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
+#include <vector>
+#include <fstream>
+#include <sstream>
 
 namespace mg = mir::graphics;
 namespace mgo = mg::offscreen;
@@ -37,47 +41,39 @@ EGLint const default_egl_context_attr[] =
     EGL_NONE
 };
 
-EGLint const dummy_pbuffer_attribs[] =
-{
-    EGL_WIDTH, 1,
-    EGL_HEIGHT, 1,
-    EGL_NONE
-};
-
-class GLExtensions
+class GLExtensions : public mgo::GLExtensionsBase
 {
 public:
     GLExtensions() :
-        extensions{reinterpret_cast<char const*>(glGetString(GL_EXTENSIONS))}
+        mgo::GLExtensionsBase{
+            reinterpret_cast<char const*>(glGetString(GL_EXTENSIONS))}
     {
-        if (!extensions)
-        {
-            BOOST_THROW_EXCEPTION(
-                std::runtime_error("Couldn't get list of GL extensions"));
-        }
     }
-
-    bool support(char const* ext) const
-    {
-        char const* ext_ptr = extensions;
-        size_t len = strlen(ext);
-        while ((ext_ptr = strstr(ext_ptr, ext)) != nullptr) {
-            if (ext_ptr[len] == ' ' || ext_ptr[len] == '\0')
-                break;
-            ext_ptr += len;
-        }
-
-        return ext_ptr != nullptr;
-    }
-
-private:
-    char const* const extensions;
 };
+    std::vector<char> pixels;
+
+void take_screenshot(std::string const& path, geom::Size const& size)
+{
+    auto const w = size.width.as_uint32_t();
+    auto const h = size.height.as_uint32_t();
+    pixels.resize(4*h*w);
+
+    //glReadPixels(0, 0, w, h, GL_BGRA_EXT, GL_UNSIGNED_BYTE, pixels.data());
+
+    for (uint32_t i = 0; i < h; i++)
+    {
+        glReadPixels(0, i, w, 1, GL_BGRA_EXT, GL_UNSIGNED_BYTE,
+                     &pixels[(h - i - 1) * w * 4]);
+    }
+
+    std::ofstream output(path, std::ios::out | std::ios::binary);
+    output.write(pixels.data(), pixels.size());
+}
 
 }
 
 mgo::detail::GLFramebufferObject::GLFramebufferObject(geom::Size const& size)
-    : color_renderbuffer{0}, depth_renderbuffer{0}, fbo{0}
+    : size{size}, color_renderbuffer{0}, depth_renderbuffer{0}, fbo{0}
 {
     GLExtensions const extensions;
 
@@ -133,6 +129,7 @@ mgo::detail::GLFramebufferObject::~GLFramebufferObject()
 void mgo::detail::GLFramebufferObject::bind() const
 {
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glViewport(0, 0, size.width.as_int(), size.height.as_int());
 }
 
 void mgo::detail::GLFramebufferObject::unbind() const
@@ -142,17 +139,13 @@ void mgo::detail::GLFramebufferObject::unbind() const
 
 mgo::DisplayBuffer::DisplayBuffer(
     EGLDisplay egl_display,
-    EGLConfig egl_config,
     EGLContext shared_context,
     geom::Rectangle const& area)
     : egl_display{egl_display},
-      egl_config{egl_config},
+      dummy_egl_surface{egl_display},
       egl_context{egl_display,
-                  eglCreateContext(egl_display, egl_config, shared_context,
-                                   default_egl_context_attr)},
-      egl_surface_dummy{egl_display,
-                        eglCreatePbufferSurface(egl_display, egl_config,
-                                                dummy_pbuffer_attribs)},
+                  eglCreateContext(egl_display, dummy_egl_surface.config(),
+                                   shared_context, default_egl_context_attr)},
       fbo{area.size},
       area(area)
 {
@@ -165,11 +158,15 @@ geom::Rectangle mgo::DisplayBuffer::view_area() const
 
 void mgo::DisplayBuffer::make_current()
 {
-    if (eglMakeCurrent(egl_display, egl_surface_dummy, egl_surface_dummy,
+    if (eglGetCurrentContext() == egl_context)
+        return;
+
+    if (eglMakeCurrent(egl_display, dummy_egl_surface, dummy_egl_surface,
                        egl_context) != EGL_TRUE)
     {
         BOOST_THROW_EXCEPTION(std::runtime_error("Failed to make EGL surface current.\n"));
     }
+
     fbo.bind();
 }
 
@@ -182,6 +179,23 @@ void mgo::DisplayBuffer::release_current()
 void mgo::DisplayBuffer::post_update()
 {
     glFinish();
+
+    /* Test code
+    */
+    static int count = 0;
+    ++count;
+    //if (count % 1000 == 0)
+    {
+        std::stringstream ss;
+        ss << "/tmp/";
+        ss.width(5);
+        ss.fill('0');
+        ss <<  count;
+        ss.width(0);
+        ss << ".rgba";
+        take_screenshot(ss.str(), area.size);
+    }
+    //
 }
 
 bool mgo::DisplayBuffer::can_bypass() const

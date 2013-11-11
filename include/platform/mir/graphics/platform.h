@@ -109,7 +109,7 @@ public:
     /**
      * The EGL native display used by the platform.
      */
-    virtual EGLNativeDisplayType egl_native_display() = 0;
+    virtual EGLNativeDisplayType egl_native_display() const = 0;
 };
 
 /**

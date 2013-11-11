@@ -109,16 +109,20 @@ std::shared_ptr<mg::Display>
 mir::DefaultServerConfiguration::the_display()
 {
     return display(
-        [this]()
+        [this]() -> std::shared_ptr<mg::Display>
         {
-            return std::make_shared<mg::offscreen::Display>(
-                the_graphics_platform()->egl_native_display(),
-                the_display_configuration_policy(),
-                the_display_report());
-            /*
-            return the_graphics_platform()->create_display(
-                the_display_configuration_policy());
-                */
+            if (the_options()->is_set("offscreen"))
+            {
+                return std::make_shared<mg::offscreen::Display>(
+                    the_graphics_platform()->egl_native_display(),
+                    the_display_configuration_policy(),
+                    the_display_report());
+            }
+            else
+            {
+                return the_graphics_platform()->create_display(
+                    the_display_configuration_policy());
+            }
         });
 }
 

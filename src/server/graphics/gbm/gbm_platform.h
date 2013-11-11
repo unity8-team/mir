@@ -54,7 +54,7 @@ public:
     void fill_ipc_package(std::shared_ptr<BufferIPCPacker> const& packer,
                           std::shared_ptr<Buffer> const& buffer) const;
 
-    EGLNativeDisplayType egl_native_display();
+    EGLNativeDisplayType egl_native_display() const;
 
     /* From DRMAuthenticator */
     void drm_auth_magic(drm_magic_t magic);

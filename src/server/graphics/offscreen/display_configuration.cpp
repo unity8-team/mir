@@ -24,7 +24,7 @@ mgo::DisplayConfiguration::DisplayConfiguration(geom::Size const& display_size)
         : output{mg::DisplayConfigurationOutputId{1},
                  mg::DisplayConfigurationCardId{0},
                  mg::DisplayConfigurationOutputType::lvds,
-                 {geom::PixelFormat::abgr_8888},
+                 {geom::PixelFormat::xrgb_8888},
                  {mg::DisplayConfigurationMode{display_size,0.0f}},
                  0,
                  geom::Size{0,0},

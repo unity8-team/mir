@@ -20,14 +20,16 @@
 #define MIR_GRAPHICS_OFFSCREEN_DISPLAY_BUFFER_H_
 
 #include "mir/graphics/display_buffer.h"
+#include "mir/geometry/size.h"
 #include "mir/geometry/rectangle.h"
 #include "mir/graphics/egl_resources.h"
+
+#include "dummy_egl_surface.h"
 
 #include <EGL/egl.h>
 
 namespace mir
 {
-namespace geometry { struct Size; }
 namespace graphics
 {
 namespace offscreen
@@ -44,6 +46,7 @@ public:
     void bind() const;
     void unbind() const;
 private:
+    geometry::Size const size;
     unsigned int color_renderbuffer;
     unsigned int depth_renderbuffer;
     unsigned int fbo;
@@ -56,7 +59,6 @@ class DisplayBuffer : public graphics::DisplayBuffer
 public:
     DisplayBuffer(
         EGLDisplay egl_display,
-        EGLConfig egl_config,
         EGLContext shared_context,
         geometry::Rectangle const& area);
 
@@ -69,9 +71,8 @@ public:
 
 private:
     EGLDisplay const egl_display;
-    EGLConfig const egl_config;
+    DummyEGLSurface const dummy_egl_surface;
     EGLContextStore const egl_context;
-    EGLSurfaceStore const egl_surface_dummy;
     detail::GLFramebufferObject const fbo;
     geometry::Rectangle const area;
 };

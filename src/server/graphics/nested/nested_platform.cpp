@@ -134,7 +134,7 @@ void mgn::NestedPlatform::fill_ipc_package(std::shared_ptr<BufferIPCPacker> cons
     native_platform->fill_ipc_package(packer, buffer);
 }
 
-EGLNativeDisplayType mgn::NestedPlatform::egl_native_display()
+EGLNativeDisplayType mgn::NestedPlatform::egl_native_display() const
 {
     return reinterpret_cast<EGLNativeDisplayType>(
         mir_connection_get_egl_native_display(*connection));

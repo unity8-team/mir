@@ -22,6 +22,7 @@
 #include "mir/graphics/display.h"
 #include "mir/graphics/egl_resources.h"
 #include "display_configuration.h"
+#include "dummy_egl_surface.h"
 
 #include <mutex>
 #include <vector>
@@ -72,9 +73,8 @@ private:
     DisplayConfiguration current_display_configuration;
     std::vector<std::unique_ptr<DisplayBuffer>> display_buffers;
     EGLDisplay const egl_display;
-    EGLConfig const egl_config;
+    DummyEGLSurface const dummy_egl_surface;
     EGLContextStore const egl_context_shared;
-    EGLSurfaceStore const egl_surface_dummy;
 };
 
 }

@@ -37,24 +37,15 @@ EGLint const default_egl_context_attr[] =
     EGL_NONE
 };
 
-EGLint const dummy_pbuffer_attribs[] =
-{
-    EGL_WIDTH, 1,
-    EGL_HEIGHT, 1,
-    EGL_NONE
-};
-
 class OffscreenGLContext : public mg::GLContext
 {
 public:
-    OffscreenGLContext(EGLDisplay egl_display, EGLConfig egl_config, EGLContext egl_context_shared)
+    OffscreenGLContext(EGLDisplay egl_display, EGLContext egl_context_shared)
         : egl_display{egl_display},
+          dummy_egl_surface{egl_display},
           egl_context{egl_display,
-                      eglCreateContext(egl_display, egl_config, egl_context_shared,
-                                       default_egl_context_attr)},
-          egl_surface{egl_display,
-                      eglCreatePbufferSurface(egl_display, egl_config,
-                                              dummy_pbuffer_attribs)}
+                      eglCreateContext(egl_display, dummy_egl_surface.config(),
+                                       egl_context_shared, default_egl_context_attr)}
     {
     }
 
@@ -66,7 +57,8 @@ public:
 
     void make_current()
     {
-        if (eglMakeCurrent(egl_display, egl_surface, egl_surface, egl_context) == EGL_FALSE)
+        if (eglMakeCurrent(egl_display, dummy_egl_surface, dummy_egl_surface,
+                           egl_context) == EGL_FALSE)
         {
             BOOST_THROW_EXCEPTION(
                 std::runtime_error("could not activate dummy surface with eglMakeCurrent\n"));
@@ -80,8 +72,8 @@ public:
 
 private:
     EGLDisplay const egl_display;
+    mgo::DummyEGLSurface const dummy_egl_surface;
     mg::EGLContextStore const egl_context;
-    mg::EGLSurfaceStore const egl_surface;
 };
 
 EGLDisplay create_and_initialize_display(EGLNativeDisplayType native_display)
@@ -97,6 +89,7 @@ EGLDisplay create_and_initialize_display(EGLNativeDisplayType native_display)
 
     if ((major != 1) || (minor != 4))
         BOOST_THROW_EXCEPTION(std::runtime_error("must have EGL 1.4\n"));
+
     return egl_display;
 }
 
@@ -132,26 +125,26 @@ mgo::Display::Display(
     std::shared_ptr<DisplayReport> const&)
     : current_display_configuration{geom::Size{1024,768}},
       egl_display{create_and_initialize_display(native_display)},
-      egl_config{choose_config(egl_display)},
+      dummy_egl_surface{egl_display},
       egl_context_shared{egl_display,
-                         eglCreateContext(egl_display, egl_config, EGL_NO_CONTEXT,
-                                          default_egl_context_attr)},
-      egl_surface_dummy{egl_display,
-                        eglCreatePbufferSurface(egl_display, egl_config,
-                                                dummy_pbuffer_attribs)}
-
+                         eglCreateContext(egl_display, dummy_egl_surface.config(),
+                                          EGL_NO_CONTEXT,
+                                          default_egl_context_attr)}
 {
-    initial_conf_policy->apply_to(current_display_configuration);
-
-    configure(current_display_configuration);
-
-    /* Make the shared context current */
-    if (eglMakeCurrent(egl_display, egl_surface_dummy, egl_surface_dummy,
+    /*
+     * Make the shared context current. This needs to be done before we configure()
+     * since mgo::DisplayBuffer creation needs a current GL context.
+     */
+    if (eglMakeCurrent(egl_display, dummy_egl_surface, dummy_egl_surface,
                        egl_context_shared) == EGL_FALSE)
     {
         BOOST_THROW_EXCEPTION(
             std::runtime_error("could not activate dummy surface with eglMakeCurrent\n"));
     }
+
+    initial_conf_policy->apply_to(current_display_configuration);
+
+    configure(current_display_configuration);
 }
 
 mgo::Display::~Display() noexcept
@@ -186,7 +179,7 @@ void mgo::Display::configure(mg::DisplayConfiguration const& conf)
             {
                 geom::Rectangle const area{
                     output.top_left, output.modes[output.current_mode_index].size};
-                auto raw_db = new mgo::DisplayBuffer{egl_display, egl_config,
+                auto raw_db = new mgo::DisplayBuffer{egl_display,
                                                      egl_context_shared, area};
 
                 display_buffers.push_back(std::unique_ptr<mg::DisplayBuffer>(raw_db));
@@ -223,5 +216,5 @@ std::weak_ptr<mg::Cursor> mgo::Display::the_cursor()
 std::unique_ptr<mg::GLContext> mgo::Display::create_gl_context()
 {
     return std::unique_ptr<GLContext>{
-        new OffscreenGLContext{egl_display, egl_config, egl_context_shared}};
+        new OffscreenGLContext{egl_display, egl_context_shared}};
 }
