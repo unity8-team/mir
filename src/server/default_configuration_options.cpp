@@ -154,6 +154,8 @@ mir::DefaultConfigurationOptions::DefaultConfigurationOptions(int argc, char con
             "threads in frontend thread pool.")
         (name_opt, po::value<std::string>(),
             "When nested, the name Mir uses when registering with the host.")
+        ("offscreen",
+            "Render offscreen")
         ("vt", po::value<int>(),
             "VT to run on or 0 to use current. [int:default=0]");
 }
