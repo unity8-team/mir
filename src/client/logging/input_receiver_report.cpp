@@ -41,14 +41,84 @@ mcll::InputReceiverReport::InputReceiverReport(std::shared_ptr<ml::Logger> const
 namespace
 {
 
+static std::string format_key_action(MirKeyAction action)
+{
+    std::stringstream ss;
+
+    static std::string key_action_strings[] = { "mir_key_action_down", "mir_key_action_up",
+                                                "mir_key_action_multiple" };
+    ss << key_action_strings[action];
+    
+    return ss.str();
+}
+
+static std::string format_key_flags(MirKeyFlag flags)
+{
+    std::stringstream ss;
+
+    static std::tuple<MirKeyFlag, char const*> key_flag_strings[] = {
+        std::make_tuple(mir_key_flag_woke_here, "mir_key_flag_woke_here"),
+        std::make_tuple(mir_key_flag_soft_keyboard, "mir_key_flag_soft_keyboard"),
+        std::make_tuple(mir_key_flag_keep_touch_mode, "mir_key_flag_keep_touch_mode"),
+        std::make_tuple(mir_key_flag_from_system, "mir_key_flag_from_system"),
+        std::make_tuple(mir_key_flag_editor_action, "mir_key_flag_editor_action"),
+        std::make_tuple(mir_key_flag_canceled, "mir_key_flag_canceled"),
+        std::make_tuple(mir_key_flag_virtual_hard_key, "mir_key_flag_virtual_hard_key"),
+        std::make_tuple(mir_key_flag_long_press, "mir_key_flag_long_press"),
+        std::make_tuple(mir_key_flag_canceled_long_press, "mir_key_flag_canceled_long_press"),
+        std::make_tuple(mir_key_flag_tracking, "mir_key_flag_tracking"),
+        std::make_tuple(mir_key_flag_fallback, "mir_key_flag_fallback")
+    };
+    for (unsigned int i = 0; i < sizeof(key_flag_strings)/sizeof(*key_flag_strings); i++) {
+        auto flag = std::get<0>(key_flag_strings[i]);
+        auto const& str = std::get<1>(key_flag_strings[i]);
+        if (flags & flag)
+            ss << str << " ";
+    }
+    return ss.str();
+}
+
+static std::string format_modifiers (unsigned int modifiers)
+{
+    std::stringstream ss;
+
+    static std::tuple<MirKeyModifier, char const*> key_modifier_strings[] = {
+        std::make_tuple(mir_key_modifier_none, "mir_key_modifier_none"),
+        std::make_tuple(mir_key_modifier_alt, "mir_key_modifier_alt"),
+        std::make_tuple(mir_key_modifier_alt_left, "mir_key_modifier_alt_left"),
+        std::make_tuple(mir_key_modifier_alt_right, "mir_key_modifier_alt_right"),
+        std::make_tuple(mir_key_modifier_shift, "mir_key_modifier_shift"),
+        std::make_tuple(mir_key_modifier_shift_left, "mir_key_modifier_shift_left"),
+        std::make_tuple(mir_key_modifier_shift_right, "mir_key_modifier_shift_right"),
+        std::make_tuple(mir_key_modifier_sym, "mir_key_modifier_sym"),
+        std::make_tuple(mir_key_modifier_function, "mir_key_modifier_function"),
+        std::make_tuple(mir_key_modifier_ctrl, "mir_key_modifier_ctrl"),
+        std::make_tuple(mir_key_modifier_ctrl_left, "mir_key_modifier_ctrl_left"),
+        std::make_tuple(mir_key_modifier_ctrl_right, "mir_key_modifier_ctrl_right"),
+        std::make_tuple(mir_key_modifier_meta, "mir_key_modifier_meta"),
+        std::make_tuple(mir_key_modifier_meta_left, "mir_key_modifier_meta_left"),
+        std::make_tuple(mir_key_modifier_meta_right, "mir_key_modifier_meta_right"),
+        std::make_tuple(mir_key_modifier_caps_lock, "mir_key_modifier_caps_lock"),
+        std::make_tuple(mir_key_modifier_num_lock, "mir_key_modifier_num_lock"),
+        std::make_tuple(mir_key_modifier_scroll_lock, "mir_key_modifier_scroll_lock")
+    };
+    for (unsigned int i = 0; i < sizeof(key_modifier_strings)/sizeof(*key_modifier_strings); i++) {
+        auto modifier = std::get<0>(key_modifier_strings[i]);
+        auto str = std::get<1>(key_modifier_strings[i]);
+        if (modifiers & modifier)
+            ss << str << " ";
+    }
+    return ss.str();
+}
+
 static void format_key_event(std::stringstream &ss, MirKeyEvent const& ev)
 {
     ss << "MirKeyEvent {" << std::endl;
     ss << "  device_id: " << ev.device_id << std::endl;
     ss << "  source_id: " << ev.source_id << std::endl;
-    ss << "  action: " << ev.action << std::endl;
-    ss << "  flags: " << ev.flags << std::endl;
-    ss << "  modifiers: " << ev.modifiers << std::endl;
+    ss << "  action: " << format_key_action(ev.action) << std::endl;
+    ss << "  flags: " << format_key_flags(ev.flags) << std::endl;
+    ss << "  modifiers: " << format_modifiers(ev.modifiers) << std::endl;
     ss << "  key_code: " << ev.key_code << std::endl;
     ss << "  scan_code: " << ev.scan_code << std::endl;
     ss << "  repeat_count: " << ev.repeat_count << std::endl;
@@ -57,17 +127,72 @@ static void format_key_event(std::stringstream &ss, MirKeyEvent const& ev)
     ss << "  is_system_key: " << ev.is_system_key << std::endl;
     ss << "}";
 }
+
+static std::string format_motion_action(int action)
+{
+    std::stringstream ss;
+
+    static std::string motion_action_strings[] = {
+        "mir_motion_action_down",
+        "mir_motion_action_up",
+        "mir_motion_action_move",
+        "mir_motion_action_cancel",
+        "mir_motion_action_outside",
+        "mir_motion_action_pointer_down",
+        "mir_motion_action_pointer_up",
+        "mir_motion_action_hover_move",
+        "mir_motion_action_scroll",
+        "mir_motion_action_hover_enter",
+        "mir_motion_action_hover_exit"
+    };
+
+    ss << motion_action_strings[action];
+
+    return ss.str();
+}
+
+static std::string format_motion_flags(MirMotionFlag flags)
+{
+    std::stringstream ss;
+
+    if (flags & mir_motion_flag_window_is_obscured)
+        ss << "mir_motion_flag_window_is_obscured";
+    
+    return ss.str();
+}
+
+static std::string format_button_state(MirMotionButton button_state)
+{
+    std::stringstream ss;
+
+    static std::tuple<MirMotionButton, char const*> button_strings[] = {
+        std::make_tuple(mir_motion_button_primary, "mir_motion_button_primary"),
+        std::make_tuple(mir_motion_button_secondary, "mir_motion_button_secondary"),
+        std::make_tuple(mir_motion_button_tertiary, "mir_motion_button_tertiary"),
+        std::make_tuple(mir_motion_button_back, "mir_motion_button_back"),
+        std::make_tuple(mir_motion_button_forward, "mir_motion_button_forward")
+    };
+    for (unsigned int i = 0; i < sizeof(button_strings)/sizeof(*button_strings); i++)
+    {
+        auto button = std::get<0>(button_strings[i]);
+        auto str = std::get<1>(button_strings[i]);
+        if (button_state & button)
+            ss << str << " ";
+    }
+    return ss.str();
+}
+
 static void format_motion_event(std::stringstream &ss, MirMotionEvent const& ev)
 {
     ss << "MirMotionEvent{" << std::endl;
     ss << "  type: motion" << std::endl;
     ss << "  device_id: " << ev.device_id << std::endl;
     ss << "  source_id: " << ev.source_id << std::endl;
-    ss << "  action: " << ev.action << std::endl;
-    ss << "  flags: " << ev.flags << std::endl;
-    ss << "  modifiers: " << ev.modifiers << std::endl;
+    ss << "  action: " << format_motion_action(ev.action) << std::endl;
+    ss << "  flags: " << format_motion_flags(ev.flags) << std::endl;
+    ss << "  modifiers: " << format_modifiers(ev.modifiers) << std::endl;
     ss << "  edge_flags: " << ev.edge_flags << std::endl;
-    ss << "  button_state: " << ev.button_state << std::endl;
+    ss << "  button_state: " << format_button_state(ev.button_state) << std::endl;
     ss << "  x_offset: " << ev.x_offset << std::endl;
     ss << "  y_offset: " << ev.y_offset << std::endl;
     ss << "  x_precision: " << ev.x_precision << std::endl;
@@ -75,15 +200,13 @@ static void format_motion_event(std::stringstream &ss, MirMotionEvent const& ev)
     ss << "  down_time: " << ev.down_time << std::endl;
     ss << "  event_time: " << ev.event_time << std::endl;
     ss << "  pointer_count: " << ev.pointer_count << std::endl;
-    for (unsigned int i = 0; i < ev.pointer_count; i++)
-    {
+    for (unsigned int i = 0; i < ev.pointer_count; i++) {
         ss << "  pointer[" << i << "]{" << std::endl;
         ss << "    id: " << ev.pointer_coordinates[i].id << std::endl;
-        ss << "    x: " << ev.pointer_coordinates[i].x << std::endl;
         ss << "    raw_x: " << ev.pointer_coordinates[i].raw_x << std::endl;
-        ss << "    y: " << ev.pointer_coordinates[i].y << std::endl;
         ss << "    raw_y: " << ev.pointer_coordinates[i].raw_y << std::endl;
-        ss << "    touch_major: " << ev.pointer_coordinates[i].touch_major << std::endl;
+        ss << "    x: " << ev.pointer_coordinates[i].x << std::endl; 
+        ss << "    y: " << ev.pointer_coordinates[i].y << std::endl;
         ss << "    touch_minor: " << ev.pointer_coordinates[i].touch_minor << std::endl;
         ss << "    size: " << ev.pointer_coordinates[i].size << std::endl;
         ss << "    pressure: " << ev.pointer_coordinates[i].pressure << std::endl;
@@ -92,9 +215,8 @@ static void format_motion_event(std::stringstream &ss, MirMotionEvent const& ev)
         ss << "    hscroll: " << ev.pointer_coordinates[i].hscroll << std::endl;
         ss << "  }" << std::endl;
     }
-    ss << "}";
+    
 }
-
 static void format_event(std::stringstream &ss, MirEvent const& ev)
 {
     switch (ev.type)
