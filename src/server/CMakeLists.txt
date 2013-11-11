@@ -58,6 +58,7 @@ list(APPEND MIRSERVER_ARCHIVES
 list(APPEND MIRSERVER_LINKS
   mirprotobuf
   mirnestedgraphics
+  miroffscreengraphics
   mirclient
   3rd_party
   ${EGL_LDFLAGS} ${EGL_LIBRARIES}

@@ -21,6 +21,7 @@
 #define MIR_GRAPHICS_PLATFORM_H_
 
 #include <memory>
+#include <EGL/egl.h>
 
 namespace mir
 {
@@ -104,6 +105,11 @@ public:
      * Creates the in-process client support object.
      */
     virtual std::shared_ptr<InternalClient> create_internal_client() = 0;
+
+    /**
+     * The EGL native display used by the platform.
+     */
+    virtual EGLNativeDisplayType egl_native_display() = 0;
 };
 
 /**
