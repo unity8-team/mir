@@ -20,6 +20,8 @@
 #ifndef MIR_GRAPHICS_PLATFORM_H_
 #define MIR_GRAPHICS_PLATFORM_H_
 
+#include "offscreen_platform.h"
+
 #include <memory>
 #include <EGL/egl.h>
 
@@ -58,7 +60,7 @@ class GraphicBufferAllocator;
  * Interface to platform specific support for graphics operations.
  * \ingroup platform_enablement
  */
-class Platform
+class Platform : public OffscreenPlatform
 {
 public:
     Platform() = default;
@@ -105,11 +107,6 @@ public:
      * Creates the in-process client support object.
      */
     virtual std::shared_ptr<InternalClient> create_internal_client() = 0;
-
-    /**
-     * The EGL native display used by the platform.
-     */
-    virtual EGLNativeDisplayType egl_native_display() const = 0;
 };
 
 /**

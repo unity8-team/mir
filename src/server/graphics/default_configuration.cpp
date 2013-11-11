@@ -114,7 +114,7 @@ mir::DefaultServerConfiguration::the_display()
             if (the_options()->is_set("offscreen"))
             {
                 return std::make_shared<mg::offscreen::Display>(
-                    the_graphics_platform()->egl_native_display(),
+                    the_graphics_platform(),
                     the_display_configuration_policy(),
                     the_display_report());
             }

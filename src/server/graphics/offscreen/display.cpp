@@ -18,6 +18,7 @@
 
 #include "display.h"
 #include "display_buffer.h"
+#include "mir/graphics/offscreen_platform.h"
 #include "mir/graphics/display_configuration_policy.h"
 #include "mir/graphics/gl_context.h"
 #include "mir/geometry/size.h"
@@ -76,11 +77,11 @@ private:
     mg::EGLContextStore const egl_context;
 };
 
-EGLDisplay create_and_initialize_display(EGLNativeDisplayType native_display)
+EGLDisplay create_and_initialize_display(mg::OffscreenPlatform& offscreen_platform)
 {
     EGLint major, minor;
 
-    auto egl_display = eglGetDisplay(native_display);
+    auto egl_display = eglGetDisplay(offscreen_platform.egl_native_display());
     if (egl_display == EGL_NO_DISPLAY)
         BOOST_THROW_EXCEPTION(std::runtime_error("eglGetDisplay failed\n"));
 
@@ -120,16 +121,17 @@ EGLConfig choose_config(EGLDisplay egl_display)
 }
 
 mgo::Display::Display(
-    EGLNativeDisplayType native_display,
+    std::shared_ptr<OffscreenPlatform> const& offscreen_platform,
     std::shared_ptr<DisplayConfigurationPolicy> const& initial_conf_policy,
     std::shared_ptr<DisplayReport> const&)
-    : current_display_configuration{geom::Size{1024,768}},
-      egl_display{create_and_initialize_display(native_display)},
+    : offscreen_platform{offscreen_platform},
+      egl_display{create_and_initialize_display(*offscreen_platform)},
       dummy_egl_surface{egl_display},
       egl_context_shared{egl_display,
                          eglCreateContext(egl_display, dummy_egl_surface.config(),
                                           EGL_NO_CONTEXT,
-                                          default_egl_context_attr)}
+                                          default_egl_context_attr)},
+      current_display_configuration{geom::Size{1024,768}}
 {
     /*
      * Make the shared context current. This needs to be done before we configure()
