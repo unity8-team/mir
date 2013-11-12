@@ -36,7 +36,7 @@ if (MIR_ENABLE_INTEGRATION_TESTS)
 endif (MIR_ENABLE_INTEGRATION_TESTS)
 
 add_subdirectory(mir_test/)
-add_subdirectory(mir_test_framework/)
+#add_subdirectory(mir_test_framework/)
 add_subdirectory(mir_test_doubles/)
 add_subdirectory(draw/)
 add_subdirectory(client-language/)

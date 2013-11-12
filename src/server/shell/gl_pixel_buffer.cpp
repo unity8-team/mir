@@ -75,16 +75,25 @@ void msh::GLPixelBuffer::prepare()
 {
     gl_context->make_current();
 
+#ifdef TEX
     if (tex == 0)
         glGenTextures(1, &tex);
 
     glBindTexture(GL_TEXTURE_2D, tex);
     glActiveTexture(GL_TEXTURE0);
+#else
+    if (tex == 0)
+    {
+        glGenRenderbuffers(1, &tex);
+    }
+    glBindRenderbuffer(GL_RENDERBUFFER, tex);
+#endif
 
     if (fbo == 0)
         glGenFramebuffers(1, &fbo);
 
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
 }
 
 void msh::GLPixelBuffer::fill_from(graphics::Buffer& buffer)
@@ -96,9 +105,13 @@ void msh::GLPixelBuffer::fill_from(graphics::Buffer& buffer)
 
     prepare();
 
-    buffer.bind_to_texture();
+    buffer.bind_to_texture(1);
 
+#ifdef TEX
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex, 0);
+#else
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, tex);
+#endif
 
     /* First try to get pixels as BGRA */
     glGetError();
@@ -114,6 +127,9 @@ void msh::GLPixelBuffer::fill_from(graphics::Buffer& buffer)
 
     size_ = buffer.size();
     pixels_need_y_flip = true;
+
+printf("DONE!\n");
+//    gl_context->release_current();
 }
 
 void const* msh::GLPixelBuffer::as_argb_8888()

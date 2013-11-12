@@ -50,7 +50,7 @@ public:
     geometry::Size size() const;
     geometry::Stride stride() const;
     geometry::PixelFormat pixel_format() const;
-    void bind_to_texture();
+    void bind_to_texture(int);
     bool can_bypass() const override;
 
     //note, you will get the native representation of an android buffer, including

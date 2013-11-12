@@ -274,7 +274,7 @@ void mc::GLRenderer::render(
     glBindTexture(GL_TEXTURE_2D, resources.texture);
 
     auto region_resource = stream.lock_compositor_buffer(frameno);
-    region_resource->bind_to_texture();
+    region_resource->bind_to_texture(0);
     save_resource(region_resource);
 
     /* Draw */

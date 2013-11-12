@@ -32,7 +32,11 @@ mg::EGLExtensions::EGLExtensions()
               eglGetProcAddress("eglDestroyImageKHR"))},
       glEGLImageTargetTexture2DOES{
           reinterpret_cast<PFNGLEGLIMAGETARGETTEXTURE2DOESPROC>(
-              eglGetProcAddress("glEGLImageTargetTexture2DOES"))}
+              eglGetProcAddress("glEGLImageTargetTexture2DOES"))},
+      glEGLImageTargetRenderbufferStorage{
+          reinterpret_cast<PFNGLEGLIMAGETARGETRENDERBUFFERSTORAGEOESPROC>(
+              eglGetProcAddress("glEGLImageTargetRenderbufferStorage"))}
+
 {
     if (!eglCreateImageKHR || !eglDestroyImageKHR)
         BOOST_THROW_EXCEPTION(std::runtime_error("EGL implementation doesn't support EGLImage"));

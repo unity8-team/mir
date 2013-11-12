@@ -74,7 +74,7 @@ bool mga::Buffer::can_bypass() const
     return false;
 }
 
-void mga::Buffer::bind_to_texture()
+void mga::Buffer::bind_to_texture(int what)
 {
     std::unique_lock<std::mutex> lk(content_lock);
     native_buffer->wait_for_content();
@@ -105,7 +105,10 @@ void mga::Buffer::bind_to_texture()
         image = it->second;
     }
 
-    egl_extensions->glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, image);
+    if ( what == 0)
+        egl_extensions->glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, image);
+    else 
+        egl_extensions->glEGLImageTargetRenderbufferStorage(GL_RENDERBUFFER, image);
 
     //TODO: we should make use of the android egl fence extension here to update the fence.
     //      if the extension is not available, we should pass out a token that the user

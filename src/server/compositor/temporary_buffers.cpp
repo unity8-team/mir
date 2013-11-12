@@ -84,9 +84,9 @@ mg::BufferID mc::TemporaryBuffer::id() const
     return buffer->id();
 }
 
-void mc::TemporaryBuffer::bind_to_texture()
+void mc::TemporaryBuffer::bind_to_texture(int b)
 {
-    buffer->bind_to_texture();
+    buffer->bind_to_texture(b);
 }
 
 std::shared_ptr<mg::NativeBuffer> mc::TemporaryBuffer::native_buffer_handle() const
