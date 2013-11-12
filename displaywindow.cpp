@@ -27,6 +27,7 @@ DisplayWindow::DisplayWindow(QWindow *window, mir::graphics::DisplayBuffer *disp
     QRect screenGeometry(screen()->availableGeometry());
     if (window->geometry() != screenGeometry) {
         QWindowSystemInterface::handleGeometryChange(window, screenGeometry);
+        QPlatformWindow::setGeometry(screenGeometry);
     }
     window->setSurfaceType(QSurface::OpenGLSurface);
 }
