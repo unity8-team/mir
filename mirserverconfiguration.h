@@ -38,6 +38,7 @@ public:
     ~MirServerConfiguration();
 
     /* mir specific */
+    std::shared_ptr<mir::compositor::Compositor> the_compositor() override;
     std::shared_ptr<mir::shell::SessionListener> the_shell_session_listener() override;
     std::shared_ptr<mir::shell::SurfaceConfigurator> the_shell_surface_configurator() override;
     std::shared_ptr<mir::frontend::SessionAuthorizer> the_session_authorizer() override;

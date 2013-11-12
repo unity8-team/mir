@@ -82,17 +82,18 @@ QPlatformWindow *MirServerIntegration::createPlatformWindow(QWindow *window) con
     if (!displayWindow)
         return nullptr;
 
-    displayWindow->requestActivateWindow();
+    //displayWindow->requestActivateWindow();
     return displayWindow;
 }
 
 QPlatformBackingStore *MirServerIntegration::createPlatformBackingStore(QWindow *window) const
 {
-
+    qDebug() << "createPlatformBackingStore" << window;
 }
 
 QPlatformOpenGLContext *MirServerIntegration::createPlatformOpenGLContext(QOpenGLContext *context) const
 {
+    qDebug() << "createPlatformOpenGLContext" << context;
     return new MirOpenGLContext(m_mirConfig, context->format());
 }
 

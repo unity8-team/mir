@@ -19,6 +19,7 @@
 #include "sessionlistener.h"
 #include "surfaceconfigurator.h"
 #include "sessionauthorizer.h"
+#include "voidcompositor.h"
 #include "logging.h"
 
 namespace msh = mir::shell;
@@ -63,6 +64,16 @@ MirServerConfiguration::the_session_authorizer()
     {
         return std::make_shared<SessionAuthorizer>();
     });
+}
+
+std::shared_ptr<mir::compositor::Compositor>
+MirServerConfiguration::the_compositor()
+{
+    return compositor(
+        [this]()
+        {
+            return std::make_shared<VoidCompositor>();
+        });
 }
 
 /************************************ Shell side ************************************/
