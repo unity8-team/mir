@@ -1,0 +1,12 @@
+This repo contains a QPA plugin to make Qt a Mir server.
+
+To use, compile and install, run:
+
+export QT_QPA_PLATFORM=mirserver
+
+then run the Qt application of your choice (qmlscene best).
+
+
+Author: Gerry Boland <gerry.boland@gmail.com>
+
+
