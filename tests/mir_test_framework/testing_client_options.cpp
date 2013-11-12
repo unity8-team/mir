@@ -73,8 +73,9 @@ class StubClientBuffer : public mcl::ClientBuffer
 
 struct StubClientBufferFactory : public mcl::ClientBufferFactory
 {
-    std::shared_ptr<mcl::ClientBuffer> create_buffer(std::shared_ptr<MirBufferPackage> const&,
-                                                     geom::Size, geom::PixelFormat)
+    std::shared_ptr<mcl::ClientBuffer> create_buffer(
+        std::shared_ptr<MirBufferPackage> const&,
+        geom::PixelFormat)
     {
         return std::make_shared<StubClientBuffer>();
     }

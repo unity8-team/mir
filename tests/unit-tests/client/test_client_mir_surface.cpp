@@ -116,6 +116,8 @@ struct MockServerPackageGenerator : public StubServerTool
             server_package.data[i] = (global_buffer_id + i) * 2;
         }
         server_package.stride = stride_sent;
+        server_package.width = width_sent;
+        server_package.height = height_sent;
     }
 
     MirBufferPackage server_package;
@@ -148,6 +150,8 @@ struct MockServerPackageGenerator : public StubServerTool
         }
 
         response->set_stride(server_package.stride);
+        response->set_width(server_package.width);
+        response->set_height(server_package.height);
     }
 
     void create_surface_response(mir::protobuf::Surface* response)
@@ -191,15 +195,15 @@ struct MockClientBufferFactory : public mcl::ClientBufferFactory
 
         emptybuffer=std::make_shared<NiceMock<MockBuffer>>();
 
-        ON_CALL(*this, create_buffer(_,_,_))
+        ON_CALL(*this, create_buffer(_,_))
             .WillByDefault(DoAll(SaveArg<0>(&current_package),
                                  InvokeWithoutArgs([this] () {this->current_buffer = std::make_shared<NiceMock<MockBuffer>>();}),
                                  ReturnPointee(&current_buffer)));
     }
 
-    MOCK_METHOD3(create_buffer,
+    MOCK_METHOD2(create_buffer,
                  std::shared_ptr<mcl::ClientBuffer>(std::shared_ptr<MirBufferPackage> const&,
-                                                    geom::Size, geom::PixelFormat));
+                                                    geom::PixelFormat));
 
     std::shared_ptr<MirBufferPackage> current_package;
     std::shared_ptr<mcl::ClientBuffer> current_buffer;
@@ -355,7 +359,7 @@ TEST_F(MirClientSurfaceTest, client_buffer_created_on_surface_creation)
 {
     using namespace testing;
 
-    EXPECT_CALL(*mock_buffer_factory, create_buffer(_,_,_))
+    EXPECT_CALL(*mock_buffer_factory, create_buffer(_,_))
         .Times(1);
 
     auto surface = std::make_shared<MirSurface> (connection.get(), *client_comm_channel, mock_buffer_factory, input_platform, params, &empty_callback, nullptr);
@@ -373,7 +377,7 @@ TEST_F(MirClientSurfaceTest, client_buffer_created_on_next_buffer)
 {
     using namespace testing;
 
-    EXPECT_CALL(*mock_buffer_factory, create_buffer(_,_,_))
+    EXPECT_CALL(*mock_buffer_factory, create_buffer(_,_))
         .Times(1);
 
     auto surface = std::make_shared<MirSurface> (connection.get(), *client_comm_channel, mock_buffer_factory, input_platform, params, &empty_callback, nullptr);
@@ -381,7 +385,7 @@ TEST_F(MirClientSurfaceTest, client_buffer_created_on_next_buffer)
     auto wait_handle = surface->get_create_wait_handle();
     wait_handle->wait_for_all();
 
-    EXPECT_CALL(*mock_buffer_factory, create_buffer(_,_,_))
+    EXPECT_CALL(*mock_buffer_factory, create_buffer(_,_))
         .Times(1);
     auto buffer_wait_handle = surface->next_buffer(&empty_surface_callback, nullptr);
     buffer_wait_handle->wait_for_all();
@@ -407,7 +411,7 @@ TEST_F(MirClientSurfaceTest, client_buffer_uses_ipc_message_from_server_on_creat
     using namespace testing;
 
     std::shared_ptr<MirBufferPackage> submitted_package;
-    EXPECT_CALL(*mock_buffer_factory, create_buffer(_,_,_))
+    EXPECT_CALL(*mock_buffer_factory, create_buffer(_,_))
         .Times(1)
         .WillOnce(DoAll(SaveArg<0>(&submitted_package),
                         Return(mock_buffer_factory->emptybuffer)));
@@ -425,12 +429,11 @@ TEST_F(MirClientSurfaceTest, message_width_used_in_buffer_creation )
 {
     using namespace testing;
 
-    geom::Size sz;
     std::shared_ptr<MirBufferPackage> submitted_package;
 
-    EXPECT_CALL(*mock_buffer_factory, create_buffer(_,_,_))
+    EXPECT_CALL(*mock_buffer_factory, create_buffer(_,_))
         .Times(1)
-        .WillOnce(DoAll(SaveArg<1>(&sz),
+        .WillOnce(DoAll(SaveArg<0>(&submitted_package),
                         Return(mock_buffer_factory->emptybuffer)));
 
     auto surface = std::make_shared<MirSurface> (connection.get(), *client_comm_channel, mock_buffer_factory, input_platform, params, &empty_callback, nullptr);
@@ -438,19 +441,18 @@ TEST_F(MirClientSurfaceTest, message_width_used_in_buffer_creation )
     auto wait_handle = surface->get_create_wait_handle();
     wait_handle->wait_for_all();
 
-    EXPECT_EQ(sz.width.as_uint32_t(), (unsigned int) mock_server_tool->width_sent);
+    EXPECT_EQ(submitted_package->width, mock_server_tool->width_sent);
 }
 
 TEST_F(MirClientSurfaceTest, message_height_used_in_buffer_creation )
 {
     using namespace testing;
 
-    geom::Size sz;
     std::shared_ptr<MirBufferPackage> submitted_package;
 
-    EXPECT_CALL(*mock_buffer_factory, create_buffer(_,_,_))
+    EXPECT_CALL(*mock_buffer_factory, create_buffer(_,_))
         .Times(1)
-        .WillOnce(DoAll(SaveArg<1>(&sz),
+        .WillOnce(DoAll(SaveArg<0>(&submitted_package),
                         Return(mock_buffer_factory->emptybuffer)));
 
     auto surface = std::make_shared<MirSurface> (connection.get(), *client_comm_channel, mock_buffer_factory, input_platform, params, &empty_callback, nullptr);
@@ -458,7 +460,7 @@ TEST_F(MirClientSurfaceTest, message_height_used_in_buffer_creation )
     auto wait_handle = surface->get_create_wait_handle();
     wait_handle->wait_for_all();
 
-    EXPECT_EQ(sz.height.as_uint32_t(), (unsigned int) mock_server_tool->height_sent);
+    EXPECT_EQ(submitted_package->height, mock_server_tool->height_sent);
 }
 
 TEST_F(MirClientSurfaceTest, message_pf_used_in_buffer_creation )
@@ -468,9 +470,9 @@ TEST_F(MirClientSurfaceTest, message_pf_used_in_buffer_creation )
     geom::PixelFormat pf;
     std::shared_ptr<MirBufferPackage> submitted_package;
 
-    EXPECT_CALL(*mock_buffer_factory, create_buffer(_,_,_))
+    EXPECT_CALL(*mock_buffer_factory, create_buffer(_,_))
         .Times(1)
-        .WillOnce(DoAll(SaveArg<2>(&pf),
+        .WillOnce(DoAll(SaveArg<1>(&pf),
                         Return(mock_buffer_factory->emptybuffer)));
 
     auto surface = std::make_shared<MirSurface> (connection.get(), *client_comm_channel, mock_buffer_factory, input_platform, params, &empty_callback, nullptr);
@@ -498,7 +500,7 @@ TEST_F(MirClientSurfaceTest, input_fd_used_to_create_input_thread_when_delegate_
     auto mock_input_thread = std::make_shared<NiceMock<mt::MockInputReceiverThread>>();
     MirEventDelegate delegate = {null_event_callback, nullptr};
 
-    EXPECT_CALL(*mock_buffer_factory, create_buffer(_,_,_)).Times(2);
+    EXPECT_CALL(*mock_buffer_factory, create_buffer(_,_)).Times(2);
 
     EXPECT_CALL(*mock_input_platform, create_input_thread(_, _)).Times(1)
         .WillOnce(Return(mock_input_thread));
@@ -526,7 +528,7 @@ TEST_F(MirClientSurfaceTest, get_buffer_returns_last_received_buffer_package)
 {
     using namespace testing;
 
-    EXPECT_CALL(*mock_buffer_factory, create_buffer(_,_,_))
+    EXPECT_CALL(*mock_buffer_factory, create_buffer(_,_))
         .Times(1);
 
     auto surface = std::make_shared<MirSurface> (connection.get(),
@@ -540,7 +542,7 @@ TEST_F(MirClientSurfaceTest, get_buffer_returns_last_received_buffer_package)
     wait_handle->wait_for_all();
     Mock::VerifyAndClearExpectations(mock_buffer_factory.get());
 
-    EXPECT_CALL(*mock_buffer_factory, create_buffer(_,_,_))
+    EXPECT_CALL(*mock_buffer_factory, create_buffer(_,_))
         .Times(1);
     auto buffer_wait_handle = surface->next_buffer(&empty_surface_callback, nullptr);
     buffer_wait_handle->wait_for_all();
@@ -552,7 +554,7 @@ TEST_F(MirClientSurfaceTest, default_surface_type)
     using namespace testing;
     using namespace mir::protobuf;
 
-    EXPECT_CALL(*mock_buffer_factory, create_buffer(_,_,_))
+    EXPECT_CALL(*mock_buffer_factory, create_buffer(_,_))
         .Times(1);
 
     auto surface = std::make_shared<MirSurface> (connection.get(),
@@ -627,8 +629,9 @@ struct StubClientBufferFactory : public mcl::ClientBufferFactory
 {
     std::shared_ptr<mcl::ClientBuffer> create_buffer(
         std::shared_ptr<MirBufferPackage> const& package,
-        geom::Size size, geom::PixelFormat pf)
+        geom::PixelFormat pf)
     {
+        geom::Size const size{package->width, package->height};
         return std::make_shared<StubBuffer>(size,
                                             geom::Stride{package->stride},
                                             pf);

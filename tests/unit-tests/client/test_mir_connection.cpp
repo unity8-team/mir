@@ -77,8 +77,9 @@ struct MockRpcChannel : public mir::client::rpc::MirBasicRpcChannel
 
 struct StubClientBufferFactory : public mcl::ClientBufferFactory
 {
-    std::shared_ptr<mcl::ClientBuffer> create_buffer(std::shared_ptr<MirBufferPackage> const& /* package */,
-                                                     geom::Size /*size*/, geom::PixelFormat /*pf*/) override
+    std::shared_ptr<mcl::ClientBuffer> create_buffer(
+        std::shared_ptr<MirBufferPackage> const& /* package */,
+        geom::PixelFormat /*pf*/) override
     {
         return std::shared_ptr<mcl::ClientBuffer>();
     }

@@ -39,8 +39,10 @@ class GBMClientBufferFactory : public ClientBufferFactory
 public:
     explicit GBMClientBufferFactory(std::shared_ptr<DRMFDHandler> const& drm_fd_handler);
 
-    std::shared_ptr<ClientBuffer> create_buffer(std::shared_ptr<MirBufferPackage> const& package,
-                                                geometry::Size size, geometry::PixelFormat pf);
+    std::shared_ptr<ClientBuffer> create_buffer(
+        std::shared_ptr<MirBufferPackage> const& package,
+        geometry::PixelFormat pf);
+
 private:
     std::shared_ptr<DRMFDHandler> drm_fd_handler;
 };

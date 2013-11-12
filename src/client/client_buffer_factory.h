@@ -42,11 +42,11 @@ public:
      * Creates the client-side representation of a buffer.
      *
      * \param [in] package the buffer package sent by the server for this buffer
-     * \param [in] size the buffer's size
      * \param [in] pf the buffer's pixel format
      */
-    virtual std::shared_ptr<ClientBuffer> create_buffer(std::shared_ptr<MirBufferPackage> const& package,
-                                                        geometry::Size size, geometry::PixelFormat pf) = 0;
+    virtual std::shared_ptr<ClientBuffer> create_buffer(
+        std::shared_ptr<MirBufferPackage> const& package,
+        geometry::PixelFormat pf) = 0;
 
 protected:
     ClientBufferFactory() = default;

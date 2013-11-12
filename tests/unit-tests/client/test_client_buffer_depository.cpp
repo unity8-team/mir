@@ -63,14 +63,14 @@ struct MockClientBufferFactory : public mcl::ClientBufferFactory
 
         // Some tests, quite reasonably, rely on create_buffer returning a different buffer each time
         // Handle this by first updating our "buffer" temporary, then returning-by-pointee.
-        ON_CALL(*this, create_buffer(_,_,_))
+        ON_CALL(*this, create_buffer(_,_))
             .WillByDefault(DoAll(InvokeWithoutArgs([this]() {this->buffer = std::make_shared<NiceMock<MockBuffer>>();}),
                                  ReturnPointee(&buffer)));
     }
 
-    MOCK_METHOD3(create_buffer,
+    MOCK_METHOD2(create_buffer,
                  std::shared_ptr<mcl::ClientBuffer>(std::shared_ptr<MirBufferPackage> const&,
-                                                    geom::Size, geom::PixelFormat));
+                                                    geom::PixelFormat));
 
     std::shared_ptr<mcl::ClientBuffer> buffer;
 };
@@ -107,7 +107,7 @@ TEST_F(MirBufferDepositoryTest, depository_sets_width_and_height)
 
     mcl::ClientBufferDepository depository{mock_factory, 3};
 
-    EXPECT_CALL(*mock_factory, create_buffer(_,size,pf))
+    EXPECT_CALL(*mock_factory, create_buffer(_,pf))
         .Times(1);
     depository.deposit_package(package, 8, size, pf);
 }
@@ -345,7 +345,7 @@ TEST_F(MirBufferDepositoryTest, depository_caches_recently_seen_buffer)
     auto package1 = std::make_shared<MirBufferPackage>();
     auto package2 = std::make_shared<MirBufferPackage>();
 
-    EXPECT_CALL(*mock_factory, create_buffer(_,_,_))
+    EXPECT_CALL(*mock_factory, create_buffer(_,_))
         .Times(1);
 
     depository.deposit_package(package1, 8, size, pf);
@@ -362,7 +362,7 @@ TEST_F(MirBufferDepositoryTest, depository_creates_new_buffer_for_different_id)
     auto package1 = std::make_shared<MirBufferPackage>();
     auto package2 = std::make_shared<MirBufferPackage>();
 
-    EXPECT_CALL(*mock_factory, create_buffer(_,_,_))
+    EXPECT_CALL(*mock_factory, create_buffer(_,_))
         .Times(2);
 
     depository.deposit_package(package1, 8, size, pf);
@@ -375,7 +375,7 @@ TEST_F(MirBufferDepositoryTest, depository_keeps_last_2_buffers_regardless_of_ag
 
     mcl::ClientBufferDepository depository{mock_factory, 2};
 
-    EXPECT_CALL(*mock_factory, create_buffer(_,_,_)).Times(2);
+    EXPECT_CALL(*mock_factory, create_buffer(_,_)).Times(2);
 
     depository.deposit_package(package, 8, size, pf);
     depository.deposit_package(package, 9, size, pf);
@@ -390,7 +390,7 @@ TEST_F(MirBufferDepositoryTest, depository_keeps_last_3_buffers_regardless_of_ag
 
     mcl::ClientBufferDepository depository{mock_factory, 3};
 
-    EXPECT_CALL(*mock_factory, create_buffer(_,_,_)).Times(3);
+    EXPECT_CALL(*mock_factory, create_buffer(_,_)).Times(3);
 
     depository.deposit_package(package, 8, size, pf);
     depository.deposit_package(package, 9, size, pf);
