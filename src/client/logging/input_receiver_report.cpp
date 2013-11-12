@@ -41,77 +41,71 @@ mcll::InputReceiverReport::InputReceiverReport(std::shared_ptr<ml::Logger> const
 namespace
 {
 
-static std::string format_key_action(MirKeyAction action)
+std::string format_key_action(MirKeyAction action)
 {
-    std::stringstream ss;
-
     static std::string key_action_strings[] = { "mir_key_action_down", "mir_key_action_up",
                                                 "mir_key_action_multiple" };
-    ss << key_action_strings[action];
-    
-    return ss.str();
+    return key_action_strings[action];
 }
 
-static std::string format_key_flags(MirKeyFlag flags)
+std::string format_key_flags(MirKeyFlag flags)
 {
     std::stringstream ss;
 
-    static std::tuple<MirKeyFlag, char const*> key_flag_strings[] = {
-        std::make_tuple(mir_key_flag_woke_here, "mir_key_flag_woke_here"),
-        std::make_tuple(mir_key_flag_soft_keyboard, "mir_key_flag_soft_keyboard"),
-        std::make_tuple(mir_key_flag_keep_touch_mode, "mir_key_flag_keep_touch_mode"),
-        std::make_tuple(mir_key_flag_from_system, "mir_key_flag_from_system"),
-        std::make_tuple(mir_key_flag_editor_action, "mir_key_flag_editor_action"),
-        std::make_tuple(mir_key_flag_canceled, "mir_key_flag_canceled"),
-        std::make_tuple(mir_key_flag_virtual_hard_key, "mir_key_flag_virtual_hard_key"),
-        std::make_tuple(mir_key_flag_long_press, "mir_key_flag_long_press"),
-        std::make_tuple(mir_key_flag_canceled_long_press, "mir_key_flag_canceled_long_press"),
-        std::make_tuple(mir_key_flag_tracking, "mir_key_flag_tracking"),
-        std::make_tuple(mir_key_flag_fallback, "mir_key_flag_fallback")
+    static struct { MirKeyFlag flag; char const* str; } const key_flag_strings[] = {
+        { mir_key_flag_woke_here, "mir_key_flag_woke_here" },
+        { mir_key_flag_soft_keyboard, "mir_key_flag_soft_keyboard" },
+        { mir_key_flag_keep_touch_mode, "mir_key_flag_keep_touch_mode" },
+        { mir_key_flag_from_system, "mir_key_flag_from_system" },
+        { mir_key_flag_editor_action, "mir_key_flag_editor_action" },
+        { mir_key_flag_canceled, "mir_key_flag_canceled" },
+        { mir_key_flag_virtual_hard_key, "mir_key_flag_virtual_hard_key" },
+        { mir_key_flag_long_press, "mir_key_flag_long_press" },
+        { mir_key_flag_canceled_long_press, "mir_key_flag_canceled_long_press" },
+        { mir_key_flag_tracking, "mir_key_flag_tracking" },
+        { mir_key_flag_fallback, "mir_key_flag_fallback" }
     };
-    for (unsigned int i = 0; i < sizeof(key_flag_strings)/sizeof(*key_flag_strings); i++) {
-        auto flag = std::get<0>(key_flag_strings[i]);
-        auto const& str = std::get<1>(key_flag_strings[i]);
-        if (flags & flag)
-            ss << str << " ";
+    for (auto const& entry : key_flag_strings)
+    {
+        if (flags & entry.flag)
+            ss << entry.str << " ";
     }
     return ss.str();
 }
 
-static std::string format_modifiers (unsigned int modifiers)
+std::string format_modifiers (unsigned int modifiers)
 {
     std::stringstream ss;
 
-    static std::tuple<MirKeyModifier, char const*> key_modifier_strings[] = {
-        std::make_tuple(mir_key_modifier_none, "mir_key_modifier_none"),
-        std::make_tuple(mir_key_modifier_alt, "mir_key_modifier_alt"),
-        std::make_tuple(mir_key_modifier_alt_left, "mir_key_modifier_alt_left"),
-        std::make_tuple(mir_key_modifier_alt_right, "mir_key_modifier_alt_right"),
-        std::make_tuple(mir_key_modifier_shift, "mir_key_modifier_shift"),
-        std::make_tuple(mir_key_modifier_shift_left, "mir_key_modifier_shift_left"),
-        std::make_tuple(mir_key_modifier_shift_right, "mir_key_modifier_shift_right"),
-        std::make_tuple(mir_key_modifier_sym, "mir_key_modifier_sym"),
-        std::make_tuple(mir_key_modifier_function, "mir_key_modifier_function"),
-        std::make_tuple(mir_key_modifier_ctrl, "mir_key_modifier_ctrl"),
-        std::make_tuple(mir_key_modifier_ctrl_left, "mir_key_modifier_ctrl_left"),
-        std::make_tuple(mir_key_modifier_ctrl_right, "mir_key_modifier_ctrl_right"),
-        std::make_tuple(mir_key_modifier_meta, "mir_key_modifier_meta"),
-        std::make_tuple(mir_key_modifier_meta_left, "mir_key_modifier_meta_left"),
-        std::make_tuple(mir_key_modifier_meta_right, "mir_key_modifier_meta_right"),
-        std::make_tuple(mir_key_modifier_caps_lock, "mir_key_modifier_caps_lock"),
-        std::make_tuple(mir_key_modifier_num_lock, "mir_key_modifier_num_lock"),
-        std::make_tuple(mir_key_modifier_scroll_lock, "mir_key_modifier_scroll_lock")
+    static struct { MirKeyModifier modifier; char const* str; } const key_modifier_strings[] = {
+        { mir_key_modifier_none, "mir_key_modifier_none" },
+        { mir_key_modifier_alt, "mir_key_modifier_alt" },
+        { mir_key_modifier_alt_left, "mir_key_modifier_alt_left" },
+        { mir_key_modifier_alt_right, "mir_key_modifier_alt_right" },
+        { mir_key_modifier_shift, "mir_key_modifier_shift" },
+        { mir_key_modifier_shift_left, "mir_key_modifier_shift_left" },
+        { mir_key_modifier_shift_right, "mir_key_modifier_shift_right" },
+        { mir_key_modifier_sym, "mir_key_modifier_sym" },
+        { mir_key_modifier_function, "mir_key_modifier_function" },
+        { mir_key_modifier_ctrl, "mir_key_modifier_ctrl" },
+        { mir_key_modifier_ctrl_left, "mir_key_modifier_ctrl_left" },
+        { mir_key_modifier_ctrl_right, "mir_key_modifier_ctrl_right" },
+        { mir_key_modifier_meta, "mir_key_modifier_meta" },
+        { mir_key_modifier_meta_left, "mir_key_modifier_meta_left" },
+        { mir_key_modifier_meta_right, "mir_key_modifier_meta_right" },
+        { mir_key_modifier_caps_lock, "mir_key_modifier_caps_lock" },
+        { mir_key_modifier_num_lock, "mir_key_modifier_num_lock" },
+        { mir_key_modifier_scroll_lock, "mir_key_modifier_scroll_lock" }
     };
-    for (unsigned int i = 0; i < sizeof(key_modifier_strings)/sizeof(*key_modifier_strings); i++) {
-        auto modifier = std::get<0>(key_modifier_strings[i]);
-        auto str = std::get<1>(key_modifier_strings[i]);
-        if (modifiers & modifier)
-            ss << str << " ";
+    for (auto const& entry : key_modifier_strings)
+    {
+        if (modifiers & entry.modifier)
+            ss << entry.str << " ";
     }
     return ss.str();
 }
 
-static void format_key_event(std::stringstream &ss, MirKeyEvent const& ev)
+void format_key_event(std::stringstream &ss, MirKeyEvent const& ev)
 {
     ss << "MirKeyEvent {" << std::endl;
     ss << "  device_id: " << ev.device_id << std::endl;
@@ -128,11 +122,11 @@ static void format_key_event(std::stringstream &ss, MirKeyEvent const& ev)
     ss << "}";
 }
 
-static std::string format_motion_action(int action)
+std::string format_motion_action(int action)
 {
     std::stringstream ss;
 
-    static std::string motion_action_strings[] = {
+    static std::string const motion_action_strings[] = {
         "mir_motion_action_down",
         "mir_motion_action_up",
         "mir_motion_action_move",
@@ -151,7 +145,7 @@ static std::string format_motion_action(int action)
     return ss.str();
 }
 
-static std::string format_motion_flags(MirMotionFlag flags)
+std::string format_motion_flags(MirMotionFlag flags)
 {
     std::stringstream ss;
 
@@ -161,28 +155,26 @@ static std::string format_motion_flags(MirMotionFlag flags)
     return ss.str();
 }
 
-static std::string format_button_state(MirMotionButton button_state)
+std::string format_button_state(MirMotionButton button_state)
 {
     std::stringstream ss;
 
-    static std::tuple<MirMotionButton, char const*> button_strings[] = {
-        std::make_tuple(mir_motion_button_primary, "mir_motion_button_primary"),
-        std::make_tuple(mir_motion_button_secondary, "mir_motion_button_secondary"),
-        std::make_tuple(mir_motion_button_tertiary, "mir_motion_button_tertiary"),
-        std::make_tuple(mir_motion_button_back, "mir_motion_button_back"),
-        std::make_tuple(mir_motion_button_forward, "mir_motion_button_forward")
+    static struct { MirMotionButton button; char const* str; } const button_strings[] = {
+        { mir_motion_button_primary, "mir_motion_button_primary" },
+        { mir_motion_button_secondary, "mir_motion_button_secondary" },
+        { mir_motion_button_tertiary, "mir_motion_button_tertiary" },
+        { mir_motion_button_back, "mir_motion_button_back" },
+        { mir_motion_button_forward, "mir_motion_button_forward" }
     };
-    for (unsigned int i = 0; i < sizeof(button_strings)/sizeof(*button_strings); i++)
+    for (auto const& entry : button_strings)
     {
-        auto button = std::get<0>(button_strings[i]);
-        auto str = std::get<1>(button_strings[i]);
-        if (button_state & button)
-            ss << str << " ";
+        if (button_state & entry.button)
+            ss << entry.str << " ";
     }
     return ss.str();
 }
 
-static void format_motion_event(std::stringstream &ss, MirMotionEvent const& ev)
+void format_motion_event(std::stringstream &ss, MirMotionEvent const& ev)
 {
     ss << "MirMotionEvent{" << std::endl;
     ss << "  type: motion" << std::endl;
@@ -215,9 +207,11 @@ static void format_motion_event(std::stringstream &ss, MirMotionEvent const& ev)
         ss << "    hscroll: " << ev.pointer_coordinates[i].hscroll << std::endl;
         ss << "  }" << std::endl;
     }
+    ss << "}" << std::endl;
     
 }
-static void format_event(std::stringstream &ss, MirEvent const& ev)
+
+void format_event(std::stringstream &ss, MirEvent const& ev)
 {
     switch (ev.type)
     {
