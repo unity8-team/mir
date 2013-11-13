@@ -5,6 +5,7 @@ QT -= gui
 QT += core-private gui-private platformsupport-private
 
 CONFIG += plugin
+CONFIG += no_keywords  # "signals" clashes with Mir
 
 # CONFIG += c++11 # only enables C++0x
 QMAKE_CXXFLAGS = -std=c++11

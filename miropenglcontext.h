@@ -22,8 +22,8 @@ public:
     QFunctionPointer getProcAddress(const QByteArray &procName) override;
 
 private:
-    QSurfaceFormat m_format;
     mir::DefaultServerConfiguration *m_mirConfig;
+    QSurfaceFormat m_format;
 };
 
 #endif // MIROPENGLCONTEXT_H

@@ -36,8 +36,11 @@ public:
         : mir::DisplayServer(config)
     {}
 
+Q_SIGNALS:
+    void stopped();
+
 public Q_SLOTS:
-    void run() { mir::DisplayServer::run(); }
+    void run() { mir::DisplayServer::run(); Q_EMIT stopped(); }
     void stop() { mir::DisplayServer::stop(); }
 };
 

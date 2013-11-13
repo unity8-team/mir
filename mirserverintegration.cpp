@@ -12,9 +12,15 @@
 #include <QStringList>
 #include <QOpenGLContext>
 
+#include <QDebug>
+
 // Mir
 #include <mir/graphics/display.h>
 #include <mir/graphics/display_buffer.h>
+#include <mir/main_loop.h>
+
+// std
+#include <csignal>
 
 // local
 #include "displaywindow.h"
@@ -56,9 +62,9 @@ bool MirServerIntegration::hasCapability(QPlatformIntegration::Capability cap) c
     switch (cap) {
     case ThreadedPixmaps: return true;
     case OpenGL: return true;
-    case ThreadedOpenGL: return false;
-    case BufferQueueingOpenGL: return false; // CHECKME(gerry)
-    case MultipleWindows: return false; // multi-monitor support
+    case ThreadedOpenGL: return true;
+    case BufferQueueingOpenGL: return false; // CHECKME(gerry) - slows everything considerably
+    case MultipleWindows: return true; // multi-monitor support
     case WindowManagement: return false; // platform has no WM, as this implements the WM!
     case NonFullScreenWindows: return false;
     default: return QPlatformIntegration::hasCapability(cap);
@@ -109,6 +115,17 @@ void MirServerIntegration::initialize()
 
     for (QPlatformScreen *screen : m_display->screens())
         screenAdded(screen);
+
+    // install signal handler into the Mir event loop
+    auto mainLoop = m_mirConfig->the_main_loop();
+
+    mainLoop->register_signal_handler(
+    {SIGINT, SIGTERM},
+    [&](int)
+    {
+        qDebug() << "Signal caught, stopping Mir server..";
+        QCoreApplication::exit(0);
+    });
 }
 
 QPlatformAccessibility *MirServerIntegration::accessibility() const

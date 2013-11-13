@@ -10,11 +10,12 @@
 // (i.e. individual display output buffers) to use as a common base context.
 
 MirOpenGLContext::MirOpenGLContext(mir::DefaultServerConfiguration *config, QSurfaceFormat format)
-    : m_format(format)
-    , m_mirConfig(config)
+    : m_mirConfig(config)
+    , m_format(format)
 {
     // Customize QSurfaceFormat from information obtained from Mir's Display
     m_format.setRenderableType(QSurfaceFormat::OpenGLES);
+
 //    m_format.setSwapBehavior(QSurfaceFormat::SingleBuffer);
     m_format.setAlphaBufferSize(8);
     m_format.setBlueBufferSize(8);

@@ -22,6 +22,8 @@
 #include "voidcompositor.h"
 #include "logging.h"
 
+#include <QDebug>
+
 namespace msh = mir::shell;
 namespace ms = mir::surfaces;
 
@@ -34,6 +36,7 @@ MirServerConfiguration::MirServerConfiguration(int argc, char const* argv[], QOb
 
 MirServerConfiguration::~MirServerConfiguration()
 {
+    qDebug() << "~MirServerConfiguration";
 }
 
 std::shared_ptr<msh::SessionListener>

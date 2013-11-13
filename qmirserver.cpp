@@ -17,6 +17,7 @@
 // Qt
 #include <QObject>
 #include <QCoreApplication>
+#include <QDebug>
 
 // local
 #include "qmirserver.h"
@@ -30,10 +31,12 @@ QMirServer::QMirServer(MirServerConfiguration *config, QObject *parent)
     m_mirServer->moveToThread(&m_mirThread);
 
     connect(this, &QMirServer::run, m_mirServer, &MirServerWorker::run);
-    connect(this, &QMirServer::stop, m_mirServer, &MirServerWorker::stop, Qt::DirectConnection);
-    m_mirThread.start(QThread::HighPriority);
+    connect(this, &QMirServer::stop, m_mirServer, &MirServerWorker::stop);
 
     connect(QCoreApplication::instance(), &QCoreApplication::aboutToQuit, this, &QMirServer::shutDown);
+    connect(m_mirServer, &MirServerWorker::stopped, [=]() { m_mirThread.quit(); }); // &m_mirThread, &QThread::quit); // why doens't this work??
+
+    m_mirThread.start(QThread::HighPriority);
     Q_EMIT run();
 }
 
@@ -45,8 +48,11 @@ QMirServer::~QMirServer()
 void QMirServer::shutDown()
 {
     if (m_mirThread.isRunning()) {
-        Q_EMIT stop();
-        m_mirThread.quit();
+        m_mirServer->stop();
+        //Q_EMIT stop(); // why doesn't this work??
         m_mirThread.wait();
     }
+
+    if (m_mirServer) 
+        delete m_mirServer; //->deleteLater(); // causes crash, but does clean up. Probably SGRender thread not finished.
 }
