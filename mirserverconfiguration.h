@@ -20,7 +20,6 @@
 #include <QObject>
 #include <mir/default_server_configuration.h>
 
-
 class SessionListener;
 class SessionAuthorizer;
 class SurfaceConfigurator;

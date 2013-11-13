@@ -28,6 +28,8 @@ MirServerIntegration::MirServerIntegration()
     : m_accessibility(new QPlatformAccessibility())
     , m_fontDb(new QGenericUnixFontDatabase())
     , m_services(new QPlatformServices())
+    , m_mirServer(nullptr)
+    , m_display(nullptr)
 {
     // Start Mir server only once Qt has initialized its event dispatcher, see initialize()
 
@@ -42,10 +44,6 @@ MirServerIntegration::MirServerIntegration()
     argv[args.size()] = ((char)NULL);
 
     m_mirConfig = new MirServerConfiguration(args.length(), const_cast<const char**>(argv));
-    m_display = new Display(m_mirConfig);
-
-    for (QPlatformScreen *screen : m_display->screens())
-        screenAdded(screen);
 }
 
 MirServerIntegration::~MirServerIntegration()
@@ -58,11 +56,11 @@ bool MirServerIntegration::hasCapability(QPlatformIntegration::Capability cap) c
     switch (cap) {
     case ThreadedPixmaps: return true;
     case OpenGL: return true;
-    case ThreadedOpenGL: return true;
+    case ThreadedOpenGL: return false;
+    case BufferQueueingOpenGL: return false; // CHECKME(gerry)
+    case MultipleWindows: return false; // multi-monitor support
     case WindowManagement: return false; // platform has no WM, as this implements the WM!
-    case BufferQueueingOpenGL: return true; // CHECKME(gerry)
     case NonFullScreenWindows: return false;
-    case MultipleWindows: return true; // multi-monitor support
     default: return QPlatformIntegration::hasCapability(cap);
     }
 }
@@ -106,6 +104,11 @@ void MirServerIntegration::initialize()
 {
     // Creates instance of and start the Mir server in a separate thread
     m_mirServer = new QMirServer(m_mirConfig);
+
+    m_display = new Display(m_mirConfig);
+
+    for (QPlatformScreen *screen : m_display->screens())
+        screenAdded(screen);
 }
 
 QPlatformAccessibility *MirServerIntegration::accessibility() const

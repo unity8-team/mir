@@ -5,8 +5,6 @@
 #include <QSurfaceFormat>
 #include <QDebug>
 
-#include <QtPlatformSupport/private/qeglconvenience_p.h>
-
 // Qt supports one GL context per screen, but also shared contexts.
 // The Mir "Display" generates a shared GL context for all DisplayBuffers
 // (i.e. individual display output buffers) to use as a common base context.
@@ -15,7 +13,15 @@ MirOpenGLContext::MirOpenGLContext(mir::DefaultServerConfiguration *config, QSur
     : m_format(format)
     , m_mirConfig(config)
 {
-    format.setRenderableType(QSurfaceFormat::OpenGLES);
+    // Customize QSurfaceFormat from information obtained from Mir's Display
+    m_format.setRenderableType(QSurfaceFormat::OpenGLES);
+//    m_format.setSwapBehavior(QSurfaceFormat::SingleBuffer);
+    m_format.setAlphaBufferSize(8);
+    m_format.setBlueBufferSize(8);
+    m_format.setGreenBufferSize(8);
+    m_format.setRedBufferSize(8);
+    m_format.setDepthBufferSize(8);
+    m_format.setSamples(2);
 
     const char* string = (const char*) glGetString(GL_VENDOR);
     qDebug() << "OpenGL ES vendor: " << qPrintable(string);
@@ -36,24 +42,20 @@ MirOpenGLContext::~MirOpenGLContext()
 QSurfaceFormat MirOpenGLContext::format() const
 {
     qDebug() << "MirOpenGLContext::format()";
-    // construct QSurfaceFormat from information obtained from Mir's Display
+    qDebug() << m_format;
     return m_format;
 }
 
 void MirOpenGLContext::swapBuffers(QPlatformSurface *surface)
 {
-    qDebug() << "MirOpenGLContext::swapBuffers()" << surface;
-
-    // needs to call Mir's DisplayBuffer::post_update()
+    // ultimately calls Mir's DisplayBuffer::post_update()
     DisplayWindow *displayBuffer = static_cast<DisplayWindow*>(surface);
     displayBuffer->swapBuffers(); //blocks for vsync
 }
 
 bool MirOpenGLContext::makeCurrent(QPlatformSurface *surface)
 {
-    qDebug() << "MirOpenGLContext::makeCurrent" << surface;
-
-    // needs to call Mir's DisplayBuffer::make_current()
+    // ultimately calls Mir's DisplayBuffer::make_current()
     DisplayWindow *displayBuffer = static_cast<DisplayWindow*>(surface);
     if (displayBuffer) {
         displayBuffer->makeCurrent();

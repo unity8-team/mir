@@ -17,7 +17,7 @@ public:
     bool makeCurrent(QPlatformSurface *surface) override;
     void doneCurrent() override;
 
-    bool isSharing() const override { return true; }
+    bool isSharing() const override { return false; }
 
     QFunctionPointer getProcAddress(const QByteArray &procName) override;
 

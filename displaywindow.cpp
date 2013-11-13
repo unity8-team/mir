@@ -43,19 +43,15 @@ void DisplayWindow::setGeometry(const QRect &)
 
 void DisplayWindow::swapBuffers()
 {
-    qDebug() << "DisplayWindow::swapBuffers" << m_displayBuffer;
     m_displayBuffer->post_update();
 }
 
 void DisplayWindow::makeCurrent()
 {
-    qDebug() << "DisplayWindow::makeCurrent" << m_displayBuffer;
     m_displayBuffer->make_current();
-    qDebug() << "..done";
 }
 
 void DisplayWindow::doneCurrent()
 {
     m_displayBuffer->release_current();
 }
-

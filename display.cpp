@@ -3,6 +3,7 @@
 #include "screen.h"
 
 #include <mir/graphics/display_configuration.h>
+#include <QDebug>
 
 namespace mg = mir::graphics;
 
@@ -15,8 +16,10 @@ Display::Display(mir::DefaultServerConfiguration *config, QObject *parent)
     std::shared_ptr<mir::graphics::DisplayConfiguration> displayConfig = m_mirConfig->the_display()->configuration();
 
     displayConfig->for_each_output([this](mg::DisplayConfigurationOutput const& output) {
-        auto screen = new Screen(output);
-        m_screens.push_back(screen);
+        if (output.used) {
+            auto screen = new Screen(output);
+            m_screens.push_back(screen);
+        }
     });
 }
 
