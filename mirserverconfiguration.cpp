@@ -36,7 +36,6 @@ MirServerConfiguration::MirServerConfiguration(int argc, char const* argv[], QOb
 
 MirServerConfiguration::~MirServerConfiguration()
 {
-    qDebug() << "~MirServerConfiguration";
 }
 
 std::shared_ptr<msh::SessionListener>

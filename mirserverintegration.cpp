@@ -124,7 +124,7 @@ void MirServerIntegration::initialize()
     [&](int)
     {
         qDebug() << "Signal caught, stopping Mir server..";
-        QCoreApplication::exit(0);
+        QCoreApplication::quit();
     });
 }
 
