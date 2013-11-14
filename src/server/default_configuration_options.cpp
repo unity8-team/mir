@@ -19,6 +19,8 @@
 #include "mir/default_configuration_options.h"
 #include "mir/abnormal_exit.h"
 
+#include <posix/this_process.h>
+
 namespace
 {
 void parse_arguments(

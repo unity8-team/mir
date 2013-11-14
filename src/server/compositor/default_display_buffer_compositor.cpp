@@ -27,7 +27,11 @@
 #include "mir/surfaces/buffer_stream.h"
 #include "bypass.h"
 #include "occlusion.h"
+
+#include <posix/this_process.h>
+
 #include <mutex>
+#include <iostream>
 #include <cstdlib>
 #include <vector>
 
@@ -96,7 +100,12 @@ void mc::DefaultDisplayBufferCompositor::composite()
             local_frameno = global_frameno;
     }
 
-    static bool const bypass_env{[]{ auto const env = getenv("MIR_BYPASS"); return !env || env[0] != '0'; }()};
+    static const std::string disable_bypass{"0"};
+    static bool const bypass_env
+    {
+        disable_bypass != posix::this_process::env::get("MIR_BYPASS")
+    };
+
     bool bypassed = false;
 
     if (bypass_env && display_buffer.can_bypass())

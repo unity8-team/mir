@@ -30,6 +30,8 @@
 #include "default_connection_configuration.h"
 #include "lifecycle_control.h"
 
+#include <posix/this_process.h>
+
 #include <set>
 #include <unordered_set>
 #include <cstddef>
@@ -86,11 +88,9 @@ MirWaitHandle* mir_default_connect(
             sock = socket_file;
         else
         {
-            auto socket_env = getenv("MIR_SOCKET");
-            if (socket_env)
-                sock = socket_env;
-            else
-                sock = mir::default_server_socket;
+            sock = posix::this_process::env::get(
+                        "MIR_SOCKET",
+                        mir::default_server_socket);
         }
 
         mcl::DefaultConnectionConfiguration conf{sock};

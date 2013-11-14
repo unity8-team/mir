@@ -24,6 +24,8 @@
 #include "mir/report_exception.h"
 #include "mir/run_mir.h"
 
+#include <posix/this_process.h>
+
 #include <iostream>
 
 namespace
@@ -45,9 +47,12 @@ struct ServerConfiguration : mir::examples::ServerConfiguration
     {
         if (the_options()->is_set(launch_child_opt))
         {
-            char buffer[128] = {0};
-            sprintf(buffer, "fd://%d", the_connector()->client_socket_fd());
-            setenv("MIR_SOCKET", buffer, 1);
+            std::error_code ec;
+            posix::this_process::env::set(
+                        "MIR_SOCKET",
+                        "fd://" + std::to_string(the_connector()->client_socket_fd()),
+                        ec);
+            if (ec) { /* We really should handle errors here. */ }
             auto ignore = system((the_options()->get(launch_child_opt, "") + "&").c_str());
             (void)ignore;
         }

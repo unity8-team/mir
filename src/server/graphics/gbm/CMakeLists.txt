@@ -4,6 +4,7 @@ include_directories(
     ${EGL_INCLUDE_DIRS}
     ${GLESv2_INCLUDE_DIRS}
     ${UDEV_INCLUDE_DIRS}
+    ${PROCESS_CPP_INCLUDE_DIRS}
 )
 
 # gbm.h and drm.h have trailing commas at the end of enum definitions
@@ -45,6 +46,7 @@ target_link_libraries(
   ${EGL_LDFLAGS} ${EGL_LIBRARIES}
   ${GLESv2_LDFLAGS} ${GLESv2_LIBRARIES}
   ${UDEV_LDFLAGS} ${UDEV_LIBRARIES}
+  ${PROCESS_CPP_LIBRARIES}
 )
 
 install(TARGETS mirplatformgraphics LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})

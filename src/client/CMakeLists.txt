@@ -87,6 +87,7 @@ set(
   ${LIBHARDWARE_LIBRARIES}
   ${PROTOBUF_LIBRARIES}
   ${XKBCOMMON_LIBRARIES}
+  ${PROCESS_CPP_LIBRARIES}
 
   mirprotobuf
   mirsharedinput

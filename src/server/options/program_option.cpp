@@ -18,6 +18,8 @@
 
 #include "mir/options/program_option.h"
 
+#include <posix/this_process.h>
+
 #include <boost/program_options/parsers.hpp>
 
 #include <fstream>
@@ -73,15 +75,25 @@ void mo::ProgramOption::parse_file(
 {
     std::string config_roots;
 
-    if (auto config_home = getenv("XDG_CONFIG_HOME"))
-        (config_roots = config_home) += ":";
-    else if (auto home = getenv("HOME"))
-        (config_roots = home) += "/.config:";
+    try
+    {
+        (config_roots = posix::this_process::env::get_or_throw("XDG_CONFIG_HOME")) += ":";
+    } catch(const std::runtime_error&)
+    {
+        // get_or_throw indicates an unknown environment variable by throwing
+        // a std::runtime_error.
+        try
+        {
+            (config_roots = posix::this_process::env::get_or_throw("HOME")) += "/.config:";
+        } catch(const std::runtime_error&)
+        {
+            // get_or_throw indicates an unknown environment variable by throwing
+            // a std::runtime_error. We ignore the exception here as we cannot
+            // look further through the environment for HOME-like config roots.
+        }
+    }
 
-    if (auto config_dirs = getenv("XDG_CONFIG_DIRS"))
-        config_roots += config_dirs;
-    else
-        config_roots += "/etc/xdg";
+    config_roots += posix::this_process::env::get("XDG_CONFIG_DIRS", "/etc/xdg");
 
     std::istringstream config_stream(config_roots);
 

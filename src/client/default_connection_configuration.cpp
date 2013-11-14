@@ -29,6 +29,8 @@
 #include "connection_surface_map.h"
 #include "lifecycle_control.h"
 
+#include <posix/this_process.h>
+
 namespace mcl = mir::client;
 
 namespace
@@ -106,8 +108,7 @@ mcl::DefaultConnectionConfiguration::the_rpc_report()
     return rpc_report(
         [this] () -> std::shared_ptr<mcl::rpc::RpcReport>
         {
-            auto val_raw = getenv("MIR_CLIENT_RPC_REPORT");
-            std::string const val{val_raw ? val_raw : off_opt_val};
+            auto val = posix::this_process::env::get("MIR_CLIENT_RPC_REPORT", "");
 
             if (val == log_opt_val)
                 return std::make_shared<mcl::logging::RpcReport>(the_logger());

@@ -24,6 +24,9 @@
 #include "mir/graphics/buffer_initializer.h"
 #include "mir/graphics/egl_extensions.h"
 #include "mir/graphics/buffer_properties.h"
+
+#include <posix/this_process.h>
+
 #include <boost/throw_exception.hpp>
 
 #include <EGL/egl.h>
@@ -115,8 +118,8 @@ mgg::GBMBufferAllocator::GBMBufferAllocator(
 {
     assert(buffer_initializer.get() != 0);
 
-    const char *env = getenv("MIR_BYPASS");
-    bypass_env = env ? env[0] != '0' : true;
+    static const std::string disable_bypass{"0"};
+    bypass_env = disable_bypass != posix::this_process::env::get("MIR_BYPASS");
 }
 
 std::shared_ptr<mg::Buffer> mgg::GBMBufferAllocator::alloc_buffer(BufferProperties const& buffer_properties)
