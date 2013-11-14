@@ -13,6 +13,7 @@ class DisplayWindow : public QPlatformWindow
 public:
     explicit DisplayWindow(QWindow *window, mir::graphics::DisplayBuffer*);
 
+    QRect geometry() const override;
     void setGeometry(const QRect &rect) override;
     WId winId() const { return m_winId; }
 

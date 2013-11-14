@@ -1,9 +1,15 @@
 #include "miropenglcontext.h"
 
 #include "displaywindow.h"
+#include "mirserverconfiguration.h"
+
+#include <QDebug>
 
 #include <QSurfaceFormat>
-#include <QDebug>
+#include <QtPlatformSupport/private/qeglconvenience_p.h>
+
+// Mir
+#include <mir/graphics/display.h>
 
 // Qt supports one GL context per screen, but also shared contexts.
 // The Mir "Display" generates a shared GL context for all DisplayBuffers
@@ -11,19 +17,12 @@
 
 MirOpenGLContext::MirOpenGLContext(mir::DefaultServerConfiguration *config, QSurfaceFormat format)
     : m_mirConfig(config)
-    , m_format(format)
 {
-    // Customize QSurfaceFormat from information obtained from Mir's Display
-    m_format.setRenderableType(QSurfaceFormat::OpenGLES);
+    std::shared_ptr<mir::graphics::Display> display = m_mirConfig->the_display();
 
-//    m_format.setSwapBehavior(QSurfaceFormat::SingleBuffer);
-    m_format.setAlphaBufferSize(8);
-    m_format.setBlueBufferSize(8);
-    m_format.setGreenBufferSize(8);
-    m_format.setRedBufferSize(8);
-    m_format.setDepthBufferSize(8);
-    m_format.setSamples(2);
+    m_format = q_glFormatFromConfig(display->the_gl_display(), display->the_gl_config(), format);
 
+#ifndef QT_NO_DEBUG
     const char* string = (const char*) glGetString(GL_VENDOR);
     qDebug() << "OpenGL ES vendor: " << qPrintable(string);
     string = (const char*) glGetString(GL_RENDERER);
@@ -34,6 +33,8 @@ MirOpenGLContext::MirOpenGLContext(mir::DefaultServerConfiguration *config, QSur
     qDebug() << "OpenGL ES Shading Language version:" << qPrintable(string);
     string = (const char*) glGetString(GL_EXTENSIONS);
     qDebug() << "OpenGL ES extensions:" << qPrintable(string);
+    q_printEglConfig(display->the_gl_display(), display->the_gl_config());
+#endif
 }
 
 MirOpenGLContext::~MirOpenGLContext()
@@ -42,8 +43,6 @@ MirOpenGLContext::~MirOpenGLContext()
 
 QSurfaceFormat MirOpenGLContext::format() const
 {
-    qDebug() << "MirOpenGLContext::format()";
-    qDebug() << m_format;
     return m_format;
 }
 
@@ -73,5 +72,5 @@ void MirOpenGLContext::doneCurrent()
 QFunctionPointer MirOpenGLContext::getProcAddress(const QByteArray &procName)
 {
     qDebug() << "MirOpenGLContext::getProcAddress" << procName;
-    //??
+    return eglGetProcAddress(procName.constData()); // Mir might want to wrap this?
 }

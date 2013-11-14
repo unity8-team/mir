@@ -26,10 +26,17 @@ DisplayWindow::DisplayWindow(QWindow *window, mir::graphics::DisplayBuffer *disp
 
     QRect screenGeometry(screen()->availableGeometry());
     if (window->geometry() != screenGeometry) {
-        QWindowSystemInterface::handleGeometryChange(window, screenGeometry);
-        QPlatformWindow::setGeometry(screenGeometry);
+        setGeometry(screenGeometry);
     }
     window->setSurfaceType(QSurface::OpenGLSurface);
+}
+
+QRect DisplayWindow::geometry() const
+{
+    // For yet-to-become-fullscreen windows report the geometry covering the entire
+    // screen. This is particularly important for Quick where the root object may get
+    // sized to some geometry queried before calling create().
+    return screen()->availableGeometry();
 }
 
 void DisplayWindow::setGeometry(const QRect &)
@@ -37,7 +44,6 @@ void DisplayWindow::setGeometry(const QRect &)
     // We only support full-screen windows
     QRect rect(screen()->availableGeometry());
     QWindowSystemInterface::handleGeometryChange(window(), rect);
-
     QPlatformWindow::setGeometry(rect);
 }
 
