@@ -26,7 +26,8 @@ SOURCES += plugin.cpp \
     displaywindow.cpp \
     mirserverintegration.cpp \
     miropenglcontext.cpp \
-    voidcompositor.cpp
+    voidcompositor.cpp \
+    nativeinterface.cpp
 
 HEADERS += plugin.h \
     qmirserver.h \
@@ -40,7 +41,8 @@ HEADERS += plugin.h \
     displaywindow.h \
     mirserverintegration.h \
     miropenglcontext.h \
-    voidcompositor.h
+    voidcompositor.h \
+    nativeinterface.h
 
 # Installation path
 target.path +=  $$[QT_INSTALL_PLUGINS]/platforms

@@ -8,6 +8,7 @@
 #include "qmirserver.h"
 #include "mirserverconfiguration.h"
 #include "display.h"
+#include "nativeinterface.h"
 
 class MirServerIntegration : public QPlatformIntegration
 {
@@ -30,6 +31,8 @@ public:
 
     QPlatformAccessibility *accessibility() const override;
 
+    QPlatformNativeInterface *nativeInterface() const override;
+
 private:
     QScopedPointer<QPlatformAccessibility> m_accessibility;
     QScopedPointer<QPlatformFontDatabase> m_fontDb;
@@ -37,6 +40,7 @@ private:
     QMirServer *m_mirServer;
     Display *m_display;
     MirServerConfiguration *m_mirConfig;
+    NativeInterface *m_nativeInterface;
 };
 
 #endif // MIRSERVERINTEGRATION_H

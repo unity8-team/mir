@@ -36,7 +36,7 @@ QMirServer::QMirServer(MirServerConfiguration *config, QObject *parent)
     connect(QCoreApplication::instance(), &QCoreApplication::aboutToQuit, this, &QMirServer::shutDown);
     connect(m_mirServer, &MirServerWorker::stopped, [=]() { m_mirThread.quit(); }); // &m_mirThread, &QThread::quit); // why doens't this work??
 
-    m_mirThread.start(QThread::HighPriority);
+    m_mirThread.start(QThread::TimeCriticalPriority);
     Q_EMIT run();
 }
 

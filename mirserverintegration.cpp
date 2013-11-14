@@ -36,6 +36,7 @@ MirServerIntegration::MirServerIntegration()
     , m_services(new QPlatformServices())
     , m_mirServer(nullptr)
     , m_display(nullptr)
+    , m_nativeInterface(nullptr)
 {
     // Start Mir server only once Qt has initialized its event dispatcher, see initialize()
 
@@ -63,8 +64,9 @@ bool MirServerIntegration::hasCapability(QPlatformIntegration::Capability cap) c
     case ThreadedPixmaps: return true;
     case OpenGL: return true;
     case ThreadedOpenGL: return true;
-    case BufferQueueingOpenGL: return false; // CHECKME(gerry) - slows everything considerably
-    case MultipleWindows: return true; // multi-monitor support
+    case SharedGraphicsCache: return true;
+    case BufferQueueingOpenGL: return false; // causes slowdown on Nexus4
+    case MultipleWindows: return false; // multi-monitor support
     case WindowManagement: return false; // platform has no WM, as this implements the WM!
     case NonFullScreenWindows: return false;
     default: return QPlatformIntegration::hasCapability(cap);
@@ -112,6 +114,7 @@ void MirServerIntegration::initialize()
     m_mirServer = new QMirServer(m_mirConfig);
 
     m_display = new Display(m_mirConfig);
+    m_nativeInterface = new NativeInterface(m_mirConfig);
 
     for (QPlatformScreen *screen : m_display->screens())
         screenAdded(screen);
@@ -141,4 +144,9 @@ QPlatformFontDatabase *MirServerIntegration::fontDatabase() const
 QPlatformServices *MirServerIntegration::services() const
 {
     return m_services.data();
+}
+
+QPlatformNativeInterface *MirServerIntegration::nativeInterface() const
+{
+    return m_nativeInterface;
 }
