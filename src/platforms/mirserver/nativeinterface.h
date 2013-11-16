@@ -1,5 +1,10 @@
+#ifndef NATIVEINTEGRATION_H
+#define NATIVEINTEGRATION_H
+
+// qt
 #include <qpa/qplatformnativeinterface.h>
 
+// local
 #include "mirserverconfiguration.h"
 
 class NativeInterface : public QPlatformNativeInterface
@@ -12,3 +17,5 @@ public:
 private:
     MirServerConfiguration *m_mirConfig;
 };
+
+#endif // NATIVEINTEGRATION_H

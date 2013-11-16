@@ -1,0 +1,4 @@
+module Unity.Application
+plugin unityapplicationplugin
+ApplicationImage 0.1 ApplicationImage.qml
+OSKController 0.1 OSKController.qml
