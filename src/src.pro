@@ -1,4 +1,4 @@
 TEMPLATE = subdirs
 
-SUBDIRS += platforms modules
-
+SUBDIRS += platforms/mirserver \
+    modules/Unity/Application

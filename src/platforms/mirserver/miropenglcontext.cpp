@@ -17,6 +17,7 @@
 
 MirOpenGLContext::MirOpenGLContext(mir::DefaultServerConfiguration *config, QSurfaceFormat format)
     : m_mirConfig(config)
+    , m_logger(new QOpenGLDebugLogger)
 {
     std::shared_ptr<mir::graphics::Display> display = m_mirConfig->the_display();
 
@@ -34,6 +35,9 @@ MirOpenGLContext::MirOpenGLContext(mir::DefaultServerConfiguration *config, QSur
     string = (const char*) glGetString(GL_EXTENSIONS);
     qDebug() << "OpenGL ES extensions:" << qPrintable(string);
     q_printEglConfig(display->the_gl_display(), display->the_gl_config());
+
+    QObject::connect(m_logger, &QOpenGLDebugLogger::messageLogged,
+                     this, &MirOpenGLContext::onGlDebugMessageLogged, Qt::DirectConnection);
 #endif
 }
 
@@ -59,6 +63,14 @@ bool MirOpenGLContext::makeCurrent(QPlatformSurface *surface)
     DisplayWindow *displayBuffer = static_cast<DisplayWindow*>(surface);
     if (displayBuffer) {
         displayBuffer->makeCurrent();
+
+#ifndef QT_NO_DEBUG
+        if (!m_logger->isLogging() && m_logger->initialize()) {
+            m_logger->startLogging(QOpenGLDebugLogger::SynchronousLogging);
+            m_logger->enableMessages();
+        }
+#endif
+
         return true;
     }
     return false;

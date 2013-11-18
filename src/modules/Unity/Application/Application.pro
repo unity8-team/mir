@@ -13,7 +13,7 @@ QMAKE_LFLAGS = -std=c++11 -Wl,-no-undefined
 PKGCONFIG += mircommon mirserver glib-2.0 upstart-app-launch-1
 
 INCLUDEPATH += ../../../platforms/mirserver
-LIBS += -L../../../platforms/mirserver -lmirserver
+LIBS += -L../../../platforms/mirserver -lqpa-mirserver
 
 TARGET = $$qtLibraryTarget($$TARGET)
 uri = Unity.Application
