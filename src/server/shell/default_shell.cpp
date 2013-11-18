@@ -16,7 +16,7 @@
  * Authored by: Thomas Voss <thomas.voss@canonical.com>
  */
 
-#include "mir/shell/default_shell.h"
+#include "default_shell.h"
 #include "mir/shell/application_session.h"
 #include "session_container.h"
 #include "mir/shell/surface_factory.h"

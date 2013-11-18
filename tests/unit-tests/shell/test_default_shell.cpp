@@ -17,13 +17,13 @@
  */
 
 #include "mir/compositor/buffer_stream.h"
-#include "mir/shell/default_shell.h"
 #include "src/server/shell/default_session_container.h"
 #include "mir/shell/session.h"
 #include "src/server/surfaces/surface_impl.h"
 #include "mir/shell/session_listener.h"
 #include "mir/shell/null_session_listener.h"
 #include "mir/shell/surface_creation_parameters.h"
+#include "src/server/shell/default_shell.h"
 #include "src/server/shell/session_event_sink.h"
 #include "src/server/surfaces/basic_surface.h"
 

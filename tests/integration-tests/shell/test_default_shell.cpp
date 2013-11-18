@@ -16,13 +16,13 @@
  * Authored by: Thomas Voss <thomas.voss@canonical.com>
  */
 
-#include "mir/shell/default_shell.h"
 #include "mir/shell/session.h"
 #include "mir/shell/focus_setter.h"
 #include "src/server/shell/default_session_container.h"
 #include "mir/shell/null_session_listener.h"
 #include "mir/compositor/buffer_stream.h"
 #include "src/server/surfaces/basic_surface.h"
+#include "src/server/shell/default_shell.h"
 #include "mir/shell/surface_creation_parameters.h"
 
 #include "mir_test/gmock_fixes.h"

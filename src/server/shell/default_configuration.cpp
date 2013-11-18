@@ -30,7 +30,7 @@
 #include "threaded_snapshot_strategy.h"
 
 #include "session_container.h"
-#include "mir/shell/default_shell.h"
+#include "default_shell.h"
 #include "mir/shell/session.h"
 
 #include "mir/graphics/display.h"
