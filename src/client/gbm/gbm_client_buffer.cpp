@@ -120,6 +120,38 @@ struct GBMMemoryRegion : mcl::MemoryRegion
     size_t const size_in_bytes;
 };
 
+struct ShmMemoryRegion : mcl::MemoryRegion
+{
+    ShmMemoryRegion(int shm_fd, geom::Size const& size_param,
+                    geom::Stride stride_param, geom::PixelFormat format_param)
+        : size_in_bytes{size_param.height.as_uint32_t() * stride_param.as_uint32_t()}
+    {
+        width = size_param.width;
+        height = size_param.height;
+        stride = stride_param;
+        format = format_param;
+
+        void* map = mmap(nullptr, size_in_bytes, PROT_READ|PROT_WRITE,
+                         MAP_SHARED, shm_fd, 0);
+        if (map == MAP_FAILED)
+        {
+            std::string msg("Failed to mmap shm buffer");
+            BOOST_THROW_EXCEPTION(
+                boost::enable_error_info(
+                    std::runtime_error(msg)) << boost::errinfo_errno(errno));
+        }
+
+        vaddr = std::shared_ptr<char>(static_cast<char*>(map), NullDeleter());
+    }
+
+    ~ShmMemoryRegion()
+    {
+        munmap(vaddr.get(), size_in_bytes);
+    }
+
+    size_t const size_in_bytes;
+};
+
 }
 
 mclg::GBMClientBuffer::GBMClientBuffer(
@@ -144,11 +176,18 @@ std::shared_ptr<mcl::MemoryRegion> mclg::GBMClientBuffer::secure_for_cpu_write()
 {
     const int prime_fd = creation_package->fd[0];
 
+    return std::make_shared<ShmMemoryRegion>(prime_fd,
+                                             size(),
+                                             stride(),
+                                             pixel_format());
+    
+    /*
     return std::make_shared<GBMMemoryRegion>(drm_fd_handler,
                                              prime_fd,
                                              size(),
                                              stride(),
                                              pixel_format());
+                                             */
 }
 
 geom::Size mclg::GBMClientBuffer::size() const

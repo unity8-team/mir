@@ -34,6 +34,8 @@ add_library(
   udev_video_devices.cpp
   overlapping_output_grouping.cpp
   native_gbm_platform.cpp
+  shm_buffer.cpp
+  anonymous_shm_pool.cpp
 )
 
 target_link_libraries(

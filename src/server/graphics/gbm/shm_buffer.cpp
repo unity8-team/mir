@@ -17,57 +17,27 @@
  *   Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
+#include "shm_pool.h"
 #include "shm_buffer.h"
+#include "buffer_texture_binder.h"
 #include "mir/graphics/buffer_properties.h"
-
-#include <cstdlib>
 
 namespace mgg = mir::graphics::gbm;
 namespace geom = mir::geometry;
 
-namespace
-{
-
-int create_anonymous_file(off_t length)
-{
-    int fd = mkostemp("/tmp/mir-buffer-XXXXXX", O_CLOEXEC);
-    ftruncate(fd, length);
-    return fd;
-}
-
-}
-
-mgg::detail::ShmPool::ShmPool(off_t size)
-    : fd_(create_anonymous_file(size))
-{
-}
-
-mgg::detail::ShmPool::~ShmPool()
-{
-    close(fd_);
-}
-
-off_t mgg::detail::ShmPool::alloc(off_t size)
-{
-    return 0;
-}
-
-int mgg::detail::ShmPool::fd()
-{
-    return fd_;
-}
-
-mgg::ShmBuffer:ShmBuffer(
+mgg::ShmBuffer::ShmBuffer(
+    std::shared_ptr<ShmPool> const& shm_pool,
     BufferProperties const& properties,
     std::unique_ptr<BufferTextureBinder> texture_binder)
-    : size_{properties.size},
-      pixel_format_{properties.pixel_format},
-      stride{geom::bytes_per_pixel(pixel_format_) * size_.width},
-      texture_binder{texture_binder}
+    : shm_pool{shm_pool},
+      size_{properties.size},
+      pixel_format_{properties.format},
+      stride_{geom::bytes_per_pixel(pixel_format_) * size_.width.as_uint32_t()},
+      texture_binder{std::move(texture_binder)}
 {
 }
 
-mgg::ShmBuffer::~ShmBuffer()
+mgg::ShmBuffer::~ShmBuffer() noexcept
 {
 }
 
@@ -93,13 +63,12 @@ void mgg::ShmBuffer::bind_to_texture()
 
 std::shared_ptr<MirNativeBuffer> mgg::ShmBuffer::native_buffer_handle() const
 {
-    auto temp = std::make_shared<ShmNativeBuffer>();
+    auto temp = std::make_shared<MirNativeBuffer>();
 
     temp->fd_items = 1;
-    temp->fd[0] = pool.fd();
+    temp->fd[0] = shm_pool->fd();
     temp->stride = stride().as_uint32_t();
-    temp->flags = 0
-    temp->bo = nullptr;
+    temp->flags = 0;
 
     auto const& dim = size();
     temp->width = dim.width.as_int();
@@ -110,5 +79,5 @@ std::shared_ptr<MirNativeBuffer> mgg::ShmBuffer::native_buffer_handle() const
 
 bool mgg::ShmBuffer::can_bypass() const
 {
-    return bo_flags & Shm_BO_USE_SCANOUT;
+    return false;
 }

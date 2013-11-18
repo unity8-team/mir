@@ -29,33 +29,22 @@ namespace mir
 {
 namespace graphics
 {
+
+class BufferProperties;
+
 namespace gbm
 {
 
-namespace detail
-{
+class ShmPool;
+class BufferTextureBinder;
 
-class ShmPool
-{
-public:
-    ShmPool(off_t size);
-    ~ShmPool();
-
-    off_t alloc(off_t size);
-    int fd();
-
-private:
-    int fd_;
-};
-
-}
-
-class ShmBuffer: public BufferBasic
+class ShmBuffer : public BufferBasic
 {
 public:
-    ShmBuffer(BufferProperties const& properties,
+    ShmBuffer(std::shared_ptr<ShmPool> const& shm_pool,
+              BufferProperties const& properties,
               std::unique_ptr<BufferTextureBinder> texture_binder);
-    ~ShmBuffer();
+    ~ShmBuffer() noexcept;
 
     geometry::Size size() const;
     geometry::Stride stride() const;
@@ -68,11 +57,11 @@ private:
     ShmBuffer(ShmBuffer const&) = delete;
     ShmBuffer& operator=(ShmBuffer const&) = delete;
 
-    geom::Size const size_;
-    geom::PixelFormat const pixel_format_;
-    geom::Stride const stride_;
+    std::shared_ptr<ShmPool> const shm_pool;
+    geometry::Size const size_;
+    geometry::PixelFormat const pixel_format_;
+    geometry::Stride const stride_;
     std::unique_ptr<BufferTextureBinder> texture_binder;
-    ShmPool shm_pool;
 };
 
 }

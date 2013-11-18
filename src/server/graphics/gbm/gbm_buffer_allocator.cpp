@@ -20,6 +20,8 @@
 #include "gbm_buffer_allocator.h"
 #include "gbm_buffer.h"
 #include "gbm_platform.h"
+#include "shm_buffer.h"
+#include "anonymous_shm_pool.h"
 #include "buffer_texture_binder.h"
 #include "mir/graphics/buffer_initializer.h"
 #include "mir/graphics/egl_extensions.h"
@@ -95,6 +97,39 @@ private:
     EGLImageKHR egl_image;
 };
 
+class ShmBufferTextureBinder : public mgg::BufferTextureBinder
+{
+public:
+    ShmBufferTextureBinder(std::shared_ptr<mgg::ShmPool> const& pool,
+                           off_t offset, off_t size,
+                           geom::Size const& dims)
+        : pool{pool},
+          pixels{pool->map(offset, size)},
+          size{size},
+          dims{dims}
+    {
+    }
+
+    ~ShmBufferTextureBinder() noexcept
+    {
+        pool->unmap(pixels, size);
+    }
+
+    void bind_to_texture()
+    {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA_EXT,
+                     dims.width.as_int(), dims.height.as_int(),
+                     0, GL_BGRA_EXT, GL_UNSIGNED_BYTE,
+                     pixels);
+    }
+
+private:
+    std::shared_ptr<mgg::ShmPool> const pool;
+    void* const pixels;
+    off_t const size;
+    geom::Size const dims;
+};
+
 struct GBMBODeleter
 {
     void operator()(gbm_bo* handle) const
@@ -119,7 +154,37 @@ mgg::GBMBufferAllocator::GBMBufferAllocator(
     bypass_env = env ? env[0] != '0' : true;
 }
 
-std::shared_ptr<mg::Buffer> mgg::GBMBufferAllocator::alloc_buffer(BufferProperties const& buffer_properties)
+std::shared_ptr<mg::Buffer>
+mgg::GBMBufferAllocator::alloc_software_buffer(BufferProperties const& buffer_properties)
+{
+    if (!is_pixel_format_supported(buffer_properties.format))
+    {
+        BOOST_THROW_EXCEPTION(
+            std::runtime_error("Trying to create SHM buffer with unsupported pixel format"));
+    }
+
+    auto pool = std::make_shared<mgg::AnonymousShmPool>();
+    auto stride = geom::Stride{
+        geom::bytes_per_pixel(buffer_properties.format) *
+        buffer_properties.size.width.as_uint32_t()};
+    off_t size = stride.as_int() * buffer_properties.size.height.as_int();
+
+    auto offset = pool->alloc(size);
+
+    std::unique_ptr<ShmBufferTextureBinder> texture_binder{
+        new ShmBufferTextureBinder{pool, offset, size, buffer_properties.size}};
+
+    auto buffer = std::make_shared<ShmBuffer>(pool, buffer_properties,
+                                              std::move(texture_binder));
+
+    (*buffer_initializer)(*buffer);
+
+    return buffer;
+
+}
+
+std::shared_ptr<mg::Buffer>
+mgg::GBMBufferAllocator::alloc_hardware_buffer(BufferProperties const& buffer_properties)
 {
     uint32_t bo_flags{GBM_BO_USE_RENDERING};
 
@@ -172,9 +237,23 @@ std::shared_ptr<mg::Buffer> mgg::GBMBufferAllocator::alloc_buffer(BufferProperti
         new EGLImageBufferTextureBinder{bo, egl_extensions}};
 
     /* Create the GBMBuffer */
-    std::shared_ptr<mg::Buffer> buffer{new GBMBuffer{bo, bo_flags, std::move(texture_binder)}};
+    auto buffer = std::make_shared<GBMBuffer>(bo, bo_flags, std::move(texture_binder));
 
     (*buffer_initializer)(*buffer);
+
+    return buffer;
+
+}
+
+std::shared_ptr<mg::Buffer>
+mgg::GBMBufferAllocator::alloc_buffer(BufferProperties const& buffer_properties)
+{
+    std::shared_ptr<mg::Buffer> buffer;
+
+    if (buffer_properties.usage == BufferUsage::software)
+        buffer = alloc_software_buffer(buffer_properties);
+    else if (buffer_properties.usage == BufferUsage::hardware)
+        buffer = alloc_hardware_buffer(buffer_properties);
 
     return buffer;
 }
