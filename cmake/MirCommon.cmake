@@ -18,9 +18,15 @@ if(ENABLE_MEMCHECK_OPTION)
     VALGRIND_EXECUTABLE
     valgrind)
 
-  if(VALGRIND_EXECUTABLE)
-    set(VALGRIND_ARGS "--error-exitcode=1 --trace-children=yes")
+  if(VALGRIND_EXECUTABLE0)
+    if(MIR_PLATFORM STREQUAL "android")
+      set(VALGRIND_ARGS "--error-exitcode=1")
+    else()
+      set(VALGRIND_ARGS "--error-exitcode=1 --trace-children=yes")
+    endif()
+
     set(ENABLE_MEMCHECK_FLAG "--enable-memcheck")
+
   else(VALGRIND_EXECUTABLE)
     message("Not enabling memcheck as valgrind is missing on your system")
   endif(VALGRIND_EXECUTABLE)
