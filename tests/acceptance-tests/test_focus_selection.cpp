@@ -21,7 +21,6 @@
 #include "src/server/shell/session_container.h"
 #include "src/server/shell/consuming_placement_strategy.h"
 #include "src/server/shell/organising_surface_factory.h"
-#include "mir/shell/session_manager.h"
 #include "mir/graphics/display.h"
 #include "mir/shell/input_targeter.h"
 
@@ -82,6 +81,8 @@ MATCHER(NonNullSession, "")
 }
 }
 
+// TODO: Rework test to work in terms of surfaces raised. Using BEspokeDisplayServerTestFixture = DefaultShell
+// TODO: Perhaps rename file.
 TEST_F(BespokeDisplayServerTestFixture, sessions_creating_surface_receive_focus)
 {
     struct ServerConfig : TestingServerConfiguration

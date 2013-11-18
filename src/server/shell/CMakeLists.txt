@@ -3,7 +3,7 @@ set(
 
   application_session.cpp
   default_session_container.cpp
-  session_manager.cpp
+  default_shell.cpp
   default_focus_mechanism.cpp
   consuming_placement_strategy.cpp
   organising_surface_factory.cpp

@@ -62,7 +62,7 @@ class FocusSetter;
 class PlacementStrategy;
 class SessionListener;
 class FocusController;
-class SessionManager;
+class DefaultShell;
 class PixelBuffer;
 class SnapshotStrategy;
 class DisplayLayout;
@@ -231,7 +231,7 @@ public:
 
     virtual std::shared_ptr<time::TimeSource>    the_time_source();
 
-    virtual std::shared_ptr<shell::SessionManager> the_session_manager();
+    virtual std::shared_ptr<shell::DefaultShell> the_default_shell();
 
 protected:
     using DefaultConfigurationOptions::the_options;
@@ -243,7 +243,7 @@ protected:
     virtual std::shared_ptr<shell::BroadcastingSessionEventSink> the_broadcasting_session_event_sink();
 
     CachedPtr<frontend::Connector>   connector;
-    CachedPtr<shell::SessionManager> session_manager;
+    CachedPtr<shell::DefaultShell> default_shell;
 
 
     CachedPtr<input::InputConfiguration> input_configuration;

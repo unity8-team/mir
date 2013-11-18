@@ -30,7 +30,7 @@
 #include "threaded_snapshot_strategy.h"
 
 #include "session_container.h"
-#include "mir/shell/session_manager.h"
+#include "mir/shell/default_shell.h"
 #include "mir/shell/session.h"
 
 #include "mir/graphics/display.h"
@@ -40,13 +40,13 @@ namespace ms = mir::surfaces;
 namespace msh = mir::shell;
 namespace mf = mir::frontend;
 
-std::shared_ptr<msh::SessionManager>
-mir::DefaultServerConfiguration::the_session_manager()
+std::shared_ptr<msh::DefaultShell>
+mir::DefaultServerConfiguration::the_default_shell()
 {
-    return session_manager(
-        [this]() -> std::shared_ptr<msh::SessionManager>
+    return default_shell(
+        [this]() -> std::shared_ptr<msh::DefaultShell>
         {
-            return std::make_shared<msh::SessionManager>(
+            return std::make_shared<msh::DefaultShell>(
                 the_shell_surface_factory(),
                 the_shell_session_container(),
                 the_shell_focus_setter(),
@@ -59,13 +59,13 @@ mir::DefaultServerConfiguration::the_session_manager()
 std::shared_ptr<mf::Shell>
 mir::DefaultServerConfiguration::the_frontend_shell()
 {
-    return the_session_manager();
+    return the_default_shell();
 }
 
 std::shared_ptr<msh::FocusController>
 mir::DefaultServerConfiguration::the_focus_controller()
 {
-    return the_session_manager();
+    return the_default_shell();
 }
 
 std::shared_ptr<msh::SurfaceFactory>

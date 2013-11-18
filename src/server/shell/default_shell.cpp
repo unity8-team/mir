@@ -16,7 +16,7 @@
  * Authored by: Thomas Voss <thomas.voss@canonical.com>
  */
 
-#include "mir/shell/session_manager.h"
+#include "mir/shell/default_shell.h"
 #include "mir/shell/application_session.h"
 #include "session_container.h"
 #include "mir/shell/surface_factory.h"
@@ -33,7 +33,7 @@
 namespace mf = mir::frontend;
 namespace msh = mir::shell;
 
-msh::SessionManager::SessionManager(std::shared_ptr<msh::SurfaceFactory> const& surface_factory,
+msh::DefaultShell::DefaultShell(std::shared_ptr<msh::SurfaceFactory> const& surface_factory,
     std::shared_ptr<msh::SessionContainer> const& container,
     std::shared_ptr<msh::FocusSetter> const& focus_setter,
     std::shared_ptr<msh::SnapshotStrategy> const& snapshot_strategy,
@@ -52,7 +52,7 @@ msh::SessionManager::SessionManager(std::shared_ptr<msh::SurfaceFactory> const& 
     assert(session_listener);
 }
 
-msh::SessionManager::~SessionManager()
+msh::DefaultShell::~DefaultShell()
 {
     /*
      * Close all open sessions. We need to do this manually here
@@ -72,7 +72,7 @@ msh::SessionManager::~SessionManager()
         close_session(session);
 }
 
-std::shared_ptr<mf::Session> msh::SessionManager::open_session(std::string const& name,
+std::shared_ptr<mf::Session> msh::DefaultShell::open_session(std::string const& name,
                                                 std::shared_ptr<mf::EventSink> const& sender)
 {
     std::shared_ptr<msh::Session> new_session =
@@ -88,7 +88,7 @@ std::shared_ptr<mf::Session> msh::SessionManager::open_session(std::string const
     return new_session;
 }
 
-inline void msh::SessionManager::set_focus_to_locked(std::unique_lock<std::mutex> const&, std::shared_ptr<Session> const& shell_session)
+inline void msh::DefaultShell::set_focus_to_locked(std::unique_lock<std::mutex> const&, std::shared_ptr<Session> const& shell_session)
 {
     auto old_focus = focus_application.lock();
 
@@ -107,13 +107,13 @@ inline void msh::SessionManager::set_focus_to_locked(std::unique_lock<std::mutex
     }
 }
 
-void msh::SessionManager::set_focus_to(std::shared_ptr<Session> const& shell_session)
+void msh::DefaultShell::set_focus_to(std::shared_ptr<Session> const& shell_session)
 {
     std::unique_lock<std::mutex> lg(mutex);
     set_focus_to_locked(lg, shell_session);
 }
 
-void msh::SessionManager::close_session(std::shared_ptr<mf::Session> const& session)
+void msh::DefaultShell::close_session(std::shared_ptr<mf::Session> const& session)
 {
     auto shell_session = std::dynamic_pointer_cast<Session>(session);
 
@@ -126,7 +126,7 @@ void msh::SessionManager::close_session(std::shared_ptr<mf::Session> const& sess
     set_focus_to_locked(lock, app_container->successor_of(std::shared_ptr<msh::Session>()));
 }
 
-void msh::SessionManager::focus_next()
+void msh::DefaultShell::focus_next()
 {
     std::unique_lock<std::mutex> lock(mutex);
     auto focus = focus_application.lock();
@@ -141,7 +141,7 @@ void msh::SessionManager::focus_next()
     set_focus_to_locked(lock, focus);
 }
 
-std::weak_ptr<msh::Session> msh::SessionManager::focussed_application() const
+std::weak_ptr<msh::Session> msh::DefaultShell::focussed_application() const
 {
     return focus_application;
 }
@@ -149,7 +149,7 @@ std::weak_ptr<msh::Session> msh::SessionManager::focussed_application() const
 // TODO: We use this to work around the lack of a SessionMediator-like object for internal clients.
 // we could have an internal client mediator which acts as a factory for internal clients, taking responsibility
 // for invoking handle_surface_created.
-mf::SurfaceId msh::SessionManager::create_surface_for(std::shared_ptr<mf::Session> const& session,
+mf::SurfaceId msh::DefaultShell::create_surface_for(std::shared_ptr<mf::Session> const& session,
     msh::SurfaceCreationParameters const& params)
 {
     auto shell_session = std::dynamic_pointer_cast<Session>(session);
@@ -160,7 +160,7 @@ mf::SurfaceId msh::SessionManager::create_surface_for(std::shared_ptr<mf::Sessio
     return id;
 }
 
-void msh::SessionManager::handle_surface_created(std::shared_ptr<mf::Session> const& session)
+void msh::DefaultShell::handle_surface_created(std::shared_ptr<mf::Session> const& session)
 {
     auto shell_session = std::dynamic_pointer_cast<Session>(session);
 

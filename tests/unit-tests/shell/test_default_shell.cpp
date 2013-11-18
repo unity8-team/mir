@@ -17,7 +17,7 @@
  */
 
 #include "mir/compositor/buffer_stream.h"
-#include "mir/shell/session_manager.h"
+#include "mir/shell/default_shell.h"
 #include "src/server/shell/default_session_container.h"
 #include "mir/shell/session.h"
 #include "src/server/surfaces/surface_impl.h"
@@ -69,10 +69,10 @@ struct MockSessionEventSink : public msh::SessionEventSink
     MOCK_METHOD1(handle_session_stopping, void(std::shared_ptr<msh::Session> const& session));
 };
 
-struct SessionManagerSetup : public testing::Test
+struct DefaultShellSetup : public testing::Test
 {
-    SessionManagerSetup()
-      : session_manager(mt::fake_shared(surface_factory),
+    DefaultShellSetup()
+      : default_shell(mt::fake_shared(surface_factory),
                         mt::fake_shared(container),
                         mt::fake_shared(focus_setter),
                         std::make_shared<mtd::NullSnapshotStrategy>(),
@@ -90,12 +90,12 @@ struct SessionManagerSetup : public testing::Test
     testing::NiceMock<mtd::MockFocusSetter> focus_setter; // Inelegant but some tests need a stub
     msh::NullSessionListener session_listener;
 
-    msh::SessionManager session_manager;
+    msh::DefaultShell default_shell;
 };
 
 }
 
-TEST_F(SessionManagerSetup, open_and_close_session)
+TEST_F(DefaultShellSetup, open_and_close_session)
 {
     using namespace ::testing;
 
@@ -104,11 +104,11 @@ TEST_F(SessionManagerSetup, open_and_close_session)
     EXPECT_CALL(focus_setter, set_focus_to(_));
     EXPECT_CALL(focus_setter, set_focus_to(std::shared_ptr<msh::Session>())).Times(1);
 
-    auto session = session_manager.open_session("Visual Basic Studio", std::shared_ptr<mf::EventSink>());
-    session_manager.close_session(session);
+    auto session = default_shell.open_session("Visual Basic Studio", std::shared_ptr<mf::EventSink>());
+    default_shell.close_session(session);
 }
 
-TEST_F(SessionManagerSetup, closing_session_removes_surfaces)
+TEST_F(DefaultShellSetup, closing_session_removes_surfaces)
 {
     using namespace ::testing;
 
@@ -127,13 +127,13 @@ TEST_F(SessionManagerSetup, closing_session_removes_surfaces)
     EXPECT_CALL(focus_setter, set_focus_to(_)).Times(1);
     EXPECT_CALL(focus_setter, set_focus_to(std::shared_ptr<msh::Session>())).Times(1);
 
-    auto session = session_manager.open_session("Visual Basic Studio", std::shared_ptr<mf::EventSink>());
+    auto session = default_shell.open_session("Visual Basic Studio", std::shared_ptr<mf::EventSink>());
     session->create_surface(msh::a_surface().of_size(geom::Size{geom::Width{1024}, geom::Height{768}}));
 
-    session_manager.close_session(session);
+    default_shell.close_session(session);
 }
 
-TEST_F(SessionManagerSetup, new_applications_receive_focus)
+TEST_F(DefaultShellSetup, new_applications_receive_focus)
 {
     using namespace ::testing;
     std::shared_ptr<msh::Session> new_session;
@@ -141,11 +141,11 @@ TEST_F(SessionManagerSetup, new_applications_receive_focus)
     EXPECT_CALL(container, insert_session(_)).Times(1);
     EXPECT_CALL(focus_setter, set_focus_to(_)).WillOnce(SaveArg<0>(&new_session));
 
-    auto session = session_manager.open_session("Visual Basic Studio", std::shared_ptr<mf::EventSink>());
+    auto session = default_shell.open_session("Visual Basic Studio", std::shared_ptr<mf::EventSink>());
     EXPECT_EQ(session, new_session);
 }
 
-TEST_F(SessionManagerSetup, create_surface_for_session_forwards_and_then_focuses_session)
+TEST_F(DefaultShellSetup, create_surface_for_session_forwards_and_then_focuses_session)
 {
     using namespace ::testing;
     ON_CALL(surface_factory, create_surface(_, _, _, _)).WillByDefault(
@@ -163,17 +163,17 @@ TEST_F(SessionManagerSetup, create_surface_for_session_forwards_and_then_focuses
         EXPECT_CALL(focus_setter, set_focus_to(_)).Times(1); // Post Surface creation
     }
 
-    auto session1 = session_manager.open_session("Weather Report", std::shared_ptr<mf::EventSink>());
-    session_manager.create_surface_for(session1, msh::a_surface());
+    auto session1 = default_shell.open_session("Weather Report", std::shared_ptr<mf::EventSink>());
+    default_shell.create_surface_for(session1, msh::a_surface());
 }
 
 namespace 
 {
 
-struct SessionManagerSessionListenerSetup : public testing::Test
+struct DefaultShellSessionListenerSetup : public testing::Test
 {
-    SessionManagerSessionListenerSetup()
-      : session_manager(mt::fake_shared(surface_factory),
+    DefaultShellSessionListenerSetup()
+      : default_shell(mt::fake_shared(surface_factory),
                         mt::fake_shared(container),
                         mt::fake_shared(focus_setter),
                         std::make_shared<mtd::NullSnapshotStrategy>(),
@@ -189,11 +189,11 @@ struct SessionManagerSessionListenerSetup : public testing::Test
     testing::NiceMock<mtd::MockFocusSetter> focus_setter; // Inelegant but some tests need a stub
     mtd::MockSessionListener session_listener;
 
-    msh::SessionManager session_manager;
+    msh::DefaultShell default_shell;
 };
 }
 
-TEST_F(SessionManagerSessionListenerSetup, session_listener_is_notified_of_lifecycle_and_focus)
+TEST_F(DefaultShellSessionListenerSetup, session_listener_is_notified_of_lifecycle_and_focus)
 {
     using namespace ::testing;
 
@@ -202,17 +202,17 @@ TEST_F(SessionManagerSessionListenerSetup, session_listener_is_notified_of_lifec
     EXPECT_CALL(session_listener, stopping(_)).Times(1);
     EXPECT_CALL(session_listener, unfocused()).Times(1);
 
-    auto session = session_manager.open_session("XPlane", std::shared_ptr<mf::EventSink>());
-    session_manager.close_session(session);
+    auto session = default_shell.open_session("XPlane", std::shared_ptr<mf::EventSink>());
+    default_shell.close_session(session);
 }
 
 namespace
 {
 
-struct SessionManagerSessionEventsSetup : public testing::Test
+struct DefaultShellSessionEventsSetup : public testing::Test
 {
-    SessionManagerSessionEventsSetup()
-      : session_manager(mt::fake_shared(surface_factory),
+    DefaultShellSessionEventsSetup()
+      : default_shell(mt::fake_shared(surface_factory),
                         mt::fake_shared(container),
                         mt::fake_shared(focus_setter),
                         std::make_shared<mtd::NullSnapshotStrategy>(),
@@ -228,19 +228,19 @@ struct SessionManagerSessionEventsSetup : public testing::Test
     testing::NiceMock<mtd::MockFocusSetter> focus_setter; // Inelegant but some tests need a stub
     MockSessionEventSink session_event_sink;
 
-    msh::SessionManager session_manager;
+    msh::DefaultShell default_shell;
 };
 
 }
 
-TEST_F(SessionManagerSessionEventsSetup, session_event_sink_is_notified_of_lifecycle_and_focus)
+TEST_F(DefaultShellSessionEventsSetup, session_event_sink_is_notified_of_lifecycle_and_focus)
 {
     using namespace ::testing;
 
     EXPECT_CALL(session_event_sink, handle_focus_change(_)).Times(2);
 
-    auto session = session_manager.open_session("XPlane", std::shared_ptr<mf::EventSink>());
-    auto session1 = session_manager.open_session("Bla", std::shared_ptr<mf::EventSink>());
+    auto session = default_shell.open_session("XPlane", std::shared_ptr<mf::EventSink>());
+    auto session1 = default_shell.open_session("Bla", std::shared_ptr<mf::EventSink>());
 
     Mock::VerifyAndClearExpectations(&session_event_sink);
 
@@ -254,6 +254,6 @@ TEST_F(SessionManagerSessionEventsSetup, session_event_sink_is_notified_of_lifec
         WillOnce(Return(std::shared_ptr<msh::Session>()));
     EXPECT_CALL(session_event_sink, handle_no_focus()).Times(1);
 
-    session_manager.close_session(session1);
-    session_manager.close_session(session);
+    default_shell.close_session(session1);
+    default_shell.close_session(session);
 }
