@@ -19,6 +19,8 @@
 #ifndef MIR_SHELL_DEFAULT_SHELL_H_
 #define MIR_SHELL_DEFAULT_SHELL_H_
 
+#include "session_container.h"
+
 #include "mir/frontend/surface_id.h"
 #include "mir/frontend/shell.h"
 #include "mir/shell/focus_controller.h"
@@ -33,20 +35,19 @@ namespace mir
 namespace shell
 {
 class SurfaceFactory;
-class SessionContainer;
 class FocusSetter;
 class SnapshotStrategy;
 class SessionEventSink;
 class SessionListener;
+class Surface;
 
 // TODO make private to shell
 // This first needs unity-mir to be updated to use FocusController
 // and that first needs -c 1175 of development-branch to land on lp:mir
-class DefaultShell : public frontend::Shell, public shell::FocusController
+class DefaultShell : public frontend::Shell, public shell::FocusController, public shell::SessionContainer
 {
 public:
     DefaultShell(std::shared_ptr<SurfaceFactory> const& surface_factory,
-        std::shared_ptr<SessionContainer> const& app_container,
         std::shared_ptr<FocusSetter> const& focus_setter,
         std::shared_ptr<SnapshotStrategy> const& snapshot_strategy,
         std::shared_ptr<SessionEventSink> const& session_event_sink,
@@ -66,22 +67,27 @@ public:
 
     void handle_surface_created(std::shared_ptr<frontend::Session> const& session);
 
+    virtual void for_each(std::function<void(std::shared_ptr<Session> const&)> f) const;
+
 protected:
     DefaultShell(const DefaultShell&) = delete;
     DefaultShell& operator=(const DefaultShell&) = delete;
 
 private:
     std::shared_ptr<SurfaceFactory> const surface_factory;
-    std::shared_ptr<SessionContainer> const app_container;
     std::shared_ptr<FocusSetter> const focus_setter;
     std::shared_ptr<SnapshotStrategy> const snapshot_strategy;
     std::shared_ptr<SessionEventSink> const session_event_sink;
     std::shared_ptr<SessionListener> const session_listener;
 
-    std::mutex mutex;
-    std::weak_ptr<Session> focus_application;
-
     void set_focus_to_locked(std::unique_lock<std::mutex> const& lock, std::shared_ptr<Session> const& next_focus);
+    void close_session_locked(std::unique_lock<std::mutex> const& lock, std::shared_ptr<Session> const& session);
+
+    std::mutex mutable mutex;
+    std::weak_ptr<Session> focus_application;
+    std::weak_ptr<Surface> focus_surface;
+
+    std::vector<std::shared_ptr<Session>> sessions;
 };
 
 }

@@ -1,7 +1,6 @@
 list(APPEND UNIT_TEST_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/test_default_shell.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/test_application_session.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/test_the_session_container_implementation.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/test_default_focus_mechanism.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/test_consuming_placement_strategy.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/test_organising_surface_factory.cpp

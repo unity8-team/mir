@@ -2,7 +2,6 @@ set(
   SHELL_SOURCES
 
   application_session.cpp
-  default_session_container.cpp
   default_shell.cpp
   default_focus_mechanism.cpp
   consuming_placement_strategy.cpp

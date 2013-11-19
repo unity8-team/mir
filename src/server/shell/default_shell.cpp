@@ -26,28 +26,28 @@
 #include "mir/shell/session_listener.h"
 #include "session_event_sink.h"
 
+#include <boost/throw_exception.hpp>
+
 #include <memory>
 #include <cassert>
 #include <algorithm>
+#include <stdexcept>
 
 namespace mf = mir::frontend;
 namespace msh = mir::shell;
 
 msh::DefaultShell::DefaultShell(std::shared_ptr<msh::SurfaceFactory> const& surface_factory,
-    std::shared_ptr<msh::SessionContainer> const& container,
     std::shared_ptr<msh::FocusSetter> const& focus_setter,
     std::shared_ptr<msh::SnapshotStrategy> const& snapshot_strategy,
     std::shared_ptr<msh::SessionEventSink> const& session_event_sink,
     std::shared_ptr<msh::SessionListener> const& session_listener) :
     surface_factory(surface_factory),
-    app_container(container),
     focus_setter(focus_setter),
     snapshot_strategy(snapshot_strategy),
     session_event_sink(session_event_sink),
     session_listener(session_listener)
 {
     assert(surface_factory);
-    assert(container);
     assert(focus_setter);
     assert(session_listener);
 }
@@ -61,15 +61,10 @@ msh::DefaultShell::~DefaultShell()
      * of these interfaces keep strong references to each other.
      * TODO: Investigate other solutions (e.g. weak_ptr)
      */
-    std::vector<std::shared_ptr<msh::Session>> sessions;
-
-    app_container->for_each([&](std::shared_ptr<Session> const& session)
-    {
-        sessions.push_back(session);
-    });
-
-    for (auto& session : sessions)
-        close_session(session);
+    std::unique_lock<std::mutex> lg(mutex);
+    auto sessions_copy = sessions;
+    for (auto& session : sessions_copy)
+        close_session_locked(lg, session);
 }
 
 std::shared_ptr<mf::Session> msh::DefaultShell::open_session(std::string const& name,
@@ -79,11 +74,12 @@ std::shared_ptr<mf::Session> msh::DefaultShell::open_session(std::string const& 
         std::make_shared<msh::ApplicationSession>(
             surface_factory, name, snapshot_strategy, session_listener, sender);
 
-    app_container->insert_session(new_session);
+    std::unique_lock<std::mutex> lg(mutex);
+    sessions.push_back(new_session);
     
     session_listener->starting(new_session);
 
-    set_focus_to(new_session);
+    set_focus_to_locked(lg, new_session);
 
     return new_session;
 }
@@ -115,29 +111,50 @@ void msh::DefaultShell::set_focus_to(std::shared_ptr<Session> const& shell_sessi
 
 void msh::DefaultShell::close_session(std::shared_ptr<mf::Session> const& session)
 {
-    auto shell_session = std::dynamic_pointer_cast<Session>(session);
+    std::unique_lock<std::mutex> lg(mutex);
+    close_session_locked(lg, std::dynamic_pointer_cast<Session>(session));
+}
 
-    session_event_sink->handle_session_stopping(shell_session);
-    session_listener->stopping(shell_session);
+void msh::DefaultShell::close_session_locked(std::unique_lock<std::mutex> const& lg, std::shared_ptr<msh::Session> const& session)
+{
 
-    app_container->remove_session(shell_session);
+    session_event_sink->handle_session_stopping(session);
+    session_listener->stopping(session);
 
-    std::unique_lock<std::mutex> lock(mutex);
-    set_focus_to_locked(lock, app_container->successor_of(std::shared_ptr<msh::Session>()));
+    auto it = std::find(sessions.begin(), sessions.end(), session);
+    if (it == sessions.end())
+        BOOST_THROW_EXCEPTION(std::logic_error("Invalid session"));
+    sessions.erase(it);
+
+    if (sessions.empty())
+        set_focus_to_locked(lg, std::shared_ptr<msh::Session>());
+    else
+        set_focus_to_locked(lg, *sessions.rbegin());
+
 }
 
 void msh::DefaultShell::focus_next()
 {
     std::unique_lock<std::mutex> lock(mutex);
     auto focus = focus_application.lock();
-    if (!focus)
+
+    if (sessions.empty())
     {
-        focus = app_container->successor_of(std::shared_ptr<msh::Session>());
+        focus = std::shared_ptr<msh::Session>();
+    }
+    else if (!focus)
+    {
+        focus = *sessions.rbegin();
     }
     else
     {
-        focus = app_container->successor_of(focus);
+        auto it = std::find(sessions.begin(), sessions.end(), focus);
+        it++;
+        if (it == sessions.end())
+            it = sessions.begin();
+        focus = *it;
     }
+
     set_focus_to_locked(lock, focus);
 }
 
@@ -167,3 +184,9 @@ void msh::DefaultShell::handle_surface_created(std::shared_ptr<mf::Session> cons
     set_focus_to(shell_session);
 }
                                                  
+void msh::DefaultShell::for_each(std::function<void(std::shared_ptr<Session> const&)> f) const
+{
+    std::unique_lock<std::mutex> lg(mutex);
+    for (auto& session : sessions)
+        f(session);
+}

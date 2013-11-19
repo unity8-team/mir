@@ -21,7 +21,6 @@
 #include "broadcasting_session_event_sink.h"
 #include "consuming_placement_strategy.h"
 #include "default_focus_mechanism.h"
-#include "default_session_container.h"
 #include "gl_pixel_buffer.h"
 #include "global_event_sender.h"
 #include "graphics_display_layout.h"
@@ -48,7 +47,6 @@ mir::DefaultServerConfiguration::the_default_shell()
         {
             return std::make_shared<msh::DefaultShell>(
                 the_shell_surface_factory(),
-                the_shell_session_container(),
                 the_shell_focus_setter(),
                 the_shell_snapshot_strategy(),
                 the_shell_session_event_sink(),
@@ -128,8 +126,7 @@ mir::DefaultServerConfiguration::the_shell_focus_setter()
 std::shared_ptr<msh::SessionContainer>
 mir::DefaultServerConfiguration::the_shell_session_container()
 {
-    return shell_session_container(
-        []{ return std::make_shared<msh::DefaultSessionContainer>(); });
+    return the_default_shell();
 }
 
 std::shared_ptr<msh::PixelBuffer>

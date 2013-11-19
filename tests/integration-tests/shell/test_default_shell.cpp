@@ -18,7 +18,6 @@
 
 #include "mir/shell/session.h"
 #include "mir/shell/focus_setter.h"
-#include "src/server/shell/default_session_container.h"
 #include "mir/shell/null_session_listener.h"
 #include "mir/compositor/buffer_stream.h"
 #include "src/server/surfaces/basic_surface.h"
@@ -51,7 +50,6 @@ struct TestDefaultShellAndFocusSelectionStrategy : public testing::Test
     TestDefaultShellAndFocusSelectionStrategy()
         : default_shell(
               mt::fake_shared(surface_factory),
-              mt::fake_shared(container),
               mt::fake_shared(focus_setter),
               std::make_shared<mtd::NullSnapshotStrategy>(),
               std::make_shared<mtd::NullSessionEventSink>(),
@@ -61,7 +59,6 @@ struct TestDefaultShellAndFocusSelectionStrategy : public testing::Test
     }
 
     mtd::MockSurfaceFactory surface_factory;
-    msh::DefaultSessionContainer container;
     mtd::MockFocusSetter focus_setter;
     std::shared_ptr<mf::Session> new_session;
     msh::NullSessionListener session_listener;
