@@ -15,17 +15,14 @@
  */
 
 // Qt
-#include <QtQml/QtQml>
+#include <QQmlExtensionPlugin>
 
 // local
 #include "application.h"
 #include "application_manager.h"
 #include "applicationscreenshotprovider.h"
 #include "mirsurfacemanager.h"
-#include "mirsurface.h"
-#include "inputarea.h"
-#include "inputfilterarea.h"
-#include "shellinputarea.h"
+#include "mirsurfaceitem.h"
 #include "ubuntukeyboardinfo.h"
 
 // unity-mir
@@ -67,11 +64,8 @@ class UnityApplicationPlugin : public QQmlExtensionPlugin {
                     uri, 0, 1, "ApplicationInfo", "ApplicationInfo can't be instantiated");
         qmlRegisterSingletonType<MirSurfaceManager>(
                     uri, 0, 1, "SurfaceManager", surfaceManagerSingleton);
-        qmlRegisterUncreatableType<MirSurface>(
-                    uri, 0, 1, "MirSurface", "MirSurface can't be instantiated");
-        qmlRegisterType<InputArea>(uri, 0, 1, "InputArea");
-        qmlRegisterType<ShellInputArea>(uri, 0, 1, "ShellInputArea");
-        qmlRegisterType<InputFilterArea>(uri, 0, 1, "InputFilterArea");
+        qmlRegisterUncreatableType<MirSurfaceItem>(
+                    uri, 0, 1, "MirSurfaceItem", "MirSurfaceItem can't be instantiated from QML");
         qmlRegisterType<UbuntuKeyboardInfo>(uri, 0, 1, "UbuntuKeyboardInfo");
     }
 

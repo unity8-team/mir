@@ -25,12 +25,10 @@ SOURCES += application_manager.cpp \
     applicationscreenshotprovider.cpp \
     dbuswindowstack.cpp \
     taskcontroller.cpp \
-    mirsurface.cpp \
     mirsurfacemanager.cpp \
-    inputarea.cpp \
-    inputfilterarea.cpp \
-    shellinputarea.cpp \
-    ubuntukeyboardinfo.cpp
+    ubuntukeyboardinfo.cpp \
+    qsgmirsurfacenode.cpp \
+    mirsurfaceitem.cpp
 
 HEADERS += application_manager.h \
     application.h \
@@ -38,14 +36,12 @@ HEADERS += application_manager.h \
     applicationscreenshotprovider.h \
     dbuswindowstack.h \
     taskcontroller.h \
-    mirsurface.h \
     mirsurfacemanager.h \
-    shellinputarea.h \
-    inputarea.h \
-    inputfilterarea.h \
     ubuntukeyboardinfo.h \
     /usr/include/unity/shell/application/ApplicationManagerInterface.h \
-    /usr/include/unity/shell/application/ApplicationInfoInterface.h
+    /usr/include/unity/shell/application/ApplicationInfoInterface.h \
+    qsgmirsurfacenode.h \
+    mirsurfaceitem.h
 
 installPath = $$[QT_INSTALL_IMPORTS]/Unity-Mir/$$replace(uri, \\., /)
 

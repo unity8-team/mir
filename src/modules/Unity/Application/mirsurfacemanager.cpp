@@ -19,7 +19,6 @@
 
 // local
 #include "mirsurfacemanager.h"
-#include "mirsurface.h"
 #include "application_manager.h"
 
 // unity-mir
@@ -43,7 +42,6 @@ MirSurfaceManager* MirSurfaceManager::singleton()
 
 MirSurfaceManager::MirSurfaceManager(QObject *parent)
     : QObject(parent)
-    , m_shellSurface(nullptr)
 {
     DLOG("MirSurfaceManager::MirSurfaceManager (this=%p)", this);
 
@@ -58,9 +56,6 @@ MirSurfaceManager::MirSurfaceManager(QObject *parent)
     SessionListener *sessionListener = static_cast<SessionListener*>(nativeInterface->nativeResourceForIntegration("sessionlistener"));
     SurfaceConfigurator *surfaceConfigurator = static_cast<SurfaceConfigurator*>(nativeInterface->nativeResourceForIntegration("surfaceconfigurator"));
 
-//    QObject::connect(m_mirServer->surfaceFactory(), &SurfaceFactory::shellSurfaceCreated,
-//                     this, &MirSurfaceManager::shellSurfaceCreated);
-
     QObject::connect(sessionListener, &SessionListener::sessionCreatedSurface,
                      this, &MirSurfaceManager::sessionCreatedSurface);
     QObject::connect(sessionListener, &SessionListener::sessionDestroyingSurface,
@@ -74,27 +69,7 @@ MirSurfaceManager::~MirSurfaceManager()
 {
     DLOG("MirSurfaceManager::~MirSurfaceManager (this=%p)", this);
 
-    Q_FOREACH(auto surface, m_surfaces) {
-        delete surface;
-    }
     m_surfaces.clear();
-    delete m_shellSurface;
-}
-
-MirSurface *MirSurfaceManager::shellSurface() const
-{
-    return m_shellSurface;
-}
-
-MirSurface *MirSurfaceManager::surfaceFor(std::shared_ptr<mir::shell::Surface> const& surface)
-{
-    auto it = m_surfaces.find(surface.get());
-    if (it != m_surfaces.end()) {
-        return *it;
-    } else {
-        DLOG("MirSurfaceManager::surfaceFor (this=%p) with surface name '%s' asking for a surface that was not created", this, surface->name().c_str());
-        return nullptr;
-    }
 }
 
 void MirSurfaceManager::sessionCreatedSurface(mir::shell::ApplicationSession const* session, std::shared_ptr<mir::shell::Surface> const& surface)
@@ -102,9 +77,16 @@ void MirSurfaceManager::sessionCreatedSurface(mir::shell::ApplicationSession con
     DLOG("MirSurfaceManager::sessionCreatedSurface (this=%p) with surface name '%s'", this, surface->name().c_str());
     ApplicationManager* appMgr = static_cast<ApplicationManager*>(ApplicationManager::singleton());
     Application* application = appMgr->findApplicationWithSession(session);
-    
-    auto qmlSurface = new MirSurface(surface, application);
+
+    auto qmlSurface = new MirSurfaceItem(surface, application);
     m_surfaces.insert(surface.get(), qmlSurface);
+
+    // QML owns the MirSurfaceItem, so listen for when QML deletes the object.
+    connect(qmlSurface, &MirSurfaceItem::destroyed, [&](QObject *item) {
+        auto mirSurfaceItem = static_cast<MirSurfaceItem*>(item);
+        m_surfaces.remove(m_surfaces.key(mirSurfaceItem));
+    });
+
     Q_EMIT surfaceCreated(qmlSurface);
 }
 
@@ -115,25 +97,15 @@ void MirSurfaceManager::sessionDestroyingSurface(mir::shell::ApplicationSession 
     auto it = m_surfaces.find(surface.get());
     if (it != m_surfaces.end()) {
         Q_EMIT surfaceDestroyed(*it);
-        delete *it;
+        MirSurfaceItem* item = it.value();
+        item->setSurfaceValid(false);
+        Q_EMIT item->surfaceDestroyed();
+        // delete *it; // do not delete actual MirSurfaceItem as QML has ownership of that object.
         m_surfaces.erase(it);
         return;
     }
 
-    DLOG("MirSurfaceManager::sessionDestroyingSurface: unable to find MirSurface corresponding to surface '%s'", surface->name().c_str());
-}
-
-void MirSurfaceManager::shellSurfaceCreated(const std::shared_ptr<msh::Surface> &surface)
-{
-    DLOG("MirSurfaceManager::shellSurfaceCreated (this=%p)", this);
-    m_shellSurface = new MirSurface(surface, nullptr);
-
-//    FocusSetter *fs = m_mirServer->focusSetter();
-//    if (fs) {
-//        fs->set_default_keyboard_target(surface);
-//    }
-    
-    Q_EMIT shellSurfaceChanged(m_shellSurface);
+    DLOG("MirSurfaceManager::sessionDestroyingSurface: unable to find MirSurfaceItem corresponding to surface '%s'", surface->name().c_str());
 }
 
 void MirSurfaceManager::surfaceAttributeChanged(const msh::Surface *surface, const MirSurfaceAttrib attribute, const int value)

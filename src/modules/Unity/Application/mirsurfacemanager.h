@@ -21,13 +21,13 @@
 #include <memory>
 
 // Qt
-#include <QObject>
+#include <QHash>
 
 // Mir
 #include <mir_toolkit/common.h>
 
 // local
-#include "mirsurface.h"
+#include "mirsurfaceitem.h"
 
 class ShellServerConfiguration;
 namespace mir { namespace shell { class Surface; class ApplicationSession; }}
@@ -42,27 +42,20 @@ public:
     MirSurfaceManager(QObject *parent = 0);
     ~MirSurfaceManager();
 
-    MirSurface *shellSurface() const;
-
-    MirSurface *surfaceFor(std::shared_ptr<mir::shell::Surface> const& surface);
-
 Q_SIGNALS:
-    void surfaceCreated(MirSurface* surface);
-    void surfaceDestroyed(MirSurface* surface);
-    void shellSurfaceChanged(MirSurface* surface);
+    void surfaceCreated(MirSurfaceItem* surface);
+    void surfaceDestroyed(MirSurfaceItem* surface);
 //    void surfaceResized(MirSurface*);
 //    void fullscreenSurfaceChanged();
 
 public Q_SLOTS:
     void sessionCreatedSurface(mir::shell::ApplicationSession const* session, std::shared_ptr<mir::shell::Surface> const&);
     void sessionDestroyingSurface(mir::shell::ApplicationSession const*, std::shared_ptr<mir::shell::Surface> const&);
-    void shellSurfaceCreated(std::shared_ptr<mir::shell::Surface> const&);
 
     void surfaceAttributeChanged(mir::shell::Surface const*, MirSurfaceAttrib, int);
 
 private:
-    QHash<const mir::shell::Surface *, MirSurface *> m_surfaces;
-    MirSurface* m_shellSurface;
+    QHash<const mir::shell::Surface *, MirSurfaceItem *> m_surfaces;
     ShellServerConfiguration* m_mirServer;
     static MirSurfaceManager *the_surface_manager;
 };
