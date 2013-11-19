@@ -1,3 +1,13 @@
+platform-api (0.19+14.04.20131119.1-0ubuntu1) trusty; urgency=low
+
+  [ Kevin Gunn ]
+  * mir server abi break, bump build dep to 0.1.1
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 172
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Tue, 19 Nov 2013 19:16:40 +0000
+
 platform-api (0.19+14.04.20131028-0ubuntu1) trusty; urgency=low
 
   [ Kevin Gunn ]
