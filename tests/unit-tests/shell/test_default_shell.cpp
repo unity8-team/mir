@@ -85,9 +85,6 @@ TEST_F(DefaultShellSetup, open_and_close_session)
 {
     using namespace ::testing;
 
-    EXPECT_CALL(focus_setter, set_focus_to(_));
-    EXPECT_CALL(focus_setter, set_focus_to(std::shared_ptr<msh::Session>())).Times(1);
-
     auto session = default_shell.open_session("Visual Basic Studio", std::shared_ptr<mf::EventSink>());
     default_shell.close_session(session);
 }
@@ -207,6 +204,31 @@ TEST_F(DefaultShellSetup, closing_applications_transfers_focus)
     // Possible change of focus while sessions are closed on shutdown
     EXPECT_CALL(focus_setter, set_focus_to(_)).Times(AtLeast(0));
 }
+
+TEST_F(DefaultShellSetup, for_each)
+{
+    using namespace ::testing;
+
+    auto session1 = default_shell.open_session("Roll Away", std::shared_ptr<mf::EventSink>());
+    auto session2 = default_shell.open_session("The", std::shared_ptr<mf::EventSink>());
+    auto session3 = default_shell.open_session("Dew", std::shared_ptr<mf::EventSink>());
+
+    struct
+    {
+        MOCK_METHOD1(see, void(std::shared_ptr<mf::Session> const&));
+        void operator()(std::shared_ptr<mf::Session> const& session)
+        {
+            see(session);
+        }
+    } observer;
+
+    InSequence seq;
+    EXPECT_CALL(observer, see(session1));
+    EXPECT_CALL(observer, see(session2));
+    EXPECT_CALL(observer, see(session3));
+    default_shell.for_each(std::ref(observer));
+}
+
 
 namespace 
 {
