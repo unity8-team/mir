@@ -35,6 +35,7 @@
 #include "mir_test_doubles/stub_surface_controller.h"
 #include "mir_test_doubles/null_snapshot_strategy.h"
 #include "mir_test_doubles/null_surface_configurator.h"
+#include "mir_test_doubles/null_event_sink.h"
 #include "mir_test_doubles/null_session_event_sink.h"
 
 #include <gmock/gmock.h>
@@ -149,6 +150,62 @@ TEST_F(DefaultShellSetup, create_surface_for_session_forwards_and_then_focuses_s
 
     auto session1 = default_shell.open_session("Weather Report", std::shared_ptr<mf::EventSink>());
     default_shell.create_surface_for(session1, msh::a_surface());
+}
+
+TEST_F(DefaultShellSetup, cycle_focus)
+{
+    using namespace ::testing;
+
+    EXPECT_CALL(focus_setter, set_focus_to(_)).Times(3);
+
+    auto session1 = default_shell.open_session("Visual Basic Studio", std::make_shared<mtd::NullEventSink>());
+    auto session2 = default_shell.open_session("Microsoft Access", std::make_shared<mtd::NullEventSink>());
+    auto session3 = default_shell.open_session("WordPerfect", std::make_shared<mtd::NullEventSink>());
+
+    Mock::VerifyAndClearExpectations(&focus_setter);
+
+    {
+      InSequence seq;
+      EXPECT_CALL(focus_setter, set_focus_to(Eq(session1))).Times(1);
+      EXPECT_CALL(focus_setter, set_focus_to(Eq(session2))).Times(1);
+      EXPECT_CALL(focus_setter, set_focus_to(Eq(session3))).Times(1);
+    }
+
+    default_shell.focus_next();
+    default_shell.focus_next();
+    default_shell.focus_next();
+
+    Mock::VerifyAndClearExpectations(&focus_setter);
+
+    // Possible change of focus while sessions are closed on shutdown
+    EXPECT_CALL(focus_setter, set_focus_to(_)).Times(AtLeast(0));
+}
+
+TEST_F(DefaultShellSetup, closing_applications_transfers_focus)
+{
+    using namespace ::testing;
+
+    EXPECT_CALL(focus_setter, set_focus_to(_)).Times(3);
+
+    auto session1 = default_shell.open_session("Visual Basic Studio", std::make_shared<mtd::NullEventSink>());
+    auto session2 = default_shell.open_session("Microsoft Access", std::make_shared<mtd::NullEventSink>());
+    auto session3 = default_shell.open_session("WordPerfect", std::make_shared<mtd::NullEventSink>());
+
+    Mock::VerifyAndClearExpectations(&focus_setter);
+
+    {
+      InSequence seq;
+      EXPECT_CALL(focus_setter, set_focus_to(Eq(session2))).Times(1);
+      EXPECT_CALL(focus_setter, set_focus_to(Eq(session1))).Times(1);
+    }
+
+    default_shell.close_session(session3);
+    default_shell.close_session(session2);
+
+    Mock::VerifyAndClearExpectations(&focus_setter);
+
+    // Possible change of focus while sessions are closed on shutdown
+    EXPECT_CALL(focus_setter, set_focus_to(_)).Times(AtLeast(0));
 }
 
 namespace 
