@@ -26,6 +26,7 @@ option(MIR_ENABLE_INTEGRATION_TESTS "Build & run unit tests" ON)
 add_subdirectory(acceptance-tests/)
 add_subdirectory(integration-tests/)
 
+#only run the unit tests, we will run the other tests later
 if (MIR_ENABLE_UNIT_TESTS)
   add_subdirectory(unit-tests/)
 endif (MIR_ENABLE_UNIT_TESTS)
