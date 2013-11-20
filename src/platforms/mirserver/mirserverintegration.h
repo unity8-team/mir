@@ -26,9 +26,9 @@ public:
     QAbstractEventDispatcher* guiThreadEventDispatcher() const override { return eventDispatcher_; }
 #else
     QAbstractEventDispatcher *createEventDispatcher() const override;
-#endif
 
     void initialize() override;
+#endif
 
     QPlatformFontDatabase *fontDatabase() const override;
     QPlatformServices *services() const override;

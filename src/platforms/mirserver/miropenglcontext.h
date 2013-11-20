@@ -2,7 +2,10 @@
 #define MIROPENGLCONTEXT_H
 
 #include <qpa/qplatformopenglcontext.h>
+
+#if QT_VERSION >= QT_VERSION_CHECK(5, 2, 0)
 #include <QOpenGLDebugLogger>
+#endif
 
 namespace mir { class DefaultServerConfiguration; }
 
@@ -23,14 +26,16 @@ public:
 
     QFunctionPointer getProcAddress(const QByteArray &procName) override;
 
-#ifndef QT_NO_DEBUG
+#if QT_VERSION >= QT_VERSION_CHECK(5, 2, 0) && !defined(QT_NO_DEBUG)
     Q_SLOT void onGlDebugMessageLogged(QOpenGLDebugMessage m) { qDebug() << m; }
 #endif
 
 private:
     mir::DefaultServerConfiguration *m_mirConfig;
     QSurfaceFormat m_format;
+#if QT_VERSION >= QT_VERSION_CHECK(5, 2, 0)
     QOpenGLDebugLogger *m_logger;
+#endif
 };
 
 #endif // MIROPENGLCONTEXT_H
