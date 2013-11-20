@@ -3,7 +3,9 @@
 
 #include <qpa/qplatformopenglcontext.h>
 
-#if QT_VERSION >= QT_VERSION_CHECK(5, 2, 0)
+#define GL_DEBUG (QT_VERSION >= QT_VERSION_CHECK(5, 2, 0) && !defined(QT_NO_DEBUG))
+
+#if GL_DEBUG
 #include <QOpenGLDebugLogger>
 #endif
 
@@ -26,14 +28,14 @@ public:
 
     QFunctionPointer getProcAddress(const QByteArray &procName) override;
 
-#if QT_VERSION >= QT_VERSION_CHECK(5, 2, 0) && !defined(QT_NO_DEBUG)
+#if GL_DEBUG
     Q_SLOT void onGlDebugMessageLogged(QOpenGLDebugMessage m) { qDebug() << m; }
 #endif
 
 private:
     mir::DefaultServerConfiguration *m_mirConfig;
     QSurfaceFormat m_format;
-#if QT_VERSION >= QT_VERSION_CHECK(5, 2, 0)
+#if GL_DEBUG
     QOpenGLDebugLogger *m_logger;
 #endif
 };
