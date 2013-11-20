@@ -18,7 +18,7 @@ if(ENABLE_MEMCHECK_OPTION)
     VALGRIND_EXECUTABLE
     valgrind)
 
-  if(VALGRIND_EXECUTABLE0)
+  if(VALGRIND_EXECUTABLE)
     if(MIR_PLATFORM STREQUAL "android")
       set(VALGRIND_ARGS "--error-exitcode=1")
     else()
