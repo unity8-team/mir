@@ -178,23 +178,23 @@ class StubGraphicPlatform : public mtd::NullPlatform
         return std::make_shared<StubGraphicBufferAllocator>();
     }
 
-    void fill_ipc_package(mg::BufferIPCPacker* packer, mg::Buffer const* buffer) const override
+    void fill_ipc_package(mg::BufferIPCPacker& packer, mg::Buffer const& buffer) const override
     {
 #ifndef ANDROID
-        auto native_handle = buffer->native_buffer_handle();
+        auto native_handle = buffer.native_buffer_handle();
         for(auto i=0; i<native_handle->data_items; i++)
         {
-            packer->pack_data(native_handle->data[i]);
+            packer.pack_data(native_handle->data[i]);
         }
         for(auto i=0; i<native_handle->fd_items; i++)
         {
-            packer->pack_fd(native_handle->fd[i]);
+            packer.pack_fd(native_handle->fd[i]);
         }
 
-        packer->pack_flags(native_handle->flags);
+        packer.pack_flags(native_handle->flags);
 #endif
-        packer->pack_stride(buffer->stride());
-        packer->pack_size(buffer->size());
+        packer.pack_stride(buffer.stride());
+        packer.pack_size(buffer.size());
     }
 
     std::shared_ptr<mg::Display> create_display(

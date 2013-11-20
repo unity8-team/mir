@@ -99,7 +99,7 @@ public:
      * \param [in] packer the object providing the packing functionality
      * \param [in] buffer the buffer to fill the IPC package for
      */
-    virtual void fill_ipc_package(BufferIPCPacker* packer, Buffer const* buffer) const = 0;
+    virtual void fill_ipc_package(BufferIPCPacker& packer, Buffer const& buffer) const = 0;
 
     /**
      * Creates the in-process client support object.

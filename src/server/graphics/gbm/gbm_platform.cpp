@@ -132,21 +132,21 @@ std::shared_ptr<mg::PlatformIPCPackage> mgg::GBMPlatform::get_ipc_package()
     return std::make_shared<GBMPlatformIPCPackage>(drm.get_authenticated_fd());
 }
 
-void mgg::GBMPlatform::fill_ipc_package(BufferIPCPacker* packer, Buffer const* buffer) const
+void mgg::GBMPlatform::fill_ipc_package(BufferIPCPacker& packer, Buffer const& buffer) const
 {
-    auto native_handle = buffer->native_buffer_handle();
+    auto native_handle = buffer.native_buffer_handle();
     for(auto i=0; i<native_handle->data_items; i++)
     {
-        packer->pack_data(native_handle->data[i]);
+        packer.pack_data(native_handle->data[i]);
     }    
     for(auto i=0; i<native_handle->fd_items; i++)
     {
-        packer->pack_fd(native_handle->fd[i]);
+        packer.pack_fd(native_handle->fd[i]);
     }
 
-    packer->pack_stride(buffer->stride()); 
-    packer->pack_flags(native_handle->flags);
-    packer->pack_size(buffer->size());
+    packer.pack_stride(buffer.stride());
+    packer.pack_flags(native_handle->flags);
+    packer.pack_size(buffer.size());
 }
 
 void mgg::GBMPlatform::drm_auth_magic(drm_magic_t magic)

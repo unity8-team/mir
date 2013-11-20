@@ -110,7 +110,7 @@ TEST_F(PlatformBufferIPCPackaging, test_ipc_data_packed_correctly)
     EXPECT_CALL(mock_packer, pack_size(_))
         .Times(1);
 
-    platform.fill_ipc_package(&mock_packer, mock_buffer.get());
+    platform.fill_ipc_package(mock_packer, *mock_buffer);
 }
 
 TEST(AndroidGraphicsPlatform, egl_native_display_is_egl_default_display)

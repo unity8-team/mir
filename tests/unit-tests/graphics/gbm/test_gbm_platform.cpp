@@ -178,7 +178,7 @@ TEST_F(GBMGraphicsPlatform, test_ipc_data_packed_correctly)
     EXPECT_CALL(mock_packer, pack_size(testing::_))
         .Times(1);
 
-    platform->fill_ipc_package(&mock_packer, &mock_buffer);
+    platform->fill_ipc_package(mock_packer, mock_buffer);
 }
 
 TEST_F(GBMGraphicsPlatform, drm_auth_magic_calls_drm_function_correctly)
