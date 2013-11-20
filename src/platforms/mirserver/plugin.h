@@ -6,8 +6,7 @@
 class MirServerIntegrationPlugin : public QPlatformIntegrationPlugin
 {
     Q_OBJECT
-    Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QPA.QPlatformIntegrationFactoryInterface.5.2"
-                      FILE "mirserver.json")
+    Q_PLUGIN_METADATA(IID "QPlatformIntegrationFactoryInterface_iid" FILE "mirserver.json")
 
 public:
     QStringList keys() const;

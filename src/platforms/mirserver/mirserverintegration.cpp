@@ -37,8 +37,14 @@ MirServerIntegration::MirServerIntegration()
     , m_mirServer(nullptr)
     , m_display(nullptr)
     , m_nativeInterface(nullptr)
+#if QT_VERSION < QT_VERSION_CHECK(5, 2, 0)
+    , eventDispatcher_(createUnixEventDispatcher())
+#endif
 {
     // Start Mir server only once Qt has initialized its event dispatcher, see initialize()
+#if QT_VERSION < QT_VERSION_CHECK(5, 2, 0)
+    QGuiApplicationPrivate::instance()->setEventDispatcher(eventDispatcher_);
+#endif
 
     QStringList args = QCoreApplication::arguments();
     // convert arguments back into argc-argv form that Mir wants
@@ -103,10 +109,12 @@ QPlatformOpenGLContext *MirServerIntegration::createPlatformOpenGLContext(QOpenG
     return new MirOpenGLContext(m_mirConfig, context->format());
 }
 
+#if QT_VERSION >= QT_VERSION_CHECK(5, 2, 0)
 QAbstractEventDispatcher *MirServerIntegration::createEventDispatcher() const
 {
     return createUnixEventDispatcher();
 }
+#endif
 
 void MirServerIntegration::initialize()
 {

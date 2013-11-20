@@ -22,7 +22,11 @@ public:
     QPlatformBackingStore *createPlatformBackingStore(QWindow *window) const override;
     QPlatformOpenGLContext *createPlatformOpenGLContext(QOpenGLContext *context) const override;
 
+#if QT_VERSION < QT_VERSION_CHECK(5, 2, 0)
+    QAbstractEventDispatcher* guiThreadEventDispatcher() const override { return eventDispatcher_; }
+#else
     QAbstractEventDispatcher *createEventDispatcher() const override;
+#endif
 
     void initialize() override;
 
@@ -41,6 +45,9 @@ private:
     Display *m_display;
     MirServerConfiguration *m_mirConfig;
     NativeInterface *m_nativeInterface;
+#if QT_VERSION < QT_VERSION_CHECK(5, 2, 0)
+    QAbstractEventDispatcher* eventDispatcher_;
+#endif
 };
 
 #endif // MIRSERVERINTEGRATION_H
