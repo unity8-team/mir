@@ -18,6 +18,7 @@
 
 #include "mir/graphics/buffer_initializer.h"
 #include "mir/graphics/display_buffer.h"
+#include "src/server/surfaces/gl_pixel_buffer.h"
 #include "src/server/graphics/android/android_display.h"
 #include "src/server/graphics/android/resource_factory.h"
 #include "src/server/graphics/android/android_graphic_buffer_allocator.h"
@@ -50,8 +51,8 @@ protected:
            per process (repeated framebuffer_{open,close}() doesn't seem to work). once we
            figure out why, we can remove fb_device in the test fixture */
         auto buffer_initializer = std::make_shared<mg::NullBufferInitializer>();
-        auto fb_allocator = std::make_shared<mga::AndroidGraphicBufferAllocator>(buffer_initializer);
-        display_resource_factory = std::make_shared<mga::ResourceFactory>(fb_allocator);
+        buffer_allocator = std::make_shared<mga::AndroidGraphicBufferAllocator>(buffer_initializer);
+        display_resource_factory = std::make_shared<mga::ResourceFactory>(buffer_allocator);
     }
 
     static void TearDownTestCase()
@@ -64,10 +65,12 @@ protected:
 
     static std::shared_ptr<mga::ResourceFactory> display_resource_factory;
     static void (*original_sigterm_handler)(int);
+    static std::shared_ptr<mga::AndroidGraphicBufferAllocator> buffer_allocator;
 };
 
 void (*AndroidGPUDisplay::original_sigterm_handler)(int);
 std::shared_ptr<mga::ResourceFactory> AndroidGPUDisplay::display_resource_factory;
+std::shared_ptr<mga::AndroidGraphicBufferAllocator> AndroidGPUDisplay::buffer_allocator;
 }
 
 TEST_F(AndroidGPUDisplay, gpu_display_ok_with_gles)
@@ -110,4 +113,23 @@ TEST_F(AndroidGPUDisplay, hwc_display_ok_with_gles)
         gl_animation.render_gl();
         buffer.post_update();
     });
+}
+
+TEST_F(AndroidGPUDisplay, screenshot)
+{
+    auto should_use_fb_fallback = false;
+    auto mock_display_report = std::make_shared<testing::NiceMock<mtd::MockDisplayReport>>();
+    auto display_buffer_factory = std::make_shared<mga::DisplayBufferFactory>(
+        display_resource_factory, mock_display_report, should_use_fb_fallback);
+
+    mga::AndroidDisplay display(display_buffer_factory, mock_display_report);
+    auto context = display.create_gl_context();
+    mir::surfaces::GLPixelBuffer pixel_buffer(std::move(context));
+
+    auto buffer = buffer_allocator->alloc_buffer_platform(
+        mir::geometry::Size{512, 512},
+        mir::geometry::PixelFormat::abgr_8888,
+        mga::BufferUsage::use_hardware);
+
+    pixel_buffer.fill_from(*buffer); 
 }
