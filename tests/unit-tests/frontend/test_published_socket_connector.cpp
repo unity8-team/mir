@@ -19,7 +19,7 @@
 
 #include "mir/frontend/connector.h"
 #include "mir/frontend/connector_report.h"
-#include "mir/frontend/resource_cache.h"
+#include "src/server/frontend/resource_cache.h"
 #include "src/server/frontend/published_socket_connector.h"
 #include "src/server/frontend/protobuf_session_creator.h"
 
@@ -46,6 +46,8 @@ namespace mtd = mir::test::doubles;
 
 namespace
 {
+const int timeout_ms = 60 * 1000;
+
 class MockConnectorReport : public mf::ConnectorReport
 {
 public:
@@ -96,7 +98,7 @@ struct PublishedSocketConnector : public ::testing::Test
             communicator_report);
 
         stub_server->comm->start();
-        client = std::make_shared<mt::TestProtobufClient>(test_socket, 100);
+        client = std::make_shared<mt::TestProtobufClient>(test_socket, timeout_ms);
         client->connect_parameters.set_application_name(__PRETTY_FUNCTION__);
     }
 
@@ -425,7 +427,7 @@ TEST_F(PublishedSocketConnector, connection_using_socket_fd)
     int const next_buffer_calls{8};
     char buffer[128] = {0};
     sprintf(buffer, "fd://%d", stub_server->comm->client_socket_fd());
-    auto client = std::make_shared<mt::TestProtobufClient>(buffer, 100);
+    auto client = std::make_shared<mt::TestProtobufClient>(buffer, timeout_ms);
     client->connect_parameters.set_application_name(__PRETTY_FUNCTION__);
 
     EXPECT_CALL(*client, connect_done()).Times(1);
