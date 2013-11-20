@@ -54,9 +54,12 @@ MirPixelFormat find_opaque_surface_format(MirConnection* connection)
             return *f;
         }
     }
+    // Otherwise use what is available
+    if (valid_formats)
+        return formats[0];
 
     BOOST_THROW_EXCEPTION(
-        std::runtime_error("Nested Mir failed to find an opaque surface format"));
+        std::runtime_error("Nested Mir failed to find a surface format"));
 }
 
 }
