@@ -22,6 +22,7 @@ endif()
 option(MIR_ENABLE_ACCEPTANCE_TESTS "Build & run acceptance tests" ON)
 option(MIR_ENABLE_INTEGRATION_TESTS "Build & run integration tests" ON)
 option(MIR_ENABLE_UNIT_TESTS "Build & run unit tests" ON)
+option(MIR_ENABLE_SPECIAL_TESTS "Build & run special tests" ON)
 
 if (MIR_ENABLE_ACCEPTANCE_TESTS)
   add_subdirectory(acceptance-tests/)
@@ -34,6 +35,10 @@ endif (MIR_ENABLE_UNIT_TESTS)
 if (MIR_ENABLE_INTEGRATION_TESTS)
   add_subdirectory(integration-tests/)
 endif (MIR_ENABLE_INTEGRATION_TESTS)
+
+if (MIR_ENABLE_SPECIAL_TESTS)
+  add_subdirectory(special-tests/)
+endif (MIR_ENABLE_SPECIAL_TESTS)
 
 add_subdirectory(mir_test/)
 add_subdirectory(mir_test_framework/)

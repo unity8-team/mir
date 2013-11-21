@@ -33,6 +33,7 @@ set(
   default_connection_configuration.cpp
   surface_map.cpp
   lifecycle_control.cpp
+  mir_client_ensure_global_symbol_resolution.cpp
 )
 
 if( MIR_PLATFORM STREQUAL "android")
@@ -76,6 +77,7 @@ set_target_properties(
 
   PROPERTIES
   SOVERSION ${MIRCLIENT_ABI}
+  COMPILE_DEFINITIONS MIRCLIENT_LIBRARY_NAME=\"$<TARGET_SONAME_FILE_NAME:mirclient>\"
 )
 
 # Ensure mirclient_compat_links exist before any dependents of mirclient
