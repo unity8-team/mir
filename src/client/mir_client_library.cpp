@@ -566,7 +566,16 @@ int mir_event_queue_wait(MirEventQueue* q, int milliseconds,
                          MirEvent const** e, MirSurface** s)
 {
     MirEventQueue::Event const* next;
-    int ret = q->wait(std::chrono::milliseconds(milliseconds), &next);
+    std::chrono::milliseconds timeout = (milliseconds >= 0) ?
+        std::chrono::milliseconds(milliseconds) :
+        std::chrono::milliseconds::max();
+    int ret;
+
+    while ((ret = q->wait(timeout, &next)) && !next && milliseconds < 0)
+    {
+        // Only loop on infinite timeout (milliseconds < 0)
+    }
+
     if (ret)
     {
         if (e) *e = next ? &next->event : NULL;
