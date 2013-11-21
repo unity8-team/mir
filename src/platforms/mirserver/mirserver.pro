@@ -9,7 +9,7 @@ CONFIG += no_keywords  # "signals" clashes with Mir
 
 # CONFIG += c++11 # only enables C++0x
 QMAKE_CXXFLAGS = -std=c++11
-QMAKE_CXXFLAGS_RELEASE += -fvisibility=hidden -fvisibility-inlines-hidden -Werror  # so no stop on warning in debug builds
+QMAKE_CXXFLAGS_RELEASE += -Werror  # so no stop on warning in debug builds
 QMAKE_LFLAGS = -std=c++11 -Wl,-no-undefined
 
 CONFIG   += link_pkgconfig
