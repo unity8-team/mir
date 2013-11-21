@@ -567,10 +567,10 @@ int mir_event_queue_wait(MirEventQueue* q, int milliseconds,
 {
     MirEventQueue::Event const* next;
     int ret = q->wait(std::chrono::milliseconds(milliseconds), &next);
-    if (ret && next)
+    if (ret)
     {
-        if (e) *e = &next->event;  // pointer remains valid till next wait
-        if (s) *s = next->surface;
+        if (e) *e = next ? &next->event : NULL;
+        if (s) *s = next ? next->surface : NULL;
     }
     return ret;
 }
