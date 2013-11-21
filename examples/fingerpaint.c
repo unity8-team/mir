@@ -387,7 +387,6 @@ int main(int argc, char *argv[])
         {
             const MirEvent *event;
             MirSurface *eventsurf;
-            int samples = 0;
 
             signal(SIGINT, shutdown);
             signal(SIGTERM, shutdown);
@@ -395,18 +394,16 @@ int main(int argc, char *argv[])
             clear_region(&canvas, &background);
             redraw(surf, &canvas);
         
-            while (mir_event_queue_wait(queue, 8, &event, &eventsurf))
+            mir_event_queue_animate(queue, 8);
+            while (mir_event_queue_wait(queue, &event, &eventsurf))
             {
                 if (event != NULL)
                 {
                     on_event(eventsurf, event, &canvas);
-                    samples++;
                 }
-
-                if ((event == NULL && samples) || samples >= 10)
+                else  // We're being animated
                 {
                     redraw(surf, &canvas);
-                    samples = 0;
                 }
             }
 

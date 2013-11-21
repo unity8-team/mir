@@ -407,8 +407,8 @@ MirWaitHandle* mir_surface_set_swapinterval(MirSurface* surface, int interval);
 int mir_surface_get_swapinterval(MirSurface* surface);
 
 MirEventQueue* mir_create_event_queue();
-int mir_event_queue_wait(MirEventQueue* q, int milliseconds,
-                         MirEvent const** e, MirSurface** s);
+void mir_event_queue_animate(MirEventQueue* q, int milliseconds);
+int mir_event_queue_wait(MirEventQueue* q, MirEvent const** e, MirSurface** s);
 void mir_event_queue_quit(MirEventQueue* q);
 void mir_event_queue_release(MirEventQueue* q);
 

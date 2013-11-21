@@ -569,20 +569,15 @@ MirEventQueue* mir_create_event_queue()
     return new MirEventQueue;
 }
 
-int mir_event_queue_wait(MirEventQueue* q, int milliseconds,
-                         MirEvent const** e, MirSurface** s)
+void mir_event_queue_animate(MirEventQueue* q, int milliseconds)
+{
+    q->animate(std::chrono::milliseconds(milliseconds));
+}
+
+int mir_event_queue_wait(MirEventQueue* q, MirEvent const** e, MirSurface** s)
 {
     MirEventQueue::Event const* next;
-    std::chrono::milliseconds timeout = (milliseconds >= 0) ?
-        std::chrono::milliseconds(milliseconds) :
-        std::chrono::milliseconds::max();
-    int ret;
-
-    while ((ret = q->wait(timeout, &next)) && !next && milliseconds < 0)
-    {
-        // Only loop on infinite timeout (milliseconds < 0)
-    }
-
+    int ret = q->wait(&next);
     if (ret)
     {
         if (e) *e = next ? &next->event : NULL;

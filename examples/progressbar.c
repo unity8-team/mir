@@ -272,12 +272,14 @@ int main(int argc, char *argv[])
             int t = 0;
 
             queue = mir_create_event_queue();
+            mir_event_queue_animate(queue, sleep_usec / 1000);
+
             signal(SIGINT, shutdown);
             signal(SIGTERM, shutdown);
 
             do
             {
-                if (event == NULL)  /* timeout expired */
+                if (event == NULL)  /* on animation interval */
                 {
                     static const int width = 8;
                     static const int space = 1;
@@ -296,8 +298,7 @@ int main(int argc, char *argv[])
                 }
 
                 redraw(surf, &canvas);
-            } while (mir_event_queue_wait(queue, sleep_usec / 1000,
-                                          &event, &esurf));
+            } while (mir_event_queue_wait(queue, &event, &esurf));
 
             signal(SIGINT, SIG_DFL);
             signal(SIGTERM, SIG_DFL);
