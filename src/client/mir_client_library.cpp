@@ -553,8 +553,15 @@ void enqueue_event(MirSurface* surface, MirEvent const* event, void* context)
 
 void mir_surface_set_event_queue(MirSurface *surface, MirEventQueue *q)
 {
-    MirEventDelegate delegate{enqueue_event, q};
-    surface->set_event_handler(&delegate);
+    if (q)
+    {
+        MirEventDelegate delegate{enqueue_event, q};
+        surface->set_event_handler(&delegate);
+    }
+    else
+    {
+        surface->set_event_handler(nullptr);
+    }
 }
 
 MirEventQueue* mir_create_event_queue()

@@ -32,15 +32,17 @@ typedef struct
     uint8_t r, g, b, a;
 } Color;
 
-static volatile sig_atomic_t running = 1;
+static MirEventQueue *queue = NULL;
 
 static void shutdown(int signum)
 {
-    if (running)
+    static int printed = 0;
+    if (!printed)
     {
-        running = 0;
         printf("Signal %d received. Good night.\n", signum);
+        printed = 1;
     }
+    mir_event_queue_quit(queue);
 }
 
 static void blend(uint32_t *dest, uint32_t src, int alpha_shift)
@@ -279,7 +281,6 @@ int main(int argc, char *argv[])
     MirSurfaceParameters parm;
     MirSurface *surf;
     MirGraphicsRegion canvas;
-    MirEventDelegate delegate = {&on_event, &canvas};
     unsigned int f;
 
     char *mir_socket = NULL;
@@ -371,9 +372,10 @@ int main(int argc, char *argv[])
     mir_display_config_destroy(display_config);
 
     surf = mir_connection_create_surface_sync(conn, &parm);
-    if (surf != NULL)
+    queue = mir_create_event_queue();
+    if (surf != NULL && queue != NULL)
     {
-        mir_surface_set_event_handler(surf, &delegate);
+        mir_surface_set_event_queue(surf, queue);
     
         canvas.width = parm.width;
         canvas.height = parm.height;
@@ -383,19 +385,23 @@ int main(int argc, char *argv[])
 
         if (canvas.vaddr != NULL)
         {
+            const MirEvent *event;
+            MirSurface *eventsurf;
+
             signal(SIGINT, shutdown);
             signal(SIGTERM, shutdown);
         
             clear_region(&canvas, &background);
             redraw(surf, &canvas);
         
-            while (running)
+            while (mir_event_queue_wait(queue, -1, &event, &eventsurf))
             {
-                sleep(1);  /* Is there a better way yet? */
+                if (event != NULL)
+                    on_event(eventsurf, event, &canvas);
             }
 
             /* Ensure canvas won't be used after it's freed */
-            mir_surface_set_event_handler(surf, NULL);
+            mir_surface_set_event_queue(surf, NULL);
             free(canvas.vaddr);
         }
         else
@@ -404,6 +410,7 @@ int main(int argc, char *argv[])
         }
 
         mir_surface_release_sync(surf);
+        mir_event_queue_release(queue);
     }
     else
     {

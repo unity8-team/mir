@@ -58,8 +58,8 @@ bool MirEventQueue::wait(std::chrono::milliseconds timeout, Event const** e)
     auto deadline = now + timeout;
 
     while (running &&
-           cond.wait_until(lock, deadline) == std::cv_status::no_timeout &&
-           queue.empty())
+           queue.empty() &&
+           cond.wait_until(lock, deadline) == std::cv_status::no_timeout)
     {
     }
 
