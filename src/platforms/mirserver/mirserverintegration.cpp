@@ -46,10 +46,6 @@ MirServerIntegration::MirServerIntegration()
 #endif
 {
     // Start Mir server only once Qt has initialized its event dispatcher, see initialize()
-#if QT_VERSION < QT_VERSION_CHECK(5, 2, 0)
-    QGuiApplicationPrivate::instance()->setEventDispatcher(eventDispatcher_);
-    initialize();
-#endif
 
     QStringList args = QCoreApplication::arguments();
     // convert arguments back into argc-argv form that Mir wants
@@ -62,6 +58,11 @@ MirServerIntegration::MirServerIntegration()
     argv[args.size()] = ((char)NULL);
 
     m_mirConfig = new MirServerConfiguration(args.length(), const_cast<const char**>(argv));
+
+#if QT_VERSION < QT_VERSION_CHECK(5, 2, 0)
+    QGuiApplicationPrivate::instance()->setEventDispatcher(eventDispatcher_);
+    initialize();
+#endif
 }
 
 MirServerIntegration::~MirServerIntegration()
