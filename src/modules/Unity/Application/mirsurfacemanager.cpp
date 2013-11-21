@@ -53,8 +53,8 @@ MirSurfaceManager::MirSurfaceManager(QObject *parent)
         return;
     }
 
-    SessionListener *sessionListener = static_cast<SessionListener*>(nativeInterface->nativeResourceForIntegration("sessionlistener"));
-    SurfaceConfigurator *surfaceConfigurator = static_cast<SurfaceConfigurator*>(nativeInterface->nativeResourceForIntegration("surfaceconfigurator"));
+    SessionListener *sessionListener = static_cast<SessionListener*>(nativeInterface->nativeResourceForIntegration("SessionListener"));
+    SurfaceConfigurator *surfaceConfigurator = static_cast<SurfaceConfigurator*>(nativeInterface->nativeResourceForIntegration("SessionConfigurator"));
 
     QObject::connect(sessionListener, &SessionListener::sessionCreatedSurface,
                      this, &MirSurfaceManager::sessionCreatedSurface);

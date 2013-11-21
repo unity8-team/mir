@@ -67,8 +67,8 @@ ApplicationManager::ApplicationManager(QObject *parent)
         return;
     }
 
-    SessionListener *sessionListener = static_cast<SessionListener*>(nativeInterface->nativeResourceForIntegration("sessionlistener"));
-    SessionAuthorizer *sessionAuthorizer = static_cast<SessionAuthorizer*>(nativeInterface->nativeResourceForIntegration("sessionauthorizer"));
+    SessionListener *sessionListener = static_cast<SessionListener*>(nativeInterface->nativeResourceForIntegration("SessionListener"));
+    SessionAuthorizer *sessionAuthorizer = static_cast<SessionAuthorizer*>(nativeInterface->nativeResourceForIntegration("SessionAuthorizer"));
 
     QObject::connect(sessionListener, &SessionListener::sessionStarting,
                      this, &ApplicationManager::onSessionStarting);
