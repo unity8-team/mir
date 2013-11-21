@@ -52,15 +52,7 @@ bool MirEventQueue::wait(std::chrono::milliseconds timeout, Event const** e)
     if (handled)
         queue.pop_front();  // Remove the previous one handled
 
-    if (e)
-    {
-        *e = nullptr;
-        handled = true;
-    }
-    else
-    {
-        handled = false;
-    }
+    handled = false;
 
     auto now = std::chrono::system_clock::now();
     auto deadline = now + timeout;
@@ -73,7 +65,10 @@ bool MirEventQueue::wait(std::chrono::milliseconds timeout, Event const** e)
 
     bool pending = !queue.empty();
     if (pending && e)
+    {
         *e = &queue.front();
+        handled = true;
+    }
 
     return pending;
 }
