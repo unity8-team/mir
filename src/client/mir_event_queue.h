@@ -43,6 +43,15 @@ public:
     void push(Event const& e);
     void quit();
 
+    /**
+     * Wait for the next event (if any).
+     *   \param [in] timeout  Maximum time to wait for
+     *   \param [out] e       Returns a pointer to the next event in the
+     *                        queue (if any). This pointer remains valid until
+     *                        the next call to wait().
+     *   \return              True until quit() has been called and there are
+     *                        no more events pending.
+     */
     bool wait(std::chrono::milliseconds timeout, Event const** e);
 
 private:

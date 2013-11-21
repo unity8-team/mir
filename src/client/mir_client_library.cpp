@@ -29,6 +29,7 @@
 #include "egl_native_display_container.h"
 #include "default_connection_configuration.h"
 #include "lifecycle_control.h"
+#include "mir_event_queue.h"
 
 #include <set>
 #include <unordered_set>
@@ -537,4 +538,49 @@ int mir_connection_drm_set_gbm_device(MirConnection* connection,
     memcpy(extra_data.data(), &gbm_dev, sizeof(gbm_dev));
 
     return connection->set_extra_platform_data(extra_data);
+}
+
+// MirEventQueue
+
+namespace
+{
+void enqueue_event(MirSurface* surface, MirEvent const* event, void* context)
+{
+    MirEventQueue *q = static_cast<MirEventQueue*>(context);
+    q->push({*event, surface});
+}
+}
+
+void mir_surface_set_event_queue(MirSurface *surface, MirEventQueue *q)
+{
+    MirEventDelegate delegate{enqueue_event, q};
+    surface->set_event_handler(&delegate);
+}
+
+MirEventQueue* mir_create_event_queue()
+{
+    return new MirEventQueue;
+}
+
+int mir_event_queue_wait(MirEventQueue* q, int milliseconds,
+                         MirEvent const** e, MirSurface** s)
+{
+    MirEventQueue::Event const* next;
+    int ret = q->wait(std::chrono::milliseconds(milliseconds), &next);
+    if (ret && next)
+    {
+        if (e) *e = &next->event;  // pointer remains valid till next wait
+        if (s) *s = next->surface;
+    }
+    return ret;
+}
+
+void mir_event_queue_quit(MirEventQueue* q)
+{
+    q->quit();
+}
+
+void mir_event_queue_release(MirEventQueue* q)
+{
+    delete q;
 }

@@ -217,6 +217,8 @@ MirSurface *mir_connection_create_surface_sync(
 void mir_surface_set_event_handler(MirSurface *surface,
                                    MirEventDelegate const *event_handler);
 
+void mir_surface_set_event_queue(MirSurface *surface, MirEventQueue *queue);
+
 /**
  * Get a window type that can be used for OpenGL ES 2.0 acceleration.
  *   \param [in] surface  The surface
@@ -405,8 +407,8 @@ MirWaitHandle* mir_surface_set_swapinterval(MirSurface* surface, int interval);
 int mir_surface_get_swapinterval(MirSurface* surface);
 
 MirEventQueue* mir_create_event_queue();
-void mir_event_queue_attach_surface(MirEventQueue* q, MirSurface *s);
-int mir_event_queue_wait(MirEventQueue* q, int milliseconds);
+int mir_event_queue_wait(MirEventQueue* q, int milliseconds,
+                         MirEvent const** e, MirSurface** s);
 void mir_event_queue_quit(MirEventQueue* q);
 void mir_event_queue_release(MirEventQueue* q);
 

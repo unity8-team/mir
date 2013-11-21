@@ -69,7 +69,13 @@ bool MirEventQueue::wait(std::chrono::milliseconds timeout, Event const** e)
         *e = &queue.front();
         handled = true;
     }
+    else if (e)
+    {
+        *e = nullptr;
+    }
 
-    return pending;
+    // Only break the client's event loop after it has chosen to quit() and
+    // there are no more events to process.
+    return running || pending;
 }
 
