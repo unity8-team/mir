@@ -14,9 +14,9 @@ public:
     int depth() const override { return m_depth; }
     QImage::Format format() const override { return m_format; }
 
-    virtual QSizeF physicalSize() const { return m_physicalSize; }
+    QSizeF physicalSize() const override { return m_physicalSize; }
 
-    virtual qreal refreshRate() const { return m_refreshRate; }
+    qreal refreshRate() const override { return m_refreshRate; }
 
 private:
     void readMirDisplayConfiguration(mir::graphics::DisplayConfigurationOutput const&);

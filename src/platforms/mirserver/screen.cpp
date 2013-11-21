@@ -31,12 +31,12 @@ void Screen::readMirDisplayConfiguration(mir::graphics::DisplayConfigurationOutp
     }
 
     // Pixel depth
-    m_depth = 32; // FIXME: assumed, could use "bytes_per_pixel" to calculate it
+    m_depth = 8 * mg::bytes_per_pixel(pixelFormat);
 
     // Mode = Resolution & refresh rate
     mir::graphics::DisplayConfigurationMode mode = screen.modes.at(screen.current_mode_index);
     m_geometry.setWidth(mode.size.width.as_int());
     m_geometry.setHeight(mode.size.height.as_int());
 
-    m_refreshRate = mode.vrefresh_hz;
+    m_refreshRate = 60; //mode.vrefresh_hz value incorrect;
 }
