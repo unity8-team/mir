@@ -39,6 +39,7 @@ typedef void* MirEGLNativeWindowType;
 typedef void* MirEGLNativeDisplayType;
 typedef struct MirConnection MirConnection;
 typedef struct MirSurface MirSurface;
+typedef struct MirEventQueue MirEventQueue;
 
 /**
  * Returned by asynchronous functions. Must not be free'd by
