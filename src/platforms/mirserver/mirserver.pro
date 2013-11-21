@@ -13,7 +13,7 @@ QMAKE_CXXFLAGS_RELEASE += -fvisibility=hidden -fvisibility-inlines-hidden -Werro
 QMAKE_LFLAGS = -std=c++11 -Wl,-no-undefined
 
 CONFIG   += link_pkgconfig
-PKGCONFIG += mircommon mirserver
+PKGCONFIG += mircommon mirserver egl
 
 SOURCES += plugin.cpp \
     qmirserver.cpp \

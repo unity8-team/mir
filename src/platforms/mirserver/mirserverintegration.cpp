@@ -12,6 +12,10 @@
 #include <QStringList>
 #include <QOpenGLContext>
 
+#if QT_VERSION < QT_VERSION_CHECK(5, 2, 0)
+#include <private/qguiapplication_p.h>
+#endif
+
 #include <QDebug>
 
 // Mir
@@ -44,6 +48,7 @@ MirServerIntegration::MirServerIntegration()
     // Start Mir server only once Qt has initialized its event dispatcher, see initialize()
 #if QT_VERSION < QT_VERSION_CHECK(5, 2, 0)
     QGuiApplicationPrivate::instance()->setEventDispatcher(eventDispatcher_);
+    initialize();
 #endif
 
     QStringList args = QCoreApplication::arguments();
@@ -73,8 +78,10 @@ bool MirServerIntegration::hasCapability(QPlatformIntegration::Capability cap) c
     case SharedGraphicsCache: return true;
     case BufferQueueingOpenGL: return false; // causes slowdown on Nexus4
     case MultipleWindows: return false; // multi-monitor support
+#if QT_VERSION >= QT_VERSION_CHECK(5, 2, 0)
     case WindowManagement: return false; // platform has no WM, as this implements the WM!
     case NonFullScreenWindows: return false;
+#endif
     default: return QPlatformIntegration::hasCapability(cap);
     }
 }
@@ -101,6 +108,7 @@ QPlatformWindow *MirServerIntegration::createPlatformWindow(QWindow *window) con
 QPlatformBackingStore *MirServerIntegration::createPlatformBackingStore(QWindow *window) const
 {
     qDebug() << "createPlatformBackingStore" << window;
+    return nullptr;
 }
 
 QPlatformOpenGLContext *MirServerIntegration::createPlatformOpenGLContext(QOpenGLContext *context) const

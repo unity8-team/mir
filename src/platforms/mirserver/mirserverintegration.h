@@ -24,9 +24,9 @@ public:
 
 #if QT_VERSION < QT_VERSION_CHECK(5, 2, 0)
     QAbstractEventDispatcher* guiThreadEventDispatcher() const override { return eventDispatcher_; }
+    void initialize();
 #else
     QAbstractEventDispatcher *createEventDispatcher() const override;
-
     void initialize() override;
 #endif
 
