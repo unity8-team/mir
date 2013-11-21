@@ -203,6 +203,8 @@ static void on_event(MirSurface *surface, const MirEvent *event, void *context)
         {0x00, 0x00, 0xff, 0xff},
     };
 
+    (void)surface;
+
     if (event->type == mir_event_type_motion)
     {
         static size_t base_color = 0;
@@ -245,8 +247,6 @@ static void on_event(MirSurface *surface, const MirEvent *event, void *context)
 
                 draw_box(canvas, x - radius, y - radius, 2*radius, &tone);
             }
-    
-            redraw(surface, canvas);
         }
     }
 }
@@ -387,6 +387,7 @@ int main(int argc, char *argv[])
         {
             const MirEvent *event;
             MirSurface *eventsurf;
+            int samples = 0;
 
             signal(SIGINT, shutdown);
             signal(SIGTERM, shutdown);
@@ -394,10 +395,19 @@ int main(int argc, char *argv[])
             clear_region(&canvas, &background);
             redraw(surf, &canvas);
         
-            while (mir_event_queue_wait(queue, -1, &event, &eventsurf))
+            while (mir_event_queue_wait(queue, 8, &event, &eventsurf))
             {
                 if (event != NULL)
+                {
                     on_event(eventsurf, event, &canvas);
+                    samples++;
+                }
+
+                if ((event == NULL && samples) || samples >= 10)
+                {
+                    redraw(surf, &canvas);
+                    samples = 0;
+                }
             }
 
             /* Ensure canvas won't be used after it's freed */
