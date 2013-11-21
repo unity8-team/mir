@@ -56,6 +56,7 @@ unsigned int mga::HWC10Device::number_of_framebuffers_available() const
 
 void mga::HWC10Device::set_next_frontbuffer(std::shared_ptr<mg::Buffer> const& buffer)
 {
+    list.set_fb_target(buffer);
     fb_device->set_next_frontbuffer(buffer);
 }
 
@@ -63,20 +64,21 @@ void mga::HWC10Device::commit_frame(EGLDisplay dpy, EGLSurface sur)
 {
     auto lg = lock_unblanked();
 
-    hwc_display_contents_1 display_contents;
-    display_contents.dpy = dpy;
-    display_contents.sur = sur;
-    display_contents.retireFenceFd = -1;
-    display_contents.flags = 0;
-    display_contents.numHwLayers = 0;
-    hwc_display_contents_1* contents = &display_contents;
+    hwc_display_contents_1* display_contents = list.native_list();
+    display_contents->dpy = dpy;
+    display_contents->sur = sur;
+    display_contents->retireFenceFd = -1;
+    display_contents->flags = HWC_GEOMETRY_CHANGED;
+    display_contents->hwLayers[0].flags = HWC_SKIP_LAYER;
+    display_contents->numHwLayers = 1;
 
-    auto rc = hwc_device->prepare(hwc_device.get(), 1, &contents);
+    auto rc = hwc_device->prepare(hwc_device.get(), 1, &display_contents);
     if (rc != 0)
     {
         BOOST_THROW_EXCEPTION(std::runtime_error("error during hwc prepare()"));
     }
-    rc = hwc_device->set(hwc_device.get(), 1, &contents);
+
+    rc = hwc_device->set(hwc_device.get(), 1, &display_contents);
     if (rc != 0)
     {
         BOOST_THROW_EXCEPTION(std::runtime_error("error during hwc set()"));

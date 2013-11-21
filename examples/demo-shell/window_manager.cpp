@@ -82,51 +82,12 @@ mir::geometry::Point average_pointer(MirMotionEvent const& motion)
 bool me::WindowManager::handle(MirEvent const& event)
 {
     // TODO: Fix android configuration and remove static hack ~racarr
-    static bool display_off = false;
     assert(focus_controller);
     assert(display);
     assert(compositor);
 
-    if (event.key.type == mir_event_type_key &&
-        event.key.action == mir_key_action_down)
+    if (event.type == mir_event_type_motion && focus_controller)
     {
-        if (event.key.modifiers & mir_key_modifier_alt &&
-            event.key.scan_code == KEY_TAB)  // TODO: Use keycode once we support keymapping on the server side
-        {
-            focus_controller->focus_next();
-            return true;
-        }
-        if (event.key.modifiers & mir_key_modifier_alt && event.key.scan_code == KEY_P)
-        {
-            compositor->stop();
-            auto conf = display->configuration();
-            conf->for_each_output([&](mg::DisplayConfigurationOutput const& output) -> void
-            {
-                MirPowerMode power_mode;
-                if (!output.used) return;
-
-                if (display_off == true)
-                    power_mode = mir_power_mode_on;
-                else
-                    power_mode = mir_power_mode_off;
-
-                conf->configure_output(output.id, output.used,
-                                       output.top_left, 
-                                       output.current_mode_index,
-                                       power_mode);
-            });
-            display_off = !display_off;
-
-            display->configure(*conf.get());
-            compositor->start();
-            return true;
-        }
-    }
-    else if (event.type == mir_event_type_motion &&
-             focus_controller)
-    {
-        geometry::Point cursor = average_pointer(event.motion);
-
         // FIXME: https://bugs.launchpad.net/mir/+bug/1197108
         MirMotionAction action = static_cast<MirMotionAction>(event.motion.action & ~0xff00);
 
@@ -140,40 +101,14 @@ bool me::WindowManager::handle(MirEvent const& event)
 
         if (app)
         {
-            // FIXME: We need to be able to select individual surfaces in
-            //        future and not just the "default" one.
-            std::shared_ptr<msh::Surface> surf = app->default_surface();
-
-            if (surf &&
-                (event.motion.modifiers & mir_key_modifier_alt ||
-                 fingers >= 3))
+            if (max_fingers == 4 && action == mir_motion_action_up)
             {
-                // Start of a gesture: When the latest finger/button goes down
-                if (action == mir_motion_action_down ||
-                    action == mir_motion_action_pointer_down)
-                {
-                    relative_click = cursor - surf->top_left();
-                    click = cursor;
-                }
-                else if (event.motion.action == mir_motion_action_move)
-                { // Movement is happening with one or more fingers/button down
-                    geometry::Point abs = cursor - relative_click;
-                    if (max_fingers <= 3)  // Avoid accidental movement
+                app->take_snapshot(
+                    [&](mir::shell::Snapshot const& snapshot)
                     {
-                        surf->move_to(abs);
-                        return true;
-                    }
-                }
-            }
-        }
-
-        if (max_fingers == 4 && action == mir_motion_action_up)
-        { // Four fingers released
-            geometry::Displacement dir = cursor - click;
-            if (abs(dir.dx.as_int()) >= min_swipe_distance)
-            {
-                focus_controller->focus_next();
-                return true;
+                        (void) snapshot;
+                        printf("Snapshot taken\n");
+                    });
             }
         }
     }
