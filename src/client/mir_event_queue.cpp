@@ -31,8 +31,11 @@ MirEventQueue::MirEventQueue()
 void MirEventQueue::push(Event const& e)
 {
     Lock lock(guard);
-    queue.push_back(e);
-    cond.notify_one();
+    if (running)
+    {
+        queue.push_back(e);
+        cond.notify_one();
+    } // else events after quit() are ignored.
 }
 
 void MirEventQueue::quit()
@@ -68,10 +71,10 @@ bool MirEventQueue::wait(std::chrono::milliseconds timeout, Event const** e)
     {
     }
 
-    bool got = running && !queue.empty();
-    if (e && got)
+    bool pending = !queue.empty();
+    if (pending && e)
         *e = &queue.front();
 
-    return got;
+    return pending;
 }
 
