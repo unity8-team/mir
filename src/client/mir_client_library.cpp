@@ -546,8 +546,9 @@ namespace
 {
 void enqueue_event(MirSurface* surface, MirEvent const* event, void* context)
 {
+    (void)surface;
     MirEventQueue *q = static_cast<MirEventQueue*>(context);
-    q->push({*event, surface});
+    q->push(event);
 }
 }
 
@@ -574,16 +575,9 @@ void mir_event_queue_animate(MirEventQueue* q, int milliseconds)
     q->animate(std::chrono::milliseconds(milliseconds));
 }
 
-int mir_event_queue_wait(MirEventQueue* q, MirEvent const** e, MirSurface** s)
+int mir_event_queue_wait(MirEventQueue* q, MirEvent const** e)
 {
-    MirEventQueue::Event const* next;
-    int ret = q->wait(&next);
-    if (ret)
-    {
-        if (e) *e = next ? &next->event : NULL;
-        if (s) *s = next ? next->surface : NULL;
-    }
-    return ret;
+    return q->wait(e);
 }
 
 void mir_event_queue_quit(MirEventQueue* q)

@@ -33,20 +33,14 @@
 struct MirEventQueue
 {
 public:
-    struct Event
-    {
-        MirEvent event;
-        MirSurface* surface;
-    };
-
     MirEventQueue();
     void animate(std::chrono::milliseconds period);
-    void push(Event const& e);
+    void push(MirEvent const* e);
     void quit();
-    bool wait(Event const** e);
+    bool wait(MirEvent const** e);
 
 private:
-    typedef std::list<Event> Queue;  // elements never move in memory
+    typedef std::list<MirEvent> Queue;  // elements never move in memory
     std::chrono::system_clock::time_point woke;
     std::mutex guard;
     std::condition_variable cond;

@@ -386,7 +386,6 @@ int main(int argc, char *argv[])
         if (canvas.vaddr != NULL)
         {
             const MirEvent *event;
-            MirSurface *eventsurf;
 
             signal(SIGINT, shutdown);
             signal(SIGTERM, shutdown);
@@ -395,11 +394,11 @@ int main(int argc, char *argv[])
             redraw(surf, &canvas);
         
             mir_event_queue_animate(queue, 8);
-            while (mir_event_queue_wait(queue, &event, &eventsurf))
+            while (mir_event_queue_wait(queue, &event))
             {
                 if (event != NULL)
                 {
-                    on_event(eventsurf, event, &canvas);
+                    on_event(surf, event, &canvas);
                 }
                 else  // We're being animated
                 {

@@ -36,12 +36,12 @@ void MirEventQueue::animate(std::chrono::milliseconds period)
     cond.notify_all();
 }
 
-void MirEventQueue::push(Event const& e)
+void MirEventQueue::push(MirEvent const* e)
 {
     Lock lock(guard);
     if (running)
     {
-        queue.push_back(e);
+        queue.push_back(*e);
         cond.notify_one();
     } // else events after quit() are ignored.
 }
@@ -53,14 +53,12 @@ void MirEventQueue::quit()
     cond.notify_all();
 }
 
-bool MirEventQueue::wait(Event const** e)
+bool MirEventQueue::wait(MirEvent const** e)
 {
     Lock lock(guard);
 
     if (handled)
         queue.pop_front();  // Remove the previous one handled
-
-    handled = false;
 
     std::chrono::system_clock::time_point deadline;
     do
@@ -70,20 +68,22 @@ bool MirEventQueue::wait(Event const** e)
              queue.empty() &&
              cond.wait_until(lock, deadline) == std::cv_status::no_timeout);
 
-    bool pending = !queue.empty();
-    if (pending && e)
+    handled = !queue.empty();
+    if (e)
     {
-        *e = &queue.front();
-        handled = true;
-    }
-    else if (e)
-    {
-        *e = nullptr;
-        woke = std::chrono::system_clock::now();
+        if (handled)
+        {
+            *e = &queue.front();
+        }
+        else
+        {
+            *e = nullptr;
+            woke = std::chrono::system_clock::now();
+        }
     }
 
     // Only break the client's event loop after it has chosen to quit() and
     // there are no more events to process.
-    return running || pending;
+    return running || handled;
 }
 

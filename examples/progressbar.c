@@ -268,7 +268,6 @@ int main(int argc, char *argv[])
         if (canvas.vaddr != NULL)
         {
             const MirEvent *event = NULL;
-            MirSurface *esurf = NULL;
             int t = 0;
 
             queue = mir_create_event_queue();
@@ -298,7 +297,7 @@ int main(int argc, char *argv[])
                 }
 
                 redraw(surf, &canvas);
-            } while (mir_event_queue_wait(queue, &event, &esurf));
+            } while (mir_event_queue_wait(queue, &event));
 
             signal(SIGINT, SIG_DFL);
             signal(SIGTERM, SIG_DFL);
