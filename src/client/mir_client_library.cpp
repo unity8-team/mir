@@ -572,7 +572,7 @@ MirEventQueue* mir_create_event_queue()
 
 void mir_event_queue_animate(MirEventQueue* q, int milliseconds)
 {
-    q->animate(std::chrono::milliseconds(milliseconds));
+    q->animate(milliseconds);
 }
 
 int mir_event_queue_wait(MirEventQueue* q, MirEvent* e)

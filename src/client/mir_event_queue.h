@@ -34,14 +34,14 @@ struct MirEventQueue
 {
 public:
     MirEventQueue();
-    void animate(std::chrono::milliseconds period);
+    void animate(int milliseconds);
     void push(MirEvent const* e);
     void quit();
     bool wait(MirEvent* e);
 
 private:
     bool running;
-    std::chrono::milliseconds interval;
+    int interval_ms;
     std::chrono::system_clock::time_point deadline;
     std::mutex guard;
     std::condition_variable cond;
