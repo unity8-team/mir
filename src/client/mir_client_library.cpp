@@ -567,7 +567,7 @@ void mir_surface_set_event_queue(MirSurface *surface, MirEventQueue *q)
 
 MirEventQueue* mir_create_event_queue()
 {
-    return new MirEventQueue;
+    return new (std::nothrow) MirEventQueue;
 }
 
 void mir_event_queue_animate(MirEventQueue* q, int milliseconds)
