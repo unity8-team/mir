@@ -7,6 +7,9 @@
 
 #include <QDebug>
 
+#include <QElapsedTimer>
+QElapsedTimer timer;
+
 static WId newWId()
 {
     static WId id = 0;
@@ -49,7 +52,9 @@ void DisplayWindow::setGeometry(const QRect &)
 
 void DisplayWindow::swapBuffers()
 {
+    timer.restart();
     m_displayBuffer->post_update();
+    qDebug() << "post_update took" << timer.elapsed() << "milliseconds";
 }
 
 void DisplayWindow::makeCurrent()

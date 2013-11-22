@@ -16,6 +16,7 @@
 
 // local
 #include "qsgmirsurfacenode.h"
+#include "mirbuffersgtexture.h"
 #include "mirsurfaceitem.h"
 #include "logging.h"
 
@@ -30,7 +31,7 @@
 #include <mir/shell/surface.h>
 #include <mir/geometry/rectangle.h>
 
-namespace mg = mir::geometry;
+namespace mg = mir::graphics;
 
 class QMirSurfaceTextureProvider : public QSGTextureProvider
 {
@@ -56,7 +57,7 @@ public Q_SLOTS:
     }
 };
 
-QMutex *MirSurfaceItem::mutex = 0;
+QMutex *MirSurfaceItem::mutex = nullptr;
 
 
 
@@ -67,7 +68,8 @@ MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::shell::Surface> surface,
     , m_surface(surface)
     , m_application(application)
     , m_damaged(false)
-    , m_surfaceValid(true)
+    , m_firstFrameDrawn(false)
+    , m_frameNumber(0)
     , m_provider(nullptr)
     , m_node(nullptr)
 {
@@ -75,6 +77,16 @@ MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::shell::Surface> surface,
 
     if (!mutex)
         mutex = new QMutex;
+
+    // Get new frame notifications from Mir
+    m_surface->register_new_buffer_callback([&]() {
+        if (!m_firstFrameDrawn) {
+            m_firstFrameDrawn = true;
+            Q_EMIT surfaceFirstFrameDrawn(this);
+        }
+        surfaceDamaged();
+        qDebug() << "new frame";
+    });
 
     setSmooth(true);
     setFlag(QQuickItem::ItemHasContents, true); //so scene graph will render this item
@@ -85,6 +97,10 @@ MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::shell::Surface> surface,
         Qt::ExtraButton12 | Qt::ExtraButton13);
     setAcceptHoverEvents(true);
 
+    // fetch surface geometry
+    setImplicitSize(static_cast<qreal>(m_surface->size().width.as_float()),
+                    static_cast<qreal>(m_surface->size().height.as_float()));
+
     // Gift to QML engine. QML *must* delete this object to have Mir release the surface resources.
     QQmlEngine::setObjectOwnership(this, QQmlEngine::JavaScriptOwnership);
 }
@@ -92,6 +108,7 @@ MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::shell::Surface> surface,
 MirSurfaceItem::~MirSurfaceItem()
 {
     QMutexLocker locker(mutex);
+    m_surface->register_new_buffer_callback([]{});
     if (m_node)
         m_node->setItem(0);
     if (m_provider)
@@ -134,16 +151,12 @@ void MirSurfaceItem::ensureProvider()
     }
 }
 
-void MirSurfaceItem::setDamagedFlag(bool on)
-{
-    m_damaged = on;
-}
-
-void MirSurfaceItem::surfaceDamaged(const QRect &)
+void MirSurfaceItem::surfaceDamaged()
 {
     m_damaged = true;
     Q_EMIT textureChanged();
-    update();
+    update(); // Notifies QML engine that this needs redrawing, schedules call to updatePaintItem
+    // DANGER: not being called in GUI thread, but by Mir thread!
 }
 
 void MirSurfaceItem::updateTexture()    // called by render thread
@@ -153,16 +166,9 @@ void MirSurfaceItem::updateTexture()    // called by render thread
     if (m_damaged) {
         m_damaged = false;
         QSGTexture *oldTexture = texture;
-//        if (m_surface->type() == QWaylandSurface::Texture) {
-//            QOpenGLContext *context = QOpenGLContext::currentContext();
-//            QQuickWindow::CreateTextureOptions opt = 0;
-//            if (useTextureAlpha()) {
-//                opt |= QQuickWindow::TextureHasAlphaChannel;
-//            }
-//            texture = window()->createTextureFromId(m_surface->texture(context), m_surface->size(), opt);
-//        } else {
-//            texture = window()->createTextureFromImage(m_surface->image());
-//        }
+
+        texture = new MirBufferSGTexture(m_surface->lock_compositor_buffer(m_frameNumber));
+
         texture->bind();
         delete oldTexture;
     }
@@ -196,25 +202,9 @@ QSGNode *MirSurfaceItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *
 
     node->setTextureUpdated(true);
 
+    m_frameNumber++; //FIXME: manage overflow.
+
     return node;
-}
-
-void MirSurfaceItem::setSurfaceValid(const bool valid)
-{
-    if (valid != m_surfaceValid) {
-        m_surfaceValid = valid;
-        Q_EMIT surfaceValidChanged();
-    }
-}
-
-qreal MirSurfaceItem::implicitHeight() const
-{
-    return static_cast<qreal>(m_surface->size().height.as_float());
-}
-
-qreal MirSurfaceItem::implicitWidth() const
-{
-    return static_cast<qreal>(m_surface->size().width.as_float());
 }
 
 void MirSurfaceItem::mousePressEvent(QMouseEvent *event)

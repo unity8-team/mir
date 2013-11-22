@@ -81,13 +81,16 @@ void MirSurfaceManager::sessionCreatedSurface(mir::shell::ApplicationSession con
     auto qmlSurface = new MirSurfaceItem(surface, application);
     m_surfaces.insert(surface.get(), qmlSurface);
 
+    // Only notify QML of surface creation once it has drawn its first frame.
+    connect(qmlSurface, &MirSurfaceItem::surfaceFirstFrameDrawn, [&](MirSurfaceItem *item) {
+        Q_EMIT surfaceCreated(item);
+    });
+
     // QML owns the MirSurfaceItem, so listen for when QML deletes the object.
     connect(qmlSurface, &MirSurfaceItem::destroyed, [&](QObject *item) {
         auto mirSurfaceItem = static_cast<MirSurfaceItem*>(item);
         m_surfaces.remove(m_surfaces.key(mirSurfaceItem));
     });
-
-    Q_EMIT surfaceCreated(qmlSurface);
 }
 
 void MirSurfaceManager::sessionDestroyingSurface(mir::shell::ApplicationSession const*, std::shared_ptr<mir::shell::Surface> const& surface)
@@ -98,7 +101,6 @@ void MirSurfaceManager::sessionDestroyingSurface(mir::shell::ApplicationSession 
     if (it != m_surfaces.end()) {
         Q_EMIT surfaceDestroyed(*it);
         MirSurfaceItem* item = it.value();
-        item->setSurfaceValid(false);
         Q_EMIT item->surfaceDestroyed();
         // delete *it; // do not delete actual MirSurfaceItem as QML has ownership of that object.
         m_surfaces.erase(it);

@@ -22,6 +22,7 @@
 namespace msh = mir::shell;
 
 Q_DECLARE_METATYPE(std::shared_ptr<msh::ApplicationSession>)
+Q_DECLARE_METATYPE(std::shared_ptr<msh::Surface>)
 
 SessionListener::SessionListener(QObject *parent) :
     QObject(parent)
@@ -29,6 +30,7 @@ SessionListener::SessionListener(QObject *parent) :
     DLOG("SessionListener::SessionListener (this=%p)", this);
     // need to register type to send over threads with signal/slot
     qRegisterMetaType<std::shared_ptr<msh::ApplicationSession>>("std::shared_ptr<mir::shell::ApplicationSession>");
+    qRegisterMetaType<std::shared_ptr<msh::Surface>>("std::shared_ptr<mir::shell::Surface>");
 }
 
 SessionListener::~SessionListener()

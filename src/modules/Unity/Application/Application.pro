@@ -14,6 +14,7 @@ PKGCONFIG += mircommon mirserver glib-2.0 upstart-app-launch-1
 
 INCLUDEPATH += ../../../platforms/mirserver
 LIBS += -L../../../platforms/mirserver -lqpa-mirserver
+QMAKE_RPATHDIR += $$[QT_INSTALL_PLUGINS]/platforms # where libqpa-mirserver.so is installed
 
 TARGET = $$qtLibraryTarget($$TARGET)
 uri = Unity.Application
@@ -28,7 +29,8 @@ SOURCES += application_manager.cpp \
     mirsurfacemanager.cpp \
     ubuntukeyboardinfo.cpp \
     qsgmirsurfacenode.cpp \
-    mirsurfaceitem.cpp
+    mirsurfaceitem.cpp \
+    mirbuffersgtexture.cpp
 
 HEADERS += application_manager.h \
     application.h \
@@ -41,7 +43,8 @@ HEADERS += application_manager.h \
     /usr/include/unity/shell/application/ApplicationManagerInterface.h \
     /usr/include/unity/shell/application/ApplicationInfoInterface.h \
     qsgmirsurfacenode.h \
-    mirsurfaceitem.h
+    mirsurfaceitem.h \
+    mirbuffersgtexture.h
 
 installPath = $$[QT_INSTALL_IMPORTS]/Unity-Mir/$$replace(uri, \\., /)
 

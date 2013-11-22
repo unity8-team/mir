@@ -39,13 +39,9 @@ class MirSurfaceItem : public QQuickItem
     Q_ENUMS(Type)
     Q_ENUMS(State)
 
-    Q_PROPERTY(qreal implicitWidth READ implicitWidth NOTIFY implicitWidthChanged)
-    Q_PROPERTY(qreal implicitHeight READ implicitHeight NOTIFY implicitHeightChanged)
-
     Q_PROPERTY(Type type READ type NOTIFY typeChanged)
     Q_PROPERTY(State state READ state NOTIFY stateChanged)
     Q_PROPERTY(QString name READ name NOTIFY nameChanged)
-    Q_PROPERTY(bool surfaceValid READ surfaceValid NOTIFY surfaceValidChanged)
 
 public:
     explicit MirSurfaceItem(std::shared_ptr<mir::shell::Surface> surface, Application* application, QQuickItem *parent = 0);
@@ -75,31 +71,19 @@ public:
     Type type() const;
     State state() const;
     QString name() const;
-    bool surfaceValid() const { return m_surfaceValid; }
 
     // Item surface/texture management
     bool isTextureProvider() const { return true; }
     QSGTextureProvider *textureProvider() const;
-    void setDamagedFlag(bool on);
-
-    // QQuickItem overrides
-    qreal implicitWidth() const; //override;
-    qreal implicitHeight() const; //override;
 
 Q_SIGNALS:
     void typeChanged();
     void stateChanged();
     void nameChanged();
     void surfaceDestroyed();
-    void surfaceValidChanged();
+    void surfaceFirstFrameDrawn(MirSurfaceItem *); // so MirSurfaceManager can notify QML
 
     void textureChanged();
-
-    void implicitWidthChanged();
-    void implicitHeightChanged();
-
-private slots:
-    void surfaceDamaged(const QRect &);
 
 protected:
     void mousePressEvent(QMouseEvent *event) override;
@@ -113,6 +97,9 @@ protected:
     void touchEvent(QTouchEvent *event) override;
 
     QSGNode *updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *);
+
+private Q_SLOTS:
+    void surfaceDamaged();
 
 private:
     void updateTexture();
@@ -130,7 +117,8 @@ private:
     std::shared_ptr<mir::shell::Surface> m_surface;
     Application* m_application;
     bool m_damaged;
-    bool m_surfaceValid;
+    bool m_firstFrameDrawn;
+    unsigned long m_frameNumber;
 
     QMirSurfaceTextureProvider *m_provider;
     QSGMirSurfaceNode *m_node;
