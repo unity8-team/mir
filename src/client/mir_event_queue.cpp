@@ -24,7 +24,7 @@ typedef std::unique_lock<std::mutex> Lock;
 }
 
 MirEventQueue::MirEventQueue()
-    : running(true), interval(0)
+    : running(true), interval(0), deadline(std::chrono::milliseconds::max())
 {
 }
 
@@ -32,7 +32,7 @@ void MirEventQueue::animate(std::chrono::milliseconds period)
 {
     Lock lock(guard);
     interval = period;
-    woke = std::chrono::system_clock::now() - interval;
+    deadline = std::chrono::system_clock::now() + interval;
     cond.notify_all();
 }
 
@@ -57,27 +57,22 @@ bool MirEventQueue::wait(MirEvent* e)
 {
     Lock lock(guard);
 
-    std::chrono::system_clock::time_point deadline;
     do
     {
-        deadline = woke + interval;
     } while (running &&
              queue.empty() &&
              cond.wait_until(lock, deadline) == std::cv_status::no_timeout);
 
     bool pending = !queue.empty();
-    if (e)
+    if (pending)
     {
-        if (pending)
-        {
-            *e = queue.front();
-            queue.pop_front();
-        }
-        else
-        {
-            e->type = mir_event_type_null;
-            woke = std::chrono::system_clock::now();
-        }
+        *e = queue.front();
+        queue.pop_front();
+    }
+    else
+    {
+        e->type = mir_event_type_null;
+        deadline += interval;
     }
 
     // Only break the client's event loop after it has chosen to quit() and

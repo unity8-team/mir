@@ -40,11 +40,11 @@ public:
     bool wait(MirEvent* e);
 
 private:
-    std::chrono::system_clock::time_point woke;
-    std::mutex guard;
-    std::condition_variable cond;
     bool running;
     std::chrono::milliseconds interval;
+    std::chrono::system_clock::time_point deadline;
+    std::mutex guard;
+    std::condition_variable cond;
     std::deque<MirEvent> queue;
 };
 /**@}*/
