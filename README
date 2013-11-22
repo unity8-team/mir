@@ -3,8 +3,16 @@ This repo contains a QPA plugin to make Qt a Mir server.
 To use, compile and install, run:
 
 export QT_QPA_PLATFORM=mirserver
+export QML2_IMPORT_PATH=/usr/lib/arm-linux-gnueabihf/qt5/imports/Unity-Mir
 
-then run the Qt application of your choice (qmlscene best).
+then run the Qt application of your choice (qmlscene best). As example, try
+
+qmlscene demoShell.qml
+
+and then try running another application:
+
+mir_demo_client_egltriangle --desktop_file_hint=/usr/share/applications/gallery-app.desktop
+
 
 
 Author: Gerry Boland <gerry.boland@gmail.com>
