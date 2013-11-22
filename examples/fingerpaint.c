@@ -21,7 +21,6 @@
 #include <signal.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <unistd.h>  /* sleep() */
 #include <string.h>
 
 #define BYTES_PER_PIXEL(f) ((f) == mir_pixel_format_bgr_888 ? 3 : 4)
