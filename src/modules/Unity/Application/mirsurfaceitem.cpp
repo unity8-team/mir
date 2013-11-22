@@ -78,14 +78,9 @@ MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::shell::Surface> surface,
     if (!mutex)
         mutex = new QMutex;
 
-    // Get new frame notifications from Mir
+    // Get new frame notifications from Mir, called from a Mir thread.
     m_surface->register_new_buffer_callback([&]() {
-        if (!m_firstFrameDrawn) {
-            m_firstFrameDrawn = true;
-            Q_EMIT surfaceFirstFrameDrawn(this);
-        }
-        surfaceDamaged();
-        qDebug() << "new frame";
+        QMetaObject::invokeMethod(this, "surfaceDamaged");
     });
 
     setSmooth(true);
@@ -153,10 +148,14 @@ void MirSurfaceItem::ensureProvider()
 
 void MirSurfaceItem::surfaceDamaged()
 {
+    if (!m_firstFrameDrawn) {
+        m_firstFrameDrawn = true;
+        Q_EMIT surfaceFirstFrameDrawn(this);
+    }
+
     m_damaged = true;
     Q_EMIT textureChanged();
     update(); // Notifies QML engine that this needs redrawing, schedules call to updatePaintItem
-    // DANGER: not being called in GUI thread, but by Mir thread!
 }
 
 void MirSurfaceItem::updateTexture()    // called by render thread
