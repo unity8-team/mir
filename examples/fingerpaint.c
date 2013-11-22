@@ -393,13 +393,18 @@ int main(int argc, char *argv[])
             clear_region(&canvas, &background);
             redraw(surf, &canvas);
         
-            mir_event_queue_animate(queue, 8);
             while (mir_event_queue_wait(queue, &event))
             {
                 if (event.type == mir_event_type_null)
+                {
+                    mir_event_queue_animate(queue, -1);
                     redraw(surf, &canvas);
+                }
                 else
+                {
                     on_event(surf, &event, &canvas);
+                    mir_event_queue_animate(queue, 5);
+                }
             }
 
             /* Ensure canvas won't be used after it's freed */
