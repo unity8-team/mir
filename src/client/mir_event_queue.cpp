@@ -71,12 +71,12 @@ bool MirEventQueue::wait(MirEvent* e)
     bool pending = !queue.empty();
     if (pending)
     {
-        *e = queue.front();
+        if (e) *e = queue.front();
         queue.pop_front();
     }
     else
     {
-        e->type = mir_event_type_null;
+        if (e) e->type = mir_event_type_null;
         if (interval_ms > 0)
             deadline += std::chrono::milliseconds(interval_ms);
     }
