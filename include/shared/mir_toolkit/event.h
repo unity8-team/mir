@@ -39,7 +39,8 @@ typedef enum
 {
     mir_event_type_key,
     mir_event_type_motion,
-    mir_event_type_surface
+    mir_event_type_surface,
+    mir_event_type_null
 } MirEventType;
 
 typedef enum {

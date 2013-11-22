@@ -385,7 +385,7 @@ int main(int argc, char *argv[])
 
         if (canvas.vaddr != NULL)
         {
-            const MirEvent *event;
+            MirEvent event;
 
             signal(SIGINT, shutdown);
             signal(SIGTERM, shutdown);
@@ -396,14 +396,10 @@ int main(int argc, char *argv[])
             mir_event_queue_animate(queue, 8);
             while (mir_event_queue_wait(queue, &event))
             {
-                if (event != NULL)
-                {
-                    on_event(surf, event, &canvas);
-                }
-                else  // We're being animated
-                {
+                if (event.type == mir_event_type_null)
                     redraw(surf, &canvas);
-                }
+                else
+                    on_event(surf, &event, &canvas);
             }
 
             /* Ensure canvas won't be used after it's freed */

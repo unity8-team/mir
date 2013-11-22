@@ -267,7 +267,7 @@ int main(int argc, char *argv[])
 
         if (canvas.vaddr != NULL)
         {
-            const MirEvent *event = NULL;
+            MirEvent event = {mir_event_type_null};
             int t = 0;
 
             queue = mir_create_event_queue();
@@ -278,7 +278,7 @@ int main(int argc, char *argv[])
 
             do
             {
-                if (event == NULL)  /* on animation interval */
+                if (event.type == mir_event_type_null)  /* animate timeout */
                 {
                     static const int width = 8;
                     static const int space = 1;

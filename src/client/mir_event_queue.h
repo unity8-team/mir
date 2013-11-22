@@ -37,7 +37,7 @@ public:
     void animate(std::chrono::milliseconds period);
     void push(MirEvent const* e);
     void quit();
-    bool wait(MirEvent const** e);
+    bool wait(MirEvent* e);
 
 private:
     typedef std::list<MirEvent> Queue;  // elements never move in memory
@@ -45,7 +45,6 @@ private:
     std::mutex guard;
     std::condition_variable cond;
     bool running;
-    bool handled;
     std::chrono::milliseconds interval;
     Queue queue;
 };
