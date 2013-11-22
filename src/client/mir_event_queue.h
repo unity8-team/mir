@@ -22,7 +22,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <mutex>
-#include <list>
+#include <deque>
 #include "mir_toolkit/client_types.h"
 #include "mir_toolkit/event.h"
 
@@ -40,13 +40,12 @@ public:
     bool wait(MirEvent* e);
 
 private:
-    typedef std::list<MirEvent> Queue;  // elements never move in memory
     std::chrono::system_clock::time_point woke;
     std::mutex guard;
     std::condition_variable cond;
     bool running;
     std::chrono::milliseconds interval;
-    Queue queue;
+    std::deque<MirEvent> queue;
 };
 /**@}*/
 
