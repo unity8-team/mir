@@ -19,4 +19,6 @@ set_target_properties(
   COMPILE_DEFINITIONS MIRCLIENT_LIBRARY_FILE=\"$<TARGET_SONAME_FILE:mirclient>\"
 )
 
+add_dependencies(symbol-resolution-tests mirclient)
+
 mir_discover_tests(symbol-resolution-tests)
