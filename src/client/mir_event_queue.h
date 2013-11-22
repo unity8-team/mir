@@ -36,7 +36,7 @@ public:
     MirEventQueue();
     void animate(int milliseconds);
     void push(MirEvent const* e);
-    void quit();
+    bool quit();
     bool wait(MirEvent* e);
 
 private:

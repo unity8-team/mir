@@ -580,9 +580,9 @@ int mir_event_queue_wait(MirEventQueue* q, MirEvent* e)
     return q->wait(e);
 }
 
-void mir_event_queue_quit(MirEventQueue* q)
+int mir_event_queue_quit(MirEventQueue* q)
 {
-    q->quit();
+    return q->quit();
 }
 
 void mir_event_queue_release(MirEventQueue* q)

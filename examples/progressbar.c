@@ -41,14 +41,8 @@ static MirEventQueue *queue = NULL;
 
 static void shutdown(int signum)
 {
-    static int printed = 0;
-    if (!printed)
-    {
+    if (mir_event_queue_quit(queue))
         printf("Signal %d received. Good night.\n", signum);
-        printed = 1;
-    }
-
-    mir_event_queue_quit(queue);
 }
 
 static void blend(uint32_t *dest, uint32_t src, int alpha_shift)

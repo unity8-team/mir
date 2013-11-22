@@ -47,11 +47,13 @@ void MirEventQueue::push(MirEvent const* e)
     } // else events after quit() are ignored.
 }
 
-void MirEventQueue::quit()
+bool MirEventQueue::quit()
 {
     Lock lock(guard);
+    bool was_running = running;
     running = false;
     cond.notify_all();
+    return was_running;
 }
 
 bool MirEventQueue::wait(MirEvent* e)
