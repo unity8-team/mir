@@ -11,6 +11,10 @@ MirBufferSGTexture::MirBufferSGTexture(std::shared_ptr<mir::graphics::Buffer> bu
     : QSGTexture()
     , m_mirBuffer(buffer)
 {
+    setFiltering(QSGTexture::Linear);
+    setHorizontalWrapMode(QSGTexture::ClampToEdge);
+    setVerticalWrapMode(QSGTexture::ClampToEdge);
+    updateBindOptions();
 }
 
 MirBufferSGTexture::~MirBufferSGTexture()
