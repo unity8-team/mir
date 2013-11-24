@@ -1,9 +1,40 @@
+/*
+ * Copyright (C) 2013 Canonical, Ltd.
+ *
+ * This program is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU Lesser General Public License version 3, as published by
+ * the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranties of MERCHANTABILITY,
+ * SATISFACTORY QUALITY, or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Author: Gerry Boland <gerry.boland@canonical.com>
+ * Bits and pieces taken from the QtWayland portion of the Qt project which is
+ * Copyright (C) 2012 Digia Plc and/or its subsidiary(-ies).
+ */
+
 #include "mirbuffersgtexture.h"
 
 // Mir
 #include <mir/graphics/buffer.h>
 #include <mir/geometry/pixel_format.h>
 #include <mir/geometry/size.h>
+
+#ifndef QSG_NO_RENDER_TIMING
+#include <private/qqmlprofilerservice_p.h>
+#include <QElapsedTimer>
+static QElapsedTimer qsg_renderer_timer;
+#if QT_VERSION < QT_VERSION_CHECK(5, 2, 0)
+static bool qsg_render_timing = !qgetenv("QML_RENDERER_TIMING").isEmpty();
+#else
+static bool qsg_render_timing = !qgetenv("QSG_RENDER_TIMING").isEmpty();
+#endif
+#endif // QSG_NO_RENDER_TIMING
 
 namespace mg = mir::geometry;
 
@@ -15,6 +46,10 @@ MirBufferSGTexture::MirBufferSGTexture(std::shared_ptr<mir::graphics::Buffer> bu
     setHorizontalWrapMode(QSGTexture::ClampToEdge);
     setVerticalWrapMode(QSGTexture::ClampToEdge);
     updateBindOptions();
+
+    mg::Size size = m_mirBuffer->size();
+    m_height = size.height.as_int();
+    m_width = size.width.as_int();
 }
 
 MirBufferSGTexture::~MirBufferSGTexture()
@@ -29,8 +64,7 @@ int MirBufferSGTexture::textureId() const
 
 QSize MirBufferSGTexture::textureSize() const
 {
-    mg::Size size = m_mirBuffer->size();
-    return QSize(size.width.as_int(), size.height.as_int());
+    return QSize(m_width, m_height);
 }
 
 bool MirBufferSGTexture::hasAlphaChannel() const
@@ -40,5 +74,30 @@ bool MirBufferSGTexture::hasAlphaChannel() const
 
 void MirBufferSGTexture::bind()
 {
+#ifndef QSG_NO_RENDER_TIMING
+    bool profileFrames = qsg_render_timing || QQmlProfilerService::enabled;
+    if (profileFrames)
+        qsg_renderer_timer.start();
+#endif
+
     m_mirBuffer->bind_to_texture();
+
+#ifndef QSG_NO_RENDER_TIMING
+    qint64 bindTime = 0;
+    if (profileFrames)
+        bindTime = qsg_renderer_timer.nsecsElapsed();
+
+    if (qsg_render_timing) {
+        printf("   - mirbuffertexture(%dx%d) bind=%d, total=%d\n",
+               m_width, m_height(),
+               int(bindTime/1000000),
+               (int) qsg_renderer_timer.elapsed());
+    }
+
+    if (QQmlProfilerService::enabled) {
+        QQmlProfilerService::sceneGraphFrame(
+                    QQmlProfilerService::SceneGraphTexturePrepare,
+                    bindTime);
+    }
+#endif
 }

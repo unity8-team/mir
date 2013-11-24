@@ -12,6 +12,10 @@
  *
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Author: Gerry Boland <gerry.boland@canonical.com>
+ * Bits and pieces taken from the QtWayland portion of the Qt project which is
+ * Copyright (C) 2012 Digia Plc and/or its subsidiary(-ies).
  */
 
 // local
