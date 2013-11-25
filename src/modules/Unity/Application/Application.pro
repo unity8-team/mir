@@ -2,6 +2,7 @@ TARGET = unityapplicationplugin
 TEMPLATE = lib
 
 QT       += core quick dbus
+QT       += qml-private core-private v8-private # for QMLProfiler integration
 QT       += gui-private # annoyingly needed by included NativeInterface
 CONFIG   += link_pkgconfig
 
