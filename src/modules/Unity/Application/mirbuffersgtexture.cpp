@@ -25,16 +25,12 @@
 #include <mir/geometry/pixel_format.h>
 #include <mir/geometry/size.h>
 
-#ifndef QSG_NO_RENDER_TIMING
+#if QT_VERSION >= QT_VERSION_CHECK(5, 2, 0)
 #include <private/qqmlprofilerservice_p.h>
 #include <QElapsedTimer>
 static QElapsedTimer qsg_renderer_timer;
-#if QT_VERSION < QT_VERSION_CHECK(5, 2, 0)
-static bool qsg_render_timing = !qgetenv("QML_RENDERER_TIMING").isEmpty();
-#else
 static bool qsg_render_timing = !qgetenv("QSG_RENDER_TIMING").isEmpty();
 #endif
-#endif // QSG_NO_RENDER_TIMING
 
 namespace mg = mir::geometry;
 
@@ -74,7 +70,7 @@ bool MirBufferSGTexture::hasAlphaChannel() const
 
 void MirBufferSGTexture::bind()
 {
-#ifndef QSG_NO_RENDER_TIMING
+#if QT_VERSION >= QT_VERSION_CHECK(5, 2, 0)
     bool profileFrames = qsg_render_timing || QQmlProfilerService::enabled;
     if (profileFrames)
         qsg_renderer_timer.start();
@@ -82,14 +78,14 @@ void MirBufferSGTexture::bind()
 
     m_mirBuffer->bind_to_texture();
 
-#ifndef QSG_NO_RENDER_TIMING
+#if QT_VERSION >= QT_VERSION_CHECK(5, 2, 0)
     qint64 bindTime = 0;
     if (profileFrames)
         bindTime = qsg_renderer_timer.nsecsElapsed();
 
     if (qsg_render_timing) {
         printf("   - mirbuffertexture(%dx%d) bind=%d, total=%d\n",
-               m_width, m_height(),
+               m_width, m_height,
                int(bindTime/1000000),
                (int) qsg_renderer_timer.elapsed());
     }
