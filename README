@@ -11,7 +11,7 @@ $ export QML2_IMPORT_PATH=/usr/lib/arm-linux-gnueabihf/qt5/imports/Unity-Mir
 
 then run the Qt application of your choice (qmlscene best). As example, try
 
-$ qmlscene demoShell.qml
+$ qmlscene qml-demo-shell/qml-demo-shell.qml
 
 and then try running an application:
 
