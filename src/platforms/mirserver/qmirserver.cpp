@@ -54,5 +54,5 @@ void QMirServer::shutDown()
     }
 
     if (m_mirServer) 
-        delete m_mirServer; //->deleteLater(); // causes crash, but does clean up. Probably SGRender thread not finished.
+        delete m_mirServer;
 }

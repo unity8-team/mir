@@ -86,7 +86,7 @@ void MirSurfaceManager::sessionCreatedSurface(mir::shell::ApplicationSession con
         Q_EMIT surfaceCreated(item);
     });
 
-    // QML owns the MirSurfaceItem, so listen for when QML deletes the object.
+    // clean up after MirSurfaceItem is destroyed
     connect(qmlSurface, &MirSurfaceItem::destroyed, [&](QObject *item) {
         auto mirSurfaceItem = static_cast<MirSurfaceItem*>(item);
         m_surfaces.remove(m_surfaces.key(mirSurfaceItem));

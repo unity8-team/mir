@@ -85,6 +85,9 @@ Q_SIGNALS:
 
     void textureChanged();
 
+public Q_SLOTS:
+    void release(); // For QML to destroy this surface
+
 protected:
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;

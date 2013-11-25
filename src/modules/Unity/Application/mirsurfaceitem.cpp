@@ -100,18 +100,28 @@ MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::shell::Surface> surface,
     setImplicitSize(static_cast<qreal>(m_surface->size().width.as_float()),
                     static_cast<qreal>(m_surface->size().height.as_float()));
 
-    // Gift to QML engine. QML *must* delete this object to have Mir release the surface resources.
-    QQmlEngine::setObjectOwnership(this, QQmlEngine::JavaScriptOwnership);
+    // Ensure C++ (MirSurfaceManager) retains ownership of this object
+    // TODO: Investigate if having the Javascript engine have ownership of this object
+    // might create a less error-prone API design (concern: QML forgets to call "release()"
+    // for a surface, and thus Mir will not release the surface buffers etc.)
+    QQmlEngine::setObjectOwnership(this, QQmlEngine::CppOwnership);
 }
 
 MirSurfaceItem::~MirSurfaceItem()
 {
+    DLOG("MirSurfaceItem::~MirSurfaceItem");
     QMutexLocker locker(mutex);
     m_surface->register_new_buffer_callback([]{});
     if (m_node)
         m_node->setItem(0);
     if (m_provider)
         m_provider->deleteLater();
+}
+
+// For QML to destroy this surface
+void MirSurfaceItem::release()
+{
+    this->deleteLater();
 }
 
 Application* MirSurfaceItem::application() const
