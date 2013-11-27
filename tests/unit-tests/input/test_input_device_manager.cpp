@@ -72,3 +72,27 @@ TEST(InputDeviceFactoryTest, CreatesDeviceOnSupportedProvider)
 
     factory.create_device(mock_dev);
 } 
+
+TEST(InputDeviceFactoryTest, PrefersCreatingDeviceOnBetterProvider)
+{
+    using namespace testing;
+    auto a = std::make_shared<MockInputDeviceProvider>();
+    auto b = std::make_shared<MockInputDeviceProvider>();
+
+    EXPECT_CALL(*a, ProbeDevice(_))
+	.Times(2)
+	.WillRepeatedly(Return(mi::InputDeviceProvider::BEST));
+    EXPECT_CALL(*b, ProbeDevice(_))
+	.Times(2)
+        .WillRepeatedly(Return(mi::InputDeviceProvider::SUPPORTED));
+    EXPECT_CALL(*a, create_device(_))
+	.Times(2)
+        .WillRepeatedly(Return(std::shared_ptr<mi::InputDevice>()));
+
+    mi::InputDeviceFactory factory_one({a, b});
+    mi::InputDeviceFactory factory_two({b, a});
+    mtd::MockUdevDevice mock_dev;
+
+    factory_one.create_device(mock_dev);
+    factory_two.create_device(mock_dev);
+} 
