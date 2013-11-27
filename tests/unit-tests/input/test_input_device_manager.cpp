@@ -32,6 +32,7 @@ class MockInputDeviceProvider : public mi::InputDeviceProvider
 {
 public:
     MOCK_CONST_METHOD1(ProbeDevice, mi::InputDeviceProvider::Priority(mir::UdevDevice const&));
+    MOCK_CONST_METHOD1(create_device, std::shared_ptr<mi::InputDevice>(mir::UdevDevice const&));
 };
 
 }
@@ -52,3 +53,22 @@ TEST(InputDeviceFactoryTest, ProbesAllProviders)
 
     factory.create_device(mock_dev);
 }
+
+TEST(InputDeviceFactoryTest, CreatesDeviceOnSupportedProvider)
+{
+    using namespace testing;
+    auto a = std::make_shared<MockInputDeviceProvider>();
+    auto b = std::make_shared<MockInputDeviceProvider>();
+
+    EXPECT_CALL(*a, ProbeDevice(_))
+	.WillOnce(Return(mi::InputDeviceProvider::UNSUPPORTED));
+    EXPECT_CALL(*b, ProbeDevice(_))
+        .WillOnce(Return(mi::InputDeviceProvider::SUPPORTED));
+    EXPECT_CALL(*b, create_device(_))
+        .WillOnce(Return(std::shared_ptr<mi::InputDevice>()));
+
+    mi::InputDeviceFactory factory({a, b});
+    mtd::MockUdevDevice mock_dev;
+
+    factory.create_device(mock_dev);
+} 
