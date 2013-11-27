@@ -61,7 +61,7 @@ protected:
         }
 
         native_buffer = std::make_shared<mtd::StubAndroidNativeBuffer>();
-        mock_buffer = std::make_shared<mtd::MockBuffer>();
+        mock_buffer = std::make_shared<NiceMock<mtd::MockBuffer>>();
 
         ON_CALL(*native_buffer, handle())
             .WillByDefault(Return(native_buffer_handle.get()));
@@ -93,7 +93,7 @@ TEST_F(PlatformBufferIPCPackaging, test_ipc_data_packed_correctly)
     {
         EXPECT_CALL(mock_packer, pack_fd(native_buffer_handle->data[offset++]))
             .Times(1);
-    } 
+    }
     for(auto i=0u; i<num_ints; i++)
     {
         EXPECT_CALL(mock_packer, pack_data(native_buffer_handle->data[offset++]))

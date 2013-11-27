@@ -49,7 +49,7 @@ protected:
         dummy_display = mock_egl.fake_egl_display;
         dummy_config = mock_egl.fake_configs[0];
         dummy_context = mock_egl.fake_egl_context;
-        mtd::MockDisplayReport report;
+        testing::NiceMock<mtd::MockDisplayReport> report;
         gl_context = std::make_shared<mga::GLContext>(mga::to_mir_format(mock_egl.fake_visual_id),report);
         mock_fb_bundle = std::make_shared<mtd::MockFBBundle>();
     }
@@ -96,9 +96,9 @@ TEST_F(AndroidDisplayBufferTest, test_db_forwards_size_along)
     EXPECT_CALL(*mock_fb_bundle, fb_size())
         .Times(AnyNumber())
         .WillRepeatedly(Return(fake_display_size));
- 
+
     mga::DisplayBuffer db(mock_fb_bundle, mock_display_device, native_window, *gl_context);
-    
+
     auto view_area = db.view_area();
 
     geom::Point origin_pt{geom::X{0}, geom::Y{0}};

@@ -13,41 +13,38 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Authored by: Robert Carr <robert.carr@canonical.com>
+ * Authored by:
+ *   Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
-#ifndef MIR_COMPOSITOR_OVERLAY_RENDERER_H_
-#define MIR_COMPOSITOR_OVERLAY_RENDERER_H_
+#ifndef MIR_GRAPHICS_GBM_SHM_FILE_H_
+#define MIR_GRAPHICS_GBM_SHM_FILE_H_
 
-#include <functional>
-#include <memory>
+#include <cstddef>
 
 namespace mir
 {
-namespace geometry
+namespace graphics
 {
-struct Rectangle;
-}
-
-namespace compositor
+namespace gbm
 {
 
-class OverlayRenderer
+class ShmFile
 {
 public:
-    virtual ~OverlayRenderer() = default;
+    virtual ~ShmFile() = default;
 
-    virtual void render(
-        geometry::Rectangle const& view_area,
-        std::function<void(std::shared_ptr<void> const&)> save_resource) = 0;
+    virtual void* base_ptr() const = 0;
+    virtual int fd() const = 0;
 
 protected:
-    OverlayRenderer() = default;
-    OverlayRenderer& operator=(OverlayRenderer const&) = delete;
-    OverlayRenderer(OverlayRenderer const&) = delete;
+    ShmFile() = default;
+    ShmFile(ShmFile const&) = delete;
+    ShmFile& operator=(ShmFile const&) = delete;
 };
 
 }
-} // namespace mir
+}
+}
 
-#endif // MIR_COMPOSITOR_OVERLAY_RENDERER_H_
+#endif /* MIR_GRAPHICS_GBM_SHM_FILE_H_ */
