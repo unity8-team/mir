@@ -8,6 +8,8 @@ To use, compile and install, run:
 
 $ export QT_QPA_PLATFORM=mirserver
 $ export QML2_IMPORT_PATH=/usr/lib/arm-linux-gnueabihf/qt5/imports/Unity-Mir
+# works around a crash if that dir doesn't exist. Don't ask me why.
+$ sudo mkdir /usr/lib/arm-linux-gnueabihf/fonts 
 
 then run the Qt application of your choice (qmlscene best). As example, try
 
