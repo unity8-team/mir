@@ -20,7 +20,7 @@
 // qt
 #include <QObject>
 
-class ShellServerConfiguration;
+class MirServerConfiguration;
 
 class DBusScreen : public QObject
 {
@@ -28,12 +28,12 @@ class DBusScreen : public QObject
     Q_CLASSINFO("D-Bus Interface", "com.canonical.Unity.Screen")
 
 public:
-    explicit DBusScreen(ShellServerConfiguration *config, QObject *parent = 0);
+    explicit DBusScreen(MirServerConfiguration *config, QObject *parent = 0);
 
     Q_INVOKABLE Q_SCRIPTABLE bool setScreenPowerMode(const QString &mode);
 
 private:
-    ShellServerConfiguration *m_serverConfig;
+    MirServerConfiguration *m_serverConfig;
 };
 
 #endif // DBUSSCREEN_H

@@ -24,14 +24,14 @@
 #include <QDebug>
 
 // local
-#include "shellserverconfiguration.h"
+#include "mirserverconfiguration.h"
 #include "dbusscreen.h"
 
 namespace mc = mir::compositor;
 namespace mg = mir::graphics;
 
 // Note: this class should be created only after when the Mir DisplayServer has started
-DBusScreen::DBusScreen(ShellServerConfiguration *config, QObject *parent)
+DBusScreen::DBusScreen(MirServerConfiguration *config, QObject *parent)
     : QObject(parent)
     , m_serverConfig(config)
 {

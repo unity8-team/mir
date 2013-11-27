@@ -2,7 +2,7 @@ TARGET = qpa-mirserver
 TEMPLATE = lib
 
 QT -= gui
-QT += core-private gui-private platformsupport-private
+QT += core-private gui-private platformsupport-private dbus
 
 CONFIG += plugin
 CONFIG += no_keywords  # "signals" clashes with Mir
@@ -27,7 +27,8 @@ SOURCES += plugin.cpp \
     mirserverintegration.cpp \
     miropenglcontext.cpp \
     voidcompositor.cpp \
-    nativeinterface.cpp
+    nativeinterface.cpp \
+    dbusscreen.cpp
 
 HEADERS += plugin.h \
     qmirserver.h \
@@ -42,7 +43,8 @@ HEADERS += plugin.h \
     mirserverintegration.h \
     miropenglcontext.h \
     voidcompositor.h \
-    nativeinterface.h
+    nativeinterface.h \
+    dbusscreen.h
 
 # Installation path
 target.path +=  $$[QT_INSTALL_PLUGINS]/platforms

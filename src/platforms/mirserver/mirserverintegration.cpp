@@ -49,6 +49,7 @@
 #include "qmirserver.h"
 #include "mirserverconfiguration.h"
 #include "miropenglcontext.h"
+#include "dbusscreen.h"
 
 namespace mg = mir::graphics;
 
@@ -81,6 +82,8 @@ MirServerIntegration::MirServerIntegration()
     QGuiApplicationPrivate::instance()->setEventDispatcher(eventDispatcher_);
     initialize();
 #endif
+
+    m_dbusScreen = new DBusScreen(m_mirConfig);
 }
 
 MirServerIntegration::~MirServerIntegration()
