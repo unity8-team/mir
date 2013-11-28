@@ -1,3 +1,13 @@
+platform-api (0.19+14.04.20131128.1-0ubuntu1) trusty; urgency=low
+
+  [ Kevin Gunn ]
+  * update mir deb build dep to ver 0.1.2
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 174
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 28 Nov 2013 10:51:15 +0000
+
 platform-api (0.19+14.04.20131119.1-0ubuntu1) trusty; urgency=low
 
   [ Kevin Gunn ]
