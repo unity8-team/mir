@@ -11,7 +11,7 @@ public:
     MirInputConfiguration();
     virtual ~MirInputConfiguration() {}
 
-    std::shared_ptr<mir::surfaces::InputRegistrar> the_input_registrar() override;
+    std::shared_ptr<mir::scene::InputRegistrar> the_input_registrar() override;
     std::shared_ptr<mir::shell::InputTargeter> the_input_targeter() override;
     std::shared_ptr<mir::input::InputManager> the_input_manager() override;
 

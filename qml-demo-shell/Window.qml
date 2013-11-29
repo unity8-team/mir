@@ -29,8 +29,7 @@ Rectangle {
 
     Rectangle {
         id: windowContainer
-        color: "blue"
-
+        opacity: 0.999 // FIXME: something weird has happened
         anchors {
             left: parent.left
             right: parent.right

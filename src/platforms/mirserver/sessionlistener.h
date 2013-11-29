@@ -20,7 +20,7 @@
 #include <QObject>
 
 #include "mir/shell/session_listener.h"
-#include "mir/shell/application_session.h"
+#include "mir/shell/session.h"
 
 class SessionListener : public QObject, public mir::shell::SessionListener
 {
@@ -38,13 +38,13 @@ public:
     void destroying_surface(mir::shell::Session&, std::shared_ptr<mir::shell::Surface> const&) override;
 
 Q_SIGNALS:
-    void sessionStarting(std::shared_ptr<mir::shell::ApplicationSession> const& session);
-    void sessionStopping(std::shared_ptr<mir::shell::ApplicationSession> const& session);
-    void sessionFocused(std::shared_ptr<mir::shell::ApplicationSession> const& session);
+    void sessionStarting(std::shared_ptr<mir::shell::Session> const& session);
+    void sessionStopping(std::shared_ptr<mir::shell::Session> const& session);
+    void sessionFocused(std::shared_ptr<mir::shell::Session> const& session);
     void sessionUnfocused();
 
-    void sessionCreatedSurface(mir::shell::ApplicationSession const*, std::shared_ptr<mir::shell::Surface> const&);
-    void sessionDestroyingSurface(mir::shell::ApplicationSession const*, std::shared_ptr<mir::shell::Surface> const&);
+    void sessionCreatedSurface(mir::shell::Session const*, std::shared_ptr<mir::shell::Surface> const&);
+    void sessionDestroyingSurface(mir::shell::Session const*, std::shared_ptr<mir::shell::Surface> const&);
 };
 
 #endif // SESSIONLISTENER_H

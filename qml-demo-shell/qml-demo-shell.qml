@@ -7,6 +7,9 @@ Rectangle {
         GradientStop { position: 0.0; color: "lightsteelblue" }
         GradientStop { position: 1.0; color: "pink" }
     }
+    Rectangle { width: 200; height: 300; color: "red"}
+    Rectangle { width: 300; height: 200; color: "green"}
+
     Connections {
         target: SurfaceManager
         onSurfaceCreated: {
@@ -38,7 +41,7 @@ Rectangle {
         id: closeAnimation
         property variant surface: null
         NumberAnimation {
-            target: closeAnimation.surface.parent.parent
+            target: (closeAnimation.surface && closeAnimation.surface.parent) ? closeAnimation.surface.parent.parent : null
             property: "scale";
             from: 1; to: 0;
             duration: 500; easing.type: Easing.InQuad

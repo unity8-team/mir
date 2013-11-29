@@ -24,7 +24,7 @@
 #include "logging.h"
 
 // mir
-#include <mir/shell/application_session.h>
+#include <mir/shell/session.h>
 
 Application::Application(const QString &appId, Application::State state,
                          const QStringList &arguments, QObject *parent)
@@ -121,7 +121,7 @@ bool Application::fullscreen() const
     return m_fullscreen;
 }
 
-std::shared_ptr<mir::shell::ApplicationSession> Application::session() const
+std::shared_ptr<mir::shell::Session> Application::session() const
 {
     return m_session;
 }
@@ -136,7 +136,7 @@ void Application::setPid(pid_t pid)
     m_pid = pid;
 }
 
-void Application::setSession(const std::shared_ptr<mir::shell::ApplicationSession>& session)
+void Application::setSession(const std::shared_ptr<mir::shell::Session>& session)
 {
     DLOG("Application::setSession (this=%p, session=%p)", this, session.get());
 

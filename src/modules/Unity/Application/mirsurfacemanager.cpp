@@ -72,7 +72,7 @@ MirSurfaceManager::~MirSurfaceManager()
     m_surfaces.clear();
 }
 
-void MirSurfaceManager::sessionCreatedSurface(mir::shell::ApplicationSession const* session, std::shared_ptr<mir::shell::Surface> const& surface)
+void MirSurfaceManager::sessionCreatedSurface(mir::shell::Session const* session, std::shared_ptr<mir::shell::Surface> const& surface)
 {
     DLOG("MirSurfaceManager::sessionCreatedSurface (this=%p) with surface name '%s'", this, surface->name().c_str());
     ApplicationManager* appMgr = static_cast<ApplicationManager*>(ApplicationManager::singleton());
@@ -93,7 +93,7 @@ void MirSurfaceManager::sessionCreatedSurface(mir::shell::ApplicationSession con
     });
 }
 
-void MirSurfaceManager::sessionDestroyingSurface(mir::shell::ApplicationSession const*, std::shared_ptr<mir::shell::Surface> const& surface)
+void MirSurfaceManager::sessionDestroyingSurface(mir::shell::Session const*, std::shared_ptr<mir::shell::Surface> const& surface)
 {
     DLOG("MirSurfaceManager::sessionDestroyingSurface (this=%p) with surface name '%s'", this, surface->name().c_str());
 

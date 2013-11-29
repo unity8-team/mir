@@ -4,7 +4,7 @@ TEMPLATE = lib
 QT       += core quick dbus
 QT       += qml-private core-private v8-private # for QMLProfiler integration
 QT       += gui-private # annoyingly needed by included NativeInterface
-CONFIG   += link_pkgconfig
+CONFIG   += link_pkgconfig plugin
 
 # CONFIG += c++11 # only enables C++0x
 QMAKE_CXXFLAGS = -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden

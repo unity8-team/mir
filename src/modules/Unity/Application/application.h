@@ -33,7 +33,7 @@
 class QImage;
 class DesktopFileReader;
 class TaskController;
-namespace mir { namespace shell { class ApplicationSession; }}
+namespace mir { namespace shell { class Session; }}
 
 class Application : public unity::shell::application::ApplicationInfoInterface {
     Q_OBJECT
@@ -62,7 +62,7 @@ public:
     QString desktopFile() const;
     QString exec() const;
     bool fullscreen() const;
-    std::shared_ptr<mir::shell::ApplicationSession> session() const;
+    std::shared_ptr<mir::shell::Session> session() const;
 
 public Q_SLOTS:
     void suspend();
@@ -79,7 +79,7 @@ private:
     void setState(State state);
     void setFocused(bool focus);
     void setFullscreen(bool fullscreen);
-    void setSession(const std::shared_ptr<mir::shell::ApplicationSession>& session);
+    void setSession(const std::shared_ptr<mir::shell::Session>& session);
     void setSessionName(const QString& name);
 
     DesktopFileReader* m_desktopData;
@@ -88,7 +88,7 @@ private:
     State m_state;
     bool m_focused;
     bool m_fullscreen;
-    std::shared_ptr<mir::shell::ApplicationSession> m_session;
+    std::shared_ptr<mir::shell::Session> m_session;
     QString m_sessionName;
     QStringList m_arguments;
     QTimer* m_suspendTimer;

@@ -7,9 +7,9 @@ MirInputConfiguration::MirInputConfiguration()
 {
 }
 
-std::shared_ptr<surfaces::InputRegistrar> MirInputConfiguration::the_input_registrar()
+std::shared_ptr<scene::InputRegistrar> MirInputConfiguration::the_input_registrar()
 {
-    return std::static_pointer_cast<surfaces::InputRegistrar>(mInputManager);
+    return std::static_pointer_cast<scene::InputRegistrar>(mInputManager);
 }
 
 std::shared_ptr<shell::InputTargeter> MirInputConfiguration::the_input_targeter()

@@ -23,7 +23,7 @@
 #include "logging.h"
 
 // mir
-#include "mirserver/mir/shell/application_session.h"
+#include "mir/shell/session.h"
 
 // fallback grid unit used if GRID_UNIT_PX is not in the environment.
 const int defaultGridUnitPx = 8;

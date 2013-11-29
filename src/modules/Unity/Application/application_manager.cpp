@@ -29,7 +29,8 @@
 #include "logging.h"
 
 // mir
-#include <mir/shell/session_manager.h>
+#include <mir/shell/session.h>
+#include <mir/shell/focus_controller.h>
 #include <mir/shell/surface.h>
 
 // Qt
@@ -176,7 +177,7 @@ bool ApplicationManager::focusApplication(const QString &appId)
         int from = m_applications.indexOf(application);
         move(from, m_applications.length()-1);
     } else {
-        m_mirServer->the_session_manager()->set_focus_to(application->session());
+        m_mirServer->the_focus_controller()->set_focus_to(application->session());
     }
 
     // FIXME(dandrader): lying here. The operation is async. So we will only know whether
@@ -190,7 +191,7 @@ void ApplicationManager::unfocusCurrentApplication()
     DLOG("ApplicationManager::unfocusCurrentApplication (this=%p)", this);
 
     m_applicationToBeFocused = nullptr;
-    m_mirServer->the_session_manager()->set_focus_to(NULL); //FIXME(greyback)
+    m_mirServer->the_focus_controller()->set_focus_to(NULL); //FIXME(greyback)
 }
 
 Application* ApplicationManager::startApplication(const QString &appId,
@@ -441,7 +442,7 @@ void ApplicationManager::authorizeSession(const quint64 pid, bool &authorized)
     authorized = true;
 }
 
-void ApplicationManager::onSessionStarting(std::shared_ptr<msh::ApplicationSession> const& session)
+void ApplicationManager::onSessionStarting(std::shared_ptr<msh::Session> const& session)
 {
     DLOG("ApplicationManager::onSessionStarting (this=%p, application=%s)", this, session->name().c_str());
 
@@ -461,7 +462,7 @@ void ApplicationManager::onSessionStarting(std::shared_ptr<msh::ApplicationSessi
     }
 }
 
-void ApplicationManager::onSessionStopping(std::shared_ptr<msh::ApplicationSession> const& session)
+void ApplicationManager::onSessionStopping(std::shared_ptr<msh::Session> const& session)
 {
     DLOG("ApplicationManager::onSessionStopping (this=%p, application=%s)", this, session->name().c_str());
 
@@ -482,7 +483,7 @@ void ApplicationManager::onSessionStopping(std::shared_ptr<msh::ApplicationSessi
     }
 }
 
-void ApplicationManager::onSessionFocused(std::shared_ptr<msh::ApplicationSession> const& session)
+void ApplicationManager::onSessionFocused(std::shared_ptr<msh::Session> const& session)
 {
     DLOG("ApplicationManager::onSessionFocused (this=%p, application=%s)", this, session->name().c_str());
     Application* application = findApplicationWithSession(session);
@@ -524,7 +525,7 @@ void ApplicationManager::onSessionUnfocused()
     }
 }
 
-void ApplicationManager::onSessionCreatedSurface(msh::ApplicationSession const* session,
+void ApplicationManager::onSessionCreatedSurface(msh::Session const* session,
                                                std::shared_ptr<msh::Surface> const& surface)
 {
     DLOG("ApplicationManager::onSessionCreatedSurface (this=%p)", this);

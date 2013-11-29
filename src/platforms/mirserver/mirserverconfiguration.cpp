@@ -26,7 +26,7 @@
 #include <QDebug>
 
 namespace msh = mir::shell;
-namespace ms = mir::surfaces;
+namespace ms = mir::scene;
 
 MirServerConfiguration::MirServerConfiguration(int argc, char const* argv[], QObject* parent)
     : QObject(parent)
