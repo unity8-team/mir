@@ -41,6 +41,7 @@ public:
     std::shared_ptr<mir::shell::SessionListener> the_shell_session_listener() override;
     std::shared_ptr<mir::shell::SurfaceConfigurator> the_shell_surface_configurator() override;
     std::shared_ptr<mir::frontend::SessionAuthorizer> the_session_authorizer() override;
+    std::shared_ptr<mir::input::InputConfiguration> the_input_configuration() override;
 
     /* qt specific */
     // getters

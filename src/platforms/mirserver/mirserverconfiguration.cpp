@@ -16,6 +16,7 @@
 
 #include "mirserverconfiguration.h"
 
+#include "mirinputconfiguration.h"
 #include "sessionlistener.h"
 #include "surfaceconfigurator.h"
 #include "sessionauthorizer.h"
@@ -76,6 +77,16 @@ MirServerConfiguration::the_compositor()
         {
             return std::make_shared<VoidCompositor>();
         });
+}
+
+std::shared_ptr<mir::input::InputConfiguration>
+MirServerConfiguration::the_input_configuration()
+{
+    return input_configuration(
+    []
+    {
+        return std::make_shared<MirInputConfiguration>();
+    });
 }
 
 /************************************ Shell side ************************************/
