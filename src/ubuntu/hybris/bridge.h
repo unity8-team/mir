@@ -47,14 +47,6 @@ struct HIDDEN_SYMBOL ToApplication
     }
 };
 
-struct HIDDEN_SYMBOL ToHardware
-{
-    static const char* path()
-    {
-        return "/system/lib/libubuntu_platform_hardware_api.so";
-    }
-};
-
 template<typename Scope = ToApplication>
 class HIDDEN_SYMBOL Bridge
 {
