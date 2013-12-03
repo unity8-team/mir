@@ -7,8 +7,28 @@ Rectangle {
         GradientStop { position: 0.0; color: "lightsteelblue" }
         GradientStop { position: 1.0; color: "pink" }
     }
-    Rectangle { width: 200; height: 300; color: "red"}
-    Rectangle { width: 300; height: 200; color: "green"}
+
+    MultiPointTouchArea {
+        anchors.fill: parent
+        touchPoints: [
+            TouchPoint { id: point1 },
+            TouchPoint { id: point2 }
+        ]
+    }
+
+    Rectangle {
+        width: 30; height: 30
+        color: "green"
+        x: point1.x
+        y: point1.y
+    }
+
+    Rectangle {
+        width: 30; height: 30
+        color: "yellow"
+        x: point2.x
+        y: point2.y
+    }
 
     Connections {
         target: SurfaceManager

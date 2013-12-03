@@ -2,8 +2,9 @@
 
 using namespace mir;
 
-MirInputConfiguration::MirInputConfiguration()
-    : mInputManager(std::make_shared<MirInputManager>())
+MirInputConfiguration::MirInputConfiguration(std::shared_ptr<input::InputReport> inputReport,
+                                             std::shared_ptr<input::InputRegion> inputRegion)
+    : mInputManager(std::make_shared<MirInputManager>(inputReport, inputRegion))
 {
 }
 

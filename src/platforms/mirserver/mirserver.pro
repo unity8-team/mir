@@ -17,9 +17,15 @@ PKGCONFIG += mircommon mirserver mirclient egl
 
 INCLUDEPATH += "/usr/include/mirserver/android-deps"
 INCLUDEPATH += "/usr/include/mirserver/android-input/android/frameworks/base/include"
+INCLUDEPATH += "/usr/include/mirserver/android-input/android/frameworks/base/services/input"
 INCLUDEPATH += "/usr/include/mirserver/android-input/android/frameworks/native/include"
 
-SOURCES += plugin.cpp \
+QMAKE_CXXFLAGS += "-include /usr/include/mirserver/android-input/android/system/core/include/arch/ubuntu-x86/AndroidConfig.h"
+
+SOURCES += \
+    inputreaderpolicy.cpp \
+    qteventfeeder.cpp \
+    plugin.cpp \
     qmirserver.cpp \
     sessionauthorizer.cpp \
     sessionlistener.cpp \
@@ -36,7 +42,10 @@ SOURCES += plugin.cpp \
     nativeinterface.cpp \
     dbusscreen.cpp
 
-HEADERS += plugin.h \
+HEADERS += \
+    inputreaderpolicy.h \
+    qteventfeeder.h \
+    plugin.h \
     qmirserver.h \
     sessionauthorizer.h \
     sessionlistener.h \

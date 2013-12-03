@@ -2,13 +2,16 @@
 #define QPA_MIR_INPUT_CONFIGURATION_H
 
 #include <mir/input/input_configuration.h>
+#include <mir/input/input_report.h>
+#include <mir/input/input_region.h>
 
 #include "mirinputmanager.h"
 
 class MirInputConfiguration : public mir::input::InputConfiguration
 {
 public:
-    MirInputConfiguration();
+    MirInputConfiguration(std::shared_ptr<mir::input::InputReport> inputReport,
+                          std::shared_ptr<mir::input::InputRegion> inputRegion);
     virtual ~MirInputConfiguration() {}
 
     std::shared_ptr<mir::scene::InputRegistrar> the_input_registrar() override;

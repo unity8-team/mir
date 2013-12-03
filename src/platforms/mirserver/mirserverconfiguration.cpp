@@ -83,9 +83,10 @@ std::shared_ptr<mir::input::InputConfiguration>
 MirServerConfiguration::the_input_configuration()
 {
     return input_configuration(
-    []
+    [this]()
     {
-        return std::make_shared<MirInputConfiguration>();
+        return std::make_shared<MirInputConfiguration>(the_input_report(),
+                                                       the_input_region());
     });
 }
 
