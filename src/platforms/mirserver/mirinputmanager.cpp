@@ -30,6 +30,10 @@ void MirInputManager::start()
 
 void MirInputManager::stop()
 {
+    status_t result = mReaderThread->requestExitAndWait();
+    if (result) {
+        qCritical() << "Could not stop InputReader thread due to error" << result;
+    }
 }
 
 std::shared_ptr<input::InputChannel> MirInputManager::make_input_channel()
