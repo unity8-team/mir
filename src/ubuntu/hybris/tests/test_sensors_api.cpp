@@ -19,6 +19,8 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
 
 #include <ubuntu/application/sensors/accelerometer.h>
 #include <ubuntu/application/sensors/proximity.h>
@@ -27,7 +29,7 @@
 void on_new_accelerometer_event(UASAccelerometerEvent* event, void* context)
 {
     printf("%s \n", __PRETTY_FUNCTION__);
-    printf("\ttime: %llu\n", uas_accelerometer_event_get_timestamp(event));
+    printf("\ttime: %" PRIu64 "\n", uas_accelerometer_event_get_timestamp(event));
     printf("\tx: %f\n", uas_accelerometer_event_get_acceleration_x(event));
     printf("\ty: %f\n", uas_accelerometer_event_get_acceleration_y(event));
     printf("\tz: %f\n", uas_accelerometer_event_get_acceleration_z(event));
@@ -36,7 +38,7 @@ void on_new_accelerometer_event(UASAccelerometerEvent* event, void* context)
 void on_new_proximity_event(UASProximityEvent* event, void* context)
 {
     printf("%s \n", __PRETTY_FUNCTION__);
-    printf("\ttime: %llu\n", uas_proximity_event_get_timestamp(event));
+    printf("\ttime: %" PRIu64 "\n", uas_proximity_event_get_timestamp(event));
 
     switch (uas_proximity_event_get_distance(event))
     {
@@ -56,7 +58,7 @@ void on_new_proximity_event(UASProximityEvent* event, void* context)
 void on_new_light_event(UASLightEvent* event, void* context)
 {
     printf("%s \n", __PRETTY_FUNCTION__);
-    printf("\ttime: %llu\n", uas_light_event_get_timestamp(event));
+    printf("\ttime: %" PRIu64 "\n", uas_light_event_get_timestamp(event));
     printf("\tlight: %f\n", uas_light_event_get_light(event));
 }
 
