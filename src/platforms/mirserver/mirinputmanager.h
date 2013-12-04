@@ -13,6 +13,7 @@
 
 // local
 #include "qteventfeeder.h"
+#include "mirinputdispatcher.h"
 
 class MirInputManager : public mir::input::InputManager,
                         public mir::scene::InputRegistrar,
@@ -44,6 +45,8 @@ private:
     android::sp<android::InputReaderInterface> mInputReader;
     android::sp<android::InputReaderThread> mReaderThread;
     android::sp<QtEventFeeder> mQtEventFeeder;
+    android::sp<android::MirInputDispatcherInterface> mDispatcher;
+    android::sp<android::MirInputDispatcherThread> mDispatcherThread;
 };
 
 #endif // QPA_MIR_INPUT_MANAGER_H

@@ -24,6 +24,7 @@ QMAKE_CXXFLAGS += "-include /usr/include/mirserver/android-input/android/system/
 
 SOURCES += \
     inputreaderpolicy.cpp \
+    mirinputdispatcher.cpp \
     qteventfeeder.cpp \
     plugin.cpp \
     qmirserver.cpp \
@@ -44,6 +45,8 @@ SOURCES += \
 
 HEADERS += \
     inputreaderpolicy.h \
+    mirinputdispatcher.h \
+    mirinputwindow.h \
     qteventfeeder.h \
     plugin.h \
     qmirserver.h \

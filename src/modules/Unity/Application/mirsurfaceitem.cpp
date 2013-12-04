@@ -23,6 +23,8 @@
 #include "mirbuffersgtexture.h"
 #include "mirsurfaceitem.h"
 #include "logging.h"
+#include "mirinputchannel.h"
+#include "mirinputdispatcher.h"
 
 // Qt
 #include <QSGSimpleRectNode>
@@ -30,12 +32,79 @@
 #include <QSGTextureProvider>
 #include <QQmlEngine>
 #include <QQuickWindow>
+#include <QDebug>
 
 // Mir
 #include <mir/shell/surface.h>
 #include <mir/geometry/rectangle.h>
 
 namespace mg = mir::graphics;
+using namespace android;
+
+namespace {
+
+struct NotifyMotionArgs createNotifyMotionArgs(QTouchEvent *event)
+{
+    NotifyMotionArgs args;
+
+    args.eventTime = systemTime(SYSTEM_TIME_MONOTONIC); //event->timestamp();
+    args.deviceId = 0; // Hope this doesn't matter for the prototype work
+    args.source = AINPUT_SOURCE_TOUCHSCREEN;
+    args.policyFlags = POLICY_FLAG_PASS_TO_USER;
+
+    // NB: it's assumed that touch points are pressed and released
+    // one at a time.
+
+    if (event->touchPointStates().testFlag(Qt::TouchPointPressed)) {
+        if (event->touchPoints().count() > 1) {
+            args.action = AMOTION_EVENT_ACTION_POINTER_DOWN;
+        } else {
+            args.action = AMOTION_EVENT_ACTION_DOWN;
+        }
+    } else if (event->touchPointStates().testFlag(Qt::TouchPointReleased)) {
+        if (event->touchPoints().count() > 1) {
+            args.action = AMOTION_EVENT_ACTION_POINTER_UP;
+        } else {
+            args.action = AMOTION_EVENT_ACTION_UP;
+        }
+    } else {
+            args.action = AMOTION_EVENT_ACTION_MOVE;
+    }
+
+    args.flags = 0;
+
+    // TODO: map QInputEvent::modifiers()
+    args.metaState = 0;
+
+    // TODO
+    args.buttonState = 0;
+
+    // Likely not used anymore with the stripped-down android::InputDispatcher
+    args.edgeFlags = 0;
+
+    args.pointerCount = event->touchPoints().count();
+
+    auto touchPoints = event->touchPoints();
+    for (int i = 0; i < touchPoints.count(); ++i) {
+        auto touchPoint = touchPoints.at(i);
+        PointerCoords &coords = args.pointerCoords[i];
+
+        coords.setAxisValue(AMOTION_EVENT_AXIS_X, touchPoint.pos().x());
+        coords.setAxisValue(AMOTION_EVENT_AXIS_Y, touchPoint.pos().y());
+        coords.setAxisValue(AMOTION_EVENT_AXIS_PRESSURE, touchPoint.pressure());
+
+        args.pointerProperties[i].id = touchPoint.id();
+    }
+
+    // TODO: find out what's the relevance of this
+    args.xPrecision = 1.0f;
+    args.yPrecision = 1.0f;
+    args.downTime = 0;
+
+    return args;
+}
+
+} // namespace {
 
 class QMirSurfaceTextureProvider : public QSGTextureProvider
 {
@@ -252,7 +321,22 @@ void MirSurfaceItem::keyReleaseEvent(QKeyEvent *event)
 
 void MirSurfaceItem::touchEvent(QTouchEvent *event)
 {
-    Q_UNUSED(event);
+    MirInputDispatcherInterface *dispatcher = MirInputDispatcherInterface::instance();
+    if (dispatcher == nullptr)
+        return;
+
+    NotifyMotionArgs args = createNotifyMotionArgs(event);
+
+    MirInputChannel *mirInputChannel =
+        static_cast<MirInputChannel*>(m_surface->input_channel().get());
+
+    InputTarget target;
+    target.inputChannel = mirInputChannel->serverSideChannel;
+    target.flags = InputTarget::FLAG_DISPATCH_AS_IS;
+    target.xOffset = target.yOffset = 0.0f;
+    target.scaleFactor = 1.0f;
+
+    dispatcher->notifyMotion(&args, target);
 }
 
 void MirSurfaceItem::setType(const Type &type)

@@ -11,11 +11,18 @@ QMAKE_CXXFLAGS = -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden
 QMAKE_CXXFLAGS_RELEASE += -Werror     # so no stop on warning in debug builds
 QMAKE_LFLAGS = -std=c++11 -Wl,-no-undefined
 
-PKGCONFIG += mircommon mirserver glib-2.0 upstart-app-launch-1
+PKGCONFIG += mircommon mirclient mirserver glib-2.0 upstart-app-launch-1
 
 INCLUDEPATH += ../../../platforms/mirserver
 LIBS += -L../../../platforms/mirserver -lqpa-mirserver
 QMAKE_RPATHDIR += $$[QT_INSTALL_PLUGINS]/platforms # where libqpa-mirserver.so is installed
+
+# android-input stuff
+INCLUDEPATH += "/usr/include/mirserver/android-deps"
+INCLUDEPATH += "/usr/include/mirserver/android-input/android/frameworks/base/include"
+INCLUDEPATH += "/usr/include/mirserver/android-input/android/frameworks/base/services/input"
+INCLUDEPATH += "/usr/include/mirserver/android-input/android/frameworks/native/include"
+QMAKE_CXXFLAGS += "-include /usr/include/mirserver/android-input/android/system/core/include/arch/ubuntu-x86/AndroidConfig.h"
 
 TARGET = $$qtLibraryTarget($$TARGET)
 uri = Unity.Application

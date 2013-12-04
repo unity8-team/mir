@@ -16,11 +16,20 @@ MirInputManager::MirInputManager(std::shared_ptr<input::InputReport> inputReport
     mQtEventFeeder = new QtEventFeeder;
     mInputReader = new InputReader(mEventHub, mInputReaderPolicy, mQtEventFeeder);
     mReaderThread = new InputReaderThread(mInputReader);
+    mDispatcher = new MirInputDispatcher(inputReport);
+    mDispatcherThread = new MirInputDispatcherThread(mDispatcher);
 }
 
 void MirInputManager::start()
 {
     status_t result;
+
+    mDispatcher->setInputDispatchMode(true /*enabled*/, false /*frozen*/);
+    result = mDispatcherThread->run("InputDispatcher", PRIORITY_URGENT_DISPLAY);
+    if (result) {
+        qCritical() << "Could not start InputDispatcher thread due to error" << result;
+        return;
+    }
 
     result = mReaderThread->run("InputReader", PRIORITY_URGENT_DISPLAY);
     if (result) {
@@ -30,10 +39,13 @@ void MirInputManager::start()
 
 void MirInputManager::stop()
 {
-    status_t result = mReaderThread->requestExitAndWait();
-    if (result) {
-        qCritical() << "Could not stop InputReader thread due to error" << result;
-    }
+    mReaderThread->requestExit();
+    mEventHub->wake();
+    mReaderThread->join();
+
+    mDispatcherThread->requestExit();
+    mDispatcher->setInputDispatchMode(false /*enabled*/, true /*frozen*/);
+    mDispatcherThread->join();
 }
 
 std::shared_ptr<input::InputChannel> MirInputManager::make_input_channel()
@@ -46,15 +58,22 @@ void MirInputManager::input_channel_opened(
         std::shared_ptr<input::Surface> const& info,
         input::InputReceptionMode input_mode)
 {
-    (void)opened_channel;
     (void)info;
     (void)input_mode;
+
+    sp<android::InputChannel> androidChannel =
+        static_cast<MirInputChannel*>(opened_channel.get())->serverSideChannel;
+
+    mDispatcher->registerInputChannel(androidChannel, false /*monitor*/);
 }
 
 void MirInputManager::input_channel_closed(
         std::shared_ptr<input::InputChannel> const& closed_channel)
 {
-    (void)closed_channel;
+    sp<android::InputChannel> androidChannel =
+        static_cast<MirInputChannel*>(closed_channel.get())->serverSideChannel;
+
+    mDispatcher->unregisterInputChannel(androidChannel);
 }
 
 void MirInputManager::focus_changed(std::shared_ptr<input::InputChannel const> const& focus_channel)
