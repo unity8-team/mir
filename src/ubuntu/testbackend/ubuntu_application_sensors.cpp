@@ -25,6 +25,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <cerrno>
+#include <csignal>
+#include <ctime>
 #include <iostream>
 #include <sstream>
 #include <fstream>
@@ -102,6 +104,8 @@ class SensorController
     bool next_command();
     bool process_create_command();
     void process_event_command();
+    void setup_timer(unsigned delay_ms);
+    static void on_timer(union sigval sval);
 
     static ubuntu_sensor_type type_from_name(const string& type)
     {
@@ -270,6 +274,78 @@ SensorController::process_event_command()
         default:
             cerr << "TestSensor ERROR: unhandled sensor type " << token << endl;
             abort();
+    }
+
+    // wake up after given delay for committing the change and processing the
+    // next event
+    setup_timer(unsigned(delay));
+}
+
+void
+SensorController::setup_timer(unsigned delay_ms)
+{
+    static timer_t timerid; // we keep a pointer to that until on_timer
+    struct sigevent sev;
+    struct itimerspec its { {0, 0}, // interval
+                            {(delay_ms / 1000), (delay_ms * 1000000L) % 1000000000L } };
+
+    sev.sigev_notify = SIGEV_THREAD;
+    sev.sigev_notify_function = SensorController::on_timer;
+    sev.sigev_notify_attributes = NULL;
+    sev.sigev_value.sival_ptr = &timerid;
+
+    if (timer_create(CLOCK_MONOTONIC, &sev, &timerid) < 0) {
+        perror("TestSensor ERROR: Failed to create timer");
+        abort();
+    }
+    if (timer_settime(timerid, 0, &its, NULL) < 0) {
+        perror("TestSensor ERROR: Failed to set up timer");
+        abort();
+    };
+}
+
+// number of ns since the epoch, for sensor timestamp field
+static inline uint64_t current_timestamp()
+{
+    static struct timespec ts;
+    if (clock_gettime(CLOCK_REALTIME, &ts) < 0) {
+        perror("clock_gettime");
+        abort();
+    }
+    return ts.tv_sec * 1000000000 + ts.tv_nsec;
+}
+
+void
+SensorController::on_timer(union sigval sval)
+{
+    timer_t timerid = *(static_cast<timer_t*>(sval.sival_ptr));
+    //cout << "on_timer called\n";
+    timer_delete(timerid);
+
+    SensorController *sc = SensorController::instance();
+
+    // update sensor values, call callback
+    if (sc->event_sensor && sc->event_sensor->enabled) {
+        sc->event_sensor->x = sc->event_x;
+        sc->event_sensor->y = sc->event_y;
+        sc->event_sensor->z = sc->event_z;
+        sc->event_sensor->distance = sc->event_distance;
+        sc->event_sensor->timestamp = current_timestamp();
+        if (sc->event_sensor->on_event_cb != NULL) {
+            //cout << "TestSensor: calling sensor callback for type " << sc->event_sensor->type << endl;
+            sc->event_sensor->on_event_cb(sc->event_sensor, sc->event_sensor->event_cb_context);
+        } else {
+            //cout << "TestSensor: sensor type " << sc->event_sensor->type << "has no callback\n";
+        }
+    } else {
+        //cout << "TestSensor: sensor type " << sc->event_sensor->type << "disabled, not processing event\n";
+    }
+
+    // read/process next event
+    if (sc->next_command())
+        sc->process_event_command();
+    else {
+        //cout << "TestSensor: script ended, no further commands\n";
     }
 }
 
