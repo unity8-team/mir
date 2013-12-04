@@ -50,9 +50,9 @@ class TestSensor
         max_value(_max_value),
         on_event_cb(NULL),
         event_cb_context(NULL),
-        x(0.0),
-        y(0.0),
-        z(0.0),
+        x(_min_value),
+        y(_min_value),
+        z(_min_value),
         distance((UASProximityDistance) 0),  // LP#1256969
         timestamp(0)
     {}
@@ -87,14 +87,9 @@ class SensorController
         return _inst;
     }
 
-    /* Ensure that controller is initialized; return TestSensor of given type,
-     * or NULL if it doesn't exist.
-     */
-    static TestSensor* get(ubuntu_sensor_type type)
+    // Return TestSensor of given type, or NULL if it doesn't exist
+    TestSensor* get(ubuntu_sensor_type type)
     {
-        // ensure that we are initialized
-        instance();
-
         try {
             return sensors.at(type);
         } catch (const out_of_range&) {
@@ -106,6 +101,7 @@ class SensorController
     SensorController();
     bool next_command();
     bool process_create_command();
+    void process_event_command();
 
     static ubuntu_sensor_type type_from_name(const string& type)
     {
@@ -123,7 +119,12 @@ class SensorController
     static SensorController* _inst;
     static map<ubuntu_sensor_type, TestSensor*> sensors;
     ifstream data;
+
+    // current command/event
     string current_command;
+    TestSensor* event_sensor;
+    float event_x, event_y, event_z;
+    UASProximityDistance event_distance;
 };
 
 map<ubuntu_sensor_type, TestSensor*> SensorController::sensors;
@@ -138,6 +139,8 @@ SensorController::SensorController()
         abort();
     }
 
+    //cout << "SensorController ctor: opening " << path << endl;
+
     data.open(path);
     if (!data.is_open()) {
         cerr << "TestSensor ERROR: Failed to open data file " << path << ": " << strerror(errno) << endl;
@@ -146,10 +149,12 @@ SensorController::SensorController()
 
     // process all "create" commands
     while (next_command()) {
-        //cout << "SensorController init: command '" << current_command << "'\n";
         if (!process_create_command())
             break;
     }
+
+    // start event processing
+    process_event_command();
 }
 
 bool
@@ -181,7 +186,7 @@ SensorController::process_create_command()
     ss >> token;
     ubuntu_sensor_type type = type_from_name(token);
 
-    if (sensors.find(type) != sensors.end()) {
+    if (get(type) != NULL) {
         cerr << "TestSensor ERROR: duplicate creation of sensor type " << token << endl;
         abort();
     }
@@ -208,6 +213,66 @@ SensorController::process_create_command()
     return true;
 }
 
+void
+SensorController::process_event_command()
+{
+    stringstream ss(current_command, ios_base::in);
+    int delay;
+
+    //cout << "TestSensor: processing event " << current_command << endl;
+
+    // parse delay
+    ss >> delay;
+    if (delay <= 0) {
+        cerr << "TestSensor ERROR: delay must be positive in command " << current_command << endl;
+        abort();
+    }
+
+    // parse sensor type
+    string token;
+    ss >> token;
+    ubuntu_sensor_type type = type_from_name(token);
+    event_sensor = get(type);
+    if (event_sensor == NULL) {
+        cerr << "TestSensor ERROR: sensor does not exist, you need to create it: " << token << endl;
+        abort();
+    }
+
+    switch (type) {
+        case ubuntu_sensor_type_light:
+            ss >> event_x;
+            //cout << "got event: sensor type " << type << " (light), delay "
+            //     << delay << " ms, value " << event_x << endl;
+            break;
+
+        case ubuntu_sensor_type_accelerometer:
+            ss >> event_x >> event_y >> event_z;
+            //cout << "got event: sensor type " << type << " (accel), delay "
+            //     << delay << " ms, value " << event_x << "/" << event_y << "/" << event_z << endl;
+            break;
+
+        case ubuntu_sensor_type_proximity:
+            ss >> token;
+            if (token == "unknown")
+                event_distance = (UASProximityDistance) 0;  // LP#1256969
+            else if (token == "near")
+                event_distance = U_PROXIMITY_NEAR;
+            else if (token == "far")
+                event_distance = U_PROXIMITY_FAR;
+            else {
+                cerr << "TestSensor ERROR: unknown proximity value " << token << endl;
+                abort();
+            }
+            //cout << "got event: sensor type " << type << " (proximity), delay "
+            //     << delay << " ms, value " << int(event_distance) << endl;
+            break;
+
+        default:
+            cerr << "TestSensor ERROR: unhandled sensor type " << token << endl;
+            abort();
+    }
+}
+
 
 /***************************************
  *
@@ -217,7 +282,7 @@ SensorController::process_create_command()
 
 UASensorsAccelerometer* ua_sensors_accelerometer_new()
 {
-    return SensorController::get(ubuntu_sensor_type_accelerometer);
+    return SensorController::instance()->get(ubuntu_sensor_type_accelerometer);
 }
 
 UStatus ua_sensors_accelerometer_enable(UASensorsAccelerometer* s)
@@ -287,7 +352,7 @@ float uas_accelerometer_event_get_acceleration_z(UASAccelerometerEvent* e)
 
 UASensorsProximity* ua_sensors_proximity_new()
 {
-    return SensorController::get(ubuntu_sensor_type_proximity);
+    return SensorController::instance()->get(ubuntu_sensor_type_proximity);
 }
 
 UStatus ua_sensors_proximity_enable(UASensorsProximity* s)
@@ -349,7 +414,7 @@ UASProximityDistance uas_proximity_event_get_distance(UASProximityEvent* e)
 
 UASensorsLight* ua_sensors_light_new()
 {
-    return SensorController::get(ubuntu_sensor_type_light);
+    return SensorController::instance()->get(ubuntu_sensor_type_light);
 }
 
 UStatus ua_sensors_light_enable(UASensorsLight* s)
