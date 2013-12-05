@@ -19,6 +19,7 @@
 #define MIR_EVENT_FILTER_DISPATCHER_POLICY_H_
 
 #include "mir/input/event_filter.h"
+#include "mir/input/input_report.h"
 
 #include <InputDispatcher.h>
 
@@ -40,7 +41,7 @@ namespace android
 class EventFilterDispatcherPolicy : public droidinput::InputDispatcherPolicyInterface
 {
 public:
-    EventFilterDispatcherPolicy(std::shared_ptr<EventFilter> const& event_filter, bool key_repeat_enabled);
+    EventFilterDispatcherPolicy(std::shared_ptr<EventFilter> const& event_filter, bool key_repeat_enabled, std::shared_ptr<InputReport> const& input_report);
     virtual ~EventFilterDispatcherPolicy() {}
 
     void notifyConfigurationChanged(nsecs_t when);
@@ -72,6 +73,7 @@ protected:
 private:
     std::shared_ptr<EventFilter> event_filter;
     bool key_repeat_enabled;
+    std::shared_ptr<InputReport> input_report;
 };
 
 }

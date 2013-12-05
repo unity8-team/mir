@@ -17,13 +17,15 @@
  */
 #include "event_filter_dispatcher_policy.h"
 #include "mir/input/android/android_input_lexicon.h"
+#include "mir/input/input_report.h"
 
 namespace mi = mir::input;
 namespace mia = mi::android;
 
-mia::EventFilterDispatcherPolicy::EventFilterDispatcherPolicy(std::shared_ptr<mi::EventFilter> const& event_filter, bool key_repeat_enabled) :
+mia::EventFilterDispatcherPolicy::EventFilterDispatcherPolicy(std::shared_ptr<mi::EventFilter> const& event_filter, bool key_repeat_enabled, std::shared_ptr<InputReport> const& input_report) :
   event_filter(event_filter),
-  key_repeat_enabled(key_repeat_enabled)
+  key_repeat_enabled(key_repeat_enabled),
+  input_report(input_report)
 {
 }
 
@@ -54,6 +56,7 @@ bool mia::EventFilterDispatcherPolicy::filterInputEvent(const droidinput::InputE
 {
     MirEvent mir_ev;
     mia::Lexicon::translate(input_event, mir_ev);
+    // TODO: input_report->something()
 
     // TODO: Use XKBMapper
 

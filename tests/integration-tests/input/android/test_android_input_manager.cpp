@@ -232,8 +232,9 @@ namespace
 
 struct MockDispatcherPolicy : public mia::EventFilterDispatcherPolicy
 {
-    MockDispatcherPolicy(std::shared_ptr<mi::EventFilter> const& filter)
-      : EventFilterDispatcherPolicy(filter, false)
+    MockDispatcherPolicy(std::shared_ptr<mi::EventFilter> const& filter,
+                         std::shared_ptr<mi::InputReport> const& input_report)
+      : EventFilterDispatcherPolicy(filter, false, input_report)
     {
     }
     MOCK_METHOD3(interceptKeyBeforeDispatching, nsecs_t(droidinput::sp<droidinput::InputWindowHandle> const&,
@@ -247,7 +248,7 @@ struct TestingInputConfiguration : public mtd::FakeEventHubInputConfiguration
                               std::shared_ptr<mi::CursorListener> const& cursor_listener,
                               std::shared_ptr<mi::InputReport> const& input_report)
         : FakeEventHubInputConfiguration({}, input_region, cursor_listener, input_report),
-          dispatcher_policy(new MockDispatcherPolicy(filter))
+          dispatcher_policy(new MockDispatcherPolicy(filter, input_report))
     {
     }
     droidinput::sp<droidinput::InputDispatcherPolicyInterface> the_dispatcher_policy()

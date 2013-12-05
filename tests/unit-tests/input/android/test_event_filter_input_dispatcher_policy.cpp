@@ -17,6 +17,7 @@
  */
 
 #include "mir/input/event_filter.h"
+#include "mir/input/null_input_report.h"
 #include "src/server/input/android/event_filter_dispatcher_policy.h"
 
 #include "mir_test/fake_shared.h"
@@ -37,7 +38,9 @@ TEST(EventFilterDispatcherPolicy, offers_key_events_to_filter)
     using namespace ::testing;
     droidinput::KeyEvent ev;
     mtd::MockEventFilter filter;
-    mia::EventFilterDispatcherPolicy policy(mt::fake_shared(filter), true);
+    auto input_report = std::make_shared<mi::NullInputReport>();
+    mia::EventFilterDispatcherPolicy policy(mt::fake_shared(filter), true,
+                                            input_report);
     uint32_t policy_flags;
 
     EXPECT_CALL(filter, handle(_)).Times(1).WillOnce(Return(false));
@@ -58,7 +61,9 @@ TEST(EventFilterDispatcherPolicy, motion_events_are_allowed_to_pass_to_clients)
     using namespace ::testing;
 
     mtd::MockEventFilter filter;
-    mia::EventFilterDispatcherPolicy policy(mt::fake_shared(filter), true);
+    auto input_report = std::make_shared<mi::NullInputReport>();
+    mia::EventFilterDispatcherPolicy policy(mt::fake_shared(filter), true,
+                                            input_report);
 
     uint32_t policy_flags;
     policy.interceptMotionBeforeQueueing(0, policy_flags);

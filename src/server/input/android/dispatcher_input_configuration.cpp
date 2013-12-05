@@ -94,7 +94,7 @@ droidinput::sp<droidinput::InputDispatcherPolicyInterface> mia::DispatcherInputC
     return dispatcher_policy(
         [this]()
         {
-            return new mia::EventFilterDispatcherPolicy(event_filter, is_key_repeat_enabled());
+            return new mia::EventFilterDispatcherPolicy(event_filter, is_key_repeat_enabled(), input_report);
         });
 }
 
