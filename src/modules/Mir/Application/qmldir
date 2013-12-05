@@ -1,4 +1,4 @@
-module Unity.Application
-plugin unityapplicationplugin
+module Mir.Application
+plugin mirapplicationplugin
 ApplicationImage 0.1 ApplicationImage.qml
 OSKController 0.1 OSKController.qml

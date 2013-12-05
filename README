@@ -2,13 +2,15 @@ This repo contains a QPA plugin to make Qt a Mir server.
 
 Handiest way to grab dependencies:
 $ apt-get build-dep qtubuntu
-$ apt-get install libqt5v8-5-private-dev libupstart-app-launch1-dev
+$ apt-get install libupstart-app-launch1-dev
+
+If using Qt version less than 5.2, you'll also need
+$ apt-get install libqt5v8-5-private-dev
 
 To use, compile and install, run:
 
 $ export QT_QPA_PLATFORM=mirserver
-$ export QML2_IMPORT_PATH=/usr/lib/arm-linux-gnueabihf/qt5/imports/Unity-Mir
-# works around a crash if that dir doesn't exist. Don't ask me why.
+# work around a crash if that dir doesn't exist. Don't ask me why.
 $ sudo mkdir /usr/lib/arm-linux-gnueabihf/fonts 
 
 then run the Qt application of your choice (qmlscene best). As example, try

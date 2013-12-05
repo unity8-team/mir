@@ -18,4 +18,4 @@ defineTest(addSubdirs) {
 }
 
 addSubdirs(platforms/mirserver)
-addSubdirs(modules/Unity/Application, platforms/mirserver) # so builds only after mirserver
+addSubdirs(modules/Mir/Application, platforms/mirserver) # so builds only after mirserver

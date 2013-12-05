@@ -1,8 +1,8 @@
-TARGET = unityapplicationplugin
+TARGET = mirapplicationplugin
 TEMPLATE = lib
 
 QT       += core quick dbus
-QT       += qml-private core-private v8-private # for QMLProfiler integration
+QT       += qml-private core-private
 QT       += gui-private # annoyingly needed by included NativeInterface
 CONFIG   += link_pkgconfig plugin
 
@@ -25,7 +25,7 @@ INCLUDEPATH += "/usr/include/mirserver/android-input/android/frameworks/native/i
 QMAKE_CXXFLAGS += "-include /usr/include/mirserver/android-input/android/system/core/include/arch/ubuntu-x86/AndroidConfig.h"
 
 TARGET = $$qtLibraryTarget($$TARGET)
-uri = Unity.Application
+uri = Mir.Application
 
 SOURCES += application_manager.cpp \
     application.cpp \
@@ -54,7 +54,7 @@ HEADERS += application_manager.h \
     mirsurfaceitem.h \
     mirbuffersgtexture.h
 
-installPath = $$[QT_INSTALL_IMPORTS]/Unity-Mir/$$replace(uri, \\., /)
+installPath = $$[QT_INSTALL_QML]/$$replace(uri, \\., /)
 
 QML_FILES = qmldir ApplicationImage.qml OSKController.qml
 qml_files.path = $$installPath

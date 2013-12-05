@@ -1,5 +1,5 @@
 import QtQuick 2.0
-import Unity.Application 0.1
+import Mir.Application 0.1
 
 Rectangle {
     id: root
