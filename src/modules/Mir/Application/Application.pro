@@ -1,8 +1,8 @@
-TARGET = unityapplicationplugin
+TARGET = mirapplicationplugin
 TEMPLATE = lib
 
 QT       += core quick dbus
-QT       += qml-private core-private v8-private # for QMLProfiler integration
+QT       += qml-private core-private
 QT       += gui-private # annoyingly needed by included NativeInterface
 CONFIG   += link_pkgconfig plugin
 
@@ -18,7 +18,7 @@ LIBS += -L../../../platforms/mirserver -lqpa-mirserver
 QMAKE_RPATHDIR += $$[QT_INSTALL_PLUGINS]/platforms # where libqpa-mirserver.so is installed
 
 TARGET = $$qtLibraryTarget($$TARGET)
-uri = Unity.Application
+uri = Mir.Application
 
 SOURCES += application_manager.cpp \
     application.cpp \
@@ -47,7 +47,7 @@ HEADERS += application_manager.h \
     mirsurfaceitem.h \
     mirbuffersgtexture.h
 
-installPath = $$[QT_INSTALL_IMPORTS]/Unity-Mir/$$replace(uri, \\., /)
+installPath = $$[QT_INSTALL_QML]/$$replace(uri, \\., /)
 
 QML_FILES = qmldir ApplicationImage.qml OSKController.qml
 qml_files.path = $$installPath
