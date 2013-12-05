@@ -862,7 +862,6 @@ void MirInputDispatcher::startDispatchCycleLocked(nsecs_t currentTime,
             }
 
             // Publish the motion event.
-            qDebug() << "InputDispatcher: publishing motion event";
             status = connection->inputPublisher.publishMotionEvent(dispatchEntry->seq,
                     motionEntry->deviceId, motionEntry->source,
                     dispatchEntry->resolvedAction, dispatchEntry->resolvedFlags,
