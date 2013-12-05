@@ -93,3 +93,9 @@ add_subdirectory(data/)
 add_subdirectory(doc/)
 add_subdirectory(include/)
 add_subdirectory(src/)
+
+#### Enable tests
+include(CTest)
+set(GTEST_ROOT /usr/src/gtest)
+add_subdirectory(tests/)
+add_subdirectory(${GTEST_ROOT} ${CMAKE_CURRENT_BINARY_DIR}/gtest)

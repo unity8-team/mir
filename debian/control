@@ -17,6 +17,7 @@ Build-Depends: cmake,
                libdbus-1-dev,
                dbus-cpp-dev,
                libubuntu-location-service-dev,
+               libgtest-dev,
 Standards-Version: 3.9.4
 Homepage: https://launchpad.net/platform-api
 Vcs-Bzr: lp:platform-api
