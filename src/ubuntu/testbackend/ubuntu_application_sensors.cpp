@@ -158,7 +158,8 @@ SensorController::SensorController()
     }
 
     // start event processing
-    process_event_command();
+    if (!data.eof())
+        process_event_command();
 }
 
 bool
