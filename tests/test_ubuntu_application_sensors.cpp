@@ -19,6 +19,8 @@
 #include <cstdlib>
 #include <cstdio>
 
+#include <core/testing/fork_and_run.h>
+
 #include "gtest/gtest.h"
 
 #include <ubuntu/application/sensors/accelerometer.h>
@@ -26,6 +28,31 @@
 #include <ubuntu/application/sensors/light.h>
 
 using namespace std;
+
+/*****
+ * Test definition macro which runs a TEST_F in a forked process.
+ * We need to do this as we cannot unload the platform-api dynloaded backend
+ * shlib, nor reset the sensor state. Note that you can only use EXPECT_*, not
+ * ASSERT_*!
+ * 
+ * Usage:
+ * TEST_FP(FixtureName, TestName, {
+ *    ... test code ...
+ *    EXPECT_* ...
+ *  })
+ */
+#define TEST_FP(test_fixture, test_name, CODE)                              \
+    TEST_F(test_fixture, test_name) {                                       \
+        auto noop = [](){ return core::posix::exit::Status::success; };     \
+        auto test = [&]() {                                                 \
+            CODE                                                            \
+            return HasFailure() ? core::posix::exit::Status::failure        \
+                                : core::posix::exit::Status::success;       \
+        };                                                                  \
+        auto result = core::testing::fork_and_run(noop, test);              \
+        EXPECT_EQ(core::testing::ForkAndRunResult::empty,                   \
+                  result & core::testing::ForkAndRunResult::client_failed); \
+}
 
 class APITest : public testing::Test
 {
@@ -50,15 +77,49 @@ class APITest : public testing::Test
     void set_data(const char* data)
     {
         write(data_fd, data, strlen(data));
+        fsync(data_fd);
     }
 
     char data_file[100];
     int data_fd;
 };
 
-TEST_F(APITest, NoData) {
-    // without any data, there are no sensors defined
+// without any data, there are no sensors defined
+TEST_FP(APITest, NoData, {
     EXPECT_EQ(NULL, ua_sensors_accelerometer_new());
     EXPECT_EQ(NULL, ua_sensors_proximity_new());
     EXPECT_EQ(NULL, ua_sensors_light_new());
-}
+})
+
+TEST_FP(APITest, CreateProximity, {
+    set_data("create proximity");
+    EXPECT_EQ(NULL, ua_sensors_accelerometer_new());
+    EXPECT_EQ(NULL, ua_sensors_light_new());
+
+    UASensorsProximity *s = ua_sensors_proximity_new();
+    EXPECT_TRUE(s != NULL);
+})
+
+TEST_FP(APITest, CreateAccellerator, {
+    set_data("create accel 0.5 1000 0.1");
+    EXPECT_EQ(NULL, ua_sensors_proximity_new());
+    EXPECT_EQ(NULL, ua_sensors_light_new());
+
+    UASensorsAccelerometer *s = ua_sensors_accelerometer_new();
+    EXPECT_TRUE(s != NULL);
+    EXPECT_FLOAT_EQ(0.5, ua_sensors_accelerometer_get_min_value(s));
+    EXPECT_FLOAT_EQ(1000.0, ua_sensors_accelerometer_get_max_value(s));
+    EXPECT_FLOAT_EQ(0.1, ua_sensors_accelerometer_get_resolution(s));
+})
+
+TEST_FP(APITest, CreateLight, {
+    set_data("create light 0 10 0.5");
+    EXPECT_EQ(NULL, ua_sensors_proximity_new());
+    EXPECT_EQ(NULL, ua_sensors_accelerometer_new());
+
+    UASensorsLight *s = ua_sensors_light_new();
+    EXPECT_TRUE(s != NULL);
+    EXPECT_FLOAT_EQ(0.0, ua_sensors_light_get_min_value(s));
+    EXPECT_FLOAT_EQ(10.0, ua_sensors_light_get_max_value(s));
+    EXPECT_FLOAT_EQ(0.5, ua_sensors_light_get_resolution(s));
+})

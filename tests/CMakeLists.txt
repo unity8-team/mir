@@ -1,4 +1,10 @@
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(PROCESS_CPP process-cpp REQUIRED)
+
 include_directories(${GTEST_ROOT}/src)
+include_directories(${PROCESS_CPP_INCLUDE_DIRS})
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --std=c++11")
 
 add_executable(
     test_ubuntu_application_sensors
@@ -11,6 +17,7 @@ target_link_libraries(
     ubuntu_application_api
     gtest
     gtest_main
+    ${PROCESS_CPP_LIBRARIES}
 )
 
 # we need to call the tests with pointing to the locally built test platform
