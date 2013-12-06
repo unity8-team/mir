@@ -21,6 +21,7 @@
 #define MIR_INPUT_INPUT_REPORT_H_
 
 #include <stdint.h>
+#include "mir_toolkit/event.h"
 
 namespace mir
 {
@@ -39,6 +40,8 @@ public:
     virtual void published_motion_event(int dest_fd, uint32_t seq_id, int64_t event_time) = 0;
 
     virtual void received_event_finished_signal(int src_fd, uint32_t seq_id) = 0;
+
+    virtual void translated_event(MirEvent const& event) { (void)event; }
 
 protected:
     InputReport() = default;

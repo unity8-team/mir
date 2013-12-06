@@ -18,6 +18,7 @@
 
 #include "mir/logging/input_report.h"
 #include "mir/logging/logger.h"
+#include "mir_toolkit/event.h"
 
 #include "std/MirLog.h"
 #include <std/Log.h>
@@ -136,4 +137,22 @@ void ml::InputReport::received_event_finished_signal(int src_fd, uint32_t seq_id
 
     ss << "Received event finished (seq_id) from fd " << src_fd << ": " << seq_id;
     logger->log<Logger::informational>(ss.str(), component());
+}
+
+void ml::InputReport::translated_event(MirEvent const& event)
+{
+    std::stringstream ss;
+    nsecs_t event_time = 0;
+
+    if (event.type == mir_event_type_key)
+        event_time = event.key.event_time;
+    else if (event.type == mir_event_type_motion)
+        event_time = event.motion.event_time;
+
+    ss << "Translated event "
+       << "time=" << event_time
+       << "TODO";
+
+    logger->log<Logger::informational>(ss.str(), component());
+    
 }

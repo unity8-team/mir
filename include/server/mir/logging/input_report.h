@@ -47,6 +47,8 @@ public:
 
     void received_event_finished_signal(int src_fd, uint32_t seq_id);
 
+    void translated_event(MirEvent const& event);
+
 private:
     char const* component();
     std::shared_ptr<Logger> const logger;
