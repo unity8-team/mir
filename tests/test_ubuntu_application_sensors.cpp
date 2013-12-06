@@ -100,7 +100,7 @@ TEST_FP(APITest, CreateProximity, {
     EXPECT_TRUE(s != NULL);
 })
 
-TEST_FP(APITest, CreateAccellerator, {
+TEST_FP(APITest, CreateAccelerator, {
     set_data("create accel 0.5 1000 0.1");
     EXPECT_EQ(NULL, ua_sensors_proximity_new());
     EXPECT_EQ(NULL, ua_sensors_light_new());
