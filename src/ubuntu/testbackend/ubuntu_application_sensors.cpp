@@ -30,6 +30,7 @@
 #include <iostream>
 #include <sstream>
 #include <fstream>
+#include <stdexcept>
 #include <map>
 
 using namespace std;
