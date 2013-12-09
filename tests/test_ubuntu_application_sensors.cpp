@@ -34,6 +34,8 @@
 
 using namespace std;
 
+typedef chrono::time_point<chrono::system_clock,chrono::nanoseconds> time_point_system_ns;
+
 /*****
  * Test definition macro which runs a TEST_F in a forked process.
  * We need to do this as we cannot unload the platform-api dynloaded backend
@@ -170,7 +172,7 @@ TEST_FP(APITest, ProximityEvents, {
     events.pop();
     EXPECT_EQ(e.distance, U_PROXIMITY_NEAR);
     EXPECT_EQ(NULL, e.context);
-    auto event_time = chrono::system_clock::time_point(std::chrono::nanoseconds(e.timestamp));
+    auto event_time = time_point_system_ns(std::chrono::nanoseconds(e.timestamp));
     auto delay = chrono::duration_cast<chrono::milliseconds>(event_time - start_time).count();
     EXPECT_GE(delay, 30);
     EXPECT_LE(delay, 70);
@@ -178,7 +180,7 @@ TEST_FP(APITest, ProximityEvents, {
     e = events.front();
     events.pop();
     EXPECT_EQ(e.distance, U_PROXIMITY_FAR);
-    event_time = chrono::system_clock::time_point(std::chrono::nanoseconds(e.timestamp));
+    event_time = time_point_system_ns(std::chrono::nanoseconds(e.timestamp));
     delay = chrono::duration_cast<chrono::milliseconds>(event_time - start_time).count();
     EXPECT_GE(delay, 130);
     EXPECT_LE(delay, 170);
@@ -186,7 +188,7 @@ TEST_FP(APITest, ProximityEvents, {
     e = events.front();
     events.pop();
     EXPECT_EQ(e.distance, (UASProximityDistance) 0);
-    event_time = chrono::system_clock::time_point(std::chrono::nanoseconds(e.timestamp));
+    event_time = time_point_system_ns(std::chrono::nanoseconds(e.timestamp));
     delay = chrono::duration_cast<chrono::milliseconds>(event_time - start_time).count();
     EXPECT_GE(delay, 210);
     EXPECT_LE(delay, 250);
@@ -217,14 +219,14 @@ TEST_FP(APITest, LightEvents, {
     events.pop();
     EXPECT_FLOAT_EQ(e.x, 5);
     EXPECT_EQ(NULL, e.context);
-    auto event_time = chrono::system_clock::time_point(std::chrono::nanoseconds(e.timestamp));
+    auto event_time = time_point_system_ns(std::chrono::nanoseconds(e.timestamp));
     auto delay = chrono::duration_cast<chrono::milliseconds>(event_time - start_time).count();
     EXPECT_LE(delay, 10);
 
     e = events.front();
     events.pop();
     EXPECT_FLOAT_EQ(e.x, 8);
-    event_time = chrono::system_clock::time_point(std::chrono::nanoseconds(e.timestamp));
+    event_time = time_point_system_ns(std::chrono::nanoseconds(e.timestamp));
     delay = chrono::duration_cast<chrono::milliseconds>(event_time - start_time).count();
     EXPECT_GE(delay, 91);
     EXPECT_LE(delay, 111);
@@ -259,7 +261,7 @@ TEST_FP(APITest, AccelEvents, {
     EXPECT_FLOAT_EQ(e.y, -8.5);
     EXPECT_FLOAT_EQ(e.z, 9.9);
     EXPECT_EQ(NULL, e.context);
-    auto event_time = chrono::system_clock::time_point(std::chrono::nanoseconds(e.timestamp));
+    auto event_time = time_point_system_ns(std::chrono::nanoseconds(e.timestamp));
     auto delay = chrono::duration_cast<chrono::milliseconds>(event_time - start_time).count();
     EXPECT_GE(delay, 1050);
     EXPECT_LE(delay, 1150);
