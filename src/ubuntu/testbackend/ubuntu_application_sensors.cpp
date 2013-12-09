@@ -118,7 +118,7 @@ class SensorController
         abort();
     }
 
-    static map<ubuntu_sensor_type, TestSensor*> sensors;
+    map<ubuntu_sensor_type, TestSensor*> sensors;
     ifstream data;
 
     // current command/event
@@ -127,8 +127,6 @@ class SensorController
     float event_x, event_y, event_z;
     UASProximityDistance event_distance;
 };
-
-map<ubuntu_sensor_type, TestSensor*> SensorController::sensors;
 
 SensorController::SensorController()
 {
