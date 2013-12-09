@@ -81,11 +81,9 @@ class SensorController
 {
   public:
     // Ensure that controller is initialized, and return singleton
-    static SensorController* instance()
+    static SensorController& instance()
     {
-        if (_inst == NULL) {
-            _inst = new SensorController();
-        }
+        static SensorController _inst;
         return _inst;
     }
 
@@ -120,7 +118,6 @@ class SensorController
         abort();
     }
 
-    static SensorController* _inst;
     static map<ubuntu_sensor_type, TestSensor*> sensors;
     ifstream data;
 
@@ -132,7 +129,6 @@ class SensorController
 };
 
 map<ubuntu_sensor_type, TestSensor*> SensorController::sensors;
-SensorController* SensorController::_inst = NULL;
 
 SensorController::SensorController()
 {
@@ -312,29 +308,29 @@ SensorController::on_timer(union sigval sval)
     //cout << "on_timer called\n";
     timer_delete(timerid);
 
-    SensorController *sc = SensorController::instance();
+    SensorController& sc = SensorController::instance();
 
     // update sensor values, call callback
-    if (sc->event_sensor && sc->event_sensor->enabled) {
-        sc->event_sensor->x = sc->event_x;
-        sc->event_sensor->y = sc->event_y;
-        sc->event_sensor->z = sc->event_z;
-        sc->event_sensor->distance = sc->event_distance;
-        sc->event_sensor->timestamp = chrono::duration_cast<chrono::nanoseconds>(
+    if (sc.event_sensor && sc.event_sensor->enabled) {
+        sc.event_sensor->x = sc.event_x;
+        sc.event_sensor->y = sc.event_y;
+        sc.event_sensor->z = sc.event_z;
+        sc.event_sensor->distance = sc.event_distance;
+        sc.event_sensor->timestamp = chrono::duration_cast<chrono::nanoseconds>(
                 chrono::system_clock::now().time_since_epoch()).count();
-        if (sc->event_sensor->on_event_cb != NULL) {
-            //cout << "TestSensor: calling sensor callback for type " << sc->event_sensor->type << endl;
-            sc->event_sensor->on_event_cb(sc->event_sensor, sc->event_sensor->event_cb_context);
+        if (sc.event_sensor->on_event_cb != NULL) {
+            //cout << "TestSensor: calling sensor callback for type " << sc.event_sensor->type << endl;
+            sc.event_sensor->on_event_cb(sc.event_sensor, sc.event_sensor->event_cb_context);
         } else {
-            //cout << "TestSensor: sensor type " << sc->event_sensor->type << "has no callback\n";
+            //cout << "TestSensor: sensor type " << sc.event_sensor->type << "has no callback\n";
         }
     } else {
-        //cout << "TestSensor: sensor type " << sc->event_sensor->type << "disabled, not processing event\n";
+        //cout << "TestSensor: sensor type " << sc.event_sensor->type << "disabled, not processing event\n";
     }
 
     // read/process next event
-    if (sc->next_command())
-        sc->process_event_command();
+    if (sc.next_command())
+        sc.process_event_command();
     else {
         //cout << "TestSensor: script ended, no further commands\n";
     }
@@ -349,7 +345,7 @@ SensorController::on_timer(union sigval sval)
 
 UASensorsAccelerometer* ua_sensors_accelerometer_new()
 {
-    return SensorController::instance()->get(ubuntu_sensor_type_accelerometer);
+    return SensorController::instance().get(ubuntu_sensor_type_accelerometer);
 }
 
 UStatus ua_sensors_accelerometer_enable(UASensorsAccelerometer* s)
@@ -419,7 +415,7 @@ float uas_accelerometer_event_get_acceleration_z(UASAccelerometerEvent* e)
 
 UASensorsProximity* ua_sensors_proximity_new()
 {
-    return SensorController::instance()->get(ubuntu_sensor_type_proximity);
+    return SensorController::instance().get(ubuntu_sensor_type_proximity);
 }
 
 UStatus ua_sensors_proximity_enable(UASensorsProximity* s)
@@ -481,7 +477,7 @@ UASProximityDistance uas_proximity_event_get_distance(UASProximityEvent* e)
 
 UASensorsLight* ua_sensors_light_new()
 {
-    return SensorController::instance()->get(ubuntu_sensor_type_light);
+    return SensorController::instance().get(ubuntu_sensor_type_light);
 }
 
 UStatus ua_sensors_light_enable(UASensorsLight* s)
