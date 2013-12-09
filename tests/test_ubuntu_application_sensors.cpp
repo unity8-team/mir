@@ -153,8 +153,7 @@ TEST_FP(APITest, ProximityEvents, {
     UASensorsProximity *s = ua_sensors_proximity_new();
     EXPECT_TRUE(s != NULL);
     ua_sensors_proximity_enable(s);
-    uint64_t start_time = chrono::duration_cast<chrono::nanoseconds>(
-        chrono::system_clock::now().time_since_epoch()).count();
+    auto start_time = chrono::system_clock::now();
 
     ua_sensors_proximity_set_reading_cb(s,
         [](UASProximityEvent* ev, void* ctx) {
@@ -171,21 +170,24 @@ TEST_FP(APITest, ProximityEvents, {
     events.pop();
     EXPECT_EQ(e.distance, U_PROXIMITY_NEAR);
     EXPECT_EQ(NULL, e.context);
-    uint64_t delay = (e.timestamp - start_time) / 1000000; // ns → ms
+    auto event_time = chrono::system_clock::time_point(std::chrono::nanoseconds(e.timestamp));
+    auto delay = chrono::duration_cast<chrono::milliseconds>(event_time - start_time).count();
     EXPECT_GE(delay, 30);
     EXPECT_LE(delay, 70);
 
     e = events.front();
     events.pop();
     EXPECT_EQ(e.distance, U_PROXIMITY_FAR);
-    delay = (e.timestamp - start_time) / 1000000; // ns → ms
+    event_time = chrono::system_clock::time_point(std::chrono::nanoseconds(e.timestamp));
+    delay = chrono::duration_cast<chrono::milliseconds>(event_time - start_time).count();
     EXPECT_GE(delay, 130);
     EXPECT_LE(delay, 170);
 
     e = events.front();
     events.pop();
     EXPECT_EQ(e.distance, (UASProximityDistance) 0);
-    delay = (e.timestamp - start_time) / 1000000; // ns → ms
+    event_time = chrono::system_clock::time_point(std::chrono::nanoseconds(e.timestamp));
+    delay = chrono::duration_cast<chrono::milliseconds>(event_time - start_time).count();
     EXPECT_GE(delay, 210);
     EXPECT_LE(delay, 250);
 })
@@ -199,8 +201,7 @@ TEST_FP(APITest, LightEvents, {
     UASensorsLight *s = ua_sensors_light_new();
     EXPECT_TRUE(s != NULL);
     ua_sensors_light_enable(s);
-    uint64_t start_time = chrono::duration_cast<chrono::nanoseconds>(
-        chrono::system_clock::now().time_since_epoch()).count();
+    auto start_time = chrono::system_clock::now();
 
     ua_sensors_light_set_reading_cb(s,
         [](UASLightEvent* ev, void* ctx) {
@@ -216,13 +217,15 @@ TEST_FP(APITest, LightEvents, {
     events.pop();
     EXPECT_FLOAT_EQ(e.x, 5);
     EXPECT_EQ(NULL, e.context);
-    uint64_t delay = (e.timestamp - start_time) / 1000000; // ns → ms
+    auto event_time = chrono::system_clock::time_point(std::chrono::nanoseconds(e.timestamp));
+    auto delay = chrono::duration_cast<chrono::milliseconds>(event_time - start_time).count();
     EXPECT_LE(delay, 10);
 
     e = events.front();
     events.pop();
     EXPECT_FLOAT_EQ(e.x, 8);
-    delay = (e.timestamp - start_time) / 1000000; // ns → ms
+    event_time = chrono::system_clock::time_point(std::chrono::nanoseconds(e.timestamp));
+    delay = chrono::duration_cast<chrono::milliseconds>(event_time - start_time).count();
     EXPECT_GE(delay, 91);
     EXPECT_LE(delay, 111);
 })
@@ -236,8 +239,7 @@ TEST_FP(APITest, AccelEvents, {
     UASensorsAccelerometer *s = ua_sensors_accelerometer_new();
     EXPECT_TRUE(s != NULL);
     ua_sensors_accelerometer_enable(s);
-    uint64_t start_time = chrono::duration_cast<chrono::nanoseconds>(
-        chrono::system_clock::now().time_since_epoch()).count();
+    auto start_time = chrono::system_clock::now();
 
     ua_sensors_accelerometer_set_reading_cb(s,
         [](UASAccelerometerEvent* ev, void* ctx) {
@@ -257,7 +259,8 @@ TEST_FP(APITest, AccelEvents, {
     EXPECT_FLOAT_EQ(e.y, -8.5);
     EXPECT_FLOAT_EQ(e.z, 9.9);
     EXPECT_EQ(NULL, e.context);
-    uint64_t delay = (e.timestamp - start_time) / 1000000; // ns → ms
+    auto event_time = chrono::system_clock::time_point(std::chrono::nanoseconds(e.timestamp));
+    auto delay = chrono::duration_cast<chrono::milliseconds>(event_time - start_time).count();
     EXPECT_GE(delay, 1050);
     EXPECT_LE(delay, 1150);
 })
