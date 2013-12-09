@@ -73,6 +73,17 @@ typedef void (*mir_connected_callback)(MirConnection *connection, void *client_c
 typedef void (*mir_surface_callback)(MirSurface *surface, void *client_context);
 
 /**
+ * Callback for handling surface messages
+ *   \param [in] surface             the surface being updated
+ *   \param [in,out] client_context  context provided by client in calling
+ *                                   mir_connect
+ *   \param [in] size                number of bytes received
+ *   \param [in] data                buffer containing bytes received
+ */
+typedef void (*mir_surface_message_callback)(MirSurface *surface,
+    void *client_context, size_t size, void const *data);
+
+/**
  * Callback member of MirEventDelegate for handling of events.
  *   \param [in] surface     The surface on which an event has occurred
  *   \param [in] event       The event to be handled

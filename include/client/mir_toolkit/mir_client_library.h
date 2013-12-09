@@ -205,6 +205,105 @@ MirSurface *mir_connection_create_surface_sync(
     MirSurfaceParameters const *params);
 
 /**
+ * Request a new unrealized Mir surface on the supplied connection with the
+ * supplied parameters. The returned handle remains valid until the surface
+ * has been released.
+ *   \warning callback could be called from another thread. You must do any
+ *            locking appropriate to protect your data accessed in the
+ *            callback.
+ *   \param [in] connection          The connection
+ *   \param [in] surface_parameters  Request surface parameters
+ *   \param [in] surface_callback    Callback function to be invoked when
+ *                                   request completes
+ *   \param [in,out] surface_context User data passed to the surface_callback
+ *                                   function
+ *   \param [in] message_callback    Callback function when surface receives
+ *                                   messages
+ *   \param [in,out] message_context User data passed to the message_callback
+ *                                   function
+ *   \return                         A handle that can be passed to
+ *                                   mir_wait_for
+ */
+MirWaitHandle *mir_connection_create_unrealized_surface(
+    MirConnection *connection,
+    MirSurfaceParameters const *surface_parameters,
+    mir_surface_callback surface_callback,
+    void *surface_context,
+    mir_surface_message_callback message_callback,
+    void *message_context);
+
+/**
+ * Create a surface like in mir_connection_create_unrealized_surface(), but
+ * also wait for creation to complete and return the resulting surface.
+ *   \param [in] connection  The connection
+ *   \param [in] params      Parameters describing the desired surface
+ *   \param [in] message_callback    Callback function when surface receives
+ *                                   messages
+ *   \param [in,out] message_context User data passed to the message_callback
+ *                                   function
+ *   \return                 The resulting surface
+ */
+MirSurface *mir_connection_create_unrealized_surface_sync(
+    MirConnection *connection,
+    MirSurfaceParameters const *params,
+    mir_surface_message_callback message_callback,
+    void *message_context);
+
+/**
+ * Realize an unrealized Mir surface. The returned handle remains valid until
+ * the surface has been released.
+ *   \warning callback could be called from another thread. You must do any
+ *            locking appropriate to protect your data accessed in the
+ *            callback.
+ *   \param [in] surface             The surface
+ *   \param [in] surface_callback    Callback function to be invoked when
+ *                                   request completes
+ *   \param [in,out] surface_context User data passed to the surface_callback
+ *                                   function
+ *   \return                         A handle that can be passed to
+ *                                   mir_wait_for
+ */
+MirWaitHandle *mir_surface_realize(
+    MirSurface *surface,
+    mir_surface_callback surface_callback,
+    void *surface_context);
+
+/**
+ * Realize an unrealized Mir surface.
+ *   \param [in] surface             The surface
+ */
+void mir_surface_realize_sync(MirSurface *surface);
+
+/**
+ * Send a message from the surface.
+ *   \param [in] surface             The surface
+ *   \param [in] size                number of bytes to send
+ *   \param [in] data                buffer containing bytes to send
+ */
+void mir_surface_send_message(
+    MirSurface *surface,
+    size_t size,
+    void const *data);
+
+/**
+ * Set the message handler to be called when messages arrive for a surface.
+ *   \warning event_handler could be called from another thread. You must do
+ *            any locking appropriate to protect your data accessed in the
+ *            callback. There is also a chance that different messages will be
+ *            called back in different threads, for the same surface,
+ *            simultaneously.
+ *   \param [in] surface             The surface
+ *   \param [in] message_callback    Callback function when surface receives
+ *                                   messages
+ *   \param [in,out] message_context User data passed to the message_callback
+ *                                   function
+ */
+void mir_surface_set_message_handler(
+    MirSurface *surface,
+    mir_surface_message_callback message_callback,
+    void *message_context);
+
+/**
  * Set the event handler to be called when events arrive for a surface.
  *   \warning event_handler could be called from another thread. You must do
  *            any locking appropriate to protect your data accessed in the
