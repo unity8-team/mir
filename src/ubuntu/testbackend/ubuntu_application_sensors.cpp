@@ -41,9 +41,9 @@ using namespace std;
  *
  ***************************************/
 
-class TestSensor
+// this is only internal API, so we make everything public
+struct TestSensor
 {
-  public:
     TestSensor(ubuntu_sensor_type _type, float _min_value, float _max_value, float _resolution) :
         type(_type),
         enabled(false),
@@ -60,7 +60,6 @@ class TestSensor
         timestamp(0)
     {}
 
-  public:  /* consenting adults -- this is only internal API */
     ubuntu_sensor_type type;
     bool enabled;
     float resolution;
