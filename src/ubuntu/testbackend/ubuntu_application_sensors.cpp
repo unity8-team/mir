@@ -26,11 +26,11 @@
 #include <cstring>
 #include <cerrno>
 #include <csignal>
-#include <ctime>
 #include <iostream>
 #include <sstream>
 #include <fstream>
 #include <stdexcept>
+#include <chrono>
 #include <map>
 
 using namespace std;
@@ -306,17 +306,6 @@ SensorController::setup_timer(unsigned delay_ms)
     };
 }
 
-// number of ns since the epoch, for sensor timestamp field
-static inline uint64_t current_timestamp()
-{
-    static struct timespec ts;
-    if (clock_gettime(CLOCK_REALTIME, &ts) < 0) {
-        perror("clock_gettime");
-        abort();
-    }
-    return ts.tv_sec * 1000000000 + ts.tv_nsec;
-}
-
 void
 SensorController::on_timer(union sigval sval)
 {
@@ -332,7 +321,8 @@ SensorController::on_timer(union sigval sval)
         sc->event_sensor->y = sc->event_y;
         sc->event_sensor->z = sc->event_z;
         sc->event_sensor->distance = sc->event_distance;
-        sc->event_sensor->timestamp = current_timestamp();
+        sc->event_sensor->timestamp = chrono::duration_cast<chrono::nanoseconds>(
+                chrono::system_clock::now().time_since_epoch()).count();
         if (sc->event_sensor->on_event_cb != NULL) {
             //cout << "TestSensor: calling sensor callback for type " << sc->event_sensor->type << endl;
             sc->event_sensor->on_event_cb(sc->event_sensor, sc->event_sensor->event_cb_context);

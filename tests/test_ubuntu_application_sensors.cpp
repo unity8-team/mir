@@ -18,8 +18,8 @@
 
 #include <cstdlib>
 #include <cstdio>
-#include <ctime>
 #include <queue>
+#include <chrono>
 
 #include <core/testing/fork_and_run.h>
 
@@ -97,18 +97,6 @@ class APITest : public testing::Test
         fsync(data_fd);
     }
 
-    // number of ns since the epoch, for sensor timestamp field
-    static uint64_t current_timestamp()
-    {
-        static struct timespec ts;
-        if (clock_gettime(CLOCK_REALTIME, &ts) < 0) {
-            perror("clock_gettime");
-            abort();
-        }
-        return ts.tv_sec * 1000000000 + ts.tv_nsec;
-    }
-
-
     char data_file[100];
     int data_fd;
 };
@@ -165,7 +153,8 @@ TEST_FP(APITest, ProximityEvents, {
     UASensorsProximity *s = ua_sensors_proximity_new();
     EXPECT_TRUE(s != NULL);
     ua_sensors_proximity_enable(s);
-    uint64_t start_time = current_timestamp();
+    uint64_t start_time = chrono::duration_cast<chrono::nanoseconds>(
+        chrono::system_clock::now().time_since_epoch()).count();
 
     ua_sensors_proximity_set_reading_cb(s,
         [](UASProximityEvent* ev, void* ctx) {
@@ -210,7 +199,8 @@ TEST_FP(APITest, LightEvents, {
     UASensorsLight *s = ua_sensors_light_new();
     EXPECT_TRUE(s != NULL);
     ua_sensors_light_enable(s);
-    uint64_t start_time = current_timestamp();
+    uint64_t start_time = chrono::duration_cast<chrono::nanoseconds>(
+        chrono::system_clock::now().time_since_epoch()).count();
 
     ua_sensors_light_set_reading_cb(s,
         [](UASLightEvent* ev, void* ctx) {
@@ -246,7 +236,8 @@ TEST_FP(APITest, AccelEvents, {
     UASensorsAccelerometer *s = ua_sensors_accelerometer_new();
     EXPECT_TRUE(s != NULL);
     ua_sensors_accelerometer_enable(s);
-    uint64_t start_time = current_timestamp();
+    uint64_t start_time = chrono::duration_cast<chrono::nanoseconds>(
+        chrono::system_clock::now().time_since_epoch()).count();
 
     ua_sensors_accelerometer_set_reading_cb(s,
         [](UASAccelerometerEvent* ev, void* ctx) {
