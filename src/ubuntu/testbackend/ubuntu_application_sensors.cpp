@@ -32,6 +32,7 @@
 #include <stdexcept>
 #include <chrono>
 #include <map>
+#include <memory>
 
 using namespace std;
 
@@ -91,7 +92,7 @@ class SensorController
     TestSensor* get(ubuntu_sensor_type type)
     {
         try {
-            return sensors.at(type);
+            return sensors.at(type).get();
         } catch (const out_of_range&) {
             return NULL;
         }
@@ -118,7 +119,7 @@ class SensorController
         abort();
     }
 
-    map<ubuntu_sensor_type, TestSensor*> sensors;
+    map<ubuntu_sensor_type, shared_ptr<TestSensor>> sensors;
     ifstream data;
 
     // current command/event
@@ -208,7 +209,7 @@ SensorController::process_create_command()
 
     //cout << "SensorController::process_create_command: type " << type << " min " << min << " max " << max << " res " << resolution << endl;
 
-    sensors[type] = new TestSensor(type, min, max, resolution);
+    sensors[type] = make_shared<TestSensor>(type, min, max, resolution);
     return true;
 }
 
