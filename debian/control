@@ -144,6 +144,22 @@ Description: Hybris implementation of the Platform API (runtime)
  The produced library should be used via libhybris, to communicate with the
  Android userspace, which is where the Ubuntu Application Manager lives.
 
+Package: libubuntu-application-test-api1
+Section: libs
+Architecture: any
+Pre-Depends: ${misc:Pre-Depends},
+Multi-Arch: same
+Depends: ${misc:Depends},
+         ${shlibs:Depends},
+Description: test implementation of the Platform API
+ This package provides an implementation of the Platform API for testing. It
+ does not communicate with actual hardware, but reads input from a text file.
+ .
+ You need to explicitly enable this at runtime. Please see the README for
+ details.
+ .
+ For now this provides simulated sensors.
+
 Package: libplatform-api1-hybris-tests
 Architecture: any
 Depends: ${misc:Depends},
