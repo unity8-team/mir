@@ -34,7 +34,20 @@ namespace shell
 {
 class InputTargeter;
 
-class Surface : public frontend::Surface, public shell::SurfaceBufferAccess
+class MessageTarget
+{
+public:
+    MessageTarget() = default;
+    virtual ~MessageTarget() = default;
+
+    virtual void send_message(size_t size, void const* data) = 0;
+
+private:
+    MessageTarget(MessageTarget const&) = delete;
+    MessageTarget& operator=(MessageTarget const&) = delete;
+};
+
+class Surface : public frontend::Surface, public shell::SurfaceBufferAccess, public MessageTarget
 {
 public:
     virtual std::string name() const = 0;

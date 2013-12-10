@@ -266,3 +266,8 @@ void ms::SurfaceImpl::set_alpha(float alpha)
 {
     surface->set_alpha(alpha);
 }
+
+void ms::SurfaceImpl::send_message(size_t /*size*/, void const* /*data*/)
+{
+    // TODO - implement
+}

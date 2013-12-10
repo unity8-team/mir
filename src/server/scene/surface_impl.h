@@ -91,6 +91,8 @@ public:
     virtual void set_rotation(float degrees, glm::vec3 const& axis);
     virtual void set_alpha(float alpha);
 
+    virtual void send_message(size_t size, void const* data);
+
 private:
     bool set_type(MirSurfaceType t);  // Use configure() to make public changes
     bool set_state(MirSurfaceState s);
