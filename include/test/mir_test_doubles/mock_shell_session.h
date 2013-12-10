@@ -51,6 +51,9 @@ struct MockShellSession : public shell::Session
     MOCK_METHOD3(configure_surface, int(frontend::SurfaceId, MirSurfaceAttrib, int));
 
     MOCK_METHOD1(set_lifecycle_state, void(MirLifecycleState state));
+    void handle_message(frontend::SurfaceId /*id*/, std::size_t /*size*/, void const* /*data*/) override
+    {
+    }
 };
 
 }

@@ -137,6 +137,10 @@ public:
         mock_surfaces.erase(surface);
     }
 
+    void handle_message(mf::SurfaceId /*id*/, std::size_t /*size*/, void const* /*data*/) override
+    {
+    }
+
     mtd::StubSurfaceBuilder surface_builder;
     std::shared_ptr<mtd::MockFrontendSurface> mock_surface;
     std::map<mf::SurfaceId, std::shared_ptr<mtd::MockFrontendSurface>> mock_surfaces;

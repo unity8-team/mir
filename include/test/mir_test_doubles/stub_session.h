@@ -65,6 +65,9 @@ struct StubSession : public frontend::Session
     void send_display_config(graphics::DisplayConfiguration const&)
     {
     }
+    void handle_message(frontend::SurfaceId /*id*/, std::size_t /*size*/, void const* /*data*/) override
+    {
+    }
 };
 
 }

@@ -60,6 +60,8 @@ public:
     virtual void send_display_config(graphics::DisplayConfiguration const&) = 0;
     virtual int configure_surface(SurfaceId id, MirSurfaceAttrib attrib, int value) = 0;
 
+    virtual void handle_message(SurfaceId id, std::size_t size, void const* data) = 0;
+
 protected:
     Session() = default;
     Session(Session const&) = delete;

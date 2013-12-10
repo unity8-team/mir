@@ -171,3 +171,8 @@ void ms::ApplicationSession::set_lifecycle_state(MirLifecycleState state)
 {
     event_sink->handle_lifecycle_event(state);
 }
+
+void ms::ApplicationSession::handle_message(mf::SurfaceId /*id*/, std::size_t /*size*/, void const* /*data*/)
+{
+    // TODO
+}

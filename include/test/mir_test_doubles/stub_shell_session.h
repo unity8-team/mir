@@ -75,6 +75,10 @@ struct StubShellSession : public shell::Session
     void set_lifecycle_state(MirLifecycleState /*state*/)
     {
     }
+
+    void handle_message(frontend::SurfaceId /*id*/, std::size_t /*size*/, void const* /*data*/) override
+    {
+    }
 };
 
 }
