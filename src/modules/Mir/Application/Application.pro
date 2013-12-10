@@ -29,6 +29,7 @@ uri = Mir.Application
 
 SOURCES += application_manager.cpp \
     application.cpp \
+    debughelpers.cpp \
     desktopfilereader.cpp \
     plugin.cpp \
     applicationscreenshotprovider.cpp \
@@ -42,6 +43,7 @@ SOURCES += application_manager.cpp \
 
 HEADERS += application_manager.h \
     application.h \
+    debughelpers.h \
     desktopfilereader.h \
     applicationscreenshotprovider.h \
     dbuswindowstack.h \

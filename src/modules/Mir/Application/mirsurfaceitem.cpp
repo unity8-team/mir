@@ -19,6 +19,7 @@
  */
 
 // local
+#include "debughelpers.h"
 #include "qsgmirsurfacenode.h"
 #include "mirbuffersgtexture.h"
 #include "mirsurfaceitem.h"
@@ -89,6 +90,7 @@ struct NotifyMotionArgs createNotifyMotionArgs(QTouchEvent *event)
         auto touchPoint = touchPoints.at(i);
         PointerCoords &coords = args.pointerCoords[i];
 
+        coords.clear();
         coords.setAxisValue(AMOTION_EVENT_AXIS_X, touchPoint.pos().x());
         coords.setAxisValue(AMOTION_EVENT_AXIS_Y, touchPoint.pos().y());
         coords.setAxisValue(AMOTION_EVENT_AXIS_PRESSURE, touchPoint.pressure());
@@ -321,6 +323,11 @@ void MirSurfaceItem::keyReleaseEvent(QKeyEvent *event)
 
 void MirSurfaceItem::touchEvent(QTouchEvent *event)
 {
+    /*
+    QString debugMsg = touchEventToString(event);
+    qDebug() << "MirSurfaceItem" << debugMsg;
+    */
+
     MirInputDispatcherInterface *dispatcher = MirInputDispatcherInterface::instance();
     if (dispatcher == nullptr)
         return;
