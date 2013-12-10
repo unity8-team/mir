@@ -25,6 +25,7 @@
 #include "mir_test_doubles/mock_gl.h"
 #include "mir/graphics/null_display_report.h"
 #include "mir/graphics/display_configuration_policy.h"
+#include "src/server/graphics/default_output_configuration.h"
 #include "mir_test_doubles/null_virtual_terminal.h"
 
 #include "mir_test_framework/udev_environment.h"
@@ -137,14 +138,16 @@ public:
         std::shared_ptr<mg::Platform> const& platform)
     {
         auto conf_policy = std::make_shared<ClonedDisplayConfigurationPolicy>();
-        return platform->create_display(conf_policy);
+        auto output_conf = std::make_shared<mg::DefaultOutputConfiguration>();
+        return platform->create_display(conf_policy, output_conf);
     }
 
     std::shared_ptr<mg::Display> create_display_side_by_side(
         std::shared_ptr<mg::Platform> const& platform)
     {
         auto conf_policy = std::make_shared<SideBySideDisplayConfigurationPolicy>();
-        return platform->create_display(conf_policy);
+        auto output_conf = std::make_shared<mg::DefaultOutputConfiguration>();
+        return platform->create_display(conf_policy, output_conf);
     }
 
     void setup_outputs(int connected, int disconnected)

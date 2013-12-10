@@ -118,7 +118,8 @@ std::shared_ptr<mg::GraphicBufferAllocator> mgm::Platform::create_buffer_allocat
 }
 
 std::shared_ptr<mg::Display> mgm::Platform::create_display(
-    std::shared_ptr<DisplayConfigurationPolicy> const& initial_conf_policy)
+    std::shared_ptr<DisplayConfigurationPolicy> const& initial_conf_policy,
+    std::shared_ptr<OutputConfiguration> const& /*output_config*/)
 {
     return std::make_shared<mgm::Display>(
         this->shared_from_this(),

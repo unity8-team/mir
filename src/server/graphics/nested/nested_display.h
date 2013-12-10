@@ -22,6 +22,7 @@
 #include "mir/graphics/display.h"
 #include "mir/graphics/display_buffer.h"
 #include "mir/graphics/display_configuration.h"
+#include "mir/graphics/output_configuration.h"
 #include "mir/graphics/egl_resources.h"
 
 #include "mir_toolkit/client_types.h"
@@ -95,7 +96,8 @@ public:
     NestedDisplay(
         std::shared_ptr<HostConnection> const& connection,
         std::shared_ptr<input::EventFilter> const& event_handler,
-        std::shared_ptr<DisplayReport> const& display_report);
+        std::shared_ptr<DisplayReport> const& display_report,
+        std::shared_ptr<OutputConfiguration> const& output_configuration);
 
     ~NestedDisplay() noexcept;
 
@@ -123,6 +125,7 @@ private:
     std::shared_ptr<HostConnection> const connection;
     std::shared_ptr<input::EventFilter> const event_handler;
     std::shared_ptr<DisplayReport> const display_report;
+    std::shared_ptr<OutputConfiguration> const output_configuration;
     detail::EGLDisplayHandle egl_display;
     MirPixelFormat const egl_pixel_format;
 

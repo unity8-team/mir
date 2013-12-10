@@ -23,6 +23,7 @@
 #include "mir_test_doubles/mock_egl.h"
 #include "mir_test_doubles/mock_gl.h"
 #include "src/server/graphics/default_display_configuration_policy.h"
+#include "src/server/graphics/default_output_configuration.h"
 #ifndef ANDROID
 #include "mir_test_doubles/mock_drm.h"
 #include "mir_test_doubles/mock_gbm.h"
@@ -73,6 +74,7 @@ public:
     std::shared_ptr<mg::Display> create_display()
     {
         auto conf_policy = std::make_shared<mg::DefaultDisplayConfigurationPolicy>();
+        auto output_config = std::make_shared<mg::DefaultOutputConfiguration>();
         auto report = std::make_shared<mg::NullDisplayReport>();
 #ifdef ANDROID
         auto platform = mg::create_platform(
@@ -82,7 +84,7 @@ public:
         auto platform = std::make_shared<mg::mesa::Platform>(report,
             std::make_shared<mir::test::doubles::NullVirtualTerminal>());
 #endif
-        return platform->create_display(conf_policy);
+        return platform->create_display(conf_policy, output_config);
     }
 
     ::testing::NiceMock<mtd::MockEGL> mock_egl;

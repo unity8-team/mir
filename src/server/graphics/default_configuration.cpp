@@ -19,6 +19,7 @@
 #include "mir/default_server_configuration.h"
 
 #include "default_display_configuration_policy.h"
+#include "default_output_configuration.h"
 #include "nested/host_connection.h"
 #include "nested/nested_platform.h"
 #include "offscreen/display.h"
@@ -68,6 +69,16 @@ mir::DefaultServerConfiguration::the_display_configuration_policy()
         []
         {
             return std::make_shared<mg::DefaultDisplayConfigurationPolicy>();
+        });
+}
+
+std::shared_ptr<mg::OutputConfiguration>
+mir::DefaultServerConfiguration::the_output_configuration()
+{
+    return output_configuration(
+        []
+        {
+            return std::make_shared<mg::DefaultOutputConfiguration>();
         });
 }
 
@@ -121,7 +132,8 @@ mir::DefaultServerConfiguration::the_display()
             else
             {
                 return the_graphics_platform()->create_display(
-                    the_display_configuration_policy());
+                    the_display_configuration_policy(), 
+                    the_output_configuration());
             }
         });
 }

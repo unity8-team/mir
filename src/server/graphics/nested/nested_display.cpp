@@ -36,27 +36,17 @@ namespace geom = mir::geometry;
 namespace
 {
 
-MirPixelFormat find_opaque_surface_format(MirConnection* connection)
+std::vector<MirPixelFormat> get_available_surface_formats_as_vector( MirConnection* connection)
 {
-    static unsigned const max_formats = 32;
-    MirPixelFormat formats[max_formats];
+    std::vector<MirPixelFormat> result;
+    unsigned int const max_formats = 32;
+    result.reserve(max_formats);
     unsigned int valid_formats;
 
-    mir_connection_get_available_surface_formats(connection, formats,
+    mir_connection_get_available_surface_formats(connection, result.data(),
                                                  max_formats, &valid_formats);
 
-    // Find an opaque surface format
-    for (auto f = formats; f != formats+valid_formats; ++f)
-    {
-        if (*f == mir_pixel_format_xbgr_8888 ||
-            *f == mir_pixel_format_xrgb_8888)
-        {
-            return *f;
-        }
-    }
-
-    BOOST_THROW_EXCEPTION(
-        std::runtime_error("Nested Mir failed to find an opaque surface format"));
+    return result;
 }
 
 }
@@ -148,12 +138,14 @@ mgn::detail::EGLDisplayHandle::~EGLDisplayHandle() noexcept
 mgn::NestedDisplay::NestedDisplay(
     std::shared_ptr<HostConnection> const& connection,
     std::shared_ptr<input::EventFilter> const& event_handler,
-    std::shared_ptr<mg::DisplayReport> const& display_report) :
+    std::shared_ptr<mg::DisplayReport> const& display_report, 
+    std::shared_ptr<mg::OutputConfiguration> const& output_configuration) :
     connection{connection},
     event_handler{event_handler},
     display_report{display_report},
+    output_configuration{output_configuration},
     egl_display{*connection},
-    egl_pixel_format{find_opaque_surface_format(*connection)},
+    egl_pixel_format{output_configuration->get_pixel_format(get_available_surface_formats_as_vector(*connection))},
     outputs{}
 {
     egl_display.initialize();

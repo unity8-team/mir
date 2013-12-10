@@ -86,7 +86,8 @@ public:
     }
 
     std::shared_ptr<mg::Display> create_display(
-        std::shared_ptr<mg::DisplayConfigurationPolicy> const&) override
+        std::shared_ptr<mg::DisplayConfigurationPolicy> const&,
+        std::shared_ptr<mg::OutputConfiguration> const&) override
     {
         return std::make_shared<StubDisplay>(display_rects());
     }

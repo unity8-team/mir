@@ -92,6 +92,7 @@ class Display;
 class BufferInitializer;
 class DisplayReport;
 class GraphicBufferAllocator;
+class OutputConfiguration;
 namespace nested { class HostConnection; }
 }
 namespace input
@@ -137,6 +138,7 @@ public:
     virtual std::shared_ptr<graphics::BufferInitializer> the_buffer_initializer();
     virtual std::shared_ptr<compositor::RendererFactory>   the_renderer_factory();
     virtual std::shared_ptr<graphics::DisplayConfigurationPolicy> the_display_configuration_policy();
+    virtual std::shared_ptr<graphics::OutputConfiguration> the_output_configuration();
     virtual std::shared_ptr<graphics::nested::HostConnection> the_host_connection();
     virtual std::shared_ptr<input::EventFilter> the_nested_event_filter();
     /** @} */
@@ -284,6 +286,7 @@ protected:
     CachedPtr<MainLoop> main_loop;
     CachedPtr<ServerStatusListener> server_status_listener;
     CachedPtr<graphics::DisplayConfigurationPolicy> display_configuration_policy;
+    CachedPtr<graphics::OutputConfiguration> output_configuration;
     CachedPtr<graphics::nested::HostConnection> host_connection;
     CachedPtr<scene::MediatingDisplayChanger> mediating_display_changer;
 

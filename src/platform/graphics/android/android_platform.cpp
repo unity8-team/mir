@@ -61,7 +61,8 @@ std::shared_ptr<mga::GraphicBufferAllocator> mga::AndroidPlatform::create_mga_bu
 }
 
 std::shared_ptr<mg::Display> mga::AndroidPlatform::create_display(
-    std::shared_ptr<graphics::DisplayConfigurationPolicy> const&)
+    std::shared_ptr<graphics::DisplayConfigurationPolicy> const&,
+    std::shared_ptr<graphics::OutputConfiguration> const&)
 {
     return std::make_shared<mga::AndroidDisplay>(display_builder, display_report);
 }
