@@ -76,6 +76,12 @@ extern "C" {
         UAUiWindowProperties *properties,
         UAUiWindowInputEventCb cb,
         void *ctx);
+
+    UBUNTU_DLL_PUBLIC void
+    ua_ui_window_properties_set_dimensions(
+        UAUiWindowProperties *properties,
+        uint32_t width,
+        uint32_t height);
     
 #ifdef __cplusplus
 }
