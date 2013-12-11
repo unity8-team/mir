@@ -24,7 +24,11 @@
 #include <getopt.h>
 
 #include <tuple>
+#include <iostream>
+#include <fstream>
 #include <string>
+
+#include <unistd.h>
 
 namespace uam = ubuntu::application::mir;
 
@@ -43,11 +47,11 @@ namespace
 UAUiStage
 string_to_stage(std::string const& s)
 {
-    if (s == "main_stage")
+    if (s == "main_stage" || s == "MainStage")
         return U_MAIN_STAGE;
-    else if (s == "side_stage")
+    else if (s == "side_stage" || s == "SideStage")
         return U_SIDE_STAGE;
-    else if (s == "share_stage")
+    else if (s == "share_stage" || s == "ShareStage")
         return U_SHARE_STAGE;
 }
 
@@ -95,6 +99,56 @@ u_application_options_new_from_cmd_line(int argc, char** argv)
 
     auto app_options = new uam::Options;
 
+    // Construct legacy desktop file path
+    std::string desktop_file_name(getenv("APP_ID"));
+    desktop_file_name.append(".desktop");
+    std::ifstream infile;
+
+    // Click desktop path
+    std::string local_path;
+    if (getenv("APP_DESKTOP_FILE_PATH"))
+        local_path = getenv("APP_DESKTOP_FILE_PATH");;        
+
+    // Check StageHint
+    std::string line, stage_hint;
+    std::string stage_key("X-Ubuntu-StageHint");
+    
+    std::string search_paths[2] = {"/usr/share/applications/", local_path};
+    search_paths[0].append(desktop_file_name);
+    for (std::string path : search_paths)
+    {
+        if (path.empty())
+            continue;
+
+        infile.open(path);
+        if (!infile)
+            continue;
+
+        std::getline(infile, line);
+        while (std::getline(infile, line))
+        {
+            if (infile.eof())
+                break;
+          
+            // Check for non key-value line 
+            if (line.find("=") == std::string::npos)
+                continue;
+            
+            std::string lhs = line.substr(0,line.find("="));
+            std::string rhs = line.substr(line.find("="));
+
+            // Fetch Stage
+            if (lhs.compare(stage_key) == 0)
+            {
+                stage_hint = rhs.substr(1);
+                break;
+            }
+        }
+    }
+
+    if (!stage_hint.empty())
+        app_options->stage = string_to_stage(stage_hint);
+
     while(true)
     {
         int option_index = 0;
@@ -124,6 +178,7 @@ u_application_options_new_from_cmd_line(int argc, char** argv)
                     app_options->form_factor = string_to_form_factor(std::string(optarg));
                     break;
                 case stage_hint_index:
+                    // Override if set
                     app_options->stage = string_to_stage(std::string(optarg));
                     break;
                 case desktop_file_hint_index:
