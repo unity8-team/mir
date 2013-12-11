@@ -303,9 +303,9 @@ SensorController::setup_timer(unsigned delay_ms)
 void
 SensorController::on_timer(union sigval sval)
 {
-    timer_t timerid = *(static_cast<timer_t*>(sval.sival_ptr));
+    timer_t* timerid = static_cast<timer_t*>(sval.sival_ptr);
     //cout << "on_timer called\n";
-    timer_delete(timerid);
+    timer_delete(*timerid);
 
     SensorController& sc = SensorController::instance();
 
