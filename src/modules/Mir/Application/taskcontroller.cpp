@@ -305,10 +305,14 @@ TaskController* TaskController::singleton()
 TaskController::TaskController(QObject *parent) :
     QObject(parent)
 {
-    startCallback = [](const gchar * appId, gpointer userData) {
+    preStartCallback = [](const gchar * appId, gpointer userData) {
         Q_UNUSED(userData)
         pid_t pid = upstart_app_launch_get_primary_pid(appId);
         ensureProcessIsUnlikelyToBeKilled(pid);
+    };
+
+    startedCallback = [](const gchar * appId, gpointer userData) {
+        Q_UNUSED(userData)
         Q_EMIT TaskController::singleton()->processStartReport(QString(appId), false);
     };
 
@@ -341,7 +345,8 @@ TaskController::TaskController(QObject *parent) :
         Q_EMIT TaskController::singleton()->requestResume(QString(appId));
     };
 
-    upstart_app_launch_observer_add_app_start(startCallback, nullptr);
+    upstart_app_launch_observer_add_app_starting(preStartCallback, nullptr);
+    upstart_app_launch_observer_add_app_started(startedCallback, nullptr);
     upstart_app_launch_observer_add_app_stop(stopCallback, nullptr);
     upstart_app_launch_observer_add_app_focus(focusCallback, nullptr);
     upstart_app_launch_observer_add_app_resume(resumeCallback, nullptr);
@@ -350,7 +355,8 @@ TaskController::TaskController(QObject *parent) :
 
 TaskController::~TaskController()
 {
-    upstart_app_launch_observer_delete_app_start(startCallback, nullptr);
+    upstart_app_launch_observer_delete_app_starting(preStartCallback, nullptr);
+    upstart_app_launch_observer_delete_app_started(startedCallback, nullptr);
     upstart_app_launch_observer_delete_app_stop(stopCallback, nullptr);
     upstart_app_launch_observer_delete_app_focus(focusCallback, nullptr);
     upstart_app_launch_observer_delete_app_resume(resumeCallback, nullptr);

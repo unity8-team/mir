@@ -11,7 +11,7 @@ QMAKE_CXXFLAGS = -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden
 QMAKE_CXXFLAGS_RELEASE += -Werror     # so no stop on warning in debug builds
 QMAKE_LFLAGS = -std=c++11 -Wl,-no-undefined
 
-PKGCONFIG += mircommon mirclient mirserver glib-2.0 upstart-app-launch-1
+PKGCONFIG += mircommon mirclient mirserver glib-2.0 upstart-app-launch-2
 
 INCLUDEPATH += ../../../platforms/mirserver
 LIBS += -L../../../platforms/mirserver -lqpa-mirserver

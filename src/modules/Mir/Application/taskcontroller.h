@@ -53,7 +53,7 @@ private:
     TaskController(QObject *parent = 0);
 
     static TaskController* m_theTaskController;
-    upstart_app_launch_app_observer_t startCallback, stopCallback, focusCallback, resumeCallback;
+    upstart_app_launch_app_observer_t preStartCallback, startedCallback, stopCallback, focusCallback, resumeCallback;
     upstart_app_launch_app_failed_observer_t failureCallback;
 };
 

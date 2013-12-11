@@ -182,6 +182,7 @@ MirSurfaceItem::~MirSurfaceItem()
 {
     DLOG("MirSurfaceItem::~MirSurfaceItem");
     QMutexLocker locker(mutex);
+    m_damaged = false;
     m_surface->register_new_buffer_callback([]{});
     if (m_node)
         m_node->setItem(0);
@@ -238,7 +239,10 @@ void MirSurfaceItem::surfaceDamaged()
         Q_EMIT surfaceFirstFrameDrawn(this);
     }
 
+    mutex->lock();
     m_damaged = true;
+    mutex->unlock();
+
     Q_EMIT textureChanged();
     update(); // Notifies QML engine that this needs redrawing, schedules call to updatePaintItem
 }
@@ -247,11 +251,13 @@ void MirSurfaceItem::updateTexture()    // called by render thread
 {
     ensureProvider();
     QSGTexture *texture = m_provider->t;
-    if (m_damaged) {
+    if (m_damaged) { // need locking??
         m_damaged = false;
+
         QSGTexture *oldTexture = texture;
 
         texture = new MirBufferSGTexture(m_surface->lock_compositor_buffer(m_frameNumber));
+        m_frameNumber++; //FIXME: manage overflow.
 
         texture->bind();
         delete oldTexture;
@@ -285,8 +291,6 @@ QSGNode *MirSurfaceItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *
     node->setRect(0, 0, width(), height());
 
     node->setTextureUpdated(true);
-
-    m_frameNumber++; //FIXME: manage overflow.
 
     return node;
 }

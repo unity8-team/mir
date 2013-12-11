@@ -95,6 +95,7 @@ bool MirOpenGLContext::makeCurrent(QPlatformSurface *surface)
 
         return true;
     }
+
     return false;
 }
 
