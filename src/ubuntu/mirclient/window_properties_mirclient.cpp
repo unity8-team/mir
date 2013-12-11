@@ -30,7 +30,7 @@ uamc::WindowProperties::WindowProperties()
     parameters.width = 0;
     parameters.height = 0;
     parameters.buffer_usage = mir_buffer_usage_hardware;
-    parameters.output_id = mir_display_out_id_invalid;
+    parameters.output_id = mir_display_output_id_invalid;
 }
 
 UAUiWindowProperties* uamc::WindowProperties::as_u_window_properties()
