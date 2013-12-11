@@ -21,14 +21,16 @@
 namespace uamc = ubuntu::application::mir::client;
 
 uamc::WindowProperties::WindowProperties()
-    : cb(nullptr),
-      input_ctx(nullptr),
-      type(mir_surface_type_normal)
+    : parameters(),
+      type(mir_surface_type_normal),
+      cb(nullptr),
+      input_ctx(nullptr)
 {
     parameters.name = nullptr;
     parameters.width = 0;
     parameters.height = 0;
     parameters.buffer_usage = mir_buffer_usage_hardware;
+    parameters.output_id = mir_display_out_id_invalid;
 }
 
 UAUiWindowProperties* uamc::WindowProperties::as_u_window_properties()
