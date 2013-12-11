@@ -133,11 +133,11 @@ void UbuntuWindow::createWindow()
             geometry.x(), geometry.y(), geometry.width(), geometry.height(), title.data());
 
     // Setup platform window creation properties
-    // TODO(dandrader) use new platform-api that passes window dimensions on creation
     mWprops = ua_ui_window_properties_new_for_normal_window();
     ua_ui_window_properties_set_titlen(mWprops, title.data(), title.size());
     ua_ui_window_properties_set_role(mWprops, static_cast<UAUiWindowRole>(role));
     ua_ui_window_properties_set_input_cb_and_ctx(mWprops, &eventCallback, this);
+    ua_ui_window_properties_set_dimensions(mWprops, geometry.width(), geometry.height());
 
     // Create platform window
     mWindow = ua_ui_window_new_for_application_with_properties(mUainstance, mWprops);
