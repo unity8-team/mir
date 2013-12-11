@@ -21,16 +21,14 @@
 namespace uamc = ubuntu::application::mir::client;
 
 uamc::WindowProperties::WindowProperties()
-    : parameters(),
-      type(mir_surface_type_normal),
-      cb(nullptr),
-      input_ctx(nullptr)
+    : cb(nullptr),
+      input_ctx(nullptr),
+      type(mir_surface_type_normal)
 {
     parameters.name = nullptr;
     parameters.width = 0;
     parameters.height = 0;
     parameters.buffer_usage = mir_buffer_usage_hardware;
-    parameters.output_id = mir_display_output_id_invalid;
 }
 
 UAUiWindowProperties* uamc::WindowProperties::as_u_window_properties()
@@ -52,6 +50,12 @@ void uamc::WindowProperties::set_input_cb_and_ctx(UAUiWindowInputEventCb callbac
 {
     cb = callback;
     input_ctx = ctx;
+}
+
+void uamc::WindowProperties::set_dimensions(uint32_t width, uint32_t height)
+{
+    parameters.width = width;
+    parameters.height = height;
 }
 
 void uamc::WindowProperties::set_role(UAUiWindowRole role)

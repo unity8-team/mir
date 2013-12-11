@@ -44,6 +44,7 @@ public:
     
     void set_title(char const* title, size_t length);
     void set_input_cb_and_ctx(UAUiWindowInputEventCb cb, void* ctx);
+    void set_dimensions(uint32_t width, uint32_t height);
     void set_pixel_format( ::mir::geometry::PixelFormat const& format);
     
     ::mir::shell::SurfaceCreationParameters const& surface_parameters() const;
