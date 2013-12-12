@@ -16,12 +16,16 @@
  * Authored by: Alan Griffiths <alan@octopull.co.uk>
  */
 
-#include <gtest/gtest.h>
-#include <gmock/gmock.h>
+#include "mir_toolkit/mir_client_library.h"
 
-#include "mir/default_server_configuration.h"
+#include "mir/frontend/connector.h"
 #include "mir/display_server.h"
 #include "mir/run_mir.h"
+
+#include "mir_test_framework/testing_server_configuration.h"
+
+#include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
 #include <condition_variable>
 #include <mutex>
@@ -29,33 +33,45 @@
 
 namespace
 {
-struct TestMessagePassingServerConfiguration : mir::DefaultServerConfiguration
+// TODO we're only using part of TestingServerConfiguration - so that ought to be factored out
+struct TestMessagePassingServerConfiguration : mir_test_framework::TestingServerConfiguration
 {
-    using mir::DefaultServerConfiguration::DefaultServerConfiguration;
+private:
+    using mir_test_framework::TestingServerConfiguration::exec;
+    using mir_test_framework::TestingServerConfiguration::on_exit;
 };
 
 struct MessagePassingServerTestFixture : testing::Test
 {
     MessagePassingServerTestFixture();
     ~MessagePassingServerTestFixture();
-//
-//    static void SetUpTestCase();
-//    static void TearDownTestCase();
-//
-//    void SetUp();
-//    void TearDown();
+
+    void SetUp();
+    void TearDown();
 
     TestMessagePassingServerConfiguration server_config;
 
-    mir::DisplayServer* run_mir_server();
-
 private:
+    mir::DisplayServer* start_mir_server();
+
     std::thread server_thread;
+    mir::DisplayServer* const display_server;
 };
 
 MessagePassingServerTestFixture::MessagePassingServerTestFixture() :
-    server_config(0, nullptr)
+    server_config(),
+    display_server{start_mir_server()}
 {
+}
+
+void MessagePassingServerTestFixture::SetUp()
+{
+    ASSERT_TRUE(display_server);
+}
+
+void MessagePassingServerTestFixture::TearDown()
+{
+    display_server->stop();
 }
 
 MessagePassingServerTestFixture::~MessagePassingServerTestFixture()
@@ -63,7 +79,7 @@ MessagePassingServerTestFixture::~MessagePassingServerTestFixture()
     if (server_thread.joinable()) server_thread.join();
 }
 
-mir::DisplayServer* MessagePassingServerTestFixture::run_mir_server()
+mir::DisplayServer* MessagePassingServerTestFixture::start_mir_server()
 {
     std::mutex mutex;
     std::condition_variable cv;
@@ -71,20 +87,26 @@ mir::DisplayServer* MessagePassingServerTestFixture::run_mir_server()
 
     server_thread = std::thread([&]
     {
-        ASSERT_NO_THROW(
-        mir::run_mir(server_config,
-            [&] (mir::DisplayServer& ds)
+        try
+        {
+            mir::run_mir(server_config, [&](mir::DisplayServer& ds)
             {
                 std::unique_lock<std::mutex> lock(mutex);
                 display_server = &ds;
                 cv.notify_one();
-            }));
+            });
+        }
+        catch (std::exception const& e)
+        {
+            FAIL() << e.what();
+        }
     });
 
     using namespace std::chrono;
     auto const time_limit = system_clock::now() + seconds(2);
 
     std::unique_lock<std::mutex> lock(mutex);
+
     while (!display_server && time_limit > system_clock::now())
         cv.wait_until(lock, time_limit);
 
@@ -92,9 +114,13 @@ mir::DisplayServer* MessagePassingServerTestFixture::run_mir_server()
 }
 }
 
-TEST_F(MessagePassingServerTestFixture, try_running_test_in_process)
+TEST_F(MessagePassingServerTestFixture, try_running_server_in_process)
 {
-    auto const display_server = run_mir_server();
-    ASSERT_TRUE(display_server);
-    display_server->stop();
+    char endpoint[128] = {0};
+    sprintf(endpoint, "fd://%d", server_config.the_connector()->client_socket_fd());
+
+    auto const connection = mir_connect_sync(endpoint, __PRETTY_FUNCTION__);
+    ASSERT_TRUE(mir_connection_is_valid(connection));
+
+    mir_connection_release(connection);
 }
