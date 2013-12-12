@@ -75,17 +75,18 @@ mir::DisplayServer* MessagePassingServerTestFixture::run_mir_server()
         mir::run_mir(server_config,
             [&] (mir::DisplayServer& ds)
             {
-            std::cout << "DEBUG in init()" << std::endl;
                 std::unique_lock<std::mutex> lock(mutex);
                 display_server = &ds;
                 cv.notify_one();
             }));
     });
 
-    std::unique_lock<std::mutex> lock(mutex);
+    using namespace std::chrono;
+    auto const time_limit = system_clock::now() + seconds(2);
 
-    auto const time_limit = std::chrono::system_clock::now() + std::chrono::seconds(2);
-    while (!display_server && time_limit > std::chrono::system_clock::now()) cv.wait_until(lock, time_limit);
+    std::unique_lock<std::mutex> lock(mutex);
+    while (!display_server && time_limit > system_clock::now())
+        cv.wait_until(lock, time_limit);
 
     return display_server;
 }
@@ -95,8 +96,5 @@ TEST_F(MessagePassingServerTestFixture, try_running_test_in_process)
 {
     auto const display_server = run_mir_server();
     ASSERT_TRUE(display_server);
-    std::cout << "DEBUG waiting..." << std::endl;
-    std::this_thread::sleep_for(std::chrono::seconds(2));
-    std::cout << "DEBUG ...stopping" << std::endl;
     display_server->stop();
 }
