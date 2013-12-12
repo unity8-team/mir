@@ -293,7 +293,8 @@ SensorController::setup_timer(unsigned delay_ms)
     static timer_t timerid; // we keep a pointer to that until on_timer
     struct sigevent sev;
     struct itimerspec its { {0, 0}, // interval
-                            {(delay_ms / 1000), (delay_ms * 1000000L) % 1000000000L } };
+                            {time_t(delay_ms / 1000),
+                             long((delay_ms % 1000) * 1000000L) % 1000000000L } };
 
     sev.sigev_notify = SIGEV_THREAD;
     sev.sigev_notify_function = SensorController::on_timer;
