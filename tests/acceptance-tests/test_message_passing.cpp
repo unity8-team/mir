@@ -41,15 +41,16 @@ private:
     using mir_test_framework::TestingServerConfiguration::on_exit;
 };
 
-struct MessagePassingServerTestFixture : testing::Test
+struct MessagePassing : testing::Test
 {
-    MessagePassingServerTestFixture();
-    ~MessagePassingServerTestFixture();
+    MessagePassing();
+    ~MessagePassing();
 
     void SetUp();
     void TearDown();
 
     TestMessagePassingServerConfiguration server_config;
+    std::string new_connection();
 
 private:
     mir::DisplayServer* start_mir_server();
@@ -58,28 +59,36 @@ private:
     mir::DisplayServer* const display_server;
 };
 
-MessagePassingServerTestFixture::MessagePassingServerTestFixture() :
+MessagePassing::MessagePassing() :
     server_config(),
     display_server{start_mir_server()}
 {
 }
 
-void MessagePassingServerTestFixture::SetUp()
+void MessagePassing::SetUp()
 {
     ASSERT_TRUE(display_server);
 }
 
-void MessagePassingServerTestFixture::TearDown()
+std::string MessagePassing::new_connection()
+{
+    char endpoint[128] = {0};
+    sprintf(endpoint, "fd://%d", server_config.the_connector()->client_socket_fd());
+
+    return endpoint;
+}
+
+void MessagePassing::TearDown()
 {
     display_server->stop();
 }
 
-MessagePassingServerTestFixture::~MessagePassingServerTestFixture()
+MessagePassing::~MessagePassing()
 {
     if (server_thread.joinable()) server_thread.join();
 }
 
-mir::DisplayServer* MessagePassingServerTestFixture::start_mir_server()
+mir::DisplayServer* MessagePassing::start_mir_server()
 {
     std::mutex mutex;
     std::condition_variable cv;
@@ -112,15 +121,57 @@ mir::DisplayServer* MessagePassingServerTestFixture::start_mir_server()
 
     return display_server;
 }
+
+void test_surface_message_callback(
+    MirSurface* /*surface*/,
+    void* /*client_context*/,
+    size_t /*size*/,
+    void const* /*data*/)
+{
+
+}
 }
 
-TEST_F(MessagePassingServerTestFixture, try_running_server_in_process)
+MirSurface *mir_connection_create_unrealized_surface_sync(
+    MirConnection */*connection*/,
+    MirSurfaceParameters const */*params*/,
+    mir_surface_message_callback /*message_callback*/,
+    void */*message_context*/)
 {
-    char endpoint[128] = {0};
-    sprintf(endpoint, "fd://%d", server_config.the_connector()->client_socket_fd());
+    // TODO implement and put in right place
+    return nullptr;
+}
 
-    auto const connection = mir_connect_sync(endpoint, __PRETTY_FUNCTION__);
+void mir_surface_realize_sync(MirSurface */*surface*/)
+{
+    // TODO implement and put in right place
+}
+
+
+
+TEST_F(MessagePassing, create_and_realize_surface)
+{
+    auto const connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);
     ASSERT_TRUE(mir_connection_is_valid(connection));
+
+    MirSurfaceParameters params;
+
+    auto const surface = mir_connection_create_unrealized_surface_sync(
+        connection,
+        &params,
+        test_surface_message_callback,
+        this);
+
+    // TODO what *should* this return for an unrealized surface?
+//    EXPECT_TRUE(mir_surface_is_valid(surface));
+
+    mir_surface_realize_sync(surface);
+
+    // TODO this should pass
+//    EXPECT_TRUE(mir_surface_is_valid(surface));
+
+    // TODO code
+//    mir_surface_release_sync(surface);
 
     mir_connection_release(connection);
 }
