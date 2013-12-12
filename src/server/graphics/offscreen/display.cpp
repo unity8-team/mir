@@ -106,7 +106,8 @@ mgo::detail::EGLDisplayHandle::~EGLDisplayHandle() noexcept
 mgo::Display::Display(
     std::shared_ptr<BasicPlatform> const& basic_platform,
     std::shared_ptr<DisplayConfigurationPolicy> const& initial_conf_policy,
-    std::shared_ptr<DisplayReport> const&)
+    std::shared_ptr<DisplayReport> const&,
+    std::shared_ptr<OutputConfiguration> const&)
     : basic_platform{basic_platform},
       egl_display{create_and_initialize_display(*basic_platform)},
       egl_context_shared{egl_display, EGL_NO_CONTEXT},

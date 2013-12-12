@@ -127,7 +127,8 @@ mir::DefaultServerConfiguration::the_display()
                 return std::make_shared<mg::offscreen::Display>(
                     the_graphics_platform(),
                     the_display_configuration_policy(),
-                    the_display_report());
+                    the_display_report(),
+                    the_output_configuration());
             }
             else
             {
