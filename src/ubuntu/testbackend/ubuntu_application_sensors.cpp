@@ -36,6 +36,16 @@
 
 using namespace std;
 
+// necessary for functions that return float
+// pcs attribute (calling convention) is only defined on ARM, avoid warning on
+// other platforms
+#ifdef __arm__
+#define __SF_FN_ATTR __attribute__((pcs("aapcs")))
+#else
+#define __SF_FN_ATTR
+#endif
+
+
 /***************************************
  *
  * test sensor implementation
@@ -364,16 +374,19 @@ uint32_t ua_sensors_accelerometer_get_min_delay(UASensorsAccelerometer* s)
     return static_cast<TestSensor*>(s)->min_delay;
 }
 
+float ua_sensors_accelerometer_get_min_value(UASensorsAccelerometer* s) __SF_FN_ATTR;
 float ua_sensors_accelerometer_get_min_value(UASensorsAccelerometer* s)
 {
     return static_cast<TestSensor*>(s)->min_value;
 }
 
+float ua_sensors_accelerometer_get_max_value(UASensorsAccelerometer* s) __SF_FN_ATTR;
 float ua_sensors_accelerometer_get_max_value(UASensorsAccelerometer* s)
 {
     return static_cast<TestSensor*>(s)->max_value;
 }
 
+float ua_sensors_accelerometer_get_resolution(UASensorsAccelerometer* s) __SF_FN_ATTR;
 float ua_sensors_accelerometer_get_resolution(UASensorsAccelerometer* s)
 {
     return static_cast<TestSensor*>(s)->resolution;
@@ -391,16 +404,19 @@ uint64_t uas_accelerometer_event_get_timestamp(UASAccelerometerEvent* e)
     return static_cast<TestSensor*>(e)->timestamp;
 }
 
+float uas_accelerometer_event_get_acceleration_x(UASAccelerometerEvent* e) __SF_FN_ATTR;
 float uas_accelerometer_event_get_acceleration_x(UASAccelerometerEvent* e)
 {
     return static_cast<TestSensor*>(e)->x;
 }
 
+float uas_accelerometer_event_get_acceleration_y(UASAccelerometerEvent* e) __SF_FN_ATTR;
 float uas_accelerometer_event_get_acceleration_y(UASAccelerometerEvent* e)
 {
     return static_cast<TestSensor*>(e)->y;
 }
 
+float uas_accelerometer_event_get_acceleration_z(UASAccelerometerEvent* e) __SF_FN_ATTR;
 float uas_accelerometer_event_get_acceleration_z(UASAccelerometerEvent* e)
 {
     return static_cast<TestSensor*>(e)->z;
@@ -435,16 +451,19 @@ uint32_t ua_sensors_proximity_get_min_delay(UASensorsProximity* s)
 }
 
 // the next three function make no sense in the API, just return zero
+float ua_sensors_proximity_get_min_value(UASensorsProximity*) __SF_FN_ATTR;
 float ua_sensors_proximity_get_min_value(UASensorsProximity*)
 {
     return 0.0;
 }
 
+float ua_sensors_proximity_get_max_value(UASensorsProximity*) __SF_FN_ATTR;
 float ua_sensors_proximity_get_max_value(UASensorsProximity*)
 {
     return 0.0;
 }
 
+float ua_sensors_proximity_get_resolution(UASensorsProximity*) __SF_FN_ATTR;
 float ua_sensors_proximity_get_resolution(UASensorsProximity*)
 {
     return 0.0;
@@ -496,16 +515,19 @@ uint32_t ua_sensors_light_get_min_delay(UASensorsLight* s)
     return static_cast<TestSensor*>(s)->min_delay;
 }
 
+float ua_sensors_light_get_min_value(UASensorsLight* s) __SF_FN_ATTR;
 float ua_sensors_light_get_min_value(UASensorsLight* s)
 {
     return static_cast<TestSensor*>(s)->min_value;
 }
 
+float ua_sensors_light_get_max_value(UASensorsLight* s) __SF_FN_ATTR;
 float ua_sensors_light_get_max_value(UASensorsLight* s)
 {
     return static_cast<TestSensor*>(s)->max_value;
 }
 
+float ua_sensors_light_get_resolution(UASensorsLight* s) __SF_FN_ATTR;
 float ua_sensors_light_get_resolution(UASensorsLight* s)
 {
     return static_cast<TestSensor*>(s)->resolution;
@@ -523,6 +545,7 @@ uint64_t uas_light_event_get_timestamp(UASLightEvent* e)
     return static_cast<TestSensor*>(e)->timestamp;
 }
 
+float uas_light_event_get_light(UASLightEvent* e) __SF_FN_ATTR;
 float uas_light_event_get_light(UASLightEvent* e)
 {
     return static_cast<TestSensor*>(e)->x;
