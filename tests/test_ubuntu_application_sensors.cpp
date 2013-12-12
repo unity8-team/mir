@@ -36,31 +36,6 @@ using namespace std;
 
 typedef chrono::time_point<chrono::system_clock,chrono::nanoseconds> time_point_system_ns;
 
-/*****
- * Test definition macro which runs a TEST_F in a forked process.
- * We need to do this as we cannot unload the platform-api dynloaded backend
- * shlib, nor reset the sensor state. Note that you can only use EXPECT_*, not
- * ASSERT_*!
- * 
- * Usage:
- * TEST_FP(FixtureName, TestName, {
- *    ... test code ...
- *    EXPECT_* ...
- *  })
- */
-#define TEST_FP(test_fixture, test_name, CODE)                              \
-    TEST_F(test_fixture, test_name) {                                       \
-        auto noop = [](){ return core::posix::exit::Status::success; };     \
-        auto test = [&]() {                                                 \
-            CODE                                                            \
-            return HasFailure() ? core::posix::exit::Status::failure        \
-                                : core::posix::exit::Status::success;       \
-        };                                                                  \
-        auto result = core::testing::fork_and_run(noop, test);              \
-        EXPECT_EQ(core::testing::ForkAndRunResult::empty,                   \
-                  result & core::testing::ForkAndRunResult::client_failed); \
-}
-
 struct event {
     uint64_t timestamp;
     float x, y, z;
@@ -104,13 +79,13 @@ class APITest : public testing::Test
 };
 
 // without any data, there are no sensors defined
-TEST_FP(APITest, NoData, {
+TESTP_F(APITest, NoData, {
     EXPECT_EQ(NULL, ua_sensors_accelerometer_new());
     EXPECT_EQ(NULL, ua_sensors_proximity_new());
     EXPECT_EQ(NULL, ua_sensors_light_new());
 })
 
-TEST_FP(APITest, CreateProximity, {
+TESTP_F(APITest, CreateProximity, {
     set_data("create proximity");
     EXPECT_EQ(NULL, ua_sensors_accelerometer_new());
     EXPECT_EQ(NULL, ua_sensors_light_new());
@@ -119,7 +94,7 @@ TEST_FP(APITest, CreateProximity, {
     EXPECT_TRUE(s != NULL);
 })
 
-TEST_FP(APITest, CreateAccelerator, {
+TESTP_F(APITest, CreateAccelerator, {
     set_data("create accel 0.5 1000 0.1");
     EXPECT_EQ(NULL, ua_sensors_proximity_new());
     EXPECT_EQ(NULL, ua_sensors_light_new());
@@ -131,7 +106,7 @@ TEST_FP(APITest, CreateAccelerator, {
     EXPECT_FLOAT_EQ(0.1, ua_sensors_accelerometer_get_resolution(s));
 })
 
-TEST_FP(APITest, CreateLight, {
+TESTP_F(APITest, CreateLight, {
     set_data("create light 0 10 0.5");
     EXPECT_EQ(NULL, ua_sensors_proximity_new());
     EXPECT_EQ(NULL, ua_sensors_accelerometer_new());
@@ -143,7 +118,7 @@ TEST_FP(APITest, CreateLight, {
     EXPECT_FLOAT_EQ(0.5, ua_sensors_light_get_resolution(s));
 })
 
-TEST_FP(APITest, ProximityEvents, {
+TESTP_F(APITest, ProximityEvents, {
     set_data("create proximity\n"
              "  # some comment\n"
              "  \n"
@@ -194,7 +169,7 @@ TEST_FP(APITest, ProximityEvents, {
     EXPECT_LE(delay, 250);
 })
 
-TEST_FP(APITest, LightEvents, {
+TESTP_F(APITest, LightEvents, {
     set_data(" create  light  0 10 1\n"
              "1 light 5\n"
              "100 light 8\n"
@@ -232,7 +207,7 @@ TEST_FP(APITest, LightEvents, {
     EXPECT_LE(delay, 111);
 })
 
-TEST_FP(APITest, AccelEvents, {
+TESTP_F(APITest, AccelEvents, {
     // cover the case of > 1 s, to ensure that we correctly do mod arithmetic
     set_data("create accel -1000 1000 0.1\n"
              "1100 accel 5.5 -8.5 9.9\n"
