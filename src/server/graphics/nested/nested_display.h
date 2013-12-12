@@ -68,8 +68,8 @@ public:
     explicit EGLDisplayHandle(MirConnection* connection);
     ~EGLDisplayHandle() noexcept;
 
-    void initialize();
-    EGLConfig choose_config(const EGLint attrib_list[]) const;
+    void initialize(MirPixelFormat format);
+    EGLConfig choose_windowed_es_config (MirPixelFormat format) const;
     EGLNativeWindowType native_window(EGLConfig egl_config, MirSurface* mir_surface) const;
     EGLContext egl_context() const;
     operator EGLDisplay() const { return egl_display; }

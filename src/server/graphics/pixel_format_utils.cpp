@@ -31,7 +31,7 @@ bool contains_alpha( MirPixelFormat format )
     return false;
 }
 
-uint32_t red_channel_depth( MirPixelFormat format )
+int32_t red_channel_depth( MirPixelFormat format )
 {
     if( mir_pixel_format_invalid < format 
             && format < mir_pixel_formats )
@@ -39,7 +39,7 @@ uint32_t red_channel_depth( MirPixelFormat format )
     return 0;
 }
 
-uint32_t blue_channel_depth( MirPixelFormat format )
+int32_t blue_channel_depth( MirPixelFormat format )
 {
     if( mir_pixel_format_invalid < format 
             && format < mir_pixel_formats )
@@ -47,7 +47,7 @@ uint32_t blue_channel_depth( MirPixelFormat format )
     return 0;
 }
 
-uint32_t green_channel_depth( MirPixelFormat format )
+int32_t green_channel_depth( MirPixelFormat format )
 {
     if( mir_pixel_format_invalid < format 
             && format < mir_pixel_formats )
@@ -55,7 +55,7 @@ uint32_t green_channel_depth( MirPixelFormat format )
     return 0;
 }
 
-uint32_t alpha_channel_depth( MirPixelFormat format )
+int32_t alpha_channel_depth( MirPixelFormat format )
 {
     if (format == mir_pixel_format_abgr_8888
             || format == mir_pixel_format_argb_8888)

@@ -1,7 +1,12 @@
 add_executable(mir_demo_server_shell
   demo_shell.cpp
+  fullscreen_placement_strategy.h
   fullscreen_placement_strategy.cpp
+  translucent_outputs.h
+  translucent_outputs.cpp
+  window_manager.h
   window_manager.cpp
+  ../server_configuration.h
   ../server_configuration.cpp
 )
 

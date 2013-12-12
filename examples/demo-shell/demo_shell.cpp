@@ -20,6 +20,7 @@
 
 #include "window_manager.h"
 #include "fullscreen_placement_strategy.h"
+#include "translucent_outputs.h"
 #include "../server_configuration.h"
 
 #include "mir/run_mir.h"
@@ -50,8 +51,22 @@ struct DemoServerConfiguration : mir::examples::ServerConfiguration
         namespace po = boost::program_options;
 
         add_options()
+            ("translucent-output", po::value<bool>(),
+                "Make the shell output surfaces contain transparency information (limited to nested mode yet) [bool:default=false]")
             ("fullscreen-surfaces", po::value<bool>(),
                 "Make all surfaces fullscreen [bool:default=false]");
+    }
+
+    std::shared_ptr<mg::OutputConfiguration> the_output_configuration() override
+    {
+        return output_configuration(
+            [this]() -> std::shared_ptr<mg::OutputConfiguration>
+            {
+                if (the_options()->is_set("translucent-output"))
+                    return std::make_shared<TranslucentOutputs>();
+                else
+                    return DefaultServerConfiguration::the_output_configuration();
+            });
     }
 
     std::shared_ptr<msh::PlacementStrategy> the_shell_placement_strategy() override

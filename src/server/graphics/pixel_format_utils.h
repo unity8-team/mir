@@ -32,10 +32,10 @@ namespace graphics
  * \{
  */
 bool contains_alpha( MirPixelFormat format );
-uint32_t red_channel_depth( MirPixelFormat format );
-uint32_t blue_channel_depth( MirPixelFormat format );
-uint32_t green_channel_depth( MirPixelFormat format );
-uint32_t alpha_channel_depth( MirPixelFormat format );
+int32_t red_channel_depth( MirPixelFormat format );
+int32_t blue_channel_depth( MirPixelFormat format );
+int32_t green_channel_depth( MirPixelFormat format );
+int32_t alpha_channel_depth( MirPixelFormat format );
 /*!
  * \}
  */
