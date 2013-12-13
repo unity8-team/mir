@@ -102,8 +102,6 @@ BEGIN {
         latency = (client_time - server_time[event_time]) * 1000.0
         print event_type " latency = " latency " ms"
         delete server_time[event_time]
-
-        history[event_time] = latency
     }
 }
 
