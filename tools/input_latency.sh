@@ -20,9 +20,9 @@
 server="mir_demo_server_shell"
 client="mir_demo_client_egltriangle"
 
-echo "This script will start a Mir server and client and measure the latency "
-echo "between input events sent between them. Please press some keys and move "
-echo "your mouse! To quit, press Ctrl+C"
+echo "This script will start a Mir server and client to measure the latency "
+echo "of input events sent between them. Please press some keys and move "
+echo "your mouse! To quit press Ctrl+C."
 echo ""
 
 if [ -x "./$server" ]; then
@@ -33,6 +33,11 @@ elif [ -x "./build/bin/$server" ]; then
     bindir="./build/bin"
 fi
 
+#
+# Note the client is started and backgrounded first. This is so we can keep
+# the server in the foreground to catch SIGINT and ensure all processes will
+# be shut down correctly.
+#
 sudo env MIR_SERVER_INPUT_REPORT=log \
          MIR_CLIENT_INPUT_RECEIVER_REPORT=log \
      sh -c "(sleep 2 ; "$bindir/$client") &
@@ -40,16 +45,20 @@ sudo env MIR_SERVER_INPUT_REPORT=log \
      awk '
 BEGIN {
     client_time = 0
+    event_type = "UnknownEventType"
 }
 
 /input: Received event \(when, type, code, value\) from kernel: / {
     now = $1
     gsub(/[^0-9.]/, "", now)
 
-    event_time = $12
-    gsub(/[^0-9]/, "", event_time)
+    event_id = $12
+    gsub(/[^0-9]/, "", event_id)
 
-    server_time[event_time] = now 
+    if (!(event_id in server_time))
+    {
+        server_time[event_id] = now 
+    }
 }
 
 /input-receiver: Received event:/ {
@@ -63,15 +72,12 @@ BEGIN {
 }
 
 /^  event_time: / {
-    event_time = $2
-    if (client_time && (event_time in server_time))
+    event_id = $2
+    if (client_time && (event_id in server_time))
     {
-        latency = client_time - server_time[event_time]
+        latency = client_time - server_time[event_id]
         print event_type " latency = " latency " seconds"
-        delete server_time[event_time]
-
-        sum[event_type] += latency
-        sums[event_type]++
+        delete server_time[event_id]
     }
 }
 
