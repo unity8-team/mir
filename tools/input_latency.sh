@@ -17,12 +17,25 @@
 # Authored by: Daniel van Vugt <daniel.van.vugt@canonical.com>
 #
 
+nest=0
+if [ $# -gt 0 ]; then
+    if [ "$1" = "1" ]; then
+        nest=1
+    else
+        echo "Usage: $0 [nestinglevel]"
+        echo "nestinglevel can presently only be \"1\" or blank."
+        exit 
+    fi
+fi
+
 server="mir_demo_server_shell"
 client="mir_demo_client_egltriangle"
 
 echo "This script will start a Mir server and client to measure the latency "
 echo "of input events sent between them. Please press some keys and move "
-echo "your mouse! To quit press Ctrl+C."
+echo "your mouse/finger!"
+echo ""
+echo "The demo app will take about 5 seconds to start. To quit press Ctrl+C."
 echo ""
 
 if [ -x "./$server" ]; then
@@ -33,6 +46,16 @@ elif [ -x "./build/bin/$server" ]; then
     bindir="./build/bin"
 fi
 
+libdir="$bindir/../lib"
+
+client_cmd="$bindir/$client"
+server_cmd="$bindir/$server"
+servers_cmd="$bindir/$server"
+if [ $nest -eq 1 ]; then
+    servers_cmd="$server_cmd -f /tmp/real_mir_socket &
+                 (sleep 2 ; env MIR_SERVER_INPUT_REPORT=off $server_cmd --host-socket /tmp/real_mir_socket)"
+fi
+
 #
 # Note the client is started and backgrounded first. This is so we can keep
 # the server in the foreground to catch SIGINT and ensure all processes will
@@ -40,24 +63,24 @@ fi
 #
 sudo env MIR_SERVER_INPUT_REPORT=log \
          MIR_CLIENT_INPUT_RECEIVER_REPORT=log \
-     sh -c "(sleep 2 ; \"$bindir/$client\") &
-            $bindir/$server" |
+         LD_LIBRARY_PATH="$libdir" \
+     sh -c "(sleep 5 ; $client_cmd) & $servers_cmd" |
      awk '
 BEGIN {
     client_time = 0
     event_type = "UnknownEventType"
 }
 
-/input: Received event \(when, type, code, value\) from kernel: / {
+/^\[[0-9.]+\].*input: Received event \(when, type, code, value\) from kernel: / {
     now = $1
     gsub(/[^0-9.]/, "", now)
 
-    event_id = $12
-    gsub(/[^0-9]/, "", event_id)
+    event_time = $12
+    gsub(/[^0-9]/, "", event_time)
 
-    if (!(event_id in server_time))
+    if (!(event_time in server_time))
     {
-        server_time[event_id] = now 
+        server_time[event_time] = now 
     }
 }
 
@@ -71,13 +94,16 @@ BEGIN {
     sub(/{$/, "", event_type)
 }
 
-/^  event_time: / {
-    event_id = $2
-    if (client_time && (event_id in server_time))
+/^  event_time: [0-9]+$/ {
+    event_time = $2
+    if (client_time && (event_time in server_time) &&
+        client_time >= server_time[event_time])
     {
-        latency = client_time - server_time[event_id]
-        print event_type " latency = " latency " seconds"
-        delete server_time[event_id]
+        latency = (client_time - server_time[event_time]) * 1000.0
+        print event_type " latency = " latency " ms"
+        delete server_time[event_time]
+
+        history[event_time] = latency
     }
 }
 
