@@ -40,7 +40,7 @@ fi
 #
 sudo env MIR_SERVER_INPUT_REPORT=log \
          MIR_CLIENT_INPUT_RECEIVER_REPORT=log \
-     sh -c "(sleep 2 ; "$bindir/$client") &
+     sh -c "(sleep 2 ; \"$bindir/$client\") &
             $bindir/$server" |
      awk '
 BEGIN {
