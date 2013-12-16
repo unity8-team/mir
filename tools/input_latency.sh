@@ -99,8 +99,12 @@ BEGIN {
     if (client_time && (event_time in server_time) &&
         client_time >= server_time[event_time])
     {
-        latency = (client_time - server_time[event_time]) * 1000.0
-        print event_type " latency = " latency " ms"
+        kernel_time = event_time / 1000000000
+        server_latency = (server_time[event_time] - kernel_time) * 1000.0
+        client_latency = (client_time - server_time[event_time]) * 1000.0
+        total_latency = server_latency + client_latency
+        printf("%s kernel (%.4fms) server (%.4fms) client = %.4fms\n",
+            event_type, server_latency, client_latency, total_latency)
         delete server_time[event_time]
     }
 }
