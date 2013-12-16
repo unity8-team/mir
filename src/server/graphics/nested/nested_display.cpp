@@ -140,17 +140,14 @@ mgn::detail::EGLDisplayHandle::~EGLDisplayHandle() noexcept
 mgn::NestedDisplay::NestedDisplay(
     std::shared_ptr<HostConnection> const& connection,
     std::shared_ptr<input::EventFilter> const& event_handler,
-    std::shared_ptr<mg::DisplayReport> const& display_report, 
-    std::shared_ptr<mg::OutputConfiguration> const& output_configuration) :
+    std::shared_ptr<mg::DisplayReport> const& display_report) :
     connection{connection},
     event_handler{event_handler},
     display_report{display_report},
-    output_configuration{output_configuration},
     egl_display{*connection},
-    egl_pixel_format{output_configuration->get_pixel_format(get_available_surface_formats_as_vector(*connection))},
     outputs{}
 {
-    egl_display.initialize(egl_pixel_format);
+    // egl_display.initialize(egl_pixel_format); TODO
     eglMakeCurrent(egl_display, EGL_NO_SURFACE, EGL_NO_SURFACE, egl_display.egl_context());
     configure(*configuration());
 }
@@ -192,7 +189,7 @@ void mgn::NestedDisplay::configure(mg::DisplayConfiguration const& configuration
                         "Mir nested display",
                         egl_display_mode.size.width.as_int(),
                         egl_display_mode.size.height.as_int(),
-                        egl_pixel_format,
+                        output.pixel_formats[output.current_format_index],
                         mir_buffer_usage_hardware,
                         static_cast<uint32_t>(output.id.as_value())
                     };
@@ -207,7 +204,7 @@ void mgn::NestedDisplay::configure(mg::DisplayConfiguration const& configuration
                     mir_surface,
                     area,
                     event_handler,
-                    egl_pixel_format);
+                    output.pixel_formats[output.current_format_index]);
             }
         });
 

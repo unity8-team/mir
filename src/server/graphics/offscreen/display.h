@@ -35,7 +35,6 @@ namespace graphics
 
 class BasicPlatform;
 class DisplayConfigurationPolicy;
-class OutputConfiguration;
 class DisplayReport;
 
 namespace offscreen
@@ -67,8 +66,7 @@ class Display : public graphics::Display
 public:
     Display(std::shared_ptr<BasicPlatform> const& basic_platform,
             std::shared_ptr<DisplayConfigurationPolicy> const& initial_conf_policy,
-            std::shared_ptr<DisplayReport> const& listener, 
-            std::shared_ptr<OutputConfiguration> const& output_conf);
+            std::shared_ptr<DisplayReport> const& listener);
     ~Display() noexcept;
 
     void for_each_display_buffer(std::function<void(DisplayBuffer&)> const& f);

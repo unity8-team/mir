@@ -109,7 +109,7 @@ void mgm::RealKMSDisplayConfiguration::for_each_output(
 void mgm::RealKMSDisplayConfiguration::configure_output(
     DisplayConfigurationOutputId id, bool used,
     geometry::Point top_left, size_t mode_index,
-    MirPowerMode power_mode)
+    size_t format_index, MirPowerMode power_mode)
 {
     auto iter = find_output_with_id(id);
 
@@ -123,6 +123,7 @@ void mgm::RealKMSDisplayConfiguration::configure_output(
         output.used = used;
         output.top_left = top_left;
         output.current_mode_index = mode_index;
+        output.current_format_index = format_index;
         output.power_mode = power_mode;
     }
     else

@@ -36,7 +36,7 @@ public:
     void for_each_card(std::function<void(DisplayConfigurationCard const&)> f) const;
     void for_each_output(std::function<void(DisplayConfigurationOutput const&)> f) const;
     void configure_output(DisplayConfigurationOutputId, bool, geometry::Point,
-                          size_t, MirPowerMode power_mode);
+                          size_t, size_t, MirPowerMode power_mode);
 
 private:
     DisplayConfigurationOutput output;

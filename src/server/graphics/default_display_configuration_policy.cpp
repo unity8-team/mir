@@ -45,15 +45,16 @@ void mg::DefaultDisplayConfigurationPolicy::apply_to(DisplayConfiguration& conf)
                 if (preferred_mode_index > conf_output.modes.size())
                     preferred_mode_index = 0;
 
-                conf.configure_output(conf_output.id, true, geom::Point(),
-                                      preferred_mode_index, default_power_state);
+                conf.configure_output(conf_output.id, true, geom::Point(), preferred_mode_index, 
+                                      conf_output.current_format_index, default_power_state);
 
                 --available_outputs_for_card[conf_output.card_id];
             }
             else
             {
                 conf.configure_output(conf_output.id, false, conf_output.top_left,
-                                      conf_output.current_mode_index, default_power_state);
+                                      conf_output.current_mode_index, conf_output.current_format_index,
+                                      default_power_state);
             }
         });
 }

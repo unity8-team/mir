@@ -47,7 +47,6 @@ class BufferInitializer;
 class InternalClient;
 class DisplayReport;
 class DisplayConfigurationPolicy;
-class OutputConfiguration;
 class GraphicBufferAllocator;
 
 /**
@@ -82,8 +81,7 @@ public:
      * Creates the display subsystem.
      */
     virtual std::shared_ptr<Display> create_display(
-            std::shared_ptr<DisplayConfigurationPolicy> const& initial_conf_policy,
-            std::shared_ptr<OutputConfiguration> const& output_config) = 0;
+            std::shared_ptr<DisplayConfigurationPolicy> const& initial_conf_policy) = 0;
 
     /**
      * Gets the IPC package for the platform.
