@@ -21,6 +21,7 @@
 #include "window_manager.h"
 #include "fullscreen_placement_strategy.h"
 #include "translucent_outputs.h"
+#include "cascaded_display_configuration_policy.h"
 #include "../server_configuration.h"
 
 #include "mir/run_mir.h"
@@ -57,15 +58,17 @@ struct DemoServerConfiguration : mir::examples::ServerConfiguration
                 "Make all surfaces fullscreen [bool:default=false]");
     }
 
-    std::shared_ptr<mg::OutputConfiguration> the_output_configuration() override
+    std::shared_ptr<mg::DisplayConfigurationPolicy> the_display_configuration_policy() override
     {
-        return output_configuration(
-            [this]() -> std::shared_ptr<mg::OutputConfiguration>
+        return display_configuration_policy(
+            [this]() -> std::shared_ptr<mg::DisplayConfigurationPolicy>
             {
                 if (the_options()->is_set("translucent-output"))
-                    return std::make_shared<TranslucentOutputs>();
+                    return std::make_shared<CascadedDisplayConfigurationPolicy>(
+                        DefaultServerConfiguration::the_display_configuration_policy(),
+                        std::make_shared<TranslucentOutputs>());
                 else
-                    return DefaultServerConfiguration::the_output_configuration();
+                    return DefaultServerConfiguration::the_display_configuration_policy();
             });
     }
 

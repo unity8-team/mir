@@ -5,9 +5,9 @@ add_library(
 
   default_configuration.cpp
   default_display_configuration_policy.cpp
-  default_display_configuration_policy.h
-  pixel_format_utils.h
   pixel_format_utils.cpp
+  gl_extensions_base.cpp
+  surfaceless_egl_context.cpp
 )
 
 add_subdirectory(nested/)

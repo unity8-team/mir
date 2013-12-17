@@ -20,7 +20,6 @@
 #include "display_buffer.h"
 #include "mir/graphics/basic_platform.h"
 #include "mir/graphics/display_configuration_policy.h"
-#include "mir/graphics/gl_context.h"
 #include "mir/geometry/size.h"
 
 #include <boost/throw_exception.hpp>
@@ -32,33 +31,6 @@ namespace geom = mir::geometry;
 
 namespace
 {
-
-class OffscreenGLContext : public mg::GLContext
-{
-public:
-    OffscreenGLContext(mgo::SurfacelessEGLContext surfaceless_egl_context)
-        : surfaceless_egl_context{std::move(surfaceless_egl_context)}
-    {
-    }
-
-    ~OffscreenGLContext() noexcept
-    {
-        release_current();
-    }
-
-    void make_current()
-    {
-        surfaceless_egl_context.make_current();
-    }
-
-    void release_current()
-    {
-        surfaceless_egl_context.release_current();
-    }
-
-private:
-    mgo::SurfacelessEGLContext const surfaceless_egl_context;
-};
 
 mgo::detail::EGLDisplayHandle
 create_and_initialize_display(mg::BasicPlatform& basic_platform)
@@ -106,8 +78,7 @@ mgo::detail::EGLDisplayHandle::~EGLDisplayHandle() noexcept
 mgo::Display::Display(
     std::shared_ptr<BasicPlatform> const& basic_platform,
     std::shared_ptr<DisplayConfigurationPolicy> const& initial_conf_policy,
-    std::shared_ptr<DisplayReport> const&,
-    std::shared_ptr<OutputConfiguration> const&)
+    std::shared_ptr<DisplayReport> const&)
     : basic_platform{basic_platform},
       egl_display{create_and_initialize_display(*basic_platform)},
       egl_context_shared{egl_display, EGL_NO_CONTEXT},
@@ -194,5 +165,5 @@ std::weak_ptr<mg::Cursor> mgo::Display::the_cursor()
 std::unique_ptr<mg::GLContext> mgo::Display::create_gl_context()
 {
     return std::unique_ptr<GLContext>{
-        new OffscreenGLContext{SurfacelessEGLContext{egl_display, egl_context_shared}}};
+        new SurfacelessEGLContext{egl_display, egl_context_shared}};
 }

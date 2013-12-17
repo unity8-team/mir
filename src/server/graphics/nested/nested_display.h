@@ -42,6 +42,7 @@ namespace graphics
 {
 class DisplayReport;
 class DisplayBuffer;
+class DisplayConfigurationPolicy;
 
 namespace nested
 {
@@ -95,7 +96,8 @@ public:
     NestedDisplay(
         std::shared_ptr<HostConnection> const& connection,
         std::shared_ptr<input::EventFilter> const& event_handler,
-        std::shared_ptr<DisplayReport> const& display_report);
+        std::shared_ptr<DisplayReport> const& display_report,
+        std::shared_ptr<DisplayConfigurationPolicy> const& conf_policy);
 
     ~NestedDisplay() noexcept;
 
@@ -128,6 +130,7 @@ private:
     std::mutex outputs_mutex;
     std::unordered_map<DisplayConfigurationOutputId, std::shared_ptr<detail::NestedOutput>> outputs;
     DisplayConfigurationChangeHandler my_conf_change_handler;
+    void complete_display_initialization( MirPixelFormat format );
 };
 
 }

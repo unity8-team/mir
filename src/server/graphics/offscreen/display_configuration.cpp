@@ -67,6 +67,6 @@ void mgo::DisplayConfiguration::for_each_output(
 }
 
 void mgo::DisplayConfiguration::configure_output(
-    mg::DisplayConfigurationOutputId, bool, geom::Point, size_t, MirPowerMode)
+    mg::DisplayConfigurationOutputId, bool, geom::Point, size_t, size_t, MirPowerMode)
 {
 }

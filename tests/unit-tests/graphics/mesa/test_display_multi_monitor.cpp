@@ -25,7 +25,6 @@
 #include "mir_test_doubles/mock_gl.h"
 #include "mir/graphics/null_display_report.h"
 #include "mir/graphics/display_configuration_policy.h"
-#include "src/server/graphics/default_output_configuration.h"
 #include "mir_test_doubles/null_virtual_terminal.h"
 
 #include "mir_test_framework/udev_environment.h"
@@ -58,12 +57,16 @@ public:
                 if (conf_output.connected && conf_output.modes.size() > 0)
                 {
                     conf.configure_output(conf_output.id, true, geom::Point{0, 0},
-                                          conf_output.preferred_mode_index, mir_power_mode_on);
+                                          conf_output.preferred_mode_index,
+                                          conf_output.current_format_index,
+                                          mir_power_mode_on);
                 }
                 else
                 {
                     conf.configure_output(conf_output.id, false, conf_output.top_left,
-                                          conf_output.current_mode_index, mir_power_mode_on);
+                                          conf_output.current_mode_index,
+                                          conf_output.current_format_index,
+                                          mir_power_mode_on);
                 }
             });
     }
@@ -82,13 +85,17 @@ public:
                 if (conf_output.connected && conf_output.modes.size() > 0)
                 {
                     conf.configure_output(conf_output.id, true, geom::Point{max_x, 0},
-                                          conf_output.preferred_mode_index, mir_power_mode_on);
+                                          conf_output.preferred_mode_index,
+                                          conf_output.current_format_index,
+                                          mir_power_mode_on);
                     max_x += conf_output.modes[conf_output.preferred_mode_index].size.width.as_int();
                 }
                 else
                 {
                     conf.configure_output(conf_output.id, false, conf_output.top_left,
-                                          conf_output.current_mode_index, mir_power_mode_on);
+                                          conf_output.current_mode_index,
+                                          conf_output.current_format_index,
+                                          mir_power_mode_on);
                 }
             });
     }
@@ -138,16 +145,14 @@ public:
         std::shared_ptr<mg::Platform> const& platform)
     {
         auto conf_policy = std::make_shared<ClonedDisplayConfigurationPolicy>();
-        auto output_conf = std::make_shared<mg::DefaultOutputConfiguration>();
-        return platform->create_display(conf_policy, output_conf);
+        return platform->create_display(conf_policy);
     }
 
     std::shared_ptr<mg::Display> create_display_side_by_side(
         std::shared_ptr<mg::Platform> const& platform)
     {
         auto conf_policy = std::make_shared<SideBySideDisplayConfigurationPolicy>();
-        auto output_conf = std::make_shared<mg::DefaultOutputConfiguration>();
-        return platform->create_display(conf_policy, output_conf);
+        return platform->create_display(conf_policy);
     }
 
     void setup_outputs(int connected, int disconnected)
@@ -475,7 +480,8 @@ TEST_F(MesaDisplayMultiMonitorTest, configure_clears_unused_connected_outputs)
         [&](mg::DisplayConfigurationOutput const& conf_output)
         {
             conf->configure_output(conf_output.id, false, conf_output.top_left,
-                                   conf_output.preferred_mode_index, mir_power_mode_on);
+                                   conf_output.preferred_mode_index, 0,
+                                   mir_power_mode_on);
         });
 
     display->configure(*conf);
@@ -511,7 +517,8 @@ TEST_F(MesaDisplayMultiMonitorTest, resume_clears_unused_connected_outputs)
         [&](mg::DisplayConfigurationOutput const& conf_output)
         {
             conf->configure_output(conf_output.id, false, conf_output.top_left,
-                                   conf_output.preferred_mode_index, mir_power_mode_on);
+                                   conf_output.preferred_mode_index, 0,
+                                   mir_power_mode_on);
         });
 
     display->configure(*conf);

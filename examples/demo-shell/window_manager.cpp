@@ -153,6 +153,7 @@ bool me::WindowManager::handle(MirEvent const& event)
                 conf->configure_output(output.id, output.used,
                                        output.top_left, 
                                        output.current_mode_index,
+                                       output.current_format_index,
                                        power_mode);
             });
             display_off = !display_off;

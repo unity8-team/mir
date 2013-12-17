@@ -16,7 +16,7 @@
  * Authored by: Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#include "pixel_format_utils.h"
+#include "mir/graphics/pixel_format_utils.h"
 
 namespace mir
 {

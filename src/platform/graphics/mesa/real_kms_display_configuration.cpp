@@ -120,6 +120,9 @@ void mgm::RealKMSDisplayConfiguration::configure_output(
         if (used && mode_index >= output.modes.size())
             BOOST_THROW_EXCEPTION(std::runtime_error("Invalid mode_index for used output"));
 
+        if (used && format_index >= output.pixel_formats.size())
+            BOOST_THROW_EXCEPTION(std::runtime_error("Invalid format_index for used output"));
+
         output.used = used;
         output.top_left = top_left;
         output.current_mode_index = mode_index;

@@ -2,6 +2,8 @@ add_executable(mir_demo_server_shell
   demo_shell.cpp
   fullscreen_placement_strategy.h
   fullscreen_placement_strategy.cpp
+  cascaded_display_configuration_policy.h
+  cascaded_display_configuration_policy.cpp
   translucent_outputs.h
   translucent_outputs.cpp
   window_manager.h

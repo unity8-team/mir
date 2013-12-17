@@ -16,28 +16,26 @@
  * Authored by: Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-
-#ifndef MIR_DEMO_SHELL_TRANSLUCENT_OUTPUTS_H
-#define MIR_DEMO_SHELL_TRANSLUCENT_OUTPUTS_H
-
-#include "mir/graphics/display_configuration_policy.h"
-
+#include "cascaded_display_configuration_policy.h"
 
 namespace mir
 {
 namespace examples
 {
 
-/*
- * \brief Tries to select a pixel format with an alpha channel.
- */
-class TranslucentOutputs : public graphics::DisplayConfigurationPolicy
+CascadedDisplayConfigurationPolicy::CascadedDisplayConfigurationPolicy(std::shared_ptr<graphics::DisplayConfigurationPolicy> const& l,
+                                                                       std::shared_ptr<graphics::DisplayConfigurationPolicy> const& r)
+    : left(l),
+    right(r) 
 {
-public:
-    virtual void apply_to(graphics::DisplayConfiguration& conf);
-};
+}
+
+void CascadedDisplayConfigurationPolicy::apply_to(graphics::DisplayConfiguration& conf)
+{
+    left->apply_to(conf);
+    right->apply_to(conf);
+}
 
 }
 }
 
-#endif

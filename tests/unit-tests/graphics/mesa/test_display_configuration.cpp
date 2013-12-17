@@ -20,7 +20,6 @@
 #include "mir/graphics/display_configuration.h"
 #include "mir/graphics/display.h"
 #include "src/server/graphics/default_display_configuration_policy.h"
-#include "src/server/graphics/default_output_configuration.h"
 #include "src/platform/graphics/mesa/platform.h"
 #include "src/platform/graphics/mesa/kms_display_configuration.h"
 
@@ -100,8 +99,7 @@ public:
         std::shared_ptr<mg::Platform> const& platform)
     {
         auto conf_policy = std::make_shared<mg::DefaultDisplayConfigurationPolicy>();
-        auto output_config = std::make_shared<mg::DefaultOutputConfiguration>();
-        return platform->create_display(conf_policy, output_config);
+        return platform->create_display(conf_policy);
     }
 
     void setup_sample_modes()

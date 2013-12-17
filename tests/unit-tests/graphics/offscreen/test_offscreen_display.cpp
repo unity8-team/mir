@@ -2,7 +2,6 @@
 #include "src/server/graphics/offscreen/display.h"
 #include "mir/graphics/null_display_report.h"
 #include "src/server/graphics/default_display_configuration_policy.h"
-#include "src/server/graphics/default_output_configuration.h"
 #include "mir/graphics/display_buffer.h"
 
 #include "mir_test_doubles/mock_egl.h"
@@ -81,9 +80,7 @@ TEST_F(OffscreenDisplayTest, uses_basic_platform_egl_native_display)
     mgo::Display display{
         std::make_shared<StubBasicPlatform>(native_display),
         std::make_shared<mg::DefaultDisplayConfigurationPolicy>(),
-        std::make_shared<mg::NullDisplayReport>(),
-        std::make_shared<mg::DefaultOutputConfiguration>()
-    };
+        std::make_shared<mg::NullDisplayReport>()};
 }
 
 TEST_F(OffscreenDisplayTest, makes_fbo_current_rendering_target)
@@ -102,8 +99,7 @@ TEST_F(OffscreenDisplayTest, makes_fbo_current_rendering_target)
     mgo::Display display{
         std::make_shared<StubBasicPlatform>(native_display),
         std::make_shared<mg::DefaultDisplayConfigurationPolicy>(),
-        std::make_shared<mg::NullDisplayReport>(),
-        std::make_shared<mg::DefaultOutputConfiguration>()};
+        std::make_shared<mg::NullDisplayReport>()};
 
     Mock::VerifyAndClearExpectations(&mock_gl);
 
@@ -146,7 +142,6 @@ TEST_F(OffscreenDisplayTest, restores_previous_state_on_fbo_setup_failure)
         mgo::Display display(
             std::make_shared<StubBasicPlatform>(native_display),
             std::make_shared<mg::DefaultDisplayConfigurationPolicy>(),
-            std::make_shared<mg::NullDisplayReport>(),
-            std::make_shared<mg::DefaultOutputConfiguration>());
+            std::make_shared<mg::NullDisplayReport>());
     }, std::runtime_error);
 }

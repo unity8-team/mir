@@ -83,7 +83,7 @@ struct MockConfig : public mg::DisplayConfiguration
 {
     MOCK_CONST_METHOD1(for_each_card, void(std::function<void(mg::DisplayConfigurationCard const&)>));
     MOCK_CONST_METHOD1(for_each_output, void(std::function<void(mg::DisplayConfigurationOutput const&)>));
-    MOCK_METHOD5(configure_output, void(mg::DisplayConfigurationOutputId, bool, geom::Point, size_t, MirPowerMode));
+    MOCK_METHOD6(configure_output, void(mg::DisplayConfigurationOutputId, bool, geom::Point, size_t, size_t, MirPowerMode));
 };
 
 }
@@ -167,17 +167,16 @@ class MockPlatform : public mg::Platform
         using namespace testing;
         ON_CALL(*this, create_buffer_allocator(_))
             .WillByDefault(Return(std::shared_ptr<mg::GraphicBufferAllocator>()));
-        ON_CALL(*this, create_display(_,_))
+        ON_CALL(*this, create_display(_))
             .WillByDefault(Return(std::make_shared<mtd::NullDisplay>()));
         ON_CALL(*this, get_ipc_package())
             .WillByDefault(Return(std::make_shared<mg::PlatformIPCPackage>()));
     }
 
     MOCK_METHOD1(create_buffer_allocator, std::shared_ptr<mg::GraphicBufferAllocator>(std::shared_ptr<mg::BufferInitializer> const&));
-    MOCK_METHOD2(create_display,
+    MOCK_METHOD1(create_display,
                  std::shared_ptr<mg::Display>(
-                     std::shared_ptr<mg::DisplayConfigurationPolicy> const&,
-                     std::shared_ptr<mg::OutputConfiguration> const&));
+                     std::shared_ptr<mg::DisplayConfigurationPolicy> const&));
     MOCK_METHOD0(get_ipc_package, std::shared_ptr<mg::PlatformIPCPackage>());
     MOCK_METHOD0(create_internal_client, std::shared_ptr<mg::InternalClient>());
     MOCK_CONST_METHOD2(fill_ipc_package, void(mg::BufferIPCPacker*, mg::Buffer const*));
@@ -556,6 +555,7 @@ TEST_F(SessionMediatorTest, display_config_request)
     bool used0 = false, used1 = true;
     geom::Point pt0{44,22}, pt1{3,2};
     size_t mode_index0 = 1, mode_index1 = 3;
+    size_t format_index0 = 2, format_index1 = 0;
     mg::DisplayConfigurationOutputId id0{6}, id1{3};
 
     NiceMock<MockConfig> mock_display_config;
@@ -569,9 +569,9 @@ TEST_F(SessionMediatorTest, display_config_request)
     EXPECT_CALL(*mock_display_selector, active_configuration())
         .InSequence(seq)
         .WillOnce(Return(mt::fake_shared(mock_display_config)));
-    EXPECT_CALL(mock_display_config, configure_output(id0, used0, pt0, mode_index0,  mir_power_mode_on))
+    EXPECT_CALL(mock_display_config, configure_output(id0, used0, pt0, mode_index0, format_index0, mir_power_mode_on))
         .InSequence(seq);
-    EXPECT_CALL(mock_display_config, configure_output(id1, used1, pt1, mode_index1, mir_power_mode_off))
+    EXPECT_CALL(mock_display_config, configure_output(id1, used1, pt1, mode_index1, format_index1, mir_power_mode_off))
         .InSequence(seq);
     EXPECT_CALL(*mock_display_selector, configure(_,_))
         .InSequence(seq);
@@ -594,6 +594,7 @@ TEST_F(SessionMediatorTest, display_config_request)
     disp0->set_position_x(pt0.x.as_uint32_t());
     disp0->set_position_y(pt0.y.as_uint32_t());
     disp0->set_current_mode(mode_index0);
+    disp0->set_current_format(format_index0);
     disp0->set_power_mode(static_cast<uint32_t>(mir_power_mode_on));
 
     auto disp1 = configuration.add_display_output();
@@ -602,6 +603,7 @@ TEST_F(SessionMediatorTest, display_config_request)
     disp1->set_position_x(pt1.x.as_uint32_t());
     disp1->set_position_y(pt1.y.as_uint32_t());
     disp1->set_current_mode(mode_index1);
+    disp1->set_current_format(format_index1);
     disp1->set_power_mode(static_cast<uint32_t>(mir_power_mode_off));
 
     session_mediator.configure_display(nullptr, &configuration,

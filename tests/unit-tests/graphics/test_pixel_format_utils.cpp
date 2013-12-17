@@ -17,7 +17,7 @@
  */
 
 #include "mir_toolkit/common.h"
-#include "src/server/graphics/pixel_format_utils.h"
+#include "mir/graphics/pixel_format_utils.h"
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
