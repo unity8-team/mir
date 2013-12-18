@@ -94,7 +94,8 @@ void mgn::detail::EGLDisplayHandle::initialize(MirPixelFormat format)
 
 EGLConfig mgn::detail::EGLDisplayHandle::choose_windowed_es_config(MirPixelFormat format) const
 {
-    EGLint const nested_egl_config_attribs[] = {
+    EGLint const nested_egl_config_attribs[] =
+    {
         EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
         EGL_RED_SIZE, mg::red_channel_depth( format ),
         EGL_GREEN_SIZE, mg::green_channel_depth( format ),

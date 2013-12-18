@@ -41,6 +41,7 @@ TEST(MirPixelformat,red_channel_depths)
     EXPECT_EQ(8, mg::red_channel_depth(mir_pixel_format_xbgr_8888));
     EXPECT_EQ(8, mg::red_channel_depth(mir_pixel_format_argb_8888));
     EXPECT_EQ(8, mg::red_channel_depth(mir_pixel_format_abgr_8888));
+    EXPECT_EQ(0, mg::red_channel_depth(mir_pixel_format_invalid));
 }
 
 TEST(MirPixelformat,blue_channel_depths)
@@ -51,6 +52,7 @@ TEST(MirPixelformat,blue_channel_depths)
     EXPECT_EQ(8, mg::blue_channel_depth(mir_pixel_format_xbgr_8888));
     EXPECT_EQ(8, mg::blue_channel_depth(mir_pixel_format_argb_8888));
     EXPECT_EQ(8, mg::blue_channel_depth(mir_pixel_format_abgr_8888));
+    EXPECT_EQ(0, mg::red_channel_depth(mir_pixel_format_invalid));
 }
 
 TEST(MirPixelformat,green_channel_depths)
@@ -61,6 +63,7 @@ TEST(MirPixelformat,green_channel_depths)
     EXPECT_EQ(8, mg::green_channel_depth(mir_pixel_format_xbgr_8888));
     EXPECT_EQ(8, mg::green_channel_depth(mir_pixel_format_argb_8888));
     EXPECT_EQ(8, mg::green_channel_depth(mir_pixel_format_abgr_8888));
+    EXPECT_EQ(0, mg::red_channel_depth(mir_pixel_format_invalid));
 }
 
 
@@ -72,4 +75,5 @@ TEST(MirPixelformat,alpha_channel_depths)
     EXPECT_EQ(0, mg::alpha_channel_depth(mir_pixel_format_xbgr_8888));
     EXPECT_EQ(8, mg::alpha_channel_depth(mir_pixel_format_argb_8888));
     EXPECT_EQ(8, mg::alpha_channel_depth(mir_pixel_format_abgr_8888));
+    EXPECT_EQ(0, mg::red_channel_depth(mir_pixel_format_invalid));
 }

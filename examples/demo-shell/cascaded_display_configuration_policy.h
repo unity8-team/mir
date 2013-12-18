@@ -30,8 +30,9 @@ namespace examples
 class CascadedDisplayConfigurationPolicy : public graphics::DisplayConfigurationPolicy
 {
 public:
-    CascadedDisplayConfigurationPolicy(std::shared_ptr<graphics::DisplayConfigurationPolicy> const& left,
-                                       std::shared_ptr<graphics::DisplayConfigurationPolicy> const& right);
+    CascadedDisplayConfigurationPolicy(
+            std::shared_ptr<graphics::DisplayConfigurationPolicy> const& left,
+            std::shared_ptr<graphics::DisplayConfigurationPolicy> const& right);
     virtual void apply_to(graphics::DisplayConfiguration& conf);
 private:
     std::shared_ptr<DisplayConfigurationPolicy> left, right;

@@ -17,8 +17,8 @@
  */
 
 
-#ifndef MIR_DEMO_SHELL_TRANSLUCENT_OUTPUTS_H
-#define MIR_DEMO_SHELL_TRANSLUCENT_OUTPUTS_H
+#ifndef MIR_EXAMPLES_TRANSLUCENT_OUTPUTS_H
+#define MIR_EXAMPLES_TRANSLUCENT_OUTPUTS_H
 
 #include "mir/graphics/display_configuration_policy.h"
 

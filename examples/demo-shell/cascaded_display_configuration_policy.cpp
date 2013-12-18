@@ -23,8 +23,9 @@ namespace mir
 namespace examples
 {
 
-CascadedDisplayConfigurationPolicy::CascadedDisplayConfigurationPolicy(std::shared_ptr<graphics::DisplayConfigurationPolicy> const& l,
-                                                                       std::shared_ptr<graphics::DisplayConfigurationPolicy> const& r)
+CascadedDisplayConfigurationPolicy::CascadedDisplayConfigurationPolicy(
+        std::shared_ptr<graphics::DisplayConfigurationPolicy> const& l,
+        std::shared_ptr<graphics::DisplayConfigurationPolicy> const& r)
     : left(l),
     right(r) 
 {

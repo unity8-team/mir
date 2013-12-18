@@ -31,11 +31,11 @@ namespace graphics
  * TODO improve this through https://bugs.launchpad.net/mir/+bug/1236254 
  * \{
  */
-bool contains_alpha( MirPixelFormat format );
-int32_t red_channel_depth( MirPixelFormat format );
-int32_t blue_channel_depth( MirPixelFormat format );
-int32_t green_channel_depth( MirPixelFormat format );
-int32_t alpha_channel_depth( MirPixelFormat format );
+bool contains_alpha(MirPixelFormat format);
+int32_t red_channel_depth(MirPixelFormat format);
+int32_t blue_channel_depth(MirPixelFormat format);
+int32_t green_channel_depth(MirPixelFormat format);
+int32_t alpha_channel_depth(MirPixelFormat format);
 /*!
  * \}
  */
