@@ -6,6 +6,7 @@ QT += core-private gui-private platformsupport-private dbus
 
 CONFIG += plugin
 CONFIG += no_keywords  # "signals" clashes with Mir
+CONFIG += qpa/genericunixfontdatabase
 
 # CONFIG += c++11 # only enables C++0x
 QMAKE_CXXFLAGS = -std=c++11
