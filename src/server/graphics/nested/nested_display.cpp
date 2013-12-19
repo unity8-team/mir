@@ -97,10 +97,10 @@ EGLConfig mgn::detail::EGLDisplayHandle::choose_windowed_es_config(MirPixelForma
     EGLint const nested_egl_config_attribs[] =
     {
         EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
-        EGL_RED_SIZE, mg::red_channel_depth( format ),
-        EGL_GREEN_SIZE, mg::green_channel_depth( format ),
-        EGL_BLUE_SIZE, mg::blue_channel_depth( format ),
-        EGL_ALPHA_SIZE, mg::alpha_channel_depth( format ),
+        EGL_RED_SIZE, mg::red_channel_depth(format),
+        EGL_GREEN_SIZE, mg::green_channel_depth(format),
+        EGL_BLUE_SIZE, mg::blue_channel_depth(format),
+        EGL_ALPHA_SIZE, mg::alpha_channel_depth(format),
         EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
         EGL_NONE
     };
@@ -166,7 +166,7 @@ std::shared_ptr<mg::DisplayConfiguration> mgn::NestedDisplay::configuration()
     return std::make_shared<NestedDisplayConfiguration>(mir_connection_create_display_config(*connection));
 }
 
-void mgn::NestedDisplay::complete_display_initialization( MirPixelFormat format )
+void mgn::NestedDisplay::complete_display_initialization(MirPixelFormat format)
 {
     if (egl_display.egl_context() != EGL_NO_CONTEXT)  return;
 
