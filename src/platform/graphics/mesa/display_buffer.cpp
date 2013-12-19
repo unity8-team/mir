@@ -112,11 +112,11 @@ mgm::DisplayBuffer::DisplayBuffer(
 {
     egl.setup(platform->gbm, surface_gbm.get(), shared_context);
 
-    listener->report_successful_setup_of_native_resources();
+    listener->report_success(true, "setup of native resources");
 
     make_current();
 
-    listener->report_successful_egl_make_current_on_construction();
+    listener->report_success(true, "set context current on construction");
 
     ensure_egl_image_extensions();
 
@@ -125,7 +125,7 @@ mgm::DisplayBuffer::DisplayBuffer(
     if (!egl.swap_buffers())
         BOOST_THROW_EXCEPTION(std::runtime_error("Failed to perform initial surface buffer swap"));
 
-    listener->report_successful_egl_buffer_swap_on_construction();
+    listener->report_success(true, "egl buffer swap on construction");
 
     last_flipped_bufobj = get_front_buffer_object();
     if (!last_flipped_bufobj)
@@ -139,8 +139,8 @@ mgm::DisplayBuffer::DisplayBuffer(
 
     egl.release_current();
 
-    listener->report_successful_drm_mode_set_crtc_on_construction();
-    listener->report_successful_display_construction();
+    listener->report_success(true, "drm mode setup on construction");
+    listener->report_success(true, "construction");
     egl.report_egl_configuration(
         [&listener] (EGLDisplay disp, EGLConfig cfg)
         {

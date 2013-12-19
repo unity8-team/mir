@@ -138,7 +138,7 @@ void mgm::LinuxVirtualTerminal::register_switch_handlers(
             if (!active)
             {
                 if (!switch_back())
-                    report->report_vt_switch_back_failure();
+                    report->report_success(false, "switch back to Mir VT");
                 fops->ioctl(vt_fd.fd(), VT_RELDISP, VT_ACKACQ);
                 active = true;
             }
@@ -156,7 +156,7 @@ void mgm::LinuxVirtualTerminal::register_switch_handlers(
                 else
                 {
                     action = disallow_switch;
-                    report->report_vt_switch_away_failure();
+                    report->report_success(false, "switch away from Mir VT");
                 }
 
                 fops->ioctl(vt_fd.fd(), VT_RELDISP, action);

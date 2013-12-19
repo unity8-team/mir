@@ -430,12 +430,14 @@ TEST_F(LinuxVirtualTerminalTest, disallows_vt_switch_on_switch_away_handler_fail
     set_up_expectations_for_switch_handler(SIGUSR1);
 
     /* First switch away attempt */
-    EXPECT_CALL(mock_report, report_vt_switch_away_failure());
+    EXPECT_CALL(mock_report,
+                report_success(false, StrEq("switch away from Mir VT")));
     EXPECT_CALL(mock_fops, ioctl(fake_vt_fd, VT_RELDISP,
                                  MatcherCast<int>(disallow_switch)));
 
     /* Second switch away attempt */
-    EXPECT_CALL(mock_report, report_vt_switch_away_failure());
+    EXPECT_CALL(mock_report,
+                report_success(false, StrEq("switch away from Mir VT")));
     EXPECT_CALL(mock_fops, ioctl(fake_vt_fd, VT_RELDISP,
                                  MatcherCast<int>(disallow_switch)));
 
@@ -472,7 +474,8 @@ TEST_F(LinuxVirtualTerminalTest, reports_failed_vt_switch_back_attempt)
     EXPECT_CALL(mock_fops, ioctl(fake_vt_fd, VT_RELDISP, allow_switch));
 
     /* Switch back */
-    EXPECT_CALL(mock_report, report_vt_switch_back_failure());
+    EXPECT_CALL(mock_report,
+                report_success(false, StrEq("switch back to Mir VT")));
     EXPECT_CALL(mock_fops, ioctl(fake_vt_fd, VT_RELDISP, VT_ACKACQ));
 
     set_up_expectations_for_vt_teardown();

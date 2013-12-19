@@ -492,24 +492,27 @@ TEST_F(MesaDisplayTest, successful_creation_of_display_reports_successful_setup_
 {
     using namespace ::testing;
 
-    EXPECT_CALL(
-        *mock_report,
-        report_successful_setup_of_native_resources()).Times(Exactly(1));
-    EXPECT_CALL(
-        *mock_report,
-        report_successful_egl_make_current_on_construction()).Times(Exactly(1));
+    // Is there really any value in these expectations?...
 
-    EXPECT_CALL(
-        *mock_report,
-        report_successful_egl_buffer_swap_on_construction()).Times(Exactly(1));
+    EXPECT_CALL(*mock_report,
+                report_success(true, StrEq("setup of native resources")))
+        .Times(Exactly(1));
 
-    EXPECT_CALL(
-        *mock_report,
-        report_successful_drm_mode_set_crtc_on_construction()).Times(Exactly(1));
+    EXPECT_CALL(*mock_report,
+                report_success(true, StrEq("set context current on construction")))
+        .Times(Exactly(1));
 
-    EXPECT_CALL(
-        *mock_report,
-        report_successful_display_construction()).Times(Exactly(1));
+    EXPECT_CALL(*mock_report,
+                report_success(true, StrEq("egl buffer swap on construction")))
+        .Times(Exactly(1));
+
+    EXPECT_CALL(*mock_report,
+                report_success(true, StrEq("drm mode setup on construction")))
+        .Times(Exactly(1));
+
+    EXPECT_CALL(*mock_report,
+                report_success(true, StrEq("construction")))
+        .Times(Exactly(1));
 
     EXPECT_CALL(
         *mock_report,
@@ -521,7 +524,7 @@ TEST_F(MesaDisplayTest, successful_creation_of_display_reports_successful_setup_
                         mock_report);
 }
 
-TEST_F(MesaDisplayTest, outputs_correct_string_for_successful_setup_of_native_resources)
+TEST_F(MesaDisplayTest, outputs_correct_success_string)
 {
     using namespace ::testing;
 
@@ -531,13 +534,13 @@ TEST_F(MesaDisplayTest, outputs_correct_string_for_successful_setup_of_native_re
     EXPECT_CALL(
         *logger,
         log(Eq(ml::Logger::informational),
-            StrEq("Successfully setup native resources."),
+            StrEq("Successful something"),
             StrEq("graphics"))).Times(Exactly(1));
 
-    reporter->report_successful_setup_of_native_resources();
+    reporter->report_success(true, "something");
 }
 
-TEST_F(MesaDisplayTest, outputs_correct_string_for_successful_egl_make_current_on_construction)
+TEST_F(MesaDisplayTest, outputs_correct_failure_string)
 {
     using namespace ::testing;
 
@@ -546,43 +549,11 @@ TEST_F(MesaDisplayTest, outputs_correct_string_for_successful_egl_make_current_o
 
     EXPECT_CALL(
         *logger,
-        log(Eq(ml::Logger::informational),
-            StrEq("Successfully made egl context current on construction."),
+        log(Eq(ml::Logger::error),
+            StrEq("Failed something"),
             StrEq("graphics"))).Times(Exactly(1));
 
-    reporter->report_successful_egl_make_current_on_construction();
-}
-
-TEST_F(MesaDisplayTest, outputs_correct_string_for_successful_egl_buffer_swap_on_construction)
-{
-    using namespace ::testing;
-
-    auto logger = std::make_shared<MockLogger>();
-    auto reporter = std::make_shared<ml::DisplayReport>(logger);
-
-    EXPECT_CALL(
-        *logger,
-        log(Eq(ml::Logger::informational),
-            StrEq("Successfully performed egl buffer swap on construction."),
-            StrEq("graphics"))).Times(Exactly(1));
-
-    reporter->report_successful_egl_buffer_swap_on_construction();
-}
-
-TEST_F(MesaDisplayTest, outputs_correct_string_for_successful_drm_mode_set_crtc_on_construction)
-{
-    using namespace ::testing;
-
-    auto logger = std::make_shared<MockLogger>();
-    auto reporter = std::make_shared<ml::DisplayReport>(logger);
-
-    EXPECT_CALL(
-        *logger,
-        log(Eq(ml::Logger::informational),
-            StrEq("Successfully performed drm mode setup on construction."),
-            StrEq("graphics"))).Times(Exactly(1));
-
-    reporter->report_successful_drm_mode_set_crtc_on_construction();
+    reporter->report_success(false, "something");
 }
 
 TEST_F(MesaDisplayTest, constructor_throws_if_egl_mesa_drm_image_not_supported)
