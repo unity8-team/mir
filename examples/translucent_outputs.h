@@ -34,7 +34,7 @@ namespace examples
 class TranslucentOutputs : public graphics::DisplayConfigurationPolicy
 {
 public:
-    TranslucentOutputs(std::shared_ptr<graphics::DisplayConfigurationPolicy> base_policy );
+    TranslucentOutputs(std::shared_ptr<graphics::DisplayConfigurationPolicy> const& base_policy );
     virtual void apply_to(graphics::DisplayConfiguration& conf);
 private:
     std::shared_ptr<graphics::DisplayConfigurationPolicy> base_policy;
