@@ -100,9 +100,12 @@ u_application_options_new_from_cmd_line(int argc, char** argv)
     auto app_options = new uam::Options;
 
     // Construct legacy desktop file path
-    std::string desktop_file_name(getenv("APP_ID"));
-    desktop_file_name.append(".desktop");
-    std::ifstream infile;
+    std::string desktop_file_name;
+    if (getenv("APP_ID"))
+    {
+        desktop_file_name = getenv("APP_ID");
+        desktop_file_name.append(".desktop");
+    }
 
     // Click desktop path
     std::string local_path;
@@ -113,6 +116,7 @@ u_application_options_new_from_cmd_line(int argc, char** argv)
     std::string line, stage_hint;
     std::string stage_key("X-Ubuntu-StageHint");
     
+    std::ifstream infile;
     std::string search_paths[2] = {"/usr/share/applications/", local_path};
     search_paths[0].append(desktop_file_name);
     for (std::string path : search_paths)
