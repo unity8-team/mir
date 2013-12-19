@@ -154,15 +154,19 @@ TEST_F(AndroidDisplayTest, display_egl_config_selection)
 TEST_F(AndroidDisplayTest, display_logging)
 {
     using namespace testing;
-    EXPECT_CALL(*mock_display_report, report_successful_setup_of_native_resources())
+
+    EXPECT_CALL(*mock_display_report,
+                report_success(true, StrEq("setup of native resources")))
         .Times(1);
     EXPECT_CALL(*mock_display_report, report_egl_configuration(_,_))
         .Times(1);
-    EXPECT_CALL(*mock_display_report, report_successful_egl_make_current_on_construction())
+    EXPECT_CALL(*mock_display_report,
+                report_success(true, StrEq("set context current on construction")))
         .Times(1);
-    EXPECT_CALL(*mock_display_report, report_successful_display_construction())
+    EXPECT_CALL(*mock_display_report,
+                report_success(true, StrEq("construction")))
         .Times(1);
-
+ 
     mga::AndroidDisplay display(stub_db_factory, mock_display_report);
 }
 
@@ -170,14 +174,17 @@ TEST_F(AndroidDisplayTest, eglMakeCurrent_failure)
 {
     using namespace testing;
 
-    EXPECT_CALL(*mock_display_report, report_successful_setup_of_native_resources())
+    EXPECT_CALL(*mock_display_report,
+                report_success(true, StrEq("setup of native resources")))
         .Times(1);
     EXPECT_CALL(mock_egl, eglMakeCurrent(dummy_display, _, _, _))
         .Times(1)
         .WillOnce(Return(EGL_FALSE));
-    EXPECT_CALL(*mock_display_report, report_successful_egl_make_current_on_construction())
+    EXPECT_CALL(*mock_display_report,
+                report_success(_, StrEq("set context current on construction")))
         .Times(0);
-    EXPECT_CALL(*mock_display_report, report_successful_display_construction())
+    EXPECT_CALL(*mock_display_report,
+                report_success(_, StrEq("construction")))
         .Times(0);
 
     EXPECT_THROW({
@@ -189,11 +196,7 @@ TEST_F(AndroidDisplayTest, startup_logging_error_because_of_surface_creation_fai
 {
     using namespace testing;
 
-    EXPECT_CALL(*mock_display_report, report_successful_setup_of_native_resources())
-        .Times(0);
-    EXPECT_CALL(*mock_display_report, report_successful_egl_make_current_on_construction())
-        .Times(0);
-    EXPECT_CALL(*mock_display_report, report_successful_display_construction())
+    EXPECT_CALL(*mock_display_report, report_success(_,_))
         .Times(0);
 
     EXPECT_CALL(mock_egl, eglCreatePbufferSurface(_,_,_))

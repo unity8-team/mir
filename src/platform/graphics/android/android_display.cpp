@@ -39,12 +39,12 @@ mga::AndroidDisplay::AndroidDisplay(std::shared_ptr<mga::DisplayBuilder> const& 
       display_buffer{display_builder->create_display_buffer(display_device, gl_context)},
       current_configuration{display_buffer->view_area().size}
 {
-    display_report->report_successful_setup_of_native_resources();
+    display_report->report_success(true, "setup of native resources");
 
     gl_context.make_current();
 
-    display_report->report_successful_egl_make_current_on_construction();
-    display_report->report_successful_display_construction();
+    display_report->report_success(true, "set context current on construction");
+    display_report->report_success(true, "construction");
 }
 
 void mga::AndroidDisplay::for_each_display_buffer(std::function<void(mg::DisplayBuffer&)> const& f)
