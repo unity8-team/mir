@@ -52,8 +52,6 @@ struct ServerConfiguration : mir::examples::ServerConfiguration
             (void)ignore;
         }
     }
-
-    using mir::examples::ServerConfiguration::the_options;
 };
 }
 

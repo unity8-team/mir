@@ -16,8 +16,9 @@
  * Authored by: Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#include <cstdint>
 #include "mir_toolkit/common.h"
+
+#include <cstdint>
 
 namespace mir
 {

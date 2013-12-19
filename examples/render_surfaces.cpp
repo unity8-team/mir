@@ -36,13 +36,14 @@
 #include "buffer_render_target.h"
 #include "image_renderer.h"
 #include "server_configuration.h"
+#include "translucent_outputs.h"
 
-#include <thread>
 #include <atomic>
 #include <chrono>
 #include <csignal>
 #include <iostream>
 #include <sstream>
+#include <thread>
 #include <vector>
 
 #include <glm/gtc/matrix_transform.hpp>
@@ -136,6 +137,7 @@ void animate_cursor()
 
 char const* const surfaces_to_render = "surfaces-to-render";
 char const* const display_cursor     = "display-cursor";
+char const* const translucent = "translucent";
 
 ///\internal [StopWatch_tag]
 // tracks elapsed time - for animation.
@@ -260,6 +262,10 @@ public:
         add_options()
             (surfaces_to_render, po::value<int>(),  "Number of surfaces to render"
                                                     " [int:default=5]")
+            (surfaces_to_render, po::value<int>(),  "Number of surfaces to render"
+                                                    " [int:default=5]")
+            (translucent, po::value<bool>(),  "Enable translucent frame buffer"
+                                                    " [bool:default=false]")
             (display_cursor, po::value<bool>(), "Display test cursor. (If input is "
                                                 "disabled it gets animated.) "
                                                 "[bool:default=false]");
@@ -306,6 +312,19 @@ public:
         return std::make_shared<RenderResourcesBufferInitializer>();
     }
     ///\internal [RenderResourcesBufferInitializer_tag]
+   
+    std::shared_ptr<mg::DisplayConfigurationPolicy> the_display_configuration_policy() override
+    {
+        return display_configuration_policy(
+            [this]() -> std::shared_ptr<mg::DisplayConfigurationPolicy>
+            {
+                if (the_options()->is_set(translucent))
+                    return std::make_shared<me::TranslucentOutputs>(
+                        me::ServerConfiguration::the_display_configuration_policy());
+                return me::ServerConfiguration::the_display_configuration_policy();
+            }
+            );
+    }
 
     ///\internal [RenderSurfacesDisplayBufferCompositor_tag]
     // Decorate the DefaultDisplayBufferCompositor in order to move surfaces.

@@ -109,6 +109,7 @@ set(RENDER_SURFACES_SOURCES
     buffer_render_target.cpp
     image_renderer.cpp
     server_configuration.cpp
+    translucent_outputs.cpp
 )
 add_executable(mir_demo_standalone_render_surfaces ${RENDER_SURFACES_SOURCES})
 target_link_libraries(mir_demo_standalone_render_surfaces
@@ -156,14 +157,4 @@ target_link_libraries(mir_demo_server_basic
 
 install(TARGETS mir_demo_server_basic
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-)
-
-add_executable(mir_demo_greeter
-    basic_greeter.cpp
-    server_configuration.cpp
-    translucent_outputs.cpp
-)
-target_link_libraries(mir_demo_greeter
-  mirserver
-  ${Boost_LIBRARIES}
 )

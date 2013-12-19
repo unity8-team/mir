@@ -44,9 +44,9 @@ void TranslucentOutputs::apply_to(graphics::DisplayConfiguration & conf)
                                       conf_output.pixel_formats.end(),
                                       &graphics::contains_alpha);
 
+            // do not touch anything if no alpha available
             if (pos == conf_output.pixel_formats.end())
-                BOOST_THROW_EXCEPTION(
-                    std::runtime_error("Mir failed to find a translucent surface format"));
+                return;
 
             conf.configure_output(conf_output.id, true, conf_output.top_left,
                                   conf_output.current_mode_index,
