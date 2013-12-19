@@ -28,8 +28,13 @@ namespace mir
 namespace examples
 {
 
-void TranslucentOutputs::apply_to( graphics::DisplayConfiguration & conf )
+TranslucentOutputs::TranslucentOutputs(std::shared_ptr<DisplayConfigurationPolicy> const& base_policy)
+    : base_policy(base_policy)
+{}
+
+void TranslucentOutputs::apply_to(graphics::DisplayConfiguration & conf)
 {
+    base_policy->apply_to(conf);
     conf.for_each_output(
         [&](graphics::DisplayConfigurationOutput const& conf_output)
         {
@@ -40,11 +45,8 @@ void TranslucentOutputs::apply_to( graphics::DisplayConfiguration & conf )
                                       &graphics::contains_alpha);
 
             if (pos == conf_output.pixel_formats.end())
-            {
                 BOOST_THROW_EXCEPTION(
                     std::runtime_error("Mir failed to find a translucent surface format"));
-                return; 
-            }
 
             conf.configure_output(conf_output.id, true, conf_output.top_left,
                                   conf_output.current_mode_index,

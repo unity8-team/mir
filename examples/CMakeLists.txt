@@ -149,6 +149,11 @@ add_executable(mir_demo_server_basic
   server_configuration.cpp
 )
 
+add_executable(mir_demo_greeter
+    basic_greeter.cpp
+    server_configuration.cpp
+)
+
 target_link_libraries(mir_demo_server_basic
   mirserver
   ${Boost_LIBRARIES}
