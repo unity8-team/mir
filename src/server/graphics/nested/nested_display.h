@@ -84,7 +84,6 @@ private:
 
 class NestedOutput;
 
-extern EGLint const nested_egl_config_attribs[];
 extern EGLint const nested_egl_context_attribs[];
 }
 

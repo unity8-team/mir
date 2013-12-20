@@ -42,17 +42,6 @@ EGLint const mgn::detail::nested_egl_context_attribs[] =
     EGL_NONE
 };
 
-EGLint const mgn::detail::nested_egl_config_attribs[] =
-{
-    EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
-    EGL_RED_SIZE, 8,
-    EGL_GREEN_SIZE, 8,
-    EGL_BLUE_SIZE, 8,
-    EGL_ALPHA_SIZE, 0,
-    EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
-    EGL_NONE
-};
-
 mgn::detail::EGLSurfaceHandle::EGLSurfaceHandle(EGLDisplay display, EGLNativeWindowType native_window, EGLConfig cfg)
     : egl_display(display),
       egl_surface(eglCreateWindowSurface(egl_display, cfg, native_window, NULL))
@@ -86,8 +75,8 @@ void mgn::detail::EGLDisplayHandle::initialize(MirPixelFormat format)
         BOOST_THROW_EXCEPTION(std::runtime_error("Nested Mir Display Error: Failed to initialize EGL."));
     }
 
-
     egl_context_ = eglCreateContext(egl_display, choose_windowed_es_config(format), EGL_NO_CONTEXT, detail::nested_egl_context_attribs);
+
     if (egl_context_ == EGL_NO_CONTEXT)
         BOOST_THROW_EXCEPTION(std::runtime_error("Failed to create shared EGL context"));
 }
@@ -276,7 +265,5 @@ auto mgn::NestedDisplay::the_cursor()->std::weak_ptr<Cursor>
 
 std::unique_ptr<mg::GLContext> mgn::NestedDisplay::create_gl_context()
 {
-    return std::unique_ptr<mg::GLContext>{new SurfacelessEGLContext(egl_display,
-                                                                    detail::nested_egl_config_attribs,
-                                                                    EGL_NO_CONTEXT)};
+    return std::unique_ptr<mg::GLContext>{new SurfacelessEGLContext(egl_display, EGL_NO_CONTEXT)};
 }
