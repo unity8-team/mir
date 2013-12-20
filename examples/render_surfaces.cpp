@@ -24,6 +24,7 @@
 #include "mir/geometry/size.h"
 #include "mir/geometry/rectangles.h"
 #include "mir/graphics/buffer_initializer.h"
+#include "mir/graphics/pixel_format_utils.h"
 #include "mir/graphics/cursor.h"
 #include "mir/graphics/display.h"
 #include "mir/graphics/display_buffer.h"
@@ -36,8 +37,9 @@
 #include "buffer_render_target.h"
 #include "image_renderer.h"
 #include "server_configuration.h"
-#include "translucent_outputs.h"
+#include "select_pixel_format.h"
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <csignal>
@@ -264,8 +266,8 @@ public:
                                                     " [int:default=5]")
             (surfaces_to_render, po::value<int>(),  "Number of surfaces to render"
                                                     " [int:default=5]")
-            (translucent, po::value<bool>(),  "Enable translucent frame buffer"
-                                                    " [bool:default=false]")
+            (translucent, po::bool_switch()->default_value(false), 
+             "Enable translucent frame buffer")
             (display_cursor, po::value<bool>(), "Display test cursor. (If input is "
                                                 "disabled it gets animated.) "
                                                 "[bool:default=false]");
@@ -318,10 +320,9 @@ public:
         return display_configuration_policy(
             [this]() -> std::shared_ptr<mg::DisplayConfigurationPolicy>
             {
-                if (the_options()->is_set(translucent))
-                    return std::make_shared<me::TranslucentOutputs>(
-                        me::ServerConfiguration::the_display_configuration_policy());
-                return me::ServerConfiguration::the_display_configuration_policy();
+                return std::make_shared<me::SelectPixelFormat>(
+                    me::ServerConfiguration::the_display_configuration_policy(), 
+                    the_options()->get(translucent,false));
             }
             );
     }
@@ -353,7 +354,7 @@ public:
                     stop_watch.restart();
                 }
 
-                glClearColor(0.0, 1.0, 0.0, 1.0);
+                glClearColor(0.0, 1.0, 0.0, 0.0);
                 db_compositor->composite();
 
                 for (auto& m : moveables)
@@ -399,6 +400,18 @@ public:
     }
     ///\internal [RenderSurfacesDisplayBufferCompositor_tag]
 
+    // Tries to select a buffer format with alpha, since the images in use contain alpha information
+    MirPixelFormat select_pixel_format()
+    {
+        auto formats = the_buffer_allocator()->supported_pixel_formats();
+        auto pos = std::find_if(formats.begin(), formats.end(), mg::contains_alpha);
+
+        if (pos == formats.end())
+            return formats[0];
+
+        return *pos;
+    }
+
     // New function to initialize moveables with surfaces
     void create_surfaces()
     {
@@ -420,7 +433,8 @@ public:
         float const angular_step = 2.0 * M_PI / moveables.size();
         float const w = display_size.width.as_uint32_t();
         float const h = display_size.height.as_uint32_t();
-        auto const surface_pf = the_buffer_allocator()->supported_pixel_formats()[0];
+        
+        auto const surface_pf = select_pixel_format();
 
         int i = 0;
         for (auto& m : moveables)

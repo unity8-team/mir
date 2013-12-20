@@ -109,7 +109,7 @@ set(RENDER_SURFACES_SOURCES
     buffer_render_target.cpp
     image_renderer.cpp
     server_configuration.cpp
-    translucent_outputs.cpp
+    select_pixel_format.cpp
 )
 add_executable(mir_demo_standalone_render_surfaces ${RENDER_SURFACES_SOURCES})
 target_link_libraries(mir_demo_standalone_render_surfaces

@@ -17,10 +17,12 @@
  */
 
 
-#ifndef MIR_EXAMPLES_TRANSLUCENT_OUTPUTS_H
-#define MIR_EXAMPLES_TRANSLUCENT_OUTPUTS_H
+#ifndef MIR_EXAMPLES_SELECT_PIXEL_FORMAT_H
+#define MIR_EXAMPLES_SELECT_PIXEL_FORMAT_H
 
 #include "mir/graphics/display_configuration_policy.h"
+
+#include <boost/shared_ptr.hpp>
 
 
 namespace mir
@@ -28,16 +30,20 @@ namespace mir
 namespace examples
 {
 
-/*
- * \brief Tries to select a pixel format with an alpha channel.
+/**
+ * \brief Example of a DisplayConfigurationPolicy that tries to find
+ * an opaque or transparent pixel format, or falls back to the default
+ * if not found.
  */
-class TranslucentOutputs : public graphics::DisplayConfigurationPolicy
+class SelectPixelFormat : public graphics::DisplayConfigurationPolicy
 {
 public:
-    TranslucentOutputs(std::shared_ptr<graphics::DisplayConfigurationPolicy> const& base_policy );
+    SelectPixelFormat(std::shared_ptr<graphics::DisplayConfigurationPolicy> const& base_policy,
+                      bool with_alpha);
     virtual void apply_to(graphics::DisplayConfiguration& conf);
 private:
-    std::shared_ptr<graphics::DisplayConfigurationPolicy> base_policy;
+    std::shared_ptr<graphics::DisplayConfigurationPolicy> const base_policy;
+    bool with_alpha;
 };
 
 }

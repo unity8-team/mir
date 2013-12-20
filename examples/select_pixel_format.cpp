@@ -16,45 +16,55 @@
  * Authored by: Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#include <stdexcept>
-#include <algorithm>
-#include <boost/exception/all.hpp>
+#include "select_pixel_format.h"
+
 #include "mir/graphics/display_configuration.h"
 #include "mir/graphics/pixel_format_utils.h"
-#include "translucent_outputs.h"
+
+#include <stdexcept>
+#include <algorithm>
+
 
 namespace mir
 {
 namespace examples
 {
 
-TranslucentOutputs::TranslucentOutputs(std::shared_ptr<DisplayConfigurationPolicy> const& base_policy)
-    : base_policy(base_policy)
+SelectPixelFormat::SelectPixelFormat(std::shared_ptr<DisplayConfigurationPolicy> const& base_policy,
+                                     bool with_alpha)
+    : base_policy(base_policy),
+    with_alpha(with_alpha)
 {}
 
-void TranslucentOutputs::apply_to(graphics::DisplayConfiguration & conf)
+void SelectPixelFormat::apply_to(graphics::DisplayConfiguration & conf)
 {
     base_policy->apply_to(conf);
+    std::cout << "WA : " << with_alpha;
     conf.for_each_output(
         [&](graphics::DisplayConfigurationOutput const& conf_output)
         {
             if (!conf_output.connected || !conf_output.used) return;
 
             auto const& pos = find_if(conf_output.pixel_formats.begin(),
-                                      conf_output.pixel_formats.end(),
-                                      &graphics::contains_alpha);
+                                      conf_output.pixel_formats.end(), 
+                                      [&](MirPixelFormat format) -> bool
+                                          {
+                                              return graphics::contains_alpha(format) == with_alpha;
+                                          }
+                                     );
 
-            // do not touch anything if no alpha available
+            // keep the default setings if nothing was found
             if (pos == conf_output.pixel_formats.end())
                 return;
 
             conf.configure_output(conf_output.id, true, conf_output.top_left,
                                   conf_output.current_mode_index,
-                                  std::distance(conf_output.pixel_formats.begin(), pos ),
+                                  std::distance(conf_output.pixel_formats.begin(), pos),
                                   conf_output.power_mode
                                  );
         });
 }
+
 }
 }
 
