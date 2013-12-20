@@ -43,7 +43,7 @@ public:
     virtual void apply_to(graphics::DisplayConfiguration& conf);
 private:
     std::shared_ptr<graphics::DisplayConfigurationPolicy> const base_policy;
-    bool with_alpha;
+    bool const with_alpha;
 };
 
 }

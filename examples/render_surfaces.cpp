@@ -264,8 +264,6 @@ public:
         add_options()
             (surfaces_to_render, po::value<int>(),  "Number of surfaces to render"
                                                     " [int:default=5]")
-            (surfaces_to_render, po::value<int>(),  "Number of surfaces to render"
-                                                    " [int:default=5]")
             (translucent, po::bool_switch()->default_value(false), 
              "Enable translucent frame buffer")
             (display_cursor, po::value<bool>(), "Display test cursor. (If input is "
