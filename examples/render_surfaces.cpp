@@ -400,18 +400,6 @@ public:
     }
     ///\internal [RenderSurfacesDisplayBufferCompositor_tag]
 
-    // Tries to select a buffer format with alpha, since the images in use contain alpha information
-    MirPixelFormat select_pixel_format()
-    {
-        auto formats = the_buffer_allocator()->supported_pixel_formats();
-        auto pos = std::find_if(formats.begin(), formats.end(), mg::contains_alpha);
-
-        if (pos == formats.end())
-            return formats[0];
-
-        return *pos;
-    }
-
     // New function to initialize moveables with surfaces
     void create_surfaces()
     {
@@ -433,8 +421,7 @@ public:
         float const angular_step = 2.0 * M_PI / moveables.size();
         float const w = display_size.width.as_uint32_t();
         float const h = display_size.height.as_uint32_t();
-        
-        auto const surface_pf = select_pixel_format();
+        auto const surface_pf = the_buffer_allocator()->supported_pixel_formats()[0];
 
         int i = 0;
         for (auto& m : moveables)

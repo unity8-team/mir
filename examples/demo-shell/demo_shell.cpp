@@ -53,7 +53,7 @@ struct DemoServerConfiguration : mir::examples::ServerConfiguration
             ("fullscreen-surfaces", po::value<bool>(),
                 "Make all surfaces fullscreen [bool:default=false]");
     }
-    
+
     std::shared_ptr<msh::PlacementStrategy> the_shell_placement_strategy() override
     {
         return shell_placement_strategy(

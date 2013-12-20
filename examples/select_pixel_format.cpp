@@ -39,7 +39,6 @@ SelectPixelFormat::SelectPixelFormat(std::shared_ptr<DisplayConfigurationPolicy>
 void SelectPixelFormat::apply_to(graphics::DisplayConfiguration & conf)
 {
     base_policy->apply_to(conf);
-    std::cout << "WA : " << with_alpha;
     conf.for_each_output(
         [&](graphics::DisplayConfigurationOutput const& conf_output)
         {
