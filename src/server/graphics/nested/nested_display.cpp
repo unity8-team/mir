@@ -58,6 +58,8 @@ mgn::detail::EGLSurfaceHandle::~EGLSurfaceHandle() noexcept
 }
 
 mgn::detail::EGLDisplayHandle::EGLDisplayHandle(MirConnection* connection)
+    : egl_display(EGL_NO_DISPLAY),
+    egl_context_(EGL_NO_CONTEXT)
 {
     auto const native_display = (EGLNativeDisplayType) mir_connection_get_egl_native_display(connection);
     egl_display = eglGetDisplay(native_display);
