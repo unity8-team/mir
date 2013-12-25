@@ -32,8 +32,8 @@ namespace examples
 
 SelectPixelFormat::SelectPixelFormat(std::shared_ptr<DisplayConfigurationPolicy> const& base_policy,
                                      bool with_alpha)
-    : base_policy(base_policy),
-    with_alpha(with_alpha)
+    : base_policy{base_policy},
+    with_alpha{with_alpha}
 {}
 
 void SelectPixelFormat::apply_to(graphics::DisplayConfiguration & conf)
