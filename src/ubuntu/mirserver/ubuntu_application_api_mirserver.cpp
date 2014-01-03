@@ -214,7 +214,7 @@ EGLNativeDisplayType ua_ui_display_get_native_type(UAUiDisplay* display)
 
 namespace
 {
-static mir::geometry::PixelFormat choose_pixel_format(std::shared_ptr<mir::graphics::GraphicBufferAllocator> const& allocator)
+static MirPixelFormat choose_pixel_format(std::shared_ptr<mir::graphics::GraphicBufferAllocator> const& allocator)
 {
     auto formats = allocator->supported_pixel_formats();
     return formats[0];

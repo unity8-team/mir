@@ -22,7 +22,7 @@
 #include <ubuntu/application/ui/window.h>
 
 #include <mir/shell/surface_creation_parameters.h>
-#include <mir/geometry/pixel_format.h>
+#include <mir_toolkit/client_types.h>
 
 namespace ubuntu
 {
@@ -44,7 +44,7 @@ public:
     
     void set_title(char const* title, size_t length);
     void set_input_cb_and_ctx(UAUiWindowInputEventCb cb, void* ctx);
-    void set_pixel_format( ::mir::geometry::PixelFormat const& format);
+    void set_pixel_format( MirPixelFormat const& format);
     
     ::mir::shell::SurfaceCreationParameters const& surface_parameters() const;
     UAUiWindowInputEventCb input_cb() const;
