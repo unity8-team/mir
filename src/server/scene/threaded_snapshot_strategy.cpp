@@ -75,7 +75,13 @@ public:
         wi.surface_buffer_access->with_most_recent_buffer_do(
             [this](graphics::Buffer& buffer)
             {
-                pixels->fill_from(buffer);
+                try
+                {
+                    pixels->fill_from(buffer);
+                } catch (...)
+                {
+                    // todo: log or rethrow
+                }
             });
 
 

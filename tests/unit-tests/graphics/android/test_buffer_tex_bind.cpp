@@ -360,8 +360,8 @@ TEST_F(AndroidBufferBinding, error_code_is_checked_after_bind)
     EXPECT_CALL(mock_egl, glEGLImageTargetTexture2DOES(_, _))
         .Times(1);
     EXPECT_CALL(mock_gl, glGetError())
-        .Times(1)
-        .WillOnce(Return(GL_OUT_OF_MEMORY));
+        .Times(2)
+        .WillRepeatedly(Return(GL_OUT_OF_MEMORY));
 
     mga::Buffer buffer(mock_native_buffer, extensions);
     EXPECT_THROW({

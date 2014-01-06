@@ -96,7 +96,7 @@ void mga::Buffer::bind_to_texture()
                                   native_buffer->anwb(), image_attrs);
         if (image == EGL_NO_IMAGE_KHR)
         {
-            BOOST_THROW_EXCEPTION(std::runtime_error("error binding buffer to texture\n"));
+            BOOST_THROW_EXCEPTION(std::runtime_error("error creating EGLImage from buffer\n"));
         }
         egl_image_map[disp] = image;
     }
@@ -105,8 +105,12 @@ void mga::Buffer::bind_to_texture()
         image = it->second;
     }
 
+    glGetError(); //clear error code before checking
     egl_extensions->glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, image);
-
+    if(glGetError() != GL_NO_ERROR)
+    {
+        BOOST_THROW_EXCEPTION(std::runtime_error("error binding buffer to texture\n"));
+    }
     //TODO: we should make use of the android egl fence extension here to update the fence.
     //      if the extension is not available, we should pass out a token that the user
     //      will have to keep until the completion of the gl draw

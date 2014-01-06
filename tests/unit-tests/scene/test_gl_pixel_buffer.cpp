@@ -150,7 +150,9 @@ TEST_F(GLPixelBufferTest, abort_on_bad_texture_bind)
     geom::Stride bkp_stride{4};
     unsigned int pixel_color = 0xFF33FF33;
 
-    pixels.fill_from(mock_buffer);
+    EXPECT_THROW({
+        pixels.fill_from(mock_buffer);
+    }, std::runtime_error);
     auto data = pixels.as_argb_8888();
     
     EXPECT_EQ(bkp_size, pixels.size());
@@ -177,8 +179,8 @@ TEST_F(GLPixelBufferTest, unable_to_bind_fb_results_in_dark_green_pixel)
         EXPECT_CALL(mock_gl, glGenFramebuffers(_,_))
             .WillOnce(SetArgPointee<1>(fbo));
         EXPECT_CALL(mock_gl, glBindFramebuffer(_,fbo));
-        EXPECT_CALL(mock_gl, glFramebufferTexture2D(_,_,_,_,_));
         EXPECT_CALL(mock_buffer, bind_to_texture());
+        EXPECT_CALL(mock_gl, glFramebufferTexture2D(_,_,_,_,_));
         EXPECT_CALL(mock_gl, glCheckFramebufferStatus(GL_FRAMEBUFFER))
             .Times(1)
             .WillOnce(Return(GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT));
@@ -197,7 +199,9 @@ TEST_F(GLPixelBufferTest, unable_to_bind_fb_results_in_dark_green_pixel)
     geom::Stride bkp_stride{4};
     unsigned int pixel_color = 0xFF33FF33;
 
-    pixels.fill_from(mock_buffer);
+    EXPECT_THROW({
+        pixels.fill_from(mock_buffer);
+    }, std::runtime_error);
     auto data = pixels.as_argb_8888();
 
     

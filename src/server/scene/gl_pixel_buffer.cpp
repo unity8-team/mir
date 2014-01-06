@@ -71,6 +71,16 @@ ms::GLPixelBuffer::~GLPixelBuffer() noexcept
         glDeleteFramebuffers(1, &fbo);
 }
 
+void ms::GLPixelBuffer::handle_error()
+{
+    printf("FAILURE.\n");
+    size_ = geom::Size{1,1};
+    pixels.resize(sizeof(unsigned int));
+    unsigned int* pix = reinterpret_cast<unsigned int*>(pixels.data());
+    *pix = 0xFF33FF33;
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
 void ms::GLPixelBuffer::fill_from(graphics::Buffer& buffer)
 {
     gl_context->make_current();
@@ -86,28 +96,33 @@ void ms::GLPixelBuffer::fill_from(graphics::Buffer& buffer)
 
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
-    if (GL_FRAMEBUFFER_COMPLETE != glCheckFramebufferStatus(GL_FRAMEBUFFER))
-    {
-        printf("FAILURE.\n");
-        size_ = geom::Size{1,1};
-        pixels.resize(sizeof(unsigned int));
-        unsigned int* pix = reinterpret_cast<unsigned int*>(pixels.data());
-        *pix = 0xFF33FF33;
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        return;
-    }
-
     auto width = buffer.size().width.as_uint32_t();
     auto height = buffer.size().height.as_uint32_t();
 
     pixels.resize(width * height * 4);
 
-    buffer.bind_to_texture();
+    try
+    {
+        buffer.bind_to_texture();
+    }
+    catch (std::runtime_error& e)
+    {
+        handle_error();
+        throw e;
+    }
 
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex, 0);
 
+    if ((GL_FRAMEBUFFER_COMPLETE != glCheckFramebufferStatus(GL_FRAMEBUFFER)) ||
+        (GL_NO_ERROR != glGetError()))
+        
+    {
+        handle_error();
+        BOOST_THROW_EXCEPTION(std::runtime_error(
+            "fbo is incomplete or not supported. cannot take snapshot"));
+    }
+
     /* First try to get pixels as BGRA */
-    glGetError();
     gl_pixel_format = GL_BGRA_EXT;
     glReadPixels(0, 0, width, height, gl_pixel_format, GL_UNSIGNED_BYTE, pixels.data());
 
