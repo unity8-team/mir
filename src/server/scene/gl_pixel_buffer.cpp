@@ -71,7 +71,7 @@ ms::GLPixelBuffer::~GLPixelBuffer() noexcept
         glDeleteFramebuffers(1, &fbo);
 }
 
-void ms::GLPixelBuffer::prepare()
+void ms::GLPixelBuffer::fill_from(graphics::Buffer& buffer)
 {
     gl_context->make_current();
 
@@ -85,16 +85,20 @@ void ms::GLPixelBuffer::prepare()
         glGenFramebuffers(1, &fbo);
 
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-}
 
-void ms::GLPixelBuffer::fill_from(graphics::Buffer& buffer)
-{
+    if (GL_FRAMEBUFFER_COMPLETE != glCheckFramebufferStatus(GL_FRAMEBUFFER))
+    {
+        size_ = geom::Size{1,1};
+        pixels.resize(sizeof(unsigned int));
+        unsigned int* pix = reinterpret_cast<unsigned int*>(pixels.data());
+        *pix = 0xFF33FF33;
+        return;
+    }
+
     auto width = buffer.size().width.as_uint32_t();
     auto height = buffer.size().height.as_uint32_t();
 
     pixels.resize(width * height * 4);
-
-    prepare();
 
     buffer.bind_to_texture();
 

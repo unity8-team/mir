@@ -49,7 +49,6 @@ public:
     geometry::Stride stride() const;
 
 private:
-    void prepare();
     void copy_and_convert_pixel_line(char* src, char* dst);
 
     std::unique_ptr<graphics::GLContext> const gl_context;

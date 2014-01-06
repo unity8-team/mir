@@ -138,7 +138,7 @@ TEST_F(GLPixelBufferTest, unable_to_bind_fb_results_in_dark_green_pixel)
         EXPECT_CALL(mock_gl, glFramebufferTexture2D(_,_,_,_,_))
             .Times(0);
         EXPECT_CALL(mock_gl, glReadPixels(_,_,_,_,_,_,_))
-            .Times(1);
+            .Times(0);
     }
 
     ms::GLPixelBuffer pixels{std::move(context)};
