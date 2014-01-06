@@ -88,10 +88,12 @@ void ms::GLPixelBuffer::fill_from(graphics::Buffer& buffer)
 
     if (GL_FRAMEBUFFER_COMPLETE != glCheckFramebufferStatus(GL_FRAMEBUFFER))
     {
+        printf("FAILURE.\n");
         size_ = geom::Size{1,1};
         pixels.resize(sizeof(unsigned int));
         unsigned int* pix = reinterpret_cast<unsigned int*>(pixels.data());
         *pix = 0xFF33FF33;
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
         return;
     }
 

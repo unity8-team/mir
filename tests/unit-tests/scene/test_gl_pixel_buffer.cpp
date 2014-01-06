@@ -110,6 +110,57 @@ TEST_F(GLPixelBufferTest, returns_empty_if_not_initialized)
     EXPECT_EQ(geom::Stride(), pixels.stride());
 }
 
+TEST_F(GLPixelBufferTest, abort_on_bad_texture_bind)
+{
+    using namespace testing;
+    GLuint const tex{10};
+    GLuint const fbo{20};
+    {
+        InSequence s;
+
+        /* The GL context is made current */
+        EXPECT_CALL(mock_context, make_current());
+
+        /* The texture and framebuffer are prepared */
+        EXPECT_CALL(mock_gl, glGenTextures(_,_))
+            .WillOnce(SetArgPointee<1>(tex));
+        EXPECT_CALL(mock_gl, glBindTexture(_,tex));
+        EXPECT_CALL(mock_gl, glGenFramebuffers(_,_))
+            .WillOnce(SetArgPointee<1>(fbo));
+        EXPECT_CALL(mock_gl, glBindFramebuffer(_,fbo));
+        EXPECT_CALL(mock_gl, glCheckFramebufferStatus(GL_FRAMEBUFFER))
+            .Times(1)
+            .WillOnce(Return(GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT));
+
+        EXPECT_CALL(mock_buffer, bind_to_texture())
+            .Times(1)
+            .WillOnce(Throw(std::runtime_error("bad bind.\n")));
+
+        /* recover default FB */
+        EXPECT_CALL(mock_gl, glBindFramebuffer(_,0));
+
+        /* do not call these if the bind was not okay */
+        EXPECT_CALL(mock_gl, glFramebufferTexture2D(_,_,_,_,_))
+            .Times(0);
+        EXPECT_CALL(mock_gl, glReadPixels(_,_,_,_,_,_,_))
+            .Times(0);
+    }
+
+    ms::GLPixelBuffer pixels{std::move(context)};
+
+    geom::Size bkp_size{1,1};
+    geom::Stride bkp_stride{4};
+    unsigned int pixel_color = 0xFF33FF33;
+
+    pixels.fill_from(mock_buffer);
+    auto data = pixels.as_argb_8888();
+    
+    EXPECT_EQ(bkp_size, pixels.size());
+    EXPECT_EQ(bkp_stride, pixels.stride());
+    ASSERT_NE(nullptr, data);
+    EXPECT_EQ(pixel_color, static_cast<uint32_t const*>(data)[0]);
+}
+
 TEST_F(GLPixelBufferTest, unable_to_bind_fb_results_in_dark_green_pixel)
 {
     using namespace testing;
@@ -131,6 +182,9 @@ TEST_F(GLPixelBufferTest, unable_to_bind_fb_results_in_dark_green_pixel)
         EXPECT_CALL(mock_gl, glCheckFramebufferStatus(GL_FRAMEBUFFER))
             .Times(1)
             .WillOnce(Return(GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT));
+
+        /* recover default FB */
+        EXPECT_CALL(mock_gl, glBindFramebuffer(_,0));
 
         /* do not call these if the framebuffer status is not okay */
         EXPECT_CALL(mock_buffer, bind_to_texture())
