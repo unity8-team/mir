@@ -73,11 +73,13 @@ ms::GLPixelBuffer::~GLPixelBuffer() noexcept
 
 void ms::GLPixelBuffer::handle_error()
 {
-    printf("FAILURE.\n");
-    size_ = geom::Size{1,1};
+    unsigned const int green_argb = 0xFF33FF33;
     pixels.resize(sizeof(unsigned int));
-    unsigned int* pix = reinterpret_cast<unsigned int*>(pixels.data());
-    *pix = 0xFF33FF33;
+    size_ = geom::Size{1,1};
+
+    auto pix = reinterpret_cast<unsigned int*>(pixels.data());
+    *pix = green_argb;
+
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
