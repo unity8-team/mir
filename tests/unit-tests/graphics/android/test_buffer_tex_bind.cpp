@@ -19,6 +19,7 @@
 #include "src/platform/graphics/android/buffer.h"
 #include "mir/graphics/egl_extensions.h"
 #include "mir_test_doubles/mock_egl.h"
+#include "mir_test_doubles/mock_gl.h"
 #include "mir_test_doubles/mock_fence.h"
 #include "mir_test_doubles/mock_android_native_buffer.h"
 
@@ -48,6 +49,7 @@ public:
     MirPixelFormat pf;
 
     testing::NiceMock<mtd::MockEGL> mock_egl;
+    testing::NiceMock<mtd::MockGL> mock_gl;
     std::shared_ptr<mg::EGLExtensions> extensions;
     std::shared_ptr<mtd::MockAndroidNativeBuffer> mock_native_buffer;
 };
@@ -348,4 +350,21 @@ TEST_F(AndroidBufferBinding, bind_to_texture_waits_on_fence)
 
     mga::Buffer buffer(mock_native_buffer, extensions);
     buffer.bind_to_texture();
+}
+
+
+TEST_F(AndroidBufferBinding, error_code_is_checked_after_bind)
+{
+    using namespace testing;
+
+    EXPECT_CALL(mock_egl, glEGLImageTargetTexture2DOES(_, _))
+        .Times(1);
+    EXPECT_CALL(mock_gl, glGetError())
+        .Times(1)
+        .WillOnce(Return(GL_OUT_OF_MEMORY));
+
+    mga::Buffer buffer(mock_native_buffer, extensions);
+    EXPECT_THROW({
+        buffer.bind_to_texture();
+    }, std::runtime_error);
 }

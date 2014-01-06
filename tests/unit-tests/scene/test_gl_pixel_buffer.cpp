@@ -110,6 +110,7 @@ TEST_F(GLPixelBufferTest, returns_empty_if_not_initialized)
     EXPECT_EQ(geom::Stride(), pixels.stride());
 }
 
+/* specifically, the tegra3 based N7 generates an out of memory error when binding to texture */
 TEST_F(GLPixelBufferTest, abort_on_bad_texture_bind)
 {
     using namespace testing;
@@ -128,9 +129,6 @@ TEST_F(GLPixelBufferTest, abort_on_bad_texture_bind)
         EXPECT_CALL(mock_gl, glGenFramebuffers(_,_))
             .WillOnce(SetArgPointee<1>(fbo));
         EXPECT_CALL(mock_gl, glBindFramebuffer(_,fbo));
-        EXPECT_CALL(mock_gl, glCheckFramebufferStatus(GL_FRAMEBUFFER))
-            .Times(1)
-            .WillOnce(Return(GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT));
 
         EXPECT_CALL(mock_buffer, bind_to_texture())
             .Times(1)
@@ -179,6 +177,8 @@ TEST_F(GLPixelBufferTest, unable_to_bind_fb_results_in_dark_green_pixel)
         EXPECT_CALL(mock_gl, glGenFramebuffers(_,_))
             .WillOnce(SetArgPointee<1>(fbo));
         EXPECT_CALL(mock_gl, glBindFramebuffer(_,fbo));
+        EXPECT_CALL(mock_gl, glFramebufferTexture2D(_,_,_,_,_));
+        EXPECT_CALL(mock_buffer, bind_to_texture());
         EXPECT_CALL(mock_gl, glCheckFramebufferStatus(GL_FRAMEBUFFER))
             .Times(1)
             .WillOnce(Return(GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT));
@@ -186,11 +186,7 @@ TEST_F(GLPixelBufferTest, unable_to_bind_fb_results_in_dark_green_pixel)
         /* recover default FB */
         EXPECT_CALL(mock_gl, glBindFramebuffer(_,0));
 
-        /* do not call these if the framebuffer status is not okay */
-        EXPECT_CALL(mock_buffer, bind_to_texture())
-            .Times(0);
-        EXPECT_CALL(mock_gl, glFramebufferTexture2D(_,_,_,_,_))
-            .Times(0);
+        /* do not try to read if the fbo status is not okay */
         EXPECT_CALL(mock_gl, glReadPixels(_,_,_,_,_,_,_))
             .Times(0);
     }
@@ -232,13 +228,12 @@ TEST_F(GLPixelBufferTest, returns_data_from_bgra_buffer_texture)
         EXPECT_CALL(mock_gl, glGenFramebuffers(_,_))
             .WillOnce(SetArgPointee<1>(fbo));
         EXPECT_CALL(mock_gl, glBindFramebuffer(_,fbo));
-        EXPECT_CALL(mock_gl, glCheckFramebufferStatus(GL_FRAMEBUFFER))
-            .Times(1)
-            .WillOnce(Return(GL_FRAMEBUFFER_COMPLETE));
 
         /* The buffer texture is read as BGRA */
         EXPECT_CALL(mock_buffer, bind_to_texture());
         EXPECT_CALL(mock_gl, glFramebufferTexture2D(_,_,_,tex,0));
+        EXPECT_CALL(mock_gl, glCheckFramebufferStatus(GL_FRAMEBUFFER))
+            .WillOnce(Return(GL_FRAMEBUFFER_COMPLETE));
         EXPECT_CALL(mock_gl, glReadPixels(0, 0, width, height,
                                           GL_BGRA_EXT, GL_UNSIGNED_BYTE, _))
             .WillOnce(FillPixels());
@@ -284,13 +279,14 @@ TEST_F(GLPixelBufferTest, returns_data_from_rgba_buffer_texture)
         EXPECT_CALL(mock_gl, glGenFramebuffers(_,_))
             .WillOnce(SetArgPointee<1>(fbo));
         EXPECT_CALL(mock_gl, glBindFramebuffer(_,fbo));
-        EXPECT_CALL(mock_gl, glCheckFramebufferStatus(GL_FRAMEBUFFER))
-            .Times(1)
-            .WillOnce(Return(GL_FRAMEBUFFER_COMPLETE));
 
         /* Try to read the FBO as BGRA but fail */
         EXPECT_CALL(mock_buffer, bind_to_texture());
         EXPECT_CALL(mock_gl, glFramebufferTexture2D(_,_,_,tex,0));
+        EXPECT_CALL(mock_gl, glCheckFramebufferStatus(GL_FRAMEBUFFER))
+            .Times(1)
+            .WillOnce(Return(GL_FRAMEBUFFER_COMPLETE));
+
         EXPECT_CALL(mock_gl, glGetError())
             .WillOnce(Return(GL_NO_ERROR));
         EXPECT_CALL(mock_gl, glReadPixels(0, 0, width, height,
