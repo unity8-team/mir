@@ -19,7 +19,7 @@
 #ifndef UBUNTU_APPLICATION_LIECYCLE_DELEGATE_MIR_PRIV_H_
 #define UBUNTU_APPLICATION_LIECYCLE_DELEGATE_MIR_PRIV_H_
 
-#include "mircommon/mir_toolkit/common.h"
+#include "mir_toolkit/common.h"
 
 #include <ubuntu/application/lifecycle_delegate.h>
 
