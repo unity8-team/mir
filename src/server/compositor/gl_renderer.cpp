@@ -127,7 +127,7 @@ mc::GLRenderer::GLRenderer(geom::Rectangle const& display_area) :
     transform_uniform_loc(0),
     alpha_uniform_loc(0),
     vertex_attribs_vbo(0),
-   texture(0)
+    texture(0)
 {
     GLint param = 0;
 
