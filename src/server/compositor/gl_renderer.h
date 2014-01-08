@@ -22,6 +22,7 @@
 #include "renderer.h"
 #include "mir/geometry/rectangle.h"
 #include <GLES2/gl2.h>
+#include <glm/glm.hpp>
 
 namespace mir
 {
@@ -34,7 +35,7 @@ public:
     GLRenderer(geometry::Rectangle const& display_area);
     virtual ~GLRenderer() noexcept;
 
-    void begin() const override;
+    void begin(glm::mat4 const& display_transform) const override;
     void render(CompositingCriteria const& info, graphics::Buffer& buffer) const override;
     void end() const override;
 
@@ -44,10 +45,12 @@ private:
     GLuint program;
     GLuint position_attr_loc;
     GLuint texcoord_attr_loc;
+    GLuint display_transform_uniform_loc;
     GLuint transform_uniform_loc;
     GLuint alpha_uniform_loc;
     GLuint vertex_attribs_vbo;
     GLuint texture;
+    mutable glm::mat4 display_transformation;
 };
 
 }

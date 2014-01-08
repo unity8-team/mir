@@ -126,7 +126,7 @@ mc::GLRenderer::GLRenderer(geom::Rectangle const& display_area) :
     transform_uniform_loc(0),
     alpha_uniform_loc(0),
     vertex_attribs_vbo(0),
-    texture(0)
+   texture(0)
 {
     GLint param = 0;
 
@@ -246,8 +246,8 @@ void mc::GLRenderer::render(CompositingCriteria const& criteria, mg::Buffer& buf
     }
     glActiveTexture(GL_TEXTURE0);
 
-    glUniformMatrix4fv(transform_uniform_loc, 1, GL_FALSE,
-                       glm::value_ptr(criteria.transformation()));
+    auto transform = display_transformation * criteria.transformation();
+    glUniformMatrix4fv(transform_uniform_loc, 1, GL_FALSE, glm::value_ptr(transform));
     glUniform1f(alpha_uniform_loc, criteria.alpha());
 
     /* Set up vertex attribute data */
@@ -271,8 +271,9 @@ void mc::GLRenderer::render(CompositingCriteria const& criteria, mg::Buffer& buf
     glDisableVertexAttribArray(position_attr_loc);
 }
 
-void mc::GLRenderer::begin() const
+void mc::GLRenderer::begin(glm::mat4 const& display_transform) const
 {
+    display_transformation = display_transform;
     glClear(GL_COLOR_BUFFER_BIT);
 }
 

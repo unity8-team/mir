@@ -19,6 +19,8 @@
 #ifndef MIR_COMPOSITOR_RENDERER_H_
 #define MIR_COMPOSITOR_RENDERER_H_
 
+#include <glm/glm.hpp>
+
 namespace mir
 {
 namespace graphics
@@ -34,7 +36,7 @@ class Renderer
 public:
     virtual ~Renderer() = default;
 
-    virtual void begin() const = 0;
+    virtual void begin(glm::mat4 const& display_transform = glm::mat4()) const = 0;
     virtual void render(CompositingCriteria const& info, graphics::Buffer& buffer) const = 0;
     virtual void end() const = 0;
 

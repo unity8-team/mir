@@ -329,8 +329,18 @@ void mgm::DisplayBuffer::schedule_set_crtc()
 void mgm::DisplayBuffer::orient(int degrees)
 {
     static const glm::vec3 z_axis(0.0f, 0.0f, 1.0f);
-    static const glm::vec2 y_axis(0.0f, 1.0f);
 
-    glm::vec2 up = glm::rotate(y_axis, float(degrees));
-    display_transform = glm::orientation(z_axis, glm::vec3(up, 1.0f));
+    display_transform = glm::rotate(glm::mat4(), float(degrees), z_axis);
+
+#if 0
+    fprintf(stderr, "Orient %d:\n", degrees);
+    for (int i = 0; i < 4; ++i)
+    {
+        fprintf(stderr, "[%3.1f][%3.1f][%3.1f][%3.1f]\n",
+               display_transform[i][0],
+               display_transform[i][1],
+               display_transform[i][2],
+               display_transform[i][3]);
+    }
+#endif
 }

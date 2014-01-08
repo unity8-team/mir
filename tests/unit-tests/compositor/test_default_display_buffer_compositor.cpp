@@ -108,9 +108,9 @@ struct WrappingRenderer : mc::Renderer
     {
     }
 
-    void begin() const override
+    void begin(glm::mat4 const& trans) const override
     {
-        renderer->begin();
+        renderer->begin(trans);
     }
 
     void render(mc::CompositingCriteria const& criteria, mg::Buffer& buffer) const override
@@ -250,7 +250,7 @@ TEST(DefaultDisplayBufferCompositor, bypass_skips_composition)
     renderable_vec.push_back(&small);
     renderable_vec.push_back(&fullscreen);
 
-    EXPECT_CALL(renderer_factory.mock_renderer, begin())
+    EXPECT_CALL(renderer_factory.mock_renderer, begin(_))
         .Times(0);
     EXPECT_CALL(renderer_factory.mock_renderer, render(Ref(small),_))
         .Times(0);
@@ -307,7 +307,7 @@ TEST(DefaultDisplayBufferCompositor, calls_renderer_in_sequence)
 
     EXPECT_CALL(display_buffer, make_current())
         .InSequence(render_seq);
-    EXPECT_CALL(renderer_factory.mock_renderer, begin())
+    EXPECT_CALL(renderer_factory.mock_renderer, begin(_))
         .InSequence(render_seq);
     EXPECT_CALL(renderer_factory.mock_renderer, render(Ref(big),_))
         .InSequence(render_seq);

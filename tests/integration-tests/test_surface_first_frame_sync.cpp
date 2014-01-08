@@ -96,7 +96,7 @@ public:
     {
     }
 
-    void begin() const override
+    void begin(glm::mat4 const&) const override
     {
     }
 
