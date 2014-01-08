@@ -8,14 +8,14 @@ platform-api's interface to sensor data is in the shared library
 (dlopen) loads a backend library which provides the actual implementation. By
 default this is `/system/lib/libubuntu_application_api.so` which reads sensor
 data from the Android side. For testing purposes this can be replaced with this
-`libubuntu_application_test_api.so.1` which simulates sensors and their data based
+`libubuntu_application_api_test.so.1` which simulates sensors and their data based
 on a simple text input file.
 
 Using the test sensors
 ----------------------
 Run your application under test with the environment variable
 
-    UBUNTU_PLATFORM_API_BACKEND=libubuntu_application_test_api.so.1
+    UBUNTU_PLATFORM_API_BACKEND=libubuntu_application_api_test.so.1
 
 and make sure that ld.so(8) can find it. If you don't have the library
 installed in a standard system library path, it is recommended to set
@@ -71,7 +71,7 @@ Complete example
  * Run the sensor test with it:
  
         LD_LIBRARY_PATH=obj/src/ubuntu/testbackend \
-        UBUNTU_PLATFORM_API_BACKEND=libubuntu_application_test_api.so.1 \
+        UBUNTU_PLATFORM_API_BACKEND=libubuntu_application_api_test.so.1 \
         UBUNTU_PLATFORM_API_SENSOR_TEST=/tmp/test.sensors \
         obj/src/ubuntu/hybris/tests/test_android_sensors_api
 
