@@ -24,6 +24,7 @@
 #include "mir/shell/surface.h"
 #include "mir/graphics/display.h"
 #include "mir/graphics/display_configuration.h"
+#include "mir/graphics/display_buffer.h"
 #include "mir/compositor/compositor.h"
 
 #include <linux/input.h>
@@ -162,6 +163,31 @@ bool me::WindowManager::handle(MirEvent const& event)
                 compositor->start();
             return true;
         }
+        else if ((event.key.modifiers & mir_key_modifier_alt) &&
+                 (event.key.modifiers & mir_key_modifier_ctrl))
+        {
+            int degrees = -1;
+            switch (event.key.scan_code)
+            {
+            case KEY_UP:    degrees = 0;   break;
+            case KEY_DOWN:  degrees = 180; break;
+            case KEY_LEFT:  degrees = 90;  break;
+            case KEY_RIGHT: degrees = 270; break;
+            default:        degrees = -1;  break;
+            }
+
+            if (degrees != -1)
+            {
+                display->for_each_display_buffer(
+                    [degrees](graphics::DisplayBuffer& db)
+                    {
+                        db.orient(degrees);
+                    }
+                );
+                return true;
+            }
+        }
+
     }
     else if (event.type == mir_event_type_motion &&
              focus_controller)

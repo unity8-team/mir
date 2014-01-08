@@ -58,6 +58,8 @@ public:
 
     bool can_bypass() const override;
     void post_update(std::shared_ptr<graphics::Buffer> bypass_buf) override;
+    void orient(int degrees) override;
+
     void schedule_set_crtc();
 
 private:
