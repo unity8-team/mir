@@ -14,6 +14,8 @@ set_target_properties(
 
 install(
   TARGETS ubuntu_application_test_api
-  ${INSTALL_TARGETS_DEFAULT_ARGS}
+  # this is not a development library to compile against, users should always
+  # specify the SONAME; so don't build a *.so
+  LIBRARY DESTINATION "${LIB_INSTALL_DIR}" NAMELINK_SKIP
 )
 
