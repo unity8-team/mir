@@ -232,6 +232,12 @@ void ua_ui_window_properties_set_input_cb_and_ctx(UAUiWindowProperties* u_proper
     properties->set_input_cb_and_ctx(cb, ctx);
 }
 
+void ua_ui_window_properties_set_dimensions(UAUiWindowProperties *u_properties, uint32_t width, uint32_t height)
+{
+    auto properties = uamc::WindowProperties::from_u_window_properties(u_properties);
+    properties->set_dimensions(width, height);
+}
+
 UAUiWindow* ua_ui_window_new_for_application_with_properties(UApplicationInstance* u_instance, UAUiWindowProperties* u_properties)
 {
     auto instance = uamc::Instance::from_u_application_instance(u_instance);

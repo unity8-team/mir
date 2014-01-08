@@ -51,6 +51,11 @@ void uams::WindowProperties::set_input_cb_and_ctx(UAUiWindowInputEventCb callbac
     input_ctx = ctx;
 }
 
+void uams::WindowProperties::set_dimensions(uint32_t width, uint32_t height)
+{
+    parameters = parameters.of_size(width, height);
+}
+
 void uams::WindowProperties::set_pixel_format(MirPixelFormat const& format)
 {
     parameters = parameters.of_pixel_format(format);

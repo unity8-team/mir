@@ -228,6 +228,17 @@ ua_ui_window_properties_set_input_cb_and_ctx(
     p->value->set_input_event_cb_and_ctx(cb, ctx);
 }
 
+void
+ua_ui_window_properties_set_dimensions(
+    UAUiWindowProperties *properties,
+    uint32_t width,
+    uint32_t height)
+{
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    (void) width;
+    (void) height;
+}
+
 /*
  * Session
  */

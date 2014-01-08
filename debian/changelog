@@ -1,3 +1,9 @@
+platform-api (0.20-0ubuntu1) trusty; urgency=low
+
+  * Added *_set_dimensions() function to the window properties.
+
+ -- Ricardo Mendoza <ricardo.mendoza@canonical.com>  Tue, 10 Dec 2013 23:24:57 -0500
+
 platform-api (0.19+14.04.20131128.1-0ubuntu1) trusty; urgency=low
 
   [ Kevin Gunn ]

@@ -54,6 +54,12 @@ void uamc::WindowProperties::set_input_cb_and_ctx(UAUiWindowInputEventCb callbac
     input_ctx = ctx;
 }
 
+void uamc::WindowProperties::set_dimensions(uint32_t width, uint32_t height)
+{
+    parameters.width = width;
+    parameters.height = height;
+}
+
 void uamc::WindowProperties::set_role(UAUiWindowRole role)
 {
     if (role == U_ON_SCREEN_KEYBOARD_ROLE) {
