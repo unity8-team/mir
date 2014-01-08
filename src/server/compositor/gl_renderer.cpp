@@ -38,10 +38,11 @@ const GLchar* vertex_shader_src =
     "attribute vec3 position;\n"
     "attribute vec2 texcoord;\n"
     "uniform mat4 screen_to_gl_coords;\n"
+    "uniform mat4 display_transform;\n"
     "uniform mat4 transform;\n"
     "varying vec2 v_texcoord;\n"
     "void main() {\n"
-    "   gl_Position = screen_to_gl_coords * transform * vec4(position, 1.0);\n"
+    "   gl_Position = display_transform * screen_to_gl_coords * transform * vec4(position, 1.0);\n"
     "   v_texcoord = texcoord;\n"
     "}\n"
 };
@@ -173,6 +174,7 @@ mc::GLRenderer::GLRenderer(geom::Rectangle const& display_area) :
     /* Set up program variables */
     GLint mat_loc = glGetUniformLocation(program, "screen_to_gl_coords");
     GLint tex_loc = glGetUniformLocation(program, "tex");
+    display_transform_uniform_loc = glGetUniformLocation(program, "display_transform");
     transform_uniform_loc = glGetUniformLocation(program, "transform");
     alpha_uniform_loc = glGetUniformLocation(program, "alpha");
     position_attr_loc = glGetAttribLocation(program, "position");
@@ -246,8 +248,7 @@ void mc::GLRenderer::render(CompositingCriteria const& criteria, mg::Buffer& buf
     }
     glActiveTexture(GL_TEXTURE0);
 
-    auto transform = display_transformation * criteria.transformation();
-    glUniformMatrix4fv(transform_uniform_loc, 1, GL_FALSE, glm::value_ptr(transform));
+    glUniformMatrix4fv(transform_uniform_loc, 1, GL_FALSE, glm::value_ptr(criteria.transformation()));
     glUniform1f(alpha_uniform_loc, criteria.alpha());
 
     /* Set up vertex attribute data */
@@ -273,7 +274,8 @@ void mc::GLRenderer::render(CompositingCriteria const& criteria, mg::Buffer& buf
 
 void mc::GLRenderer::begin(glm::mat4 const& display_transform) const
 {
-    display_transformation = display_transform;
+    glUniformMatrix4fv(display_transform_uniform_loc, 1, GL_FALSE,
+                       glm::value_ptr(display_transform));
     glClear(GL_COLOR_BUFFER_BIT);
 }
 
