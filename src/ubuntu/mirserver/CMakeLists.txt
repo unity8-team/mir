@@ -25,8 +25,6 @@ target_link_libraries(
 )
 
 
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/ubuntu_application_api_mirserver_priv.h DESTINATION include/ubuntu/priv/mirserver)
-
 set_target_properties(
 	ubuntu_application_api_mirserver
 	PROPERTIES
