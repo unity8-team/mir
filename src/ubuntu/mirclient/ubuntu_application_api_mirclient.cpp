@@ -93,8 +93,10 @@ UApplicationInstance* u_application_instance_new_from_description_with_options(U
     auto instance = global_mir_instance();
 
     auto id = uam::Id::from_u_application_id(u_application_description_get_application_id(description));
-    auto connect_suceeded = instance->connect(id->name);
-    assert(connect_suceeded);
+    auto connect_succeeded = instance->connect(id->name);
+
+    if (!connect_succeeded)
+        return nullptr;
 
     auto delegate = u_application_description_get_application_lifecycle_delegate(description);
     mir_connection_set_lifecycle_event_callback(instance->connection(), &dispatch_callback, delegate);
@@ -228,6 +230,12 @@ void ua_ui_window_properties_set_input_cb_and_ctx(UAUiWindowProperties* u_proper
 {
     auto properties = uamc::WindowProperties::from_u_window_properties(u_properties);
     properties->set_input_cb_and_ctx(cb, ctx);
+}
+
+void ua_ui_window_properties_set_dimensions(UAUiWindowProperties *u_properties, uint32_t width, uint32_t height)
+{
+    auto properties = uamc::WindowProperties::from_u_window_properties(u_properties);
+    properties->set_dimensions(width, height);
 }
 
 UAUiWindow* ua_ui_window_new_for_application_with_properties(UApplicationInstance* u_instance, UAUiWindowProperties* u_properties)

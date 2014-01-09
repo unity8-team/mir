@@ -22,7 +22,7 @@ namespace uaum = ubuntu::application::ui::mir;
 
 // TODO<mir>: This begs the question: Why does MirEvent exist? It's difficult to ensure this function is kept in sync 
 // at the unit test level.
-void
+bool
 uaum::event_to_ubuntu_event(MirEvent const* mir_event, Event& ubuntu_ev)
 {
     switch (mir_event->type)
@@ -40,7 +40,8 @@ uaum::event_to_ubuntu_event(MirEvent const* mir_event, Event& ubuntu_ev)
         ubuntu_ev.details.key.down_time = mir_event->key.down_time;
         ubuntu_ev.details.key.event_time = mir_event->key.event_time;
         ubuntu_ev.details.key.is_system_key = mir_event->key.is_system_key;
-        break;
+        
+        return true;
     case mir_event_type_motion:
         ubuntu_ev.type = MOTION_EVENT_TYPE;
         ubuntu_ev.device_id = mir_event->motion.device_id;
@@ -70,8 +71,8 @@ uaum::event_to_ubuntu_event(MirEvent const* mir_event, Event& ubuntu_ev)
             ubuntu_ev.details.motion.pointer_coordinates[i].pressure = mir_event->motion.pointer_coordinates[i].pressure;
             ubuntu_ev.details.motion.pointer_coordinates[i].orientation = mir_event->motion.pointer_coordinates[i].orientation;
         }
-        break;
+        return true;
     default:
-        break;
+        return false;
     }
 }

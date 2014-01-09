@@ -92,6 +92,7 @@ IMPLEMENT_VOID_FUNCTION3(ua_ui_window_properties_set_titlen, UAUiWindowPropertie
 IMPLEMENT_FUNCTION1(const char*, ua_ui_window_properties_get_title, UAUiWindowProperties*);
 IMPLEMENT_VOID_FUNCTION2(ua_ui_window_properties_set_role, UAUiWindowProperties*, UAUiWindowRole);
 IMPLEMENT_VOID_FUNCTION3(ua_ui_window_properties_set_input_cb_and_ctx, UAUiWindowProperties*, UAUiWindowInputEventCb, void*);
+IMPLEMENT_VOID_FUNCTION3(ua_ui_window_properties_set_dimensions, UAUiWindowProperties*, uint32_t, uint32_t);
 
 // UAUiWindow
 IMPLEMENT_FUNCTION2(UAUiWindow*, ua_ui_window_new_for_application_with_properties, UApplicationInstance*, UAUiWindowProperties*);

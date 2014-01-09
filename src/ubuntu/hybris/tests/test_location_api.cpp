@@ -25,12 +25,14 @@
 
 #include <signal.h>
 #include <stdio.h>
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
 
 namespace
 {
 void on_position_updated(UALocationPositionUpdate* update, void*)
 {
-    printf("%s@%d: (%f, %f, %f) \n",
+    printf("%s@%" PRIu64 ": (%f, %f, %f) \n",
            __PRETTY_FUNCTION__,
            ua_location_position_update_get_timestamp(update),
            ua_location_position_update_get_latitude_in_degree(update),
@@ -40,7 +42,7 @@ void on_position_updated(UALocationPositionUpdate* update, void*)
 
 void on_heading_updated(UALocationHeadingUpdate* update, void*)
 {
-    printf("%s@%d: %f \n",
+    printf("%s@%" PRIu64 ": %f \n",
            __PRETTY_FUNCTION__,
            ua_location_heading_update_get_timestamp(update),
            ua_location_heading_update_get_heading_in_degree(update));
@@ -48,7 +50,7 @@ void on_heading_updated(UALocationHeadingUpdate* update, void*)
 
 void on_velocity_updated(UALocationVelocityUpdate* update, void*)
 {
-    printf("%s@%d: %f \n",
+    printf("%s@%" PRIu64 ": %f \n",
            __PRETTY_FUNCTION__,
            ua_location_velocity_update_get_timestamp(update),
            ua_location_velocity_update_get_velocity_in_meters_per_second(update));

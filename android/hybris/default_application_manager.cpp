@@ -98,7 +98,10 @@ bool is_session_allowed_to_run_in_background(
 {
     ALOGI("%s: %s", __PRETTY_FUNCTION__, session->desktop_file.string());
     static const android::String8 phone_app_desktop_file("/usr/share/applications/phone-app.desktop");
-    if (session->desktop_file == phone_app_desktop_file)
+    static const android::String8 music_app_desktop_file("/usr/share/applications/music-app.desktop");
+
+    if (session->desktop_file == phone_app_desktop_file ||
+        session->desktop_file == music_app_desktop_file)
     {
         return true;
     }

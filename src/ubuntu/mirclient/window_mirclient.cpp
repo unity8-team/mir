@@ -48,9 +48,14 @@ ua_ui_window_mir_handle_event(MirSurface* surface, MirEvent const* mir_ev, void*
     (void) surface;
 
     Event ubuntu_ev;
-    uaum::event_to_ubuntu_event(mir_ev, ubuntu_ev);
-    auto mir_ctx = static_cast<uamc::InputContext*>(ctx);
-    mir_ctx->cb(mir_ctx->ctx, &ubuntu_ev);
+    auto translated_event = uaum::event_to_ubuntu_event(mir_ev, ubuntu_ev);
+    
+    // Mir sends some events such as focus gained/lost which the platform API does not represent as input events.
+    if (translated_event)
+    {
+        auto mir_ctx = static_cast<uamc::InputContext*>(ctx);
+        mir_ctx->cb(mir_ctx->ctx, &ubuntu_ev);
+    }
 }
 
 }

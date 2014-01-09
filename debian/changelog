@@ -1,3 +1,158 @@
+platform-api (0.20-0ubuntu1) trusty; urgency=low
+
+  * Added *_set_dimensions() function to the window properties.
+
+ -- Ricardo Mendoza <ricardo.mendoza@canonical.com>  Tue, 10 Dec 2013 23:24:57 -0500
+
+platform-api (0.19+14.04.20140108.1-0ubuntu1) trusty; urgency=low
+
+  [ Alexandros Frantzis ]
+  * mirclient: Initialize MirSurfaceParameters::output_id field.
+
+  [ Martin Pitt ]
+  * Fix all compiler warnings.
+
+  [ Timo Jyrinki ]
+  * bump debian version dependency for mir to 0.1.3 to force rebuild
+
+  [ Gerry Boland ]
+  * Fix FTBFS with Mir12 change - mir::geometry::PixelFormat was
+    removed, using MirPixelFormat instead. (LP: #1266674)
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 179
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Wed, 08 Jan 2014 06:17:14 +0000
+
+platform-api (0.19+14.04.20131128.1-0ubuntu1) trusty; urgency=low
+
+  [ Kevin Gunn ]
+  * update mir deb build dep to ver 0.1.2
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 174
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 28 Nov 2013 10:51:15 +0000
+
+platform-api (0.19+14.04.20131119.1-0ubuntu1) trusty; urgency=low
+
+  [ Kevin Gunn ]
+  * mir server abi break, bump build dep to 0.1.1
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 172
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Tue, 19 Nov 2013 19:16:40 +0000
+
+platform-api (0.19+14.04.20131028-0ubuntu1) trusty; urgency=low
+
+  [ Kevin Gunn ]
+  * bump mir build dep to 0.0.16.
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 170
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Mon, 28 Oct 2013 16:56:11 +0000
+
+platform-api (0.19+13.10.20131015.1-0ubuntu2) trusty; urgency=low
+
+  * No change rebuild for Boost 1.54 transition, required to drop
+    boost1.53 from main.
+
+ -- Dmitrijs Ledkovs <xnox@ubuntu.com>  Fri, 25 Oct 2013 00:06:13 +0100
+
+platform-api (0.19+13.10.20131015.1-0ubuntu1) saucy; urgency=low
+
+  [ Robert Carr ]
+  * It seems events of mir_event_type_surface may lead to passing an
+    uninitialized ubuntu event in to qtubuntu. Drop these events for
+    now.
+
+  [ Kevin Gunn ]
+  * bump mir build dep 0.0.15 & libmirserver7.
+
+  [ Alexandros Frantzis ]
+  * mirclient: Return a null UApplicationInstance* when failing to
+    connect to the mir server. (LP: #1233988)
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 167
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Tue, 15 Oct 2013 02:39:54 +0000
+
+platform-api (0.19+13.10.20131010.1-0ubuntu1) saucy; urgency=low
+
+  [ Alexandros Frantzis ]
+  * mirclient: Properly check for failed connections to the server
+    Failing to do so leads to invalid/error connections being used
+    platform-api, leading to crashes. . (LP: #1233988)
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 163
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 10 Oct 2013 20:03:35 +0000
+
+platform-api (0.19+13.10.20131009.2-0ubuntu1) saucy; urgency=low
+
+  [ Ubuntu daily release ]
+  * New rebuild forced
+
+  [ Kevin Gunn ]
+  * bump mir build dep 0.0.14.
+
+  [ Alexandros Frantzis ]
+  * mirclient: Release Window resources in the proper order Release the
+    InputContext after releasing the Surface that is using the
+    InputContext in its event callback. Otherwise we get a crash when an
+    input event comes to the Surface after the InputContext is
+    destroyed, but before the Surface itself has been destroyed. (LP:
+    #1236225)
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 161
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Wed, 09 Oct 2013 23:16:04 +0000
+
+platform-api (0.19+13.10.20131003-0ubuntu1) saucy; urgency=low
+
+  [ Kevin Gunn ]
+  * bumping mir dep debian 0.0.13, libmirserver5
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 158
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 03 Oct 2013 07:59:18 +0000
+
+platform-api (0.19+13.10.20130926.1-0ubuntu1) saucy; urgency=low
+
+  [ Kevin Gunn ]
+  * bump build dep for new mir soname in order to rebuild
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 156
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 26 Sep 2013 10:03:20 +0000
+
+platform-api (0.19+13.10.20130925.1-0ubuntu1) saucy; urgency=low
+
+  [ Ricardo Mendoza ]
+  * Make music-app not be stopped when going to the background.
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 154
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Wed, 25 Sep 2013 18:45:36 +0000
+
+platform-api (0.19+13.10.20130924-0ubuntu1) saucy; urgency=low
+
+  [ Ricardo Mendoza ]
+  * * Bump build-dep on Mir to 0.0.11.
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 152
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Tue, 24 Sep 2013 13:05:21 +0000
+
 platform-api (0.19+13.10.20130919.3-0ubuntu1) saucy; urgency=low
 
   [ Ubuntu daily release ]

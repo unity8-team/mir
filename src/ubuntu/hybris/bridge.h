@@ -22,6 +22,8 @@
 #include <assert.h>
 #include <dlfcn.h>
 #include <stddef.h>
+#include <stdlib.h>
+#include <string.h>
 
 #define HIDDEN_SYMBOL __attribute__ ((visibility ("hidden")))
 
@@ -39,19 +41,24 @@ extern void *android_dlsym(void *handle, const char *symbol);
 namespace internal
 {
 
+/* By default we load the backend from /system/lib/libubuntu_application_api.so
+ * Programs can select a different backend with $UBUNTU_PLATFORM_API_BACKEND,
+ * which either needs to be a full path or just the file name (then it will be
+ * looked up in the usual library search path, see dlopen(3)).
+ */
 struct HIDDEN_SYMBOL ToApplication
 {
     static const char* path()
     {
-        return "/system/lib/libubuntu_application_api.so";
-    }
-};
+        static const char* cache = NULL;
 
-struct HIDDEN_SYMBOL ToHardware
-{
-    static const char* path()
-    {
-        return "/system/lib/libubuntu_platform_hardware_api.so";
+        if (cache == NULL) {
+            cache = secure_getenv("UBUNTU_PLATFORM_API_BACKEND");
+            if (cache == NULL)
+                cache = "/system/lib/libubuntu_application_api.so";
+        }
+
+        return cache;
     }
 };
 
@@ -67,12 +74,23 @@ class HIDDEN_SYMBOL Bridge
 
     void* resolve_symbol(const char* symbol) const
     {
-        return android_dlsym(lib_handle, symbol);
+        return dlsym_fn(lib_handle, symbol);
     }
 
   protected:
     Bridge() : lib_handle(android_dlopen(Scope::path(), RTLD_LAZY))
     {
+        const char* path = Scope::path();
+        /* use Android dl functions for Android libs in /system/, glibc dl
+         * functions for others */
+        if (strncmp(path, "/system/", 8) == 0) {
+            lib_handle = android_dlopen(path, RTLD_LAZY);
+            dlsym_fn = android_dlsym;
+        } else {
+            lib_handle = dlopen(path, RTLD_LAZY);
+            dlsym_fn = dlsym;
+        }
+
         assert(lib_handle && "Error loading ubuntu_application_api");
     }
 
@@ -82,6 +100,7 @@ class HIDDEN_SYMBOL Bridge
     }
 
     void* lib_handle;
+    void* (*dlsym_fn) (void*, const char*);
 };
 
 }
@@ -117,10 +136,18 @@ extern "C" {
         DLSYM(&f, #symbol);                     \
         return f(_1); }
 
+// pcs attribute (calling convention) is only defined on ARM, avoid warning on
+// other platforms
+#ifdef __arm__
+#define __SF_FN_ATTR __attribute__((pcs("aapcs")))
+#else
+#define __SF_FN_ATTR
+#endif
+
 #define IMPLEMENT_SF_FUNCTION1(return_type, symbol, arg1) \
     return_type symbol(arg1 _1)                        \
     {                                                  \
-        static return_type (*f)(arg1) __attribute__((pcs("aapcs"))) = NULL; \
+        static return_type (*f)(arg1) __SF_FN_ATTR = NULL; \
         DLSYM(&f, #symbol);                     \
         return f(_1); }
 
