@@ -13,3 +13,9 @@ override_dh_auto_configure:
 
 overrid_dh_install:
 	dh_install --fail-missing
+
+override_dh_auto_test:
+ifeq (, $(findstring nocheck, $(DEB_BUILD_OPTIONS)))
+	cd obj-* && ctest --verbose
+endif
+

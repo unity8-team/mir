@@ -3,6 +3,7 @@ include_directories(
 )
 
 add_subdirectory(application)
+add_subdirectory(testbackend)
 
 set(
   UBUNTU_APPLICATION_API_LINK_LIBRARIES

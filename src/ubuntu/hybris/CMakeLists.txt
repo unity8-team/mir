@@ -27,6 +27,7 @@ target_link_libraries(
 
 target_link_libraries(
   ubuntu_platform_hardware_api
+  dl
   hybris-common
 )
 
