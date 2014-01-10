@@ -76,7 +76,7 @@ Rectangle {
 
             window.x = initialX + x - touchInitialMidPointX;
             window.y = initialY + y - touchInitialMidPointY;
-            //window.rotation = initialRotation + (Math.atan(theta) * 180 / Math.PI) - touchInitialRotation;
+            window.rotation = initialRotation + (Math.atan(theta) * 180 / Math.PI) - touchInitialRotation;
             // disabling as causes Qt5.2 renderer crash with error: ASSERT: "tl.y <= br.y" in file scenegraph/coreapi/qsgbatchrenderer_p.h, line 108
             //window.scale = initialScale + (d / touchInitialScale - 1); // this is linear scaling
             window.scale = initialScale + Math.log(d / touchInitialScale) * Math.sqrt(Math.abs(d / touchInitialScale));
