@@ -3,10 +3,7 @@ import Mir.Application 0.1
 
 Rectangle {
     id: root
-    gradient: Gradient {
-        GradientStop { position: 0.0; color: "lightsteelblue" }
-        GradientStop { position: 1.0; color: "pink" }
-    }
+    color: "orange"
 
     MultiPointTouchArea { //TODO: PinchArea might be more suitable
         anchors.fill: parent
@@ -80,9 +77,22 @@ Rectangle {
         Item {
             id: windowContainer
             anchors.fill: parent
-
-            Rectangle { width: 300; height: 400; color: "blue"; }
         }
+    }
+
+    Text {
+        text: "Hello World!"
+        font.pixelSize: 60
+        x: 10
+        y: 600
+    }
+
+    Image {
+        source: "UnityLogo.png"
+        fillMode: Image.PreserveAspectFit
+        anchors.centerIn: parent
+        width: 600
+        height: 600
     }
 
     Rectangle {
