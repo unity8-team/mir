@@ -24,7 +24,7 @@ Rectangle {
             leftMargin: margin
             rightMargin: margin
         }
-        height: 40
+        font.pixelSize: 40
     }
 
     Rectangle {
