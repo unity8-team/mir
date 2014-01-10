@@ -91,13 +91,6 @@ Rectangle {
         }
     }
 
-    Text {
-        text: "Hello World!"
-        font.pixelSize: 60
-        x: 10
-        y: 600
-    }
-
     Rectangle {
         width: 30; height: 30
         color: "green"
