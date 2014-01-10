@@ -20,7 +20,6 @@
 #define MIR_GRAPHICS_DISPLAY_BUFFER_H_
 
 #include <mir/geometry/rectangle.h>
-#include <glm/glm.hpp>
 
 #include <memory>
 
@@ -51,16 +50,17 @@ public:
     virtual bool can_bypass() const = 0;
     virtual void post_update(std::shared_ptr<Buffer> /* bypass_buf */) {}
 
-    // TODO: rethink this
-    virtual glm::mat4 const& transformation() const { return display_transform; }
-    virtual void orient(int degrees) { (void)degrees; } // TODO
+    // TODO: pure virtual?
+    virtual int orientation() const { return rotation; }
+    virtual void orient(int degrees) { rotation = degrees; }
 
 protected:
     DisplayBuffer() = default;
     DisplayBuffer(DisplayBuffer const& c) = delete;
     DisplayBuffer& operator=(DisplayBuffer const& c) = delete;
 
-    glm::mat4 display_transform;
+private:
+    int rotation = 0;
 };
 
 }

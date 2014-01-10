@@ -24,7 +24,6 @@
 
 #include <boost/throw_exception.hpp>
 #include <GLES2/gl2.h>
-#include <glm/gtx/rotate_vector.hpp>
 
 #include <stdexcept>
 
@@ -324,23 +323,4 @@ void mgm::DisplayBuffer::release_current()
 void mgm::DisplayBuffer::schedule_set_crtc()
 {
     needs_set_crtc = true;
-}
-
-void mgm::DisplayBuffer::orient(int degrees)
-{
-    static const glm::vec3 z_axis(0.0f, 0.0f, 1.0f);
-
-    display_transform = glm::rotate(glm::mat4(), float(degrees), z_axis);
-
-#if 0
-    fprintf(stderr, "Orient %d:\n", degrees);
-    for (int i = 0; i < 4; ++i)
-    {
-        fprintf(stderr, "[%3.1f][%3.1f][%3.1f][%3.1f]\n",
-               display_transform[i][0],
-               display_transform[i][1],
-               display_transform[i][2],
-               display_transform[i][3]);
-    }
-#endif
 }

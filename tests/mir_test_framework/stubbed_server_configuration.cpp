@@ -201,7 +201,7 @@ class StubGraphicPlatform : public mtd::NullPlatform
 class StubRenderer : public mc::Renderer
 {
 public:
-    void begin(glm::mat4 const&) const override
+    void begin(int) const override
     {
     }
 

@@ -25,6 +25,7 @@
 
 #include <boost/throw_exception.hpp>
 #include <stdexcept>
+#include <cmath>
 
 namespace mg = mir::graphics;
 namespace mc = mir::compositor;
@@ -239,7 +240,8 @@ void mc::GLRenderer::render(CompositingCriteria const& criteria, mg::Buffer& buf
     }
     glActiveTexture(GL_TEXTURE0);
 
-    glUniformMatrix4fv(transform_uniform_loc, 1, GL_FALSE, glm::value_ptr(criteria.transformation()));
+    glUniformMatrix4fv(transform_uniform_loc, 1, GL_FALSE,
+                       glm::value_ptr(criteria.transformation()));
     glUniform1f(alpha_uniform_loc, criteria.alpha());
 
     /* Set up vertex attribute data */
@@ -281,10 +283,16 @@ void mc::GLRenderer::render(CompositingCriteria const& criteria, mg::Buffer& buf
     glDisableVertexAttribArray(position_attr_loc);
 }
 
-void mc::GLRenderer::begin(glm::mat4 const& display_transform) const
+void mc::GLRenderer::begin(int rotation) const
 {
-    glUniformMatrix4fv(display_transform_uniform_loc, 1, GL_FALSE,
-                       glm::value_ptr(display_transform));
+    float rad = rotation * M_PI / 180.0f;
+    GLfloat cos = cosf(rad);
+    GLfloat sin = sinf(rad);
+    GLfloat rot[16] = {cos, -sin,  0.0f, 0.0f,
+                       sin,  cos,  0.0f, 0.0f,
+                       0.0f, 0.0f, 1.0f, 0.0f,
+                       0.0f, 0.0f, 0.0f, 1.0f};
+    glUniformMatrix4fv(display_transform_uniform_loc, 1, GL_TRUE, rot);
     glClear(GL_COLOR_BUFFER_BIT);
 }
 

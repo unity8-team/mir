@@ -108,9 +108,9 @@ struct WrappingRenderer : mc::Renderer
     {
     }
 
-    void begin(glm::mat4 const& trans) const override
+    void begin(int rotation) const override
     {
-        renderer->begin(trans);
+        renderer->begin(rotation);
     }
 
     void render(mc::CompositingCriteria const& criteria, mg::Buffer& buffer) const override

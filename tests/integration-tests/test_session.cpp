@@ -87,7 +87,7 @@ struct TestServerConfiguration : public mir::DefaultServerConfiguration
     {
         struct StubRenderer : public mc::Renderer
         {
-            void begin(glm::mat4 const&) const override
+            void begin(int) const override
             {
             }
             void render(mc::CompositingCriteria const&, mg::Buffer&) const override
