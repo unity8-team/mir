@@ -24,11 +24,4 @@ and then try running an application:
 $ mir_demo_client_egltriangle --desktop_file_hint=/usr/share/applications/gallery-app.desktop
 or
 $ export QT_QPA_PLATFORM=ubuntuclient
-$ qmlscene qml-demo-client/qml-demo-client.qml --desktop_file_hint=/usr/share/applications/gallery-app.desktop
-
-
-
-
-Author: Gerry Boland <gerry.boland@gmail.com>
-
-
+$ qmlscene qml-demo-client/qml-demo-client.qml --desktop_file_hint=/usr/share/click/preinstalled/com.ubuntu.calendar/0.4.172/calendar-app.desktop
