@@ -23,6 +23,8 @@
 
 #include <QSGTexture>
 
+#include <QtGui/qopengl.h>
+
 namespace mir { namespace graphics { class Buffer; }}
 
 class MirBufferSGTexture : public QSGTexture
@@ -43,6 +45,7 @@ private:
     std::shared_ptr<mir::graphics::Buffer> m_mirBuffer;
     int m_height;
     int m_width;
+    GLuint m_textureId;
 };
 
 #endif // MIRBUFFERSGTEXTURE_H

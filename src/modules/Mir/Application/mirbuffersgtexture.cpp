@@ -37,11 +37,13 @@ namespace mg = mir::geometry;
 MirBufferSGTexture::MirBufferSGTexture(std::shared_ptr<mir::graphics::Buffer> buffer)
     : QSGTexture()
     , m_mirBuffer(buffer)
+    , m_textureId(0)
 {
+    glGenTextures(1, &m_textureId);
+
     setFiltering(QSGTexture::Linear);
     setHorizontalWrapMode(QSGTexture::ClampToEdge);
     setVerticalWrapMode(QSGTexture::ClampToEdge);
-    updateBindOptions();
 
     mg::Size size = m_mirBuffer->size();
     m_height = size.height.as_int();
@@ -50,12 +52,14 @@ MirBufferSGTexture::MirBufferSGTexture(std::shared_ptr<mir::graphics::Buffer> bu
 
 MirBufferSGTexture::~MirBufferSGTexture()
 {
+    if (m_textureId) {
+        glDeleteTextures(1, &m_textureId);
+    }
 }
 
 int MirBufferSGTexture::textureId() const
 {
-    // is this needed?? Try fake value for now.
-    return 1;
+    return m_textureId;
 }
 
 QSize MirBufferSGTexture::textureSize() const
@@ -76,6 +80,8 @@ void MirBufferSGTexture::bind()
         qsg_renderer_timer.start();
 #endif
 
+    glBindTexture(GL_TEXTURE_2D, m_textureId);
+    updateBindOptions(true/* force */);
     m_mirBuffer->bind_to_texture();
 
 #if QT_VERSION >= QT_VERSION_CHECK(5, 2, 0)
