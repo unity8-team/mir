@@ -21,8 +21,10 @@
 
 #include "renderer.h"
 #include "mir/geometry/rectangle.h"
+#include "mir/graphics/buffer_id.h"
 #include <GLES2/gl2.h>
 #include <glm/glm.hpp>
+#include <unordered_map>
 
 namespace mir
 {
@@ -35,9 +37,13 @@ public:
     GLRenderer(geometry::Rectangle const& display_area);
     virtual ~GLRenderer() noexcept;
 
+    // These are called with a valid GL context:
     void begin(glm::mat4 const& display_transform) const override;
     void render(CompositingCriteria const& info, graphics::Buffer& buffer) const override;
     void end() const override;
+
+    // This is called _without_ a GL context:
+    void suspend() override;
 
 private:
     GLuint vertex_shader;
@@ -49,7 +55,17 @@ private:
     GLuint transform_uniform_loc;
     GLuint alpha_uniform_loc;
     GLuint vertex_attribs_vbo;
-    GLuint texture;
+
+    typedef CompositingCriteria const* SurfaceID;
+    struct Texture
+    {
+        GLuint id = 0;
+        graphics::BufferID origin;
+        bool used;
+    };
+    mutable std::unordered_map<SurfaceID, Texture> textures;
+    mutable bool skipped = false;
+
 };
 
 }

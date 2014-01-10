@@ -34,6 +34,7 @@ struct MockSurfaceRenderer : public compositor::Renderer
     MOCK_CONST_METHOD1(begin, void(glm::mat4 const&));
     MOCK_CONST_METHOD2(render, void(compositor::CompositingCriteria const&, graphics::Buffer&));
     MOCK_CONST_METHOD0(end, void());
+    MOCK_METHOD0(suspend, void());
 
     ~MockSurfaceRenderer() noexcept {}
 };
