@@ -5,6 +5,14 @@ Rectangle {
     id: root
     color: "orange"
 
+    Image {
+        source: "UnityLogo.png"
+        fillMode: Image.PreserveAspectFit
+        anchors.centerIn: parent
+        width: 600
+        height: 600
+    }
+
     MultiPointTouchArea { //TODO: PinchArea might be more suitable
         anchors.fill: parent
         touchPoints: [
@@ -85,14 +93,6 @@ Rectangle {
         font.pixelSize: 60
         x: 10
         y: 600
-    }
-
-    Image {
-        source: "UnityLogo.png"
-        fillMode: Image.PreserveAspectFit
-        anchors.centerIn: parent
-        width: 600
-        height: 600
     }
 
     Rectangle {
