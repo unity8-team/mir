@@ -3,7 +3,10 @@ import Mir.Application 0.1
 
 Rectangle {
     id: root
-    color: "orange"
+    gradient: Gradient {
+        GradientStop { position: 0.0; color: "lightsteelblue" }
+        GradientStop { position: 1.0; color: "pink" }
+    }
 
     Image {
         source: "UnityLogo.png"
