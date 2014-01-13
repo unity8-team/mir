@@ -35,6 +35,7 @@ struct MockSurfaceRenderer : public compositor::Renderer
     MOCK_CONST_METHOD2(render, void(compositor::CompositingCriteria const&, graphics::Buffer&));
     MOCK_CONST_METHOD0(end, void());
     MOCK_METHOD0(suspend, void());
+    MOCK_METHOD1(set_clear_color, void(Color const&));
 
     ~MockSurfaceRenderer() noexcept {}
 };

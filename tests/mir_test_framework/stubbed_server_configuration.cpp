@@ -216,6 +216,10 @@ public:
     void suspend() override
     {
     }
+
+    void set_clear_color(Color const&) override
+    {
+    }
 };
 
 class StubRendererFactory : public mc::RendererFactory

@@ -81,6 +81,7 @@ char const* const mir::ConfigurationOptions::standalone_opt              = "stan
 char const* const mir::ConfigurationOptions::frontend_threads            = "ipc-thread-pool";
 char const* const mir::ConfigurationOptions::name_opt                    = "name";
 char const* const mir::ConfigurationOptions::offscreen_opt               = "offscreen";
+char const* const mir::ConfigurationOptions::clear_color                 = "clear-color";
 
 char const* const mir::ConfigurationOptions::glog                 = "glog";
 char const* const mir::ConfigurationOptions::glog_stderrthreshold = "glog-stderrthreshold";
@@ -160,6 +161,9 @@ mir::DefaultConfigurationOptions::DefaultConfigurationOptions(int argc, char con
             "When nested, the name Mir uses when registering with the host.")
         (offscreen_opt,
             "Render to offscreen buffers instead of the real outputs.")
+        (clear_color, po::value<std::string>(),
+            "Configure which color should be used for clearing the framebuffer."
+            " [hexadecimal number 0xRRGGBBAA:default=0x000000FF")
         ("vt", po::value<int>(),
             "VT to run on or 0 to use current. [int:default=0]");
 }

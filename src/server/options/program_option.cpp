@@ -139,3 +139,4 @@ int mo::ProgramOption::get(char const* name, int default_) const
 
     return default_;
 }
+

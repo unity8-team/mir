@@ -26,6 +26,8 @@
 #include "mir/graphics/display_report.h"
 #include "mir/graphics/egl_resources.h"
 
+#include <hardware/hwcomposer_defs.h>
+
 namespace mg = mir::graphics;
 namespace mga = mir::graphics::android;
 namespace geom = mir::geometry;

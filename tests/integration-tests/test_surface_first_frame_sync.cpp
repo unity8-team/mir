@@ -64,7 +64,7 @@ public:
             {
                 display_buffer_compositor_map[&display_buffer] = db_compositor_factory->create_compositor_for(display_buffer);
             });
-}
+    }
 
     void start()
     {
@@ -97,6 +97,10 @@ public:
     }
 
     void begin() const override
+    {
+    }
+
+    void set_clear_color(Color const&) override
     {
     }
 

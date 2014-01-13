@@ -19,6 +19,8 @@
 #ifndef MIR_COMPOSITOR_RENDERER_H_
 #define MIR_COMPOSITOR_RENDERER_H_
 
+#include <tuple>
+
 namespace mir
 {
 namespace graphics
@@ -39,6 +41,9 @@ public:
     virtual void end() const = 0;
 
     virtual void suspend() = 0; // called when begin/render/end skipped
+
+    typedef std::tuple<float, float, float, float> Color;
+    virtual void set_clear_color(Color const& color) = 0;
 
 protected:
     Renderer() = default;

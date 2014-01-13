@@ -44,6 +44,8 @@ public:
     // This is called _without_ a GL context:
     void suspend() override;
 
+    void set_clear_color(Color const& color) override;
+
 private:
     GLuint vertex_shader;
     GLuint fragment_shader;
@@ -53,6 +55,7 @@ private:
     GLuint transform_uniform_loc;
     GLuint alpha_uniform_loc;
     GLuint vertex_attribs_vbo;
+    Color clear_color;
 
     typedef CompositingCriteria const* SurfaceID;
     struct Texture

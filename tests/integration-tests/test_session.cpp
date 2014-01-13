@@ -90,6 +90,11 @@ struct TestServerConfiguration : public mir::DefaultServerConfiguration
             void begin() const override
             {
             }
+
+            void set_clear_color(Color const&) override
+            {
+            }
+
             void render(mc::CompositingCriteria const&, mg::Buffer&) const override
             {
             }

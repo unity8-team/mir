@@ -76,10 +76,16 @@ void glUseProgram(GLuint program)
     global_mock_gl->glUseProgram (program);
 }
 
-void glClear (GLbitfield mask)
+void glClear(GLbitfield mask)
 {
     CHECK_GLOBAL_VOID_MOCK();
     global_mock_gl->glClear(mask);
+}
+
+void glClearColor(GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha)
+{
+    CHECK_GLOBAL_VOID_MOCK();
+    global_mock_gl->glClearColor(red, green, blue, alpha);
 }
 
 void glEnable(GLenum func)

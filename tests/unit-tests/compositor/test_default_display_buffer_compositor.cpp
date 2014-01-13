@@ -128,6 +128,11 @@ struct WrappingRenderer : mc::Renderer
         renderer->suspend();
     }
 
+    void set_clear_color(Color const& color) override
+    {
+        renderer->set_clear_color(color);
+    }
+
     mc::Renderer* const renderer;
 };
 

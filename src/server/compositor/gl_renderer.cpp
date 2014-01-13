@@ -125,7 +125,8 @@ mc::GLRenderer::GLRenderer(geom::Rectangle const& display_area) :
     texcoord_attr_loc(0),
     transform_uniform_loc(0),
     alpha_uniform_loc(0),
-    vertex_attribs_vbo(0)
+    vertex_attribs_vbo(0),
+    clear_color{0.0f,0.0f,0.0f,1.0f}
 {
     GLint param = 0;
 
@@ -282,6 +283,8 @@ void mc::GLRenderer::render(CompositingCriteria const& criteria, mg::Buffer& buf
 
 void mc::GLRenderer::begin() const
 {
+    glClearColor(std::get<0>(clear_color), std::get<1>(clear_color), std::get<2>(clear_color),
+                 std::get<3>(clear_color));
     glClear(GL_COLOR_BUFFER_BIT);
 }
 
@@ -308,4 +311,9 @@ void mc::GLRenderer::end() const
 void mc::GLRenderer::suspend()
 {
     skipped = true;
+}
+
+void mc::GLRenderer::set_clear_color(Color const& color)
+{
+    clear_color = color;
 }

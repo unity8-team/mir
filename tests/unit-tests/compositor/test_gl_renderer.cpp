@@ -465,3 +465,22 @@ TEST_F(GLRenderer, caches_and_uploads_texture_only_on_buffer_changes)
     renderer->begin();
     renderer->end();
 }
+
+TEST_F(GLRenderer, clears_with_black_by_default)
+{
+    InSequence seq;
+    EXPECT_CALL(mock_gl, glClearColor(0.0f, 0.0f, 0.0f, 1.0f));
+    EXPECT_CALL(mock_gl, glClear(_));
+
+    renderer->begin();
+}
+
+TEST_F(GLRenderer, clears_with_clear_color)
+{
+    InSequence seq;
+    EXPECT_CALL(mock_gl, glClearColor(0.8f, 0.2f, 0.4f, 1.0f));
+    EXPECT_CALL(mock_gl, glClear(_));
+
+    renderer->set_clear_color(mc::Renderer::Color{0.8f, 0.2f, 0.4f, 1.0f});
+    renderer->begin();
+}
