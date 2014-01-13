@@ -108,7 +108,7 @@ struct WrappingRenderer : mc::Renderer
     {
     }
 
-    void begin(int rotation) const override
+    void begin(float rotation) const override
     {
         renderer->begin(rotation);
     }

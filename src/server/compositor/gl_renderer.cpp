@@ -283,7 +283,7 @@ void mc::GLRenderer::render(CompositingCriteria const& criteria, mg::Buffer& buf
     glDisableVertexAttribArray(position_attr_loc);
 }
 
-void mc::GLRenderer::begin(int rotation) const
+void mc::GLRenderer::begin(float rotation) const
 {
     float rad = rotation * M_PI / 180.0f;
     GLfloat cos = cosf(rad);

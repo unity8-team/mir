@@ -96,7 +96,7 @@ public:
     {
     }
 
-    void begin(int) const override
+    void begin(float) const override
     {
     }
 
