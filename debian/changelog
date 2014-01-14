@@ -1,3 +1,19 @@
+platform-api (0.20+14.04.20140114.1-0ubuntu1) trusty; urgency=low
+
+  [ Martin Pitt ]
+  * Add backend for simulated sensor data.
+
+  [ Albert Astals ]
+  * Build fixes and typos.
+
+  [ Ricardo Mendoza ]
+  * Build fixes and typos.
+
+  [ Ubuntu daily release ]
+  * Automatic snapshot from revision 183
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Tue, 14 Jan 2014 10:37:30 +0000
+
 platform-api (0.20-0ubuntu1) trusty; urgency=low
 
   * Added *_set_dimensions() function to the window properties.
