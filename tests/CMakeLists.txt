@@ -27,6 +27,10 @@ option(MIR_ENABLE_ACCEPTANCE_TESTS "Build & run acceptance tests" ON)
 option(MIR_ENABLE_INTEGRATION_TESTS "Build & run integration tests" ON)
 option(MIR_ENABLE_UNIT_TESTS "Build & run unit tests" ON)
 
+if (MIR_ENABLE_ACCEPTANCE_TESTS)
+  pkg_check_modules(X11 REQUIRED x11)
+endif()
+
 add_subdirectory(acceptance-tests/)
 add_subdirectory(integration-tests/)
 

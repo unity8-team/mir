@@ -42,6 +42,7 @@
 #include "mir/time/high_resolution_clock.h"
 #include "mir/geometry/rectangles.h"
 #include "mir/default_configuration.h"
+#include "mir/xserver/null_server_spawner.h"
 
 #include <map>
 
@@ -248,4 +249,9 @@ std::shared_ptr<mir::ServerStatusListener> mir::DefaultServerConfiguration::the_
         {
             return std::make_shared<mir::DefaultServerStatusListener>();
         });
+}
+
+std::shared_ptr<mir::X::ServerSpawner> mir::DefaultServerConfiguration::the_xserver_spawner()
+{
+    return std::make_shared<mir::X::NullServerSpawner>();
 }
