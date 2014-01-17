@@ -22,7 +22,6 @@
 
 // Mir
 #include <mir/graphics/buffer.h>
-#include <mir/geometry/pixel_format.h>
 #include <mir/geometry/size.h>
 
 #if QT_VERSION >= QT_VERSION_CHECK(5, 2, 0)
@@ -69,7 +68,8 @@ QSize MirBufferSGTexture::textureSize() const
 
 bool MirBufferSGTexture::hasAlphaChannel() const
 {
-    return mg::has_alpha(m_mirBuffer->pixel_format());
+    return m_mirBuffer->pixel_format() == mir_pixel_format_abgr_8888
+        || m_mirBuffer->pixel_format() == mir_pixel_format_argb_8888;
 }
 
 void MirBufferSGTexture::bind()

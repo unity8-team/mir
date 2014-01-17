@@ -34,12 +34,11 @@ void Screen::readMirDisplayConfiguration(mir::graphics::DisplayConfigurationOutp
     m_physicalSize.setHeight(screen.physical_size_mm.height.as_float());
 
     // Pixel Format
-    mg::PixelFormat pixelFormat = screen.pixel_formats.at(screen.current_format_index);
-    switch(pixelFormat) {
-    case mg::PixelFormat::argb_8888:
+    switch(screen.current_format) {
+    case mir_pixel_format_argb_8888:
         m_format = QImage::Format_ARGB32;
         break;
-    case mg::PixelFormat::xrgb_8888:
+    case mir_pixel_format_xrgb_8888:
         m_format = QImage::Format_ARGB32_Premultiplied;
         break;
         // Don't think Qt supports any others (abgr_8888, xbgr_8888, bgr_888)
@@ -49,7 +48,7 @@ void Screen::readMirDisplayConfiguration(mir::graphics::DisplayConfigurationOutp
     }
 
     // Pixel depth
-    m_depth = 8 * mg::bytes_per_pixel(pixelFormat);
+    m_depth = 8 * MIR_BYTES_PER_PIXEL(screen.current_format);
 
     // Mode = Resolution & refresh rate
     mir::graphics::DisplayConfigurationMode mode = screen.modes.at(screen.current_mode_index);
