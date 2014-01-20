@@ -113,6 +113,11 @@ namespace logging
 class Logger;
 }
 
+namespace X
+{
+class ServerSpawner;
+}
+
 class DefaultServerConfiguration : public virtual ServerConfiguration, DefaultConfigurationOptions
 {
 public:
@@ -231,6 +236,12 @@ public:
     /** @} */
 
     virtual std::shared_ptr<time::Clock> the_clock();
+
+    /** @name X11 server integration - customization
+     * configurable interfaces for integration with legacy X11 apps
+     * @{ */
+    virtual std::shared_ptr<X::ServerSpawner> the_xserver_spawner();
+    /** @} */
 
 protected:
     using DefaultConfigurationOptions::the_options;

@@ -29,6 +29,7 @@ option(MIR_BUILD_UNIT_TESTS "Build unit tests" ON)
 
 if (MIR_BUILD_ACCEPTANCE_TESTS)
   add_subdirectory(acceptance-tests/)
+  pkg_check_modules(X11 REQUIRED x11)
 endif (MIR_BUILD_ACCEPTANCE_TESTS)
 
 if (MIR_BUILD_INTEGRATION_TESTS)

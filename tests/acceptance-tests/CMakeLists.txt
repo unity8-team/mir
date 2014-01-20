@@ -27,6 +27,7 @@ set(
   test_server_disconnect.cpp
   test_client_library_drm.cpp
   test_protobuf.cpp
+  test_xserver_spawner.cpp
   ${GENERATED_PROTOBUF_SRCS}
   ${GENERATED_PROTOBUF_HDRS}
 )
@@ -65,6 +66,7 @@ target_link_libraries(
   ${GMOCK_LIBRARY}
   ${GMOCK_MAIN_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT} # Link in pthread.
+  ${X11_LIBRARIES}
 )
 
 CMAKE_DEPENDENT_OPTION(

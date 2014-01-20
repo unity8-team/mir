@@ -25,6 +25,7 @@ add_subdirectory(input/)
 add_subdirectory(android_input/)
 add_subdirectory(scene/)
 add_subdirectory(draw/)
+add_subdirectory(xserver/)
 
 add_executable(mir_unit_tests ${UNIT_TEST_SOURCES})
 uses_android_input(mir_unit_tests)
@@ -38,6 +39,7 @@ target_link_libraries(
   mirdraw
   mirtestdraw
   mirlogging
+  mirxserverintegration
 
   mir-test
   mir-test-doubles
