@@ -83,8 +83,6 @@ Q_SIGNALS:
     void surfaceDestroyed();
     void surfaceFirstFrameDrawn(MirSurfaceItem *); // so MirSurfaceManager can notify QML
 
-    void textureChanged();
-
 public Q_SLOTS:
     void release(); // For QML to destroy this surface
 
@@ -105,7 +103,7 @@ private Q_SLOTS:
     void surfaceDamaged();
 
 private:
-    void updateTexture();
+    bool updateTexture();
     void ensureProvider();
 
     void setType(const Type&);
@@ -115,18 +113,16 @@ private:
     void setAttribute(const MirSurfaceAttrib, const int);
     void setSurfaceValid(const bool);
 
-    static QMutex *mutex;
+    QMutex m_mutex;
 
     std::shared_ptr<mir::shell::Surface> m_surface;
     Application* m_application;
-    bool m_damaged;
+    int m_pendingClientBuffersCount;
     bool m_firstFrameDrawn;
     unsigned long m_frameNumber;
 
-    QMirSurfaceTextureProvider *m_provider;
-    QSGMirSurfaceNode *m_node;
+    QMirSurfaceTextureProvider *m_textureProvider;
 
-    friend class QSGMirSurfaceNode;
     friend class MirSurfaceManager;
 };
 

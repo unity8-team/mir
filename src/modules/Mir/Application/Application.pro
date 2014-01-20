@@ -37,7 +37,6 @@ SOURCES += application_manager.cpp \
     taskcontroller.cpp \
     mirsurfacemanager.cpp \
     ubuntukeyboardinfo.cpp \
-    qsgmirsurfacenode.cpp \
     mirsurfaceitem.cpp \
     mirbuffersgtexture.cpp
 
@@ -52,7 +51,6 @@ HEADERS += application_manager.h \
     ubuntukeyboardinfo.h \
     /usr/include/unity/shell/application/ApplicationManagerInterface.h \
     /usr/include/unity/shell/application/ApplicationInfoInterface.h \
-    qsgmirsurfacenode.h \
     mirsurfaceitem.h \
     mirbuffersgtexture.h
 

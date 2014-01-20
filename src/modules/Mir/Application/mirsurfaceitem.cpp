@@ -13,14 +13,16 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Author: Gerry Boland <gerry.boland@canonical.com>
+ * Authors:
+ *     Daniel d'Andrada <daniel.dandrada@canonical.com>
+ *     Gerry Boland <gerry.boland@canonical.com>
+ *
  * Bits and pieces taken from the QtWayland portion of the Qt project which is
  * Copyright (C) 2012 Digia Plc and/or its subsidiary(-ies).
  */
 
 // local
 #include "debughelpers.h"
-#include "qsgmirsurfacenode.h"
 #include "mirbuffersgtexture.h"
 #include "mirsurfaceitem.h"
 #include "logging.h"
@@ -28,12 +30,12 @@
 #include "mirinputdispatcher.h"
 
 // Qt
-#include <QSGSimpleRectNode>
-#include <QSGTexture>
-#include <QSGTextureProvider>
+#include <QDebug>
 #include <QQmlEngine>
 #include <QQuickWindow>
-#include <QDebug>
+#include <QSGSimpleTextureNode>
+#include <QSGTextureProvider>
+#include <QTimer>
 
 // Mir
 #include <mir/shell/surface.h>
@@ -122,7 +124,7 @@ public:
     }
 
     bool smooth;
-    QSGTexture *t;
+    MirBufferSGTexture *t;
 
 public Q_SLOTS:
     void invalidate()
@@ -132,26 +134,18 @@ public Q_SLOTS:
     }
 };
 
-QMutex *MirSurfaceItem::mutex = nullptr;
-
-
-
 MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::shell::Surface> surface,
                                Application* application,
                                QQuickItem *parent)
     : QQuickItem(parent)
     , m_surface(surface)
     , m_application(application)
-    , m_damaged(false)
+    , m_pendingClientBuffersCount(0)
     , m_firstFrameDrawn(false)
     , m_frameNumber(0)
-    , m_provider(nullptr)
-    , m_node(nullptr)
+    , m_textureProvider(nullptr)
 {
     DLOG("MirSurfaceItem::MirSurfaceItem");
-
-    if (!mutex)
-        mutex = new QMutex;
 
     // Get new frame notifications from Mir, called from a Mir thread.
     m_surface->register_new_buffer_callback([&]() {
@@ -181,13 +175,10 @@ MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::shell::Surface> surface,
 MirSurfaceItem::~MirSurfaceItem()
 {
     DLOG("MirSurfaceItem::~MirSurfaceItem");
-    QMutexLocker locker(mutex);
-    m_damaged = false;
+    QMutexLocker locker(&m_mutex);
     m_surface->register_new_buffer_callback([]{});
-    if (m_node)
-        m_node->setItem(0);
-    if (m_provider)
-        m_provider->deleteLater();
+    if (m_textureProvider)
+        m_textureProvider->deleteLater();
 }
 
 // For QML to destroy this surface
@@ -217,18 +208,19 @@ QString MirSurfaceItem::name() const
     return QString::fromStdString(m_surface->name());
 }
 
+// Called from the rendering (scene graph) thread
 QSGTextureProvider *MirSurfaceItem::textureProvider() const
 {
     const_cast<MirSurfaceItem *>(this)->ensureProvider();
-    return m_provider;
+    return m_textureProvider;
 }
 
 void MirSurfaceItem::ensureProvider()
 {
-    if (!m_provider) {
-        m_provider = new QMirSurfaceTextureProvider();
+    if (!m_textureProvider) {
+        m_textureProvider = new QMirSurfaceTextureProvider();
         connect(window(), SIGNAL(sceneGraphInvalidated()),
-                m_provider, SLOT(invalidate()), Qt::DirectConnection);
+                m_textureProvider, SLOT(invalidate()), Qt::DirectConnection);
     }
 }
 
@@ -239,33 +231,50 @@ void MirSurfaceItem::surfaceDamaged()
         Q_EMIT surfaceFirstFrameDrawn(this);
     }
 
-    mutex->lock();
-    m_damaged = true;
-    mutex->unlock();
+    m_mutex.lock();
+    ++m_pendingClientBuffersCount;
+    m_mutex.unlock();
 
-    Q_EMIT textureChanged();
     update(); // Notifies QML engine that this needs redrawing, schedules call to updatePaintItem
 }
 
-void MirSurfaceItem::updateTexture()    // called by render thread
+bool MirSurfaceItem::updateTexture()    // called by rendering thread (scene graph)
 {
     ensureProvider();
-    QSGTexture *texture = m_provider->t;
-    if (m_damaged) { // need locking??
-        m_damaged = false;
+    bool textureIsOutdated;
+    bool textureUpdated = false;
 
-        QSGTexture *oldTexture = texture;
+    m_mutex.lock();
+    if (m_pendingClientBuffersCount > 0) {
+        textureIsOutdated = true;
+        --m_pendingClientBuffersCount;
+    }
+    m_mutex.unlock();
 
-        texture = new MirBufferSGTexture(m_surface->lock_compositor_buffer(m_frameNumber));
+    if (textureIsOutdated) {
+        if (!m_textureProvider->t) {
+            m_textureProvider->t = new MirBufferSGTexture(m_surface->lock_compositor_buffer(m_frameNumber));
+        } else {
+            // Avoid holding two buffers for the compositor at the same time. Thus free the current
+            // before acquiring the next
+            m_textureProvider->t->freeBuffer();
+            m_textureProvider->t->setBuffer(m_surface->lock_compositor_buffer(m_frameNumber));
+        }
         m_frameNumber++; //FIXME: manage overflow.
-
-        texture->bind();
-        delete oldTexture;
+        textureUpdated = true;
     }
 
-    m_provider->t = texture;
-    Q_EMIT m_provider->textureChanged();
-    m_provider->smooth = smooth();
+    m_mutex.lock();
+    textureIsOutdated = m_pendingClientBuffersCount > 0;
+    m_mutex.unlock();
+
+    if (textureIsOutdated) {
+        QTimer::singleShot(0, this, SLOT(update()));
+    }
+
+    m_textureProvider->smooth = smooth();
+
+    return textureUpdated;
 }
 
 QSGNode *MirSurfaceItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *)    // called by render thread
@@ -275,22 +284,23 @@ QSGNode *MirSurfaceItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *
         return 0;
     }
 
-    updateTexture();
-    if (!m_provider->t) {
+    bool textureUpdated = updateTexture();
+    if (!m_textureProvider->t) {
         delete oldNode;
         return 0;
     }
 
-    QSGMirSurfaceNode *node = static_cast<QSGMirSurfaceNode *>(oldNode);
-
+    QSGSimpleTextureNode *node = static_cast<QSGSimpleTextureNode*>(oldNode);
     if (!node) {
-        node = new QSGMirSurfaceNode(this);
+        node = new QSGSimpleTextureNode;
+        node->setTexture(m_textureProvider->t);
+    } else {
+        if (textureUpdated) {
+            node->markDirty(QSGNode::DirtyMaterial);
+        }
     }
 
-    node->updateTexture();
     node->setRect(0, 0, width(), height());
-
-    node->setTextureUpdated(true);
 
     return node;
 }

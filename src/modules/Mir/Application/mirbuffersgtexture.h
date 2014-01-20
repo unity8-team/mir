@@ -32,7 +32,10 @@ class MirBufferSGTexture : public QSGTexture
     Q_OBJECT
 public:
     MirBufferSGTexture(std::shared_ptr<mir::graphics::Buffer>);
-    ~MirBufferSGTexture();
+    virtual ~MirBufferSGTexture();
+
+    void setBuffer(std::shared_ptr<mir::graphics::Buffer> buffer);
+    void freeBuffer();
 
     int textureId() const override;
     QSize textureSize() const override;

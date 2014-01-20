@@ -56,6 +56,16 @@ MirBufferSGTexture::~MirBufferSGTexture()
     }
 }
 
+void MirBufferSGTexture::freeBuffer()
+{
+    m_mirBuffer.reset();
+}
+
+void MirBufferSGTexture::setBuffer(std::shared_ptr<mir::graphics::Buffer> buffer)
+{
+    m_mirBuffer = buffer;
+}
+
 int MirBufferSGTexture::textureId() const
 {
     return m_textureId;
