@@ -7,8 +7,6 @@ $ apt-get install libupstart-app-launch1-dev
 If using Qt version less than 5.2, you'll also need
 $ apt-get install libqt5v8-5-private-dev
 
-Build and install platform-api from lp:~dandrader/platform-api/set_window_dimensions
-
 To use, compile and install, run:
 
 $ export QT_QPA_PLATFORM=mirserver
