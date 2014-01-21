@@ -869,3 +869,18 @@ TEST_F(SwitchingBundleTest, compositor_acquires_resized_frames)
     }
 }
 
+TEST_F(SwitchingBundleTest, DISABLED_compositor_client_interleaved)
+{   // Regression test for LP: #1270964
+    int const nbuffers = 3;
+    mc::SwitchingBundle bundle(nbuffers, allocator, basic_properties);
+    mg::Buffer* client_buffer = nullptr;
+
+    client_buffer = bundle.client_acquire();
+    bundle.client_release(client_buffer);
+
+    client_buffer = bundle.client_acquire();
+    bundle.compositor_acquire(0);
+    bundle.client_release(client_buffer);
+
+    client_buffer = bundle.client_acquire(); // <- locks here if in buggy state
+}
