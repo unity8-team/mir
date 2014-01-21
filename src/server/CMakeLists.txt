@@ -12,6 +12,7 @@ add_subdirectory(options/)
 add_subdirectory(frontend/)
 add_subdirectory(shell/)
 add_subdirectory(time/)
+add_subdirectory(process/)
 add_subdirectory(xserver/)
 
 set(PREFIX "${CMAKE_INSTALL_PREFIX}")
@@ -57,6 +58,7 @@ list(APPEND MIRSERVER_ARCHIVES
   mirlttng
   mirnestedgraphics
   miroffscreengraphics
+  mirprocess
   mirxserverintegration
 )
 
