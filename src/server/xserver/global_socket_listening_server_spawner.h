@@ -20,6 +20,7 @@
 #define MIR_X_GLOBAL_SOCKET_LISTENING_SERVER_SPAWNER_H_
 
 #include "mir/xserver/xserver_launcher.h"
+#include "mir/process/spawner.h"
 
 #include <memory>
 
@@ -30,13 +31,17 @@ namespace X
 class GlobalSocketListeningServerContext : public ServerContext
 {
 public:
-    char const* client_connection_string() const override;
+    GlobalSocketListeningServerContext(mir::process::Spawner const& spawner);
+    std::future<char const*> client_connection_string() override;
+
+private:
+    std::promise<char const*> connection_string;
 };
 
 class GlobalSocketListeningServerSpawner : public ServerSpawner
 {
 public:
-    std::unique_ptr<ServerContext> create_server() override;
+    std::unique_ptr<ServerContext> create_server(mir::process::Spawner const& spawner) override;
 };
 
 }

@@ -19,13 +19,58 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
+#include "mir/process/spawner.h"
+
 #include "src/server/xserver/global_socket_listening_server_spawner.h"
 
-TEST(SocketListeningServerTest, CreateServerAlwaysValid)
+namespace
+{
+struct MockProcessSpawner : public mir::process::Spawner
+{
+    MOCK_CONST_METHOD1(run_from_path, std::shared_ptr<mir::process::Handle>(char const*));
+    MOCK_CONST_METHOD2(run_from_path, std::shared_ptr<mir::process::Handle>(char const*, std::initializer_list<char const*>));
+};
+
+struct SocketListeningServerTest : public testing::Test
+{
+    SocketListeningServerTest()
+    {
+        using namespace ::testing;
+        ON_CALL(spawner, run_from_path(_,_))
+            .WillByDefault(Return(std::shared_ptr<mir::process::Handle>()));
+    }
+
+    testing::NiceMock<MockProcessSpawner> spawner;
+};
+}
+
+TEST_F(SocketListeningServerTest, CreateServerAlwaysValid)
 {
     mir::X::GlobalSocketListeningServerSpawner factory;
 
-    auto server_context = factory.create_server();
+    auto server_context = factory.create_server(spawner);
+
     ASSERT_NE(server_context, nullptr);
-    EXPECT_NE(server_context->client_connection_string(), nullptr);
+    EXPECT_NE(server_context->client_connection_string().get(), nullptr);
+}
+
+TEST_F(SocketListeningServerTest, SpawnsCorrectExecutable)
+{
+    using namespace ::testing;
+    mir::X::GlobalSocketListeningServerSpawner factory;
+
+    EXPECT_CALL(spawner, run_from_path(StrEq("Xorg"), _))
+        .WillOnce(Return(std::shared_ptr<mir::process::Handle>()));
+
+    auto server_context = factory.create_server(spawner);
+    server_context->client_connection_string().get();
+}
+
+TEST_F(SocketListeningServerTest, ConnectionStringWaitsForServerStart)
+{
+    using namespace ::testing;
+    mir::X::GlobalSocketListeningServerSpawner factory;
+
+    auto server_context = factory.create_server(spawner);
+    server_context->client_connection_string().get();
 }

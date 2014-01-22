@@ -19,6 +19,7 @@
 #include "mir_test_framework/testing_server_configuration.h"
 #include "mir_test_framework/in_process_server.h"
 #include "mir/xserver/xserver_launcher.h"
+#include "src/server/process/fork_spawner.h"
 
 #include <X11/Xlib.h>
 #include <stdlib.h>
@@ -53,8 +54,8 @@ TEST_F(XserverSpawningServer, X11ClientConnects)
     // Ensure the surrounding environment doesn't mess with the test
     unsetenv("DISPLAY");
 
-    auto xserver = the_xserver_spawner()->create_server();
-    Display* disp = XOpenDisplay(xserver->client_connection_string());
+    auto xserver = the_xserver_spawner()->create_server(mir::process::ForkSpawner());
+    Display* disp = XOpenDisplay(xserver->client_connection_string().get());
 
     ASSERT_TRUE(disp != NULL);
 

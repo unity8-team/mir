@@ -20,12 +20,18 @@
 
 namespace mx = mir::X;
 
-char const* mx::GlobalSocketListeningServerContext::client_connection_string() const
+mx::GlobalSocketListeningServerContext::GlobalSocketListeningServerContext(mir::process::Spawner const& spawner)
 {
-    return "";
+    spawner.run_from_path("Xorg", {"stuff"});
+    connection_string.set_value("");
 }
 
-std::unique_ptr<mx::ServerContext> mx::GlobalSocketListeningServerSpawner::create_server()
+std::future<const char *> mx::GlobalSocketListeningServerContext::client_connection_string()
 {
-    return std::unique_ptr<mx::ServerContext> (new mx::GlobalSocketListeningServerContext);
+    return connection_string.get_future();
+}
+
+std::unique_ptr<mx::ServerContext> mx::GlobalSocketListeningServerSpawner::create_server(mir::process::Spawner const& spawner)
+{
+    return std::unique_ptr<mx::ServerContext> (new mx::GlobalSocketListeningServerContext(spawner));
 }

@@ -20,6 +20,9 @@
 #define MIR_X_XSERVER_LAUNCHER_H_
 
 #include <memory>
+#include <future>
+
+#include "mir/process/spawner.h"
 
 namespace mir
 {
@@ -31,7 +34,17 @@ class ServerContext
 public:
     virtual ~ServerContext() = default;
 
-    virtual char const* client_connection_string() const = 0;
+    /**
+     * \brief Get the XLib connection string to connect to this server
+     *
+     * This string can be passed by the client to XOpenDisplay to connect
+     * to this server instance, or set in the DISPLAY environment variable
+     * to be used as the default display.
+     *
+     * \note The server will be ready to accept connections. The server will
+     * be started, and waited for, if it is not already running.
+     */
+    virtual std::future<char const*> client_connection_string() = 0;
 };
 
 class ServerSpawner
@@ -39,7 +52,7 @@ class ServerSpawner
 public:
     virtual ~ServerSpawner() = default;
 
-    virtual std::unique_ptr<ServerContext> create_server() = 0;
+    virtual std::unique_ptr<ServerContext> create_server(mir::process::Spawner const& spawner) = 0;
 };
 }
 }
