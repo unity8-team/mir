@@ -83,7 +83,6 @@ UHardwareGps hybris_gps_instance = NULL;
 
 static void location_callback(GpsLocation* location)
 {
-    printf("%s \n", __PRETTY_FUNCTION__);
     if (!hybris_gps_instance)
         return;
 
@@ -94,7 +93,6 @@ static void location_callback(GpsLocation* location)
 
 static void status_callback(GpsStatus* status)
 {
-    printf("%s \n", __PRETTY_FUNCTION__);
     if (!hybris_gps_instance)
         return;
 
@@ -103,7 +101,6 @@ static void status_callback(GpsStatus* status)
 
 static void sv_status_callback(GpsSvStatus* sv_status)
 {
-    printf("%s \n", __PRETTY_FUNCTION__);
     if (!hybris_gps_instance)
         return;
 
@@ -114,7 +111,6 @@ static void sv_status_callback(GpsSvStatus* sv_status)
 
 static void nmea_callback(GpsUtcTime timestamp, const char* nmea, int length)
 {
-    printf("%s \n", __PRETTY_FUNCTION__);
     if (!hybris_gps_instance)
         return;
 
@@ -123,7 +119,6 @@ static void nmea_callback(GpsUtcTime timestamp, const char* nmea, int length)
 
 static void set_capabilities_callback(uint32_t capabilities)
 {
-    printf("%s \n", __PRETTY_FUNCTION__);
     if (!hybris_gps_instance)
         return;
 
@@ -132,19 +127,16 @@ static void set_capabilities_callback(uint32_t capabilities)
 
 static void acquire_wakelock_callback()
 {
-    printf("%s \n", __PRETTY_FUNCTION__);
     acquire_wake_lock(PARTIAL_WAKE_LOCK, WAKE_LOCK_NAME);
 }
 
 static void release_wakelock_callback()
 {
-    printf("%s \n", __PRETTY_FUNCTION__);
     release_wake_lock(WAKE_LOCK_NAME);
 }
 
 static void request_utc_time_callback()
 {
-    printf("%s \n", __PRETTY_FUNCTION__);
     if (!hybris_gps_instance)
         return;
 
@@ -160,7 +152,6 @@ typedef struct
 
 static void * thread_start_wrapper(void* arg)
 {
-    printf("%s \n", __PRETTY_FUNCTION__);
     FuncAndArg *func_and_arg = reinterpret_cast<FuncAndArg*>(arg);
     func_and_arg->func(func_and_arg->arg);
     delete func_and_arg;
@@ -169,7 +160,6 @@ static void * thread_start_wrapper(void* arg)
 
 static pthread_t create_thread_callback(const char* name, void (*start)(void *), void* arg)
 {
-    printf("%s: %s \n", __PRETTY_FUNCTION__, name);
     pthread_t thread;
 
     FuncAndArg *func_and_arg = new FuncAndArg;
@@ -196,7 +186,6 @@ GpsCallbacks gps_callbacks =
 
 static void xtra_download_request_callback()
 {
-    printf("%s \n", __PRETTY_FUNCTION__);
     if (hybris_gps_instance)
         hybris_gps_instance->xtra_download_request_cb(hybris_gps_instance->context);
 }
@@ -209,7 +198,6 @@ GpsXtraCallbacks gps_xtra_callbacks =
 
 static void agps_status_cb(AGpsStatus* agps_status)
 {
-    printf("%s \n", __PRETTY_FUNCTION__);
     if (!hybris_gps_instance)
         return;
 
@@ -234,7 +222,6 @@ AGpsCallbacks agps_callbacks =
 
 static void gps_ni_notify_cb(GpsNiNotification *notification)
 {
-    printf("%s \n", __PRETTY_FUNCTION__);
     if (hybris_gps_instance)
         hybris_gps_instance->gps_ni_notify_cb(
             reinterpret_cast<UHardwareGpsNiNotification*>(notification),
@@ -249,14 +236,12 @@ GpsNiCallbacks gps_ni_callbacks =
 
 static void agps_request_set_id(uint32_t flags)
 {
-    printf("%s \n", __PRETTY_FUNCTION__);
     if (hybris_gps_instance)
         hybris_gps_instance->request_setid_cb(flags, hybris_gps_instance->context);
 }
 
 static void agps_request_ref_location(uint32_t flags)
 {
-    printf("%s \n", __PRETTY_FUNCTION__);
     if (hybris_gps_instance)
         hybris_gps_instance->request_refloc_cb(flags, hybris_gps_instance->context);
 }
