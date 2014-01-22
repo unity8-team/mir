@@ -180,6 +180,37 @@ enum
     U_HARDWARE_GPS_AGPS_DATA_CONN_FAILED = 5
 };
 
+/** Flags used to specify which aiding data to delete
+    when calling delete_aiding_data(). */
+typedef uint16_t UHardwareGpsAidingData;
+
+#define U_HARDWARE_GPS_DELETE_EPHEMERIS        0x0001
+#define U_HARDWARE_GPS_DELETE_ALMANAC          0x0002
+#define U_HARDWARE_GPS_DELETE_POSITION         0x0004
+#define U_HARDWARE_GPS_DELETE_TIME             0x0008
+#define U_HARDWARE_GPS_DELETE_IONO             0x0010
+#define U_HARDWARE_GPS_DELETE_UTC              0x0020
+#define U_HARDWARE_GPS_DELETE_HEALTH           0x0040
+#define U_HARDWARE_GPS_DELETE_SVDIR            0x0080
+#define U_HARDWARE_GPS_DELETE_SVSTEER          0x0100
+#define U_HARDWARE_GPS_DELETE_SADATA           0x0200
+#define U_HARDWARE_GPS_DELETE_RTI              0x0400
+#define U_HARDWARE_GPS_DELETE_CELLDB_INFO      0x8000
+#define U_HARDWARE_GPS_DELETE_ALL              0xFFFF
+
+/** AGPS type */
+typedef uint16_t UHardwareGpsAGpsType;
+#define U_HARDWARE_GPS_AGPS_TYPE_SUPL          1
+#define U_HARDWARE_GPS_AGPS_TYPE_C2K           2
+
+/** Known types for AGps reference locations. */
+/** A GSM cell ID. */
+#define U_HARDWARE_GPS_AGPS_REF_LOCATION_TYPE_GSM_CELLID   1
+/** A UMTS cell ID. */
+#define U_HARDWARE_GPS_AGPS_REF_LOCATION_TYPE_UMTS_CELLID  2
+/** The BSSID of a visible access point. */
+#define U_HARDWARE_GPS_AGPS_REG_LOCATION_TYPE_MAC          3
+
 /** UHardwareGpsLocation has valid latitude and longitude. */
 #define U_HARDWARE_GPS_LOCATION_HAS_LAT_LONG   0x0001
 /** UHardwareGpsLocation has valid altitude. */
@@ -207,8 +238,7 @@ typedef struct
     double latitude;
     /** Represents longitude in degrees. */
     double longitude;
-    /** Represents altitude in meters above the WGS 84 reference
-     * ellipsoid. */
+    /** Represents altitude in meters above the WGS 84 reference ellipsoid. */
     double altitude;
     /** Represents speed in meters per second. */
     float speed;
@@ -280,6 +310,46 @@ typedef struct {
     uint16_t status;
     uint32_t ipaddr;
 } UHardwareGpsAGpsStatus;
+
+/** \brief Describes a cell ID as understood by the GPS chipset. */
+typedef struct
+{
+    /** One of:
+     * U_HARDWARE_GPS_AGPS_REF_LOCATION_TYPE_GSM_CELLID
+     * U_HARDWARE_GPS_AGPS_REF_LOCATION_TYPE_UMTS_CELLID
+     */
+    uint16_t type;
+    /** Mobile country code. */
+    uint16_t mcc;
+    /** Mobile network code. */
+    uint16_t mnc;
+    /** Location area code. */
+    uint16_t lac;
+    /** The actual cell id. */
+    uint32_t cid;
+} UHardwareGpsAGpsRefLocationCellID;
+
+/** \brief Describes a wifi ID as understood by the GPS chipset. */
+typedef struct
+{
+    /** The MAC address/BSSID of an AP. */
+    uint8_t mac[6];
+} UHardwareGpsAGpsRefLocationMac;
+
+/** @brief Describes a reference location, either a radio cell or a wifi. */
+typedef struct
+{
+    /** One of:
+     * U_HARDWARE_GPS_AGPS_REF_LOCATION_TYPE_GSM_CELLID
+     * U_HARDWARE_GPS_AGPS_REF_LOCATION_TYPE_UMTS_CELLID
+     * U_HARDWARE_GPS_AGPS_REG_LOCATION_TYPE_MAC
+     */
+    uint16_t type;
+    union {
+        UHardwareGpsAGpsRefLocationCellID   cellID;
+        UHardwareGpsAGpsRefLocationMac      mac;
+    } u;
+} UHardwareGpsAGpsRefLocation;
 
 /**
  * Represents an NI request
@@ -353,23 +423,18 @@ typedef void (*UHardwareGpsNmeaCallback)(int64_t timestamp, const char *nmea, in
 typedef void (*UHardwareGpsSetCapabilities)(uint32_t capabilities, void *context);
 typedef void (*UHardwareGpsRequestUtcTime)(void *context);
 
-/** Callback to request the client to download XTRA data.
- *  The client should download XTRA data and inject it by calling inject_xtra_data().
- */
+/** Callback to request the client to download XTRA data. The client should download XTRA data and inject it by calling inject_xtra_data(). */
 typedef void (*UHardwareGpsXtraDownloadRequest)(void *context);
 
-/** Callback with AGPS status information.
- */
+/** Callback with AGPS status information. */
 typedef void (*UHardwareGpsAGpsStatusCallback)(UHardwareGpsAGpsStatus *status, void *context);
 
-/** Callback with NI notification.
- */
+/** Callback with NI notification. */
 typedef void (*UHardwareGpsNiNotifyCallback)(UHardwareGpsNiNotification *notification, void *context);
 
-/*
- Callback for AGPS RIL (Radio Interface Library) set id
-*/
+/** Callback invoked by the driver to set the set id. */
 typedef void (*UHardwareGpsAGpsRilRequestSetId)(uint32_t flags, void *context);
+/** Callback invoked by the driver to request a reference location (typically cell ID). */
 typedef void (*UHardwareGpsAGpsRilRequestRefLoc)(uint32_t flags, void *context);
 
 typedef struct
@@ -409,10 +474,10 @@ u_hardware_gps_start(UHardwareGps self);
 UBUNTU_DLL_PUBLIC bool
 u_hardware_gps_stop(UHardwareGps self);
 
-/*
-    \param time NTP time, in milliseconds since Jan 1st 1970.
-    \param time_reference time from the internal clock at the moment that NTP time was taken.
-    \param uncertainty possible deviation in the time supplied (uncertainty) in milliseconds.
+/** \brief Injects a new reference time into the GPS chipset.
+ *  \param time NTP time, in milliseconds since Jan 1st 1970.
+ *  \param time_reference time from the internal clock at the moment that NTP time was taken.
+ *  \param uncertainty possible deviation in the time supplied (uncertainty) in milliseconds.
  */
 UBUNTU_DLL_PUBLIC void
 u_hardware_gps_inject_time(
@@ -421,6 +486,13 @@ u_hardware_gps_inject_time(
     int64_t time_reference,
     int uncertainty);
 
+/**
+  * \brief Injects a new reference location into the GPS chipset.
+  * \param self The instance to apply the chane to.
+  * \param latitude New coordinate, in [°].
+  * \param longitude New coordinate, [°].
+  * \param accuracy Accuracy estimate of the location, in [m].
+  */
 UBUNTU_DLL_PUBLIC void
 u_hardware_gps_inject_location(
     UHardwareGps self,
@@ -428,17 +500,75 @@ u_hardware_gps_inject_location(
     double longitude,
     float accuracy);
 
+/**
+  * \brief Informs the GPS chipset about wifi ap's or radio cells to be used in AGPS calls.
+  * \param self The instance to inform.
+  * \param location The reference location, that is a wifi ap or a radio cell.
+  * \param size_of_struct The size of the reference location struct.
+  */
+UBUNTU_DLL_PUBLIC void
+u_hardware_gps_agps_set_reference_location(
+    UHardwareGps self,
+    UHardwareGpsAGpsRefLocation *location,
+    size_t size_of_struct);
+
+/**
+  * \brief Notifies the chipset that a data connection is availble.
+  * \param self The instance to be notified.
+  * \param apn Name of the apn to be used for SUPL.
+  */
+UBUNTU_DLL_PUBLIC void
+u_hardware_gps_agps_notify_connection_is_open(
+    UHardwareGps self,
+    const char *apn);
+
+/**
+  * \brief Notifies the chipset that an AGPS data connection has been closed.
+  * \param self The instance to be notified.
+  */
+UBUNTU_DLL_PUBLIC void
+u_hardware_gps_agps_notify_connection_is_closed(
+    UHardwareGps self);
+
+/**
+  * \brief Notifies the chipset that an AGPS data connection is not available.
+  * \param self The instance to be notified.
+  */
+UBUNTU_DLL_PUBLIC void
+u_hardware_gps_agps_notify_connection_not_available(
+        UHardwareGps self);
+
+/**
+  * \brief Sets the hostname and port for the AGPS server.
+  * \param self The instance to be altered.
+  * \param type Type of the server, one of U_HARDWARE_GPS_AGPS_TYPE_SUPL or U_HARDWARE_GPS_AGPS_TYPE_C2K.
+  * \param hostname The hostname of the AGPS server.
+  * \param port The post of the AGPS server.
+  */
+UBUNTU_DLL_PUBLIC void
+u_hardware_gps_agps_set_server_for_type(
+        UHardwareGps self,
+        UHardwareGpsAGpsType type,
+        const char* hostname,
+        uint16_t port);
+
+/**
+  * \brief Requests the chipset to delete the aiding data specified in flags.
+  * \param self The instance to apply the change to.
+  * \param flags Specifies the aiding data that should be deleted.
+  */
 UBUNTU_DLL_PUBLIC void
 u_hardware_gps_delete_aiding_data(
     UHardwareGps self,
-    uint16_t flags);
+    UHardwareGpsAidingData flags);
 
-/*
-    \param mode One of the U_HARDWARE_GPS_POSITION_MODE_* values
-    \param recurrence One of the U_HARDWARE_GPS_POSITION_RECURRENCE_* values
-    \param min_interval represents the time between fixes in milliseconds.
-    \param preferred_accuracy The requested fix accuracy in meters. Can be zero.
-    \param preferred_time The requested time to first fix in milliseconds. Can be zero.
+/**
+ * \brief Sets the positioning mode of the chipset.
+ * \param mode One of the U_HARDWARE_GPS_POSITION_MODE_* values
+ * \param recurrence One of the U_HARDWARE_GPS_POSITION_RECURRENCE_* values
+ * \param min_interval represents the time between fixes in milliseconds.
+ * \param preferred_accuracy The requested fix accuracy in meters. Can be zero.
+ * \param preferred_time The requested time to first fix in milliseconds. Can be zero.
  */
 UBUNTU_DLL_PUBLIC bool
 u_hardware_gps_set_position_mode(
