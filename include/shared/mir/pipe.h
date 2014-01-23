@@ -34,6 +34,9 @@ public:
     int read_fd() const;
     int write_fd() const;
 
+    void close_read_fd();
+    void close_write_fd();
+
 private:
     Pipe(Pipe const&) = delete;
     Pipe& operator=(Pipe const&) = delete;

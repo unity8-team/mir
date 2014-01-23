@@ -45,8 +45,10 @@ mp::Pipe::Pipe(int flags)
 
 mp::Pipe::~Pipe()
 {
-    close(pipefd[0]);
-    close(pipefd[1]);
+    if (pipefd[0] != -1)
+        close(pipefd[0]);
+    if (pipefd[1] != -1)
+        close(pipefd[1]);
 }
 
 int mp::Pipe::read_fd() const
@@ -57,4 +59,16 @@ int mp::Pipe::read_fd() const
 int mp::Pipe::write_fd() const
 {
     return pipefd[1];
+}
+
+void mp::Pipe::close_read_fd()
+{
+    close(pipefd[0]);
+    pipefd[0] = -1;
+}
+
+void mp::Pipe::close_write_fd()
+{
+    close(pipefd[1]);
+    pipefd[1] = -1;
 }
