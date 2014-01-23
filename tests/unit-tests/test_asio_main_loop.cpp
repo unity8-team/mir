@@ -17,7 +17,7 @@
  */
 
 #include "mir/asio_main_loop.h"
-#include "mir_test/pipe.h"
+#include "mir/pipe.h"
 
 #include <gtest/gtest.h>
 
@@ -27,7 +27,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-namespace mt = mir::test;
+namespace mp = mir::pipe;
 
 TEST(AsioMainLoopTest, signal_handled)
 {
@@ -148,7 +148,7 @@ TEST(AsioMainLoopTest, all_registered_handlers_are_called)
 
 TEST(AsioMainLoopTest, fd_data_handled)
 {
-    mt::Pipe p;
+    mp::Pipe p;
     char const data_to_write{'a'};
     int handled_fd{0};
     char data_read{0};
@@ -173,7 +173,7 @@ TEST(AsioMainLoopTest, fd_data_handled)
 
 TEST(AsioMainLoopTest, multiple_fds_with_single_handler_handled)
 {
-    std::vector<mt::Pipe> const pipes(2);
+    std::vector<mp::Pipe> const pipes(2);
     size_t const num_elems_to_send{10};
     std::vector<int> handled_fds;
     std::vector<size_t> elems_read;
@@ -223,7 +223,7 @@ TEST(AsioMainLoopTest, multiple_fds_with_single_handler_handled)
 
 TEST(AsioMainLoopTest, multiple_fd_handlers_are_called)
 {
-    std::vector<mt::Pipe> const pipes(3);
+    std::vector<mp::Pipe> const pipes(3);
     std::vector<int> const elems_to_send{10,11,12};
     std::vector<int> handled_fds{0,0,0};
     std::vector<int> elems_read{0,0,0};

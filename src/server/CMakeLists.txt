@@ -58,6 +58,7 @@ list(APPEND MIRSERVER_ARCHIVES
   mirnestedgraphics
   miroffscreengraphics
   mirprocess
+  mirsharedpipe
 )
 
 list(APPEND MIRSERVER_LINKS
