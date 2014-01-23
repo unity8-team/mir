@@ -9,11 +9,23 @@ Rectangle {
     }
 
     Image {
+        id: unityLogo
         source: "UnityLogo.png"
         fillMode: Image.PreserveAspectFit
         anchors.centerIn: parent
         width: 600
         height: 600
+
+        RotationAnimation {
+            id: logoAnimation
+            target: unityLogo
+            from: 0
+            to: 359
+            duration: 3000
+            easing.type: Easing.Linear
+            loops: Animation.Infinite
+        }
+
     }
 
     MultiPointTouchArea { //TODO: PinchArea might be more suitable
@@ -83,6 +95,24 @@ Rectangle {
             // disabling as causes Qt5.2 renderer crash with error: ASSERT: "tl.y <= br.y" in file scenegraph/coreapi/qsgbatchrenderer_p.h, line 108
             //window.scale = initialScale + (d / touchInitialScale - 1); // this is linear scaling
             window.scale = initialScale + Math.log(d / touchInitialScale) * Math.sqrt(Math.abs(d / touchInitialScale));
+        }
+
+        MultiPointTouchArea {
+            x: unityLogo.x
+            y: unityLogo.y
+            width: unityLogo.width
+            height: unityLogo.height
+            minimumTouchPoints:1
+            maximumTouchPoints:1
+            onPressed: {
+                if (logoAnimation.paused) {
+                    logoAnimation.resume();
+                } else if (logoAnimation.running) {
+                    logoAnimation.pause();
+                } else {
+                    logoAnimation.start();
+                }
+            }
         }
 
         Item {
