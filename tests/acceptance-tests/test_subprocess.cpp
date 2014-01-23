@@ -38,11 +38,8 @@ TEST(ProcessTest, RunFromPathRunsCorrectBinary)
 {
     mir::process::ForkSpawner spawner;
 
-    auto handle = spawner.run_from_path("true");
-
-    // TODO: Remove once process::Handle waits for the process to
-    // be exec'd
-    std::this_thread::sleep_for(std::chrono::milliseconds{10});
+    auto future_handle = spawner.run_from_path("true");
+    auto handle = future_handle.get();
 
     std::stringstream stat_path;
     stat_path<<"/proc/"<<handle->pid()<<"/stat";
@@ -64,11 +61,8 @@ TEST(ProcessTest, ChildHasExpectedFDs)
     mir::process::ForkSpawner spawner;
 
     auto fd = open("/dev/null", 0);
-    auto handle = spawner.run_from_path("sleep", {"1"});
-
-    // TODO: Remove once process::Handle waits for the process to
-    // be exec'd
-    std::this_thread::sleep_for(std::chrono::milliseconds{10});
+    auto future_handle = spawner.run_from_path("sleep", {"1"});
+    auto handle = future_handle.get();
 
     std::stringstream fds_path;
     fds_path<<"/proc/"<<handle->pid()<<"/fd";
@@ -114,11 +108,8 @@ TEST(ProcessTest, ChildReceivesExpectedCmdline)
 {
     mir::process::ForkSpawner spawner;
 
-    auto handle = spawner.run_from_path("sleep", {"10"});
-
-    // TODO: Remove once process::Handle waits for the process to
-    // be exec'd
-    std::this_thread::sleep_for(std::chrono::milliseconds{10});
+    auto future_handle = spawner.run_from_path("sleep", {"10"});
+    auto handle = future_handle.get();
 
     std::stringstream cmdline_path;
     cmdline_path<<"/proc/"<<handle->pid()<<"/cmdline";

@@ -20,6 +20,7 @@
 #define MIR_PROCESS_SPAWNER_H_
 
 #include <memory>
+#include <future>
 #include <initializer_list>
 
 namespace mir
@@ -33,8 +34,8 @@ class Spawner
 {
 public:
     virtual ~Spawner() = default;
-    virtual std::shared_ptr<Handle> run_from_path(char const* binary_name) const = 0;
-    virtual std::shared_ptr<Handle> run_from_path(char const* binary_name, std::initializer_list<char const*> args) const = 0;
+    virtual std::future<std::shared_ptr<Handle>> run_from_path(char const* binary_name) const = 0;
+    virtual std::future<std::shared_ptr<Handle>> run_from_path(char const* binary_name, std::initializer_list<char const*> args) const = 0;
 };
 }
 }

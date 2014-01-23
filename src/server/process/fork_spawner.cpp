@@ -16,13 +16,15 @@
  * Authored by: Christopher James Halse Rogers <christopher.halse.rogers@canonical.com>
  */
 
-
 #include "fork_spawner.h"
 
 #include "mir/process/handle.h"
 
+#include <fcntl.h>
 #include <unistd.h>
 #include <vector>
+#include <thread>
+#include <boost/throw_exception.hpp>
 
 namespace
 {
@@ -46,20 +48,8 @@ public:
 private:
     pid_t child_pid;
 };
-}
 
-std::shared_ptr<mir::process::Handle> mir::process::ForkSpawner::run_from_path(char const* binary_name) const
-{
-    pid_t child = fork();
-
-    if (child == 0) {
-        execlp(binary_name, binary_name, static_cast<char *>(NULL));
-    }
-    return std::make_shared<PidHandle>(child);
-}
-
-std::shared_ptr<mir::process::Handle> mir::process::ForkSpawner::run_from_path(char const* binary_name, std::initializer_list<char const*> args) const
-
+static std::shared_ptr<mir::process::Handle> run(char const* binary_name, std::initializer_list<char const*> args)
 {
     pid_t child = fork();
 
@@ -71,5 +61,23 @@ std::shared_ptr<mir::process::Handle> mir::process::ForkSpawner::run_from_path(c
 
         execvp(binary_name, const_cast<char* const*>(argv.data()));
     }
+
+    // TODO: Properly sleep until the child has forked
+    // This appears to be non-trivial; is there an existing library I can borrow?
+    std::this_thread::sleep_for(std::chrono::milliseconds{10});
+
     return std::make_shared<PidHandle>(child);
+}
+
+}
+
+
+std::future<std::shared_ptr<mir::process::Handle>> mir::process::ForkSpawner::run_from_path(char const* binary_name) const
+{
+    return std::async(std::launch::async, run, binary_name, std::initializer_list<char const*>());
+}
+
+std::future<std::shared_ptr<mir::process::Handle>> mir::process::ForkSpawner::run_from_path(char const* binary_name, std::initializer_list<char const*> args) const
+{
+    return std::async(std::launch::async, run, binary_name, args);
 }
