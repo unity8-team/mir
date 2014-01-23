@@ -48,7 +48,7 @@ private:
 };
 }
 
-std::shared_ptr<mir::process::Handle> mir::process::ForkSpawner::run_from_path(char const* binary_name)
+std::shared_ptr<mir::process::Handle> mir::process::ForkSpawner::run_from_path(char const* binary_name) const
 {
     pid_t child = fork();
 
@@ -58,7 +58,7 @@ std::shared_ptr<mir::process::Handle> mir::process::ForkSpawner::run_from_path(c
     return std::make_shared<PidHandle>(child);
 }
 
-std::shared_ptr<mir::process::Handle> mir::process::ForkSpawner::run_from_path(char const* binary_name, std::initializer_list<char const*> args)
+std::shared_ptr<mir::process::Handle> mir::process::ForkSpawner::run_from_path(char const* binary_name, std::initializer_list<char const*> args) const
 
 {
     pid_t child = fork();
