@@ -19,12 +19,16 @@
 #include "fork_spawner.h"
 
 #include "mir/process/handle.h"
+#include "mir/pipe.h"
 
 #include <fcntl.h>
 #include <unistd.h>
+#include <errno.h>
 #include <vector>
 #include <thread>
+#include <string>
 #include <boost/throw_exception.hpp>
+#include <boost/exception/errinfo_errno.hpp>
 
 namespace
 {
@@ -51,20 +55,35 @@ private:
 
 static std::shared_ptr<mir::process::Handle> run(char const* binary_name, std::initializer_list<char const*> args)
 {
+    mir::pipe::Pipe error_pipe(O_CLOEXEC);
     pid_t child = fork();
 
     if (child == 0) {
+        error_pipe.close_read_fd();
+
         std::vector<char const*> argv;
         argv.push_back(binary_name);
         argv.insert(argv.end(), args);
         argv.push_back(nullptr);
 
         execvp(binary_name, const_cast<char* const*>(argv.data()));
+        // We can only get here by failing to exec
+        write(error_pipe.write_fd(), &errno, sizeof errno);
     }
 
-    // TODO: Properly sleep until the child has forked
-    // This appears to be non-trivial; is there an existing library I can borrow?
-    std::this_thread::sleep_for(std::chrono::milliseconds{10});
+    error_pipe.close_write_fd();
+    error_t error = 0;
+    if (read(error_pipe.read_fd(), &error, sizeof error) == -1)
+        BOOST_THROW_EXCEPTION(
+            boost::enable_error_info(std::runtime_error("Failed to read from pipe"))
+            << boost::errinfo_errno(errno));
+
+    if (error != 0)
+        BOOST_THROW_EXCEPTION(
+            boost::enable_error_info(
+                std::runtime_error(std::string("Failed to execute process: ") +
+                                   binary_name))
+            << boost::errinfo_errno(errno));
 
     return std::make_shared<PidHandle>(child);
 }

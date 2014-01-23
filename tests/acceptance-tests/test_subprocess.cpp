@@ -123,3 +123,12 @@ TEST(ProcessTest, ChildReceivesExpectedCmdline)
     EXPECT_STREQ("sleep", buffer);
     EXPECT_STREQ("10", buffer + 6);
 }
+
+TEST(ProcessTest, SpawningNonExistentBinaryThrows)
+{
+    mir::process::ForkSpawner spawner;
+
+    auto future_handle = spawner.run_from_path("I'm a binary that almost certainly doesn't exist");
+
+    EXPECT_THROW(future_handle.get(), std::runtime_error);
+}
