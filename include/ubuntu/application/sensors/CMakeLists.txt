@@ -3,6 +3,7 @@ set(
   accelerometer.h
   light.h
   proximity.h
+  haptic.h
   ubuntu_application_sensors.h
 )
 
