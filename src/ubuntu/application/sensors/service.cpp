@@ -71,7 +71,7 @@ ua_sensors_haptic_vibrate_with_pattern(
 {
     auto s = static_cast<Holder<UbuntuApplicationSensorsHaptic*>*>(sensor);
 
-    std::vector<uint32_t> args (pattern, pattern + sizeof(pattern) / sizeof(uint32_t) );
+    std::vector<uint32_t> args (pattern, pattern + MAX_PATTERN_SIZE);
 
     //s->value->session->invoke_method_synchronously<uas::HapticService::Vibrate, void>(args, repeat);
     s->value->session->invoke_method_synchronously<uas::HapticService::VibratePattern, void>(args);
