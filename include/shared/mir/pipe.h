@@ -28,6 +28,7 @@ class Pipe
 {
 public:
     Pipe();
+    Pipe(int flags);
     ~Pipe();
 
     int read_fd() const;

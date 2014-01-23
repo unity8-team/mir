@@ -23,13 +23,19 @@
 
 #include <stdexcept>
 
+#include <fcntl.h>
 #include <unistd.h>
 
 namespace mp = mir::pipe;
 
 mp::Pipe::Pipe()
+    : Pipe(0)
 {
-    if (::pipe(pipefd))
+}
+
+mp::Pipe::Pipe(int flags)
+{
+    if (::pipe2(pipefd, flags))
     {
         BOOST_THROW_EXCEPTION(
             boost::enable_error_info(std::runtime_error("Failed to create pipe"))
