@@ -29,6 +29,7 @@
 #include <vector>
 #include <thread>
 #include <string>
+#include <set>
 #include <boost/throw_exception.hpp>
 #include <boost/exception/errinfo_errno.hpp>
 
@@ -63,9 +64,9 @@ static std::vector<int> open_fds()
                                                   { process_fds_dir = opendir("/proc/self/fd"); },
                                                   [&process_fds_dir]
                                                   {
-                                                      if (process_fds_dir != nullptr)
-                                                          closedir(process_fds_dir);
-                                                  });
+        if (process_fds_dir != nullptr)
+            closedir(process_fds_dir);
+    });
 
     if (process_fds_dir == nullptr)
         BOOST_THROW_EXCEPTION(boost::enable_error_info(std::runtime_error("Failed to open process fds directory"))
@@ -80,7 +81,7 @@ static std::vector<int> open_fds()
             continue;
 
         int fd;
-        char *conversion_end;
+        char* conversion_end;
         fd = strtol(entry->d_name, &conversion_end, 10);
 
         if (*conversion_end != '\0' || conversion_end == entry->d_name)
@@ -96,20 +97,27 @@ static std::vector<int> open_fds()
     return fds;
 }
 
-static std::shared_ptr<mir::process::Handle> run(char const* binary_name, std::initializer_list<char const*> args)
+static std::shared_ptr<mir::process::Handle> run(char const* binary_name,
+                                                 std::initializer_list<char const*> args,
+                                                 std::initializer_list<int> fds)
 {
     mir::pipe::Pipe error_pipe(O_CLOEXEC);
     pid_t child = fork();
 
     if (child == 0)
     {
+        std::set<int> precious_fds{fds};
+        // Don't close stdin, stdout, or stderr
+        precious_fds.insert({0, 1, 2});
+        // Don't close our cross-process pipe, we need it and know it's CLOEXEC
+        precious_fds.insert(error_pipe.write_fd());
+
         error_pipe.close_read_fd();
 
-        for(auto fd : open_fds())
+        for (auto fd : open_fds())
         {
-            // We don't want to close stdin, stdout, stderr, or our cross-process pipe
-            if (fd >= 3 && fd != error_pipe.write_fd())
-                close (fd);
+            if (precious_fds.count(fd) == 0)
+                close(fd);
         }
 
         std::vector<char const*> argv;
@@ -140,11 +148,18 @@ static std::shared_ptr<mir::process::Handle> run(char const* binary_name, std::i
 std::future<std::shared_ptr<mir::process::Handle>> mir::process::ForkSpawner::run_from_path(char const* binary_name)
     const
 {
-    return std::async(std::launch::async, run, binary_name, std::initializer_list<char const*>());
+    return std::async(
+        std::launch::async, run, binary_name, std::initializer_list<char const*>(), std::initializer_list<int>());
 }
 
 std::future<std::shared_ptr<mir::process::Handle>> mir::process::ForkSpawner::run_from_path(
     char const* binary_name, std::initializer_list<char const*> args) const
 {
-    return std::async(std::launch::async, run, binary_name, args);
+    return std::async(std::launch::async, run, binary_name, args, std::initializer_list<int>());
+}
+
+std::future<std::shared_ptr<mir::process::Handle>> mir::process::ForkSpawner::run_from_path(
+    char const* binary_name, std::initializer_list<char const*> args, std::initializer_list<int> fds) const
+{
+    return std::async(std::launch::async, run, binary_name, args, fds);
 }

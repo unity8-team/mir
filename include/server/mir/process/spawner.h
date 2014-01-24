@@ -36,6 +36,7 @@ public:
     virtual ~Spawner() = default;
     virtual std::future<std::shared_ptr<Handle>> run_from_path(char const* binary_name) const = 0;
     virtual std::future<std::shared_ptr<Handle>> run_from_path(char const* binary_name, std::initializer_list<char const*> args) const = 0;
+    virtual std::future<std::shared_ptr<Handle>> run_from_path(char const* binary_name, std::initializer_list<char const*> args, std::initializer_list<int> fds) const = 0;
 };
 }
 }
