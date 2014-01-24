@@ -60,9 +60,12 @@ TEST(ProcessTest, ChildHasExpectedFDs)
 {
     mir::process::ForkSpawner spawner;
 
-    auto fd = open("/dev/null", 0);
+    auto fd = open("/dev/null", O_RDONLY);
     auto future_handle = spawner.run_from_path("sleep", {"1"});
     auto handle = future_handle.get();
+
+    // TODO: Why is this racy?
+    std::this_thread::sleep_for(std::chrono::milliseconds{1});
 
     std::stringstream fds_path;
     fds_path<<"/proc/"<<handle->pid()<<"/fd";
@@ -94,7 +97,7 @@ TEST(ProcessTest, ChildHasExpectedFDs)
         }
         else
         {
-            FAIL() << "Unexpected fd: " << entry->d_name << std::endl;
+            ADD_FAILURE() << "Unexpected fd: " << entry->d_name << std::endl;
         }
     }
     EXPECT_TRUE(found_stdin);
