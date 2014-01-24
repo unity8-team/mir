@@ -16,6 +16,8 @@
  * Authored by: Christopher James Halse Rogers <christopher.halse.rogers@canonical.com>
  */
 
+#include <future>
+
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
@@ -27,8 +29,32 @@ namespace
 {
 struct MockProcessSpawner : public mir::process::Spawner
 {
-    MOCK_CONST_METHOD1(run_from_path, std::shared_ptr<mir::process::Handle>(char const*));
-    MOCK_CONST_METHOD2(run_from_path, std::shared_ptr<mir::process::Handle>(char const*, std::initializer_list<char const*>));
+    MOCK_CONST_METHOD3(run, std::shared_ptr<mir::process::Handle>(char const*, std::initializer_list<char const*>,
+                                                                  std::initializer_list<int>));
+
+    std::future<std::shared_ptr<mir::process::Handle>> run_from_path(char const* binary) const override
+    {
+        std::promise<std::shared_ptr<mir::process::Handle>> dummy_promise;
+        dummy_promise.set_value(run(binary, std::initializer_list<char const*>(), std::initializer_list<int>()));
+        return dummy_promise.get_future();
+    }
+    std::future<std::shared_ptr<mir::process::Handle>> run_from_path(char const* binary,
+                                                                     std::initializer_list<char const*> args) const
+        override
+    {
+        std::promise<std::shared_ptr<mir::process::Handle>> dummy_promise;
+        dummy_promise.set_value(run(binary, args, std::initializer_list<int>()));
+        return dummy_promise.get_future();
+    }
+
+    std::future<std::shared_ptr<mir::process::Handle>> run_from_path(char const* binary,
+                                                                     std::initializer_list<char const*> args,
+                                                                     std::initializer_list<int> fds) const override
+    {
+        std::promise<std::shared_ptr<mir::process::Handle>> dummy_promise;
+        dummy_promise.set_value(run(binary, args, fds));
+        return dummy_promise.get_future();
+    }
 };
 
 struct SocketListeningServerTest : public testing::Test
@@ -36,8 +62,7 @@ struct SocketListeningServerTest : public testing::Test
     SocketListeningServerTest()
     {
         using namespace ::testing;
-        ON_CALL(spawner, run_from_path(_,_))
-            .WillByDefault(Return(std::shared_ptr<mir::process::Handle>()));
+        ON_CALL(spawner, run(_, _, _)).WillByDefault(Return(std::shared_ptr<mir::process::Handle>()));
     }
 
     testing::NiceMock<MockProcessSpawner> spawner;
@@ -59,7 +84,7 @@ TEST_F(SocketListeningServerTest, SpawnsCorrectExecutable)
     using namespace ::testing;
     mir::X::GlobalSocketListeningServerSpawner factory;
 
-    EXPECT_CALL(spawner, run_from_path(StrEq("Xorg"), _))
+    EXPECT_CALL(spawner, run(StrEq("Xorg"), _, _))
         .WillOnce(Return(std::shared_ptr<mir::process::Handle>()));
 
     auto server_context = factory.create_server(spawner);

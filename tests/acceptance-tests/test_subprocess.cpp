@@ -38,21 +38,19 @@ TEST(ProcessTest, RunFromPathRunsCorrectBinary)
 {
     mir::process::ForkSpawner spawner;
 
-    auto handle = spawner.run_from_path("true");
-
-    // TODO: Remove once process::Handle waits for the process to
-    // be exec'd
-    std::this_thread::sleep_for(std::chrono::milliseconds{10});
+    auto future_handle = spawner.run_from_path("true");
+    auto handle = future_handle.get();
 
     std::stringstream stat_path;
-    stat_path<<"/proc/"<<handle->pid()<<"/stat";
+    stat_path << "/proc/" << handle->pid() << "/stat";
 
     std::ifstream status{stat_path.str()};
 
     char binary_name[PATH_MAX];
 
     // Read up to the initial '('
-    while (status.good() && !status.eof() && (status.get() != '('));
+    while (status.good() && !status.eof() && (status.get() != '('))
+        ;
 
     status.getline(binary_name, sizeof(binary_name), ')');
 
@@ -63,27 +61,26 @@ TEST(ProcessTest, ChildHasExpectedFDs)
 {
     mir::process::ForkSpawner spawner;
 
-    auto fd = open("/dev/null", 0);
-    auto handle = spawner.run_from_path("sleep", {"1"});
+    auto fd = open("/dev/null", O_RDONLY);
+    auto future_handle = spawner.run_from_path("sleep", {"1"});
+    auto handle = future_handle.get();
 
-    // TODO: Remove once process::Handle waits for the process to
-    // be exec'd
-    std::this_thread::sleep_for(std::chrono::milliseconds{10});
+    // TODO: Why is this racy?
+    std::this_thread::sleep_for(std::chrono::milliseconds{1});
 
     std::stringstream fds_path;
-    fds_path<<"/proc/"<<handle->pid()<<"/fd";
+    fds_path << "/proc/" << handle->pid() << "/fd";
 
     bool found_stdin = false, found_stdout = false, found_stderr = false;
 
     DIR* process_fds_dir = opendir(fds_path.str().c_str());
-    ASSERT_NE(process_fds_dir, nullptr)
-        <<"Error opening "<<fds_path.str()<<": "<<strerror(errno)<<" ("<<errno<<")"<< std::endl;
+    ASSERT_NE(process_fds_dir, nullptr) << "Error opening " << fds_path.str() << ": " << strerror(errno) << " ("
+                                        << errno << ")" << std::endl;
     struct dirent* entry;
     while ((entry = readdir(process_fds_dir)) != nullptr)
     {
         // We don't care about directory links
-        if (strcmp(entry->d_name, ".") == 0 ||
-            strcmp(entry->d_name, "..") == 0)
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
             continue;
 
         if (strcmp(entry->d_name, "0") == 0)
@@ -100,7 +97,7 @@ TEST(ProcessTest, ChildHasExpectedFDs)
         }
         else
         {
-            FAIL() << "Unexpected fd: " << entry->d_name << std::endl;
+            ADD_FAILURE() << "Unexpected fd: " << entry->d_name << std::endl;
         }
     }
     EXPECT_TRUE(found_stdin);
@@ -114,14 +111,11 @@ TEST(ProcessTest, ChildReceivesExpectedCmdline)
 {
     mir::process::ForkSpawner spawner;
 
-    auto handle = spawner.run_from_path("sleep", {"10"});
-
-    // TODO: Remove once process::Handle waits for the process to
-    // be exec'd
-    std::this_thread::sleep_for(std::chrono::milliseconds{10});
+    auto future_handle = spawner.run_from_path("sleep", {"10"});
+    auto handle = future_handle.get();
 
     std::stringstream cmdline_path;
-    cmdline_path<<"/proc/"<<handle->pid()<<"/cmdline";
+    cmdline_path << "/proc/" << handle->pid() << "/cmdline";
 
     std::ifstream cmdline{cmdline_path.str()};
 
@@ -131,4 +125,42 @@ TEST(ProcessTest, ChildReceivesExpectedCmdline)
 
     EXPECT_STREQ("sleep", buffer);
     EXPECT_STREQ("10", buffer + 6);
+}
+
+TEST(ProcessTest, SpawningNonExistentBinaryThrows)
+{
+    mir::process::ForkSpawner spawner;
+
+    auto future_handle = spawner.run_from_path("I'm a binary that almost certainly doesn't exist");
+
+    EXPECT_THROW(future_handle.get(), std::runtime_error);
+}
+
+TEST(ProcessTest, ChildRetainsSetFDs)
+{
+    mir::process::ForkSpawner spawner;
+
+    auto fd = open("/dev/null", 0);
+    auto future_handle = spawner.run_from_path("sleep", {"1"}, {fd});
+    auto handle = future_handle.get();
+
+    // TODO: Why is this racy?
+
+    std::stringstream fds_path;
+    fds_path << "/proc/" << handle->pid() << "/fd";
+
+    bool found_our_fd = false;
+
+    DIR* process_fds_dir = opendir(fds_path.str().c_str());
+    ASSERT_NE(process_fds_dir, nullptr) << "Error opening " << fds_path.str() << ": " << strerror(errno) << " ("
+                                        << errno << ")" << std::endl;
+    struct dirent* entry;
+    while ((entry = readdir(process_fds_dir)) != nullptr)
+    {
+        if (atoi(entry->d_name) == fd)
+            found_our_fd = true;
+    }
+    EXPECT_TRUE(found_our_fd);
+    closedir(process_fds_dir);
+    close(fd);
 }

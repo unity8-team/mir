@@ -20,6 +20,7 @@
 #define MIR_PROCESS_SPAWNER_H_
 
 #include <memory>
+#include <future>
 #include <initializer_list>
 
 namespace mir
@@ -33,8 +34,49 @@ class Spawner
 {
 public:
     virtual ~Spawner() = default;
-    virtual std::shared_ptr<Handle> run_from_path(char const* binary_name) = 0;
-    virtual std::shared_ptr<Handle> run_from_path(char const* binary_name, std::initializer_list<char const*> args) = 0;
+    /**
+     * \brief Run a binary, respecting $PATH
+     * \note All open file descriptors other than stdin, stdout, and stderr are closed before
+     *       running the binary.
+     * \param [in] binary_name  The name of the binary to run, such as “Xorg”
+     * \return                  A future that will contain the handle to the spawned process.
+     *                          The future will be populated after the process has been exec()d,
+     *                          or the call to exec() has failed.
+     *                          If spawning the binary fails the future will contain a
+     *                          std::runtime_error.
+     */
+    virtual std::future<std::shared_ptr<Handle>> run_from_path(char const* binary_name) const = 0;
+    /**
+     * \brief Run a binary with arguments, respecting $PATH
+     * \note All open file descriptors other than stdin, stdout, and stderr are closed before
+     *       running the binary.
+     * \param [in] binary_name  The name of the binary to run, such as “Xorg”
+     * \param [in] args         The arguments to be passed to the binary. No processing is done on
+     *                          these strings; each one will appear verbatim as a separate char* in
+     *                          the binary's argv[].
+     * \return                  A future that will contain the handle to the spawned process.
+     *                          The future will be populated after the process has been exec()d,
+     *                          or the call to exec() has failed.
+     *                          If spawning the binary fails the future will contain a
+     *                          std::runtime_error.
+     */
+    virtual std::future<std::shared_ptr<Handle>> run_from_path(char const* binary_name, std::initializer_list<char const*> args) const = 0;
+    /**
+     * \brief Run a binary, respecting $PATH
+     * \note All open file descriptors other than stdin, stdout, stderr, and the fds listed in
+     *       fds are closed before running the binary.
+     * \param [in] binary_name  The name of the binary to run, such as “Xorg”
+     * \param [in] args         The arguments to be passed to the binary. No processing is done on
+     *                          these strings; each one will appear verbatim as a separate char* in
+     *                          the binary's argv[].
+     * \param [in] fds          The set of fds that will remain available to the child process.
+     * \return                  A future that will contain the handle to the spawned process.
+     *                          The future will be populated after the process has been exec()d,
+     *                          or the call to exec() has failed.
+     *                          If spawning the binary fails the future will contain a
+     *                          std::runtime_error.
+     */
+    virtual std::future<std::shared_ptr<Handle>> run_from_path(char const* binary_name, std::initializer_list<char const*> args, std::initializer_list<int> fds) const = 0;
 };
 }
 }

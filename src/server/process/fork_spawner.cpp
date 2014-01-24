@@ -16,21 +16,29 @@
  * Authored by: Christopher James Halse Rogers <christopher.halse.rogers@canonical.com>
  */
 
-
 #include "fork_spawner.h"
 
 #include "mir/process/handle.h"
+#include "mir/pipe.h"
+#include "mir/raii.h"
 
+#include <fcntl.h>
 #include <unistd.h>
+#include <errno.h>
+#include <dirent.h>
 #include <vector>
+#include <thread>
+#include <string>
+#include <set>
+#include <boost/throw_exception.hpp>
+#include <boost/exception/errinfo_errno.hpp>
 
 namespace
 {
 class PidHandle : public mir::process::Handle
 {
 public:
-    PidHandle(pid_t pid)
-        : child_pid(pid)
+    PidHandle(pid_t pid) : child_pid(pid)
     {
     }
 
@@ -46,30 +54,112 @@ public:
 private:
     pid_t child_pid;
 };
-}
 
-std::shared_ptr<mir::process::Handle> mir::process::ForkSpawner::run_from_path(char const* binary_name)
+static std::vector<int> open_fds()
 {
-    pid_t child = fork();
+    std::vector<int> fds;
 
-    if (child == 0) {
-        execlp(binary_name, binary_name, static_cast<char *>(NULL));
+    DIR* process_fds_dir;
+    auto const dir_raii = mir::raii::paired_calls([&process_fds_dir]
+                                                  { process_fds_dir = opendir("/proc/self/fd"); },
+                                                  [&process_fds_dir]
+                                                  {
+        if (process_fds_dir != nullptr)
+            closedir(process_fds_dir);
+    });
+
+    if (process_fds_dir == nullptr)
+        BOOST_THROW_EXCEPTION(boost::enable_error_info(std::runtime_error("Failed to open process fds directory"))
+                              << boost::errinfo_errno(errno));
+
+    struct dirent* entry;
+    errno = 0;
+    while ((entry = readdir(process_fds_dir)) != nullptr)
+    {
+        // We don't care about directory links
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+            continue;
+
+        int fd;
+        char* conversion_end;
+        fd = strtol(entry->d_name, &conversion_end, 10);
+
+        if (*conversion_end != '\0' || conversion_end == entry->d_name)
+            BOOST_THROW_EXCEPTION(std::runtime_error(std::string("Unexpected fd name: ") + entry->d_name));
+
+        if (fd != dirfd(process_fds_dir))
+            fds.push_back(fd);
     }
-    return std::make_shared<PidHandle>(child);
+    if (errno != 0)
+        BOOST_THROW_EXCEPTION(boost::enable_error_info(std::runtime_error("Failed to read from process fds directory"))
+                              << boost::errinfo_errno(errno));
+
+    return fds;
 }
 
-std::shared_ptr<mir::process::Handle> mir::process::ForkSpawner::run_from_path(char const* binary_name, std::initializer_list<char const*> args)
-
+static std::shared_ptr<mir::process::Handle> run(char const* binary_name,
+                                                 std::initializer_list<char const*> args,
+                                                 std::initializer_list<int> fds)
 {
+    mir::pipe::Pipe error_pipe(O_CLOEXEC);
     pid_t child = fork();
 
-    if (child == 0) {
+    if (child == 0)
+    {
+        std::set<int> precious_fds{fds};
+        // Don't close stdin, stdout, or stderr
+        precious_fds.insert({0, 1, 2});
+        // Don't close our cross-process pipe, we need it and know it's CLOEXEC
+        precious_fds.insert(error_pipe.write_fd());
+
+        error_pipe.close_read_fd();
+
+        for (auto fd : open_fds())
+        {
+            if (precious_fds.count(fd) == 0)
+                close(fd);
+        }
+
         std::vector<char const*> argv;
         argv.push_back(binary_name);
         argv.insert(argv.end(), args);
         argv.push_back(nullptr);
 
         execvp(binary_name, const_cast<char* const*>(argv.data()));
+        // We can only get here by failing to exec
+        write(error_pipe.write_fd(), &errno, sizeof errno);
     }
+
+    error_pipe.close_write_fd();
+    error_t error = 0;
+    if (read(error_pipe.read_fd(), &error, sizeof error) == -1)
+        BOOST_THROW_EXCEPTION(boost::enable_error_info(std::runtime_error("Failed to read from pipe"))
+                              << boost::errinfo_errno(errno));
+
+    if (error != 0)
+        BOOST_THROW_EXCEPTION(
+            boost::enable_error_info(std::runtime_error(std::string("Failed to execute process: ") + binary_name))
+            << boost::errinfo_errno(errno));
+
     return std::make_shared<PidHandle>(child);
+}
+}
+
+std::future<std::shared_ptr<mir::process::Handle>> mir::process::ForkSpawner::run_from_path(char const* binary_name)
+    const
+{
+    return std::async(
+        std::launch::async, run, binary_name, std::initializer_list<char const*>(), std::initializer_list<int>());
+}
+
+std::future<std::shared_ptr<mir::process::Handle>> mir::process::ForkSpawner::run_from_path(
+    char const* binary_name, std::initializer_list<char const*> args) const
+{
+    return std::async(std::launch::async, run, binary_name, args, std::initializer_list<int>());
+}
+
+std::future<std::shared_ptr<mir::process::Handle>> mir::process::ForkSpawner::run_from_path(
+    char const* binary_name, std::initializer_list<char const*> args, std::initializer_list<int> fds) const
+{
+    return std::async(std::launch::async, run, binary_name, args, fds);
 }

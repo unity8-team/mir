@@ -20,6 +20,7 @@
 #include "mir/frontend/session_authorizer.h"
 #include "mir/graphics/event_handler_register.h"
 #include "src/server/scene/global_event_sender.h"
+#include "mir/pipe.h"
 
 #include "mir_test_framework/display_server_test_fixture.h"
 #include "mir_test_framework/cross_process_sync.h"
@@ -32,7 +33,6 @@
 #include "mir_test_doubles/stub_display_configuration.h"
 #include "mir_test_doubles/stub_buffer_allocator.h"
 #include "mir_test/fake_shared.h"
-#include "mir_test/pipe.h"
 #include "mir_test/cross_process_action.h"
 
 #include "mir_toolkit/mir_client_library.h"
@@ -49,6 +49,7 @@ namespace mf = mir::frontend;
 namespace mtf = mir_test_framework;
 namespace mtd = mir::test::doubles;
 namespace mt = mir::test;
+namespace mp = mir::pipe;
 
 namespace
 {
@@ -127,7 +128,7 @@ public:
 private:
     std::shared_ptr<mg::DisplayConfiguration> config;
     mtd::NullDisplayBuffer display_buffer;
-    mt::Pipe p;
+    mp::Pipe p;
     std::atomic<bool> handler_called;
 };
 

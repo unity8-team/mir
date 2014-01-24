@@ -23,8 +23,8 @@
 #include "mir/main_loop.h"
 #include "mir/display_changer.h"
 #include "mir/server_status_listener.h"
+#include "mir/pipe.h"
 
-#include "mir_test/pipe.h"
 #include "mir_test_framework/testing_server_configuration.h"
 #include "mir_test_doubles/mock_input_manager.h"
 #include "mir_test_doubles/mock_compositor.h"
@@ -46,7 +46,7 @@ namespace mi = mir::input;
 namespace mc = mir::compositor;
 namespace mg = mir::graphics;
 namespace mf = mir::frontend;
-namespace mt = mir::test;
+namespace mp = mir::pipe;
 namespace mtd = mir::test::doubles;
 namespace mtf = mir_test_framework;
 
@@ -314,7 +314,7 @@ private:
     std::shared_ptr<mtd::MockInputManager> mock_input_manager;
     std::shared_ptr<MockDisplayChanger> mock_display_changer;
 
-    mt::Pipe p;
+    mp::Pipe p;
     int const pause_signal;
     int const resume_signal;
 };
