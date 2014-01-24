@@ -67,7 +67,7 @@ target_link_libraries(
   ${GMOCK_LIBRARY}
   ${GMOCK_MAIN_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT} # Link in pthread.
-  ${X11_LIBRARIES}
+  ${X11_LDFLAGS}
 )
 
 CMAKE_DEPENDENT_OPTION(

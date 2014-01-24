@@ -16,19 +16,49 @@
  * Authored by: Christopher James Halse Rogers <christopher.halse.rogers@canonical.com>
  */
 
+#include <unistd.h>
+#include <errno.h>
+
+#include <boost/throw_exception.hpp>
+#include <boost/exception/errinfo_errno.hpp>
+
 #include "global_socket_listening_server_spawner.h"
 
 namespace mx = mir::X;
 
 mx::GlobalSocketListeningServerContext::GlobalSocketListeningServerContext(mir::process::Spawner const& spawner)
 {
-    spawner.run_from_path("Xorg", {"stuff"});
-    connection_string.set_value("");
+    auto displayfd_pipe = std::make_shared<mir::pipe::Pipe>();
+    auto displayfd = std::make_shared<std::string>(std::to_string(displayfd_pipe->write_fd()));
+
+    server_handle = spawner.run_from_path("Xorg",
+                                          {"-displayfd", displayfd->c_str()},
+                                          {displayfd_pipe->write_fd()});
+
+    // We capture a copy of displayfd_pipe and displayfd to ensure they survive until
+    // the X server is started and then go away.
+    connection_string = std::async(std::launch::async, [this, displayfd_pipe, displayfd]()
+    {
+        char display_number[10];
+        errno = 0;
+        int bytes_read = read(displayfd_pipe->read_fd(), display_number, sizeof display_number);
+
+        while (bytes_read == -1 && errno == EINTR)
+            bytes_read = read(displayfd_pipe->read_fd(), display_number, sizeof display_number);;
+
+        if (errno != 0)
+            BOOST_THROW_EXCEPTION(boost::enable_error_info(std::runtime_error("Failed to receive display number from Xserver"))
+                                  << boost::errinfo_errno(errno));
+
+        display_number[bytes_read] = '\0';
+
+        return std::string(":") + display_number;
+    });
 }
 
-std::future<const char *> mx::GlobalSocketListeningServerContext::client_connection_string()
+std::shared_future<std::string> mx::GlobalSocketListeningServerContext::client_connection_string()
 {
-    return connection_string.get_future();
+    return connection_string;
 }
 
 std::unique_ptr<mx::ServerContext> mx::GlobalSocketListeningServerSpawner::create_server(mir::process::Spawner const& spawner)

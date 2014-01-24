@@ -11,10 +11,10 @@ class NullServerContext : public ServerContext
 {
 public:
     NullServerContext();
-    std::future<char const*> client_connection_string() override;
+    std::shared_future<std::string> client_connection_string() override;
 
 private:
-    std::promise<char const*> connection_string;
+    std::promise<std::string> connection_string;
 };
 
 class NullServerSpawner : public ServerSpawner

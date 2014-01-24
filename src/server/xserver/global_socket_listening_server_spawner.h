@@ -21,6 +21,7 @@
 
 #include "mir/xserver/xserver_launcher.h"
 #include "mir/process/spawner.h"
+#include "mir/pipe.h"
 
 #include <memory>
 
@@ -32,10 +33,11 @@ class GlobalSocketListeningServerContext : public ServerContext
 {
 public:
     GlobalSocketListeningServerContext(mir::process::Spawner const& spawner);
-    std::future<char const*> client_connection_string() override;
+    std::shared_future<std::string> client_connection_string() override;
 
 private:
-    std::promise<char const*> connection_string;
+    std::future<std::shared_ptr<mir::process::Handle>> server_handle;
+    std::shared_future<std::string> connection_string;
 };
 
 class GlobalSocketListeningServerSpawner : public ServerSpawner

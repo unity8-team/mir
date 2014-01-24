@@ -16,6 +16,7 @@
  * Authored by: Christopher James Halse Rogers <christopher.halse.rogers@canonical.com>
  */
 
+#include "src/server/xserver/global_socket_listening_server_spawner.h"
 #include "mir_test_framework/testing_server_configuration.h"
 #include "mir_test_framework/in_process_server.h"
 #include "mir/xserver/xserver_launcher.h"
@@ -45,7 +46,14 @@ private:
         return config;
     }
 
-    mtf::StubbedServerConfiguration config;
+    class SocketListeningXServerConfig : public mtf::StubbedServerConfiguration
+    {
+    public:
+        std::shared_ptr<mx::ServerSpawner> the_xserver_spawner() override
+        {
+            return std::make_shared<mx::GlobalSocketListeningServerSpawner> ();
+        }
+    } config;
 };
 }
 
@@ -55,7 +63,7 @@ TEST_F(XserverSpawningServer, X11ClientConnects)
     unsetenv("DISPLAY");
 
     auto xserver = the_xserver_spawner()->create_server(mir::process::ForkSpawner());
-    Display* disp = XOpenDisplay(xserver->client_connection_string().get());
+    Display* disp = XOpenDisplay(xserver->client_connection_string().get().c_str());
 
     ASSERT_TRUE(disp != NULL);
 

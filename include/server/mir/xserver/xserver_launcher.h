@@ -44,7 +44,7 @@ public:
      * \note The server will be ready to accept connections. The server will
      * be started, and waited for, if it is not already running.
      */
-    virtual std::future<char const*> client_connection_string() = 0;
+    virtual std::shared_future<std::string> client_connection_string() = 0;
 };
 
 class ServerSpawner

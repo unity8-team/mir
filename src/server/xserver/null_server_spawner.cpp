@@ -23,7 +23,7 @@ mir::X::NullServerContext::NullServerContext()
     connection_string.set_value("");
 }
 
-std::future<char const*> mir::X::NullServerContext::client_connection_string()
+std::shared_future<std::string> mir::X::NullServerContext::client_connection_string()
 {
     return connection_string.get_future();
 }
