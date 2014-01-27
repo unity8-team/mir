@@ -15,6 +15,7 @@ set(
   occlusion.cpp
   default_configuration.cpp
   null_compositor_report.cpp
+  compositing_screen_capture.cpp
 )
 
 ADD_LIBRARY(

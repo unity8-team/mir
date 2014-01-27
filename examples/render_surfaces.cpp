@@ -31,6 +31,10 @@
 #include "mir/shell/surface.h"
 #include "mir/run_mir.h"
 #include "mir/report_exception.h"
+#include "../src/server/compositor/compositing_screen_capture.h"
+#include "mir/graphics/gl_context.h"
+#include "../src/server/scene/gl_pixel_buffer.h"
+#include <fstream>
 
 #include "mir_image.h"
 #include "buffer_render_target.h"
@@ -477,6 +481,53 @@ try
         cursor = conf.the_cursor();
 
         input_is_on = conf.input_is_on();
+
+        auto dconf = conf.the_display()->configuration();
+        mg::DisplayConfigurationOutputId id;
+        dconf->for_each_output([&](mg::DisplayConfigurationOutput const& output) -> void
+        {
+            std::cerr << "Output " << output.id << " used " << output.used
+                      << " connected " << output.connected << std::endl;
+            if (output.used)
+            { 
+                std::cerr << "    " << output.modes[output.current_mode_index].size << std::endl;
+                id = output.id;
+            }
+        });
+   
+        std::cerr << "Using " << id << std::endl;
+
+        std::thread t{
+            [id, &conf]
+            {
+                std::this_thread::sleep_for(std::chrono::seconds{2});
+                auto gl_context = conf.the_display()->create_gl_context();
+                mc::CompositingScreenCapture capture{
+                    std::move(gl_context),
+                    conf.the_display(),
+                    conf.the_buffer_allocator(),
+                    conf.the_display_buffer_compositor_factory()};
+                ms::GLPixelBuffer pb(conf.the_display()->create_gl_context());
+                while (1)
+                {
+                    auto buf = capture.buffer_for(id);
+                    std::cerr << "Got buf " << buf->size() << std::endl;
+#if 0
+                    pb.fill_from(*buf);
+                    static int aa = 0;
+                    std::stringstream ss;
+                    ss << "/tmp/mir_" << aa++ << ".rgba";
+                    //t1 = clock.now();
+                    std::ofstream f(ss.str());
+                    f.write((char const*)pb.as_argb_8888(),
+                            pb.size().height.as_int() * pb.stride().as_int());
+                    //t2 = clock.now();
+                    //std::cerr << "write to file + process " << std::dec
+                    //         << std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count() << 
+#endif
+                }
+            }};
+        t.detach();
     });
     ///\internal [main_tag]
 
