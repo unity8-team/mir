@@ -327,6 +327,7 @@ public:
             {
             }
 
+             std::chrono::high_resolution_clock clock;
             void composite()
             {
                 animate_cursor();
@@ -339,7 +340,11 @@ public:
                 }
 
                 glClearColor(0.0, 1.0, 0.0, 1.0);
+                auto start = clock.now();
                 db_compositor->composite();
+                 std::cout << "COMPOSITE: " <<
+                           std::chrono::duration_cast<std::chrono::microseconds>(clock.now()-start).count() << std::endl;
+
 
                 for (auto& m : moveables)
                     m.step();
@@ -399,7 +404,7 @@ public:
             view_area.add(db.view_area());
         });
         geom::Size const display_size{view_area.bounding_rectangle().size};
-        uint32_t const surface_side{300};
+        uint32_t const surface_side{1000};
         geom::Size const surface_size{surface_side, surface_side};
 
         float const angular_step = 2.0 * M_PI / moveables.size();
@@ -506,12 +511,12 @@ try
                     std::move(gl_context),
                     conf.the_display(),
                     conf.the_buffer_allocator(),
-                    conf.the_display_buffer_compositor_factory()};
+                    conf.me::ServerConfiguration::the_display_buffer_compositor_factory()};
                 ms::GLPixelBuffer pb(conf.the_display()->create_gl_context());
                 while (1)
                 {
                     auto buf = capture.buffer_for(id);
-                    std::cerr << "Got buf " << buf->size() << std::endl;
+//                    std::cerr << "Got buf " << buf->size() << std::endl;
 #if 0
                     pb.fill_from(*buf);
                     static int aa = 0;

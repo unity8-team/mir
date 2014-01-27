@@ -178,20 +178,26 @@ std::shared_ptr<mg::Buffer> mc::CompositingScreenCapture::buffer_for(
         mir::raii::paired_calls([this] { gl_context->make_current(); },
                                 [this] { gl_context->release_current(); });
 
-    static std::shared_ptr<mg::Buffer> buffer;
+    static std::vector<std::shared_ptr<mg::Buffer>> buffers;
+    static int i = 0;
     static std::unique_ptr<mc::DisplayBufferCompositor> db_compositor;
     
-    if (!buffer)
+    if (buffers.empty())
     {
-        buffer = buffer_allocator->alloc_buffer(buffer_properties);
+        buffers.push_back(buffer_allocator->alloc_buffer(buffer_properties));
+        buffers.push_back(buffer_allocator->alloc_buffer(buffer_properties));
+        buffers.push_back(buffer_allocator->alloc_buffer(buffer_properties));
 
-        offscreen_display_buffer->setup(buffer, extents);
         db_compositor = db_compositor_factory->create_compositor_for(*offscreen_display_buffer);
     }
 
+    auto ret_buf = buffers[i];
+    offscreen_display_buffer->setup(ret_buf, extents);
+    i = (i + 1) % buffers.size();
+
     db_compositor->composite();
 
-    return buffer;
+    return ret_buf;
 }
 
 geom::Rectangle mc::CompositingScreenCapture::extents_for(
