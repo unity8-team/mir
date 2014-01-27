@@ -33,6 +33,15 @@
 #include <cstdlib>
 #include <cmath>
 
+#include "mir/frontend/screen_capture.h"
+#include "../../src/server/scene/gl_pixel_buffer.h"
+#include "mir/graphics/buffer.h"
+#include "mir/graphics/buffer_id.h"
+#include "mir/graphics/gl_context.h"
+#include <sstream>
+#include <iostream>
+#include <fstream>
+
 namespace me = mir::examples;
 namespace msh = mir::shell;
 namespace mg = mir::graphics;
@@ -43,9 +52,110 @@ namespace
 const int min_swipe_distance = 100;  // How long must a swipe be to act on?
 }
 
+class me::detail::ScreenCaptureFunctor
+{
+public:
+    ScreenCaptureFunctor(
+        std::shared_ptr<mg::Display> const& display,
+        std::shared_ptr<frontend::ScreenCapture> const& screen_capture)
+        : display{display},
+          screen_capture{screen_capture}
+    {
+    }
+
+    void operator()()
+    {
+        auto id = find_output_id();
+        scene::GLPixelBuffer pb(display->create_gl_context());
+
+        std::chrono::high_resolution_clock clock;
+        std::shared_ptr<mg::Buffer> prev_buf;
+        std::thread fill_thread;
+        while (running)
+        {
+            auto t1 = clock.now();
+            auto buf = screen_capture->acquire_buffer_for(id);
+            // std::cerr << "Got buf " << buf->size() << std::endl;
+
+            if (fill_thread.joinable())
+                fill_thread.join();
+            if (prev_buf)
+                screen_capture->release_buffer(prev_buf->id());
+            prev_buf = buf;
+
+            fill_thread = std::thread(
+                [&]
+                {
+                //auto t1 = clock.now();
+                pb.fill_from(*prev_buf);
+                //auto t2 = clock.now();
+                //std::cerr << "fill " << std::dec
+                ////<< std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count() << std::endl;
+                static int aa = 0;
+                std::stringstream ss;
+                ss << "/tmp/mir_";
+                ss.width(5);
+                ss.fill('0');
+                ss << aa++ << ".rgba";
+                //t1 = clock.now();
+                std::ofstream f(ss.str());
+                f.write((char const*)pb.as_argb_8888(),
+                    pb.size().height.as_int() * pb.stride().as_int());
+                //t2 = clock.now();
+                //std::cerr << "write to file + process " << std::dec
+                    //<< std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count() << std::endl;
+                });
+
+            auto t2 = clock.now();
+            std::cerr << "capture iteration " << std::dec
+                << std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count() << std::endl;
+        }
+        if (fill_thread.joinable())
+            fill_thread.join();
+
+    }
+
+    mg::DisplayConfigurationOutputId find_output_id()
+    {
+        auto dconf = display->configuration();
+        mg::DisplayConfigurationOutputId id;
+        dconf->for_each_output([&](mg::DisplayConfigurationOutput const& output) -> void
+        {
+            std::cerr << "Output " << output.id << " used " << output.used
+                      << " connected " << output.connected << std::endl;
+            if (output.used)
+            {
+                std::cerr << "    " << output.modes[output.current_mode_index].size << std::endl;
+                id = output.id;
+            }
+        });
+
+        return id;
+    }
+
+    void stop()
+    {
+        running = false;
+    }
+
+private:
+    std::atomic<bool> running;
+    std::shared_ptr<mg::Display> const display;
+    std::shared_ptr<frontend::ScreenCapture> const screen_capture;
+};
+
 me::WindowManager::WindowManager()
     : old_pinch_diam(0.0f), max_fingers(0)
 {
+}
+
+me::WindowManager::~WindowManager()
+{
+    if (screen_capture_functor)
+    {
+        screen_capture_functor->stop();
+        screen_capture_thread.join();
+    }
 }
 
 void me::WindowManager::set_focus_controller(std::shared_ptr<msh::FocusController> const& controller)
@@ -61,6 +171,11 @@ void me::WindowManager::set_display(std::shared_ptr<mg::Display> const& dpy)
 void me::WindowManager::set_compositor(std::shared_ptr<mc::Compositor> const& cptor)
 {
     compositor = cptor;
+}
+
+void me::WindowManager::set_screen_capture(std::shared_ptr<frontend::ScreenCapture> const& capture)
+{
+    screen_capture = capture;
 }
 
 namespace
@@ -199,7 +314,24 @@ bool me::WindowManager::handle(MirEvent const& event)
                 return true;
             }
         }
-
+        else if ((event.key.modifiers & mir_key_modifier_alt) &&
+                  event.key.scan_code == KEY_S)
+        {
+            if (screen_capture_functor)
+            {
+                screen_capture_functor->stop();
+                screen_capture_thread.join();
+                screen_capture_functor.reset();
+                std::cout << "Stopping capture" << std::endl;
+            }
+            else
+            {
+                std::cout << "Starting capture" << std::endl;
+                screen_capture_functor.reset(
+                    new me::detail::ScreenCaptureFunctor{display, screen_capture});
+                screen_capture_thread = std::thread{std::ref(*screen_capture_functor)};
+            }
+        }
     }
     else if (event.type == mir_event_type_motion &&
              focus_controller)

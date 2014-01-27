@@ -94,6 +94,7 @@ try
             wm->set_focus_controller(config.the_focus_controller());
             wm->set_display(config.the_display());
             wm->set_compositor(config.the_compositor());
+            wm->set_screen_capture(config.the_screen_capture());
         });
     return 0;
 }

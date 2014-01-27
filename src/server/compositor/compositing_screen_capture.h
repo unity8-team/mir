@@ -19,9 +19,10 @@
 #ifndef MIR_COMPOSITOR_COMPOSITING_SCREEN_CAPTURE_H_
 #define MIR_COMPOSITOR_COMPOSITING_SCREEN_CAPTURE_H_
 
-#include "mir/graphics/display_configuration.h"
+#include "mir/frontend/screen_capture.h"
 
 #include <memory>
+#include <vector>
 
 namespace mir
 {
@@ -31,35 +32,40 @@ namespace graphics
 class GLContext;
 class Display;
 class GraphicBufferAllocator;
-class Buffer;
 }
 
 namespace compositor
 {
 class DisplayBufferCompositorFactory;
-namespace detail { class OffscreenDisplayBuffer; }
+namespace detail { class AreaCapture; }
 
-class CompositingScreenCapture
+class CompositingScreenCapture : public frontend::ScreenCapture
 {
 public:
     CompositingScreenCapture(
-        std::unique_ptr<graphics::GLContext> gl_context,
         std::shared_ptr<graphics::Display> const& display,
         std::shared_ptr<graphics::GraphicBufferAllocator> const& buffer_allocator,
         std::shared_ptr<DisplayBufferCompositorFactory> const& db_compositor_factory);
     ~CompositingScreenCapture();
 
-    std::shared_ptr<graphics::Buffer> buffer_for(
+    std::shared_ptr<graphics::Buffer> acquire_buffer_for(
         graphics::DisplayConfigurationOutputId output_id);
+
+    void release_buffer(graphics::BufferID buf_id);
 
 private:
     geometry::Rectangle extents_for(graphics::DisplayConfigurationOutputId output_id);
+    std::shared_ptr<detail::AreaCapture> get_or_create_area_capture(geometry::Rectangle const& rect);
+    std::shared_ptr<graphics::Buffer> get_or_create_buffer(geometry::Size const& size);
 
     std::unique_ptr<graphics::GLContext> const gl_context;
     std::shared_ptr<graphics::Display> const display;
     std::shared_ptr<graphics::GraphicBufferAllocator> const buffer_allocator;
     std::shared_ptr<DisplayBufferCompositorFactory> const db_compositor_factory;
-    std::unique_ptr<detail::OffscreenDisplayBuffer> const offscreen_display_buffer;
+
+    std::shared_ptr<detail::AreaCapture> area_capture;
+    std::vector<std::shared_ptr<graphics::Buffer>> free_buffers;
+    std::vector<std::shared_ptr<graphics::Buffer>> used_buffers;
 };
 
 }

@@ -114,6 +114,7 @@ void ms::GLPixelBuffer::fill_from(graphics::Buffer& buffer)
 
     size_ = buffer.size();
     pixels_need_y_flip = true;
+    gl_context->release_current();
 }
 
 void const* ms::GLPixelBuffer::as_argb_8888()

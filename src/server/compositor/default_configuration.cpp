@@ -21,9 +21,11 @@
 #include "default_display_buffer_compositor_factory.h"
 #include "multi_threaded_compositor.h"
 #include "gl_renderer_factory.h"
+#include "compositing_screen_capture.h"
 
 namespace mc = mir::compositor;
 namespace ms = mir::scene;
+namespace mf = mir::frontend;
 
 std::shared_ptr<ms::BufferStreamFactory>
 mir::DefaultServerConfiguration::the_buffer_stream_factory()
@@ -65,5 +67,17 @@ std::shared_ptr<mc::RendererFactory> mir::DefaultServerConfiguration::the_render
         []()
         {
             return std::make_shared<mc::GLRendererFactory>();
+        });
+}
+
+std::shared_ptr<mf::ScreenCapture> mir::DefaultServerConfiguration::the_screen_capture()
+{
+    return screen_capture(
+        [this]()
+        {
+            return std::make_shared<mc::CompositingScreenCapture>(
+                the_display(),
+                the_buffer_allocator(),
+                the_display_buffer_compositor_factory());
         });
 }

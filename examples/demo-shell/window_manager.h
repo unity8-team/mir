@@ -24,6 +24,7 @@
 #include "mir/geometry/size.h"
 
 #include <memory>
+#include <thread>
 
 namespace mir
 {
@@ -39,18 +40,25 @@ namespace compositor
 {
 class Compositor;
 }
+namespace frontend
+{
+class ScreenCapture;
+}
 namespace examples
 {
+
+namespace detail { class ScreenCaptureFunctor; }
 
 class WindowManager : public input::EventFilter
 {
 public: 
     WindowManager();
-    ~WindowManager() = default;
+    ~WindowManager();
 
     void set_focus_controller(std::shared_ptr<shell::FocusController> const& focus_controller);
     void set_display(std::shared_ptr<graphics::Display> const& display);
     void set_compositor(std::shared_ptr<compositor::Compositor> const& compositor);
+    void set_screen_capture(std::shared_ptr<frontend::ScreenCapture> const& capture);
     
     bool handle(MirEvent const& event) override;
 
@@ -62,6 +70,9 @@ private:
     std::shared_ptr<shell::FocusController> focus_controller;
     std::shared_ptr<graphics::Display> display;
     std::shared_ptr<compositor::Compositor> compositor;
+    std::shared_ptr<frontend::ScreenCapture> screen_capture;
+    std::unique_ptr<detail::ScreenCaptureFunctor> screen_capture_functor;
+    std::thread screen_capture_thread;
 
     geometry::Point click;
     geometry::Point old_pos;

@@ -31,10 +31,11 @@
 #include "mir/shell/surface.h"
 #include "mir/run_mir.h"
 #include "mir/report_exception.h"
-#include "../src/server/compositor/compositing_screen_capture.h"
+#include "mir/frontend/screen_capture.h"
 #include "mir/graphics/gl_context.h"
 #include "../src/server/scene/gl_pixel_buffer.h"
 #include <fstream>
+#include "mir/graphics/buffer_id.h"
 
 #include "mir_image.h"
 #include "buffer_render_target.h"
@@ -404,7 +405,7 @@ public:
             view_area.add(db.view_area());
         });
         geom::Size const display_size{view_area.bounding_rectangle().size};
-        uint32_t const surface_side{1000};
+        uint32_t const surface_side{300};
         geom::Size const surface_size{surface_side, surface_side};
 
         float const angular_step = 2.0 * M_PI / moveables.size();
@@ -506,30 +507,60 @@ try
             [id, &conf]
             {
                 std::this_thread::sleep_for(std::chrono::seconds{2});
-                auto gl_context = conf.the_display()->create_gl_context();
-                mc::CompositingScreenCapture capture{
-                    std::move(gl_context),
-                    conf.the_display(),
-                    conf.the_buffer_allocator(),
-                    conf.me::ServerConfiguration::the_display_buffer_compositor_factory()};
+                auto capture = conf.the_screen_capture();
                 ms::GLPixelBuffer pb(conf.the_display()->create_gl_context());
+                std::chrono::high_resolution_clock clock;
+                StopWatch stop_watch;
+                int frames = 0;
+                std::thread fill_thread;
+                std::shared_ptr<mg::Buffer> prev_buf;
                 while (1)
                 {
-                    auto buf = capture.buffer_for(id);
+                    stop_watch.stop();
+                    if (stop_watch.elapsed_seconds_since_last_restart() >= 1)
+                    {
+                        std::cout << "CAPTURE FPS: " << frames << " Frame Time: " << 1.0 / frames << std::endl;
+                        frames = 0;
+                        stop_watch.restart();
+                    }
+
+                    auto t1 = clock.now();
+                    auto buf = capture->acquire_buffer_for(id);
+                    auto t2 = clock.now();
+                    std::cerr << "capture " << std::dec
+                             << std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count() << std::endl;
 //                    std::cerr << "Got buf " << buf->size() << std::endl;
-#if 0
-                    pb.fill_from(*buf);
-                    static int aa = 0;
-                    std::stringstream ss;
-                    ss << "/tmp/mir_" << aa++ << ".rgba";
-                    //t1 = clock.now();
-                    std::ofstream f(ss.str());
-                    f.write((char const*)pb.as_argb_8888(),
-                            pb.size().height.as_int() * pb.stride().as_int());
-                    //t2 = clock.now();
-                    //std::cerr << "write to file + process " << std::dec
-                    //         << std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count() << 
+
+                    if (fill_thread.joinable())
+                        fill_thread.join();
+                    if (prev_buf)
+                        capture->release_buffer(prev_buf->id());
+                    prev_buf = buf;
+                    fill_thread = std::thread(
+                        [&]
+                        {
+                            t1 = clock.now();
+                            pb.fill_from(*prev_buf);
+                            t2 = clock.now();
+                            std::cerr << "fill " << std::dec
+                                     << std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count() << std::endl;
+#if 1
+                            static int aa = 0;
+                            std::stringstream ss;
+                            ss << "/tmp/mir_";
+                            ss.width(5);
+                            ss.fill('0');
+                            ss << aa++ << ".rgba";
+                            t1 = clock.now();
+                            std::ofstream f(ss.str());
+                            f.write((char const*)pb.as_argb_8888(),
+                                    pb.size().height.as_int() * pb.stride().as_int());
+                            t2 = clock.now();
+                            std::cerr << "write to file + process " << std::dec
+                                     << std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count() << std::endl;
 #endif
+                        });
+                    frames++;
                 }
             }};
         t.detach();
