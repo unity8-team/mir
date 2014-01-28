@@ -45,7 +45,7 @@ public:
      *                          If spawning the binary fails the future will contain a
      *                          std::runtime_error.
      */
-    virtual std::future<std::shared_ptr<Handle>> run_from_path(char const* binary_name) const = 0;
+    virtual std::future<std::unique_ptr<Handle>> run_from_path(char const* binary_name) const = 0;
     /**
      * \brief Run a binary with arguments, respecting $PATH
      * \note All open file descriptors other than stdin, stdout, and stderr are closed before
@@ -60,7 +60,7 @@ public:
      *                          If spawning the binary fails the future will contain a
      *                          std::runtime_error.
      */
-    virtual std::future<std::shared_ptr<Handle>> run_from_path(char const* binary_name, std::initializer_list<char const*> args) const = 0;
+    virtual std::future<std::unique_ptr<Handle>> run_from_path(char const* binary_name, std::initializer_list<char const*> args) const = 0;
     /**
      * \brief Run a binary, respecting $PATH
      * \note All open file descriptors other than stdin, stdout, stderr, and the fds listed in
@@ -76,7 +76,7 @@ public:
      *                          If spawning the binary fails the future will contain a
      *                          std::runtime_error.
      */
-    virtual std::future<std::shared_ptr<Handle>> run_from_path(char const* binary_name, std::initializer_list<char const*> args, std::initializer_list<int> fds) const = 0;
+    virtual std::future<std::unique_ptr<Handle>> run_from_path(char const* binary_name, std::initializer_list<char const*> args, std::initializer_list<int> fds) const = 0;
 };
 }
 }

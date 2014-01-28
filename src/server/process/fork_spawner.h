@@ -30,9 +30,9 @@ namespace process
 class ForkSpawner : public Spawner
 {
 public:
-    std::future<std::shared_ptr<Handle>> run_from_path(char const* binary_name) const override;
-    std::future<std::shared_ptr<Handle>> run_from_path(char const* binary_name, std::initializer_list<char const*> args) const override;
-    std::future<std::shared_ptr<Handle>> run_from_path(char const* binary_name, std::initializer_list<char const*> args, std::initializer_list<int> fds) const override;
+    std::future<std::unique_ptr<Handle>> run_from_path(char const* binary_name) const override;
+    std::future<std::unique_ptr<Handle>> run_from_path(char const* binary_name, std::initializer_list<char const*> args) const override;
+    std::future<std::unique_ptr<Handle>> run_from_path(char const* binary_name, std::initializer_list<char const*> args, std::initializer_list<int> fds) const override;
 };
 
 }
