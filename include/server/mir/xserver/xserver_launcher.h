@@ -19,8 +19,8 @@
 #ifndef MIR_X_XSERVER_LAUNCHER_H_
 #define MIR_X_XSERVER_LAUNCHER_H_
 
-#include <memory>
 #include <future>
+#include <memory>
 
 #include "mir/process/spawner.h"
 
@@ -40,11 +40,8 @@ public:
      * This string can be passed by the client to XOpenDisplay to connect
      * to this server instance, or set in the DISPLAY environment variable
      * to be used as the default display.
-     *
-     * \note The server will be ready to accept connections. The server will
-     * be started, and waited for, if it is not already running.
      */
-    virtual std::shared_future<std::string> client_connection_string() = 0;
+    virtual char const* client_connection_string() = 0;
 };
 
 class ServerSpawner
@@ -52,7 +49,7 @@ class ServerSpawner
 public:
     virtual ~ServerSpawner() = default;
 
-    virtual std::unique_ptr<ServerContext> create_server(mir::process::Spawner const& spawner) = 0;
+    virtual std::future<std::unique_ptr<ServerContext>> create_server(mir::process::Spawner const& spawner) = 0;
 };
 }
 }

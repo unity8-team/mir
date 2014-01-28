@@ -18,6 +18,8 @@
 
 #include <future>
 #include <vector>
+#include <thread>
+#include <condition_variable>
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -30,8 +32,8 @@ namespace
 {
 struct MockProcessSpawner : public mir::process::Spawner
 {
-    MOCK_CONST_METHOD3(run, std::shared_ptr<mir::process::Handle>(std::string, std::vector<char const*>,
-                                                                  std::vector<int>));
+    MOCK_CONST_METHOD3(run,
+                       std::shared_ptr<mir::process::Handle>(std::string, std::vector<char const*>, std::vector<int>));
 
     std::future<std::shared_ptr<mir::process::Handle>> run_from_path(char const* binary) const override
     {
@@ -61,18 +63,21 @@ struct MockProcessSpawner : public mir::process::Spawner
 struct SocketListeningServerTest : public testing::Test
 {
     SocketListeningServerTest()
+        : default_server_number("100")
     {
         using namespace ::testing;
         ON_CALL(spawner, run(_, _, _))
             .WillByDefault(DoAll(SaveArg<0>(&binary),
                                  SaveArg<1>(&args),
                                  SaveArg<2>(&fds),
+                                 InvokeWithoutArgs([this]() { write_server_string(default_server_number); }),
                                  Return(std::shared_ptr<mir::process::Handle>())));
     }
 
     void write_server_string(std::string server_number)
     {
-        auto location = std::find_if(args.begin(), args.end(), [](char const*a) { return strcmp(a, "-displayfd") == 0; });
+        auto location = std::find_if(args.begin(), args.end(), [](char const* a)
+                                     { return strcmp(a, "-displayfd") == 0; });
         ASSERT_NE(location, args.end());
         ASSERT_NE(++location, args.end());
         int server_fd = atoi(*location);
@@ -80,6 +85,7 @@ struct SocketListeningServerTest : public testing::Test
         close(server_fd);
     }
 
+    std::string default_server_number;
     std::string binary;
     std::vector<char const*> args;
     std::vector<int> fds;
@@ -94,8 +100,7 @@ TEST_F(SocketListeningServerTest, CreateServerAlwaysValid)
     mir::X::GlobalSocketListeningServerSpawner factory;
 
     auto server_context = factory.create_server(spawner);
-    write_server_string("1");
-    ASSERT_NE(server_context, nullptr);
+    ASSERT_NE(server_context.get(), nullptr);
 }
 
 TEST_F(SocketListeningServerTest, SpawnsCorrectExecutable)
@@ -103,9 +108,8 @@ TEST_F(SocketListeningServerTest, SpawnsCorrectExecutable)
     mir::X::GlobalSocketListeningServerSpawner factory;
 
     auto server_context = factory.create_server(spawner);
-    write_server_string("1");
 
-    server_context->client_connection_string().get();
+    server_context.get();
     EXPECT_EQ(binary, "Xorg");
 }
 
@@ -113,9 +117,9 @@ namespace
 {
 MATCHER_P(ContainsSubsequence, subsequence, "")
 {
-    auto location = std::search(arg.begin(), arg.end(),
-                                subsequence.begin(), subsequence.end(),
-                                [](char const* a, std::string b) { return strcmp(a,b.c_str()) == 0; });
+    auto location =
+        std::search(arg.begin(), arg.end(), subsequence.begin(), subsequence.end(), [](char const* a, std::string b)
+                    { return strcmp(a, b.c_str()) == 0; });
     return location != arg.end();
 }
 }
@@ -125,14 +129,14 @@ TEST_F(SocketListeningServerTest, SpawnsWithDisplayFDSet)
     mir::X::GlobalSocketListeningServerSpawner factory;
 
     auto server_context = factory.create_server(spawner);
-    write_server_string("1");
-    server_context->client_connection_string().get();
+    server_context.get();
 
     ASSERT_THAT(args, Not(IsEmpty()));
     ASSERT_THAT(fds, Not(IsEmpty()));
 
     Matcher<std::vector<char const*>> fd_matcher = Not(_);
-    for(auto fd : fds) {
+    for (auto fd : fds)
+    {
         fd_matcher = AnyOf(fd_matcher, ContainsSubsequence(std::vector<std::string>{"-displayfd", std::to_string(fd)}));
     }
     EXPECT_THAT(args, fd_matcher);
@@ -142,8 +146,8 @@ TEST_F(SocketListeningServerTest, ReturnsCorrectDisplayString)
 {
     mir::X::GlobalSocketListeningServerSpawner factory;
 
-    auto server_context = factory.create_server(spawner);
-    write_server_string("100");
+    default_server_number = "20";
+    auto server_context = factory.create_server(spawner);    
 
-    EXPECT_EQ(std::string(":100"), server_context->client_connection_string().get());
+    EXPECT_STREQ(":20", server_context.get()->client_connection_string());
 }

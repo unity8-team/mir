@@ -10,17 +10,13 @@ namespace X
 class NullServerContext : public ServerContext
 {
 public:
-    NullServerContext();
-    std::shared_future<std::string> client_connection_string() override;
-
-private:
-    std::promise<std::string> connection_string;
+    char const* client_connection_string() override;
 };
 
 class NullServerSpawner : public ServerSpawner
 {
 public:
-    std::unique_ptr<ServerContext> create_server(mir::process::Spawner const& spawner) override;
+    std::future<std::unique_ptr<ServerContext>> create_server(mir::process::Spawner const& spawner) override;
 };
 
 }

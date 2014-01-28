@@ -26,25 +26,34 @@
 
 namespace mx = mir::X;
 
-mx::GlobalSocketListeningServerContext::GlobalSocketListeningServerContext(mir::process::Spawner const& spawner)
+mx::GlobalSocketListeningServerContext::GlobalSocketListeningServerContext(std::shared_ptr<mir::process::Handle> server_handle, std::string connection_string)
+    : server_handle(server_handle),
+      connection_string(connection_string)
 {
-    auto displayfd_pipe = std::make_shared<mir::pipe::Pipe>();
-    auto displayfd = std::make_shared<std::string>(std::to_string(displayfd_pipe->write_fd()));
+}
 
-    server_handle = spawner.run_from_path("Xorg",
-                                          {"-displayfd", displayfd->c_str()},
-                                          {displayfd_pipe->write_fd()});
+char const* mx::GlobalSocketListeningServerContext::client_connection_string()
+{
+    return connection_string.c_str();
+}
 
-    // We capture a copy of displayfd_pipe and displayfd to ensure they survive until
-    // the X server is started and then go away.
-    connection_string = std::async(std::launch::async, [this, displayfd_pipe, displayfd]()
+std::future<std::unique_ptr<mx::ServerContext>> mx::GlobalSocketListeningServerSpawner::create_server(mir::process::Spawner const& spawner)
+{
+    return std::async(std::launch::async, [&spawner]()
     {
+        mir::pipe::Pipe displayfd_pipe;
+        auto displayfd = std::to_string(displayfd_pipe.write_fd());
+
+        auto future_handle = spawner.run_from_path("Xorg",
+                                                   {"-displayfd", displayfd.c_str()},
+                                                   {displayfd_pipe.write_fd()});
+
         char display_number[10];
         errno = 0;
-        int bytes_read = read(displayfd_pipe->read_fd(), display_number, sizeof display_number);
+        int bytes_read = read(displayfd_pipe.read_fd(), display_number, sizeof display_number);
 
         while (bytes_read == -1 && errno == EINTR)
-            bytes_read = read(displayfd_pipe->read_fd(), display_number, sizeof display_number);;
+            bytes_read = read(displayfd_pipe.read_fd(), display_number, sizeof display_number);;
 
         if (errno != 0)
             BOOST_THROW_EXCEPTION(boost::enable_error_info(std::runtime_error("Failed to receive display number from Xserver"))
@@ -52,16 +61,6 @@ mx::GlobalSocketListeningServerContext::GlobalSocketListeningServerContext(mir::
 
         display_number[bytes_read] = '\0';
 
-        return std::string(":") + display_number;
+        return std::unique_ptr<mx::ServerContext>(new mx::GlobalSocketListeningServerContext(future_handle.get(), std::string(":") + display_number));
     });
-}
-
-std::shared_future<std::string> mx::GlobalSocketListeningServerContext::client_connection_string()
-{
-    return connection_string;
-}
-
-std::unique_ptr<mx::ServerContext> mx::GlobalSocketListeningServerSpawner::create_server(mir::process::Spawner const& spawner)
-{
-    return std::unique_ptr<mx::ServerContext> (new mx::GlobalSocketListeningServerContext(spawner));
 }

@@ -18,18 +18,16 @@
 
 #include "mir/xserver/null_server_spawner.h"
 
-mir::X::NullServerContext::NullServerContext()
+const char* mir::X::NullServerContext::client_connection_string()
 {
-    connection_string.set_value("");
+    return "";
 }
 
-std::shared_future<std::string> mir::X::NullServerContext::client_connection_string()
-{
-    return connection_string.get_future();
-}
-
-std::unique_ptr<mir::X::ServerContext> mir::X::NullServerSpawner::create_server(mir::process::Spawner const& unused)
+std::future<std::unique_ptr<mir::X::ServerContext>> mir::X::NullServerSpawner::create_server(
+    mir::process::Spawner const& unused)
 {
     static_cast<void>(unused);
-    return std::unique_ptr<mir::X::ServerContext> (new mir::X::NullServerContext);
+    std::promise<std::unique_ptr<mir::X::ServerContext>> boring_promise;
+    boring_promise.set_value(std::unique_ptr<mir::X::ServerContext>(new mir::X::NullServerContext));
+    return boring_promise.get_future();
 }

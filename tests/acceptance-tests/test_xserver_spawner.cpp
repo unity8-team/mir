@@ -63,7 +63,7 @@ TEST_F(XserverSpawningServer, X11ClientConnects)
     unsetenv("DISPLAY");
 
     auto xserver = the_xserver_spawner()->create_server(mir::process::ForkSpawner());
-    Display* disp = XOpenDisplay(xserver->client_connection_string().get().c_str());
+    Display* disp = XOpenDisplay(xserver.get()->client_connection_string());
 
     ASSERT_TRUE(disp != NULL);
 

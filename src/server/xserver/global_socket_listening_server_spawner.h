@@ -32,18 +32,18 @@ namespace X
 class GlobalSocketListeningServerContext : public ServerContext
 {
 public:
-    GlobalSocketListeningServerContext(mir::process::Spawner const& spawner);
-    std::shared_future<std::string> client_connection_string() override;
+    GlobalSocketListeningServerContext(std::shared_ptr<mir::process::Handle> server_handle, std::string connection_string);
+    char const* client_connection_string() override;
 
 private:
-    std::future<std::shared_ptr<mir::process::Handle>> server_handle;
-    std::shared_future<std::string> connection_string;
+    std::shared_ptr<mir::process::Handle> server_handle;
+    std::string connection_string;
 };
 
 class GlobalSocketListeningServerSpawner : public ServerSpawner
 {
 public:
-    std::unique_ptr<ServerContext> create_server(mir::process::Spawner const& spawner) override;
+    std::future<std::unique_ptr<ServerContext>> create_server(mir::process::Spawner const& spawner) override;
 };
 
 }
