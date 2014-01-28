@@ -62,7 +62,7 @@ TEST_F(XserverSpawningServer, X11ClientConnects)
     // Ensure the surrounding environment doesn't mess with the test
     unsetenv("DISPLAY");
 
-    auto xserver = the_xserver_spawner()->create_server(mir::process::ForkSpawner());
+    auto xserver = the_xserver_spawner()->create_server(std::make_shared<mir::process::ForkSpawner>());
     Display* disp = XOpenDisplay(xserver.get()->client_connection_string());
 
     ASSERT_TRUE(disp != NULL);

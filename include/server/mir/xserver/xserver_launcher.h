@@ -49,7 +49,7 @@ class ServerSpawner
 public:
     virtual ~ServerSpawner() = default;
 
-    virtual std::future<std::unique_ptr<ServerContext>> create_server(mir::process::Spawner const& spawner) = 0;
+    virtual std::future<std::unique_ptr<ServerContext>> create_server(std::shared_ptr<mir::process::Spawner> const& spawner) = 0;
 };
 }
 }

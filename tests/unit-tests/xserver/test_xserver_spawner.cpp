@@ -28,6 +28,8 @@
 
 #include "src/server/xserver/global_socket_listening_server_spawner.h"
 
+using namespace ::testing;
+
 namespace
 {
 struct MockProcessSpawner : public mir::process::Spawner
@@ -63,10 +65,10 @@ struct MockProcessSpawner : public mir::process::Spawner
 struct SocketListeningServerTest : public testing::Test
 {
     SocketListeningServerTest()
-        : default_server_number("100")
+        : default_server_number("100"),
+          spawner(std::make_shared<NiceMock<MockProcessSpawner>>())
     {
-        using namespace ::testing;
-        ON_CALL(spawner, run(_, _, _))
+        ON_CALL(*spawner, run(_, _, _))
             .WillByDefault(DoAll(SaveArg<0>(&binary),
                                  SaveArg<1>(&args),
                                  SaveArg<2>(&fds),
@@ -89,11 +91,9 @@ struct SocketListeningServerTest : public testing::Test
     std::string binary;
     std::vector<char const*> args;
     std::vector<int> fds;
-    testing::NiceMock<MockProcessSpawner> spawner;
+    std::shared_ptr<NiceMock<MockProcessSpawner>> spawner;
 };
 }
-
-using namespace ::testing;
 
 TEST_F(SocketListeningServerTest, CreateServerAlwaysValid)
 {
@@ -108,8 +108,8 @@ TEST_F(SocketListeningServerTest, SpawnsCorrectExecutable)
     mir::X::GlobalSocketListeningServerSpawner factory;
 
     auto server_context = factory.create_server(spawner);
-
     server_context.get();
+
     EXPECT_EQ(binary, "Xorg");
 }
 
@@ -150,4 +150,25 @@ TEST_F(SocketListeningServerTest, ReturnsCorrectDisplayString)
     auto server_context = factory.create_server(spawner);    
 
     EXPECT_STREQ(":20", server_context.get()->client_connection_string());
+}
+
+TEST_F(SocketListeningServerTest, HandlesSpawnerLifecycleCorrectly)
+{
+    mir::X::GlobalSocketListeningServerSpawner factory;
+
+    std::future<std::unique_ptr<mir::X::ServerContext>> server_context;
+
+    {
+        auto tmp_spawner = std::make_shared<MockProcessSpawner>();
+        ON_CALL(*tmp_spawner, run(_, _, _))
+            .WillByDefault(DoAll(SaveArg<0>(&binary),
+                                 SaveArg<1>(&args),
+                                 SaveArg<2>(&fds),
+                                 InvokeWithoutArgs([this]() { write_server_string(default_server_number); }),
+                                 Return(std::shared_ptr<mir::process::Handle>())));
+        EXPECT_CALL(*tmp_spawner, run(_,_,_));
+        server_context = factory.create_server(tmp_spawner);
+    }
+
+    ASSERT_NE(server_context.get(), nullptr);
 }

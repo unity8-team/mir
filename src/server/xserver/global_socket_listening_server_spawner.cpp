@@ -37,16 +37,16 @@ char const* mx::GlobalSocketListeningServerContext::client_connection_string()
     return connection_string.c_str();
 }
 
-std::future<std::unique_ptr<mx::ServerContext>> mx::GlobalSocketListeningServerSpawner::create_server(mir::process::Spawner const& spawner)
+std::future<std::unique_ptr<mx::ServerContext>> mx::GlobalSocketListeningServerSpawner::create_server(std::shared_ptr<mir::process::Spawner> const& spawner)
 {
-    return std::async(std::launch::async, [&spawner]()
+    return std::async(std::launch::async, [spawner]()
     {
         mir::pipe::Pipe displayfd_pipe;
         auto displayfd = std::to_string(displayfd_pipe.write_fd());
 
-        auto future_handle = spawner.run_from_path("Xorg",
-                                                   {"-displayfd", displayfd.c_str()},
-                                                   {displayfd_pipe.write_fd()});
+        auto future_handle = spawner->run_from_path("Xorg",
+                                                    {"-displayfd", displayfd.c_str()},
+                                                    {displayfd_pipe.write_fd()});
 
         char display_number[10];
         errno = 0;

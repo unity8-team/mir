@@ -16,7 +16,7 @@ public:
 class NullServerSpawner : public ServerSpawner
 {
 public:
-    std::future<std::unique_ptr<ServerContext>> create_server(mir::process::Spawner const& spawner) override;
+    std::future<std::unique_ptr<ServerContext>> create_server(std::shared_ptr<process::Spawner> const& spawner) override;
 };
 
 }

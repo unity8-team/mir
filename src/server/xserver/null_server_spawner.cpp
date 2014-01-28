@@ -24,7 +24,7 @@ const char* mir::X::NullServerContext::client_connection_string()
 }
 
 std::future<std::unique_ptr<mir::X::ServerContext>> mir::X::NullServerSpawner::create_server(
-    mir::process::Spawner const& unused)
+    std::shared_ptr<mir::process::Spawner> const& unused)
 {
     static_cast<void>(unused);
     std::promise<std::unique_ptr<mir::X::ServerContext>> boring_promise;
