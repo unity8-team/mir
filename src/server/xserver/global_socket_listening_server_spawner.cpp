@@ -23,11 +23,12 @@
 #include <boost/exception/errinfo_errno.hpp>
 
 #include "global_socket_listening_server_spawner.h"
+#include "mir/process/handle.h"
 
 namespace mx = mir::X;
 
-mx::GlobalSocketListeningServerContext::GlobalSocketListeningServerContext(std::shared_ptr<mir::process::Handle> server_handle, std::string connection_string)
-    : server_handle(server_handle),
+mx::GlobalSocketListeningServerContext::GlobalSocketListeningServerContext(std::unique_ptr<mir::process::Handle> server_handle, std::string connection_string)
+    : server_handle(std::move(server_handle)),
       connection_string(connection_string)
 {
 }

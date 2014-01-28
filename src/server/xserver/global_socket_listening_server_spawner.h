@@ -32,11 +32,11 @@ namespace X
 class GlobalSocketListeningServerContext : public ServerContext
 {
 public:
-    GlobalSocketListeningServerContext(std::shared_ptr<mir::process::Handle> server_handle, std::string connection_string);
+    GlobalSocketListeningServerContext(std::unique_ptr<mir::process::Handle> server_handle, std::string connection_string);
     char const* client_connection_string() override;
 
 private:
-    std::shared_ptr<mir::process::Handle> server_handle;
+    std::unique_ptr<mir::process::Handle> server_handle;
     std::string connection_string;
 };
 

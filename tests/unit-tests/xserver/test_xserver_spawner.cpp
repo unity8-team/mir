@@ -25,6 +25,7 @@
 #include <gmock/gmock.h>
 
 #include "mir/process/spawner.h"
+#include "mir/process/handle.h"
 
 #include "src/server/xserver/global_socket_listening_server_spawner.h"
 
@@ -34,30 +35,30 @@ namespace
 {
 struct MockProcessSpawner : public mir::process::Spawner
 {
-    MOCK_CONST_METHOD3(run,
-                       std::shared_ptr<mir::process::Handle>(std::string, std::vector<char const*>, std::vector<int>));
+    MOCK_CONST_METHOD3(run, mir::process::Handle*(std::string, std::vector<char const*>, std::vector<int>));
 
-    std::future<std::shared_ptr<mir::process::Handle>> run_from_path(char const* binary) const override
+    std::future<std::unique_ptr<mir::process::Handle>> run_from_path(char const* binary) const override
     {
-        std::promise<std::shared_ptr<mir::process::Handle>> dummy_promise;
-        dummy_promise.set_value(run(binary, std::initializer_list<char const*>(), std::initializer_list<int>()));
+        std::promise<std::unique_ptr<mir::process::Handle>> dummy_promise;
+        dummy_promise.set_value(std::unique_ptr<mir::process::Handle>(
+            run(binary, std::initializer_list<char const*>(), std::initializer_list<int>())));
         return dummy_promise.get_future();
     }
-    std::future<std::shared_ptr<mir::process::Handle>> run_from_path(char const* binary,
+    std::future<std::unique_ptr<mir::process::Handle>> run_from_path(char const* binary,
                                                                      std::initializer_list<char const*> args) const
         override
     {
-        std::promise<std::shared_ptr<mir::process::Handle>> dummy_promise;
-        dummy_promise.set_value(run(binary, args, std::initializer_list<int>()));
+        std::promise<std::unique_ptr<mir::process::Handle>> dummy_promise;
+        dummy_promise.set_value(std::unique_ptr<mir::process::Handle>(run(binary, args, std::initializer_list<int>())));
         return dummy_promise.get_future();
     }
 
-    std::future<std::shared_ptr<mir::process::Handle>> run_from_path(char const* binary,
+    std::future<std::unique_ptr<mir::process::Handle>> run_from_path(char const* binary,
                                                                      std::initializer_list<char const*> args,
                                                                      std::initializer_list<int> fds) const override
     {
-        std::promise<std::shared_ptr<mir::process::Handle>> dummy_promise;
-        dummy_promise.set_value(run(binary, args, fds));
+        std::promise<std::unique_ptr<mir::process::Handle>> dummy_promise;
+        dummy_promise.set_value(std::unique_ptr<mir::process::Handle>(run(binary, args, fds)));
         return dummy_promise.get_future();
     }
 };
@@ -65,15 +66,15 @@ struct MockProcessSpawner : public mir::process::Spawner
 struct SocketListeningServerTest : public testing::Test
 {
     SocketListeningServerTest()
-        : default_server_number("100"),
-          spawner(std::make_shared<NiceMock<MockProcessSpawner>>())
+        : default_server_number("100"), spawner(std::make_shared<NiceMock<MockProcessSpawner>>())
     {
         ON_CALL(*spawner, run(_, _, _))
             .WillByDefault(DoAll(SaveArg<0>(&binary),
                                  SaveArg<1>(&args),
                                  SaveArg<2>(&fds),
-                                 InvokeWithoutArgs([this]() { write_server_string(default_server_number); }),
-                                 Return(std::shared_ptr<mir::process::Handle>())));
+                                 InvokeWithoutArgs([this]()
+                                                   { write_server_string(default_server_number); }),
+                                 Return(nullptr)));
     }
 
     void write_server_string(std::string server_number)
@@ -147,7 +148,7 @@ TEST_F(SocketListeningServerTest, ReturnsCorrectDisplayString)
     mir::X::GlobalSocketListeningServerSpawner factory;
 
     default_server_number = "20";
-    auto server_context = factory.create_server(spawner);    
+    auto server_context = factory.create_server(spawner);
 
     EXPECT_STREQ(":20", server_context.get()->client_connection_string());
 }
@@ -164,9 +165,10 @@ TEST_F(SocketListeningServerTest, HandlesSpawnerLifecycleCorrectly)
             .WillByDefault(DoAll(SaveArg<0>(&binary),
                                  SaveArg<1>(&args),
                                  SaveArg<2>(&fds),
-                                 InvokeWithoutArgs([this]() { write_server_string(default_server_number); }),
-                                 Return(std::shared_ptr<mir::process::Handle>())));
-        EXPECT_CALL(*tmp_spawner, run(_,_,_));
+                                 InvokeWithoutArgs([this]()
+                                                   { write_server_string(default_server_number); }),
+                                 Return(nullptr)));
+        EXPECT_CALL(*tmp_spawner, run(_, _, _));
         server_context = factory.create_server(tmp_spawner);
     }
 
