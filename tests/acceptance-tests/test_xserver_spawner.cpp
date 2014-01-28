@@ -56,6 +56,9 @@ public:
 };
 }
 
+// This requires a bit more fiddling before it will work.
+// Particularly, it needs an xorg.conf that specifies dummy
+// devices, so the real devices don't fail to load.
 TEST_F(XserverSpawningServer, DISABLED_X11ClientConnects)
 {
     // Ensure the surrounding environment doesn't mess with the test
