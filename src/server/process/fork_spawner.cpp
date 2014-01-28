@@ -97,7 +97,7 @@ static std::vector<int> open_fds()
     return fds;
 }
 
-static std::shared_ptr<mir::process::Handle> run(char const* binary_name,
+static std::unique_ptr<mir::process::Handle> run(char const* binary_name,
                                                  std::initializer_list<char const*> args,
                                                  std::initializer_list<int> fds)
 {
@@ -141,24 +141,24 @@ static std::shared_ptr<mir::process::Handle> run(char const* binary_name,
             boost::enable_error_info(std::runtime_error(std::string("Failed to execute process: ") + binary_name))
             << boost::errinfo_errno(errno));
 
-    return std::make_shared<PidHandle>(child);
+    return std::unique_ptr<PidHandle>(new PidHandle(child));
 }
 }
 
-std::future<std::shared_ptr<mir::process::Handle>> mir::process::ForkSpawner::run_from_path(char const* binary_name)
+std::future<std::unique_ptr<mir::process::Handle>> mir::process::ForkSpawner::run_from_path(char const* binary_name)
     const
 {
     return std::async(
         std::launch::async, run, binary_name, std::initializer_list<char const*>(), std::initializer_list<int>());
 }
 
-std::future<std::shared_ptr<mir::process::Handle>> mir::process::ForkSpawner::run_from_path(
+std::future<std::unique_ptr<mir::process::Handle>> mir::process::ForkSpawner::run_from_path(
     char const* binary_name, std::initializer_list<char const*> args) const
 {
     return std::async(std::launch::async, run, binary_name, args, std::initializer_list<int>());
 }
 
-std::future<std::shared_ptr<mir::process::Handle>> mir::process::ForkSpawner::run_from_path(
+std::future<std::unique_ptr<mir::process::Handle>> mir::process::ForkSpawner::run_from_path(
     char const* binary_name, std::initializer_list<char const*> args, std::initializer_list<int> fds) const
 {
     return std::async(std::launch::async, run, binary_name, args, fds);
