@@ -26,6 +26,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <thread>
+#include <memory>
 
 #include <sys/time.h>
 
@@ -39,9 +40,12 @@ class DisplayReport;
 namespace mesa
 {
 
+struct PageFlipEventData;
+typedef std::unordered_map<uint32_t, std::shared_ptr<PageFlipEventData> > PendingPageFlipMap;
+
 struct PageFlipEventData
 {
-    std::unordered_map<uint32_t,PageFlipEventData>* pending;
+    PendingPageFlipMap* pending;
     uint32_t crtc_id;
 };
 
@@ -59,7 +63,7 @@ private:
     bool page_flip_is_done(uint32_t crtc_id);
 
     int const drm_fd;
-    std::unordered_map<uint32_t,PageFlipEventData> pending_page_flips;
+    PendingPageFlipMap pending_page_flips;
     std::mutex pf_mutex;
     std::condition_variable pf_cv;
     std::thread::id worker_tid;
