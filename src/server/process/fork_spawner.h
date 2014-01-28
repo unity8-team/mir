@@ -27,6 +27,9 @@ namespace mir
 namespace process
 {
 
+/**
+ * \brief An implementation of mir::process::Spawner that forks new processes
+ */
 class ForkSpawner : public Spawner
 {
 public:
