@@ -41,11 +41,11 @@ TEST(ForkSpawnerTest, OpenFDsListsCorrectFDs)
 
     close(spacing_fd);
 
-    for(auto fd : open_fds())
+    for (auto fd : open_fds())
     {
         if (std_fds.erase(fd) != 1)
         {
-            if (extra_fds.erase(fd) != 1)  
+            if (extra_fds.erase(fd) != 1)
             {
                 // We can't fail on unexpected fd as we don't control our test environment
                 // sufficiently - ctest leaves fds open.
@@ -57,7 +57,7 @@ TEST(ForkSpawnerTest, OpenFDsListsCorrectFDs)
     EXPECT_THAT(std_fds, IsEmpty());
     EXPECT_THAT(extra_fds, IsEmpty());
 
-    for(auto fd : extra_fds)
+    for (auto fd : extra_fds)
     {
         close(fd);
     }
