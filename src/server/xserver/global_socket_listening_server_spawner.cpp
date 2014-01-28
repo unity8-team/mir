@@ -38,16 +38,20 @@ char const* mx::GlobalSocketListeningServerContext::client_connection_string()
     return connection_string.c_str();
 }
 
-std::future<std::unique_ptr<mx::ServerContext>> mx::GlobalSocketListeningServerSpawner::create_server(std::shared_ptr<mir::process::Spawner> const& spawner)
+std::future<std::unique_ptr<mx::ServerContext>> mx::GlobalSocketListeningServerSpawner::create_server(std::shared_ptr<mir::process::Spawner> const& spawner, std::shared_ptr<mir::frontend::Connector> const& connector)
 {
-    return std::async(std::launch::async, [spawner]()
+    return std::async(std::launch::async, [spawner, connector]()
     {
         mir::pipe::Pipe displayfd_pipe;
         auto displayfd = std::to_string(displayfd_pipe.write_fd());
+        int mir_fd = connector->client_socket_fd();
+        auto mir_fd_arg = std::string("fd://") + std::to_string(mir_fd);
 
         auto future_handle = spawner->run_from_path("Xorg",
-                                                    {"-displayfd", displayfd.c_str()},
-                                                    {displayfd_pipe.write_fd()});
+                                                    {"-displayfd", displayfd.c_str(),
+                                                     "-mir", "xserver",
+                                                     "-mirSocket", mir_fd_arg.c_str()},
+                                                    {displayfd_pipe.write_fd(), mir_fd});
 
         char display_number[10];
         errno = 0;

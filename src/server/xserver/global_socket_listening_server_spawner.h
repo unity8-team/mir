@@ -43,7 +43,7 @@ private:
 class GlobalSocketListeningServerSpawner : public ServerSpawner
 {
 public:
-    std::future<std::unique_ptr<ServerContext>> create_server(std::shared_ptr<mir::process::Spawner> const& spawner) override;
+    std::future<std::unique_ptr<ServerContext>> create_server(std::shared_ptr<mir::process::Spawner> const& spawner, std::shared_ptr<mir::frontend::Connector> const& connector) override;
 };
 
 }

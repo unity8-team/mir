@@ -23,6 +23,7 @@
 #include <memory>
 
 #include "mir/process/spawner.h"
+#include "mir/frontend/connector.h"
 
 namespace mir
 {
@@ -49,7 +50,8 @@ class ServerSpawner
 public:
     virtual ~ServerSpawner() = default;
 
-    virtual std::future<std::unique_ptr<ServerContext>> create_server(std::shared_ptr<mir::process::Spawner> const& spawner) = 0;
+    virtual std::future<std::unique_ptr<ServerContext>> create_server(std::shared_ptr<mir::process::Spawner> const& spawner,
+                                                                      std::shared_ptr<mir::frontend::Connector> const& connector) = 0;
 };
 }
 }

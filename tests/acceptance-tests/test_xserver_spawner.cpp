@@ -40,7 +40,6 @@ public:
         return config.the_xserver_spawner();
     }
 
-private:
     mir::DefaultServerConfiguration& server_config() override
     {
         return config;
@@ -57,12 +56,12 @@ private:
 };
 }
 
-TEST_F(XserverSpawningServer, X11ClientConnects)
+TEST_F(XserverSpawningServer, DISABLED_X11ClientConnects)
 {
     // Ensure the surrounding environment doesn't mess with the test
     unsetenv("DISPLAY");
 
-    auto xserver = the_xserver_spawner()->create_server(std::make_shared<mir::process::ForkSpawner>());
+    auto xserver = the_xserver_spawner()->create_server(std::make_shared<mir::process::ForkSpawner>(), config.the_connector());
     Display* disp = XOpenDisplay(xserver.get()->client_connection_string());
 
     ASSERT_TRUE(disp != NULL);

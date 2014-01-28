@@ -33,6 +33,14 @@ using namespace ::testing;
 
 namespace
 {
+struct MockConnector : public mir::frontend::Connector
+{
+    MOCK_METHOD0(start, void(void));
+    MOCK_METHOD0(stop, void(void));
+    MOCK_CONST_METHOD0(client_socket_fd, int(void));
+    MOCK_CONST_METHOD0(remove_endpoint, void(void));
+};
+
 struct MockProcessSpawner : public mir::process::Spawner
 {
     MOCK_CONST_METHOD3(run, mir::process::Handle*(std::string, std::vector<char const*>, std::vector<int>));
@@ -66,7 +74,9 @@ struct MockProcessSpawner : public mir::process::Spawner
 struct SocketListeningServerTest : public testing::Test
 {
     SocketListeningServerTest()
-        : default_server_number("100"), spawner(std::make_shared<NiceMock<MockProcessSpawner>>())
+        : default_server_number("100"),
+          spawner(std::make_shared<NiceMock<MockProcessSpawner>>()),
+          connector(std::make_shared<NiceMock<MockConnector>>())
     {
         ON_CALL(*spawner, run(_, _, _))
             .WillByDefault(DoAll(SaveArg<0>(&binary),
@@ -75,6 +85,8 @@ struct SocketListeningServerTest : public testing::Test
                                  InvokeWithoutArgs([this]()
                                                    { write_server_string(default_server_number); }),
                                  Return(nullptr)));
+        ON_CALL(*connector, client_socket_fd())
+            .WillByDefault(Return(22));
     }
 
     void write_server_string(std::string server_number)
@@ -93,6 +105,7 @@ struct SocketListeningServerTest : public testing::Test
     std::vector<char const*> args;
     std::vector<int> fds;
     std::shared_ptr<NiceMock<MockProcessSpawner>> spawner;
+    std::shared_ptr<NiceMock<MockConnector>> connector;
 };
 }
 
@@ -100,7 +113,7 @@ TEST_F(SocketListeningServerTest, CreateServerAlwaysValid)
 {
     mir::X::GlobalSocketListeningServerSpawner factory;
 
-    auto server_context = factory.create_server(spawner);
+    auto server_context = factory.create_server(spawner, connector);
     ASSERT_NE(server_context.get(), nullptr);
 }
 
@@ -108,7 +121,7 @@ TEST_F(SocketListeningServerTest, SpawnsCorrectExecutable)
 {
     mir::X::GlobalSocketListeningServerSpawner factory;
 
-    auto server_context = factory.create_server(spawner);
+    auto server_context = factory.create_server(spawner, connector);
     server_context.get();
 
     EXPECT_EQ(binary, "Xorg");
@@ -129,7 +142,7 @@ TEST_F(SocketListeningServerTest, SpawnsWithDisplayFDSet)
 {
     mir::X::GlobalSocketListeningServerSpawner factory;
 
-    auto server_context = factory.create_server(spawner);
+    auto server_context = factory.create_server(spawner, connector);
     server_context.get();
 
     ASSERT_THAT(args, Not(IsEmpty()));
@@ -148,7 +161,7 @@ TEST_F(SocketListeningServerTest, ReturnsCorrectDisplayString)
     mir::X::GlobalSocketListeningServerSpawner factory;
 
     default_server_number = "20";
-    auto server_context = factory.create_server(spawner);
+    auto server_context = factory.create_server(spawner, connector);
 
     EXPECT_STREQ(":20", server_context.get()->client_connection_string());
 }
@@ -169,8 +182,25 @@ TEST_F(SocketListeningServerTest, HandlesSpawnerLifecycleCorrectly)
                                                    { write_server_string(default_server_number); }),
                                  Return(nullptr)));
         EXPECT_CALL(*tmp_spawner, run(_, _, _));
-        server_context = factory.create_server(tmp_spawner);
+        server_context = factory.create_server(tmp_spawner, connector);
     }
 
     ASSERT_NE(server_context.get(), nullptr);
+}
+
+TEST_F(SocketListeningServerTest, PassesMirSocketCorrectly)
+{
+    mir::X::GlobalSocketListeningServerSpawner factory;
+
+    int const mir_fd{32};
+    std::string const mir_connect_str{std::string("fd://") + std::to_string(mir_fd)};
+    EXPECT_CALL(*connector, client_socket_fd())
+        .WillOnce(Return(mir_fd));
+
+    auto server_context = factory.create_server(spawner, connector);
+
+    server_context.get();
+
+    EXPECT_THAT(args, ContainsSubsequence(std::vector<std::string>{"-mirSocket", mir_connect_str}));
+    EXPECT_THAT(fds, Contains(Eq(mir_fd)));
 }
