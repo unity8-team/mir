@@ -142,7 +142,7 @@ mgm::DisplayBuffer::DisplayBuffer(
 
     listener->report_successful_egl_buffer_swap_on_construction();
 
-    composited_front_buffer = get_compositing_back_buffer();
+    composited_front_buffer = get_front_buffer_object();
     if (!composited_front_buffer)
         BOOST_THROW_EXCEPTION(std::runtime_error("Failed to get frontbuffer"));
 
@@ -221,7 +221,7 @@ void mgm::DisplayBuffer::post_update(
     }
     else
     {
-        bufobj = get_compositing_back_buffer();
+        bufobj = get_front_buffer_object();
     }
 
     if (!bufobj)
@@ -268,10 +268,8 @@ void mgm::DisplayBuffer::post_update(
     bypassed_front_buffer = bypass_buf;
 }
 
-mgm::BufferObject* mgm::DisplayBuffer::get_compositing_back_buffer()
+mgm::BufferObject* mgm::DisplayBuffer::get_front_buffer_object()
 {
-    // GBM is misleading in function names. It's actually the back buffer,
-    // soon to be a front buffer...
     auto front = gbm_surface_lock_front_buffer(surface_gbm.get());
     auto ret = get_buffer_object(front);
 
