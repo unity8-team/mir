@@ -20,7 +20,7 @@
 #define MIR_INPUT_INPUT_DEVICE_PROVIDER_H_
 
 #include "mir/udev/wrapper.h"
-#include <mir/input/input_device.h>
+#include "mir/input/input_device.h"
 
 #include <memory>
 

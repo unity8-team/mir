@@ -16,7 +16,7 @@
  * Authored by: Christopher Halse Rogers <christopher.halse.rogers@canonical.com>
  */
 
-#include <mir/input/input_device_factory.h>
+#include "mir/input/input_device_factory.h"
 #include "mir/udev/wrapper.h"
 #include "mir_test_doubles/mock_udev_device.h"
 #include <gtest/gtest.h>
