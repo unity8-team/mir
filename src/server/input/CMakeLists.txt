@@ -12,6 +12,7 @@ set(
   display_input_region.cpp
   vt_filter.cpp
   default_configuration.cpp
+  input_device_factory.cpp
 )
 
 add_subdirectory(android)
