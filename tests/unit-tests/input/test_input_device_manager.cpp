@@ -25,7 +25,7 @@
 namespace mi = mir::input;
 namespace mtd = mir::test::doubles;
 
-namespace 
+namespace
 {
 
 class MockInputDeviceProvider : public mi::InputDeviceProvider
@@ -34,7 +34,6 @@ public:
     MOCK_CONST_METHOD1(ProbeDevice, mi::InputDeviceProvider::Priority(mir::udev::Device const&));
     MOCK_CONST_METHOD1(create_device, std::shared_ptr<mi::InputDevice>(mir::udev::Device const&));
 };
-
 }
 
 TEST(InputDeviceFactoryTest, ProbesAllProviders)
@@ -44,7 +43,7 @@ TEST(InputDeviceFactoryTest, ProbesAllProviders)
     auto b = std::make_shared<MockInputDeviceProvider>();
 
     EXPECT_CALL(*a, ProbeDevice(_))
-	.WillOnce(Return(mi::InputDeviceProvider::UNSUPPORTED));
+        .WillOnce(Return(mi::InputDeviceProvider::UNSUPPORTED));
     EXPECT_CALL(*b, ProbeDevice(_))
         .WillOnce(Return(mi::InputDeviceProvider::UNSUPPORTED));
 
@@ -61,7 +60,7 @@ TEST(InputDeviceFactoryTest, CreatesDeviceOnSupportedProvider)
     auto b = std::make_shared<MockInputDeviceProvider>();
 
     EXPECT_CALL(*a, ProbeDevice(_))
-	.WillOnce(Return(mi::InputDeviceProvider::UNSUPPORTED));
+        .WillOnce(Return(mi::InputDeviceProvider::UNSUPPORTED));
     EXPECT_CALL(*b, ProbeDevice(_))
         .WillOnce(Return(mi::InputDeviceProvider::SUPPORTED));
     EXPECT_CALL(*b, create_device(_))
@@ -71,7 +70,7 @@ TEST(InputDeviceFactoryTest, CreatesDeviceOnSupportedProvider)
     mtd::MockUdevDevice mock_dev;
 
     factory.create_device(mock_dev);
-} 
+}
 
 TEST(InputDeviceFactoryTest, PrefersCreatingDeviceOnBetterProvider)
 {
@@ -80,13 +79,13 @@ TEST(InputDeviceFactoryTest, PrefersCreatingDeviceOnBetterProvider)
     auto b = std::make_shared<MockInputDeviceProvider>();
 
     EXPECT_CALL(*a, ProbeDevice(_))
-	.Times(2)
-	.WillRepeatedly(Return(mi::InputDeviceProvider::BEST));
+        .Times(2)
+        .WillRepeatedly(Return(mi::InputDeviceProvider::BEST));
     EXPECT_CALL(*b, ProbeDevice(_))
-	.Times(2)
+        .Times(2)
         .WillRepeatedly(Return(mi::InputDeviceProvider::SUPPORTED));
     EXPECT_CALL(*a, create_device(_))
-	.Times(2)
+        .Times(2)
         .WillRepeatedly(Return(std::shared_ptr<mi::InputDevice>()));
 
     mi::InputDeviceFactory factory_one({a, b});
@@ -95,4 +94,4 @@ TEST(InputDeviceFactoryTest, PrefersCreatingDeviceOnBetterProvider)
 
     factory_one.create_device(mock_dev);
     factory_two.create_device(mock_dev);
-} 
+}
