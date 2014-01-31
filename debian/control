@@ -19,6 +19,7 @@ Build-Depends: cmake,
                libubuntu-location-service-dev,
                libgtest-dev,
                libprocess-cpp-dev (>= 0.0.1+14.04.20131212),
+               libproperties-cpp-dev,
 Standards-Version: 3.9.4
 Homepage: https://launchpad.net/platform-api
 Vcs-Bzr: lp:platform-api
