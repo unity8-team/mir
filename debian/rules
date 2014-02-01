@@ -15,7 +15,10 @@ override_dh_auto_test:
 
 COMMON_CONFIGURE_OPTIONS = \
   -DBUILD_DOXYGEN=YES \
-  -DCMAKE_INSTALL_LIBEXECDIR="lib/$(DEB_HOST_MULTIARCH)/mir"
+  -DCMAKE_INSTALL_LIBEXECDIR="lib/$(DEB_HOST_MULTIARCH)/mir" \
+  -DBoost_DEBUG=YES \
+  -DCMAKE_TOOLCHAIN_FILE=/etc/dpkg-cross/cmake/CMakeCross.txt
+
 
 override_dh_auto_configure:
 ifeq ($(DEB_HOST_ARCH),armhf)
