@@ -25,6 +25,8 @@
 namespace mi = mir::input;
 namespace mtd = mir::test::doubles;
 
+using namespace testing;
+
 namespace
 {
 
@@ -34,64 +36,69 @@ public:
     MOCK_CONST_METHOD1(ProbeDevice, mi::InputDeviceProvider::Priority(mir::udev::Device const&));
     MOCK_CONST_METHOD1(create_device, std::shared_ptr<mi::InputDevice>(mir::udev::Device const&));
 };
+
+class InputDeviceFactoryTest : public testing::Test
+{
+public:
+    InputDeviceFactoryTest()
+        : provider_a{std::make_shared<NiceMock<MockInputDeviceProvider>> ()},
+          provider_b{std::make_shared<NiceMock<MockInputDeviceProvider>> ()},
+          dummy_device{std::make_shared<mi::InputDevice> (mock_dev)}
+    {
+        ON_CALL(*provider_a, ProbeDevice(_))
+            .WillByDefault(Return(mi::InputDeviceProvider::UNSUPPORTED));
+        ON_CALL(*provider_b, ProbeDevice(_))
+            .WillByDefault(Return(mi::InputDeviceProvider::UNSUPPORTED));
+        ON_CALL(*provider_a, create_device(_))
+            .WillByDefault(Return(std::shared_ptr<mi::InputDevice>()));
+        ON_CALL(*provider_b, create_device(_))
+            .WillByDefault(Return(std::shared_ptr<mi::InputDevice>()));
+    }
+
+    std::shared_ptr<NiceMock<MockInputDeviceProvider>> provider_a, provider_b;
+    mtd::MockUdevDevice mock_dev;
+    std::shared_ptr<mi::InputDevice> dummy_device;
+};
+
 }
 
-TEST(InputDeviceFactoryTest, ProbesAllProviders)
+TEST_F(InputDeviceFactoryTest, ProbesAllProviders)
 {
-    using namespace testing;
-    auto a = std::make_shared<MockInputDeviceProvider>();
-    auto b = std::make_shared<MockInputDeviceProvider>();
-
-    EXPECT_CALL(*a, ProbeDevice(_))
+    EXPECT_CALL(*provider_a, ProbeDevice(_))
         .WillOnce(Return(mi::InputDeviceProvider::UNSUPPORTED));
-    EXPECT_CALL(*b, ProbeDevice(_))
+    EXPECT_CALL(*provider_b, ProbeDevice(_))
         .WillOnce(Return(mi::InputDeviceProvider::UNSUPPORTED));
 
-    mi::InputDeviceFactory factory({a, b});
-    mtd::MockUdevDevice mock_dev;
+    mi::InputDeviceFactory factory({provider_a, provider_b});
 
+    // TODO: What should this return?
     factory.create_device(mock_dev);
 }
 
-TEST(InputDeviceFactoryTest, CreatesDeviceOnSupportedProvider)
+TEST_F(InputDeviceFactoryTest, CreatesDeviceOnSupportedProvider)
 {
-    using namespace testing;
-    auto a = std::make_shared<MockInputDeviceProvider>();
-    auto b = std::make_shared<MockInputDeviceProvider>();
+    ON_CALL(*provider_b, ProbeDevice(_))
+        .WillByDefault(Return(mi::InputDeviceProvider::SUPPORTED));
+    EXPECT_CALL(*provider_b, create_device(_))
+        .WillOnce(Return(dummy_device));
 
-    EXPECT_CALL(*a, ProbeDevice(_))
-        .WillOnce(Return(mi::InputDeviceProvider::UNSUPPORTED));
-    EXPECT_CALL(*b, ProbeDevice(_))
-        .WillOnce(Return(mi::InputDeviceProvider::SUPPORTED));
-    EXPECT_CALL(*b, create_device(_))
-        .WillOnce(Return(std::shared_ptr<mi::InputDevice>()));
+    mi::InputDeviceFactory factory({provider_a, provider_b});
 
-    mi::InputDeviceFactory factory({a, b});
-    mtd::MockUdevDevice mock_dev;
-
-    factory.create_device(mock_dev);
+    EXPECT_EQ(dummy_device, factory.create_device(mock_dev));
 }
 
-TEST(InputDeviceFactoryTest, PrefersCreatingDeviceOnBetterProvider)
+TEST_F(InputDeviceFactoryTest, PrefersCreatingDeviceOnBetterProvider)
 {
-    using namespace testing;
-    auto a = std::make_shared<MockInputDeviceProvider>();
-    auto b = std::make_shared<MockInputDeviceProvider>();
+    ON_CALL(*provider_a, ProbeDevice(_))
+        .WillByDefault(Return(mi::InputDeviceProvider::BEST));
+    ON_CALL(*provider_b, ProbeDevice(_))
+        .WillByDefault(Return(mi::InputDeviceProvider::SUPPORTED));
+    ON_CALL(*provider_a, create_device(_))
+        .WillByDefault(Return(dummy_device));
 
-    EXPECT_CALL(*a, ProbeDevice(_))
-        .Times(2)
-        .WillRepeatedly(Return(mi::InputDeviceProvider::BEST));
-    EXPECT_CALL(*b, ProbeDevice(_))
-        .Times(2)
-        .WillRepeatedly(Return(mi::InputDeviceProvider::SUPPORTED));
-    EXPECT_CALL(*a, create_device(_))
-        .Times(2)
-        .WillRepeatedly(Return(std::shared_ptr<mi::InputDevice>()));
+    mi::InputDeviceFactory factory_one({provider_a, provider_b});
+    mi::InputDeviceFactory factory_two({provider_b, provider_a});
 
-    mi::InputDeviceFactory factory_one({a, b});
-    mi::InputDeviceFactory factory_two({b, a});
-    mtd::MockUdevDevice mock_dev;
-
-    factory_one.create_device(mock_dev);
-    factory_two.create_device(mock_dev);
+    EXPECT_EQ(dummy_device, factory_one.create_device(mock_dev));
+    EXPECT_EQ(dummy_device, factory_two.create_device(mock_dev));
 }
