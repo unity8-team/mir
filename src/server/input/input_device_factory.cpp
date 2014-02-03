@@ -25,6 +25,12 @@ mi::InputDeviceFactory::InputDeviceFactory(std::initializer_list<std::unique_ptr
     for (auto& provider : providers)
     {
         // Did you know that std::initializer_list really, really doesn't like MoveAssignable?
+        // This is safe; there's no valid way to construct a std::unique_ptr that's compile-time constant,
+        // so the compiler is guaranteed not to put the initializer_list in RO memory.
+        //
+        // Should someone manage to construct a compile-time constant ptr, crashing here will be
+        // friendlier than possibly crashing later when the unique_ptr tries to destroy the
+        // object.
         this->providers.push_back(std::move(const_cast<std::unique_ptr<InputDeviceProvider>&>(provider)));
     }
 }
