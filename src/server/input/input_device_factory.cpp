@@ -41,7 +41,7 @@ std::unique_ptr<mi::InputDevice> mir::input::InputDeviceFactory::create_device(m
     mi::InputDeviceProvider* best_provider = nullptr;
     for (auto& provider : providers)
     {
-        auto prio = provider->ProbeDevice(device);
+        auto prio = provider->probe_device(device);
         if (prio > best_prio)
         {
             best_prio = prio;

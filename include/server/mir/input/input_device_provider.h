@@ -40,7 +40,7 @@ public:
 
     virtual ~InputDeviceProvider() noexcept {}
 
-    virtual Priority ProbeDevice(mir::udev::Device const& device) const = 0;
+    virtual Priority probe_device(mir::udev::Device const& device) const = 0;
     virtual std::unique_ptr<InputDevice> create_device(mir::udev::Device const& device) const = 0;
 };
 

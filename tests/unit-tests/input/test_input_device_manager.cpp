@@ -33,7 +33,7 @@ namespace
 class MockInputDeviceProvider : public mi::InputDeviceProvider
 {
 public:
-    MOCK_CONST_METHOD1(ProbeDevice, mi::InputDeviceProvider::Priority(mir::udev::Device const&));
+    MOCK_CONST_METHOD1(probe_device, mi::InputDeviceProvider::Priority(mir::udev::Device const&));
 
     std::unique_ptr<mi::InputDevice> create_device(mir::udev::Device const& dev) const override
     {
@@ -50,9 +50,9 @@ public:
         : provider_a{std::unique_ptr<NiceMock<MockInputDeviceProvider>> (new NiceMock<MockInputDeviceProvider>{})},
           provider_b{std::unique_ptr<NiceMock<MockInputDeviceProvider>> (new NiceMock<MockInputDeviceProvider>{})}
     {
-        ON_CALL(*provider_a, ProbeDevice(_))
+        ON_CALL(*provider_a, probe_device(_))
             .WillByDefault(Return(mi::InputDeviceProvider::UNSUPPORTED));
-        ON_CALL(*provider_b, ProbeDevice(_))
+        ON_CALL(*provider_b, probe_device(_))
             .WillByDefault(Return(mi::InputDeviceProvider::UNSUPPORTED));
         ON_CALL(*provider_a, mock_create_device(_))
             .WillByDefault(Return(nullptr));
@@ -68,9 +68,9 @@ public:
 
 TEST_F(InputDeviceFactoryTest, ProbesAllProviders)
 {
-    EXPECT_CALL(*provider_a, ProbeDevice(_))
+    EXPECT_CALL(*provider_a, probe_device(_))
         .WillOnce(Return(mi::InputDeviceProvider::UNSUPPORTED));
-    EXPECT_CALL(*provider_b, ProbeDevice(_))
+    EXPECT_CALL(*provider_b, probe_device(_))
         .WillOnce(Return(mi::InputDeviceProvider::UNSUPPORTED));
 
     mi::InputDeviceFactory factory({std::move(provider_a), std::move(provider_b)});
@@ -82,7 +82,7 @@ TEST_F(InputDeviceFactoryTest, ProbesAllProviders)
 TEST_F(InputDeviceFactoryTest, CreatesDeviceOnSupportedProvider)
 {
     auto* dummy_device = new mi::InputDevice(mock_dev);
-    ON_CALL(*provider_b, ProbeDevice(_))
+    ON_CALL(*provider_b, probe_device(_))
         .WillByDefault(Return(mi::InputDeviceProvider::SUPPORTED));
     EXPECT_CALL(*provider_b, mock_create_device(_))
         .WillOnce(Return(dummy_device));
@@ -95,9 +95,9 @@ TEST_F(InputDeviceFactoryTest, CreatesDeviceOnSupportedProvider)
 TEST_F(InputDeviceFactoryTest, PrefersCreatingDeviceOnBetterProvider)
 {
     auto* dummy_device = new mi::InputDevice(mock_dev);
-    ON_CALL(*provider_a, ProbeDevice(_))
+    ON_CALL(*provider_a, probe_device(_))
         .WillByDefault(Return(mi::InputDeviceProvider::BEST));
-    ON_CALL(*provider_b, ProbeDevice(_))
+    ON_CALL(*provider_b, probe_device(_))
         .WillByDefault(Return(mi::InputDeviceProvider::SUPPORTED));
     ON_CALL(*provider_a, mock_create_device(_))
         .WillByDefault(Return(dummy_device));
