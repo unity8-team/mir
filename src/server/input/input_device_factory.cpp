@@ -20,12 +20,16 @@ b * This program is free software: you can redistribute it and/or modify
 
 namespace mi = mir::input;
 
-mi::InputDeviceFactory::InputDeviceFactory(std::initializer_list<std::shared_ptr<mi::InputDeviceProvider>> providers)
-    : providers(providers)
+mi::InputDeviceFactory::InputDeviceFactory(std::initializer_list<std::unique_ptr<InputDeviceProvider>> providers)
 {
+    for (auto& provider : providers)
+    {
+        // Did you know that std::initializer_list really, really doesn't like MoveAssignable?
+        this->providers.push_back(std::move(const_cast<std::unique_ptr<InputDeviceProvider>&>(provider)));
+    }
 }
 
-std::shared_ptr<mi::InputDevice> mir::input::InputDeviceFactory::create_device(mir::udev::Device const& device)
+std::unique_ptr<mi::InputDevice> mir::input::InputDeviceFactory::create_device(mir::udev::Device const& device)
 {
     mi::InputDeviceProvider::Priority best_prio = mi::InputDeviceProvider::UNSUPPORTED;
     mi::InputDeviceProvider* best_provider = nullptr;
@@ -38,7 +42,8 @@ std::shared_ptr<mi::InputDevice> mir::input::InputDeviceFactory::create_device(m
     }
 
     if (best_provider != nullptr)
-	return best_provider->create_device(device);
+        return best_provider->create_device(device);
 
-    return std::shared_ptr<mi::InputDevice>();
+    // TODO: What do we do here?
+    return std::unique_ptr<mi::InputDevice>();
 }

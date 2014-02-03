@@ -34,30 +34,34 @@ class MockInputDeviceProvider : public mi::InputDeviceProvider
 {
 public:
     MOCK_CONST_METHOD1(ProbeDevice, mi::InputDeviceProvider::Priority(mir::udev::Device const&));
-    MOCK_CONST_METHOD1(create_device, std::shared_ptr<mi::InputDevice>(mir::udev::Device const&));
+
+    std::unique_ptr<mi::InputDevice> create_device(mir::udev::Device const& dev) const override
+    {
+        return std::unique_ptr<mi::InputDevice>(mock_create_device(dev));
+    }
+    // Needs this thunk because GMock doesn't understand move semantics
+    MOCK_CONST_METHOD1(mock_create_device, mi::InputDevice*(mir::udev::Device const&));
 };
 
 class InputDeviceFactoryTest : public testing::Test
 {
 public:
     InputDeviceFactoryTest()
-        : provider_a{std::make_shared<NiceMock<MockInputDeviceProvider>> ()},
-          provider_b{std::make_shared<NiceMock<MockInputDeviceProvider>> ()},
-          dummy_device{std::make_shared<mi::InputDevice> (mock_dev)}
+        : provider_a{std::unique_ptr<NiceMock<MockInputDeviceProvider>> (new NiceMock<MockInputDeviceProvider>{})},
+          provider_b{std::unique_ptr<NiceMock<MockInputDeviceProvider>> (new NiceMock<MockInputDeviceProvider>{})}
     {
         ON_CALL(*provider_a, ProbeDevice(_))
             .WillByDefault(Return(mi::InputDeviceProvider::UNSUPPORTED));
         ON_CALL(*provider_b, ProbeDevice(_))
             .WillByDefault(Return(mi::InputDeviceProvider::UNSUPPORTED));
-        ON_CALL(*provider_a, create_device(_))
-            .WillByDefault(Return(std::shared_ptr<mi::InputDevice>()));
-        ON_CALL(*provider_b, create_device(_))
-            .WillByDefault(Return(std::shared_ptr<mi::InputDevice>()));
+        ON_CALL(*provider_a, mock_create_device(_))
+            .WillByDefault(Return(nullptr));
+        ON_CALL(*provider_b, mock_create_device(_))
+            .WillByDefault(Return(nullptr));
     }
 
-    std::shared_ptr<NiceMock<MockInputDeviceProvider>> provider_a, provider_b;
+    std::unique_ptr<NiceMock<MockInputDeviceProvider>> provider_a, provider_b;
     mtd::MockUdevDevice mock_dev;
-    std::shared_ptr<mi::InputDevice> dummy_device;
 };
 
 }
@@ -69,7 +73,7 @@ TEST_F(InputDeviceFactoryTest, ProbesAllProviders)
     EXPECT_CALL(*provider_b, ProbeDevice(_))
         .WillOnce(Return(mi::InputDeviceProvider::UNSUPPORTED));
 
-    mi::InputDeviceFactory factory({provider_a, provider_b});
+    mi::InputDeviceFactory factory({std::move(provider_a), std::move(provider_b)});
 
     // TODO: What should this return?
     factory.create_device(mock_dev);
@@ -77,28 +81,28 @@ TEST_F(InputDeviceFactoryTest, ProbesAllProviders)
 
 TEST_F(InputDeviceFactoryTest, CreatesDeviceOnSupportedProvider)
 {
+    auto* dummy_device = new mi::InputDevice(mock_dev);
     ON_CALL(*provider_b, ProbeDevice(_))
         .WillByDefault(Return(mi::InputDeviceProvider::SUPPORTED));
-    EXPECT_CALL(*provider_b, create_device(_))
+    EXPECT_CALL(*provider_b, mock_create_device(_))
         .WillOnce(Return(dummy_device));
 
-    mi::InputDeviceFactory factory({provider_a, provider_b});
+    mi::InputDeviceFactory factory({std::move(provider_a), std::move(provider_b)});
 
-    EXPECT_EQ(dummy_device, factory.create_device(mock_dev));
+    EXPECT_EQ(dummy_device, factory.create_device(mock_dev).get());
 }
 
 TEST_F(InputDeviceFactoryTest, PrefersCreatingDeviceOnBetterProvider)
 {
+    auto* dummy_device = new mi::InputDevice(mock_dev);
     ON_CALL(*provider_a, ProbeDevice(_))
         .WillByDefault(Return(mi::InputDeviceProvider::BEST));
     ON_CALL(*provider_b, ProbeDevice(_))
         .WillByDefault(Return(mi::InputDeviceProvider::SUPPORTED));
-    ON_CALL(*provider_a, create_device(_))
+    ON_CALL(*provider_a, mock_create_device(_))
         .WillByDefault(Return(dummy_device));
 
-    mi::InputDeviceFactory factory_one({provider_a, provider_b});
-    mi::InputDeviceFactory factory_two({provider_b, provider_a});
+    mi::InputDeviceFactory factory({std::move(provider_a), std::move(provider_b)});
 
-    EXPECT_EQ(dummy_device, factory_one.create_device(mock_dev));
-    EXPECT_EQ(dummy_device, factory_two.create_device(mock_dev));
+    EXPECT_EQ(dummy_device, factory.create_device(mock_dev).get());
 }
