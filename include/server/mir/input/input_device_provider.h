@@ -32,19 +32,21 @@ namespace input
 class InputDeviceProvider
 {
 public:
-    enum Priority {
-	UNSUPPORTED = 0,
-	SUPPORTED = 100,
-	BEST = 255,
+    enum Priority
+    {
+        UNSUPPORTED = 0,
+        SUPPORTED = 100,
+        BEST = 255,
     };
 
-    virtual ~InputDeviceProvider() noexcept {}
+    virtual ~InputDeviceProvider() noexcept
+    {
+    }
 
     virtual Priority probe_device(mir::udev::Device const& device) const = 0;
     virtual std::unique_ptr<InputDevice> create_device(mir::udev::Device const& device) const = 0;
 };
-
 }
-} // namespace mir
+}  // namespace mir
 
-#endif // MIR_INPUT_INPUT_DEVICE_PROVIDER_H_
+#endif  // MIR_INPUT_INPUT_DEVICE_PROVIDER_H_
