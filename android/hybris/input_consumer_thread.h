@@ -18,7 +18,11 @@
 #ifndef INPUT_CONSUMER_THREAD_H_
 #define INPUT_CONSUMER_THREAD_H_
 
+#if ANDROID_VERSION_MAJOR==4 && ANDROID_VERSION_MINOR<=2
 #include <androidfw/InputTransport.h>
+#else
+#include <input/InputTransport.h>
+#endif
 #include <utils/Looper.h>
 
 namespace android
