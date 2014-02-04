@@ -106,3 +106,9 @@ TEST_F(InputDeviceFactoryTest, PrefersCreatingDeviceOnBetterProvider)
 
     EXPECT_EQ(dummy_device, factory.create_device(mock_dev).get());
 }
+
+TEST_F(InputDeviceFactoryTest, ThrowsOnEmptyUniquePtr)
+{
+    EXPECT_THROW({ mi::InputDeviceFactory factory({std::unique_ptr<mi::InputDeviceProvider>(nullptr)}); },
+                 std::logic_error);
+}

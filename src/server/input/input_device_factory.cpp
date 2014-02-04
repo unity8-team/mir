@@ -16,6 +16,8 @@ b * This program is free software: you can redistribute it and/or modify
  * Authored by: Christopher Halse Rogers <christopher.halse.rogers@canonical.com>
  */
 
+#include <boost/throw_exception.hpp>
+
 #include "mir/input/input_device_factory.h"
 
 namespace mi = mir::input;
@@ -24,6 +26,11 @@ mi::InputDeviceFactory::InputDeviceFactory(std::initializer_list<std::unique_ptr
 {
     for (auto& provider : providers)
     {
+        if (!provider)
+        {
+            BOOST_THROW_EXCEPTION(
+                std::logic_error("Attempt to construct InputDeviceFactory from null InputDeviceProvider"));
+        }
         // Did you know that std::initializer_list really, really doesn't like MoveAssignable?
         // This is safe; there's no valid way to construct a std::unique_ptr that's compile-time constant,
         // so the compiler is guaranteed not to put the initializer_list in RO memory.
