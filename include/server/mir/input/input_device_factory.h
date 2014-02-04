@@ -35,12 +35,12 @@ namespace input
 class InputDeviceFactory
 {
 public:
-    InputDeviceFactory(std::initializer_list<std::unique_ptr<InputDeviceProvider>> providers);
+    InputDeviceFactory(std::initializer_list<std::unique_ptr<InputDriver>> providers);
 
     std::unique_ptr<InputDevice> create_device(mir::udev::Device const& device);
 
 private:
-    std::vector<std::unique_ptr<InputDeviceProvider>> providers;
+    std::vector<std::unique_ptr<InputDriver>> providers;
 };
 
 }

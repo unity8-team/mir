@@ -30,10 +30,10 @@ using namespace testing;
 namespace
 {
 
-class MockInputDeviceProvider : public mi::InputDeviceProvider
+class MockInputDriver : public mi::InputDriver
 {
 public:
-    MOCK_CONST_METHOD1(probe_device, mi::InputDeviceProvider::Priority(mir::udev::Device const&));
+    MOCK_CONST_METHOD1(probe_device, mi::InputDriver::Priority(mir::udev::Device const&));
 
     std::unique_ptr<mi::InputDevice> create_device(mir::udev::Device const& dev) const override
     {
@@ -47,20 +47,20 @@ class InputDeviceFactoryTest : public testing::Test
 {
 public:
     InputDeviceFactoryTest()
-        : provider_a{std::unique_ptr<NiceMock<MockInputDeviceProvider>> (new NiceMock<MockInputDeviceProvider>{})},
-          provider_b{std::unique_ptr<NiceMock<MockInputDeviceProvider>> (new NiceMock<MockInputDeviceProvider>{})}
+        : provider_a{std::unique_ptr<NiceMock<MockInputDriver>> (new NiceMock<MockInputDriver>{})},
+          provider_b{std::unique_ptr<NiceMock<MockInputDriver>> (new NiceMock<MockInputDriver>{})}
     {
         ON_CALL(*provider_a, probe_device(_))
-            .WillByDefault(Return(mi::InputDeviceProvider::UNSUPPORTED));
+            .WillByDefault(Return(mi::InputDriver::UNSUPPORTED));
         ON_CALL(*provider_b, probe_device(_))
-            .WillByDefault(Return(mi::InputDeviceProvider::UNSUPPORTED));
+            .WillByDefault(Return(mi::InputDriver::UNSUPPORTED));
         ON_CALL(*provider_a, mock_create_device(_))
             .WillByDefault(Return(nullptr));
         ON_CALL(*provider_b, mock_create_device(_))
             .WillByDefault(Return(nullptr));
     }
 
-    std::unique_ptr<NiceMock<MockInputDeviceProvider>> provider_a, provider_b;
+    std::unique_ptr<NiceMock<MockInputDriver>> provider_a, provider_b;
     mtd::MockUdevDevice mock_dev;
 };
 
@@ -69,9 +69,9 @@ public:
 TEST_F(InputDeviceFactoryTest, ProbesAllProviders)
 {
     EXPECT_CALL(*provider_a, probe_device(_))
-        .WillOnce(Return(mi::InputDeviceProvider::UNSUPPORTED));
+        .WillOnce(Return(mi::InputDriver::UNSUPPORTED));
     EXPECT_CALL(*provider_b, probe_device(_))
-        .WillOnce(Return(mi::InputDeviceProvider::UNSUPPORTED));
+        .WillOnce(Return(mi::InputDriver::UNSUPPORTED));
 
     mi::InputDeviceFactory factory({std::move(provider_a), std::move(provider_b)});
 
@@ -83,7 +83,7 @@ TEST_F(InputDeviceFactoryTest, CreatesDeviceOnSupportedProvider)
 {
     auto* dummy_device = new mi::InputDevice(mock_dev);
     ON_CALL(*provider_b, probe_device(_))
-        .WillByDefault(Return(mi::InputDeviceProvider::SUPPORTED));
+        .WillByDefault(Return(mi::InputDriver::SUPPORTED));
     EXPECT_CALL(*provider_b, mock_create_device(_))
         .WillOnce(Return(dummy_device));
 
@@ -96,9 +96,9 @@ TEST_F(InputDeviceFactoryTest, PrefersCreatingDeviceOnBetterProvider)
 {
     auto* dummy_device = new mi::InputDevice(mock_dev);
     ON_CALL(*provider_a, probe_device(_))
-        .WillByDefault(Return(mi::InputDeviceProvider::BEST));
+        .WillByDefault(Return(mi::InputDriver::BEST));
     ON_CALL(*provider_b, probe_device(_))
-        .WillByDefault(Return(mi::InputDeviceProvider::SUPPORTED));
+        .WillByDefault(Return(mi::InputDriver::SUPPORTED));
     ON_CALL(*provider_a, mock_create_device(_))
         .WillByDefault(Return(dummy_device));
 
@@ -109,6 +109,6 @@ TEST_F(InputDeviceFactoryTest, PrefersCreatingDeviceOnBetterProvider)
 
 TEST_F(InputDeviceFactoryTest, ThrowsOnEmptyUniquePtr)
 {
-    EXPECT_THROW({ mi::InputDeviceFactory factory({std::unique_ptr<mi::InputDeviceProvider>(nullptr)}); },
+    EXPECT_THROW({ mi::InputDeviceFactory factory({std::unique_ptr<mi::InputDriver>(nullptr)}); },
                  std::logic_error);
 }

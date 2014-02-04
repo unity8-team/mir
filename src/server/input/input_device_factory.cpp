@@ -22,7 +22,7 @@ b * This program is free software: you can redistribute it and/or modify
 
 namespace mi = mir::input;
 
-mi::InputDeviceFactory::InputDeviceFactory(std::initializer_list<std::unique_ptr<InputDeviceProvider>> providers)
+mi::InputDeviceFactory::InputDeviceFactory(std::initializer_list<std::unique_ptr<InputDriver>> providers)
 {
     for (auto& provider : providers)
     {
@@ -38,14 +38,14 @@ mi::InputDeviceFactory::InputDeviceFactory(std::initializer_list<std::unique_ptr
         // Should someone manage to construct a compile-time constant ptr, crashing here will be
         // friendlier than possibly crashing later when the unique_ptr tries to destroy the
         // object.
-        this->providers.push_back(std::move(const_cast<std::unique_ptr<InputDeviceProvider>&>(provider)));
+        this->providers.push_back(std::move(const_cast<std::unique_ptr<InputDriver>&>(provider)));
     }
 }
 
 std::unique_ptr<mi::InputDevice> mir::input::InputDeviceFactory::create_device(mir::udev::Device const& device)
 {
-    mi::InputDeviceProvider::Priority best_prio = mi::InputDeviceProvider::UNSUPPORTED;
-    mi::InputDeviceProvider* best_provider = nullptr;
+    mi::InputDriver::Priority best_prio = mi::InputDriver::UNSUPPORTED;
+    mi::InputDriver* best_provider = nullptr;
     for (auto& provider : providers)
     {
         auto prio = provider->probe_device(device);

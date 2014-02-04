@@ -29,7 +29,7 @@ namespace mir
 namespace input
 {
 
-class InputDeviceProvider
+class InputDriver
 {
 public:
     enum Priority
@@ -39,7 +39,7 @@ public:
         BEST = 255,
     };
 
-    virtual ~InputDeviceProvider() noexcept
+    virtual ~InputDriver() noexcept
     {
     }
 
