@@ -377,16 +377,6 @@ TEST_F(SurfaceCreation, test_surface_set_alpha)
     EXPECT_FLOAT_EQ(alpha, compositing_criteria->alpha());
 }
 
-TEST_F(SurfaceCreation, test_surface_force_requests_to_complete)
-{
-    using namespace testing;
-
-    EXPECT_CALL(*mock_buffer_stream, force_requests_to_complete()).Times(Exactly(1));
-
-    ms::BasicSurface surf(stub_data, mock_buffer_stream, std::shared_ptr<mi::InputChannel>(), report);
-    surf.force_requests_to_complete();
-}
-
 TEST_F(SurfaceCreation, test_surface_allow_framedropping)
 {
     using namespace testing;

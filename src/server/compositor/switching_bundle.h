@@ -56,7 +56,6 @@ public:
     void compositor_release(std::shared_ptr<graphics::Buffer> const& released_buffer);
     std::shared_ptr<graphics::Buffer> snapshot_acquire();
     void snapshot_release(std::shared_ptr<graphics::Buffer> const& released_buffer);
-    void force_requests_to_complete();
     void allow_framedropping(bool dropping_allowed);
     bool framedropping_allowed() const;
 

@@ -69,8 +69,6 @@ me::InprocessEGLClient::~InprocessEGLClient()
 {
     terminate = true;
     auto session = focus_controller->focussed_application().lock();
-    if (session)
-        session->force_requests_to_complete();
     client_thread.join();
 }
 

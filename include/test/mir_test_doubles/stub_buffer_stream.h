@@ -64,10 +64,6 @@ public:
     {
     }
 
-    void force_requests_to_complete() override
-    {
-    }
-
     void allow_framedropping(bool) override
     {
     }

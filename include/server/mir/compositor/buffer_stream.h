@@ -49,7 +49,6 @@ public:
     virtual geometry::Size stream_size() = 0;
     virtual void resize(geometry::Size const& size) = 0;
     virtual void allow_framedropping(bool) = 0;
-    virtual void force_requests_to_complete() = 0;
 };
 
 }

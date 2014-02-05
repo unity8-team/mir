@@ -70,7 +70,6 @@ public:
 
     geom::Size stream_size() override { return geom::Size{}; }
     void resize(geom::Size const&) override {}
-    void force_requests_to_complete() override {}
     void allow_framedropping(bool) override
     {
         while (write(render_operations_fd, "a", 1) != 1) continue;

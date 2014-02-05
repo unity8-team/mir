@@ -398,14 +398,6 @@ void mc::SwitchingBundle::snapshot_release(std::shared_ptr<mg::Buffer> const& re
     cond.notify_all();
 }
 
-void mc::SwitchingBundle::force_requests_to_complete()
-{
-    std::unique_lock<std::mutex> lock(guard);
-    drop_frames(nready);
-    force_drop = nbuffers + 1;
-    cond.notify_all();
-}
-
 void mc::SwitchingBundle::allow_framedropping(bool allow_dropping)
 {
     std::unique_lock<std::mutex> lock(guard);

@@ -49,11 +49,6 @@ ms::BasicSurface::BasicSurface(
     report->surface_created(this);
 }
 
-void ms::BasicSurface::force_requests_to_complete()
-{
-    surface_buffer_stream->force_requests_to_complete();
-}
-
 ms::BasicSurface::~BasicSurface()
 {
     report->surface_deleted(this);

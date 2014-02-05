@@ -45,9 +45,6 @@ struct StubSession : public frontend::Session
     {
         return std::string();
     }
-    void force_requests_to_complete()
-    {
-    }
     void hide()
     {
     }

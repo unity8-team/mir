@@ -61,8 +61,6 @@ public:
 
     std::string name() const;
 
-    void force_requests_to_complete();
-
     void hide();
     void show();
 

@@ -125,15 +125,6 @@ std::string ms::ApplicationSession::name() const
     return session_name;
 }
 
-void ms::ApplicationSession::force_requests_to_complete()
-{
-    std::unique_lock<std::mutex> lock(surfaces_mutex);
-    for (auto& id_s : surfaces)
-    {
-        id_s.second->force_requests_to_complete();
-    }
-}
-
 void ms::ApplicationSession::hide()
 {
     std::unique_lock<std::mutex> lock(surfaces_mutex);

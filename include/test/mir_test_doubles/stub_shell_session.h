@@ -45,9 +45,6 @@ struct StubShellSession : public shell::Session
     {
         return std::string();
     }
-    void force_requests_to_complete() override
-    {
-    }
     void hide() override
     {
     }

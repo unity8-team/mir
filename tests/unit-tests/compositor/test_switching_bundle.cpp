@@ -293,8 +293,6 @@ TEST_F(SwitchingBundleTest, compositor_acquire_never_blocks)
         unsigned long frameno = 0;
         const int N = 100;
 
-        bundle.force_requests_to_complete();
-
         std::shared_ptr<mg::Buffer> buf[N];
         for (int i = 0; i < N; i++)
             buf[i] = bundle.compositor_acquire(++frameno);
@@ -713,7 +711,6 @@ TEST_F(SwitchingBundleTest, waiting_clients_unblock_on_shutdown)
          * unblock clients. The latter only temporarily unblock clients.
          * But that requires interface changes all over the place...
          */
-        bundle.force_requests_to_complete();
         client.join();
     }
 }
@@ -729,7 +726,6 @@ TEST_F(SwitchingBundleTest, waiting_clients_unblock_on_vt_switch_not_permanent)
         bundle.allow_framedropping(false);
 
         std::thread client(client_thread, std::ref(bundle), nbuffers);
-        bundle.force_requests_to_complete();
         client.join();
 
         EXPECT_FALSE(bundle.framedropping_allowed());

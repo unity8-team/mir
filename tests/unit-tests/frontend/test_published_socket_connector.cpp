@@ -342,26 +342,10 @@ TEST_F(PublishedSocketConnector, drm_auth_magic_is_processed_by_the_server)
     EXPECT_EQ(magic.magic(), stub_server_tool->drm_magic);
 }
 
-namespace
-{
-
-class MockForceRequests
-{
-public:
-    MOCK_METHOD0(force_requests_to_complete, void());
-};
-
-}
-
 TEST_F(PublishedSocketConnector, forces_requests_to_complete_when_stopping)
 {
-    MockForceRequests mock_force_requests;
     auto stub_server_tool = std::make_shared<mt::StubServerTool>();
     auto ipc_factory = std::make_shared<mtd::StubIpcFactory>(*stub_server_tool);
-
-    /* Once for the explicit stop() and once when the communicator is destroyed */
-    EXPECT_CALL(mock_force_requests, force_requests_to_complete())
-        .Times(2);
 
     auto comms = std::make_shared<mf::PublishedSocketConnector>(
         "./test_socket1",
@@ -370,7 +354,6 @@ TEST_F(PublishedSocketConnector, forces_requests_to_complete_when_stopping)
                     std::make_shared<mtd::StubSessionAuthorizer>(),
                     std::make_shared<mf::NullMessageProcessorReport>()),
         10,
-        std::bind(&MockForceRequests::force_requests_to_complete, &mock_force_requests),
         std::make_shared<mf::NullConnectorReport>());
 
     comms->start();

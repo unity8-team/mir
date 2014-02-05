@@ -73,11 +73,6 @@ void ms::SurfaceImpl::show()
     surface->set_hidden(false);
 }
 
-void ms::SurfaceImpl::force_requests_to_complete()
-{
-    surface->force_requests_to_complete();
-}
-
 mir::geometry::Size ms::SurfaceImpl::size() const
 {
     return surface->size();

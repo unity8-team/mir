@@ -326,8 +326,6 @@ TEST_F(BufferStreamTest, stress_test_distinct_buffers)
 
     done = true;
 
-    buffer_stream.force_requests_to_complete();
-
     compositor.join();
 
     for (auto &s : snapshotters)
