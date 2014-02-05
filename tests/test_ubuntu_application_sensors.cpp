@@ -20,6 +20,7 @@
 #include <cstdio>
 #include <queue>
 #include <chrono>
+#include <iostream>
 
 #include <core/testing/fork_and_run.h>
 
@@ -36,6 +37,13 @@ using namespace std;
 
 typedef chrono::time_point<chrono::system_clock,chrono::nanoseconds> time_point_system_ns;
 
+
+/*******************************************
+ *
+ * Tests with simulated sensor backend
+ *
+ *******************************************/
+
 struct event {
     uint64_t timestamp;
     float x, y, z;
@@ -44,7 +52,8 @@ struct event {
 };
 queue<struct event> events;
 
-class APITest : public testing::Test
+
+class SimBackendTest : public testing::Test
 {
   protected:
     virtual void SetUp()
@@ -79,13 +88,13 @@ class APITest : public testing::Test
 };
 
 // without any data, there are no sensors defined
-TESTP_F(APITest, NoData, {
+TESTP_F(SimBackendTest, NoData, {
     EXPECT_EQ(NULL, ua_sensors_accelerometer_new());
     EXPECT_EQ(NULL, ua_sensors_proximity_new());
     EXPECT_EQ(NULL, ua_sensors_light_new());
 })
 
-TESTP_F(APITest, CreateProximity, {
+TESTP_F(SimBackendTest, CreateProximity, {
     set_data("create proximity");
     EXPECT_EQ(NULL, ua_sensors_accelerometer_new());
     EXPECT_EQ(NULL, ua_sensors_light_new());
@@ -94,7 +103,7 @@ TESTP_F(APITest, CreateProximity, {
     EXPECT_TRUE(s != NULL);
 })
 
-TESTP_F(APITest, CreateAccelerator, {
+TESTP_F(SimBackendTest, CreateAccelerometer, {
     set_data("create accel 0.5 1000 0.1");
     EXPECT_EQ(NULL, ua_sensors_proximity_new());
     EXPECT_EQ(NULL, ua_sensors_light_new());
@@ -106,7 +115,7 @@ TESTP_F(APITest, CreateAccelerator, {
     EXPECT_FLOAT_EQ(0.1, ua_sensors_accelerometer_get_resolution(s));
 })
 
-TESTP_F(APITest, CreateLight, {
+TESTP_F(SimBackendTest, CreateLight, {
     set_data("create light 0 10 0.5");
     EXPECT_EQ(NULL, ua_sensors_proximity_new());
     EXPECT_EQ(NULL, ua_sensors_accelerometer_new());
@@ -118,7 +127,7 @@ TESTP_F(APITest, CreateLight, {
     EXPECT_FLOAT_EQ(0.5, ua_sensors_light_get_resolution(s));
 })
 
-TESTP_F(APITest, ProximityEvents, {
+TESTP_F(SimBackendTest, ProximityEvents, {
     set_data("create proximity\n"
              "  # some comment\n"
              "  \n"
@@ -169,7 +178,7 @@ TESTP_F(APITest, ProximityEvents, {
     EXPECT_LE(delay, 250);
 })
 
-TESTP_F(APITest, LightEvents, {
+TESTP_F(SimBackendTest, LightEvents, {
     set_data(" create  light  0 10 1\n"
              "1 light 5\n"
              "100 light 8\n"
@@ -207,7 +216,7 @@ TESTP_F(APITest, LightEvents, {
     EXPECT_LE(delay, 111);
 })
 
-TESTP_F(APITest, AccelEvents, {
+TESTP_F(SimBackendTest, AccelEvents, {
     // cover the case of > 1 s, to ensure that we correctly do mod arithmetic
     set_data("create accel -1000 1000 0.1\n"
              "1100 accel 5.5 -8.5 9.9\n"
@@ -240,4 +249,69 @@ TESTP_F(APITest, AccelEvents, {
     auto delay = chrono::duration_cast<chrono::milliseconds>(event_time - start_time).count();
     EXPECT_GE(delay, 1050);
     EXPECT_LE(delay, 1150);
+})
+
+/*******************************************
+ *
+ * Tests with default backend
+ *
+ *******************************************/
+
+class DefaultBackendTest : public testing::Test
+{
+    virtual void SetUp()
+    {
+        unsetenv("UBUNTU_PLATFORM_API_BACKEND");
+    }
+};
+
+TESTP_F(DefaultBackendTest, CreateProximity, {
+    // this can succeed for fail depending on whether the hardware we run this
+    // on actually exists; but it should never crash
+    UASensorsProximity *s = ua_sensors_proximity_new();
+    if (s != NULL) {
+        cerr << "proximity sensor present on this hardware\n";
+        // calling its functions should not crash; we can't assert much about
+        // their actual values, though
+        ua_sensors_proximity_enable(s);
+        EXPECT_LE(ua_sensors_proximity_get_min_value(s), ua_sensors_proximity_get_max_value(s));
+        ua_sensors_proximity_get_resolution(s);
+        ua_sensors_proximity_disable(s);
+    } else {
+        cerr << "no proximity sensor on this hardware\n";
+    }
+})
+
+TESTP_F(DefaultBackendTest, CreateAccelerometer, {
+    // this can succeed for fail depending on whether the hardware we run this
+    // on actually exists; but it should never crash
+    UASensorsAccelerometer *s = ua_sensors_accelerometer_new();
+    if (s != NULL) {
+        cerr << "accelerometer sensor present on this hardware\n";
+        // calling its functions should not crash; we can't assert much about
+        // their actual values, though
+        ua_sensors_accelerometer_enable(s);
+        EXPECT_LE(ua_sensors_accelerometer_get_min_value(s), ua_sensors_accelerometer_get_max_value(s));
+        ua_sensors_accelerometer_get_resolution(s);
+        ua_sensors_accelerometer_disable(s);
+    } else {
+        cerr << "no accelerometer sensor on this hardware\n";
+    }
+})
+
+TESTP_F(DefaultBackendTest, CreateLight, {
+    // this can succeed for fail depending on whether the hardware we run this
+    // on actually exists; but it should never crash
+    UASensorsLight *s = ua_sensors_light_new();
+    if (s != NULL) {
+        cerr << "light sensor present on this hardware\n";
+        // calling its functions should not crash; we can't assert much about
+        // their actual values, though
+        ua_sensors_light_enable(s);
+        EXPECT_LE(ua_sensors_light_get_min_value(s), ua_sensors_light_get_max_value(s));
+        ua_sensors_light_get_resolution(s);
+        ua_sensors_light_disable(s);
+    } else {
+        cerr << "no light sensor on this hardware\n";
+    }
 })
