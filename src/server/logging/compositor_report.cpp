@@ -18,6 +18,7 @@
 
 #include "compositor_report.h"
 #include "mir/logging/logger.h"
+#include "mir/geometry/size.h"
 
 using namespace mir;
 using namespace mir::compositor;
@@ -176,3 +177,24 @@ void logging::CompositorReport::scheduled()
     std::lock_guard<std::mutex> lock(mutex);
     last_scheduled = now();
 }
+
+
+void logging::CompositorReport::began_render(GLRendererId id, uint32_t buffer_id, std::string const& name,
+                                             geometry::Size const& size, MirPixelFormat format, float)
+{
+    char msg[256];
+    auto t = std::chrono::duration_cast<std::chrono::microseconds>(now().time_since_epoch());
+    snprintf(msg, sizeof msg, "%lld began to render %p/%x format:%d %s %dx%d",
+             t.count(), id, buffer_id, format, name.c_str(), size.width.as_int(), size.height.as_int());
+    logger->log(Logger::informational, msg, component);
+}
+
+void logging::CompositorReport::finished_render(GLRendererId id, uint32_t buffer_id)
+{
+    char msg[256];
+    auto t = std::chrono::duration_cast<std::chrono::microseconds>(now().time_since_epoch());
+    snprintf(msg, sizeof msg, "%lld finished rendering %p/%x", t.count(), id, buffer_id);
+    logger->log(Logger::informational, msg, component);
+}
+
+

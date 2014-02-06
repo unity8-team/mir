@@ -27,14 +27,17 @@ namespace mir
 {
 namespace compositor
 {
+class CompositorReport;
 
 class GLRendererFactory : public RendererFactory
 {
 public:
+    GLRendererFactory(std::shared_ptr<CompositorReport> const& report);
     std::unique_ptr<Renderer> create_renderer_for(geometry::Rectangle const& rect);
 
 private:
     std::mutex renderer_mutex;
+    std::shared_ptr<CompositorReport> report;
 };
 
 }

@@ -39,6 +39,8 @@ public:
                  void(compositor::CompositorReport::SubCompositorId));
     MOCK_METHOD2(finished_frame,
                  void(bool,compositor::CompositorReport::SubCompositorId));
+    MOCK_METHOD6(began_render,void(GLRendererId, uint32_t, std::string const&, geometry::Size const& ,MirPixelFormat , float ));
+    MOCK_METHOD2(finished_render,void(GLRendererId, uint32_t));
     MOCK_METHOD0(started, void());
     MOCK_METHOD0(stopped, void());
     MOCK_METHOD0(scheduled, void());

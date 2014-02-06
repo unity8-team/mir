@@ -28,6 +28,7 @@
 #include <mir_test/fake_shared.h>
 #include <mir_test_doubles/mock_buffer.h>
 #include <mir_test_doubles/mock_compositing_criteria.h>
+#include <mir_test_doubles/mock_compositor_report.h>
 #include <mir_test_doubles/mock_buffer_stream.h>
 #include <mir/compositor/buffer_stream.h>
 #include <mir_test_doubles/mock_gl.h>
@@ -156,7 +157,11 @@ class GLRendererSetupProcess :
 {
 public:
 
+    GLRendererSetupProcess()
+        : gl_renderer_factory{mir::test::fake_shared(mock_report)}
+    {}
     mtd::MockGL mock_gl;
+    mtd::MockCompositorReport mock_report;
     mc::GLRendererFactory gl_renderer_factory;
     mir::geometry::Rectangle display_area;
 };
@@ -278,7 +283,8 @@ public:
         EXPECT_CALL(mock_gl, glUniform1i(tex_uniform_location, 0));
         FillMockVertexBuffer(mock_gl);
 
-        mc::GLRendererFactory gl_renderer_factory;
+        mtd::MockCompositorReport report;
+        mc::GLRendererFactory gl_renderer_factory{mir::test::fake_shared(report)};
         renderer = gl_renderer_factory.create_renderer_for(display_area);
 
         EXPECT_CALL(mock_gl, glDeleteShader(stub_v_shader));

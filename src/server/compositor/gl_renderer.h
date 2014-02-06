@@ -24,16 +24,18 @@
 #include "mir/graphics/buffer_id.h"
 #include <GLES2/gl2.h>
 #include <unordered_map>
+#include <memory>
 
 namespace mir
 {
 namespace compositor
 {
+class CompositorReport;
 
 class GLRenderer : public Renderer
 {
 public:
-    GLRenderer(geometry::Rectangle const& display_area);
+    GLRenderer(geometry::Rectangle const& display_area, std::shared_ptr<CompositorReport> const& report);
     virtual ~GLRenderer() noexcept;
 
     // These are called with a valid GL context:
@@ -64,6 +66,7 @@ private:
     };
     mutable std::unordered_map<SurfaceID, Texture> textures;
     mutable bool skipped = false;
+    std::shared_ptr<CompositorReport> report;
 
 };
 

@@ -43,3 +43,13 @@ void NullCompositorReport::stopped()
 void NullCompositorReport::scheduled()
 {
 }
+
+void NullCompositorReport::began_render(GLRendererId, uint32_t, std::string const&, geometry::Size const&,MirPixelFormat, float)
+{
+}
+
+void NullCompositorReport::finished_render(GLRendererId, uint32_t)
+{
+}
+
+

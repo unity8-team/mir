@@ -37,12 +37,14 @@ public:
                             float opacity=1.0f,
                             bool rectangular=true,
                             bool visible=true,
-                            bool posted=true)
+                            bool posted=true,
+                            std::string name = "stub")
         : rect{{x, y}, {width, height}},
           opacity(opacity),
           rectangular(rectangular),
           visible(visible),
-          posted(posted)
+          posted(posted),
+          label{name}
     {
         const glm::mat4 ident;
         glm::vec3 size(width, height, 0.0f);
@@ -70,6 +72,11 @@ public:
         return !rectangular;
     }
 
+    std::string const& name() const override
+    {
+        return label;
+    }
+
 private:
     mir::geometry::Rectangle rect;
     glm::mat4 trans;
@@ -77,6 +84,7 @@ private:
     bool rectangular;
     bool visible;
     bool posted;
+    std::string label;
 };
 
 } // namespace doubles

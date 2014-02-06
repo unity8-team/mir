@@ -21,6 +21,8 @@
 
 #include <glm/glm.hpp>
 
+#include <string>
+
 namespace mir
 {
 namespace geometry
@@ -37,6 +39,7 @@ public:
     virtual glm::mat4 const& transformation() const = 0;
     virtual bool should_be_rendered_in(geometry::Rectangle const& rect) const = 0;
     virtual bool shaped() const = 0;  // meaning the pixel format has alpha
+    virtual std::string const& name() const = 0;  // meaning the pixel format has alpha
 
     virtual ~CompositingCriteria() = default;
 

@@ -23,6 +23,10 @@
 namespace mc = mir::compositor;
 namespace geom = mir::geometry;
 
+mc::GLRendererFactory::GLRendererFactory(std::shared_ptr<CompositorReport> const& report)
+    : report{report}
+{
+}
 std::unique_ptr<mc::Renderer>
 mc::GLRendererFactory::create_renderer_for(geom::Rectangle const& rect)
 {
@@ -34,6 +38,6 @@ mc::GLRendererFactory::create_renderer_for(geom::Rectangle const& rect)
      */
     std::lock_guard<std::mutex> lg{renderer_mutex};
 
-    auto raw = new GLRenderer(rect);
+    auto raw = new GLRenderer(rect,report);
     return std::unique_ptr<mc::Renderer>(raw);
 }

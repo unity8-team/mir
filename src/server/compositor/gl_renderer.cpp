@@ -18,6 +18,7 @@
 #include "gl_renderer.h"
 #include "mir/compositor/compositing_criteria.h"
 #include "mir/compositor/buffer_stream.h"
+#include "mir/compositor/compositor_report.h"
 #include "mir/graphics/buffer.h"
 
 #include <glm/gtc/matrix_transform.hpp>
@@ -119,7 +120,7 @@ void GetObjectLogAndThrow(MirGLGetObjectInfoLog getObjectInfoLog,
 
 }
 
-mc::GLRenderer::GLRenderer(geom::Rectangle const& display_area) :
+mc::GLRenderer::GLRenderer(geom::Rectangle const& display_area, std::shared_ptr<CompositorReport> const& report) :
     vertex_shader(0),
     fragment_shader(0),
     program(0),
@@ -127,7 +128,8 @@ mc::GLRenderer::GLRenderer(geom::Rectangle const& display_area) :
     texcoord_attr_loc(0),
     transform_uniform_loc(0),
     alpha_uniform_loc(0),
-    vertex_attribs_vbo(0)
+    vertex_attribs_vbo(0),
+    report{report}
 {
     GLint param = 0;
 
@@ -227,6 +229,7 @@ mc::GLRenderer::~GLRenderer() noexcept
 
 void mc::GLRenderer::render(CompositingCriteria const& criteria, mg::Buffer& buffer) const
 {
+    report->began_render(this, buffer.id().as_uint32_t(), criteria.name(), buffer.size(), buffer.pixel_format(), criteria.alpha());
     glUseProgram(program);
 
     if (criteria.shaped() || criteria.alpha() < 1.0f)
@@ -281,6 +284,7 @@ void mc::GLRenderer::render(CompositingCriteria const& criteria, mg::Buffer& buf
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glDisableVertexAttribArray(texcoord_attr_loc);
     glDisableVertexAttribArray(position_attr_loc);
+    report->finished_render(this, buffer.id().as_uint32_t());
 }
 
 void mc::GLRenderer::begin(float rotation) const

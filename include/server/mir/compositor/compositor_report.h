@@ -19,8 +19,21 @@
 #ifndef MIR_COMPOSITOR_COMPOSITOR_REPORT_H_
 #define MIR_COMPOSITOR_COMPOSITOR_REPORT_H_
 
+#include "mir_toolkit/common.h" //MirPixelFormat
+
+#include <memory>
+#include <string>
+
 namespace mir
 {
+namespace geometry
+{
+class Size;
+}
+namespace logging
+{
+class Logger;
+}
 namespace compositor
 {
 
@@ -28,9 +41,13 @@ class CompositorReport
 {
 public:
     typedef const void* SubCompositorId;  // e.g. thread/display buffer ID
+    typedef const void* GLRendererId;  // e.g. thread/display buffer ID
     virtual void added_display(int width, int height, int x, int y, SubCompositorId id = 0) = 0;
     virtual void began_frame(SubCompositorId id = 0) = 0;
     virtual void finished_frame(bool bypassed, SubCompositorId id = 0) = 0;
+    virtual void began_render(GLRendererId id, uint32_t buffer_id, std::string const& name, geometry::Size const& size,
+                              MirPixelFormat format, float alpha) = 0;
+    virtual void finished_render(GLRendererId id, uint32_t buffer_id) = 0;
     virtual void started() = 0;
     virtual void stopped() = 0;
     virtual void scheduled() = 0;
@@ -44,12 +61,17 @@ protected:
 class NullCompositorReport : public CompositorReport
 {
 public:
-    void added_display(int width, int height, int x, int y, SubCompositorId id);
-    void began_frame(SubCompositorId id);
-    void finished_frame(bool bypassed, SubCompositorId id);
-    void started();
-    void stopped();
-    void scheduled();
+    NullCompositorReport() {}
+    NullCompositorReport(std::shared_ptr<mir::logging::Logger> const&) {}
+    void added_display(int width, int height, int x, int y, SubCompositorId id) override;
+    void began_frame(SubCompositorId id) override;
+    void finished_frame(bool bypassed, SubCompositorId id) override;
+    void began_render(GLRendererId id, uint32_t buffer_id, std::string const& name, geometry::Size const& size,
+                      MirPixelFormat format, float alpha) override;
+    void finished_render(GLRendererId id, uint32_t buffer_id) override;
+    void started() override;
+    void stopped() override;
+    void scheduled() override;
 };
 
 } // namespace compositor

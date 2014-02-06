@@ -41,6 +41,9 @@ public:
     void added_display(int width, int height, int x, int y, SubCompositorId id);
     void began_frame(SubCompositorId id);
     void finished_frame(bool bypassed, SubCompositorId id);
+    void began_render(GLRendererId id, uint32_t buffer_id, std::string const& name,
+                                             geometry::Size const& size, MirPixelFormat format, float alpha) override;
+    void finished_render(GLRendererId id, uint32_t buffer_id) override;
     void started();
     void stopped();
     void scheduled();
