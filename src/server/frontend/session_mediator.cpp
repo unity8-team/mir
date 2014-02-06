@@ -174,20 +174,22 @@ void mf::SessionMediator::create_surface(
     if (surface->supports_input())
         response->add_fd(surface->client_input_fd());
 
+    auto const self = shared_from_this();
+
     advance_buffer(surf_id, *surface,
-        [lock, this, response, done, session](graphics::Buffer* client_buffer, bool need_full_ipc)
+        [lock, self, response, done, session](graphics::Buffer* client_buffer, bool need_full_ipc)
         {
             lock->unlock();
 
             auto buffer = response->mutable_buffer();
-            pack_protobuf_buffer(*buffer, client_buffer, need_full_ipc);
+            self->pack_protobuf_buffer(*buffer, client_buffer, need_full_ipc);
 
             // TODO: NOTE: We use the ordering here to ensure the shell acts on the surface after the surface ID is sent over the wire.
             // This guarantees that notifications such as, gained focus, etc, can be correctly interpreted by the client.
             // To achieve this order we rely on done->Run() sending messages synchronously. As documented in mfd::SocketMessenger::send.
             // this will require additional synchronization if mfd::SocketMessenger::send changes.
             done->Run();
-            shell->handle_surface_created(session);
+            self->shell->handle_surface_created(session);
         });
 }
 
@@ -216,12 +218,14 @@ void mf::SessionMediator::next_buffer(
 
     auto surface = session->get_surface(surf_id);
 
+    auto const self = shared_from_this();
+
     advance_buffer(surf_id, *surface,
-        [lock, this, response, done, session](graphics::Buffer* client_buffer, bool need_full_ipc)
+        [lock, self, response, done, session](graphics::Buffer* client_buffer, bool need_full_ipc)
         {
             lock->unlock();
 
-            pack_protobuf_buffer(*response, client_buffer, need_full_ipc);
+            self->pack_protobuf_buffer(*response, client_buffer, need_full_ipc);
 
             done->Run();
         });

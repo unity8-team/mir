@@ -56,7 +56,8 @@ class DisplayChanger;
 class Screencast;
 
 // SessionMediator relays requests from the client process into the server.
-class SessionMediator : public mir::protobuf::DisplayServer
+class SessionMediator : public mir::protobuf::DisplayServer,
+    public std::enable_shared_from_this<SessionMediator>
 {
 public:
     SessionMediator(

@@ -206,10 +206,10 @@ struct SessionMediatorTest : public ::testing::Test
           report{std::make_shared<mf::NullSessionMediatorReport>()},
           resource_cache{std::make_shared<mf::ResourceCache>()},
           stub_screencast{std::make_shared<StubScreencast>()},
-          mediator{shell, graphics_platform, graphics_changer,
+          mediator{std::make_shared<mf::SessionMediator>(shell, graphics_platform, graphics_changer,
                    surface_pixel_formats, report,
                    std::make_shared<mtd::NullEventSink>(),
-                   resource_cache, stub_screencast},
+                   resource_cache, stub_screencast)},
           stubbed_session{std::make_shared<StubbedSession>()},
           null_callback{google::protobuf::NewPermanentCallback(google::protobuf::DoNothing)}
     {
@@ -227,7 +227,7 @@ struct SessionMediatorTest : public ::testing::Test
     std::shared_ptr<mf::SessionMediatorReport> const report;
     std::shared_ptr<mf::ResourceCache> const resource_cache;
     std::shared_ptr<StubScreencast> const stub_screencast;
-    mf::SessionMediator mediator;
+    std::shared_ptr<mf::SessionMediator> const mediator;
     std::shared_ptr<StubbedSession> const stubbed_session;
 
     std::unique_ptr<google::protobuf::Closure> null_callback;
@@ -243,8 +243,8 @@ TEST_F(SessionMediatorTest, disconnect_releases_session)
 
     EXPECT_CALL(*shell, close_session(_)).Times(1);
 
-    mediator.connect(nullptr, &connect_parameters, &connection, null_callback.get());
-    mediator.disconnect(nullptr, nullptr, nullptr, null_callback.get());
+    mediator->connect(nullptr, &connect_parameters, &connection, null_callback.get());
+    mediator->disconnect(nullptr, nullptr, nullptr, null_callback.get());
 }
 
 TEST_F(SessionMediatorTest, calling_methods_before_connect_throws)
@@ -253,31 +253,31 @@ TEST_F(SessionMediatorTest, calling_methods_before_connect_throws)
         mp::SurfaceParameters request;
         mp::Surface response;
 
-        mediator.create_surface(nullptr, &request, &response, null_callback.get());
+        mediator->create_surface(nullptr, &request, &response, null_callback.get());
     }, std::logic_error);
 
     EXPECT_THROW({
         mp::SurfaceId request;
         mp::Buffer response;
 
-        mediator.next_buffer(nullptr, &request, &response, null_callback.get());
+        mediator->next_buffer(nullptr, &request, &response, null_callback.get());
     }, std::logic_error);
 
     EXPECT_THROW({
         mp::SurfaceId request;
 
-        mediator.release_surface(nullptr, &request, nullptr, null_callback.get());
+        mediator->release_surface(nullptr, &request, nullptr, null_callback.get());
     }, std::logic_error);
 
     EXPECT_THROW({
         mp::DRMMagic request;
         mp::DRMAuthMagicStatus response;
 
-        mediator.drm_auth_magic(nullptr, &request, &response, null_callback.get());
+        mediator->drm_auth_magic(nullptr, &request, &response, null_callback.get());
     }, std::logic_error);
 
     EXPECT_THROW({
-        mediator.disconnect(nullptr, nullptr, nullptr, null_callback.get());
+        mediator->disconnect(nullptr, nullptr, nullptr, null_callback.get());
     }, std::logic_error);
 }
 
@@ -286,23 +286,23 @@ TEST_F(SessionMediatorTest, calling_methods_after_connect_works)
     mp::ConnectParameters connect_parameters;
     mp::Connection connection;
 
-    mediator.connect(nullptr, &connect_parameters, &connection, null_callback.get());
+    mediator->connect(nullptr, &connect_parameters, &connection, null_callback.get());
 
     {
         mp::SurfaceParameters request;
         mp::Surface surface_response;
 
-        mediator.create_surface(nullptr, &request, &surface_response, null_callback.get());
+        mediator->create_surface(nullptr, &request, &surface_response, null_callback.get());
 
         mp::SurfaceId surface = surface_response.id();
         mp::Buffer buffer_response;
 
-        mediator.next_buffer(nullptr, &surface, &buffer_response, null_callback.get());
+        mediator->next_buffer(nullptr, &surface, &buffer_response, null_callback.get());
 
-        mediator.release_surface(nullptr, &surface, nullptr, null_callback.get());
+        mediator->release_surface(nullptr, &surface, nullptr, null_callback.get());
     }
 
-    mediator.disconnect(nullptr, nullptr, nullptr, null_callback.get());
+    mediator->disconnect(nullptr, nullptr, nullptr, null_callback.get());
 }
 
 TEST_F(SessionMediatorTest, calling_methods_after_disconnect_throws)
@@ -310,39 +310,39 @@ TEST_F(SessionMediatorTest, calling_methods_after_disconnect_throws)
     mp::ConnectParameters connect_parameters;
     mp::Connection connection;
 
-    mediator.connect(nullptr, &connect_parameters, &connection, null_callback.get());
+    mediator->connect(nullptr, &connect_parameters, &connection, null_callback.get());
 
-    mediator.disconnect(nullptr, nullptr, nullptr, null_callback.get());
+    mediator->disconnect(nullptr, nullptr, nullptr, null_callback.get());
 
     EXPECT_THROW({
         mp::SurfaceParameters surface_parameters;
         mp::Surface surface;
 
-        mediator.create_surface(nullptr, &surface_parameters, &surface, null_callback.get());
+        mediator->create_surface(nullptr, &surface_parameters, &surface, null_callback.get());
     }, std::logic_error);
 
     EXPECT_THROW({
         mp::SurfaceId request;
         mp::Buffer response;
 
-        mediator.next_buffer(nullptr, &request, &response, null_callback.get());
+        mediator->next_buffer(nullptr, &request, &response, null_callback.get());
     }, std::logic_error);
 
     EXPECT_THROW({
         mp::SurfaceId request;
 
-        mediator.release_surface(nullptr, &request, nullptr, null_callback.get());
+        mediator->release_surface(nullptr, &request, nullptr, null_callback.get());
     }, std::logic_error);
 
     EXPECT_THROW({
         mp::DRMMagic request;
         mp::DRMAuthMagicStatus response;
 
-        mediator.drm_auth_magic(nullptr, &request, &response, null_callback.get());
+        mediator->drm_auth_magic(nullptr, &request, &response, null_callback.get());
     }, std::logic_error);
 
     EXPECT_THROW({
-        mediator.disconnect(nullptr, nullptr, nullptr, null_callback.get());
+        mediator->disconnect(nullptr, nullptr, nullptr, null_callback.get());
     }, std::logic_error);
 }
 
@@ -351,11 +351,11 @@ TEST_F(SessionMediatorTest, can_reconnect_after_disconnect)
     mp::ConnectParameters connect_parameters;
     mp::Connection connection;
 
-    mediator.connect(nullptr, &connect_parameters, &connection, null_callback.get());
+    mediator->connect(nullptr, &connect_parameters, &connection, null_callback.get());
 
-    mediator.disconnect(nullptr, nullptr, nullptr, null_callback.get());
+    mediator->disconnect(nullptr, nullptr, nullptr, null_callback.get());
 
-    mediator.connect(nullptr, &connect_parameters, &connection, null_callback.get());
+    mediator->connect(nullptr, &connect_parameters, &connection, null_callback.get());
 }
 
 TEST_F(SessionMediatorTest, connect_packs_display_configuration)
@@ -369,7 +369,7 @@ TEST_F(SessionMediatorTest, connect_packs_display_configuration)
     EXPECT_CALL(*mock_display, active_configuration())
         .Times(1)
         .WillOnce(Return(mt::fake_shared(config)));
-    mf::SessionMediator mediator(
+    auto const mediator = std::make_shared<mf::SessionMediator>(
         shell, graphics_platform, mock_display,
         surface_pixel_formats, report,
         std::make_shared<mtd::NullEventSink>(),
@@ -382,7 +382,7 @@ TEST_F(SessionMediatorTest, connect_packs_display_configuration)
     connection.clear_display_output();
     connection.clear_display_configuration();
 
-    mediator.connect(nullptr, &connect_parameters, &connection, null_callback.get());
+    mediator->connect(nullptr, &connect_parameters, &connection, null_callback.get());
 
     EXPECT_THAT(connection.display_configuration(),
                 mt::DisplayConfigMatches(std::cref(config)));
@@ -393,17 +393,17 @@ TEST_F(SessionMediatorTest, creating_surface_packs_response_with_input_fds)
     mp::ConnectParameters connect_parameters;
     mp::Connection connection;
 
-    mediator.connect(nullptr, &connect_parameters, &connection, null_callback.get());
+    mediator->connect(nullptr, &connect_parameters, &connection, null_callback.get());
 
     {
         mp::SurfaceParameters request;
         mp::Surface response;
 
-        mediator.create_surface(nullptr, &request, &response, null_callback.get());
+        mediator->create_surface(nullptr, &request, &response, null_callback.get());
         EXPECT_EQ(StubbedSession::testing_client_input_fd, response.fd(0));
     }
 
-    mediator.disconnect(nullptr, nullptr, nullptr, null_callback.get());
+    mediator->disconnect(nullptr, nullptr, nullptr, null_callback.get());
 }
 
 TEST_F(SessionMediatorTest, no_input_channel_is_nonfatal)
@@ -416,16 +416,16 @@ TEST_F(SessionMediatorTest, no_input_channel_is_nonfatal)
     EXPECT_CALL(*stubbed_session->mock_surface, client_input_fd())
         .Times(0);
 
-    mediator.connect(nullptr, &connect_parameters, &connection, null_callback.get());
+    mediator->connect(nullptr, &connect_parameters, &connection, null_callback.get());
 
     {
         mp::SurfaceParameters request;
         mp::Surface response;
 
-        mediator.create_surface(nullptr, &request, &response, null_callback.get());
+        mediator->create_surface(nullptr, &request, &response, null_callback.get());
     }
 
-    mediator.disconnect(nullptr, nullptr, nullptr, null_callback.get());
+    mediator->disconnect(nullptr, nullptr, nullptr, null_callback.get());
 }
 
 TEST_F(SessionMediatorTest, session_only_sends_needed_buffers)
@@ -435,7 +435,7 @@ TEST_F(SessionMediatorTest, session_only_sends_needed_buffers)
     mp::ConnectParameters connect_parameters;
     mp::Connection connection;
 
-    mediator.connect(nullptr, &connect_parameters, &connection, null_callback.get());
+    mediator->connect(nullptr, &connect_parameters, &connection, null_callback.get());
 
     {
         EXPECT_CALL(*stubbed_session->mock_buffer, id())
@@ -456,14 +456,14 @@ TEST_F(SessionMediatorTest, session_only_sends_needed_buffers)
             .Times(2);
 
         mp::SurfaceParameters surface_request;
-        mediator.create_surface(nullptr, &surface_request, &surface_response, null_callback.get());
+        mediator->create_surface(nullptr, &surface_request, &surface_response, null_callback.get());
         buffer_request = surface_response.id();
-        mediator.next_buffer(nullptr, &buffer_request, &buffer_response[0], null_callback.get());
-        mediator.next_buffer(nullptr, &buffer_request, &buffer_response[1], null_callback.get());
-        mediator.next_buffer(nullptr, &buffer_request, &buffer_response[2], null_callback.get());
+        mediator->next_buffer(nullptr, &buffer_request, &buffer_response[0], null_callback.get());
+        mediator->next_buffer(nullptr, &buffer_request, &buffer_response[1], null_callback.get());
+        mediator->next_buffer(nullptr, &buffer_request, &buffer_response[2], null_callback.get());
     }
 
-    mediator.disconnect(nullptr, nullptr, nullptr, null_callback.get());
+    mediator->disconnect(nullptr, nullptr, nullptr, null_callback.get());
 }
 
 TEST_F(SessionMediatorTest, session_with_multiple_surfaces_only_sends_needed_buffers)
@@ -473,7 +473,7 @@ TEST_F(SessionMediatorTest, session_with_multiple_surfaces_only_sends_needed_buf
     mp::ConnectParameters connect_parameters;
     mp::Connection connection;
 
-    mediator.connect(nullptr, &connect_parameters, &connection, null_callback.get());
+    mediator->connect(nullptr, &connect_parameters, &connection, null_callback.get());
 
     {
         // AFAICS these values are stubs to set up the test condition,
@@ -504,19 +504,19 @@ TEST_F(SessionMediatorTest, session_with_multiple_surfaces_only_sends_needed_buf
             .Times(4);
 
         mp::SurfaceParameters surface_request;
-        mediator.create_surface(nullptr, &surface_request, &surface_response[0], null_callback.get());
-        mediator.create_surface(nullptr, &surface_request, &surface_response[1], null_callback.get());
+        mediator->create_surface(nullptr, &surface_request, &surface_response[0], null_callback.get());
+        mediator->create_surface(nullptr, &surface_request, &surface_response[1], null_callback.get());
         buffer_request[0] = surface_response[0].id();
         buffer_request[1] = surface_response[1].id();
-        mediator.next_buffer(nullptr, &buffer_request[0], &buffer_response[0], null_callback.get());
-        mediator.next_buffer(nullptr, &buffer_request[1], &buffer_response[1], null_callback.get());
-        mediator.next_buffer(nullptr, &buffer_request[0], &buffer_response[2], null_callback.get());
-        mediator.next_buffer(nullptr, &buffer_request[1], &buffer_response[3], null_callback.get());
-        mediator.next_buffer(nullptr, &buffer_request[0], &buffer_response[4], null_callback.get());
-        mediator.next_buffer(nullptr, &buffer_request[1], &buffer_response[5], null_callback.get());
+        mediator->next_buffer(nullptr, &buffer_request[0], &buffer_response[0], null_callback.get());
+        mediator->next_buffer(nullptr, &buffer_request[1], &buffer_response[1], null_callback.get());
+        mediator->next_buffer(nullptr, &buffer_request[0], &buffer_response[2], null_callback.get());
+        mediator->next_buffer(nullptr, &buffer_request[1], &buffer_response[3], null_callback.get());
+        mediator->next_buffer(nullptr, &buffer_request[0], &buffer_response[4], null_callback.get());
+        mediator->next_buffer(nullptr, &buffer_request[1], &buffer_response[5], null_callback.get());
     }
 
-    mediator.disconnect(nullptr, nullptr, nullptr, null_callback.get());
+    mediator->disconnect(nullptr, nullptr, nullptr, null_callback.get());
 }
 
 TEST_F(SessionMediatorTest, buffer_resource_for_surface_unaffected_by_other_surfaces)
@@ -527,7 +527,7 @@ TEST_F(SessionMediatorTest, buffer_resource_for_surface_unaffected_by_other_surf
     mp::ConnectParameters connect_parameters;
     mp::Connection connection;
 
-    mediator.connect(nullptr, &connect_parameters, &connection, null_callback.get());
+    mediator->connect(nullptr, &connect_parameters, &connection, null_callback.get());
     mp::SurfaceParameters surface_request;
     mp::Surface surface_response;
 
@@ -539,28 +539,28 @@ TEST_F(SessionMediatorTest, buffer_resource_for_surface_unaffected_by_other_surf
     EXPECT_CALL(*stubbed_session->mock_surface, swap_buffers(_, _))
         .WillOnce(InvokeArgument<1>(&buffer));
 
-    mediator.create_surface(nullptr, &surface_request, &surface_response, null_callback.get());
+    mediator->create_surface(nullptr, &surface_request, &surface_response, null_callback.get());
     mp::SurfaceId our_surface{surface_response.id()};
 
     Mock::VerifyAndClearExpectations(stubbed_session->mock_surface.get());
 
     /* Creating a new surface should not affect our surfaces' buffers */
     EXPECT_CALL(*stubbed_session->mock_surface, swap_buffers(_, _)).Times(0);
-    mediator.create_surface(nullptr, &surface_request, &surface_response, null_callback.get());
+    mediator->create_surface(nullptr, &surface_request, &surface_response, null_callback.get());
 
     mp::SurfaceId new_surface{surface_response.id()};
     mp::Buffer buffer_response;
 
     /* Getting the next buffer of new surface should not affect our surfaces' buffers */
-    mediator.next_buffer(nullptr, &new_surface, &buffer_response, null_callback.get());
+    mediator->next_buffer(nullptr, &new_surface, &buffer_response, null_callback.get());
 
     Mock::VerifyAndClearExpectations(stubbed_session->mock_surface.get());
 
     /* Getting the next buffer of our surface should post the original */
     EXPECT_CALL(*stubbed_session->mock_surface, swap_buffers(Eq(&buffer), _)).Times(1);
 
-    mediator.next_buffer(nullptr, &our_surface, &buffer_response, null_callback.get());
-    mediator.disconnect(nullptr, nullptr, nullptr, null_callback.get());
+    mediator->next_buffer(nullptr, &our_surface, &buffer_response, null_callback.get());
+    mediator->disconnect(nullptr, nullptr, nullptr, null_callback.get());
 }
 
 TEST_F(SessionMediatorTest, display_config_request)
@@ -601,13 +601,13 @@ TEST_F(SessionMediatorTest, display_config_request)
         .InSequence(seq)
         .WillOnce(Return(mt::fake_shared(stub_display_config)));
 
-    mf::SessionMediator session_mediator{
+    auto const session_mediator = std::make_shared<mf::SessionMediator>(
         shell, graphics_platform, mock_display_selector,
         surface_pixel_formats, report,
         std::make_shared<mtd::NullEventSink>(), resource_cache,
-        std::make_shared<mtd::NullScreencast>()};
+        std::make_shared<mtd::NullScreencast>());
 
-    session_mediator.connect(nullptr, &connect_parameters, &connection, null_callback.get());
+    session_mediator->connect(nullptr, &connect_parameters, &connection, null_callback.get());
 
     mp::DisplayConfiguration configuration_response;
     mp::DisplayConfiguration configuration;
@@ -631,12 +631,12 @@ TEST_F(SessionMediatorTest, display_config_request)
     disp1->set_power_mode(static_cast<uint32_t>(mir_power_mode_off));
     disp1->set_orientation(mir_orientation_inverted);
 
-    session_mediator.configure_display(nullptr, &configuration,
+    session_mediator->configure_display(nullptr, &configuration,
                                        &configuration_response, null_callback.get());
 
     EXPECT_THAT(configuration_response, mt::DisplayConfigMatches(std::cref(stub_display_config)));
 
-    session_mediator.disconnect(nullptr, nullptr, nullptr, null_callback.get());
+    session_mediator->disconnect(nullptr, nullptr, nullptr, null_callback.get());
 }
 
 TEST_F(SessionMediatorTest, fully_packs_buffer_for_create_screencast)
@@ -649,7 +649,7 @@ TEST_F(SessionMediatorTest, fully_packs_buffer_for_create_screencast)
 
     EXPECT_CALL(*graphics_platform, fill_ipc_package(_, &stub_buffer));
 
-    mediator.create_screencast(nullptr, &screencast_parameters,
+    mediator->create_screencast(nullptr, &screencast_parameters,
                                &screencast, null_callback.get());
 
     EXPECT_EQ(stub_buffer.id().as_uint32_t(),
@@ -667,7 +667,7 @@ TEST_F(SessionMediatorTest, partially_packs_buffer_for_screencast_buffer)
     EXPECT_CALL(*graphics_platform, fill_ipc_package(_, &stub_buffer))
         .Times(0);
 
-    mediator.screencast_buffer(nullptr, &screencast_id,
+    mediator->screencast_buffer(nullptr, &screencast_id,
                                &protobuf_buffer, null_callback.get());
 
     EXPECT_EQ(stub_buffer.id().as_uint32_t(),
