@@ -1,0 +1,292 @@
+Description: enabled nested Mir-on-Mir servers
+Author: Rober Carr <rober.carr@canonical.com>
+
+--- a/src/platform/graphics/mesa/native_platform.cpp
++++ b/src/platform/graphics/mesa/native_platform.cpp
+@@ -25,6 +25,9 @@
+ #include "mir/graphics/platform_ipc_package.h"
+ #include "mir/graphics/nested_context.h"
+ 
++#include "internal_client.h"
++#include "internal_native_display.h"
++
+ #include <boost/exception/errinfo_errno.hpp>
+ #include <boost/throw_exception.hpp>
+ #include <stdexcept>
+@@ -32,9 +35,15 @@
+ namespace mg = mir::graphics;
+ namespace mgm = mg::mesa;
+ 
++std::shared_ptr<mgm::InternalNativeDisplay> mgm::NativePlatform::internal_native_display;
++bool mgm::NativePlatform::internal_display_clients_present = false;
++
+ void mgm::NativePlatform::initialize(
+     std::shared_ptr<NestedContext> const& nested_context_arg)
+ {
++    internal_native_display.reset();
++    internal_display_clients_present = false;
++
+     nested_context = nested_context_arg;
+     auto fds = nested_context->platform_fd_items();
+     drm_fd = fds.at(0);
+@@ -42,6 +51,12 @@
+     nested_context->drm_set_gbm_device(gbm.device);
+ }
+ 
++mgm::NativePlatform::~NativePlatform()
++{
++    internal_display_clients_present = false;
++    internal_native_display.reset();
++}
++
+ std::shared_ptr<mg::GraphicBufferAllocator> mgm::NativePlatform::create_buffer_allocator(
+         std::shared_ptr<mg::BufferInitializer> const& buffer_initializer)
+ {
+@@ -80,9 +95,14 @@
+     return std::make_shared<MesaNativePlatformIPCPackage>(auth_fd);
+ }
+ 
++// TODO: Currently this will not work in multimonitor scenarios!. Use of an internal client inside a nested Mir on Mesa will end in
++// a deadlock inside the Mesa-EGL layer between the multiple compositor threads. ~racarr
+ std::shared_ptr<mg::InternalClient> mgm::NativePlatform::create_internal_client()
+ {
+-    BOOST_THROW_EXCEPTION(std::runtime_error("MesaNativePlatform::create_internal_client is not implemented yet!"));
++    if (!internal_native_display)
++        internal_native_display = std::make_shared<mgm::InternalNativeDisplay>(get_ipc_package());
++    internal_display_clients_present = true;
++    return std::make_shared<mgm::InternalClient>(internal_native_display);
+ }
+ 
+ void mgm::NativePlatform::fill_ipc_package(BufferIPCPacker* packer, Buffer const* buffer) const
+--- a/src/platform/graphics/mesa/native_platform.h
++++ b/src/platform/graphics/mesa/native_platform.h
+@@ -30,9 +30,13 @@
+ {
+ namespace mesa
+ {
++class InternalNativeDisplay; 
++
+ class NativePlatform : public graphics::NativePlatform
+ {
+ public:
++    virtual ~NativePlatform();
++
+     void initialize(std::shared_ptr<NestedContext> const& nested_context);
+     std::shared_ptr<GraphicBufferAllocator> create_buffer_allocator(
+         std::shared_ptr<BufferInitializer> const& buffer_initializer) override;
+@@ -40,6 +44,10 @@
+     std::shared_ptr<InternalClient> create_internal_client() override;
+     void fill_ipc_package(BufferIPCPacker* packer, Buffer const* buffer) const override;
+ 
++    //connection shared by all internal clients
++    static bool internal_display_clients_present;
++    static std::shared_ptr<InternalNativeDisplay> internal_native_display;
++
+ private:
+     int drm_fd;
+     std::shared_ptr<NestedContext> nested_context;
+--- a/src/platform/graphics/mesa/platform.cpp
++++ b/src/platform/graphics/mesa/platform.cpp
+@@ -17,6 +17,7 @@
+  */
+ 
+ #include "platform.h"
++#include "native_platform.h"
+ #include "buffer_allocator.h"
+ #include "display.h"
+ #include "internal_client.h"
+@@ -180,5 +181,6 @@
+ extern "C" int mir_server_mesa_egl_native_display_is_valid(MirMesaEGLNativeDisplay* display)
+ {
+     return ((mgm::Platform::internal_display_clients_present) &&
+-            (display == mgm::Platform::internal_native_display.get()));
++            (display == mgm::Platform::internal_native_display.get())) || ((mgm::NativePlatform::internal_display_clients_present) &&
++            (display == mgm::NativePlatform::internal_native_display.get()));
+ }
+--- /dev/null
++++ b/src/platform/graphics/mesa/platform.cpp.orig
+@@ -0,0 +1,184 @@
++/*
++ * Copyright © 2012 Canonical Ltd.
++ *
++ * This program is free software: you can redistribute it and/or modify it
++ * under the terms of the GNU Lesser General Public License version 3,
++ * as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public License
++ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
++ *
++ * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
++ */
++
++#include "platform.h"
++#include "buffer_allocator.h"
++#include "display.h"
++#include "internal_client.h"
++#include "internal_native_display.h"
++#include "linux_virtual_terminal.h"
++#include "mir/graphics/platform_ipc_package.h"
++#include "mir/graphics/buffer_ipc_packer.h"
++#include "mir/options/option.h"
++#include "mir/graphics/native_buffer.h"
++
++#include "drm_close_threadsafe.h"
++
++#include <boost/throw_exception.hpp>
++#include <stdexcept>
++
++#include <fcntl.h>
++#include <sys/ioctl.h>
++
++namespace mg = mir::graphics;
++namespace mgm = mg::mesa;
++namespace mo = mir::options;
++
++namespace
++{
++
++struct MesaPlatformIPCPackage : public mg::PlatformIPCPackage
++{
++    MesaPlatformIPCPackage(int drm_auth_fd)
++    {
++        ipc_fds.push_back(drm_auth_fd);
++    }
++
++    ~MesaPlatformIPCPackage()
++    {
++        if (ipc_fds.size() > 0 && ipc_fds[0] >= 0)
++            mgm::drm_close_threadsafe(ipc_fds[0]);
++    }
++};
++
++struct RealVTFileOperations : public mgm::VTFileOperations
++{
++    int open(char const* pathname, int flags)
++    {
++        return ::open(pathname, flags);
++    }
++
++    int close(int fd)
++    {
++        return ::close(fd);
++    }
++
++    int ioctl(int d, int request, int val)
++    {
++        return ::ioctl(d, request, val);
++    }
++
++    int ioctl(int d, int request, void* p_val)
++    {
++        return ::ioctl(d, request, p_val);
++    }
++
++    int tcsetattr(int d, int acts, const struct termios *tcattr)
++    {
++        return ::tcsetattr(d, acts, tcattr);
++    }
++
++    int tcgetattr(int d, struct termios *tcattr)
++    {
++        return ::tcgetattr(d, tcattr);
++    }
++};
++
++}
++
++std::shared_ptr<mgm::InternalNativeDisplay> mgm::Platform::internal_native_display;
++bool mgm::Platform::internal_display_clients_present;
++mgm::Platform::Platform(std::shared_ptr<DisplayReport> const& listener,
++                        std::shared_ptr<VirtualTerminal> const& vt)
++    : udev{std::make_shared<mir::udev::Context>()},
++      listener{listener},
++      vt{vt}
++{
++    drm.setup(udev);
++    gbm.setup(drm);
++    internal_display_clients_present = false;
++}
++
++mgm::Platform::~Platform()
++{
++    internal_native_display.reset();
++    internal_display_clients_present = false;
++}
++
++
++std::shared_ptr<mg::GraphicBufferAllocator> mgm::Platform::create_buffer_allocator(
++        const std::shared_ptr<mg::BufferInitializer>& buffer_initializer)
++{
++    return std::make_shared<mgm::BufferAllocator>(gbm.device, buffer_initializer);
++}
++
++std::shared_ptr<mg::Display> mgm::Platform::create_display(
++    std::shared_ptr<DisplayConfigurationPolicy> const& initial_conf_policy)
++{
++    return std::make_shared<mgm::Display>(
++        this->shared_from_this(),
++        initial_conf_policy,
++        listener);
++}
++
++std::shared_ptr<mg::PlatformIPCPackage> mgm::Platform::get_ipc_package()
++{
++    return std::make_shared<MesaPlatformIPCPackage>(drm.get_authenticated_fd());
++}
++
++void mgm::Platform::fill_ipc_package(BufferIPCPacker* packer, Buffer const* buffer) const
++{
++    auto native_handle = buffer->native_buffer_handle();
++    for(auto i=0; i<native_handle->data_items; i++)
++    {
++        packer->pack_data(native_handle->data[i]);
++    }
++    for(auto i=0; i<native_handle->fd_items; i++)
++    {
++        packer->pack_fd(native_handle->fd[i]);
++    }
++
++    packer->pack_stride(buffer->stride());
++    packer->pack_flags(native_handle->flags);
++    packer->pack_size(buffer->size());
++}
++
++void mgm::Platform::drm_auth_magic(drm_magic_t magic)
++{
++    drm.auth_magic(magic);
++}
++
++std::shared_ptr<mg::InternalClient> mgm::Platform::create_internal_client()
++{
++    if (!internal_native_display)
++        internal_native_display = std::make_shared<mgm::InternalNativeDisplay>(get_ipc_package());
++    internal_display_clients_present = true;
++    return std::make_shared<mgm::InternalClient>(internal_native_display);
++}
++
++EGLNativeDisplayType mgm::Platform::egl_native_display() const
++{
++    return gbm.device;
++}
++
++extern "C" std::shared_ptr<mg::Platform> mg::create_platform(std::shared_ptr<mo::Option> const& options, std::shared_ptr<DisplayReport> const& report)
++{
++    auto real_fops = std::make_shared<RealVTFileOperations>();
++    auto vt = std::make_shared<mgm::LinuxVirtualTerminal>(
++        real_fops,
++        options->get<int>("vt"), // TODO This option is mesa specific
++        report);
++
++    return std::make_shared<mgm::Platform>(report, vt);
++}
++
++extern "C" int mir_server_mesa_egl_native_display_is_valid(MirMesaEGLNativeDisplay* display)
++{
++    return ((mgm::Platform::internal_display_clients_present) &&
++            (display == mgm::Platform::internal_native_display.get()));
++}
