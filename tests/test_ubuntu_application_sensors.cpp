@@ -266,7 +266,7 @@ class DefaultBackendTest : public testing::Test
 };
 
 TESTP_F(DefaultBackendTest, CreateProximity, {
-    // this can succeed for fail depending on whether the hardware we run this
+    // this can succeed or fail depending on whether the hardware we run this
     // on actually exists; but it should never crash
     UASensorsProximity *s = ua_sensors_proximity_new();
     if (s != NULL) {
@@ -283,7 +283,7 @@ TESTP_F(DefaultBackendTest, CreateProximity, {
 })
 
 TESTP_F(DefaultBackendTest, CreateAccelerometer, {
-    // this can succeed for fail depending on whether the hardware we run this
+    // this can succeed or fail depending on whether the hardware we run this
     // on actually exists; but it should never crash
     UASensorsAccelerometer *s = ua_sensors_accelerometer_new();
     if (s != NULL) {
@@ -300,7 +300,7 @@ TESTP_F(DefaultBackendTest, CreateAccelerometer, {
 })
 
 TESTP_F(DefaultBackendTest, CreateLight, {
-    // this can succeed for fail depending on whether the hardware we run this
+    // this can succeed or fail depending on whether the hardware we run this
     // on actually exists; but it should never crash
     UASensorsLight *s = ua_sensors_light_new();
     if (s != NULL) {
