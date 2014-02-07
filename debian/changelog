@@ -1,6 +1,7 @@
-mir (0.1.4+14.04.20140204-0ubuntu2~ppa1) trusty; urgency=low
+mir (0.1.4+14.04.20140204-0ubuntu2~ppa3) trusty; urgency=low
 
   * Added nested server support from Rober Carr.
+  * Removed demo and test packages because they cause FTBFS in a PPA.
 
  -- Stephen M. Webb <stephen.webb@canonical.com>  Thu, 06 Feb 2014 11:33:56 -0500
 

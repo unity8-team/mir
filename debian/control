@@ -156,17 +156,6 @@ Description: Display server for Ubuntu - development headers
  .
  Contains header files required to develop against Mir.
 
-Package: mir-demos
-Architecture: i386 amd64 armhf arm64
-Depends: ${misc:Depends},
-         ${shlibs:Depends},
-Recommends: mir-doc
-Description: Display server for Ubuntu - demonstration programs
- Mir is a display server running on linux systems, with a focus on efficiency,
- robust operation and a well-defined driver model.
- .
- Contains demo applications (with source) that use the Mir display server
-
 Package: mir-utils
 Architecture: i386 amd64 armhf arm64
 Depends: ${misc:Depends},
@@ -186,15 +175,3 @@ Depends: ${misc:Depends},
 Description: API documentation for mir
  This package installs the mir API documentation.
 
-Package: mir-test-tools
-Architecture: i386 amd64 armhf arm64
-Multi-Arch: same
-Pre-Depends: ${misc:Pre-Depends}
-Depends: ${misc:Depends},
-         ${shlibs:Depends},
-Recommends: mir-demos,
-Description: Display Server for Ubuntu - stress tests and other test tools
- Mir is a display server running on linux systems, with a focus on efficiency,
- robust operation and a well-defined driver model.
- .
- Contains a tool for stress testing the Mir display server

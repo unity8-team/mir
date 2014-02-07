@@ -7,7 +7,7 @@ EXACT_PACKAGE_VERSION = $(shell dpkg-parsechangelog | grep Version | cut -d' ' -
 export DPKG_GENSYMBOLS_CHECK_LEVEL = 4
 
 %:
-	dh $@ --parallel --fail-missing
+	dh $@ --parallel
 
 #overrding dh_auto_test to get rid of --parallel during testing
 override_dh_auto_test:
@@ -24,14 +24,11 @@ ifeq ($(DEB_HOST_ARCH),armhf)
           -DMIR_RUN_ACCEPTANCE_TESTS=OFF -DMIR_RUN_INTEGRATION_TESTS=OFF \
 	  -DMIR_PLATFORM=android 
 else
-ifeq ($(DEB_HOST_ARCH),powerpc)
 	dh_auto_configure -- \
-	  $(COMMON_CONFIGURE_OPTIONS) \
-	  -DMIR_ENABLE_TESTS=NO
-else
-	dh_auto_configure -- \
+          -DMIR_RUN_ACCEPTANCE_TESTS=OFF \
+          -DMIR_RUN_INTEGRATION_TESTS=OFF \
+	  -DMIR_ENABLE_TESTS=NO \
 	  $(COMMON_CONFIGURE_OPTIONS)
-endif
 endif
 
 # TODO: we'll use a symbol file once mir is abi stable
