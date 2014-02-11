@@ -47,7 +47,7 @@ ua_sensors_haptic_new()
     auto bus = std::shared_ptr<dbus::Bus>(new dbus::Bus(core::dbus::WellKnownBus::session));
     bus->install_executor(dbus::asio::make_executor(bus));
 
-    auto stub_service = dbus::Service::use_service(bus, dbus::traits::Service<uas::HapticService>::interface_name());
+    auto stub_service = dbus::Service::use_service(bus, dbus::traits::Service<uas::USensorD>::interface_name());
     auto stub = stub_service->object_for_path(dbus::types::ObjectPath("/com/canonical/usensord/haptic"));
 
     return make_holder(new UbuntuApplicationSensorsHaptic(stub));
@@ -60,7 +60,17 @@ ua_sensors_haptic_vibrate_once(
 {
     auto s = static_cast<Holder<UbuntuApplicationSensorsHaptic*>*>(sensor);
 
-    s->value->session->invoke_method_synchronously<uas::HapticService::Vibrate, void>(duration);
+    try
+    {
+        s->value->session->invoke_method_synchronously<uas::USensorD::Haptic::Vibrate, void>(duration);
+    }
+    catch (const std::runtime_error& e)
+    {
+        std::cout << e.what() << std::endl;
+        return U_STATUS_ERROR;
+    }
+
+    return U_STATUS_SUCCESS;
 }
 
 UStatus
@@ -71,8 +81,17 @@ ua_sensors_haptic_vibrate_with_pattern(
 {
     auto s = static_cast<Holder<UbuntuApplicationSensorsHaptic*>*>(sensor);
 
-    std::vector<uint32_t> args (pattern, pattern + MAX_PATTERN_SIZE);
+    std::vector<uint32_t> p_arg (pattern, pattern + MAX_PATTERN_SIZE);
 
-    //s->value->session->invoke_method_synchronously<uas::HapticService::Vibrate, void>(args, repeat);
-    s->value->session->invoke_method_synchronously<uas::HapticService::VibratePattern, void>(args);
+    try
+    {
+        s->value->session->invoke_method_synchronously<uas::USensorD::Haptic::VibratePattern, void>(p_arg, repeat);
+    }
+    catch (const std::runtime_error& e)
+    {
+        std::cout << e.what() << std::endl;
+        return U_STATUS_ERROR;
+    }
+    
+    return U_STATUS_SUCCESS;
 }

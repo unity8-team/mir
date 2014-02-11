@@ -27,43 +27,51 @@ namespace application
 namespace sensors
 {
 
-struct HapticService
+struct USensorD
 {
     static std::string& name()
     {
-        static std::string s = "com.canonical.usensord.haptic";
+        static std::string s = "com.canonical.usensord";
         return s;
     }
 
-    struct Vibrate
+    struct Haptic
     {
         static std::string name()
         {
-            static std::string s = "Vibrate";
+            static std::string s = "com.canonical.usensord.haptic";
             return s;
         }
     
-        static const std::chrono::milliseconds default_timeout() { return std::chrono::seconds{2}; }
-
-        typedef HapticService Interface;
-        typedef void ResultType;
-        typedef std::uint32_t ArgumentType;
-    };
-
-    struct VibratePattern
-    {
-        static std::string name()
+        struct Vibrate
         {
-            static std::string s = "VibratePattern";
-            return s;
-        }
-        
-        static const std::chrono::milliseconds default_timeout() { return std::chrono::seconds{20}; }
-
-        typedef HapticService Interface;
-        typedef void ResultType;
-        typedef std::vector<std::uint32_t> ArgumentType;
-        //typedef std::tuple<std::vector<std::uint32_t>, std::uint32_t> ArgumentType;
+            static std::string name()
+            {
+                static std::string s = "Vibrate";
+                return s;
+            }
+    
+            static const std::chrono::milliseconds default_timeout() { return std::chrono::seconds{2}; }
+    
+            typedef Haptic Interface;
+            typedef void ResultType;
+            typedef std::uint32_t ArgumentType;
+        };
+    
+        struct VibratePattern
+        {
+            static std::string name()
+            {
+                static std::string s = "VibratePattern";
+                return s;
+            }
+     
+            static const std::chrono::milliseconds default_timeout() { return std::chrono::seconds{20}; }
+    
+            typedef Haptic Interface;
+            typedef void ResultType;
+            typedef std::tuple<std::vector<std::uint32_t>, std::uint32_t> ArgumentType;
+        };
     };
 };
 
