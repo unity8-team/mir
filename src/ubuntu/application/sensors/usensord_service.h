@@ -51,7 +51,7 @@ struct USensorD
                 return s;
             }
     
-            static const std::chrono::milliseconds default_timeout() { return std::chrono::seconds{2}; }
+            static const std::chrono::milliseconds default_timeout() { return std::chrono::seconds{1}; }
     
             typedef Haptic Interface;
             typedef void ResultType;
@@ -66,7 +66,7 @@ struct USensorD
                 return s;
             }
      
-            static const std::chrono::milliseconds default_timeout() { return std::chrono::seconds{20}; }
+            static const std::chrono::milliseconds default_timeout() { return std::chrono::seconds{1}; }
     
             typedef Haptic Interface;
             typedef void ResultType;
