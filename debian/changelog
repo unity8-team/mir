@@ -1,3 +1,26 @@
+platform-api (0.20+14.04.20140204.1-0ubuntu1) trusty; urgency=low
+
+  [ Ubuntu daily release ]
+  * New rebuild forced
+
+  [ Ricardo Salveti de Araujo ]
+  * Making android code compatible with 4.4.
+
+  [ Kevin Gunn ]
+  * bump debian version for mir to 0.1.4
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Tue, 04 Feb 2014 14:51:56 +0000
+
+platform-api (0.20+14.04.20140204-0ubuntu1) trusty; urgency=low
+
+  [ thomas-voss ]
+  * Adopt to changes in dbus-cpp and location-service.
+
+  [ Łukasz 'sil2100' Zemczak ]
+  * Bump the dbus-cpp dependency to 1.0.0
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Tue, 04 Feb 2014 12:34:00 +0000
+
 platform-api (0.20+14.04.20140114.1-0ubuntu1) trusty; urgency=low
 
   [ Martin Pitt ]

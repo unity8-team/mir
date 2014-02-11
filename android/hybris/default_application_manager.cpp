@@ -30,7 +30,11 @@
 
 #include <input/InputListener.h>
 #include <input/InputReader.h>
+#if ANDROID_VERSION_MAJOR==4 && ANDROID_VERSION_MINOR<=2
 #include <androidfw/InputTransport.h>
+#else
+#include <input/InputTransport.h>
+#endif
 #include <utils/threads.h>
 #include <utils/Errors.h>
 #include <utils/Timers.h>
@@ -300,10 +304,10 @@ ApplicationManager::ApplicationManager() : input_filter(new InputFilter(this)),
                                            input_setup(new android::InputSetup(input_filter)),
                                            is_osk_visible(false),
                                            are_notifications_visible(false),
+                                           app_manager_task_controller(NULL),
                                            focused_application(0),
                                            side_stage_application(0),
-                                           main_stage_application(0),
-                                           app_manager_task_controller(NULL)
+                                           main_stage_application(0)
 {
     shell_input_setup = new ShellInputSetup(input_setup->input_manager);
 

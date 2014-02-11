@@ -1,5 +1,17 @@
 LOCAL_PATH := $(call my-dir)
+
+ANDROID_VERSION_MAJOR := $(word 1, $(subst ., , $(PLATFORM_VERSION)))
+ANDROID_VERSION_MINOR := $(word 2, $(subst ., , $(PLATFORM_VERSION)))
+ANDROID_VERSION_PATCH := $(word 3, $(subst ., , $(PLATFORM_VERSION)))
+
+HAS_LIBINPUTSERVICE := $(shell test $(ANDROID_VERSION_MAJOR) -eq 4 -a $(ANDROID_VERSION_MINOR) -gt 2 && echo true)
+
 include $(CLEAR_VARS)
+
+LOCAL_CFLAGS += \
+	-DANDROID_VERSION_MAJOR=$(ANDROID_VERSION_MAJOR) \
+	-DANDROID_VERSION_MINOR=$(ANDROID_VERSION_MINOR) \
+	-DANDROID_VERSION_PATCH=$(ANDROID_VERSION_PATCH)
 
 UPAPI_PATH := $(LOCAL_PATH)/../../
 
@@ -25,6 +37,8 @@ LOCAL_MODULE_TAGS := optional
 LOCAL_SHARED_LIBRARIES := \
 	libandroidfw \
 	libbinder \
+	libinput \
+	liblog \
 	libutils \
 	libgui \
 	libEGL \
@@ -197,6 +211,11 @@ include $(BUILD_EXECUTABLE)
 
 include $(CLEAR_VARS)
 
+LOCAL_CFLAGS += \
+	-DANDROID_VERSION_MAJOR=$(ANDROID_VERSION_MAJOR) \
+	-DANDROID_VERSION_MINOR=$(ANDROID_VERSION_MINOR) \
+	-DANDROID_VERSION_PATCH=$(ANDROID_VERSION_PATCH)
+
 LOCAL_CFLAGS += -std=gnu++0x
 
 LOCAL_C_INCLUDES := \
@@ -215,6 +234,7 @@ LOCAL_MODULE_TAGS := optional
 LOCAL_SHARED_LIBRARIES := \
 	libbinder \
 	libinput \
+	liblog \
 	libgui \
 	libskia \
 	libandroidfw \
@@ -222,6 +242,10 @@ LOCAL_SHARED_LIBRARIES := \
 	libEGL \
 	libGLESv2 \
 	libubuntu_application_api
+
+ifeq ($(HAS_LIBINPUTSERVICE),true)
+LOCAL_SHARED_LIBRARIES += libinputservice
+endif
 
 include $(BUILD_EXECUTABLE)
 
