@@ -1,3 +1,11 @@
+platform-api (0.20+14.04.20140211-0ubuntu1) trusty; urgency=low
+
+  [ Martin Pitt ]
+  * Fix crash in ua_sensors_*_new() if there is no available backend.
+    Return NULL instead. (LP: #1272294)
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Tue, 11 Feb 2014 00:09:33 +0000
+
 platform-api (0.20+14.04.20140204.1-0ubuntu1) trusty; urgency=low
 
   [ Ubuntu daily release ]
