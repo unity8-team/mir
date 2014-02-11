@@ -58,6 +58,9 @@ ua_sensors_haptic_vibrate_once(
     UASensorsHaptic* sensor,
     uint32_t duration)
 {
+    if (sensor == nullptr)
+        return U_STATUS_ERROR;
+
     auto s = static_cast<Holder<UbuntuApplicationSensorsHaptic*>*>(sensor);
 
     try
@@ -79,6 +82,9 @@ ua_sensors_haptic_vibrate_with_pattern(
     uint32_t pattern[MAX_PATTERN_SIZE],
     uint32_t repeat)
 {
+    if (sensor == nullptr)
+        return U_STATUS_ERROR;
+
     auto s = static_cast<Holder<UbuntuApplicationSensorsHaptic*>*>(sensor);
 
     std::vector<uint32_t> p_arg (pattern, pattern + MAX_PATTERN_SIZE);
