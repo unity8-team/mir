@@ -114,7 +114,16 @@ extern "C" {
 /**********************************************************/
 
 #define DLSYM(fptr, sym) if (*(fptr) == NULL) { *((void**)fptr) = (void *) internal::Bridge<>::instance().resolve_symbol(sym); }
-    
+
+// this allows DLSYM to return NULL (happens if the backend is not available),
+// and returns NULL in that case; return_type must be a pointer!
+#define IMPLEMENT_CTOR0(return_type, symbol)  \
+    return_type symbol()                          \
+    {                                             \
+        static return_type (*f)() = NULL;         \
+        DLSYM(&f, #symbol);                       \
+        return f ? f() : NULL;}
+
 #define IMPLEMENT_FUNCTION0(return_type, symbol)  \
     return_type symbol()                          \
     {                                             \
@@ -128,7 +137,7 @@ extern "C" {
         static void (*f)() = NULL;                \
         DLSYM(&f, #symbol);                       \
         f();}
-    
+
 #define IMPLEMENT_FUNCTION1(return_type, symbol, arg1) \
     return_type symbol(arg1 _1)                        \
     {                                                  \
