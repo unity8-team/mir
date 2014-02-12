@@ -22,13 +22,13 @@ target_link_libraries(
   "-Wl,--whole-archive"
   ${UBUNTU_APPLICATION_API_LINK_LIBRARIES}  
   "-Wl,--no-whole-archive"
-  hybris-common
+  ${Hybris}
 )
 
 target_link_libraries(
   ubuntu_platform_hardware_api
   dl
-  hybris-common
+  ${Hybris}
 )
 
 set_target_properties(

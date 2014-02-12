@@ -30,7 +30,8 @@ target_link_libraries(
 
   ubuntu-location-service
   dbus-1
-  ${LOCATION_SERVICE_LIBRARIES}
+  ${LOCATION_SERVICE_LDFLAGS}
   ${CMAKE_THREAD_LIBS_INIT}
   ${Boost_LIBRARIES}
+  -L${Boost_LIBRARY_DIR}  # No Boost_LDFLAGS available - added here: target_link_libraries handled transitively
 )
