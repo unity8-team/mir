@@ -1,3 +1,10 @@
+platform-api (0.20+14.04.20140212-0ubuntu1) trusty; urgency=low
+
+  [ Kevin Gunn ]
+  * bump dep on mir0.1.5
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Wed, 12 Feb 2014 18:32:46 +0000
+
 platform-api (0.20+14.04.20140211-0ubuntu1) trusty; urgency=low
 
   [ Martin Pitt ]
