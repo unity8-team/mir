@@ -90,8 +90,6 @@ class HIDDEN_SYMBOL Bridge
             lib_handle = dlopen(path, RTLD_LAZY);
             dlsym_fn = dlsym;
         }
-
-        assert(lib_handle && "Error loading ubuntu_application_api");
     }
 
     ~Bridge()
