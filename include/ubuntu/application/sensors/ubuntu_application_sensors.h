@@ -18,6 +18,7 @@
 #ifndef UBUNTU_APPLICATION_SENSORS_C_API_H_
 #define UBUNTU_APPLICATION_SENSORS_C_API_H_
 
+#include <ubuntu/status.h>
 #include <ubuntu/visibility.h>
 
 #include <stdint.h>
@@ -139,15 +140,17 @@ extern "C" {
     /** Returns the minimum valid value for the sensor_type.
      * \ingroup sensor_access
      */
-    UBUNTU_DLL_PUBLIC float ubuntu_sensor_get_sensor_min_value(ubuntu_sensor_type sensor_type);
+    UBUNTU_DLL_PUBLIC UStatus ubuntu_sensor_get_sensor_min_value(ubuntu_sensor_type sensor_type, float* value);
+
     /** Returns the maximum valid value for the sensor_type.
      * \ingroup sensor_access
      */
-    UBUNTU_DLL_PUBLIC float ubuntu_sensor_get_sensor_max_value(ubuntu_sensor_type sensor_type);
+    UBUNTU_DLL_PUBLIC UStatus ubuntu_sensor_get_sensor_max_value(ubuntu_sensor_type sensor_type, float* value);
+
     /** Returns the resolution of valid values for the sensor_type.
      * \ingroup sensor_access
      */
-    UBUNTU_DLL_PUBLIC float ubuntu_sensor_get_sensor_resolution(ubuntu_sensor_type sensor_type);
+    UBUNTU_DLL_PUBLIC UStatus ubuntu_sensor_get_sensor_resolution(ubuntu_sensor_type sensor_type, float* value);
 
     /** \example test_sensors_api.cpp */
 #ifdef __cplusplus

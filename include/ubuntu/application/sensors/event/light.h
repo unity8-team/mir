@@ -49,9 +49,10 @@ extern "C" {
      * \returns The ambient light level.
      * \param[in] event The reading to be queried.
      */
-    UBUNTU_DLL_PUBLIC float
+    UBUNTU_DLL_PUBLIC UStatus
     uas_light_event_get_light(
-        UASLightEvent* event);
+        UASLightEvent* event,
+        float* value);
 
 #ifdef __cplusplus
 }

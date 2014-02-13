@@ -85,9 +85,10 @@ extern "C" {
      * \returns The minimum value that can be reported by the sensor.
      * \param[in] sensor The sensor instance to be queried.
      */
-    UBUNTU_DLL_PUBLIC float
+    UBUNTU_DLL_PUBLIC UStatus
     ua_sensors_light_get_min_value(
-        UASensorsLight* sensor);
+        UASensorsLight* sensor,
+        float* value);
 
     /**
      * \brief Queries the maximum value that can be reported by the sensor.
@@ -95,9 +96,10 @@ extern "C" {
      * \returns The maximum value that can be reported by the sensor.
      * \param[in] sensor The sensor instance to be queried.
      */
-    UBUNTU_DLL_PUBLIC float
+    UBUNTU_DLL_PUBLIC UStatus
     ua_sensors_light_get_max_value(
-        UASensorsLight* sensor);
+        UASensorsLight* sensor,
+        float* value);
 
     /**
      * \brief Queries the numeric resolution supported by the sensor
@@ -105,9 +107,10 @@ extern "C" {
      * \returns The numeric resolution supported by the sensor.
      * \param[in] sensor The sensor instance to be queried.
      */
-    UBUNTU_DLL_PUBLIC float
+    UBUNTU_DLL_PUBLIC UStatus
     ua_sensors_light_get_resolution(
-        UASensorsLight* sensor);
+        UASensorsLight* sensor,
+        float* value);
 
     /**
      * \brief Set the callback to be invoked whenever a new sensor reading is available.

@@ -46,19 +46,34 @@ uint32_t ua_sensors_accelerometer_get_min_delay(UASensorsAccelerometer*)
     return 0;
 }
 
-float ua_sensors_accelerometer_get_min_value(UASensorsAccelerometer*)
+UStatus ua_sensors_accelerometer_get_min_value(UASensorsAccelerometer*, float* value)
 {
-    return 0.0;
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = 0.f;
+
+    return U_STATUS_SUCCESS;
 }
 
-float ua_sensors_accelerometer_get_max_value(UASensorsAccelerometer*)
+UStatus ua_sensors_accelerometer_get_max_value(UASensorsAccelerometer*, float* value)
 {
-    return 0.0;
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = 0.f;
+
+    return U_STATUS_SUCCESS;
 }
 
-float ua_sensors_accelerometer_get_resolution(UASensorsAccelerometer*)
+UStatus ua_sensors_accelerometer_get_resolution(UASensorsAccelerometer*, float* value)
 {
-    return 0.0;
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = 0.f;
+
+    return U_STATUS_SUCCESS;
 }
 
 void ua_sensors_accelerometer_set_reading_cb(UASensorsAccelerometer*, on_accelerometer_event_cb, void*)
@@ -71,19 +86,34 @@ uint64_t uas_accelerometer_event_get_timestamp(UASAccelerometerEvent*)
     return 0;
 }
 
-float uas_accelerometer_event_get_acceleration_x(UASAccelerometerEvent*)
+UStatus uas_accelerometer_event_get_acceleration_x(UASAccelerometerEvent*, float* value)
 {
-    return 0.0;
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = 0.f;
+
+    return U_STATUS_SUCCESS;
 }
 
-float uas_accelerometer_event_get_acceleration_y(UASAccelerometerEvent*)
+UStatus uas_accelerometer_event_get_acceleration_y(UASAccelerometerEvent*, float* value)
 {
-    return 0.0;
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = 0.f;
+
+    return U_STATUS_SUCCESS;
 }
 
-float uas_accelerometer_event_get_acceleration_z(UASAccelerometerEvent*)
+UStatus uas_accelerometer_event_get_acceleration_z(UASAccelerometerEvent*, float* value)
 {
-    return 0.0;
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = 0.f;
+
+    return U_STATUS_SUCCESS;
 }
 
 // Proximity Sensor
@@ -107,19 +137,34 @@ uint32_t ua_sensors_proximity_get_min_delay(UASensorsProximity*)
     return 0;
 }
 
-float ua_sensors_proximity_get_min_value(UASensorsProximity*)
+UStatus ua_sensors_proximity_get_min_value(UASensorsProximity*, float* value)
 {
-    return 0.0;
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = 0.f;
+
+    return U_STATUS_SUCCESS;
 }
 
-float ua_sensors_proximity_get_max_value(UASensorsProximity*)
+UStatus ua_sensors_proximity_get_max_value(UASensorsProximity*, float* value)
 {
-    return 0.0;
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = 0.f;
+
+    return U_STATUS_SUCCESS;
 }
 
-float ua_sensors_proximity_get_resolution(UASensorsProximity*)
+UStatus ua_sensors_proximity_get_resolution(UASensorsProximity*, float* value)
 {
-    return 0.0;
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = 0.f;
+
+    return U_STATUS_SUCCESS;
 }
 
 void ua_sensors_proximity_set_reading_cb(UASensorsProximity*, on_proximity_event_cb, void*)
@@ -159,19 +204,34 @@ uint32_t ua_sensors_light_get_min_delay(UASensorsLight*)
     return 0;
 }
 
-float ua_sensors_light_get_min_value(UASensorsLight*)
+UStatus ua_sensors_light_get_min_value(UASensorsLight*, float* value)
 {
-    return 0.0;
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = 0.f;
+
+    return U_STATUS_SUCCESS;
 }
 
-float ua_sensors_light_get_max_value(UASensorsLight*)
+UStatus ua_sensors_light_get_max_value(UASensorsLight*, float* value)
 {
-    return 0.0;
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = 0.f;
+
+    return U_STATUS_SUCCESS;
 }
 
-float ua_sensors_light_get_resolution(UASensorsLight*)
+UStatus ua_sensors_light_get_resolution(UASensorsLight*, float* value)
 {
-    return 0.0;
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = 0.f;
+
+    return U_STATUS_SUCCESS;
 }
 
 void ua_sensors_light_set_reading_cb(UASensorsLight*, on_light_event_cb, void*)
@@ -184,7 +244,12 @@ uint64_t uas_light_event_get_timestamp(UASLightEvent*)
     return 0;
 }
 
-float uas_light_event_get_light(UASLightEvent*)
+UStatus uas_light_event_get_light(UASLightEvent*, float* value)
 {
-    return 0.0;
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = 0.f;
+
+    return U_STATUS_SUCCESS;
 }
