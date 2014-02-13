@@ -520,7 +520,8 @@ ua_sensors_accelerometer_get_max_value(
 
 UStatus
 ua_sensors_accelerometer_get_resolution(
-    UASensorsAccelerometer* sensor)
+    UASensorsAccelerometer* sensor,
+    float* value)
 {
     if (sensor == NULL || value == NULL)
         return U_STATUS_ERROR;
