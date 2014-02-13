@@ -199,40 +199,49 @@ ua_sensors_proximity_get_min_delay(
     return toHz(s->min_delay());
 }
 
-float
+UStatus
 ua_sensors_proximity_get_min_value(
-    UASensorsProximity* sensor)
+    UASensorsProximity* sensor,
+    float* value)
 {
-    if (sensor == NULL)
-        return -1;
-
+    if (sensor == NULL || value == NULL)
+        return U_STATUS_ERROR;
+    
     ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
     auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
-    return s->min_value();
+    *value = s->min_value();
+
+    return U_STATUS_SUCCESS;
 }
 
-float
+UStatus
 ua_sensors_proximity_get_max_value(
-    UASensorsProximity* sensor)
+    UASensorsProximity* sensor,
+    float* value)
 {
-    if (sensor == NULL)
-        return -1;
+    if (sensor == NULL || value == NULL)
+        return U_STATUS_ERROR;
 
     ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
     auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
-    return s->max_value();
+    *value = s->max_value();
+
+    return U_STATUS_SUCCESS;
 }
 
-float
+UStatus
 ua_sensors_proximity_get_resolution(
-    UASensorsProximity* sensor)
+    UASensorsProximity* sensor,
+    float* value)
 {
-    if (sensor == NULL)
-        return -1;
+    if (sensor == NULL || value == NULL)
+        return U_STATUS_ERROR;
 
     ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
     auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
-    return s->resolution();
+    *value = s->resolution();
+
+    return U_STATUS_SUCCESS;
 }
 
 void
@@ -334,40 +343,49 @@ ua_sensors_light_get_min_delay(
     return toHz(s->min_delay());
 }
 
-float
+UStatus
 ua_sensors_light_get_min_value(
-    UASensorsLight* sensor)
+    UASensorsLight* sensor,
+    float* value)
 {
-    if (sensor == NULL)
-        return -1;
+    if (sensor == NULL || value == NULL)
+        return U_STATUS_ERROR;
 
     ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
     auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
-    return s->min_value();
+    *value = s->min_value();
+
+    return U_STATUS_SUCCESS;
 }
 
-float
+UStatus
 ua_sensors_light_get_max_value(
-    UASensorsLight* sensor)
+    UASensorsLight* sensor,
+    float* value)
 {
-    if (sensor == NULL)
-        return -1;
+    if (sensor == NULL || value == NULL)
+        return U_STATUS_ERROR;
 
     ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
     auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
-    return s->max_value();
+    *value = s->max_value();
+
+    return U_STATUS_SUCCESS;
 }
 
-float
+UStatus
 ua_sensors_light_get_resolution(
-    UASensorsLight* sensor)
+    UASensorsLight* sensor,
+    float* value)
 {
-    if (sensor == NULL)
-        return -1;
+    if (sensor == NULL || value == NULL)
+        return U_STATUS_ERROR;
 
     ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
     auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
-    return s->resolution();
+    *value = s->resolution();
+
+    return U_STATUS_SUCCESS;
 }
 
 void
@@ -400,12 +418,18 @@ uas_light_event_get_timestamp(
     return ev->value->get_timestamp();
 }
 
-float
+UStatus
 uas_light_event_get_light(
-    UASLightEvent* event)
+    UASLightEvent* event,
+    float* value)
 {
+    if (event == NULL || value == NULL)
+        return U_STATUS_ERROR;
+
     auto ev = static_cast<Holder<ubuntu::application::sensors::LightEvent::Ptr>*>(event);
-    return ev->value->get_light();
+    *value = ev->value->get_light();
+
+    return U_STATUS_SUCCESS;
 }
 
 /*
@@ -464,40 +488,48 @@ ua_sensors_accelerometer_get_min_delay(
     return toHz(s->min_delay());
 }
 
-float
+UStatus
 ua_sensors_accelerometer_get_min_value(
-    UASensorsAccelerometer* sensor)
+    UASensorsAccelerometer* sensor,
+    float* value)
 {
-    if (sensor == NULL)
-        return -1;
+    if (sensor == NULL || value == NULL)
+        return U_STATUS_ERROR;
 
     ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
     auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
-    return s->min_value();
+    *value = s->min_value();
+
+    return U_STATUS_SUCCESS;
 }
 
-float
+UStatus
 ua_sensors_accelerometer_get_max_value(
-    UASensorsAccelerometer* sensor)
+    UASensorsAccelerometer* sensor,
+    float* value)
 {
-    if (sensor == NULL)
-        return -1;
+    if (sensor == NULL || value == NULL)
+        return U_STATUS_ERROR;
 
     ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
     auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
-    return s->max_value();
+    *value = s->max_value();
+
+    return U_STATUS_SUCCESS;
 }
 
-float
+UStatus
 ua_sensors_accelerometer_get_resolution(
     UASensorsAccelerometer* sensor)
 {
-    if (sensor == NULL)
-        return -1;
+    if (sensor == NULL || value == NULL)
+        return U_STATUS_ERROR;
 
     ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
     auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
-    return s->resolution();
+    *value = s->resolution();
+
+    return U_STATUS_SUCCESS;
 }
 
 void
@@ -529,26 +561,44 @@ uas_accelerometer_event_get_timestamp(
     return ev->value->get_timestamp();
 }
 
-float
+UStatus
 uas_accelerometer_event_get_acceleration_x(
-    UASAccelerometerEvent* event)
+    UASAccelerometerEvent* event,
+    float* value)
 {
+    if (event == NULL || value == NULL)
+        return U_STATUS_ERROR;
+    
     auto ev = static_cast<Holder<ubuntu::application::sensors::AccelerometerEvent::Ptr>*>(event);
-    return ev->value->get_x();
+    *value = ev->value->get_x();
+
+    return U_STATUS_SUCCESS;
 }
 
-float
+UStatus
 uas_accelerometer_event_get_acceleration_y(
-    UASAccelerometerEvent* event)
+    UASAccelerometerEvent* event,
+    float* value)
 {
+    if (event == NULL || value == NULL)
+        return U_STATUS_ERROR;
+
     auto ev = static_cast<Holder<ubuntu::application::sensors::AccelerometerEvent::Ptr>*>(event);
-    return ev->value->get_y();
+    *value = ev->value->get_y();
+
+    return U_STATUS_SUCCESS;
 }
 
-float
+UStatus
 uas_accelerometer_event_get_acceleration_z(
-    UASAccelerometerEvent* event)
+    UASAccelerometerEvent* event,
+    float* value)
 {
+    if (event == NULL || value == NULL)
+        return U_STATUS_ERROR;
+
     auto ev = static_cast<Holder<ubuntu::application::sensors::AccelerometerEvent::Ptr>*>(event);
-    return ev->value->get_z();
+    *value = ev->value->get_z();
+
+    return U_STATUS_SUCCESS;
 }
