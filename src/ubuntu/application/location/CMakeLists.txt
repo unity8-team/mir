@@ -9,7 +9,7 @@ pkg_check_modules(LOCATION_SERVICE REQUIRED ubuntu-location-service)
 
 include_directories(
   ${Boost_INCLUDE_DIRS}
-  ${DBUS_CPP_INCLUDE_DIRS}/dbus
+  ${DBUS_CPP_INCLUDE_DIRS}
   ${LOCATION_SERVICE_INCLUDE_DIRS}
 )
 
@@ -28,9 +28,8 @@ add_library(
 target_link_libraries(
   ubuntu_application_location
 
-  ubuntu-location-service
-  dbus-1
   ${LOCATION_SERVICE_LDFLAGS}
+  ${DBUS_CPP_LDFLAGS}
   ${CMAKE_THREAD_LIBS_INIT}
   ${Boost_LIBRARIES}
   -L${Boost_LIBRARY_DIR}  # No Boost_LDFLAGS available - added here: target_link_libraries handled transitively

@@ -35,6 +35,5 @@ target_link_libraries(
   ubuntu_application_api_mircommon
 
   ${UBUNTU_APPLICATION_API_LINK_LIBRARIES}
-  ${MIRCOMMON_LDFLAGS} ${MIRCOMMON_LIBRARIES}
   ${LINK_LIBRARIES}
   )

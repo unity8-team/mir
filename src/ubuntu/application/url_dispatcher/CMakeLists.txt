@@ -15,6 +15,5 @@ add_library(
 target_link_libraries(
   ubuntu_application_url_dispatcher
 
-  ${LIBURL_DISPATCHER_LIBRARIES}
   ${LIBURL_DISPATCHER_LDFLAGS}
 )
