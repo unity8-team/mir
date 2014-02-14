@@ -1,0 +1,270 @@
+###############################################################################
+# Part 1: Suppress spurious races reported in std library functions
+
+{
+   std::atomic::load
+   Helgrind:Race
+   fun:_ZNKSt13__atomic_baseIbE4loadESt12memory_order
+}
+{
+   std::atomic::store
+   Helgrind:Race
+   fun:_ZNSt13__atomic_baseIbE5storeEbSt12memory_order
+}
+
+{
+   std::mutex::unlock()
+   Helgrind:Race
+   fun:_ZNSt5mutex6unlockEv
+   obj:*
+}
+
+{
+   std::mutex::lock()
+   Helgrind:Race
+   fun:_ZNSt5mutex4lockEv
+   obj:*
+}
+
+{
+   std::thread::join
+   Helgrind:Race
+   obj:/usr/lib/valgrind/vgpreload_helgrind-amd64-linux.so
+   fun:_ZNSt6thread4joinEv
+}
+
+{
+   std::unique_lock::~unique_lock()
+   Helgrind:Race
+   fun:_ZNSt11unique_lockISt5mutexED1Ev
+   obj:*
+}
+
+{
+   std::unique_lock::unique_lock(std::mutex&)
+   Helgrind:Race
+   fun:_ZNSt11unique_lockISt5mutexEC1ERS0_
+}
+
+{
+   std::shared_ptr<mir::graphics::Buffer, (__gnu_cxx::_Lock_policy)2>::get() const
+   Helgrind:Race
+   fun:_ZNKSt12__shared_ptrIN3mir8graphics6BufferELN9__gnu_cxx12_Lock_policyE2EE3getEv
+   obj:*
+}
+
+{
+   std::chrono::duration_cast
+   Helgrind:Race
+   fun:_ZNSt6chrono20__duration_cast_implINS_8durationIlSt5ratioILl1ELl1EEEES2_ILl1ELl1000EElLb1ELb0EE6__castIlS5_EES4_RKNS1_IT_T0_EE
+}
+
+{
+   std::thread::_Impl_base::~_Impl_base()
+   Helgrind:Race
+   fun:_ZNSt6thread10_Impl_baseD1Ev
+}
+
+{
+   std::__shared_count<(__gnu_cxx::_Lock_policy)2>::~__shared_count()
+   Helgrind:Race
+   fun:_ZNSt14__shared_countILN9__gnu_cxx12_Lock_policyE2EED1Ev
+}
+
+###############################################################################
+# Part 2: Suppress spurious races in std library template instantiations
+
+{
+   std::thread::_Impl<std::_Bind_simple<void (*(std::reference_wrapper<mir::compositor::SwitchingBundle>, std::reference_wrapper<unsigned long>, std::reference_wrapper<mir::graphics::BufferID>))(mir::compositor::SwitchingBundle&, unsigned long&, mir::graphics::BufferID&)> >::~_Impl()
+   Helgrind:Race
+   fun:_ZNSt6thread5_ImplISt12_Bind_simpleIFPFvRN3mir10compositor15SwitchingBundleERmRNS2_8graphics8BufferIDEESt17reference_wrapperIS4_ESC_ImESC_IS8_EEEED1Ev
+}
+
+{
+   std::thread::_Impl<std::_Bind_simple<void (*(std::reference_wrapper<mir::compositor::SwitchingBundle>, int))(mir::compositor::SwitchingBundle&, int)> >::~_Impl()
+   Helgrind:Race
+   fun:_ZNSt6thread5_ImplISt12_Bind_simpleIFPFvRN3mir10compositor15SwitchingBundleEiESt17reference_wrapperIS4_EiEEED1Ev
+}
+
+{
+   std::thread::_Impl<std::_Bind_simple<(anonymous namespace)::StubProtobufServer::create_screencast(google::protobuf::RpcController*, mir::protobuf::ScreencastParameters const*, mir::protobuf::Screencast*, google::protobuf::Closure*)::{lambda()#1} ()> >::~_Impl()
+   Helgrind:Race
+   fun:_ZNSt6thread5_ImplISt12_Bind_simpleIFZN12_GLOBAL__N_118StubProtobufServer17create_screencastEPN6google8protobuf13RpcControllerEPKN3mir8protobuf20ScreencastParametersEPNS9_10ScreencastEPNS5_7ClosureEEUlvE_vEEED1Ev
+}
+
+{
+   std::thread::_Impl<std::_Bind_simple<(anonymous namespace)::StubProtobufServer::release_screencast(google::protobuf::RpcController*, mir::protobuf::ScreencastId const*, mir::protobuf::Void*, google::protobuf::Closure*)::{lambda()#1} ()> >::~_Impl()
+   Helgrind:Race
+   fun:_ZNSt6thread5_ImplISt12_Bind_simpleIFZN12_GLOBAL__N_118StubProtobufServer18release_screencastEPN6google8protobuf13RpcControllerEPKN3mir8protobuf12ScreencastIdEPNS9_4VoidEPNS5_7ClosureEEUlvE_vEEED1Ev
+}
+
+{
+   <insert_a_suppression_name_here>std::thread::_Impl<std::_Bind_simple<(anonymous namespace)::StubProtobufServer::screencast_buffer(google::protobuf::RpcController*, mir::protobuf::ScreencastId const*, mir::protobuf::Buffer*, google::protobuf::Closure*)::{lambda()#1} ()> >::~_Impl()
+   Helgrind:Race
+   fun:_ZNSt6thread5_ImplISt12_Bind_simpleIFZN12_GLOBAL__N_118StubProtobufServer17screencast_bufferEPN6google8protobuf13RpcControllerEPKN3mir8protobuf12ScreencastIdEPNS9_6BufferEPNS5_7ClosureEEUlvE_vEEED1Ev
+}
+
+{
+   std::thread::_Impl<std::_Bind_simple<std::_Mem_fn<void (mir::input::receiver::android::InputReceiverThread::*)()> (mir::input::receiver::android::InputReceiverThread*)> >::~_Impl()
+   Helgrind:Race
+   fun:_ZNSt6thread5_ImplISt12_Bind_simpleIFSt7_Mem_fnIMN3mir5input8receiver7android19InputReceiverThreadEFvvEEPS7_EEED1Ev
+}
+
+###############################################################################
+# Part 3: Suppress spurious races in Mir test code that I've reviewed carefully
+
+{
+   (anonymous namespace)::client_acquire_blocking(mir::compositor::SwitchingBundle&)
+   Helgrind:Race
+   fun:_ZN12_GLOBAL__N_123client_acquire_blockingERN3mir10compositor15SwitchingBundleE
+}
+
+{
+   testing::AssertionResult testing::internal::CmpHelperEQ<void const*, void const*>(char const*, char const*, void const* const&, void const* const&)
+   Helgrind:Race
+   fun:_ZN7testing8internal11CmpHelperEQIPKvS3_EENS_15AssertionResultEPKcS6_RKT_RKT0_
+}
+
+###############################################################################
+# Part 4: unverified sync in boost::asio
+{
+   unsigned long boost::asio::detail::reactive_socket_service_base::send<boost::asio::detail::consuming_buffers<boost::asio::const_buffer, boost::asio::mutable_buffers_1> >(boost::asio::detail::reactive_socket_service_base::base_implementation_type&, boost::asio::detail::consuming_buffers<boost::asio::const_buffer, boost::asio::mutable_buffers_1> const&, int, boost::system::error_code&)
+
+   Helgrind:Race
+   fun:_ZN5boost4asio6detail28reactive_socket_service_base4sendINS1_17consuming_buffersINS0_12const_bufferENS0_17mutable_buffers_1EEEEEmRNS2_24base_implementation_typeERKT_iRNS_6system10error_codeE
+   fun:_ZN5boost4asio21stream_socket_serviceINS0_5local15stream_protocolEE4sendINS0_6detail17consuming_buffersINS0_12const_bufferENS0_17mutable_buffers_1EEEEEmRNS6_23reactive_socket_serviceIS3_E19implementation_typeERKT_iRNS_6system10error_codeE
+   fun:_ZN5boost4asio19basic_stream_socketINS0_5local15stream_protocolENS0_21stream_socket_serviceIS3_EEE10write_someINS0_6detail17consuming_buffersINS0_12const_bufferENS0_17mutable_buffers_1EEEEEmRKT_RNS_6system10error_codeE
+   fun:_ZN5boost4asio5writeINS0_19basic_stream_socketINS0_5local15stream_protocolENS0_21stream_socket_serviceIS4_EEEENS0_17mutable_buffers_1ENS0_6detail14transfer_all_tEEEmRT_RKT0_T1_RNS_6system10error_codeE
+   fun:_ZN5boost4asio5writeINS0_19basic_stream_socketINS0_5local15stream_protocolENS0_21stream_socket_serviceIS4_EEEENS0_17mutable_buffers_1EEEmRT_RKT0_RNS_6system10error_codeE
+}
+
+{
+   boost::asio::detail::socket_ops::recv(int, iovec*, unsigned long, int, boost::system::error_code&)
+   Helgrind:Race
+   fun:recvmsg
+   fun:_ZN5boost4asio6detail10socket_ops4recvEiP5iovecmiRNS_6system10error_codeE
+   fun:_ZN5boost4asio6detail10socket_ops17non_blocking_recvEiP5iovecmibRNS_6system10error_codeERm
+   fun:_ZN5boost4asio6detail28reactive_socket_recv_op_baseINS0_17mutable_buffers_1EE10do_performEPNS1_10reactor_opE
+}
+
+{
+   boost::asio::detail::socket_ops::set_internal_non_blocking(int, unsigned char&, bool, boost::system::error_code&)
+   Helgrind:Race
+   fun:_ZN5boost4asio6detail10socket_ops25set_internal_non_blockingEiRhbRNS_6system10error_codeE
+   fun:_ZN5boost4asio6detail28reactive_socket_service_base8start_opERNS2_24base_implementation_typeEiPNS1_10reactor_opEbbb
+}
+
+{
+   void boost::asio::detail::op_queue_access::next<boost::asio::detail::task_io_service_operation, boost::asio::detail::task_io_service_operation>(boost::asio::detail::task_io_service_operation*&, boost::asio::detail::task_io_service_operation*)
+   Helgrind:Race
+   fun:_ZN5boost4asio6detail15op_queue_access4nextINS1_25task_io_service_operationES4_EEvRPT_PT0_
+   fun:_ZN5boost4asio6detail8op_queueINS1_25task_io_service_operationEE4pushEPS3_
+}
+
+{
+   boost::asio::detail::epoll_reactor::descriptor_state::set_ready_events(unsigned int)
+   Helgrind:Race
+   fun:_ZN5boost4asio6detail13epoll_reactor16descriptor_state16set_ready_eventsEj
+   fun:_ZN5boost4asio6detail13epoll_reactor3runEbRNS1_8op_queueINS1_25task_io_service_operationEEE
+}
+
+{
+   boost::asio::detail::task_io_service_operation* boost::asio::detail::op_queue_access::next<boost::asio::detail::task_io_service_operation>(boost::asio::detail::task_io_service_operation*)
+   Helgrind:Race
+   fun:_ZN5boost4asio6detail15op_queue_access4nextINS1_25task_io_service_operationEEEPT_S6_
+   fun:_ZN5boost4asio6detail8op_queueINS1_25task_io_service_operationEE3popEv
+}
+
+{
+   boost::asio::detail::task_io_service_operation::complete(boost::asio::detail::task_io_service&, boost::system::error_code const&, unsigned long
+   Helgrind:Race
+   fun:_ZN5boost4asio6detail25task_io_service_operation8completeERNS1_15task_io_serviceERKNS_6system10error_codeEm
+   fun:_ZN5boost4asio6detail15task_io_service10do_run_oneERNS1_11scoped_lockINS1_11posix_mutexEEERNS1_27task_io_service_thread_infoERKNS_6system10error_codeE
+}
+
+{
+   boost::asio::detail::task_io_service::do_run_one(boost::asio::detail::scoped_lock<boost::asio::detail::posix_mutex>&, boost::asio::detail::task_io_service_thread_info&, boost::system::error_code const&)
+   Helgrind:Race
+   fun:_ZN5boost4asio6detail15task_io_service10do_run_oneERNS1_11scoped_lockINS1_11posix_mutexEEERNS1_27task_io_service_thread_infoERKNS_6system10error_codeE
+   fun:_ZN5boost4asio6detail15task_io_service3runERNS_6system10error_codeE
+}
+
+{
+   boost::asio::detail::epoll_reactor::~epoll_reactor()
+   Helgrind:Race
+   fun:close
+   fun:_ZN5boost4asio6detail13epoll_reactorD1Ev
+   fun:_ZN5boost4asio6detail13epoll_reactorD0Ev
+   fun:_ZN5boost4asio6detail16service_registry7destroyEPNS0_10io_service7serviceE
+}
+
+{
+   boost::asio::detail::socket_ops::close(int, unsigned char&, bool, boost::system::error_code&)
+   Helgrind:Race
+   fun:close
+   fun:_ZN5boost4asio6detail10socket_ops5closeEiRhbRNS_6system10error_codeE
+   fun:_ZN5boost4asio6detail28reactive_socket_service_base7destroyERNS2_24base_implementation_typeE
+   fun:_ZN5boost4asio21stream_socket_serviceINS0_5local15stream_protocolEE7destroyERNS0_6detail23reactive_socket_serviceIS3_E19implementation_typeE
+ }
+
+{
+   boost::asio::detail::socket_ops::recv(int, iovec*, unsigned long, int, boost::system::error_code&)
+   Helgrind:Race
+   fun:recvmsg
+   fun:_ZN5boost4asio6detail10socket_ops4recvEiP5iovecmiRNS_6system10error_codeE
+   fun:_ZN5boost4asio6detail10socket_ops9sync_recvEihP5iovecmibRNS_6system10error_codeE
+   fun:_ZN5boost4asio6detail28reactive_socket_service_base7receiveINS0_17mutable_buffers_1EEEmRNS2_24base_implementation_typeERKT_iRNS_6system10error_codeE
+}
+
+
+###############################################################################
+# Part 5: unverifed sync in libumockdev
+
+{
+   libumockdev:udev_device_new_from_syspath
+   Helgrind:Race
+   ...
+   fun:udev_device_new_from_syspath
+}
+
+{
+   libumockdev:udev_device_get_subsystem
+   Helgrind:Race
+   ...
+   fun:udev_device_get_subsystem
+}
+
+{
+   libumockdev:udev_monitor_receive_device
+   Helgrind:Race
+   ...
+   fun:udev_monitor_receive_device
+}
+
+
+###############################################################################
+# Part 6: these aren't spurious - but probably not of concern
+
+# notify_all() called when nothing waits on the condition
+{
+   std::condition_variable::notify_all()
+   Helgrind:Misc
+   fun:_ZNSt18condition_variable10notify_allEv
+}
+
+{
+   std::condition_variable::notify_all()
+   Helgrind:Misc
+   obj:/usr/lib/valgrind/vgpreload_helgrind-amd64-linux.so
+   fun:_ZNSt18condition_variable10notify_allEv
+}
+
+# pthread_cond_{signal,broadcast}: associated lock is not held by any thread
+{
+   void boost::asio::detail::posix_event::signal_and_unlock<boost::asio::detail::scoped_lock<boost::asio::detail::posix_mutex> >(boost::asio::detail::scoped_lock<boost::asio::detail::posix_mutex>&)
+   Helgrind:Misc
+   obj:/usr/lib/valgrind/vgpreload_helgrind-amd64-linux.so
+   fun:_ZN5boost4asio6detail11posix_event17signal_and_unlockINS1_11scoped_lockINS1_11posix_mutexEEEEEvRT_
+}
+
+
