@@ -30,7 +30,13 @@ extern "C" {
     ua_ui_set_clipboard_content(
         void* data,
         size_t size);
-    
+
+    /*
+        Memory pointed by data is owned by Ubuntu Application API.
+        Caller is expected to not attempt to modify or delete it.
+        It's also not guaranteed to remain valid after any other call is made
+        to the Ubuntu Application API.
+    */
     UBUNTU_DLL_PUBLIC void
     ua_ui_get_clipboard_content(
         void** data,

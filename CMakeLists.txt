@@ -70,6 +70,11 @@ option(
 if(ENABLE_MIRCLIENT_IMPLEMENTATION)
   find_package(PkgConfig)
   pkg_check_modules(MIRCLIENT REQUIRED mirclient)
+
+  find_package(Protobuf REQUIRED)
+  if(PROTOBUF_PROTOC_EXECUTABLE STREQUAL "PROTOBUF_PROTOC_EXECUTABLE-NOTFOUND")
+    message(SEND_ERROR "protoc executable not found! Missing protobuf-compiler package?")
+  endif()
 endif(ENABLE_MIRCLIENT_IMPLEMENTATION)
 
 if(ENABLE_MIRCLIENT_IMPLEMENTATION OR ENABLE_MIRSERVER_IMPLEMENTATION)

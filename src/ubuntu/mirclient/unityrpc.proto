@@ -1,0 +1,17 @@
+option cc_generic_services = true;
+
+package unity.protobuf;
+
+message Clip {
+  required bytes content = 1;
+  optional string error = 127;
+}
+
+message Void {
+  optional string error = 127;
+}
+
+service UnityService {
+  rpc copy(Clip) returns (Void);
+  rpc paste(Void) returns (Clip);
+}
