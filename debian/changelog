@@ -1,3 +1,10 @@
+platform-api (0.20+14.04.20140214-0ubuntu1) trusty; urgency=low
+
+  [ Daniel d'Andrada ]
+  * Clipboard implementation using UnityService through the mir socket
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Fri, 14 Feb 2014 15:46:05 +0000
+
 platform-api (0.20+14.04.20140212-0ubuntu1) trusty; urgency=low
 
   [ Kevin Gunn ]
