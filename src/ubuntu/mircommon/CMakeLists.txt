@@ -12,7 +12,7 @@ if(ENABLE_HYBRIS_IMPLEMENTATION)
     ../hybris/ubuntu_application_sensors_hybris.cpp
     )
   list(APPEND LINK_LIBRARIES
-      ${Hybris}
+    ${Hybris}
     )
 else()
   list(APPEND SOURCES
