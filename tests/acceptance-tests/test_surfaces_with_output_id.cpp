@@ -123,6 +123,7 @@ struct RectangleCompare
 
 using SurfacesWithOutputId = BespokeDisplayServerTestFixture;
 
+#if 0 // FIXME
 TEST_F(SurfacesWithOutputId, fullscreen_surfaces_are_placed_at_top_left_of_correct_output)
 {
     mt::CrossProcessAction client_connect_and_create_surface;
@@ -318,3 +319,4 @@ TEST_F(SurfacesWithOutputId, non_fullscreen_surfaces_are_not_accepted)
 
     launch_client_process(client_config);
 }
+#endif
