@@ -64,11 +64,6 @@ namespace mtf = mir_test_framework;
 
 namespace
 {
-    char const* const mir_test_socket = mtf::test_socket_file().c_str();
-}
-
-namespace
-{
 typedef std::map<std::string, geom::Rectangle> GeometryMap;
 typedef std::map<std::string, ms::DepthId> DepthMap;
 
@@ -102,9 +97,13 @@ struct StaticPlacementStrategy : public msh::PlacementStrategy
         {
             underlying_strategy->place(surface);
         }
+    }
 
-        // TODO: surface.set_depth() ??
-        //placed.depth = surface_depths_by_name[name];
+    void place(msh::SurfaceCreationParameters& parm) const override
+    {
+        auto d = surface_depths_by_name.find(parm.name);
+        if (d != surface_depths_by_name.end())
+            parm.depth = d->second;
     }
 
     std::shared_ptr<msh::PlacementStrategy> const underlying_strategy;

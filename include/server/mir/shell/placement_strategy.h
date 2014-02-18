@@ -24,12 +24,17 @@ namespace mir
 
 namespace shell
 {
+struct SurfaceCreationParameters;
 class Surface;
 
 class PlacementStrategy
 {
 public:
     virtual ~PlacementStrategy() {}
+
+    // TODO: Deprecate the SurfaceCreationParameters version. It only exists
+    //       to support legacy test cases that explicitly set stacking depths.
+    virtual void place(SurfaceCreationParameters&) const {}
     virtual void place(Surface& surface) const = 0;
 
 protected:

@@ -40,7 +40,12 @@ std::shared_ptr<msh::Surface> msh::OrganisingSurfaceFactory::create_surface(
     frontend::SurfaceId id,
     std::shared_ptr<mf::EventSink> const& sender)
 {
-    auto surf = underlying_factory->create_surface(session, params, id, sender);
+    shell::SurfaceCreationParameters placed = params;
+
+    // TODO: Remove this version of place(). It only exists to initialize
+    //       "depth" as required by some sticky test cases.
+    placement_strategy->place(placed);
+    auto surf = underlying_factory->create_surface(session, placed, id, sender);
     placement_strategy->place(*surf);
     return surf;
 }
