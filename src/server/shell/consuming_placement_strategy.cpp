@@ -17,8 +17,8 @@
  */
 
 #include "consuming_placement_strategy.h"
-#include "mir/shell/surface_creation_parameters.h"
 #include "mir/shell/display_layout.h"
+#include "mir/shell/surface.h"
 #include "mir/geometry/rectangle.h"
 
 #include "mir_toolkit/client_types.h"
@@ -34,32 +34,25 @@ msh::ConsumingPlacementStrategy::ConsumingPlacementStrategy(
 {
 }
 
-msh::SurfaceCreationParameters msh::ConsumingPlacementStrategy::place(
-    msh::Session const& /* session */,
-    msh::SurfaceCreationParameters const& request_parameters)
+void msh::ConsumingPlacementStrategy::place(msh::Surface& surface) const
 {
+    geom::Rectangle rect{surface.top_left(), surface.size()};
+
+#if 0 // TODO: expose preferred output from shell::Surface
     mir::graphics::DisplayConfigurationOutputId const output_id_invalid{
         mir_display_output_id_invalid};
-    auto placed_parameters = request_parameters;
-
-    geom::Rectangle rect{request_parameters.top_left, request_parameters.size};
 
     if (request_parameters.output_id != output_id_invalid)
     {
         display_layout->place_in_output(request_parameters.output_id, rect);
     }
-    else if (request_parameters.size.width > geom::Width{0} &&
-             request_parameters.size.height > geom::Height{0})
-    {
-        display_layout->clip_to_output(rect);
-    }
     else
-    {
+#endif
+    if (rect.size.width > geom::Width{0} && rect.size.height > geom::Height{0})
+        display_layout->clip_to_output(rect);
+    else
         display_layout->size_to_output(rect);
-    }
 
-    placed_parameters.top_left = rect.top_left;
-    placed_parameters.size = rect.size;
-
-    return placed_parameters;
+    surface.resize(rect.size);  // might fail (throw exceptions)
+    surface.move_to(rect.top_left);  // only move once resize successful
 }

@@ -24,17 +24,13 @@ namespace mir
 
 namespace shell
 {
-class Session;
-struct SurfaceCreationParameters;
+class Surface;
 
 class PlacementStrategy
 {
 public:
     virtual ~PlacementStrategy() {}
-    // TODO: It is strange to work in terms of SurfaceCreationParameters here,
-    // perhaps a new interface is needed.
-    virtual SurfaceCreationParameters place(shell::Session const& session, SurfaceCreationParameters const& request_parameters) = 0;
-
+    virtual void place(Surface& surface) const = 0;
 
 protected:
     PlacementStrategy() = default;

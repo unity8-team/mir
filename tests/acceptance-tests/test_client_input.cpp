@@ -89,25 +89,22 @@ struct StaticPlacementStrategy : public msh::PlacementStrategy
     {
     }
 
-    msh::SurfaceCreationParameters place(msh::Session const& session, msh::SurfaceCreationParameters const& request_parameters)
+    void place(msh::Surface& surface) const override
     {
-        auto placed = request_parameters;
-        auto const& name = request_parameters.name;
-
-        auto it = surface_geometry_by_name.find(name);
+        auto it = surface_geometry_by_name.find(surface.name());
         if (it != surface_geometry_by_name.end())
         {
-            auto const& geometry = it->second;
-            placed.top_left = geometry.top_left;
-            placed.size = geometry.size;
+            auto const& rect = it->second;
+            surface.resize(rect.size);
+            surface.move_to(rect.top_left);
         }
         else
         {
-            placed = underlying_strategy->place(session, placed);
+            underlying_strategy->place(surface);
         }
-        placed.depth = surface_depths_by_name[name];
 
-        return placed;
+        // TODO: surface.set_depth() ??
+        //placed.depth = surface_depths_by_name[name];
     }
 
     std::shared_ptr<msh::PlacementStrategy> const underlying_strategy;

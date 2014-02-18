@@ -36,7 +36,7 @@ public:
             std::shared_ptr<DisplayLayout> const& display_layout);
     virtual ~ConsumingPlacementStrategy() {}
 
-    virtual shell::SurfaceCreationParameters place(shell::Session const& session, shell::SurfaceCreationParameters const& request_parameters);
+    virtual void place(Surface& surface) const override;
 
 protected:
     ConsumingPlacementStrategy(ConsumingPlacementStrategy const&) = delete;
