@@ -27,6 +27,7 @@
 #include <vector>
 #include <memory>
 #include <string>
+#include <functional>
 
 namespace mir
 {
@@ -95,6 +96,9 @@ public:
      * \throws std::logic_error For impossible sizes like {0,0}.
      */
     virtual bool resize(geometry::Size const& size);
+    
+    virtual void set_shell_data(void *shell_data, std::function<void()> const& destroy_shell_data);
+    virtual void *shell_data() const;
 
 private:
     BasicSurface(BasicSurface const&) = delete;

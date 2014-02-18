@@ -69,6 +69,11 @@ public:
     {
         return !rectangular;
     }
+    
+    void* shell_data() const override
+    {
+        return 0;
+    }
 
 private:
     mir::geometry::Rectangle rect;

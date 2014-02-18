@@ -57,6 +57,11 @@ public:
 
     virtual float alpha() const = 0;
     virtual void set_alpha(float alpha) = 0;
+
+    // Store opaque shell_data pointer on surface as convenience for later retreival by the shell
+    // for example to associate a shell side surface object.
+    virtual void set_shell_data(void *shell_data, std::function<void()> const& destroy_shell_data) = 0;
+    virtual void *shell_data() const = 0;
 };
 }
 }

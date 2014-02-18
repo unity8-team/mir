@@ -276,3 +276,25 @@ TEST_F(SurfaceDataTest, set_input_region)
         }
     }
 }
+
+TEST_F(SurfaceDataTest, shell_data_is_stored_and_callback_is_evoked_on_destruction_and_replacement)
+{
+    bool replace_callback_invoked = false, destroy_callback_invoked = false;
+    void* first_shell_data = reinterpret_cast<void*>(1729);
+    void* second_shell_data = reinterpret_cast<void*>(3);
+
+    {
+        ms::SurfaceData storage{name, rect, mock_change_cb, false};
+
+        storage.set_shell_data(first_shell_data, [&] () { replace_callback_invoked = true; });
+        EXPECT_EQ(first_shell_data, storage.shell_data());
+
+        EXPECT_FALSE(replace_callback_invoked);
+        storage.set_shell_data(second_shell_data, [&] () { destroy_callback_invoked = true; });
+
+        EXPECT_EQ(second_shell_data, storage.shell_data());
+        EXPECT_TRUE(replace_callback_invoked);
+        EXPECT_FALSE(destroy_callback_invoked);
+    }
+    EXPECT_TRUE(destroy_callback_invoked);
+}

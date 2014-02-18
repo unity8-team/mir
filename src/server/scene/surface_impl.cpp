@@ -271,3 +271,13 @@ void ms::SurfaceImpl::set_alpha(float alpha)
 {
     surface->set_alpha(alpha);
 }
+
+void ms::SurfaceImpl::set_shell_data(void *shell_data, std::function<void()> const& destroy_shell_data)
+{
+    surface->set_shell_data(shell_data, destroy_shell_data);
+}
+
+void* ms::SurfaceImpl::shell_data() const
+{
+    return surface->shell_data();
+}

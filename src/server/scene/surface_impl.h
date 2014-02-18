@@ -93,6 +93,9 @@ public:
     virtual float alpha() const;
     virtual void set_alpha(float alpha);
 
+    virtual void set_shell_data(void *shell_data, std::function<void()> const& destroy_shell_data);
+    virtual void *shell_data() const;
+
 private:
     bool set_type(MirSurfaceType t);  // Use configure() to make public changes
     bool set_state(MirSurfaceState s);

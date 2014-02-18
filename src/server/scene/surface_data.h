@@ -39,6 +39,7 @@ public:
     SurfaceData(std::string const& name, geometry::Rectangle rect,
                 std::function<void()> change_cb,
                 bool nonrectangular);
+    ~SurfaceData();
 
     //mc::CompositingCriteria
     glm::mat4 const& transformation() const;
@@ -61,6 +62,9 @@ public:
     void apply_rotation(float degrees, glm::vec3 const&);
     void set_input_region(std::vector<geometry::Rectangle> const& input_rectangles);
 
+    void set_shell_data(void* shell_data, std::function<void()> const& destroy_shell_data);
+    void* shell_data() const;
+
 private:
     std::mutex mutable guard;
     std::function<void()> notify_change;
@@ -75,6 +79,11 @@ private:
     bool hidden;
     const bool nonrectangular;
     std::vector<geometry::Rectangle> input_rectangles;
+    
+    void *shell_data_;
+    std::function<void()> destroy_shell_data;
+    
+    void cleanup_shell_data_locked(std::unique_lock<std::mutex> const&);
 };
 
 }

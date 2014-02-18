@@ -31,8 +31,28 @@ ms::SurfaceData::SurfaceData(std::string const& name, geom::Rectangle rect, std:
       first_frame_posted(false),
       hidden(false),
       nonrectangular(nonrectangular),
-      input_rectangles{surface_rect}
+      input_rectangles{surface_rect},
+      shell_data_(0),
+      destroy_shell_data(0)
 {
+}
+
+ms::SurfaceData::~SurfaceData()
+{
+    std::unique_lock<std::mutex> lg;
+    cleanup_shell_data_locked(lg);
+}
+
+void ms::SurfaceData::cleanup_shell_data_locked(std::unique_lock<std::mutex> const&)
+{
+    if (destroy_shell_data)
+    {
+        assert(shell_data_ != 0);
+        destroy_shell_data();
+
+        destroy_shell_data = 0;
+        shell_data_ = 0;
+    }
 }
 
 float ms::SurfaceData::alpha() const
@@ -191,4 +211,20 @@ bool ms::SurfaceData::contains(geom::Point const& point) const
 void ms::SurfaceData::set_input_region(std::vector<geom::Rectangle> const& rectangles)
 {
     input_rectangles = rectangles;
+}
+
+void ms::SurfaceData::set_shell_data(void* data, std::function<void()> const& destroy_cb)
+{
+    std::unique_lock<std::mutex> lk(guard);
+    
+    cleanup_shell_data_locked(lk);
+
+    shell_data_ = data;
+    destroy_shell_data = destroy_cb;
+}
+
+void* ms::SurfaceData::shell_data() const
+{
+    std::unique_lock<std::mutex> lk(guard);
+    return shell_data_;
 }

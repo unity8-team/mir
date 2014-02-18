@@ -187,3 +187,13 @@ bool ms::BasicSurface::resize(geom::Size const& size)
 
     return true;
 }
+
+void ms::BasicSurface::set_shell_data(void *shell_data, std::function<void()> const& destroy_shell_data)
+{
+    surface_data->set_shell_data(shell_data, destroy_shell_data);
+}
+
+void* ms::BasicSurface::shell_data() const
+{
+    return surface_data->shell_data();
+}

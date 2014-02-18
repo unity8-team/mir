@@ -37,6 +37,7 @@ public:
     MOCK_CONST_METHOD0(transformation, glm::mat4 const&());
     MOCK_CONST_METHOD1(should_be_rendered_in, bool(geometry::Rectangle const&));
     MOCK_CONST_METHOD0(shaped, bool());
+    MOCK_CONST_METHOD0(shell_data, void*());
 };
 
 }
