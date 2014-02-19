@@ -84,7 +84,7 @@ struct StaticPlacementStrategy : public msh::PlacementStrategy
     {
     }
 
-    msh::SurfaceCreationParameters place(msh::Session const& session, msh::SurfaceCreationParameters const& request_parameters)
+    msh::SurfaceCreationParameters place(msh::SurfaceCreationParameters const& request_parameters) const override
     {
         auto placed = request_parameters;
         auto const& name = request_parameters.name;
@@ -98,9 +98,13 @@ struct StaticPlacementStrategy : public msh::PlacementStrategy
         }
         else
         {
-            placed = underlying_strategy->place(session, placed);
+            placed = underlying_strategy->place(placed);
         }
-        placed.depth = surface_depths_by_name[name];
+
+        // Use find instead of [] here as we're limited to const operations
+        auto const d = surface_depths_by_name.find(name);
+        if (d != surface_depths_by_name.end())
+            placed.depth = d->second;
 
         return placed;
     }

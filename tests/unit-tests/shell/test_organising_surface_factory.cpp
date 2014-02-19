@@ -38,7 +38,7 @@ namespace
 
 struct MockPlacementStrategy : public msh::PlacementStrategy
 {
-    MOCK_METHOD2(place, msh::SurfaceCreationParameters(msh::Session const&, msh::SurfaceCreationParameters const&));
+    MOCK_CONST_METHOD1(place, msh::SurfaceCreationParameters(msh::SurfaceCreationParameters const&));
 };
 
 struct OrganisingSurfaceFactorySetup : public testing::Test
@@ -69,7 +69,7 @@ TEST_F(OrganisingSurfaceFactorySetup, offers_create_surface_parameters_to_placem
     EXPECT_CALL(*underlying_surface_factory, create_surface(_, _, _, _)).Times(1);
 
     auto params = msh::a_surface();
-    EXPECT_CALL(*placement_strategy, place(Ref(session), Ref(params))).Times(1)
+    EXPECT_CALL(*placement_strategy, place(Ref(params))).Times(1)
         .WillOnce(Return(msh::a_surface()));
 
     factory.create_surface(&session, params, mf::SurfaceId(), std::make_shared<mtd::NullEventSink>());
@@ -86,7 +86,7 @@ TEST_F(OrganisingSurfaceFactorySetup, forwards_create_surface_parameters_from_pl
     auto placed_params = params;
     placed_params.size.width = geom::Width{100};
 
-    EXPECT_CALL(*placement_strategy, place(_, Ref(params))).Times(1)
+    EXPECT_CALL(*placement_strategy, place(Ref(params))).Times(1)
         .WillOnce(Return(placed_params));
     EXPECT_CALL(*underlying_surface_factory, create_surface(nullptr, placed_params, mf::SurfaceId(), sink));
 
