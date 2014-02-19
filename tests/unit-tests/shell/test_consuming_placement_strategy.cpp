@@ -17,7 +17,6 @@
  */
 
 #include "mir_test_doubles/mock_display_layout.h"
-#include "mir_test_doubles/stub_shell_session.h"
 
 #include "src/server/shell/consuming_placement_strategy.h"
 #include "mir/shell/surface_creation_parameters.h"
@@ -43,7 +42,6 @@ struct ConsumingPlacementStrategySetup : public testing::Test
     }
 
     std::shared_ptr<mtd::MockDisplayLayout> display_layout;
-    mtd::StubShellSession session;
 };
 }
 
@@ -59,7 +57,7 @@ TEST_F(ConsumingPlacementStrategySetup, parameters_with_no_geometry_are_made_ful
 
     msh::ConsumingPlacementStrategy placement_strategy(display_layout);
 
-    placement_strategy.place(session, input_params);
+    placement_strategy.place(input_params);
 }
 
 TEST_F(ConsumingPlacementStrategySetup, parameters_with_geometry_are_clipped)
@@ -74,7 +72,7 @@ TEST_F(ConsumingPlacementStrategySetup, parameters_with_geometry_are_clipped)
 
     msh::ConsumingPlacementStrategy placement_strategy(display_layout);
 
-    placement_strategy.place(session, input_params);
+    placement_strategy.place(input_params);
 }
 
 TEST_F(ConsumingPlacementStrategySetup, parameters_with_output_id_are_placed_in_output)
@@ -92,5 +90,5 @@ TEST_F(ConsumingPlacementStrategySetup, parameters_with_output_id_are_placed_in_
 
     msh::ConsumingPlacementStrategy placement_strategy(display_layout);
 
-    placement_strategy.place(session, input_params);
+    placement_strategy.place(input_params);
 }

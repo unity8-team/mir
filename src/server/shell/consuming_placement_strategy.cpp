@@ -35,8 +35,7 @@ msh::ConsumingPlacementStrategy::ConsumingPlacementStrategy(
 }
 
 msh::SurfaceCreationParameters msh::ConsumingPlacementStrategy::place(
-    msh::Session const& /* session */,
-    msh::SurfaceCreationParameters const& request_parameters)
+    msh::SurfaceCreationParameters const& request_parameters) const
 {
     mir::graphics::DisplayConfigurationOutputId const output_id_invalid{
         mir_display_output_id_invalid};
