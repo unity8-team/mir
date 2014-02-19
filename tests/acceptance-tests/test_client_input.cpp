@@ -109,6 +109,11 @@ struct StaticPlacementStrategy : public msh::PlacementStrategy
         return placed;
     }
 
+    void place(msh::Surface& surface) const override
+    {
+        (void)surface; // TODO
+    }
+
     std::shared_ptr<msh::PlacementStrategy> const underlying_strategy;
     GeometryMap surface_geometry_by_name;
     DepthMap surface_depths_by_name;

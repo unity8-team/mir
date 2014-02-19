@@ -20,6 +20,7 @@
 #include "mir/shell/placement_strategy.h"
 #include "mir/shell/surface_creation_parameters.h"
 #include "mir/shell/session.h"
+#include "mir/shell/surface.h"
 
 #include "mir_test_doubles/mock_surface_factory.h"
 #include "mir_test_doubles/stub_shell_session.h"
@@ -39,6 +40,10 @@ namespace
 struct MockPlacementStrategy : public msh::PlacementStrategy
 {
     MOCK_CONST_METHOD1(place, msh::SurfaceCreationParameters(msh::SurfaceCreationParameters const&));
+
+    void place(msh::Surface&) const override
+    { // Not mocked for now. gmock gets similar methods confused :(
+    }
 };
 
 struct OrganisingSurfaceFactorySetup : public testing::Test

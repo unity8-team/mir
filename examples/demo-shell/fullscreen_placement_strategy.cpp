@@ -42,3 +42,8 @@ msh::SurfaceCreationParameters me::FullscreenPlacementStrategy::place(
 
     return placed_parameters;
 }
+
+void me::FullscreenPlacementStrategy::place(msh::Surface& surface) const
+{
+    (void)surface; // TODO
+}

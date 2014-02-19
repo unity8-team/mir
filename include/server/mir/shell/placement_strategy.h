@@ -25,6 +25,7 @@ namespace mir
 namespace shell
 {
 struct SurfaceCreationParameters;
+class Surface;
 
 class PlacementStrategy
 {
@@ -34,6 +35,8 @@ public:
     // perhaps a new interface is needed.
     virtual SurfaceCreationParameters place(SurfaceCreationParameters const& request_parameters) const = 0;
 
+    // TODO: Remove the old version above, and just use this new version:
+    virtual void place(shell::Surface& surface) const = 0;
 
 protected:
     PlacementStrategy() = default;

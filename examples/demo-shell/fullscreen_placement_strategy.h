@@ -39,6 +39,7 @@ public:
     ~FullscreenPlacementStrategy() = default;
     
     shell::SurfaceCreationParameters place(shell::SurfaceCreationParameters const& request_parameters) const override;
+    void place(shell::Surface& surface) const override;
 
 protected:
     FullscreenPlacementStrategy(FullscreenPlacementStrategy const&) = delete;

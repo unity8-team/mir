@@ -62,3 +62,8 @@ msh::SurfaceCreationParameters msh::ConsumingPlacementStrategy::place(
 
     return placed_parameters;
 }
+
+void msh::ConsumingPlacementStrategy::place(msh::Surface& surface) const
+{
+    (void)surface; // TODO
+}

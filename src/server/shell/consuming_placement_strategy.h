@@ -37,6 +37,7 @@ public:
     virtual ~ConsumingPlacementStrategy() {}
 
     virtual shell::SurfaceCreationParameters place(shell::SurfaceCreationParameters const& request_parameters) const override;
+    virtual void place(shell::Surface& surface) const override;
 
 protected:
     ConsumingPlacementStrategy(ConsumingPlacementStrategy const&) = delete;
