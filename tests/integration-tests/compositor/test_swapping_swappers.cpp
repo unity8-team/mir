@@ -55,7 +55,9 @@ struct SwapperSwappingStress : public ::testing::Test
 auto client_acquire_blocking(std::shared_ptr<mc::SwitchingBundle> const& switching_bundle)
 -> mg::Buffer*
 {
-    std::mutex mutex;
+    // If mutex is auto then helgrind gets confused by the callback ending
+    // on another thread while a new mutex is created in the next call
+    static std::mutex mutex;
     std::condition_variable cv;
     bool done = false;
 
