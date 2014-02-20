@@ -28,7 +28,6 @@ namespace mir
 namespace shell
 {
 class PlacementStrategy;
-class Session;
 
 class OrganisingSurfaceFactory : public SurfaceFactory
 {
