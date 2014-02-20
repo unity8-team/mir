@@ -70,7 +70,7 @@ mf::SurfaceId ms::ApplicationSession::next_id()
 mf::SurfaceId ms::ApplicationSession::create_surface(const msh::SurfaceCreationParameters& params)
 {
     auto const id = next_id();
-    auto surf = surface_factory->create_surface(this, params, id, event_sink);
+    auto surf = surface_factory->create_surface(params, id, event_sink);
 
     std::unique_lock<std::mutex> lock(surfaces_mutex);
     surfaces[id] = surf;

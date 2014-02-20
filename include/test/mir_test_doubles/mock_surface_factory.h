@@ -33,8 +33,7 @@ namespace doubles
 
 struct MockSurfaceFactory : public shell::SurfaceFactory
 {
-    MOCK_METHOD4(create_surface, std::shared_ptr<shell::Surface>(
-        shell::Session*,
+    MOCK_METHOD3(create_surface, std::shared_ptr<shell::Surface>(
         const shell::SurfaceCreationParameters&,
         frontend::SurfaceId,
         std::shared_ptr<frontend::EventSink> const&));

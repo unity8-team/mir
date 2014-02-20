@@ -38,7 +38,6 @@ public:
     virtual ~OrganisingSurfaceFactory();
 
     std::shared_ptr<Surface> create_surface(
-        Session* session,
         shell::SurfaceCreationParameters const& params,
         frontend::SurfaceId id,
         std::shared_ptr<frontend::EventSink> const& sink) override;

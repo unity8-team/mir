@@ -37,7 +37,6 @@ ms::SurfaceSource::SurfaceSource(std::shared_ptr<SurfaceBuilder> const& surface_
 }
 
 std::shared_ptr<msh::Surface> ms::SurfaceSource::create_surface(
-    msh::Session* /*session*/,
     shell::SurfaceCreationParameters const& params,
     frontend::SurfaceId id,
     std::shared_ptr<mf::EventSink> const& sender)

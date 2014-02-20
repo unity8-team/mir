@@ -44,7 +44,6 @@ public:
     virtual ~SurfaceSource() {}
 
     std::shared_ptr<shell::Surface> create_surface(
-        shell::Session* session,
         shell::SurfaceCreationParameters const& params,
         frontend::SurfaceId id,
         std::shared_ptr<frontend::EventSink> const& sink);

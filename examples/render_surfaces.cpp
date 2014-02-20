@@ -406,7 +406,6 @@ public:
         for (auto& m : moveables)
         {
             auto const s = surface_factory->create_surface(
-                    nullptr,
                     msh::a_surface().of_size(surface_size)
                                    .of_pixel_format(surface_pf)
                                    .of_buffer_usage(mg::BufferUsage::hardware),
