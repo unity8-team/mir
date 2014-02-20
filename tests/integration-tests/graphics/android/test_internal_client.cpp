@@ -100,7 +100,7 @@ TEST_F(AndroidInternalClient, internal_client_creation_and_use)
     auto ss = std::make_shared<ms::SurfaceStack>(surface_allocator, stub_input_registrar, scene_report);
     auto surface_controller = std::make_shared<ms::SurfaceController>(ss);
     auto surface_source = std::make_shared<ms::SurfaceSource>(surface_controller, std::make_shared<mtd::NullSurfaceConfigurator>());
-    auto surface = surface_source->create_surface(nullptr, params, id, std::shared_ptr<mf::EventSink>());
+    auto surface = surface_source->create_surface(params, id, std::shared_ptr<mf::EventSink>());
     surface->allow_framedropping(true);
     auto mir_surface = as_internal_surface(surface);
 
