@@ -223,6 +223,7 @@ bool me::WindowManager::handle(MirEvent const& event)
                     // configure() provided by frontend::Surface.
                     surf->configure(mir_surface_attrib_state, new_state);
                     placement_strategy->place(*surf);
+                    return true;
                 }
             }
         }
