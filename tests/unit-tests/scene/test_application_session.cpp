@@ -233,7 +233,7 @@ TEST(ApplicationSession, destroy_invalid_surface_throw_behavior)
             app_session.destroy_surface(invalid_surface_id);
     }, std::runtime_error);
 }
-
+/*
 TEST(ApplicationSession, uses_snapshot_strategy)
 {
     using namespace ::testing;
@@ -263,7 +263,7 @@ TEST(ApplicationSession, uses_snapshot_strategy)
 
     app_session.take_snapshot(msh::SnapshotCallback());
 }
-
+*/
 namespace
 {
 class MockEventSink : public mf::EventSink
