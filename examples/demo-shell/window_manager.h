@@ -22,6 +22,7 @@
 #include "mir/input/event_filter.h"
 #include "mir/geometry/displacement.h"
 #include "mir/geometry/size.h"
+#include "mir/shell/placement_strategy.h"
 
 #include <memory>
 
@@ -51,6 +52,8 @@ public:
     void set_focus_controller(std::shared_ptr<shell::FocusController> const& focus_controller);
     void set_display(std::shared_ptr<graphics::Display> const& display);
     void set_compositor(std::shared_ptr<compositor::Compositor> const& compositor);
+    void set_placement_strategy(
+        std::shared_ptr<shell::PlacementStrategy> const& ps);
     
     bool handle(MirEvent const& event) override;
 
@@ -62,6 +65,7 @@ private:
     std::shared_ptr<shell::FocusController> focus_controller;
     std::shared_ptr<graphics::Display> display;
     std::shared_ptr<compositor::Compositor> compositor;
+    std::shared_ptr<shell::PlacementStrategy> placement_strategy;
 
     geometry::Point click;
     geometry::Point old_pos;

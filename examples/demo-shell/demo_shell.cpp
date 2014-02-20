@@ -94,6 +94,7 @@ try
             wm->set_focus_controller(config.the_focus_controller());
             wm->set_display(config.the_display());
             wm->set_compositor(config.the_compositor());
+            wm->set_placement_strategy(config.the_shell_placement_strategy());
         });
     return 0;
 }

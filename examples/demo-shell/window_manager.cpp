@@ -63,6 +63,11 @@ void me::WindowManager::set_compositor(std::shared_ptr<mc::Compositor> const& cp
     compositor = cptor;
 }
 
+void me::WindowManager::set_placement_strategy(std::shared_ptr<msh::PlacementStrategy> const& ps)
+{
+    placement_strategy = ps;
+}
+
 namespace
 {
 
@@ -199,7 +204,28 @@ bool me::WindowManager::handle(MirEvent const& event)
                 return true;
             }
         }
+        else if (event.key.modifiers & mir_key_modifier_alt &&
+                 event.key.scan_code == KEY_F11)
+        {
+            std::shared_ptr<msh::Session> app =
+                focus_controller->focussed_application().lock();
+            if (app)
+            {
+                std::shared_ptr<msh::Surface> surf = app->default_surface();
+                if (surf)
+                {
+                    MirSurfaceState new_state =
+                       (surf->state() == mir_surface_state_fullscreen) ?
+                       mir_surface_state_restored :
+                       mir_surface_state_fullscreen;
 
+                    // Apparently there's no set_state() function. Only
+                    // configure() provided by frontend::Surface.
+                    surf->configure(mir_surface_attrib_state, new_state);
+                    placement_strategy->place(*surf);
+                }
+            }
+        }
     }
     else if (event.type == mir_event_type_motion &&
              focus_controller)

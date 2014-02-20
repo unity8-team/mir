@@ -19,6 +19,7 @@
 #include "consuming_placement_strategy.h"
 #include "mir/shell/surface_creation_parameters.h"
 #include "mir/shell/display_layout.h"
+#include "mir/shell/surface.h"
 #include "mir/geometry/rectangle.h"
 
 #include "mir_toolkit/client_types.h"
@@ -65,5 +66,34 @@ msh::SurfaceCreationParameters msh::ConsumingPlacementStrategy::place(
 
 void msh::ConsumingPlacementStrategy::place(msh::Surface& surface) const
 {
-    (void)surface; // TODO
+    geometry::Rectangle rect{surface.top_left(), surface.size()};
+    bool changed = false;
+
+    /*
+     * This could all be move into a shell::Surface::place() really. But
+     * it seems more cohesive to use PlacementStrategy while we still rely
+     * on this class for managing SurfaceCreationParameters.
+     * Also keep in mind that placement doesn't just need updating on state
+     * changes, but also when the layout changes (like screen resolution).
+     */
+
+    switch (surface.state())
+    {
+        case mir_surface_state_fullscreen:
+            // TODO save restore rect
+            display_layout->size_to_output(rect);
+            changed = true;
+            break;
+        case mir_surface_state_restored:
+            // TODO: if rect != restored_rect then set it
+            break;
+        default:
+            break;
+    }
+
+    if (changed)
+    {
+        surface.resize(rect.size);
+        surface.move_to(rect.top_left);
+    }
 }
