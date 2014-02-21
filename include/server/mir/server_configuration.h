@@ -29,7 +29,6 @@ class Compositor;
 namespace frontend
 {
 class Connector;
-class Shell;
 }
 namespace shell
 {

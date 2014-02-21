@@ -40,7 +40,7 @@ class CompositorReport;
 }
 namespace frontend
 {
-class Shell;
+class Server;
 class Connector;
 class ConnectorReport;
 class ProtobufIpcFactory;
@@ -173,7 +173,7 @@ public:
     virtual std::shared_ptr<frontend::SessionMediatorReport>  the_session_mediator_report();
     virtual std::shared_ptr<frontend::MessageProcessorReport> the_message_processor_report();
     virtual std::shared_ptr<frontend::SessionAuthorizer>      the_session_authorizer();
-    virtual std::shared_ptr<frontend::Shell>                  the_frontend_shell();
+    virtual std::shared_ptr<frontend::Server>                 the_frontend_server();
     virtual std::shared_ptr<frontend::EventSink>              the_global_event_sink();
     virtual std::shared_ptr<frontend::DisplayChanger>         the_frontend_display_changer();
     virtual std::shared_ptr<frontend::Screencast>             the_screencast();
@@ -246,7 +246,7 @@ protected:
     virtual std::shared_ptr<input::InputChannelFactory> the_input_channel_factory();
     virtual std::shared_ptr<scene::MediatingDisplayChanger> the_mediating_display_changer();
     virtual std::shared_ptr<frontend::ProtobufIpcFactory> the_ipc_factory(
-        std::shared_ptr<frontend::Shell> const& shell,
+        std::shared_ptr<frontend::Server> const& server,
         std::shared_ptr<graphics::GraphicBufferAllocator> const& allocator);
 
     CachedPtr<frontend::Connector>   connector;

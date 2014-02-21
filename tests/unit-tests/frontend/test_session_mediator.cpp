@@ -32,7 +32,7 @@
 #include "mir_test_doubles/null_event_sink.h"
 #include "mir_test_doubles/null_display_changer.h"
 #include "mir_test_doubles/mock_display.h"
-#include "mir_test_doubles/mock_shell.h"
+#include "mir_test_doubles/mock_server.h"
 #include "mir_test_doubles/mock_frontend_surface.h"
 #include "mir_test_doubles/mock_buffer.h"
 #include "mir_test_doubles/stub_session.h"
@@ -200,14 +200,14 @@ struct StubScreencast : mtd::NullScreencast
 struct SessionMediatorTest : public ::testing::Test
 {
     SessionMediatorTest()
-        : shell{std::make_shared<testing::NiceMock<mtd::MockShell>>()},
+        : server{std::make_shared<testing::NiceMock<mtd::MockServer>>()},
           graphics_platform{std::make_shared<testing::NiceMock<MockPlatform>>()},
           graphics_changer{std::make_shared<mtd::NullDisplayChanger>()},
           surface_pixel_formats{mir_pixel_format_argb_8888, mir_pixel_format_xrgb_8888},
           report{mr::null_session_mediator_report()},
           resource_cache{std::make_shared<mf::ResourceCache>()},
           stub_screencast{std::make_shared<StubScreencast>()},
-          mediator{__LINE__, shell, graphics_platform, graphics_changer,
+          mediator{__LINE__, server, graphics_platform, graphics_changer,
                    surface_pixel_formats, report,
                    std::make_shared<mtd::NullEventSink>(),
                    resource_cache, stub_screencast},
@@ -216,12 +216,12 @@ struct SessionMediatorTest : public ::testing::Test
     {
         using namespace ::testing;
 
-        ON_CALL(*shell, open_session(_, _, _)).WillByDefault(Return(stubbed_session));
-        ON_CALL(*shell, create_surface_for(_, _))
+        ON_CALL(*server, open_session(_, _, _)).WillByDefault(Return(stubbed_session));
+        ON_CALL(*server, create_surface_for(_, _))
             .WillByDefault(WithArg<1>(Invoke(stubbed_session.get(), &StubbedSession::create_surface)));
     }
 
-    std::shared_ptr<testing::NiceMock<mtd::MockShell>> const shell;
+    std::shared_ptr<testing::NiceMock<mtd::MockServer>> const server;
     std::shared_ptr<MockPlatform> const graphics_platform;
     std::shared_ptr<mf::DisplayChanger> const graphics_changer;
     std::vector<MirPixelFormat> const surface_pixel_formats;
@@ -242,7 +242,7 @@ TEST_F(SessionMediatorTest, disconnect_releases_session)
     mp::ConnectParameters connect_parameters;
     mp::Connection connection;
 
-    EXPECT_CALL(*shell, close_session(_)).Times(1);
+    EXPECT_CALL(*server, close_session(_)).Times(1);
 
     mediator.connect(nullptr, &connect_parameters, &connection, null_callback.get());
     mediator.disconnect(nullptr, nullptr, nullptr, null_callback.get());
@@ -371,7 +371,7 @@ TEST_F(SessionMediatorTest, connect_packs_display_configuration)
         .Times(1)
         .WillOnce(Return(mt::fake_shared(config)));
     mf::SessionMediator mediator(
-        __LINE__, shell, graphics_platform, mock_display,
+        __LINE__, server, graphics_platform, mock_display,
         surface_pixel_formats, report,
         std::make_shared<mtd::NullEventSink>(),
         resource_cache, std::make_shared<mtd::NullScreencast>());
@@ -603,7 +603,7 @@ TEST_F(SessionMediatorTest, display_config_request)
         .WillOnce(Return(mt::fake_shared(stub_display_config)));
 
     mf::SessionMediator session_mediator{
-        __LINE__, shell, graphics_platform, mock_display_selector,
+        __LINE__, server, graphics_platform, mock_display_selector,
         surface_pixel_formats, report,
         std::make_shared<mtd::NullEventSink>(), resource_cache,
         std::make_shared<mtd::NullScreencast>()};

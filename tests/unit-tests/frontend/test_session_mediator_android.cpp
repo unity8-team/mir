@@ -21,7 +21,7 @@
 #include "src/server/frontend/resource_cache.h"
 #include "src/server/scene/application_session.h"
 #include "src/server/report/null_report_factory.h"
-#include "mir/frontend/shell.h"
+#include "mir/frontend/server.h"
 #include "mir/shell/surface_creation_parameters.h"
 #include "mir/graphics/display.h"
 #include "mir/graphics/platform.h"
@@ -29,7 +29,7 @@
 
 #include "mir_test_doubles/null_display_changer.h"
 #include "mir_test_doubles/mock_session.h"
-#include "mir_test_doubles/stub_shell.h"
+#include "mir_test_doubles/stub_server.h"
 #include "mir_test_doubles/null_platform.h"
 #include "mir_test_doubles/null_event_sink.h"
 #include "mir_test_doubles/stub_buffer_allocator.h"
@@ -53,13 +53,13 @@ namespace
 struct SessionMediatorAndroidTest : public ::testing::Test
 {
     SessionMediatorAndroidTest()
-        : shell{std::make_shared<mtd::StubShell>()},
+        : server{std::make_shared<mtd::StubServer>()},
           graphics_platform{std::make_shared<mtd::NullPlatform>()},
           display_changer{std::make_shared<mtd::NullDisplayChanger>()},
           surface_pixel_formats{mir_pixel_format_argb_8888, mir_pixel_format_xrgb_8888},
           report{mr::null_session_mediator_report()},
           resource_cache{std::make_shared<mf::ResourceCache>()},
-          mediator{__LINE__, shell, graphics_platform, display_changer,
+          mediator{__LINE__, server, graphics_platform, display_changer,
                    surface_pixel_formats, report,
                    std::make_shared<mtd::NullEventSink>(),
                    resource_cache, std::make_shared<mtd::NullScreencast>()},
@@ -67,7 +67,7 @@ struct SessionMediatorAndroidTest : public ::testing::Test
     {
     }
 
-    std::shared_ptr<mtd::StubShell> const shell;
+    std::shared_ptr<mtd::StubServer> const server;
     std::shared_ptr<mtd::NullPlatform> const graphics_platform;
     std::shared_ptr<mf::DisplayChanger> const display_changer;
     std::vector<MirPixelFormat> const surface_pixel_formats;

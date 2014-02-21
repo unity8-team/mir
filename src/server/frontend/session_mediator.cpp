@@ -20,7 +20,7 @@
 #include "client_buffer_tracker.h"
 
 #include "mir/frontend/session_mediator_report.h"
-#include "mir/frontend/shell.h"
+#include "mir/frontend/server.h"
 #include "mir/frontend/session.h"
 #include "mir/frontend/surface.h"
 #include "mir/shell/surface_creation_parameters.h"
@@ -60,7 +60,7 @@ namespace geom = mir::geometry;
 
 mf::SessionMediator::SessionMediator(
     pid_t client_pid,
-    std::shared_ptr<frontend::Shell> const& shell,
+    std::shared_ptr<frontend::Server> const& server,
     std::shared_ptr<graphics::Platform> const & graphics_platform,
     std::shared_ptr<mf::DisplayChanger> const& display_changer,
     std::vector<MirPixelFormat> const& surface_pixel_formats,
@@ -69,7 +69,7 @@ mf::SessionMediator::SessionMediator(
     std::shared_ptr<ResourceCache> const& resource_cache,
     std::shared_ptr<Screencast> const& screencast) :
     client_pid(client_pid),
-    shell(shell),
+    server(server),
     graphics_platform(graphics_platform),
     surface_pixel_formats(surface_pixel_formats),
     display_changer(display_changer),
@@ -85,7 +85,7 @@ mf::SessionMediator::~SessionMediator() noexcept
     if (auto session = weak_session.lock())
     {
         report->session_error(session->name(), __PRETTY_FUNCTION__, "connection dropped without disconnect");
-        shell->close_session(session);
+        server->close_session(session);
     }
 }
 
@@ -99,7 +99,7 @@ void mf::SessionMediator::connect(
 
     {
         std::unique_lock<std::mutex> lock(session_mutex);
-        weak_session = shell->open_session(client_pid, request->application_name(), event_sink);
+        weak_session = server->open_session(client_pid, request->application_name(), event_sink);
     }
 
     auto ipc_package = graphics_platform->get_ipc_package();
@@ -191,7 +191,7 @@ void mf::SessionMediator::create_surface(
             // To achieve this order we rely on done->Run() sending messages synchronously. As documented in mfd::SocketMessenger::send.
             // this will require additional synchronization if mfd::SocketMessenger::send changes.
             done->Run();
-            shell->handle_surface_created(session);
+            server->handle_surface_created(session);
         });
 }
 
@@ -273,7 +273,7 @@ void mf::SessionMediator::disconnect(
 
         report->session_disconnect_called(session->name());
 
-        shell->close_session(session);
+        server->close_session(session);
         weak_session.reset();
     }
 

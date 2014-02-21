@@ -38,13 +38,13 @@ class DefaultIpcFactory : public mf::ProtobufIpcFactory
 {
 public:
     explicit DefaultIpcFactory(
-        std::shared_ptr<mf::Shell> const& shell,
+        std::shared_ptr<mf::Server> const& server,
         std::shared_ptr<mf::SessionMediatorReport> const& sm_report,
         std::shared_ptr<mg::Platform> const& graphics_platform,
         std::shared_ptr<mf::DisplayChanger> const& display_changer,
         std::shared_ptr<mg::GraphicBufferAllocator> const& buffer_allocator,
         std::shared_ptr<mf::Screencast> const& screencast) :
-        shell(shell),
+        server(server),
         sm_report(sm_report),
         cache(std::make_shared<mf::ResourceCache>()),
         graphics_platform(graphics_platform),
@@ -55,7 +55,7 @@ public:
     }
 
 private:
-    std::shared_ptr<mf::Shell> shell;
+    std::shared_ptr<mf::Server> server;
     std::shared_ptr<mf::SessionMediatorReport> const sm_report;
     std::shared_ptr<mf::ResourceCache> const cache;
     std::shared_ptr<mg::Platform> const graphics_platform;
@@ -80,7 +80,7 @@ private:
 
         return std::make_shared<mf::SessionMediator>(
             client_pid,
-            shell,
+            server,
             graphics_platform,
             changer,
             buffer_allocator->supported_pixel_formats(),
@@ -103,7 +103,7 @@ mir::DefaultServerConfiguration::the_session_creator()
     return session_creator([this]
         {
             return std::make_shared<mf::ProtobufSessionCreator>(
-                the_ipc_factory(the_frontend_shell(), the_buffer_allocator()),
+                the_ipc_factory(the_frontend_server(), the_buffer_allocator()),
                 the_session_authorizer(),
                 the_message_processor_report());
         });
@@ -137,14 +137,14 @@ mir::DefaultServerConfiguration::the_connector()
 
 std::shared_ptr<mir::frontend::ProtobufIpcFactory>
 mir::DefaultServerConfiguration::the_ipc_factory(
-    std::shared_ptr<mf::Shell> const& shell,
+    std::shared_ptr<mf::Server> const& server,
     std::shared_ptr<mg::GraphicBufferAllocator> const& allocator)
 {
     return ipc_factory(
         [&]()
         {
             return std::make_shared<DefaultIpcFactory>(
-                shell,
+                server,
                 the_session_mediator_report(),
                 the_graphics_platform(),
                 the_frontend_display_changer(),

@@ -207,8 +207,8 @@ mir::DefaultServerConfiguration::the_session_manager()
         });
 }
 
-std::shared_ptr<mf::Shell>
-mir::DefaultServerConfiguration::the_frontend_shell()
+std::shared_ptr<mf::Server>
+mir::DefaultServerConfiguration::the_frontend_server()
 {
     return the_session_manager();
 }

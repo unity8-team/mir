@@ -49,7 +49,7 @@ try
     {
         client = std::make_shared<me::InprocessEGLClient>(
               config.the_graphics_platform(),
-              config.the_frontend_shell(),
+              config.the_frontend_server(),
               config.the_focus_controller());
     });
     ///\internal [main_tag]

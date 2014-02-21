@@ -46,7 +46,7 @@ class GraphicBufferAllocator;
 namespace frontend
 {
 class ClientBufferTracker;
-class Shell;
+class Server;
 class Session;
 class Surface;
 class ResourceCache;
@@ -61,7 +61,7 @@ class SessionMediator : public mir::protobuf::DisplayServer
 public:
     SessionMediator(
         pid_t client_pid,
-        std::shared_ptr<Shell> const& shell,
+        std::shared_ptr<Server> const& server,
         std::shared_ptr<graphics::Platform> const& graphics_platform,
         std::shared_ptr<frontend::DisplayChanger> const& display_changer,
         std::vector<MirPixelFormat> const& surface_pixel_formats,
@@ -137,7 +137,7 @@ private:
 
     void advance_buffer(SurfaceId surf_id, Surface& surface, std::function<void(graphics::Buffer*, bool)> complete);
     pid_t client_pid;
-    std::shared_ptr<Shell> const shell;
+    std::shared_ptr<Server> const server;
     std::shared_ptr<graphics::Platform> const graphics_platform;
 
     std::vector<MirPixelFormat> const surface_pixel_formats;

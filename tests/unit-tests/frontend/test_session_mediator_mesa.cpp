@@ -22,7 +22,7 @@
 #include "src/server/scene/application_session.h"
 #include "src/server/frontend/session_mediator.h"
 #include "src/server/report/null_report_factory.h"
-#include "mir/frontend/shell.h"
+#include "mir/frontend/server.h"
 #include "mir/graphics/display.h"
 #include "mir/graphics/drm_authenticator.h"
 #include "mir/frontend/event_sink.h"
@@ -35,7 +35,7 @@
 #include "mir_test_doubles/null_display_changer.h"
 #include "mir_test_doubles/null_platform.h"
 #include "mir_test_doubles/mock_session.h"
-#include "mir_test_doubles/stub_shell.h"
+#include "mir_test_doubles/stub_server.h"
 #include "mir_test_doubles/null_screencast.h"
 
 #include <gtest/gtest.h>
@@ -67,13 +67,13 @@ class MockAuthenticatingPlatform : public mtd::NullPlatform, public mg::DRMAuthe
 struct SessionMediatorMesaTest : public ::testing::Test
 {
     SessionMediatorMesaTest()
-        : shell{std::make_shared<mtd::StubShell>()},
+        : server{std::make_shared<mtd::StubServer>()},
           mock_platform{std::make_shared<MockAuthenticatingPlatform>()},
           display_changer{std::make_shared<mtd::NullDisplayChanger>()},
           surface_pixel_formats{mir_pixel_format_argb_8888, mir_pixel_format_xrgb_8888},
           report{mr::null_session_mediator_report()},
           resource_cache{std::make_shared<mf::ResourceCache>()},
-          mediator{__LINE__, shell, mock_platform, display_changer,
+          mediator{__LINE__, server, mock_platform, display_changer,
                    surface_pixel_formats, report,
                    std::make_shared<mtd::NullEventSink>(),
                    resource_cache, std::make_shared<mtd::NullScreencast>()},
@@ -81,7 +81,7 @@ struct SessionMediatorMesaTest : public ::testing::Test
     {
     }
 
-    std::shared_ptr<mtd::StubShell> const shell;
+    std::shared_ptr<mtd::StubServer> const server;
     std::shared_ptr<MockAuthenticatingPlatform> const mock_platform;
     std::shared_ptr<mf::DisplayChanger> const display_changer;
     std::vector<MirPixelFormat> const surface_pixel_formats;

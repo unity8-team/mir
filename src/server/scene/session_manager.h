@@ -20,7 +20,7 @@
 #define MIR_SCENE_APPLICATION_MANAGER_H_
 
 #include "mir/frontend/surface_id.h"
-#include "mir/frontend/shell.h"
+#include "mir/frontend/server.h"
 #include "mir/shell/focus_controller.h"
 
 #include <mutex>
@@ -43,7 +43,7 @@ class SessionEventSink;
 class SessionContainer;
 class SnapshotStrategy;
 
-class SessionManager : public frontend::Shell, public shell::FocusController
+class SessionManager : public frontend::Server, public shell::FocusController
 {
 public:
     explicit SessionManager(std::shared_ptr<shell::SurfaceFactory> const& surface_factory,

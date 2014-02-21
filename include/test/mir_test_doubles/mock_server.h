@@ -16,11 +16,11 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
-#ifndef MIR_TEST_DOUBLES_SHELL_H_
-#define MIR_TEST_DOUBLES_SHELL_H_
+#ifndef MIR_TEST_DOUBLES_MOCK_SERVER_H_
+#define MIR_TEST_DOUBLES_MOCK_SERVER_H_
 
 #include "mir/shell/surface_creation_parameters.h"
-#include "mir/frontend/shell.h"
+#include "mir/frontend/server.h"
 #include "mir/frontend/surface_id.h"
 
 #include <gmock/gmock.h>
@@ -32,7 +32,7 @@ namespace test
 namespace doubles
 {
 
-struct MockShell : public frontend::Shell
+struct MockServer : public frontend::Server
 {
     MOCK_METHOD3(open_session, std::shared_ptr<frontend::Session>(
         pid_t client_pid,
@@ -49,4 +49,4 @@ struct MockShell : public frontend::Shell
 }
 } // namespace mir
 
-#endif // MIR_TEST_DOUBLES_SHELL_H_
+#endif // MIR_TEST_DOUBLES_MOCK_SERVER_H_

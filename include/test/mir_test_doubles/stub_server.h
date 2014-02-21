@@ -16,10 +16,10 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
-#ifndef MIR_TEST_DOUBLES_STUB_SHELL_H_
-#define MIR_TEST_DOUBLES_STUB_SHELL_H_
+#ifndef MIR_TEST_DOUBLES_STUB_SERVER_H_
+#define MIR_TEST_DOUBLES_STUB_SERVER_H_
 
-#include "mir/frontend/shell.h"
+#include "mir/frontend/server.h"
 #include "mir_test_doubles/stub_session.h"
 
 namespace mir
@@ -29,9 +29,9 @@ namespace test
 namespace doubles
 {
 
-struct StubShell : public frontend::Shell
+struct StubServer : public frontend::Server
 {
-    StubShell() : stub_session(std::make_shared<StubSession>())
+    StubServer() : stub_session(std::make_shared<StubSession>())
     {
     }
     std::shared_ptr<frontend::Session> open_session(pid_t, std::string const& /* name */, std::shared_ptr<frontend::EventSink> const& /* sink */) override
@@ -56,4 +56,4 @@ struct StubShell : public frontend::Shell
 }
 } // namespace mir
 
-#endif // MIR_TEST_DOUBLES_STUB_SHELL_H_
+#endif // MIR_TEST_DOUBLES_STUB_SERVER_H_

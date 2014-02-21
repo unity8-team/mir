@@ -141,7 +141,7 @@ struct DemoServerConfiguration : mir_test_framework::StubbedServerConfiguration
         return session_creator([this]
             {
                 return std::make_shared<DemoSessionCreator>(
-                    the_ipc_factory(the_frontend_shell(), the_buffer_allocator()),
+                    the_ipc_factory(the_frontend_server(), the_buffer_allocator()),
                     the_session_authorizer(),
                     the_message_processor_report());
             });

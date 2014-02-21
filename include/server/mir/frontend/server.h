@@ -16,8 +16,8 @@
  * Authored by: Thomas Voss <thomas.voss@canonical.com>
  */
 
-#ifndef MIR_FRONTEND_SHELL_H_
-#define MIR_FRONTEND_SHELL_H_
+#ifndef MIR_FRONTEND_SERVER_H_
+#define MIR_FRONTEND_SERVER_H_
 
 #include "mir/frontend/surface_id.h"
 
@@ -36,10 +36,10 @@ namespace frontend
 class EventSink;
 class Session;
 
-class Shell
+class Server
 {
 public:
-    virtual ~Shell() = default;
+    virtual ~Server() = default;
 
     virtual std::shared_ptr<Session> open_session(
         pid_t client_pid,
@@ -54,12 +54,12 @@ public:
     virtual void handle_surface_created(std::shared_ptr<Session> const& session) = 0;
 
 protected:
-    Shell() = default;
-    Shell(const Shell&) = delete;
-    Shell& operator=(const Shell&) = delete;
+    Server() = default;
+    Server(const Server&) = delete;
+    Server& operator=(const Server&) = delete;
 };
 
 }
 }
 
-#endif // MIR_FRONTEND_SHELL_H_
+#endif // MIR_FRONTEND_SERVER_H_
