@@ -249,8 +249,12 @@ TEST(ApplicationSession, uses_snapshot_strategy)
     };
 
     auto snapshot_strategy = std::make_shared<MockSnapshotStrategy>();
+    EXPECT_CALL(*snapshot_strategy, take_snapshot_of(_,_))
+        .Times(1);
     mtd::NullEventSink sender;
-    mtd::MockSurfaceFactory surface_factory;
+    NiceMock<mtd::MockSurfaceFactory> surface_factory;
+    ON_CALL(surface_factory, create_surface(_, _, _, _))
+        .WillByDefault(Return(make_mock_surface()));
     ms::ApplicationSession app_session(
         mt::fake_shared(surface_factory),
         __LINE__,
@@ -259,9 +263,14 @@ TEST(ApplicationSession, uses_snapshot_strategy)
         std::make_shared<msh::NullSessionListener>(),
         mt::fake_shared(sender));
 
-    EXPECT_CALL(*snapshot_strategy, take_snapshot_of(_,_));
+    EXPECT_THROW({
+        app_session.take_snapshot(msh::SnapshotCallback());
+    }, std::runtime_error);
 
+    msh::SurfaceCreationParameters params;
+    auto surf = app_session.create_surface(params);
     app_session.take_snapshot(msh::SnapshotCallback());
+    app_session.destroy_surface(surf);
 }
 
 namespace
