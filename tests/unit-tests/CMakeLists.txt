@@ -58,6 +58,7 @@ target_link_libraries(
   ${GMOCK_LIBRARY}
   ${GMOCK_MAIN_LIBRARY}
   ${Boost_LIBRARIES}
+  ${UUID_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT} # Link in pthread.
 )
 

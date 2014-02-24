@@ -1,6 +1,7 @@
 list(APPEND UNIT_TEST_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/test_client_buffer_tracker.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/stress_protobuf_communicator.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/test_dispatching_session_creator.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/test_published_socket_connector.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/test_protobuf_surface_apis.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/test_protobuf_reports_errors.cpp

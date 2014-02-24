@@ -16,7 +16,9 @@
  * Authored by: Christopher Halse Rogers <christopher.halse.rogers@canonical.com>
  */
 
-#include <iostream>
+#include <uuid/uuid.h>
+#include <istream>
+#include <boost/throw_exception.hpp>
 
 #include "dispatching_session_creator.h"
 #include "dispatched_session_creator.h"
@@ -31,5 +33,26 @@ mir::frontend::DispatchingSessionCreator::DispatchingSessionCreator(
 void mir::frontend::DispatchingSessionCreator::create_session_for(
     std::shared_ptr<boost::asio::local::stream_protocol::socket> const& socket)
 {
-    implementations->at(0)->create_session_for(socket, "");
+    auto header = std::make_shared<boost::asio::streambuf>();
+    boost::asio::async_read(
+        *socket,
+        *header,
+        boost::asio::transfer_exactly(36),
+                [this, header, socket](boost::system::error_code const&, size_t) {
+        uuid_t client_protocol_id;
+        char client_protocol_str[37];
+        std::istream{header.get()}.get(client_protocol_str, 37);
+        uuid_parse(client_protocol_str, client_protocol_id);
+        for (auto& protocol : *implementations)
+        {
+            uuid_t server_protocol_id;
+            protocol->protocol_id(server_protocol_id);
+            if (uuid_compare(client_protocol_id, server_protocol_id) == 0)
+            {
+                protocol->create_session_for(socket, "");
+                return;
+            }
+        }
+        BOOST_THROW_EXCEPTION(std::runtime_error(std::string("Unknown client protocol: ") + client_protocol_str));
+    });
 }
