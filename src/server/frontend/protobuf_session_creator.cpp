@@ -16,7 +16,9 @@
  * Authored by: Alan Griffiths <alan@octopull.co.uk>
  */
 
-#include "mir/frontend/protobuf_session_creator.h"
+#include <uuid/uuid.h>
+
+#include "protobuf_session_creator.h"
 
 #include "event_sender.h"
 #include "protobuf_message_processor.h"
@@ -54,6 +56,11 @@ int mf::ProtobufSessionCreator::next_id()
     return next_session_id.fetch_add(1);
 }
 
+void mf::ProtobufSessionCreator::create_session_for(std::shared_ptr<ba::local::stream_protocol::socket> const& socket, std::string const&)
+{
+    return create_session_for(socket);
+}
+
 void mf::ProtobufSessionCreator::create_session_for(std::shared_ptr<ba::local::stream_protocol::socket> const& socket)
 {
     auto const messenger = std::make_shared<detail::SocketMessenger>(socket);
@@ -76,6 +83,15 @@ void mf::ProtobufSessionCreator::create_session_for(std::shared_ptr<ba::local::s
         connected_sessions->add(session);
         session->read_next_message();
     }
+}
+
+void mf::ProtobufSessionCreator::protocol_id(uuid_t id) const
+{
+    uuid_parse("60019143-2648-4904-9719-7817f0b9fb13", id);
+}
+size_t mf::ProtobufSessionCreator::header_size() const
+{
+    return 0;
 }
 
 std::shared_ptr<mfd::MessageProcessor>

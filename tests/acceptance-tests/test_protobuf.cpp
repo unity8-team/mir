@@ -21,7 +21,7 @@
 #include "mir_toolkit/mir_client_library.h"
 #include "mir/client/private.h"
 #include "mir/frontend/protobuf_message_sender.h"
-#include "mir/frontend/protobuf_session_creator.h"
+#include "src/server/frontend/protobuf_session_creator.h"
 #include "mir/frontend/template_protobuf_message_processor.h"
 
 #include "mir_test_framework/stubbed_server_configuration.h"

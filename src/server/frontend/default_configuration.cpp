@@ -17,7 +17,8 @@
  */
 
 #include "mir/default_server_configuration.h"
-#include "mir/frontend/protobuf_session_creator.h"
+#include "dispatching_session_creator.h"
+#include "protobuf_session_creator.h"
 
 #include "resource_cache.h"
 #include "protobuf_ipc_factory.h"
@@ -102,10 +103,24 @@ mir::DefaultServerConfiguration::the_session_creator()
 {
     return session_creator([this]
         {
-            return std::make_shared<mf::ProtobufSessionCreator>(
-                the_ipc_factory(the_frontend_shell(), the_buffer_allocator()),
-                the_session_authorizer(),
-                the_message_processor_report());
+            return std::make_shared<mf::DispatchingSessionCreator>(the_session_protocols(),
+                                                                   the_session_authorizer());
+        });
+}
+
+
+std::shared_ptr<std::vector<std::shared_ptr<mf::DispatchedSessionCreator>>>
+mir::DefaultServerConfiguration::the_session_protocols()
+{
+    return session_protocols([this]
+        {
+            std::vector<std::shared_ptr<mf::DispatchedSessionCreator>> protocols{
+                    std::make_shared<mf::ProtobufSessionCreator>(
+                        the_ipc_factory(the_frontend_shell(), the_buffer_allocator()),
+                        the_session_authorizer(),
+                        the_message_processor_report())
+            };
+            return std::make_shared<std::vector<std::shared_ptr<mf::DispatchedSessionCreator>>>(protocols);
         });
 }
 

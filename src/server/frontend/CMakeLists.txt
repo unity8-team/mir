@@ -7,6 +7,7 @@ set(
   protobuf_responder.cpp
   protobuf_buffer_packer.cpp
   published_socket_connector.cpp
+  dispatching_session_creator.cpp
   protobuf_session_creator.cpp
   socket_session.cpp
   resource_cache.cpp
@@ -35,5 +36,6 @@ target_link_libraries(
   mirshell
   mirlogging
   3rd_party
+  ${UUID_LIBRARIES}
   ${Boost_LIBRARIES}
 )

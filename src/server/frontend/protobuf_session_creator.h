@@ -19,7 +19,7 @@
 #ifndef MIR_FRONTEND_PROTOBUF_SESSION_CREATOR_H_
 #define MIR_FRONTEND_PROTOBUF_SESSION_CREATOR_H_
 
-#include "mir/frontend/session_creator.h"
+#include "dispatched_session_creator.h"
 #include "mir/frontend/connected_sessions.h"
 
 #include <atomic>
@@ -40,7 +40,7 @@ class MessageProcessor;
 class ProtobufMessageSender;
 }
 
-class ProtobufSessionCreator : public SessionCreator
+class ProtobufSessionCreator : public DispatchedSessionCreator, public SessionCreator
 {
 public:
     ProtobufSessionCreator(
@@ -49,7 +49,11 @@ public:
         std::shared_ptr<MessageProcessorReport> const& report);
     ~ProtobufSessionCreator() noexcept;
 
-    void create_session_for(std::shared_ptr<boost::asio::local::stream_protocol::socket> const& socket);
+    void create_session_for(std::shared_ptr<boost::asio::local::stream_protocol::socket> const& socket) override;
+    void create_session_for(std::shared_ptr<boost::asio::local::stream_protocol::socket> const& socket, const std::string &connection_data) override;
+
+    void protocol_id(uuid_t id) const override;
+    size_t header_size() const override;
 
     virtual std::shared_ptr<detail::MessageProcessor> create_processor(
         std::shared_ptr<detail::ProtobufMessageSender> const& sender,
@@ -64,6 +68,9 @@ private:
     std::shared_ptr<MessageProcessorReport> const report;
     std::atomic<int> next_session_id;
     std::shared_ptr<detail::ConnectedSessions<detail::SocketSession>> const connected_sessions;
+
+    // DispatchedSessionCreator interface
+public:
 };
 }
 }

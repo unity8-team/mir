@@ -45,6 +45,7 @@ class Connector;
 class ConnectorReport;
 class ProtobufIpcFactory;
 class SessionCreator;
+class DispatchedSessionCreator;
 class SessionMediatorReport;
 class MessageProcessorReport;
 class SessionAuthorizer;
@@ -181,6 +182,7 @@ public:
      * internal dependencies of frontend
      *  @{ */
     virtual std::shared_ptr<frontend::SessionCreator>         the_session_creator();
+    virtual std::shared_ptr<std::vector<std::shared_ptr<frontend::DispatchedSessionCreator> > > the_session_protocols();
     virtual std::shared_ptr<frontend::ConnectorReport>        the_connector_report();
     /** @} */
     /** @} */
@@ -272,6 +274,7 @@ protected:
     CachedPtr<frontend::SessionAuthorizer> session_authorizer;
     CachedPtr<frontend::EventSink> global_event_sink;
     CachedPtr<frontend::SessionCreator>    session_creator;
+    CachedPtr<std::vector<std::shared_ptr<frontend::DispatchedSessionCreator>>> session_protocols;
     CachedPtr<frontend::Screencast> screencast;
     CachedPtr<compositor::RendererFactory> renderer_factory;
     CachedPtr<compositor::BufferStreamFactory> buffer_stream_factory;

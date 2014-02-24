@@ -28,6 +28,7 @@ set(
   test_client_library_drm.cpp
   test_protobuf.cpp
   test_client_screencast.cpp
+  test_protocol_versioning.cpp
   ${GENERATED_PROTOBUF_SRCS}
   ${GENERATED_PROTOBUF_HDRS}
 )
@@ -62,6 +63,7 @@ target_link_libraries(
 
   ${PROTOBUF_LIBRARIES}
   ${Boost_LIBRARIES}
+  ${UUID_LIBRARIES}
   ${GTEST_BOTH_LIBRARIES}
   ${GMOCK_LIBRARY}
   ${GMOCK_MAIN_LIBRARY}
