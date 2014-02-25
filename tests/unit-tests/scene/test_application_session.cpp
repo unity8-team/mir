@@ -271,7 +271,7 @@ TEST(ApplicationSession, takes_snapshot_of_default_surface)
         std::static_pointer_cast<msh::SurfaceBufferAccess>(default_surface);
     auto const snapshot_strategy = std::make_shared<MockSnapshotStrategy>();
 
-    EXPECT_CALL(surface_factory, create_surface(_,_,_,_))
+    EXPECT_CALL(surface_factory, create_surface(_,_,_))
         .WillOnce(Return(default_surface));
 
     EXPECT_CALL(*snapshot_strategy,
