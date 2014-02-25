@@ -1,3 +1,10 @@
+mir (0.1.5+14.04.20140212-0ubuntu2~ppa1) trusty; urgency=medium
+
+  * Added nested server support from Rober Carr (lp: #1279092)
+  * Removed demo and test packages because they cause FTBFS in a PPA.
+
+ -- Stephen M. Webb <stephen.webb@canonical.com>  Thu, 25 Feb 2014 11:33:56 -0500
+
 mir (0.1.5+14.04.20140212-0ubuntu1) trusty; urgency=medium
 
   [ Kevin Gunn ]
@@ -47,13 +54,6 @@ mir (0.1.5+14.04.20140212-0ubuntu1) trusty; urgency=medium
         (LP: #1270964)
 
  -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Wed, 12 Feb 2014 18:29:29 +0000
-
-mir (0.1.4+14.04.20140204-0ubuntu2~ppa4) trusty; urgency=low
-
-  * Added nested server support from Rober Carr (lp: #1279092)
-  * Removed demo and test packages because they cause FTBFS in a PPA.
-
- -- Stephen M. Webb <stephen.webb@canonical.com>  Thu, 06 Feb 2014 11:33:56 -0500
 
 mir (0.1.4+14.04.20140204-0ubuntu1) trusty; urgency=medium
 
