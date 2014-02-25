@@ -42,6 +42,9 @@
 
 #include <cstring>
 
+#include <boost/throw_exception.hpp>
+#include <boost/exception/errinfo_errno.hpp>
+
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
@@ -324,6 +327,14 @@ struct MirClientSurfaceTest : public testing::Test
 
         /* connect client */
         mt::TestConnectionConfiguration conf;
+
+        if (write(conf.the_socket_fd(), "60019143-2648-4904-9719-7817f0b9fb13", 36) != 36)
+        {
+            BOOST_THROW_EXCEPTION(
+                boost::enable_error_info(
+                    std::runtime_error("Failed to send client protocol string"))<<boost::errinfo_errno(errno));
+        }
+
         connection = std::make_shared<MirConnection>(conf);
         MirWaitHandle* wait_handle = connection->connect("MirClientSurfaceTest",
                                                          connected_callback, 0);

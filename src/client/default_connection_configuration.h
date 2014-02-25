@@ -46,6 +46,7 @@ class DefaultConnectionConfiguration : public ConnectionConfiguration
 {
 public:
     DefaultConnectionConfiguration(std::string const& socket_file);
+    ~DefaultConnectionConfiguration();
 
     std::shared_ptr<ConnectionSurfaceMap> the_surface_map();
     std::shared_ptr<google::protobuf::RpcChannel> the_rpc_channel();
@@ -55,7 +56,7 @@ public:
     std::shared_ptr<DisplayConfiguration> the_display_configuration();
     std::shared_ptr<LifecycleControl> the_lifecycle_control();
 
-    virtual std::string the_socket_file();
+    virtual int the_socket_fd();
     virtual std::shared_ptr<rpc::RpcReport> the_rpc_report();
     virtual std::shared_ptr<input::receiver::InputReceiverReport> the_input_receiver_report();
 
@@ -72,7 +73,8 @@ protected:
     CachedPtr<input::receiver::InputReceiverReport> input_receiver_report;
 
 private:
-    std::string const socket_file;
+    int socket_fd;
+    bool owns_socket;
 };
 
 }

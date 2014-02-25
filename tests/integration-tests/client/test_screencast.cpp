@@ -30,6 +30,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <boost/throw_exception.hpp>
+#include <boost/exception/errinfo_errno.hpp>
 
 namespace mcl = mir::client;
 namespace mt = mir::test;
@@ -97,8 +98,15 @@ struct MirScreencastTest : public testing::Test
             std::make_shared<mt::TestProtobufServer>(test_socket, server_tool);
         test_server->comm->start();
 
-        rpc_channel =
-            mcl::DefaultConnectionConfiguration{test_socket}.the_rpc_channel();
+        mcl::DefaultConnectionConfiguration conf{test_socket};
+        if (write(conf.the_socket_fd(), "60019143-2648-4904-9719-7817f0b9fb13", 36) != 36)
+        {
+            BOOST_THROW_EXCEPTION(
+                boost::enable_error_info(
+                    std::runtime_error("Failed to send client protocol string"))<<boost::errinfo_errno(errno));
+        }
+
+        rpc_channel = conf.the_rpc_channel();
         protobuf_server =
             std::make_shared<mir::protobuf::DisplayServer::Stub>(rpc_channel.get());
     }

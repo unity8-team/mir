@@ -16,10 +16,17 @@
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <unistd.h>
+
+#include <boost/throw_exception.hpp>
+#include <boost/exception/errinfo_errno.hpp>
+
 #include "default_connection_configuration.h"
 
 #include "display_configuration.h"
-#include "rpc/make_rpc_channel.h"
+#include "rpc/mir_socket_rpc_channel.h"
 #include "rpc/null_rpc_report.h"
 #include "mir/logging/dumb_console_logger.h"
 #include "mir/input/input_platform.h"
@@ -59,10 +66,61 @@ mir::SharedLibrary const* load_library(std::string const& libname)
 }
 }
 
+namespace
+{
+struct Prefix
+{
+    template<int Size>
+    Prefix(char const (&prefix)[Size]) : size(Size-1), prefix(prefix) {}
+
+    bool is_start_of(std::string const& name) const
+    { return !strncmp(name.c_str(), prefix, size); }
+
+    int const size;
+    char const* const prefix;
+} const fd_prefix("fd://");
+}
+
+
 mcl::DefaultConnectionConfiguration::DefaultConnectionConfiguration(
     std::string const& socket_file)
-    : socket_file{socket_file}
+    : owns_socket{false}
 {
+    if (fd_prefix.is_start_of(socket_file))
+    {
+        socket_fd = atoi(socket_file.c_str()+fd_prefix.size);
+    }
+    else
+    {
+        struct sockaddr_un addr;
+        addr.sun_family = AF_UNIX;
+        strcpy(addr.sun_path, socket_file.c_str());
+
+        socket_fd = socket(AF_UNIX, SOCK_STREAM, 0);
+        if (socket_fd < 0)
+        {
+            BOOST_THROW_EXCEPTION(
+                        boost::enable_error_info(
+                            std::runtime_error(std::string("Failed to create socket: ") +
+                                               strerror(errno)))<<boost::errinfo_errno(errno));
+        }
+        owns_socket = true;
+        if (connect(socket_fd, (struct sockaddr* const)&addr, sizeof addr) < 0)
+        {
+            BOOST_THROW_EXCEPTION(
+                        boost::enable_error_info(
+                            std::runtime_error(std::string("Failed to connect to server socket: ") +
+                                               strerror(errno)))<<boost::errinfo_errno(errno));
+        }
+    }
+}
+
+mir::client::DefaultConnectionConfiguration::~DefaultConnectionConfiguration()
+{
+    if (owns_socket)
+    {
+        close(socket_fd);
+    }
 }
 
 std::shared_ptr<mcl::ConnectionSurfaceMap>
@@ -80,8 +138,10 @@ mcl::DefaultConnectionConfiguration::the_rpc_channel()
     return rpc_channel(
         [this]
         {
-            return mcl::rpc::make_rpc_channel(
-                the_socket_file(), the_surface_map(), the_display_configuration(), the_rpc_report(), the_lifecycle_control());
+            // MirSocketRpcChannel takes lifetime responsibility for the socket fd
+            owns_socket = false;
+            return std::make_shared<mcl::rpc::MirSocketRpcChannel>(
+                the_socket_fd(), the_surface_map(), the_display_configuration(), the_rpc_report(), the_lifecycle_control());
         });
 }
 
@@ -123,10 +183,10 @@ mcl::DefaultConnectionConfiguration::the_input_platform()
         });
 }
 
-std::string
-mcl::DefaultConnectionConfiguration::the_socket_file()
+int
+mcl::DefaultConnectionConfiguration::the_socket_fd()
 {
-    return socket_file;
+    return socket_fd;
 }
 
 std::shared_ptr<mcl::rpc::RpcReport>

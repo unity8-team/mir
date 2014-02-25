@@ -19,6 +19,9 @@
 #include "make_rpc_channel.h"
 #include "mir_socket_rpc_channel.h"
 
+#include <boost/throw_exception.hpp>
+#include <boost/exception/errinfo_errno.hpp>
+
 #include <cstring>
 
 namespace mcl = mir::client;
@@ -46,11 +49,41 @@ mclr::make_rpc_channel(std::string const& name,
                        std::shared_ptr<RpcReport> const& rpc_report,
                        std::shared_ptr<mcl::LifecycleControl> const& lifecycle_control)
 {
+    int fd;
     if (fd_prefix.is_start_of(name))
     {
-        auto const fd = atoi(name.c_str()+fd_prefix.size);
-        return std::make_shared<MirSocketRpcChannel>(fd, map, disp_conf, rpc_report, lifecycle_control);
+        fd = atoi(name.c_str()+fd_prefix.size);
+    }
+    else
+    {
+        struct sockaddr_un addr;
+        addr.sun_family = AF_UNIX;
+        strcpy(addr.sun_path, name.c_str());
+
+        fd = socket(AF_UNIX, SOCK_STREAM, 0);
+        if (fd < 0)
+        {
+            BOOST_THROW_EXCEPTION(
+                        boost::enable_error_info(
+                            std::runtime_error(std::string("Failed to create socket: ") +
+                                               strerror(errno)))<<boost::errinfo_errno(errno));
+        }
+        if (connect(fd, (struct sockaddr* const)&addr, sizeof addr) < 0)
+        {
+            BOOST_THROW_EXCEPTION(
+                        boost::enable_error_info(
+                            std::runtime_error(std::string("Failed to connect to server socket: ") +
+                                               strerror(errno)))<<boost::errinfo_errno(errno));
+        }
     }
 
-    return std::make_shared<MirSocketRpcChannel>(name, map, disp_conf, rpc_report, lifecycle_control);
+    // Do the protocol dance here, as this is only used in testing.
+    if (write(fd, "60019143-2648-4904-9719-7817f0b9fb13", 36) != 36)
+    {
+        BOOST_THROW_EXCEPTION(
+            boost::enable_error_info(
+                std::runtime_error("Failed to send client protocol string"))<<boost::errinfo_errno(errno));
+    }
+
+    return std::make_shared<MirSocketRpcChannel>(fd, map, disp_conf, rpc_report, lifecycle_control);
 }

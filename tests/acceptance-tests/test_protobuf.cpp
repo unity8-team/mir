@@ -31,6 +31,7 @@
 #include <gmock/gmock.h>
 
 #include <atomic>
+#include <vector>
 
 namespace mf = mir::frontend;
 namespace mfd = mir::frontend::detail;
@@ -136,14 +137,16 @@ struct DemoSessionCreator : mf::ProtobufSessionCreator
 
 struct DemoServerConfiguration : mir_test_framework::StubbedServerConfiguration
 {
-    std::shared_ptr<mf::SessionCreator> the_session_creator() override
+    std::shared_ptr<std::vector<std::shared_ptr<mf::DispatchedSessionCreator>>> the_session_protocols() override
     {
-        return session_creator([this]
+        return session_protocols([this]
             {
-                return std::make_shared<DemoSessionCreator>(
-                    the_ipc_factory(the_frontend_shell(), the_buffer_allocator()),
-                    the_session_authorizer(),
-                    the_message_processor_report());
+                auto protocols = std::make_shared<std::vector<std::shared_ptr<mf::DispatchedSessionCreator>>>();
+                protocols->push_back(std::make_shared<DemoSessionCreator>(
+                                         the_ipc_factory(the_frontend_shell(), the_buffer_allocator()),
+                                         the_session_authorizer(),
+                                         the_message_processor_report()));
+                return protocols;
             });
     }
 
@@ -162,7 +165,7 @@ struct DemoPrivateProtobuf : mir_test_framework::InProcessServer
         ::demo_mir_server = &demo_mir_server;
 
         mir_test_framework::InProcessServer::SetUp();
-        demo_session_creator = std::dynamic_pointer_cast<DemoSessionCreator>(my_server_config.the_session_creator());
+        demo_session_creator = std::dynamic_pointer_cast<DemoSessionCreator>(my_server_config.the_session_protocols()->front());
 
         using namespace testing;
         ASSERT_THAT(demo_session_creator, NotNull());

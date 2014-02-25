@@ -41,6 +41,16 @@ namespace
 class ProtocolVersioningTest : public mtf::InProcessServer
 {
 public:
+    ProtocolVersioningTest()
+    {
+        protocol_impls = std::make_shared<std::vector<std::shared_ptr<mir::frontend::DispatchedSessionCreator>>>();
+    }
+
+    ~ProtocolVersioningTest()
+    {
+        protocol_impls.reset();
+    }
+
     mir::DefaultServerConfiguration& server_config() override
     {
         return config;
@@ -65,7 +75,7 @@ public:
         }
     } config;
 };
-auto ProtocolVersioningTest::protocol_impls = std::make_shared<std::vector<std::shared_ptr<mir::frontend::DispatchedSessionCreator>>>();
+std::shared_ptr<std::vector<std::shared_ptr<mir::frontend::DispatchedSessionCreator>>> ProtocolVersioningTest::protocol_impls;
 
 class DummySessionCreator : public mir::frontend::DispatchedSessionCreator
 {
@@ -89,7 +99,7 @@ public:
         return 8;
     }
 };
-};
+}
 
 TEST_F(ProtocolVersioningTest, ClientV1ConnectsToServerV1or2)
 {

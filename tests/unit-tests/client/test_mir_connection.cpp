@@ -140,7 +140,7 @@ public:
     TestConnectionConfiguration(
         std::shared_ptr<mcl::ClientPlatform> const& platform,
         std::shared_ptr<mcl::rpc::MirBasicRpcChannel> const& channel)
-        : DefaultConnectionConfiguration(""),
+        : DefaultConnectionConfiguration("fd://-1"),
           disp_config(std::make_shared<mcl::DisplayConfiguration>()),
           platform{platform},
           channel{channel}

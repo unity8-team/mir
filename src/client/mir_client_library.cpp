@@ -30,6 +30,10 @@
 #include "lifecycle_control.h"
 #include "api_impl_types.h"
 
+#include <boost/throw_exception.hpp>
+#include <boost/exception/errinfo_errno.hpp>
+
+#include <unistd.h>
 #include <set>
 #include <unordered_set>
 #include <cstddef>
@@ -100,6 +104,13 @@ MirWaitHandle* mir_default_connect(
         }
 
         mcl::DefaultConnectionConfiguration conf{sock};
+
+        if (write(conf.the_socket_fd(), "60019143-2648-4904-9719-7817f0b9fb13", 36) != 36)
+        {
+            BOOST_THROW_EXCEPTION(
+                boost::enable_error_info(
+                    std::runtime_error("Failed to send client protocol string"))<<boost::errinfo_errno(errno));
+        }
 
         std::unique_ptr<MirConnection> connection{new MirConnection(conf)};
         auto const result = connection->connect(name, callback, context);

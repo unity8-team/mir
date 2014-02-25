@@ -16,6 +16,8 @@
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
+#include <unistd.h>
+
 #include "mir_test_framework/using_stub_client_platform.h"
 #include "mir_test_framework/stub_client_connection_configuration.h"
 #include "src/client/mir_wait_handle.h"
@@ -34,6 +36,15 @@ MirWaitHandle* mir_connect_override(
     void *context)
 {
     mtf::StubConnectionConfiguration conf(socket_file);
+
+    if (write(conf.the_socket_fd(), "60019143-2648-4904-9719-7817f0b9fb13", 36) != 36)
+    {
+        auto error_connection = new MirConnection(std::string("Failed to send client protocol string: ") +
+                                                  strerror(errno) + " (" + std::to_string(errno) + ")");
+        callback(error_connection, context);
+        return nullptr;
+    }
+
     auto connection = new MirConnection(conf);
     return connection->connect(app_name, callback, context);
 }
