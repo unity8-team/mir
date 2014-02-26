@@ -3,6 +3,15 @@ import Mir.Application 0.1
 
 Rectangle {
     id: root
+
+    focus: true
+    Keys.onVolumeUpPressed: {
+        console.log("\"Volume Up\" pressed");
+    }
+    Keys.onVolumeDownPressed: {
+        console.log("\"Volume Down\" pressed");
+    }
+
     gradient: Gradient {
         GradientStop { position: 0.0; color: "lightsteelblue" }
         GradientStop { position: 1.0; color: "pink" }
