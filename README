@@ -2,7 +2,7 @@ This repo contains a QPA plugin to make Qt a Mir server.
 
 Handiest way to grab dependencies:
 $ apt-get build-dep qtubuntu
-$ apt-get install libupstart-app-launch1-dev
+$ apt-get install libupstart-app-launch1-dev qtdeclarative5-private-dev
 
 If using Qt version less than 5.2, you'll also need
 $ apt-get install libqt5v8-5-private-dev
