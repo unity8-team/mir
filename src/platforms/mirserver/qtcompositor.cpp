@@ -16,19 +16,34 @@
  * Author: Gerry Boland <gerry.boland@canonical.com>
  */
 
-#include "voidcompositor.h"
+#include "qtcompositor.h"
 
-VoidCompositor::VoidCompositor()
+#include <QGuiApplication>
+#include <QWindow>
+
+QtCompositor::QtCompositor()
 {
 
 }
 
-void VoidCompositor::start()
+void QtCompositor::start()
 {
-    // TODO: start compositor
+    // (Re)Start Qt's render thread by setting all its windows to shown
+    setAllWindowsVisible(true);
 }
 
-void VoidCompositor::stop()
+void QtCompositor::stop()
 {
-    // TODO: stop compositor
+    // Stop Qt's render threads by setting all its windows it hidden
+    setAllWindowsVisible(false);
+}
+
+void QtCompositor::setAllWindowsVisible(bool visible)
+{
+    auto windowList = QGuiApplication::allWindows();
+    auto iterator = windowList.constBegin();
+    while (iterator != windowList.constEnd()) {
+        (*iterator)->setVisible(visible);
+        iterator++;
+    }
 }

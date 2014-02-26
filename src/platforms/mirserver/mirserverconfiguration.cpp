@@ -20,7 +20,7 @@
 #include "sessionlistener.h"
 #include "surfaceconfigurator.h"
 #include "sessionauthorizer.h"
-#include "voidcompositor.h"
+#include "qtcompositor.h"
 #include "logging.h"
 
 #include <QDebug>
@@ -75,7 +75,7 @@ MirServerConfiguration::the_compositor()
     return compositor(
         [this]()
         {
-            return std::make_shared<VoidCompositor>();
+            return std::make_shared<QtCompositor>();
         });
 }
 

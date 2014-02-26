@@ -16,18 +16,21 @@
  * Author: Gerry Boland <gerry.boland@canonical.com>
  */
 
-#ifndef VOIDDISPLAYBUFFERCOMPOSITORFACTORY_H
-#define VOIDDISPLAYBUFFERCOMPOSITORFACTORY_H
+#ifndef QTCOMPOSITOR_H
+#define QTCOMPOSITOR_H
 
 #include "mir/compositor/compositor.h"
 
-class VoidCompositor : public mir::compositor::Compositor
+class QtCompositor : public mir::compositor::Compositor
 {
 public:
-    VoidCompositor();
+    QtCompositor();
 
     void start();
     void stop();
+
+private:
+    void setAllWindowsVisible(bool visible);
 };
 
-#endif // VOIDDISPLAYBUFFERCOMPOSITORFACTORY_H
+#endif // QTCOMPOSITOR_H

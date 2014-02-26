@@ -40,9 +40,9 @@ SOURCES += \
     displaywindow.cpp \
     mirserverintegration.cpp \
     miropenglcontext.cpp \
-    voidcompositor.cpp \
     nativeinterface.cpp \
-    dbusscreen.cpp
+    dbusscreen.cpp \
+    qtcompositor.cpp
 
 HEADERS += \
     inputreaderpolicy.h \
@@ -64,9 +64,9 @@ HEADERS += \
     displaywindow.h \
     mirserverintegration.h \
     miropenglcontext.h \
-    voidcompositor.h \
     nativeinterface.h \
-    dbusscreen.h
+    dbusscreen.h \
+    qtcompositor.h
 
 # Installation path
 target.path +=  $$[QT_INSTALL_PLUGINS]/platforms
