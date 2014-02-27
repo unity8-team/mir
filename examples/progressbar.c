@@ -21,8 +21,6 @@
 #include <signal.h>
 #include <stdint.h>
 #include <stdlib.h>
-#define __USE_BSD 1  /* for usleep() */
-#include <unistd.h>  /* sleep() */
 #include <string.h>
 
 #define BYTES_PER_PIXEL(f) ((f) == mir_pixel_format_bgr_888 ? 3 : 4)
@@ -39,15 +37,12 @@ static const Color white = {255, 255, 255, 255};
 static const Color *const foreground = &white;
 static const Color *const background = &blue;
 
-static volatile sig_atomic_t running = 1;
+static MirEventQueue *queue = NULL;
 
 static void shutdown(int signum)
 {
-    if (running)
-    {
-        running = 0;
+    if (mir_event_queue_quit(queue))
         printf("Signal %d received. Good night.\n", signum);
-    }
 }
 
 static void blend(uint32_t *dest, uint32_t src, int alpha_shift)
@@ -264,31 +259,41 @@ int main(int argc, char *argv[])
 
         if (canvas.vaddr != NULL)
         {
+            MirEvent event = {mir_event_type_null};
             int t = 0;
+
+            queue = mir_create_event_queue();
+            mir_event_queue_animate(queue, sleep_usec / 1000);
 
             signal(SIGINT, shutdown);
             signal(SIGTERM, shutdown);
-        
-            while (running)
+
+            do
             {
-                static const int width = 8;
-                static const int space = 1;
-                const int grid = width + 2 * space;
-                const int row = parm.width / grid;
-                const int square = row * row;
-                const int x = (t % row) * grid + space;
-                const int y = (t / row) * grid + space;
+                if (event.type == mir_event_type_null)  /* animate timeout */
+                {
+                    static const int width = 8;
+                    static const int space = 1;
+                    const int grid = width + 2 * space;
+                    const int row = parm.width / grid;
+                    const int square = row * row;
+                    const int x = (t % row) * grid + space;
+                    const int y = (t / row) * grid + space;
 
-                if (t % square == 0)
-                    clear_region(&canvas, background);
+                    if (t % square == 0)
+                        clear_region(&canvas, background);
 
-                t = (t + 1) % square;
+                    t = (t + 1) % square;
 
-                draw_box(&canvas, x, y, width, foreground);
+                    draw_box(&canvas, x, y, width, foreground);
+                }
 
                 redraw(surf, &canvas);
-                usleep(sleep_usec);
-            }
+            } while (mir_event_queue_wait(queue, &event));
+
+            signal(SIGINT, SIG_DFL);
+            signal(SIGTERM, SIG_DFL);
+            mir_event_queue_release(queue);
 
             free(canvas.vaddr);
         }

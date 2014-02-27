@@ -35,7 +35,7 @@ static MirConnection *connection;
 static MirSurface *surface;
 static EGLDisplay egldisplay;
 static EGLSurface eglsurface;
-static volatile sig_atomic_t running = 0;
+static MirEventQueue *queue = NULL;
 
 #define CHECK(_cond, _err) \
     if (!(_cond)) \
@@ -46,6 +46,8 @@ static volatile sig_atomic_t running = 0;
 
 void mir_eglapp_shutdown(void)
 {
+    mir_event_queue_release(queue);
+    queue = NULL;
     eglMakeCurrent(egldisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
     eglTerminate(egldisplay);
     mir_surface_release_sync(surface);
@@ -56,16 +58,13 @@ void mir_eglapp_shutdown(void)
 
 static void shutdown(int signum)
 {
-    if (running)
-    {
-        running = 0;
+    if (mir_event_queue_quit(queue))
         printf("Signal %d received. Good night.\n", signum);
-    }
 }
 
 mir_eglapp_bool mir_eglapp_running(void)
 {
-    return running;
+    return mir_event_queue_wait(queue, NULL);
 }
 
 void mir_eglapp_swap_buffers(void)
@@ -78,7 +77,7 @@ void mir_eglapp_swap_buffers(void)
     int dcount;
     EGLint width, height;
 
-    if (!running)
+    if (queue == NULL)
         return;
 
     eglSwapBuffers(egldisplay, eglsurface);
@@ -114,7 +113,7 @@ static void mir_eglapp_handle_event(MirSurface* surface, MirEvent const* ev, voi
         ev->key.key_code == XKB_KEY_q &&
         ev->key.action == mir_key_action_up)
     {
-        running = 0;
+        mir_event_queue_quit(queue);
     }
     else if (ev->type == mir_event_type_resize)
     {
@@ -393,7 +392,8 @@ mir_eglapp_bool mir_eglapp_init(int argc, char *argv[],
 
     eglSwapInterval(egldisplay, swapinterval);
 
-    running = 1;
+    queue = mir_create_event_queue();
+    mir_event_queue_animate(queue, 0);
 
     return 1;
 }

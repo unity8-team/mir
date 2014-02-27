@@ -36,6 +36,7 @@ set(
   mir_connection.cpp
   mir_wait_handle.cpp
   mir_surface.cpp
+  mir_event_queue.cpp
   logging/rpc_report.cpp
   logging/input_receiver_report.cpp
   default_connection_configuration.cpp

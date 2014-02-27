@@ -29,6 +29,7 @@
 #include "default_connection_configuration.h"
 #include "lifecycle_control.h"
 #include "api_impl_types.h"
+#include "mir_event_queue.h"
 
 #include <set>
 #include <unordered_set>
@@ -534,4 +535,54 @@ int mir_connection_drm_set_gbm_device(MirConnection* connection,
     memcpy(extra_data.data(), &gbm_dev, sizeof(gbm_dev));
 
     return connection->set_extra_platform_data(extra_data);
+}
+
+// MirEventQueue
+
+namespace
+{
+void enqueue_event(MirSurface* surface, MirEvent const* event, void* context)
+{
+    (void)surface;
+    MirEventQueue *q = static_cast<MirEventQueue*>(context);
+    q->push(event);
+}
+}
+
+void mir_surface_set_event_queue(MirSurface *surface, MirEventQueue *q)
+{
+    if (q)
+    {
+        MirEventDelegate delegate{enqueue_event, q};
+        surface->set_event_handler(&delegate);
+    }
+    else
+    {
+        surface->set_event_handler(nullptr);
+    }
+}
+
+MirEventQueue* mir_create_event_queue()
+{
+    return new (std::nothrow) MirEventQueue;
+}
+
+void mir_event_queue_animate(MirEventQueue* q, int milliseconds)
+{
+    q->animate(milliseconds);
+}
+
+int mir_event_queue_wait(MirEventQueue* q, MirEvent* e)
+{
+    return q->wait(e);
+}
+
+int mir_event_queue_quit(MirEventQueue* q)
+{
+    return q->quit();
+}
+
+void mir_event_queue_release(MirEventQueue* q)
+{
+    delete q;
 }

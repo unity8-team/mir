@@ -21,7 +21,6 @@
 #include <signal.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <unistd.h>  /* sleep() */
 #include <string.h>
 
 #define BYTES_PER_PIXEL(f) ((f) == mir_pixel_format_bgr_888 ? 3 : 4)
@@ -32,15 +31,12 @@ typedef struct
     uint8_t r, g, b, a;
 } Color;
 
-static volatile sig_atomic_t running = 1;
+static MirEventQueue *queue = NULL;
 
 static void shutdown(int signum)
 {
-    if (running)
-    {
-        running = 0;
+    if (mir_event_queue_quit(queue))
         printf("Signal %d received. Good night.\n", signum);
-    }
 }
 
 static void blend(uint32_t *dest, uint32_t src, int alpha_shift)
@@ -201,6 +197,8 @@ static void on_event(MirSurface *surface, const MirEvent *event, void *context)
         {0x00, 0x00, 0xff, 0xff},
     };
 
+    (void)surface;
+
     if (event->type == mir_event_type_motion)
     {
         static size_t base_color = 0;
@@ -243,8 +241,6 @@ static void on_event(MirSurface *surface, const MirEvent *event, void *context)
 
                 draw_box(canvas, x - radius, y - radius, 2*radius, &tone);
             }
-    
-            redraw(surface, canvas);
         }
     }
     else if (event->type == mir_event_type_resize)
@@ -291,7 +287,6 @@ int main(int argc, char *argv[])
     MirSurfaceParameters parm;
     MirSurface *surf;
     MirGraphicsRegion canvas;
-    MirEventDelegate delegate = {&on_event, &canvas};
     unsigned int f;
 
     char *mir_socket = NULL;
@@ -383,9 +378,10 @@ int main(int argc, char *argv[])
     mir_display_config_destroy(display_config);
 
     surf = mir_connection_create_surface_sync(conn, &parm);
-    if (surf != NULL)
+    queue = mir_create_event_queue();
+    if (surf != NULL && queue != NULL)
     {
-        mir_surface_set_event_handler(surf, &delegate);
+        mir_surface_set_event_queue(surf, queue);
     
         canvas.width = parm.width;
         canvas.height = parm.height;
@@ -395,19 +391,30 @@ int main(int argc, char *argv[])
 
         if (canvas.vaddr != NULL)
         {
+            MirEvent event;
+
             signal(SIGINT, shutdown);
             signal(SIGTERM, shutdown);
         
             clear_region(&canvas, &background);
             redraw(surf, &canvas);
         
-            while (running)
+            while (mir_event_queue_wait(queue, &event))
             {
-                sleep(1);  /* Is there a better way yet? */
+                if (event.type == mir_event_type_null)
+                {
+                    mir_event_queue_animate(queue, -1);
+                    redraw(surf, &canvas);
+                }
+                else
+                {
+                    on_event(surf, &event, &canvas);
+                    mir_event_queue_animate(queue, 5);
+                }
             }
 
             /* Ensure canvas won't be used after it's freed */
-            mir_surface_set_event_handler(surf, NULL);
+            mir_surface_set_event_queue(surf, NULL);
             free(canvas.vaddr);
         }
         else
@@ -416,6 +423,7 @@ int main(int argc, char *argv[])
         }
 
         mir_surface_release_sync(surf);
+        mir_event_queue_release(queue);
     }
     else
     {
