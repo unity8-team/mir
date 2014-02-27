@@ -48,6 +48,10 @@ DisplayWindow::DisplayWindow(QWindow *window, mir::graphics::DisplayBuffer *disp
         setGeometry(screenGeometry);
     }
     window->setSurfaceType(QSurface::OpenGLSurface);
+
+    // The compositor window is always active. I.e., it's always focused so that
+    // it always processes key events, etc
+    requestActivateWindow();
 }
 
 QRect DisplayWindow::geometry() const
