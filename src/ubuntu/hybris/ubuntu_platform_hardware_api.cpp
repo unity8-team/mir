@@ -18,6 +18,7 @@
  */
 
 // C APIs
+#include <ubuntu/hardware/alarm.h>
 #include <ubuntu/hardware/gps.h>
 
 #include "bridge.h"
@@ -76,3 +77,35 @@ u_hardware_gps_inject_xtra_data,
 UHardwareGps, 
 char*, 
 int);
+
+/****************** HW ALARMS API ******************/
+
+IMPLEMENT_CTOR0(
+        UHardwareAlarm,
+        u_hardware_alarm_create);
+
+IMPLEMENT_VOID_FUNCTION1(
+        u_hardware_alarm_ref,
+        UHardwareAlarm);
+
+IMPLEMENT_VOID_FUNCTION1(
+        u_hardware_alarm_unref,
+        UHardwareAlarm);
+
+IMPLEMENT_FUNCTION2(
+        UStatus,
+        u_hardware_alarm_set_timezone,
+        UHardwareAlarm,
+        const struct timezone*);
+
+IMPLEMENT_VOID_FUNCTION4(
+        u_hardware_alarm_set_relative_to_with_behavior,
+        UHardwareAlarm,
+        UHardwareAlarmTimeReference,
+        UHardwareAlarmSleepBehavior,
+        const struct timespec*);
+
+IMPLEMENT_FUNCTION1(
+        UHardwareAlarmWaitResult,
+        u_hardware_alarm_wait_for_next_alarm,
+        UHardwareAlarm);
