@@ -30,7 +30,7 @@ SOURCES += \
     ubuntuopenglcontext.cpp \
     ubuntuplatformservices.cpp \
     ubuntuscreen.cpp \
-    ubuntutheme.cpp \
+    ../common/ubuntutheme.cpp \
     ubuntuwindow.cpp \
 
 
@@ -44,7 +44,7 @@ HEADERS += \
     ubuntuopenglcontext.h \
     ubuntuplatformservices.h \
     ubuntuscreen.h \
-    ubuntutheme.h \
+    ../common/ubuntutheme.h \
     ubuntuwindow.h \
 
 

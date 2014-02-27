@@ -34,7 +34,7 @@
 #include "ubuntuopenglcontext.h"
 #include "ubuntuwindow.h"
 #include "ubuntuscreen.h"
-#include "ubuntutheme.h"
+#include "../common/ubuntutheme.h"
 #include <logging.h>
 
 // platform-api

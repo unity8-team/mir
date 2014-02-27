@@ -51,6 +51,8 @@ public:
 #endif
 
     QPlatformFontDatabase *fontDatabase() const override;
+    QStringList themeNames() const override;
+    QPlatformTheme* createPlatformTheme(const QString& name) const override;
     QPlatformServices *services() const override;
 
     QPlatformAccessibility *accessibility() const override;

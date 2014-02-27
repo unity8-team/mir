@@ -50,6 +50,7 @@
 #include "mirserverconfiguration.h"
 #include "miropenglcontext.h"
 #include "dbusscreen.h"
+#include "../common/ubuntutheme.h"
 
 namespace mg = mir::graphics;
 
@@ -177,6 +178,17 @@ QPlatformAccessibility *MirServerIntegration::accessibility() const
 QPlatformFontDatabase *MirServerIntegration::fontDatabase() const
 {
     return m_fontDb.data();
+}
+
+QStringList MirServerIntegration::themeNames() const
+{
+    return QStringList(UbuntuTheme::name);
+}
+
+QPlatformTheme* MirServerIntegration::createPlatformTheme(const QString& name) const
+{
+    Q_UNUSED(name);
+    return new UbuntuTheme;
 }
 
 QPlatformServices *MirServerIntegration::services() const

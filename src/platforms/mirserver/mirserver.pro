@@ -42,7 +42,8 @@ SOURCES += \
     miropenglcontext.cpp \
     nativeinterface.cpp \
     dbusscreen.cpp \
-    qtcompositor.cpp
+    qtcompositor.cpp \
+    ../common/ubuntutheme.cpp \
 
 HEADERS += \
     inputreaderpolicy.h \
@@ -66,7 +67,9 @@ HEADERS += \
     miropenglcontext.h \
     nativeinterface.h \
     dbusscreen.h \
-    qtcompositor.h
+    qtcompositor.h \
+    ../common/ubuntutheme.h \
+
 
 # Installation path
 target.path +=  $$[QT_INSTALL_PLUGINS]/platforms
