@@ -401,7 +401,7 @@ int main(int argc, char *argv[])
         
             while (mir_event_queue_wait(queue, &event))
             {
-                if (event.type == mir_event_type_null)
+                if (event.type == mir_event_type_timeout)
                 {
                     mir_event_queue_set_timeout(queue, -1);
                     redraw(surf, &canvas);

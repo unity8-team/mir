@@ -76,7 +76,7 @@ bool MirEventQueue::wait(MirEvent* e)
     }
     else
     {
-        if (e) e->type = mir_event_type_null;
+        if (e) e->type = mir_event_type_timeout;
         if (interval_ms > 0)
             deadline += std::chrono::milliseconds(interval_ms);
     }
