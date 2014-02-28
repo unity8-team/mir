@@ -567,9 +567,9 @@ MirEventQueue* mir_create_event_queue()
     return new (std::nothrow) MirEventQueue;
 }
 
-void mir_event_queue_animate(MirEventQueue* q, int milliseconds)
+void mir_event_queue_set_timeout(MirEventQueue* q, int milliseconds)
 {
-    q->animate(milliseconds);
+    q->set_timeout(milliseconds);
 }
 
 int mir_event_queue_wait(MirEventQueue* q, MirEvent* e)

@@ -403,13 +403,13 @@ int main(int argc, char *argv[])
             {
                 if (event.type == mir_event_type_null)
                 {
-                    mir_event_queue_animate(queue, -1);
+                    mir_event_queue_set_timeout(queue, -1);
                     redraw(surf, &canvas);
                 }
                 else
                 {
                     on_event(surf, &event, &canvas);
-                    mir_event_queue_animate(queue, 5);
+                    mir_event_queue_set_timeout(queue, 5);
                 }
             }
 

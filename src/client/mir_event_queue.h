@@ -34,7 +34,7 @@ struct MirEventQueue
 {
 public:
     MirEventQueue();
-    void animate(int milliseconds);
+    void set_timeout(int milliseconds);
     void push(MirEvent const* e);
     bool quit();
     bool wait(MirEvent* e);

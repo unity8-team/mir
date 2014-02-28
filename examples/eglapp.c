@@ -393,7 +393,7 @@ mir_eglapp_bool mir_eglapp_init(int argc, char *argv[],
     eglSwapInterval(egldisplay, swapinterval);
 
     queue = mir_create_event_queue();
-    mir_event_queue_animate(queue, 0);
+    mir_event_queue_set_timeout(queue, 0);
 
     return 1;
 }

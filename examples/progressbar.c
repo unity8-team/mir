@@ -263,14 +263,14 @@ int main(int argc, char *argv[])
             int t = 0;
 
             queue = mir_create_event_queue();
-            mir_event_queue_animate(queue, sleep_usec / 1000);
+            mir_event_queue_set_timeout(queue, sleep_usec / 1000);
 
             signal(SIGINT, shutdown);
             signal(SIGTERM, shutdown);
 
             do
             {
-                if (event.type == mir_event_type_null)  /* animate timeout */
+                if (event.type == mir_event_type_null)
                 {
                     static const int width = 8;
                     static const int space = 1;

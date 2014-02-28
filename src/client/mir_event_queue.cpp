@@ -28,7 +28,7 @@ MirEventQueue::MirEventQueue()
 {
 }
 
-void MirEventQueue::animate(int milliseconds)
+void MirEventQueue::set_timeout(int milliseconds)
 {
     Lock lock(guard);
     interval_ms = milliseconds;
