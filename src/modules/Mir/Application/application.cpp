@@ -116,6 +116,11 @@ bool Application::focused() const
     return m_focused;
 }
 
+QUrl Application::screenshot() const
+{
+    return m_screenshot;
+}
+
 bool Application::fullscreen() const
 {
     return m_fullscreen;
@@ -161,6 +166,29 @@ void Application::setStage(Application::Stage stage)
         m_stage = stage;
         Q_EMIT stageChanged(stage);
     }
+}
+
+QImage Application::screenshotImage() const
+{
+    return m_screenshotImage;
+}
+
+void Application::updateScreenshot()
+{
+    session()->take_snapshot(
+        [&](mir::shell::Snapshot const& snapshot)
+        {
+            DLOG("ApplicationScreenshotProvider - Mir snapshot ready with size %d x %d",
+                 snapshot.size.height.as_int(), snapshot.size.width.as_int());
+
+            m_screenshotImage = QImage( (const uchar*)snapshot.pixels, // since we mirror, no need to offset starting position
+                            snapshot.size.width.as_int(),
+                            snapshot.size.height.as_int(),
+                            QImage::Format_ARGB32_Premultiplied).mirrored();
+
+            m_screenshot = QString("image://application/%1/%2").arg(m_desktopData->appId()).arg(QDateTime::currentMSecsSinceEpoch());
+            Q_EMIT screenshotChanged(m_screenshot);
+        });
 }
 
 void Application::setState(Application::State state)

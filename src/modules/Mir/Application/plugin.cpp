@@ -74,7 +74,7 @@ class UnityApplicationPlugin : public QQmlExtensionPlugin {
         QQmlExtensionPlugin::initializeEngine(engine, uri);
 
         ApplicationManager* appManager = static_cast<ApplicationManager*>(applicationManagerSingleton(engine, NULL));
-        engine->addImageProvider(QLatin1String("screenshot"), new ApplicationScreenshotProvider(appManager));
+        engine->addImageProvider(QLatin1String("application"), new ApplicationScreenshotProvider(appManager));
     }
 };
 

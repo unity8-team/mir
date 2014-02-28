@@ -25,12 +25,10 @@ class ApplicationScreenshotProvider : public QQuickImageProvider
 public:
     explicit ApplicationScreenshotProvider(ApplicationManager *appManager);
 
-    Flags flags() const override;
     QImage requestImage(const QString &appId, QSize *size, const QSize &requestedSize) override;
 
 private:
     ApplicationManager* m_appManager;
-    int m_panelHeight;
 };
 
 #endif // APPLICATIONSCREENSHOTPROVIDER_H

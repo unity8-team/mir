@@ -55,8 +55,12 @@ public:
     Stage stage() const override;
     State state() const override;
     bool focused() const override;
+    QUrl screenshot() const override;
 
     void setStage(Stage stage);
+
+    QImage screenshotImage() const;
+    void updateScreenshot();
 
     bool isValid() const;
     QString desktopFile() const;
@@ -87,6 +91,8 @@ private:
     Stage m_stage;
     State m_state;
     bool m_focused;
+    QUrl m_screenshot;
+    QImage m_screenshotImage;
     bool m_fullscreen;
     std::shared_ptr<mir::shell::Session> m_session;
     QString m_sessionName;

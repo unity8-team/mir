@@ -31,7 +31,6 @@ const int defaultGridUnitPx = 8;
 ApplicationScreenshotProvider::ApplicationScreenshotProvider(ApplicationManager *appManager)
     : QQuickImageProvider(QQuickImageProvider::Image)
     , m_appManager(appManager)
-    , m_panelHeight(54)
 {
     // See below to explain why this is needed for now.
     int gridUnitPx = defaultGridUnitPx;
@@ -46,20 +45,17 @@ ApplicationScreenshotProvider::ApplicationScreenshotProvider(ApplicationManager 
     }
 
     int densityPixelPx = qFloor( (float)gridUnitPx / defaultGridUnitPx );
-
-    m_panelHeight = 3 * gridUnitPx + 2 * densityPixelPx;
 }
 
-QQmlImageProviderBase::Flags ApplicationScreenshotProvider::flags() const
-{
-    // Force image fetching to always be async, prevent blocking main thread
-    return QQmlImageProviderBase::ForceAsynchronousImageLoading;
-}
-
-QImage ApplicationScreenshotProvider::requestImage(const QString &appId, QSize * size,
+QImage ApplicationScreenshotProvider::requestImage(const QString &imageId, QSize * size,
                                                      const QSize &requestedSize)
 {
-    DLOG("ApplicationScreenshotProvider::requestPixmap (this=%p, id=%s)", this, appId.toLatin1().constData());
+    // We ignore requestedSize here intentionally to avoid keeping scaled copies around
+    Q_UNUSED(requestedSize)
+
+    DLOG("ApplicationScreenshotProvider::requestImage (this=%p, id=%s)", this, imageId.toLatin1().constData());
+
+    QString appId = imageId.split('/').first();
 
     Application* app = static_cast<Application*>(m_appManager->findApplication(appId));
     if (app == NULL) {
@@ -70,52 +66,15 @@ QImage ApplicationScreenshotProvider::requestImage(const QString &appId, QSize *
     // TODO: if app not ready, return an app-provided splash image. If app has been stopped with saved state
     // return the screenshot that was saved to disk.
     if (!app->session() || !app->session()->default_surface()) {
-        LOG("ApplicationScreenshotProvider - app session not found - taking screenshot too early");
+        LOG("ApplicationScreenshotProvider - app session not found - asking for screenshot too early");
         return QImage();
     }
 
-    if (app->state() == Application::Stopped || app->state() == Application::Starting) {
-        LOG("ApplicationScreenshotProvider -  unable to take screenshot of stopped/not-ready applications");
-        return QImage();
-    }
-
-    /* Workaround for bug https://bugs.launchpad.net/qtubuntu/+bug/1209216 - currently all qtubuntu
-     * based applications are allocated a fullscreen Mir surface, but draw in a geometry excluding
-     * the panel's rectangle. Mir snapshots thus have a white rectangle which the panel hides.
-     * So need to clip this rectangle from the snapshot. */
-    int yOffset = 0;
-    if (!app->fullscreen()) {
-        yOffset = m_panelHeight;
-    }
-
-    QMutex mutex;
-    QWaitCondition wait;
-    mutex.lock();
-
-    QImage image;
-
-    app->session()->take_snapshot(
-        [&](mir::shell::Snapshot const& snapshot)
-        {
-            DLOG("ApplicationScreenshotProvider - Mir snapshot ready with size %d x %d",
-                 snapshot.size.height.as_int(), snapshot.size.width.as_int());
-
-            image = QImage( (const uchar*)snapshot.pixels, // since we mirror, no need to offset starting position
-                            snapshot.size.width.as_int(),
-                            snapshot.size.height.as_int() - yOffset,
-                            QImage::Format_ARGB32_Premultiplied).mirrored();
-            wait.wakeOne();
-        });
-
-    wait.wait(&mutex, 5000);
+    QImage image = app->screenshotImage();
 
     DLOG("ApplicationScreenshotProvider - working with size %d x %d", image.width(), image.height());
     size->setWidth(image.width());
     size->setHeight(image.height());
 
-    if (requestedSize.isValid()) {
-        image = image.scaled(requestedSize);
-    }
-    mutex.unlock();
     return image;
 }

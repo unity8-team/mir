@@ -62,12 +62,16 @@ public:
 
     // ApplicationManagerInterface
     QString focusedApplicationId() const override;
+    bool suspended() const override;
+    void setSuspended(bool suspended) override;
     Q_INVOKABLE Application* get(int index) const override;
     Q_INVOKABLE Application* findApplication(const QString &appId) const override;
+    Q_INVOKABLE void activateApplication(const QString &appId) override;
     Q_INVOKABLE bool focusApplication(const QString &appId) override;
     Q_INVOKABLE void unfocusCurrentApplication() override;
     Q_INVOKABLE Application* startApplication(const QString &appId, const QStringList &arguments) override;
     Q_INVOKABLE bool stopApplication(const QString &appId) override;
+    Q_INVOKABLE void updateScreenshot(const QString &appId) override;
 
     // QAbstractListModel
     int rowCount(const QModelIndex & parent = QModelIndex()) const override;
@@ -98,6 +102,9 @@ public Q_SLOTS:
 Q_SIGNALS:
     void focusRequested(const QString &appId);
 
+private Q_SLOTS:
+    void screenshotUpdated();
+
 private:
     void setFocused(Application *application);
     void add(Application *application);
@@ -106,6 +113,8 @@ private:
     Application* findApplicationWithSession(const mir::shell::Session *session);
     Application* findLastExecutedApplication();
     QModelIndex findIndex(Application* application);
+    void suspendApplication(Application *application);
+    void resumeApplication(Application *application);
 
     QList<Application*> m_applications;
     Application* m_focusedApplication; // remove as Mir has API for this
@@ -116,6 +125,8 @@ private:
     QScopedPointer<TaskController> m_taskController;
     static ApplicationManager* the_application_manager;
     bool m_fenceNext;
+    QString m_nextFocusedAppId;
+    bool m_suspended;
 
     friend class DBusWindowStack;
     friend class MirSurfaceManager;

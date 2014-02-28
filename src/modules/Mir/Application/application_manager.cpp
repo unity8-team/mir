@@ -126,6 +126,8 @@ QVariant ApplicationManager::data(const QModelIndex &index, int role) const
                 return QVariant::fromValue((int)application->state());
             case RoleFocused:
                 return QVariant::fromValue(application->focused());
+            case RoleScreenshot:
+                return QVariant::fromValue(application->screenshot());
             default:
                 return QVariant();
         }
@@ -136,6 +138,10 @@ QVariant ApplicationManager::data(const QModelIndex &index, int role) const
 
 Application* ApplicationManager::get(int index) const
 {
+    DLOG("ApplicationManager::get (this=%p, index=%i, count=%i)", this, index, m_applications.count());
+    if (index < 0 || index >= m_applications.count()) {
+        return nullptr;
+    }
     return m_applications.at(index);
 }
 
@@ -149,6 +155,31 @@ Application* ApplicationManager::findApplication(const QString &appId) const
     return nullptr;
 }
 
+void ApplicationManager::activateApplication(const QString &appId)
+{
+    DLOG("ApplicationManager::activateApplication (this=%p, appId=%s)", this, qPrintable(appId));
+    Application *application = findApplication(appId);
+
+    if (!application) {
+        DLOG("No such running application '%s'", qPrintable(appId));
+        return;
+    }
+
+    if (application == m_focusedApplication) {
+        DLOG("Application %s is already focused", qPrintable(appId));
+        return;
+    }
+
+    // Update the screenshot for the currently focused app
+    Application *currentlyFocusedApplication = findApplication(focusedApplicationId());
+    if (currentlyFocusedApplication) {
+        m_nextFocusedAppId = appId;
+        currentlyFocusedApplication->updateScreenshot();
+    } else {
+        Q_EMIT focusRequested(appId);
+    }
+}
+
 QString ApplicationManager::focusedApplicationId() const
 {
     if (m_focusedApplication) {
@@ -156,6 +187,50 @@ QString ApplicationManager::focusedApplicationId() const
     } else {
         return QString();
     }
+}
+
+bool ApplicationManager::suspended() const
+{
+    return m_suspended;
+}
+
+void ApplicationManager::setSuspended(bool suspended)
+{
+    if (suspended == m_suspended) {
+        return;
+    }
+    m_suspended = suspended;
+    Q_EMIT suspendedChanged();
+
+    if (m_suspended) {
+        suspendApplication(m_focusedApplication);
+    } else {
+        resumeApplication(m_focusedApplication);
+    }
+}
+
+void ApplicationManager::suspendApplication(Application *application)
+{
+    if (application == nullptr)
+        return;
+
+    updateScreenshot(application->appId());
+
+    // Present in exceptions list, return.
+    if (!m_lifecycleExceptions.filter(application->appId().section('_',0,0)).empty())
+        return;
+
+    if (application->state() == Application::Running)
+        application->setState(Application::Suspended);
+}
+
+void ApplicationManager::resumeApplication(Application *application)
+{
+    if (application == nullptr)
+        return;
+
+    if (application->state() != Application::Running)
+        application->setState(Application::Running);
 }
 
 bool ApplicationManager::focusApplication(const QString &appId)
@@ -177,7 +252,11 @@ bool ApplicationManager::focusApplication(const QString &appId)
         int from = m_applications.indexOf(application);
         move(from, m_applications.length()-1);
     } else {
-        m_mirServer->the_focus_controller()->set_focus_to(application->session());
+        if (application->session()) {
+            m_mirServer->the_focus_controller()->set_focus_to(application->session());
+            int from = m_applications.indexOf(application);
+            move(from, 0);
+        }
     }
 
     // FIXME(dandrader): lying here. The operation is async. So we will only know whether
@@ -278,6 +357,19 @@ bool ApplicationManager::stopApplication(const QString &appId)
     return result;
 }
 
+void ApplicationManager::updateScreenshot(const QString &appId)
+{
+    Application *application = findApplication(appId);
+    if (!application) {
+        DLOG("No such running application '%s'", qPrintable(appId));
+        return;
+    }
+
+    application->updateScreenshot();
+    QModelIndex appIndex = findIndex(application);
+    Q_EMIT dataChanged(appIndex, appIndex, QVector<int>() << RoleScreenshot);
+}
+
 void ApplicationManager::onProcessStopped(const QString &appId, const bool unexpected)
 {
     Application *application = findApplication(appId);
@@ -295,7 +387,7 @@ void ApplicationManager::onProcessStopped(const QString &appId, const bool unexp
             removeApplication = true;
         }
 
-        if (application->state() == Application::Running) {
+        if (application->state() == Application::Running || application->state() == Application::Starting) {
             // Application probably crashed, else OOM killer struck. Either way state wasn't saved
             // so just remove application
             removeApplication = true;
@@ -339,6 +431,20 @@ void ApplicationManager::onResumeRequested(const QString& appId)
     // be notified of that through the onProcessStartReportReceived slot. Else resume.
     if (application->state() == Application::Suspended) {
         application->setState(Application::Running);
+    }
+}
+
+void ApplicationManager::screenshotUpdated()
+{
+    Application *application = static_cast<Application*>(sender());
+    QModelIndex appIndex = findIndex(application);
+    Q_EMIT dataChanged(appIndex, appIndex, QVector<int>() << RoleScreenshot);
+
+    DLOG("updated screenshot for '%s'", qPrintable(application->appId()));
+
+    if (!m_nextFocusedAppId.isEmpty()) {
+        Q_EMIT focusRequested(m_nextFocusedAppId);
+        m_nextFocusedAppId.clear();
     }
 }
 
@@ -469,11 +575,18 @@ void ApplicationManager::onSessionStopping(std::shared_ptr<msh::Session> const& 
     // in case application closed not by hand of shell, check again here:
     Application* application = findApplicationWithSession(session);
     if (application) {
-        application->setState(Application::Stopped);
-        application->setSession(nullptr);
-        m_dbusWindowStack->WindowDestroyed(0, application->appId());
+        bool removeApplication = true;
 
-        if (application == m_focusedApplication) {
+        if (application->state() != Application::Starting) {
+            application->setState(Application::Stopped);
+            application->setSession(nullptr);
+            m_dbusWindowStack->WindowDestroyed(0, application->appId());
+            if (application != m_focusedApplication) {
+                   removeApplication = false;
+            }
+        }
+
+        if (removeApplication) {
             // TODO(greyback) What to do?? Focus next app, or unfocus everything??
             m_focusedApplication = NULL;
             remove(application);
@@ -511,10 +624,7 @@ void ApplicationManager::onSessionUnfocused()
         Q_ASSERT(m_focusedApplication->focused());
         m_focusedApplication->setFocused(false);
 
-        if (m_lifecycleExceptions.filter(m_focusedApplication->appId().section('_',0,0)).empty()
-                && m_focusedApplication->state() != Application::Suspended) {
-            m_focusedApplication->setState(Application::Suspended);
-        }
+        suspendApplication(m_focusedApplication);
 
         m_focusedApplication = NULL;
         Q_EMIT focusedApplicationIdChanged();
@@ -549,13 +659,13 @@ void ApplicationManager::setFocused(Application *application)
         return;
 
     // set state of previously focused app to suspended
-    if (m_focusedApplication && !m_lifecycleExceptions.contains(m_focusedApplication->appId())) {
-        m_focusedApplication->setState(Application::Suspended);
-    }
+    suspendApplication(m_focusedApplication);
+
 
     m_focusedApplication = application;
     m_focusedApplication->setFocused(true);
     m_focusedApplication->setState(Application::Running);
+    move(m_applications.indexOf(application), 0);
     Q_EMIT focusedApplicationIdChanged();
     m_dbusWindowStack->FocusedWindowChanged(0, application->appId(), application->stage());
 }
@@ -602,10 +712,13 @@ void ApplicationManager::add(Application* application)
     DASSERT(application != NULL);
     DLOG("ApplicationManager::add (this=%p, application='%s')", this, qPrintable(application->name()));
 
+    connect(application, &Application::screenshotChanged, this, &ApplicationManager::screenshotUpdated);
+
     beginInsertRows(QModelIndex(), m_applications.size(), m_applications.size());
     m_applications.append(application);
     endInsertRows();
     emit countChanged();
+    emit applicationAdded(application->appId());
 }
 
 void ApplicationManager::remove(Application *application)
@@ -618,6 +731,7 @@ void ApplicationManager::remove(Application *application)
         beginRemoveRows(QModelIndex(), i, i);
         m_applications.removeAt(i);
         endRemoveRows();
+        emit applicationRemoved(application->appId());
         emit countChanged();
     }
 }
