@@ -63,17 +63,9 @@ bool DBusScreen::setScreenPowerMode(const QString &mode)
     std::shared_ptr<mg::Display> display = m_serverConfig->the_display();
     std::shared_ptr<mg::DisplayConfiguration> displayConfig = display->configuration();
 
-    displayConfig->for_each_output([&](const mg::DisplayConfigurationOutput displayConfigOutput) {
+    displayConfig->for_each_output([&](mg::UserDisplayConfigurationOutput& displayConfigOutput) {
         if (displayConfigOutput.power_mode != newPowerMode) {
-            displayConfig->configure_output(
-                        displayConfigOutput.id,         //unchanged
-                        displayConfigOutput.used,       //unchanged
-                        displayConfigOutput.top_left,   //unchanged
-                        displayConfigOutput.current_mode_index, //unchanged
-                        displayConfigOutput.current_format, //unchanged
-                        newPowerMode,
-                        displayConfigOutput.orientation
-                        );
+            displayConfigOutput.power_mode = newPowerMode;
         }
     });
 
