@@ -213,6 +213,8 @@ void MirSurface::created(mir_surface_callback callback, void * context)
         accelerated_window = platform->create_egl_native_window(this);
     }
 
+    set_event_handler(nullptr);
+
     connection->on_surface_created(id(), this);
     callback(this, context);
     create_wait_handle.result_received();
@@ -366,13 +368,18 @@ void MirSurface::set_event_handler(MirEventDelegate const* delegate)
         handle_event_callback = std::bind(delegate->callback, this,
                                           std::placeholders::_1,
                                           delegate->context);
+    }
+    else
+    {
+        handle_event_callback = [](MirEvent const*) {};
+    }
 
-        if (surface.fd_size() > 0 && handle_event_callback)
-        {
-            input_thread = input_platform->create_input_thread(surface.fd(0),
-                                                        handle_event_callback);
-            input_thread->start();
-        }
+    if (surface.fd_size() > 0)
+    {
+        input_thread =
+            input_platform->create_input_thread(surface.fd(0),
+                                                handle_event_callback);
+        input_thread->start();
     }
 }
 

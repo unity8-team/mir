@@ -248,9 +248,16 @@ struct StubClientPlatformFactory : public mcl::ClientPlatformFactory
 
 struct StubClientInputPlatform : public mircv::InputPlatform
 {
-    std::shared_ptr<mircv::InputReceiverThread> create_input_thread(int /* fd */, std::function<void(MirEvent*)> const& /* callback */)
+    std::shared_ptr<mircv::InputReceiverThread> create_input_thread(
+        int /* fd */, std::function<void(MirEvent*)> const& /* callback */)
     {
-        return std::shared_ptr<mircv::InputReceiverThread>();
+        struct NullInputReceiverThread : public mircv::InputReceiverThread
+        {
+            void start() override {}
+            void stop() override {}
+            void join() override {}
+        };
+        return std::make_shared<NullInputReceiverThread>();
     }
 };
 
@@ -493,38 +500,106 @@ namespace
 static void null_event_callback(MirSurface*, MirEvent const*, void*)
 {
 }
+
+class StubBuffer : public mcl::ClientBuffer
+{
+public:
+    StubBuffer(geom::Size size, geom::Stride stride, MirPixelFormat pf)
+        : size_{size}, stride_{stride}, pf_{pf}
+    {
+    }
+
+    std::shared_ptr<mcl::MemoryRegion> secure_for_cpu_write() override
+    {
+        auto raw = new mcl::MemoryRegion{size_.width,
+                                         size_.height,
+                                         stride_,
+                                         pf_,
+                                         nullptr};
+
+        return std::shared_ptr<mcl::MemoryRegion>(raw);
+    }
+
+    geom::Size size() const override { return size_; }
+    geom::Stride stride() const override { return stride_; }
+    MirPixelFormat pixel_format() const override { return pf_; }
+    uint32_t age() const override { return 0; }
+    void increment_age() override {}
+    void mark_as_submitted() override {}
+
+    std::shared_ptr<mg::NativeBuffer> native_buffer_handle() const override
+    {
+        return std::shared_ptr<mg::NativeBuffer>();
+    }
+
+private:
+    geom::Size const size_;
+    geom::Stride const stride_;
+    MirPixelFormat const pf_;
+};
+
+struct StubClientBufferFactory : public mcl::ClientBufferFactory
+{
+    std::shared_ptr<mcl::ClientBuffer> create_buffer(
+        std::shared_ptr<MirBufferPackage> const& package,
+        geom::Size size, MirPixelFormat pf)
+    {
+        return std::make_shared<StubBuffer>(size,
+                                            geom::Stride{package->stride},
+                                            pf);
+    }
+};
 }
 
-TEST_F(MirClientSurfaceTest, input_fd_used_to_create_input_thread_when_delegate_specified)
+TEST_F(MirClientSurfaceTest, creates_input_thread_at_construction)
 {
     using namespace ::testing;
 
-    auto mock_input_platform = std::make_shared<mt::MockClientInputPlatform>();
-    auto mock_input_thread = std::make_shared<NiceMock<mt::MockInputReceiverThread>>();
-    MirEventDelegate delegate = {null_event_callback, nullptr};
+    auto const mock_input_platform = std::make_shared<mt::MockClientInputPlatform>();
+    auto const mock_input_thread = std::make_shared<NiceMock<mt::MockInputReceiverThread>>();
 
-    EXPECT_CALL(*mock_buffer_factory, create_buffer(_,_,_)).Times(2);
-
-    EXPECT_CALL(*mock_input_platform, create_input_thread(_, _)).Times(1)
+    EXPECT_CALL(*mock_input_platform, create_input_thread(_, _))
         .WillOnce(Return(mock_input_thread));
     EXPECT_CALL(*mock_input_thread, start()).Times(1);
     EXPECT_CALL(*mock_input_thread, stop()).Times(1);
 
-    {
-        auto surface = std::make_shared<MirSurface> (connection.get(), *client_comm_channel,
-            mock_buffer_factory, mock_input_platform, params, &empty_callback, nullptr);
-        auto wait_handle = surface->get_create_wait_handle();
-        wait_handle->wait_for_all();
-        surface->set_event_handler(&delegate);
-    }
+    MirSurface mir_surface(connection.get(), *client_comm_channel,
+                           std::make_shared<StubClientBufferFactory>(),
+                           mock_input_platform, params, &empty_callback, nullptr);
 
-    {
-        // This surface should not trigger a call to the input platform as no input delegate is specified.
-        auto surface = std::make_shared<MirSurface> (connection.get(), *client_comm_channel,
-            mock_buffer_factory, mock_input_platform, params, &empty_callback, nullptr);
-        auto wait_handle = surface->get_create_wait_handle();
-        wait_handle->wait_for_all();
-    }
+    mir_surface.get_create_wait_handle()->wait_for_all();
+}
+
+TEST_F(MirClientSurfaceTest, recreates_input_thread_when_setting_event_handler)
+{
+    using namespace ::testing;
+
+    auto const mock_input_platform = std::make_shared<mt::MockClientInputPlatform>();
+    auto const mock_input_thread1 = std::make_shared<NiceMock<mt::MockInputReceiverThread>>();
+
+    EXPECT_CALL(*mock_input_platform, create_input_thread(_, _))
+        .WillOnce(Return(mock_input_thread1));
+    EXPECT_CALL(*mock_input_thread1, start()).Times(1);
+
+    MirSurface mir_surface(connection.get(), *client_comm_channel,
+                           std::make_shared<StubClientBufferFactory>(),
+                           mock_input_platform, params, &empty_callback, nullptr);
+
+    mir_surface.get_create_wait_handle()->wait_for_all();
+
+    Mock::VerifyAndClearExpectations(mock_input_platform.get());
+    Mock::VerifyAndClearExpectations(mock_input_thread1.get());
+
+    auto const mock_input_thread2 = std::make_shared<NiceMock<mt::MockInputReceiverThread>>();
+
+    EXPECT_CALL(*mock_input_thread1, stop()).Times(1);
+    EXPECT_CALL(*mock_input_platform, create_input_thread(_, _))
+        .WillOnce(Return(mock_input_thread2));
+    EXPECT_CALL(*mock_input_thread2, start()).Times(1);
+    EXPECT_CALL(*mock_input_thread2, stop()).Times(1);
+
+    MirEventDelegate const delegate = {null_event_callback, nullptr};
+    mir_surface.set_event_handler(&delegate);
 }
 
 TEST_F(MirClientSurfaceTest, get_buffer_returns_last_received_buffer_package)
@@ -633,57 +708,6 @@ TEST_F(MirClientSurfaceTest, default_surface_state)
               surface->attrib(mir_surface_attrib_state));
 }
 
-namespace
-{
-
-struct StubBuffer : public mcl::ClientBuffer
-{
-    StubBuffer(geom::Size size, geom::Stride stride, MirPixelFormat pf)
-        : size_{size}, stride_{stride}, pf_{pf}
-    {
-    }
-
-    std::shared_ptr<mcl::MemoryRegion> secure_for_cpu_write()
-    {
-        auto raw = new mcl::MemoryRegion{size_.width,
-                                         size_.height,
-                                         stride_,
-                                         pf_,
-                                         nullptr};
-
-        return std::shared_ptr<mcl::MemoryRegion>(raw);
-    }
-
-    geom::Size size() const { return size_; }
-    geom::Stride stride() const { return stride_; }
-    MirPixelFormat pixel_format() const { return pf_; }
-    uint32_t age() const { return 0; }
-    void increment_age() {}
-    void mark_as_submitted() {}
-
-    std::shared_ptr<mg::NativeBuffer> native_buffer_handle() const
-    {
-        return std::shared_ptr<mg::NativeBuffer>();
-    }
-
-    geom::Size size_;
-    geom::Stride stride_;
-    MirPixelFormat pf_;
-};
-
-struct StubClientBufferFactory : public mcl::ClientBufferFactory
-{
-    std::shared_ptr<mcl::ClientBuffer> create_buffer(
-        std::shared_ptr<MirBufferPackage> const& package,
-        geom::Size size, MirPixelFormat pf)
-    {
-        return std::make_shared<StubBuffer>(size,
-                                            geom::Stride{package->stride},
-                                            pf);
-    }
-};
-
-}
 TEST_F(MirClientSurfaceTest, get_cpu_region_returns_correct_data)
 {
     using namespace testing;
