@@ -31,15 +31,9 @@ include_directories(
   ${PROJECT_SOURCE_DIR}/include/client
   ${PROJECT_SOURCE_DIR}/include/test)
 
-if (MIR_TEST_PLATFORM STREQUAL "mesa")
 option(MIR_BUILD_ACCEPTANCE_TESTS "Build acceptance tests" ON)
 option(MIR_BUILD_INTEGRATION_TESTS "Build integration tests" ON)
 option(MIR_BUILD_UNIT_TESTS "Build unit tests" ON)
-elseif (MIR_TEST_PLATFORM STREQUAL "android")
-option(MIR_BUILD_ACCEPTANCE_TESTS "Build acceptance tests" OFF)
-option(MIR_BUILD_INTEGRATION_TESTS "Build integration tests" OFF)
-option(MIR_BUILD_UNIT_TESTS "Build unit tests" OFF)
-endif()
 
 if (MIR_BUILD_ACCEPTANCE_TESTS)
   add_subdirectory(acceptance-tests/)
