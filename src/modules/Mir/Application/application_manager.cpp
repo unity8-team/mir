@@ -63,6 +63,8 @@ ApplicationManager::ApplicationManager(QObject *parent)
 
     NativeInterface *nativeInterface = dynamic_cast<NativeInterface*>(QGuiApplication::platformNativeInterface());
 
+    m_mirConfig = nativeInterface->m_mirConfig;
+
     if (!nativeInterface) {
         LOG("ERROR: Unity.Application QML plugin requires use of the 'mirserver' QPA plugin");
         QGuiApplication::quit();
@@ -253,7 +255,7 @@ bool ApplicationManager::focusApplication(const QString &appId)
         move(from, m_applications.length()-1);
     } else {
         if (application->session()) {
-            m_mirServer->the_focus_controller()->set_focus_to(application->session());
+            m_mirConfig->the_focus_controller()->set_focus_to(application->session());
             int from = m_applications.indexOf(application);
             move(from, 0);
         }
@@ -270,7 +272,8 @@ void ApplicationManager::unfocusCurrentApplication()
     DLOG("ApplicationManager::unfocusCurrentApplication (this=%p)", this);
 
     m_applicationToBeFocused = nullptr;
-    m_mirServer->the_focus_controller()->set_focus_to(NULL); //FIXME(greyback)
+
+    m_mirConfig->the_focus_controller()->set_focus_to(NULL); //FIXME(greyback)
 }
 
 Application* ApplicationManager::startApplication(const QString &appId,

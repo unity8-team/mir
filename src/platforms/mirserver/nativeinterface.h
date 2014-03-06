@@ -32,7 +32,6 @@ public:
 
     virtual void *nativeResourceForIntegration(const QByteArray &resource);
 
-private:
     MirServerConfiguration *m_mirConfig;
 };
 
