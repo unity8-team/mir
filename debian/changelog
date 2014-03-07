@@ -1,3 +1,10 @@
+platform-api (0.20+14.04.20140307-0ubuntu1) trusty; urgency=low
+
+  [ Łukasz 'sil2100' Zemczak ]
+  * Bump the build-dependency on dbus-cpp due to the ABI change
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Fri, 07 Mar 2014 12:35:44 +0000
+
 platform-api (0.20+14.04.20140221-0ubuntu1) trusty; urgency=low
 
   [ thomas-voss ]
