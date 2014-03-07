@@ -174,7 +174,7 @@ MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::shell::Surface> surface,
 
 MirSurfaceItem::~MirSurfaceItem()
 {
-    DLOG("MirSurfaceItem::~MirSurfaceItem");
+    DLOG("MirSurfaceItem::~MirSurfaceItem(this=%p)", this);
     QMutexLocker locker(&m_mutex);
     m_surface->register_new_buffer_callback([]{});
     if (m_textureProvider)
