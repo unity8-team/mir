@@ -19,6 +19,7 @@
 #ifndef MIR_COMPOSITOR_COMPOSITING_CRITERIA_H_
 #define MIR_COMPOSITOR_COMPOSITING_CRITERIA_H_
 
+#define GLM_FORCE_RADIANS
 #include <glm/glm.hpp>
 
 namespace mir

@@ -16,6 +16,8 @@
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
+#define GLM_FORCE_RADIANS
+
 #include "mir/compositor/display_buffer_compositor_factory.h"
 #include "mir/compositor/display_buffer_compositor.h"
 #include "mir/graphics/graphic_buffer_allocator.h"
@@ -194,8 +196,8 @@ public:
           h{static_cast<float>(s->size().height.as_uint32_t())},
           dx{dx},
           dy{dy},
-          rotation_axis{rotation_axis},
-          alpha_offset{alpha_offset}
+          rotation_axis(rotation_axis),
+          alpha_offset(alpha_offset)
     {
     }
 

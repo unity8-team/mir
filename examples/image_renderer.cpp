@@ -16,6 +16,7 @@
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
+#define GLM_FORCE_RADIANS
 #include "image_renderer.h"
 
 // Unfortunately we have to ignore warnings/errors in 3rd party code.

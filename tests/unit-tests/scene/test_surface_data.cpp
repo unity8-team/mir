@@ -111,7 +111,7 @@ TEST_F(SurfaceDataTest, test_surface_set_rotation_updates_transform)
     ms::SurfaceData storage{name, rect, mock_change_cb, false};
     auto original_transformation = storage.transformation();
 
-    storage.apply_rotation(60.0f, glm::vec3{0.0f, 0.0f, 1.0f});
+    storage.apply_rotation(60.0f, glm::vec3(0.0f, 0.0f, 1.0f));
     auto rotated_transformation = storage.transformation();
     EXPECT_NE(original_transformation, rotated_transformation);
 }
