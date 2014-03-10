@@ -16,6 +16,7 @@
  * Authored by: Kevin DuBois <kevin.dubois@canonical.com>
  */
 
+#define GLM_FORCE_RADIANS
 #include "surface_data.h"
 #include <glm/gtc/matrix_transform.hpp>
 
