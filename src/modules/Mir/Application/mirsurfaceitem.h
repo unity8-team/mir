@@ -42,7 +42,7 @@ class MirSurfaceItem : public QQuickItem
     Q_PROPERTY(Type type READ type NOTIFY typeChanged)
     Q_PROPERTY(State state READ state NOTIFY stateChanged)
     Q_PROPERTY(QString name READ name NOTIFY nameChanged)
-    Q_PROPERTY(Application* application READ application NOTIFY applicationChanged);
+    Q_PROPERTY(Application* application READ application CONSTANT)
 
 public:
     explicit MirSurfaceItem(std::shared_ptr<mir::shell::Surface> surface, Application* application, QQuickItem *parent = 0);
@@ -83,9 +83,6 @@ Q_SIGNALS:
     void nameChanged();
     void surfaceDestroyed();
     void surfaceFirstFrameDrawn(MirSurfaceItem *); // so MirSurfaceManager can notify QML
-
-    // will never be emitted. It's here just to make QML happy about the application property
-    void applicationChanged();
 
 public Q_SLOTS:
     void release(); // For QML to destroy this surface
