@@ -78,7 +78,7 @@ u_hardware_alarm_set_timezone(
     const struct timezone *tz);
 
 /** Sets and arms a timer. */
-UBUNTU_DLL_PUBLIC void
+UBUNTU_DLL_PUBLIC UStatus
 u_hardware_alarm_set_relative_to_with_behavior(
     UHardwareAlarm alarm,
     UHardwareAlarmTimeReference time_reference,
@@ -86,9 +86,10 @@ u_hardware_alarm_set_relative_to_with_behavior(
     const struct timespec *ts);
 
 /** Blocks until the next alarm occurs. */
-UBUNTU_DLL_PUBLIC UHardwareAlarmWaitResult
+UBUNTU_DLL_PUBLIC UStatus
 u_hardware_alarm_wait_for_next_alarm(
-    UHardwareAlarm alarm);
+    UHardwareAlarm alarm,
+    UHardwareAlarmWaitResult *result);
 
 #ifdef __cplusplus
 }

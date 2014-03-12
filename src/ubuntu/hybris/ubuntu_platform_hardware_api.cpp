@@ -98,14 +98,16 @@ IMPLEMENT_FUNCTION2(
         UHardwareAlarm,
         const struct timezone*);
 
-IMPLEMENT_VOID_FUNCTION4(
+IMPLEMENT_FUNCTION4(
+        UStatus,
         u_hardware_alarm_set_relative_to_with_behavior,
         UHardwareAlarm,
         UHardwareAlarmTimeReference,
         UHardwareAlarmSleepBehavior,
         const struct timespec*);
 
-IMPLEMENT_FUNCTION1(
-        UHardwareAlarmWaitResult,
+IMPLEMENT_FUNCTION2(
+        UStatus,
         u_hardware_alarm_wait_for_next_alarm,
-        UHardwareAlarm);
+        UHardwareAlarm,
+        UHardwareAlarmWaitResult*);
