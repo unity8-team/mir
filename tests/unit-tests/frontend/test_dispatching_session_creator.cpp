@@ -22,6 +22,8 @@
 #include <sys/socket.h>
 #include <boost/asio.hpp>
 #include <uuid/uuid.h>
+#include <thread>
+#include <condition_variable>
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -29,6 +31,15 @@
 namespace
 {
 char const* mock_uuid = "28e0bbfb-20e6-4066-ba80-aa38a5538638";
+
+void write_header(int socket, std::string const& uuid, uint16_t header_size)
+{
+    uint16_t const network_header = htons(header_size);
+    ASSERT_TRUE(write(socket, &network_header, sizeof network_header)
+                == static_cast<ssize_t>(sizeof network_header));
+    ASSERT_TRUE(write(socket, uuid.data(), 36)
+                == static_cast<ssize_t>(36));
+}
 
 class MockDispatchedSessionCreator : public mir::frontend::DispatchedSessionCreator
 {
@@ -73,7 +84,7 @@ TEST(DispatchingSessionCreatorTest, DispatchesSingleUUIDSupported)
     int socket_fds[2];
     ASSERT_TRUE(socketpair(AF_UNIX, SOCK_SEQPACKET, 0, socket_fds) == 0);
 
-    ASSERT_TRUE(write(socket_fds[0], mock_uuid, strlen(mock_uuid)) == static_cast<ssize_t>(strlen(mock_uuid)));
+    write_header(socket_fds[0], mock_uuid, mock_proto->header_size());
     auto reader = std::make_shared<boost::asio::local::stream_protocol::socket>(io_service,
                                                                                 boost::asio::local::stream_protocol(),
                                                                                 socket_fds[1]);
@@ -103,7 +114,7 @@ TEST(DispatchingSessionCreatorTest, DispatchesToCorrectUUID)
     int socket_fds[2];
     ASSERT_TRUE(socketpair(AF_UNIX, SOCK_SEQPACKET, 0, socket_fds) == 0);
 
-    ASSERT_TRUE(write(socket_fds[0], proto_two_uuid, strlen(proto_two_uuid)) == static_cast<ssize_t>(strlen(proto_two_uuid)));
+    write_header(socket_fds[0], proto_two_uuid, mock_proto_two->header_size());
     auto reader = std::make_shared<boost::asio::local::stream_protocol::socket>(io_service,
                                                                                 boost::asio::local::stream_protocol(),
                                                                                 socket_fds[1]);
@@ -136,14 +147,93 @@ TEST(DispatchingSessionCreatorTest, NoCommonProtocolRaisesException)
     int socket_fds[2];
     ASSERT_TRUE(socketpair(AF_UNIX, SOCK_SEQPACKET, 0, socket_fds) == 0);
 
-    ASSERT_TRUE(write(socket_fds[0], unknown_client_proto.data(), unknown_client_proto.length())
-            == static_cast<ssize_t>(unknown_client_proto.length()));
+    write_header(socket_fds[0], unknown_client_proto, 0);
     auto reader = std::make_shared<boost::asio::local::stream_protocol::socket>(io_service,
                                                                                 boost::asio::local::stream_protocol(),
                                                                                 socket_fds[1]);
 
     ON_CALL(*mock_proto_two, protocol_id(_))
         .WillByDefault(Invoke([proto_two_uuid](uuid_t id) { uuid_parse(proto_two_uuid, id);}));
+
+    dispatcher.create_session_for(reader);
+
+    EXPECT_THROW({ io_service.run(); }, std::runtime_error);
+}
+
+TEST(DispatchingSessionCreatorTest, LazyClientTimesOutInConnect)
+{
+    using namespace testing;
+    auto authorizer = std::make_shared<NullSessionAuthorizer> ();
+    auto mock_proto = std::make_shared<NiceMock<MockDispatchedSessionCreator>>();
+    auto protos = std::make_shared<std::vector<std::shared_ptr<mir::frontend::DispatchedSessionCreator>>>();
+    protos->push_back(mock_proto);
+
+    mir::frontend::DispatchingSessionCreator dispatcher(protos, authorizer);
+
+    boost::asio::io_service io_service;
+    int socket_fds[2];
+    ASSERT_TRUE(socketpair(AF_UNIX, SOCK_SEQPACKET, 0, socket_fds) == 0);
+
+    ASSERT_TRUE(write(socket_fds[0], "partial-uuid-...", strlen("partial-uuid-..."))
+            == static_cast<ssize_t>(strlen("partial-uuid-...")));
+    auto reader = std::make_shared<boost::asio::local::stream_protocol::socket>(io_service,
+                                                                                boost::asio::local::stream_protocol(),
+                                                                                socket_fds[1]);
+
+    ON_CALL(*mock_proto, header_size())
+        .WillByDefault(Return(8));
+
+    dispatcher.create_session_for(reader);
+
+    std::mutex m;
+    std::condition_variable cv;
+    bool done{false};
+
+    std::thread watchdog{[&io_service, &m, &cv, &done]()
+        {
+            std::unique_lock<std::mutex> lk(m);
+            if (!cv.wait_for(lk, std::chrono::seconds{1}, [&done]() { return done; }))
+            {
+                io_service.stop();
+                FAIL()<<"Timeout waiting for client disconnect";
+            }
+        }};
+
+    EXPECT_THROW({ io_service.run(); }, std::runtime_error);
+
+    {
+        std::unique_lock<std::mutex> lk(m);
+        done = true;
+    }
+    cv.notify_one();
+
+    if (watchdog.joinable())
+        watchdog.join();
+}
+
+
+TEST(DispatchingSessionCreatorTest, IncorrectProtocolSizeRaisesException)
+{
+    using namespace testing;
+    auto authorizer = std::make_shared<NullSessionAuthorizer> ();
+    auto mock_proto = std::make_shared<NiceMock<MockDispatchedSessionCreator>>();
+    auto protos = std::make_shared<std::vector<std::shared_ptr<mir::frontend::DispatchedSessionCreator>>>();
+    protos->push_back(mock_proto);
+
+    mir::frontend::DispatchingSessionCreator dispatcher(protos, authorizer);
+
+    boost::asio::io_service io_service;
+    int socket_fds[2];
+    ASSERT_TRUE(socketpair(AF_UNIX, SOCK_SEQPACKET, 0, socket_fds) == 0);
+
+    uint16_t const mock_header_length{8};
+    write_header(socket_fds[0], mock_uuid, mock_header_length - 1);
+    auto reader = std::make_shared<boost::asio::local::stream_protocol::socket>(io_service,
+                                                                                boost::asio::local::stream_protocol(),
+                                                                                socket_fds[1]);
+
+    ON_CALL(*mock_proto, header_size())
+        .WillByDefault(Return(mock_header_length));
 
     dispatcher.create_session_for(reader);
 
