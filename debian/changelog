@@ -1,3 +1,13 @@
+platform-api (0.20+14.04.20140317.1-0ubuntu1) trusty; urgency=low
+
+  [ Ubuntu daily release ]
+  * New rebuild forced
+
+  [ Kevin Gunn ]
+  * bump to mir0.1.7
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Mon, 17 Mar 2014 15:15:44 +0000
+
 platform-api (0.20+14.04.20140310.1-0ubuntu1) trusty; urgency=low
 
   [ Kevin Gunn ]
