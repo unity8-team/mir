@@ -17,8 +17,9 @@
 add_library(
   mirsharedgeometry STATIC
 
+  ostream.cpp
   rectangle.cpp
   rectangles.cpp
-  ostream.cpp
+  transformation.cpp
 )
 

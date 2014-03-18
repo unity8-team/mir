@@ -1,5 +1,5 @@
 /*
- * Copyright © 2012 Canonical Ltd.
+ * Copyright © 2012,2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -54,3 +54,27 @@ TEST(geometry, point_is_usable)
     EXPECT_EQ(X(x), p.x);
     EXPECT_EQ(Y(y), p.y);
 }
+
+TEST(geometry, point_can_be_scaled)
+{
+    using namespace geom;
+    int x = 2;
+    int y = 4;
+    auto p1 = 2.0f * Point{x, y};
+    auto p2 = Point{x, y} * 3.5f;
+    EXPECT_EQ(X(x*2), p1.x);
+    EXPECT_EQ(Y(y*2), p1.y);
+    EXPECT_EQ(X(7), p2.x);
+    EXPECT_EQ(Y(14), p2.y);
+}
+
+TEST(geometry, point_can_be_scaled_with_div)
+{
+    using namespace geom;
+    int x = 12;
+    int y = 6;
+    auto p1 = Point{x, y}/3.0f;
+    EXPECT_EQ(X(x/3), p1.x);
+    EXPECT_EQ(Y(y/3), p1.y);
+}
+

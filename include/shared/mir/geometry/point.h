@@ -1,5 +1,5 @@
 /*
- * Copyright © 2012 Canonical Ltd.
+ * Copyright © 2012,2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License version 3,
@@ -21,6 +21,7 @@
 
 #include "dimensions.h"
 #include <iosfwd>
+#include <cmath>
 
 namespace mir
 {
@@ -49,6 +50,25 @@ inline bool operator != (Point const& lhs, Point const& rhs)
 {
     return lhs.x != rhs.x || lhs.y != rhs.y;
 }
+
+inline Point operator *(float lhs, Point const& rhs)
+{
+    return Point{std::round(rhs.x.as_float()*lhs),
+        std::round(rhs.y.as_float()*lhs)};
+}
+
+inline Point operator *(Point const& lhs, float rhs)
+{
+    return rhs*lhs;
+}
+
+inline Point operator /(Point const& lhs, float rhs)
+{
+    return Point{std::round(lhs.x.as_float()/rhs),
+        std::round(lhs.y.as_float()/rhs)};
+}
+
+
 
 std::ostream& operator<<(std::ostream& out, Point const& value);
 }
