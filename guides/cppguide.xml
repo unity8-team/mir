@@ -299,32 +299,6 @@ Thomas Voss
     </BODY>
   </STYLEPOINT>
 
-  <STYLEPOINT title="Function Parameter Ordering">
-    <SUMMARY>
-      When defining a function, parameter order is: outputs,
-      then inputs.
-    </SUMMARY>
-    <BODY>
-      <p>
-        Parameters to C/C++ functions are either input to the
-        function, output from the function, or both. Input parameters
-        are usually values or <code>const</code> references, while output
-        and input/output parameters will be non-<code>const</code>
-        references or pointers to non-<code>const</code>. When ordering function 
-        parameters, put all output parameters before any input-only parameters.
-        In particular, do not add new parameters to the end of the function just
-        because they are new; place new output parameters before the input-only
-        parameters.
-      </p>
-      <p>
-        This is not a hard-and-fast rule.  Parameters that are both
-        input and output (often classes/structs) muddy the waters,
-        and, as always, consistency with related functions may require
-        you to bend the rule.
-      </p>
-    </BODY>
-  </STYLEPOINT>
-
   <STYLEPOINT title="Names and Order of Includes">
     <SUMMARY>
       Use standard order for readability and to avoid hidden
