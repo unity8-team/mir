@@ -56,6 +56,7 @@ public:
 
 private:
     boost::program_options::variables_map options;
+    bool strict_parsing;
 };
 }
 }

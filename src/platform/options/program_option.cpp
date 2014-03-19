@@ -19,7 +19,8 @@
 #include "mir/options/program_option.h"
 
 #include <boost/program_options/parsers.hpp>
-
+#include <boost/throw_exception.hpp>
+#include <stdexcept>
 #include <fstream>
 #include <iostream>
 
@@ -34,7 +35,8 @@ namespace
     }
 }
 
-mo::ProgramOption::ProgramOption(bool)
+mo::ProgramOption::ProgramOption(bool strict_parsing)
+    : strict_parsing{strict_parsing}
 {
 }
 
@@ -43,8 +45,23 @@ void mo::ProgramOption::parse_arguments(
     int argc,
     char const* argv[])
 {
-    // TODO: Don't allow unregistered options, once we allow better overriding of option parsing
-    po::store(po::command_line_parser(argc, argv).options(desc).allow_unregistered().run(), options);
+    if (strict_parsing)
+    {
+        try
+        {
+            po::store(po::command_line_parser(argc, argv).options(desc).run(), options);
+        }
+        catch (const po::error& error)
+        {
+            std::stringstream str;
+            str << "unrecognized command line argument " << error.what() << std::endl;
+            BOOST_THROW_EXCEPTION(std::runtime_error(str.str()));
+        }
+    }
+    else
+    { 
+        po::store(po::command_line_parser(argc, argv).options(desc).allow_unregistered().run(), options);
+    }
     po::notify(options);
 }
 
