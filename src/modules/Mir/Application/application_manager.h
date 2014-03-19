@@ -66,12 +66,12 @@ public:
     void setSuspended(bool suspended) override;
     Q_INVOKABLE Application* get(int index) const override;
     Q_INVOKABLE Application* findApplication(const QString &appId) const override;
-    Q_INVOKABLE void activateApplication(const QString &appId) override;
+    Q_INVOKABLE bool requestFocusApplication(const QString &appId) override;
     Q_INVOKABLE bool focusApplication(const QString &appId) override;
     Q_INVOKABLE void unfocusCurrentApplication() override;
     Q_INVOKABLE Application* startApplication(const QString &appId, const QStringList &arguments) override;
     Q_INVOKABLE bool stopApplication(const QString &appId) override;
-    Q_INVOKABLE void updateScreenshot(const QString &appId) override;
+    Q_INVOKABLE bool updateScreenshot(const QString &appId) override;
 
     // QAbstractListModel
     int rowCount(const QModelIndex & parent = QModelIndex()) const override;

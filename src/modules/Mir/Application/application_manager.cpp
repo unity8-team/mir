@@ -157,19 +157,19 @@ Application* ApplicationManager::findApplication(const QString &appId) const
     return nullptr;
 }
 
-void ApplicationManager::activateApplication(const QString &appId)
+bool ApplicationManager::requestFocusApplication(const QString &appId)
 {
-    DLOG("ApplicationManager::activateApplication (this=%p, appId=%s)", this, qPrintable(appId));
+    DLOG("ApplicationManager::requestFocusApplication (this=%p, appId=%s)", this, qPrintable(appId));
     Application *application = findApplication(appId);
 
     if (!application) {
         DLOG("No such running application '%s'", qPrintable(appId));
-        return;
+        return false;
     }
 
     if (application == m_focusedApplication) {
         DLOG("Application %s is already focused", qPrintable(appId));
-        return;
+        return true;
     }
 
     // Update the screenshot for the currently focused app
@@ -180,6 +180,7 @@ void ApplicationManager::activateApplication(const QString &appId)
     } else {
         Q_EMIT focusRequested(appId);
     }
+    return true;
 }
 
 QString ApplicationManager::focusedApplicationId() const
@@ -360,17 +361,18 @@ bool ApplicationManager::stopApplication(const QString &appId)
     return result;
 }
 
-void ApplicationManager::updateScreenshot(const QString &appId)
+bool ApplicationManager::updateScreenshot(const QString &appId)
 {
     Application *application = findApplication(appId);
     if (!application) {
         DLOG("No such running application '%s'", qPrintable(appId));
-        return;
+        return false;
     }
 
     application->updateScreenshot();
     QModelIndex appIndex = findIndex(application);
     Q_EMIT dataChanged(appIndex, appIndex, QVector<int>() << RoleScreenshot);
+    return true;
 }
 
 void ApplicationManager::onProcessStopped(const QString &appId, const bool unexpected)
