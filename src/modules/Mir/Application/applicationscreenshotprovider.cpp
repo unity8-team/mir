@@ -32,19 +32,6 @@ ApplicationScreenshotProvider::ApplicationScreenshotProvider(ApplicationManager 
     : QQuickImageProvider(QQuickImageProvider::Image)
     , m_appManager(appManager)
 {
-    // See below to explain why this is needed for now.
-    int gridUnitPx = defaultGridUnitPx;
-
-    QByteArray gridUnitString = qgetenv("GRID_UNIT_PX");
-    if (!gridUnitString.isEmpty()) {
-        bool ok;
-        int value = gridUnitString.toInt(&ok);
-        if (ok) {
-            gridUnitPx = value;
-        }
-    }
-
-    int densityPixelPx = qFloor( (float)gridUnitPx / defaultGridUnitPx );
 }
 
 QImage ApplicationScreenshotProvider::requestImage(const QString &imageId, QSize * size,
@@ -58,7 +45,7 @@ QImage ApplicationScreenshotProvider::requestImage(const QString &imageId, QSize
     QString appId = imageId.split('/').first();
 
     Application* app = static_cast<Application*>(m_appManager->findApplication(appId));
-    if (app == NULL) {
+    if (app == nullptr) {
         LOG("ApplicationScreenshotProvider - app with appId %s not found", appId.toLatin1().constData());
         return QImage();
     }
