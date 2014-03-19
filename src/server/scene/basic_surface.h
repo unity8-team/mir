@@ -101,7 +101,7 @@ public:
     geometry::Point top_left() const override;
     geometry::Transformation const& get_transformation() const override;
     bool contains(geometry::Point const& point) const override;
-    void frame_posted() override;
+    void frame_posted();
     void set_alpha(float alpha) override;
     void set_rotation(float degrees) override;
     void set_rotation(float degrees_y, float degrees_x, float degrees_z) override;
