@@ -46,7 +46,8 @@ public:
 
     QFunctionPointer getProcAddress(const QByteArray &procName) override;
 
-#if GL_DEBUG
+// "#if GL_DEBUG" does not work as MOC does not understand #define
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 2, 0) && !defined(QT_NO_DEBUG))
     Q_SLOT void onGlDebugMessageLogged(QOpenGLDebugMessage m) { qDebug() << m; }
 #endif
 
