@@ -69,8 +69,6 @@ static void format_motion_event(std::stringstream &ss, MirMotionEvent const& ev)
     ss << "  modifiers: " << ev.modifiers << std::endl;
     ss << "  edge_flags: " << ev.edge_flags << std::endl;
     ss << "  button_state: " << ev.button_state << std::endl;
-    ss << "  x_offset: " << ev.x_offset << std::endl;
-    ss << "  y_offset: " << ev.y_offset << std::endl;
     ss << "  x_precision: " << ev.x_precision << std::endl;
     ss << "  y_precision: " << ev.y_precision << std::endl;
     ss << "  down_time: " << ev.down_time << std::endl;
@@ -81,9 +79,7 @@ static void format_motion_event(std::stringstream &ss, MirMotionEvent const& ev)
         ss << "  pointer[" << i << "]{" << std::endl;
         ss << "    id: " << ev.pointer_coordinates[i].id << std::endl;
         ss << "    x: " << ev.pointer_coordinates[i].x << std::endl;
-        ss << "    raw_x: " << ev.pointer_coordinates[i].raw_x << std::endl;
         ss << "    y: " << ev.pointer_coordinates[i].y << std::endl;
-        ss << "    raw_y: " << ev.pointer_coordinates[i].raw_y << std::endl;
         ss << "    touch_major: " << ev.pointer_coordinates[i].touch_major << std::endl;
         ss << "    touch_minor: " << ev.pointer_coordinates[i].touch_minor << std::endl;
         ss << "    size: " << ev.pointer_coordinates[i].size << std::endl;

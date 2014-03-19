@@ -344,10 +344,6 @@ public:
 
     inline int32_t getButtonState() const { return mButtonState; }
 
-    inline float getXOffset() const { return mXOffset; }
-
-    inline float getYOffset() const { return mYOffset; }
-
     inline float getXPrecision() const { return mXPrecision; }
 
     inline float getYPrecision() const { return mYPrecision; }
@@ -372,17 +368,7 @@ public:
 
     inline nsecs_t getEventTime() const { return mSampleEventTimes[getHistorySize()]; }
 
-    const PointerCoords* getRawPointerCoords(size_t pointerIndex) const;
-
-    float getRawAxisValue(int32_t axis, size_t pointerIndex) const;
-
-    inline float getRawX(size_t pointerIndex) const {
-        return getRawAxisValue(AMOTION_EVENT_AXIS_X, pointerIndex);
-    }
-
-    inline float getRawY(size_t pointerIndex) const {
-        return getRawAxisValue(AMOTION_EVENT_AXIS_Y, pointerIndex);
-    }
+    const PointerCoords* getPointerCoords(size_t pointerIndex) const;
 
     float getAxisValue(int32_t axis, size_t pointerIndex) const;
 
@@ -501,8 +487,6 @@ public:
             int32_t edgeFlags,
             int32_t metaState,
             int32_t buttonState,
-            float xOffset,
-            float yOffset,
             float xPrecision,
             float yPrecision,
             nsecs_t downTime,
@@ -516,8 +500,6 @@ public:
     void addSample(
             nsecs_t eventTime,
             const PointerCoords* pointerCoords);
-
-    void offsetLocation(float xOffset, float yOffset);
 
     void scale(float scaleFactor);
 
@@ -548,8 +530,6 @@ protected:
     int32_t mEdgeFlags;
     int32_t mMetaState;
     int32_t mButtonState;
-    float mXOffset;
-    float mYOffset;
     float mXPrecision;
     float mYPrecision;
     nsecs_t mDownTime;

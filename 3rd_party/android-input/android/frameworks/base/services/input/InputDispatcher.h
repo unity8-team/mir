@@ -31,6 +31,8 @@
 #include <std/Thread.h>
 #include <std/Mutex.h>
 
+#include <glm/glm.hpp>
+
 #include <stddef.h>
 #include <unistd.h>
 #include <limits.h>
@@ -92,9 +94,8 @@ enum {
 
 /*
  * An input target specifies how an input event is to be dispatched to a particular window
- * including the window's input channel, control flags, a timeout, and an X / Y offset to
- * be added to input event coordinates to compensate for the absolute position of the
- * window area.
+ * including the window's input channel, control flags, a timeout, and means to transform
+ * absolute screen position to local window coordinates.
  */
 struct InputTarget {
     enum {
@@ -159,13 +160,10 @@ struct InputTarget {
     // Flags for the input target.
     int32_t flags;
 
-    // The x and y offset to add to a MotionEvent as it is delivered.
+    typedef std::function<void (PointerCoords * coords, size_t)> ScreenToLocal;
+    // The transformation necessary to apply to a MotionEvent as it is delivered.
     // (ignored for KeyEvents)
-    float xOffset, yOffset;
-
-    // Scaling factor to apply to MotionEvent as it is delivered.
-    // (ignored for KeyEvents)
-    float scaleFactor;
+    ScreenToLocal screenToLocal;
 
     // The subset of pointer ids to include in motion events dispatched to this input target
     // if FLAG_SPLIT is set.
@@ -565,9 +563,7 @@ private:
 
         EventEntry* eventEntry; // the event to dispatch
         int32_t targetFlags;
-        float xOffset;
-        float yOffset;
-        float scaleFactor;
+        InputTarget::ScreenToLocal screenToLocal;
         nsecs_t deliveryTime; // time when the event was actually delivered
 
         // Set to the resolved action and flags when the event is enqueued.
@@ -575,7 +571,7 @@ private:
         int32_t resolvedFlags;
 
         DispatchEntry(EventEntry* eventEntry,
-                int32_t targetFlags, float xOffset, float yOffset, float scaleFactor);
+                int32_t targetFlags, InputTarget::ScreenToLocal const& screenToLocal);
         ~DispatchEntry();
 
         inline bool hasForegroundTarget() const {

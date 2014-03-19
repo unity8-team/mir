@@ -48,12 +48,12 @@ ms::BasicSurface::BasicSurface(
     std::shared_ptr<SceneReport> const& report) :
     notify_change(change_cb),
     surface_name(name),
-    surface_rect(rect),
+    coordinate_transformation(rect),
     surface_alpha(1.0f),
     first_frame_posted(false),
     hidden(false),
     nonrectangular(nonrectangular),
-    input_rectangles{surface_rect},
+    input_rectangles{geom::Rectangle{geom::Point{0,0},coordinate_transformation.get_size()}},
     surface_buffer_stream(buffer_stream),
     server_input_channel(input_channel),
     report(report)
@@ -85,7 +85,7 @@ void ms::BasicSurface::move_to(geometry::Point const& top_left)
 {
     {
         std::unique_lock<std::mutex> lk(guard);
-        surface_rect.top_left = top_left;
+        coordinate_transformation.set_translation(top_left - geometry::Point());
     }
     notify_change();
 }
@@ -108,7 +108,7 @@ void ms::BasicSurface::set_hidden(bool hide)
 mir::geometry::Size ms::BasicSurface::size() const
 {
     std::unique_lock<std::mutex> lk(guard);
-    return surface_rect.size;
+    return coordinate_transformation.get_size();
 }
 
 MirPixelFormat ms::BasicSurface::pixel_format() const
@@ -187,7 +187,7 @@ bool ms::BasicSurface::resize(geom::Size const& size)
     // Now the buffer stream has successfully resized, update the state second;
     {
         std::unique_lock<std::mutex> lock(guard);
-        surface_rect.size = size;
+        coordinate_transformation.update_size(size);
     }
     notify_change();
 
@@ -197,7 +197,7 @@ bool ms::BasicSurface::resize(geom::Size const& size)
 geom::Point ms::BasicSurface::top_left() const
 {
     std::unique_lock<std::mutex> lk(guard);
-    return surface_rect.top_left;
+    return geom::Point{} + coordinate_transformation.get_translation();
 }
 
 bool ms::BasicSurface::contains(geom::Point const& point) const
@@ -206,9 +206,11 @@ bool ms::BasicSurface::contains(geom::Point const& point) const
     if (hidden)
         return false;
 
+    geom::Point pos = coordinate_transformation.transform_to_local(point);
+
     for (auto const& rectangle : input_rectangles)
     {
-        if (rectangle.contains(point))
+        if (rectangle.contains(pos))
         {
             return true;
         }
@@ -235,11 +237,20 @@ void ms::BasicSurface::set_alpha(float alpha)
 }
 
 
-void ms::BasicSurface::set_rotation(float degrees, glm::vec3 const& axis)
+void ms::BasicSurface::set_rotation(float degrees)
 {
     {
         std::unique_lock<std::mutex> lk(guard);
-        rotation_matrix = glm::rotate(glm::mat4(1.0f), glm::radians(degrees), axis);
+        coordinate_transformation.set_rotation(degrees);
+    }
+    notify_change();
+}
+
+void ms::BasicSurface::set_rotation(float degrees_y, float degrees_x, float degrees_z)
+{
+    {
+        std::unique_lock<std::mutex> lk(guard);
+        coordinate_transformation.set_rotation(degrees_y, degrees_x, degrees_z);
     }
     notify_change();
 }
@@ -248,8 +259,7 @@ glm::mat4 ms::BasicSurface::transformation() const
 {
     std::unique_lock<std::mutex> lk(guard);
 
-    // By default the only transformation implemented is rotation...
-    return rotation_matrix;
+    return coordinate_transformation.get_center_matrix();
 }
 
 bool ms::BasicSurface::should_be_rendered_in(geom::Rectangle const& rect) const
@@ -259,7 +269,8 @@ bool ms::BasicSurface::should_be_rendered_in(geom::Rectangle const& rect) const
     if (hidden || !first_frame_posted)
         return false;
 
-    return rect.overlaps(surface_rect);
+    // TODO still ignores transformations
+    return rect.overlaps(screen_position());
 }
 
 bool ms::BasicSurface::shaped() const
@@ -280,10 +291,16 @@ bool ms::BasicSurface::alpha_enabled() const
 
 geom::Rectangle ms::BasicSurface::screen_position() const
 {   // This would be more efficient to return a const reference
-    return surface_rect;
+    return geom::Rectangle{geom::Point{} + coordinate_transformation.get_translation(), coordinate_transformation.get_size()};
 }
 
 int ms::BasicSurface::buffers_ready_for_compositor() const
 {
     return surface_buffer_stream->buffers_ready_for_compositor();
 }
+
+geom::Transformation const& ms::BasicSurface::get_transformation() const
+{
+    return coordinate_transformation;
+}
+

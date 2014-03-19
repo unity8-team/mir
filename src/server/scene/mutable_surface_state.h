@@ -36,7 +36,8 @@ public:
     virtual void frame_posted() = 0;
     virtual void set_hidden(bool hidden) = 0;
     virtual void set_alpha(float alpha) = 0;
-    virtual void set_rotation(float degrees, glm::vec3 const&) = 0;
+    virtual void set_rotation(float degrees) = 0;
+    virtual void set_rotation(float degrees_y, float degrees_x, float degrees_z) = 0;
     virtual void set_input_region(
         std::vector<geometry::Rectangle> const& input_rectangles) = 0;
 

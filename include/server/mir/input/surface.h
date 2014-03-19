@@ -21,6 +21,7 @@
 
 #include "mir/geometry/size.h"
 #include "mir/geometry/point.h"
+#include "mir/geometry/transformation.h"
 #include <string>
 
 namespace mir
@@ -33,6 +34,7 @@ public:
     virtual std::string const& name() const = 0;
     virtual geometry::Point top_left() const = 0;
     virtual geometry::Size size() const = 0;
+    virtual geometry::Transformation const& get_transformation() const = 0;
     virtual bool contains(geometry::Point const& point) const = 0;
 
 protected:

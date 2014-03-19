@@ -233,7 +233,8 @@ public:
             y = new_y;
         }
 
-        surface->set_rotation(total_elapsed_sec * 120.0f, rotation_axis);
+        glm::vec3 rotation = rotation_axis * total_elapsed_sec * 120.0f;
+        surface->set_rotation(rotation.x, rotation.y, rotation.z);
         surface->set_alpha(0.5 + 0.5 * sin(alpha_offset + 2 * M_PI * total_elapsed_sec / 3.0));
     }
 

@@ -230,8 +230,6 @@ public:
             int32_t edgeFlags,
             int32_t metaState,
             int32_t buttonState,
-            float xOffset,
-            float yOffset,
             float xPrecision,
             float yPrecision,
             nsecs_t downTime,

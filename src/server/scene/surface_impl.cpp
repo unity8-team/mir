@@ -257,9 +257,14 @@ void ms::SurfaceImpl::resize(geom::Size const& size)
     }
 }
 
-void ms::SurfaceImpl::set_rotation(float degrees, glm::vec3 const& axis)
+void ms::SurfaceImpl::set_rotation(float degrees)
 {
-    surface->set_rotation(degrees, axis);
+    surface->set_rotation(degrees);
+}
+
+void ms::SurfaceImpl::set_rotation(float degrees_y, float degrees_x, float degrees_z)
+{
+    surface->set_rotation(degrees_y, degrees_x, degrees_z);
 }
 
 float ms::SurfaceImpl::alpha() const

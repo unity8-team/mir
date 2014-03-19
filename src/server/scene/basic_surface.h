@@ -20,6 +20,7 @@
 #define MIR_SCENE_BASIC_SURFACE_H_
 
 #include "mir/geometry/rectangle.h"
+#include "mir/geometry/transformation.h"
 #include "mir/graphics/renderable.h"
 #include "mir/input/surface.h"
 
@@ -98,10 +99,12 @@ public:
      */
     bool resize(geometry::Size const& size) override;
     geometry::Point top_left() const override;
+    geometry::Transformation const& get_transformation() const override;
     bool contains(geometry::Point const& point) const override;
     void frame_posted() override;
     void set_alpha(float alpha) override;
-    void set_rotation(float degrees, glm::vec3 const&) override;
+    void set_rotation(float degrees) override;
+    void set_rotation(float degrees_y, float degrees_x, float degrees_z) override;
     glm::mat4 transformation() const override;
     bool should_be_rendered_in(geometry::Rectangle const& rect) const  override;
     bool shaped() const  override;  // meaning the pixel format has alpha
@@ -119,8 +122,7 @@ private:
     std::mutex mutable guard;
     std::function<void()> const notify_change;
     std::string const surface_name;
-    geometry::Rectangle surface_rect;
-    glm::mat4 rotation_matrix;
+    geometry::Transformation coordinate_transformation;
     float surface_alpha;
     bool first_frame_posted;
     bool hidden;

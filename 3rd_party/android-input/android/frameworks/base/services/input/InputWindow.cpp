@@ -23,15 +23,16 @@
 namespace android {
 
 // --- InputWindowInfo ---
-
-bool InputWindowInfo::touchableRegionContainsPoint(int32_t x, int32_t y) const {
-    return x >= touchableRegionLeft && x <= touchableRegionRight
-            && y >= touchableRegionTop && y <= touchableRegionBottom;
+bool InputWindowInfo::touchableRegionContainsPoint(int32_t, int32_t) const {
+    return false;
 }
 
-bool InputWindowInfo::frameContainsPoint(int32_t x, int32_t y) const {
-    return x >= frameLeft && x <= frameRight
-            && y >= frameTop && y <= frameBottom;
+std::function<void (PointerCoords *, size_t)> InputWindowInfo::getScreenToLocalTransformation() const {
+    return std::function<void (PointerCoords *, size_t)>();
+}
+
+bool InputWindowInfo::frameContainsPoint(int32_t, int32_t) const {
+    return false;
 }
 
 bool InputWindowInfo::isTrustedOverlay() const {

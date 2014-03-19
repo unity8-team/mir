@@ -153,8 +153,8 @@ typedef struct
 
     int32_t edge_flags;
     MirMotionButton button_state;
-    float x_offset;
-    float y_offset;
+    float x_offset_deprecated;
+    float y_offset_deprecated;
     float x_precision;
     float y_precision;
     nsecs_t down_time;
@@ -164,8 +164,8 @@ typedef struct
     struct
     {
         int id;
-        float x, raw_x;
-        float y, raw_y;
+        float x, raw_x_deprecated;
+        float y, raw_y_deprecated;
         float touch_major;
         float touch_minor;
         float size;

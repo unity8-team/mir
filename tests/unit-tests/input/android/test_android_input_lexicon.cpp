@@ -110,8 +110,8 @@ TEST(AndroidInputLexicon, translates_single_pointer_motion_events)
     const float hscroll = 900.0;
     const MirMotionToolType tool_type = mir_motion_tool_type_mouse;
 
-    pointer_coords.setAxisValue(AMOTION_EVENT_AXIS_X, x_axis);
-    pointer_coords.setAxisValue(AMOTION_EVENT_AXIS_Y, y_axis);
+    pointer_coords.setAxisValue(AMOTION_EVENT_AXIS_X, x_axis + x_offset);
+    pointer_coords.setAxisValue(AMOTION_EVENT_AXIS_Y, y_axis + y_offset);
     pointer_coords.setAxisValue(AMOTION_EVENT_AXIS_TOUCH_MAJOR, touch_major);
     pointer_coords.setAxisValue(AMOTION_EVENT_AXIS_TOUCH_MINOR, touch_minor);
     pointer_coords.setAxisValue(AMOTION_EVENT_AXIS_SIZE, size);
@@ -121,10 +121,9 @@ TEST(AndroidInputLexicon, translates_single_pointer_motion_events)
     pointer_coords.setAxisValue(AMOTION_EVENT_AXIS_HSCROLL, hscroll);
     pointer_properties.toolType = tool_type;
 
-    android_motion_ev->initialize(device_id, source_id, action, flags, edge_flags,
-                                  meta_state, button_state, x_offset, y_offset,
-                                  x_precision, y_precision, down_time,
-                                  event_time, pointer_count, &pointer_properties, &pointer_coords);
+    android_motion_ev->initialize(device_id, source_id, action, flags, edge_flags, meta_state, button_state,
+                                  x_precision, y_precision, down_time, event_time, pointer_count, &pointer_properties,
+                                  &pointer_coords);
 
     MirEvent mir_ev;
     mia::Lexicon::translate(android_motion_ev, mir_ev);
@@ -143,8 +142,8 @@ TEST(AndroidInputLexicon, translates_single_pointer_motion_events)
 
     EXPECT_EQ(mir_motion_ev->edge_flags, edge_flags);
     EXPECT_EQ(mir_motion_ev->button_state, button_state);
-    EXPECT_EQ(mir_motion_ev->x_offset, x_offset);
-    EXPECT_EQ(mir_motion_ev->y_offset, y_offset);
+    EXPECT_EQ(mir_motion_ev->x_offset_deprecated, 0.0f);
+    EXPECT_EQ(mir_motion_ev->y_offset_deprecated, 0.0f);
     EXPECT_EQ(mir_motion_ev->x_precision, x_precision);
     EXPECT_EQ(mir_motion_ev->y_precision, y_precision);
     EXPECT_EQ(mir_motion_ev->down_time, down_time);
@@ -158,8 +157,8 @@ TEST(AndroidInputLexicon, translates_single_pointer_motion_events)
     // Notice these two coordinates are offset by x/y offset
     EXPECT_EQ(mir_pointer_coords->x, x_axis + x_offset);
     EXPECT_EQ(mir_pointer_coords->y, y_axis + y_offset);
-    EXPECT_EQ(mir_pointer_coords->raw_x, x_axis);
-    EXPECT_EQ(mir_pointer_coords->raw_y, y_axis);
+    EXPECT_EQ(mir_pointer_coords->raw_x_deprecated, 0.0f);
+    EXPECT_EQ(mir_pointer_coords->raw_y_deprecated, 0.0f);
     EXPECT_EQ(mir_pointer_coords->touch_major, touch_major);
     EXPECT_EQ(mir_pointer_coords->touch_minor, touch_minor);
     EXPECT_EQ(mir_pointer_coords->size, size);
@@ -218,8 +217,8 @@ TEST(AndroidInputLexicon, translates_multi_pointer_motion_events)
     {
         pointer_properties[p].id = pointer_id[p];
 
-        pointer_coords[p].setAxisValue(AMOTION_EVENT_AXIS_X, x_axis[p]);
-        pointer_coords[p].setAxisValue(AMOTION_EVENT_AXIS_Y, y_axis[p]);
+        pointer_coords[p].setAxisValue(AMOTION_EVENT_AXIS_X, x_offset + x_axis[p]);
+        pointer_coords[p].setAxisValue(AMOTION_EVENT_AXIS_Y, y_offset + y_axis[p]);
         pointer_coords[p].setAxisValue(AMOTION_EVENT_AXIS_TOUCH_MAJOR,
                                        touch_major[p]);
         pointer_coords[p].setAxisValue(AMOTION_EVENT_AXIS_TOUCH_MINOR,
@@ -237,11 +236,9 @@ TEST(AndroidInputLexicon, translates_multi_pointer_motion_events)
         pointer_properties[p].toolType = tool_types[p];
     }
 
-    android_motion_ev->initialize(device_id, source_id, action, flags,
-                                  edge_flags, meta_state, button_state,
-                                  x_offset, y_offset, x_precision, y_precision,
-                                  down_time, event_time, pointer_count,
-                                  pointer_properties, pointer_coords);
+    android_motion_ev->initialize(device_id, source_id, action, flags, edge_flags, meta_state, button_state,
+                                  x_precision, y_precision, down_time, event_time, pointer_count, pointer_properties,
+                                  pointer_coords);
 
     MirEvent mir_ev;
     mia::Lexicon::translate(android_motion_ev, mir_ev);
@@ -260,8 +257,8 @@ TEST(AndroidInputLexicon, translates_multi_pointer_motion_events)
 
     EXPECT_EQ(mir_motion_ev->edge_flags, edge_flags);
     EXPECT_EQ(mir_motion_ev->button_state, button_state);
-    EXPECT_EQ(mir_motion_ev->x_offset, x_offset);
-    EXPECT_EQ(mir_motion_ev->y_offset, y_offset);
+    EXPECT_EQ(mir_motion_ev->x_offset_deprecated, 0.0f);
+    EXPECT_EQ(mir_motion_ev->y_offset_deprecated, 0.0f);
     EXPECT_EQ(mir_motion_ev->x_precision, x_precision);
     EXPECT_EQ(mir_motion_ev->y_precision, y_precision);
     EXPECT_EQ(mir_motion_ev->down_time, down_time);
@@ -275,8 +272,8 @@ TEST(AndroidInputLexicon, translates_multi_pointer_motion_events)
         EXPECT_EQ(pointer[p].id, pointer_id[p]);
         EXPECT_EQ(pointer[p].x, x_axis[p] + x_offset);
         EXPECT_EQ(pointer[p].y, y_axis[p] + y_offset);
-        EXPECT_EQ(pointer[p].raw_x, x_axis[p]);
-        EXPECT_EQ(pointer[p].raw_y, y_axis[p]);
+        EXPECT_EQ(pointer[p].raw_x_deprecated, 0.0f);
+        EXPECT_EQ(pointer[p].raw_y_deprecated, 0.0f);
         EXPECT_EQ(pointer[p].touch_major, touch_major[p]);
         EXPECT_EQ(pointer[p].touch_minor, touch_minor[p]);
         EXPECT_EQ(pointer[p].size, size[p]);

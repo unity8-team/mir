@@ -1,3 +1,4 @@
+
 /*
  * Copyright © 2014 Canonical Ltd.
  *
@@ -42,6 +43,10 @@ public:
     explicit Transformation(Rectangle rectangle);
 
     void update_size(Size rectangle_size);
+    Size get_size() const
+    {
+        return size;
+    }
     /*!
      * \brief Returns true when the transformation does not affect the co-ordinates of an object.
      */

@@ -88,7 +88,8 @@ public:
 
     virtual void resize(geometry::Size const& size);
 
-    virtual void set_rotation(float degrees, glm::vec3 const& axis);
+    virtual void set_rotation(float degrees);
+    virtual void set_rotation(float degrees_y, float degrees_x, float degrees_z);
 
     virtual float alpha() const;
     virtual void set_alpha(float alpha);

@@ -49,6 +49,7 @@
 
 #include <cutils/log.h>
 #include <android/keycodes.h>
+#include <glm/glm.hpp>
 
 #include <stddef.h>
 #include <unistd.h>
@@ -1547,9 +1548,7 @@ void InputDispatcher::addWindowTargetLocked(const sp<InputWindowHandle>& windowH
     InputTarget& target = inputTargets.editTop();
     target.inputChannel = windowInfo->inputChannel;
     target.flags = targetFlags;
-    target.xOffset = - windowInfo->frameLeft;
-    target.yOffset = - windowInfo->frameTop;
-    target.scaleFactor = windowInfo->scaleFactor;
+    target.screenToLocal = windowInfo->getScreenToLocalTransformation();
     target.pointerIds = pointerIds;
 }
 
@@ -1577,10 +1576,8 @@ void InputDispatcher::addMonitoringTargetsLocked(Vector<InputTarget>& inputTarge
         InputTarget& target = inputTargets.editTop();
         target.inputChannel = mMonitoringChannels[i];
         target.flags = InputTarget::FLAG_DISPATCH_AS_IS;
-        target.xOffset = 0;
-        target.yOffset = 0;
+        target.screenToLocal = target.screenToLocal;
         target.pointerIds.clear();
-        target.scaleFactor = 1.0f;
     }
 }
 
@@ -1697,11 +1694,9 @@ void InputDispatcher::prepareDispatchCycleLocked(nsecs_t currentTime,
 #if DEBUG_DISPATCH_CYCLE
     std::string pointerIdsString = inputTarget->pointerIds.toString();
     ALOGD("channel '%s' ~ prepareDispatchCycle - flags=0x%08x, "
-            "xOffset=%f, yOffset=%f, scaleFactor=%f, "
             "pointerIds=%s",
             connection->getInputChannelName(), inputTarget->flags,
-            inputTarget->xOffset, inputTarget->yOffset,
-            inputTarget->scaleFactor, pointerIdsString.c_str());
+            pointerIdsString.c_str());
 #endif
 
     // Skip this event if the connection status is not normal.
@@ -1777,8 +1772,7 @@ void InputDispatcher::enqueueDispatchEntryLocked(
     // This is a new event.
     // Enqueue a new dispatch entry onto the outbound queue for this connection.
     DispatchEntry* dispatchEntry = new DispatchEntry(eventEntry, // increments ref
-            inputTargetFlags, inputTarget->xOffset, inputTarget->yOffset,
-            inputTarget->scaleFactor);
+            inputTargetFlags, inputTarget->screenToLocal);
 
     // Apply target flags and update the connection's input state.
     switch (eventEntry->type) {
@@ -1885,28 +1879,15 @@ void InputDispatcher::startDispatchCycleLocked(nsecs_t currentTime,
 
         case EventEntry::TYPE_MOTION: {
             MotionEntry* motionEntry = static_cast<MotionEntry*>(eventEntry);
-
             PointerCoords scaledCoords[MAX_POINTERS];
-            const PointerCoords* usingCoords = motionEntry->pointerCoords;
+            PointerCoords * usingCoords = motionEntry->pointerCoords;
 
-            // Set the X and Y offset depending on the input source.
-            float xOffset, yOffset, scaleFactor;
             if ((motionEntry->source & AINPUT_SOURCE_CLASS_POINTER)
                     && !(dispatchEntry->targetFlags & InputTarget::FLAG_ZERO_COORDS)) {
-                scaleFactor = dispatchEntry->scaleFactor;
-                xOffset = dispatchEntry->xOffset * scaleFactor;
-                yOffset = dispatchEntry->yOffset * scaleFactor;
-                if (scaleFactor != 1.0f) {
-                    for (size_t i = 0; i < motionEntry->pointerCount; i++) {
-                        scaledCoords[i] = motionEntry->pointerCoords[i];
-                        scaledCoords[i].scale(scaleFactor);
-                    }
-                    usingCoords = scaledCoords;
-                }
+                memcpy(scaledCoords, motionEntry->pointerCoords, motionEntry->pointerCount * sizeof(PointerCoords));
+                dispatchEntry->screenToLocal(scaledCoords, motionEntry->pointerCount);
+                usingCoords = scaledCoords;
             } else {
-                xOffset = 0.0f;
-                yOffset = 0.0f;
-                scaleFactor = 1.0f;
 
                 // We don't want the dispatch target to know.
                 if (dispatchEntry->targetFlags & InputTarget::FLAG_ZERO_COORDS) {
@@ -1922,11 +1903,10 @@ void InputDispatcher::startDispatchCycleLocked(nsecs_t currentTime,
                     motionEntry->deviceId, motionEntry->source,
                     dispatchEntry->resolvedAction, dispatchEntry->resolvedFlags,
                     motionEntry->edgeFlags, motionEntry->metaState, motionEntry->buttonState,
-                    xOffset, yOffset,
                     motionEntry->xPrecision, motionEntry->yPrecision,
                     motionEntry->downTime, motionEntry->eventTime,
-                    motionEntry->pointerCount, motionEntry->pointerProperties,
-                    usingCoords);
+                    motionEntry->pointerCount,
+                    motionEntry->pointerProperties, usingCoords);
             input_report->published_motion_event(connection->inputChannel->getFd(),
                                                  dispatchEntry->seq,
                                                  motionEntry->eventTime);
@@ -2144,13 +2124,7 @@ void InputDispatcher::synthesizeCancelationEventsForConnectionLocked(
             sp<InputWindowHandle> windowHandle = getWindowHandleLocked(connection->inputChannel);
             if (windowHandle != NULL) {
                 const InputWindowInfo* windowInfo = windowHandle->getInfo();
-                target.xOffset = -windowInfo->frameLeft;
-                target.yOffset = -windowInfo->frameTop;
-                target.scaleFactor = windowInfo->scaleFactor;
-            } else {
-                target.xOffset = 0;
-                target.yOffset = 0;
-                target.scaleFactor = 1.0f;
+                target.screenToLocal = windowInfo->getScreenToLocalTransformation();
             }
             target.inputChannel = connection->inputChannel;
             target.flags = InputTarget::FLAG_DISPATCH_AS_IS;
@@ -2393,7 +2367,7 @@ void InputDispatcher::notifyMotion(const NotifyMotionArgs* args) {
 
             MotionEvent event;
             event.initialize(args->deviceId, args->source, args->action, args->flags,
-                    args->edgeFlags, args->metaState, args->buttonState, 0, 0,
+                    args->edgeFlags, args->metaState, args->buttonState,
                     args->xPrecision, args->yPrecision,
                     args->downTime, args->eventTime,
                     args->pointerCount, args->pointerProperties, args->pointerCoords);
@@ -3028,9 +3002,7 @@ void InputDispatcher::dumpDispatchStateLocked(String8& dump) {
         const InputWindowInfo* windowInfo = windowHandle->getInfo();
 
         appendFormat(dump, INDENT2 "name='%s', paused=%s, hasFocus=%s, hasWallpaper=%s, "
-                "visible=%s, canReceiveKeys=%s, flags=0x%08x, type=0x%08x, layer=%d, "
-                "frame=[%d,%d][%d,%d], scale=%f, "
-                "touchableRegion=[%d,%d][%d,%d]",
+                "visible=%s, canReceiveKeys=%s, flags=0x%08x, type=0x%08x, layer=%d, ",
                 c_str(windowInfo->name),
                 toString(windowInfo->paused),
                 toString(windowInfo->hasFocus),
@@ -3038,12 +3010,7 @@ void InputDispatcher::dumpDispatchStateLocked(String8& dump) {
                 toString(windowInfo->visible),
                 toString(windowInfo->canReceiveKeys),
                 windowInfo->layoutParamsFlags, windowInfo->layoutParamsType,
-                windowInfo->layer,
-                windowInfo->frameLeft, windowInfo->frameTop,
-                windowInfo->frameRight, windowInfo->frameBottom,
-                windowInfo->scaleFactor,
-                windowInfo->touchableRegionLeft, windowInfo->touchableRegionTop,
-                windowInfo->touchableRegionRight, windowInfo->touchableRegionBottom);
+                windowInfo->layer);
         appendFormat(dump, ", inputFeatures=0x%08x", windowInfo->inputFeatures);
         appendFormat(dump, ", ownerPid=%d, ownerUid=%d, dispatchingTimeout=%0.3fms\n",
             windowInfo->ownerPid, windowInfo->ownerUid,
@@ -3763,6 +3730,9 @@ InputDispatcher::MotionEntry::~MotionEntry() {
 void InputDispatcher::MotionEntry::appendDescription(String8& msg) const {
     appendFormat(msg, "MotionEvent(action=%d, deviceId=%d, source=0x%08x)",
             action, deviceId, source);
+    for (uint32_t i = 0; i != pointerCount; ++i) {
+        appendFormat(msg, ", ptr%d(%f,%f)", i, pointerCoords[i].getX(), pointerCoords[i].getY());
+    }
 }
 
 
@@ -3771,10 +3741,10 @@ void InputDispatcher::MotionEntry::appendDescription(String8& msg) const {
 android_atomic_int32_t InputDispatcher::DispatchEntry::sNextSeqAtomic;
 
 InputDispatcher::DispatchEntry::DispatchEntry(EventEntry* eventEntry,
-        int32_t targetFlags, float xOffset, float yOffset, float scaleFactor) :
+        int32_t targetFlags, InputTarget::ScreenToLocal const& screenToLocal) :
         seq(nextSeq()),
         eventEntry(eventEntry), targetFlags(targetFlags),
-        xOffset(xOffset), yOffset(yOffset), scaleFactor(scaleFactor),
+        screenToLocal(screenToLocal),
         deliveryTime(0), resolvedAction(0), resolvedFlags(0) {
     eventEntry->refCount += 1;
 }

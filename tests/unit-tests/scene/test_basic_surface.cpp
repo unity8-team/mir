@@ -19,6 +19,7 @@
 #include "src/server/scene/basic_surface.h"
 
 #include "mir/geometry/rectangle.h"
+#include "mir/geometry/displacement.h"
 
 #include "mir_test_doubles/mock_buffer_stream.h"
 #include "mir_test/fake_shared.h"
@@ -152,7 +153,7 @@ TEST_F(BasicSurfaceTest, test_surface_set_rotation_updates_transform)
 
     auto original_transformation = storage.transformation();
 
-    storage.set_rotation(60.0f, glm::vec3{0.0f, 0.0f, 1.0f});
+    storage.set_rotation(60.0f);
     auto rotated_transformation = storage.transformation();
     EXPECT_NE(original_transformation, rotated_transformation);
 }
@@ -207,7 +208,7 @@ TEST_F(BasicSurfaceTest, test_surface_apply_rotation)
         std::shared_ptr<mi::InputChannel>(),
         report};
 
-    surface_state.set_rotation(60.0f, glm::vec3{0.0f, 0.0f, 1.0f});
+    surface_state.set_rotation(60.0f);
 }
 
 TEST_F(BasicSurfaceTest, test_surface_should_be_rendered_in)
@@ -316,6 +317,85 @@ TEST_F(BasicSurfaceTest, default_region_is_surface_rectangle)
     }
 }
 
+TEST_F(BasicSurfaceTest, input_region_is_moved_with_surface)
+{
+    geom::Point pt(1,1);
+    geom::Size one_by_one{geom::Width{1}, geom::Height{1}};
+    ms::BasicSurface surface_state{
+        name,
+        geom::Rectangle{pt, one_by_one},
+        mock_change_cb,
+        false,
+        mock_buffer_stream,
+        std::shared_ptr<mi::InputChannel>(),
+        report};
+
+    geom::Point newPos{13,66};
+    surface_state.move_to(newPos);
+
+    for(auto x = newPos.x.as_int() - 1; x <= 3; x++)
+    {
+        for(auto y = newPos.y.as_int() - 1; y <= 3; y++)
+        {
+            auto test_pt = geom::Point{x, y};
+            auto contains = surface_state.contains(test_pt);
+            if (newPos == test_pt)
+            {
+                EXPECT_TRUE(contains);
+            }
+            else
+            {
+                EXPECT_FALSE(contains);
+            }
+        }
+    }
+}
+
+TEST_F(BasicSurfaceTest, input_region_is_rotated_with_surface)
+{
+    geom::Point pt(1,1);
+    geom::Size one_by_five{geom::Width{2}, geom::Height{6}};
+    ms::BasicSurface surface_state{
+        name,
+        geom::Rectangle{pt, one_by_five},
+        mock_change_cb,
+        false,
+        mock_buffer_stream,
+        std::shared_ptr<mi::InputChannel>(),
+        report};
+
+    geom::Point newPos{10,10};
+    surface_state.move_to(newPos);
+    surface_state.set_rotation(90.0f);
+
+    std::vector<geom::Point> contained_pt
+    {
+        geom::Point{geom::X{9}, geom::Y{12}},geom::Point{geom::X{9}, geom::Y{13}},
+        geom::Point{geom::X{10}, geom::Y{12}},geom::Point{geom::X{10}, geom::Y{13}},
+        geom::Point{geom::X{11}, geom::Y{12}},geom::Point{geom::X{11}, geom::Y{13}},
+        geom::Point{geom::X{12}, geom::Y{12}},geom::Point{geom::X{12}, geom::Y{13}},
+        geom::Point{geom::X{13}, geom::Y{12}},geom::Point{geom::X{13}, geom::Y{13}},
+        geom::Point{geom::X{14}, geom::Y{12}},geom::Point{geom::X{14}, geom::Y{13}},
+    };
+
+    for(auto x = 7; x <= 15; x++)
+    {
+        for(auto y = 6; y <= 15; y++)
+        {
+            auto test_pt = geom::Point{x, y};
+            auto contains = surface_state.contains(test_pt);
+            if (std::find(contained_pt.begin(), contained_pt.end(), test_pt) != contained_pt.end())
+            {
+                EXPECT_TRUE(contains);
+            }
+            else
+            {
+                EXPECT_FALSE(contains);
+            }
+        }
+    }
+}
+
 TEST_F(BasicSurfaceTest, set_input_region)
 {
     std::vector<geom::Rectangle> const rectangles = {
@@ -337,14 +417,14 @@ TEST_F(BasicSurfaceTest, set_input_region)
     std::vector<geom::Point> contained_pt
     {
         //region0 points
-        geom::Point{geom::X{0}, geom::Y{0}},
+        rect.top_left,
         //region1 points
-        geom::Point{geom::X{1}, geom::Y{1}},
+        rect.top_left + geom::Displacement{1, 1}
     };
 
-    for(auto x = 0; x <= 3; x++)
+    for(auto x = rect.top_left.x.as_int() - 3; x <= rect.top_left.x.as_int() + 3; ++x)
     {
-        for(auto y = 0; y <= 3; y++)
+        for(auto y = rect.top_left.y.as_int() - 3; y <= rect.top_left.y.as_int() + 3; ++y)
         {
             auto test_pt = geom::Point{x, y};
             auto contains = surface_state.contains(test_pt);

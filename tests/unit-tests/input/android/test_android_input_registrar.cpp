@@ -81,6 +81,11 @@ struct StubInputSurface : public mi::Surface
     {
         return true;
     }
+    geom::Transformation const& get_transformation() const override
+    {
+        return transformation;
+    }
+    geom::Transformation transformation;
 };
 
 MATCHER_P(WindowHandleFor, channel, "")

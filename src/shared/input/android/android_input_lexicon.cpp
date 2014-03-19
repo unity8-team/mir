@@ -55,8 +55,8 @@ void mia::Lexicon::translate(const droidinput::InputEvent *android_event, MirEve
             mir_event.motion.modifiers = mev->getMetaState();
             mir_event.motion.edge_flags = mev->getEdgeFlags();
             mir_event.motion.button_state = static_cast<MirMotionButton>(mev->getButtonState());
-            mir_event.motion.x_offset = mev->getXOffset();
-            mir_event.motion.y_offset = mev->getYOffset();
+            mir_event.motion.x_offset_deprecated = 0.0f;
+            mir_event.motion.y_offset_deprecated = 0.0f;
             mir_event.motion.x_precision = mev->getXPrecision();
             mir_event.motion.y_precision = mev->getYPrecision();
             mir_event.motion.down_time = mev->getDownTime();
@@ -66,9 +66,9 @@ void mia::Lexicon::translate(const droidinput::InputEvent *android_event, MirEve
             {
                     mir_event.motion.pointer_coordinates[i].id = mev->getPointerId(i);
                     mir_event.motion.pointer_coordinates[i].x = mev->getX(i);
-                    mir_event.motion.pointer_coordinates[i].raw_x = mev->getRawX(i);
+                    mir_event.motion.pointer_coordinates[i].raw_x_deprecated = 0.0f;
                     mir_event.motion.pointer_coordinates[i].y = mev->getY(i);
-                    mir_event.motion.pointer_coordinates[i].raw_y = mev->getRawY(i);
+                    mir_event.motion.pointer_coordinates[i].raw_y_deprecated = 0.0f;
                     mir_event.motion.pointer_coordinates[i].touch_major = mev->getTouchMajor(i);
                     mir_event.motion.pointer_coordinates[i].touch_minor = mev->getTouchMinor(i);
                     mir_event.motion.pointer_coordinates[i].size = mev->getSize(i);
@@ -76,10 +76,10 @@ void mia::Lexicon::translate(const droidinput::InputEvent *android_event, MirEve
                     mir_event.motion.pointer_coordinates[i].orientation = mev->getOrientation(i);
 
                     mir_event.motion.pointer_coordinates[i].vscroll =
-                           mev->getRawAxisValue(AMOTION_EVENT_AXIS_VSCROLL, i);
+                           mev->getAxisValue(AMOTION_EVENT_AXIS_VSCROLL, i);
 
                     mir_event.motion.pointer_coordinates[i].hscroll =
-                           mev->getRawAxisValue(AMOTION_EVENT_AXIS_HSCROLL, i);
+                           mev->getAxisValue(AMOTION_EVENT_AXIS_HSCROLL, i);
 
                     mir_event.motion.pointer_coordinates[i].tool_type =
                            static_cast<MirMotionToolType>(mev->getToolType(i));

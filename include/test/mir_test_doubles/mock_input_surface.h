@@ -50,6 +50,7 @@ public:
     MOCK_CONST_METHOD0(size, geometry::Size());
     MOCK_CONST_METHOD0(name, std::string const&());
     MOCK_CONST_METHOD1(contains, bool(geometry::Point const&));
+    MOCK_CONST_METHOD0(get_transformation, geometry::Transformation const&());
 };
 
 typedef ::testing::NiceMock<MockInputSurface> StubInputSurface;
