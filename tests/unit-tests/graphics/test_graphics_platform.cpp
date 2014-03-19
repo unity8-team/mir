@@ -74,7 +74,7 @@ public:
     std::shared_ptr<mg::Platform> create_platform()
     {
 #ifdef ANDROID
-        return mg::create_platform(std::make_shared<mo::ProgramOption>(), mr::null_display_report());
+        return mg::create_platform(std::make_shared<mo::ProgramOption>(false), mr::null_display_report());
 #else
         return std::make_shared<mg::mesa::Platform>(
             mr::null_display_report(),

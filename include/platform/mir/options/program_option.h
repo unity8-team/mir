@@ -32,7 +32,7 @@ namespace options
 class ProgramOption : public Option
 {
 public:
-    ProgramOption();
+    ProgramOption(bool strict_parsing);
 
     void parse_arguments(
         boost::program_options::options_description const& description,

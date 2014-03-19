@@ -47,12 +47,13 @@ struct ProgramOption : testing::Test
     }
 
     bpo::options_description desc;
+    bool const strict_options{false};
 };
 }
 
 TEST_F(ProgramOption, parse_device_line_long)
 {
-    mir::options::ProgramOption po;
+    mir::options::ProgramOption po{strict_options};
 
     const int argc = 3;
     char const* argv[argc] = {
@@ -70,7 +71,7 @@ TEST_F(ProgramOption, parse_device_line_long)
 
 TEST_F(ProgramOption, parse_device_line_short)
 {
-    mir::options::ProgramOption po;
+    mir::options::ProgramOption po{strict_options};
 
     const int argc = 3;
     char const* argv[argc] = {
@@ -88,7 +89,7 @@ TEST_F(ProgramOption, parse_device_line_short)
 
 TEST_F(ProgramOption, parse_device_yes_no)
 {
-    mir::options::ProgramOption po;
+    mir::options::ProgramOption po{strict_options};
 
     const int argc = 9;
     char const* argv[argc] = {
@@ -112,7 +113,7 @@ TEST_F(ProgramOption, parse_device_yes_no)
 
 TEST_F(ProgramOption, parse_device_line_help)
 {
-    mir::options::ProgramOption po;
+    mir::options::ProgramOption po{strict_options};
 
     const int argc = 2;
     char const* argv[argc] = {
@@ -128,7 +129,7 @@ TEST_F(ProgramOption, parse_device_line_help)
 TEST_F(ProgramOption, matches_compound_name_lookup)
 {
     using testing::Eq;
-    mir::options::ProgramOption po;
+    mir::options::ProgramOption po{strict_options};
 
     const int argc = 8;
     char const* argv[argc] = {
@@ -150,7 +151,7 @@ TEST_F(ProgramOption, matches_compound_name_lookup)
 TEST_F(ProgramOption, defaulted_values_are_available)
 {
     using testing::Eq;
-    mir::options::ProgramOption po;
+    mir::options::ProgramOption po{strict_options};
 
     const int argc = 1;
     char const* argv[argc] = {
@@ -166,7 +167,7 @@ TEST_F(ProgramOption, defaulted_values_are_available)
 TEST_F(ProgramOption, test_boost_any_overload)
 {
     using testing::Eq;
-    mir::options::ProgramOption po;
+    mir::options::ProgramOption po{strict_options};
 
     const int argc = 8;
     char const* argv[argc] = {
@@ -192,7 +193,23 @@ TEST_F(ProgramOption, test_boost_any_overload)
     EXPECT_THROW(po.get<int>("flag-yes,y"), std::bad_cast);
 }
 
-TEST(ProgramOptionEnv, parse_environment)
+TEST_F(ProgramOption, strict_parsing_throws_when_expected)
+{
+    auto const strict_parsing = true;
+    mir::options::ProgramOption po{strict_parsing};
+    const int argc = 4;
+    char const* argv[argc] = {
+        __PRETTY_FUNCTION__,
+        "--help",
+        "--make-sandwich", "yes-please",
+    };
+
+    EXPECT_THROW({
+        po.parse_arguments(desc, argc, argv);
+    }, std::runtime_error);
+}
+
+TEST_F(ProgramOption, parse_environment)
 {
     // Env variables should be uppercase and "_" delimited
     char const* name = "some-key";
@@ -205,7 +222,7 @@ TEST(ProgramOptionEnv, parse_environment)
     desc.add_options()
         (name, bpo::value<std::string>());
 
-    mir::options::ProgramOption po;
+    mir::options::ProgramOption po{strict_options};
     po.parse_environment(desc, __PRETTY_FUNCTION__);
 
     EXPECT_EQ(value, po.get(name, "default"));
@@ -215,11 +232,11 @@ TEST(ProgramOptionEnv, parse_environment)
 }
 
 // TODO need to parse something
-TEST(ProgramOptionFile, parse_files)
+TEST_F(ProgramOption, parse_files)
 {
     bpo::options_description desc("Config file options");
 
-    mir::options::ProgramOption po;
+    mir::options::ProgramOption po{strict_options};
 
     po.parse_file(desc, "test.config");
 }

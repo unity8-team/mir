@@ -79,7 +79,7 @@ public:
         auto report = mr::null_display_report();
 #ifdef ANDROID
         auto platform = mg::create_platform(
-            std::make_shared<mir::options::ProgramOption>(),
+            std::make_shared<mir::options::ProgramOption>(false),
             report);
 #else
         auto platform = std::make_shared<mg::mesa::Platform>(report,

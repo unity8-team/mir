@@ -129,7 +129,8 @@ void mo::DefaultConfiguration::add_platform_options()
     program_options.add_options()
         (platform_graphics_lib,
          po::value<std::string>()->default_value(default_platform_graphics_lib), "");
-    mo::ProgramOption options;
+    bool strict_parsing = false;
+    mo::ProgramOption options{strict_parsing};
     options.parse_arguments(program_options, argc, argv);
 
     std::string graphics_libname;
@@ -160,7 +161,9 @@ std::shared_ptr<mo::Option> mo::DefaultConfiguration::the_options() const
 {
     if (!options)
     {
-        auto options = std::make_shared<ProgramOption>();
+        // TODO: Don't allow unregistered options, once we allow better overriding of option parsing
+        bool strict_parsing = false;
+        auto options = std::make_shared<ProgramOption>(strict_parsing);
         parse_arguments(*program_options, *options, argc, argv);
         parse_environment(*program_options, *options);
         parse_config_file(*program_options, *options);

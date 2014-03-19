@@ -34,7 +34,7 @@ namespace
     }
 }
 
-mo::ProgramOption::ProgramOption()
+mo::ProgramOption::ProgramOption(bool)
 {
 }
 
