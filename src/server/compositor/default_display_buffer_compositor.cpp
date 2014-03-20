@@ -30,6 +30,7 @@
 #include <mutex>
 #include <cstdlib>
 #include <vector>
+#include <iostream>
 
 namespace mc = mir::compositor;
 namespace mg = mir::graphics;
@@ -162,6 +163,7 @@ bool mc::DefaultDisplayBufferCompositor::composite()
         scene->for_each_if(selector, applicator);
         renderer->end();
 
+        std::cout << "composited: " << local_frameno << std::endl;
         display_buffer.post_update();
 
         // This is a frig to avoid lp:1286190

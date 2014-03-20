@@ -25,6 +25,7 @@
 #include <stdexcept>
 #include <algorithm>
 #include <sstream>
+#include <iostream>
 
 namespace mg=mir::graphics;
 namespace mga=mir::graphics::android;
@@ -102,7 +103,9 @@ void mga::DisplayBuffer::render_and_post_update(
 
 void mga::DisplayBuffer::post_update()
 {
+    std::lock_guard<decltype(powermode_mutex)> lock{powermode_mutex};
     if (current_configuration.power_mode == mir_power_mode_off) return;
+    std::cout << "DisplayBuffer::post_update" << std::endl;
     display_device->render_gl(gl_context);
     post();
 }
@@ -146,6 +149,7 @@ void mga::DisplayBuffer::configure(DisplayConfigurationOutput const& new_configu
 
     if (intended_power_mode != current_configuration.power_mode)
     {
+        std::lock_guard<decltype(powermode_mutex)> lock{powermode_mutex};
         display_device->mode(intended_power_mode);
         current_configuration.power_mode = intended_power_mode;
     }

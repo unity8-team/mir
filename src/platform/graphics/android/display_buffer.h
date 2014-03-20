@@ -25,6 +25,8 @@
 #include "gl_context.h"
 #include <system/window.h>
 
+#include <mutex>
+
 namespace mir
 {
 namespace graphics
@@ -67,6 +69,7 @@ private:
     bool prepared;
     DisplayConfigurationOutput current_configuration;
     MirOrientation rotation;
+    std::mutex powermode_mutex;
 };
 
 }
