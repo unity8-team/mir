@@ -211,7 +211,7 @@ void mc::MultiThreadedCompositor::start()
 void mc::MultiThreadedCompositor::stop()
 {
     std::unique_lock<std::mutex> lk(started_guard);
-    if (!started)
+    if (started)
     {
         return;
     }

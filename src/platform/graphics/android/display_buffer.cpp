@@ -102,6 +102,7 @@ void mga::DisplayBuffer::render_and_post_update(
 
 void mga::DisplayBuffer::post_update()
 {
+    if (current_configuration.power_mode == mir_power_mode_off) return;
     display_device->render_gl(gl_context);
     post();
 }
