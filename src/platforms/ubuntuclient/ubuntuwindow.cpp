@@ -107,11 +107,7 @@ void UbuntuWindow::createWindow()
     const QByteArray title = (!window()->title().isNull()) ? window()->title().toUtf8() : "Window 1"; // legacy title
 
     #if !defined(QT_NO_DEBUG)
-    //ASSERT(role <= ON_SCREEN_KEYBOARD_ACTOR_ROLE);
-    const char* const roleString[] = {
-        "Dash", "Default", "Indicator", "Notifications", "Greeter", "Launcher", "OSK", "ShutdownDialog"
-    };
-    LOG("role: '%s'", roleString[role]);
+    LOG("role: '%d'", role);
     LOG("flags: '%s'", (flags & static_cast<uint>(1)) ? "Opaque" : "NotOpaque");
     LOG("title: '%s'", title.constData());
     #endif
@@ -129,7 +125,7 @@ void UbuntuWindow::createWindow()
         geometry = mGeometry;
     }
 
-    fprintf(stderr, "creating surface at (%d, %d) with size (%d, %d) with title '%s'",
+    fprintf(stderr, "[ubuntuclient QPA] creating surface at (%d, %d) with size (%d, %d) with title '%s'\n",
             geometry.x(), geometry.y(), geometry.width(), geometry.height(), title.data());
 
     // Setup platform window creation properties
