@@ -112,8 +112,8 @@ void MirSurfaceManager::sessionDestroyingSurface(mir::shell::Session const*, std
 
 void MirSurfaceManager::surfaceAttributeChanged(const msh::Surface *surface, const MirSurfaceAttrib attribute, const int value)
 {
-    DLOG("MirSurfaceManager::surfaceAttributeChanged (this=%p, attrib=%d, value=%d)",
-         this, static_cast<int>(attribute), value);
+    DLOG("MirSurfaceManager::surfaceAttributeChanged (surface='%s', attrib=%d, value=%d)",
+         surface->name().c_str(), static_cast<int>(attribute), value);
 
     auto it = m_surfaces.find(surface);
     if (it != m_surfaces.end()) {

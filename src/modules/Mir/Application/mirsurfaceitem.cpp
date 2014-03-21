@@ -134,6 +134,8 @@ public Q_SLOTS:
     }
 };
 
+UbuntuKeyboardInfo *MirSurfaceItem::m_ubuntuKeyboardInfo = nullptr;
+
 MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::shell::Surface> surface,
                                Application* application,
                                QQuickItem *parent)
@@ -164,6 +166,10 @@ MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::shell::Surface> surface,
     // fetch surface geometry
     setImplicitSize(static_cast<qreal>(m_surface->size().width.as_float()),
                     static_cast<qreal>(m_surface->size().height.as_float()));
+
+    if (!m_ubuntuKeyboardInfo) {
+        m_ubuntuKeyboardInfo = new UbuntuKeyboardInfo;
+    }
 
     // Ensure C++ (MirSurfaceManager) retains ownership of this object
     // TODO: Investigate if having the Javascript engine have ownership of this object
@@ -307,7 +313,8 @@ QSGNode *MirSurfaceItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *
 
 void MirSurfaceItem::mousePressEvent(QMouseEvent *event)
 {
-    Q_UNUSED(event);
+    // we don't care about them for now
+    event->ignore();
 }
 
 void MirSurfaceItem::mouseMoveEvent(QMouseEvent *event)
@@ -337,11 +344,38 @@ void MirSurfaceItem::keyReleaseEvent(QKeyEvent *event)
 
 void MirSurfaceItem::touchEvent(QTouchEvent *event)
 {
-    /*
-    QString debugMsg = touchEventToString(event);
-    qDebug() << "MirSurfaceItem" << debugMsg;
-    */
+    if (type() == InputMethod && event->type() == QEvent::TouchBegin) {
+        // FIXME: Hack to get the VKB use case working while we don't have the proper solution in place.
+        if (hasTouchInsideUbuntuKeyboard(event)) {
+            dispatchTouchEventToMirInputChannel(event);
+        } else {
+            event->ignore();
+        }
 
+    } else {
+        // NB: If we are getting QEvent::TouchUpdate or QEvent::TouchEnd it's because we've
+        // previously accepted the corresponding QEvent::TouchBegin
+        dispatchTouchEventToMirInputChannel(event);
+    }
+}
+
+bool MirSurfaceItem::hasTouchInsideUbuntuKeyboard(QTouchEvent *event)
+{
+    const QList<QTouchEvent::TouchPoint> &touchPoints = event->touchPoints();
+    for (int i = 0; i < touchPoints.count(); ++i) {
+        QPoint pos = touchPoints.at(i).pos().toPoint();
+        if (pos.x() >= m_ubuntuKeyboardInfo->x()
+                && pos.x() <= (m_ubuntuKeyboardInfo->x() + m_ubuntuKeyboardInfo->width())
+                && pos.y() >= m_ubuntuKeyboardInfo->y()
+                && pos.y() <= (m_ubuntuKeyboardInfo->y() + m_ubuntuKeyboardInfo->height())) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void MirSurfaceItem::dispatchTouchEventToMirInputChannel(QTouchEvent *event)
+{
     MirInputDispatcherInterface *dispatcher = MirInputDispatcherInterface::instance();
     if (dispatcher == nullptr)
         return;

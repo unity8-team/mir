@@ -28,6 +28,8 @@
 #include <mir/shell/surface.h>
 #include <mir_toolkit/common.h>
 
+#include "ubuntukeyboardinfo.h"
+
 class MirSurfaceManager;
 class QSGMirSurfaceNode;
 class QMirSurfaceTextureProvider;
@@ -55,6 +57,7 @@ public:
         Overlay = mir_surface_type_overlay,
         Freestyle = mir_surface_type_freestyle,
         Popover = mir_surface_type_popover,
+        InputMethod = mir_surface_type_inputmethod,
         };
 
     enum State {
@@ -114,6 +117,9 @@ private:
     void setAttribute(const MirSurfaceAttrib, const int);
     void setSurfaceValid(const bool);
 
+    void dispatchTouchEventToMirInputChannel(QTouchEvent *event);
+    bool hasTouchInsideUbuntuKeyboard(QTouchEvent *event);
+
     QMutex m_mutex;
 
     std::shared_ptr<mir::shell::Surface> m_surface;
@@ -123,6 +129,8 @@ private:
     unsigned long m_frameNumber;
 
     QMirSurfaceTextureProvider *m_textureProvider;
+
+    static UbuntuKeyboardInfo *m_ubuntuKeyboardInfo;
 
     friend class MirSurfaceManager;
 };

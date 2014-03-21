@@ -24,6 +24,8 @@
 
 #include <qpa/qplatformwindow.h>
 #include <qpa/qplatformaccessibility.h>
+#include <qpa/qplatforminputcontext.h>
+#include <qpa/qplatforminputcontextfactory_p.h>
 #include <qpa/qwindowsysteminterface.h>
 
 #include <QCoreApplication>
@@ -83,6 +85,8 @@ MirServerIntegration::MirServerIntegration()
     QGuiApplicationPrivate::instance()->setEventDispatcher(eventDispatcher_);
     initialize();
 #endif
+
+    QPlatformInputContextFactory::create();
 
     m_dbusScreen = new DBusScreen(m_mirConfig);
 }
