@@ -290,8 +290,6 @@ void MotionEvent::initialize(
         int32_t edgeFlags,
         int32_t metaState,
         int32_t buttonState,
-        float xOffset,
-        float yOffset,
         float xPrecision,
         float yPrecision,
         nsecs_t downTime,
@@ -305,8 +303,6 @@ void MotionEvent::initialize(
     mEdgeFlags = edgeFlags;
     mMetaState = metaState;
     mButtonState = buttonState;
-    mXOffset = xOffset;
-    mYOffset = yOffset;
     mXPrecision = xPrecision;
     mYPrecision = yPrecision;
     mDownTime = downTime;
@@ -324,8 +320,6 @@ void MotionEvent::copyFrom(const MotionEvent* other, bool keepHistory) {
     mEdgeFlags = other->mEdgeFlags;
     mMetaState = other->mMetaState;
     mButtonState = other->mButtonState;
-    mXOffset = other->mXOffset;
-    mYOffset = other->mYOffset;
     mXPrecision = other->mXPrecision;
     mYPrecision = other->mYPrecision;
     mDownTime = other->mDownTime;
@@ -352,22 +346,12 @@ void MotionEvent::addSample(
     mSamplePointerCoords.appendArray(pointerCoords, getPointerCount());
 }
 
-const PointerCoords* MotionEvent::getRawPointerCoords(size_t pointerIndex) const {
+const PointerCoords* MotionEvent::getPointerCoords(size_t pointerIndex) const {
     return &mSamplePointerCoords[getHistorySize() * getPointerCount() + pointerIndex];
 }
 
-float MotionEvent::getRawAxisValue(int32_t axis, size_t pointerIndex) const {
-    return getRawPointerCoords(pointerIndex)->getAxisValue(axis);
-}
-
 float MotionEvent::getAxisValue(int32_t axis, size_t pointerIndex) const {
-    float value = getRawPointerCoords(pointerIndex)->getAxisValue(axis);
-    switch (axis) {
-    case AMOTION_EVENT_AXIS_X:
-        return value + mXOffset;
-    case AMOTION_EVENT_AXIS_Y:
-        return value + mYOffset;
-    }
+    float value = getPointerCoords(pointerIndex)->getAxisValue(axis);
     return value;
 }
 
@@ -383,14 +367,7 @@ float MotionEvent::getHistoricalRawAxisValue(int32_t axis, size_t pointerIndex,
 
 float MotionEvent::getHistoricalAxisValue(int32_t axis, size_t pointerIndex,
         size_t historicalIndex) const {
-    float value = getHistoricalRawPointerCoords(pointerIndex, historicalIndex)->getAxisValue(axis);
-    switch (axis) {
-    case AMOTION_EVENT_AXIS_X:
-        return value + mXOffset;
-    case AMOTION_EVENT_AXIS_Y:
-        return value + mYOffset;
-    }
-    return value;
+    return getHistoricalRawPointerCoords(pointerIndex, historicalIndex)->getAxisValue(axis);
 }
 
 ssize_t MotionEvent::findPointerIndex(int32_t pointerId) const {
@@ -403,14 +380,7 @@ ssize_t MotionEvent::findPointerIndex(int32_t pointerId) const {
     return -1;
 }
 
-void MotionEvent::offsetLocation(float xOffset, float yOffset) {
-    mXOffset += xOffset;
-    mYOffset += yOffset;
-}
-
 void MotionEvent::scale(float scaleFactor) {
-    mXOffset *= scaleFactor;
-    mYOffset *= scaleFactor;
     mXPrecision *= scaleFactor;
     mYPrecision *= scaleFactor;
 
@@ -439,41 +409,6 @@ static inline float transformAngle(const SkMatrix* matrix, float angleRadians) {
     return result;
 }
 
-void MotionEvent::transform(const SkMatrix* matrix) {
-    float oldXOffset = mXOffset;
-    float oldYOffset = mYOffset;
-
-    // The tricky part of this implementation is to preserve the value of
-    // rawX and rawY.  So we apply the transformation to the first point
-    // then derive an appropriate new X/Y offset that will preserve rawX and rawY.
-    SkPoint point;
-    float rawX = getRawX(0);
-    float rawY = getRawY(0);
-    matrix->mapXY(SkFloatToScalar(rawX + oldXOffset), SkFloatToScalar(rawY + oldYOffset),
-            & point);
-    float newX = SkScalarToFloat(point.fX);
-    float newY = SkScalarToFloat(point.fY);
-    float newXOffset = newX - rawX;
-    float newYOffset = newY - rawY;
-
-    mXOffset = newXOffset;
-    mYOffset = newYOffset;
-
-    // Apply the transformation to all samples.
-    size_t numSamples = mSamplePointerCoords.size();
-    for (size_t i = 0; i < numSamples; i++) {
-        PointerCoords& c = mSamplePointerCoords.editItemAt(i);
-        float x = c.getAxisValue(AMOTION_EVENT_AXIS_X) + oldXOffset;
-        float y = c.getAxisValue(AMOTION_EVENT_AXIS_Y) + oldYOffset;
-        matrix->mapXY(SkFloatToScalar(x), SkFloatToScalar(y), &point);
-        c.setAxisValue(AMOTION_EVENT_AXIS_X, SkScalarToFloat(point.fX) - newXOffset);
-        c.setAxisValue(AMOTION_EVENT_AXIS_Y, SkScalarToFloat(point.fY) - newYOffset);
-
-        float orientation = c.getAxisValue(AMOTION_EVENT_AXIS_ORIENTATION);
-        c.setAxisValue(AMOTION_EVENT_AXIS_ORIENTATION, transformAngle(matrix, orientation));
-    }
-}
-
 status_t MotionEvent::readFromParcel(Parcel* parcel) {
     size_t pointerCount = parcel->readInt32();
     size_t sampleCount = parcel->readInt32();
@@ -488,8 +423,8 @@ status_t MotionEvent::readFromParcel(Parcel* parcel) {
     mEdgeFlags = parcel->readInt32();
     mMetaState = parcel->readInt32();
     mButtonState = parcel->readInt32();
-    mXOffset = parcel->readFloat();
-    mYOffset = parcel->readFloat();
+    parcel->readFloat(); // ABI compatibility x, y offset
+    parcel->readFloat();
     mXPrecision = parcel->readFloat();
     mYPrecision = parcel->readFloat();
     mDownTime = parcel->readInt64();
@@ -535,8 +470,8 @@ status_t MotionEvent::writeToParcel(Parcel* parcel) const {
     parcel->writeInt32(mEdgeFlags);
     parcel->writeInt32(mMetaState);
     parcel->writeInt32(mButtonState);
-    parcel->writeFloat(mXOffset);
-    parcel->writeFloat(mYOffset);
+    parcel->writeFloat(0.0f);
+    parcel->writeFloat(0.0f);
     parcel->writeFloat(mXPrecision);
     parcel->writeFloat(mYPrecision);
     parcel->writeInt64(mDownTime);

@@ -22,7 +22,9 @@
 #include <std/RefBase.h>
 #include <std/Timers.h>
 #include <std/String8.h>
+#include <glm/glm.hpp>
 
+#include <functional>
 #include "InputApplication.h"
 
 namespace android {
@@ -116,17 +118,6 @@ struct InputWindowInfo {
     int32_t layoutParamsFlags;
     int32_t layoutParamsType;
     nsecs_t dispatchingTimeout;
-    int32_t frameLeft;
-    int32_t frameTop;
-    int32_t frameRight;
-    int32_t frameBottom;
-    float scaleFactor;
-
-    //SkRegion touchableRegion; remove dependency from skia lib
-    int32_t touchableRegionLeft;
-    int32_t touchableRegionTop;
-    int32_t touchableRegionRight;
-    int32_t touchableRegionBottom;
 
     bool visible;
     bool canReceiveKeys;
@@ -139,7 +130,8 @@ struct InputWindowInfo {
     int32_t inputFeatures;
 
     virtual bool touchableRegionContainsPoint(int32_t x, int32_t y) const;
-    bool frameContainsPoint(int32_t x, int32_t y) const;
+    virtual glm::mat4 getScreenToLocalTransformation() const;
+    virtual bool frameContainsPoint(int32_t x, int32_t y) const;
 
     /* Returns true if the window is of a trusted type that is allowed to silently
      * overlay other windows for the purpose of implementing the secure views feature.

@@ -21,6 +21,8 @@
 
 #include "mir/geometry/size.h"
 #include "mir/geometry/point.h"
+
+#include <glm/glm.hpp>
 #include <string>
 
 namespace mir
@@ -31,6 +33,7 @@ class Surface
 {
 public:
     virtual std::string name() const = 0;
+    virtual glm::mat4 inverse_transformation() const = 0;
     virtual geometry::Point top_left() const = 0;
     virtual geometry::Size size() const = 0;
     virtual bool contains(geometry::Point const& point) const = 0;

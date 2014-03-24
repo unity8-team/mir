@@ -44,8 +44,11 @@ public:
         static std::string n;
         ON_CALL(*this, name())
             .WillByDefault(testing::Return(n));
+        ON_CALL(*this, inverse_transformation())
+            .WillByDefault(testing::Return(glm::mat4{}));
     }
     ~MockInputSurface() noexcept {}
+    MOCK_CONST_METHOD0(inverse_transformation, glm::mat4());
     MOCK_CONST_METHOD0(top_left, geometry::Point());
     MOCK_CONST_METHOD0(size, geometry::Size());
     MOCK_CONST_METHOD0(name, std::string());

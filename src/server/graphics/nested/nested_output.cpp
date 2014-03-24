@@ -116,15 +116,5 @@ catch (std::exception const&)
 
 void mgn::detail::NestedOutput::mir_event(MirEvent const& event)
 {
-    if (event.type == mir_event_type_motion)
-    {
-        auto my_event = event;
-        my_event.motion.x_offset += area.top_left.x.as_float();
-        my_event.motion.y_offset += area.top_left.y.as_float();
-        event_handler->handle(my_event);
-    }
-    else
-    {
-        event_handler->handle(event);
-    }
+    event_handler->handle(event);
 }

@@ -30,6 +30,7 @@
 
 #include <boost/throw_exception.hpp>
 
+#include <cmath>
 #include <stdexcept>
 #include <cstring>
 
@@ -39,6 +40,25 @@ namespace msh = mir::shell;
 namespace mg = mir::graphics;
 namespace mi = mir::input;
 namespace geom = mir::geometry;
+
+namespace
+{
+geom::Point to_point(glm::vec4 pos)
+{
+    return geom::Point{std::round(pos.x), std::round(pos.y)};
+}
+
+glm::vec4 to_vec(geom::Point pos)
+{
+    return glm::vec4{pos.x.as_int(), pos.y.as_int(), 0, 1};
+}
+
+glm::vec4 to_vec(geom::Size s)
+{
+    return glm::vec4{s.width.as_int(), s.height.as_int(), 0, 1};
+}
+
+}
 
 ms::BasicSurface::BasicSurface(
     frontend::SurfaceId id,
@@ -59,7 +79,7 @@ ms::BasicSurface::BasicSurface(
     first_frame_posted(false),
     hidden(false),
     nonrectangular(nonrectangular),
-    input_rectangles{surface_rect},
+    input_rectangles{geom::Rectangle{geom::Point{}, surface_rect.size}},
     surface_buffer_stream(buffer_stream),
     server_input_channel(input_channel),
     event_sink(event_sink),
@@ -215,15 +235,26 @@ geom::Point ms::BasicSurface::top_left() const
     return surface_rect.top_left;
 }
 
+glm::mat4 ms::BasicSurface::inverse_transformation() const
+{
+    std::unique_lock<std::mutex> lk(guard);
+    return inverse_matrix;
+}
+
 bool ms::BasicSurface::contains(geom::Point const& point) const
 {
     std::unique_lock<std::mutex> lock(guard);
     if (hidden)
         return false;
 
+    auto center = to_vec(surface_rect.size)/2.0f;
+    auto pos = to_vec(surface_rect.top_left) + center;
+
+    geom::Point transformed = to_point( inverse_matrix * (to_vec(point) - pos) + center);
+
     for (auto const& rectangle : input_rectangles)
     {
-        if (rectangle.contains(point))
+        if (rectangle.contains(transformed))
         {
             return true;
         }
@@ -249,12 +280,12 @@ void ms::BasicSurface::set_alpha(float alpha)
     notify_change();
 }
 
-
 void ms::BasicSurface::set_transformation(glm::mat4 const& t)
 {
     {
         std::unique_lock<std::mutex> lk(guard);
         transformation_matrix = t;
+        inverse_matrix = glm::inverse(transformation_matrix);
     }
     notify_change();
 }

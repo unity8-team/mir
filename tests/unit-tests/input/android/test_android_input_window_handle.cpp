@@ -58,12 +58,10 @@ struct MockInputChannel : public mi::InputChannel
 
 }
 
-TEST(AndroidInputWindowHandle, update_info_uses_geometry_and_channel_from_surface)
+TEST(AndroidInputWindowHandle, update_info_uses_name_and_channel_from_surface)
 {
     using namespace ::testing;
 
-    geom::Size const default_surface_size{256, 256};
-    geom::Point const default_surface_top_left = geom::Point{geom::X{10}, geom::Y{10}};
     std::string const testing_surface_name = "Test";
 
     int testing_server_fd;
@@ -89,14 +87,6 @@ TEST(AndroidInputWindowHandle, update_info_uses_geometry_and_channel_from_surfac
         .Times(1)
         .WillOnce(Return(testing_server_fd));
 
-    // For now since we are just doing keyboard input we only need surface size,
-    // for touch/pointer events we will need a position
-    EXPECT_CALL(mock_surface, size())
-        .Times(1)
-        .WillOnce(Return(default_surface_size));
-    EXPECT_CALL(mock_surface, top_left())
-        .Times(1)
-        .WillOnce(Return(default_surface_top_left));
     EXPECT_CALL(mock_surface, name())
         .Times(1)
         .WillOnce(Return(testing_surface_name));
@@ -109,14 +99,4 @@ TEST(AndroidInputWindowHandle, update_info_uses_geometry_and_channel_from_surfac
     EXPECT_EQ(droidinput::String8(testing_surface_name.c_str()), info->name);
 
     EXPECT_EQ(testing_server_fd, info->inputChannel->getFd());
-
-    EXPECT_EQ(default_surface_top_left.x.as_uint32_t(), (uint32_t)(info->frameLeft));
-    EXPECT_EQ(default_surface_top_left.y.as_uint32_t(), (uint32_t)(info->frameTop));
-    EXPECT_EQ(default_surface_size.height.as_uint32_t(), (uint32_t)(info->frameRight - info->frameLeft));
-    EXPECT_EQ(default_surface_size.height.as_uint32_t(), (uint32_t)(info->frameBottom - info->frameTop));
-
-    EXPECT_EQ(info->frameLeft, info->touchableRegionLeft);
-    EXPECT_EQ(info->frameTop, info->touchableRegionTop);
-    EXPECT_EQ(info->frameRight, info->touchableRegionRight);
-    EXPECT_EQ(info->frameBottom, info->touchableRegionBottom);
 }

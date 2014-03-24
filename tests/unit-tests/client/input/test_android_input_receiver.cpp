@@ -82,7 +82,6 @@ public:
             0 /* edge_flags */,
             0 /* meta_state */,
             0 /* button_state */,
-            0 /* x_offset */, 0 /* y_offset */,
             0 /* x_precision */, 0 /* y_precision */,
             0 /* down_time */,
             0 /* event_time */,

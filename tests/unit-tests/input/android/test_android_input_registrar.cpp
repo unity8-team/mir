@@ -80,6 +80,10 @@ struct StubInputSurface : public mi::Surface
     {
         return true;
     }
+    glm::mat4 inverse_transformation() const override
+    {
+        return glm::mat4{};
+    }
 };
 
 MATCHER_P(WindowHandleFor, channel, "")

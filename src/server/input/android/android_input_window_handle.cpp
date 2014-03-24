@@ -21,8 +21,13 @@
 
 #include "mir/input/input_channel.h"
 #include "mir/input/surface.h"
+#include "mir/geometry/displacement.h"
 
 #include <androidfw/InputTransport.h>
+#include <androidfw/Input.h>
+
+#define GLM_FORCE_RADIANS
+#include <glm/gtx/transform.hpp>
 
 #include <limits.h>
 
@@ -42,6 +47,27 @@ struct WindowInfo : public droidinput::InputWindowInfo
     bool touchableRegionContainsPoint(int32_t x, int32_t y) const override
     {
         return surface->contains(geom::Point{x, y});
+    }
+
+    glm::mat4 getScreenToLocalTransformation() const override
+    {
+        // TODO Still missing further affine transformations that are applied to the
+        // whole screen i.e. if something other than a orthographic matrix used.
+        glm::mat4 transformation_matrix = surface->inverse_transformation();
+        geom::Size size = surface->size();
+        geom::Point top_left = surface->top_left();
+        auto center = glm::vec3{size.width.as_int(), size.height.as_int(), 0}/2.0f;
+        auto surface_center = glm::vec3{top_left.x.as_int(), top_left.y.as_int(), 0} + center;
+
+        return glm::translate(center) * transformation_matrix * glm::translate(-surface_center);
+    }
+
+    bool frameContainsPoint(int32_t x, int32_t y) const override
+    {
+        // TODO frame vs touchableRegion?
+        // shall we care about the difference and test against the surface rectangle instead
+        // of the input regions specified?
+        return surface->contains(geom::Point{x,y});
     }
 
     std::shared_ptr<mi::Surface> const surface;
@@ -69,23 +95,9 @@ bool mia::InputWindowHandle::updateInfo()
                                                            input_channel->server_fd());
     }
 
-    auto surface_size = surface->size();
-    auto surface_position = surface->top_left();
-
-    mInfo->frameLeft = surface_position.x.as_uint32_t();
-    mInfo->frameTop = surface_position.y.as_uint32_t();
-    mInfo->frameRight = mInfo->frameLeft + surface_size.width.as_uint32_t();
-    mInfo->frameBottom = mInfo->frameTop + surface_size.height.as_uint32_t();
-
-    mInfo->touchableRegionLeft = mInfo->frameLeft;
-    mInfo->touchableRegionTop = mInfo->frameTop;
-    mInfo->touchableRegionRight = mInfo->frameRight;
-    mInfo->touchableRegionBottom = mInfo->frameBottom;
-
     mInfo->name = droidinput::String8(surface->name().c_str());
     mInfo->layoutParamsFlags = droidinput::InputWindowInfo::FLAG_NOT_TOUCH_MODAL;
     mInfo->layoutParamsType = droidinput::InputWindowInfo::TYPE_APPLICATION;
-    mInfo->scaleFactor = 1.f;
     mInfo->visible = true;
     mInfo->canReceiveKeys = true;
     mInfo->hasFocus = true;
