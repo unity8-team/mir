@@ -33,6 +33,9 @@ public:
 
     QRect geometry() const override;
     void setGeometry(const QRect &rect) override;
+
+    void setVisible(bool visible) override;
+
     WId winId() const { return m_winId; }
 
     void swapBuffers();

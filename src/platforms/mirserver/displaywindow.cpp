@@ -84,3 +84,9 @@ void DisplayWindow::doneCurrent()
 {
     m_displayBuffer->release_current();
 }
+
+void DisplayWindow::setVisible(bool visible)
+{
+    // dummy implementation to prevent window system events being used
+    Q_UNUSED(visible)
+}
