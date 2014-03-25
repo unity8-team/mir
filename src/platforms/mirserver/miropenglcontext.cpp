@@ -28,6 +28,7 @@
 
 // Mir
 #include <mir/graphics/display.h>
+#include <mir/graphics/gl_context.h>
 
 // Qt supports one GL context per screen, but also shared contexts.
 // The Mir "Display" generates a shared GL context for all DisplayBuffers
@@ -41,7 +42,38 @@ MirOpenGLContext::MirOpenGLContext(mir::DefaultServerConfiguration *config, QSur
 {
     std::shared_ptr<mir::graphics::Display> display = m_mirConfig->the_display();
 
-    m_format = q_glFormatFromConfig(display->the_gl_display(), display->the_gl_config(), format);
+    // create a temporary GL context to fetch the EGL display and config, so Qt can determine the surface format
+    std::unique_ptr<mir::graphics::GLContext> mirContext = display->create_gl_context();
+    mirContext->make_current();
+
+    EGLDisplay eglDisplay = eglGetCurrentDisplay();
+    if (eglDisplay == EGL_NO_DISPLAY) {
+        qFatal("Unable to determine current EGL Display");
+    }
+    EGLContext eglContext = eglGetCurrentContext();
+    if (eglContext == EGL_NO_CONTEXT) {
+        qFatal("Unable to determine current EGL Context");
+    }
+    EGLint eglConfigId = -1;
+    EGLBoolean result;
+    result = eglQueryContext(eglDisplay, eglContext, EGL_CONFIG_ID, &eglConfigId);
+    if (result != EGL_TRUE || eglConfigId < 0) {
+        qFatal("Unable to determine current EGL Config ID");
+    }
+
+    EGLConfig eglConfig;
+    EGLint matchingEglConfigCount;
+    EGLint const attribList[] = {
+        EGL_CONFIG_ID, eglConfigId,
+        EGL_NONE
+    };
+    result = eglChooseConfig(eglDisplay, attribList, &eglConfig, 1, &matchingEglConfigCount);
+    if (result != EGL_TRUE || eglConfig == nullptr || matchingEglConfigCount < 1) {
+        qFatal("Unable to select EGL Config with the supposed current config ID");
+    }
+
+    m_format = q_glFormatFromConfig(eglDisplay, eglConfig, format);
+
 
 #ifndef QT_NO_DEBUG
     const char* string = (const char*) glGetString(GL_VENDOR);
@@ -54,7 +86,7 @@ MirOpenGLContext::MirOpenGLContext(mir::DefaultServerConfiguration *config, QSur
     qDebug() << "OpenGL ES Shading Language version:" << qPrintable(string);
     string = (const char*) glGetString(GL_EXTENSIONS);
     qDebug() << "OpenGL ES extensions:" << qPrintable(string);
-    q_printEglConfig(display->the_gl_display(), display->the_gl_config());
+    q_printEglConfig(eglDisplay, eglConfig);
 
 #if GL_DEBUG
     QObject::connect(m_logger, &QOpenGLDebugLogger::messageLogged,
