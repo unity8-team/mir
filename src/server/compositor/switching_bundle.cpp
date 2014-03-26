@@ -182,6 +182,29 @@ const std::shared_ptr<mg::Buffer> &mc::SwitchingBundle::alloc_buffer(int slot)
     return ring[slot].buf;
 }
 
+inline
+bool mc::SwitchingBundle::client_buffers_available(std::unique_lock<std::mutex> const& /*lock*/)
+{
+    /*
+     * Even if there are free buffers available, we might wish to still
+     * wait. This is so we don't touch (hence allocate) a third or higher
+     * buffer until/unless it's absolutely necessary. It becomes necessary
+     * only when framedropping (above) or with overlapping compositors
+     * (like with bypass).
+     * The performance benefit of triple buffering is usually minimal,
+     * but always uses 50% more memory. So try to avoid it when possible.
+     */
+
+    int min_free =
+#if 0  // FIXME: This memory optimization breaks timing tests
+        (nbuffers > 2 && !overlapping_compositors) ?  nbuffers - 1 : 1;
+#else
+        1;
+#endif
+
+    return nfree() >= min_free;
+}
+
 void mc::SwitchingBundle::client_acquire(std::function<void(graphics::Buffer* buffer)> complete)
 {
     std::unique_lock<std::mutex> lock(guard);
@@ -199,24 +222,7 @@ void mc::SwitchingBundle::client_acquire(std::function<void(graphics::Buffer* bu
     }
     else
     {
-        /*
-         * Even if there are free buffers available, we might wish to still
-         * wait. This is so we don't touch (hence allocate) a third or higher
-         * buffer until/unless it's absolutely necessary. It becomes necessary
-         * only when framedropping (above) or with overlapping compositors
-         * (like with bypass).
-         * The performance benefit of triple buffering is usually minimal,
-         * but always uses 50% more memory. So try to avoid it when possible.
-         */
-
-        int min_free =
-#if 0  // FIXME: This memory optimization breaks timing tests
-            (nbuffers > 2 && !overlapping_compositors) ?  nbuffers - 1 : 1;
-#else
-            1;
-#endif
-
-        if (nfree() < min_free)
+        if (!client_buffers_available(lock))
             return;
     }
 
@@ -289,13 +295,13 @@ void mc::SwitchingBundle::client_release(graphics::Buffer* released_buffer)
 }
 
 std::shared_ptr<mg::Buffer> mc::SwitchingBundle::compositor_acquire(
-    unsigned long frameno)
+    void const* user_id)
 {
     std::unique_lock<std::mutex> lock(guard);
     int compositor;
 
     // Multi-monitor acquires close to each other get the same frame:
-    bool same_frame = last_consumed && (frameno == *last_consumed);
+    bool same_frame = !users.empty() && users.find(user_id) == users.end();
 
     int avail = nfree();
     bool can_recycle = ncompositors || avail;
@@ -324,8 +330,11 @@ std::shared_ptr<mg::Buffer> mc::SwitchingBundle::compositor_acquire(
         first_ready = next(first_ready);
         nready--;
         ncompositors++;
-        last_consumed = frameno;
+
+        // Fresh frame! Ensure all users get it at most once...
+        users.clear();
     }
+    users.insert(user_id);
 
     overlapping_compositors = (ncompositors > 1);
 
@@ -362,7 +371,8 @@ void mc::SwitchingBundle::compositor_release(std::shared_ptr<mg::Buffer> const& 
             ncompositors--;
         }
 
-        if (client_acquire_todo) complete_client_acquire(std::move(lock));
+        if (client_buffers_available(lock) && client_acquire_todo)
+            complete_client_acquire(std::move(lock));
     }
 }
 

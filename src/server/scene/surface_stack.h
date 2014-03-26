@@ -1,5 +1,5 @@
 /*
- * Copyright © 2012 Canonical Ltd.
+ * Copyright © 2012-2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -22,7 +22,9 @@
 #include "surface_stack_model.h"
 
 #include "mir/compositor/scene.h"
+#include "mir/graphics/renderable.h"
 #include "mir/scene/depth_id.h"
+#include "mir/input/input_reception_mode.h"
 #include "mir/input/input_targets.h"
 
 #include <memory>
@@ -67,24 +69,38 @@ public:
         std::shared_ptr<SceneReport> const& report);
     virtual ~SurfaceStack() noexcept(true) {}
 
+    graphics::RenderableList generate_renderable_list() const;
     // From Scene
+    virtual void set_change_callback(std::function<void()> const& f);
+    //to be deprecated
     virtual void for_each_if(compositor::FilterForScene &filter, compositor::OperatorForScene &op);
     virtual void reverse_for_each_if(compositor::FilterForScene& filter,
                                      compositor::OperatorForScene& op);
-    virtual void set_change_callback(std::function<void()> const& f);
-
+    virtual void lock();
+    virtual void unlock();
+    //end to be deprecated
+    
     // From InputTargets
     void for_each(std::function<void(std::shared_ptr<input::InputChannel> const&)> const& callback);
 
     // From SurfaceStackModel
-    virtual std::weak_ptr<BasicSurface> create_surface(const shell::SurfaceCreationParameters& params);
+    std::weak_ptr<Surface> create_surface(
+        frontend::SurfaceId id,
+        shell::SurfaceCreationParameters const& params,
+        std::shared_ptr<frontend::EventSink> const& event_sink,
+        std::shared_ptr<shell::SurfaceConfigurator> const& configurator) override;
 
-    virtual void destroy_surface(std::weak_ptr<BasicSurface> const& surface);
+    virtual void remove_surface(std::weak_ptr<Surface> const& surface) override;
 
-    virtual void raise(std::weak_ptr<BasicSurface> const& surface);
+    virtual void raise(std::weak_ptr<Surface> const& surface) override;
 
-    virtual void lock();
-    virtual void unlock();
+    // TODO I plan decouple the creation of surface from adding to the scene
+    // (as that complicates client code wrapping the default implementation).
+    // For now add_surface() is called by create_surface
+    void add_surface(
+        std::shared_ptr<Surface> const& surface,
+        DepthId depth,
+        input::InputReceptionMode input_mode);
 
 private:
     SurfaceStack(const SurfaceStack&) = delete;
@@ -92,12 +108,13 @@ private:
 
     void emit_change_notification();
 
-    std::recursive_mutex guard;
+    std::recursive_mutex mutable guard;
     std::shared_ptr<BasicSurfaceFactory> const surface_factory;
     std::shared_ptr<InputRegistrar> const input_registrar;
     std::shared_ptr<SceneReport> const report;
+    std::function<void()> const change_cb;
 
-    typedef std::vector<std::shared_ptr<BasicSurface>> Layer;
+    typedef std::vector<std::shared_ptr<Surface>> Layer;
     std::map<DepthId, Layer> layers_by_depth;
 
     std::mutex notify_change_mutex;

@@ -19,7 +19,7 @@
 #include "mir/geometry/rectangle.h"
 #include "mir/graphics/display.h"
 #include "mir/graphics/display_buffer.h"
-#include "src/server/compositor/renderer.h"
+#include "mir/compositor/renderer.h"
 #include "mir/compositor/compositor.h"
 #include "mir/compositor/display_buffer_compositor.h"
 #include "mir/compositor/scene.h"
@@ -59,7 +59,7 @@ public:
     void swap_client_buffers(mg::Buffer*, std::function<void(mg::Buffer* new_buffer)> complete) override
         { complete(&stub_buffer); }
 
-    std::shared_ptr<mg::Buffer> lock_compositor_buffer(unsigned long) override
+    std::shared_ptr<mg::Buffer> lock_compositor_buffer(void const*) override
         { return std::make_shared<mtd::StubBuffer>(); }
 
     std::shared_ptr<mg::Buffer> lock_snapshot_buffer() override

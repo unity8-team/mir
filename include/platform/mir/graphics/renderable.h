@@ -22,6 +22,7 @@
 #include <mir/geometry/rectangle.h>
 #include <glm/glm.hpp>
 #include <memory>
+#include <list>
 
 namespace mir
 {
@@ -35,19 +36,15 @@ public:
     /**
      * Return the next buffer that should be composited/rendered.
      *
-     * \param [in] frameno The frameno parameter is important for
-     *                     multi-monitor platforms. Calls with the same frameno
-     *                     will get the same buffer returned. This ensures that
-     *                     a surface visible on multiple outputs does not get
-     *                     its buffers consumed any faster than the refresh
-     *                     rate of a single monitor. Implementations may ignore
-     *                     the value of frameno on single-monitor platforms
-     *                     only. The caller should always ensure the frameno
-     *                     is different to the previous frame. The exact value
-     *                     of frameno is not important but a large range of
-     *                     values is recommended.
+     * \param [in] user_id An arbitrary unique identifier used to distinguish
+     *                     separate threads/monitors/components which need
+     *                     to concurrently receive the same buffer. Calling
+     *                     with the same user_id will return a new (different)
+     *                     buffer to that user each time. For consistency,
+     *                     all callers need to determine their user_id in the
+     *                     same way (e.g. always use "this" pointer).
      */
-    virtual std::shared_ptr<Buffer> buffer(unsigned long frameno) const = 0;
+    virtual std::shared_ptr<Buffer> buffer(void const* user_id) const = 0;
 
     virtual bool alpha_enabled() const = 0;
     virtual geometry::Rectangle screen_position() const = 0;
@@ -55,6 +52,19 @@ public:
     // These are from the old CompositingCriteria. There is a little bit
     // of function overlap with the above functions still.
     virtual float alpha() const = 0;
+
+    /**
+     * Transformation returns the transformation matrix that should be applied
+     * to the surface. By default when there are no transformations this will
+     * be the identity matrix.
+     *
+     * \warning As this functionality is presently only used by
+     *          mir_demo_standalone_render_surfaces for rotations it may be
+     *          deprecated in future. It is expected that real transformations
+     *          may become more transient things (e.g. applied by animation
+     *          logic externally instead of being a semi-permanent attribute of
+     *          the surface itself).
+     */
     virtual glm::mat4 transformation() const = 0;
     virtual bool should_be_rendered_in(geometry::Rectangle const& rect) const = 0;
     virtual bool shaped() const = 0;  // meaning the pixel format has alpha
@@ -66,6 +76,9 @@ protected:
     Renderable(Renderable const&) = delete;
     Renderable& operator=(Renderable const&) = delete;
 };
+
+// XXX Would performance be better with a vector?
+typedef std::list<std::shared_ptr<Renderable>> RenderableList;
 
 }
 }

@@ -20,6 +20,7 @@ add_library(
   hwc_layerlist.cpp
   hwc_layers.cpp
   hwc_fb_device.cpp
+  hwc_formatted_logger.cpp
   hwc_device.cpp
   hwc_common_device.cpp
   hwc_vsync.cpp
@@ -32,6 +33,7 @@ add_library(
   interpreter_cache.cpp
   internal_client.cpp
   gl_context.cpp
+  real_hwc_wrapper.cpp
 )
 
 set_target_properties(

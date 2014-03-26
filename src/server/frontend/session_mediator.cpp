@@ -212,12 +212,6 @@ void mf::SessionMediator::next_buffer(
 
     report->session_next_buffer_called(session->name());
 
-    // We ensure the client has not powered down the outputs, so that
-    // swap_buffer will not block indefinitely, leaving the client
-    // in a position where it can not turn back on the
-    // outputs.
-    display_changer->ensure_display_powered(session);
-
     auto surface = session->get_surface(surf_id);
 
     advance_buffer(surf_id, *surface,
@@ -365,10 +359,15 @@ void mf::SessionMediator::create_screencast(
     google::protobuf::Closure* done)
 {
     static bool const need_full_ipc{true};
-    mg::DisplayConfigurationOutputId const output_id{
-        static_cast<int>(parameters->output_id())};
 
-    auto screencast_session_id = screencast->create_session(output_id);
+    geom::Rectangle const region{
+        {parameters->region().left(), parameters->region().top()},
+        {parameters->region().width(), parameters->region().height()}
+    };
+    geom::Size const size{parameters->width(), parameters->height()};
+    MirPixelFormat const pixel_format = static_cast<MirPixelFormat>(parameters->pixel_format());
+
+    auto screencast_session_id = screencast->create_session(region, size, pixel_format);
     auto buffer = screencast->capture(screencast_session_id);
 
     protobuf_screencast->mutable_screencast_id()->set_value(

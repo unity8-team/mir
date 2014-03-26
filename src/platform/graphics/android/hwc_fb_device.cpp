@@ -21,10 +21,12 @@
 #include "hwc_vsync_coordinator.h"
 #include "framebuffer_bundle.h"
 #include "android_format_conversion-inl.h"
+#include "hwc_wrapper.h"
 #include "mir/graphics/buffer.h"
 #include "mir/graphics/android/native_buffer.h"
 
 #include <boost/throw_exception.hpp>
+#include <sstream>
 #include <stdexcept>
 
 namespace mg = mir::graphics;
@@ -32,53 +34,66 @@ namespace mga = mir::graphics::android;
 namespace geom = mir::geometry;
 
 mga::HwcFbDevice::HwcFbDevice(std::shared_ptr<hwc_composer_device_1> const& hwc_device,
+                              std::shared_ptr<HwcWrapper> const& hwc_wrapper,
                               std::shared_ptr<framebuffer_device_t> const& fb_device,
                               std::shared_ptr<HWCVsyncCoordinator> const& coordinator)
     : HWCCommonDevice(hwc_device, coordinator),
-      fb_device(fb_device)
+      hwc_wrapper(hwc_wrapper), 
+      fb_device(fb_device),
+      layer_list{{},1}
 {
+    layer_list.additional_layers_begin()->set_layer_type(mga::LayerType::skip);
 }
 
-void mga::HwcFbDevice::prepare_gl()
+void mga::HwcFbDevice::gpu_render()
 {
-    auto rc = 0;
-    auto display_list = layer_list.native_list().lock();
-    if (display_list)
+    if (auto display_list = layer_list.native_list().lock())
     {
-        hwc_display_contents_1_t* displays[num_displays] {display_list.get()};
-        rc = hwc_device->prepare(hwc_device.get(), num_displays, displays);
-    }
-
-    if ((rc != 0) || (!display_list))
-    {
-        BOOST_THROW_EXCEPTION(std::runtime_error("error during hwc prepare()"));
-    }
-}
-
-void mga::HwcFbDevice::prepare_gl_and_overlays(std::list<std::shared_ptr<Renderable>> const&)
-{
-    prepare_gl();
-}
-
-void mga::HwcFbDevice::gpu_render(EGLDisplay dpy, EGLSurface sur)
-{
-    auto rc = 0; 
-    auto display_list = layer_list.native_list().lock();
-    if (display_list)
-    {
-        display_list->dpy = dpy;
-        display_list->sur = sur;
+        display_list->dpy = eglGetCurrentDisplay();
+        display_list->sur = eglGetCurrentSurface(EGL_DRAW);
 
         //set() may affect EGL state by calling eglSwapBuffers.
         //HWC 1.0 is the only version of HWC that can do this.
-        hwc_display_contents_1_t* displays[num_displays] {display_list.get()};
-        rc = hwc_device->set(hwc_device.get(), num_displays, displays);
+        hwc_wrapper->set(*display_list);
     }
-
-    if ((rc != 0) || (!display_list))
+    else
     {
-        BOOST_THROW_EXCEPTION(std::runtime_error("error during hwc set()"));
+        std::stringstream ss;
+        ss << "error locking list during hwc set()";
+        BOOST_THROW_EXCEPTION(std::runtime_error(ss.str()));
     }
+}
+
+void mga::HwcFbDevice::prepare()
+{
+    if (auto display_list = layer_list.native_list().lock())
+    {
+        hwc_wrapper->prepare(*display_list);
+    }
+    else
+    {
+        std::stringstream ss;
+        ss << "error accessing list during hwc prepare()";
+        BOOST_THROW_EXCEPTION(std::runtime_error(ss.str()));
+    }
+}
+
+void mga::HwcFbDevice::render_gl(SwappingGLContext const&)
+{
+    prepare();
+    gpu_render();
+}
+
+void mga::HwcFbDevice::render_gl_and_overlays(
+    SwappingGLContext const&,
+    RenderableList const& renderables,
+    std::function<void(Renderable const&)> const& render_fn)
+{
+    prepare();
+    //TODO: filter this list based on the results of the preparation
+    for(auto const& renderable : renderables)
+        render_fn(*renderable);
+    gpu_render();
 }
 
 void mga::HwcFbDevice::post(mg::Buffer const& buffer)

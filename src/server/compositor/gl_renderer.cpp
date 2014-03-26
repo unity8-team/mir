@@ -15,18 +15,18 @@
  * Authored By: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
-#include "gl_renderer.h"
+#include "mir/compositor/gl_renderer.h"
 #include "mir/compositor/buffer_stream.h"
 #include "mir/graphics/renderable.h"
 #include "mir/graphics/buffer.h"
 
+#define GLM_FORCE_RADIANS
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
 #include <boost/throw_exception.hpp>
 #include <stdexcept>
 #include <cmath>
-#include <cstddef>
 #include <mutex>
 
 namespace mg = mir::graphics;
@@ -43,9 +43,12 @@ const GLchar* vertex_shader_src =
     "uniform mat4 screen_to_gl_coords;\n"
     "uniform mat4 display_transform;\n"
     "uniform mat4 transform;\n"
+    "uniform vec2 centre;\n"
     "varying vec2 v_texcoord;\n"
     "void main() {\n"
-    "   gl_Position = display_transform * screen_to_gl_coords * transform * vec4(position, 1.0);\n"
+    "   vec4 mid = vec4(centre, 0.0, 0.0);\n"
+    "   vec4 transformed = (transform * (vec4(position, 1.0) - mid)) + mid;\n"
+    "   gl_Position = display_transform * screen_to_gl_coords * transformed;\n"
     "   v_texcoord = texcoord;\n"
     "}\n"
 };
@@ -60,39 +63,6 @@ const GLchar* fragment_shader_src =
     "   vec4 frag = texture2D(tex, v_texcoord);\n"
     "   gl_FragColor = vec4(frag.xyz, frag.a * alpha);\n"
     "}\n"
-};
-
-struct VertexAttributes
-{
-    GLfloat position[3];
-    GLfloat texcoord[2];
-};
-
-/*
- * The texture coordinates are y-inverted to account for the difference in the
- * texture and renderable pixel data row order. In particular, GL textures
- * expect pixel data in rows starting from the bottom and moving up the image,
- * whereas our renderables provide data in rows starting from the top and
- * moving down the image.
- */
-const VertexAttributes vertex_attribs[4] =
-{
-    {
-        {-0.5f, -0.5f, 0.0f},
-        {0.0f, 0.0f}
-    },
-    {
-        {-0.5f, 0.5f, 0.0f},
-        {0.0f, 1.0f},
-    },
-    {
-        {0.5f, -0.5f, 0.0f},
-        {1.0f, 0.0f},
-    },
-    {
-        {0.5f, 0.5f, 0.0f},
-        {1.0f, 1.0f}
-    }
 };
 
 typedef void(*MirGLGetObjectInfoLog)(GLuint, GLsizei, GLsizei *, GLchar *);
@@ -127,9 +97,9 @@ mc::GLRenderer::GLRenderer(geom::Rectangle const& display_area) :
     program(0),
     position_attr_loc(0),
     texcoord_attr_loc(0),
+    centre_uniform_loc(0),
     transform_uniform_loc(0),
     alpha_uniform_loc(0),
-    vertex_attribs_vbo(0),
     rotation(NAN) // ensure the first set_rotation succeeds
 {
     /*
@@ -190,15 +160,9 @@ mc::GLRenderer::GLRenderer(geom::Rectangle const& display_area) :
     alpha_uniform_loc = glGetUniformLocation(program, "alpha");
     position_attr_loc = glGetAttribLocation(program, "position");
     texcoord_attr_loc = glGetAttribLocation(program, "texcoord");
+    centre_uniform_loc = glGetUniformLocation(program, "centre");
 
     glUniform1i(tex_loc, 0);
-
-    /* Create VBO */
-    glGenBuffers(1, &vertex_attribs_vbo);
-
-    glBindBuffer(GL_ARRAY_BUFFER, vertex_attribs_vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertex_attribs),
-                 vertex_attribs, GL_STATIC_DRAW);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glUseProgram(0);
@@ -215,10 +179,36 @@ mc::GLRenderer::~GLRenderer() noexcept
         glDeleteShader(fragment_shader);
     if (program)
         glDeleteProgram(program);
-    if (vertex_attribs_vbo)
-        glDeleteBuffers(1, &vertex_attribs_vbo);
     for (auto& t : textures)
         glDeleteTextures(1, &t.second.id);
+}
+
+void mc::GLRenderer::tessellate(std::vector<Primitive>& primitives,
+                                graphics::Renderable const& renderable,
+                                geometry::Size const& buf_size) const
+{
+    auto const& rect = renderable.screen_position();
+    GLfloat left = rect.top_left.x.as_int();
+    GLfloat right = left + rect.size.width.as_int();
+    GLfloat top = rect.top_left.y.as_int();
+    GLfloat bottom = top + rect.size.height.as_int();
+
+    primitives.resize(1);
+    auto& client = primitives[0];
+    client.tex_id = 0;
+    client.type = GL_TRIANGLE_STRIP;
+
+    GLfloat tex_right = static_cast<GLfloat>(rect.size.width.as_int()) /
+                        buf_size.width.as_int();
+    GLfloat tex_bottom = static_cast<GLfloat>(rect.size.height.as_int()) /
+                         buf_size.height.as_int();
+
+    auto& vertices = client.vertices;
+    vertices.resize(4);
+    vertices[0] = {{left,  top,    0.0f}, {0.0f,      0.0f}};
+    vertices[1] = {{left,  bottom, 0.0f}, {0.0f,      tex_bottom}};
+    vertices[2] = {{right, top,    0.0f}, {tex_right, 0.0f}};
+    vertices[3] = {{right, bottom, 0.0f}, {tex_right, tex_bottom}};
 }
 
 void mc::GLRenderer::render(mg::Renderable const& renderable, mg::Buffer& buffer) const
@@ -236,21 +226,51 @@ void mc::GLRenderer::render(mg::Renderable const& renderable, mg::Buffer& buffer
     }
     glActiveTexture(GL_TEXTURE0);
 
+    auto const& rect = renderable.screen_position();
+    GLfloat centrex = rect.top_left.x.as_int() +
+                      rect.size.width.as_int() / 2.0f;
+    GLfloat centrey = rect.top_left.y.as_int() +
+                      rect.size.height.as_int() / 2.0f;
+    glUniform2f(centre_uniform_loc, centrex, centrey);
+
     glUniformMatrix4fv(transform_uniform_loc, 1, GL_FALSE,
                        glm::value_ptr(renderable.transformation()));
     glUniform1f(alpha_uniform_loc, renderable.alpha());
 
-    /* Set up vertex attribute data */
-    glBindBuffer(GL_ARRAY_BUFFER, vertex_attribs_vbo);
-    glVertexAttribPointer(position_attr_loc, 3, GL_FLOAT,
-                          GL_FALSE, sizeof(VertexAttributes),
-                          static_cast<GLbyte*>(0) +
-                              offsetof(VertexAttributes, position));
-    glVertexAttribPointer(texcoord_attr_loc, 2, GL_FLOAT,
-                          GL_FALSE, sizeof(VertexAttributes),
-                          static_cast<GLbyte*>(0) +
-                              offsetof(VertexAttributes, texcoord));
+    GLuint surface_tex = load_texture(renderable, buffer);
 
+    /* Draw */
+    glEnableVertexAttribArray(position_attr_loc);
+    glEnableVertexAttribArray(texcoord_attr_loc);
+
+    std::vector<Primitive> primitives;
+    tessellate(primitives, renderable, buffer.size());
+   
+    for (auto const& p : primitives)
+    {
+        // Note a primitive tex_id of zero means use the surface texture,
+        // which is what you normally want. Other textures could be used
+        // in decorations etc.
+
+        glBindTexture(GL_TEXTURE_2D, p.tex_id ? p.tex_id : surface_tex);
+
+        glVertexAttribPointer(position_attr_loc, 3, GL_FLOAT,
+                              GL_FALSE, sizeof(Vertex),
+                              &p.vertices[0].position);
+        glVertexAttribPointer(texcoord_attr_loc, 2, GL_FLOAT,
+                              GL_FALSE, sizeof(Vertex),
+                              &p.vertices[0].texcoord);
+
+        glDrawArrays(p.type, 0, p.vertices.size());
+    }
+
+    glDisableVertexAttribArray(texcoord_attr_loc);
+    glDisableVertexAttribArray(position_attr_loc);
+}
+
+GLuint mc::GLRenderer::load_texture(mg::Renderable const& renderable,
+                                    mg::Buffer& buffer) const
+{
     SurfaceID surf = &renderable; // TODO: Add an id() to Renderable
     auto& tex = textures[surf];
     bool changed = true;
@@ -274,12 +294,7 @@ void mc::GLRenderer::render(mg::Renderable const& renderable, mg::Buffer& buffer
     if (changed)  // Don't upload a new texture unless the surface has changed
         buffer.bind_to_texture();
 
-    /* Draw */
-    glEnableVertexAttribArray(position_attr_loc);
-    glEnableVertexAttribArray(texcoord_attr_loc);
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-    glDisableVertexAttribArray(texcoord_attr_loc);
-    glDisableVertexAttribArray(position_attr_loc);
+    return tex.id;
 }
 
 void mc::GLRenderer::set_viewport(geometry::Rectangle const& rect)
@@ -294,10 +309,25 @@ void mc::GLRenderer::set_viewport(geometry::Rectangle const& rect)
      * (top-left is (-1,1), bottom-right is (1,-1))
      */
     glm::mat4 screen_to_gl_coords = glm::translate(glm::mat4(1.0f), glm::vec3{-1.0f, 1.0f, 0.0f});
+
+    /*
+     * Perspective division is one thing that can't be done in a matrix
+     * multiplication. It happens after the matrix multiplications. GL just
+     * scales {x,y} by 1/w. So modify the final part of the projection matrix
+     * to set w ([3]) to be the incoming z coordinate ([2]).
+     */
+    screen_to_gl_coords[2][3] = -1.0f;
+
+    float const vertical_fov_degrees = 30.0f;
+    float const near =
+        (rect.size.height.as_float() / 2.0f) /
+        std::tan((vertical_fov_degrees * M_PI / 180.0f) / 2.0f);
+    float const far = -near;
+
     screen_to_gl_coords = glm::scale(screen_to_gl_coords,
             glm::vec3{2.0f / rect.size.width.as_float(),
                       -2.0f / rect.size.height.as_float(),
-                      1.0f});
+                      2.0f / (near - far)});
     screen_to_gl_coords = glm::translate(screen_to_gl_coords,
             glm::vec3{-rect.top_left.x.as_float(),
                       -rect.top_left.y.as_float(),

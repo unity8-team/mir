@@ -17,6 +17,7 @@
  */
 
 #include "mir/compositor/display_buffer_compositor_factory.h"
+#include "mir/server_status_listener.h"
 #include "mir/compositor/display_buffer_compositor.h"
 #include "mir/options/default_configuration.h"
 #include "mir/graphics/graphic_buffer_allocator.h"
@@ -40,6 +41,9 @@
 #include "image_renderer.h"
 #include "server_configuration.h"
 
+#define GLM_FORCE_RADIANS
+#include <glm/gtc/matrix_transform.hpp>
+
 #include <thread>
 #include <atomic>
 #include <chrono>
@@ -47,8 +51,6 @@
 #include <iostream>
 #include <sstream>
 #include <vector>
-
-#include <glm/gtc/matrix_transform.hpp>
 
 namespace mg = mir::graphics;
 namespace mc = mir::compositor;
@@ -86,10 +88,12 @@ namespace me = mir::examples;
 
 namespace
 {
+std::atomic<bool> created{false};
 bool input_is_on = false;
 std::weak_ptr<mg::Cursor> cursor;
 static const uint32_t bg_color = 0x00000000;
 static const uint32_t fg_color = 0xffdd4814;
+static const float min_alpha = 0.3f;
 
 void update_cursor(uint32_t bg_color, uint32_t fg_color)
 {
@@ -233,8 +237,16 @@ public:
             y = new_y;
         }
 
-        surface->set_rotation(total_elapsed_sec * 120.0f, rotation_axis);
-        surface->set_alpha(0.5 + 0.5 * sin(alpha_offset + 2 * M_PI * total_elapsed_sec / 3.0));
+        glm::mat4 trans = glm::rotate(glm::mat4(1.0f),
+                                      glm::radians(total_elapsed_sec * 120.0f),
+                                      rotation_axis);
+        surface->set_transformation(trans);
+
+        float const alpha_amplitude = (1.0f - min_alpha) / 2.0f;
+        surface->set_alpha(min_alpha + alpha_amplitude +
+                           alpha_amplitude *
+                           sin(alpha_offset + 2 * M_PI * total_elapsed_sec /
+                               3.0));
     }
 
 private:
@@ -326,6 +338,31 @@ public:
     }
     ///\internal [RenderResourcesBufferInitializer_tag]
 
+    // Unless the compositor starts before we create the surfaces it won't respond to
+    // the change notification that causes.
+    std::shared_ptr<mir::ServerStatusListener> the_server_status_listener()
+    {
+        struct ServerStatusListener : mir::ServerStatusListener
+        {
+            ServerStatusListener(std::function<void()> create_surfaces, std::shared_ptr<mir::ServerStatusListener> wrapped) :
+                create_surfaces(create_surfaces), wrapped(wrapped) {}
+
+            virtual void paused() override { wrapped->paused(); }
+            virtual void resumed() override { wrapped->resumed(); }
+            virtual void started() override { wrapped->started(); create_surfaces(); create_surfaces = []{}; }
+
+            std::function<void()> create_surfaces;
+            std::shared_ptr<mir::ServerStatusListener> const wrapped;
+        };
+
+        return server_status_listener(
+            [this]()
+            {
+                auto wrapped = ServerConfiguration::the_server_status_listener();
+                return std::make_shared<ServerStatusListener>([this] { create_surfaces(); }, wrapped);
+            });
+    }
+
     ///\internal [RenderSurfacesDisplayBufferCompositor_tag]
     // Decorate the DefaultDisplayBufferCompositor in order to move surfaces.
     std::shared_ptr<mc::DisplayBufferCompositorFactory> the_display_buffer_compositor_factory() override
@@ -344,6 +381,7 @@ public:
 
             bool composite()
             {
+                while (!created) std::this_thread::yield();
                 animate_cursor();
                 stop_watch.stop();
                 if (stop_watch.elapsed_seconds_since_last_restart() >= 1)
@@ -460,6 +498,8 @@ public:
                     2.0f * M_PI * cos(i));
             ++i;
         }
+
+        created = true;
     }
 
     bool input_is_on()
@@ -493,8 +533,6 @@ try
 
     mir::run_mir(conf, [&](mir::DisplayServer&)
     {
-        conf.create_surfaces();
-
         cursor = conf.the_cursor();
 
         input_is_on = conf.input_is_on();
