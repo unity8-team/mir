@@ -55,5 +55,5 @@ void Screen::readMirDisplayConfiguration(mir::graphics::DisplayConfigurationOutp
     m_geometry.setWidth(mode.size.width.as_int());
     m_geometry.setHeight(mode.size.height.as_int());
 
-    m_refreshRate = 60; //mode.vrefresh_hz value incorrect;
+    m_refreshRate = 60; //FIXME: mode.vrefresh_hz value seems to be incorrect??
 }
