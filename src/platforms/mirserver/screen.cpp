@@ -22,6 +22,55 @@
 
 namespace mg = mir::geometry;
 
+
+namespace {
+bool isLittleEndian() {
+    unsigned int i = 1;
+    char *c = (char*)&i;
+    return *c == 1;
+}
+
+enum QImage::Format qImageFormatFromMirPixelFormat(MirPixelFormat mirPixelFormat) {
+    switch (mirPixelFormat) {
+    case mir_pixel_format_abgr_8888:
+        if (isLittleEndian()) {
+            // 0xRR,0xGG,0xBB,0xAA
+            return QImage::Format_RGBA8888;
+        } else {
+            // 0xAA,0xBB,0xGG,0xRR
+            qFatal("[mirserver QPA] "
+                   "Qt doesn't support mir_pixel_format_abgr_8888 in a big endian architecture");
+        }
+        break;
+    case mir_pixel_format_xbgr_8888:
+        if (isLittleEndian()) {
+            // 0xRR,0xGG,0xBB,0xXX
+            return QImage::Format_RGBX8888;
+        } else {
+            // 0xXX,0xBB,0xGG,0xRR
+            qFatal("[mirserver QPA] "
+                   "Qt doesn't support mir_pixel_format_xbgr_8888 in a big endian architecture");
+        }
+        break;
+        break;
+    case mir_pixel_format_argb_8888:
+        // 0xAARRGGBB
+        return QImage::Format_ARGB32;
+        break;
+    case mir_pixel_format_xrgb_8888:
+        // 0xffRRGGBB
+        return QImage::Format_RGB32;
+        break;
+    case mir_pixel_format_bgr_888:
+        qFatal("[mirserver QPA] Qt doesn't support mir_pixel_format_bgr_888");
+        break;
+    default:
+        qFatal("[mirserver QPA] Unknown mir pixel format");
+        break;
+    }
+}
+}
+
 Screen::Screen(mir::graphics::DisplayConfigurationOutput const &screen)
 {
     readMirDisplayConfiguration(screen);
@@ -34,18 +83,7 @@ void Screen::readMirDisplayConfiguration(mir::graphics::DisplayConfigurationOutp
     m_physicalSize.setHeight(screen.physical_size_mm.height.as_float());
 
     // Pixel Format
-    switch(screen.current_format) {
-    case mir_pixel_format_argb_8888:
-        m_format = QImage::Format_ARGB32;
-        break;
-    case mir_pixel_format_xrgb_8888:
-        m_format = QImage::Format_ARGB32_Premultiplied;
-        break;
-        // Don't think Qt supports any others (abgr_8888, xbgr_8888, bgr_888)
-    default:
-        m_format = QImage::Format_Invalid;
-        break;
-    }
+    m_format = qImageFormatFromMirPixelFormat(screen.current_format);
 
     // Pixel depth
     m_depth = 8 * MIR_BYTES_PER_PIXEL(screen.current_format);
