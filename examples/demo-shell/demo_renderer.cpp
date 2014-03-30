@@ -77,13 +77,14 @@ GLuint generate_frame_corner_texture()
     };
 
     int const width = 256;
-    Texel image[width][width];
+    int const height = 256;
+    Texel image[width][height];
 
     int cx = width / 2;
-    int cy = width / 2;
+    int cy = height / 2;
     int radius_sqr = cx * cx;
 
-    for (int y = 0; y < width; ++y)
+    for (int y = 0; y < height; ++y)
     {
         for (int x = 0; x < width; ++x)
         {
@@ -100,13 +101,17 @@ GLuint generate_frame_corner_texture()
             }
 
             // Set gradient
-            if (y < cy)
+            if (y <= cy)
             {
                 float brighten = (1.0f - (static_cast<float>(y) / cy));
                 if (x < cx)
                     brighten *= std::sin(x * M_PI / width);
 
                 lum += (255 - lum) * brighten;
+            }
+            else
+            {
+                alpha = 255.0f * std::cos((cy - y) * M_PI / height);
             }
 
             image[y][x] = {lum, lum, lum, alpha};
@@ -264,15 +269,25 @@ void DemoRenderer::tessellate_frame(std::vector<Primitive>& primitives,
     GLfloat top = rect.top_left.y.as_int();
 
     auto n = primitives.size();
-    primitives.resize(n + 3);
+    primitives.resize(n + 4);
 
     GLfloat htop = top - titlebar_height;
+    GLfloat half_htop = top - titlebar_height / 2.0f;
     GLfloat inleft = left + titlebar_height;  // Square proportions for corners
     GLfloat inright = right - titlebar_height;
 
     GLfloat mid = (left + right) / 2.0f;
     if (inleft > mid) inleft = mid;
     if (inright < mid) inright = mid;
+
+    auto& bleed = primitives[n++];
+    bleed.tex_id = 0;  // Use the client surface texture
+    bleed.type = GL_TRIANGLE_FAN;
+    bleed.vertices.resize(4);
+    bleed.vertices[0] = {{left,  half_htop, 0.0f}, {0.0f, 0.0f}};
+    bleed.vertices[1] = {{right, half_htop, 0.0f}, {1.0f, 0.0f}};
+    bleed.vertices[2] = {{right, top,       0.0f}, {1.0f, 0.0f}};
+    bleed.vertices[3] = {{left,  top,       0.0f}, {0.0f, 0.0f}};
 
     auto& top_left_corner = primitives[n++];
     top_left_corner.tex_id = titlebar_corner_tex;
