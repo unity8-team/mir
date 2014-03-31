@@ -30,7 +30,7 @@ public:
     void stop();
 
 private:
-    void setAllWindowsVisible(bool visible);
+    void setAllWindowsExposed(bool exposed);
 };
 
 #endif // QTCOMPOSITOR_H

@@ -23,25 +23,34 @@
 
 #include <mirplatform/mir/graphics/display_buffer.h>
 
+#include <QObject>
+
 // DisplayWindow wraps the whatever implementation Mir creates of a DisplayBuffer,
 // which is the buffer output for an individual display.
 
-class DisplayWindow : public QPlatformWindow
+class DisplayWindow : public QObject, public QPlatformWindow
 {
+    Q_OBJECT
 public:
     explicit DisplayWindow(QWindow *window, mir::graphics::DisplayBuffer*);
 
     QRect geometry() const override;
     void setGeometry(const QRect &rect) override;
 
-    void setVisible(bool visible) override;
+    WId winId() const override { return m_winId; }
 
-    WId winId() const { return m_winId; }
+    bool isExposed() const override;
+
+    bool event(QEvent *event) override;
 
     void swapBuffers();
     void makeCurrent();
     void doneCurrent();
 
+    // Qt's exposure state should be updated
+    static const QEvent::Type exposeEventType;
+
+    static bool m_isExposed;
 private:
     WId m_winId;
     mir::graphics::DisplayBuffer *m_displayBuffer;

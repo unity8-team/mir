@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Canonical, Ltd.
+ * Copyright (C) 2013,2014 Canonical, Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 3, as published by
@@ -13,13 +13,17 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Author: Gerry Boland <gerry.boland@canonical.com>
+ * Authors: Gerry Boland <gerry.boland@canonical.com>
+ *          Daniel d'Andrada <daniel.dandrada@canonical.com>
  */
 
 #include "qtcompositor.h"
+#include "displaywindow.h"
 
 #include <QGuiApplication>
 #include <QWindow>
+
+#include <QDebug>
 
 QtCompositor::QtCompositor()
 {
@@ -28,22 +32,32 @@ QtCompositor::QtCompositor()
 
 void QtCompositor::start()
 {
-    // (Re)Start Qt's render thread by setting all its windows to shown
-    setAllWindowsVisible(true);
+    // (Re)Start Qt's render thread by setting all its windows to exposed
+    setAllWindowsExposed(true);
 }
 
 void QtCompositor::stop()
 {
-    // Stop Qt's render threads by setting all its windows it hidden
-    setAllWindowsVisible(false);
+    // Stop Qt's render threads by setting all its windows it obscured
+    setAllWindowsExposed(false);
 }
 
-void QtCompositor::setAllWindowsVisible(bool visible)
+void QtCompositor::setAllWindowsExposed(bool exposed)
 {
-    auto windowList = QGuiApplication::allWindows();
+    qDebug() << "QtCompositor::setAllWindowsExposed" << exposed;
+    // likely need a lock
+    DisplayWindow::m_isExposed = exposed;
+
+    QList<QWindow *> windowList = QGuiApplication::allWindows();
+
+    // manipulate Qt object's indirectly via posted events as we're not in Qt's GUI thread
     auto iterator = windowList.constBegin();
     while (iterator != windowList.constEnd()) {
-        (*iterator)->setVisible(visible);
+        QWindow *window = *iterator;
+        DisplayWindow *displayWindow = static_cast<DisplayWindow*>(window->handle());
+        if (displayWindow) {
+            QCoreApplication::postEvent(displayWindow, new QEvent(DisplayWindow::exposeEventType));
+        }
         iterator++;
     }
 }
