@@ -403,6 +403,15 @@ MirWaitHandle* mir_surface_set_swapinterval(MirSurface* surface, int interval);
  *                        Returns -1 if surface is invalid.
  */
 int mir_surface_get_swapinterval(MirSurface* surface);
+    
+/**
+ * Request that the system cursor not be shown over
+ * the given surface.
+ *   \param [in] surface           The surface to operate on
+ *   \param [in] cursor_parameters The cursor configuration parameters
+ *   \return                       A wait handle that can be passed to mir_wait_for
+ */
+MirWaitHandle* mir_surface_configure_cursor(MirSurface* surface, MirCursorParameters const* parameters);
 
 #ifdef __cplusplus
 }

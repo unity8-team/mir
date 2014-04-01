@@ -496,6 +496,11 @@ int mir_surface_get_swapinterval(MirSurface* surf)
     return surf ? surf->attrib(mir_surface_attrib_swapinterval) : -1;
 }
 
+MirWaitHandle* mir_surface_configure_cursor(MirSurface* surf, MirCursorParameters const* cursor_parameters)
+{
+    return surf->configure_cursor(cursor_parameters);
+}
+
 void mir_connection_set_lifecycle_event_callback(MirConnection* connection,
     mir_lifecycle_event_callback callback, void* context)
 {

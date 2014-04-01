@@ -175,6 +175,13 @@ message Screencast {
   optional string error = 127;
 }
 
+message CursorParameters {
+  required SurfaceId surfaceid = 1;
+  required bool enabled = 2;
+  optional string cursor_theme = 3;
+  optional string cursor_name = 4;
+}
+
 service DisplayServer {
   // Platform independent requests
   rpc connect(ConnectParameters) returns (Connection);
@@ -194,5 +201,7 @@ service DisplayServer {
   rpc create_screencast(ScreencastParameters) returns (Screencast);
   rpc screencast_buffer(ScreencastId) returns (Buffer);
   rpc release_screencast(ScreencastId) returns (Void);
+  
+  rpc configure_cursor(CursorParameters) returns (Void);
 }
 

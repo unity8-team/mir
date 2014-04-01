@@ -410,6 +410,15 @@ void mf::SessionMediator::screencast_buffer(
     done->Run();
 }
 
+void mf::SessionMediator::configure_cursor(
+    google::protobuf::RpcController*,
+    mir::protobuf::CursorParameters const* /* cursor_parameters */,
+    mir::protobuf::Void*,
+    google::protobuf::Closure* /* done */)
+{
+    BOOST_THROW_EXCEPTION(std::logic_error("Cursor API not yet implemented."));
+}
+
 void mf::SessionMediator::drm_auth_magic(
     google::protobuf::RpcController* /*controller*/,
     const mir::protobuf::DRMMagic* request,

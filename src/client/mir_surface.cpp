@@ -297,6 +297,33 @@ EGLNativeWindowType MirSurface::generate_native_window()
     return *accelerated_window;
 }
 
+MirWaitHandle* MirSurface::configure_cursor(MirCursorParameters const* params)
+{
+    std::unique_lock<decltype(mutex)> lock(mutex);
+    mp::CursorParameters msg;
+
+    msg.mutable_surfaceid()->CopyFrom(surface.id());
+    msg.set_enabled(params->enabled);
+    if (params->enabled == mir_true)
+    {
+        msg.set_cursor_theme(params->cursor_theme);
+        msg.set_cursor_name(params->cursor_name);
+    }
+    lock.unlock();
+    
+    configure_cursor_wait_handle.expect_result();
+    server.configure_cursor(0, &msg, &void_response,
+        google::protobuf::NewCallback(this, &MirSurface::on_cursor_configured));
+    
+    return &configure_cursor_wait_handle;
+}
+
+void MirSurface::on_cursor_configured()
+{
+    std::lock_guard<decltype(mutex)> lock(mutex);
+    configure_cursor_wait_handle.result_received();
+}
+
 MirWaitHandle* MirSurface::configure(MirSurfaceAttrib at, int value)
 {
     std::unique_lock<decltype(mutex)> lock(mutex);

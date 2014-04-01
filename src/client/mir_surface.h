@@ -94,11 +94,14 @@ public:
     /* mir::client::ClientSurface */
     void request_and_wait_for_next_buffer();
     void request_and_wait_for_configure(MirSurfaceAttrib a, int value);
+    
+    MirWaitHandle* configure_cursor(MirCursorParameters const* params);
 
 private:
     mutable std::mutex mutex; // Protects all members of *this
 
     void on_configured();
+    void on_cursor_configured();
     void process_incoming_buffer();
     void populate(MirBufferPackage& buffer_package);
     void created(mir_surface_callback callback, void * context);
@@ -108,12 +111,14 @@ private:
 
     mir::protobuf::DisplayServer::Stub & server;
     mir::protobuf::Surface surface;
+    mir::protobuf::Void void_response;
     std::string error_message;
 
     MirConnection* const connection;
     MirWaitHandle create_wait_handle;
     MirWaitHandle next_buffer_wait_handle;
     MirWaitHandle configure_wait_handle;
+    MirWaitHandle configure_cursor_wait_handle;
 
     std::shared_ptr<mir::client::MemoryRegion> secured_region;
     std::shared_ptr<mir::client::ClientBufferDepository> buffer_depository;
