@@ -1,5 +1,5 @@
 set(
-  CHOICE_SOURCES
+  OPTIONS_SOURCES
 
   program_option.cpp
   default_configuration.cpp
@@ -8,5 +8,11 @@ set(
 add_library(
   miroptions STATIC
 
-  ${CHOICE_SOURCES}
+  ${OPTIONS_SOURCES}
+)
+
+target_link_libraries(
+  miroptions
+
+  ${Boost_PROGRAM_OPTIONS_LIBRARY}  
 )

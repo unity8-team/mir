@@ -24,6 +24,7 @@ target_link_libraries(
   mirsharedgeometry
 
   ${EGL_LDFLAGS} ${EGL_LIBRARIES}
+  ${Boost_PROGRAM_OPTIONS_LIBRARY}  
 )
 
 if (MIR_BUILD_PLATFORM_ANDROID)
