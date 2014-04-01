@@ -1,3 +1,10 @@
+platform-api (0.20+14.04.20140401-0ubuntu1) trusty; urgency=low
+
+  [ Chris Gagnon ]
+  * enable getting coverage in CI
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Tue, 01 Apr 2014 01:22:00 +0000
+
 platform-api (0.20+14.04.20140317.1-0ubuntu1) trusty; urgency=low
 
   [ Ubuntu daily release ]
