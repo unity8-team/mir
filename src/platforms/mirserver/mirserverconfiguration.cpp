@@ -16,6 +16,7 @@
 
 #include "mirserverconfiguration.h"
 
+#include "mirglconfig.h"
 #include "mirinputconfiguration.h"
 #include "sessionlistener.h"
 #include "surfaceconfigurator.h"
@@ -49,10 +50,10 @@ MirServerConfiguration::the_shell_session_listener()
         });
 }
 
-std::shared_ptr<msh::SurfaceConfigurator>
-MirServerConfiguration::the_shell_surface_configurator()
+std::shared_ptr<ms::SurfaceConfigurator>
+MirServerConfiguration::the_surface_configurator()
 {
-    return shell_surface_configurator(
+    return surface_configurator(
         [this]()
         {
             return std::make_shared<SurfaceConfigurator>();
@@ -90,6 +91,16 @@ MirServerConfiguration::the_input_configuration()
     });
 }
 
+std::shared_ptr<mir::graphics::GLConfig>
+MirServerConfiguration::the_gl_config()
+{
+    return gl_config(
+    [this]()
+    {
+        return std::make_shared<MirGLConfig>();
+    });
+}
+
 /************************************ Shell side ************************************/
 
 //
@@ -122,7 +133,7 @@ SessionListener *MirServerConfiguration::sessionListener()
 
 SurfaceConfigurator *MirServerConfiguration::surfaceConfigurator()
 {
-    auto sharedPtr = the_shell_surface_configurator();
+    auto sharedPtr = the_surface_configurator();
     if (sharedPtr.unique()) return 0;
 
     return static_cast<SurfaceConfigurator*>(sharedPtr.get());

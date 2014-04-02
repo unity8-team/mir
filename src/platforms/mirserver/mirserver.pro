@@ -59,6 +59,7 @@ HEADERS += \
     mirinputchannel.h \
     mirinputconfiguration.h \
     mirinputmanager.h \
+    mirglconfig.h \
     mirserverconfiguration.h \
     display.h \
     screen.h \

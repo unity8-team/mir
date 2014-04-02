@@ -29,6 +29,7 @@
 #include "logging.h"
 
 namespace msh = mir::shell;
+namespace ms = mir::scene;
 
 MirSurfaceManager *MirSurfaceManager::the_surface_manager = nullptr;
 
@@ -57,12 +58,12 @@ MirSurfaceManager::MirSurfaceManager(QObject *parent)
     SurfaceConfigurator *surfaceConfigurator = static_cast<SurfaceConfigurator*>(nativeInterface->nativeResourceForIntegration("SessionConfigurator"));
 
     QObject::connect(sessionListener, &SessionListener::sessionCreatedSurface,
-                     this, &MirSurfaceManager::sessionCreatedSurface);
+                     this, &MirSurfaceManager::onSessionCreatedSurface);
     QObject::connect(sessionListener, &SessionListener::sessionDestroyingSurface,
-                     this, &MirSurfaceManager::sessionDestroyingSurface);
+                     this, &MirSurfaceManager::onSessionDestroyingSurface);
 
     QObject::connect(surfaceConfigurator, &SurfaceConfigurator::surfaceAttributeChanged,
-                     this, &MirSurfaceManager::surfaceAttributeChanged);
+                     this, &MirSurfaceManager::onSurfaceAttributeChanged);
 }
 
 MirSurfaceManager::~MirSurfaceManager()
@@ -72,14 +73,17 @@ MirSurfaceManager::~MirSurfaceManager()
     m_surfaces.clear();
 }
 
-void MirSurfaceManager::sessionCreatedSurface(mir::shell::Session const* session, std::shared_ptr<mir::shell::Surface> const& surface)
+void MirSurfaceManager::onSessionCreatedSurface(mir::shell::Session const* session,
+        std::shared_ptr<mir::shell::Surface> const& surface)
 {
-    DLOG("MirSurfaceManager::sessionCreatedSurface (this=%p) with surface name '%s'", this, surface->name().c_str());
+    DLOG("MirSurfaceManager::onSessionCreatedSurface (this=%p) with surface name '%s'", this, surface->name().c_str());
     ApplicationManager* appMgr = static_cast<ApplicationManager*>(ApplicationManager::singleton());
     Application* application = appMgr->findApplicationWithSession(session);
 
-    auto qmlSurface = new MirSurfaceItem(surface, application);
-    m_surfaces.insert(surface.get(), qmlSurface);
+    std::shared_ptr<ms::Surface> const& sceneSurface = std::static_pointer_cast<ms::Surface>(surface);
+
+    auto qmlSurface = new MirSurfaceItem(sceneSurface, application);
+    m_surfaces.insert(sceneSurface.get(), qmlSurface);
 
     // Only notify QML of surface creation once it has drawn its first frame.
     connect(qmlSurface, &MirSurfaceItem::surfaceFirstFrameDrawn, [&](MirSurfaceItem *item) {
@@ -93,11 +97,14 @@ void MirSurfaceManager::sessionCreatedSurface(mir::shell::Session const* session
     });
 }
 
-void MirSurfaceManager::sessionDestroyingSurface(mir::shell::Session const*, std::shared_ptr<mir::shell::Surface> const& surface)
+void MirSurfaceManager::onSessionDestroyingSurface(mir::shell::Session const*,
+        std::shared_ptr<mir::shell::Surface> const& surface)
 {
-    DLOG("MirSurfaceManager::sessionDestroyingSurface (this=%p) with surface name '%s'", this, surface->name().c_str());
+    DLOG("MirSurfaceManager::onSessionDestroyingSurface (this=%p) with surface name '%s'", this, surface->name().c_str());
 
-    auto it = m_surfaces.find(surface.get());
+    std::shared_ptr<ms::Surface> const& sceneSurface = std::static_pointer_cast<ms::Surface>(surface);
+
+    auto it = m_surfaces.find(sceneSurface.get());
     if (it != m_surfaces.end()) {
         Q_EMIT surfaceDestroyed(*it);
         MirSurfaceItem* item = it.value();
@@ -110,9 +117,10 @@ void MirSurfaceManager::sessionDestroyingSurface(mir::shell::Session const*, std
     DLOG("MirSurfaceManager::sessionDestroyingSurface: unable to find MirSurfaceItem corresponding to surface '%s'", surface->name().c_str());
 }
 
-void MirSurfaceManager::surfaceAttributeChanged(const msh::Surface *surface, const MirSurfaceAttrib attribute, const int value)
+void MirSurfaceManager::onSurfaceAttributeChanged(const ms::Surface *surface,
+        const MirSurfaceAttrib attribute, const int value)
 {
-    DLOG("MirSurfaceManager::surfaceAttributeChanged (surface='%s', attrib=%d, value=%d)",
+    DLOG("MirSurfaceManager::onSurfaceAttributeChanged (surface='%s', attrib=%d, value=%d)",
          surface->name().c_str(), static_cast<int>(attribute), value);
 
     auto it = m_surfaces.find(surface);

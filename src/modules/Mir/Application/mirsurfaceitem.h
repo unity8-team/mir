@@ -25,7 +25,7 @@
 #include <QQuickItem>
 
 // mir
-#include <mir/shell/surface.h>
+#include <mir/scene/surface.h>
 #include <mir_toolkit/common.h>
 
 #include "ubuntukeyboardinfo.h"
@@ -47,7 +47,8 @@ class MirSurfaceItem : public QQuickItem
     Q_PROPERTY(Application* application READ application CONSTANT)
 
 public:
-    explicit MirSurfaceItem(std::shared_ptr<mir::shell::Surface> surface, Application* application, QQuickItem *parent = 0);
+    explicit MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface, Application* application,
+                            QQuickItem *parent = 0);
     ~MirSurfaceItem();
 
     enum Type {
@@ -122,11 +123,10 @@ private:
 
     QMutex m_mutex;
 
-    std::shared_ptr<mir::shell::Surface> m_surface;
+    std::shared_ptr<mir::scene::Surface> m_surface;
     Application* m_application;
     int m_pendingClientBuffersCount;
     bool m_firstFrameDrawn;
-    unsigned long m_frameNumber;
 
     QMirSurfaceTextureProvider *m_textureProvider;
 

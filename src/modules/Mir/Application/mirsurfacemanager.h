@@ -31,6 +31,7 @@
 
 class ShellServerConfiguration;
 namespace mir { namespace shell { class Surface; class Session; }}
+namespace mir { namespace scene { class Surface; }}
 
 class MirSurfaceManager : public QObject
 {
@@ -49,13 +50,13 @@ Q_SIGNALS:
 //    void fullscreenSurfaceChanged();
 
 public Q_SLOTS:
-    void sessionCreatedSurface(mir::shell::Session const* session, std::shared_ptr<mir::shell::Surface> const&);
-    void sessionDestroyingSurface(mir::shell::Session const*, std::shared_ptr<mir::shell::Surface> const&);
+    void onSessionCreatedSurface(mir::shell::Session const* session, std::shared_ptr<mir::shell::Surface> const&);
+    void onSessionDestroyingSurface(mir::shell::Session const*, std::shared_ptr<mir::shell::Surface> const&);
 
-    void surfaceAttributeChanged(mir::shell::Surface const*, MirSurfaceAttrib, int);
+    void onSurfaceAttributeChanged(mir::scene::Surface const*, MirSurfaceAttrib, int);
 
 private:
-    QHash<const mir::shell::Surface *, MirSurfaceItem *> m_surfaces;
+    QHash<const mir::scene::Surface *, MirSurfaceItem *> m_surfaces;
     ShellServerConfiguration* m_mirServer;
     static MirSurfaceManager *the_surface_manager;
 };

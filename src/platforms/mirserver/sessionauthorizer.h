@@ -34,8 +34,9 @@ public:
     SessionAuthorizer(QObject *parent = 0);
     ~SessionAuthorizer();
 
-    virtual bool connection_is_allowed(pid_t pid) override;
-    virtual bool configure_display_is_allowed(pid_t pid) override;
+    bool connection_is_allowed(pid_t pid) override;
+    bool configure_display_is_allowed(pid_t pid) override;
+    bool screencast_is_allowed(pid_t pid) override;
 
 Q_SIGNALS:
     // needs to be blocked queued signal which returns value for authorized

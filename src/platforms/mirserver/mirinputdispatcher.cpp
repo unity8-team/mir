@@ -562,7 +562,15 @@ bool MirInputDispatcher::dispatchMotionLocked(
 
     // Identify targets.
     Vector<InputTarget> inputTargets;
-    inputTargets.add(entry->target);
+    // mir_input::Vector::add() leaves size() completely f****d up (it returns a huge number instead of 1).
+    // No idea why. Working around it by using an alternate method of adding an item
+    //inputTargets.add(entry->target);
+    {
+        inputTargets.push();
+        InputTarget& vectorTarget = inputTargets.editTop();
+        vectorTarget = entry->target;
+    }
+    Q_ASSERT(inputTargets.size() == 1);
 
     //addMonitoringTargetsLocked(inputTargets);
 

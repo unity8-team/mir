@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Canonical, Ltd.
+ * Copyright (C) 2013,2014 Canonical, Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 3, as published by
@@ -19,23 +19,23 @@
 
 #include <QObject>
 
-#include <mir/shell/surface_configurator.h>
+#include <mir/scene/surface_configurator.h>
 #include <mir_toolkit/common.h>
 
-namespace mir { namespace shell { class Surface; }}
+namespace mir { namespace scene { class Surface; }}
 
-class SurfaceConfigurator : public QObject, public mir::shell::SurfaceConfigurator
+class SurfaceConfigurator : public QObject, public mir::scene::SurfaceConfigurator
 {
     Q_OBJECT
 
 public:
     SurfaceConfigurator();
 
-    int select_attribute_value(mir::shell::Surface const&, MirSurfaceAttrib, int) override;
-    void attribute_set(mir::shell::Surface const&, MirSurfaceAttrib, int) override;
+    int select_attribute_value(mir::scene::Surface const&, MirSurfaceAttrib, int) override;
+    void attribute_set(mir::scene::Surface const&, MirSurfaceAttrib, int) override;
 
 Q_SIGNALS:
-    void surfaceAttributeChanged(mir::shell::Surface const*, const MirSurfaceAttrib, const int);
+    void surfaceAttributeChanged(mir::scene::Surface const*, const MirSurfaceAttrib, const int);
 };
 
 #endif // SURFACECONFIGURATOR_H

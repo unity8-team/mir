@@ -43,3 +43,10 @@ bool SessionAuthorizer::configure_display_is_allowed(pid_t pid)
     Q_UNUSED(pid)
     return true;
 }
+
+bool SessionAuthorizer::screencast_is_allowed(pid_t pid)
+{
+    DLOG("SessionAuthorizer::screencast_is_allowed(this=%p, pid=%d)", this, pid);
+    Q_UNUSED(pid)
+    return true;
+}

@@ -136,7 +136,7 @@ public Q_SLOTS:
 
 UbuntuKeyboardInfo *MirSurfaceItem::m_ubuntuKeyboardInfo = nullptr;
 
-MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::shell::Surface> surface,
+MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
                                Application* application,
                                QQuickItem *parent)
     : QQuickItem(parent)
@@ -144,7 +144,6 @@ MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::shell::Surface> surface,
     , m_application(application)
     , m_pendingClientBuffersCount(0)
     , m_firstFrameDrawn(false)
-    , m_frameNumber(0)
     , m_textureProvider(nullptr)
 {
     DLOG("MirSurfaceItem::MirSurfaceItem");
@@ -259,14 +258,13 @@ bool MirSurfaceItem::updateTexture()    // called by rendering thread (scene gra
 
     if (textureIsOutdated) {
         if (!m_textureProvider->t) {
-            m_textureProvider->t = new MirBufferSGTexture(m_surface->lock_compositor_buffer(m_frameNumber));
+            m_textureProvider->t = new MirBufferSGTexture(m_surface->buffer((void*)123/*user_id*/));
         } else {
             // Avoid holding two buffers for the compositor at the same time. Thus free the current
             // before acquiring the next
             m_textureProvider->t->freeBuffer();
-            m_textureProvider->t->setBuffer(m_surface->lock_compositor_buffer(m_frameNumber));
+            m_textureProvider->t->setBuffer(m_surface->buffer((void*)123/*user_id*/));
         }
-        m_frameNumber++; //FIXME: manage overflow.
         textureUpdated = true;
     }
 
