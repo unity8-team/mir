@@ -38,15 +38,18 @@ public:
                     geometry::Size const& buf_size) const override;
     void tessellate_shadow(std::vector<Primitive>& primitives,
                     graphics::Renderable const& renderable,
-                    float radius) const;
+                    float normal_radius, float focussed_radius) const;
     void tessellate_frame(std::vector<Primitive>& primitives,
                     graphics::Renderable const& renderable,
                     float titlebar_height) const;
+
+    void set_focussed(graphics::Renderable const*) override;
 
 private:
     float const corner_radius;
     GLuint shadow_corner_tex;
     GLuint titlebar_corner_tex;
+    graphics::Renderable const* focus;
 };
 
 } // namespace examples

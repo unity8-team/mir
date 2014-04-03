@@ -128,6 +128,18 @@ bool mc::DefaultDisplayBufferCompositor::composite()
 
         auto const& view_area = display_buffer.view_area();
         auto renderable_list = scene->generate_renderable_list();
+
+        /*
+         * The renderer will usually want to highlight the focussed/active
+         * surface differently. However that information isn't readily 
+         * available yet, so assume it's the top-most one (before culling).
+         * TODO: Find a more certain way to identify the focussed window.
+         */
+        mg::Renderable const* focussed = nullptr;
+        if (!renderable_list.empty())
+            focussed = renderable_list.back().get();
+        renderer->set_focussed(focussed);
+
         mc::filter_occlusions_from(renderable_list, view_area);
 
         for(auto const& renderable : renderable_list)

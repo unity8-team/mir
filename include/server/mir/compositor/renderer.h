@@ -38,6 +38,7 @@ public:
 
     virtual void set_viewport(geometry::Rectangle const& rect) = 0;
     virtual void set_rotation(float degrees) = 0;
+    virtual void set_focussed(graphics::Renderable const*) {}
     virtual void begin() const = 0;
 
     // XXX The buffer parameter here could now be replaced with
