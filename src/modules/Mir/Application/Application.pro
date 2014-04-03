@@ -56,7 +56,7 @@ HEADERS += application_manager.h \
 
 installPath = $$[QT_INSTALL_QML]/$$replace(uri, \\., /)
 
-QML_FILES = qmldir OSKController.qml
+QML_FILES = qmldir
 qml_files.path = $$installPath
 qml_files.files = $$QML_FILES
 
