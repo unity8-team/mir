@@ -140,15 +140,17 @@ DemoRenderer::DemoRenderer(geometry::Rectangle const& display_area)
     , focus(nullptr)
 {
     shadow_corner_tex = generate_shadow_corner_texture(0.4f);
-    titlebar_corner_tex = generate_frame_corner_texture(corner_radius,
-                                                        {128,128,128,255},
-                                                        255);
+    normal_titlebar_corner_tex =
+        generate_frame_corner_texture(corner_radius, {100,100,100,255}, 150);
+    focussed_titlebar_corner_tex =
+        generate_frame_corner_texture(corner_radius, {128,128,128,255}, 255);
 }
 
 DemoRenderer::~DemoRenderer()
 {
     glDeleteTextures(1, &shadow_corner_tex);
-    glDeleteTextures(1, &titlebar_corner_tex);
+    glDeleteTextures(1, &normal_titlebar_corner_tex);
+    glDeleteTextures(1, &focussed_titlebar_corner_tex);
 }
 
 void DemoRenderer::begin() const
@@ -284,6 +286,10 @@ void DemoRenderer::tessellate_frame(std::vector<Primitive>& primitives,
     GLfloat mid = (left + right) / 2.0f;
     if (inleft > mid) inleft = mid;
     if (inright < mid) inright = mid;
+
+    GLuint titlebar_corner_tex = (&renderable == focus) ?
+                                 focussed_titlebar_corner_tex : 
+                                 normal_titlebar_corner_tex;
 
     auto& top_left_corner = primitives[n++];
     top_left_corner.tex_id = titlebar_corner_tex;

@@ -48,7 +48,8 @@ public:
 private:
     float const corner_radius;
     GLuint shadow_corner_tex;
-    GLuint titlebar_corner_tex;
+    GLuint normal_titlebar_corner_tex;
+    GLuint focussed_titlebar_corner_tex;
     graphics::Renderable const* focus;
 };
 
