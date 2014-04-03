@@ -546,6 +546,8 @@ TEST(MultiThreadedCompositor, makes_and_releases_display_buffer_current_target)
 
 TEST(MultiThreadedCompositor, double_start_or_stop_ignored)
 {
+    using namespace testing;
+
     unsigned int const nbuffers{3};
     auto display = std::make_shared<StubDisplayWithMockBuffers>(nbuffers);
     auto mock_scene = std::make_shared<mtd::MockScene>();
@@ -555,8 +557,11 @@ TEST(MultiThreadedCompositor, double_start_or_stop_ignored)
         .Times(1);
     EXPECT_CALL(*mock_report, stopped())
         .Times(1);
-    EXPECT_CALL(*mock_scene, set_change_callback(testing::_))
+    EXPECT_CALL(*mock_scene, set_change_callback(_))
         .Times(2);
+    EXPECT_CALL(*mock_scene, generate_renderable_list())
+        .Times(AtLeast(0))
+        .WillRepeatedly(Return(mg::RenderableList{}));
 
     mc::MultiThreadedCompositor compositor{display, mock_scene, db_compositor_factory, mock_report, true};
 
