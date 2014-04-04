@@ -137,7 +137,7 @@ GLuint generate_frame_corner_texture(float corner_radius,
 DemoRenderer::DemoRenderer(geometry::Rectangle const& display_area)
     : GLRenderer(display_area)
     , corner_radius(0.5f)
-    , focus(nullptr)
+    , focus(0)
 {
     shadow_corner_tex = generate_shadow_corner_texture(0.4f);
     normal_titlebar_corner_tex =
@@ -183,7 +183,8 @@ void DemoRenderer::tessellate_shadow(std::vector<Primitive>& primitives,
     auto n = primitives.size();
     primitives.resize(n + 8);
 
-    GLfloat radius = (&renderable == focus) ? focussed_radius : normal_radius;
+    GLfloat radius = renderable.id() == focus ? focussed_radius :
+                                                normal_radius;
     GLfloat rightr = right + radius;
     GLfloat leftr = left - radius;
     GLfloat topr = top - radius;
@@ -287,7 +288,7 @@ void DemoRenderer::tessellate_frame(std::vector<Primitive>& primitives,
     if (inleft > mid) inleft = mid;
     if (inright < mid) inright = mid;
 
-    GLuint titlebar_corner_tex = (&renderable == focus) ?
+    GLuint titlebar_corner_tex = renderable.id() == focus ?
                                  focussed_titlebar_corner_tex : 
                                  normal_titlebar_corner_tex;
 
@@ -319,7 +320,7 @@ void DemoRenderer::tessellate_frame(std::vector<Primitive>& primitives,
     titlebar.vertices[3] = {{inleft,  top,  0.0f}, {1.0f, 1.0f}};
 }
 
-void DemoRenderer::set_focussed(graphics::Renderable const* r)
+void DemoRenderer::set_focussed(graphics::Renderable::ID id)
 {
-    focus = r;
+    focus = id;
 }

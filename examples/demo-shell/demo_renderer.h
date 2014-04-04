@@ -43,14 +43,14 @@ public:
                     graphics::Renderable const& renderable,
                     float titlebar_height) const;
 
-    void set_focussed(graphics::Renderable const*) override;
+    void set_focussed(graphics::Renderable::ID id) override;
 
 private:
     float const corner_radius;
     GLuint shadow_corner_tex;
     GLuint normal_titlebar_corner_tex;
     GLuint focussed_titlebar_corner_tex;
-    graphics::Renderable const* focus;
+    graphics::Renderable::ID focus;
 };
 
 } // namespace examples

@@ -19,14 +19,14 @@
 #ifndef MIR_COMPOSITOR_RENDERER_H_
 #define MIR_COMPOSITOR_RENDERER_H_
 
-#include "mir/geometry/rectangle.h"
+#include <mir/geometry/rectangle.h>
+#include <mir/graphics/renderable.h>
 
 namespace mir
 {
 namespace graphics
 {
 class Buffer;
-class Renderable;
 }
 namespace compositor
 {
@@ -38,7 +38,7 @@ public:
 
     virtual void set_viewport(geometry::Rectangle const& rect) = 0;
     virtual void set_rotation(float degrees) = 0;
-    virtual void set_focussed(graphics::Renderable const*) {}
+    virtual void set_focussed(graphics::Renderable::ID) {}
     virtual void begin() const = 0;
 
     // XXX The buffer parameter here could now be replaced with

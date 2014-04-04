@@ -130,10 +130,10 @@ bool mc::DefaultDisplayBufferCompositor::composite()
          * available yet, so assume it's the top-most one (before culling).
          * TODO: Find a more certain way to identify the focussed window.
          */
-        mg::Renderable const* focussed = nullptr;
+        mg::Renderable::ID focus = 0;
         if (!renderable_list.empty())
-            focussed = renderable_list.back().get();
-        renderer->set_focussed(focussed);
+            focus = renderable_list.back()->id();
+        renderer->set_focussed(focus);
 
         mc::filter_occlusions_from(renderable_list, view_area);
 
