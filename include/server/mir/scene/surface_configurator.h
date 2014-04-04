@@ -16,31 +16,39 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
+#ifndef MIR_SCENE_SURFACE_CONFIGURATOR_H_
+#define MIR_SCENE_SURFACE_CONFIGURATOR_H_
 
-#ifndef MIR_SHELL_SURFACE_RANKER_H_
-#define MIR_SHELL_SURFACE_RANKER_H_
+#include "mir_toolkit/common.h"
 
 #include <memory>
 
 namespace mir
 {
+
 namespace scene
 {
 class Surface;
 
-class SurfaceRanker
+class SurfaceConfigurator
 {
 public:
-    virtual void raise(std::weak_ptr<Surface> const& surface) = 0;
+    virtual ~SurfaceConfigurator() = default;
+
+    /// Returns the selected value.
+    virtual int select_attribute_value(Surface const& surface, MirSurfaceAttrib attrib,
+                                       int requested_value) = 0;
+
+    virtual void attribute_set(Surface const& surface, MirSurfaceAttrib attrib,
+                               int new_value) = 0;
 
 protected:
-    SurfaceRanker() = default;
-    virtual ~SurfaceRanker() = default;
-    SurfaceRanker(SurfaceRanker const&) = delete;
-    SurfaceRanker& operator=(SurfaceRanker const&) = delete;
+    SurfaceConfigurator() = default;
+    SurfaceConfigurator(SurfaceConfigurator const&) = delete;
+    SurfaceConfigurator& operator=(SurfaceConfigurator const&) = delete;
 };
-}
-}
 
+}
+} // namespace mir
 
-#endif /* MIR_SHELL_SURFACE_RANKER_H_ */
+#endif // MIR_SCENE_SURFACE_CONFIGURATOR_H_

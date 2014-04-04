@@ -17,12 +17,14 @@
  */
 
 #include "src/server/scene/basic_surface.h"
+#include "src/server/scene/legacy_surface_change_notification.h"
 
 #include "mir/frontend/event_sink.h"
 #include "mir/geometry/rectangle.h"
-#include "mir/shell/surface_configurator.h"
+#include "mir/scene/surface_configurator.h"
 
 #include "mir_test_doubles/mock_buffer_stream.h"
+#include "mir_test_doubles/stub_buffer.h"
 #include "mir_test/fake_shared.h"
 
 #include "src/server/report/null_report_factory.h"
@@ -57,11 +59,11 @@ public:
     void handle_display_config_change(mir::graphics::DisplayConfiguration const&) override {}
 };
 
-struct StubSurfaceConfigurator : msh::SurfaceConfigurator
+struct StubSurfaceConfigurator : ms::SurfaceConfigurator
 {
-    int select_attribute_value(msh::Surface const&, MirSurfaceAttrib, int) override { return 0; }
+    int select_attribute_value(ms::Surface const&, MirSurfaceAttrib, int) override { return 0; }
 
-    void attribute_set(msh::Surface const&, MirSurfaceAttrib, int) override { }
+    void attribute_set(ms::Surface const&, MirSurfaceAttrib, int) override { }
 };
 
 struct BasicSurfaceTest : public testing::Test
@@ -85,7 +87,6 @@ struct BasicSurfaceTest : public testing::Test
     std::function<void()> mock_change_cb;
     std::shared_ptr<testing::NiceMock<mtd::MockBufferStream>> mock_buffer_stream =
         std::make_shared<testing::NiceMock<mtd::MockBufferStream>>();
-    std::shared_ptr<StubEventSink> const stub_event_sink = std::make_shared<StubEventSink>();
     std::shared_ptr<StubSurfaceConfigurator> const stub_configurator = std::make_shared<StubSurfaceConfigurator>();
     std::shared_ptr<ms::SceneReport> const report = mr::null_scene_report();
 };
@@ -94,22 +95,54 @@ struct BasicSurfaceTest : public testing::Test
 
 TEST_F(BasicSurfaceTest, basics)
 {
-    ms::BasicSurface data{
-        mf::SurfaceId(),
+    ms::BasicSurface surface{
         name,
         rect,
-        null_change_cb,
         false,
         mock_buffer_stream,
         std::shared_ptr<mi::InputChannel>(),
-        stub_event_sink,
         stub_configurator,
         report};
 
-    EXPECT_EQ(name, data.name());
-    EXPECT_EQ(rect.size, data.size());
-    EXPECT_EQ(rect.top_left, data.top_left());
-    EXPECT_FALSE(data.shaped());
+    EXPECT_EQ(name, surface.name());
+    EXPECT_EQ(rect.size, surface.size());
+    EXPECT_EQ(rect.top_left, surface.top_left());
+    EXPECT_FALSE(surface.shaped());
+}
+
+TEST_F(BasicSurfaceTest, id_always_unique)
+{
+    int const N = 10;
+    std::unique_ptr<ms::BasicSurface> surfaces[N];
+
+    for (int i = 0; i < N; ++i)
+    {
+        surfaces[i].reset(new ms::BasicSurface(
+                name, rect, false, mock_buffer_stream,
+                std::shared_ptr<mi::InputChannel>(), stub_configurator, report)
+            );
+
+        for (int j = 0; j < i; ++j)
+        {
+            ASSERT_NE(surfaces[j]->id(), surfaces[i]->id());
+        }
+    }
+}
+
+TEST_F(BasicSurfaceTest, id_never_invalid)
+{
+    int const N = 10;
+    std::unique_ptr<ms::BasicSurface> surfaces[N];
+
+    for (int i = 0; i < N; ++i)
+    {
+        surfaces[i].reset(new ms::BasicSurface(
+                name, rect, false, mock_buffer_stream,
+                std::shared_ptr<mi::InputChannel>(), stub_configurator, report)
+            );
+
+        ASSERT_TRUE(surfaces[i]->id());
+    }
 }
 
 TEST_F(BasicSurfaceTest, update_top_left)
@@ -117,23 +150,23 @@ TEST_F(BasicSurfaceTest, update_top_left)
     EXPECT_CALL(mock_callback, call())
         .Times(1);
 
-    ms::BasicSurface storage{
-        mf::SurfaceId(),
+    ms::BasicSurface surface{
         name,
         rect,
-        mock_change_cb,
         false,
         mock_buffer_stream,
         std::shared_ptr<mi::InputChannel>(),
-        stub_event_sink,
         stub_configurator,
         report};
 
-    EXPECT_EQ(rect.top_left, storage.top_left());
+    auto const observer = std::make_shared<ms::LegacySurfaceChangeNotification>(mock_change_cb);
+    surface.add_observer(observer);
+
+    EXPECT_EQ(rect.top_left, surface.top_left());
 
     auto new_top_left = geom::Point{geom::X{6}, geom::Y{10}};
-    storage.move_to(new_top_left);
-    EXPECT_EQ(new_top_left, storage.top_left());
+    surface.move_to(new_top_left);
+    EXPECT_EQ(new_top_left, surface.top_left());
 }
 
 TEST_F(BasicSurfaceTest, update_size)
@@ -143,27 +176,27 @@ TEST_F(BasicSurfaceTest, update_size)
     EXPECT_CALL(mock_callback, call())
         .Times(1);
 
-    ms::BasicSurface storage{
-        mf::SurfaceId(),
+    ms::BasicSurface surface{
         name,
         rect,
-        mock_change_cb,
         false,
         mock_buffer_stream,
         std::shared_ptr<mi::InputChannel>(),
-        stub_event_sink,
         stub_configurator,
         report};
 
-    EXPECT_EQ(rect.size, storage.size());
-    EXPECT_NE(new_size, storage.size());
+    auto const observer = std::make_shared<ms::LegacySurfaceChangeNotification>(mock_change_cb);
+    surface.add_observer(observer);
 
-    auto old_transformation = storage.transformation();
+    EXPECT_EQ(rect.size, surface.size());
+    EXPECT_NE(new_size, surface.size());
 
-    storage.resize(new_size);
-    EXPECT_EQ(new_size, storage.size());
+    auto old_transformation = surface.transformation();
+
+    surface.resize(new_size);
+    EXPECT_EQ(new_size, surface.size());
     // Size no longer affects transformation:
-    EXPECT_EQ(old_transformation, storage.transformation());
+    EXPECT_EQ(old_transformation, surface.transformation());
 }
 
 TEST_F(BasicSurfaceTest, test_surface_set_transformation_updates_transform)
@@ -171,26 +204,26 @@ TEST_F(BasicSurfaceTest, test_surface_set_transformation_updates_transform)
     EXPECT_CALL(mock_callback, call())
         .Times(1);
 
-    ms::BasicSurface storage{
-        mf::SurfaceId(),
+    ms::BasicSurface surface{
         name,
         rect,
-        mock_change_cb,
         false,
         mock_buffer_stream,
         std::shared_ptr<mi::InputChannel>(),
-        stub_event_sink,
         stub_configurator,
         report};
 
-    auto original_transformation = storage.transformation();
+    auto const observer = std::make_shared<ms::LegacySurfaceChangeNotification>(mock_change_cb);
+    surface.add_observer(observer);
+
+    auto original_transformation = surface.transformation();
     glm::mat4 trans{0.1f, 0.5f, 0.9f, 1.3f,
                     0.2f, 0.6f, 1.0f, 1.4f,
                     0.3f, 0.7f, 1.1f, 1.5f,
                     0.4f, 0.8f, 1.2f, 1.6f};
 
-    storage.set_transformation(trans);
-    auto got = storage.transformation();
+    surface.set_transformation(trans);
+    auto got = surface.transformation();
     EXPECT_NE(original_transformation, got);
     EXPECT_EQ(trans, got);
 }
@@ -201,76 +234,75 @@ TEST_F(BasicSurfaceTest, test_surface_set_alpha_notifies_changes)
     EXPECT_CALL(mock_callback, call())
         .Times(1);
 
-    ms::BasicSurface surface_state{
-        mf::SurfaceId(),
+    ms::BasicSurface surface{
         name,
         rect,
-        mock_change_cb,
         false,
         mock_buffer_stream,
         std::shared_ptr<mi::InputChannel>(),
-        stub_event_sink,
         stub_configurator,
         report};
 
+    auto const observer = std::make_shared<ms::LegacySurfaceChangeNotification>(mock_change_cb);
+    surface.add_observer(observer);
+
     float alpha = 0.5f;
-    surface_state.set_alpha(0.5f);
-    EXPECT_THAT(alpha, FloatEq(surface_state.alpha()));
+    surface.set_alpha(0.5f);
+    EXPECT_THAT(alpha, FloatEq(surface.alpha()));
 }
 
 TEST_F(BasicSurfaceTest, test_surface_is_opaque_by_default)
 {
     using namespace testing;
-    ms::BasicSurface surface_state{
-        mf::SurfaceId(),
+    ms::BasicSurface surface{
         name,
         rect,
-        null_change_cb,
         false,
         mock_buffer_stream,
         std::shared_ptr<mi::InputChannel>(),
-        stub_event_sink,
         stub_configurator,
         report};
 
-    EXPECT_THAT(1.0f, FloatEq(surface_state.alpha()));
-    EXPECT_FALSE(surface_state.shaped());
+    EXPECT_THAT(1.0f, FloatEq(surface.alpha()));
+    EXPECT_FALSE(surface.shaped());
 }
 
-TEST_F(BasicSurfaceTest, test_surface_should_be_rendered_in)
+TEST_F(BasicSurfaceTest, test_surface_visibility)
 {
-    ms::BasicSurface surface_state{
-        mf::SurfaceId(),
+    using namespace testing;
+    mtd::StubBuffer mock_buffer;
+    EXPECT_CALL(*mock_buffer_stream, swap_client_buffers(_,_)).Times(2)
+        .WillRepeatedly(InvokeArgument<1>(&mock_buffer));
+
+    mir::graphics::Buffer* buffer = nullptr;
+    auto const callback = [&](mir::graphics::Buffer* new_buffer) { buffer = new_buffer; };
+
+    ms::BasicSurface surface{
         name,
         rect,
-        mock_change_cb,
         false,
         mock_buffer_stream,
         std::shared_ptr<mi::InputChannel>(),
-        stub_event_sink,
         stub_configurator,
         report};
 
-    geom::Rectangle output_rect{geom::Point{0,0}, geom::Size{100, 100}};
+    //not visible by default
+    EXPECT_FALSE(surface.visible());
 
-    //not renderable by default
-    EXPECT_FALSE(surface_state.should_be_rendered_in(rect));
-
-    surface_state.set_hidden(false);
+    surface.set_hidden(false);
     //not renderable if no first frame has been posted by client, regardless of hide state
-    EXPECT_FALSE(surface_state.should_be_rendered_in(output_rect));
-    surface_state.set_hidden(true);
-    EXPECT_FALSE(surface_state.should_be_rendered_in(output_rect));
+    EXPECT_FALSE(surface.visible());
+    surface.set_hidden(true);
+    EXPECT_FALSE(surface.visible());
 
-    surface_state.frame_posted();
-    EXPECT_FALSE(surface_state.should_be_rendered_in(output_rect));
+    // The second call posts the buffer returned by first
+    surface.swap_buffers(buffer, callback);
+    surface.swap_buffers(buffer, callback);
 
-    surface_state.set_hidden(false);
-    EXPECT_TRUE(surface_state.should_be_rendered_in(output_rect));
+    EXPECT_FALSE(surface.visible());
 
-    // Not renderable if not overlapping with supplied rect
-    geom::Rectangle output_rect1{geom::Point{100,100}, geom::Size{100, 100}};
-    EXPECT_FALSE(surface_state.should_be_rendered_in(output_rect1));
+    surface.set_hidden(false);
+    EXPECT_TRUE(surface.visible());
 }
 
 TEST_F(BasicSurfaceTest, test_surface_hidden_notifies_changes)
@@ -279,40 +311,48 @@ TEST_F(BasicSurfaceTest, test_surface_hidden_notifies_changes)
     EXPECT_CALL(mock_callback, call())
         .Times(1);
 
-    ms::BasicSurface surface_state{
-        mf::SurfaceId(),
+    ms::BasicSurface surface{
         name,
         rect,
-        mock_change_cb,
         false,
         mock_buffer_stream,
         std::shared_ptr<mi::InputChannel>(),
-        stub_event_sink,
         stub_configurator,
         report};
 
-    surface_state.set_hidden(true);
+    auto const observer = std::make_shared<ms::LegacySurfaceChangeNotification>(mock_change_cb);
+    surface.add_observer(observer);
+
+    surface.set_hidden(true);
 }
 
 TEST_F(BasicSurfaceTest, test_surface_frame_posted_notifies_changes)
 {
     using namespace testing;
-    EXPECT_CALL(mock_callback, call())
-        .Times(1);
+    mtd::StubBuffer mock_buffer;
+    EXPECT_CALL(*mock_buffer_stream, swap_client_buffers(_,_)).Times(2)
+        .WillRepeatedly(InvokeArgument<1>(&mock_buffer));
 
-    ms::BasicSurface surface_state{
-        mf::SurfaceId(),
+    ms::BasicSurface surface{
         name,
         rect,
-        mock_change_cb,
         false,
         mock_buffer_stream,
         std::shared_ptr<mi::InputChannel>(),
-        stub_event_sink,
         stub_configurator,
         report};
 
-    surface_state.frame_posted();
+    auto const observer = std::make_shared<ms::LegacySurfaceChangeNotification>(mock_change_cb);
+    surface.add_observer(observer);
+
+    mir::graphics::Buffer* buffer = nullptr;
+    auto const callback = [&](mir::graphics::Buffer* new_buffer) { buffer = new_buffer; };
+
+    EXPECT_CALL(mock_callback, call()).Times(1);
+
+    // The second call posts the buffer returned by first
+    surface.swap_buffers(buffer, callback);
+    surface.swap_buffers(buffer, callback);
 }
 
 // a 1x1 window at (1,1) will get events at (1,1)
@@ -320,17 +360,17 @@ TEST_F(BasicSurfaceTest, default_region_is_surface_rectangle)
 {
     geom::Point pt(1,1);
     geom::Size one_by_one{geom::Width{1}, geom::Height{1}};
-    ms::BasicSurface surface_state{
-        mf::SurfaceId(),
+    ms::BasicSurface surface{
         name,
         geom::Rectangle{pt, one_by_one},
-        mock_change_cb,
         false,
         mock_buffer_stream,
         std::shared_ptr<mi::InputChannel>(),
-        stub_event_sink,
         stub_configurator,
         report};
+
+    auto const observer = std::make_shared<ms::LegacySurfaceChangeNotification>(mock_change_cb);
+    surface.add_observer(observer);
 
     std::vector<geom::Point> contained_pt
     {
@@ -342,7 +382,7 @@ TEST_F(BasicSurfaceTest, default_region_is_surface_rectangle)
         for(auto y = 0; y <= 3; y++)
         {
             auto test_pt = geom::Point{x, y};
-            auto contains = surface_state.contains(test_pt);
+            auto contains = surface.contains(test_pt);
             if (std::find(contained_pt.begin(), contained_pt.end(), test_pt) != contained_pt.end())
             {
                 EXPECT_TRUE(contains);
@@ -362,19 +402,19 @@ TEST_F(BasicSurfaceTest, set_input_region)
         {{geom::X{1}, geom::Y{1}}, {geom::Width{1}, geom::Height{1}}}  //region1
     };
 
-    ms::BasicSurface surface_state{
-        mf::SurfaceId(),
+    ms::BasicSurface surface{
         name,
         rect,
-        mock_change_cb,
         false,
         mock_buffer_stream,
         std::shared_ptr<mi::InputChannel>(),
-        stub_event_sink,
         stub_configurator,
         report};
 
-    surface_state.set_input_region(rectangles);
+    auto const observer = std::make_shared<ms::LegacySurfaceChangeNotification>(mock_change_cb);
+    surface.add_observer(observer);
+
+    surface.set_input_region(rectangles);
 
     std::vector<geom::Point> contained_pt
     {
@@ -389,7 +429,7 @@ TEST_F(BasicSurfaceTest, set_input_region)
         for(auto y = 0; y <= 3; y++)
         {
             auto test_pt = geom::Point{x, y};
-            auto contains = surface_state.contains(test_pt);
+            auto contains = surface.contains(test_pt);
             if (std::find(contained_pt.begin(), contained_pt.end(), test_pt) != contained_pt.end())
             {
                 EXPECT_TRUE(contains);

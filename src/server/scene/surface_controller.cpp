@@ -18,25 +18,37 @@
 
 #include "surface_controller.h"
 #include "surface_stack_model.h"
+#include "mir/scene/surface_factory.h"
+#include "mir/scene/surface.h"
+#include "mir/shell/placement_strategy.h"
 
 namespace ms = mir::scene;
 namespace msh = mir::shell;
 
-ms::SurfaceController::SurfaceController(std::shared_ptr<SurfaceStackModel> const& surface_stack) :
+ms::SurfaceController::SurfaceController(
+    std::shared_ptr<SurfaceFactory> const& surface_factory,
+    std::shared_ptr<msh::PlacementStrategy> const& placement_strategy,
+    std::shared_ptr<SurfaceStackModel> const& surface_stack) :
+    surface_factory(surface_factory),
+    placement_strategy(placement_strategy),
     surface_stack(surface_stack)
 {
 }
 
-std::weak_ptr<ms::Surface> ms::SurfaceController::create_surface(
-    frontend::SurfaceId id,
+std::shared_ptr<ms::Surface> ms::SurfaceController::add_surface(
     shell::SurfaceCreationParameters const& params,
-    std::shared_ptr<frontend::EventSink> const& event_sink,
-    std::shared_ptr<shell::SurfaceConfigurator> const& configurator)
+    Session* session,
+    std::shared_ptr<SurfaceObserver> const& observer)
 {
-    return surface_stack->create_surface(id, params, event_sink, configurator);
+    auto placed_params = placement_strategy->place(*session, params);
+
+    auto const surface = surface_factory->create_surface(placed_params);
+    surface->add_observer(observer);
+    surface_stack->add_surface(surface, placed_params.depth, placed_params.input_mode);
+    return surface;
 }
 
-void ms::SurfaceController::destroy_surface(std::weak_ptr<Surface> const& surface)
+void ms::SurfaceController::remove_surface(std::weak_ptr<Surface> const& surface)
 {
     surface_stack->remove_surface(surface);
 }

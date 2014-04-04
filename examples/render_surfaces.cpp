@@ -30,8 +30,8 @@
 #include "mir/graphics/display.h"
 #include "mir/graphics/display_buffer.h"
 #include "mir/graphics/gl_context.h"
-#include "mir/shell/surface_factory.h"
-#include "mir/shell/surface.h"
+#include "mir/scene/surface.h"
+#include "mir/scene/surface_coordinator.h"
 #include "mir/run_mir.h"
 #include "mir/report_exception.h"
 #include "mir/raii.h"
@@ -194,7 +194,7 @@ class Moveable
 {
 public:
     Moveable() {}
-    Moveable(std::shared_ptr<msh::Surface> const& s, const geom::Size& display_size,
+    Moveable(std::shared_ptr<ms::Surface> const& s, const geom::Size& display_size,
              float dx, float dy, const glm::vec3& rotation_axis, float alpha_offset)
         : surface(s), display_size(display_size),
           x{static_cast<float>(s->top_left().x.as_uint32_t())},
@@ -250,7 +250,7 @@ public:
     }
 
 private:
-    std::shared_ptr<msh::Surface> surface;
+    std::shared_ptr<ms::Surface> surface;
     geom::Size display_size;
     float x;
     float y;
@@ -445,7 +445,7 @@ public:
         std::cout << "Rendering " << moveables.size() << " surfaces" << std::endl;
 
         auto const display = the_display();
-        auto const surface_factory = the_scene_surface_factory();
+        auto const surface_coordinator = the_surface_coordinator();
         /* TODO: Get proper configuration */
         geom::Rectangles view_area;
         display->for_each_display_buffer([&view_area](mg::DisplayBuffer const& db)
@@ -464,12 +464,12 @@ public:
         int i = 0;
         for (auto& m : moveables)
         {
-            auto const s = surface_factory->create_surface(
-                    nullptr,
+            auto const s = surface_coordinator->add_surface(
                     msh::a_surface().of_size(surface_size)
                                    .of_pixel_format(surface_pf)
                                    .of_buffer_usage(mg::BufferUsage::hardware),
-                    mf::SurfaceId(), {});
+                    nullptr,
+                    {});
 
             /*
              * We call swap_buffers() twice so that the surface is

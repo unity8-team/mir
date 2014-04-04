@@ -28,6 +28,7 @@
 #include "mir_test_doubles/stub_driver_interpreter.h"
 #include "mir_test_doubles/stub_display_buffer.h"
 #include "mir_test_doubles/stub_buffer.h"
+#include "mir_test_doubles/stub_gl_config.h"
 #include "mir_test_doubles/mock_framebuffer_bundle.h"
 #include <memory>
 
@@ -50,13 +51,19 @@ protected:
         dummy_config = mock_egl.fake_configs[0];
         dummy_context = mock_egl.fake_egl_context;
         testing::NiceMock<mtd::MockDisplayReport> report;
-        gl_context = std::make_shared<mga::GLContext>(mga::to_mir_format(mock_egl.fake_visual_id),report);
+        mtd::StubGLConfig stub_gl_config;
+
+        gl_context = std::make_shared<mga::GLContext>(
+            mga::to_mir_format(mock_egl.fake_visual_id), stub_gl_config, report);
+
         mock_fb_bundle = std::make_shared<testing::NiceMock<mtd::MockFBBundle>>();
 
         ON_CALL(*mock_fb_bundle, fb_format())
             .WillByDefault(testing::Return(mir_pixel_format_abgr_8888));
         ON_CALL(*mock_fb_bundle, fb_size())
             .WillByDefault(testing::Return(display_size));
+        ON_CALL(*mock_fb_bundle, fb_refresh_rate())
+            .WillByDefault(testing::Return(refresh_rate));
     }
 
     testing::NiceMock<mtd::MockEGL> mock_egl;
@@ -72,6 +79,7 @@ protected:
     std::shared_ptr<mtd::MockDisplayDevice> mock_display_device;
     std::shared_ptr<mtd::MockFBBundle> mock_fb_bundle;
     geom::Size const display_size{433,232};
+    double const refresh_rate{60.0};
 };
 
 TEST_F(AndroidDisplayBuffer, can_post_update_with_gl_only)
@@ -394,6 +402,6 @@ TEST_F(AndroidDisplayBuffer, android_display_configuration_info)
     EXPECT_EQ(origin, disp_conf.top_left);
     EXPECT_EQ(0, disp_conf.current_mode_index);
 
-    //TODO fill refresh rate accordingly
+    EXPECT_EQ(refresh_rate, disp_mode.vrefresh_hz);
     //TODO fill physical_size_mm fields accordingly;
 }

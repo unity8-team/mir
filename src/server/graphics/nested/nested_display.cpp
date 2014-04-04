@@ -27,6 +27,7 @@
 #include "mir/graphics/surfaceless_egl_context.h"
 #include "mir/graphics/display_configuration_policy.h"
 #include "mir/graphics/overlapping_output_grouping.h"
+#include "mir/graphics/gl_config.h"
 #include "host_connection.h"
 
 #include <boost/throw_exception.hpp>
@@ -58,9 +59,12 @@ mgn::detail::EGLSurfaceHandle::~EGLSurfaceHandle() noexcept
     eglDestroySurface(egl_display, egl_surface);
 }
 
-mgn::detail::EGLDisplayHandle::EGLDisplayHandle(MirConnection* connection)
+mgn::detail::EGLDisplayHandle::EGLDisplayHandle(
+    MirConnection* connection,
+    std::shared_ptr<GLConfig> const& gl_config)
     : egl_display(EGL_NO_DISPLAY),
-    egl_context_(EGL_NO_CONTEXT)
+      egl_context_(EGL_NO_CONTEXT),
+      gl_config{gl_config}
 {
     auto const native_display = (EGLNativeDisplayType) mir_connection_get_egl_native_display(connection);
     egl_display = eglGetDisplay(native_display);
@@ -93,6 +97,8 @@ EGLConfig mgn::detail::EGLDisplayHandle::choose_windowed_es_config(MirPixelForma
         EGL_GREEN_SIZE, mg::green_channel_depth(format),
         EGL_BLUE_SIZE, mg::blue_channel_depth(format),
         EGL_ALPHA_SIZE, mg::alpha_channel_depth(format),
+        EGL_DEPTH_SIZE, gl_config->depth_buffer_bits(),
+        EGL_STENCIL_SIZE, gl_config->stencil_buffer_bits(),
         EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
         EGL_NONE
     };
@@ -130,17 +136,17 @@ mgn::NestedDisplay::NestedDisplay(
     std::shared_ptr<HostConnection> const& connection,
     std::shared_ptr<input::EventFilter> const& event_handler,
     std::shared_ptr<mg::DisplayReport> const& display_report,
-    std::shared_ptr<mg::DisplayConfigurationPolicy> const& initial_conf_policy) :
+    std::shared_ptr<mg::DisplayConfigurationPolicy> const& initial_conf_policy,
+    std::shared_ptr<mg::GLConfig> const& gl_config) :
     connection{connection},
     event_handler{event_handler},
     display_report{display_report},
-    egl_display{*connection},
+    egl_display{*connection, gl_config},
     outputs{}
 {
-
     std::shared_ptr<DisplayConfiguration> conf(configuration());
     initial_conf_policy->apply_to(*conf);
-    configure(*conf);
+    create_surfaces(*conf);
 }
 
 mgn::NestedDisplay::~NestedDisplay() noexcept
@@ -172,6 +178,12 @@ void mgn::NestedDisplay::complete_display_initialization(MirPixelFormat format)
 }
 
 void mgn::NestedDisplay::configure(mg::DisplayConfiguration const& configuration)
+{
+    create_surfaces(configuration);
+    apply_to_connection(configuration);
+}
+
+void mgn::NestedDisplay::create_surfaces(mg::DisplayConfiguration const& configuration)
 {
     if (!configuration.valid())
     {
@@ -224,12 +236,16 @@ void mgn::NestedDisplay::configure(mg::DisplayConfiguration const& configuration
     if (result.empty())
         BOOST_THROW_EXCEPTION(std::runtime_error("Nested Mir needs at least one output for display"));
 
-    auto const& conf = dynamic_cast<NestedDisplayConfiguration const&>(configuration);
 
     {
         std::unique_lock<std::mutex> lock(outputs_mutex);
         outputs.swap(result);
     }
+}
+
+void mgn::NestedDisplay::apply_to_connection(mg::DisplayConfiguration const& configuration)
+{
+    auto const& conf = dynamic_cast<NestedDisplayConfiguration const&>(configuration);
 
     mir_connection_apply_display_config(*connection, conf);
 }
