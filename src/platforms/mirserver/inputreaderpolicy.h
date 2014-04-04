@@ -8,7 +8,7 @@
 class InputReaderPolicy : public android::InputReaderPolicyInterface
 {
 public:
-    InputReaderPolicy(std::shared_ptr<mir::input::InputRegion> inputRegion);
+    InputReaderPolicy(const std::shared_ptr<mir::input::InputRegion> &inputRegion);
 
     // From InputReaderPolicyInterface
     void getReaderConfiguration(android::InputReaderConfiguration* outConfig) override;
@@ -19,6 +19,7 @@ public:
 
 private:
     std::shared_ptr<mir::input::InputRegion> mInputRegion;
+    android::sp<android::PointerControllerInterface> mPointerController;
 };
 
 #endif // MIRSERVER_INPUT_READER_POLICY_H

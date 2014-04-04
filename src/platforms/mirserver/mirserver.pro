@@ -44,6 +44,7 @@ SOURCES += \
     dbusscreen.cpp \
     qtcompositor.cpp \
     ../common/ubuntutheme.cpp \
+    pointercontroller.cpp
 
 HEADERS += \
     inputreaderpolicy.h \
@@ -70,6 +71,7 @@ HEADERS += \
     dbusscreen.h \
     qtcompositor.h \
     ../common/ubuntutheme.h \
+    pointercontroller.h
 
 
 # Installation path

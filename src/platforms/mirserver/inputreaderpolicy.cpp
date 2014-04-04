@@ -1,11 +1,13 @@
 #include "inputreaderpolicy.h"
+#include "pointercontroller.h"
 
 #include <mir/geometry/rectangle.h>
 
 using namespace android;
 
-InputReaderPolicy::InputReaderPolicy(std::shared_ptr<mir::input::InputRegion> inputRegion)
+InputReaderPolicy::InputReaderPolicy(const std::shared_ptr<mir::input::InputRegion> &inputRegion)
     : mInputRegion(inputRegion)
+    , mPointerController(new unitymir::PointerController(inputRegion))
 {
 }
 
@@ -32,7 +34,7 @@ void InputReaderPolicy::getReaderConfiguration(InputReaderConfiguration* outConf
 sp<PointerControllerInterface> InputReaderPolicy::obtainPointerController(int32_t deviceId)
 {
     (void)deviceId;
-    return nullptr;
+    return mPointerController;
 }
 
 void InputReaderPolicy::notifyInputDevicesChanged(const Vector<InputDeviceInfo>& inputDevices)
