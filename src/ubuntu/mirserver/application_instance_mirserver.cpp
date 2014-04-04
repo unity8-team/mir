@@ -33,10 +33,10 @@ namespace mf = mir::frontend;
 namespace ms = mir::scene;
 namespace msh = mir::shell;
 
-uams::Instance::Instance(std::shared_ptr<ms::SurfaceCoordinator> const &surface_factory,
+uams::Instance::Instance(std::shared_ptr<ms::SurfaceCoordinator> const &surface_coordinator,
                          uam::Description* description_,
                          uam::Options *options_)
-    : surface_factory(surface_factory),
+    : surface_coordinator(surface_coordinator),
       ref_count(1)
 {
     description = DescriptionPtr(description_, 
@@ -75,5 +75,5 @@ void uams::Instance::unref()
 
 std::shared_ptr<ms::Surface> uams::Instance::create_surface(msh::SurfaceCreationParameters const& parameters)
 {
-    return surface_factory->add_surface(parameters, nullptr, {});
+    return surface_coordinator->add_surface(parameters, nullptr, {});
 }

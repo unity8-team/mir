@@ -52,7 +52,7 @@ namespace server
 class Instance
 {
 public:
-    Instance(std::shared_ptr< ::mir::scene::SurfaceCoordinator> const& surface_factory,
+    Instance(std::shared_ptr< ::mir::scene::SurfaceCoordinator> const& surface_coordinator,
              ubuntu::application::mir::Description* description, 
              ubuntu::application::mir::Options *options);
     ~Instance() = default;
@@ -76,7 +76,7 @@ private:
     OptionsPtr options;
     DescriptionPtr description;
     
-    std::shared_ptr< ::mir::scene::SurfaceCoordinator> const surface_factory;
+    std::shared_ptr< ::mir::scene::SurfaceCoordinator> const surface_coordinator;
     int ref_count;
 };
 
