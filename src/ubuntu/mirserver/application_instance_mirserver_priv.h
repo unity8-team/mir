@@ -26,11 +26,14 @@
 
 namespace mir
 {
+namespace scene
+{
+class Surface;
+class SurfaceCoordinator;
+}
 namespace shell
 {
 class SurfaceCreationParameters;
-class Surface;
-class SurfaceFactory;
 }
 }
 
@@ -49,7 +52,7 @@ namespace server
 class Instance
 {
 public:
-    Instance(std::shared_ptr< ::mir::shell::SurfaceFactory> const& surface_factory,
+    Instance(std::shared_ptr< ::mir::scene::SurfaceCoordinator> const& surface_factory,
              ubuntu::application::mir::Description* description, 
              ubuntu::application::mir::Options *options);
     ~Instance() = default;
@@ -60,7 +63,7 @@ public:
     void ref();
     void unref();
     
-    std::shared_ptr< ::mir::shell::Surface> create_surface( ::mir::shell::SurfaceCreationParameters const& parameters);
+    std::shared_ptr< ::mir::scene::Surface> create_surface( ::mir::shell::SurfaceCreationParameters const& parameters);
     
 protected:
     Instance(Instance const&) = delete;
@@ -73,7 +76,7 @@ private:
     OptionsPtr options;
     DescriptionPtr description;
     
-    std::shared_ptr< ::mir::shell::SurfaceFactory> const surface_factory;
+    std::shared_ptr< ::mir::scene::SurfaceCoordinator> const surface_factory;
     int ref_count;
 };
 

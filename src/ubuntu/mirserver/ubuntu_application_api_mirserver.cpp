@@ -46,7 +46,7 @@
 #include <mir/frontend/session.h>
 #include <mir/frontend/shell.h>
 #include <mir/shell/surface_creation_parameters.h>
-#include <mir/shell/surface.h>
+#include <mir/scene/surface.h>
 #include <mir/graphics/internal_client.h>
 #include <mir/input/input_platform.h>
 
@@ -65,7 +65,7 @@ struct MirServerContext
 {
     std::shared_ptr<mir::graphics::Display> display;
     std::shared_ptr<mir::graphics::GraphicBufferAllocator> buffer_allocator;
-    std::shared_ptr<mir::shell::SurfaceFactory> surface_factory;
+    std::shared_ptr<mir::scene::SurfaceCoordinator> surface_factory;
     std::shared_ptr<mir::input::receiver::InputPlatform> input_platform;
     std::shared_ptr<mir::graphics::InternalClient> egl_client;
 };
@@ -86,7 +86,7 @@ void ua_ui_mirserver_init(mir::DefaultServerConfiguration& config)
 
     context->display = config.the_display();
     context->buffer_allocator = config.the_buffer_allocator();
-    context->surface_factory = config.the_shell_surface_factory();
+    context->surface_factory = config.the_surface_coordinator();
     context->input_platform = mir::input::receiver::InputPlatform::create();
     context->egl_client = config.the_graphics_platform()->create_internal_client();
 }

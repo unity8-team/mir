@@ -22,17 +22,18 @@
 #include "mircommon/application_options_mir_priv.h"
 #include "mircommon/application_id_mir_priv.h"
 
-#include <mir/shell/surface.h>
-#include <mir/shell/surface_factory.h>
+#include <mir/scene/surface.h>
+#include <mir/scene/surface_coordinator.h>
 #include <mir/shell/surface_creation_parameters.h>
 
 namespace uam = ubuntu::application::mir;
 namespace uams = uam::server;
 
 namespace mf = mir::frontend;
+namespace ms = mir::scene;
 namespace msh = mir::shell;
 
-uams::Instance::Instance(std::shared_ptr<msh::SurfaceFactory> const &surface_factory,
+uams::Instance::Instance(std::shared_ptr<ms::SurfaceCoordinator> const &surface_factory,
                          uam::Description* description_,
                          uam::Options *options_)
     : surface_factory(surface_factory),
@@ -72,11 +73,7 @@ void uams::Instance::unref()
         delete this;
 }
 
-std::shared_ptr<msh::Surface> uams::Instance::create_surface(msh::SurfaceCreationParameters const& parameters)
+std::shared_ptr<ms::Surface> uams::Instance::create_surface(msh::SurfaceCreationParameters const& parameters)
 {
-    static std::shared_ptr<mf::EventSink> const null_event_sink{nullptr};
-    static mf::SurfaceId const default_surface_id{0};
-
-    return surface_factory->create_surface(nullptr, parameters, default_surface_id,
-                                           null_event_sink);
+    return surface_factory->add_surface(parameters, nullptr, {});
 }
