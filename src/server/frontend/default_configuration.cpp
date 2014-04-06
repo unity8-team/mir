@@ -31,6 +31,8 @@
 #include "mir/options/option.h"
 #include "mir/graphics/graphic_buffer_allocator.h"
 
+#include <cstdio>
+
 namespace mf = mir::frontend;
 namespace mg = mir::graphics;
 namespace msh = mir::shell;
@@ -142,6 +144,14 @@ mir::DefaultServerConfiguration::the_connector()
             }
             else
             {
+                std::string socket_file = the_socket_file();
+                /*
+                 * Remove possible stale file. If the file is already in use
+                 * by another process, std::remove will fail (correctly so) and the
+                 * socket connection will fail as usual
+                 */
+                std::remove(socket_file.c_str());
+
                 return std::make_shared<mf::PublishedSocketConnector>(
                     the_socket_file(),
                     the_session_creator(),
