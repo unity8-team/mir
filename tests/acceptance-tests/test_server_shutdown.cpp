@@ -22,6 +22,7 @@
 #include "mir/input/composite_event_filter.h"
 
 #include "mir_test_framework/display_server_test_fixture.h"
+#include "mir_test_framework/detect_server.h"
 #include "mir_test/fake_event_hub_input_configuration.h"
 #include "mir_test_framework/cross_process_sync.h"
 #include "mir_test_doubles/stub_renderer.h"
@@ -328,15 +329,6 @@ TEST_F(ServerShutdown, server_releases_resources_on_shutdown_with_connected_clie
     }
 }
 
-namespace
-{
-bool file_exists(std::string const& filename)
-{
-    struct stat statbuf;
-    return 0 == stat(filename.c_str(), &statbuf);
-}
-}
-
 TEST_F(ServerShutdown, server_removes_endpoint_on_normal_exit)
 {
     using ServerConfig = TestingServerConfiguration;
@@ -346,10 +338,10 @@ TEST_F(ServerShutdown, server_removes_endpoint_on_normal_exit)
 
     run_in_test_process([&]
     {
-        ASSERT_TRUE(file_exists(server_config.the_socket_file()));
+        ASSERT_TRUE(mtf::socket_exists(server_config.the_socket_file()));
 
         shutdown_server_process();
-        EXPECT_FALSE(file_exists(server_config.the_socket_file()));
+        EXPECT_FALSE(mtf::socket_exists(server_config.the_socket_file()));
     });
 }
 
@@ -371,7 +363,7 @@ TEST_F(ServerShutdown, server_removes_endpoint_on_abort)
 
     run_in_test_process([&]
     {
-        ASSERT_TRUE(file_exists(server_config.the_socket_file()));
+        ASSERT_TRUE(mtf::socket_exists(server_config.the_socket_file()));
 
         server_config.sync.signal_ready();
 
@@ -382,7 +374,7 @@ TEST_F(ServerShutdown, server_removes_endpoint_on_abort)
         // TODO: Investigate if we can do better than this workaround
         EXPECT_TRUE(result.signal == SIGABRT || result.signal == SIGKILL);
 
-        EXPECT_FALSE(file_exists(server_config.the_socket_file()));
+        EXPECT_FALSE(mtf::socket_exists(server_config.the_socket_file()));
     });
 }
 
@@ -409,7 +401,7 @@ TEST_P(OnSignal, removes_endpoint_on_signal)
 
     run_in_test_process([&]
     {
-        ASSERT_TRUE(file_exists(server_config.the_socket_file()));
+        ASSERT_TRUE(mtf::socket_exists(server_config.the_socket_file()));
 
         server_config.sync.signal_ready();
 
@@ -420,7 +412,7 @@ TEST_P(OnSignal, removes_endpoint_on_signal)
         // TODO: Investigate if we can do better than this workaround
         EXPECT_TRUE(result.signal == GetParam() || result.signal == SIGKILL);
 
-        EXPECT_FALSE(file_exists(server_config.the_socket_file()));
+        EXPECT_FALSE(mtf::socket_exists(server_config.the_socket_file()));
     });
 }
 

@@ -25,6 +25,7 @@
 
 namespace mir_test_framework
 {
+bool socket_exists(std::string const& name);
 bool detect_server(std::string const& name, std::chrono::milliseconds const& timeout);
 }
 

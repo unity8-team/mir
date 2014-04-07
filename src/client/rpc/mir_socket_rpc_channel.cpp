@@ -42,6 +42,13 @@ namespace mclr = mir::client::rpc;
 namespace
 {
 std::chrono::milliseconds const timeout(200);
+
+std::string abstract_name(std::string const& file_name)
+{
+    std::string abstract_name{file_name};
+    abstract_name.insert(begin(abstract_name), '\0');
+    return abstract_name;
+}
 }
 
 mclr::MirSocketRpcChannel::MirSocketRpcChannel(
@@ -59,7 +66,7 @@ mclr::MirSocketRpcChannel::MirSocketRpcChannel(
     lifecycle_control(lifecycle_control),
     disconnected(false)
 {
-    socket.connect(endpoint);
+    socket.connect(abstract_name(endpoint));
     init();
 }
 

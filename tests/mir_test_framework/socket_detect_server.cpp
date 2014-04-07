@@ -20,31 +20,37 @@
 
 #include <chrono>
 #include <thread>
-
-#include <sys/socket.h>
-#include <sys/stat.h>
-#include <sys/un.h>
-#include <unistd.h>
+#include <fstream>
 
 bool mir_test_framework::detect_server(
-    std::string const& socket_file,
+    std::string const& socket_name,
     std::chrono::milliseconds const& timeout)
 {
     auto limit = std::chrono::steady_clock::now() + timeout;
 
-    bool error = false;
-    struct stat file_status;
-
+    bool socket_exists = false;
     do
     {
-        if (error)
+        if (!socket_exists)
         {
             std::this_thread::sleep_for(std::chrono::milliseconds(0));
         }
-        error = stat(socket_file.c_str(), &file_status);
+        socket_exists = mir_test_framework::socket_exists(socket_name);
     }
-    while (error && std::chrono::steady_clock::now() < limit);
+    while (!socket_exists && std::chrono::steady_clock::now() < limit);
 
-    return !error;
+    return socket_exists;
+}
+
+bool mir_test_framework::socket_exists(std::string const& socket_name)
+{
+    std::ifstream socket_names_file("/proc/net/unix");
+    std::string line;
+    while (std::getline(socket_names_file, line))
+    {
+       if (line.find(socket_name) != std::string::npos)
+           return true;
+    }
+    return false;
 }
 

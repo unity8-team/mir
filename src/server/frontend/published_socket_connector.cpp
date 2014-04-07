@@ -31,6 +31,16 @@ namespace mf = mir::frontend;
 namespace mfd = mir::frontend::detail;
 namespace ba = boost::asio;
 
+namespace
+{
+std::string abstract_name(std::string const& file_name)
+{
+    std::string abstract_name{file_name};
+    abstract_name.insert(begin(abstract_name), '\0');
+    return abstract_name;
+}
+}
+
 mf::PublishedSocketConnector::PublishedSocketConnector(
     const std::string& socket_file,
     std::shared_ptr<SessionCreator> const& session_creator,
@@ -38,7 +48,7 @@ mf::PublishedSocketConnector::PublishedSocketConnector(
     std::shared_ptr<ConnectorReport> const& report)
 :   BasicConnector(session_creator, threads, report),
     socket_file(socket_file),
-    acceptor(io_service, socket_file)
+    acceptor(io_service, abstract_name(socket_file))
 {
     start_accept();
 }
@@ -65,7 +75,6 @@ void mf::PublishedSocketConnector::start_accept()
 
 void mf::PublishedSocketConnector::remove_endpoint() const
 {
-    std::remove(socket_file.c_str());
 }
 
 void mf::PublishedSocketConnector::on_new_connection(

@@ -28,15 +28,6 @@ namespace mf = mir::frontend;
 namespace mc = mir::compositor;
 namespace mtf = mir_test_framework;
 
-namespace
-{
-bool file_exists(std::string const& filename)
-{
-    struct stat statbuf;
-    return 0 == stat(filename.c_str(), &statbuf);
-}
-}
-
 namespace mir
 {
 TEST_F(BespokeDisplayServerTestFixture, server_announces_itself_on_startup)
@@ -59,7 +50,7 @@ TEST_F(BespokeDisplayServerTestFixture, server_announces_itself_on_startup)
     launch_client_process(client_config);
 }
 
-TEST_F(BespokeDisplayServerTestFixture, server_startup_handles_stale_socket_file)
+TEST_F(BespokeDisplayServerTestFixture, can_start_new_instance_after_sigkill)
 {
     ASSERT_FALSE(mtf::detect_server(mtf::test_socket_file(), std::chrono::milliseconds(0)));
 
@@ -84,9 +75,6 @@ TEST_F(BespokeDisplayServerTestFixture, server_startup_handles_stale_socket_file
         auto result = wait_for_shutdown_server_process();
         EXPECT_EQ(mtf::TerminationReason::child_terminated_by_signal, result.reason);
         EXPECT_TRUE(result.signal == SIGKILL);
-
-        //Expect a stale socket file to be leftover after SIGKILLING server
-        EXPECT_TRUE(file_exists(server_crash_config.the_socket_file()));
 
         //Now start a new server - it should deal with stale socket files
         TestingServerConfiguration server_config;
