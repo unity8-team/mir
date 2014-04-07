@@ -1,3 +1,16 @@
+platform-api (0.20+14.04.20140407-0ubuntu1) trusty; urgency=low
+
+  [ Andreas Pokorny ]
+  * CMakeLists adaptation to make platform-api cross compile with a
+    simple chroot setup. Note that <PKG_NAME>_LINK_LIBRARIES variables
+    were removed from link_directories and respective <PKG_NAME>_LDFLAGS
+    variables were instead put into target_link_libraries. Those
+    informations attached to targets are transitively forwarded to the
+    user of the library. link_directories only attaches the information
+    to the source directory.
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Mon, 07 Apr 2014 06:16:39 +0000
+
 platform-api (0.20+14.04.20140401-0ubuntu1) trusty; urgency=low
 
   [ Chris Gagnon ]
