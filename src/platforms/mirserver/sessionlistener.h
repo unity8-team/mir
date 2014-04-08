@@ -34,8 +34,8 @@ public:
     void focused(std::shared_ptr<mir::shell::Session> const& session) override;
     void unfocused() override;
 
-    void surface_created(mir::shell::Session&, std::shared_ptr<mir::shell::Surface> const&) override;
-    void destroying_surface(mir::shell::Session&, std::shared_ptr<mir::shell::Surface> const&) override;
+    void surface_created(mir::shell::Session&, std::shared_ptr<mir::scene::Surface> const&) override;
+    void destroying_surface(mir::shell::Session&, std::shared_ptr<mir::scene::Surface> const&) override;
 
 Q_SIGNALS:
     void sessionStarting(std::shared_ptr<mir::shell::Session> const& session);
@@ -43,8 +43,8 @@ Q_SIGNALS:
     void sessionFocused(std::shared_ptr<mir::shell::Session> const& session);
     void sessionUnfocused();
 
-    void sessionCreatedSurface(mir::shell::Session const*, std::shared_ptr<mir::shell::Surface> const&);
-    void sessionDestroyingSurface(mir::shell::Session const*, std::shared_ptr<mir::shell::Surface> const&);
+    void sessionCreatedSurface(mir::shell::Session const*, std::shared_ptr<mir::scene::Surface> const&);
+    void sessionDestroyingSurface(mir::shell::Session const*, std::shared_ptr<mir::scene::Surface> const&);
 };
 
 #endif // SESSIONLISTENER_H
