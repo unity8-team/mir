@@ -43,10 +43,6 @@
 #include <mir/graphics/display_buffer.h>
 #include <mir/graphics/platform.h>
 #include <mir/graphics/graphic_buffer_allocator.h>
-#include <mir/frontend/session.h>
-#include <mir/frontend/shell.h>
-#include <mir/shell/surface_creation_parameters.h>
-#include <mir/scene/surface.h>
 #include <mir/graphics/internal_client.h>
 #include <mir/input/input_platform.h>
 

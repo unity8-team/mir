@@ -24,12 +24,10 @@
 
 #include <mir/scene/surface.h>
 #include <mir/scene/surface_coordinator.h>
-#include <mir/shell/surface_creation_parameters.h>
 
 namespace uam = ubuntu::application::mir;
 namespace uams = uam::server;
 
-namespace mf = mir::frontend;
 namespace ms = mir::scene;
 namespace msh = mir::shell;
 
@@ -75,5 +73,5 @@ void uams::Instance::unref()
 
 std::shared_ptr<ms::Surface> uams::Instance::create_surface(msh::SurfaceCreationParameters const& parameters)
 {
-    return surface_coordinator->add_surface(parameters, nullptr, {});
+    return surface_coordinator->add_surface(parameters, nullptr);
 }
