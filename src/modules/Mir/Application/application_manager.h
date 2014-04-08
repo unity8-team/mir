@@ -38,6 +38,8 @@ class TaskController;
 namespace mir {
     namespace shell {
         class Session;
+    }
+    namespace scene {
         class Surface;
     }
 }
@@ -92,7 +94,7 @@ public Q_SLOTS:
     void onSessionFocused(std::shared_ptr<mir::shell::Session> const& session);
     void onSessionUnfocused();
 
-    void onSessionCreatedSurface(mir::shell::Session const*, std::shared_ptr<mir::shell::Surface> const&);
+    void onSessionCreatedSurface(mir::shell::Session const*, std::shared_ptr<mir::scene::Surface> const&);
 
     void onProcessStartReportReceived(const QString& appId, const bool failure);
     void onProcessStopped(const QString& appId, const bool unexpected);

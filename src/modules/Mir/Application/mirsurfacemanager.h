@@ -50,8 +50,8 @@ Q_SIGNALS:
 //    void fullscreenSurfaceChanged();
 
 public Q_SLOTS:
-    void onSessionCreatedSurface(mir::shell::Session const* session, std::shared_ptr<mir::shell::Surface> const&);
-    void onSessionDestroyingSurface(mir::shell::Session const*, std::shared_ptr<mir::shell::Surface> const&);
+    void onSessionCreatedSurface(mir::shell::Session const* session, std::shared_ptr<mir::scene::Surface> const&);
+    void onSessionDestroyingSurface(mir::shell::Session const*, std::shared_ptr<mir::scene::Surface> const&);
 
     void onSurfaceAttributeChanged(mir::scene::Surface const*, MirSurfaceAttrib, int);
 

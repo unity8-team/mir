@@ -26,6 +26,7 @@
 
 // mir
 #include <mir/scene/surface.h>
+#include <mir/scene/surface_observer.h>
 #include <mir_toolkit/common.h>
 
 #include "ubuntukeyboardinfo.h"
@@ -34,6 +35,18 @@ class MirSurfaceManager;
 class QSGMirSurfaceNode;
 class QMirSurfaceTextureProvider;
 class Application;
+
+class MirSurfaceObserver : public mir::scene::SurfaceObserver {
+public:
+    MirSurfaceObserver();
+
+    void setListener(QObject *listener);
+
+    // Get new frame notifications from Mir, called from a Mir thread.
+    void frame_posted() override;
+private:
+    QObject *m_listener;
+};
 
 class MirSurfaceItem : public QQuickItem
 {
@@ -131,6 +144,8 @@ private:
     QMirSurfaceTextureProvider *m_textureProvider;
 
     static UbuntuKeyboardInfo *m_ubuntuKeyboardInfo;
+
+    std::shared_ptr<MirSurfaceObserver> m_surfaceObserver;
 
     friend class MirSurfaceManager;
 };

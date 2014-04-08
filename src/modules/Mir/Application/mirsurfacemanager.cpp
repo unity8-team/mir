@@ -28,7 +28,6 @@
 #include "surfaceconfigurator.h"
 #include "logging.h"
 
-namespace msh = mir::shell;
 namespace ms = mir::scene;
 
 MirSurfaceManager *MirSurfaceManager::the_surface_manager = nullptr;
@@ -74,16 +73,14 @@ MirSurfaceManager::~MirSurfaceManager()
 }
 
 void MirSurfaceManager::onSessionCreatedSurface(mir::shell::Session const* session,
-        std::shared_ptr<mir::shell::Surface> const& surface)
+        std::shared_ptr<mir::scene::Surface> const& surface)
 {
     DLOG("MirSurfaceManager::onSessionCreatedSurface (this=%p) with surface name '%s'", this, surface->name().c_str());
     ApplicationManager* appMgr = static_cast<ApplicationManager*>(ApplicationManager::singleton());
     Application* application = appMgr->findApplicationWithSession(session);
 
-    std::shared_ptr<ms::Surface> const& sceneSurface = std::static_pointer_cast<ms::Surface>(surface);
-
-    auto qmlSurface = new MirSurfaceItem(sceneSurface, application);
-    m_surfaces.insert(sceneSurface.get(), qmlSurface);
+    auto qmlSurface = new MirSurfaceItem(surface, application);
+    m_surfaces.insert(surface.get(), qmlSurface);
 
     // Only notify QML of surface creation once it has drawn its first frame.
     connect(qmlSurface, &MirSurfaceItem::surfaceFirstFrameDrawn, [&](MirSurfaceItem *item) {
@@ -98,13 +95,11 @@ void MirSurfaceManager::onSessionCreatedSurface(mir::shell::Session const* sessi
 }
 
 void MirSurfaceManager::onSessionDestroyingSurface(mir::shell::Session const*,
-        std::shared_ptr<mir::shell::Surface> const& surface)
+        std::shared_ptr<mir::scene::Surface> const& surface)
 {
     DLOG("MirSurfaceManager::onSessionDestroyingSurface (this=%p) with surface name '%s'", this, surface->name().c_str());
 
-    std::shared_ptr<ms::Surface> const& sceneSurface = std::static_pointer_cast<ms::Surface>(surface);
-
-    auto it = m_surfaces.find(sceneSurface.get());
+    auto it = m_surfaces.find(surface.get());
     if (it != m_surfaces.end()) {
         Q_EMIT surfaceDestroyed(*it);
         MirSurfaceItem* item = it.value();

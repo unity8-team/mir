@@ -29,14 +29,15 @@
 #include "logging.h"
 
 // mir
+#include <mir/scene/surface.h>
 #include <mir/shell/session.h>
 #include <mir/shell/focus_controller.h>
-#include <mir/shell/surface.h>
 
 // Qt
 #include <QGuiApplication>
 #include <QDebug>
 
+namespace ms = mir::scene;
 namespace msh = mir::shell;
 
 using namespace unity::shell::application;
@@ -641,7 +642,7 @@ void ApplicationManager::onSessionUnfocused()
 }
 
 void ApplicationManager::onSessionCreatedSurface(msh::Session const* session,
-                                               std::shared_ptr<msh::Surface> const& surface)
+                                               std::shared_ptr<ms::Surface> const& surface)
 {
     DLOG("ApplicationManager::onSessionCreatedSurface (this=%p)", this);
     Q_UNUSED(surface);

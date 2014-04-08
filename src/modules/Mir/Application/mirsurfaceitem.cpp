@@ -38,7 +38,6 @@
 #include <QTimer>
 
 // Mir
-#include <mir/shell/surface.h>
 #include <mir/geometry/rectangle.h>
 
 namespace mg = mir::graphics;
@@ -134,6 +133,18 @@ public Q_SLOTS:
     }
 };
 
+MirSurfaceObserver::MirSurfaceObserver()
+    : m_listener(nullptr) {
+}
+
+void MirSurfaceObserver::setListener(QObject *listener) {
+    m_listener = listener;
+}
+
+void MirSurfaceObserver::frame_posted() {
+    QMetaObject::invokeMethod(m_listener, "surfaceDamaged");
+}
+
 UbuntuKeyboardInfo *MirSurfaceItem::m_ubuntuKeyboardInfo = nullptr;
 
 MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
@@ -148,10 +159,9 @@ MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
 {
     DLOG("MirSurfaceItem::MirSurfaceItem");
 
-    // Get new frame notifications from Mir, called from a Mir thread.
-    m_surface->register_new_buffer_callback([&]() {
-        QMetaObject::invokeMethod(this, "surfaceDamaged");
-    });
+    m_surfaceObserver = std::make_shared<MirSurfaceObserver>();
+    m_surfaceObserver->setListener(this);
+    m_surface->add_observer(m_surfaceObserver);
 
     setSmooth(true);
     setFlag(QQuickItem::ItemHasContents, true); //so scene graph will render this item
@@ -181,7 +191,6 @@ MirSurfaceItem::~MirSurfaceItem()
 {
     DLOG("MirSurfaceItem::~MirSurfaceItem(this=%p)", this);
     QMutexLocker locker(&m_mutex);
-    m_surface->register_new_buffer_callback([]{});
     if (m_textureProvider)
         m_textureProvider->deleteLater();
 }

@@ -18,9 +18,10 @@
 #include "logging.h"
 
 namespace msh = mir::shell;
+namespace ms = mir::scene;
 
 Q_DECLARE_METATYPE(std::shared_ptr<msh::Session>)
-Q_DECLARE_METATYPE(std::shared_ptr<msh::Surface>)
+Q_DECLARE_METATYPE(std::shared_ptr<ms::Surface>)
 
 SessionListener::SessionListener(QObject *parent) :
     QObject(parent)
@@ -28,7 +29,7 @@ SessionListener::SessionListener(QObject *parent) :
     DLOG("SessionListener::SessionListener (this=%p)", this);
     // need to register type to send over threads with signal/slot
     qRegisterMetaType<std::shared_ptr<msh::Session>>("std::shared_ptr<mir::shell::Session>");
-    qRegisterMetaType<std::shared_ptr<msh::Surface>>("std::shared_ptr<mir::shell::Surface>");
+    qRegisterMetaType<std::shared_ptr<ms::Surface>>("std::shared_ptr<mir::scene::Surface>");
 }
 
 SessionListener::~SessionListener()
@@ -60,13 +61,13 @@ void SessionListener::unfocused()
     Q_EMIT sessionUnfocused();
 }
 
-void SessionListener::surface_created(msh::Session& session, std::shared_ptr<msh::Surface> const& surface)
+void SessionListener::surface_created(msh::Session& session, std::shared_ptr<ms::Surface> const& surface)
 {
     DLOG("SessionListener::surface_created (this=%p, session=%p, surface=%p)", this, &session, (void*)surface.get());
     Q_EMIT sessionCreatedSurface(&session, surface);
 }
 
-void SessionListener::destroying_surface(msh::Session& session, std::shared_ptr<mir::shell::Surface> const& surface)
+void SessionListener::destroying_surface(msh::Session& session, std::shared_ptr<ms::Surface> const& surface)
 {
     DLOG("SessionListener::destroying_surface (this=%p, session=%p, surface=%p)", this, &session, (void*)surface.get());
     Q_EMIT sessionDestroyingSurface(&session, surface);
