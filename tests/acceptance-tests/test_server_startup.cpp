@@ -76,7 +76,7 @@ TEST_F(BespokeDisplayServerTestFixture, can_start_new_instance_after_sigkill)
         EXPECT_EQ(mtf::TerminationReason::child_terminated_by_signal, result.reason);
         EXPECT_TRUE(result.signal == SIGKILL);
 
-        //Now start a new server - it should deal with stale socket files
+        //Now start a new server
         TestingServerConfiguration server_config;
         launch_server_process(server_config);
 
