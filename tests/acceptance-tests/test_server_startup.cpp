@@ -50,7 +50,7 @@ TEST_F(BespokeDisplayServerTestFixture, server_announces_itself_on_startup)
     launch_client_process(client_config);
 }
 
-TEST_F(BespokeDisplayServerTestFixture, can_start_new_instance_after_sigkill)
+TEST_F(BespokeDisplayServerTestFixture, DISABLE_can_start_new_instance_after_sigkill)
 {
     ASSERT_FALSE(mtf::detect_server(mtf::test_socket_file(), std::chrono::milliseconds(0)));
 
