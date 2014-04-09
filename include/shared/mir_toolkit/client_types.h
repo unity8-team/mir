@@ -310,10 +310,10 @@ typedef void (*mir_screencast_callback)(MirScreencast *screencast, void *client_
  * MirCursorParameters is the structure of required information to
  * configure the cursor request for a surface.
  *
- * The cursor may be enabled, or disabled. When enabled the cursor may be chosen by name,
- * from a given cursor theme. 
+ * The cursor may be enabled, or disabled. When enabled the cursor may 
+ * be chosen by name, from a given cursor theme. 
  *
- * Cursor theme nad name are ignored if enabled is false.
+ * Cursor theme and name are ignored if enabled is false.
  */
 typedef struct MirCursorParameters
 {
