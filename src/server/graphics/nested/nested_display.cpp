@@ -137,10 +137,9 @@ mgn::NestedDisplay::NestedDisplay(
     egl_display{*connection},
     outputs{}
 {
-
     std::shared_ptr<DisplayConfiguration> conf(configuration());
     initial_conf_policy->apply_to(*conf);
-    configure(*conf);
+    create_surfaces(*conf);
 }
 
 mgn::NestedDisplay::~NestedDisplay() noexcept
@@ -172,6 +171,12 @@ void mgn::NestedDisplay::complete_display_initialization(MirPixelFormat format)
 }
 
 void mgn::NestedDisplay::configure(mg::DisplayConfiguration const& configuration)
+{
+    create_surfaces(configuration);
+    apply_to_connection(configuration);
+}
+
+void mgn::NestedDisplay::create_surfaces(mg::DisplayConfiguration const& configuration)
 {
     if (!configuration.valid())
     {
@@ -224,12 +229,16 @@ void mgn::NestedDisplay::configure(mg::DisplayConfiguration const& configuration
     if (result.empty())
         BOOST_THROW_EXCEPTION(std::runtime_error("Nested Mir needs at least one output for display"));
 
-    auto const& conf = dynamic_cast<NestedDisplayConfiguration const&>(configuration);
 
     {
         std::unique_lock<std::mutex> lock(outputs_mutex);
         outputs.swap(result);
     }
+}
+
+void mgn::NestedDisplay::apply_to_connection(mg::DisplayConfiguration const& configuration)
+{
+    auto const& conf = dynamic_cast<NestedDisplayConfiguration const&>(configuration);
 
     mir_connection_apply_display_config(*connection, conf);
 }
