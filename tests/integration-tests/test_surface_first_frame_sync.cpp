@@ -69,7 +69,7 @@ public:
 
     void start()
     {
-        scene->set_change_callback([this]()
+        change_id = scene->add_change_callback([this]()
         {
             display->for_each_display_buffer([this](mg::DisplayBuffer& display_buffer)
             {
@@ -80,13 +80,15 @@ public:
 
     void stop()
     {
-        scene->set_change_callback([]{});
+        scene->remove_change_callback(change_id);
     }
 
 private:
     std::shared_ptr<mg::Display> const display;
     std::shared_ptr<mc::Scene> const scene;
     std::unordered_map<mg::DisplayBuffer*,std::unique_ptr<mc::DisplayBufferCompositor>> display_buffer_compositor_map;
+    
+    ms::ObserverId change_id;
 };
 
 class StubRenderer : public mtd::StubRenderer

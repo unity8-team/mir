@@ -20,6 +20,7 @@
 #define MIR_COMPOSITOR_MULTI_THREADED_COMPOSITOR_H_
 
 #include "mir/compositor/compositor.h"
+#include "mir/scene/observer_id.h"
 
 #include <mutex>
 #include <memory>
@@ -67,6 +68,8 @@ private:
     bool compose_on_start;
 
     void schedule_compositing();
+    
+    scene::ObserverId change_registration;
 };
 
 }

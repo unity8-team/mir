@@ -23,6 +23,7 @@
 
 #include "mir/compositor/scene.h"
 #include "mir/scene/depth_id.h"
+#include "mir/scene/observer_id.h"
 #include "mir/input/input_targets.h"
 
 #include <memory>
@@ -67,7 +68,9 @@ public:
 
     // From Scene
     graphics::RenderableList generate_renderable_list() const;
-    virtual void set_change_callback(std::function<void()> const& f);
+    virtual scene::ObserverId add_change_callback(std::function<void()> const& f);
+    virtual void remove_change_callback(scene::ObserverId id);
+
     //to be deprecated
     virtual void for_each_if(compositor::FilterForScene &filter, compositor::OperatorForScene &op);
     virtual void lock();
@@ -101,7 +104,8 @@ private:
     std::map<DepthId, Layer> layers_by_depth;
 
     std::mutex notify_change_mutex;
-    std::function<void()> notify_change;
+    int next_change_callback_id;
+    std::map<ObserverId, std::function<void()>> notify_change_by_id;
 };
 
 }

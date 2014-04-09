@@ -38,9 +38,10 @@
 
 namespace mc = mir::compositor;
 namespace mg = mir::graphics;
+namespace ms = mir::scene;
+namespace mr = mir::report;
 namespace geom = mir::geometry;
 namespace mtd = mir::test::doubles;
-namespace mr = mir::report;
 
 namespace
 {
@@ -95,11 +96,20 @@ public:
     {
     }
 
-    void set_change_callback(std::function<void()> const& f)
+    
+    ms::ObserverId add_change_callback(std::function<void()> const& f) override
     {
         std::lock_guard<std::mutex> lock{callback_mutex};
         assert(f);
         callback = f;
+    
+        // Test only needs a single change callback.
+        return ms::ObserverId{0};
+    }
+    void remove_change_callback(ms::ObserverId id) override
+    {
+        assert(id == ms::ObserverId{0});
+        callback = [](){};
     }
 
     void emit_change_event()
@@ -546,17 +556,21 @@ TEST(MultiThreadedCompositor, makes_and_releases_display_buffer_current_target)
 
 TEST(MultiThreadedCompositor, double_start_or_stop_ignored)
 {
+    using namespace ::testing;
+
     unsigned int const nbuffers{3};
     auto display = std::make_shared<StubDisplayWithMockBuffers>(nbuffers);
     auto mock_scene = std::make_shared<mtd::MockScene>();
     auto db_compositor_factory = std::make_shared<NullDisplayBufferCompositorFactory>();
-    auto mock_report = std::make_shared<testing::NiceMock<mtd::MockCompositorReport>>();
+    auto mock_report = std::make_shared<NiceMock<mtd::MockCompositorReport>>();
     EXPECT_CALL(*mock_report, started())
         .Times(1);
     EXPECT_CALL(*mock_report, stopped())
         .Times(1);
-    EXPECT_CALL(*mock_scene, set_change_callback(testing::_))
-        .Times(2);
+    EXPECT_CALL(*mock_scene, add_change_callback(_))
+        .Times(1).WillOnce(Return(ms::ObserverId{}));
+    EXPECT_CALL(*mock_scene, remove_change_callback(_))
+        .Times(1);
 
     mc::MultiThreadedCompositor compositor{display, mock_scene, db_compositor_factory, mock_report, true};
 

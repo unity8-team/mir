@@ -21,6 +21,7 @@
 
 #include "mir/geometry/forward.h"
 #include "mir/graphics/renderable.h"
+#include "mir/scene/observer_id.h"
 
 #include <memory>
 #include <functional>
@@ -73,14 +74,19 @@ public:
     virtual void for_each_if(FilterForScene& filter, OperatorForScene& op) = 0;
 
     /**
-     * Sets a callback to be called whenever the state of the
+     * Registers a callback to be called whenever the state of the
      * Scene changes.
+     *
+     * The returned ObserverId may be passed to remove_change_callback
+     * to unregister for change notification.
      *
      * The supplied callback should not directly or indirectly (e.g.,
      * by changing a property of a surface) change the state of
      * the Scene, otherwise a deadlock may occur.
+     *
      */
-    virtual void set_change_callback(std::function<void()> const& f) = 0;
+    virtual scene::ObserverId add_change_callback(std::function<void()> const& f) = 0;
+    virtual void remove_change_callback(scene::ObserverId id) = 0;
 
     // Implement BasicLockable, to temporarily lock scene state:
     virtual void lock() = 0;

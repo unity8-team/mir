@@ -38,10 +38,11 @@
 
 namespace mg = mir::graphics;
 namespace mc = mir::compositor;
+namespace ms = mir::scene;
+namespace mr = mir::report;
 namespace geom = mir::geometry;
 namespace mt = mir::test;
 namespace mtd = mir::test::doubles;
-namespace mr = mir::report;
 
 namespace
 {
@@ -68,7 +69,11 @@ struct FakeScene : mc::Scene
         }
     }
 
-    void set_change_callback(std::function<void()> const&) {}
+    ms::ObserverId add_change_callback(std::function<void()> const&) override
+    {
+        return ms::ObserverId{};
+    }
+    void remove_change_callback(ms::ObserverId) override { }
 
     void change(mg::RenderableList const& new_renderlist)
     {

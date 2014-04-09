@@ -54,7 +54,7 @@ ms::SurfaceStack::SurfaceStack(
     input_registrar{input_registrar},
     report{report},
     change_cb{[this]() { emit_change_notification(); }},
-    notify_change{[]{}}
+    next_change_callback_id(0)
 {
 }
 
@@ -81,11 +81,26 @@ void ms::SurfaceStack::for_each_if(mc::FilterForScene& filter, mc::OperatorForSc
     }
 }
 
-void ms::SurfaceStack::set_change_callback(std::function<void()> const& f)
+ms::ObserverId ms::SurfaceStack::add_change_callback(std::function<void()> const& f)
 {
     std::lock_guard<std::mutex> lg{notify_change_mutex};
     assert(f);
-    notify_change = f;
+    
+    auto id = ms::ObserverId{++next_change_callback_id};
+    notify_change_by_id[id] = f;
+    
+    return id;
+}
+
+void ms::SurfaceStack::remove_change_callback(ms::ObserverId id)
+{
+    std::lock_guard<std::mutex> lg{notify_change_mutex};
+
+    auto it = notify_change_by_id.find(id);
+    if (it == notify_change_by_id.end())
+        BOOST_THROW_EXCEPTION(std::logic_error(
+            "Invalid change notification id (not previously registered, or already unregistered)"));
+    notify_change_by_id.erase(it);
 }
 
 void ms::SurfaceStack::add_surface(
@@ -139,7 +154,8 @@ void ms::SurfaceStack::remove_surface(std::weak_ptr<Surface> const& surface)
 void ms::SurfaceStack::emit_change_notification()
 {
     std::lock_guard<std::mutex> lg{notify_change_mutex};
-    notify_change();
+    for (auto kv : notify_change_by_id)
+        kv.second();
 }
 
 void ms::SurfaceStack::for_each(std::function<void(std::shared_ptr<mi::InputChannel> const&)> const& callback)
