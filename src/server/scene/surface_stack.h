@@ -105,7 +105,7 @@ private:
 
     std::mutex notify_change_mutex;
     int next_change_callback_id;
-    std::map<ObserverID, std::function<void()>> notify_change_by_id;
+    std::map<ObserverID, std::function<void()>> observers_by_id;
 };
 
 }

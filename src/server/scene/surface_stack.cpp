@@ -87,7 +87,7 @@ ms::ObserverID ms::SurfaceStack::add_change_callback(std::function<void()> const
     assert(f);
     
     auto id = ms::ObserverID{++next_change_callback_id};
-    notify_change_by_id[id] = f;
+    observers_by_id[id] = f;
     
     return id;
 }
@@ -96,11 +96,11 @@ void ms::SurfaceStack::remove_change_callback(ms::ObserverID id)
 {
     std::lock_guard<std::mutex> lg{notify_change_mutex};
 
-    auto it = notify_change_by_id.find(id);
-    if (it == notify_change_by_id.end())
+    auto it = observers_by_id.find(id);
+    if (it == observers_by_id.end())
         BOOST_THROW_EXCEPTION(std::logic_error(
             "Invalid change notification id (not previously registered, or already unregistered)"));
-    notify_change_by_id.erase(it);
+    observers_by_id.erase(it);
 }
 
 void ms::SurfaceStack::add_surface(
@@ -154,7 +154,7 @@ void ms::SurfaceStack::remove_surface(std::weak_ptr<Surface> const& surface)
 void ms::SurfaceStack::emit_change_notification()
 {
     std::lock_guard<std::mutex> lg{notify_change_mutex};
-    for (auto kv : notify_change_by_id)
+    for (auto kv : observers_by_id)
         kv.second();
 }
 
