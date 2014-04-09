@@ -88,7 +88,7 @@ private:
     std::shared_ptr<mc::Scene> const scene;
     std::unordered_map<mg::DisplayBuffer*,std::unique_ptr<mc::DisplayBufferCompositor>> display_buffer_compositor_map;
     
-    ms::ObserverId change_id;
+    ms::ObserverID change_id;
 };
 
 class StubRenderer : public mtd::StubRenderer

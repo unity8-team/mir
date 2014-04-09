@@ -274,7 +274,7 @@ TEST_F(SurfaceStack, remove_invalid_change_callback)
 
     ms::SurfaceStack stack(mt::fake_shared(input_registrar), report);
     EXPECT_THROW({
-            stack.remove_change_callback(ms::ObserverId{1});
+            stack.remove_change_callback(ms::ObserverID{1});
     }, std::logic_error);
 }
 

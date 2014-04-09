@@ -69,11 +69,11 @@ struct FakeScene : mc::Scene
         }
     }
 
-    ms::ObserverId add_change_callback(std::function<void()> const&) override
+    ms::ObserverID add_change_callback(std::function<void()> const&) override
     {
-        return ms::ObserverId{};
+        return ms::ObserverID{};
     }
-    void remove_change_callback(ms::ObserverId) override { }
+    void remove_change_callback(ms::ObserverID) override { }
 
     void change(mg::RenderableList const& new_renderlist)
     {

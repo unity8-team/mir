@@ -40,8 +40,8 @@ public:
     MOCK_CONST_METHOD0(generate_renderable_list, graphics::RenderableList());
     MOCK_METHOD2(for_each_if, void(compositor::FilterForScene&,
                                    compositor::OperatorForScene&));
-    MOCK_METHOD1(add_change_callback, scene::ObserverId(std::function<void()> const&));
-    MOCK_METHOD1(remove_change_callback, void(scene::ObserverId));
+    MOCK_METHOD1(add_change_callback, scene::ObserverID(std::function<void()> const&));
+    MOCK_METHOD1(remove_change_callback, void(scene::ObserverID));
     MOCK_METHOD0(lock, void());
     MOCK_METHOD0(unlock, void());
 };

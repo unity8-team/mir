@@ -81,18 +81,18 @@ void ms::SurfaceStack::for_each_if(mc::FilterForScene& filter, mc::OperatorForSc
     }
 }
 
-ms::ObserverId ms::SurfaceStack::add_change_callback(std::function<void()> const& f)
+ms::ObserverID ms::SurfaceStack::add_change_callback(std::function<void()> const& f)
 {
     std::lock_guard<std::mutex> lg{notify_change_mutex};
     assert(f);
     
-    auto id = ms::ObserverId{++next_change_callback_id};
+    auto id = ms::ObserverID{++next_change_callback_id};
     notify_change_by_id[id] = f;
     
     return id;
 }
 
-void ms::SurfaceStack::remove_change_callback(ms::ObserverId id)
+void ms::SurfaceStack::remove_change_callback(ms::ObserverID id)
 {
     std::lock_guard<std::mutex> lg{notify_change_mutex};
 

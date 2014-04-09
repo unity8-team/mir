@@ -77,7 +77,7 @@ public:
      * Registers a callback to be called whenever the state of the
      * Scene changes.
      *
-     * The returned ObserverId may be passed to remove_change_callback
+     * The returned ObserverID may be passed to remove_change_callback
      * to unregister for change notification.
      *
      * The supplied callback should not directly or indirectly (e.g.,
@@ -85,8 +85,8 @@ public:
      * the Scene, otherwise a deadlock may occur.
      *
      */
-    virtual scene::ObserverId add_change_callback(std::function<void()> const& f) = 0;
-    virtual void remove_change_callback(scene::ObserverId id) = 0;
+    virtual scene::ObserverID add_change_callback(std::function<void()> const& f) = 0;
+    virtual void remove_change_callback(scene::ObserverID id) = 0;
 
     // Implement BasicLockable, to temporarily lock scene state:
     virtual void lock() = 0;

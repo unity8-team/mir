@@ -69,7 +69,7 @@ private:
 
     void schedule_compositing();
     
-    scene::ObserverId change_registration;
+    scene::ObserverID change_registration;
 };
 
 }

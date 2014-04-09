@@ -68,8 +68,8 @@ public:
 
     // From Scene
     graphics::RenderableList generate_renderable_list() const;
-    virtual scene::ObserverId add_change_callback(std::function<void()> const& f);
-    virtual void remove_change_callback(scene::ObserverId id);
+    virtual scene::ObserverID add_change_callback(std::function<void()> const& f);
+    virtual void remove_change_callback(scene::ObserverID id);
 
     //to be deprecated
     virtual void for_each_if(compositor::FilterForScene &filter, compositor::OperatorForScene &op);
@@ -105,7 +105,7 @@ private:
 
     std::mutex notify_change_mutex;
     int next_change_callback_id;
-    std::map<ObserverId, std::function<void()>> notify_change_by_id;
+    std::map<ObserverID, std::function<void()>> notify_change_by_id;
 };
 
 }

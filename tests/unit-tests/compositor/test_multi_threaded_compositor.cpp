@@ -97,18 +97,18 @@ public:
     }
 
     
-    ms::ObserverId add_change_callback(std::function<void()> const& f) override
+    ms::ObserverID add_change_callback(std::function<void()> const& f) override
     {
         std::lock_guard<std::mutex> lock{callback_mutex};
         assert(f);
         callback = f;
     
         // Test only needs a single change callback.
-        return ms::ObserverId{0};
+        return ms::ObserverID{0};
     }
-    void remove_change_callback(ms::ObserverId id) override
+    void remove_change_callback(ms::ObserverID id) override
     {
-        assert(id == ms::ObserverId{0});
+        assert(id == ms::ObserverID{0});
         callback = [](){};
     }
 
@@ -568,7 +568,7 @@ TEST(MultiThreadedCompositor, double_start_or_stop_ignored)
     EXPECT_CALL(*mock_report, stopped())
         .Times(1);
     EXPECT_CALL(*mock_scene, add_change_callback(_))
-        .Times(1).WillOnce(Return(ms::ObserverId{}));
+        .Times(1).WillOnce(Return(ms::ObserverID{}));
     EXPECT_CALL(*mock_scene, remove_change_callback(_))
         .Times(1);
 
