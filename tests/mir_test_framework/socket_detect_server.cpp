@@ -33,7 +33,7 @@ bool mir_test_framework::detect_server(
     {
         if (!socket_exists)
         {
-            std::this_thread::sleep_for(std::chrono::milliseconds(0));
+            std::this_thread::yield();
         }
         socket_exists = mir_test_framework::socket_exists(socket_name);
     }
@@ -44,11 +44,14 @@ bool mir_test_framework::detect_server(
 
 bool mir_test_framework::socket_exists(std::string const& socket_name)
 {
+    std::string abstract_socket_name{socket_name};
+    abstract_socket_name.insert(std::begin(abstract_socket_name), '@');
+
     std::ifstream socket_names_file("/proc/net/unix");
     std::string line;
     while (std::getline(socket_names_file, line))
     {
-       if (line.find(socket_name) != std::string::npos)
+       if (line.find(abstract_socket_name) != std::string::npos)
            return true;
     }
     return false;
