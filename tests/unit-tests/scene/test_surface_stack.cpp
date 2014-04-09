@@ -268,6 +268,28 @@ TEST_F(SurfaceStack, remove_change_callback)
     stack.remove_surface(stub_surface1);
 }
 
+TEST_F(SurfaceStack, notifies_multiple_observers)
+{
+    using namespace ::testing;
+    MockCallback mock_cb1;
+    MockCallback mock_cb2;
+
+    EXPECT_CALL(mock_cb1, call()).Times(1);
+    EXPECT_CALL(mock_cb2, call()).Times(1);
+
+    ms::SurfaceStack stack(mt::fake_shared(input_registrar), report);
+
+    auto id1 = stack.add_change_callback(std::bind(&MockCallback::call, &mock_cb1));
+    auto id2 = stack.add_change_callback(std::bind(&MockCallback::call, &mock_cb2));
+    stack.add_surface(stub_surface1, default_params.depth, default_params.input_mode);
+    stack.remove_change_callback(id1);
+    stack.remove_change_callback(id2);
+
+    EXPECT_CALL(mock_cb1, call()).Times(0);
+    EXPECT_CALL(mock_cb2, call()).Times(0);
+    stack.remove_surface(stub_surface1);
+}
+
 TEST_F(SurfaceStack, remove_invalid_change_callback)
 {
     using namespace ::testing;
