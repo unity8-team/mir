@@ -405,8 +405,10 @@ MirWaitHandle* mir_surface_set_swapinterval(MirSurface* surface, int interval);
 int mir_surface_get_swapinterval(MirSurface* surface);
     
 /**
- * Request that the system cursor not be shown over
- * the given surface.
+ * Configure the cursor parameters for a given surface.
+ * It is possible to enable or disable the cursor over a surface. 
+ * When the cursor is enabled it is possible to request the image
+ * which will be shown (by cursor theme and name).
  *   \param [in] surface           The surface to operate on
  *   \param [in] cursor_parameters The cursor configuration parameters
  *   \return                       A wait handle that can be passed to mir_wait_for
