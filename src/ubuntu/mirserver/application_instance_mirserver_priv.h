@@ -33,6 +33,8 @@ class SurfaceCoordinator;
 }
 namespace shell
 {
+class PlacementStrategy;
+class SessionListener;
 class SurfaceCreationParameters;
 }
 }
@@ -53,6 +55,8 @@ class Instance
 {
 public:
     Instance(std::shared_ptr< ::mir::scene::SurfaceCoordinator> const& surface_coordinator,
+             std::shared_ptr< ::mir::shell::PlacementStrategy> const& placement_strategy,
+             std::shared_ptr< ::mir::shell::SessionListener> const& session_listener,
              ubuntu::application::mir::Description* description, 
              ubuntu::application::mir::Options *options);
     ~Instance() = default;
@@ -75,8 +79,11 @@ private:
     
     OptionsPtr options;
     DescriptionPtr description;
-    
+
     std::shared_ptr< ::mir::scene::SurfaceCoordinator> const surface_coordinator;
+    std::shared_ptr< ::mir::shell::PlacementStrategy> const placement_strategy;
+    std::shared_ptr< ::mir::shell::SessionListener> const session_listener;
+
     int ref_count;
 };
 
