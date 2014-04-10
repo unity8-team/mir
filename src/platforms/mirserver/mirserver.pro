@@ -34,7 +34,9 @@ SOURCES += \
     surfaceconfigurator.cpp \
     mirinputconfiguration.cpp \
     mirinputmanager.cpp \
+    mirplacementstrategy.cpp \
     mirserverconfiguration.cpp \
+    mirserverstatuslistener.cpp \
     display.cpp \
     screen.cpp \
     displaywindow.cpp \
@@ -61,7 +63,9 @@ HEADERS += \
     mirinputconfiguration.h \
     mirinputmanager.h \
     mirglconfig.h \
+    mirplacementstrategy.h \
     mirserverconfiguration.h \
+    mirserverstatuslistener.h \
     display.h \
     screen.h \
     displaywindow.h \

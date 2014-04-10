@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Canonical, Ltd.
+ * Copyright (C) 2013-2014 Canonical, Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 3, as published by
@@ -17,7 +17,9 @@
 #include "mirserverconfiguration.h"
 
 #include "mirglconfig.h"
+#include "mirplacementstrategy.h"
 #include "mirinputconfiguration.h"
+#include "mirserverstatuslistener.h"
 #include "sessionlistener.h"
 #include "surfaceconfigurator.h"
 #include "sessionauthorizer.h"
@@ -38,6 +40,16 @@ MirServerConfiguration::MirServerConfiguration(int argc, char const* argv[], QOb
 
 MirServerConfiguration::~MirServerConfiguration()
 {
+}
+
+std::shared_ptr<msh::PlacementStrategy>
+MirServerConfiguration::the_shell_placement_strategy()
+{
+    return shell_placement_strategy(
+        [this]
+        {
+            return std::make_shared<MirPlacementStrategy>(the_shell_display_layout());
+        });
 }
 
 std::shared_ptr<msh::SessionListener>
@@ -99,6 +111,16 @@ MirServerConfiguration::the_gl_config()
     {
         return std::make_shared<MirGLConfig>();
     });
+}
+
+std::shared_ptr<mir::ServerStatusListener>
+MirServerConfiguration::the_server_status_listener()
+{
+    return server_status_listener(
+        []()
+        {
+            return std::make_shared<MirServerStatusListener>();
+        });
 }
 
 /************************************ Shell side ************************************/
