@@ -1,3 +1,26 @@
+platform-api (0.20+14.04.20140411-0ubuntu1) trusty; urgency=low
+
+  [ Gerry Boland ]
+  * Manually call mir's SurfacePlacementStrategy::place and
+    SessionListener::surface_created methods for in process client
+    Surface Mir 0.1.8 refactoring causes in-process client surfaces to
+    be an implementation detail of Mir's surface stack, and prevents
+    shell from getting access to its surface to position it and define
+    input areas on it. To fix this,we perform the following: 1. Create
+    an InProcessClientSession to represent the in-process client 2. Get
+    access to Mir's SurfacePlacementStrategy object and call its place
+    method explicitly, to allow shell to position its surface 3. Get
+    access to Mir's SessionListener object and call its surface_created
+    method explicitly, to notify shell its surface was created
+
+  [ Alan Griffiths ]
+  * Changes for compatibility with Mir 0.1.8
+
+  [ Ubuntu daily release ]
+  * New rebuild forced
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Fri, 11 Apr 2014 21:09:05 +0000
+
 platform-api (0.20+14.04.20140407-0ubuntu1) trusty; urgency=low
 
   [ Andreas Pokorny ]
