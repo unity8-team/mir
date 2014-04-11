@@ -1,5 +1,5 @@
 /*
- * Copyright © 2013 Canonical Ltd.
+ * Copyright © 2013-2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -19,6 +19,8 @@
 #ifndef MIR_INPUT_INPUT_CHANNEL_H_
 #define MIR_INPUT_INPUT_CHANNEL_H_
 
+#include "mir_toolkit/event.h"
+
 namespace mir
 {
 namespace input
@@ -32,6 +34,7 @@ public:
 
     virtual int client_fd() const = 0;
     virtual int server_fd() const = 0;
+    virtual void send_event(uint32_t seq, MirEvent const& event) const = 0;
 
 protected:
     InputChannel() = default;

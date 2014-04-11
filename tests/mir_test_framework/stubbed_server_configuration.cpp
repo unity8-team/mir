@@ -217,14 +217,18 @@ public:
 
 struct StubInputChannel : public mi::InputChannel
 {
-    int client_fd() const
+    int client_fd() const override
     {
         return 0;
     }
 
-    int server_fd() const
+    int server_fd() const override
     {
         return 0;
+    }
+
+    void send_event(uint32_t /*seq*/, MirEvent const& /*event*/) const override
+    {
     }
 };
 

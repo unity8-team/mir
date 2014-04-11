@@ -1,5 +1,5 @@
 /*
- * Copyright © 2013 Canonical Ltd.
+ * Copyright © 2013-2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -14,6 +14,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Authored by: Robert Carr <robert.carr@canonical.com>
+ *              Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
 #ifndef MIR_INPUT_ANDROID_INPUT_CHANNEL_H_
@@ -22,6 +23,7 @@
 #include "mir/input/input_channel.h"
 
 #include <utils/StrongPointer.h>
+#include <androidfw/InputTransport.h>
 
 namespace android
 {
@@ -43,15 +45,20 @@ public:
     explicit AndroidInputChannel();
     virtual ~AndroidInputChannel();
 
-    int client_fd() const;
-    int server_fd() const;
+    int client_fd() const override;
+    int server_fd() const override;
+    void send_event(uint32_t seq, MirEvent const& event) const override;
 
+    droidinput::sp<droidinput::InputChannel> get_android_channel() const;
 protected:
     AndroidInputChannel(AndroidInputChannel const&) = delete;
     AndroidInputChannel& operator=(AndroidInputChannel const&) = delete;
 
 private:
     int s_fd, c_fd;
+    droidinput::sp<droidinput::InputChannel> channel;
+    void send_key_event(uint32_t seq, MirKeyEvent const& event) const;
+    void send_motion_event(uint32_t seq, MirMotionEvent const& event) const;
 };
 
 }

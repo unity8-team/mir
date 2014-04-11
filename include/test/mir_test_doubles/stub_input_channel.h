@@ -48,6 +48,9 @@ struct StubInputChannel : public input::InputChannel
     {
         return input_fd;
     }
+    void send_event(uint32_t /*seq*/, MirEvent const& /*event*/) const override
+    {
+    }
     int input_fd;
 };
 

@@ -18,6 +18,7 @@
 
 #include "android_input_window_handle.h"
 #include "android_input_application_handle.h"
+#include "android_input_channel.h"
 
 #include "mir/input/input_channel.h"
 #include "mir/input/surface.h"
@@ -64,9 +65,16 @@ bool mia::InputWindowHandle::updateInfo()
     {
         mInfo = new WindowInfo(surface);
 
-        // TODO: How can we avoid recreating the InputChannel which the InputChannelFactory has already created?
-        mInfo->inputChannel = new droidinput::InputChannel(droidinput::String8("TODO: Name"),
-                                                           input_channel->server_fd());
+        std::shared_ptr<AndroidInputChannel> droidchannel = std::dynamic_pointer_cast<AndroidInputChannel>(input_channel);
+        if (droidchannel)
+        {
+            mInfo->inputChannel = droidchannel->get_android_channel();
+        }
+        else
+        {
+            mInfo->inputChannel = new droidinput::InputChannel(droidinput::String8("TODO: Name"),
+                                                               input_channel->server_fd());
+        }
     }
 
     auto surface_size = surface->size();

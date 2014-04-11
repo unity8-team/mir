@@ -52,6 +52,7 @@ struct MockInputChannel : public mi::InputChannel
 {
     MOCK_CONST_METHOD0(client_fd, int());
     MOCK_CONST_METHOD0(server_fd, int());
+    MOCK_CONST_METHOD2(send_event,void(uint32_t /*seq*/, MirEvent const& /*event*/));
 };
 
 }
