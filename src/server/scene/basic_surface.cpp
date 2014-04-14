@@ -155,6 +155,11 @@ ms::BasicSurface::BasicSurface(
     report->surface_created(this, surface_name);
 }
 
+mg::Renderable::ID ms::BasicSurface::id() const
+{
+    return this; // Always sufficient or should we cast from a SurfaceID?
+}
+
 void ms::BasicSurface::force_requests_to_complete()
 {
     surface_buffer_stream->force_requests_to_complete();
@@ -317,15 +322,6 @@ bool ms::BasicSurface::contains(geom::Point const& point) const
         }
     }
     return false;
-}
-
-void ms::BasicSurface::frame_posted()
-{
-    {
-        std::unique_lock<std::mutex> lk(guard);
-        first_frame_posted = true;
-    }
-    observers.frame_posted();
 }
 
 void ms::BasicSurface::set_alpha(float alpha)
