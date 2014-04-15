@@ -29,11 +29,10 @@ public:
     wrapped(wrapped) {}
 
     std::shared_ptr<scene::Surface> add_surface(
-        SurfaceCreationParameters const& params,
-        scene::Session* session,
-        std::shared_ptr<scene::SurfaceObserver> const& observer) override
+        scene::SurfaceCreationParameters const& params,
+        scene::Session* session) override
     {
-        return wrapped->add_surface(params, session, observer);
+        return wrapped->add_surface(params, session);
     }
 
     void raise(std::weak_ptr<scene::Surface> const& surface) override
@@ -64,10 +63,21 @@ public:
         return wrap_surface_coordinator(wrapped);
     }
 
-    WrappingServerConfiguration& with_wrapping(WrapSurfaceCoordinator const& wrap)
+    WrappingServerConfiguration& wrap_surface_coordinator_using(WrapSurfaceCoordinator const& wrap)
     {
         wrap_surface_coordinator = wrap;
         return *this;
+    }
+
+    template <class Wrapper>
+    WrappingServerConfiguration& wrap_surface_coordinator_with()
+    {
+        return wrap_surface_coordinator_using(
+            [](std::shared_ptr<scene::SurfaceCoordinator> const& wrapped)
+            -> std::shared_ptr<scene::SurfaceCoordinator>
+            {
+                return std::make_shared<Wrapper>(wrapped);
+            });
     }
 
 private:
@@ -82,6 +92,7 @@ private:
 #include "mir_test_framework/stubbed_server_configuration.h"
 
 #include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
 namespace ms = mir::scene;
 namespace msh = mir::shell;
@@ -89,15 +100,32 @@ namespace mtf = mir_test_framework;
 
 using namespace testing;
 
+namespace
+{
 using MyConfig = msh::WrappingServerConfiguration<mtf::StubbedServerConfiguration>;
+
+class MySurfaceCoordinator : public msh::SurfaceCoordinatorWrapper
+{
+public:
+    using msh::SurfaceCoordinatorWrapper::SurfaceCoordinatorWrapper;
+
+    MOCK_METHOD1(raise, void(std::weak_ptr<ms::Surface> const&));
+};
+}
 
 TEST(WrappingServerConfiguration, can_set_surface_coordinator_wrapping)
 {
     MyConfig config;
 
-    config.with_wrapping([](std::shared_ptr<ms::SurfaceCoordinator> const& wrapped)
-        -> std::shared_ptr<ms::SurfaceCoordinator>
-    {
-        return std::make_shared<msh::SurfaceCoordinatorWrapper>(wrapped);
-    });
+    config.wrap_surface_coordinator_with<MySurfaceCoordinator>();
+
+    auto const surface_coordinator = config.the_surface_coordinator();
+
+    auto const my_surface_coordinator = std::dynamic_pointer_cast<MySurfaceCoordinator>(surface_coordinator);
+
+    ASSERT_THAT(my_surface_coordinator, Ne(nullptr));
+
+    EXPECT_CALL(*my_surface_coordinator, raise(_)).Times(1);
+
+    surface_coordinator->raise({});
 }
