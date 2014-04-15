@@ -13,6 +13,7 @@ protobuf_generate_cpp(
 set(
   SOURCES
 
+  wrapping_server_configuration.cpp
   test_client_library.cpp
   test_surfaceloop.cpp
   test_test_framework.cpp
