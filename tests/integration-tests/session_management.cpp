@@ -17,7 +17,7 @@
  */
 
 #include "mir/frontend/session.h"
-#include "mir/frontend/shell.h"
+#include "mir/frontend/server.h"
 #include "mir/input/input_configuration.h"
 
 #include "mir/scene/surface_creation_parameters.h"
@@ -100,7 +100,7 @@ struct SessionManagement : Test
 {
     TestConfiguration builder;
     std::shared_ptr<mf::EventSink> const event_sink = std::make_shared<mtd::NullEventSink>();
-    std::shared_ptr<mf::Shell> const session_manager = builder.the_frontend_shell();
+    std::shared_ptr<mf::Server> const session_manager = builder.the_frontend_server();
     std::shared_ptr<TestSurfaceStack> const& test_surface_stack = builder.test_surface_stack;
 
     void SetUp()
