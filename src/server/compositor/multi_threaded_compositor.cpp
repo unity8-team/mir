@@ -28,6 +28,7 @@
 #include <condition_variable>
 #include <cstdint>
 #include <chrono>
+#include <atomic>
 
 namespace mc = mir::compositor;
 namespace mg = mir::graphics;
@@ -54,6 +55,8 @@ public:
 private:
     mg::DisplayBuffer& buffer;
 };
+
+std::atomic<int> real_frames(0);
 
 class CompositingFunctor
 {
@@ -148,7 +151,12 @@ public:
                               r.top_left.x.as_int(), r.top_left.y.as_int(),
                               report_id);
 
-        run_compositing_loop([&] { return display_buffer_compositor->composite();});
+        run_compositing_loop([&]
+        {
+            bool ret = display_buffer_compositor->composite();
+            real_frames = real_frames + 1;
+            return ret;
+        });
     }
 
 private:
@@ -170,40 +178,32 @@ public:
         run_compositing_loop(
             [this]
             {
-                std::vector<std::shared_ptr<mg::Buffer>> saved_resources;
+                int old_real_frames = real_frames;
 
-                auto const& renderables = scene->generate_renderable_list();
+                // Emulate a moderately slow fake display
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-                for (auto const& r : renderables)
+                fprintf(stderr, "old = %d, new=%d\n",
+                    old_real_frames, real_frames.load());
+
+                // Now only composite a fake frame if no real display has
+                // composited yet...
+                if (real_frames == old_real_frames)
                 {
-                    if (r->visible())
-                        saved_resources.push_back(r->buffer(this));
+                    fprintf(stderr, "FAKE\n");
+                    auto const& all = scene->generate_renderable_list();
+                    for (auto const& r : all)
+                    {
+                        if (r->visible())
+                            (void)r->buffer(this);
+                    }
                 }
-
-                wait_until_next_fake_vsync();
 
                 return false;
             });
     }
 
 private:
-    void wait_until_next_fake_vsync()
-    {
-        using namespace std::chrono;
-        typedef duration<int64_t, std::ratio<1, 60>> vsync_periods;
-
-        /* Truncate to vsync periods */
-        auto const previous_vsync =
-            duration_cast<vsync_periods>(steady_clock::now().time_since_epoch());
-        /* Convert back to a timepoint */
-        auto const previous_vsync_tp =
-            time_point<steady_clock, vsync_periods>{previous_vsync};
-        /* Next vsync time point */
-        auto const next_vsync = previous_vsync_tp + vsync_periods(1);
-
-        std::this_thread::sleep_until(next_vsync);
-    }
-
     std::shared_ptr<mc::Scene> const scene;
 };
 
