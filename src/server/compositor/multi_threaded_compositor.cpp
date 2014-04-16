@@ -170,14 +170,12 @@ public:
         run_compositing_loop(
             [this]
             {
-                std::vector<std::shared_ptr<mg::Buffer>> saved_resources;
-
                 auto const& renderables = scene->generate_renderable_list();
 
                 for (auto const& r : renderables)
                 {
                     if (r->visible())
-                        saved_resources.push_back(r->buffer(this));
+                        r->buffer(this); // consume, don't hold the result
                 }
 
                 wait_until_next_fake_vsync();
