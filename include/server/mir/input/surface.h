@@ -21,6 +21,7 @@
 
 #include "mir/geometry/size.h"
 #include "mir/geometry/point.h"
+#include "mir_toolkit/event.h"
 #include <string>
 
 namespace mir
@@ -34,6 +35,7 @@ public:
     virtual geometry::Point top_left() const = 0;
     virtual geometry::Size size() const = 0;
     virtual bool contains(geometry::Point const& point) const = 0;
+    virtual void consume(MirEvent const& event) = 0;
 
 protected:
     Surface() = default;
