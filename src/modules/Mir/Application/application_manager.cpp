@@ -217,6 +217,7 @@ void ApplicationManager::suspendApplication(Application *application)
 {
     if (application == nullptr)
         return;
+    DLOG("ApplicationManager::suspendApplication (appId=%s)", qPrintable(application->appId()));
 
     updateScreenshot(application->appId());
 
@@ -755,6 +756,7 @@ void ApplicationManager::move(int from, int to) {
         m_applications.move(from, to);
         endMoveRows();
     }
+    DLOG("ApplicationManager::move after (%s)", qPrintable(toString()));
 }
 
 QModelIndex ApplicationManager::findIndex(Application* application)
@@ -766,4 +768,16 @@ QModelIndex ApplicationManager::findIndex(Application* application)
     }
 
     return QModelIndex();
+}
+
+QString ApplicationManager::toString() const
+{
+    QString result;
+    for (int i = 0; i < m_applications.count(); ++i) {
+        if (i > 0) {
+            result.append(",");
+        }
+        result.append(m_applications.at(i)->appId());
+    }
+    return result;
 }

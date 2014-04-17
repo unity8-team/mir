@@ -247,13 +247,13 @@ void Application::setFullscreen(bool fullscreen)
 
 void Application::suspend()
 {
-    DLOG("Application::suspend (this=%p)", this);
+    DLOG("Application::suspend (this=%p, appId=%s)", this, qPrintable(appId()));
     TaskController::singleton()->suspend(appId());
 }
 
 void Application::resume()
 {
-    DLOG("Application::resume (this=%p)", this);
+    DLOG("Application::resume (this=%p, appId=%s)", this, qPrintable(appId()));
     TaskController::singleton()->resume(appId());
 }
 

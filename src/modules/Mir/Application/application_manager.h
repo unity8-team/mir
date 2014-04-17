@@ -117,6 +117,7 @@ private:
     QModelIndex findIndex(Application* application);
     void suspendApplication(Application *application);
     void resumeApplication(Application *application);
+    QString toString() const;
 
     QList<Application*> m_applications;
     Application* m_focusedApplication; // remove as Mir has API for this
