@@ -36,7 +36,7 @@ namespace mf = mir::frontend;
 namespace ms = mir::scene;
 namespace msh = mir::shell;
 
-namespace 
+namespace
 {
 /* A Mir in-process client does not have an associated Session by default. However it is
  * useful for the shell to be able to position and identify its own surface, so need to
@@ -59,6 +59,9 @@ public:
     virtual void show() override {}
     virtual void send_display_config(mir::graphics::DisplayConfiguration const&) override {}
     virtual int configure_surface(mf::SurfaceId, MirSurfaceAttrib, int) override { return 0; }
+
+    virtual void begin_trust_session() {}
+    virtual void end_trust_session() {}
 private:
     std::shared_ptr<msh::Surface> const surface;
 };
@@ -80,7 +83,7 @@ uams::Instance::Instance(std::shared_ptr<ms::SurfaceCoordinator> const &surface_
       session_listener(session_listener),
       ref_count(1)
 {
-    description = DescriptionPtr(description_, 
+    description = DescriptionPtr(description_,
         [] (uam::Description* p)
         {
             delete p;
