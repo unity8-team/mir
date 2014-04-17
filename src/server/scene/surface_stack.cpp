@@ -143,8 +143,11 @@ void ms::SurfaceStack::add_surface(
     }
     input_registrar->input_channel_opened(surface->input_channel(), surface, input_mode);
     report->surface_added(surface.get(), surface.get()->name());
-    auto const observer = std::make_shared<LegacySurfaceChangeNotification>(change_cb);
+    auto observer = std::make_shared<LegacySurfaceChangeNotification>(change_cb);
     surface->add_observer(observer);
+
+    observers.push_back(observer);
+
     emit_change_notification();
 }
 

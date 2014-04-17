@@ -42,73 +42,74 @@ namespace geom = mir::geometry;
 
 void ms::SurfaceObservers::attrib_changed(MirSurfaceAttrib attrib, int value)
 {
-    std::unique_lock<decltype(mutex)> lock(mutex);
-    // TBD Maybe we should copy observers so we can release the lock?
-    for (auto const& p : observers)
-        p->attrib_changed(attrib, value);
+    for_each_observer([&](std::shared_ptr<SurfaceObserver> const& p) {
+            p->attrib_changed(attrib, value);
+        });
 }
 
 void ms::SurfaceObservers::resized_to(geometry::Size const& size)
 {
-    std::unique_lock<decltype(mutex)> lock(mutex);
-    // TBD Maybe we should copy observers so we can release the lock?
-    for (auto const& p : observers)
-        p->resized_to(size);
+    for_each_observer([&](std::shared_ptr<SurfaceObserver> const& p) {
+            p->resized_to(size);
+        });
 }
 
 void ms::SurfaceObservers::moved_to(geometry::Point const& top_left)
 {
-    std::unique_lock<decltype(mutex)> lock(mutex);
-    // TBD Maybe we should copy observers so we can release the lock?
-    for (auto const& p : observers)
-        p->moved_to(top_left);
+    for_each_observer([&](std::shared_ptr<SurfaceObserver> const& p) {
+            p->moved_to(top_left);
+        });
 }
 
 void ms::SurfaceObservers::hidden_set_to(bool hide)
 {
-    std::unique_lock<decltype(mutex)> lock(mutex);
-    // TBD Maybe we should copy observers so we can release the lock?
-    for (auto const& p : observers)
-        p->hidden_set_to(hide);
+    for_each_observer([&](std::shared_ptr<SurfaceObserver> const& p) {
+            p->hidden_set_to(hide);
+        });
 }
 
 void ms::SurfaceObservers::frame_posted()
 {
-    std::unique_lock<decltype(mutex)> lock(mutex);
-    // TBD Maybe we should copy observers so we can release the lock?
-    for (auto const& p : observers)
-        p->frame_posted();
+    for_each_observer([&](std::shared_ptr<SurfaceObserver> const& p) {
+            p->frame_posted();
+        });
 }
 
 void ms::SurfaceObservers::alpha_set_to(float alpha)
 {
-    std::unique_lock<decltype(mutex)> lock(mutex);
-    // TBD Maybe we should copy observers so we can release the lock?
-    for (auto const& p : observers)
-        p->alpha_set_to(alpha);
+    for_each_observer([&](std::shared_ptr<SurfaceObserver> const& p) {
+            p->alpha_set_to(alpha);
+        });
 }
 
 void ms::SurfaceObservers::transformation_set_to(glm::mat4 const& t)
 {
-    std::unique_lock<decltype(mutex)> lock(mutex);
+    for_each_observer([&](std::shared_ptr<SurfaceObserver> const& p) {
+            p->transformation_set_to(t);
+        });
+}
+
+void ms::SurfaceObservers::for_each_observer(std::function<void(std::shared_ptr<SurfaceObserver> const&)> const& body)
+{
     // TBD Maybe we should copy observers so we can release the lock?
-    for (auto const& p : observers)
-        p->transformation_set_to(t);
+    std::unique_lock<decltype(mutex)> lock(mutex);
+
+    observers.erase(std::remove_if(observers.begin(), observers.end(),
+        [&body](std::weak_ptr<SurfaceObserver> const& p) -> bool {
+            auto observer = p.lock();
+
+            if (!observer)
+                return true; // Remove dead observer
+
+            body(observer);
+            return false;
+        }), observers.end());
 }
 
-void ms::SurfaceObservers::add(std::shared_ptr<SurfaceObserver> const& observer)
-{
-    if (observer)
-    {
-        std::unique_lock<decltype(mutex)> lock(mutex);
-        observers.push_back(observer);
-    }
-}
-
-void ms::SurfaceObservers::remove(std::shared_ptr<SurfaceObserver> const& observer)
+void ms::SurfaceObservers::add(std::weak_ptr<SurfaceObserver> const& observer)
 {
     std::unique_lock<decltype(mutex)> lock(mutex);
-    observers.erase(std::remove(observers.begin(),observers.end(), observer), observers.end());
+    observers.push_back(observer);
 }
 
 ms::BasicSurface::BasicSurface(
@@ -455,12 +456,7 @@ void ms::BasicSurface::show()
 }
 
 
-void ms::BasicSurface::add_observer(std::shared_ptr<SurfaceObserver> const& observer)
+void ms::BasicSurface::add_observer(std::weak_ptr<SurfaceObserver> const& observer)
 {
     observers.add(observer);
-}
-
-void ms::BasicSurface::remove_observer(std::shared_ptr<SurfaceObserver> const& observer)
-{
-    observers.remove(observer);
 }

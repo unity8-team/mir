@@ -56,6 +56,7 @@ namespace scene
 class InputRegistrar;
 class BasicSurface;
 class SceneReport;
+class SurfaceObserver;
 
 class SurfaceStack : public compositor::Scene, public input::InputTargets, public SurfaceStackModel
 {
@@ -97,6 +98,9 @@ private:
 
     std::mutex notify_change_mutex;
     std::function<void()> notify_change;
+
+    // This vector is a keep alive-vector until ownership is moved to the scene-observer/client code.
+    std::vector<std::shared_ptr<SurfaceObserver>> observers;
 };
 
 }

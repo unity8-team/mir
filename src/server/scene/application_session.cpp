@@ -80,6 +80,7 @@ mf::SurfaceId ms::ApplicationSession::create_surface(const SurfaceCreationParame
     {
         std::unique_lock<std::mutex> lock(surfaces_mutex);
         surfaces[id] = surf;
+        observers[id] = observer;
     }
 
     session_listener->surface_created(*this, surf);
@@ -130,6 +131,7 @@ void ms::ApplicationSession::destroy_surface(mf::SurfaceId id)
     session_listener->destroying_surface(*this, surface);
 
     surfaces.erase(p);
+    observers.erase(id);
     lock.unlock();
 
     surface_coordinator->remove_surface(surface);

@@ -66,12 +66,13 @@ public:
     void alpha_set_to(float alpha) override;
     void transformation_set_to(glm::mat4 const& t) override;
 
-    void add(std::shared_ptr<SurfaceObserver> const& observer);
-    void remove(std::shared_ptr<SurfaceObserver> const& observer);
-
+    void add(std::weak_ptr<SurfaceObserver> const& observer);
+    
 private:
     std::mutex mutex;
-    std::vector<std::shared_ptr<SurfaceObserver>> observers;
+    std::vector<std::weak_ptr<SurfaceObserver>> observers;
+    
+    void for_each_observer(std::function<void(std::shared_ptr<SurfaceObserver> const&)> const& body);
 };
 
 class BasicSurface : public Surface
@@ -138,8 +139,7 @@ public:
     void hide() override;
     void show() override;
 
-    void add_observer(std::shared_ptr<SurfaceObserver> const& observer) override;
-    void remove_observer(std::shared_ptr<SurfaceObserver> const& observer) override;
+    void add_observer(std::weak_ptr<SurfaceObserver> const& observer) override;
 
 private:
     bool set_type(MirSurfaceType t);  // Use configure() to make public changes
