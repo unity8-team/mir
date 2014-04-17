@@ -31,8 +31,8 @@
 #include "mirsurfaceitem.h"
 
 class ShellServerConfiguration;
-namespace mir { namespace shell { class Surface; class Session; }}
-namespace mir { namespace scene { class Surface; }}
+namespace mir { namespace shell { class Surface; }}
+namespace mir { namespace scene { class Surface; class Session; }}
 
 class MirSurfaceManager : public QAbstractListModel
 {
@@ -70,8 +70,8 @@ Q_SIGNALS:
 //    void fullscreenSurfaceChanged();
 
 public Q_SLOTS:
-    void onSessionCreatedSurface(mir::shell::Session const* session, std::shared_ptr<mir::scene::Surface> const&);
-    void onSessionDestroyingSurface(mir::shell::Session const*, std::shared_ptr<mir::scene::Surface> const&);
+    void onSessionCreatedSurface(mir::scene::Session const* session, std::shared_ptr<mir::scene::Surface> const&);
+    void onSessionDestroyingSurface(mir::scene::Session const*, std::shared_ptr<mir::scene::Surface> const&);
 
     void onSurfaceAttributeChanged(mir::scene::Surface const*, MirSurfaceAttrib, int);
 

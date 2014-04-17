@@ -42,8 +42,8 @@ MirServerConfiguration::~MirServerConfiguration()
 {
 }
 
-std::shared_ptr<msh::PlacementStrategy>
-MirServerConfiguration::the_shell_placement_strategy()
+std::shared_ptr<ms::PlacementStrategy>
+MirServerConfiguration::the_placement_strategy()
 {
     return shell_placement_strategy(
         [this]
@@ -52,10 +52,10 @@ MirServerConfiguration::the_shell_placement_strategy()
         });
 }
 
-std::shared_ptr<msh::SessionListener>
-MirServerConfiguration::the_shell_session_listener()
+std::shared_ptr<ms::SessionListener>
+MirServerConfiguration::the_session_listener()
 {
-    return shell_session_listener(
+    return session_listener(
         [this]
         {
             return std::make_shared<SessionListener>();
@@ -147,7 +147,7 @@ SessionAuthorizer *MirServerConfiguration::sessionAuthorizer()
 
 SessionListener *MirServerConfiguration::sessionListener()
 {
-    auto sharedPtr = the_shell_session_listener();
+    auto sharedPtr = the_session_listener();
     if (sharedPtr.unique()) return 0;
 
     return static_cast<SessionListener*>(sharedPtr.get());

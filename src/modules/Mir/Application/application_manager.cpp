@@ -30,7 +30,7 @@
 
 // mir
 #include <mir/scene/surface.h>
-#include <mir/shell/session.h>
+#include <mir/scene/session.h>
 #include <mir/shell/focus_controller.h>
 
 // Qt
@@ -38,7 +38,6 @@
 #include <QDebug>
 
 namespace ms = mir::scene;
-namespace msh = mir::shell;
 
 using namespace unity::shell::application;
 
@@ -555,7 +554,7 @@ void ApplicationManager::authorizeSession(const quint64 pid, bool &authorized)
     authorized = true;
 }
 
-void ApplicationManager::onSessionStarting(std::shared_ptr<msh::Session> const& session)
+void ApplicationManager::onSessionStarting(std::shared_ptr<ms::Session> const& session)
 {
     DLOG("ApplicationManager::onSessionStarting (this=%p, application=%s)", this, session->name().c_str());
 
@@ -575,7 +574,7 @@ void ApplicationManager::onSessionStarting(std::shared_ptr<msh::Session> const& 
     }
 }
 
-void ApplicationManager::onSessionStopping(std::shared_ptr<msh::Session> const& session)
+void ApplicationManager::onSessionStopping(std::shared_ptr<ms::Session> const& session)
 {
     DLOG("ApplicationManager::onSessionStopping (this=%p, application=%s)", this, session->name().c_str());
 
@@ -603,7 +602,7 @@ void ApplicationManager::onSessionStopping(std::shared_ptr<msh::Session> const& 
     }
 }
 
-void ApplicationManager::onSessionFocused(std::shared_ptr<msh::Session> const& session)
+void ApplicationManager::onSessionFocused(std::shared_ptr<ms::Session> const& session)
 {
     DLOG("ApplicationManager::onSessionFocused (this=%p, application=%s)", this, session->name().c_str());
     Application* application = findApplicationWithSession(session);
@@ -642,7 +641,7 @@ void ApplicationManager::onSessionUnfocused()
     }
 }
 
-void ApplicationManager::onSessionCreatedSurface(msh::Session const* session,
+void ApplicationManager::onSessionCreatedSurface(ms::Session const* session,
                                                std::shared_ptr<ms::Surface> const& surface)
 {
     DLOG("ApplicationManager::onSessionCreatedSurface (this=%p)", this);
@@ -677,12 +676,12 @@ void ApplicationManager::setFocused(Application *application)
     m_dbusWindowStack->FocusedWindowChanged(0, application->appId(), application->stage());
 }
 
-Application* ApplicationManager::findApplicationWithSession(const std::shared_ptr<msh::Session> &session)
+Application* ApplicationManager::findApplicationWithSession(const std::shared_ptr<ms::Session> &session)
 {
     return findApplicationWithSession(session.get());
 }
 
-Application* ApplicationManager::findApplicationWithSession(const msh::Session *session)
+Application* ApplicationManager::findApplicationWithSession(const ms::Session *session)
 {
     for (Application *app : m_applications) {
         if (app->session().get() == session) {

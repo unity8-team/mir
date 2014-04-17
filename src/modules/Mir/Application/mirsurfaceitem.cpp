@@ -198,6 +198,7 @@ MirSurfaceItem::~MirSurfaceItem()
 // For QML to destroy this surface
 void MirSurfaceItem::release()
 {
+    DLOG("MirSurfaceItem::release(this=%p)", this);
     this->deleteLater();
 }
 

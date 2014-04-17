@@ -19,32 +19,32 @@
 
 #include <QObject>
 
-#include "mir/shell/session_listener.h"
-#include "mir/shell/session.h"
+#include "mir/scene/session_listener.h"
+#include "mir/scene/session.h"
 
-class SessionListener : public QObject, public mir::shell::SessionListener
+class SessionListener : public QObject, public mir::scene::SessionListener
 {
     Q_OBJECT
 public:
     explicit SessionListener(QObject *parent = 0);
     ~SessionListener();
 
-    void starting(std::shared_ptr<mir::shell::Session> const& session) override;
-    void stopping(std::shared_ptr<mir::shell::Session> const& session) override;
-    void focused(std::shared_ptr<mir::shell::Session> const& session) override;
+    void starting(std::shared_ptr<mir::scene::Session> const& session) override;
+    void stopping(std::shared_ptr<mir::scene::Session> const& session) override;
+    void focused(std::shared_ptr<mir::scene::Session> const& session) override;
     void unfocused() override;
 
-    void surface_created(mir::shell::Session&, std::shared_ptr<mir::scene::Surface> const&) override;
-    void destroying_surface(mir::shell::Session&, std::shared_ptr<mir::scene::Surface> const&) override;
+    void surface_created(mir::scene::Session&, std::shared_ptr<mir::scene::Surface> const&) override;
+    void destroying_surface(mir::scene::Session&, std::shared_ptr<mir::scene::Surface> const&) override;
 
 Q_SIGNALS:
-    void sessionStarting(std::shared_ptr<mir::shell::Session> const& session);
-    void sessionStopping(std::shared_ptr<mir::shell::Session> const& session);
-    void sessionFocused(std::shared_ptr<mir::shell::Session> const& session);
+    void sessionStarting(std::shared_ptr<mir::scene::Session> const& session);
+    void sessionStopping(std::shared_ptr<mir::scene::Session> const& session);
+    void sessionFocused(std::shared_ptr<mir::scene::Session> const& session);
     void sessionUnfocused();
 
-    void sessionCreatedSurface(mir::shell::Session const*, std::shared_ptr<mir::scene::Surface> const&);
-    void sessionDestroyingSurface(mir::shell::Session const*, std::shared_ptr<mir::scene::Surface> const&);
+    void sessionCreatedSurface(mir::scene::Session const*, std::shared_ptr<mir::scene::Surface> const&);
+    void sessionDestroyingSurface(mir::scene::Session const*, std::shared_ptr<mir::scene::Surface> const&);
 };
 
 #endif // SESSIONLISTENER_H

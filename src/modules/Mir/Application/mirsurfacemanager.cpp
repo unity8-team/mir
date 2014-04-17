@@ -74,7 +74,7 @@ MirSurfaceManager::~MirSurfaceManager()
     m_mirSurfaceToItemHash.clear();
 }
 
-void MirSurfaceManager::onSessionCreatedSurface(mir::shell::Session const* session,
+void MirSurfaceManager::onSessionCreatedSurface(mir::scene::Session const* session,
         std::shared_ptr<mir::scene::Surface> const& surface)
 {
     DLOG("MirSurfaceManager::onSessionCreatedSurface (this=%p) with surface name '%s'", this, surface->name().c_str());
@@ -109,7 +109,7 @@ void MirSurfaceManager::onSessionCreatedSurface(mir::shell::Session const* sessi
     });
 }
 
-void MirSurfaceManager::onSessionDestroyingSurface(mir::shell::Session const*,
+void MirSurfaceManager::onSessionDestroyingSurface(mir::scene::Session const*,
         std::shared_ptr<mir::scene::Surface> const& surface)
 {
     DLOG("MirSurfaceManager::onSessionDestroyingSurface (this=%p) with surface name '%s'", this, surface->name().c_str());

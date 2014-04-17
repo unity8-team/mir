@@ -17,7 +17,7 @@
 #ifndef MIRSERVERQPA_MIR_PLACEMENT_STRATEGY_H
 #define MIRSERVERQPA_MIR_PLACEMENT_STRATEGY_H
 
-#include <mir/shell/placement_strategy.h>
+#include <mir/scene/placement_strategy.h>
 
 #include <memory>
 
@@ -27,13 +27,13 @@ namespace mir {
     }
 }
 
-class MirPlacementStrategy : public mir::shell::PlacementStrategy
+class MirPlacementStrategy : public mir::scene::PlacementStrategy
 {
 public:
     MirPlacementStrategy(std::shared_ptr<mir::shell::DisplayLayout> const& display_layout);
 
-    mir::shell::SurfaceCreationParameters place(mir::shell::Session const& session,
-            mir::shell::SurfaceCreationParameters const& request_parameters) override;
+    mir::scene::SurfaceCreationParameters place(mir::scene::Session const& session,
+            mir::scene::SurfaceCreationParameters const& request_parameters) override;
 
 private:
     std::shared_ptr<mir::shell::DisplayLayout> const m_displayLayout;

@@ -38,8 +38,8 @@ public:
 
     /* mir specific */
     std::shared_ptr<mir::compositor::Compositor> the_compositor() override;
-    std::shared_ptr<mir::shell::PlacementStrategy> the_shell_placement_strategy() override;
-    std::shared_ptr<mir::shell::SessionListener> the_shell_session_listener() override;
+    std::shared_ptr<mir::scene::PlacementStrategy> the_placement_strategy() override;
+    std::shared_ptr<mir::scene::SessionListener> the_session_listener() override;
     std::shared_ptr<mir::scene::SurfaceConfigurator> the_surface_configurator() override;
     std::shared_ptr<mir::frontend::SessionAuthorizer> the_session_authorizer() override;
     std::shared_ptr<mir::input::InputConfiguration> the_input_configuration() override;

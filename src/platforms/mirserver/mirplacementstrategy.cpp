@@ -19,8 +19,9 @@
 
 #include <mir/geometry/rectangle.h>
 #include <mir/shell/display_layout.h>
-#include <mir/shell/surface_creation_parameters.h>
+#include <mir/scene/surface_creation_parameters.h>
 
+namespace ms = mir::scene;
 namespace msh = mir::shell;
 
 MirPlacementStrategy::MirPlacementStrategy(
@@ -30,15 +31,15 @@ MirPlacementStrategy::MirPlacementStrategy(
     DLOG("MirPlacementStrategy::MirPlacementStrategy");
 }
 
-msh::SurfaceCreationParameters
-MirPlacementStrategy::place(msh::Session const& /*session*/,
-        msh::SurfaceCreationParameters const& requestParameters)
+ms::SurfaceCreationParameters
+MirPlacementStrategy::place(ms::Session const& /*session*/,
+        ms::SurfaceCreationParameters const& requestParameters)
 {
     // TODO: Callback unity8 so that it can make a decision on that.
     //       unity8 must bear in mind that the called function will be on a Mir thread though.
     //       The QPA shouldn't be deciding for itself on such things.
 
-    msh::SurfaceCreationParameters placedParameters = requestParameters;
+    ms::SurfaceCreationParameters placedParameters = requestParameters;
 
     // Just make it fullscreen for now
     mir::geometry::Rectangle rect{requestParameters.top_left, requestParameters.size};
