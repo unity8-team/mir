@@ -174,6 +174,7 @@ TEST_F(GLRendererSetupProcess, vertex_shader_compiler_failure_recovers_and_throw
 
     EXPECT_CALL(mock_gl, glGetShaderiv(stub_v_shader, GL_INFO_LOG_LENGTH, _))
         .WillOnce(SetArgPointee<2>(stub_info_log_length));
+    EXPECT_CALL(mock_gl, glDeleteShader(stub_v_shader)).Times(1);
     EXPECT_CALL(mock_gl, glGetShaderInfoLog(stub_v_shader,
         stub_info_log_length,
         _,
@@ -195,12 +196,15 @@ TEST_F(GLRendererSetupProcess, fragment_shader_compiler_failure_recovers_and_thr
 
     EXPECT_CALL(mock_gl, glGetShaderiv(stub_f_shader, GL_INFO_LOG_LENGTH, _))
         .WillOnce(SetArgPointee<2>(stub_info_log_length));
+    EXPECT_CALL(mock_gl, glDeleteShader(stub_f_shader)).Times(1);
     EXPECT_CALL(mock_gl, glGetShaderInfoLog(stub_f_shader,
         stub_info_log_length,
         _,
         NthCharacterIsNul(stub_info_log_length)))
             .WillOnce(CopyString(stub_info_log.c_str(),
                 stub_info_log.size()));
+
+    EXPECT_CALL(mock_gl, glDeleteShader(stub_v_shader)).Times(1);
 
     EXPECT_THROW({
         auto r = gl_renderer_factory.create_renderer_for(display_area);
@@ -223,6 +227,10 @@ TEST_F(GLRendererSetupProcess, graphics_program_linker_failure_recovers_and_thro
         NthCharacterIsNul(stub_info_log_length)))
             .WillOnce(CopyString(stub_info_log.c_str(),
                 stub_info_log.size()));
+
+    EXPECT_CALL(mock_gl, glDeleteShader(stub_v_shader)).Times(1);
+    EXPECT_CALL(mock_gl, glDeleteShader(stub_f_shader)).Times(1);
+    EXPECT_CALL(mock_gl, glDeleteProgram(stub_program)).Times(1);
 
     EXPECT_THROW({
         auto r = gl_renderer_factory.create_renderer_for(display_area);
