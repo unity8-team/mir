@@ -18,6 +18,9 @@
 
 #include <ubuntu/hardware/alarm.h>
 
+#include <stdexcept>
+#include <string>
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -84,23 +87,25 @@ class UbuntuHardwareAlarm
         int result = ::ioctl(fd, ANDROID_ALARM_SET(type), ts);
 
         if (result < 0)
-            ALOGE("Unable to set alarm.");
+            ALOGE("Unable to set alarm: %s", strerror(errno));
 
-        return !(result < 0);
-    }
-
-    bool is_valid() const
-    {
-        return fd >= 0;
+        return not (result < 0);
     }
 
   private:
     UbuntuHardwareAlarm() : fd(open("/dev/alarm", O_RDWR))
     {
+        if (fd == -1) throw std::runtime_error
+        {
+            std::string{"UbuntuHardwareAlarm::UbuntuHardwareAlarm: Could not open /dev/alarm."} +
+            ::strerror(errno)
+        };
     }
 
     ~UbuntuHardwareAlarm()
     {
+        // No need to check if fd is valid here.
+        // Ctor would have thrown if fd was invalid.
         ::close(fd);
     }
 
@@ -110,8 +115,13 @@ class UbuntuHardwareAlarm
 UHardwareAlarm
 u_hardware_alarm_create()
 {
-    if (UbuntuHardwareAlarm::instance().is_valid())
+    try
+    {
         return &UbuntuHardwareAlarm::instance();
+    } catch (const std::runtime_error& e)
+    {
+        ALOGE("Could not acquire instance: %s", e.what());
+    }
 
     return NULL;
 }
