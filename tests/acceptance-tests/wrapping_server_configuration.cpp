@@ -16,78 +16,9 @@
  * Authored By: Alan Griffiths <alan@octopull.co.uk>
  */
 
-#include "mir/scene/surface_coordinator.h"
+#include "mir/shell/wrapping_server_configuration.h"
+#include "mir/shell/surface_coordinator_wrapper.h"
 
-namespace mir
-{
-namespace shell
-{
-class SurfaceCoordinatorWrapper : public scene::SurfaceCoordinator
-{
-public:
-    explicit SurfaceCoordinatorWrapper(std::shared_ptr<scene::SurfaceCoordinator> const& wrapped) :
-    wrapped(wrapped) {}
-
-    std::shared_ptr<scene::Surface> add_surface(
-        scene::SurfaceCreationParameters const& params,
-        scene::Session* session) override
-    {
-        return wrapped->add_surface(params, session);
-    }
-
-    void raise(std::weak_ptr<scene::Surface> const& surface) override
-    {
-        wrapped->raise(surface);
-    }
-
-    void remove_surface(std::weak_ptr<scene::Surface> const& surface) override
-    {
-        wrapped->remove_surface(surface);
-    }
-
-protected:
-    std::shared_ptr<SurfaceCoordinator> const wrapped;
-};
-
-typedef std::function<std::shared_ptr<scene::SurfaceCoordinator>(std::shared_ptr<scene::SurfaceCoordinator> const& wrapped)> WrapSurfaceCoordinator;
-
-template<class BaseConfiguration>
-class WrappingServerConfiguration : public BaseConfiguration
-{
-public:
-    using BaseConfiguration::BaseConfiguration;
-
-    std::shared_ptr<scene::SurfaceCoordinator> the_surface_coordinator() override
-    {
-        auto const wrapped = BaseConfiguration::the_surface_coordinator();
-        return wrap_surface_coordinator(wrapped);
-    }
-
-    WrappingServerConfiguration& wrap_surface_coordinator_using(WrapSurfaceCoordinator const& wrap)
-    {
-        wrap_surface_coordinator = wrap;
-        return *this;
-    }
-
-    template <class Wrapper>
-    WrappingServerConfiguration& wrap_surface_coordinator_with()
-    {
-        return wrap_surface_coordinator_using(
-            [](std::shared_ptr<scene::SurfaceCoordinator> const& wrapped)
-            -> std::shared_ptr<scene::SurfaceCoordinator>
-            {
-                return std::make_shared<Wrapper>(wrapped);
-            });
-    }
-
-private:
-    WrapSurfaceCoordinator wrap_surface_coordinator{
-        [](std::shared_ptr<scene::SurfaceCoordinator> const& wrapped)
-        -> std::shared_ptr<scene::SurfaceCoordinator>
-        { return wrapped; }};
-};
-}
-}
 
 #include "mir_test_framework/stubbed_server_configuration.h"
 
