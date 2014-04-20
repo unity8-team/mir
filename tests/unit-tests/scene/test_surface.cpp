@@ -23,6 +23,7 @@
 #include "mir/scene/surface_creation_parameters.h"
 #include "mir/scene/surface_configurator.h"
 #include "mir/scene/surface_event_source.h"
+#include "mir/scene/surface_observer.h"
 #include "mir/input/input_channel.h"
 
 #include "mir_test_doubles/mock_buffer_stream.h"
@@ -53,6 +54,19 @@ struct MockInputChannel : public mi::InputChannel
     MOCK_CONST_METHOD0(server_fd, int());
     MOCK_CONST_METHOD0(client_fd, int());
 };
+
+struct MockSurfaceObserver : public ms::SurfaceObserver
+{
+    MOCK_METHOD2(attrib_changed, void(MirSurfaceAttrib, int));
+    MOCK_METHOD1(resized_to, void(geom::Size const&));
+    MOCK_METHOD1(moved_to, void(geom::Point const&));
+    MOCK_METHOD1(hidden_set_to, void(bool));
+    MOCK_METHOD1(alpha_set_to, void(float));
+    MOCK_METHOD1(transformation_set_to, void(glm::mat4 const&));
+    
+    MOCK_METHOD0(frame_posted, void());
+};
+
 }
 
 TEST(SurfaceCreationParametersTest, default_creation_parameters)
@@ -344,6 +358,8 @@ TEST_F(SurfaceCreation, test_surface_move_to)
     EXPECT_EQ(p, surf.top_left());
 }
 
+// TODO: Maybe these tests should be in terms of MockSurfaceObserver to avoid coupling with
+// SurfaceEventSource (or should become an integration test).
 TEST_F(SurfaceCreation, resize_updates_stream_and_state)
 {
     using namespace testing;
@@ -590,4 +606,26 @@ TEST_F(SurfaceCreation, input_fds)
         report);
 
     EXPECT_EQ(client_fd, input_surf.client_input_fd());
+}
+
+TEST_F(SurfaceCreation, caller_maintains_observer_ownership)
+{
+    using namespace ::testing;
+
+    ms::BasicSurface surf(
+        surface_name,
+        rect,
+        false,
+        mock_buffer_stream,
+        std::shared_ptr<mi::InputChannel>(),
+        stub_configurator,
+        report);
+
+    auto observer = std::make_shared<MockSurfaceObserver>();
+    
+    surf.add_observer(observer);
+    EXPECT_EQ(1, observer.use_count());
+
+    observer.reset();
+    EXPECT_EQ(0, observer.use_count());
 }
