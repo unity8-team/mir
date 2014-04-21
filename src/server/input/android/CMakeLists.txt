@@ -15,6 +15,7 @@ list(
   ${CMAKE_CURRENT_SOURCE_DIR}/android_input_dispatcher.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/input_dispatcher_configuration.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/input_channel_factory.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/input_sender.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/input_translator.cpp
 )
 

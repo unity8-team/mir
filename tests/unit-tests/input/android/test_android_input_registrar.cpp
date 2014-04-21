@@ -80,6 +80,9 @@ struct StubInputSurface : public mi::Surface
     {
         return true;
     }
+    void consume(MirEvent const&) override
+    {
+    }
 };
 
 MATCHER_P(WindowHandleFor, channel, "")

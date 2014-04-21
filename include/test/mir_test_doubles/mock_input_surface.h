@@ -50,6 +50,7 @@ public:
     MOCK_CONST_METHOD0(size, geometry::Size());
     MOCK_CONST_METHOD0(name, std::string());
     MOCK_CONST_METHOD1(contains, bool(geometry::Point const&));
+    MOCK_METHOD1(consume,void (MirEvent const&));
 };
 
 typedef ::testing::NiceMock<MockInputSurface> StubInputSurface;

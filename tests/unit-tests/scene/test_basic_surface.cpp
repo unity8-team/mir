@@ -25,6 +25,7 @@
 
 #include "mir_test_doubles/mock_buffer_stream.h"
 #include "mir_test_doubles/stub_buffer.h"
+#include "mir_test_doubles/stub_input_sender.h"
 #include "mir_test/fake_shared.h"
 
 #include "src/server/report/null_report_factory.h"
@@ -89,6 +90,7 @@ struct BasicSurfaceTest : public testing::Test
         std::make_shared<testing::NiceMock<mtd::MockBufferStream>>();
     std::shared_ptr<StubSurfaceConfigurator> const stub_configurator = std::make_shared<StubSurfaceConfigurator>();
     std::shared_ptr<ms::SceneReport> const report = mr::null_scene_report();
+    std::shared_ptr<mi::InputSender> const stub_input_sender = std::make_shared<mtd::StubInputSender>();
 };
 
 }
@@ -101,6 +103,7 @@ TEST_F(BasicSurfaceTest, basics)
         false,
         mock_buffer_stream,
         std::shared_ptr<mi::InputChannel>(),
+        stub_input_sender,
         stub_configurator,
         report};
 
@@ -117,10 +120,9 @@ TEST_F(BasicSurfaceTest, id_always_unique)
 
     for (int i = 0; i < N; ++i)
     {
-        surfaces[i].reset(new ms::BasicSurface(
-                name, rect, false, mock_buffer_stream,
-                std::shared_ptr<mi::InputChannel>(), stub_configurator, report)
-            );
+        surfaces[i].reset(new ms::BasicSurface(name, rect, false, mock_buffer_stream,
+                                               std::shared_ptr<mi::InputChannel>(), stub_input_sender,
+                                               stub_configurator, report));
 
         for (int j = 0; j < i; ++j)
         {
@@ -136,10 +138,9 @@ TEST_F(BasicSurfaceTest, id_never_invalid)
 
     for (int i = 0; i < N; ++i)
     {
-        surfaces[i].reset(new ms::BasicSurface(
-                name, rect, false, mock_buffer_stream,
-                std::shared_ptr<mi::InputChannel>(), stub_configurator, report)
-            );
+        surfaces[i].reset(new ms::BasicSurface(name, rect, false, mock_buffer_stream,
+                                               std::shared_ptr<mi::InputChannel>(), stub_input_sender,
+                                               stub_configurator, report));
 
         ASSERT_TRUE(surfaces[i]->id());
     }
@@ -156,6 +157,7 @@ TEST_F(BasicSurfaceTest, update_top_left)
         false,
         mock_buffer_stream,
         std::shared_ptr<mi::InputChannel>(),
+        stub_input_sender,
         stub_configurator,
         report};
 
@@ -182,6 +184,7 @@ TEST_F(BasicSurfaceTest, update_size)
         false,
         mock_buffer_stream,
         std::shared_ptr<mi::InputChannel>(),
+        stub_input_sender,
         stub_configurator,
         report};
 
@@ -210,6 +213,7 @@ TEST_F(BasicSurfaceTest, test_surface_set_transformation_updates_transform)
         false,
         mock_buffer_stream,
         std::shared_ptr<mi::InputChannel>(),
+        stub_input_sender,
         stub_configurator,
         report};
 
@@ -240,6 +244,7 @@ TEST_F(BasicSurfaceTest, test_surface_set_alpha_notifies_changes)
         false,
         mock_buffer_stream,
         std::shared_ptr<mi::InputChannel>(),
+        stub_input_sender,
         stub_configurator,
         report};
 
@@ -260,6 +265,7 @@ TEST_F(BasicSurfaceTest, test_surface_is_opaque_by_default)
         false,
         mock_buffer_stream,
         std::shared_ptr<mi::InputChannel>(),
+        stub_input_sender,
         stub_configurator,
         report};
 
@@ -283,6 +289,7 @@ TEST_F(BasicSurfaceTest, test_surface_visibility)
         false,
         mock_buffer_stream,
         std::shared_ptr<mi::InputChannel>(),
+        stub_input_sender,
         stub_configurator,
         report};
 
@@ -317,6 +324,7 @@ TEST_F(BasicSurfaceTest, test_surface_hidden_notifies_changes)
         false,
         mock_buffer_stream,
         std::shared_ptr<mi::InputChannel>(),
+        stub_input_sender,
         stub_configurator,
         report};
 
@@ -339,6 +347,7 @@ TEST_F(BasicSurfaceTest, test_surface_frame_posted_notifies_changes)
         false,
         mock_buffer_stream,
         std::shared_ptr<mi::InputChannel>(),
+        stub_input_sender,
         stub_configurator,
         report};
 
@@ -366,6 +375,7 @@ TEST_F(BasicSurfaceTest, default_region_is_surface_rectangle)
         false,
         mock_buffer_stream,
         std::shared_ptr<mi::InputChannel>(),
+        stub_input_sender,
         stub_configurator,
         report};
 
@@ -408,6 +418,7 @@ TEST_F(BasicSurfaceTest, set_input_region)
         false,
         mock_buffer_stream,
         std::shared_ptr<mi::InputChannel>(),
+        stub_input_sender,
         stub_configurator,
         report};
 

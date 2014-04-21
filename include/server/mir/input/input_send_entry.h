@@ -19,6 +19,8 @@
 #ifndef MIR_INPUT_INPUT_SEND_ENTRY_H_
 #define MIR_INPUT_INPUT_SEND_ENTRY_H_
 
+#include "mir_toolkit/event.h"
+
 namespace mir
 {
 namespace input
@@ -32,8 +34,9 @@ class InputSendEntry
 {
 public:
     uint32_t sequence_id;
-    InputSendEntry(uint32_t id)
-        : sequence_id(id)
+    MirEvent event;
+    InputSendEntry(uint32_t id, MirEvent ev)
+        : sequence_id(id), event(ev)
     {
     }
 };

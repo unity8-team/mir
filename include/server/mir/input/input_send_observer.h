@@ -37,20 +37,25 @@ public:
      *
      * TODO failure reason
      */
-    virtual void send_failed(std::shared_ptr<InputSendEntry> entry) = 0;
+    virtual void send_failed(std::shared_ptr<InputSendEntry> const& entry) = 0;
 
+    enum InputResponse
+    {
+        Consumed,
+        NotConsumed
+    };
     /*!
      * \brief Client responded to an input event.
      *
-     * TODO reponse
+     * TODO: Only Consumed is supported so far.
      */
-    virtual void send_suceeded(std::shared_ptr<InputSendEntry> entry) = 0;
+    virtual void send_suceeded(std::shared_ptr<InputSendEntry> const& entry, InputResponse response) = 0;
 
     /*!
      * \brief Called when client is temporarly blocked because input events are still in
      * the queue.
      */
-    virtual void client_blocked(std::shared_ptr<InputSendEntry> dispatch) = 0;
+    virtual void client_blocked(std::shared_ptr<InputSendEntry> const& dispatch) = 0;
 };
 
 }

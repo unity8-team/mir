@@ -22,6 +22,7 @@
 
 #include "mir_test/fake_shared.h"
 #include "mir_test_doubles/mock_display_report.h"
+#include "mir_test_doubles/mock_main_loop.h"
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -67,23 +68,6 @@ public:
 // The default return values are appropriate, so
 // Add a typedef to aid clarity.
 typedef testing::NiceMock<MockPosixProcessOperations> StubPosixProcessOperations;
-
-class MockMainLoop : public mir::MainLoop
-{
-public:
-    ~MockMainLoop() noexcept {}
-
-    void run() {}
-    void stop() {}
-
-    MOCK_METHOD2(register_signal_handler,
-                 void(std::initializer_list<int>,
-                      std::function<void(int)> const&));
-
-    MOCK_METHOD2(register_fd_handler,
-                 void(std::initializer_list<int>,
-                      std::function<void(int)> const&));
-};
 
 ACTION_TEMPLATE(SetIoctlPointee,
                 HAS_1_TEMPLATE_PARAMS(typename, T),
@@ -248,7 +232,7 @@ public:
     struct termios fake_tc_attr;
     std::function<void(int)> sig_handler;
     MockVTFileOperations mock_fops;
-    MockMainLoop mock_main_loop;
+    mtd::MockMainLoop mock_main_loop;
 };
 
 

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014 Canonical Ltd.
+ * Copyright © 2013 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -16,30 +16,32 @@
  * Authored by: Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#ifndef MIR_INPUT_INPUT_SENDER_H_
-#define MIR_INPUT_INPUT_SENDER_H_
+#ifndef MIR_TEST_DOUBLES_STUB_INPUT_SENDER_H_
+#define MIR_TEST_DOUBLES_STUB_INPUT_SENDER_H_
 
-#include "mir_toolkit/event.h"
-
-#include <memory>
+#include "mir/input/input_sender.h"
+#include "mir/input/input_send_entry.h"
 
 namespace mir
 {
-namespace input
+namespace test
 {
-class InputSendObserver;
-class InputSendEntry;
-class Surface;
-class InputChannel;
+namespace doubles
+{
 
-class InputSender
+struct StubInputSender : mir::input::InputSender
 {
-public:
-    virtual ~InputSender() = default;
-    virtual void set_send_observer(std::shared_ptr<InputSendObserver> const& observer) = 0;
-    virtual std::shared_ptr<InputSendEntry> send_event(MirEvent const& event, Surface const& receiver, std::shared_ptr<InputChannel> const& channel) = 0;
+    void set_send_observer(std::shared_ptr<mir::input::InputSendObserver> const&) override
+    {
+    }
+    std::shared_ptr<mir::input::InputSendEntry> send_event(MirEvent const& ev, mir::input::Surface const&,
+                                                           std::shared_ptr<mir::input::InputChannel> const&) override
+    {
+        return std::make_shared<mir::input::InputSendEntry>(1, ev);
+    }
 };
 
+}
 }
 }
 

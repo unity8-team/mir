@@ -16,31 +16,29 @@
  * Authored by: Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#ifndef MIR_INPUT_INPUT_SENDER_H_
-#define MIR_INPUT_INPUT_SENDER_H_
+#ifndef MIR_TEST_DOUBLES_MOCK_INPUT_SEND_OBSERVER_H_
+#define MIR_TEST_DOUBLES_MOCK_INPUT_SEND_OBSERVER_H_
 
-#include "mir_toolkit/event.h"
-
-#include <memory>
+#include "mir/input/input_send_observer.h"
+#include <gmock/gmock.h>
 
 namespace mir
 {
-namespace input
+namespace test
 {
-class InputSendObserver;
-class InputSendEntry;
-class Surface;
-class InputChannel;
+namespace doubles
+{
 
-class InputSender
+struct MockInputSendObserver : mir::input::InputSendObserver
 {
-public:
-    virtual ~InputSender() = default;
-    virtual void set_send_observer(std::shared_ptr<InputSendObserver> const& observer) = 0;
-    virtual std::shared_ptr<InputSendEntry> send_event(MirEvent const& event, Surface const& receiver, std::shared_ptr<InputChannel> const& channel) = 0;
+    MOCK_METHOD1(send_failed, void(std::shared_ptr<mir::input::InputSendEntry> const&));
+    MOCK_METHOD2(send_suceeded, void(std::shared_ptr<mir::input::InputSendEntry> const&, InputResponse));
+    MOCK_METHOD1(client_blocked, void(std::shared_ptr<mir::input::InputSendEntry> const&));
 };
 
 }
 }
+}
 
 #endif
+

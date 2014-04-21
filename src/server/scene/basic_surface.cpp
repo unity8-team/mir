@@ -23,6 +23,7 @@
 #include "mir/frontend/event_sink.h"
 #include "mir/input/input_channel.h"
 #include "mir/shell/input_targeter.h"
+#include "mir/input/input_sender.h"
 #include "mir/graphics/buffer.h"
 
 #include "mir/scene/scene_report.h"
@@ -117,6 +118,7 @@ ms::BasicSurface::BasicSurface(
     bool nonrectangular,
     std::shared_ptr<compositor::BufferStream> const& buffer_stream,
     std::shared_ptr<input::InputChannel> const& input_channel,
+    std::shared_ptr<input::InputSender> const& input_sender,
     std::shared_ptr<SurfaceConfigurator> const& configurator,
     std::shared_ptr<SceneReport> const& report) :
     surface_name(name),
@@ -128,6 +130,7 @@ ms::BasicSurface::BasicSurface(
     input_rectangles{surface_rect},
     surface_buffer_stream(buffer_stream),
     server_input_channel(input_channel),
+    input_sender(input_sender),
     configurator(configurator),
     report(report),
     type_value(mir_surface_type_normal),
@@ -454,7 +457,6 @@ void ms::BasicSurface::show()
     set_hidden(false);
 }
 
-
 void ms::BasicSurface::add_observer(std::shared_ptr<SurfaceObserver> const& observer)
 {
     observers.add(observer);
@@ -464,3 +466,9 @@ void ms::BasicSurface::remove_observer(std::shared_ptr<SurfaceObserver> const& o
 {
     observers.remove(observer);
 }
+
+void ms::BasicSurface::consume(MirEvent const& event)
+{
+    input_sender->send_event(event, *this, server_input_channel);
+}
+

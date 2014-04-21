@@ -19,6 +19,7 @@
 #include "mir/default_server_configuration.h"
 
 #include "android/input_dispatcher_configuration.h"
+#include "android/input_sender.h"
 #include "display_input_region.h"
 #include "event_filter_chain.h"
 #include "nested_input_configuration.h"
@@ -29,6 +30,7 @@
 #include "mir/options/configuration.h"
 #include "mir/options/option.h"
 #include "mir/report/legacy_input_report.h"
+#include "mir/main_loop.h"
 
 
 namespace mi = mir::input;
@@ -55,6 +57,18 @@ mir::DefaultServerConfiguration::the_composite_event_filter()
             std::initializer_list<std::shared_ptr<mi::EventFilter> const> filter_list {default_filter};
             return std::make_shared<mi::EventFilterChain>(filter_list);
         });
+}
+
+std::shared_ptr<mi::InputSender>
+mir::DefaultServerConfiguration::the_input_sender()
+{
+    return input_sender(
+    [this]()
+    {
+        return std::make_shared<mia::InputSender>(
+            the_main_loop()
+            );
+    });
 }
 
 std::shared_ptr<mi::InputDispatcherConfiguration>

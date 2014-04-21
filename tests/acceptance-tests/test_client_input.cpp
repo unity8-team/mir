@@ -14,6 +14,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Authored by: Robert Carr <robert.carr@canonical.com>
+ *              Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
 #include "mir/graphics/display.h"
@@ -612,4 +613,40 @@ TEST_F(TestClientInput, clients_receive_motion_within_co_ordinate_system_of_wind
         });
 
     launch_client_process(*client);
+}
+
+TEST_F(TestClientInput, send_mir_input_events_through_surface)
+{
+    using namespace ::testing;
+
+    static std::string const test_client_name = "1";
+
+    mtf::CrossProcessSync fence;
+
+    MirEvent key_event;
+    memset(&key_event,0,sizeof(key_event));
+    key_event.type = mir_event_type_key;
+    key_event.key.action= mir_key_action_down;
+
+    auto server_config = make_event_producing_server(fence, 1,
+         [&](mtf::InputTestingServerConfiguration& server)
+         {
+             server.the_session_container()->for_each([&](std::shared_ptr<ms::Session> const& session) -> void
+                {
+                    session->default_surface()->consume(key_event);
+                });
+
+         });
+    launch_server_process(*server_config);
+
+    auto client_config = make_event_expecting_client(fence,
+         [&](MockHandler& handler, mt::WaitCondition& events_received)
+         {
+             using namespace ::testing;
+             InSequence seq;
+             EXPECT_CALL(handler, handle_input(mt::KeyDownEvent())).Times(1)
+                 .WillOnce(mt::WakeUp(&events_received));
+
+         });
+    launch_client_process(*client_config);
 }

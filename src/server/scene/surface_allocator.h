@@ -26,6 +26,7 @@ namespace mir
 namespace input
 {
 class InputChannelFactory;
+class InputSender;
 }
 namespace scene
 {
@@ -38,6 +39,7 @@ class SurfaceAllocator : public SurfaceFactory
 public:
     SurfaceAllocator(std::shared_ptr<BufferStreamFactory> const& bb_factory,
                      std::shared_ptr<input::InputChannelFactory> const& input_factory,
+                     std::shared_ptr<input::InputSender> const& input_sender,
                      std::shared_ptr<SurfaceConfigurator> const& configurator,
                      std::shared_ptr<SceneReport> const& report);
 
@@ -47,6 +49,7 @@ public:
 private:
     std::shared_ptr<BufferStreamFactory> const buffer_stream_factory;
     std::shared_ptr<input::InputChannelFactory> const input_factory;
+    std::shared_ptr<input::InputSender> const input_sender;
     std::shared_ptr<SurfaceConfigurator> const configurator;
     std::shared_ptr<SceneReport> const report;
 };

@@ -106,6 +106,7 @@ class InputConfiguration;
 class InputDispatcherConfiguration;
 class CursorListener;
 class InputRegion;
+class InputSender;
 class NestedInputRelay;
 class EventHandler;
 }
@@ -238,6 +239,7 @@ public:
     virtual std::shared_ptr<shell::InputTargeter> the_input_targeter();
     virtual std::shared_ptr<input::CursorListener> the_cursor_listener();
     virtual std::shared_ptr<input::InputRegion>    the_input_region();
+    virtual std::shared_ptr<input::InputSender>    the_input_sender();
     /** @} */
 
     /** @name logging configuration - customization
@@ -266,6 +268,7 @@ protected:
     CachedPtr<input::CompositeEventFilter> composite_event_filter;
     CachedPtr<input::InputManager>    input_manager;
     CachedPtr<input::InputRegion>     input_region;
+    CachedPtr<input::InputSender>     input_sender;
     CachedPtr<scene::InputRegistrar> input_registrar;
     CachedPtr<shell::InputTargeter> input_targeter;
     CachedPtr<input::CursorListener> cursor_listener;
