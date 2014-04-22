@@ -12,7 +12,6 @@ set(
   multi_threaded_compositor.cpp
   switching_bundle.cpp
   bypass.cpp
-  occlusion.cpp
   default_configuration.cpp
   screencast_display_buffer.cpp
   compositing_screencast.cpp

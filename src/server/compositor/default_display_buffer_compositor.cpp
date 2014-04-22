@@ -26,7 +26,6 @@
 #include "mir/graphics/buffer.h"
 #include "mir/compositor/buffer_stream.h"
 #include "bypass.h"
-#include "occlusion.h"
 #include <mutex>
 #include <cstdlib>
 #include <algorithm>
@@ -90,15 +89,17 @@ bool mc::DefaultDisplayBufferCompositor::composite()
     {
         display_buffer.make_current();
 
-        mc::filter_occlusions_from(renderable_list, view_area);
-
         renderer->set_rotation(display_buffer.orientation());
         renderer->begin();
 
         for(auto const& renderable : renderable_list)
         {
-            uncomposited_buffers |= (renderable->buffers_ready_for_compositor() > 1);
-            renderer->render(*renderable);
+            if (renderable->visible())
+            {
+                uncomposited_buffers |=
+                    (renderable->buffers_ready_for_compositor() > 1);
+                renderer->render(*renderable);
+            }
         }
 
         display_buffer.post_update();

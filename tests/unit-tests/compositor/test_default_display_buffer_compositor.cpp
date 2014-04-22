@@ -130,12 +130,6 @@ TEST_F(DefaultDisplayBufferCompositor, skips_scene_that_should_not_be_rendered)
     auto mock_renderable3 = std::make_shared<NiceMock<mtd::MockRenderable>>();
 
     glm::mat4 simple;
-    EXPECT_CALL(*mock_renderable1, transformation())
-        .WillOnce(Return(simple));
-    EXPECT_CALL(*mock_renderable2, transformation())
-        .WillOnce(Return(simple));
-    EXPECT_CALL(*mock_renderable3, transformation())
-        .WillOnce(Return(simple));
 
     EXPECT_CALL(*mock_renderable1, visible())
         .WillRepeatedly(Return(true));
@@ -143,16 +137,6 @@ TEST_F(DefaultDisplayBufferCompositor, skips_scene_that_should_not_be_rendered)
         .WillRepeatedly(Return(false));
     EXPECT_CALL(*mock_renderable3, visible())
         .WillRepeatedly(Return(true));
-
-    EXPECT_CALL(*mock_renderable1, alpha())
-        .WillOnce(Return(1.0f));
-    EXPECT_CALL(*mock_renderable3, alpha())
-        .WillOnce(Return(1.0f));
-
-    EXPECT_CALL(*mock_renderable1, shaped())
-        .WillOnce(Return(false));
-    EXPECT_CALL(*mock_renderable3, shaped())
-        .WillOnce(Return(false));
 
     EXPECT_CALL(*mock_renderable1, screen_position())
         .WillRepeatedly(Return(geom::Rectangle{{1,2}, {3,4}}));
@@ -316,7 +300,7 @@ TEST_F(DefaultDisplayBufferCompositor, platform_does_not_support_bypass)
     EXPECT_CALL(display_buffer, can_bypass())
         .WillRepeatedly(Return(false));
     EXPECT_CALL(mock_renderer, render(Ref(*small)))
-        .Times(0);  // zero due to occlusion detection
+        .Times(1);  // No occlusion detection any more
     EXPECT_CALL(mock_renderer, render(Ref(*fullscreen)))
         .Times(1);
 
@@ -350,7 +334,7 @@ TEST_F(DefaultDisplayBufferCompositor, bypass_aborted_for_incompatible_buffers)
     FakeScene scene(list);
 
     EXPECT_CALL(mock_renderer, render(Ref(*small)))
-        .Times(0);  // zero due to occlusion detection
+        .Times(1);  // No occlusion detection any more
     EXPECT_CALL(mock_renderer, render(Ref(*fullscreen)))
         .Times(1);
 
@@ -452,7 +436,7 @@ TEST_F(DefaultDisplayBufferCompositor, bypass_toggles_seamlessly)
     compositor.composite();
 }
 
-TEST_F(DefaultDisplayBufferCompositor, occluded_surfaces_are_not_rendered)
+TEST_F(DefaultDisplayBufferCompositor, occluded_surfaces_are_rendered_too)
 {
     using namespace testing;
     EXPECT_CALL(display_buffer, view_area())
@@ -481,6 +465,10 @@ TEST_F(DefaultDisplayBufferCompositor, occluded_surfaces_are_not_rendered)
     EXPECT_CALL(display_buffer, make_current())
         .InSequence(seq);
     EXPECT_CALL(mock_renderer, render(Ref(*window0)))
+        .InSequence(seq);
+    EXPECT_CALL(mock_renderer, render(Ref(*window1)))
+        .InSequence(seq);
+    EXPECT_CALL(mock_renderer, render(Ref(*window2)))
         .InSequence(seq);
     EXPECT_CALL(mock_renderer, render(Ref(*window3)))
         .InSequence(seq);
