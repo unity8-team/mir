@@ -135,6 +135,55 @@ private:
     mg::RenderableList renderable_list;
 };
 
+class StubDisplayBufferCompositor : public mc::DisplayBufferCompositor
+{
+public:
+    StubDisplayBufferCompositor(std::shared_ptr<mc::Scene> scene,
+                                std::chrono::milliseconds frame_time)
+        : scene{scene}, frame_time{frame_time}
+    {
+    }
+
+    bool composite() override
+    {
+        auto const& all = scene->generate_renderable_list();
+        for (auto const& r : all)
+            r->buffer(this);  // Consume a frame
+
+        std::this_thread::sleep_for(frame_time);
+        return false;
+    }
+
+private:
+    std::shared_ptr<mc::Scene> const scene;
+    std::chrono::milliseconds const frame_time;
+};
+
+
+class StubDisplayBufferCompositorFactory :
+    public mc::DisplayBufferCompositorFactory
+{
+public:
+    StubDisplayBufferCompositorFactory(std::shared_ptr<mc::Scene> scene,
+                                       int hz)
+        : scene{scene},
+          frame_time{std::chrono::milliseconds(1000 / hz)}
+    {
+    }
+
+    std::unique_ptr<mc::DisplayBufferCompositor>
+        create_compositor_for(mg::DisplayBuffer&) override
+    {
+        std::unique_ptr<mc::DisplayBufferCompositor> ret(
+            new StubDisplayBufferCompositor(scene, frame_time));
+        return ret;
+    }
+
+private:
+    std::shared_ptr<mc::Scene> const scene;
+    std::chrono::milliseconds const frame_time;
+};
+
 class RecordingDisplayBufferCompositor : public mc::DisplayBufferCompositor
 {
 public:
@@ -665,6 +714,40 @@ TEST(MultiThreadedCompositor, never_steals_frames_from_real_displays)
 
     int const max_dummy_frames = min_real_refresh_rate * secs;
     ASSERT_GT(max_dummy_frames, renderable->buffers_requested());
+
+    compositor.stop();
+}
+
+TEST(MultiThreadedCompositor, only_real_displays_limit_consumption_rate)
+{
+    using namespace testing;
+
+    auto display = std::make_shared<StubDisplay>(1);
+    auto renderable = std::make_shared<BufferCountingRenderable>();
+    auto stub_scene = std::make_shared<StubScene>(mg::RenderableList{renderable});
+
+    int const framerate = 75;   // Simulate a nice fast frame rate
+    auto db_compositor_factory =
+        std::make_shared<StubDisplayBufferCompositorFactory>(stub_scene,
+                                                             framerate);
+
+    mc::MultiThreadedCompositor compositor{
+        display, stub_scene, db_compositor_factory, null_report, false};
+
+    compositor.start();
+
+    int const secs = 5;
+    auto const duration = std::chrono::seconds{secs};
+    auto const end = std::chrono::steady_clock::now() + duration;
+    while (std::chrono::steady_clock::now() < end)
+    {
+        stub_scene->emit_change_event();
+        std::this_thread::yield();
+    }
+
+    int const expected_frames = framerate * secs;
+    ASSERT_GT(expected_frames * 1.2f, renderable->buffers_requested());
+    ASSERT_LT(expected_frames * 0.8f, renderable->buffers_requested());
 
     compositor.stop();
 }
