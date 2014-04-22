@@ -22,7 +22,7 @@
 #include "mir/shell/surface_creation_parameters.h"
 #include "surface_stack.h"
 #include "mir/compositor/buffer_stream.h"
-#include "mir/scene/input_registrar.h"
+#include "mir/scene/input_registrar_observer.h"
 #include "legacy_surface_change_notification.h"
 #include "mir/input/input_channel_factory.h"
 #include "mir/scene/scene_report.h"
@@ -49,7 +49,7 @@ namespace mi = mir::input;
 namespace geom = mir::geometry;
 
 ms::SurfaceStack::SurfaceStack(
-    std::shared_ptr<InputRegistrar> const& input_registrar,
+    std::shared_ptr<InputRegistrarObserver> const& input_registrar,
     std::shared_ptr<SceneReport> const& report) :
     input_registrar{input_registrar},
     report{report},

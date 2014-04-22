@@ -42,7 +42,6 @@ class InputDispatcherConfiguration
 public:
     virtual ~InputDispatcherConfiguration() = default;
 
-    virtual std::shared_ptr<scene::InputRegistrar> the_input_registrar() = 0;
     virtual std::shared_ptr<shell::InputTargeter> the_input_targeter() = 0;
     virtual std::shared_ptr<input::InputDispatcher> the_input_dispatcher() = 0;
 

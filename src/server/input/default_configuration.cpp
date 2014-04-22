@@ -65,7 +65,8 @@ mir::DefaultServerConfiguration::the_input_dispatcher_configuration()
     {
         return std::make_shared<mia::InputDispatcherConfiguration>(
             the_composite_event_filter(),
-            the_input_report()
+            the_input_report(),
+            the_input_registrar()
             );
     });
 }
@@ -118,15 +119,6 @@ std::shared_ptr<msh::InputTargeter> mir::DefaultServerConfiguration::the_input_t
         [&]() -> std::shared_ptr<msh::InputTargeter>
         {
             return the_input_configuration()->the_input_dispatcher_configuration()->the_input_targeter();
-        });
-}
-
-std::shared_ptr<ms::InputRegistrar> mir::DefaultServerConfiguration::the_input_registrar()
-{
-    return input_registrar(
-        [&]() -> std::shared_ptr<ms::InputRegistrar>
-        {
-            return the_input_configuration()->the_input_dispatcher_configuration()->the_input_registrar();
         });
 }
 

@@ -26,6 +26,7 @@
 #include "mir/shell/focus_controller.h"
 
 #include "mir/scene/surface.h"
+#include "mir/scene/input_registrar.h"
 #include "src/server/scene/surface_stack.h"
 
 #include "mir_test_doubles/null_event_sink.h"

@@ -24,7 +24,9 @@
 #include "android_input_targeter.h"
 #include "android_input_target_enumerator.h"
 #include "android_input_manager.h"
+
 #include "mir/input/event_filter.h"
+#include "mir/scene/input_registrar.h"
 
 #include <InputDispatcher.h>
 
@@ -75,9 +77,11 @@ private:
 
 mia::InputDispatcherConfiguration::InputDispatcherConfiguration(
     std::shared_ptr<mi::EventFilter> const& event_filter,
-    std::shared_ptr<mi::InputReport> const& input_report) :
+    std::shared_ptr<mi::InputReport> const& input_report,
+    std::shared_ptr<ms::InputRegistrar> const& input_registrar) :
     event_filter(event_filter),
-    input_report(input_report)
+    input_report(input_report),
+    input_registrar(input_registrar)
 {
 }
 
@@ -104,21 +108,14 @@ std::shared_ptr<mia::InputThread> mia::InputDispatcherConfiguration::the_dispatc
         });
 }
 
-std::shared_ptr<ms::InputRegistrar> mia::InputDispatcherConfiguration::the_input_registrar()
-{
-    return input_registrar(
-        [this]()
-        {
-            return std::make_shared<mia::InputRegistrar>(the_dispatcher());
-        });
-}
-
 std::shared_ptr<mia::WindowHandleRepository> mia::InputDispatcherConfiguration::the_window_handle_repository()
 {
-    return input_registrar(
+    return android_input_registrar(
         [this]()
         {
-            return std::make_shared<mia::InputRegistrar>(the_dispatcher());
+            auto observer = std::make_shared<mia::InputRegistrar>(the_dispatcher());
+            input_registrar->add_observer(observer);
+            return observer;
         });
 }
 

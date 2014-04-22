@@ -72,7 +72,8 @@ std::shared_ptr<mi::InputConfiguration> mtf::InputTestingServerConfiguration::th
             the_composite_event_filter(),
             the_input_region(),
             null_cursor_listener,
-            the_input_report());
+            the_input_report(),
+            the_input_registrar());
         fake_event_hub = input_configuration->the_fake_event_hub();
 
         fake_event_hub->synthesize_builtin_keyboard_added();

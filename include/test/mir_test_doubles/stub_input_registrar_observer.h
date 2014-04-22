@@ -16,12 +16,10 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
-#ifndef MIR_TEST_DOUBLES_MOCK_INPUT_REGISTRAR_H_
-#define MIR_TEST_DOUBLES_MOCK_INPUT_REGISTRAR_H_
+#ifndef MIR_TEST_DOUBLES_STUB_INPUT_REGISTRAR_OBSERVER_H_
+#define MIR_TEST_DOUBLES_STUB_INPUT_REGISTRAR_OBSERVER_H_
 
-#include "mir/scene/input_registrar.h"
-
-#include <gmock/gmock.h>
+#include "mir/scene/input_registrar_observer.h"
 
 namespace mir
 {
@@ -30,17 +28,20 @@ namespace test
 namespace doubles
 {
 
-struct MockInputRegistrar : public scene::InputRegistrar
+struct StubInputRegistrarObserver : public scene::InputRegistrarObserver
 {
-    virtual ~MockInputRegistrar() noexcept(true) {}
-    MOCK_METHOD3(input_channel_opened, void(std::shared_ptr<input::InputChannel> const&,
-                                            std::shared_ptr<input::Surface> const&,
-                                            input::InputReceptionMode mode));
-    MOCK_METHOD1(input_channel_closed, void(std::shared_ptr<input::InputChannel> const&));
+    void input_channel_opened(std::shared_ptr<input::InputChannel> const&,
+                              std::shared_ptr<input::Surface> const&,
+                              input::InputReceptionMode)
+    {
+    }
+    void input_channel_closed(std::shared_ptr<input::InputChannel> const&)
+    {
+    }
 };
 
 }
 }
 } // namespace mir
 
-#endif // MIR_TEST_DOUBLES_MOCK_INPUT_REGISTRAR_H_
+#endif // MIR_TEST_DOUBLES_STUB_INPUT_REGISTRAR_OBSERVER_H_

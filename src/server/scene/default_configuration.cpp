@@ -36,6 +36,7 @@
 #include "surface_controller.h"
 #include "surface_stack.h"
 #include "threaded_snapshot_strategy.h"
+#include "default_input_registrar.h"
 
 namespace mc = mir::compositor;
 namespace mf = mir::frontend;
@@ -227,3 +228,14 @@ mir::DefaultServerConfiguration::the_snapshot_strategy()
                 the_pixel_buffer());
         });
 }
+
+std::shared_ptr<ms::InputRegistrar> mir::DefaultServerConfiguration::the_input_registrar()
+{
+    return input_registrar(
+        [&]() -> std::shared_ptr<ms::InputRegistrar>
+        {
+            return std::make_shared<ms::DefaultInputRegistrar>();
+        });
+}
+
+

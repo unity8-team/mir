@@ -30,12 +30,14 @@
 #include "src/server/input/android/android_input_registrar.h"
 #include "src/server/input/android/input_dispatcher_configuration.h"
 #include "src/server/input/android/event_filter_dispatcher_policy.h"
+#include "src/server/scene/default_input_registrar.h"
 
 #include "mir_test/fake_shared.h"
 #include "mir_test/fake_event_hub.h"
 #include "mir_test/fake_event_hub_input_configuration.h"
 #include "mir_test_doubles/mock_event_filter.h"
 #include "mir_test_doubles/mock_input_surface.h"
+#include "mir_test_doubles/stub_input_registrar.h"
 #include "mir_test_doubles/stub_input_channel.h"
 #include "mir_test/wait_condition.h"
 #include "mir_test/event_factory.h"
@@ -100,7 +102,8 @@ public:
                 event_filter,
                 mt::fake_shared(input_region),
                 null_cursor_listener,
-                mr::null_input_report());
+                mr::null_input_report(),
+                std::make_shared<mtd::StubInputRegistrar>());
 
         fake_event_hub = configuration->the_fake_event_hub();
 
@@ -247,8 +250,9 @@ struct TestingInputDispatcherConfiguration : public mia::InputDispatcherConfigur
 {
 public:
     TestingInputDispatcherConfiguration(std::shared_ptr<mi::EventFilter> const& filter,
-                                        std::shared_ptr<mi::InputReport> const& input_report)
-        : InputDispatcherConfiguration({}, input_report),
+                                        std::shared_ptr<mi::InputReport> const& input_report,
+                                        std::shared_ptr<ms::InputRegistrar> const& input_registrar)
+        : InputDispatcherConfiguration({}, input_report, input_registrar),
         dispatcher_policy(new MockDispatcherPolicy(filter))
     {}
     droidinput::sp<droidinput::InputDispatcherPolicyInterface> the_dispatcher_policy() override
@@ -268,16 +272,15 @@ struct AndroidInputManagerDispatcherInterceptSetup : public testing::Test
     AndroidInputManagerDispatcherInterceptSetup()
     {
         event_filter = std::make_shared<MockEventFilter>();
-        auto dispatcher_conf =
-            std::make_shared<TestingInputDispatcherConfiguration>(event_filter, mr::null_input_report());
+        input_registrar = std::make_shared<ms::DefaultInputRegistrar>();
+        auto dispatcher_conf = std::make_shared<TestingInputDispatcherConfiguration>(
+            event_filter, mr::null_input_report(), input_registrar);
         configuration = std::make_shared<mtd::FakeEventHubInputConfiguration>(
-            dispatcher_conf,
-            mt::fake_shared(input_region), null_cursor_listener, mr::null_input_report());
+            dispatcher_conf, mt::fake_shared(input_region), null_cursor_listener, mr::null_input_report());
         fake_event_hub = configuration->the_fake_event_hub();
 
         input_manager = configuration->the_input_manager();
 
-        input_registrar = dispatcher_conf->the_input_registrar();
         input_targeter = dispatcher_conf->the_input_targeter();
 
         dispatcher_policy = dispatcher_conf->the_mock_dispatcher_policy();

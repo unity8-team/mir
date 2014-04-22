@@ -23,9 +23,9 @@
 #include "src/server/report/null_report_factory.h"
 #include "src/server/scene/basic_surface.h"
 #include "mir/input/input_channel_factory.h"
-#include "mir_test_doubles/stub_input_registrar.h"
+#include "mir_test_doubles/stub_input_registrar_observer.h"
 #include "mir_test_doubles/stub_input_channel.h"
-#include "mir_test_doubles/mock_input_registrar.h"
+#include "mir_test_doubles/mock_input_registrar_observer.h"
 #include "mir_test/fake_shared.h"
 #include "mir_test_doubles/stub_buffer_stream.h"
 
@@ -121,7 +121,7 @@ struct SurfaceStack : public ::testing::Test
             report);
     }
 
-    mtd::StubInputRegistrar input_registrar;
+    mtd::StubInputRegistrarObserver input_registrar;
     msh::SurfaceCreationParameters default_params;
     std::shared_ptr<ms::BasicSurface> stub_surface1;
     std::shared_ptr<ms::BasicSurface> stub_surface2;
@@ -191,7 +191,7 @@ TEST_F(SurfaceStack, input_registrar_is_notified_of_surfaces)
 {
     using namespace ::testing;
 
-    mtd::MockInputRegistrar registrar;
+    mtd::MockInputRegistrarObserver registrar;
     ms::SurfaceStack stack(mt::fake_shared(registrar), report);
 
     Sequence seq;
@@ -208,7 +208,7 @@ TEST_F(SurfaceStack, input_registrar_is_notified_of_input_monitor_scene)
 {
     using namespace ::testing;
 
-    mtd::MockInputRegistrar registrar;
+    mtd::MockInputRegistrarObserver registrar;
     ms::SurfaceStack stack(mt::fake_shared(registrar), report);
 
     Sequence seq;

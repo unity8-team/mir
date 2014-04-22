@@ -51,7 +51,7 @@ namespace mtf = mir_test_framework;
 
 class CustomInputDispatcher :
     public mtd::MockInputDispatcher,
-    public ms::InputRegistrar,
+    public ms::InputRegistrarObserver,
     public msh::InputTargeter
 {
 public:
@@ -67,10 +67,6 @@ public:
 class CustomInputDispatcherConfiguration : public mi::InputDispatcherConfiguration
 {
 public:
-    std::shared_ptr<ms::InputRegistrar> the_input_registrar() override
-    {
-        return mt::fake_shared<ms::InputRegistrar>(dispatcher);
-    }
     std::shared_ptr<msh::InputTargeter> the_input_targeter() override
     {
         return mt::fake_shared<msh::InputTargeter>(dispatcher);

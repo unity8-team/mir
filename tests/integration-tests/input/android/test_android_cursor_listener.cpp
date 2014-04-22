@@ -32,6 +32,7 @@
 #include "mir_test/fake_event_hub.h"
 #include "mir_test/fake_event_hub_input_configuration.h"
 #include "mir_test_doubles/mock_event_filter.h"
+#include "mir_test_doubles/stub_input_registrar.h"
 #include "mir_test/wait_condition.h"
 #include "mir_test/event_factory.h"
 
@@ -89,7 +90,8 @@ struct AndroidInputManagerAndCursorListenerSetup : public testing::Test
             event_filter,
             mt::fake_shared(input_region),
             mt::fake_shared(cursor_listener),
-            mr::null_input_report());
+            mr::null_input_report(), 
+            std::make_shared<mtd::StubInputRegistrar>());
 
         fake_event_hub = configuration->the_fake_event_hub();
 

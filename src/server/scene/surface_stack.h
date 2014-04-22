@@ -53,7 +53,7 @@ class InputChannel;
 /// classes) and controller (SurfaceController) elements of an MVC design.
 namespace scene
 {
-class InputRegistrar;
+class InputRegistrarObserver;
 class BasicSurface;
 class SceneReport;
 
@@ -61,7 +61,7 @@ class SurfaceStack : public compositor::Scene, public input::InputTargets, publi
 {
 public:
     explicit SurfaceStack(
-        std::shared_ptr<InputRegistrar> const& input_registrar,
+        std::shared_ptr<InputRegistrarObserver> const& input_registrar,
         std::shared_ptr<SceneReport> const& report);
     virtual ~SurfaceStack() noexcept(true) {}
 
@@ -88,7 +88,7 @@ private:
     void emit_change_notification();
 
     std::mutex mutable guard;
-    std::shared_ptr<InputRegistrar> const input_registrar;
+    std::shared_ptr<InputRegistrarObserver> const input_registrar;
     std::shared_ptr<SceneReport> const report;
     std::function<void()> const change_cb;
 
