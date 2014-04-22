@@ -308,10 +308,10 @@ class BufferCountingRenderable : public mtd::StubRenderable
 public:
     BufferCountingRenderable() : buffers_requested_{0} {}
 
-    std::shared_ptr<mg::Buffer> buffer(void const*) const override
+    std::shared_ptr<mg::Buffer> buffer(void const* id) const override
     {
         ++buffers_requested_;
-        return std::make_shared<mtd::StubBuffer>();
+        return mtd::StubRenderable::buffer(id);
     }
 
     int buffers_requested() const

@@ -56,6 +56,7 @@ struct MockRenderable : public graphics::Renderable
     MOCK_CONST_METHOD0(visible, bool());
     MOCK_CONST_METHOD0(shaped, bool());
     MOCK_CONST_METHOD0(buffers_ready_for_compositor, int());
+    MOCK_CONST_METHOD0(time_last_buffer_acquired, std::chrono::steady_clock::time_point());
 };
 }
 }

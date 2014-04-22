@@ -23,6 +23,7 @@
 #include <glm/glm.hpp>
 #include <memory>
 #include <list>
+#include <chrono>
 
 namespace mir
 {
@@ -84,6 +85,7 @@ public:
 
     virtual bool shaped() const = 0;  // meaning the pixel format has alpha
     virtual int buffers_ready_for_compositor() const = 0;
+    virtual std::chrono::steady_clock::time_point time_last_buffer_acquired() const = 0;
 
 protected:
     Renderable() = default;

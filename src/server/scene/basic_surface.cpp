@@ -124,6 +124,7 @@ ms::BasicSurface::BasicSurface(
     surface_alpha(1.0f),
     first_frame_posted(false),
     hidden(false),
+    duration_last_buffer_acquired(std::chrono::steady_clock::duration{0}),
     nonrectangular(nonrectangular),
     input_rectangles{surface_rect},
     surface_buffer_stream(buffer_stream),
@@ -332,6 +333,7 @@ bool ms::BasicSurface::shaped() const
 
 std::shared_ptr<mg::Buffer> ms::BasicSurface::buffer(void const* user_id) const
 {
+    duration_last_buffer_acquired = std::chrono::steady_clock::now().time_since_epoch();
     return buffer_stream()->lock_compositor_buffer(user_id);
 }
 
@@ -348,6 +350,12 @@ geom::Rectangle ms::BasicSurface::screen_position() const
 int ms::BasicSurface::buffers_ready_for_compositor() const
 {
     return surface_buffer_stream->buffers_ready_for_compositor();
+}
+
+std::chrono::steady_clock::time_point
+ms::BasicSurface::time_last_buffer_acquired() const
+{
+    return std::chrono::steady_clock::time_point{duration_last_buffer_acquired};
 }
 
 void ms::BasicSurface::with_most_recent_buffer_do(

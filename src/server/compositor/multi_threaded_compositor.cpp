@@ -183,11 +183,20 @@ private:
     std::shared_ptr<CompositorReport> const report;
 };
 
+/*
+ * Consumes buffers that haven't been consumed by the real compositors
+ * for more than "buffer_consumption_period" time, forcing clients to
+ * render at 1/sec(buffer_consumption_period) Hz even when the respective
+ * surfaces are not rendered in any display. Note that for this to work
+ * properly the buffer consumption period needs to be smaller than the
+ * least real compositor period.
+ */
 class BufferConsumingFunctor : public CompositingFunctor
 {
 public:
     BufferConsumingFunctor(std::shared_ptr<mc::Scene> const& scene)
-        : scene{scene}
+        : scene{scene},
+          buffer_consumption_period{std::chrono::milliseconds{100}}
     {
     }
 
@@ -196,41 +205,28 @@ public:
         run_compositing_loop(
             [this]
             {
-                std::vector<std::shared_ptr<mg::Buffer>> saved_resources;
+                auto const one_buffer_consumption_period_ago =
+                    std::chrono::steady_clock::now();
 
-                auto const& renderables = scene->generate_renderable_list();
+                std::this_thread::sleep_for(buffer_consumption_period);
 
-                for (auto const& r : renderables)
+                auto const& all = scene->generate_renderable_list();
+                for (auto const& r : all)
                 {
-                    if (r->visible())
-                        saved_resources.push_back(r->buffer(this));
+                    if (r->buffers_ready_for_compositor() &&
+                        r->time_last_buffer_acquired() <= one_buffer_consumption_period_ago)
+                    {
+                        static_cast<void>(r->buffer(this));
+                    }
                 }
-
-                wait_until_next_fake_vsync();
 
                 return false;
             });
     }
 
 private:
-    void wait_until_next_fake_vsync()
-    {
-        using namespace std::chrono;
-        typedef duration<int64_t, std::ratio<1, 60>> vsync_periods;
-
-        /* Truncate to vsync periods */
-        auto const previous_vsync =
-            duration_cast<vsync_periods>(steady_clock::now().time_since_epoch());
-        /* Convert back to a timepoint */
-        auto const previous_vsync_tp =
-            time_point<steady_clock, vsync_periods>{previous_vsync};
-        /* Next vsync time point */
-        auto const next_vsync = previous_vsync_tp + vsync_periods(1);
-
-        std::this_thread::sleep_until(next_vsync);
-    }
-
     std::shared_ptr<mc::Scene> const scene;
+    std::chrono::milliseconds const buffer_consumption_period;
 };
 
 }

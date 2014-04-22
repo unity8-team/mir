@@ -31,6 +31,7 @@
 #include <chrono>
 #include <csignal>
 #include <iostream>
+#include <atomic>
 
 namespace mg=mir::graphics;
 namespace ml=mir::logging;
@@ -101,7 +102,8 @@ class DemoRenderable : public mg::Renderable
 public:
     DemoRenderable(std::shared_ptr<DemoOverlayClient> const& client, geom::Rectangle rect)
         : client(client),
-          position(rect)
+          position(rect),
+          duration_last_buffer_acquired{std::chrono::steady_clock::duration{0}}
     {
     }
 
@@ -112,6 +114,8 @@ public:
 
     std::shared_ptr<mg::Buffer> buffer(void const*) const override
     {
+        duration_last_buffer_acquired =
+            std::chrono::steady_clock::now().time_since_epoch();
         return client->last_rendered();
     }
 
@@ -150,10 +154,16 @@ public:
         return 1;
     }
 
+    std::chrono::steady_clock::time_point time_last_buffer_acquired() const
+    {
+        return std::chrono::steady_clock::time_point{duration_last_buffer_acquired};
+    }
+
 private:
     std::shared_ptr<DemoOverlayClient> const client;
     geom::Rectangle const position;
     glm::mat4 const trans;
+    mutable std::atomic<std::chrono::steady_clock::duration> duration_last_buffer_acquired;
 };
 }
 

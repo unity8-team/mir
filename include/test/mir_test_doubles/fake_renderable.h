@@ -23,6 +23,7 @@
 #define GLM_FORCE_RADIANS
 #include <glm/gtc/matrix_transform.hpp>
 #include <gmock/gmock.h>
+#include <atomic>
 
 namespace mir
 {
@@ -43,7 +44,8 @@ public:
           opacity(opacity),
           rectangular(rectangular),
           visible_(visible),
-          posted(posted)
+          posted(posted),
+          duration_last_buffer_acquired{std::chrono::steady_clock::duration{0}}
     {
     }
 
@@ -79,6 +81,7 @@ public:
 
     std::shared_ptr<graphics::Buffer> buffer(void const*) const override
     {
+        duration_last_buffer_acquired = std::chrono::steady_clock::now().time_since_epoch();
         return buf;
     }
 
@@ -97,6 +100,11 @@ public:
         return 1;
     }
 
+    std::chrono::steady_clock::time_point time_last_buffer_acquired() const override
+    {
+        return std::chrono::steady_clock::time_point{duration_last_buffer_acquired};
+    }
+
 private:
     std::shared_ptr<graphics::Buffer> buf;
     mir::geometry::Rectangle rect;
@@ -104,6 +112,7 @@ private:
     bool rectangular;
     bool visible_;
     bool posted;
+    mutable std::atomic<std::chrono::steady_clock::duration> duration_last_buffer_acquired;
 };
 
 } // namespace doubles

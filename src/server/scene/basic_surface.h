@@ -31,6 +31,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <atomic>
 
 namespace mir
 {
@@ -127,6 +128,7 @@ public:
     bool alpha_enabled() const override;
     geometry::Rectangle screen_position() const override;
     int buffers_ready_for_compositor() const override;
+    std::chrono::steady_clock::time_point time_last_buffer_acquired() const override;
 
     void with_most_recent_buffer_do(
         std::function<void(graphics::Buffer&)> const& exec) override;
@@ -153,6 +155,7 @@ private:
     float surface_alpha;
     bool first_frame_posted;
     bool hidden;
+    mutable std::atomic<std::chrono::steady_clock::duration> duration_last_buffer_acquired;
     const bool nonrectangular;
     std::vector<geometry::Rectangle> input_rectangles;
     std::shared_ptr<compositor::BufferStream> const surface_buffer_stream;

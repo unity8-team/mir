@@ -82,6 +82,9 @@ public:
     int buffers_ready_for_compositor() const override
     { return underlying_renderable->buffers_ready_for_compositor(); }
 
+    std::chrono::steady_clock::time_point time_last_buffer_acquired() const override
+    { return underlying_renderable->time_last_buffer_acquired(); }
+
     bool visible() const override
     { return visible_; }
 

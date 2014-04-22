@@ -22,6 +22,7 @@
 #include "mir_test_doubles/stub_buffer.h"
 #include <mir/graphics/renderable.h>
 #include <memory>
+#include <atomic>
 
 namespace mir
 {
@@ -33,12 +34,18 @@ namespace doubles
 class StubRenderable : public graphics::Renderable
 {
 public:
+    StubRenderable() :
+        duration_last_buffer_acquired{std::chrono::steady_clock::duration{0}}
+    {
+    }
+
     ID id() const override
     {
         return this;
     }
     std::shared_ptr<graphics::Buffer> buffer(void const*) const override
     {
+        duration_last_buffer_acquired = std::chrono::steady_clock::now().time_since_epoch();
         return std::make_shared<StubBuffer>();
     }
     bool alpha_enabled() const
@@ -71,8 +78,14 @@ public:
         return 1;
     }
 
+    std::chrono::steady_clock::time_point time_last_buffer_acquired() const override
+    {
+        return std::chrono::steady_clock::time_point{duration_last_buffer_acquired};
+    }
+
 private:
     glm::mat4 trans;
+    mutable std::atomic<std::chrono::steady_clock::duration> duration_last_buffer_acquired;
 };
 
 }
