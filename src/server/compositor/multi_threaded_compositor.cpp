@@ -215,10 +215,7 @@ public:
                 {
                     auto const& all = scene->generate_renderable_list();
                     for (auto const& r : all)
-                    {
-                        if (r->visible())
-                            (void)r->buffer(this);
-                    }
+                        (void)r->buffer(this);
                 }
 
                 return false;
