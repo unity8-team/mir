@@ -50,15 +50,18 @@ private:
     std::shared_ptr<InputSendObserver> observer;
     struct ActiveTransfer
     {
-        ActiveTransfer(int server_fd);
         droidinput::InputPublisher publisher;
         // TODO: std::vector<std::shared_ptr<InputSendEntry>> pending_sends;
         std::vector<std::shared_ptr<InputSendEntry>> pending_responses;
+        std::mutex transfer_mutex;
 
+        ActiveTransfer(int server_fd);
+        //ActiveTransfer(ActiveTransfer const&);
         void send(std::shared_ptr<InputSendEntry> const& item);
         void send_key_event(uint32_t sequence_id, MirKeyEvent const& event);
         void send_motion_event(uint32_t sequence_id, MirMotionEvent const& event);
         void submit_result(std::shared_ptr<InputSendObserver> const& observer);
+        std::shared_ptr<InputSendEntry> unqueue_entry(uint32_t sequence_id);
     };
     std::unordered_map<int,ActiveTransfer> transfers;
     std::mutex sender_mutex;

@@ -32,6 +32,8 @@
 #include <boost/exception/errinfo_errno.hpp>
 #include <boost/throw_exception.hpp>
 
+#include <cstring>
+
 namespace mi = mir::input;
 namespace mia = mi::android;
 
@@ -65,7 +67,9 @@ mia::InputSender::ActiveTransfer & mia::InputSender::get_active_transfer(int ser
     if (pos!=transfers.end())
         return pos->second;
 
-    ActiveTransfer & transfer = transfers.emplace(server_fd,server_fd).first->second;
+    ActiveTransfer& transfer =
+        transfers.emplace(std::piecewise_construct, std::forward_as_tuple(server_fd), std::forward_as_tuple(server_fd))
+            .first->second;
     loop->register_fd_handler({server_fd},
                               [this,&transfer](int)
                               {
@@ -104,14 +108,24 @@ mia::InputSender::ActiveTransfer::ActiveTransfer(int server_fd)
 
 void mia::InputSender::ActiveTransfer::send(std::shared_ptr<InputSendEntry> const& event)
 {
+    {
+        std::unique_lock<std::mutex> lock(transfer_mutex);
+        switch(event->event.type)
+        {
+        case mir_event_type_key:
+        case mir_event_type_motion:
+            pending_responses.push_back(event);
+            break;
+        default:
+            break;
+        }
+    }
     switch(event->event.type)
     {
     case mir_event_type_key:
-        pending_responses.push_back(event);
         send_key_event(event->sequence_id, event->event.key);
         break;
     case mir_event_type_motion:
-        pending_responses.push_back(event);
         send_motion_event(event->sequence_id, event->event.motion);
         break;
     default:
@@ -142,6 +156,10 @@ void mia::InputSender::ActiveTransfer::send_motion_event(uint32_t seq, MirMotion
 {
     droidinput::PointerCoords coords[MIR_INPUT_EVENT_MAX_POINTER_COUNT];
     droidinput::PointerProperties properties[MIR_INPUT_EVENT_MAX_POINTER_COUNT];
+    // no default constructor:
+    std::memset(coords, 0, sizeof(coords));
+    std::memset(properties, 0, sizeof(properties));
+
     for (size_t i = 0; i < event.pointer_count; ++i)
     {
         // TODO this assumes that: x == raw_x + x_offset;
@@ -194,19 +212,29 @@ void mia::InputSender::ActiveTransfer::submit_result(std::shared_ptr<InputSendOb
 
         if (status==droidinput::OK)
         {
-            // TODO find right one
-            std::shared_ptr<InputSendEntry> entry = pending_responses.front();
+            std::shared_ptr<InputSendEntry> entry = unqueue_entry(sequence);
 
-            if (observer)
-            {
+            if (entry && observer)
                 observer->send_suceeded(entry, handled ? InputSendObserver::Consumed : InputSendObserver::NotConsumed);
-            }
         }
         else return;
         // TODO handle all the other cases..
     }
 
 }
+
+std::shared_ptr<mi::InputSendEntry> mia::InputSender::ActiveTransfer::unqueue_entry(uint32_t sequence_id)
+{
+    std::unique_lock<std::mutex> lock(transfer_mutex);
+    auto pos = std::find_if(pending_responses.begin(),
+                            pending_responses.end(),
+                            [sequence_id](std::shared_ptr<mi::InputSendEntry> const& entry)
+                            { return entry->sequence_id == sequence_id; });
+    std::shared_ptr<mi::InputSendEntry> result = *pos;
+    pending_responses.erase(pos);
+    return result;
+}
+
 void mia::InputSender::handle_finish_signal(ActiveTransfer & transfer)
 {
     transfer.submit_result(observer);

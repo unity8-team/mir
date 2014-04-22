@@ -229,3 +229,26 @@ TEST_F(TestAndroidInputSender, finish_signal_triggers_success_callback_as_not_co
     consumer.sendFinishedSignal(seq, false);
     fake_loop.trigger_pending_fds();
 }
+
+TEST_F(TestAndroidInputSender, unordered_finish_signal_triggers_the_right_callback)
+{
+    TriggeredMainLoop fake_loop;
+    mia::InputSender sender(mt::fake_shared(fake_loop));
+    sender.set_send_observer(mt::fake_shared(observer));
+
+    std::shared_ptr<mi::InputSendEntry> first_entry = sender.send_event(motion_event, surface, mt::fake_shared(channel));
+    std::shared_ptr<mi::InputSendEntry> second_entry = sender.send_event(key_event, surface, mt::fake_shared(channel));
+
+    EXPECT_NE(nullptr,first_entry);
+    EXPECT_NE(nullptr,second_entry);
+
+    uint32_t first_sequence, second_sequence;
+    EXPECT_EQ(droidinput::OK, consumer.consume(&event_factory, true, -1, &first_sequence, &event));
+    EXPECT_EQ(droidinput::OK, consumer.consume(&event_factory, true, -1, &second_sequence, &event));
+    EXPECT_CALL(observer,send_suceeded(second_entry,mi::InputSendObserver::Consumed));
+    EXPECT_CALL(observer,send_suceeded(first_entry,mi::InputSendObserver::NotConsumed));
+
+    consumer.sendFinishedSignal(second_sequence, true);
+    consumer.sendFinishedSignal(first_sequence, false);
+    fake_loop.trigger_pending_fds();
+}
