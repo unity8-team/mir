@@ -623,6 +623,52 @@ TEST(MultiThreadedCompositor, consumes_buffers_for_renderables_that_are_not_rend
     compositor.stop();
 }
 
+TEST(MultiThreadedCompositor, never_steals_frames_from_real_displays)
+{
+    /*
+     * Verify dummy frames are consumed slower than any physical display would
+     * consume them, so that the two types of consumers don't race and don't
+     * visibly skip (LP: #1308843)
+     */
+    using namespace testing;
+
+    unsigned int const nbuffers{2};
+    auto renderable = std::make_shared<BufferCountingRenderable>();
+    auto display = std::make_shared<StubDisplay>(nbuffers);
+    auto stub_scene = std::make_shared<StubScene>(mg::RenderableList{renderable});
+    // We use NullDisplayBufferCompositors to simulate DisplayBufferCompositors
+    // not rendering a renderable.
+    auto db_compositor_factory = std::make_shared<mtd::NullDisplayBufferCompositorFactory>();
+
+    mc::MultiThreadedCompositor compositor{
+        display, stub_scene, db_compositor_factory, null_report, true};
+
+    compositor.start();
+
+    // Realistically I've only ever seen LCDs go as low as 40Hz. But some TV
+    // outputs will go as low as 24Hz (traditional movie frame rate). So we
+    // need to ensure the dummy consumer is slower than that...
+    int const min_real_refresh_rate = 20;
+
+    int const secs = 5;
+    auto const duration = std::chrono::seconds{secs};
+    mir::test::spin_wait_for_condition_or_timeout(
+        [&] { return renderable->buffers_requested() <= 1; },
+        duration);
+
+    auto const end = std::chrono::steady_clock::now() + duration;
+    while (std::chrono::steady_clock::now() < end)
+    {
+        stub_scene->emit_change_event();
+        std::this_thread::yield();
+    }
+
+    int const max_dummy_frames = min_real_refresh_rate * secs;
+    ASSERT_GT(max_dummy_frames, renderable->buffers_requested());
+
+    compositor.stop();
+}
+
 TEST(MultiThreadedCompositor, cleans_up_after_throw_in_start)
 {
     unsigned int const nbuffers{3};
