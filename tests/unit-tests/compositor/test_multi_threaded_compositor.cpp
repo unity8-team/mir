@@ -593,12 +593,12 @@ TEST(MultiThreadedCompositor, consumes_buffers_for_renderables_that_are_not_rend
 {
     using namespace testing;
 
-    unsigned int const nbuffers{2};
     auto renderable = std::make_shared<BufferCountingRenderable>();
-    auto display = std::make_shared<StubDisplay>(nbuffers);
+
+    // Defining zero outputs is the simplest way to emulate what would
+    // happen if all your displays were blocked in swapping...
+    auto display = std::make_shared<StubDisplay>(0);
     auto stub_scene = std::make_shared<StubScene>(mg::RenderableList{renderable});
-    // We use NullDisplayBufferCompositors to simulate DisplayBufferCompositors
-    // not rendering a renderable.
     auto db_compositor_factory = std::make_shared<mtd::NullDisplayBufferCompositorFactory>();
 
     mc::MultiThreadedCompositor compositor{
