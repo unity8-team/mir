@@ -46,6 +46,10 @@ namespace mt=mir::test;
 
 namespace
 {
+struct MockRenderableListCompositor : public mga::RenderableListCompositor
+{
+    MOCK_METHOD2(render, void(mg::RenderableList const&, mga::SwappingGLContext const&));
+};
 
 class StubRenderable : public mg::Renderable
 {
@@ -230,6 +234,7 @@ protected:
     testing::NiceMock<mtd::MockBuffer> mock_buffer;
     mtd::MockSwappingGLContext mock_context;
     mtd::StubSwappingGLContext stub_context;
+    testing::NiceMock<MockRenderableListCompositor> mock_compositor;
 };
 
 
@@ -249,6 +254,37 @@ TEST_F(HwcDevice, prepares_a_skip_and_target_layer_by_default)
     device.render_gl(stub_context);
 }
 
+TEST_F(HwcDevice, calls_gl_program_with_list_of_rejected_renderables)
+{
+    auto stub_renderable3 = std::make_shared<StubRenderable>(
+        mt::fake_shared(mock_buffer), screen_position);
+    auto stub_renderable4 = std::make_shared<StubRenderable>(
+        mt::fake_shared(mock_buffer), screen_position);
+    std::list<std::shared_ptr<mg::Renderable>> updated_list({
+        stub_renderable1,
+        stub_renderable2,
+        stub_renderable3,
+        stub_renderable4
+    });
+
+    EXPECT_CALL(*mock_hwc_device_wrapper, prepare(MatchesList(expected_list)))
+        .InSequence(seq)
+        .WillOnce(Invoke([&](hwc_display_contents_1_t& contents)
+        {
+            ASSERT_EQ(contents.numHwLayers, 5);
+            contents.hwLayers[0].compositionType = HWC_OVERLAY;
+            contents.hwLayers[1].compositionType = HWC_OVERLAY;
+            contents.hwLayers[2].compositionType = HWC_FRAMEBUFFER;
+            contents.hwLayers[3].compositionType = HWC_FRAMEBUFFER;
+            contents.hwLayers[4].compositionType = HWC_FRAMEBUFFER_TARGET;
+        }));
+    EXPECT_CALL(mock_compositor, render(updated_list, _))
+        .Times(1);
+
+    mga::HwcDevice device(mock_device, mock_hwc_device_wrapper, mock_vsync, mock_file_ops);
+    device.render_gl_and_overlays(mock_context, updated_list, mock_compositor);
+}
+#if 0
 TEST_F(HwcDevice, calls_render_fn_and_swap_when_all_overlays_are_rejected)
 {
     using namespace testing;
@@ -369,7 +405,7 @@ TEST_F(HwcDevice, does_not_call_render_or_swap_when_all_overlays_accepted)
     mga::HwcDevice device(mock_device, mock_hwc_device_wrapper, mock_vsync, mock_file_ops);
     device.render_gl_and_overlays(mock_context, updated_list, render_fn);
 }
-
+#endif
 TEST_F(HwcDevice, resets_layers_when_prepare_gl_called)
 {
     using namespace testing;
