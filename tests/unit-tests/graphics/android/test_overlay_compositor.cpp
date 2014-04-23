@@ -257,3 +257,21 @@ TEST_F(OverlayCompositor, executes_render_in_sequence)
 
     glprogram.render(renderlist, mock_context_s);
 }
+
+TEST_F(OverlayCompositor, empty_list_executes_no_commands)
+{
+    using namespace testing;
+    NiceMock<mtd::MockSwappingGLContext> mock_context_s;
+    mg::RenderableList renderlist{
+        std::make_shared<mtd::StubRenderable>(), 
+        std::make_shared<mtd::StubRenderable>()
+    };
+
+    EXPECT_CALL(mock_gl, glUseProgram(_))
+        .Times(0);
+    EXPECT_CALL(mock_context_s, swap_buffers())
+        .Times(0);
+
+    mga::OverlayGLProgram glprogram(mock_gl_program_factory, mock_context, dummy_screen_pos);
+    glprogram.render(renderlist, mock_context_s);
+}

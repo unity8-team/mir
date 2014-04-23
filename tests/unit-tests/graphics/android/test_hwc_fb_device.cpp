@@ -29,6 +29,7 @@
 #include "mir_test_doubles/stub_swapping_gl_context.h"
 #include "mir_test_doubles/mock_egl.h"
 #include "mir_test_doubles/mock_hwc_device_wrapper.h"
+#include "mir_test_doubles/stub_renderable_list_compositor.h"
 #include "src/platform/graphics/android/overlay_gl_compositor.h"
 #include "hwc_struct_helpers.h"
 #include <gtest/gtest.h>
@@ -109,15 +110,6 @@ TEST_F(HwcFbDevice, hwc10_render_gl_only)
     device.render_gl(stub_context);
 }
 
-namespace
-{
-struct StubRenderableListCompositor : public mga::RenderableListCompositor
-{
-    void render(mg::RenderableList const&, mga::SwappingGLContext const&)
-    {
-    }
-};
-}
 TEST_F(HwcFbDevice, hwc10_prepare_with_renderables)
 {
     using namespace testing;
@@ -144,7 +136,7 @@ TEST_F(HwcFbDevice, hwc10_prepare_with_renderables)
 
     mga::HwcFbDevice device(mock_hwc_device, mock_hwc_device_wrapper, mock_fb_device, mock_vsync);
 
-    StubRenderableListCompositor stub_compositor;
+    mtd::StubRenderableListCompositor stub_compositor;
     EXPECT_FALSE(device.post_or_reject_overlays(stub_context, renderlist, stub_compositor));
 }
 

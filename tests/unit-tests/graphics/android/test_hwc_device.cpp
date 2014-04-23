@@ -21,7 +21,6 @@
 #include "src/platform/graphics/android/hwc_device.h"
 #include "src/platform/graphics/android/hwc_layerlist.h"
 #include "src/platform/graphics/android/gl_context.h"
-#include "src/platform/graphics/android/overlay_gl_compositor.h"
 #include "mir_test_doubles/mock_hwc_composer_device_1.h"
 #include "mir_test_doubles/mock_android_native_buffer.h"
 #include "mir_test_doubles/mock_buffer.h"
@@ -35,6 +34,7 @@
 #include "mir_test_doubles/mock_render_function.h"
 #include "mir_test_doubles/mock_swapping_gl_context.h"
 #include "mir_test_doubles/stub_swapping_gl_context.h"
+#include "mir_test_doubles/stub_renderable_list_compositor.h"
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <stdexcept>
@@ -47,17 +47,6 @@ namespace mt=mir::test;
 
 namespace
 {
-struct MockRenderableListCompositor : public mga::RenderableListCompositor
-{
-    MOCK_METHOD2(render, void(mg::RenderableList const&, mga::SwappingGLContext const&));
-};
-struct StubRenderableListCompositor : public mga::RenderableListCompositor
-{
-    void render(mg::RenderableList const&, mga::SwappingGLContext const&)
-    {
-    }
-};
-
 class StubRenderable : public mg::Renderable
 {
 public:
@@ -241,7 +230,7 @@ protected:
     testing::NiceMock<mtd::MockBuffer> mock_buffer;
     mtd::MockSwappingGLContext mock_context;
     mtd::StubSwappingGLContext stub_context;
-    StubRenderableListCompositor stub_compositor;
+    mtd::StubRenderableListCompositor stub_compositor;
 };
 
 

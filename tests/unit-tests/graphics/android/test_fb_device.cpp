@@ -28,6 +28,7 @@
 #include "mir_test_doubles/mock_android_native_buffer.h"
 #include "mir_test_doubles/mock_render_function.h"
 #include "mir_test_doubles/mock_swapping_gl_context.h"
+#include "mir_test_doubles/stub_renderable_list_compositor.h"
 
 #include <gtest/gtest.h>
 #include <stdexcept>
@@ -38,15 +39,6 @@ namespace mga=mir::graphics::android;
 namespace geom=mir::geometry;
 namespace mt=mir::test;
 
-namespace
-{
-struct StubRenderableListCompositor : public mga::RenderableListCompositor
-{
-    void render(mg::RenderableList const&, mga::SwappingGLContext const&)
-    {
-    }
-};
-}
 struct FBDevice : public ::testing::Test
 {
     virtual void SetUp()
@@ -83,7 +75,7 @@ TEST_F(FBDevice, rejects_overlays)
         renderable2
     };
 
-    StubRenderableListCompositor stub_renderer; 
+    mtd::StubRenderableListCompositor stub_renderer; 
     mga::FBDevice fbdev(fb_hal_mock);
     EXPECT_FALSE(fbdev.post_or_reject_overlays(mock_context, renderlist, stub_renderer));
 }

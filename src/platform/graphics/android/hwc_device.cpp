@@ -24,7 +24,7 @@
 #include "hwc_wrapper.h"
 #include "framebuffer_bundle.h"
 #include "buffer.h"
-#include "mir/graphics/buffer.h"
+#include "overlay_gl_compositor.h"
 
 namespace mg = mir::graphics;
 namespace mga=mir::graphics::android;
@@ -99,29 +99,18 @@ bool mga::HwcDevice::post_or_reject_overlays(
 
     hwc_wrapper->prepare(*hwc_list.native_list().lock());
 
-    (void) renderables; (void) list_compositor;
-    (void) context;
-#if 0 
-    //draw layers that the HWC did not accept for overlays here
-    bool needs_swapbuffers = false;
+    mg::RenderableList rejected_renderables;
+
     auto layers_it = hwc_list.begin();
     for(auto const& renderable : renderables)
     {
-        //prepare all layers for draw. 
         layers_it->prepare_for_draw();
-
-        //trigger GL on the layers that are not overlays
         if (layers_it->needs_gl_render())
-        {
-            //render_fn(*renderable);
-            needs_swapbuffers = true;
-        }
+            rejected_renderables.push_back(renderable);
         layers_it++;
     }
 
-    if (needs_swapbuffers)
-        context.swap_buffers();
-#endif
+    list_compositor.render(rejected_renderables, context);
     return true;
 }
 
