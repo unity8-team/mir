@@ -32,6 +32,10 @@ class EventHubInterface;
 
 namespace mir
 {
+namespace scene
+{
+class InputRegistrar;
+}
 namespace input
 {
 class CursorListener;
@@ -54,7 +58,8 @@ public:
     FakeEventHubInputConfiguration(std::shared_ptr<input::EventFilter> const& event_filter,
                                    std::shared_ptr<input::InputRegion> const& input_region,
                                    std::shared_ptr<input::CursorListener> const& cursor_listener,
-                                   std::shared_ptr<input::InputReport> const& input_report);
+                                   std::shared_ptr<input::InputReport> const& input_report,
+                                   std::shared_ptr<scene::InputRegistrar> const& input_registrar);
     FakeEventHubInputConfiguration(
         std::shared_ptr<input::InputDispatcherConfiguration> const& input_dispatcher_configuration,
         std::shared_ptr<input::InputRegion> const& input_region,

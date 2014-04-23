@@ -5,6 +5,7 @@ ADD_LIBRARY(
   basic_surface.cpp
   broadcasting_session_event_sink.cpp
   default_configuration.cpp
+  default_input_registrar.cpp
   default_session_container.cpp
   gl_pixel_buffer.cpp
   global_event_sender.cpp
@@ -12,6 +13,7 @@ ADD_LIBRARY(
   mediating_display_changer.cpp
   session_manager.cpp
   surface_allocator.cpp
+  surface_creation_parameters.cpp
   surface_stack.cpp
   surface_controller.cpp
   surface_event_source.cpp

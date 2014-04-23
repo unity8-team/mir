@@ -22,18 +22,21 @@
 #include "mir/input/cursor_listener.h"
 #include "mir/input/input_manager.h"
 #include "mir/input/input_targets.h"
+#include "mir/scene/input_registrar.h"
 #include "src/server/input/android/input_dispatcher_configuration.h"
 #include "src/server/report/null_report_factory.h"
 #include "mir/geometry/rectangle.h"
 #include "mir/raii.h"
 
 #include "mir_test_doubles/mock_event_filter.h"
+#include "mir_test_doubles/stub_input_registrar.h"
 #include "mir_test/fake_shared.h"
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
 namespace mi = mir::input;
+namespace ms= mir::scene;
 namespace mia = mi::android;
 namespace mt = mir::test;
 namespace mtd = mir::test::doubles;
@@ -41,23 +44,6 @@ namespace geom = mir::geometry;
 
 namespace
 {
-struct NullInputRegion : mi::InputRegion
-{
-    geom::Rectangle bounding_rectangle() override
-    {
-        return geom::Rectangle();
-    }
-
-    void confine(geom::Point& /*point*/) override
-    {
-    }
-};
-
-struct NullCursorListener : mi::CursorListener
-{
-    void cursor_moved_to(float, float) override {}
-};
-
 struct NullInputTargets : mi::InputTargets
 {
     void for_each(std::function<void(std::shared_ptr<mi::InputChannel> const&)> const& ) override
@@ -90,7 +76,9 @@ TEST(NestedInputTest, applies_event_filter_on_relayed_event)
     mtd::MockEventFilter mock_event_filter;
     mia::InputDispatcherConfiguration input_dispatcher_conf{
         mt::fake_shared(mock_event_filter),
-        mir::report::null_input_report()};
+        mir::report::null_input_report(),
+        std::make_shared<mtd::StubInputRegistrar>()
+        };
 
     mi::NestedInputConfiguration input_conf{
         mt::fake_shared(nested_input_relay),

@@ -206,7 +206,8 @@ TEST_F(ServerShutdown, server_releases_resources_on_shutdown_with_connected_clie
                         the_composite_event_filter(),
                         the_input_region(),
                         std::shared_ptr<mi::CursorListener>(),
-                        the_input_report());
+                        the_input_report(),
+                        the_input_registrar());
             }
 
             return input_configuration;

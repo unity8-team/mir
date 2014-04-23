@@ -32,22 +32,6 @@ namespace msh = mir::shell;
 namespace
 {
 
-struct NullInputRegistrar : public ms::InputRegistrar
-{
-    NullInputRegistrar() = default;
-    virtual ~NullInputRegistrar() noexcept(true) = default;
-
-    void input_channel_opened(std::shared_ptr<mi::InputChannel> const&,
-                              std::shared_ptr<mi::Surface> const&,
-                              mi::InputReceptionMode /* receives_all_input */) override
-    {
-    }
-
-    void input_channel_closed(std::shared_ptr<mi::InputChannel> const&) override
-    {
-    }
-};
-
 struct NullInputTargeter : public msh::InputTargeter
 {
     NullInputTargeter() = default;
@@ -98,11 +82,6 @@ class NullInputDispatcherConfiguration : public mi::InputDispatcherConfiguration
 {
 public:
     NullInputDispatcherConfiguration() = default;
-    std::shared_ptr<ms::InputRegistrar> the_input_registrar() override
-    {
-        return std::make_shared<NullInputRegistrar>();
-    }
-
     std::shared_ptr<msh::InputTargeter> the_input_targeter() override
     {
         return std::make_shared<NullInputTargeter>();

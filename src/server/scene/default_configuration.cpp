@@ -23,7 +23,7 @@
 #include "mir/input/input_configuration.h"
 #include "mir/input/input_dispatcher_configuration.h"
 #include "mir/abnormal_exit.h"
-#include "mir/shell/session.h"
+#include "mir/scene/session.h"
 
 #include "broadcasting_session_event_sink.h"
 #include "default_session_container.h"
@@ -36,6 +36,7 @@
 #include "surface_controller.h"
 #include "surface_stack.h"
 #include "threaded_snapshot_strategy.h"
+#include "default_input_registrar.h"
 
 namespace mc = mir::compositor;
 namespace mf = mir::frontend;
@@ -93,23 +94,17 @@ auto mir::DefaultServerConfiguration::the_surface_factory()
         });
 }
 
-std::shared_ptr<ms::SurfaceController>
-mir::DefaultServerConfiguration::the_surface_controller()
+std::shared_ptr<ms::SurfaceCoordinator>
+mir::DefaultServerConfiguration::the_surface_coordinator()
 {
-    return surface_controller(
+    return surface_coordinator(
         [this]()
         {
             return std::make_shared<ms::SurfaceController>(
                 the_surface_factory(),
-                the_shell_placement_strategy(),
+                the_placement_strategy(),
                 the_surface_stack_model());
         });
-}
-
-std::shared_ptr<ms::SurfaceCoordinator>
-mir::DefaultServerConfiguration::the_surface_coordinator()
-{
-    return the_surface_controller();
 }
 
 std::shared_ptr<ms::BroadcastingSessionEventSink>
@@ -191,7 +186,7 @@ mir::DefaultServerConfiguration::the_session_manager()
                 the_shell_focus_setter(),
                 the_snapshot_strategy(),
                 the_session_event_sink(),
-                the_shell_session_listener());
+                the_session_listener());
         });
 }
 
@@ -228,3 +223,14 @@ mir::DefaultServerConfiguration::the_snapshot_strategy()
                 the_pixel_buffer());
         });
 }
+
+std::shared_ptr<ms::InputRegistrar> mir::DefaultServerConfiguration::the_input_registrar()
+{
+    return input_registrar(
+        [&]() -> std::shared_ptr<ms::InputRegistrar>
+        {
+            return std::make_shared<ms::DefaultInputRegistrar>();
+        });
+}
+
+

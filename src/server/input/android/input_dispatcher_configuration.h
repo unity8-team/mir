@@ -43,6 +43,11 @@ namespace shell
 {
 class InputTargeter;
 }
+namespace scene
+{
+class InputRegistrar;
+class InputRegistrarObserver;
+}
 namespace input
 {
 class EventFilter;
@@ -60,10 +65,10 @@ class InputDispatcherConfiguration : public input::InputDispatcherConfiguration
 {
 public:
     InputDispatcherConfiguration(std::shared_ptr<EventFilter> const& event_filter,
-                                 std::shared_ptr<input::InputReport> const& input_report);
+                                 std::shared_ptr<input::InputReport> const& input_report,
+                                 std::shared_ptr<scene::InputRegistrar> const& input_registrar);
     virtual ~InputDispatcherConfiguration();
 
-    std::shared_ptr<scene::InputRegistrar> the_input_registrar() override;
     std::shared_ptr<shell::InputTargeter> the_input_targeter() override;
     std::shared_ptr<input::InputDispatcher> the_input_dispatcher() override;
     virtual droidinput::sp<droidinput::InputDispatcherInterface> the_dispatcher();
@@ -81,10 +86,11 @@ protected:
 
     std::shared_ptr<EventFilter> const event_filter;
     std::shared_ptr<input::InputReport> const input_report;
+    std::shared_ptr<scene::InputRegistrar> const input_registrar;
 
 private:
     CachedPtr<InputThread> dispatcher_thread;
-    CachedPtr<InputRegistrar> input_registrar;
+    CachedPtr<InputRegistrar> android_input_registrar;
 
     CachedPtr<shell::InputTargeter> input_targeter;
 

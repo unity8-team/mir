@@ -22,6 +22,7 @@
 #include "src/server/input/android/input_dispatcher_configuration.h"
 
 namespace mi = mir::input;
+namespace ms = mir::scene;
 namespace mia = mi::android;
 namespace mtd = mir::test::doubles;
 
@@ -29,8 +30,9 @@ class FakeEventHubInputDispatcherConfiguration : public mia::InputDispatcherConf
 {
 public:
     FakeEventHubInputDispatcherConfiguration(std::shared_ptr<mi::EventFilter> const& ev_filter,
-                                             std::shared_ptr<mi::InputReport> const& input_report)
-        : InputDispatcherConfiguration(ev_filter, input_report)
+                                             std::shared_ptr<mi::InputReport> const& input_report,
+                                             std::shared_ptr<ms::InputRegistrar> const& input_registrar)
+        : InputDispatcherConfiguration(ev_filter, input_report, input_registrar)
     {
     }
     bool is_key_repeat_enabled() const override
@@ -43,10 +45,11 @@ mtd::FakeEventHubInputConfiguration::FakeEventHubInputConfiguration(
     std::shared_ptr<mir::input::EventFilter> const& event_filter,
     std::shared_ptr<mi::InputRegion> const& input_region,
     std::shared_ptr<mi::CursorListener> const& cursor_listener,
-    std::shared_ptr<mi::InputReport> const& input_report)
+    std::shared_ptr<mi::InputReport> const& input_report,
+    std::shared_ptr<ms::InputRegistrar> const& input_registrar)
     : FakeEventHubInputConfiguration(
-          std::make_shared<FakeEventHubInputDispatcherConfiguration>(event_filter, input_report), input_region,
-          cursor_listener, input_report)
+          std::make_shared<FakeEventHubInputDispatcherConfiguration>(event_filter, input_report, input_registrar),
+          input_region, cursor_listener, input_report)
 {
     event_hub = new mia::FakeEventHub();
 }

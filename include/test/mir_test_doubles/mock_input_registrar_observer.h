@@ -16,33 +16,31 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
-#ifndef MIR_SHELL_PLACEMENT_STRATEGY_H_
-#define MIR_SHELL_PLACEMENT_STRATEGY_H_
+#ifndef MIR_TEST_DOUBLES_MOCK_INPUT_REGISTRAR_H_
+#define MIR_TEST_DOUBLES_MOCK_INPUT_REGISTRAR_H_
+
+#include "mir/scene/input_registrar_observer.h"
+
+#include <gmock/gmock.h>
 
 namespace mir
 {
-
-namespace shell
+namespace test
 {
-class Session;
-struct SurfaceCreationParameters;
-
-class PlacementStrategy
+namespace doubles
 {
-public:
-    virtual ~PlacementStrategy() {}
-    // TODO: It is strange to work in terms of SurfaceCreationParameters here,
-    // perhaps a new interface is needed.
-    virtual SurfaceCreationParameters place(shell::Session const& session, SurfaceCreationParameters const& request_parameters) = 0;
 
-
-protected:
-    PlacementStrategy() = default;
-    PlacementStrategy(PlacementStrategy const&) = delete;
-    PlacementStrategy& operator=(PlacementStrategy const&) = delete;
+struct MockInputRegistrarObserver : public scene::InputRegistrarObserver
+{
+    virtual ~MockInputRegistrarObserver() noexcept(true) {}
+    MOCK_METHOD3(input_channel_opened, void(std::shared_ptr<input::InputChannel> const&,
+                                            std::shared_ptr<input::Surface> const&,
+                                            input::InputReceptionMode mode));
+    MOCK_METHOD1(input_channel_closed, void(std::shared_ptr<input::InputChannel> const&));
 };
 
 }
+}
 } // namespace mir
 
-#endif // MIR_SHELL_PLACEMENT_STRATEGY_H_
+#endif // MIR_TEST_DOUBLES_MOCK_INPUT_REGISTRAR_H_
