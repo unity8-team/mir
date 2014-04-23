@@ -101,6 +101,12 @@ public:
     {
         return 1;
     }
+
+    std::chrono::steady_clock::time_point time_last_buffer_acquired() const override
+    {
+        return std::chrono::steady_clock::time_point{};
+    }
+
 private:
     std::shared_ptr<mg::Buffer> buf;
     geom::Rectangle screen_pos;
