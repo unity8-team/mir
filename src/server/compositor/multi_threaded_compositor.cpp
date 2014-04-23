@@ -180,7 +180,7 @@ public:
         run_compositing_loop([&]
         {
             bool ret = display_buffer_compositor->composite();
-            real_frames = real_frames + 1;
+            real_frames.fetch_add(1);
             return ret;
         });
     }
