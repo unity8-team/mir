@@ -88,7 +88,7 @@ void mga::DisplayBuffer::release_current()
 
 void mga::DisplayBuffer::render_and_post_update(
     RenderableList const& renderlist,
-    std::function<void(Renderable const&)> const& render_fn)
+    std::function<void(Renderable const&)> const&)
 {
     if (renderlist.empty())
     {

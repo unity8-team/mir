@@ -105,21 +105,19 @@ TEST_F(AndroidDisplayBuffer, can_post_update_with_gl_only)
     db.post_update();
 }
 
-TEST_F(AndroidDisplayBuffer, performs_default_post_if_empty_list)
+TEST_F(AndroidDisplayBuffer, does_nothing_if_empty_list)
 {
     using namespace testing;
 
     mga::DisplayBuffer db(
         mock_fb_bundle, mock_display_device, native_window, *gl_context, stub_program_factory);
 
-    InSequence seq;
     EXPECT_CALL(*mock_display_device, render_gl(_))
-        .Times(1);
+        .Times(0);
     EXPECT_CALL(*mock_fb_bundle, last_rendered_buffer())
-        .Times(1)
-        .WillOnce(Return(stub_buffer));
+        .Times(0);
     EXPECT_CALL(*mock_display_device, post(Ref(*stub_buffer)))
-        .Times(1);
+        .Times(0);
 
     std::list<std::shared_ptr<mg::Renderable>> renderlist{};
     auto render_fn = [] (mg::Renderable const&) {};
