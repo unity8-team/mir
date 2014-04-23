@@ -88,17 +88,20 @@ void mga::HwcDevice::render_gl(SwappingGLContext const& context)
     context.swap_buffers();
 }
 
-void mga::HwcDevice::render_gl_and_overlays(
+bool mga::HwcDevice::post_or_reject_overlays(
     SwappingGLContext const& context,
     RenderableList const& renderables,
-    std::function<void(Renderable const&)> const& render_fn)
+    RenderableListCompositor const& list_compositor)
 {
     if (!(list_needs_commit = hwc_list.update_list_and_check_if_changed(renderables, fbtarget_size)))
-        return;
+        return true;
     setup_layer_types();
 
     hwc_wrapper->prepare(*hwc_list.native_list().lock());
 
+    (void) renderables; (void) list_compositor;
+    (void) context;
+#if 0 
     //draw layers that the HWC did not accept for overlays here
     bool needs_swapbuffers = false;
     auto layers_it = hwc_list.begin();
@@ -110,7 +113,7 @@ void mga::HwcDevice::render_gl_and_overlays(
         //trigger GL on the layers that are not overlays
         if (layers_it->needs_gl_render())
         {
-            render_fn(*renderable);
+            //render_fn(*renderable);
             needs_swapbuffers = true;
         }
         layers_it++;
@@ -118,6 +121,8 @@ void mga::HwcDevice::render_gl_and_overlays(
 
     if (needs_swapbuffers)
         context.swap_buffers();
+#endif
+    return true;
 }
 
 void mga::HwcDevice::post(mg::Buffer const& buffer)

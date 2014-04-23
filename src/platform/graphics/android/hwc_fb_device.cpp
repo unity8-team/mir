@@ -22,6 +22,7 @@
 #include "framebuffer_bundle.h"
 #include "android_format_conversion-inl.h"
 #include "hwc_wrapper.h"
+#include "overlay_gl_compositor.h"
 #include "mir/graphics/buffer.h"
 #include "mir/graphics/android/native_buffer.h"
 
@@ -84,16 +85,12 @@ void mga::HwcFbDevice::render_gl(SwappingGLContext const&)
     gpu_render();
 }
 
-void mga::HwcFbDevice::render_gl_and_overlays(
+bool mga::HwcFbDevice::post_or_reject_overlays(
     SwappingGLContext const&,
-    RenderableList const& renderables,
-    std::function<void(Renderable const&)> const& render_fn)
+    RenderableList const&,
+    RenderableListCompositor const&)
 {
-    prepare();
-    //TODO: filter this list based on the results of the preparation
-    for(auto const& renderable : renderables)
-        render_fn(*renderable);
-    gpu_render();
+    return false;
 }
 
 void mga::HwcFbDevice::post(mg::Buffer const& buffer)

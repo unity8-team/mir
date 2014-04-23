@@ -36,7 +36,19 @@ namespace android
 {
 class SwappingGLContext;
 
-class OverlayGLProgram
+class RenderableListCompositor
+{
+public:
+    virtual ~RenderableListCompositor() = default;
+    virtual void render(RenderableList const&, SwappingGLContext const&) = 0;
+protected:
+    RenderableListCompositor() = default;
+private:
+    RenderableListCompositor(RenderableListCompositor const&) = delete;
+    RenderableListCompositor& operator=(RenderableListCompositor const&) = delete;
+};
+
+class OverlayGLProgram : public RenderableListCompositor
 {
 public:
     OverlayGLProgram(

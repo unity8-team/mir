@@ -49,15 +49,12 @@ void mga::FBDevice::render_gl(SwappingGLContext const& context)
     context.swap_buffers();
 }
 
-void mga::FBDevice::render_gl_and_overlays(
-    SwappingGLContext const& context,
-    RenderableList const& renderables,
-    std::function<void(Renderable const&)> const& render_fn) 
+bool mga::FBDevice::post_or_reject_overlays(
+    SwappingGLContext const&,
+    RenderableList const&,
+    RenderableListCompositor const&)
 {
-    for(auto const& renderable : renderables)
-        render_fn(*renderable);
-
-    context.swap_buffers();
+    return false;
 }
 
 void mga::FBDevice::post(mg::Buffer const& buffer)

@@ -42,10 +42,10 @@ public:
 
     virtual void mode(MirPowerMode mode) = 0;
     virtual void render_gl(SwappingGLContext const& context) = 0;
-    virtual void render_gl_and_overlays(
+    virtual bool post_or_reject_overlays(
         SwappingGLContext const& context,
         RenderableList const& list,
-        RenderableListCompositor const& renderable_compositor) = 0;
+        RenderableListCompositor const& list_compositor) = 0;
     virtual void post(Buffer const& buffer) = 0;
     virtual bool apply_orientation(MirOrientation orientation) const = 0;
 

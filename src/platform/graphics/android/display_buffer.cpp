@@ -91,14 +91,9 @@ void mga::DisplayBuffer::render_and_post_update(
     std::function<void(Renderable const&)> const&)
 {
     if (renderlist.empty())
-    {
-        display_device->render_gl(gl_context);
-    }
-    else
-    {
-        display_device->render_gl_and_overlays(gl_context, renderlist, render_fn);
-    }
+        return;
 
+    display_device->post_or_reject_overlays(gl_context, renderlist, overlay_program);
     post();
 }
 
