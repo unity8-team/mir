@@ -118,6 +118,9 @@ GLfloat const texcoords[]{
 void mga::OverlayGLProgram::render(
     RenderableList const& renderlist, SwappingGLContext const& context) const
 {
+    if (renderlist.empty())
+        return;
+
     glUseProgram(*program);
 
     glClearColor(0.0, 0.0, 0.0, 1.0);
