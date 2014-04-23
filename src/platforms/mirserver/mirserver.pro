@@ -16,24 +16,14 @@ QMAKE_LFLAGS = -std=c++11 -Wl,-no-undefined
 CONFIG   += link_pkgconfig
 PKGCONFIG += mircommon mirserver mirclient egl
 
-INCLUDEPATH += "/usr/include/mirserver/android-deps"
-INCLUDEPATH += "/usr/include/mirserver/android-input/android/frameworks/base/include"
-INCLUDEPATH += "/usr/include/mirserver/android-input/android/frameworks/base/services/input"
-INCLUDEPATH += "/usr/include/mirserver/android-input/android/frameworks/native/include"
-
-QMAKE_CXXFLAGS += "-include /usr/include/mirserver/android-input/android/system/core/include/arch/ubuntu-x86/AndroidConfig.h"
-
 SOURCES += \
-    inputreaderpolicy.cpp \
-    mirinputdispatcher.cpp \
     qteventfeeder.cpp \
     plugin.cpp \
     qmirserver.cpp \
     sessionauthorizer.cpp \
     sessionlistener.cpp \
     surfaceconfigurator.cpp \
-    mirinputconfiguration.cpp \
-    mirinputmanager.cpp \
+    mirinputdispatcherconfiguration.cpp \
     mirplacementstrategy.cpp \
     mirserverconfiguration.cpp \
     mirserverstatuslistener.cpp \
@@ -45,13 +35,9 @@ SOURCES += \
     nativeinterface.cpp \
     dbusscreen.cpp \
     qtcompositor.cpp \
-    ../common/ubuntutheme.cpp \
-    pointercontroller.cpp
+    ../common/ubuntutheme.cpp
 
 HEADERS += \
-    inputreaderpolicy.h \
-    mirinputdispatcher.h \
-    mirinputwindow.h \
     qteventfeeder.h \
     plugin.h \
     qmirserver.h \
@@ -59,9 +45,7 @@ HEADERS += \
     sessionlistener.h \
     surfaceconfigurator.h \
     logging.h \
-    mirinputchannel.h \
-    mirinputconfiguration.h \
-    mirinputmanager.h \
+    mirinputdispatcherconfiguration.h \
     mirglconfig.h \
     mirplacementstrategy.h \
     mirserverconfiguration.h \
@@ -74,8 +58,7 @@ HEADERS += \
     nativeinterface.h \
     dbusscreen.h \
     qtcompositor.h \
-    ../common/ubuntutheme.h \
-    pointercontroller.h
+    ../common/ubuntutheme.h
 
 
 # Installation path

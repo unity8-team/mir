@@ -26,8 +26,6 @@
 #include "mirbuffersgtexture.h"
 #include "mirsurfaceitem.h"
 #include "logging.h"
-#include "mirinputchannel.h"
-#include "mirinputdispatcher.h"
 
 // Qt
 #include <QDebug>
@@ -39,72 +37,122 @@
 
 // Mir
 #include <mir/geometry/rectangle.h>
+#include <mir_toolkit/event.h>
 
 namespace mg = mir::graphics;
-using namespace android;
 
 namespace {
 
-struct NotifyMotionArgs createNotifyMotionArgs(QTouchEvent *event)
+/* simplified version of systemTime from the android project, with the following copyright */
+/*
+ * Copyright (C) 2005 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+nsecs_t systemTime()
 {
-    NotifyMotionArgs args;
+    struct timespec t;
+    t.tv_sec = t.tv_nsec = 0;
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    return nsecs_t(t.tv_sec)*1000000000LL + t.tv_nsec;
+}
 
-    args.eventTime = systemTime(SYSTEM_TIME_MONOTONIC); //event->timestamp();
-    args.deviceId = 0; // Hope this doesn't matter for the prototype work
-    args.source = AINPUT_SOURCE_TOUCHSCREEN;
-    args.policyFlags = POLICY_FLAG_PASS_TO_USER;
+MirEvent createMirEvent(QTouchEvent *qtEvent)
+{
+    MirEvent mirEvent;
+
+    mirEvent.type = mir_event_type_motion;
+
+    // Hardcoding it for now
+    // TODO: Gather this info from a QTouchDevice-derived class created by QtEventFeeder
+    mirEvent.motion.device_id = 0; 
+    mirEvent.motion.source_id = 0x00001002; // AINPUT_SOURCE_TOUCHSCREEN; https://bugs.launchpad.net/bugs/1311687
 
     // NB: it's assumed that touch points are pressed and released
     // one at a time.
 
-    if (event->touchPointStates().testFlag(Qt::TouchPointPressed)) {
-        if (event->touchPoints().count() > 1) {
-            args.action = AMOTION_EVENT_ACTION_POINTER_DOWN;
+    if (qtEvent->touchPointStates().testFlag(Qt::TouchPointPressed)) {
+        if (qtEvent->touchPoints().count() > 1) {
+            mirEvent.motion.action = mir_motion_action_pointer_down;
         } else {
-            args.action = AMOTION_EVENT_ACTION_DOWN;
+            mirEvent.motion.action = mir_motion_action_down;
         }
-    } else if (event->touchPointStates().testFlag(Qt::TouchPointReleased)) {
-        if (event->touchPoints().count() > 1) {
-            args.action = AMOTION_EVENT_ACTION_POINTER_UP;
+    } else if (qtEvent->touchPointStates().testFlag(Qt::TouchPointReleased)) {
+        if (qtEvent->touchPoints().count() > 1) {
+            mirEvent.motion.action = mir_motion_action_pointer_up;
         } else {
-            args.action = AMOTION_EVENT_ACTION_UP;
+            mirEvent.motion.action = mir_motion_action_up;
         }
     } else {
-            args.action = AMOTION_EVENT_ACTION_MOVE;
+            mirEvent.motion.action = mir_motion_action_move;
     }
 
-    args.flags = 0;
+    // not used
+    mirEvent.motion.flags = (MirMotionFlag) 0;
 
     // TODO: map QInputEvent::modifiers()
-    args.metaState = 0;
+    mirEvent.motion.modifiers = 0;
+
+    // not used
+    mirEvent.motion.edge_flags = 0;
 
     // TODO
-    args.buttonState = 0;
+    mirEvent.motion.button_state = (MirMotionButton) 0;
 
-    // Likely not used anymore with the stripped-down android::InputDispatcher
-    args.edgeFlags = 0;
+    // Does it matter?
+    mirEvent.motion.x_offset = 0.;
+    mirEvent.motion.y_offset = 0.;
+    mirEvent.motion.x_precision = 0.1;
+    mirEvent.motion.y_precision = 0.1;
 
-    args.pointerCount = event->touchPoints().count();
+    // TODO. Not useful to Qt at least...
+    mirEvent.motion.down_time = 0;
 
-    auto touchPoints = event->touchPoints();
+    // Using qtEvent->timestamp() didn't work (don't remember why)
+    mirEvent.motion.event_time = systemTime();
+
+    mirEvent.motion.pointer_count = qtEvent->touchPoints().count();
+
+    auto touchPoints = qtEvent->touchPoints();
     for (int i = 0; i < touchPoints.count(); ++i) {
         auto touchPoint = touchPoints.at(i);
-        PointerCoords &coords = args.pointerCoords[i];
+        auto &pointer = mirEvent.motion.pointer_coordinates[i];
 
-        coords.clear();
-        coords.setAxisValue(AMOTION_EVENT_AXIS_X, touchPoint.pos().x());
-        coords.setAxisValue(AMOTION_EVENT_AXIS_Y, touchPoint.pos().y());
-        coords.setAxisValue(AMOTION_EVENT_AXIS_PRESSURE, touchPoint.pressure());
+        pointer.id = touchPoint.id();
+        pointer.x = touchPoint.pos().x();
+        pointer.y = touchPoint.pos().y();
 
-        args.pointerProperties[i].id = touchPoint.id();
+        // FIXME: https://bugs.launchpad.net/mir/+bug/1311809
+
+        if (touchPoint.rawScreenPositions().isEmpty()) {
+            pointer.raw_x = 0.;
+            pointer.raw_y = 0.;
+        } else {
+            pointer.raw_x = touchPoint.rawScreenPositions().at(0).x();
+            pointer.raw_y =  touchPoint.rawScreenPositions().at(0).y();
+        }
+
+        pointer.touch_major = 0.;
+        pointer.touch_minor = 0.;
+        pointer.size = 0.;
+        pointer.pressure = touchPoint.pressure();
+        pointer.orientation = 0.;
+        pointer.vscroll = 0.;
+        pointer.hscroll = 0.;
+        pointer.tool_type = mir_motion_tool_type_unknown;
     }
 
-    // TODO: find out what's the relevance of this
-    args.xPrecision = 1.0f;
-    args.yPrecision = 1.0f;
-    args.downTime = 0;
-
-    return args;
+    return mirEvent;
 }
 
 } // namespace {
@@ -355,7 +403,8 @@ void MirSurfaceItem::touchEvent(QTouchEvent *event)
     if (type() == InputMethod && event->type() == QEvent::TouchBegin) {
         // FIXME: Hack to get the VKB use case working while we don't have the proper solution in place.
         if (hasTouchInsideUbuntuKeyboard(event)) {
-            dispatchTouchEventToMirInputChannel(event);
+            MirEvent mirEvent = createMirEvent(event);
+            m_surface->consume(mirEvent);
         } else {
             event->ignore();
         }
@@ -363,7 +412,8 @@ void MirSurfaceItem::touchEvent(QTouchEvent *event)
     } else {
         // NB: If we are getting QEvent::TouchUpdate or QEvent::TouchEnd it's because we've
         // previously accepted the corresponding QEvent::TouchBegin
-        dispatchTouchEventToMirInputChannel(event);
+        MirEvent mirEvent = createMirEvent(event);
+        m_surface->consume(mirEvent);
     }
 }
 
@@ -380,26 +430,6 @@ bool MirSurfaceItem::hasTouchInsideUbuntuKeyboard(QTouchEvent *event)
         }
     }
     return false;
-}
-
-void MirSurfaceItem::dispatchTouchEventToMirInputChannel(QTouchEvent *event)
-{
-    MirInputDispatcherInterface *dispatcher = MirInputDispatcherInterface::instance();
-    if (dispatcher == nullptr)
-        return;
-
-    NotifyMotionArgs args = createNotifyMotionArgs(event);
-
-    MirInputChannel *mirInputChannel =
-        static_cast<MirInputChannel*>(m_surface->input_channel().get());
-
-    InputTarget target;
-    target.inputChannel = mirInputChannel->serverSideChannel;
-    target.flags = InputTarget::FLAG_DISPATCH_AS_IS;
-    target.xOffset = target.yOffset = 0.0f;
-    target.scaleFactor = 1.0f;
-
-    dispatcher->notifyMotion(&args, target);
 }
 
 void MirSurfaceItem::setType(const Type &type)

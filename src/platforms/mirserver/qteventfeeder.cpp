@@ -1,3 +1,21 @@
+/*
+ * Copyright © 2013-2014 Canonical Ltd.
+ *
+ * This program is free software: you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License version 3,
+ * as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Authored by: Daniel d'Andrada <daniel.dandrada@canonical.com>
+ */
+
 #include "qteventfeeder.h"
 
 #include <qpa/qplatforminputcontext.h>
@@ -8,12 +26,16 @@
 
 #include <QDebug>
 
-using namespace android;
+// from android-input AMOTION_EVENT_ACTION_*, hidden inside mir bowels
+// mir headers should define them
+const int QtEventFeeder::MirEventActionMask = 0xff;
+const int QtEventFeeder::MirEventActionPointerIndexMask = 0xff00;
+const int QtEventFeeder::MirEventActionPointerIndexShift = 8;
 
 static const QEvent::Type kEventType[] = {
-  QEvent::KeyPress,    // AKEY_EVENT_ACTION_DOWN     = 0
-  QEvent::KeyRelease,  // AKEY_EVENT_ACTION_UP       = 1
-  QEvent::KeyPress     // AKEY_EVENT_ACTION_MULTIPLE = 2
+  QEvent::KeyPress,    // mir_key_action_down     = 0
+  QEvent::KeyRelease,  // mir_key_action_up       = 1
+  QEvent::KeyPress     // mir_key_action_multiple = 2
 };
 
 // Lookup table for the key codes and unicode values.
@@ -236,21 +258,37 @@ static const struct {
 
 QtEventFeeder::QtEventFeeder()
 {
-  // Initialize touch device. Hardcoded just like in qtubuntu
-  mTouchDevice = new QTouchDevice();
-  mTouchDevice->setType(QTouchDevice::TouchScreen);
-  mTouchDevice->setCapabilities(
-      QTouchDevice::Position | QTouchDevice::Area | QTouchDevice::Pressure |
-      QTouchDevice::NormalizedPosition);
-  QWindowSystemInterface::registerTouchDevice(mTouchDevice);
+    // Initialize touch device. Hardcoded just like in qtubuntu
+    // TODO: Create them from info gathered from Mir and store things like device id and source
+    //       in a QTouchDevice-derived class created by us. So that we can properly assemble back
+    //       MirEvents our of QTouchEvents to give to mir::scene::Surface::consume.
+    mTouchDevice = new QTouchDevice();
+    mTouchDevice->setType(QTouchDevice::TouchScreen);
+    mTouchDevice->setCapabilities(
+            QTouchDevice::Position | QTouchDevice::Area | QTouchDevice::Pressure |
+            QTouchDevice::NormalizedPosition);
+    QWindowSystemInterface::registerTouchDevice(mTouchDevice);
 }
 
-void QtEventFeeder::notifyConfigurationChanged(const NotifyConfigurationChangedArgs* args)
+void QtEventFeeder::dispatch(MirEvent const& event)
 {
-    (void)args;
+    switch (event.type) {
+    case mir_event_type_key:
+        dispatchKey(event.key);
+        break;
+    case mir_event_type_motion:
+        dispatchMotion(event.motion);
+        break;
+    default:
+        // mir_event_type_surface and mir_event_type_resize events go through
+        // mir's own protobuf channel instead of the android_input one. The latter 
+        // being the one we're dealing with here.
+        qFatal("QtEventFeeder got unsupported event type from mir");
+        break;
+    }
 }
 
-void QtEventFeeder::notifyKey(const NotifyKeyArgs* args)
+void QtEventFeeder::dispatchKey(MirKeyEvent const& event)
 {
     if (QGuiApplication::topLevelWindows().isEmpty())
         return;
@@ -258,31 +296,31 @@ void QtEventFeeder::notifyKey(const NotifyKeyArgs* args)
     QWindow *window = QGuiApplication::topLevelWindows().first();
 
     // Key modifier and unicode index mapping.
-    const int kMetaState = args->metaState;
+    const int kEventModifiers = event.modifiers;
     Qt::KeyboardModifiers modifiers = Qt::NoModifier;
     int unicodeIndex = 0;
-    if (kMetaState & AMETA_SHIFT_ON) {
+    if (kEventModifiers & mir_key_modifier_shift) {
         modifiers |= Qt::ShiftModifier;
         unicodeIndex = 1;
     }
-    if (kMetaState & AMETA_CTRL_ON) {
+    if (kEventModifiers & mir_key_modifier_ctrl) {
         modifiers |= Qt::ControlModifier;
         unicodeIndex = 2;
     }
-    if (kMetaState & AMETA_ALT_ON) {
+    if (kEventModifiers & mir_key_modifier_alt) {
         modifiers |= Qt::AltModifier;
         unicodeIndex = 2;
     }
-    if (kMetaState & AMETA_META_ON) {
+    if (kEventModifiers & mir_key_modifier_meta) {
         modifiers |= Qt::MetaModifier;
         unicodeIndex = 2;
     }
 
     // Key event propagation.
-    QEvent::Type keyType = kEventType[args->action];
-    quint32 keyCode = kKeyCode[args->keyCode].keycode;
-    QString text(kKeyCode[args->keyCode].unicode[unicodeIndex]);
-    ulong timestamp = args->eventTime / 1000000;
+    QEvent::Type keyType = kEventType[event.action];
+    quint32 keyCode = kKeyCode[event.key_code].keycode;
+    QString text(kKeyCode[event.key_code].unicode[unicodeIndex]);
+    ulong timestamp = event.event_time / 1000000;
     QPlatformInputContext* context = QGuiApplicationPrivate::platformIntegration()->inputContext();
     if (context) {
         QKeyEvent qKeyEvent(keyType, keyCode, modifiers, text);
@@ -296,7 +334,7 @@ void QtEventFeeder::notifyKey(const NotifyKeyArgs* args)
     QWindowSystemInterface::handleKeyEvent(window, timestamp, keyType, keyCode, modifiers, text);
 }
 
-void QtEventFeeder::notifyMotion(const NotifyMotionArgs* args)
+void QtEventFeeder::dispatchMotion(MirMotionEvent const& event)
 {
     if (QGuiApplication::topLevelWindows().isEmpty())
         return;
@@ -311,16 +349,16 @@ void QtEventFeeder::notifyMotion(const NotifyMotionArgs* args)
 
     // TODO: Is it worth setting the Qt::TouchPointStationary ones? Currently they are left
     //       as Qt::TouchPointMoved
-    const int kPointerCount = (int) args->pointerCount;
+    const int kPointerCount = (int) event.pointer_count;
     for (int i = 0; i < kPointerCount; ++i) {
         QWindowSystemInterface::TouchPoint touchPoint;
 
-        const float kX = args->pointerCoords[i].getX();
-        const float kY = args->pointerCoords[i].getY();
-        const float kW = args->pointerCoords[i].getAxisValue(AMOTION_EVENT_AXIS_TOUCH_MAJOR);
-        const float kH = args->pointerCoords[i].getAxisValue(AMOTION_EVENT_AXIS_TOUCH_MINOR);
-        const float kP = args->pointerCoords[i].getAxisValue(AMOTION_EVENT_AXIS_PRESSURE);
-        touchPoint.id = args->pointerProperties[i].id;
+        const float kX = event.pointer_coordinates[i].x;
+        const float kY = event.pointer_coordinates[i].y;
+        const float kW = event.pointer_coordinates[i].touch_major;
+        const float kH = event.pointer_coordinates[i].touch_minor;
+        const float kP = event.pointer_coordinates[i].pressure;
+        touchPoint.id = event.pointer_coordinates[i].id;
         touchPoint.normalPosition = QPointF(kX / kWindowGeometry.width(), kY / kWindowGeometry.height());
         touchPoint.area = QRectF(kX - (kW / 2.0), kY - (kH / 2.0), kW, kH);
         touchPoint.pressure = kP / kMaxPressure;
@@ -329,58 +367,85 @@ void QtEventFeeder::notifyMotion(const NotifyMotionArgs* args)
         touchPoints.append(touchPoint);
     }
 
-    switch (args->action & AMOTION_EVENT_ACTION_MASK) {
-    case AMOTION_EVENT_ACTION_MOVE:
+    switch (event.action & MirEventActionMask) {
+    case mir_motion_action_move:
         // No extra work needed.
         break;
 
-    case AMOTION_EVENT_ACTION_DOWN:
+    case mir_motion_action_down:
         // NB: hardcoded index 0 because there's only a single touch point in this case
         touchPoints[0].state = Qt::TouchPointPressed;
         break;
 
-    case AMOTION_EVENT_ACTION_UP:
+    case mir_motion_action_up:
         touchPoints[0].state = Qt::TouchPointReleased;
         break;
 
-    case AMOTION_EVENT_ACTION_POINTER_DOWN: {
-        const int index = (args->action & AMOTION_EVENT_ACTION_POINTER_INDEX_MASK) >>
-            AMOTION_EVENT_ACTION_POINTER_INDEX_SHIFT;
+    case mir_motion_action_pointer_down: {
+        const int index = (event.action & MirEventActionPointerIndexMask) >>
+            MirEventActionPointerIndexShift;
         touchPoints[index].state = Qt::TouchPointPressed;
         break;
         }
 
-    case AMOTION_EVENT_ACTION_CANCEL:
-    case AMOTION_EVENT_ACTION_POINTER_UP: {
-        const int index = (args->action & AMOTION_EVENT_ACTION_POINTER_INDEX_MASK) >>
-            AMOTION_EVENT_ACTION_POINTER_INDEX_SHIFT;
+    case mir_motion_action_cancel:
+    case mir_motion_action_pointer_up: {
+        const int index = (event.action & MirEventActionPointerIndexMask) >>
+            MirEventActionPointerIndexShift;
         touchPoints[index].state = Qt::TouchPointReleased;
         break;
         }
 
-    case AMOTION_EVENT_ACTION_OUTSIDE:
-    case AMOTION_EVENT_ACTION_HOVER_MOVE:
-    case AMOTION_EVENT_ACTION_SCROLL:
-    case AMOTION_EVENT_ACTION_HOVER_ENTER:
-    case AMOTION_EVENT_ACTION_HOVER_EXIT:
+    case mir_motion_action_outside:
+    case mir_motion_action_hover_move:
+    case mir_motion_action_scroll:
+    case mir_motion_action_hover_enter:
+    case mir_motion_action_hover_exit:
         default:
-        qWarning() << "unhandled motion event action" << (int)(args->action & AMOTION_EVENT_ACTION_MASK);
+        qWarning() << "unhandled motion event action" << (int)(event.action & MirEventActionMask);
     }
 
     // Touch event propagation.
     QWindowSystemInterface::handleTouchEvent(
             window,
-            args->eventTime / 1000000,
+            event.event_time / 1000000,
             mTouchDevice,
             touchPoints);
 }
 
-void QtEventFeeder::notifySwitch(const NotifySwitchArgs* args)
+void QtEventFeeder::start()
 {
-    (void)args;
+    // not used
 }
 
-void QtEventFeeder::notifyDeviceReset(const NotifyDeviceResetArgs* args)
+void QtEventFeeder::stop()
 {
-    (void)args;
+    // not used
+}
+
+void QtEventFeeder::input_channel_opened(std::shared_ptr<mir::input::InputChannel> const& openedChannel,
+                          std::shared_ptr<mir::input::Surface> const& surface,
+                          mir::input::InputReceptionMode inputMode)
+{
+    Q_UNUSED(openedChannel);
+    Q_UNUSED(surface);
+    Q_UNUSED(inputMode);
+    // not used
+}
+
+void QtEventFeeder::input_channel_closed(std::shared_ptr<mir::input::InputChannel> const& closedChannel)
+{
+    Q_UNUSED(closedChannel);
+    // not used
+}
+
+void QtEventFeeder::focus_changed(std::shared_ptr<mir::input::InputChannel const> const& focusChannel)
+{
+    Q_UNUSED(focusChannel);
+    // This makes no sense as the concept of focus lives solely inside the QML scene
+}
+
+void QtEventFeeder::focus_cleared()
+{
+    // This makes no sense as the concept of focus lives solely inside the QML scene
 }

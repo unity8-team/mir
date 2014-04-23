@@ -18,7 +18,7 @@
 
 #include "mirglconfig.h"
 #include "mirplacementstrategy.h"
-#include "mirinputconfiguration.h"
+#include "mirinputdispatcherconfiguration.h"
 #include "mirserverstatuslistener.h"
 #include "sessionlistener.h"
 #include "surfaceconfigurator.h"
@@ -92,14 +92,13 @@ MirServerConfiguration::the_compositor()
         });
 }
 
-std::shared_ptr<mir::input::InputConfiguration>
-MirServerConfiguration::the_input_configuration()
+std::shared_ptr<mir::input::InputDispatcherConfiguration>
+MirServerConfiguration::the_input_dispatcher_configuration()
 {
-    return input_configuration(
+    return input_dispatcher_configuration(
     [this]()
     {
-        return std::make_shared<MirInputConfiguration>(the_input_report(),
-                                                       the_input_region());
+        return std::make_shared<MirInputDispatcherConfiguration>();
     });
 }
 

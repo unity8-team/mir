@@ -131,7 +131,6 @@ private:
     void setAttribute(const MirSurfaceAttrib, const int);
     void setSurfaceValid(const bool);
 
-    void dispatchTouchEventToMirInputChannel(QTouchEvent *event);
     bool hasTouchInsideUbuntuKeyboard(QTouchEvent *event);
 
     QMutex m_mutex;
