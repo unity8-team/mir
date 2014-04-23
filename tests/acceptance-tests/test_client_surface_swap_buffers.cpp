@@ -21,7 +21,7 @@
 #include "mir_test_framework/stubbed_server_configuration.h"
 #include "mir_test_framework/in_process_server.h"
 #include "mir_test_framework/using_stub_client_platform.h"
-#include "mir_test_doubles/null_display_buffer_compositor_factory.h"
+#include "mir_test_doubles/null_display.h"
 #include "mir_test/spin_wait.h"
 
 #include <gtest/gtest.h>
@@ -37,10 +37,9 @@ namespace
 
 struct StubServerConfig : mtf::StubbedServerConfiguration
 {
-    auto the_display_buffer_compositor_factory()
-        -> std::shared_ptr<mc::DisplayBufferCompositorFactory> override
+    std::shared_ptr<mir::graphics::Display> the_display()
     {
-        return std::make_shared<mtd::NullDisplayBufferCompositorFactory>();
+        return std::make_shared<mtd::NullDisplay>();
     }
 };
 
