@@ -27,6 +27,7 @@
 #include "mir_test_doubles/mock_buffer_stream.h"
 #include "mir_test_doubles/null_display.h"
 #include "mir_test_doubles/stub_input_registrar.h"
+#include "mir_test_doubles/stub_input_sender.h"
 #include "mir_test_doubles/stub_renderer.h"
 #include "mir_test_doubles/stub_display_buffer.h"
 #include "mir_test_doubles/stub_buffer.h"
@@ -143,6 +144,7 @@ struct SurfaceStackCompositor : public testing::Test
             false,
             mock_buffer_stream,
             std::shared_ptr<mir::input::InputChannel>(),
+            std::shared_ptr<mtd::StubInputSender>(),
             std::shared_ptr<ms::SurfaceConfigurator>(),
             null_scene_report)}
     {
