@@ -23,7 +23,7 @@
 #include "window_properties_mirserver_priv.h"
 
 
-#include <mir/shell/surface.h>
+#include <mir/scene/surface.h>
 #include <mir/input/input_platform.h>
 #include <mir/input/input_receiver_thread.h>
 #include <mir/graphics/internal_client.h>

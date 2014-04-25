@@ -31,7 +31,7 @@
 
 namespace mir
 {
-namespace shell
+namespace scene
 {
 class Surface;
 }
@@ -79,7 +79,7 @@ protected:
 
 private:
     std::unique_ptr<WindowProperties> window_properties;
-    std::shared_ptr< ::mir::shell::Surface> surface;
+    std::shared_ptr< ::mir::scene::Surface> surface;
     std::shared_ptr< ::mir::input::receiver::InputReceiverThread> input_thread;
     std::shared_ptr< ::mir::graphics::InternalClient> internal_client;
 };
