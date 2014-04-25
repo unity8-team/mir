@@ -38,11 +38,12 @@ struct StubDisplayDevice : public graphics::android::DisplayDevice
     void mode(MirPowerMode)
     {
     }
-    void render_gl_and_overlays(
+    bool render_gl_and_overlays(
         graphics::android::SwappingGLContext const&,
         graphics::RenderableList const&,
-        std::function<void(graphics::Renderable const&)> const&)
+        graphics::android::RenderableListCompositor const&)
     {
+        return false;
     }
     void render_gl(graphics::android::SwappingGLContext const&)
     {

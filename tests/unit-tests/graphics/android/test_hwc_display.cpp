@@ -107,8 +107,6 @@ TEST_F(AndroidDisplayBuffer, can_post_update_with_gl_only)
 
 TEST_F(AndroidDisplayBuffer, rejects_empty_list_for_optimization)
 {
-    mga::DisplayBuffer db(
-        mock_fb_bundle, mock_display_device, native_window, *gl_context, stub_program_factory);
     std::list<std::shared_ptr<mg::Renderable>> renderlist{};
     EXPECT_FALSE(db.post_renderables_if_optimizable(renderlist));
 }
@@ -122,7 +120,7 @@ TEST_F(AndroidDisplayBuffer, DISABLED_posts_overlay_list)
         std::make_shared<mtd::StubRenderable>()};
 
     InSequence seq;
-    EXPECT_CALL(*mock_display_device, render_gl_and_overlays(_, Ref(renderlist), _))
+    EXPECT_CALL(*mock_display_device, post_or_reject_overlays(_, Ref(renderlist), _))
         .Times(1);
     EXPECT_CALL(*mock_fb_bundle, last_rendered_buffer())
         .Times(1)
