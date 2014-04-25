@@ -18,12 +18,9 @@
 
 #include <ubuntu/hardware/alarm.h>
 
-#include <stdexcept>
-#include <string>
-
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
+#include <string.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -92,14 +89,20 @@ class UbuntuHardwareAlarm
         return not (result < 0);
     }
 
-  private:
-    UbuntuHardwareAlarm() : fd(open("/dev/alarm", O_RDWR))
+    bool is_valid() const
     {
-        if (fd == -1) throw std::runtime_error
+        return valid;
+    }
+
+  private:
+    UbuntuHardwareAlarm() : fd(open("/dev/alarm", O_RDWR)),
+                            valid(true)
+    {
+        if (fd == -1) 
         {
-            std::string{"UbuntuHardwareAlarm::UbuntuHardwareAlarm: Could not open /dev/alarm."} +
-            ::strerror(errno)
-        };
+            ALOGE("Could not open /dev/alarm: %s", strerror(errno));
+            valid = false;
+        }
     }
 
     ~UbuntuHardwareAlarm()
@@ -110,18 +113,17 @@ class UbuntuHardwareAlarm
     }
 
     int fd;
+    bool valid;
 };
 
 UHardwareAlarm
 u_hardware_alarm_create()
 {
-    try
-    {
-        return &UbuntuHardwareAlarm::instance();
-    } catch (const std::runtime_error& e)
-    {
-        ALOGE("Could not acquire instance: %s", e.what());
-    }
+    auto result = &UbuntuHardwareAlarm::instance();
+
+    if (result)
+        if (result->is_valid())
+            return result;
 
     return NULL;
 }
