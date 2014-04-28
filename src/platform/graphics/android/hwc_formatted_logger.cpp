@@ -139,6 +139,7 @@ void mga::HwcFormattedLogger::log_list_submitted_to_prepare(hwc_display_contents
               << " # | pos {l,t,r,b}         | crop {l,t,r,b}        | transform | blending | "
               << std::endl;
     for(auto i = 0u; i < list.numHwLayers; i++)
+    {
         std::cout << LayerNumber{i}
                   << separator
                   << HwcRect{list.hwLayers[i].displayFrame}
@@ -150,6 +151,8 @@ void mga::HwcFormattedLogger::log_list_submitted_to_prepare(hwc_display_contents
                   << HwcBlending{list.hwLayers[i].blending}
                   << separator
                   << std::endl;
+        std::cout << HwcType{list.hwLayers[i].compositionType,list.hwLayers[i].flags} << std::endl;
+    }
 }
 
 void mga::HwcFormattedLogger::log_prepare_done(hwc_display_contents_1_t const& list) const

@@ -137,6 +137,7 @@ void mga::HWCLayer::set_render_parameters(geometry::Rectangle position, bool alp
 void mga::HWCLayer::set_buffer(Buffer const& buffer)
 {
     associated_buffer.reset();
+    
     associated_buffer = buffer.native_buffer_handle();
     updated = (hwc_layer->handle != associated_buffer->handle());
 

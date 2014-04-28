@@ -108,6 +108,8 @@ TEST_F(AndroidDisplayBuffer, can_post_update_with_gl_only)
 TEST_F(AndroidDisplayBuffer, rejects_empty_list_for_optimization)
 {
     std::list<std::shared_ptr<mg::Renderable>> renderlist{};
+    mga::DisplayBuffer db(
+        mock_fb_bundle, mock_display_device, native_window, *gl_context, stub_program_factory);
     EXPECT_FALSE(db.post_renderables_if_optimizable(renderlist));
 }
 

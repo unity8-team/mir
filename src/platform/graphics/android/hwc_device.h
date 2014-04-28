@@ -57,7 +57,7 @@ public:
 private:
     LayerList hwc_list;
     void set_list_framebuffer(Buffer const&);
-    void setup_layer_types();
+    void setup_layer_types(bool);
 
     std::shared_ptr<HwcWrapper> const hwc_wrapper;
     std::shared_ptr<SyncFileOps> const sync_ops;

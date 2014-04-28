@@ -36,8 +36,11 @@ static const size_t fbtarget_plus_skip_size = 2;
 static const size_t fbtarget_size = 1;
 }
 
-void mga::HwcDevice::setup_layer_types()
+void mga::HwcDevice::setup_layer_types(bool)
 {
+    for(auto & layer: hwc_list)
+        layer.set_layer_type(mga::LayerType::gl_rendered);
+
     auto it = hwc_list.additional_layers_begin();
     auto const num_additional_layers = std::distance(it, hwc_list.end());
     switch (num_additional_layers)
@@ -73,13 +76,13 @@ mga::HwcDevice::HwcDevice(std::shared_ptr<hwc_composer_device_1> const& hwc_devi
       hwc_wrapper(hwc_wrapper), 
       sync_ops(sync_ops)
 {
-    setup_layer_types();
+    setup_layer_types(true);
 }
 
 void mga::HwcDevice::render_gl(SwappingGLContext const& context)
 {
     hwc_list.update_list_and_check_if_changed({}, fbtarget_plus_skip_size);
-    setup_layer_types();
+    setup_layer_types(true);
 
     list_needs_commit = true;
 
@@ -95,7 +98,7 @@ bool mga::HwcDevice::post_or_reject_overlays(
 {
     if (!(list_needs_commit = hwc_list.update_list_and_check_if_changed(renderables, fbtarget_size)))
         return true;
-    setup_layer_types();
+    setup_layer_types(false);
 
     hwc_wrapper->prepare(*hwc_list.native_list().lock());
 
