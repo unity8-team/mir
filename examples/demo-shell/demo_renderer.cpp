@@ -51,13 +51,14 @@ GLuint generate_shadow_corner_texture(float opacity)
     int const max = width - 1;
     for (int y = 0; y < width; ++y)
     {
-        float curve_y = opacity * 255.0f *
-                        penumbra_curve(static_cast<float>(y) / max);
         for (int x = 0; x < width; ++x)
         {
             Texel *t = &image[y][x];
             t->luminance = 0;
-            t->alpha = curve_y * penumbra_curve(static_cast<float>(x) / max);
+            float dist = sqrtf(x * x + y * y);
+            if (dist > max)
+                dist = max;
+            t->alpha = opacity * 255.0f * penumbra_curve(dist / max);
         }
     }
 
