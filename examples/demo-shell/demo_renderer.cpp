@@ -33,7 +33,8 @@ struct Color
 
 float penumbra_curve(float x)
 {
-    return 1.0f - std::sin(x * M_PI / 2.0f);
+    float xdec = x - 1.0f;
+    return 1.0f - sqrt(1.0f - xdec*xdec);
 }
 
 GLuint generate_shadow_corner_texture(float opacity)
