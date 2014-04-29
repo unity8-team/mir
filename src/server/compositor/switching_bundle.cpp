@@ -206,6 +206,13 @@ bool mc::SwitchingBundle::client_buffers_available(std::unique_lock<std::mutex> 
 void mc::SwitchingBundle::client_acquire(std::function<void(graphics::Buffer* buffer)> complete)
 {
     std::unique_lock<std::mutex> lock(guard);
+
+    if (nbuffers == 1)
+    {
+        complete(alloc_buffer(0).get());
+        return;
+    }
+
     client_acquire_todo = std::move(complete);
 
     if ((framedropping || force_drop) && nbuffers > 1)
@@ -290,6 +297,13 @@ void mc::SwitchingBundle::client_release(graphics::Buffer* released_buffer)
 {
     std::unique_lock<std::mutex> lock(guard);
 
+    if (nbuffers == 1)
+    {
+        nready = 1;
+        cond.notify_all();
+        return;
+    }
+
     if (nclients <= 0 || ring[first_client].buf.get() != released_buffer)
     {
         BOOST_THROW_EXCEPTION(std::logic_error(
@@ -306,6 +320,10 @@ std::shared_ptr<mg::Buffer> mc::SwitchingBundle::compositor_acquire(
     void const* user_id)
 {
     std::unique_lock<std::mutex> lock(guard);
+
+    if (nbuffers == 1)
+        return alloc_buffer(0);
+
     int compositor;
 
     // Multi-monitor acquires close to each other get the same frame:
@@ -352,6 +370,9 @@ std::shared_ptr<mg::Buffer> mc::SwitchingBundle::compositor_acquire(
 
 void mc::SwitchingBundle::compositor_release(std::shared_ptr<mg::Buffer> const& released_buffer)
 {
+    if (nbuffers == 1)
+        return;
+
     std::unique_lock<std::mutex> lock(guard);
     int compositor = -1;
 
@@ -388,6 +409,9 @@ std::shared_ptr<mg::Buffer> mc::SwitchingBundle::snapshot_acquire()
 {
     std::unique_lock<std::mutex> lock(guard);
 
+    if (nbuffers == 1)
+        return alloc_buffer(0);
+
     /*
      * Note that "nsnapshotters" is a separate counter to ring[x].users.
      * This is because snapshotters should be completely passive and should
@@ -414,6 +438,9 @@ std::shared_ptr<mg::Buffer> mc::SwitchingBundle::snapshot_acquire()
 
 void mc::SwitchingBundle::snapshot_release(std::shared_ptr<mg::Buffer> const& released_buffer)
 {
+    if (nbuffers == 1)
+        return;
+
     std::unique_lock<std::mutex> lock(guard);
 
     if (nsnapshotters <= 0 || ring[snapshot].buf != released_buffer)
@@ -432,6 +459,9 @@ void mc::SwitchingBundle::snapshot_release(std::shared_ptr<mg::Buffer> const& re
 
 void mc::SwitchingBundle::force_requests_to_complete()
 {
+    if (nbuffers == 1)
+        return;
+
     std::unique_lock<std::mutex> lock(guard);
     if (client_acquire_todo)
     {
