@@ -40,7 +40,7 @@ namespace compositor
 class SwitchingBundle : public BufferBundle
 {
 public:
-    enum {min_buffers = 1, max_buffers = 5};
+    enum {max_buffers = 5};
 
     SwitchingBundle(int nbuffers,
                     const std::shared_ptr<graphics::GraphicBufferAllocator> &,

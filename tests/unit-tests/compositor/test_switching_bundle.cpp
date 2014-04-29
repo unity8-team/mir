@@ -87,7 +87,7 @@ TEST_F(SwitchingBundleTest, sync_swapper_by_default)
                                     mir_pixel_format_argb_8888,
                                     mg::BufferUsage::software};
 
-    for (int nbuffers = mc::SwitchingBundle::min_buffers;
+    for (int nbuffers = 1;
          nbuffers <= mc::SwitchingBundle::max_buffers;
          ++nbuffers)
     {
@@ -123,7 +123,7 @@ TEST_F(SwitchingBundleTest, invalid_nbuffers)
 
 TEST_F(SwitchingBundleTest, client_acquire_basic)
 {
-    for (int nbuffers = mc::SwitchingBundle::min_buffers;
+    for (int nbuffers = 1;
          nbuffers <= mc::SwitchingBundle::max_buffers;
          ++nbuffers)
     {
@@ -147,7 +147,7 @@ namespace
 
 TEST_F(SwitchingBundleTest, is_really_synchronous)
 {
-    for (int nbuffers = mc::SwitchingBundle::min_buffers;
+    for (int nbuffers = 1;
          nbuffers <= mc::SwitchingBundle::max_buffers;
          ++nbuffers)
     {
@@ -256,7 +256,7 @@ TEST_F(SwitchingBundleTest, out_of_order_client_release)
 
 TEST_F(SwitchingBundleTest, compositor_acquire_basic)
 {
-    for (int nbuffers = mc::SwitchingBundle::min_buffers;
+    for (int nbuffers = 1;
          nbuffers <= mc::SwitchingBundle::max_buffers;
          ++nbuffers)
     {
@@ -274,7 +274,7 @@ TEST_F(SwitchingBundleTest, compositor_acquire_basic)
 
 TEST_F(SwitchingBundleTest, multimonitor_frame_sync)
 {
-    for (int nbuffers = mc::SwitchingBundle::min_buffers;
+    for (int nbuffers = 1;
          nbuffers <= mc::SwitchingBundle::max_buffers;
          ++nbuffers)
     {
@@ -319,7 +319,7 @@ TEST_F(SwitchingBundleTest, frames_in_order)
 
 TEST_F(SwitchingBundleTest, compositor_acquire_never_blocks)
 {
-    for (int nbuffers = mc::SwitchingBundle::min_buffers;
+    for (int nbuffers = 1;
          nbuffers <= mc::SwitchingBundle::max_buffers;
          ++nbuffers)
     {
@@ -339,7 +339,7 @@ TEST_F(SwitchingBundleTest, compositor_acquire_never_blocks)
 
 TEST_F(SwitchingBundleTest, compositor_acquire_recycles_latest_ready_buffer)
 {
-    for (int nbuffers = mc::SwitchingBundle::min_buffers;
+    for (int nbuffers = 1;
          nbuffers <= mc::SwitchingBundle::max_buffers;
          ++nbuffers)
     {
@@ -454,7 +454,7 @@ TEST_F(SwitchingBundleTest, overlapping_compositors_get_different_frames)
 
 TEST_F(SwitchingBundleTest, snapshot_acquire_basic)
 {
-    for (int nbuffers = mc::SwitchingBundle::min_buffers;
+    for (int nbuffers = 1;
          nbuffers <= mc::SwitchingBundle::max_buffers;
          ++nbuffers)
     {
@@ -470,7 +470,7 @@ TEST_F(SwitchingBundleTest, snapshot_acquire_basic)
 
 TEST_F(SwitchingBundleTest, snapshot_acquire_never_blocks)
 {
-    for (int nbuffers = mc::SwitchingBundle::min_buffers;
+    for (int nbuffers = 1;
          nbuffers <= mc::SwitchingBundle::max_buffers;
          ++nbuffers)
     {
@@ -613,7 +613,7 @@ TEST_F(SwitchingBundleTest, DISABLED_synchronous_clients_only_get_two_real_buffe
      * unique ones while it makes sense to do so. Buffers are big things and
      * should be allocated sparingly...
      */
-    for (int nbuffers = mc::SwitchingBundle::min_buffers;
+    for (int nbuffers = 1;
          nbuffers <= mc::SwitchingBundle::max_buffers;
          ++nbuffers)
     {
@@ -860,7 +860,7 @@ TEST_F(SwitchingBundleTest, slow_client_framerate_matches_compositor)
 
 TEST_F(SwitchingBundleTest, resize_affects_client_acquires_immediately)
 {
-    for (int nbuffers = mc::SwitchingBundle::min_buffers;
+    for (int nbuffers = 1;
          nbuffers <= mc::SwitchingBundle::max_buffers;
          ++nbuffers)
     {
@@ -887,7 +887,7 @@ TEST_F(SwitchingBundleTest, resize_affects_client_acquires_immediately)
 
 TEST_F(SwitchingBundleTest, compositor_acquires_resized_frames)
 {
-    for (int nbuffers = mc::SwitchingBundle::min_buffers;
+    for (int nbuffers = 1;
          nbuffers <= mc::SwitchingBundle::max_buffers;
          ++nbuffers)
     {
