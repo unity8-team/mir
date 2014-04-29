@@ -196,7 +196,7 @@ public:
         run_compositing_loop(
             [this]
             {
-                auto const& renderables = scene->generate_renderable_list();
+                auto const& renderables = scene->renderable_list_for(this);
 
                 for (auto const& r : renderables)
                 {
