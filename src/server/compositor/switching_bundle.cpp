@@ -209,7 +209,13 @@ void mc::SwitchingBundle::client_acquire(std::function<void(graphics::Buffer* bu
 
     if (nbuffers == 1)
     {
-        complete(alloc_buffer(0).get());
+        auto buf = alloc_buffer(0);
+        if (buf->size() != bundle_properties.size)
+        {
+            buf = gralloc->alloc_buffer(bundle_properties);
+            ring[0].buf = buf;
+        }
+        complete(buf.get());
         return;
     }
 
