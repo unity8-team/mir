@@ -208,6 +208,9 @@ GLuint mc::GLRenderer::load_texture(mg::Renderable const& renderable,
     else
     {
         glBindTexture(GL_TEXTURE_2D, tex.id);
+
+        // TODO: If single buffered, ensure changed is always true. Or else
+        //       the image will appear to freeze never updating the texture.
         changed = (tex.origin != buf_id) || skipped;
     }
     tex.origin = buf_id;
