@@ -201,7 +201,7 @@ public:
                 for (auto const& r : renderables)
                 {
                     if (r->buffers_ready_for_compositor() > 0)
-                        r->buffer(this); // consume, don't hold the result
+                        r->buffer(); // consume, don't hold the result
                 }
 
                 wait_until_next_fake_vsync();
