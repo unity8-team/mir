@@ -184,7 +184,7 @@ TEST_F(SwitchingBundleTest, is_really_synchronous)
 
 TEST_F(SwitchingBundleTest, framedropping_clients_never_block)
 {
-    for (int nbuffers = 2;
+    for (int nbuffers = 1;
          nbuffers <= mc::SwitchingBundle::max_buffers;
          ++nbuffers)
     {
@@ -567,7 +567,7 @@ namespace
 
 TEST_F(SwitchingBundleTest, stress)
 {
-    for (int nbuffers = 2;
+    for (int nbuffers = 1;
          nbuffers <= mc::SwitchingBundle::max_buffers;
          ++nbuffers)
     {
@@ -683,7 +683,7 @@ TEST_F(SwitchingBundleTest, bypass_clients_get_more_than_two_buffers)
 
 TEST_F(SwitchingBundleTest, framedropping_clients_get_all_buffers)
 {
-    for (int nbuffers = 2;
+    for (int nbuffers = 1;
          nbuffers <= mc::SwitchingBundle::max_buffers;
          ++nbuffers)
     {
@@ -718,7 +718,7 @@ TEST_F(SwitchingBundleTest, framedropping_clients_get_all_buffers)
 
 TEST_F(SwitchingBundleTest, waiting_clients_unblock_on_shutdown)
 {
-    for (int nbuffers = 2;
+    for (int nbuffers = 1;
          nbuffers <= mc::SwitchingBundle::max_buffers;
          ++nbuffers)
     {
@@ -741,7 +741,7 @@ TEST_F(SwitchingBundleTest, waiting_clients_unblock_on_shutdown)
 
 TEST_F(SwitchingBundleTest, waiting_clients_unblock_on_vt_switch_not_permanent)
 {   // Regression test for LP: #1207226
-    for (int nbuffers = 2;
+    for (int nbuffers = 1;
          nbuffers <= mc::SwitchingBundle::max_buffers;
          ++nbuffers)
     {
