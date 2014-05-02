@@ -26,6 +26,7 @@
 #include <memory>
 #include <iosfwd>
 #include <unordered_set>
+#include <deque>
 
 namespace mir
 {
@@ -41,6 +42,7 @@ class SwitchingBundle : public BufferBundle
 {
 public:
     enum {min_buffers = 1, max_buffers = 5};
+    typedef std::function<void(graphics::Buffer* buffer)> Callback;
 
     SwitchingBundle(int nbuffers,
                     const std::shared_ptr<graphics::GraphicBufferAllocator> &,
@@ -50,7 +52,7 @@ public:
 
     graphics::BufferProperties properties() const;
 
-    void client_acquire(std::function<void(graphics::Buffer* buffer)> complete) override;
+    void client_acquire(Callback complete) override;
     void client_release(graphics::Buffer* buffer);
     std::shared_ptr<graphics::Buffer>
         compositor_acquire(void const* user_id) override;
@@ -111,7 +113,7 @@ private:
     bool framedropping;
     int force_drop;
 
-    std::function<void(graphics::Buffer* buffer)> client_acquire_todo;
+    std::deque<Callback> client_acquires_todo;
 
     friend std::ostream& operator<<(std::ostream& os, const SwitchingBundle& bundle);
 };
