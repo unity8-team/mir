@@ -254,6 +254,37 @@ TEST_F(SwitchingBundleTest, out_of_order_client_release)
     }
 }
 
+TEST_F(SwitchingBundleTest, DISABLED_clients_can_acquire_multiple_buffers)
+{   // Regression test for LP: #1315302 - currently broken
+    int const nbuffers = 3;
+    mc::SwitchingBundle bundle(nbuffers, allocator, basic_properties);
+
+    for (int i = 0; i < nbuffers; ++i)
+        bundle.client_release(client_acquire_blocking(bundle));
+
+    mg::Buffer* acquired1 = nullptr;
+    bundle.client_acquire([&](mg::Buffer* buffer)
+        {
+            acquired1 = buffer;
+        });
+
+    mg::Buffer* acquired2 = nullptr;
+    bundle.client_acquire([&](mg::Buffer* buffer)
+        {
+            acquired2 = buffer;
+        });
+
+    for (int i = 0; i < nbuffers+2; ++i)
+        bundle.compositor_release(bundle.compositor_acquire(this));
+
+    EXPECT_NE(acquired1, acquired2);
+    ASSERT_NE(nullptr, acquired2);
+    ASSERT_NE(nullptr, acquired1);
+
+    bundle.client_release(acquired1);
+    bundle.client_release(acquired2);
+}
+
 TEST_F(SwitchingBundleTest, compositor_acquire_basic)
 {
     for (int nbuffers = mc::SwitchingBundle::min_buffers;
