@@ -255,7 +255,7 @@ TEST_F(SwitchingBundleTest, out_of_order_client_release)
 }
 
 TEST_F(SwitchingBundleTest, clients_can_acquire_multiple_buffers)
-{   // Regression test for LP: #1315302 - currently broken
+{   // Regression test for LP: #1315302
     int const nbuffers = 3;
     mc::SwitchingBundle bundle(nbuffers, allocator, basic_properties);
 
