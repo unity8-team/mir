@@ -143,9 +143,9 @@ DemoRenderer::DemoRenderer(
 {
     shadow_corner_tex = generate_shadow_corner_texture(0.4f);
     normal_titlebar_corner_tex =
-        generate_frame_corner_texture(corner_radius, {100,100,100,255}, 150);
+        generate_frame_corner_texture(corner_radius, {160,160,160,255}, 220);
     focussed_titlebar_corner_tex =
-        generate_frame_corner_texture(corner_radius, {128,128,128,255}, 255);
+        generate_frame_corner_texture(corner_radius, {180,180,180,255}, 255);
 }
 
 DemoRenderer::~DemoRenderer()
