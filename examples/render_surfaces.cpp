@@ -22,15 +22,13 @@
 #include "mir/options/default_configuration.h"
 #include "mir/graphics/graphic_buffer_allocator.h"
 #include "mir/frontend/connector.h"
-#include "mir/shell/surface_creation_parameters.h"
+#include "mir/scene/surface_creation_parameters.h"
 #include "mir/geometry/size.h"
 #include "mir/geometry/rectangles.h"
 #include "mir/graphics/buffer_initializer.h"
-#include "mir/graphics/cursor.h"
 #include "mir/graphics/display.h"
 #include "mir/graphics/display_buffer.h"
 #include "mir/graphics/gl_context.h"
-#include "mir/shell/surface_factory.h"
 #include "mir/scene/surface.h"
 #include "mir/scene/surface_coordinator.h"
 #include "mir/run_mir.h"
@@ -90,62 +88,10 @@ namespace me = mir::examples;
 namespace
 {
 std::atomic<bool> created{false};
-bool input_is_on = false;
-std::weak_ptr<mg::Cursor> cursor;
-static const uint32_t bg_color = 0x00000000;
-static const uint32_t fg_color = 0xffdd4814;
+
 static const float min_alpha = 0.3f;
 
-void update_cursor(uint32_t bg_color, uint32_t fg_color)
-{
-    if (auto cursor = ::cursor.lock())
-    {
-        static const int width = 64;
-        static const int height = 64;
-        std::vector<uint32_t> image(height * width, bg_color);
-        for (int i = 0; i != width-1; ++i)
-        {
-            if (i < 16)
-            {
-                image[0 * height + i] = fg_color;
-                image[1 * height + i] = fg_color;
-                image[i * height + 0] = fg_color;
-                image[i * height + 1] = fg_color;
-            }
-            image[i * height + i] = fg_color;
-            image[(i+1) * height + i] = fg_color;
-            image[i * height + i + 1] = fg_color;
-        }
-        cursor->set_image(image.data(), geom::Size{width, height});
-    }
-}
-
-void animate_cursor()
-{
-    if (!input_is_on)
-    {
-        if (auto cursor = ::cursor.lock())
-        {
-            static int cursor_pos = 0;
-            if (++cursor_pos == 300)
-            {
-                cursor_pos = 0;
-
-                static const uint32_t fg_colors[3] = { fg_color, 0xffffffff, 0x3f000000 };
-                static int fg_color = 0;
-
-                if (++fg_color == 3) fg_color = 0;
-
-                update_cursor(bg_color, fg_colors[fg_color]);
-            }
-
-            cursor->move_to(geom::Point{cursor_pos, cursor_pos});
-        }
-    }
-}
-
 char const* const surfaces_to_render = "surfaces-to-render";
-char const* const display_cursor     = "display-cursor";
 
 ///\internal [StopWatch_tag]
 // tracks elapsed time - for animation.
@@ -195,7 +141,7 @@ class Moveable
 {
 public:
     Moveable() {}
-    Moveable(std::shared_ptr<msh::Surface> const& s, const geom::Size& display_size,
+    Moveable(std::shared_ptr<ms::Surface> const& s, const geom::Size& display_size,
              float dx, float dy, const glm::vec3& rotation_axis, float alpha_offset)
         : surface(s), display_size(display_size),
           x{static_cast<float>(s->top_left().x.as_uint32_t())},
@@ -251,7 +197,7 @@ public:
     }
 
 private:
-    std::shared_ptr<msh::Surface> surface;
+    std::shared_ptr<ms::Surface> surface;
     geom::Size display_size;
     float x;
     float y;
@@ -279,9 +225,7 @@ public:
 
             result->add_options()
                 (surfaces_to_render, po::value<int>()->default_value(5),
-                    "Number of surfaces to render")
-                (display_cursor, po::value<bool>()->default_value(false),
-                    "Display test cursor. (If input is disabled it gets animated.)");
+                    "Number of surfaces to render");
 
             return result;
         }())
@@ -383,7 +327,6 @@ public:
             bool composite()
             {
                 while (!created) std::this_thread::yield();
-                animate_cursor();
                 stop_watch.stop();
                 if (stop_watch.elapsed_seconds_since_last_restart() >= 1)
                 {
@@ -466,10 +409,10 @@ public:
         for (auto& m : moveables)
         {
             auto const s = surface_coordinator->add_surface(
-                    msh::a_surface().of_size(surface_size)
+                    ms::a_surface().of_size(surface_size)
                                    .of_pixel_format(surface_pf)
                                    .of_buffer_usage(mg::BufferUsage::hardware),
-                    {});
+                    nullptr);
 
             /*
              * We call swap_buffers() twice so that the surface is
@@ -502,23 +445,6 @@ public:
         created = true;
     }
 
-    bool input_is_on()
-    {
-        return the_options()->get<bool>(mo::enable_input_opt);
-    }
-
-    std::weak_ptr<mg::Cursor> the_cursor()
-    {
-        if (the_options()->get<bool>(display_cursor))
-        {
-            return the_display()->the_cursor();
-        }
-        else
-        {
-            return {};
-        }
-    }
-
 private:
     std::vector<Moveable> moveables;
 };
@@ -533,9 +459,6 @@ try
 
     mir::run_mir(conf, [&](mir::DisplayServer&)
     {
-        cursor = conf.the_cursor();
-
-        input_is_on = conf.input_is_on();
     });
     ///\internal [main_tag]
 

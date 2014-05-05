@@ -224,7 +224,7 @@ void mgm::Display::configure(mg::DisplayConfiguration const& conf)
         clear_connected_unused_outputs();
     }
 
-    if (cursor) cursor->show_at_last_known_position();
+    if (auto c = cursor.lock()) c->show_at_last_known_position();
 }
 
 void mgm::Display::register_configuration_change_handler(
@@ -255,7 +255,7 @@ void mgm::Display::pause()
 {
     try
     {
-        if (cursor) cursor->hide();
+        if (auto c = cursor.lock()) c->hide();
         platform->drm.drop_master();
     }
     catch(std::runtime_error const& e)
@@ -291,12 +291,16 @@ void mgm::Display::resume()
         clear_connected_unused_outputs();
     }
 
-    if (cursor) cursor->show_at_last_known_position();
+    if (auto c = cursor.lock()) c->show_at_last_known_position();
 }
 
-auto mgm::Display::the_cursor() -> std::weak_ptr<graphics::Cursor>
+auto mgm::Display::create_hardware_cursor(std::shared_ptr<mg::CursorImage> const& initial_image) -> std::shared_ptr<graphics::Cursor>
 {
-    if (!cursor)
+    // There is only one hardware cursor. We do not keep a strong reference to it in the display though,
+    // if no other component of Mir is interested (i.e. the input stack does not keep a reference to send
+    // position updates) we must be configured not to use a cursor and thusly let it deallocate.
+    std::shared_ptr<mgm::Cursor> locked_cursor = cursor.lock();
+    if (!locked_cursor)
     {
         class KMSCurrentConfiguration : public CurrentConfiguration
         {
@@ -317,11 +321,12 @@ auto mgm::Display::the_cursor() -> std::weak_ptr<graphics::Cursor>
             Display& display;
         };
 
-        cursor = std::make_shared<Cursor>(platform->gbm.device, output_container,
-                                          std::make_shared<KMSCurrentConfiguration>(*this));
+        cursor = locked_cursor = std::make_shared<Cursor>(platform->gbm.device, output_container,
+            std::make_shared<KMSCurrentConfiguration>(*this),
+            initial_image);
     }
 
-    return cursor;
+    return locked_cursor;
 }
 
 std::unique_ptr<mg::GLContext> mgm::Display::create_gl_context()
@@ -337,11 +342,19 @@ void mgm::Display::clear_connected_unused_outputs()
 {
     current_display_configuration.for_each_output([&](DisplayConfigurationOutput const& conf_output)
     {
-        if (conf_output.connected && !conf_output.used)
+        /*
+         * An output may be unused either because it's explicitly not used
+         * (DisplayConfigurationOutput::used) or because its power mode is
+         * not mir_power_mode_on.
+         */
+        if (conf_output.connected &&
+            (!conf_output.used || (conf_output.power_mode != mir_power_mode_on)))
         {
             uint32_t const connector_id = current_display_configuration.get_kms_connector_id(conf_output.id);
             auto kms_output = output_container.get_kms_output_for(connector_id);
+
             kms_output->clear_crtc();
+            kms_output->set_power_mode(conf_output.power_mode);
         }
     });
 }

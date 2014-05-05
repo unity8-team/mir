@@ -29,10 +29,11 @@ namespace examples
 class DemoRenderer : public compositor::GLRenderer
 {
 public:
-    DemoRenderer(geometry::Rectangle const& display_area);
+    DemoRenderer(graphics::GLProgramFactory const& factory, geometry::Rectangle const& display_area);
     ~DemoRenderer();
 
     void begin() const override;
+    void render(graphics::RenderableList const&) const override;
     void tessellate(std::vector<Primitive>& primitives,
                     graphics::Renderable const& renderable,
                     geometry::Size const& buf_size) const override;
@@ -43,14 +44,12 @@ public:
                     graphics::Renderable const& renderable,
                     float titlebar_height) const;
 
-    void set_focussed(graphics::Renderable::ID id) override;
-
 private:
     float const corner_radius;
     GLuint shadow_corner_tex;
     GLuint normal_titlebar_corner_tex;
     GLuint focussed_titlebar_corner_tex;
-    graphics::Renderable::ID focus;
+    mutable graphics::Renderable::ID focus;
 };
 
 } // namespace examples

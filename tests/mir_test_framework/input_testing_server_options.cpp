@@ -21,7 +21,7 @@
 #include "mir/input/input_channel.h"
 #include "mir/scene/input_registrar.h"
 #include "mir/input/surface.h"
-#include "mir/shell/surface_creation_parameters.h"
+#include "mir/scene/surface_creation_parameters.h"
 #include "mir/frontend/shell.h"
 #include "mir/frontend/session.h"
 #include "mir/input/composite_event_filter.h"
@@ -55,6 +55,11 @@ void mtf::InputTestingServerConfiguration::exec()
 void mtf::InputTestingServerConfiguration::on_exit()
 {
     input_injection_thread.join();
+}
+
+std::shared_ptr<mi::InputDispatcherConfiguration> mtf::InputTestingServerConfiguration::the_input_dispatcher_configuration()
+{
+    return the_input_configuration()->the_input_dispatcher_configuration();
 }
 
 std::shared_ptr<mi::InputConfiguration> mtf::InputTestingServerConfiguration::the_input_configuration()

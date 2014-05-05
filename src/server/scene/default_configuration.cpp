@@ -21,8 +21,9 @@
 #include "mir/graphics/display.h"
 #include "mir/graphics/gl_context.h"
 #include "mir/input/input_configuration.h"
+#include "mir/input/input_dispatcher_configuration.h"
 #include "mir/abnormal_exit.h"
-#include "mir/shell/session.h"
+#include "mir/scene/session.h"
 
 #include "broadcasting_session_event_sink.h"
 #include "default_session_container.h"
@@ -53,7 +54,7 @@ mir::DefaultServerConfiguration::the_surface_stack_model()
                 the_input_registrar(),
                 scene_report);
 
-            the_input_configuration()->set_input_targets(ss);
+            the_input_configuration()->the_input_dispatcher_configuration()->set_input_targets(ss);
 
             return ss;
         });
@@ -71,7 +72,7 @@ mir::DefaultServerConfiguration::the_scene()
                 the_input_registrar(),
                 scene_report);
 
-            the_input_configuration()->set_input_targets(ss);
+            the_input_configuration()->the_input_dispatcher_configuration()->set_input_targets(ss);
 
             return ss;
         });
@@ -91,22 +92,17 @@ auto mir::DefaultServerConfiguration::the_surface_factory()
         });
 }
 
-std::shared_ptr<ms::SurfaceController>
-mir::DefaultServerConfiguration::the_surface_controller()
+std::shared_ptr<ms::SurfaceCoordinator>
+mir::DefaultServerConfiguration::the_surface_coordinator()
 {
-    return surface_controller(
+    return surface_coordinator(
         [this]()
         {
             return std::make_shared<ms::SurfaceController>(
                 the_surface_factory(),
+                the_placement_strategy(),
                 the_surface_stack_model());
         });
-}
-
-std::shared_ptr<ms::SurfaceCoordinator>
-mir::DefaultServerConfiguration::the_surface_coordinator()
-{
-    return the_surface_controller();
 }
 
 std::shared_ptr<ms::BroadcastingSessionEventSink>
@@ -183,12 +179,12 @@ mir::DefaultServerConfiguration::the_session_manager()
         [this]() -> std::shared_ptr<ms::SessionManager>
         {
             return std::make_shared<ms::SessionManager>(
-                the_shell_surface_factory(),
+                the_surface_coordinator(),
                 the_session_container(),
                 the_shell_focus_setter(),
                 the_snapshot_strategy(),
                 the_session_event_sink(),
-                the_shell_session_listener());
+                the_session_listener());
         });
 }
 

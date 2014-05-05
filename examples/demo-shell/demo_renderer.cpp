@@ -134,8 +134,10 @@ GLuint generate_frame_corner_texture(float corner_radius,
 
 } // namespace
 
-DemoRenderer::DemoRenderer(geometry::Rectangle const& display_area)
-    : GLRenderer(display_area)
+DemoRenderer::DemoRenderer(
+    graphics::GLProgramFactory const& program_factory,
+    geometry::Rectangle const& display_area)
+    : GLRenderer(program_factory, display_area)
     , corner_radius(0.5f)
     , focus(0)
 {
@@ -157,6 +159,22 @@ void DemoRenderer::begin() const
 {
     glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
+
+    // Ensure we don't change the framebuffer's alpha components (if any)
+    // as that would ruin the appearance of screengrabs. (LP: #1301210)
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
+}
+
+void DemoRenderer::render(graphics::RenderableList const& renderables) const
+{
+    // At the moment, top-of-the-stack and focus are the same thing in Mir.
+    // But maybe in future they won't be...
+
+    focus = 0;
+    if (!renderables.empty())
+        focus = renderables.back()->id();
+
+    GLRenderer::render(renderables);
 }
 
 void DemoRenderer::tessellate(std::vector<Primitive>& primitives,
@@ -184,7 +202,7 @@ void DemoRenderer::tessellate_shadow(std::vector<Primitive>& primitives,
     primitives.resize(n + 8);
 
     GLfloat radius = renderable.id() == focus ? focussed_radius :
-                                                normal_radius;
+                                                 normal_radius;
     GLfloat rightr = right + radius;
     GLfloat leftr = left - radius;
     GLfloat topr = top - radius;
@@ -289,8 +307,8 @@ void DemoRenderer::tessellate_frame(std::vector<Primitive>& primitives,
     if (inright < mid) inright = mid;
 
     GLuint titlebar_corner_tex = renderable.id() == focus ?
-                                 focussed_titlebar_corner_tex : 
-                                 normal_titlebar_corner_tex;
+                                     focussed_titlebar_corner_tex : 
+                                     normal_titlebar_corner_tex;
 
     auto& top_left_corner = primitives[n++];
     top_left_corner.tex_id = titlebar_corner_tex;
@@ -320,7 +338,3 @@ void DemoRenderer::tessellate_frame(std::vector<Primitive>& primitives,
     titlebar.vertices[3] = {{inleft,  top,  0.0f}, {1.0f, 1.0f}};
 }
 
-void DemoRenderer::set_focussed(graphics::Renderable::ID id)
-{
-    focus = id;
-}

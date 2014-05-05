@@ -49,7 +49,7 @@ struct MockSurface : public scene::BasicSurface
 
     MOCK_METHOD0(hide, void());
     MOCK_METHOD0(show, void());
-    MOCK_METHOD0(visible, bool());
+    MOCK_CONST_METHOD0(visible, bool());
 
     MOCK_METHOD0(force_requests_to_complete, void());
     MOCK_METHOD0(advance_client_buffer, std::shared_ptr<graphics::Buffer>());
@@ -63,6 +63,7 @@ struct MockSurface : public scene::BasicSurface
     MOCK_METHOD2(configure, int(MirSurfaceAttrib, int));
     MOCK_METHOD1(take_input_focus, void(std::shared_ptr<shell::InputTargeter> const&));
     MOCK_METHOD1(add_observer, void(std::shared_ptr<scene::SurfaceObserver> const&));
+    MOCK_METHOD1(remove_observer, void(std::weak_ptr<scene::SurfaceObserver> const&));
 };
 
 }
