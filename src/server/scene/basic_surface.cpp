@@ -423,6 +423,10 @@ void ms::BasicSurface::show()
     set_hidden(false);
 }
 
+std::shared_ptr<ms::Frame> ms::BasicSurface::frame()
+{
+    return {}; // TODO
+}
 
 void ms::BasicSurface::add_observer(std::shared_ptr<SurfaceObserver> const& observer)
 {

@@ -130,6 +130,8 @@ public:
     void hide() override;
     void show() override;
 
+    std::shared_ptr<Frame> frame() override;
+
     void add_observer(std::shared_ptr<SurfaceObserver> const& observer) override;
     void remove_observer(std::weak_ptr<SurfaceObserver> const& observer) override;
 
