@@ -9,11 +9,11 @@ set(
   gl_renderer.cpp
   gl_renderer_factory.cpp
   multi_threaded_compositor.cpp
-  switching_bundle.cpp
   bypass.cpp
   default_configuration.cpp
   screencast_display_buffer.cpp
   compositing_screencast.cpp
+  buffer_queue.cpp
 )
 
 ADD_LIBRARY(
