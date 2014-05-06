@@ -130,7 +130,7 @@ public:
     void hide() override;
     void show() override;
 
-    std::shared_ptr<Frame> frame() override;
+    std::shared_ptr<Frame> frame() const override;
 
     void add_observer(std::shared_ptr<SurfaceObserver> const& observer) override;
     void remove_observer(std::weak_ptr<SurfaceObserver> const& observer) override;
@@ -139,6 +139,7 @@ private:
     bool visible(std::unique_lock<std::mutex>&) const;
     bool set_type(MirSurfaceType t);  // Use configure() to make public changes
     bool set_state(MirSurfaceState s);
+    void set_frame();
 
     SurfaceObservers observers;
     std::mutex mutable guard;
@@ -157,6 +158,8 @@ private:
 
     MirSurfaceType type_value;
     MirSurfaceState state_value;
+
+    std::shared_ptr<Frame> frame_;
 };
 
 }

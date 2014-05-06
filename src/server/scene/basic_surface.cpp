@@ -27,6 +27,7 @@
 
 #include "mir/scene/scene_report.h"
 #include "mir/scene/surface_configurator.h"
+#include "mir/scene/frame.h"
 
 #include <boost/throw_exception.hpp>
 
@@ -133,6 +134,7 @@ ms::BasicSurface::BasicSurface(
     type_value(mir_surface_type_normal),
     state_value(mir_surface_state_restored)
 {
+    set_frame();
     report->surface_created(this, surface_name);
 }
 
@@ -340,6 +342,7 @@ bool ms::BasicSurface::set_type(MirSurfaceType t)
     {
         type_value = t;
         valid = true;
+        set_frame();
     }
 
     return valid;
@@ -423,9 +426,16 @@ void ms::BasicSurface::show()
     set_hidden(false);
 }
 
-std::shared_ptr<ms::Frame> ms::BasicSurface::frame()
+void ms::BasicSurface::set_frame()
 {
-    return {}; // TODO
+    // TODO vary the Frame type based on surface type (or state)
+    frame_ = std::make_shared<NullFrame>(*this);
+}
+
+std::shared_ptr<ms::Frame> ms::BasicSurface::frame() const
+{
+    std::unique_lock<std::mutex> lk(guard);
+    return frame_;
 }
 
 void ms::BasicSurface::add_observer(std::shared_ptr<SurfaceObserver> const& observer)

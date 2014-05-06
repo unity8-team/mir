@@ -20,4 +20,5 @@ ADD_LIBRARY(
   threaded_snapshot_strategy.cpp
   legacy_scene_change_notification.cpp
   legacy_surface_change_notification.cpp
+  frame.cpp
 )

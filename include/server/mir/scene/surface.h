@@ -23,7 +23,6 @@
 #include "mir/input/surface.h"
 #include "mir/scene/surface_buffer_access.h"
 #include "mir/frontend/surface.h"
-#include "mir/scene/frame.h"
 
 #include <vector>
 
@@ -36,6 +35,7 @@ namespace geometry { class Rectangle; }
 namespace scene
 {
 class SurfaceObserver;
+class Frame;
 
 class Surface :
     public input::Surface,
@@ -64,7 +64,7 @@ public:
     virtual void set_transformation(glm::mat4 const& t) = 0;
     virtual void set_alpha(float alpha) = 0;
     virtual void force_requests_to_complete() = 0;
-    virtual std::shared_ptr<Frame> frame() = 0;
+    virtual std::shared_ptr<scene::Frame> frame() const = 0;
 
     virtual void add_observer(std::shared_ptr<SurfaceObserver> const& observer) = 0;
     virtual void remove_observer(std::weak_ptr<SurfaceObserver> const& observer) = 0;

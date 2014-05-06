@@ -20,6 +20,7 @@
 #define MIR_SCENE_FRAME_H_
 
 #include "mir/scene/surface.h"
+#include "mir/geometry/length.h"
 
 namespace mir
 {
@@ -31,13 +32,27 @@ class Surface;
 class Frame
 {
 public:
-    Frame(Surface &client);
+    struct Extents
+    {
+        geometry::Length top, bottom, left, right;
+    };
+
+    Frame(Surface& client);
     virtual ~Frame() = default;
+
+    virtual Extents extents() const = 0;
 
     //virtual std::shared_ptr<Surface> heading() = 0; // titlebar/menu/tabs
 
-private:
+protected:
     Surface& client;
+};
+
+class NullFrame : public Frame
+{
+public:
+    NullFrame(Surface& client);
+    Extents extents() const override;
 };
 
 } // namespace scene
