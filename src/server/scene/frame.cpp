@@ -24,12 +24,3 @@ Frame::Frame(Surface& client) : client(client)
 {
 }
 
-NullFrame::NullFrame(Surface& client) : Frame(client)
-{
-}
-
-Frame::Extents NullFrame::extents() const
-{
-    static const Extents ext;
-    return ext;
-}

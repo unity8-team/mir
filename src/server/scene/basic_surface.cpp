@@ -112,6 +112,24 @@ void ms::SurfaceObservers::remove(std::shared_ptr<SurfaceObserver> const& observ
     observers.erase(std::remove(observers.begin(),observers.end(), observer), observers.end());
 }
 
+using namespace mir::scene;
+
+// TODO: Remove this and get the shell to construct frames of its liking
+class DumbFrame : public Frame
+{
+public:
+    DumbFrame(Surface& client) : Frame(client)
+    {
+    }
+
+    Extents extents() const override
+    {
+        using namespace mir::geometry;
+        static const Extents ext{{8_mm}, {0_mm}, {0_mm}, {0_mm}};
+        return ext;
+    }
+};
+
 ms::BasicSurface::BasicSurface(
     std::string const& name,
     geometry::Rectangle rect,
@@ -428,8 +446,13 @@ void ms::BasicSurface::show()
 
 void ms::BasicSurface::set_frame()
 {
-    // TODO vary the Frame type based on surface type (or state)
-    frame_ = std::make_shared<NullFrame>(*this);
+    // TODO: let this be overridable
+    bool needs_frame = (type_value == mir_surface_type_normal);
+
+    if (!needs_frame)
+        frame_.reset();
+    else if (!frame_)
+        frame_ = std::make_shared<DumbFrame>(*this);
 }
 
 std::shared_ptr<ms::Frame> ms::BasicSurface::frame() const

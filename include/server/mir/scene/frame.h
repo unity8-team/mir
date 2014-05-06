@@ -48,13 +48,6 @@ protected:
     Surface& client;
 };
 
-class NullFrame : public Frame
-{
-public:
-    NullFrame(Surface& client);
-    Extents extents() const override;
-};
-
 } // namespace scene
 } // namespace mir
 
