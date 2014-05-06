@@ -94,3 +94,14 @@ TEST_F(WrappingServerConfiguration, can_override_surface_coordinator_methods)
     EXPECT_CALL(*my_surface_coordinator, raise(_)).Times(1);
     surface_coordinator->raise({});
 }
+
+TEST_F(WrappingServerConfiguration, returns_same_surface_coordinator_from_cache)
+{
+    using MySurfaceCoordinator = msh::SurfaceCoordinatorWrapper;
+
+    config.wrap_surface_coordinator_with<MySurfaceCoordinator>();
+
+    auto const surface_coordinator = config.the_surface_coordinator();
+
+    ASSERT_THAT(config.the_surface_coordinator(), Eq(surface_coordinator));
+}
