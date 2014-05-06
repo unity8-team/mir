@@ -38,8 +38,11 @@ public:
 
     std::shared_ptr<scene::SurfaceCoordinator> the_surface_coordinator() override
     {
-        auto const wrapped = BaseConfiguration::the_surface_coordinator();
-        return wrap_surface_coordinator(wrapped);
+        return this->surface_coordinator([&]()
+            {
+                auto const wrapped = BaseConfiguration::the_surface_coordinator();
+                return wrap_surface_coordinator(wrapped);
+            });
     }
 
     WrappingServerConfiguration& wrap_surface_coordinator_using(WrapSurfaceCoordinator const& wrap)
