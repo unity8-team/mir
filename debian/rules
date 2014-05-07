@@ -2,9 +2,6 @@
 
 DPKG_GENSYMBOLS_CHECK_LEVEL = 4
 
-export C=gcc-4.7
-export CXX=g++-4.7
-
 %:
 	dh $@
 
