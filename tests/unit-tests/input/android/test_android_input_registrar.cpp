@@ -21,6 +21,8 @@
 #include "src/server/input/android/android_input_registrar.h"
 
 #include "mir_test_doubles/mock_android_input_dispatcher.h"
+#include "mir_test_doubles/mock_input_dispatcher.h"
+#include "mir_test_doubles/mock_input_surface.h"
 #include "mir_test_doubles/stub_input_channel.h"
 
 #include "mir_test/fake_shared.h"
@@ -62,28 +64,6 @@ struct AndroidInputRegistrarFdSetup : public testing::Test
     droidinput::sp<mtd::MockAndroidInputDispatcher> dispatcher;
 };
 
-struct StubInputSurface : public mi::Surface
-{
-    geom::Point top_left() const
-    {
-        return geom::Point();
-    }
-    geom::Size size() const
-    {
-        return geom::Size();
-    }
-    std::string name() const
-    {
-        return {};
-    }
-    bool contains(geom::Point const&) const
-    {
-        return true;
-    }
-    void consume(MirEvent const&) override
-    {
-    }
-};
 
 MATCHER_P(WindowHandleFor, channel, "")
 {
@@ -99,7 +79,8 @@ TEST_F(AndroidInputRegistrarFdSetup, input_channel_opened_behavior)
     using namespace ::testing;
 
     auto channel = std::make_shared<mtd::StubInputChannel>(test_input_fd);
-    auto surface = std::make_shared<StubInputSurface>();
+#include "mir_test_doubles/mock_input_surface.h"
+    auto surface = std::make_shared<mtd::StubInputSurface>();
 
     EXPECT_CALL(*dispatcher, registerInputChannel(_, WindowHandleFor(channel), _)).Times(1)
         .WillOnce(Return(droidinput::OK));
@@ -118,7 +99,7 @@ TEST_F(AndroidInputRegistrarFdSetup, input_channel_closed_behavior)
     using namespace ::testing;
 
     auto channel = std::make_shared<mtd::StubInputChannel>(test_input_fd);
-    auto surface = std::make_shared<StubInputSurface>();
+    auto surface = std::make_shared<mtd::StubInputSurface>();
 
     EXPECT_CALL(*dispatcher, registerInputChannel(_, WindowHandleFor(channel), _)).Times(1)
         .WillOnce(Return(droidinput::OK));
@@ -142,7 +123,7 @@ TEST_F(AndroidInputRegistrarFdSetup, monitor_flag_is_passed_to_dispatcher)
     using namespace ::testing;
 
     auto channel = std::make_shared<mtd::StubInputChannel>(test_input_fd);
-    auto surface = std::make_shared<StubInputSurface>();
+    auto surface = std::make_shared<mtd::StubInputSurface>();
 
     EXPECT_CALL(*dispatcher, registerInputChannel(_, _, true)).Times(1)
         .WillOnce(Return(droidinput::OK));

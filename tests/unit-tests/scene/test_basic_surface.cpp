@@ -91,6 +91,7 @@ struct BasicSurfaceTest : public testing::Test
     std::shared_ptr<StubSurfaceConfigurator> const stub_configurator = std::make_shared<StubSurfaceConfigurator>();
     std::shared_ptr<ms::SceneReport> const report = mr::null_scene_report();
     std::shared_ptr<mi::InputSender> const stub_input_sender = std::make_shared<mtd::StubInputSender>();
+    void const* compositor_id{nullptr};
 };
 
 }
@@ -110,7 +111,7 @@ TEST_F(BasicSurfaceTest, basics)
     EXPECT_EQ(name, surface.name());
     EXPECT_EQ(rect.size, surface.size());
     EXPECT_EQ(rect.top_left, surface.top_left());
-    EXPECT_FALSE(surface.shaped());
+    EXPECT_FALSE(surface.compositor_snapshot(compositor_id)->shaped());
 }
 
 TEST_F(BasicSurfaceTest, id_always_unique)
@@ -126,7 +127,7 @@ TEST_F(BasicSurfaceTest, id_always_unique)
 
         for (int j = 0; j < i; ++j)
         {
-            ASSERT_NE(surfaces[j]->id(), surfaces[i]->id());
+            ASSERT_NE(surfaces[j]->compositor_snapshot(compositor_id)->id(), surfaces[i]->compositor_snapshot(compositor_id)->id());
         }
     }
 }
@@ -142,7 +143,7 @@ TEST_F(BasicSurfaceTest, id_never_invalid)
                                                std::shared_ptr<mi::InputChannel>(), stub_input_sender,
                                                stub_configurator, report));
 
-        ASSERT_TRUE(surfaces[i]->id());
+        ASSERT_TRUE(surfaces[i]->compositor_snapshot(compositor_id)->id());
     }
 }
 
@@ -194,12 +195,12 @@ TEST_F(BasicSurfaceTest, update_size)
     EXPECT_EQ(rect.size, surface.size());
     EXPECT_NE(new_size, surface.size());
 
-    auto old_transformation = surface.transformation();
+    auto old_transformation = surface.compositor_snapshot(compositor_id)->transformation();
 
     surface.resize(new_size);
     EXPECT_EQ(new_size, surface.size());
     // Size no longer affects transformation:
-    EXPECT_EQ(old_transformation, surface.transformation());
+    EXPECT_EQ(old_transformation, surface.compositor_snapshot(compositor_id)->transformation());
 }
 
 TEST_F(BasicSurfaceTest, test_surface_set_transformation_updates_transform)
@@ -220,14 +221,14 @@ TEST_F(BasicSurfaceTest, test_surface_set_transformation_updates_transform)
     auto const observer = std::make_shared<ms::LegacySurfaceChangeNotification>(mock_change_cb);
     surface.add_observer(observer);
 
-    auto original_transformation = surface.transformation();
+    auto original_transformation = surface.compositor_snapshot(compositor_id)->transformation();
     glm::mat4 trans{0.1f, 0.5f, 0.9f, 1.3f,
                     0.2f, 0.6f, 1.0f, 1.4f,
                     0.3f, 0.7f, 1.1f, 1.5f,
                     0.4f, 0.8f, 1.2f, 1.6f};
 
     surface.set_transformation(trans);
-    auto got = surface.transformation();
+    auto got = surface.compositor_snapshot(compositor_id)->transformation();
     EXPECT_NE(original_transformation, got);
     EXPECT_EQ(trans, got);
 }
@@ -270,7 +271,7 @@ TEST_F(BasicSurfaceTest, test_surface_is_opaque_by_default)
         report};
 
     EXPECT_THAT(1.0f, FloatEq(surface.alpha()));
-    EXPECT_FALSE(surface.shaped());
+    EXPECT_FALSE(surface.compositor_snapshot(compositor_id)->shaped());
 }
 
 TEST_F(BasicSurfaceTest, test_surface_visibility)

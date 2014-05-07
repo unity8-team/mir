@@ -90,7 +90,6 @@ public:
 
     ~BasicSurface() noexcept;
 
-    graphics::Renderable::ID id() const override;
     std::string name() const override;
     void move_to(geometry::Point const& top_left) override;
     float alpha() const override;
@@ -119,17 +118,10 @@ public:
     void consume(MirEvent const& event);
     void set_alpha(float alpha) override;
     void set_transformation(glm::mat4 const&) override;
-    glm::mat4 transformation() const override;
 
     bool visible() const;
     
-    bool shaped() const  override;  // meaning the pixel format has alpha
-
-    // Renderable interface
-    std::shared_ptr<graphics::Buffer> buffer(void const*) const override;
-    bool alpha_enabled() const override;
-    geometry::Rectangle screen_position() const override;
-    int buffers_ready_for_compositor() const override;
+    std::unique_ptr<graphics::Renderable> compositor_snapshot(void const* compositor_id) const;
 
     void with_most_recent_buffer_do(
         std::function<void(graphics::Buffer&)> const& exec) override;
@@ -142,9 +134,10 @@ public:
     void show() override;
 
     void add_observer(std::shared_ptr<SurfaceObserver> const& observer) override;
-    void remove_observer(std::shared_ptr<SurfaceObserver> const& observer) override;
+    void remove_observer(std::weak_ptr<SurfaceObserver> const& observer) override;
 
 private:
+    bool visible(std::unique_lock<std::mutex>&) const;
     bool set_type(MirSurfaceType t);  // Use configure() to make public changes
     bool set_state(MirSurfaceState s);
 
