@@ -311,6 +311,16 @@ void ua_ui_window_destroy(UAUiWindow* u_window)
     delete window;
 }
 
+void
+ua_ui_window_get_size(
+    UAUiWindow *u_window,
+    uint32_t *width,
+    uint32_t *height)
+{
+    auto window = uamc::Window::from_u_window(u_window);
+    window->get_size(width, height);
+}
+
 UStatus ua_ui_window_move(UAUiWindow* u_window, uint32_t x, uint32_t y)
 {
     // TODO<papi,mir>: Implement. Assuming this should exist on mirclient?
