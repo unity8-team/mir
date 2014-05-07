@@ -1,3 +1,13 @@
+platform-api (0.20+14.10.20140430.1-0ubuntu1) utopic; urgency=low
+
+  [ Alberto Aguirre ]
+  * needed for mir019
+
+  [ Ubuntu daily release ]
+  * New rebuild forced
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Wed, 30 Apr 2014 13:35:29 +0000
+
 platform-api (0.20+14.04.20140411-0ubuntu1) trusty; urgency=low
 
   [ Gerry Boland ]

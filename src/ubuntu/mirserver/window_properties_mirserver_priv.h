@@ -21,7 +21,7 @@
 
 #include <ubuntu/application/ui/window.h>
 
-#include <mir/shell/surface_creation_parameters.h>
+#include <mir/scene/surface_creation_parameters.h>
 #include <mir_toolkit/common.h>
 
 namespace ubuntu
@@ -47,7 +47,7 @@ public:
     void set_dimensions(uint32_t width, uint32_t height);
     void set_pixel_format( MirPixelFormat const& format);
     
-    ::mir::shell::SurfaceCreationParameters const& surface_parameters() const;
+    ::mir::scene::SurfaceCreationParameters const& surface_parameters() const;
     UAUiWindowInputEventCb input_cb() const;
     void* input_context() const;
     
@@ -56,7 +56,7 @@ protected:
     WindowProperties& operator=(WindowProperties const&) = delete;
 
 private:
-    ::mir::shell::SurfaceCreationParameters parameters;
+    ::mir::scene::SurfaceCreationParameters parameters;
 
     UAUiWindowInputEventCb cb;
     void *input_ctx;
