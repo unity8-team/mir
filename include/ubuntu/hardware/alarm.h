@@ -29,7 +29,7 @@ extern "C" {
 typedef enum
 {
     U_HARDWARE_ALARM_TIME_REFERENCE_BOOT, /**< Relative to the device's boot time, including sleep. */
-    U_HARDWARE_ALARM_TIME_REFERENCE_NOW /**< Relative from now on. */
+    U_HARDWARE_ALARM_TIME_REFERENCE_RTC /**< Wall clock time in UTC. */
 } UbuntuHardwareAlarmTimeReference;
 
 typedef UbuntuHardwareAlarmTimeReference UHardwareAlarmTimeReference;

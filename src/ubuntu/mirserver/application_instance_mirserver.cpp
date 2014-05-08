@@ -24,43 +24,42 @@
 
 #include <mir/scene/surface.h>
 #include <mir/scene/surface_coordinator.h>
-#include <mir/shell/placement_strategy.h>
-#include <mir/shell/session.h>
-#include <mir/shell/session_listener.h>
-#include <mir/shell/surface_creation_parameters.h>
+#include <mir/scene/session.h>
+#include <mir/scene/session_listener.h>
+#include <mir/scene/surface_creation_parameters.h>
+#include <mir/scene/snapshot.h>
 
 namespace uam = ubuntu::application::mir;
 namespace uams = uam::server;
 
 namespace mf = mir::frontend;
 namespace ms = mir::scene;
-namespace msh = mir::shell;
 
-namespace 
+namespace
 {
 /* A Mir in-process client does not have an associated Session by default. However it is
  * useful for the shell to be able to position and identify its own surface, so need to
  * create a mock implementation of Session for that respective Surface.
  */
-class InProcessClientSession : public msh::Session
+class InProcessClientSession : public ms::Session
 {
 public:
     virtual void force_requests_to_complete() override {}
     virtual pid_t process_id() const override { return 0; }
-    virtual void take_snapshot(msh::SnapshotCallback const&) override {}
-    virtual std::shared_ptr<msh::Surface> default_surface() const override { return surface; }
+    virtual void take_snapshot(ms::SnapshotCallback const&) override {}
+    virtual std::shared_ptr<ms::Surface> default_surface() const override { return surface; }
     virtual void set_lifecycle_state(MirLifecycleState) override {}
 
-    virtual mf::SurfaceId create_surface(msh::SurfaceCreationParameters const& ) override {}
+    virtual mf::SurfaceId create_surface(ms::SurfaceCreationParameters const& ) override { return mf::SurfaceId(0); }
     virtual void destroy_surface(mf::SurfaceId) override {}
     virtual std::shared_ptr<mf::Surface> get_surface(mf::SurfaceId) const override { return surface; }
     virtual std::string name() const override { return "Shell"; }
     virtual void hide() override {}
     virtual void show() override {}
     virtual void send_display_config(mir::graphics::DisplayConfiguration const&) override {}
-    virtual int configure_surface(mf::SurfaceId, MirSurfaceAttrib, int) override { return 0; }
+
 private:
-    std::shared_ptr<msh::Surface> const surface;
+    std::shared_ptr<ms::Surface> const surface;
 };
 
 InProcessClientSession& global_session()
@@ -71,12 +70,10 @@ InProcessClientSession& global_session()
 }
 
 uams::Instance::Instance(std::shared_ptr<ms::SurfaceCoordinator> const &surface_coordinator,
-                         std::shared_ptr<msh::PlacementStrategy> const &placement_strategy,
-                         std::shared_ptr<msh::SessionListener> const &session_listener,
+                         std::shared_ptr<ms::SessionListener> const &session_listener,
                          uam::Description* description_,
                          uam::Options *options_)
     : surface_coordinator(surface_coordinator),
-      placement_strategy(placement_strategy),
       session_listener(session_listener),
       ref_count(1)
 {
@@ -114,13 +111,11 @@ void uams::Instance::unref()
         delete this;
 }
 
-std::shared_ptr<ms::Surface> uams::Instance::create_surface(msh::SurfaceCreationParameters const& parameters)
+std::shared_ptr<ms::Surface> uams::Instance::create_surface(ms::SurfaceCreationParameters const& parameters)
 {
-    auto placed_params = placement_strategy->place(global_session(), parameters);
-
-    auto surface = surface_coordinator->add_surface(placed_params, nullptr);
-
+    ms::Session& session = global_session();
+    auto surface = surface_coordinator->add_surface(parameters, &session);
     // Need to call the SessionListener ourselves, else shell not notified of this surface creation
-    session_listener->surface_created(global_session(), surface);
+    session_listener->surface_created(session, surface);
     return surface;
 }

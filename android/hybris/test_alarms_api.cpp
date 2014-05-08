@@ -19,6 +19,7 @@
 #include <ubuntu/hardware/alarm.h>
 
 #include <cstdio>
+#include <cstdlib>
 #include <ctime>
 
 int main(int argc, char** argv)
@@ -31,13 +32,23 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    // Alarm in two seconds.
-    timespec ts { 2, 0 };
+    timespec ts { 0, 0 };
+    clock_gettime(CLOCK_REALTIME, &ts);
 
+    int timeout_in_seconds = 5;
+
+    // Let's see if a timeout has been specified on the command line
+    if (argc > 1)
+    {
+        timeout_in_seconds = atoi(argv[1]);
+    }
+
+    // Alarm in two seconds.
+    ts.tv_sec += timeout_in_seconds;
 
     UStatus rc = u_hardware_alarm_set_relative_to_with_behavior(
         alarm,
-        U_HARDWARE_ALARM_TIME_REFERENCE_NOW,
+        U_HARDWARE_ALARM_TIME_REFERENCE_RTC,
         U_HARDWARE_ALARM_SLEEP_BEHAVIOR_WAKEUP_DEVICE,
         &ts);
 

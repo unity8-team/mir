@@ -21,10 +21,10 @@
 #include <string>
 
 namespace uams = ubuntu::application::mir::server;
-namespace msh = mir::shell;
+namespace ms = mir::scene;
 
 uams::WindowProperties::WindowProperties()
-    : parameters(msh::a_surface()),
+    : parameters(ms::a_surface()),
       cb(nullptr),
       input_ctx(nullptr)
 {
@@ -61,7 +61,7 @@ void uams::WindowProperties::set_pixel_format(MirPixelFormat const& format)
     parameters = parameters.of_pixel_format(format);
 }
 
-msh::SurfaceCreationParameters const& uams::WindowProperties::surface_parameters() const
+ms::SurfaceCreationParameters const& uams::WindowProperties::surface_parameters() const
 {
     return parameters;
 }

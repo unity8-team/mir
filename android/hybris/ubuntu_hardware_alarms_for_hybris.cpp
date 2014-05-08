@@ -60,7 +60,7 @@ class UbuntuHardwareAlarm
     {
         int type = 0;
 
-        if (time_reference == U_HARDWARE_ALARM_TIME_REFERENCE_NOW)
+        if (time_reference == U_HARDWARE_ALARM_TIME_REFERENCE_BOOT)
             switch(behavior)
             {
                 case U_HARDWARE_ALARM_SLEEP_BEHAVIOR_WAKEUP_DEVICE:
@@ -70,7 +70,7 @@ class UbuntuHardwareAlarm
                     type = ANDROID_ALARM_ELAPSED_REALTIME_MASK;
                     break;
             }
-        else if (time_reference == U_HARDWARE_ALARM_TIME_REFERENCE_BOOT)
+        else if (time_reference == U_HARDWARE_ALARM_TIME_REFERENCE_RTC)
             switch(behavior)
             {
                 case U_HARDWARE_ALARM_SLEEP_BEHAVIOR_WAKEUP_DEVICE:
@@ -185,7 +185,7 @@ u_hardware_alarm_wait_for_next_alarm(
         result->reference = U_HARDWARE_ALARM_TIME_REFERENCE_BOOT;
     else if ((rc & ANDROID_ALARM_ELAPSED_REALTIME_MASK) ||
              (rc & ANDROID_ALARM_ELAPSED_REALTIME_WAKEUP_MASK))
-        result->reference = U_HARDWARE_ALARM_TIME_REFERENCE_NOW;
+        result->reference = U_HARDWARE_ALARM_TIME_REFERENCE_RTC;
 
     if ((rc & ANDROID_ALARM_RTC_WAKEUP_MASK) ||
         (rc & ANDROID_ALARM_ELAPSED_REALTIME_WAKEUP_MASK))

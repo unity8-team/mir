@@ -66,6 +66,8 @@ LOCAL_MODULE_TAGS := optional
 LOCAL_SHARED_LIBRARIES := \
 	libandroidfw \
 	libutils \
+	libEGL \
+	libGLESv2 \
 	libubuntu_application_api
 
 include $(BUILD_EXECUTABLE)
