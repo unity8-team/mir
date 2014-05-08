@@ -1,3 +1,10 @@
+platform-api (0.21-0ubuntu1) UNRELEASED; urgency=medium
+
+  * Change sensors API to allow for GCC 4.8 building across all clients
+    Ubuntu-side
+
+ -- Ricardo Mendoza <ricardo.mendoza@canonical.com>  Mon, 05 May 2014 14:03:05 +0200
+
 platform-api (0.20+14.10.20140430.1-0ubuntu1) utopic; urgency=low
 
   [ Alberto Aguirre ]
