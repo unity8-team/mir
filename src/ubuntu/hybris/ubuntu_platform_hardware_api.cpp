@@ -49,7 +49,7 @@ int64_t,
 int64_t, 
 int);
 
-IMPLEMENT_VOID_FUNCTION4(
+IMPLEMENT_VOID_SF_FUNCTION4(
 u_hardware_gps_inject_location, 
 UHardwareGps, 
 double, 
@@ -59,6 +59,32 @@ float);
 IMPLEMENT_VOID_FUNCTION2(
 u_hardware_gps_delete_aiding_data, 
 UHardwareGps, 
+UHardwareGpsAidingData);
+
+IMPLEMENT_VOID_FUNCTION3(
+u_hardware_gps_agps_set_reference_location,
+UHardwareGps,
+UHardwareGpsAGpsRefLocation*,
+size_t);
+
+IMPLEMENT_VOID_FUNCTION2(
+u_hardware_gps_agps_notify_connection_is_open,
+UHardwareGps,
+const char *);
+
+IMPLEMENT_VOID_FUNCTION1(
+u_hardware_gps_agps_notify_connection_is_closed,
+UHardwareGps);
+
+IMPLEMENT_VOID_FUNCTION1(
+u_hardware_gps_agps_notify_connection_not_available,
+UHardwareGps);
+
+IMPLEMENT_VOID_FUNCTION4(
+u_hardware_gps_agps_set_server_for_type,
+UHardwareGps,
+UHardwareGpsAGpsType,
+const char*,
 uint16_t);
 
 IMPLEMENT_FUNCTION6(

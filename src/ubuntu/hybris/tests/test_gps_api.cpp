@@ -20,6 +20,7 @@
 #include <ctime>
 #include <signal.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -30,10 +31,10 @@ class GPSTest
   public:
     GPSTest();
     ~GPSTest();
-    bool init_and_start();
+    bool init_and_start(const char* server, uint16_t port);
     bool stop();
     void inject_time();
-
+    void inject_reference_location(float lat, float lon, float accuracy);
     UHardwareGps u_hardware_gps;
 };
 
@@ -176,10 +177,18 @@ void GPSTest::inject_time()
                            10 /* possible deviation, in milliseconds*/);
 }
 
-bool GPSTest::init_and_start()
+void GPSTest::inject_reference_location(float lat, float lon, float accuracy)
+{
+    u_hardware_gps_inject_location(u_hardware_gps,
+                                   lat,
+                                   lon,
+                                   accuracy);
+}
+
+bool GPSTest::init_and_start(const char* supl_server, uint16_t port)
 {
     UHardwareGpsParams gps_params;
-
+    
     gps_params.location_cb = gps_location_cb;
     gps_params.status_cb = gps_status_cb;
     gps_params.sv_status_cb = gps_sb_status_cb;
@@ -207,6 +216,15 @@ bool GPSTest::init_and_start()
         return false;
     }
 
+    u_hardware_gps_delete_aiding_data(u_hardware_gps,
+                                      U_HARDWARE_GPS_DELETE_ALL);
+
+    u_hardware_gps_agps_set_server_for_type(
+        u_hardware_gps,
+        U_HARDWARE_GPS_AGPS_TYPE_SUPL,
+        supl_server,
+        port);
+    
     return true;
 }
 
@@ -234,13 +252,28 @@ void wait_for_sigint()
 
 int main(int argc, char** argv)
 {
+    if (argc != 6)
+    {
+        printf("Usage: test_gps supl_server supl_server_port lat lon accuracy\n");
+        return 1;
+    }
+
+    const char* supl_server = argv[1];
+    uint16_t port = atoi(argv[2]);
+    
+    double lat = atof(argv[3]);
+    double lon = atof(argv[4]);
+    float accuracy = atof(argv[5]);
+
     int return_value = 0;
     ubuntu::GPSTest test;
 
-    if (!test.init_and_start())
-        return 1;
+    if (!test.init_and_start(supl_server, port))
+        return 1;    
 
-    printf("GPS initialized and started. Now waiting for callbacks or SIGINT (to quit).\n");
+    printf("GPS initialized and started. Injecting reference location: %f %f %f.\n", lat, lon, accuracy);
+    test.inject_reference_location(lat, lon, accuracy);
+    printf("Now waiting for callbacks or SIGINT (to quit).\n");
     wait_for_sigint();
     printf("Exiting...\n");
 
