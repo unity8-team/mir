@@ -135,24 +135,25 @@ void mc::BufferQueue::client_acquire(mc::BufferQueue::Callback complete)
 
     pending_client_notifications.push_back(std::move(complete));
 
+    mg::Buffer* buf = nullptr;
     if (!free_buffers.empty())
     {
-        auto const buffer = free_buffers.back();
+        buf = free_buffers.back();
         free_buffers.pop_back();
-        give_buffer_to_client(buffer, std::move(lock));
     }
     else if (int(buffers.size()) < nbuffers)
     {
         auto const& buffer = gralloc->alloc_buffer(the_properties);
         buffers.push_back(buffer);
-        give_buffer_to_client(buffer.get(), std::move(lock));
+        buf = buffer.get();
     }
     else if (frame_dropping_enabled && !ready_to_composite_queue.empty())
-    {
-        /* Last resort, drop oldest buffer from the ready queue */
-        auto const buffer = pop(ready_to_composite_queue);
-        give_buffer_to_client(buffer, std::move(lock));
+    {   /* Last resort, drop oldest buffer from the ready queue */
+        buf = pop(ready_to_composite_queue);
     }
+
+    if (buf)
+        give_buffer_to_client(buf, std::move(lock));
 }
 
 void mc::BufferQueue::client_release(graphics::Buffer* released_buffer)
