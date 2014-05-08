@@ -71,6 +71,12 @@ UBUNTU_DLL_PUBLIC void
 u_hardware_alarm_unref(
     UHardwareAlarm alarm);
 
+/** Query the time that elapsed since boot, including deep sleeps. */
+UBUNTU_DLL_PUBLIC UStatus
+u_hardware_alarm_get_elapsed_real_time(
+    UHardwareAlarm alarm,
+    struct timespec *tz);
+
 /** Reports a timezone change to kernel and HW. */
 UBUNTU_DLL_PUBLIC UStatus
 u_hardware_alarm_set_timezone(

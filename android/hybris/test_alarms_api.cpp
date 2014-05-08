@@ -69,5 +69,32 @@ int main(int argc, char** argv)
 
     printf("Successfully created and waited for a hw alarm.\n");
 
+    // And now we do the same with the last boot as reference
+    u_hardware_alarm_get_elapsed_real_time(alarm, &ts);
+
+    ts.tv_sec += timeout_in_seconds;
+
+    rc = u_hardware_alarm_set_relative_to_with_behavior(
+        alarm,
+        U_HARDWARE_ALARM_TIME_REFERENCE_BOOT,
+        U_HARDWARE_ALARM_SLEEP_BEHAVIOR_WAKEUP_DEVICE,
+        &ts);
+
+    if (rc != U_STATUS_SUCCESS)
+    {
+        printf("Problem setting hardware alarm.\n");
+        return 1;
+    }
+
+    rc = u_hardware_alarm_wait_for_next_alarm(alarm, &wait_result);
+
+    if (rc != U_STATUS_SUCCESS)
+    {
+        printf("Problem waiting for hardware alarm to go off.\n");
+        return 1;
+    }
+
+    printf("Successfully created and waited for a hw alarm.\n");
+
     return 0;
 }

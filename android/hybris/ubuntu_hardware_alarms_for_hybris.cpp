@@ -89,6 +89,22 @@ class UbuntuHardwareAlarm
         return not (result < 0);
     }
 
+    bool get_elapsed_realtime(struct timespec* ts)
+    {
+        if (not is_valid())
+            return false;
+
+        if (not ts)
+            return false;
+
+        int result = ::ioctl(
+            fd,
+            ANDROID_ALARM_GET_TIME(ANDROID_ALARM_ELAPSED_REALTIME),
+            ts);
+
+        return result == 0;
+    }
+
     bool is_valid() const
     {
         return valid;
@@ -98,7 +114,7 @@ class UbuntuHardwareAlarm
     UbuntuHardwareAlarm() : fd(open("/dev/alarm", O_RDWR)),
                             valid(true)
     {
-        if (fd == -1) 
+        if (fd == -1)
         {
             ALOGE("Could not open /dev/alarm: %s", strerror(errno));
             valid = false;
@@ -142,6 +158,14 @@ u_hardware_alarm_unref(
 {
     // Considering a singleton pattern here, just voiding the argument.
     (void) alarm;
+}
+
+UStatus
+u_hardware_alarm_get_elapsed_real_time(
+    UHardwareAlarm alarm,
+    struct timespec* ts)
+{
+    return alarm->get_elapsed_realtime(ts) ? U_STATUS_SUCCESS : U_STATUS_ERROR;
 }
 
 UStatus
