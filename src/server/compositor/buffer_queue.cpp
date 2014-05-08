@@ -140,25 +140,16 @@ void mc::BufferQueue::client_acquire(mc::BufferQueue::Callback complete)
         auto const buffer = free_buffers.back();
         free_buffers.pop_back();
         give_buffer_to_client(buffer, std::move(lock));
-        return;
     }
-
-    /* No empty buffers, attempt allocating more
-     * TODO: need a good heuristic to switch
-     * between double-buffering to n-buffering
-     */
-    int const allocated_buffers = buffers.size();
-    if (allocated_buffers < nbuffers)
+    else if (int(buffers.size()) < nbuffers)
     {
         auto const& buffer = gralloc->alloc_buffer(the_properties);
         buffers.push_back(buffer);
         give_buffer_to_client(buffer.get(), std::move(lock));
-        return;
     }
-
-    /* Last resort, drop oldest buffer from the ready queue */
-    if (frame_dropping_enabled && !ready_to_composite_queue.empty())
+    else if (frame_dropping_enabled && !ready_to_composite_queue.empty())
     {
+        /* Last resort, drop oldest buffer from the ready queue */
         auto const buffer = pop(ready_to_composite_queue);
         give_buffer_to_client(buffer, std::move(lock));
     }
@@ -328,10 +319,8 @@ void mc::BufferQueue::give_buffer_to_client(
         if (nbuffers == 1)
             current_compositor_buffer = buffer;
     }
-
-    /* Don't give to the client just yet if there's a pending snapshot */
-    if (!resize_buffer && contains(buffer, pending_snapshots))
-    {
+    else if (contains(buffer, pending_snapshots))
+    {   /* Don't give to the client just yet if there's a pending snapshot */
         snapshot_released.wait(lock,
             [&]{ return !contains(buffer, pending_snapshots); });
     }
