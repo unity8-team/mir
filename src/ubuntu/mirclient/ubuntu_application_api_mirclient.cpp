@@ -34,6 +34,7 @@
 #include <ubuntu/application/sensors/light.h>
 
 #include <mir_toolkit/mir_client_library.h>
+#include <mir/client/private.h>
 
 #include <stdlib.h>
 #include <assert.h>
@@ -132,18 +133,75 @@ u_application_instance_run(UApplicationInstance *instance)
     (void) instance;
 }
 
+namespace {
+void got_rpc_reply_callback(uamc::Instance* instance)
+{
+    {
+        std::unique_lock<std::mutex> rpc_lock(instance->rpc_mutex);
+        instance->rpc_waiting_reply = false;
+    }
+    instance->rpc_condition_variable.notify_all();
+}
+} // anonymous namespace
+
 void ua_ui_set_clipboard_content(void* content, size_t content_size)
 {
-    // TODO<papi,mir>: Implement. We will need a MirConnection
-    (void) content;
-    (void) content_size;
+    // TODO<papi>: We will need a MirConnection.
+    //             Add a non-blocking version?
+
+    uamc::Instance* instance = global_mir_instance();
+    std::unique_lock<std::mutex> clipboard_lock(instance->clipboard_api_mutex);
+    std::unique_lock<std::mutex> rpc_lock(instance->rpc_mutex);
+    auto const rpc_channel = mir::client::the_rpc_channel(instance->connection());
+
+    std::string contentString(reinterpret_cast<char*>(content), content_size);
+
+    unity::protobuf::UnityService::Stub unityService(rpc_channel.get(),
+        google::protobuf::Service::STUB_DOESNT_OWN_CHANNEL);
+
+    instance->rpc_clip.set_content(contentString);
+
+    instance->rpc_waiting_reply = true;
+    unityService.copy(
+        nullptr, /* rpc_controller */
+        &instance->rpc_clip, /* request  */
+        &instance->rpc_void,
+        google::protobuf::NewCallback(&got_rpc_reply_callback, instance));
+
+    // Wait until we get a reply from the server
+    instance->rpc_condition_variable.wait(rpc_lock, [&]{return !instance->rpc_waiting_reply;});
 }
 
 void ua_ui_get_clipboard_content(void** out_content, size_t* out_content_size)
 {
-    // TODO<papi,mir>: Implement, see get_clipboard_comment.
+    // TODO<papi>: see get_clipboard_comment.
+
+    uamc::Instance* instance = global_mir_instance();
+    std::unique_lock<std::mutex> clipboard_lock(instance->clipboard_api_mutex);
+    std::unique_lock<std::mutex> rpc_lock(instance->rpc_mutex);
+
     *out_content = NULL;
     *out_content_size = 0;
+
+    auto const rpc_channel = mir::client::the_rpc_channel(instance->connection());
+    unity::protobuf::UnityService::Stub unityService(rpc_channel.get(),
+        google::protobuf::Service::STUB_DOESNT_OWN_CHANNEL);
+
+    unityService.paste(
+        nullptr, /* rpc_controller */
+        &instance->rpc_void, /* request */
+        &instance->rpc_clip, /* response */
+        google::protobuf::NewCallback(&got_rpc_reply_callback, instance));
+
+    // Wait until we get a reply from the server
+    instance->rpc_condition_variable.wait(rpc_lock, [&]{return !instance->rpc_waiting_reply;});
+
+    instance->clip = instance->rpc_clip.content();
+    if (!instance->clip.empty()) {
+        *out_content_size = instance->clip.size();
+        // argh!
+        *out_content = const_cast<void*>(static_cast<const void*>(instance->clip.data()));
+    }
 }
 
 //

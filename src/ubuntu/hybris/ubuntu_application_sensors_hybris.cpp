@@ -26,7 +26,7 @@
 // Ubuntu Application Sensors
 
 // Acceleration Sensor
-IMPLEMENT_FUNCTION0(UASensorsAccelerometer*, ua_sensors_accelerometer_new);
+IMPLEMENT_CTOR0(UASensorsAccelerometer*, ua_sensors_accelerometer_new);
 IMPLEMENT_FUNCTION1(UStatus, ua_sensors_accelerometer_enable, UASensorsAccelerometer*);
 IMPLEMENT_FUNCTION1(UStatus, ua_sensors_accelerometer_disable, UASensorsAccelerometer*);
 IMPLEMENT_FUNCTION1(uint32_t, ua_sensors_accelerometer_get_min_delay, UASensorsAccelerometer*);
@@ -42,7 +42,7 @@ IMPLEMENT_SF_FUNCTION1(float, uas_accelerometer_event_get_acceleration_y, UASAcc
 IMPLEMENT_SF_FUNCTION1(float, uas_accelerometer_event_get_acceleration_z, UASAccelerometerEvent*);
 
 // Proximity Sensor
-IMPLEMENT_FUNCTION0(UASensorsProximity*, ua_sensors_proximity_new);
+IMPLEMENT_CTOR0(UASensorsProximity*, ua_sensors_proximity_new);
 IMPLEMENT_FUNCTION1(UStatus, ua_sensors_proximity_enable, UASensorsProximity*);
 IMPLEMENT_FUNCTION1(UStatus, ua_sensors_proximity_disable, UASensorsProximity*);
 IMPLEMENT_FUNCTION1(uint32_t, ua_sensors_proximity_get_min_delay, UASensorsProximity*);
@@ -56,7 +56,7 @@ IMPLEMENT_FUNCTION1(uint64_t, uas_proximity_event_get_timestamp, UASProximityEve
 IMPLEMENT_FUNCTION1(UASProximityDistance, uas_proximity_event_get_distance, UASProximityEvent*);
 
 // Ambient Light Sensor
-IMPLEMENT_FUNCTION0(UASensorsLight*, ua_sensors_light_new);
+IMPLEMENT_CTOR0(UASensorsLight*, ua_sensors_light_new);
 IMPLEMENT_FUNCTION1(UStatus, ua_sensors_light_enable, UASensorsLight*);
 IMPLEMENT_FUNCTION1(UStatus, ua_sensors_light_disable, UASensorsLight*);
 IMPLEMENT_FUNCTION1(uint32_t, ua_sensors_light_get_min_delay, UASensorsLight*);

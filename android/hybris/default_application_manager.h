@@ -30,7 +30,11 @@
 
 #include <input/InputListener.h>
 #include <input/InputReader.h>
+#if ANDROID_VERSION_MAJOR==4 && ANDROID_VERSION_MINOR<=2
 #include <androidfw/InputTransport.h>
+#else
+#include <input/InputTransport.h>
+#endif
 #include <utils/threads.h>
 
 namespace ubuntu { namespace detail

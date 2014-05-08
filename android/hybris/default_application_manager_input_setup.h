@@ -191,11 +191,19 @@ public:
     }
 
     nsecs_t notifyANR(const sp<InputApplicationHandle>& inputApplicationHandle,
+#if ANDROID_VERSION_MAJOR==4 && ANDROID_VERSION_MINOR<4
                       const sp<InputWindowHandle>& inputWindowHandle)
+#else
+                      const sp<InputWindowHandle>& inputWindowHandle,
+                      const android::String8& reason)
+#endif
     {
         REPORT_FUNCTION_CALL();
         (void) inputApplicationHandle;
         (void) inputWindowHandle;
+#if ANDROID_VERSION_MAJOR==4 && ANDROID_VERSION_MINOR>=4
+        (void) reason;
+#endif
 
         return 0;
     }

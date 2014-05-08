@@ -51,8 +51,8 @@ struct ProcessKiller : public android::Thread
         return false;
     }
 
-    android::sp<android::IAMTaskController> task_controller;
     android::sp<ubuntu::detail::ApplicationSession> as;
+    android::sp<android::IAMTaskController> task_controller;
     android::Mutex state_lock;
     android::Condition state_cond;
     android::sp<android::Looper> looper;

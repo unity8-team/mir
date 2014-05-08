@@ -22,10 +22,11 @@
 #include "session_p.h"
 
 #include <com/ubuntu/location/service/stub.h>
-#include <org/freedesktop/dbus/resolver.h>
-#include <org/freedesktop/dbus/asio/executor.h>
 
-namespace dbus = org::freedesktop::dbus;
+#include <core/dbus/resolver.h>
+#include <core/dbus/asio/executor.h>
+
+namespace dbus = core::dbus;
 namespace cul = com::ubuntu::location;
 namespace culs = com::ubuntu::location::service;
 
@@ -47,7 +48,7 @@ class Instance
 
   private:
     Instance() : bus(std::make_shared<dbus::Bus>(dbus::WellKnownBus::system)),
-                 executor(std::make_shared<dbus::asio::Executor>(bus)),
+                 executor(dbus::asio::make_executor(bus)),
                  service(dbus::resolve_service_on_bus<culs::Interface, culs::Stub>(bus))
     {
         bus->install_executor(executor);

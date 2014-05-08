@@ -1,3 +1,133 @@
+platform-api (0.20+14.10.20140430.1-0ubuntu1) utopic; urgency=low
+
+  [ Alberto Aguirre ]
+  * needed for mir019
+
+  [ Ubuntu daily release ]
+  * New rebuild forced
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Wed, 30 Apr 2014 13:35:29 +0000
+
+platform-api (0.20+14.04.20140411-0ubuntu1) trusty; urgency=low
+
+  [ Gerry Boland ]
+  * Manually call mir's SurfacePlacementStrategy::place and
+    SessionListener::surface_created methods for in process client
+    Surface Mir 0.1.8 refactoring causes in-process client surfaces to
+    be an implementation detail of Mir's surface stack, and prevents
+    shell from getting access to its surface to position it and define
+    input areas on it. To fix this,we perform the following: 1. Create
+    an InProcessClientSession to represent the in-process client 2. Get
+    access to Mir's SurfacePlacementStrategy object and call its place
+    method explicitly, to allow shell to position its surface 3. Get
+    access to Mir's SessionListener object and call its surface_created
+    method explicitly, to notify shell its surface was created
+
+  [ Alan Griffiths ]
+  * Changes for compatibility with Mir 0.1.8
+
+  [ Ubuntu daily release ]
+  * New rebuild forced
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Fri, 11 Apr 2014 21:09:05 +0000
+
+platform-api (0.20+14.04.20140407-0ubuntu1) trusty; urgency=low
+
+  [ Andreas Pokorny ]
+  * CMakeLists adaptation to make platform-api cross compile with a
+    simple chroot setup. Note that <PKG_NAME>_LINK_LIBRARIES variables
+    were removed from link_directories and respective <PKG_NAME>_LDFLAGS
+    variables were instead put into target_link_libraries. Those
+    informations attached to targets are transitively forwarded to the
+    user of the library. link_directories only attaches the information
+    to the source directory.
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Mon, 07 Apr 2014 06:16:39 +0000
+
+platform-api (0.20+14.04.20140401-0ubuntu1) trusty; urgency=low
+
+  [ Chris Gagnon ]
+  * enable getting coverage in CI
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Tue, 01 Apr 2014 01:22:00 +0000
+
+platform-api (0.20+14.04.20140317.1-0ubuntu1) trusty; urgency=low
+
+  [ Ubuntu daily release ]
+  * New rebuild forced
+
+  [ Kevin Gunn ]
+  * bump to mir0.1.7
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Mon, 17 Mar 2014 15:15:44 +0000
+
+platform-api (0.20+14.04.20140310.1-0ubuntu1) trusty; urgency=low
+
+  [ Kevin Gunn ]
+  * bump debian dep to mir0.1.6
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Mon, 10 Mar 2014 21:09:12 +0000
+
+platform-api (0.20+14.04.20140307-0ubuntu1) trusty; urgency=low
+
+  [ Łukasz 'sil2100' Zemczak ]
+  * Bump the build-dependency on dbus-cpp due to the ABI change
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Fri, 07 Mar 2014 12:35:44 +0000
+
+platform-api (0.20+14.04.20140221-0ubuntu1) trusty; urgency=low
+
+  [ thomas-voss ]
+  * Remove obsolete assert on bridge as failures are captured higher up
+    in the stack now.
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Fri, 21 Feb 2014 13:25:48 +0000
+
+platform-api (0.20+14.04.20140214-0ubuntu1) trusty; urgency=low
+
+  [ Daniel d'Andrada ]
+  * Clipboard implementation using UnityService through the mir socket
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Fri, 14 Feb 2014 15:46:05 +0000
+
+platform-api (0.20+14.04.20140212-0ubuntu1) trusty; urgency=low
+
+  [ Kevin Gunn ]
+  * bump dep on mir0.1.5
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Wed, 12 Feb 2014 18:32:46 +0000
+
+platform-api (0.20+14.04.20140211-0ubuntu1) trusty; urgency=low
+
+  [ Martin Pitt ]
+  * Fix crash in ua_sensors_*_new() if there is no available backend.
+    Return NULL instead. (LP: #1272294)
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Tue, 11 Feb 2014 00:09:33 +0000
+
+platform-api (0.20+14.04.20140204.1-0ubuntu1) trusty; urgency=low
+
+  [ Ubuntu daily release ]
+  * New rebuild forced
+
+  [ Ricardo Salveti de Araujo ]
+  * Making android code compatible with 4.4.
+
+  [ Kevin Gunn ]
+  * bump debian version for mir to 0.1.4
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Tue, 04 Feb 2014 14:51:56 +0000
+
+platform-api (0.20+14.04.20140204-0ubuntu1) trusty; urgency=low
+
+  [ thomas-voss ]
+  * Adopt to changes in dbus-cpp and location-service.
+
+  [ Łukasz 'sil2100' Zemczak ]
+  * Bump the dbus-cpp dependency to 1.0.0
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Tue, 04 Feb 2014 12:34:00 +0000
+
 platform-api (0.20+14.04.20140114.1-0ubuntu1) trusty; urgency=low
 
   [ Martin Pitt ]

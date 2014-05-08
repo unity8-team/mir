@@ -43,10 +43,6 @@
 #include <mir/graphics/display_buffer.h>
 #include <mir/graphics/platform.h>
 #include <mir/graphics/graphic_buffer_allocator.h>
-#include <mir/frontend/session.h>
-#include <mir/frontend/shell.h>
-#include <mir/shell/surface_creation_parameters.h>
-#include <mir/shell/surface.h>
 #include <mir/graphics/internal_client.h>
 #include <mir/input/input_platform.h>
 
@@ -65,7 +61,8 @@ struct MirServerContext
 {
     std::shared_ptr<mir::graphics::Display> display;
     std::shared_ptr<mir::graphics::GraphicBufferAllocator> buffer_allocator;
-    std::shared_ptr<mir::shell::SurfaceFactory> surface_factory;
+    std::shared_ptr<mir::scene::SurfaceCoordinator> surface_coordinator;
+    std::shared_ptr<mir::scene::SessionListener> session_listener;
     std::shared_ptr<mir::input::receiver::InputPlatform> input_platform;
     std::shared_ptr<mir::graphics::InternalClient> egl_client;
 };
@@ -86,7 +83,8 @@ void ua_ui_mirserver_init(mir::DefaultServerConfiguration& config)
 
     context->display = config.the_display();
     context->buffer_allocator = config.the_buffer_allocator();
-    context->surface_factory = config.the_shell_surface_factory();
+    context->surface_coordinator = config.the_surface_coordinator();
+    context->session_listener = config.the_session_listener();
     context->input_platform = mir::input::receiver::InputPlatform::create();
     context->egl_client = config.the_graphics_platform()->create_internal_client();
 }
@@ -96,20 +94,23 @@ void ua_ui_mirserver_finish()
     auto context = global_mirserver_context();
 
     context->display.reset();
-    context->surface_factory.reset();
+    context->surface_coordinator.reset();
+    context->session_listener.reset();
     context->input_platform.reset();
     context->egl_client.reset();
 }
 
 UApplicationInstance* u_application_instance_new_from_description_with_options(UApplicationDescription* u_description, UApplicationOptions* u_options)
 {
-    auto surface_factory = global_mirserver_context()->surface_factory;
-    assert(surface_factory);
+    auto surface_coordinator = global_mirserver_context()->surface_coordinator;
+    assert(surface_coordinator);
+    auto session_listener = global_mirserver_context()->session_listener;
+    assert(session_listener);
 
     auto description = uam::Description::from_u_application_description(u_description);
     auto options = uam::Options::from_u_application_options(u_options);
 
-    auto instance = new uams::Instance(surface_factory, description, options);
+    auto instance = new uams::Instance(surface_coordinator, session_listener, description, options);
 
     return instance->as_u_application_instance();
 }
