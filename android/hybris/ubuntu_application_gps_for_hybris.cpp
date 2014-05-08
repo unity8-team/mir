@@ -18,7 +18,6 @@
 #include <ubuntu/hardware/gps.h>
 
 #include <pthread.h>
-#include <stdio.h>
 
 // android stuff
 #include <hardware/gps.h>
@@ -353,7 +352,6 @@ void UHardwareGps_::inject_time(int64_t time, int64_t time_reference, int uncert
 
 void UHardwareGps_::inject_location(double latitude, double longitude, float accuracy)
 {
-    printf("%s: %f %f %f \n", __PRETTY_FUNCTION__, latitude, longitude, accuracy);
     if (gps_interface && gps_interface->inject_location)
         gps_interface->inject_location(latitude, longitude, accuracy);
 }
@@ -467,7 +465,6 @@ void u_hardware_gps_inject_time(UHardwareGps self, int64_t time, int64_t time_re
 void u_hardware_gps_inject_location(UHardwareGps self, double latitude, double longitude,
                                 float accuracy)
 {
-    printf("%s: %f %f %f \n", __PRETTY_FUNCTION__, latitude, longitude, accuracy);
     self->inject_location(latitude, longitude, accuracy);
 }
 
