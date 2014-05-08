@@ -409,6 +409,9 @@ int mc::BufferQueue::min_buffers() const
 
     // else for multi-buffering with exclusivity guarantees:
     // FIXME: compositors count is ticking up to 2 from 1 spuriously
+    //        This is partly due to BufferConsumingFunctor and partly due to
+    //        multi-monitor. In the very least the latter needs to be dealt
+    //        with. Ideally both.
     int min_compositors = std::max(1, int(buffers_sent_to_compositor.size()));
     int min_clients = std::max(1, int(buffers_owned_by_client.size()));
     int min_free = frame_dropping_enabled ? 1 : 0;
