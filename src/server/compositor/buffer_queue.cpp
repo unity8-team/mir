@@ -275,18 +275,6 @@ bool mc::BufferQueue::framedropping_allowed() const
     return frame_dropping_enabled;
 }
 
-void mc::BufferQueue::free_buffer(graphics::Buffer* b)
-{
-    int held_buffers = buffers_owned_by_client.size() +
-                       buffers_sent_to_compositor.size();
-
-    if (held_buffers >= min_buffers() && buffers.back().get() == b &&
-        nbuffers > 1)
-        buffers.pop_back();
-    else
-        free_buffers.push_back(b);
-}
-
 void mc::BufferQueue::force_requests_to_complete()
 {
     std::unique_lock<std::mutex> lock(guard);
@@ -392,6 +380,18 @@ void mc::BufferQueue::release(
         give_buffer_to_client(buffer, std::move(lock));
     else
         free_buffer(buffer);
+}
+
+void mc::BufferQueue::free_buffer(graphics::Buffer* b)
+{
+    int held_buffers = buffers_owned_by_client.size() +
+                       buffers_sent_to_compositor.size();
+
+    if (held_buffers >= min_buffers() && buffers.back().get() == b &&
+        nbuffers > 1)
+        buffers.pop_back();
+    else
+        free_buffers.push_back(b);
 }
 
 /**
