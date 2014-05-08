@@ -148,7 +148,7 @@ void mc::BufferQueue::client_acquire(mc::BufferQueue::Callback complete)
      * between double-buffering to n-buffering
      */
     int const allocated_buffers = buffers.size();
-    if (allocated_buffers < nbuffers)
+    if (allocated_buffers < max_buffers())
     {
         auto const& buffer = gralloc->alloc_buffer(the_properties);
         buffers.push_back(buffer);
@@ -275,6 +275,18 @@ bool mc::BufferQueue::framedropping_allowed() const
     return frame_dropping_enabled;
 }
 
+void mc::BufferQueue::free_buffer(graphics::Buffer* b)
+{
+    int held_buffers = buffers_owned_by_client.size() +
+                       buffers_sent_to_compositor.size();
+
+    if (held_buffers >= max_buffers() && buffers.back().get() == b &&
+        nbuffers > 1)
+        buffers.pop_back();
+    else
+        free_buffers.push_back(b);
+}
+
 void mc::BufferQueue::force_requests_to_complete()
 {
     std::unique_lock<std::mutex> lock(guard);
@@ -283,9 +295,8 @@ void mc::BufferQueue::force_requests_to_complete()
     {
         auto const buffer = pop(ready_to_composite_queue);
         while (!ready_to_composite_queue.empty())
-        {
-            free_buffers.push_back(pop(ready_to_composite_queue));
-        }
+            free_buffer(pop(ready_to_composite_queue));
+
         give_buffer_to_client(buffer, std::move(lock));
     }
 }
@@ -380,5 +391,18 @@ void mc::BufferQueue::release(
     if (!pending_client_notifications.empty())
         give_buffer_to_client(buffer, std::move(lock));
     else
-        free_buffers.push_back(buffer);
+        free_buffer(buffer);
+}
+
+int mc::BufferQueue::max_buffers() const
+{
+    // FIXME: compositors count is ticking up to 2 from 1 spuriously
+    int compositors = std::max(1, int(buffers_sent_to_compositor.size()));
+    int min_clients = frame_dropping_enabled ? 2 : 1;
+    int clients = std::max(min_clients, int(buffers_owned_by_client.size()));
+    int ret = std::min(nbuffers, compositors+clients);
+    fprintf(stderr, "compositors %d, min_clients %d, clients %d\n",
+        compositors, min_clients, clients);
+    fprintf(stderr, "max_buffers %d of %d\n", ret, nbuffers);
+    return ret;
 }

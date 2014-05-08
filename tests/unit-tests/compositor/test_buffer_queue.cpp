@@ -1239,8 +1239,7 @@ TEST_F(BufferQueueTest, buffers_are_not_lost)
     }
 }
 
-/* FIXME (enabling this optimization breaks timing tests) */
-TEST_F(BufferQueueTest, DISABLED_synchronous_clients_only_get_two_real_buffers)
+TEST_F(BufferQueueTest, synchronous_clients_only_get_two_real_buffers)
 {
     for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
