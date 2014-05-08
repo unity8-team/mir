@@ -24,6 +24,7 @@
 #include <condition_variable>
 #include <queue>
 #include <vector>
+#include <unordered_set>
 
 namespace mir
 {
@@ -61,7 +62,6 @@ public:
 private:
     void give_buffer_to_client(graphics::Buffer* buffer,
         std::unique_lock<std::mutex> lock);
-    bool should_reuse_current_buffer(void const* user_id);
     void release(graphics::Buffer* buffer,
         std::unique_lock<std::mutex> lock);
 
@@ -74,7 +74,7 @@ private:
     std::vector<graphics::Buffer*> buffers_sent_to_compositor;
     std::vector<graphics::Buffer*> pending_snapshots;
 
-    std::vector<void const*> current_buffer_users;
+    std::unordered_set<void const*> current_buffer_users;
     graphics::Buffer* current_compositor_buffer;
 
     std::deque<Callback> pending_client_notifications;
