@@ -188,7 +188,7 @@ extern "C" {
 #define IMPLEMENT_VOID_SF_FUNCTION4(symbol, arg1, arg2, arg3, arg4) \
     void symbol(arg1 _1, arg2 _2, arg3 _3, arg4 _4)              \
     {                                                            \
-        static void (*f)(arg1, arg2, arg3, arg4) __SF_FN_ATTR = NULL;         \
+        static void (*f)(arg1, arg2, arg3, arg4) = NULL;         \
         DLSYM(&f, #symbol);                                      \
         f(_1, _2, _3, _4); }
 
